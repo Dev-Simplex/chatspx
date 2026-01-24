@@ -11,6 +11,7 @@
 # It's strongly recommended that you check this file into your version control system.
 
 ActiveRecord::Schema[7.1].define(version: 2026_01_14_202508) do
+ActiveRecord::Schema[7.1].define(version: 2026_01_14_202508) do
   # These extensions should be enabled to support this database
   enable_extension "pg_stat_statements"
   enable_extension "pg_trgm"
@@ -473,8 +474,8 @@ ActiveRecord::Schema[7.1].define(version: 2026_01_14_202508) do
     t.string "line_channel_id", null: false
     t.string "line_channel_secret", null: false
     t.string "line_channel_token", null: false
-    t.datetime "created_at", precision: nil, null: false
-    t.datetime "updated_at", precision: nil, null: false
+    t.datetime "created_at", precision: nil, precision: nil, null: false
+    t.datetime "updated_at", precision: nil, precision: nil, null: false
     t.index ["line_channel_id"], name: "index_channel_line_on_line_channel_id", unique: true
   end
 
@@ -483,8 +484,8 @@ ActiveRecord::Schema[7.1].define(version: 2026_01_14_202508) do
     t.string "phone_number", null: false
     t.string "provider", default: "default"
     t.jsonb "provider_config", default: {}
-    t.datetime "created_at", precision: nil, null: false
-    t.datetime "updated_at", precision: nil, null: false
+    t.datetime "created_at", precision: nil, precision: nil, null: false
+    t.datetime "updated_at", precision: nil, precision: nil, null: false
     t.index ["phone_number"], name: "index_channel_sms_on_phone_number", unique: true
   end
 
@@ -504,8 +505,8 @@ ActiveRecord::Schema[7.1].define(version: 2026_01_14_202508) do
     t.datetime "expires_at", null: false
     t.string "refresh_token", null: false
     t.datetime "refresh_token_expires_at", null: false
-    t.datetime "created_at", null: false
-    t.datetime "updated_at", null: false
+    t.datetime "created_at", precision: nil, null: false
+    t.datetime "updated_at", precision: nil, null: false
     t.index ["business_id"], name: "index_channel_tiktok_on_business_id", unique: true
   end
 
@@ -514,8 +515,8 @@ ActiveRecord::Schema[7.1].define(version: 2026_01_14_202508) do
     t.string "auth_token", null: false
     t.string "account_sid", null: false
     t.integer "account_id", null: false
-    t.datetime "created_at", precision: nil, null: false
-    t.datetime "updated_at", precision: nil, null: false
+    t.datetime "created_at", precision: nil, precision: nil, null: false
+    t.datetime "updated_at", precision: nil, precision: nil, null: false
     t.integer "medium", default: 0
     t.string "messaging_service_sid"
     t.string "api_key_sid"
@@ -531,8 +532,8 @@ ActiveRecord::Schema[7.1].define(version: 2026_01_14_202508) do
     t.string "twitter_access_token", null: false
     t.string "twitter_access_token_secret", null: false
     t.integer "account_id", null: false
-    t.datetime "created_at", precision: nil, null: false
-    t.datetime "updated_at", precision: nil, null: false
+    t.datetime "created_at", precision: nil, precision: nil, null: false
+    t.datetime "updated_at", precision: nil, precision: nil, null: false
     t.boolean "tweets_enabled", default: true
     t.index ["account_id", "profile_id"], name: "index_channel_twitter_profiles_on_account_id_and_profile_id", unique: true
   end
@@ -575,8 +576,8 @@ ActiveRecord::Schema[7.1].define(version: 2026_01_14_202508) do
     t.string "phone_number", null: false
     t.string "provider", default: "default"
     t.jsonb "provider_config", default: {}
-    t.datetime "created_at", precision: nil, null: false
-    t.datetime "updated_at", precision: nil, null: false
+    t.datetime "created_at", precision: nil, precision: nil, null: false
+    t.datetime "updated_at", precision: nil, precision: nil, null: false
     t.jsonb "message_templates", default: {}
     t.datetime "message_templates_last_updated", precision: nil
     t.index ["phone_number"], name: "index_channel_whatsapp_on_phone_number", unique: true
@@ -599,8 +600,8 @@ ActiveRecord::Schema[7.1].define(version: 2026_01_14_202508) do
     t.bigint "contact_id"
     t.bigint "inbox_id"
     t.text "source_id", null: false
-    t.datetime "created_at", precision: nil, null: false
-    t.datetime "updated_at", precision: nil, null: false
+    t.datetime "created_at", precision: nil, precision: nil, null: false
+    t.datetime "updated_at", precision: nil, precision: nil, null: false
     t.boolean "hmac_verified", default: false
     t.string "pubsub_token"
     t.index ["contact_id"], name: "index_contact_inboxes_on_contact_id"
@@ -646,8 +647,8 @@ ActiveRecord::Schema[7.1].define(version: 2026_01_14_202508) do
     t.bigint "account_id", null: false
     t.bigint "user_id", null: false
     t.bigint "conversation_id", null: false
-    t.datetime "created_at", precision: nil, null: false
-    t.datetime "updated_at", precision: nil, null: false
+    t.datetime "created_at", precision: nil, precision: nil, null: false
+    t.datetime "updated_at", precision: nil, precision: nil, null: false
     t.index ["account_id"], name: "index_conversation_participants_on_account_id"
     t.index ["conversation_id"], name: "index_conversation_participants_on_conversation_id"
     t.index ["user_id", "conversation_id"], name: "index_conversation_participants_on_user_id_and_conversation_id", unique: true
@@ -731,8 +732,8 @@ ActiveRecord::Schema[7.1].define(version: 2026_01_14_202508) do
     t.text "feedback_message"
     t.bigint "contact_id", null: false
     t.bigint "assigned_agent_id"
-    t.datetime "created_at", precision: nil, null: false
-    t.datetime "updated_at", precision: nil, null: false
+    t.datetime "created_at", precision: nil, precision: nil, null: false
+    t.datetime "updated_at", precision: nil, precision: nil, null: false
     t.text "csat_review_notes"
     t.datetime "review_notes_updated_at"
     t.bigint "review_notes_updated_by_id"

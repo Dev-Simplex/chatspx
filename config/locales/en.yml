@@ -202,6 +202,20 @@ en:
         rating: Rating
         feedback: Feedback Comment
         recorded_at: Recorded date
+    nps:
+      headers:
+        contact_name: Contact Name
+        contact_email_address: Contact Email Address
+        contact_phone_number: Contact Phone Number
+        link_to_the_conversation: Link to the conversation
+        agent_name: Agent Name
+        score: Score
+        classification: Classification
+        comment: Comment
+        inbox_name: Inbox Name
+        sent_at: Sent At
+        answered_at: Answered At
+        status: Status
         review_notes: Review Notes
   notifications:
     notification_title:
@@ -267,6 +281,12 @@ en:
         issue_unlinked: 'Linear issue %{issue_id} was unlinked by %{user_name}'
       csat:
         not_sent_due_to_messaging_window: 'CSAT survey not sent due to outgoing message restrictions'
+      nps:
+        not_sent_due_to_messaging_window: 'NPS survey not sent due to outgoing message restrictions'
+        sent: 'NPS survey sent'
+        responded: 'NPS survey responded with score %{score}'
+        expired: 'NPS survey expired'
+        blocked: 'NPS survey blocked by label: %{label}'
       auto_resolve:
         not_sent_due_to_messaging_window: 'Auto-resolve message not sent due to outgoing message restrictions'
       muted: '%{user_name} has muted the conversation'
@@ -277,6 +297,8 @@ en:
       ways_to_reach_you_message_body: 'Give the team a way to reach you.'
       email_input_box_message_body: 'Get notified by email'
       csat_input_message_body: 'Please rate the conversation'
+      nps_input_message_body: 'On a scale of 0 to 10, how likely are you to recommend us to a friend or colleague?'
+      nps_thank_you: 'Thank you for your feedback!'
     reply:
       email:
         header:

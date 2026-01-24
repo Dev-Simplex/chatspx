@@ -1,0 +1,38 @@
+Adicione imagem de background na área de conversa que muda baseado no tema (dark/light), cobrindo toda a área scrollable com opacidade.
+
+IMAGENS NECESSÁRIAS (já devem estar em public/assets/images/):
+- chat-spx-background.png (para dark mode)
+- chat-spx-background-light.png (para light mode)
+
+ALTERAÇÕES:
+
+1. Em app/javascript/dashboard/components/widgets/conversation/MessagesView.vue:
+   - No <style scoped lang="scss">, adicionar estilos para .conversation-panel:
+     * Background direto no elemento com linear-gradient + url da imagem
+     * Dark mode: linear-gradient(rgba(0, 0, 0, 0.85), rgba(0, 0, 0, 0.85)) + url('/assets/images/chat-spx-background.png')
+     * Light mode (.conversation-panel-light): linear-gradient(rgba(255, 255, 255, 0.85), rgba(255, 255, 255, 0.85)) + url('/assets/images/chat-spx-background-light.png')
+     * background-size: auto, 400px
+     * background-position: 0 0, 0 0
+     * background-repeat: repeat, repeat
+     * position: relative no elemento principal
+     * > * com position: relative e z-index: 2
+   - Garantir que o MessageList no template tenha :class="{ 'conversation-panel-dark': isDarkMode, 'conversation-panel-light': !isDarkMode }"
+
+2. Em app/javascript/widget/components/ConversationWrap.vue:
+   - No <style scoped lang="scss">, adicionar estilos para .conversation--container:
+     * Background direto no elemento com linear-gradient + url da imagem
+     * Dark mode: linear-gradient(rgba(0, 0, 0, 0.85), rgba(0, 0, 0, 0.85)) + url('/assets/images/chat-spx-background.png')
+     * Light mode (.conversation-container-light): linear-gradient(rgba(255, 255, 255, 0.85), rgba(255, 255, 255, 0.85)) + url('/assets/images/chat-spx-background-light.png')
+     * background-size: auto, 400px
+     * background-position: 0 0, 0 0
+     * background-repeat: repeat, repeat
+     * position: relative no elemento principal
+     * > * com position: relative e z-index: 2
+   - Garantir que o elemento no template tenha :class="[colorSchemeClass, prefersDarkMode ? 'conversation-container-dark' : 'conversation-container-light']"
+
+IMPORTANTE:
+- Background deve ser aplicado DIRETO no elemento (não em ::before) para cobrir toda área scrollable
+- Usar a mesma técnica do dark mode no light mode
+- Não usar filter: invert() - usar imagens separadas
+- Opacidade vem do gradient (0.85)
+

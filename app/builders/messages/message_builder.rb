@@ -130,7 +130,7 @@ class Messages::MessageBuilder
   end
 
   def message_params
-    {
+    base_params = {
       account_id: @conversation.account_id,
       inbox_id: @conversation.inbox_id,
       message_type: message_type,
@@ -143,7 +143,25 @@ class Messages::MessageBuilder
       in_reply_to: @in_reply_to,
       echo_id: @params[:echo_id],
       source_id: @params[:source_id]
-    }.merge(external_created_at).merge(automation_rule_id).merge(campaign_id).merge(template_params)
+    }
+    
+    # Mesclar outros parâmetros primeiro (eles podem ter content_attributes ou additional_attributes)
+    merged_params = base_params.merge(external_created_at).merge(automation_rule_id).merge(campaign_id).merge(template_params)
+    
+    # Agora mesclar os content_attributes corretamente
+    # O método content_attributes já extrai os content_attributes dos parâmetros
+    extracted_attrs = content_attributes || {}
+    
+    # Mesclar com os content_attributes dos outros métodos (não sobrescrever, mesclar dentro do hash)
+    # Os content_attributes dos outros métodos (automation_rule_id, etc.) são mesclados primeiro,
+    # depois os extraídos dos parâmetros (que têm prioridade se houver conflito)
+    if extracted_attrs.present? || merged_params[:content_attributes].present?
+      merged_params[:content_attributes] ||= {}
+      # Mesclar: os extraídos dos parâmetros têm prioridade sobre os dos outros métodos
+      merged_params[:content_attributes] = merged_params[:content_attributes].merge(extracted_attrs)
+    end
+    
+    merged_params
   end
 
   def email_inbox?

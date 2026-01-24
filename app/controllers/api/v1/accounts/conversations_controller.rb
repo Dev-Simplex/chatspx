@@ -5,6 +5,7 @@ class Api::V1::Accounts::ConversationsController < Api::V1::Accounts::BaseContro
 
   before_action :conversation, except: [:index, :meta, :search, :create, :filter]
   before_action :inbox, :contact, :contact_inbox, only: [:create]
+  before_action :authorize_team_access, only: [:show, :update, :destroy, :attachments, :mute, :unmute, :transcript, :toggle_status, :toggle_priority, :toggle_typing_status, :update_last_seen, :unread, :custom_attributes]
 
   ATTACHMENT_RESULTS_PER_PAGE = 100
 
@@ -206,6 +207,30 @@ class Api::V1::Accounts::ConversationsController < Api::V1::Accounts::BaseContro
   def assignee?
     @conversation.assignee_id? && Current.user == @conversation.assignee
   end
+
+  def authorize_team_access
+    return if Current.user.administrator?
+    return if @conversation.team_id.nil?
+
+    # Se a URL tem team_id, só permite se o usuário faz parte desse time
+    if params[:team_id].present?
+      unless Current.user.teams.exists?(id: params[:team_id].to_i)
+        render json: { error: 'Você não tem permissão para acessar este time.' }, status: :forbidden
+        return
+      end
+      # E só permite se a conversa realmente pertence a esse time
+      unless @conversation.team_id == params[:team_id].to_i
+        render json: { error: 'Conversa não pertence a este time.' }, status: :forbidden
+        return
+      end
+    end
+
+    # Se não faz parte do time da conversa, bloqueia
+    unless Current.user.teams.exists?(id: @conversation.team_id)
+      render json: { error: 'Você não tem permissão para acessar esta conversa.' }, status: :forbidden
+    end
+  end
+
 end
 
 Api::V1::Accounts::ConversationsController.prepend_mod_with('Api::V1::Accounts::ConversationsController')

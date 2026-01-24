@@ -108,15 +108,15 @@ const isNextDayInRange = day => {
 
 const dayClasses = day => ({
   'text-n-slate-10 pointer-events-none': !isInCurrentMonth(day),
-  'text-n-slate-12 hover:text-n-slate-12 hover:bg-n-blue-6 dark:hover:bg-n-blue-7':
+  'text-n-slate-12 hover:text-n-slate-12 hover:bg-n-teal-6 dark:hover:bg-n-teal-7':
     isInCurrentMonth(day),
   'bg-n-brand text-white':
     isSelectedStartOrEndDate(day) && isInCurrentMonth(day),
-  'bg-n-blue-4 dark:bg-n-blue-5':
+  'bg-n-teal-4 dark:bg-n-teal-5':
     (isInRange(day) || isHoveringInRange(day)) &&
     !isSelectedStartOrEndDate(day) &&
     isInCurrentMonth(day),
-  'outline outline-1 outline-n-blue-8 -outline-offset-1 !text-n-blue-text':
+  'outline outline-1 outline-n-teal-8 -outline-offset-1 !text-n-teal-text':
     isToday(props.currentDate, day) && !isSelectedStartOrEndDate(day),
 });
 </script>
@@ -163,7 +163,7 @@ const dayClasses = day => ({
             !isLastDayOfMonth(day) &&
             isInCurrentMonth(day)
           "
-          class="absolute bottom-0 w-6 h-8 ltr:-right-4 rtl:-left-4 bg-n-blue-4 dark:bg-n-blue-5 -z-10"
+          class="absolute bottom-0 w-6 h-8 ltr:-right-4 rtl:-left-4 bg-n-teal-4 dark:bg-n-teal-5 -z-10"
         />
       </div>
     </div>

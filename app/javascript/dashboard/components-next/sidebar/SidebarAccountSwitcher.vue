@@ -66,11 +66,12 @@ const emitNewAccount = () => {
           {{ currentAccount.name }}
         </span>
 
-        <span
-          v-if="showAccountSwitcher"
-          aria-hidden="true"
-          class="i-lucide-chevron-down size-4 text-n-slate-10 flex-shrink-0"
+        <div v-if="showAccountSwitcher" class="flex items-center flex-shrink-0">
+          <Icon
+            icon="i-lucide-chevron-down"
+            class="size-4 text-n-slate-10"
         />
+        </div>
       </button>
     </template>
     <DropdownBody v-if="showAccountSwitcher" class="min-w-80 z-50">

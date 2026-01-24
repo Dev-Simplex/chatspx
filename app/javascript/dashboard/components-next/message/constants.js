@@ -65,6 +65,7 @@ export const CONTENT_TYPES = {
   ARTICLE: 'article',
   INCOMING_EMAIL: 'incoming_email',
   INPUT_CSAT: 'input_csat',
+  INPUT_NPS: 'input_nps',
   INTEGRATIONS: 'integrations',
   STICKER: 'sticker',
   VOICE_CALL: 'voice_call',

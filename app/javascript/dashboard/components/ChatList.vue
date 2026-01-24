@@ -32,6 +32,7 @@ import ConversationBulkActions from './widgets/conversation/conversationBulkActi
 import IntersectionObserver from './IntersectionObserver.vue';
 import TeleportWithDirection from 'dashboard/components-next/TeleportWithDirection.vue';
 import Spinner from 'dashboard/components-next/spinner/Spinner.vue';
+import ConversationSearchModal from './widgets/conversation/ConversationSearchModal.vue';
 
 import { useUISettings } from 'dashboard/composables/useUISettings';
 import { useAlert } from 'dashboard/composables';
@@ -45,7 +46,7 @@ import {
   useSnakeCase,
 } from 'dashboard/composables/useTransformKeys';
 import { useEmitter } from 'dashboard/composables/emitter';
-import { useEventListener } from '@vueuse/core';
+import { useEventListener, useThrottleFn, useDebounceFn } from '@vueuse/core';
 
 import { emitter } from 'shared/helpers/mitt';
 
@@ -55,7 +56,7 @@ import filterQueryGenerator from '../helper/filterQueryGenerator.js';
 import languages from 'dashboard/components/widgets/conversation/advancedFilterItems/languages';
 import countries from 'shared/constants/countries';
 import { generateValuesForEditCustomViews } from 'dashboard/helper/customViewsHelper';
-import { conversationListPageURL } from '../helper/URLHelper';
+import { conversationListPageURL, conversationUrl, frontendURL } from '../helper/URLHelper';
 import {
   isOnMentionsView,
   isOnUnattendedView,
@@ -103,6 +104,7 @@ const foldersQuery = ref({});
 const showAddFoldersModal = ref(false);
 const showDeleteFoldersModal = ref(false);
 const isContextMenuOpen = ref(false);
+const showSearchModal = ref(false);
 const appliedFilter = ref([]);
 const advancedFilterTypes = ref(
   advancedFilterOptions.map(filter => ({
@@ -288,6 +290,16 @@ const activeTeam = computed(() => {
   return {};
 });
 
+const searchContext = computed(() => {
+  return {
+    teamId: props.teamId || undefined,
+    inboxId: props.conversationInbox || undefined,
+    label: props.label || undefined,
+    conversationType: props.conversationType || undefined,
+    foldersId: props.foldersId || undefined,
+  };
+});
+
 const pageTitle = computed(() => {
   if (hasAppliedFilters.value) {
     return t('CHAT_LIST.TAB_HEADING');
@@ -316,7 +328,128 @@ const pageTitle = computed(() => {
   return t('CHAT_LIST.TAB_HEADING');
 });
 
+const searchResults = computed(() => 
+  store.getters['conversationSearch/getConversationRecords'] || []
+);
+
+const isSearchActive = computed(() => {
+  const uiFlags = store.getters['conversationSearch/getUIFlags'];
+  const hasResults = searchResults.value.length > 0;
+  const isFetching = uiFlags?.conversation?.isFetching || false;
+  // Busca está ativa se há resultados ou se está buscando
+  return hasResults || isFetching;
+});
+
 const conversationList = computed(() => {
+  // Se busca estiver ativa e houver resultados, usar resultados da busca e filtrar por contexto
+  const uiFlags = store.getters['conversationSearch/getUIFlags'];
+  const isFetching = uiFlags?.conversation?.isFetching || false;
+  const hasSearchResults = searchResults.value.length > 0;
+  
+  if ((isFetching || hasSearchResults) && hasSearchResults) {
+    let filteredResults = [...searchResults.value];
+    
+    // Se há teamId na URL, filtrar APENAS conversas desse team
+    if (searchContext.value.teamId) {
+      filteredResults = filteredResults.filter(conv => {
+        const teamId = conv.meta?.team?.id;
+        const assigneeTeamIds = conv.meta?.assignee?.team_ids || [];
+        return teamId === Number(searchContext.value.teamId) || 
+               assigneeTeamIds.includes(Number(searchContext.value.teamId));
+      });
+    }
+    // Se não há teamId (dashboard), mostrar todas as conversas (sem filtrar por team)
+    // Mas ainda aplicar outros filtros se necessário
+    
+    if (searchContext.value.inboxId) {
+      filteredResults = filteredResults.filter(conv => 
+        conv.inbox_id === Number(searchContext.value.inboxId)
+      );
+    }
+    
+    if (searchContext.value.label) {
+      filteredResults = filteredResults.filter(conv => {
+        const labels = conv.labels || [];
+        return labels.some(l => l.title === searchContext.value.label);
+      });
+    }
+    
+    // Função auxiliar para obter identificador único do contato
+    const getContactIdentifier = (conv) => {
+      // Prioridade: contact.id > sender.id > source_id > email > phone > conversation.id
+      if (conv.contact && conv.contact.id) {
+        return `contact_id_${conv.contact.id}`;
+      }
+      
+      const sender = conv.meta?.sender || conv.sender;
+      if (sender && sender.id) {
+        return `sender_id_${sender.id}`;
+      }
+      
+      // Usar source_id como identificador único (mais confiável que email/phone)
+      const sourceId = conv.contact?.source_id || sender?.source_id;
+      if (sourceId) {
+        return `source_${sourceId}`;
+      }
+      
+      // Como último recurso antes do fallback, usar email ou phone
+      const email = conv.contact?.email || sender?.email;
+      if (email) {
+        return `email_${String(email).toLowerCase().trim()}`;
+      }
+      
+      const phone = conv.contact?.phone_number || sender?.phone_number;
+      if (phone) {
+        return `phone_${String(phone).trim()}`;
+      }
+      
+      // Último recurso: usar conversation_id (não ideal, mas evita perda de dados)
+      return `conv_${conv.id}`;
+    };
+    
+    // Agrupar por contato e manter apenas a conversa mais recente
+    const conversationsByContact = new Map();
+    
+    filteredResults.forEach(conv => {
+      const contactKey = getContactIdentifier(conv);
+      if (!contactKey) return;
+      
+      const existing = conversationsByContact.get(contactKey);
+      if (!existing) {
+        conversationsByContact.set(contactKey, conv);
+      } else {
+        // Comparar timestamps para manter a mais recente
+        // Usar last_activity_at como prioridade, depois updated_at, depois timestamp
+        const existingTime = new Date(
+          existing.last_activity_at || 
+          existing.updated_at || 
+          existing.timestamp || 
+          existing.created_at || 
+          0
+        );
+        const currentTime = new Date(
+          conv.last_activity_at || 
+          conv.updated_at || 
+          conv.timestamp || 
+          conv.created_at || 
+          0
+        );
+        
+        if (currentTime > existingTime) {
+          conversationsByContact.set(contactKey, conv);
+        }
+      }
+    });
+    
+    return Array.from(conversationsByContact.values());
+  }
+  
+  // Se está buscando mas ainda não há resultados, retornar lista vazia
+  if (isFetching && !hasSearchResults) {
+    return [];
+  }
+
+  // Lógica original quando busca não está ativa
   let localConversationList = [];
 
   if (!hasAppliedFiltersOrActiveFolders.value) {
@@ -724,6 +857,7 @@ async function onAssignTeam(team, conversationId = null) {
         conversationId,
       })
     );
+    router.push(`/app/accounts/${currentAccountId.value}/dashboard`);
   } catch (error) {
     useAlert(t('CONVERSATION.CARD_CONTEXT_MENU.API.TEAM_ASSIGNMENT.FAILED'));
   }
@@ -754,6 +888,44 @@ function onContextMenuToggle(state) {
 
 function toggleSelectAll(check) {
   selectAllConversations(check, conversationList);
+}
+
+function onOpenSearch() {
+  showSearchModal.value = true;
+}
+
+function onCloseSearch() {
+  showSearchModal.value = false;
+  // Limpar resultados da pesquisa ao fechar
+  store.dispatch('conversationSearch/clearSearchResults');
+}
+
+function onSearch(query) {
+  // Busca já é feita pelo ConversationSearchBar através da store
+  // Este método pode ser usado para ações adicionais se necessário
+}
+
+function onClearSearch() {
+  store.dispatch('conversationSearch/clearSearchResults');
+}
+
+function onSelectSearchConversation(conversation) {
+  const { accountId } = route.params;
+  const { id } = conversation;
+
+  // Usar searchContext para manter o contexto atual
+  const url = conversationUrl({
+    accountId,
+    id,
+    activeInbox: searchContext.value.inboxId,
+    label: searchContext.value.label,
+    teamId: searchContext.value.teamId,
+    conversationType: searchContext.value.conversationType,
+    foldersId: searchContext.value.foldersId,
+  });
+
+  router.push(frontendURL(url));
+  onCloseSearch();
 }
 
 useEmitter('fetch_conversation_stats', () => {
@@ -857,11 +1029,15 @@ watch(conversationFilters, (newVal, oldVal) => {
       :is-on-expanded-layout="isOnExpandedLayout"
       :conversation-stats="conversationStats"
       :is-list-loading="chatListLoading && !conversationList.length"
+      :search-context="searchContext"
       @add-folders="onClickOpenAddFoldersModal"
       @delete-folders="onClickOpenDeleteFoldersModal"
       @filters-modal="onToggleAdvanceFiltersModal"
       @reset-filters="resetAndFetchData"
       @basic-filter-change="onBasicFilterChange"
+      @open-search="onOpenSearch"
+      @search="onSearch"
+      @clear-search="onClearSearch"
     />
 
     <TeleportWithDirection
@@ -886,7 +1062,7 @@ watch(conversationFilters, (newVal, oldVal) => {
     />
 
     <ChatTypeTabs
-      v-if="!hasAppliedFiltersOrActiveFolders"
+      v-if="!hasAppliedFiltersOrActiveFolders && !isSearchActive"
       :items="assigneeTabItems"
       :active-tab="activeAssigneeTab"
       is-compact
@@ -894,10 +1070,16 @@ watch(conversationFilters, (newVal, oldVal) => {
     />
 
     <p
-      v-if="!chatListLoading && !conversationList.length"
+      v-if="!chatListLoading && !conversationList.length && !isSearchActive"
       class="flex items-center justify-center p-4 overflow-auto"
     >
       {{ $t('CHAT_LIST.LIST.404') }}
+    </p>
+    <p
+      v-else-if="isSearchActive && !chatListLoading && !conversationList.length"
+      class="flex items-center justify-center p-4 overflow-auto text-n-slate-11"
+    >
+      {{ $t('CONVERSATION.SEARCH.NO_RESULTS') || 'Nenhuma conversa encontrada' }}
     </p>
     <ConversationBulkActions
       v-if="selectedConversations.length"
@@ -942,6 +1124,7 @@ watch(conversationFilters, (newVal, oldVal) => {
             ]"
           >
             <ConversationItem
+              :key="`conversation-${item.id}`"
               :source="item"
               :label="label"
               :team-id="teamId"
@@ -954,11 +1137,11 @@ watch(conversationFilters, (newVal, oldVal) => {
           </DynamicScrollerItem>
         </template>
         <template #after>
-          <div v-if="chatListLoading" class="flex justify-center my-4">
+          <div v-if="chatListLoading || (isSearchActive && store.getters['conversationSearch/getUIFlags']?.conversation?.isFetching)" class="flex justify-center my-4">
             <Spinner class="text-n-brand" />
           </div>
           <p
-            v-else-if="showEndOfListMessage"
+            v-else-if="showEndOfListMessage && !isSearchActive"
             class="p-4 text-center text-n-slate-11"
           >
             {{ $t('CHAT_LIST.EOF') }}
@@ -966,7 +1149,7 @@ watch(conversationFilters, (newVal, oldVal) => {
           <IntersectionObserver
             v-else
             :options="intersectionObserverOptions"
-            @observed="loadMoreConversations"
+            @observed="throttledLoadMore"
           />
         </template>
       </DynamicScroller>
@@ -997,5 +1180,11 @@ watch(conversationFilters, (newVal, oldVal) => {
         @close="closeAdvanceFiltersModal"
       />
     </TeleportWithDirection>
+    <ConversationSearchModal
+      :is-open="showSearchModal"
+      :context="searchContext"
+      @close="onCloseSearch"
+      @select-conversation="onSelectSearchConversation"
+    />
   </div>
 </template>

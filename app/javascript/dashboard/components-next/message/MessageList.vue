@@ -1,7 +1,9 @@
 <script setup>
 import { defineProps, computed, reactive } from 'vue';
+import { isSameDay } from 'date-fns';
 import Message from './Message.vue';
-import { MESSAGE_TYPES } from './constants.js';
+import DateSeparator from './DateSeparator.vue';
+import { MESSAGE_TYPES, ATTACHMENT_TYPES } from './constants.js';
 import { useCamelCase } from 'dashboard/composables/useTransformKeys';
 import { useMapGetter } from 'dashboard/composables/store.js';
 import MessageApi from 'dashboard/api/inbox/message.js';
@@ -37,7 +39,17 @@ const props = defineProps({
     type: Array,
     default: () => [],
   },
+  isForwardMode: {
+    type: Boolean,
+    default: false,
+  },
+  selectedMessageIds: {
+    type: Array,
+    default: () => [],
+  },
 });
+
+const emit = defineEmits(['forward', 'toggle-forward-selection']);
 
 const emit = defineEmits(['retry']);
 
@@ -47,6 +59,122 @@ const allMessages = computed(() => {
     stopPaths: ['content_attributes.translations'],
   });
 });
+
+const isForwardSelected = messageId =>
+  props.selectedMessageIds.includes(messageId);
+
+const getSenderId = message => message.senderId ?? message.sender?.id;
+
+const isMediaOnlyMessage = message => {
+  if (!message || message.content) return false;
+
+  const attachments = Array.isArray(message.attachments)
+    ? message.attachments
+    : [];
+
+  if (attachments.length !== 1) return false;
+  if (message.status === 'failed') return false;
+  if (message.contentAttributes?.deleted) return false;
+  if (message.contentAttributes?.isUnsupported) return false;
+
+  return attachments.every(attachment =>
+    [
+      ATTACHMENT_TYPES.IMAGE,
+      ATTACHMENT_TYPES.VIDEO,
+      ATTACHMENT_TYPES.IG_REEL,
+    ].includes(attachment.fileType)
+  );
+};
+
+const canGroupMedia = (current, next) => {
+  if (!isMediaOnlyMessage(current) || !isMediaOnlyMessage(next)) return false;
+  if ((current.private ?? false) !== (next.private ?? false)) return false;
+  if (current.messageType !== next.messageType) return false;
+  if (getSenderId(current) !== getSenderId(next)) return false;
+
+  const currentDate = new Date(current.createdAt * 1000);
+  const nextDate = new Date(next.createdAt * 1000);
+  if (!isSameDay(currentDate, nextDate)) return false;
+
+  return Math.floor(next.createdAt / 60) === Math.floor(current.createdAt / 60);
+};
+
+const buildMessageItem = message => ({
+  type: 'message',
+  key: `message-${message.id}`,
+  message,
+  sourceMessages: [message],
+});
+
+const buildMediaGroupItem = groupMessages => {
+  const lastMessage = groupMessages[groupMessages.length - 1];
+  const attachments = groupMessages.flatMap(message => message.attachments || []);
+
+  return {
+    type: 'media-group',
+    key: `media-group-${groupMessages[0].id}-${lastMessage.id}`,
+    message: {
+      ...lastMessage,
+      attachments,
+      content: null,
+    },
+    sourceMessages: groupMessages,
+  };
+};
+
+const collectMediaGroup = (startIndex, messageList) => {
+  const groupMessages = [messageList[startIndex]];
+  let cursor = startIndex;
+
+  while (cursor < messageList.length - 1) {
+    const current = messageList[cursor];
+    const next = messageList[cursor + 1];
+    if (!canGroupMedia(current, next)) break;
+    groupMessages.push(next);
+    cursor += 1;
+  }
+
+  return { groupMessages, lastIndex: cursor };
+};
+
+const renderItems = computed(() => {
+  if (props.isForwardMode) {
+    return allMessages.value.map(buildMessageItem);
+  }
+
+  const items = [];
+  const messageList = allMessages.value;
+
+  let index = 0;
+  while (index < messageList.length) {
+    const message = messageList[index];
+    if (isMediaOnlyMessage(message)) {
+      const { groupMessages, lastIndex } = collectMediaGroup(
+        index,
+        messageList
+      );
+      if (groupMessages.length > 1) {
+        items.push(buildMediaGroupItem(groupMessages));
+        index = lastIndex + 1;
+        continue;
+      }
+    }
+
+    items.push(buildMessageItem(message));
+    index += 1;
+  }
+
+  return items;
+});
+
+const getItemMessage = item => item.message;
+const getItemDate = item =>
+  item.sourceMessages?.[0]?.createdAt ?? item.message.createdAt;
+
+const shouldShowUnreadBadge = item => {
+  if (!props.firstUnreadId) return false;
+  return item.sourceMessages.some(message => message.id === props.firstUnreadId);
+};
 
 const currentChat = useMapGetter('getSelectedChat');
 
@@ -99,8 +227,8 @@ const fetchReplyMessage = async (messageId, conversationId) => {
 const shouldGroupWithNext = (index, searchList) => {
   if (index === searchList.length - 1) return false;
 
-  const current = searchList[index];
-  const next = searchList[index + 1];
+  const current = getItemMessage(searchList[index]);
+  const next = getItemMessage(searchList[index + 1]);
 
   if (next.status === 'failed') return false;
 
@@ -160,24 +288,50 @@ const getInReplyToMessage = parentMessage => {
 
   return replyMessage ? useCamelCase(replyMessage) : null;
 };
+
+/**
+ * Check if we should show date separator before this message
+ * @param {Number} index - Index of the current message
+ * @param {Array} messageList - Array of messages
+ * @returns {Boolean} - Whether to show date separator
+ */
+const shouldShowDateSeparator = (index, messageList) => {
+  if (index === 0) return true;
+
+  const current = messageList[index];
+  const previous = messageList[index - 1];
+
+  const currentDate = new Date(getItemDate(current) * 1000);
+  const previousDate = new Date(getItemDate(previous) * 1000);
+
+  return !isSameDay(currentDate, previousDate);
+};
 </script>
 
 <template>
   <ul class="px-4 bg-n-background">
     <slot name="beforeAll" />
-    <template v-for="(message, index) in allMessages" :key="message.id">
+    <template v-for="(item, index) in renderItems" :key="item.key">
+      <DateSeparator
+        v-if="shouldShowDateSeparator(index, renderItems)"
+        :date="getItemDate(item) * 1000"
+      />
       <slot
-        v-if="firstUnreadId && message.id === firstUnreadId"
+        v-if="shouldShowUnreadBadge(item)"
         name="unreadBadge"
       />
       <Message
-        v-bind="message"
+        v-bind="item.message"
         :is-email-inbox="isAnEmailChannel"
-        :in-reply-to="getInReplyToMessage(message)"
-        :group-with-next="shouldGroupWithNext(index, allMessages)"
+        :in-reply-to="getInReplyToMessage(item.message)"
+        :group-with-next="shouldGroupWithNext(index, renderItems)"
         :inbox-supports-reply-to="inboxSupportsReplyTo"
         :current-user-id="currentUserId"
+        :is-forward-mode="isForwardMode"
+        :is-forward-selected="isForwardSelected(item.message.id)"
         data-clarity-mask="True"
+        @forward="emit('forward', $event)"
+        @toggle-forward-selection="emit('toggle-forward-selection', $event)"
         @retry="emit('retry', message)"
       />
     </template>

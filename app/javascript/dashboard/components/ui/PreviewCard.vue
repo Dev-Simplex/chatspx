@@ -25,14 +25,14 @@ export default {
   <div
     class="flex flex-col min-w-[15rem] max-h-[21.25rem] max-w-[23.75rem] rounded-md border border-solid"
     :class="{
-      'bg-n-blue-1 dark:bg-n-solid-2 border-n-blue-4': active,
+      'bg-n-teal-1 dark:bg-n-solid-2 border-n-teal-4': active,
       'border-n-weak': !active,
     }"
   >
     <div
       class="flex justify-between items-center rounded-t-md px-2 w-full h-10 border-b border-solid"
       :class="{
-        'bg-n-blue-2 border-n-blue-4': active,
+        'bg-n-teal-2 border-n-teal-4': active,
         'bg-n-slate-2 border-n-weak': !active,
       }"
     >
@@ -54,7 +54,7 @@ export default {
       <img
         :src="src"
         class="border rounded-md"
-        :class="active ? 'border-n-blue-border' : 'border-n-weak'"
+        :class="active ? 'border-n-teal-border' : 'border-n-weak'"
       />
     </div>
     <slot v-else />

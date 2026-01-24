@@ -35,6 +35,8 @@ module Events::Types
   FIRST_REPLY_CREATED = 'first.reply.created'
   REPLY_CREATED = 'reply.created'
   MESSAGE_UPDATED = 'message.updated'
+  REACTION_CREATED = 'message.reaction.created'
+  REACTION_DELETED = 'message.reaction.deleted'
 
   # contact events
   CONTACT_CREATED = 'contact.created'

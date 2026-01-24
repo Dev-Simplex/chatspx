@@ -31,7 +31,7 @@
 
   .multiselect--active {
     > .multiselect__tags {
-      @apply outline-n-blue-border;
+      @apply outline-n-teal-border;
     }
   }
 
@@ -154,7 +154,7 @@
     }
 
     &.multiselect--active > .multiselect__tags {
-      @apply outline-n-blue-border;
+      @apply outline-n-teal-border;
     }
   }
 }

@@ -433,6 +433,66 @@
       }
     }
   },
+  "NPS_REPORTS": {
+    "HEADER": "Relatórios NPS",
+    "NO_RECORDS": "Não há respostas de pesquisa NPS disponíveis.",
+    "DOWNLOAD": "Baixar relatórios NPS",
+    "DOWNLOAD_FAILED": "Falha ao baixar Relatórios NPS",
+    "CLASSIFICATION": {
+      "PROMOTER": "Promotor",
+      "PASSIVE": "Passivo",
+      "DETRACTOR": "Detrator"
+    },
+    "FILTERS": {
+      "AGENTS": {
+        "PLACEHOLDER": "Escolher agentes"
+      }
+    },
+    "TABLE": {
+      "HEADER": {
+        "CONTACT_NAME": "Contato",
+        "AGENT_NAME": "Agente atribuído",
+        "SCORE": "Score",
+        "CLASSIFICATION": "Classificação",
+        "RESPONSE_DELAY": "Demora para responder"
+      }
+    },
+    "METRIC": {
+      "TOTAL_RESPONSES": {
+        "LABEL": "Total de respostas",
+        "TOOLTIP": "Número total de respostas NPS coletadas"
+      },
+      "NPS_SCORE": {
+        "LABEL": "NPS Score",
+        "TOOLTIP": "Net Promoter Score: % Promotores - % Detratores"
+      },
+      "RESPONSE_RATE": {
+        "LABEL": "Taxa de resposta",
+        "TOOLTIP": "Número total de respostas / Número total de mensagens NPS enviadas * 100"
+      },
+      "BLOCKED": {
+        "LABEL": "Bloqueados",
+        "TOOLTIP": "Total de pesquisas NPS bloqueadas por etiquetas"
+      },
+      "SCORE_DISTRIBUTION": {
+        "LABEL": "Distribuição de Scores",
+        "X_AXIS": "Score (0-10)",
+        "Y_AXIS": "Quantidade"
+      },
+      "AVERAGE_RESPONSE_DELAY": {
+        "LABEL": "Tempo médio de resposta",
+        "TOOLTIP": "Tempo médio entre o envio da pesquisa e a resposta"
+      },
+      "FASTEST_RESPONSE_DELAY": {
+        "LABEL": "Resposta mais rápida",
+        "TOOLTIP": "Menor tempo registrado para responder o NPS"
+      },
+      "SLOWEST_RESPONSE_DELAY": {
+        "LABEL": "Resposta mais lenta",
+        "TOOLTIP": "Maior tempo registrado para responder o NPS"
+      }
+    }
+  },
   "BOT_REPORTS": {
     "HEADER": "Relatórios do Bot",
     "METRIC": {
@@ -578,5 +638,88 @@
     "AVG_REPLY_TIME": "Tempo Médio de Espera do Cliente",
     "RESOLUTION_COUNT": "Contagem de Resolução",
     "CONVERSATIONS": "Nº de Conversas"
+  },
+  "LIVE_REPORTS": {
+    "IN_SERVICE": {
+      "HEADER": "Ao vivo: Em Atendimento",
+      "DESCRIPTION": "Visualize em tempo real as conversas ativas de cada atendente.",
+      "FILTERS": {
+        "USER_NAME": "Nome do usuário",
+        "USER_NAME_PLACEHOLDER": "Selecione",
+        "DEPARTMENT": "Departamento",
+        "DEPARTMENT_PLACEHOLDER": "Selecione",
+        "ALL_AGENTS": "Em geral (Todos)",
+        "ALL_DEPARTMENTS": "Todos os departamentos"
+      },
+      "AGENT_CARD": {
+        "TOTAL_OPEN_CALLS": "Total de chamados abertos"
+      },
+      "CONVERSATION": {
+        "UNREAD_BADGE": "{count} não lida",
+        "UNREAD_BADGES": "{count} não lidas"
+      },
+      "NO_AGENTS": "Nenhum atendente encontrado",
+      "NO_CONVERSATIONS": "Nenhuma conversa ativa",
+      "LOADING": "Carregando atendentes...",
+      "LAST_UPDATE": "Última atualização",
+      "HIDE_FILTERS": "Esconder Filtros",
+      "SHOW_FILTERS": "Mostrar Filtros",
+      "ENABLE_REALTIME": "Ativar tempo real",
+      "DISABLE_REALTIME": "Desativar tempo real",
+      "UPDATES_EVERY": "Atualiza a cada",
+      "REFRESH": "Atualizar"
+    },
+    "SUMMARY": {
+      "HEADER": "Ao vivo: Resumo",
+      "DESCRIPTION": "Painel gerencial com estatísticas em tempo real de usuários, chamados e atendimentos.",
+      "FILTERS": {
+        "DEPARTMENT": "Departamento",
+        "DEPARTMENT_PLACEHOLDER": "Selecione",
+        "AGENT": "Atendente",
+        "AGENT_PLACEHOLDER": "Selecione"
+      },
+      "METRICS": {
+        "ONLINE_USERS": "Usuários Online",
+        "OFFLINE_USERS": "Usuários Offline",
+        "ABSENT_USERS": "Usuários Ausente",
+        "USERS_WITH_SERVICE": "Usuários com atendimento",
+        "USERS_WITHOUT_SERVICE": "Usuários sem atendimento",
+        "CALLS_IN_QUEUE": "Chamados em fila",
+        "OPEN_CALLS": "Chamados em aberto",
+        "AVG_OPEN_CALLS_TIME": "Média dos chamados aberto",
+        "TME_FIRST_SERVICE": "TME - Primeiro atendimento"
+      },
+      "DEPARTMENT_TABLE": {
+        "HEADER": "Departamento",
+        "COLUMNS": {
+          "DEPARTMENT": "Departamento",
+          "ONLINE": "Online",
+          "OFFLINE": "Offline",
+          "ABSENT": "Ausente",
+          "IN_QUEUE": "Em fila",
+          "OPEN": "Em aberto"
+        },
+        "NO_DEPARTMENTS": "Nenhum departamento encontrado"
+      },
+      "AGENT_TABLE": {
+        "HEADER": "Atendente",
+        "COLUMNS": {
+          "AGENT": "Atendente",
+          "DEPARTMENT": "Departamento",
+          "STATUS": "Status",
+          "OPEN": "Em aberto"
+        },
+        "NO_AGENTS": "Nenhum atendente encontrado"
+      },
+      "LOADING": "Carregando dados...",
+      "LAST_UPDATE": "Última atualização"
+    },
+    "CHART": {
+      "CLASSIFICATION": {
+        "PIE": "Mix de classificações geral"
+      },
+      "TOTAL_TITLE": "Total: {{count}}",
+      "NO_DATA": "Sem dados para o gráfico de pizza"
+    }
   }
 }

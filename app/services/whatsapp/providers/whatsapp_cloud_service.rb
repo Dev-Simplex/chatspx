@@ -1,12 +1,21 @@
 class Whatsapp::Providers::WhatsappCloudService < Whatsapp::Providers::BaseService
   def send_message(phone_number, message)
     @message = message
+    Rails.logger.info "WhatsappCloudService: send_message called for message #{message.id}, phone_number: #{phone_number}, content_type: #{message.content_type}, input_nps?: #{message.input_nps?}, input_csat?: #{message.input_csat?}"
 
     if message.attachments.present?
+      Rails.logger.info "WhatsappCloudService: Sending attachment message"
       send_attachment_message(phone_number, message)
     elsif message.content_type == 'input_select'
+      Rails.logger.info "WhatsappCloudService: Sending interactive text message"
       send_interactive_text_message(phone_number, message)
+    elsif message.input_nps? || message.input_csat?
+      # NPS and CSAT are interactive surveys that should be sent as simple text messages
+      # The user will respond with a number (0-10 for NPS, 1-5 for CSAT)
+      Rails.logger.info "WhatsappCloudService: Sending NPS/CSAT as text message"
+      send_text_message(phone_number, message)
     else
+      Rails.logger.info "WhatsappCloudService: Sending regular text message"
       send_text_message(phone_number, message)
     end
   end
@@ -99,6 +108,9 @@ class Whatsapp::Providers::WhatsappCloudService < Whatsapp::Providers::BaseServi
   end
 
   def send_text_message(phone_number, message)
+    outgoing_content = message.outgoing_content
+    Rails.logger.info "WhatsappCloudService: Sending text message to #{phone_number}, content: #{outgoing_content.inspect}, content_type: #{message.content_type}"
+    
     response = HTTParty.post(
       "#{phone_id_path}/messages",
       headers: api_headers,
@@ -106,12 +118,14 @@ class Whatsapp::Providers::WhatsappCloudService < Whatsapp::Providers::BaseServi
         messaging_product: 'whatsapp',
         context: whatsapp_reply_context(message),
         to: phone_number,
-        text: { body: message.outgoing_content },
+        text: { body: outgoing_content },
         type: 'text'
       }.to_json
     )
 
-    process_response(response, message)
+    result = process_response(response, message)
+    Rails.logger.info "WhatsappCloudService: Message sent result: #{result.inspect}, response success: #{response.success?}"
+    result
   end
 
   def send_attachment_message(phone_number, message)

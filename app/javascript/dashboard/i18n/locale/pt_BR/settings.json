@@ -290,6 +290,76 @@
   "SETTINGS": {
     "INBOXES": {
       "NEW_INBOX": "Adicionar Caixa de Entrada"
+    },
+    "WAHA_CONNECTIONS": {
+      "TITLE": "Conexões WhatsApp",
+      "DESCRIPTION": "Gerencie suas conexões WhatsApp e monitore em tempo real",
+      "ADD_CONNECTION": "Adicionar Conexão",
+      "NO_CONNECTIONS": "Nenhuma conexão encontrada",
+      "NO_CONNECTIONS_DESCRIPTION": "Adicione sua primeira conexão para começar a atender pelo CHAT - SPX",
+      "TABLE": {
+        "SESSION_NAME": "Nome",
+        "STATUS": "Status",
+        "PHONE_NUMBER": "Número de Telefone",
+        "INBOX": "Caixa de Entrada",
+        "CREATED_AT": "Criado em",
+        "ACTIONS": "Ações"
+      },
+      "STATUS": {
+        "WORKING": "Conectado",
+        "SCAN_QR_CODE": "Escanear QR Code",
+        "FAILED": "Falhou",
+        "STOPPED": "Desconectado",
+        "STARTING": "Iniciando"
+      },
+      "ACTIONS": {
+        "VIEW_QR": "Ver QR Code",
+        "CONNECT": "Conectar",
+        "DISCONNECT": "Desconectar",
+        "DELETE": "Excluir",
+        "RESTART": "Reiniciar"
+      },
+      "ADD_MODAL": {
+        "TITLE": "Adicionar Conexão WhatsApp",
+        "DESCRIPTION": "Crie uma nova conexão WhatsApp para atendimento",
+        "CONNECTION_NAME": "Nome da Conexão",
+        "CONNECTION_NAME_PLACEHOLDER": "ex: Atendimento Principal",
+        "CONNECTION_NAME_HELP": "Nome que será usado para identificar esta conexão",
+        "CANCEL": "Cancelar",
+        "CREATE": "Criar Conexão",
+        "VALIDATION": {
+          "CONNECTION_NAME_REQUIRED": "Nome da conexão é obrigatório"
+        }
+      },
+      "QR_MODAL": {
+        "TITLE": "Escanear QR Code",
+        "DESCRIPTION": "Escaneie este QR code com seu WhatsApp para conectar",
+        "WAITING": "Aguardando conexão...",
+        "CONNECTED": "Conectado com sucesso!",
+        "ERROR": "Falha ao carregar QR code",
+        "RETRY": "Tentar novamente",
+        "CLOSE": "Fechar",
+        "FAILED_TITLE": "QR Code Expirado",
+        "FAILED_MESSAGE": "O QR code expirou porque demorou muito para ser escaneado. Clique em \"Reiniciar\" para gerar um novo QR code.",
+        "RESTARTING": "Reiniciando...",
+        "RESTART": "Reiniciar",
+        "RESTART_ERROR": "Erro ao reiniciar conexão. Tente novamente."
+      },
+      "MESSAGES": {
+        "CREATE_SUCCESS": "Conexão criada com sucesso",
+        "CREATE_ERROR": "Erro ao criar conexão. Verifique os dados e tente novamente",
+        "CONNECT_SUCCESS": "Conexão iniciada com sucesso",
+        "CONNECT_ERROR": "Erro ao iniciar conexão. Tente novamente",
+        "DISCONNECT_SUCCESS": "Conexão desconectada com sucesso",
+        "DISCONNECT_ERROR": "Erro ao desconectar. Tente novamente",
+        "DELETE_SUCCESS": "Conexão excluída com sucesso",
+        "DELETE_ERROR": "Erro ao excluir conexão. Tente novamente",
+        "DELETE_CONFIRM": "Tem certeza que deseja excluir esta conexão? A caixa de entrada associada também será excluída.",
+        "RESTART_SUCCESS": "Conexão reiniciada com sucesso. Escaneie o QR code novamente.",
+        "RESTART_ERROR": "Erro ao reiniciar conexão. Tente novamente.",
+        "LOADING": "Carregando conexões...",
+        "API_ERROR": "Não foi possível conectar ao serviço. Verifique sua configuração e tente novamente."
+      }
     }
   },
   "SIDEBAR": {
@@ -297,7 +367,9 @@
     "CURRENTLY_VIEWING_ACCOUNT": "Visualização atual:",
     "SWITCH": "Trocar",
     "INBOX_VIEW": "Caixa de entrada",
+    "SEARCH_ADVANCED": "Pesquisa avançada",
     "CONVERSATIONS": "Conversas",
+    "KANBAN": "Kanban",
     "INBOX": "Caixa de Entrada",
     "ALL_CONVERSATIONS": "Todas as conversas",
     "MENTIONED_CONVERSATIONS": "Menções",
@@ -323,6 +395,7 @@
     "AGENT_BOTS": "Robôs",
     "AUDIT_LOGS": "Auditoria",
     "INBOXES": "Caixas de Entrada",
+    "WAHA_CONNECTIONS": "Conexões WhatsApp",
     "NOTIFICATIONS": "Notificações",
     "CANNED_RESPONSES": "Respostas Prontas",
     "INTEGRATIONS": "Integrações",
@@ -344,6 +417,7 @@
     "NEW_INBOX": "Nova caixa de entrada",
     "REPORTS_CONVERSATION": "Conversas",
     "CSAT": "CSAT",
+    "NPS": "NPS",
     "LIVE_CHAT": "Chat ao vivo",
     "SMS": "SMS",
     "WHATSAPP": "WhatsApp",
@@ -363,6 +437,9 @@
     "CUSTOM_ROLES": "Funções Personalizadas",
     "BETA": "Beta",
     "REPORTS_OVERVIEW": "Visão geral",
+    "REPORTS_LIVE": "Ao vivo",
+    "REPORTS_LIVE_IN_SERVICE": "Em atendimento",
+    "REPORTS_LIVE_SUMMARY": "Resumo",
     "REAUTHORIZE": "A conexão com a sua caixa de entrada expirou. Por favor, reconecte para continuar recebendo e enviando mensagens",
     "HELP_CENTER": {
       "TITLE": "Central de Ajuda",

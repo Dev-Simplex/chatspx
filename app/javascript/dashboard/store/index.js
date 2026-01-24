@@ -27,6 +27,7 @@ import conversationStats from './modules/conversationStats';
 import conversationTypingStatus from './modules/conversationTypingStatus';
 import conversationWatchers from './modules/conversationWatchers';
 import csat from './modules/csat';
+import npsResponses from './modules/npsResponses';
 import customRole from './modules/customRole';
 import customViews from './modules/customViews';
 import dashboardApps from './modules/dashboardApps';
@@ -36,6 +37,7 @@ import inboxAssignableAgents from './modules/inboxAssignableAgents';
 import inboxes from './modules/inboxes';
 import inboxMembers from './modules/inboxMembers';
 import integrations from './modules/integrations';
+import kanban from './modules/kanban';
 import labels from './modules/labels';
 import macros from './modules/macros';
 import notifications from './modules/notifications';
@@ -90,6 +92,7 @@ export default createStore({
     conversationTypingStatus,
     conversationWatchers,
     csat,
+    npsResponses,
     customRole,
     customViews,
     dashboardApps,
@@ -99,6 +102,7 @@ export default createStore({
     inboxes,
     inboxMembers,
     integrations,
+    kanban,
     labels,
     macros,
     notifications,

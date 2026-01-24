@@ -20,6 +20,7 @@ import WeeklyAvailability from './components/WeeklyAvailability.vue';
 import GreetingsEditor from 'shared/components/GreetingsEditor.vue';
 import ConfigurationPage from './settingsPage/ConfigurationPage.vue';
 import CustomerSatisfactionPage from './settingsPage/CustomerSatisfactionPage.vue';
+import NetPromoterScorePage from './settingsPage/NetPromoterScorePage.vue';
 import CollaboratorsPage from './settingsPage/CollaboratorsPage.vue';
 import WidgetBuilder from './WidgetBuilder.vue';
 import BotConfiguration from './components/BotConfiguration.vue';
@@ -37,6 +38,7 @@ export default {
     CollaboratorsPage,
     ConfigurationPage,
     CustomerSatisfactionPage,
+    NetPromoterScorePage,
     FacebookReauthorize,
     GreetingsEditor,
     PreChatFormSettings,
@@ -135,6 +137,10 @@ export default {
             key: 'csat',
             name: this.$t('INBOX_MGMT.TABS.CSAT'),
           },
+        {
+          key: 'nps',
+          name: this.$t('INBOX_MGMT.TABS.NPS', { default: 'NPS' }),
+        },
         ];
       }
 
@@ -931,6 +937,9 @@ export default {
       </div>
       <div v-if="selectedTabKey === 'csat'">
         <CustomerSatisfactionPage :inbox="inbox" />
+      </div>
+      <div v-if="selectedTabKey === 'nps'">
+        <NetPromoterScorePage :inbox="inbox" />
       </div>
       <div v-if="selectedTabKey === 'pre-chat-form'">
         <PreChatFormSettings :inbox="inbox" />

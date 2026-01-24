@@ -25,6 +25,37 @@ class SendReplyJob < ApplicationJob
     return unless service_class
 
     service_class.new(message: message).perform
+  def perform(message_id)
+    message = Message.find(message_id)
+    conversation = message.conversation
+    channel_name = conversation.inbox.channel.class.to_s
+    
+    Rails.logger.info "SendReplyJob: Processing message #{message_id}, channel: #{channel_name}, message_type: #{message.message_type}, content_type: #{message.content_type}, input_nps?: #{message.input_nps?}, input_csat?: #{message.input_csat?}"
+
+    services = {
+      'Channel::TwitterProfile' => ::Twitter::SendOnTwitterService,
+      'Channel::TwilioSms' => ::Twilio::SendOnTwilioService,
+      'Channel::Line' => ::Line::SendOnLineService,
+      'Channel::Telegram' => ::Telegram::SendOnTelegramService,
+      'Channel::Whatsapp' => ::Whatsapp::SendOnWhatsappService,
+      'Channel::Sms' => ::Sms::SendOnSmsService,
+      'Channel::Instagram' => ::Instagram::SendOnInstagramService,
+      'Channel::Api' => ::Api::SendOnApiService
+    }
+
+    case channel_name
+    when 'Channel::FacebookPage'
+      Rails.logger.info "SendReplyJob: Sending via FacebookPage"
+      send_on_facebook_page(message)
+    else
+      service_class = services[channel_name]
+      if service_class.present?
+        Rails.logger.info "SendReplyJob: Calling service #{service_class} for channel #{channel_name}"
+        service_class.new(message: message).perform
+      else
+        Rails.logger.warn "SendReplyJob: No service found for channel #{channel_name}"
+      end
+    end
   end
 
   private

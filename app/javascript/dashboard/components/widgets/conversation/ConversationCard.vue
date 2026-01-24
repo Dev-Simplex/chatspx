@@ -13,222 +13,387 @@ import CardLabels from './conversationCardComponents/CardLabels.vue';
 import PriorityMark from './PriorityMark.vue';
 import SLACardLabel from './components/SLACardLabel.vue';
 import ContextMenu from 'dashboard/components/ui/ContextMenu.vue';
-import VoiceCallStatus from './VoiceCallStatus.vue';
+import NextButton from 'dashboard/components-next/button/Button.vue';
 
-const props = defineProps({
-  activeLabel: { type: String, default: '' },
-  chat: { type: Object, default: () => ({}) },
-  hideInboxName: { type: Boolean, default: false },
-  hideThumbnail: { type: Boolean, default: false },
-  teamId: { type: [String, Number], default: 0 },
-  foldersId: { type: [String, Number], default: 0 },
-  showAssignee: { type: Boolean, default: false },
-  conversationType: { type: String, default: '' },
-  selected: { type: Boolean, default: false },
-  compact: { type: Boolean, default: false },
-  enableContextMenu: { type: Boolean, default: false },
-  allowedContextMenuOptions: { type: Array, default: () => [] },
-});
+export default {
+  components: {
+    CardLabels,
+    InboxName,
+    Thumbnail,
+    ConversationContextMenu,
+    TimeAgo,
+    MessagePreview,
+    PriorityMark,
+    SLACardLabel,
+    ContextMenu,
+    NextButton,
+  },
+  mixins: [inboxMixin],
+  props: {
+    activeLabel: {
+      type: String,
+      default: '',
+    },
+    chat: {
+      type: Object,
+      default: () => {},
+    },
+    hideInboxName: {
+      type: Boolean,
+      default: false,
+    },
+    hideThumbnail: {
+      type: Boolean,
+      default: false,
+    },
+    teamId: {
+      type: [String, Number],
+      default: 0,
+    },
+    foldersId: {
+      type: [String, Number],
+      default: 0,
+    },
+    showAssignee: {
+      type: Boolean,
+      default: false,
+    },
+    conversationType: {
+      type: String,
+      default: '',
+    },
+    selected: {
+      type: Boolean,
+      default: false,
+    },
+    enableContextMenu: {
+      type: Boolean,
+      default: false,
+    },
+  },
+  emits: [
+    'contextMenuToggle',
+    'assignAgent',
+    'assignLabel',
+    'assignTeam',
+    'markAsUnread',
+    'markAsRead',
+    'assignPriority',
+    'updateConversationStatus',
+    'deleteConversation',
+  ],
+  data() {
+    return {
+      hovered: false,
+      showContextMenu: false,
+      contextMenu: {
+        x: null,
+        y: null,
+      },
+    };
+  },
+  computed: {
+    ...mapGetters({
+      currentChat: 'getSelectedChat',
+      inboxesList: 'inboxes/getInboxes',
+      activeInbox: 'getSelectedInbox',
+      accountId: 'getCurrentAccountId',
+    }),
+    chatMetadata() {
+      return this.chat.meta || {};
+    },
 
-const emit = defineEmits([
-  'contextMenuToggle',
-  'assignAgent',
-  'assignLabel',
-  'assignTeam',
-  'markAsUnread',
-  'markAsRead',
-  'assignPriority',
-  'updateConversationStatus',
-  'deleteConversation',
-  'selectConversation',
-  'deSelectConversation',
-]);
+    assignee() {
+      return this.chatMetadata.assignee || {};
+    },
 
-const router = useRouter();
-const store = useStore();
+    currentContact() {
+      // Prioridade 1: contact diretamente (dados já normalizados na busca)
+      if (this.chat.contact) {
+        // Se já vem normalizado da store, pode ter estrutura completa
+        const contact = {
+          id: this.chat.contact.id || null,
+          name: this.chat.contact.name || this.chat.contact.full_name || 'Unknown',
+          thumbnail: this.chat.contact.thumbnail || this.chat.contact.avatar_url || this.chat.contact.avatar || this.chat.contact.profile_image_url || '',
+          availability_status: this.chat.contact.availability_status || 'offline',
+        };
+        
+        // Se tem ID mas não tem thumbnail, tentar buscar na store
+        if (contact.id && !contact.thumbnail) {
+          const storeContact = this.$store.getters['contacts/getContact'](contact.id);
+          if (storeContact && storeContact.thumbnail) {
+            contact.thumbnail = storeContact.thumbnail;
+          }
+          if (storeContact && storeContact.name && !contact.name) {
+            contact.name = storeContact.name;
+          }
+        }
+        
+        return contact;
+      }
+      
+      // Prioridade 2: meta.contact
+      if (this.chatMetadata.contact) {
+        const contact = {
+          id: this.chatMetadata.contact.id || null,
+          name: this.chatMetadata.contact.name || this.chatMetadata.contact.full_name || 'Unknown',
+          thumbnail: this.chatMetadata.contact.thumbnail || this.chatMetadata.contact.avatar_url || this.chatMetadata.contact.avatar || '',
+          availability_status: this.chatMetadata.contact.availability_status || 'offline',
+        };
+        
+        if (contact.id && !contact.thumbnail) {
+          const storeContact = this.$store.getters['contacts/getContact'](contact.id);
+          if (storeContact && storeContact.thumbnail) {
+            contact.thumbnail = storeContact.thumbnail;
+          }
+        }
+        
+        return contact;
+      }
+      
+      // Prioridade 3: sender (estrutura normal de conversas)
+      const sender = this.chatMetadata.sender || this.chat.sender || this.chat.meta?.sender;
+      
+      if (!sender) {
+        return {
+          name: 'Unknown',
+          thumbnail: '',
+          availability_status: 'offline',
+          id: null,
+        };
+      }
+      
+      // Se tem ID, tentar buscar na store primeiro (tem dados mais completos)
+      if (sender.id) {
+        const storeContact = this.$store.getters['contacts/getContact'](sender.id);
+        if (storeContact && storeContact.name) {
+          return storeContact;
+        }
+      }
+      
+      // Fallback: usar dados do sender diretamente
+      const senderContact = {
+        id: sender.id || null,
+        name: sender.name || sender.full_name || 'Unknown',
+        thumbnail: sender.thumbnail || sender.avatar_url || sender.avatar || sender.profile_image_url || '',
+        availability_status: sender.availability_status || 'offline',
+      };
+      
+      // Última tentativa de buscar na store
+      if (senderContact.id && !senderContact.thumbnail) {
+        const storeContact = this.$store.getters['contacts/getContact'](senderContact.id);
+        if (storeContact && storeContact.thumbnail) {
+          senderContact.thumbnail = storeContact.thumbnail;
+        }
+      }
+      
+      return senderContact;
+    },
 
-const hovered = ref(false);
-const showContextMenu = ref(false);
-const contextMenu = ref({
-  x: null,
-  y: null,
-});
+    isActiveChat() {
+      return this.currentChat.id === this.chat.id;
+    },
 
-const currentChat = useMapGetter('getSelectedChat');
-const inboxesList = useMapGetter('inboxes/getInboxes');
-const activeInbox = useMapGetter('getSelectedInbox');
-const accountId = useMapGetter('getCurrentAccountId');
+    unreadCount() {
+      return this.chat.unread_count;
+    },
 
-const chatMetadata = computed(() => props.chat.meta || {});
+    hasUnread() {
+      return this.unreadCount > 0;
+    },
 
-const assignee = computed(() => chatMetadata.value.assignee || {});
+    isInboxNameVisible() {
+      return !this.activeInbox;
+    },
 
-const senderId = computed(() => chatMetadata.value.sender?.id);
+    lastMessageInChat() {
+      // Helper para verificar se mensagem tem conteúdo válido
+      const hasValidContent = (msg) => {
+        if (!msg) return false;
+        // Verificar se tem conteúdo de texto (pode ser string vazia ou apenas espaços)
+        const hasContent = msg.content != null && String(msg.content).trim().length > 0;
+        // Verificar se tem anexos
+        const hasAttachments = msg.attachments && Array.isArray(msg.attachments) && msg.attachments.length > 0;
+        // Verificar se tem private_note (notas privadas também são mensagens válidas)
+        const hasPrivateNote = msg.private === true;
+        return hasContent || hasAttachments || hasPrivateNote;
+      };
+      
+      // Se tem array de mensagens, usar helper (como na lista normal)
+      if (this.chat.messages && Array.isArray(this.chat.messages) && this.chat.messages.length > 0) {
+        const msg = getLastMessage(this.chat);
+        if (msg) {
+          return msg;
+        }
+      }
+      
+      // Prioridade 1: last_non_activity_message (mais importante, como na lista normal)
+      if (this.chat.last_non_activity_message) {
+        return this.chat.last_non_activity_message;
+      }
+      
+      // Prioridade 2: meta.last_non_activity_message
+      if (this.chatMetadata.last_non_activity_message) {
+        return this.chatMetadata.last_non_activity_message;
+      }
+      
+      // Prioridade 3: last_message (verificar se tem conteúdo válido)
+      if (this.chat.last_message && hasValidContent(this.chat.last_message)) {
+        return this.chat.last_message;
+      }
+      
+      // Prioridade 4: meta.last_message
+      if (this.chatMetadata.last_message && hasValidContent(this.chatMetadata.last_message)) {
+        return this.chatMetadata.last_message;
+      }
+      
+      // Prioridade 5: last_activity_message (fallback)
+      if (this.chat.last_activity_message && hasValidContent(this.chat.last_activity_message)) {
+        return this.chat.last_activity_message;
+      }
+      
+      // Prioridade 6: meta.last_activity_message
+      if (this.chatMetadata.last_activity_message && hasValidContent(this.chatMetadata.last_activity_message)) {
+        return this.chatMetadata.last_activity_message;
+      }
+      
+      // Se nada funcionar, retornar null (não mostrar "Nova Mensagem")
+      return null;
+    },
 
-const currentContact = computed(() => {
-  return senderId.value
-    ? store.getters['contacts/getContact'](senderId.value)
-    : {};
-});
+    inbox() {
+      const { inbox_id: inboxId } = this.chat;
+      const stateInbox = this.$store.getters['inboxes/getInbox'](inboxId);
+      return stateInbox;
+    },
 
-const isActiveChat = computed(() => {
-  return currentChat.value.id === props.chat.id;
-});
+    showInboxName() {
+      return (
+        !this.hideInboxName &&
+        this.isInboxNameVisible &&
+        this.inboxesList.length > 1
+      );
+    },
+    inboxName() {
+      const stateInbox = this.inbox;
+      return stateInbox.name || '';
+    },
+    hasSlaPolicyId() {
+      return this.chat?.sla_policy_id;
+    },
+  },
+  methods: {
+    onCardClick(e) {
+      const { activeInbox, chat } = this;
+      const path = frontendURL(
+        conversationUrl({
+          accountId: this.accountId,
+          activeInbox,
+          id: chat.id,
+          label: this.activeLabel,
+          teamId: this.teamId,
+          foldersId: this.foldersId,
+          conversationType: this.conversationType,
+        })
+      );
 
-const unreadCount = computed(() => props.chat.unread_count);
+      if (e.metaKey || e.ctrlKey) {
+        window.open(
+          window.chatwootConfig.hostURL + path,
+          '_blank',
+          'noopener noreferrer nofollow'
+        );
+        return;
+      }
+      if (this.isActiveChat) {
+        return;
+      }
 
-const hasUnread = computed(() => unreadCount.value > 0);
+      router.push({ path });
+    },
+    onThumbnailHover() {
+      this.hovered = !this.hideThumbnail;
+    },
+    onThumbnailLeave() {
+      this.hovered = false;
+    },
+    onSelectConversation(checked) {
+      const action = checked ? 'selectConversation' : 'deSelectConversation';
+      this.$emit(action, this.chat.id, this.inbox.id);
+    },
+    openContextMenu(e) {
+      if (!this.enableContextMenu) return;
+      e.preventDefault();
+      this.$emit('contextMenuToggle', true);
+      this.contextMenu.x = e.pageX || e.clientX;
+      this.contextMenu.y = e.pageY || e.clientY;
+      this.showContextMenu = true;
+    },
+    openHoverDropdown(e) {
+      if (!this.enableContextMenu) return;
+      const buttonRef = this.$refs.dropdownButtonRef;
+      if (!buttonRef) return;
 
-const isInboxNameVisible = computed(() => !activeInbox.value);
+      e.preventDefault();
+      e.stopPropagation();
 
-const lastMessageInChat = computed(() => getLastMessage(props.chat));
-
-const voiceCallData = computed(() => ({
-  status: props.chat.additional_attributes?.call_status,
-  direction: props.chat.additional_attributes?.call_direction,
-}));
-
-const inboxId = computed(() => props.chat.inbox_id);
-
-const inbox = computed(() => {
-  return inboxId.value ? store.getters['inboxes/getInbox'](inboxId.value) : {};
-});
-
-const showInboxName = computed(() => {
-  return (
-    !props.hideInboxName &&
-    isInboxNameVisible.value &&
-    inboxesList.value.length > 1
-  );
-});
-
-const showMetaSection = computed(() => {
-  return (
-    showInboxName.value ||
-    (props.showAssignee && assignee.value.name) ||
-    props.chat.priority
-  );
-});
-
-const hasSlaPolicyId = computed(() => props.chat?.sla_policy_id);
-
-const showLabelsSection = computed(() => {
-  return props.chat.labels?.length > 0 || hasSlaPolicyId.value;
-});
-
-const messagePreviewClass = computed(() => {
-  return [
-    hasUnread.value ? 'font-medium text-n-slate-12' : 'text-n-slate-11',
-    !props.compact && hasUnread.value ? 'ltr:pr-4 rtl:pl-4' : '',
-    props.compact && hasUnread.value ? 'ltr:pr-6 rtl:pl-6' : '',
-  ];
-});
-
-const conversationPath = computed(() => {
-  return frontendURL(
-    conversationUrl({
-      accountId: accountId.value,
-      activeInbox: activeInbox.value,
-      id: props.chat.id,
-      label: props.activeLabel,
-      teamId: props.teamId,
-      conversationType: props.conversationType,
-      foldersId: props.foldersId,
-    })
-  );
-});
-
-const onCardClick = e => {
-  const path = conversationPath.value;
-  if (!path) return;
-
-  // Handle Ctrl/Cmd + Click for new tab
-  if (e.metaKey || e.ctrlKey) {
-    e.preventDefault();
-    window.open(
-      `${window.chatwootConfig.hostURL}${path}`,
-      '_blank',
-      'noopener,noreferrer'
-    );
-    return;
-  }
-
-  // Skip if already active
-  if (isActiveChat.value) return;
-
-  router.push({ path });
-};
-
-const onThumbnailHover = () => {
-  hovered.value = !props.hideThumbnail;
-};
-
-const onThumbnailLeave = () => {
-  hovered.value = false;
-};
-
-const onSelectConversation = checked => {
-  if (checked) {
-    emit('selectConversation', props.chat.id, inbox.value.id);
-  } else {
-    emit('deSelectConversation', props.chat.id, inbox.value.id);
-  }
-};
-
-const openContextMenu = e => {
-  if (!props.enableContextMenu) return;
-  e.preventDefault();
-  emit('contextMenuToggle', true);
-  contextMenu.value.x = e.pageX || e.clientX;
-  contextMenu.value.y = e.pageY || e.clientY;
-  showContextMenu.value = true;
-};
-
-const closeContextMenu = () => {
-  emit('contextMenuToggle', false);
-  showContextMenu.value = false;
-  contextMenu.value.x = null;
-  contextMenu.value.y = null;
-};
-
-const onUpdateConversation = (status, snoozedUntil) => {
-  closeContextMenu();
-  emit('updateConversationStatus', props.chat.id, status, snoozedUntil);
-};
-
-const onAssignAgent = agent => {
-  emit('assignAgent', agent, [props.chat.id]);
-  closeContextMenu();
-};
-
-const onAssignLabel = label => {
-  emit('assignLabel', [label.title], [props.chat.id]);
-  closeContextMenu();
-};
-
-const onAssignTeam = team => {
-  emit('assignTeam', team, props.chat.id);
-  closeContextMenu();
-};
-
-const markAsUnread = () => {
-  emit('markAsUnread', props.chat.id);
-  closeContextMenu();
-};
-
-const markAsRead = () => {
-  emit('markAsRead', props.chat.id);
-  closeContextMenu();
-};
-
-const assignPriority = priority => {
-  emit('assignPriority', priority, props.chat.id);
-  closeContextMenu();
-};
-
-const deleteConversation = () => {
-  emit('deleteConversation', props.chat.id);
-  closeContextMenu();
+      this.$nextTick(() => {
+        const buttonEl = buttonRef.$el || buttonRef;
+        if (!buttonEl || !buttonEl.getBoundingClientRect) return;
+        
+        const rect = buttonEl.getBoundingClientRect();
+        
+        this.contextMenu.x = rect.right;
+        this.contextMenu.y = rect.bottom + 4;
+        
+        this.showContextMenu = true;
+        this.$emit('contextMenuToggle', true);
+      });
+    },
+    closeContextMenu() {
+      this.$emit('contextMenuToggle', false);
+      this.showContextMenu = false;
+      this.contextMenu.x = null;
+      this.contextMenu.y = null;
+    },
+    onUpdateConversation(status, snoozedUntil) {
+      this.closeContextMenu();
+      this.$emit(
+        'updateConversationStatus',
+        this.chat.id,
+        status,
+        snoozedUntil
+      );
+    },
+    async onAssignAgent(agent) {
+      this.$emit('assignAgent', agent, [this.chat.id]);
+      this.closeContextMenu();
+    },
+    async onAssignLabel(label) {
+      this.$emit('assignLabel', [label.title], [this.chat.id]);
+      this.closeContextMenu();
+    },
+    async onAssignTeam(team) {
+      this.$emit('assignTeam', team, this.chat.id);
+      this.closeContextMenu();
+    },
+    async markAsUnread() {
+      this.$emit('markAsUnread', this.chat.id);
+      this.closeContextMenu();
+    },
+    async markAsRead() {
+      this.$emit('markAsRead', this.chat.id);
+      this.closeContextMenu();
+    },
+    async assignPriority(priority) {
+      this.$emit('assignPriority', priority, this.chat.id);
+      this.closeContextMenu();
+    },
+    async deleteConversation() {
+      this.$emit('deleteConversation', this.chat.id);
+      this.closeContextMenu();
+    },
+  },
 };
 </script>
 
@@ -250,52 +415,45 @@ const deleteConversation = () => {
       @mouseenter="onThumbnailHover"
       @mouseleave="onThumbnailLeave"
     >
-      <Avatar
-        v-if="!hideThumbnail"
-        :name="currentContact.name"
+      <label
+        v-if="hovered || selected"
+        class="checkbox-wrapper absolute inset-0 z-20 backdrop-blur-[2px]"
+        @click.stop
+      >
+        <input
+          :value="selected"
+          :checked="selected"
+          class="checkbox"
+          type="checkbox"
+          @change="onSelectConversation($event.target.checked)"
+        />
+      </label>
+      <Thumbnail
+        v-if="!hideThumbnail && currentContact"
         :src="currentContact.thumbnail"
-        :size="32"
+        :badge="inboxBadge"
+        :username="currentContact.name"
         :status="currentContact.availability_status"
-        :class="!showInboxName ? 'mt-4' : 'mt-8'"
-        hide-offline-status
-        rounded-full
-      >
-        <template #overlay="{ size }">
-          <label
-            v-if="hovered || selected"
-            class="flex items-center justify-center rounded-full cursor-pointer absolute inset-0 z-10 backdrop-blur-[2px]"
-            :style="{ width: `${size}px`, height: `${size}px` }"
-            @click.stop
-          >
-            <input
-              :value="selected"
-              :checked="selected"
-              class="!m-0 cursor-pointer"
-              type="checkbox"
-              @change="onSelectConversation($event.target.checked)"
-            />
-          </label>
-        </template>
-      </Avatar>
+        size="32px"
+      />
     </div>
-    <div
-      class="px-0 py-3 border-b group-hover:border-transparent flex-1 border-n-slate-3 min-w-0"
-    >
       <div
-        v-if="showMetaSection"
-        class="flex items-center min-w-0 gap-1"
-        :class="{
-          'ltr:ml-2 rtl:mr-2': !compact,
-          'mx-2': compact,
-        }"
+        class="px-0 py-3 border-b group-hover:border-transparent flex-1 border-n-slate-3 w-[calc(100%-40px)] relative"
       >
-        <InboxName v-if="showInboxName" :inbox="inbox" class="flex-1 min-w-0" />
-        <div
-          class="flex items-center gap-2 flex-shrink-0"
-          :class="{
-            'flex-1 justify-between': !showInboxName,
-          }"
-        >
+        <!-- Botão de dropdown no hover -->
+        <NextButton
+          v-if="enableContextMenu"
+          ref="dropdownButtonRef"
+          ghost
+          slate
+          sm
+          icon="i-lucide-chevron-down"
+          class="absolute ltr:right-0 rtl:left-0 top-2 opacity-0 group-hover:opacity-100 transition-opacity duration-200 ease-in-out z-10"
+          @click.stop="openHoverDropdown($event)"
+        />
+      <div class="flex justify-between conversation-card--meta group-hover:ltr:pr-8 group-hover:rtl:pl-8 transition-all duration-200">
+        <InboxName v-if="showInboxName" :inbox="inbox" />
+        <div class="flex gap-2 ml-2 rtl:mr-2 rtl:ml-0">
           <span
             v-if="showAssignee && assignee.name"
             class="text-n-slate-11 text-xs font-medium leading-3 py-0.5 px-0 inline-flex items-center truncate"
@@ -307,8 +465,10 @@ const deleteConversation = () => {
         </div>
       </div>
       <h4
-        class="conversation--user text-sm my-0 mx-2 capitalize pt-0.5 text-ellipsis overflow-hidden whitespace-nowrap flex-1 min-w-0 ltr:pr-16 rtl:pl-16 text-n-slate-12"
+        v-if="currentContact"
+        class="conversation--user text-sm my-0 mx-2 capitalize pt-0.5 text-ellipsis overflow-hidden whitespace-nowrap text-n-slate-12 group-hover:ltr:pr-8 group-hover:rtl:pl-8 transition-all duration-200"
         :class="hasUnread ? 'font-semibold' : 'font-medium'"
+        style="width: calc(100% - 70px)"
       >
         {{ currentContact.name }}
       </h4>
@@ -323,14 +483,16 @@ const deleteConversation = () => {
         v-else-if="lastMessageInChat"
         key="message-preview"
         :message="lastMessageInChat"
-        class="my-0 mx-2 leading-6 h-6 flex-1 min-w-0 text-sm"
-        :class="messagePreviewClass"
+        :default-empty-message="''"
+        class="conversation--message my-0 mx-2 leading-6 h-6 text-sm group-hover:ltr:pr-8 group-hover:rtl:pl-8 transition-all duration-200"
+        :class="hasUnread ? 'font-medium text-n-slate-12' : 'text-n-slate-11'"
+        style="max-width: 96%; width: 16.875rem"
       />
       <p
         v-else
-        key="no-messages"
-        class="text-n-slate-11 text-sm my-0 mx-2 leading-6 h-6 flex-1 min-w-0 overflow-hidden text-ellipsis whitespace-nowrap"
-        :class="messagePreviewClass"
+        class="conversation--message text-n-slate-11 text-sm my-0 mx-2 leading-6 h-6 overflow-hidden text-ellipsis whitespace-nowrap group-hover:ltr:pr-8 group-hover:rtl:pl-8 transition-all duration-200"
+        :class="hasUnread ? 'font-medium text-n-slate-12' : 'text-n-slate-11'"
+        style="max-width: 96%; width: 16.875rem"
       >
         <fluent-icon
           size="16"
@@ -343,11 +505,11 @@ const deleteConversation = () => {
       </p>
       <div
         class="absolute flex flex-col ltr:right-3 rtl:left-3"
-        :class="showMetaSection ? 'top-8' : 'top-4'"
+        :class="showMetaSection ? 'top-8' : 'top-4 group-hover:ltr:right-10 group-hover:rtl:left-10 transition-all duration-200'"
       >
         <span class="ml-auto font-normal leading-4 text-xxs">
           <TimeAgo
-            :last-activity-timestamp="chat.timestamp"
+            :last-activity-timestamp="chat.last_activity_at || chat.updated_at || chat.timestamp || chat.created_at"
             :created-at-timestamp="chat.created_at"
           />
         </span>

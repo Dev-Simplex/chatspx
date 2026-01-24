@@ -173,7 +173,38 @@ class ActionCableListener < BaseListener
     broadcast(account, [user.pubsub_token], CONVERSATION_MENTIONED, conversation.push_event_data)
   end
 
+  def reaction_created(event)
+    reaction = event.data[:reaction]
+    message = reaction.message
+    account = message.account
+    conversation = message.conversation
+    tokens = user_tokens(account, conversation.inbox.members) + contact_tokens(conversation.contact_inbox, message)
+
+    broadcast(account, tokens, REACTION_CREATED, reaction_push_event_data(reaction))
+  end
+
+  def reaction_deleted(event)
+    reaction = event.data[:reaction]
+    message = reaction.message
+    account = message.account
+    conversation = message.conversation
+    tokens = user_tokens(account, conversation.inbox.members) + contact_tokens(conversation.contact_inbox, message)
+
+    broadcast(account, tokens, REACTION_DELETED, { id: reaction.id, message_id: reaction.message_id })
+  end
+
   private
+
+  def reaction_push_event_data(reaction)
+    {
+      id: reaction.id,
+      message_id: reaction.message_id,
+      emoji: reaction.emoji,
+      user_id: reaction.user_id,
+      user_type: reaction.user_type,
+      created_at: reaction.created_at.to_i
+    }
+  end
 
   def account_token(account)
     "account_#{account.id}"

@@ -93,6 +93,21 @@ export const shortTimestamp = (time, withAgo = false) => {
   return convertToShortTime;
 };
 
+export const formatDurationFromSeconds = seconds => {
+  if (seconds == null || Number.isNaN(seconds)) return null;
+  const total = Math.max(0, Math.round(seconds));
+  const days = Math.floor(total / 86400);
+  const hours = Math.floor((total % 86400) / 3600);
+  const minutes = Math.floor((total % 3600) / 60);
+  const secs = total % 60;
+  const parts = [];
+  if (days) parts.push(`${days}d`);
+  if (hours) parts.push(`${hours}h`);
+  if (minutes) parts.push(`${minutes}m`);
+  if (!parts.length || secs) parts.push(`${secs}s`);
+  return parts.join(' ');
+};
+
 /**
  * Calculates the difference in days between now and a given timestamp.
  * @param {Date} now - Current date/time.

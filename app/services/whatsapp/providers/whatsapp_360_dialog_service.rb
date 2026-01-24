@@ -1,11 +1,21 @@
 class Whatsapp::Providers::Whatsapp360DialogService < Whatsapp::Providers::BaseService
   def send_message(phone_number, message)
     @message = message
+    Rails.logger.info "Whatsapp360DialogService: send_message called for message #{message.id}, phone_number: #{phone_number}, content_type: #{message.content_type}, input_nps?: #{message.input_nps?}, input_csat?: #{message.input_csat?}"
+    
     if message.attachments.present?
+      Rails.logger.info "Whatsapp360DialogService: Sending attachment message"
       send_attachment_message(phone_number, message)
     elsif message.content_type == 'input_select'
+      Rails.logger.info "Whatsapp360DialogService: Sending interactive text message"
       send_interactive_text_message(phone_number, message)
+    elsif message.input_nps? || message.input_csat?
+      # NPS and CSAT are interactive surveys that should be sent as simple text messages
+      # The user will respond with a number (0-10 for NPS, 1-5 for CSAT)
+      Rails.logger.info "Whatsapp360DialogService: Sending NPS/CSAT as text message"
+      send_text_message(phone_number, message)
     else
+      Rails.logger.info "Whatsapp360DialogService: Sending regular text message"
       send_text_message(phone_number, message)
     end
   end

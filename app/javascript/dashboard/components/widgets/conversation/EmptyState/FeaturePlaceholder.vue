@@ -33,7 +33,7 @@ export default {
         <Hotkey
           custom-class="w-8 h-6 text-lg font-medium text-n-slate-12 outline outline-n-container outline-1 bg-n-alpha-3"
         >
-          ⌘
+          Ctrl
         </Hotkey>
         <Hotkey
           custom-class="w-8 h-6 text-xs font-medium text-n-slate-12 outline outline-n-container outline-1 bg-n-alpha-3"

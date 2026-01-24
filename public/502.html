@@ -1,0 +1,424 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>502 - Serviço em Manutenção | CHAT - SPX</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+            background: linear-gradient(135deg, #0f172a 0%, #1e293b 50%, #0f172a 100%);
+            background-size: 400% 400%;
+            animation: gradientShift 15s ease infinite;
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            overflow: hidden;
+            position: relative;
+        }
+
+        @keyframes gradientShift {
+            0% { background-position: 0% 50%; }
+            50% { background-position: 100% 50%; }
+            100% { background-position: 0% 50%; }
+        }
+
+        /* Partículas animadas de fundo */
+        .particles {
+            position: absolute;
+            width: 100%;
+            height: 100%;
+            overflow: hidden;
+            z-index: 0;
+        }
+
+        .particle {
+            position: absolute;
+            background: rgba(31, 147, 255, 0.3);
+            border-radius: 50%;
+            animation: float 20s infinite ease-in-out;
+        }
+
+        .particle:nth-child(1) {
+            width: 80px;
+            height: 80px;
+            left: 10%;
+            animation-delay: 0s;
+            animation-duration: 15s;
+        }
+
+        .particle:nth-child(2) {
+            width: 120px;
+            height: 120px;
+            left: 30%;
+            animation-delay: 2s;
+            animation-duration: 18s;
+        }
+
+        .particle:nth-child(3) {
+            width: 60px;
+            height: 60px;
+            left: 50%;
+            animation-delay: 4s;
+            animation-duration: 20s;
+        }
+
+        .particle:nth-child(4) {
+            width: 100px;
+            height: 100px;
+            left: 70%;
+            animation-delay: 1s;
+            animation-duration: 16s;
+        }
+
+        .particle:nth-child(5) {
+            width: 90px;
+            height: 90px;
+            left: 85%;
+            animation-delay: 3s;
+            animation-duration: 19s;
+        }
+
+        @keyframes float {
+            0%, 100% {
+                transform: translateY(100vh) translateX(0) scale(0);
+                opacity: 0;
+            }
+            10% {
+                opacity: 0.5;
+            }
+            50% {
+                transform: translateY(-100px) translateX(50px) scale(1);
+                opacity: 0.8;
+            }
+            90% {
+                opacity: 0.5;
+            }
+            100% {
+                transform: translateY(-200vh) translateX(100px) scale(0);
+                opacity: 0;
+            }
+        }
+
+        .container {
+            position: relative;
+            z-index: 1;
+            text-align: center;
+            padding: 2rem;
+            max-width: 600px;
+            animation: fadeInUp 1s ease-out;
+        }
+
+        @keyframes fadeInUp {
+            from {
+                opacity: 0;
+                transform: translateY(30px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        .error-code {
+            font-size: 8rem;
+            font-weight: 700;
+            background: linear-gradient(135deg, #1f93ff 0%, #0ea5e9 50%, #06b6d4 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+            margin-bottom: 1rem;
+            animation: pulse 2s ease-in-out infinite;
+            text-shadow: 0 0 40px rgba(31, 147, 255, 0.5);
+            letter-spacing: -0.05em;
+        }
+
+        @keyframes pulse {
+            0%, 100% {
+                transform: scale(1);
+                filter: brightness(1);
+            }
+            50% {
+                transform: scale(1.05);
+                filter: brightness(1.2);
+            }
+        }
+
+        .logo-container {
+            margin-bottom: 2rem;
+            animation: slideInDown 1s ease-out 0.3s both;
+        }
+
+        @keyframes slideInDown {
+            from {
+                opacity: 0;
+                transform: translateY(-30px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        .logo {
+            font-size: 2.5rem;
+            font-weight: 700;
+            color: #1f93ff;
+            letter-spacing: 0.1em;
+            text-transform: uppercase;
+            position: relative;
+            display: inline-block;
+        }
+
+        .logo::after {
+            content: '';
+            position: absolute;
+            bottom: -10px;
+            left: 50%;
+            transform: translateX(-50%);
+            width: 60px;
+            height: 3px;
+            background: linear-gradient(90deg, transparent, #1f93ff, transparent);
+            animation: expandLine 2s ease-in-out infinite;
+        }
+
+        @keyframes expandLine {
+            0%, 100% {
+                width: 60px;
+                opacity: 0.5;
+            }
+            50% {
+                width: 120px;
+                opacity: 1;
+            }
+        }
+
+        .title {
+            font-size: 2rem;
+            font-weight: 600;
+            color: #e2e8f0;
+            margin-bottom: 1rem;
+            animation: fadeIn 1s ease-out 0.6s both;
+        }
+
+        @keyframes fadeIn {
+            from {
+                opacity: 0;
+            }
+            to {
+                opacity: 1;
+            }
+        }
+
+        .message {
+            font-size: 1.125rem;
+            color: #94a3b8;
+            line-height: 1.6;
+            margin-bottom: 2rem;
+            animation: fadeIn 1s ease-out 0.9s both;
+        }
+
+        .status-indicator {
+            display: inline-flex;
+            align-items: center;
+            gap: 0.75rem;
+            padding: 1rem 2rem;
+            background: rgba(31, 147, 255, 0.1);
+            border: 1px solid rgba(31, 147, 255, 0.3);
+            border-radius: 50px;
+            margin-bottom: 2rem;
+            animation: fadeIn 1s ease-out 1.2s both;
+            backdrop-filter: blur(10px);
+        }
+
+        .status-dot {
+            width: 12px;
+            height: 12px;
+            background: #1f93ff;
+            border-radius: 50%;
+            animation: blink 1.5s ease-in-out infinite;
+            box-shadow: 0 0 10px rgba(31, 147, 255, 0.8);
+        }
+
+        @keyframes blink {
+            0%, 100% {
+                opacity: 1;
+                transform: scale(1);
+            }
+            50% {
+                opacity: 0.5;
+                transform: scale(0.8);
+            }
+        }
+
+        .status-text {
+            color: #1f93ff;
+            font-weight: 500;
+            font-size: 0.9rem;
+            letter-spacing: 0.05em;
+        }
+
+        .info-box {
+            background: rgba(15, 23, 42, 0.6);
+            border: 1px solid rgba(31, 147, 255, 0.2);
+            border-radius: 16px;
+            padding: 2rem;
+            margin-top: 2rem;
+            animation: fadeIn 1s ease-out 1.5s both;
+            backdrop-filter: blur(10px);
+        }
+
+        .info-title {
+            color: #e2e8f0;
+            font-size: 1.125rem;
+            font-weight: 600;
+            margin-bottom: 0.75rem;
+        }
+
+        .info-text {
+            color: #94a3b8;
+            font-size: 0.95rem;
+            line-height: 1.6;
+        }
+
+        .loading-bar {
+            width: 100%;
+            height: 4px;
+            background: rgba(31, 147, 255, 0.1);
+            border-radius: 2px;
+            margin-top: 1.5rem;
+            overflow: hidden;
+            animation: fadeIn 1s ease-out 1.8s both;
+        }
+
+        .loading-progress {
+            height: 100%;
+            background: linear-gradient(90deg, #1f93ff, #0ea5e9, #06b6d4, #1f93ff);
+            background-size: 200% 100%;
+            border-radius: 2px;
+            animation: loading 2s linear infinite, progress 3s ease-in-out infinite;
+            box-shadow: 0 0 10px rgba(31, 147, 255, 0.6);
+        }
+
+        @keyframes loading {
+            0% {
+                background-position: 0% 0%;
+            }
+            100% {
+                background-position: 200% 0%;
+            }
+        }
+
+        @keyframes progress {
+            0% {
+                width: 0%;
+            }
+            50% {
+                width: 70%;
+            }
+            100% {
+                width: 0%;
+            }
+        }
+
+        @media (max-width: 768px) {
+            .error-code {
+                font-size: 5rem;
+            }
+
+            .logo {
+                font-size: 2rem;
+            }
+
+            .title {
+                font-size: 1.5rem;
+            }
+
+            .message {
+                font-size: 1rem;
+            }
+
+            .container {
+                padding: 1.5rem;
+            }
+        }
+
+        /* Efeito de brilho sutil */
+        .glow {
+            position: absolute;
+            width: 300px;
+            height: 300px;
+            background: radial-gradient(circle, rgba(31, 147, 255, 0.2) 0%, transparent 70%);
+            border-radius: 50%;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            animation: glowPulse 4s ease-in-out infinite;
+            pointer-events: none;
+            z-index: 0;
+        }
+
+        @keyframes glowPulse {
+            0%, 100% {
+                transform: translate(-50%, -50%) scale(1);
+                opacity: 0.3;
+            }
+            50% {
+                transform: translate(-50%, -50%) scale(1.2);
+                opacity: 0.5;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="particles">
+        <div class="particle"></div>
+        <div class="particle"></div>
+        <div class="particle"></div>
+        <div class="particle"></div>
+        <div class="particle"></div>
+    </div>
+    
+    <div class="glow"></div>
+
+    <div class="container">
+        <div class="logo-container">
+            <div class="logo">CHAT - SPX</div>
+        </div>
+
+        <div class="error-code">502</div>
+
+        <h1 class="title">Serviço em Manutenção</h1>
+
+        <p class="message">
+            Estamos realizando melhorias no sistema para oferecer uma experiência ainda melhor.
+            Por favor, tente novamente em alguns instantes.
+        </p>
+
+        <div class="status-indicator">
+            <div class="status-dot"></div>
+            <span class="status-text">Manutenção em andamento</span>
+        </div>
+
+        <div class="info-box">
+            <div class="info-title">O que está acontecendo?</div>
+            <div class="info-text">
+                Nossa equipe está trabalhando para restaurar o serviço o mais rápido possível.
+                Agradecemos sua compreensão e paciência.
+            </div>
+            <div class="loading-bar">
+                <div class="loading-progress"></div>
+            </div>
+        </div>
+    </div>
+</body>
+</html>
+
+

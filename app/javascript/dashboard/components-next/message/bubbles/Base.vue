@@ -24,8 +24,8 @@ const varaintBaseMap = {
     'bg-n-solid-amber text-n-amber-12 [&_.prosemirror-mention-node]:font-semibold',
   [MESSAGE_VARIANTS.USER]: 'bg-n-slate-4 text-n-slate-12',
   [MESSAGE_VARIANTS.ACTIVITY]: 'bg-n-alpha-1 text-n-slate-11 text-sm',
-  [MESSAGE_VARIANTS.BOT]: 'bg-n-solid-iris text-n-slate-12',
-  [MESSAGE_VARIANTS.TEMPLATE]: 'bg-n-solid-iris text-n-slate-12',
+  [MESSAGE_VARIANTS.BOT]: 'bg-woot-700 text-white',
+  [MESSAGE_VARIANTS.TEMPLATE]: 'bg-woot-700 text-white',
   [MESSAGE_VARIANTS.ERROR]: 'bg-n-ruby-4 text-n-ruby-12',
   [MESSAGE_VARIANTS.EMAIL]: 'w-full',
   [MESSAGE_VARIANTS.UNSUPPORTED]:
@@ -34,10 +34,10 @@ const varaintBaseMap = {
 
 const orientationMap = {
   [ORIENTATION.LEFT]:
-    'left-bubble rounded-xl ltr:rounded-bl-sm rtl:rounded-br-sm',
+    'left-bubble rounded-lg ltr:rounded-bl-none rtl:rounded-br-none shadow-sm',
   [ORIENTATION.RIGHT]:
-    'right-bubble rounded-xl ltr:rounded-br-sm rtl:rounded-bl-sm',
-  [ORIENTATION.CENTER]: 'rounded-md',
+    'right-bubble rounded-lg ltr:rounded-br-none rtl:rounded-bl-none shadow-sm',
+  [ORIENTATION.CENTER]: 'rounded-md shadow-sm',
 };
 
 const flexOrientationClass = computed(() => {
@@ -94,7 +94,7 @@ const replyToPreview = computed(() => {
 
 <template>
   <div
-    class="text-sm"
+    class="text-sm px-3 py-2"
     :class="[
       messageClass,
       {
@@ -104,10 +104,10 @@ const replyToPreview = computed(() => {
   >
     <div
       v-if="inReplyTo"
-      class="p-2 -mx-1 mb-2 rounded-lg cursor-pointer bg-n-alpha-black1"
+      class="p-2 -mx-1 mb-2 rounded-lg cursor-pointer border-l-2 border-woot-500 bg-n-alpha-black1"
       @click="scrollToMessage"
     >
-      <span class="break-all line-clamp-2">
+      <span class="break-all line-clamp-2 text-xs">
         {{ replyToPreview }}
       </span>
     </div>
@@ -121,7 +121,7 @@ const replyToPreview = computed(() => {
           ? 'text-n-amber-12/50'
           : 'text-n-slate-11',
       ]"
-      class="mt-2"
+      class="mt-1"
     />
   </div>
 </template>

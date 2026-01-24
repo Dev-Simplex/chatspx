@@ -13,6 +13,9 @@ const slots = useSlots();
 const accountLabels = useMapGetter('labels/getLabels');
 
 const activeLabels = computed(() => {
+  if (!props.conversationLabels || !Array.isArray(props.conversationLabels)) {
+    return [];
+  }
   return accountLabels.value.filter(({ title }) =>
     props.conversationLabels.includes(title)
   );

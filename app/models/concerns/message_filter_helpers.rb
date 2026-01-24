@@ -22,7 +22,7 @@ module MessageFilterHelpers
   end
 
   def email_reply_summarizable?
-    incoming? || outgoing? || input_csat?
+    incoming? || outgoing? || input_csat? || input_nps?
   end
 
   def instagram_story_mention?

@@ -4,6 +4,7 @@ import { useI18n } from 'vue-i18n';
 import { removeEmoji } from 'shared/helpers/emoji';
 
 import Icon from 'dashboard/components-next/icon/Icon.vue';
+import GalleryView from 'dashboard/components/widgets/conversation/components/GalleryView.vue';
 import ChannelIcon from 'dashboard/components-next/icon/ChannelIcon.vue';
 import wootConstants from 'dashboard/constants/globals';
 
@@ -21,6 +22,10 @@ const props = defineProps({
     default: 32,
   },
   allowUpload: {
+    type: Boolean,
+    default: false,
+  },
+  allowPreview: {
     type: Boolean,
     default: false,
   },
@@ -54,6 +59,7 @@ const { t } = useI18n();
 
 const isImageValid = ref(true);
 const fileInput = ref(null);
+const showPreview = ref(false);
 
 const AVATAR_COLORS = {
   dark: [
@@ -82,6 +88,9 @@ const STATUS_CLASSES = computed(() => ({
 }));
 
 const showDefaultAvatar = computed(() => !props.src && !props.name);
+const canPreview = computed(
+  () => props.allowPreview && !!props.src && isImageValid.value
+);
 
 const initials = computed(() => {
   if (!props.name) return '';
@@ -144,8 +153,37 @@ const initialsStyles = computed(() => ({
   fontSize: `${Math.min(props.size / 2.5, 24)}px`,
 }));
 
+const previewAttachment = computed(() => {
+  if (!canPreview.value) return null;
+  const name = props.name || '';
+  return {
+    message_id: props.src || props.name || 'avatar',
+    file_type: 'image',
+    data_url: props.src,
+    sender: {
+      name,
+      avatar_url: props.src,
+      thumbnail: props.src,
+    },
+  };
+});
+
+const previewAttachments = computed(() =>
+  previewAttachment.value ? [previewAttachment.value] : []
+);
+
 const invalidateCurrentImage = () => {
   isImageValid.value = false;
+};
+
+const openPreview = () => {
+  if (canPreview.value) {
+    showPreview.value = true;
+  }
+};
+
+const closePreview = () => {
+  showPreview.value = false;
 };
 
 const handleUploadAvatar = () => {
@@ -174,18 +212,31 @@ const handleDismiss = event => {
   handleDeleteAvatar();
 };
 
+const handleOverlayClick = () => {
+  if (!canPreview.value) {
+    handleUploadAvatar();
+  }
+};
+
 watch(
   () => props.src,
-  () => {
+  newSrc => {
     isImageValid.value = true;
+    if (!newSrc) {
+      showPreview.value = false;
+    }
   }
 );
 </script>
 
 <template>
   <span
+   
     class="relative inline-flex group/avatar z-0 flex-shrink-0"
+   
+    :class="{ 'cursor-zoom-in': canPreview }"
     :style="containerStyles"
+  
   >
     <!-- Status Badge -->
     <slot name="badge" :size="size">
@@ -208,7 +259,7 @@ watch(
     <div
       v-if="src && allowUpload"
       class="absolute z-20 flex items-center justify-center invisible w-6 h-6 transition-all duration-300 ease-in-out opacity-0 cursor-pointer outline outline-1 outline-n-container -top-2 ltr:-right-2 rtl:-left-2 rounded-xl bg-n-solid-3 group-hover/avatar:visible group-hover/avatar:opacity-100"
-      @click="handleDismiss"
+      @click.stop="handleDismiss"
     >
       <Icon icon="i-lucide-x" class="text-n-slate-11 size-4" />
     </div>
@@ -226,6 +277,7 @@ watch(
         },
       ]"
       :style="avatarStyles"
+      @click="openPreview"
     >
       <!-- Avatar Content -->
       <img
@@ -268,9 +320,22 @@ watch(
       >
         <div
           class="absolute inset-0 z-10 flex items-center justify-center invisible w-full h-full transition-all duration-300 ease-in-out opacity-0 rounded-xl bg-n-alpha-black1 group-hover/avatar:visible group-hover/avatar:opacity-100"
-          @click="handleUploadAvatar"
-        >
+          @click="handleOverlayClick"
+      >
+        <button
+          v-if="canPreview"
+          type="button"
+          class="flex items-center justify-center p-0 border-0 bg-transparent"
+          @click.stop="handleUploadAvatar"
+          >
           <Icon
+            icon="i-lucide-upload"
+            class="text-white"
+            :style="{ width: `${size / 2}px`, height: `${size / 2}px` }"
+          />
+        </button>
+          <Icon
+          v-else
             icon="i-lucide-upload"
             class="text-white"
             :style="{ width: `${size / 2}px`, height: `${size / 2}px` }"
@@ -286,5 +351,12 @@ watch(
         </div>
       </slot>
     </span>
+    <GalleryView
+      v-if="showPreview && previewAttachment"
+      v-model:show="showPreview"
+      :attachment="previewAttachment"
+      :all-attachments="previewAttachments"
+      @close="closePreview"
+    />
   </span>
 </template>

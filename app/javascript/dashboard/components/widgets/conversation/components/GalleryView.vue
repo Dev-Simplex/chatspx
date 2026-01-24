@@ -10,6 +10,7 @@ import { messageTimestamp } from 'shared/helpers/timeHelper';
 import { downloadFile } from '@chatwoot/utils';
 
 import NextButton from 'dashboard/components-next/button/Button.vue';
+import Icon from 'dashboard/components-next/icon/Icon.vue';
 import Avatar from 'next/avatar/Avatar.vue';
 import TeleportWithDirection from 'dashboard/components-next/TeleportWithDirection.vue';
 
@@ -40,11 +41,22 @@ const ALLOWED_FILE_TYPES = {
 const isDownloading = ref(false);
 const activeAttachment = ref({});
 const activeFileType = ref('');
-const activeImageIndex = ref(
-  props.allAttachments.findIndex(
-    attachment => attachment.message_id === props.attachment.message_id
-  ) || 0
-);
+
+const getAttachmentIndex = attachment => {
+  if (!attachment) return 0;
+
+  const byId = props.allAttachments.findIndex(
+    item => item.id === attachment.id
+  );
+  if (byId !== -1) return byId;
+
+  const byMessage = props.allAttachments.findIndex(
+    item => item.message_id === attachment.message_id
+  );
+  return byMessage !== -1 ? byMessage : 0;
+};
+
+const activeImageIndex = ref(getAttachmentIndex(props.attachment));
 
 const imageRef = useTemplateRef('imageRef');
 
@@ -84,6 +96,15 @@ const isAudio = computed(
   () => activeFileType.value === ALLOWED_FILE_TYPES.AUDIO
 );
 
+const actionButtonClass =
+  '!text-white/80 hover:!text-white !bg-transparent hover:!bg-white/10';
+const navButtonClass =
+  'size-10 rounded-full bg-white/10 hover:bg-white/20 text-white/90 flex items-center justify-center disabled:opacity-30 disabled:cursor-not-allowed';
+const thumbnailButtonBase =
+  'relative size-12 rounded-md overflow-hidden flex items-center justify-center shrink-0';
+const thumbnailActiveClass = 'ring-2 ring-[#25D366]';
+const thumbnailInactiveClass = 'ring-1 ring-white/10 hover:ring-white/30';
+
 const senderDetails = computed(() => {
   const {
     name,
@@ -117,12 +138,73 @@ const setImageAndVideoSrc = attachment => {
   activeFileType.value = type;
 };
 
-const onClickChangeAttachment = (attachment, index) => {
+const goToAttachment = (attachment, index = null) => {
   if (!attachment) return;
 
-  activeImageIndex.value = index;
+  const resolvedIndex =
+    typeof index === 'number' && index >= 0
+      ? index
+      : getAttachmentIndex(attachment);
+  activeImageIndex.value = resolvedIndex;
   setImageAndVideoSrc(attachment);
   resetZoomAndRotation();
+};
+
+const onClickChangeAttachment = (attachment, index) => {
+  goToAttachment(attachment, index);
+};
+
+const canGoPrev = computed(() => activeImageIndex.value > 0);
+const canGoNext = computed(
+  () => activeImageIndex.value < props.allAttachments.length - 1
+);
+
+const goPrev = () => {
+  if (!canGoPrev.value) return;
+  onClickChangeAttachment(
+    props.allAttachments[activeImageIndex.value - 1],
+    activeImageIndex.value - 1
+  );
+};
+
+const goNext = () => {
+  if (!canGoNext.value) return;
+  onClickChangeAttachment(
+    props.allAttachments[activeImageIndex.value + 1],
+    activeImageIndex.value + 1
+  );
+};
+
+const getThumbnailSrc = attachment => {
+  if (attachment?.thumb_url) return attachment.thumb_url;
+  if (attachment?.file_type === ALLOWED_FILE_TYPES.IMAGE)
+    return attachment.data_url;
+  return '';
+};
+
+const isVideoAttachment = attachment =>
+  [ALLOWED_FILE_TYPES.VIDEO, ALLOWED_FILE_TYPES.IG_REEL].includes(
+    attachment?.file_type
+  );
+
+const isAudioAttachment = attachment =>
+  attachment?.file_type === ALLOWED_FILE_TYPES.AUDIO;
+
+const touchStartX = ref(0);
+const touchEndX = ref(0);
+const onTouchStart = event => {
+  touchStartX.value = event.touches[0].clientX;
+};
+
+const onTouchEnd = event => {
+  touchEndX.value = event.changedTouches[0].clientX;
+  const delta = touchStartX.value - touchEndX.value;
+  if (Math.abs(delta) < 40) return;
+  if (delta > 0) {
+    goNext();
+  } else {
+    goPrev();
+  }
 };
 
 const onClickDownload = async () => {
@@ -142,27 +224,17 @@ const onClickDownload = async () => {
 const keyboardEvents = {
   Escape: { action: onClose },
   ArrowLeft: {
-    action: () => {
-      onClickChangeAttachment(
-        props.allAttachments[activeImageIndex.value - 1],
-        activeImageIndex.value - 1
-      );
-    },
+    action: goPrev,
   },
   ArrowRight: {
-    action: () => {
-      onClickChangeAttachment(
-        props.allAttachments[activeImageIndex.value + 1],
-        activeImageIndex.value + 1
-      );
-    },
+    action: goNext,
   },
 };
 
 useKeyboardEvents(keyboardEvents);
 
 onMounted(() => {
-  setImageAndVideoSrc(props.attachment);
+  goToAttachment(props.attachment);
 });
 </script>
 
@@ -175,11 +247,11 @@ onMounted(() => {
       :on-close="onClose"
     >
       <div
-        class="bg-n-background flex flex-col h-[inherit] w-[inherit] overflow-hidden select-none"
+        class="bg-[#0b141a] text-white flex flex-col h-[inherit] w-[inherit] overflow-hidden select-none"
         @click="onClose"
       >
         <header
-          class="z-10 flex items-center justify-between w-full h-16 px-6 py-2 bg-n-background border-b border-n-weak"
+          class="z-10 flex items-center justify-between w-full h-16 px-4 py-2 bg-[#202c33] border-b border-white/10"
           @click.stop
         >
           <div
@@ -197,21 +269,19 @@ onMounted(() => {
             <div class="flex flex-col ml-2 rtl:ml-0 rtl:mr-2 overflow-hidden">
               <h3 class="text-base leading-5 m-0 font-medium">
                 <span
-                  class="overflow-hidden text-n-slate-12 whitespace-nowrap text-ellipsis"
+                  class="overflow-hidden text-white whitespace-nowrap text-ellipsis"
                 >
                   {{ senderDetails.name }}
                 </span>
               </h3>
-              <span
-                class="text-xs text-n-slate-11 whitespace-nowrap text-ellipsis"
-              >
+              <span class="text-xs text-white/60 whitespace-nowrap text-ellipsis">
                 {{ readableTime }}
               </span>
             </div>
           </div>
 
           <div
-            class="flex-1 mx-2 px-2 truncate text-sm font-medium text-center text-n-slate-12"
+            class="flex-1 mx-2 px-2 truncate text-sm font-medium text-center text-white/70"
           >
             <span v-dompurify-html="fileNameFromDataUrl" class="truncate" />
           </div>
@@ -222,6 +292,7 @@ onMounted(() => {
               icon="i-lucide-zoom-in"
               slate
               ghost
+              :class="actionButtonClass"
               @click="onZoom(0.1)"
             />
             <NextButton
@@ -229,6 +300,7 @@ onMounted(() => {
               icon="i-lucide-zoom-out"
               slate
               ghost
+              :class="actionButtonClass"
               @click="onZoom(-0.1)"
             />
             <NextButton
@@ -236,6 +308,7 @@ onMounted(() => {
               icon="i-lucide-rotate-ccw"
               slate
               ghost
+              :class="actionButtonClass"
               @click="onRotate('counter-clockwise')"
             />
             <NextButton
@@ -243,37 +316,46 @@ onMounted(() => {
               icon="i-lucide-rotate-cw"
               slate
               ghost
+              :class="actionButtonClass"
               @click="onRotate('clockwise')"
             />
             <NextButton
               icon="i-lucide-download"
               slate
               ghost
+              :class="actionButtonClass"
               :is-loading="isDownloading"
               :disabled="isDownloading"
               @click="onClickDownload"
             />
-            <NextButton icon="i-lucide-x" slate ghost @click="onClose" />
+            <NextButton
+              icon="i-lucide-x"
+              slate
+              ghost
+              :class="actionButtonClass"
+              @click="onClose"
+            />
           </div>
         </header>
 
-        <main class="flex items-stretch flex-1 h-full overflow-hidden">
+        <main
+          class="flex items-stretch flex-1 h-full overflow-hidden"
+          @touchstart="hasMoreThanOneAttachment && onTouchStart($event)"
+          @touchend="hasMoreThanOneAttachment && onTouchEnd($event)"
+        >
           <div class="flex items-center justify-center w-16 shrink-0">
-            <NextButton
+            <button
               v-if="hasMoreThanOneAttachment"
-              icon="ltr:i-lucide-chevron-left rtl:i-lucide-chevron-right"
-              class="z-10"
-              blue
-              faded
-              lg
-              :disabled="activeImageIndex === 0"
-              @click.stop="
-                onClickChangeAttachment(
-                  allAttachments[activeImageIndex - 1],
-                  activeImageIndex - 1
-                )
-              "
-            />
+              type="button"
+              :class="navButtonClass"
+              :disabled="!canGoPrev"
+              @click.stop="goPrev"
+            >
+              <Icon
+                icon="ltr:i-lucide-chevron-left rtl:i-lucide-chevron-right"
+                class="size-5"
+              />
+            </button>
           </div>
 
           <div class="flex-1 flex items-center justify-center overflow-hidden">
@@ -325,31 +407,76 @@ onMounted(() => {
           </div>
 
           <div class="flex items-center justify-center w-16 shrink-0">
-            <NextButton
+            <button
               v-if="hasMoreThanOneAttachment"
-              icon="ltr:i-lucide-chevron-right rtl:i-lucide-chevron-left"
-              class="z-10"
-              blue
-              faded
-              lg
-              :disabled="activeImageIndex === allAttachments.length - 1"
-              @click.stop="
-                onClickChangeAttachment(
-                  allAttachments[activeImageIndex + 1],
-                  activeImageIndex + 1
-                )
-              "
-            />
+              type="button"
+              :class="navButtonClass"
+              :disabled="!canGoNext"
+              @click.stop="goNext"
+            >
+              <Icon
+                icon="ltr:i-lucide-chevron-right rtl:i-lucide-chevron-left"
+                class="size-5"
+              />
+            </button>
           </div>
         </main>
 
         <footer
-          class="z-10 flex items-center justify-center h-12 border-t border-n-weak"
+          v-if="hasMoreThanOneAttachment"
+          class="z-10 border-t border-white/10 bg-[#202c33]"
+          @click.stop
         >
-          <div
-            class="rounded-md flex items-center justify-center px-3 py-1 bg-n-slate-3 text-n-slate-12 text-sm font-medium"
-          >
-            {{ `${activeImageIndex + 1} / ${allAttachments.length}` }}
+          <div class="flex items-center gap-3 px-4 py-3">
+            <div class="text-xs text-white/60 shrink-0">
+              {{ `${activeImageIndex + 1} / ${allAttachments.length}` }}
+            </div>
+            <div class="flex-1 overflow-x-auto">
+              <div class="flex items-center gap-2">
+                <button
+                  v-for="(attachment, index) in allAttachments"
+                  :key="attachment.id || attachment.message_id || index"
+                  type="button"
+                  :class="[
+                    thumbnailButtonBase,
+                    index === activeImageIndex
+                      ? thumbnailActiveClass
+                      : thumbnailInactiveClass,
+                  ]"
+                  @click.stop="onClickChangeAttachment(attachment, index)"
+                >
+                  <img
+                    v-if="getThumbnailSrc(attachment)"
+                    :src="getThumbnailSrc(attachment)"
+                    class="w-full h-full object-cover"
+                  />
+                  <div
+                    v-else
+                    class="w-full h-full bg-white/5 flex items-center justify-center"
+                  >
+                    <Icon
+                      :icon="
+                        isAudioAttachment(attachment)
+                          ? 'i-lucide-volume-2'
+                          : 'i-lucide-image'
+                      "
+                      class="text-white/70"
+                    />
+                  </div>
+                  <div
+                    v-if="isVideoAttachment(attachment)"
+                    class="absolute inset-0 bg-black/30 flex items-center justify-center"
+                  >
+                    <div class="size-6 rounded-full bg-black/40 flex items-center justify-center">
+                      <Icon
+                        icon="i-teenyicons-play-small-solid"
+                        class="text-white"
+                      />
+                    </div>
+                  </div>
+                </button>
+              </div>
+            </div>
           </div>
         </footer>
       </div>

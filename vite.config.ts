@@ -45,6 +45,12 @@ if (isLibraryMode) {
 export default defineConfig({
   plugins: plugins,
   build: {
+    ...(isLibraryMode ? {} : {
+      commonjsOptions: {
+        include: [/html2pdf\.js/, /node_modules/],
+        transformMixedEsModules: true,
+      },
+    }),
     rollupOptions: {
       output: {
         // [NOTE] when not in library mode, no new keys will be addedd or overwritten
@@ -62,6 +68,7 @@ export default defineConfig({
           : {}),
         inlineDynamicImports: isLibraryMode, // Disable code-splitting for SDK
       },
+      external: isLibraryMode ? [] : [], // Não externalizar html2pdf.js
     },
     lib: isLibraryMode
       ? {
@@ -83,6 +90,15 @@ export default defineConfig({
       survey: path.resolve('./app/javascript/survey'),
       widget: path.resolve('./app/javascript/widget'),
       assets: path.resolve('./app/javascript/dashboard/assets'),
+    },
+    dedupe: ['html2pdf.js'],
+    // Garantir que html2pdf.js seja resolvido corretamente
+    conditions: ['import', 'module', 'browser', 'default'],
+  },
+  optimizeDeps: {
+    include: ['html2pdf.js'],
+    esbuildOptions: {
+      resolveExtensions: ['.mjs', '.js', '.mts', '.ts', '.jsx', '.tsx', '.json'],
     },
   },
   test: {

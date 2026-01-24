@@ -47,6 +47,9 @@ export const filterDuplicateSourceMessages = (messages = []) => {
  * @returns {Object} The last message of the conversation.
  */
 export const getLastMessage = m => {
+  if (!m || !m.messages || !Array.isArray(m.messages) || m.messages.length === 0) {
+    return null;
+  }
   const lastMessageIncludingActivity = m.messages[m.messages.length - 1];
 
   const nonActivityMessages = m.messages.filter(

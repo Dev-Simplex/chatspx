@@ -107,20 +107,28 @@ class Conversation < ApplicationRecord
   belongs_to :campaign, optional: true
 
   has_many :mentions, dependent: :destroy_async
-  has_many :messages, dependent: :destroy_async, autosave: true
+  has_many :messages, ->(conversation) { where(team_id: conversation.team_id) }, dependent: :destroy_async, autosave: true
+  has_many :all_messages, class_name: 'Message', dependent: :destroy_async, autosave: true
   has_one :csat_survey_response, dependent: :destroy_async
+  has_many :nps_responses, dependent: :destroy_async
+  has_one :nps_response, -> { order(created_at: :desc) }, class_name: 'NpsResponse'
   has_many :conversation_participants, dependent: :destroy_async
   has_many :notifications, as: :primary_actor, dependent: :destroy_async
   has_many :attachments, through: :messages
   has_many :reporting_events, dependent: :destroy_async
+  has_many :funnel_items, dependent: :destroy_async
+  has_many :scheduled_messages, dependent: :destroy_async
 
   before_save :ensure_snooze_until_reset
   before_create :determine_conversation_status
   before_create :ensure_waiting_since
 
   after_update_commit :execute_after_update_commit_callbacks
+  after_update_commit :move_to_automated_stage, if: :saved_change_to_status?
+  after_update_commit :move_to_team_funnel, if: :saved_change_to_team_id?
   after_create_commit :notify_conversation_creation
   after_create_commit :load_attributes_created_by_db_triggers
+  after_create_commit :add_to_appropriate_funnel
 
   delegate :auto_resolve_after, to: :account
 
@@ -218,6 +226,14 @@ class Conversation < ApplicationRecord
     notify_status_change
     create_activity
     notify_conversation_updation
+    update_messages_team_id
+  end
+  
+  # atualiza as mensagens que nao tem team_id e adiciona para o time atual
+  def update_messages_team_id
+    return unless saved_change_to_team_id?
+    
+    all_messages.update_all(team_id: team_id)
   end
 
   def handle_resolved_status_change
@@ -335,6 +351,64 @@ class Conversation < ApplicationRecord
   # creating db triggers
   trigger.before(:insert).for_each(:row) do
     "NEW.display_id := nextval('conv_dpid_seq_' || NEW.account_id);"
+  end
+
+  private
+
+  def add_to_appropriate_funnel
+    funnels = []
+
+    if team_id.present?
+      team_funnel = Funnel.where(team_id: team_id, account_id: account_id)
+                          .find { |f| f.allows_inbox?(inbox_id) }
+      funnels << team_funnel if team_funnel
+
+      default_funnel = Funnel.where(account_id: account_id, team_id: nil)
+                             .find { |f| f.allows_inbox?(inbox_id) }
+      funnels << default_funnel if default_funnel
+    else
+      default_funnel = Funnel.where(account_id: account_id, team_id: nil)
+                             .find { |f| f.allows_inbox?(inbox_id) }
+      funnels << default_funnel if default_funnel
+    end
+
+    funnels.compact.uniq.each do |funnel|
+      target_stage = if status == 'open'
+                       funnel.funnel_stages.find_by(automation_type: 'open')
+                     elsif status == 'resolved'
+                       funnel.funnel_stages.find_by(automation_type: 'resolved')
+                     else
+                       funnel.funnel_stages.ordered.first
+                     end
+
+      next unless target_stage
+
+      FunnelItem.find_or_create_by(
+        funnel_id: funnel.id,
+        conversation_id: id
+      ) do |item|
+        item.funnel_stage_id = target_stage.id
+      end
+    end
+  rescue StandardError => e
+    Rails.logger.error "Erro ao adicionar conversa #{id} ao funil: #{e.message}"
+    Rails.logger.error e.backtrace.join("\n")
+  end
+
+  def move_to_automated_stage
+    # Mover para etapa automatizada (funciona com ou sem team_id)
+    Kanban::MoveConversationToAutomatedStageService.new(
+      conversation: self,
+      status: status
+    ).perform
+  end
+
+  def move_to_team_funnel
+    # Mover para funil correto quando team_id muda
+    Kanban::MoveConversationToTeamFunnelService.new(
+      conversation: self,
+      team: team_id.present? ? team : nil
+    ).perform
   end
 end
 

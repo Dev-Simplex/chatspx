@@ -93,6 +93,9 @@ export default {
           })
           .then(() => {
             useAlert(this.$t('CONVERSATION.CHANGE_AGENT'));
+            this.$router.push(
+              `/app/accounts/${this.$route.params.accountId}/dashboard`
+            );
           });
       },
     },
@@ -108,6 +111,9 @@ export default {
           .dispatch('assignTeam', { conversationId, teamId })
           .then(() => {
             useAlert(this.$t('CONVERSATION.CHANGE_TEAM'));
+            this.$router.push(
+              `/app/accounts/${this.$route.params.accountId}/dashboard`
+            );
           });
       },
     },

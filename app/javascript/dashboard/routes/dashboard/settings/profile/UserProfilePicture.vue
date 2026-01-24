@@ -32,6 +32,7 @@ const deleteProfilePicture = () => {
       :name="name || ''"
       :size="72"
       allow-upload
+      allow-preview
       @upload="updateProfilePicture"
       @delete="deleteProfilePicture"
     />

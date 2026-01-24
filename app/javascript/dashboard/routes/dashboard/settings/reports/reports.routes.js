@@ -20,9 +20,11 @@ import LabelReports from './LabelReports.vue';
 import TeamReports from './TeamReports.vue';
 
 import CsatResponses from './CsatResponses.vue';
+import NetPromoterScoreReports from './NetPromoterScoreReports.vue';
 import BotReports from './BotReports.vue';
 import LiveReports from './LiveReports.vue';
 import SLAReports from './SLAReports.vue';
+import LiveInService from './LiveInService.vue';
 
 const meta = {
   featureFlag: FEATURE_FLAGS.REPORTS,
@@ -163,10 +165,28 @@ export default {
           component: CsatResponses,
         },
         {
+          path: 'nps',
+          name: 'nps_reports',
+          meta,
+          component: NetPromoterScoreReports,
+        },
+        {
           path: 'bot',
           name: 'bot_reports',
           meta,
           component: BotReports,
+        },
+      ],
+    },
+    {
+      path: frontendURL('accounts/:accountId/live'),
+      component: ReportsWrapper,
+      children: [
+        {
+          path: 'in_service',
+          name: 'live_in_service',
+          meta,
+          component: LiveInService,
         },
       ],
     },

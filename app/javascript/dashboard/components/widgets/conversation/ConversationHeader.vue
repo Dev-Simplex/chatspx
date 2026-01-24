@@ -112,6 +112,7 @@ const hasSlaPolicyId = computed(() => props.chat?.sla_policy_id);
         :status="currentContact.availability_status"
         hide-offline-status
         rounded-full
+        allow-preview
       />
       <div
         class="flex flex-col items-start min-w-0 ml-2 overflow-hidden rtl:ml-0 rtl:mr-2"

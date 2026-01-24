@@ -173,10 +173,13 @@ class Api::V1::Accounts::InboxesController < Api::V1::Accounts::BaseController
   def inbox_attributes
     [:name, :avatar, :greeting_enabled, :greeting_message, :enable_email_collect, :csat_survey_enabled,
      :enable_auto_assignment, :working_hours_enabled, :out_of_office_message, :timezone, :allow_messages_after_resolved,
-     :lock_to_single_conversation, :portal_id, :sender_name_type, :business_name,
+     :lock_to_single_conversation, :portal_id, :sender_name_type, :business_name, :nps_survey_enabled,
      { csat_config: [:display_type, :message, :button_text, :language,
                      { survey_rules: [:operator, { values: [] }],
-                       template: [:name, :template_id, :friendly_name, :content_sid, :approval_sid, :created_at, :language, :status] }] }]
+                       template: [:name, :template_id, :friendly_name, :content_sid, :approval_sid, :created_at, :language, :status] }] },
+     { nps_config: [:enabled, :mode, :message, :thank_you_message, :invalid_response_message, :comment_prompt_message,
+                    :expiration_hours, :cooldown_days, :blocklist_labels, :blocklist_scope, :min_messages,
+                    :min_duration_minutes, :required_tags] }]
   end
 
   def permitted_params(channel_attributes = [])

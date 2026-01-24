@@ -140,6 +140,28 @@ class ConversationApi extends ApiClient {
   delete(conversationId) {
     return axios.delete(`${this.url}/${conversationId}`);
   }
+
+  forwardMessage({ accountId, messageId, conversationIds }) {
+    return axios.post(
+      `/api/v1/accounts/${accountId}/messages/${messageId}/forward`,
+      {
+        forward: {
+          conversation_ids: conversationIds,
+        },
+      }
+    );
+  }
+
+  getAllConversationsForForward({ status = 'all', page = 1, perPage = 100 }) {
+    return axios.get(this.url, {
+      params: {
+        status,
+        page,
+        per_page: perPage,
+        sort_by: 'last_activity_at_desc',
+      },
+    });
+  }
 }
 
 export default new ConversationApi();

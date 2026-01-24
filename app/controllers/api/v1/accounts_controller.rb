@@ -18,6 +18,12 @@ class Api::V1::AccountsController < Api::BaseController
 
   def show
     @latest_chatwoot_version = ::Redis::Alfred.get(::Redis::Alfred::LATEST_CHATWOOT_VERSION)
+    @maintenance_banner = begin
+      MaintenanceBanner.info
+    rescue StandardError => e
+      Rails.logger.error("Erro ao buscar banner de manutenção: #{e.message}")
+      { enabled: false }
+    end
     render 'api/v1/accounts/show', format: :json
   end
 

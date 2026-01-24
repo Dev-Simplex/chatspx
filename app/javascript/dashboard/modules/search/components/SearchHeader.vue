@@ -43,27 +43,39 @@ watch(
 </script>
 
 <template>
-  <div class="flex flex-col gap-2">
-    <SearchInput
-      ref="searchInputRef"
-      v-model="searchQuery"
-      @search="onSearch"
-      @select-recent-search="onSelectRecentSearch"
-    >
-      <Policy
-        :permissions="ROLES"
-        :installation-types="[
-          INSTALLATION_TYPES.ENTERPRISE,
-          INSTALLATION_TYPES.CLOUD,
-        ]"
-        :feature-flag="FEATURE_FLAGS.ADVANCED_SEARCH"
-        class="w-full"
-      >
-        <SearchFilters
-          v-model="filters"
-          @update-filters="$emit('filterChange', $event)"
-        />
-      </Policy>
-    </SearchInput>
+  <div
+    class="input-container rounded-xl transition-[border-bottom] duration-[0.2s] ease-[ease-in-out] relative flex items-center py-2 px-4 h-14 gap-2 border border-solid bg-n-alpha-black2"
+    :class="{
+      'border-n-brand': isInputFocused,
+      'border-n-weak': !isInputFocused,
+    }"
+  >
+    <div class="flex items-center">
+      <fluent-icon
+        icon="search"
+        class="icon"
+        aria-hidden="true"
+        :class="{
+          'text-n-teal-text': isInputFocused,
+          'text-n-slate-10': !isInputFocused,
+        }"
+      />
+    </div>
+    <input
+      ref="searchInput"
+      type="search"
+      class="reset-base outline-none w-full m-0 bg-transparent border-transparent shadow-none text-n-slate-12 dark:text-n-slate-12 active:border-transparent active:shadow-none hover:border-transparent hover:shadow-none focus:border-transparent focus:shadow-none"
+      :placeholder="$t('SEARCH.INPUT_PLACEHOLDER')"
+      :value="searchQuery"
+      @focus="onFocus"
+      @blur="onBlur"
+      @input="onInput"
+    />
+    <woot-label
+      :title="$t('SEARCH.PLACEHOLDER_KEYBINDING')"
+      :show-close="false"
+      small
+      class="!m-0 whitespace-nowrap !bg-n-slate-3 dark:!bg-n-solid-3 !border-n-weak dark:!border-n-strong"
+    />
   </div>
 </template>

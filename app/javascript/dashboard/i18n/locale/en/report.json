@@ -478,6 +478,73 @@
       }
     }
   },
+  "NPS_REPORTS": {
+    "HEADER": "NPS Reports",
+    "NO_RECORDS": "There are no NPS survey responses available.",
+    "DOWNLOAD": "Download NPS Reports",
+    "DOWNLOAD_FAILED": "Failed to download NPS Reports",
+    "CLASSIFICATION": {
+      "PROMOTER": "Promoter",
+      "PASSIVE": "Passive",
+      "DETRACTOR": "Detractor"
+    },
+    "FILTERS": {
+      "AGENTS": {
+        "PLACEHOLDER": "Choose Agents"
+      }
+    },
+    "TABLE": {
+      "HEADER": {
+        "CONTACT_NAME": "Contact",
+        "AGENT_NAME": "Assigned agent",
+        "SCORE": "Score",
+        "CLASSIFICATION": "Classification",
+        "RESPONSE_DELAY": "Response delay"
+      }
+    },
+    "METRIC": {
+      "TOTAL_RESPONSES": {
+        "LABEL": "Total responses",
+        "TOOLTIP": "Total number of NPS responses collected"
+      },
+      "NPS_SCORE": {
+        "LABEL": "NPS Score",
+        "TOOLTIP": "Net Promoter Score: % Promoters - % Detractors"
+      },
+      "RESPONSE_RATE": {
+        "LABEL": "Response rate",
+        "TOOLTIP": "Total number of responses / Total number of NPS survey messages sent * 100"
+      },
+      "BLOCKED": {
+        "LABEL": "Blocked",
+        "TOOLTIP": "Total number of NPS surveys blocked by labels"
+      },
+      "SCORE_DISTRIBUTION": {
+        "LABEL": "Score Distribution",
+        "X_AXIS": "Score (0-10)",
+        "Y_AXIS": "Amount"
+      },
+      "AVERAGE_RESPONSE_DELAY": {
+        "LABEL": "Average response time",
+        "TOOLTIP": "Average time between the survey being sent and answered"
+      },
+      "FASTEST_RESPONSE_DELAY": {
+        "LABEL": "Fastest response",
+        "TOOLTIP": "Shortest answered delay recorded"
+      },
+      "SLOWEST_RESPONSE_DELAY": {
+        "LABEL": "Slowest response",
+        "TOOLTIP": "Longest answered delay recorded"
+      }
+    },
+    "CHART": {
+      "CLASSIFICATION": {
+        "PIE": "Overall classification mix"
+      },
+      "TOTAL_TITLE": "Total: {{count}}",
+      "NO_DATA": "No data available to show in the pie chart"
+    }
+  },
   "BOT_REPORTS": {
     "HEADER": "Bot Reports",
     "METRIC": {

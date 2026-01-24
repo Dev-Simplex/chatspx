@@ -623,7 +623,8 @@
       "WIDGET_BUILDER": "Construtor de Widget",
       "BOT_CONFIGURATION": "Configuração do Bot",
       "ACCOUNT_HEALTH": "Saúde da conta",
-      "CSAT": "CSAT"
+      "CSAT": "CSAT",
+      "NPS": "NPS"
     },
     "ACCOUNT_HEALTH": {
       "TITLE": "Gerencie sua conta do WhatsApp",
@@ -852,6 +853,44 @@
       "API": {
         "SUCCESS_MESSAGE": "Configurações de CSAT atualizadas com sucesso",
         "ERROR_MESSAGE": "Não foi possível atualizar as configurações do CSAT. Por favor, tente novamente mais tarde."
+      }
+    },
+    "NPS": {
+      "TITLE": "Net Promoter Score (NPS)",
+      "SUBTITLE": "Configure a pesquisa NPS para esta caixa de entrada. O NPS ajuda a medir a lealdade do cliente e identificar promotores, passivos e detratores.",
+      "MODE": {
+        "LABEL": "Modo de Disparo",
+        "AUTO": "Automático",
+        "MANUAL": "Manual",
+        "BOTH": "Ambos"
+      },
+      "MESSAGE": {
+        "LABEL": "Mensagem da Pesquisa",
+        "PLACEHOLDER": "De 0 a 10, o quanto você recomendaria nossa empresa para um amigo ou colega?"
+      },
+      "THANK_YOU_MESSAGE": {
+        "LABEL": "Mensagem de Agradecimento",
+        "PLACEHOLDER": "Obrigado pela sua avaliação!"
+      },
+      "EXPIRATION_HOURS": {
+        "LABEL": "Expiração (horas)"
+      },
+      "COOLDOWN_DAYS": {
+        "LABEL": "Cooldown (dias)"
+      },
+      "BLOCKLIST": {
+        "LABEL": "Etiquetas de Bloqueio",
+        "SELECT_PLACEHOLDER": "Adicionar etiqueta"
+      },
+      "BLOCKLIST_SCOPE": {
+        "LABEL": "Escopo do Bloqueio",
+        "CONTACT": "Contato",
+        "CONVERSATION": "Conversa",
+        "BOTH": "Ambos"
+      },
+      "API": {
+        "SUCCESS_MESSAGE": "Configurações NPS atualizadas com sucesso!",
+        "ERROR_MESSAGE": "Erro ao atualizar configurações NPS"
       }
     },
     "BUSINESS_HOURS": {

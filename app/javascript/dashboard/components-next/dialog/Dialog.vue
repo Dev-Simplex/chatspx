@@ -61,6 +61,7 @@ const { t } = useI18n();
 
 const dialogRef = ref(null);
 const dialogContentRef = ref(null);
+const isClosing = ref(false);
 
 const maxWidthClass = computed(() => {
   const classesMap = {
@@ -76,16 +77,28 @@ const maxWidthClass = computed(() => {
 });
 
 const open = () => {
-  dialogRef.value?.showModal();
+  isClosing.value = false;
+  if (dialogRef.value) {
+    dialogRef.value.showModal();
+  }
 };
 
 const close = () => {
+  if (isClosing.value) return;
+  isClosing.value = true;
+  if (dialogRef.value) {
+    dialogRef.value.close();
+  }
   emit('close');
-  dialogRef.value?.close();
 };
 
 const confirm = () => {
   emit('confirm');
+};
+
+const handleClose = () => {
+  isClosing.value = false;
+  emit('close');
 };
 
 defineExpose({ open, close });
@@ -100,7 +113,7 @@ defineExpose({ open, close });
         maxWidthClass,
         overflowYAuto ? 'overflow-y-auto' : 'overflow-visible',
       ]"
-      @close="close"
+      @close="handleClose"
     >
       <OnClickOutside @trigger="close">
         <form

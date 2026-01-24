@@ -34,11 +34,13 @@ By default, it renders:
     <% if content_for?(:head) %>
       <%= yield(:head) %>
     <% else %>
-      <title><%= @portal.page_title%></title>
+      <title>SPX - CHAT</title>
     <% end %>
     
     <% if @portal.logo.present? %>
       <link rel="icon" href="<%= url_for(@portal.logo) %>">
+      <% else %>
+      <link rel="icon" type="image/svg+xml" href="/brand-assets/logo_thumbnail.svg">
     <% end %>
 
     <% unless @theme_from_params.blank? %>

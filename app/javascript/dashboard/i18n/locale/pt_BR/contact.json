@@ -506,7 +506,18 @@
         "MERGE": "Mesclar"
       },
       "HISTORY": {
-        "EMPTY_STATE": "Não há conversas anteriores associadas a este contato"
+        "EMPTY_STATE": "Não há conversas anteriores associadas a este contato",
+        "SELECT_ALL": "Selecionar todas",
+        "SELECTED": "selecionada(s)",
+        "EXPORT_PDF": "Exportar PDF",
+        "NO_CONVERSATIONS_SELECTED": "Selecione pelo menos uma conversa para exportar",
+        "PDF_EXPORT_SUCCESS": "PDF exportado com sucesso",
+        "PDF_EXPORT_ERROR": "Erro ao exportar PDF. Por favor, tente novamente",
+        "EXPORTING": "Exportando...",
+        "EXPORTING_CONVERSATION": "Buscando mensagens da conversa {current} de {total}",
+        "EXPORTING_MESSAGES": "Buscando mensagens da conversa {current} de {total} ({messagesLoaded} mensagens carregadas)",
+        "EXPORT_ERROR_CONVERSATION": "Erro ao exportar conversa {conversationId}: {error}",
+        "EXPORT_WARNING": "Algumas conversas não puderam ser exportadas. Verifique o console para mais detalhes."
       },
       "ATTRIBUTES": {
         "SEARCH_PLACEHOLDER": "Pesquisar atributos",

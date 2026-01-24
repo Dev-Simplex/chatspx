@@ -54,6 +54,16 @@ class Api::V1::Accounts::Conversations::MessagesController < Api::V1::Accounts::
     render json: { content: translated_content }
   end
 
+  def star
+    message.update!(starred: true)
+    render json: { starred: true }
+  end
+
+  def unstar
+    message.update!(starred: false)
+    render json: { starred: false }
+  end
+
   private
 
   def message

@@ -23,6 +23,8 @@ import ShopifyOrdersList from 'dashboard/components/widgets/conversation/Shopify
 import SidebarActionsHeader from 'dashboard/components-next/SidebarActionsHeader.vue';
 import LinearIssuesList from 'dashboard/components/widgets/conversation/linear/IssuesList.vue';
 import LinearSetupCTA from 'dashboard/components/widgets/conversation/linear/LinearSetupCTA.vue';
+import NpsCard from 'dashboard/components/widgets/conversation/NpsCard.vue';
+import NpsHistory from 'dashboard/components/widgets/conversation/NpsHistory.vue';
 
 const props = defineProps({
   conversationId: {
@@ -44,6 +46,7 @@ const {
 
 const dragging = ref(false);
 const conversationSidebarItems = ref([]);
+const showNpsHistory = ref(false);
 
 const shopifyIntegration = useFunctionGetter(
   'integrations/getIntegration',
@@ -121,12 +124,69 @@ const closeContactPanel = () => {
   });
 };
 
+const npsResponseGetter = useMapGetter('npsResponses/getCurrentNpsResponse');
+const npsHistoryGetter = useMapGetter('npsResponses/getNpsHistory');
+
+const npsResponse = computed(() => npsResponseGetter.value);
+const npsHistory = computed(() => npsHistoryGetter.value);
+
+const fetchNpsResponse = async () => {
+  if (!conversationId.value || !currentAccountId.value) return;
+  
+  try {
+    await store.dispatch('npsResponses/getByConversation', {
+      accountId: currentAccountId.value,
+      conversationId: conversationId.value,
+    });
+  } catch (error) {
+    // Ignore 404 - means no NPS response yet
+    if (error.response?.status !== 404) {
+      console.error('Error fetching NPS response:', error);
+    }
+  }
+};
+
+const fetchNpsHistory = async () => {
+  if (!contactId.value || !currentAccountId.value) return;
+  
+  try {
+    await store.dispatch('npsResponses/getByContact', {
+      accountId: currentAccountId.value,
+      contactId: contactId.value,
+    });
+  } catch (error) {
+    console.error('Error fetching NPS history:', error);
+  }
+};
+
+const sendNps = async () => {
+  if (!conversationId.value || !currentAccountId.value) return;
+  
+  try {
+    await store.dispatch('npsResponses/sendSurvey', {
+      accountId: currentAccountId.value,
+      conversationId: conversationId.value,
+    });
+  } catch (error) {
+    console.error('Error sending NPS:', error);
+  }
+};
+
+const resendNps = async () => {
+  await sendNps();
+};
+
 onMounted(() => {
   conversationSidebarItems.value = conversationSidebarItemsOrder.value;
   getContactDetails();
   store.dispatch('attributes/get', 0);
   // Load integrations to ensure linear integration state is available
   store.dispatch('integrations/get', 'linear');
+  fetchNpsResponse();
+});
+
+watch(conversationId, () => {
+  fetchNpsResponse();
 });
 </script>
 
@@ -295,6 +355,51 @@ onMounted(() => {
               "
             >
               <ContactNotes :contact-id="contactId" />
+            </AccordionItem>
+          </div>
+          <div
+            v-else-if="element.name === 'nps' && currentChat?.inbox?.nps_survey_enabled"
+          >
+            <AccordionItem
+              :title="$t('CONVERSATION_SIDEBAR.ACCORDION.NPS', { default: 'NPS' })"
+              :is-open="isContactSidebarItemOpen('is_nps_open')"
+              compact
+              @toggle="
+                value => toggleSidebarUIState('is_nps_open', value)
+              "
+            >
+              <NpsCard
+                :conversation="currentChat"
+                :nps-response="npsResponse"
+                @send-nps="sendNps"
+                @resend-nps="resendNps"
+              />
+              <div
+                v-if="contactId"
+                class="mt-2"
+              >
+                <button
+                  class="text-xs text-blue-600 hover:underline"
+                  @click="showNpsHistory = true; fetchNpsHistory()"
+                >
+                  Ver histórico de NPS
+                </button>
+              </div>
+              <div
+                v-if="showNpsHistory"
+                class="mt-4 p-2 border rounded"
+              >
+                <div class="flex justify-between items-center mb-2">
+                  <h4 class="text-sm font-semibold">Histórico de NPS</h4>
+                  <button
+                    class="text-xs text-gray-500"
+                    @click="showNpsHistory = false"
+                  >
+                    Fechar
+                  </button>
+                </div>
+                <NpsHistory :history="npsHistory" />
+              </div>
             </AccordionItem>
           </div>
         </template>

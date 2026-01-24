@@ -1,0 +1,124 @@
+class MessageTemplates::Template::NpsSurvey
+  pattr_initialize [:conversation!]
+
+  def perform
+    return unless should_send_nps_survey?
+
+    # Don't reopen conversation - let it stay resolved
+    # The NPS message will be sent even if conversation is resolved
+    # Similar to CSAT behavior
+    ActiveRecord::Base.transaction do
+      message_content_text = message_content
+      Rails.logger.info "NpsSurveyTemplate: Creating NPS message with content: #{message_content_text.inspect}"
+      message = conversation.messages.create!(nps_survey_message_params)
+      Rails.logger.info "NpsSurveyTemplate: NPS message created with ID: #{message.id}, content: #{message.content.inspect}, content_type: #{message.content_type}"
+      create_nps_response(message)
+    end
+  end
+
+  private
+
+  delegate :contact, :account, :inbox, to: :conversation
+
+  def should_send_nps_survey?
+    return true unless blocklist_configured?
+
+    labels_to_check = labels_to_check_for_blocklist
+    blocklist_labels = nps_config['blocklist_labels'] || []
+
+    return true if blocklist_labels.empty?
+
+    blocklist_labels.none? { |label| labels_to_check.include?(label) }
+  end
+
+  def blocklist_configured?
+    return false if nps_config.blank?
+    return false if nps_config['blocklist_labels'].blank?
+
+    true
+  end
+
+  def labels_to_check_for_blocklist
+    scope = nps_config['blocklist_scope'] || 'both'
+    case scope
+    when 'contact'
+      contact.label_list
+    when 'conversation'
+      conversation.label_list
+    else # 'both'
+      (contact.label_list + conversation.label_list).uniq
+    end
+  end
+
+  def message_content
+    content = nps_config['message'] || default_message
+    processed_content = process_placeholders(content)
+    # Remove any signature patterns that might have been added
+    processed_content.gsub(/\*\*:\s*/, '').gsub(/\n\n--\s*\n\n\*\*:.*$/m, '').strip
+  end
+
+  def default_message
+    company_name = account.name || 'nossa empresa'
+    "De 0 a 10, o quanto você recomendaria a #{company_name} para um amigo ou colega?"
+  end
+
+  def process_placeholders(content)
+    content
+      .gsub('{contact_name}', contact.name || 'você')
+      .gsub('{agent_name}', conversation.assignee&.name || 'nosso time')
+      .gsub('{inbox_name}', inbox.name || 'atendimento')
+      .gsub('{company_name}', account.name || 'nossa empresa')
+      .gsub('{conversation_id}', conversation.display_id.to_s)
+      .gsub('{brand_name}', account.name || 'nossa empresa')
+  end
+
+  def nps_survey_message_params
+    {
+      account_id: conversation.account_id,
+      inbox_id: conversation.inbox_id,
+      message_type: :outgoing,
+      content_type: :input_nps,
+      content: message_content,
+      content_attributes: content_attributes
+    }
+  end
+
+  def nps_config
+    inbox.nps_config || {}
+  end
+
+  def content_attributes
+    {}
+  end
+
+  def create_nps_response(message)
+    nps_response = NpsResponse.create!(
+      account_id: conversation.account_id,
+      conversation_id: conversation.id,
+      contact_id: conversation.contact_id,
+      inbox_id: conversation.inbox_id,
+      assigned_agent_id: conversation.assignee_id,
+      status: :sent,
+      sent_at: Time.current,
+      metadata: {
+        message_id: message.id,
+        channel_type: inbox.channel_type
+      }
+    )
+
+    # Create activity message
+    create_sent_activity_message
+    nps_response
+  end
+
+  def create_sent_activity_message
+    content = I18n.t('conversations.activity.nps.sent', default: 'NPS survey sent')
+    activity_message_params = {
+      account_id: conversation.account_id,
+      inbox_id: conversation.inbox_id,
+      message_type: :activity,
+      content: content
+    }
+    ::Conversations::ActivityMessageJob.perform_later(conversation, activity_message_params) if content
+  end
+end

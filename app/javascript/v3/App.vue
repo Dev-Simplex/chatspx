@@ -9,7 +9,7 @@ export default {
   mounted() {
     this.setColorTheme();
     this.listenToThemeChanges();
-    this.setLocale(window.chatwootConfig.selectedLocale);
+    this.setLocale('pt_BR');
   },
   methods: {
     setColorTheme() {
@@ -42,11 +42,30 @@ export default {
 </script>
 
 <template>
-  <div class="h-full min-h-screen w-full antialiased" :class="theme">
-    <router-view />
-    <SnackbarContainer />
+  <div class="flex flex-col min-h-screen w-full antialiased justify-between" :class="theme">
+    <div class="flex-1 flex flex-col">
+      <router-view class="flex-1" />
+      <SnackbarContainer />
+    </div>
+    <!-- Rodapé estilizado grudado no fim, nunca cria rolagem -->
+    <div class="w-full flex justify-center items-center select-none py-6">
+      <span
+        class="rounded-md px-4 py-1 text-base font-light tracking-wide shadow-lg"
+        style="background: rgba(32,32,32,0.86); color: #e0e0e0;"
+      >
+        Desenvolvido por
+        <a
+          href="https://simplexsolucoes.com.br/"
+          target="_blank"
+          rel="noopener noreferrer"
+          class="font-bold underline text-blue-500 hover:text-blue-400 transition"
+          style="margin-left: 4px;"
+        >Simplex</a>
+      </span>
+    </div>
   </div>
 </template>
+
 
 <style lang="scss">
 @tailwind base;
@@ -55,20 +74,26 @@ export default {
 
 @import '../dashboard/assets/scss/next-colors';
 
-html,
-body {
+// Corrige fundo, zera margin/padding, e previne rolagem
+html, body {
+  min-height: 100%;
+  height: 100%;
+  width: 100%;
+  margin: 0;
+  padding: 0;
+  background: #181818 !important; // Mesmo tom do seu app
   font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto,
     Oxygen-Sans, Ubuntu, Cantarell, 'Helvetica Neue', sans-serif;
-  @apply h-full w-full;
+  overflow-x: hidden;
+}
 
-  input,
-  select {
-    outline: none;
-  }
+input,
+select {
+  outline: none;
 }
 
 .text-link {
-  @apply text-n-brand font-medium hover:text-n-blue-10;
+  @apply text-n-brand font-medium hover:text-n-teal-10;
 }
 
 .v-popper--theme-tooltip .v-popper__inner {

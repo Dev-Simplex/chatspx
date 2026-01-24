@@ -6,6 +6,13 @@ class Whatsapp::SendOnWhatsappService < Base::SendOnChannelService
   end
 
   def perform_reply
+    # Input NPS and CSAT surveys should always be sent as session messages
+    # They are interactive messages that don't require WhatsApp templates
+    if message.input_nps? || message.input_csat?
+      send_session_message
+      return
+    end
+
     should_send_template_message = template_params.present? || !message.conversation.can_reply?
     if should_send_template_message
       send_template_message
@@ -38,7 +45,9 @@ class Whatsapp::SendOnWhatsappService < Base::SendOnChannelService
   end
 
   def send_session_message
+    Rails.logger.info "Whatsapp::SendOnWhatsappService: send_session_message called for message #{message.id}, phone_number: #{message.conversation.contact_inbox.source_id}"
     message_id = channel.send_message(message.conversation.contact_inbox.source_id, message)
+    Rails.logger.info "Whatsapp::SendOnWhatsappService: send_session_message result: message_id=#{message_id.inspect}"
     message.update!(source_id: message_id) if message_id.present?
   end
 

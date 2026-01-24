@@ -95,7 +95,7 @@ export default {
       return (
         this.messageContentAttributes.submitted_email ||
         (this.messageContentAttributes.submitted_values &&
-          !['form', 'input_csat'].includes(this.contentType))
+          !['form', 'input_csat', 'input_nps'].includes(this.contentType))
       );
     },
     responseMessage() {

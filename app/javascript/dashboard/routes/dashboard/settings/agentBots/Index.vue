@@ -126,7 +126,7 @@ onMounted(() => {
                     {{ bot.name }}
                     <span
                       v-if="bot.system_bot"
-                      class="text-xs text-n-slate-12 bg-n-blue-5 inline-block rounded-md py-0.5 px-1 ltr:ml-1 rtl:mr-1"
+                      class="text-xs text-n-slate-12 bg-n-teal-5 inline-block rounded-md py-0.5 px-1 ltr:ml-1 rtl:mr-1"
                     >
                       {{ $t('AGENT_BOTS.GLOBAL_BOT_BADGE') }}
                     </span>

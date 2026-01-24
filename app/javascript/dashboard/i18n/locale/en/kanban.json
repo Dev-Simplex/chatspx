@@ -1,0 +1,122 @@
+{
+  "KANBAN": {
+    "TITLE": "Kanban",
+    "COMING_SOON": "Coming soon...",
+    "SELECT_FUNNEL": "Select a funnel",
+    "FILTER_BY_FUNNEL": "Filter by Funnel",
+    "CANCEL": "Cancel",
+    "SAVE": "Save",
+    "MOVE": "Move",
+    "LOADING": "Loading...",
+    "FUNNELS": {
+    "TITLE": "Funnels",
+    "CREATE": "Create Funnel",
+    "EDIT": "Edit Funnel",
+    "DELETE": "Delete Funnel",
+    "NAME": "Funnel Name",
+    "NAME_PLACEHOLDER": "Enter funnel name",
+    "NAME_REQUIRED": "Funnel name is required",
+    "COLOR": "Color",
+    "NO_FUNNELS": "No funnels created yet",
+    "NO_FUNNELS_DESCRIPTION": "Create your first funnel to start organizing your conversations",
+    "SAVE_ERROR": "Error saving funnel",
+    "CONFIRM_DELETE": "Are you sure you want to delete this funnel? All stages and items will be removed.",
+    "DELETE_ERROR": "Error deleting funnel",
+    "INBOXES": "Inboxes",
+    "INBOXES_DESCRIPTION": "Select the inboxes that will appear in this funnel. Leave empty to show all.",
+    "INBOXES_HINT": "Hold Ctrl (or Cmd on Mac) to select multiple options",
+    "NO_INBOXES": "No inboxes available",
+    "SELECT_ALL": "Select All",
+    "CLEAR_ALL": "Clear Selection"
+  },
+  "STAGES": {
+    "TITLE": "Stages",
+    "CREATE": "Create Stage",
+    "EDIT": "Edit Stage",
+    "DELETE": "Delete Stage",
+    "NAME": "Stage Name",
+    "NAME_PLACEHOLDER": "Enter stage name",
+    "ADD_FIRST_STAGE": "Add first stage",
+    "COLOR": "Color",
+    "AUTOMATION": "Automation",
+    "AUTOMATION_TYPE": "Automation Type",
+    "NO_AUTOMATION": "No automation",
+    "AUTOMATION_OPEN": "Open Message",
+    "AUTOMATION_RESOLVED": "Resolved Message",
+    "DEFAULT": "Default",
+    "DEFAULT_STAGE_TOOLTIP": "Default stage cannot be edited or deleted",
+    "CANNOT_DELETE_DEFAULT": "Cannot delete default stages (Open, In Progress, Resolved)",
+    "REORDER": "Reorder Stages",
+    "NO_STAGES": "No stages created yet",
+    "NO_STAGES_DESCRIPTION": "Add stages to the funnel to start organizing your conversations",
+    "CONFIRM_DELETE": "Are you sure you want to delete this stage? All items will be removed.",
+    "DELETE_ERROR": "Error deleting stage"
+  },
+  "ITEMS": {
+    "ADD": "Add Conversation",
+    "MOVE": "Move Conversation",
+    "REMOVE": "Remove from Funnel",
+    "NO_ITEMS": "No conversations in this stage",
+    "NO_MESSAGE": "No messages",
+    "UNNAMED_CONTACT": "Unnamed contact",
+    "CONFIRM_REMOVE": "Are you sure you want to remove this conversation from the funnel?",
+    "STAGE_REQUIRED": "Select a stage",
+    "MOVE_ERROR": "Error moving conversation"
+  },
+  "SCHEDULED_MESSAGES": {
+    "TITLE": "Scheduled Messages",
+    "CREATE": "Schedule Message",
+    "EDIT": "Edit Schedule",
+    "CANCEL": "Cancel Schedule",
+    "MESSAGE": "Message",
+    "MESSAGE_PLACEHOLDER": "Enter your message here",
+    "MESSAGE_REQUIRED": "Message is required",
+    "SCHEDULED_AT": "Date and Time",
+    "DATE_REQUIRED": "Date and time are required",
+    "DATE_FUTURE": "Date and time must be in the future",
+    "INBOX": "Inbox",
+    "INBOX_REQUIRED": "Select an inbox",
+    "SAVE_ERROR": "Error scheduling message",
+    "STATUS": {
+      "PENDING": "Pending",
+      "SENT": "Sent",
+      "FAILED": "Failed",
+      "CANCELLED": "Cancelled"
+    },
+    "NO_INBOXES": "No inboxes with WAHA configured",
+    "NO_INBOXES_TITLE": "No inboxes available",
+    "PREVIEW": "Preview",
+    "CHARACTERS": "characters",
+    "SCHEDULE": "Schedule"
+  },
+  "VIEWS": {
+    "KANBAN": "Kanban",
+    "LIST": "List",
+    "CALENDAR": "Calendar"
+  },
+  "LIST": {
+    "CONVERSATION": "Conversation",
+    "STAGE": "Stage",
+    "STATUS": "Status",
+    "ACTIONS": "Actions"
+  },
+  "CHANNEL_TYPES": {
+    "WEB_WIDGET": "Web Widget",
+    "API": "API",
+    "WHATSAPP": "WhatsApp",
+    "EMAIL": "Email",
+    "SMS": "SMS",
+    "TELEGRAM": "Telegram",
+    "LINE": "Line",
+    "TWITTER": "Twitter",
+    "FACEBOOK": "Facebook"
+  },
+  "STATUS": {
+    "OPEN": "Open",
+    "PENDING": "Pending",
+    "RESOLVED": "Resolved",
+    "SNOOZED": "Snoozed"
+  }
+}
+}
+

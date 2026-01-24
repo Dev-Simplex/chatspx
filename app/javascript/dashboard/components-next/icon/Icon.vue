@@ -1,8 +1,26 @@
 <script setup>
-import { h, isVNode } from 'vue';
+import { h, isVNode, useAttrs, computed } from 'vue';
 
 const props = defineProps({
   icon: { type: [String, Object, Function], required: true },
+});
+
+const attrs = useAttrs();
+
+const combinedClass = computed(() => {
+  if (typeof props.icon === 'string') {
+    const iconClass = props.icon;
+    const additionalClasses = attrs.class;
+    if (typeof additionalClasses === 'string') {
+      return `${iconClass} ${additionalClasses}`.trim();
+    } else if (Array.isArray(additionalClasses)) {
+      return [iconClass, ...additionalClasses];
+    } else if (typeof additionalClasses === 'object' && additionalClasses !== null) {
+      return { [iconClass]: true, ...additionalClasses };
+    }
+    return iconClass;
+  }
+  return attrs.class;
 });
 
 const renderIcon = () => {
@@ -10,7 +28,15 @@ const renderIcon = () => {
   if (typeof props.icon === 'function' || isVNode(props.icon)) {
     return props.icon;
   }
-  return h('span', { class: props.icon });
+  // Remover 'class' dos attrs para evitar duplicação
+  const { class: _, ...restAttrs } = attrs;
+  // Garantir que o span tenha display inline-block para ícones aparecerem
+  const finalClass = typeof combinedClass.value === 'string' 
+    ? combinedClass.value.includes('inline-block') 
+      ? combinedClass.value 
+      : `${combinedClass.value} inline-block`.trim()
+    : combinedClass.value;
+  return h('span', { class: finalClass, ...restAttrs });
 };
 </script>
 

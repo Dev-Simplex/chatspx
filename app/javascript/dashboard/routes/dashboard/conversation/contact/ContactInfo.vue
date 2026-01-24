@@ -186,6 +186,7 @@ export default {
           :src="contact.thumbnail"
           :name="contact.name"
           :status="contact.availability_status"
+          allow-preview
           :size="48"
           hide-offline-status
           rounded-full

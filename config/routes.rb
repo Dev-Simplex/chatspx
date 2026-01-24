@@ -110,6 +110,22 @@ Rails.application.routes.draw do
             end
           end
           resources :campaigns, only: [:index, :create, :show, :update, :destroy]
+          resources :funnels, only: [:index, :show, :create, :update, :destroy] do
+            member do
+              post :reorder_stages
+            end
+            resources :funnel_stages, only: [:index, :show, :create, :update, :destroy]
+            resources :funnel_items, only: [:index, :create, :update, :destroy] do
+              collection do
+                post :bulk_move
+              end
+            end
+          end
+          resources :scheduled_messages, only: [:index, :create, :update, :destroy] do
+            collection do
+              get :inboxes
+            end
+          end
           resources :dashboard_apps, only: [:index, :show, :create, :update, :destroy]
           namespace :channels do
             resource :twilio_channel, only: [:create]
@@ -125,6 +141,11 @@ Rails.application.routes.draw do
                 member do
                   post :translate
                   post :retry
+                  post :star
+                  delete :star, action: :unstar
+                end
+                scope module: :messages do
+                  resources :reactions, only: [:create, :destroy]
                 end
               end
               resources :assignments, only: [:create]
@@ -184,6 +205,12 @@ Rails.application.routes.draw do
               post :call, on: :member, to: 'calls#create' if ChatwootApp.enterprise?
             end
           end
+
+          resources :messages, only: [] do
+            member do
+              post :forward, to: 'messages/forward#create'
+            end
+          end
           resources :csat_survey_responses, only: [:index] do
             collection do
               get :metrics
@@ -191,6 +218,18 @@ Rails.application.routes.draw do
             end
             member do
               patch :update if ChatwootApp.enterprise?
+            end
+          end
+          resources :nps_responses, only: [:index] do
+            collection do
+              get :metrics
+              get :download
+            end
+          end
+          resources :conversations, only: [] do
+            member do
+              get 'nps_response', to: 'nps_responses#show_by_conversation'
+              post 'nps_responses/send', to: 'nps_responses#send_survey'
             end
           end
           resources :applied_slas, only: [:index] do
@@ -217,6 +256,14 @@ Rails.application.routes.draw do
             end
 
             resource :csat_template, only: [:show, :create], controller: 'inbox_csat_templates'
+          end
+          resources :waha_connections, only: [:index, :show, :create, :destroy] do
+            member do
+              get :qr_code
+              post :connect
+              post :disconnect
+              post :restart
+            end
           end
 
           resources :inbox_members, only: [:create, :show], param: :inbox_id do
@@ -518,6 +565,7 @@ Rails.application.routes.draw do
         end
 
         resources :csat_survey, only: [:show, :update]
+        resources :nps_survey, only: [:show, :update], controller: 'nps_survey'
       end
     end
   end

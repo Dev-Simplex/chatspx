@@ -9,9 +9,11 @@ import { useSnakeCase } from 'dashboard/composables/useTransformKeys';
 // components
 import ReplyBox from './ReplyBox.vue';
 import MessageList from 'next/message/MessageList.vue';
+import ForwardMessageModal from 'next/message/ForwardMessageModal.vue';
 import ConversationLabelSuggestion from './conversation/LabelSuggestion.vue';
 import Banner from 'dashboard/components/ui/Banner.vue';
 import Spinner from 'dashboard/components-next/spinner/Spinner.vue';
+import { useAlert } from 'dashboard/composables';
 
 // stores and apis
 import { mapGetters } from 'vuex';
@@ -40,6 +42,7 @@ import { INBOX_TYPES } from 'dashboard/helper/inbox';
 export default {
   components: {
     MessageList,
+    ForwardMessageModal,
     ReplyBox,
     Banner,
     ConversationLabelSuggestion,
@@ -89,6 +92,11 @@ export default {
       isProgrammaticScroll: false,
       messageSentSinceOpened: false,
       labelSuggestions: [],
+      isDarkMode: false,
+      themeObserver: null,
+      forwardSelectionMode: false,
+      forwardSelectedMessageIds: [],
+      showForwardModal: false,
     };
   },
 
@@ -136,11 +144,24 @@ export default {
       return '';
     },
     getMessages() {
-      const messages = this.currentChat.messages || [];
+      let messages = this.currentChat.messages || [];
       if (this.isAWhatsAppChannel) {
-        return filterDuplicateSourceMessages(messages);
+        messages = filterDuplicateSourceMessages(messages);
       }
       return messages;
+    },
+    forwardPrimaryMessage() {
+      const messageId = this.forwardSelectedMessageIds[0];
+      const messages = this.currentChat?.messages || [];
+      const message = messages.find(msg => msg.id === messageId);
+      return (
+        message || {
+          id: messageId,
+          content: '',
+          conversationId: this.currentChat?.id,
+          attachments: [],
+        }
+      );
     },
     readMessages() {
       return getReadMessages(
@@ -259,6 +280,9 @@ export default {
       this.fetchAllAttachmentsFromCurrentChat();
       this.fetchSuggestions();
       this.messageSentSinceOpened = false;
+      this.forwardSelectionMode = false;
+      this.forwardSelectedMessageIds = [];
+      this.showForwardModal = false;
     },
   },
 
@@ -275,11 +299,13 @@ export default {
     this.addScrollListener();
     this.fetchAllAttachmentsFromCurrentChat();
     this.fetchSuggestions();
+    this.initializeThemeObserver();
   },
 
   unmounted() {
     this.removeBusListeners();
     this.removeScrollListener();
+    this.removeThemeObserver();
   },
 
   methods: {
@@ -446,6 +472,63 @@ export default {
     makeMessagesRead() {
       this.$store.dispatch('markMessagesRead', { id: this.currentChat.id });
     },
+    startForwardSelection({ messageId }) {
+      if (!messageId) return;
+      this.forwardSelectionMode = true;
+      this.forwardSelectedMessageIds = [messageId];
+      this.showForwardModal = false;
+    },
+    toggleForwardSelection(messageId) {
+      if (!this.forwardSelectionMode || !messageId) return;
+      const index = this.forwardSelectedMessageIds.indexOf(messageId);
+      if (index > -1) {
+        this.forwardSelectedMessageIds.splice(index, 1);
+      } else {
+        if (this.forwardSelectedMessageIds.length >= 20) {
+          useAlert(
+            this.$t('CONVERSATION.FORWARD.MAX_MESSAGES', { count: 20 })
+          );
+          return;
+        }
+        this.forwardSelectedMessageIds.push(messageId);
+      }
+    },
+    openForwardModal() {
+      if (!this.forwardSelectedMessageIds.length) {
+        useAlert(this.$t('CONVERSATION.FORWARD.SELECT_MESSAGES'));
+        return;
+      }
+      this.showForwardModal = true;
+    },
+    closeForwardModal() {
+      this.showForwardModal = false;
+    },
+    handleForwarded() {
+      this.showForwardModal = false;
+      this.forwardSelectionMode = false;
+      this.forwardSelectedMessageIds = [];
+    },
+    cancelForwardSelection() {
+      this.forwardSelectionMode = false;
+      this.forwardSelectedMessageIds = [];
+      this.showForwardModal = false;
+    },
+    initializeThemeObserver() {
+      this.isDarkMode = document.body.classList.contains('dark');
+      this.themeObserver = new MutationObserver(() => {
+        this.isDarkMode = document.body.classList.contains('dark');
+      });
+      this.themeObserver.observe(document.body, {
+        attributes: true,
+        attributeFilter: ['class'],
+      });
+    },
+    removeThemeObserver() {
+      if (this.themeObserver) {
+        this.themeObserver.disconnect();
+        this.themeObserver = null;
+      }
+    },
     async handleMessageRetry(message) {
       if (!message) return;
       const payload = useSnakeCase(message);
@@ -474,11 +557,16 @@ export default {
     <MessageList
       ref="conversationPanelRef"
       class="conversation-panel flex-shrink flex-grow basis-px flex flex-col overflow-y-auto relative h-full m-0 pb-4"
+      :class="{ 'conversation-panel-dark': isDarkMode, 'conversation-panel-light': !isDarkMode }"
       :current-user-id="currentUserId"
       :first-unread-id="unReadMessages[0]?.id"
       :is-an-email-channel="isAnEmailChannel"
       :inbox-supports-reply-to="inboxSupportsReplyTo"
       :messages="getMessages"
+      :is-forward-mode="forwardSelectionMode"
+      :selected-message-ids="forwardSelectedMessageIds"
+      @forward="startForwardSelection"
+      @toggle-forward-selection="toggleForwardSelection"
       @retry="handleMessageRetry"
     >
       <template #beforeAll>
@@ -534,11 +622,47 @@ export default {
           />
         </div>
       </div>
+      <div
+        v-if="forwardSelectionMode"
+        class="mx-4 mb-2 p-3 rounded-xl bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 shadow-sm"
+      >
+        <div class="flex items-center justify-between gap-3">
+          <span class="text-sm text-slate-600 dark:text-slate-300">
+            {{
+              $t('CONVERSATION.FORWARD.SELECTED_COUNT', {
+                count: forwardSelectedMessageIds.length,
+              })
+            }}
+          </span>
+          <div class="flex gap-2">
+            <button
+              class="px-3 py-1.5 text-sm font-medium text-slate-700 dark:text-slate-200 border border-slate-300 dark:border-slate-600 rounded-lg hover:bg-slate-50 dark:hover:bg-slate-700 transition-colors"
+              @click="cancelForwardSelection"
+            >
+              {{ $t('CONVERSATION.FORWARD.CANCEL') }}
+            </button>
+            <button
+              :disabled="forwardSelectedMessageIds.length === 0"
+              class="px-3 py-1.5 text-sm font-medium text-white bg-woot-500 rounded-lg hover:bg-woot-600 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+              @click="openForwardModal"
+            >
+              {{ $t('CONVERSATION.FORWARD.FORWARD') }}
+            </button>
+          </div>
+        </div>
+      </div>
       <ReplyBox
         :pop-out-reply-box="isPopOutReplyBox"
         @update:pop-out-reply-box="isPopOutReplyBox = $event"
       />
     </div>
+    <ForwardMessageModal
+      :show="showForwardModal"
+      :message="forwardPrimaryMessage"
+      :selected-message-ids="forwardSelectedMessageIds"
+      @close="closeForwardModal"
+      @forwarded="handleForwarded"
+    />
   </div>
 </template>
 
@@ -570,6 +694,46 @@ export default {
     .emoji-dialog {
       @apply absolute ltr:left-auto rtl:right-auto bottom-1;
     }
+  }
+}
+
+.conversation-panel {
+  position: relative;
+  background-image: 
+    linear-gradient(rgba(0, 0, 0, 0.85), rgba(0, 0, 0, 0.85)),
+    url('/chat-spx-background.png');
+  background-size: auto, 400px;
+  background-position: 0 0, 0 0;
+  background-repeat: repeat, repeat;
+
+  &::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background-image: url('/chat-spx-background.png');
+    background-size: 400px;
+    background-position: 0 0;
+    background-repeat: repeat;
+    z-index: 0;
+    pointer-events: none;
+    display: none;
+  }
+
+  &.conversation-panel-light {
+    background-image:
+      linear-gradient(rgba(255, 255, 255, 0.85), rgba(255, 255, 255, 0.85)),
+      url('/chat-spx-background-light.png');
+    background-size: auto, 400px;
+    background-position: 0 0, 0 0;
+    background-repeat: repeat, repeat;
+  }
+
+  > * {
+    position: relative;
+    z-index: 2;
   }
 }
 </style>

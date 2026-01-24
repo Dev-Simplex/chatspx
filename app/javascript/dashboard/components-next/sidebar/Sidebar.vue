@@ -11,14 +11,12 @@ import { vOnClickOutside } from '@vueuse/components';
 import { emitter } from 'shared/helpers/mitt';
 import { BUS_EVENTS } from 'shared/constants/busEvents';
 
-import Button from 'dashboard/components-next/button/Button.vue';
 import SidebarGroup from './SidebarGroup.vue';
 import SidebarProfileMenu from './SidebarProfileMenu.vue';
 import SidebarChangelogCard from './SidebarChangelogCard.vue';
 import ChannelLeaf from './ChannelLeaf.vue';
 import SidebarAccountSwitcher from './SidebarAccountSwitcher.vue';
 import Logo from 'next/icon/Logo.vue';
-import ComposeConversation from 'dashboard/components-next/NewConversation/ComposeConversation.vue';
 
 const props = defineProps({
   isMobileSidebarOpen: {
@@ -292,6 +290,13 @@ const menuItems = computed(() => {
       ],
     },
     {
+      name: 'Kanban',
+      label: t('SIDEBAR.KANBAN'),
+      icon: 'i-lucide-layout-grid',
+      to: accountScopedRoute('kanban_index'),
+      activeOn: ['kanban_index', 'kanban_funnel'],
+    },
+    {
       name: 'Contacts',
       label: t('SIDEBAR.CONTACTS'),
       icon: 'i-lucide-contact',
@@ -393,6 +398,11 @@ const menuItems = computed(() => {
           to: accountScopedRoute('csat_reports'),
         },
         {
+          name: 'Reports NPS',
+          label: t('SIDEBAR.NPS'),
+          to: accountScopedRoute('nps_reports'),
+        },
+        {
           name: 'Reports SLA',
           label: t('SIDEBAR.REPORTS_SLA'),
           to: accountScopedRoute('sla_reports'),
@@ -401,6 +411,18 @@ const menuItems = computed(() => {
           name: 'Reports Bot',
           label: t('SIDEBAR.REPORTS_BOT'),
           to: accountScopedRoute('bot_reports'),
+        },
+      ],
+    },
+    {
+      name: 'Live',
+      label: t('SIDEBAR.REPORTS_LIVE'),
+      icon: 'i-lucide-activity',
+      children: [
+        {
+          name: 'Live In Service',
+          label: t('SIDEBAR.REPORTS_LIVE_IN_SERVICE'),
+          to: accountScopedRoute('live_in_service'),
         },
       ],
     },
@@ -515,6 +537,12 @@ const menuItems = computed(() => {
           to: accountScopedRoute('settings_inbox_list'),
         },
         {
+          name: 'Settings WAHA Connections',
+          label: t('SIDEBAR.WAHA_CONNECTIONS'),
+          icon: 'i-lucide-smartphone',
+          to: accountScopedRoute('waha_connections_list'),
+        },
+        {
           name: 'Settings Labels',
           label: t('SIDEBAR.LABELS'),
           icon: 'i-lucide-tags',
@@ -620,11 +648,12 @@ const menuItems = computed(() => {
       <div class="flex gap-2 px-2">
         <RouterLink
           :to="{ name: 'search' }"
-          class="flex gap-2 items-center px-2 py-1 w-full h-7 rounded-lg outline outline-1 outline-n-weak bg-n-solid-3 dark:bg-n-black/30"
+          class="flex gap-2 items-center px-2 py-1 w-full h-7 rounded-lg outline outline-1 outline-n-weak bg-n-solid-3 dark:bg-n-black/30 transition-colors hover:bg-n-solid-4 hover:outline-n-slate-6 dark:hover:bg-n-black/40 focus-visible:outline-n-brand dark:focus-visible:outline-n-brand focus-visible:bg-n-solid-4 dark:focus-visible:bg-n-black/40"
+          :aria-label="t('SIDEBAR.SEARCH_ADVANCED')"
         >
           <span class="flex-shrink-0 i-lucide-search size-4 text-n-slate-11" />
           <span class="flex-grow text-left">
-            {{ t('COMBOBOX.SEARCH_PLACEHOLDER') }}
+            {{ t('SIDEBAR.SEARCH_ADVANCED') }}
           </span>
           <span
             class="hidden tracking-wide pointer-events-none select-none text-n-slate-10"

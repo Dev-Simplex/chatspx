@@ -507,7 +507,18 @@
         "MERGE": "Merge"
       },
       "HISTORY": {
-        "EMPTY_STATE": "There are no previous conversations associated to this contact"
+        "EMPTY_STATE": "There are no previous conversations associated to this contact",
+        "SELECT_ALL": "Select all",
+        "SELECTED": "selected",
+        "EXPORT_PDF": "Export PDF",
+        "NO_CONVERSATIONS_SELECTED": "Please select at least one conversation to export",
+        "PDF_EXPORT_SUCCESS": "PDF exported successfully",
+        "PDF_EXPORT_ERROR": "Error exporting PDF. Please try again",
+        "EXPORTING": "Exporting...",
+        "EXPORTING_CONVERSATION": "Fetching messages from conversation {current} of {total}",
+        "EXPORTING_MESSAGES": "Fetching messages from conversation {current} of {total} ({messagesLoaded} messages loaded)",
+        "EXPORT_ERROR_CONVERSATION": "Error exporting conversation {conversationId}: {error}",
+        "EXPORT_WARNING": "Some conversations could not be exported. Check the console for more details."
       },
       "ATTRIBUTES": {
         "SEARCH_PLACEHOLDER": "Search for attributes",

@@ -8,19 +8,23 @@
 #  content_attributes        :json
 #  content_type              :integer          default("text"), not null
 #  external_source_ids       :jsonb
+#  forwarded                 :boolean          default(FALSE), not null
 #  message_type              :integer          not null
 #  private                   :boolean          default(FALSE), not null
 #  processed_message_content :text
 #  sender_type               :string
 #  sentiment                 :jsonb
+#  starred                   :boolean          default(FALSE), not null
 #  status                    :integer          default("sent")
 #  created_at                :datetime         not null
 #  updated_at                :datetime         not null
 #  account_id                :integer          not null
 #  conversation_id           :integer          not null
+#  forwarded_from_message_id :bigint
 #  inbox_id                  :integer          not null
 #  sender_id                 :bigint
 #  source_id                 :text
+#  team_id                   :integer
 #
 # Indexes
 #
@@ -33,9 +37,11 @@
 #  index_messages_on_conversation_account_type_created  (conversation_id,account_id,message_type,created_at)
 #  index_messages_on_conversation_id                    (conversation_id)
 #  index_messages_on_created_at                         (created_at)
+#  index_messages_on_forwarded_from_message_id          (forwarded_from_message_id)
 #  index_messages_on_inbox_id                           (inbox_id)
 #  index_messages_on_sender_type_and_sender_id          (sender_type,sender_id)
 #  index_messages_on_source_id                          (source_id)
+#  index_messages_on_starred                            (starred)
 #
 
 class Message < ApplicationRecord
@@ -66,6 +72,7 @@ class Message < ApplicationRecord
   before_validation :prevent_message_flooding
   before_save :ensure_processed_message_content
   before_save :ensure_in_reply_to
+  before_create :set_team_id_from_conversation
 
   validates :account_id, presence: true
   validates :inbox_id, presence: true
@@ -96,6 +103,7 @@ class Message < ApplicationRecord
     input_csat: 9,
     integrations: 10,
     sticker: 11,
+    input_nps: 12,
     voice_call: 12
   }
   enum status: { sent: 0, delivered: 1, read: 2, failed: 3 }
@@ -105,10 +113,11 @@ class Message < ApplicationRecord
   # [:deleted] : Used to denote whether the message was deleted by the agent
   # [:external_created_at] : Can specify if the message was created at a different timestamp externally
   # [:external_error : Can specify if the message creation failed due to an error at external API
+  # [:scheduled_message_id] : Used to track if message is scheduled (should not be sent immediately)
   # [:data] : Used for structured content types such as voice_call
   store :content_attributes, accessors: [:submitted_email, :items, :submitted_values, :email, :in_reply_to, :deleted,
                                          :external_created_at, :story_sender, :story_id, :external_error,
-                                         :translations, :in_reply_to_external_id, :is_unsupported, :data], coder: JSON
+                                         :translations, :in_reply_to_external_id, :is_unsupported, :scheduled_message_id, :data], coder: JSON
 
   store :external_source_ids, accessors: [:slack], coder: JSON, prefix: :external_source_id
 
@@ -116,6 +125,9 @@ class Message < ApplicationRecord
   scope :chat, -> { where.not(message_type: :activity).where(private: false) }
   scope :non_activity_messages, -> { where.not(message_type: :activity).reorder('id desc') }
   scope :today, -> { where("date_trunc('day', created_at) = ?", Date.current) }
+  scope :for_team, ->(team_id) { where(team_id: team_id) }
+  scope :starred, -> { where(starred: true) }
+  scope :forwarded, -> { where(forwarded: true) }
   scope :voice_calls, -> { where(content_type: :voice_call) }
 
   # TODO: Get rid of default scope
@@ -127,10 +139,12 @@ class Message < ApplicationRecord
   belongs_to :inbox
   belongs_to :conversation, touch: true
   belongs_to :sender, polymorphic: true, optional: true
+  belongs_to :forwarded_from_message, class_name: 'Message', optional: true
 
   has_many :attachments, dependent: :destroy, autosave: true, before_add: :validate_attachments_limit
   has_one :csat_survey_response, dependent: :destroy_async
   has_many :notifications, as: :primary_actor, dependent: :destroy_async
+  has_many :reactions, class_name: 'MessageReaction', dependent: :destroy_async
 
   after_create_commit :execute_after_create_commit_callbacks
 
@@ -150,6 +164,21 @@ class Message < ApplicationRecord
     )
     data[:echo_id] = echo_id if echo_id.present?
     data[:attachments] = attachments.map(&:push_event_data) if attachments.present?
+    if respond_to?(:reactions) && reactions.present?
+      data[:reactions] = reactions.map do |reaction|
+        {
+          id: reaction.id,
+          message_id: reaction.message_id,
+          emoji: reaction.emoji,
+          user_id: reaction.user_id,
+          user_type: reaction.user_type,
+          created_at: reaction.created_at.to_i
+        }
+      end
+    end
+    data[:forwarded] = forwarded if respond_to?(:forwarded)
+    data[:forwarded_from_message_id] = forwarded_from_message_id if respond_to?(:forwarded_from_message_id)
+    data[:starred] = starred if respond_to?(:starred)
     merge_sender_attributes(data)
   end
 
@@ -169,11 +198,19 @@ class Message < ApplicationRecord
   end
 
   def webhook_data
+    # For webhooks, send input_nps and input_csat as "text" content_type
+    # so external systems process them as normal text messages
+    webhook_content_type = if input_nps? || input_csat?
+                             'text'
+                           else
+                             content_type
+                           end
+    
     data = {
       account: account.webhook_data,
       additional_attributes: additional_attributes,
       content_attributes: content_attributes,
-      content_type: content_type,
+      content_type: webhook_content_type,
       content: outgoing_content,
       conversation: conversation.webhook_data,
       created_at: created_at,
@@ -375,18 +412,69 @@ class Message < ApplicationRecord
   end
 
   def send_reply
+    # Skip immediate sending if message is scheduled
+    return if scheduled?
+
     # FIXME: Giving it few seconds for the attachment to be uploaded to the service
     # active storage attaches the file only after commit
     attachments.blank? ? ::SendReplyJob.perform_later(id) : ::SendReplyJob.set(wait: 2.seconds).perform_later(id)
+  end
+
+  def scheduled?
+    content_attributes&.dig(:scheduled_message_id).present?
   end
 
   def reopen_conversation
     return if conversation.muted?
     return unless incoming?
 
+    # Don't reopen conversation if this is a response to an active NPS or CSAT survey
+    # This prevents the conversation from reopening when customer responds to surveys
+    return if response_to_active_survey?
+
     conversation.open! if conversation.snoozed?
 
     reopen_resolved_conversation if conversation.resolved?
+  end
+
+  def response_to_active_survey?
+    # Only prevent reopening if this message is actually a valid survey response
+    # Check if there's an active NPS survey and if this message contains a valid NPS score (0-10)
+    active_nps = conversation.nps_responses
+      .where(status: :sent)
+      .where(answered_at: nil)
+      .where('created_at >= ?', 7.days.ago)
+      .order(created_at: :desc)
+      .first
+    
+    if active_nps.present?
+      # Check if this message contains a valid NPS score (0-10)
+      nps_score = NpsSurveys::ScoreValidator.validate_and_extract(content)
+      return true if nps_score.present? && nps_score >= 0 && nps_score <= 10
+    end
+
+    # Check if there's an active CSAT survey and if this message contains a valid CSAT rating (1-5)
+    recent_csat_message = conversation.messages
+      .where(message_type: :template, content_type: :input_csat)
+      .where('created_at >= ?', 7.days.ago)
+      .order(created_at: :desc)
+      .first
+    
+    if recent_csat_message.present?
+      csat_response = conversation.csat_survey_response
+      # If CSAT response doesn't exist or has no rating, survey is still active
+      if csat_response.blank? || csat_response.rating.blank?
+        # Check if this message contains a valid CSAT rating (1-5)
+        # CSAT ratings are typically 1-5, check if content is a number in that range
+        rating_match = content.to_s.strip.match(/^\s*(\d+)\s*$/)
+        if rating_match
+          rating = rating_match[1].to_i
+          return true if rating >= 1 && rating <= 5
+        end
+      end
+    end
+
+    false
   end
 
   def reopen_resolved_conversation
@@ -418,6 +506,11 @@ class Message < ApplicationRecord
     conversation.update_columns(last_activity_at: created_at)
     # rubocop:enable Rails/SkipsModelValidations
   end
+
+  def set_team_id_from_conversation
+    self.team_id = conversation.team_id if conversation.present?
+  end
+  
 
   def reindex_for_search
     reindex(mode: :async)

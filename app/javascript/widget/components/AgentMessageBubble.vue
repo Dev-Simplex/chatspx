@@ -6,6 +6,7 @@ import ChatOptions from 'shared/components/ChatOptions.vue';
 import ChatArticle from './template/Article.vue';
 import EmailInput from './template/EmailInput.vue';
 import CustomerSatisfaction from 'shared/components/CustomerSatisfaction.vue';
+import NpsSurvey from 'widget/components/NpsSurvey.vue';
 import IntegrationCard from './template/IntegrationCard.vue';
 
 export default {
@@ -17,6 +18,7 @@ export default {
     ChatOptions,
     EmailInput,
     CustomerSatisfaction,
+    NpsSurvey,
     IntegrationCard,
   },
   props: {
@@ -61,6 +63,9 @@ export default {
     isCSAT() {
       return this.contentType === 'input_csat';
     },
+    isNPS() {
+      return this.contentType === 'input_nps';
+    },
     isIntegrations() {
       return this.contentType === 'integrations';
     },
@@ -85,6 +90,17 @@ export default {
         messageId: this.messageId,
       });
     },
+    onNpsSubmit(npsData) {
+      this.onResponse({
+        submittedValues: {
+          nps_response: {
+            score: npsData.score,
+            comment: npsData.comment,
+          },
+        },
+        messageId: this.messageId,
+      });
+    },
   },
 };
 </script>
@@ -93,7 +109,7 @@ export default {
   <div class="chat-bubble-wrap">
     <div
       v-if="
-        !isCards && !isOptions && !isForm && !isArticle && !isCards && !isCSAT
+        !isCards && !isOptions && !isForm && !isArticle && !isCards && !isCSAT && !isNPS
       "
       class="chat-bubble agent bg-n-background dark:bg-n-solid-3 text-n-slate-12"
     >
@@ -147,6 +163,16 @@ export default {
       :display-type="messageContentAttributes.display_type"
       :message="message"
       :message-id="messageId"
+    />
+    <NpsSurvey
+      v-if="isNPS"
+      :message="{
+        id: messageId,
+        content: message,
+        content_type: contentType,
+        content_attributes: messageContentAttributes
+      }"
+      @submit="onNpsSubmit"
     />
   </div>
 </template>

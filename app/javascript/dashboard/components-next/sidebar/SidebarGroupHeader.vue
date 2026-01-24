@@ -1,7 +1,6 @@
 <script setup>
 import { computed } from 'vue';
 import { useMapGetter } from 'dashboard/composables/store.js';
-import Icon from 'next/icon/Icon.vue';
 
 const props = defineProps({
   to: { type: [Object, String], default: '' },
@@ -32,14 +31,14 @@ const count = computed(() =>
     :to="to"
     :title="label"
     :class="{
-      'text-n-blue-text bg-n-alpha-2 font-medium': isActive && !hasActiveChild,
+      'text-n-teal-text bg-n-alpha-2 font-medium': isActive && !hasActiveChild,
       'text-n-slate-12 font-medium': hasActiveChild,
       'text-n-slate-11 hover:bg-n-alpha-2': !isActive && !hasActiveChild,
     }"
     @click.stop="emit('toggle')"
   >
     <div v-if="icon" class="relative flex items-center gap-2">
-      <Icon v-if="icon" :icon="icon" class="size-4" />
+      <span v-if="icon" :class="[icon, 'size-4', 'flex-shrink-0', 'inline-block']" />
       <span
         v-if="showBadge"
         class="size-2 -top-px ltr:-right-px rtl:-left-px bg-n-brand absolute rounded-full border border-n-solid-2"

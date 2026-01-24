@@ -21,6 +21,7 @@
 #  out_of_office_message         :string
 #  sender_name_type              :integer          default("friendly"), not null
 #  timezone                      :string           default("UTC")
+#  waha_session_name             :string
 #  working_hours_enabled         :boolean          default(FALSE)
 #  created_at                    :datetime         not null
 #  updated_at                    :datetime         not null
@@ -33,6 +34,7 @@
 #  index_inboxes_on_account_id                   (account_id)
 #  index_inboxes_on_channel_id_and_channel_type  (channel_id,channel_type)
 #  index_inboxes_on_portal_id                    (portal_id)
+#  index_inboxes_on_waha_session_name            (waha_session_name)
 #
 # Foreign Keys
 #
@@ -197,6 +199,14 @@ class Inbox < ApplicationRecord
 
   def member_ids_with_assignment_capacity
     members.ids
+  end
+
+  def nps_survey_enabled?
+    nps_survey_enabled == true
+  end
+
+  def nps_config
+    self[:nps_config] || {}
   end
 
   def auto_assignment_v2_enabled?

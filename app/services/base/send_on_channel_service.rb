@@ -11,10 +11,13 @@ class Base::SendOnChannelService
   pattr_initialize [:message!]
 
   def perform
+    Rails.logger.info "Base::SendOnChannelService: perform called for message #{message.id}, message_type: #{message.message_type}, content_type: #{message.content_type}, outgoing?: #{message.outgoing?}, template?: #{message.template?}, private?: #{message.private?}"
     validate_target_channel
+    Rails.logger.info "Base::SendOnChannelService: Channel validated, outgoing_message?: #{outgoing_message?}, invalid_message?: #{invalid_message?}"
     return unless outgoing_message?
     return if invalid_message?
 
+    Rails.logger.info "Base::SendOnChannelService: Calling perform_reply"
     perform_reply
   end
 

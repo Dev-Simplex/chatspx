@@ -623,7 +623,8 @@
       "WIDGET_BUILDER": "Widget Builder",
       "BOT_CONFIGURATION": "Bot Configuration",
       "ACCOUNT_HEALTH": "Account Health",
-      "CSAT": "CSAT"
+      "CSAT": "CSAT",
+      "NPS": "NPS"
     },
     "ACCOUNT_HEALTH": {
       "TITLE": "Manage your WhatsApp account",
@@ -852,6 +853,44 @@
       "API": {
         "SUCCESS_MESSAGE": "CSAT settings updated successfully",
         "ERROR_MESSAGE": "We couldn't update CSAT settings. Please try again later."
+      }
+    },
+    "NPS": {
+      "TITLE": "Net Promoter Score (NPS)",
+      "SUBTITLE": "Configure NPS survey for this inbox. NPS helps measure customer loyalty and identify promoters, passives, and detractors.",
+      "MODE": {
+        "LABEL": "Trigger Mode",
+        "AUTO": "Automatic",
+        "MANUAL": "Manual",
+        "BOTH": "Both"
+      },
+      "MESSAGE": {
+        "LABEL": "Survey Message",
+        "PLACEHOLDER": "On a scale of 0 to 10, how likely are you to recommend our company to a friend or colleague?"
+      },
+      "THANK_YOU_MESSAGE": {
+        "LABEL": "Thank You Message",
+        "PLACEHOLDER": "Thank you for your feedback!"
+      },
+      "EXPIRATION_HOURS": {
+        "LABEL": "Expiration (hours)"
+      },
+      "COOLDOWN_DAYS": {
+        "LABEL": "Cooldown (days)"
+      },
+      "BLOCKLIST": {
+        "LABEL": "Blocklist Labels",
+        "SELECT_PLACEHOLDER": "Add label"
+      },
+      "BLOCKLIST_SCOPE": {
+        "LABEL": "Blocklist Scope",
+        "CONTACT": "Contact",
+        "CONVERSATION": "Conversation",
+        "BOTH": "Both"
+      },
+      "API": {
+        "SUCCESS_MESSAGE": "NPS settings updated successfully!",
+        "ERROR_MESSAGE": "Error updating NPS settings"
       }
     },
     "BUSINESS_HOURS": {

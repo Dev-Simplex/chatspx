@@ -14,6 +14,22 @@ defineProps({
     type: Boolean,
     required: true,
   },
+  buttonLabel: {
+    type: String,
+    default: '',
+  },
+  buttonJustify: {
+    type: String,
+    default: null,
+  },
+  buttonClass: {
+    type: String,
+    default: '',
+  },
+  showTooltip: {
+    type: Boolean,
+    default: true,
+  },
 });
 
 const emit = defineEmits(['changeFilter']);
@@ -133,11 +149,26 @@ const handleSortChange = value => {
 <template>
   <div class="relative flex">
     <NextButton
+      v-if="showTooltip"
       v-tooltip.right="$t('CHAT_LIST.SORT_TOOLTIP_LABEL')"
       icon="i-lucide-arrow-up-down"
+      :label="buttonLabel"
+      :justify="buttonJustify"
       slate
       faded
       xs
+      :class="buttonClass"
+      @click="toggleDropdown()"
+    />
+    <NextButton
+      v-else
+      icon="i-lucide-arrow-up-down"
+      :label="buttonLabel"
+      :justify="buttonJustify"
+      slate
+      faded
+      xs
+      :class="buttonClass"
       @click="toggleDropdown()"
     />
     <div

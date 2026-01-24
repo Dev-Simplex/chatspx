@@ -109,13 +109,14 @@ class Attachment < ApplicationRecord
   end
 
   def file_metadata
+    file_meta = file.attached? ? file.metadata : {}
     metadata = {
       extension: extension,
       data_url: file_url,
       thumb_url: thumb_url,
-      file_size: file.byte_size,
-      width: file.metadata[:width],
-      height: file.metadata[:height]
+      file_size: file.attached? ? file.byte_size : 0,
+      width: file_meta[:width],
+      height: file_meta[:height]
     }
 
     metadata[:data_url] = metadata[:thumb_url] = external_url if message.inbox.instagram? && message.incoming?
