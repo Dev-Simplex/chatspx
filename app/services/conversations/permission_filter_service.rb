@@ -16,7 +16,15 @@ class Conversations::PermissionFilterService
   private
 
   def accessible_conversations
-    conversations.where(inbox: user.inboxes.where(account_id: account.id))
+    # Filtra por inbox primeiro
+    conversations_by_inbox = conversations.where(inbox: user.inboxes.where(account_id: account.id))
+    
+    # Se o usuário tem teams, filtra também por team
+    if user.teams.any?
+      conversations_by_inbox.where('team_id IN (?) OR team_id IS NULL', user.teams.pluck(:id))
+    else
+      conversations_by_inbox
+    end
   end
 
   def account_user

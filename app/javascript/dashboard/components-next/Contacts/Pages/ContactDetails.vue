@@ -10,7 +10,6 @@ import Button from 'dashboard/components-next/button/Button.vue';
 import ContactLabels from 'dashboard/components-next/Contacts/ContactLabels/ContactLabels.vue';
 import ContactsForm from 'dashboard/components-next/Contacts/ContactsForm/ContactsForm.vue';
 import ConfirmContactDeleteDialog from 'dashboard/components-next/Contacts/ContactsForm/ConfirmContactDeleteDialog.vue';
-import Policy from 'dashboard/components/policy.vue';
 
 const props = defineProps({
   selectedContact: {
@@ -128,6 +127,7 @@ const handleAvatarDelete = async () => {
         :name="selectedContact?.name || ''"
         :size="72"
         allow-upload
+        allow-preview
         @upload="handleAvatarUpload"
         @delete="handleAvatarDelete"
       />
@@ -175,29 +175,27 @@ const handleAvatarDelete = async () => {
         @click="updateContact"
       />
     </div>
-    <Policy :permissions="['administrator']">
-      <div
-        class="flex flex-col items-start w-full gap-4 pt-6 border-t border-n-strong"
-      >
-        <div class="flex flex-col gap-2">
-          <h6 class="text-base font-medium text-n-slate-12">
-            {{ t('CONTACTS_LAYOUT.DETAILS.DELETE_CONTACT') }}
-          </h6>
-          <span class="text-sm text-n-slate-11">
-            {{ t('CONTACTS_LAYOUT.DETAILS.DELETE_CONTACT_DESCRIPTION') }}
-          </span>
-        </div>
-        <Button
-          :label="t('CONTACTS_LAYOUT.DETAILS.DELETE_CONTACT')"
-          color="ruby"
-          @click="openConfirmDeleteContactDialog"
-        />
+    <div
+      class="flex flex-col items-start w-full gap-4 pt-6 border-t border-n-strong"
+    >
+      <div class="flex flex-col gap-2">
+        <h6 class="text-base font-medium text-n-slate-12">
+          {{ t('CONTACTS_LAYOUT.DETAILS.DELETE_CONTACT') }}
+        </h6>
+        <span class="text-sm text-n-slate-11">
+          {{ t('CONTACTS_LAYOUT.DETAILS.DELETE_CONTACT_DESCRIPTION') }}
+        </span>
       </div>
-      <ConfirmContactDeleteDialog
-        ref="confirmDeleteContactDialogRef"
-        :selected-contact="selectedContact"
-        @go-to-contacts-list="emit('goToContactsList')"
+      <Button
+        :label="t('CONTACTS_LAYOUT.DETAILS.DELETE_CONTACT')"
+        color="ruby"
+        @click="openConfirmDeleteContactDialog"
       />
-    </Policy>
+    </div>
+    <ConfirmContactDeleteDialog
+      ref="confirmDeleteContactDialogRef"
+      :selected-contact="selectedContact"
+      @go-to-contacts-list="emit('goToContactsList')"
+    />
   </div>
 </template>

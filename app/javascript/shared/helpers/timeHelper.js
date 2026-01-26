@@ -5,6 +5,7 @@ import {
   formatDistanceToNow,
   differenceInDays,
 } from 'date-fns';
+import { ptBR } from 'date-fns/locale';
 
 /**
  * Formats a Unix timestamp into a human-readable time format.
@@ -34,13 +35,13 @@ export const messageTimestamp = (time, dateFormat = 'MMM d, yyyy') => {
 };
 
 /**
- * Converts a Unix timestamp to a relative time string (e.g., 3 hours ago).
+ * Converts a Unix timestamp to a relative time string (e.g., há 3 horas).
  * @param {number} time - Unix timestamp.
  * @returns {string} Relative time string.
  */
 export const dynamicTime = time => {
   const unixTime = fromUnixTime(time);
-  return formatDistanceToNow(unixTime, { addSuffix: true });
+  return formatDistanceToNow(unixTime, { addSuffix: true, locale: ptBR });
 };
 
 /**

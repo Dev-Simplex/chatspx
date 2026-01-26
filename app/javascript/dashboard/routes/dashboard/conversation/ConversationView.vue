@@ -2,6 +2,8 @@
 import { mapGetters } from 'vuex';
 import { useUISettings } from 'dashboard/composables/useUISettings';
 import { useAccount } from 'dashboard/composables/useAccount';
+import { useKeyboardEvents } from 'dashboard/composables/useKeyboardEvents';
+import { useRouter } from 'vue-router';
 import ChatList from '../../../components/ChatList.vue';
 import ConversationBox from '../../../components/widgets/conversation/ConversationBox.vue';
 import wootConstants from 'dashboard/constants/globals';
@@ -48,6 +50,10 @@ export default {
       type: String,
       default: '',
     },
+    conversationStatus: {
+      type: String,
+      default: '',
+    },
     foldersId: {
       type: [String, Number],
       default: 0,
@@ -56,6 +62,25 @@ export default {
   setup() {
     const { uiSettings, updateUISettings } = useUISettings();
     const { accountId } = useAccount();
+    const router = useRouter();
+
+    // Navegar de volta ao dashboard ao pressionar ESC dentro de uma conversa
+    const keyboardEvents = {
+      Escape: {
+        action: (e) => {
+          // Prevenir o comportamento padrão do ESC
+          e.preventDefault();
+          e.stopPropagation();
+          // Navegar de volta ao dashboard
+          if (accountId.value) {
+            router.push(`/app/accounts/${accountId.value}/dashboard`);
+          }
+        },
+        allowOnFocusedInput: false,
+      },
+    };
+
+    useKeyboardEvents(keyboardEvents);
 
     return {
       uiSettings,
@@ -66,6 +91,8 @@ export default {
   data() {
     return {
       showSearchModal: false,
+      showPermissionModal: false,
+      permissionErrorMessage: '',
     };
   },
   computed: {
@@ -146,13 +173,24 @@ export default {
         previously_used_conversation_display_type: newViewType,
       });
     },
-    fetchConversationIfUnavailable() {
+    async fetchConversationIfUnavailable() {
       if (!this.conversationId) {
         return;
       }
       const chat = this.findConversation();
       if (!chat) {
-        this.$store.dispatch('getConversation', this.conversationId);
+        try {
+          await this.$store.dispatch('getConversation', this.conversationId);
+        } catch (error) {
+          if (error.response && error.response.status === 403) {
+            this.permissionErrorMessage =
+              'Você não tem permissão para acessar esta conversa.';
+            this.showPermissionModal = true;
+          } else {
+            this.permissionErrorMessage = 'Erro ao carregar a conversa.';
+            this.showPermissionModal = true;
+          }
+        }
       }
     },
     findConversation() {
@@ -202,6 +240,7 @@ export default {
       :label="label"
       :team-id="teamId"
       :conversation-type="conversationType"
+      :conversation-status="conversationStatus"
       :folders-id="foldersId"
       :is-on-expanded-layout="isOnExpandedLayout"
       @conversation-load="onConversationLoad"
@@ -215,5 +254,68 @@ export default {
     </ConversationBox>
     <ConversationSidebar v-if="shouldShowSidebar" :current-chat="currentChat" />
     <CmdBarConversationSnooze />
+    <div v-if="showPermissionModal" class="modal-overlay">
+      <div class="modal-content">
+        <h2>Atenção</h2>
+        <p>{{ permissionErrorMessage }}</p>
+        <button
+          @click="
+            () => {
+              showPermissionModal = false;
+              $router.push(`/app/accounts/${accountId}/conversations`);
+            }
+          "
+        >
+          Voltar para conversas
+        </button>
+      </div>
+    </div>
   </section>
 </template>
+
+<style scoped>
+.modal-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(30, 30, 30, 0.95); /* cinza escuro */
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 9999;
+}
+.modal-content {
+  background: #333;
+  padding: 2rem 3rem;
+  border-radius: 12px;
+  box-shadow: 0 2px 16px rgba(0, 0, 0, 0.3);
+  text-align: center;
+}
+.modal-content h2 {
+  color: #e53935; /* vermelho */
+  margin-bottom: 1rem;
+  font-size: 2rem;
+  font-weight: bold;
+}
+.modal-content p {
+  color: #fff;
+  font-size: 1.2rem;
+  margin-bottom: 2rem;
+}
+button {
+  margin-top: 1.5rem;
+  padding: 0.7rem 2rem;
+  background: #2dc46f;
+  color: #fff;
+  border: none;
+  border-radius: 5px;
+  font-size: 1rem;
+  cursor: pointer;
+  transition: background 0.2s;
+}
+button:hover {
+  background: #24a85a;
+}
+</style>

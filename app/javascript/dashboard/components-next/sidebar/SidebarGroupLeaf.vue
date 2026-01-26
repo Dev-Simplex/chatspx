@@ -10,6 +10,7 @@ const props = defineProps({
   icon: { type: [String, Object], default: null },
   active: { type: Boolean, default: false },
   component: { type: Function, default: null },
+  isCollapsed: { type: Boolean, default: false },
 });
 
 const { resolvePermissions, resolveFeatureFlag } = useSidebarContext();
@@ -30,11 +31,17 @@ const shouldRenderComponent = computed(() => {
     <component
       :is="to ? 'router-link' : 'div'"
       :to="to"
-      :title="label"
-      class="flex h-8 items-center gap-2 px-2 py-1 rounded-lg max-w-[9.438rem] hover:bg-gradient-to-r from-transparent via-n-slate-3/70 to-n-slate-3/70 group"
-      :class="{
-        'text-n-blue-text bg-n-alpha-2 active': active,
-      }"
+      :title="isCollapsed ? label : undefined"
+      class="flex h-8 items-center rounded-lg hover:bg-gradient-to-r from-transparent via-n-slate-3/70 to-n-slate-3/70 group"
+      :class="[
+        {
+          'justify-center px-2': isCollapsed,
+          'gap-2 px-2 py-1 max-w-[9.438rem]': !isCollapsed,
+        },
+        {
+          'text-n-blue-text bg-n-alpha-2 active': active,
+        },
+      ]"
     >
       <component
         :is="component"
@@ -42,10 +49,13 @@ const shouldRenderComponent = computed(() => {
         :label
         :icon
         :active
+        :is-collapsed="isCollapsed"
       />
       <template v-else>
         <Icon v-if="icon" :icon="icon" class="size-4 inline-block" />
-        <div class="flex-1 truncate min-w-0">{{ label }}</div>
+        <div v-if="!isCollapsed" class="flex-1 truncate min-w-0">
+          {{ label }}
+        </div>
       </template>
     </component>
   </Policy>

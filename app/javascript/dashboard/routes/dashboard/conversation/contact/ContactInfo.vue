@@ -4,14 +4,13 @@ import { useAlert } from 'dashboard/composables';
 import { dynamicTime } from 'shared/helpers/timeHelper';
 import { useAdmin } from 'dashboard/composables/useAdmin';
 import ContactInfoRow from './ContactInfoRow.vue';
-import Avatar from 'next/avatar/Avatar.vue';
+import Thumbnail from 'dashboard/components/widgets/Thumbnail.vue';
 import SocialIcons from './SocialIcons.vue';
 import EditContact from './EditContact.vue';
 import ContactMergeModal from 'dashboard/modules/contact/ContactMergeModal.vue';
 import ComposeConversation from 'dashboard/components-next/NewConversation/ComposeConversation.vue';
 import { BUS_EVENTS } from 'shared/constants/busEvents';
 import NextButton from 'dashboard/components-next/button/Button.vue';
-import VoiceCallButton from 'dashboard/components-next/Contacts/VoiceCallButton.vue';
 
 import {
   isAConversationRoute,
@@ -25,11 +24,10 @@ export default {
     NextButton,
     ContactInfoRow,
     EditContact,
-    Avatar,
+    Thumbnail,
     ComposeConversation,
     SocialIcons,
     ContactMergeModal,
-    VoiceCallButton,
   },
   props: {
     contact: {
@@ -181,14 +179,13 @@ export default {
   <div class="relative items-center w-full p-4">
     <div class="flex flex-col w-full gap-2 text-left rtl:text-right">
       <div class="flex flex-row justify-between">
-        <Avatar
+        <Thumbnail
           v-if="showAvatar"
           :src="contact.thumbnail"
-          :name="contact.name"
+          size="48px"
+          :username="contact.name"
           :status="contact.availability_status"
-          :size="48"
-          hide-offline-status
-          rounded-full
+          allow-preview
         />
       </div>
 

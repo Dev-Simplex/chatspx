@@ -43,5 +43,50 @@ RSpec.describe Conversations::PermissionFilterService do
         expect(result.count).to eq(2)
       end
     end
+
+    context 'when user has teams' do
+      let(:team) { create(:team, account: account) }
+      let(:another_team) { create(:team, account: account) }
+      let(:agent_with_team) { create(:user, account: account, role: :agent) }
+      let!(:team_member) { create(:team_member, team: team, user: agent_with_team) }
+      let!(:conversation_with_team) { create(:conversation, account: account, inbox: inbox, team: team) }
+      let!(:conversation_with_another_team) { create(:conversation, account: account, inbox: inbox, team: another_team) }
+      let!(:conversation_without_team) { create(:conversation, account: account, inbox: inbox, team: nil) }
+
+      before { create(:inbox_member, user: agent_with_team, inbox: inbox) }
+
+      it 'returns only conversations from user teams or without team' do
+        result = described_class.new(
+          account.conversations,
+          agent_with_team,
+          account
+        ).perform
+
+        expect(result).to include(conversation_with_team)
+        expect(result).to include(conversation_without_team)
+        expect(result).not_to include(conversation_with_another_team)
+        expect(result.count).to eq(2)
+      end
+    end
+
+    context 'when user has no teams' do
+      let(:agent_without_team) { create(:user, account: account, role: :agent) }
+      let!(:conversation_with_team) { create(:conversation, account: account, inbox: inbox, team: create(:team, account: account)) }
+      let!(:conversation_without_team) { create(:conversation, account: account, inbox: inbox, team: nil) }
+
+      before { create(:inbox_member, user: agent_without_team, inbox: inbox) }
+
+      it 'returns all conversations from accessible inboxes' do
+        result = described_class.new(
+          account.conversations,
+          agent_without_team,
+          account
+        ).perform
+
+        expect(result).to include(conversation_with_team)
+        expect(result).to include(conversation_without_team)
+        expect(result.count).to eq(2)
+      end
+    end
   end
 end

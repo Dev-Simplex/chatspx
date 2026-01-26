@@ -623,5 +623,37 @@
     "AVG_REPLY_TIME": "Avg. Customer Waiting Time",
     "RESOLUTION_COUNT": "Resolution Count",
     "CONVERSATIONS": "No. of conversations"
+  },
+  "LIVE_REPORTS": {
+    "IN_SERVICE": {
+      "HEADER": "Live In Service",
+      "DESCRIPTION": "View real-time status of agents and their active conversations",
+      "SHOW_FILTERS": "Show Filters",
+      "HIDE_FILTERS": "Hide Filters",
+      "ENABLE_REALTIME": "Enable Real-time",
+      "DISABLE_REALTIME": "Disable Real-time",
+      "UPDATES_EVERY": "Updates every",
+      "REFRESH": "Refresh",
+      "LOADING": "Loading...",
+      "NO_AGENTS": "No agents available",
+      "NO_CONVERSATIONS": "No conversations",
+      "NO_NAME": "No name",
+      "NO_MESSAGES": "No messages",
+      "SENT_IMAGE": "Sent an image",
+      "SENT_AUDIO": "Sent an audio",
+      "SENT_FILE": "Sent a file",
+      "YESTERDAY": "Yesterday",
+      "FILTERS": {
+        "ALL_AGENTS": "All Agents",
+        "ALL_DEPARTMENTS": "All Departments",
+        "USER_NAME": "User Name",
+        "USER_NAME_PLACEHOLDER": "Select agent",
+        "DEPARTMENT": "Department",
+        "DEPARTMENT_PLACEHOLDER": "Select department"
+      },
+      "AGENT_CARD": {
+        "TOTAL_OPEN_CALLS": "Total Open Calls"
+      }
+    }
   }
 }

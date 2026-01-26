@@ -7,16 +7,10 @@ json.meta do
     json.partial! 'api/v1/models/contact', formats: [:json], resource: conversation.contact
   end
   json.channel conversation.inbox.try(:channel_type)
-  if conversation.assigned_entity.is_a?(AgentBot)
+  if conversation.assignee&.account
     json.assignee do
-      json.partial! 'api/v1/models/agent_bot_slim', formats: [:json], resource: conversation.assigned_entity
+      json.partial! 'api/v1/models/agent', formats: [:json], resource: conversation.assignee
     end
-    json.assignee_type 'AgentBot'
-  elsif conversation.assigned_entity&.account
-    json.assignee do
-      json.partial! 'api/v1/models/agent', formats: [:json], resource: conversation.assigned_entity
-    end
-    json.assignee_type 'User'
   end
   if conversation.team.present?
     json.team do
@@ -30,10 +24,9 @@ json.id conversation.display_id
 if conversation.messages.where(account_id: conversation.account_id).last.blank?
   json.messages []
 else
-  json.messages [
-    conversation.messages.where(account_id: conversation.account_id)
-                .includes([{ attachments: [{ file_attachment: [:blob] }] }]).last.try(:push_event_data)
-  ]
+  last_message = conversation.messages.where(account_id: conversation.account_id)
+                .includes([{ attachments: [{ file_attachment: [:blob] }] }])
+  json.messages [last_message.last.try(:push_event_data)]
 end
 
 json.account_id conversation.account_id
@@ -54,7 +47,8 @@ json.updated_at conversation.updated_at.to_f
 json.timestamp conversation.last_activity_at.to_i
 json.first_reply_created_at conversation.first_reply_created_at.to_i
 json.unread_count conversation.unread_incoming_messages.count
-json.last_non_activity_message conversation.messages.where(account_id: conversation.account_id).non_activity_messages.first.try(:push_event_data)
+last_non_activity = conversation.messages.where(account_id: conversation.account_id).non_activity_messages
+json.last_non_activity_message last_non_activity.first.try(:push_event_data)
 json.last_activity_at conversation.last_activity_at.to_i
 json.priority conversation.priority
 json.waiting_since conversation.waiting_since.to_i.to_i

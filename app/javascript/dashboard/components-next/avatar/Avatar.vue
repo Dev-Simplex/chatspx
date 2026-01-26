@@ -4,7 +4,7 @@ import { useI18n } from 'vue-i18n';
 import { removeEmoji } from 'shared/helpers/emoji';
 
 import Icon from 'dashboard/components-next/icon/Icon.vue';
-import ChannelIcon from 'dashboard/components-next/icon/ChannelIcon.vue';
+import GalleryView from 'dashboard/components/widgets/conversation/components/GalleryView.vue';
 import wootConstants from 'dashboard/constants/globals';
 
 const props = defineProps({
@@ -24,6 +24,10 @@ const props = defineProps({
     type: Boolean,
     default: false,
   },
+  allowPreview: {
+    type: Boolean,
+    default: false,
+  },
   roundedFull: {
     type: Boolean,
     default: false,
@@ -34,17 +38,9 @@ const props = defineProps({
     validator: value =>
       !value || wootConstants.AVAILABILITY_STATUS_KEYS.includes(value),
   },
-  inbox: {
-    type: Object,
-    default: null,
-  },
   iconName: {
     type: String,
     default: null,
-  },
-  hideOfflineStatus: {
-    type: Boolean,
-    default: false,
   },
 });
 
@@ -54,6 +50,7 @@ const { t } = useI18n();
 
 const isImageValid = ref(true);
 const fileInput = ref(null);
+const showPreview = ref(false);
 
 const AVATAR_COLORS = {
   dark: [
@@ -75,13 +72,16 @@ const AVATAR_COLORS = {
   default: { bg: '#E8E8E8', text: '#60646C' },
 };
 
-const STATUS_CLASSES = computed(() => ({
+const STATUS_CLASSES = {
   online: 'bg-n-teal-10',
   busy: 'bg-n-amber-10',
-  ...(props.hideOfflineStatus ? {} : { offline: 'bg-n-slate-10' }),
-}));
+  offline: 'bg-n-slate-10',
+};
 
 const showDefaultAvatar = computed(() => !props.src && !props.name);
+const canPreview = computed(
+  () => props.allowPreview && !!props.src && isImageValid.value
+);
 
 const initials = computed(() => {
   if (!props.name) return '';
@@ -144,8 +144,41 @@ const initialsStyles = computed(() => ({
   fontSize: `${Math.min(props.size / 2.5, 24)}px`,
 }));
 
+const previewAttachment = computed(() => {
+  if (!canPreview.value) return null;
+  const name = props.name || '';
+  return {
+    message_id: props.src || props.name || 'avatar',
+    file_type: 'image',
+    data_url: props.src,
+    sender: {
+      name,
+      avatar_url: props.src,
+      thumbnail: props.src,
+    },
+  };
+});
+
+const previewAttachments = computed(() =>
+  previewAttachment.value ? [previewAttachment.value] : []
+);
+
 const invalidateCurrentImage = () => {
   isImageValid.value = false;
+};
+
+const openPreview = (e) => {
+  // Don't open preview if clicking on checkbox/overlay
+  if (e?.target?.tagName === 'INPUT' || e?.target?.closest('label')) {
+    return;
+  }
+  if (canPreview.value) {
+    showPreview.value = true;
+  }
+};
+
+const closePreview = () => {
+  showPreview.value = false;
 };
 
 const handleUploadAvatar = () => {
@@ -174,41 +207,48 @@ const handleDismiss = event => {
   handleDeleteAvatar();
 };
 
+const handleOverlayClick = (e) => {
+  // Don't handle if clicking on checkbox
+  if (e?.target?.tagName === 'INPUT' || e?.target?.closest('label')) {
+    return;
+  }
+  if (!canPreview.value) {
+    handleUploadAvatar();
+  }
+};
+
 watch(
   () => props.src,
-  () => {
+  newSrc => {
     isImageValid.value = true;
+    if (!newSrc) {
+      showPreview.value = false;
+    }
   }
 );
 </script>
 
 <template>
   <span
-    class="relative inline-flex group/avatar z-0 flex-shrink-0"
+    class="relative inline-flex group/avatar z-0"
+    :class="{ 'cursor-zoom-in': canPreview }"
     :style="containerStyles"
   >
     <!-- Status Badge -->
     <slot name="badge" :size="size">
       <div
-        v-if="status && STATUS_CLASSES[status]"
+        v-if="status"
         class="absolute z-20 border rounded-full border-n-slate-3"
         :style="badgeStyles"
         :class="STATUS_CLASSES[status]"
       />
-      <div
-        v-if="inbox && !(status && STATUS_CLASSES[status])"
-        :style="badgeStyles"
-        class="absolute z-20 flex items-center justify-center rounded-full bg-n-solid-1 border border-transparent flex-shrink-0"
-      >
-        <ChannelIcon :inbox="inbox" class="w-full h-full text-n-slate-11" />
-      </div>
     </slot>
 
     <!-- Delete Avatar Button -->
     <div
       v-if="src && allowUpload"
-      class="absolute z-20 flex items-center justify-center invisible w-6 h-6 transition-all duration-300 ease-in-out opacity-0 cursor-pointer outline outline-1 outline-n-container -top-2 ltr:-right-2 rtl:-left-2 rounded-xl bg-n-solid-3 group-hover/avatar:visible group-hover/avatar:opacity-100"
-      @click="handleDismiss"
+      class="absolute z-20 flex items-center justify-center invisible w-6 h-6 transition-all duration-300 ease-in-out opacity-0 cursor-pointer outline outline-1 outline-n-container -top-2 -right-2 rounded-xl bg-n-solid-3 group-hover/avatar:visible group-hover/avatar:opacity-100"
+      @click.stop="handleDismiss"
     >
       <Icon icon="i-lucide-x" class="text-n-slate-11 size-4" />
     </div>
@@ -226,6 +266,7 @@ watch(
         },
       ]"
       :style="avatarStyles"
+      @click="openPreview($event)"
     >
       <!-- Avatar Content -->
       <img
@@ -251,40 +292,53 @@ watch(
         <!-- Fallback Icon if no name or image -->
         <Icon
           v-else
-          :title="t('THUMBNAIL.AUTHOR.NOT_AVAILABLE')"
+          v-tooltip.top-start="t('THUMBNAIL.AUTHOR.NOT_AVAILABLE')"
           icon="i-lucide-user"
           :style="iconStyles"
         />
       </template>
 
       <!-- Upload Overlay and Input -->
-      <slot
-        v-if="allowUpload || $slots.overlay"
-        name="overlay"
-        :size="size"
-        :handle-upload="handleUploadAvatar"
-        :file-input-ref="fileInput"
-        :handle-image-upload="handleImageUpload"
+      <div
+        v-if="allowUpload"
+        class="absolute inset-0 z-10 flex items-center justify-center invisible w-full h-full transition-all duration-300 ease-in-out opacity-0 rounded-xl bg-n-alpha-black1 group-hover/avatar:visible group-hover/avatar:opacity-100"
+        @click="handleOverlayClick($event)"
       >
-        <div
-          class="absolute inset-0 z-10 flex items-center justify-center invisible w-full h-full transition-all duration-300 ease-in-out opacity-0 rounded-xl bg-n-alpha-black1 group-hover/avatar:visible group-hover/avatar:opacity-100"
-          @click="handleUploadAvatar"
+        <button
+          v-if="canPreview"
+          type="button"
+          class="flex items-center justify-center p-0 border-0 bg-transparent"
+          @click.stop="handleUploadAvatar"
         >
           <Icon
             icon="i-lucide-upload"
             class="text-white"
             :style="{ width: `${size / 2}px`, height: `${size / 2}px` }"
           />
-          <input
-            v-if="allowUpload"
-            ref="fileInput"
-            type="file"
-            accept="image/png, image/jpeg, image/jpg, image/gif, image/webp"
-            class="hidden"
-            @change="handleImageUpload"
-          />
-        </div>
-      </slot>
+        </button>
+        <Icon
+          v-else
+          icon="i-lucide-upload"
+          class="text-white"
+          :style="{ width: `${size / 2}px`, height: `${size / 2}px` }"
+        />
+        <input
+          ref="fileInput"
+          type="file"
+          accept="image/png, image/jpeg, image/jpg, image/gif, image/webp"
+          class="hidden"
+          @change="handleImageUpload"
+        />
+      </div>
+      <!-- Overlay Slot (checkbox, etc) -->
+      <slot name="overlay" :size="size" />
     </span>
+    <GalleryView
+      v-if="showPreview && previewAttachment"
+      v-model:show="showPreview"
+      :attachment="previewAttachment"
+      :all-attachments="previewAttachments"
+      @close="closePreview"
+    />
   </span>
 </template>

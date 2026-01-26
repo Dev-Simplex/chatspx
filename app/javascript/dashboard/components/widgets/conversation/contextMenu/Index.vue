@@ -221,6 +221,7 @@ export default {
       return keys.some(key => this.allowedOptions.includes(key));
     },
     toggleStatus(status, snoozedUntil) {
+      // Emit event - validation will happen in ChatList toggleConversationStatus
       this.$emit('updateConversation', status, snoozedUntil);
     },
     async snoozeConversation() {

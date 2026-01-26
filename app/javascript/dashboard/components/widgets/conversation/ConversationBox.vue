@@ -99,7 +99,8 @@ export default {
     <ConversationHeader
       v-if="currentChat.id"
       :chat="currentChat"
-      :show-back-button="isOnExpandedLayout && !isInboxView"
+      :show-back-button="!isInboxView"
+      :show-icon-only="!isOnExpandedLayout"
     />
     <woot-tabs
       v-if="dashboardApps.length && currentChat.id"

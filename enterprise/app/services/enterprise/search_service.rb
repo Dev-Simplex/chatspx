@@ -1,7 +1,12 @@
 module Enterprise::SearchService
   def advanced_search
-    where_conditions = build_where_conditions
-    apply_filters(where_conditions)
+    where_conditions = { account_id: current_account.id }
+    # Se está pesquisando dentro de uma conversa específica, não filtra por inbox
+    if params[:conversation_id].present?
+      where_conditions[:conversation_id] = params[:conversation_id].to_i
+    else
+      where_conditions[:inbox_id] = accessable_inbox_ids unless should_skip_inbox_filtering?
+    end
 
     Message.search(
       search_query,

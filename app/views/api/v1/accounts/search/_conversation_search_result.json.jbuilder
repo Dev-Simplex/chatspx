@@ -1,6 +1,7 @@
-json.id conversation.display_id
-json.account_id conversation.account_id
-json.created_at conversation.created_at.to_i
+json.partial! 'api/v1/conversations/partials/conversation',
+              formats: [:json],
+              conversation: conversation
+
 json.message do
   json.partial! 'message', formats: [:json], message: conversation.messages.try(:first)
 end

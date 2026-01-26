@@ -15,6 +15,7 @@ import UpdateActions from './UpdateActions.vue';
 import LabelActions from './LabelActions.vue';
 import TeamActions from './TeamActions.vue';
 import CustomSnoozeModal from 'dashboard/components/CustomSnoozeModal.vue';
+import TeamSelectionModal from '../TeamSelectionModal.vue';
 export default {
   components: {
     AgentSelector,
@@ -22,6 +23,7 @@ export default {
     LabelActions,
     TeamActions,
     CustomSnoozeModal,
+    TeamSelectionModal,
     NextButton,
   },
   props: {
@@ -49,6 +51,14 @@ export default {
       type: Boolean,
       default: false,
     },
+    showTeamModal: {
+      type: Boolean,
+      default: false,
+    },
+    teams: {
+      type: Array,
+      default: () => [],
+    },
   },
   emits: [
     'selectAllConversations',
@@ -57,6 +67,8 @@ export default {
     'assignLabels',
     'assignTeam',
     'resolveConversations',
+    'teamSelected',
+    'cancelTeamSelection',
   ],
   data() {
     return {
@@ -258,6 +270,13 @@ export default {
         @choose-time="customSnoozeTime"
       />
     </woot-modal>
+    <TeamSelectionModal
+      :show="showTeamModal"
+      :teams="teams"
+      :is-bulk="true"
+      @confirm="$emit('teamSelected', $event)"
+      @close="$emit('cancelTeamSelection')"
+    />
   </div>
 </template>
 
@@ -275,6 +294,7 @@ export default {
 
   input[type='checkbox'] {
     @apply cursor-pointer m-0;
+    accent-color: #2dc46f;
   }
 }
 

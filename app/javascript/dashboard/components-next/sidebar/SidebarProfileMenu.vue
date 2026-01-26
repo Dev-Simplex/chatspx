@@ -15,6 +15,10 @@ import {
 } from 'next/dropdown-menu/base';
 import CustomBrandPolicyWrapper from '../../components/CustomBrandPolicyWrapper.vue';
 
+const props = defineProps({
+  isCollapsed: { type: Boolean, default: false },
+});
+
 const emit = defineEmits(['close', 'openKeyShortcutModal']);
 
 defineOptions({
@@ -123,8 +127,15 @@ const allowedMenuItems = computed(() => {
   <DropdownContainer class="relative w-full min-w-0" @close="emit('close')">
     <template #trigger="{ toggle, isOpen }">
       <button
-        class="flex gap-2 items-center p-1 w-full text-left rounded-lg cursor-pointer hover:bg-n-alpha-1"
-        :class="{ 'bg-n-alpha-1': isOpen }"
+        class="flex items-center p-1 w-full rounded-lg cursor-pointer hover:bg-n-alpha-1"
+        :class="[
+          {
+            'justify-center': isCollapsed,
+            'gap-2 text-left': !isCollapsed,
+          },
+          { 'bg-n-alpha-1': isOpen },
+        ]"
+        :title="isCollapsed ? currentUser.available_name : undefined"
         @click="toggle"
       >
         <Avatar
@@ -135,7 +146,7 @@ const allowedMenuItems = computed(() => {
           class="flex-shrink-0"
           rounded-full
         />
-        <div class="min-w-0">
+        <div v-if="!isCollapsed" class="min-w-0">
           <div class="text-sm font-medium leading-4 truncate text-n-slate-12">
             {{ currentUser.available_name }}
           </div>

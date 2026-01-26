@@ -6,8 +6,10 @@ import { useElementSize } from '@vueuse/core';
 import BackButton from '../BackButton.vue';
 import InboxName from '../InboxName.vue';
 import MoreActions from './MoreActions.vue';
-import Avatar from 'next/avatar/Avatar.vue';
+import Thumbnail from '../Thumbnail.vue';
 import SLACardLabel from './components/SLACardLabel.vue';
+import ConversationMessageSearch from './ConversationMessageSearch.vue';
+import ButtonV4 from 'dashboard/components-next/button/Button.vue';
 import wootConstants from 'dashboard/constants/globals';
 import { conversationListPageURL } from 'dashboard/helper/URLHelper';
 import { snoozedReopenTime } from 'dashboard/helper/snoozeHelpers';
@@ -31,6 +33,7 @@ const route = useRoute();
 const conversationHeader = ref(null);
 const { width } = useElementSize(conversationHeader);
 const { isAWebWidgetInbox } = useInbox();
+const showMessageSearch = ref(false);
 
 const currentChat = computed(() => store.getters.getSelectedChat);
 const accountId = computed(() => store.getters.getCurrentAccountId);
@@ -105,13 +108,13 @@ const hasSlaPolicyId = computed(() => props.chat?.sla_policy_id);
         :back-url="backButtonUrl"
         class="ltr:mr-2 rtl:ml-2"
       />
-      <Avatar
-        :name="currentContact.name"
+      <Thumbnail
         :src="currentContact.thumbnail"
-        :size="32"
+        :username="currentContact.name"
         :status="currentContact.availability_status"
-        hide-offline-status
-        rounded-full
+        size="32px"
+        class="flex-shrink-0"
+        allow-preview
       />
       <div
         class="flex flex-col items-start min-w-0 ml-2 overflow-hidden rtl:ml-0 rtl:mr-2"
@@ -151,7 +154,22 @@ const hasSlaPolicyId = computed(() => props.chat?.sla_policy_id);
         :parent-width="width"
         class="hidden md:flex"
       />
+      <ButtonV4
+        v-tooltip="$t('SEARCH.SEARCH_IN_CONVERSATION')"
+        size="sm"
+        variant="ghost"
+        color="slate"
+        icon="i-lucide-search"
+        class="rounded-md hover:bg-n-alpha-2"
+        @click="showMessageSearch = true"
+      />
       <MoreActions :conversation-id="currentChat.id" />
     </div>
+    <ConversationMessageSearch
+      v-if="currentChat.id"
+      :conversation-id="currentChat.id"
+      :show="showMessageSearch"
+      @close="showMessageSearch = false"
+    />
   </div>
 </template>

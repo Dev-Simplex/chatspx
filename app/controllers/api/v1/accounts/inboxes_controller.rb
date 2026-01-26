@@ -43,8 +43,9 @@ class Api::V1::Accounts::InboxesController < Api::V1::Accounts::BaseController
   end
 
   def update
-    inbox_params = permitted_params.except(:channel, :csat_config)
+    inbox_params = permitted_params.except(:channel, :csat_config, :nps_config)
     inbox_params[:csat_config] = format_csat_config(permitted_params[:csat_config]) if permitted_params[:csat_config].present?
+    inbox_params[:nps_config] = format_nps_config(permitted_params[:nps_config]) if permitted_params[:nps_config].present?
     @inbox.update!(inbox_params)
     update_inbox_working_hours
     update_channel if channel_update_required?
@@ -170,13 +171,49 @@ class Api::V1::Accounts::InboxesController < Api::V1::Accounts::BaseController
     formatted['template'] = config['template'] if config['template'].present?
   end
 
+  def format_nps_config(config)
+    {
+      'mode' => config['mode'] || 'auto',
+      'message' => config['message'] || '',
+      'cooldown_days' => config['cooldown_days']&.to_i || 30,
+      'expiration_hours' => config['expiration_hours']&.to_i || 72,
+      'blocklist_labels' => Array(config['blocklist_labels'] || []),
+      'blocklist_scope' => config['blocklist_scope'] || 'both',
+      'min_messages' => config['min_messages']&.to_i,
+      'min_duration_minutes' => config['min_duration_minutes']&.to_i,
+      'required_tags' => Array(config['required_tags'] || []),
+      'thank_you_message' => config['thank_you_message'] || '',
+      'invalid_response_message' => config['invalid_response_message'] || '',
+      'comment_prompt_message' => config['comment_prompt_message'] || ''
+    }.compact
+  end
+
+
+  def format_nps_config(config)
+    {
+      'mode' => config['mode'] || 'auto',
+      'message' => config['message'] || '',
+      'cooldown_days' => config['cooldown_days']&.to_i || 30,
+      'expiration_hours' => config['expiration_hours']&.to_i || 72,
+      'blocklist_labels' => Array(config['blocklist_labels'] || []),
+      'blocklist_scope' => config['blocklist_scope'] || 'both',
+      'min_messages' => config['min_messages']&.to_i,
+      'min_duration_minutes' => config['min_duration_minutes']&.to_i,
+      'required_tags' => Array(config['required_tags'] || []),
+      'thank_you_message' => config['thank_you_message'] || '',
+      'invalid_response_message' => config['invalid_response_message'] || '',
+      'comment_prompt_message' => config['comment_prompt_message'] || ''
+    }.compact
+  end
+
   def inbox_attributes
-    [:name, :avatar, :greeting_enabled, :greeting_message, :enable_email_collect, :csat_survey_enabled,
+    [:name, :avatar, :greeting_enabled, :greeting_message, :enable_email_collect, :csat_survey_enabled, :nps_survey_enabled,
      :enable_auto_assignment, :working_hours_enabled, :out_of_office_message, :timezone, :allow_messages_after_resolved,
      :lock_to_single_conversation, :portal_id, :sender_name_type, :business_name,
      { csat_config: [:display_type, :message, :button_text, :language,
                      { survey_rules: [:operator, { values: [] }],
-                       template: [:name, :template_id, :friendly_name, :content_sid, :approval_sid, :created_at, :language, :status] }] }]
+                       template: [:name, :template_id, :friendly_name, :content_sid, :approval_sid, :created_at, :language, :status] }] },
+     { nps_config: [:mode, :message, :cooldown_days, :expiration_hours, :blocklist_scope, :min_messages, :min_duration_minutes, :thank_you_message, :invalid_response_message, :comment_prompt_message, { blocklist_labels: [] }, { required_tags: [] }] }]
   end
 
   def permitted_params(channel_attributes = [])

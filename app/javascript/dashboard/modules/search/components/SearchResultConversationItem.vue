@@ -93,38 +93,32 @@ const inboxIcon = computed(() => {
 </script>
 
 <template>
-  <router-link :to="navigateTo">
-    <CardLayout
-      layout="col"
-      class="[&>div]:justify-start [&>div]:gap-2 [&>div]:px-4 [&>div]:py-3 [&>div]:items-start hover:bg-n-slate-2 dark:hover:bg-n-solid-3"
-    >
-      <div
-        class="flex items-center min-w-0 justify-between gap-2 w-full h-7 mb-1"
-      >
-        <div class="flex items-center gap-3">
-          <div class="flex items-center gap-1.5 flex-shrink-0">
-            <Icon
-              icon="i-lucide-hash"
-              class="flex-shrink-0 text-n-slate-11 size-4"
+  <router-link
+    :to="navigateTo"
+    class="flex p-2 rounded-xl cursor-pointer hover:bg-n-slate-2"
+  >
+    <Avatar
+      name="chats"
+      :size="24"
+      icon-name="i-lucide-messages-square"
+      class="[&>span]:rounded"
+    />
+    <div class="flex-grow min-w-0 ml-2">
+      <div class="flex items-center min-w-0 justify-between gap-1 mb-1">
+        <div class="flex">
+          <woot-label
+            class="!bg-n-slate-3 dark:!bg-n-solid-3 !border-n-weak dark:!border-n-strong m-0"
+            :title="`#${id}`"
+            :show-close="false"
+            small
+          />
+          <div
+            class="flex items-center justify-center h-5 ml-1 rounded bg-n-slate-3 dark:bg-n-solid-3 w-fit rtl:ml-0 rtl:mr-1"
+          >
+            <InboxName
+              :inbox="inbox"
+              class="mr-2 rtl:mr-0 rtl:ml-2 bg-n-slate-3 dark:bg-n-solid-3 text-n-slate-11 dark:text-n-slate-11"
             />
-            <span class="text-n-slate-12 text-sm leading-4">
-              {{ id }}
-            </span>
-          </div>
-          <div v-if="inboxName" class="w-px h-3 bg-n-strong" />
-          <div v-if="inboxName" class="flex items-center gap-1.5 flex-shrink-0">
-            <div
-              v-if="inboxIcon"
-              class="flex items-center justify-center flex-shrink-0 rounded-full bg-n-alpha-2 size-4"
-            >
-              <Icon
-                :icon="inboxIcon"
-                class="flex-shrink-0 text-n-slate-11 size-2.5"
-              />
-            </div>
-            <span class="text-sm leading-4 text-n-slate-12">
-              {{ inboxName }}
-            </span>
           </div>
         </div>
         <span

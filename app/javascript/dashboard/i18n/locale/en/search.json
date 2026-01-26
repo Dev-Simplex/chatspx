@@ -29,6 +29,11 @@
     "READ_MORE": "Read more",
     "READ_LESS": "Read less",
     "WROTE": "wrote:",
+    "FROM": "from",
+    "EMAIL": "email",
+    "EMAIL_SUBJECT": "subject",
+    "SEARCH_IN_CONVERSATION": "Search in conversation",
+    "SEARCH_IN_CONVERSATION_PLACEHOLDER": "Search messages in this conversation..."
     "FROM": "From",
     "EMAIL": "Email",
     "EMAIL_SUBJECT": "Subject",

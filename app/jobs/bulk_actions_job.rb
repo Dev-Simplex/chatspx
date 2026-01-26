@@ -26,6 +26,13 @@ class BulkActionsJob < ApplicationJob
     records.each do |conversation|
       bulk_add_labels(conversation)
       bulk_snoozed_until(conversation)
+      
+      # Validate team requirement when resolving
+      if params && params[:status] == 'resolved' && conversation.team_id.blank?
+        Rails.logger.warn("Skipping resolution of conversation #{conversation.id} - team required")
+        next
+      end
+      
       conversation.update(params) if params
     end
   end

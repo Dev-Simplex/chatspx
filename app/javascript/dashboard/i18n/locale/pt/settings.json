@@ -378,7 +378,11 @@
       "INFO_SHORT": "Automatically mark offline when you aren't using the app."
     },
     "DOCS": "Ler documentos",
-    "SECURITY": "Security"
+    "SECURITY": "Security",
+    "EXPAND": "Expandir menu lateral",
+    "COLLAPSE": "Recolher menu lateral",
+    "NEW_CONVERSATION": "Nova conversa",
+    "ADVANCED_SEARCH": "Pesquisa avançada"
   },
   "BILLING_SETTINGS": {
     "TITLE": "Cobrança",

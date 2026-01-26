@@ -71,6 +71,7 @@ class Conversation < ApplicationRecord
   validates :custom_attributes, jsonb_attributes_length: true
   validates :uuid, uniqueness: true
   validate :validate_referer_url
+  validate :team_required_for_resolution
 
   enum status: { open: 0, resolved: 1, pending: 2, snoozed: 3 }
   enum priority: { low: 0, medium: 1, high: 2, urgent: 3 }
@@ -107,8 +108,11 @@ class Conversation < ApplicationRecord
   belongs_to :campaign, optional: true
 
   has_many :mentions, dependent: :destroy_async
-  has_many :messages, dependent: :destroy_async, autosave: true
+  has_many :messages, ->(conversation) { conversation.team_id.nil? ? where(team_id: nil) : where(team_id: conversation.team_id) }, dependent: :destroy_async, autosave: true
+  has_many :all_messages, class_name: 'Message', dependent: :destroy_async, autosave: true
   has_one :csat_survey_response, dependent: :destroy_async
+  has_many :nps_responses, dependent: :destroy_async
+  has_one :nps_response, -> { order(created_at: :desc) }, class_name: 'NpsResponse'
   has_many :conversation_participants, dependent: :destroy_async
   has_many :notifications, as: :primary_actor, dependent: :destroy_async
   has_many :attachments, through: :messages
@@ -218,6 +222,14 @@ class Conversation < ApplicationRecord
     notify_status_change
     create_activity
     notify_conversation_updation
+    update_messages_team_id
+  end
+  
+  # atualiza as mensagens que nao tem team_id e adiciona para o time atual
+  def update_messages_team_id
+    return unless saved_change_to_team_id?
+    
+    all_messages.update_all(team_id: team_id)
   end
 
   def handle_resolved_status_change
@@ -242,9 +254,16 @@ class Conversation < ApplicationRecord
   end
 
   def reset_agent_bot_when_assignee_present
-    return if assignee_id.blank?
+    return unless assignee_id.present?
 
-    self.assignee_agent_bot_id = nil
+    self.assignee_agent_bot_id = nil if assignee_agent_bot_id.present?
+  end
+
+  def team_required_for_resolution
+    return unless status_changed? && status == 'resolved'
+    return if team_id.present?
+
+    errors.add(:team_id, I18n.t('conversations.errors.team_required_for_resolution'))
   end
 
   def determine_conversation_status

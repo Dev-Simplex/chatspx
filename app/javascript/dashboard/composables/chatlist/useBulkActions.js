@@ -3,6 +3,8 @@ import { useStore } from 'vuex';
 import { useAlert } from 'dashboard/composables';
 import { useI18n } from 'vue-i18n';
 import { useMapGetter } from 'dashboard/composables/store.js';
+import { useResolveValidation } from 'dashboard/composables/useResolveValidation';
+import wootConstants from 'dashboard/constants/globals';
 
 export function useBulkActions() {
   const store = useStore();
@@ -115,8 +117,34 @@ export function useBulkActions() {
     }
   }
 
+  const {
+    showTeamModal,
+    teams,
+    validateAndResolveBulk,
+    assignTeamAndResolve,
+    cancelTeamSelection,
+  } = useResolveValidation();
+
   async function onUpdateConversations(status, snoozedUntil) {
     try {
+      // If resolving, validate teams first
+      if (status === wootConstants.STATUS_TYPE.RESOLVED) {
+        try {
+          await validateAndResolveBulk(
+            selectedConversations.value,
+            status,
+            snoozedUntil
+          );
+        } catch (error) {
+          if (error.message === 'TEAM_REQUIRED') {
+            // Modal will be shown by composable
+            return;
+          }
+          throw error;
+        }
+      }
+
+      // If all have teams or not resolving, proceed normally
       await store.dispatch('bulkActions/process', {
         type: 'Conversation',
         ids: selectedConversations.value,
@@ -132,6 +160,15 @@ export function useBulkActions() {
     }
   }
 
+  const handleTeamSelected = async teamId => {
+    try {
+      await assignTeamAndResolve(teamId);
+      store.dispatch('bulkActions/clearSelectedConversationIds');
+    } catch (error) {
+      // Error already handled in assignTeamAndResolve
+    }
+  };
+
   return {
     selectedConversations,
     selectedInboxes,
@@ -144,5 +181,9 @@ export function useBulkActions() {
     onAssignLabels,
     onAssignTeamsForBulk,
     onUpdateConversations,
+    showTeamModal,
+    teams,
+    handleTeamSelected,
+    cancelTeamSelection,
   };
 }

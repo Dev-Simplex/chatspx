@@ -3,6 +3,7 @@ import { mapGetters } from 'vuex';
 import LoadingState from './components/widgets/LoadingState.vue';
 import NetworkNotification from './components/NetworkNotification.vue';
 import UpdateBanner from './components/app/UpdateBanner.vue';
+import WahaConnectionsBanner from './components/app/WahaConnectionsBanner.vue';
 import PaymentPendingBanner from './components/app/PaymentPendingBanner.vue';
 import PendingEmailVerificationBanner from './components/app/PendingEmailVerificationBanner.vue';
 import vueActionCable from './helper/actionCable';
@@ -27,6 +28,7 @@ export default {
     LoadingState,
     NetworkNotification,
     UpdateBanner,
+    WahaConnectionsBanner,
     PaymentPendingBanner,
     WootSnackbarBox,
     PendingEmailVerificationBanner,
@@ -50,6 +52,8 @@ export default {
   data() {
     return {
       latestChatwootVersion: null,
+      maintenanceBanner: null,
+      updateBanner: null,
       reconnectService: null,
     };
   },
@@ -105,12 +109,18 @@ export default {
       this.$store.dispatch('setActiveAccount', {
         accountId: this.currentAccountId,
       });
-      const { locale, latest_chatwoot_version: latestChatwootVersion } =
-        this.getAccount(this.currentAccountId);
+      const {
+        locale,
+        latest_chatwoot_version: latestChatwootVersion,
+        maintenance_banner: maintenanceBanner,
+        update_banner: updateBanner,
+      } = this.getAccount(this.currentAccountId);
       const { pubsub_token: pubsubToken } = this.currentUser || {};
       // If user locale is set, use it; otherwise use account locale
       this.setLocale(this.uiSettings?.locale || locale);
       this.latestChatwootVersion = latestChatwootVersion;
+      this.maintenanceBanner = maintenanceBanner;
+      this.updateBanner = updateBanner;
       vueActionCable.init(this.store, pubsubToken);
       this.reconnectService = new ReconnectService(this.store, this.router);
       window.reconnectService = this.reconnectService;
@@ -134,8 +144,13 @@ export default {
     class="flex flex-col w-full h-screen min-h-0"
     :dir="isRTL ? 'rtl' : 'ltr'"
   >
-    <UpdateBanner :latest-chatwoot-version="latestChatwootVersion" />
+    <UpdateBanner
+      :latest-chatwoot-version="latestChatwootVersion"
+      :maintenance-banner="maintenanceBanner"
+      :update-banner="updateBanner"
+    />
     <template v-if="currentAccountId">
+      <WahaConnectionsBanner />
       <PendingEmailVerificationBanner v-if="hideOnOnboardingView" />
       <PaymentPendingBanner v-if="hideOnOnboardingView" />
     </template>

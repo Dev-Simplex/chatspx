@@ -20,7 +20,7 @@ const canRetry = computed(() => !hasOneDayPassed(createdAt.value));
 </script>
 
 <template>
-  <div class="text-xs text-n-ruby-11 flex items-center gap-1.5">
+  <div class="text-xs text-n-ruby-11 flex items-center gap-1.5 relative z-10">
     <span>{{ t('CHAT_LIST.FAILED_TO_SEND') }}</span>
     <div class="relative group">
       <div
@@ -45,8 +45,8 @@ const canRetry = computed(() => !hasOneDayPassed(createdAt.value));
       v-if="canRetry"
       type="button"
       :disabled="status !== MESSAGE_STATUS.FAILED"
-      class="bg-n-alpha-2 rounded-md size-5 grid place-content-center cursor-pointer"
-      @click="emit('retry')"
+      class="bg-n-alpha-2 rounded-md size-5 grid place-content-center cursor-pointer hover:bg-n-alpha-3 transition-colors relative z-10 disabled:opacity-50 disabled:cursor-not-allowed"
+      @click.stop="emit('retry')"
     >
       <Icon icon="i-lucide-refresh-ccw" class="text-n-ruby-11 size-[14px]" />
     </button>

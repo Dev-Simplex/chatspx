@@ -1,0 +1,63 @@
+class NpsSurveyListener < BaseListener
+  def conversation_status_changed(event)
+    Rails.logger.info "NpsSurveyListener: conversation_status_changed event received"
+    
+    conversation = extract_conversation_and_account(event)[0]
+
+    Rails.logger.info "NpsSurveyListener: conversation_status_changed for conversation #{conversation.id}, status: #{conversation.status}, inbox_id: #{conversation.inbox_id}"
+
+    return unless conversation.resolved?
+
+    Rails.logger.debug "NpsSurveyListener: conversation #{conversation.id} is resolved, checking NPS config"
+
+    # Reload inbox to ensure we have the latest NPS configuration
+    # Use find to ensure we get fresh data from database
+    inbox = Inbox.find(conversation.inbox_id)
+
+    Rails.logger.debug "NpsSurveyListener: inbox #{inbox.id}, nps_survey_enabled: #{inbox.nps_survey_enabled}"
+
+    # Check if NPS is enabled for this inbox first
+    unless inbox.nps_survey_enabled?
+      Rails.logger.debug "NpsSurveyListener: NPS not enabled for inbox #{inbox.id}"
+      return
+    end
+
+    # Only send automatically if mode is 'auto' or 'both'
+    nps_config = inbox.nps_config || {}
+    mode = nps_config['mode'] || 'auto'
+
+    Rails.logger.debug "NpsSurveyListener: NPS mode is '#{mode}'"
+
+    unless %w[auto both].include?(mode)
+      Rails.logger.debug "NpsSurveyListener: Mode '#{mode}' does not allow automatic sending"
+      return
+    end
+
+    Rails.logger.info "NpsSurveyListener: Attempting to send NPS survey for conversation #{conversation.id}"
+
+    begin
+      NpsSurveyService.new(conversation: conversation, mode: 'auto').perform
+      Rails.logger.info "NpsSurveyListener: Successfully processed NPS survey for conversation #{conversation.id}"
+    rescue StandardError => e
+      Rails.logger.error "Failed to send NPS survey for conversation #{conversation.id}: #{e.message}"
+      Rails.logger.error e.backtrace.join("\n")
+      # Don't raise - fail silently to avoid breaking the conversation status change
+    end
+  end
+
+  def message_created(event)
+    message = extract_message_and_account(event)[0]
+    return unless message.incoming?
+
+    # Check if there's an active NPS survey waiting for response
+    NpsSurveys::ResponseBuilder.new(message: message).perform
+  end
+
+  def message_updated(event)
+    message = extract_message_and_account(event)[0]
+    return unless message.input_nps?
+
+    # Handle widget submissions for NPS
+    NpsSurveys::ResponseBuilder.new(message: message).perform
+  end
+end

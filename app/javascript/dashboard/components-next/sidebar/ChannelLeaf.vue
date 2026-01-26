@@ -16,6 +16,10 @@ const props = defineProps({
     type: Object,
     required: true,
   },
+  isCollapsed: {
+    type: Boolean,
+    default: false,
+  },
 });
 
 const reauthorizationRequired = computed(() => {
@@ -27,12 +31,13 @@ const reauthorizationRequired = computed(() => {
   <span
     class="size-5 grid place-content-center rounded-full bg-n-alpha-2"
     :class="{ 'bg-n-solid-blue': active }"
+    :title="isCollapsed ? label : undefined"
   >
     <ChannelIcon :inbox="inbox" class="size-3" />
   </span>
-  <div class="flex-1 truncate min-w-0">{{ label }}</div>
+  <div v-if="!isCollapsed" class="flex-1 truncate min-w-0">{{ label }}</div>
   <div
-    v-if="reauthorizationRequired"
+    v-if="reauthorizationRequired && !isCollapsed"
     v-tooltip.top-end="$t('SIDEBAR.REAUTHORIZE')"
     class="grid place-content-center size-5 bg-n-ruby-5/60 rounded-full"
   >

@@ -35,6 +35,10 @@ export default {
       type: String,
       default: '',
     },
+    conversationStatus: {
+      type: String,
+      default: '',
+    },
     foldersId: {
       type: [String, Number],
       default: 0,
@@ -55,6 +59,7 @@ export default {
     :folders-id="foldersId"
     :chat="source"
     :conversation-type="conversationType"
+    :conversation-status="conversationStatus"
     :selected="isConversationSelected(source.id)"
     :show-assignee="showAssignee"
     enable-context-menu

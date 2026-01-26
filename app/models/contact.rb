@@ -59,6 +59,7 @@ class Contact < ApplicationRecord
   has_many :conversations, dependent: :destroy_async
   has_many :contact_inboxes, dependent: :destroy_async
   has_many :csat_survey_responses, dependent: :destroy_async
+  has_many :nps_responses, dependent: :destroy_async
   has_many :inboxes, through: :contact_inboxes
   has_many :messages, as: :sender, dependent: :destroy_async
   has_many :notes, dependent: :destroy_async
@@ -215,12 +216,19 @@ class Contact < ApplicationRecord
 
   def prepare_contact_attributes
     prepare_email_attribute
+    prepare_phone_number_attribute
     prepare_jsonb_attributes
   end
 
   def prepare_email_attribute
     # So that the db unique constraint won't throw error when email is ''
     self.email = email.present? ? email.downcase : nil
+  end
+
+  def prepare_phone_number_attribute
+    return if phone_number.blank?
+
+    self.phone_number = Contacts::BrazilPhoneNormalizer.normalize(phone_number)
   end
 
   def prepare_jsonb_attributes

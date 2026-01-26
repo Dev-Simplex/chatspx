@@ -84,6 +84,7 @@ export default defineConfig({
       widget: path.resolve('./app/javascript/widget'),
       assets: path.resolve('./app/javascript/dashboard/assets'),
     },
+    dedupe: ['html2pdf.js'],
   },
   test: {
     environment: 'jsdom',

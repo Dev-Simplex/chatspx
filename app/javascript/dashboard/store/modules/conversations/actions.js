@@ -37,7 +37,7 @@ const actions = {
       commit(types.UPDATE_CONVERSATION, response.data);
       commit(`contacts/${types.SET_CONTACT_ITEM}`, response.data.meta.sender);
     } catch (error) {
-      // Ignore error
+      throw error;
     }
   },
 
@@ -261,7 +261,8 @@ const actions = {
         snoozedUntil: updatedSnoozedUntil,
       });
     } catch (error) {
-      // Handle error
+      // Re-throw error to be handled by caller
+      throw error;
     }
   },
 

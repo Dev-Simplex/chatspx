@@ -39,10 +39,13 @@ class ConversationFinder
   def perform
     set_up
 
-    mine_count, unassigned_count, all_count, = set_count_for_all_conversations
-    assigned_count = all_count - unassigned_count
+    # Calcula o total de conversas únicas após todos os filtros (para a aba 'Todos')
+    all_count = @conversations.distinct.count
 
-    filter_by_assignee_type
+    # Calcula 'Minhas' e 'Não atribuídas' apenas dentro do conjunto filtrado
+    mine_count = @conversations.assigned_to(current_user).distinct.count
+    unassigned_count = @conversations.unassigned.distinct.count
+    assigned_count = all_count - unassigned_count
 
     {
       conversations: conversations,
@@ -83,7 +86,16 @@ class ConversationFinder
   end
 
   def set_team
-    @team = current_account.teams.find(params[:team_id]) if params[:team_id]
+    if params[:team_id]
+      @team = current_account.teams.find(params[:team_id])
+      @team_ids = [@team.id]
+    elsif !@is_admin && current_user.teams.any?
+      @team = nil
+      @team_ids = current_user.teams.pluck(:id)
+    else
+      @team = nil
+      @team_ids = []
+    end
   end
 
   def find_conversation_by_inbox
@@ -143,14 +155,22 @@ class ConversationFinder
 
   def filter_by_status
     return if params[:status] == 'all'
-
-    @conversations = @conversations.where(status: params[:status] || DEFAULT_STATUS)
+    @conversations = @conversations.where(status: params[:status]) if params[:status].present?
+    if @team_ids.present? && @team_ids.any?
+      @conversations = @conversations.where('team_id IN (?) OR team_id IS NULL', @team_ids)
+    elsif @team
+      @conversations = @conversations.where('team_id = ? OR team_id IS NULL', @team.id)
+    end
   end
 
   def filter_by_team
-    return unless @team
+    return unless @team || (@team_ids.present? && @team_ids.any?)
 
-    @conversations = @conversations.where(team: @team)
+    if @team_ids.present? && @team_ids.any?
+      @conversations = @conversations.where(team_id: @team_ids)
+    elsif @team
+      @conversations = @conversations.where(team: @team)
+    end
   end
 
   def filter_by_labels

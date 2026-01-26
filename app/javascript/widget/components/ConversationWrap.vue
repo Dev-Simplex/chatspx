@@ -22,8 +22,8 @@ export default {
     },
   },
   setup() {
-    const { darkMode } = useDarkMode();
-    return { darkMode };
+    const { darkMode, prefersDarkMode } = useDarkMode();
+    return { darkMode, prefersDarkMode };
   },
   data() {
     return {
@@ -99,7 +99,15 @@ export default {
 </script>
 
 <template>
-  <div class="conversation--container" :class="colorSchemeClass">
+  <div
+    class="conversation--container"
+    :class="[
+      colorSchemeClass,
+      prefersDarkMode
+        ? 'conversation-container-dark'
+        : 'conversation-container-light',
+    ]"
+  >
     <div class="conversation-wrap" :class="{ 'is-typing': isAgentTyping }">
       <div v-if="isFetchingList" class="message--loader">
         <Spinner />
@@ -128,6 +136,14 @@ export default {
   flex: 1;
   overflow-y: auto;
   color-scheme: light dark;
+  position: relative;
+  background-image: linear-gradient(rgba(0, 0, 0, 0.85), rgba(0, 0, 0, 0.85)),
+    url('/assets/images/chat-spx-background.png');
+  background-size: auto, 400px;
+  background-position:
+    0 0,
+    0 0;
+  background-repeat: repeat, repeat;
 
   &.light-scheme {
     color-scheme: light;
@@ -135,6 +151,24 @@ export default {
 
   &.dark-scheme {
     color-scheme: dark;
+  }
+
+  &.conversation-container-light {
+    background-image: linear-gradient(
+        rgba(255, 255, 255, 0.85),
+        rgba(255, 255, 255, 0.85)
+      ),
+      url('/assets/images/chat-spx-background-light.png');
+    background-size: auto, 400px;
+    background-position:
+      0 0,
+      0 0;
+    background-repeat: repeat, repeat;
+  }
+
+  > * {
+    position: relative;
+    z-index: 2;
   }
 }
 

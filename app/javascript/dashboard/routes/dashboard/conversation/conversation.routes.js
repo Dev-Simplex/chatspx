@@ -199,5 +199,28 @@ export default {
         conversationType: 'participating',
       }),
     },
+    {
+      path: frontendURL('accounts/:accountId/status/:status/conversations'),
+      name: 'conversation_status',
+      meta: {
+        permissions: CONVERSATION_PERMISSIONS,
+      },
+      component: ConversationView,
+      props: route => ({ conversationStatus: route.params.status }),
+    },
+    {
+      path: frontendURL(
+        'accounts/:accountId/status/:status/conversations/:conversationId'
+      ),
+      name: 'conversation_through_status',
+      meta: {
+        permissions: CONVERSATION_PERMISSIONS,
+      },
+      component: ConversationView,
+      props: route => ({
+        conversationId: route.params.conversationId,
+        conversationStatus: route.params.status,
+      }),
+    },
   ],
 };

@@ -13,6 +13,10 @@ const props = defineProps({
     type: Boolean,
     default: false,
   },
+  iconOnly: {
+    type: Boolean,
+    default: false,
+  },
 });
 
 const goBack = () => {
@@ -32,7 +36,12 @@ const buttonStyleClass = props.compact ? 'text-sm' : 'text-base';
     :class="buttonStyleClass"
     @click.capture="goBack"
   >
-    <i class="i-lucide-chevron-left -ml-1 text-lg" />
-    {{ buttonLabel || $t('GENERAL_SETTINGS.BACK') }}
+    <i
+      class="i-lucide-chevron-left text-lg"
+      :class="[{ '-ml-1': !iconOnly }]"
+    />
+    <span v-if="!iconOnly">{{
+      buttonLabel || $t('GENERAL_SETTINGS.BACK')
+    }}</span>
   </button>
 </template>

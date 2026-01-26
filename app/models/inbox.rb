@@ -244,6 +244,16 @@ class Inbox < ApplicationRecord
   def check_channel_type?
     ['Channel::Email', 'Channel::Api', 'Channel::WebWidget'].include?(channel_type)
   end
+
+  def nps_survey_enabled?
+    nps_survey_enabled == true
+  end
+
+  def nps_config
+    self[:nps_config] || {}
+  end
+
+  public :nps_survey_enabled?, :nps_config
 end
 
 Inbox.prepend_mod_with('Inbox')

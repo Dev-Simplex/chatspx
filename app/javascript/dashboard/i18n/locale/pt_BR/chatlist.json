@@ -10,6 +10,10 @@
     "TAB_HEADING": "Conversas",
     "MENTION_HEADING": "Menções",
     "UNATTENDED_HEADING": "Não Atendidas",
+    "STATUS_OPEN_HEADING": "Conversas Abertas",
+    "STATUS_RESOLVED_HEADING": "Conversas Resolvidas",
+    "STATUS_PENDING_HEADING": "Conversas Pendentes",
+    "STATUS_SNOOZED_HEADING": "Conversas Adiadas",
     "SEARCH": {
       "INPUT": "Pesquisar pessoas, conversas, respostas salvas .."
     },

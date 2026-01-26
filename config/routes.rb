@@ -146,6 +146,8 @@ Rails.application.routes.draw do
               get :attachments
               get :inbox_assistant
               get :reporting_events if ChatwootApp.enterprise?
+              get 'nps_response', to: 'nps_responses#show_by_conversation'
+              post 'nps_responses/send', to: 'nps_responses#send_survey'
             end
           end
 
@@ -181,7 +183,20 @@ Rails.application.routes.draw do
               resources :contact_inboxes, only: [:create]
               resources :labels, only: [:create, :index]
               resources :notes
+              
               post :call, on: :member, to: 'calls#create' if ChatwootApp.enterprise?
+            end
+          end
+
+          resources :messages, only: [] do
+            member do
+              post :forward, to: 'messages/forward#create'
+            end
+          end
+
+          resources :messages, only: [] do
+            member do
+              post :forward, to: 'messages/forward#create'
             end
           end
           resources :csat_survey_responses, only: [:index] do
@@ -191,6 +206,21 @@ Rails.application.routes.draw do
             end
             member do
               patch :update if ChatwootApp.enterprise?
+            end
+          end
+          resources :nps_responses, only: [:index] do
+            collection do
+              get :metrics
+              get :download
+            end
+            member do
+              patch :update if ChatwootApp.enterprise?
+            end
+          end
+          resources :nps_responses, only: [:index] do
+            collection do
+              get :metrics
+              get :download
             end
           end
           resources :applied_slas, only: [:index] do
@@ -217,6 +247,14 @@ Rails.application.routes.draw do
             end
 
             resource :csat_template, only: [:show, :create], controller: 'inbox_csat_templates'
+          end
+          resources :waha_connections, only: [:index, :show, :create, :destroy] do
+            member do
+              get :qr_code
+              post :connect
+              post :disconnect
+              post :restart
+            end
           end
 
           resources :inbox_members, only: [:create, :show], param: :inbox_id do

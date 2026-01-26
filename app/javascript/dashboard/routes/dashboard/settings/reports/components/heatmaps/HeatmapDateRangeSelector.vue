@@ -53,10 +53,9 @@ const dayMenuItemConfigs = computed(() => [
 ]);
 
 const resolvedLocale = computed(() => {
-  const currentLocale =
-    locale.value ||
-    (typeof navigator !== 'undefined' ? navigator.language : 'en');
-  return currentLocale.replace('_', '-');
+  const rawLocale = locale.value || (typeof navigator !== 'undefined' ? navigator.language : 'en');
+  // Convert pt_BR to pt-BR (Intl.DateTimeFormat requires BCP 47 format with hyphen)
+  return rawLocale.replace(/_/g, '-');
 });
 
 const monthFormatter = computed(

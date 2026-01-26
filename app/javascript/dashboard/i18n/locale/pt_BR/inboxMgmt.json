@@ -623,7 +623,8 @@
       "WIDGET_BUILDER": "Construtor de Widget",
       "BOT_CONFIGURATION": "Configuração do Bot",
       "ACCOUNT_HEALTH": "Saúde da conta",
-      "CSAT": "CSAT"
+      "CSAT": "CSAT",
+      "NPS": "NPS"
     },
     "ACCOUNT_HEALTH": {
       "TITLE": "Gerencie sua conta do WhatsApp",
@@ -852,6 +853,60 @@
       "API": {
         "SUCCESS_MESSAGE": "Configurações de CSAT atualizadas com sucesso",
         "ERROR_MESSAGE": "Não foi possível atualizar as configurações do CSAT. Por favor, tente novamente mais tarde."
+      }
+    },
+    "NPS": {
+      "TITLE": "Habilitar NPS",
+      "SUBTITLE": "Envie automaticamente pesquisas NPS no final das conversas para medir a satisfação dos clientes e identificar promotores e detratores.",
+      "MODE": {
+        "LABEL": "Modo de Envio",
+        "AUTO": "Automático",
+        "MANUAL": "Manual",
+        "BOTH": "Ambos"
+      },
+      "MESSAGE": {
+        "LABEL": "Mensagem",
+        "PLACEHOLDER": "Digite a mensagem da pesquisa NPS (ex: De 0 a 10, o quanto você recomendaria nossa empresa?)"
+      },
+      "COOLDOWN_DAYS": {
+        "LABEL": "Dias de Cooldown",
+        "PLACEHOLDER": "30"
+      },
+      "EXPIRATION_HOURS": {
+        "LABEL": "Horas de Expiração",
+        "PLACEHOLDER": "72"
+      },
+      "BLOCKLIST_RULE": {
+        "LABEL": "Bloquear por Etiquetas",
+        "DESCRIPTION_PREFIX": "Não enviar NPS se a conversa",
+        "DESCRIPTION_SUFFIX": "contém qualquer uma das etiquetas",
+        "OPERATOR": {
+          "CONTAINS": "contém"
+        },
+        "SELECT_PLACEHOLDER": "Selecionar etiqueta"
+      },
+      "BLOCKLIST": {
+        "LABEL": "Etiquetas de Bloqueio",
+        "SELECT_PLACEHOLDER": "Adicionar etiqueta"
+      },
+      "BLOCKLIST_SCOPE": {
+        "LABEL": "Escopo do Bloqueio",
+        "CONTACT": "Contato",
+        "CONVERSATION": "Conversa",
+        "BOTH": "Ambos"
+      },
+      "THANK_YOU_MESSAGE": {
+        "LABEL": "Mensagem de Agradecimento",
+        "PLACEHOLDER": "Obrigado pela sua avaliação!"
+      },
+      "INVALID_RESPONSE_MESSAGE": {
+        "LABEL": "Mensagem para Resposta Inválida",
+        "PLACEHOLDER": "Por favor, responda com um número de 0 a 10."
+      },
+      "NOTE": "O NPS será enviado automaticamente quando uma conversa for resolvida, se todas as condições forem atendidas.",
+      "API": {
+        "SUCCESS_MESSAGE": "Configurações NPS atualizadas com sucesso",
+        "ERROR_MESSAGE": "Não foi possível atualizar as configurações NPS. Por favor, tente novamente mais tarde."
       }
     },
     "BUSINESS_HOURS": {

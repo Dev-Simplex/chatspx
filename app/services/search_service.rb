@@ -1,10 +1,6 @@
 class SearchService
   pattr_initialize [:current_user!, :current_account!, :params!, :search_type!]
 
-  def account_user
-    @account_user ||= current_account.account_users.find_by(user: current_user)
-  end
-
   def perform
     case search_type
     when 'Message'
@@ -63,12 +59,6 @@ class SearchService
     use_gin_search ? filter_messages_with_gin : filter_messages_with_like
   end
 
-  def should_run_advanced_search?
-    ChatwootApp.advanced_search_allowed? && current_account.feature_enabled?('advanced_search')
-  end
-
-  def advanced_search; end
-
   def filter_messages_with_gin
     base_query = message_base_query
     base_query = apply_message_filters(base_query)
@@ -105,8 +95,23 @@ class SearchService
   end
 
   def message_base_query
-    query = current_account.messages.where('created_at >= ?', 3.months.ago)
-    query = query.where(inbox_id: accessable_inbox_ids) unless should_skip_inbox_filtering?
+    query = current_account.messages.where(inbox_id: accessable_inbox_ids)
+                   .where('created_at >= ?', 3.months.ago)
+    
+    # Filter by conversation_id if provided
+    if params[:conversation_id].present?
+      conversation_id = params[:conversation_id].to_i
+      # Verify user has access to this conversation
+      conversation = current_account.conversations.find_by(id: conversation_id)
+      if conversation && accessable_inbox_ids.include?(conversation.inbox_id)
+        query = query.where(conversation_id: conversation_id)
+      else
+        # If conversation_id is provided but user doesn't have access,
+        # return empty result (use a condition that will never match)
+        query = query.where('1 = 0')
+      end
+    end
+    
     query
   end
 
@@ -149,14 +154,6 @@ class SearchService
     accessable_inbox_ids.include?(inbox_id)
   end
 
-  def should_skip_inbox_filtering?
-    account_user.administrator? || user_has_access_to_all_inboxes?
-  end
-
-  def user_has_access_to_all_inboxes?
-    accessable_inbox_ids.sort == current_account.inboxes.pluck(:id).sort
-  end
-
   def use_gin_search
     current_account.feature_enabled?('search_with_gin')
   end
@@ -169,9 +166,7 @@ class SearchService
 
     contacts_query = apply_time_filter(contacts_query, 'last_activity_at') if current_account.feature_enabled?('advanced_search')
 
-    @contacts = contacts_query.resolved_contacts(
-      use_crm_v2: current_account.feature_enabled?('crm_v2')
-    ).order_on_last_activity_at('desc').page(params[:page]).per(15)
+    @contacts = contacts_query.resolved_contacts.order_on_last_activity_at('desc').page(params[:page]).per(15)
   end
 
   def filter_articles
@@ -204,5 +199,3 @@ class SearchService
     [requested_time, max_future].min
   end
 end
-
-SearchService.prepend_mod_with('SearchService')

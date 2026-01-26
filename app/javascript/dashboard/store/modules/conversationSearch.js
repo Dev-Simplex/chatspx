@@ -94,14 +94,70 @@ export const actions = {
       commit(types.CONTACT_SEARCH_SET_UI_FLAG, { isFetching: false });
     }
   },
-  async conversationSearch({ commit }, payload) {
+  async conversationSearch({ commit, rootGetters }, payload) {
     const { page = 1, ...searchParams } = payload;
     commit(types.CONVERSATION_SEARCH_SET_UI_FLAG, { isFetching: true });
     try {
       const { data } = await SearchAPI.conversations({ ...searchParams, page });
-      commit(types.CONVERSATION_SEARCH_SET, data.payload.conversations);
+      const conversations = data.payload.conversations || [];
+      
+      // Normalizar dados para garantir estrutura igual à lista normal
+      const enrichedConversations = conversations.map(conv => {
+        const normalized = { ...conv };
+        
+        // Flatten meta - copiar campos importantes para o nível superior
+        if (normalized.meta) {
+          // Contact (prioridade: meta.contact > meta.sender)
+          if (!normalized.contact) {
+            normalized.contact = normalized.meta.contact || normalized.meta.sender;
+          }
+          
+          // Sender
+          if (!normalized.sender && normalized.meta.sender) {
+            normalized.sender = normalized.meta.sender;
+          }
+          
+          // Mensagens - copiar todos os campos de mensagem
+          if (!normalized.last_message && normalized.meta.last_message) {
+            normalized.last_message = normalized.meta.last_message;
+          }
+          if (!normalized.last_non_activity_message && normalized.meta.last_non_activity_message) {
+            normalized.last_non_activity_message = normalized.meta.last_non_activity_message;
+          }
+          if (!normalized.last_activity_message && normalized.meta.last_activity_message) {
+            normalized.last_activity_message = normalized.meta.last_activity_message;
+          }
+        }
+        
+        // Garantir que contact existe e tem estrutura completa
+        const contactSource = normalized.contact || normalized.sender || normalized.meta?.contact || normalized.meta?.sender;
+        if (contactSource) {
+          normalized.contact = {
+            id: contactSource.id || null,
+            name: contactSource.name || contactSource.full_name || 'Unknown',
+            thumbnail: contactSource.thumbnail || contactSource.avatar_url || contactSource.avatar || contactSource.profile_image_url || '',
+            availability_status: contactSource.availability_status || 'offline',
+            ...contactSource, // Manter outros campos
+          };
+          
+          // Tentar enriquecer com dados da store se tiver ID e não tiver thumbnail
+          if (normalized.contact.id && !normalized.contact.thumbnail && rootGetters['contacts/getContact']) {
+            const storeContact = rootGetters['contacts/getContact'](normalized.contact.id);
+            if (storeContact && storeContact.thumbnail) {
+              normalized.contact.thumbnail = storeContact.thumbnail;
+            }
+            if (storeContact && storeContact.name && !normalized.contact.name) {
+              normalized.contact.name = storeContact.name;
+            }
+          }
+        }
+        
+        return normalized;
+      });
+      
+      commit(types.CONVERSATION_SEARCH_SET, enrichedConversations);
     } catch (error) {
-      // Ignore error
+      console.error('[conversationSearch] Erro:', error);
     } finally {
       commit(types.CONVERSATION_SEARCH_SET_UI_FLAG, { isFetching: false });
     }
@@ -114,6 +170,22 @@ export const actions = {
       commit(types.MESSAGE_SEARCH_SET, data.payload.messages);
     } catch (error) {
       // Ignore error
+    } finally {
+      commit(types.MESSAGE_SEARCH_SET_UI_FLAG, { isFetching: false });
+    }
+  },
+  // Search messages within a specific conversation
+  async messageSearchInConversation({ commit }, { q, conversation_id, page = 1 }) {
+    // Always clear previous results when starting a new search in conversation
+    commit(types.CLEAR_MESSAGE_SEARCH_RESULTS);
+    commit(types.MESSAGE_SEARCH_SET_UI_FLAG, { isFetching: true });
+    try {
+      const { data } = await SearchAPI.messages({ q, page, conversation_id });
+      const messages = data.payload.messages || [];
+      // Replace results instead of appending
+      commit(types.MESSAGE_SEARCH_SET_REPLACE, messages);
+    } catch (error) {
+      console.error('[messageSearchInConversation] Erro:', error);
     } finally {
       commit(types.MESSAGE_SEARCH_SET_UI_FLAG, { isFetching: false });
     }
@@ -143,10 +215,17 @@ export const mutations = {
     state.contactRecords = [...state.contactRecords, ...records];
   },
   [types.CONVERSATION_SEARCH_SET](state, records) {
-    state.conversationRecords = [...state.conversationRecords, ...records];
+    // Os dados já vêm normalizados e enriquecidos da action
+    state.conversationRecords = records || [];
   },
   [types.MESSAGE_SEARCH_SET](state, records) {
     state.messageRecords = [...state.messageRecords, ...records];
+  },
+  [types.MESSAGE_SEARCH_SET_REPLACE](state, records) {
+    state.messageRecords = records || [];
+  },
+  [types.CLEAR_MESSAGE_SEARCH_RESULTS](state) {
+    state.messageRecords = [];
   },
   [types.ARTICLE_SEARCH_SET](state, records) {
     state.articleRecords = [...state.articleRecords, ...records];

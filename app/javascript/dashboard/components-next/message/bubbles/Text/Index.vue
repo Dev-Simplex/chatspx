@@ -3,8 +3,9 @@ import { computed, ref } from 'vue';
 import BaseBubble from 'next/message/bubbles/Base.vue';
 import FormattedContent from './FormattedContent.vue';
 import AttachmentChips from 'next/message/chips/AttachmentChips.vue';
+import MediaGrid from 'next/message/chips/MediaGrid.vue';
 import TranslationToggle from 'dashboard/components-next/message/TranslationToggle.vue';
-import { MESSAGE_TYPES } from '../../constants';
+import { MESSAGE_TYPES, ATTACHMENT_TYPES } from '../../constants';
 import { useMessageContext } from '../../provider.js';
 import { useTranslations } from 'dashboard/composables/useTranslations';
 
@@ -32,8 +33,37 @@ const isTemplate = computed(() => {
   return messageType.value === MESSAGE_TYPES.TEMPLATE;
 });
 
+const mediaAttachments = computed(() =>
+  (attachments.value || []).filter(attachment =>
+    [ATTACHMENT_TYPES.IMAGE, ATTACHMENT_TYPES.VIDEO, ATTACHMENT_TYPES.IG_REEL].includes(
+      attachment.fileType
+    )
+  )
+);
+
+const otherAttachments = computed(() =>
+  (attachments.value || []).filter(
+    attachment =>
+      ![
+        ATTACHMENT_TYPES.IMAGE,
+        ATTACHMENT_TYPES.VIDEO,
+        ATTACHMENT_TYPES.IG_REEL,
+      ].includes(attachment.fileType)
+  )
+);
+
+const hasMediaAttachments = computed(() => mediaAttachments.value.length > 0);
+
 const isEmpty = computed(() => {
   return !content.value && !attachments.value?.length;
+});
+
+const bubbleClass = computed(() => {
+  return hasMediaAttachments.value ? 'px-2 py-2' : 'px-4 py-3';
+});
+
+const contentGapClass = computed(() => {
+  return hasMediaAttachments.value ? 'gap-2' : 'gap-3';
 });
 
 const handleSeeOriginal = () => {
@@ -42,11 +72,16 @@ const handleSeeOriginal = () => {
 </script>
 
 <template>
-  <BaseBubble class="px-4 py-3" data-bubble-name="text">
-    <div class="gap-3 flex flex-col">
+  <BaseBubble :class="bubbleClass" data-bubble-name="text">
+    <div class="flex flex-col" :class="contentGapClass">
       <span v-if="isEmpty" class="text-n-slate-11">
         {{ $t('CONVERSATION.NO_CONTENT') }}
       </span>
+      <MediaGrid
+        v-if="mediaAttachments.length"
+        class="mb-1"
+        :attachments="mediaAttachments"
+      />
       <FormattedContent v-if="renderContent" :content="renderContent" />
       <TranslationToggle
         v-if="hasTranslations"
@@ -54,7 +89,11 @@ const handleSeeOriginal = () => {
         :showing-original="renderOriginal"
         @toggle="handleSeeOriginal"
       />
-      <AttachmentChips :attachments="attachments" class="gap-2" />
+      <AttachmentChips
+        v-if="otherAttachments.length"
+        :attachments="otherAttachments"
+        class="gap-2"
+      />
       <template v-if="isTemplate">
         <div
           v-if="contentAttributes.submittedEmail"

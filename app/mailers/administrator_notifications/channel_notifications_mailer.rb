@@ -1,11 +1,11 @@
 class AdministratorNotifications::ChannelNotificationsMailer < AdministratorNotifications::BaseMailer
   def facebook_disconnect(inbox)
-    subject = 'Your Facebook page connection has expired'
+    subject = 'Sua conexão com a página do Facebook expirou'
     send_notification(subject, action_url: inbox_url(inbox))
   end
 
   def instagram_disconnect(inbox)
-    subject = 'Your Instagram connection has expired'
+    subject = 'Sua conexão com o Instagram expirou'
     send_notification(subject, action_url: inbox_url(inbox))
   end
 
@@ -15,12 +15,12 @@ class AdministratorNotifications::ChannelNotificationsMailer < AdministratorNoti
   end
 
   def whatsapp_disconnect(inbox)
-    subject = 'Your Whatsapp connection has expired'
+    subject = 'Sua conexão com o WhatsApp expirou'
     send_notification(subject, action_url: inbox_url(inbox))
   end
 
   def email_disconnect(inbox)
-    subject = 'Your email inbox has been disconnected. Please update the credentials for SMTP/IMAP'
+    subject = 'Sua caixa de entrada de email foi desconectada. Por favor, atualize as credenciais para SMTP/IMAP'
     send_notification(subject, action_url: inbox_url(inbox))
   end
 end

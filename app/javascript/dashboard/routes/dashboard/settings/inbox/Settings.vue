@@ -20,6 +20,7 @@ import WeeklyAvailability from './components/WeeklyAvailability.vue';
 import GreetingsEditor from 'shared/components/GreetingsEditor.vue';
 import ConfigurationPage from './settingsPage/ConfigurationPage.vue';
 import CustomerSatisfactionPage from './settingsPage/CustomerSatisfactionPage.vue';
+import NetPromoterScorePage from './settingsPage/NetPromoterScorePage.vue';
 import CollaboratorsPage from './settingsPage/CollaboratorsPage.vue';
 import WidgetBuilder from './WidgetBuilder.vue';
 import BotConfiguration from './components/BotConfiguration.vue';
@@ -37,6 +38,7 @@ export default {
     CollaboratorsPage,
     ConfigurationPage,
     CustomerSatisfactionPage,
+    NetPromoterScorePage,
     FacebookReauthorize,
     GreetingsEditor,
     PreChatFormSettings,
@@ -95,7 +97,8 @@ export default {
       portals: 'portals/allPortals',
     }),
     selectedTabKey() {
-      return this.tabs[this.selectedTabIndex]?.key;
+      const key = this.tabs[this.selectedTabIndex]?.key;
+      return key;
     },
     shouldShowWhatsAppConfiguration() {
       return this.isAWhatsAppCloudChannel;
@@ -134,6 +137,10 @@ export default {
           {
             key: 'csat',
             name: this.$t('INBOX_MGMT.TABS.CSAT'),
+          },
+          {
+            key: 'nps',
+            name: this.$t('INBOX_MGMT.TABS.NPS'),
           },
         ];
       }
@@ -201,7 +208,12 @@ export default {
     },
     inboxIcon() {
       const { medium, channel_type: type } = this.inbox;
-      return getInboxIconByType(type, medium);
+      const inbox = this.$store.getters['inboxes/getInbox'](this.currentInboxId);
+      // Debug log apenas em desenvolvimento
+      if (process.env.NODE_ENV === 'development' && !inbox) {
+        console.warn('Settings.vue - inbox computed: inbox not found for ID:', this.currentInboxId);
+      }
+      return inbox;
     },
     inboxName() {
       if (this.isATwilioSMSChannel || this.isATwilioWhatsAppChannel) {
@@ -312,9 +324,20 @@ export default {
     },
     inbox: {
       handler() {
-        this.fetchHealthData();
+        // Also set tab when route changes
+        this.$nextTick(() => {
+          this.setTabFromRouteParam();
+        });
+      }
+    },
+    tabs: {
+      handler() {
+        // When tabs are computed, update selected tab from route
+        this.$nextTick(() => {
+          this.setTabFromRouteParam();
+        });
       },
-      immediate: false,
+      immediate: true,
     },
   },
   mounted() {
@@ -323,6 +346,9 @@ export default {
     this.fetchHealthData();
   },
   methods: {
+    fetchInboxSettings() {
+      this.setTabFromRouteParam();
+    },
     fetchPortals() {
       this.$store.dispatch('portals/index');
     },
@@ -385,14 +411,21 @@ export default {
     },
     setTabFromRouteParam() {
       const { tab: tabParam } = this.$route.params;
-      if (!tabParam) return;
+
+      if (!tabParam) {
+        // If no tab param, default to first tab
+        this.selectedTabIndex = 0;
+        return;
+      }
+
       const tabIndex = this.tabs.findIndex(tab => tab.key === tabParam);
 
-      this.selectedTabIndex = tabIndex === -1 ? 0 : tabIndex;
-    },
-    fetchInboxSettings() {
-      this.selectedAgents = [];
-      this.$store.dispatch('agents/get');
+      if (tabIndex === -1) {
+        // Tab not found, default to first tab
+        this.selectedTabIndex = 0;
+      } else {
+        this.selectedTabIndex = tabIndex;
+      }
       this.$store.dispatch('teams/get');
       this.$store.dispatch('labels/get');
       this.$store.dispatch('inboxes/get').then(() => {
@@ -416,13 +449,13 @@ export default {
         this.selectedPortalSlug = this.inbox.help_center
           ? this.inbox.help_center.slug
           : '';
-
-        // Set initial tab after inbox data is loaded
-        this.setTabFromRouteParam();
       });
     },
     async updateInbox() {
       try {
+        this.$nextTick(() => {
+          this.setTabFromRouteParam();
+        });
         const payload = {
           id: this.currentInboxId,
           name: this.selectedInboxName?.trim(),
@@ -937,6 +970,17 @@ export default {
       </div>
       <div v-if="selectedTabKey === 'business-hours'">
         <WeeklyAvailability :inbox="inbox" />
+      </div>
+      <div v-if="selectedTabKey === 'nps'">
+        <div v-if="!inbox" class="mx-8 p-4">
+          <div class="rounded-lg border border-n-slate-6 bg-n-slate-2 p-4">
+            <p class="text-n-slate-11">Carregando configurações da caixa de entrada...</p>
+            <p class="text-xs text-n-slate-10 mt-2">Inbox ID: {{ currentInboxId }}</p>
+            <p class="text-xs text-n-slate-10 mt-1">Selected Tab Key: {{ selectedTabKey }}</p>
+            <p class="text-xs text-n-slate-10 mt-1">Selected Tab Index: {{ selectedTabIndex }}</p>
+          </div>
+        </div>
+        <NetPromoterScorePage v-else :inbox="inbox" />
       </div>
       <div v-if="selectedTabKey === 'widget-builder'">
         <WidgetBuilder :inbox="inbox" />

@@ -21,6 +21,7 @@
 #  inbox_id                  :integer          not null
 #  sender_id                 :bigint
 #  source_id                 :text
+#  team_id                   :integer
 #
 # Indexes
 #
@@ -66,6 +67,7 @@ class Message < ApplicationRecord
   before_validation :prevent_message_flooding
   before_save :ensure_processed_message_content
   before_save :ensure_in_reply_to
+  before_create :set_team_id_from_conversation
 
   validates :account_id, presence: true
   validates :inbox_id, presence: true
@@ -96,7 +98,8 @@ class Message < ApplicationRecord
     input_csat: 9,
     integrations: 10,
     sticker: 11,
-    voice_call: 12
+    input_nps: 12,
+    voice_call: 13
   }
   enum status: { sent: 0, delivered: 1, read: 2, failed: 3 }
   # [:submitted_email, :items, :submitted_values] : Used for bot message types
@@ -116,7 +119,10 @@ class Message < ApplicationRecord
   scope :chat, -> { where.not(message_type: :activity).where(private: false) }
   scope :non_activity_messages, -> { where.not(message_type: :activity).reorder('id desc') }
   scope :today, -> { where("date_trunc('day', created_at) = ?", Date.current) }
+  scope :for_team, ->(team_id) { where(team_id: team_id) }
   scope :voice_calls, -> { where(content_type: :voice_call) }
+  scope :starred, -> { where(starred: true) }
+  scope :forwarded, -> { where(forwarded: true) }
 
   # TODO: Get rid of default scope
   # https://stackoverflow.com/a/1834250/939299
@@ -127,6 +133,7 @@ class Message < ApplicationRecord
   belongs_to :inbox
   belongs_to :conversation, touch: true
   belongs_to :sender, polymorphic: true, optional: true
+  belongs_to :forwarded_from_message, class_name: 'Message', optional: true
 
   has_many :attachments, dependent: :destroy, autosave: true, before_add: :validate_attachments_limit
   has_one :csat_survey_response, dependent: :destroy_async
@@ -150,6 +157,9 @@ class Message < ApplicationRecord
     )
     data[:echo_id] = echo_id if echo_id.present?
     data[:attachments] = attachments.map(&:push_event_data) if attachments.present?
+    data[:forwarded] = forwarded if has_attribute?(:forwarded)
+    data[:forwarded_from_message_id] = forwarded_from_message_id if has_attribute?(:forwarded_from_message_id)
+    data[:starred] = starred if has_attribute?(:starred)
     merge_sender_attributes(data)
   end
 
@@ -383,6 +393,7 @@ class Message < ApplicationRecord
   def reopen_conversation
     return if conversation.muted?
     return unless incoming?
+    return if response_to_active_nps_survey?
 
     conversation.open! if conversation.snoozed?
 
@@ -417,6 +428,38 @@ class Message < ApplicationRecord
     # rubocop:disable Rails/SkipsModelValidations
     conversation.update_columns(last_activity_at: created_at)
     # rubocop:enable Rails/SkipsModelValidations
+  end
+
+  def set_team_id_from_conversation
+    self.team_id = conversation.team_id if conversation.present?
+  end
+
+  def response_to_active_nps_survey?
+    return false unless conversation.resolved?
+
+    active_nps_response = conversation.nps_responses
+                                      .where(status: :sent, answered_at: nil)
+                                      .order(created_at: :desc)
+                                      .first
+    return false unless active_nps_response
+    return false if active_nps_response.expired?
+    return false if active_nps_response.sent_at.present? && created_at.present? && created_at < active_nps_response.sent_at
+
+    return true if content_attributes.dig('submitted_values', 'nps_response', 'score').present?
+
+    nps_score_like_content?(content)
+  end
+
+  def nps_score_like_content?(text)
+    normalized = text.to_s.strip
+    return false if normalized.blank?
+
+    return true if normalized.match?(/^\s*(10|[0-9])\s*!*\s*$/)
+    return true if normalized.match?(/\b(10|[0-9])\s*\/\s*10\b/)
+    return true if normalized.match?(/\b(10|[0-9])\s*de\s*10\b/i)
+
+    keyword_present = normalized.match?(/\b(nota|score|rating|estrelas?|stars?)\b/i)
+    keyword_present && normalized.match?(/\b(10|[0-9])\b/)
   end
 
   def reindex_for_search

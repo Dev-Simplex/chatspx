@@ -433,6 +433,59 @@
       }
     }
   },
+  "NPS_REPORTS": {
+    "HEADER": "Relatórios NPS",
+    "NO_RECORDS": "Nenhum registro encontrado",
+    "DOWNLOAD": "Exportar CSV",
+    "DOWNLOAD_FAILED": "Erro ao baixar relatório NPS",
+    "CLASSIFICATION": {
+      "PROMOTER": "Promotor",
+      "PASSIVE": "Passivo",
+      "DETRACTOR": "Detrator"
+    },
+    "TABLE": {
+      "HEADER": {
+        "CONTACT_NAME": "Contato",
+        "AGENT_NAME": "Agente",
+        "SCORE": "Score",
+        "CLASSIFICATION": "Classificação",
+        "COMMENT": "Comentário"
+      }
+    },
+    "METRIC": {
+      "TOTAL_RESPONSES": {
+        "LABEL": "Total de Respostas",
+        "TOOLTIP": "Total de respostas NPS recebidas"
+      },
+      "NPS_SCORE": {
+        "LABEL": "NPS Score",
+        "TOOLTIP": "Net Promoter Score calculado"
+      },
+      "RESPONSE_RATE": {
+        "LABEL": "Taxa de Resposta",
+        "TOOLTIP": "Percentual de respostas em relação aos enviados"
+      },
+      "PROMOTERS": {
+        "LABEL": "Promotores",
+        "TOOLTIP": "Percentual de promotores (9-10)"
+      },
+      "PASSIVES": {
+        "LABEL": "Passivos",
+        "TOOLTIP": "Percentual de passivos (7-8)"
+      },
+      "DETRACTORS": {
+        "LABEL": "Detratores",
+        "TOOLTIP": "Percentual de detratores (0-6)"
+      },
+      "BLOCKED": {
+        "LABEL": "Bloqueados",
+        "TOOLTIP": "Total de NPS bloqueados por etiquetas"
+      },
+      "SCORE_DISTRIBUTION": {
+        "LABEL": "Distribuição de Scores"
+      }
+    }
+  },
   "BOT_REPORTS": {
     "HEADER": "Relatórios do Bot",
     "METRIC": {
@@ -578,5 +631,37 @@
     "AVG_REPLY_TIME": "Tempo Médio de Espera do Cliente",
     "RESOLUTION_COUNT": "Contagem de Resolução",
     "CONVERSATIONS": "Nº de Conversas"
+  },
+  "LIVE_REPORTS": {
+    "IN_SERVICE": {
+      "HEADER": "Em Andamento",
+      "DESCRIPTION": "Visualize o status em tempo real dos agentes e suas conversas ativas",
+      "SHOW_FILTERS": "Mostrar Filtros",
+      "HIDE_FILTERS": "Ocultar Filtros",
+      "ENABLE_REALTIME": "Ativar Tempo Real",
+      "DISABLE_REALTIME": "Desativar Tempo Real",
+      "UPDATES_EVERY": "Atualiza a cada",
+      "REFRESH": "Atualizar",
+      "LOADING": "Carregando...",
+      "NO_AGENTS": "Nenhum agente disponível",
+      "NO_CONVERSATIONS": "Nenhuma conversa",
+      "NO_NAME": "Sem nome",
+      "NO_MESSAGES": "Sem mensagens",
+      "SENT_IMAGE": "Enviou uma imagem",
+      "SENT_AUDIO": "Enviou um áudio",
+      "SENT_FILE": "Enviou um arquivo",
+      "YESTERDAY": "Ontem",
+      "FILTERS": {
+        "ALL_AGENTS": "Todos os Agentes",
+        "ALL_DEPARTMENTS": "Todos os Departamentos",
+        "USER_NAME": "Nome do Usuário",
+        "USER_NAME_PLACEHOLDER": "Selecione o agente",
+        "DEPARTMENT": "Departamento",
+        "DEPARTMENT_PLACEHOLDER": "Selecione o departamento"
+      },
+      "AGENT_CARD": {
+        "TOTAL_OPEN_CALLS": "Total de Chamados Abertos"
+      }
+    }
   }
 }

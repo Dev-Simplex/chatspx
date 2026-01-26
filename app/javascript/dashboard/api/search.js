@@ -36,8 +36,19 @@ class SearchAPI extends ApiClient {
     });
   }
 
-  messages({ q, page = 1, since, until, from, inboxId }) {
+  messages({ q, page = 1, conversation_id = null }) {
+    const params = {
+      q,
+      page: page,
+    };
+    
+    // Add conversation_id if provided (for searching within a specific conversation)
+    if (conversation_id) {
+      params.conversation_id = conversation_id;
+    }
+    
     return axios.get(`${this.url}/messages`, {
+      params,
       params: {
         q,
         page: page,

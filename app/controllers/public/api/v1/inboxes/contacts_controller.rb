@@ -6,10 +6,17 @@ class Public::Api::V1::Inboxes::ContactsController < Public::Api::V1::InboxesCon
 
   def create
     source_id = params[:source_id] || SecureRandom.uuid
-    @contact_inbox = ::ContactInboxWithContactBuilder.new(
+    normalized = normalize_waha_contact_params(
       source_id: source_id,
+      phone_number: permitted_params[:phone_number]
+    )
+    contact_attributes = permitted_params.except(:identifier_hash).to_h.with_indifferent_access
+    contact_attributes[:phone_number] = normalized[:phone_number] if normalized[:phone_number].present?
+
+    @contact_inbox = ::ContactInboxWithContactBuilder.new(
+      source_id: normalized[:source_id],
       inbox: @inbox_channel.inbox,
-      contact_attributes: permitted_params.except(:identifier_hash)
+      contact_attributes: contact_attributes
     ).perform
   end
 
@@ -24,7 +31,12 @@ class Public::Api::V1::Inboxes::ContactsController < Public::Api::V1::InboxesCon
   private
 
   def contact_inbox
-    @contact_inbox = @inbox_channel.inbox.contact_inboxes.find_by!(source_id: params[:id])
+    source_id = params[:id]
+    normalized = normalize_waha_contact_params(source_id: source_id, phone_number: nil)
+    resolved_source_id = normalized[:source_id]
+
+    @contact_inbox = @inbox_channel.inbox.contact_inboxes.find_by(source_id: resolved_source_id)
+    @contact_inbox ||= @inbox_channel.inbox.contact_inboxes.find_by!(source_id: source_id)
   end
 
   def process_hmac

@@ -3,6 +3,7 @@ import format from 'date-fns/format';
 import isToday from 'date-fns/isToday';
 import isYesterday from 'date-fns/isYesterday';
 import { endOfDay, getUnixTime, startOfDay } from 'date-fns';
+import { ptBR } from 'date-fns/locale';
 
 export const formatUnixDate = (date, dateFormat = 'MMM dd, yyyy') => {
   const unixDate = fromUnixTime(date);
@@ -13,7 +14,9 @@ export const formatDate = ({ date, todayText, yesterdayText }) => {
   const dateValue = new Date(date);
   if (isToday(dateValue)) return todayText;
   if (isYesterday(dateValue)) return yesterdayText;
-  return date;
+  
+  // Formata a data em português brasileiro
+  return format(dateValue, "d 'de' MMMM 'de' yyyy", { locale: ptBR });
 };
 
 export const isTimeAfter = (h1, m1, h2, m2) => {

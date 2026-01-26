@@ -10,6 +10,7 @@ export const conversationUrl = ({
   label,
   teamId,
   conversationType = '',
+  conversationStatus = '',
   foldersId,
 }) => {
   let url = `accounts/${accountId}/conversations/${id}`;
@@ -27,6 +28,8 @@ export const conversationUrl = ({
     url = `accounts/${accountId}/participating/conversations/${id}`;
   } else if (conversationType === 'unattended') {
     url = `accounts/${accountId}/unattended/conversations/${id}`;
+  } else if (conversationStatus) {
+    url = `accounts/${accountId}/status/${conversationStatus}/conversations/${id}`;
   }
   return url;
 };

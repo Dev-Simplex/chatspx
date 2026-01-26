@@ -12,6 +12,7 @@ const props = defineProps({
   icon: { type: [Object, String], required: true },
   children: { type: Array, default: undefined },
   activeChild: { type: Object, default: undefined },
+  isCollapsed: { type: Boolean, default: false },
 });
 
 const { isAllowed } = useSidebarContext();
@@ -63,6 +64,7 @@ useEventListener(scrollableContainer, 'scroll', () => {
         v-bind="child"
         :key="child.name"
         :active="activeChild?.name === child.name"
+        :is-collapsed="isCollapsed"
       />
     </div>
     <div

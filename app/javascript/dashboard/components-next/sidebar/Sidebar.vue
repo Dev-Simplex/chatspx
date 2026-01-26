@@ -8,6 +8,7 @@ import { useStore } from 'vuex';
 import { useI18n } from 'vue-i18n';
 import { useSidebarKeyboardShortcuts } from './useSidebarKeyboardShortcuts';
 import { vOnClickOutside } from '@vueuse/components';
+import { useUISettings } from 'dashboard/composables/useUISettings';
 import { emitter } from 'shared/helpers/mitt';
 import { BUS_EVENTS } from 'shared/constants/busEvents';
 
@@ -18,7 +19,6 @@ import SidebarChangelogCard from './SidebarChangelogCard.vue';
 import ChannelLeaf from './ChannelLeaf.vue';
 import SidebarAccountSwitcher from './SidebarAccountSwitcher.vue';
 import Logo from 'next/icon/Logo.vue';
-import ComposeConversation from 'dashboard/components-next/NewConversation/ComposeConversation.vue';
 
 const props = defineProps({
   isMobileSidebarOpen: {
@@ -38,11 +38,11 @@ const { accountScopedRoute, isOnChatwootCloud } = useAccount();
 const store = useStore();
 const searchShortcut = useKbd([`$mod`, 'k']);
 const { t } = useI18n();
+const { uiSettings, updateUISettings } = useUISettings();
 
 const isACustomBrandedInstance = useMapGetter(
   'globalConfig/isACustomBrandedInstance'
 );
-
 const toggleShortcutModalFn = show => {
   if (show) {
     emit('openKeyShortcutModal');
@@ -88,6 +88,16 @@ const sortedInboxes = computed(() =>
 const closeMobileSidebar = () => {
   if (!props.isMobileSidebarOpen) return;
   emit('closeMobileSidebar');
+};
+
+const isCollapsed = computed(
+  () => uiSettings.value?.is_sidebar_collapsed ?? false
+);
+
+const toggleSidebar = () => {
+  updateUISettings({
+    is_sidebar_collapsed: !isCollapsed.value,
+  });
 };
 
 const onComposeOpen = toggleFn => {
@@ -161,6 +171,44 @@ const menuItems = computed(() => {
           activeOn: ['conversation_through_unattended'],
           label: t('SIDEBAR.UNATTENDED_CONVERSATIONS'),
           to: accountScopedRoute('conversation_unattended'),
+        },
+        {
+          name: 'Status',
+          label: t('SIDEBAR.STATUS'),
+          icon: 'i-lucide-filter',
+          activeOn: ['conversation_status', 'conversation_through_status'],
+          children: [
+            {
+              name: 'StatusOpen',
+              label: t('SIDEBAR.STATUS_OPEN'),
+              to: accountScopedRoute('conversation_status', { status: 'open' }),
+              activeOn: ['conversation_status', 'conversation_through_status'],
+            },
+            {
+              name: 'StatusResolved',
+              label: t('SIDEBAR.STATUS_RESOLVED'),
+              to: accountScopedRoute('conversation_status', {
+                status: 'resolved',
+              }),
+              activeOn: ['conversation_status', 'conversation_through_status'],
+            },
+            {
+              name: 'StatusPending',
+              label: t('SIDEBAR.STATUS_PENDING'),
+              to: accountScopedRoute('conversation_status', {
+                status: 'pending',
+              }),
+              activeOn: ['conversation_status', 'conversation_through_status'],
+            },
+            {
+              name: 'StatusSnoozed',
+              label: t('SIDEBAR.STATUS_SNOOZED'),
+              to: accountScopedRoute('conversation_status', {
+                status: 'snoozed',
+              }),
+              activeOn: ['conversation_status', 'conversation_through_status'],
+            },
+          ],
         },
         {
           name: 'Folders',
@@ -393,6 +441,11 @@ const menuItems = computed(() => {
           to: accountScopedRoute('csat_reports'),
         },
         {
+          name: 'Reports NPS',
+          label: t('SIDEBAR.NPS'),
+          to: accountScopedRoute('nps_reports'),
+        },
+        {
           name: 'Reports SLA',
           label: t('SIDEBAR.REPORTS_SLA'),
           to: accountScopedRoute('sla_reports'),
@@ -401,6 +454,18 @@ const menuItems = computed(() => {
           name: 'Reports Bot',
           label: t('SIDEBAR.REPORTS_BOT'),
           to: accountScopedRoute('bot_reports'),
+        },
+      ],
+    },
+    {
+      name: 'Live',
+      label: t('SIDEBAR.REPORTS_LIVE'),
+      icon: 'i-lucide-activity',
+      children: [
+        {
+          name: 'Live In Service',
+          label: t('SIDEBAR.REPORTS_LIVE_IN_SERVICE'),
+          to: accountScopedRoute('live_in_service'),
         },
       ],
     },
@@ -515,6 +580,27 @@ const menuItems = computed(() => {
           to: accountScopedRoute('settings_inbox_list'),
         },
         {
+          name: 'Settings WAHA Connections',
+          label: t('SIDEBAR.WAHA_CONNECTIONS'),
+          icon: h(
+            'svg',
+            {
+              xmlns: 'http://www.w3.org/2000/svg',
+              width: '16',
+              height: '16',
+              fill: 'currentColor',
+              viewBox: '0 0 16 16',
+              class: 'inline-block',
+            },
+            [
+              h('path', {
+                d: 'M13.601 2.326A7.85 7.85 0 0 0 7.994 0C3.627 0 .068 3.558.064 7.926c0 1.399.366 2.76 1.057 3.965L0 16l4.204-1.102a7.9 7.9 0 0 0 3.79.965h.004c4.368 0 7.926-3.558 7.93-7.93A7.9 7.9 0 0 0 13.6 2.326zM7.994 14.521a6.6 6.6 0 0 1-3.356-.92l-.24-.144-2.494.654.666-2.433-.156-.251a6.56 6.56 0 0 1-1.007-3.505c0-3.626 2.957-6.584 6.591-6.584a6.56 6.56 0 0 1 4.66 1.931 6.56 6.56 0 0 1 1.928 4.66c-.004 3.639-2.961 6.592-6.592 6.592m3.615-4.934c-.197-.099-1.17-.578-1.353-.646-.182-.065-.315-.099-.445.099-.133.197-.513.646-.627.775-.114.133-.232.148-.43.05-.197-.1-.836-.308-1.592-.985-.59-.525-.985-1.175-1.103-1.372-.114-.198-.011-.304.088-.403.087-.088.197-.232.296-.346.1-.114.133-.198.198-.33.065-.134.034-.248-.015-.347-.05-.099-.445-1.076-.612-1.47-.16-.389-.323-.335-.445-.34-.114-.007-.247-.007-.38-.007a.73.73 0 0 0-.529.247c-.182.198-.691.677-.691 1.654s.71 1.916.81 2.049c.098.133 1.394 2.132 3.383 2.992.47.205.84.326 1.129.418.475.152.904.129 1.246.08.38-.058 1.171-.48 1.338-.943.164-.464.164-.86.114-.943-.049-.084-.182-.133-.38-.232',
+              }),
+            ]
+          ),
+          to: accountScopedRoute('waha_connections_list'),
+        },
+        {
           name: 'Settings Labels',
           label: t('SIDEBAR.LABELS'),
           icon: 'i-lucide-tags',
@@ -598,11 +684,13 @@ const menuItems = computed(() => {
       closeMobileSidebar,
       { ignore: ['#mobile-sidebar-launcher'] },
     ]"
-    class="bg-n-solid-2 rtl:border-l ltr:border-r border-n-weak flex flex-col text-sm pb-1 fixed top-0 ltr:left-0 rtl:right-0 h-full z-40 transition-transform duration-200 ease-in-out md:static w-[200px] basis-[200px] md:flex-shrink-0 md:ltr:translate-x-0 md:rtl:-translate-x-0"
+    class="bg-n-solid-2 rtl:border-l ltr:border-r border-n-weak flex flex-col text-sm pb-1 fixed top-0 ltr:left-0 rtl:right-0 h-full z-40 transition-all duration-200 ease-in-out md:static md:flex-shrink-0 md:ltr:translate-x-0 md:rtl:-translate-x-0"
     :class="[
       {
         'shadow-lg md:shadow-none': isMobileSidebarOpen,
         'ltr:-translate-x-full rtl:translate-x-full': !isMobileSidebarOpen,
+        'w-[64px] basis-[64px]': isCollapsed,
+        'w-[200px] basis-[200px]': !isCollapsed,
       },
     ]"
   >
@@ -611,20 +699,39 @@ const menuItems = computed(() => {
         <div class="grid flex-shrink-0 place-content-center size-6">
           <Logo class="size-4" />
         </div>
-        <div class="flex-shrink-0 w-px h-3 bg-n-strong" />
+        <div v-if="!isCollapsed" class="flex-shrink-0 w-px h-3 bg-n-strong" />
         <SidebarAccountSwitcher
-          class="flex-grow -mx-1 min-w-0"
+          class="flex-grow min-w-0 -mx-1"
+          v-if="!isCollapsed"
           @show-create-account-modal="emit('showCreateAccountModal')"
         />
+        <Button
+          v-if="isCollapsed"
+          icon="i-lucide-panel-left-open"
+          color="slate"
+          size="sm"
+          class="flex-shrink-0 !h-7 !bg-n-solid-3 dark:!bg-n-black/30 !outline-n-weak !text-n-slate-11"
+          :title="t('SIDEBAR.EXPAND')"
+          @click="toggleSidebar"
+        />
+        <Button
+          v-else
+          icon="i-lucide-panel-left-close"
+          color="slate"
+          size="sm"
+          class="flex-shrink-0 !h-7 !bg-n-solid-3 dark:!bg-n-black/30 !outline-n-weak !text-n-slate-11 ml-auto"
+          :title="t('SIDEBAR.COLLAPSE')"
+          @click="toggleSidebar"
+        />
       </div>
-      <div class="flex gap-2 px-2">
+      <div v-if="!isCollapsed" class="flex gap-2 px-2">
         <RouterLink
           :to="{ name: 'search' }"
           class="flex gap-2 items-center px-2 py-1 w-full h-7 rounded-lg outline outline-1 outline-n-weak bg-n-solid-3 dark:bg-n-black/30"
         >
           <span class="flex-shrink-0 i-lucide-search size-4 text-n-slate-11" />
           <span class="flex-grow text-left">
-            {{ t('COMBOBOX.SEARCH_PLACEHOLDER') }}
+            {{ t('SIDEBAR.ADVANCED_SEARCH') }}
           </span>
           <span
             class="hidden tracking-wide pointer-events-none select-none text-n-slate-10"
@@ -632,25 +739,27 @@ const menuItems = computed(() => {
             {{ searchShortcut }}
           </span>
         </RouterLink>
-        <ComposeConversation align-position="right" @close="onComposeClose">
-          <template #trigger="{ toggle }">
-            <Button
-              icon="i-lucide-pen-line"
-              color="slate"
-              size="sm"
-              class="!h-7 !bg-n-solid-3 dark:!bg-n-black/30 !outline-n-weak !text-n-slate-11"
-              @click="onComposeOpen(toggle)"
-            />
-          </template>
-        </ComposeConversation>
+      </div>
+      <div v-else class="flex flex-col gap-2 px-2">
+        <RouterLink
+          :to="{ name: 'search' }"
+          class="flex items-center justify-center w-full px-2 py-1 rounded-lg h-7 outline outline-1 outline-n-weak bg-n-solid-3 dark:bg-n-black/30"
+          :title="t('SIDEBAR.ADVANCED_SEARCH')"
+        >
+          <span class="flex-shrink-0 i-lucide-search size-4 text-n-slate-11" />
+        </RouterLink>
       </div>
     </section>
-    <nav class="grid overflow-y-scroll flex-grow gap-2 px-2 pb-5 no-scrollbar">
+    <nav
+      class="grid flex-grow gap-2 pb-5 overflow-y-scroll no-scrollbar"
+      :class="{ 'px-2': !isCollapsed, 'px-1': isCollapsed }"
+    >
       <ul class="flex flex-col gap-1.5 m-0 list-none">
         <SidebarGroup
           v-for="item in menuItems"
           :key="item.name"
           v-bind="item"
+          :is-collapsed="isCollapsed"
         />
       </ul>
     </nav>
@@ -667,6 +776,7 @@ const menuItems = computed(() => {
         class="p-1 flex-shrink-0 flex w-full justify-between z-10 gap-2 items-center border-t border-n-weak shadow-[0px_-2px_4px_0px_rgba(27,28,29,0.02)]"
       >
         <SidebarProfileMenu
+          :is-collapsed="isCollapsed"
           @open-key-shortcut-modal="emit('openKeyShortcutModal')"
         />
       </div>

@@ -1,5 +1,5 @@
 <script setup>
-import { onMounted, computed, ref, toRefs } from 'vue';
+import { onMounted, computed, ref, toRefs, useTemplateRef, nextTick } from 'vue';
 import { useTimeoutFn } from '@vueuse/core';
 import { provideMessageContext } from './provider.js';
 import { useTrack } from 'dashboard/composables';
@@ -21,6 +21,7 @@ import {
 } from './constants';
 
 import Avatar from 'next/avatar/Avatar.vue';
+import Icon from 'next/icon/Icon.vue';
 
 import TextBubble from './bubbles/Text/Index.vue';
 import ActivityBubble from './bubbles/Activity.vue';
@@ -36,11 +37,15 @@ import ContactBubble from './bubbles/Contact.vue';
 import DyteBubble from './bubbles/Dyte.vue';
 import LocationBubble from './bubbles/Location.vue';
 import CSATBubble from './bubbles/CSAT.vue';
+import NPSBubble from './bubbles/NPS.vue';
 import FormBubble from './bubbles/Form.vue';
-import VoiceCallBubble from './bubbles/VoiceCall.vue';
 
 import MessageError from './MessageError.vue';
 import ContextMenu from 'dashboard/modules/conversations/components/MessageContextMenu.vue';
+import MessageAPI from 'dashboard/api/inbox/message';
+import { useStore } from 'dashboard/composables/store';
+import { useAlert } from 'dashboard/composables';
+import NextButton from 'dashboard/components-next/button/Button.vue';
 
 /**
  * @typedef {Object} Attachment
@@ -130,15 +135,22 @@ const props = defineProps({
   senderId: { type: Number, default: null },
   senderType: { type: String, default: null },
   sourceId: { type: String, default: '' }, // eslint-disable-line vue/no-unused-properties
+  reactions: { type: Array, default: () => [] },
+  forwarded: { type: Boolean, default: false },
+  starred: { type: Boolean, default: false },
+  isForwardMode: { type: Boolean, default: false },
+  isForwardSelected: { type: Boolean, default: false },
 });
 
-const emit = defineEmits(['retry']);
+const emit = defineEmits(['forward', 'toggle-forward-selection']);
 
 const contextMenuPosition = ref({});
 const showBackgroundHighlight = ref(false);
 const showContextMenu = ref(false);
+const dropdownButtonRef = useTemplateRef('dropdownButtonRef');
 const { t } = useI18n();
 const route = useRoute();
+const store = useStore();
 
 /**
  * Computes the message variant based on props
@@ -278,14 +290,14 @@ const componentToRender = computed(() => {
     return CSATBubble;
   }
 
+  if (props.contentType === CONTENT_TYPES.INPUT_NPS) {
+    return NPSBubble;
+  }
+
   if (
     [CONTENT_TYPES.INPUT_SELECT, CONTENT_TYPES.FORM].includes(props.contentType)
   ) {
     return FormBubble;
-  }
-
-  if (props.contentType === CONTENT_TYPES.VOICE_CALL) {
-    return VoiceCallBubble;
   }
 
   if (props.contentType === CONTENT_TYPES.INCOMING_EMAIL) {
@@ -340,6 +352,22 @@ const isMessageDeleted = computed(() => {
   return props.contentAttributes?.deleted;
 });
 
+const isForwardSelectable = computed(() => {
+  if (props.messageType === MESSAGE_TYPES.ACTIVITY) return false;
+  if (
+    props.status === MESSAGE_STATUS.FAILED ||
+    props.status === MESSAGE_STATUS.PROGRESS
+  ) {
+    return false;
+  }
+  return !isMessageDeleted.value;
+});
+
+const forwardSelectClass = computed(() => ({
+  'mr-2': orientation.value === ORIENTATION.LEFT,
+  'ml-2': orientation.value === ORIENTATION.RIGHT,
+}));
+
 const payloadForContextMenu = computed(() => {
   return {
     id: props.id,
@@ -357,6 +385,7 @@ const contextMenuEnabledOptions = computed(() => {
   const isFailedOrProcessing =
     props.status === MESSAGE_STATUS.FAILED ||
     props.status === MESSAGE_STATUS.PROGRESS;
+  const isActivity = props.messageType === MESSAGE_TYPES.ACTIVITY;
 
   return {
     copy: hasText,
@@ -371,6 +400,8 @@ const contextMenuEnabledOptions = computed(() => {
       !props.private &&
       props.inboxSupportsReplyTo.outgoing &&
       !isFailedOrProcessing,
+    forward: !isActivity && !isFailedOrProcessing && !isMessageDeleted.value,
+    star: !isActivity && !isFailedOrProcessing && !isMessageDeleted.value,
   };
 });
 
@@ -391,6 +422,7 @@ const shouldRenderMessage = computed(() => {
 });
 
 function openContextMenu(e) {
+  if (props.isForwardMode) return;
   const shouldSkipContextMenu =
     e.target?.classList.contains('skip-context-menu') ||
     ['a', 'img'].includes(e.target?.tagName.toLowerCase());
@@ -414,12 +446,93 @@ function closeContextMenu() {
   contextMenuPosition.value = { x: null, y: null };
 }
 
+function openHoverDropdown(e) {
+  if (props.isForwardMode) return;
+  if (!dropdownButtonRef.value) return;
+
+  e.preventDefault();
+  e.stopPropagation();
+
+  nextTick(() => {
+    // Usa o elemento do botão para calcular a posição
+    const buttonComponent = dropdownButtonRef.value;
+    const buttonEl = buttonComponent?.$el || buttonComponent;
+    if (!buttonEl || !buttonEl.getBoundingClientRect) return;
+    
+    const rect = buttonEl.getBoundingClientRect();
+    
+    // Posição abaixo da seta (botão)
+    // Alinha à direita do botão
+    // O ContextMenu usa position: fixed, então usamos coordenadas da viewport
+    // O ContextMenu ajustará automaticamente se o menu ultrapassar os limites
+    const x = rect.right;
+    
+    contextMenuPosition.value = {
+      x: x,
+      y: rect.bottom + 4, // 4px de espaçamento abaixo da seta
+    };
+    
+    showContextMenu.value = true;
+    useTrack(ACCOUNT_EVENTS.OPEN_MESSAGE_CONTEXT_MENU);
+  });
+}
+
 function handleReplyTo() {
   const replyStorageKey = LOCAL_STORAGE_KEYS.MESSAGE_REPLY_TO;
   const { conversationId, id: replyTo } = props;
 
   LocalStorage.updateJsonStore(replyStorageKey, conversationId, replyTo);
   emitter.emit(BUS_EVENTS.TOGGLE_REPLY_TO_MESSAGE, props);
+}
+
+function handleForward() {
+  emit('forward', { messageId: props.id });
+  useTrack(ACCOUNT_EVENTS.OPEN_MESSAGE_CONTEXT_MENU);
+}
+
+function toggleForwardSelection() {
+  if (!props.isForwardMode || !isForwardSelectable.value) return;
+  emit('toggle-forward-selection', props.id);
+}
+
+async function handleStar() {
+  try {
+    const accountId = store.getters.getCurrentAccountId;
+    await MessageAPI.starMessage({
+      accountId,
+      conversationId: props.conversationId,
+      messageId: props.id,
+    });
+    useAlert(t('CONVERSATION.STAR_SUCCESS') || 'Mensagem favoritada');
+  } catch (error) {
+    console.error('Error starring message:', error);
+    useAlert(t('CONVERSATION.STAR_ERROR') || 'Erro ao favoritar mensagem');
+  }
+}
+
+async function handleUnstar() {
+  try {
+    const accountId = store.getters.getCurrentAccountId;
+    await MessageAPI.unstarMessage({
+      accountId,
+      conversationId: props.conversationId,
+      messageId: props.id,
+    });
+    useAlert(t('CONVERSATION.UNSTAR_SUCCESS') || 'Mensagem desfavoritada');
+  } catch (error) {
+    console.error('Error unstarring message:', error);
+    useAlert(t('CONVERSATION.UNSTAR_ERROR') || 'Erro ao desfavoritar mensagem');
+  }
+}
+
+async function handleRetry() {
+  try {
+    await MessageAPI.retry(props.conversationId, props.id);
+    // A mensagem será atualizada automaticamente via websocket
+  } catch (error) {
+    console.error('Error retrying message:', error);
+    useAlert(t('CONVERSATION.RETRY_ERROR') || 'Erro ao tentar reenviar mensagem');
+  }
 }
 
 const avatarInfo = computed(() => {
@@ -493,6 +606,20 @@ provideMessageContext({
       },
     ]"
   >
+    <label
+      v-if="isForwardMode && isForwardSelectable"
+      class="forward-select"
+      :class="forwardSelectClass"
+      @click.stop="toggleForwardSelection"
+    >
+      <input
+        type="checkbox"
+        class="forward-select__input"
+        :checked="isForwardSelected"
+        @change="toggleForwardSelection"
+        @click.stop
+      />
+    </label>
     <div v-if="variant === MESSAGE_VARIANTS.ACTIVITY">
       <ActivityBubble :content="content" />
     </div>
@@ -518,7 +645,7 @@ provideMessageContext({
         <Avatar v-bind="avatarInfo" :size="24" />
       </div>
       <div
-        class="[grid-area:bubble] flex"
+        class="[grid-area:bubble] flex relative group/message"
         :class="{
           'ltr:ml-8 rtl:mr-8 justify-end': orientation === ORIENTATION.RIGHT,
           'ltr:mr-8 rtl:ml-8': orientation === ORIENTATION.LEFT,
@@ -526,14 +653,59 @@ provideMessageContext({
         }"
         @contextmenu="openContextMenu($event)"
       >
-        <Component :is="componentToRender" />
+        <div class="relative w-full group-hover/message:bg-n-alpha-1 group-hover/message:ltr:pr-8 group-hover/message:rtl:pl-8 transition-all duration-200">
+          <!-- Badge de Encaminhada e Estrela -->
+          <div
+            v-if="forwarded || starred"
+            class="inline-flex items-center gap-2 text-xs text-slate-500 dark:text-slate-400 mb-1"
+          >
+            <div
+              v-if="forwarded"
+              class="inline-flex items-center gap-1 italic"
+            >
+              <Icon icon="i-lucide-share-2" class="size-3" />
+              <span>{{ t('CONVERSATION.FORWARDED') || 'Encaminhada' }}</span>
+            </div>
+            <div
+              v-if="starred"
+              class="inline-flex items-center gap-1 text-amber-500 dark:text-amber-400"
+              :title="t('CONVERSATION.STARRED') || 'Favoritada'"
+            >
+              <Icon icon="i-lucide-star" class="size-3 fill-current" />
+            </div>
+          </div>
+
+          <Component :is="componentToRender" />
+
+          <!-- Botão de dropdown no hover -->
+          <div
+            v-if="shouldShowContextMenu && isBubble"
+            class="absolute ltr:right-0 rtl:left-0 top-0 bottom-0 w-10 opacity-0 group-hover/message:opacity-100 transition-opacity duration-200 ease-in-out z-[11] flex items-start justify-end pt-2 ltr:pr-1 rtl:pl-1"
+            :class="{
+              'bg-n-slate-4 ltr:rounded-tr-xl ltr:rounded-br-xl rtl:rounded-tl-xl rtl:rounded-bl-xl': variant === MESSAGE_VARIANTS.USER && orientation === ORIENTATION.LEFT,
+              'bg-n-solid-blue ltr:rounded-tr-xl ltr:rounded-br-sm rtl:rounded-tl-xl rtl:rounded-bl-sm': (variant === MESSAGE_VARIANTS.AGENT || variant === MESSAGE_VARIANTS.BOT || variant === MESSAGE_VARIANTS.TEMPLATE) && orientation === ORIENTATION.RIGHT,
+              'bg-n-solid-amber ltr:rounded-tr-xl ltr:rounded-br-xl rtl:rounded-tl-xl rtl:rounded-bl-xl': variant === MESSAGE_VARIANTS.PRIVATE,
+            }"
+          >
+            <NextButton
+              ref="dropdownButtonRef"
+              ghost
+              slate
+              sm
+              :icon="'i-lucide-chevron-down'"
+              class="rounded-md p-1 shadow-none"
+              @click.stop="openHoverDropdown($event)"
+            />
+          </div>
+
+        </div>
       </div>
       <MessageError
         v-if="contentAttributes.externalError"
-        class="[grid-area:meta]"
+        class="[grid-area:meta] relative z-10"
         :class="flexOrientationClass"
         :error="contentAttributes.externalError"
-        @retry="emit('retry')"
+        @retry="handleRetry"
       />
     </div>
     <div v-if="shouldShowContextMenu" class="context-menu-wrap">
@@ -547,8 +719,12 @@ provideMessageContext({
         @open="openContextMenu"
         @close="closeContextMenu"
         @reply-to="handleReplyTo"
+        @forward="handleForward"
+        @star="handleStar"
+        @unstar="handleUnstar"
       />
     </div>
+
   </div>
 </template>
 
@@ -561,5 +737,13 @@ provideMessageContext({
   .right-bubble {
     @apply ltr:rounded-tr-sm rtl:rounded-tl-sm;
   }
+}
+
+.forward-select {
+  @apply flex items-center cursor-pointer;
+}
+
+.forward-select__input {
+  @apply size-4 text-woot-500 rounded border-slate-300 focus:ring-woot-500;
 }
 </style>

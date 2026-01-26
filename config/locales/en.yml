@@ -215,6 +215,8 @@ en:
     attachment: 'Attachment'
     no_content: 'No content'
   conversations:
+    errors:
+      team_required_for_resolution: 'A team must be assigned before resolving this conversation'
     captain:
       handoff: 'Transferring to another agent for further assistance.'
     messages:

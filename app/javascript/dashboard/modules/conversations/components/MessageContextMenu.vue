@@ -44,7 +44,7 @@ export default {
       default: false,
     },
   },
-  emits: ['open', 'close', 'replyTo'],
+  emits: ['open', 'close', 'replyTo', 'forward', 'star', 'unstar'],
   setup() {
     const { getPlainText } = useMessageFormatter();
 
@@ -80,6 +80,9 @@ export default {
       return useSnakeCase(
         this.message.content_attributes ?? this.message.contentAttributes
       );
+    },
+    isStarred() {
+      return this.message.starred ?? false;
     },
   },
   methods: {
@@ -131,6 +134,18 @@ export default {
     },
     handleReplyTo() {
       this.$emit('replyTo', this.message);
+      this.handleClose();
+    },
+    handleForward() {
+      this.$emit('forward', this.message);
+      this.handleClose();
+    },
+    handleStar() {
+      this.$emit('star', this.message);
+      this.handleClose();
+    },
+    handleUnstar() {
+      this.$emit('unstar', this.message);
       this.handleClose();
     },
     openDeleteModal() {
@@ -205,6 +220,15 @@ export default {
           }"
           variant="icon"
           @click.stop="handleReplyTo"
+        />
+        <MenuItem
+          v-if="enabledOptions['forward']"
+          :option="{
+            icon: 'i-lucide-share-2',
+            label: $t('CONVERSATION.CONTEXT_MENU.FORWARD'),
+          }"
+          variant="icon"
+          @click.stop="handleForward"
         />
         <MenuItem
           v-if="enabledOptions['copy']"

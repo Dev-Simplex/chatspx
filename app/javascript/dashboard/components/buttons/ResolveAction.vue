@@ -6,6 +6,7 @@ import { useI18n } from 'vue-i18n';
 import { useStore, useStoreGetters } from 'dashboard/composables/store';
 import { useEmitter } from 'dashboard/composables/emitter';
 import { useKeyboardEvents } from 'dashboard/composables/useKeyboardEvents';
+import { useResolveValidation } from 'dashboard/composables/useResolveValidation';
 
 import WootDropdownItem from 'shared/components/ui/dropdown/DropdownItem.vue';
 import WootDropdownMenu from 'shared/components/ui/dropdown/DropdownMenu.vue';
@@ -17,10 +18,19 @@ import {
 
 import ButtonGroup from 'dashboard/components-next/buttonGroup/ButtonGroup.vue';
 import Button from 'dashboard/components-next/button/Button.vue';
+import TeamSelectionModal from 'dashboard/components/widgets/conversation/TeamSelectionModal.vue';
 
 const store = useStore();
 const getters = useStoreGetters();
 const { t } = useI18n();
+
+const {
+  showTeamModal,
+  teams,
+  validateAndResolve,
+  assignTeamAndResolve,
+  cancelTeamSelection,
+} = useResolveValidation();
 
 const arrowDownButtonRef = ref(null);
 const isLoading = ref(false);
@@ -77,19 +87,19 @@ const openSnoozeModal = () => {
   ninja.open({ parent: 'snooze_conversation' });
 };
 
-const toggleStatus = (status, snoozedUntil) => {
+const toggleStatus = async (status, snoozedUntil) => {
   closeDropdown();
   isLoading.value = true;
-  store
-    .dispatch('toggleStatus', {
-      conversationId: currentChat.value.id,
-      status,
-      snoozedUntil,
-    })
-    .then(() => {
-      useAlert(t('CONVERSATION.CHANGE_STATUS'));
-      isLoading.value = false;
-    });
+  try {
+    await validateAndResolve(currentChat.value.id, status, snoozedUntil);
+    useAlert(t('CONVERSATION.CHANGE_STATUS'));
+  } catch (error) {
+    if (error.message !== 'TEAM_REQUIRED') {
+      useAlert(t('CONVERSATION.CHANGE_STATUS_FAILED'));
+    }
+  } finally {
+    isLoading.value = false;
+  }
 };
 
 const onCmdOpenConversation = () => {
@@ -98,6 +108,14 @@ const onCmdOpenConversation = () => {
 
 const onCmdResolveConversation = () => {
   toggleStatus(wootConstants.STATUS_TYPE.RESOLVED);
+};
+
+const handleTeamSelected = async teamId => {
+  try {
+    await assignTeamAndResolve(teamId);
+  } catch (error) {
+    // Error already handled in assignTeamAndResolve
+  }
 };
 
 const keyboardEvents = {
@@ -212,5 +230,12 @@ useEmitter(CMD_RESOLVE_CONVERSATION, onCmdResolveConversation);
         </WootDropdownItem>
       </WootDropdownMenu>
     </div>
+    <TeamSelectionModal
+      :show="showTeamModal"
+      :teams="teams"
+      :is-bulk="false"
+      @confirm="handleTeamSelected"
+      @close="cancelTeamSelection"
+    />
   </div>
 </template>

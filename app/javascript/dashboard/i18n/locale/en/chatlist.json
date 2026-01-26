@@ -10,6 +10,10 @@
     "TAB_HEADING": "Conversations",
     "MENTION_HEADING": "Mentions",
     "UNATTENDED_HEADING": "Unattended",
+    "STATUS_OPEN_HEADING": "Open Conversations",
+    "STATUS_RESOLVED_HEADING": "Resolved Conversations",
+    "STATUS_PENDING_HEADING": "Pending Conversations",
+    "STATUS_SNOOZED_HEADING": "Snoozed Conversations",
     "SEARCH": {
       "INPUT": "Search for People, Chats, Saved Replies .."
     },

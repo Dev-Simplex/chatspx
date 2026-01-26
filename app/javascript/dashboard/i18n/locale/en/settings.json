@@ -303,6 +303,12 @@
     "MENTIONED_CONVERSATIONS": "Mentions",
     "PARTICIPATING_CONVERSATIONS": "Participating",
     "UNATTENDED_CONVERSATIONS": "Unattended",
+    "STATUS": "Status",
+    "CONVERSATION_STATUS": "Conversation Status",
+    "STATUS_OPEN": "Open",
+    "STATUS_RESOLVED": "Resolved",
+    "STATUS_PENDING": "Pending",
+    "STATUS_SNOOZED": "Snoozed",
     "REPORTS": "Reports",
     "SETTINGS": "Settings",
     "CONTACTS": "Contacts",
@@ -356,6 +362,8 @@
     "REPORTS_LABEL": "Labels",
     "REPORTS_INBOX": "Inbox",
     "REPORTS_TEAM": "Team",
+    "REPORTS_LIVE": "Live",
+    "REPORTS_LIVE_IN_SERVICE": "Live In Service",
     "AGENT_ASSIGNMENT": "Agent Assignment",
     "SET_AVAILABILITY_TITLE": "Set yourself as",
     "SET_YOUR_AVAILABILITY": "Set your availability",
@@ -378,6 +386,11 @@
       "INFO_SHORT": "Automatically mark offline when you aren't using the app."
     },
     "DOCS": "Read docs",
+    "SECURITY": "Security",
+    "EXPAND": "Expand sidebar",
+    "COLLAPSE": "Collapse sidebar",
+    "NEW_CONVERSATION": "New conversation",
+    "ADVANCED_SEARCH": "Advanced search"
     "SECURITY": "Security",
     "CAPTAIN_AI": "Captain"
   },

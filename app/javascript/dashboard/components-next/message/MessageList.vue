@@ -1,10 +1,10 @@
 <script setup>
-import { defineProps, computed, reactive } from 'vue';
+import { defineProps, computed } from 'vue';
+import { isSameDay } from 'date-fns';
 import Message from './Message.vue';
-import { MESSAGE_TYPES } from './constants.js';
+import DateSeparator from 'shared/components/DateSeparator.vue';
+import { MESSAGE_TYPES, ATTACHMENT_TYPES } from './constants.js';
 import { useCamelCase } from 'dashboard/composables/useTransformKeys';
-import { useMapGetter } from 'dashboard/composables/store.js';
-import MessageApi from 'dashboard/api/inbox/message.js';
 
 /**
  * Props definition for the component
@@ -37,9 +37,17 @@ const props = defineProps({
     type: Array,
     default: () => [],
   },
+  isForwardMode: {
+    type: Boolean,
+    default: false,
+  },
+  selectedMessageIds: {
+    type: Array,
+    default: () => [],
+  },
 });
 
-const emit = defineEmits(['retry']);
+const emit = defineEmits(['forward', 'toggle-forward-selection']);
 
 const allMessages = computed(() => {
   return useCamelCase(props.messages, {
@@ -48,46 +56,120 @@ const allMessages = computed(() => {
   });
 });
 
-const currentChat = useMapGetter('getSelectedChat');
+const isForwardSelected = messageId =>
+  props.selectedMessageIds.includes(messageId);
 
-// Cache for fetched reply messages to avoid duplicate API calls
-const fetchedReplyMessages = reactive(new Map());
+const getSenderId = message => message.senderId ?? message.sender?.id;
 
-/**
- * Fetches a specific message from the API by trying to get messages around it
- * @param {number} messageId - The ID of the message to fetch
- * @param {number} conversationId - The ID of the conversation
- * @returns {Promise<Object|null>} - The fetched message or null if not found/error
- */
-const fetchReplyMessage = async (messageId, conversationId) => {
-  // Return cached result if already fetched
-  if (fetchedReplyMessages.has(messageId)) {
-    return fetchedReplyMessages.get(messageId);
+const isMediaOnlyMessage = message => {
+  if (!message || message.content) return false;
+
+  const attachments = Array.isArray(message.attachments)
+    ? message.attachments
+    : [];
+
+  if (attachments.length !== 1) return false;
+  if (message.status === 'failed') return false;
+  if (message.contentAttributes?.deleted) return false;
+  if (message.contentAttributes?.isUnsupported) return false;
+
+  return attachments.every(attachment =>
+    [
+      ATTACHMENT_TYPES.IMAGE,
+      ATTACHMENT_TYPES.VIDEO,
+      ATTACHMENT_TYPES.IG_REEL,
+    ].includes(attachment.fileType)
+  );
+};
+
+const canGroupMedia = (current, next) => {
+  if (!isMediaOnlyMessage(current) || !isMediaOnlyMessage(next)) return false;
+  if ((current.private ?? false) !== (next.private ?? false)) return false;
+  if (current.messageType !== next.messageType) return false;
+  if (getSenderId(current) !== getSenderId(next)) return false;
+
+  const currentDate = new Date(current.createdAt * 1000);
+  const nextDate = new Date(next.createdAt * 1000);
+  if (!isSameDay(currentDate, nextDate)) return false;
+
+  return Math.floor(next.createdAt / 60) === Math.floor(current.createdAt / 60);
+};
+
+const buildMessageItem = message => ({
+  type: 'message',
+  key: `message-${message.id}`,
+  message,
+  sourceMessages: [message],
+});
+
+const buildMediaGroupItem = groupMessages => {
+  const lastMessage = groupMessages[groupMessages.length - 1];
+  const attachments = groupMessages.flatMap(message => message.attachments || []);
+
+  return {
+    type: 'media-group',
+    key: `media-group-${groupMessages[0].id}-${lastMessage.id}`,
+    message: {
+      ...lastMessage,
+      attachments,
+      content: null,
+    },
+    sourceMessages: groupMessages,
+  };
+};
+
+const collectMediaGroup = (startIndex, messageList) => {
+  const groupMessages = [messageList[startIndex]];
+  let cursor = startIndex;
+
+  while (cursor < messageList.length - 1) {
+    const current = messageList[cursor];
+    const next = messageList[cursor + 1];
+    if (!canGroupMedia(current, next)) break;
+    groupMessages.push(next);
+    cursor += 1;
   }
 
-  try {
-    const response = await MessageApi.getPreviousMessages({
-      conversationId,
-      before: messageId + 100,
-      after: messageId - 100,
-    });
+  return { groupMessages, lastIndex: cursor };
+};
 
-    const messages = response.data?.payload || [];
-    const targetMessage = messages.find(msg => msg.id === messageId);
+const renderItems = computed(() => {
+  if (props.isForwardMode) {
+    return allMessages.value.map(buildMessageItem);
+  }
 
-    if (targetMessage) {
-      const camelCaseMessage = useCamelCase(targetMessage);
-      fetchedReplyMessages.set(messageId, camelCaseMessage);
-      return camelCaseMessage;
+  const items = [];
+  const messageList = allMessages.value;
+
+  let index = 0;
+  while (index < messageList.length) {
+    const message = messageList[index];
+    if (isMediaOnlyMessage(message)) {
+      const { groupMessages, lastIndex } = collectMediaGroup(
+        index,
+        messageList
+      );
+      if (groupMessages.length > 1) {
+        items.push(buildMediaGroupItem(groupMessages));
+        index = lastIndex + 1;
+        continue;
+      }
     }
 
-    // Cache null result to avoid repeated API calls
-    fetchedReplyMessages.set(messageId, null);
-    return null;
-  } catch (error) {
-    fetchedReplyMessages.set(messageId, null);
-    return null;
+    items.push(buildMessageItem(message));
+    index += 1;
   }
+
+  return items;
+});
+
+const getItemMessage = item => item.message;
+const getItemDate = item =>
+  item.sourceMessages?.[0]?.createdAt ?? item.message.createdAt;
+
+const shouldShowUnreadBadge = item => {
+  if (!props.firstUnreadId) return false;
+  return item.sourceMessages.some(message => message.id === props.firstUnreadId);
 };
 
 /**
@@ -99,8 +181,8 @@ const fetchReplyMessage = async (messageId, conversationId) => {
 const shouldGroupWithNext = (index, searchList) => {
   if (index === searchList.length - 1) return false;
 
-  const current = searchList[index];
-  const next = searchList[index + 1];
+  const current = getItemMessage(searchList[index]);
+  const next = getItemMessage(searchList[index + 1]);
 
   if (next.status === 'failed') return false;
 
@@ -137,48 +219,57 @@ const getInReplyToMessage = parentMessage => {
 
   if (!inReplyToMessageId) return null;
 
-  // Try to find in current messages first
-  let replyMessage = props.messages?.find(msg => msg.id === inReplyToMessageId);
-
-  // Then try store messages
-  if (!replyMessage && currentChat.value?.messages) {
-    replyMessage = currentChat.value.messages.find(
-      msg => msg.id === inReplyToMessageId
-    );
-  }
-
-  // Then check fetch cache
-  if (!replyMessage && fetchedReplyMessages.has(inReplyToMessageId)) {
-    replyMessage = fetchedReplyMessages.get(inReplyToMessageId);
-  }
-
-  // If still not found and we have conversation context, fetch it
-  if (!replyMessage && currentChat.value?.id) {
-    fetchReplyMessage(inReplyToMessageId, currentChat.value.id);
-    return null; // Let UI handle loading state
-  }
+  // Find in-reply-to message in the messages prop
+  const replyMessage = props.messages?.find(
+    message => message.id === inReplyToMessageId
+  );
 
   return replyMessage ? useCamelCase(replyMessage) : null;
+};
+
+/**
+ * Check if we should show date separator before this message
+ * @param {Number} index - Index of the current message
+ * @param {Array} messageList - Array of messages
+ * @returns {Boolean} - Whether to show date separator
+ */
+const shouldShowDateSeparator = (index, messageList) => {
+  if (index === 0) return true;
+
+  const current = messageList[index];
+  const previous = messageList[index - 1];
+
+  const currentDate = new Date(getItemDate(current) * 1000);
+  const previousDate = new Date(getItemDate(previous) * 1000);
+
+  return !isSameDay(currentDate, previousDate);
 };
 </script>
 
 <template>
   <ul class="px-4 bg-n-background">
     <slot name="beforeAll" />
-    <template v-for="(message, index) in allMessages" :key="message.id">
+    <template v-for="(item, index) in renderItems" :key="item.key">
+      <DateSeparator
+        v-if="shouldShowDateSeparator(index, renderItems)"
+        :date="new Date(getItemDate(item) * 1000)"
+      />
       <slot
-        v-if="firstUnreadId && message.id === firstUnreadId"
+        v-if="shouldShowUnreadBadge(item)"
         name="unreadBadge"
       />
       <Message
-        v-bind="message"
+        v-bind="item.message"
         :is-email-inbox="isAnEmailChannel"
-        :in-reply-to="getInReplyToMessage(message)"
-        :group-with-next="shouldGroupWithNext(index, allMessages)"
+        :in-reply-to="getInReplyToMessage(item.message)"
+        :group-with-next="shouldGroupWithNext(index, renderItems)"
         :inbox-supports-reply-to="inboxSupportsReplyTo"
         :current-user-id="currentUserId"
+        :is-forward-mode="isForwardMode"
+        :is-forward-selected="isForwardSelected(item.message.id)"
         data-clarity-mask="True"
-        @retry="emit('retry', message)"
+        @forward="emit('forward', $event)"
+        @toggle-forward-selection="emit('toggle-forward-selection', $event)"
       />
     </template>
     <slot name="after" />

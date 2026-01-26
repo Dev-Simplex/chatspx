@@ -12,6 +12,7 @@ const props = defineProps({
   isActive: { type: Boolean, default: false },
   hasActiveChild: { type: Boolean, default: false },
   getterKeys: { type: Object, default: () => ({}) },
+  isCollapsed: { type: Boolean, default: false },
 });
 
 const emit = defineEmits(['toggle']);
@@ -26,26 +27,40 @@ const count = computed(() =>
 <template>
   <component
     :is="to ? 'router-link' : 'div'"
-    class="flex items-center gap-2 px-2 py-1.5 rounded-lg h-8 min-w-0"
+    class="flex items-center rounded-lg h-8 min-w-0"
+    :class="[
+      {
+        'justify-center px-2': isCollapsed,
+        'gap-2 px-2 py-1.5': !isCollapsed,
+      },
+      {
+        'text-n-blue-text bg-n-alpha-2 font-medium':
+          isActive && !hasActiveChild,
+        'text-n-slate-12 font-medium': hasActiveChild,
+        'text-n-slate-11 hover:bg-n-alpha-2': !isActive && !hasActiveChild,
+      },
+    ]"
     role="button"
     draggable="false"
     :to="to"
-    :title="label"
-    :class="{
-      'text-n-blue-text bg-n-alpha-2 font-medium': isActive && !hasActiveChild,
-      'text-n-slate-12 font-medium': hasActiveChild,
-      'text-n-slate-11 hover:bg-n-alpha-2': !isActive && !hasActiveChild,
-    }"
+    :title="isCollapsed ? label : undefined"
     @click.stop="emit('toggle')"
   >
-    <div v-if="icon" class="relative flex items-center gap-2">
+    <div
+      v-if="icon"
+      class="relative flex items-center"
+      :class="{ 'gap-2': !isCollapsed }"
+    >
       <Icon v-if="icon" :icon="icon" class="size-4" />
       <span
         v-if="showBadge"
         class="size-2 -top-px ltr:-right-px rtl:-left-px bg-n-brand absolute rounded-full border border-n-solid-2"
       />
     </div>
-    <div class="flex items-center gap-1.5 flex-grow min-w-0">
+    <div
+      v-if="!isCollapsed"
+      class="flex items-center gap-1.5 flex-grow min-w-0"
+    >
       <span class="text-sm font-medium leading-5 truncate">
         {{ label }}
       </span>
@@ -61,7 +76,7 @@ const count = computed(() =>
       </span>
     </div>
     <span
-      v-if="expandable"
+      v-if="expandable && !isCollapsed"
       v-show="isExpanded"
       class="i-lucide-chevron-up size-3"
       @click.stop="emit('toggle')"

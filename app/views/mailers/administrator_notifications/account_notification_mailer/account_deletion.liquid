@@ -1,0 +1,25 @@
+<p>Olá,</p>
+
+<p>
+  Sua conta <strong>{{ meta.account_name }}</strong> foi marcada para exclusão.
+  A conta será permanentemente excluída em
+  <strong>{{ meta.deletion_date }}</strong>.
+</p>
+
+{% if meta.reason == 'manual_deletion' %}
+  <p>Esta ação foi solicitada por um dos administradores da sua conta.</p>
+{% else %}
+  <p>Motivo da exclusão: {{ meta.reason }}</p>
+{% endif %}
+
+<p>
+  Se isso foi feito por engano, você pode cancelar o processo de exclusão
+  visitando as configurações da sua conta.
+</p>
+
+<p><a href='{{ action_url }}'>Cancelar Exclusão da Conta</a></p>
+
+<p>
+  Obrigado,<br>
+  Equipe SPX - CHAT
+</p>
