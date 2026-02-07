@@ -268,6 +268,8 @@ watch(
       <template v-for="child in children" :key="child.name">
         <SidebarSubGroup
           v-if="child.children"
+          :name="child.name"
+          :parent-name="name"
           :label="child.label"
           :icon="child.icon"
           :children="child.children"

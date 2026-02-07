@@ -1,7 +1,7 @@
 <script setup>
 import Icon from 'next/icon/Icon.vue';
 
-defineProps({
+const props = defineProps({
   label: {
     type: String,
     default: '',
@@ -10,16 +10,40 @@ defineProps({
     type: String,
     default: '',
   },
+  collapsible: {
+    type: Boolean,
+    default: false,
+  },
+  isExpanded: {
+    type: Boolean,
+    default: false,
+  },
 });
+
+const emit = defineEmits(['toggle']);
 </script>
 
 <template>
-  <div
-    class="flex items-center gap-2 px-2 py-1.5 rounded-lg h-8 text-n-slate-10 select-none pointer-events-none"
+  <component
+    :is="props.collapsible ? 'button' : 'div'"
+    :type="props.collapsible ? 'button' : undefined"
+    :aria-expanded="props.collapsible ? props.isExpanded : undefined"
+    class="flex items-center gap-2 px-2 py-1.5 rounded-lg h-8 text-n-slate-10 select-none"
+    :class="[
+      props.collapsible
+        ? 'cursor-pointer w-full text-left bg-transparent border-0'
+        : 'pointer-events-none',
+    ]"
+    @click="props.collapsible ? emit('toggle') : undefined"
   >
-    <Icon v-if="icon" :icon="icon" class="size-4" />
+    <Icon v-if="props.icon" :icon="props.icon" class="size-4" />
     <span class="text-sm font-medium leading-5 flex-grow">
-      {{ label }}
+      {{ props.label }}
     </span>
-  </div>
+    <span
+      v-if="props.collapsible"
+      class="i-lucide-chevron-down size-3 transition-transform flex-shrink-0"
+      :class="{ 'rotate-180': props.isExpanded }"
+    />
+  </component>
 </template>
