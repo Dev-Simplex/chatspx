@@ -653,7 +653,23 @@
       },
       "AGENT_CARD": {
         "TOTAL_OPEN_CALLS": "Total Open Calls"
-      }
+      },
+      "KPI_TOTAL_CALLS": "Calls in progress",
+      "KPI_TOTAL_CALLS_TOOLTIP": "Total number of open or queued (pending) conversations in this account.",
+      "KPI_AGENTS_ACTIVE": "Agents with conversations",
+      "KPI_AGENTS_ACTIVE_TOOLTIP": "Number of agents who have at least one open or pending conversation assigned.",
+      "KPI_WAITING": "Waiting",
+      "KPI_WAITING_TOOLTIP": "Conversations that have no assignee yet or are in pending status (in queue).",
+      "LAST_UPDATE": "Last update",
+      "LIVE_INDICATOR": "Live",
+      "VIEW_WAITING": "View waiting",
+      "VIEW_WAITING_COUNT": "View {count} waiting",
+      "HIDE_WAITING": "Hide waiting",
+      "WAITING_SECTION_TITLE": "Conversations waiting",
+      "SORT_AGENTS": "Sort agents",
+      "SORT_BY_CALLS": "Most calls",
+      "SORT_BY_NAME_ASC": "Name (A–Z)",
+      "SORT_BY_NAME_DESC": "Name (Z–A)"
     }
   }
 }

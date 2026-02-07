@@ -66,6 +66,7 @@ provideSidebarContext({
 const inboxes = useMapGetter('inboxes/getInboxes');
 const labels = useMapGetter('labels/getLabelsOnSidebar');
 const teams = useMapGetter('teams/getMyTeams');
+const conversationStats = useMapGetter('conversationStats/getStats');
 const contactCustomViews = useMapGetter('customViews/getContactCustomViews');
 const conversationCustomViews = useMapGetter(
   'customViews/getConversationCustomViews'
@@ -79,6 +80,7 @@ onMounted(() => {
   store.dispatch('attributes/get');
   store.dispatch('customViews/get', 'conversation');
   store.dispatch('customViews/get', 'contact');
+  store.dispatch('conversationStats/get', {});
 });
 
 const sortedInboxes = computed(() =>
@@ -167,10 +169,44 @@ const menuItems = computed(() => {
           to: accountScopedRoute('conversation_mentions'),
         },
         {
-          name: 'Unattended',
-          activeOn: ['conversation_through_unattended'],
+          name: 'UnattendedGroup',
           label: t('SIDEBAR.UNATTENDED_CONVERSATIONS'),
-          to: accountScopedRoute('conversation_unattended'),
+          icon: 'i-lucide-clock',
+          children: [
+            {
+              name: 'Unattended',
+              label: t('SIDEBAR.UNATTENDED_MINE'),
+              activeOn: ['conversation_through_unattended'],
+              to: accountScopedRoute('conversation_unattended'),
+              count: conversationStats.value?.unattendedAssignedCount ?? 0,
+              highlight:
+                (conversationStats.value?.unattendedAssignedCount ?? 0) > 0,
+            },
+            {
+              name: 'Unassigned',
+              label: t('SIDEBAR.UNASSIGNED_CONVERSATIONS'),
+              activeOn: [
+                'conversation_unassigned',
+                'conversation_through_unassigned',
+              ],
+              to: accountScopedRoute('conversation_unattended', {}, {
+                assignee_type: 'unassigned',
+              }),
+              count: conversationStats.value?.unattendedUnassignedCount ?? 0,
+              highlight:
+                (conversationStats.value?.unattendedUnassignedCount ?? 0) > 0,
+              tooltip: t('SIDEBAR.UNASSIGNED_CONVERSATIONS_TOOLTIP'),
+            },
+            {
+              name: 'UnattendedAll',
+              label: t('SIDEBAR.UNATTENDED_ALL'),
+              activeOn: ['conversation_through_unattended'],
+              to: accountScopedRoute('conversation_unattended', {}, {
+                assignee_type: 'all',
+              }),
+              count: conversationStats.value?.unattendedAllCount ?? 0,
+            },
+          ],
         },
         {
           name: 'Status',
@@ -267,6 +303,13 @@ const menuItems = computed(() => {
           })),
         },
       ],
+    },
+    {
+      name: 'Kanban',
+      label: t('SIDEBAR.KANBAN'),
+      icon: 'i-lucide-layout-grid',
+      to: accountScopedRoute('kanban_index'),
+      activeOn: ['kanban_index', 'kanban_funnel'],
     },
     {
       name: 'Captain',

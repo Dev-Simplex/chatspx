@@ -117,14 +117,21 @@ class Conversation < ApplicationRecord
   has_many :notifications, as: :primary_actor, dependent: :destroy_async
   has_many :attachments, through: :messages
   has_many :reporting_events, dependent: :destroy_async
+  has_many :funnel_items, dependent: :destroy_async
+  has_many :scheduled_messages, dependent: :destroy_async
 
   before_save :ensure_snooze_until_reset
   before_create :determine_conversation_status
   before_create :ensure_waiting_since
 
+  # Status changes must use update! or save! (never update_column) so these callbacks run and
+  # CONVERSATION_STATUS_CHANGED is dispatched (e.g. for NPS survey).
   after_update_commit :execute_after_update_commit_callbacks
+  after_update_commit :move_to_automated_stage, if: :saved_change_to_status?
+  after_update_commit :move_to_team_funnel, if: :saved_change_to_team_id?
   after_create_commit :notify_conversation_creation
   after_create_commit :load_attributes_created_by_db_triggers
+  after_create_commit :add_to_appropriate_funnel
 
   delegate :auto_resolve_after, to: :account
 
@@ -213,6 +220,15 @@ class Conversation < ApplicationRecord
 
   def dispatch_conversation_updated_event(previous_changes = nil)
     dispatcher_dispatch(CONVERSATION_UPDATED, previous_changes)
+  end
+
+  def mark_as_unread!
+    last_incoming_message = messages.incoming.last
+    last_seen_at = last_incoming_message.present? ? (last_incoming_message.created_at - 1.second) : nil
+    update_columns(agent_last_seen_at: last_seen_at, assignee_last_seen_at: last_seen_at)
+    dispatcher_dispatch(CONVERSATION_UPDATED, { 'agent_last_seen_at' => true, 'assignee_last_seen_at' => true })
+  rescue StandardError => e
+    Rails.logger.warn("Conversation#mark_as_unread! failed for conversation #{id}: #{e.message}")
   end
 
   private
@@ -349,6 +365,60 @@ class Conversation < ApplicationRecord
     return unless additional_attributes['referer']
 
     self['additional_attributes']['referer'] = nil unless url_valid?(additional_attributes['referer'])
+  end
+
+  def add_to_appropriate_funnel
+    funnels = []
+
+    if team_id.present?
+      team_funnel = Funnel.where(team_id: team_id, account_id: account_id)
+                          .find { |f| f.allows_inbox?(inbox_id) }
+      funnels << team_funnel if team_funnel
+
+      default_funnel = Funnel.where(account_id: account_id, team_id: nil)
+                             .find { |f| f.allows_inbox?(inbox_id) }
+      funnels << default_funnel if default_funnel
+    else
+      default_funnel = Funnel.where(account_id: account_id, team_id: nil)
+                             .find { |f| f.allows_inbox?(inbox_id) }
+      funnels << default_funnel if default_funnel
+    end
+
+    funnels.compact.uniq.each do |funnel|
+      target_stage = if status == 'open'
+                       funnel.funnel_stages.find_by(automation_type: 'open')
+                     elsif status == 'resolved'
+                       funnel.funnel_stages.find_by(automation_type: 'resolved')
+                     else
+                       funnel.funnel_stages.ordered.first
+                     end
+
+      next unless target_stage
+
+      FunnelItem.find_or_create_by(
+        funnel_id: funnel.id,
+        conversation_id: id
+      ) do |item|
+        item.funnel_stage_id = target_stage.id
+      end
+    end
+  rescue StandardError => e
+    Rails.logger.error "Erro ao adicionar conversa #{id} ao funil: #{e.message}"
+    Rails.logger.error e.backtrace.join("\n")
+  end
+
+  def move_to_automated_stage
+    Kanban::MoveConversationToAutomatedStageService.new(
+      conversation: self,
+      status: status
+    ).perform
+  end
+
+  def move_to_team_funnel
+    Kanban::MoveConversationToTeamFunnelService.new(
+      conversation: self,
+      team: team_id.present? ? team : nil
+    ).perform
   end
 
   # creating db triggers

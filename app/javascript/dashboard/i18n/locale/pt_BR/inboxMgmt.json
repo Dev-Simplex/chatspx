@@ -903,6 +903,20 @@
         "LABEL": "Mensagem para Resposta Inválida",
         "PLACEHOLDER": "Por favor, responda com um número de 0 a 10."
       },
+      "COMMENT_PROMPT_MESSAGE": {
+        "LABEL": "Mensagem de Prompt para Comentário",
+        "PLACEHOLDER": "Gostaria de adicionar algum comentário?"
+      },
+      "MIN_MESSAGES": {
+        "LABEL": "Mínimo de Mensagens"
+      },
+      "MIN_DURATION_MINUTES": {
+        "LABEL": "Duração Mínima (minutos)"
+      },
+      "REQUIRED_TAGS": {
+        "LABEL": "Etiquetas Obrigatórias",
+        "SELECT_PLACEHOLDER": "Adicionar etiqueta"
+      },
       "NOTE": "O NPS será enviado automaticamente quando uma conversa for resolvida, se todas as condições forem atendidas.",
       "API": {
         "SUCCESS_MESSAGE": "Configurações NPS atualizadas com sucesso",

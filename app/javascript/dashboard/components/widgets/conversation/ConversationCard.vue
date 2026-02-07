@@ -14,6 +14,7 @@ import PriorityMark from './PriorityMark.vue';
 import SLACardLabel from './components/SLACardLabel.vue';
 import ContextMenu from 'dashboard/components/ui/ContextMenu.vue';
 import NextButton from 'dashboard/components-next/button/Button.vue';
+import VoiceCallStatus from './VoiceCallStatus.vue';
 
 export default {
   components: {
@@ -27,6 +28,7 @@ export default {
     SLACardLabel,
     ContextMenu,
     NextButton,
+    VoiceCallStatus,
   },
   mixins: [inboxMixin],
   props: {
@@ -102,6 +104,7 @@ export default {
       inboxesList: 'inboxes/getInboxes',
       activeInbox: 'getSelectedInbox',
       accountId: 'getCurrentAccountId',
+      currentUser: 'getCurrentUser',
     }),
     chatMetadata() {
       return this.chat.meta || {};
@@ -109,6 +112,26 @@ export default {
 
     assignee() {
       return this.chatMetadata.assignee || {};
+    },
+
+    isUnattendedAndMine() {
+      const waitingSince =
+        this.chat.waiting_since ?? this.chatMetadata.waiting_since ?? 0;
+      const isUnattended = Number(waitingSince) > 0;
+      const assigneeId =
+        this.assignee?.id ?? this.chatMetadata.assignee?.id;
+      const isMine =
+        this.currentUser?.id &&
+        assigneeId &&
+        Number(assigneeId) === Number(this.currentUser.id);
+      return Boolean(isUnattended && isMine);
+    },
+
+    voiceCallData() {
+      return {
+        status: this.chat.additional_attributes?.call_status,
+        direction: this.chat.additional_attributes?.call_direction,
+      };
     },
 
     currentContact() {
@@ -411,6 +434,8 @@ export default {
       'unread-chat': hasUnread,
       'has-inbox-name': showInboxName,
       'conversation-selected': selected,
+      'ltr:border-l-2 rtl:border-r-2 border-n-amber-7 bg-n-amber-5/25 ring-1 ring-n-amber-6/50 ring-inset animate-sidebar-attention motion-reduce:animate-none':
+        isUnattendedAndMine && !isActiveChat && !selected,
     }"
     @click="onCardClick"
     @contextmenu="openContextMenu($event)"

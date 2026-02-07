@@ -69,6 +69,8 @@
     "RATING_TITLE": "Rating",
     "FEEDBACK_TITLE": "Feedback",
     "REPLY_MESSAGE_NOT_FOUND": "Message not available",
+    "SCHEDULED_BY": "Scheduled by: {name}",
+    "SCHEDULED_BY_UNKNOWN": "System",
     "CARD": {
       "SHOW_LABELS": "Show labels",
       "HIDE_LABELS": "Hide labels"
@@ -199,6 +201,8 @@
       "DISMISS_REPLY": "Dismiss reply",
       "REPLYING_TO": "Replying to:",
       "TIP_EMOJI_ICON": "Show emoji selector",
+      "MORE_OPTIONS": "More options",
+      "ADVANCED_EDITOR": "Advanced text editor",
       "TIP_ATTACH_ICON": "Attach files",
       "TIP_AUDIORECORDER_ICON": "Record audio",
       "TIP_AUDIORECORDER_PERMISSION": "Allow access to audio",
@@ -206,6 +210,7 @@
       "DRAG_DROP": "Drag and drop here to attach",
       "START_AUDIO_RECORDING": "Start audio recording",
       "STOP_AUDIO_RECORDING": "Stop audio recording",
+      "DISCARD_AUDIO_RECORDING": "Discard recording",
       "": "",
       "EMAIL_HEAD": {
         "TO": "TO",
@@ -386,6 +391,7 @@
     "ACCORDION": {
       "CONTACT_DETAILS": "Contact Details",
       "CONVERSATION_ACTIONS": "Conversation Actions",
+      "MEDIA_AND_FILES": "Media and files",
       "CONVERSATION_LABELS": "Conversation Labels",
       "CONVERSATION_INFO": "Conversation Information",
       "CONTACT_NOTES": "Contact Notes",
@@ -395,6 +401,16 @@
       "LINEAR_ISSUES": "Linked Linear Issues",
       "SHOPIFY_ORDERS": "Shopify Orders"
     },
+    "MEDIA_SECTIONS": {
+      "IMAGES": "Images",
+      "VIDEOS": "Videos",
+      "AUDIOS": "Audios",
+      "AUDIO": "Audio",
+      "DOCUMENTS": "Documents",
+      "DOCUMENT": "Document",
+      "LINKS": "Links"
+    },
+    "MEDIA_EMPTY": "No media or files in this conversation",
     "SHOPIFY": {
       "ORDER_ID": "Order #{id}",
       "ERROR": "Error loading orders",

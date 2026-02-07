@@ -10,6 +10,8 @@ const props = defineProps({
   icon: { type: [String, Object], default: null },
   active: { type: Boolean, default: false },
   component: { type: Function, default: null },
+  count: { type: Number, default: 0 },
+  highlight: { type: Boolean, default: false },
   isCollapsed: { type: Boolean, default: false },
 });
 
@@ -18,6 +20,10 @@ const { resolvePermissions, resolveFeatureFlag } = useSidebarContext();
 const shouldRenderComponent = computed(() => {
   return typeof props.component === 'function' || isVNode(props.component);
 });
+
+const displayCount = computed(() =>
+  props.count > 99 ? '99+' : props.count
+);
 </script>
 
 <!-- eslint-disable-next-line vue/no-root-v-if -->
@@ -39,7 +45,9 @@ const shouldRenderComponent = computed(() => {
           'gap-2 px-2 py-1 max-w-[9.438rem]': !isCollapsed,
         },
         {
-          'text-n-blue-text bg-n-alpha-2 active': active,
+          'text-n-teal-text bg-n-alpha-2 active': active,
+          'ltr:border-l-2 rtl:border-r-2 border-n-amber-7 bg-n-amber-5/25 ring-1 ring-n-amber-6/50 ring-inset animate-sidebar-attention motion-reduce:animate-none':
+            highlight && !active,
         },
       ]"
     >
@@ -55,6 +63,28 @@ const shouldRenderComponent = computed(() => {
         <Icon v-if="icon" :icon="icon" class="size-4 inline-block" />
         <div v-if="!isCollapsed" class="flex-1 truncate min-w-0">
           {{ label }}
+        </div>
+        <div
+          v-if="!isCollapsed && count > 0"
+          class="relative flex-shrink-0 my-0 mx-1"
+        >
+          <span
+            v-if="highlight"
+            class="absolute inset-0 rounded-md bg-n-amber-6 animate-ping opacity-60 motion-reduce:animate-none"
+            aria-hidden="true"
+          />
+          <div
+            class="relative rounded-md h-5 flex items-center justify-center text-xxs font-semibold px-1 py-0 min-w-[20px]"
+            :class="[
+              active && highlight
+                ? 'bg-n-amber-5/30 dark:bg-n-amber-5/40 text-n-amber-11'
+                : active
+                  ? 'bg-n-brand/10 dark:bg-n-brand/20 text-n-teal-text'
+                  : 'bg-n-alpha-black2 dark:bg-n-solid-3 text-n-slate-11',
+            ]"
+          >
+            <span>{{ displayCount }}</span>
+          </div>
         </div>
       </template>
     </component>

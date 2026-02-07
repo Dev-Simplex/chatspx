@@ -661,7 +661,23 @@
       },
       "AGENT_CARD": {
         "TOTAL_OPEN_CALLS": "Total de Chamados Abertos"
-      }
+      },
+      "KPI_TOTAL_CALLS": "Chamados em atendimento",
+      "KPI_TOTAL_CALLS_TOOLTIP": "Total de conversas abertas ou na fila (pendentes) nesta conta.",
+      "KPI_AGENTS_ACTIVE": "Agentes com conversas",
+      "KPI_AGENTS_ACTIVE_TOOLTIP": "Quantidade de agentes que têm pelo menos uma conversa aberta ou pendente atribuída.",
+      "KPI_WAITING": "Em espera",
+      "KPI_WAITING_TOOLTIP": "Conversas que ainda não têm agente atribuído ou estão com status pendente (na fila).",
+      "LAST_UPDATE": "Última atualização",
+      "LIVE_INDICATOR": "Ao vivo",
+      "VIEW_WAITING": "Ver em espera",
+      "VIEW_WAITING_COUNT": "Ver {count} em espera",
+      "HIDE_WAITING": "Ocultar em espera",
+      "WAITING_SECTION_TITLE": "Conversas em espera",
+      "SORT_AGENTS": "Ordenar agentes",
+      "SORT_BY_CALLS": "Mais chamados",
+      "SORT_BY_NAME_ASC": "Nome (A–Z)",
+      "SORT_BY_NAME_DESC": "Nome (Z–A)"
     }
   }
 }

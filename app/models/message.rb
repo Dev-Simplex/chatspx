@@ -445,9 +445,13 @@ class Message < ApplicationRecord
     return false if active_nps_response.expired?
     return false if active_nps_response.sent_at.present? && created_at.present? && created_at < active_nps_response.sent_at
 
+    # Only treat as NPS response (do not reopen) when the message clearly looks like a response attempt (valid or wrong).
+    # When in doubt, reopen so the client can get help.
     return true if content_attributes.dig('submitted_values', 'nps_response', 'score').present?
+    return true if nps_score_like_content?(content)
+    return true if looks_like_wrong_nps_attempt_only?(content)
 
-    nps_score_like_content?(content)
+    false
   end
 
   def nps_score_like_content?(text)
@@ -460,6 +464,34 @@ class Message < ApplicationRecord
 
     keyword_present = normalized.match?(/\b(nota|score|rating|estrelas?|stars?)\b/i)
     keyword_present && normalized.match?(/\b(10|[0-9])\b/)
+  end
+
+  # Returns true when the content looks like a wrong NPS answer only (e.g. "100", "11", "não sei", "??").
+  # Used to avoid reopening the conversation for invalid/skip responses; when in doubt we reopen.
+  def looks_like_wrong_nps_attempt_only?(text)
+    normalized = text.to_s.strip
+    return false if normalized.blank?
+
+    # Only a number outside 0-10 (e.g. "100", "11", "12", "-1")
+    if normalized.match?(/^\s*-?\d+\s*$/)
+      num = normalized.to_i
+      return true unless (0..10).cover?(num)
+    end
+
+    # Very short message that matches "skip" or typo patterns
+    return false if normalized.length > 25
+
+    short_skip_patterns = [
+      /\A(n[ãa]o\s*)?sei\z/i,           # "não sei", "nao sei", "sei"
+      /\An\/a\z/i,                       # "n/a"
+      /\A\?+\z/,                          # "??", "?"
+      /\A\.+\z/,                          # "..."
+      /\A(nao|não)\z/i,                   # "não", "nao"
+      /\Aabc\z/i,                         # typo / placeholder
+      /\A[a-z]\z/i,                       # single letter e.g. "x"
+      /\A[\s\?\.,!\-]+\z/                 # only punctuation/whitespace
+    ]
+    short_skip_patterns.any? { |pattern| normalized.match?(pattern) }
   end
 
   def reindex_for_search

@@ -269,6 +269,15 @@ en:
         issue_unlinked: 'Linear issue %{issue_id} was unlinked by %{user_name}'
       csat:
         not_sent_due_to_messaging_window: 'CSAT survey not sent due to outgoing message restrictions'
+      nps:
+        sent: 'NPS survey sent'
+        responded: 'NPS survey responded with score %{score}'
+        expired: 'NPS survey expired'
+        blocked: 'NPS survey blocked by label: %{label}'
+        not_sent_due_to_messaging_window: 'NPS survey could not be sent due to messaging window restrictions.'
+        not_sent_cooldown: 'NPS survey not sent: contact already responded to an NPS survey recently (cooldown in days as configured in inbox).'
+        not_sent_already_sent: 'NPS survey not sent: already sent in this conversation a moment ago. Please wait a few minutes.'
+        not_sent_optional_rules: 'NPS survey not sent: optional rules not met (min messages, duration or tags).'
       auto_resolve:
         not_sent_due_to_messaging_window: 'Auto-resolve message not sent due to outgoing message restrictions'
       muted: '%{user_name} has muted the conversation'

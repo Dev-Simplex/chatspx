@@ -99,6 +99,26 @@ const isActive = computed(() => {
 // nested correctly, so we need to check the active state ourselves
 // TODO: Audit the routes and fix the nesting and remove this
 const activeChild = computed(() => {
+  if (
+    route.name === 'conversation_unattended' ||
+    route.name === 'conversation_through_unattended'
+  ) {
+    const qt = route.query.assignee_type;
+    const unattendedChildren = navigableChildren.value.filter(
+      child => child.to?.name === 'conversation_unattended'
+    );
+    if (!qt || qt === 'me') {
+      const mineMatch = unattendedChildren.find(
+        child => !child.to?.query?.assignee_type
+      );
+      if (mineMatch) return mineMatch;
+    }
+    const queryMatch = unattendedChildren.find(
+      child => child.to?.query?.assignee_type === qt
+    );
+    if (queryMatch) return queryMatch;
+  }
+
   const pathSame = navigableChildren.value.find(
     child => child.to && route.path === resolvePath(child.to)
   );
@@ -115,7 +135,7 @@ const activeChild = computed(() => {
 
   if (activeOnPages.length > 0) {
     const rankedPage = activeOnPages.find(child => {
-      return Object.keys(child.to.params)
+      return Object.keys(child.to.params || {})
         .map(key => {
           return String(child.to.params[key]) === String(route.params[key]);
         })

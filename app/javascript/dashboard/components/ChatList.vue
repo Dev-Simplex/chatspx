@@ -94,7 +94,17 @@ const conversationDynamicScroller = ref(null);
 
 provide('contextMenuElementTarget', conversationDynamicScroller);
 
-const activeAssigneeTab = ref(wootConstants.ASSIGNEE_TYPE.ME);
+const initialAssigneeTabFromRoute = () => {
+  if (route.name === 'conversation_unattended') {
+    if (route.query.assignee_type === 'unassigned')
+      return wootConstants.ASSIGNEE_TYPE.UNASSIGNED;
+    if (route.query.assignee_type === 'all')
+      return wootConstants.ASSIGNEE_TYPE.ALL;
+    return wootConstants.ASSIGNEE_TYPE.ME;
+  }
+  return wootConstants.ASSIGNEE_TYPE.ME;
+};
+const activeAssigneeTab = ref(initialAssigneeTabFromRoute());
 const activeStatus = ref(wootConstants.STATUS_TYPE.OPEN);
 const activeSortBy = ref(wootConstants.SORT_BY_TYPE.LAST_ACTIVITY_AT_DESC);
 const showAdvancedFilters = ref(false);
@@ -201,15 +211,27 @@ const userPermissions = computed(() => {
 });
 
 const assigneeTabItems = computed(() => {
-  return filterItemsByPermission(
+  const useUnattendedCounts = props.conversationType === 'unattended';
+  const countKeyForTab = key => {
+    if (useUnattendedCounts) {
+      if (key === wootConstants.ASSIGNEE_TYPE.ME) return 'unattendedAssignedCount';
+      if (key === wootConstants.ASSIGNEE_TYPE.UNASSIGNED)
+        return 'unattendedUnassignedCount';
+      if (key === wootConstants.ASSIGNEE_TYPE.ALL) return 'allCount';
+    }
+    return ASSIGNEE_TYPE_TAB_PERMISSIONS[key]?.count ?? 'allCount';
+  };
+  const stats = conversationStats.value;
+  const items = filterItemsByPermission(
     ASSIGNEE_TYPE_TAB_PERMISSIONS,
     userPermissions.value,
     item => item.permissions
-  ).map(({ key, count: countKey }) => ({
+  ).map(({ key }) => ({
     key,
     name: t(`CHAT_LIST.ASSIGNEE_TYPE_TABS.${key}`),
-    count: conversationStats.value[countKey] || 0,
+    count: stats[countKeyForTab(key)] ?? 0,
   }));
+  return items;
 });
 
 const showAssigneeInConversationCard = computed(() => {
@@ -281,6 +303,18 @@ const conversationFilters = computed(() => {
     labels: props.label ? [props.label] : undefined,
     teamId: props.teamId || undefined,
     conversationType: props.conversationType || undefined,
+  };
+});
+
+const conversationStatsFiltersForUnattended = computed(() => {
+  if (props.conversationType !== 'unattended') return null;
+  return {
+    inboxId: props.conversationInbox ? props.conversationInbox : undefined,
+    assigneeType: wootConstants.ASSIGNEE_TYPE.ALL,
+    status: activeStatus.value,
+    labels: props.label ? [props.label] : undefined,
+    teamId: props.teamId || undefined,
+    conversationType: 'unattended',
   };
 });
 
@@ -747,6 +781,20 @@ function handleScroll() {
 }
 
 function updateAssigneeTab(selectedTab) {
+  if (props.conversationType === 'unattended') {
+    const query =
+      selectedTab === wootConstants.ASSIGNEE_TYPE.UNASSIGNED
+        ? { assignee_type: 'unassigned' }
+        : selectedTab === wootConstants.ASSIGNEE_TYPE.ALL
+          ? { assignee_type: 'all' }
+          : undefined;
+    router.push({
+      name: 'conversation_unattended',
+      params: { accountId: currentAccountId.value },
+      ...(query && { query }),
+    });
+    return;
+  }
   if (activeAssigneeTab.value !== selectedTab) {
     resetBulkActions();
     emitter.emit('clearSearchInput');
@@ -943,6 +991,12 @@ onMounted(() => {
   store.dispatch('setChatStatusFilter', activeStatus.value);
   store.dispatch('setChatSortFilter', activeSortBy.value);
   resetAndFetchData();
+  if (props.conversationType === 'unattended' && conversationStatsFiltersForUnattended.value) {
+    store.dispatch(
+      'conversationStats/get',
+      conversationStatsFiltersForUnattended.value
+    );
+  }
   if (hasActiveFolders.value) {
     store.dispatch('campaigns/get');
   }
@@ -1000,6 +1054,35 @@ provide('markAsRead', markAsRead);
 provide('assignPriority', assignPriority);
 provide('isConversationSelected', isConversationSelected);
 provide('deleteConversation', handleDelete);
+
+watch(
+  () => [route.name, route.query],
+  () => {
+    if (route.name === 'conversation_unattended') {
+      const qt = route.query.assignee_type;
+      const newTab =
+        qt === 'unassigned'
+          ? wootConstants.ASSIGNEE_TYPE.UNASSIGNED
+          : qt === 'all'
+            ? wootConstants.ASSIGNEE_TYPE.ALL
+            : wootConstants.ASSIGNEE_TYPE.ME;
+      const prevTab = activeAssigneeTab.value;
+      activeAssigneeTab.value = newTab;
+      if (prevTab !== newTab) {
+        store.dispatch('conversationPage/reset');
+        store.dispatch('emptyAllConversations');
+        fetchConversations();
+        if (conversationStatsFiltersForUnattended.value) {
+          store.dispatch(
+            'conversationStats/get',
+            conversationStatsFiltersForUnattended.value
+          );
+        }
+      }
+    }
+  },
+  { deep: true }
+);
 
 watch(activeTeam, () => resetAndFetchData());
 

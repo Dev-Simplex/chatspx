@@ -10,6 +10,7 @@ export const MESSAGE_VARIANTS = {
   AGENT: 'agent',
   ACTIVITY: 'activity',
   PRIVATE: 'private',
+  SCHEDULED: 'scheduled',
   BOT: 'bot',
   ERROR: 'error',
   TEMPLATE: 'template',

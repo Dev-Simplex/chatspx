@@ -4,7 +4,7 @@ module AssignmentHandler
 
   included do
     before_save :ensure_assignee_is_from_team
-    after_commit :notify_assignment_change, :process_assignment_changes
+    after_commit :notify_assignment_change, :process_assignment_changes, :mark_conversation_unread_on_assignment_change
   end
 
   private
@@ -38,6 +38,12 @@ module AssignmentHandler
 
   def process_assignment_changes
     process_assignment_activities
+  end
+
+  def mark_conversation_unread_on_assignment_change
+    return unless saved_change_to_assignee_id? || saved_change_to_team_id?
+
+    mark_as_unread!
   end
 
   def process_assignment_activities

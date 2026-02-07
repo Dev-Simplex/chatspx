@@ -299,10 +299,15 @@
     "INBOX_VIEW": "Inbox View",
     "CONVERSATIONS": "Conversations",
     "INBOX": "My Inbox",
+    "KANBAN": "Kanban",
     "ALL_CONVERSATIONS": "All Conversations",
     "MENTIONED_CONVERSATIONS": "Mentions",
     "PARTICIPATING_CONVERSATIONS": "Participating",
-    "UNATTENDED_CONVERSATIONS": "Unattended",
+    "UNATTENDED_CONVERSATIONS": "Unanswered",
+    "UNATTENDED_MINE": "Mine",
+    "UNASSIGNED_CONVERSATIONS": "Unassigned",
+    "UNASSIGNED_CONVERSATIONS_TOOLTIP": "Unanswered unassigned",
+    "UNATTENDED_ALL": "All",
     "STATUS": "Status",
     "CONVERSATION_STATUS": "Conversation Status",
     "STATUS_OPEN": "Open",
@@ -390,8 +395,7 @@
     "EXPAND": "Expand sidebar",
     "COLLAPSE": "Collapse sidebar",
     "NEW_CONVERSATION": "New conversation",
-    "ADVANCED_SEARCH": "Advanced search"
-    "SECURITY": "Security",
+    "ADVANCED_SEARCH": "Advanced search",
     "CAPTAIN_AI": "Captain"
   },
   "CAPTAIN_SETTINGS": {

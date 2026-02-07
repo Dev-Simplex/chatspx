@@ -69,6 +69,8 @@
     "RATING_TITLE": "Classificação",
     "FEEDBACK_TITLE": "Feedback",
     "REPLY_MESSAGE_NOT_FOUND": "Mensagem não disponível",
+    "SCHEDULED_BY": "Mensagem agendada por: {name}",
+    "SCHEDULED_BY_UNKNOWN": "Sistema",
     "CARD": {
       "SHOW_LABELS": "Mostrar etiquetas",
       "HIDE_LABELS": "Ocultar as etiquetas"
@@ -199,6 +201,8 @@
       "DISMISS_REPLY": "Dispensar resposta",
       "REPLYING_TO": "Respondendo a:",
       "TIP_EMOJI_ICON": "Mostrar seletor de emoji",
+      "MORE_OPTIONS": "Mais opções",
+      "ADVANCED_EDITOR": "Editor de texto avançado",
       "TIP_ATTACH_ICON": "Anexar arquivos",
       "TIP_AUDIORECORDER_ICON": "Gravar áudio",
       "TIP_AUDIORECORDER_PERMISSION": "Permitir acesso ao áudio",
@@ -206,6 +210,7 @@
       "DRAG_DROP": "Arraste e solte aqui para anexar",
       "START_AUDIO_RECORDING": "Iniciar gravação de áudio",
       "STOP_AUDIO_RECORDING": "Parar gravação de áudio",
+      "DISCARD_AUDIO_RECORDING": "Descartar gravação",
       "": "",
       "EMAIL_HEAD": {
         "TO": "Para",
@@ -385,6 +390,7 @@
     "ACCORDION": {
       "CONTACT_DETAILS": "Detalhes do contato",
       "CONVERSATION_ACTIONS": "Ações da conversa",
+      "MEDIA_AND_FILES": "Mídias e Arquivos",
       "CONVERSATION_LABELS": "Etiquetas da conversa",
       "CONVERSATION_INFO": "Informação da conversa",
       "CONTACT_NOTES": "Notas do contato",
@@ -394,6 +400,16 @@
       "LINEAR_ISSUES": "Problemas do Linear vinculados",
       "SHOPIFY_ORDERS": "Shopify Orders"
     },
+    "MEDIA_SECTIONS": {
+      "IMAGES": "Imagens",
+      "VIDEOS": "Vídeos",
+      "AUDIOS": "Áudios",
+      "AUDIO": "Áudio",
+      "DOCUMENTS": "Documentos",
+      "DOCUMENT": "Documento",
+      "LINKS": "Links"
+    },
+    "MEDIA_EMPTY": "Nenhuma mídia ou arquivo nesta conversa",
     "SHOPIFY": {
       "ORDER_ID": "Order #{id}",
       "ERROR": "Error loading orders",

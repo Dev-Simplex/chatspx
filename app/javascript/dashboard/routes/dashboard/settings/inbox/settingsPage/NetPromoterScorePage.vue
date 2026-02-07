@@ -22,6 +22,8 @@ const labels = useMapGetter('labels/getLabels');
 const isUpdating = ref(false);
 const selectedBlocklistLabels = ref([]);
 const currentLabel = ref('');
+const selectedRequiredTags = ref([]);
+const currentRequiredTag = ref('');
 
 const state = reactive({
   npsSurveyEnabled: false,
@@ -58,6 +60,14 @@ const labelOptions = computed(() =>
     : []
 );
 
+const requiredTagOptions = computed(() =>
+  labels.value?.length
+    ? labels.value
+        .map(label => ({ label: label.title, value: label.title }))
+        .filter(label => !selectedRequiredTags.value.includes(label.value))
+    : []
+);
+
 const initializeState = () => {
   if (!props.inbox) return;
 
@@ -80,6 +90,7 @@ const initializeState = () => {
     state.minDurationMinutes = null;
     state.requiredTags = [];
     selectedBlocklistLabels.value = [];
+    selectedRequiredTags.value = [];
     return;
   }
 
@@ -97,6 +108,9 @@ const initializeState = () => {
 
   selectedBlocklistLabels.value = Array.isArray(nps_config.blocklist_labels)
     ? [...nps_config.blocklist_labels]
+    : [];
+  selectedRequiredTags.value = Array.isArray(nps_config.required_tags)
+    ? [...nps_config.required_tags]
     : [];
 };
 
@@ -131,6 +145,20 @@ const removeLabel = label => {
   }
 };
 
+const handleRequiredTagSelect = value => {
+  if (!value || selectedRequiredTags.value.includes(value)) {
+    return;
+  }
+  selectedRequiredTags.value.push(value);
+};
+
+const removeRequiredTag = tag => {
+  const index = selectedRequiredTags.value.indexOf(tag);
+  if (index !== -1) {
+    selectedRequiredTags.value.splice(index, 1);
+  }
+};
+
 const updateInbox = async attributes => {
   const payload = {
     id: props.inbox.id,
@@ -157,7 +185,7 @@ const saveSettings = async () => {
       blocklist_scope: state.blocklistScope,
       min_messages: state.minMessages,
       min_duration_minutes: state.minDurationMinutes,
-      required_tags: state.requiredTags,
+      required_tags: selectedRequiredTags.value,
     };
 
     // Garantir que estamos enviando um boolean explícito
@@ -228,6 +256,30 @@ const saveSettings = async () => {
         </WithLabel>
 
         <WithLabel
+          :label="$t('INBOX_MGMT.NPS.INVALID_RESPONSE_MESSAGE.LABEL', { default: 'Mensagem para Resposta Inválida' })"
+          name="invalid_response_message"
+        >
+          <Editor
+            v-model="state.invalidResponseMessage"
+            :placeholder="$t('INBOX_MGMT.NPS.INVALID_RESPONSE_MESSAGE.PLACEHOLDER', { default: 'Por favor, responda com um número de 0 a 10.' })"
+            :max-length="200"
+            class="w-full"
+          />
+        </WithLabel>
+
+        <WithLabel
+          :label="$t('INBOX_MGMT.NPS.COMMENT_PROMPT_MESSAGE.LABEL', { default: 'Mensagem de Prompt para Comentário' })"
+          name="comment_prompt_message"
+        >
+          <Editor
+            v-model="state.commentPromptMessage"
+            :placeholder="$t('INBOX_MGMT.NPS.COMMENT_PROMPT_MESSAGE.PLACEHOLDER', { default: 'Gostaria de adicionar algum comentário?' })"
+            :max-length="200"
+            class="w-full"
+          />
+        </WithLabel>
+
+        <WithLabel
           :label="$t('INBOX_MGMT.NPS.EXPIRATION_HOURS.LABEL', { default: 'Expiração (horas)' })"
           name="expiration_hours"
         >
@@ -247,6 +299,32 @@ const saveSettings = async () => {
             v-model.number="state.cooldownDays"
             type="number"
             min="0"
+            class="w-full"
+          />
+        </WithLabel>
+
+        <WithLabel
+          :label="$t('INBOX_MGMT.NPS.MIN_MESSAGES.LABEL', { default: 'Mínimo de Mensagens' })"
+          name="min_messages"
+        >
+          <input
+            v-model.number="state.minMessages"
+            type="number"
+            min="0"
+            placeholder=""
+            class="w-full"
+          />
+        </WithLabel>
+
+        <WithLabel
+          :label="$t('INBOX_MGMT.NPS.MIN_DURATION_MINUTES.LABEL', { default: 'Duração Mínima (minutos)' })"
+          name="min_duration_minutes"
+        >
+          <input
+            v-model.number="state.minDurationMinutes"
+            type="number"
+            min="0"
+            placeholder=""
             class="w-full"
           />
         </WithLabel>
@@ -291,6 +369,37 @@ const saveSettings = async () => {
             :options="blocklistScopeOptions"
             class="w-full"
           />
+        </WithLabel>
+
+        <WithLabel
+          :label="$t('INBOX_MGMT.NPS.REQUIRED_TAGS.LABEL', { default: 'Etiquetas Obrigatórias' })"
+          name="required_tags"
+        >
+          <div class="mb-4">
+            <span class="inline-flex flex-wrap items-center gap-1.5 text-sm text-n-slate-12">
+              <NextButton
+                v-for="tag in selectedRequiredTags"
+                :key="tag"
+                sm
+                faded
+                slate
+                trailing-icon
+                :label="tag"
+                icon="i-lucide-x"
+                class="inline-flex shrink-0"
+                @click="removeRequiredTag(tag)"
+              />
+              <FilterSelect
+                v-model="currentRequiredTag"
+                :options="requiredTagOptions"
+                :label="$t('INBOX_MGMT.NPS.REQUIRED_TAGS.SELECT_PLACEHOLDER', { default: 'Adicionar etiqueta' })"
+                hide-label
+                variant="faded"
+                class="inline-flex shrink-0"
+                @update:model-value="handleRequiredTagSelect"
+              />
+            </span>
+          </div>
         </WithLabel>
 
         <div>

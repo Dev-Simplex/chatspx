@@ -39,17 +39,75 @@ class Public::Api::V1::InboxesController < PublicController
     session_name = waha_session_name
     return { source_id: source_id, phone_number: phone_number } if session_name.blank?
 
-    response = waha_service.get_lid_phone_number(session_name, source_id)
-    pn = response.is_a?(Hash) ? (response['pn'] || response[:pn]) : nil
-    return { source_id: source_id, phone_number: phone_number } if pn.blank?
+    pn = resolve_lid_to_pn(session_name, source_id)
+    if pn.blank?
+      Rails.logger.warn("WAHA LID resolved to null for #{source_id} (inbox_id=#{@inbox_channel&.inbox&.id})")
+      return { source_id: source_id, phone_number: phone_number }
+    end
+
+    normalized_phone = normalize_waha_phone_number(pn) || phone_number
+    merge_waha_lid_contact_inbox_to_pn(lid: source_id, pn: pn, normalized_phone: normalized_phone)
 
     {
       source_id: pn,
-      phone_number: normalize_waha_phone_number(pn) || phone_number
+      phone_number: normalized_phone
     }
   rescue Waha::ApiService::Error => e
     Rails.logger.warn("WAHA LID lookup failed for #{source_id}: #{e.message}")
     { source_id: source_id, phone_number: phone_number }
+  end
+
+  # WAHA response may use 'pn' or (in some engines) 'number'. Prefer pn.
+  def extract_pn_from_response(hash)
+    return nil unless hash.is_a?(Hash)
+
+    hash['pn'].presence || hash[:pn].presence || hash['number'].presence || hash[:number].presence
+  end
+
+  def resolve_lid_to_pn(session_name, lid)
+    response = waha_service.get_lid_phone_number(session_name, lid)
+    pn = extract_pn_from_response(response)
+    return pn if pn.present?
+
+    # Fallback: GET /api/{session}/lids list and find this LID in the array
+    list = waha_service.get_lids_list(session_name, limit: 500, offset: 0)
+    return nil unless list.is_a?(Array)
+
+    entry = list.find { |item| (item['lid'] || item[:lid]).to_s == lid.to_s }
+    extract_pn_from_response(entry || {})
+  rescue Waha::ApiService::Error
+    nil
+  end
+
+  # When LID resolved to pn, unify contact_inbox: update orphan LID contact_inbox to pn, or merge contacts if both exist.
+  def merge_waha_lid_contact_inbox_to_pn(lid:, pn:, normalized_phone:)
+    inbox = @inbox_channel&.inbox
+    return if inbox.blank?
+
+    contact_inbox_by_pn = inbox.contact_inboxes.find_by(source_id: pn)
+    contact_inbox_by_lid = inbox.contact_inboxes.find_by(source_id: lid)
+    return if contact_inbox_by_lid.blank?
+
+    ActiveRecord::Base.transaction do
+      if contact_inbox_by_pn.present? && contact_inbox_by_pn.id != contact_inbox_by_lid.id
+        # Two contact_inboxes for same person (pn and LID). Merge LID contact into pn contact, then remove LID contact_inbox.
+        base_contact = contact_inbox_by_pn.contact
+        mergee_contact = contact_inbox_by_lid.contact
+        unless base_contact.id == mergee_contact.id
+          ContactMergeAction.new(
+            account: inbox.account,
+            base_contact: base_contact,
+            mergee_contact: mergee_contact
+          ).perform
+          contact_inbox_by_lid.reload
+          contact_inbox_by_lid.destroy!
+        end
+      else
+        # Only LID contact_inbox exists: update it to pn and set contact phone_number
+        contact_inbox_by_lid.update!(source_id: pn)
+        contact_inbox_by_lid.contact.update!(phone_number: normalized_phone) if normalized_phone.present?
+      end
+    end
   end
 
   def normalize_waha_phone_number(pn)

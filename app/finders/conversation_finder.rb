@@ -53,7 +53,10 @@ class ConversationFinder
         mine_count: mine_count,
         assigned_count: assigned_count,
         unassigned_count: unassigned_count,
-        all_count: all_count
+        all_count: all_count,
+        unattended_assigned_to_me_count: @unattended_assigned_to_me_count || 0,
+        unattended_unassigned_count: @unattended_unassigned_count || 0,
+        unattended_all_count: @unattended_all_count || 0
       }
     }
   end
@@ -114,6 +117,10 @@ class ConversationFinder
       current_user,
       current_account
     ).perform
+    # Count open unattended (for sidebar) before applying conversation_type filter
+    @unattended_assigned_to_me_count = @conversations.open.unattended.assigned_to(current_user).distinct.count
+    @unattended_unassigned_count = @conversations.open.unattended.unassigned.distinct.count
+    @unattended_all_count = @conversations.open.unattended.distinct.count
     filter_by_conversation_type if params[:conversation_type]
     @conversations
   end

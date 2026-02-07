@@ -4,6 +4,7 @@ import { useI18n } from 'vue-i18n';
 import { useMessageFormatter } from 'shared/composables/useMessageFormatter';
 
 import Avatar from 'dashboard/components-next/avatar/Avatar.vue';
+import { CONTENT_TYPES } from 'dashboard/components-next/message/constants.js';
 
 const props = defineProps({
   conversation: {
@@ -20,9 +21,89 @@ const lastNonActivityMessageContent = computed(() => {
   const { lastNonActivityMessage = {}, customAttributes = {} } =
     props.conversation;
   const { email: { subject } = {} } = customAttributes;
-  return getPlainText(
-    subject || lastNonActivityMessage?.content || t('CHAT_LIST.NO_CONTENT')
-  );
+  if (subject) return getPlainText(subject);
+  if (lastNonActivityMessage?.content)
+    return getPlainText(lastNonActivityMessage.content);
+
+  const contentType =
+    lastNonActivityMessage?.contentType ?? lastNonActivityMessage?.content_type;
+  const contentAttributes =
+    lastNonActivityMessage?.contentAttributes ??
+    lastNonActivityMessage?.content_attributes ??
+    {};
+  const attachments = lastNonActivityMessage?.attachments ?? [];
+
+  if (Array.isArray(attachments) && attachments.length > 0) {
+    const fileType = attachments[0]?.file_type;
+    if (fileType) {
+      return getPlainText(t(`CHAT_LIST.ATTACHMENTS.${fileType}.CONTENT`));
+    }
+  }
+
+  if (contentAttributes?.isUnsupported || contentAttributes?.is_unsupported) {
+    return getPlainText(t('CONVERSATION.UNSUPPORTED_MESSAGE'));
+  }
+
+  if (contentType === CONTENT_TYPES.INPUT_NPS) {
+    const fallback =
+      'De 0 a 10, o quanto voc\u00ea recomendaria nossa empresa?';
+    const translated = t('CONVERSATION.NPS_REPLY_MESSAGE', {
+      default: fallback,
+    });
+    return getPlainText(
+      translated === 'CONVERSATION.NPS_REPLY_MESSAGE' ? fallback : translated
+    );
+  }
+
+  if (contentType === CONTENT_TYPES.INPUT_CSAT) {
+    return getPlainText(t('CONVERSATION.CSAT_REPLY_MESSAGE'));
+  }
+
+  if (contentType === CONTENT_TYPES.VOICE_CALL) {
+    const status = contentAttributes?.data?.status?.toString();
+    const messageType =
+      lastNonActivityMessage?.messageType ?? lastNonActivityMessage?.message_type;
+    const isOutbound = messageType === 1;
+    const isFailed = ['no-answer', 'failed'].includes(status);
+
+    if (status === 'in-progress') {
+      return getPlainText(t('CONVERSATION.VOICE_CALL.CALL_IN_PROGRESS'));
+    }
+    if (status === 'completed') {
+      return getPlainText(t('CONVERSATION.VOICE_CALL.CALL_ENDED'));
+    }
+    if (status === 'ringing') {
+      return getPlainText(
+        t(
+          isOutbound
+            ? 'CONVERSATION.VOICE_CALL.OUTGOING_CALL'
+            : 'CONVERSATION.VOICE_CALL.INCOMING_CALL'
+        )
+      );
+    }
+    return getPlainText(
+      t(
+        isFailed
+          ? 'CONVERSATION.VOICE_CALL.MISSED_CALL'
+          : 'CONVERSATION.VOICE_CALL.INCOMING_CALL'
+      )
+    );
+  }
+
+  if (
+    contentType &&
+    (contentType.startsWith('input_') || contentType === CONTENT_TYPES.FORM)
+  ) {
+    const submittedValues =
+      contentAttributes?.submittedValues ||
+      contentAttributes?.submitted_values ||
+      [];
+    const [first = {}] = Array.isArray(submittedValues) ? submittedValues : [];
+    const preview = first.title || first.value || first.label;
+    return getPlainText(preview || t('CONVERSATION.NO_RESPONSE'));
+  }
+
+  return getPlainText(t('CHAT_LIST.NO_CONTENT'));
 });
 
 const assignee = computed(() => {

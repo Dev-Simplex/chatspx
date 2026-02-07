@@ -611,6 +611,12 @@ export default {
       }"
     >
       <div
+        v-if="isPopOutReplyBox"
+        class="absolute inset-0 z-[5] bg-black/20"
+        aria-hidden="true"
+        @click="isPopOutReplyBox = false"
+      />
+      <div
         v-if="isAnyoneTyping"
         class="absolute flex items-center w-full h-0 -top-7 z-10"
       >
@@ -654,10 +660,17 @@ export default {
           </div>
         </div>
       </div>
-      <ReplyBox
-        :pop-out-reply-box="isPopOutReplyBox"
-        @update:pop-out-reply-box="isPopOutReplyBox = $event"
-      />
+      <div
+        class="relative z-10"
+        :class="{
+          'w-full flex justify-center items-start overflow-auto min-h-0': isPopOutReplyBox,
+        }"
+      >
+        <ReplyBox
+          :pop-out-reply-box="isPopOutReplyBox"
+          @update:pop-out-reply-box="isPopOutReplyBox = $event"
+        />
+      </div>
     </div>
     <ForwardMessageModal
       :show="showForwardModal"
@@ -700,27 +713,27 @@ export default {
 }
 
 .modal-mask {
-  @apply fixed;
+  @apply fixed inset-0 min-h-screen flex flex-col justify-center items-center;
 
   &::v-deep {
     .ProseMirror-woot-style {
-      @apply max-h-[25rem];
+      @apply max-h-[25rem] min-h-[12rem];
     }
 
     .reply-box {
-      @apply border border-n-weak max-w-[75rem] w-[70%];
+      @apply border border-n-weak max-w-[75rem] w-[95%] sm:w-[85%] md:w-[70%] max-h-[90vh] overflow-y-auto;
 
       &.is-private {
         @apply dark:border-n-amber-3/30 border-n-amber-12/5;
       }
     }
 
-    .reply-box .reply-box__top {
-      @apply relative min-h-[27.5rem];
+    .reply-box.reply-box--popout .reply-box__top {
+      min-height: 27.5rem !important;
     }
 
-    .reply-box__top .input {
-      @apply min-h-[27.5rem];
+    .reply-box.reply-box--popout .reply-box__top .input {
+      min-height: 27.5rem !important;
     }
 
     .emoji-dialog {

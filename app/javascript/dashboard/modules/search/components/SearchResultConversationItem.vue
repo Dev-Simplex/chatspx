@@ -5,8 +5,6 @@ import { dynamicTime } from 'shared/helpers/timeHelper';
 import { useInbox } from 'dashboard/composables/useInbox';
 import { getInboxIconByType } from 'dashboard/helper/inbox';
 
-import CardLayout from 'dashboard/components-next/CardLayout.vue';
-import Icon from 'dashboard/components-next/icon/Icon.vue';
 
 const props = defineProps({
   id: {
@@ -146,6 +144,6 @@ const inboxIcon = computed(() => {
         </template>
       </div>
       <slot />
-    </CardLayout>
+    </div>
   </router-link>
 </template>

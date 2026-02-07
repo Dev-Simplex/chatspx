@@ -86,12 +86,16 @@ const totalOpenCalls = computed(() => props.agent.totalOpenCalls || 0);
         </p>
       </div>
     </div>
-    <div class="p-4 border-t border-n-weak bg-n-alpha-2 flex-shrink-0">
+    <div class="p-4 border-t border-n-weak bg-n-alpha-2 flex-shrink-0 flex items-center justify-between gap-2">
       <p class="text-sm font-medium text-n-slate-12 m-0 flex items-center gap-2">
         <span class="i-lucide-phone-call size-4 text-n-brand" />
         {{ $t('LIVE_REPORTS.IN_SERVICE.AGENT_CARD.TOTAL_OPEN_CALLS') }}:
-        <span class="font-semibold text-n-brand">{{ totalOpenCalls }}</span>
       </p>
+      <span
+        class="flex items-center justify-center min-w-[1.75rem] h-7 px-2 rounded-lg font-semibold text-n-slate-12 bg-n-brand-3 text-n-brand-11 text-sm"
+      >
+        {{ totalOpenCalls }}
+      </span>
     </div>
   </div>
 </template>

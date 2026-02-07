@@ -86,6 +86,8 @@ const props = defineProps({
   medium: { type: String, default: '' },
   showImageResizeToolbar: { type: Boolean, default: false }, // A kill switch to show or hide the image toolbar
   focusOnMount: { type: Boolean, default: true },
+  // Quando true, a barra de formatação (negrito, itálico, listas) fica sempre visível
+  showFormattingBar: { type: Boolean, default: false },
 });
 
 const emit = defineEmits([
@@ -776,7 +778,11 @@ useEmitter(BUS_EVENTS.INSERT_INTO_RICH_EDITOR, insertContentIntoEditor);
 </script>
 
 <template>
-  <div ref="editorRoot" class="relative w-full">
+  <div
+    ref="editorRoot"
+    class="relative w-full"
+    :class="{ 'always-show-formatting': showFormattingBar }"
+  >
     <TagAgents
       v-if="showUserMentions && isPrivate"
       :search-key="mentionSearchKey"
@@ -964,6 +970,13 @@ useEmitter(BUS_EVENTS.INSERT_INTO_RICH_EDITOR, insertContentIntoEditor);
 
   .ProseMirror-menubar {
     display: none; // Hide by default
+  }
+
+  // Quando showFormattingBar é true (Editor avançado), menubar fica sempre visível
+  &.always-show-formatting .ProseMirror-menubar {
+    display: flex !important;
+    position: relative !important;
+    @apply rounded-lg px-3 py-1.5 z-10 bg-transparent items-center gap-4 shadow-none outline-none mb-1;
   }
 
   &.has-selection {

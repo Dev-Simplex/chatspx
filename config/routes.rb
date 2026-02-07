@@ -110,6 +110,22 @@ Rails.application.routes.draw do
             end
           end
           resources :campaigns, only: [:index, :create, :show, :update, :destroy]
+          resources :funnels, only: [:index, :show, :create, :update, :destroy] do
+            member do
+              post :reorder_stages
+            end
+            resources :funnel_stages, only: [:index, :show, :create, :update, :destroy]
+            resources :funnel_items, only: [:index, :create, :update, :destroy] do
+              collection do
+                post :bulk_move
+              end
+            end
+          end
+          resources :scheduled_messages, only: [:index, :show, :create, :update, :destroy] do
+            collection do
+              get :inboxes
+            end
+          end
           resources :dashboard_apps, only: [:index, :show, :create, :update, :destroy]
           namespace :channels do
             resource :twilio_channel, only: [:create]

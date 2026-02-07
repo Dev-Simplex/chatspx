@@ -152,12 +152,32 @@ const { t } = useI18n();
 const route = useRoute();
 const store = useStore();
 
+const scheduledBy = computed(() => props.contentAttributes?.scheduledBy);
+const isScheduledMessage = computed(
+  () => !!scheduledBy.value || !!props.contentAttributes?.scheduledAt
+);
+const scheduledByName = computed(
+  () =>
+    scheduledBy.value?.name ||
+    props.sender?.name ||
+    t('CONVERSATION.SCHEDULED_BY_UNKNOWN')
+);
+const scheduledByLabel = computed(() =>
+  t('CONVERSATION.SCHEDULED_BY', { name: scheduledByName.value })
+);
+
 /**
  * Computes the message variant based on props
- * @type {import('vue').ComputedRef<'user'|'agent'|'activity'|'private'|'bot'|'template'>}
+ * @type {import('vue').ComputedRef<'user'|'agent'|'activity'|'private'|'scheduled'|'bot'|'template'>}
  */
 const variant = computed(() => {
   if (props.private) return MESSAGE_VARIANTS.PRIVATE;
+  if (
+    isScheduledMessage.value &&
+    props.messageType === MESSAGE_TYPES.OUTGOING
+  ) {
+    return MESSAGE_VARIANTS.SCHEDULED;
+  }
 
   if (props.isEmailInbox) {
     const emailInboxTypes = [MESSAGE_TYPES.INCOMING, MESSAGE_TYPES.OUTGOING];
@@ -654,11 +674,18 @@ provideMessageContext({
         @contextmenu="openContextMenu($event)"
       >
         <div class="relative w-full group-hover/message:bg-n-alpha-1 group-hover/message:ltr:pr-8 group-hover/message:rtl:pl-8 transition-all duration-200">
-          <!-- Badge de Encaminhada e Estrela -->
+          <!-- Badge de Encaminhada, Estrela e Mensagem agendada -->
           <div
-            v-if="forwarded || starred"
+            v-if="forwarded || starred || isScheduledMessage"
             class="inline-flex items-center gap-2 text-xs text-slate-500 dark:text-slate-400 mb-1"
           >
+            <div
+              v-if="isScheduledMessage"
+              class="inline-flex items-center gap-1 text-n-amber-12/80"
+            >
+              <Icon icon="i-lucide-clock" class="size-3" />
+              <span>{{ scheduledByLabel }}</span>
+            </div>
             <div
               v-if="forwarded"
               class="inline-flex items-center gap-1 italic"
@@ -684,7 +711,7 @@ provideMessageContext({
             :class="{
               'bg-n-slate-4 ltr:rounded-tr-xl ltr:rounded-br-xl rtl:rounded-tl-xl rtl:rounded-bl-xl': variant === MESSAGE_VARIANTS.USER && orientation === ORIENTATION.LEFT,
               'bg-n-solid-blue ltr:rounded-tr-xl ltr:rounded-br-sm rtl:rounded-tl-xl rtl:rounded-bl-sm': (variant === MESSAGE_VARIANTS.AGENT || variant === MESSAGE_VARIANTS.BOT || variant === MESSAGE_VARIANTS.TEMPLATE) && orientation === ORIENTATION.RIGHT,
-              'bg-n-solid-amber ltr:rounded-tr-xl ltr:rounded-br-xl rtl:rounded-tl-xl rtl:rounded-bl-xl': variant === MESSAGE_VARIANTS.PRIVATE,
+              'bg-n-solid-amber ltr:rounded-tr-xl ltr:rounded-br-xl rtl:rounded-tl-xl rtl:rounded-bl-xl': [MESSAGE_VARIANTS.PRIVATE, MESSAGE_VARIANTS.SCHEDULED].includes(variant),
             }"
           >
             <NextButton

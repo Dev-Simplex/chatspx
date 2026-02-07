@@ -127,7 +127,7 @@ const allowedMenuItems = computed(() => {
   <DropdownContainer class="relative w-full min-w-0" @close="emit('close')">
     <template #trigger="{ toggle, isOpen }">
       <button
-        class="flex items-center p-1 w-full rounded-lg cursor-pointer hover:bg-n-alpha-1"
+        class="flex items-center p-1 w-full min-w-0 rounded-lg cursor-pointer hover:bg-n-alpha-1"
         :class="[
           {
             'justify-center': isCollapsed,
@@ -146,11 +146,11 @@ const allowedMenuItems = computed(() => {
           class="flex-shrink-0"
           rounded-full
         />
-        <div v-if="!isCollapsed" class="min-w-0">
-          <div class="text-sm font-medium leading-4 truncate text-n-slate-12">
+        <div v-if="!isCollapsed" class="min-w-0 flex-1 overflow-hidden">
+          <div class="min-w-0 truncate text-sm font-medium leading-4 text-n-slate-12">
             {{ currentUser.available_name }}
           </div>
-          <div class="text-xs truncate text-n-slate-11">
+          <div class="min-w-0 truncate text-xs text-n-slate-11">
             {{ currentUser.email }}
           </div>
         </div>

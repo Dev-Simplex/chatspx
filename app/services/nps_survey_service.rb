@@ -23,6 +23,7 @@ class NpsSurveyService
 
     unless should_send_nps_survey?
       Rails.logger.info "NpsSurveyService: Should not send NPS survey for conversation #{conversation.id} (check logs above for details)"
+      create_nps_not_sent_activity_message_if_applicable
       return
     end
 
@@ -98,11 +99,13 @@ class NpsSurveyService
   end
 
   def nps_already_sent?
+    # Only block if an NPS was sent in this conversation in the last 5 minutes (avoid duplicate on same resolution).
+    # Re-sending in the same conversation is allowed after cooldown (see cooldown_respected?).
     # Verificar se já foi enviado um NPS recentemente (últimos 5 minutos)
     # Isso permite múltiplos envios quando a conversa é resolvida e reaberta várias vezes
     # mas evita envios duplicados na mesma resolução
     recent_time_threshold = 5.minutes.ago
-    
+
     # Buscar o último NPS response enviado recentemente
     last_nps_response = conversation.nps_responses
       .where('created_at >= ?', recent_time_threshold)
@@ -166,16 +169,18 @@ class NpsSurveyService
     cooldown_days = nps_config['cooldown_days'] || 30
     return true if cooldown_days.zero?
 
+    # Consider contact's last NPS response in any conversation (including this one) for cooldown
     last_response = contact.nps_responses
                           .where(status: :responded)
-                          .where.not(conversation_id: conversation.id)
                           .order(answered_at: :desc)
                           .first
 
     return true unless last_response&.answered_at
 
     days_since_last = (Time.current - last_response.answered_at) / 1.day
-    days_since_last >= cooldown_days
+    result = days_since_last >= cooldown_days
+    Rails.logger.info "NpsSurveyService: cooldown_respected? = #{result} (contact_id: #{contact.id}, cooldown_days: #{cooldown_days}, last_answered_at: #{last_response.answered_at}, days_since_last: #{days_since_last})"
+    result
   end
 
   def blocked_by_labels?
@@ -247,13 +252,38 @@ class NpsSurveyService
 
   def create_nps_not_sent_activity_message
     content = I18n.t('conversations.activity.nps.not_sent_due_to_messaging_window', default: 'NPS survey could not be sent due to messaging window restrictions.')
+    create_activity_message(content)
+  end
+
+  # When NPS is not sent due to cooldown, already_sent, or optional_rules, create an activity message with the reason.
+  def create_nps_not_sent_activity_message_if_applicable
+    reason = nps_block_reason_for_activity
+    return if reason.blank?
+
+    key = "conversations.activity.nps.not_sent_#{reason}"
+    content = I18n.t(key, default: "NPS survey not sent: #{reason}")
+    create_activity_message(content)
+  end
+
+  # Returns a symbol (:cooldown, :already_sent, :optional_rules) if the survey was blocked by a reason we want to show in the UI; nil otherwise.
+  def nps_block_reason_for_activity
+    return :already_sent if nps_already_sent?
+    return :cooldown unless cooldown_respected?
+    return :optional_rules unless optional_rules_met?
+
+    nil
+  end
+
+  def create_activity_message(content)
+    return if content.blank?
+
     activity_message_params = {
       account_id: conversation.account_id,
       inbox_id: conversation.inbox_id,
       message_type: :activity,
       content: content
     }
-    ::Conversations::ActivityMessageJob.perform_later(conversation, activity_message_params) if content
+    ::Conversations::ActivityMessageJob.perform_later(conversation, activity_message_params)
   end
 
   def nps_config
@@ -291,15 +321,9 @@ class NpsSurveyService
   end
 
   def create_blocked_activity_message(blocking_label)
-    content = I18n.t('conversations.activity.nps.blocked', 
-                     label: blocking_label, 
+    content = I18n.t('conversations.activity.nps.blocked',
+                     label: blocking_label,
                      default: "NPS survey blocked by label: #{blocking_label}")
-    activity_message_params = {
-      account_id: conversation.account_id,
-      inbox_id: conversation.inbox_id,
-      message_type: :activity,
-      content: content
-    }
-    ::Conversations::ActivityMessageJob.perform_later(conversation, activity_message_params) if content
+    create_activity_message(content)
   end
 end

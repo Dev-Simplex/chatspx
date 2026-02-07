@@ -1,13 +1,14 @@
 <script setup>
-import { ref, computed, onMounted, onBeforeUnmount, nextTick } from 'vue';
+import { ref, computed, onMounted, onBeforeUnmount } from 'vue';
 import { useStore, useMapGetter } from 'dashboard/composables/store';
 import { useLiveRefresh } from 'dashboard/composables/useLiveRefresh';
 import { useI18n } from 'vue-i18n';
 import ReportHeader from './components/ReportHeader.vue';
 import LiveFilters from './components/live/LiveFilters.vue';
 import AgentCard from './components/live/AgentCard.vue';
+import AgentCardSkeleton from './components/live/AgentCardSkeleton.vue';
+import ConversationItem from './components/live/ConversationItem.vue';
 import EmptyState from 'dashboard/components/widgets/EmptyState.vue';
-import Spinner from 'shared/components/Spinner.vue';
 import Button from 'dashboard/components-next/button/Button.vue';
 import CreepyButton from './components/live/CreepyButton.vue';
 
@@ -19,21 +20,20 @@ const filters = ref({
   department: null,
 });
 
-const isLoading = ref(false);
+const isLoading = ref(true);
+/** Indica se a primeira carga da tela já terminou (para mostrar preloader ao entrar pela sidebar) */
+const hasInitiallyLoaded = ref(false);
 const lastUpdateTime = ref(null);
 const showFilters = ref(false);
 const isRealtimeEnabled = ref(false);
-const forceUpdate = ref(0); // Trigger para forçar atualização do computed
+const showWaitingSection = ref(false);
+const sortBy = ref('calls'); // 'calls' | 'name_asc' | 'name_desc'
 
-// Getters do store
-// Usar state diretamente com forceUpdate para garantir reatividade
-const allConversations = computed(() => {
-  // Acessar forceUpdate para criar dependência reativa
-  const _ = forceUpdate.value;
-  // Usar state diretamente para evitar filtros do getter
-  const conversations = store.state.conversations?.allConversations || [];
-  return conversations;
-});
+// Garagem de chamados: estado local exclusivo da tela ao vivo (não é afetado por emptyAllConversations)
+const liveConversations = ref([]);
+
+// Fonte de dados da tela = liveConversations (não mais o store global)
+const allConversations = computed(() => liveConversations.value || []);
 const allAgents = useMapGetter('agents/getAgents');
 const allTeams = useMapGetter('teams/getTeams');
 
@@ -247,6 +247,70 @@ const filteredAgents = computed(() => {
   return filtered;
 });
 
+// KPIs para o resumo visual (baseados na garagem local)
+const totalChamados = computed(() => liveConversations.value.length);
+const totalAgentesComConversas = computed(() =>
+  processedAgents.value.filter(a => (a.totalOpenCalls || 0) > 0).length
+);
+const totalEmEspera = computed(() =>
+  liveConversations.value.filter(
+    c => c.status === 'pending' || !c.meta?.assignee?.id
+  ).length
+);
+
+const lastUpdateFormatted = computed(() => {
+  const t = lastUpdateTime.value;
+  if (!t) return '';
+  const d = t instanceof Date ? t : new Date(t);
+  return d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+});
+
+// Conversas em espera (sem agente ou pendentes) formatadas para exibição
+const mapConvToDisplay = conv => {
+  const messages = conv.messages || [];
+  const lastMessage = messages.length > 0 ? messages[messages.length - 1] : conv.last_non_activity_message || null;
+  const unreadCount = conv.unread_count !== undefined ? conv.unread_count : messages.filter(m => !m.read_at && m.message_type === 'incoming').length;
+  let lastMessageStatus = 'sent';
+  if (lastMessage) {
+    if (lastMessage.read_at) lastMessageStatus = 'read';
+    else if (lastMessage.message_type === 'outgoing') lastMessageStatus = 'sent';
+  }
+  const contact = conv.meta?.sender || conv.sender || {};
+  const contactName = contact.name || contact.identifier || contact.email || t('LIVE_REPORTS.IN_SERVICE.NO_NAME');
+  const contactAvatar = contact.thumbnail || contact.avatar_url;
+  let lastMessageText = t('LIVE_REPORTS.IN_SERVICE.NO_MESSAGES');
+  if (lastMessage) {
+    if (lastMessage.content) lastMessageText = lastMessage.content;
+    else if (lastMessage.attachments?.length) {
+      const a = lastMessage.attachments[0];
+      if (a.file_type === 'image') lastMessageText = t('LIVE_REPORTS.IN_SERVICE.SENT_IMAGE');
+      else if (a.file_type === 'audio') lastMessageText = t('LIVE_REPORTS.IN_SERVICE.SENT_AUDIO');
+      else if (a.file_type === 'file') lastMessageText = t('LIVE_REPORTS.IN_SERVICE.SENT_FILE');
+    }
+  }
+  let lastMessageTime = lastMessage?.created_at ?? lastMessage?.timestamp ?? conv.timestamp ?? conv.last_activity_at ?? (typeof conv.updated_at === 'number' ? Math.floor(conv.updated_at) : conv.updated_at);
+  return { id: conv.id, contactName, contactAvatar, lastMessage: lastMessageText, lastMessageTime, unreadCount, lastMessageStatus };
+};
+
+const waitingConversationsDisplay = computed(() =>
+  liveConversations.value
+    .filter(c => c.status === 'pending' || !c.meta?.assignee?.id)
+    .map(mapConvToDisplay)
+    .sort((a, b) => new Date(b.lastMessageTime || 0) - new Date(a.lastMessageTime || 0))
+);
+
+const sortedAgents = computed(() => {
+  const list = [...filteredAgents.value];
+  if (sortBy.value === 'calls') {
+    list.sort((a, b) => (b.totalOpenCalls || 0) - (a.totalOpenCalls || 0));
+  } else if (sortBy.value === 'name_asc') {
+    list.sort((a, b) => (a.name || '').localeCompare(b.name || '', undefined, { sensitivity: 'base' }));
+  } else if (sortBy.value === 'name_desc') {
+    list.sort((a, b) => (b.name || '').localeCompare(a.name || '', undefined, { sensitivity: 'base' }));
+  }
+  return list;
+});
+
 const handleFilterChange = newFilters => {
   // Garantir que o filtro seja atualizado corretamente
   // Se department for null ou id for null, limpar o filtro
@@ -313,102 +377,62 @@ const fetchData = async () => {
       }
     }
     
-    // Carregar conversas abertas e pendentes diretamente
+    // Carregar conversas abertas e pendentes em lotes paralelos (várias páginas de uma vez)
     const ConversationApi = (await import('dashboard/api/inbox/conversation')).default;
-    
-    // Buscar conversas abertas e pendentes em paralelo
-    const [openResponse, pendingResponse] = await Promise.allSettled([
-      ConversationApi.get({
-        status: 'open',
+    const CONVERSATIONS_PER_PAGE = 25; // igual ao backend (CONVERSATION_RESULTS_PER_PAGE)
+    const PAGE_BATCH_SIZE = 4;
+
+    const fetchPage = async (status, page) => {
+      const res = await ConversationApi.get({
+        status,
         assignee_type: 'all',
-        page: 1,
+        page,
         sort_by: 'last_activity_at_desc',
-      }),
-      ConversationApi.get({
-        status: 'pending',
-        assignee_type: 'all',
-        page: 1,
-        sort_by: 'last_activity_at_desc',
-      }),
-    ]);
-    
-    // Coletar todas as conversas
-    const allConversationsToAdd = [];
-    
-    if (openResponse.status === 'fulfilled' && openResponse.value?.data?.data?.payload) {
-      const openConversations = openResponse.value.data.data.payload;
-      allConversationsToAdd.push(...openConversations);
+      });
+      return res?.data?.data?.payload ?? [];
+    };
+
+    const loadAllPagesForStatus = async status => {
+      const allPayloads = [];
+      let page = 1;
+      while (true) {
+        const pageNumbers = Array.from({ length: PAGE_BATCH_SIZE }, (_, i) => page + i);
+        const results = await Promise.all(pageNumbers.map(p => fetchPage(status, p)));
+        for (const payload of results) {
+          allPayloads.push(...payload);
+        }
+        const hasMore = results.every(p => p.length >= CONVERSATIONS_PER_PAGE);
+        if (!hasMore) break;
+        page += PAGE_BATCH_SIZE;
+      }
+      return allPayloads;
+    };
+
+    const loadAllConversationsInBatches = async () => {
+      const [openList, pendingList] = await Promise.all([
+        loadAllPagesForStatus('open'),
+        loadAllPagesForStatus('pending'),
+      ]);
+      return [...openList, ...pendingList];
+    };
+
+    const allConversationsToAdd = await loadAllConversationsInBatches();
+
+    // Garagem: gravar na fonte local da tela (não no store global, assim emptyAllConversations não zera os totais)
+    liveConversations.value = allConversationsToAdd;
+
+    // Adicionar contatos ao store para navegação ao clicar em uma conversa
+    const contacts = allConversationsToAdd.map(conv => conv.meta?.sender).filter(Boolean);
+    if (contacts.length > 0) {
+      store.commit('contacts/SET_CONTACTS', contacts);
     }
-    
-    if (pendingResponse.status === 'fulfilled' && pendingResponse.value?.data?.data?.payload) {
-      const pendingConversations = pendingResponse.value.data.data.payload;
-      allConversationsToAdd.push(...pendingConversations);
-    }
-    
-    // Adicionar todas as conversas ao store
-    if (allConversationsToAdd.length > 0) {
-      // Garantir que o módulo de conversas está inicializado
-      if (!store.state.conversations) {
-        return;
-      }
-      
-      // Inicializar allConversations se não existir
-      if (!Array.isArray(store.state.conversations.allConversations)) {
-        store.state.conversations.allConversations = [];
-      }
-      
-      // Usar a mutation SET_ALL_CONVERSATION que faz merge correto
-      const types = await import('dashboard/store/mutation-types');
-      const mutationType = types.default.SET_ALL_CONVERSATION;
-      
-      // Usar commit com namespace completo
-      store.commit(`conversations/${mutationType}`, allConversationsToAdd);
-      
-      // Verificar se funcionou
-      const afterCommit = store.state.conversations.allConversations.length;
-      
-      // Se ainda não funcionou, adicionar manualmente usando a mesma lógica da mutation
-      if (afterCommit === 0 && allConversationsToAdd.length > 0) {
-        const currentConversations = store.state.conversations.allConversations || [];
-        const newAllConversations = [...currentConversations];
-        
-        allConversationsToAdd.forEach(conversation => {
-          const indexInCurrentList = newAllConversations.findIndex(
-            c => c.id === conversation.id
-          );
-          if (indexInCurrentList < 0) {
-            newAllConversations.push(conversation);
-          } else {
-            // Substituir a conversa existente
-            newAllConversations[indexInCurrentList] = conversation;
-          }
-        });
-        
-        // Atualizar o state diretamente (mesma lógica da mutation)
-        store.state.conversations.allConversations = newAllConversations;
-        
-        // Forçar atualização imediata
-        forceUpdate.value += 1;
-      }
-      
-      // Adicionar contatos
-      const contacts = allConversationsToAdd.map(conv => conv.meta?.sender).filter(Boolean);
-      if (contacts.length > 0) {
-        store.commit('contacts/SET_CONTACTS', contacts);
-      }
-      
-      // Aguardar próximo tick
-      await nextTick();
-      
-      // Forçar atualização do computed
-      forceUpdate.value += 1;
-    }
-    
+
     lastUpdateTime.value = new Date();
   } catch (error) {
     // Erro silencioso
   } finally {
     isLoading.value = false;
+    hasInitiallyLoaded.value = true;
   }
 };
 
@@ -458,38 +482,58 @@ onBeforeUnmount(() => {
         :header-description="$t('LIVE_REPORTS.IN_SERVICE.DESCRIPTION')"
       >
         <template #default>
-          <div class="flex items-center gap-3 flex-wrap">
-            <Button
-              :icon="showFilters ? 'i-lucide-search-x' : 'i-lucide-search'"
-              :label="showFilters ? $t('LIVE_REPORTS.IN_SERVICE.HIDE_FILTERS') : $t('LIVE_REPORTS.IN_SERVICE.SHOW_FILTERS')"
-              size="sm"
-              color="slate"
-              variant="faded"
-              @click="toggleFilters"
-            />
-            <div class="flex items-center gap-2">
-              <CreepyButton
-                :active="isRealtimeEnabled"
-                @click="toggleRealtime"
-              >
-                {{ isRealtimeEnabled ? $t('LIVE_REPORTS.IN_SERVICE.DISABLE_REALTIME') : $t('LIVE_REPORTS.IN_SERVICE.ENABLE_REALTIME') }}
-              </CreepyButton>
+          <div class="flex flex-col gap-2 items-end">
+            <div class="flex items-center gap-3 flex-wrap justify-end">
               <span
                 v-if="isRealtimeEnabled"
-                class="text-xs text-n-slate-11 font-medium"
+                class="flex items-center gap-1.5 text-xs font-medium text-n-teal-11"
               >
-                {{ $t('LIVE_REPORTS.IN_SERVICE.UPDATES_EVERY') }} 15s
+                <span class="relative flex h-2 w-2">
+                  <span class="absolute inline-flex h-full w-full animate-ping rounded-full bg-n-teal-9 opacity-75" />
+                  <span class="relative inline-flex h-2 w-2 rounded-full bg-n-teal-10" />
+                </span>
+                {{ $t('LIVE_REPORTS.IN_SERVICE.LIVE_INDICATOR') }}
               </span>
+              <span
+                v-if="lastUpdateFormatted"
+                class="text-xs text-n-slate-11"
+              >
+                {{ $t('LIVE_REPORTS.IN_SERVICE.LAST_UPDATE') }}: {{ lastUpdateFormatted }}
+              </span>
+            </div>
+            <div class="flex items-center gap-3 flex-wrap">
               <Button
-                v-if="!isRealtimeEnabled"
-                icon="i-lucide-refresh-cw"
-                :label="$t('LIVE_REPORTS.IN_SERVICE.REFRESH')"
+                :icon="showFilters ? 'i-lucide-search-x' : 'i-lucide-search'"
+                :label="showFilters ? $t('LIVE_REPORTS.IN_SERVICE.HIDE_FILTERS') : $t('LIVE_REPORTS.IN_SERVICE.SHOW_FILTERS')"
                 size="sm"
                 color="slate"
                 variant="faded"
-                :loading="isLoading"
-                @click="refreshData"
+                @click="toggleFilters"
               />
+              <div class="flex items-center gap-2">
+                <CreepyButton
+                  :active="isRealtimeEnabled"
+                  @click="toggleRealtime"
+                >
+                  {{ isRealtimeEnabled ? $t('LIVE_REPORTS.IN_SERVICE.DISABLE_REALTIME') : $t('LIVE_REPORTS.IN_SERVICE.ENABLE_REALTIME') }}
+                </CreepyButton>
+                <span
+                  v-if="isRealtimeEnabled"
+                  class="text-xs text-n-slate-11 font-medium"
+                >
+                  {{ $t('LIVE_REPORTS.IN_SERVICE.UPDATES_EVERY') }} 15s
+                </span>
+                <Button
+                  v-if="!isRealtimeEnabled"
+                  icon="i-lucide-refresh-cw"
+                  :label="$t('LIVE_REPORTS.IN_SERVICE.REFRESH')"
+                  size="sm"
+                  color="slate"
+                  variant="faded"
+                  :loading="isLoading"
+                  @click="refreshData"
+                />
+              </div>
             </div>
           </div>
         </template>
@@ -498,15 +542,114 @@ onBeforeUnmount(() => {
     <div class="flex flex-col gap-4 pb-6">
       <div v-show="showFilters">
         <LiveFilters @filter-change="handleFilterChange" />
-      </div>
-      <div v-if="isLoading && !filteredAgents.length" class="flex items-center justify-center p-12">
-        <Spinner />
-        <span class="ml-2 text-n-slate-11">
-          {{ $t('LIVE_REPORTS.IN_SERVICE.LOADING') }}
-        </span>
+        <div
+          v-if="hasInitiallyLoaded && filteredAgents.length > 0"
+          class="flex flex-wrap items-center gap-2 mt-3"
+        >
+          <span class="text-xs font-medium text-n-slate-11">{{ $t('LIVE_REPORTS.IN_SERVICE.SORT_AGENTS') }}:</span>
+          <select
+            v-model="sortBy"
+            class="rounded-lg border border-n-weak bg-n-solid-2 text-n-slate-12 text-sm px-3 py-1.5 outline-none focus:ring-2 focus:ring-n-brand-9"
+          >
+            <option value="calls">
+              {{ $t('LIVE_REPORTS.IN_SERVICE.SORT_BY_CALLS') }}
+            </option>
+            <option value="name_asc">
+              {{ $t('LIVE_REPORTS.IN_SERVICE.SORT_BY_NAME_ASC') }}
+            </option>
+            <option value="name_desc">
+              {{ $t('LIVE_REPORTS.IN_SERVICE.SORT_BY_NAME_DESC') }}
+            </option>
+          </select>
+        </div>
       </div>
       <div
-        v-else-if="!isLoading && !filteredAgents.length"
+        v-if="!isLoading || liveConversations.length > 0"
+        class="grid grid-cols-1 sm:grid-cols-3 gap-3"
+      >
+        <div
+          v-tooltip="$t('LIVE_REPORTS.IN_SERVICE.KPI_TOTAL_CALLS_TOOLTIP')"
+          class="flex items-center gap-3 p-4 rounded-xl bg-n-solid-2 border border-n-weak outline-1 outline outline-n-container cursor-help"
+        >
+          <span class="flex items-center justify-center size-10 rounded-lg bg-n-brand-3 text-n-brand-11">
+            <span class="i-lucide-phone-call size-5" />
+          </span>
+          <div>
+            <p class="text-2xl font-semibold text-n-slate-12 m-0 leading-tight">
+              {{ totalChamados }}
+            </p>
+            <p class="text-xs font-medium text-n-slate-11 m-0">
+              {{ $t('LIVE_REPORTS.IN_SERVICE.KPI_TOTAL_CALLS') }}
+            </p>
+          </div>
+        </div>
+        <div
+          v-tooltip="$t('LIVE_REPORTS.IN_SERVICE.KPI_AGENTS_ACTIVE_TOOLTIP')"
+          class="flex items-center gap-3 p-4 rounded-xl bg-n-solid-2 border border-n-weak outline-1 outline outline-n-container cursor-help"
+        >
+          <span class="flex items-center justify-center size-10 rounded-lg bg-n-teal-3 text-n-teal-11">
+            <span class="i-lucide-users size-5" />
+          </span>
+          <div>
+            <p class="text-2xl font-semibold text-n-slate-12 m-0 leading-tight">
+              {{ totalAgentesComConversas }}
+            </p>
+            <p class="text-xs font-medium text-n-slate-11 m-0">
+              {{ $t('LIVE_REPORTS.IN_SERVICE.KPI_AGENTS_ACTIVE') }}
+            </p>
+          </div>
+        </div>
+        <div
+          v-tooltip="$t('LIVE_REPORTS.IN_SERVICE.KPI_WAITING_TOOLTIP')"
+          class="flex items-center gap-3 p-4 rounded-xl bg-n-solid-2 border border-n-weak outline-1 outline outline-n-container cursor-help"
+        >
+          <span class="flex items-center justify-center size-10 rounded-lg bg-n-amber-3 text-n-amber-11">
+            <span class="i-lucide-clock size-5" />
+          </span>
+          <div class="flex flex-col gap-1 min-w-0">
+            <p class="text-2xl font-semibold text-n-slate-12 m-0 leading-tight">
+              {{ totalEmEspera }}
+            </p>
+            <p class="text-xs font-medium text-n-slate-11 m-0">
+              {{ $t('LIVE_REPORTS.IN_SERVICE.KPI_WAITING') }}
+            </p>
+            <button
+              v-if="totalEmEspera > 0"
+              type="button"
+              class="text-xs font-medium text-n-amber-11 hover:text-n-amber-12 text-left underline-offset-2 hover:underline cursor-pointer w-fit"
+              @click.stop="showWaitingSection = !showWaitingSection"
+            >
+              {{ showWaitingSection ? $t('LIVE_REPORTS.IN_SERVICE.HIDE_WAITING') : $t('LIVE_REPORTS.IN_SERVICE.VIEW_WAITING_COUNT', { count: totalEmEspera }) }}
+            </button>
+          </div>
+        </div>
+      </div>
+      <div
+        v-show="showWaitingSection && totalEmEspera > 0"
+        class="rounded-xl border border-n-weak bg-n-solid-2 outline-1 outline outline-n-container overflow-hidden"
+      >
+        <div class="px-4 py-3 border-b border-n-weak bg-n-amber-3/30 text-n-amber-11 font-medium text-sm">
+          {{ $t('LIVE_REPORTS.IN_SERVICE.WAITING_SECTION_TITLE') }} ({{ totalEmEspera }})
+        </div>
+        <div class="max-h-[320px] overflow-y-auto scrollbar-thin scrollbar-thumb-n-weak scrollbar-track-transparent">
+          <ConversationItem
+            v-for="conv in waitingConversationsDisplay"
+            :key="conv.id"
+            :conversation="conv"
+          />
+        </div>
+      </div>
+      <div
+        v-if="!hasInitiallyLoaded"
+        class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4"
+      >
+        <AgentCardSkeleton
+          v-for="n in 6"
+          :key="`skeleton-${n}`"
+        />
+      </div>
+      <div
+        v-else-if="hasInitiallyLoaded && !filteredAgents.length"
         class="flex items-center justify-center p-12"
       >
         <EmptyState
@@ -520,7 +663,7 @@ onBeforeUnmount(() => {
         class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4"
       >
         <AgentCard
-          v-for="agent in filteredAgents"
+          v-for="agent in sortedAgents"
           :key="agent.id"
           :agent="agent"
         />

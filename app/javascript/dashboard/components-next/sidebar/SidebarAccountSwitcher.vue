@@ -50,7 +50,7 @@ const emitNewAccount = () => {
         :data-account-id="accountId"
         aria-haspopup="listbox"
         aria-controls="account-options"
-        class="flex items-center gap-2 justify-between w-full rounded-lg px-2"
+        class="flex min-w-0 items-center gap-2 justify-between w-full rounded-lg px-2"
         :class="[
           isOpen && 'bg-n-alpha-1',
           showAccountSwitcher
@@ -60,7 +60,7 @@ const emitNewAccount = () => {
         @click="() => showAccountSwitcher && toggle()"
       >
         <span
-          class="text-sm font-medium leading-5 text-n-slate-12 truncate"
+          class="min-w-0 flex-1 truncate text-left text-sm font-medium leading-5 text-n-slate-12"
           aria-live="polite"
         >
           {{ currentAccount.name }}

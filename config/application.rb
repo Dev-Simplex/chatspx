@@ -38,6 +38,10 @@ module Chatwoot
     # Initialize configuration defaults for originally generated Rails version.
     config.load_defaults 7.0
 
+    # Fuso horário da aplicação (Manaus = UTC-4). Time.current e validações usam este fuso.
+    # Sobrescreva com ENV['TIME_ZONE'] se necessário (ex: Europe/London).
+    config.time_zone = ENV.fetch('TIME_ZONE', 'America/Manaus')
+
     config.eager_load_paths << Rails.root.join('lib')
     config.eager_load_paths << Rails.root.join('enterprise/lib')
     config.eager_load_paths << Rails.root.join('enterprise/listeners')

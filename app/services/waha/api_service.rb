@@ -66,6 +66,13 @@ module Waha
       get("/api/#{session_name}/lids/#{encoded_lid}")
     end
 
+    # GET /api/{session}/lids - list known LID to phone number mappings.
+    # Used as fallback when get_lid_phone_number returns pn: null.
+    # WAHA docs: https://waha.devlike.pro/docs/how-to/contacts/
+    def get_lids_list(session_name, limit: 500, offset: 0)
+      get("/api/#{session_name}/lids", limit: limit, offset: offset)
+    end
+
     def create_chatwoot_app(session_name:, config:)
       request_body = {
         enabled: true,

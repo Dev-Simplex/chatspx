@@ -27,7 +27,10 @@ class NpsSurveys::ResponseBuilder
       .where(answered_at: nil)
       .order(created_at: :desc)
       .first
-    
+
+    return nil if nps_response.blank?
+    return nil if nps_response.expired?
+
     nps_response
   end
 

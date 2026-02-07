@@ -6,6 +6,9 @@ const state = {
   mineCount: 0,
   unAssignedCount: 0,
   allCount: 0,
+  unattendedAssignedCount: 0,
+  unattendedUnassignedCount: 0,
+  unattendedAllCount: 0,
 };
 
 export const getters = {
@@ -50,17 +53,27 @@ export const actions = {
 };
 
 export const mutations = {
-  [types.SET_CONV_TAB_META](
-    $state,
-    {
+  [types.SET_CONV_TAB_META]($state, payload = {}) {
+    const {
       mine_count: mineCount,
       unassigned_count: unAssignedCount,
       all_count: allCount,
-    } = {}
-  ) {
+      unattended_assigned_to_me_count: unattendedAssignedCount,
+      unattended_unassigned_count: unattendedUnassignedCount,
+      unattended_all_count: unattendedAllCount,
+    } = payload;
     $state.mineCount = mineCount;
     $state.allCount = allCount;
     $state.unAssignedCount = unAssignedCount;
+    if ('unattended_assigned_to_me_count' in payload) {
+      $state.unattendedAssignedCount = unattendedAssignedCount ?? 0;
+    }
+    if ('unattended_unassigned_count' in payload) {
+      $state.unattendedUnassignedCount = unattendedUnassignedCount ?? 0;
+    }
+    if ('unattended_all_count' in payload) {
+      $state.unattendedAllCount = unattendedAllCount ?? 0;
+    }
     $state.updatedOn = new Date();
   },
 };

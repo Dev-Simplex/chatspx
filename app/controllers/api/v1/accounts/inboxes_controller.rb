@@ -172,29 +172,13 @@ class Api::V1::Accounts::InboxesController < Api::V1::Accounts::BaseController
   end
 
   def format_nps_config(config)
+    cooldown = config['cooldown_days']
+    expiration = config['expiration_hours']
     {
       'mode' => config['mode'] || 'auto',
       'message' => config['message'] || '',
-      'cooldown_days' => config['cooldown_days']&.to_i || 30,
-      'expiration_hours' => config['expiration_hours']&.to_i || 72,
-      'blocklist_labels' => Array(config['blocklist_labels'] || []),
-      'blocklist_scope' => config['blocklist_scope'] || 'both',
-      'min_messages' => config['min_messages']&.to_i,
-      'min_duration_minutes' => config['min_duration_minutes']&.to_i,
-      'required_tags' => Array(config['required_tags'] || []),
-      'thank_you_message' => config['thank_you_message'] || '',
-      'invalid_response_message' => config['invalid_response_message'] || '',
-      'comment_prompt_message' => config['comment_prompt_message'] || ''
-    }.compact
-  end
-
-
-  def format_nps_config(config)
-    {
-      'mode' => config['mode'] || 'auto',
-      'message' => config['message'] || '',
-      'cooldown_days' => config['cooldown_days']&.to_i || 30,
-      'expiration_hours' => config['expiration_hours']&.to_i || 72,
+      'cooldown_days' => (cooldown.nil? || cooldown == '') ? 30 : cooldown.to_i,
+      'expiration_hours' => (expiration.nil? || expiration == '') ? 72 : expiration.to_i,
       'blocklist_labels' => Array(config['blocklist_labels'] || []),
       'blocklist_scope' => config['blocklist_scope'] || 'both',
       'min_messages' => config['min_messages']&.to_i,

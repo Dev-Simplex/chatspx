@@ -8,15 +8,24 @@ import inboxMixin from 'shared/mixins/inboxMixin';
 import { FEATURE_FLAGS } from 'dashboard/featureFlags';
 import { getAllowedFileTypesByChannel } from '@chatwoot/utils';
 import { ALLOWED_FILE_TYPES } from 'shared/constants/messages';
-import VideoCallButton from '../VideoCallButton.vue';
-import AIAssistanceButton from '../AIAssistanceButton.vue';
 import { INBOX_TYPES } from 'dashboard/helper/inbox';
 import { mapGetters } from 'vuex';
 import NextButton from 'dashboard/components-next/button/Button.vue';
+import {
+  DropdownContainer,
+  DropdownBody,
+  DropdownItem,
+} from 'dashboard/components-next/dropdown-menu/base';
 
 export default {
   name: 'ReplyBottomPanel',
-  components: { NextButton, FileUpload, VideoCallButton, AIAssistanceButton },
+  components: {
+    NextButton,
+    FileUpload,
+    DropdownContainer,
+    DropdownBody,
+    DropdownItem,
+  },
   mixins: [inboxMixin],
   props: {
     isNote: {
@@ -63,6 +72,10 @@ export default {
       default: () => {},
     },
     toggleAudioRecorderPlayPause: {
+      type: Function,
+      default: () => {},
+    },
+    onDiscardAudioRecording: {
       type: Function,
       default: () => {},
     },
@@ -126,6 +139,7 @@ export default {
   emits: [
     'replaceText',
     'toggleInsertArticle',
+    'togglePopout',
     'selectWhatsappTemplate',
     'selectContentTemplate',
     'toggleQuotedReply',
@@ -258,6 +272,16 @@ export default {
         ? this.$t('CONVERSATION.REPLYBOX.QUOTED_REPLY.DISABLE_TOOLTIP')
         : this.$t('CONVERSATION.REPLYBOX.QUOTED_REPLY.ENABLE_TOOLTIP');
     },
+    hasMoreMenuItems() {
+      return (
+        this.showAttachButton ||
+        this.enableWhatsAppTemplates ||
+        this.enableContentTemplates ||
+        this.showQuotedReplyToggle ||
+        this.enableInsertArticleInReply ||
+        true
+      );
+    },
   },
   mounted() {
     ActiveStorage.start();
@@ -271,6 +295,10 @@ export default {
     },
     toggleInsertArticle() {
       this.$emit('toggleInsertArticle');
+    },
+    triggerFileUpload() {
+      const el = document.getElementById('conversationAttachment');
+      if (el) el.click();
     },
   },
 };
@@ -287,9 +315,78 @@ export default {
         sm
         @click="toggleEmojiPicker"
       />
+      <template v-if="showAudioPlayStopButton">
+        <NextButton
+          :icon="audioRecorderPlayStopIcon"
+          slate
+          faded
+          sm
+          :label="recordingAudioDurationText"
+          @click="toggleAudioRecorderPlayPause"
+        />
+        <NextButton
+          v-tooltip.top-end="$t('CONVERSATION.REPLYBOX.DISCARD_AUDIO_RECORDING')"
+          icon="i-ph-trash"
+          slate
+          faded
+          sm
+          @click="onDiscardAudioRecording"
+        />
+      </template>
+      <DropdownContainer
+        v-else-if="hasMoreMenuItems"
+        placement="top"
+      >
+        <template #trigger="{ toggle }">
+          <NextButton
+            v-tooltip.top-end="$t('CONVERSATION.REPLYBOX.MORE_OPTIONS')"
+            icon="i-ph-plus"
+            slate
+            faded
+            sm
+            @click="toggle"
+          />
+        </template>
+        <DropdownBody class="min-w-[12rem]">
+          <DropdownItem
+            v-if="showAttachButton"
+            :label="$t('CONVERSATION.REPLYBOX.TIP_ATTACH_ICON')"
+            icon="i-ph-paperclip"
+            :click="triggerFileUpload"
+          />
+          <DropdownItem
+            v-if="enableWhatsAppTemplates"
+            :label="$t('CONVERSATION.FOOTER.WHATSAPP_TEMPLATES')"
+            icon="i-ph-whatsapp-logo"
+            :click="() => $emit('selectWhatsappTemplate')"
+          />
+          <DropdownItem
+            v-if="enableContentTemplates"
+            label="Content Templates"
+            icon="i-ph-whatsapp-logo"
+            :click="() => $emit('selectContentTemplate')"
+          />
+          <DropdownItem
+            v-if="showQuotedReplyToggle"
+            :label="$t('CONVERSATION.REPLYBOX.QUOTED_REPLY.ENABLE_TOOLTIP')"
+            icon="i-ph-quotes"
+            :click="() => $emit('toggleQuotedReply')"
+          />
+          <DropdownItem
+            v-if="enableInsertArticleInReply"
+            :label="$t('HELP_CENTER.ARTICLE_SEARCH.OPEN_ARTICLE_SEARCH')"
+            icon="i-ph-article-ny-times"
+            :click="toggleInsertArticle"
+          />
+          <DropdownItem
+            :label="$t('CONVERSATION.REPLYBOX.ADVANCED_EDITOR')"
+            icon="i-ph-text-aa"
+            :click="() => $emit('togglePopout')"
+          />
+        </DropdownBody>
+      </DropdownContainer>
       <FileUpload
         ref="uploadRef"
-        v-tooltip.top-end="$t('CONVERSATION.REPLYBOX.TIP_ATTACH_ICON')"
         input-id="conversationAttachment"
         :size="4096 * 4096"
         :accept="allowedFileTypes"
@@ -300,83 +397,11 @@ export default {
           direct_upload_url: '/rails/active_storage/direct_uploads',
           direct_upload: true,
         }"
+        class="hidden"
         @input-file="onFileUpload"
       >
-        <NextButton
-          v-if="showAttachButton"
-          v-tooltip.top-end="$t('CONVERSATION.REPLYBOX.TIP_ATTACH_ICON')"
-          icon="i-ph-paperclip"
-          slate
-          faded
-          sm
-        />
+        <span />
       </FileUpload>
-      <NextButton
-        v-if="showAudioRecorderButton"
-        v-tooltip.top-end="$t('CONVERSATION.REPLYBOX.TIP_AUDIORECORDER_ICON')"
-        :icon="!isRecordingAudio ? 'i-ph-microphone' : 'i-ph-microphone-slash'"
-        slate
-        faded
-        sm
-        @click="toggleAudioRecorder"
-      />
-      <NextButton
-        v-if="showAudioPlayStopButton"
-        :icon="audioRecorderPlayStopIcon"
-        slate
-        faded
-        sm
-        :label="recordingAudioDurationText"
-        @click="toggleAudioRecorderPlayPause"
-      />
-      <NextButton
-        v-if="showMessageSignatureButton"
-        v-tooltip.top-end="signatureToggleTooltip"
-        icon="i-ph-signature"
-        slate
-        faded
-        sm
-        @click="toggleMessageSignature"
-      />
-      <NextButton
-        v-if="showQuotedReplyToggle"
-        v-tooltip.top-end="quotedReplyToggleTooltip"
-        icon="i-ph-quotes"
-        :variant="quotedReplyEnabled ? 'solid' : 'faded'"
-        color="slate"
-        sm
-        :aria-pressed="quotedReplyEnabled"
-        @click="$emit('toggleQuotedReply')"
-      />
-      <NextButton
-        v-if="enableWhatsAppTemplates"
-        v-tooltip.top-end="$t('CONVERSATION.FOOTER.WHATSAPP_TEMPLATES')"
-        icon="i-ph-whatsapp-logo"
-        slate
-        faded
-        sm
-        @click="$emit('selectWhatsappTemplate')"
-      />
-      <NextButton
-        v-if="enableContentTemplates"
-        v-tooltip.top-end="'Content Templates'"
-        icon="i-ph-whatsapp-logo"
-        slate
-        faded
-        sm
-        @click="$emit('selectContentTemplate')"
-      />
-      <VideoCallButton
-        v-if="(isAWebWidgetInbox || isAPIInbox) && !isOnPrivateNote"
-        :conversation-id="conversationId"
-      />
-      <AIAssistanceButton
-        v-if="!isFetchingAppIntegrations"
-        :conversation-id="conversationId"
-        :is-private-note="isOnPrivateNote"
-        :message="message"
-        @replace-text="replaceText"
-      />
       <transition name="modal-fade">
         <div
           v-show="uploadRef && uploadRef.dropActive"
@@ -388,24 +413,27 @@ export default {
           </h4>
         </div>
       </transition>
-      <NextButton
-        v-if="enableInsertArticleInReply"
-        v-tooltip.top-end="$t('HELP_CENTER.ARTICLE_SEARCH.OPEN_ARTICLE_SEARCH')"
-        icon="i-ph-article-ny-times"
-        slate
-        faded
-        sm
-        @click="toggleInsertArticle"
-      />
     </div>
     <div class="right-wrap">
       <NextButton
-        :label="sendButtonText"
+        v-if="showAudioRecorderButton && !showAudioPlayStopButton"
+        v-tooltip.top-end="$t('CONVERSATION.REPLYBOX.TIP_AUDIORECORDER_ICON')"
+        icon="i-ph-microphone"
+        slate
+        faded
+        sm
+        class="!size-8 !min-w-8 flex-shrink-0 rounded-full"
+        @click="toggleAudioRecorder"
+      />
+      <NextButton
+        v-tooltip.top-end="sendButtonText"
         type="submit"
         sm
         :color="isNote ? 'amber' : 'blue'"
         :disabled="isSendDisabled"
-        class="flex-shrink-0"
+        icon="i-ph-paper-plane-tilt"
+        :label="sendButtonText"
+        class="flex-shrink-0 h-9 px-3 rounded-full"
         @click="onSend"
       />
     </div>
@@ -414,11 +442,11 @@ export default {
 
 <style lang="scss" scoped>
 .left-wrap {
-  @apply items-center flex gap-2;
+  @apply items-center flex gap-0.5;
 }
 
 .right-wrap {
-  @apply flex;
+  @apply flex items-center gap-1;
 }
 
 ::v-deep .file-uploads {

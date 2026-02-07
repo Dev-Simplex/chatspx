@@ -13,7 +13,6 @@ import ReplyTopPanel from 'dashboard/components/widgets/WootWriter/ReplyTopPanel
 import ReplyEmailHead from './ReplyEmailHead.vue';
 import ReplyBottomPanel from 'dashboard/components/widgets/WootWriter/ReplyBottomPanel.vue';
 import ArticleSearchPopover from 'dashboard/routes/dashboard/helpcenter/components/ArticleSearch/SearchPopover.vue';
-import MessageSignatureMissingAlert from './MessageSignatureMissingAlert.vue';
 import ReplyBoxBanner from './ReplyBoxBanner.vue';
 import QuotedEmailPreview from './QuotedEmailPreview.vue';
 import { REPLY_EDITOR_MODES } from 'dashboard/components/widgets/WootWriter/constants';
@@ -61,7 +60,6 @@ export default {
     AudioRecorder,
     ReplyBoxBanner,
     EmojiInput,
-    MessageSignatureMissingAlert,
     ReplyBottomPanel,
     ReplyEmailHead,
     ReplyToMessage,
@@ -1101,15 +1099,19 @@ export default {
 
 <template>
   <ReplyBoxBanner :message="message" :is-on-private-note="isOnPrivateNote" />
-  <div ref="replyEditor" class="reply-box" :class="replyBoxClass">
+  <div
+    ref="replyEditor"
+    class="reply-box"
+    :class="[replyBoxClass, { 'reply-box--popout': popOutReplyBox }]"
+  >
     <ReplyTopPanel
       :mode="replyType"
       :is-reply-restricted="isReplyRestricted"
       :is-message-length-reaching-threshold="isMessageLengthReachingThreshold"
       :characters-remaining="charactersRemaining"
-      :popout-reply-box="popOutReplyBox"
+      :pop-out-reply-box="popOutReplyBox"
       @set-reply-mode="setReplyMode"
-      @toggle-popout="togglePopout"
+      @close-popout="$emit('update:popOutReplyBox', false)"
     />
     <ArticleSearchPopover
       v-if="showArticleSearchPopover && connectedPortalSlug"
@@ -1150,6 +1152,7 @@ export default {
         v-model="message"
         :editor-id="editorStateId"
         class="input popover-prosemirror-menu"
+        :show-formatting-bar="popOutReplyBox"
         :is-private="isOnPrivateNote"
         :placeholder="messagePlaceHolder"
         :update-selection-with="updateEditorSelectionWith"
@@ -1187,9 +1190,6 @@ export default {
         @remove-attachment="removeAttachment"
       />
     </div>
-    <MessageSignatureMissingAlert
-      v-if="isSignatureEnabledForInbox && !isSignatureAvailable"
-    />
     <ReplyBottomPanel
       :conversation-id="conversationId"
       :enable-multiple-file-upload="enableMultipleFileUpload"
@@ -1212,6 +1212,7 @@ export default {
       :show-quoted-reply-toggle="shouldShowQuotedReplyToggle"
       :quoted-reply-enabled="quotedReplyPreference"
       :toggle-audio-recorder-play-pause="toggleAudioRecorderPlayPause"
+      :on-discard-audio-recording="resetAudioRecorderInput"
       :toggle-audio-recorder="toggleAudioRecorder"
       :toggle-emoji-picker="toggleEmojiPicker"
       :message="message"
@@ -1221,6 +1222,7 @@ export default {
       @select-content-template="openContentTemplateModal"
       @replace-text="replaceText"
       @toggle-insert-article="toggleInsertArticle"
+      @toggle-popout="togglePopout"
       @toggle-quoted-reply="toggleQuotedReply"
     />
     <WhatsappTemplates
@@ -1259,7 +1261,7 @@ export default {
 .reply-box {
   transition: height 2s cubic-bezier(0.37, 0, 0.63, 1);
 
-  @apply relative mb-2 mx-2 border border-n-weak rounded-xl bg-n-solid-1;
+  @apply relative mb-2 mx-2 rounded-3xl border-0 bg-[#e9edef] dark:bg-[#2d2d2d];
 
   &.is-private {
     @apply bg-n-solid-amber dark:border-n-amber-3/10 border-n-amber-12/5;
@@ -1270,8 +1272,20 @@ export default {
   @apply mb-0;
 }
 
-.reply-box__top {
-  @apply relative py-0 px-4 -mt-px;
+.reply-box:not(.reply-box--popout) .reply-box__top {
+  @apply relative py-1 px-3 -mt-px min-h-0;
+
+  :deep(.ProseMirror-woot-style) {
+    @apply min-h-[2.75rem] max-h-[7.5rem];
+  }
+}
+
+.reply-box.reply-box--popout .reply-box__top {
+  @apply relative py-1 px-3 -mt-px;
+
+  :deep(.ProseMirror-woot-style) {
+    @apply min-h-[2.75rem] max-h-[7.5rem];
+  }
 }
 
 .emoji-dialog {

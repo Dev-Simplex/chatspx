@@ -43,8 +43,108 @@ export default {
       const { email: { subject } = {} } = contentAttributes || {};
       return this.getPlainText(subject || this.message.content);
     },
+    contentType() {
+      return this.message?.content_type || this.message?.contentType;
+    },
+    contentAttributes() {
+      return (
+        this.message?.content_attributes ||
+        this.message?.contentAttributes ||
+        {}
+      );
+    },
+    hasAttachments() {
+      return (
+        Array.isArray(this.message?.attachments) &&
+        this.message.attachments.length > 0
+      );
+    },
+    isNpsMessage() {
+      return this.contentType === 'input_nps';
+    },
+    isCsatMessage() {
+      return this.contentType === 'input_csat';
+    },
+    isVoiceCallMessage() {
+      return this.contentType === 'voice_call';
+    },
+    isUnsupportedMessage() {
+      return (
+        this.contentAttributes?.isUnsupported ||
+        this.contentAttributes?.is_unsupported
+      );
+    },
+    voiceCallStatus() {
+      return this.contentAttributes?.data?.status?.toString();
+    },
+    voiceCallLabel() {
+      if (!this.isVoiceCallMessage) return '';
+      const status = this.voiceCallStatus;
+      const isOutbound = this.messageByAgent;
+      const isFailed = ['no-answer', 'failed'].includes(status);
+
+      if (status === 'in-progress') {
+        return this.$t('CONVERSATION.VOICE_CALL.CALL_IN_PROGRESS');
+      }
+      if (status === 'completed') {
+        return this.$t('CONVERSATION.VOICE_CALL.CALL_ENDED');
+      }
+      if (status === 'ringing') {
+        return this.$t(
+          isOutbound
+            ? 'CONVERSATION.VOICE_CALL.OUTGOING_CALL'
+            : 'CONVERSATION.VOICE_CALL.INCOMING_CALL'
+        );
+      }
+      return this.$t(
+        isFailed
+          ? 'CONVERSATION.VOICE_CALL.MISSED_CALL'
+          : 'CONVERSATION.VOICE_CALL.INCOMING_CALL'
+      );
+    },
+    submittedValuesPreview() {
+      const submittedValues =
+        this.contentAttributes?.submittedValues ||
+        this.contentAttributes?.submitted_values ||
+        [];
+      if (!Array.isArray(submittedValues) || submittedValues.length === 0) {
+        return '';
+      }
+      const [first = {}] = submittedValues;
+      const preview = first.title || first.value || first.label || '';
+      return preview ? this.getPlainText(preview) : '';
+    },
+    npsFallbackMessage() {
+      if (!this.isNpsMessage || this.message?.content) return '';
+      const fallback =
+        'De 0 a 10, o quanto voc\u00ea recomendaria nossa empresa?';
+      const translated = this.$t('CONVERSATION.NPS_REPLY_MESSAGE', {
+        default: fallback,
+      });
+      return translated === 'CONVERSATION.NPS_REPLY_MESSAGE'
+        ? fallback
+        : translated;
+    },
+    inputFallbackMessage() {
+      if (!this.contentType) return '';
+      if (this.contentType.startsWith('input_') || this.contentType === 'form') {
+        return this.submittedValuesPreview || this.$t('CONVERSATION.NO_RESPONSE');
+      }
+      return '';
+    },
+    fallbackMessage() {
+      if (this.message?.content || this.hasAttachments) return '';
+      if (this.isUnsupportedMessage)
+        return this.$t('CONVERSATION.UNSUPPORTED_MESSAGE');
+      if (this.npsFallbackMessage) return this.npsFallbackMessage;
+      if (this.isCsatMessage) return this.$t('CONVERSATION.CSAT_REPLY_MESSAGE');
+      if (this.isVoiceCallMessage) return this.voiceCallLabel;
+      if (this.inputFallbackMessage) return this.inputFallbackMessage;
+      return '';
+    },
     lastMessageFileType() {
-      const [{ file_type: fileType } = {}] = this.message.attachments;
+      const attachments = this.message?.attachments || [];
+      const [{ file_type: fileType } = {}] = attachments;
       return fileType;
     },
     attachmentIcon() {
@@ -93,7 +193,7 @@ export default {
     <span v-else-if="message.content">
       {{ parsedLastMessage }}
     </span>
-    <span v-else-if="message.attachments">
+    <span v-else-if="hasAttachments">
       <fluent-icon
         v-if="attachmentIcon && showMessageType"
         size="16"
@@ -101,6 +201,9 @@ export default {
         :icon="attachmentIcon"
       />
       {{ $t(`${attachmentMessageContent}`) }}
+    </span>
+    <span v-else-if="fallbackMessage">
+      {{ fallbackMessage }}
     </span>
     <span v-else>
       {{ defaultEmptyMessage || $t('CHAT_LIST.NO_CONTENT') }}

@@ -31,6 +31,8 @@ class Team < ApplicationRecord
     self.name = name.downcase if attribute_present?('name')
   end
 
+  after_create :create_default_funnel
+
   # Adds multiple members to the team
   # @param user_ids [Array<Integer>] Array of user IDs to add as members
   # @return [Array<User>] Array of newly added members
@@ -64,6 +66,14 @@ class Team < ApplicationRecord
       id: id,
       name: name
     }
+  end
+
+  private
+
+  def create_default_funnel
+    Kanban::CreateFunnelForTeamService.new(team: self).perform
+  rescue StandardError => e
+    Rails.logger.error "Erro ao criar funil padrão para time #{id}: #{e.message}"
   end
 end
 

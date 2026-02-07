@@ -131,6 +131,7 @@ class Account < ApplicationRecord
   has_many :webhooks, dependent: :destroy_async
   has_many :whatsapp_channels, dependent: :destroy_async, class_name: '::Channel::Whatsapp'
   has_many :working_hours, dependent: :destroy_async
+  has_many :funnels, dependent: :destroy_async
 
   has_one_attached :contacts_export
 
@@ -141,6 +142,7 @@ class Account < ApplicationRecord
 
   before_validation :validate_limit_keys
   after_create_commit :notify_creation
+  after_create :create_default_funnel
   after_destroy :remove_account_sequences
 
   def agents
@@ -193,6 +195,12 @@ class Account < ApplicationRecord
   end
 
   private
+
+  def create_default_funnel
+    Kanban::CreateDefaultFunnelService.new(account: self).perform
+  rescue StandardError => e
+    Rails.logger.error "Erro ao criar funil padrão para account #{id}: #{e.message}"
+  end
 
   def notify_creation
     Rails.configuration.dispatcher.dispatch(ACCOUNT_CREATED, Time.zone.now, account: self)
