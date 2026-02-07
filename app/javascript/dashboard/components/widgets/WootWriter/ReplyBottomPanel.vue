@@ -315,26 +315,8 @@ export default {
         sm
         @click="toggleEmojiPicker"
       />
-      <template v-if="showAudioPlayStopButton">
-        <NextButton
-          :icon="audioRecorderPlayStopIcon"
-          slate
-          faded
-          sm
-          :label="recordingAudioDurationText"
-          @click="toggleAudioRecorderPlayPause"
-        />
-        <NextButton
-          v-tooltip.top-end="$t('CONVERSATION.REPLYBOX.DISCARD_AUDIO_RECORDING')"
-          icon="i-ph-trash"
-          slate
-          faded
-          sm
-          @click="onDiscardAudioRecording"
-        />
-      </template>
       <DropdownContainer
-        v-else-if="hasMoreMenuItems"
+        v-if="hasMoreMenuItems"
         placement="top"
       >
         <template #trigger="{ toggle }">
@@ -424,6 +406,24 @@ export default {
         sm
         class="!size-8 !min-w-8 flex-shrink-0 rounded-full"
         @click="toggleAudioRecorder"
+      />
+      <NextButton
+        v-if="showAudioPlayStopButton"
+        v-tooltip.top-end="$t('CONVERSATION.REPLYBOX.DISCARD_AUDIO_RECORDING')"
+        icon="i-ph-trash"
+        slate
+        faded
+        sm
+        @click="onDiscardAudioRecording"
+      />
+      <NextButton
+        v-if="showAudioPlayStopButton"
+        :icon="audioRecorderPlayStopIcon"
+        slate
+        faded
+        sm
+        :label="recordingAudioDurationText"
+        @click="toggleAudioRecorderPlayPause"
       />
       <NextButton
         v-tooltip.top-end="sendButtonText"
