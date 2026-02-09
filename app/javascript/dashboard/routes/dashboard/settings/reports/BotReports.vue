@@ -87,14 +87,13 @@ export default {
 
 <template>
   <ReportHeader :header-title="$t('BOT_REPORTS.HEADER')" />
-  <div class="flex flex-col gap-4">
+  <div class="flex flex-col gap-6">
     <ReportFilterSelector
       :show-agents-filter="false"
       show-group-by-filter
       :show-business-hours-switch="false"
       @filter-change="onFilterChange"
     />
-
     <BotMetrics :filters="requestPayload" />
     <ReportContainer
       account-summary-key="getBotSummary"

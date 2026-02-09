@@ -30,6 +30,8 @@ export default {
         INCOMING_MESSAGES: 'incoming_messages_count',
         OUTGOING_MESSAGES: 'outgoing_messages_count',
         FIRST_RESPONSE_TIME: 'avg_first_response_time',
+        FIRST_RESPONSE_TIME_AFTER_ASSIGNMENT:
+          'avg_first_response_time_after_assignment',
         RESOLUTION_TIME: 'avg_resolution_time',
         RESOLUTION_COUNT: 'resolutions_count',
         REPLY_TIME: 'reply_time',
@@ -52,6 +54,9 @@ export default {
         FIRST_RESPONSE_TIME: this.$t(
           `REPORT.METRICS.FIRST_RESPONSE_TIME.INFO_TEXT`
         ),
+        FIRST_RESPONSE_TIME_AFTER_ASSIGNMENT: this.$t(
+          `REPORT.METRICS.FIRST_RESPONSE_TIME_AFTER_ASSIGNMENT.INFO_TEXT`
+        ),
         RESOLUTION_TIME: this.$t(`REPORT.METRICS.RESOLUTION_TIME.INFO_TEXT`),
       };
       return reportKeys.map(key => ({
@@ -65,6 +70,14 @@ export default {
     },
   },
   methods: {
+    getMetricMax(metric) {
+      const data = this.accountReport.data[metric.KEY] || [];
+      const values = data.map(element => element.value || 0);
+      const counts = data.map(element => element.count || 0);
+      const valueMax = values.length ? Math.max(...values) : 0;
+      const countMax = counts.length ? Math.max(...counts) : 0;
+      return { valueMax, countMax };
+    },
     getCollection(metric) {
       if (!this.accountReport.data[metric.KEY]) {
         return {};
@@ -102,8 +115,8 @@ export default {
           case 'line':
             return {
               ...dataset,
-              yAxisID: 'y',
-              label: this.metrics[0].NAME,
+              yAxisID: 'y1',
+              label: this.$t('REPORT.METRICS.CONVERSATIONS.NAME'),
               data: data.map(element => element.count),
             };
           default:
@@ -116,16 +129,40 @@ export default {
       };
     },
     getChartOptions(metric) {
+      const baseScales = METRIC_CHART[metric.KEY].scales;
       const options = {
-        scales: METRIC_CHART[metric.KEY].scales,
+        scales: {
+          ...baseScales,
+          y: {
+            ...baseScales.y,
+            ticks: { ...baseScales.y.ticks },
+          },
+          ...(baseScales.y1 && {
+            y1: {
+              ...baseScales.y1,
+              ticks: { ...baseScales.y1.ticks },
+            },
+          }),
+        },
       };
+
+      const { valueMax, countMax } = this.getMetricMax(metric);
+      if (options.scales?.y && valueMax > 0) {
+        options.scales.y.suggestedMax = Math.ceil(valueMax * 1.1);
+      }
+      if (options.scales?.y1 && countMax > 0) {
+        options.scales.y1.suggestedMax = Math.ceil(countMax * 1.1);
+      }
 
       // Only add tooltip configuration for time-based metrics
       if (this.isAverageMetricType(metric.KEY)) {
         options.plugins = {
           tooltip: {
             callbacks: {
-              label: ({ raw, dataIndex }) => {
+              label: ({ raw, dataIndex, dataset }) => {
+                if (dataset?.type === 'line') {
+                  return `${this.$t('REPORT.METRICS.CONVERSATIONS.NAME')}: ${raw}`;
+                }
                 return this.$t(metric.TOOLTIP_TEXT, {
                   metricValue: formatTime(raw || 0),
                   conversationCount:
@@ -145,27 +182,37 @@ export default {
 
 <template>
   <div
-    class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-2 px-6 py-5 shadow outline-1 outline outline-n-container rounded-xl bg-n-solid-2"
+    class="grid grid-cols-1 xl:grid-cols-2 gap-5"
   >
     <div
       v-for="metric in metrics"
       :key="metric.KEY"
-      class="p-4 mb-3 rounded-md"
+      class="flex flex-col gap-4 rounded-2xl border border-n-container/60 bg-n-solid-2/90 p-5 shadow-sm"
     >
-      <ChartStats
-        :metric="metric"
-        :account-summary-key="accountSummaryKey"
-        :summary-fetching-key="summaryFetchingKey"
-      />
-      <div class="mt-4 h-72">
+      <div class="flex items-start justify-between gap-4">
+        <div class="flex flex-col gap-2">
+          <ChartStats
+            :metric="metric"
+            :account-summary-key="accountSummaryKey"
+            :summary-fetching-key="summaryFetchingKey"
+          />
+          <span
+            v-if="metric.DESC"
+            class="text-xs text-n-slate-11 max-w-md"
+          >
+            {{ metric.DESC }}
+          </span>
+        </div>
+      </div>
+      <div class="h-72 rounded-xl bg-n-background/60 border border-n-container/40 p-2">
         <woot-loading-state
           v-if="accountReport.isFetching[metric.KEY]"
           class="text-xs"
           :message="$t('REPORT.LOADING_CHART')"
         />
-        <div v-else class="flex items-center justify-center h-72">
+        <div v-else class="flex items-center justify-center h-full">
           <BarChart
-            v-if="accountReport.data[metric.KEY].length"
+            v-if="accountReport.data[metric.KEY]?.length"
             :collection="getCollection(metric)"
             :chart-options="getChartOptions(metric)"
           />

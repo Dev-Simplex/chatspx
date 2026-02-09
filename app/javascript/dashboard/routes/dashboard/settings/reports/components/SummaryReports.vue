@@ -75,6 +75,15 @@ const columns = computed(() => [
     width: 200,
     cell: defaulSpanRender,
   }),
+  ...(props.type !== 'label'
+    ? [
+        columnHelper.accessor('avgFirstResponseTimeAfterAssignment', {
+          header: t('SUMMARY_REPORTS.AVG_FIRST_RESPONSE_TIME_AFTER_TRANSFER'),
+          width: 240,
+          cell: defaulSpanRender,
+        }),
+      ]
+    : []),
   columnHelper.accessor('avgResolutionTime', {
     header: t('SUMMARY_REPORTS.AVG_RESOLUTION_TIME'),
     width: 200,
@@ -102,6 +111,7 @@ const tableData = computed(() =>
     const {
       conversationsCount,
       avgFirstResponseTime,
+      avgFirstResponseTimeAfterAssignment,
       avgResolutionTime,
       avgReplyTime,
       resolvedConversationsCount,
@@ -113,6 +123,9 @@ const tableData = computed(() =>
       type: props.type,
       conversationsCount: renderCount(conversationsCount),
       avgFirstResponseTime: renderAvgTime(avgFirstResponseTime),
+      avgFirstResponseTimeAfterAssignment: renderAvgTime(
+        avgFirstResponseTimeAfterAssignment
+      ),
       avgReplyTime: renderAvgTime(avgReplyTime),
       avgResolutionTime: renderAvgTime(avgResolutionTime),
       resolutionsCount: renderCount(resolvedConversationsCount),
@@ -180,8 +193,8 @@ defineExpose({ downloadReports });
 <template>
   <ReportFilterSelector @filter-change="onFilterChange" />
   <div
-    class="flex-1 overflow-auto px-2 py-2 mt-5 shadow outline-1 outline outline-n-container rounded-xl bg-n-solid-2"
+    class="flex-1 overflow-auto px-4 py-4 mt-6 rounded-2xl border border-n-container/60 bg-n-solid-2/90 shadow-sm"
   >
-    <Table :table="table" />
+    <Table :table="table" type="reports" />
   </div>
 </template>

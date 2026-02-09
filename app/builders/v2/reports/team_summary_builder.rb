@@ -4,7 +4,7 @@ class V2::Reports::TeamSummaryBuilder < V2::Reports::BaseSummaryBuilder
   private
 
   attr_reader :conversations_count, :resolved_count,
-              :avg_resolution_time, :avg_first_response_time, :avg_reply_time
+              :avg_resolution_time, :avg_first_response_time, :avg_first_response_time_after_assignment, :avg_reply_time
 
   def fetch_conversations_count
     account.conversations.where(created_at: range).group(:team_id).count
@@ -27,6 +27,7 @@ class V2::Reports::TeamSummaryBuilder < V2::Reports::BaseSummaryBuilder
       resolved_conversations_count: resolved_count[team.id] || 0,
       avg_resolution_time: avg_resolution_time[team.id],
       avg_first_response_time: avg_first_response_time[team.id],
+      avg_first_response_time_after_assignment: avg_first_response_time_after_assignment[team.id],
       avg_reply_time: avg_reply_time[team.id]
     }
   end

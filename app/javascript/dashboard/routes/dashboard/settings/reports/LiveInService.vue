@@ -539,8 +539,11 @@ onBeforeUnmount(() => {
         </template>
       </ReportHeader>
     </div>
-    <div class="flex flex-col gap-4 pb-6">
-      <div v-show="showFilters">
+    <div class="flex flex-col gap-6 pb-6">
+      <div
+        v-show="showFilters"
+        class="rounded-2xl border border-n-container/60 bg-n-solid-2/80 p-4 shadow-sm relative z-30"
+      >
         <LiveFilters @filter-change="handleFilterChange" />
         <div
           v-if="hasInitiallyLoaded && filteredAgents.length > 0"

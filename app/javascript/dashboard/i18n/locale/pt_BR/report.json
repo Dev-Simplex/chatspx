@@ -1,6 +1,7 @@
 {
   "REPORT": {
     "HEADER": "Conversas",
+    "DESCRIPTION": "Acompanhe velocidade de resposta, volume e tendências de resolução por inbox e time.",
     "LOADING_CHART": "Carregando dados do gráfico...",
     "NO_ENOUGH_DATA": "Não existem dados suficientes para gerar o relatório. Tente novamente mais tarde.",
     "DOWNLOAD_AGENT_REPORTS": "Baixar relatórios de agentes",
@@ -24,6 +25,12 @@
         "DESC": "(Média)",
         "INFO_TEXT": "Número total de conversas utilizadas para computação:",
         "TOOLTIP_TEXT": "O Tempo de Primeira Resposta é de {metricValue} (com base em {conversationCount} conversas)"
+      },
+      "FIRST_RESPONSE_TIME_AFTER_ASSIGNMENT": {
+        "NAME": "Primeira Resposta Após Transferência",
+        "DESC": "(Média)",
+        "INFO_TEXT": "Número total de conversas utilizadas para computação:",
+        "TOOLTIP_TEXT": "A Primeira Resposta Após Transferência é de {metricValue} (com base em {conversationCount} conversas)"
       },
       "RESOLUTION_TIME": {
         "NAME": "Tempo de Resolução",
@@ -124,6 +131,18 @@
     "PAGINATION": {
       "RESULTS": "Exibindo {start} — {end} de {total} resultados",
       "PER_PAGE_TEMPLATE": "{size} / page"
+    },
+    "INSIGHTS": {
+      "EYEBROW": "Insights",
+      "TITLE": "Insights de Velocidade",
+      "BASE": "Base:",
+      "AVG_FIRST_RESPONSE_TIME": "Média primeira resposta",
+      "P50_FIRST_RESPONSE_TIME": "Primeira resposta p50",
+      "P90_FIRST_RESPONSE_TIME": "Primeira resposta p90",
+      "AVG_REPLY_TIME": "Média tempo de espera",
+      "AVG_FIRST_RESPONSE_TIME_AFTER_ASSIGNMENT": "Média pós-transferência",
+      "P50_FIRST_RESPONSE_TIME_AFTER_ASSIGNMENT": "Pós-transferência p50",
+      "P90_FIRST_RESPONSE_TIME_AFTER_ASSIGNMENT": "Pós-transferência p90"
     }
   },
   "AGENT_REPORTS": {
@@ -628,6 +647,7 @@
     "LABEL": "Nome do campo",
     "AVG_RESOLUTION_TIME": "Tempo Médio de Resolução",
     "AVG_FIRST_RESPONSE_TIME": "Tempo Médio de Primeira Resposta",
+    "AVG_FIRST_RESPONSE_TIME_AFTER_TRANSFER": "Tempo Médio Após Transferência",
     "AVG_REPLY_TIME": "Tempo Médio de Espera do Cliente",
     "RESOLUTION_COUNT": "Contagem de Resolução",
     "CONVERSATIONS": "Nº de Conversas"

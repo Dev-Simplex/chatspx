@@ -35,8 +35,13 @@ export function useReportMetrics(
   const isAverageMetricType = key => {
     return [
       'avg_first_response_time',
+      'avg_first_response_time_after_assignment',
       'avg_resolution_time',
       'reply_time',
+      'p50_first_response_time',
+      'p90_first_response_time',
+      'p50_first_response_time_after_assignment',
+      'p90_first_response_time_after_assignment',
     ].includes(key);
   };
 

@@ -175,54 +175,59 @@ export default {
 </script>
 
 <template>
-  <div class="flex flex-col justify-between gap-3 md:flex-row">
-    <div
-      class="w-full grid gap-y-2 gap-x-1.5 grid-cols-[repeat(auto-fill,minmax(250px,1fr))]"
-    >
-      <ReportsFiltersDateRange @on-range-change="onDateRangeChange" />
-      <WootDateRangePicker
-        v-if="isDateRangeSelected"
-        show-range
-        class="no-margin auto-width"
-        :value="customDateRange"
-        :confirm-text="$t('REPORT.CUSTOM_DATE_RANGE.CONFIRM')"
-        :placeholder="$t('REPORT.CUSTOM_DATE_RANGE.PLACEHOLDER')"
-        @change="onCustomDateRangeChange"
-      />
-      <ReportsFiltersDateGroupBy
-        v-if="showGroupByFilter && isGroupByPossible"
-        :valid-group-options="validGroupOptions"
-        :selected-option="selectedGroupByFilter"
-        @on-grouping-change="onGroupingChange"
-      />
-      <ReportsFiltersAgents
-        v-if="showAgentsFilter"
-        @agents-filter-selection="handleAgentsFilterSelection"
-      />
-      <ReportsFiltersLabels
-        v-if="showLabelsFilter"
-        @labels-filter-selection="handleLabelsFilterSelection"
-      />
-      <ReportsFiltersTeams
-        v-if="showTeamFilter"
-        @team-filter-selection="handleTeamFilterSelection"
-      />
-      <ReportsFiltersInboxes
-        v-if="showInboxFilter"
-        @inbox-filter-selection="handleInboxFilterSelection"
-      />
-      <ReportsFiltersRatings
-        v-if="showRatingFilter"
-        @rating-filter-selection="handleRatingFilterSelection"
-      />
-    </div>
-    <div v-if="showBusinessHoursSwitch" class="flex items-center">
-      <span class="mx-2 text-sm whitespace-nowrap">
-        {{ $t('REPORT.BUSINESS_HOURS') }}
-      </span>
-      <span>
+  <div
+    class="rounded-2xl border border-n-container/60 bg-n-solid-2/80 backdrop-blur px-4 py-4 shadow-sm relative z-30"
+  >
+    <div class="flex flex-col gap-4 lg:flex-row lg:items-start">
+      <div
+        class="w-full grid gap-3 grid-cols-[repeat(auto-fit,minmax(220px,1fr))]"
+      >
+        <ReportsFiltersDateRange @on-range-change="onDateRangeChange" />
+        <WootDateRangePicker
+          v-if="isDateRangeSelected"
+          show-range
+          class="no-margin auto-width"
+          :value="customDateRange"
+          :confirm-text="$t('REPORT.CUSTOM_DATE_RANGE.CONFIRM')"
+          :placeholder="$t('REPORT.CUSTOM_DATE_RANGE.PLACEHOLDER')"
+          @change="onCustomDateRangeChange"
+        />
+        <ReportsFiltersDateGroupBy
+          v-if="showGroupByFilter && isGroupByPossible"
+          :valid-group-options="validGroupOptions"
+          :selected-option="selectedGroupByFilter"
+          @on-grouping-change="onGroupingChange"
+        />
+        <ReportsFiltersAgents
+          v-if="showAgentsFilter"
+          @agents-filter-selection="handleAgentsFilterSelection"
+        />
+        <ReportsFiltersLabels
+          v-if="showLabelsFilter"
+          @labels-filter-selection="handleLabelsFilterSelection"
+        />
+        <ReportsFiltersTeams
+          v-if="showTeamFilter"
+          @team-filter-selection="handleTeamFilterSelection"
+        />
+        <ReportsFiltersInboxes
+          v-if="showInboxFilter"
+          @inbox-filter-selection="handleInboxFilterSelection"
+        />
+        <ReportsFiltersRatings
+          v-if="showRatingFilter"
+          @rating-filter-selection="handleRatingFilterSelection"
+        />
+      </div>
+      <div
+        v-if="showBusinessHoursSwitch"
+        class="flex items-center gap-3 rounded-xl border border-n-container/40 bg-n-background/70 px-4 py-3"
+      >
+        <span class="text-sm text-n-slate-12 whitespace-nowrap">
+          {{ $t('REPORT.BUSINESS_HOURS') }}
+        </span>
         <ToggleSwitch v-model="businessHoursSelected" @change="emitChange" />
-      </span>
+      </div>
     </div>
   </div>
 </template>

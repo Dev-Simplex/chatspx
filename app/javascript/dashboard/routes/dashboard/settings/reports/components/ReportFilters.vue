@@ -167,7 +167,10 @@ export default {
 </script>
 
 <template>
-  <div class="grid grid-cols-1 md:grid-cols-3 gap-y-0.5 gap-x-2">
+  <div
+    class="rounded-2xl border border-n-container/60 bg-n-solid-2/80 backdrop-blur px-4 py-4 shadow-sm relative z-30"
+  >
+    <div class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-4">
     <div v-if="type === 'agent'" class="multiselect-wrap--small">
       <p class="mb-2 text-xs font-medium">
         {{ $t('AGENT_REPORTS.FILTER_DROPDOWN_LABEL') }}
@@ -303,7 +306,7 @@ export default {
     </div>
 
     <div
-      class="flex items-center h-10 self-center order-5 md:order-2 md:justify-self-end"
+      class="flex items-center h-10 self-center order-5 md:order-2 md:justify-self-end rounded-xl border border-n-container/40 bg-n-background/70 px-3"
     >
       <span class="mr-2 text-sm whitespace-nowrap">
         {{ $t('REPORT.BUSINESS_HOURS') }}
@@ -344,6 +347,7 @@ export default {
         :show-labels="false"
         @update:model-value="changeGroupByFilterSelection"
       />
+    </div>
     </div>
   </div>
 </template>

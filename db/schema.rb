@@ -688,6 +688,7 @@ ActiveRecord::Schema[7.1].define(version: 2026_01_14_201315) do
     t.datetime "snoozed_until", precision: nil
     t.jsonb "custom_attributes", default: {}
     t.datetime "assignee_last_seen_at", precision: nil
+    t.datetime "assignee_last_changed_at", precision: nil
     t.datetime "first_reply_created_at", precision: nil
     t.integer "priority"
     t.bigint "sla_policy_id"
@@ -699,6 +700,7 @@ ActiveRecord::Schema[7.1].define(version: 2026_01_14_201315) do
     t.index ["account_id", "inbox_id", "status", "assignee_id"], name: "conv_acid_inbid_stat_asgnid_idx"
     t.index ["account_id"], name: "index_conversations_on_account_id"
     t.index ["assignee_id", "account_id"], name: "index_conversations_on_assignee_id_and_account_id"
+    t.index ["assignee_last_changed_at"], name: "index_conversations_on_assignee_last_changed_at"
     t.index ["campaign_id"], name: "index_conversations_on_campaign_id"
     t.index ["contact_id"], name: "index_conversations_on_contact_id"
     t.index ["contact_inbox_id"], name: "index_conversations_on_contact_inbox_id"

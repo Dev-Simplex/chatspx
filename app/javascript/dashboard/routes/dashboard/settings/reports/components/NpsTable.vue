@@ -255,10 +255,14 @@ const table = useVueTable({
 
 <template>
   <div
-    class="shadow outline-1 outline outline-n-container rounded-xl bg-n-solid-2 px-6 py-5"
+    class="rounded-2xl border border-n-container/60 bg-n-solid-2/90 px-6 py-5 shadow-sm"
   >
     <div v-if="tableData.length > 0">
-      <Table :table="table" class="max-h-[calc(100vh-21.875rem)]" />
+      <Table
+        :table="table"
+        type="reports"
+        class="max-h-[calc(100vh-21.875rem)]"
+      />
     </div>
     <div
       v-else

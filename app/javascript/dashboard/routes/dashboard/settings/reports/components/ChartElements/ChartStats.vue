@@ -38,10 +38,10 @@ const trendColor = (value, key) => {
 
 <template>
   <div class="text-n-slate-11">
-    <span class="text-sm">
+    <span class="text-xs uppercase tracking-wide text-n-slate-10">
       {{ metric.NAME }}
     </span>
-    <div class="flex items-end text-n-slate-12">
+    <div class="flex items-end gap-3 text-n-slate-12 mt-1">
       <div v-if="fetchingStatus === STATUS.FETCHING">
         <Spinner />
       </div>
@@ -53,25 +53,26 @@ const trendColor = (value, key) => {
       </div>
       <div
         v-else-if="fetchingStatus === STATUS.FINISHED"
-        class="text-xl font-medium"
+        class="text-2xl font-semibold tracking-tight"
       >
         {{ displayMetric(metric.KEY) }}
       </div>
       <div
         v-if="metric.trend && fetchingStatus === STATUS.FINISHED"
-        class="text-xs ml-4 flex items-center mb-0.5"
+        class="text-xs flex items-center gap-1 px-2 py-1 rounded-full border"
+        :class="trendColor(metric.trend, metric.KEY)"
       >
         <div
           v-if="metric.trend < 0"
-          class="h-0 w-0 border-x-4 medium border-x-transparent border-t-[8px] mr-1"
+          class="h-0 w-0 border-x-4 medium border-x-transparent border-t-[8px]"
           :class="trendColor(metric.trend, metric.KEY)"
         />
         <div
           v-else
-          class="h-0 w-0 border-x-4 medium border-x-transparent border-b-[8px] mr-1"
+          class="h-0 w-0 border-x-4 medium border-x-transparent border-b-[8px]"
           :class="trendColor(metric.trend, metric.KEY)"
         />
-        <span class="font-medium" :class="trendColor(metric.trend, metric.KEY)">
+        <span class="font-medium">
           {{ calculateTrend(metric.KEY) }}%
         </span>
       </div>

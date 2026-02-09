@@ -23,6 +23,7 @@ class V2::Reports::BaseSummaryBuilder
                 "COUNT(CASE WHEN name = 'conversation_resolved' THEN 1 END) as resolved_count",
                 "AVG(CASE WHEN name = 'conversation_resolved' THEN #{average_value_key} END) as avg_resolution_time",
                 "AVG(CASE WHEN name = 'first_response' THEN #{average_value_key} END) as avg_first_response_time",
+                "AVG(CASE WHEN name = 'first_response_after_assignment' THEN #{average_value_key} END) as avg_first_response_time_after_assignment",
                 "AVG(CASE WHEN name = 'reply_time' THEN #{average_value_key} END) as avg_reply_time"
               )
               .group(group_by_key)
@@ -31,6 +32,7 @@ class V2::Reports::BaseSummaryBuilder
     @resolved_count = results.transform_values(&:resolved_count)
     @avg_resolution_time = results.transform_values(&:avg_resolution_time)
     @avg_first_response_time = results.transform_values(&:avg_first_response_time)
+    @avg_first_response_time_after_assignment = results.transform_values(&:avg_first_response_time_after_assignment)
     @avg_reply_time = results.transform_values(&:avg_reply_time)
   end
 

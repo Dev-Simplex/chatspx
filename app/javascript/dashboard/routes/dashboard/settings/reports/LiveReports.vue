@@ -9,7 +9,7 @@ import StatsLiveReportsContainer from './components/StatsLiveReportsContainer.vu
 
 <template>
   <ReportHeader :header-title="$t('OVERVIEW_REPORTS.HEADER')" />
-  <div class="flex flex-col gap-4 pb-6">
+  <div class="flex flex-col gap-6 pb-6">
     <StatsLiveReportsContainer />
     <ConversationHeatmapContainer />
     <ResolutionHeatmapContainer />

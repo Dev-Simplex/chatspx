@@ -7,6 +7,7 @@ import { GROUP_BY_FILTER } from '../constants';
 import { generateFileName } from '../../../../../helper/downloadHelper';
 import { REPORTS_EVENTS } from '../../../../../helper/AnalyticsHelper/events';
 import ReportHeader from './ReportHeader.vue';
+import SpeedInsightsPanel from './SpeedInsightsPanel.vue';
 
 const GROUP_BY_OPTIONS = {
   DAY: [{ id: 1, groupByKey: 'REPORT.GROUPING_OPTIONS.DAY' }],
@@ -32,6 +33,7 @@ export default {
     V4Button,
     ReportFilters,
     ReportContainer,
+    SpeedInsightsPanel,
   },
   props: {
     type: {
@@ -81,6 +83,18 @@ export default {
     isAgentType() {
       return this.type === 'agent';
     },
+    showTransferMetric() {
+      return this.type !== 'label';
+    },
+    headerDescription() {
+      const descriptions = {
+        agent: this.$t('AGENT_REPORTS.DESCRIPTION'),
+        label: this.$t('LABEL_REPORTS.DESCRIPTION'),
+        inbox: this.$t('INBOX_REPORTS.DESCRIPTION'),
+        team: this.$t('TEAM_REPORTS.DESCRIPTION'),
+      };
+      return descriptions[this.type] || '';
+    },
     reportKeys() {
       return {
         CONVERSATIONS: 'conversations_count',
@@ -89,6 +103,10 @@ export default {
         }),
         OUTGOING_MESSAGES: 'outgoing_messages_count',
         FIRST_RESPONSE_TIME: 'avg_first_response_time',
+        ...(this.showTransferMetric && {
+          FIRST_RESPONSE_TIME_AFTER_ASSIGNMENT:
+            'avg_first_response_time_after_assignment',
+        }),
         RESOLUTION_TIME: 'avg_resolution_time',
         RESOLUTION_COUNT: 'resolutions_count',
         REPLY_TIME: 'reply_time',
@@ -214,7 +232,11 @@ export default {
 </script>
 
 <template>
-  <ReportHeader :header-title="reportTitle" :has-back-button="hasBackButton">
+  <ReportHeader
+    :header-title="reportTitle"
+    :header-description="headerDescription"
+    :has-back-button="hasBackButton"
+  >
     <V4Button
       :label="downloadButtonLabel"
       icon="i-ph-download-simple"
@@ -222,21 +244,27 @@ export default {
       @click="downloadReports"
     />
   </ReportHeader>
-  <ReportFilters
-    v-if="filterItemsList"
-    :type="type"
-    :filter-items-list="filterItemsList"
-    :group-by-filter-items-list="groupByfilterItemsList"
-    :selected-group-by-filter="selectedGroupByFilter"
-    :current-filter="selectedFilter"
-    @date-range-change="onDateRangeChange"
-    @filter-change="onFilterChange"
-    @group-by-filter-change="onGroupByFilterChange"
-    @business-hours-toggle="onBusinessHoursToggle"
-  />
-  <ReportContainer
-    v-if="filterItemsList.length"
-    :group-by="groupBy"
-    :report-keys="reportKeys"
-  />
+  <div class="flex flex-col gap-6">
+    <ReportFilters
+      v-if="filterItemsList"
+      :type="type"
+      :filter-items-list="filterItemsList"
+      :group-by-filter-items-list="groupByfilterItemsList"
+      :selected-group-by-filter="selectedGroupByFilter"
+      :current-filter="selectedFilter"
+      @date-range-change="onDateRangeChange"
+      @filter-change="onFilterChange"
+      @group-by-filter-change="onGroupByFilterChange"
+      @business-hours-toggle="onBusinessHoursToggle"
+    />
+    <SpeedInsightsPanel
+      v-if="type !== 'label'"
+      :show-transfer-metrics="showTransferMetric"
+    />
+    <ReportContainer
+      v-if="filterItemsList.length"
+      :group-by="groupBy"
+      :report-keys="reportKeys"
+    />
+  </div>
 </template>

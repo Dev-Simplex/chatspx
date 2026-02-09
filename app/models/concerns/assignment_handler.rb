@@ -4,6 +4,7 @@ module AssignmentHandler
 
   included do
     before_save :ensure_assignee_is_from_team
+    before_save :set_assignee_last_changed_at
     after_commit :notify_assignment_change, :process_assignment_changes, :mark_conversation_unread_on_assignment_change
   end
 
@@ -14,6 +15,16 @@ module AssignmentHandler
 
     validate_current_assignee_team
     self.assignee ||= find_assignee_from_team
+  end
+
+  def set_assignee_last_changed_at
+    return unless will_save_change_to_assignee_id? || will_save_change_to_assignee_agent_bot_id?
+
+    if assignee_id.present? && assignee_agent_bot_id.blank?
+      self.assignee_last_changed_at = Time.current
+    else
+      self.assignee_last_changed_at = nil
+    end
   end
 
   def validate_current_assignee_team

@@ -9,7 +9,7 @@ class V2::Reports::InboxSummaryBuilder < V2::Reports::BaseSummaryBuilder
   private
 
   attr_reader :conversations_count, :resolved_count,
-              :avg_resolution_time, :avg_first_response_time, :avg_reply_time
+              :avg_resolution_time, :avg_first_response_time, :avg_first_response_time_after_assignment, :avg_reply_time
 
   def load_data
     @conversations_count = fetch_conversations_count
@@ -33,6 +33,7 @@ class V2::Reports::InboxSummaryBuilder < V2::Reports::BaseSummaryBuilder
       resolved_conversations_count: resolved_count[inbox.id] || 0,
       avg_resolution_time: avg_resolution_time[inbox.id],
       avg_first_response_time: avg_first_response_time[inbox.id],
+      avg_first_response_time_after_assignment: avg_first_response_time_after_assignment[inbox.id],
       avg_reply_time: avg_reply_time[inbox.id]
     }
   end

@@ -1,5 +1,7 @@
 class CreateNpsResponses < ActiveRecord::Migration[7.0]
   def change
+    return if table_exists?(:nps_responses)
+
     create_table :nps_responses do |t|
       t.bigint :account_id, null: false
       t.bigint :conversation_id, null: false

@@ -21,6 +21,7 @@ class V2::Reports::Timeseries::AverageReportBuilder < V2::Reports::Timeseries::B
   def event_name
     metric_to_event_name = {
       avg_first_response_time: :first_response,
+      avg_first_response_time_after_assignment: :first_response_after_assignment,
       avg_resolution_time: :conversation_resolved,
       reply_time: :reply_time
     }

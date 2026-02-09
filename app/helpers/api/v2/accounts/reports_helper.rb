@@ -73,6 +73,7 @@ module Api::V2::Accounts::ReportsHelper
     [
       report[:conversations_count],
       Reports::TimeFormatPresenter.new(report[:avg_first_response_time]).format,
+      Reports::TimeFormatPresenter.new(report[:avg_first_response_time_after_assignment]).format,
       Reports::TimeFormatPresenter.new(report[:avg_resolution_time]).format,
       Reports::TimeFormatPresenter.new(report[:avg_reply_time]).format,
       report[:resolved_conversations_count]

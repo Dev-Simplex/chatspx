@@ -102,27 +102,42 @@ export const DATE_RANGE_OPTIONS = {
 export const CHART_FONT_FAMILY =
   'Inter,-apple-system,system-ui,BlinkMacSystemFont,"Segoe UI",Roboto,"Helvetica Neue",Arial,sans-serif';
 
+const CHART_TICK_COLOR = '#475569';
+const CHART_TICK_MUTED = '#64748b';
+const CHART_GRID_COLOR = 'rgba(148, 163, 184, 0.25)';
+const CHART_BORDER_COLOR = 'rgba(148, 163, 184, 0.5)';
+
 export const DEFAULT_LINE_CHART = {
   type: 'line',
   fill: false,
-  borderColor: '#779BBB',
-  pointBackgroundColor: '#779BBB',
+  borderColor: '#64748b',
+  pointBackgroundColor: '#64748b',
+  borderWidth: 2,
+  tension: 0.3,
 };
 
 export const DEFAULT_BAR_CHART = {
   type: 'bar',
-  backgroundColor: 'rgb(31, 147, 255)',
+  backgroundColor: 'rgba(45, 196, 111, 0.85)',
+  borderRadius: 6,
+  borderSkipped: false,
 };
 
-const createChartConfig = yAxisTickCallback => ({
-  datasets: [DEFAULT_BAR_CHART],
+const createChartConfig = (yAxisTickCallback, withCountAxis = false) => ({
+  datasets: withCountAxis
+    ? [DEFAULT_BAR_CHART, DEFAULT_LINE_CHART]
+    : [DEFAULT_BAR_CHART],
   scales: {
     x: {
       ticks: {
         fontFamily: CHART_FONT_FAMILY,
+        maxRotation: 0,
+        autoSkip: true,
+        maxTicksLimit: 8,
       },
       grid: {
         drawOnChartArea: false,
+        color: CHART_GRID_COLOR,
       },
     },
     y: {
@@ -131,13 +146,41 @@ const createChartConfig = yAxisTickCallback => ({
       ticks: {
         fontFamily: CHART_FONT_FAMILY,
         beginAtZero: true,
-        stepSize: 1,
         callback: yAxisTickCallback,
+        maxTicksLimit: 6,
+        precision: 0,
+        color: CHART_TICK_COLOR,
       },
       grid: {
         drawOnChartArea: false,
+        color: CHART_GRID_COLOR,
       },
+      border: {
+        color: CHART_BORDER_COLOR,
+      },
+      grace: '10%',
     },
+    ...(withCountAxis && {
+      y1: {
+        type: 'linear',
+        position: 'right',
+        ticks: {
+          fontFamily: CHART_FONT_FAMILY,
+          beginAtZero: true,
+          maxTicksLimit: 5,
+          precision: 0,
+          color: CHART_TICK_MUTED,
+        },
+        grid: {
+          drawOnChartArea: false,
+          color: CHART_GRID_COLOR,
+        },
+        border: {
+          color: CHART_BORDER_COLOR,
+        },
+        grace: '10%',
+      },
+    }),
   },
 });
 
@@ -153,13 +196,14 @@ export const TIME_CHART_CONFIG = createChartConfig((value, index, values) => {
     return formatTime(value);
   }
   return '';
-});
+}, true);
 
 export const METRIC_CHART = {
   conversations_count: DEFAULT_CHART,
   incoming_messages_count: DEFAULT_CHART,
   outgoing_messages_count: DEFAULT_CHART,
   avg_first_response_time: TIME_CHART_CONFIG,
+  avg_first_response_time_after_assignment: TIME_CHART_CONFIG,
   reply_time: TIME_CHART_CONFIG,
   avg_resolution_time: TIME_CHART_CONFIG,
   resolutions_count: DEFAULT_CHART,

@@ -149,6 +149,7 @@ en:
       agent_name: Agent name
       conversations_count: Assigned conversations
       avg_first_response_time: Avg first response time
+      avg_first_response_time_after_assignment: Avg first response after transfer
       avg_resolution_time: Avg resolution time
       resolution_count: Resolution Count
       avg_customer_waiting_time: Avg customer waiting time
@@ -157,11 +158,13 @@ en:
       inbox_type: Inbox type
       conversations_count: No. of conversations
       avg_first_response_time: Avg first response time
+      avg_first_response_time_after_assignment: Avg first response after transfer
       avg_resolution_time: Avg resolution time
     label_csv:
       label_title: Label
       conversations_count: No. of conversations
       avg_first_response_time: Avg first response time
+      avg_first_response_time_after_assignment: Avg first response after transfer
       avg_resolution_time: Avg resolution time
       avg_reply_time: Avg reply time
       resolution_count: Resolution Count
@@ -169,6 +172,7 @@ en:
       team_name: Team name
       conversations_count: Conversations count
       avg_first_response_time: Avg first response time
+      avg_first_response_time_after_assignment: Avg first response after transfer
       avg_resolution_time: Avg resolution time
       resolution_count: Resolution Count
       avg_customer_waiting_time: Avg customer waiting time

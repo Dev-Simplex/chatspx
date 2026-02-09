@@ -133,6 +133,7 @@ pt_BR:
       agent_name: Nome do Agente
       conversations_count: Conversas atribuídas
       avg_first_response_time: Tempo médio de primeira resposta
+      avg_first_response_time_after_assignment: Tempo médio pós-transferência
       avg_resolution_time: Tempo médio de resolução
       resolution_count: Contagem de Resolução
       avg_customer_waiting_time: Tempo médio de espera do cliente
@@ -141,11 +142,13 @@ pt_BR:
       inbox_type: Tipo da Caixa de Entrada
       conversations_count: Nº de Conversas
       avg_first_response_time: Tempo médio de primeira resposta
+      avg_first_response_time_after_assignment: Tempo médio pós-transferência
       avg_resolution_time: Tempo médio de resolução
     label_csv:
       label_title: Etiqueta
       conversations_count: Nº de Conversas
       avg_first_response_time: Tempo médio de primeira resposta
+      avg_first_response_time_after_assignment: Tempo médio pós-transferência
       avg_resolution_time: Tempo médio de resolução
       avg_reply_time: Tempo médio de resposta
       resolution_count: Contagem de Resolução
@@ -153,6 +156,7 @@ pt_BR:
       team_name: Nome do Time
       conversations_count: Contagem de conversas
       avg_first_response_time: Tempo médio de primeira resposta
+      avg_first_response_time_after_assignment: Tempo médio pós-transferência
       avg_resolution_time: Tempo médio de resolução
       resolution_count: Contagem de Resolução
       avg_customer_waiting_time: Tempo médio de espera do cliente

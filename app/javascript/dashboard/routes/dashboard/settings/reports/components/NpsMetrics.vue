@@ -138,7 +138,7 @@ export default {
 
 <template>
   <div
-    class="flex-col lg:flex-row flex flex-wrap mx-0 shadow outline-1 outline outline-n-container rounded-xl bg-n-solid-2 px-6 py-8 gap-4"
+    class="flex-col lg:flex-row flex flex-wrap mx-0 rounded-2xl border border-n-container/60 bg-n-solid-2/90 px-6 py-6 gap-4 shadow-sm"
   >
     <ReportMetricCard
       :label="$t('NPS_REPORTS.METRIC.TOTAL_RESPONSES.LABEL', { default: 'Total de Respostas' })"

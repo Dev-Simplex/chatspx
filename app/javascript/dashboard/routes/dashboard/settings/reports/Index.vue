@@ -7,12 +7,15 @@ import { REPORTS_EVENTS } from '../../../../helper/AnalyticsHelper/events';
 import { generateFileName } from 'dashboard/helper/downloadHelper';
 import ReportContainer from './ReportContainer.vue';
 import ReportHeader from './components/ReportHeader.vue';
+import SpeedInsightsPanel from './components/SpeedInsightsPanel.vue';
 
 const REPORTS_KEYS = {
   CONVERSATIONS: 'conversations_count',
   INCOMING_MESSAGES: 'incoming_messages_count',
   OUTGOING_MESSAGES: 'outgoing_messages_count',
   FIRST_RESPONSE_TIME: 'avg_first_response_time',
+  FIRST_RESPONSE_TIME_AFTER_ASSIGNMENT:
+    'avg_first_response_time_after_assignment',
   RESOLUTION_TIME: 'avg_resolution_time',
   RESOLUTION_COUNT: 'resolutions_count',
   REPLY_TIME: 'reply_time',
@@ -25,6 +28,7 @@ export default {
     ReportFilterSelector,
     ReportContainer,
     V4Button,
+    SpeedInsightsPanel,
   },
   data() {
     return {
@@ -52,6 +56,7 @@ export default {
         'INCOMING_MESSAGES',
         'OUTGOING_MESSAGES',
         'FIRST_RESPONSE_TIME',
+        'FIRST_RESPONSE_TIME_AFTER_ASSIGNMENT',
         'RESOLUTION_TIME',
         'RESOLUTION_COUNT',
         'REPLY_TIME',
@@ -107,7 +112,10 @@ export default {
 </script>
 
 <template>
-  <ReportHeader :header-title="$t('REPORT.HEADER')">
+  <ReportHeader
+    :header-title="$t('REPORT.HEADER')"
+    :header-description="$t('REPORT.DESCRIPTION')"
+  >
     <V4Button
       :label="$t('REPORT.DOWNLOAD_CONVERSATION_REPORTS')"
       icon="i-ph-download-simple"
@@ -115,12 +123,13 @@ export default {
       @click="downloadConversationReports"
     />
   </ReportHeader>
-  <div class="flex flex-col gap-3">
+  <div class="flex flex-col gap-6">
     <ReportFilterSelector
       :show-agents-filter="false"
       show-group-by-filter
       @filter-change="onFilterChange"
     />
+    <SpeedInsightsPanel />
     <ReportContainer :group-by="groupBy" />
   </div>
 </template>

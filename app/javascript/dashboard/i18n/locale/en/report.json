@@ -1,6 +1,7 @@
 {
   "REPORT": {
     "HEADER": "Conversations",
+    "DESCRIPTION": "Track response speed, volume, and resolution trends across your inboxes and teams.",
     "LOADING_CHART": "Loading chart data...",
     "NO_ENOUGH_DATA": "We've not received enough data points to generate report, Please try again later.",
     "DOWNLOAD_CONVERSATION_REPORTS": "Download conversation reports",
@@ -24,6 +25,12 @@
         "DESC": "( Avg )",
         "INFO_TEXT": "Total number of conversations used for computation:",
         "TOOLTIP_TEXT": "First Response Time is {metricValue} (based on {conversationCount} conversations)"
+      },
+      "FIRST_RESPONSE_TIME_AFTER_ASSIGNMENT": {
+        "NAME": "First Response After Transfer",
+        "DESC": "( Avg )",
+        "INFO_TEXT": "Total number of conversations used for computation:",
+        "TOOLTIP_TEXT": "First Response After Transfer is {metricValue} (based on {conversationCount} conversations)"
       },
       "RESOLUTION_TIME": {
         "NAME": "Resolution Time",
@@ -124,6 +131,18 @@
     "PAGINATION": {
       "RESULTS": "Showing {start} to {end} of {total} results",
       "PER_PAGE_TEMPLATE": "{size} / page"
+    },
+    "INSIGHTS": {
+      "EYEBROW": "Insights",
+      "TITLE": "Speed Insights",
+      "BASE": "Base:",
+      "AVG_FIRST_RESPONSE_TIME": "Avg. first response",
+      "P50_FIRST_RESPONSE_TIME": "First response p50",
+      "P90_FIRST_RESPONSE_TIME": "First response p90",
+      "AVG_REPLY_TIME": "Avg. customer waiting time",
+      "AVG_FIRST_RESPONSE_TIME_AFTER_ASSIGNMENT": "Avg. after transfer",
+      "P50_FIRST_RESPONSE_TIME_AFTER_ASSIGNMENT": "After transfer p50",
+      "P90_FIRST_RESPONSE_TIME_AFTER_ASSIGNMENT": "After transfer p90"
     }
   },
   "AGENT_REPORTS": {
@@ -620,6 +639,7 @@
     "LABEL": "Label",
     "AVG_RESOLUTION_TIME": "Avg. Resolution Time",
     "AVG_FIRST_RESPONSE_TIME": "Avg. First Response Time",
+    "AVG_FIRST_RESPONSE_TIME_AFTER_TRANSFER": "Avg. First Response After Transfer",
     "AVG_REPLY_TIME": "Avg. Customer Waiting Time",
     "RESOLUTION_COUNT": "Resolution Count",
     "CONVERSATIONS": "No. of conversations"

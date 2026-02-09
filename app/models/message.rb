@@ -374,6 +374,8 @@ class Message < ApplicationRecord
     else
       update_waiting_since
     end
+
+    trigger_assignee_first_reply
   end
 
   def dispatch_update_event
@@ -382,6 +384,21 @@ class Message < ApplicationRecord
     return if previous_changes.blank?
 
     send_update_event
+  end
+
+  def trigger_assignee_first_reply
+    return unless human_response? && !private?
+    return unless conversation.assignee_last_changed_at.present?
+    return unless conversation.assignee_id == sender_id
+
+    Rails.configuration.dispatcher.dispatch(
+      FIRST_REPLY_AFTER_ASSIGNMENT_CREATED,
+      Time.zone.now,
+      message: self,
+      assignment_start_time: conversation.assignee_last_changed_at,
+      performed_by: Current.executed_by
+    )
+    conversation.update(assignee_last_changed_at: nil)
   end
 
   def send_reply

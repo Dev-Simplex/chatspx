@@ -120,7 +120,7 @@ export default {
     />
   </ReportHeader>
 
-  <div class="flex flex-col gap-4">
+  <div class="flex flex-col gap-6">
     <ReportFilterSelector
       show-agents-filter
       show-inbox-filter

@@ -43,6 +43,29 @@ class ReportingEventListener < BaseListener
     reporting_event.save!
   end
 
+  def first_reply_after_assignment_created(event)
+    message = extract_message_and_account(event)[0]
+    assignment_start_time = event.data[:assignment_start_time]
+    return if assignment_start_time.blank?
+
+    conversation = message.conversation
+    first_response_time = message.created_at.to_i - assignment_start_time.to_i
+
+    reporting_event = ReportingEvent.new(
+      name: 'first_response_after_assignment',
+      value: first_response_time,
+      value_in_business_hours: business_hours(conversation.inbox, assignment_start_time, message.created_at),
+      account_id: conversation.account_id,
+      inbox_id: conversation.inbox_id,
+      user_id: message.sender_id,
+      conversation_id: conversation.id,
+      event_start_time: assignment_start_time,
+      event_end_time: message.created_at
+    )
+
+    reporting_event.save!
+  end
+
   def reply_created(event)
     message = extract_message_and_account(event)[0]
     conversation = message.conversation

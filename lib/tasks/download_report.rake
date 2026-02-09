@@ -86,7 +86,7 @@ module DownloadReportTasks
     report = builder.build
 
     users = account.users.index_by(&:id)
-    headers = %w[id name email conversations_count resolved_conversations_count avg_resolution_time avg_first_response_time avg_reply_time]
+    headers = %w[id name email conversations_count resolved_conversations_count avg_resolution_time avg_first_response_time avg_first_response_time_after_assignment avg_reply_time]
 
     rows = report.map do |row|
       user = users[row[:id]]
@@ -98,6 +98,7 @@ module DownloadReportTasks
         row[:resolved_conversations_count],
         format_time(row[:avg_resolution_time]),
         format_time(row[:avg_first_response_time]),
+        format_time(row[:avg_first_response_time_after_assignment]),
         format_time(row[:avg_reply_time])
       ]
     end
@@ -115,7 +116,7 @@ module DownloadReportTasks
     report = builder.build
 
     inboxes = account.inboxes.index_by(&:id)
-    headers = %w[id name conversations_count resolved_conversations_count avg_resolution_time avg_first_response_time avg_reply_time]
+    headers = %w[id name conversations_count resolved_conversations_count avg_resolution_time avg_first_response_time avg_first_response_time_after_assignment avg_reply_time]
 
     rows = report.map do |row|
       inbox = inboxes[row[:id]]
@@ -126,6 +127,7 @@ module DownloadReportTasks
         row[:resolved_conversations_count],
         format_time(row[:avg_resolution_time]),
         format_time(row[:avg_first_response_time]),
+        format_time(row[:avg_first_response_time_after_assignment]),
         format_time(row[:avg_reply_time])
       ]
     end
@@ -142,7 +144,7 @@ module DownloadReportTasks
     builder = V2::Reports::LabelSummaryBuilder.new(account: account, params: data[:params])
     report = builder.build
 
-    headers = %w[id name conversations_count resolved_conversations_count avg_resolution_time avg_first_response_time avg_reply_time]
+    headers = %w[id name conversations_count resolved_conversations_count avg_resolution_time avg_first_response_time avg_first_response_time_after_assignment avg_reply_time]
 
     rows = report.map do |row|
       [
@@ -152,6 +154,7 @@ module DownloadReportTasks
         row[:resolved_conversations_count],
         format_time(row[:avg_resolution_time]),
         format_time(row[:avg_first_response_time]),
+        format_time(row[:avg_first_response_time_after_assignment]),
         format_time(row[:avg_reply_time])
       ]
     end
