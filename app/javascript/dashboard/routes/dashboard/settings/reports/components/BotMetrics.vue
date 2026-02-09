@@ -1,6 +1,7 @@
 <script setup>
 import { ref, watch, onMounted } from 'vue';
 import ReportMetricCard from './ReportMetricCard.vue';
+import ReportsSurface from './ReportsSurface.vue';
 import ReportsAPI from 'dashboard/api/reports';
 
 const props = defineProps({
@@ -37,8 +38,10 @@ onMounted(fetchMetrics);
 </script>
 
 <template>
-  <div
-    class="flex flex-wrap mx-0 rounded-2xl border border-n-container/60 bg-n-solid-2/90 px-6 py-5 shadow-sm"
+  <ReportsSurface
+    variant="base"
+    padding="lg"
+    class="flex flex-wrap mx-0 gap-4"
   >
     <ReportMetricCard
       :label="$t('BOT_REPORTS.METRIC.TOTAL_CONVERSATIONS.LABEL')"
@@ -64,5 +67,5 @@ onMounted(fetchMetrics);
       :value="formatToPercent(handoffRate)"
       class="flex-1"
     />
-  </div>
+  </ReportsSurface>
 </template>

@@ -10,6 +10,7 @@ import Table from 'dashboard/components/table/Table.vue';
 import Pagination from 'dashboard/components/table/Pagination.vue';
 import UserAvatarWithName from 'dashboard/components/widgets/UserAvatarWithName.vue';
 import ConversationCell from './ConversationCell.vue';
+import ReportsSurface from './ReportsSurface.vue';
 
 import {
   useVueTable,
@@ -254,9 +255,7 @@ const table = useVueTable({
 </script>
 
 <template>
-  <div
-    class="rounded-2xl border border-n-container/60 bg-n-solid-2/90 px-6 py-5 shadow-sm"
-  >
+  <ReportsSurface variant="base" padding="lg">
     <div v-if="tableData.length > 0">
       <Table
         :table="table"
@@ -273,5 +272,5 @@ const table = useVueTable({
     <div v-if="metrics.total_count > 0" class="table-pagination">
       <Pagination class="mt-2" :table="table" />
     </div>
-  </div>
+  </ReportsSurface>
 </template>

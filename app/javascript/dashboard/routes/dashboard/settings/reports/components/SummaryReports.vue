@@ -10,11 +10,20 @@ import {
   getCoreRowModel,
 } from '@tanstack/vue-table';
 import { computed, onMounted, ref, h } from 'vue';
+import ReportsSurface from './ReportsSurface.vue';
 
 const props = defineProps({
   type: {
     type: String,
     default: 'account',
+  },
+  showFilters: {
+    type: Boolean,
+    default: true,
+  },
+  filtersLayout: {
+    type: String,
+    default: 'grid',
   },
   getterKey: {
     type: String,
@@ -187,14 +196,24 @@ const downloadReports = () => {
   }
 };
 
-defineExpose({ downloadReports });
+const applyFilters = updatedFilter => {
+  onFilterChange(updatedFilter);
+};
+
+defineExpose({ downloadReports, applyFilters });
 </script>
 
 <template>
-  <ReportFilterSelector @filter-change="onFilterChange" />
-  <div
-    class="flex-1 overflow-auto px-4 py-4 mt-6 rounded-2xl border border-n-container/60 bg-n-solid-2/90 shadow-sm"
-  >
-    <Table :table="table" type="reports" />
+  <div class="flex flex-col gap-6">
+    <ReportFilterSelector
+      v-if="showFilters"
+      :layout="filtersLayout"
+      @filter-change="onFilterChange"
+    />
+    <ReportsSurface variant="base" padding="none" class="overflow-hidden">
+      <div class="flex-1 overflow-auto px-4 py-4">
+        <Table :table="table" type="reports" />
+      </div>
+    </ReportsSurface>
   </div>
 </template>

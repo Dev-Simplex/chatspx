@@ -6,12 +6,14 @@ import SLAMetrics from './components/SLA/SLAMetrics.vue';
 import SLATable from './components/SLA/SLATable.vue';
 import SLAReportFilters from './components/SLA/SLAReportFilters.vue';
 import { generateFileName } from 'dashboard/helper/downloadHelper';
-import ReportHeader from './components/ReportHeader.vue';
+import ReportsHero from './components/ReportsHero.vue';
+import ReportsShell from './components/ReportsShell.vue';
 export default {
   name: 'SLAReports',
   components: {
     V4Button,
-    ReportHeader,
+    ReportsHero,
+    ReportsShell,
     SLAMetrics,
     SLATable,
     SLAReportFilters,
@@ -81,28 +83,36 @@ export default {
 </script>
 
 <template>
-  <ReportHeader :header-title="$t('SLA_REPORTS.HEADER')">
-    <V4Button
-      :label="$t('SLA_REPORTS.DOWNLOAD_SLA_REPORTS')"
-      icon="i-ph-download-simple"
-      size="sm"
-      @click="downloadReports"
-    />
-  </ReportHeader>
-  <div class="flex flex-col flex-1 gap-6">
-    <SLAReportFilters @filter-change="onFilterChange" />
-    <SLAMetrics
-      :hit-rate="slaMetrics.hitRate"
-      :no-of-breaches="slaMetrics.numberOfSLAMisses"
-      :no-of-conversations="slaMetrics.numberOfConversations"
-      :is-loading="uiFlags.isFetchingMetrics"
-    />
-    <SLATable
-      :sla-reports="slaReports"
-      :is-loading="uiFlags.isFetching"
-      :current-page="Number(slaMeta.currentPage)"
-      :total-count="Number(slaMeta.count)"
-      @page-change="onPageChange"
-    />
-  </div>
+  <ReportsShell>
+    <template #filters>
+      <SLAReportFilters @filter-change="onFilterChange" />
+    </template>
+    <template #content>
+      <ReportsHero :title="$t('SLA_REPORTS.HEADER')">
+        <template #actions>
+          <V4Button
+            :label="$t('SLA_REPORTS.DOWNLOAD_SLA_REPORTS')"
+            icon="i-ph-download-simple"
+            size="sm"
+            @click="downloadReports"
+          />
+        </template>
+      </ReportsHero>
+      <div class="flex flex-col flex-1 gap-6 pb-6">
+        <SLAMetrics
+          :hit-rate="slaMetrics.hitRate"
+          :no-of-breaches="slaMetrics.numberOfSLAMisses"
+          :no-of-conversations="slaMetrics.numberOfConversations"
+          :is-loading="uiFlags.isFetchingMetrics"
+        />
+        <SLATable
+          :sla-reports="slaReports"
+          :is-loading="uiFlags.isFetching"
+          :current-page="Number(slaMeta.currentPage)"
+          :total-count="Number(slaMeta.count)"
+          @page-change="onPageChange"
+        />
+      </div>
+    </template>
+  </ReportsShell>
 </template>

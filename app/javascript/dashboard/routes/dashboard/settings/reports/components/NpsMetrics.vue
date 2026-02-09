@@ -2,6 +2,7 @@
 import { mapGetters } from 'vuex';
 import ReportMetricCard from './ReportMetricCard.vue';
 import BarChart from 'shared/components/charts/BarChart.vue';
+import ReportsSurface from './ReportsSurface.vue';
 
 const NPS_SCORES = Array.from({ length: 11 }, (_, i) => ({
   value: i,
@@ -10,7 +11,7 @@ const NPS_SCORES = Array.from({ length: 11 }, (_, i) => ({
 }));
 
 export default {
-  components: { BarChart, ReportMetricCard },
+  components: { BarChart, ReportMetricCard, ReportsSurface },
   props: {
     filters: {
       type: Object,
@@ -137,8 +138,10 @@ export default {
 </script>
 
 <template>
-  <div
-    class="flex-col lg:flex-row flex flex-wrap mx-0 rounded-2xl border border-n-container/60 bg-n-solid-2/90 px-6 py-6 gap-4 shadow-sm"
+  <ReportsSurface
+    variant="base"
+    padding="lg"
+    class="flex-col lg:flex-row flex flex-wrap mx-0 gap-4"
   >
     <ReportMetricCard
       :label="$t('NPS_REPORTS.METRIC.TOTAL_RESPONSES.LABEL', { default: 'Total de Respostas' })"
@@ -197,5 +200,5 @@ export default {
         <BarChart :collection="chartData" :chart-options="chartOptions" />
       </div>
     </div>
-  </div>
+  </ReportsSurface>
 </template>

@@ -1,5 +1,6 @@
 <script setup>
 import Spinner from 'shared/components/Spinner.vue';
+import ReportsSurface from '../ReportsSurface.vue';
 
 defineProps({
   header: {
@@ -18,11 +19,13 @@ defineProps({
 </script>
 
 <template>
-  <div
-    class="flex flex-col m-0.5 px-6 py-5 rounded-2xl flex-grow text-n-slate-12 shadow-sm border border-n-container/60 bg-n-solid-2/90 min-h-[10rem]"
+  <ReportsSurface
+    variant="base"
+    padding="lg"
+    class="flex flex-col flex-grow text-n-slate-12 min-h-[11rem]"
   >
     <div
-      class="card-header grid w-full mb-6 grid-cols-[repeat(auto-fit,minmax(max-content,50%))] gap-y-2"
+      class="card-header grid w-full mb-6 grid-cols-[repeat(auto-fit,minmax(max-content,50%))] gap-y-3"
     >
       <slot name="header">
         <div class="flex items-center gap-2 flex-row">
@@ -30,7 +33,7 @@ defineProps({
             {{ header }}
           </h5>
           <span
-            class="flex flex-row items-center py-0.5 px-2 rounded bg-n-teal-3 text-xs"
+            class="flex flex-row items-center py-0.5 px-2 rounded-full bg-n-teal-3 text-xs"
           >
             <span
               class="bg-n-teal-9 h-1 w-1 rounded-full mr-1 rtl:mr-0 rtl:ml-0"
@@ -47,7 +50,7 @@ defineProps({
     </div>
     <div
       v-if="!isLoading"
-      class="card-body max-w-full w-full ml-auto mr-auto justify-between flex"
+      class="card-body max-w-full w-full ml-auto mr-auto justify-between flex gap-4"
     >
       <slot />
     </div>
@@ -60,5 +63,5 @@ defineProps({
         {{ loadingMessage }}
       </span>
     </div>
-  </div>
+  </ReportsSurface>
 </template>

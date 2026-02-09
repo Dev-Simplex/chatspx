@@ -6,7 +6,8 @@ import { GROUP_BY_FILTER } from './constants';
 import { REPORTS_EVENTS } from '../../../../helper/AnalyticsHelper/events';
 import { generateFileName } from 'dashboard/helper/downloadHelper';
 import ReportContainer from './ReportContainer.vue';
-import ReportHeader from './components/ReportHeader.vue';
+import ReportsHero from './components/ReportsHero.vue';
+import ReportsShell from './components/ReportsShell.vue';
 import SpeedInsightsPanel from './components/SpeedInsightsPanel.vue';
 
 const REPORTS_KEYS = {
@@ -24,7 +25,8 @@ const REPORTS_KEYS = {
 export default {
   name: 'ConversationReports',
   components: {
-    ReportHeader,
+    ReportsHero,
+    ReportsShell,
     ReportFilterSelector,
     ReportContainer,
     V4Button,
@@ -112,24 +114,33 @@ export default {
 </script>
 
 <template>
-  <ReportHeader
-    :header-title="$t('REPORT.HEADER')"
-    :header-description="$t('REPORT.DESCRIPTION')"
-  >
-    <V4Button
-      :label="$t('REPORT.DOWNLOAD_CONVERSATION_REPORTS')"
-      icon="i-ph-download-simple"
-      size="sm"
-      @click="downloadConversationReports"
-    />
-  </ReportHeader>
-  <div class="flex flex-col gap-6">
-    <ReportFilterSelector
-      :show-agents-filter="false"
-      show-group-by-filter
-      @filter-change="onFilterChange"
-    />
-    <SpeedInsightsPanel />
-    <ReportContainer :group-by="groupBy" />
-  </div>
+  <ReportsShell>
+    <template #filters>
+      <ReportFilterSelector
+        layout="rail"
+        :show-agents-filter="false"
+        show-group-by-filter
+        @filter-change="onFilterChange"
+      />
+    </template>
+    <template #content>
+      <ReportsHero
+        :title="$t('REPORT.HEADER')"
+        :description="$t('REPORT.DESCRIPTION')"
+      >
+        <template #actions>
+          <V4Button
+            :label="$t('REPORT.DOWNLOAD_CONVERSATION_REPORTS')"
+            icon="i-ph-download-simple"
+            size="sm"
+            @click="downloadConversationReports"
+          />
+        </template>
+      </ReportsHero>
+      <div class="flex flex-col gap-6 pb-6">
+        <SpeedInsightsPanel />
+        <ReportContainer :group-by="groupBy" />
+      </div>
+    </template>
+  </ReportsShell>
 </template>

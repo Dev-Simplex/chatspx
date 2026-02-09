@@ -261,46 +261,48 @@ onMounted(() => {
 </script>
 
 <template>
-  <div class="flex flex-row flex-wrap max-w-full">
+  <div class="w-full">
     <MetricCard :header="title">
       <template #control>
-        <HeatmapDateRangeSelector
-          v-model:from="selectedFrom"
-          v-model:to="selectedTo"
-          v-model:days-num="selectedDaysBefore"
-          @range-type-change="handleRangeTypeChange"
-          @month-offset-change="handleMonthOffsetChange"
-        />
-        <div
-          v-on-clickaway="() => toggleInboxDropdown(false)"
-          class="relative flex items-center group"
-        >
+        <div class="flex flex-wrap items-center gap-2">
+          <HeatmapDateRangeSelector
+            v-model:from="selectedFrom"
+            v-model:to="selectedTo"
+            v-model:days-num="selectedDaysBefore"
+            @range-type-change="handleRangeTypeChange"
+            @month-offset-change="handleMonthOffsetChange"
+          />
+          <div
+            v-on-clickaway="() => toggleInboxDropdown(false)"
+            class="relative flex items-center group"
+          >
+            <Button
+              sm
+              slate
+              faded
+              :label="selectedInboxFilter.label"
+              class="rounded-md group-hover:bg-n-alpha-2 max-w-[200px]"
+              @click="toggleInboxDropdown()"
+            />
+            <DropdownMenu
+              v-if="showInboxDropdown"
+              :menu-items="inboxMenuItems"
+              show-search
+              :search-placeholder="t('INBOX_REPORTS.SEARCH_INBOX')"
+              class="mt-1 ltr:right-0 rtl:left-0 xl:ltr:right-0 xl:rtl:left-0 top-full !min-w-56 max-w-56 max-h-96 overflow-y-auto"
+              @action="handleInboxAction($event)"
+            />
+          </div>
           <Button
+            v-tooltip="t('OVERVIEW_REPORTS.CONVERSATION_HEATMAP.DOWNLOAD_REPORT')"
             sm
             slate
             faded
-            :label="selectedInboxFilter.label"
-            class="rounded-md group-hover:bg-n-alpha-2 max-w-[200px]"
-            @click="toggleInboxDropdown()"
-          />
-          <DropdownMenu
-            v-if="showInboxDropdown"
-            :menu-items="inboxMenuItems"
-            show-search
-            :search-placeholder="t('INBOX_REPORTS.SEARCH_INBOX')"
-            class="mt-1 ltr:right-0 rtl:left-0 xl:ltr:right-0 xl:rtl:left-0 top-full !min-w-56 max-w-56 max-h-96 overflow-y-auto"
-            @action="handleInboxAction($event)"
+            icon="i-lucide-download"
+            class="rounded-md group-hover:bg-n-alpha-2"
+            @click="downloadHeatmapData"
           />
         </div>
-        <Button
-          v-tooltip="t('OVERVIEW_REPORTS.CONVERSATION_HEATMAP.DOWNLOAD_REPORT')"
-          sm
-          slate
-          faded
-          icon="i-lucide-download"
-          class="rounded-md group-hover:bg-n-alpha-2"
-          @click="downloadHeatmapData"
-        />
       </template>
       <BaseHeatmap
         :heatmap-data="heatmapData"

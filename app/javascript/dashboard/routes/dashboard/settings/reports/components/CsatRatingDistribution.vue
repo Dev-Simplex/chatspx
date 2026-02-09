@@ -2,6 +2,7 @@
 import { computed } from 'vue';
 import { useI18n } from 'vue-i18n';
 import { CSAT_RATINGS } from 'shared/constants/messages';
+import ReportsSurface from './ReportsSurface.vue';
 
 const props = defineProps({
   ratingPercentage: {
@@ -41,9 +42,7 @@ const getRatingCount = value => {
 </script>
 
 <template>
-  <div
-    class="shadow outline-1 outline outline-n-container rounded-xl bg-n-solid-2 px-6 py-5"
-  >
+  <ReportsSurface variant="base" padding="lg">
     <span class="text-sm font-medium text-n-slate-11">
       {{ $t('CSAT_REPORTS.METRIC.RATING_DISTRIBUTION') }}
     </span>
@@ -97,5 +96,5 @@ const getRatingCount = value => {
         </div>
       </div>
     </div>
-  </div>
+  </ReportsSurface>
 </template>

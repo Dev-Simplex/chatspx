@@ -11,6 +11,7 @@ import subDays from 'date-fns/subDays';
 import { DATE_RANGE_OPTIONS } from '../constants';
 import { getUnixStartOfDay, getUnixEndOfDay } from 'helpers/DateHelper';
 import ToggleSwitch from 'dashboard/components-next/switch/Switch.vue';
+import ReportsSurface from './ReportsSurface.vue';
 
 export default {
   components: {
@@ -23,8 +24,13 @@ export default {
     ReportsFiltersTeams,
     ReportsFiltersRatings,
     ToggleSwitch,
+    ReportsSurface,
   },
   props: {
+    layout: {
+      type: String,
+      default: 'grid',
+    },
     showGroupByFilter: {
       type: Boolean,
       default: false,
@@ -70,6 +76,24 @@ export default {
     };
   },
   computed: {
+    isRail() {
+      return this.layout === 'rail';
+    },
+    containerClass() {
+      return this.isRail
+        ? 'flex flex-col gap-4'
+        : 'flex flex-col gap-4 lg:flex-row lg:items-start';
+    },
+    filtersGridClass() {
+      return this.isRail
+        ? 'w-full grid gap-3 grid-cols-1'
+        : 'w-full grid gap-4 grid-cols-[repeat(auto-fit,minmax(210px,1fr))]';
+    },
+    railSwitchClass() {
+      return this.isRail
+        ? 'w-full justify-between'
+        : '';
+    },
     isDateRangeSelected() {
       return (
         this.selectedDateRange.id === DATE_RANGE_OPTIONS.CUSTOM_DATE_RANGE.id
@@ -175,12 +199,14 @@ export default {
 </script>
 
 <template>
-  <div
-    class="rounded-2xl border border-n-container/60 bg-n-solid-2/80 backdrop-blur px-4 py-4 shadow-sm relative z-30"
+  <ReportsSurface
+    variant="soft"
+    padding="md"
+    class="relative z-30"
   >
-    <div class="flex flex-col gap-4 lg:flex-row lg:items-start">
+    <div :class="containerClass">
       <div
-        class="w-full grid gap-3 grid-cols-[repeat(auto-fit,minmax(220px,1fr))]"
+        :class="filtersGridClass"
       >
         <ReportsFiltersDateRange @on-range-change="onDateRangeChange" />
         <WootDateRangePicker
@@ -221,7 +247,8 @@ export default {
       </div>
       <div
         v-if="showBusinessHoursSwitch"
-        class="flex items-center gap-3 rounded-xl border border-n-container/40 bg-n-background/70 px-4 py-3"
+        class="flex items-center gap-3 rounded-full border border-n-container/40 bg-n-background/70 px-4 py-3"
+        :class="railSwitchClass"
       >
         <span class="text-sm text-n-slate-12 whitespace-nowrap">
           {{ $t('REPORT.BUSINESS_HOURS') }}
@@ -229,5 +256,5 @@ export default {
         <ToggleSwitch v-model="businessHoursSelected" @change="emitChange" />
       </div>
     </div>
-  </div>
+  </ReportsSurface>
 </template>

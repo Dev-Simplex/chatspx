@@ -1,6 +1,6 @@
 <template>
-  <div class="reports--wrapper overflow-auto bg-n-background w-full px-6">
-    <div class="max-w-[84rem] mx-auto pb-16">
+  <div class="reports--wrapper overflow-auto bg-n-background w-full px-4 sm:px-6 lg:px-8">
+    <div class="max-w-[92rem] mx-auto pb-16">
       <router-view />
     </div>
   </div>
@@ -10,13 +10,18 @@
 .reports--wrapper {
   background:
     radial-gradient(
-        1200px 600px at 20% -10%,
-        rgba(45, 196, 111, 0.08),
+        1100px 520px at 15% -10%,
+        rgba(45, 196, 111, 0.1),
         transparent 60%
       ),
     radial-gradient(
-        1200px 600px at 90% 0%,
-        rgba(45, 196, 111, 0.06),
+        1000px 560px at 95% 0%,
+        rgba(37, 99, 235, 0.08),
+        transparent 60%
+      ),
+    radial-gradient(
+        900px 520px at 60% 120%,
+        rgba(14, 116, 144, 0.08),
         transparent 55%
       ),
     rgb(var(--background-color));
@@ -27,7 +32,7 @@
     }
 
     .multiselect__content-wrapper {
-      @apply bg-n-solid-2 border border-n-weak text-n-slate-12;
+      @apply bg-n-solid-2 border border-n-weak text-n-slate-12 rounded-xl;
       z-index: 120;
     }
 
@@ -58,7 +63,7 @@
     .multiselect__tags,
     .multiselect__input,
     .multiselect {
-      @apply bg-n-alpha-3 !border-n-weak text-n-slate-12 rounded-lg text-sm min-h-[2.5rem];
+      @apply bg-n-alpha-3 !border-n-weak text-n-slate-12 rounded-xl text-sm min-h-[2.5rem];
     }
 
     .multiselect {

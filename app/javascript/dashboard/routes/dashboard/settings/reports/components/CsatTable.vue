@@ -13,6 +13,7 @@ import CsatContactCell from './CsatContactCell.vue';
 import CsatExpandedRow from './CsatExpandedRow.vue';
 import CsatEmptyState from './CsatEmptyState.vue';
 import CsatTableLoader from './CsatTableLoader.vue';
+import ReportsSurface from './ReportsSurface.vue';
 
 import { CSAT_RATINGS } from 'shared/constants/messages';
 
@@ -141,14 +142,12 @@ const table = useVueTable({
 </script>
 
 <template>
-  <div
-    class="shadow outline-1 outline outline-n-container rounded-xl bg-n-solid-2 overflow-hidden"
-  >
+  <ReportsSurface variant="base" padding="none" class="overflow-hidden">
     <CsatTableLoader v-if="isLoading" />
 
     <div v-else-if="tableData.length" class="overflow-x-auto">
       <table class="w-full">
-        <thead class="bg-n-solid-2 border-b border-n-container">
+        <thead class="bg-n-solid-2/70 border-b border-n-container/60">
           <tr>
             <th
               v-for="header in table.getFlatHeaders()"
@@ -156,7 +155,7 @@ const table = useVueTable({
               :style="{
                 width: header.getSize() ? `${header.getSize()}px` : 'auto',
               }"
-              class="text-left py-3 px-5 font-medium text-sm text-n-slate-12"
+              class="text-left py-3 px-5 text-[11px] uppercase tracking-[0.2em] text-n-slate-10"
             >
               {{ header.column.columnDef.header }}
             </th>
@@ -165,9 +164,9 @@ const table = useVueTable({
         <tbody class="divide-y divide-n-container">
           <template v-for="row in tableData" :key="row.id">
             <tr
-              class="group hover:bg-n-slate-2 dark:hover:bg-n-solid-3 transition-colors"
+              class="group hover:bg-n-alpha-2/70 transition-colors"
               :class="{
-                'bg-n-slate-2 dark:bg-n-solid-3': isRowExpanded(row.id),
+                'bg-n-alpha-2/60': isRowExpanded(row.id),
                 'cursor-pointer': showExpandableRows,
               }"
               @click="showExpandableRows && toggleRow(row.id)"
@@ -249,9 +248,9 @@ const table = useVueTable({
 
     <div
       v-if="metrics.totalResponseCount"
-      class="px-6 py-4 border-t border-n-weak"
+      class="px-6 py-4 border-t border-n-container/60"
     >
       <Pagination :table="table" />
     </div>
-  </div>
+  </ReportsSurface>
 </template>

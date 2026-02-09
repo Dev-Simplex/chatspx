@@ -3,6 +3,7 @@ import TableFooter from 'dashboard/components/widgets/TableFooter.vue';
 import TableHeaderCell from 'dashboard/components/widgets/TableHeaderCell.vue';
 import SLAReportItem from './SLAReportItem.vue';
 import Spinner from 'shared/components/Spinner.vue';
+import ReportsSurface from '../ReportsSurface.vue';
 export default {
   name: 'SLATable',
   components: {
@@ -10,6 +11,7 @@ export default {
     TableFooter,
     Spinner,
     TableHeaderCell,
+    ReportsSurface,
   },
   props: {
     slaReports: {
@@ -56,11 +58,9 @@ export default {
 
 <template>
   <div>
-    <div
-      class="min-w-full shadow outline-1 outline outline-n-container rounded-xl bg-n-solid-2 p-6"
-    >
+    <ReportsSurface variant="base" padding="lg" class="min-w-full">
       <div
-        class="grid content-center h-12 grid-cols-12 gap-4 px-6 py-0 bg-n-slate-2 rounded-md"
+        class="grid content-center h-12 grid-cols-12 gap-4 px-6 py-0 bg-n-slate-2 rounded-xl"
       >
         <TableHeaderCell
           :span="6"
@@ -94,7 +94,7 @@ export default {
       <div v-else class="flex items-center justify-center h-32">
         {{ $t('SLA_REPORTS.NO_RECORDS') }}
       </div>
-    </div>
+    </ReportsSurface>
     <TableFooter
       v-if="shouldShowFooter"
       :current-page="currentPage"

@@ -3,10 +3,12 @@ import SLAFilter from '../SLA/SLAFilter.vue';
 import subDays from 'date-fns/subDays';
 import { DATE_RANGE_OPTIONS } from '../../constants';
 import { getUnixStartOfDay, getUnixEndOfDay } from 'helpers/DateHelper';
+import ReportsSurface from '../ReportsSurface.vue';
 
 export default {
   components: {
     SLAFilter,
+    ReportsSurface,
   },
   emits: ['filterChange'],
 
@@ -66,8 +68,10 @@ export default {
 </script>
 
 <template>
-  <div class="flex flex-col flex-wrap w-full gap-3 md:flex-row">
-    <woot-date-picker @date-range-changed="onDateRangeChange" />
-    <SLAFilter @filter-change="emitFilterChange" />
-  </div>
+  <ReportsSurface variant="soft" padding="md">
+    <div class="flex flex-col w-full gap-3">
+      <woot-date-picker @date-range-changed="onDateRangeChange" />
+      <SLAFilter @filter-change="emitFilterChange" />
+    </div>
+  </ReportsSurface>
 </template>

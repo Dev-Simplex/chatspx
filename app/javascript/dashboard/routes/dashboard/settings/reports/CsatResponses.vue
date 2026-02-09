@@ -8,7 +8,8 @@ import { generateFileName } from '../../../../helper/downloadHelper';
 import { REPORTS_EVENTS } from '../../../../helper/AnalyticsHelper/events';
 import { FEATURE_FLAGS } from '../../../../featureFlags';
 import V4Button from 'dashboard/components-next/button/Button.vue';
-import ReportHeader from './components/ReportHeader.vue';
+import ReportsHero from './components/ReportsHero.vue';
+import ReportsShell from './components/ReportsShell.vue';
 
 export default {
   name: 'CsatResponses',
@@ -16,7 +17,8 @@ export default {
     CsatMetrics,
     CsatTable,
     CsatFilters,
-    ReportHeader,
+    ReportsHero,
+    ReportsShell,
     V4Button,
   },
   data() {
@@ -112,21 +114,29 @@ export default {
 </script>
 
 <template>
-  <ReportHeader :header-title="$t('CSAT_REPORTS.HEADER')">
-    <V4Button
-      :label="$t('CSAT_REPORTS.DOWNLOAD')"
-      icon="i-ph-download-simple"
-      size="sm"
-      @click="downloadReports"
-    />
-  </ReportHeader>
+  <ReportsShell>
+    <template #filters>
+      <CsatFilters
+        :show-team-filter="isTeamsEnabled"
+        @filter-change="onFilterChange"
+      />
+    </template>
+    <template #content>
+      <ReportsHero :title="$t('CSAT_REPORTS.HEADER')">
+        <template #actions>
+          <V4Button
+            :label="$t('CSAT_REPORTS.DOWNLOAD')"
+            icon="i-ph-download-simple"
+            size="sm"
+            @click="downloadReports"
+          />
+        </template>
+      </ReportsHero>
 
-  <div class="flex flex-col gap-6">
-    <CsatFilters
-      :show-team-filter="isTeamsEnabled"
-      @filter-change="onFilterChange"
-    />
-    <CsatMetrics :filters="requestPayload" />
-    <CsatTable :page-index="pageIndex" @page-change="onPageNumberChange" />
-  </div>
+      <div class="flex flex-col gap-6 pb-6">
+        <CsatMetrics :filters="requestPayload" />
+        <CsatTable :page-index="pageIndex" @page-change="onPageNumberChange" />
+      </div>
+    </template>
+  </ReportsShell>
 </template>

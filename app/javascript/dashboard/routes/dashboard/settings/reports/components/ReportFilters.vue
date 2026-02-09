@@ -8,6 +8,7 @@ import WootDateRangePicker from 'dashboard/components/ui/DateRangePicker.vue';
 import ToggleSwitch from 'dashboard/components-next/switch/Switch.vue';
 
 import { GROUP_BY_FILTER } from '../constants';
+import ReportsSurface from './ReportsSurface.vue';
 const CUSTOM_DATE_RANGE_ID = 5;
 
 export default {
@@ -15,8 +16,13 @@ export default {
     WootDateRangePicker,
     Avatar,
     ToggleSwitch,
+    ReportsSurface,
   },
   props: {
+    layout: {
+      type: String,
+      default: 'grid',
+    },
     currentFilter: {
       type: Object,
       default: () => null,
@@ -57,6 +63,27 @@ export default {
     };
   },
   computed: {
+    isRail() {
+      return this.layout === 'rail';
+    },
+    gridClass() {
+      return this.isRail
+        ? 'grid grid-cols-1 gap-4'
+        : 'grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-4';
+    },
+    businessHoursClass() {
+      return this.isRail
+        ? 'flex items-center h-10 self-start rounded-full border border-n-container/40 bg-n-background/70 px-4 w-full justify-between'
+        : 'flex items-center h-10 self-center order-5 md:order-2 md:justify-self-end rounded-full border border-n-container/40 bg-n-background/70 px-4';
+    },
+    groupByClass() {
+      return this.isRail
+        ? 'multiselect-wrap--small'
+        : 'multiselect-wrap--small order-4 md:order-5';
+    },
+    customDateClass() {
+      return this.isRail ? '' : 'order-3 md:order-4';
+    },
     dateRange() {
       return [
         { id: 0, name: this.$t('REPORT.DATE_RANGE_OPTIONS.LAST_7_DAYS') },
@@ -167,10 +194,12 @@ export default {
 </script>
 
 <template>
-  <div
-    class="rounded-2xl border border-n-container/60 bg-n-solid-2/80 backdrop-blur px-4 py-4 shadow-sm relative z-30"
+  <ReportsSurface
+    variant="soft"
+    padding="md"
+    class="relative z-30"
   >
-    <div class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-4">
+    <div :class="gridClass">
     <div v-if="type === 'agent'" class="multiselect-wrap--small">
       <p class="mb-2 text-xs font-medium">
         {{ $t('AGENT_REPORTS.FILTER_DROPDOWN_LABEL') }}
@@ -305,9 +334,7 @@ export default {
       />
     </div>
 
-    <div
-      class="flex items-center h-10 self-center order-5 md:order-2 md:justify-self-end rounded-xl border border-n-container/40 bg-n-background/70 px-3"
-    >
+    <div :class="businessHoursClass">
       <span class="mr-2 text-sm whitespace-nowrap">
         {{ $t('REPORT.BUSINESS_HOURS') }}
       </span>
@@ -319,7 +346,7 @@ export default {
       </span>
     </div>
 
-    <div v-if="isDateRangeSelected" class="order-3 md:order-4">
+    <div v-if="isDateRangeSelected" :class="customDateClass">
       <p class="mb-2 text-xs font-medium">
         {{ $t('REPORT.CUSTOM_DATE_RANGE.PLACEHOLDER') }}
       </p>
@@ -333,7 +360,7 @@ export default {
       />
     </div>
 
-    <div v-if="notLast7Days" class="multiselect-wrap--small order-4 md:order-5">
+    <div v-if="notLast7Days" :class="groupByClass">
       <p class="mb-2 text-xs font-medium">
         {{ $t('REPORT.GROUP_BY_FILTER_DROPDOWN_LABEL') }}
       </p>
@@ -349,5 +376,5 @@ export default {
       />
     </div>
     </div>
-  </div>
+  </ReportsSurface>
 </template>

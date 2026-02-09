@@ -24,7 +24,7 @@ onMounted(() => {
 </script>
 
 <template>
-  <div class="flex flex-row flex-wrap max-w-full">
+  <div class="w-full">
     <MetricCard :header="$t('OVERVIEW_REPORTS.TEAM_CONVERSATIONS.HEADER')">
       <TeamTable
         :teams="teams"

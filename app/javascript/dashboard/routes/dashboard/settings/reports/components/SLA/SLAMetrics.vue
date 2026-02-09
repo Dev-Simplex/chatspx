@@ -1,5 +1,6 @@
 <script setup>
 import SLAMetricCard from './SLAMetricCard.vue';
+import ReportsSurface from '../ReportsSurface.vue';
 defineProps({
   hitRate: {
     type: String,
@@ -21,8 +22,10 @@ defineProps({
 </script>
 
 <template>
-  <div
-    class="flex sm:flex-row flex-col w-full gap-4 sm:gap-12 rounded-2xl border border-n-container/60 bg-n-solid-2/90 px-6 py-5 shadow-sm"
+  <ReportsSurface
+    variant="base"
+    padding="lg"
+    class="flex sm:flex-row flex-col w-full gap-4 sm:gap-12"
   >
     <SLAMetricCard
       :label="$t('SLA_REPORTS.METRICS.HIT_RATE.LABEL')"
@@ -45,5 +48,5 @@ defineProps({
       :tool-tip="$t('SLA_REPORTS.METRICS.NO_OF_CONVERSATIONS.TOOLTIP')"
       :is-loading="isLoading"
     />
-  </div>
+  </ReportsSurface>
 </template>

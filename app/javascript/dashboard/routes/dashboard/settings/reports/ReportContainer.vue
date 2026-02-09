@@ -7,9 +7,10 @@ import format from 'date-fns/format';
 import { formatTime } from '@chatwoot/utils';
 import ChartStats from './components/ChartElements/ChartStats.vue';
 import BarChart from 'shared/components/charts/BarChart.vue';
+import ReportsSurface from './components/ReportsSurface.vue';
 
 export default {
-  components: { ChartStats, BarChart },
+  components: { ChartStats, BarChart, ReportsSurface },
   props: {
     groupBy: {
       type: Object,
@@ -181,46 +182,47 @@ export default {
 </script>
 
 <template>
-  <div
-    class="grid grid-cols-1 xl:grid-cols-2 gap-5"
-  >
+  <div class="grid grid-cols-1 gap-5 lg:grid-cols-2 2xl:grid-cols-3">
     <div
       v-for="metric in metrics"
       :key="metric.KEY"
-      class="flex flex-col gap-4 rounded-2xl border border-n-container/60 bg-n-solid-2/90 p-5 shadow-sm"
     >
-      <div class="flex items-start justify-between gap-4">
-        <div class="flex flex-col gap-2">
-          <ChartStats
-            :metric="metric"
-            :account-summary-key="accountSummaryKey"
-            :summary-fetching-key="summaryFetchingKey"
-          />
-          <span
-            v-if="metric.DESC"
-            class="text-xs text-n-slate-11 max-w-md"
-          >
-            {{ metric.DESC }}
-          </span>
+      <ReportsSurface variant="base" padding="md" class="flex flex-col gap-4">
+        <div class="flex items-start justify-between gap-4">
+          <div class="flex flex-col gap-2">
+            <ChartStats
+              :metric="metric"
+              :account-summary-key="accountSummaryKey"
+              :summary-fetching-key="summaryFetchingKey"
+            />
+            <span
+              v-if="metric.DESC"
+              class="text-xs text-n-slate-11 max-w-md"
+            >
+              {{ metric.DESC }}
+            </span>
+          </div>
         </div>
-      </div>
-      <div class="h-72 rounded-xl bg-n-background/60 border border-n-container/40 p-2">
-        <woot-loading-state
-          v-if="accountReport.isFetching[metric.KEY]"
-          class="text-xs"
-          :message="$t('REPORT.LOADING_CHART')"
-        />
-        <div v-else class="flex items-center justify-center h-full">
-          <BarChart
-            v-if="accountReport.data[metric.KEY]?.length"
-            :collection="getCollection(metric)"
-            :chart-options="getChartOptions(metric)"
+        <div
+          class="h-72 rounded-2xl bg-n-background/70 border border-n-container/40 p-2"
+        >
+          <woot-loading-state
+            v-if="accountReport.isFetching[metric.KEY]"
+            class="text-xs"
+            :message="$t('REPORT.LOADING_CHART')"
           />
-          <span v-else class="text-sm text-n-slate-10">
-            {{ $t('REPORT.NO_ENOUGH_DATA') }}
-          </span>
+          <div v-else class="flex items-center justify-center h-full">
+            <BarChart
+              v-if="accountReport.data[metric.KEY]?.length"
+              :collection="getCollection(metric)"
+              :chart-options="getChartOptions(metric)"
+            />
+            <span v-else class="text-sm text-n-slate-10">
+              {{ $t('REPORT.NO_ENOUGH_DATA') }}
+            </span>
+          </div>
         </div>
-      </div>
+      </ReportsSurface>
     </div>
   </div>
 </template>

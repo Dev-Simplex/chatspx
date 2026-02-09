@@ -8,7 +8,8 @@ import { generateFileName } from '../../../../helper/downloadHelper';
 import { REPORTS_EVENTS } from '../../../../helper/AnalyticsHelper/events';
 import { FEATURE_FLAGS } from '../../../../featureFlags';
 import V4Button from 'dashboard/components-next/button/Button.vue';
-import ReportHeader from './components/ReportHeader.vue';
+import ReportsHero from './components/ReportsHero.vue';
+import ReportsShell from './components/ReportsShell.vue';
 
 export default {
   name: 'NetPromoterScoreReports',
@@ -16,7 +17,8 @@ export default {
     NpsMetrics,
     NpsTable,
     ReportFilterSelector,
-    ReportHeader,
+    ReportsHero,
+    ReportsShell,
     V4Button,
   },
   data() {
@@ -111,25 +113,35 @@ export default {
 </script>
 
 <template>
-  <ReportHeader :header-title="$t('NPS_REPORTS.HEADER', { default: 'Relatórios NPS' })">
-    <V4Button
-      :label="$t('NPS_REPORTS.DOWNLOAD', { default: 'Exportar CSV' })"
-      icon="i-ph-download-simple"
-      size="sm"
-      @click="downloadReports"
-    />
-  </ReportHeader>
+  <ReportsShell>
+    <template #filters>
+      <ReportFilterSelector
+        layout="rail"
+        show-agents-filter
+        show-inbox-filter
+        :show-team-filter="isTeamsEnabled"
+        :show-business-hours-switch="false"
+        @filter-change="onFilterChange"
+      />
+    </template>
+    <template #content>
+      <ReportsHero
+        :title="$t('NPS_REPORTS.HEADER', { default: 'Relatórios NPS' })"
+      >
+        <template #actions>
+          <V4Button
+            :label="$t('NPS_REPORTS.DOWNLOAD', { default: 'Exportar CSV' })"
+            icon="i-ph-download-simple"
+            size="sm"
+            @click="downloadReports"
+          />
+        </template>
+      </ReportsHero>
 
-  <div class="flex flex-col gap-6">
-    <ReportFilterSelector
-      show-agents-filter
-      show-inbox-filter
-      :show-team-filter="isTeamsEnabled"
-      :show-business-hours-switch="false"
-      @filter-change="onFilterChange"
-    />
-
-    <NpsMetrics :filters="requestPayload" />
-    <NpsTable :page-index="pageIndex" @page-change="onPageNumberChange" />
-  </div>
+      <div class="flex flex-col gap-6 pb-6">
+        <NpsMetrics :filters="requestPayload" />
+        <NpsTable :page-index="pageIndex" @page-change="onPageNumberChange" />
+      </div>
+    </template>
+  </ReportsShell>
 </template>

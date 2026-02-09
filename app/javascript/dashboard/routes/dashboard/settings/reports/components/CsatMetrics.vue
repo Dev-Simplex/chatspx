@@ -3,6 +3,7 @@ import { computed } from 'vue';
 import { useMapGetter } from 'dashboard/composables/store';
 import CsatMetricCard from './CsatMetricCard.vue';
 import CsatRatingDistribution from './CsatRatingDistribution.vue';
+import ReportsSurface from './ReportsSurface.vue';
 
 const metrics = useMapGetter('csat/getMetrics');
 const ratingPercentage = useMapGetter('csat/getRatingPercentage');
@@ -24,8 +25,10 @@ const formatPercent = value => (value ? `${value}%` : '0%');
 
 <template>
   <div class="flex flex-col gap-4">
-    <div
-      class="flex sm:flex-row flex-col w-full gap-4 sm:gap-12 rounded-2xl border border-n-container/60 bg-n-solid-2/90 px-6 py-5 shadow-sm"
+    <ReportsSurface
+      variant="base"
+      padding="lg"
+      class="flex sm:flex-row flex-col w-full gap-4 sm:gap-12"
     >
       <CsatMetricCard
         :label="$t('CSAT_REPORTS.METRIC.TOTAL_RESPONSES.LABEL')"
@@ -51,7 +54,7 @@ const formatPercent = value => (value ? `${value}%` : '0%');
         :value="formatPercent(responseRate)"
         :is-loading="isLoading"
       />
-    </div>
+    </ReportsSurface>
 
     <CsatRatingDistribution
       :rating-percentage="ratingPercentage"

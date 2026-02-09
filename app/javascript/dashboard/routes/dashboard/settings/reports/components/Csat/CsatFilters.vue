@@ -13,6 +13,7 @@ import FilterButton from 'dashboard/components/ui/Dropdown/DropdownButton.vue';
 import ActiveFilterChip from '../Filters/v3/ActiveFilterChip.vue';
 import AddFilterChip from '../Filters/v3/AddFilterChip.vue';
 import WootDatePicker from 'dashboard/components/ui/DatePicker/DatePicker.vue';
+import ReportsSurface from '../ReportsSurface.vue';
 
 const props = defineProps({
   showTeamFilter: {
@@ -210,58 +211,58 @@ onMounted(() => {
 </script>
 
 <template>
-  <div class="flex flex-col flex-wrap w-full gap-3 md:flex-row">
-    <WootDatePicker @date-range-changed="onDateRangeChange" />
+  <ReportsSurface variant="soft" padding="md">
+    <div class="flex flex-col w-full gap-3">
+      <WootDatePicker @date-range-changed="onDateRangeChange" />
 
-    <div
-      class="flex flex-col flex-wrap items-start gap-2 md:items-center md:flex-nowrap md:flex-row"
-    >
-      <div v-if="hasActiveFilters" class="flex flex-wrap gap-2 md:flex-nowrap">
-        <ActiveFilterChip
-          v-for="filter in activeFilters"
-          v-bind="filter"
-          :key="filter.type"
-          :placeholder="
-            $t(
-              `CSAT_REPORTS.FILTERS.INPUT_PLACEHOLDER.${filter.type.toUpperCase()}`
-            )
-          "
-          :active-filter-type="activeFilterType"
-          :show-menu="showSubDropdownMenu"
-          enable-search
-          @toggle-dropdown="openActiveFilterDropdown"
-          @close-dropdown="closeActiveFilterDropdown"
-          @add-filter="addFilter"
-          @remove-filter="removeFilter"
-        />
-      </div>
+      <div class="flex flex-col flex-wrap items-start gap-2">
+        <div v-if="hasActiveFilters" class="flex flex-wrap gap-2">
+          <ActiveFilterChip
+            v-for="filter in activeFilters"
+            v-bind="filter"
+            :key="filter.type"
+            :placeholder="
+              $t(
+                `CSAT_REPORTS.FILTERS.INPUT_PLACEHOLDER.${filter.type.toUpperCase()}`
+              )
+            "
+            :active-filter-type="activeFilterType"
+            :show-menu="showSubDropdownMenu"
+            enable-search
+            @toggle-dropdown="openActiveFilterDropdown"
+            @close-dropdown="closeActiveFilterDropdown"
+            @add-filter="addFilter"
+            @remove-filter="removeFilter"
+          />
+        </div>
 
-      <div
-        v-if="hasActiveFilters && !isAllFilterSelected"
-        class="w-full h-px border md:w-px md:h-5 border-n-weak"
-      />
-
-      <div class="flex items-center gap-2">
-        <AddFilterChip
-          v-if="!isAllFilterSelected"
-          placeholder-i18n-key="CSAT_REPORTS.FILTERS.INPUT_PLACEHOLDER"
-          :name="$t('CSAT_REPORTS.FILTERS.ADD_FILTER')"
-          :menu-option="filterListMenuItems"
-          :show-menu="showDropdownMenu"
-          :empty-state-message="$t('CSAT_REPORTS.FILTERS.NO_FILTER')"
-          @toggle-dropdown="showDropdown"
-          @close-dropdown="closeDropdown"
-          @add-filter="addFilter"
+        <div
+          v-if="hasActiveFilters && !isAllFilterSelected"
+          class="w-full h-px border border-n-weak"
         />
 
-        <div v-if="hasActiveFilters" class="w-px h-5 border border-n-weak" />
+        <div class="flex items-center gap-2">
+          <AddFilterChip
+            v-if="!isAllFilterSelected"
+            placeholder-i18n-key="CSAT_REPORTS.FILTERS.INPUT_PLACEHOLDER"
+            :name="$t('CSAT_REPORTS.FILTERS.ADD_FILTER')"
+            :menu-option="filterListMenuItems"
+            :show-menu="showDropdownMenu"
+            :empty-state-message="$t('CSAT_REPORTS.FILTERS.NO_FILTER')"
+            @toggle-dropdown="showDropdown"
+            @close-dropdown="closeDropdown"
+            @add-filter="addFilter"
+          />
 
-        <FilterButton
-          v-if="hasActiveFilters"
-          :button-text="$t('CSAT_REPORTS.FILTERS.CLEAR_ALL')"
-          @click="clearAllFilters"
-        />
+          <div v-if="hasActiveFilters" class="w-px h-5 border border-n-weak" />
+
+          <FilterButton
+            v-if="hasActiveFilters"
+            :button-text="$t('CSAT_REPORTS.FILTERS.CLEAR_ALL')"
+            @click="clearAllFilters"
+          />
+        </div>
       </div>
     </div>
-  </div>
+  </ReportsSurface>
 </template>

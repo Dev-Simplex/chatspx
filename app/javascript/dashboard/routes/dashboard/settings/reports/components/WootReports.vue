@@ -6,7 +6,8 @@ import ReportContainer from '../ReportContainer.vue';
 import { GROUP_BY_FILTER } from '../constants';
 import { generateFileName } from '../../../../../helper/downloadHelper';
 import { REPORTS_EVENTS } from '../../../../../helper/AnalyticsHelper/events';
-import ReportHeader from './ReportHeader.vue';
+import ReportsHero from './ReportsHero.vue';
+import ReportsShell from './ReportsShell.vue';
 import SpeedInsightsPanel from './SpeedInsightsPanel.vue';
 
 const GROUP_BY_OPTIONS = {
@@ -29,7 +30,8 @@ const GROUP_BY_OPTIONS = {
 
 export default {
   components: {
-    ReportHeader,
+    ReportsHero,
+    ReportsShell,
     V4Button,
     ReportFilters,
     ReportContainer,
@@ -232,39 +234,48 @@ export default {
 </script>
 
 <template>
-  <ReportHeader
-    :header-title="reportTitle"
-    :header-description="headerDescription"
-    :has-back-button="hasBackButton"
-  >
-    <V4Button
-      :label="downloadButtonLabel"
-      icon="i-ph-download-simple"
-      size="sm"
-      @click="downloadReports"
-    />
-  </ReportHeader>
-  <div class="flex flex-col gap-6">
-    <ReportFilters
-      v-if="filterItemsList"
-      :type="type"
-      :filter-items-list="filterItemsList"
-      :group-by-filter-items-list="groupByfilterItemsList"
-      :selected-group-by-filter="selectedGroupByFilter"
-      :current-filter="selectedFilter"
-      @date-range-change="onDateRangeChange"
-      @filter-change="onFilterChange"
-      @group-by-filter-change="onGroupByFilterChange"
-      @business-hours-toggle="onBusinessHoursToggle"
-    />
-    <SpeedInsightsPanel
-      v-if="type !== 'label'"
-      :show-transfer-metrics="showTransferMetric"
-    />
-    <ReportContainer
-      v-if="filterItemsList.length"
-      :group-by="groupBy"
-      :report-keys="reportKeys"
-    />
-  </div>
+  <ReportsShell>
+    <template #filters>
+      <ReportFilters
+        v-if="filterItemsList"
+        layout="rail"
+        :type="type"
+        :filter-items-list="filterItemsList"
+        :group-by-filter-items-list="groupByfilterItemsList"
+        :selected-group-by-filter="selectedGroupByFilter"
+        :current-filter="selectedFilter"
+        @date-range-change="onDateRangeChange"
+        @filter-change="onFilterChange"
+        @group-by-filter-change="onGroupByFilterChange"
+        @business-hours-toggle="onBusinessHoursToggle"
+      />
+    </template>
+    <template #content>
+      <ReportsHero
+        :title="reportTitle"
+        :description="headerDescription"
+        :has-back-button="hasBackButton"
+      >
+        <template #actions>
+          <V4Button
+            :label="downloadButtonLabel"
+            icon="i-ph-download-simple"
+            size="sm"
+            @click="downloadReports"
+          />
+        </template>
+      </ReportsHero>
+      <div class="flex flex-col gap-6 pb-6">
+        <SpeedInsightsPanel
+          v-if="type !== 'label'"
+          :show-transfer-metrics="showTransferMetric"
+        />
+        <ReportContainer
+          v-if="filterItemsList.length"
+          :group-by="groupBy"
+          :report-keys="reportKeys"
+        />
+      </div>
+    </template>
+  </ReportsShell>
 </template>

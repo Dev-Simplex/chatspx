@@ -6,6 +6,7 @@ import { STATUS } from 'dashboard/store/constants';
 import Spinner from 'dashboard/components-next/spinner/Spinner.vue';
 import { useI18n } from 'vue-i18n';
 import { useReportMetrics } from 'dashboard/composables/useReportMetrics';
+import ReportsSurface from './ReportsSurface.vue';
 
 const props = defineProps({
   title: {
@@ -103,9 +104,7 @@ const insightCards = computed(() => {
 </script>
 
 <template>
-  <section
-    class="rounded-2xl border border-n-container/60 bg-n-solid-2/90 px-6 py-6 shadow-sm"
-  >
+  <ReportsSurface variant="base" padding="lg" as="section">
     <div class="flex items-center justify-between gap-3">
       <div class="flex flex-col gap-2">
         <span class="text-xs uppercase tracking-[0.2em] text-n-slate-10">
@@ -141,5 +140,5 @@ const insightCards = computed(() => {
         </p>
       </div>
     </div>
-  </section>
+  </ReportsSurface>
 </template>

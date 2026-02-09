@@ -27,7 +27,7 @@ const headerClass = computed(() =>
 );
 const headerRowClass = computed(() =>
   isReports.value
-    ? 'bg-n-solid-2/80 border-b border-n-container/60'
+    ? 'bg-n-solid-2/70 border-b border-n-container/60 backdrop-blur'
     : 'bg-n-slate-1'
 );
 const rowClass = computed(() =>
@@ -37,6 +37,11 @@ const rowClass = computed(() =>
 );
 const cellClass = computed(() =>
   isReports.value ? 'py-3.5 px-5 text-sm text-n-slate-12' : ''
+);
+const headerCellClass = computed(() =>
+  isReports.value
+    ? 'text-left py-3 px-5 text-[11px] uppercase tracking-[0.2em] text-n-slate-10'
+    : 'text-left py-3 px-5 font-medium text-sm text-n-slate-12'
 );
 </script>
 
@@ -54,8 +59,7 @@ const cellClass = computed(() =>
           :style="{
             width: `${header.getSize()}px`,
           }"
-          class="text-left py-3 px-5 font-medium text-sm text-n-slate-12"
-          :class="headerClass"
+          :class="[headerCellClass, headerClass]"
           @click="header.column.getCanSort() && header.column.toggleSorting()"
         >
           <div

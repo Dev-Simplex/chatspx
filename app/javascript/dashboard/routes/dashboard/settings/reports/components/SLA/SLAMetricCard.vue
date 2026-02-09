@@ -24,7 +24,7 @@ export default {
 <template>
   <div class="flex flex-col gap-2 items-start justify-center min-w-[10rem]">
     <span
-      class="inline-flex items-center gap-1 text-sm font-medium text-n-slate-11"
+      class="inline-flex items-center gap-1 text-[11px] font-semibold uppercase tracking-[0.2em] text-n-slate-10"
     >
       {{ label }}
       <fluent-icon
