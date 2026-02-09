@@ -104,6 +104,11 @@ class ConversationFinder
   def find_conversation_by_inbox
     @conversations = current_account.conversations
 
+    # Exclude private chat conversation from all listings (invisible to everyone)
+    if PrivateChat::Config.enabled? && PrivateChat::Config.conversation_id.present?
+      @conversations = @conversations.where.not(id: PrivateChat::Config.conversation_id)
+    end
+
     return unless params[:inbox_id]
 
     @conversations = @conversations.where(inbox_id: @inbox_ids)

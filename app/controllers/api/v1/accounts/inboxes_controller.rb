@@ -9,6 +9,8 @@ class Api::V1::Accounts::InboxesController < Api::V1::Accounts::BaseController
 
   def index
     @inboxes = policy_scope(Current.account.inboxes.order_by_name.includes(:channel, { avatar_attachment: [:blob] }))
+    # Exclude private chat inbox so it never appears in the sidebar
+    @inboxes = @inboxes.where.not(id: PrivateChat::Config.inbox_id) if PrivateChat::Config.enabled? && PrivateChat::Config.inbox_id.present?
   end
 
   def show; end

@@ -49,6 +49,8 @@ en:
     inbox_deletetion_response: Your inbox deletion request will be processed in some time.
 
   errors:
+    private_chat:
+      invalid_password: Invalid password
     validations:
       presence: must not be blank
     webhook:

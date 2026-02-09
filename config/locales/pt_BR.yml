@@ -35,6 +35,8 @@ pt_BR:
     saml_not_available: A autenticação SAML não está disponível nesta instalação.
     inbox_deletetion_response: Seu pedido de exclusão da caixa de entrada será processado dentro de algum tempo.
   errors:
+    private_chat:
+      invalid_password: Senha inválida
     validations:
       presence: não pode ficar em branco
     webhook:

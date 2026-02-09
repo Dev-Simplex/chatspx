@@ -13,6 +13,7 @@ import { routes as kanbanRoutes } from './kanban/routes';
 import AppContainer from './Dashboard.vue';
 import Suspended from './suspended/Index.vue';
 import NoAccounts from './noAccounts/Index.vue';
+import PrivateChatView from './PrivateChatView.vue';
 
 export default {
   routes: [
@@ -23,6 +24,12 @@ export default {
         ...captainRoutes,
         ...kanbanRoutes,
         ...inboxRoutes,
+        {
+          path: frontendURL('accounts/:accountId/notes'),
+          name: 'account_notes',
+          meta: { permissions: ['administrator', 'agent', 'custom_role'] },
+          component: PrivateChatView,
+        },
         ...conversation.routes,
         ...settings.routes,
         ...contactRoutes,
