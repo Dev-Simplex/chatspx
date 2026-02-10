@@ -27,7 +27,12 @@ export default {
   },
   mounted() {
     if (!this.appIntegrations.length) {
-      this.$store.dispatch('integrations/get');
+      const requestIdleCallback = window.requestIdleCallback || (cb => setTimeout(cb, 1000));
+      requestIdleCallback(() => {
+        if (!this.appIntegrations.length) {
+          this.$store.dispatch('integrations/get');
+        }
+      }, { timeout: 2000 });
     }
   },
   methods: {

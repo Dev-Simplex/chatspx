@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[7.1].define(version: 2026_01_14_201315) do
+ActiveRecord::Schema[7.1].define(version: 2026_02_10_120001) do
   # These extensions should be enabled to support this database
   enable_extension "pg_stat_statements"
   enable_extension "pg_trgm"
@@ -492,22 +492,9 @@ ActiveRecord::Schema[7.1].define(version: 2026_01_14_201315) do
     t.string "bot_name"
     t.integer "account_id", null: false
     t.string "bot_token", null: false
-    
     t.datetime "created_at", precision: nil, null: false
     t.datetime "updated_at", precision: nil, null: false
     t.index ["bot_token"], name: "index_channel_telegram_on_bot_token", unique: true
-  end
-
-  create_table "channel_tiktok", force: :cascade do |t|
-    t.integer "account_id", null: false
-    t.string "business_id", null: false
-    t.string "access_token", null: false
-    t.datetime "expires_at", null: false
-    t.string "refresh_token", null: false
-    t.datetime "refresh_token_expires_at", null: false
-    t.datetime "created_at", null: false
-    t.datetime "updated_at", null: false
-    t.index ["business_id"], name: "index_channel_tiktok_on_business_id", unique: true
   end
 
   create_table "channel_tiktok", force: :cascade do |t|
@@ -688,16 +675,17 @@ ActiveRecord::Schema[7.1].define(version: 2026_01_14_201315) do
     t.datetime "snoozed_until", precision: nil
     t.jsonb "custom_attributes", default: {}
     t.datetime "assignee_last_seen_at", precision: nil
-    t.datetime "assignee_last_changed_at", precision: nil
     t.datetime "first_reply_created_at", precision: nil
     t.integer "priority"
     t.bigint "sla_policy_id"
     t.datetime "waiting_since"
     t.text "cached_label_list"
     t.bigint "assignee_agent_bot_id"
+    t.datetime "assignee_last_changed_at"
     t.index ["account_id", "display_id"], name: "index_conversations_on_account_id_and_display_id", unique: true
     t.index ["account_id", "id"], name: "index_conversations_on_id_and_account_id"
     t.index ["account_id", "inbox_id", "status", "assignee_id"], name: "conv_acid_inbid_stat_asgnid_idx"
+    t.index ["account_id", "status", "assignee_id", "last_activity_at", "id"], name: "idx_conv_list_keyset", order: { last_activity_at: :desc, id: :desc }
     t.index ["account_id"], name: "index_conversations_on_account_id"
     t.index ["assignee_id", "account_id"], name: "index_conversations_on_assignee_id_and_account_id"
     t.index ["assignee_last_changed_at"], name: "index_conversations_on_assignee_last_changed_at"
@@ -840,6 +828,47 @@ ActiveRecord::Schema[7.1].define(version: 2026_01_14_201315) do
     t.datetime "updated_at", precision: nil, null: false
   end
 
+  create_table "funnel_items", force: :cascade do |t|
+    t.bigint "conversation_id", null: false
+    t.bigint "funnel_id", null: false
+    t.bigint "funnel_stage_id", null: false
+    t.datetime "moved_at", precision: nil
+    t.bigint "moved_by_id"
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["conversation_id", "funnel_id"], name: "index_funnel_items_unique", unique: true
+    t.index ["conversation_id"], name: "index_funnel_items_on_conversation_id"
+    t.index ["funnel_id"], name: "index_funnel_items_on_funnel_id"
+    t.index ["funnel_stage_id"], name: "index_funnel_items_on_funnel_stage_id"
+    t.index ["moved_by_id"], name: "index_funnel_items_on_moved_by_id"
+  end
+
+  create_table "funnel_stages", force: :cascade do |t|
+    t.string "name", null: false
+    t.bigint "funnel_id", null: false
+    t.integer "position", default: 0
+    t.string "color"
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.string "automation_type"
+    t.index ["automation_type"], name: "index_funnel_stages_on_automation_type"
+    t.index ["funnel_id"], name: "index_funnel_stages_on_funnel_id"
+  end
+
+  create_table "funnels", force: :cascade do |t|
+    t.string "name", null: false
+    t.bigint "account_id", null: false
+    t.integer "position", default: 0
+    t.string "color"
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.bigint "team_id"
+    t.jsonb "inbox_ids", default: [], null: false
+    t.index ["account_id"], name: "index_funnels_on_account_id"
+    t.index ["inbox_ids"], name: "index_funnels_on_inbox_ids", using: :gin
+    t.index ["team_id"], name: "index_funnels_on_team_id"
+  end
+
   create_table "inbox_assignment_policies", force: :cascade do |t|
     t.bigint "inbox_id", null: false
     t.bigint "assignment_policy_id", null: false
@@ -893,9 +922,12 @@ ActiveRecord::Schema[7.1].define(version: 2026_01_14_201315) do
     t.string "business_name"
     t.jsonb "csat_config", default: {}, null: false
     t.string "waha_session_name"
+    t.boolean "nps_survey_enabled", default: false
+    t.jsonb "nps_config", default: {}, null: false
     t.index ["account_id"], name: "index_inboxes_on_account_id"
     t.index ["channel_id", "channel_type"], name: "index_inboxes_on_channel_id_and_channel_type"
     t.index ["portal_id"], name: "index_inboxes_on_portal_id"
+    t.index ["waha_session_name"], name: "index_inboxes_on_waha_session_name"
   end
 
   create_table "installation_configs", force: :cascade do |t|
@@ -974,6 +1006,20 @@ ActiveRecord::Schema[7.1].define(version: 2026_01_14_201315) do
     t.index ["conversation_id"], name: "index_mentions_on_conversation_id"
     t.index ["user_id", "conversation_id"], name: "index_mentions_on_user_id_and_conversation_id", unique: true
     t.index ["user_id"], name: "index_mentions_on_user_id"
+  end
+
+  create_table "message_reactions", force: :cascade do |t|
+    t.bigint "message_id", null: false
+    t.bigint "account_id", null: false
+    t.string "user_type", null: false
+    t.bigint "user_id", null: false
+    t.string "emoji", limit: 10, null: false
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["account_id"], name: "index_message_reactions_on_account_id"
+    t.index ["message_id", "user_type", "user_id"], name: "index_message_reactions_unique", unique: true
+    t.index ["message_id"], name: "index_message_reactions_on_message_id"
+    t.index ["user_type", "user_id"], name: "index_message_reactions_on_user_type_and_user_id"
   end
 
   create_table "messages", id: :serial, force: :cascade do |t|
@@ -1070,6 +1116,34 @@ ActiveRecord::Schema[7.1].define(version: 2026_01_14_201315) do
     t.index ["user_id"], name: "index_notifications_on_user_id"
   end
 
+  create_table "nps_responses", force: :cascade do |t|
+    t.bigint "account_id", null: false
+    t.bigint "conversation_id", null: false
+    t.bigint "contact_id", null: false
+    t.bigint "inbox_id", null: false
+    t.bigint "assigned_agent_id"
+    t.integer "status", default: 0, null: false
+    t.integer "score"
+    t.text "comment"
+    t.datetime "sent_at"
+    t.datetime "answered_at"
+    t.string "dismiss_reason"
+    t.string "blocked_by_label"
+    t.integer "blocked_scope"
+    t.jsonb "metadata"
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["account_id", "answered_at"], name: "index_nps_responses_on_account_id_and_answered_at"
+    t.index ["account_id", "sent_at"], name: "index_nps_responses_on_account_id_and_sent_at"
+    t.index ["account_id"], name: "index_nps_responses_on_account_id"
+    t.index ["assigned_agent_id"], name: "index_nps_responses_on_assigned_agent_id"
+    t.index ["contact_id", "answered_at"], name: "index_nps_responses_on_contact_id_and_answered_at"
+    t.index ["contact_id"], name: "index_nps_responses_on_contact_id"
+    t.index ["conversation_id"], name: "index_nps_responses_on_conversation_id"
+    t.index ["inbox_id"], name: "index_nps_responses_on_inbox_id"
+    t.index ["status"], name: "index_nps_responses_on_status"
+  end
+
   create_table "platform_app_permissibles", force: :cascade do |t|
     t.bigint "platform_app_id", null: false
     t.string "permissible_type", null: false
@@ -1143,6 +1217,26 @@ ActiveRecord::Schema[7.1].define(version: 2026_01_14_201315) do
     t.index ["inbox_id"], name: "index_reporting_events_on_inbox_id"
     t.index ["name"], name: "index_reporting_events_on_name"
     t.index ["user_id"], name: "index_reporting_events_on_user_id"
+  end
+
+  create_table "scheduled_messages", force: :cascade do |t|
+    t.bigint "conversation_id", null: false
+    t.bigint "inbox_id", null: false
+    t.text "message", null: false
+    t.datetime "scheduled_at", precision: nil, null: false
+    t.integer "status", default: 0
+    t.datetime "sent_at", precision: nil
+    t.text "error_message"
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.bigint "message_id"
+    t.bigint "scheduled_by_id"
+    t.index ["conversation_id"], name: "index_scheduled_messages_on_conversation_id"
+    t.index ["inbox_id"], name: "index_scheduled_messages_on_inbox_id"
+    t.index ["message_id"], name: "index_scheduled_messages_on_message_id"
+    t.index ["scheduled_at"], name: "index_scheduled_messages_on_scheduled_at"
+    t.index ["scheduled_by_id"], name: "index_scheduled_messages_on_scheduled_by_id"
+    t.index ["status"], name: "index_scheduled_messages_on_status"
   end
 
   create_table "sla_events", force: :cascade do |t|
@@ -1292,7 +1386,20 @@ ActiveRecord::Schema[7.1].define(version: 2026_01_14_201315) do
 
   add_foreign_key "active_storage_attachments", "active_storage_blobs", column: "blob_id"
   add_foreign_key "active_storage_variant_records", "active_storage_blobs", column: "blob_id"
+  add_foreign_key "funnel_items", "conversations"
+  add_foreign_key "funnel_items", "funnel_stages"
+  add_foreign_key "funnel_items", "funnels"
+  add_foreign_key "funnel_items", "users", column: "moved_by_id"
+  add_foreign_key "funnel_stages", "funnels"
+  add_foreign_key "funnels", "accounts"
+  add_foreign_key "funnels", "teams"
   add_foreign_key "inboxes", "portals"
+  add_foreign_key "message_reactions", "accounts"
+  add_foreign_key "message_reactions", "messages"
+  add_foreign_key "scheduled_messages", "conversations"
+  add_foreign_key "scheduled_messages", "inboxes"
+  add_foreign_key "scheduled_messages", "messages"
+  add_foreign_key "scheduled_messages", "users", column: "scheduled_by_id"
   create_trigger("accounts_after_insert_row_tr", :generated => true, :compatibility => 1).
       on("accounts").
       after(:insert).

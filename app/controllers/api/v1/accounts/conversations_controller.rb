@@ -13,6 +13,8 @@ class Api::V1::Accounts::ConversationsController < Api::V1::Accounts::BaseContro
     result = conversation_finder.perform
     @conversations = result[:conversations]
     @conversations_count = result[:count]
+    @next_cursor = result[:next_cursor]
+    @list_preloaded = Conversations::ListPreloader.call(@conversations)
   end
 
   def meta
@@ -24,6 +26,7 @@ class Api::V1::Accounts::ConversationsController < Api::V1::Accounts::BaseContro
     result = conversation_finder.perform
     @conversations = result[:conversations]
     @conversations_count = result[:count]
+    @list_preloaded = Conversations::ListPreloader.call(@conversations)
   end
 
   def attachments
@@ -52,6 +55,7 @@ class Api::V1::Accounts::ConversationsController < Api::V1::Accounts::BaseContro
     result = ::Conversations::FilterService.new(params.permit!, current_user, current_account).perform
     @conversations = result[:conversations]
     @conversations_count = result[:count]
+    @list_preloaded = Conversations::ListPreloader.call(@conversations)
   rescue CustomExceptions::CustomFilter::InvalidAttribute,
          CustomExceptions::CustomFilter::InvalidOperator,
          CustomExceptions::CustomFilter::InvalidQueryOperator,

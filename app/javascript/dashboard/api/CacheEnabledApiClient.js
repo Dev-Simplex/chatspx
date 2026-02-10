@@ -2,6 +2,38 @@
 import { DataManager } from '../helper/CacheHelper/DataManager';
 import ApiClient from './ApiClient';
 
+const CACHE_KEYS_TTL_MS = 5000;
+const cacheKeysCache = {};
+const cacheKeysFetchPromises = {};
+
+async function getCacheKeysWithDedup(accountId) {
+  const cached = cacheKeysCache[accountId];
+  if (
+    cached &&
+    cached.keys &&
+    Date.now() - cached.timestamp < CACHE_KEYS_TTL_MS
+  ) {
+    return cached.keys;
+  }
+  if (cacheKeysFetchPromises[accountId]) {
+    return cacheKeysFetchPromises[accountId];
+  }
+  const fetchPromise = axios
+    .get(`/api/v1/accounts/${accountId}/cache_keys`)
+    .then(response => {
+      const keys = response.data.cache_keys;
+      cacheKeysCache[accountId] = { keys, timestamp: Date.now() };
+      delete cacheKeysFetchPromises[accountId];
+      return keys;
+    })
+    .catch(err => {
+      delete cacheKeysFetchPromises[accountId];
+      throw err;
+    });
+  cacheKeysFetchPromises[accountId] = fetchPromise;
+  return fetchPromise;
+}
+
 class CacheEnabledApiClient extends ApiClient {
   constructor(resource, options = {}) {
     super(resource, options);
@@ -43,10 +75,8 @@ class CacheEnabledApiClient extends ApiClient {
       return this.getFromNetwork();
     }
 
-    const { data } = await axios.get(
-      `/api/v1/accounts/${this.accountIdFromRoute}/cache_keys`
-    );
-    const cacheKeyFromApi = data.cache_keys[this.cacheModelName];
+    const cacheKeys = await getCacheKeysWithDedup(this.accountIdFromRoute);
+    const cacheKeyFromApi = cacheKeys[this.cacheModelName];
     const isCacheValid = await this.validateCacheKey(cacheKeyFromApi);
 
     let localData = [];

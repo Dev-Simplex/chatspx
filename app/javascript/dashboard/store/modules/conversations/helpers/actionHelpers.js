@@ -1,7 +1,18 @@
 import types from '../../../mutation-types';
 
-export const setPageFilter = ({ dispatch, filter, page, markEndReached }) => {
+export const setPageFilter = ({
+  dispatch,
+  filter,
+  page,
+  nextCursor,
+  markEndReached,
+}) => {
   dispatch('conversationPage/setCurrentPage', { filter, page }, { root: true });
+  if (nextCursor !== undefined) {
+    dispatch('conversationPage/setNextCursor', { filter, nextCursor }, {
+      root: true,
+    });
+  }
   if (markEndReached) {
     dispatch('conversationPage/setEndReached', { filter }, { root: true });
   }
@@ -38,6 +49,8 @@ export const isOnFoldersView = ({ route: { name: routeName } }) => {
   return FOLDER_ROUTES.includes(routeName);
 };
 
+const CONVERSATIONS_PER_PAGE = 25;
+
 export const buildConversationList = (
   context,
   requestPayload,
@@ -53,10 +66,14 @@ export const buildConversationList = (
   );
   context.commit(types.CLEAR_LIST_LOADING_STATUS);
   setContacts(context.commit, conversationList);
+  const hasNextCursor = !!metaData?.next_cursor;
+  const markEndReached =
+    conversationList.length < CONVERSATIONS_PER_PAGE || !hasNextCursor;
   setPageFilter({
     dispatch: context.dispatch,
     filter: filterType,
     page: requestPayload.page,
-    markEndReached: !conversationList.length,
+    nextCursor: metaData?.next_cursor,
+    markEndReached,
   });
 };

@@ -13,5 +13,6 @@ class Api::V1::Accounts::Contacts::ConversationsController < Api::V1::Accounts::
     ).perform
 
     @conversations = conversations.order(last_activity_at: :desc).limit(20)
+    @list_preloaded = Conversations::ListPreloader.call(@conversations)
   end
 end

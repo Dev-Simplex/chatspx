@@ -24,10 +24,10 @@ class ConversationFinder
   # conversation_status if not given, take 'open'
 
   # response of this class will be of type
-  # {conversations: [array of conversations], count: {open: count, resolved: count}}
+  # {conversations: [array of conversations], count: {...}, next_cursor: string|null}
 
   # params
-  # assignee_type, inbox_id, :status
+  # assignee_type, inbox_id, :status, :cursor, :limit
 
   def initialize(current_user, params)
     @current_user = current_user
@@ -39,16 +39,13 @@ class ConversationFinder
   def perform
     set_up
 
-    # Calcula o total de conversas únicas após todos os filtros (para a aba 'Todos')
-    all_count = @conversations.distinct.count
-
-    # Calcula 'Minhas' e 'Não atribuídas' apenas dentro do conjunto filtrado
-    mine_count = @conversations.assigned_to(current_user).distinct.count
-    unassigned_count = @conversations.unassigned.distinct.count
+    all_count, mine_count, unassigned_count = compute_counts_in_single_query
     assigned_count = all_count - unassigned_count
 
+    convs, next_cursor = fetch_conversations
+
     {
-      conversations: conversations,
+      conversations: convs,
       count: {
         mine_count: mine_count,
         assigned_count: assigned_count,
@@ -57,7 +54,8 @@ class ConversationFinder
         unattended_assigned_to_me_count: @unattended_assigned_to_me_count || 0,
         unattended_unassigned_count: @unattended_unassigned_count || 0,
         unattended_all_count: @unattended_all_count || 0
-      }
+      },
+      next_cursor: next_cursor
     }
   end
 
@@ -69,11 +67,13 @@ class ConversationFinder
     set_assignee_type
 
     find_all_conversations
+    filter_by_assignee_type if @assignee_type.present?
     filter_by_status unless params[:q]
     filter_by_team
     filter_by_labels
     filter_by_query
     filter_by_source_id
+    filter_by_date_range
   end
 
   def set_inboxes
@@ -198,6 +198,37 @@ class ConversationFinder
     @conversations = @conversations.where(contact_inboxes: { source_id: params[:source_id] })
   end
 
+  def filter_by_date_range
+    return unless params[:date_from].present? || params[:date_to].present?
+
+    from = params[:date_from].present? ? Time.zone.parse(params[:date_from].to_s) : nil
+    to = params[:date_to].present? ? Time.zone.parse(params[:date_to].to_s) : nil
+
+    @conversations = @conversations.where('conversations.last_activity_at >= ?', from) if from
+    @conversations = @conversations.where('conversations.last_activity_at <= ?', to) if to
+  end
+
+  def compute_counts_in_single_query
+    subquery = @conversations.reselect('conversations.id', 'conversations.assignee_id').distinct
+    sql = <<~SQL.squish
+      SELECT
+        COUNT(*)::int AS all_count,
+        COUNT(*) FILTER (WHERE sub.assignee_id = #{sanitized_user_id})::int AS mine_count,
+        COUNT(*) FILTER (WHERE sub.assignee_id IS NULL)::int AS unassigned_count
+      FROM (#{subquery.to_sql}) sub
+    SQL
+    result = Conversation.connection.select_one(sql)
+    [
+      result['all_count'].to_i,
+      result['mine_count'].to_i,
+      result['unassigned_count'].to_i
+    ]
+  end
+
+  def sanitized_user_id
+    Conversation.connection.quote(current_user.id)
+  end
+
   def set_count_for_all_conversations
     [
       @conversations.assigned_to(current_user).count,
@@ -210,23 +241,72 @@ class ConversationFinder
     params[:page] || 1
   end
 
+  def per_page
+    limit = (params[:limit] || ENV.fetch('CONVERSATION_RESULTS_PER_PAGE', '25')).to_i
+    [limit, 100].min
+  end
+
   def conversations_base_query
     @conversations.includes(
       :taggings, :inbox, { assignee: { avatar_attachment: [:blob] } }, { contact: { avatar_attachment: [:blob] } }, :team, :contact_inbox
     )
   end
 
-  def conversations
-    @conversations = conversations_base_query
-
+  def fetch_conversations
+    base = conversations_base_query
     sort_by, sort_order = SORT_OPTIONS[params[:sort_by]] || SORT_OPTIONS['last_activity_at_desc']
-    @conversations = @conversations.send(sort_by, sort_order)
 
     if params[:updated_within].present?
-      @conversations.where('conversations.updated_at > ?', Time.zone.now - params[:updated_within].to_i.seconds)
-    else
-      @conversations.page(current_page).per(ENV.fetch('CONVERSATION_RESULTS_PER_PAGE', '25').to_i)
+      base = base.where('conversations.updated_at > ?', Time.zone.now - params[:updated_within].to_i.seconds)
     end
+
+    if use_keyset_pagination?(sort_by, sort_order)
+      apply_keyset_and_fetch(base, sort_order)
+    else
+      convs = base.send(sort_by, sort_order).page(current_page).per(per_page)
+      [convs, nil]
+    end
+  end
+
+  def use_keyset_pagination?(sort_by, sort_order)
+    sort_by == 'sort_on_last_activity_at' && sort_order == 'desc' && params[:q].blank?
+  end
+
+  def apply_keyset_and_fetch(base, _sort_order)
+    cursor_data = decode_cursor(params[:cursor])
+
+    if cursor_data
+      base = base.where(
+        '(conversations.last_activity_at, conversations.id) < (?, ?)',
+        cursor_data[:last_activity_at],
+        cursor_data[:id]
+      )
+    end
+
+    convs = base.sort_on_last_activity_at(:desc).limit(per_page + 1).to_a
+    has_more = convs.size > per_page
+    convs = convs.first(per_page) if has_more
+    last = convs.last
+    next_cursor = has_more && last ? encode_cursor(last.last_activity_at, last.id) : nil
+
+    [convs, next_cursor]
+  end
+
+  def decode_cursor(cursor_str)
+    return nil if cursor_str.blank?
+
+    json = Base64.decode64(cursor_str)
+    data = JSON.parse(json).with_indifferent_access
+    {
+      last_activity_at: Time.zone.parse(data[:last_activity_at].to_s),
+      id: data[:id].to_i
+    }
+  rescue ArgumentError, JSON::ParserError
+    nil
+  end
+
+  def encode_cursor(last_activity_at, id)
+    Base64.strict_encode64({ last_activity_at: last_activity_at.iso8601(3), id: id }.to_json)
   end
 end
 ConversationFinder.prepend_mod_with('ConversationFinder')

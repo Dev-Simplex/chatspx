@@ -1,4 +1,4 @@
-import { computed, onMounted } from 'vue';
+import { computed } from 'vue';
 import {
   useStore,
   useStoreGetters,
@@ -181,10 +181,6 @@ export function useAI() {
       return '';
     }
   };
-
-  onMounted(() => {
-    fetchIntegrationsIfRequired();
-  });
 
   return {
     draftMessage,

@@ -2,6 +2,8 @@ import types from '../mutation-types';
 import ConversationApi from '../../api/inbox/conversation';
 import { debounce } from '@chatwoot/utils';
 
+const META_FRESH_THRESHOLD_MS = 5000;
+
 const state = {
   mineCount: 0,
   unAssignedCount: 0,
@@ -9,6 +11,7 @@ const state = {
   unattendedAssignedCount: 0,
   unattendedUnassignedCount: 0,
   unattendedAllCount: 0,
+  updatedOn: null,
 };
 
 export const getters = {
@@ -29,6 +32,7 @@ const fetchMetaData = async (commit, params) => {
 };
 
 const debouncedFetchMetaData = debounce(fetchMetaData, 500, false, 1500);
+const mediumDebouncedFetchMetaData = debounce(fetchMetaData, 2000, false, 5000);
 const longDebouncedFetchMetaData = debounce(fetchMetaData, 5000, false, 10000);
 const superLongDebouncedFetchMetaData = debounce(
   fetchMetaData,
@@ -39,10 +43,18 @@ const superLongDebouncedFetchMetaData = debounce(
 
 export const actions = {
   get: async ({ commit, state: $state }, params) => {
+    if (
+      $state.updatedOn &&
+      Date.now() - new Date($state.updatedOn) < META_FRESH_THRESHOLD_MS
+    ) {
+      return;
+    }
     if ($state.allCount > 5000) {
       superLongDebouncedFetchMetaData(commit, params);
-    } else if ($state.allCount > 100) {
+    } else if ($state.allCount > 500) {
       longDebouncedFetchMetaData(commit, params);
+    } else if ($state.allCount > 100) {
+      mediumDebouncedFetchMetaData(commit, params);
     } else {
       debouncedFetchMetaData(commit, params);
     }

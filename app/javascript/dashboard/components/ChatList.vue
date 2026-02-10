@@ -294,17 +294,24 @@ const conversationListPagination = computed(() => {
 });
 
 const conversationFilters = computed(() => {
+  const filterKey = activeAssigneeTab.value;
+  const nextCursor = store.getters['conversationPage/getNextCursor']?.(filterKey);
   return {
     inboxId: props.conversationInbox ? props.conversationInbox : undefined,
     assigneeType: activeAssigneeTab.value,
     status: activeStatus.value,
     sortBy: activeSortBy.value,
-    page: conversationListPagination.value,
+    page: nextCursor ? undefined : conversationListPagination.value,
+    cursor: nextCursor || undefined,
     labels: props.label ? [props.label] : undefined,
     teamId: props.teamId || undefined,
     conversationType: props.conversationType || undefined,
+    dateFrom: dateRangeFilter.value?.from || undefined,
+    dateTo: dateRangeFilter.value?.to || undefined,
   };
 });
+
+const dateRangeFilter = ref(null);
 
 const conversationStatsFiltersForUnattended = computed(() => {
   if (props.conversationType !== 'unattended') return null;
@@ -991,12 +998,6 @@ onMounted(() => {
   store.dispatch('setChatStatusFilter', activeStatus.value);
   store.dispatch('setChatSortFilter', activeSortBy.value);
   resetAndFetchData();
-  if (props.conversationType === 'unattended' && conversationStatsFiltersForUnattended.value) {
-    store.dispatch(
-      'conversationStats/get',
-      conversationStatsFiltersForUnattended.value
-    );
-  }
   if (hasActiveFolders.value) {
     store.dispatch('campaigns/get');
   }
@@ -1072,12 +1073,6 @@ watch(
         store.dispatch('conversationPage/reset');
         store.dispatch('emptyAllConversations');
         fetchConversations();
-        if (conversationStatsFiltersForUnattended.value) {
-          store.dispatch(
-            'conversationStats/get',
-            conversationStatsFiltersForUnattended.value
-          );
-        }
       }
     }
   },

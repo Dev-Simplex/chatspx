@@ -7,10 +7,17 @@ const state = {
     all: 0,
     appliedFilters: 0,
   },
+  nextCursor: {
+    me: null,
+    unassigned: null,
+    all: null,
+    appliedFilters: null,
+  },
   hasEndReached: {
     me: false,
     unassigned: false,
     all: false,
+    appliedFilters: false,
   },
 };
 
@@ -21,6 +28,9 @@ export const getters = {
   getCurrentPageFilter: $state => filter => {
     return $state.currentPage[filter];
   },
+  getNextCursor: $state => filter => {
+    return $state.nextCursor[filter];
+  },
   getCurrentPage: $state => {
     return $state.currentPage;
   },
@@ -29,6 +39,9 @@ export const getters = {
 export const actions = {
   setCurrentPage({ commit }, { filter, page }) {
     commit(types.default.SET_CURRENT_PAGE, { filter, page });
+  },
+  setNextCursor({ commit }, { filter, nextCursor }) {
+    commit(types.default.SET_NEXT_CURSOR, { filter, nextCursor });
   },
   setEndReached({ commit }, { filter }) {
     commit(types.default.SET_CONVERSATION_END_REACHED, { filter });
@@ -43,6 +56,12 @@ export const mutations = {
     $state.currentPage = {
       ...$state.currentPage,
       [filter]: page,
+    };
+  },
+  [types.default.SET_NEXT_CURSOR]: ($state, { filter, nextCursor }) => {
+    $state.nextCursor = {
+      ...$state.nextCursor,
+      [filter]: nextCursor,
     };
   },
   [types.default.SET_CONVERSATION_END_REACHED]: ($state, { filter }) => {
@@ -65,7 +84,12 @@ export const mutations = {
       all: 0,
       appliedFilters: 0,
     };
-
+    $state.nextCursor = {
+      me: null,
+      unassigned: null,
+      all: null,
+      appliedFilters: null,
+    };
     $state.hasEndReached = {
       me: false,
       unassigned: false,

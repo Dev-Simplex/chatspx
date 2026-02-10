@@ -21,7 +21,15 @@ json.meta do
 end
 
 json.id conversation.display_id
-if conversation.messages.where(account_id: conversation.account_id).last.blank?
+preloaded = @list_preloaded
+if preloaded
+  last_message = preloaded.last_messages[conversation.id]
+  if last_message.blank?
+    json.messages []
+  else
+    json.messages [last_message.try(:push_event_data)]
+  end
+elsif conversation.messages.where(account_id: conversation.account_id).last.blank?
   json.messages []
 else
   last_message = conversation.messages.where(account_id: conversation.account_id)
@@ -46,9 +54,9 @@ json.created_at conversation.created_at.to_i
 json.updated_at conversation.updated_at.to_f
 json.timestamp conversation.last_activity_at.to_i
 json.first_reply_created_at conversation.first_reply_created_at.to_i
-json.unread_count conversation.unread_incoming_messages.count
-last_non_activity = conversation.messages.where(account_id: conversation.account_id).non_activity_messages
-json.last_non_activity_message last_non_activity.first.try(:push_event_data)
+json.unread_count preloaded ? preloaded.unread_counts[conversation.id].to_i : conversation.unread_incoming_messages.count
+last_non_activity_msg = preloaded ? preloaded.last_non_activity_messages[conversation.id] : conversation.messages.where(account_id: conversation.account_id).non_activity_messages.first
+json.last_non_activity_message last_non_activity_msg.try(:push_event_data)
 json.last_activity_at conversation.last_activity_at.to_i
 json.priority conversation.priority
 json.waiting_since conversation.waiting_since.to_i.to_i

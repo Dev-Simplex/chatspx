@@ -80,7 +80,9 @@ onMounted(() => {
   store.dispatch('attributes/get');
   store.dispatch('customViews/get', 'conversation');
   store.dispatch('customViews/get', 'contact');
-  store.dispatch('conversationStats/get', {});
+  setTimeout(() => {
+    store.dispatch('conversationStats/get', {});
+  }, 2000);
 });
 
 const sortedInboxes = computed(() =>
