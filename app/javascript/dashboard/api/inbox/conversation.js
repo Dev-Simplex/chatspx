@@ -16,6 +16,8 @@ class ConversationApi extends ApiClient {
     conversationType,
     sortBy,
     updatedWithin,
+    perPage,
+    includeMeta,
   }) {
     return axios.get(this.url, {
       params: {
@@ -28,6 +30,8 @@ class ConversationApi extends ApiClient {
         conversation_type: conversationType,
         sort_by: sortBy,
         updated_within: updatedWithin,
+        per_page: perPage,
+        include_meta: includeMeta,
       },
     });
   }
@@ -36,6 +40,8 @@ class ConversationApi extends ApiClient {
     return axios.post(`${this.url}/filter`, payload.queryData, {
       params: {
         page: payload.page,
+        per_page: payload.perPage,
+        include_meta: payload.includeMeta,
       },
     });
   }

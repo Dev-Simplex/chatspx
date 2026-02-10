@@ -8,6 +8,7 @@ import {
   computed,
   watch,
   onMounted,
+  nextTick,
   defineEmits,
 } from 'vue';
 import { useStore } from 'vuex';
@@ -46,7 +47,6 @@ import {
   useSnakeCase,
 } from 'dashboard/composables/useTransformKeys';
 import { useEmitter } from 'dashboard/composables/emitter';
-import { useEventListener } from '@vueuse/core';
 
 import { emitter } from 'shared/helpers/mitt';
 
@@ -91,6 +91,8 @@ const store = useStore();
 
 const conversationListRef = ref(null);
 const conversationDynamicScroller = ref(null);
+const hasScrollbar = ref(false);
+const isFetchingNextPage = ref(false);
 
 provide('contextMenuElementTarget', conversationDynamicScroller);
 
@@ -293,13 +295,21 @@ const conversationListPagination = computed(() => {
   return currentPage.value + 1;
 });
 
+const getPaginationParams = page => ({
+  perPage: page === 1 ? 50 : 25,
+  includeMeta: false,
+});
+
 const conversationFilters = computed(() => {
+  const paginationParams = getPaginationParams(conversationListPagination.value);
   return {
     inboxId: props.conversationInbox ? props.conversationInbox : undefined,
     assigneeType: activeAssigneeTab.value,
     status: activeStatus.value,
     sortBy: activeSortBy.value,
     page: conversationListPagination.value,
+    perPage: paginationParams.perPage,
+    includeMeta: paginationParams.includeMeta,
     labels: props.label ? [props.label] : undefined,
     teamId: props.teamId || undefined,
     conversationType: props.conversationType || undefined,
@@ -560,28 +570,41 @@ function emitConversationLoaded() {
   // });
 }
 
-function fetchFilteredConversations(payload) {
-  payload = useSnakeCase(payload);
-  let page = currentFiltersPage.value + 1;
-  store
-    .dispatch('fetchFilteredConversations', {
-      queryData: filterQueryGenerator(payload),
-      page,
-    })
-    .then(emitConversationLoaded);
+async function updateHasScrollbar() {
+  await nextTick();
+  const scroller = conversationDynamicScroller.value;
+  hasScrollbar.value = Boolean(scroller?.hasScrollbar);
+}
 
+async function fetchFilteredConversations(payload) {
+  const page = currentFiltersPage.value + 1;
+  const paginationParams = getPaginationParams(page);
+  const queryData = filterQueryGenerator(useSnakeCase(payload));
+
+  await store.dispatch('fetchFilteredConversations', {
+    queryData,
+    page,
+    perPage: paginationParams.perPage,
+    includeMeta: paginationParams.includeMeta,
+  });
+  emitConversationLoaded();
+  await updateHasScrollbar();
   showAdvancedFilters.value = false;
 }
 
-function fetchSavedFilteredConversations(payload) {
-  payload = useSnakeCase(payload);
-  let page = currentFiltersPage.value + 1;
-  store
-    .dispatch('fetchFilteredConversations', {
-      queryData: payload,
-      page,
-    })
-    .then(emitConversationLoaded);
+async function fetchSavedFilteredConversations(payload) {
+  const page = currentFiltersPage.value + 1;
+  const paginationParams = getPaginationParams(page);
+  const queryData = useSnakeCase(payload);
+
+  await store.dispatch('fetchFilteredConversations', {
+    queryData,
+    page,
+    perPage: paginationParams.perPage,
+    includeMeta: paginationParams.includeMeta,
+  });
+  emitConversationLoaded();
+  await updateHasScrollbar();
 }
 
 function onApplyFilter(payload) {
@@ -733,9 +756,18 @@ function onToggleAdvanceFiltersModal() {
   showAdvancedFilters.value = true;
 }
 
-function fetchConversations() {
+async function fetchConversations() {
   store.dispatch('updateChatListFilters', conversationFilters.value);
-  store.dispatch('fetchAllConversations').then(emitConversationLoaded);
+  await store.dispatch('fetchAllConversations');
+  emitConversationLoaded();
+  await updateHasScrollbar();
+  if (
+    !hasAppliedFiltersOrActiveFolders.value &&
+    conversationFilters.value.page === 1 &&
+    props.conversationType !== 'unattended'
+  ) {
+    store.dispatch('conversationStats/get', conversationFilters.value);
+  }
 }
 
 function resetAndFetchData() {
@@ -754,29 +786,27 @@ function resetAndFetchData() {
   fetchConversations();
 }
 
-function loadMoreConversations() {
-  if (hasCurrentPageEndReached.value || chatListLoading.value) {
+async function loadMoreConversations() {
+  if (
+    hasCurrentPageEndReached.value ||
+    chatListLoading.value ||
+    isFetchingNextPage.value
+  ) {
     return;
   }
 
-  if (!hasAppliedFiltersOrActiveFolders.value) {
-    fetchConversations();
-  } else if (hasActiveFolders.value) {
-    const payload = activeFolder.value.query;
-    fetchSavedFilteredConversations(payload);
-  } else if (hasAppliedFilters.value) {
-    fetchFilteredConversations(appliedFilters.value);
-  }
-}
-
-// Add a method to handle scroll events
-function handleScroll() {
-  const scroller = conversationDynamicScroller.value;
-  if (scroller && scroller.hasScrollbar) {
-    const { scrollTop, scrollHeight, clientHeight } = scroller.$el;
-    if (scrollHeight - (scrollTop + clientHeight) < 100) {
-      loadMoreConversations();
+  isFetchingNextPage.value = true;
+  try {
+    if (!hasAppliedFiltersOrActiveFolders.value) {
+      await fetchConversations();
+    } else if (hasActiveFolders.value) {
+      const payload = activeFolder.value.query;
+      await fetchSavedFilteredConversations(payload);
+    } else if (hasAppliedFilters.value) {
+      await fetchFilteredConversations(appliedFilters.value);
     }
+  } finally {
+    isFetchingNextPage.value = false;
   }
 }
 
@@ -983,8 +1013,6 @@ useEmitter('fetch_conversation_stats', () => {
   store.dispatch('conversationStats/get', conversationFilters.value);
 });
 
-useEventListener(conversationDynamicScroller, 'scroll', handleScroll);
-
 onMounted(() => {
   store.dispatch('setChatListFilters', conversationFilters.value);
   setFiltersFromUISettings();
@@ -1109,6 +1137,13 @@ watch(activeFolder, (newVal, oldVal) => {
 watch(chatLists, () => {
   chatsOnView.value = conversationList.value;
 });
+
+watch(
+  () => conversationList.value.length,
+  () => {
+    updateHasScrollbar();
+  }
+);
 
 watch(conversationFilters, (newVal, oldVal) => {
   if (newVal !== oldVal) {
@@ -1243,7 +1278,10 @@ watch(conversationFilters, (newVal, oldVal) => {
           </DynamicScrollerItem>
         </template>
         <template #after>
-          <div v-if="chatListLoading || (isSearchActive && store.getters['conversationSearch/getUIFlags']?.conversation?.isFetching)" class="flex justify-center my-4">
+          <div
+            v-if="chatListLoading || (isSearchActive && store.getters['conversationSearch/getUIFlags']?.conversation?.isFetching)"
+            class="flex justify-center my-4"
+          >
             <Spinner class="text-n-brand" />
           </div>
           <p
@@ -1252,8 +1290,17 @@ watch(conversationFilters, (newVal, oldVal) => {
           >
             {{ $t('CHAT_LIST.EOF') }}
           </p>
+          <button
+            v-else-if="!isSearchActive && !hasScrollbar && !hasCurrentPageEndReached"
+            class="w-full px-3 py-2 text-sm font-medium text-n-slate-11 rounded-md hover:text-n-slate-12 hover:bg-n-slate-2 disabled:cursor-not-allowed disabled:opacity-50"
+            type="button"
+            :disabled="chatListLoading || isFetchingNextPage"
+            @click="loadMoreConversations"
+          >
+            {{ $t('CHAT_LIST.LOAD_MORE_CONVERSATIONS') }}
+          </button>
           <IntersectionObserver
-            v-else
+            v-else-if="!isSearchActive && hasScrollbar && !hasCurrentPageEndReached"
             :options="intersectionObserverOptions"
             @observed="loadMoreConversations"
           />

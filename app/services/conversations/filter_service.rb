@@ -9,6 +9,8 @@ class Conversations::FilterService < FilterService
   def perform
     validate_query_operator
     @conversations = query_builder(@filters['conversations'])
+    return { conversations: conversations, count: nil } unless include_meta?
+
     mine_count, unassigned_count, all_count, = set_count_for_all_conversations
     assigned_count = all_count - unassigned_count
 
@@ -39,6 +41,20 @@ class Conversations::FilterService < FilterService
     @params[:page] || 1
   end
 
+  def per_page
+    requested = @params[:per_page].presence || ENV.fetch('CONVERSATION_RESULTS_PER_PAGE', '25')
+    requested = requested.to_i
+    return 25 if requested <= 0
+
+    [requested, 100].min
+  end
+
+  def include_meta?
+    return true if @params[:include_meta].nil?
+
+    ActiveModel::Type::Boolean.new.cast(@params[:include_meta])
+  end
+
   def filter_config
     {
       entity: 'Conversation',
@@ -47,6 +63,6 @@ class Conversations::FilterService < FilterService
   end
 
   def conversations
-    @conversations.sort_on_last_activity_at.page(current_page)
+    @conversations.sort_on_last_activity_at.page(current_page).per(per_page)
   end
 end

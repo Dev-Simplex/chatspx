@@ -47,6 +47,8 @@ describe('#ConversationAPI', () => {
         labels: [],
         teamId: 1,
         updatedWithin: 20,
+        perPage: 50,
+        includeMeta: false,
       });
       expect(axiosMock.get).toHaveBeenCalledWith('/api/v1/conversations', {
         params: {
@@ -57,6 +59,8 @@ describe('#ConversationAPI', () => {
           page: 1,
           labels: [],
           updated_within: 20,
+          per_page: 50,
+          include_meta: false,
         },
       });
     });
@@ -191,6 +195,8 @@ describe('#ConversationAPI', () => {
     it('#filter', () => {
       const payload = {
         page: 1,
+        perPage: 25,
+        includeMeta: true,
         queryData: {
           payload: [
             {
@@ -218,7 +224,7 @@ describe('#ConversationAPI', () => {
       expect(axiosMock.post).toHaveBeenCalledWith(
         '/api/v1/conversations/filter',
         payload.queryData,
-        { params: { page: payload.page } }
+        { params: { page: payload.page, per_page: 25, include_meta: true } }
       );
     });
 

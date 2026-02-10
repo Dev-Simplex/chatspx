@@ -39,6 +39,8 @@ class ConversationFinder
   def perform
     set_up
 
+    return { conversations: conversations, count: nil } unless include_meta?
+
     # Calcula o total de conversas únicas após todos os filtros (para a aba 'Todos')
     all_count = @conversations.distinct.count
 
@@ -122,10 +124,12 @@ class ConversationFinder
       current_user,
       current_account
     ).perform
-    # Count open unattended (for sidebar) before applying conversation_type filter
-    @unattended_assigned_to_me_count = @conversations.open.unattended.assigned_to(current_user).distinct.count
-    @unattended_unassigned_count = @conversations.open.unattended.unassigned.distinct.count
-    @unattended_all_count = @conversations.open.unattended.distinct.count
+    if include_meta?
+      # Count open unattended (for sidebar) before applying conversation_type filter
+      @unattended_assigned_to_me_count = @conversations.open.unattended.assigned_to(current_user).distinct.count
+      @unattended_unassigned_count = @conversations.open.unattended.unassigned.distinct.count
+      @unattended_all_count = @conversations.open.unattended.distinct.count
+    end
     filter_by_conversation_type if params[:conversation_type]
     @conversations
   end
@@ -210,6 +214,20 @@ class ConversationFinder
     params[:page] || 1
   end
 
+  def per_page
+    requested = params[:per_page].presence || ENV.fetch('CONVERSATION_RESULTS_PER_PAGE', '25')
+    requested = requested.to_i
+    return 25 if requested <= 0
+
+    [requested, 100].min
+  end
+
+  def include_meta?
+    return true if params[:include_meta].nil?
+
+    ActiveModel::Type::Boolean.new.cast(params[:include_meta])
+  end
+
   def conversations_base_query
     @conversations.includes(
       :taggings, :inbox, { assignee: { avatar_attachment: [:blob] } }, { contact: { avatar_attachment: [:blob] } }, :team, :contact_inbox
@@ -225,7 +243,7 @@ class ConversationFinder
     if params[:updated_within].present?
       @conversations.where('conversations.updated_at > ?', Time.zone.now - params[:updated_within].to_i.seconds)
     else
-      @conversations.page(current_page).per(ENV.fetch('CONVERSATION_RESULTS_PER_PAGE', '25').to_i)
+      @conversations.page(current_page).per(per_page)
     end
   end
 end

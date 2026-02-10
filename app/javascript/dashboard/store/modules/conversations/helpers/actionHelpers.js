@@ -46,7 +46,9 @@ export const buildConversationList = (
 ) => {
   const { payload: conversationList, meta: metaData } = responseData;
   context.commit(types.SET_ALL_CONVERSATION, conversationList);
-  context.dispatch('conversationStats/set', metaData);
+  if (metaData && Object.keys(metaData).length > 0) {
+    context.dispatch('conversationStats/set', metaData);
+  }
   context.dispatch(
     'conversationLabels/setBulkConversationLabels',
     conversationList

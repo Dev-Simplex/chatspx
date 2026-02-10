@@ -12,7 +12,8 @@ class Api::V1::Accounts::ConversationsController < Api::V1::Accounts::BaseContro
   def index
     result = conversation_finder.perform
     @conversations = result[:conversations]
-    @conversations_count = result[:count]
+    @conversations_count = result[:count] if result[:count].present?
+    preload_conversations_list
   end
 
   def meta
@@ -23,7 +24,7 @@ class Api::V1::Accounts::ConversationsController < Api::V1::Accounts::BaseContro
   def search
     result = conversation_finder.perform
     @conversations = result[:conversations]
-    @conversations_count = result[:count]
+    @conversations_count = result[:count] if result[:count].present?
   end
 
   def attachments
@@ -51,7 +52,8 @@ class Api::V1::Accounts::ConversationsController < Api::V1::Accounts::BaseContro
   def filter
     result = ::Conversations::FilterService.new(params.permit!, current_user, current_account).perform
     @conversations = result[:conversations]
-    @conversations_count = result[:count]
+    @conversations_count = result[:count] if result[:count].present?
+    preload_conversations_list
   rescue CustomExceptions::CustomFilter::InvalidAttribute,
          CustomExceptions::CustomFilter::InvalidOperator,
          CustomExceptions::CustomFilter::InvalidQueryOperator,
@@ -164,6 +166,15 @@ class Api::V1::Accounts::ConversationsController < Api::V1::Accounts::BaseContro
   def assign_conversation
     @conversation.assignee = current_user
     @conversation.save!
+  end
+
+  def preload_conversations_list
+    return if @conversations.blank?
+
+    preloaded = Conversations::ListPreloader.new(@conversations, account_id: Current.account.id).perform
+    @last_messages_by_conversation_id = preloaded[:last_messages_by_conversation_id]
+    @last_non_activity_messages_by_conversation_id = preloaded[:last_non_activity_messages_by_conversation_id]
+    @unread_counts_by_conversation_id = preloaded[:unread_counts_by_conversation_id]
   end
 
   def conversation

@@ -21,7 +21,10 @@ json.meta do
 end
 
 json.id conversation.display_id
-if conversation.messages.where(account_id: conversation.account_id).last.blank?
+if defined?(@last_messages_by_conversation_id) && @last_messages_by_conversation_id.present?
+  last_message = @last_messages_by_conversation_id[conversation.id]
+  json.messages last_message.present? ? [last_message.push_event_data] : []
+elsif conversation.messages.where(account_id: conversation.account_id).last.blank?
   json.messages []
 else
   last_message = conversation.messages.where(account_id: conversation.account_id)
@@ -46,9 +49,19 @@ json.created_at conversation.created_at.to_i
 json.updated_at conversation.updated_at.to_f
 json.timestamp conversation.last_activity_at.to_i
 json.first_reply_created_at conversation.first_reply_created_at.to_i
-json.unread_count conversation.unread_incoming_messages.count
-last_non_activity = conversation.messages.where(account_id: conversation.account_id).non_activity_messages
-json.last_non_activity_message last_non_activity.first.try(:push_event_data)
+if defined?(@unread_counts_by_conversation_id) && @unread_counts_by_conversation_id.present?
+  json.unread_count @unread_counts_by_conversation_id[conversation.id] || 0
+else
+  json.unread_count conversation.unread_incoming_messages.count
+end
+
+if defined?(@last_non_activity_messages_by_conversation_id) && @last_non_activity_messages_by_conversation_id.present?
+  last_non_activity_message = @last_non_activity_messages_by_conversation_id[conversation.id]
+  json.last_non_activity_message last_non_activity_message&.push_event_data
+else
+  last_non_activity = conversation.messages.where(account_id: conversation.account_id).non_activity_messages
+  json.last_non_activity_message last_non_activity.first.try(:push_event_data)
+end
 json.last_activity_at conversation.last_activity_at.to_i
 json.priority conversation.priority
 json.waiting_since conversation.waiting_since.to_i.to_i
