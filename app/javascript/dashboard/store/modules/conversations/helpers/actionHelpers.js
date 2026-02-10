@@ -59,7 +59,15 @@ export const buildConversationList = (
 ) => {
   const { payload: conversationList, meta: metaData } = responseData;
   context.commit(types.SET_ALL_CONVERSATION, conversationList);
-  context.dispatch('conversationStats/set', metaData);
+  // Não atualizar contagens das abas quando a requisição inclui assignee_type
+  // (me/unassigned), pois o meta retornado tem contagens filtradas e sobrescreveria
+  // os valores corretos vindos do endpoint /conversations/meta
+  const hasAssigneeFilter =
+    requestPayload.assigneeType === 'me' ||
+    requestPayload.assigneeType === 'unassigned';
+  if (!hasAssigneeFilter) {
+    context.dispatch('conversationStats/set', metaData);
+  }
   context.dispatch(
     'conversationLabels/setBulkConversationLabels',
     conversationList

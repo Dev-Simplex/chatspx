@@ -987,7 +987,9 @@ function onSelectSearchConversation(conversation) {
 
 useEmitter('fetch_conversation_stats', () => {
   if (hasAppliedFiltersOrActiveFolders.value) return;
-  store.dispatch('conversationStats/get', conversationFilters.value);
+  const filtersForMeta = { ...conversationFilters.value };
+  delete filtersForMeta.assigneeType;
+  store.dispatch('conversationStats/get', filtersForMeta);
 });
 
 useEventListener(conversationDynamicScroller, 'scroll', handleScroll);
@@ -997,6 +999,11 @@ onMounted(() => {
   setFiltersFromUISettings();
   store.dispatch('setChatStatusFilter', activeStatus.value);
   store.dispatch('setChatSortFilter', activeSortBy.value);
+  if (!hasAppliedFiltersOrActiveFolders.value) {
+    const filtersForMeta = { ...conversationFilters.value };
+    delete filtersForMeta.assigneeType;
+    store.dispatch('conversationStats/get', filtersForMeta);
+  }
   resetAndFetchData();
   if (hasActiveFolders.value) {
     store.dispatch('campaigns/get');

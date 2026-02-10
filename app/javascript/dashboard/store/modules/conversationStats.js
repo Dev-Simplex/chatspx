@@ -49,6 +49,11 @@ export const actions = {
     ) {
       return;
     }
+    // First load: fetch meta immediately so tab counts appear without waiting for list
+    if ($state.updatedOn == null) {
+      await fetchMetaData(commit, params);
+      return;
+    }
     if ($state.allCount > 5000) {
       superLongDebouncedFetchMetaData(commit, params);
     } else if ($state.allCount > 500) {
