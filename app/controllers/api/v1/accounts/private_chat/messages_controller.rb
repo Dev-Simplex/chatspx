@@ -3,7 +3,7 @@
 module Api::V1::Accounts::PrivateChat
   class MessagesController < BaseController
     def index
-      @messages = message_finder.perform
+      @messages = message_finder.perform.reject { |m| m.content_attributes&.dig('deleted') }
       render 'api/v1/accounts/private_chat/messages/index'
     end
 
@@ -13,6 +13,22 @@ module Api::V1::Accounts::PrivateChat
       render 'api/v1/accounts/private_chat/messages/create'
     rescue StandardError => e
       render json: { error: e.message }, status: :unprocessable_entity
+    end
+
+    def clear
+      @conversation.messages.find_each do |message|
+        message.update!(
+          content: I18n.t('conversations.messages.deleted'),
+          content_type: :text,
+          content_attributes: (message.content_attributes || {}).merge('deleted' => true)
+        )
+        message.attachments.destroy_all
+      end
+      ActionCable.server.broadcast(
+        "private_chat_#{PrivateChat::Config.conversation_id}",
+        { event: 'conversation.cleared' }
+      )
+      head :no_content
     end
 
     private

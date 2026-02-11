@@ -169,6 +169,7 @@ Rails.application.routes.draw do
 
           namespace :private_chat do
             post 'unlock', to: 'unlock#create'
+            post 'clear', to: 'messages#clear'
             resources :messages, only: [:index, :create]
           end
 

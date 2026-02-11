@@ -16,3 +16,8 @@ export const createMessage = (accountId, token, payload) =>
   axios.post(`${getBaseUrl(accountId)}/messages`, payload, {
     headers: { Authorization: `Bearer ${token}` },
   });
+
+export const clearMessages = (accountId, token) =>
+  axios.post(`${getBaseUrl(accountId)}/clear`, {}, {
+    headers: { Authorization: `Bearer ${token}` },
+  });

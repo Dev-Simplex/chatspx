@@ -494,5 +494,10 @@
   },
   "GALLERY_VIEW": {
     "ERROR_DOWNLOADING": "Não foi possível baixar o anexo. Por favor, tente novamente"
+  },
+  "NOTESPAD": {
+    "CLEAR_CONVERSATION": "Limpar conversa",
+    "CLEAR_CONVERSATION_CONFIRM": "Tem certeza? Todas as mensagens serão removidas e isso não pode ser desfeito.",
+    "CONFIRM_CLEAR": "Limpar"
   }
 }

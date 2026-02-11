@@ -495,5 +495,10 @@
   },
   "GALLERY_VIEW": {
     "ERROR_DOWNLOADING": "Unable to download attachment. Please try again"
+  },
+  "NOTESPAD": {
+    "CLEAR_CONVERSATION": "Clear conversation",
+    "CLEAR_CONVERSATION_CONFIRM": "Are you sure? All messages will be removed and this cannot be undone.",
+    "CONFIRM_CLEAR": "Clear"
   }
 }
