@@ -323,7 +323,7 @@ const handleFilterChange = newFilters => {
 const fetchData = async () => {
   isLoading.value = true;
   try {
-    // Carregar agentes e teams primeiro
+    // Fase 1: Carregar agentes e teams primeiro (layout aparece rápido)
     await Promise.all([
       store.dispatch('agents/get'),
       store.dispatch('teams/get'),
@@ -376,47 +376,43 @@ const fetchData = async () => {
         store.commit('agents/SET_AGENTS', agents);
       }
     }
-    
-    // Carregar conversas abertas e pendentes em lotes paralelos (várias páginas de uma vez)
-    const ConversationApi = (await import('dashboard/api/inbox/conversation')).default;
-    const CONVERSATIONS_PER_PAGE = 25; // igual ao backend (CONVERSATION_RESULTS_PER_PAGE)
-    const PAGE_BATCH_SIZE = 4;
 
-    const fetchPage = async (status, page) => {
+    // Carregar TODAS as conversas open + pending em paralelo (cada status em loop por cursor)
+    // Otimizado: open e pending são buscados ao mesmo tempo
+    const ConversationApi = (await import('dashboard/api/inbox/conversation')).default;
+
+    const fetchWithCursor = async (status, cursor) => {
       const res = await ConversationApi.get({
         status,
-        assignee_type: 'all',
-        page,
-        sort_by: 'last_activity_at_desc',
+        assigneeType: 'all',
+        cursor: cursor || undefined,
+        sortBy: 'last_activity_at_desc',
       });
-      return res?.data?.data?.payload ?? [];
+      const data = res?.data?.data ?? {};
+      return {
+        payload: data.payload ?? [],
+        nextCursor: data.meta?.next_cursor ?? null,
+      };
     };
 
-    const loadAllPagesForStatus = async status => {
+    const loadAllWithCursor = async status => {
       const allPayloads = [];
-      let page = 1;
-      while (true) {
-        const pageNumbers = Array.from({ length: PAGE_BATCH_SIZE }, (_, i) => page + i);
-        const results = await Promise.all(pageNumbers.map(p => fetchPage(status, p)));
-        for (const payload of results) {
-          allPayloads.push(...payload);
-        }
-        const hasMore = results.every(p => p.length >= CONVERSATIONS_PER_PAGE);
-        if (!hasMore) break;
-        page += PAGE_BATCH_SIZE;
-      }
+      let nextCursor = null;
+      do {
+        // eslint-disable-next-line no-await-in-loop -- paginação por cursor exige requisições sequenciais
+        const { payload, nextCursor: next } = await fetchWithCursor(status, nextCursor);
+        allPayloads.push(...payload);
+        nextCursor = next;
+      } while (nextCursor);
       return allPayloads;
     };
 
-    const loadAllConversationsInBatches = async () => {
-      const [openList, pendingList] = await Promise.all([
-        loadAllPagesForStatus('open'),
-        loadAllPagesForStatus('pending'),
-      ]);
-      return [...openList, ...pendingList];
-    };
+    const [openList, pendingList] = await Promise.all([
+      loadAllWithCursor('open'),
+      loadAllWithCursor('pending'),
+    ]);
 
-    const allConversationsToAdd = await loadAllConversationsInBatches();
+    const allConversationsToAdd = [...openList, ...pendingList];
 
     // Garagem: gravar na fonte local da tela (não no store global, assim emptyAllConversations não zera os totais)
     liveConversations.value = allConversationsToAdd;
