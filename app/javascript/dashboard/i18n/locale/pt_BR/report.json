@@ -697,7 +697,8 @@
       "SORT_AGENTS": "Ordenar agentes",
       "SORT_BY_CALLS": "Mais chamados",
       "SORT_BY_NAME_ASC": "Nome (A–Z)",
-      "SORT_BY_NAME_DESC": "Nome (Z–A)"
+      "SORT_BY_NAME_DESC": "Nome (Z–A)",
+      "LOAD_MORE_CONVERSATIONS": "Carregar mais conversas"
     }
   }
 }
