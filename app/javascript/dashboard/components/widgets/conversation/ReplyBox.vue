@@ -123,9 +123,13 @@ export default {
       newConversationModalActive: false,
       showArticleSearchPopover: false,
       hasRecordedAudio: false,
+      sendingCount: 0,
     };
   },
   computed: {
+    isSending() {
+      return this.sendingCount > 0;
+    },
     ...mapGetters({
       currentChat: 'getSelectedChat',
       messageSignature: 'getMessageSignature',
@@ -751,6 +755,7 @@ export default {
       }
     },
     async sendMessage(messagePayload) {
+      this.sendingCount += 1;
       try {
         await this.$store.dispatch(
           'createPendingMessageAndSend',
@@ -764,6 +769,8 @@ export default {
         const errorMessage =
           error?.response?.data?.error || this.$t('CONVERSATION.MESSAGE_ERROR');
         useAlert(errorMessage);
+      } finally {
+        this.sendingCount = Math.max(0, this.sendingCount - 1);
       }
     },
     async onSendWhatsAppReply(messagePayload) {
@@ -1199,6 +1206,7 @@ export default {
       :is-on-private-note="isOnPrivateNote"
       :is-recording-audio="isRecordingAudio"
       :is-send-disabled="isReplyButtonDisabled"
+      :is-sending="isSending"
       :is-note="isPrivate"
       :on-file-upload="onFileUpload"
       :on-send="onSendReply"
@@ -1261,7 +1269,7 @@ export default {
 .reply-box {
   transition: height 2s cubic-bezier(0.37, 0, 0.63, 1);
 
-  @apply relative mb-2 mx-2 rounded-3xl border-0 bg-[#e9edef] dark:bg-[#2d2d2d];
+  @apply relative mb-2 mx-2 rounded-3xl border-0 border-t border-n-slate-4 dark:border-n-slate-6 bg-[#e9edef] dark:bg-[#2d2d2d];
 
   &.is-private {
     @apply bg-n-solid-amber dark:border-n-amber-3/10 border-n-amber-12/5;

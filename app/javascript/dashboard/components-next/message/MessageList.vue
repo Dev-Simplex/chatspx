@@ -247,9 +247,13 @@ const shouldShowDateSeparator = (index, messageList) => {
 </script>
 
 <template>
-  <ul class="px-4 bg-n-background">
+  <ul class="px-4 bg-transparent message-list">
     <slot name="beforeAll" />
-    <template v-for="(item, index) in renderItems" :key="item.key">
+    <li
+      v-for="(item, index) in renderItems"
+      :key="item.key"
+      class="message-list-item list-none"
+    >
       <DateSeparator
         v-if="shouldShowDateSeparator(index, renderItems)"
         :date="new Date(getItemDate(item) * 1000)"
@@ -271,7 +275,22 @@ const shouldShowDateSeparator = (index, messageList) => {
         @forward="emit('forward', $event)"
         @toggle-forward-selection="emit('toggle-forward-selection', $event)"
       />
-    </template>
+    </li>
     <slot name="after" />
   </ul>
 </template>
+
+<style scoped>
+.message-list-item {
+  animation: message-appear 0.2s ease-out;
+}
+
+@keyframes message-appear {
+  from {
+    opacity: 0.6;
+  }
+  to {
+    opacity: 1;
+  }
+}
+</style>

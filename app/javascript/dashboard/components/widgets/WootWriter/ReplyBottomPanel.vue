@@ -91,6 +91,10 @@ export default {
       type: Boolean,
       default: false,
     },
+    isSending: {
+      type: Boolean,
+      default: false,
+    },
     isOnPrivateNote: {
       type: Boolean,
       default: false,
@@ -305,7 +309,7 @@ export default {
 </script>
 
 <template>
-  <div class="flex justify-between p-3" :class="wrapClass">
+  <div class="flex justify-between p-3 reply-bottom-panel" :class="wrapClass">
     <div class="left-wrap">
       <NextButton
         v-tooltip.top-end="$t('CONVERSATION.REPLYBOX.TIP_EMOJI_ICON')"
@@ -313,6 +317,7 @@ export default {
         slate
         faded
         sm
+        class="reply-panel-icon"
         @click="toggleEmojiPicker"
       />
       <DropdownContainer
@@ -326,6 +331,7 @@ export default {
             slate
             faded
             sm
+            class="reply-panel-icon reply-panel-icon--attach"
             @click="toggle"
           />
         </template>
@@ -404,7 +410,7 @@ export default {
         slate
         faded
         sm
-        class="!size-8 !min-w-8 flex-shrink-0 rounded-full"
+        class="reply-panel-icon reply-panel-icon--audio !size-9 !min-w-9 flex-shrink-0 rounded-full"
         @click="toggleAudioRecorder"
       />
       <NextButton
@@ -430,10 +436,11 @@ export default {
         type="submit"
         sm
         :color="isNote ? 'amber' : 'blue'"
-        :disabled="isSendDisabled"
+        :disabled="isSendDisabled || isSending"
+        :is-loading="isSending"
         icon="i-ph-paper-plane-tilt"
         :label="sendButtonText"
-        class="flex-shrink-0 h-9 px-3 rounded-full"
+        class="flex-shrink-0 h-9 px-3 rounded-full focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-n-brand"
         @click="onSend"
       />
     </div>
@@ -442,11 +449,28 @@ export default {
 
 <style lang="scss" scoped>
 .left-wrap {
-  @apply items-center flex gap-0.5;
+  @apply items-center flex gap-1;
 }
 
 .right-wrap {
-  @apply flex items-center gap-1;
+  @apply flex items-center gap-1.5;
+}
+
+.reply-panel-icon {
+  @apply flex-shrink-0;
+  min-width: 2rem;
+  min-height: 2rem;
+}
+
+.reply-panel-icon--attach,
+.reply-panel-icon--audio {
+  opacity: 0.9;
+}
+
+.reply-panel-icon:hover,
+.reply-panel-icon--attach:hover,
+.reply-panel-icon--audio:hover {
+  opacity: 1;
 }
 
 ::v-deep .file-uploads {

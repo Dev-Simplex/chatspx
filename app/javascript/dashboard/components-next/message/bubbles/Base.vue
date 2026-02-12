@@ -52,11 +52,28 @@ const flexOrientationClass = computed(() => {
   return map[orientation.value];
 });
 
+const showTail = computed(
+  () =>
+    variant.value !== MESSAGE_VARIANTS.ACTIVITY &&
+    variant.value !== MESSAGE_VARIANTS.EMAIL &&
+    !shouldGroupWithNext.value
+);
+
 const messageClass = computed(() => {
-  const classToApply = [varaintBaseMap[variant.value]];
+  const classToApply = [
+    'message-bubble shadow-bubble',
+    varaintBaseMap[variant.value],
+  ];
 
   if (variant.value !== MESSAGE_VARIANTS.ACTIVITY) {
     classToApply.push(orientationMap[orientation.value]);
+    if (showTail.value) {
+      classToApply.push(
+        orientation.value === ORIENTATION.LEFT
+          ? 'bubble-tail-left'
+          : 'bubble-tail-right'
+      );
+    }
   } else {
     classToApply.push('rounded-lg');
   }
@@ -103,6 +120,7 @@ const replyToPreview = computed(() => {
         'max-w-lg': variant !== MESSAGE_VARIANTS.EMAIL,
       },
     ]"
+    :data-variant="variant"
   >
     <div
       v-if="inReplyTo"
@@ -127,3 +145,55 @@ const replyToPreview = computed(() => {
     />
   </div>
 </template>
+
+<style scoped lang="scss">
+.message-bubble {
+  position: relative;
+}
+
+.shadow-bubble {
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.08);
+}
+
+.bubble-tail-left::before,
+.bubble-tail-right::before {
+  content: '';
+  position: absolute;
+  bottom: 0;
+  width: 0;
+  height: 0;
+  border-style: solid;
+}
+
+.bubble-tail-left::before {
+  left: 0;
+  border-width: 0 0 8px 8px;
+  border-color: transparent transparent rgb(var(--slate-4)) transparent;
+  filter: drop-shadow(-1px 1px 1px rgba(0, 0, 0, 0.06));
+}
+
+.bubble-tail-right::before {
+  right: 0;
+  border-width: 0 8px 8px 0;
+  border-color: transparent rgb(var(--solid-blue)) transparent transparent;
+  filter: drop-shadow(1px 1px 1px rgba(0, 0, 0, 0.06));
+}
+
+.bubble-tail-right[data-variant='private']::before,
+.bubble-tail-right[data-variant='scheduled']::before {
+  border-color: transparent rgb(var(--solid-amber)) transparent transparent;
+}
+
+:global(.dark) .bubble-tail-left::before {
+  border-color: transparent transparent rgb(var(--slate-4)) transparent;
+}
+
+:global(.dark) .bubble-tail-right::before {
+  border-color: transparent rgb(var(--solid-blue)) transparent transparent;
+}
+
+:global(.dark) .bubble-tail-right[data-variant='private']::before,
+:global(.dark) .bubble-tail-right[data-variant='scheduled']::before {
+  border-color: transparent rgb(var(--solid-amber)) transparent transparent;
+}
+</style>

@@ -46,6 +46,12 @@ export default {
       }
       return this.$t('CONVERSATION.404');
     },
+    conversationMissingTitle() {
+      if (!this.isOnExpandedLayout) {
+        return this.$t('CONVERSATION.EMPTY_STATE_SELECT_TITLE');
+      }
+      return '';
+    },
     newInboxURL() {
       return this.accountScopedUrl('settings/inboxes/new');
     },
@@ -91,6 +97,7 @@ export default {
       />
       <EmptyStateMessage
         v-else-if="allConversations.length && !currentChat.id"
+        :title="conversationMissingTitle"
         :message="conversationMissingMessage"
       />
     </div>

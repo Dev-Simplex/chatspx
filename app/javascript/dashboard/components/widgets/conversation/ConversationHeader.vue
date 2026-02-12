@@ -13,6 +13,7 @@ import ButtonV4 from 'dashboard/components-next/button/Button.vue';
 import wootConstants from 'dashboard/constants/globals';
 import { conversationListPageURL } from 'dashboard/helper/URLHelper';
 import { snoozedReopenTime } from 'dashboard/helper/snoozeHelpers';
+import { getTypingUsersText } from 'dashboard/helper/commons';
 import { useInbox } from 'dashboard/composables/useInbox';
 import { useI18n } from 'vue-i18n';
 
@@ -71,6 +72,32 @@ const currentContact = computed(() =>
   store.getters['contacts/getContact'](props.chat.meta.sender.id)
 );
 
+const typingUsersList = computed(() => {
+  if (!currentChat.value?.id) return [];
+  return store.getters['conversationTypingStatus/getUserList'](
+    currentChat.value.id
+  );
+});
+
+const isAnyoneTyping = computed(
+  () => typingUsersList.value && typingUsersList.value.length > 0
+);
+
+const typingSubtitleText = computed(() => {
+  if (!isAnyoneTyping.value) return '';
+  const [i18nKey, params] = getTypingUsersText(typingUsersList.value);
+  return t(i18nKey, params);
+});
+
+const headerSubtitleText = computed(() => {
+  if (isSnoozed.value) return null;
+  if (isAnyoneTyping.value) return typingSubtitleText.value;
+  if (currentContact.value?.availability_status === 'online') {
+    return t('CONVERSATION.HEADER.ONLINE');
+  }
+  return null;
+});
+
 const isSnoozed = computed(
   () => currentChat.value.status === wootConstants.STATUS_TYPE.SNOOZED
 );
@@ -98,7 +125,7 @@ const hasSlaPolicyId = computed(() => props.chat?.sla_policy_id);
 <template>
   <div
     ref="conversationHeader"
-    class="flex flex-col gap-3 items-center justify-between flex-1 w-full min-w-0 xl:flex-row px-3 py-2 border-b bg-n-background border-n-weak h-24 xl:h-12"
+    class="flex flex-col gap-2 items-center justify-between flex-1 w-full min-w-0 xl:flex-row px-3 py-1.5 border-b bg-n-background border-n-weak h-14 xl:h-10 min-h-[2.5rem]"
   >
     <div
       class="flex items-center justify-start w-full xl:w-auto max-w-full min-w-0 xl:flex-1"
@@ -135,12 +162,32 @@ const hasSlaPolicyId = computed(() => props.chat?.sla_policy_id);
         </div>
 
         <div
-          class="flex items-center gap-2 overflow-hidden text-xs conversation--header--actions text-ellipsis whitespace-nowrap"
+          class="flex items-center gap-2 overflow-hidden text-xs conversation--header--actions text-ellipsis whitespace-nowrap text-n-slate-11"
         >
-          <InboxName v-if="hasMultipleInboxes" :inbox="inbox" class="!mx-0" />
-          <span v-if="isSnoozed" class="font-medium text-n-amber-10">
-            {{ snoozedDisplayText }}
-          </span>
+          <template v-if="headerSubtitleText">
+            <span
+              v-if="isAnyoneTyping"
+              class="inline-flex items-center font-normal typing-ellipsis"
+            >
+              {{ typingSubtitleText }}
+              <span class="typing-dots" aria-hidden="true">
+                <span>.</span><span>.</span><span>.</span>
+              </span>
+            </span>
+            <span v-else class="font-normal text-n-teal-10">
+              {{ headerSubtitleText }}
+            </span>
+          </template>
+          <template v-else>
+            <span v-if="isSnoozed" class="font-medium text-n-amber-10">
+              {{ snoozedDisplayText }}
+            </span>
+            <InboxName
+              v-else-if="hasMultipleInboxes"
+              :inbox="inbox"
+              class="!mx-0"
+            />
+          </template>
         </div>
       </div>
     </div>
@@ -173,3 +220,36 @@ const hasSlaPolicyId = computed(() => props.chat?.sla_policy_id);
     />
   </div>
 </template>
+
+<style scoped lang="scss">
+.typing-dots {
+  display: inline-flex;
+  margin-left: 1px;
+
+  span {
+    animation: typing-dot 1.4s ease-in-out infinite;
+    opacity: 0;
+
+    &:nth-child(1) {
+      animation-delay: 0s;
+    }
+    &:nth-child(2) {
+      animation-delay: 0.2s;
+    }
+    &:nth-child(3) {
+      animation-delay: 0.4s;
+    }
+  }
+}
+
+@keyframes typing-dot {
+  0%,
+  60%,
+  100% {
+    opacity: 0;
+  }
+  30% {
+    opacity: 1;
+  }
+}
+</style>

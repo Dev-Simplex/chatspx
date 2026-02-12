@@ -1,6 +1,7 @@
 {
   "CONVERSATION": {
-    "SELECT_A_CONVERSATION": "Por favor, selecione uma conversa no painel da esquerda",
+    "EMPTY_STATE_SELECT_TITLE": "Selecione uma conversa",
+    "SELECT_A_CONVERSATION": "Escolha uma conversa na lista à esquerda para começar a trocar mensagens.",
     "CSAT_REPLY_MESSAGE": "Por favor, classifique a conversa",
     "404": "Desculpe, não conseguimos encontrar a conversa. Por favor, tente novamente",
     "SWITCH_VIEW_LAYOUT": "Alternar o layout",
@@ -87,6 +88,7 @@
       "YOU_ANSWERED": "Você respondeu"
     },
     "HEADER": {
+      "ONLINE": "online",
       "RESOLVE_ACTION": "Resolver",
       "REOPEN_ACTION": "Reabrir",
       "OPEN_ACTION": "Abrir",

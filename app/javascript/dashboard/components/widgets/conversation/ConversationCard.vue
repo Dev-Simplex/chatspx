@@ -427,9 +427,9 @@ export default {
 
 <template>
   <div
-    class="relative flex items-start flex-grow-0 flex-shrink-0 w-auto max-w-full px-3 py-0 border-t-0 border-b-0 border-l-2 border-r-0 border-transparent border-solid cursor-pointer conversation hover:bg-n-alpha-1 dark:hover:bg-n-alpha-3 group"
+    class="relative flex items-start flex-grow-0 flex-shrink-0 w-auto max-w-full px-3 py-0 border-b border-n-slate-3 dark:border-n-slate-6 border-l-2 border-r-0 border-t-0 border-solid cursor-pointer conversation hover:bg-n-alpha-1 dark:hover:bg-n-alpha-3 group"
     :class="{
-      'active animate-card-select bg-n-alpha-1 dark:bg-n-alpha-3 border-n-weak':
+      'active animate-card-select border-l-2 border-n-weak bg-n-alpha-2 dark:bg-n-alpha-3':
         isActiveChat,
       'unread-chat': hasUnread,
       'has-inbox-name': showInboxName,
@@ -468,7 +468,7 @@ export default {
       />
     </div>
     <div
-      class="px-0 py-3 border-b group-hover:border-transparent flex-1 border-n-slate-3 w-[calc(100%-40px)] relative"
+      class="px-0 py-3 group-hover:border-transparent flex-1 w-[calc(100%-40px)] relative"
     >
       <!-- Botão de dropdown no hover -->
       <NextButton
