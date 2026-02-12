@@ -164,12 +164,13 @@ class Message < ApplicationRecord
   end
 
   def conversation_push_event_data
-    {
+    data = {
       assignee_id: conversation.assignee_id,
       unread_count: conversation.unread_incoming_messages.count,
-      last_activity_at: conversation.last_activity_at.to_i,
-      contact_inbox: { source_id: conversation.contact_inbox.source_id }
+      last_activity_at: conversation.last_activity_at.to_i
     }
+    data[:contact_inbox] = { source_id: conversation.contact_inbox.source_id } if conversation.contact_inbox.present?
+    data
   end
 
   def merge_sender_attributes(data)

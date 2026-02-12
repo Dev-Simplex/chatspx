@@ -120,20 +120,50 @@ describe('#actions', () => {
       });
 
       await actions.conversationSearch({ commit }, { q: 'test', page: 1 });
-      expect(commit.mock.calls).toEqual([
-        [types.CONVERSATION_SEARCH_SET_UI_FLAG, { isFetching: true }],
-        [types.CONVERSATION_SEARCH_SET, [{ id: 1 }]],
-        [types.CONVERSATION_SEARCH_SET_UI_FLAG, { isFetching: false }],
+      expect(commit.mock.calls.length).toBe(4);
+      expect(commit.mock.calls[0][0]).toBe(types.SET_CONVERSATION_SEARCH_REQUEST_ID);
+      expect(commit.mock.calls[0][1]).toEqual(expect.any(Number));
+      expect(commit.mock.calls[1]).toEqual([
+        types.CONVERSATION_SEARCH_SET_UI_FLAG,
+        { isFetching: true },
+      ]);
+      expect(commit.mock.calls[2][0]).toBe(types.CONVERSATION_SEARCH_SET_IF_CURRENT);
+      expect(commit.mock.calls[2][1]).toMatchObject({
+        requestId: expect.any(Number),
+        records: expect.any(Array),
+      });
+      expect(commit.mock.calls[2][1].records.length).toBe(1);
+      expect(commit.mock.calls[2][1].records[0]).toMatchObject({ id: 1 });
+      expect(commit.mock.calls[3]).toEqual([
+        types.CONVERSATION_SEARCH_SET_UI_FLAG,
+        { isFetching: false },
       ]);
     });
 
     it('should handle failed conversation search', async () => {
       axios.get.mockRejectedValue({});
       await actions.conversationSearch({ commit }, { q: 'test' });
-      expect(commit.mock.calls).toEqual([
-        [types.CONVERSATION_SEARCH_SET_UI_FLAG, { isFetching: true }],
-        [types.CONVERSATION_SEARCH_SET_UI_FLAG, { isFetching: false }],
+      expect(commit.mock.calls.length).toBe(3);
+      expect(commit.mock.calls[0][0]).toBe(types.SET_CONVERSATION_SEARCH_REQUEST_ID);
+      expect(commit.mock.calls[1]).toEqual([
+        types.CONVERSATION_SEARCH_SET_UI_FLAG,
+        { isFetching: true },
       ]);
+      expect(commit.mock.calls[2]).toEqual([
+        types.CONVERSATION_SEARCH_SET_UI_FLAG,
+        { isFetching: false },
+      ]);
+    });
+
+    it('should not log error on AbortError', async () => {
+      const abortError = new Error('Aborted');
+      abortError.name = 'AbortError';
+      axios.get.mockRejectedValue(abortError);
+      const consoleSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
+
+      await actions.conversationSearch({ commit }, { q: 'test' });
+      expect(consoleSpy).not.toHaveBeenCalled();
+      consoleSpy.mockRestore();
     });
   });
 

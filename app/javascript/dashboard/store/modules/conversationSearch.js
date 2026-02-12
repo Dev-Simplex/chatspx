@@ -1,9 +1,15 @@
 import SearchAPI from '../../api/search';
 import types from '../mutation-types';
+
+let conversationSearchAbortController = null;
+
 export const initialState = {
   records: [],
   contactRecords: [],
   conversationRecords: [],
+  lastConversationSearchRequestId: null,
+  conversationSearchQuery: '',
+  conversationSearchCompleted: false,
   messageRecords: [],
   articleRecords: [],
   uiFlags: {
@@ -34,6 +40,12 @@ export const getters = {
   },
   getUIFlags(state) {
     return state.uiFlags;
+  },
+  getConversationSearchQuery(state) {
+    return state.conversationSearchQuery || '';
+  },
+  getConversationSearchCompleted(state) {
+    return state.conversationSearchCompleted || false;
   },
 };
 
@@ -96,11 +108,23 @@ export const actions = {
   },
   async conversationSearch({ commit, rootGetters }, payload) {
     const { page = 1, ...searchParams } = payload;
+    if (conversationSearchAbortController) {
+      conversationSearchAbortController.abort();
+    }
+    conversationSearchAbortController = new AbortController();
+    const requestId = Date.now();
+    const query = typeof searchParams.q === 'string' ? searchParams.q.trim() : '';
+    commit(types.SET_CONVERSATION_SEARCH_REQUEST_ID, requestId);
+    commit(types.SET_CONVERSATION_SEARCH_QUERY, query);
+    commit(types.SET_CONVERSATION_SEARCH_COMPLETED, false);
     commit(types.CONVERSATION_SEARCH_SET_UI_FLAG, { isFetching: true });
     try {
-      const { data } = await SearchAPI.conversations({ ...searchParams, page });
+      const { data } = await SearchAPI.conversations(
+        { ...searchParams, page },
+        { signal: conversationSearchAbortController.signal }
+      );
       const conversations = data.payload.conversations || [];
-      
+
       // Normalizar dados para garantir estrutura igual à lista normal
       const enrichedConversations = conversations.map(conv => {
         const normalized = { ...conv };
@@ -154,12 +178,19 @@ export const actions = {
         
         return normalized;
       });
-      
-      commit(types.CONVERSATION_SEARCH_SET, enrichedConversations);
+
+      commit(types.CONVERSATION_SEARCH_SET_IF_CURRENT, {
+        requestId,
+        records: enrichedConversations,
+      });
     } catch (error) {
+      if (error?.name === 'AbortError' || error?.code === 'ERR_CANCELED') {
+        return;
+      }
       console.error('[conversationSearch] Erro:', error);
     } finally {
       commit(types.CONVERSATION_SEARCH_SET_UI_FLAG, { isFetching: false });
+      commit(types.SET_CONVERSATION_SEARCH_COMPLETED, true);
     }
   },
   async messageSearch({ commit }, payload) {
@@ -215,8 +246,14 @@ export const mutations = {
     state.contactRecords = [...state.contactRecords, ...records];
   },
   [types.CONVERSATION_SEARCH_SET](state, records) {
-    // Os dados já vêm normalizados e enriquecidos da action
     state.conversationRecords = records || [];
+  },
+  [types.CONVERSATION_SEARCH_SET_IF_CURRENT](state, { requestId, records }) {
+    if (state.lastConversationSearchRequestId !== requestId) return;
+    state.conversationRecords = records || [];
+  },
+  [types.SET_CONVERSATION_SEARCH_REQUEST_ID](state, requestId) {
+    state.lastConversationSearchRequestId = requestId;
   },
   [types.MESSAGE_SEARCH_SET](state, records) {
     state.messageRecords = [...state.messageRecords, ...records];
@@ -251,8 +288,17 @@ export const mutations = {
   [types.CLEAR_SEARCH_RESULTS](state) {
     state.contactRecords = [];
     state.conversationRecords = [];
+    state.lastConversationSearchRequestId = null;
+    state.conversationSearchQuery = '';
+    state.conversationSearchCompleted = false;
     state.messageRecords = [];
     state.articleRecords = [];
+  },
+  [types.SET_CONVERSATION_SEARCH_QUERY](state, query) {
+    state.conversationSearchQuery = query || '';
+  },
+  [types.SET_CONVERSATION_SEARCH_COMPLETED](state, value) {
+    state.conversationSearchCompleted = !!value;
   },
 };
 

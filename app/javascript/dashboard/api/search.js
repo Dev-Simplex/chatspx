@@ -25,39 +25,34 @@ class SearchAPI extends ApiClient {
     });
   }
 
-  conversations({ q, page = 1, since, until }) {
-    return axios.get(`${this.url}/conversations`, {
+  conversations({ q, page = 1, since, until } = {}, options = {}) {
+    const config = {
       params: {
         q,
         page: page,
         since,
         until,
       },
-    });
+    };
+    if (options.signal) {
+      config.signal = options.signal;
+    }
+    return axios.get(`${this.url}/conversations`, config);
   }
 
-  messages({ q, page = 1, conversation_id = null }) {
+  messages({ q, page = 1, conversation_id = null, since, until, from, inboxId }) {
     const params = {
       q,
       page: page,
+      since,
+      until,
+      from,
+      inbox_id: inboxId,
     };
-    
-    // Add conversation_id if provided (for searching within a specific conversation)
     if (conversation_id) {
       params.conversation_id = conversation_id;
     }
-    
-    return axios.get(`${this.url}/messages`, {
-      params,
-      params: {
-        q,
-        page: page,
-        since,
-        until,
-        from,
-        inbox_id: inboxId,
-      },
-    });
+    return axios.get(`${this.url}/messages`, { params });
   }
 
   articles({ q, page = 1, since, until }) {

@@ -1,5 +1,5 @@
 <script setup>
-import { ref, computed, watch } from 'vue';
+import { ref, computed } from 'vue';
 import { useStore } from 'vuex';
 import { useI18n } from 'vue-i18n';
 import { useDebounceFn } from '@vueuse/core';
@@ -89,15 +89,6 @@ const handleContainerClick = () => {
     searchInputRef.value.focus();
   }
 };
-
-// Watch for external clear (e.g., from ChatList)
-watch(() => store.state.conversationSearch.conversationRecords, (records) => {
-  if (!records || records.length === 0) {
-    if (!hasSearchQuery.value) {
-      searchQuery.value = '';
-    }
-  }
-});
 </script>
 
 <template>

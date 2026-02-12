@@ -24,7 +24,9 @@
       "LOADING_MESSAGE": "Crunching data...",
       "PLACEHOLDER": "Type any text to search messages",
       "NO_MATCHING_RESULTS": "No results found.",
-      "NO_RESULTS": "No conversations found"
+      "NO_RESULTS": "No conversations found",
+      "NO_RESULTS_TITLE": "No results found",
+      "NO_RESULTS_FOR_QUERY": "No conversations found for \"{query}\". Try a different term or check the spelling."
     },
     "UNREAD_MESSAGES": "Unread Messages",
     "UNREAD_MESSAGE": "Unread Message",

@@ -374,21 +374,46 @@ const searchResults = computed(() =>
   store.getters['conversationSearch/getConversationRecords'] || []
 );
 
+const conversationSearchQuery = computed(() =>
+  store.getters['conversationSearch/getConversationSearchQuery'] || ''
+);
+
+const isSearchFetching = computed(() =>
+  store.getters['conversationSearch/getUIFlags']?.conversation?.isFetching || false
+);
+
 const isSearchActive = computed(() => {
   const uiFlags = store.getters['conversationSearch/getUIFlags'];
   const hasResults = searchResults.value.length > 0;
   const isFetching = uiFlags?.conversation?.isFetching || false;
-  // Busca está ativa se há resultados ou se está buscando
-  return hasResults || isFetching;
+  const hasQuery = (conversationSearchQuery.value || '').trim().length > 0;
+  // Busca está ativa se há termo digitado, resultados ou se está buscando
+  return hasQuery || hasResults || isFetching;
+});
+
+// Mostrar empty state "nenhum resultado" só depois que a API de busca respondeu (não antes nem durante o loading)
+const conversationSearchCompleted = computed(
+  () => store.getters['conversationSearch/getConversationSearchCompleted'] || false
+);
+
+const showSearchNoResults = computed(() => {
+  const hasQuery = (conversationSearchQuery.value || '').trim().length > 0;
+  return (
+    hasQuery &&
+    conversationSearchCompleted.value &&
+    !conversationList.value.length
+  );
 });
 
 const conversationList = computed(() => {
-  // Se busca estiver ativa e houver resultados, usar resultados da busca e filtrar por contexto
+  // Em modo busca: mostrar sempre os resultados da busca (podem ser vazios), nunca a lista normal
   const uiFlags = store.getters['conversationSearch/getUIFlags'];
   const isFetching = uiFlags?.conversation?.isFetching || false;
   const hasSearchResults = searchResults.value.length > 0;
-  
-  if ((isFetching || hasSearchResults) && hasSearchResults) {
+  const hasQuery = (conversationSearchQuery.value || '').trim().length > 0;
+  const searchMode = hasQuery || hasSearchResults || isFetching;
+
+  if (searchMode) {
     let filteredResults = [...searchResults.value];
     
     // Se há teamId na URL, filtrar APENAS conversas desse team
@@ -484,11 +509,6 @@ const conversationList = computed(() => {
     });
     
     return Array.from(conversationsByContact.values());
-  }
-  
-  // Se está buscando mas ainda não há resultados, retornar lista vazia
-  if (isFetching && !hasSearchResults) {
-    return [];
   }
 
   // Lógica original quando busca não está ativa
@@ -762,6 +782,10 @@ function resetAndFetchData() {
 }
 
 function loadMoreConversations() {
+  // Não carregar mais a lista normal enquanto a busca estiver ativa
+  if (isSearchActive.value) {
+    return;
+  }
   if (hasCurrentPageEndReached.value || chatListLoading.value) {
     return;
   }
@@ -1182,12 +1206,32 @@ watch(conversationFilters, (newVal, oldVal) => {
     >
       {{ $t('CHAT_LIST.LIST.404') }}
     </p>
-    <p
-      v-else-if="isSearchActive && !chatListLoading && !conversationList.length"
-      class="flex items-center justify-center p-4 overflow-auto text-n-slate-11"
+    <div
+      v-else-if="showSearchNoResults"
+      class="flex flex-col items-center justify-center p-8 overflow-auto text-center"
     >
-      {{ $t('CONVERSATION.SEARCH.NO_RESULTS') || 'Nenhuma conversa encontrada' }}
-    </p>
+      <div
+        class="w-12 h-12 rounded-full bg-n-slate-3 dark:bg-n-solid-3 flex items-center justify-center mb-4"
+      >
+        <fluent-icon
+          icon="search"
+          size="24"
+          class="text-n-slate-11"
+        />
+      </div>
+      <p class="text-base font-medium text-n-slate-12 mb-1">
+        {{ $t('CONVERSATION.SEARCH.NO_RESULTS_TITLE') }}
+      </p>
+      <p class="text-sm text-n-slate-11 max-w-[280px]">
+        {{
+          conversationSearchQuery
+            ? $t('CONVERSATION.SEARCH.NO_RESULTS_FOR_QUERY', {
+                query: conversationSearchQuery,
+              })
+            : $t('CONVERSATION.SEARCH.NO_RESULTS')
+        }}
+      </p>
+    </div>
     <ConversationBulkActions
       v-if="selectedConversations.length"
       :conversations="selectedConversations"
@@ -1245,7 +1289,7 @@ watch(conversationFilters, (newVal, oldVal) => {
           </DynamicScrollerItem>
         </template>
         <template #after>
-          <div v-if="chatListLoading || (isSearchActive && store.getters['conversationSearch/getUIFlags']?.conversation?.isFetching)" class="flex justify-center my-4">
+          <div v-if="(isSearchActive && store.getters['conversationSearch/getUIFlags']?.conversation?.isFetching) || (!isSearchActive && chatListLoading)" class="flex justify-center my-4">
             <Spinner class="text-n-brand" />
           </div>
           <p

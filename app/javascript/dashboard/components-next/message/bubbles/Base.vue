@@ -2,10 +2,10 @@
 import { computed } from 'vue';
 
 import MessageMeta from '../MessageMeta.vue';
+import ReplyPreview from './ReplyPreview.vue';
 
 import { emitter } from 'shared/helpers/mitt';
 import { useMessageContext } from '../provider.js';
-import { useI18n } from 'vue-i18n';
 
 import { BUS_EVENTS } from 'shared/constants/busEvents';
 import { MESSAGE_VARIANTS, ORIENTATION } from '../constants';
@@ -16,7 +16,6 @@ const props = defineProps({
 
 const { variant, orientation, inReplyTo, shouldGroupWithNext } =
   useMessageContext();
-const { t } = useI18n();
 
 const varaintBaseMap = {
   [MESSAGE_VARIANTS.AGENT]: 'bg-n-solid-blue text-n-slate-12',
@@ -76,22 +75,6 @@ const shouldShowMeta = computed(
     !shouldGroupWithNext.value &&
     variant.value !== MESSAGE_VARIANTS.ACTIVITY
 );
-
-const replyToPreview = computed(() => {
-  if (!inReplyTo) return '';
-
-  const { content, attachments } = inReplyTo.value;
-
-  if (content) return content;
-  if (attachments?.length) {
-    const firstAttachment = attachments[0];
-    const fileType = firstAttachment.fileType ?? firstAttachment.file_type;
-
-    return t(`CHAT_LIST.ATTACHMENTS.${fileType}.CONTENT`);
-  }
-
-  return t('CONVERSATION.REPLY_MESSAGE_NOT_FOUND');
-});
 </script>
 
 <template>
@@ -109,9 +92,7 @@ const replyToPreview = computed(() => {
       class="p-2 -mx-1 mb-2 rounded-lg cursor-pointer bg-n-alpha-black1"
       @click="scrollToMessage"
     >
-      <span class="break-all line-clamp-2">
-        {{ replyToPreview }}
-      </span>
+      <ReplyPreview :in-reply-to="inReplyTo" />
     </div>
     <slot />
     <MessageMeta

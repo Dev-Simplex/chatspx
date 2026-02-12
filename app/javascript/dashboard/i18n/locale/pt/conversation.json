@@ -24,7 +24,9 @@
       "LOADING_MESSAGE": "A preparar os dados...",
       "PLACEHOLDER": "Insira qualquer texto para procurar mensagens",
       "NO_MATCHING_RESULTS": "Nenhum resultado encontrado.",
-      "NO_RESULTS": "Nenhuma conversa encontrada"
+      "NO_RESULTS": "Nenhuma conversa encontrada",
+      "NO_RESULTS_TITLE": "Nenhum resultado encontrado",
+      "NO_RESULTS_FOR_QUERY": "Nenhuma conversa encontrada para \"{query}\". Tente outro termo ou verifique a ortografia."
     },
     "UNREAD_MESSAGES": "Mensagens por ler",
     "UNREAD_MESSAGE": "Mensagens por ler",
