@@ -2,6 +2,8 @@ class Notification::EmailNotificationService
   pattr_initialize [:notification!]
 
   def perform
+    return if ENV['DISABLE_AGENT_EMAIL_NOTIFICATIONS'] == 'true'
+
     # don't send emails if user read the push notification already
     return if notification.read_at.present?
     # don't send emails if user is not confirmed

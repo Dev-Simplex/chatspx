@@ -34,6 +34,11 @@ class BaseListener
 
     return if changed_attributes.blank?
 
-    changed_attributes.map { |k, v| { k => { previous_value: v[0], current_value: v[1] } } }
+    # Normal format from previous_changes: { attr => [old_val, new_val] }
+    # mark_as_unread! sends { 'agent_last_seen_at' => true, 'assignee_last_seen_at' => true }; avoid v[0]/v[1] on non-array
+    changed_attributes.map do |k, v|
+      prev, curr = v.is_a?(Array) && v.size >= 2 ? [v[0], v[1]] : [nil, v]
+      { k => { previous_value: prev, current_value: curr } }
+    end
   end
 end
