@@ -174,12 +174,14 @@ class Api::V1::Accounts::InboxesController < Api::V1::Accounts::BaseController
   end
 
   def format_nps_config(config)
-    cooldown = config['cooldown_days']
+    cooldown_days = config['cooldown_days']
+    cooldown_hours = config['cooldown_hours']
     expiration = config['expiration_hours']
     {
       'mode' => config['mode'] || 'auto',
       'message' => config['message'] || '',
-      'cooldown_days' => (cooldown.nil? || cooldown == '') ? 30 : cooldown.to_i,
+      'cooldown_hours' => cooldown_hours.present? && cooldown_hours.to_s != '' ? cooldown_hours.to_i : nil,
+      'cooldown_days' => (cooldown_days.nil? || cooldown_days == '') ? 30 : cooldown_days.to_i,
       'expiration_hours' => (expiration.nil? || expiration == '') ? 72 : expiration.to_i,
       'blocklist_labels' => Array(config['blocklist_labels'] || []),
       'blocklist_scope' => config['blocklist_scope'] || 'both',
@@ -199,7 +201,7 @@ class Api::V1::Accounts::InboxesController < Api::V1::Accounts::BaseController
      { csat_config: [:display_type, :message, :button_text, :language,
                      { survey_rules: [:operator, { values: [] }],
                        template: [:name, :template_id, :friendly_name, :content_sid, :approval_sid, :created_at, :language, :status] }] },
-     { nps_config: [:mode, :message, :cooldown_days, :expiration_hours, :blocklist_scope, :min_messages, :min_duration_minutes, :thank_you_message, :invalid_response_message, :comment_prompt_message, { blocklist_labels: [] }, { required_tags: [] }] }]
+     { nps_config: [:mode, :message, :cooldown_hours, :cooldown_days, :expiration_hours, :blocklist_scope, :min_messages, :min_duration_minutes, :thank_you_message, :invalid_response_message, :comment_prompt_message, { blocklist_labels: [] }, { required_tags: [] }] }]
   end
 
   def permitted_params(channel_attributes = [])

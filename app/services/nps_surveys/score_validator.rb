@@ -1,10 +1,20 @@
+# Valida e extrai nota NPS (0-10) de texto. Usado pelo ResponseBuilder e pelo ReopenGuard.
+# Normaliza conteúdo (strip + caracteres invisíveis) para reconhecer "10" mesmo com encoding/caracteres extras.
 class NpsSurveys::ScoreValidator
   def self.validate_and_extract(input)
     new(input).validate_and_extract
   end
 
   def initialize(input)
-    @input = input.to_s.strip
+    @input = normalize(input)
+  end
+
+  def self.normalize(text)
+    return '' if text.blank?
+    text.to_s
+        .encode('UTF-8', invalid: :replace, undef: :replace)
+        .strip
+        .gsub(/[\u200B-\u200D\uFEFF]/, '')
   end
 
   def validate_and_extract
@@ -14,6 +24,10 @@ class NpsSurveys::ScoreValidator
   end
 
   private
+
+  def normalize(text)
+    self.class.normalize(text)
+  end
 
   def extract_from_text
     # Try direct integer match first

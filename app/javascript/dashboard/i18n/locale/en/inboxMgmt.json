@@ -854,6 +854,12 @@
         "ERROR_MESSAGE": "We couldn't update CSAT settings. Please try again later."
       }
     },
+    "NPS": {
+      "COOLDOWN_HOURS": {
+        "LABEL": "Cooldown (hours)",
+        "HINT": "E.g. 24 = 1 day. Multiple agents can assist the same customer on the same day without sending NPS on every resolution."
+      }
+    },
     "BUSINESS_HOURS": {
       "TITLE": "Set your availability",
       "SUBTITLE": "Set your availability on your livechat widget",

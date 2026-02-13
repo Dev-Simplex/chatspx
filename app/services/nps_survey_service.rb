@@ -165,21 +165,39 @@ class NpsSurveyService
     end
   end
 
+  # Cooldown: quando o contato já respondeu a uma pesquisa NPS recentemente, não envia outra.
+  # Prioridade: cooldown_hours (horas) se configurado; senão cooldown_days (dias), para compatibilidade.
+  # Usar horas permite que vários agentes conversem no mesmo dia sem disparar NPS em toda resolução.
   def cooldown_respected?
-    cooldown_days = nps_config['cooldown_days'] || 30
-    return true if cooldown_days.zero?
+    cooldown_hours = nps_config['cooldown_hours']
+    if cooldown_hours.present? && cooldown_hours.to_s != ''
+      return true if cooldown_hours.to_i.zero?
 
-    # Consider contact's last NPS response in any conversation (including this one) for cooldown
+      last_response = contact.nps_responses
+                             .where(status: :responded)
+                             .order(answered_at: :desc)
+                             .first
+      return true unless last_response&.answered_at
+
+      hours_since_last = (Time.current - last_response.answered_at) / 1.hour
+      result = hours_since_last >= cooldown_hours.to_i
+      Rails.logger.info "NpsSurveyService: cooldown_respected? = #{result} (cooldown_hours: #{cooldown_hours}, contact_id: #{contact.id}, hours_since_last: #{hours_since_last})"
+      return result
+    end
+
+    # Fallback: cooldown em dias (comportamento antigo)
+    cooldown_days = nps_config['cooldown_days'] || 30
+    return true if cooldown_days.to_i.zero?
+
     last_response = contact.nps_responses
                           .where(status: :responded)
                           .order(answered_at: :desc)
                           .first
-
     return true unless last_response&.answered_at
 
     days_since_last = (Time.current - last_response.answered_at) / 1.day
-    result = days_since_last >= cooldown_days
-    Rails.logger.info "NpsSurveyService: cooldown_respected? = #{result} (contact_id: #{contact.id}, cooldown_days: #{cooldown_days}, last_answered_at: #{last_response.answered_at}, days_since_last: #{days_since_last})"
+    result = days_since_last >= cooldown_days.to_i
+    Rails.logger.info "NpsSurveyService: cooldown_respected? = #{result} (cooldown_days: #{cooldown_days}, contact_id: #{contact.id}, days_since_last: #{days_since_last})"
     result
   end
 

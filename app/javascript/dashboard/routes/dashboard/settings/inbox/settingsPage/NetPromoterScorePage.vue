@@ -33,7 +33,7 @@ const state = reactive({
   invalidResponseMessage: '',
   commentPromptMessage: '',
   expirationHours: 72,
-  cooldownDays: 30,
+  cooldownHours: 24,
   blocklistScope: 'both',
   minMessages: null,
   minDurationMinutes: null,
@@ -84,7 +84,7 @@ const initializeState = () => {
     state.invalidResponseMessage = '';
     state.commentPromptMessage = '';
     state.expirationHours = 72;
-    state.cooldownDays = 30;
+    state.cooldownHours = 24;
     state.blocklistScope = 'both';
     state.minMessages = null;
     state.minDurationMinutes = null;
@@ -100,7 +100,12 @@ const initializeState = () => {
   state.invalidResponseMessage = nps_config.invalid_response_message || '';
   state.commentPromptMessage = nps_config.comment_prompt_message || '';
   state.expirationHours = nps_config.expiration_hours || 72;
-  state.cooldownDays = nps_config.cooldown_days || 30;
+  // Cooldown em horas (prioridade); fallback: cooldown_days convertido para horas
+  state.cooldownHours =
+    nps_config.cooldown_hours ??
+    (nps_config.cooldown_days != null && nps_config.cooldown_days !== ''
+      ? Number(nps_config.cooldown_days) * 24
+      : 24);
   state.blocklistScope = nps_config.blocklist_scope || 'both';
   state.minMessages = nps_config.min_messages || null;
   state.minDurationMinutes = nps_config.min_duration_minutes || null;
@@ -180,7 +185,7 @@ const saveSettings = async () => {
       invalid_response_message: state.invalidResponseMessage,
       comment_prompt_message: state.commentPromptMessage,
       expiration_hours: state.expirationHours,
-      cooldown_days: state.cooldownDays,
+      cooldown_hours: state.cooldownHours,
       blocklist_labels: selectedBlocklistLabels.value,
       blocklist_scope: state.blocklistScope,
       min_messages: state.minMessages,
@@ -292,11 +297,12 @@ const saveSettings = async () => {
         </WithLabel>
 
         <WithLabel
-          :label="$t('INBOX_MGMT.NPS.COOLDOWN_DAYS.LABEL', { default: 'Cooldown (dias)' })"
-          name="cooldown_days"
+          :label="$t('INBOX_MGMT.NPS.COOLDOWN_HOURS.LABEL', { default: 'Cooldown (horas)' })"
+          :help-message="$t('INBOX_MGMT.NPS.COOLDOWN_HOURS.HINT', { default: 'Ex.: 24 = 1 dia. Vários agentes podem atender no mesmo dia sem enviar NPS em toda resolução.' })"
+          name="cooldown_hours"
         >
           <input
-            v-model.number="state.cooldownDays"
+            v-model.number="state.cooldownHours"
             type="number"
             min="0"
             class="w-full"

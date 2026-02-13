@@ -876,6 +876,10 @@
         "LABEL": "Horas de Expiração",
         "PLACEHOLDER": "72"
       },
+      "COOLDOWN_HOURS": {
+        "LABEL": "Cooldown (horas)",
+        "HINT": "Ex.: 24 = 1 dia. Vários agentes podem atender no mesmo dia sem enviar NPS em toda resolução."
+      },
       "BLOCKLIST_RULE": {
         "LABEL": "Bloquear por Etiquetas",
         "DESCRIPTION_PREFIX": "Não enviar NPS se a conversa",

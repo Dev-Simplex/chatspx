@@ -281,7 +281,7 @@ en:
         expired: 'NPS survey expired'
         blocked: 'NPS survey blocked by label: %{label}'
         not_sent_due_to_messaging_window: 'NPS survey could not be sent due to messaging window restrictions.'
-        not_sent_cooldown: 'NPS survey not sent: contact already responded to an NPS survey recently (cooldown in days as configured in inbox).'
+        not_sent_cooldown: 'NPS survey not sent: contact already responded to an NPS survey recently (cooldown in hours as configured in inbox).'
         not_sent_already_sent: 'NPS survey not sent: already sent in this conversation a moment ago. Please wait a few minutes.'
         not_sent_optional_rules: 'NPS survey not sent: optional rules not met (min messages, duration or tags).'
       auto_resolve:

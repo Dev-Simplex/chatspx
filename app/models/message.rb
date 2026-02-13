@@ -452,64 +452,10 @@ class Message < ApplicationRecord
     self.team_id = conversation.team_id if conversation.present?
   end
 
+  # Delega ao serviço NPS: evita reabertura quando a mensagem é resposta a pesquisa NPS ativa.
+  # Regras e nps_config (expiration_hours etc.) aplicadas em NpsSurveys::ReopenGuard.
   def response_to_active_nps_survey?
-    return false unless conversation.resolved?
-
-    active_nps_response = conversation.nps_responses
-                                      .where(status: :sent, answered_at: nil)
-                                      .order(created_at: :desc)
-                                      .first
-    return false unless active_nps_response
-    return false if active_nps_response.expired?
-    return false if active_nps_response.sent_at.present? && created_at.present? && created_at < active_nps_response.sent_at
-
-    # Only treat as NPS response (do not reopen) when the message clearly looks like a response attempt (valid or wrong).
-    # When in doubt, reopen so the client can get help.
-    return true if content_attributes.dig('submitted_values', 'nps_response', 'score').present?
-    return true if nps_score_like_content?(content)
-    return true if looks_like_wrong_nps_attempt_only?(content)
-
-    false
-  end
-
-  def nps_score_like_content?(text)
-    normalized = text.to_s.strip
-    return false if normalized.blank?
-
-    return true if normalized.match?(/^\s*(10|[0-9])\s*!*\s*$/)
-    return true if normalized.match?(/\b(10|[0-9])\s*\/\s*10\b/)
-    return true if normalized.match?(/\b(10|[0-9])\s*de\s*10\b/i)
-
-    keyword_present = normalized.match?(/\b(nota|score|rating|estrelas?|stars?)\b/i)
-    keyword_present && normalized.match?(/\b(10|[0-9])\b/)
-  end
-
-  # Returns true when the content looks like a wrong NPS answer only (e.g. "100", "11", "não sei", "??").
-  # Used to avoid reopening the conversation for invalid/skip responses; when in doubt we reopen.
-  def looks_like_wrong_nps_attempt_only?(text)
-    normalized = text.to_s.strip
-    return false if normalized.blank?
-
-    # Only a number outside 0-10 (e.g. "100", "11", "12", "-1")
-    if normalized.match?(/^\s*-?\d+\s*$/)
-      num = normalized.to_i
-      return true unless (0..10).cover?(num)
-    end
-
-    # Very short message that matches "skip" or typo patterns
-    return false if normalized.length > 25
-
-    short_skip_patterns = [
-      /\A(n[ãa]o\s*)?sei\z/i,           # "não sei", "nao sei", "sei"
-      /\An\/a\z/i,                       # "n/a"
-      /\A\?+\z/,                          # "??", "?"
-      /\A\.+\z/,                          # "..."
-      /\A(nao|não)\z/i,                   # "não", "nao"
-      /\Aabc\z/i,                         # typo / placeholder
-      /\A[a-z]\z/i,                       # single letter e.g. "x"
-      /\A[\s\?\.,!\-]+\z/                 # only punctuation/whitespace
-    ]
-    short_skip_patterns.any? { |pattern| normalized.match?(pattern) }
+    NpsSurveys::ReopenGuard.new(message: self).prevent_reopen?
   end
 
   def reindex_for_search
