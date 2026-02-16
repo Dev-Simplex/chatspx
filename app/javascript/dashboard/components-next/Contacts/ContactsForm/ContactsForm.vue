@@ -1,7 +1,7 @@
 <script setup>
-import { computed, reactive, watch } from 'vue';
+import { computed, reactive, watch, ref } from 'vue';
 import { useI18n } from 'vue-i18n';
-import { required, email } from '@vuelidate/validators';
+import { required, email, requiredIf } from '@vuelidate/validators';
 import { useVuelidate } from '@vuelidate/core';
 import { splitName } from '@chatwoot/utils';
 import countries from 'shared/constants/countries.js';
@@ -9,6 +9,7 @@ import Input from 'dashboard/components-next/input/Input.vue';
 import ComboBox from 'dashboard/components-next/combobox/ComboBox.vue';
 import Icon from 'dashboard/components-next/icon/Icon.vue';
 import PhoneNumberInput from 'dashboard/components-next/phonenumberinput/PhoneNumberInput.vue';
+import Button from 'dashboard/components-next/button/Button.vue';
 
 const props = defineProps({
   contactData: {
@@ -39,6 +40,9 @@ const FORM_CONFIG = {
   BIO: { field: 'additionalAttributes.description' },
   COMPANY_NAME: { field: 'additionalAttributes.companyName' },
 };
+
+const BASIC_FIELDS = ['FIRST_NAME', 'LAST_NAME', 'EMAIL_ADDRESS', 'PHONE_NUMBER'];
+const ADVANCED_FIELDS = ['CITY', 'COUNTRY', 'BIO', 'COMPANY_NAME'];
 
 const SOCIAL_CONFIG = {
   LINKEDIN: 'i-ri-linkedin-box-fill',
@@ -75,14 +79,21 @@ const defaultState = {
 
 const state = reactive({ ...defaultState });
 
-const validationRules = {
+const validationRules = computed(() => ({
   firstName: { required },
   email: { email },
-};
+  phoneNumber: { required: requiredIf(() => props.isNewContact) },
+}));
 
 const v$ = useVuelidate(validationRules, state);
 
 const isFormInvalid = computed(() => v$.value.$invalid);
+
+const showAdvanced = ref(!props.isNewContact);
+
+const toggleAdvanced = () => {
+  showAdvanced.value = !showAdvanced.value;
+};
 
 const prepareStateBasedOnProps = () => {
   if (props.isNewContact) {
@@ -128,14 +139,16 @@ const countryOptions = computed(() =>
   countries.map(({ name, id }) => ({ label: name, value: id }))
 );
 
-const editDetailsForm = computed(() =>
-  Object.keys(FORM_CONFIG).map(key => ({
+const buildFormFields = keys =>
+  keys.map(key => ({
     key,
     placeholder: t(
       `CONTACTS_LAYOUT.CARD.EDIT_DETAILS_FORM.FORM.${key}.PLACEHOLDER`
     ),
-  }))
-);
+  }));
+
+const basicDetailsForm = computed(() => buildFormFields(BASIC_FIELDS));
+const advancedDetailsForm = computed(() => buildFormFields(ADVANCED_FIELDS));
 
 const socialProfilesForm = computed(() =>
   Object.entries(SOCIAL_CONFIG).map(([key, icon]) => ({
@@ -147,7 +160,7 @@ const socialProfilesForm = computed(() =>
 
 const isValidationField = key => {
   const field = FORM_CONFIG[key]?.field;
-  return ['firstName', 'email'].includes(field);
+  return ['firstName', 'email', 'phoneNumber'].includes(field);
 };
 
 const getValidationKey = key => {
@@ -240,11 +253,28 @@ defineExpose({
 <template>
   <div class="flex flex-col gap-6">
     <div class="flex flex-col items-start gap-2">
-      <span class="py-1 text-sm font-medium text-n-slate-12">
-        {{ t('CONTACTS_LAYOUT.CARD.EDIT_DETAILS_FORM.TITLE') }}
-      </span>
+      <div class="flex items-center justify-between w-full">
+        <span class="py-1 text-sm font-medium text-n-slate-12">
+          {{ t('CONTACTS_LAYOUT.CARD.EDIT_DETAILS_FORM.TITLE') }}
+        </span>
+        <Button
+          size="xs"
+          color="slate"
+          variant="ghost"
+          :icon="showAdvanced ? 'i-lucide-chevron-up' : 'i-lucide-chevron-down'"
+          :label="
+            showAdvanced
+              ? t('CONTACTS_LAYOUT.CARD.EDIT_DETAILS_FORM.ADVANCED.HIDE')
+              : t('CONTACTS_LAYOUT.CARD.EDIT_DETAILS_FORM.ADVANCED.SHOW')
+          "
+          trailing-icon
+          class="!h-7"
+          type="button"
+          @click="toggleAdvanced"
+        />
+      </div>
       <div class="grid w-full grid-cols-1 gap-4 sm:grid-cols-2">
-        <template v-for="item in editDetailsForm" :key="item.key">
+        <template v-for="item in basicDetailsForm" :key="item.key">
           <ComboBox
             v-if="item.key === 'COUNTRY'"
             v-model="state.additionalAttributes.countryCode"
@@ -287,7 +317,55 @@ defineExpose({
         </template>
       </div>
     </div>
-    <div class="flex flex-col items-start gap-2">
+    <div v-if="showAdvanced" class="flex flex-col items-start gap-2">
+      <span class="py-1 text-sm font-medium text-n-slate-12">
+        {{ t('CONTACTS_LAYOUT.CARD.EDIT_DETAILS_FORM.ADVANCED.TITLE') }}
+      </span>
+      <div class="grid w-full grid-cols-1 gap-4 sm:grid-cols-2">
+        <template v-for="item in advancedDetailsForm" :key="item.key">
+          <ComboBox
+            v-if="item.key === 'COUNTRY'"
+            v-model="state.additionalAttributes.countryCode"
+            :options="countryOptions"
+            :placeholder="item.placeholder"
+            class="[&>div>button]:h-8"
+            :class="{
+              '[&>div>button]:bg-n-alpha-black2 [&>div>button:not(.focused)]:!outline-transparent':
+                !isDetailsView,
+              '[&>div>button]:!bg-n-alpha-black2': isDetailsView,
+            }"
+            @update:model-value="handleCountrySelection"
+          />
+          <PhoneNumberInput
+            v-else-if="item.key === 'PHONE_NUMBER'"
+            v-model="getFormBinding(item.key).value"
+            :placeholder="item.placeholder"
+            :show-border="isDetailsView"
+          />
+          <Input
+            v-else
+            v-model="getFormBinding(item.key).value"
+            :placeholder="item.placeholder"
+            :message-type="getMessageType(item.key)"
+            :custom-input-class="`h-8 !pt-1 !pb-1 ${
+              !isDetailsView
+                ? '[&:not(.error,.focus)]:!outline-transparent'
+                : ''
+            }`"
+            class="w-full"
+            @input="
+              isValidationField(item.key) &&
+                v$[getValidationKey(item.key)].$touch()
+            "
+            @blur="
+              isValidationField(item.key) &&
+                v$[getValidationKey(item.key)].$touch()
+            "
+          />
+        </template>
+      </div>
+    </div>
+    <div v-if="showAdvanced" class="flex flex-col items-start gap-2">
       <span class="py-1 text-sm font-medium text-n-slate-12">
         {{ t('CONTACTS_LAYOUT.CARD.SOCIAL_MEDIA.TITLE') }}
       </span>

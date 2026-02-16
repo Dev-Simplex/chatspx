@@ -66,6 +66,10 @@ module Waha
       get("/api/#{session_name}/lids/#{encoded_lid}")
     end
 
+    def check_contact_exists(session_name:, phone:)
+      get('/api/contacts/check-exists', phone: phone, session: session_name)
+    end
+
     # GET /api/{session}/lids - list known LID to phone number mappings.
     # Used as fallback when get_lid_phone_number returns pn: null.
     # WAHA docs: https://waha.devlike.pro/docs/how-to/contacts/
@@ -181,4 +185,3 @@ module Waha
     end
   end
 end
-

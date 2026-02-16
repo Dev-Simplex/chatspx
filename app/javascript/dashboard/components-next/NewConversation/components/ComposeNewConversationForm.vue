@@ -1,5 +1,6 @@
 <script setup>
 import { reactive, ref, computed } from 'vue';
+import { useI18n } from 'vue-i18n';
 import { useVuelidate } from '@vuelidate/core';
 import { required, requiredIf } from '@vuelidate/validators';
 import { INBOX_TYPES } from 'dashboard/helper/inbox';
@@ -48,6 +49,8 @@ const emit = defineEmits([
   'createConversation',
 ]);
 
+const { t } = useI18n();
+
 const DEFAULT_FORMATTING = 'Context::Default';
 
 const showContactsDropdown = ref(false);
@@ -81,6 +84,61 @@ const inboxTypes = computed(() => ({
     props.targetInbox?.channelType === INBOX_TYPES.TWILIO &&
     props.targetInbox?.medium === 'whatsapp',
 }));
+
+const whatsappInvalidMessage = computed(() =>
+  t('CONVERSATION.REPLYBOX.WHATSAPP_INVALID')
+);
+
+const whatsappCustomAttributes = computed(() => {
+  const contact = props.selectedContact || {};
+  return (
+    contact.customAttributes ||
+    contact.custom_attributes ||
+    contact.custom_attributes ||
+    {}
+  );
+});
+
+const whatsappNumberExists = computed(() => {
+  const attributes = whatsappCustomAttributes.value || {};
+  const snakeValue = attributes.whatsapp_number_exists;
+  if (snakeValue !== undefined) return snakeValue;
+  return attributes.whatsappNumberExists;
+});
+
+const isWhatsappInvalid = computed(() => whatsappNumberExists.value === false);
+
+const isApiInbox = computed(() => inboxTypes.value.isApi);
+
+const isWhatsappTargetInbox = computed(
+  () =>
+    inboxTypes.value.isWhatsapp ||
+    inboxTypes.value.isTwilioWhatsapp ||
+    isApiInbox.value
+);
+
+const hasOnlyWhatsappInboxes = computed(() => {
+  if (!contactableInboxesList.value?.length) return false;
+  return contactableInboxesList.value.every(inbox => {
+    const isWhatsapp =
+      inbox.channelType === INBOX_TYPES.WHATSAPP ||
+      (inbox.channelType === INBOX_TYPES.TWILIO &&
+        inbox.medium === 'whatsapp');
+    const isApiWaha =
+      inbox.channelType === INBOX_TYPES.API;
+    return isWhatsapp || isApiWaha;
+  });
+});
+
+const shouldShowWhatsappInvalidBanner = computed(
+  () =>
+    isWhatsappInvalid.value &&
+    (isWhatsappTargetInbox.value || hasOnlyWhatsappInboxes.value)
+);
+
+const shouldBlockWhatsappSend = computed(
+  () => isWhatsappInvalid.value && isWhatsappTargetInbox.value
+);
 
 const whatsappMessageTemplates = computed(() =>
   Object.keys(props.targetInbox?.messageTemplates || {}).length
@@ -289,6 +347,8 @@ const handleSendMessage = async () => {
   const isValid = await v$.value.$validate();
   if (!isValid) return;
 
+  if (shouldBlockWhatsappSend.value) return;
+
   try {
     const success = await emit('createConversation', {
       payload: newMessagePayload(),
@@ -303,6 +363,8 @@ const handleSendMessage = async () => {
 };
 
 const handleSendWhatsappMessage = async ({ message, templateParams }) => {
+  if (shouldBlockWhatsappSend.value) return;
+
   const whatsappMessagePayload = prepareWhatsAppMessagePayload({
     targetInbox: props.targetInbox,
     selectedContact: props.selectedContact,
@@ -317,6 +379,8 @@ const handleSendWhatsappMessage = async ({ message, templateParams }) => {
 };
 
 const handleSendTwilioMessage = async ({ message, templateParams }) => {
+  if (shouldBlockWhatsappSend.value) return;
+
   const twilioMessagePayload = prepareWhatsAppMessagePayload({
     targetInbox: props.targetInbox,
     selectedContact: props.selectedContact,
@@ -344,6 +408,15 @@ const shouldShowMessageEditor = computed(() => {
     class="w-[42rem] divide-y divide-n-strong overflow-visible transition-all duration-300 ease-in-out top-full flex flex-col bg-n-alpha-3 border border-n-strong shadow-sm backdrop-blur-[100px] rounded-xl min-w-0 max-h-[calc(100vh-8rem)]"
   >
     <div class="flex-1 overflow-y-auto divide-y divide-n-strong">
+      <transition name="whatsapp-invalid">
+        <div
+          v-if="shouldShowWhatsappInvalidBanner"
+          class="mx-4 mt-4 mb-2 flex items-center gap-2 rounded-lg border border-n-ruby-5/40 bg-n-ruby-3 px-3 py-2 text-sm font-medium text-n-ruby-12 shadow-sm"
+        >
+          <span class="i-lucide-message-circle-x size-4 text-n-ruby-9 animate-pulse" />
+          <span>{{ whatsappInvalidMessage }}</span>
+        </div>
+      </transition>
       <ContactSelector
         :contacts="contacts"
         :selected-contact="selectedContact"
@@ -413,7 +486,7 @@ const shouldShowMessageEditor = computed(() => {
       :message-templates="whatsappMessageTemplates"
       :channel-type="inboxChannelType"
       :is-loading="isCreating"
-      :disable-send-button="isCreating"
+      :disable-send-button="isCreating || shouldBlockWhatsappSend"
       :has-selected-inbox="!!targetInbox"
       :inbox-id="targetInbox?.id"
       :has-no-inbox="showNoInboxAlert"
@@ -430,3 +503,16 @@ const shouldShowMessageEditor = computed(() => {
     />
   </div>
 </template>
+
+<style scoped>
+.whatsapp-invalid-enter-active,
+.whatsapp-invalid-leave-active {
+  transition: opacity 180ms ease, transform 220ms ease;
+}
+
+.whatsapp-invalid-enter-from,
+.whatsapp-invalid-leave-to {
+  opacity: 0;
+  transform: translateY(-4px);
+}
+</style>

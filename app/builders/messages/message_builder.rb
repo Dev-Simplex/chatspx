@@ -21,6 +21,7 @@ class Messages::MessageBuilder
   end
 
   def perform
+    validate_whatsapp_contact!
     @message = @conversation.messages.build(message_params)
     process_attachments
     process_emails
@@ -144,6 +145,37 @@ class Messages::MessageBuilder
       echo_id: @params[:echo_id],
       source_id: @params[:source_id]
     }.merge(external_created_at).merge(automation_rule_id).merge(campaign_id).merge(template_params)
+  end
+
+  def validate_whatsapp_contact!
+    return if @private
+
+    outgoing_type = message_type.to_s
+    return if outgoing_type == 'incoming'
+
+    return unless whatsapp_inbox?
+
+    contact = @conversation.contact
+    return unless contact&.custom_attributes&.[]('whatsapp_number_exists') == false
+
+    raise StandardError, I18n.t('errors.contacts.whatsapp_validation.not_registered')
+  end
+
+  def whatsapp_inbox?
+    inbox = @conversation.inbox
+    return false unless inbox
+
+    return true if inbox.channel_type == 'Channel::Whatsapp'
+
+    if inbox.channel_type == 'Channel::TwilioSms'
+      return inbox.channel&.medium == 'whatsapp'
+    end
+
+    if inbox.channel_type == 'Channel::Api'
+      return true
+    end
+
+    false
   end
 
   def email_inbox?

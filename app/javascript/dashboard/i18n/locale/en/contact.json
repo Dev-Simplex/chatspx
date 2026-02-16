@@ -307,6 +307,11 @@
           "EXPORT_CONTACT": "Export contacts",
           "IMPORT_CONTACT": "Import contacts",
           "SAVE_CONTACT": "Save contact",
+          "WHATSAPP_CHECK": {
+            "TITLE": "Validate on WhatsApp (WAHA)",
+            "SESSION": "Session: {session}",
+            "FALLBACK": "No session linked. Using Simplex."
+          },
           "EMAIL_ADDRESS_DUPLICATE": "This email address is in use for another contact.",
           "PHONE_NUMBER_DUPLICATE": "This phone number is in use for another contact.",
           "SUCCESS_MESSAGE": "Contact saved successfully",
@@ -412,8 +417,16 @@
     "CARD": {
       "OF": "of",
       "VIEW_DETAILS": "View details",
+      "WHATSAPP": {
+        "INVALID": "Not registered on WhatsApp"
+      },
       "EDIT_DETAILS_FORM": {
         "TITLE": "Edit contact details",
+        "ADVANCED": {
+          "TITLE": "Advanced details",
+          "SHOW": "Show advanced",
+          "HIDE": "Hide advanced"
+        },
         "FORM": {
           "FIRST_NAME": {
             "PLACEHOLDER": "Enter the first name"

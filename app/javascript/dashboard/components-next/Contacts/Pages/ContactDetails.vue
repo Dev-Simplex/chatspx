@@ -58,6 +58,10 @@ const lastActivityAt = computed(() => {
     : '';
 });
 
+const isWhatsappInvalid = computed(
+  () => contactData.value?.customAttributes?.whatsappNumberExists === false
+);
+
 const avatarSrc = computed(() => {
   return avatarUrl.value ? avatarUrl.value : contactData.value?.thumbnail;
 });
@@ -132,9 +136,18 @@ const handleAvatarDelete = async () => {
         @delete="handleAvatarDelete"
       />
       <div class="flex flex-col gap-1">
-        <h3 class="text-base font-medium text-n-slate-12">
-          {{ selectedContact?.name }}
-        </h3>
+        <div class="flex flex-wrap items-center gap-2">
+          <h3 class="text-base font-medium text-n-slate-12">
+            {{ selectedContact?.name }}
+          </h3>
+          <span
+            v-if="isWhatsappInvalid"
+            class="inline-flex items-center gap-1 px-2 py-0.5 text-xs font-medium text-white rounded-full bg-n-ruby-9 shadow-sm animate-pulse"
+          >
+            <span class="i-lucide-message-circle-x size-3" />
+            {{ t('CONTACTS_LAYOUT.CARD.WHATSAPP.INVALID') }}
+          </span>
+        </div>
         <div class="flex flex-col gap-1.5">
           <span
             v-if="selectedContact?.identifier"

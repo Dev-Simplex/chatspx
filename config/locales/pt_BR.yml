@@ -67,6 +67,10 @@ pt_BR:
         invalid: E-mail inválido
       phone_number:
         invalid: deve estar no formato e164
+      whatsapp_validation:
+        not_registered: Este número não está registrado no WhatsApp.
+        unavailable: Não foi possível validar o número do WhatsApp. Tente novamente.
+        multiple_sessions: Não foi possível validar o número do WhatsApp. Tente novamente.
     companies:
       domain:
         invalid: must be a valid domain name

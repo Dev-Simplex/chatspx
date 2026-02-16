@@ -215,7 +215,9 @@ export const createNewContact = async input => {
     name: input.startsWith('+')
       ? input.slice(1) // Remove the '+' prefix if it exists
       : getCapitalizedNameFromEmail(input),
-    ...(input.startsWith('+') ? { phone_number: input } : { email: input }),
+    ...(input.startsWith('+')
+      ? { phone_number: input, validate_whatsapp: true }
+      : { email: input }),
   };
 
   const {

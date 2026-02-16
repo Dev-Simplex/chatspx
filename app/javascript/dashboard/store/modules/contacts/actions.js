@@ -35,13 +35,24 @@ const buildContactFormData = contactParams => {
 };
 
 export const handleContactOperationErrors = error => {
+  const responseMessage = error.response?.data?.message;
+  const responseAttributes = error.response?.data?.attributes;
+
   if (error.response?.status === 422) {
-    throw new DuplicateContactException(error.response.data.attributes);
-  } else if (error.response?.data?.message) {
-    throw new ExceptionWithMessage(error.response.data.message);
-  } else {
+    if (responseAttributes) {
+      throw new DuplicateContactException(responseAttributes);
+    }
+    if (responseMessage) {
+      throw new ExceptionWithMessage(responseMessage);
+    }
     throw new Error(error);
   }
+
+  if (responseMessage) {
+    throw new ExceptionWithMessage(responseMessage);
+  }
+
+  throw new Error(error);
 };
 
 export const actions = {

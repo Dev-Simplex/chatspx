@@ -81,6 +81,10 @@ en:
         invalid: Invalid email
       phone_number:
         invalid: should be in e164 format
+      whatsapp_validation:
+        not_registered: This phone number is not registered on WhatsApp.
+        unavailable: Unable to validate the WhatsApp number right now. Please try again.
+        multiple_sessions: Unable to validate the WhatsApp number right now. Please try again.
     companies:
       domain:
         invalid: must be a valid domain name

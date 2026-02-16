@@ -53,6 +53,18 @@ const EmojiInput = defineAsyncComponent(
   () => import('shared/components/emoji/EmojiInput.vue')
 );
 
+const isWhatsAppValidationMessage = message =>
+  typeof message === 'string' && message.toLowerCase().includes('whatsapp');
+
+const whatsappAlertAction = message =>
+  isWhatsAppValidationMessage(message)
+    ? {
+        variant: 'error',
+        icon: 'i-lucide-message-circle-x',
+        duration: 5000,
+      }
+    : null;
+
 export default {
   components: {
     ArticleSearchPopover,
@@ -123,6 +135,8 @@ export default {
       newConversationModalActive: false,
       showArticleSearchPopover: false,
       hasRecordedAudio: false,
+      whatsappInvalidNotice: '',
+      whatsappNoticeTimeoutId: null,
     };
   },
   computed: {
@@ -139,6 +153,39 @@ export default {
       const senderId = this.currentChat?.meta?.sender?.id;
       if (!senderId) return {};
       return this.$store.getters['contacts/getContact'](senderId);
+    },
+    whatsappCustomAttributes() {
+      const sender = this.currentChat?.meta?.sender || {};
+      return (
+        sender.custom_attributes ||
+        sender.customAttributes ||
+        this.currentContact?.customAttributes ||
+        this.currentContact?.custom_attributes ||
+        {}
+      );
+    },
+    whatsappNumberExists() {
+      const attributes = this.whatsappCustomAttributes || {};
+      const snakeValue = attributes.whatsapp_number_exists;
+      if (snakeValue !== undefined) return snakeValue;
+      return attributes.whatsappNumberExists;
+    },
+    isWhatsappInvalid() {
+      return this.whatsappNumberExists === false;
+    },
+    shouldBlockWhatsappSend() {
+      return (
+        !this.isPrivate &&
+        (this.isAWhatsAppChannel || this.isAPIInbox) &&
+        this.isWhatsappInvalid
+      );
+    },
+    whatsappInvalidMessage() {
+      return this.$t('CONVERSATION.REPLYBOX.WHATSAPP_INVALID');
+    },
+    whatsappBannerMessage() {
+      if (this.whatsappInvalidNotice) return this.whatsappInvalidNotice;
+      return this.shouldBlockWhatsappSend ? this.whatsappInvalidMessage : '';
     },
     shouldShowReplyToMessage() {
       return (
@@ -193,6 +240,7 @@ export default {
       return this.maxLength - this.message.length;
     },
     isReplyButtonDisabled() {
+      if (this.shouldBlockWhatsappSend) return true;
       if (this.isATwitterInbox) return true;
       if (this.hasAttachments || this.hasRecordedAudio) return false;
 
@@ -419,6 +467,7 @@ export default {
         this.replyType = REPLY_EDITOR_MODES.NOTE;
       }
 
+      this.clearWhatsappInvalidNotice();
       this.fetchAndSetReplyTo();
     },
     // When moving from one conversation to another, the store may not have the
@@ -488,6 +537,23 @@ export default {
     );
   },
   methods: {
+    showWhatsappInvalidNotice(message) {
+      this.whatsappInvalidNotice = message;
+      if (this.whatsappNoticeTimeoutId) {
+        clearTimeout(this.whatsappNoticeTimeoutId);
+      }
+      this.whatsappNoticeTimeoutId = setTimeout(() => {
+        this.whatsappInvalidNotice = '';
+        this.whatsappNoticeTimeoutId = null;
+      }, 8000);
+    },
+    clearWhatsappInvalidNotice() {
+      if (this.whatsappNoticeTimeoutId) {
+        clearTimeout(this.whatsappNoticeTimeoutId);
+      }
+      this.whatsappNoticeTimeoutId = null;
+      this.whatsappInvalidNotice = '';
+    },
     handleInsert(article) {
       const { url, title } = article;
       // Removing empty lines from the title
@@ -752,6 +818,14 @@ export default {
     },
     async sendMessage(messagePayload) {
       try {
+        if (this.shouldBlockWhatsappSend) {
+          this.showWhatsappInvalidNotice(this.whatsappInvalidMessage);
+          useAlert(
+            this.whatsappInvalidMessage,
+            whatsappAlertAction(this.whatsappInvalidMessage)
+          );
+          return;
+        }
         await this.$store.dispatch(
           'createPendingMessageAndSend',
           messagePayload
@@ -763,7 +837,10 @@ export default {
       } catch (error) {
         const errorMessage =
           error?.response?.data?.error || this.$t('CONVERSATION.MESSAGE_ERROR');
-        useAlert(errorMessage);
+        if (isWhatsAppValidationMessage(errorMessage)) {
+          this.showWhatsappInvalidNotice(errorMessage);
+        }
+        useAlert(errorMessage, whatsappAlertAction(errorMessage));
       }
     },
     async onSendWhatsAppReply(messagePayload) {
@@ -1113,6 +1190,15 @@ export default {
       @set-reply-mode="setReplyMode"
       @close-popout="$emit('update:popOutReplyBox', false)"
     />
+    <transition name="whatsapp-invalid">
+      <div
+        v-if="whatsappBannerMessage"
+        class="mx-3 mt-2 mb-1 flex items-center gap-2 rounded-lg border border-n-ruby-5/40 bg-n-ruby-3 px-3 py-2 text-sm font-medium text-n-ruby-12 shadow-sm"
+      >
+        <span class="i-lucide-message-circle-x size-4 text-n-ruby-9 animate-pulse" />
+        <span>{{ whatsappBannerMessage }}</span>
+      </div>
+    </transition>
     <ArticleSearchPopover
       v-if="showArticleSearchPopover && connectedPortalSlug"
       :selected-portal-slug="connectedPortalSlug"
@@ -1286,6 +1372,17 @@ export default {
   :deep(.ProseMirror-woot-style) {
     @apply min-h-[2.75rem] max-h-[7.5rem];
   }
+}
+
+.whatsapp-invalid-enter-active,
+.whatsapp-invalid-leave-active {
+  transition: opacity 180ms ease, transform 220ms ease;
+}
+
+.whatsapp-invalid-enter-from,
+.whatsapp-invalid-leave-to {
+  opacity: 0;
+  transform: translateY(-4px);
 }
 
 .emoji-dialog {

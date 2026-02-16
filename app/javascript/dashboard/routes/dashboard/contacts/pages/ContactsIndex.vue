@@ -7,6 +7,10 @@ import { useAlert } from 'dashboard/composables';
 import { debounce } from '@chatwoot/utils';
 import { useUISettings } from 'dashboard/composables/useUISettings';
 import filterQueryGenerator from 'dashboard/helper/filterQueryGenerator';
+import {
+  DuplicateContactException,
+  ExceptionWithMessage,
+} from 'shared/helpers/CustomErrors';
 
 import ContactsListLayout from 'dashboard/components-next/Contacts/ContactsListLayout.vue';
 import ContactEmptyState from 'dashboard/components-next/Contacts/EmptyState/ContactEmptyState.vue';
@@ -25,6 +29,19 @@ const router = useRouter();
 const { t } = useI18n();
 
 const { updateUISettings, uiSettings } = useUISettings();
+
+const isWhatsAppValidationMessage = message =>
+  typeof message === 'string' &&
+  message.toLowerCase().includes('whatsapp');
+
+const whatsappAlertAction = message =>
+  isWhatsAppValidationMessage(message)
+    ? {
+        variant: 'error',
+        icon: 'i-lucide-message-circle-x',
+        duration: 5000,
+      }
+    : null;
 
 const contacts = useMapGetter('contacts/getContactsList');
 const uiFlags = useMapGetter('contacts/getUIFlags');
@@ -331,7 +348,24 @@ const handleSort = async ({ sort, order }) => {
 };
 
 const createContact = async contact => {
-  await store.dispatch('contacts/create', contact);
+  try {
+    await store.dispatch('contacts/create', contact);
+  } catch (error) {
+    const i18nPrefix = 'CONTACTS_LAYOUT.HEADER.ACTIONS.CONTACT_CREATION';
+    if (error instanceof DuplicateContactException) {
+      if (Array.isArray(error.data) && error.data.includes('email')) {
+        useAlert(t(`${i18nPrefix}.EMAIL_ADDRESS_DUPLICATE`));
+      } else if (Array.isArray(error.data) && error.data.includes('phone_number')) {
+        useAlert(t(`${i18nPrefix}.PHONE_NUMBER_DUPLICATE`));
+      } else {
+        useAlert(t(`${i18nPrefix}.ERROR_MESSAGE`));
+      }
+    } else if (error instanceof ExceptionWithMessage) {
+      useAlert(error.data, whatsappAlertAction(error.data));
+    } else {
+      useAlert(t(`${i18nPrefix}.ERROR_MESSAGE`));
+    }
+  }
 };
 
 watch(

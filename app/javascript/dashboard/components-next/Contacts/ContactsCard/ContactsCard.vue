@@ -16,6 +16,7 @@ const props = defineProps({
   name: { type: String, default: '' },
   email: { type: String, default: '' },
   additionalAttributes: { type: Object, default: () => ({}) },
+  customAttributes: { type: Object, default: () => ({}) },
   phoneNumber: { type: String, default: '' },
   thumbnail: { type: String, default: '' },
   availabilityStatus: { type: String, default: null },
@@ -82,6 +83,10 @@ const formattedLocation = computed(() => {
     .filter(Boolean)
     .join(' ');
 });
+
+const isWhatsappInvalid = computed(
+  () => props.customAttributes?.whatsappNumberExists === false
+);
 
 const handleFormUpdate = updatedData => {
   Object.assign(contactData.value, updatedData);
@@ -175,6 +180,17 @@ const handleAvatarHover = isHovered => {
               {{ phoneNumber }}
             </span>
             <div v-if="phoneNumber" class="w-px h-3 truncate bg-n-slate-6" />
+            <span
+              v-if="phoneNumber && isWhatsappInvalid"
+              class="inline-flex items-center gap-1 px-2 py-0.5 text-xs font-medium text-white rounded-full bg-n-ruby-9 shadow-sm animate-pulse"
+            >
+              <span class="i-lucide-message-circle-x size-3" />
+              {{ t('CONTACTS_LAYOUT.CARD.WHATSAPP.INVALID') }}
+            </span>
+            <div
+              v-if="phoneNumber && isWhatsappInvalid"
+              class="w-px h-3 truncate bg-n-slate-6"
+            />
             <span
               v-if="countryDetails"
               class="inline-flex items-center gap-2 text-sm truncate text-n-slate-11"

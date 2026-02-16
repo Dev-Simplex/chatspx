@@ -45,6 +45,19 @@ const { width: windowWidth } = useWindowSize();
 
 const { fetchSignatureFlagFromUISettings } = useUISettings();
 
+const isWhatsAppValidationMessage = message =>
+  typeof message === 'string' &&
+  message.toLowerCase().includes('whatsapp');
+
+const whatsappAlertAction = message =>
+  isWhatsAppValidationMessage(message)
+    ? {
+        variant: 'error',
+        icon: 'i-lucide-message-circle-x',
+        duration: 5000,
+      }
+    : null;
+
 const isSmallScreen = computed(
   () => windowWidth.value < wootConstants.SMALL_SCREEN_BREAKPOINT
 );
@@ -115,6 +128,10 @@ const handleSelectedContact = async ({ value, action, ...rest }) => {
       isCreatingContact.value = false;
     } catch (error) {
       isCreatingContact.value = false;
+      const message =
+        error?.response?.data?.message ||
+        t('CONTACTS_LAYOUT.HEADER.ACTIONS.CONTACT_CREATION.ERROR_MESSAGE');
+      useAlert(message, whatsappAlertAction(message));
       return;
     }
   } else {
@@ -175,11 +192,11 @@ const createConversation = async ({ payload, isFromWhatsApp }) => {
     useAlert(t('COMPOSE_NEW_CONVERSATION.FORM.SUCCESS_MESSAGE'), action);
     return true; // Return success
   } catch (error) {
-    useAlert(
+    const message =
       error instanceof ExceptionWithMessage
         ? error.data
-        : t('COMPOSE_NEW_CONVERSATION.FORM.ERROR_MESSAGE')
-    );
+        : t('COMPOSE_NEW_CONVERSATION.FORM.ERROR_MESSAGE');
+    useAlert(message, whatsappAlertAction(message));
     return false; // Return failure
   }
 };

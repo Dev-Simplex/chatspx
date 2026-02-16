@@ -6,6 +6,8 @@ class Api::V1::Accounts::Conversations::MessagesController < Api::V1::Accounts::
   end
 
   def create
+    return render_whatsapp_invalid_error if whatsapp_number_invalid_for_outgoing?
+
     user = Current.user || @resource
     mb = Messages::MessageBuilder.new(user, @conversation, params)
     @message = mb.perform
@@ -76,5 +78,37 @@ class Api::V1::Accounts::Conversations::MessagesController < Api::V1::Accounts::
   def ensure_api_inbox
     # Only API inboxes can update messages
     render json: { error: 'Message status update is only allowed for API inboxes' }, status: :forbidden unless @conversation.inbox.api?
+  end
+
+  def whatsapp_number_invalid_for_outgoing?
+    return false if params[:private].to_s == 'true'
+    return false unless whatsapp_inbox?
+
+    message_type = params[:message_type].presence || 'outgoing'
+    return false if message_type.to_s == 'incoming'
+
+    contact = @conversation.contact
+    contact&.custom_attributes&.[]('whatsapp_number_exists') == false
+  end
+
+  def render_whatsapp_invalid_error
+    render_could_not_create_error(I18n.t('errors.contacts.whatsapp_validation.not_registered'))
+  end
+
+  def whatsapp_inbox?
+    inbox = @conversation.inbox
+    return false unless inbox
+
+    return true if inbox.channel_type == 'Channel::Whatsapp'
+
+    if inbox.channel_type == 'Channel::TwilioSms'
+      return inbox.channel&.medium == 'whatsapp'
+    end
+
+    if inbox.channel_type == 'Channel::Api'
+      return true
+    end
+
+    false
   end
 end

@@ -199,6 +199,7 @@
       "PRIVATE_NOTE": "Mensagem Privada",
       "SEND": "Enviar",
       "CREATE": "Enviar",
+      "WHATSAPP_INVALID": "Este número não está registrado no WhatsApp. Verifique o número e tente novamente.",
       "INSERT_READ_MORE": "Saiba mais",
       "DISMISS_REPLY": "Dispensar resposta",
       "REPLYING_TO": "Respondendo a:",

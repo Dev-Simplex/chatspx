@@ -306,6 +306,11 @@
           "EXPORT_CONTACT": "Exportar contatos",
           "IMPORT_CONTACT": "Importar contatos",
           "SAVE_CONTACT": "Salvar contato",
+          "WHATSAPP_CHECK": {
+            "TITLE": "Validar no WhatsApp (WAHA)",
+            "SESSION": "Sessão: {session}",
+            "FALLBACK": "Nenhuma sessão vinculada. Usando Simplex."
+          },
           "EMAIL_ADDRESS_DUPLICATE": "Esse endereço de e-mail já está sendo usado para outro contato.",
           "PHONE_NUMBER_DUPLICATE": "Este número de telefone está em uso para outro contato.",
           "SUCCESS_MESSAGE": "Contato salvo com sucesso",
@@ -411,8 +416,16 @@
     "CARD": {
       "OF": "de",
       "VIEW_DETAILS": "Ver detalhes",
+      "WHATSAPP": {
+        "INVALID": "Não registrado no WhatsApp"
+      },
       "EDIT_DETAILS_FORM": {
         "TITLE": "Alterar detalhes do contato",
+        "ADVANCED": {
+          "TITLE": "Detalhes avançados",
+          "SHOW": "Mostrar avançado",
+          "HIDE": "Ocultar avançado"
+        },
         "FORM": {
           "FIRST_NAME": {
             "PLACEHOLDER": "Digite o primeiro nome"

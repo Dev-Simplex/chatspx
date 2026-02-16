@@ -3,6 +3,8 @@ import { computed, ref } from 'vue';
 import { useI18n } from 'vue-i18n';
 import { vOnClickOutside } from '@vueuse/components';
 import { useUISettings } from 'dashboard/composables/useUISettings';
+import { useStore, useMapGetter } from 'dashboard/composables/store';
+import { useAlert } from 'dashboard/composables';
 import { formatNumber } from '@chatwoot/utils';
 import wootConstants from 'dashboard/constants/globals';
 
@@ -10,8 +12,30 @@ import ConversationBasicFilter from './widgets/conversation/ConversationBasicFil
 import NextButton from 'dashboard/components-next/button/Button.vue';
 import ConversationSearchBar from './widgets/conversation/ConversationSearchBar.vue';
 import ComposeConversation from 'dashboard/components-next/NewConversation/ComposeConversation.vue';
+import CreateNewContactDialog from 'dashboard/components-next/Contacts/ContactsForm/CreateNewContactDialog.vue';
+import {
+  DuplicateContactException,
+  ExceptionWithMessage,
+} from 'shared/helpers/CustomErrors';
+import { getUserPermissions, getUserRole } from 'dashboard/helper/permissionsHelper.js';
+import { CONTACT_PERMISSIONS } from 'dashboard/constants/permissions.js';
+import { FEATURE_FLAGS } from 'dashboard/featureFlags';
 
 const { t } = useI18n();
+const store = useStore();
+
+const isWhatsAppValidationMessage = message =>
+  typeof message === 'string' &&
+  message.toLowerCase().includes('whatsapp');
+
+const whatsappAlertAction = message =>
+  isWhatsAppValidationMessage(message)
+    ? {
+        variant: 'error',
+        icon: 'i-lucide-message-circle-x',
+        duration: 5000,
+      }
+    : null;
 
 const props = defineProps({
   pageTitle: { type: String, required: true },
@@ -37,6 +61,12 @@ const emit = defineEmits([
 ]);
 
 const { uiSettings, updateUISettings } = useUISettings();
+const createNewContactDialogRef = ref(null);
+const currentUser = useMapGetter('getCurrentUser');
+const currentAccountId = useMapGetter('getCurrentAccountId');
+const isFeatureEnabledOnAccount = useMapGetter(
+  'accounts/isFeatureEnabledonAccount'
+);
 
 const onBasicFilterChange = (value, type) => {
   emit('basicFilterChange', value, type);
@@ -88,6 +118,54 @@ const openFiltersModal = () => {
 const handleSwitchLayoutToggle = () => {
   toggleConversationLayout();
   closeHeaderActionsDropdown();
+};
+
+const userPermissions = computed(() =>
+  getUserPermissions(currentUser.value, currentAccountId.value)
+);
+
+const isAdmin = computed(
+  () => getUserRole(currentUser.value, currentAccountId.value) === 'administrator'
+);
+
+const canCreateContacts = computed(() => {
+  if (!currentAccountId.value) return false;
+  const isCrmEnabled = isFeatureEnabledOnAccount.value(
+    currentAccountId.value,
+    FEATURE_FLAGS.CRM
+  );
+  if (!isCrmEnabled) return false;
+  return isAdmin.value || userPermissions.value.includes(CONTACT_PERMISSIONS);
+});
+
+const openCreateNewContactDialog = async () => {
+  await createNewContactDialogRef.value?.contactsFormRef.resetValidation();
+  createNewContactDialogRef.value?.dialogRef.open();
+};
+
+const onCreateContact = async contact => {
+  try {
+    await store.dispatch('contacts/create', contact);
+    createNewContactDialogRef.value?.onSuccess();
+    useAlert(
+      t('CONTACTS_LAYOUT.HEADER.ACTIONS.CONTACT_CREATION.SUCCESS_MESSAGE')
+    );
+  } catch (error) {
+    const i18nPrefix = 'CONTACTS_LAYOUT.HEADER.ACTIONS.CONTACT_CREATION';
+    if (error instanceof DuplicateContactException) {
+      if (Array.isArray(error.data) && error.data.includes('email')) {
+        useAlert(t(`${i18nPrefix}.EMAIL_ADDRESS_DUPLICATE`));
+      } else if (Array.isArray(error.data) && error.data.includes('phone_number')) {
+        useAlert(t(`${i18nPrefix}.PHONE_NUMBER_DUPLICATE`));
+      } else {
+        useAlert(t(`${i18nPrefix}.ERROR_MESSAGE`));
+      }
+    } else if (error instanceof ExceptionWithMessage) {
+      useAlert(error.data, whatsappAlertAction(error.data));
+    } else {
+      useAlert(t(`${i18nPrefix}.ERROR_MESSAGE`));
+    }
+  }
 };
 
 </script>
@@ -176,6 +254,16 @@ const handleSwitchLayoutToggle = () => {
           />
         </div>
       </template>
+      <NextButton
+        v-if="canCreateContacts"
+        icon="i-lucide-user-plus"
+        slate
+        sm
+        faded
+        class="!h-8 !w-8"
+        v-tooltip.top-end="t('CONTACTS_LAYOUT.HEADER.ACTIONS.CONTACT_CREATION.ADD_CONTACT')"
+        @click="openCreateNewContactDialog"
+      />
       <ComposeConversation align-position="right">
         <template #trigger="{ toggle }">
           <NextButton
@@ -251,5 +339,8 @@ const handleSwitchLayoutToggle = () => {
       @clear="emit('clearSearch')"
     />
   </div>
+  <CreateNewContactDialog
+    ref="createNewContactDialogRef"
+    @create="onCreateContact"
+  />
 </template>
-
