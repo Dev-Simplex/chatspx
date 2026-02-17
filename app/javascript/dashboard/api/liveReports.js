@@ -15,6 +15,14 @@ class LiveReportsAPI extends ApiClient {
       params: { group_by: groupBy },
     });
   }
+
+  getInServiceOverview(params = {}) {
+    return axios.get(`${this.url}/in_service_overview`, { params });
+  }
+
+  getInServiceConversations(params = {}) {
+    return axios.get(`${this.url}/in_service_conversations`, { params });
+  }
 }
 
 export default new LiveReportsAPI();

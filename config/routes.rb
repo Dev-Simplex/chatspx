@@ -503,6 +503,8 @@ Rails.application.routes.draw do
             collection do
               get :conversation_metrics
               get :grouped_conversation_metrics
+              get :in_service_overview
+              get :in_service_conversations
             end
           end
         end

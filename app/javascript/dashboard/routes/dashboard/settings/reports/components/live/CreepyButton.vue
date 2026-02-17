@@ -79,7 +79,7 @@ const coverStyle = computed(() => ({
     }"
     @click="handleClick"
     @mousemove="updateEyes"
-    @touchmove="updateEyes"
+    @touchmove.passive="updateEyes"
   >
     <span
       class="creepy-btn__cover relative z-10 block rounded-[inherit] text-sm font-medium text-white transition-all duration-300 ease-[cubic-bezier(0.65,0,0.35,1)]"

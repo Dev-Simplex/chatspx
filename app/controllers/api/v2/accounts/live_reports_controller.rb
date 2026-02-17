@@ -31,6 +31,17 @@ class Api::V2::Accounts::LiveReportsController < Api::V1::Accounts::BaseControll
     render json: group_metrics
   end
 
+  def in_service_overview
+    render json: in_service_query_service.overview
+  end
+
+  def in_service_conversations
+    error = in_service_query_service.conversation_validation_error
+    return render json: { error: error }, status: :unprocessable_entity if error.present?
+
+    render json: in_service_query_service.conversations
+  end
+
   private
 
   def check_authorization
@@ -60,5 +71,18 @@ class Api::V2::Accounts::LiveReportsController < Api::V1::Accounts::BaseControll
 
   def permitted_params
     params.permit(:team_id, :group_by)
+  end
+
+  def in_service_query_service
+    @in_service_query_service ||= LiveReports::InServiceQueryService.new(
+      account: Current.account,
+      params: {
+        scope: params[:scope],
+        assignee_id: params[:assignee_id],
+        limit: params[:limit],
+        cursor: params[:cursor],
+        team_id: team&.id
+      }
+    )
   end
 end

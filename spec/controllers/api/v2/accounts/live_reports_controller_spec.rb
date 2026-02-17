@@ -168,4 +168,281 @@ RSpec.describe 'Api::V2::Accounts::LiveReports', type: :request do
       end
     end
   end
+
+  describe 'GET /api/v2/accounts/{account.id}/live_reports/in_service_overview' do
+    context 'when unauthenticated' do
+      it 'returns unauthorized' do
+        get "/api/v2/accounts/#{account.id}/live_reports/in_service_overview"
+        expect(response).to have_http_status(:unauthorized)
+      end
+    end
+
+    context 'when authenticated but not authorized' do
+      it 'returns unauthorized' do
+        get "/api/v2/accounts/#{account.id}/live_reports/in_service_overview",
+            headers: agent.create_new_auth_token,
+            as: :json
+        expect(response).to have_http_status(:unauthorized)
+      end
+    end
+
+    context 'when authenticated and authorized' do
+      let(:assignee1) { create(:user, account: account) }
+      let(:assignee2) { create(:user, account: account) }
+
+      before do
+        create(:conversation, account: account, status: :open, assignee_id: assignee1.id)
+        create(:conversation, account: account, status: :open)
+        create(:conversation, account: account, status: :pending, assignee_id: assignee2.id)
+        create(:conversation, account: account, status: :pending)
+        create(:conversation, account: account, status: :resolved, assignee_id: assignee1.id, team_id: team.id)
+      end
+
+      it 'returns aggregated in-service metrics' do
+        get "/api/v2/accounts/#{account.id}/live_reports/in_service_overview",
+            headers: admin.create_new_auth_token,
+            as: :json
+
+        expect(response).to have_http_status(:success)
+
+        response_data = response.parsed_body
+        expect(response_data['generated_at']).to be_present
+        expect(response_data['totals']).to include(
+          'in_service' => 4,
+          'waiting' => 3,
+          'agents_with_conversations' => 2
+        )
+
+        expect(response_data['agents']).to include(
+          { 'assignee_id' => assignee1.id, 'in_service' => 1, 'open' => 1, 'pending' => 0 }
+        )
+        expect(response_data['agents']).to include(
+          { 'assignee_id' => assignee2.id, 'in_service' => 1, 'open' => 0, 'pending' => 1 }
+        )
+      end
+
+      it 'filters by team_id when provided' do
+        create(:conversation, account: account, status: :open, team_id: team.id)
+        create(:conversation, account: account, status: :pending)
+
+        get "/api/v2/accounts/#{account.id}/live_reports/in_service_overview",
+            params: { team_id: team.id },
+            headers: admin.create_new_auth_token,
+            as: :json
+
+        expect(response).to have_http_status(:success)
+
+        response_data = response.parsed_body
+        expect(response_data['totals']).to include(
+          'in_service' => 1,
+          'waiting' => 1
+        )
+      end
+    end
+
+    context 'when authenticated and authorized with no in-service conversations' do
+      it 'returns empty metrics' do
+        get "/api/v2/accounts/#{account.id}/live_reports/in_service_overview",
+            headers: admin.create_new_auth_token,
+            as: :json
+
+        expect(response).to have_http_status(:success)
+
+        response_data = response.parsed_body
+        expect(response_data['totals']).to include(
+          'in_service' => 0,
+          'waiting' => 0,
+          'agents_with_conversations' => 0
+        )
+        expect(response_data['agents']).to eq([])
+      end
+    end
+  end
+
+  describe 'GET /api/v2/accounts/{account.id}/live_reports/in_service_conversations' do
+    context 'when unauthenticated' do
+      it 'returns unauthorized' do
+        get "/api/v2/accounts/#{account.id}/live_reports/in_service_conversations",
+            params: { scope: 'agent', assignee_id: admin.id }
+        expect(response).to have_http_status(:unauthorized)
+      end
+    end
+
+    context 'when authenticated but not authorized' do
+      it 'returns unauthorized' do
+        get "/api/v2/accounts/#{account.id}/live_reports/in_service_conversations",
+            params: { scope: 'agent', assignee_id: admin.id },
+            headers: agent.create_new_auth_token,
+            as: :json
+        expect(response).to have_http_status(:unauthorized)
+      end
+    end
+
+    context 'when authenticated and authorized' do
+      let(:assignee1) { create(:user, account: account) }
+
+      it 'returns unprocessable_entity for invalid scope' do
+        get "/api/v2/accounts/#{account.id}/live_reports/in_service_conversations",
+            params: { scope: 'invalid' },
+            headers: admin.create_new_auth_token,
+            as: :json
+
+        expect(response).to have_http_status(:unprocessable_entity)
+        expect(response.parsed_body['error']).to eq('invalid scope')
+      end
+
+      it 'returns unprocessable_entity for scope=agent without assignee_id' do
+        get "/api/v2/accounts/#{account.id}/live_reports/in_service_conversations",
+            params: { scope: 'agent' },
+            headers: admin.create_new_auth_token,
+            as: :json
+
+        expect(response).to have_http_status(:unprocessable_entity)
+        expect(response.parsed_body['error']).to eq('assignee_id is required for scope=agent')
+      end
+
+      it 'returns paginated conversations for an agent with keyset cursor' do
+        6.times do |i|
+          create(:conversation,
+                 account: account,
+                 status: :open,
+                 assignee_id: assignee1.id,
+                 last_activity_at: (6 - i).minutes.ago)
+        end
+
+        get(
+          "/api/v2/accounts/#{account.id}/live_reports/in_service_conversations",
+          params: { scope: 'agent', assignee_id: assignee1.id, limit: 5 },
+          headers: admin.create_new_auth_token,
+          as: :json
+        )
+
+        expect(response).to have_http_status(:success)
+        response_data = response.parsed_body
+        expect(response_data['scope']).to eq('agent')
+        expect(response_data['assignee_id']).to eq(assignee1.id)
+        expect(response_data['payload'].length).to eq(5)
+        expect(response_data.dig('meta', 'has_more')).to eq(true)
+        expect(response_data.dig('meta', 'next_cursor')).to be_present
+
+        get(
+          "/api/v2/accounts/#{account.id}/live_reports/in_service_conversations",
+          params: {
+            scope: 'agent',
+            assignee_id: assignee1.id,
+            limit: 5,
+            cursor: response_data.dig('meta', 'next_cursor')
+          },
+          headers: admin.create_new_auth_token,
+          as: :json
+        )
+
+        expect(response).to have_http_status(:success)
+        second_data = response.parsed_body
+        expect(second_data['payload'].length).to eq(1)
+        expect(second_data.dig('meta', 'has_more')).to eq(false)
+      end
+
+      it 'returns waiting conversations for scope=waiting' do
+        open_assigned = create(:conversation, account: account, status: :open, assignee_id: assignee1.id)
+        open_unassigned = create(:conversation, account: account, status: :open)
+        pending_assigned = create(:conversation, account: account, status: :pending, assignee_id: assignee1.id)
+        pending_unassigned = create(:conversation, account: account, status: :pending)
+
+        get "/api/v2/accounts/#{account.id}/live_reports/in_service_conversations",
+            params: { scope: 'waiting', limit: 20 },
+            headers: admin.create_new_auth_token,
+            as: :json
+
+        expect(response).to have_http_status(:success)
+
+        ids = response.parsed_body['payload'].pluck('id')
+        expect(ids).to include(open_unassigned.display_id, pending_assigned.display_id, pending_unassigned.display_id)
+        expect(ids).not_to include(open_assigned.display_id)
+      end
+
+      it 'clamps limit to maximum of 20' do
+        30.times do |i|
+          create(:conversation,
+                 account: account,
+                 status: :open,
+                 assignee_id: assignee1.id,
+                 last_activity_at: (30 - i).minutes.ago)
+        end
+
+        get "/api/v2/accounts/#{account.id}/live_reports/in_service_conversations",
+            params: { scope: 'agent', assignee_id: assignee1.id, limit: 100 },
+            headers: admin.create_new_auth_token,
+            as: :json
+
+        expect(response).to have_http_status(:success)
+        expect(response.parsed_body['payload'].length).to eq(20)
+      end
+
+      it 'uses default limit of 5 when limit is not provided' do
+        6.times do |i|
+          create(:conversation,
+                 account: account,
+                 status: :open,
+                 assignee_id: assignee1.id,
+                 last_activity_at: (6 - i).minutes.ago)
+        end
+
+        get "/api/v2/accounts/#{account.id}/live_reports/in_service_conversations",
+            params: { scope: 'agent', assignee_id: assignee1.id },
+            headers: admin.create_new_auth_token,
+            as: :json
+
+        expect(response).to have_http_status(:success)
+        expect(response.parsed_body['payload'].length).to eq(5)
+      end
+
+      it 'applies team filter when provided' do
+        create(:team_member, team: team, user: assignee1)
+        included = create(:conversation, account: account, status: :open, assignee_id: assignee1.id, team_id: team.id)
+        excluded = create(:conversation, account: account, status: :open, assignee_id: assignee1.id)
+
+        get "/api/v2/accounts/#{account.id}/live_reports/in_service_conversations",
+            params: { scope: 'agent', assignee_id: assignee1.id, team_id: team.id },
+            headers: admin.create_new_auth_token,
+            as: :json
+
+        expect(response).to have_http_status(:success)
+
+        ids = response.parsed_body['payload'].pluck('id')
+        expect(ids).to include(included.display_id)
+        expect(ids).not_to include(excluded.display_id)
+      end
+
+      it 'returns success with fallback payload when contact avatar serialization fails' do
+        contact = create(:contact, account: account, name: 'Maria da Silva')
+        conversation = create(
+          :conversation,
+          account: account,
+          status: :open,
+          assignee_id: assignee1.id,
+          contact: contact
+        )
+        create(:message, account: account, conversation: conversation, message_type: :incoming, content: 'Hi there')
+
+        allow_any_instance_of(Contact).to receive(:avatar_url).and_raise(StandardError, 'invalid avatar')
+
+        get "/api/v2/accounts/#{account.id}/live_reports/in_service_conversations",
+            params: { scope: 'agent', assignee_id: assignee1.id },
+            headers: admin.create_new_auth_token,
+            as: :json
+
+        expect(response).to have_http_status(:success)
+
+        payload = response.parsed_body['payload'].first
+        expect(payload).to include(
+          'id' => conversation.display_id,
+          'status' => conversation.status,
+          'contact_name' => 'Maria da Silva',
+          'contact_avatar' => ''
+        )
+        expect(payload['last_message']).to be_present
+      end
+    end
+  end
 end
