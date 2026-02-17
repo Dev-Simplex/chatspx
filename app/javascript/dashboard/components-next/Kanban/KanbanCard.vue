@@ -51,7 +51,9 @@ const contactFromConversation = computed(() => {
 
 const contactFromStore = computed(() => {
   if (!contactId.value) return null;
-  return getContactById(contactId.value);
+  const getter = getContactById.value;
+  if (typeof getter !== 'function') return null;
+  return getter(contactId.value);
 });
 
 const contact = computed(

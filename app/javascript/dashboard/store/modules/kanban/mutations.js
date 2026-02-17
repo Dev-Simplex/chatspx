@@ -131,6 +131,7 @@ export const mutations = {
   },
 
   [types.SET_SCHEDULED_MESSAGES]($state, messages) {
+    $state.scheduledMessages = {};
     if (Array.isArray(messages)) {
       messages.forEach(message => {
         $state.scheduledMessages[message.id] = camelcaseKeys(message, { deep: true });
@@ -143,12 +144,11 @@ export const mutations = {
   },
 
   [types.UPDATE_SCHEDULED_MESSAGE]($state, message) {
-    if ($state.scheduledMessages[message.id]) {
-      $state.scheduledMessages[message.id] = {
-        ...$state.scheduledMessages[message.id],
-        ...camelcaseKeys(message, { deep: true }),
-      };
-    }
+    const normalizedMessage = camelcaseKeys(message, { deep: true });
+    $state.scheduledMessages[message.id] = {
+      ...($state.scheduledMessages[message.id] || {}),
+      ...normalizedMessage,
+    };
   },
 
   [types.DELETE_SCHEDULED_MESSAGE]($state, messageId) {

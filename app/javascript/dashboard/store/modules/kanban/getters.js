@@ -126,11 +126,16 @@ export const getters = {
     return camelcaseKeys(deduplicated, { deep: true });
   },
   getScheduledMessages($state) {
-    return Object.values($state.scheduledMessages);
+    return Object.values($state.scheduledMessages).sort((a, b) => {
+      const aTime = new Date(a.scheduledAt || a.scheduled_at || 0).getTime();
+      const bTime = new Date(b.scheduledAt || b.scheduled_at || 0).getTime();
+      return aTime - bTime;
+    });
   },
   getScheduledMessagesByConversation: $state => conversationId => {
+    const normalizedConversationId = Number(conversationId);
     return Object.values($state.scheduledMessages).filter(
-      msg => msg.conversationId === conversationId
+      msg => Number(msg.conversationId || msg.conversation_id) === normalizedConversationId
     );
   },
   getActiveFunnelId($state) {

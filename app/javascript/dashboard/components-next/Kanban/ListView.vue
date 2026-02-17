@@ -3,6 +3,7 @@ import { computed, onMounted, watch, ref } from 'vue';
 import { useStore } from 'vuex';
 import { useRouter } from 'vue-router';
 import { useI18n } from 'vue-i18n';
+import { format } from 'date-fns';
 import Button from 'dashboard/components-next/button/Button.vue';
 import Spinner from 'dashboard/components-next/spinner/Spinner.vue';
 import Icon from 'dashboard/components-next/icon/Icon.vue';
@@ -15,7 +16,7 @@ const props = defineProps({
   },
 });
 
-const emit = defineEmits(['schedule-message', 'remove-item']);
+const emit = defineEmits(['schedule-message', 'remove-item', 'manage-scheduled']);
 
 const store = useStore();
 const router = useRouter();
@@ -116,6 +117,7 @@ const conversations = computed(() => {
 });
 
 const isLoading = computed(() => store.getters['kanban/getUIFlags'].isFetching);
+const scheduledMessages = computed(() => store.getters['kanban/getScheduledMessages']);
 
 // Estado de loading robusto que aguarda todos os dados
 const isLoadingData = ref(true);
@@ -321,6 +323,29 @@ const getStatusColor = (status) => {
   return colorMap[status] || 'bg-gray-500';
 };
 
+const getPendingScheduledMessagesForConversation = conversationId => {
+  return scheduledMessages.value
+    .filter(message => {
+      return (
+        message.status === 'pending' &&
+        Number(message.conversationId || message.conversation_id) === Number(conversationId)
+      );
+    })
+    .sort((a, b) => new Date(a.scheduledAt) - new Date(b.scheduledAt));
+};
+
+const getPendingScheduledCount = conversationId =>
+  getPendingScheduledMessagesForConversation(conversationId).length;
+
+const getNextPendingScheduledAt = conversationId => {
+  const [nextMessage] = getPendingScheduledMessagesForConversation(conversationId);
+  return nextMessage?.scheduledAt || null;
+};
+
+const openScheduledManager = conversationId => {
+  emit('manage-scheduled', conversationId);
+};
+
 // Filtrar itens
 const filteredItems = computed(() => {
   let items = allItems.value;
@@ -464,7 +489,10 @@ const loadData = async () => {
   isLoadingData.value = true;
   
   try {
-    // 1. Carregar labels da conta (se ainda não estiverem carregadas)
+    // 1. Carregar mensagens agendadas pendentes
+    await store.dispatch('kanban/fetchScheduledMessages', { status: 'pending' });
+
+    // 2. Carregar labels da conta (se ainda não estiverem carregadas)
     const accountLabels = store.getters['labels/getLabels'];
     if (!accountLabels || accountLabels.length === 0) {
       await store.dispatch('labels/get').catch(() => {
@@ -472,7 +500,7 @@ const loadData = async () => {
       });
     }
     
-    // 2. Carregar agentes (se ainda não estiverem carregados)
+    // 3. Carregar agentes (se ainda não estiverem carregados)
     const agents = store.getters['agents/getAgents'];
     if (!agents || agents.length === 0) {
       await store.dispatch('agents/get').catch(() => {
@@ -480,19 +508,19 @@ const loadData = async () => {
       });
     }
     
-    // 3. Carregar etapas
+    // 4. Carregar etapas
   await store.dispatch('kanban/fetchFunnelStages', props.funnelId);
     
-    // 4. Carregar itens do funil (excluindo Resolvidos para performance)
+    // 5. Carregar itens do funil (excluindo Resolvidos para performance)
   await store.dispatch('kanban/fetchFunnelItems', {
     funnelId: props.funnelId,
     excludeAutomationType: 'resolved',
   });
     
-    // 5. Aguardar para garantir que os dados estão no store
+    // 6. Aguardar para garantir que os dados estão no store
     await new Promise(resolve => setTimeout(resolve, 200));
     
-    // 6. Verificar e carregar contatos
+    // 7. Verificar e carregar contatos
     const items = allItems.value;
     const conversationIds = [...new Set(items.map(item => item.conversationId).filter(Boolean))];
     
@@ -586,7 +614,7 @@ const loadData = async () => {
       retries++;
     }
     
-    // 7. Carregar labels das conversas apenas se a conversa existir no store
+    // 8. Carregar labels das conversas apenas se a conversa existir no store
     // Verificar quais conversas realmente existem antes de tentar carregar labels
     const validConversationIds = conversationIds.filter(conversationId => {
       if (getConversationById) {
@@ -610,7 +638,7 @@ const loadData = async () => {
       });
     }
     
-    // 6. Aguardar um pouco mais para garantir renderização
+    // 9. Aguardar um pouco mais para garantir renderização
     await new Promise(resolve => setTimeout(resolve, 150));
     
     isLoadingData.value = false;
@@ -860,6 +888,24 @@ watch(
                         <span class="font-mono font-medium">{{ getContactPhone(item.conversationId) }}</span>
                       </span>
                     </div>
+                    <div
+                      v-if="getPendingScheduledCount(item.conversationId) > 0"
+                      class="mt-2 inline-flex items-center gap-2 px-2.5 py-1 rounded-lg bg-n-teal-3 text-n-teal-11 text-xs font-semibold"
+                    >
+                      <Icon icon="i-lucide-clock-3" class="size-3.5" />
+                      <span>
+                        {{
+                          t('KANBAN.SCHEDULED_MESSAGES.CONVERSATION_PENDING', {
+                            count: getPendingScheduledCount(item.conversationId),
+                          })
+                        }}
+                      </span>
+                      <span v-if="getNextPendingScheduledAt(item.conversationId)" class="text-n-teal-10">
+                        {{
+                          format(new Date(getNextPendingScheduledAt(item.conversationId)), 'dd/MM HH:mm')
+                        }}
+                      </span>
+                    </div>
                     <!-- Etiquetas -->
                     <div v-if="getConversationLabels(item.conversationId).length > 0" class="flex items-center gap-2 mt-2 flex-wrap">
                       <span
@@ -926,6 +972,14 @@ watch(
                   :title="t('KANBAN.SCHEDULED_MESSAGES.CREATE')"
                       class="!h-8 !w-8 !p-0"
                   @click="emit('schedule-message', conversations[item.conversationId])"
+                />
+                <Button
+                  size="xs"
+                  variant="ghost"
+                  icon="i-lucide-list-checks"
+                  :title="t('KANBAN.SCHEDULED_MESSAGES.MANAGE')"
+                  class="!h-8 !w-8 !p-0"
+                  @click="openScheduledManager(item.conversationId)"
                 />
                 <Button
                   size="xs"

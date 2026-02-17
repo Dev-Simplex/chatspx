@@ -17,3 +17,27 @@ else
 end
 json.created_at resource.created_at&.iso8601
 json.updated_at resource.updated_at&.iso8601
+json.attachments(resource.attachments.map do |attachment|
+  blob = attachment.blob
+  thumb_url = nil
+  if blob.image?
+    begin
+      thumb_url = rails_representation_path(
+        blob.representation(resize_to_fill: [250, nil]),
+        only_path: true
+      )
+    rescue StandardError
+      thumb_url = nil
+    end
+  end
+
+  {
+    id: attachment.id,
+    blob_signed_id: blob.signed_id,
+    filename: blob.filename.to_s,
+    content_type: blob.content_type,
+    byte_size: blob.byte_size,
+    url: rails_blob_path(blob, only_path: true),
+    thumb_url: thumb_url
+  }
+end)

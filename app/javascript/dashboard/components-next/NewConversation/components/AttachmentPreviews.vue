@@ -14,8 +14,13 @@ const props = defineProps({
 const emit = defineEmits(['update:attachments']);
 
 const isTypeImage = file => {
-  const type = file.content_type || file.type;
-  return type.includes('image');
+  const type =
+    file?.content_type ||
+    file?.contentType ||
+    file?.type ||
+    file?.file?.type ||
+    '';
+  return typeof type === 'string' && type.includes('image');
 };
 
 const filteredImageAttachments = computed(() => {

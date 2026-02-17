@@ -33,7 +33,7 @@ class ScheduledMessage < ApplicationRecord
   validates :inbox_id, presence: true
   validate :message_or_attachments_present
   validates :scheduled_at, presence: true
-  validate :scheduled_at_must_be_in_future, on: :create
+  validate :scheduled_at_must_be_in_future, if: :validate_future_scheduled_at?
 
   enum status: { pending: 0, sent: 1, failed: 2, cancelled: 3 }
 
@@ -51,5 +51,9 @@ class ScheduledMessage < ApplicationRecord
     return if message.present? || attachments.attached?
 
     errors.add(:message, 'deve ter conteúdo ou anexos')
+  end
+
+  def validate_future_scheduled_at?
+    pending? && (new_record? || will_save_change_to_scheduled_at?)
   end
 end

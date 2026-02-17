@@ -1,5 +1,5 @@
 <script setup>
-import { onMounted, computed, ref, watch } from 'vue';
+import { onMounted, computed, ref, watch, nextTick } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import { useStore } from 'vuex';
 import { useI18n } from 'vue-i18n';
@@ -8,8 +8,11 @@ import ListView from 'dashboard/components-next/Kanban/ListView.vue';
 import CalendarView from 'dashboard/components-next/Kanban/CalendarView.vue';
 import FunnelForm from 'dashboard/components-next/Kanban/FunnelForm.vue';
 import ScheduledMessageForm from 'dashboard/components-next/Kanban/ScheduledMessageForm.vue';
+import ScheduledMessagesDrawer from 'dashboard/components-next/Kanban/ScheduledMessagesDrawer.vue';
 import Button from 'dashboard/components-next/button/Button.vue';
 import Icon from 'dashboard/components-next/icon/Icon.vue';
+import Dialog from 'dashboard/components-next/dialog/Dialog.vue';
+import { useAlert } from 'dashboard/composables';
 
 const route = useRoute();
 const router = useRouter();
@@ -24,6 +27,12 @@ const showFunnelForm = ref(false);
 const showScheduledMessageForm = ref(false);
 const selectedFunnel = ref(null);
 const selectedConversation = ref(null);
+const selectedScheduledMessage = ref(null);
+const showScheduledMessagesDrawer = ref(false);
+const scheduledMessagesConversationFilter = ref(null);
+const scheduledMessagesRefreshToken = ref(0);
+const scheduledMessageToCancel = ref(null);
+const cancelDialogRef = ref(null);
 
 const activeFunnel = computed(() => {
   if (!activeFunnelId.value) return null;
@@ -50,6 +59,20 @@ const activeFunnelTotalItems = computed(() => {
   });
   return total;
 });
+
+const scheduledMessages = computed(() => store.getters['kanban/getScheduledMessages']);
+const scheduledMessagesPendingCount = computed(() =>
+  scheduledMessages.value.filter(message => message.status === 'pending').length
+);
+
+const getConversationById = computed(
+  () => store.getters['conversations/getConversationById']
+);
+
+const getConversationFromStore = conversationId => {
+  if (!conversationId || !getConversationById.value) return null;
+  return getConversationById.value(Number(conversationId));
+};
 
 onMounted(async () => {
   // Garantir que o viewMode está inicializado
@@ -94,6 +117,8 @@ onMounted(async () => {
       params: { funnelId: firstFunnelId },
     });
   }
+
+  await store.dispatch('kanban/fetchScheduledMessages', { status: 'pending' });
 });
 
 
@@ -155,27 +180,89 @@ const selectedDate = ref(null);
 const requireConversationForModal = ref(true);
 
 const handleScheduleMessage = (conversation) => {
+  selectedScheduledMessage.value = null;
   selectedConversation.value = conversation;
   selectedDate.value = null;
   requireConversationForModal.value = true;
   showScheduledMessageForm.value = true;
 };
 
-const handleScheduledMessageSaved = () => {
+const refreshScheduledMessages = () => {
+  scheduledMessagesRefreshToken.value += 1;
+  return store.dispatch('kanban/fetchScheduledMessages', { status: 'pending' });
+};
+
+const handleScheduledMessageSaved = async () => {
   showScheduledMessageForm.value = false;
   selectedConversation.value = null;
+  selectedScheduledMessage.value = null;
   selectedDate.value = null;
-  // Recarregar mensagens agendadas após salvar
-  store.dispatch('kanban/fetchScheduledMessages');
+  await refreshScheduledMessages();
+};
+
+const closeScheduledMessageForm = () => {
+  showScheduledMessageForm.value = false;
+  selectedConversation.value = null;
+  selectedScheduledMessage.value = null;
+  selectedDate.value = null;
 };
 
 const handleCreateScheduledMessageFromCalendar = (date) => {
   // Não há conversation no calendário, usuário precisa selecionar
+  selectedScheduledMessage.value = null;
   selectedConversation.value = null;
   selectedDate.value = date;
   requireConversationForModal.value = false;
   showScheduledMessageForm.value = true;
 };
+
+const openScheduledMessagesDrawer = payload => {
+  const conversationId =
+    typeof payload === 'object'
+      ? payload?.conversationId || payload?.conversation_id || payload?.id || null
+      : payload;
+
+  scheduledMessagesConversationFilter.value = conversationId
+    ? Number(conversationId)
+    : null;
+  showScheduledMessagesDrawer.value = true;
+};
+
+const handleEditScheduledMessage = message => {
+  showScheduledMessagesDrawer.value = false;
+  selectedScheduledMessage.value = message;
+  selectedConversation.value = getConversationFromStore(message.conversationId);
+  selectedDate.value = null;
+  requireConversationForModal.value = false;
+  showScheduledMessageForm.value = true;
+};
+
+const handleCancelScheduledMessage = message => {
+  if (message.status !== 'pending') return;
+  scheduledMessageToCancel.value = message;
+};
+
+const confirmCancelScheduledMessage = async () => {
+  if (!scheduledMessageToCancel.value?.id) return;
+
+  try {
+    await store.dispatch('kanban/deleteScheduledMessage', scheduledMessageToCancel.value.id);
+    await refreshScheduledMessages();
+    scheduledMessageToCancel.value = null;
+  } catch (error) {
+    useAlert(t('KANBAN.SCHEDULED_MESSAGES.CANCEL_ERROR'));
+  }
+};
+
+const closeCancelDialog = () => {
+  scheduledMessageToCancel.value = null;
+};
+
+watch(scheduledMessageToCancel, async value => {
+  if (!value) return;
+  await nextTick();
+  cancelDialogRef.value?.open?.();
+});
 
 const setViewMode = async (mode) => {
   console.log('KanbanIndex: Mudando viewMode para:', mode);
@@ -295,6 +382,24 @@ const setViewMode = async (mode) => {
         <!-- Actions -->
         <div class="flex items-center gap-2 border-l border-n-weak pl-3">
           <Button
+            variant="ghost"
+            size="sm"
+            icon="i-lucide-clock-3"
+            :title="t('KANBAN.SCHEDULED_MESSAGES.DRAWER_TITLE')"
+            class="transition-all"
+            @click="openScheduledMessagesDrawer()"
+          >
+            <span class="ml-2 hidden sm:inline">
+              {{ t('KANBAN.SCHEDULED_MESSAGES.DRAWER_TRIGGER') }}
+            </span>
+            <span
+              v-if="scheduledMessagesPendingCount > 0"
+              class="ml-2 inline-flex items-center justify-center min-w-5 h-5 px-1.5 rounded-full bg-n-teal-9 text-white text-[11px] font-bold"
+            >
+              {{ scheduledMessagesPendingCount }}
+            </span>
+          </Button>
+          <Button
             v-if="activeFunnel"
             variant="ghost"
             size="sm"
@@ -387,6 +492,7 @@ const setViewMode = async (mode) => {
           :key="`list-${activeFunnelId}-${viewMode}`"
           :funnel-id="activeFunnelId"
           @schedule-message="handleScheduleMessage"
+          @manage-scheduled="openScheduledMessagesDrawer"
         />
 
         <!-- Calendar View -->
@@ -396,6 +502,8 @@ const setViewMode = async (mode) => {
           :funnel-id="activeFunnelId"
           @schedule-message="handleScheduleMessage"
           @create-scheduled-message="handleCreateScheduledMessageFromCalendar"
+          @edit-scheduled-message="handleEditScheduledMessage"
+          @cancel-scheduled-message="handleCancelScheduledMessage"
         />
       </template>
     </div>
@@ -410,11 +518,30 @@ const setViewMode = async (mode) => {
     <ScheduledMessageForm
       :show="showScheduledMessageForm"
       :conversation="selectedConversation"
+      :scheduled-message="selectedScheduledMessage"
       :require-conversation="requireConversationForModal"
       :funnel-id="activeFunnelId"
       :selected-date="selectedDate"
-      @close="showScheduledMessageForm = false"
+      @close="closeScheduledMessageForm"
       @saved="handleScheduledMessageSaved"
+    />
+    <ScheduledMessagesDrawer
+      :show="showScheduledMessagesDrawer"
+      :refresh-token="scheduledMessagesRefreshToken"
+      :initial-conversation-id="scheduledMessagesConversationFilter"
+      @close="showScheduledMessagesDrawer = false"
+      @edit-scheduled-message="handleEditScheduledMessage"
+      @cancelled="refreshScheduledMessages"
+    />
+    <Dialog
+      v-if="scheduledMessageToCancel"
+      ref="cancelDialogRef"
+      :title="t('KANBAN.SCHEDULED_MESSAGES.CANCEL_CONFIRM_TITLE')"
+      :description="t('KANBAN.SCHEDULED_MESSAGES.CANCEL_CONFIRM_MESSAGE')"
+      :confirm-button-label="t('KANBAN.SCHEDULED_MESSAGES.CANCEL')"
+      type="alert"
+      @close="closeCancelDialog"
+      @confirm="confirmCancelScheduledMessage"
     />
   </div>
 </template>

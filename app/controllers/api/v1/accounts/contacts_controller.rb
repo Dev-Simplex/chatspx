@@ -1,5 +1,8 @@
 class Api::V1::Accounts::ContactsController < Api::V1::Accounts::BaseController
   include Sift
+
+  WAHA_VALIDATION_SESSION_NAME = 'Simplex'.freeze
+
   sort_on :email, type: :string
   sort_on :name, internal_name: :order_on_name, type: :scope, scope_params: [:direction]
   sort_on :phone_number, type: :string
@@ -85,7 +88,7 @@ class Api::V1::Accounts::ContactsController < Api::V1::Accounts::BaseController
   end
 
   def create
-    return if should_validate_whatsapp? && !validate_whatsapp_contact!
+    return if should_validate_whatsapp_contact? && !validate_whatsapp_contact!
 
     ActiveRecord::Base.transaction do
       @contact = Current.account.contacts.new(permitted_params.except(:avatar_url, :validate_whatsapp))
@@ -181,43 +184,27 @@ class Api::V1::Accounts::ContactsController < Api::V1::Accounts::BaseController
                     .merge({ additional_attributes: contact_additional_attributes })
   end
 
-  def should_validate_whatsapp?
-    params[:validate_whatsapp].to_s == 'true'
+  def should_validate_whatsapp_contact?
+    permitted_params[:phone_number].present?
   end
 
   def validate_whatsapp_contact!
-    phone_number = permitted_params[:phone_number]
-    return true if phone_number.blank?
-
-    session_name = resolve_waha_session_name
-    unless session_name
-      render_error({ message: I18n.t('errors.contacts.whatsapp_validation.multiple_sessions') }, :unprocessable_entity)
-      return false
-    end
-
-    sanitized_phone = normalize_phone_number_for_waha(phone_number)
+    sanitized_phone = normalize_phone_number_for_waha(permitted_params[:phone_number])
     return true if sanitized_phone.blank?
-    begin
-      response = waha_service.check_contact_exists(session_name: session_name, phone: sanitized_phone)
-      number_exists = response.fetch('numberExists') { response[:numberExists] }
-      unless number_exists
-        render_error({ message: I18n.t('errors.contacts.whatsapp_validation.not_registered') }, :unprocessable_entity)
-        return false
-      end
-    rescue Waha::ApiService::Error
-      render_error({ message: I18n.t('errors.contacts.whatsapp_validation.unavailable') }, :unprocessable_entity)
-      return false
-    end
 
-    true
+    response = waha_service.check_contact_exists(session_name: resolve_waha_session_name, phone: sanitized_phone)
+    number_exists = response.fetch('numberExists') { response[:numberExists] }
+    return true if number_exists
+
+    render_error({ message: I18n.t('errors.contacts.whatsapp_validation.not_registered') }, :unprocessable_entity)
+    false
+  rescue Waha::ApiService::Error
+    render_error({ message: I18n.t('errors.contacts.whatsapp_validation.unavailable') }, :unprocessable_entity)
+    false
   end
 
   def resolve_waha_session_name
-    session_names = Current.account.inboxes.where.not(waha_session_name: nil).pluck(:waha_session_name).uniq
-    return 'Simplex' if session_names.blank?
-    return session_names.first if session_names.one?
-
-    nil
+    WAHA_VALIDATION_SESSION_NAME
   end
 
   def normalize_phone_number_for_waha(phone_number)

@@ -1,6 +1,24 @@
 import types from './mutation-types';
 import KanbanAPI from '../../../api/kanban';
 
+const resolveScheduledMessagesQuery = payload => {
+  if (
+    payload &&
+    typeof payload === 'object' &&
+    !Array.isArray(payload)
+  ) {
+    return {
+      conversationId: payload.conversationId || null,
+      status: payload.status || 'pending',
+    };
+  }
+
+  return {
+    conversationId: payload || null,
+    status: 'pending',
+  };
+};
+
 export const actions = {
   async fetchFunnels({ commit }) {
     commit(types.SET_KANBAN_UI_FLAG, { isFetching: true });
@@ -373,9 +391,11 @@ export const actions = {
     }
   },
 
-  async fetchScheduledMessages({ commit }, conversationId = null) {
+  async fetchScheduledMessages({ commit }, payload = null) {
+    const query = resolveScheduledMessagesQuery(payload);
+    commit(types.SET_KANBAN_UI_FLAG, { isFetching: true });
     try {
-      const response = await KanbanAPI.getScheduledMessages(conversationId);
+      const response = await KanbanAPI.getScheduledMessages(query);
       // Garantir que response.data seja um array
       const messages = Array.isArray(response.data) ? response.data : [];
       commit(types.SET_SCHEDULED_MESSAGES, messages);
@@ -385,35 +405,46 @@ export const actions = {
       console.warn('Error fetching scheduled messages:', error);
       commit(types.SET_SCHEDULED_MESSAGES, []);
       return { data: [] };
+    } finally {
+      commit(types.SET_KANBAN_UI_FLAG, { isFetching: false });
     }
   },
 
   async createScheduledMessage({ commit }, data) {
+    commit(types.SET_KANBAN_UI_FLAG, { isCreating: true });
     try {
       const response = await KanbanAPI.createScheduledMessage(data);
       commit(types.ADD_SCHEDULED_MESSAGE, response.data);
       return response;
     } catch (error) {
       throw error;
+    } finally {
+      commit(types.SET_KANBAN_UI_FLAG, { isCreating: false });
     }
   },
 
   async updateScheduledMessage({ commit }, { messageId, data }) {
+    commit(types.SET_KANBAN_UI_FLAG, { isUpdating: true });
     try {
       const response = await KanbanAPI.updateScheduledMessage(messageId, data);
       commit(types.UPDATE_SCHEDULED_MESSAGE, response.data);
       return response;
     } catch (error) {
       throw error;
+    } finally {
+      commit(types.SET_KANBAN_UI_FLAG, { isUpdating: false });
     }
   },
 
   async deleteScheduledMessage({ commit }, messageId) {
+    commit(types.SET_KANBAN_UI_FLAG, { isDeleting: true });
     try {
       await KanbanAPI.deleteScheduledMessage(messageId);
       commit(types.DELETE_SCHEDULED_MESSAGE, messageId);
     } catch (error) {
       throw error;
+    } finally {
+      commit(types.SET_KANBAN_UI_FLAG, { isDeleting: false });
     }
   },
 

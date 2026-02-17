@@ -106,11 +106,25 @@ class KanbanAPI extends ApiClient {
     });
   }
 
-  getScheduledMessages(conversationId = null) {
+  getScheduledMessages(options = {}) {
     const accountId = this.accountIdFromRoute;
-    let url = `${this.apiVersion}/accounts/${accountId}/scheduled_messages`;
+    const { conversationId = null, status = 'pending' } =
+      typeof options === 'object' && options !== null
+        ? options
+        : { conversationId: options, status: 'pending' };
+
+    const params = new URLSearchParams();
     if (conversationId) {
-      url += `?conversation_id=${conversationId}`;
+      params.set('conversation_id', conversationId);
+    }
+    if (status) {
+      params.set('status', status);
+    }
+
+    const query = params.toString();
+    let url = `${this.apiVersion}/accounts/${accountId}/scheduled_messages`;
+    if (query) {
+      url += `?${query}`;
     }
     return axios.get(url);
   }
@@ -127,6 +141,9 @@ class KanbanAPI extends ApiClient {
   updateScheduledMessage(messageId, data) {
     const accountId = this.accountIdFromRoute;
     const url = `${this.apiVersion}/accounts/${accountId}/scheduled_messages/${messageId}`;
+    if (data instanceof FormData) {
+      return axios.patch(url, data);
+    }
     return axios.patch(url, { scheduled_message: data });
   }
 

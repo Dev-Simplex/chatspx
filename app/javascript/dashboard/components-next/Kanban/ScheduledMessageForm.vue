@@ -31,6 +31,10 @@ const props = defineProps({
     type: Object,
     default: null,
   },
+  scheduledMessage: {
+    type: Object,
+    default: null,
+  },
   requireConversation: {
     type: Boolean,
     default: false,
@@ -70,7 +74,11 @@ const uploadCount = ref(0);
 // Removido - não precisamos mais mostrar lista de conversas
 
 const inboxes = computed(() => store.getters['kanban/getWahaInboxes']);
-const isLoading = computed(() => store.getters['kanban/getUIFlags'].isCreating);
+const isEditMode = computed(() => !!props.scheduledMessage?.id);
+const isLoading = computed(() => {
+  const uiFlags = store.getters['kanban/getUIFlags'];
+  return isEditMode.value ? uiFlags.isUpdating : uiFlags.isCreating;
+});
 const globalConfig = computed(() => store.getters['globalConfig/get']);
 const currentUser = computed(() => store.getters['getCurrentUser']);
 const accountId = computed(() => store.getters['getCurrentAccountId']);
@@ -81,9 +89,19 @@ const installationLimit = computed(() =>
   resolveMaximumFileUploadSize(globalConfig.value?.maximumFileUploadSize)
 );
 const isUploadingAttachments = computed(() => uploadCount.value > 0);
+const dialogTitle = computed(() =>
+  isEditMode.value
+    ? t('KANBAN.SCHEDULED_MESSAGES.EDIT')
+    : t('KANBAN.SCHEDULED_MESSAGES.CREATE')
+);
+const submitButtonLabel = computed(() =>
+  isEditMode.value
+    ? t('KANBAN.SCHEDULED_MESSAGES.SAVE_CHANGES')
+    : t('KANBAN.SCHEDULED_MESSAGES.SCHEDULE')
+);
 
 const showContactSelector = computed(() => {
-  return !props.requireConversation && !props.conversation;
+  return !isEditMode.value && !props.requireConversation && !props.conversation;
 });
 
 // Informações do contato quando há conversation
@@ -158,11 +176,14 @@ const alertOverLimit = maxSizeMB =>
 
 const attachFile = ({ blob, file }) => {
   if (!file) return;
+  const fileToRead = file?.file || file;
+  if (!(fileToRead instanceof Blob)) return;
+
   const reader = new FileReader();
-  reader.readAsDataURL(file.file);
+  reader.readAsDataURL(fileToRead);
   reader.onloadend = () => {
     const newFile = {
-      resource: blob || file,
+      resource: blob || fileToRead,
       isPrivate: false,
       thumb: reader.result,
       blobSignedId: blob?.signed_id,
@@ -171,15 +192,40 @@ const attachFile = ({ blob, file }) => {
   };
 };
 
-const handleFileUpload = file => {
-  if (!file) return;
+const mapExistingAttachment = attachment => {
+  const signedId = attachment.blobSignedId || attachment.blob_signed_id;
+  const filename = attachment.filename || attachment.name || 'attachment';
+  const dataUrl = attachment.url || attachment.data_url || '';
+
+  return {
+    resource: {
+      id: attachment.id || signedId || filename,
+      signed_id: signedId,
+      blob_signed_id: signedId,
+      filename,
+      name: filename,
+      content_type: attachment.contentType || attachment.content_type || '',
+      contentType: attachment.contentType || attachment.content_type || '',
+      type: attachment.contentType || attachment.content_type || '',
+      byte_size: attachment.byteSize || attachment.byte_size || 0,
+      data_url: dataUrl,
+    },
+    thumb: attachment.thumbUrl || attachment.thumb_url || dataUrl,
+    blobSignedId: signedId,
+  };
+};
+
+const handleFileUpload = (file, oldFile) => {
+  if (!file || oldFile) return;
+  const nativeFile = file.file || file;
+  if (!(nativeFile instanceof File)) return;
 
   if (!activeConversationId.value) {
     useAlert(t('KANBAN.SCHEDULED_MESSAGES.ATTACHMENTS_REQUIRED'));
     return;
   }
 
-  const mime = file.file?.type || file.type;
+  const mime = nativeFile.type || file.type;
   const maxSizeMB = maxSizeFor(mime);
 
   if (!checkFileSizeLimit(file, maxSizeMB)) {
@@ -189,26 +235,35 @@ const handleFileUpload = file => {
 
   if (directUploadsEnabled.value) {
     uploadCount.value += 1;
-    const upload = new DirectUpload(
-      file.file,
-      `/api/v1/accounts/${accountId.value}/conversations/${activeConversationId.value}/direct_uploads`,
-      {
-        directUploadWillCreateBlobWithXHR: xhr => {
-          xhr.setRequestHeader(
-            'api_access_token',
-            currentUser.value?.access_token
-          );
-        },
-      }
-    );
+    let upload;
+    try {
+      upload = new DirectUpload(
+        nativeFile,
+        `/api/v1/accounts/${accountId.value}/conversations/${activeConversationId.value}/direct_uploads`,
+        {
+          directUploadWillCreateBlobWithXHR: xhr => {
+            xhr.setRequestHeader(
+              'api_access_token',
+              currentUser.value?.access_token
+            );
+          },
+        }
+      );
+    } catch (error) {
+      uploadCount.value -= 1;
+      useAlert(
+        error?.message || t('KANBAN.SCHEDULED_MESSAGES.SAVE_ERROR')
+      );
+      return;
+    }
 
     upload.create((error, blob) => {
       uploadCount.value -= 1;
       if (error) {
         useAlert(error);
-      } else {
-        attachFile({ blob, file });
+        return;
       }
+      attachFile({ blob, file });
     });
   } else {
     attachFile({ file });
@@ -219,6 +274,16 @@ const prepareAttachmentsPayload = () => {
   if (!attachedFiles.value.length) return [];
   return attachedFiles.value
     .map(attachment => {
+      const existingSignedId =
+        attachment.blobSignedId ??
+        attachment.blob_signed_id ??
+        attachment.resource?.signed_id ??
+        attachment.resource?.blob_signed_id;
+
+      if (existingSignedId) {
+        return existingSignedId;
+      }
+
       if (directUploadsEnabled.value) {
         const id =
           attachment.blobSignedId ??
@@ -226,7 +291,10 @@ const prepareAttachmentsPayload = () => {
           attachment.resource?.signed_id;
         return id || null;
       }
-      return attachment.resource?.file ?? attachment.file ?? null;
+      if (attachment.resource?.file) return attachment.resource.file;
+      if (attachment.file) return attachment.file;
+      if (attachment.resource instanceof File) return attachment.resource;
+      return null;
     })
     .filter(Boolean);
 };
@@ -395,91 +463,89 @@ watch(
   () => props.show,
   (newShow) => {
     if (newShow) {
-      // Usar data selecionada ou data padrão
-      let defaultDate;
+      let defaultDate = new Date();
       const now = new Date();
 
-      const normalizeDate = (value) => {
+      const normalizeDate = value => {
         if (!value) return null;
         if (value instanceof Date) return new Date(value);
-        if (typeof value === 'string') {
-          // Parse date-only strings as local date to avoid timezone shifts
-          if (/^\d{4}-\d{2}-\d{2}$/.test(value)) {
-            const [year, month, day] = value.split('-').map(Number);
-            return new Date(year, month - 1, day);
-          }
-          return new Date(value);
+        if (typeof value === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(value)) {
+          const [year, month, day] = value.split('-').map(Number);
+          return new Date(year, month - 1, day);
         }
         return new Date(value);
       };
 
-      const applyCurrentTimeIfMissing = (date) => {
+      const applyCurrentTimeIfMissing = date => {
         if (!date) return date;
         const isMidnight =
           date.getHours() === 0 &&
           date.getMinutes() === 0 &&
           date.getSeconds() === 0 &&
           date.getMilliseconds() === 0;
+
         if (isMidnight) {
           date.setHours(now.getHours(), now.getMinutes(), 0, 0);
         }
         return date;
       };
-      
-      if (props.selectedDate) {
+
+      const scheduledDateValue =
+        props.scheduledMessage?.scheduledAt || props.scheduledMessage?.scheduled_at;
+
+      if (isEditMode.value && scheduledDateValue) {
+        defaultDate = normalizeDate(scheduledDateValue);
+      } else if (props.selectedDate) {
         defaultDate = normalizeDate(props.selectedDate);
-        defaultDate = applyCurrentTimeIfMissing(defaultDate);
       } else if (props.conversation?.date) {
         defaultDate = normalizeDate(props.conversation.date);
-        defaultDate = applyCurrentTimeIfMissing(defaultDate);
-      } else {
-        // Usar data/hora atual no timezone local
-        defaultDate = new Date();
       }
-      
-      // Formatar para datetime-local (YYYY-MM-DDTHH:mm) no timezone local
-      // IMPORTANTE: Os métodos getFullYear(), getMonth(), getDate(), getHours(), getMinutes()
-      // já retornam valores no timezone local do navegador automaticamente
-      // Não precisamos fazer nenhuma conversão aqui - o JavaScript já faz isso
+
+      defaultDate = applyCurrentTimeIfMissing(defaultDate || new Date());
+
       const year = defaultDate.getFullYear();
       const month = String(defaultDate.getMonth() + 1).padStart(2, '0');
       const day = String(defaultDate.getDate()).padStart(2, '0');
       const hours = String(defaultDate.getHours()).padStart(2, '0');
       const minutes = String(defaultDate.getMinutes()).padStart(2, '0');
       const formattedDate = `${year}-${month}-${day}T${hours}:${minutes}`;
-      
-      // Debug: verificar timezone
-      console.log('ScheduledMessageForm - Data formatada:', {
-        formattedDate,
-        localHours: defaultDate.getHours(),
-        localMinutes: defaultDate.getMinutes(),
-        utcHours: defaultDate.getUTCHours(),
-        utcMinutes: defaultDate.getUTCMinutes(),
-        timezoneOffset: defaultDate.getTimezoneOffset(),
-        timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
-        now: new Date().toISOString(),
-        nowLocal: new Date().toLocaleString()
-      });
-      
-      // Usar o inbox da conversa como padrão se disponível
-      const defaultInboxId = props.conversation?.inboxId || props.conversation?.inbox_id || 
-                            (inboxes.value.length > 0 ? inboxes.value[0].id : null);
-      
+
+      const scheduledMessage = props.scheduledMessage || {};
+      const defaultInboxId =
+        scheduledMessage.inboxId ||
+        scheduledMessage.inbox_id ||
+        props.conversation?.inboxId ||
+        props.conversation?.inbox_id ||
+        (inboxes.value.length > 0 ? inboxes.value[0].id : null);
+
+      const conversationId =
+        scheduledMessage.conversationId ||
+        scheduledMessage.conversation_id ||
+        props.conversation?.id ||
+        null;
+
       formData.value = {
-        message: '',
-        scheduledAt: formattedDate,
+        message: isEditMode.value
+          ? (scheduledMessage.message || '').toString()
+          : '',
+        scheduledAt: isEditMode.value && (scheduledMessage.scheduledAt || scheduledMessage.scheduled_at)
+          ? utcToLocal(scheduledMessage.scheduledAt || scheduledMessage.scheduled_at)
+          : formattedDate,
         inboxId: defaultInboxId,
-        conversationId: props.conversation?.id || null,
+        conversationId,
         contactId: null,
       };
       
       // Resetar estados de busca
+      uploadCount.value = 0;
       searchQuery.value = '';
       searchResults.value = [];
       selectedContact.value = null;
       selectedConversation.value = null;
       contactConversations.value = [];
-      attachedFiles.value = [];
+      attachedFiles.value = isEditMode.value
+        ? Array(scheduledMessage.attachments || []).map(mapExistingAttachment)
+        : [];
       
       nextTick(() => {
         setTimeout(() => {
@@ -489,6 +555,7 @@ watch(
         }, 10);
       });
     } else {
+      uploadCount.value = 0;
       if (dialogRef.value && typeof dialogRef.value.close === 'function') {
         dialogRef.value.close();
       }
@@ -525,78 +592,68 @@ const save = async () => {
     return;
   }
 
+  if (isEditMode.value && props.scheduledMessage?.status !== 'pending') {
+    useAlert(t('KANBAN.SCHEDULED_MESSAGES.ONLY_PENDING_EDIT'));
+    return;
+  }
+
   const hasText = (formData.value.message || '').trim().length > 0;
   const hasAttachments = attachedFiles.value.length > 0;
   if (!hasText && !hasAttachments) {
-    alert(t('KANBAN.SCHEDULED_MESSAGES.MESSAGE_REQUIRED'));
+    useAlert(t('KANBAN.SCHEDULED_MESSAGES.MESSAGE_REQUIRED'));
     return;
   }
 
   if (!formData.value.scheduledAt) {
-    alert(t('KANBAN.SCHEDULED_MESSAGES.DATE_REQUIRED'));
+    useAlert(t('KANBAN.SCHEDULED_MESSAGES.DATE_REQUIRED'));
     return;
   }
 
-  // Converter data/hora do input (datetime-local retorna sem timezone)
-  // O input retorna "YYYY-MM-DDTHH:mm" no timezone local do navegador
-  // Converter para UTC usando a função helper
-  const inputDate = formData.value.scheduledAt; // Formato: "YYYY-MM-DDTHH:mm"
-  
-  console.log('ScheduledMessageForm - Convertendo data:', {
-    inputDate,
-    timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
-    timezoneOffset: new Date().getTimezoneOffset()
-  });
-  
-  // Converter de local para UTC
+  const inputDate = formData.value.scheduledAt;
   let scheduledAtUTC;
   try {
     scheduledAtUTC = localToUTC(inputDate);
-    console.log('ScheduledMessageForm - Data convertida para UTC:', scheduledAtUTC);
   } catch (error) {
-    console.error('ScheduledMessageForm - Erro ao converter data:', error);
-    alert('Erro ao processar data/hora. Por favor, verifique o formato.');
+    console.error('Erro ao converter data:', error);
+    useAlert(t('KANBAN.SCHEDULED_MESSAGES.DATE_INVALID'));
     return;
   }
-  
-  // Validar que a data está no futuro
-  // Comparar em UTC para garantir precisão
+
   const utcDate = new Date(scheduledAtUTC);
   const nowUTC = new Date();
-  
-  console.log('ScheduledMessageForm - Validação de data:', {
-    scheduledAtUTC,
-    utcDate: utcDate.toISOString(),
-    nowUTC: nowUTC.toISOString(),
-    isFuture: utcDate > nowUTC
-  });
-  
+
   if (utcDate <= nowUTC) {
-    alert(t('KANBAN.SCHEDULED_MESSAGES.DATE_FUTURE'));
+    useAlert(t('KANBAN.SCHEDULED_MESSAGES.DATE_FUTURE'));
     return;
   }
 
-  // Verificar se há conversation válida (se requireConversation for true)
+  const conversationId =
+    props.conversation?.id ||
+    formData.value.conversationId ||
+    props.scheduledMessage?.conversationId ||
+    props.scheduledMessage?.conversation_id;
+
   if (props.requireConversation && (!props.conversation || !props.conversation.id)) {
-    alert(t('KANBAN.SCHEDULED_MESSAGES.CONVERSATION_REQUIRED'));
+    useAlert(t('KANBAN.SCHEDULED_MESSAGES.CONVERSATION_REQUIRED'));
     return;
   }
 
-  // Se não requireConversation, validar que contato foi selecionado
-  if (!props.requireConversation && !selectedContact.value) {
-    alert('Por favor, selecione um contato');
+  if (!isEditMode.value && !props.requireConversation && !selectedContact.value) {
+    useAlert(t('KANBAN.SCHEDULED_MESSAGES.CONTACT_REQUIRED'));
     return;
   }
 
-  // Se não requireConversation, validar que há conversationId
-  if (!props.requireConversation && !formData.value.conversationId) {
-    alert('Por favor, selecione uma conversa do contato');
+  if (!conversationId) {
+    useAlert(t('KANBAN.SCHEDULED_MESSAGES.CONVERSATION_REQUIRED'));
     return;
   }
 
   try {
     const attachmentsPayload = prepareAttachmentsPayload();
-    if (hasAttachments && attachmentsPayload.length === 0) {
+    const hasSelectedAttachments = attachedFiles.value.length > 0;
+    const hasAttachmentPayload = attachmentsPayload.length > 0;
+
+    if (!isEditMode.value && hasSelectedAttachments && !hasAttachmentPayload) {
       useAlert(t('KANBAN.SCHEDULED_MESSAGES.ATTACHMENTS_UPLOADING') || 'Aguarde o upload dos anexos terminar.');
       return;
     }
@@ -605,50 +662,65 @@ const save = async () => {
       attachmentsPayload.length > 0 &&
       attachmentsPayload.some(a => a instanceof File);
 
+    const messagePayload = {
+      message: (formData.value.message || '').trim(),
+      scheduled_at: scheduledAtUTC,
+    };
+
+    if (!isEditMode.value) {
+      messagePayload.conversation_id = conversationId;
+    }
+
+    if (formData.value.inboxId) {
+      messagePayload.inbox_id = formData.value.inboxId;
+    }
+
+    const shouldSendAttachments = !isEditMode.value
+      ? hasAttachmentPayload
+      : !hasSelectedAttachments || hasAttachmentPayload;
+
     let payload;
     if (hasFileAttachments) {
       const formDataPayload = new FormData();
-      formDataPayload.append(
-        'scheduled_message[conversation_id]',
-        props.conversation?.id || formData.value.conversationId
-      );
-      formDataPayload.append(
-        'scheduled_message[message]',
-        (formData.value.message || '').trim()
-      );
-      formDataPayload.append('scheduled_message[scheduled_at]', scheduledAtUTC);
-      if (formData.value.inboxId) {
-        formDataPayload.append('scheduled_message[inbox_id]', formData.value.inboxId);
-      }
-      attachmentsPayload.forEach(file => {
-        if (file instanceof File) {
-          formDataPayload.append('scheduled_message[attachments][]', file);
-        }
+      Object.entries(messagePayload).forEach(([key, value]) => {
+        if (value == null) return;
+        formDataPayload.append(`scheduled_message[${key}]`, value);
       });
+      if (shouldSendAttachments) {
+        attachmentsPayload.forEach(attachment => {
+          if (attachment instanceof File || typeof attachment === 'string') {
+            formDataPayload.append(
+              'scheduled_message[attachments][]',
+              attachment
+            );
+          }
+        });
+      }
       payload = formDataPayload;
     } else {
-      payload = {
-        scheduled_message: {
-          conversation_id: props.conversation?.id || formData.value.conversationId,
-          message: (formData.value.message || '').trim(),
-          scheduled_at: scheduledAtUTC,
-        }
-      };
-      if (formData.value.inboxId) {
-        payload.scheduled_message.inbox_id = formData.value.inboxId;
+      if (shouldSendAttachments) {
+        messagePayload.attachments = attachmentsPayload;
       }
-      if (attachmentsPayload.length > 0) {
-        payload.scheduled_message.attachments = attachmentsPayload;
-      }
+
+      payload = isEditMode.value
+        ? messagePayload
+        : { scheduled_message: messagePayload };
     }
 
-    await store.dispatch('kanban/createScheduledMessage', payload);
+    if (isEditMode.value) {
+      await store.dispatch('kanban/updateScheduledMessage', {
+        messageId: props.scheduledMessage.id,
+        data: payload,
+      });
+    } else {
+      await store.dispatch('kanban/createScheduledMessage', payload);
+    }
 
     emit('saved');
     emit('close');
   } catch (error) {
-    console.error('Erro ao agendar mensagem:', error);
-    alert(t('KANBAN.SCHEDULED_MESSAGES.SAVE_ERROR'));
+    console.error('Erro ao salvar mensagem agendada:', error);
+    useAlert(t('KANBAN.SCHEDULED_MESSAGES.SAVE_ERROR'));
   }
 };
 
@@ -661,7 +733,7 @@ const close = () => {
   <Dialog
     v-if="show"
     ref="dialogRef"
-    :title="t('KANBAN.SCHEDULED_MESSAGES.CREATE')"
+    :title="dialogTitle"
     :show-cancel-button="false"
     :show-confirm-button="false"
     overflow-y-auto
@@ -959,12 +1031,14 @@ const close = () => {
         <Button
           :label="t('DIALOG.BUTTONS.CANCEL')"
           variant="link"
+          type="button"
           class="h-10 hover:!no-underline hover:text-n-brand"
           @click="close"
         />
         <Button
-          :label="t('KANBAN.SCHEDULED_MESSAGES.SCHEDULE')"
+          :label="submitButtonLabel"
           color="blue"
+          type="button"
           :is-loading="isLoading || isUploadingAttachments"
           :disabled="isUploadingAttachments"
           @click="save"

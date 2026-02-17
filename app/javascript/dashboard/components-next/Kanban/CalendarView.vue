@@ -19,7 +19,12 @@ const props = defineProps({
   },
 });
 
-const emit = defineEmits(['schedule-message', 'create-scheduled-message']);
+const emit = defineEmits([
+  'schedule-message',
+  'create-scheduled-message',
+  'edit-scheduled-message',
+  'cancel-scheduled-message',
+]);
 
 const store = useStore();
 const router = useRouter();
@@ -96,6 +101,18 @@ const getMessageStatusClass = (status) => {
     cancelled: 'bg-n-slate-8 hover:bg-n-slate-9',
   };
   return classes[status] || 'bg-n-teal-9 hover:bg-n-teal-10';
+};
+
+const canManageMessage = message => message?.status === 'pending';
+
+const handleEditScheduledMessage = message => {
+  if (!canManageMessage(message)) return;
+  emit('edit-scheduled-message', message);
+};
+
+const handleCancelScheduledMessage = message => {
+  if (!canManageMessage(message)) return;
+  emit('cancel-scheduled-message', message);
 };
 
 const openConversation = async (message) => {
@@ -350,6 +367,28 @@ onMounted(() => {
                   <div class="text-[10px] text-white/80 truncate">
                     {{ message.message }}
                   </div>
+                  <div
+                    v-if="canManageMessage(message)"
+                    class="mt-1 flex items-center justify-end gap-1"
+                    @click.stop
+                  >
+                    <Button
+                      size="xs"
+                      variant="ghost"
+                      icon="i-lucide-pencil"
+                      class="!h-6 !w-6 !p-0 !text-white hover:!bg-white/20"
+                      :title="t('KANBAN.SCHEDULED_MESSAGES.EDIT')"
+                      @click.stop="handleEditScheduledMessage(message)"
+                    />
+                    <Button
+                      size="xs"
+                      variant="ghost"
+                      icon="i-lucide-trash-2"
+                      class="!h-6 !w-6 !p-0 !text-white hover:!bg-white/20"
+                      :title="t('KANBAN.SCHEDULED_MESSAGES.CANCEL')"
+                      @click.stop="handleCancelScheduledMessage(message)"
+                    />
+                  </div>
                 </div>
               </button>
             </div>
@@ -417,6 +456,27 @@ onMounted(() => {
               </div>
               <div class="text-xs text-n-slate-11 truncate">
                 {{ message.message || t('KANBAN.SCHEDULED_MESSAGES.NO_TEXT') }}
+              </div>
+              <div
+                v-if="canManageMessage(message)"
+                class="mt-2 flex items-center justify-end gap-1"
+                @click.stop
+              >
+                <Button
+                  size="xs"
+                  variant="ghost"
+                  icon="i-lucide-pencil"
+                  :title="t('KANBAN.SCHEDULED_MESSAGES.EDIT')"
+                  @click.stop="handleEditScheduledMessage(message)"
+                />
+                <Button
+                  size="xs"
+                  variant="ghost"
+                  color="ruby"
+                  icon="i-lucide-trash-2"
+                  :title="t('KANBAN.SCHEDULED_MESSAGES.CANCEL')"
+                  @click.stop="handleCancelScheduledMessage(message)"
+                />
               </div>
             </div>
           </button>
