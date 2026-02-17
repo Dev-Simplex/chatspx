@@ -32,9 +32,24 @@ class Public::Api::V1::InboxesController < PublicController
     @conversation = @contact_inbox.contact.conversations.find_by!(display_id: params[:conversation_id])
   end
 
-  def normalize_waha_contact_params(source_id:, phone_number:)
+  def normalize_waha_contact_params(source_id:, phone_number:, custom_attributes: nil)
     return { source_id: source_id, phone_number: phone_number } if source_id.blank?
     return { source_id: source_id, phone_number: phone_number } unless waha_lid?(source_id)
+
+    pn_from_custom_attributes = extract_pn_from_custom_attributes(custom_attributes)
+    if pn_from_custom_attributes.present?
+      normalized_phone = normalize_waha_phone_number(pn_from_custom_attributes) || phone_number
+      merge_waha_lid_contact_inbox_to_pn(
+        lid: source_id,
+        pn: pn_from_custom_attributes,
+        normalized_phone: normalized_phone
+      )
+
+      return {
+        source_id: pn_from_custom_attributes,
+        phone_number: normalized_phone
+      }
+    end
 
     session_name = waha_session_name
     return { source_id: source_id, phone_number: phone_number } if session_name.blank?
@@ -62,6 +77,18 @@ class Public::Api::V1::InboxesController < PublicController
     return nil unless hash.is_a?(Hash)
 
     hash['pn'].presence || hash[:pn].presence || hash['number'].presence || hash[:number].presence
+  end
+
+  def extract_pn_from_custom_attributes(custom_attributes)
+    return nil unless custom_attributes.is_a?(Hash)
+
+    jid = custom_attributes['waha_whatsapp_jid'].presence || custom_attributes[:waha_whatsapp_jid].presence
+    return jid if whatsapp_user_jid?(jid)
+
+    chat_id = custom_attributes['waha_whatsapp_chat_id'].presence || custom_attributes[:waha_whatsapp_chat_id].presence
+    return chat_id if whatsapp_user_jid?(chat_id)
+
+    nil
   end
 
   def resolve_lid_to_pn(session_name, lid)
@@ -120,6 +147,10 @@ class Public::Api::V1::InboxesController < PublicController
 
   def waha_lid?(source_id)
     source_id.to_s.end_with?('@lid')
+  end
+
+  def whatsapp_user_jid?(jid)
+    jid.to_s.end_with?('@c.us')
   end
 
   def waha_session_name

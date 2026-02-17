@@ -8,7 +8,8 @@ class Public::Api::V1::Inboxes::ContactsController < Public::Api::V1::InboxesCon
     source_id = params[:source_id] || SecureRandom.uuid
     normalized = normalize_waha_contact_params(
       source_id: source_id,
-      phone_number: permitted_params[:phone_number]
+      phone_number: permitted_params[:phone_number],
+      custom_attributes: permitted_params[:custom_attributes]
     )
     contact_attributes = permitted_params.except(:identifier_hash).to_h.with_indifferent_access
     contact_attributes[:phone_number] = normalized[:phone_number] if normalized[:phone_number].present?
