@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[7.1].define(version: 2026_02_10_120001) do
+ActiveRecord::Schema[7.1].define(version: 2026_02_18_143000) do
   # These extensions should be enabled to support this database
   enable_extension "pg_stat_statements"
   enable_extension "pg_trgm"
@@ -686,6 +686,7 @@ ActiveRecord::Schema[7.1].define(version: 2026_02_10_120001) do
     t.index ["account_id", "id"], name: "index_conversations_on_id_and_account_id"
     t.index ["account_id", "inbox_id", "status", "assignee_id"], name: "conv_acid_inbid_stat_asgnid_idx"
     t.index ["account_id", "status", "assignee_id", "last_activity_at", "id"], name: "idx_conv_list_keyset", order: { last_activity_at: :desc, id: :desc }
+    t.index ["account_id", "status", "last_activity_at", "id"], name: "idx_conv_kanban_keyset", order: { last_activity_at: :desc, id: :desc }
     t.index ["account_id"], name: "index_conversations_on_account_id"
     t.index ["assignee_id", "account_id"], name: "index_conversations_on_assignee_id_and_account_id"
     t.index ["assignee_last_changed_at"], name: "index_conversations_on_assignee_last_changed_at"
@@ -838,6 +839,7 @@ ActiveRecord::Schema[7.1].define(version: 2026_02_10_120001) do
     t.datetime "updated_at", null: false
     t.index ["conversation_id", "funnel_id"], name: "index_funnel_items_unique", unique: true
     t.index ["conversation_id"], name: "index_funnel_items_on_conversation_id"
+    t.index ["funnel_id", "funnel_stage_id", "conversation_id"], name: "idx_funnel_items_funnel_stage_conversation"
     t.index ["funnel_id"], name: "index_funnel_items_on_funnel_id"
     t.index ["funnel_stage_id"], name: "index_funnel_items_on_funnel_stage_id"
     t.index ["moved_by_id"], name: "index_funnel_items_on_moved_by_id"
@@ -1231,11 +1233,13 @@ ActiveRecord::Schema[7.1].define(version: 2026_02_10_120001) do
     t.datetime "updated_at", null: false
     t.bigint "message_id"
     t.bigint "scheduled_by_id"
+    t.index ["conversation_id", "scheduled_at", "id"], name: "idx_scheduled_messages_conversation_timeline", order: { scheduled_at: :desc, id: :desc }
     t.index ["conversation_id"], name: "index_scheduled_messages_on_conversation_id"
     t.index ["inbox_id"], name: "index_scheduled_messages_on_inbox_id"
     t.index ["message_id"], name: "index_scheduled_messages_on_message_id"
     t.index ["scheduled_at"], name: "index_scheduled_messages_on_scheduled_at"
     t.index ["scheduled_by_id"], name: "index_scheduled_messages_on_scheduled_by_id"
+    t.index ["status", "scheduled_at", "id"], name: "idx_scheduled_messages_status_timeline", order: { scheduled_at: :desc, id: :desc }
     t.index ["status"], name: "index_scheduled_messages_on_status"
   end
 

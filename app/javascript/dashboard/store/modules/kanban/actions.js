@@ -1,23 +1,173 @@
 import types from './mutation-types';
 import KanbanAPI from '../../../api/kanban';
 
-const resolveScheduledMessagesQuery = payload => {
-  if (
-    payload &&
-    typeof payload === 'object' &&
-    !Array.isArray(payload)
-  ) {
+const DEFAULT_STAGE_PAGE_LIMIT = 30;
+const DEFAULT_SCHEDULED_PAGE_LIMIT = 50;
+const stageRequestLocks = new Map();
+const scheduledRequestLocks = new Map();
+
+const defaultScheduledWindow = () => {
+  const now = new Date();
+  const past = new Date(now);
+  past.setDate(past.getDate() - 30);
+  past.setHours(0, 0, 0, 0);
+  const future = new Date(now);
+  future.setDate(future.getDate() + 30);
+  future.setHours(23, 59, 59, 999);
+  return {
+    from: past.toISOString(),
+    to: future.toISOString(),
+  };
+};
+
+const resolveScheduledMessagesQuery = (payload, fallbackFilters = {}) => {
+  const fallbackWindow = defaultScheduledWindow();
+
+  if (payload && typeof payload === 'object' && !Array.isArray(payload)) {
+    const resolvedMode = Object.prototype.hasOwnProperty.call(payload, 'mode')
+      ? payload.mode
+      : 'cursor';
+
     return {
-      conversationId: payload.conversationId || null,
-      status: payload.status || 'pending',
+      mode: resolvedMode,
+      conversationId:
+        payload.conversationId ?? fallbackFilters.conversationId ?? null,
+      status: payload.status || fallbackFilters.status || 'all',
+      from: payload.from || fallbackFilters.from || fallbackWindow.from,
+      to: payload.to || fallbackFilters.to || fallbackWindow.to,
+      limit:
+        payload.limit != null
+          ? Number(payload.limit)
+          : Number(fallbackFilters.limit || DEFAULT_SCHEDULED_PAGE_LIMIT),
+      cursor: payload.cursor || null,
+      append: Boolean(payload.append),
     };
   }
 
   return {
     conversationId: payload || null,
-    status: 'pending',
+    mode: 'cursor',
+    status: fallbackFilters.status || 'all',
+    from: fallbackFilters.from || fallbackWindow.from,
+    to: fallbackFilters.to || fallbackWindow.to,
+    limit: Number(fallbackFilters.limit || DEFAULT_SCHEDULED_PAGE_LIMIT),
+    cursor: null,
+    append: false,
   };
 };
+
+const isResolvedStage = stage => {
+  const automationType = stage?.automationType || stage?.automation_type;
+  if (automationType === 'resolved') return true;
+  const name = (stage?.name || '').toLowerCase();
+  return name === 'resolved' || name === 'resolvido';
+};
+
+const shouldUseCursorLoading = ({ rootState, rootGetters }) => {
+  const accountId = Number(rootState?.route?.params?.accountId);
+  const featureGetter = rootGetters?.['accounts/isFeatureEnabledonAccount'];
+
+  if (typeof featureGetter === 'function' && accountId) {
+    return featureGetter(accountId, 'kanban_cursor_loading');
+  }
+
+  return true;
+};
+
+const shouldUseKanbanUxV2 = ({ rootState, rootGetters }) => {
+  const accountId = Number(rootState?.route?.params?.accountId);
+  const featureGetter = rootGetters?.['accounts/isFeatureEnabledonAccount'];
+
+  if (typeof featureGetter === 'function' && accountId) {
+    return featureGetter(accountId, 'kanban_ux_v2');
+  }
+
+  return true;
+};
+
+const parseStagePayload = response => {
+  const data = response?.data;
+  if (Array.isArray(data)) return data;
+  if (data?.stages && Array.isArray(data.stages)) return data.stages;
+  if (data?.funnel_stages && Array.isArray(data.funnel_stages)) {
+    return data.funnel_stages;
+  }
+  return [];
+};
+
+const parseCursorResponse = (response, fallbackLimit) => {
+  const data = response?.data;
+  if (Array.isArray(data)) {
+    return {
+      items: data,
+      meta: {
+        hasMore: false,
+        nextCursor: null,
+        limit: fallbackLimit,
+      },
+    };
+  }
+
+  return {
+    items: Array.isArray(data?.payload) ? data.payload : [],
+    meta: {
+      hasMore: Boolean(data?.meta?.has_more),
+      nextCursor: data?.meta?.next_cursor || null,
+      limit: Number(data?.meta?.limit || fallbackLimit),
+      stageId: data?.meta?.stage_id,
+    },
+  };
+};
+
+const parseScheduledResponse = (response, fallbackLimit) => {
+  const data = response?.data;
+  if (Array.isArray(data)) {
+    return {
+      items: data,
+      meta: {
+        hasMore: false,
+        nextCursor: null,
+        limit: fallbackLimit,
+        status: 'all',
+        from: null,
+        to: null,
+      },
+    };
+  }
+
+  return {
+    items: Array.isArray(data?.payload) ? data.payload : [],
+    meta: {
+      hasMore: Boolean(data?.meta?.has_more),
+      nextCursor: data?.meta?.next_cursor || null,
+      limit: Number(data?.meta?.limit || fallbackLimit),
+      status: data?.meta?.status || 'all',
+      from: data?.meta?.from || null,
+      to: data?.meta?.to || null,
+    },
+  };
+};
+
+const defaultViewFilters = () => ({
+  query: '',
+  stageIds: [],
+  labelIds: [],
+  assigneeId: null,
+  status: 'all',
+});
+
+const isViewBootstrapped = (viewBootstrap, view) => {
+  if (view === 'kanban') return Boolean(viewBootstrap?.kanbanLoaded);
+  if (view === 'list') return Boolean(viewBootstrap?.listLoaded);
+  if (view === 'calendar') return Boolean(viewBootstrap?.calendarLoaded);
+  return false;
+};
+
+const sanitizeStageQueue = stageIds => [
+  ...new Set(
+    (stageIds || []).map(id => Number(id)).filter(id => !Number.isNaN(id))
+  ),
+];
 
 export const actions = {
   async fetchFunnels({ commit }) {
@@ -26,8 +176,6 @@ export const actions = {
       const response = await KanbanAPI.getFunnels();
       commit(types.SET_FUNNELS, response.data);
       return response;
-    } catch (error) {
-      throw error;
     } finally {
       commit(types.SET_KANBAN_UI_FLAG, { isFetching: false });
     }
@@ -39,8 +187,6 @@ export const actions = {
       const response = await KanbanAPI.getFunnel(funnelId);
       commit(types.SET_FUNNEL, response.data);
       return response;
-    } catch (error) {
-      throw error;
     } finally {
       commit(types.SET_KANBAN_UI_FLAG, { isFetching: false });
     }
@@ -52,8 +198,6 @@ export const actions = {
       const response = await KanbanAPI.createFunnel(data);
       commit(types.ADD_FUNNEL, response.data);
       return response;
-    } catch (error) {
-      throw error;
     } finally {
       commit(types.SET_KANBAN_UI_FLAG, { isCreating: false });
     }
@@ -65,8 +209,6 @@ export const actions = {
       const response = await KanbanAPI.updateFunnel(funnelId, data);
       commit(types.UPDATE_FUNNEL, response.data);
       return response;
-    } catch (error) {
-      throw error;
     } finally {
       commit(types.SET_KANBAN_UI_FLAG, { isUpdating: false });
     }
@@ -77,337 +219,537 @@ export const actions = {
     try {
       await KanbanAPI.deleteFunnel(funnelId);
       commit(types.DELETE_FUNNEL, funnelId);
-    } catch (error) {
-      throw error;
     } finally {
       commit(types.SET_KANBAN_UI_FLAG, { isDeleting: false });
     }
   },
 
   async reorderStages({ commit }, { funnelId, stageIds }) {
-    try {
-      await KanbanAPI.reorderStages(funnelId, stageIds);
-      // Recarregar stages após reordenar
-      const response = await KanbanAPI.getFunnelStages(funnelId);
-      commit(types.SET_FUNNEL_STAGES, {
-        funnelId,
-        stages: response.data,
-      });
-    } catch (error) {
-      throw error;
-    }
+    await KanbanAPI.reorderStages(funnelId, stageIds);
+    const response = await KanbanAPI.getFunnelStages(funnelId);
+    commit(types.SET_FUNNEL_STAGES, {
+      funnelId,
+      stages: parseStagePayload(response),
+    });
   },
 
   async fetchFunnelStages({ commit }, funnelId) {
-    try {
-      if (!funnelId) {
-        console.warn('fetchFunnelStages: funnelId não fornecido');
-        return { data: [] };
-      }
-      const response = await KanbanAPI.getFunnelStages(funnelId);
-      console.log('fetchFunnelStages: Resposta completa da API', {
-        response,
-        responseData: response.data,
-        responseDataType: typeof response.data,
-        isArray: Array.isArray(response.data),
-        responseDataStringified: JSON.stringify(response.data),
-        responseStatus: response.status,
-        responseHeaders: response.headers,
-      });
-      
-      // A resposta pode vir em diferentes formatos
-      let stages = [];
-      
-      // Se response.data é uma string vazia, tratar como array vazio
-      if (response.data === '' || response.data === null || response.data === undefined) {
-        console.warn('fetchFunnelStages: Resposta vazia, retornando array vazio');
-        stages = [];
-      } else if (Array.isArray(response.data)) {
-        stages = response.data;
-        console.log(`fetchFunnelStages: Resposta é array com ${stages.length} itens`);
-      } else if (response.data && typeof response.data === 'object') {
-        // Pode ser um objeto com uma propriedade stages ou funnel_stages
-        stages = response.data.stages || response.data.funnel_stages || [];
-        // Se ainda não é array, pode ser que response.data seja o próprio array
-        if (!Array.isArray(stages) && Array.isArray(response.data)) {
-          stages = response.data;
-        }
-        console.log(`fetchFunnelStages: Resposta é objeto, extraído ${stages.length} etapas`);
-      }
-      
-      // Garantir que é um array
-      if (!Array.isArray(stages)) {
-        console.warn('fetchFunnelStages: stages não é um array, convertendo', {
-          stages,
-          stagesType: typeof stages,
-          stagesStringified: JSON.stringify(stages),
-        });
-        stages = [];
-      }
-      
-      // Log detalhado de cada etapa recebida
-      console.log(`fetchFunnelStages: Total de ${stages.length} etapas recebidas`);
-      stages.forEach((stage, index) => {
-        console.log(`fetchFunnelStages: Etapa ${index + 1} - ID: ${stage?.id}, Nome: ${stage?.name}, Posição: ${stage?.position}`);
-      });
-      
-      console.log('fetchFunnelStages: Etapas extraídas', { 
-        funnelId, 
-        stages, 
-        count: stages.length,
-        stageIds: stages.map(s => s?.id),
-        stageNames: stages.map(s => s?.name),
-      });
-      commit(types.SET_FUNNEL_STAGES, {
-        funnelId,
-        stages,
-      });
-      return { data: stages };
-    } catch (error) {
-      console.error('fetchFunnelStages: Erro ao buscar etapas', error);
-      // Retornar array vazio em caso de erro para não quebrar a UI
-      commit(types.SET_FUNNEL_STAGES, { funnelId, stages: [] });
-      return { data: [] };
-    }
+    if (!funnelId) return { data: [] };
+
+    const response = await KanbanAPI.getFunnelStages(funnelId);
+    const stages = parseStagePayload(response);
+    commit(types.SET_FUNNEL_STAGES, { funnelId, stages });
+    return { data: stages };
   },
 
-  async createStage({ commit, dispatch }, { funnelId, data }) {
-    try {
-      console.log('createStage: Iniciando criação', { funnelId, data });
-      const response = await KanbanAPI.createStage(funnelId, data);
-      console.log('createStage: Resposta completa da API', {
-        response,
-        responseData: response.data,
-        responseStatus: response.status,
-        responseHeaders: response.headers,
-        responseDataStringified: JSON.stringify(response.data),
-      });
-      
-      // Verificar se houve erro na resposta
-      if (response.status >= 400) {
-        console.error('createStage: Erro na resposta da API', response);
-        throw new Error(response.data?.errors?.join(', ') || `Erro ${response.status} ao criar etapa`);
-      }
-      
-      // A resposta do axios vem em response.data
-      // A view jbuilder retorna o objeto diretamente
-      let stageData = response.data;
-      
-      // Se não tem id, pode ser que a resposta esteja em outro formato
-      if (!stageData || !stageData.id) {
-        console.warn('createStage: Resposta sem id, tentando extrair de response', response);
-        // Tentar encontrar o stage na resposta
-        if (response.data && typeof response.data === 'object') {
-          // Pode estar em response.data.funnel_stage ou response.data.stage
-          stageData = response.data.funnel_stage || response.data.stage || response.data;
-        }
-      }
-      
-      // Se ainda não tem id, buscar novamente do servidor após um delay
-      if (!stageData || !stageData.id) {
-        console.log('createStage: Resposta sem id, aguardando e buscando do servidor...');
-        // Aguardar um pouco para garantir que o servidor processou
-        await new Promise(resolve => setTimeout(resolve, 800));
-        
-        // Tentar múltiplas vezes
-        let attempts = 0;
-        let foundStage = null;
-        
-        while (attempts < 3 && !foundStage) {
-          attempts++;
-          console.log(`createStage: Tentativa ${attempts}/3 de buscar etapa...`);
-          
-          // Buscar todas as etapas do funil
-          const stagesResponse = await KanbanAPI.getFunnelStages(funnelId);
-          console.log('createStage: Resposta ao buscar etapas', {
-            response: stagesResponse,
-            data: stagesResponse.data,
-            isArray: Array.isArray(stagesResponse.data),
-            dataType: typeof stagesResponse.data,
-          });
-          
-          let stages = [];
-          if (Array.isArray(stagesResponse.data)) {
-            stages = stagesResponse.data;
-          } else if (stagesResponse.data && Array.isArray(stagesResponse.data.funnel_stages)) {
-            stages = stagesResponse.data.funnel_stages;
-          } else if (stagesResponse.data && typeof stagesResponse.data === 'object') {
-            // Tentar outras propriedades
-            stages = stagesResponse.data.stages || [];
-          }
-          
-          console.log('createStage: Etapas encontradas', { count: stages.length, stages });
-          
-          // Procurar a etapa pelo nome (mais confiável que pegar a última)
-          foundStage = stages.find(s => {
-            const stageName = (s.name || '').trim();
-            const dataName = (data.name || '').trim();
-            return stageName === dataName;
-          });
-          
-          if (foundStage && foundStage.id) {
-            stageData = foundStage;
-            console.log('createStage: Stage encontrado após buscar do servidor', stageData);
-            break;
-          } else if (stages.length > 0) {
-            // Se não encontrou pelo nome, pegar a última (pode ser a recém criada)
-            const lastStage = stages[stages.length - 1];
-            if (lastStage.id) {
-              stageData = lastStage;
-              console.log('createStage: Usando última etapa encontrada', stageData);
-              foundStage = lastStage;
-              break;
-            }
-          }
-          
-          // Aguardar antes da próxima tentativa
-          if (attempts < 3) {
-            await new Promise(resolve => setTimeout(resolve, 500));
-          }
-        }
-        
-        if (!stageData || !stageData.id) {
-          console.error('createStage: Não foi possível obter stage com id após múltiplas tentativas', {
-            response,
-            attempts,
-            data,
-          });
-          throw new Error(`Não foi possível criar a etapa "${data.name}". Verifique se ela foi criada no servidor.`);
-        }
-      }
-      
-      // Garantir que o funnelId está no objeto
-      if (!stageData.funnel_id && !stageData.funnelId) {
-        stageData.funnel_id = funnelId;
-      }
-      
-      console.log('createStage: StageData antes de commitar', stageData);
-      commit(types.ADD_FUNNEL_STAGE, stageData);
-      
-      // Também atualizar a lista completa de etapas
-      await dispatch('fetchFunnelStages', funnelId);
-      
-      return { data: stageData };
-    } catch (error) {
-      console.error('createStage: Erro ao criar etapa', error);
-      throw error;
-    }
+  async createStage({ commit }, { funnelId, data }) {
+    const response = await KanbanAPI.createStage(funnelId, data);
+    commit(types.ADD_FUNNEL_STAGE, response.data);
+    return response;
   },
 
   async updateStage({ commit }, { funnelId, stageId, data }) {
-    try {
-      console.log('updateStage: Iniciando atualização', { funnelId, stageId, data });
-      const response = await KanbanAPI.updateStage(funnelId, stageId, data);
-      console.log('updateStage: Resposta completa da API', response);
-      
-      let stageData = response.data;
-      if (!stageData || !stageData.id) {
-        stageData = response.data.funnel_stage || response.data.stage || response.data;
-      }
-      
-      if (stageData && stageData.id) {
-        if (!stageData.funnel_id && !stageData.funnelId) {
-          stageData.funnel_id = funnelId;
-          stageData.funnelId = funnelId;
-        }
-        commit(types.UPDATE_FUNNEL_STAGE, stageData);
-        return { data: stageData };
-      } else {
-        throw new Error('Resposta da API inválida: stage sem id');
-      }
-    } catch (error) {
-      console.error('updateStage: Erro ao atualizar etapa', error);
-      throw error;
-    }
+    const response = await KanbanAPI.updateStage(funnelId, stageId, data);
+    commit(types.UPDATE_FUNNEL_STAGE, {
+      ...response.data,
+      funnel_id: response.data?.funnel_id || funnelId,
+    });
+    return response;
   },
 
   async deleteStage({ commit }, { funnelId, stageId }) {
+    await KanbanAPI.deleteStage(funnelId, stageId);
+    commit(types.DELETE_FUNNEL_STAGE, { funnelId, stageId });
+  },
+
+  async fetchFunnelItemsPage(
+    { commit, rootState, rootGetters, getters },
+    {
+      funnelId,
+      stageId,
+      excludeAutomationType,
+      cursor = null,
+      limit = DEFAULT_STAGE_PAGE_LIMIT,
+      append = false,
+    }
+  ) {
+    if (!funnelId || !stageId) {
+      return { data: { payload: [], meta: {} } };
+    }
+
+    const requestKey = `${Number(funnelId)}:${Number(stageId)}`;
+    const inFlightRequest = stageRequestLocks.get(requestKey);
+    if (inFlightRequest) return inFlightRequest;
+
+    const meta = getters.getStageMeta(funnelId, stageId);
+    if (meta?.isLoading) return null;
+
+    const requestPromise = (async () => {
+      commit(types.SET_STAGE_META, {
+        funnelId,
+        stageId,
+        meta: { isLoading: true, error: false },
+      });
+
+      try {
+        const useCursor = shouldUseCursorLoading({ rootState, rootGetters });
+        const options = {
+          stageId,
+          excludeAutomationType,
+        };
+
+        if (useCursor) {
+          options.mode = 'cursor';
+          options.limit = limit;
+          options.cursor = cursor;
+        }
+
+        const response = await KanbanAPI.getFunnelItems(funnelId, options);
+        const parsed = parseCursorResponse(response, limit);
+
+        commit(types.UPSERT_STAGE_ITEMS, {
+          funnelId,
+          stageId,
+          items: parsed.items,
+          append,
+        });
+        commit(types.SET_STAGE_META, {
+          funnelId,
+          stageId,
+          meta: {
+            hasMore: parsed.meta.hasMore,
+            nextCursor: parsed.meta.nextCursor,
+            limit: parsed.meta.limit,
+            loaded: true,
+            isLoading: false,
+            error: false,
+          },
+        });
+
+        return response;
+      } catch (error) {
+        commit(types.SET_STAGE_META, {
+          funnelId,
+          stageId,
+          meta: { isLoading: false, error: true },
+        });
+        throw error;
+      } finally {
+        stageRequestLocks.delete(requestKey);
+      }
+    })();
+
+    stageRequestLocks.set(requestKey, requestPromise);
+    return requestPromise;
+  },
+
+  async loadNextStagePage(
+    { dispatch, getters },
+    {
+      funnelId,
+      stageId,
+      excludeAutomationType,
+      limit = DEFAULT_STAGE_PAGE_LIMIT,
+    }
+  ) {
+    const meta = getters.getStageMeta(funnelId, stageId);
+    if (!meta?.hasMore || meta?.isLoading) return null;
+
+    return dispatch('fetchFunnelItemsPage', {
+      funnelId,
+      stageId,
+      excludeAutomationType,
+      cursor: meta.nextCursor,
+      limit,
+      append: true,
+    });
+  },
+
+  async bootstrapFunnel(
+    { commit, getters, dispatch },
+    {
+      funnelId,
+      excludeAutomationType = 'resolved',
+      limit = DEFAULT_STAGE_PAGE_LIMIT,
+      includeResolved = false,
+    }
+  ) {
+    if (!funnelId) return;
+
+    commit(types.SET_KANBAN_UI_FLAG, { isFetching: true });
     try {
-      await KanbanAPI.deleteStage(funnelId, stageId);
-      commit(types.DELETE_FUNNEL_STAGE, { funnelId, stageId });
-    } catch (error) {
-      throw error;
+      const stages = getters.getFunnelStages(funnelId);
+      if (!Array.isArray(stages) || stages.length === 0) return;
+
+      const stagesToLoad = includeResolved
+        ? stages
+        : stages.filter(stage => !isResolvedStage(stage));
+
+      await Promise.all(
+        stagesToLoad.map(stage =>
+          dispatch('fetchFunnelItemsPage', {
+            funnelId,
+            stageId: stage.id,
+            excludeAutomationType,
+            limit,
+            append: false,
+          })
+        )
+      );
+    } finally {
+      commit(types.SET_KANBAN_UI_FLAG, { isFetching: false });
     }
   },
 
   async fetchFunnelItems(
-    { commit },
-    { funnelId, stageId = null, excludeAutomationType, page, perPage, merge = false }
-  ) {
-    try {
-      const options = {};
-      if (excludeAutomationType) options.excludeAutomationType = excludeAutomationType;
-      if (page != null) options.page = page;
-      if (perPage != null) options.perPage = perPage;
-      console.log('[kanban/fetchFunnelItems] request', { funnelId, stageId, options, merge });
-      const response = await KanbanAPI.getFunnelItems(funnelId, stageId, options);
-      const items = Array.isArray(response.data) ? response.data : [];
-      console.log('[kanban/fetchFunnelItems] response', { count: items.length, sample: items[0], lastActivityAt: items[0]?.conversation?.last_activity_at });
-      commit(merge ? types.MERGE_FUNNEL_ITEMS : types.SET_FUNNEL_ITEMS, items);
-      return response;
-    } catch (error) {
-      throw error;
+    { dispatch, getters, commit },
+    {
+      funnelId,
+      stageId = null,
+      excludeAutomationType,
+      page = null,
+      perPage = null,
+      merge = false,
     }
+  ) {
+    if (!funnelId) return { data: [] };
+
+    if (page != null || perPage != null) {
+      const response = await KanbanAPI.getFunnelItems(funnelId, {
+        stageId,
+        excludeAutomationType,
+        page,
+        perPage,
+      });
+      const items = Array.isArray(response.data) ? response.data : [];
+      if (stageId) {
+        commit(types.UPSERT_STAGE_ITEMS, {
+          funnelId,
+          stageId,
+          items,
+          append: merge,
+        });
+        commit(types.SET_STAGE_META, {
+          funnelId,
+          stageId,
+          meta: {
+            hasMore: items.length >= (perPage || DEFAULT_STAGE_PAGE_LIMIT),
+            nextCursor: null,
+            limit: perPage || DEFAULT_STAGE_PAGE_LIMIT,
+            loaded: true,
+            isLoading: false,
+            error: false,
+          },
+        });
+      } else {
+        commit(
+          merge ? types.MERGE_FUNNEL_ITEMS : types.SET_FUNNEL_ITEMS,
+          items
+        );
+      }
+      return { ...response, data: items };
+    }
+
+    if (stageId) {
+      const meta = getters.getStageMeta(funnelId, stageId);
+      return dispatch('fetchFunnelItemsPage', {
+        funnelId,
+        stageId,
+        excludeAutomationType,
+        cursor: merge ? meta?.nextCursor : null,
+        limit: perPage || DEFAULT_STAGE_PAGE_LIMIT,
+        append: merge,
+      });
+    }
+
+    await dispatch('bootstrapFunnel', {
+      funnelId,
+      excludeAutomationType,
+      limit: perPage || DEFAULT_STAGE_PAGE_LIMIT,
+      includeResolved: !excludeAutomationType,
+    });
+    return { data: [] };
   },
 
   async createItem({ commit }, { funnelId, data }) {
-    try {
-      const response = await KanbanAPI.createItem(funnelId, data);
-      commit(types.ADD_FUNNEL_ITEM, response.data);
-      return response;
-    } catch (error) {
-      throw error;
-    }
+    const response = await KanbanAPI.createItem(funnelId, data);
+    commit(types.ADD_FUNNEL_ITEM, response.data);
+    return response;
   },
 
   async updateItem({ commit }, { funnelId, itemId, data }) {
-    try {
-      const response = await KanbanAPI.updateItem(funnelId, itemId, data);
-      commit(types.UPDATE_FUNNEL_ITEM, response.data);
-      return response;
-    } catch (error) {
-      throw error;
-    }
+    const response = await KanbanAPI.updateItem(funnelId, itemId, data);
+    commit(types.UPDATE_FUNNEL_ITEM, response.data);
+    return response;
   },
 
   async deleteItem({ commit }, { funnelId, itemId }) {
-    try {
-      await KanbanAPI.deleteItem(funnelId, itemId);
-      commit(types.DELETE_FUNNEL_ITEM, itemId);
-    } catch (error) {
-      throw error;
+    await KanbanAPI.deleteItem(funnelId, itemId);
+    commit(types.DELETE_FUNNEL_ITEM, itemId);
+  },
+
+  async bulkMoveItems({ dispatch }, { funnelId, conversationIds, stageId }) {
+    await KanbanAPI.bulkMoveItems(funnelId, conversationIds, stageId);
+    await dispatch('bootstrapFunnel', {
+      funnelId,
+      excludeAutomationType: 'resolved',
+      limit: DEFAULT_STAGE_PAGE_LIMIT,
+    });
+  },
+
+  setViewFilters({ commit }, filters = {}) {
+    commit(types.SET_VIEW_FILTERS, filters);
+  },
+
+  resetViewFilters({ commit }) {
+    commit(types.RESET_VIEW_FILTERS);
+  },
+
+  resetViewBootstrap({ commit }) {
+    commit(types.RESET_VIEW_BOOTSTRAP);
+  },
+
+  async bootstrapListView(
+    { commit, dispatch, getters },
+    { funnelId, force = false, limit = 15 } = {}
+  ) {
+    if (!funnelId) return;
+
+    const stages = getters
+      .getFunnelStages(funnelId)
+      .filter(stage => !isResolvedStage(stage));
+    if (!stages.length) {
+      commit(types.SET_VIEW_BOOTSTRAP, {
+        listLoaded: true,
+        listQueueStageIds: [],
+      });
+      return;
+    }
+
+    const stageIds = stages.map(stage => Number(stage.id)).filter(Boolean);
+
+    if (force || !getters.getViewBootstrap?.listLoaded) {
+      await Promise.all(
+        stageIds.map(stageId =>
+          dispatch('fetchFunnelItemsPage', {
+            funnelId,
+            stageId,
+            excludeAutomationType: 'resolved',
+            limit,
+            append: false,
+          })
+        )
+      );
+    }
+
+    const queue = sanitizeStageQueue(
+      stageIds.filter(
+        stageId => getters.getStageMeta(funnelId, stageId)?.hasMore
+      )
+    );
+
+    commit(types.SET_VIEW_BOOTSTRAP, {
+      listLoaded: true,
+      listQueueStageIds: queue,
+    });
+  },
+
+  async loadMoreListQueue(
+    { commit, dispatch, getters },
+    { funnelId, limit = 15 } = {}
+  ) {
+    if (!funnelId) return null;
+
+    const currentQueue = sanitizeStageQueue(
+      getters.getViewBootstrap?.listQueueStageIds || []
+    );
+    if (!currentQueue.length) return null;
+
+    const stageId = currentQueue[0];
+    await dispatch('loadNextStagePage', {
+      funnelId,
+      stageId,
+      excludeAutomationType: 'resolved',
+      limit,
+    });
+
+    const stageMeta = getters.getStageMeta(funnelId, stageId);
+    const nextQueue = stageMeta?.hasMore
+      ? [...currentQueue.slice(1), stageId]
+      : currentQueue.slice(1);
+
+    commit(types.SET_VIEW_BOOTSTRAP, {
+      listQueueStageIds: sanitizeStageQueue(nextQueue),
+    });
+
+    return stageId;
+  },
+
+  async bootstrapView(
+    { commit, dispatch, getters },
+    { view, funnelId, force = false } = {}
+  ) {
+    if (!funnelId) return;
+    const viewName = view || getters.getViewMode;
+    if (!viewName) return;
+
+    const alreadyLoaded = isViewBootstrapped(
+      getters.getViewBootstrap,
+      viewName
+    );
+    if (alreadyLoaded && !force) return;
+
+    if (viewName === 'kanban') {
+      await dispatch('bootstrapFunnel', {
+        funnelId,
+        excludeAutomationType: 'resolved',
+      });
+      commit(types.SET_VIEW_BOOTSTRAP, { kanbanLoaded: true });
+      return;
+    }
+
+    if (viewName === 'list') {
+      await dispatch('bootstrapListView', {
+        funnelId,
+        force,
+      });
+      return;
+    }
+
+    if (viewName === 'calendar') {
+      await dispatch('bootstrapScheduledTimeline', {
+        status: 'all',
+      });
+      commit(types.SET_VIEW_BOOTSTRAP, { calendarLoaded: true });
     }
   },
 
-  async bulkMoveItems({ commit }, { funnelId, conversationIds, stageId }) {
-    try {
-      await KanbanAPI.bulkMoveItems(funnelId, conversationIds, stageId);
-      // Recarregar items após mover (sem resolved)
-      const response = await KanbanAPI.getFunnelItems(funnelId, null, { excludeAutomationType: 'resolved' });
-      const items = Array.isArray(response.data) ? response.data : [];
-      commit(types.SET_FUNNEL_ITEMS, items);
-    } catch (error) {
-      throw error;
+  async fetchScheduledMessagesPage(
+    { commit, getters, rootState, rootGetters },
+    payload = null
+  ) {
+    const uiFlags = getters.getUIFlags || {};
+    if (uiFlags.isCreating || uiFlags.isUpdating) {
+      return { data: { payload: [], meta: {} } };
     }
+
+    const currentFilters = getters.getScheduledFilters || {};
+    const query = resolveScheduledMessagesQuery(payload, currentFilters);
+    const useKanbanUxV2 = shouldUseKanbanUxV2({ rootState, rootGetters });
+    const requestedMode =
+      query.mode === undefined ? 'cursor' : query.mode || null;
+    const effectiveMode = useKanbanUxV2 ? requestedMode || 'cursor' : null;
+    const requestKey = JSON.stringify({
+      mode: effectiveMode,
+      status: query.status,
+      from: query.from,
+      to: query.to,
+      limit: query.limit,
+      cursor: query.cursor,
+      conversationId: query.conversationId,
+      append: query.append,
+    });
+
+    const inFlightRequest = scheduledRequestLocks.get(requestKey);
+    if (inFlightRequest) return inFlightRequest;
+
+    const requestPromise = (async () => {
+      commit(types.SET_KANBAN_UI_FLAG, { isFetchingScheduledMessages: true });
+
+      if (!query.append) {
+        commit(types.SET_SCHEDULED_FILTERS, {
+          status: query.status,
+          conversationId: query.conversationId,
+          from: query.from,
+          to: query.to,
+          limit: query.limit,
+        });
+      }
+
+      try {
+        const response = await KanbanAPI.getScheduledMessages({
+          mode: effectiveMode,
+          status: query.status,
+          from: query.from,
+          to: query.to,
+          limit: query.limit,
+          cursor: query.cursor,
+          conversationId: query.conversationId,
+        });
+
+        const parsed = parseScheduledResponse(response, query.limit);
+        commit(types.UPSERT_SCHEDULED_MESSAGES_PAGE, {
+          messages: parsed.items,
+          append: query.append,
+        });
+        commit(types.SET_SCHEDULED_META, {
+          hasMore: parsed.meta.hasMore,
+          nextCursor: parsed.meta.nextCursor,
+          limit: parsed.meta.limit,
+          loaded: true,
+          error: false,
+          status: parsed.meta.status,
+          from: parsed.meta.from || query.from,
+          to: parsed.meta.to || query.to,
+        });
+        commit(types.SET_SCHEDULED_UI, { lastFetchedAt: Date.now() });
+        return response;
+      } catch (error) {
+        commit(types.SET_SCHEDULED_META, { loaded: true, error: true });
+        return { data: { payload: [], meta: {} } };
+      } finally {
+        commit(types.SET_KANBAN_UI_FLAG, {
+          isFetchingScheduledMessages: false,
+        });
+        scheduledRequestLocks.delete(requestKey);
+      }
+    })();
+
+    scheduledRequestLocks.set(requestKey, requestPromise);
+    return requestPromise;
   },
 
-  async fetchScheduledMessages({ commit }, payload = null) {
-    const query = resolveScheduledMessagesQuery(payload);
-    commit(types.SET_KANBAN_UI_FLAG, { isFetching: true });
-    try {
-      const response = await KanbanAPI.getScheduledMessages(query);
-      // Garantir que response.data seja um array
-      const messages = Array.isArray(response.data) ? response.data : [];
-      commit(types.SET_SCHEDULED_MESSAGES, messages);
-      return response;
-    } catch (error) {
-      // Se der erro 404, não quebrar a aplicação
-      console.warn('Error fetching scheduled messages:', error);
-      commit(types.SET_SCHEDULED_MESSAGES, []);
-      return { data: [] };
-    } finally {
-      commit(types.SET_KANBAN_UI_FLAG, { isFetching: false });
-    }
+  async bootstrapScheduledTimeline({ dispatch }, payload = null) {
+    return dispatch('fetchScheduledMessagesPage', {
+      ...resolveScheduledMessagesQuery(payload),
+      append: false,
+      cursor: null,
+    });
+  },
+
+  async loadMoreScheduledMessages({ dispatch, getters }, payload = {}) {
+    const meta = getters.getScheduledMeta;
+    if (!meta?.hasMore || !meta?.nextCursor) return null;
+
+    const filters = getters.getScheduledFilters;
+    return dispatch('fetchScheduledMessagesPage', {
+      ...filters,
+      ...payload,
+      limit: payload?.limit || meta.limit || DEFAULT_SCHEDULED_PAGE_LIMIT,
+      cursor: meta.nextCursor,
+      append: true,
+    });
+  },
+
+  async refreshPendingStatuses({ dispatch, getters }, payload = {}) {
+    const filters = getters.getScheduledFilters;
+    return dispatch('fetchScheduledMessagesPage', {
+      ...filters,
+      ...payload,
+      cursor: null,
+      append: false,
+    });
+  },
+
+  async fetchScheduledMessages({ dispatch, getters }, payload = null) {
+    const filters = getters.getScheduledFilters;
+    const query = resolveScheduledMessagesQuery(payload, filters);
+    return dispatch('fetchScheduledMessagesPage', {
+      ...query,
+      mode: query.mode || 'cursor',
+      append: false,
+      cursor: null,
+    });
   },
 
   async createScheduledMessage({ commit }, data) {
@@ -416,8 +758,6 @@ export const actions = {
       const response = await KanbanAPI.createScheduledMessage(data);
       commit(types.ADD_SCHEDULED_MESSAGE, response.data);
       return response;
-    } catch (error) {
-      throw error;
     } finally {
       commit(types.SET_KANBAN_UI_FLAG, { isCreating: false });
     }
@@ -429,8 +769,6 @@ export const actions = {
       const response = await KanbanAPI.updateScheduledMessage(messageId, data);
       commit(types.UPDATE_SCHEDULED_MESSAGE, response.data);
       return response;
-    } catch (error) {
-      throw error;
     } finally {
       commit(types.SET_KANBAN_UI_FLAG, { isUpdating: false });
     }
@@ -441,25 +779,25 @@ export const actions = {
     try {
       await KanbanAPI.deleteScheduledMessage(messageId);
       commit(types.DELETE_SCHEDULED_MESSAGE, messageId);
-    } catch (error) {
-      throw error;
     } finally {
       commit(types.SET_KANBAN_UI_FLAG, { isDeleting: false });
     }
   },
 
   async fetchWahaInboxes({ commit }) {
-    try {
-      const response = await KanbanAPI.getWahaInboxes();
-      commit(types.SET_WAHA_INBOXES, response.data);
-      return response;
-    } catch (error) {
-      throw error;
-    }
+    const response = await KanbanAPI.getWahaInboxes();
+    const data = response?.data;
+    const inboxes = Array.isArray(data) ? data : data?.payload || [];
+    commit(types.SET_WAHA_INBOXES, inboxes);
+    return { ...response, data: inboxes };
   },
 
   setActiveFunnelId({ commit }, funnelId) {
     commit(types.SET_ACTIVE_FUNNEL_ID, funnelId);
+    commit(types.RESET_VIEW_BOOTSTRAP);
+    commit(types.SET_VIEW_FILTERS, {
+      ...defaultViewFilters(),
+    });
   },
 
   setViewMode({ commit }, mode) {

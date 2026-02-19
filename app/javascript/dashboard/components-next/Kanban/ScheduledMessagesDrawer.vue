@@ -1,5 +1,5 @@
 <script setup>
-import { computed, ref, watch, nextTick } from 'vue';
+import { computed, onBeforeUnmount, ref, watch, nextTick } from 'vue';
 import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { useStore } from 'vuex';
@@ -25,26 +25,44 @@ const props = defineProps({
   },
 });
 
-const emit = defineEmits(['close', 'edit-scheduled-message', 'cancelled']);
+const emit = defineEmits(['close', 'editScheduledMessage', 'cancelled']);
 
 const store = useStore();
 const { t } = useI18n();
 
-const showCancelled = ref(false);
+const statusFilter = ref('all');
 const searchQuery = ref('');
 const selectedConversationId = ref(null);
 const messageToCancel = ref(null);
 const cancelDialogRef = ref(null);
+let pollingTimer = null;
 
-const scheduledMessages = computed(() => store.getters['kanban/getScheduledMessages']);
+const scheduledMessages = computed(
+  () => store.getters['kanban/getScheduledMessages']
+);
+const scheduledMeta = computed(() => store.getters['kanban/getScheduledMeta']);
+const scheduledFilters = computed(
+  () => store.getters['kanban/getScheduledFilters']
+);
 const isLoading = computed(() => {
   const uiFlags = store.getters['kanban/getUIFlags'];
-  return uiFlags.isFetching || uiFlags.isDeleting;
+  return uiFlags.isFetchingScheduledMessages || uiFlags.isDeleting;
 });
 
 const getConversationById = computed(
   () => store.getters['conversations/getConversationById']
 );
+
+const STATUS_OPTIONS = [
+  { key: 'all', label: 'KANBAN.SCHEDULED_MESSAGES.STATUS_FILTER.ALL' },
+  { key: 'pending', label: 'KANBAN.SCHEDULED_MESSAGES.STATUS_FILTER.PENDING' },
+  { key: 'sent', label: 'KANBAN.SCHEDULED_MESSAGES.STATUS_FILTER.SENT' },
+  { key: 'failed', label: 'KANBAN.SCHEDULED_MESSAGES.STATUS_FILTER.FAILED' },
+  {
+    key: 'cancelled',
+    label: 'KANBAN.SCHEDULED_MESSAGES.STATUS_FILTER.CANCELLED',
+  },
+];
 
 const getConversationFromStore = conversationId => {
   if (!conversationId || !getConversationById.value) return null;
@@ -88,10 +106,6 @@ const filteredMessages = computed(() => {
   const query = searchQuery.value.trim().toLowerCase();
 
   return scheduledMessages.value.filter(message => {
-    if (!showCancelled.value && message.status === 'cancelled') {
-      return false;
-    }
-
     if (
       selectedConversationId.value &&
       Number(message.conversationId) !== Number(selectedConversationId.value)
@@ -107,6 +121,7 @@ const filteredMessages = computed(() => {
       contact.name || '',
       contact.phone || '',
       String(message.conversationDisplayId || message.conversationId || ''),
+      String(message.errorMessage || ''),
     ]
       .join(' ')
       .toLowerCase();
@@ -115,22 +130,64 @@ const filteredMessages = computed(() => {
   });
 });
 
-const pendingCount = computed(() =>
-  scheduledMessages.value.filter(message => message.status === 'pending').length
+const pendingCount = computed(
+  () =>
+    scheduledMessages.value.filter(message => message.status === 'pending')
+      .length
 );
 
-const fetchMessages = async () => {
+const fetchMessages = async ({ append = false } = {}) => {
   if (!props.show) return;
 
   const payload = {
-    status: showCancelled.value ? 'all' : 'pending',
+    status: statusFilter.value,
+    conversationId: selectedConversationId.value,
+    from: scheduledFilters.value.from,
+    to: scheduledFilters.value.to,
+    limit: scheduledMeta.value.limit || 50,
+    append,
   };
 
-  await store.dispatch('kanban/fetchScheduledMessages', payload);
+  await store.dispatch('kanban/fetchScheduledMessagesPage', payload);
+};
+
+const bootstrapMessages = async () => {
+  await store.dispatch('kanban/bootstrapScheduledTimeline', {
+    status: statusFilter.value,
+    conversationId: selectedConversationId.value,
+    from: scheduledFilters.value.from,
+    to: scheduledFilters.value.to,
+    limit: scheduledMeta.value.limit || 50,
+  });
+};
+
+const loadMore = async () => {
+  if (!scheduledMeta.value.hasMore || isLoading.value) return;
+
+  await store.dispatch('kanban/loadMoreScheduledMessages', {
+    status: statusFilter.value,
+    conversationId: selectedConversationId.value,
+  });
+};
+
+const stopPolling = () => {
+  if (!pollingTimer) return;
+  clearInterval(pollingTimer);
+  pollingTimer = null;
+};
+
+const startPolling = () => {
+  stopPolling();
+  pollingTimer = setInterval(() => {
+    store.dispatch('kanban/refreshPendingStatuses', {
+      status: statusFilter.value,
+      conversationId: selectedConversationId.value,
+    });
+  }, 30_000);
 };
 
 const handleEdit = message => {
-  emit('edit-scheduled-message', message);
+  emit('editScheduledMessage', message);
 };
 
 const askCancel = message => {
@@ -145,33 +202,48 @@ const confirmCancel = async () => {
   if (!messageToCancel.value?.id) return;
 
   try {
-    await store.dispatch('kanban/deleteScheduledMessage', messageToCancel.value.id);
-    await fetchMessages();
+    await store.dispatch(
+      'kanban/deleteScheduledMessage',
+      messageToCancel.value.id
+    );
+    await bootstrapMessages();
     emit('cancelled', messageToCancel.value.id);
     closeCancelDialog();
-  } catch (error) {
+  } catch (_) {
     useAlert(t('KANBAN.SCHEDULED_MESSAGES.CANCEL_ERROR'));
   }
+};
+
+const clearConversationFilter = () => {
+  selectedConversationId.value = null;
 };
 
 watch(
   () => props.show,
   async isVisible => {
-    if (!isVisible) return;
-    await fetchMessages();
+    if (!isVisible) {
+      stopPolling();
+      return;
+    }
+
+    await bootstrapMessages();
+    startPolling();
   }
 );
 
 watch(
   () => props.initialConversationId,
   conversationId => {
-    selectedConversationId.value = conversationId ? Number(conversationId) : null;
+    selectedConversationId.value = conversationId
+      ? Number(conversationId)
+      : null;
   },
   { immediate: true }
 );
 
-watch(showCancelled, async () => {
-  await fetchMessages();
+watch([statusFilter, selectedConversationId], async () => {
+  if (!props.show) return;
+  await bootstrapMessages();
 });
 
 watch(messageToCancel, async value => {
@@ -184,13 +256,13 @@ watch(
   () => props.refreshToken,
   async () => {
     if (!props.show) return;
-    await fetchMessages();
+    await fetchMessages({ append: false });
   }
 );
 
-const clearConversationFilter = () => {
-  selectedConversationId.value = null;
-};
+onBeforeUnmount(() => {
+  stopPolling();
+});
 </script>
 
 <template>
@@ -202,16 +274,20 @@ const clearConversationFilter = () => {
     />
 
     <div
-      class="relative h-full w-full max-w-[28rem] bg-n-solid-2 border-l border-n-weak shadow-2xl flex flex-col"
+      class="relative flex h-full w-full max-w-[30rem] flex-col border-l border-n-weak bg-n-solid-2 shadow-2xl"
     >
-      <div class="px-5 py-4 border-b border-n-weak bg-n-solid-3">
+      <div class="border-b border-n-weak bg-n-solid-3 px-5 py-4">
         <div class="flex items-start justify-between gap-3">
           <div>
             <h2 class="text-base font-semibold text-n-slate-12">
               {{ t('KANBAN.SCHEDULED_MESSAGES.DRAWER_TITLE') }}
             </h2>
-            <p class="text-xs text-n-slate-10 mt-1">
-              {{ t('KANBAN.SCHEDULED_MESSAGES.PENDING_COUNT', { count: pendingCount }) }}
+            <p class="mt-1 text-xs text-n-slate-10">
+              {{
+                t('KANBAN.SCHEDULED_MESSAGES.PENDING_COUNT', {
+                  count: pendingCount,
+                })
+              }}
             </p>
           </div>
           <Button
@@ -226,40 +302,46 @@ const clearConversationFilter = () => {
           <div class="relative">
             <Icon
               icon="i-lucide-search"
-              class="absolute left-3 top-1/2 -translate-y-1/2 size-4 text-n-slate-10"
+              class="absolute left-3 top-1/2 size-4 -translate-y-1/2 text-n-slate-10"
             />
             <input
               v-model="searchQuery"
               type="text"
               :placeholder="t('KANBAN.SCHEDULED_MESSAGES.SEARCH_PLACEHOLDER')"
-              class="w-full pl-9 pr-3 py-2.5 rounded-lg border border-n-weak bg-n-solid-2 text-sm text-n-slate-12 placeholder:text-n-slate-9 focus:outline-none focus:ring-2 focus:ring-n-blue-9"
+              class="w-full rounded-lg border border-n-weak bg-n-solid-2 py-2.5 pl-9 pr-3 text-sm text-n-slate-12"
             />
           </div>
 
-          <div class="flex items-center justify-between gap-3">
-            <Button
-              :icon="showCancelled ? 'i-lucide-eye-off' : 'i-lucide-eye'"
-              size="sm"
-              variant="ghost"
-              @click="showCancelled = !showCancelled"
+          <div class="flex flex-wrap gap-2">
+            <button
+              v-for="option in STATUS_OPTIONS"
+              :key="option.key"
+              type="button"
+              class="rounded-full px-3 py-1 text-xs font-semibold transition"
+              :class="
+                statusFilter === option.key
+                  ? 'bg-n-blue-9 text-white'
+                  : 'bg-n-solid-2 text-n-slate-11 hover:bg-n-solid-4'
+              "
+              @click="statusFilter = option.key"
             >
-              <span class="ml-2">
-                {{
-                  showCancelled
-                    ? t('KANBAN.SCHEDULED_MESSAGES.HIDE_CANCELLED')
-                    : t('KANBAN.SCHEDULED_MESSAGES.SHOW_CANCELLED')
-                }}
-              </span>
-            </Button>
+              {{ t(option.label) }}
+            </button>
+          </div>
 
+          <div
+            v-if="selectedConversationId"
+            class="flex items-center justify-end gap-2"
+          >
             <Button
-              v-if="selectedConversationId"
               icon="i-lucide-filter-x"
               size="sm"
               variant="ghost"
               @click="clearConversationFilter"
             >
-              <span class="ml-2">{{ t('KANBAN.SCHEDULED_MESSAGES.CLEAR_FILTER') }}</span>
+              <span class="ml-2">{{
+                t('KANBAN.SCHEDULED_MESSAGES.CLEAR_FILTER')
+              }}</span>
             </Button>
           </div>
         </div>
@@ -267,18 +349,21 @@ const clearConversationFilter = () => {
 
       <div class="flex-1 overflow-y-auto p-4">
         <div
-          v-if="isLoading"
-          class="h-full flex items-center justify-center text-sm text-n-slate-10"
+          v-if="isLoading && scheduledMessages.length === 0"
+          class="flex h-full items-center justify-center text-sm text-n-slate-10"
         >
-          <Icon icon="i-lucide-loader-2" class="size-5 animate-spin mr-2" />
+          <Icon icon="i-lucide-loader-2" class="mr-2 size-5 animate-spin" />
           {{ t('KANBAN.LOADING') }}
         </div>
 
         <div
           v-else-if="filteredMessages.length === 0"
-          class="h-full flex flex-col items-center justify-center text-center px-6"
+          class="flex h-full flex-col items-center justify-center px-6 text-center"
         >
-          <Icon icon="i-lucide-calendar-x2" class="size-10 text-n-slate-9 mb-3" />
+          <Icon
+            icon="i-lucide-calendar-x2"
+            class="mb-3 size-10 text-n-slate-9"
+          />
           <p class="text-sm text-n-slate-11">
             {{ t('KANBAN.SCHEDULED_MESSAGES.NO_RESULTS') }}
           </p>
@@ -290,12 +375,16 @@ const clearConversationFilter = () => {
             :key="message.id"
             class="rounded-xl border border-n-weak bg-n-solid-3 p-3"
           >
-            <div class="flex items-center justify-between gap-2 mb-2">
+            <div class="mb-2 flex items-center justify-between gap-2">
               <span class="text-xs font-medium text-n-slate-11">
-                {{ format(new Date(message.scheduledAt), 'dd/MM/yyyy HH:mm', { locale: ptBR }) }}
+                {{
+                  format(new Date(message.scheduledAt), 'dd/MM/yyyy HH:mm', {
+                    locale: ptBR,
+                  })
+                }}
               </span>
               <span
-                class="px-2 py-0.5 rounded-full text-[11px] font-semibold"
+                class="rounded-full px-2 py-0.5 text-[11px] font-semibold"
                 :class="statusBadgeClass(message.status)"
               >
                 {{ statusLabel(message.status) }}
@@ -308,18 +397,37 @@ const clearConversationFilter = () => {
                 :name="getContactForMessage(message).name"
                 :size="32"
               />
-              <div class="flex-1 min-w-0">
-                <p class="text-sm font-semibold text-n-slate-12 truncate">
+              <div class="min-w-0 flex-1">
+                <p class="truncate text-sm font-semibold text-n-slate-12">
                   {{ getContactForMessage(message).name }}
                 </p>
                 <p
                   v-if="getContactForMessage(message).phone"
-                  class="text-xs text-n-slate-10 font-mono truncate mt-0.5"
+                  class="mt-0.5 truncate font-mono text-xs text-n-slate-10"
                 >
                   {{ getContactForMessage(message).phone }}
                 </p>
-                <p class="text-xs text-n-slate-11 mt-1 line-clamp-2">
-                  {{ message.message || t('KANBAN.SCHEDULED_MESSAGES.NO_TEXT') }}
+                <p class="mt-1 line-clamp-2 text-xs text-n-slate-11">
+                  {{
+                    message.message || t('KANBAN.SCHEDULED_MESSAGES.NO_TEXT')
+                  }}
+                </p>
+                <p
+                  v-if="message.sentAt"
+                  class="mt-1 text-[11px] text-n-slate-10"
+                >
+                  {{ t('KANBAN.SCHEDULED_MESSAGES.SENT_AT') }}:
+                  {{
+                    format(new Date(message.sentAt), 'dd/MM/yyyy HH:mm', {
+                      locale: ptBR,
+                    })
+                  }}
+                </p>
+                <p
+                  v-if="message.errorMessage"
+                  class="mt-1 text-[11px] text-n-ruby-11"
+                >
+                  {{ message.errorMessage }}
                 </p>
               </div>
             </div>
@@ -332,7 +440,9 @@ const clearConversationFilter = () => {
                   icon="i-lucide-pencil"
                   @click="handleEdit(message)"
                 >
-                  <span class="ml-1">{{ t('KANBAN.SCHEDULED_MESSAGES.EDIT') }}</span>
+                  <span class="ml-1">{{
+                    t('KANBAN.SCHEDULED_MESSAGES.EDIT')
+                  }}</span>
                 </Button>
                 <Button
                   size="xs"
@@ -341,7 +451,9 @@ const clearConversationFilter = () => {
                   icon="i-lucide-trash-2"
                   @click="askCancel(message)"
                 >
-                  <span class="ml-1">{{ t('KANBAN.SCHEDULED_MESSAGES.CANCEL') }}</span>
+                  <span class="ml-1">{{
+                    t('KANBAN.SCHEDULED_MESSAGES.CANCEL')
+                  }}</span>
                 </Button>
               </template>
               <span v-else class="text-xs text-n-slate-10">
@@ -349,6 +461,16 @@ const clearConversationFilter = () => {
               </span>
             </div>
           </div>
+
+          <Button
+            v-if="scheduledMeta.hasMore"
+            variant="ghost"
+            class="w-full"
+            :is-loading="isLoading"
+            @click="loadMore"
+          >
+            {{ t('COMMON.LOAD_MORE') || 'Carregar mais' }}
+          </Button>
         </div>
       </div>
     </div>

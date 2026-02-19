@@ -67,6 +67,17 @@ class ContactAPI extends ApiClient {
     return axios.get(requestURL);
   }
 
+  searchForSchedule({ q = '', page = 1, perPage = 10 } = {}) {
+    const params = new URLSearchParams();
+    if (q) {
+      params.set('q', q);
+    }
+    params.set('page', String(page));
+    params.set('per_page', String(perPage));
+    const query = params.toString();
+    return axios.get(`${this.url}/search_for_schedule?${query}`);
+  }
+
   active(page = 1, sortAttr = 'name') {
     let requestURL = `${this.url}/active?${buildContactParams(page, sortAttr)}`;
     return axios.get(requestURL);

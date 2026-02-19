@@ -36,11 +36,22 @@ export function useCaptain() {
   });
 
   const isFetchingLimits = computed(() => uiFlags.value.isFetchingLimits);
+  const isLimitsEndpointUnavailable = computed(() => {
+    const accountId = currentAccount.value?.id;
+    if (!accountId) return false;
+
+    const getter = store.getters['accounts/isLimitsEndpointUnavailable'];
+    if (typeof getter !== 'function') return false;
+    return getter(accountId);
+  });
 
   const fetchLimits = () => {
-    if (isEnterprise) {
-      store.dispatch('accounts/limits');
+    if (!isEnterprise || !captainEnabled.value || !currentAccount.value?.id) {
+      return;
     }
+    if (isLimitsEndpointUnavailable.value) return;
+
+    store.dispatch('accounts/limits');
   };
 
   return {

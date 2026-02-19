@@ -51,7 +51,8 @@ class ReconnectService {
 
   fetchConversations = async () => {
     await this.store.dispatch('updateChatListFilters', {
-      page: null,
+      page: 1,
+      cursor: null,
       updatedWithin:
         this.getSecondsSinceDisconnect() + DISCONNECT_DELAY_THRESHOLD,
     });

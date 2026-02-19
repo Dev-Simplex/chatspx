@@ -31,17 +31,51 @@ describe('#KanbanApi', () => {
       vi.clearAllMocks();
     });
 
-    it('#getScheduledMessages uses pending as default status', () => {
+    it('#getScheduledMessages uses all as default status', () => {
       kanbanAPI.getScheduledMessages();
       expect(axiosMock.get).toHaveBeenCalledWith(
-        '/api/v1/accounts/3/scheduled_messages?status=pending'
+        '/api/v1/accounts/3/scheduled_messages?status=all'
       );
     });
 
-    it('#getScheduledMessages sends conversation and status filters', () => {
-      kanbanAPI.getScheduledMessages({ conversationId: 99, status: 'all' });
+    it('#getScheduledMessages sends full cursor filters', () => {
+      kanbanAPI.getScheduledMessages({
+        conversationId: 99,
+        status: 'failed',
+        mode: 'cursor',
+        from: '2026-01-01T00:00:00.000Z',
+        to: '2026-03-01T00:00:00.000Z',
+        limit: 30,
+        cursor: 'abc123',
+      });
       expect(axiosMock.get).toHaveBeenCalledWith(
-        '/api/v1/accounts/3/scheduled_messages?conversation_id=99&status=all'
+        '/api/v1/accounts/3/scheduled_messages?conversation_id=99&status=failed&mode=cursor&from=2026-01-01T00%3A00%3A00.000Z&to=2026-03-01T00%3A00%3A00.000Z&limit=30&cursor=abc123'
+      );
+    });
+
+    it('#getFunnelItems serializes cursor params', () => {
+      kanbanAPI.getFunnelItems(22, {
+        stageId: 7,
+        excludeAutomationType: 'resolved',
+        mode: 'cursor',
+        limit: 30,
+        cursor: 'abc123',
+      });
+
+      expect(axiosMock.get).toHaveBeenCalledWith(
+        '/api/v1/accounts/3/funnels/22/funnel_items?stage_id=7&exclude_automation_type=resolved&mode=cursor&limit=30&cursor=abc123'
+      );
+    });
+
+    it('#getFunnelItems keeps legacy pagination params when provided', () => {
+      kanbanAPI.getFunnelItems(22, {
+        stageId: 7,
+        page: 2,
+        perPage: 50,
+      });
+
+      expect(axiosMock.get).toHaveBeenCalledWith(
+        '/api/v1/accounts/3/funnels/22/funnel_items?stage_id=7&page=2&per_page=50'
       );
     });
 

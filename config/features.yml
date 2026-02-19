@@ -234,3 +234,11 @@
   display_name: CSAT Review Notes
   enabled: false
   premium: true
+- name: kanban_cursor_loading
+  display_name: Kanban Cursor Loading
+  enabled: true
+  chatwoot_internal: true
+- name: kanban_ux_v2
+  display_name: Kanban UX V2
+  enabled: true
+  chatwoot_internal: true

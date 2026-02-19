@@ -1,8 +1,9 @@
 <script setup>
 import Button from 'dashboard/components-next/button/Button.vue';
 import ButtonGroup from 'dashboard/components-next/buttonGroup/ButtonGroup.vue';
+import ScheduledMessageForm from 'dashboard/components-next/Kanban/ScheduledMessageForm.vue';
 import { useUISettings } from 'dashboard/composables/useUISettings';
-import { computed } from 'vue';
+import { computed, ref } from 'vue';
 import { FEATURE_FLAGS } from 'dashboard/featureFlags';
 import { useMapGetter } from 'dashboard/composables/store';
 import { useKeyboardEvents } from 'dashboard/composables/useKeyboardEvents';
@@ -10,6 +11,7 @@ import { useKeyboardEvents } from 'dashboard/composables/useKeyboardEvents';
 const { updateUISettings } = useUISettings();
 
 const currentAccountId = useMapGetter('getCurrentAccountId');
+const currentChat = useMapGetter('getSelectedChat');
 const isFeatureEnabledonAccount = useMapGetter(
   'accounts/isFeatureEnabledonAccount'
 );
@@ -25,6 +27,21 @@ const isContactSidebarOpen = computed(
 const isCopilotPanelOpen = computed(
   () => uiSettings.value.is_copilot_panel_open
 );
+const showScheduledMessageForm = ref(false);
+
+const hasActiveConversation = computed(() => Boolean(currentChat.value?.id));
+
+const conversationForSchedule = computed(() => {
+  if (!hasActiveConversation.value) return null;
+
+  return {
+    id: currentChat.value.id,
+    inboxId: currentChat.value.inbox_id,
+    inbox_id: currentChat.value.inbox_id,
+    contact: currentChat.value?.meta?.sender || null,
+    meta: currentChat.value?.meta || {},
+  };
+});
 
 const toggleConversationSidebarToggle = () => {
   updateUISettings({
@@ -47,6 +64,15 @@ const handleCopilotSidebarToggle = () => {
   });
 };
 
+const handleScheduleMessageClick = () => {
+  if (!hasActiveConversation.value) return;
+  showScheduledMessageForm.value = true;
+};
+
+const closeScheduledMessageForm = () => {
+  showScheduledMessageForm.value = false;
+};
+
 const keyboardEvents = {
   'Alt+KeyO': {
     action: toggleConversationSidebarToggle,
@@ -61,6 +87,7 @@ useKeyboardEvents(keyboardEvents);
   >
     <Button
       v-tooltip.top="$t('CONVERSATION.SIDEBAR.CONTACT')"
+      data-testid="conversation-sidebar-contact-toggle"
       ghost
       slate
       sm
@@ -70,6 +97,20 @@ useKeyboardEvents(keyboardEvents);
       }"
       icon="i-ph-user-bold"
       @click="handleConversationSidebarToggle"
+    />
+    <Button
+      v-tooltip.top="$t('CONVERSATION.SIDEBAR.SCHEDULE')"
+      data-testid="conversation-sidebar-schedule-toggle"
+      ghost
+      slate
+      sm
+      class="!rounded-full transition-all duration-[250ms] ease-out active:!scale-95 active:!brightness-105 active:duration-75"
+      :class="{
+        'bg-n-alpha-2 active:shadow-sm': showScheduledMessageForm,
+      }"
+      icon="i-lucide-calendar-clock"
+      :disabled="!hasActiveConversation"
+      @click="handleScheduleMessageClick"
     />
     <Button
       v-if="showCopilotTab"
@@ -86,4 +127,11 @@ useKeyboardEvents(keyboardEvents);
       @click="handleCopilotSidebarToggle"
     />
   </ButtonGroup>
+  <ScheduledMessageForm
+    :show="showScheduledMessageForm"
+    :conversation="conversationForSchedule"
+    :require-conversation="true"
+    @close="closeScheduledMessageForm"
+    @saved="closeScheduledMessageForm"
+  />
 </template>

@@ -15,7 +15,7 @@ class Api::V1::Accounts::ContactsController < Api::V1::Accounts::BaseController
   RESULTS_PER_PAGE = 15
 
   before_action :check_authorization
-  before_action :set_current_page, only: [:index, :active, :search, :filter]
+  before_action :set_current_page, only: [:index, :active, :search, :search_for_schedule, :filter]
   before_action :fetch_contact, only: [:show, :update, :destroy, :avatar, :contactable_inboxes, :destroy_custom_attributes]
   before_action :set_include_contact_inboxes, only: [:index, :active, :search, :filter, :show, :update]
 
@@ -34,6 +34,20 @@ class Api::V1::Accounts::ContactsController < Api::V1::Accounts::BaseController
     )
     @contacts = fetch_contacts(contacts)
     @contacts_count = @contacts.total_count
+  end
+
+  def search_for_schedule
+    result = Contacts::SearchForScheduleService.new(
+      account: Current.account,
+      query: params[:q],
+      page: @current_page,
+      per_page: params[:per_page]
+    ).perform
+
+    @schedule_contacts = result[:payload]
+    @schedule_contacts_count = result[:count]
+    @schedule_current_page = result[:current_page]
+    @schedule_per_page = result[:per_page]
   end
 
   def import
@@ -201,10 +215,17 @@ class Api::V1::Accounts::ContactsController < Api::V1::Accounts::BaseController
   rescue Waha::ApiService::Error
     render_error({ message: I18n.t('errors.contacts.whatsapp_validation.unavailable') }, :unprocessable_entity)
     false
+  rescue ArgumentError
+    render_error({ message: I18n.t('errors.contacts.whatsapp_validation.multiple_sessions') }, :unprocessable_entity)
+    false
   end
 
   def resolve_waha_session_name
-    WAHA_VALIDATION_SESSION_NAME
+    session_names = Current.account.inboxes.where.not(waha_session_name: [nil, '']).distinct.pluck(:waha_session_name)
+    return WAHA_VALIDATION_SESSION_NAME if session_names.blank?
+    return session_names.first if session_names.one?
+
+    raise ArgumentError, 'multiple_waha_sessions'
   end
 
   def normalize_phone_number_for_waha(phone_number)

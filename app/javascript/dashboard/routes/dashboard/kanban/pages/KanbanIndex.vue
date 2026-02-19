@@ -6,6 +6,7 @@ import { useI18n } from 'vue-i18n';
 import KanbanBoard from 'dashboard/components-next/Kanban/KanbanBoard.vue';
 import ListView from 'dashboard/components-next/Kanban/ListView.vue';
 import CalendarView from 'dashboard/components-next/Kanban/CalendarView.vue';
+import KanbanFilterSelect from 'dashboard/components-next/Kanban/KanbanFilterSelect.vue';
 import FunnelForm from 'dashboard/components-next/Kanban/FunnelForm.vue';
 import ScheduledMessageForm from 'dashboard/components-next/Kanban/ScheduledMessageForm.vue';
 import ScheduledMessagesDrawer from 'dashboard/components-next/Kanban/ScheduledMessagesDrawer.vue';
@@ -20,166 +21,363 @@ const store = useStore();
 const { t } = useI18n();
 
 const funnels = computed(() => store.getters['kanban/getFunnels']);
-const activeFunnelId = computed(() => store.getters['kanban/getActiveFunnelId']);
-const viewMode = computed(() => store.getters['kanban/getViewMode']);
+const activeFunnelId = computed(
+  () => store.getters['kanban/getActiveFunnelId']
+);
+const activeFunnel = computed(() => {
+  if (!activeFunnelId.value) return null;
+  return (
+    funnels.value.find(funnel => funnel.id === activeFunnelId.value) || null
+  );
+});
+const viewMode = computed(
+  () => store.getters['kanban/getViewMode'] || 'kanban'
+);
+const viewFilters = computed(() => store.getters['kanban/getViewFilters']);
+const scheduledMessages = computed(
+  () => store.getters['kanban/getScheduledMessages']
+);
 
 const showFunnelForm = ref(false);
 const showScheduledMessageForm = ref(false);
 const selectedFunnel = ref(null);
 const selectedConversation = ref(null);
 const selectedScheduledMessage = ref(null);
+const selectedDate = ref(null);
+const requireConversationForModal = ref(true);
 const showScheduledMessagesDrawer = ref(false);
+const showAdvancedFilters = ref(false);
 const scheduledMessagesConversationFilter = ref(null);
 const scheduledMessagesRefreshToken = ref(0);
 const scheduledMessageToCancel = ref(null);
 const cancelDialogRef = ref(null);
 
-const activeFunnel = computed(() => {
-  if (!activeFunnelId.value) return null;
-  return funnels.value.find(f => f.id === activeFunnelId.value);
+const currentAccountId = computed(() =>
+  Number(store.getters.getCurrentAccountId || route.params.accountId || 0)
+);
+
+const currentUserId = computed(() =>
+  Number(store.getters.getCurrentUser?.id || 0)
+);
+
+const advancedFiltersStorageKey = computed(
+  () =>
+    `kanban:advanced-filters:${currentAccountId.value || 'account'}:${currentUserId.value || 'user'}`
+);
+
+const stages = computed(() => {
+  if (!activeFunnelId.value) return [];
+  return store.getters['kanban/getFunnelStages'](activeFunnelId.value) || [];
 });
 
-const activeFunnelStagesCount = computed(() => {
-  if (!activeFunnelId.value) return 0;
-  return store.getters['kanban/getFunnelStages'](activeFunnelId.value)?.length || 0;
+const allLabels = computed(() => {
+  const labels = store.getters['labels/getLabels'];
+  if (!Array.isArray(labels)) return [];
+  return labels
+    .filter(label => label?.id)
+    .sort((a, b) => (a.title || '').localeCompare(b.title || ''));
 });
+
+const allAgents = computed(() => {
+  const agents = store.getters['agents/getAgents'];
+  if (!Array.isArray(agents)) return [];
+  return agents
+    .filter(agent => agent?.id && agent?.confirmed)
+    .sort((a, b) =>
+      (a.name || a.email || '').localeCompare(b.name || b.email || '')
+    );
+});
+
+const activeFunnelStagesCount = computed(() => stages.value.length);
 
 const activeFunnelTotalItems = computed(() => {
   if (!activeFunnelId.value) return 0;
-  const stages = store.getters['kanban/getFunnelStages'](activeFunnelId.value);
-  if (!Array.isArray(stages)) return 0;
-  let total = 0;
-  stages.forEach(stage => {
-    if (stage && stage.id) {
-      const items = store.getters['kanban/getFunnelItems'](activeFunnelId.value, stage.id);
-      if (Array.isArray(items)) {
-        total += items.length;
-      }
-    }
-  });
-  return total;
+
+  return stages.value.reduce((total, stage) => {
+    const items = store.getters['kanban/getFunnelItems'](
+      activeFunnelId.value,
+      stage.id
+    );
+    return total + (Array.isArray(items) ? items.length : 0);
+  }, 0);
 });
 
-const scheduledMessages = computed(() => store.getters['kanban/getScheduledMessages']);
-const scheduledMessagesPendingCount = computed(() =>
-  scheduledMessages.value.filter(message => message.status === 'pending').length
+const scheduledMessagesPendingCount = computed(
+  () =>
+    scheduledMessages.value.filter(message => message.status === 'pending')
+      .length
 );
 
 const getConversationById = computed(
   () => store.getters['conversations/getConversationById']
 );
 
+const statusFilterOptions = computed(() => [
+  {
+    value: 'all',
+    label: t('KANBAN.FILTERS.STATUS.ALL'),
+  },
+  {
+    value: 'open',
+    label: t('KANBAN.STATUS.OPEN'),
+  },
+  {
+    value: 'pending',
+    label: t('KANBAN.STATUS.PENDING'),
+  },
+  {
+    value: 'snoozed',
+    label: t('KANBAN.STATUS.SNOOZED'),
+  },
+]);
+
+const funnelOptions = computed(() => [
+  {
+    value: '',
+    label: t('KANBAN.SELECT_FUNNEL'),
+    disabled: true,
+  },
+  ...funnels.value.map(funnel => ({
+    value: String(funnel.id),
+    label: funnel.name,
+  })),
+]);
+
+const stageFilterOptions = computed(() => [
+  {
+    value: '',
+    label: t('KANBAN.FILTERS.ALL_STAGES'),
+  },
+  ...stages.value.map(stage => ({
+    value: String(stage.id),
+    label: stage.name,
+  })),
+]);
+
+const labelFilterOptions = computed(() => [
+  {
+    value: '',
+    label: t('KANBAN.FILTERS.ALL_LABELS'),
+  },
+  ...allLabels.value.map(label => ({
+    value: String(label.id),
+    label: label.title,
+  })),
+]);
+
+const assigneeFilterOptions = computed(() => [
+  {
+    value: '',
+    label: t('KANBAN.FILTERS.ALL_AGENTS'),
+  },
+  ...allAgents.value.map(agent => ({
+    value: String(agent.id),
+    label: agent.name || agent.email,
+  })),
+]);
+
+const searchFilter = computed({
+  get() {
+    return viewFilters.value?.query || '';
+  },
+  set(value) {
+    store.dispatch('kanban/setViewFilters', { query: value || '' });
+  },
+});
+
+const stageFilter = computed({
+  get() {
+    const [selectedStageId] = viewFilters.value?.stageIds || [];
+    return selectedStageId ? String(selectedStageId) : '';
+  },
+  set(value) {
+    store.dispatch('kanban/setViewFilters', {
+      stageIds: value ? [Number(value)] : [],
+    });
+  },
+});
+
+const labelFilter = computed({
+  get() {
+    const [selectedLabelId] = viewFilters.value?.labelIds || [];
+    return selectedLabelId ? String(selectedLabelId) : '';
+  },
+  set(value) {
+    store.dispatch('kanban/setViewFilters', {
+      labelIds: value ? [Number(value)] : [],
+    });
+  },
+});
+
+const assigneeFilter = computed({
+  get() {
+    const assigneeId = viewFilters.value?.assigneeId;
+    return assigneeId ? String(assigneeId) : '';
+  },
+  set(value) {
+    store.dispatch('kanban/setViewFilters', {
+      assigneeId: value ? Number(value) : null,
+    });
+  },
+});
+
+const statusFilter = computed({
+  get() {
+    return viewFilters.value?.status || 'all';
+  },
+  set(value) {
+    store.dispatch('kanban/setViewFilters', { status: value || 'all' });
+  },
+});
+
+const hasActiveFilters = computed(() => {
+  const filters = viewFilters.value || {};
+  return Boolean(
+    (filters.query || '').trim() ||
+      (filters.stageIds || []).length ||
+      (filters.labelIds || []).length ||
+      filters.assigneeId ||
+      (filters.status || 'all') !== 'all'
+  );
+});
+
+const activeFiltersCount = computed(() => {
+  const filters = viewFilters.value || {};
+  let count = 0;
+  if ((filters.query || '').trim()) count += 1;
+  if ((filters.stageIds || []).length) count += 1;
+  if ((filters.labelIds || []).length) count += 1;
+  if (filters.assigneeId) count += 1;
+  if ((filters.status || 'all') !== 'all') count += 1;
+  return count;
+});
+
+const advancedFiltersCount = computed(() => {
+  const filters = viewFilters.value || {};
+  let count = 0;
+  if ((filters.stageIds || []).length) count += 1;
+  if ((filters.labelIds || []).length) count += 1;
+  if (filters.assigneeId) count += 1;
+  if ((filters.status || 'all') !== 'all') count += 1;
+  return count;
+});
+
+const loadFilterAuxiliaryData = async () => {
+  const tasks = [];
+
+  if (!allLabels.value.length) {
+    tasks.push(store.dispatch('labels/get'));
+  }
+
+  if (!allAgents.value.length) {
+    tasks.push(store.dispatch('agents/get'));
+  }
+
+  if (tasks.length) {
+    await Promise.allSettled(tasks);
+  }
+};
+
 const getConversationFromStore = conversationId => {
   if (!conversationId || !getConversationById.value) return null;
   return getConversationById.value(Number(conversationId));
 };
 
-onMounted(async () => {
-  // Garantir que o viewMode está inicializado
-  const currentViewMode = store.getters['kanban/getViewMode'];
-  if (!currentViewMode) {
-    store.dispatch('kanban/setViewMode', 'kanban');
-  }
-  
-  await store.dispatch('kanban/fetchFunnels');
-  
-  const availableFunnels = funnels.value;
-  
-  if (route.params.funnelId) {
-    const funnelId = parseInt(route.params.funnelId);
-    // Verificar se o funil existe e é acessível
-    const funnel = availableFunnels.find(f => f.id === funnelId);
-    if (funnel) {
-      store.dispatch('kanban/setActiveFunnelId', funnelId);
-      await store.dispatch('kanban/fetchFunnelStages', funnelId);
-      await store.dispatch('kanban/fetchFunnelItems', { funnelId, excludeAutomationType: 'resolved' });
-    } else {
-      // Funil não encontrado ou não acessível, redirecionar para o primeiro
-      if (availableFunnels.length > 0) {
-        const firstFunnelId = availableFunnels[0].id;
-        store.dispatch('kanban/setActiveFunnelId', firstFunnelId);
-        await store.dispatch('kanban/fetchFunnelStages', firstFunnelId);
-        await store.dispatch('kanban/fetchFunnelItems', { funnelId: firstFunnelId, excludeAutomationType: 'resolved' });
-        router.replace({
-          name: 'kanban_funnel',
-          params: { funnelId: firstFunnelId },
-        });
-      }
-    }
-  } else if (availableFunnels.length > 0) {
-    // Sem funilId na rota, redirecionar para o primeiro funil disponível
-    const firstFunnelId = availableFunnels[0].id;
-    store.dispatch('kanban/setActiveFunnelId', firstFunnelId);
-    await store.dispatch('kanban/fetchFunnelStages', firstFunnelId);
-    await store.dispatch('kanban/fetchFunnelItems', { funnelId: firstFunnelId, excludeAutomationType: 'resolved' });
-    router.replace({
-      name: 'kanban_funnel',
-      params: { funnelId: firstFunnelId },
-    });
-  }
+const bootstrapActiveView = async ({ force = false } = {}) => {
+  if (!activeFunnelId.value) return;
 
-  await store.dispatch('kanban/fetchScheduledMessages', { status: 'pending' });
-});
-
-
-const handleFunnelSelect = async (funnelId) => {
-  store.dispatch('kanban/setActiveFunnelId', funnelId);
-  // Buscar etapas do funil selecionado
-  await store.dispatch('kanban/fetchFunnelStages', funnelId);
-  await store.dispatch('kanban/fetchFunnelItems', { funnelId });
-  router.push({
-    name: 'kanban_funnel',
-    params: { funnelId },
+  await store.dispatch('kanban/bootstrapView', {
+    view: viewMode.value,
+    funnelId: activeFunnelId.value,
+    force,
   });
 };
+
+const navigateToFunnelIfRequired = async funnelId => {
+  const currentRouteFunnelId = Number(route.params.funnelId);
+  if (
+    Number.isNaN(currentRouteFunnelId) ||
+    currentRouteFunnelId !== Number(funnelId)
+  ) {
+    await router.replace({
+      name: 'kanban_funnel',
+      params: { funnelId },
+    });
+  }
+};
+
+const initializeFunnelContext = async () => {
+  await store.dispatch('kanban/fetchFunnels');
+  const availableFunnels = funnels.value;
+  if (!availableFunnels.length) return;
+
+  const routeFunnelId = Number(route.params.funnelId);
+  const targetFunnel =
+    availableFunnels.find(funnel => funnel.id === routeFunnelId) ||
+    availableFunnels[0];
+
+  await store.dispatch('kanban/setActiveFunnelId', targetFunnel.id);
+  await store.dispatch('kanban/fetchFunnelStages', targetFunnel.id);
+  await loadFilterAuxiliaryData();
+  await navigateToFunnelIfRequired(targetFunnel.id);
+  await bootstrapActiveView({ force: true });
+};
+
+const handleFunnelSelect = async funnelId => {
+  const selectedId = Number(funnelId);
+  if (!selectedId || selectedId === activeFunnelId.value) return;
+
+  await store.dispatch('kanban/setActiveFunnelId', selectedId);
+  await store.dispatch('kanban/fetchFunnelStages', selectedId);
+  await loadFilterAuxiliaryData();
+  await bootstrapActiveView({ force: true });
+  await router.push({
+    name: 'kanban_funnel',
+    params: { funnelId: selectedId },
+  });
+};
+
+const funnelFilter = computed({
+  get() {
+    return activeFunnelId.value ? String(activeFunnelId.value) : '';
+  },
+  set(value) {
+    if (!value) return;
+    handleFunnelSelect(Number(value));
+  },
+});
 
 const handleCreateFunnel = () => {
   selectedFunnel.value = null;
   showFunnelForm.value = true;
 };
 
-const handleEditFunnel = (funnel) => {
+const handleEditFunnel = funnel => {
   selectedFunnel.value = funnel;
   showFunnelForm.value = true;
 };
 
 const handleFunnelSaved = async () => {
-  // Buscar funis atualizados
   await store.dispatch('kanban/fetchFunnels');
-  
-  // Aguardar um pouco para garantir que o store foi atualizado
-  await new Promise(resolve => setTimeout(resolve, 100));
-  
-  // Buscar etapas do funil recém-criado ou editado
   const updatedFunnels = store.getters['kanban/getFunnels'];
-  if (updatedFunnels.length > 0) {
-    // Se estava editando, usar o funil editado, senão usar o último criado
-    let targetFunnel = selectedFunnel.value 
-      ? updatedFunnels.find(f => f.id === selectedFunnel.value.id)
-      : updatedFunnels[updatedFunnels.length - 1];
-    
-    if (targetFunnel) {
-      // Buscar etapas do funil
-      await store.dispatch('kanban/fetchFunnelStages', targetFunnel.id);
-      await store.dispatch('kanban/fetchFunnelItems', { funnelId: targetFunnel.id, excludeAutomationType: 'resolved' });
-      // Selecionar o funil
-      store.dispatch('kanban/setActiveFunnelId', targetFunnel.id);
-      // Atualizar rota
-      router.push({
-        name: 'kanban_funnel',
-        params: { funnelId: targetFunnel.id },
-      });
-    }
+  if (!updatedFunnels.length) {
+    showFunnelForm.value = false;
+    selectedFunnel.value = null;
+    return;
   }
-  
-  selectedFunnel.value = null;
+
+  const targetFunnel = selectedFunnel.value
+    ? updatedFunnels.find(funnel => funnel.id === selectedFunnel.value.id)
+    : updatedFunnels[updatedFunnels.length - 1];
+  if (targetFunnel) {
+    await handleFunnelSelect(targetFunnel.id);
+  }
+
   showFunnelForm.value = false;
+  selectedFunnel.value = null;
 };
 
-const selectedDate = ref(null);
-const requireConversationForModal = ref(true);
-
-const handleScheduleMessage = (conversation) => {
+const handleScheduleMessage = conversation => {
   selectedScheduledMessage.value = null;
   selectedConversation.value = conversation;
   selectedDate.value = null;
@@ -187,9 +385,19 @@ const handleScheduleMessage = (conversation) => {
   showScheduledMessageForm.value = true;
 };
 
+const handleCreateScheduledMessageFromCalendar = date => {
+  selectedScheduledMessage.value = null;
+  selectedConversation.value = null;
+  selectedDate.value = date;
+  requireConversationForModal.value = false;
+  showScheduledMessageForm.value = true;
+};
+
 const refreshScheduledMessages = () => {
   scheduledMessagesRefreshToken.value += 1;
-  return store.dispatch('kanban/fetchScheduledMessages', { status: 'pending' });
+  return store.dispatch('kanban/refreshPendingStatuses', {
+    status: 'all',
+  });
 };
 
 const handleScheduledMessageSaved = async () => {
@@ -207,19 +415,13 @@ const closeScheduledMessageForm = () => {
   selectedDate.value = null;
 };
 
-const handleCreateScheduledMessageFromCalendar = (date) => {
-  // Não há conversation no calendário, usuário precisa selecionar
-  selectedScheduledMessage.value = null;
-  selectedConversation.value = null;
-  selectedDate.value = date;
-  requireConversationForModal.value = false;
-  showScheduledMessageForm.value = true;
-};
-
 const openScheduledMessagesDrawer = payload => {
   const conversationId =
     typeof payload === 'object'
-      ? payload?.conversationId || payload?.conversation_id || payload?.id || null
+      ? payload?.conversationId ||
+        payload?.conversation_id ||
+        payload?.id ||
+        null
       : payload;
 
   scheduledMessagesConversationFilter.value = conversationId
@@ -246,10 +448,13 @@ const confirmCancelScheduledMessage = async () => {
   if (!scheduledMessageToCancel.value?.id) return;
 
   try {
-    await store.dispatch('kanban/deleteScheduledMessage', scheduledMessageToCancel.value.id);
+    await store.dispatch(
+      'kanban/deleteScheduledMessage',
+      scheduledMessageToCancel.value.id
+    );
     await refreshScheduledMessages();
     scheduledMessageToCancel.value = null;
-  } catch (error) {
+  } catch (_) {
     useAlert(t('KANBAN.SCHEDULED_MESSAGES.CANCEL_ERROR'));
   }
 };
@@ -258,227 +463,351 @@ const closeCancelDialog = () => {
   scheduledMessageToCancel.value = null;
 };
 
+const clearFilters = () => {
+  store.dispatch('kanban/resetViewFilters');
+};
+
+const toggleAdvancedFilters = () => {
+  showAdvancedFilters.value = !showAdvancedFilters.value;
+};
+
+const setViewMode = async mode => {
+  if (mode === viewMode.value) return;
+  await store.dispatch('kanban/setViewMode', mode);
+};
+
 watch(scheduledMessageToCancel, async value => {
   if (!value) return;
   await nextTick();
   cancelDialogRef.value?.open?.();
 });
 
-const setViewMode = async (mode) => {
-  console.log('KanbanIndex: Mudando viewMode para:', mode);
-  store.dispatch('kanban/setViewMode', mode);
-  
-  // Recarregar dados quando mudar para lista para garantir que está atualizado
-  if (mode === 'list' && activeFunnelId.value) {
-    console.log('KanbanIndex: Recarregando dados para visualização de lista...');
-    try {
-      await store.dispatch('kanban/fetchFunnelStages', activeFunnelId.value);
-      await store.dispatch('kanban/fetchFunnelItems', {
-        funnelId: activeFunnelId.value,
-        excludeAutomationType: 'resolved',
-      });
-      console.log('KanbanIndex: Dados recarregados para lista');
-    } catch (error) {
-      console.error('KanbanIndex: Erro ao recarregar dados:', error);
-    }
+watch(
+  () => route.params.funnelId,
+  async newFunnelId => {
+    const parsedFunnelId = Number(newFunnelId);
+    if (!parsedFunnelId || parsedFunnelId === activeFunnelId.value) return;
+    const targetFunnel = funnels.value.find(
+      funnel => funnel.id === parsedFunnelId
+    );
+    if (!targetFunnel) return;
+
+    await store.dispatch('kanban/setActiveFunnelId', parsedFunnelId);
+    await store.dispatch('kanban/fetchFunnelStages', parsedFunnelId);
+    await loadFilterAuxiliaryData();
+    await bootstrapActiveView({ force: true });
   }
-};
+);
+
+watch(
+  () => viewMode.value,
+  async () => {
+    await bootstrapActiveView();
+  }
+);
+
+watch(
+  () => advancedFiltersStorageKey.value,
+  storageKey => {
+    if (typeof window === 'undefined') return;
+    if (!storageKey) return;
+    const savedValue = window.localStorage.getItem(storageKey);
+    showAdvancedFilters.value = savedValue === '1';
+  },
+  { immediate: true }
+);
+
+watch(showAdvancedFilters, value => {
+  if (typeof window === 'undefined') return;
+  const storageKey = advancedFiltersStorageKey.value;
+  if (!storageKey) return;
+
+  if (value) {
+    window.localStorage.setItem(storageKey, '1');
+  } else {
+    window.localStorage.removeItem(storageKey);
+  }
+});
+
+onMounted(async () => {
+  if (!viewMode.value) {
+    await store.dispatch('kanban/setViewMode', 'kanban');
+  }
+  await initializeFunnelContext();
+});
 </script>
 
 <template>
   <div class="kanban-container flex flex-col overflow-hidden">
-    <!-- Header -->
-    <div class="kanban-header relative flex items-center justify-between px-6 py-5 border-b border-n-weak bg-gradient-to-r from-n-solid-2 to-n-solid-3 shadow-md flex-shrink-0">
-      <!-- Left Section: Title and Funnel Selection -->
-      <div class="flex items-center gap-6 flex-1 min-w-0">
-        <div class="flex items-center gap-3 flex-shrink-0">
-          <div class="flex items-center justify-center size-10 rounded-lg bg-n-teal-4 border border-n-teal-6">
-            <Icon icon="i-lucide-layout-grid" class="size-5 text-n-teal-9" />
+    <div
+      class="kanban-header flex flex-col border-b border-n-weak bg-n-solid-2 px-5 py-4 gap-4"
+    >
+      <div class="flex flex-wrap items-center gap-3 justify-between">
+        <div class="flex items-center gap-3 min-w-0">
+          <div
+            class="flex items-center justify-center size-9 rounded-lg bg-n-solid-3 border border-n-weak"
+          >
+            <Icon icon="i-lucide-layout-grid" class="size-4 text-n-slate-11" />
           </div>
-          <h1 class="text-2xl font-bold text-n-slate-12 whitespace-nowrap">
+          <h1 class="text-xl font-semibold text-n-slate-12">
             {{ t('KANBAN.TITLE') }}
           </h1>
-        </div>
-        
-        <div v-if="funnels.length > 0" class="flex items-center gap-4 flex-1 min-w-0">
-          <!-- Funnel Selector -->
-          <div class="relative flex-shrink-0">
-            <div class="flex items-center gap-2 px-1">
-              <Icon icon="i-lucide-filter" class="size-4 text-n-slate-10 flex-shrink-0" />
-              <span class="text-xs text-n-slate-11 font-medium whitespace-nowrap">{{ t('KANBAN.FILTER_BY_FUNNEL') }}</span>
-            </div>
-            <div class="relative mt-1.5">
-              <select
-                :value="activeFunnelId || ''"
-                class="pl-10 pr-8 py-2.5 border border-n-weak rounded-lg bg-n-solid-3 text-n-slate-12 font-medium min-w-[280px] focus:outline-none focus:ring-2 focus:ring-n-blue-9 focus:border-n-blue-9 appearance-none cursor-pointer hover:bg-n-solid-4 transition-all shadow-sm"
-                style="-webkit-appearance: none; -moz-appearance: none; appearance: none; background-image: none;"
-                @change="handleFunnelSelect(parseInt($event.target.value))"
-              >
-                <option value="" disabled>{{ t('KANBAN.SELECT_FUNNEL') }}</option>
-                <option
-                  v-for="funnel in funnels"
-                  :key="funnel.id"
-                  :value="funnel.id"
-                >
-                  {{ funnel.name }}
-                </option>
-              </select>
-              <div 
-                v-if="activeFunnel && activeFunnel.color"
-                class="absolute left-3 top-1/2 -translate-y-1/2 size-3 rounded-full border border-n-weak shadow-sm"
-                :style="{ backgroundColor: activeFunnel.color }"
-              ></div>
-              <div class="absolute right-2.5 top-0 bottom-0 flex items-center pointer-events-none">
-                <Icon icon="i-lucide-chevron-down" class="size-4 text-n-slate-9" />
-              </div>
-            </div>
-          </div>
-          
-          <!-- Statistics -->
-          <div v-if="activeFunnel" class="flex items-center gap-4 flex-shrink-0 ml-2">
-            <div class="flex items-center gap-2 px-3 py-1.5 bg-n-solid-3 rounded-lg border border-n-weak">
-              <Icon icon="i-lucide-git-branch" class="size-4 text-n-teal-9" />
-              <span class="text-sm font-semibold text-n-slate-12">{{ activeFunnelStagesCount }}</span>
-              <span class="text-xs text-n-slate-10">{{ t('KANBAN.STAGES.TITLE') }}</span>
-            </div>
-            <div class="flex items-center gap-2 px-3 py-1.5 bg-n-solid-3 rounded-lg border border-n-weak">
-              <Icon icon="i-lucide-message-square" class="size-4 text-n-blue-9" />
-              <span class="text-sm font-semibold text-n-slate-12">{{ activeFunnelTotalItems }}</span>
-              <span class="text-xs text-n-slate-10">itens</span>
-            </div>
+
+          <div
+            v-if="activeFunnel"
+            class="hidden md:flex items-center gap-2 ml-2"
+          >
+            <span
+              class="inline-flex items-center gap-1.5 rounded-md border border-n-weak bg-n-solid-1 px-2.5 py-1 text-xs text-n-slate-11"
+            >
+              <Icon icon="i-lucide-columns-3" class="size-3.5" />
+              {{ activeFunnelStagesCount }} {{ t('KANBAN.STAGES.TITLE') }}
+            </span>
+            <span
+              class="inline-flex items-center gap-1.5 rounded-md border border-n-weak bg-n-solid-1 px-2.5 py-1 text-xs text-n-slate-11"
+            >
+              <Icon icon="i-lucide-message-square" class="size-3.5" />
+              {{ activeFunnelTotalItems }} {{ t('KANBAN.FILTERS.ITEMS') }}
+            </span>
           </div>
         </div>
-      </div>
-      
-      <!-- Right Section: View Toggle and Actions -->
-      <div class="flex items-center gap-3 flex-shrink-0 ml-4">
-        <!-- View Mode Toggle -->
-        <div class="flex gap-1 bg-n-solid-3 rounded-lg p-1 border border-n-weak shadow-sm">
-          <Button
-            :variant="viewMode === 'kanban' ? 'solid' : 'ghost'"
-            size="sm"
-            icon="i-lucide-layout-grid"
-            :title="t('KANBAN.VIEWS.KANBAN') + ' - Visualização em colunas'"
-            class="!px-3 transition-all"
-            @click="setViewMode('kanban')"
-          />
-          <Button
-            :variant="viewMode === 'list' ? 'solid' : 'ghost'"
-            size="sm"
-            icon="i-lucide-list"
-            :title="t('KANBAN.VIEWS.LIST') + ' - Visualização em lista'"
-            class="!px-3 transition-all"
-            @click="setViewMode('list')"
-          />
-          <Button
-            :variant="viewMode === 'calendar' ? 'solid' : 'ghost'"
-            size="sm"
-            icon="i-lucide-calendar"
-            :title="t('KANBAN.VIEWS.CALENDAR') + ' - Visualização em calendário'"
-            class="!px-3 transition-all"
-            @click="setViewMode('calendar')"
-          />
-        </div>
-        <!-- Actions -->
-        <div class="flex items-center gap-2 border-l border-n-weak pl-3">
+
+        <div class="flex items-center gap-2">
+          <div
+            class="flex gap-1 rounded-lg border border-n-weak bg-n-solid-3 p-1"
+          >
+            <Button
+              :variant="viewMode === 'kanban' ? 'solid' : 'ghost'"
+              size="sm"
+              icon="i-lucide-layout-grid"
+              :title="t('KANBAN.VIEWS.KANBAN')"
+              @click="setViewMode('kanban')"
+            />
+            <Button
+              :variant="viewMode === 'list' ? 'solid' : 'ghost'"
+              size="sm"
+              icon="i-lucide-list"
+              :title="t('KANBAN.VIEWS.LIST')"
+              @click="setViewMode('list')"
+            />
+            <Button
+              :variant="viewMode === 'calendar' ? 'solid' : 'ghost'"
+              size="sm"
+              icon="i-lucide-calendar"
+              :title="t('KANBAN.VIEWS.CALENDAR')"
+              @click="setViewMode('calendar')"
+            />
+          </div>
+
           <Button
             variant="ghost"
             size="sm"
             icon="i-lucide-clock-3"
             :title="t('KANBAN.SCHEDULED_MESSAGES.DRAWER_TITLE')"
-            class="transition-all"
             @click="openScheduledMessagesDrawer()"
           >
-            <span class="ml-2 hidden sm:inline">
+            <span class="ml-2 hidden lg:inline">
               {{ t('KANBAN.SCHEDULED_MESSAGES.DRAWER_TRIGGER') }}
             </span>
             <span
               v-if="scheduledMessagesPendingCount > 0"
-              class="ml-2 inline-flex items-center justify-center min-w-5 h-5 px-1.5 rounded-full bg-n-teal-9 text-white text-[11px] font-bold"
+              class="ml-2 inline-flex items-center justify-center min-w-5 h-5 px-1.5 rounded-full bg-n-blue-9 text-white text-[11px] font-semibold"
             >
               {{ scheduledMessagesPendingCount }}
             </span>
           </Button>
+
           <Button
             v-if="activeFunnel"
             variant="ghost"
             size="sm"
             icon="i-lucide-edit"
-            :title="t('KANBAN.FUNNELS.EDIT') + ' - Editar funil atual'"
-            class="transition-all"
+            :title="t('KANBAN.FUNNELS.EDIT')"
             @click="handleEditFunnel(activeFunnel)"
-          >
-            <span class="ml-2 hidden sm:inline">{{ t('KANBAN.FUNNELS.EDIT') }}</span>
-          </Button>
+          />
           <Button
-            icon="i-lucide-plus"
             color="blue"
             size="sm"
-            :title="t('KANBAN.FUNNELS.CREATE') + ' - Criar novo funil'"
-            class="transition-all shadow-sm hover:shadow-md"
+            icon="i-lucide-plus"
+            :title="t('KANBAN.FUNNELS.CREATE')"
             @click="handleCreateFunnel"
+          />
+        </div>
+      </div>
+
+      <div class="rounded-xl border border-n-weak bg-n-solid-1 p-3 shadow-sm">
+        <div
+          class="kanban-filter-grid grid grid-cols-1 items-start gap-3 lg:grid-cols-[minmax(260px,1fr)_minmax(220px,280px)_auto_auto]"
+        >
+          <div class="kanban-filter-group">
+            <label class="kanban-filter-label">
+              {{ t('KANBAN.FILTERS.SEARCH_LABEL') }}
+            </label>
+            <div class="relative kanban-search-field">
+              <Icon
+                icon="i-lucide-search"
+                class="kanban-search-icon pointer-events-none size-4 text-n-slate-10"
+              />
+              <input
+                v-model="searchFilter"
+                type="search"
+                :placeholder="t('KANBAN.FILTERS.SEARCH_PLACEHOLDER')"
+                class="kanban-filter-control kanban-search-input w-full"
+              />
+            </div>
+          </div>
+
+          <div class="kanban-filter-group kanban-funnel-filter-group">
+            <label class="kanban-filter-label">
+              {{ t('KANBAN.FILTERS.FUNNEL') }}
+            </label>
+            <KanbanFilterSelect
+              v-model="funnelFilter"
+              :options="funnelOptions"
+              :placeholder="t('KANBAN.SELECT_FUNNEL')"
+            />
+          </div>
+
+          <Button
+            data-testid="kanban-advanced-filters-toggle"
+            variant="ghost"
+            size="sm"
+            icon="i-lucide-sliders-horizontal"
+            class="kanban-filter-action kanban-advanced-filters-toggle-btn h-10 lg:w-auto"
+            :title="
+              showAdvancedFilters
+                ? t('KANBAN.FILTERS.ADVANCED_HIDE')
+                : t('KANBAN.FILTERS.ADVANCED_SHOW')
+            "
+            @click="toggleAdvancedFilters"
           >
-            <span class="ml-2 hidden sm:inline">{{ t('KANBAN.FUNNELS.CREATE') }}</span>
+            <span class="ml-2">{{ t('KANBAN.FILTERS.ADVANCED') }}</span>
+            <span
+              v-if="advancedFiltersCount > 0"
+              data-testid="kanban-advanced-filters-count"
+              class="ml-2 inline-flex min-w-5 items-center justify-center rounded-full bg-n-blue-9 px-1.5 text-[11px] font-semibold text-white"
+            >
+              {{ advancedFiltersCount }}
+            </span>
           </Button>
+
+          <Button
+            v-if="hasActiveFilters"
+            variant="ghost"
+            size="sm"
+            icon="i-lucide-filter-x"
+            class="kanban-filter-action h-10 lg:w-auto"
+            :title="t('KANBAN.FILTERS.CLEAR')"
+            @click="clearFilters"
+          >
+            <span class="ml-2">{{ t('KANBAN.FILTERS.CLEAR') }}</span>
+          </Button>
+        </div>
+
+        <div
+          v-if="showAdvancedFilters"
+          data-testid="kanban-advanced-filters-panel"
+          class="mt-3 rounded-lg border border-n-weak bg-n-solid-2 p-3"
+        >
+          <div class="mb-2 flex items-center justify-between">
+            <h2
+              class="text-xs font-semibold uppercase tracking-wide text-n-slate-10"
+            >
+              {{ t('KANBAN.FILTERS.ADVANCED') }}
+            </h2>
+            <span
+              v-if="hasActiveFilters"
+              class="inline-flex items-center rounded-full border border-n-weak bg-n-solid-3 px-2 py-0.5 text-[11px] font-semibold text-n-slate-10"
+            >
+              {{
+                t('KANBAN.FILTERS.ACTIVE_COUNT', { count: activeFiltersCount })
+              }}
+            </span>
+          </div>
+
+          <div class="grid grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-4">
+            <div class="kanban-filter-group">
+              <label class="kanban-filter-label">
+                {{ t('KANBAN.FILTERS.STATUS_LABEL') }}
+              </label>
+              <KanbanFilterSelect
+                v-model="statusFilter"
+                :options="statusFilterOptions"
+                :placeholder="t('KANBAN.FILTERS.STATUS.ALL')"
+              />
+            </div>
+
+            <div class="kanban-filter-group">
+              <label class="kanban-filter-label">
+                {{ t('KANBAN.FILTERS.STAGE') }}
+              </label>
+              <KanbanFilterSelect
+                v-model="stageFilter"
+                :options="stageFilterOptions"
+                :placeholder="t('KANBAN.FILTERS.ALL_STAGES')"
+              />
+            </div>
+
+            <div class="kanban-filter-group">
+              <label class="kanban-filter-label">
+                {{ t('KANBAN.FILTERS.LABEL') }}
+              </label>
+              <KanbanFilterSelect
+                v-model="labelFilter"
+                :options="labelFilterOptions"
+                :placeholder="t('KANBAN.FILTERS.ALL_LABELS')"
+              />
+            </div>
+
+            <div class="kanban-filter-group">
+              <label class="kanban-filter-label">
+                {{ t('KANBAN.FILTERS.ASSIGNEE') }}
+              </label>
+              <KanbanFilterSelect
+                v-model="assigneeFilter"
+                :options="assigneeFilterOptions"
+                :placeholder="t('KANBAN.FILTERS.ALL_AGENTS')"
+              />
+            </div>
+          </div>
         </div>
       </div>
     </div>
 
-    <!-- Content Area - Full Height -->
     <div class="kanban-content flex-1 min-h-0 overflow-hidden bg-n-background">
-      <!-- Empty State -->
       <div
         v-if="!activeFunnelId && funnels.length === 0"
-        class="flex flex-col items-center justify-center h-full bg-gradient-to-br from-n-background via-n-solid-1 to-n-background"
+        class="flex h-full flex-col items-center justify-center px-6 text-center"
       >
-        <div class="text-center max-w-lg px-6">
-          <div class="mb-8 flex justify-center">
-            <div class="relative">
-              <div class="size-24 rounded-2xl bg-gradient-to-br from-n-teal-4 to-n-blue-4 flex items-center justify-center shadow-lg border-2 border-n-teal-6">
-                <Icon icon="i-lucide-layout-grid" class="size-12 text-n-teal-9" />
-              </div>
-              <div class="absolute -top-2 -right-2 size-8 rounded-full bg-n-blue-5 border-2 border-n-background flex items-center justify-center">
-                <Icon icon="i-lucide-sparkles" class="size-4 text-n-blue-9" />
-              </div>
-            </div>
-          </div>
-          <h2 class="text-3xl font-bold text-n-slate-12 mb-3">
-            {{ t('KANBAN.FUNNELS.NO_FUNNELS') }}
-          </h2>
-          <p class="text-base text-n-slate-11 mb-8 leading-relaxed">
-            {{ t('KANBAN.FUNNELS.NO_FUNNELS_DESCRIPTION') }}
-          </p>
-          <Button
-            icon="i-lucide-plus"
-            color="blue"
-            size="lg"
-            class="shadow-lg hover:shadow-xl transition-shadow"
-            @click="handleCreateFunnel"
-          >
-            <span class="ml-2 font-semibold">{{ t('KANBAN.FUNNELS.CREATE') }}</span>
-          </Button>
+        <div
+          class="mb-6 flex items-center justify-center rounded-2xl border border-n-weak bg-n-solid-2 p-6"
+        >
+          <Icon icon="i-lucide-layout-grid" class="size-10 text-n-slate-10" />
         </div>
+        <h2 class="text-2xl font-semibold text-n-slate-12">
+          {{ t('KANBAN.FUNNELS.NO_FUNNELS') }}
+        </h2>
+        <p class="mt-2 max-w-lg text-sm text-n-slate-10">
+          {{ t('KANBAN.FUNNELS.NO_FUNNELS_DESCRIPTION') }}
+        </p>
+        <Button
+          icon="i-lucide-plus"
+          color="blue"
+          class="mt-6"
+          @click="handleCreateFunnel"
+        >
+          <span class="ml-2">{{ t('KANBAN.FUNNELS.CREATE') }}</span>
+        </Button>
       </div>
 
-      <!-- Select Funnel State -->
       <div
         v-else-if="!activeFunnelId"
-        class="flex items-center justify-center h-full bg-gradient-to-br from-n-background via-n-solid-1 to-n-background"
+        class="flex h-full items-center justify-center text-sm text-n-slate-10"
       >
-        <div class="text-center max-w-md px-6">
-          <div class="mb-6 flex justify-center">
-            <div class="size-16 rounded-xl bg-n-teal-3 border-2 border-n-teal-6 flex items-center justify-center">
-              <Icon icon="i-lucide-arrow-down-circle" class="size-8 text-n-teal-9 animate-bounce" />
-            </div>
-          </div>
-          <h3 class="text-xl font-semibold text-n-slate-12 mb-2">{{ t('KANBAN.SELECT_FUNNEL') }}</h3>
-          <p class="text-sm text-n-slate-10">Selecione um funil no menu acima para começar</p>
-        </div>
+        {{ t('KANBAN.SELECT_FUNNEL') }}
       </div>
 
-      <!-- Views - Only show when there's an active funnel -->
-      <template v-if="activeFunnelId">
-        <!-- Kanban View -->
+      <template v-else>
         <KanbanBoard
           v-if="viewMode === 'kanban'"
           :key="`kanban-${activeFunnelId}-${viewMode}`"
@@ -486,7 +815,6 @@ const setViewMode = async (mode) => {
           @schedule-message="handleScheduleMessage"
         />
 
-        <!-- List View -->
         <ListView
           v-else-if="viewMode === 'list'"
           :key="`list-${activeFunnelId}-${viewMode}`"
@@ -495,7 +823,6 @@ const setViewMode = async (mode) => {
           @manage-scheduled="openScheduledMessagesDrawer"
         />
 
-        <!-- Calendar View -->
         <CalendarView
           v-else-if="viewMode === 'calendar'"
           :key="`calendar-${activeFunnelId}-${viewMode}`"
@@ -508,13 +835,13 @@ const setViewMode = async (mode) => {
       </template>
     </div>
 
-    <!-- Modals -->
     <FunnelForm
       :show="showFunnelForm"
       :funnel="selectedFunnel"
       @close="showFunnelForm = false"
       @saved="handleFunnelSaved"
     />
+
     <ScheduledMessageForm
       :show="showScheduledMessageForm"
       :conversation="selectedConversation"
@@ -525,6 +852,7 @@ const setViewMode = async (mode) => {
       @close="closeScheduledMessageForm"
       @saved="handleScheduledMessageSaved"
     />
+
     <ScheduledMessagesDrawer
       :show="showScheduledMessagesDrawer"
       :refresh-token="scheduledMessagesRefreshToken"
@@ -533,6 +861,7 @@ const setViewMode = async (mode) => {
       @edit-scheduled-message="handleEditScheduledMessage"
       @cancelled="refreshScheduledMessages"
     />
+
     <Dialog
       v-if="scheduledMessageToCancel"
       ref="cancelDialogRef"
@@ -553,5 +882,78 @@ const setViewMode = async (mode) => {
   display: flex;
   flex-direction: column;
   min-height: 0;
+}
+
+.kanban-filter-grid {
+  align-items: start;
+}
+
+.kanban-filter-group {
+  min-width: 0;
+}
+
+.kanban-funnel-filter-group {
+  transform: translateY(-2px);
+}
+
+.kanban-filter-label {
+  margin-bottom: 0.375rem;
+  display: block;
+  font-size: 0.75rem;
+  font-weight: 600;
+  line-height: 1.2;
+  color: var(--n-slate-10);
+}
+
+.kanban-filter-control {
+  height: 2.5rem;
+  border-radius: 0.75rem;
+  border: 1px solid var(--n-weak);
+  background: var(--n-solid-2);
+  padding-right: 0.75rem;
+  padding-left: 0.75rem;
+  font-size: 0.875rem;
+  color: var(--n-slate-12);
+  transition:
+    border-color 0.2s ease,
+    box-shadow 0.2s ease,
+    background-color 0.2s ease;
+}
+
+.kanban-search-field {
+  position: relative;
+}
+
+.kanban-search-icon {
+  position: absolute;
+  left: 0.75rem;
+  top: 50%;
+  transform: translateY(-50%);
+  z-index: 2;
+}
+
+.kanban-search-field .kanban-search-input {
+  padding-left: 2.75rem;
+  position: relative;
+  z-index: 1;
+}
+
+.kanban-filter-action {
+  align-self: end;
+}
+
+.kanban-advanced-filters-toggle-btn {
+  transform: translateY(-2px);
+}
+
+.kanban-filter-control::placeholder {
+  color: var(--n-slate-9);
+}
+
+.kanban-filter-control:focus {
+  outline: none;
+  border-color: var(--n-blue-9);
+  box-shadow: 0 0 0 2px var(--n-blue-5);
+  background: var(--n-solid-1);
 }
 </style>

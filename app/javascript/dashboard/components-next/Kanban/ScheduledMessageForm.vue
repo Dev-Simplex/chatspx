@@ -1,20 +1,17 @@
 <script setup>
-import { ref, computed, watch, onMounted, nextTick } from 'vue';
+import { computed, nextTick, onMounted, ref, watch } from 'vue';
 import { useStore } from 'vuex';
 import { useI18n } from 'vue-i18n';
 import { debounce, getMaxUploadSizeByChannel } from '@chatwoot/utils';
-import { useAlert } from 'dashboard/composables';
 import { DirectUpload } from 'activestorage';
 import Dialog from 'dashboard/components-next/dialog/Dialog.vue';
 import Button from 'dashboard/components-next/button/Button.vue';
-import Icon from 'dashboard/components-next/icon/Icon.vue';
-import Input from 'dashboard/components-next/input/Input.vue';
-import Avatar from 'next/avatar/Avatar.vue';
-import Spinner from 'dashboard/components-next/spinner/Spinner.vue';
-import FileUpload from 'vue-upload-component';
-import AttachmentPreviews from 'dashboard/components-next/NewConversation/components/AttachmentPreviews.vue';
+import { useAlert } from 'dashboard/composables';
 import ContactAPI from 'dashboard/api/contacts';
-import { ALLOWED_FILE_TYPES } from 'shared/constants/messages';
+import ScheduleRecipientPicker from './ScheduleRecipientPicker.vue';
+import ScheduleComposer from './ScheduleComposer.vue';
+import ScheduleDateTimePicker from './ScheduleDateTimePicker.vue';
+import ScheduleSummary from './ScheduleSummary.vue';
 import {
   checkFileSizeLimit,
   DEFAULT_MAXIMUM_FILE_UPLOAD_SIZE,
@@ -38,10 +35,6 @@ const props = defineProps({
   requireConversation: {
     type: Boolean,
     default: false,
-  },
-  funnelId: {
-    type: Number,
-    default: null,
   },
   selectedDate: {
     type: Date,
@@ -67,21 +60,30 @@ const searchResults = ref([]);
 const isSearching = ref(false);
 const selectedContact = ref(null);
 const selectedConversation = ref(null);
-const contactConversations = ref([]);
 const isFetchingConversations = ref(false);
 const attachedFiles = ref([]);
 const uploadCount = ref(0);
-// Removido - não precisamos mais mostrar lista de conversas
+const dialogRef = ref(null);
 
 const inboxes = computed(() => store.getters['kanban/getWahaInboxes']);
-const isEditMode = computed(() => !!props.scheduledMessage?.id);
+const isEditMode = computed(() => Boolean(props.scheduledMessage?.id));
 const isLoading = computed(() => {
-  const uiFlags = store.getters['kanban/getUIFlags'];
-  return isEditMode.value ? uiFlags.isUpdating : uiFlags.isCreating;
+  const flags = store.getters['kanban/getUIFlags'];
+  return isEditMode.value ? flags.isUpdating : flags.isCreating;
 });
 const globalConfig = computed(() => store.getters['globalConfig/get']);
-const currentUser = computed(() => store.getters['getCurrentUser']);
-const accountId = computed(() => store.getters['getCurrentAccountId']);
+const currentUser = computed(() => store.getters.getCurrentUser);
+const accountId = computed(() => store.getters.getCurrentAccountId);
+const accountFeatureGetter = computed(
+  () => store.getters['accounts/isFeatureEnabledonAccount']
+);
+const isKanbanUxV2Enabled = computed(() => {
+  if (typeof accountFeatureGetter.value === 'function' && accountId.value) {
+    return accountFeatureGetter.value(Number(accountId.value), 'kanban_ux_v2');
+  }
+
+  return true;
+});
 const directUploadsEnabled = computed(
   () => globalConfig.value?.directUploadsEnabled
 );
@@ -99,53 +101,100 @@ const submitButtonLabel = computed(() =>
     ? t('KANBAN.SCHEDULED_MESSAGES.SAVE_CHANGES')
     : t('KANBAN.SCHEDULED_MESSAGES.SCHEDULE')
 );
+const showContactSelector = computed(
+  () => !isEditMode.value && !props.requireConversation && !props.conversation
+);
+const timezoneLabel = computed(
+  () => Intl.DateTimeFormat().resolvedOptions().timeZone || 'UTC'
+);
 
-const showContactSelector = computed(() => {
-  return !isEditMode.value && !props.requireConversation && !props.conversation;
-});
+const getContactName = contact =>
+  contact?.name ||
+  contact?.identifier ||
+  contact?.email ||
+  t('KANBAN.ITEMS.UNNAMED_CONTACT');
 
-// Informações do contato quando há conversation
+const getContactPhone = contact =>
+  contact?.phone_number ||
+  contact?.phoneNumber ||
+  contact?.identifier ||
+  contact?.email ||
+  '';
+
+const getContactAvatar = contact =>
+  contact?.thumbnail || contact?.avatar_url || contact?.avatar || '';
+
 const contactInfo = computed(() => {
-  if (props.conversation) {
-    const contact = props.conversation.contact;
-    return {
-      name: getContactName(contact),
-      phone: getContactPhone(contact),
-      avatar: getContactAvatar(contact),
-    };
-  }
-  if (selectedContact.value) {
-    return {
-      name: getContactName(selectedContact.value),
-      phone: getContactPhone(selectedContact.value),
-      avatar: getContactAvatar(selectedContact.value),
-    };
-  }
-  return null;
+  const source = props.conversation?.contact || selectedContact.value;
+  if (!source) return null;
+
+  return {
+    name: getContactName(source),
+    phone: getContactPhone(source),
+    avatar: getContactAvatar(source),
+  };
 });
 
-const activeConversationId = computed(() => {
-  return props.conversation?.id || formData.value.conversationId;
-});
+const activeConversationId = computed(
+  () => props.conversation?.id || formData.value.conversationId
+);
 
 const activeInboxId = computed(() => {
   return (
     formData.value.inboxId ||
     props.conversation?.inboxId ||
     props.conversation?.inbox_id ||
-    selectedConversation.value?.inbox_id
+    selectedConversation.value?.inboxId ||
+    selectedConversation.value?.inbox_id ||
+    null
   );
 });
 
 const activeInbox = computed(() => {
   if (!activeInboxId.value) return null;
-  return (
-    inboxes.value.find(inbox => inbox.id === activeInboxId.value) ||
-    props.conversation?.inbox ||
-    selectedConversation.value?.inbox ||
-    null
+  return inboxes.value.find(
+    inbox => Number(inbox.id) === Number(activeInboxId.value)
   );
 });
+
+const scheduledAtLabel = computed(() => {
+  if (!formData.value.scheduledAt) return '';
+  const parsed = new Date(formData.value.scheduledAt);
+  if (Number.isNaN(parsed.getTime())) return '';
+  return `${parsed.toLocaleDateString()} ${parsed.toLocaleTimeString([], {
+    hour: '2-digit',
+    minute: '2-digit',
+  })}`;
+});
+
+const dateToLocalInput = date => {
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, '0');
+  const day = String(date.getDate()).padStart(2, '0');
+  const hours = String(date.getHours()).padStart(2, '0');
+  const minutes = String(date.getMinutes()).padStart(2, '0');
+  return `${year}-${month}-${day}T${hours}:${minutes}`;
+};
+
+const localToUTC = localDateString => {
+  const localDate = new Date(localDateString);
+  if (Number.isNaN(localDate.getTime())) {
+    throw new Error('invalid_datetime');
+  }
+  return localDate.toISOString();
+};
+
+const utcToLocal = utcDateString => {
+  const utcDate = new Date(utcDateString);
+  return dateToLocalInput(utcDate);
+};
+
+const alertOverLimit = maxSizeMB =>
+  useAlert(
+    t('CONVERSATION.FILE_SIZE_LIMIT', {
+      MAXIMUM_SUPPORTED_FILE_UPLOAD_SIZE: maxSizeMB,
+    })
+  );
 
 const maxSizeFor = mime => {
   const channelType = activeInbox.value?.channel_type;
@@ -166,13 +215,6 @@ const maxSizeFor = mime => {
 
   return Math.min(channelLimit, installationLimit.value);
 };
-
-const alertOverLimit = maxSizeMB =>
-  useAlert(
-    t('CONVERSATION.FILE_SIZE_LIMIT', {
-      MAXIMUM_SUPPORTED_FILE_UPLOAD_SIZE: maxSizeMB,
-    })
-  );
 
 const attachFile = ({ blob, file }) => {
   if (!file) return;
@@ -220,11 +262,6 @@ const handleFileUpload = (file, oldFile) => {
   const nativeFile = file.file || file;
   if (!(nativeFile instanceof File)) return;
 
-  if (!activeConversationId.value) {
-    useAlert(t('KANBAN.SCHEDULED_MESSAGES.ATTACHMENTS_REQUIRED'));
-    return;
-  }
-
   const mime = nativeFile.type || file.type;
   const maxSizeMB = maxSizeFor(mime);
 
@@ -233,29 +270,21 @@ const handleFileUpload = (file, oldFile) => {
     return;
   }
 
-  if (directUploadsEnabled.value) {
+  if (directUploadsEnabled.value && activeConversationId.value) {
     uploadCount.value += 1;
-    let upload;
-    try {
-      upload = new DirectUpload(
-        nativeFile,
-        `/api/v1/accounts/${accountId.value}/conversations/${activeConversationId.value}/direct_uploads`,
-        {
-          directUploadWillCreateBlobWithXHR: xhr => {
-            xhr.setRequestHeader(
-              'api_access_token',
-              currentUser.value?.access_token
-            );
-          },
-        }
-      );
-    } catch (error) {
-      uploadCount.value -= 1;
-      useAlert(
-        error?.message || t('KANBAN.SCHEDULED_MESSAGES.SAVE_ERROR')
-      );
-      return;
-    }
+
+    const upload = new DirectUpload(
+      nativeFile,
+      `/api/v1/accounts/${accountId.value}/conversations/${activeConversationId.value}/direct_uploads`,
+      {
+        directUploadWillCreateBlobWithXHR: xhr => {
+          xhr.setRequestHeader(
+            'api_access_token',
+            currentUser.value?.access_token
+          );
+        },
+      }
+    );
 
     upload.create((error, blob) => {
       uploadCount.value -= 1;
@@ -263,15 +292,18 @@ const handleFileUpload = (file, oldFile) => {
         useAlert(error);
         return;
       }
+
       attachFile({ blob, file });
     });
-  } else {
-    attachFile({ file });
+    return;
   }
+
+  attachFile({ file });
 };
 
 const prepareAttachmentsPayload = () => {
   if (!attachedFiles.value.length) return [];
+
   return attachedFiles.value
     .map(attachment => {
       const existingSignedId =
@@ -284,13 +316,6 @@ const prepareAttachmentsPayload = () => {
         return existingSignedId;
       }
 
-      if (directUploadsEnabled.value) {
-        const id =
-          attachment.blobSignedId ??
-          attachment.blob_signed_id ??
-          attachment.resource?.signed_id;
-        return id || null;
-      }
       if (attachment.resource?.file) return attachment.resource.file;
       if (attachment.file) return attachment.file;
       if (attachment.resource instanceof File) return attachment.resource;
@@ -299,9 +324,83 @@ const prepareAttachmentsPayload = () => {
     .filter(Boolean);
 };
 
-// Buscar contatos usando ContactAPI.search (mesma lógica da página de contatos)
-const searchContacts = debounce(async (query) => {
-  if (!query || !query.trim()) {
+const setDefaultScheduledDate = () => {
+  const now = new Date();
+  let defaultDate = new Date(now);
+
+  const scheduledDateValue =
+    props.scheduledMessage?.scheduledAt || props.scheduledMessage?.scheduled_at;
+
+  if (isEditMode.value && scheduledDateValue) {
+    formData.value.scheduledAt = utcToLocal(scheduledDateValue);
+    return;
+  }
+
+  const preferredDate = props.selectedDate || props.conversation?.date;
+  if (preferredDate) {
+    const parsedPreferredDate = new Date(preferredDate);
+    if (!Number.isNaN(parsedPreferredDate.getTime())) {
+      // Keep the selected day, but default to the user's current time.
+      defaultDate.setFullYear(
+        parsedPreferredDate.getFullYear(),
+        parsedPreferredDate.getMonth(),
+        parsedPreferredDate.getDate()
+      );
+    }
+  }
+
+  if (Number.isNaN(defaultDate.getTime())) {
+    defaultDate = new Date(now);
+  }
+
+  defaultDate.setSeconds(0, 0);
+  if (defaultDate <= now) {
+    defaultDate = new Date(now);
+    defaultDate.setSeconds(0, 0);
+    defaultDate.setMinutes(defaultDate.getMinutes() + 5);
+  }
+
+  formData.value.scheduledAt = dateToLocalInput(defaultDate);
+};
+
+const resetDialogState = () => {
+  const scheduledMessage = props.scheduledMessage || {};
+
+  formData.value = {
+    message: isEditMode.value
+      ? (scheduledMessage.message || '').toString()
+      : '',
+    scheduledAt: '',
+    inboxId:
+      scheduledMessage.inboxId ||
+      scheduledMessage.inbox_id ||
+      props.conversation?.inboxId ||
+      props.conversation?.inbox_id ||
+      null,
+    conversationId:
+      scheduledMessage.conversationId ||
+      scheduledMessage.conversation_id ||
+      props.conversation?.id ||
+      null,
+    contactId: null,
+  };
+
+  selectedContact.value = null;
+  selectedConversation.value = null;
+  searchQuery.value = '';
+  searchResults.value = [];
+  isSearching.value = false;
+  isFetchingConversations.value = false;
+  uploadCount.value = 0;
+  attachedFiles.value = isEditMode.value
+    ? Array(scheduledMessage.attachments || []).map(mapExistingAttachment)
+    : [];
+
+  setDefaultScheduledDate();
+};
+
+const searchContacts = debounce(async query => {
+  if (!query?.trim()) {
     searchResults.value = [];
     isSearching.value = false;
     return;
@@ -309,282 +408,61 @@ const searchContacts = debounce(async (query) => {
 
   isSearching.value = true;
   try {
-    const { data: { payload } } = await ContactAPI.search(
-      encodeURIComponent(query.trim()),
-      1,
-      'name',
-      ''
-    );
-    searchResults.value = payload || [];
-  } catch (error) {
-    console.error('Erro ao buscar contatos:', error);
+    if (isKanbanUxV2Enabled.value) {
+      const {
+        data: { payload = [] },
+      } = await ContactAPI.searchForSchedule({
+        q: query.trim(),
+        page: 1,
+        perPage: 10,
+      });
+
+      searchResults.value = payload;
+    } else {
+      const {
+        data: { payload = [] },
+      } = await ContactAPI.search(query.trim(), 1, 'name');
+      searchResults.value = payload.map(contact => ({
+        ...contact,
+        primary_conversation: null,
+        recommended_inbox: null,
+      }));
+    }
+  } catch (_) {
     searchResults.value = [];
   } finally {
     isSearching.value = false;
   }
-}, 300);
+}, 250);
 
-// Buscar conversas do contato selecionado
-const fetchContactConversations = async (contactId) => {
-  isFetchingConversations.value = true;
-  try {
-    const { data: { payload } } = await ContactAPI.getConversations(contactId);
-    const conversations = payload || [];
-    
-    // Ordenar conversas por data de criação/atualização (mais recente primeiro)
-    const sortedConversations = conversations.sort((a, b) => {
-      // Lidar com timestamps (inteiros) ou strings de data
-      const getTimestamp = (date) => {
-        if (!date) return 0;
-        if (typeof date === 'number') return date;
-        return new Date(date).getTime() || 0;
-      };
-      
-      const timestampA = getTimestamp(a.last_activity_at || a.created_at);
-      const timestampB = getTimestamp(b.last_activity_at || b.created_at);
-      return timestampB - timestampA; // Mais recente primeiro
-    });
-    
-    contactConversations.value = sortedConversations;
-    
-    // Se houver conversas, usar a mais recente automaticamente
-    if (sortedConversations.length > 0) {
-      const mostRecentConversation = sortedConversations[0];
-      selectedConversation.value = mostRecentConversation;
-      formData.value.conversationId = mostRecentConversation.id;
-      formData.value.inboxId = mostRecentConversation.inbox_id || formData.value.inboxId;
-    } else {
-      // Se não houver conversas, buscar inboxes do contato
-      try {
-        const { data: { payload: inboxesData } } = await ContactAPI.getContactableInboxes(contactId);
-        if (inboxesData && inboxesData.length > 0) {
-          // Usar o primeiro inbox disponível
-          formData.value.inboxId = inboxesData[0].inbox?.id || inboxesData[0].id;
-        }
-      } catch (error) {
-        console.error('Erro ao buscar inboxes do contato:', error);
-      }
-    }
-  } catch (error) {
-    console.error('Erro ao buscar conversas do contato:', error);
-    contactConversations.value = [];
-  } finally {
-    isFetchingConversations.value = false;
-  }
-};
-
-// Selecionar contato
-const selectContact = async (contact) => {
+const selectContact = contact => {
   selectedContact.value = contact;
   formData.value.contactId = contact.id;
+
+  const primaryConversation =
+    contact.primaryConversation || contact.primary_conversation || null;
+  selectedConversation.value = primaryConversation;
+  formData.value.conversationId = primaryConversation?.id || null;
+
+  const recommendedInbox =
+    contact.recommendedInbox || contact.recommended_inbox || null;
+
+  formData.value.inboxId =
+    primaryConversation?.inboxId ||
+    primaryConversation?.inbox_id ||
+    recommendedInbox?.id ||
+    formData.value.inboxId;
+
   searchQuery.value = '';
   searchResults.value = [];
-  attachedFiles.value = [];
-  
-  // Buscar conversas do contato (vai selecionar automaticamente a mais recente)
-  await fetchContactConversations(contact.id);
 };
 
-// Função removida - conversa mais recente é selecionada automaticamente
-
-// Limpar seleção de contato
 const clearContactSelection = () => {
   selectedContact.value = null;
   selectedConversation.value = null;
   formData.value.contactId = null;
   formData.value.conversationId = null;
-  contactConversations.value = [];
-  attachedFiles.value = [];
 };
-
-const dialogRef = ref(null);
-
-const getContactName = (contact) =>
-  contact?.name || contact?.identifier || contact?.email || 'Sem nome';
-
-const getContactPhone = (contact) =>
-  contact?.phone_number ||
-  contact?.phoneNumber ||
-  contact?.identifier ||
-  contact?.email ||
-  '';
-
-const getContactAvatar = (contact) =>
-  contact?.thumbnail || contact?.avatar_url || contact?.avatar || '';
-
-// Funções helper para timezone
-// Converter data local (datetime-local format) para UTC
-const localToUTC = (localDateString) => {
-  // localDateString está no formato "YYYY-MM-DDTHH:mm" (sem timezone)
-  // O input datetime-local sempre retorna valores no timezone local do navegador
-  // IMPORTANTE: datetime-local não inclui timezone, então precisamos criar Date no timezone local
-  
-  // Tentar criar Date diretamente primeiro (funciona na maioria dos casos)
-  let localDate = new Date(localDateString);
-  
-  // Se a data for inválida ou se o parse não funcionou corretamente, fazer parse manual
-  if (isNaN(localDate.getTime())) {
-    const [datePart, timePart] = localDateString.split('T');
-    const [year, month, day] = datePart.split('-').map(Number);
-    const [hours, minutes] = timePart.split(':').map(Number);
-    
-    // Criar Date no timezone local usando construtor local
-    // new Date(year, month, day, hours, minutes) cria uma data no timezone local do navegador
-    localDate = new Date(year, month - 1, day, hours, minutes);
-  }
-  
-  // Verificar se a data é válida
-  if (isNaN(localDate.getTime())) {
-    console.error('ScheduledMessageForm - Data inválida:', localDateString);
-    throw new Error('Data/hora inválida');
-  }
-  
-  // Retornar ISO string (que já está em UTC)
-  // toISOString() converte automaticamente de local para UTC
-  return localDate.toISOString();
-};
-
-// Converter UTC para local (para exibição em datetime-local)
-const utcToLocal = (utcDateString) => {
-  // Parse da string UTC (ISO 8601)
-  const utcDate = new Date(utcDateString);
-  
-  // Formatar para datetime-local (YYYY-MM-DDTHH:mm) no timezone local
-  const year = utcDate.getFullYear();
-  const month = String(utcDate.getMonth() + 1).padStart(2, '0');
-  const day = String(utcDate.getDate()).padStart(2, '0');
-  const hours = String(utcDate.getHours()).padStart(2, '0');
-  const minutes = String(utcDate.getMinutes()).padStart(2, '0');
-  
-  return `${year}-${month}-${day}T${hours}:${minutes}`;
-};
-
-watch(
-  () => props.show,
-  (newShow) => {
-    if (newShow) {
-      let defaultDate = new Date();
-      const now = new Date();
-
-      const normalizeDate = value => {
-        if (!value) return null;
-        if (value instanceof Date) return new Date(value);
-        if (typeof value === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(value)) {
-          const [year, month, day] = value.split('-').map(Number);
-          return new Date(year, month - 1, day);
-        }
-        return new Date(value);
-      };
-
-      const applyCurrentTimeIfMissing = date => {
-        if (!date) return date;
-        const isMidnight =
-          date.getHours() === 0 &&
-          date.getMinutes() === 0 &&
-          date.getSeconds() === 0 &&
-          date.getMilliseconds() === 0;
-
-        if (isMidnight) {
-          date.setHours(now.getHours(), now.getMinutes(), 0, 0);
-        }
-        return date;
-      };
-
-      const scheduledDateValue =
-        props.scheduledMessage?.scheduledAt || props.scheduledMessage?.scheduled_at;
-
-      if (isEditMode.value && scheduledDateValue) {
-        defaultDate = normalizeDate(scheduledDateValue);
-      } else if (props.selectedDate) {
-        defaultDate = normalizeDate(props.selectedDate);
-      } else if (props.conversation?.date) {
-        defaultDate = normalizeDate(props.conversation.date);
-      }
-
-      defaultDate = applyCurrentTimeIfMissing(defaultDate || new Date());
-
-      const year = defaultDate.getFullYear();
-      const month = String(defaultDate.getMonth() + 1).padStart(2, '0');
-      const day = String(defaultDate.getDate()).padStart(2, '0');
-      const hours = String(defaultDate.getHours()).padStart(2, '0');
-      const minutes = String(defaultDate.getMinutes()).padStart(2, '0');
-      const formattedDate = `${year}-${month}-${day}T${hours}:${minutes}`;
-
-      const scheduledMessage = props.scheduledMessage || {};
-      const defaultInboxId =
-        scheduledMessage.inboxId ||
-        scheduledMessage.inbox_id ||
-        props.conversation?.inboxId ||
-        props.conversation?.inbox_id ||
-        (inboxes.value.length > 0 ? inboxes.value[0].id : null);
-
-      const conversationId =
-        scheduledMessage.conversationId ||
-        scheduledMessage.conversation_id ||
-        props.conversation?.id ||
-        null;
-
-      formData.value = {
-        message: isEditMode.value
-          ? (scheduledMessage.message || '').toString()
-          : '',
-        scheduledAt: isEditMode.value && (scheduledMessage.scheduledAt || scheduledMessage.scheduled_at)
-          ? utcToLocal(scheduledMessage.scheduledAt || scheduledMessage.scheduled_at)
-          : formattedDate,
-        inboxId: defaultInboxId,
-        conversationId,
-        contactId: null,
-      };
-      
-      // Resetar estados de busca
-      uploadCount.value = 0;
-      searchQuery.value = '';
-      searchResults.value = [];
-      selectedContact.value = null;
-      selectedConversation.value = null;
-      contactConversations.value = [];
-      attachedFiles.value = isEditMode.value
-        ? Array(scheduledMessage.attachments || []).map(mapExistingAttachment)
-        : [];
-      
-      nextTick(() => {
-        setTimeout(() => {
-          if (dialogRef.value && typeof dialogRef.value.open === 'function') {
-            dialogRef.value.open();
-          }
-        }, 10);
-      });
-    } else {
-      uploadCount.value = 0;
-      if (dialogRef.value && typeof dialogRef.value.close === 'function') {
-        dialogRef.value.close();
-      }
-    }
-  },
-  { immediate: true }
-);
-
-watch(searchQuery, (newQuery) => {
-  if (newQuery && newQuery.trim()) {
-    searchContacts(newQuery);
-  } else {
-    searchResults.value = [];
-    isSearching.value = false;
-  }
-});
-
-onMounted(async () => {
-  await store.dispatch('kanban/fetchWahaInboxes');
-  if (props.show) {
-    nextTick(() => {
-      setTimeout(() => {
-        if (dialogRef.value && typeof dialogRef.value.open === 'function') {
-          dialogRef.value.open();
-        }
-      }, 10);
-    });
-  }
-});
 
 const save = async () => {
   if (isUploadingAttachments.value) {
@@ -597,7 +475,7 @@ const save = async () => {
     return;
   }
 
-  const hasText = (formData.value.message || '').trim().length > 0;
+  const hasText = Boolean((formData.value.message || '').trim());
   const hasAttachments = attachedFiles.value.length > 0;
   if (!hasText && !hasAttachments) {
     useAlert(t('KANBAN.SCHEDULED_MESSAGES.MESSAGE_REQUIRED'));
@@ -609,20 +487,15 @@ const save = async () => {
     return;
   }
 
-  const inputDate = formData.value.scheduledAt;
   let scheduledAtUTC;
   try {
-    scheduledAtUTC = localToUTC(inputDate);
-  } catch (error) {
-    console.error('Erro ao converter data:', error);
+    scheduledAtUTC = localToUTC(formData.value.scheduledAt);
+  } catch (_) {
     useAlert(t('KANBAN.SCHEDULED_MESSAGES.DATE_INVALID'));
     return;
   }
 
-  const utcDate = new Date(scheduledAtUTC);
-  const nowUTC = new Date();
-
-  if (utcDate <= nowUTC) {
+  if (new Date(scheduledAtUTC) <= new Date()) {
     useAlert(t('KANBAN.SCHEDULED_MESSAGES.DATE_FUTURE'));
     return;
   }
@@ -632,81 +505,71 @@ const save = async () => {
     formData.value.conversationId ||
     props.scheduledMessage?.conversationId ||
     props.scheduledMessage?.conversation_id;
+  const contactId = formData.value.contactId;
 
-  if (props.requireConversation && (!props.conversation || !props.conversation.id)) {
+  if (props.requireConversation && !conversationId) {
     useAlert(t('KANBAN.SCHEDULED_MESSAGES.CONVERSATION_REQUIRED'));
     return;
   }
 
-  if (!isEditMode.value && !props.requireConversation && !selectedContact.value) {
+  if (!isEditMode.value && !conversationId && !contactId) {
     useAlert(t('KANBAN.SCHEDULED_MESSAGES.CONTACT_REQUIRED'));
     return;
   }
 
-  if (!conversationId) {
-    useAlert(t('KANBAN.SCHEDULED_MESSAGES.CONVERSATION_REQUIRED'));
+  if (!isEditMode.value && !conversationId && !formData.value.inboxId) {
+    useAlert(t('KANBAN.SCHEDULED_MESSAGES.INBOX_REQUIRED'));
     return;
   }
 
-  try {
-    const attachmentsPayload = prepareAttachmentsPayload();
-    const hasSelectedAttachments = attachedFiles.value.length > 0;
-    const hasAttachmentPayload = attachmentsPayload.length > 0;
+  const attachmentsPayload = prepareAttachmentsPayload();
+  const hasFileAttachments = attachmentsPayload.some(
+    attachment => attachment instanceof File
+  );
 
-    if (!isEditMode.value && hasSelectedAttachments && !hasAttachmentPayload) {
-      useAlert(t('KANBAN.SCHEDULED_MESSAGES.ATTACHMENTS_UPLOADING') || 'Aguarde o upload dos anexos terminar.');
-      return;
-    }
+  const messagePayload = {
+    message: (formData.value.message || '').trim(),
+    scheduled_at: scheduledAtUTC,
+  };
 
-    const hasFileAttachments =
-      attachmentsPayload.length > 0 &&
-      attachmentsPayload.some(a => a instanceof File);
+  if (formData.value.inboxId) {
+    messagePayload.inbox_id = formData.value.inboxId;
+  }
 
-    const messagePayload = {
-      message: (formData.value.message || '').trim(),
-      scheduled_at: scheduledAtUTC,
-    };
-
-    if (!isEditMode.value) {
+  if (!isEditMode.value) {
+    if (conversationId) {
       messagePayload.conversation_id = conversationId;
-    }
-
-    if (formData.value.inboxId) {
-      messagePayload.inbox_id = formData.value.inboxId;
-    }
-
-    const shouldSendAttachments = !isEditMode.value
-      ? hasAttachmentPayload
-      : !hasSelectedAttachments || hasAttachmentPayload;
-
-    let payload;
-    if (hasFileAttachments) {
-      const formDataPayload = new FormData();
-      Object.entries(messagePayload).forEach(([key, value]) => {
-        if (value == null) return;
-        formDataPayload.append(`scheduled_message[${key}]`, value);
-      });
-      if (shouldSendAttachments) {
-        attachmentsPayload.forEach(attachment => {
-          if (attachment instanceof File || typeof attachment === 'string') {
-            formDataPayload.append(
-              'scheduled_message[attachments][]',
-              attachment
-            );
-          }
-        });
-      }
-      payload = formDataPayload;
     } else {
-      if (shouldSendAttachments) {
-        messagePayload.attachments = attachmentsPayload;
-      }
-
-      payload = isEditMode.value
-        ? messagePayload
-        : { scheduled_message: messagePayload };
+      messagePayload.contact_id = contactId;
     }
+  }
 
+  if (attachmentsPayload.length && !hasFileAttachments) {
+    messagePayload.attachments = attachmentsPayload;
+  }
+
+  let payload;
+  if (hasFileAttachments) {
+    const formDataPayload = new FormData();
+    Object.entries(messagePayload).forEach(([key, value]) => {
+      if (value == null) return;
+      formDataPayload.append(`scheduled_message[${key}]`, value);
+    });
+
+    attachmentsPayload.forEach(attachment => {
+      if (attachment instanceof File || typeof attachment === 'string') {
+        formDataPayload.append('scheduled_message[attachments][]', attachment);
+      }
+    });
+
+    payload = formDataPayload;
+  } else {
+    payload = isEditMode.value
+      ? messagePayload
+      : { scheduled_message: messagePayload };
+  }
+
+  try {
     if (isEditMode.value) {
       await store.dispatch('kanban/updateScheduledMessage', {
         messageId: props.scheduledMessage.id,
@@ -718,8 +581,7 @@ const save = async () => {
 
     emit('saved');
     emit('close');
-  } catch (error) {
-    console.error('Erro ao salvar mensagem agendada:', error);
+  } catch (_) {
     useAlert(t('KANBAN.SCHEDULED_MESSAGES.SAVE_ERROR'));
   }
 };
@@ -727,6 +589,35 @@ const save = async () => {
 const close = () => {
   emit('close');
 };
+
+watch(
+  () => props.show,
+  async isVisible => {
+    if (isVisible) {
+      resetDialogState();
+      await nextTick();
+      dialogRef.value?.open?.();
+      return;
+    }
+
+    dialogRef.value?.close?.();
+  },
+  { immediate: true }
+);
+
+watch(searchQuery, query => {
+  if (!query?.trim()) {
+    searchResults.value = [];
+    isSearching.value = false;
+    return;
+  }
+
+  searchContacts(query);
+});
+
+onMounted(async () => {
+  await store.dispatch('kanban/fetchWahaInboxes');
+});
 </script>
 
 <template>
@@ -736,303 +627,62 @@ const close = () => {
     :title="dialogTitle"
     :show-cancel-button="false"
     :show-confirm-button="false"
-    overflow-y-auto
     width="xl"
-    @close="() => emit('close')"
+    overflow-y-auto
+    @close="close"
   >
     <div class="space-y-5">
-      <!-- Informações do Contato (quando há conversation ou contato selecionado) -->
-      <div v-if="contactInfo" class="p-4 bg-n-solid-3 rounded-lg border border-n-weak">
-        <div class="flex items-center gap-3">
-          <Avatar
-            :src="contactInfo.avatar || ''"
-            :name="contactInfo.name || 'Sem nome'"
-            :size="48"
+      <ScheduleRecipientPicker
+        :show-selector="showContactSelector"
+        :search-query="searchQuery"
+        :search-results="searchResults"
+        :is-searching="isSearching"
+        :selected-contact="selectedContact"
+        :selected-conversation="selectedConversation"
+        :contact-info="contactInfo"
+        :is-fetching-conversations="isFetchingConversations"
+        @update:search-query="searchQuery = $event"
+        @select-contact="selectContact"
+        @clear-contact="clearContactSelection"
+      />
+
+      <div class="grid gap-5 lg:grid-cols-[1.4fr_1fr]">
+        <ScheduleComposer
+          :message="formData.message"
+          :inbox-id="formData.inboxId"
+          :inboxes="inboxes"
+          :attached-files="attachedFiles"
+          :is-uploading-attachments="isUploadingAttachments"
+          can-attach
+          @update:message="formData.message = $event"
+          @update:inbox-id="formData.inboxId = $event"
+          @update:attached-files="attachedFiles = $event"
+          @file-upload="handleFileUpload"
+        />
+
+        <div class="space-y-4">
+          <ScheduleDateTimePicker
+            :scheduled-at="formData.scheduledAt"
+            :timezone-label="timezoneLabel"
+            @update:scheduled-at="formData.scheduledAt = $event"
           />
-          <div class="flex-1 min-w-0">
-            <p class="text-sm font-semibold text-n-slate-12 truncate">
-              {{ contactInfo.name }}
-            </p>
-            <p class="text-xs text-n-slate-10 font-mono">
-              {{ contactInfo.phone }}
-            </p>
-          </div>
-        </div>
-      </div>
 
-      <!-- Seleção de Contato (quando não há conversation) -->
-      <div v-if="showContactSelector" class="space-y-2">
-        <label class="block text-sm font-semibold mb-2 text-n-slate-12">
-          <div class="flex items-center gap-2">
-            <Icon icon="i-lucide-user" class="size-4" />
-            Contato
-            <span class="text-xs text-n-slate-10 font-normal">(obrigatório)</span>
-          </div>
-        </label>
-        
-        <!-- Campo de busca de contatos -->
-        <div v-if="!selectedContact" class="relative">
-          <Input
-            v-model="searchQuery"
-            type="search"
-            :placeholder="t('CONTACTS_LAYOUT.HEADER.SEARCH_PLACEHOLDER')"
-            :custom-input-class="[
-              'h-10 [&:not(.focus)]:!border-transparent bg-n-alpha-2 dark:bg-n-solid-1 ltr:!pl-8 !py-1 rtl:!pr-8',
-            ]"
-            @input="() => {}"
-            @focus="() => {}"
-          >
-            <template #prefix>
-              <Icon
-                icon="i-lucide-search"
-                class="absolute -translate-y-1/2 text-n-slate-11 size-4 top-1/2 ltr:left-2 rtl:right-2"
-              />
-            </template>
-          </Input>
-        </div>
-
-        <!-- Loading durante busca -->
-        <div
-          v-if="isSearching"
-          class="flex items-center justify-center py-4 text-n-slate-11"
-        >
-          <Spinner />
-          <span class="ml-2 text-sm">Buscando contatos...</span>
-        </div>
-
-        <!-- Lista de resultados de contatos -->
-        <div
-          v-if="!isSearching && searchResults.length > 0 && !selectedContact && searchQuery"
-          class="max-h-60 overflow-y-auto border border-n-weak rounded-lg bg-n-solid-3"
-      >
-          <button
-            v-for="contact in searchResults"
-            :key="contact.id"
-            type="button"
-            class="w-full px-4 py-3 flex items-center gap-3 hover:bg-n-solid-4 transition-colors border-b border-n-weak last:border-b-0"
-            @click="selectContact(contact)"
-          >
-            <Avatar
-              :src="getContactAvatar(contact)"
-              :name="getContactName(contact)"
-              :size="40"
-            />
-            <div class="flex-1 min-w-0 text-left">
-              <p class="text-sm font-medium text-n-slate-12 truncate">
-                {{ getContactName(contact) }}
-              </p>
-              <p class="text-xs text-n-slate-10 font-mono truncate">
-                {{ getContactPhone(contact) }}
-              </p>
-            </div>
-          </button>
-        </div>
-
-        <!-- Mensagem quando não há resultados -->
-        <div
-          v-if="!isSearching && searchQuery && searchResults.length === 0 && !selectedContact"
-          class="p-4 text-center text-sm text-n-slate-10"
-        >
-          Nenhum contato encontrado
-        </div>
-
-        <!-- Contato selecionado -->
-        <div
-          v-if="selectedContact"
-          class="p-3 bg-n-blue-3 border border-n-blue-9 rounded-lg flex items-center justify-between"
-        >
-          <div class="flex items-center gap-3">
-            <Avatar
-              :src="getContactAvatar(selectedContact)"
-              :name="getContactName(selectedContact)"
-              :size="40"
-            />
-            <div class="flex-1 min-w-0">
-              <p class="text-sm font-medium text-n-blue-12 truncate">
-                {{ getContactName(selectedContact) }}
-              </p>
-              <p class="text-xs text-n-blue-10 font-mono truncate">
-                {{ getContactPhone(selectedContact) }}
-          </p>
-            </div>
-          </div>
-          <button
-            type="button"
-            class="text-n-blue-11 hover:text-n-blue-12 ml-2"
-            @click="clearContactSelection"
-          >
-            <Icon icon="i-lucide-x" class="size-4" />
-          </button>
-        </div>
-
-        <!-- Loading ao buscar conversas -->
-        <div
-          v-if="isFetchingConversations"
-          class="flex items-center justify-center py-4 text-n-slate-11"
-        >
-          <Spinner />
-          <span class="ml-2 text-sm">Buscando conversas...</span>
-        </div>
-
-        <!-- Mensagem quando contato não tem conversas -->
-        <div
-          v-if="selectedContact && !isFetchingConversations && contactConversations.length === 0"
-          class="p-4 bg-n-slate-3 border border-n-weak rounded-lg text-sm text-n-slate-11"
-        >
-          <div class="flex items-center gap-2">
-            <Icon icon="i-lucide-info" class="size-4 text-n-slate-10" />
-            <span>Este contato não possui conversas. Por favor, selecione um inbox e crie uma conversa primeiro através do sistema normal.</span>
-          </div>
-        </div>
-      </div>
-
-      <!-- Form Fields -->
-      <div class="space-y-5">
-        <!-- Inbox Selection (opcional - usa inbox da conversa se não selecionado) -->
-        <div v-if="inboxes.length > 0">
-          <label class="block text-sm font-semibold mb-2 text-n-slate-12">
-            <div class="flex items-center gap-2">
-              <Icon icon="i-lucide-inbox" class="size-4" />
-              {{ t('KANBAN.SCHEDULED_MESSAGES.INBOX') }}
-              <span class="text-xs text-n-slate-10 font-normal">(opcional)</span>
-            </div>
-          </label>
-          <select
-            v-model="formData.inboxId"
-            class="w-full px-4 !py-3 !h-12 border border-n-weak rounded-lg bg-n-solid-3 text-n-slate-12 text-sm leading-5 focus:outline-none focus:ring-2 focus:ring-n-blue-9"
-          >
-            <option :value="null">Usar inbox da conversa</option>
-            <option
-              v-for="inbox in inboxes"
-              :key="inbox.id"
-              :value="inbox.id"
-            >
-              {{ inbox.name }}
-            </option>
-          </select>
-        </div>
-
-        <!-- Message -->
-        <div>
-          <label class="block text-sm font-semibold mb-2 text-n-slate-12">
-            <div class="flex items-center gap-2">
-              <Icon icon="i-lucide-message-square" class="size-4" />
-              {{ t('KANBAN.SCHEDULED_MESSAGES.MESSAGE') }}
-            </div>
-          </label>
-          <textarea
-            v-model="formData.message"
-            rows="5"
-            class="w-full px-4 !py-3 !h-auto border border-n-weak rounded-lg bg-n-solid-3 text-n-slate-12 text-sm leading-5 focus:outline-none focus:ring-2 focus:ring-n-blue-9 resize-none"
-            :placeholder="t('KANBAN.SCHEDULED_MESSAGES.MESSAGE_PLACEHOLDER')"
+          <ScheduleSummary
+            :contact-info="contactInfo"
+            :scheduled-at-label="scheduledAtLabel"
+            :message-length="formData.message.length"
           />
-          <p class="text-xs text-n-slate-10 mt-1">
-            {{ formData.message.length }} {{ t('KANBAN.SCHEDULED_MESSAGES.CHARACTERS') }}
-          </p>
-        </div>
-
-        <!-- Attachments -->
-        <div>
-          <label class="block text-sm font-semibold mb-2 text-n-slate-12">
-            <div class="flex items-center gap-2">
-              <Icon icon="i-lucide-paperclip" class="size-4" />
-              {{ t('KANBAN.SCHEDULED_MESSAGES.ATTACHMENTS') }}
-              <span class="text-xs text-n-slate-10 font-normal">(opcional)</span>
-            </div>
-          </label>
-          <div class="flex items-center gap-3">
-            <FileUpload
-              input-id="scheduledMessageAttachment"
-              :size="4096 * 4096"
-              :accept="ALLOWED_FILE_TYPES"
-              multiple
-              :drop-directory="false"
-              :disabled="!activeConversationId"
-              :data="{
-                direct_upload_url: '/rails/active_storage/direct_uploads',
-                direct_upload: true,
-              }"
-              class="p-px"
-              @input-file="handleFileUpload"
-            >
-              <Button
-                icon="i-lucide-plus"
-                color="slate"
-                size="sm"
-                class="!w-10"
-                :disabled="!activeConversationId"
-              />
-            </FileUpload>
-            <div class="flex flex-col">
-              <span class="text-xs text-n-slate-10">
-                <span v-if="attachedFiles.length > 0">
-                  {{
-                    t('KANBAN.SCHEDULED_MESSAGES.ATTACHMENTS_SELECTED', {
-                      count: attachedFiles.length,
-                    })
-                  }}
-                </span>
-                <span v-else>
-                  {{ t('KANBAN.SCHEDULED_MESSAGES.ATTACH_FILE') }}
-                </span>
-              </span>
-              <span
-                v-if="isUploadingAttachments"
-                class="text-xs text-n-slate-10 flex items-center gap-1"
-              >
-                <Spinner class="!size-3" />
-                {{ t('KANBAN.SCHEDULED_MESSAGES.ATTACHMENTS_UPLOADING') }}
-              </span>
-            </div>
-          </div>
-          <p
-            v-if="!activeConversationId"
-            class="text-xs text-n-slate-10 mt-2"
-          >
-            {{ t('KANBAN.SCHEDULED_MESSAGES.ATTACHMENTS_REQUIRED') }}
-          </p>
-          <AttachmentPreviews
-            v-if="attachedFiles.length > 0"
-            :attachments="attachedFiles"
-            @update:attachments="attachedFiles = $event"
-          />
-        </div>
-
-        <!-- Date and Time -->
-        <div>
-          <label class="block text-sm font-semibold mb-2 text-n-slate-12">
-            <div class="flex items-center gap-2">
-              <Icon icon="i-lucide-calendar-clock" class="size-4" />
-              {{ t('KANBAN.SCHEDULED_MESSAGES.SCHEDULED_AT') }}
-            </div>
-          </label>
-          <input
-            v-model="formData.scheduledAt"
-            type="datetime-local"
-            class="w-full px-4 !py-3 !h-12 border border-n-weak rounded-lg bg-n-solid-3 text-n-slate-12 text-sm leading-5 focus:outline-none focus:ring-2 focus:ring-n-blue-9"
-          />
-        </div>
-
-        <!-- Preview -->
-        <div v-if="formData.message" class="p-4 bg-n-solid-3 rounded-lg border border-n-weak">
-          <p class="text-xs font-semibold text-n-slate-11 mb-2 flex items-center gap-2">
-            <Icon icon="i-lucide-eye" class="size-4" />
-            {{ t('KANBAN.SCHEDULED_MESSAGES.PREVIEW') }}
-          </p>
-          <p class="text-sm text-n-slate-12 whitespace-pre-wrap">
-            {{ formData.message }}
-          </p>
         </div>
       </div>
     </div>
 
     <template #footer>
-      <div class="flex items-center justify-between w-full gap-3">
+      <div class="flex w-full items-center justify-between gap-3">
         <Button
           :label="t('DIALOG.BUTTONS.CANCEL')"
-          variant="link"
           type="button"
-          class="h-10 hover:!no-underline hover:text-n-brand"
+          variant="link"
+          class="h-10"
           @click="close"
         />
         <Button

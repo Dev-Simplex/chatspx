@@ -191,6 +191,7 @@ Rails.application.routes.draw do
             collection do
               get :active
               get :search
+              get :search_for_schedule
               post :filter
               post :import
               post :export

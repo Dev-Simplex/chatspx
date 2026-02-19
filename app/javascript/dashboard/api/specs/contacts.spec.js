@@ -72,6 +72,13 @@ describe('#ContactsAPI', () => {
       );
     });
 
+    it('#searchForSchedule', () => {
+      contactAPI.searchForSchedule({ q: 'maria', page: 2, perPage: 15 });
+      expect(axiosMock.get).toHaveBeenCalledWith(
+        '/api/v1/contacts/search_for_schedule?q=maria&page=2&per_page=15'
+      );
+    });
+
     it('#destroyCustomAttributes', () => {
       contactAPI.destroyCustomAttributes(1, ['cloudCustomer']);
       expect(axiosMock.post).toHaveBeenCalledWith(

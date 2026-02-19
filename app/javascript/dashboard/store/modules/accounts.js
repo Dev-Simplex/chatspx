@@ -13,6 +13,7 @@ const TRIAL_PERIOD_DAYS = 15;
 
 const state = {
   records: [],
+  limitsEndpointUnavailableByAccount: {},
   uiFlags: {
     isFetching: false,
     isFetchingItem: false,
@@ -50,6 +51,11 @@ export const getters = {
   isFeatureEnabledonAccount: $state => (id, featureName) => {
     const { features = {} } = findRecordById($state, id);
     return features[featureName] || false;
+  },
+  isLimitsEndpointUnavailable: $state => accountId => {
+    const id = Number(accountId);
+    if (!id) return false;
+    return Boolean($state.limitsEndpointUnavailableByAccount[id]);
   },
 };
 
@@ -141,13 +147,35 @@ export const actions = {
     }
   },
 
-  limits: async ({ commit }) => {
+  limits: async ({ commit, state: accountState, rootGetters }) => {
+    const accountId = Number(rootGetters?.getCurrentAccountId);
+    if (
+      accountId &&
+      accountState.limitsEndpointUnavailableByAccount?.[accountId]
+    ) {
+      return null;
+    }
+
     commit(types.default.SET_ACCOUNT_UI_FLAG, { isFetchingLimits: true });
     try {
       const response = await EnterpriseAccountAPI.getLimits();
       commit(types.default.SET_ACCOUNT_LIMITS, response.data);
+      if (accountId) {
+        commit(types.default.SET_ACCOUNT_LIMITS_ENDPOINT_UNAVAILABLE, {
+          accountId,
+          unavailable: false,
+        });
+      }
+      return response;
     } catch (error) {
+      if (error?.response?.status === 404 && accountId) {
+        commit(types.default.SET_ACCOUNT_LIMITS_ENDPOINT_UNAVAILABLE, {
+          accountId,
+          unavailable: true,
+        });
+      }
       // silent error
+      return null;
     } finally {
       commit(types.default.SET_ACCOUNT_UI_FLAG, { isFetchingLimits: false });
     }
@@ -168,6 +196,18 @@ export const mutations = {
   [types.default.ADD_ACCOUNT]: MutationHelpers.setSingleRecord,
   [types.default.EDIT_ACCOUNT]: MutationHelpers.update,
   [types.default.SET_ACCOUNT_LIMITS]: MutationHelpers.updateAttributes,
+  [types.default.SET_ACCOUNT_LIMITS_ENDPOINT_UNAVAILABLE](
+    $state,
+    payload = {}
+  ) {
+    const accountId = Number(payload.accountId);
+    if (!accountId) return;
+
+    $state.limitsEndpointUnavailableByAccount = {
+      ...$state.limitsEndpointUnavailableByAccount,
+      [accountId]: Boolean(payload.unavailable),
+    };
+  },
 };
 
 export default {

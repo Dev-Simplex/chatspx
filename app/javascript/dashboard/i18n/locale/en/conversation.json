@@ -326,7 +326,8 @@
     "NO_STARRED_MESSAGES": "No starred messages",
     "SIDEBAR": {
       "CONTACT": "Contact",
-      "COPILOT": "Copilot"
+      "COPILOT": "Copilot",
+      "SCHEDULE": "Schedule message"
     },
     "VOICE_WIDGET": {
       "INCOMING_CALL": "Incoming call",

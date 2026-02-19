@@ -62,6 +62,8 @@ class Conversation < ApplicationRecord
   include PushDataHelper
   include ConversationMuteHelpers
 
+  attr_accessor :skip_team_required_for_resolution_validation
+
   validates :account_id, presence: true
   validates :inbox_id, presence: true
   validates :contact_id, presence: true
@@ -276,6 +278,7 @@ class Conversation < ApplicationRecord
   end
 
   def team_required_for_resolution
+    return if skip_team_required_for_resolution_validation
     return unless status_changed? && status == 'resolved'
     return if team_id.present?
 

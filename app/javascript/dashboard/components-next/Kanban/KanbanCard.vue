@@ -118,6 +118,10 @@ const statusTitle = computed(() => {
   return statusMap[status] || t('KANBAN.STATUS.OPEN') || 'Aberto';
 });
 
+const accentColor = computed(() => {
+  return props.item?.stageColor || props.item?.stage_color || props.stageColor;
+});
+
 const openConversation = () => {
   const conversationId =
     props.conversation?.displayId ||
@@ -177,8 +181,8 @@ const handleCardClick = event => {
 
 <template>
   <div
-    class="kanban-card bg-n-solid-3 rounded-lg p-4 cursor-pointer hover:bg-n-solid-4 border border-n-weak shadow-sm hover:shadow-lg group w-full min-w-0 transition-all duration-200 ease-out hover:-translate-y-1 flex flex-col gap-3 relative flex-shrink-0"
-    :style="{ borderLeftWidth: '3px', borderLeftColor: stageColor }"
+    class="kanban-card group relative flex w-full min-w-0 flex-shrink-0 cursor-pointer flex-col gap-3 rounded-xl border border-n-weak bg-n-solid-3 p-3.5 transition-colors duration-150 hover:bg-n-solid-4"
+    :style="{ borderLeftColor: accentColor }"
     @click="handleCardClick"
     @mousedown="handleMouseDown"
   >
@@ -194,7 +198,9 @@ const handleCardClick = event => {
             class="flex-shrink-0 ring-2 ring-n-weak"
           />
           <div class="flex-1 min-w-0">
-            <h4 class="font-semibold text-sm text-n-slate-12 truncate leading-tight">
+            <h4
+              class="font-semibold text-sm text-n-slate-12 truncate leading-tight"
+            >
               {{ contactName }}
             </h4>
           </div>
@@ -212,15 +218,12 @@ const handleCardClick = event => {
         </div>
       </div>
       <div class="flex items-start gap-1.5 flex-shrink-0">
-        <div 
+        <div
           class="flex items-center justify-center size-6 rounded-full border border-n-weak"
           :class="statusColor"
           :title="statusTitle"
         >
-          <Icon
-            :icon="statusIcon"
-            class="size-3 text-white"
-          />
+          <Icon :icon="statusIcon" class="size-3 text-white" />
         </div>
       </div>
     </div>
@@ -230,7 +233,9 @@ const handleCardClick = event => {
       class="grid grid-cols-[minmax(0,1fr)_auto] items-center gap-x-3 gap-y-2 pt-3 border-t border-n-weak mt-1"
     >
       <div v-if="contactPhone" class="flex items-center gap-2 min-w-0">
-        <div class="flex items-center justify-center size-5 rounded bg-n-solid-2">
+        <div
+          class="flex items-center justify-center size-5 rounded bg-n-solid-2"
+        >
           <Icon icon="i-lucide-phone" class="size-3 text-n-slate-10" />
         </div>
         <span
@@ -248,24 +253,24 @@ const handleCardClick = event => {
           size="xs"
           variant="ghost"
           icon="i-lucide-clock"
-          :title="t('KANBAN.SCHEDULED_MESSAGES.CREATE') + ' - Agendar mensagem'"
-          class="!h-7 !w-7 !p-0 hover:bg-n-blue-3 hover:text-n-blue-11 transition-all hover:scale-110"
+          :title="t('KANBAN.SCHEDULED_MESSAGES.CREATE')"
+          class="!h-7 !w-7 !p-0 hover:bg-n-blue-3 hover:text-n-blue-11"
           @click="emit('schedule-message', conversation)"
         />
         <Button
           size="xs"
           variant="ghost"
           icon="i-lucide-move"
-          :title="t('KANBAN.ITEMS.MOVE') + ' - Mover para outra etapa'"
-          class="!h-7 !w-7 !p-0 hover:bg-n-teal-3 hover:text-n-teal-11 transition-all hover:scale-110"
+          :title="t('KANBAN.ITEMS.MOVE')"
+          class="!h-7 !w-7 !p-0 hover:bg-n-teal-3 hover:text-n-teal-11"
           @click="emit('move', item)"
         />
         <Button
           size="xs"
           variant="ghost"
           icon="i-lucide-x"
-          :title="t('KANBAN.ITEMS.REMOVE') + ' - Remover do funil'"
-          class="!h-7 !w-7 !p-0 hover:bg-n-ruby-3 hover:text-n-ruby-11 transition-all hover:scale-110"
+          :title="t('KANBAN.ITEMS.REMOVE')"
+          class="!h-7 !w-7 !p-0 hover:bg-n-ruby-3 hover:text-n-ruby-11"
           @click="emit('remove', item)"
         />
       </div>
@@ -275,6 +280,8 @@ const handleCardClick = event => {
 
 <style scoped>
 .kanban-card {
-  min-height: 160px;
+  min-height: 148px;
+  border-left-style: solid;
+  border-left-width: 3px;
 }
 </style>

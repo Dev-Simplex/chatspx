@@ -134,7 +134,8 @@ describe('ReconnectService', () => {
       reconnectService.getSecondsSinceDisconnect = vi.fn().mockReturnValue(100);
       await reconnectService.fetchConversations();
       expect(storeMock.dispatch).toHaveBeenCalledWith('updateChatListFilters', {
-        page: null,
+        page: 1,
+        cursor: null,
         updatedWithin: 115,
       });
     });
@@ -143,7 +144,8 @@ describe('ReconnectService', () => {
       reconnectService.getSecondsSinceDisconnect = vi.fn().mockReturnValue(100);
       await reconnectService.fetchConversations();
       expect(storeMock.dispatch).toHaveBeenCalledWith('updateChatListFilters', {
-        page: null,
+        page: 1,
+        cursor: null,
         updatedWithin: 115,
       });
       expect(storeMock.dispatch).toHaveBeenCalledWith('fetchAllConversations');

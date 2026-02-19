@@ -38,10 +38,17 @@ module FunnelItems
 
       case funnel_stage.automation_type
       when 'resolved'
-        conversation.update!(status: :resolved) unless conversation.resolved?
+        resolve_conversation_from_automation! unless conversation.resolved?
       when 'open'
         conversation.update!(status: :open) unless conversation.open?
       end
+    end
+
+    def resolve_conversation_from_automation!
+      conversation.skip_team_required_for_resolution_validation = true
+      conversation.update!(status: :resolved)
+    ensure
+      conversation.skip_team_required_for_resolution_validation = false
     end
   end
 end

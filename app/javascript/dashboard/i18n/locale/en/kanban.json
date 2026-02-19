@@ -8,6 +8,30 @@
     "SAVE": "Save",
     "MOVE": "Move",
     "LOADING": "Loading...",
+    "LOADING_CONVERSATIONS": "Loading conversations and contacts...",
+    "LOADING_SCHEDULED_MESSAGES": "Loading scheduled messages...",
+    "FILTERS": {
+      "TITLE": "Filters",
+      "ACTIVE_COUNT": "{count} active filter(s)",
+      "SEARCH_LABEL": "Search",
+      "SEARCH_PLACEHOLDER": "Search by contact, phone, stage or last message",
+      "FUNNEL": "Funnel",
+      "STAGE": "Stage",
+      "LABEL": "Label",
+      "ASSIGNEE": "Assignee",
+      "STATUS_LABEL": "Status",
+      "ALL_STAGES": "All stages",
+      "ALL_LABELS": "All labels",
+      "ALL_AGENTS": "All agents",
+      "CLEAR": "Clear filters",
+      "ADVANCED": "Advanced filters",
+      "ADVANCED_SHOW": "Show advanced filters",
+      "ADVANCED_HIDE": "Hide advanced filters",
+      "ITEMS": "items",
+      "STATUS": {
+        "ALL": "All statuses"
+      }
+    },
     "FUNNELS": {
       "TITLE": "Funnels",
       "CREATE": "Create Funnel",
@@ -49,6 +73,7 @@
       "REORDER": "Reorder Stages",
       "NO_STAGES": "No stages created yet",
       "NO_STAGES_DESCRIPTION": "Add stages to the funnel to start organizing your conversations",
+      "EDIT_FUNNEL_HINT": "Edit the funnel to add your first stage.",
       "CONFIRM_DELETE": "Are you sure you want to delete this stage? All items will be removed.",
       "DELETE_ERROR": "Error deleting stage"
     },
@@ -63,7 +88,9 @@
       "UNNAMED_CONTACT": "Unnamed contact",
       "CONFIRM_REMOVE": "Are you sure you want to remove this conversation from the funnel?",
       "STAGE_REQUIRED": "Select a stage",
-      "MOVE_ERROR": "Error moving conversation"
+      "MOVE_ERROR": "Error moving conversation",
+      "LOAD_STAGE": "Load stage",
+      "LOAD_RESOLVED": "Load resolved stage"
     },
     "SCHEDULED_MESSAGES": {
       "TITLE": "Scheduled Messages",
@@ -74,6 +101,7 @@
       "MESSAGE_PLACEHOLDER": "Enter your message here",
       "MESSAGE_REQUIRED": "Message is required",
       "CONVERSATION_REQUIRED": "Conversation is required",
+      "CONVERSATION_NOT_FOUND": "Conversation not found.",
       "SCHEDULED_AT": "Date and Time",
       "DATE_REQUIRED": "Date and time are required",
       "DATE_FUTURE": "Date and time must be in the future",
@@ -109,15 +137,36 @@
       "SAVE_CHANGES": "Save changes",
       "DATE_INVALID": "Invalid date/time",
       "CONTACT_REQUIRED": "Please select a contact",
+      "CONTACT": "Contact",
+      "CONTACT_SEARCH_PLACEHOLDER": "Search contact by name, phone or email",
+      "NO_CONTACTS_FOUND": "No contacts found",
+      "CONTACT_NO_CONVERSATION_HINT": "No active conversation: select an inbox and the system will create one automatically.",
       "ONLY_PENDING_EDIT": "Only pending messages can be edited",
-      "NO_INBOXES": "No inboxes with WAHA configured",
+      "NO_INBOXES": "No inboxes available for scheduling",
       "NO_INBOXES_TITLE": "No inboxes available",
+      "INBOX_AUTO": "Use inbox automatically",
+      "INBOX_SELECT_PLACEHOLDER": "Select an inbox",
       "PREVIEW": "Preview",
       "CHARACTERS": "characters",
+      "CHARACTERS_COUNT": "{count} characters",
       "SCHEDULE": "Schedule",
+      "SUMMARY": "Summary",
+      "TIMEZONE": "Timezone: {timezone}",
+      "TOMORROW_MORNING": "Tomorrow 09:00",
+      "PRESET_15_MIN": "+15 min",
+      "PRESET_1_HOUR": "+1 h",
+      "SENT_AT": "Sent at",
       "DAY_TITLE": "Schedules on {date}",
       "DAY_COUNT": "{count} scheduled message(s)",
-      "NO_TEXT": "No text"
+      "MORE_COUNT": "+{count}",
+      "NO_TEXT": "No text",
+      "STATUS_FILTER": {
+        "ALL": "All",
+        "PENDING": "Pending",
+        "SENT": "Sent",
+        "FAILED": "Failed",
+        "CANCELLED": "Cancelled"
+      }
     },
     "VIEWS": {
       "KANBAN": "Kanban",
@@ -126,9 +175,19 @@
     },
     "LIST": {
       "CONVERSATION": "Conversation",
+      "CONTACT": "Contact",
       "STAGE": "Stage",
       "STATUS": "Status",
-      "ACTIONS": "Actions"
+      "LAST_MESSAGE": "Last message",
+      "SCHEDULED_PENDING": "Scheduled",
+      "ACTIONS": "Actions",
+      "EMPTY_HELPER": "Conversations will appear here as soon as they enter this funnel.",
+      "RESULT_COUNT": "{shown} of {total} conversations",
+      "NO_RESULTS": "No results found",
+      "NO_RESULTS_HELPER": "Adjust filters to broaden your search.",
+      "LOAD_MORE_RESULTS": "Load more results",
+      "ALL_RESULTS_LOADED": "All results loaded",
+      "NONE": "None"
     },
     "CHANNEL_TYPES": {
       "WEB_WIDGET": "Web Widget",

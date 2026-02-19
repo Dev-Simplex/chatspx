@@ -10,13 +10,27 @@ RSpec.describe 'Api::V1::Accounts::ScheduledMessagesController', type: :request 
   describe 'GET /api/v1/accounts/:account_id/scheduled_messages' do
     let!(:pending_message) { create_scheduled_message(status: :pending, message: 'Pending message') }
     let!(:cancelled_message) { create_scheduled_message(status: :cancelled, message: 'Cancelled message') }
+    let!(:sent_message) { create_scheduled_message(status: :sent, message: 'Sent message') }
+    let!(:failed_message) { create_scheduled_message(status: :failed, message: 'Failed message') }
+    let!(:historical_sent_message) do
+      create_scheduled_message(
+        status: :sent,
+        message: 'Historical sent message',
+        scheduled_at: 2.hours.ago
+      )
+    end
 
     it 'returns all upcoming scheduled messages when status is not provided' do
       get api_v1_account_scheduled_messages_url(account_id: account.id), headers: headers
 
       expect(response).to have_http_status(:success)
       ids = response.parsed_body.map { |message| message['id'] }
-      expect(ids).to include(pending_message.id, cancelled_message.id)
+      expect(ids).to include(
+        pending_message.id,
+        cancelled_message.id,
+        sent_message.id,
+        failed_message.id
+      )
     end
 
     it 'returns only pending messages when status=pending' do
@@ -42,7 +56,76 @@ RSpec.describe 'Api::V1::Accounts::ScheduledMessagesController', type: :request 
 
       expect(response).to have_http_status(:success)
       ids = response.parsed_body.map { |message| message['id'] }
-      expect(ids).to include(pending_message.id, cancelled_message.id)
+      expect(ids).to include(
+        pending_message.id,
+        cancelled_message.id,
+        sent_message.id,
+        failed_message.id,
+        historical_sent_message.id
+      )
+    end
+
+    it 'keeps legacy array when mode=cursor and kanban_ux_v2 is disabled' do
+      get api_v1_account_scheduled_messages_url(
+        account_id: account.id,
+        mode: 'cursor',
+        status: 'all'
+      ), headers: headers
+
+      expect(response).to have_http_status(:success)
+      expect(response.parsed_body).to be_an(Array)
+    end
+
+    context 'when kanban_ux_v2 is enabled' do
+      before do
+        account.enable_features!('kanban_ux_v2')
+      end
+
+      it 'returns cursor payload with meta when mode=cursor' do
+        get api_v1_account_scheduled_messages_url(account_id: account.id, mode: 'cursor', status: 'all', limit: 2),
+            headers: headers
+
+        expect(response).to have_http_status(:success)
+        body = response.parsed_body
+        expect(body).to have_key('payload')
+        expect(body).to have_key('meta')
+        expect(body['meta']['limit']).to eq(2)
+        expect(body['meta']).to have_key('has_more')
+        expect(body['meta']).to have_key('next_cursor')
+      end
+
+      it 'paginates cursor results with next_cursor/has_more' do
+        get api_v1_account_scheduled_messages_url(account_id: account.id, mode: 'cursor', status: 'all', limit: 2),
+            headers: headers
+
+        first_page = response.parsed_body
+        expect(first_page['meta']['has_more']).to be(true)
+        first_page_ids = first_page['payload'].map { |item| item['id'] }
+
+        get api_v1_account_scheduled_messages_url(
+          account_id: account.id,
+          mode: 'cursor',
+          status: 'all',
+          limit: 2,
+          cursor: first_page['meta']['next_cursor']
+        ), headers: headers
+
+        second_page = response.parsed_body
+        second_page_ids = second_page['payload'].map { |item| item['id'] }
+        expect(second_page_ids & first_page_ids).to eq([])
+      end
+
+      it 'falls back safely on invalid cursor' do
+        get api_v1_account_scheduled_messages_url(
+          account_id: account.id,
+          mode: 'cursor',
+          status: 'all',
+          cursor: 'invalid-cursor'
+        ), headers: headers
+
+        expect(response).to have_http_status(:success)
+        expect(response.parsed_body['payload']).to be_an(Array)
+      end
     end
 
     it 'returns validation error when status is invalid' do
@@ -138,6 +221,33 @@ RSpec.describe 'Api::V1::Accounts::ScheduledMessagesController', type: :request 
     end
   end
 
+  describe 'POST /api/v1/accounts/:account_id/scheduled_messages' do
+    let(:contact) { create(:contact, account: account, phone_number: '+14155550100') }
+    let(:inbox_for_contact) { create(:inbox, account: account) }
+
+    it 'creates a scheduled message using contact_id and inbox_id when conversation_id is missing' do
+      expect do
+        post api_v1_account_scheduled_messages_url(account_id: account.id),
+             headers: headers,
+             params: {
+               scheduled_message: {
+                 contact_id: contact.id,
+                 inbox_id: inbox_for_contact.id,
+                 message: 'Hello contact',
+                 scheduled_at: 2.hours.from_now.iso8601
+               }
+             },
+             as: :json
+      end.to change(ScheduledMessage, :count).by(1)
+
+      expect(response).to have_http_status(:created)
+      scheduled_message = ScheduledMessage.order(:id).last
+      expect(scheduled_message.conversation).to be_present
+      expect(scheduled_message.conversation.contact_id).to eq(contact.id)
+      expect(scheduled_message.conversation.inbox_id).to eq(inbox_for_contact.id)
+    end
+  end
+
   describe 'DELETE /api/v1/accounts/:account_id/scheduled_messages/:id' do
     let!(:scheduled_message) { create_scheduled_message(status: :pending) }
 
@@ -161,13 +271,13 @@ RSpec.describe 'Api::V1::Accounts::ScheduledMessagesController', type: :request 
 
   private
 
-  def create_scheduled_message(status:, message: 'Scheduled message')
+  def create_scheduled_message(status:, message: 'Scheduled message', scheduled_at: 2.hours.from_now)
     ScheduledMessage.create!(
       conversation: conversation,
       inbox: inbox,
       message: message,
       status: status,
-      scheduled_at: 2.hours.from_now,
+      scheduled_at: scheduled_at,
       scheduled_by: administrator
     )
   end

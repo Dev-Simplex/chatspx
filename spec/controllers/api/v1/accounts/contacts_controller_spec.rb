@@ -384,6 +384,65 @@ RSpec.describe 'Contacts API', type: :request do
     end
   end
 
+  describe 'GET /api/v1/accounts/{account.id}/contacts/search_for_schedule' do
+    context 'when it is an unauthenticated user' do
+      it 'returns unauthorized' do
+        get "/api/v1/accounts/#{account.id}/contacts/search_for_schedule"
+
+        expect(response).to have_http_status(:unauthorized)
+      end
+    end
+
+    context 'when it is an authenticated user' do
+      let(:admin) { create(:user, account: account, role: :administrator) }
+      let!(:contact) { create(:contact, account: account, name: 'Maria Silva', phone_number: '+5511999988888') }
+      let!(:inbox) { create(:inbox, account: account) }
+      let!(:contact_inbox) { create(:contact_inbox, contact: contact, inbox: inbox) }
+      let!(:conversation) do
+        create(
+          :conversation,
+          account: account,
+          contact: contact,
+          inbox: inbox,
+          contact_inbox: contact_inbox
+        )
+      end
+
+      it 'returns compact payload with primary_conversation and recommended_inbox' do
+        get "/api/v1/accounts/#{account.id}/contacts/search_for_schedule",
+            params: { q: 'maria', per_page: 10 },
+            headers: admin.create_new_auth_token,
+            as: :json
+
+        expect(response).to have_http_status(:success)
+        body = response.parsed_body
+        expect(body['meta']['count']).to be >= 1
+        item = body['payload'].find { |entry| entry['id'] == contact.id }
+        expect(item).to be_present
+        expect(item['primary_conversation']).to include(
+          'id' => conversation.id,
+          'inbox_id' => inbox.id
+        )
+        expect(item['recommended_inbox']).to include(
+          'id' => inbox.id
+        )
+      end
+
+      it 'respects pagination arguments' do
+        create_list(:contact, 15, :with_email, account: account)
+
+        get "/api/v1/accounts/#{account.id}/contacts/search_for_schedule",
+            params: { page: 1, per_page: 5 },
+            headers: admin.create_new_auth_token,
+            as: :json
+
+        expect(response).to have_http_status(:success)
+        expect(response.parsed_body['meta']['per_page']).to eq(5)
+        expect(response.parsed_body['payload'].length).to be <= 5
+      end
+    end
+  end
+
   describe 'GET /api/v1/accounts/{account.id}/contacts/filter' do
     context 'when it is an unauthenticated user' do
       it 'returns unauthorized' do

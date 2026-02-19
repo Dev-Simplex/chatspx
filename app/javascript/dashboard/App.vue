@@ -54,6 +54,7 @@ export default {
       latestChatwootVersion: null,
       maintenanceBanner: null,
       updateBanner: null,
+      actionCableConnector: null,
       reconnectService: null,
     };
   },
@@ -91,6 +92,11 @@ export default {
   unmounted() {
     if (this.reconnectService) {
       this.reconnectService.disconnect();
+      this.reconnectService = null;
+    }
+    if (this.actionCableConnector) {
+      this.actionCableConnector.disconnect();
+      this.actionCableConnector = null;
     }
   },
   methods: {
@@ -105,6 +111,15 @@ export default {
       this.$root.$i18n.locale = locale;
     },
     async initializeAccount() {
+      if (this.reconnectService) {
+        this.reconnectService.disconnect();
+        this.reconnectService = null;
+      }
+      if (this.actionCableConnector) {
+        this.actionCableConnector.disconnect();
+        this.actionCableConnector = null;
+      }
+
       await this.$store.dispatch('accounts/get');
       this.$store.dispatch('setActiveAccount', {
         accountId: this.currentAccountId,
@@ -121,7 +136,7 @@ export default {
       this.latestChatwootVersion = latestChatwootVersion;
       this.maintenanceBanner = maintenanceBanner;
       this.updateBanner = updateBanner;
-      vueActionCable.init(this.store, pubsubToken);
+      this.actionCableConnector = vueActionCable.init(this.store, pubsubToken);
       this.reconnectService = new ReconnectService(this.store, this.router);
       window.reconnectService = this.reconnectService;
 

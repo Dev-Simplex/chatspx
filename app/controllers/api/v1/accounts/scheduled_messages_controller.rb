@@ -5,15 +5,28 @@ class Api::V1::Accounts::ScheduledMessagesController < Api::V1::Accounts::BaseCo
   before_action :check_authorization
   before_action :ensure_pending_message!, only: [:update, :destroy]
 
-  ALLOWED_STATUS_FILTERS = %w[pending cancelled all].freeze
+  ALLOWED_STATUS_FILTERS = %w[pending sent failed cancelled all].freeze
 
   def index
-    scope = policy_scope(ScheduledMessage).upcoming
+    requested_status = normalized_status_filter
+    scope = policy_scope(ScheduledMessage)
     scope = scope.where(conversation_id: params[:conversation_id]) if params[:conversation_id].present?
-    scope = apply_status_filter(scope)
+    scope = apply_status_filter(scope, requested_status)
     return if performed?
+    scope = apply_date_filter(scope) unless cursor_mode?
+    scope = scope.upcoming if should_apply_upcoming_filter?(requested_status)
 
-    @scheduled_messages = scope
+    if cursor_mode?
+      result = ScheduledMessages::TimelineQueryService.new(
+        scope: scope,
+        params: params
+      ).perform
+      @scheduled_messages = result[:items]
+      @meta = result[:meta]
+    else
+      @scheduled_messages = scope
+    end
+
     render 'api/v1/accounts/scheduled_messages/index', formats: [:json]
   end
 
@@ -34,21 +47,17 @@ class Api::V1::Accounts::ScheduledMessagesController < Api::V1::Accounts::BaseCo
 
     sm_params = scheduled_message_params
     unless sm_params
-      render json: { error: 'Parâmetros inválidos: envie { scheduled_message: { conversation_id, message, scheduled_at } }' },
+      render json: { error: 'Parâmetros inválidos: envie { scheduled_message: { conversation_id ou contact_id+inbox_id, message, scheduled_at } }' },
              status: :unprocessable_entity
       return
     end
 
-    conv = conversation
-    unless conv
-      render json: { error: 'Conversa não encontrada' }, status: :not_found
-      return
-    end
-
-    unless conv.account_id == Current.account.id
-      render json: { error: 'Conversa não encontrada' }, status: :not_found
-      return
-    end
+    conv = ScheduledMessages::ResolveConversationService.new(
+      account: Current.account,
+      conversation_id: sm_params[:conversation_id] || sm_params['conversation_id'],
+      contact_id: sm_params[:contact_id] || sm_params['contact_id'],
+      inbox_id: sm_params[:inbox_id] || sm_params['inbox_id']
+    ).perform
 
     inbox_to_use = conv.inbox
     unless inbox_to_use
@@ -133,16 +142,6 @@ class Api::V1::Accounts::ScheduledMessagesController < Api::V1::Accounts::BaseCo
 
   private
 
-  def conversation
-    conversation_id = params[:conversation_id] || params.dig(:scheduled_message, :conversation_id)
-    return nil if conversation_id.blank?
-
-    @conversation ||= Current.account.conversations.find_by(id: conversation_id)
-    @conversation ||= Current.account.conversations.find_by(display_id: conversation_id)
-    @conversation = nil if @conversation && @conversation.account_id != Current.account.id
-    @conversation
-  end
-
   def set_scheduled_message
     @scheduled_message = policy_scope(ScheduledMessage).find(params[:id])
   end
@@ -153,6 +152,7 @@ class Api::V1::Accounts::ScheduledMessagesController < Api::V1::Accounts::BaseCo
 
     permitted_fields = [:message, :scheduled_at, :inbox_id]
     permitted_fields << :conversation_id unless for_update
+    permitted_fields << :contact_id unless for_update
 
     if raw.is_a?(ActionController::Parameters)
       raw.permit(*permitted_fields, attachments: [])
@@ -163,8 +163,11 @@ class Api::V1::Accounts::ScheduledMessagesController < Api::V1::Accounts::BaseCo
     end
   end
 
-  def apply_status_filter(scope)
-    requested_status = params[:status].to_s.strip
+  def normalized_status_filter
+    params[:status].to_s.strip
+  end
+
+  def apply_status_filter(scope, requested_status = normalized_status_filter)
     return scope if requested_status.blank? || requested_status == 'all'
 
     unless ALLOWED_STATUS_FILTERS.include?(requested_status)
@@ -173,6 +176,33 @@ class Api::V1::Accounts::ScheduledMessagesController < Api::V1::Accounts::BaseCo
     end
 
     scope.where(status: requested_status)
+  end
+
+  def apply_date_filter(scope)
+    filtered = scope
+    from_value = parse_time_param(params[:from])
+    to_value = parse_time_param(params[:to])
+    filtered = filtered.where('scheduled_messages.scheduled_at >= ?', from_value) if from_value.present?
+    filtered = filtered.where('scheduled_messages.scheduled_at <= ?', to_value) if to_value.present?
+    filtered
+  end
+
+  def parse_time_param(value)
+    return nil if value.blank?
+
+    Time.zone.parse(value.to_s)
+  rescue ArgumentError, TypeError
+    nil
+  end
+
+  def should_apply_upcoming_filter?(requested_status)
+    return false if cursor_mode?
+
+    requested_status.blank? || requested_status == 'pending'
+  end
+
+  def cursor_mode?
+    params[:mode].to_s == 'cursor' && Current.account.feature_enabled?('kanban_ux_v2')
   end
 
   def ensure_pending_message!

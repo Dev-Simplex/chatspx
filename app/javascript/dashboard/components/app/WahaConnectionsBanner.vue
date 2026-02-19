@@ -1,6 +1,6 @@
 <script setup>
 import { ref, onMounted, onUnmounted, computed, watch } from 'vue';
-import { useRouter } from 'vue-router';
+import { useRoute, useRouter } from 'vue-router';
 import { useI18n } from 'vue-i18n';
 import { useAccount } from 'dashboard/composables/useAccount';
 import wahaConnectionsAPI from 'dashboard/api/wahaConnections';
@@ -8,14 +8,16 @@ import { LocalStorage } from 'shared/helpers/localStorage';
 
 const { t } = useI18n();
 const router = useRouter();
+const route = useRoute();
 const { accountId } = useAccount();
 
 const connections = ref([]);
 const pollingInterval = ref(null);
 const userDismissedBanner = ref(false);
+const isLoading = ref(false);
 
 const PROBLEMATIC_STATUSES = ['STOPPED', 'FAILED', 'SCAN_QR_CODE'];
-const POLLING_INTERVAL = 12000; // 12 segundos
+const POLLING_INTERVAL = 90000; // 90 segundos
 const DISMISS_STORAGE_KEY = 'wahaConnectionsBannerDismissed';
 
 const problematicConnections = computed(() => {
@@ -38,6 +40,12 @@ const shouldShowBanner = computed(() => {
   );
 });
 
+const shouldPollOnCurrentRoute = computed(() => {
+  const currentPath = route?.path || '';
+  // Avoid constant background polling while user is in Kanban.
+  return !currentPath.includes('/kanban');
+});
+
 const bannerMessage = computed(() => {
   const count = problematicConnections.value.length;
   if (count === 1 && problematicConnections.value[0]) {
@@ -58,11 +66,16 @@ const getStatusText = status => {
 };
 
 const loadConnections = async () => {
+  if (isLoading.value) {
+    return;
+  }
+
   // Verificar se accountId é válido antes de fazer a chamada
   if (!accountId.value || isNaN(accountId.value) || accountId.value <= 0) {
     return;
   }
 
+  isLoading.value = true;
   try {
     const response = await wahaConnectionsAPI.getAll();
     // Garantir que response.data seja um array
@@ -93,10 +106,16 @@ const loadConnections = async () => {
       console.error('Erro ao carregar conexões WAHA:', error);
     }
     connections.value = [];
+  } finally {
+    isLoading.value = false;
   }
 };
 
 const startPolling = () => {
+  if (!shouldPollOnCurrentRoute.value) {
+    return;
+  }
+
   // Verificar se accountId é válido antes de iniciar polling
   if (!accountId.value || isNaN(accountId.value) || accountId.value <= 0) {
     return;
@@ -113,7 +132,9 @@ const startPolling = () => {
   
   // Depois fazer polling periódico
   pollingInterval.value = setInterval(() => {
-    loadConnections();
+    if (document.visibilityState === 'visible') {
+      loadConnections();
+    }
   }, POLLING_INTERVAL);
 };
 
@@ -183,15 +204,38 @@ watch(
   { immediate: false }
 );
 
+watch(
+  () => route.path,
+  () => {
+    stopPolling();
+    if (shouldPollOnCurrentRoute.value) {
+      startPolling();
+    }
+  }
+);
+
+const handleVisibilityChange = () => {
+  if (document.visibilityState === 'visible' && shouldPollOnCurrentRoute.value) {
+    loadConnections();
+  }
+};
+
 onMounted(() => {
   checkDismissedState();
+  document.addEventListener('visibilitychange', handleVisibilityChange);
   // Verificar se accountId é válido antes de iniciar
-  if (accountId.value && !isNaN(accountId.value) && accountId.value > 0) {
+  if (
+    shouldPollOnCurrentRoute.value &&
+    accountId.value &&
+    !isNaN(accountId.value) &&
+    accountId.value > 0
+  ) {
     startPolling();
   }
 });
 
 onUnmounted(() => {
+  document.removeEventListener('visibilitychange', handleVisibilityChange);
   stopPolling();
 });
 </script>

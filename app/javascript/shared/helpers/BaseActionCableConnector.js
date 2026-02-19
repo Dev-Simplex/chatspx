@@ -8,6 +8,9 @@ class BaseActionCableConnector {
 
   constructor(app, pubsubToken, websocketHost = '') {
     const websocketURL = websocketHost ? `${websocketHost}/cable` : undefined;
+    this.isDestroyed = false;
+    this.reconnectTimer = null;
+    this.presenceTimer = null;
 
     this.consumer = createConsumer(websocketURL);
     this.subscription = this.consumer.subscriptions.create(
@@ -23,6 +26,7 @@ class BaseActionCableConnector {
         },
         received: this.onReceived,
         disconnected: () => {
+          if (this.isDestroyed) return;
           BaseActionCableConnector.isDisconnected = true;
           this.onDisconnected();
           this.initReconnectTimer();
@@ -31,10 +35,11 @@ class BaseActionCableConnector {
     );
     this.app = app;
     this.events = {};
-    this.reconnectTimer = null;
     this.isAValidEvent = () => true;
     this.triggerPresenceInterval = () => {
-      setTimeout(() => {
+      if (this.isDestroyed) return;
+      this.presenceTimer = setTimeout(() => {
+        if (this.isDestroyed) return;
         this.subscription.updatePresence();
         this.triggerPresenceInterval();
       }, PRESENCE_INTERVAL);
@@ -43,6 +48,7 @@ class BaseActionCableConnector {
   }
 
   checkConnection() {
+    if (this.isDestroyed) return;
     const isConnectionActive = this.consumer.connection.isOpen();
     const isReconnected =
       BaseActionCableConnector.isDisconnected && isConnectionActive;
@@ -63,6 +69,7 @@ class BaseActionCableConnector {
   };
 
   initReconnectTimer = () => {
+    if (this.isDestroyed) return;
     this.clearReconnectTimer();
     this.reconnectTimer = setTimeout(() => {
       this.checkConnection();
@@ -76,7 +83,13 @@ class BaseActionCableConnector {
   onDisconnected = () => {};
 
   disconnect() {
+    this.isDestroyed = true;
     this.consumer.disconnect();
+    this.clearReconnectTimer();
+    if (this.presenceTimer) {
+      clearTimeout(this.presenceTimer);
+      this.presenceTimer = null;
+    }
   }
 
   onReceived = ({ event, data } = {}) => {

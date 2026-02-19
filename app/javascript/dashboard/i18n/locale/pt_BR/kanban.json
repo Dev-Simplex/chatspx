@@ -8,6 +8,30 @@
     "SAVE": "Salvar",
     "MOVE": "Mover",
     "LOADING": "Carregando...",
+    "LOADING_CONVERSATIONS": "Carregando conversas e contatos...",
+    "LOADING_SCHEDULED_MESSAGES": "Carregando mensagens agendadas...",
+    "FILTERS": {
+      "TITLE": "Filtros",
+      "ACTIVE_COUNT": "{count} filtro(s) ativo(s)",
+      "SEARCH_LABEL": "Busca",
+      "SEARCH_PLACEHOLDER": "Buscar por contato, telefone, etapa ou última mensagem",
+      "FUNNEL": "Funil",
+      "STAGE": "Etapa",
+      "LABEL": "Etiqueta",
+      "ASSIGNEE": "Responsável",
+      "STATUS_LABEL": "Status",
+      "ALL_STAGES": "Todas as etapas",
+      "ALL_LABELS": "Todas as etiquetas",
+      "ALL_AGENTS": "Todos os agentes",
+      "CLEAR": "Limpar filtros",
+      "ADVANCED": "Filtros avançados",
+      "ADVANCED_SHOW": "Mostrar filtros avançados",
+      "ADVANCED_HIDE": "Ocultar filtros avançados",
+      "ITEMS": "itens",
+      "STATUS": {
+        "ALL": "Todos os status"
+      }
+    },
     "FUNNELS": {
       "TITLE": "Funis",
       "CREATE": "Criar Funil",
@@ -49,6 +73,7 @@
       "REORDER": "Reordenar Etapas",
       "NO_STAGES": "Nenhuma etapa criada ainda",
       "NO_STAGES_DESCRIPTION": "Adicione etapas ao funil para começar a organizar suas conversas",
+      "EDIT_FUNNEL_HINT": "Edite o funil para adicionar a primeira etapa.",
       "CONFIRM_DELETE": "Tem certeza que deseja excluir esta etapa? Todos os itens serão removidos.",
       "DELETE_ERROR": "Erro ao excluir etapa"
     },
@@ -63,7 +88,9 @@
       "UNNAMED_CONTACT": "Contato sem nome",
       "CONFIRM_REMOVE": "Tem certeza que deseja remover esta conversa do funil?",
       "STAGE_REQUIRED": "Selecione uma etapa",
-      "MOVE_ERROR": "Erro ao mover conversa"
+      "MOVE_ERROR": "Erro ao mover conversa",
+      "LOAD_STAGE": "Carregar etapa",
+      "LOAD_RESOLVED": "Carregar etapa resolvida"
     },
     "SCHEDULED_MESSAGES": {
       "TITLE": "Mensagens Agendadas",
@@ -74,6 +101,7 @@
       "MESSAGE_PLACEHOLDER": "Digite sua mensagem aqui",
       "MESSAGE_REQUIRED": "A mensagem é obrigatória",
       "CONVERSATION_REQUIRED": "A conversa é obrigatória",
+      "CONVERSATION_NOT_FOUND": "Conversa não encontrada.",
       "SCHEDULED_AT": "Data e Hora",
       "DATE_REQUIRED": "A data e hora são obrigatórias",
       "DATE_FUTURE": "A data e hora devem ser no futuro",
@@ -109,15 +137,36 @@
       "SAVE_CHANGES": "Salvar alterações",
       "DATE_INVALID": "Data/hora inválida",
       "CONTACT_REQUIRED": "Por favor, selecione um contato",
+      "CONTACT": "Contato",
+      "CONTACT_SEARCH_PLACEHOLDER": "Buscar contato por nome, telefone ou e-mail",
+      "NO_CONTACTS_FOUND": "Nenhum contato encontrado",
+      "CONTACT_NO_CONVERSATION_HINT": "Sem conversa ativa: selecione uma caixa e o sistema criará uma conversa automaticamente.",
       "ONLY_PENDING_EDIT": "Apenas mensagens pendentes podem ser editadas",
-      "NO_INBOXES": "Nenhuma caixa de entrada com WAHA configurado",
+      "NO_INBOXES": "Nenhuma caixa de entrada disponível para agendamento",
       "NO_INBOXES_TITLE": "Nenhuma caixa de entrada disponível",
+      "INBOX_AUTO": "Usar caixa automaticamente",
+      "INBOX_SELECT_PLACEHOLDER": "Selecione uma caixa de entrada",
       "PREVIEW": "Preview",
       "CHARACTERS": "caracteres",
+      "CHARACTERS_COUNT": "{count} caracteres",
       "SCHEDULE": "Agendar",
+      "SUMMARY": "Resumo",
+      "TIMEZONE": "Fuso horário: {timezone}",
+      "TOMORROW_MORNING": "Amanhã 09:00",
+      "PRESET_15_MIN": "+15 min",
+      "PRESET_1_HOUR": "+1 h",
+      "SENT_AT": "Enviada em",
       "DAY_TITLE": "Agendamentos em {date}",
       "DAY_COUNT": "{count} mensagem(ns) agendada(s)",
-      "NO_TEXT": "Sem texto"
+      "MORE_COUNT": "+{count}",
+      "NO_TEXT": "Sem texto",
+      "STATUS_FILTER": {
+        "ALL": "Todas",
+        "PENDING": "Pendentes",
+        "SENT": "Enviadas",
+        "FAILED": "Falharam",
+        "CANCELLED": "Canceladas"
+      }
     },
     "VIEWS": {
       "KANBAN": "Kanban",
@@ -126,9 +175,19 @@
     },
     "LIST": {
       "CONVERSATION": "Conversa",
+      "CONTACT": "Contato",
       "STAGE": "Etapa",
       "STATUS": "Status",
-      "ACTIONS": "Ações"
+      "LAST_MESSAGE": "Última mensagem",
+      "SCHEDULED_PENDING": "Agendadas",
+      "ACTIONS": "Ações",
+      "EMPTY_HELPER": "As conversas aparecerão aqui assim que entrarem neste funil.",
+      "RESULT_COUNT": "{shown} de {total} conversas",
+      "NO_RESULTS": "Nenhum resultado encontrado",
+      "NO_RESULTS_HELPER": "Ajuste os filtros para ampliar a busca.",
+      "LOAD_MORE_RESULTS": "Carregar mais resultados",
+      "ALL_RESULTS_LOADED": "Todos os resultados carregados",
+      "NONE": "Nenhum"
     },
     "CHANNEL_TYPES": {
       "WEB_WIDGET": "Widget Web",

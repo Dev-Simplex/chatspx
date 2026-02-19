@@ -120,4 +120,41 @@ describe('#actions', () => {
       ]);
     });
   });
+
+  describe('#limits', () => {
+    it('marks endpoint as unavailable when limits route returns 404', async () => {
+      axios.get.mockRejectedValue({ response: { status: 404 } });
+
+      await actions.limits({
+        commit,
+        state: { limitsEndpointUnavailableByAccount: {} },
+        rootGetters: { getCurrentAccountId: 1 },
+      });
+
+      expect(commit).toHaveBeenCalledWith(types.default.SET_ACCOUNT_UI_FLAG, {
+        isFetchingLimits: true,
+      });
+      expect(commit).toHaveBeenCalledWith(
+        types.default.SET_ACCOUNT_LIMITS_ENDPOINT_UNAVAILABLE,
+        {
+          accountId: 1,
+          unavailable: true,
+        }
+      );
+      expect(commit).toHaveBeenCalledWith(types.default.SET_ACCOUNT_UI_FLAG, {
+        isFetchingLimits: false,
+      });
+    });
+
+    it('skips request when endpoint was previously marked as unavailable', async () => {
+      await actions.limits({
+        commit,
+        state: { limitsEndpointUnavailableByAccount: { 1: true } },
+        rootGetters: { getCurrentAccountId: 1 },
+      });
+
+      expect(axios.get).not.toHaveBeenCalled();
+      expect(commit).not.toHaveBeenCalled();
+    });
+  });
 });

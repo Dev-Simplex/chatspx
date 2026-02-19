@@ -50,30 +50,48 @@ class KanbanAPI extends ApiClient {
   }
 
   updateStage(funnelId, stageId, data) {
-    return axios.patch(
-      `${this.url}/${funnelId}/funnel_stages/${stageId}`,
-      { funnel_stage: data }
-    );
+    return axios.patch(`${this.url}/${funnelId}/funnel_stages/${stageId}`, {
+      funnel_stage: data,
+    });
   }
 
   deleteStage(funnelId, stageId) {
     return axios.delete(`${this.url}/${funnelId}/funnel_stages/${stageId}`);
   }
 
-  getFunnelItems(funnelId, stageId = null, options = {}) {
+  getFunnelItems(funnelId, options = {}) {
     let url = `${this.url}/${funnelId}/funnel_items`;
     const params = new URLSearchParams();
-    if (stageId) {
-      params.set('stage_id', stageId);
+    const {
+      stageId = null,
+      excludeAutomationType = null,
+      mode = null,
+      limit = null,
+      cursor = null,
+      page = null,
+      perPage = null,
+    } = options;
+
+    if (stageId != null) {
+      params.set('stage_id', String(stageId));
     }
-    if (options.excludeAutomationType) {
-      params.set('exclude_automation_type', options.excludeAutomationType);
+    if (excludeAutomationType) {
+      params.set('exclude_automation_type', excludeAutomationType);
     }
-    if (options.page != null) {
-      params.set('page', String(options.page));
+    if (mode) {
+      params.set('mode', mode);
     }
-    if (options.perPage != null) {
-      params.set('per_page', String(options.perPage));
+    if (limit != null) {
+      params.set('limit', String(limit));
+    }
+    if (cursor) {
+      params.set('cursor', cursor);
+    }
+    if (page != null) {
+      params.set('page', String(page));
+    }
+    if (perPage != null) {
+      params.set('per_page', String(perPage));
     }
     const query = params.toString();
     if (query) {
@@ -89,10 +107,9 @@ class KanbanAPI extends ApiClient {
   }
 
   updateItem(funnelId, itemId, data) {
-    return axios.patch(
-      `${this.url}/${funnelId}/funnel_items/${itemId}`,
-      { funnel_item: data }
-    );
+    return axios.patch(`${this.url}/${funnelId}/funnel_items/${itemId}`, {
+      funnel_item: data,
+    });
   }
 
   deleteItem(funnelId, itemId) {
@@ -108,17 +125,39 @@ class KanbanAPI extends ApiClient {
 
   getScheduledMessages(options = {}) {
     const accountId = this.accountIdFromRoute;
-    const { conversationId = null, status = 'pending' } =
-      typeof options === 'object' && options !== null
-        ? options
-        : { conversationId: options, status: 'pending' };
+    const {
+      conversationId = null,
+      status = 'all',
+      mode = null,
+      from = null,
+      to = null,
+      limit = null,
+      cursor = null,
+    } = typeof options === 'object' && options !== null
+      ? options
+      : { conversationId: options, status: 'all' };
 
     const params = new URLSearchParams();
     if (conversationId) {
-      params.set('conversation_id', conversationId);
+      params.set('conversation_id', String(conversationId));
     }
     if (status) {
       params.set('status', status);
+    }
+    if (mode) {
+      params.set('mode', mode);
+    }
+    if (from) {
+      params.set('from', from);
+    }
+    if (to) {
+      params.set('to', to);
+    }
+    if (limit != null) {
+      params.set('limit', String(limit));
+    }
+    if (cursor) {
+      params.set('cursor', cursor);
     }
 
     const query = params.toString();
@@ -154,7 +193,9 @@ class KanbanAPI extends ApiClient {
   }
 
   getWahaInboxes() {
-    return this.getInboxes();
+    const accountId = this.accountIdFromRoute;
+    const url = `${this.apiVersion}/accounts/${accountId}/scheduled_messages/inboxes`;
+    return axios.get(url);
   }
 
   getInboxes() {

@@ -19,6 +19,10 @@ class ContactPolicy < ApplicationPolicy
     true
   end
 
+  def search_for_schedule?
+    true
+  end
+
   def filter?
     true
   end
