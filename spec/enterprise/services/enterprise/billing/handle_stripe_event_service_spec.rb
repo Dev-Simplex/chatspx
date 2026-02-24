@@ -131,6 +131,16 @@ describe Enterprise::Billing::HandleStripeEventService do
           expect(account).not_to be_feature_enabled(feature)
         end
       end
+
+      it 'does not disable captain feature on default plan' do
+        allow(subscription).to receive(:[]).with('plan')
+                                           .and_return({ 'id' => 'test', 'product' => 'plan_id_hacker', 'name' => 'Hacker' })
+        account.enable_features!('captain_integration')
+
+        stripe_event_service.new.perform(event: event)
+
+        expect(account.reload).to be_feature_enabled('captain_integration')
+      end
     end
 
     context 'with Startups plan' do

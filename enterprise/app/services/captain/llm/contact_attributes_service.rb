@@ -1,7 +1,7 @@
 class Captain::Llm::ContactAttributesService < Llm::BaseAiService
   include Integrations::LlmInstrumentation
   def initialize(assistant, conversation)
-    super()
+    super(account: assistant.account)
     @assistant = assistant
     @conversation = conversation
     @contact = conversation.contact

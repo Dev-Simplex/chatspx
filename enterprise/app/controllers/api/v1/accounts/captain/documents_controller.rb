@@ -1,4 +1,6 @@
 class Api::V1::Accounts::Captain::DocumentsController < Api::V1::Accounts::BaseController
+  include Captain::ApiKeyValidation
+
   before_action :current_account
   before_action -> { check_authorization(Captain::Assistant) }
 
@@ -6,6 +8,7 @@ class Api::V1::Accounts::Captain::DocumentsController < Api::V1::Accounts::BaseC
   before_action :set_documents, except: [:create]
   before_action :set_document, only: [:show, :destroy]
   before_action :set_assistant, only: [:create]
+  before_action :ensure_captain_api_key!, only: :create
   RESULTS_PER_PAGE = 25
 
   def index

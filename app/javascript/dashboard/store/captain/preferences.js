@@ -6,6 +6,13 @@ export const useCaptainConfigStore = defineStore('captainConfig', {
     providers: {},
     models: {},
     features: {},
+    lastFetchedAccountId: null,
+    llmConnection: {
+      provider: 'openai',
+      configured: false,
+      maskedApiKey: null,
+      updatedAt: null,
+    },
     uiFlags: {
       isFetching: false,
     },
@@ -15,6 +22,7 @@ export const useCaptainConfigStore = defineStore('captainConfig', {
     getProviders: state => state.providers,
     getModels: state => state.models,
     getFeatures: state => state.features,
+    getLlmConnection: state => state.llmConnection,
     getUIFlags: state => state.uiFlags,
     getModelsForFeature: state => featureKey => {
       const feature = state.features[featureKey];
@@ -47,13 +55,33 @@ export const useCaptainConfigStore = defineStore('captainConfig', {
   },
 
   actions: {
-    async fetch() {
+    async fetch(options = {}) {
+      const accountId = Number(options?.accountId) || null;
+      const force = Boolean(options?.force);
+
+      if (
+        accountId &&
+        !force &&
+        this.lastFetchedAccountId === accountId &&
+        Object.keys(this.features || {}).length > 0
+      ) {
+        return;
+      }
+
       this.uiFlags.isFetching = true;
       try {
         const response = await CaptainPreferencesAPI.get();
         this.providers = response.data.providers || {};
         this.models = response.data.models || {};
         this.features = response.data.features || {};
+        this.lastFetchedAccountId = accountId;
+        const llmConnection = response.data.llm_connection || {};
+        this.llmConnection = {
+          provider: llmConnection.provider || 'openai',
+          configured: Boolean(llmConnection.configured),
+          maskedApiKey: llmConnection.masked_api_key || null,
+          updatedAt: llmConnection.updated_at || null,
+        };
       } catch (error) {
         // Ignore error
       } finally {
@@ -66,6 +94,13 @@ export const useCaptainConfigStore = defineStore('captainConfig', {
       this.providers = response.data.providers || {};
       this.models = response.data.models || {};
       this.features = response.data.features || {};
+      const llmConnection = response.data.llm_connection || {};
+      this.llmConnection = {
+        provider: llmConnection.provider || 'openai',
+        configured: Boolean(llmConnection.configured),
+        maskedApiKey: llmConnection.masked_api_key || null,
+        updatedAt: llmConnection.updated_at || null,
+      };
     },
   },
 });

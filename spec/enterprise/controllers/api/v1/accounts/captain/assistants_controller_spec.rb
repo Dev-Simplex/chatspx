@@ -254,6 +254,9 @@ RSpec.describe 'Api::V1::Accounts::Captain::Assistants', type: :request do
 
   describe 'POST /api/v1/accounts/{account.id}/captain/assistants/{id}/playground' do
     let(:assistant) { create(:captain_assistant, account: account) }
+    let!(:openai_hook) do
+      create(:integrations_hook, :openai, account: account, settings: { api_key: 'test-key' })
+    end
     let(:valid_params) do
       {
         message_content: 'Hello assistant',
@@ -311,6 +314,23 @@ RSpec.describe 'Api::V1::Accounts::Captain::Assistants', type: :request do
           additional_message: params_without_history[:message_content],
           message_history: []
         )
+      end
+    end
+
+    context 'when account OpenAI key is missing' do
+      before do
+        openai_hook.destroy!
+      end
+
+      it 'returns a standardized missing key error' do
+        post "/api/v1/accounts/#{account.id}/captain/assistants/#{assistant.id}/playground",
+             params: valid_params,
+             headers: agent.create_new_auth_token,
+             as: :json
+
+        expect(response).to have_http_status(:unprocessable_entity)
+        expect(json_response[:code]).to eq('captain_api_key_missing')
+        expect(json_response[:message]).to eq(I18n.t('captain.errors.missing_api_key'))
       end
     end
   end

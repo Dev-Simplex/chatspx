@@ -2,8 +2,8 @@ class Captain::Llm::PdfProcessingService < Llm::LegacyBaseOpenAiService
   include Integrations::LlmInstrumentation
 
   def initialize(document)
-    super()
     @document = document
+    super(account: document.account)
   end
 
   def process

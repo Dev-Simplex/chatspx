@@ -102,7 +102,11 @@ export const parseAPIErrorResponse = error => {
 
 export const throwErrorMessage = error => {
   const errorMessage = parseAPIErrorResponse(error);
-  throw new Error(errorMessage);
+  const parsedError = new Error(errorMessage);
+  parsedError.code = error?.response?.data?.code || null;
+  parsedError.status = error?.response?.status || null;
+  parsedError.details = error?.response?.data || null;
+  throw parsedError;
 };
 
 export const parseLinearAPIErrorResponse = (error, defaultMessage) => {

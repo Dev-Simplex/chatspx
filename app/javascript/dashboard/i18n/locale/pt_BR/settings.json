@@ -329,6 +329,7 @@
     "CAPTAIN_PLAYGROUND": "Playground",
     "CAPTAIN_INBOXES": "Caixas de Entrada",
     "CAPTAIN_SETTINGS": "Configurações",
+    "CAPTAIN_OPENAI_CONNECTION": "Conexão OpenAI",
     "HOME": "Principal",
     "AGENTS": "Agentes",
     "AGENT_BOTS": "Robôs",
@@ -398,6 +399,70 @@
     "COLLAPSE": "Recolher menu lateral",
     "NEW_CONVERSATION": "Nova conversa",
     "ADVANCED_SEARCH": "Pesquisa avançada"
+  },
+  "CAPTAIN_SETTINGS": {
+    "TITLE": "Configurações do Captain",
+    "DESCRIPTION": "Configure os modelos de IA e os recursos do Captain. O Captain usa cobrança por créditos e cada ação consome créditos de acordo com o modelo selecionado.",
+    "LOADING": "Carregando configurações do Captain...",
+    "LINK_TEXT": "Saiba mais sobre créditos do Captain",
+    "NOT_ENABLED": "O Captain não está habilitado para esta conta.",
+    "OPENAI_CONNECTION": {
+      "TITLE": "Conexão OpenAI",
+      "DESCRIPTION": "Configure a chave da OpenAI desta conta. O Captain usará essa chave por conta para todas as requisições de IA.",
+      "STATUS_CONFIGURED": "Configurado",
+      "STATUS_NOT_CONFIGURED": "Não configurado",
+      "CONFIGURED_KEY": "Chave configurada: {key}",
+      "UPDATED_AT": "Última atualização: {date}",
+      "API_KEY_PLACEHOLDER": "Informe uma chave de API da OpenAI",
+      "SAVE": "Salvar chave",
+      "SAVING": "Salvando...",
+      "REMOVE": "Remover chave",
+      "API": {
+        "SUCCESS": "Conexão OpenAI atualizada com sucesso.",
+        "ERROR": "Não foi possível atualizar a conexão OpenAI. Tente novamente."
+      }
+    },
+    "MODEL_CONFIG": {
+      "TITLE": "Configuração de modelos",
+      "DESCRIPTION": "Selecione modelos de IA para recursos diferentes.",
+      "SELECT_MODEL": "Selecionar modelo",
+      "CREDITS_PER_MESSAGE": "{credits} crédito/mensagem",
+      "COMING_SOON": "Em breve",
+      "EDITOR": {
+        "TITLE": "Recursos do editor",
+        "DESCRIPTION": "Potencializa composição inteligente, correções gramaticais, ajustes de tom e melhoria de conteúdo no editor de mensagens."
+      },
+      "ASSISTANT": {
+        "TITLE": "Assistente",
+        "DESCRIPTION": "Gerencia respostas automáticas, resumos de conversa e sugestões inteligentes para interações com clientes."
+      },
+      "COPILOT": {
+        "TITLE": "Copilot",
+        "DESCRIPTION": "Fornece sugestões contextuais em tempo real, recomendações da base de conhecimento e insights proativos durante as conversas."
+      }
+    },
+    "FEATURES": {
+      "TITLE": "Recursos",
+      "DESCRIPTION": "Ative ou desative os recursos com IA.",
+      "AUDIO_TRANSCRIPTION": {
+        "TITLE": "Transcrição de áudio",
+        "DESCRIPTION": "Converta automaticamente mensagens de voz e gravações em texto pesquisável."
+      },
+      "HELP_CENTER_SEARCH": {
+        "TITLE": "Indexação de busca da Central de Ajuda",
+        "DESCRIPTION": "Use IA para busca com contexto nos artigos da central de ajuda."
+      },
+      "LABEL_SUGGESTION": {
+        "TITLE": "Sugestão de etiquetas",
+        "DESCRIPTION": "Sugere automaticamente etiquetas relevantes para conversas com base no conteúdo e no contexto.",
+        "MODEL_TITLE": "Modelo de sugestão de etiquetas",
+        "MODEL_DESCRIPTION": "Selecione o modelo de IA para analisar conversas e sugerir etiquetas adequadas"
+      }
+    },
+    "API": {
+      "SUCCESS": "Configurações do Captain atualizadas com sucesso.",
+      "ERROR": "Falha ao atualizar as configurações do Captain. Tente novamente."
+    }
   },
   "BILLING_SETTINGS": {
     "TITLE": "Cobrança",

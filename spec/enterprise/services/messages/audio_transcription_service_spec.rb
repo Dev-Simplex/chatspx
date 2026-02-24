@@ -3,14 +3,13 @@ require 'rails_helper'
 RSpec.describe Messages::AudioTranscriptionService, type: :service do
   let(:account) { create(:account, audio_transcriptions: true) }
   let(:conversation) { create(:conversation, account: account) }
-  let(:message) { create(:message, conversation: conversation) }
+  let(:message) { create(:message, conversation: conversation, account: account) }
   let(:attachment) { message.attachments.create!(account: account, file_type: :audio) }
+  let!(:openai_hook) do
+    create(:integrations_hook, :openai, account: account, settings: { api_key: 'test-api-key' })
+  end
 
   before do
-    # Create required installation configs
-    create(:installation_config, name: 'CAPTAIN_OPEN_AI_API_KEY', value: 'test-api-key')
-    create(:installation_config, name: 'CAPTAIN_OPEN_AI_MODEL', value: 'gpt-4o-mini')
-
     # Mock usage limits for transcription to be available
     allow(account).to receive(:usage_limits).and_return({ captain: { responses: { current_available: 100 } } })
   end
@@ -62,6 +61,17 @@ RSpec.describe Messages::AudioTranscriptionService, type: :service do
         result = service.perform
         expect(result).to eq({ success: true, transcriptions: 'Existing transcription' })
       end
+    end
+  end
+
+  describe '#initialize' do
+    it 'raises a missing key error when the account does not have an OpenAI hook key' do
+      openai_hook.destroy!
+
+      expect { described_class.new(attachment) }.to raise_error(
+        Llm::Config::MissingAccountApiKeyError,
+        I18n.t('captain.errors.missing_api_key')
+      )
     end
   end
 end

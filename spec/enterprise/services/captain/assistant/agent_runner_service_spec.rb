@@ -31,6 +31,7 @@ RSpec.describe Captain::Assistant::AgentRunnerService do
     allow(scenario).to receive(:agent).and_return(mock_scenario_agent)
     allow(Agents::Runner).to receive(:with_agents).and_return(mock_runner)
     allow(mock_runner).to receive(:run).and_return(mock_result)
+    allow(Llm::AccountScopedContext).to receive(:with_account).and_yield
     allow(mock_agent).to receive(:register_handoffs)
     allow(mock_scenario_agent).to receive(:register_handoffs)
   end
@@ -69,6 +70,12 @@ RSpec.describe Captain::Assistant::AgentRunnerService do
 
     it 'creates runner with agents' do
       expect(Agents::Runner).to receive(:with_agents).with(mock_agent, mock_scenario_agent)
+
+      service.generate_response(message_history: message_history)
+    end
+
+    it 'runs the agent inside account scoped context' do
+      expect(Llm::AccountScopedContext).to receive(:with_account).with(account).and_yield
 
       service.generate_response(message_history: message_history)
     end

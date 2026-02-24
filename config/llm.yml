@@ -1,4 +1,4 @@
-aproviders:
+providers:
   openai:
     display_name: 'OpenAI'
   anthropic:
@@ -19,9 +19,9 @@ models:
     provider: openai
     display_name: 'GPT-4.1 Nano'
     credit_multiplier: 1
-  gpt-5.1:
+  gpt-5:
     provider: openai
-    display_name: 'GPT-5.1'
+    display_name: 'GPT-5'
     credit_multiplier: 2
   gpt-5-mini:
     provider: openai
@@ -31,10 +31,6 @@ models:
     provider: openai
     display_name: 'GPT-5 Nano'
     credit_multiplier: 1
-  gpt-5.2:
-    provider: openai
-    display_name: 'GPT-5.2'
-    credit_multiplier: 3
   claude-haiku-4.5:
     provider: anthropic
     display_name: 'Claude Haiku 4.5'
@@ -72,8 +68,7 @@ features:
         gpt-4.1-nano,
         gpt-5-mini,
         gpt-4.1,
-        gpt-5.1,
-        gpt-5.2,
+        gpt-5,
         claude-haiku-4.5,
         gemini-3-flash,
         gemini-3-pro,
@@ -84,27 +79,25 @@ features:
       [
         gpt-5-mini,
         gpt-4.1,
-        gpt-5.1,
-        gpt-5.2,
+        gpt-5,
         claude-haiku-4.5,
         claude-sonnet-4.5,
         gemini-3-flash,
         gemini-3-pro,
       ]
-    default: gpt-5.1
+    default: gpt-5-mini
   copilot:
     models:
       [
         gpt-5-mini,
         gpt-4.1,
-        gpt-5.1,
-        gpt-5.2,
+        gpt-5,
         claude-haiku-4.5,
         claude-sonnet-4.5,
         gemini-3-flash,
         gemini-3-pro,
       ]
-    default: gpt-5.1
+    default: gpt-5-mini
   label_suggestion:
     models:
       [gpt-4.1-nano, gpt-4.1-mini, gpt-5-mini, gemini-3-flash, claude-haiku-4.5]

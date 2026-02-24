@@ -1,4 +1,7 @@
 class Api::V1::Accounts::Captain::CopilotThreadsController < Api::V1::Accounts::BaseController
+  include Captain::ApiKeyValidation
+
+  before_action :ensure_captain_api_key!, only: :create
   before_action :ensure_message, only: :create
 
   def index

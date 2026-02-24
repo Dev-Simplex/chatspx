@@ -236,12 +236,12 @@ RSpec.describe Account do
 
     describe 'with saved model preferences' do
       it 'returns saved preferences merged with defaults' do
-        account.update!(captain_models: { 'editor' => 'gpt-4.1-mini', 'assistant' => 'gpt-5.2' })
+        account.update!(captain_models: { 'editor' => 'gpt-4.1-mini', 'assistant' => 'gpt-5' })
 
         prefs = account.captain_preferences
 
         expect(prefs[:models]['editor']).to eq('gpt-4.1-mini')
-        expect(prefs[:models]['assistant']).to eq('gpt-5.2')
+        expect(prefs[:models]['assistant']).to eq('gpt-5')
         expect(prefs[:models]['copilot']).to eq(Llm::Models.default_model_for('copilot'))
       end
     end
@@ -260,7 +260,7 @@ RSpec.describe Account do
 
     describe 'validation' do
       it 'rejects invalid model for a feature' do
-        account.captain_models = { 'label_suggestion' => 'gpt-5.1' }
+        account.captain_models = { 'label_suggestion' => 'gpt-5' }
 
         expect(account).not_to be_valid
         expect(account.errors[:captain_models].first).to include('not a valid model for label_suggestion')

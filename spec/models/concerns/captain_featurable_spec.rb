@@ -71,14 +71,14 @@ RSpec.describe CaptainFeaturable do
       before do
         account.update!(captain_models: {
                           'editor' => 'gpt-4.1-mini',
-                          'assistant' => 'gpt-5.1',
+                          'assistant' => 'gpt-5',
                           'label_suggestion' => 'gpt-4.1-nano'
                         })
       end
 
       it 'returns configured models for configured features' do
         expect(account.captain_editor_model).to eq('gpt-4.1-mini')
-        expect(account.captain_assistant_model).to eq('gpt-5.1')
+        expect(account.captain_assistant_model).to eq('gpt-5')
         expect(account.captain_label_suggestion_model).to eq('gpt-4.1-nano')
       end
 
@@ -123,7 +123,7 @@ RSpec.describe CaptainFeaturable do
     end
 
     it 'model methods use the same logic as captain_preferences[:models]' do
-      account.update!(captain_models: { 'editor' => 'gpt-4.1-mini', 'assistant' => 'gpt-5.2' })
+      account.update!(captain_models: { 'editor' => 'gpt-4.1-mini', 'assistant' => 'gpt-5' })
       prefs = account.captain_preferences
 
       Llm::Models.feature_keys.each do |feature_key|

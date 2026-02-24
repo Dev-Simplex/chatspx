@@ -31,9 +31,21 @@ const props = defineProps({
     type: Object,
     default: () => ({}),
   },
+  isAwaitingResponse: {
+    type: Boolean,
+    default: false,
+  },
+  hasTimedOut: {
+    type: Boolean,
+    default: false,
+  },
+  timeoutMessage: {
+    type: String,
+    default: '',
+  },
 });
 
-const emit = defineEmits(['sendMessage', 'reset', 'setAssistant']);
+const emit = defineEmits(['sendMessage', 'reset', 'setAssistant', 'retry']);
 
 const { t } = useI18n();
 
@@ -80,10 +92,18 @@ const groupedMessages = computed(() => {
 });
 
 const isLastMessageFromAssistant = computed(() => {
+  if (!groupedMessages.value.length) return false;
+
   return (
     groupedMessages.value[groupedMessages.value.length - 1].message_type ===
     'assistant'
   );
+});
+
+const shouldShowLoader = computed(() => {
+  if (props.hasTimedOut) return false;
+  if (props.isAwaitingResponse) return true;
+  return hasMessages.value && !isLastMessageFromAssistant.value;
 });
 
 const { updateUISettings } = useUISettings();
@@ -154,8 +174,26 @@ watch(
             :default-collapsed="isLastMessageFromAssistant"
           />
         </template>
-
-        <CopilotLoader v-if="!isLastMessageFromAssistant" />
+        <div
+          v-if="hasTimedOut"
+          class="rounded-lg border border-n-weak bg-n-alpha-2 p-3 flex flex-col gap-2"
+        >
+          <p class="text-sm font-medium text-n-slate-12">
+            {{ $t('CAPTAIN.COPILOT.RESPONSE_TIMEOUT_TITLE') }}
+          </p>
+          <p class="text-xs text-n-slate-11">
+            {{ timeoutMessage || $t('CAPTAIN.COPILOT.RESPONSE_TIMEOUT_BODY') }}
+          </p>
+          <div>
+            <Button
+              :label="$t('CAPTAIN.COPILOT.RETRY')"
+              sm
+              slate
+              @click="$emit('retry')"
+            />
+          </div>
+        </div>
+        <CopilotLoader v-else-if="shouldShowLoader" />
       </div>
       <CopilotEmptyState
         v-else

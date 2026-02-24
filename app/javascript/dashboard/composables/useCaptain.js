@@ -1,14 +1,13 @@
 import { computed } from 'vue';
 import { useMapGetter, useStore } from 'dashboard/composables/store.js';
 import { useAccount } from 'dashboard/composables/useAccount';
-import { useConfig } from 'dashboard/composables/useConfig';
 import { useCamelCase } from 'dashboard/composables/useTransformKeys';
 import { FEATURE_FLAGS } from 'dashboard/featureFlags';
 
 export function useCaptain() {
   const store = useStore();
-  const { isCloudFeatureEnabled, currentAccount } = useAccount();
-  const { isEnterprise } = useConfig();
+  const { isCloudFeatureEnabled, currentAccount, isOnChatwootCloud } =
+    useAccount();
   const uiFlags = useMapGetter('accounts/getUIFlags');
 
   const captainEnabled = computed(() => {
@@ -46,7 +45,11 @@ export function useCaptain() {
   });
 
   const fetchLimits = () => {
-    if (!isEnterprise || !captainEnabled.value || !currentAccount.value?.id) {
+    if (
+      !isOnChatwootCloud.value ||
+      !captainEnabled.value ||
+      !currentAccount.value?.id
+    ) {
       return;
     }
     if (isLimitsEndpointUnavailable.value) return;

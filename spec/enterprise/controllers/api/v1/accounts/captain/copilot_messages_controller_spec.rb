@@ -3,6 +3,9 @@ require 'rails_helper'
 RSpec.describe 'Api::V1::Accounts::Captain::CopilotMessagesController', type: :request do
   let(:account) { create(:account) }
   let(:user) { create(:user, account: account, role: :administrator) }
+  let!(:openai_hook) do
+    create(:integrations_hook, :openai, account: account, settings: { api_key: 'test-key' })
+  end
   let(:copilot_thread) { create(:captain_copilot_thread, account: account, user: user) }
   let!(:copilot_message) { create(:captain_copilot_message, copilot_thread: copilot_thread, account: account) }
 
@@ -72,6 +75,25 @@ RSpec.describe 'Api::V1::Accounts::Captain::CopilotMessagesController', type: :r
              as: :json
 
         expect(response).to have_http_status(:not_found)
+      end
+    end
+
+    context 'when account OpenAI key is missing' do
+      before do
+        openai_hook.destroy!
+      end
+
+      it 'returns a standardized missing key error' do
+        post "/api/v1/accounts/#{account.id}/captain/copilot_threads/#{copilot_thread.id}/copilot_messages",
+             params: { message: { text: 'Test message' } },
+             headers: user.create_new_auth_token,
+             as: :json
+
+        expect(response).to have_http_status(:unprocessable_entity)
+        expect(response.parsed_body['code']).to eq('captain_api_key_missing')
+        expect(response.parsed_body['message']).to eq(
+          I18n.t('captain.errors.missing_api_key', locale: account.locale.to_sym)
+        )
       end
     end
   end

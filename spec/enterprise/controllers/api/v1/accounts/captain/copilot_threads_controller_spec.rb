@@ -4,6 +4,9 @@ RSpec.describe 'Api::V1::Accounts::Captain::CopilotThreads', type: :request do
   let(:account) { create(:account) }
   let(:admin) { create(:user, account: account, role: :administrator) }
   let(:agent) { create(:user, account: account, role: :agent) }
+  let!(:openai_hook) do
+    create(:integrations_hook, :openai, account: account, settings: { api_key: 'test-key' })
+  end
   let(:conversation) { create(:conversation, account: account) }
 
   def json_response
@@ -131,7 +134,27 @@ RSpec.describe 'Api::V1::Accounts::Captain::CopilotThreads', type: :request do
             conversation_id: valid_params[:conversation_id],
             user_id: agent.id,
             copilot_thread_id: thread.id,
+            copilot_message_id: message.id,
             message: valid_params[:message]
+          )
+        end
+      end
+
+      context 'when account OpenAI key is missing' do
+        before do
+          openai_hook.destroy!
+        end
+
+        it 'returns a standardized missing key error' do
+          post "/api/v1/accounts/#{account.id}/captain/copilot_threads",
+               params: valid_params,
+               headers: agent.create_new_auth_token,
+               as: :json
+
+          expect(response).to have_http_status(:unprocessable_entity)
+          expect(json_response[:code]).to eq('captain_api_key_missing')
+          expect(json_response[:message]).to eq(
+            I18n.t('captain.errors.missing_api_key', locale: account.locale.to_sym)
           )
         end
       end

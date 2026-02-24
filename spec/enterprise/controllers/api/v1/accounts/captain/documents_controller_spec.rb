@@ -4,6 +4,9 @@ RSpec.describe 'Api::V1::Accounts::Captain::Documents', type: :request do
   let(:account) { create(:account, custom_attributes: { plan_name: 'startups' }) }
   let(:admin) { create(:user, account: account, role: :administrator) }
   let(:agent) { create(:user, account: account, role: :agent) }
+  let!(:openai_hook) do
+    create(:integrations_hook, :openai, account: account, settings: { api_key: 'test-key' })
+  end
   let(:assistant) { create(:captain_assistant, account: account) }
   let(:assistant2) { create(:captain_assistant, account: account) }
   let(:document) { create(:captain_document, assistant: assistant, account: account) }
@@ -215,6 +218,23 @@ RSpec.describe 'Api::V1::Accounts::Captain::Documents', type: :request do
 
         it 'returns unprocessable entity status' do
           expect(response).to have_http_status(:unprocessable_entity)
+        end
+      end
+
+      context 'when account OpenAI key is missing' do
+        before do
+          openai_hook.destroy!
+        end
+
+        it 'returns a standardized missing key error' do
+          post "/api/v1/accounts/#{account.id}/captain/documents",
+               params: valid_attributes,
+               headers: admin.create_new_auth_token,
+               as: :json
+
+          expect(response).to have_http_status(:unprocessable_entity)
+          expect(json_response[:code]).to eq('captain_api_key_missing')
+          expect(json_response[:message]).to eq(I18n.t('captain.errors.missing_api_key'))
         end
       end
 

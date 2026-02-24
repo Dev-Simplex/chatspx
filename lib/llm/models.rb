@@ -19,6 +19,24 @@ module Llm::Models
       models_for(feature).include?(model_name.to_s)
     end
 
+    def runtime_supported_model?(model_id)
+      return false if model_id.blank?
+
+      RubyLLM.models.find(model_id.to_s)
+      true
+    rescue RubyLLM::ModelNotFoundError, StandardError
+      false
+    end
+
+    def first_runtime_supported(*model_ids)
+      model_ids
+        .flatten
+        .compact
+        .map(&:to_s)
+        .reject(&:blank?)
+        .find { |model_id| runtime_supported_model?(model_id) }
+    end
+
     def feature_config(feature_key)
       feature = features[feature_key.to_s]
       return nil unless feature

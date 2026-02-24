@@ -1,5 +1,8 @@
 class Api::V1::Accounts::Captain::CopilotMessagesController < Api::V1::Accounts::BaseController
+  include Captain::ApiKeyValidation
+
   before_action :set_copilot_thread
+  before_action :ensure_captain_api_key!, only: :create
 
   def index
     @copilot_messages = @copilot_thread

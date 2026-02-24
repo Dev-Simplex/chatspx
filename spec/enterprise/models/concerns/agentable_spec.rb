@@ -7,11 +7,12 @@ RSpec.describe Concerns::Agentable do
     Class.new do
       include Concerns::Agentable
 
-      attr_accessor :temperature
+      attr_accessor :temperature, :account
 
-      def initialize(name: 'Test Agent', temperature: 0.8)
+      def initialize(name: 'Test Agent', temperature: 0.8, account: nil)
         @name = name
         @temperature = temperature
+        @account = account
       end
 
       def self.name
@@ -30,13 +31,12 @@ RSpec.describe Concerns::Agentable do
     end
   end
 
-  let(:dummy_instance) { dummy_class.new }
+  let(:account_with_model) { instance_double(Account, captain_assistant_model: 'gpt-4-turbo') }
+  let(:dummy_instance) { dummy_class.new(account: account_with_model) }
   let(:mock_agents_agent) { instance_double(Agents::Agent) }
-  let(:mock_installation_config) { instance_double(InstallationConfig, value: 'gpt-4-turbo') }
 
   before do
     allow(Agents::Agent).to receive(:new).and_return(mock_agents_agent)
-    allow(InstallationConfig).to receive(:find_by).with(name: 'CAPTAIN_OPEN_AI_MODEL').and_return(mock_installation_config)
     allow(Captain::PromptRenderer).to receive(:render).and_return('rendered_template')
   end
 
@@ -137,20 +137,21 @@ RSpec.describe Concerns::Agentable do
   end
 
   describe '#agent_model' do
-    it 'returns value from InstallationConfig when present' do
+    it 'returns account model preference when present' do
       expect(dummy_instance.send(:agent_model)).to eq('gpt-4-turbo')
     end
 
-    it 'returns default model when config not found' do
-      allow(InstallationConfig).to receive(:find_by).and_return(nil)
+    it 'returns default model when account is not available' do
+      instance_without_account = dummy_class.new(account: nil)
 
-      expect(dummy_instance.send(:agent_model)).to eq('gpt-4.1-mini')
+      expect(instance_without_account.send(:agent_model)).to eq('gpt-4.1-mini')
     end
 
-    it 'returns default model when config value is nil' do
-      allow(mock_installation_config).to receive(:value).and_return(nil)
+    it 'returns default model when account preference is blank' do
+      account_without_model = instance_double(Account, captain_assistant_model: nil)
+      instance_without_model = dummy_class.new(account: account_without_model)
 
-      expect(dummy_instance.send(:agent_model)).to eq('gpt-4.1-mini')
+      expect(instance_without_model.send(:agent_model)).to eq('gpt-4.1-mini')
     end
   end
 

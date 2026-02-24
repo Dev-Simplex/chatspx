@@ -11,6 +11,7 @@ import FunnelForm from 'dashboard/components-next/Kanban/FunnelForm.vue';
 import ScheduledMessageForm from 'dashboard/components-next/Kanban/ScheduledMessageForm.vue';
 import ScheduledMessagesDrawer from 'dashboard/components-next/Kanban/ScheduledMessagesDrawer.vue';
 import Button from 'dashboard/components-next/button/Button.vue';
+import Input from 'dashboard/components-next/input/Input.vue';
 import Icon from 'dashboard/components-next/icon/Icon.vue';
 import Dialog from 'dashboard/components-next/dialog/Dialog.vue';
 import { useAlert } from 'dashboard/composables';
@@ -643,18 +644,22 @@ onMounted(async () => {
             <label class="kanban-filter-label">
               {{ t('KANBAN.FILTERS.SEARCH_LABEL') }}
             </label>
-            <div class="relative kanban-search-field">
-              <Icon
-                icon="i-lucide-search"
-                class="kanban-search-icon pointer-events-none size-4 text-n-slate-10"
-              />
-              <input
-                v-model="searchFilter"
-                type="search"
-                :placeholder="t('KANBAN.FILTERS.SEARCH_PLACEHOLDER')"
-                class="kanban-filter-control kanban-search-input w-full"
-              />
-            </div>
+            <Input
+              v-model="searchFilter"
+              type="search"
+              :placeholder="t('KANBAN.FILTERS.SEARCH_PLACEHOLDER')"
+              :custom-input-class="[
+                'h-10 [&:not(.focus)]:!border-transparent bg-n-alpha-2 dark:bg-n-solid-1 ltr:!pl-8 !py-1 rtl:!pr-8',
+              ]"
+              class="w-full"
+            >
+              <template #prefix>
+                <Icon
+                  icon="i-lucide-search"
+                  class="absolute -translate-y-1/2 text-n-slate-11 size-4 top-1/2 ltr:left-2 rtl:right-2"
+                />
+              </template>
+            </Input>
           </div>
 
           <div class="kanban-filter-group kanban-funnel-filter-group">
@@ -673,7 +678,7 @@ onMounted(async () => {
             variant="ghost"
             size="sm"
             icon="i-lucide-sliders-horizontal"
-            class="kanban-filter-action kanban-advanced-filters-toggle-btn h-10 lg:w-auto"
+            class="kanban-filter-action kanban-advanced-filters-toggle-btn !h-10 lg:w-auto"
             :title="
               showAdvancedFilters
                 ? t('KANBAN.FILTERS.ADVANCED_HIDE')
@@ -696,7 +701,7 @@ onMounted(async () => {
             variant="ghost"
             size="sm"
             icon="i-lucide-filter-x"
-            class="kanban-filter-action h-10 lg:w-auto"
+            class="kanban-filter-action !h-10 lg:w-auto"
             :title="t('KANBAN.FILTERS.CLEAR')"
             @click="clearFilters"
           >
@@ -905,55 +910,11 @@ onMounted(async () => {
   color: var(--n-slate-10);
 }
 
-.kanban-filter-control {
-  height: 2.5rem;
-  border-radius: 0.75rem;
-  border: 1px solid var(--n-weak);
-  background: var(--n-solid-2);
-  padding-right: 0.75rem;
-  padding-left: 0.75rem;
-  font-size: 0.875rem;
-  color: var(--n-slate-12);
-  transition:
-    border-color 0.2s ease,
-    box-shadow 0.2s ease,
-    background-color 0.2s ease;
-}
-
-.kanban-search-field {
-  position: relative;
-}
-
-.kanban-search-icon {
-  position: absolute;
-  left: 0.75rem;
-  top: 50%;
-  transform: translateY(-50%);
-  z-index: 2;
-}
-
-.kanban-search-field .kanban-search-input {
-  padding-left: 2.75rem;
-  position: relative;
-  z-index: 1;
-}
-
 .kanban-filter-action {
   align-self: end;
 }
 
 .kanban-advanced-filters-toggle-btn {
   transform: translateY(-2px);
-}
-
-.kanban-filter-control::placeholder {
-  color: var(--n-slate-9);
-}
-
-.kanban-filter-control:focus {
-  outline: none;
-  border-color: var(--n-blue-9);
-  box-shadow: 0 0 0 2px var(--n-blue-5);
-  background: var(--n-solid-1);
 }
 </style>

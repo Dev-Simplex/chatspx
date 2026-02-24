@@ -23,7 +23,9 @@ class Captain::Assistant::AgentRunnerService
     message_to_process = extract_last_user_message(message_history)
     runner = Agents::Runner.with_agents(*agents)
     runner = add_callbacks_to_runner(runner) if @callbacks.any?
-    result = runner.run(message_to_process, context: context, max_turns: 100)
+    result = Llm::AccountScopedContext.with_account(@assistant.account) do
+      runner.run(message_to_process, context: context, max_turns: 100)
+    end
 
     process_agent_result(result)
   rescue StandardError => e

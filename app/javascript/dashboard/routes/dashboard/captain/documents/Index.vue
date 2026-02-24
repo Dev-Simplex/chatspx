@@ -12,7 +12,6 @@ import CaptainPaywall from 'dashboard/components-next/captain/pageComponents/Pay
 import RelatedResponses from 'dashboard/components-next/captain/pageComponents/document/RelatedResponses.vue';
 import CreateDocumentDialog from 'dashboard/components-next/captain/pageComponents/document/CreateDocumentDialog.vue';
 import DocumentPageEmptyState from 'dashboard/components-next/captain/pageComponents/emptyStates/DocumentPageEmptyState.vue';
-import LimitBanner from 'dashboard/components-next/captain/pageComponents/document/LimitBanner.vue';
 
 const route = useRoute();
 const store = useStore();
@@ -126,8 +125,6 @@ onMounted(() => {
     </template>
 
     <template #body>
-      <LimitBanner class="mb-5" />
-
       <div class="flex flex-col gap-4">
         <DocumentCard
           v-for="doc in documents"

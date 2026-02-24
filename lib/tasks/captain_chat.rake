@@ -2,6 +2,125 @@ require 'io/console'
 require 'readline'
 
 namespace :captain do
+  desc 'Diagnose Copilot for an account - Usage: rake captain:diagnose[account_id]'
+  task :diagnose, [:account_id] => :environment do |_, args|
+    account_id = args[:account_id] || ARGV[1]
+
+    unless account_id
+      puts '❌ Please provide an account ID'
+      puts 'Usage: rake captain:diagnose[account_id]'
+      exit 1
+    end
+
+    account = Account.find_by(id: account_id)
+    unless account
+      puts "❌ Account with ID #{account_id} not found"
+      exit 1
+    end
+
+    puts "\n🔍 Diagnóstico Copilot - Conta ##{account.id} (#{account.name})"
+    puts '=' * 60
+
+    # 1. Feature flags
+    captain_v1 = account.feature_enabled?('captain_integration')
+    captain_v2 = account.feature_enabled?('captain_integration_v2')
+    if captain_v1 || captain_v2
+      puts "✅ Feature flags: captain_integration=#{captain_v1}, captain_integration_v2=#{captain_v2}"
+    else
+      puts "❌ Feature flags: Captain desabilitado para esta conta"
+      puts "   Para habilitar: Account.find(#{account.id}).enable_features!('captain_integration', 'captain_integration_v2')"
+      puts "   Ou via: Configurações da conta > Features"
+      exit 1
+    end
+
+    # 2. OpenAI API Key
+    openai_service = Captain::OpenaiHookService.new(account: account)
+    if openai_service.configured?
+      puts '✅ Chave API OpenAI: configurada'
+    else
+      puts '❌ Chave API OpenAI: NÃO configurada'
+      puts "   Configure em: Configurações > Integrações > OpenAI"
+      exit 1
+    end
+
+    # 3. Assistants
+    assistants = account.captain_assistants
+    if assistants.any?
+      puts "✅ Assistentes: #{assistants.count} encontrado(s) - IDs: #{assistants.pluck(:id).join(', ')}"
+    else
+      puts '❌ Assistentes: nenhum configurado'
+      puts "   Crie um assistente em: Captain > Assistants"
+      exit 1
+    end
+
+    # 4. Effective models + runtime support
+    puts "\n🧠 Modelos Captain (efetivos):"
+    unsupported_models = []
+    account.captain_preferences[:models].each do |feature_key, model_name|
+      supported = Llm::Models.runtime_supported_model?(model_name)
+      marker = supported ? '✅' : '❌'
+      puts "   #{marker} #{feature_key}: #{model_name} (runtime_supported=#{supported})"
+      unsupported_models << [feature_key, model_name] unless supported
+    end
+
+    if unsupported_models.any?
+      puts "\n❌ Modelos não suportados pelo runtime RubyLLM:"
+      unsupported_models.each do |feature_key, model_name|
+        puts "   - #{feature_key}: #{model_name}"
+      end
+      puts '   Ajuste os modelos em Captain > Configurações > Configuração de modelos'
+      exit 1
+    end
+
+    # 5. Usage limits
+    limits = account.usage_limits[:captain]
+    if limits
+      responses = limits[:responses] || {}
+      current = responses[:current_available].to_i
+      consumed = responses[:consumed].to_i
+      total = responses[:total_count].to_i
+
+      if current.positive?
+        puts "✅ Limite de respostas: #{current} disponíveis (#{consumed}/#{total} consumidos)"
+      else
+        puts "❌ Limite de respostas: créditos esgotados (#{consumed}/#{total})"
+        puts "   Compre mais créditos na seção de faturamento"
+      end
+    else
+      puts '⚠️  Limites Captain: não definidos (pode usar limites globais)'
+    end
+
+    # 6. OpenAI Hook details (without exposing key)
+    hook = account.hooks.find_by(app_id: 'openai')
+    if hook
+      puts "✅ Hook OpenAI: id=#{hook.id}, status=#{hook.status}"
+    end
+
+    puts '=' * 60
+    puts "\n✅ Diagnóstico concluído. Copilot deve funcionar para esta conta."
+    puts "   Teste via: POST /api/v1/accounts/#{account.id}/captain/copilot_threads"
+    puts "   Payload: {\"assistant_id\": #{assistants.first&.id}, \"conversation_id\": ID_DA_CONVERSA, \"message\": \"Sua mensagem\"}"
+    puts ''
+  end
+
+  desc 'Enable Captain features for an account - Usage: rake captain:enable_features[account_id]'
+  task :enable_features, [:account_id] => :environment do |_, args|
+    account_id = args[:account_id] || ARGV[1]
+    unless account_id
+      puts 'Usage: rake captain:enable_features[account_id]'
+      exit 1
+    end
+
+    account = Account.find_by(id: account_id)
+    unless account
+      puts "❌ Account #{account_id} not found"
+      exit 1
+    end
+
+    account.enable_features!('captain_integration', 'captain_integration_v2')
+    puts "✅ Captain features habilitados para conta ##{account.id} (#{account.name})"
+  end
+
   desc 'Start interactive chat with Captain assistant - Usage: rake captain:chat[assistant_id] or rake captain:chat -- assistant_id'
   task :chat, [:assistant_id] => :environment do |_, args|
     assistant_id = args[:assistant_id] || ARGV[1]

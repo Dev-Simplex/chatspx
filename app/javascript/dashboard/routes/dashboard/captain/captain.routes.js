@@ -1,5 +1,4 @@
 import { FEATURE_FLAGS } from 'dashboard/featureFlags';
-import { INSTALLATION_TYPES } from 'dashboard/constants/installationTypes';
 import { frontendURL } from '../../../helper/URLHelper';
 
 import CaptainPageRouteView from './pages/CaptainPageRouteView.vue';
@@ -20,13 +19,11 @@ import CustomToolsIndex from './tools/Index.vue';
 const meta = {
   permissions: ['administrator', 'agent'],
   featureFlag: FEATURE_FLAGS.CAPTAIN,
-  installationTypes: [INSTALLATION_TYPES.CLOUD, INSTALLATION_TYPES.ENTERPRISE],
 };
 
 const metaV2 = {
   permissions: ['administrator', 'agent'],
   featureFlag: FEATURE_FLAGS.CAPTAIN_V2,
-  installationTypes: [INSTALLATION_TYPES.CLOUD, INSTALLATION_TYPES.ENTERPRISE],
 };
 
 const assistantRoutes = [
@@ -101,10 +98,6 @@ const assistantRoutes = [
     name: 'captain_assistants_create_index',
     meta: {
       permissions: ['administrator', 'agent'],
-      installationTypes: [
-        INSTALLATION_TYPES.CLOUD,
-        INSTALLATION_TYPES.ENTERPRISE,
-      ],
     },
   },
   {

@@ -6,6 +6,9 @@ class Captain::Documents::ResponseBuilderJob < ApplicationJob
 
     faqs = generate_faqs(document, options)
     create_responses_from_faqs(faqs, document)
+  rescue Llm::Config::MissingAccountApiKeyError => e
+    Rails.logger.warn I18n.t('captain.documents.response_creation_error', error: e.message)
+    mark_document_missing_api_key(document, e.message)
   end
 
   private
@@ -74,5 +77,17 @@ class Captain::Documents::ResponseBuilderJob < ApplicationJob
     )
   rescue ActiveRecord::RecordInvalid => e
     Rails.logger.error I18n.t('captain.documents.response_creation_error', error: e.message)
+  end
+
+  def mark_document_missing_api_key(document, message)
+    metadata = (document.metadata || {}).merge(
+      'error' => {
+        'code' => 'captain_api_key_missing',
+        'message' => message,
+        'occurred_at' => Time.current.iso8601
+      }
+    )
+
+    document.update!(metadata: metadata)
   end
 end

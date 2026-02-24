@@ -19,7 +19,6 @@ import ResponseCard from 'dashboard/components-next/captain/assistant/ResponseCa
 import CreateResponseDialog from 'dashboard/components-next/captain/pageComponents/response/CreateResponseDialog.vue';
 import ResponsePageEmptyState from 'dashboard/components-next/captain/pageComponents/emptyStates/ResponsePageEmptyState.vue';
 import FeatureSpotlightPopover from 'dashboard/components-next/feature-spotlight/FeatureSpotlightPopover.vue';
-import LimitBanner from 'dashboard/components-next/captain/pageComponents/response/LimitBanner.vue';
 
 const router = useRouter();
 const route = useRoute();
@@ -323,8 +322,6 @@ onMounted(() => {
     </template>
 
     <template #body>
-      <LimitBanner class="mb-5" />
-
       <div class="flex flex-col gap-4">
         <ResponseCard
           v-for="response in filteredResponses"

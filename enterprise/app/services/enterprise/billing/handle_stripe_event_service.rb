@@ -15,7 +15,6 @@ class Enterprise::Billing::HandleStripeEventService
     channel_facebook
     channel_email
     channel_instagram
-    captain_integration
     advanced_search_indexing
     advanced_search
     linear_integration

@@ -6,10 +6,10 @@ class Messages::AudioTranscriptionService< Llm::LegacyBaseOpenAiService
   attr_reader :attachment, :message, :account
 
   def initialize(attachment)
-    super()
     @attachment = attachment
     @message = attachment.message
     @account = message.account
+    super(account: @account)
   end
 
   def perform

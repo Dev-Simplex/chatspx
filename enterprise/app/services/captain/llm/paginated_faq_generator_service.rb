@@ -8,8 +8,8 @@ class Captain::Llm::PaginatedFaqGeneratorService < Llm::LegacyBaseOpenAiService
   attr_reader :total_pages_processed, :iterations_completed
 
   def initialize(document, options = {})
-    super()
     @document = document
+    super(account: document.account)
     @language = options[:language] || 'english'
     @pages_per_chunk = options[:pages_per_chunk] || DEFAULT_PAGES_PER_CHUNK
     @max_pages = options[:max_pages] # Optional limit from UI

@@ -82,7 +82,7 @@ watch(
     <div v-if="!hasTeams" class="py-4 text-sm text-n-slate-11">
       {{ t('CONVERSATION.NO_TEAMS_AVAILABLE') }}
     </div>
-    <div v-else class="flex flex-col gap-2 py-4">
+    <div v-else class="team-selection-list flex flex-col gap-2 py-4">
       <button
         v-for="team in teamsList"
         :key="team.id"
@@ -123,3 +123,11 @@ watch(
     </div>
   </Dialog>
 </template>
+
+<style scoped>
+.team-selection-list {
+  max-height: 60vh;
+  overflow-y: auto;
+  padding-right: 0.25rem;
+}
+</style>

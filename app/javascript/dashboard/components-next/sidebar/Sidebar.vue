@@ -382,6 +382,12 @@ const menuItems = computed(() => {
             navigationPath: 'captain_assistants_settings_index',
           }),
         },
+        {
+          name: 'OpenAI Connection',
+          label: t('SIDEBAR.CAPTAIN_OPENAI_CONNECTION'),
+          activeOn: ['captain_settings_index'],
+          to: accountScopedRoute('captain_settings_index'),
+        },
       ],
     },
     {

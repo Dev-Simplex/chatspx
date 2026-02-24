@@ -39,18 +39,38 @@ const renderInstruction = instruction => () =>
     innerHTML: instruction,
   });
 
+const ALLOWED_SCENARIO_TOOLS = new Set([
+  'add_private_note',
+  'add_label_to_conversation',
+  'handoff',
+]);
+
+const sanitizeTools = (tools = []) => {
+  return [...new Set(tools)].filter(tool => ALLOWED_SCENARIO_TOOLS.has(tool));
+};
+
+const formatTools = tools => {
+  return sanitizeTools(tools)
+    .map(tool => `@${tool}`)
+    .join(', ');
+};
+
 // Suggested example scenarios for quick add
-const scenariosExample = [
+const scenariosExample = computed(() => [
   {
     id: 1,
-    title: 'Prospective Buyer',
-    description:
-      'Handle customers who are showing interest in purchasing a license',
-    instruction:
-      'If someone is interested in purchasing a license, ask them for following:\n\n1. How many licenses are they willing to purchase?\n2. Are they migrating from another platform?\n. Once these details are collected, do the following steps\n1. add a private note to with the information you collected using [Add Private Note](tool://add_private_note)\n2. Add label "sales" to the contact using [Add Label to Conversation](tool://add_label_to_conversation)\n3. Reply saying "one of us will reach out soon" and provide an estimated timeline for the response and [Handoff to Human](tool://handoff)',
+    title: t(
+      'CAPTAIN.ASSISTANTS.SCENARIOS.ADD.SUGGESTED.EXAMPLES.PROSPECTIVE_BUYER.TITLE'
+    ),
+    description: t(
+      'CAPTAIN.ASSISTANTS.SCENARIOS.ADD.SUGGESTED.EXAMPLES.PROSPECTIVE_BUYER.DESCRIPTION'
+    ),
+    instruction: t(
+      'CAPTAIN.ASSISTANTS.SCENARIOS.ADD.SUGGESTED.EXAMPLES.PROSPECTIVE_BUYER.INSTRUCTION'
+    ),
     tools: ['add_private_note', 'add_label_to_conversation', 'handoff'],
   },
-];
+]);
 
 const filteredScenarios = computed(() => {
   const query = searchQuery.value.trim();
@@ -95,11 +115,10 @@ const handleRuleHover = (isHovered, id) => {
   hoveredCard.value = isHovered ? id : null;
 };
 
-const getToolsFromInstruction = instruction => [
-  ...new Set(
+const getToolsFromInstruction = instruction =>
+  sanitizeTools(
     [...(instruction?.matchAll(/\(tool:\/\/([^)]+)\)/g) ?? [])].map(m => m[1])
-  ),
-];
+  );
 
 const updateScenario = async scenario => {
   try {
@@ -107,7 +126,10 @@ const updateScenario = async scenario => {
       id: scenario.id,
       assistantId: assistantId.value,
       ...scenario,
-      tools: getToolsFromInstruction(scenario.instruction),
+      tools: sanitizeTools([
+        ...(scenario.tools || []),
+        ...getToolsFromInstruction(scenario.instruction),
+      ]),
     });
     useAlert(t('CAPTAIN.ASSISTANTS.SCENARIOS.API.UPDATE.SUCCESS'));
   } catch (error) {
@@ -153,7 +175,10 @@ const addScenario = async scenario => {
     await store.dispatch('captainScenarios/create', {
       assistantId: assistantId.value,
       ...scenario,
-      tools: getToolsFromInstruction(scenario.instruction),
+      tools: sanitizeTools([
+        ...(scenario.tools || []),
+        ...getToolsFromInstruction(scenario.instruction),
+      ]),
     });
     useAlert(t('CAPTAIN.ASSISTANTS.SCENARIOS.API.ADD.SUCCESS'));
   } catch (error) {
@@ -166,12 +191,16 @@ const addScenario = async scenario => {
 
 const addAllExampleScenarios = async () => {
   try {
-    scenariosExample.forEach(async scenario => {
+    for (const scenario of scenariosExample.value) {
       await store.dispatch('captainScenarios/create', {
         assistantId: assistantId.value,
         ...scenario,
+        tools: sanitizeTools([
+          ...(scenario.tools || []),
+          ...getToolsFromInstruction(scenario.instruction),
+        ]),
       });
-    });
+    }
     useAlert(t('CAPTAIN.ASSISTANTS.SCENARIOS.API.ADD.SUCCESS'));
   } catch (error) {
     const errorMessage =
@@ -233,7 +262,7 @@ onMounted(() => {
               />
               <span class="text-sm text-n-slate-11 font-medium mb-1">
                 {{ t('CAPTAIN.ASSISTANTS.SCENARIOS.ADD.SUGGESTED.TOOLS_USED') }}
-                {{ item.tools?.map(tool => `@${tool}`).join(', ') }}
+                {{ formatTools(item.tools) }}
               </span>
             </div>
           </template>

@@ -364,6 +364,17 @@
       "RESET": "Reset",
       "SHOW_STEPS": "Show steps",
       "SELECT_ASSISTANT": "Select Assistant",
+      "RESPONSE_TIMEOUT_TITLE": "This response is taking longer than expected",
+      "RESPONSE_TIMEOUT_BODY": "Captain could not complete this request within 30 seconds. Please try again.",
+      "RETRY": "Try again",
+      "API_KEY_MISSING": {
+        "TITLE": "Configure OpenAI API key to use Copilot",
+        "DESCRIPTION_ADMIN": "This account does not have an OpenAI API key configured yet. Configure it in Captain settings to enable Copilot replies.",
+        "DESCRIPTION_AGENT": "This account does not have an OpenAI API key configured yet. Ask an administrator to configure it in Captain settings.",
+        "CONFIGURE_BUTTON": "Configure OpenAI",
+        "OK_BUTTON": "Got it",
+        "CLOSE_BUTTON": "Close"
+      },
       "PROMPTS": {
         "SUMMARIZE": {
           "LABEL": "Summarize this conversation",
@@ -637,7 +648,14 @@
             "TITLE": "Example scenarios",
             "ADD": "Add all",
             "ADD_SINGLE": "Add this",
-            "TOOLS_USED": "Tools used :"
+            "TOOLS_USED": "Tools used:",
+            "EXAMPLES": {
+              "PROSPECTIVE_BUYER": {
+                "TITLE": "Prospective Buyer",
+                "DESCRIPTION": "Handle customers who are showing interest in purchasing a license",
+                "INSTRUCTION": "If someone is interested in purchasing a license, ask:\n\n1. How many licenses are they willing to purchase?\n2. Are they migrating from another platform?\n\nOnce these details are collected, do the following:\n1. Add a private note with the collected information using [Add Private Note](tool://add_private_note)\n2. Add label \"sales\" to the contact using [Add Label to Conversation](tool://add_label_to_conversation)\n3. Reply saying \"one of us will reach out soon\", provide an estimated response timeline and [Handoff to Human](tool://handoff)"
+              }
+            }
           },
           "NEW": {
             "CREATE": "Add a scenario",

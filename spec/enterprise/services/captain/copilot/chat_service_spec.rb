@@ -5,6 +5,9 @@ RSpec.describe Captain::Copilot::ChatService do
   let(:user) { create(:user, account: account) }
   let(:inbox) { create(:inbox, account: account) }
   let(:assistant) { create(:captain_assistant, account: account) }
+  let!(:openai_hook) do
+    create(:integrations_hook, :openai, account: account, settings: { api_key: 'test-account-key' })
+  end
   let(:contact) { create(:contact, account: account) }
   let(:conversation) { create(:conversation, account: account, inbox: inbox, contact: contact) }
   let(:copilot_thread) { create(:captain_copilot_thread, account: account, user: user) }
@@ -20,17 +23,15 @@ RSpec.describe Captain::Copilot::ChatService do
   end
 
   # RubyLLM mocks
+  let(:mock_context) { instance_double(RubyLLM::Context) }
   let(:mock_chat) { instance_double(RubyLLM::Chat) }
   let(:mock_response) do
     instance_double(RubyLLM::Message, content: '{ "content": "Hey", "reasoning": "Test reasoning", "reply_suggestion": false }')
   end
 
   before do
-    InstallationConfig.find_or_create_by(name: 'CAPTAIN_OPEN_AI_API_KEY') do |c|
-      c.value = 'test-key'
-    end
-
-    allow(RubyLLM).to receive(:chat).and_return(mock_chat)
+    allow(Llm::Config).to receive(:context_for_account).with(account: account).and_return(mock_context)
+    allow(mock_context).to receive(:chat).and_return(mock_chat)
     allow(mock_chat).to receive(:with_temperature).and_return(mock_chat)
     allow(mock_chat).to receive(:with_params).and_return(mock_chat)
     allow(mock_chat).to receive(:with_tool).and_return(mock_chat)
@@ -186,6 +187,45 @@ RSpec.describe Captain::Copilot::ChatService do
           described_class.new(assistant, {}).generate_response('Hello')
         end.not_to(change(CopilotMessage, :count))
       end
+    end
+  end
+
+  describe 'tool thinking message persistence' do
+    it 'persists started and completed tool events for assistant_thinking messages' do
+      on_tool_call_handler = nil
+      on_tool_result_handler = nil
+
+      allow(mock_chat).to receive(:on_tool_call) do |&block|
+        on_tool_call_handler = block
+        mock_chat
+      end
+
+      allow(mock_chat).to receive(:on_tool_result) do |&block|
+        on_tool_result_handler = block
+        mock_chat
+      end
+
+      allow(mock_chat).to receive(:ask) do
+        tool_call = double(name: 'get_conversation')
+        on_tool_call_handler.call(tool_call)
+        on_tool_result_handler.call({ status: 'ok' })
+        mock_response
+      end
+
+      described_class.new(assistant, { copilot_thread_id: copilot_thread.id }).generate_response('Hello')
+
+      thinking_messages = copilot_thread.reload.copilot_messages.assistant_thinking.order(:id).last(2)
+      expect(thinking_messages.length).to eq(2)
+      expect(thinking_messages.first.message).to include(
+        'content' => 'Using get_conversation',
+        'function_name' => 'get_conversation',
+        'tool_event' => 'started'
+      )
+      expect(thinking_messages.last.message).to include(
+        'content' => 'Completed get_conversation',
+        'function_name' => 'get_conversation',
+        'tool_event' => 'completed'
+      )
     end
   end
 end

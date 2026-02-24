@@ -18,6 +18,9 @@ class Captain::Documents::CrawlJob < ApplicationJob
   def perform_pdf_processing(document)
     Captain::Llm::PdfProcessingService.new(document).process
     document.update!(status: :available)
+  rescue Llm::Config::MissingAccountApiKeyError => e
+    Rails.logger.warn I18n.t('captain.documents.pdf_processing_failed', document_id: document.id, error: e.message)
+    mark_document_missing_api_key(document, e.message)
   rescue StandardError => e
     Rails.logger.error I18n.t('captain.documents.pdf_processing_failed', document_id: document.id, error: e.message)
     raise # Re-raise to let job framework handle retry logic
@@ -57,5 +60,17 @@ class Captain::Documents::CrawlJob < ApplicationJob
     webhook_url = Rails.application.routes.url_helpers.enterprise_webhooks_firecrawl_url
 
     "#{webhook_url}?assistant_id=#{document.assistant_id}&token=#{generate_firecrawl_token(document.assistant_id, document.account_id)}"
+  end
+
+  def mark_document_missing_api_key(document, message)
+    metadata = (document.metadata || {}).merge(
+      'error' => {
+        'code' => 'captain_api_key_missing',
+        'message' => message,
+        'occurred_at' => Time.current.iso8601
+      }
+    )
+
+    document.update!(status: :available, metadata: metadata)
   end
 end

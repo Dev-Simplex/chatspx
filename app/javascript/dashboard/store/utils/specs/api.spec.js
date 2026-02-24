@@ -49,6 +49,30 @@ describe('#throwErrorMessage', () => {
     };
     expect(errorFn).toThrow('Error Message [message]');
   });
+
+  it('preserves error metadata for downstream handling', () => {
+    try {
+      throwErrorMessage({
+        response: {
+          status: 422,
+          data: {
+            code: 'captain_api_key_missing',
+            message: 'Missing API key',
+            field: 'openai_api_key',
+          },
+        },
+      });
+    } catch (error) {
+      expect(error.message).toBe('Missing API key');
+      expect(error.code).toBe('captain_api_key_missing');
+      expect(error.status).toBe(422);
+      expect(error.details).toEqual({
+        code: 'captain_api_key_missing',
+        message: 'Missing API key',
+        field: 'openai_api_key',
+      });
+    }
+  });
 });
 
 describe('#parseLinearAPIErrorResponse', () => {

@@ -2,7 +2,7 @@ class Captain::Llm::FaqGeneratorService < Llm::BaseAiService
   include Integrations::LlmInstrumentation
 
   def initialize(content, language = 'english', account_id: nil)
-    super()
+    super(account: Account.find_by(id: account_id))
     @language = language
     @content = content
     @account_id = account_id

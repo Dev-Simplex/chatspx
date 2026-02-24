@@ -329,6 +329,7 @@
     "CAPTAIN_PLAYGROUND": "Playground",
     "CAPTAIN_INBOXES": "Inboxes",
     "CAPTAIN_SETTINGS": "Settings",
+    "CAPTAIN_OPENAI_CONNECTION": "OpenAI Connection",
     "HOME": "Home",
     "AGENTS": "Agents",
     "AGENT_BOTS": "Bots",
@@ -403,7 +404,23 @@
     "DESCRIPTION": "Configure your AI models and features for Captain. Captain follows a credit based billing, you will be charged credits for every action Captain takes based on the model selected.",
     "LOADING": "Loading Captain configuration...",
     "LINK_TEXT": "Learn more about Captain Credits",
-    "NOT_ENABLED": "Captain is not enabled for your account. Please upgrade your plan to access Captain features.",
+    "NOT_ENABLED": "Captain is not enabled for your account.",
+    "OPENAI_CONNECTION": {
+      "TITLE": "OpenAI Connection",
+      "DESCRIPTION": "Configure the OpenAI API key for this account. Captain will use this account-level key for AI requests.",
+      "STATUS_CONFIGURED": "Configured",
+      "STATUS_NOT_CONFIGURED": "Not configured",
+      "CONFIGURED_KEY": "Configured key: {key}",
+      "UPDATED_AT": "Last updated: {date}",
+      "API_KEY_PLACEHOLDER": "Enter an OpenAI API key",
+      "SAVE": "Save key",
+      "SAVING": "Saving...",
+      "REMOVE": "Remove key",
+      "API": {
+        "SUCCESS": "OpenAI connection updated successfully.",
+        "ERROR": "Unable to update OpenAI connection. Please try again."
+      }
+    },
     "MODEL_CONFIG": {
       "TITLE": "Model Configuration",
       "DESCRIPTION": "Select AI models for different features.",
