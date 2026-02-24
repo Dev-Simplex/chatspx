@@ -9,6 +9,22 @@ RSpec.describe CopilotMessage, type: :model do
   describe 'validations' do
     it { is_expected.to validate_presence_of(:message_type) }
     it { is_expected.to validate_presence_of(:message) }
+
+    it 'allows tool_event in assistant thinking message payload' do
+      message = build(
+        :captain_copilot_message,
+        account: account,
+        copilot_thread: copilot_thread,
+        message_type: :assistant_thinking,
+        message: {
+          'content' => 'Using get_conversation',
+          'function_name' => 'get_conversation',
+          'tool_event' => 'started'
+        }
+      )
+
+      expect(message).to be_valid
+    end
   end
 
   describe 'callbacks' do

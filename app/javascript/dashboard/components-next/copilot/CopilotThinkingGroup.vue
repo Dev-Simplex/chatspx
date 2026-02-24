@@ -8,10 +8,87 @@ const props = defineProps({
   messages: { type: Array, required: true },
   defaultCollapsed: { type: Boolean, default: false },
 });
-const { t } = useI18n();
+const { t, locale } = useI18n();
 const isExpanded = ref(!props.defaultCollapsed);
 
 const thinkingCount = computed(() => props.messages.length);
+const currentLocale = computed(() =>
+  String(locale?.value || '')
+    .toLowerCase()
+    .replace('-', '_')
+);
+const isPtBrLocale = computed(() => currentLocale.value === 'pt_br');
+
+const TOOL_LABELS = {
+  get_conversation: 'GET_CONVERSATION',
+  search_conversation: 'SEARCH_CONVERSATION',
+  search_contacts: 'SEARCH_CONTACTS',
+  get_contact: 'GET_CONTACT',
+  search_articles: 'SEARCH_ARTICLES',
+  get_article: 'GET_ARTICLE',
+  search_documentation: 'SEARCH_DOCUMENTATION',
+  search_linear_issues: 'SEARCH_LINEAR_ISSUES',
+};
+
+const parseLegacyToolEvent = content => {
+  if (content?.startsWith('Using ')) {
+    return 'started';
+  }
+
+  if (content?.startsWith('Completed ')) {
+    return 'completed';
+  }
+
+  return null;
+};
+
+const parseLegacyFunctionName = (content, toolEvent) => {
+  const prefix = toolEvent === 'completed' ? 'Completed ' : 'Using ';
+  if (!content?.startsWith(prefix)) {
+    return '';
+  }
+
+  return content.slice(prefix.length).trim();
+};
+
+const resolveToolLabel = functionName => {
+  const normalizedName = String(functionName || '')
+    .trim()
+    .toLowerCase();
+  const translationKey = TOOL_LABELS[normalizedName] || 'FALLBACK';
+
+  return t(`CAPTAIN.COPILOT.THINKING.TOOLS.${translationKey}`);
+};
+
+const formatThinkingContent = copilotMessage => {
+  const messagePayload = copilotMessage?.message || {};
+  const rawContent = messagePayload.content || '';
+
+  if (!isPtBrLocale.value) {
+    return rawContent;
+  }
+
+  const toolEvent =
+    messagePayload.tool_event || parseLegacyToolEvent(rawContent);
+  if (!toolEvent) {
+    return rawContent;
+  }
+
+  const functionName =
+    messagePayload.function_name ||
+    parseLegacyFunctionName(rawContent, toolEvent);
+  const target = resolveToolLabel(functionName);
+
+  if (toolEvent === 'started') {
+    return t('CAPTAIN.COPILOT.THINKING.STARTED', { target });
+  }
+
+  if (toolEvent === 'completed') {
+    return t('CAPTAIN.COPILOT.THINKING.COMPLETED', { target });
+  }
+
+  return rawContent;
+};
 
 watch(
   () => props.defaultCollapsed,
@@ -53,7 +130,7 @@ watch(
       <CopilotThinkingBlock
         v-for="copilotMessage in messages"
         :key="copilotMessage.id"
-        :content="copilotMessage.message.content"
+        :content="formatThinkingContent(copilotMessage)"
         :reasoning="copilotMessage.message.reasoning"
       />
     </div>

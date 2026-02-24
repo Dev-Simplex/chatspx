@@ -27,7 +27,8 @@ module Captain::ChatResponseHelper
     persist_message(
       {
         'content' => "Using #{tool_name}",
-        'function_name' => tool_name
+        'function_name' => tool_name,
+        'tool_event' => 'started'
       },
       'assistant_thinking'
     )
@@ -44,7 +45,8 @@ module Captain::ChatResponseHelper
     persist_message(
       {
         'content' => "Completed #{tool_name}",
-        'function_name' => tool_name
+        'function_name' => tool_name,
+        'tool_event' => 'completed'
       },
       'assistant_thinking'
     )

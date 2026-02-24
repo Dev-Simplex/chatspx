@@ -350,9 +350,9 @@
     "HEADER_KNOW_MORE": "Saiba mais",
     "ASSISTANT_SWITCHER": {
       "ASSISTANTS": "Assistentes",
-      "SWITCH_ASSISTANT": "Switch between assistants",
-      "NEW_ASSISTANT": "Create Assistant",
-      "EMPTY_LIST": "No assistants found, please create one to get started"
+      "SWITCH_ASSISTANT": "Alternar entre assistentes",
+      "NEW_ASSISTANT": "Criar assistente",
+      "EMPTY_LIST": "Nenhum assistente encontrado. Crie um para começar."
     },
     "COPILOT": {
       "TITLE": "Copiloto",
@@ -366,7 +366,33 @@
       "USE": "Use isto",
       "RESET": "Reiniciar",
       "SHOW_STEPS": "Mostrar etapas",
+      "THINKING": {
+        "STARTED": "Buscando {target}...",
+        "COMPLETED": "Busca concluída: {target}.",
+        "TOOLS": {
+          "GET_CONVERSATION": "conversa",
+          "SEARCH_CONVERSATION": "conversas",
+          "SEARCH_CONTACTS": "contatos",
+          "GET_CONTACT": "contato",
+          "SEARCH_ARTICLES": "artigos",
+          "GET_ARTICLE": "artigo",
+          "SEARCH_DOCUMENTATION": "base de conhecimento",
+          "SEARCH_LINEAR_ISSUES": "tarefas",
+          "FALLBACK": "informações"
+        }
+      },
       "SELECT_ASSISTANT": "Selecione o Assistente",
+      "RESPONSE_TIMEOUT_TITLE": "A resposta está demorando mais do que o esperado",
+      "RESPONSE_TIMEOUT_BODY": "O Capitão não conseguiu concluir este pedido em 30 segundos. Tente novamente.",
+      "RETRY": "Tentar novamente",
+      "API_KEY_MISSING": {
+        "TITLE": "Configure a chave da OpenAI para usar o Copiloto",
+        "DESCRIPTION_ADMIN": "Esta conta ainda não tem chave OpenAI configurada. Configure em Ajustes do Captain para habilitar respostas do Copiloto.",
+        "DESCRIPTION_AGENT": "Esta conta ainda não tem chave OpenAI configurada. Peça para um administrador configurar a chave em Ajustes do Captain.",
+        "CONFIGURE_BUTTON": "Configurar OpenAI",
+        "OK_BUTTON": "Entendi",
+        "CLOSE_BUTTON": "Fechar"
+      },
       "PROMPTS": {
         "SUMMARIZE": {
           "LABEL": "Resumir esta conversa",
@@ -406,6 +432,7 @@
       "CANCEL_ANYTIME": "Você pode alterar ou cancelar seu plano a qualquer momento"
     },
     "ENTERPRISE_PAYWALL": {
+      "AVAILABLE_ON": "O Captain AI está disponível apenas em planos Enterprise.",
       "UPGRADE_PROMPT": "Atualize seu plano para ter acesso aos nossos assistentes, copilotos e muito mais.",
       "ASK_ADMIN": "Entre em contato com seu administrador para fazer a atualização."
     },
@@ -639,7 +666,14 @@
             "TITLE": "Exemplos de cenários",
             "ADD": "Adicionar todos",
             "ADD_SINGLE": "Adicionar este",
-            "TOOLS_USED": "Ferramentas usadas :"
+            "TOOLS_USED": "Ferramentas usadas:",
+            "EXAMPLES": {
+              "PROSPECTIVE_BUYER": {
+                "TITLE": "Comprador em potencial",
+                "DESCRIPTION": "Atenda clientes que demonstram interesse em comprar uma licença",
+                "INSTRUCTION": "Se alguém demonstrar interesse em comprar uma licença, pergunte:\n\n1. Quantas licenças pretende comprar?\n2. Está migrando de outra plataforma?\n\nDepois de coletar essas informações, faça os seguintes passos:\n1. Adicione uma nota privada com os dados coletados usando [Adicionar nota privada](tool://add_private_note)\n2. Adicione a etiqueta \"sales\" ao contato usando [Adicionar etiqueta à conversa](tool://add_label_to_conversation)\n3. Responda \"um de nós entrará em contato em breve\", informe um prazo estimado e faça [Encaminhar para humano](tool://handoff)"
+              }
+            }
           },
           "NEW": {
             "CREATE": "Adicionar um cenário",
