@@ -13,7 +13,6 @@ module Llm::Config
       return if @initialized
 
       configure_ruby_llm
-      Llm::AccountScopedContext.install_ruby_llm_patch!
       @initialized = true
     end
 
@@ -48,9 +47,14 @@ module Llm::Config
 
     def configure_ruby_llm
       RubyLLM.configure do |config|
+        config.openai_api_key = system_api_key if system_api_key.present?
         config.openai_api_base = openai_endpoint.chomp('/') if openai_endpoint.present?
         config.logger = Rails.logger
       end
+    end
+
+    def system_api_key
+      InstallationConfig.find_by(name: 'CAPTAIN_OPEN_AI_API_KEY')&.value
     end
 
     def openai_endpoint
