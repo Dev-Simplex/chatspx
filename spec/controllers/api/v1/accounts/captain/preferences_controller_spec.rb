@@ -31,6 +31,9 @@ RSpec.describe 'Api::V1::Accounts::Captain::Preferences', type: :request do
         expect(json_response).to have_key(:providers)
         expect(json_response).to have_key(:models)
         expect(json_response).to have_key(:features)
+        expect(json_response).to have_key(:llm_connection)
+        expect(json_response[:llm_connection][:provider]).to eq('openai')
+        expect(json_response[:llm_connection][:configured]).to be(false)
       end
     end
 
@@ -44,6 +47,34 @@ RSpec.describe 'Api::V1::Accounts::Captain::Preferences', type: :request do
         expect(json_response).to have_key(:providers)
         expect(json_response).to have_key(:models)
         expect(json_response).to have_key(:features)
+        expect(json_response).to have_key(:llm_connection)
+      end
+
+      it 'returns gpt-5-mini as default for assistant and copilot' do
+        get "/api/v1/accounts/#{account.id}/captain/preferences",
+            headers: admin.create_new_auth_token,
+            as: :json
+
+        expect(response).to have_http_status(:success)
+        expect(json_response.dig(:features, :assistant, :default)).to eq('gpt-5-mini')
+        expect(json_response.dig(:features, :copilot, :default)).to eq('gpt-5-mini')
+      end
+
+      it 'returns llm_connection details when hook is configured' do
+        create(
+          :integrations_hook,
+          :openai,
+          account: account,
+          settings: { api_key: 'sk-test-key-1234' }
+        )
+
+        get "/api/v1/accounts/#{account.id}/captain/preferences",
+            headers: admin.create_new_auth_token,
+            as: :json
+
+        expect(response).to have_http_status(:success)
+        expect(json_response[:llm_connection][:configured]).to be(true)
+        expect(json_response[:llm_connection][:masked_api_key]).to start_with('sk-t')
       end
     end
   end
@@ -98,7 +129,7 @@ RSpec.describe 'Api::V1::Accounts::Captain::Preferences', type: :request do
       end
 
       it 'merges with existing captain_models' do
-        account.update!(captain_models: { 'editor' => 'gpt-4.1-mini', 'assistant' => 'gpt-5.1' })
+        account.update!(captain_models: { 'editor' => 'gpt-4.1-mini', 'assistant' => 'gpt-5' })
 
         put "/api/v1/accounts/#{account.id}/captain/preferences",
             headers: admin.create_new_auth_token,
@@ -111,7 +142,7 @@ RSpec.describe 'Api::V1::Accounts::Captain::Preferences', type: :request do
         expect(json_response).to have_key(:features)
         models = account.reload.captain_models
         expect(models['editor']).to eq('gpt-4.1')
-        expect(models['assistant']).to eq('gpt-5.1') # Preserved
+        expect(models['assistant']).to eq('gpt-5') # Preserved
       end
 
       it 'merges with existing captain_features' do
@@ -147,6 +178,95 @@ RSpec.describe 'Api::V1::Accounts::Captain::Preferences', type: :request do
         account.reload
         expect(account.captain_models['editor']).to eq('gpt-4.1-mini')
         expect(account.captain_features['editor']).to be true
+      end
+
+      it 'creates or updates account OpenAI key via llm_connection payload' do
+        allow_any_instance_of(Captain::OpenaiHookService)
+          .to receive(:validate_api_key!)
+          .and_return(true)
+
+        put "/api/v1/accounts/#{account.id}/captain/preferences",
+            headers: admin.create_new_auth_token,
+            params: {
+              llm_connection: {
+                openai_api_key: 'sk-account-key-9876'
+              }
+            },
+            as: :json
+
+        expect(response).to have_http_status(:success)
+        hook = account.reload.hooks.find_by(app_id: 'openai')
+        expect(hook).to be_present
+        expect(hook.settings['api_key']).to eq('sk-account-key-9876')
+        expect(json_response[:llm_connection][:configured]).to be(true)
+      end
+
+      it 'returns validation error when OpenAI key is invalid' do
+        allow_any_instance_of(Captain::OpenaiHookService)
+          .to receive(:validate_and_upsert_api_key!)
+          .and_raise(
+            Captain::OpenaiHookService::InvalidApiKeyError,
+            I18n.t('captain.errors.invalid_api_key')
+          )
+
+        put "/api/v1/accounts/#{account.id}/captain/preferences",
+            headers: admin.create_new_auth_token,
+            params: {
+              llm_connection: {
+                openai_api_key: 'sk-invalid-key'
+              }
+            },
+            as: :json
+
+        expect(response).to have_http_status(:unprocessable_entity)
+        expect(json_response[:code]).to eq('captain_api_key_invalid')
+        expect(json_response[:message]).to eq(I18n.t('captain.errors.invalid_api_key'))
+        expect(account.reload.hooks.find_by(app_id: 'openai')).to be_nil
+      end
+
+      it 'returns validation unavailable error when provider cannot be reached' do
+        allow_any_instance_of(Captain::OpenaiHookService)
+          .to receive(:validate_and_upsert_api_key!)
+          .and_raise(
+            Captain::OpenaiHookService::ApiConnectionError,
+            I18n.t('captain.errors.api_key_validation_failed')
+          )
+
+        put "/api/v1/accounts/#{account.id}/captain/preferences",
+            headers: admin.create_new_auth_token,
+            params: {
+              llm_connection: {
+                openai_api_key: 'sk-any-key'
+              }
+            },
+            as: :json
+
+        expect(response).to have_http_status(:unprocessable_entity)
+        expect(json_response[:code]).to eq('captain_api_key_validation_failed')
+        expect(json_response[:message]).to eq(I18n.t('captain.errors.api_key_validation_failed'))
+        expect(account.reload.hooks.find_by(app_id: 'openai')).to be_nil
+      end
+
+      it 'removes account OpenAI key via llm_connection payload' do
+        create(
+          :integrations_hook,
+          :openai,
+          account: account,
+          settings: { api_key: 'sk-remove-me-1234' }
+        )
+
+        put "/api/v1/accounts/#{account.id}/captain/preferences",
+            headers: admin.create_new_auth_token,
+            params: {
+              llm_connection: {
+                remove_api_key: true
+              }
+            },
+            as: :json
+
+        expect(response).to have_http_status(:success)
+        expect(account.reload.hooks.find_by(app_id: 'openai')).to be_nil
+        expect(json_response[:llm_connection][:configured]).to be(false)
       end
     end
   end

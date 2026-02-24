@@ -1,29 +1,52 @@
 <script setup>
-import { computed, onMounted } from 'vue';
+import { computed, onMounted, ref } from 'vue';
 import { useI18n } from 'vue-i18n';
 import { storeToRefs } from 'pinia';
 import { useAlert } from 'dashboard/composables';
-import { useAccount } from 'dashboard/composables/useAccount';
 import { useCaptain } from 'dashboard/composables/useCaptain';
-import { useConfig } from 'dashboard/composables/useConfig';
 import { useCaptainConfigStore } from 'dashboard/store/captain/preferences';
+import { parseAPIErrorResponse } from 'dashboard/store/utils/api';
 
 import SettingsLayout from '../SettingsLayout.vue';
 import BaseSettingsHeader from '../components/BaseSettingsHeader.vue';
 import SectionLayout from '../account/components/SectionLayout.vue';
 import ModelSelector from './components/ModelSelector.vue';
 import FeatureToggle from './components/FeatureToggle.vue';
-import CaptainPaywall from 'next/captain/pageComponents/Paywall.vue';
 
 const { t } = useI18n();
 const { captainEnabled } = useCaptain();
-const { isEnterprise, enterprisePlanName } = useConfig();
-const { isOnChatwootCloud } = useAccount();
 
 const captainConfigStore = useCaptainConfigStore();
-const { uiFlags } = storeToRefs(captainConfigStore);
+const { uiFlags, llmConnection } = storeToRefs(captainConfigStore);
 
 const isLoading = computed(() => uiFlags.value.isFetching);
+const openaiApiKey = ref('');
+const isUpdatingConnection = ref(false);
+
+const isOpenAiConfigured = computed(() =>
+  Boolean(llmConnection.value?.configured)
+);
+const maskedApiKey = computed(() => llmConnection.value?.maskedApiKey || null);
+const lastUpdatedAt = computed(() => {
+  const rawDate = llmConnection.value?.updatedAt;
+  if (!rawDate) return null;
+
+  const parsedDate = new Date(rawDate);
+  if (Number.isNaN(parsedDate.getTime())) return rawDate;
+
+  return parsedDate.toLocaleString();
+});
+const canSaveOpenAiKey = computed(
+  () => openaiApiKey.value.trim().length > 0 && !isUpdatingConnection.value
+);
+const canRemoveOpenAiKey = computed(
+  () => isOpenAiConfigured.value && !isUpdatingConnection.value
+);
+const connectionStatusLabel = computed(() =>
+  isOpenAiConfigured.value
+    ? t('CAPTAIN_SETTINGS.OPENAI_CONNECTION.STATUS_CONFIGURED')
+    : t('CAPTAIN_SETTINGS.OPENAI_CONNECTION.STATUS_NOT_CONFIGURED')
+);
 
 const modelFeatures = computed(() => [
   {
@@ -60,35 +83,53 @@ const featureToggles = computed(() => [
 ]);
 
 const shouldShowFeature = feature => {
-  // Cloud will always see these features as long as captain is enabled
-  if (isOnChatwootCloud.value && captainEnabled) {
-    return true;
-  }
-
-  if (feature.enterprise) {
-    // if the app is in enterprise mode, then we can show the feature
-    // this is not the installation plan, but when the enterprise folder is missing
-    return isEnterprise;
-  }
-
+  if (!feature) return true;
   return true;
 };
 
 const isFeatureAccessible = feature => {
-  // Cloud will always see these features as long as captain is enabled
-  if (isOnChatwootCloud.value && captainEnabled) {
-    return true;
-  }
-
-  if (feature.enterprise) {
-    // plan is shown, but is it accessible?
-    // This ensures that the instance has purchased the enterprise license, and only then we allow
-    // access
-    return isEnterprise && enterprisePlanName === 'enterprise';
-  }
-
+  if (!feature) return true;
   return true;
 };
+
+async function handleSaveOpenAiKey() {
+  if (!canSaveOpenAiKey.value) return;
+
+  isUpdatingConnection.value = true;
+  try {
+    await captainConfigStore.updatePreferences({
+      llm_connection: { openai_api_key: openaiApiKey.value.trim() },
+    });
+    openaiApiKey.value = '';
+    useAlert(t('CAPTAIN_SETTINGS.OPENAI_CONNECTION.API.SUCCESS'));
+  } catch (error) {
+    useAlert(
+      parseAPIErrorResponse(error) ||
+        t('CAPTAIN_SETTINGS.OPENAI_CONNECTION.API.ERROR')
+    );
+  } finally {
+    isUpdatingConnection.value = false;
+  }
+}
+
+async function handleRemoveOpenAiKey() {
+  if (!canRemoveOpenAiKey.value) return;
+
+  isUpdatingConnection.value = true;
+  try {
+    await captainConfigStore.updatePreferences({
+      llm_connection: { remove_api_key: true },
+    });
+    useAlert(t('CAPTAIN_SETTINGS.OPENAI_CONNECTION.API.SUCCESS'));
+  } catch (error) {
+    useAlert(
+      parseAPIErrorResponse(error) ||
+        t('CAPTAIN_SETTINGS.OPENAI_CONNECTION.API.ERROR')
+    );
+  } finally {
+    isUpdatingConnection.value = false;
+  }
+}
 
 async function handleFeatureToggle({ feature, enabled }) {
   try {
@@ -136,6 +177,74 @@ onMounted(() => {
     </template>
     <template #body>
       <div v-if="captainEnabled" class="flex flex-col gap-1">
+        <SectionLayout
+          :title="t('CAPTAIN_SETTINGS.OPENAI_CONNECTION.TITLE')"
+          :description="t('CAPTAIN_SETTINGS.OPENAI_CONNECTION.DESCRIPTION')"
+        >
+          <div
+            data-testid="captain-openai-connection-card"
+            class="rounded-xl border border-n-weak bg-n-solid-1 p-4"
+          >
+            <div class="flex flex-col gap-1">
+              <p
+                data-testid="captain-openai-status"
+                class="text-sm font-medium text-n-slate-12"
+              >
+                {{ connectionStatusLabel }}
+              </p>
+              <p v-if="maskedApiKey" class="text-xs text-n-slate-11">
+                {{
+                  t('CAPTAIN_SETTINGS.OPENAI_CONNECTION.CONFIGURED_KEY', {
+                    key: maskedApiKey,
+                  })
+                }}
+              </p>
+              <p v-if="lastUpdatedAt" class="text-xs text-n-slate-10">
+                {{
+                  t('CAPTAIN_SETTINGS.OPENAI_CONNECTION.UPDATED_AT', {
+                    date: lastUpdatedAt,
+                  })
+                }}
+              </p>
+            </div>
+
+            <div class="mt-4 flex flex-col gap-3 md:flex-row md:items-center">
+              <input
+                v-model="openaiApiKey"
+                data-testid="captain-openai-api-key-input"
+                type="password"
+                autocomplete="off"
+                class="w-full rounded-lg border border-n-weak bg-n-solid-2 px-3 py-2 text-sm text-n-slate-12 outline-none focus:border-n-brand focus:ring-1 focus:ring-n-brand"
+                :placeholder="
+                  t('CAPTAIN_SETTINGS.OPENAI_CONNECTION.API_KEY_PLACEHOLDER')
+                "
+              />
+              <button
+                data-testid="captain-openai-save-key"
+                type="button"
+                class="inline-flex items-center justify-center rounded-lg bg-n-brand px-4 py-2 text-sm font-medium text-white transition hover:brightness-95 disabled:cursor-not-allowed disabled:opacity-60"
+                :disabled="!canSaveOpenAiKey"
+                @click="handleSaveOpenAiKey"
+              >
+                {{
+                  isUpdatingConnection
+                    ? t('CAPTAIN_SETTINGS.OPENAI_CONNECTION.SAVING')
+                    : t('CAPTAIN_SETTINGS.OPENAI_CONNECTION.SAVE')
+                }}
+              </button>
+              <button
+                data-testid="captain-openai-remove-key"
+                type="button"
+                class="inline-flex items-center justify-center rounded-lg border border-n-weak bg-transparent px-4 py-2 text-sm font-medium text-n-slate-12 transition hover:bg-n-alpha-2 disabled:cursor-not-allowed disabled:opacity-60"
+                :disabled="!canRemoveOpenAiKey"
+                @click="handleRemoveOpenAiKey"
+              >
+                {{ t('CAPTAIN_SETTINGS.OPENAI_CONNECTION.REMOVE') }}
+              </button>
+            </div>
+          </div>
+        </SectionLayout>
+
         <!-- Model Configuration Section -->
         <SectionLayout
           :title="t('CAPTAIN_SETTINGS.MODEL_CONFIG.TITLE')"
@@ -174,9 +283,9 @@ onMounted(() => {
           </div>
         </SectionLayout>
       </div>
-      <div v-else>
-        <CaptainPaywall />
-      </div>
+      <p v-else class="text-sm text-n-slate-11 px-2 py-4">
+        {{ t('CAPTAIN_SETTINGS.NOT_ENABLED') }}
+      </p>
     </template>
   </SettingsLayout>
 </template>
