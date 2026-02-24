@@ -118,7 +118,7 @@ export default {
       attachedFiles: [],
       isRecordingAudio: false,
       recordingAudioState: '',
-      recordingAudioDurationText: '',
+      recordingAudioDurationText: '00:00',
       replyType: REPLY_EDITOR_MODES.REPLY,
       bccEmails: '',
       ccEmails: '',
@@ -793,6 +793,10 @@ export default {
           });
     },
     async onSendReply() {
+      if (this.stopRecordingForSend()) {
+        return;
+      }
+
       const undefinedVariables = getUndefinedVariablesInMessage({
         message: this.message,
         variables: this.messageVariables,
@@ -935,17 +939,37 @@ export default {
     },
     toggleAudioRecorder() {
       this.isRecordingAudio = !this.isRecordingAudio;
-      if (!this.isRecordingAudio) {
-        this.resetAudioRecorderInput();
-      }
+      this.recordingAudioState = this.isRecordingAudio ? 'recording' : '';
+      if (!this.isRecordingAudio) this.resetAudioRecorderInput();
     },
     toggleAudioRecorderPlayPause() {
       if (!this.$refs.audioRecorderInput) return;
-      if (!this.recordingAudioState) {
-        this.$refs.audioRecorderInput.stopRecording();
-      } else {
+      if (this.recordingAudioState === 'processing') return;
+
+      if (
+        ['recording', 'recording_paused'].includes(this.recordingAudioState)
+      ) {
+        this.$refs.audioRecorderInput.toggleRecordingPauseResume();
+        return;
+      }
+
+      if (['stopped', 'playing', 'paused'].includes(this.recordingAudioState)) {
         this.$refs.audioRecorderInput.playPause();
       }
+    },
+    stopRecordingForSend() {
+      if (!this.$refs.audioRecorderInput || this.hasRecordedAudio) return false;
+      if (this.recordingAudioState === 'processing') return true;
+
+      if (
+        ['recording', 'recording_paused'].includes(this.recordingAudioState)
+      ) {
+        this.$refs.audioRecorderInput.stopRecording();
+        this.recordingAudioState = 'processing';
+        return true;
+      }
+
+      return false;
     },
     hideEmojiPicker() {
       if (this.showEmojiPicker) {
@@ -1195,7 +1219,9 @@ export default {
         v-if="whatsappBannerMessage"
         class="mx-3 mt-2 mb-1 flex items-center gap-2 rounded-lg border border-n-ruby-5/40 bg-n-ruby-3 px-3 py-2 text-sm font-medium text-n-ruby-12 shadow-sm"
       >
-        <span class="i-lucide-message-circle-x size-4 text-n-ruby-9 animate-pulse" />
+        <span
+          class="i-lucide-message-circle-x size-4 text-n-ruby-9 animate-pulse"
+        />
         <span>{{ whatsappBannerMessage }}</span>
       </div>
     </transition>
@@ -1231,6 +1257,10 @@ export default {
         :audio-record-format="audioRecordFormat"
         @recorder-progress-changed="onRecordProgressChanged"
         @finish-record="onFinishRecorder"
+        @record-start="recordingAudioState = 'recording'"
+        @record-pause="recordingAudioState = 'recording_paused'"
+        @record-resume="recordingAudioState = 'recording'"
+        @record-processing="recordingAudioState = 'processing'"
         @play="recordingAudioState = 'playing'"
         @pause="recordingAudioState = 'paused'"
       />
@@ -1376,7 +1406,9 @@ export default {
 
 .whatsapp-invalid-enter-active,
 .whatsapp-invalid-leave-active {
-  transition: opacity 180ms ease, transform 220ms ease;
+  transition:
+    opacity 180ms ease,
+    transform 220ms ease;
 }
 
 .whatsapp-invalid-enter-from,

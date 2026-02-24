@@ -5,9 +5,9 @@ import {
   useTemplateRef,
   ref,
   getCurrentInstance,
+  nextTick,
 } from 'vue';
 import Icon from 'next/icon/Icon.vue';
-import { timeStampAppendedURL } from 'dashboard/helper/URLHelper';
 import { downloadFile } from '@chatwoot/utils';
 import { useEmitter } from 'dashboard/composables/emitter';
 import { emitter } from 'shared/helpers/mitt';
@@ -27,10 +27,6 @@ defineOptions({
   inheritAttrs: false,
 });
 
-const timeStampURL = computed(() => {
-  return timeStampAppendedURL(attachment.dataUrl);
-});
-
 const audioPlayer = useTemplateRef('audioPlayer');
 
 const isPlaying = ref(false);
@@ -38,6 +34,7 @@ const isMuted = ref(false);
 const currentTime = ref(0);
 const duration = ref(0);
 const playbackSpeed = ref(1);
+const hasLoadedSource = ref(false);
 
 const { uid } = getCurrentInstance();
 
@@ -49,12 +46,28 @@ const playbackSpeedLabel = computed(() => {
   return `${playbackSpeed.value}x`;
 });
 
+const audioSourceUrl = computed(() => {
+  return hasLoadedSource.value ? attachment.dataUrl : '';
+});
+
+const ensureAudioSourceLoaded = async () => {
+  if (hasLoadedSource.value) return true;
+  if (!attachment.dataUrl) return false;
+
+  hasLoadedSource.value = true;
+  await nextTick();
+  audioPlayer.value?.load();
+  return true;
+};
+
 // There maybe a chance that the audioPlayer ref is not available
 // When the onLoadMetadata is called, so we need to set the duration
 // value when the component is mounted
 onMounted(() => {
   duration.value = audioPlayer.value?.duration;
-  audioPlayer.value.playbackRate = playbackSpeed.value;
+  if (audioPlayer.value) {
+    audioPlayer.value.playbackRate = playbackSpeed.value;
+  }
 });
 
 // Listen for global audio play events and pause if it's not this audio
@@ -85,21 +98,33 @@ const onTimeUpdate = () => {
   currentTime.value = audioPlayer.value?.currentTime;
 };
 
-const seek = event => {
+const seek = async event => {
   const time = Number(event.target.value);
+  if (!hasLoadedSource.value) {
+    const loaded = await ensureAudioSourceLoaded();
+    if (!loaded) return;
+  }
+  if (!audioPlayer.value) return;
   audioPlayer.value.currentTime = time;
   currentTime.value = time;
 };
 
-const playOrPause = () => {
+const playOrPause = async () => {
   if (isPlaying.value) {
     audioPlayer.value.pause();
     isPlaying.value = false;
   } else {
     // Emit event to pause all other audio
     emitter.emit('pause_playing_audio', uid);
-    audioPlayer.value.play();
-    isPlaying.value = true;
+    const loaded = await ensureAudioSourceLoaded();
+    if (!loaded) return;
+
+    try {
+      await audioPlayer.value.play();
+      isPlaying.value = true;
+    } catch {
+      isPlaying.value = false;
+    }
   }
 };
 
@@ -128,13 +153,14 @@ const downloadAudio = async () => {
   <audio
     ref="audioPlayer"
     controls
+    preload="none"
     class="hidden"
     playsinline
     @loadedmetadata="onLoadedMetadata"
     @timeupdate="onTimeUpdate"
     @ended="onEnd"
   >
-    <source :src="timeStampURL" />
+    <source :src="audioSourceUrl" />
   </audio>
   <div
     v-bind="$attrs"

@@ -275,7 +275,9 @@ onMounted(() => {
                   {{ senderDetails.name }}
                 </span>
               </h3>
-              <span class="text-xs text-white/60 whitespace-nowrap text-ellipsis">
+              <span
+                class="text-xs text-white/60 whitespace-nowrap text-ellipsis"
+              >
                 {{ readableTime }}
               </span>
             </div>
@@ -391,6 +393,7 @@ onMounted(() => {
               :key="activeAttachment.message_id"
               :src="activeAttachment.data_url"
               controls
+              preload="metadata"
               playsInline
               class="max-h-full max-w-full object-contain"
               @click.stop
@@ -400,10 +403,11 @@ onMounted(() => {
               v-if="isAudio"
               :key="activeAttachment.message_id"
               controls
+              preload="metadata"
               class="w-full max-w-md"
               @click.stop
             >
-              <source :src="`${activeAttachment.data_url}?t=${Date.now()}`" />
+              <source :src="activeAttachment.data_url" />
             </audio>
           </div>
 
@@ -468,7 +472,9 @@ onMounted(() => {
                     v-if="isVideoAttachment(attachment)"
                     class="absolute inset-0 bg-black/30 flex items-center justify-center"
                   >
-                    <div class="size-6 rounded-full bg-black/40 flex items-center justify-center">
+                    <div
+                      class="size-6 rounded-full bg-black/40 flex items-center justify-center"
+                    >
                       <Icon
                         icon="i-teenyicons-play-small-solid"
                         class="text-white"

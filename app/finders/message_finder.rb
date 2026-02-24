@@ -12,9 +12,13 @@ class MessageFinder
 
   def conversation_messages
     @conversation.messages
-      .for_team(@conversation.team_id)
-      .where(inbox_id: @conversation.inbox_id)
-      .includes(:attachments, :sender, sender: { avatar_attachment: [:blob] })
+                 .for_team(@conversation.team_id)
+                 .where(inbox_id: @conversation.inbox_id)
+                 .includes(
+                   { attachments: [{ file_attachment: [:blob] }] },
+                   :sender,
+                   sender: { avatar_attachment: [:blob] }
+                 )
   end
 
   def messages

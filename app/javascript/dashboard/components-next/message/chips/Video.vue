@@ -1,11 +1,11 @@
 <script setup>
-import { ref } from 'vue';
+import { ref, computed } from 'vue';
 import Icon from 'next/icon/Icon.vue';
 import { useSnakeCase } from 'dashboard/composables/useTransformKeys';
 import { useMessageContext } from '../provider.js';
 import GalleryView from 'dashboard/components/widgets/conversation/components/GalleryView.vue';
 
-defineProps({
+const props = defineProps({
   attachment: {
     type: Object,
     required: true,
@@ -13,8 +13,25 @@ defineProps({
 });
 
 const showGallery = ref(false);
+const shouldLoadVideo = ref(false);
 
 const { filteredCurrentChatAttachments } = useMessageContext();
+
+const videoSource = computed(() => {
+  return shouldLoadVideo.value ? props.attachment.dataUrl : '';
+});
+
+const hasThumbnail = computed(() => {
+  return Boolean(props.attachment.thumbUrl);
+});
+
+const videoPoster = computed(() => {
+  return props.attachment.thumbUrl || undefined;
+});
+
+const loadVideo = () => {
+  shouldLoadVideo.value = true;
+};
 </script>
 
 <template>
@@ -22,11 +39,22 @@ const { filteredCurrentChatAttachments } = useMessageContext();
     class="size-[72px] overflow-hidden contain-content rounded-xl cursor-pointer relative group"
     @click="showGallery = true"
   >
+    <img
+      v-if="hasThumbnail"
+      :src="attachment.thumbUrl"
+      class="w-full h-full object-cover skip-context-menu"
+    />
     <video
-      :src="attachment.dataUrl"
+      v-else
+      preload="none"
+      :poster="videoPoster"
+      :src="videoSource"
       class="w-full h-full object-cover"
       muted
       playsInline
+      @pointerdown="loadVideo"
+      @mouseenter="loadVideo"
+      @focus="loadVideo"
     />
     <div
       class="absolute w-full h-full inset-0 p-1 flex items-center justify-center"

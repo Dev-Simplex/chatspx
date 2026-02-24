@@ -18,12 +18,18 @@ const emit = defineEmits([
   'finishRecord',
   'pause',
   'play',
+  'recordStart',
+  'recordPause',
+  'recordResume',
+  'recordProcessing',
 ]);
 
 const waveformContainer = ref(null);
 const wavesurfer = ref(null);
 const record = ref(null);
 const isRecording = ref(false);
+const isRecordingPaused = ref(false);
+const isProcessing = ref(false);
 const isPlaying = ref(false);
 const hasRecording = ref(false);
 
@@ -61,22 +67,48 @@ const initWaveSurfer = () => {
     isPlaying.value = false;
   });
 
-  record.value.on('record-end', async blob => {
-    const audioUrl = URL.createObjectURL(blob);
-    const audioBlob = await convertAudio(blob, props.audioRecordFormat);
-    const fileName = `${getUuid()}.mp3`;
-    const file = new File([audioBlob], fileName, {
-      type: props.audioRecordFormat,
-    });
-    wavesurfer.value.load(audioUrl);
-    emit('finishRecord', {
-      name: file.name,
-      type: file.type,
-      size: file.size,
-      file,
-    });
-    hasRecording.value = true;
+  record.value.on('record-start', () => {
+    isRecording.value = true;
+    isRecordingPaused.value = false;
+    emit('recordStart');
+  });
+
+  record.value.on('record-pause', () => {
     isRecording.value = false;
+    isRecordingPaused.value = true;
+    emit('recordPause');
+  });
+
+  record.value.on('record-resume', () => {
+    isRecording.value = true;
+    isRecordingPaused.value = false;
+    emit('recordResume');
+  });
+
+  record.value.on('record-end', async blob => {
+    isRecording.value = false;
+    isRecordingPaused.value = false;
+    isProcessing.value = true;
+    emit('recordProcessing');
+
+    try {
+      const audioUrl = URL.createObjectURL(blob);
+      const audioBlob = await convertAudio(blob, props.audioRecordFormat);
+      const fileName = `${getUuid()}.mp3`;
+      const file = new File([audioBlob], fileName, {
+        type: props.audioRecordFormat,
+      });
+      wavesurfer.value.load(audioUrl);
+      emit('finishRecord', {
+        name: file.name,
+        type: file.type,
+        size: file.size,
+        file,
+      });
+      hasRecording.value = true;
+    } finally {
+      isProcessing.value = false;
+    }
   });
 
   record.value.on('record-progress', time => {
@@ -85,19 +117,36 @@ const initWaveSurfer = () => {
 };
 
 const stopRecording = () => {
-  if (isRecording.value) {
+  if (!record.value || isProcessing.value) return;
+
+  if (record.value.isActive()) {
+    isProcessing.value = true;
+    emit('recordProcessing');
     record.value.stopRecording();
-    isRecording.value = false;
   }
 };
 
 const startRecording = () => {
+  if (!record.value || isProcessing.value) return;
+
   record.value.startRecording();
-  isRecording.value = true;
+};
+
+const toggleRecordingPauseResume = () => {
+  if (!record.value || isProcessing.value) return;
+
+  if (record.value.isRecording()) {
+    record.value.pauseRecording();
+    return;
+  }
+
+  if (record.value.isPaused()) {
+    record.value.resumeRecording();
+  }
 };
 
 const playPause = () => {
-  if (hasRecording.value) {
+  if (hasRecording.value && !isRecording.value && !isRecordingPaused.value) {
     wavesurfer.value.playPause();
     isPlaying.value = !isPlaying.value;
   }
@@ -114,7 +163,7 @@ onUnmounted(() => {
   }
 });
 
-defineExpose({ playPause, stopRecording, record });
+defineExpose({ playPause, stopRecording, toggleRecordingPauseResume, record });
 </script>
 
 <template>

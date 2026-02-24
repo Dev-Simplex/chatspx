@@ -107,10 +107,12 @@ export default {
       type: Boolean,
       default: false,
     },
+    // eslint-disable-next-line vue/no-unused-properties
     conversationId: {
       type: Number,
       required: true,
     },
+    // eslint-disable-next-line vue/no-unused-properties
     message: {
       type: String,
       default: '',
@@ -238,16 +240,27 @@ export default {
     },
     audioRecorderPlayStopIcon() {
       switch (this.recordingAudioState) {
-        // playing paused recording stopped inactive destroyed
+        // recording recording_paused playing paused stopped processing
+        case 'recording':
+          return 'i-ph-pause';
+        case 'recording_paused':
+          return 'i-ph-play';
         case 'playing':
           return 'i-ph-pause';
         case 'paused':
-          return 'i-ph-play';
         case 'stopped':
           return 'i-ph-play';
-        default:
+        case 'processing':
           return 'i-ph-stop';
+        default:
+          return 'i-ph-play';
       }
+    },
+    isAudioRecorderActionLoading() {
+      return this.recordingAudioState === 'processing';
+    },
+    isAudioRecorderActionDisabled() {
+      return this.recordingAudioState === 'processing';
     },
     showMessageSignatureButton() {
       return !this.isOnPrivateNote;
@@ -315,10 +328,7 @@ export default {
         sm
         @click="toggleEmojiPicker"
       />
-      <DropdownContainer
-        v-if="hasMoreMenuItems"
-        placement="top"
-      >
+      <DropdownContainer v-if="hasMoreMenuItems" placement="top">
         <template #trigger="{ toggle }">
           <NextButton
             v-tooltip.top-end="$t('CONVERSATION.REPLYBOX.MORE_OPTIONS')"
@@ -423,6 +433,8 @@ export default {
         faded
         sm
         :label="recordingAudioDurationText"
+        :is-loading="isAudioRecorderActionLoading"
+        :disabled="isAudioRecorderActionDisabled"
         @click="toggleAudioRecorderPlayPause"
       />
       <NextButton

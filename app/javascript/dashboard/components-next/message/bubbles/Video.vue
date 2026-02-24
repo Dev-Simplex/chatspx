@@ -10,6 +10,7 @@ import { ATTACHMENT_TYPES } from '../constants';
 const emit = defineEmits(['error']);
 const hasError = ref(false);
 const showGallery = ref(false);
+const shouldLoadVideo = ref(false);
 const { filteredCurrentChatAttachments, attachments } = useMessageContext();
 
 const handleError = () => {
@@ -21,9 +22,21 @@ const attachment = computed(() => {
   return attachments.value[0];
 });
 
+const videoSource = computed(() => {
+  return shouldLoadVideo.value ? attachment.value.dataUrl : '';
+});
+
+const videoPoster = computed(() => {
+  return attachment.value.thumbUrl || undefined;
+});
+
 const isReel = computed(() => {
   return attachment.value.fileType === ATTACHMENT_TYPES.IG_REEL;
 });
+
+const loadVideo = () => {
+  shouldLoadVideo.value = true;
+};
 </script>
 
 <template>
@@ -42,11 +55,16 @@ const isReel = computed(() => {
       <video
         controls
         class="rounded-lg skip-context-menu"
-        :src="attachment.dataUrl"
+        preload="none"
+        :poster="videoPoster"
+        :src="videoSource"
         :class="{
           'max-w-48': isReel,
           'max-w-full': !isReel,
         }"
+        @pointerdown="loadVideo"
+        @mouseenter="loadVideo"
+        @focus="loadVideo"
         @click.stop
         @error="handleError"
       />

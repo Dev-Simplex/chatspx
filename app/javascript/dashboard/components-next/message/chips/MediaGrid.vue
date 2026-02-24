@@ -81,7 +81,14 @@ const gridClass = computed(() => {
 });
 
 const tileClass = index => {
-  const base = ['relative', 'w-full', 'h-full', 'cursor-pointer', 'overflow-hidden', 'skip-context-menu'];
+  const base = [
+    'relative',
+    'w-full',
+    'h-full',
+    'cursor-pointer',
+    'overflow-hidden',
+    'skip-context-menu',
+  ];
   if (layout.value === 'single') return base.concat('rounded-[16px]');
   if (layout.value === 'three' && index === 0) {
     return base.concat('row-span-2', 'rounded-l-[16px]');
@@ -126,7 +133,7 @@ const getMediaSrc = attachment => {
   return attachment.thumbUrl || attachment.dataUrl;
 };
 
-const mediaClass = index => {
+const mediaClass = () => {
   if (layout.value === 'single') {
     return hasSingleAspectRatio.value
       ? 'w-full h-full max-h-[60vh] object-contain bg-black/5 dark:bg-white/5 skip-context-menu'
@@ -176,22 +183,23 @@ const shouldShowMoreOverlay = index =>
           <img
             v-if="isImageAttachment(attachment) && getMediaSrc(attachment)"
             :src="getMediaSrc(attachment)"
-            :class="mediaClass(index)"
+            :class="mediaClass()"
             @error="onTileError(index)"
           />
           <img
             v-else-if="isVideoAttachment(attachment) && attachment.thumbUrl"
             :src="attachment.thumbUrl"
-            :class="mediaClass(index)"
+            :class="mediaClass()"
             @error="onTileError(index)"
           />
           <video
             v-else-if="isVideoAttachment(attachment)"
             :src="attachment.dataUrl"
-            :class="mediaClass(index)"
+            :poster="attachment.thumbUrl || undefined"
+            :class="mediaClass()"
             muted
             playsInline
-            preload="metadata"
+            preload="none"
             @error="onTileError(index)"
           />
           <div
@@ -208,10 +216,7 @@ const shouldShowMoreOverlay = index =>
           <div
             class="size-8 rounded-full bg-black/40 flex items-center justify-center"
           >
-            <Icon
-              icon="i-teenyicons-play-small-solid"
-              class="text-white"
-            />
+            <Icon icon="i-teenyicons-play-small-solid" class="text-white" />
           </div>
         </div>
         <div
