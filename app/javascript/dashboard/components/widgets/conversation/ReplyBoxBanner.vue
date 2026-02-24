@@ -1,5 +1,5 @@
 <script setup>
-import { computed } from 'vue';
+import { computed, ref } from 'vue';
 import { useStore } from 'vuex';
 import { useMapGetter } from 'dashboard/composables/store';
 import { useAlert } from 'dashboard/composables';
@@ -7,6 +7,7 @@ import { useI18n } from 'vue-i18n';
 import wootConstants from 'dashboard/constants/globals';
 
 import Banner from 'dashboard/components/ui/Banner.vue';
+import TeamSelectionModal from './TeamSelectionModal.vue';
 
 const props = defineProps({
   message: {
@@ -24,20 +25,12 @@ const { t } = useI18n();
 
 const currentChat = useMapGetter('getSelectedChat');
 const currentUser = useMapGetter('getCurrentUser');
+const teams = useMapGetter('teams/getTeams');
 
-const assignedAgent = computed({
-  get() {
-    return currentChat.value?.meta?.assignee;
-  },
-  set(agent) {
-    const agentId = agent ? agent.id : null;
-    store.dispatch('setCurrentChatAssignee', agent);
-    store.dispatch('assignAgent', {
-      conversationId: currentChat.value?.id,
-      agentId,
-    });
-  },
-});
+const assignedAgent = computed(() => currentChat.value?.meta?.assignee);
+const showTransferTeamModal = ref(false);
+const pendingTransferAgent = ref(null);
+const isPendingBotHandoff = ref(false);
 
 const isUserTyping = computed(
   () => props.message !== '' && !props.isOnPrivateNote
@@ -65,22 +58,98 @@ const botHandoffActionLabel = computed(() => {
     : t('CONVERSATION.BOT_HANDOFF_ACTION');
 });
 
-const selfAssignConversation = async () => {
+const getCurrentUserAsAssignee = () => {
   const { avatar_url, ...rest } = currentUser.value || {};
-  assignedAgent.value = { ...rest, thumbnail: avatar_url };
+  return { ...rest, thumbnail: avatar_url };
 };
 
 const needsAssignmentToCurrentUser = computed(() => {
   return isUnassigned.value || isAssignedToOtherAgent.value;
 });
 
-const onClickSelfAssign = async () => {
-  try {
-    await selfAssignConversation();
-    useAlert(t('CONVERSATION.CHANGE_AGENT'));
-  } catch (error) {
-    useAlert(t('CONVERSATION.CHANGE_AGENT_FAILED'));
+const conversationHasTeam = computed(() => {
+  return Boolean(currentChat.value?.meta?.team || currentChat.value?.team_id);
+});
+
+const closeTransferTeamModal = () => {
+  showTransferTeamModal.value = false;
+  pendingTransferAgent.value = null;
+  isPendingBotHandoff.value = false;
+};
+
+const openTransferTeamModal = () => {
+  pendingTransferAgent.value = getCurrentUserAsAssignee();
+  showTransferTeamModal.value = true;
+};
+
+const assignPendingAgentWithTeam = async teamId => {
+  if (!pendingTransferAgent.value?.id || !currentChat.value?.id) {
+    closeTransferTeamModal();
+    return;
   }
+
+  try {
+    await store.dispatch('assignTeam', {
+      conversationId: currentChat.value.id,
+      teamId,
+      rethrow: true,
+    });
+    await store.dispatch('assignAgent', {
+      conversationId: currentChat.value.id,
+      agentId: pendingTransferAgent.value.id,
+      rethrow: true,
+    });
+
+    if (isPendingBotHandoff.value) {
+      useAlert(t('CONVERSATION.BOT_HANDOFF_SUCCESS'));
+    } else {
+      useAlert(t('CONVERSATION.CHANGE_AGENT'));
+    }
+  } catch (error) {
+    if (isPendingBotHandoff.value) {
+      useAlert(t('CONVERSATION.BOT_HANDOFF_ERROR'));
+    } else {
+      useAlert(t('CONVERSATION.CHANGE_AGENT_FAILED'));
+    }
+  } finally {
+    closeTransferTeamModal();
+  }
+};
+
+const assignCurrentUserDirect = async ({ isBotHandoff = false } = {}) => {
+  const assignee = getCurrentUserAsAssignee();
+  if (!assignee?.id || !currentChat.value?.id) {
+    return false;
+  }
+
+  try {
+    await store.dispatch('assignAgent', {
+      conversationId: currentChat.value.id,
+      agentId: assignee.id,
+      rethrow: true,
+    });
+    useAlert(
+      isBotHandoff
+        ? t('CONVERSATION.BOT_HANDOFF_SUCCESS')
+        : t('CONVERSATION.CHANGE_AGENT')
+    );
+    return true;
+  } catch (error) {
+    useAlert(
+      isBotHandoff
+        ? t('CONVERSATION.BOT_HANDOFF_ERROR')
+        : t('CONVERSATION.CHANGE_AGENT_FAILED')
+    );
+    return false;
+  }
+};
+
+const onClickSelfAssign = async () => {
+  if (conversationHasTeam.value) {
+    await assignCurrentUserDirect();
+    return;
+  }
+  openTransferTeamModal();
 };
 
 const reopenConversation = async () => {
@@ -95,7 +164,14 @@ const onClickBotHandoff = async () => {
     await reopenConversation();
 
     if (needsAssignmentToCurrentUser.value) {
-      await selfAssignConversation();
+      if (conversationHasTeam.value) {
+        await assignCurrentUserDirect({ isBotHandoff: true });
+        return;
+      }
+
+      isPendingBotHandoff.value = true;
+      openTransferTeamModal();
+      return;
     }
 
     useAlert(t('CONVERSATION.BOT_HANDOFF_SUCCESS'));
@@ -125,5 +201,13 @@ const onClickBotHandoff = async () => {
     has-action-button
     :action-button-label="botHandoffActionLabel"
     @primary-action="onClickBotHandoff"
+  />
+  <TeamSelectionModal
+    :show="showTransferTeamModal"
+    :teams="teams"
+    :title="$t('CONVERSATION.SELECT_TEAM_FOR_TRANSFER_TITLE')"
+    :description="$t('CONVERSATION.SELECT_TEAM_FOR_TRANSFER_DESCRIPTION')"
+    @confirm="assignPendingAgentWithTeam"
+    @close="closeTransferTeamModal"
   />
 </template>

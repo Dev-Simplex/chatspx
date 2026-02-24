@@ -206,7 +206,10 @@ const actions = {
     }
   },
 
-  assignAgent: async ({ dispatch }, { conversationId, agentId }) => {
+  assignAgent: async (
+    { dispatch },
+    { conversationId, agentId, rethrow = false }
+  ) => {
     try {
       const response = await ConversationApi.assignAgent({
         conversationId,
@@ -214,7 +217,9 @@ const actions = {
       });
       dispatch('setCurrentChatAssignee', response.data);
     } catch (error) {
-      // Handle error
+      if (rethrow) {
+        throw error;
+      }
     }
   },
 
@@ -222,7 +227,10 @@ const actions = {
     commit(types.ASSIGN_AGENT, assignee);
   },
 
-  assignTeam: async ({ dispatch }, { conversationId, teamId }) => {
+  assignTeam: async (
+    { dispatch },
+    { conversationId, teamId, rethrow = false }
+  ) => {
     try {
       const response = await ConversationApi.assignTeam({
         conversationId,
@@ -230,7 +238,9 @@ const actions = {
       });
       dispatch('setCurrentChatTeam', { team: response.data, conversationId });
     } catch (error) {
-      // Handle error
+      if (rethrow) {
+        throw error;
+      }
     }
   },
 

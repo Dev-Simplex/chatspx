@@ -29,6 +29,7 @@ import ChatTypeTabs from './widgets/ChatTypeTabs.vue';
 import ConversationItem from './ConversationItem.vue';
 import DeleteCustomViews from 'dashboard/routes/dashboard/customviews/DeleteCustomViews.vue';
 import ConversationBulkActions from './widgets/conversation/conversationBulkActions/Index.vue';
+import TeamSelectionModal from './widgets/conversation/TeamSelectionModal.vue';
 import IntersectionObserver from './IntersectionObserver.vue';
 import TeleportWithDirection from 'dashboard/components-next/TeleportWithDirection.vue';
 import Spinner from 'dashboard/components-next/spinner/Spinner.vue';
@@ -156,6 +157,10 @@ const {
   onAssignLabels,
   onAssignTeamsForBulk,
   onUpdateConversations,
+  showTransferTeamModal,
+  teams,
+  onConfirmAgentTransferTeam,
+  cancelAgentTransferTeamSelection,
 } = useBulkActions();
 
 const {
@@ -1245,6 +1250,14 @@ watch(conversationFilters, (newVal, oldVal) => {
       @update-conversations="onUpdateConversations"
       @assign-labels="onAssignLabels"
       @assign-team="onAssignTeamsForBulk"
+    />
+    <TeamSelectionModal
+      :show="showTransferTeamModal"
+      :teams="teams"
+      :title="$t('CONVERSATION.SELECT_TEAM_FOR_TRANSFER_TITLE')"
+      :description="$t('CONVERSATION.SELECT_TEAM_FOR_TRANSFER_DESCRIPTION')"
+      @confirm="onConfirmAgentTransferTeam"
+      @close="cancelAgentTransferTeamSelection"
     />
     <div
       ref="conversationListRef"

@@ -167,7 +167,9 @@ export function useConversationHotKeys() {
 
   const draftMessage = computed(() => getDraftMessage.value(draftKey.value));
 
-  const hasAnAssignedTeam = computed(() => !!currentChat.value?.meta?.team);
+  const hasAnAssignedTeam = computed(() =>
+    Boolean(currentChat.value?.meta?.team || currentChat.value?.team_id)
+  );
 
   const teamsList = computed(() => {
     if (hasAnAssignedTeam.value) {
@@ -176,11 +178,69 @@ export function useConversationHotKeys() {
     return teams.value;
   });
 
-  const onChangeAssignee = action => {
-    store.dispatch('assignAgent', {
-      conversationId: currentChat.value.id,
-      agentId: action.agentInfo.id,
-    });
+  const teamsForAgentTransfer = computed(() =>
+    teams.value.filter(team => Number(team.id) > 0)
+  );
+
+  const transferAgents = computed(() =>
+    agentsList.value.filter(agent => Number(agent.id) > 0)
+  );
+
+  const noneAgentOption = computed(() => {
+    return agentsList.value.find(agent => Number(agent.id) === 0) || null;
+  });
+
+  const onChangeAssigneeWithTeam = async action => {
+    if (!currentChat.value?.id) {
+      return;
+    }
+
+    try {
+      await store.dispatch('assignTeam', {
+        conversationId: currentChat.value.id,
+        teamId: action.teamInfo.id,
+        rethrow: true,
+      });
+      await store.dispatch('assignAgent', {
+        conversationId: currentChat.value.id,
+        agentId: action.agentInfo.id,
+        rethrow: true,
+      });
+    } catch (error) {
+      // Ignore command bar assignment errors.
+    }
+  };
+
+  const onChangeAssigneeDirect = async action => {
+    if (!currentChat.value?.id) {
+      return;
+    }
+
+    try {
+      await store.dispatch('assignAgent', {
+        conversationId: currentChat.value.id,
+        agentId: action.agentInfo.id,
+        rethrow: true,
+      });
+    } catch (error) {
+      // Ignore command bar assignment errors.
+    }
+  };
+
+  const onUnassignAssignee = async () => {
+    if (!currentChat.value?.id) {
+      return;
+    }
+
+    try {
+      await store.dispatch('assignAgent', {
+        conversationId: currentChat.value.id,
+        agentId: 0,
+        rethrow: true,
+      });
+    } catch (error) {
+      // Ignore command bar assignment errors.
+    }
   };
 
   const onChangePriority = action => {
@@ -218,24 +278,83 @@ export function useConversationHotKeys() {
   );
 
   const assignAgentActions = computed(() => {
-    const agentOptions = agentsList.value.map(agent => ({
-      id: `agent-${agent.id}`,
-      title: agent.name,
+    const unassignOption = noneAgentOption.value
+      ? {
+          id: 'assign-agent-none',
+          title: noneAgentOption.value.name,
+          parent: 'assign_an_agent',
+          section: t('COMMAND_BAR.SECTIONS.CHANGE_ASSIGNEE'),
+          icon: ICON_ASSIGN_AGENT,
+          handler: onUnassignAssignee,
+        }
+      : null;
+
+    if (hasAnAssignedTeam.value) {
+      const directAgentOptions = transferAgents.value.map(agent => ({
+        id: `agent-${agent.id}`,
+        title: agent.name,
+        parent: 'assign_an_agent',
+        section: t('COMMAND_BAR.SECTIONS.CHANGE_ASSIGNEE'),
+        agentInfo: agent,
+        icon: ICON_ASSIGN_AGENT,
+        handler: onChangeAssigneeDirect,
+      }));
+
+      return [
+        {
+          id: 'assign_an_agent',
+          title: t('COMMAND_BAR.COMMANDS.ASSIGN_AN_AGENT'),
+          section: t('COMMAND_BAR.SECTIONS.CONVERSATION'),
+          icon: ICON_ASSIGN_AGENT,
+          children: [
+            ...(unassignOption ? [unassignOption.id] : []),
+            ...directAgentOptions.map(option => option.id),
+          ],
+        },
+        ...(unassignOption ? [unassignOption] : []),
+        ...directAgentOptions,
+      ];
+    }
+
+    const teamOptions = teamsForAgentTransfer.value.map(team => ({
+      id: `assign-agent-team-${team.id}`,
+      title: team.name,
       parent: 'assign_an_agent',
-      section: t('COMMAND_BAR.SECTIONS.CHANGE_ASSIGNEE'),
-      agentInfo: agent,
-      icon: ICON_ASSIGN_AGENT,
-      handler: onChangeAssignee,
+      section: t('COMMAND_BAR.SECTIONS.CHANGE_TEAM'),
+      teamInfo: team,
+      icon: ICON_ASSIGN_TEAM,
+      children: transferAgents.value.map(
+        agent => `assign-agent-team-${team.id}-agent-${agent.id}`
+      ),
     }));
+
+    const teamAgentOptions = teamsForAgentTransfer.value.flatMap(team =>
+      transferAgents.value.map(agent => ({
+        id: `assign-agent-team-${team.id}-agent-${agent.id}`,
+        title: agent.name,
+        parent: `assign-agent-team-${team.id}`,
+        section: t('COMMAND_BAR.SECTIONS.CHANGE_ASSIGNEE'),
+        teamInfo: team,
+        agentInfo: agent,
+        icon: ICON_ASSIGN_AGENT,
+        handler: onChangeAssigneeWithTeam,
+      }))
+    );
+
     return [
       {
         id: 'assign_an_agent',
         title: t('COMMAND_BAR.COMMANDS.ASSIGN_AN_AGENT'),
         section: t('COMMAND_BAR.SECTIONS.CONVERSATION'),
         icon: ICON_ASSIGN_AGENT,
-        children: agentOptions.map(option => option.id),
+        children: [
+          ...(unassignOption ? [unassignOption.id] : []),
+          ...teamOptions.map(option => option.id),
+        ],
       },
-      ...agentOptions,
+      ...(unassignOption ? [unassignOption] : []),
+      ...teamOptions,
+      ...teamAgentOptions,
     ];
   });
 

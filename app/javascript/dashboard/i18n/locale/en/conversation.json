@@ -256,6 +256,8 @@
     "RESOLVE_REQUIRES_TEAM": "A team must be assigned before resolving this conversation",
     "SELECT_TEAM_TO_RESOLVE": "Select a team to resolve this conversation",
     "SELECT_TEAM_TITLE": "Select Team",
+    "SELECT_TEAM_FOR_TRANSFER_TITLE": "Select team for transfer",
+    "SELECT_TEAM_FOR_TRANSFER_DESCRIPTION": "Choose a team before assigning this conversation to an agent",
     "RESOLVE_WITH_TEAM_SUCCESS": "Conversation resolved successfully",
     "BULK_RESOLVE_REQUIRES_TEAM": "All conversations must have a team assigned before resolving",
     "NO_TEAMS_AVAILABLE": "No teams available. Please create a team first.",

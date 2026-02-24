@@ -359,6 +359,17 @@ describe('#actions', () => {
       expect(commit).toHaveBeenCalledTimes(0);
       expect(commit.mock.calls).toEqual([]);
     });
+
+    it('throws when assignment fails and rethrow is true', async () => {
+      axios.post.mockRejectedValue(new Error('Assignment failed'));
+
+      await expect(
+        actions.assignAgent(
+          { commit },
+          { conversationId: 1, agentId: 1, rethrow: true }
+        )
+      ).rejects.toThrow('Assignment failed');
+    });
   });
 
   describe('#setCurrentChatAssignee', () => {
@@ -407,6 +418,17 @@ describe('#actions', () => {
       await actions.assignTeam({ commit }, { conversationId: 1, teamId: 1 });
       expect(commit).toHaveBeenCalledTimes(0);
       expect(commit.mock.calls).toEqual([]);
+    });
+
+    it('throws when team assignment fails and rethrow is true', async () => {
+      axios.post.mockRejectedValue(new Error('Team assignment failed'));
+
+      await expect(
+        actions.assignTeam(
+          { commit },
+          { conversationId: 1, teamId: 1, rethrow: true }
+        )
+      ).rejects.toThrow('Team assignment failed');
     });
   });
 

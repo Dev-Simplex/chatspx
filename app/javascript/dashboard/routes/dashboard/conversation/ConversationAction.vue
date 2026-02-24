@@ -10,6 +10,7 @@ import { CONVERSATION_PRIORITY } from '../../../../shared/constants/messages';
 import { CONVERSATION_EVENTS } from '../../../helper/AnalyticsHelper/events';
 import { useTrack } from 'dashboard/composables';
 import NextButton from 'dashboard/components-next/button/Button.vue';
+import TeamSelectionModal from 'dashboard/components/widgets/conversation/TeamSelectionModal.vue';
 
 export default {
   components: {
@@ -17,6 +18,7 @@ export default {
     MultiselectDropdown,
     ConversationLabels,
     NextButton,
+    TeamSelectionModal,
   },
   props: {
     conversationId: {
@@ -59,6 +61,8 @@ export default {
           thumbnail: `/assets/images/dashboard/priority/${CONVERSATION_PRIORITY.LOW}.svg`,
         },
       ],
+      showTransferTeamModal: false,
+      pendingTransferAgent: null,
     };
   },
   computed: {
@@ -68,7 +72,7 @@ export default {
       teams: 'teams/getTeams',
     }),
     hasAnAssignedTeam() {
-      return !!this.currentChat?.meta?.team;
+      return Boolean(this.currentChat?.meta?.team || this.currentChat?.team_id);
     },
     teamsList() {
       if (this.hasAnAssignedTeam) {
@@ -79,25 +83,8 @@ export default {
       }
       return this.teams;
     },
-    assignedAgent: {
-      get() {
-        return this.currentChat.meta.assignee;
-      },
-      set(agent) {
-        const agentId = agent ? agent.id : null;
-        this.$store.dispatch('setCurrentChatAssignee', agent);
-        this.$store
-          .dispatch('assignAgent', {
-            conversationId: this.currentChat.id,
-            agentId,
-          })
-          .then(() => {
-            useAlert(this.$t('CONVERSATION.CHANGE_AGENT'));
-            this.$router.push(
-              `/app/accounts/${this.$route.params.accountId}/dashboard`
-            );
-          });
-      },
+    assignedAgent() {
+      return this.currentChat?.meta?.assignee || null;
     },
     assignedTeam: {
       get() {
@@ -183,14 +170,82 @@ export default {
         role,
         thumbnail: avatar_url,
       };
-      this.assignedAgent = selfAssign;
-    },
-    onClickAssignAgent(selectedItem) {
-      if (this.assignedAgent && this.assignedAgent.id === selectedItem.id) {
-        this.assignedAgent = null;
-      } else {
-        this.assignedAgent = selectedItem;
+
+      if (this.hasAnAssignedTeam) {
+        this.assignAgentDirect(selfAssign);
+        return;
       }
+
+      this.pendingTransferAgent = selfAssign;
+      this.showTransferTeamModal = true;
+    },
+
+    closeTransferTeamModal() {
+      this.showTransferTeamModal = false;
+      this.pendingTransferAgent = null;
+    },
+
+    async assignAgentDirect(agent = null) {
+      try {
+        await this.$store.dispatch('assignAgent', {
+          conversationId: this.currentChat.id,
+          agentId: agent?.id || null,
+          rethrow: true,
+        });
+        useAlert(this.$t('CONVERSATION.CHANGE_AGENT'));
+        this.$router.push(
+          `/app/accounts/${this.$route.params.accountId}/dashboard`
+        );
+      } catch (error) {
+        useAlert(this.$t('CONVERSATION.CHANGE_AGENT_FAILED'));
+      }
+    },
+
+    async onConfirmTransferTeam(teamId) {
+      if (!this.pendingTransferAgent?.id) {
+        this.closeTransferTeamModal();
+        return;
+      }
+
+      try {
+        await this.$store.dispatch('assignTeam', {
+          conversationId: this.currentChat.id,
+          teamId,
+          rethrow: true,
+        });
+        await this.$store.dispatch('assignAgent', {
+          conversationId: this.currentChat.id,
+          agentId: this.pendingTransferAgent.id,
+          rethrow: true,
+        });
+        useAlert(this.$t('CONVERSATION.CHANGE_AGENT'));
+        this.$router.push(
+          `/app/accounts/${this.$route.params.accountId}/dashboard`
+        );
+      } catch (error) {
+        useAlert(this.$t('CONVERSATION.CHANGE_AGENT_FAILED'));
+      } finally {
+        this.closeTransferTeamModal();
+      }
+    },
+
+    onClickAssignAgent(selectedItem) {
+      const selectedAgentId = selectedItem?.id;
+      const isSameAgent =
+        this.assignedAgent && this.assignedAgent.id === selectedAgentId;
+
+      if (isSameAgent || !selectedAgentId) {
+        this.assignAgentDirect(null);
+        return;
+      }
+
+      if (this.hasAnAssignedTeam) {
+        this.assignAgentDirect(selectedItem);
+        return;
+      }
+
+      this.pendingTransferAgent = selectedItem;
+      this.showTransferTeamModal = true;
     },
 
     onClickAssignTeam(selectedItemTeam) {
@@ -287,5 +342,13 @@ export default {
       :title="$t('CONVERSATION_SIDEBAR.ACCORDION.CONVERSATION_LABELS')"
     />
     <ConversationLabels :conversation-id="conversationId" />
+    <TeamSelectionModal
+      :show="showTransferTeamModal"
+      :teams="teams"
+      :title="$t('CONVERSATION.SELECT_TEAM_FOR_TRANSFER_TITLE')"
+      :description="$t('CONVERSATION.SELECT_TEAM_FOR_TRANSFER_DESCRIPTION')"
+      @confirm="onConfirmTransferTeam"
+      @close="closeTransferTeamModal"
+    />
   </div>
 </template>

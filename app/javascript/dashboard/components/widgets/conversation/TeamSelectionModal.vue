@@ -17,6 +17,14 @@ const props = defineProps({
     type: Boolean,
     default: false,
   },
+  title: {
+    type: String,
+    default: '',
+  },
+  description: {
+    type: String,
+    default: '',
+  },
 });
 
 const emit = defineEmits(['confirm', 'close']);
@@ -36,6 +44,18 @@ const hasTeams = computed(() => {
 
 const canConfirm = computed(() => {
   return selectedTeamId.value !== null && selectedTeamId.value !== 0;
+});
+
+const dialogTitle = computed(() => {
+  if (props.title) return props.title;
+  return t('CONVERSATION.SELECT_TEAM_TITLE');
+});
+
+const dialogDescription = computed(() => {
+  if (props.description) return props.description;
+  return props.isBulk
+    ? t('CONVERSATION.BULK_RESOLVE_REQUIRES_TEAM')
+    : t('CONVERSATION.SELECT_TEAM_TO_RESOLVE');
 });
 
 const handleConfirm = () => {
@@ -66,12 +86,8 @@ watch(
   <Dialog
     ref="dialogRef"
     type="edit"
-    :title="t('CONVERSATION.SELECT_TEAM_TITLE')"
-    :description="
-      isBulk
-        ? t('CONVERSATION.BULK_RESOLVE_REQUIRES_TEAM')
-        : t('CONVERSATION.SELECT_TEAM_TO_RESOLVE')
-    "
+    :title="dialogTitle"
+    :description="dialogDescription"
     :cancel-button-label="t('DIALOG.BUTTONS.CANCEL')"
     :confirm-button-label="t('DIALOG.BUTTONS.CONFIRM')"
     :disable-confirm-button="!canConfirm"
@@ -82,7 +98,10 @@ watch(
     <div v-if="!hasTeams" class="py-4 text-sm text-n-slate-11">
       {{ t('CONVERSATION.NO_TEAMS_AVAILABLE') }}
     </div>
-    <div v-else class="team-selection-list flex flex-col gap-2 py-4">
+    <div
+      v-else
+      class="flex max-h-[60vh] flex-col gap-2 overflow-y-auto py-4 pr-1"
+    >
       <button
         v-for="team in teamsList"
         :key="team.id"
@@ -123,11 +142,3 @@ watch(
     </div>
   </Dialog>
 </template>
-
-<style scoped>
-.team-selection-list {
-  max-height: 60vh;
-  overflow-y: auto;
-  padding-right: 0.25rem;
-}
-</style>

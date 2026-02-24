@@ -25,6 +25,11 @@ describe('useConversationHotKeys', () => {
   let store;
 
   beforeEach(() => {
+    const mockAgentsForCommandBar = [
+      { id: 0, name: 'None' },
+      ...mockAssignableAgents,
+    ];
+
     store = {
       dispatch: vi.fn(),
       getters: {
@@ -51,7 +56,7 @@ describe('useConversationHotKeys', () => {
     });
     useAI.mockReturnValue({ isAIIntegrationEnabled: { value: true } });
     useAgentsList.mockReturnValue({
-      agentsList: { value: [] },
+      agentsList: { value: mockAgentsForCommandBar },
       assignableAgents: { value: mockAssignableAgents },
     });
   });
@@ -84,25 +89,82 @@ describe('useConversationHotKeys', () => {
     expect(aiAssistAction).toBeUndefined();
   });
 
-  it('should dispatch actions when handlers are called', () => {
+  it('should dispatch assignTeam and assignAgent when selecting an agent transfer action', async () => {
     const { conversationHotKeys } = useConversationHotKeys();
     const assignAgentAction = conversationHotKeys.value.find(
       action => action.id === 'assign_an_agent'
     );
     expect(assignAgentAction).toBeDefined();
 
-    if (assignAgentAction && assignAgentAction.children) {
-      const childAction = conversationHotKeys.value.find(
-        action => action.id === assignAgentAction.children[0]
-      );
-      if (childAction && childAction.handler) {
-        childAction.handler({ agentInfo: { id: 2 } });
-        expect(store.dispatch).toHaveBeenCalledWith('assignAgent', {
-          conversationId: 1,
-          agentId: 2,
-        });
-      }
-    }
+    const teamActionId = assignAgentAction.children.find(actionId =>
+      actionId.startsWith('assign-agent-team-')
+    );
+    expect(teamActionId).toBeDefined();
+
+    const teamAction = conversationHotKeys.value.find(
+      action => action.id === teamActionId
+    );
+    const agentAction = conversationHotKeys.value.find(
+      action => action.parent === teamAction?.id && action.agentInfo?.id === 1
+    );
+
+    expect(agentAction).toBeDefined();
+    await agentAction.handler(agentAction);
+
+    expect(store.dispatch).toHaveBeenNthCalledWith(1, 'assignTeam', {
+      conversationId: mockCurrentChat.id,
+      teamId: mockTeamsList[0].id,
+      rethrow: true,
+    });
+    expect(store.dispatch).toHaveBeenNthCalledWith(2, 'assignAgent', {
+      conversationId: mockCurrentChat.id,
+      agentId: mockAssignableAgents[0].id,
+      rethrow: true,
+    });
+  });
+
+  it('should dispatch assignAgent directly when conversation already has team', async () => {
+    store.getters.getSelectedChat = {
+      ...mockCurrentChat,
+      team_id: mockTeamsList[0].id,
+      meta: {
+        ...mockCurrentChat.meta,
+        team: mockTeamsList[0],
+      },
+    };
+    useMapGetter.mockImplementation(key => ({
+      value: store.getters[key],
+    }));
+
+    const { conversationHotKeys } = useConversationHotKeys();
+    const assignAgentAction = conversationHotKeys.value.find(
+      action => action.id === 'assign_an_agent'
+    );
+    expect(assignAgentAction).toBeDefined();
+    expect(
+      assignAgentAction.children.some(actionId =>
+        actionId.startsWith('assign-agent-team-')
+      )
+    ).toBe(false);
+
+    const directAgentAction = conversationHotKeys.value.find(
+      action =>
+        action.parent === 'assign_an_agent' &&
+        action.agentInfo?.id === mockAssignableAgents[0].id
+    );
+    expect(directAgentAction).toBeDefined();
+
+    await directAgentAction.handler(directAgentAction);
+
+    expect(store.dispatch).toHaveBeenCalledWith('assignAgent', {
+      conversationId: mockCurrentChat.id,
+      agentId: mockAssignableAgents[0].id,
+      rethrow: true,
+    });
+    expect(store.dispatch).not.toHaveBeenCalledWith(
+      'assignTeam',
+      expect.anything()
+    );
   });
 
   it('should return snooze actions when in snooze context', () => {

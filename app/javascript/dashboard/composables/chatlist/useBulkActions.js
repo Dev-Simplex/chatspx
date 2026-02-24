@@ -49,31 +49,185 @@ export function useBulkActions() {
     return selectedConversations.value.includes(id);
   }
 
+  const showTransferTeamModal = ref(false);
+  const pendingTransferAgent = ref(null);
+  const pendingTransferConversationIds = ref([]);
+  const pendingTransferConversationIdsWithoutTeam = ref([]);
+  const isSingleTransfer = ref(false);
+
+  const resetPendingAgentTransfer = () => {
+    showTransferTeamModal.value = false;
+    pendingTransferAgent.value = null;
+    pendingTransferConversationIds.value = [];
+    pendingTransferConversationIdsWithoutTeam.value = [];
+    isSingleTransfer.value = false;
+  };
+
+  const normalizeConversationIds = conversationId => {
+    if (conversationId === null || conversationId === undefined) {
+      return selectedConversations.value;
+    }
+    return Array.isArray(conversationId) ? conversationId : [conversationId];
+  };
+
+  const assignAgentToConversations = async ({ agent, ids, isSingle }) => {
+    await store.dispatch('bulkActions/process', {
+      type: 'Conversation',
+      ids,
+      fields: {
+        assignee_id: agent?.id ?? null,
+      },
+    });
+
+    store.dispatch('bulkActions/clearSelectedConversationIds');
+
+    if (isSingle) {
+      useAlert(
+        t('CONVERSATION.CARD_CONTEXT_MENU.API.AGENT_ASSIGNMENT.SUCCESFUL', {
+          agentName: agent?.name || '',
+          conversationId: ids[0],
+        })
+      );
+      return;
+    }
+
+    useAlert(t('BULK_ACTION.ASSIGN_SUCCESFUL'));
+  };
+
+  const hasAssignedTeam = conversation => {
+    if (!conversation) {
+      return false;
+    }
+    return Boolean(conversation.meta?.team || conversation.team_id);
+  };
+
+  const getConversationsWithoutTeam = conversationIds => {
+    const getConversationById =
+      store.getters['conversations/getConversationById'];
+
+    return conversationIds.filter(id => {
+      const conversation =
+        typeof getConversationById === 'function'
+          ? getConversationById(id)
+          : null;
+      return !hasAssignedTeam(conversation);
+    });
+  };
+
   // Same method used in context menu, conversationId being passed from there.
   async function onAssignAgent(agent, conversationId = null) {
+    const targetIds = normalizeConversationIds(conversationId);
+    const transferIsSingle = targetIds.length === 1;
+
+    if (agent?.id) {
+      const conversationsWithoutTeam = getConversationsWithoutTeam(targetIds);
+      if (!conversationsWithoutTeam.length) {
+        try {
+          await assignAgentToConversations({
+            agent,
+            ids: targetIds,
+            isSingle: transferIsSingle,
+          });
+        } catch (err) {
+          if (transferIsSingle) {
+            useAlert(
+              t('CONVERSATION.CARD_CONTEXT_MENU.API.AGENT_ASSIGNMENT.FAILED')
+            );
+            return;
+          }
+          useAlert(t('BULK_ACTION.ASSIGN_FAILED'));
+        }
+        return;
+      }
+
+      pendingTransferAgent.value = agent;
+      pendingTransferConversationIds.value = targetIds;
+      pendingTransferConversationIdsWithoutTeam.value =
+        conversationsWithoutTeam;
+      isSingleTransfer.value = transferIsSingle;
+      showTransferTeamModal.value = true;
+      return;
+    }
+
+    try {
+      await assignAgentToConversations({
+        agent,
+        ids: targetIds,
+        isSingle: transferIsSingle,
+      });
+    } catch (err) {
+      if (transferIsSingle) {
+        useAlert(
+          t('CONVERSATION.CARD_CONTEXT_MENU.API.AGENT_ASSIGNMENT.FAILED')
+        );
+        return;
+      }
+      useAlert(t('BULK_ACTION.ASSIGN_FAILED'));
+    }
+  }
+
+  const onConfirmAgentTransferTeam = async teamId => {
+    if (
+      !pendingTransferAgent.value ||
+      !pendingTransferConversationIds.value.length ||
+      !pendingTransferConversationIdsWithoutTeam.value.length
+    ) {
+      resetPendingAgentTransfer();
+      return;
+    }
+
+    const targetIds = [...pendingTransferConversationIds.value];
+    const targetIdsWithoutTeam = [
+      ...pendingTransferConversationIdsWithoutTeam.value,
+    ];
+    const targetAgent = pendingTransferAgent.value;
+    const transferIsSingle = isSingleTransfer.value;
+
     try {
       await store.dispatch('bulkActions/process', {
         type: 'Conversation',
-        ids: conversationId || selectedConversations.value,
+        ids: targetIdsWithoutTeam,
         fields: {
-          assignee_id: agent.id,
+          team_id: teamId,
         },
       });
+
+      await store.dispatch('bulkActions/process', {
+        type: 'Conversation',
+        ids: targetIds,
+        fields: {
+          assignee_id: targetAgent.id,
+        },
+      });
+
       store.dispatch('bulkActions/clearSelectedConversationIds');
-      if (conversationId) {
+
+      if (transferIsSingle) {
         useAlert(
           t('CONVERSATION.CARD_CONTEXT_MENU.API.AGENT_ASSIGNMENT.SUCCESFUL', {
-            agentName: agent.name,
-            conversationId,
+            agentName: targetAgent.name,
+            conversationId: targetIds[0],
           })
         );
       } else {
         useAlert(t('BULK_ACTION.ASSIGN_SUCCESFUL'));
       }
-    } catch (err) {
-      useAlert(t('BULK_ACTION.ASSIGN_FAILED'));
+    } catch (error) {
+      if (transferIsSingle) {
+        useAlert(
+          t('CONVERSATION.CARD_CONTEXT_MENU.API.AGENT_ASSIGNMENT.FAILED')
+        );
+      } else {
+        useAlert(t('BULK_ACTION.ASSIGN_FAILED'));
+      }
+    } finally {
+      resetPendingAgentTransfer();
     }
-  }
+  };
+
+  const cancelAgentTransferTeamSelection = () => {
+    resetPendingAgentTransfer();
+  };
 
   // Same method used in context menu, conversationId being passed from there.
   async function onAssignLabels(newLabels, conversationId = null) {
@@ -181,6 +335,9 @@ export function useBulkActions() {
     onAssignLabels,
     onAssignTeamsForBulk,
     onUpdateConversations,
+    showTransferTeamModal,
+    onConfirmAgentTransferTeam,
+    cancelAgentTransferTeamSelection,
     showTeamModal,
     teams,
     handleTeamSelected,

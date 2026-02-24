@@ -256,6 +256,8 @@
     "RESOLVE_REQUIRES_TEAM": "Um time deve ser atribuído antes de resolver esta conversa",
     "SELECT_TEAM_TO_RESOLVE": "Selecione um time para resolver esta conversa",
     "SELECT_TEAM_TITLE": "Selecionar Time",
+    "SELECT_TEAM_FOR_TRANSFER_TITLE": "Selecionar time para transferência",
+    "SELECT_TEAM_FOR_TRANSFER_DESCRIPTION": "Escolha um time antes de atribuir esta conversa a um agente",
     "RESOLVE_WITH_TEAM_SUCCESS": "Conversa resolvida com sucesso",
     "BULK_RESOLVE_REQUIRES_TEAM": "Todas as conversas devem ter um time atribuído antes de resolver",
     "NO_TEAMS_AVAILABLE": "Nenhum time disponível. Por favor, crie um time primeiro.",
