@@ -1,5 +1,6 @@
 <script setup>
-import { ref, computed } from 'vue';
+import { ref, computed, useTemplateRef } from 'vue';
+import { useIntersectionObserver } from '@vueuse/core';
 import Icon from 'next/icon/Icon.vue';
 import { useSnakeCase } from 'dashboard/composables/useTransformKeys';
 import { useMessageContext } from '../provider.js';
@@ -14,6 +15,7 @@ const props = defineProps({
 
 const showGallery = ref(false);
 const shouldLoadVideo = ref(false);
+const videoChipContainer = useTemplateRef('videoChipContainer');
 
 const { filteredCurrentChatAttachments } = useMessageContext();
 
@@ -33,10 +35,22 @@ const loadVideo = () => {
   if (shouldLoadVideo.value) return;
   shouldLoadVideo.value = true;
 };
+
+useIntersectionObserver(
+  videoChipContainer,
+  ([entry]) => {
+    if (!entry?.isIntersecting) return;
+    loadVideo();
+  },
+  {
+    rootMargin: '300px 0px 300px 0px',
+  }
+);
 </script>
 
 <template>
   <div
+    ref="videoChipContainer"
     class="size-[72px] overflow-hidden contain-content rounded-xl cursor-pointer relative group"
     @pointerenter="loadVideo"
     @pointerdown="loadVideo"
@@ -51,7 +65,7 @@ const loadVideo = () => {
     />
     <video
       v-else
-      preload="none"
+      preload="metadata"
       :poster="videoPoster"
       :src="videoSource"
       class="w-full h-full object-cover"

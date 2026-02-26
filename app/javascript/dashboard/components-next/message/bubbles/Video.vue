@@ -1,5 +1,6 @@
 <script setup>
-import { ref, computed } from 'vue';
+import { ref, computed, useTemplateRef } from 'vue';
+import { useIntersectionObserver } from '@vueuse/core';
 import BaseBubble from './Base.vue';
 import Icon from 'next/icon/Icon.vue';
 import { useSnakeCase } from 'dashboard/composables/useTransformKeys';
@@ -11,6 +12,7 @@ const emit = defineEmits(['error']);
 const hasError = ref(false);
 const showGallery = ref(false);
 const shouldLoadVideo = ref(false);
+const videoContainer = useTemplateRef('videoContainer');
 const { filteredCurrentChatAttachments, attachments } = useMessageContext();
 
 const handleError = () => {
@@ -38,6 +40,17 @@ const loadVideo = () => {
   if (shouldLoadVideo.value) return;
   shouldLoadVideo.value = true;
 };
+
+useIntersectionObserver(
+  videoContainer,
+  ([entry]) => {
+    if (!entry?.isIntersecting) return;
+    loadVideo();
+  },
+  {
+    rootMargin: '300px 0px 300px 0px',
+  }
+);
 </script>
 
 <template>
@@ -46,7 +59,7 @@ const loadVideo = () => {
     data-bubble-name="video"
     @click="showGallery = true"
   >
-    <div class="relative group rounded-lg overflow-hidden">
+    <div ref="videoContainer" class="relative group rounded-lg overflow-hidden">
       <div
         v-if="isReel"
         class="absolute p-2 flex items-start justify-end right-0 pointer-events-none"
@@ -56,7 +69,7 @@ const loadVideo = () => {
       <video
         controls
         class="rounded-lg skip-context-menu"
-        preload="none"
+        preload="metadata"
         :poster="videoPoster"
         :src="videoSource"
         :class="{

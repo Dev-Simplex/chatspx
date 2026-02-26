@@ -135,6 +135,7 @@ export default {
       newConversationModalActive: false,
       showArticleSearchPopover: false,
       hasRecordedAudio: false,
+      pendingAudioAutoSend: false,
       whatsappInvalidNotice: '',
       whatsappNoticeTimeoutId: null,
     };
@@ -243,6 +244,9 @@ export default {
       if (this.shouldBlockWhatsappSend) return true;
       if (this.isATwitterInbox) return true;
       if (this.hasAttachments || this.hasRecordedAudio) return false;
+      if (this.isRecordingAudio) {
+        return this.recordingAudioState === 'processing';
+      }
 
       return (
         this.isMessageEmpty ||
@@ -752,6 +756,7 @@ export default {
         return;
       }
       if (!this.showMentions) {
+        this.pendingAudioAutoSend = false;
         const isOnWhatsApp =
           this.isATwilioWhatsAppChannel ||
           this.isAWhatsAppCloudChannel ||
@@ -794,6 +799,7 @@ export default {
     },
     async onSendReply() {
       if (this.stopRecordingForSend()) {
+        this.pendingAudioAutoSend = true;
         return;
       }
 
@@ -911,6 +917,7 @@ export default {
     },
     clearMessage() {
       this.message = '';
+      this.pendingAudioAutoSend = false;
       if (this.sendWithSignature && !this.isPrivate) {
         // if signature is enabled, append it to the message
         const effectiveChannelType = getEffectiveChannelType(
@@ -940,7 +947,10 @@ export default {
     toggleAudioRecorder() {
       this.isRecordingAudio = !this.isRecordingAudio;
       this.recordingAudioState = this.isRecordingAudio ? 'recording' : '';
-      if (!this.isRecordingAudio) this.resetAudioRecorderInput();
+      if (!this.isRecordingAudio) {
+        this.pendingAudioAutoSend = false;
+        this.resetAudioRecorderInput();
+      }
     },
     toggleAudioRecorderPlayPause() {
       if (!this.$refs.audioRecorderInput) return;
@@ -1029,6 +1039,13 @@ export default {
           blobSignedId: blob ? blob.signed_id : undefined,
           isRecordedAudio: file?.isRecordedAudio || false,
         });
+
+        if (file?.isRecordedAudio && this.pendingAudioAutoSend) {
+          this.pendingAudioAutoSend = false;
+          this.$nextTick(() => {
+            this.onSendReply();
+          });
+        }
       };
     },
     removeAttachment(attachments) {
@@ -1186,6 +1203,7 @@ export default {
       this.isRecordingAudio = false;
       this.recordingAudioState = '';
       this.hasRecordedAudio = false;
+      this.pendingAudioAutoSend = false;
       // Only clear the recorded audio when we click toggle button.
       this.attachedFiles = this.attachedFiles.filter(
         file => !file?.isRecordedAudio

@@ -7,6 +7,7 @@ import {
   getCurrentInstance,
   nextTick,
 } from 'vue';
+import { useIntersectionObserver } from '@vueuse/core';
 import Icon from 'next/icon/Icon.vue';
 import { downloadFile } from '@chatwoot/utils';
 import { useEmitter } from 'dashboard/composables/emitter';
@@ -28,6 +29,7 @@ defineOptions({
 });
 
 const audioPlayer = useTemplateRef('audioPlayer');
+const audioContainer = useTemplateRef('audioContainer');
 
 const isPlaying = ref(false);
 const isMuted = ref(false);
@@ -70,6 +72,17 @@ const prewarmAudioMetadata = async () => {
     hasPrewarmedMetadata.value = false;
   }
 };
+
+useIntersectionObserver(
+  audioContainer,
+  ([entry]) => {
+    if (!entry?.isIntersecting) return;
+    prewarmAudioMetadata();
+  },
+  {
+    rootMargin: '300px 0px 300px 0px',
+  }
+);
 
 // There maybe a chance that the audioPlayer ref is not available
 // When the onLoadMetadata is called, so we need to set the duration
@@ -164,7 +177,7 @@ const downloadAudio = async () => {
   <audio
     ref="audioPlayer"
     controls
-    preload="none"
+    preload="metadata"
     class="hidden"
     playsinline
     @loadedmetadata="onLoadedMetadata"
@@ -174,6 +187,7 @@ const downloadAudio = async () => {
     <source :src="audioSourceUrl" />
   </audio>
   <div
+    ref="audioContainer"
     v-bind="$attrs"
     class="rounded-xl w-full gap-2 p-1.5 bg-n-alpha-white flex flex-col items-center border border-n-container shadow-[0px_2px_8px_0px_rgba(94,94,94,0.06)]"
     @pointerenter="prewarmAudioMetadata"
