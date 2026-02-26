@@ -8,7 +8,19 @@ json.meta do
       json.partial! 'api/v1/models/contact', formats: [:json], resource: conversation.contact
     end
   else
-    json.sender nil
+    # Keep sender payload shape stable even when historical contact was deleted.
+    json.sender do
+      json.additional_attributes({})
+      json.availability_status(nil)
+      json.email(nil)
+      json.id(conversation.contact_id)
+      json.name('Deleted Contact')
+      json.phone_number(nil)
+      json.blocked(false)
+      json.identifier(nil)
+      json.thumbnail('')
+      json.custom_attributes({})
+    end
   end
   json.channel conversation.inbox.try(:channel_type)
   if conversation.assignee&.account

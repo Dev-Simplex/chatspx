@@ -96,6 +96,25 @@ describe ContactInboxWithContactBuilder do
       expect(contact_inbox.contact.id).to be(contact.id)
     end
 
+    it 'doesnot create contact for brazil number without ninth digit when normalized number already exists' do
+      brazil_contact = create(:contact, account: account, phone_number: '+5565999911011')
+      contact_inbox = nil
+
+      expect do
+        contact_inbox = described_class.new(
+          source_id: '556599911011',
+          inbox: inbox,
+          contact_attributes: {
+            name: 'Fabricio',
+            phone_number: '+556599911011',
+            email: 'fabricio@example.com'
+          }
+        ).perform
+      end.not_to change(Contact, :count)
+
+      expect(contact_inbox.contact.id).to eq(brazil_contact.id)
+    end
+
     it 'reuses contact if it exists with the same source_id in a Facebook inbox when creating for Instagram inbox' do
       instagram_source_id = '123456789'
 

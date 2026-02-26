@@ -664,19 +664,38 @@ RSpec.describe 'Contacts API', type: :request do
         expect(response).to have_http_status(:success)
       end
 
-      it 'rejects WhatsApp validation when multiple sessions exist' do
+      it 'uses Simplex when multiple WAHA sessions include it' do
         create(:inbox, account: account, waha_session_name: 'session-one')
-        create(:inbox, account: account, waha_session_name: 'session-two')
+        create(:inbox, account: account, waha_session_name: 'Simplex')
         waha_service = instance_double(Waha::ApiService)
         allow(Waha::ApiService).to receive(:new).and_return(waha_service)
-        expect(waha_service).not_to receive(:check_contact_exists)
+        expect(waha_service).to receive(:check_contact_exists)
+          .with(session_name: 'Simplex', phone: '14155550100')
+          .and_return({ 'numberExists' => true })
 
         expect do
           post "/api/v1/accounts/#{account.id}/contacts", headers: admin.create_new_auth_token,
                                                           params: { name: 'test', phone_number: '+14155550100', validate_whatsapp: true }
-        end.not_to change(Contact, :count)
+        end.to change(Contact, :count).by(1)
 
-        expect(response).to have_http_status(:unprocessable_entity)
+        expect(response).to have_http_status(:success)
+      end
+
+      it 'uses the first available session when multiple WAHA sessions exist without Simplex' do
+        create(:inbox, account: account, waha_session_name: 'session-two')
+        create(:inbox, account: account, waha_session_name: 'session-one')
+        waha_service = instance_double(Waha::ApiService)
+        allow(Waha::ApiService).to receive(:new).and_return(waha_service)
+        expect(waha_service).to receive(:check_contact_exists)
+          .with(session_name: 'session-one', phone: '14155550100')
+          .and_return({ 'numberExists' => true })
+
+        expect do
+          post "/api/v1/accounts/#{account.id}/contacts", headers: admin.create_new_auth_token,
+                                                          params: { name: 'test', phone_number: '+14155550100', validate_whatsapp: true }
+        end.to change(Contact, :count).by(1)
+
+        expect(response).to have_http_status(:success)
       end
     end
   end

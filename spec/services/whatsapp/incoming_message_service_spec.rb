@@ -422,6 +422,27 @@ describe Whatsapp::IncomingMessageService do
         expect(Redis::Alfred.get(key)).to be_truthy
         Redis::Alfred.delete(key)
       end
+
+      it 'clears the message processing key when an error occurs after caching' do
+        message_id = 'wamid.cleanup_key_after_error'
+        params = {
+          'contacts' => [{ 'profile' => { 'name' => 'Kedar' }, 'wa_id' => '919746334593' }],
+          'messages' => [{ 'from' => '919446284490',
+                           'id' => message_id,
+                           'text' => { 'body' => 'Test' },
+                           'timestamp' => '1675823265',
+                           'type' => 'text' }]
+        }.with_indifferent_access
+        key = format(Redis::RedisKeys::MESSAGE_SOURCE_KEY, id: message_id)
+        Redis::Alfred.delete(key)
+
+        builder_double = instance_double(ContactInboxWithContactBuilder)
+        allow(builder_double).to receive(:perform).and_raise(ActiveRecord::RecordInvalid.new(Contact.new))
+        allow(ContactInboxWithContactBuilder).to receive(:new).and_return(builder_double)
+
+        expect { described_class.new(inbox: whatsapp_channel.inbox, params: params).perform }.to raise_error(ActiveRecord::RecordInvalid)
+        expect(Redis::Alfred.get(key)).to be_nil
+      end
     end
 
     context 'when profile name is available for contact updates' do

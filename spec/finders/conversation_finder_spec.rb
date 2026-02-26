@@ -126,6 +126,15 @@ describe ConversationFinder do
       end
     end
 
+    context 'with invalid team id' do
+      let(:params) { { team_id: 'all' } }
+
+      it 'ignores team filter and returns conversations' do
+        result = conversation_finder.perform
+        expect(result[:conversations].length).to be 4
+      end
+    end
+
     context 'with labels' do
       let(:params) { { labels: ['resolved'] } }
 

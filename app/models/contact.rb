@@ -53,6 +53,7 @@ class Contact < ApplicationRecord
   validates :identifier, allow_blank: true, uniqueness: { scope: [:account_id] }
   validates :phone_number,
             allow_blank: true, uniqueness: { scope: [:account_id] },
+            if: :will_save_change_to_phone_number?,
             format: { with: /\+[1-9]\d{1,14}\z/, message: I18n.t('errors.contacts.phone_number.invalid') }
 
   belongs_to :account
@@ -226,6 +227,7 @@ class Contact < ApplicationRecord
   end
 
   def prepare_phone_number_attribute
+    return unless will_save_change_to_phone_number?
     return if phone_number.blank?
 
     self.phone_number = Contacts::BrazilPhoneNormalizer.normalize(phone_number)

@@ -1,5 +1,8 @@
 namespace :contacts do
-  desc 'Backfill WhatsApp phone_number for contacts with LID. Usage: rake contacts:backfill_whatsapp_lid_phone[ACCOUNT_ID,DRY_RUN,BATCH_SIZE,USE_WAHA,SESSION_NAME]'
+  desc(
+    'Backfill WhatsApp phone_number for contacts with LID. ' \
+    'Usage: rake contacts:backfill_whatsapp_lid_phone[ACCOUNT_ID,DRY_RUN,BATCH_SIZE,USE_WAHA,SESSION_NAME]'
+  )
   task :backfill_whatsapp_lid_phone, %i[account_id dry_run batch_size use_waha session_name] => :environment do |_task, args|
     account_id = args[:account_id].presence
     dry_run = args[:dry_run].to_s != 'false'
@@ -44,22 +47,23 @@ namespace :contacts do
       sessions = sessions_for_account.call(contact.account_id)
       return nil if sessions.blank?
 
-      sessions.each do |session_name|
-        begin
-          response = waha_service.get_lid_phone_number(session_name, contact.identifier)
-          pn = response['pn'].presence || response[:pn].presence || response['number'].presence ||
-               response[:number].presence
-          normalized = normalize_phone.call(pn)
-          return normalized if normalized.present?
-        rescue Waha::ApiService::Error
-          next
-        end
+      resolved_phone = nil
+      sessions.each do |waha_session_name|
+        response = waha_service.get_lid_phone_number(waha_session_name, contact.identifier)
+        pn = response['pn'].presence || response[:pn].presence || response['number'].presence || response[:number].presence
+        normalized = normalize_phone.call(pn)
+        next if normalized.blank?
+
+        resolved_phone = normalized
+        break
+      rescue Waha::ApiService::Error
+        next
       end
 
-      nil
+      resolved_phone
     end
 
-    scope = Contact.where("contacts.identifier LIKE ?", '%@lid')
+    scope = Contact.where('contacts.identifier LIKE ?', '%@lid')
     scope = scope.where(account_id: account_id) if account_id
 
     total_scope = scope.count
@@ -72,7 +76,8 @@ namespace :contacts do
       resolved_from_waha: 0,
       skipped_no_resolution: 0,
       skipped_same_phone: 0,
-      skipped_conflict: 0
+      skipped_conflict: 0,
+      flagged_conflict_candidate: 0
     }
 
     puts(
@@ -112,6 +117,32 @@ namespace :contacts do
           next
         end
 
+        existing_contact = Contact.where(account_id: contact.account_id, phone_number: resolved_phone)
+                                  .where.not(id: contact.id)
+                                  .order(last_activity_at: :desc, updated_at: :desc)
+                                  .first
+        if existing_contact.present?
+          stats[:skipped_conflict] += 1
+          puts(
+            "CONFLICT contact_id=#{contact.id} account_id=#{contact.account_id} " \
+            "existing_contact_id=#{existing_contact.id} " \
+            "phone=#{resolved_phone.inspect} identifier=#{contact.identifier.inspect}"
+          )
+
+          unless dry_run
+            custom_attributes = (contact.custom_attributes || {}).dup
+            custom_attributes['waha_resolved_phone_candidate'] = resolved_phone
+            custom_attributes['waha_phone_conflict_contact_id'] = existing_contact.id
+            custom_attributes['waha_phone_conflict_detected_at'] = Time.zone.now.iso8601
+
+            # rubocop:disable Rails/SkipsModelValidations
+            contact.update_columns(custom_attributes: custom_attributes, updated_at: Time.zone.now)
+            # rubocop:enable Rails/SkipsModelValidations
+            stats[:flagged_conflict_candidate] += 1
+          end
+          next
+        end
+
         if dry_run
           puts(
             "DRY_RUN contact_id=#{contact.id} account_id=#{contact.account_id} " \
@@ -134,7 +165,10 @@ namespace :contacts do
           stats[:resolved_from_waha] += 1 if resolved_source == 'waha'
         rescue ActiveRecord::RecordNotUnique
           stats[:skipped_conflict] += 1
-          puts "CONFLICT contact_id=#{contact.id} account_id=#{contact.account_id} phone=#{resolved_phone.inspect} identifier=#{contact.identifier.inspect}"
+          puts(
+            "CONFLICT contact_id=#{contact.id} account_id=#{contact.account_id} " \
+            "phone=#{resolved_phone.inspect} identifier=#{contact.identifier.inspect}"
+          )
         end
       end
     end

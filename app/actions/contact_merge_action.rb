@@ -9,10 +9,12 @@ class ContactMergeAction
 
     ActiveRecord::Base.transaction do
       validate_contacts
+      merge_contact_inboxes
       merge_conversations
       merge_messages
-      merge_contact_inboxes
       merge_contact_notes
+      merge_nps_responses
+      merge_csat_survey_responses
       merge_and_remove_mergee_contact
     end
     @base_contact
@@ -31,19 +33,56 @@ class ContactMergeAction
   end
 
   def merge_conversations
-    Conversation.where(contact_id: @mergee_contact.id).update(contact_id: @base_contact.id)
+    # rubocop:disable Rails/SkipsModelValidations
+    Conversation.where(contact_id: @mergee_contact.id).update_all(contact_id: @base_contact.id, updated_at: Time.zone.now)
+    # rubocop:enable Rails/SkipsModelValidations
   end
 
   def merge_contact_notes
-    Note.where(contact_id: @mergee_contact.id, account_id: @mergee_contact.account_id).update(contact_id: @base_contact.id)
+    # rubocop:disable Rails/SkipsModelValidations
+    Note.where(contact_id: @mergee_contact.id, account_id: @mergee_contact.account_id)
+        .update_all(contact_id: @base_contact.id, updated_at: Time.zone.now)
+    # rubocop:enable Rails/SkipsModelValidations
   end
 
   def merge_messages
-    Message.where(sender: @mergee_contact).update(sender: @base_contact)
+    # rubocop:disable Rails/SkipsModelValidations
+    Message.where(sender: @mergee_contact).update_all(sender_id: @base_contact.id, sender_type: 'Contact', updated_at: Time.zone.now)
+    # rubocop:enable Rails/SkipsModelValidations
   end
 
   def merge_contact_inboxes
-    ContactInbox.where(contact_id: @mergee_contact.id).update(contact_id: @base_contact.id)
+    base_contact_inboxes = ContactInbox.where(contact_id: @base_contact.id)
+                                       .index_by { |contact_inbox| [contact_inbox.inbox_id, contact_inbox.source_id] }
+
+    ContactInbox.where(contact_id: @mergee_contact.id).find_each do |mergee_contact_inbox|
+      key = [mergee_contact_inbox.inbox_id, mergee_contact_inbox.source_id]
+      base_contact_inbox = base_contact_inboxes[key]
+
+      if base_contact_inbox
+        # rubocop:disable Rails/SkipsModelValidations
+        Conversation.where(contact_inbox_id: mergee_contact_inbox.id)
+                    .update_all(contact_id: @base_contact.id, contact_inbox_id: base_contact_inbox.id, updated_at: Time.zone.now)
+        # rubocop:enable Rails/SkipsModelValidations
+        mergee_contact_inbox.destroy!
+        next
+      end
+
+      mergee_contact_inbox.update!(contact_id: @base_contact.id)
+      base_contact_inboxes[key] = mergee_contact_inbox
+    end
+  end
+
+  def merge_nps_responses
+    # rubocop:disable Rails/SkipsModelValidations
+    NpsResponse.where(contact_id: @mergee_contact.id).update_all(contact_id: @base_contact.id, updated_at: Time.zone.now)
+    # rubocop:enable Rails/SkipsModelValidations
+  end
+
+  def merge_csat_survey_responses
+    # rubocop:disable Rails/SkipsModelValidations
+    CsatSurveyResponse.where(contact_id: @mergee_contact.id).update_all(contact_id: @base_contact.id, updated_at: Time.zone.now)
+    # rubocop:enable Rails/SkipsModelValidations
   end
 
   def merge_and_remove_mergee_contact

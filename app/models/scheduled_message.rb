@@ -19,6 +19,17 @@
 #  scheduled_by_id   :bigint
 #
 class ScheduledMessage < ApplicationRecord
+  STATUS_ENUM_INTEGER = { pending: 0, sent: 1, failed: 2, cancelled: 3 }.freeze
+  STATUS_ENUM_STRING = STATUS_ENUM_INTEGER.transform_values(&:to_s).freeze
+
+  def self.status_mapping_for_column
+    status_column = columns_hash['status']
+    return STATUS_ENUM_INTEGER if status_column&.type == :integer
+
+    STATUS_ENUM_STRING
+  end
+  private_class_method :status_mapping_for_column
+
   belongs_to :account, optional: true
   belongs_to :conversation
   belongs_to :inbox
@@ -35,7 +46,7 @@ class ScheduledMessage < ApplicationRecord
   validates :scheduled_at, presence: true
   validate :scheduled_at_must_be_in_future, if: :validate_future_scheduled_at?
 
-  enum status: { pending: 0, sent: 1, failed: 2, cancelled: 3 }
+  enum status: status_mapping_for_column
 
   scope :pending, -> { where(status: :pending) }
   scope :upcoming, -> { where('scheduled_at > ?', Time.current).order(:scheduled_at) }

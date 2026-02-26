@@ -89,9 +89,11 @@ class ConversationFinder
   end
 
   def set_team
-    if params[:team_id]
-      @team = current_account.teams.find(params[:team_id])
-      @team_ids = [@team.id]
+    parsed_team_id = Integer(params[:team_id], exception: false)
+
+    if parsed_team_id.present? && parsed_team_id.positive?
+      @team = current_account.teams.find_by(id: parsed_team_id)
+      @team_ids = @team ? [@team.id] : []
     elsif !@is_admin && current_user.teams.any?
       @team = nil
       @team_ids = current_user.teams.pluck(:id)

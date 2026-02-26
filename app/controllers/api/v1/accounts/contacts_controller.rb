@@ -221,11 +221,12 @@ class Api::V1::Accounts::ContactsController < Api::V1::Accounts::BaseController
   end
 
   def resolve_waha_session_name
-    session_names = Current.account.inboxes.where.not(waha_session_name: [nil, '']).distinct.pluck(:waha_session_name)
+    session_names = Current.account.inboxes.where.not(waha_session_name: [nil, '']).distinct.order(:waha_session_name).pluck(:waha_session_name)
     return WAHA_VALIDATION_SESSION_NAME if session_names.blank?
     return session_names.first if session_names.one?
+    return WAHA_VALIDATION_SESSION_NAME if session_names.include?(WAHA_VALIDATION_SESSION_NAME)
 
-    raise ArgumentError, 'multiple_waha_sessions'
+    session_names.first
   end
 
   def normalize_phone_number_for_waha(phone_number)
