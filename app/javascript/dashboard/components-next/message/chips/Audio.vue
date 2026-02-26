@@ -35,6 +35,7 @@ const currentTime = ref(0);
 const duration = ref(0);
 const playbackSpeed = ref(1);
 const hasLoadedSource = ref(false);
+const hasPrewarmedMetadata = ref(false);
 
 const { uid } = getCurrentInstance();
 
@@ -58,6 +59,16 @@ const ensureAudioSourceLoaded = async () => {
   await nextTick();
   audioPlayer.value?.load();
   return true;
+};
+
+const prewarmAudioMetadata = async () => {
+  if (hasPrewarmedMetadata.value || hasLoadedSource.value) return;
+
+  hasPrewarmedMetadata.value = true;
+  const loaded = await ensureAudioSourceLoaded();
+  if (!loaded) {
+    hasPrewarmedMetadata.value = false;
+  }
 };
 
 // There maybe a chance that the audioPlayer ref is not available
@@ -165,6 +176,10 @@ const downloadAudio = async () => {
   <div
     v-bind="$attrs"
     class="rounded-xl w-full gap-2 p-1.5 bg-n-alpha-white flex flex-col items-center border border-n-container shadow-[0px_2px_8px_0px_rgba(94,94,94,0.06)]"
+    @pointerenter="prewarmAudioMetadata"
+    @pointerdown="prewarmAudioMetadata"
+    @touchstart.passive="prewarmAudioMetadata"
+    @focusin="prewarmAudioMetadata"
   >
     <div class="flex gap-1 w-full flex-1 items-center justify-start">
       <button class="p-0 border-0 size-8" @click="playOrPause">

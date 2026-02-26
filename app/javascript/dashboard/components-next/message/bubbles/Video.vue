@@ -35,6 +35,7 @@ const isReel = computed(() => {
 });
 
 const loadVideo = () => {
+  if (shouldLoadVideo.value) return;
   shouldLoadVideo.value = true;
 };
 </script>
@@ -62,8 +63,9 @@ const loadVideo = () => {
           'max-w-48': isReel,
           'max-w-full': !isReel,
         }"
+        @pointerenter="loadVideo"
         @pointerdown="loadVideo"
-        @mouseenter="loadVideo"
+        @touchstart.passive="loadVideo"
         @focus="loadVideo"
         @click.stop
         @error="handleError"

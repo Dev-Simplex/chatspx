@@ -30,6 +30,7 @@ const videoPoster = computed(() => {
 });
 
 const loadVideo = () => {
+  if (shouldLoadVideo.value) return;
   shouldLoadVideo.value = true;
 };
 </script>
@@ -37,6 +38,10 @@ const loadVideo = () => {
 <template>
   <div
     class="size-[72px] overflow-hidden contain-content rounded-xl cursor-pointer relative group"
+    @pointerenter="loadVideo"
+    @pointerdown="loadVideo"
+    @touchstart.passive="loadVideo"
+    @focusin="loadVideo"
     @click="showGallery = true"
   >
     <img
@@ -52,8 +57,9 @@ const loadVideo = () => {
       class="w-full h-full object-cover"
       muted
       playsInline
+      @pointerenter="loadVideo"
       @pointerdown="loadVideo"
-      @mouseenter="loadVideo"
+      @touchstart.passive="loadVideo"
       @focus="loadVideo"
     />
     <div

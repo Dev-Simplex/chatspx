@@ -258,14 +258,14 @@ export default {
       return this.currentChat.unread_count || 0;
     },
     optimizedMessageScrollLoading() {
-      return Boolean(
-        this.$store.getters['globalConfig/get']?.optimizedMessageScrollLoading
-      );
+      const optimizedMessageScrollLoadingConfig =
+        this.$store.getters['globalConfig/get']?.optimizedMessageScrollLoading;
+      return optimizedMessageScrollLoadingConfig ?? true;
     },
     topMessageObserverOptions() {
       return {
         root: this.conversationPanel,
-        rootMargin: '500px 0px 0px 0px',
+        rootMargin: '700px 0px 0px 0px',
       };
     },
     unreadMessageLabel() {

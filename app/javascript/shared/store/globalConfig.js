@@ -47,7 +47,10 @@ const state = {
   logoDark,
   logoThumbnail,
   privacyURL,
-  optimizedMessageScrollLoading: parseBoolean(optimizedMessageScrollLoading),
+  optimizedMessageScrollLoading:
+    optimizedMessageScrollLoading === undefined
+      ? true
+      : parseBoolean(optimizedMessageScrollLoading),
   termsURL,
   widgetBrandURL,
   isEnterprise: parseBoolean(isEnterprise),

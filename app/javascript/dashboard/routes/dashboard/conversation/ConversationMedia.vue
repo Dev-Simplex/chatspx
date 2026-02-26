@@ -77,6 +77,7 @@ const hasAnyMedia = computed(
 const showGallery = ref(false);
 const galleryAttachment = ref(null);
 const galleryList = ref([]);
+const prewarmedVideoPreviewKeys = ref(new Set());
 
 const openGallery = (attachment, list) => {
   if (!attachment || !Array.isArray(list)) return;
@@ -91,6 +92,27 @@ const closeGallery = () => {
   galleryList.value = [];
 };
 
+const resolveAttachmentKey = (attachment, index) => {
+  return attachment?.id ?? attachment?.message_id ?? index;
+};
+
+const prewarmVideoPreview = (attachment, index) => {
+  if (!attachment?.data_url) return;
+
+  const key = resolveAttachmentKey(attachment, index);
+  if (prewarmedVideoPreviewKeys.value.has(key)) return;
+
+  prewarmedVideoPreviewKeys.value = new Set([
+    ...prewarmedVideoPreviewKeys.value,
+    key,
+  ]);
+};
+
+const getVideoPreviewSrc = (attachment, index) => {
+  const key = resolveAttachmentKey(attachment, index);
+  return prewarmedVideoPreviewKeys.value.has(key) ? attachment.data_url : '';
+};
+
 const getThumbSrc = att => att?.thumb_url || att?.data_url || '';
 
 const getFileName = att => {
@@ -99,7 +121,10 @@ const getFileName = att => {
   try {
     const path = url.split('?')[0];
     const segment = path.split('/').pop();
-    return decodeURIComponent(segment || '') || t('CONVERSATION_SIDEBAR.MEDIA_SECTIONS.DOCUMENT');
+    return (
+      decodeURIComponent(segment || '') ||
+      t('CONVERSATION_SIDEBAR.MEDIA_SECTIONS.DOCUMENT')
+    );
   } catch {
     return t('CONVERSATION_SIDEBAR.MEDIA_SECTIONS.DOCUMENT');
   }
@@ -160,6 +185,10 @@ const getLinkUrl = att => att?.data_url || att?.external_url || '#';
             :key="att.id ?? att.message_id ?? idx"
             type="button"
             class="aspect-square rounded-md overflow-hidden bg-n-slate-2 border border-n-weak focus:outline-none focus:ring-2 focus:ring-n-blue"
+            @pointerenter="prewarmVideoPreview(att, idx)"
+            @pointerdown="prewarmVideoPreview(att, idx)"
+            @touchstart.passive="prewarmVideoPreview(att, idx)"
+            @focus="prewarmVideoPreview(att, idx)"
             @click="openGallery(att, grouped.video)"
           >
             <img
@@ -170,10 +199,11 @@ const getLinkUrl = att => att?.data_url || att?.external_url || '#';
             />
             <video
               v-else-if="att.data_url"
-              :src="att.data_url"
+              :src="getVideoPreviewSrc(att, idx)"
               class="w-full h-full object-cover"
               muted
-              preload="metadata"
+              playsinline
+              preload="none"
             />
             <div
               v-else
@@ -183,7 +213,10 @@ const getLinkUrl = att => att?.data_url || att?.external_url || '#';
               <div
                 class="absolute inset-0 flex items-center justify-center bg-black/20"
               >
-                <Icon icon="i-teenyicons-play-small-solid" class="size-6 text-white" />
+                <Icon
+                  icon="i-teenyicons-play-small-solid"
+                  class="size-6 text-white"
+                />
               </div>
             </div>
           </button>
@@ -205,7 +238,10 @@ const getLinkUrl = att => att?.data_url || att?.external_url || '#';
             class="flex items-center gap-2 rounded-md border border-n-weak bg-n-slate-2 px-3 py-2 text-left hover:bg-n-slate-3 focus:outline-none focus:ring-2 focus:ring-n-blue"
             @click="openGallery(att, grouped.audio)"
           >
-            <Icon icon="i-lucide-volume-2" class="size-4 text-n-slate-11 shrink-0" />
+            <Icon
+              icon="i-lucide-volume-2"
+              class="size-4 text-n-slate-11 shrink-0"
+            />
             <span class="truncate text-n-slate-12">
               {{ t('CONVERSATION_SIDEBAR.MEDIA_SECTIONS.AUDIO') }} {{ idx + 1 }}
             </span>
@@ -231,7 +267,10 @@ const getLinkUrl = att => att?.data_url || att?.external_url || '#';
               rel="noopener noreferrer"
               class="flex items-center gap-2 rounded-md border border-n-weak bg-n-slate-2 px-3 py-2 text-n-slate-12 hover:bg-n-slate-3 truncate"
             >
-              <Icon icon="i-lucide-file-down" class="size-4 text-n-slate-11 shrink-0" />
+              <Icon
+                icon="i-lucide-file-down"
+                class="size-4 text-n-slate-11 shrink-0"
+              />
               <span class="truncate flex-1">{{ getFileName(att) }}</span>
             </a>
           </li>
