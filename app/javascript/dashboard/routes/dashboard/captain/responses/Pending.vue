@@ -250,7 +250,7 @@ onMounted(() => {
     :is-empty="!filteredResponses.length"
     :show-pagination-footer="!isFetching && !!filteredResponses.length"
     :show-know-more="false"
-    :feature-flag="FEATURE_FLAGS.CAPTAIN"
+    :feature-flag="FEATURE_FLAGS.CAPTAIN_V2"
     :back-url="backUrl"
     @update:current-page="onPageChange"
   >

@@ -49,7 +49,7 @@ const handleAfterCreate = newAssistant => {
     :header-title="$t('CAPTAIN.ASSISTANTS.HEADER')"
     :show-pagination-footer="false"
     :is-fetching="isFetching"
-    :feature-flag="FEATURE_FLAGS.CAPTAIN"
+    :feature-flag="FEATURE_FLAGS.CAPTAIN_V2"
     is-empty
     @click="handleCreate"
   >

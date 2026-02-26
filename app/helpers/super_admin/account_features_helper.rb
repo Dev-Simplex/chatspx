@@ -1,16 +1,28 @@
 module SuperAdmin::AccountFeaturesHelper
+  LEGACY_CAPTAIN_FEATURE = 'captain_integration'.freeze
+  CANONICAL_CAPTAIN_FEATURE = 'captain_integration_v2'.freeze
+
   def self.account_features
     YAML.safe_load(Rails.root.join('config/features.yml').read).freeze
   end
 
   def self.account_premium_features
-    account_features.filter { |feature| feature['premium'] }.pluck('name')
+    account_features
+      .filter { |feature| feature['premium'] }
+      .pluck('name')
+      .then { |premium_features| premium_features - [CANONICAL_CAPTAIN_FEATURE] }
   end
 
   # Returns a hash mapping feature names to their display names
   def self.feature_display_names
     account_features.each_with_object({}) do |feature, hash|
-      hash[feature['name']] = feature['display_name']
+      feature_name = feature['name']
+      hash[feature_name] =
+        if feature_name == CANONICAL_CAPTAIN_FEATURE
+          'Captain'
+        else
+          feature['display_name']
+        end
     end
   end
 
@@ -26,6 +38,10 @@ module SuperAdmin::AccountFeaturesHelper
     features.except(*deprecated_features)
   end
 
+  def self.filter_legacy_features(features)
+    features.except(LEGACY_CAPTAIN_FEATURE)
+  end
+
   def self.sort_and_transform_features(features, display_names)
     features.sort_by { |key, _| display_names[key] || key }
             .to_h
@@ -35,6 +51,7 @@ module SuperAdmin::AccountFeaturesHelper
   def self.partition_features(features)
     filtered = filter_internal_features(features)
     filtered = filter_deprecated_features(filtered)
+    filtered = filter_legacy_features(filtered)
     display_names = feature_display_names
 
     regular, premium = filtered.partition { |key, _value| account_premium_features.exclude?(key) }

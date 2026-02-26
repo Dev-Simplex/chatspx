@@ -12,6 +12,7 @@ import MessageList from 'next/message/MessageList.vue';
 import ForwardMessageModal from 'next/message/ForwardMessageModal.vue';
 import ConversationLabelSuggestion from './conversation/LabelSuggestion.vue';
 import Banner from 'dashboard/components/ui/Banner.vue';
+import IntersectionObserver from 'dashboard/components/IntersectionObserver.vue';
 import Spinner from 'dashboard/components-next/spinner/Spinner.vue';
 import { useAlert } from 'dashboard/composables';
 
@@ -46,6 +47,7 @@ export default {
     ReplyBox,
     Banner,
     ConversationLabelSuggestion,
+    IntersectionObserver,
     Spinner,
   },
   mixins: [inboxMixin],
@@ -87,7 +89,9 @@ export default {
     return {
       isLoadingPrevious: true,
       heightBeforeLoad: null,
+      scrollTopBeforeLoad: 0,
       conversationPanel: null,
+      inFlightBeforeCursor: null,
       hasUserScrolled: false,
       isProgrammaticScroll: false,
       messageSentSinceOpened: false,
@@ -253,6 +257,17 @@ export default {
     unreadMessageCount() {
       return this.currentChat.unread_count || 0;
     },
+    optimizedMessageScrollLoading() {
+      return Boolean(
+        this.$store.getters['globalConfig/get']?.optimizedMessageScrollLoading
+      );
+    },
+    topMessageObserverOptions() {
+      return {
+        root: this.conversationPanel,
+        rootMargin: '500px 0px 0px 0px',
+      };
+    },
     unreadMessageLabel() {
       const count =
         this.unreadMessageCount > 9 ? '9+' : this.unreadMessageCount;
@@ -380,7 +395,6 @@ export default {
     },
     addScrollListener() {
       this.conversationPanel = this.$el.querySelector('.conversation-panel');
-      this.setScrollParams();
       this.conversationPanel.addEventListener('scroll', this.handleScroll);
       this.$nextTick(() => this.scrollToBottom());
       this.isLoadingPrevious = false;
@@ -421,40 +435,63 @@ export default {
         relevantMessages
       );
     },
-    setScrollParams() {
-      this.heightBeforeLoad = this.conversationPanel.scrollHeight;
-      this.scrollTopBeforeLoad = this.conversationPanel.scrollTop;
+    captureScrollSnapshot() {
+      this.heightBeforeLoad = this.conversationPanel?.scrollHeight || 0;
+      this.scrollTopBeforeLoad = this.conversationPanel?.scrollTop || 0;
     },
 
-    async fetchPreviousMessages(scrollTop = 0) {
-      this.setScrollParams();
+    async fetchPreviousMessages({ scrollTop = 0, forceLoad = false } = {}) {
       const shouldLoadMoreMessages =
         this.currentChat.dataFetched === true &&
         !this.listLoadingStatus &&
         !this.isLoadingPrevious;
 
-      if (
-        scrollTop < 100 &&
-        !this.isLoadingPrevious &&
-        shouldLoadMoreMessages
-      ) {
-        this.isLoadingPrevious = true;
-        try {
-          await this.$store.dispatch('fetchPreviousMessages', {
-            conversationId: this.currentChat.id,
-            before: this.currentChat.messages[0].id,
-          });
-          const heightDifference =
-            this.conversationPanel.scrollHeight - this.heightBeforeLoad;
-          this.conversationPanel.scrollTop =
-            this.scrollTopBeforeLoad + heightDifference;
-          this.setScrollParams();
-        } catch (error) {
-          // Ignore Error
-        } finally {
-          this.isLoadingPrevious = false;
-        }
+      if (!shouldLoadMoreMessages) {
+        return;
       }
+
+      if (
+        !this.optimizedMessageScrollLoading &&
+        !forceLoad &&
+        scrollTop >= 100
+      ) {
+        return;
+      }
+
+      const beforeCursor = this.currentChat.messages?.[0]?.id;
+      if (!beforeCursor || this.inFlightBeforeCursor === beforeCursor) {
+        return;
+      }
+
+      this.isLoadingPrevious = true;
+      this.inFlightBeforeCursor = beforeCursor;
+      this.captureScrollSnapshot();
+
+      try {
+        await this.$store.dispatch('fetchPreviousMessages', {
+          conversationId: this.currentChat.id,
+          before: beforeCursor,
+          ...(this.optimizedMessageScrollLoading
+            ? { limit: 40, includeMeta: false }
+            : { includeMeta: true }),
+        });
+        const heightDifference =
+          this.conversationPanel.scrollHeight - this.heightBeforeLoad;
+        this.conversationPanel.scrollTop =
+          this.scrollTopBeforeLoad + heightDifference;
+      } catch (error) {
+        // Ignore Error
+      } finally {
+        this.inFlightBeforeCursor = null;
+        this.isLoadingPrevious = false;
+      }
+    },
+
+    onTopSentinelObserved() {
+      if (!this.optimizedMessageScrollLoading) {
+        return;
+      }
+      this.fetchPreviousMessages({ forceLoad: true });
     },
 
     handleScroll(e) {
@@ -466,7 +503,9 @@ export default {
         this.hasUserScrolled = true;
       }
       emitter.emit(BUS_EVENTS.ON_MESSAGE_LIST_SCROLL);
-      this.fetchPreviousMessages(e.target.scrollTop);
+      if (!this.optimizedMessageScrollLoading) {
+        this.fetchPreviousMessages({ scrollTop: e.target.scrollTop });
+      }
     },
 
     makeMessagesRead() {
@@ -490,9 +529,7 @@ export default {
         this.forwardSelectedMessageIds.splice(index, 1);
       } else {
         if (this.forwardSelectedMessageIds.length >= 20) {
-          useAlert(
-            this.$t('CONVERSATION.FORWARD.MAX_MESSAGES', { count: 20 })
-          );
+          useAlert(this.$t('CONVERSATION.FORWARD.MAX_MESSAGES', { count: 20 }));
           return;
         }
         this.forwardSelectedMessageIds.push(messageId);
@@ -573,6 +610,15 @@ export default {
       @toggle-forward-selection="toggleForwardSelection"
     >
       <template #beforeAll>
+        <li
+          v-if="optimizedMessageScrollLoading && conversationPanel"
+          class="list-none h-px overflow-hidden"
+        >
+          <IntersectionObserver
+            :options="topMessageObserverOptions"
+            @observed="onTopSentinelObserved"
+          />
+        </li>
         <transition name="slide-up">
           <!-- eslint-disable-next-line vue/require-toggle-inside-transition -->
           <li
@@ -663,7 +709,8 @@ export default {
       <div
         class="relative z-10"
         :class="{
-          'w-full flex justify-center items-start overflow-auto min-h-0': isPopOutReplyBox,
+          'w-full flex justify-center items-start overflow-auto min-h-0':
+            isPopOutReplyBox,
         }"
       >
         <ReplyBox

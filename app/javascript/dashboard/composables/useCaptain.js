@@ -11,7 +11,7 @@ export function useCaptain() {
   const uiFlags = useMapGetter('accounts/getUIFlags');
 
   const captainEnabled = computed(() => {
-    return isCloudFeatureEnabled(FEATURE_FLAGS.CAPTAIN);
+    return isCloudFeatureEnabled(FEATURE_FLAGS.CAPTAIN_V2);
   });
 
   const captainLimits = computed(() => {

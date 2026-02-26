@@ -33,7 +33,7 @@ const isFeatureEnabledonAccount = useMapGetter(
 const showCopilotLauncher = computed(() => {
   const isCaptainEnabled = isFeatureEnabledonAccount.value(
     currentAccountId.value,
-    FEATURE_FLAGS.CAPTAIN
+    FEATURE_FLAGS.CAPTAIN_V2
   );
   return (
     isCaptainEnabled &&

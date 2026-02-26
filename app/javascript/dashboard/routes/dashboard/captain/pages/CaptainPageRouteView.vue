@@ -1,10 +1,24 @@
 <script setup>
-import { watch } from 'vue';
-import { useRoute } from 'vue-router';
+import { computed, watch, watchEffect } from 'vue';
+import { useRoute, useRouter } from 'vue-router';
+import { useMapGetter } from 'dashboard/composables/store';
 import { useUISettings } from 'dashboard/composables/useUISettings';
+import { FEATURE_FLAGS } from 'dashboard/featureFlags';
 
 const route = useRoute();
+const router = useRouter();
 const { uiSettings, updateUISettings } = useUISettings();
+const currentAccountId = useMapGetter('getCurrentAccountId');
+const isFeatureEnabledonAccount = useMapGetter(
+  'accounts/isFeatureEnabledonAccount'
+);
+
+const isCaptainEnabled = computed(() =>
+  isFeatureEnabledonAccount.value(
+    currentAccountId.value || Number(route.params.accountId),
+    FEATURE_FLAGS.CAPTAIN_V2
+  )
+);
 
 watch(
   () => route.params.assistantId,
@@ -19,6 +33,16 @@ watch(
     }
   }
 );
+
+watchEffect(() => {
+  const accountId = Number(route.params.accountId);
+  if (!accountId || isCaptainEnabled.value) return;
+
+  router.replace({
+    name: 'home',
+    params: { accountId },
+  });
+});
 </script>
 
 <template>

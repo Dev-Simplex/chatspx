@@ -41,7 +41,14 @@ const ButtonStub = {
 
 const ScheduledMessageFormStub = {
   name: 'ScheduledMessageForm',
-  props: ['show', 'conversation', 'requireConversation'],
+  props: {
+    show: Boolean,
+    conversation: {
+      type: Object,
+      default: () => ({}),
+    },
+    requireConversation: Boolean,
+  },
   template: '<div data-testid="scheduled-message-form-stub" />',
 };
 
@@ -88,7 +95,9 @@ describe('SidepanelSwitch.vue', () => {
     });
 
     expect(
-      wrapper.find('[data-testid="conversation-sidebar-schedule-toggle"]').exists()
+      wrapper
+        .find('[data-testid="conversation-sidebar-schedule-toggle"]')
+        .exists()
     ).toBe(true);
   });
 
@@ -111,7 +120,7 @@ describe('SidepanelSwitch.vue', () => {
     const scheduledForm = wrapper.findComponent(ScheduledMessageFormStub);
 
     expect(scheduledForm.props('show')).toBe(true);
-    expect(scheduledForm.props('requireConversation')).toBe(true);
+    expect(scheduledForm.props('requireConversation')).toBeTruthy();
     expect(scheduledForm.props('conversation')).toMatchObject({
       id: 654,
       inboxId: 22,

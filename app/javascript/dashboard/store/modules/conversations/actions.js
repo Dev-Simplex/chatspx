@@ -83,19 +83,32 @@ const actions = {
   },
 
   fetchPreviousMessages: async ({ commit }, data) => {
+    const shouldIncludeMeta = data?.includeMeta ?? true;
+
     try {
       const {
-        data: { meta, payload },
-      } = await MessageApi.getPreviousMessages(data);
-      commit(`conversationMetadata/${types.SET_CONVERSATION_METADATA}`, {
-        id: data.conversationId,
-        data: meta,
+        data: { meta = {}, payload = [] },
+      } = await MessageApi.getPreviousMessages({
+        ...data,
+        includeMeta: shouldIncludeMeta,
       });
+
+      const hasMore = meta.has_more;
+      const hasMoreAvailable = typeof hasMore === 'boolean';
+
+      if (shouldIncludeMeta && Object.keys(meta).length) {
+        commit(`conversationMetadata/${types.SET_CONVERSATION_METADATA}`, {
+          id: data.conversationId,
+          data: meta,
+        });
+      }
+
       commit(types.SET_PREVIOUS_CONVERSATIONS, {
         id: data.conversationId,
         data: payload,
       });
-      if (!payload.length) {
+
+      if (hasMoreAvailable ? !hasMore : !payload.length) {
         commit(types.SET_ALL_MESSAGES_LOADED);
       }
     } catch (error) {
@@ -198,6 +211,7 @@ const actions = {
           after,
           before: data.messages[0].id,
           conversationId: data.id,
+          includeMeta: true,
         });
         data.dataFetched = true;
       } catch (error) {

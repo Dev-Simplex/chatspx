@@ -43,6 +43,26 @@ describe('#ConversationAPI', () => {
         }
       );
     });
+
+    it('#getPreviousMessages with pagination options', () => {
+      messageAPI.getPreviousMessages({
+        conversationId: 12,
+        before: 4573,
+        limit: 40,
+        includeMeta: false,
+      });
+
+      expect(axiosMock.get).toHaveBeenCalledWith(
+        `/api/v1/conversations/12/messages`,
+        {
+          params: {
+            before: 4573,
+            limit: 40,
+            include_meta: false,
+          },
+        }
+      );
+    });
   });
   describe('#buildCreatePayload', () => {
     it('builds form payload if file is available', () => {

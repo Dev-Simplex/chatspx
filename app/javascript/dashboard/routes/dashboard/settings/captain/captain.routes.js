@@ -9,7 +9,7 @@ export default {
       path: frontendURL('accounts/:accountId/settings/captain'),
       meta: {
         permissions: ['administrator'],
-        featureFlag: FEATURE_FLAGS.CAPTAIN,
+        featureFlag: FEATURE_FLAGS.CAPTAIN_V2,
       },
       component: SettingsWrapper,
       props: {
@@ -24,7 +24,7 @@ export default {
           component: Index,
           meta: {
             permissions: ['administrator'],
-            featureFlag: FEATURE_FLAGS.CAPTAIN,
+            featureFlag: FEATURE_FLAGS.CAPTAIN_V2,
           },
         },
       ],

@@ -4,8 +4,9 @@ import { flushPromises, shallowMount } from '@vue/test-utils';
 import Index from '../Index.vue';
 import { useCaptainConfigStore } from 'dashboard/store/captain/preferences';
 
-const { alertSpy } = vi.hoisted(() => ({
+const { alertSpy, routerReplace } = vi.hoisted(() => ({
   alertSpy: vi.fn(),
+  routerReplace: vi.fn(),
 }));
 
 vi.mock('vue-i18n', () => ({
@@ -14,13 +15,29 @@ vi.mock('vue-i18n', () => ({
   }),
 }));
 
+vi.mock('vue-router', async importOriginal => {
+  const actual = await importOriginal();
+  return {
+    ...actual,
+    useRouter: () => ({
+      replace: routerReplace,
+    }),
+  };
+});
+
 vi.mock('dashboard/composables', () => ({
   useAlert: alertSpy,
 }));
 
+vi.mock('dashboard/composables/useAccount', () => ({
+  useAccount: () => ({
+    accountId: { value: 1 },
+  }),
+}));
+
 vi.mock('dashboard/composables/useCaptain', () => ({
   useCaptain: () => ({
-    captainEnabled: true,
+    captainEnabled: { value: true },
   }),
 }));
 
@@ -86,6 +103,7 @@ const mountComponent = () => {
 describe('Captain settings Index.vue', () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    routerReplace.mockClear();
   });
 
   it('renders OpenAI connection block with configured status', () => {

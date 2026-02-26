@@ -1,8 +1,10 @@
 <script setup>
-import { computed, onMounted, ref } from 'vue';
+import { computed, onMounted, ref, watchEffect } from 'vue';
+import { useRouter } from 'vue-router';
 import { useI18n } from 'vue-i18n';
 import { storeToRefs } from 'pinia';
 import { useAlert } from 'dashboard/composables';
+import { useAccount } from 'dashboard/composables/useAccount';
 import { useCaptain } from 'dashboard/composables/useCaptain';
 import { useCaptainConfigStore } from 'dashboard/store/captain/preferences';
 import { parseAPIErrorResponse } from 'dashboard/store/utils/api';
@@ -14,6 +16,8 @@ import ModelSelector from './components/ModelSelector.vue';
 import FeatureToggle from './components/FeatureToggle.vue';
 
 const { t } = useI18n();
+const router = useRouter();
+const { accountId } = useAccount();
 const { captainEnabled } = useCaptain();
 
 const captainConfigStore = useCaptainConfigStore();
@@ -155,7 +159,17 @@ async function handleModelChange({ feature, model }) {
   }
 }
 
+watchEffect(() => {
+  if (captainEnabled.value || !accountId.value) return;
+
+  router.replace({
+    name: 'home',
+    params: { accountId: accountId.value },
+  });
+});
+
 onMounted(() => {
+  if (!captainEnabled.value) return;
   captainConfigStore.fetch();
 });
 </script>

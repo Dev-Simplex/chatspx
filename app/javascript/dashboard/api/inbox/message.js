@@ -92,11 +92,32 @@ class MessageApi extends ApiClient {
     );
   }
 
-  getPreviousMessages({ conversationId, after, before }) {
-    const params = { before };
+  getPreviousMessages({
+    conversationId,
+    after,
+    before,
+    limit,
+    includeMeta,
+    include_meta: includeMetaLegacy,
+  }) {
+    const params = {};
+
+    if (before) {
+      params.before = before;
+    }
     if (after && Number(after) !== Number(before)) {
       params.after = after;
     }
+
+    if (limit) {
+      params.limit = limit;
+    }
+
+    const shouldIncludeMeta = includeMeta ?? includeMetaLegacy;
+    if (typeof shouldIncludeMeta === 'boolean') {
+      params.include_meta = shouldIncludeMeta;
+    }
+
     return axios.get(`${this.url}/${conversationId}/messages`, { params });
   }
 

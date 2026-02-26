@@ -184,6 +184,79 @@ RSpec.describe 'Conversation Messages API', type: :request do
         expect(response).to have_http_status(:success)
         expect(JSON.parse(response.body, symbolize_names: true)[:meta][:contact][:id]).to eq(conversation.contact_id)
       end
+
+      context 'with cursor pagination params' do
+        before do
+          create_list(
+            :message,
+            65,
+            account: account,
+            inbox: conversation.inbox,
+            conversation: conversation
+          )
+        end
+
+        it 'respects custom limit and returns has_more' do
+          get "/api/v1/accounts/#{account.id}/conversations/#{conversation.display_id}/messages",
+              params: { before: conversation.messages.maximum(:id) + 1, limit: 40 },
+              headers: agent.create_new_auth_token,
+              as: :json
+
+          expect(response).to have_http_status(:success)
+          body = response.parsed_body
+          payload = body['payload']
+          ids = payload.pluck('id')
+
+          expect(payload.length).to eq(40)
+          expect(ids).to eq(ids.sort)
+          expect(body.dig('meta', 'has_more')).to be(true)
+        end
+
+        it 'caps limit above 100 to protect the endpoint' do
+          create_list(
+            :message,
+            80,
+            account: account,
+            inbox: conversation.inbox,
+            conversation: conversation
+          )
+
+          get "/api/v1/accounts/#{account.id}/conversations/#{conversation.display_id}/messages",
+              params: { before: conversation.messages.maximum(:id) + 1, limit: 250 },
+              headers: agent.create_new_auth_token,
+              as: :json
+
+          expect(response).to have_http_status(:success)
+          expect(response.parsed_body['payload'].length).to eq(100)
+        end
+
+        it 'supports include_meta=false with lightweight meta payload' do
+          get "/api/v1/accounts/#{account.id}/conversations/#{conversation.display_id}/messages",
+              params: { before: conversation.messages.maximum(:id) + 1, include_meta: false, limit: 40 },
+              headers: agent.create_new_auth_token,
+              as: :json
+
+          expect(response).to have_http_status(:success)
+          meta = response.parsed_body['meta']
+
+          expect(meta).to include('has_more')
+          expect(meta).not_to have_key('contact')
+          expect(meta).not_to have_key('labels')
+          expect(meta).not_to have_key('additional_attributes')
+        end
+
+        it 'returns has_more=false on the last page' do
+          oldest_id = conversation.messages.minimum(:id)
+
+          get "/api/v1/accounts/#{account.id}/conversations/#{conversation.display_id}/messages",
+              params: { before: oldest_id + 1, include_meta: false, limit: 40 },
+              headers: agent.create_new_auth_token,
+              as: :json
+
+          expect(response).to have_http_status(:success)
+          expect(response.parsed_body.dig('meta', 'has_more')).to be(false)
+        end
+      end
     end
   end
 

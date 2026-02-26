@@ -100,7 +100,7 @@ onMounted(() => {
     :is-fetching="isFetching"
     :is-empty="!documents.length"
     :show-know-more="false"
-    :feature-flag="FEATURE_FLAGS.CAPTAIN"
+    :feature-flag="FEATURE_FLAGS.CAPTAIN_V2"
     @update:current-page="onPageChange"
     @click="handleCreateDocument"
   >

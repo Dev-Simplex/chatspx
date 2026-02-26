@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[7.1].define(version: 2026_02_24_121000) do
+ActiveRecord::Schema[7.1].define(version: 2026_02_24_220000) do
   # These extensions should be enabled to support this database
   enable_extension "pg_stat_statements"
   enable_extension "pg_trgm"
@@ -1054,6 +1054,7 @@ ActiveRecord::Schema[7.1].define(version: 2026_02_24_121000) do
     t.index ["account_id"], name: "index_messages_on_account_id"
     t.index ["content"], name: "index_messages_on_content", opclass: :gin_trgm_ops, using: :gin
     t.index ["conversation_id", "account_id", "message_type", "created_at"], name: "index_messages_on_conversation_account_type_created"
+    t.index ["conversation_id", "inbox_id", "team_id", "id"], name: "idx_messages_conv_inbox_team_id_desc", order: { id: :desc }
     t.index ["conversation_id"], name: "index_messages_on_conversation_id"
     t.index ["created_at"], name: "index_messages_on_created_at"
     t.index ["forwarded_from_message_id"], name: "index_messages_on_forwarded_from_message_id"

@@ -1,4 +1,7 @@
 class SuperAdmin::AccountsController < SuperAdmin::ApplicationController
+  CAPTAIN_V2_FLAG = :feature_captain_integration_v2
+  LEGACY_CAPTAIN_FLAG = :feature_captain_integration
+
   # Overwrite any of the RESTful controller actions to implement custom behavior
   # For example, you may want to send an email after a foo is updated.
   #
@@ -36,7 +39,12 @@ class SuperAdmin::AccountsController < SuperAdmin::ApplicationController
   def resource_params
     permitted_params = super
     permitted_params[:limits] = permitted_params[:limits].to_h.compact
-    permitted_params[:selected_feature_flags] = params[:enabled_features].keys.map(&:to_sym) if params[:enabled_features].present?
+
+    if params[:enabled_features].present?
+      selected_feature_flags = enabled_feature_flags_from_params(params[:enabled_features])
+      permitted_params[:selected_feature_flags] = synchronized_captain_feature_flags(selected_feature_flags)
+    end
+
     permitted_params
   end
 
@@ -64,6 +72,28 @@ class SuperAdmin::AccountsController < SuperAdmin::ApplicationController
     # rubocop:disable Rails/I18nLocaleTexts
     redirect_back(fallback_location: [namespace, requested_resource], notice: 'Account deletion is in progress.')
     # rubocop:enable Rails/I18nLocaleTexts
+  end
+
+  private
+
+  def enabled_feature_flags_from_params(enabled_features)
+    features_hash = enabled_features.respond_to?(:to_unsafe_h) ? enabled_features.to_unsafe_h : enabled_features.to_h
+
+    features_hash.each_with_object([]) do |(flag, value), selected_flags|
+      selected_flags << flag.to_sym if ActiveModel::Type::Boolean.new.cast(value)
+    end
+  end
+
+  def synchronized_captain_feature_flags(selected_feature_flags)
+    feature_flags = selected_feature_flags.dup
+
+    if feature_flags.include?(CAPTAIN_V2_FLAG)
+      feature_flags << LEGACY_CAPTAIN_FLAG
+    else
+      feature_flags.delete(LEGACY_CAPTAIN_FLAG)
+    end
+
+    feature_flags.uniq
   end
 end
 

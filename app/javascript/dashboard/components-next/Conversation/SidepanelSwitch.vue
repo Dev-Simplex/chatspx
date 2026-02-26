@@ -17,7 +17,10 @@ const isFeatureEnabledonAccount = useMapGetter(
 );
 
 const showCopilotTab = computed(() =>
-  isFeatureEnabledonAccount.value(currentAccountId.value, FEATURE_FLAGS.CAPTAIN)
+  isFeatureEnabledonAccount.value(
+    currentAccountId.value,
+    FEATURE_FLAGS.CAPTAIN_V2
+  )
 );
 
 const { uiSettings } = useUISettings();
@@ -130,7 +133,7 @@ useKeyboardEvents(keyboardEvents);
   <ScheduledMessageForm
     :show="showScheduledMessageForm"
     :conversation="conversationForSchedule"
-    :require-conversation="true"
+    require-conversation
     @close="closeScheduledMessageForm"
     @saved="closeScheduledMessageForm"
   />

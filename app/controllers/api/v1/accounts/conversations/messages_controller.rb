@@ -2,7 +2,9 @@ class Api::V1::Accounts::Conversations::MessagesController < Api::V1::Accounts::
   before_action :ensure_api_inbox, only: :update
 
   def index
+    @include_meta = include_meta?
     @messages = message_finder.perform
+    @has_more = message_finder.has_more
   end
 
   def create
@@ -68,6 +70,12 @@ class Api::V1::Accounts::Conversations::MessagesController < Api::V1::Accounts::
 
   def permitted_params
     params.permit(:id, :target_language, :status, :external_error)
+  end
+
+  def include_meta?
+    return true if params[:include_meta].nil?
+
+    ActiveModel::Type::Boolean.new.cast(params[:include_meta])
   end
 
   def already_translated_content_available?

@@ -1,10 +1,19 @@
 class MessageFinder
+  MAX_PAGE_LIMIT = 100
+  DEFAULT_PAGE_LIMIT = 20
+  DEFAULT_AFTER_LIMIT = 100
+  DEFAULT_BETWEEN_LIMIT = 1000
+
+  attr_reader :has_more
+
   def initialize(conversation, params)
     @conversation = conversation
     @params = params
+    @has_more = false
   end
 
   def perform
+    @has_more = false
     current_messages
   end
 
@@ -40,18 +49,45 @@ class MessageFinder
   end
 
   def messages_after(after_id)
-    messages.reorder('created_at asc').where('id > ?', after_id).limit(100)
+    messages.reorder('created_at asc').where('id > ?', after_id).limit(after_limit)
   end
 
   def messages_before(before_id)
-    messages.reorder('created_at desc').where('id < ?', before_id).limit(20).reverse
+    fetch_cursor_page(messages.reorder('created_at desc').where('id < ?', before_id), page_limit).reverse
   end
 
   def messages_between(after_id, before_id)
-    messages.reorder('created_at asc').where('id >= ? AND id < ?', after_id, before_id).limit(1000)
+    messages.reorder('created_at asc').where('id >= ? AND id < ?', after_id, before_id).limit(between_limit)
   end
 
   def messages_latest
-    messages.reorder('created_at desc').limit(20).reverse
+    fetch_cursor_page(messages.reorder('created_at desc'), page_limit).reverse
+  end
+
+  def fetch_cursor_page(relation, limit)
+    records = relation.limit(limit + 1).to_a
+    @has_more = records.size > limit
+    records.first(limit)
+  end
+
+  def page_limit
+    parsed_limit = @params[:limit].to_i
+    return DEFAULT_PAGE_LIMIT if parsed_limit <= 0
+
+    [parsed_limit, MAX_PAGE_LIMIT].min
+  end
+
+  def after_limit
+    parsed_limit = @params[:limit].to_i
+    return DEFAULT_AFTER_LIMIT if parsed_limit <= 0
+
+    [parsed_limit, MAX_PAGE_LIMIT].min
+  end
+
+  def between_limit
+    parsed_limit = @params[:limit].to_i
+    return DEFAULT_BETWEEN_LIMIT if parsed_limit <= 0
+
+    [parsed_limit, MAX_PAGE_LIMIT].min
   end
 end

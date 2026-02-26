@@ -61,7 +61,10 @@ const isFeatureEnabledonAccount = useMapGetter(
 );
 const activeAccountId = computed(() => Number(currentAccountId.value) || null);
 const isCaptainEnabled = computed(() =>
-  isFeatureEnabledonAccount.value(currentAccountId.value, FEATURE_FLAGS.CAPTAIN)
+  isFeatureEnabledonAccount.value(
+    currentAccountId.value,
+    FEATURE_FLAGS.CAPTAIN_V2
+  )
 );
 
 const selectedAssistantId = ref(null);

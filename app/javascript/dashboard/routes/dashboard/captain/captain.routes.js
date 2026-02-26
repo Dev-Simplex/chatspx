@@ -18,7 +18,7 @@ import CustomToolsIndex from './tools/Index.vue';
 
 const meta = {
   permissions: ['administrator', 'agent'],
-  featureFlag: FEATURE_FLAGS.CAPTAIN,
+  featureFlag: FEATURE_FLAGS.CAPTAIN_V2,
 };
 
 const metaV2 = {
@@ -98,6 +98,7 @@ const assistantRoutes = [
     name: 'captain_assistants_create_index',
     meta: {
       permissions: ['administrator', 'agent'],
+      featureFlag: FEATURE_FLAGS.CAPTAIN_V2,
     },
   },
   {

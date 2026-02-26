@@ -49,11 +49,36 @@ const props = defineProps({
 
 const emit = defineEmits(['forward', 'toggle-forward-selection']);
 
+const CAMEL_CASE_OPTIONS = {
+  deep: true,
+  stopPaths: ['content_attributes.translations'],
+};
+const camelizedMessageCache = new WeakMap();
+
+const toCamelizedMessage = message => {
+  if (!message || typeof message !== 'object') {
+    return message;
+  }
+
+  const cachedValue = camelizedMessageCache.get(message);
+  if (cachedValue) {
+    return cachedValue;
+  }
+
+  const transformedMessage = useCamelCase(message, CAMEL_CASE_OPTIONS);
+  camelizedMessageCache.set(message, transformedMessage);
+  return transformedMessage;
+};
+
 const allMessages = computed(() => {
-  return useCamelCase(props.messages, {
-    deep: true,
-    stopPaths: ['content_attributes.translations'],
-  });
+  return props.messages.map(toCamelizedMessage);
+});
+
+const replyMessagesById = computed(() => {
+  return allMessages.value.reduce((messageMap, message) => {
+    messageMap.set(message.id, message);
+    return messageMap;
+  }, new Map());
 });
 
 const isForwardSelected = messageId =>
@@ -104,7 +129,9 @@ const buildMessageItem = message => ({
 
 const buildMediaGroupItem = groupMessages => {
   const lastMessage = groupMessages[groupMessages.length - 1];
-  const attachments = groupMessages.flatMap(message => message.attachments || []);
+  const attachments = groupMessages.flatMap(
+    message => message.attachments || []
+  );
 
   return {
     type: 'media-group',
@@ -144,20 +171,22 @@ const renderItems = computed(() => {
   let index = 0;
   while (index < messageList.length) {
     const message = messageList[index];
+    let item = buildMessageItem(message);
+    let nextIndex = index + 1;
+
     if (isMediaOnlyMessage(message)) {
       const { groupMessages, lastIndex } = collectMediaGroup(
         index,
         messageList
       );
       if (groupMessages.length > 1) {
-        items.push(buildMediaGroupItem(groupMessages));
-        index = lastIndex + 1;
-        continue;
+        item = buildMediaGroupItem(groupMessages);
+        nextIndex = lastIndex + 1;
       }
     }
 
-    items.push(buildMessageItem(message));
-    index += 1;
+    items.push(item);
+    index = nextIndex;
   }
 
   return items;
@@ -169,7 +198,9 @@ const getItemDate = item =>
 
 const shouldShowUnreadBadge = item => {
   if (!props.firstUnreadId) return false;
-  return item.sourceMessages.some(message => message.id === props.firstUnreadId);
+  return item.sourceMessages.some(
+    message => message.id === props.firstUnreadId
+  );
 };
 
 /**
@@ -213,18 +244,11 @@ const shouldGroupWithNext = (index, searchList) => {
 const getInReplyToMessage = parentMessage => {
   if (!parentMessage) return null;
 
-  const inReplyToMessageId =
-    parentMessage.contentAttributes?.inReplyTo ??
-    parentMessage.content_attributes?.in_reply_to;
+  const inReplyToMessageId = parentMessage.contentAttributes?.inReplyTo;
 
   if (!inReplyToMessageId) return null;
 
-  // Find in-reply-to message in the messages prop
-  const replyMessage = props.messages?.find(
-    message => message.id === inReplyToMessageId
-  );
-
-  return replyMessage ? useCamelCase(replyMessage) : null;
+  return replyMessagesById.value.get(inReplyToMessageId) || null;
 };
 
 /**
@@ -254,10 +278,7 @@ const shouldShowDateSeparator = (index, messageList) => {
         v-if="shouldShowDateSeparator(index, renderItems)"
         :date="new Date(getItemDate(item) * 1000)"
       />
-      <slot
-        v-if="shouldShowUnreadBadge(item)"
-        name="unreadBadge"
-      />
+      <slot v-if="shouldShowUnreadBadge(item)" name="unreadBadge" />
       <Message
         v-bind="item.message"
         :is-email-inbox="isAnEmailChannel"

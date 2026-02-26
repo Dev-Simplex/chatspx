@@ -69,7 +69,7 @@ watch(
     :is-empty="!captainInboxes.length"
     :show-pagination-footer="false"
     :show-know-more="false"
-    :feature-flag="FEATURE_FLAGS.CAPTAIN"
+    :feature-flag="FEATURE_FLAGS.CAPTAIN_V2"
     @click="handleCreate"
   >
     <template #emptyState>

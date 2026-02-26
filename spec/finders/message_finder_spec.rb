@@ -48,6 +48,34 @@ describe MessageFinder do
       end
     end
 
+    context 'with before attribute and custom limit' do
+      let(:params) { { before: conversation.messages.maximum(:id) + 1, limit: 4 } }
+
+      before do
+        create_list(:message, 10, account: account, inbox: inbox, conversation: conversation)
+      end
+
+      it 'returns only the requested page size and tracks has_more' do
+        result = message_finder.perform
+        expect(result.count).to eq 4
+        expect(message_finder.has_more).to be(true)
+        expect(result.map(&:id)).to eq(result.map(&:id).sort)
+      end
+    end
+
+    context 'with before attribute and limit above max cap' do
+      let(:params) { { before: conversation.messages.maximum(:id) + 1, limit: 250 } }
+
+      before do
+        create_list(:message, 140, account: account, inbox: inbox, conversation: conversation)
+      end
+
+      it 'caps the page size to 100 records' do
+        result = message_finder.perform
+        expect(result.count).to eq 100
+      end
+    end
+
     context 'with after attribute' do
       let(:params) { { after: conversation.messages.first.id } }
 
@@ -71,6 +99,17 @@ describe MessageFinder do
         result = message_finder.perform
         expect(result.count).to be 5
         expect(result.last.id).to be conversation.messages[-2].id
+      end
+    end
+
+    context 'when before points to the end of history' do
+      let(:oldest_message_id) { conversation.messages.minimum(:id) }
+      let(:params) { { before: oldest_message_id + 1, limit: 20 } }
+
+      it 'marks has_more as false for the last page' do
+        result = message_finder.perform
+        expect(result.count).to eq 1
+        expect(message_finder.has_more).to be(false)
       end
     end
   end

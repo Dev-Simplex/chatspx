@@ -31,11 +31,13 @@ describe('captain routes', () => {
     expect(allMeta.every(meta => !meta?.installationTypes)).toBe(true);
   });
 
-  it('keeps Captain feature flags on routes', () => {
+  it('uses Captain V2 feature flag on protected routes', () => {
     const allMeta = routes.flatMap(route => flattenChildren(route));
     const featureFlags = allMeta.map(meta => meta?.featureFlag).filter(Boolean);
 
-    expect(featureFlags).toContain(FEATURE_FLAGS.CAPTAIN);
     expect(featureFlags).toContain(FEATURE_FLAGS.CAPTAIN_V2);
+    expect(featureFlags.every(flag => flag === FEATURE_FLAGS.CAPTAIN_V2)).toBe(
+      true
+    );
   });
 });

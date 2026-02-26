@@ -210,7 +210,7 @@ onMounted(() => {
     :is-fetching="isFetching"
     :is-empty="!responses.length"
     :show-pagination-footer="!isFetching && !!responses.length"
-    :feature-flag="FEATURE_FLAGS.CAPTAIN"
+    :feature-flag="FEATURE_FLAGS.CAPTAIN_V2"
     @update:current-page="onPageChange"
     @click="handleCreate"
   >

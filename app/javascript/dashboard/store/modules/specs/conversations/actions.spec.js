@@ -76,6 +76,59 @@ describe('#actions', () => {
       expect(commit.mock.calls).toEqual([]);
     });
   });
+
+  describe('#fetchPreviousMessages', () => {
+    it('uses has_more to mark all messages loaded without overriding metadata', async () => {
+      axios.get.mockResolvedValue({
+        data: {
+          meta: { has_more: false },
+          payload: [{ id: 20 }],
+        },
+      });
+
+      await actions.fetchPreviousMessages(
+        { commit },
+        { conversationId: 7, before: 20, includeMeta: false, limit: 40 }
+      );
+
+      expect(commit.mock.calls).toEqual([
+        [types.SET_PREVIOUS_CONVERSATIONS, { id: 7, data: [{ id: 20 }] }],
+        [types.SET_ALL_MESSAGES_LOADED],
+      ]);
+    });
+
+    it('updates conversation metadata when includeMeta is true', async () => {
+      axios.get.mockResolvedValue({
+        data: {
+          meta: {
+            has_more: true,
+            agent_last_seen_at: '2024-06-24T10:00:00.000Z',
+          },
+          payload: [{ id: 21 }],
+        },
+      });
+
+      await actions.fetchPreviousMessages(
+        { commit },
+        { conversationId: 7, before: 21, includeMeta: true }
+      );
+
+      expect(commit.mock.calls).toEqual([
+        [
+          'conversationMetadata/SET_CONVERSATION_METADATA',
+          {
+            id: 7,
+            data: {
+              has_more: true,
+              agent_last_seen_at: '2024-06-24T10:00:00.000Z',
+            },
+          },
+        ],
+        [types.SET_PREVIOUS_CONVERSATIONS, { id: 7, data: [{ id: 21 }] }],
+      ]);
+    });
+  });
+
   describe('#muteConversation', () => {
     it('sends correct actions if API is success', async () => {
       axios.get.mockResolvedValue(null);
