@@ -1,5 +1,7 @@
 class SendReplyJob < ApplicationJob
   queue_as :high
+  retry_on StandardError, wait: :polynomially_longer, attempts: 5
+  discard_on ActiveJob::DeserializationError
 
   CHANNEL_SERVICES = {
     'Channel::TwitterProfile' => ::Twitter::SendOnTwitterService,

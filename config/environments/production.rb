@@ -52,8 +52,13 @@ Rails.application.configure do
   # Prepend all log lines with the following tags.
   config.log_tags = [:request_id]
 
-  # Use a different cache store in production.
-  # config.cache_store = :mem_cache_store
+  # Use Redis as cache store in production for shared, persistent caching across processes.
+  config.cache_store = :redis_cache_store, {
+    url: ENV.fetch('REDIS_URL', 'redis://127.0.0.1:6379'),
+    namespace: 'chatwoot_cache',
+    expires_in: 1.hour,
+    race_condition_ttl: 10.seconds
+  }
 
   # Use a real queuing backend for Active Job (and separate queues per environment)
   config.active_job.queue_adapter = :sidekiq

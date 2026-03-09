@@ -125,9 +125,7 @@ class ConversationFinder
       current_account
     ).perform
     # Count open unattended (for sidebar) before applying conversation_type filter
-    @unattended_assigned_to_me_count = @conversations.open.unattended.assigned_to(current_user).distinct.count
-    @unattended_unassigned_count = @conversations.open.unattended.unassigned.distinct.count
-    @unattended_all_count = @conversations.open.unattended.distinct.count
+    set_unattended_counts
     filter_by_conversation_type if params[:conversation_type]
     @conversations
   end
@@ -211,6 +209,21 @@ class ConversationFinder
     @conversations = @conversations.where('conversations.last_activity_at <= ?', to) if to
   end
 
+  def set_unattended_counts
+    subquery = @conversations.open.unattended.reselect('conversations.id', 'conversations.assignee_id').distinct
+    sql = <<~SQL.squish
+      SELECT
+        COUNT(*)::int AS all_count,
+        COUNT(*) FILTER (WHERE sub.assignee_id = #{sanitized_user_id})::int AS mine_count,
+        COUNT(*) FILTER (WHERE sub.assignee_id IS NULL)::int AS unassigned_count
+      FROM (#{subquery.to_sql}) sub
+    SQL
+    result = Conversation.connection.select_one(sql)
+    @unattended_assigned_to_me_count = result['mine_count'].to_i
+    @unattended_unassigned_count = result['unassigned_count'].to_i
+    @unattended_all_count = result['all_count'].to_i
+  end
+
   def compute_counts_in_single_query
     subquery = @conversations.reselect('conversations.id', 'conversations.assignee_id').distinct
     sql = <<~SQL.squish
@@ -251,7 +264,7 @@ class ConversationFinder
 
   def conversations_base_query
     @conversations.includes(
-      :taggings, :inbox, { assignee: { avatar_attachment: [:blob] } }, { contact: { avatar_attachment: [:blob] } }, :team, :contact_inbox
+      :taggings, :inbox, { assignee: :avatar_attachment }, { contact: :avatar_attachment }, :team, :contact_inbox
     )
   end
 

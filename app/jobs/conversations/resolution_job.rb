@@ -1,5 +1,7 @@
 class Conversations::ResolutionJob < ApplicationJob
   queue_as :low
+  retry_on StandardError, wait: :polynomially_longer, attempts: 3
+  discard_on ActiveJob::DeserializationError
 
   def perform(account:)
     # limiting the number of conversations to be resolved to avoid any performance issues

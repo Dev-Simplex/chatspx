@@ -2,6 +2,8 @@ class BulkActionsJob < ApplicationJob
   include DateRangeHelper
 
   queue_as :medium
+  retry_on StandardError, wait: :polynomially_longer, attempts: 3
+  discard_on ActiveJob::DeserializationError
   attr_accessor :records
 
   MODEL_TYPE = ['Conversation'].freeze

@@ -4,9 +4,9 @@
 # pick it up automatically.
 ---
 :verbose: false
-:concurrency: <%= ENV.fetch("SIDEKIQ_CONCURRENCY", 10) %>
-:timeout: 25
-:max_retries: 3
+:concurrency: <%= ENV.fetch("SIDEKIQ_CONCURRENCY", 15) %>
+:timeout: 35
+:max_retries: 5
 
 # Sidekiq will run this file through ERB when reading it so you can
 # even put in dynamic logic, like a host-specific queue.
@@ -34,6 +34,6 @@
 
 # you can override concurrency based on environment
 production:
-  :concurrency: <%= ENV.fetch("SIDEKIQ_CONCURRENCY", 10) %>
+  :concurrency: <%= ENV.fetch("SIDEKIQ_CONCURRENCY", 15) %>
 staging:
   :concurrency: <%= ENV.fetch("SIDEKIQ_CONCURRENCY", 10) %>

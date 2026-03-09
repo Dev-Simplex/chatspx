@@ -184,6 +184,13 @@ class Conversation < ApplicationRecord
     unread_messages.where(account_id: account_id).incoming.last(10)
   end
 
+  def memoized_unread_count
+    @memoized_unread_count ||= begin
+      base = messages.where(account_id: account_id).incoming
+      agent_last_seen_at.present? ? base.where('created_at > ?', agent_last_seen_at).count : base.count
+    end
+  end
+
   def cached_label_list_array
     (cached_label_list || '').split(',').map(&:strip)
   end

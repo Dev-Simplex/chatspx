@@ -10,7 +10,7 @@ default: &default
   reaping_frequency: <%= ENV.fetch('DB_POOL_REAPING_FREQUENCY', 30) %>
   variables:
     # we are setting this value to be close to the racktimeout value. we will iterate and reduce this value going forward
-    statement_timeout: <%= ENV["POSTGRES_STATEMENT_TIMEOUT"] || "14s" %>
+    statement_timeout: <%= ENV["POSTGRES_STATEMENT_TIMEOUT"] || "30s" %>
 
 development:
   <<: *default

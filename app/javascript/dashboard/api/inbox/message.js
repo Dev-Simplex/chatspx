@@ -124,10 +124,10 @@ class MessageApi extends ApiClient {
   async getAllMessages(conversationId, options = {}) {
     const {
       onProgress,
-      maxMessages = 10000,
-      maxIterations = 500,
+      maxMessages = 500,
+      maxIterations = 50,
       requestTimeout = 30000,
-      totalTimeout = 300000,
+      totalTimeout = 120000,
     } = options;
 
     let allMessages = [];

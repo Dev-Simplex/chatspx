@@ -13,7 +13,7 @@ class Conversations::EventDataPresenter < SimpleDelegator
       status: status,
       custom_attributes: custom_attributes,
       snoozed_until: snoozed_until,
-      unread_count: unread_incoming_messages.count,
+      unread_count: memoized_unread_count,
       first_reply_created_at: first_reply_created_at,
       priority: priority,
       waiting_since: waiting_since.to_i,
@@ -24,7 +24,8 @@ class Conversations::EventDataPresenter < SimpleDelegator
   private
 
   def push_messages
-    [messages.chat.last&.push_event_data].compact
+    msg = messages.chat.includes(attachments: { file_attachment: :blob }).last
+    [msg&.push_event_data].compact
   end
 
   def push_meta

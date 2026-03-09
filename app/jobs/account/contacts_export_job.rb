@@ -1,5 +1,7 @@
 class Account::ContactsExportJob < ApplicationJob
   queue_as :low
+  retry_on StandardError, wait: 5.minutes, attempts: 3
+  discard_on ActiveJob::DeserializationError
 
   def perform(account_id, user_id, column_names, params)
     @account = Account.find(account_id)

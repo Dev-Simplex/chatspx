@@ -4,6 +4,8 @@ import ApiClient from '../ApiClient';
 class ConversationApi extends ApiClient {
   constructor() {
     super('conversations', { accountScoped: true });
+    this._getAbortController = null;
+    this._filterAbortController = null;
   }
 
   get({
@@ -21,6 +23,11 @@ class ConversationApi extends ApiClient {
     dateFrom,
     dateTo,
   }) {
+    if (this._getAbortController) {
+      this._getAbortController.abort();
+    }
+    this._getAbortController = new AbortController();
+
     const params = {
       inbox_id: inboxId,
       team_id: teamId,
@@ -41,14 +48,23 @@ class ConversationApi extends ApiClient {
     if (limit) {
       params.limit = limit;
     }
-    return axios.get(this.url, { params });
+    return axios.get(this.url, {
+      params,
+      signal: this._getAbortController.signal,
+    });
   }
 
   filter(payload) {
+    if (this._filterAbortController) {
+      this._filterAbortController.abort();
+    }
+    this._filterAbortController = new AbortController();
+
     return axios.post(`${this.url}/filter`, payload.queryData, {
       params: {
         page: payload.page,
       },
+      signal: this._filterAbortController.signal,
     });
   }
 
