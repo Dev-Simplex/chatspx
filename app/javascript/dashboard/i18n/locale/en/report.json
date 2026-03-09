@@ -497,6 +497,62 @@
       }
     }
   },
+  "NPS_REPORTS": {
+    "HEADER": "NPS Reports",
+    "NO_RECORDS": "No records found",
+    "DOWNLOAD": "Export CSV",
+    "DOWNLOAD_FAILED": "Failed to download NPS report",
+    "CLASSIFICATION": {
+      "PROMOTER": "Promoter",
+      "PASSIVE": "Passive",
+      "DETRACTOR": "Detractor"
+    },
+    "FILTER": {
+      "RESPONDED": "Responded",
+      "NOT_RESPONDED": "Not responded"
+    },
+    "TABLE": {
+      "HEADER": {
+        "CONTACT_NAME": "Contact",
+        "AGENT_NAME": "Agent",
+        "SCORE": "Score",
+        "CLASSIFICATION": "Classification"
+      }
+    },
+    "METRIC": {
+      "TOTAL_RESPONSES": {
+        "LABEL": "Total Responses",
+        "TOOLTIP": "Total NPS responses received"
+      },
+      "NPS_SCORE": {
+        "LABEL": "NPS Score",
+        "TOOLTIP": "Net Promoter Score calculated"
+      },
+      "RESPONSE_RATE": {
+        "LABEL": "Response Rate",
+        "TOOLTIP": "Percentage of responses vs sent"
+      },
+      "PROMOTERS": {
+        "LABEL": "Promoters",
+        "TOOLTIP": "Percentage of promoters (9-10)"
+      },
+      "PASSIVES": {
+        "LABEL": "Passives",
+        "TOOLTIP": "Percentage of passives (7-8)"
+      },
+      "DETRACTORS": {
+        "LABEL": "Detractors",
+        "TOOLTIP": "Percentage of detractors (0-6)"
+      },
+      "BLOCKED": {
+        "LABEL": "Blocked",
+        "TOOLTIP": "Total NPS blocked by labels"
+      },
+      "SCORE_DISTRIBUTION": {
+        "LABEL": "Score Distribution"
+      }
+    }
+  },
   "BOT_REPORTS": {
     "HEADER": "Bot Reports",
     "METRIC": {

@@ -17,6 +17,9 @@ class ContactInboxWithContactBuilder
     @contact_inbox = inbox.contact_inboxes.find_by(source_id: source_id) if source_id.present?
     return @contact_inbox if @contact_inbox
 
+    migrated = find_and_migrate_waha_lid_to_pn if waha_api_inbox? && source_id.present?
+    return migrated if migrated
+
     ActiveRecord::Base.transaction(requires_new: true) do
       build_contact_with_contact_inbox
     end
@@ -112,5 +115,61 @@ class ContactInboxWithContactBuilder
     return if normalized_phone_number == phone_number
 
     account.contacts.find_by(phone_number: normalized_phone_number)
+  end
+
+  def waha_api_inbox?
+    inbox.channel_type == 'Channel::Api' && inbox.waha_session_name.present?
+  end
+
+  # Find LID contact_inbox for PN and migrate to PN to avoid duplicate contacts/conversations.
+  def find_and_migrate_waha_lid_to_pn
+    target_phone = target_phone_for_waha_match
+    return if target_phone.blank?
+
+    inbox.contact_inboxes.where('source_id LIKE ?', '%@lid').find_each do |ci|
+      contact = ci.contact
+      effective_phone = waha_effective_phone_for(contact)
+      next unless effective_phone.present? && phones_match?(effective_phone, target_phone)
+
+      normalized_phone = contact_attributes[:phone_number].present? ? normalize_phone_for_waha(contact_attributes[:phone_number]) : target_phone
+      ActiveRecord::Base.transaction do
+        ci.update!(source_id: source_id)
+        contact.update!(phone_number: normalized_phone) if normalized_phone.present? && contact.phone_number != normalized_phone
+      end
+      return ci.reload
+    end
+    nil
+  end
+
+  def target_phone_for_waha_match
+    phone = contact_attributes[:phone_number].presence
+    return normalize_phone_for_waha(phone) if phone.present?
+
+    return unless source_id.to_s.end_with?('@c.us')
+
+    normalize_phone_for_waha("+#{source_id.to_s.split('@').first}")
+  end
+
+  def normalize_phone_for_waha(phone)
+    return if phone.blank?
+
+    normalized = Contacts::BrazilPhoneNormalizer.normalize(phone)
+    normalized if normalized&.match?(/\+[1-9]\d{1,14}\z/)
+  end
+
+  def waha_effective_phone_for(contact)
+    attrs = contact.custom_attributes || {}
+    jid = attrs['waha_whatsapp_jid'].presence || attrs['waha_whatsapp_chat_id'].presence
+    return nil unless jid.to_s.end_with?('@c.us')
+
+    normalize_phone_for_waha("+#{jid.to_s.split('@').first}")
+  end
+
+  def phones_match?(phone_a, phone_b)
+    return false if phone_a.blank? || phone_b.blank?
+
+    n_a = Contacts::BrazilPhoneNormalizer.normalize(phone_a)
+    n_b = Contacts::BrazilPhoneNormalizer.normalize(phone_b)
+    n_a.present? && n_b.present? && n_a == n_b
   end
 end

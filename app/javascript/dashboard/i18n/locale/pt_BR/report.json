@@ -462,13 +462,16 @@
       "PASSIVE": "Passivo",
       "DETRACTOR": "Detrator"
     },
+    "FILTER": {
+      "RESPONDED": "Respondidos",
+      "NOT_RESPONDED": "Não respondidos"
+    },
     "TABLE": {
       "HEADER": {
         "CONTACT_NAME": "Contato",
         "AGENT_NAME": "Agente",
         "SCORE": "Score",
-        "CLASSIFICATION": "Classificação",
-        "COMMENT": "Comentário"
+        "CLASSIFICATION": "Classificação"
       }
     },
     "METRIC": {

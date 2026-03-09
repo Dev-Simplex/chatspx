@@ -27,6 +27,7 @@ export default {
       userIds: [],
       inbox: null,
       team: null,
+      responseState: 'responded',
     };
   },
   computed: {
@@ -62,6 +63,7 @@ export default {
     getResponses() {
       this.$store.dispatch('npsResponses/get', {
         page: this.pageIndex + 1,
+        response_state: this.responseState,
         ...this.requestPayload,
       });
     },
@@ -80,6 +82,11 @@ export default {
       this.pageIndex = pageIndex;
       this.getResponses();
     },
+    onResponseStateChange(responseState) {
+      this.responseState = responseState;
+      this.pageIndex = 0;
+      this.getResponses();
+    },
     onFilterChange({
       from,
       to,
@@ -87,8 +94,6 @@ export default {
       selectedInbox,
       selectedTeam,
     }) {
-      console.log('NPS Reports: Filter change received', { from, to, selectedAgents, selectedInbox, selectedTeam });
-      
       // do not track filter change on initial load
       if (this.from !== 0 && this.to !== 0) {
         useTrack(REPORTS_EVENTS.FILTER_REPORT, {
@@ -102,8 +107,8 @@ export default {
       this.userIds = selectedAgents.map(el => el.id);
       this.inbox = selectedInbox?.id;
       this.team = selectedTeam?.id;
+      this.pageIndex = 0;
 
-      console.log('NPS Reports: Calling getAllData with payload:', this.requestPayload);
       this.getAllData();
     },
   },
@@ -130,6 +135,11 @@ export default {
     />
 
     <NpsMetrics :filters="requestPayload" />
-    <NpsTable :page-index="pageIndex" @page-change="onPageNumberChange" />
+    <NpsTable
+      :page-index="pageIndex"
+      :response-state="responseState"
+      @page-change="onPageNumberChange"
+      @response-state-change="onResponseStateChange"
+    />
   </div>
 </template>

@@ -6,7 +6,7 @@ class NpsReportsAPI extends ApiClient {
     super('nps_responses', { accountScoped: true });
   }
 
-  get({ page, from, to, user_ids, inbox_id, status, contact_id } = {}) {
+  get({ page, from, to, user_ids, inbox_id, status, response_state, contact_id } = {}) {
     return axios.get(this.url, {
       params: {
         page,
@@ -16,6 +16,7 @@ class NpsReportsAPI extends ApiClient {
         user_ids,
         inbox_id,
         status,
+        response_state,
         contact_id,
       },
     });

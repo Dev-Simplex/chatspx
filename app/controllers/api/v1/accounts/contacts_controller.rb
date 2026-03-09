@@ -199,7 +199,8 @@ class Api::V1::Accounts::ContactsController < Api::V1::Accounts::BaseController
   end
 
   def should_validate_whatsapp_contact?
-    permitted_params[:phone_number].present?
+    ActiveModel::Type::Boolean.new.cast(permitted_params[:validate_whatsapp]) &&
+      permitted_params[:phone_number].present?
   end
 
   def validate_whatsapp_contact!

@@ -7,6 +7,7 @@ import { REPORTS_EVENTS } from '../../helper/AnalyticsHelper/events';
 
 export const state = {
   records: [],
+  listTotalCount: 0,
   currentResponse: null,
   history: [],
   metrics: {
@@ -28,8 +29,10 @@ export const state = {
 
 export const getters = {
   getNpsResponses(_state) {
-    console.log('NPS Store: getNpsResponses getter called, returning:', _state.records);
     return _state.records;
+  },
+  getNpsListTotalCount(_state) {
+    return _state.listTotalCount;
   },
   getCurrentNpsResponse(_state) {
     return _state.currentResponse;
@@ -46,25 +49,19 @@ export const getters = {
 };
 
 export const actions = {
-  get: async function getResponses({ commit, state }, params) {
+  get: async function getResponses({ commit }, params) {
     commit(types.SET_NPS_RESPONSE_UI_FLAG, { isFetching: true });
     try {
-      console.log('NPS Store: Fetching responses with params:', params);
       const response = await NpsReports.get(params);
-      console.log('NPS Store: Responses response:', response.data);
-      // Handle both old format (payload/meta) and new format (array direct)
-      const data = Array.isArray(response.data) 
-        ? response.data 
+      const data = Array.isArray(response.data)
+        ? response.data
         : (response.data?.payload || response.data || []);
-      console.log('NPS Store: Processed data:', data);
-      console.log('NPS Store: Processed data length:', data.length);
-      console.log('NPS Store: About to commit SET_NPS_RESPONSE');
       commit(types.SET_NPS_RESPONSE, data);
-      console.log('NPS Store: After commit, state.records length:', state.records.length);
+      const totalCount = parseInt(response.headers?.['x-total-count'], 10);
+      commit(types.SET_NPS_LIST_TOTAL_COUNT, Number.isFinite(totalCount) ? totalCount : 0);
     } catch (error) {
-      console.error('Error fetching NPS responses:', error);
-      console.error('Error details:', error.response?.data || error.message);
       commit(types.SET_NPS_RESPONSE, []);
+      commit(types.SET_NPS_LIST_TOTAL_COUNT, 0);
     } finally {
       commit(types.SET_NPS_RESPONSE_UI_FLAG, { isFetching: false });
     }
@@ -103,9 +100,7 @@ export const actions = {
   getMetrics: async function getMetrics({ commit }, params) {
     commit(types.SET_NPS_RESPONSE_UI_FLAG, { isFetchingMetrics: true });
     try {
-      console.log('NPS Store: Fetching metrics with params:', params);
       const response = await NpsReports.getMetrics(params);
-      console.log('NPS Store: Metrics response:', response.data);
       commit(types.SET_NPS_RESPONSE_METRICS, response.data);
     } catch (error) {
       console.error('Error fetching NPS metrics:', error);
@@ -145,13 +140,11 @@ export const mutations = {
   },
 
   [types.SET_NPS_RESPONSE](_state, data) {
-    console.log('NPS Store: SET_NPS_RESPONSE mutation called with data:', data);
-    console.log('NPS Store: Data is array?', Array.isArray(data));
-    console.log('NPS Store: Data length:', data?.length);
-    // Ensure we're setting a new array reference for Vue reactivity
     _state.records = Array.isArray(data) ? [...data] : (data || []);
-    console.log('NPS Store: State.records after mutation length:', _state.records.length);
-    console.log('NPS Store: State.records after mutation:', _state.records);
+  },
+
+  [types.SET_NPS_LIST_TOTAL_COUNT](_state, count) {
+    _state.listTotalCount = count;
   },
   
   [types.SET_NPS_RESPONSE_BY_CONVERSATION](_state, data) {

@@ -78,6 +78,15 @@ class NpsResponse < ApplicationRecord
   scope :filter_by_assigned_agent_id, ->(user_ids) { where(assigned_agent_id: user_ids) if user_ids.present? }
   scope :filter_by_inbox_id, ->(inbox_id) { where(inbox_id: inbox_id) if inbox_id.present? }
   scope :filter_by_status, ->(status) { where(status: status) if status.present? }
+  scope :filter_by_response_state, ->(state) {
+    return all unless state.present?
+
+    case state.to_s
+    when 'responded' then where(status: :responded)
+    when 'not_responded' then where(status: %i[pending sent expired dismissed])
+    else all
+    end
+  }
   scope :filter_by_score_range, ->(min, max) { where(score: min..max) if min.present? && max.present? }
   scope :promoters, -> { where(score: 9..10) }
   scope :passives, -> { where(score: 7..8) }

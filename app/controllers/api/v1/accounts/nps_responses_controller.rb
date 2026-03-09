@@ -12,16 +12,12 @@ class Api::V1::Accounts::NpsResponsesController < Api::V1::Accounts::BaseControl
 
   sort_on :created_at, type: :datetime
 
-  def index; end
+  def index
+    response.headers['X-Total-Count'] = @nps_responses.total_count.to_s
+  end
 
   def metrics
-    Rails.logger.info "NPS Responses Controller: Metrics - Total responses: #{@nps_responses.count}"
-    
-    # Get only responded NPS responses for metrics calculation
     responded_responses = @nps_responses.where(status: :responded).where.not(score: nil)
-    
-    Rails.logger.info "NPS Responses Controller: Metrics - Responded count: #{responded_responses.count}"
-    
     @total_count = responded_responses.count
     @scores_count = responded_responses.group(:score).count
     @status_count = @nps_responses.group(:status).count
@@ -33,8 +29,6 @@ class Api::V1::Accounts::NpsResponsesController < Api::V1::Accounts::BaseControl
                                             .where.not(blocked_by_label: nil)
                                             .group(:blocked_by_label)
                                             .count
-    
-    Rails.logger.info "NPS Responses Controller: Metrics - Total: #{@total_count}, Promoters: #{@promoters_count}, Passives: #{@passives_count}, Detractors: #{@detractors_count}"
   end
 
   def download
@@ -87,31 +81,19 @@ class Api::V1::Accounts::NpsResponsesController < Api::V1::Accounts::BaseControl
 
   def set_nps_responses
     base_query = Current.account.nps_responses.includes([:conversation, :assigned_agent, :contact, :inbox])
-    
-    Rails.logger.info "NPS Responses Controller: Base query count: #{base_query.count}"
-    Rails.logger.info "NPS Responses Controller: Range: #{range.inspect}"
-    Rails.logger.info "NPS Responses Controller: Params: #{params.inspect}"
-    
-    # Apply filtrate first (for sorting)
     filtered_query = filtrate(base_query)
-    Rails.logger.info "NPS Responses Controller: After filtrate count: #{filtered_query.count}"
-    
-    # Then apply date range filter
     @nps_responses = filtered_query.filter_by_created_at(range)
-    Rails.logger.info "NPS Responses Controller: After date filter count: #{@nps_responses.count}"
-    
-    # Apply other filters
+
+    # Apply other filters (response_state takes precedence over status for list view)
     @nps_responses = @nps_responses.filter_by_assigned_agent_id(params[:user_ids])
                                     .filter_by_inbox_id(params[:inbox_id])
-                                    .filter_by_status(params[:status])
-    
-    Rails.logger.info "NPS Responses Controller: After all filters count: #{@nps_responses.count}"
-    
-    # Filter by contact_id if provided
-    if params[:contact_id].present?
-      @nps_responses = @nps_responses.where(contact_id: params[:contact_id])
-      Rails.logger.info "NPS Responses Controller: After contact_id filter count: #{@nps_responses.count}"
+    if params[:response_state].present?
+      @nps_responses = @nps_responses.filter_by_response_state(params[:response_state])
+    else
+      @nps_responses = @nps_responses.filter_by_status(params[:status])
     end
+
+    @nps_responses = @nps_responses.where(contact_id: params[:contact_id]) if params[:contact_id].present?
   end
 
   def set_current_page_responses

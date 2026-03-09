@@ -1,7 +1,10 @@
 import * as types from '../mutation-types';
 import ContactAPI from '../../api/contacts';
 import ConversationApi from '../../api/conversations';
+import MessageApi from '../../api/inbox/message';
 import camelcaseKeys from 'camelcase-keys';
+
+const ACTIVE_STATUSES = ['open', 'pending', 'snoozed'];
 
 export const createMessagePayload = (payload, message) => {
   const { content, cc_emails, bcc_emails } = message;
@@ -79,6 +82,17 @@ export const getters = {
     const records = $state.records[Number(id)] || [];
     return camelcaseKeys(records, { deep: true });
   },
+  getActiveConversationByInbox: ($state, getters) => (contactId, inboxId) => {
+    const conversations = getters.getAllConversationsByContactId(contactId);
+    const normalized = Array.isArray(conversations) ? conversations : [];
+    return (
+      normalized.find(
+        c =>
+          Number(c.inboxId) === Number(inboxId) &&
+          ACTIVE_STATUSES.includes(String(c.status || '').toLowerCase())
+      ) || null
+    );
+  },
 };
 
 export const actions = {
@@ -102,6 +116,34 @@ export const actions = {
       });
 
       return data;
+    } catch (error) {
+      throw new Error(error);
+    } finally {
+      commit(types.default.SET_CONTACT_CONVERSATIONS_UI_FLAG, {
+        isCreating: false,
+      });
+    }
+  },
+  sendToExistingConversation: async ({ commit }, { conversation, params }) => {
+    commit(types.default.SET_CONTACT_CONVERSATIONS_UI_FLAG, {
+      isCreating: true,
+    });
+    const conversationId = conversation.id;
+    const { message, files } = params;
+    const msg = message || {};
+    try {
+      await MessageApi.create({
+        conversationId,
+        message: msg.content,
+        files: files || [],
+        ccEmails: msg.cc_emails || '',
+        bccEmails: msg.bcc_emails || '',
+        templateParams: msg.template_params,
+      });
+      return {
+        id: conversationId,
+        account_id: conversation.accountId ?? conversation.account_id,
+      };
     } catch (error) {
       throw new Error(error);
     } finally {

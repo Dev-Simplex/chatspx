@@ -115,7 +115,13 @@ class Public::Api::V1::InboxesController < PublicController
     contact_inbox_by_lid = inbox.contact_inboxes.find_by(source_id: lid)
     return if contact_inbox_by_lid.blank?
 
+    # Lock in consistent order (by id) to avoid deadlocks between concurrent merges.
+    to_lock = [contact_inbox_by_lid, contact_inbox_by_pn].compact.sort_by(&:id)
+
     ActiveRecord::Base.transaction do
+      to_lock.each(&:lock!)
+      contact_inbox_by_lid.reload
+
       if contact_inbox_by_pn.present? && contact_inbox_by_pn.id != contact_inbox_by_lid.id
         # Two contact_inboxes for same person (pn and LID). Merge LID contact into pn contact, then remove LID contact_inbox.
         base_contact = contact_inbox_by_pn.contact

@@ -8,9 +8,18 @@ class ConversationBuilder
   private
 
   def look_up_exising_conversation
-    return unless @contact_inbox.inbox.lock_to_single_conversation?
+    return @contact_inbox.conversations.last if @contact_inbox.inbox.lock_to_single_conversation?
+    return last_open_conversation if waha_api_inbox?
 
-    @contact_inbox.conversations.last
+    nil
+  end
+
+  def waha_api_inbox?
+    @contact_inbox.inbox.channel_type == 'Channel::Api' && @contact_inbox.inbox.waha_session_name.present?
+  end
+
+  def last_open_conversation
+    @contact_inbox.conversations.where.not(status: :resolved).last
   end
 
   def create_new_conversation

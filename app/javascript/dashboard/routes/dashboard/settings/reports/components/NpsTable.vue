@@ -1,5 +1,5 @@
 <script setup>
-import { defineEmits, computed, h, watch } from 'vue';
+import { defineEmits, computed, h } from 'vue';
 import { useMapGetter } from 'dashboard/composables/store';
 import { useI18n } from 'vue-i18n';
 
@@ -10,6 +10,7 @@ import Table from 'dashboard/components/table/Table.vue';
 import Pagination from 'dashboard/components/table/Pagination.vue';
 import UserAvatarWithName from 'dashboard/components/widgets/UserAvatarWithName.vue';
 import ConversationCell from './ConversationCell.vue';
+import Button from 'dashboard/components-next/button/Button.vue';
 
 import {
   useVueTable,
@@ -17,28 +18,23 @@ import {
   getCoreRowModel,
 } from '@tanstack/vue-table';
 
-const { pageIndex } = defineProps({
+const props = defineProps({
   pageIndex: {
     type: Number,
     default: 0,
   },
+  responseState: {
+    type: String,
+    default: 'responded',
+    validator: (v) => ['responded', 'not_responded'].includes(v),
+  },
 });
 
-const emit = defineEmits(['pageChange']);
+const emit = defineEmits(['pageChange', 'responseStateChange']);
 const { t } = useI18n();
 const npsResponses = useMapGetter('npsResponses/getNpsResponses');
 const metrics = useMapGetter('npsResponses/getMetrics');
-
-// Debug logs
-watch(() => npsResponses.value, (newVal) => {
-  console.log('NpsTable: npsResponses changed:', newVal);
-  console.log('NpsTable: npsResponses is array?', Array.isArray(newVal));
-  console.log('NpsTable: npsResponses length:', newVal?.length);
-}, { immediate: true, deep: true });
-
-watch(() => metrics.value, (newVal) => {
-  console.log('NpsTable: metrics changed:', newVal);
-}, { immediate: true, deep: true });
+const listTotalCount = useMapGetter('npsResponses/getNpsListTotalCount');
 
 const getClassification = (score, classificationFromBackend = null) => {
   // If classification comes from backend, translate it first
@@ -67,28 +63,13 @@ const getClassificationColor = (score) => {
 };
 
 const tableData = computed(() => {
-  console.log('NpsTable: tableData computed - npsResponses.value:', npsResponses.value);
-  console.log('NpsTable: tableData computed - is array?', Array.isArray(npsResponses.value));
-  console.log('NpsTable: tableData computed - npsResponses.value type:', typeof npsResponses.value);
-  
-  // Handle case where npsResponses.value might be undefined or null initially
-  if (!npsResponses.value) {
-    console.log('NpsTable: npsResponses.value is falsy, returning empty array');
-    return [];
-  }
-  
-  // Ensure it's an array - check if it's a Proxy or actual array
-  const responsesArray = Array.isArray(npsResponses.value) 
-    ? npsResponses.value 
+  if (!npsResponses.value) return [];
+  const responsesArray = Array.isArray(npsResponses.value)
+    ? npsResponses.value
     : (npsResponses.value && Array.from ? Array.from(npsResponses.value) : []);
-  
-  if (!Array.isArray(responsesArray) || responsesArray.length === 0) {
-    console.log('NpsTable: responsesArray is not an array or is empty, returning empty');
-    return [];
-  }
-  
-  console.log('NpsTable: Processing', responsesArray.length, 'responses');
-  const mapped = responsesArray.map(response => {
+  if (!Array.isArray(responsesArray) || responsesArray.length === 0) return [];
+
+  return responsesArray.map(response => {
     // Get valid date - prefer answered_at, fallback to sent_at, then created_at
     // Backend should return Unix timestamps (numbers), but handle both formats
     let dateValue = response.answered_at || response.sent_at || response.created_at;
@@ -121,29 +102,13 @@ const tableData = computed(() => {
       assignedAgent: response.assigned_agent,
       score: response.score,
       classification: getClassification(response.score, response.classification),
-      comment: response.comment || null,
       conversationId: response.conversation_id,
       conversation: response.conversation,
       createdAgo: unixTimestamp ? dynamicTime(unixTimestamp) : '--',
       createdAt: unixTimestamp ? messageStamp(unixTimestamp, 'LLL d yyyy, h:mm a') : '--',
     };
   });
-  console.log('NpsTable: tableData mapped result length:', mapped.length);
-  console.log('NpsTable: tableData mapped result:', mapped);
-  return mapped;
 });
-
-const defaultSpanRender = cellProps => {
-  const value = cellProps.getValue() || '---';
-  return h(
-    'span',
-    {
-      class: 'line-clamp-5 break-words max-w-full text-n-slate-12',
-      title: value,
-    },
-    value
-  );
-};
 
 const columnHelper = createColumnHelper();
 
@@ -209,11 +174,6 @@ const columns = computed(() => [
       );
     },
   }),
-  columnHelper.accessor('comment', {
-    header: t('NPS_REPORTS.TABLE.HEADER.COMMENT', { default: 'Comentário' }),
-    width: 400,
-    cell: defaultSpanRender,
-  }),
   columnHelper.accessor('conversationId', {
     header: '',
     width: 100,
@@ -221,12 +181,10 @@ const columns = computed(() => [
   }),
 ]);
 
-const paginationParams = computed(() => {
-  return {
-    pageIndex: pageIndex,
-    pageSize: 25,
-  };
-});
+const paginationParams = computed(() => ({
+  pageIndex: props.pageIndex,
+  pageSize: 25,
+}));
 
 const table = useVueTable({
   get data() {
@@ -239,7 +197,7 @@ const table = useVueTable({
   enableSorting: false,
   getCoreRowModel: getCoreRowModel(),
   get rowCount() {
-    return metrics.value.total_count || 0;
+    return listTotalCount.value > 0 ? listTotalCount.value : (metrics.value.total_count || 0);
   },
   state: {
     get pagination() {
@@ -257,6 +215,32 @@ const table = useVueTable({
   <div
     class="rounded-2xl border border-n-container/60 bg-n-solid-2/90 px-6 py-5 shadow-sm"
   >
+    <div class="mb-4 flex items-center justify-between">
+      <div
+        class="inline-flex gap-1 rounded-lg border border-n-weak bg-n-solid-3 p-1"
+        role="group"
+        aria-label="Filtrar por status de resposta"
+      >
+        <Button
+          :color="props.responseState === 'responded' ? 'blue' : 'slate'"
+          :variant="props.responseState === 'responded' ? 'solid' : 'ghost'"
+          size="sm"
+          class="!h-8"
+          @click="emit('responseStateChange', 'responded')"
+        >
+          {{ t('NPS_REPORTS.FILTER.RESPONDED', { default: 'Respondidos' }) }}
+        </Button>
+        <Button
+          :color="props.responseState === 'not_responded' ? 'blue' : 'slate'"
+          :variant="props.responseState === 'not_responded' ? 'solid' : 'ghost'"
+          size="sm"
+          class="!h-8"
+          @click="emit('responseStateChange', 'not_responded')"
+        >
+          {{ t('NPS_REPORTS.FILTER.NOT_RESPONDED', { default: 'Não respondidos' }) }}
+        </Button>
+      </div>
+    </div>
     <div v-if="tableData.length > 0">
       <Table
         :table="table"
@@ -270,7 +254,7 @@ const table = useVueTable({
     >
       {{ $t('NPS_REPORTS.NO_RECORDS', { default: 'Nenhum registro encontrado' }) }}
     </div>
-    <div v-if="metrics.total_count > 0" class="table-pagination">
+    <div v-if="(listTotalCount.value || metrics.total_count) > 0" class="table-pagination">
       <Pagination class="mt-2" :table="table" />
     </div>
   </div>

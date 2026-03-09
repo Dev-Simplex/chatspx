@@ -19,10 +19,7 @@ const uiFlags = useMapGetter('contacts/getUIFlags');
 const isCreatingContact = computed(() => uiFlags.value.isCreating);
 
 const createNewContact = contactItem => {
-  contact.value = {
-    ...contactItem,
-    validateWhatsapp: Boolean(contactItem.phoneNumber),
-  };
+  contact.value = { ...contactItem };
 };
 
 const handleDialogConfirm = async () => {

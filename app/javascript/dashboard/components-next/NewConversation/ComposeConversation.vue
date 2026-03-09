@@ -179,13 +179,36 @@ const closeCompose = () => {
 
 const createConversation = async ({ payload, isFromWhatsApp }) => {
   try {
-    const data = await store.dispatch('contactConversations/create', {
-      params: payload,
-      isFromWhatsApp,
-    });
+    let data;
+    const contactId = payload.contactId;
+    const inboxId = payload.inboxId;
+
+    if (props.contactId && contactId && inboxId) {
+      await store.dispatch('contactConversations/get', contactId);
+      const existingConversation = store.getters[
+        'contactConversations/getActiveConversationByInbox'
+      ](contactId, inboxId);
+
+      if (existingConversation) {
+        data = await store.dispatch('contactConversations/sendToExistingConversation', {
+          conversation: existingConversation,
+          params: payload,
+        });
+      }
+    }
+
+    if (!data) {
+      data = await store.dispatch('contactConversations/create', {
+        params: payload,
+        isFromWhatsApp,
+      });
+    }
+
+    const accountId = data.account_id ?? data.accountId;
+    const conversationId = data.id;
     const action = {
       type: 'link',
-      to: `/app/accounts/${data.account_id}/conversations/${data.id}`,
+      to: `/app/accounts/${accountId}/conversations/${conversationId}`,
       message: t('COMPOSE_NEW_CONVERSATION.FORM.GO_TO_CONVERSATION'),
     };
     closeCompose();
