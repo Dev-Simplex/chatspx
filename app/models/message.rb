@@ -224,7 +224,7 @@ class Message < ApplicationRecord
     return false if conversation.messages.outgoing
                                 .where.not(sender_type: ['AgentBot', 'Captain::Assistant'])
                                 .where.not(private: true)
-                                .where("(additional_attributes->'campaign_id') is null").count > 1
+                                .where("(additional_attributes->'campaign_id') is null").limit(2).count > 1
 
     true
   end

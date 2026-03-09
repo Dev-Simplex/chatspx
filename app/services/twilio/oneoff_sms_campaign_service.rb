@@ -19,7 +19,7 @@ class Twilio::OneoffSmsCampaignService
   delegate :channel, to: :inbox
 
   def process_audience(audience_labels)
-    campaign.account.contacts.tagged_with(audience_labels, any: true).each do |contact|
+    campaign.account.contacts.tagged_with(audience_labels, any: true).find_each do |contact|
       next if contact.phone_number.blank?
 
       content = Liquid::CampaignTemplateService.new(campaign: campaign, contact: contact).call(campaign.message)

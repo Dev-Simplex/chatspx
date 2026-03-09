@@ -161,14 +161,15 @@ class ConversationFinder
     return unless params[:q]
 
     allowed_message_types = [Message.message_types[:incoming], Message.message_types[:outgoing]]
-    @conversations = conversations.joins(:messages).where('messages.content ILIKE :search', search: "%#{params[:q]}%")
-                                  .where(messages: { message_type: allowed_message_types }).includes(:messages)
+    @conversations = conversations.joins(:messages)
                                   .where('messages.content ILIKE :search', search: "%#{params[:q]}%")
                                   .where(messages: { message_type: allowed_message_types })
+                                  .distinct
   end
 
   def filter_by_status
     return if params[:status] == 'all'
+
     @conversations = @conversations.where(status: params[:status]) if params[:status].present?
     if @team_ids.present? && @team_ids.any?
       @conversations = @conversations.where('team_id IN (?) OR team_id IS NULL', @team_ids)
@@ -258,9 +259,7 @@ class ConversationFinder
     base = conversations_base_query
     sort_by, sort_order = SORT_OPTIONS[params[:sort_by]] || SORT_OPTIONS['last_activity_at_desc']
 
-    if params[:updated_within].present?
-      base = base.where('conversations.updated_at > ?', Time.zone.now - params[:updated_within].to_i.seconds)
-    end
+    base = base.where('conversations.updated_at > ?', Time.zone.now - params[:updated_within].to_i.seconds) if params[:updated_within].present?
 
     if use_keyset_pagination?(sort_by, sort_order)
       apply_keyset_and_fetch(base, sort_order)

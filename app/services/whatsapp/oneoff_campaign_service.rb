@@ -62,8 +62,8 @@ class Whatsapp::OneoffCampaignService
   end
 
   def process_audience(audience_labels)
-    contacts = campaign.account.contacts.tagged_with(audience_labels, any: true)
-    Rails.logger.info "Processing #{contacts.count} contacts for campaign #{campaign.id}"
+    contacts = campaign.account.contacts.tagged_with(audience_labels, any: true).load
+    Rails.logger.info "Processing #{contacts.size} contacts for campaign #{campaign.id}"
 
     contacts.each { |contact| process_contact(contact) }
 
