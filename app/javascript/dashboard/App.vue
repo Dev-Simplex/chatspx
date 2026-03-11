@@ -20,6 +20,7 @@ import {
 } from './helper/pushHelper';
 import ReconnectService from 'dashboard/helper/ReconnectService';
 import { useUISettings } from 'dashboard/composables/useUISettings';
+import AppVersionBanner from './components/app/AppVersionBanner.vue';
 
 export default {
   name: 'App',
@@ -28,6 +29,7 @@ export default {
     LoadingState,
     NetworkNotification,
     UpdateBanner,
+    AppVersionBanner,
     WahaConnectionsBanner,
     PaymentPendingBanner,
     WootSnackbarBox,
@@ -159,6 +161,7 @@ export default {
     class="flex flex-col w-full h-screen min-h-0"
     :dir="isRTL ? 'rtl' : 'ltr'"
   >
+    <AppVersionBanner />
     <UpdateBanner
       :latest-chatwoot-version="latestChatwootVersion"
       :maintenance-banner="maintenanceBanner"
