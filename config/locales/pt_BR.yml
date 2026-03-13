@@ -71,6 +71,8 @@ pt_BR:
         not_registered: Este número não está registrado no WhatsApp.
         unavailable: Não foi possível validar o número do WhatsApp. Tente novamente.
         multiple_sessions: Não foi possível validar o número do WhatsApp. Tente novamente.
+        no_phone: Este contato não possui um número de telefone.
+        cooldown: Aguarde alguns minutos antes de verificar novamente.
     companies:
       domain:
         invalid: must be a valid domain name

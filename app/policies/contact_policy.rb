@@ -39,6 +39,10 @@ class ContactPolicy < ApplicationPolicy
     true
   end
 
+  def revalidate_whatsapp?
+    true
+  end
+
   def show?
     true
   end

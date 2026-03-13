@@ -2,6 +2,7 @@ class Api::V1::Accounts::ContactsController < Api::V1::Accounts::BaseController
   include Sift
 
   WAHA_VALIDATION_SESSION_NAME = 'Simplex'.freeze
+  REVALIDATION_COOLDOWN_SECONDS = 300
 
   sort_on :email, type: :string
   sort_on :name, internal_name: :order_on_name, type: :scope, scope_params: [:direction]
@@ -16,7 +17,7 @@ class Api::V1::Accounts::ContactsController < Api::V1::Accounts::BaseController
 
   before_action :check_authorization
   before_action :set_current_page, only: [:index, :active, :search, :search_for_schedule, :filter]
-  before_action :fetch_contact, only: [:show, :update, :destroy, :avatar, :contactable_inboxes, :destroy_custom_attributes]
+  before_action :fetch_contact, only: [:show, :update, :destroy, :avatar, :contactable_inboxes, :destroy_custom_attributes, :revalidate_whatsapp]
   before_action :set_include_contact_inboxes, only: [:index, :active, :search, :filter, :show, :update]
 
   def index
@@ -130,6 +131,22 @@ class Api::V1::Accounts::ContactsController < Api::V1::Accounts::BaseController
     head :ok
   end
 
+  def revalidate_whatsapp
+    return render_error({ message: I18n.t('errors.contacts.whatsapp_validation.no_phone') }, :unprocessable_entity) if @contact.phone_number.blank?
+    return render_error({ message: I18n.t('errors.contacts.whatsapp_validation.cooldown') }, :too_many_requests) if revalidation_on_cooldown?
+
+    number_exists = check_whatsapp_with_fallback
+    custom_attributes = @contact.custom_attributes || {}
+    custom_attributes['whatsapp_number_exists'] = number_exists
+    custom_attributes['whatsapp_last_checked_at'] = Time.zone.now.iso8601
+    custom_attributes['whatsapp_validation_source'] = resolve_waha_session_name
+    @contact.update!(custom_attributes: custom_attributes)
+
+    render json: { whatsapp_number_exists: number_exists }
+  rescue Waha::ApiService::Error
+    render_error({ message: I18n.t('errors.contacts.whatsapp_validation.unavailable') }, :unprocessable_entity)
+  end
+
   def avatar
     @contact.avatar.purge if @contact.avatar.attached?
     @contact
@@ -233,6 +250,31 @@ class Api::V1::Accounts::ContactsController < Api::V1::Accounts::BaseController
   def normalize_phone_number_for_waha(phone_number)
     normalized = Contacts::BrazilPhoneNormalizer.normalize(phone_number)
     normalized.to_s.delete_prefix('+')
+  end
+
+  def check_whatsapp_with_fallback
+    session_name = resolve_waha_session_name
+    phones_to_try = whatsapp_phone_candidates
+    phones_to_try.each do |phone|
+      response = waha_service.check_contact_exists(session_name: session_name, phone: phone)
+      return true if response.fetch('numberExists') { response[:numberExists] }
+    end
+    false
+  end
+
+  def whatsapp_phone_candidates
+    normalized = normalize_phone_number_for_waha(@contact.phone_number)
+    candidates = [normalized]
+    waid = @contact.custom_attributes&.[]('waha_whatsapp_jid')&.sub(/@.*/, '')
+    candidates.unshift(waid) if waid.present? && waid != normalized
+    candidates.uniq.compact
+  end
+
+  def revalidation_on_cooldown?
+    last_checked = @contact.custom_attributes&.[]('whatsapp_last_checked_at')
+    return false if last_checked.blank?
+
+    Time.zone.parse(last_checked) > REVALIDATION_COOLDOWN_SECONDS.seconds.ago
   end
 
   def waha_service

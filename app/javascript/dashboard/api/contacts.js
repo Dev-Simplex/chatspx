@@ -97,6 +97,10 @@ class ContactAPI extends ApiClient {
     });
   }
 
+  revalidateWhatsapp(contactId) {
+    return axios.post(`${this.url}/${contactId}/revalidate_whatsapp`);
+  }
+
   destroyCustomAttributes(contactId, customAttributes) {
     return axios.post(`${this.url}/${contactId}/destroy_custom_attributes`, {
       custom_attributes: customAttributes,

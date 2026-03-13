@@ -85,6 +85,8 @@ en:
         not_registered: This phone number is not registered on WhatsApp.
         unavailable: Unable to validate the WhatsApp number right now. Please try again.
         multiple_sessions: Unable to validate the WhatsApp number right now. Please try again.
+        no_phone: This contact does not have a phone number.
+        cooldown: Please wait a few minutes before checking again.
     companies:
       domain:
         invalid: must be a valid domain name

@@ -25,6 +25,7 @@ import {
   getUndefinedVariablesInMessage,
   replaceVariablesInMessage,
 } from '@chatwoot/utils';
+import ContactAPI from 'dashboard/api/contacts';
 import WhatsappTemplates from './WhatsappTemplates/Modal.vue';
 import ContentTemplates from './ContentTemplates/ContentTemplatesModal.vue';
 import { MESSAGE_MAX_LENGTH } from 'shared/helpers/MessageTypeHelper';
@@ -138,6 +139,7 @@ export default {
       pendingAudioAutoSend: false,
       whatsappInvalidNotice: '',
       whatsappNoticeTimeoutId: null,
+      isRevalidatingWhatsapp: false,
     };
   },
   computed: {
@@ -550,6 +552,51 @@ export default {
         this.whatsappInvalidNotice = '';
         this.whatsappNoticeTimeoutId = null;
       }, 8000);
+    },
+    async revalidateWhatsappNumber() {
+      if (this.isRevalidatingWhatsapp) return;
+
+      const contactId =
+        this.currentChat?.meta?.sender?.id || this.currentContact?.id;
+      if (!contactId) return;
+
+      this.isRevalidatingWhatsapp = true;
+      try {
+        const { data } = await ContactAPI.revalidateWhatsapp(contactId);
+        if (data.whatsapp_number_exists) {
+          this.clearWhatsappInvalidNotice();
+          useAlert(
+            this.$t('CONVERSATION.REPLYBOX.WHATSAPP_REVALIDATE_SUCCESS')
+          );
+          this.$store.dispatch('contacts/updateContact', {
+            id: contactId,
+            custom_attributes: {
+              ...this.whatsappCustomAttributes,
+              whatsapp_number_exists: true,
+            },
+          });
+          const sender = this.currentChat?.meta?.sender;
+          if (sender) {
+            sender.custom_attributes = {
+              ...sender.custom_attributes,
+              whatsapp_number_exists: true,
+            };
+          }
+        } else {
+          this.showWhatsappInvalidNotice(
+            this.$t('CONVERSATION.REPLYBOX.WHATSAPP_REVALIDATE_STILL_INVALID')
+          );
+        }
+      } catch (error) {
+        const status = error?.response?.status;
+        const message =
+          status === 429
+            ? this.$t('CONVERSATION.REPLYBOX.WHATSAPP_REVALIDATE_COOLDOWN')
+            : this.$t('CONVERSATION.REPLYBOX.WHATSAPP_REVALIDATE_ERROR');
+        this.showWhatsappInvalidNotice(message);
+      } finally {
+        this.isRevalidatingWhatsapp = false;
+      }
     },
     clearWhatsappInvalidNotice() {
       if (this.whatsappNoticeTimeoutId) {
@@ -1240,7 +1287,19 @@ export default {
         <span
           class="i-lucide-message-circle-x size-4 text-n-ruby-9 animate-pulse"
         />
-        <span>{{ whatsappBannerMessage }}</span>
+        <span class="flex-1">{{ whatsappBannerMessage }}</span>
+        <button
+          v-if="shouldBlockWhatsappSend"
+          class="shrink-0 rounded-md bg-n-ruby-5/40 px-2.5 py-1 text-xs font-semibold text-n-ruby-12 transition-colors hover:bg-n-ruby-5/60 disabled:cursor-not-allowed disabled:opacity-50"
+          :disabled="isRevalidatingWhatsapp"
+          @click="revalidateWhatsappNumber"
+        >
+          {{
+            isRevalidatingWhatsapp
+              ? $t('CONVERSATION.REPLYBOX.WHATSAPP_REVALIDATING')
+              : $t('CONVERSATION.REPLYBOX.WHATSAPP_REVALIDATE')
+          }}
+        </button>
       </div>
     </transition>
     <ArticleSearchPopover

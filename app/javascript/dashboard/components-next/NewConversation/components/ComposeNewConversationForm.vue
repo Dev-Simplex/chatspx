@@ -16,6 +16,8 @@ import {
   prepareWhatsAppMessagePayload,
 } from 'dashboard/components-next/NewConversation/helpers/composeConversationHelper.js';
 
+import ContactAPI from 'dashboard/api/contacts';
+import { useAlert } from 'dashboard/composables';
 import ContactSelector from './ContactSelector.vue';
 import InboxSelector from './InboxSelector.vue';
 import EmailOptions from './EmailOptions.vue';
@@ -122,10 +124,8 @@ const hasOnlyWhatsappInboxes = computed(() => {
   return contactableInboxesList.value.every(inbox => {
     const isWhatsapp =
       inbox.channelType === INBOX_TYPES.WHATSAPP ||
-      (inbox.channelType === INBOX_TYPES.TWILIO &&
-        inbox.medium === 'whatsapp');
-    const isApiWaha =
-      inbox.channelType === INBOX_TYPES.API;
+      (inbox.channelType === INBOX_TYPES.TWILIO && inbox.medium === 'whatsapp');
+    const isApiWaha = inbox.channelType === INBOX_TYPES.API;
     return isWhatsapp || isApiWaha;
   });
 });
@@ -139,6 +139,44 @@ const shouldShowWhatsappInvalidBanner = computed(
 const shouldBlockWhatsappSend = computed(
   () => isWhatsappInvalid.value && isWhatsappTargetInbox.value
 );
+
+const isRevalidatingWhatsapp = ref(false);
+const revalidateBannerMessage = ref('');
+
+async function revalidateWhatsappNumber() {
+  if (isRevalidatingWhatsapp.value) return;
+  const contactId = props.selectedContact?.id;
+  if (!contactId) return;
+
+  isRevalidatingWhatsapp.value = true;
+  revalidateBannerMessage.value = '';
+  try {
+    const { data } = await ContactAPI.revalidateWhatsapp(contactId);
+    if (data.whatsapp_number_exists) {
+      useAlert(t('CONVERSATION.REPLYBOX.WHATSAPP_REVALIDATE_SUCCESS'));
+      const contact = props.selectedContact;
+      if (contact) {
+        const attrs =
+          contact.customAttributes || contact.custom_attributes || {};
+        attrs.whatsapp_number_exists = true;
+        contact.customAttributes = attrs;
+        contact.custom_attributes = attrs;
+      }
+    } else {
+      revalidateBannerMessage.value = t(
+        'CONVERSATION.REPLYBOX.WHATSAPP_REVALIDATE_STILL_INVALID'
+      );
+    }
+  } catch (error) {
+    const status = error?.response?.status;
+    revalidateBannerMessage.value =
+      status === 429
+        ? t('CONVERSATION.REPLYBOX.WHATSAPP_REVALIDATE_COOLDOWN')
+        : t('CONVERSATION.REPLYBOX.WHATSAPP_REVALIDATE_ERROR');
+  } finally {
+    isRevalidatingWhatsapp.value = false;
+  }
+}
 
 const whatsappMessageTemplates = computed(() =>
   Object.keys(props.targetInbox?.messageTemplates || {}).length
@@ -413,8 +451,23 @@ const shouldShowMessageEditor = computed(() => {
           v-if="shouldShowWhatsappInvalidBanner"
           class="mx-4 mt-4 mb-2 flex items-center gap-2 rounded-lg border border-n-ruby-5/40 bg-n-ruby-3 px-3 py-2 text-sm font-medium text-n-ruby-12 shadow-sm"
         >
-          <span class="i-lucide-message-circle-x size-4 text-n-ruby-9 animate-pulse" />
-          <span>{{ whatsappInvalidMessage }}</span>
+          <span
+            class="i-lucide-message-circle-x size-4 text-n-ruby-9 animate-pulse"
+          />
+          <span class="flex-1">{{
+            revalidateBannerMessage || whatsappInvalidMessage
+          }}</span>
+          <button
+            class="shrink-0 rounded-md bg-n-ruby-5/40 px-2.5 py-1 text-xs font-semibold text-n-ruby-12 transition-colors hover:bg-n-ruby-5/60 disabled:cursor-not-allowed disabled:opacity-50"
+            :disabled="isRevalidatingWhatsapp"
+            @click="revalidateWhatsappNumber"
+          >
+            {{
+              isRevalidatingWhatsapp
+                ? t('CONVERSATION.REPLYBOX.WHATSAPP_REVALIDATING')
+                : t('CONVERSATION.REPLYBOX.WHATSAPP_REVALIDATE')
+            }}
+          </button>
         </div>
       </transition>
       <ContactSelector
@@ -507,7 +560,9 @@ const shouldShowMessageEditor = computed(() => {
 <style scoped>
 .whatsapp-invalid-enter-active,
 .whatsapp-invalid-leave-active {
-  transition: opacity 180ms ease, transform 220ms ease;
+  transition:
+    opacity 180ms ease,
+    transform 220ms ease;
 }
 
 .whatsapp-invalid-enter-from,
