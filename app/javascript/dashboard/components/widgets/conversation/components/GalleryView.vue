@@ -44,10 +44,12 @@ const activeFileType = ref('');
 const getAttachmentIndex = attachment => {
   if (!attachment) return 0;
 
-  const byId = props.allAttachments.findIndex(
-    item => item.id === attachment.id
-  );
-  if (byId !== -1) return byId;
+  if (attachment.id != null) {
+    const byId = props.allAttachments.findIndex(
+      item => item.id === attachment.id
+    );
+    if (byId !== -1) return byId;
+  }
 
   const byMessage = props.allAttachments.findIndex(
     item => item.message_id === attachment.message_id
@@ -114,7 +116,7 @@ const senderDetails = computed(() => {
   } = activeAttachment.value?.sender || props.attachment?.sender || {};
 
   return {
-    name: currentUser.value?.id === id ? 'You' : name || availableName || '',
+    name: currentUser.value?.id === id ? t('GALLERY_VIEW.SENT_BY_YOU') : name || availableName || '',
     avatar: thumbnail || avatar_url || '',
   };
 });
@@ -123,7 +125,7 @@ const fileNameFromDataUrl = computed(() => {
   const { data_url: dataUrl } = activeAttachment.value;
   if (!dataUrl) return '';
 
-  const fileName = dataUrl.split('/').pop();
+  const fileName = dataUrl.split('/').pop()?.split('?')[0];
   return fileName ? decodeURIComponent(fileName) : '';
 });
 

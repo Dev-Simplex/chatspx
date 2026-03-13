@@ -285,12 +285,26 @@
       "TRANSLATE": "Traduzir",
       "COPY_PERMALINK": "Copiar link para a mensagem",
       "LINK_COPIED": "URL da mensagem copiada para a área de transferência",
+      "EDIT_MESSAGE": "Editar mensagem",
       "DELETE_CONFIRMATION": {
         "TITLE": "Você tem certeza que deseja excluir esta mensagem?",
         "MESSAGE": "Você não pode desfazer essa ação",
         "DELETE": "Excluir",
         "CANCEL": "Cancelar"
       }
+    },
+    "EDIT_MESSAGE": {
+      "SAVE": "Salvar",
+      "CANCEL": "Cancelar",
+      "SUCCESS": "Mensagem atualizada com sucesso",
+      "ERROR": "Não foi possível atualizar a mensagem. Tente novamente",
+      "HINT": "Enter para salvar · Shift+Enter para nova linha · Esc para cancelar"
+    },
+    "EDIT_HISTORY": {
+      "BADGE": "Editado",
+      "TITLE": "Mensagem original",
+      "NO_CONTENT": "(sem conteúdo)",
+      "EDITED_BY": "Editado por {name}"
     },
     "FORWARD": {
       "TITLE": "Encaminhar Mensagem",
@@ -416,6 +430,7 @@
       "LINKS": "Links"
     },
     "MEDIA_EMPTY": "Nenhuma mídia ou arquivo nesta conversa",
+    "SHOW_MORE": "Ver mais {count}",
     "SHOPIFY": {
       "ORDER_ID": "Order #{id}",
       "ERROR": "Error loading orders",
@@ -499,7 +514,8 @@
     "TRY_THESE_PROMPTS": "Experimente estes comandos"
   },
   "GALLERY_VIEW": {
-    "ERROR_DOWNLOADING": "Não foi possível baixar o anexo. Por favor, tente novamente"
+    "ERROR_DOWNLOADING": "Não foi possível baixar o anexo. Por favor, tente novamente",
+    "SENT_BY_YOU": "Você"
   },
   "NOTESPAD": {
     "CLEAR_CONVERSATION": "Limpar conversa",

@@ -556,7 +556,7 @@ export default {
     />
     <MessageList
       ref="conversationPanelRef"
-      class="conversation-panel flex-shrink flex-grow basis-px flex flex-col overflow-y-auto relative h-full m-0 pb-4"
+      class="conversation-panel flex-shrink flex-grow basis-px flex flex-col overflow-y-auto overflow-x-hidden relative h-full m-0 pb-4"
       :class="{
         'conversation-panel-dark': isDarkMode,
         'conversation-panel-light': !isDarkMode,

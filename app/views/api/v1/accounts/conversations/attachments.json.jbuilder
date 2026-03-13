@@ -5,6 +5,7 @@ end
 json.payload @attachments do |attachment|
   attachment_data = attachment.push_event_data
 
+  json.id attachment.id
   json.message_id attachment_data[:message_id]
   json.thumb_url attachment_data[:thumb_url]
   json.data_url attachment_data[:data_url]

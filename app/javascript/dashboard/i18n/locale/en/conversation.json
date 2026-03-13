@@ -66,6 +66,19 @@
     "UNSUPPORTED_MESSAGE_INSTAGRAM": "This message is unsupported. You can view this message on the Instagram app.",
     "SUCCESS_DELETE_MESSAGE": "Message deleted successfully",
     "FAIL_DELETE_MESSSAGE": "Couldn't delete message! Try again",
+    "EDIT_MESSAGE": {
+      "SAVE": "Save",
+      "CANCEL": "Cancel",
+      "SUCCESS": "Message updated successfully",
+      "ERROR": "Couldn't update message. Try again",
+      "HINT": "Enter to save · Shift+Enter for new line · Esc to cancel"
+    },
+    "EDIT_HISTORY": {
+      "BADGE": "Edited",
+      "TITLE": "Original message",
+      "NO_CONTENT": "(no content)",
+      "EDITED_BY": "Edited by {name}"
+    },
     "NO_RESPONSE": "No response",
     "RESPONSE": "Response",
     "RATING_TITLE": "Rating",
@@ -277,6 +290,7 @@
     },
     "CONTEXT_MENU": {
       "COPY": "Copy",
+      "EDIT_MESSAGE": "Edit Message",
       "REPLY_TO": "Reply to this message",
       "FORWARD": "Forward message",
       "STAR": "Star message",
@@ -417,6 +431,7 @@
       "LINKS": "Links"
     },
     "MEDIA_EMPTY": "No media or files in this conversation",
+    "SHOW_MORE": "Show {count} more",
     "SHOPIFY": {
       "ORDER_ID": "Order #{id}",
       "ERROR": "Error loading orders",
@@ -500,7 +515,8 @@
     "TRY_THESE_PROMPTS": "Try these prompts"
   },
   "GALLERY_VIEW": {
-    "ERROR_DOWNLOADING": "Unable to download attachment. Please try again"
+    "ERROR_DOWNLOADING": "Unable to download attachment. Please try again",
+    "SENT_BY_YOU": "You"
   },
   "NOTESPAD": {
     "CLEAR_CONVERSATION": "Clear conversation",

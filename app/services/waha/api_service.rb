@@ -10,7 +10,7 @@ module Waha
     def initialize
       @base_url = ENV.fetch('WAHA_API_URL', 'http://localhost:3000')
       @api_key = ENV.fetch('WAHA_API_KEY', nil)
-      @timeout = 30
+      @timeout = 10
     end
 
     def list_sessions(all: true)
@@ -45,6 +45,17 @@ module Waha
 
     def delete_session(name)
       delete("/api/sessions/#{name}")
+    end
+
+    def edit_message(session_name, chat_id, message_id, new_content)
+      put(
+        "/api/#{session_name}/chats/#{encode_path_segment(chat_id)}/messages/#{encode_path_segment(message_id)}",
+        { text: new_content }
+      )
+    end
+
+    def get_messages(session_name, chat_id, limit: 20)
+      get("/api/#{session_name}/chats/#{encode_path_segment(chat_id)}/messages", limit: limit)
     end
 
     def get_qr_code(name, format: 'image')
@@ -93,6 +104,11 @@ module Waha
 
     private
 
+    # Encode a path segment but preserve @ so WAHA accepts WhatsApp JIDs like 5511@c.us
+    def encode_path_segment(segment)
+      CGI.escape(segment.to_s).gsub('%40', '@')
+    end
+
     def get(path, params = {})
       request(:get, path, params)
     end
@@ -103,6 +119,10 @@ module Waha
 
     def delete(path)
       request(:delete, path)
+    end
+
+    def put(path, body = {})
+      request(:put, path, body)
     end
 
     def request(method, path, params = {}, raw: false)
@@ -117,21 +137,20 @@ module Waha
       request_class = case method
                       when :get then Net::HTTP::Get
                       when :post then Net::HTTP::Post
+                      when :put then Net::HTTP::Put
                       when :delete then Net::HTTP::Delete
                       end
 
       request = request_class.new(uri)
       request['X-Api-Key'] = @api_key if @api_key.present?
 
-      if method == :post
+      if %i[post put].include?(method)
         if params.any?
           request['Content-Type'] = 'application/json'
           json_body = params.to_json
-          Rails.logger.info("WAHA API - Sending POST to #{uri.path} with body: #{json_body}")
+          Rails.logger.info("WAHA API - Sending #{method.upcase} to #{uri.path} with body: #{json_body}")
           request.body = json_body
         end
-        # For empty body (like restart), don't set Content-Type or body
-        # The request will be sent without body, matching the curl -d '' behavior
       end
 
       response = http.request(request)
