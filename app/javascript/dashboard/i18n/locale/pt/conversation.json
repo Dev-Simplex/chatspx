@@ -268,12 +268,26 @@
       "TRANSLATE": "Traduzir",
       "COPY_PERMALINK": "Copiar link para a mensagem",
       "LINK_COPIED": "URL da mensagem copiado para a área de transferência",
+      "EDIT_MESSAGE": "Editar mensagem",
       "DELETE_CONFIRMATION": {
         "TITLE": "Tem a certeza que pretende apagar esta mensagem?",
         "MESSAGE": "Esta ação é irreversível",
         "DELETE": "Excluir",
         "CANCEL": "Cancelar"
       }
+    },
+    "EDIT_MESSAGE": {
+      "SAVE": "Guardar",
+      "CANCEL": "Cancelar",
+      "SUCCESS": "Mensagem atualizada com sucesso",
+      "ERROR": "Não foi possível atualizar a mensagem. Tente novamente",
+      "HINT": "Enter para guardar · Shift+Enter para nova linha · Esc para cancelar"
+    },
+    "EDIT_HISTORY": {
+      "BADGE": "Editado",
+      "TITLE": "Mensagem original",
+      "NO_CONTENT": "(sem conteúdo)",
+      "EDITED_BY": "Editado por {name}"
     },
     "SIDEBAR": {
       "CONTACT": "Contacto",

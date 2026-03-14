@@ -1,5 +1,5 @@
 <script setup>
-import { computed, ref, onMounted } from 'vue';
+import { computed, ref, onMounted, watch } from 'vue';
 import { useI18n } from 'vue-i18n';
 import { useStore, useStoreGetters } from 'dashboard/composables/store';
 import Icon from 'dashboard/components-next/icon/Icon.vue';
@@ -15,6 +15,8 @@ const props = defineProps({
 const { t } = useI18n();
 const store = useStore();
 const getters = useStoreGetters();
+
+const PAGE_SIZE = 9;
 
 // Backend enum: image=>0, audio=>1, video=>2, file=>3, embed=>12, ig_reel=>9
 const FILE_TYPE_ENUM = {
@@ -38,11 +40,21 @@ const attachmentsRaw = computed(() => {
   return Array.isArray(list) ? list : [];
 });
 
-onMounted(() => {
+const fetchAttachments = () => {
   if (props.conversationId) {
     store.dispatch('fetchAllAttachments', props.conversationId).catch(() => {});
   }
-});
+};
+
+onMounted(fetchAttachments);
+
+watch(
+  () => props.conversationId,
+  () => {
+    visibleCounts.value = { image: PAGE_SIZE, video: PAGE_SIZE, audio: PAGE_SIZE, file: PAGE_SIZE, embed: PAGE_SIZE };
+    fetchAttachments();
+  }
+);
 
 const grouped = computed(() => {
   const raw = attachmentsRaw.value;
@@ -74,15 +86,47 @@ const hasAnyMedia = computed(
     grouped.value.embed.length > 0
 );
 
+// Visible counts per section (9 at a time)
+const visibleCounts = ref({
+  image: PAGE_SIZE,
+  video: PAGE_SIZE,
+  audio: PAGE_SIZE,
+  file: PAGE_SIZE,
+  embed: PAGE_SIZE,
+});
+
+const visibleImages = computed(() => grouped.value.image.slice(0, visibleCounts.value.image));
+const visibleVideos = computed(() => grouped.value.video.slice(0, visibleCounts.value.video));
+const visibleAudios = computed(() => grouped.value.audio.slice(0, visibleCounts.value.audio));
+const visibleFiles = computed(() => grouped.value.file.slice(0, visibleCounts.value.file));
+const visibleEmbeds = computed(() => grouped.value.embed.slice(0, visibleCounts.value.embed));
+
+const hasMoreImages = computed(() => grouped.value.image.length > visibleCounts.value.image);
+const hasMoreVideos = computed(() => grouped.value.video.length > visibleCounts.value.video);
+const hasMoreAudios = computed(() => grouped.value.audio.length > visibleCounts.value.audio);
+const hasMoreFiles = computed(() => grouped.value.file.length > visibleCounts.value.file);
+const hasMoreEmbeds = computed(() => grouped.value.embed.length > visibleCounts.value.embed);
+
+const remainingImages = computed(() => grouped.value.image.length - visibleCounts.value.image);
+const remainingVideos = computed(() => grouped.value.video.length - visibleCounts.value.video);
+const remainingAudios = computed(() => grouped.value.audio.length - visibleCounts.value.audio);
+const remainingFiles = computed(() => grouped.value.file.length - visibleCounts.value.file);
+const remainingEmbeds = computed(() => grouped.value.embed.length - visibleCounts.value.embed);
+
+const showMore = type => {
+  visibleCounts.value[type] += PAGE_SIZE;
+};
+
 const showGallery = ref(false);
 const galleryAttachment = ref(null);
 const galleryList = ref([]);
 const prewarmedVideoPreviewKeys = ref(new Set());
 
-const openGallery = (attachment, list) => {
-  if (!attachment || !Array.isArray(list)) return;
+// Gallery always receives the full group list (not just visible slice)
+const openGallery = (attachment, fullList) => {
+  if (!attachment || !Array.isArray(fullList)) return;
   galleryAttachment.value = attachment;
-  galleryList.value = list;
+  galleryList.value = fullList;
   showGallery.value = true;
 };
 
@@ -150,7 +194,7 @@ const getLinkUrl = att => att?.data_url || att?.external_url || '#';
         </h6>
         <div class="grid grid-cols-3 gap-1.5">
           <button
-            v-for="(att, idx) in grouped.image"
+            v-for="(att, idx) in visibleImages"
             :key="att.id ?? att.message_id ?? idx"
             type="button"
             class="aspect-square rounded-md overflow-hidden bg-n-slate-2 border border-n-weak focus:outline-none focus:ring-2 focus:ring-n-blue"
@@ -170,6 +214,14 @@ const getLinkUrl = att => att?.data_url || att?.external_url || '#';
             </div>
           </button>
         </div>
+        <button
+          v-if="hasMoreImages"
+          type="button"
+          class="mt-2 w-full text-xs text-n-blue-text hover:underline text-center py-1"
+          @click="showMore('image')"
+        >
+          {{ t('CONVERSATION_SIDEBAR.SHOW_MORE', { count: Math.min(remainingImages, PAGE_SIZE) }) }}
+        </button>
       </div>
 
       <!-- Vídeos -->
@@ -181,7 +233,7 @@ const getLinkUrl = att => att?.data_url || att?.external_url || '#';
         </h6>
         <div class="grid grid-cols-3 gap-1.5">
           <button
-            v-for="(att, idx) in grouped.video"
+            v-for="(att, idx) in visibleVideos"
             :key="att.id ?? att.message_id ?? idx"
             type="button"
             class="aspect-square rounded-md overflow-hidden bg-n-slate-2 border border-n-weak focus:outline-none focus:ring-2 focus:ring-n-blue"
@@ -221,6 +273,14 @@ const getLinkUrl = att => att?.data_url || att?.external_url || '#';
             </div>
           </button>
         </div>
+        <button
+          v-if="hasMoreVideos"
+          type="button"
+          class="mt-2 w-full text-xs text-n-blue-text hover:underline text-center py-1"
+          @click="showMore('video')"
+        >
+          {{ t('CONVERSATION_SIDEBAR.SHOW_MORE', { count: Math.min(remainingVideos, PAGE_SIZE) }) }}
+        </button>
       </div>
 
       <!-- Áudios -->
@@ -232,7 +292,7 @@ const getLinkUrl = att => att?.data_url || att?.external_url || '#';
         </h6>
         <div class="flex flex-col gap-1.5">
           <button
-            v-for="(att, idx) in grouped.audio"
+            v-for="(att, idx) in visibleAudios"
             :key="att.id ?? att.message_id ?? idx"
             type="button"
             class="flex items-center gap-2 rounded-md border border-n-weak bg-n-slate-2 px-3 py-2 text-left hover:bg-n-slate-3 focus:outline-none focus:ring-2 focus:ring-n-blue"
@@ -247,6 +307,14 @@ const getLinkUrl = att => att?.data_url || att?.external_url || '#';
             </span>
           </button>
         </div>
+        <button
+          v-if="hasMoreAudios"
+          type="button"
+          class="mt-2 w-full text-xs text-n-blue-text hover:underline text-center py-1"
+          @click="showMore('audio')"
+        >
+          {{ t('CONVERSATION_SIDEBAR.SHOW_MORE', { count: Math.min(remainingAudios, PAGE_SIZE) }) }}
+        </button>
       </div>
 
       <!-- Documentos -->
@@ -258,7 +326,7 @@ const getLinkUrl = att => att?.data_url || att?.external_url || '#';
         </h6>
         <ul class="flex flex-col gap-1.5">
           <li
-            v-for="(att, idx) in grouped.file"
+            v-for="(att, idx) in visibleFiles"
             :key="att.id ?? att.message_id ?? idx"
           >
             <a
@@ -275,6 +343,14 @@ const getLinkUrl = att => att?.data_url || att?.external_url || '#';
             </a>
           </li>
         </ul>
+        <button
+          v-if="hasMoreFiles"
+          type="button"
+          class="mt-2 w-full text-xs text-n-blue-text hover:underline text-center py-1"
+          @click="showMore('file')"
+        >
+          {{ t('CONVERSATION_SIDEBAR.SHOW_MORE', { count: Math.min(remainingFiles, PAGE_SIZE) }) }}
+        </button>
       </div>
 
       <!-- Links -->
@@ -286,7 +362,7 @@ const getLinkUrl = att => att?.data_url || att?.external_url || '#';
         </h6>
         <ul class="flex flex-col gap-1.5">
           <li
-            v-for="(att, idx) in grouped.embed"
+            v-for="(att, idx) in visibleEmbeds"
             :key="att.id ?? att.message_id ?? idx"
           >
             <a
@@ -300,6 +376,14 @@ const getLinkUrl = att => att?.data_url || att?.external_url || '#';
             </a>
           </li>
         </ul>
+        <button
+          v-if="hasMoreEmbeds"
+          type="button"
+          class="mt-2 w-full text-xs text-n-blue-text hover:underline text-center py-1"
+          @click="showMore('embed')"
+        >
+          {{ t('CONVERSATION_SIDEBAR.SHOW_MORE', { count: Math.min(remainingEmbeds, PAGE_SIZE) }) }}
+        </button>
       </div>
     </template>
 

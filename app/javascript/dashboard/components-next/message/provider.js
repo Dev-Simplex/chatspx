@@ -1,5 +1,5 @@
 import { inject, provide, computed } from 'vue';
-import { useMapGetter } from 'dashboard/composables/store';
+import { useMapGetter, useStore } from 'dashboard/composables/store';
 import { useSnakeCase } from 'dashboard/composables/useTransformKeys';
 import { ATTACHMENT_TYPES } from './constants';
 
@@ -117,7 +117,13 @@ export function useMessageContext() {
     throw new Error(`Component is missing a parent <Message /> component.`);
   }
 
+  const store = useStore();
   const currentChatAttachments = useMapGetter('getSelectedChatAttachments');
+
+  if (currentChatAttachments.value.length === 0 && context.conversationId?.value) {
+    store.dispatch('fetchAllAttachments', context.conversationId.value);
+  }
+
   const filteredCurrentChatAttachments = computed(() => {
     const attachments = currentChatAttachments.value.filter(attachment =>
       [

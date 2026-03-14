@@ -44,7 +44,7 @@ export default {
       default: false,
     },
   },
-  emits: ['open', 'close', 'replyTo', 'forward', 'star', 'unstar'],
+  emits: ['open', 'close', 'replyTo', 'forward', 'star', 'unstar', 'edit'],
   setup() {
     const { getPlainText } = useMessageFormatter();
 
@@ -146,6 +146,10 @@ export default {
     },
     handleUnstar() {
       this.$emit('unstar', this.message);
+      this.handleClose();
+    },
+    handleEdit() {
+      this.$emit('edit');
       this.handleClose();
     },
     openDeleteModal() {
@@ -266,6 +270,15 @@ export default {
           }"
           variant="icon"
           @click.stop="showCannedResponseModal"
+        />
+        <MenuItem
+          v-if="enabledOptions['edit']"
+          :option="{
+            icon: 'i-lucide-pencil',
+            label: $t('CONVERSATION.CONTEXT_MENU.EDIT_MESSAGE'),
+          }"
+          variant="icon"
+          @click.stop="handleEdit"
         />
         <hr v-if="enabledOptions['delete']" />
         <MenuItem

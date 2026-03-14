@@ -1,5 +1,5 @@
 class Api::V1::Accounts::Conversations::MessagesController < Api::V1::Accounts::Conversations::BaseController
-  before_action :ensure_api_inbox, only: :update
+  before_action :ensure_api_inbox, only: :update, unless: :content_update?
 
   def index
     @include_meta = include_meta?
@@ -8,6 +8,8 @@ class Api::V1::Accounts::Conversations::MessagesController < Api::V1::Accounts::
   end
 
   def create
+    return render json: { status: 'suppressed' }, status: :ok if waha_edit_echo?
+    return render json: { status: 'suppressed' }, status: :ok if waha_edit_error_notification?
     return render_whatsapp_invalid_error if whatsapp_number_invalid_for_outgoing?
 
     user = Current.user || @resource
@@ -18,8 +20,14 @@ class Api::V1::Accounts::Conversations::MessagesController < Api::V1::Accounts::
   end
 
   def update
-    Messages::StatusUpdateService.new(message, permitted_params[:status], permitted_params[:external_error]).perform
+    if content_update?
+      Messages::UpdateContentService.new(message, permitted_params[:content]).perform
+    else
+      Messages::StatusUpdateService.new(message, permitted_params[:status], permitted_params[:external_error]).perform
+    end
     @message = message
+  rescue StandardError => e
+    render_could_not_create_error(e.message)
   end
 
   def destroy
@@ -69,7 +77,11 @@ class Api::V1::Accounts::Conversations::MessagesController < Api::V1::Accounts::
   end
 
   def permitted_params
-    params.permit(:id, :target_language, :status, :external_error)
+    params.permit(:id, :target_language, :status, :external_error, :content)
+  end
+
+  def content_update?
+    params[:content].present?
   end
 
   def include_meta?
@@ -101,6 +113,23 @@ class Api::V1::Accounts::Conversations::MessagesController < Api::V1::Accounts::
 
   def render_whatsapp_invalid_error
     render_could_not_create_error(I18n.t('errors.contacts.whatsapp_validation.not_registered'))
+  end
+
+  def waha_edit_echo?
+    inbox = @conversation.inbox
+    return false unless inbox.channel_type == 'Channel::Api' && inbox.waha_session_name.present?
+
+    content = params[:content].to_s
+    content.include?('Enviado via API') && content.include?('Editado no WhatsApp')
+  end
+
+  def waha_edit_error_notification?
+    inbox = @conversation.inbox
+    return false unless inbox.channel_type == 'Channel::Api' && inbox.waha_session_name.present?
+
+    content = params[:content].to_s
+    content.include?('Não foi possível receber uma mensagem do WhatsApp') &&
+      content.include?('message.edited')
   end
 
   def whatsapp_inbox?

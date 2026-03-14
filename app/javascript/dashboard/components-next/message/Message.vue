@@ -41,6 +41,8 @@ import NPSBubble from './bubbles/NPS.vue';
 import FormBubble from './bubbles/Form.vue';
 
 import MessageError from './MessageError.vue';
+import MessageEditInput from './MessageEditInput.vue';
+import MessageEditHistory from './MessageEditHistory.vue';
 import ContextMenu from 'dashboard/modules/conversations/components/MessageContextMenu.vue';
 import MessageAPI from 'dashboard/api/inbox/message';
 import { useStore } from 'dashboard/composables/store';
@@ -147,10 +149,16 @@ const emit = defineEmits(['forward', 'toggle-forward-selection']);
 const contextMenuPosition = ref({});
 const showBackgroundHighlight = ref(false);
 const showContextMenu = ref(false);
+const isEditing = ref(false);
+const isHistoryOpen = ref(false);
+const historyTriggerRect = ref(null);
 const dropdownButtonRef = useTemplateRef('dropdownButtonRef');
 const { t } = useI18n();
 const route = useRoute();
 const store = useStore();
+
+const currentInbox = computed(() => store.getters['inboxes/getInbox'](props.inboxId));
+const isWahaInbox = computed(() => !!currentInbox.value?.waha_session_name);
 
 const scheduledBy = computed(() => props.contentAttributes?.scheduledBy);
 const isScheduledMessage = computed(
@@ -422,6 +430,12 @@ const contextMenuEnabledOptions = computed(() => {
       !isFailedOrProcessing,
     forward: !isActivity && !isFailedOrProcessing && !isMessageDeleted.value,
     star: !isActivity && !isFailedOrProcessing && !isMessageDeleted.value,
+    edit:
+      isOutgoing &&
+      hasText &&
+      !isMessageDeleted.value &&
+      !isFailedOrProcessing &&
+      isWahaInbox.value,
   };
 });
 
@@ -513,6 +527,11 @@ function handleForward() {
 function toggleForwardSelection() {
   if (!props.isForwardMode || !isForwardSelectable.value) return;
   emit('toggle-forward-selection', props.id);
+}
+
+function handleEdit() {
+  showContextMenu.value = false;
+  isEditing.value = true;
 }
 
 async function handleStar() {
@@ -702,7 +721,36 @@ provideMessageContext({
             </div>
           </div>
 
-          <Component :is="componentToRender" />
+          <MessageEditInput
+            v-if="isEditing"
+            :message-id="id"
+            :conversation-id="conversationId"
+            :initial-content="content"
+            @close="isEditing = false"
+          />
+          <Component :is="componentToRender" v-else />
+
+          <!-- Indicador "Editado" -->
+          <div
+            v-if="contentAttributes.edited && !isEditing"
+            class="inline-flex"
+          >
+            <button
+              class="inline-flex items-center gap-1 text-xs text-n-slate-10 hover:text-n-slate-12 transition-colors mt-0.5 select-none"
+              @click.stop="e => { historyTriggerRect = e.currentTarget.getBoundingClientRect(); isHistoryOpen = !isHistoryOpen; }"
+            >
+              <Icon icon="i-lucide-pencil-line" class="size-3" />
+              <span>{{ t('CONVERSATION.EDIT_HISTORY.BADGE') }}</span>
+            </button>
+            <MessageEditHistory
+              v-if="isHistoryOpen"
+              :previous-content="contentAttributes.previousContent"
+              :edited-by="contentAttributes.editedBy"
+              :edited-at="contentAttributes.editedAt"
+              :trigger-rect="historyTriggerRect"
+              @close="isHistoryOpen = false"
+            />
+          </div>
 
           <!-- Botão de dropdown no hover -->
           <div
@@ -749,6 +797,7 @@ provideMessageContext({
         @forward="handleForward"
         @star="handleStar"
         @unstar="handleUnstar"
+        @edit="handleEdit"
       />
     </div>
 
