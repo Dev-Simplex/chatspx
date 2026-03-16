@@ -81,10 +81,39 @@ class Notification < ApplicationRecord
       notification_type: notification_type,
       primary_actor_id: primary_actor_id,
       primary_actor_type: primary_actor_type,
-      primary_actor: primary_actor&.push_event_data,
+      primary_actor: fcm_primary_actor_data,
       push_message_title: push_message_body,
       push_message_body: push_message_body
     }
+  end
+
+  def fcm_primary_actor_data
+    return {} unless primary_actor.present?
+
+    actor_data = { id: primary_actor.id }
+
+    # Include conversation_id for Message primary actors
+    actor_data[:conversation_id] = primary_actor.try(:conversation_id) if primary_actor_type == 'Message'
+
+    # Include sender info (name + avatar) from conversation meta
+    if primary_actor.respond_to?(:meta) && primary_actor.meta.present?
+      sender = primary_actor.meta.dig('sender') || {}
+      assignee = primary_actor.meta.dig('assignee') || {}
+      actor_data[:meta] = {
+        sender: {
+          id: sender['id'],
+          name: sender['name'],
+          thumbnail: sender['thumbnail'].presence || sender['avatar_url']
+        },
+        assignee: {
+          id: assignee['id'],
+          name: assignee['name'],
+          thumbnail: assignee['thumbnail'].presence || assignee['avatar_url']
+        }
+      }
+    end
+
+    actor_data
   end
 
   # rubocop:disable Metrics/MethodLength
