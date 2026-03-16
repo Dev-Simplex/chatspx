@@ -124,16 +124,23 @@ class Notification::PushNotificationService
   end
 
   def fcm_options(subscription)
-    {
+    is_android = subscription.subscription_attributes['devicePlatform']&.downcase == 'android'
+
+    options = {
       'token': subscription.subscription_attributes['push_token'],
       'data': fcm_data,
-      'notification': fcm_notification,
       'android': fcm_android_options,
       'apns': fcm_apns_options,
       'fcm_options': {
         analytics_label: 'Label'
       }
     }
+
+    # Android: data-only message so the app displays rich notifications
+    # via Notifee (MessagingStyle, inline reply, avatars, grouping).
+    # iOS: needs the notification key for the system to show the alert.
+    options['notification'] = fcm_notification unless is_android
+    options
   end
 
   def fcm_data
