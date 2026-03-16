@@ -95,21 +95,22 @@ class Notification < ApplicationRecord
     # Include conversation_id for Message primary actors
     actor_data[:conversation_id] = primary_actor.try(:conversation_id) if primary_actor_type == 'Message'
 
-    # Include sender info (name + avatar) from conversation meta
-    if primary_actor.respond_to?(:meta) && primary_actor.meta.present?
-      sender = primary_actor.meta.dig('sender') || {}
-      assignee = primary_actor.meta.dig('assignee') || {}
+    # Include sender/assignee info from conversation associations
+    if primary_actor_type == 'Conversation'
+      contact = primary_actor.try(:contact)
+      assignee = primary_actor.try(:assignee)
+
       actor_data[:meta] = {
-        sender: {
-          id: sender['id'],
-          name: sender['name'],
-          thumbnail: sender['thumbnail'].presence || sender['avatar_url']
-        },
-        assignee: {
-          id: assignee['id'],
-          name: assignee['name'],
-          thumbnail: assignee['thumbnail'].presence || assignee['avatar_url']
-        }
+        sender: contact ? {
+          id: contact.id,
+          name: contact.name,
+          thumbnail: contact.try(:avatar_url).presence || ''
+        } : {},
+        assignee: assignee ? {
+          id: assignee.id,
+          name: assignee.name,
+          thumbnail: assignee.try(:avatar_url).presence || ''
+        } : {}
       }
     end
 
