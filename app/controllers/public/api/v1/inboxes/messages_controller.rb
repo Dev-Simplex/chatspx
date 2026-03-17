@@ -6,6 +6,8 @@ class Public::Api::V1::Inboxes::MessagesController < Public::Api::V1::InboxesCon
   end
 
   def create
+    return head :ok if @contact_inbox&.contact&.blocked?
+
     @message = @conversation.messages.new(message_params)
     build_attachment
     @message.save!

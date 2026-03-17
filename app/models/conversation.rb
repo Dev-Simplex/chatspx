@@ -293,7 +293,7 @@ class Conversation < ApplicationRecord
   end
 
   def determine_conversation_status
-    self.status = :resolved and return if contact.blocked?
+    self.status = :resolved and return if contact&.blocked?
 
     return handle_campaign_status if campaign.present?
 

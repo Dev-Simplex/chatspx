@@ -67,9 +67,11 @@ const isHMACVerified = computed(() => {
   return chatMetadata.value.hmac_verified;
 });
 
-const currentContact = computed(() =>
-  store.getters['contacts/getContact'](props.chat.meta.sender.id)
-);
+const currentContact = computed(() => {
+  const senderId = props.chat?.meta?.sender?.id;
+  if (!senderId) return {};
+  return store.getters['contacts/getContact'](senderId);
+});
 
 const isSnoozed = computed(
   () => currentChat.value.status === wootConstants.STATUS_TYPE.SNOOZED

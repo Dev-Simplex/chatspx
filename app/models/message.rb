@@ -410,6 +410,7 @@ class Message < ApplicationRecord
 
   def reopen_conversation
     return if conversation.muted?
+    return if conversation.contact&.blocked?
     return unless incoming?
     return if response_to_active_nps_survey?
 

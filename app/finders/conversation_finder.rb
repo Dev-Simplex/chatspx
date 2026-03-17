@@ -124,6 +124,7 @@ class ConversationFinder
       current_user,
       current_account
     ).perform
+    filter_blocked_contacts
     # Count open unattended (for sidebar) before applying conversation_type filter
     set_unattended_counts
     filter_by_conversation_type if params[:conversation_type]
@@ -190,6 +191,10 @@ class ConversationFinder
     return unless params[:labels]
 
     @conversations = @conversations.tagged_with(params[:labels], any: true)
+  end
+
+  def filter_blocked_contacts
+    @conversations = @conversations.joins(:contact).where(contacts: { blocked: [false, nil] })
   end
 
   def filter_by_source_id
