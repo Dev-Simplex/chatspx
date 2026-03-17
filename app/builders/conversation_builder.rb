@@ -2,16 +2,43 @@ class ConversationBuilder
   pattr_initialize [:params!, :contact_inbox!]
 
   def perform
-    look_up_exising_conversation || create_new_conversation
+    with_conversation_lock do
+      look_up_exising_conversation || create_new_conversation
+    end
   end
 
   private
 
+  def with_conversation_lock
+    lock_key = "conv_builder:#{@contact_inbox.inbox_id}:#{@contact_inbox.contact_id}"
+    acquired = Redis::Alfred.set(lock_key, '1', nx: true, ex: 15)
+
+    unless acquired
+      # Another request is creating a conversation — wait briefly and return existing
+      sleep(0.5)
+      return look_up_exising_conversation
+    end
+
+    begin
+      yield
+    ensure
+      Redis::Alfred.delete(lock_key)
+    end
+  end
+
   def look_up_exising_conversation
-    return @contact_inbox.conversations.last if @contact_inbox.inbox.lock_to_single_conversation?
+    return find_contact_conversation_in_inbox if @contact_inbox.inbox.lock_to_single_conversation?
     return last_open_conversation if waha_api_inbox?
 
     nil
+  end
+
+  # Lookup by contact+inbox (not just contact_inbox) to handle multiple contact_inboxes for the same contact
+  def find_contact_conversation_in_inbox
+    ::Conversation.where(
+      inbox_id: @contact_inbox.inbox_id,
+      contact_id: @contact_inbox.contact_id
+    ).order(created_at: :desc).first
   end
 
   def waha_api_inbox?
