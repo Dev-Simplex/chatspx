@@ -292,6 +292,8 @@
       "COPY_PERMALINK": "Copiar link para a mensagem",
       "LINK_COPIED": "URL da mensagem copiada para a área de transferência",
       "EDIT_MESSAGE": "Editar mensagem",
+      "EDIT_EXPIRED": "Edição disponível apenas até 15 minutos após o envio",
+      "EDIT_NOT_SENDER": "Apenas quem enviou a mensagem pode editá-la",
       "DELETE_CONFIRMATION": {
         "TITLE": "Você tem certeza que deseja excluir esta mensagem?",
         "MESSAGE": "Você não pode desfazer essa ação",

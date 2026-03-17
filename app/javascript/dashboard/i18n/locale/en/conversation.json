@@ -297,6 +297,8 @@
     "CONTEXT_MENU": {
       "COPY": "Copy",
       "EDIT_MESSAGE": "Edit Message",
+      "EDIT_EXPIRED": "Editing is only available within 15 minutes of sending",
+      "EDIT_NOT_SENDER": "Only the sender can edit this message",
       "REPLY_TO": "Reply to this message",
       "FORWARD": "Forward message",
       "STAR": "Star message",

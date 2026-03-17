@@ -26,10 +26,15 @@ module Messages
       raise StandardError, 'Only text messages can be edited' unless @message.content_type.to_s == 'text'
       raise StandardError, 'Message has been deleted' if @message.content_attributes['deleted']
       raise StandardError, 'Inbox does not support message editing' unless waha_inbox?
+      raise StandardError, 'Only the sender can edit this message' unless sent_by_current_user?
     end
 
     def waha_inbox?
       inbox.channel_type == SUPPORTED_CHANNEL && inbox.waha_session_name.present?
+    end
+
+    def sent_by_current_user?
+      Current.user && @message.sender_id == Current.user.id && @message.sender_type == 'User'
     end
 
     # Returns the WAHA message ID to use for editing.
@@ -41,8 +46,23 @@ module Messages
     end
 
     def find_waha_message_id_from_api
+      Rails.logger.info("[UpdateContentService] Looking up WAHA message for message_id=#{@message.id}, chat_id=#{chat_id}, " \
+                        "session=#{inbox.waha_session_name}, content=#{@message.content.truncate(100).inspect}")
+
       messages = Waha::ApiService.new.get_messages(inbox.waha_session_name, chat_id, limit: 50)
-      return nil unless messages.is_a?(Array)
+
+      unless messages.is_a?(Array)
+        Rails.logger.warn("[UpdateContentService] WAHA API returned non-array: #{messages.class} => #{messages.inspect.truncate(500)}")
+        return nil
+      end
+
+      Rails.logger.info("[UpdateContentService] WAHA returned #{messages.size} messages")
+
+      if messages.first
+        sample = messages.first
+        Rails.logger.info("[UpdateContentService] Sample message keys: #{sample.keys.inspect}")
+        Rails.logger.info("[UpdateContentService] Sample message: #{sample.inspect.truncate(1000)}")
+      end
 
       # Look for outgoing messages matching content and approximate timestamp
       created_at_ts = @message.created_at.to_i
@@ -51,14 +71,31 @@ module Messages
         body       = m['body'] || m['text'] || m.dig('content', 'text') || ''
         timestamp  = m['timestamp'].to_i
 
-        from_me && body == @message.content && (timestamp - created_at_ts).abs < EDIT_WINDOW_SECONDS
+        # WAHA prefixes outgoing message bodies with "*AgentName*:\n", strip it before comparing
+        stripped_body = body.sub(/\A\*[^*]*\*:\n/, '')
+        content_match = stripped_body == @message.content || body == @message.content
+        time_diff = (timestamp - created_at_ts).abs
+        time_match = time_diff < EDIT_WINDOW_SECONDS
+
+        if from_me
+          Rails.logger.info("[UpdateContentService] Candidate fromMe message: body=#{body.truncate(100).inspect}, " \
+                          "timestamp=#{timestamp}, chatwoot_ts=#{created_at_ts}, time_diff=#{time_diff}s, " \
+                          "content_match=#{content_match}, time_match=#{time_match}")
+        end
+
+        from_me && content_match && time_match
       end
 
-      raise StandardError, 'Message not found on WhatsApp. It may still be sending.' if match.nil?
+      if match.nil?
+        Rails.logger.warn("[UpdateContentService] No match found among #{messages.size} messages for content=#{@message.content.truncate(100).inspect}")
+        raise StandardError, 'Message not found on WhatsApp. It may still be sending.'
+      end
 
-      # WAHA message IDs can be in key.id or id field
-      match.dig('key', 'id') || match['id']
+      waha_id = match.dig('key', 'id') || match['id']
+      Rails.logger.info("[UpdateContentService] Match found! waha_message_id=#{waha_id}")
+      waha_id
     rescue Waha::ApiService::Error => e
+      Rails.logger.error("[UpdateContentService] WAHA API error: #{e.message}")
       raise StandardError, "WAHA API error: #{e.message}"
     end
 

@@ -280,6 +280,32 @@ export default {
           variant="icon"
           @click.stop="handleEdit"
         />
+        <div
+          v-if="enabledOptions['editExpired']"
+          v-tooltip="$t('CONVERSATION.CONTEXT_MENU.EDIT_EXPIRED')"
+        >
+          <MenuItem
+            :option="{
+              icon: 'i-lucide-pencil',
+              label: $t('CONVERSATION.CONTEXT_MENU.EDIT_MESSAGE'),
+            }"
+            variant="icon"
+            class="opacity-50 cursor-not-allowed pointer-events-none"
+          />
+        </div>
+        <div
+          v-if="enabledOptions['editNotSender']"
+          v-tooltip="$t('CONVERSATION.CONTEXT_MENU.EDIT_NOT_SENDER')"
+        >
+          <MenuItem
+            :option="{
+              icon: 'i-lucide-pencil',
+              label: $t('CONVERSATION.CONTEXT_MENU.EDIT_MESSAGE'),
+            }"
+            variant="icon"
+            class="opacity-50 cursor-not-allowed pointer-events-none"
+          />
+        </div>
         <hr v-if="enabledOptions['delete']" />
         <MenuItem
           v-if="enabledOptions['delete']"

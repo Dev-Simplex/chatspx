@@ -140,6 +140,7 @@ const props = defineProps({
   reactions: { type: Array, default: () => [] },
   forwarded: { type: Boolean, default: false },
   starred: { type: Boolean, default: false },
+  isWahaInbox: { type: Boolean, default: false },
   isForwardMode: { type: Boolean, default: false },
   isForwardSelected: { type: Boolean, default: false },
 });
@@ -157,8 +158,16 @@ const { t } = useI18n();
 const route = useRoute();
 const store = useStore();
 
-const currentInbox = computed(() => store.getters['inboxes/getInbox'](props.inboxId));
-const isWahaInbox = computed(() => !!currentInbox.value?.waha_session_name);
+const EDIT_WINDOW_SECONDS = 900;
+
+const isWithinEditWindow = computed(() => {
+  if (!props.createdAt) return false;
+  return (Date.now() / 1000 - props.createdAt) < EDIT_WINDOW_SECONDS;
+});
+
+const isSentByCurrentUser = computed(() => {
+  return props.senderId === props.currentUserId;
+});
 
 const scheduledBy = computed(() => props.contentAttributes?.scheduledBy);
 const isScheduledMessage = computed(
@@ -414,6 +423,8 @@ const contextMenuEnabledOptions = computed(() => {
     props.status === MESSAGE_STATUS.FAILED ||
     props.status === MESSAGE_STATUS.PROGRESS;
   const isActivity = props.messageType === MESSAGE_TYPES.ACTIVITY;
+  const canEditBase =
+    isOutgoing && hasText && !isMessageDeleted.value && !isFailedOrProcessing && props.isWahaInbox;
 
   return {
     copy: hasText,
@@ -431,12 +442,14 @@ const contextMenuEnabledOptions = computed(() => {
     forward: !isActivity && !isFailedOrProcessing && !isMessageDeleted.value,
     star: !isActivity && !isFailedOrProcessing && !isMessageDeleted.value,
     edit:
-      isOutgoing &&
-      hasText &&
-      !isMessageDeleted.value &&
-      !isFailedOrProcessing &&
-      isWahaInbox.value,
+      canEditBase && isSentByCurrentUser.value && isWithinEditWindow.value,
+    editExpired:
+      canEditBase && isSentByCurrentUser.value && !isWithinEditWindow.value,
+    editNotSender:
+      canEditBase && !isSentByCurrentUser.value,
   };
+
+  return result;
 });
 
 const shouldRenderMessage = computed(() => {

@@ -37,6 +37,10 @@ const props = defineProps({
     type: Array,
     default: () => [],
   },
+  isWahaInbox: {
+    type: Boolean,
+    default: false,
+  },
   isForwardMode: {
     type: Boolean,
     default: false,
@@ -286,6 +290,7 @@ const shouldShowDateSeparator = (index, messageList) => {
         :group-with-next="shouldGroupWithNext(index, renderItems)"
         :inbox-supports-reply-to="inboxSupportsReplyTo"
         :current-user-id="currentUserId"
+        :is-waha-inbox="isWahaInbox"
         :is-forward-mode="isForwardMode"
         :is-forward-selected="isForwardSelected(item.message.id)"
         data-clarity-mask="True"

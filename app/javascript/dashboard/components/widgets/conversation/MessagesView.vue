@@ -124,6 +124,9 @@ export default {
     inbox() {
       return this.$store.getters['inboxes/getInbox'](this.inboxId);
     },
+    isWahaInbox() {
+      return !!this.inbox?.waha_session_name;
+    },
     typingUsersList() {
       const userList = this.$store.getters[
         'conversationTypingStatus/getUserList'
@@ -566,6 +569,7 @@ export default {
       :is-an-email-channel="isAnEmailChannel"
       :inbox-supports-reply-to="inboxSupportsReplyTo"
       :messages="getMessages"
+      :is-waha-inbox="isWahaInbox"
       :is-forward-mode="forwardSelectionMode"
       :selected-message-ids="forwardSelectedMessageIds"
       @retry="handleMessageRetry"
