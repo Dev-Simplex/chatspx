@@ -7,6 +7,9 @@ class Agents::DestroyJob < ApplicationJob
       remove_user_from_teams(account, user)
       remove_user_from_inboxes(account, user)
       unassign_conversations(account, user)
+      cleanup_notifications(account, user)
+      cleanup_conversation_participants(account, user)
+      cleanup_mentions(account, user)
     end
   end
 
@@ -33,5 +36,19 @@ class Agents::DestroyJob < ApplicationJob
     # rubocop:disable Rails/SkipsModelValidations
     user.assigned_conversations.where(account: account).in_batches.update_all(assignee_id: nil)
     # rubocop:enable Rails/SkipsModelValidations
+  end
+
+  def cleanup_notifications(account, user)
+    Notification.where(account: account, user: user).in_batches.destroy_all
+  end
+
+  def cleanup_conversation_participants(account, user)
+    conversation_ids = account.conversations.pluck(:id)
+    ConversationParticipant.where(user: user, conversation_id: conversation_ids).in_batches.destroy_all
+  end
+
+  def cleanup_mentions(account, user)
+    conversation_ids = account.conversations.pluck(:id)
+    Mention.where(user: user, conversation_id: conversation_ids).in_batches.destroy_all
   end
 end
