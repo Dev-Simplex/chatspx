@@ -117,6 +117,10 @@ const showAddFoldersModal = ref(false);
 const showDeleteFoldersModal = ref(false);
 const isContextMenuOpen = ref(false);
 const showSearchModal = ref(false);
+// Local cache for search results — completely isolated from Vuex lifecycle
+// Only cleared by explicit user action (empty input, X button, Escape)
+const cachedSearchResults = ref([]);
+const cachedSearchQuery = ref('');
 const appliedFilter = ref([]);
 const advancedFilterTypes = ref(
   advancedFilterOptions.map(filter => ({
@@ -388,12 +392,8 @@ const isSearchFetching = computed(() =>
 );
 
 const isSearchActive = computed(() => {
-  const uiFlags = store.getters['conversationSearch/getUIFlags'];
-  const hasResults = searchResults.value.length > 0;
-  const isFetching = uiFlags?.conversation?.isFetching || false;
-  const hasQuery = (conversationSearchQuery.value || '').trim().length > 0;
-  // Busca está ativa se há termo digitado, resultados ou se está buscando
-  return hasQuery || hasResults || isFetching;
+  const active = cachedSearchQuery.value.length > 0 || cachedSearchResults.value.length > 0;
+  return active;
 });
 
 // Mostrar empty state "nenhum resultado" só depois que a API de busca respondeu (não antes nem durante o loading)
@@ -401,119 +401,49 @@ const conversationSearchCompleted = computed(
   () => store.getters['conversationSearch/getConversationSearchCompleted'] || false
 );
 
+// Sync Vuex search results to local cache when new results arrive
+watch(searchResults, (newResults) => {
+  if (newResults && newResults.length > 0) {
+    cachedSearchResults.value = [...newResults];
+  }
+});
+
+// Sync Vuex search query to local cache
+watch(conversationSearchQuery, (newQuery) => {
+  if (newQuery && newQuery.trim().length > 0) {
+    cachedSearchQuery.value = newQuery.trim();
+  }
+});
+
 const showSearchNoResults = computed(() => {
-  const hasQuery = (conversationSearchQuery.value || '').trim().length > 0;
   return (
-    hasQuery &&
+    cachedSearchQuery.value.length > 0 &&
     conversationSearchCompleted.value &&
-    !conversationList.value.length
+    cachedSearchResults.value.length === 0
   );
 });
 
 const conversationList = computed(() => {
-  // Em modo busca: mostrar sempre os resultados da busca (podem ser vazios), nunca a lista normal
-  const uiFlags = store.getters['conversationSearch/getUIFlags'];
-  const isFetching = uiFlags?.conversation?.isFetching || false;
-  const hasSearchResults = searchResults.value.length > 0;
-  const hasQuery = (conversationSearchQuery.value || '').trim().length > 0;
-  const searchMode = hasQuery || hasSearchResults || isFetching;
+  // Search mode: use local cached results (immune to Vuex/WebSocket/route changes)
+  if (isSearchActive.value) {
+    let filteredResults = [...cachedSearchResults.value];
 
-  if (searchMode) {
-    let filteredResults = [...searchResults.value];
-    
-    // Se há teamId na URL, filtrar APENAS conversas desse team
-    if (searchContext.value.teamId) {
-      filteredResults = filteredResults.filter(conv => {
-        const teamId = conv.meta?.team?.id;
-        const assigneeTeamIds = conv.meta?.assignee?.team_ids || [];
-        return teamId === Number(searchContext.value.teamId) || 
-               assigneeTeamIds.includes(Number(searchContext.value.teamId));
-      });
-    }
-    // Se não há teamId (dashboard), mostrar todas as conversas (sem filtrar por team)
-    // Mas ainda aplicar outros filtros se necessário
-    
-    if (searchContext.value.inboxId) {
-      filteredResults = filteredResults.filter(conv => 
-        conv.inbox_id === Number(searchContext.value.inboxId)
-      );
-    }
-    
-    if (searchContext.value.label) {
-      filteredResults = filteredResults.filter(conv => {
-        const labels = conv.labels || [];
-        return labels.some(l => l.title === searchContext.value.label);
-      });
-    }
-    
-    // Função auxiliar para obter identificador único do contato
-    const getContactIdentifier = (conv) => {
-      // Prioridade: contact.id > sender.id > source_id > email > phone > conversation.id
-      if (conv.contact && conv.contact.id) {
-        return `contact_id_${conv.contact.id}`;
-      }
-      
-      const sender = conv.meta?.sender || conv.sender;
-      if (sender && sender.id) {
-        return `sender_id_${sender.id}`;
-      }
-      
-      // Usar source_id como identificador único (mais confiável que email/phone)
-      const sourceId = conv.contact?.source_id || sender?.source_id;
-      if (sourceId) {
-        return `source_${sourceId}`;
-      }
-      
-      // Como último recurso antes do fallback, usar email ou phone
-      const email = conv.contact?.email || sender?.email;
-      if (email) {
-        return `email_${String(email).toLowerCase().trim()}`;
-      }
-      
-      const phone = conv.contact?.phone_number || sender?.phone_number;
-      if (phone) {
-        return `phone_${String(phone).trim()}`;
-      }
-      
-      // Último recurso: usar conversation_id (não ideal, mas evita perda de dados)
-      return `conv_${conv.id}`;
-    };
-    
-    // Agrupar por contato e manter apenas a conversa mais recente
-    const conversationsByContact = new Map();
-    
+    // Deduplicar por contato — mostrar só a conversa mais recente de cada contato
+    const byContact = new Map();
     filteredResults.forEach(conv => {
-      const contactKey = getContactIdentifier(conv);
-      if (!contactKey) return;
-      
-      const existing = conversationsByContact.get(contactKey);
+      const contactId = conv.contact?.id || conv.meta?.sender?.id || `conv_${conv.id}`;
+      const existing = byContact.get(contactId);
       if (!existing) {
-        conversationsByContact.set(contactKey, conv);
+        byContact.set(contactId, conv);
       } else {
-        // Comparar timestamps para manter a mais recente
-        // Usar last_activity_at como prioridade, depois updated_at, depois timestamp
-        const existingTime = new Date(
-          existing.last_activity_at || 
-          existing.updated_at || 
-          existing.timestamp || 
-          existing.created_at || 
-          0
-        );
-        const currentTime = new Date(
-          conv.last_activity_at || 
-          conv.updated_at || 
-          conv.timestamp || 
-          conv.created_at || 
-          0
-        );
-        
+        const existingTime = existing.last_activity_at || existing.created_at || 0;
+        const currentTime = conv.last_activity_at || conv.created_at || 0;
         if (currentTime > existingTime) {
-          conversationsByContact.set(contactKey, conv);
+          byContact.set(contactId, conv);
         }
       }
     });
-    
-    return Array.from(conversationsByContact.values());
+    return Array.from(byContact.values());
   }
 
   // Lógica original quando busca não está ativa
@@ -980,26 +910,34 @@ function onOpenSearch() {
   showSearchModal.value = true;
 }
 
-function onCloseSearch() {
-  showSearchModal.value = false;
-  // Limpar resultados da pesquisa ao fechar
+function clearLocalSearchCache() {
+  cachedSearchResults.value = [];
+  cachedSearchQuery.value = '';
   store.dispatch('conversationSearch/clearSearchResults');
 }
 
-function onSearch(query) {
-  // Busca já é feita pelo ConversationSearchBar através da store
-  // Este método pode ser usado para ações adicionais se necessário
+function onCloseSearch() {
+  // Only clear if the modal was actually open (not triggered by Vue reactivity)
+  if (showSearchModal.value) {
+    showSearchModal.value = false;
+    clearLocalSearchCache();
+  }
+}
+
+function onSearch() {
+  // Search is handled by ConversationSearchBar via store dispatch
 }
 
 function onClearSearch() {
-  store.dispatch('conversationSearch/clearSearchResults');
+  console.log('[SEARCH-DEBUG] onClearSearch called', new Error().stack?.split('\n').slice(1, 4).join(' | '));
+  clearLocalSearchCache();
 }
 
 function onSelectSearchConversation(conversation) {
   const { accountId } = route.params;
   const { id } = conversation;
 
-  // Usar searchContext para manter o contexto atual
+  // Navegar sem limpar resultados — usuário limpa manualmente com X ou Escape
   const url = conversationUrl({
     accountId,
     id,
@@ -1011,7 +949,6 @@ function onSelectSearchConversation(conversation) {
   });
 
   router.push(frontendURL(url));
-  onCloseSearch();
 }
 
 useEmitter('fetch_conversation_stats', () => {
@@ -1044,12 +981,10 @@ watch(
   () => props.conversationStatus,
   (newStatus) => {
     if (newStatus) {
-      // If there's a status filter from the route, apply it
       activeStatus.value = newStatus;
       store.dispatch('setChatStatusFilter', newStatus);
       resetAndFetchData();
     } else {
-      // If no status filter (back to dashboard), restore default from settings
       const { conversations_filter_by: filterBy = {} } = uiSettings.value;
       const { status } = filterBy;
       activeStatus.value = status || wootConstants.STATUS_TYPE.OPEN;
