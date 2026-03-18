@@ -1,10 +1,7 @@
 class DeduplicateConversationsAndAddConstraint < ActiveRecord::Migration[7.0]
-  disable_ddl_transaction!
-
   def up
-    # Phase 4: Deduplicate existing conversations
-    # For inboxes with lock_to_single_conversation, resolve duplicate non-resolved conversations
-    # keeping the oldest one open
+    # Deduplicate existing conversations for lock_to_single_conversation inboxes
+    # For each (inbox, contact) pair, keep the oldest non-resolved conversation and resolve the rest
     execute <<-SQL.squish
       WITH duplicates AS (
         SELECT c.id, c.contact_id, c.inbox_id, c.created_at,
@@ -23,18 +20,9 @@ class DeduplicateConversationsAndAddConstraint < ActiveRecord::Migration[7.0]
         SELECT id FROM duplicates WHERE rn > 1
       )
     SQL
-
-    # Phase 3: Add partial unique index to prevent future duplicates
-    # Only applies to non-resolved conversations (status != 1) in lock_to_single_conversation inboxes
-    add_index :conversations, %i[inbox_id contact_id],
-              unique: true,
-              where: 'status != 1 AND inbox_id IN (SELECT id FROM inboxes WHERE lock_to_single_conversation = true)',
-              name: 'idx_unique_active_conv_per_contact_inbox',
-              algorithm: :concurrently,
-              if_not_exists: true
   end
 
   def down
-    remove_index :conversations, name: 'idx_unique_active_conv_per_contact_inbox', if_exists: true
+    # Data cleanup is not reversible
   end
 end

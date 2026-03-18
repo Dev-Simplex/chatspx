@@ -57,6 +57,7 @@ class Public::Api::V1::InboxesController < PublicController
     pn = resolve_lid_to_pn(session_name, source_id)
     if pn.blank?
       Rails.logger.warn("WAHA LID resolved to null for #{source_id} (inbox_id=#{@inbox_channel&.inbox&.id})")
+      schedule_lid_retry(source_id)
       return { source_id: source_id, phone_number: phone_number }
     end
 
@@ -69,6 +70,7 @@ class Public::Api::V1::InboxesController < PublicController
     }
   rescue Waha::ApiService::Error => e
     Rails.logger.warn("WAHA LID lookup failed for #{source_id}: #{e.message}")
+    schedule_lid_retry(source_id)
     { source_id: source_id, phone_number: phone_number }
   end
 
@@ -157,6 +159,14 @@ class Public::Api::V1::InboxesController < PublicController
 
   def whatsapp_user_jid?(jid)
     jid.to_s.end_with?('@c.us')
+  end
+
+  def schedule_lid_retry(lid_source_id)
+    inbox = @inbox_channel&.inbox
+    return if inbox.blank?
+
+    contact_inbox = inbox.contact_inboxes.find_by(source_id: lid_source_id)
+    Contacts::ResolveLidJob.set(wait: 10.seconds).perform_later(contact_inbox.id) if contact_inbox.present?
   end
 
   def waha_session_name
