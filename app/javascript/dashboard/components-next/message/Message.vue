@@ -431,7 +431,9 @@ const contextMenuEnabledOptions = computed(() => {
     delete:
       (hasText || hasAttachments) &&
       !isFailedOrProcessing &&
-      !isMessageDeleted.value,
+      !isMessageDeleted.value &&
+      props.contentType !== CONTENT_TYPES.INPUT_NPS &&
+      props.contentType !== CONTENT_TYPES.INPUT_CSAT,
     cannedResponse: isOutgoing && hasText && !isMessageDeleted.value,
     copyLink: !isFailedOrProcessing,
     translate: !isFailedOrProcessing && !isMessageDeleted.value && hasText,

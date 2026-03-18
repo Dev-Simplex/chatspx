@@ -31,6 +31,10 @@ class Api::V1::Accounts::Conversations::MessagesController < Api::V1::Accounts::
   end
 
   def destroy
+    if message.content_type.in?(%w[input_nps input_csat])
+      return render json: { error: I18n.t('conversations.messages.undeletable') }, status: :unprocessable_entity
+    end
+
     ActiveRecord::Base.transaction do
       message.update!(content: I18n.t('conversations.messages.deleted'), content_type: :text, content_attributes: { deleted: true })
       message.attachments.destroy_all

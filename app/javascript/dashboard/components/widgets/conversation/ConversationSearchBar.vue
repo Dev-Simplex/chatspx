@@ -1,5 +1,5 @@
 <script setup>
-import { ref, computed } from 'vue';
+import { ref, computed, onMounted } from 'vue';
 import { useStore } from 'vuex';
 import { useI18n } from 'vue-i18n';
 import { useDebounceFn } from '@vueuse/core';
@@ -22,6 +22,7 @@ const store = useStore();
 
 const searchQuery = ref('');
 const searchInputRef = ref(null);
+const hasSearchedOnce = ref(false);
 
 const uiFlags = computed(() => 
   store.getters['conversationSearch/getUIFlags']
@@ -44,38 +45,54 @@ const placeholderText = computed(() => {
   return 'Buscar conversas';
 });
 
-// Debounced search function
+// Debounced search function - 500ms delay, minimum 2 characters
 const performSearch = useDebounceFn(async (query) => {
   const trimmedQuery = query.trim();
   if (trimmedQuery.length === 0) {
-    store.dispatch('conversationSearch/clearSearchResults');
-    emit('clear');
+    // Only emit clear if user actually searched before (not on component mount/remount)
+    if (hasSearchedOnce.value) {
+      emit('clear');
+      hasSearchedOnce.value = false;
+    }
     return;
   }
 
+  if (trimmedQuery.length < 2) return;
+
+  hasSearchedOnce.value = true;
   emit('search', trimmedQuery);
   try {
     await store.dispatch('conversationSearch/conversationSearch', {
       q: trimmedQuery,
     });
   } catch (error) {
-    console.error('[ConversationSearchBar] Erro ao buscar conversas:', error);
+    if (error?.name !== 'AbortError' && error?.code !== 'ERR_CANCELED') {
+      console.error('[ConversationSearchBar] Erro ao buscar conversas:', error);
+    }
   }
-}, 300);
+}, 500);
+
+const clearSearch = () => {
+  searchQuery.value = '';
+  emit('clear');
+  if (searchInputRef.value) {
+    searchInputRef.value.focus();
+  }
+};
+
+onMounted(() => {
+  // Restore query from Vuex if search was active (e.g. after component remount)
+  const existingQuery = store.getters['conversationSearch/getConversationSearchQuery'] || '';
+  if (existingQuery.trim().length > 0) {
+    searchQuery.value = existingQuery;
+    hasSearchedOnce.value = true;
+  }
+});
 
 const handleSearch = (event) => {
   const query = event.target.value;
   searchQuery.value = query;
   performSearch(query);
-};
-
-const clearSearch = () => {
-  searchQuery.value = '';
-  store.dispatch('conversationSearch/clearSearchResults');
-  emit('clear');
-  if (searchInputRef.value) {
-    searchInputRef.value.focus();
-  }
 };
 
 const handleKeyDown = (event) => {

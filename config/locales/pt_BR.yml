@@ -212,6 +212,7 @@ pt_BR:
       instagram_shared_story_content: 'Story compartilhado'
       instagram_shared_post_content: 'Post compartilhado'
       deleted: Esta mensagem foi excluída
+      undeletable: Esta mensagem não pode ser excluída
       whatsapp:
         list_button_label: 'Escolha um item'
       delivery_status:

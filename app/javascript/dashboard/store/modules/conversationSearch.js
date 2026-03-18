@@ -106,42 +106,46 @@ export const actions = {
       commit(types.CONTACT_SEARCH_SET_UI_FLAG, { isFetching: false });
     }
   },
-  async conversationSearch({ commit, rootGetters }, payload) {
+  async conversationSearch({ commit, state, rootGetters }, payload) {
     const { page = 1, ...searchParams } = payload;
-    if (conversationSearchAbortController) {
-      conversationSearchAbortController.abort();
-    }
-    conversationSearchAbortController = new AbortController();
     const requestId = Date.now();
     const query = typeof searchParams.q === 'string' ? searchParams.q.trim() : '';
+
+    // Set state BEFORE aborting previous request to avoid flicker
     commit(types.SET_CONVERSATION_SEARCH_REQUEST_ID, requestId);
     commit(types.SET_CONVERSATION_SEARCH_QUERY, query);
     commit(types.SET_CONVERSATION_SEARCH_COMPLETED, false);
     commit(types.CONVERSATION_SEARCH_SET_UI_FLAG, { isFetching: true });
+
+    // Now abort previous request
+    if (conversationSearchAbortController) {
+      conversationSearchAbortController.abort();
+    }
+    conversationSearchAbortController = new AbortController();
+
     try {
       const { data } = await SearchAPI.conversations(
         { ...searchParams, page },
         { signal: conversationSearchAbortController.signal }
       );
+
+      // Ignore if a newer request was started while this one was in-flight
+      if (state.lastConversationSearchRequestId !== requestId) return;
+
       const conversations = data.payload.conversations || [];
 
       // Normalizar dados para garantir estrutura igual à lista normal
       const enrichedConversations = conversations.map(conv => {
         const normalized = { ...conv };
-        
+
         // Flatten meta - copiar campos importantes para o nível superior
         if (normalized.meta) {
-          // Contact (prioridade: meta.contact > meta.sender)
           if (!normalized.contact) {
             normalized.contact = normalized.meta.contact || normalized.meta.sender;
           }
-          
-          // Sender
           if (!normalized.sender && normalized.meta.sender) {
             normalized.sender = normalized.meta.sender;
           }
-          
-          // Mensagens - copiar todos os campos de mensagem
           if (!normalized.last_message && normalized.meta.last_message) {
             normalized.last_message = normalized.meta.last_message;
           }
@@ -152,7 +156,7 @@ export const actions = {
             normalized.last_activity_message = normalized.meta.last_activity_message;
           }
         }
-        
+
         // Garantir que contact existe e tem estrutura completa
         const contactSource = normalized.contact || normalized.sender || normalized.meta?.contact || normalized.meta?.sender;
         if (contactSource) {
@@ -161,10 +165,9 @@ export const actions = {
             name: contactSource.name || contactSource.full_name || 'Unknown',
             thumbnail: contactSource.thumbnail || contactSource.avatar_url || contactSource.avatar || contactSource.profile_image_url || '',
             availability_status: contactSource.availability_status || 'offline',
-            ...contactSource, // Manter outros campos
+            ...contactSource,
           };
-          
-          // Tentar enriquecer com dados da store se tiver ID e não tiver thumbnail
+
           if (normalized.contact.id && !normalized.contact.thumbnail && rootGetters['contacts/getContact']) {
             const storeContact = rootGetters['contacts/getContact'](normalized.contact.id);
             if (storeContact && storeContact.thumbnail) {
@@ -175,7 +178,7 @@ export const actions = {
             }
           }
         }
-        
+
         return normalized;
       });
 
@@ -189,8 +192,11 @@ export const actions = {
       }
       console.error('[conversationSearch] Erro:', error);
     } finally {
-      commit(types.CONVERSATION_SEARCH_SET_UI_FLAG, { isFetching: false });
-      commit(types.SET_CONVERSATION_SEARCH_COMPLETED, true);
+      // Only update flags if this is still the current request
+      if (state.lastConversationSearchRequestId === requestId) {
+        commit(types.CONVERSATION_SEARCH_SET_UI_FLAG, { isFetching: false });
+        commit(types.SET_CONVERSATION_SEARCH_COMPLETED, true);
+      }
     }
   },
   async messageSearch({ commit }, payload) {
