@@ -237,6 +237,7 @@ en:
       instagram_shared_story_content: 'Shared story'
       instagram_shared_post_content: 'Shared post'
       deleted: This message was deleted
+      undeletable: This message cannot be deleted
       whatsapp:
         list_button_label: 'Choose an item'
       delivery_status:

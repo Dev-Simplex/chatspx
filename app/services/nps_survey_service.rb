@@ -119,9 +119,14 @@ class NpsSurveyService
     message_id = last_nps_response.metadata&.dig('message_id')
     if message_id
       message = Message.find_by(id: message_id)
-      if message.nil? || message.content.blank?
-        Rails.logger.info "NpsSurveyService: nps_already_sent? = false (NPS response exists but message is missing or has no content. Response ID: #{last_nps_response.id}, Message ID: #{message_id})"
+      if message.nil?
+        Rails.logger.info "NpsSurveyService: nps_already_sent? = false (NPS response exists but message is missing. Response ID: #{last_nps_response.id}, Message ID: #{message_id})"
         return false
+      end
+      # Treat deleted messages as still sent (prevent duplicate NPS after deletion)
+      if message.content_attributes&.dig('deleted')
+        Rails.logger.info "NpsSurveyService: nps_already_sent? = true (NPS message was deleted but still counts as sent. Response ID: #{last_nps_response.id}, Message ID: #{message_id})"
+        return true
       end
       Rails.logger.info "NpsSurveyService: nps_already_sent? = true (NPS response ID: #{last_nps_response.id}, status: #{last_nps_response.status}, message ID: #{message_id}, message content present: #{message.content.present?}, sent recently: #{last_nps_response.created_at >= recent_time_threshold})"
       return true
