@@ -96,22 +96,22 @@ class SearchService
 
   def message_base_query
     query = current_account.messages.where(inbox_id: accessable_inbox_ids)
-                   .where('created_at >= ?', 3.months.ago)
-    
+                           .where('created_at >= ?', 3.months.ago)
+
     # Filter by conversation_id if provided
     if params[:conversation_id].present?
-      conversation_id = params[:conversation_id].to_i
-      # Verify user has access to this conversation
-      conversation = current_account.conversations.find_by(id: conversation_id)
-      if conversation && accessable_inbox_ids.include?(conversation.inbox_id)
-        query = query.where(conversation_id: conversation_id)
-      else
-        # If conversation_id is provided but user doesn't have access,
-        # return empty result (use a condition that will never match)
-        query = query.where('1 = 0')
-      end
+      conv_display_id = params[:conversation_id].to_i
+      # Verify user has access to this conversation (frontend sends display_id, not internal id)
+      conversation = current_account.conversations.find_by(display_id: conv_display_id)
+      query = if conversation && accessable_inbox_ids.include?(conversation.inbox_id)
+                query.where(conversation_id: conversation.id)
+              else
+                # If conversation_id is provided but user doesn't have access,
+                # return empty result (use a condition that will never match)
+                query.where('1 = 0')
+              end
     end
-    
+
     query
   end
 
@@ -156,6 +156,14 @@ class SearchService
 
   def use_gin_search
     current_account.feature_enabled?('search_with_gin')
+  end
+
+  def should_run_advanced_search?
+    false
+  end
+
+  def should_skip_inbox_filtering?
+    false
   end
 
   def filter_contacts
