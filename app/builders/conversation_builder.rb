@@ -34,11 +34,10 @@ class ConversationBuilder
   end
 
   # Lookup by contact+inbox (not just contact_inbox) to handle multiple contact_inboxes for the same contact
+  # Prioritize non-resolved conversations, fallback to most recent of any status
   def find_contact_conversation_in_inbox
-    ::Conversation.where(
-      inbox_id: @contact_inbox.inbox_id,
-      contact_id: @contact_inbox.contact_id
-    ).order(created_at: :desc).first
+    base = ::Conversation.where(inbox_id: @contact_inbox.inbox_id, contact_id: @contact_inbox.contact_id)
+    base.where.not(status: :resolved).order(created_at: :desc).first || base.order(created_at: :desc).first
   end
 
   def waha_api_inbox?
