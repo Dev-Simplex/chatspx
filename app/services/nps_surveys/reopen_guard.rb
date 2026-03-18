@@ -25,6 +25,7 @@ class NpsSurveys::ReopenGuard
     return false unless active_nps
 
     return false if nps_expired_or_message_before_survey?(active_nps)
+    return false if agent_responded_after_nps?(active_nps)
     return true if content_looks_like_nps_response?
     return true if content_looks_like_wrong_or_skip_nps_attempt?
 
@@ -40,6 +41,17 @@ class NpsSurveys::ReopenGuard
                 .where(status: :sent, answered_at: nil)
                 .order(created_at: :desc)
                 .first
+  end
+
+  def agent_responded_after_nps?(active_nps)
+    nps_message_id = active_nps.metadata&.dig('message_id')
+    return false unless nps_message_id
+
+    conversation.messages
+                .where(message_type: :outgoing)
+                .where('id > ?', nps_message_id)
+                .where.not("content_attributes ->> 'nps_survey' = 'true'")
+                .exists?
   end
 
   def nps_expired_or_message_before_survey?(active_nps)

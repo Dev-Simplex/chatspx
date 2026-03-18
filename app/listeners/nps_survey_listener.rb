@@ -47,10 +47,26 @@ class NpsSurveyListener < BaseListener
 
   def message_created(event)
     message = extract_message_and_account(event)[0]
+
+    # If an agent sends a message, dismiss any active NPS (agent took over the conversation)
+    if message.outgoing? && !message.content_attributes&.dig('nps_survey')
+      dismiss_active_nps(message.conversation)
+      return
+    end
+
     return unless message.incoming?
 
     # Check if there's an active NPS survey waiting for response
     NpsSurveys::ResponseBuilder.new(message: message).perform
+  end
+
+  private
+
+  def dismiss_active_nps(conversation)
+    dismissed = conversation.nps_responses
+                            .where(status: :sent, answered_at: nil)
+                            .update_all(status: NpsResponse.statuses[:dismissed])
+    Rails.logger.info "NpsSurveyListener: dismissed #{dismissed} active NPS for conversation #{conversation.id}" if dismissed.positive?
   end
 
   def message_updated(event)
