@@ -7,6 +7,7 @@ class NpsSurveys::ResponseBuilder
     conversation = message.conversation
     nps_response = find_active_nps_response(conversation)
     return unless nps_response
+    return if agent_responded_after_nps?(conversation, nps_response)
 
     score = extract_score_from_message
     
@@ -19,6 +20,17 @@ class NpsSurveys::ResponseBuilder
   end
 
   private
+
+  def agent_responded_after_nps?(conversation, nps_response)
+    nps_message_id = nps_response.metadata&.dig('message_id')
+    return false unless nps_message_id
+
+    conversation.messages
+                .where(message_type: :outgoing)
+                .where('id > ?', nps_message_id)
+                .where.not("content_attributes ->> 'nps_survey' = 'true'")
+                .exists?
+  end
 
   def find_active_nps_response(conversation)
     # Buscar o NPS response mais recente com status "sent" que ainda não foi respondido
