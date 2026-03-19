@@ -8,6 +8,7 @@ class Macros::ExecutionService < ActionService
   end
 
   def perform
+    @original_assignee_id = @conversation.assignee_id
     @macro.actions.each do |action|
       action = action.with_indifferent_access
       begin
@@ -16,11 +17,16 @@ class Macros::ExecutionService < ActionService
         ChatwootExceptionTracker.new(e, account: @account).capture_exception
       end
     end
+    @conversation.reload.mark_as_unread! if assignee_changed?
   ensure
     Current.reset
   end
 
   private
+
+  def assignee_changed?
+    @conversation.reload.assignee_id != @original_assignee_id
+  end
 
   def assign_agent(agent_ids)
     agent_ids = agent_ids.map { |id| id == 'self' ? @user.id : id }
