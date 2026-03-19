@@ -1,13 +1,13 @@
 #!/usr/bin/env bash
 
-# Description: Install and manage a Chatwoot installation.
-# OS: Ubuntu 20.04 LTS, 22.04 LTS, 24.04 LTS
-# Script Version: 3.5.0
+# Description: Install and manage a ChatSPX (Chatwoot fork) installation.
+# OS: Ubuntu 24.04 LTS
+# Script Version: 4.0.0
 # Run this script as root
 
 set -eu -o errexit -o pipefail -o noclobber -o nounset
 
-# -allow a command to fail with !’s side effect on errexit
+# -allow a command to fail with !'s side effect on errexit
 # -use return value from ${PIPESTATUS[0]}, because ! hosed $?
 ! getopt --test > /dev/null
 if [[ ${PIPESTATUS[0]} -ne 4 ]]; then
@@ -16,12 +16,16 @@ if [[ ${PIPESTATUS[0]} -ne 4 ]]; then
 fi
 
 # Global variables
-# option --output/-o requires 1 argument
 LONGOPTS=console,debug,help,install,Install:,logs:,restart,ssl,upgrade,Upgrade:,webserver,version,web-only,worker-only,convert:
 OPTIONS=cdhiI:l:rsuU:wvWK
-CWCTL_VERSION="3.5.0"
+CWCTL_VERSION="4.0.0"
 pg_pass=$(head /dev/urandom | tr -dc A-Za-z0-9 | head -c 15 ; echo '')
 CHATWOOT_HUB_URL="https://hub.2.chatwoot.com/events"
+RUBY_VERSION="3.4.4"
+NODE_MAJOR=24
+REPO_URL="https://github.com/Dev-Simplex/chatspx.git"
+DEFAULT_BRANCH="producao"
+LOG_FILE="/var/log/chatwoot-setup.log"
 
 # if user does not specify an option
 if [ "$#" -eq 0 ]; then
@@ -29,124 +33,48 @@ if [ "$#" -eq 0 ]; then
   exit 1
 fi
 
-# -regarding ! and PIPESTATUS see above
-# -temporarily store output to be able to check for errors
-# -activate quoting/enhanced mode (e.g. by writing out “--options”)
-# -pass arguments only via   -- "$@"   to separate them correctly
 ! PARSED=$(getopt --options=$OPTIONS --longoptions=$LONGOPTS --name "$0" -- "$@")
 if [[ ${PIPESTATUS[0]} -ne 0 ]]; then
-    # e.g. return value is 1
-    #  then getopt has complained about wrong arguments to stdout
     exit 2
 fi
-# read getopt’s output this way to handle the quoting right:
 eval set -- "$PARSED"
 
-c=n d=n h=n i=n I=n l=n r=n s=n u=n U=n w=n v=n W=n K=n C=n BRANCH=producao SERVICE=web DEPLOYMENT_TYPE=full CONVERT_TO=""
-# Iterate options in order and nicely split until we see --
+c=n d=n h=n i=n I=n l=n r=n s=n u=n U=n w=n v=n W=n K=n C=n BRANCH=$DEFAULT_BRANCH SERVICE=web DEPLOYMENT_TYPE=full CONVERT_TO=""
 while true; do
     case "$1" in
-        -c|--console)
-            c=y
-            break
-            ;;
-        -d|--debug)
-            d=y
-            shift
-            ;;
-        -h|--help)
-            h=y
-            break
-            ;;
-        -i|--install)
-            i=y
-            BRANCH="producao"
-            break
-            ;;
-       -I|--Install)
-            I=y
-            BRANCH="$2"
-            break
-            ;;
-        -l|--logs)
-            l=y
-            SERVICE="$2"
-            break
-            ;;
-        -r|--restart)
-            r=y
-            break
-            ;;
-        -s|--ssl)
-            s=y
-            shift
-            ;;
-        -u|--upgrade)
-            u=y
-            BRANCH="producao"
-            break
-            ;;
-        -U|--Upgrade)
-            U=y
-            BRANCH="$2"
-            break
-            ;;
-        -w|--webserver)
-            w=y
-            shift
-            ;;
-        -v|--version)
-            v=y
-            shift
-            ;;
-        -W|--web-only)
-            W=y
-            DEPLOYMENT_TYPE=web
-            shift
-            ;;
-        -K|--worker-only)
-            K=y
-            DEPLOYMENT_TYPE=worker
-            shift
-            ;;
+        -c|--console) c=y; break ;;
+        -d|--debug) d=y; shift ;;
+        -h|--help) h=y; break ;;
+        -i|--install) i=y; BRANCH="$DEFAULT_BRANCH"; break ;;
+        -I|--Install) I=y; BRANCH="$2"; break ;;
+        -l|--logs) l=y; SERVICE="$2"; break ;;
+        -r|--restart) r=y; break ;;
+        -s|--ssl) s=y; shift ;;
+        -u|--upgrade) u=y; BRANCH="$DEFAULT_BRANCH"; break ;;
+        -U|--Upgrade) U=y; BRANCH="$2"; break ;;
+        -w|--webserver) w=y; shift ;;
+        -v|--version) v=y; shift ;;
+        -W|--web-only) W=y; DEPLOYMENT_TYPE=web; shift ;;
+        -K|--worker-only) K=y; DEPLOYMENT_TYPE=worker; shift ;;
         --convert)
-            C=y
-            CONVERT_TO="$2"
+            C=y; CONVERT_TO="$2"
             case "$CONVERT_TO" in
-                web)
-                    DEPLOYMENT_TYPE=web
-                    ;;
-                worker)
-                    DEPLOYMENT_TYPE=worker
-                    ;;
-                full)
-                    DEPLOYMENT_TYPE=full
-                    ;;
-                *)
-                    echo "Invalid conversion type. Use: web, worker, or full"
-                    exit 3
-                    ;;
+                web) DEPLOYMENT_TYPE=web ;;
+                worker) DEPLOYMENT_TYPE=worker ;;
+                full) DEPLOYMENT_TYPE=full ;;
+                *) echo "Invalid conversion type. Use: web, worker, or full"; exit 3 ;;
             esac
-            shift 2
-            ;;
-        --)
-            shift
-            break
-            ;;
-        *)
-            echo "Invalid option(s) specified. Use help(-h) to learn more."
-            exit 3
-            ;;
+            shift 2 ;;
+        --) shift; break ;;
+        *) echo "Invalid option(s). Use --help."; exit 3 ;;
     esac
 done
 
-# log if debug flag set
 if [ "$d" == "y" ]; then
   echo "console: $c, debug: $d, help: $h, install: $i, Install: $I, BRANCH: $BRANCH, \
   logs: $l, SERVICE: $SERVICE, ssl: $s, upgrade: $u, Upgrade: $U, webserver: $w, web-only: $W, worker-only: $K, convert: $C, convert-to: $CONVERT_TO, deployment-type: $DEPLOYMENT_TYPE"
 fi
 
-# exit if script is not run as root
 if [ "$(id -u)" -ne 0 ]; then
   echo 'This needs to be run as root.' >&2
   exit 1
@@ -154,133 +82,114 @@ fi
 
 trap exit_handler EXIT
 
-##############################################################################
-# Invoked upon EXIT signal from bash
-# Upon non-zero exit, notifies the user to check log file.
-# Globals:
-#   None
-# Arguments:
-#   None
-# Outputs:
-#   None
-##############################################################################
 function exit_handler() {
   if [ "$?" -ne 0 ] && [ "$u" == "n" ]; then
-   echo -en "\nSome error has occured. Check '/var/log/chatwoot-setup.log' for details.\n"
+   echo -en "\nSome error has occured. Check '$LOG_FILE' for details.\n"
    exit 1
   fi
 }
 
 ##############################################################################
-# Read user input related to domain setup
-# Globals:
-#   domain_name
-#   le_email
-# Arguments:
-#   None
-# Outputs:
-#   None
+# Ensure swap exists (needed for asset compilation on small VMs)
+##############################################################################
+function ensure_swap() {
+  if [ "$(swapon --show | wc -l)" -eq 0 ]; then
+    local mem_mb=$(free -m | awk '/^Mem:/{print $2}')
+    if [ "$mem_mb" -lt 4096 ]; then
+      echo "Creating 2GB swap file for build stability..."
+      fallocate -l 2G /swapfile
+      chmod 600 /swapfile
+      mkswap /swapfile
+      swapon /swapfile
+      echo '/swapfile none swap sw 0 0' >> /etc/fstab
+    fi
+  fi
+}
+
+##############################################################################
+# Domain/SSL input
 ##############################################################################
 function get_domain_info() {
-  read -rp 'Enter the domain/subdomain for Chatwoot (e.g., chatwoot.domain.com): ' domain_name
-  read -rp 'Enter an email address for LetsEncrypt to send reminders when your SSL certificate is up for renewal: ' le_email
+  read -rp 'Informe o dominio/subdominio do ChatSPX (ex: chat.seudominio.com.br): ' domain_name
+  read -rp 'Informe um e-mail para avisos de renovacao do certificado SSL (LetsEncrypt): ' le_email
   cat << EOF
 
-This script will generate SSL certificates via LetsEncrypt and
-serve Chatwoot at https://$domain_name.
-Proceed further once you have pointed your DNS to the IP of the instance.
+Este script vai gerar certificados SSL via LetsEncrypt e
+servir o ChatSPX em https://$domain_name.
+Certifique-se de que o DNS ja esta apontando para o IP desta VM.
 
 EOF
-  read -rp 'Do you wish to proceed? (yes or no): ' exit_true
-  if [ "$exit_true" == "no" ]; then
+  read -rp 'Deseja continuar? (sim ou nao): ' exit_true
+  if [ "$exit_true" == "nao" ]; then
     exit 1
   fi
 }
 
 ##############################################################################
-# Install common dependencies
-# Globals:
-#   None
-# Arguments:
-#   None
-# Outputs:
-#   None
+# Install system dependencies
 ##############################################################################
 function install_dependencies() {
-  apt-get update && apt-get upgrade -y
-  apt-get install -y curl
-  curl -fsSL https://packages.redis.io/gpg | sudo gpg --dearmor --yes -o /usr/share/keyrings/redis-archive-keyring.gpg
-  echo "deb [signed-by=/usr/share/keyrings/redis-archive-keyring.gpg] https://packages.redis.io/deb $(lsb_release -cs) main" | sudo tee /etc/apt/sources.list.d/redis.list
-  mkdir -p /etc/apt/keyrings
-  curl -fsSL https://deb.nodesource.com/gpgkey/nodesource-repo.gpg.key | sudo gpg --dearmor --yes -o /etc/apt/keyrings/nodesource.gpg
-  NODE_MAJOR=24
-  echo "deb [signed-by=/etc/apt/keyrings/nodesource.gpg] https://deb.nodesource.com/node_$NODE_MAJOR.x nodistro main" | sudo tee /etc/apt/sources.list.d/nodesource.list
-  echo "deb http://apt.postgresql.org/pub/repos/apt/ $(lsb_release -cs)-pgdg 16" > /etc/apt/sources.list.d/pgdg.list
-  wget --quiet -O - https://www.postgresql.org/media/keys/ACCC4CF8.asc | sudo apt-key add -
+  echo "  Updating system packages..."
+  apt-get update && DEBIAN_FRONTEND=noninteractive apt-get upgrade -y
 
+  echo "  Adding package repositories..."
+  apt-get install -y curl wget gnupg2 lsb-release ca-certificates software-properties-common
+
+  # Redis 7+ repo
+  curl -fsSL https://packages.redis.io/gpg | gpg --dearmor --yes -o /usr/share/keyrings/redis-archive-keyring.gpg
+  echo "deb [signed-by=/usr/share/keyrings/redis-archive-keyring.gpg] https://packages.redis.io/deb $(lsb_release -cs) main" | tee /etc/apt/sources.list.d/redis.list
+
+  # Node.js repo
+  mkdir -p /etc/apt/keyrings
+  curl -fsSL https://deb.nodesource.com/gpgkey/nodesource-repo.gpg.key | gpg --dearmor --yes -o /etc/apt/keyrings/nodesource.gpg
+  echo "deb [signed-by=/etc/apt/keyrings/nodesource.gpg] https://deb.nodesource.com/node_${NODE_MAJOR}.x nodistro main" | tee /etc/apt/sources.list.d/nodesource.list
+
+  # PostgreSQL 16 repo
+  curl -fsSL https://www.postgresql.org/media/keys/ACCC4CF8.asc | gpg --dearmor --yes -o /usr/share/keyrings/postgresql-archive-keyring.gpg
+  echo "deb [signed-by=/usr/share/keyrings/postgresql-archive-keyring.gpg] http://apt.postgresql.org/pub/repos/apt/ $(lsb_release -cs)-pgdg main" | tee /etc/apt/sources.list.d/pgdg.list
 
   apt-get update
 
+  echo "  Installing build tools and libraries..."
   apt-get install -y \
-      git software-properties-common ca-certificates imagemagick libpq-dev \
-      libxml2-dev libxslt1-dev file g++ gcc autoconf build-essential \
-      libssl-dev libyaml-dev libreadline-dev gnupg2 \
+      git file g++ gcc autoconf build-essential \
+      libssl-dev libyaml-dev libreadline-dev libncurses5-dev \
+      libffi-dev libgdbm6 libgdbm-dev libpq-dev \
+      libxml2-dev libxslt1-dev libvips \
+      zlib1g-dev liblzma-dev libgmp-dev \
+      imagemagick patch ruby-dev sudo \
       postgresql-client-16 redis-tools \
-      nodejs patch ruby-dev zlib1g-dev liblzma-dev \
-      libgmp-dev libncurses5-dev libffi-dev libgdbm6 libgdbm-dev sudo \
-      libvips python3-pip
+      nodejs python3-pip python3-packaging
+
+  echo "  Installing pnpm..."
   npm install -g pnpm
 }
 
 ##############################################################################
-# Install postgres and redis
-# Globals:
-#   None
-# Arguments:
-#   None
-# Outputs:
-#   None
+# Install PostgreSQL and Redis
 ##############################################################################
 function install_databases() {
   apt-get install -y postgresql-16 postgresql-16-pgvector postgresql-contrib redis-server
 }
 
 ##############################################################################
-# Install nginx and cerbot for LetsEncrypt
-# Globals:
-#   None
-# Arguments:
-#   None
-# Outputs:
-#   None
+# Install Nginx + Certbot
 ##############################################################################
 function install_webserver() {
   apt-get install -y nginx nginx-full certbot python3-certbot-nginx
 }
 
 ##############################################################################
-# Create chatwoot linux user
-# Globals:
-#   None
-# Arguments:
-#   None
-# Outputs:
-#   None
+# Create chatwoot system user
 ##############################################################################
 function create_cw_user() {
-  if ! id -u "chatwoot"; then
+  if ! id -u "chatwoot" &>/dev/null; then
     adduser --disabled-password --gecos "" chatwoot
   fi
 }
 
 ##############################################################################
-# Install rvm(ruby version manager)
-# Globals:
-#   None
-# Arguments:
-#   None
-# Outputs:
-#   None
+# Install RVM + Ruby
 ##############################################################################
 function configure_rvm() {
   create_cw_user
@@ -289,257 +198,392 @@ function configure_rvm() {
   gpg2 --keyserver hkp://keyserver.ubuntu.com --recv-keys 409B6B1796C275462A1703113804BB82D39DC0E3 7D2BAF1CF37B13E2069D6956105BD0E739499BDB
   curl -sSL https://get.rvm.io | bash -s stable
   adduser chatwoot rvm
+
+  # Install Ruby as chatwoot user
+  sudo -i -u chatwoot bash -lc "
+    rvm autolibs disable
+    rvm install ruby-${RUBY_VERSION}
+    rvm use ${RUBY_VERSION} --default
+    ruby --version
+  "
 }
 
 ##############################################################################
-# Save the pgpass used to setup postgres
-# Globals:
-#   None
-# Arguments:
-#   None
-# Outputs:
-#   None
+# Postgres password persistence
 ##############################################################################
 function save_pgpass() {
   mkdir -p /opt/chatwoot/config
-  file="/opt/chatwoot/config/.pg_pass"
+  local file="/opt/chatwoot/config/.pg_pass"
   if ! test -f "$file"; then
-    echo $pg_pass > /opt/chatwoot/config/.pg_pass
+    echo "$pg_pass" > "$file"
+    chmod 600 "$file"
   fi
 }
 
-##############################################################################
-# Get the pgpass used to setup postgres if installation fails midway
-# and needs to be re-run
-# Globals:
-#   pg_pass
-# Arguments:
-#   None
-# Outputs:
-#   None
-##############################################################################
 function get_pgpass() {
-  file="/opt/chatwoot/config/.pg_pass"
+  local file="/opt/chatwoot/config/.pg_pass"
   if test -f "$file"; then
-    pg_pass=$(cat $file)
+    pg_pass=$(cat "$file")
   fi
-
 }
 
 ##############################################################################
-# Configure postgres to create chatwoot db user.
-# Enable postgres and redis systemd services.
-# Globals:
-#   None
-# Arguments:
-#   None
-# Outputs:
-#   None
+# Configure PostgreSQL (user, pgvector, template encoding)
 ##############################################################################
 function configure_db() {
   save_pgpass
   get_pgpass
-  sudo -i -u postgres psql << EOF
-    \set pass `echo $pg_pass`
-    CREATE USER chatwoot CREATEDB;
+
+  systemctl enable --now postgresql
+  systemctl enable --now redis-server
+
+  # Wait for PostgreSQL to be ready
+  for i in $(seq 1 30); do
+    if sudo -i -u postgres pg_isready -q 2>/dev/null; then break; fi
+    sleep 1
+  done
+
+  sudo -i -u postgres psql <<EOF
+    \set pass '${pg_pass}'
+    DO \$\$
+    BEGIN
+      IF NOT EXISTS (SELECT FROM pg_roles WHERE rolname = 'chatwoot') THEN
+        CREATE USER chatwoot CREATEDB;
+      END IF;
+    END
+    \$\$;
     ALTER USER chatwoot PASSWORD :'pass';
     ALTER ROLE chatwoot SUPERUSER;
+
+    -- Fix template1 encoding for UTF-8
     UPDATE pg_database SET datistemplate = FALSE WHERE datname = 'template1';
-    DROP DATABASE template1;
+    DROP DATABASE IF EXISTS template1;
     CREATE DATABASE template1 WITH TEMPLATE = template0 ENCODING = 'UNICODE';
     UPDATE pg_database SET datistemplate = TRUE WHERE datname = 'template1';
     \c template1
     VACUUM FREEZE;
-EOF
 
-  systemctl enable redis-server.service
-  systemctl enable postgresql
+    -- Enable pgvector extension on template1 so all new DBs inherit it
+    CREATE EXTENSION IF NOT EXISTS vector;
+EOF
 }
 
 ##############################################################################
-# Install Chatwoot
-# This includes setting up ruby, cloning repo and installing dependencies.
-# Globals:
-#   pg_pass
-# Arguments:
-#   None
-# Outputs:
-#   None
+# Collect SPX-specific configuration from user
+##############################################################################
+function collect_spx_config() {
+  echo ""
+  echo "=== Configuracao do ChatSPX ==="
+  echo ""
+
+  # Timezone
+  echo "Fuso horario:"
+  echo "  1) America/Manaus (UTC-4)"
+  echo "  2) America/Sao_Paulo (UTC-3)"
+  echo "  3) America/Fortaleza (UTC-3)"
+  echo "  4) America/Cuiaba (UTC-4)"
+  echo "  5) Outro"
+  read -rp "Escolha [1]: " tz_choice
+  tz_choice=${tz_choice:-1}
+  case "$tz_choice" in
+    1) cfg_timezone="America/Manaus" ;;
+    2) cfg_timezone="America/Sao_Paulo" ;;
+    3) cfg_timezone="America/Fortaleza" ;;
+    4) cfg_timezone="America/Cuiaba" ;;
+    5) read -rp "  Informe o fuso horario (ex: America/Recife): " cfg_timezone ;;
+    *) cfg_timezone="America/Manaus" ;;
+  esac
+
+  # Performance (auto-detect: extract maximum from VM)
+  local mem_mb=$(free -m | awk '/^Mem:/{print $2}')
+  local mem_gb=$((mem_mb / 1024))
+  local cpu_count=$(nproc)
+
+  # Puma workers = CPU cores (leave 1 for OS if > 2 cores)
+  local suggested_concurrency=$cpu_count
+  [ "$cpu_count" -gt 2 ] && suggested_concurrency=$((cpu_count - 1))
+
+  # Threads per worker: scale with RAM per worker
+  local ram_per_worker=$((mem_mb / (suggested_concurrency + 1)))
+  local suggested_threads=5
+  [ "$ram_per_worker" -ge 1024 ] && suggested_threads=8
+  [ "$ram_per_worker" -ge 2048 ] && suggested_threads=12
+  [ "$ram_per_worker" -lt 512 ] && suggested_threads=3
+
+  # Sidekiq: aggressive — 1 worker per ~60MB RAM, cap at 50
+  local suggested_sidekiq=$((mem_mb / 60))
+  [ "$suggested_sidekiq" -gt 50 ] && suggested_sidekiq=50
+  [ "$suggested_sidekiq" -lt 5 ] && suggested_sidekiq=5
+
+  echo ""
+  echo "Detectado: ${mem_gb}GB RAM, ${cpu_count} CPUs"
+  echo "Configuracao de performance (otimizada para extrair o maximo da VM):"
+  echo "  RAILS_MAX_THREADS=${suggested_threads} (threads por processo Puma)"
+  echo "  WEB_CONCURRENCY=${suggested_concurrency} (workers Puma = CPUs)"
+  echo "  SIDEKIQ_CONCURRENCY=${suggested_sidekiq} (workers Sidekiq)"
+  read -rp "Aceitar esses valores? (sim ou nao) [sim]: " accept_perf
+  accept_perf=${accept_perf:-sim}
+  if [ "$accept_perf" != "sim" ]; then
+    read -rp "  RAILS_MAX_THREADS [$suggested_threads]: " cfg_threads
+    read -rp "  WEB_CONCURRENCY [$suggested_concurrency]: " cfg_web_concurrency
+    read -rp "  SIDEKIQ_CONCURRENCY [$suggested_sidekiq]: " cfg_sidekiq
+  fi
+  cfg_threads=${cfg_threads:-$suggested_threads}
+  cfg_web_concurrency=${cfg_web_concurrency:-$suggested_concurrency}
+  cfg_sidekiq=${cfg_sidekiq:-$suggested_sidekiq}
+
+  # SMTP
+  echo ""
+  read -rp "Configurar SMTP para envio de e-mails? (sim ou nao) [nao]: " configure_smtp
+  configure_smtp=${configure_smtp:-nao}
+  if [ "$configure_smtp" == "sim" ]; then
+    read -rp "  Remetente (ex: SPX <email@dominio.com>): " cfg_mailer_sender
+    read -rp "  Dominio SMTP (ex: seudominio.com.br): " cfg_smtp_domain
+    read -rp "  Servidor SMTP (ex: smtp.seudominio.com.br): " cfg_smtp_address
+    read -rp "  Porta SMTP [587]: " cfg_smtp_port
+    cfg_smtp_port=${cfg_smtp_port:-587}
+    read -rp "  Usuario SMTP: " cfg_smtp_user
+    read -rsp "  Senha SMTP: " cfg_smtp_pass
+    echo ""
+    read -rp "  Autenticacao SMTP [login]: " cfg_smtp_auth
+    cfg_smtp_auth=${cfg_smtp_auth:-login}
+  fi
+
+  # WAHA
+  echo ""
+  read -rp "Configurar WAHA (integracao WhatsApp)? (sim ou nao) [nao]: " configure_waha
+  configure_waha=${configure_waha:-nao}
+  if [ "$configure_waha" == "sim" ]; then
+    read -rp "  URL da API WAHA (ex: https://waha.seudominio.com.br): " cfg_waha_url
+    read -rp "  Chave da API WAHA: " cfg_waha_key
+    read -rp "  Sessao padrao WAHA (nome da sessao para validacao de numeros): " cfg_waha_session
+  fi
+
+  # First account + Super Admin
+  echo ""
+  echo "--- Primeira Conta e Super Admin ---"
+  read -rp "Nome da conta (ex: Simplex Solucoes): " cfg_account_name
+  read -rp "Nome do administrador: " cfg_admin_name
+  read -rp "E-mail do administrador: " cfg_admin_email
+  read -rsp "Senha do administrador (minimo 6 caracteres): " cfg_admin_password
+  echo ""
+
+  echo ""
+  echo "Configuracao coletada. Iniciando instalacao..."
+  echo ""
+}
+
+##############################################################################
+# Clone repo, install deps, configure .env, compile assets
 ##############################################################################
 function setup_chatwoot() {
   local secret=$(head /dev/urandom | tr -dc A-Za-z0-9 | head -c 63 ; echo '')
-  local RAILS_ENV=production
   get_pgpass
 
-  sudo -i -u chatwoot << EOF
-  rvm --version
-  rvm autolibs disable
-  rvm install "ruby-3.4.4"
-  rvm use 3.4.4 --default
+  sudo -i -u chatwoot bash -lc "
+    set -e
 
-  git clone https://github.com/Dev-Simplex/chatspx.git chatwoot
-  cd chatwoot
-  git checkout "$BRANCH"
-  bundle
-  pnpm i
+    # Clone the repo
+    if [ ! -d ~/chatwoot ]; then
+      git clone ${REPO_URL} ~/chatwoot
+    fi
+    cd ~/chatwoot
+    git fetch --all
+    git checkout ${BRANCH}
+    git pull origin ${BRANCH} || true
 
-  cp .env.example .env
-  sed -i -e "/SECRET_KEY_BASE/ s/=.*/=$secret/" .env
-  sed -i -e '/REDIS_URL/ s/=.*/=redis:\/\/localhost:6379/' .env
-  sed -i -e '/POSTGRES_HOST/ s/=.*/=localhost/' .env
-  sed -i -e '/POSTGRES_USERNAME/ s/=.*/=chatwoot/' .env
-  sed -i -e "/POSTGRES_PASSWORD/ s/=.*/=$pg_pass/" .env
-  sed -i -e '/RAILS_ENV/ s/=.*/=$RAILS_ENV/' .env
-  echo -en "\nINSTALLATION_ENV=linux_script" >> ".env"
+    # Install Ruby deps
+    gem install bundler --no-document
+    bundle install --jobs \$(nproc) --retry 3
 
-  rake assets:precompile RAILS_ENV=production NODE_OPTIONS="--max-old-space-size=4096 --openssl-legacy-provider"
-EOF
+    # Install JS deps
+    pnpm install --frozen-lockfile || pnpm install
+
+    # Configure .env from template
+    cp .env.example .env
+    sed -i \"s|^SECRET_KEY_BASE=.*|SECRET_KEY_BASE=${secret}|\" .env
+    sed -i \"s|^REDIS_URL=.*|REDIS_URL=redis://localhost:6379|\" .env
+    sed -i \"s|^POSTGRES_HOST=.*|POSTGRES_HOST=localhost|\" .env
+    sed -i \"s|^POSTGRES_USERNAME=.*|POSTGRES_USERNAME=chatwoot|\" .env
+    sed -i \"s|^POSTGRES_PASSWORD=.*|POSTGRES_PASSWORD=${pg_pass}|\" .env
+    sed -i \"s|^RAILS_ENV=.*|RAILS_ENV=production|\" .env
+    sed -i \"s|^ENABLE_ACCOUNT_SIGNUP=.*|ENABLE_ACCOUNT_SIGNUP=false|\" .env
+
+    # SPX defaults
+    grep -q '^INSTALLATION_ENV=' .env || echo 'INSTALLATION_ENV=linux_script' >> .env
+
+    # Timezone
+    grep -q '^TZ=' .env && sed -i \"s|^TZ=.*|TZ=${cfg_timezone}|\" .env || echo 'TZ=${cfg_timezone}' >> .env
+
+    # Performance
+    grep -q '^RAILS_MAX_THREADS=' .env && sed -i \"s|^RAILS_MAX_THREADS=.*|RAILS_MAX_THREADS=${cfg_threads}|\" .env || echo 'RAILS_MAX_THREADS=${cfg_threads}' >> .env
+    grep -q '^WEB_CONCURRENCY=' .env && sed -i \"s|^WEB_CONCURRENCY=.*|WEB_CONCURRENCY=${cfg_web_concurrency}|\" .env || echo 'WEB_CONCURRENCY=${cfg_web_concurrency}' >> .env
+    grep -q '^SIDEKIQ_CONCURRENCY=' .env && sed -i \"s|^SIDEKIQ_CONCURRENCY=.*|SIDEKIQ_CONCURRENCY=${cfg_sidekiq}|\" .env || echo 'SIDEKIQ_CONCURRENCY=${cfg_sidekiq}' >> .env
+  "
+
+  # SMTP config (run as separate block to handle special chars in password)
+  if [ "${configure_smtp:-nao}" == "sim" ]; then
+    sudo -i -u chatwoot bash -lc "
+      cd ~/chatwoot
+      sed -i \"s|^MAILER_SENDER_EMAIL=.*|MAILER_SENDER_EMAIL=${cfg_mailer_sender}|\" .env
+      sed -i \"s|^SMTP_DOMAIN=.*|SMTP_DOMAIN=${cfg_smtp_domain}|\" .env
+      sed -i \"s|^SMTP_ADDRESS=.*|SMTP_ADDRESS=${cfg_smtp_address}|\" .env
+      sed -i \"s|^SMTP_PORT=.*|SMTP_PORT=${cfg_smtp_port}|\" .env
+      sed -i \"s|^SMTP_USERNAME=.*|SMTP_USERNAME=${cfg_smtp_user}|\" .env
+      sed -i \"s|^SMTP_PASSWORD=.*|SMTP_PASSWORD=${cfg_smtp_pass}|\" .env
+      sed -i \"s|^SMTP_AUTHENTICATION=.*|SMTP_AUTHENTICATION=${cfg_smtp_auth}|\" .env
+      sed -i \"s|^SMTP_ENABLE_STARTTLS_AUTO=.*|SMTP_ENABLE_STARTTLS_AUTO=true|\" .env
+    "
+  fi
+
+  # WAHA config
+  if [ "${configure_waha:-nao}" == "sim" ]; then
+    sudo -i -u chatwoot bash -lc "
+      cd ~/chatwoot
+      grep -q '^WAHA_API_URL=' .env && sed -i \"s|^WAHA_API_URL=.*|WAHA_API_URL=${cfg_waha_url}|\" .env || echo 'WAHA_API_URL=${cfg_waha_url}' >> .env
+      grep -q '^WAHA_API_KEY=' .env && sed -i \"s|^WAHA_API_KEY=.*|WAHA_API_KEY=${cfg_waha_key}|\" .env || echo 'WAHA_API_KEY=${cfg_waha_key}' >> .env
+      grep -q '^WAHA_DEFAULT_SESSION=' .env || echo 'WAHA_DEFAULT_SESSION=${cfg_waha_session}' >> .env
+    "
+  fi
+
+  # Compile assets
+  sudo -i -u chatwoot bash -lc "
+    set -e
+    cd ~/chatwoot
+    RAILS_ENV=production NODE_OPTIONS='--max-old-space-size=4096' bundle exec rake assets:precompile
+  "
 }
 
 ##############################################################################
-# Run database migrations.
-# Globals:
-#   None
-# Arguments:
-#   None
-# Outputs:
-#   None
+# Run database migrations
 ##############################################################################
-function run_db_migrations(){
-  sudo -i -u chatwoot << EOF
-  cd chatwoot
-  RAILS_ENV=production POSTGRES_STATEMENT_TIMEOUT=600s bundle exec rails db:chatwoot_prepare
-EOF
+function run_db_migrations() {
+  sudo -i -u chatwoot bash -lc "
+    cd ~/chatwoot
+    RAILS_ENV=production POSTGRES_STATEMENT_TIMEOUT=600s bundle exec rails db:chatwoot_prepare
+  "
 }
 
 ##############################################################################
-# Setup Chatwoot systemd services and cwctl CLI
-# Globals:
-#   DEPLOYMENT_TYPE
-# Arguments:
-#   None
-# Outputs:
-#   None
+# Create first account and super admin user
+##############################################################################
+function create_first_account() {
+  if [ -z "${cfg_admin_email:-}" ] || [ -z "${cfg_admin_password:-}" ]; then
+    echo "Skipping account creation (no admin credentials provided)."
+    return
+  fi
+
+  sudo -i -u chatwoot bash -lc "
+    cd ~/chatwoot
+    RAILS_ENV=production bundle exec rails runner \"
+      return if User.exists?(email: '${cfg_admin_email}')
+
+      account = Account.create!(name: '${cfg_account_name}')
+
+      user = User.new(
+        name: '${cfg_admin_name}',
+        email: '${cfg_admin_email}',
+        password: '${cfg_admin_password}',
+        type: 'SuperAdmin'
+      )
+      user.skip_confirmation!
+      user.save!
+
+      AccountUser.create!(
+        account_id: account.id,
+        user_id: user.id,
+        role: :administrator
+      )
+
+      # Disable onboarding screen since we already have an account
+      Redis::Alfred.delete(Redis::Alfred::CHATWOOT_INSTALLATION_ONBOARDING)
+
+      puts \\\"Account '#{account.name}' created with admin #{user.email}\\\"
+    \"
+  "
+}
+
+##############################################################################
+# Configure systemd services
 ##############################################################################
 function configure_systemd_services() {
-  # Check if this is a conversion from existing deployment
   local existing_full_deployment=false
-  if [ -f "/etc/systemd/system/chatwoot.target" ]; then
-    existing_full_deployment=true
-  fi
+  [ -f "/etc/systemd/system/chatwoot.target" ] && existing_full_deployment=true
+
+  local CW_HOME="/home/chatwoot/chatwoot/deployment"
 
   if [ "$DEPLOYMENT_TYPE" == "web" ]; then
     echo "Setting up web-only deployment"
-
-    # Stop and disable existing services if converting
     if [ "$existing_full_deployment" = true ]; then
-      echo "Converting from full deployment to web-only"
-      systemctl stop chatwoot.target || true
-      systemctl disable chatwoot.target || true
-      systemctl stop chatwoot-worker.1.service || true
-      systemctl disable chatwoot-worker.1.service || true
+      systemctl stop chatwoot.target 2>/dev/null || true
+      systemctl disable chatwoot.target 2>/dev/null || true
     fi
-
-    # Stop and disable worker target if converting from worker-only
-    if [ -f "/etc/systemd/system/chatwoot-worker.target" ]; then
-      echo "Converting from worker-only to web-only"
-      systemctl stop chatwoot-worker.target || true
-      systemctl disable chatwoot-worker.target || true
-    fi
-
-    cp /home/chatwoot/chatwoot/deployment/chatwoot-web.1.service /etc/systemd/system/chatwoot-web.1.service
-    cp /home/chatwoot/chatwoot/deployment/chatwoot-web.target /etc/systemd/system/chatwoot-web.target
-
+    [ -f "/etc/systemd/system/chatwoot-worker.target" ] && {
+      systemctl stop chatwoot-worker.target 2>/dev/null || true
+      systemctl disable chatwoot-worker.target 2>/dev/null || true
+    }
+    cp "$CW_HOME/chatwoot-web.1.service" /etc/systemd/system/
+    cp "$CW_HOME/chatwoot-web.target" /etc/systemd/system/
     systemctl daemon-reload
-    systemctl enable chatwoot-web.target
-    systemctl start chatwoot-web.target
+    systemctl enable --now chatwoot-web.target
 
   elif [ "$DEPLOYMENT_TYPE" == "worker" ]; then
     echo "Setting up worker-only deployment"
-
-    # Stop and disable existing services if converting
     if [ "$existing_full_deployment" = true ]; then
-      echo "Converting from full deployment to worker-only"
-      systemctl stop chatwoot.target || true
-      systemctl disable chatwoot.target || true
-      systemctl stop chatwoot-web.1.service || true
-      systemctl disable chatwoot-web.1.service || true
+      systemctl stop chatwoot.target 2>/dev/null || true
+      systemctl disable chatwoot.target 2>/dev/null || true
     fi
-
-    # Stop and disable web target if converting from web-only
-    if [ -f "/etc/systemd/system/chatwoot-web.target" ]; then
-      echo "Converting from web-only to worker-only"
-      systemctl stop chatwoot-web.target || true
-      systemctl disable chatwoot-web.target || true
-    fi
-
-    cp /home/chatwoot/chatwoot/deployment/chatwoot-worker.1.service /etc/systemd/system/chatwoot-worker.1.service
-    cp /home/chatwoot/chatwoot/deployment/chatwoot-worker.target /etc/systemd/system/chatwoot-worker.target
-
+    [ -f "/etc/systemd/system/chatwoot-web.target" ] && {
+      systemctl stop chatwoot-web.target 2>/dev/null || true
+      systemctl disable chatwoot-web.target 2>/dev/null || true
+    }
+    cp "$CW_HOME/chatwoot-worker.1.service" /etc/systemd/system/
+    cp "$CW_HOME/chatwoot-worker.target" /etc/systemd/system/
     systemctl daemon-reload
-    systemctl enable chatwoot-worker.target
-    systemctl start chatwoot-worker.target
+    systemctl enable --now chatwoot-worker.target
 
   else
     echo "Setting up full deployment (web + worker)"
-
-    # Stop existing specialized deployments if converting back to full
-    if [ -f "/etc/systemd/system/chatwoot-web.target" ]; then
-      echo "Converting from web-only to full deployment"
-      systemctl stop chatwoot-web.target || true
-      systemctl disable chatwoot-web.target || true
-    fi
-    if [ -f "/etc/systemd/system/chatwoot-worker.target" ]; then
-      echo "Converting from worker-only to full deployment"
-      systemctl stop chatwoot-worker.target || true
-      systemctl disable chatwoot-worker.target || true
-    fi
-
-    cp /home/chatwoot/chatwoot/deployment/chatwoot-web.1.service /etc/systemd/system/chatwoot-web.1.service
-    cp /home/chatwoot/chatwoot/deployment/chatwoot-worker.1.service /etc/systemd/system/chatwoot-worker.1.service
-    cp /home/chatwoot/chatwoot/deployment/chatwoot.target /etc/systemd/system/chatwoot.target
-
+    [ -f "/etc/systemd/system/chatwoot-web.target" ] && {
+      systemctl stop chatwoot-web.target 2>/dev/null || true
+      systemctl disable chatwoot-web.target 2>/dev/null || true
+    }
+    [ -f "/etc/systemd/system/chatwoot-worker.target" ] && {
+      systemctl stop chatwoot-worker.target 2>/dev/null || true
+      systemctl disable chatwoot-worker.target 2>/dev/null || true
+    }
+    cp "$CW_HOME/chatwoot-web.1.service" /etc/systemd/system/
+    cp "$CW_HOME/chatwoot-worker.1.service" /etc/systemd/system/
+    cp "$CW_HOME/chatwoot.target" /etc/systemd/system/
     systemctl daemon-reload
-    systemctl enable chatwoot.target
-    systemctl start chatwoot.target
+    systemctl enable --now chatwoot.target
   fi
 
-  cp /home/chatwoot/chatwoot/deployment/chatwoot /etc/sudoers.d/chatwoot
-  cp /home/chatwoot/chatwoot/deployment/setup_20.04.sh /usr/local/bin/cwctl
+  # Sudoers and cwctl
+  cp "$CW_HOME/chatwoot" /etc/sudoers.d/chatwoot
+  chmod 440 /etc/sudoers.d/chatwoot
+  cp "$CW_HOME/setup_spx_24.04.sh" /usr/local/bin/cwctl
   chmod +x /usr/local/bin/cwctl
 }
 
 ##############################################################################
-# Fetch and install SSL certificates from LetsEncrypt
-# Modify the nginx config and restart nginx.
-# Also modifies FRONTEND_URL in .env file.
-# Globals:
-#   None
-# Arguments:
-#   domain_name
-#   le_email
-# Outputs:
-#   None
+# SSL setup
 ##############################################################################
 function setup_ssl() {
-  if [ "$d" == "y" ]; then
-    echo "debug: setting up ssl"
-    echo "debug: domain: $domain_name"
-    echo "debug: letsencrypt email: $le_email"
-  fi
-  curl https://ssl-config.mozilla.org/ffdhe4096.txt >> /etc/ssl/dhparam
-  wget https://raw.githubusercontent.com/Dev-Simplex/chatspx/producao/deployment/nginx_chatwoot.conf
-  cp nginx_chatwoot.conf /etc/nginx/sites-available/nginx_chatwoot.conf
+  curl -s https://ssl-config.mozilla.org/ffdhe4096.txt >> /etc/ssl/dhparam
+  cp /home/chatwoot/chatwoot/deployment/nginx_chatwoot.conf /etc/nginx/sites-available/nginx_chatwoot.conf
   certbot certonly --non-interactive --agree-tos --nginx -m "$le_email" -d "$domain_name"
   sed -i "s/chatwoot.domain.com/$domain_name/g" /etc/nginx/sites-available/nginx_chatwoot.conf
-  ln -s /etc/nginx/sites-available/nginx_chatwoot.conf /etc/nginx/sites-enabled/nginx_chatwoot.conf
-  systemctl restart nginx
-  sudo -i -u chatwoot << EOF
-  cd chatwoot
-  sed -i "s/http:\/\/0.0.0.0:3000/https:\/\/$domain_name/g" .env
-EOF
+  ln -sf /etc/nginx/sites-available/nginx_chatwoot.conf /etc/nginx/sites-enabled/nginx_chatwoot.conf
+  rm -f /etc/nginx/sites-enabled/default
+  nginx -t && systemctl restart nginx
 
-  # Restart the appropriate chatwoot target
+  sudo -i -u chatwoot bash -lc "
+    cd ~/chatwoot
+    sed -i 's|^FRONTEND_URL=.*|FRONTEND_URL=https://${domain_name}|' .env
+  "
+
+  # Restart appropriate chatwoot target
   if [ -f "/etc/systemd/system/chatwoot-web.target" ]; then
     systemctl restart chatwoot-web.target
   elif [ -f "/etc/systemd/system/chatwoot-worker.target" ]; then
@@ -551,786 +595,435 @@ EOF
 
 ##############################################################################
 # Setup logging
-# Globals:
-#   LOG_FILE
-# Arguments:
-#   None
-# Outputs:
-#   None
 ##############################################################################
 function setup_logging() {
-  touch /var/log/chatwoot-setup.log
-  LOG_FILE="/var/log/chatwoot-setup.log"
+  touch "$LOG_FILE"
 }
 
 function ssl_success_message() {
-    cat << EOF
+  cat << EOF
 
 ***************************************************************************
-Woot! Woot!! Chatwoot server installation is complete.
-The server will be accessible at https://$domain_name
+Instalacao do ChatSPX concluida com sucesso!
+O servidor esta acessivel em https://$domain_name
 
-Join the community at https://chatwoot.com/community?utm_source=cwctl
+Acesso:
+  E-mail: ${cfg_admin_email:-"(criado via onboarding)"}
+  Senha: (a que voce definiu durante o setup)
+
+Proximos passos:
+  1. Acesse https://$domain_name e faca login
+  2. Ajuste o .env em /home/chatwoot/chatwoot/.env se necessario
+  3. Use 'cwctl --help' para gerenciar a instalacao
 ***************************************************************************
 
 EOF
 }
 
 function cwctl_message() {
-  echo $'\U0001F680 Try out the all new Chatwoot CLI tool to manage your installation.'
-  echo $'\U0001F680 Type "cwctl --help" to learn more.'
-}
-
-
-##############################################################################
-# This function handles the installation(-i/--install)
-# Globals:
-#   CW_VERSION
-# Arguments:
-#   None
-# Outputs:
-#   None
-##############################################################################
-function get_cw_version() {
-  CW_VERSION=$(curl -s https://app.chatwoot.com/api | python3 -c 'import sys,json;data=json.loads(sys.stdin.read()); print(data["version"])')
+  echo ""
+  echo "Use 'cwctl --help' para gerenciar sua instalacao ChatSPX."
+  echo ""
 }
 
 ##############################################################################
-# This function handles the installation(-i/--install)
-# Globals:
-#   configure_webserver
-#   install_pg_redis
-# Arguments:
-#   None
-# Outputs:
-#   None
+# INSTALL
 ##############################################################################
 function install() {
-  get_cw_version
   cat << EOF
 
 ***************************************************************************
-              Chatwoot Installation (v$CW_VERSION)
+              Instalacao ChatSPX (branch: $BRANCH)
 ***************************************************************************
 
-For more verbose logs, open up a second terminal and follow along using,
-'tail -f /var/log/chatwoot-setup.log'.
+Para logs detalhados, abra outro terminal e execute:
+  tail -f $LOG_FILE
 
 EOF
 
-  sleep 3
-  read -rp 'Would you like to configure a domain and SSL for Chatwoot?(yes or no): ' configure_webserver
-
-  if [ "$configure_webserver" == "yes" ]; then
+  sleep 2
+  read -rp 'Deseja configurar dominio e SSL para o ChatSPX? (sim ou nao): ' configure_webserver
+  if [ "$configure_webserver" == "sim" ]; then
     get_domain_info
   fi
 
   echo -en "\n"
-  read -rp 'Would you like to install Postgres and Redis? (Answer no if you plan to use external services)(yes or no): ' install_pg_redis
+  read -rp 'Deseja instalar Postgres e Redis localmente? (nao se usar servicos externos) (sim ou nao): ' install_pg_redis
 
-  echo -en "\n➥ 1/9 Installing dependencies. This takes a while.\n"
-  install_dependencies &>> "${LOG_FILE}"
+  # Collect all SPX-specific configuration upfront
+  collect_spx_config
 
-  if [ "$install_pg_redis" != "no" ]; then
-    echo "➥ 2/9 Installing databases."
-    install_databases &>> "${LOG_FILE}"
+  echo -en "\n=> 1/10 Verificando recursos do sistema...\n"
+  ensure_swap &>> "$LOG_FILE"
+
+  echo "=> 2/10 Instalando dependencias. Isso leva um tempo..."
+  install_dependencies &>> "$LOG_FILE"
+
+  if [ "$install_pg_redis" != "nao" ]; then
+    echo "=> 3/10 Instalando bancos de dados (PostgreSQL 16 + pgvector + Redis 7)..."
+    install_databases &>> "$LOG_FILE"
   else
-    echo "➥ 2/9 Skipping Postgres and Redis installation."
+    echo "=> 3/10 Pulando instalacao de bancos de dados."
   fi
 
-  if [ "$configure_webserver" == "yes" ]; then
-    echo "➥ 3/9 Installing webserver."
-    install_webserver &>> "${LOG_FILE}"
+  if [ "$configure_webserver" == "sim" ]; then
+    echo "=> 4/10 Instalando servidor web (Nginx + Certbot)..."
+    install_webserver &>> "$LOG_FILE"
   else
-    echo "➥ 3/9 Skipping webserver installation."
+    echo "=> 4/10 Pulando instalacao do servidor web."
   fi
 
-  echo "➥ 4/9 Setting up Ruby"
-  configure_rvm &>> "${LOG_FILE}"
+  echo "=> 5/10 Instalando Ruby ${RUBY_VERSION} via RVM..."
+  configure_rvm &>> "$LOG_FILE"
 
-  if [ "$install_pg_redis" != "no" ]; then
-    echo "➥ 5/9 Setting up the database."
-    configure_db &>> "${LOG_FILE}"
+  if [ "$install_pg_redis" != "nao" ]; then
+    echo "=> 6/10 Configurando banco de dados..."
+    configure_db &>> "$LOG_FILE"
   else
-    echo "➥ 5/9 Skipping database setup."
+    echo "=> 6/10 Pulando configuracao do banco de dados."
   fi
 
-  echo "➥ 6/9 Installing Chatwoot. This takes a long while."
-  setup_chatwoot &>> "${LOG_FILE}"
+  echo "=> 7/10 Instalando ChatSPX (clone, deps, assets). Isso leva bastante tempo..."
+  setup_chatwoot &>> "$LOG_FILE"
 
-  if [ "$install_pg_redis" != "no" ]; then
-    echo "➥ 7/9 Running database migrations."
-    run_db_migrations &>> "${LOG_FILE}"
+  if [ "$install_pg_redis" != "nao" ]; then
+    echo "=> 8/10 Executando migracoes do banco..."
+    run_db_migrations &>> "$LOG_FILE"
+
+    echo "=> 9/10 Criando primeira conta e super admin..."
+    create_first_account &>> "$LOG_FILE"
   else
-    echo "➥ 7/9 Skipping database migrations."
+    echo "=> 8/10 Pulando migracoes do banco."
+    echo "=> 9/10 Pulando criacao de conta (sem banco local)."
   fi
 
-  echo "➥ 8/9 Setting up systemd services."
-  configure_systemd_services &>> "${LOG_FILE}"
+  echo "=> 10/10 Configurando servicos systemd..."
+  configure_systemd_services &>> "$LOG_FILE"
 
-  public_ip=$(curl http://checkip.amazonaws.com -s)
+  public_ip=$(curl -s http://checkip.amazonaws.com)
 
-  if [ "$configure_webserver" != "yes" ]
-  then
+  if [ "$configure_webserver" != "sim" ]; then
     cat << EOF
-➥ 9/9 Skipping SSL/TLS setup.
 
 ***************************************************************************
-Woot! Woot!! Chatwoot server installation is complete.
-The server will be accessible at http://$public_ip:3000
+Instalacao do ChatSPX concluida com sucesso!
+O servidor esta acessivel em http://$public_ip:3000
 
-To configure a domain and SSL certificate, follow the guide at
-https://www.chatwoot.com/docs/deployment/deploy-chatwoot-in-linux-vm?utm_source=cwctl
+Acesso:
+  E-mail: ${cfg_admin_email:-"(criado via onboarding)"}
+  Senha: (a que voce definiu durante o setup)
 
-Join the community at https://chatwoot.com/community?utm_source=cwctl
+Para configurar dominio e SSL, execute: cwctl --ssl
 ***************************************************************************
 
 EOF
-  cwctl_message
+    cwctl_message
   else
-    echo "➥ 9/9 Setting up SSL/TLS."
-    setup_ssl &>> "${LOG_FILE}"
+    echo "   Configurando SSL/TLS..."
+    setup_ssl &>> "$LOG_FILE"
     ssl_success_message
     cwctl_message
   fi
 
-  if [ "$install_pg_redis" == "no" ]
-  then
-cat <<EOF
+  if [ "$install_pg_redis" == "nao" ]; then
+    cat <<EOF
 
 ***************************************************************************
-The database migrations had not run as Postgres and Redis were not installed
-as part of the installation process. After modifying the environment
-variables (in the .env file) with your external database credentials, run
-the database migrations using the below command.
-'RAILS_ENV=production POSTGRES_STATEMENT_TIMEOUT=600s bundle exec rails db:chatwoot_prepare'.
+As migracoes do banco foram puladas. Apos configurar seu banco externo
+no arquivo /home/chatwoot/chatwoot/.env, execute:
+
+  sudo -i -u chatwoot bash -lc 'cd ~/chatwoot && RAILS_ENV=production POSTGRES_STATEMENT_TIMEOUT=600s bundle exec rails db:chatwoot_prepare'
 ***************************************************************************
 
 EOF
-  cwctl_message
   fi
 
-exit 0
-
+  exit 0
 }
 
 ##############################################################################
-# Access ruby console (-c/--console)
-# Globals:
-#   None
-# Arguments:
-#   None
-# Outputs:
-#   None
+# Console
 ##############################################################################
 function get_console() {
-  sudo -i -u chatwoot bash -c " cd chatwoot && RAILS_ENV=production bundle exec rails c"
+  sudo -i -u chatwoot bash -lc "cd ~/chatwoot && RAILS_ENV=production bundle exec rails c"
 }
 
 ##############################################################################
-# Prints the help message (-c/--console)
-# Globals:
-#   None
-# Arguments:
-#   None
-# Outputs:
-#   None
+# Help
 ##############################################################################
 function help() {
-
   cat <<EOF
-Usage: cwctl [OPTION]...
-Install and manage your Chatwoot installation.
+Uso: cwctl [OPCAO]...
+Instalar e gerenciar sua instalacao ChatSPX.
 
-Example: cwctl -i producao
-Example: cwctl -i --web-only     (for web server ASG)
-Example: cwctl -i --worker-only  (for worker ASG)
-Example: cwctl --convert web     (convert existing to web-only)
-Example: cwctl --convert worker  (convert existing to worker-only)
-Example: cwctl --convert full    (convert back to full deployment)
-Example: cwctl --upgrade         (upgrade to latest producao)
-Example: cwctl -U nome-da-branch (upgrade to a specific branch)
-Example: cwctl -l web
-Example: cwctl --logs worker
-Example: cwctl -c
+Exemplos:
+  cwctl -i                    Instalar da branch $DEFAULT_BRANCH
+  cwctl -I nome-da-branch     Instalar de uma branch especifica
+  cwctl -u                    Atualizar para a ultima versao ($DEFAULT_BRANCH)
+  cwctl -U nome-da-branch     Atualizar de uma branch especifica
+  cwctl --web-only -i         Instalar apenas o servidor web
+  cwctl --worker-only -i      Instalar apenas o worker
+  cwctl --convert web         Converter para web-only
+  cwctl --convert full        Converter para full (web + worker)
+  cwctl -r                    Reiniciar servicos
+  cwctl -l web                Ver logs do servidor web
+  cwctl -l worker             Ver logs do worker
+  cwctl -c                    Console Rails
 
-Installation/Upgrade:
-  -i, --install             Install the latest stable version of Chatwoot
-  -I BRANCH                 Install Chatwoot from a git branch
-  -u, --upgrade             Upgrade Chatwoot to the latest stable version
-  -U BRANCH                 Upgrade Chatwoot from a git branch (EXPERIMENTAL)
-  -s, --ssl                 Fetch and install SSL certificates using LetsEncrypt
-  -w, --webserver           Install and configure Nginx webserver with SSL
-  -W, --web-only            Install only the web server (for ASG deployment)
-  -K, --worker-only         Install only the background worker (for ASG deployment)
-      --convert TYPE        Convert existing deployment (TYPE: web, worker, full)
+Instalacao/Atualizacao:
+  -i, --install             Instalar versao estavel (branch: $DEFAULT_BRANCH)
+  -I BRANCH                 Instalar de uma branch especifica
+  -u, --upgrade             Atualizar para a ultima versao estavel
+  -U BRANCH                 Atualizar de uma branch especifica
+  -s, --ssl                 Gerar certificados SSL (LetsEncrypt)
+  -w, --webserver           Instalar e configurar Nginx com SSL
+  -W, --web-only            Instalar apenas o servidor web
+  -K, --worker-only         Instalar apenas o worker de background
+      --convert TIPO        Converter deployment (TIPO: web, worker, full)
 
-Management:
-  -c, --console             Open ruby console
-  -l, --logs                View logs from Chatwoot. Supported values include web/worker.
-  -r, --restart             Restart Chatwoot server
+Gerenciamento:
+  -c, --console             Abrir console Rails
+  -l, --logs                Ver logs (web/worker)
+  -r, --restart             Reiniciar servicos ChatSPX
 
-Miscellaneous:
-  -d, --debug               Show debug messages
-  -v, --version             Display version information
-  -h, --help                Display this help text
+Outros:
+  -d, --debug               Mostrar mensagens de debug
+  -v, --version             Mostrar versao
+  -h, --help                Mostrar esta ajuda
 
-Exit status:
-Returns 0 if successful; non-zero otherwise.
-
-Report bugs at https://github.com/Dev-Simplex/chatspx/issues
-Get help, https://chatwoot.com/community?utm_source=cwctl
+Reportar bugs em https://github.com/Dev-Simplex/chatspx/issues
 
 EOF
 }
 
 ##############################################################################
-# Get Chatwoot web/worker logs (-l/--logs)
-# Globals:
-#   None
-# Arguments:
-#   None
-# Outputs:
-#   None
+# Logs
 ##############################################################################
 function get_logs() {
   if [ "$SERVICE" == "worker" ]; then
     journalctl -u chatwoot-worker.1.service -f
-  fi
-  if [ "$SERVICE" == "web" ]; then
+  elif [ "$SERVICE" == "web" ]; then
     journalctl -u chatwoot-web.1.service -f
+  else
+    echo "Invalid service. Use: web or worker"
   fi
 }
 
 ##############################################################################
-# Setup SSL (-s/--ssl)
-# Installs nginx if not available.
-# Globals:
-#   domain_name
-#   le_email
-# Arguments:
-#   None
-# Outputs:
-#   None
+# SSL standalone
 ##############################################################################
 function ssl() {
-   if [ "$d" == "y" ]; then
-     echo "Setting up ssl"
-   fi
-   get_domain_info
-   if ! systemctl -q is-active nginx; then
+  get_domain_info
+  if ! systemctl -q is-active nginx; then
     install_webserver
-   fi
-   setup_ssl
-   ssl_success_message
+  fi
+  setup_ssl
+  ssl_success_message
 }
 
 ##############################################################################
-# Abort upgrade if custom code changes detected(-u/--upgrade)
-# Globals:
-#   None
-# Arguments:
-#   None
-# Outputs:
-#   None
+# Upgrade prerequisites
 ##############################################################################
 function upgrade_prereq() {
-  sudo -i -u chatwoot << "EOF"
-  cd chatwoot
-  git update-index --refresh
-  git diff-index --quiet HEAD --
-  if [ "$?" -eq 1 ]; then
-    echo "Custom code changes detected. Aborting update."
-    echo "Please proceed to update manually."
-    exit 1
-  fi
-EOF
+  sudo -i -u chatwoot bash -lc "
+    cd ~/chatwoot
+    git update-index --refresh
+    if ! git diff-index --quiet HEAD --; then
+      echo 'WARNING: Custom code changes detected.'
+      echo 'Stashing changes before upgrade...'
+      git stash
+    fi
+  "
 }
 
-##############################################################################
-# Update redis to v7+ for Rails 7 support(-u/--upgrade)
-# and install libvips for image processing support in Rails 7
-# Globals:
-#   None
-# Arguments:
-#   None
-# Outputs:
-#   None
-##############################################################################
 function upgrade_redis() {
-
-  echo "Checking Redis availability..."
-
-  # Check if Redis is installed
-  if ! command -v redis-server &> /dev/null; then
-    echo "Redis is not installed. Skipping Redis upgrade."
+  if ! command -v redis-server &>/dev/null; then
+    echo "Redis not installed. Skipping."
     return
   fi
-
-  echo "Checking Redis version..."
-
-  # Get current Redis version
-  current_version=$(redis-server --version | awk -F 'v=' '{print $2}' | awk '{print $1}')
-
-  # Parse major version number
-  major_version=$(echo "$current_version" | cut -d. -f1)
-
+  local current_version=$(redis-server --version | awk -F 'v=' '{print $2}' | awk '{print $1}')
+  local major_version=$(echo "$current_version" | cut -d. -f1)
   if [ "$major_version" -ge 7 ]; then
-    echo "Redis is already version $current_version (>= 7). Skipping Redis upgrade."
+    echo "Redis $current_version already >= 7. Skipping."
     return
   fi
-
-  echo "Upgrading Redis to v7+ for Rails 7 support(Chatwoot v2.17+)"
-
-  curl -fsSL https://packages.redis.io/gpg | sudo gpg --dearmor --yes -o /usr/share/keyrings/redis-archive-keyring.gpg
-  echo "deb [signed-by=/usr/share/keyrings/redis-archive-keyring.gpg] https://packages.redis.io/deb $(lsb_release -cs) main" | sudo tee /etc/apt/sources.list.d/redis.list
+  echo "Upgrading Redis to v7+..."
+  curl -fsSL https://packages.redis.io/gpg | gpg --dearmor --yes -o /usr/share/keyrings/redis-archive-keyring.gpg
+  echo "deb [signed-by=/usr/share/keyrings/redis-archive-keyring.gpg] https://packages.redis.io/deb $(lsb_release -cs) main" | tee /etc/apt/sources.list.d/redis.list
   apt-get update -y
   apt-get upgrade redis-server -y
-  apt-get install libvips -y
 }
 
-
-##############################################################################
-# Update nodejs to v20+
-# Globals:
-#   None
-# Arguments:
-#   None
-# Outputs:
-#   None
-##############################################################################
 function upgrade_node() {
-  echo "Checking Node.js version..."
-
-  # Get current Node.js version
-  current_version=$(node --version | cut -c 2-)
-
-  # Parse major version number
-  major_version=$(echo "$current_version" | cut -d. -f1)
-
-  if [ "$major_version" -ge 24 ]; then
-    echo "Node.js is already version $current_version (>= 24.x). Skipping Node.js upgrade."
+  local current_version=$(node --version | cut -c 2-)
+  local major_version=$(echo "$current_version" | cut -d. -f1)
+  if [ "$major_version" -ge "$NODE_MAJOR" ]; then
+    echo "Node.js $current_version already >= ${NODE_MAJOR}.x. Skipping."
     return
   fi
-
-  echo "Upgrading Node.js version to v24.x"
+  echo "Upgrading Node.js to v${NODE_MAJOR}.x..."
   mkdir -p /etc/apt/keyrings
-  curl -fsSL https://deb.nodesource.com/gpgkey/nodesource-repo.gpg.key | sudo gpg --dearmor --yes -o /etc/apt/keyrings/nodesource.gpg
-  NODE_MAJOR=24
-  echo "deb [signed-by=/etc/apt/keyrings/nodesource.gpg] https://deb.nodesource.com/node_$NODE_MAJOR.x nodistro main" | sudo tee /etc/apt/sources.list.d/nodesource.list
-
+  curl -fsSL https://deb.nodesource.com/gpgkey/nodesource-repo.gpg.key | gpg --dearmor --yes -o /etc/apt/keyrings/nodesource.gpg
+  echo "deb [signed-by=/etc/apt/keyrings/nodesource.gpg] https://deb.nodesource.com/node_${NODE_MAJOR}.x nodistro main" | tee /etc/apt/sources.list.d/nodesource.list
   apt-get update
   apt-get install nodejs -y
-
 }
 
-##############################################################################
-# Install pnpm - this replaces yarn starting from Chatwoot 4.0
-# Globals:
-#   None
-# Arguments:
-#   None
-# Outputs:
-#   None
-##############################################################################
 function get_pnpm() {
-  # if pnpm is already installed, return
-  if command -v pnpm &> /dev/null; then
-    echo "pnpm is already installed. Skipping installation."
+  if command -v pnpm &>/dev/null; then
+    echo "pnpm already installed. Skipping."
     return
   fi
-  echo "pnpm is not installed. Installing pnpm..."
+  echo "Installing pnpm..."
   npm install -g pnpm
-  echo "Cleaning up existing node_modules directory..."
-  sudo -i -u chatwoot << "EOF"
-  cd chatwoot
-  rm -rf node_modules
-EOF
+  sudo -i -u chatwoot bash -lc "cd ~/chatwoot && rm -rf node_modules"
 }
 
 ##############################################################################
-# Upgrade an existing installation to latest stable version(-u/--upgrade)
-# Globals:
-#   None
-# Arguments:
-#   None
-# Outputs:
-#   None
+# Upgrade
 ##############################################################################
 function upgrade() {
-  cwctl_upgrade_check
-  get_cw_version
-  echo "Upgrading Chatwoot to v$CW_VERSION (branch: $BRANCH)"
+  echo "Atualizando ChatSPX (branch: $BRANCH)..."
 
-  # Warning for non-master branch upgrades
-  if [ "$BRANCH" != "producao" ]; then
+  if [ "$BRANCH" != "$DEFAULT_BRANCH" ]; then
     cat << EOF
 
-⚠️  WARNING: Branch-specific upgrades are EXPERIMENTAL
-⚠️  Switching between different versions/branches may cause:
-   - Database migration conflicts
-   - Asset compilation errors
-   - Configuration incompatibilities
-   - Data corruption or loss
-
-⚠️  This is NOT recommended for production environments.
-⚠️  Always backup your database before proceeding.
+AVISO: Atualizacao de branch nao-padrao e EXPERIMENTAL.
+Sempre faca backup do banco de dados antes de continuar.
 
 EOF
-    read -p "Do you understand the risks and want to continue? [y/N]: " user_input
+    read -rp "Deseja continuar? [s/N]: " user_input
     user_input=${user_input:-N}
-    if [[ ! "$user_input" =~ ^([yY][eE][sS]|[yY])$ ]]; then
-      echo "Upgrade cancelled."
+    if [[ ! "$user_input" =~ ^([sS][iI][mM]|[sS])$ ]]; then
+      echo "Atualizacao cancelada."
       exit 1
     fi
   fi
 
-  sleep 3
-
-   # Check if CW_VERSION is 4.0 or above
-  if [[ "$(printf '%s\n' "$CW_VERSION" "4.0" | sort -V | head -n 1)" == "4.0" ]]; then
-    echo "Chatwoot v4.0 and above requires pgvector support in PostgreSQL."
-    read -p "Does your postgres support pgvector and want to proceed with the upgrade? [y/N]: " user_input
-    user_input=${user_input:-Y}
-    if [[ "$user_input" =~ ^([yY][eE][sS]|[yY])$ ]]; then
-      echo "Proceeding with the upgrade..."
-    else
-      echo "Upgrade aborted. Please install pgvector support before upgrading."
-      echo "Read more at https://chwt.app/v4/migration"
-      return 1
-    fi
-  fi
-
+  ensure_swap
   upgrade_prereq
   upgrade_redis
   upgrade_node
   get_pnpm
 
-  sudo -i -u chatwoot << EOF
+  sudo -i -u chatwoot bash -lc "
+    set -e
+    cd ~/chatwoot
 
-  # Navigate to the Chatwoot directory
-  cd chatwoot
+    git fetch --all
+    git checkout ${BRANCH}
+    git pull origin ${BRANCH}
 
-  # Pull the latest version of the specified branch
-  git fetch
-  git checkout "$BRANCH" && git pull
+    # Ensure correct Ruby version
+    latest_ruby_version=\$(cat .ruby-version)
+    rvm install \"ruby-\${latest_ruby_version}\"
+    rvm use \"\${latest_ruby_version}\" --default
 
-  # Ensure the ruby version is upto date
-  # Parse the latest ruby version
-  latest_ruby_version="\$(cat '.ruby-version')"
-  rvm install "ruby-\$latest_ruby_version"
-  rvm use "\$latest_ruby_version" --default
+    # Update deps
+    bundle install --jobs \$(nproc) --retry 3
+    pnpm install --frozen-lockfile || pnpm install
 
-  # Update dependencies
-  bundle
-  pnpm i
+    # Recompile assets
+    RAILS_ENV=production NODE_OPTIONS='--max-old-space-size=4096' bundle exec rake assets:precompile
 
-  # Recompile the assets
-  rake assets:precompile RAILS_ENV=production NODE_OPTIONS="--max-old-space-size=4096 --openssl-legacy-provider"
+    # Migrate database
+    RAILS_ENV=production POSTGRES_STATEMENT_TIMEOUT=600s bundle exec rails db:migrate
+  "
 
-  # Migrate the database schema
-  RAILS_ENV=production POSTGRES_STATEMENT_TIMEOUT=600s bundle exec rake db:migrate
-
-EOF
-
-  # Copy the updated services and targets based on existing deployment
-  if [ -f "/etc/systemd/system/chatwoot-web.target" ]; then
-    echo "Updating web-only deployment"
-    cp /home/chatwoot/chatwoot/deployment/chatwoot-web.1.service /etc/systemd/system/chatwoot-web.1.service
-    cp /home/chatwoot/chatwoot/deployment/chatwoot-web.target /etc/systemd/system/chatwoot-web.target
-  elif [ -f "/etc/systemd/system/chatwoot-worker.target" ]; then
-    echo "Updating worker-only deployment"
-    cp /home/chatwoot/chatwoot/deployment/chatwoot-worker.1.service /etc/systemd/system/chatwoot-worker.1.service
-    cp /home/chatwoot/chatwoot/deployment/chatwoot-worker.target /etc/systemd/system/chatwoot-worker.target
+  # Update systemd services
+  local CW_HOME="/home/chatwoot/chatwoot/deployment"
+  if [ -f "/etc/systemd/system/chatwoot-web.target" ] && [ ! -f "/etc/systemd/system/chatwoot.target" ]; then
+    cp "$CW_HOME/chatwoot-web.1.service" /etc/systemd/system/
+    cp "$CW_HOME/chatwoot-web.target" /etc/systemd/system/
+  elif [ -f "/etc/systemd/system/chatwoot-worker.target" ] && [ ! -f "/etc/systemd/system/chatwoot.target" ]; then
+    cp "$CW_HOME/chatwoot-worker.1.service" /etc/systemd/system/
+    cp "$CW_HOME/chatwoot-worker.target" /etc/systemd/system/
   else
-    echo "Updating full deployment"
-    cp /home/chatwoot/chatwoot/deployment/chatwoot-web.1.service /etc/systemd/system/chatwoot-web.1.service
-    cp /home/chatwoot/chatwoot/deployment/chatwoot-worker.1.service /etc/systemd/system/chatwoot-worker.1.service
-    cp /home/chatwoot/chatwoot/deployment/chatwoot.target /etc/systemd/system/chatwoot.target
+    cp "$CW_HOME/chatwoot-web.1.service" /etc/systemd/system/
+    cp "$CW_HOME/chatwoot-worker.1.service" /etc/systemd/system/
+    cp "$CW_HOME/chatwoot.target" /etc/systemd/system/
   fi
 
-  cp /home/chatwoot/chatwoot/deployment/chatwoot /etc/sudoers.d/chatwoot
-  # TODO:(@vn) handle cwctl updates
+  cp "$CW_HOME/chatwoot" /etc/sudoers.d/chatwoot
+  chmod 440 /etc/sudoers.d/chatwoot
+  cp "$CW_HOME/setup_spx_24.04.sh" /usr/local/bin/cwctl
+  chmod +x /usr/local/bin/cwctl
 
   systemctl daemon-reload
 
-  # Restart the appropriate chatwoot target
-  if [ -f "/etc/systemd/system/chatwoot-web.target" ]; then
+  # Restart
+  if [ -f "/etc/systemd/system/chatwoot-web.target" ] && [ ! -f "/etc/systemd/system/chatwoot.target" ]; then
     systemctl restart chatwoot-web.target
-  elif [ -f "/etc/systemd/system/chatwoot-worker.target" ]; then
+  elif [ -f "/etc/systemd/system/chatwoot-worker.target" ] && [ ! -f "/etc/systemd/system/chatwoot.target" ]; then
     systemctl restart chatwoot-worker.target
   else
     systemctl restart chatwoot.target
   fi
 
+  echo ""
+  echo "ChatSPX atualizado com sucesso para a branch: $BRANCH"
+  echo ""
 }
 
 ##############################################################################
-# Restart Chatwoot server (-r/--restart)
-# Globals:
-#   None
-# Arguments:
-#   None
-# Outputs:
-#   None
+# Restart
 ##############################################################################
 function restart() {
-  if [ -f "/etc/systemd/system/chatwoot-web.target" ]; then
+  if [ -f "/etc/systemd/system/chatwoot-web.target" ] && [ ! -f "/etc/systemd/system/chatwoot.target" ]; then
     systemctl restart chatwoot-web.target
-    systemctl status chatwoot-web.target
-  elif [ -f "/etc/systemd/system/chatwoot-worker.target" ]; then
+    systemctl status chatwoot-web.target --no-pager
+  elif [ -f "/etc/systemd/system/chatwoot-worker.target" ] && [ ! -f "/etc/systemd/system/chatwoot.target" ]; then
     systemctl restart chatwoot-worker.target
-    systemctl status chatwoot-worker.target
+    systemctl status chatwoot-worker.target --no-pager
   else
     systemctl restart chatwoot.target
-    systemctl status chatwoot.target
+    systemctl status chatwoot.target --no-pager
   fi
 }
 
 ##############################################################################
-# Convert existing Chatwoot deployment to different type (--convert)
-# Globals:
-#   DEPLOYMENT_TYPE
-# Arguments:
-#   None
-# Outputs:
-#   None
+# Convert deployment type
 ##############################################################################
 function convert_deployment() {
-  echo "Converting Chatwoot deployment to: $DEPLOYMENT_TYPE"
-
-  # Check if Chatwoot is installed
+  echo "Convertendo deployment ChatSPX para: $DEPLOYMENT_TYPE"
   if [ ! -d "/home/chatwoot/chatwoot" ]; then
-    echo "Chatwoot installation not found. Use --install first."
+    echo "Instalacao ChatSPX nao encontrada. Use --install primeiro."
     exit 1
   fi
-
-  # Run the systemd service configuration which handles conversion logic
   configure_systemd_services
-
-  echo "Deployment converted successfully to: $DEPLOYMENT_TYPE"
+  echo "Deployment convertido com sucesso para: $DEPLOYMENT_TYPE"
 }
 
 ##############################################################################
-# Install nginx and setup SSL (-w/--webserver)
-# Globals:
-#   domain_name
-#   le_email
-# Arguments:
-#   None
-# Outputs:
-#   None
+# Webserver standalone
 ##############################################################################
 function webserver() {
-  if [ "$d" == "y" ]; then
-     echo "Installing nginx"
-  fi
   ssl
-  #TODO(@vn): allow installing nginx only without SSL
-}
-
-
-##############################################################################
-# Report cwctl events to hub
-# Globals:
-#   CHATWOOT_HUB_URL
-# Arguments:
-# event_name: Name of the event to report
-# event_data: Data to report
-# installation_identifier: Installation identifier
-# Outputs:
-#   None
-##############################################################################
-function report_event() {
-  local event_name="$1"
-  local event_data="$2"
-
-  CHATWOOT_HUB_URL="https://hub.2.chatwoot.com/events"
-
-  # get installation identifier
-  local installation_identifier=$(get_installation_identifier)
-
-  # Prepare the data for the request
-  local data="{\"installation_identifier\":\"$installation_identifier\",\"event_name\":\"$event_name\",\"event_data\":{\"action\":\"$event_data\"}}"
-
-  # Make the curl request to report the event
-  curl -X POST -H "Content-Type: application/json" -d "$data" "$CHATWOOT_HUB_URL" -s -o /dev/null
-}
-
-
-##############################################################################
-# Get installation identifier
-# Globals:
-#   None
-# Arguments:
-#   None
-# Outputs:
-#   installation_identifier
-##############################################################################
-function get_installation_identifier() {
-
-  local installation_identifier
-
-  installation_identifier=$(sudo -i -u chatwoot << "EOF"
-  cd chatwoot
-  RAILS_ENV=production bundle exec rake instance_id:get_installation_identifier
-EOF
-)
-  echo "$installation_identifier"
 }
 
 ##############################################################################
-# Print cwctl version (-v/--version)
-# Globals:
-#   None
-# Arguments:
-#   None
-# Outputs:
-#   None
+# Version
 ##############################################################################
 function version() {
-  echo "cwctl v$CWCTL_VERSION"
+  echo "cwctl v$CWCTL_VERSION (ChatSPX)"
 }
 
 ##############################################################################
-# Check if there is newer version of cwctl and upgrade if found
-# Globals:
-#   CWCTL_VERSION
-# Arguments:
-# remote_version_url = URL to fetch the remote version from
-# remote_version = Remote version of cwctl
-# Outputs:
-#   None
-##############################################################################
-function cwctl_upgrade_check() {
-    echo "Checking for cwctl updates..."
-
-    local remote_version_url="https://raw.githubusercontent.com/Dev-Simplex/chatspx/producao/VERSION_CWCTL"
-    local remote_version=$(curl -s "$remote_version_url")
-
-    #Check if pip is not installed, and install it if not
-    if ! command -v pip3 &> /dev/null; then
-        echo "Installing pip..."
-        apt-get install -y python3-pip
-    fi
-
-    # Check if packaging library is installed, and install it if not
-    if ! python3 -c "import packaging.version" &> /dev/null; then
-        echo "Installing packaging library..."
-        install_packaging
-    fi
-
-    needs_update=$(python3 -c "from packaging import version; v1 = version.parse('$CWCTL_VERSION'); v2 = version.parse('$remote_version'); print(1 if v2 > v1 else 0)")
-
-    if [ "$needs_update" -eq 1 ]; then
-        echo "Upgrading cwctl from $CWCTL_VERSION to $remote_version"
-        upgrade_cwctl
-        echo $'\U0002713 Done'
-        echo $'\U0001F680 Please re-run your command'
-        exit 0
-    else
-        echo "Your cwctl is up to date"
-    fi
-
-}
-
-##############################################################################
-# Check for PEP 668 restrictions and install packaging accordingly
-# Globals:
-#   None
-# Arguments:
-#   None
-# Outputs:
-#   None
-##############################################################################
-function install_packaging() {
-  ubuntu_version=$(lsb_release -r | awk '{print $2}')
-  if [[ "$ubuntu_version" == "24.04" ]]; then
-    echo "Detected Ubuntu 24.04. Installing packaging library using apt."
-    apt-get install -y python3-packaging
-  else
-    echo "Installing packaging library using pip."
-    python3 -m pip install packaging
-  fi
-}
-
-
-
-##############################################################################
-# upgrade cwctl
-# Globals:
-#   None
-# Arguments:
-#   None
-# Outputs:
-#   None
-##############################################################################
-function upgrade_cwctl() {
-    wget https://raw.githubusercontent.com/Dev-Simplex/chatspx/producao/deployment/setup_20.04.sh -O /usr/local/bin/cwctl > /dev/null 2>&1 && chmod +x /usr/local/bin/cwctl
-}
-
-##############################################################################
-# main function that handles the control flow
-# Globals:
-#   None
-# Arguments:
-#   None
-# Outputs:
-#   None
+# Main
 ##############################################################################
 function main() {
   setup_logging
 
-  if [ "$c" == "y" ]; then
-    report_event "cwctl" "console" > /dev/null 2>&1
-    get_console
-  fi
-
-  if [ "$h" == "y" ]; then
-    report_event "cwctl" "help"  > /dev/null 2>&1
-    help
-  fi
-
-  if [ "$i" == "y" ] || [ "$I" == "y" ]; then
-    install
-    report_event "cwctl" "install"  > /dev/null 2>&1
-  fi
-
-  if [ "$l" == "y" ]; then
-    report_event "cwctl" "logs"  > /dev/null 2>&1
-    get_logs
-  fi
-
-  if [ "$r" == "y" ]; then
-    report_event "cwctl" "restart"  > /dev/null 2>&1
-    restart
-  fi
-
-  if [ "$s" == "y" ]; then
-    report_event "cwctl" "ssl"  > /dev/null 2>&1
-    ssl
-  fi
-
-  if [ "$u" == "y" ] || [ "$U" == "y" ]; then
-    report_event "cwctl" "upgrade"  > /dev/null 2>&1
-    upgrade
-  fi
-
-  if [ "$w" == "y" ]; then
-    report_event "cwctl" "webserver"  > /dev/null 2>&1
-    webserver
-  fi
-
-  if [ "$v" == "y" ]; then
-    report_event "cwctl" "version"  > /dev/null 2>&1
-    version
-  fi
-
-  if [ "$C" == "y" ]; then
-    report_event "cwctl" "convert"  > /dev/null 2>&1
-    convert_deployment
-  fi
-
+  if [ "$c" == "y" ]; then get_console; fi
+  if [ "$h" == "y" ]; then help; fi
+  if [ "$i" == "y" ] || [ "$I" == "y" ]; then install; fi
+  if [ "$l" == "y" ]; then get_logs; fi
+  if [ "$r" == "y" ]; then restart; fi
+  if [ "$s" == "y" ]; then ssl; fi
+  if [ "$u" == "y" ] || [ "$U" == "y" ]; then upgrade; fi
+  if [ "$w" == "y" ]; then webserver; fi
+  if [ "$v" == "y" ]; then version; fi
+  if [ "$C" == "y" ]; then convert_deployment; fi
 }
 
 main "$@"
