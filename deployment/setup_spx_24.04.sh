@@ -374,16 +374,29 @@ function collect_spx_config() {
 }
 
 ##############################################################################
+# Helper: set or add a key=value in the .env file safely
+##############################################################################
+function set_env() {
+  local env_file="/home/chatwoot/chatwoot/.env"
+  local key="$1"
+  local value="$2"
+  if grep -q "^${key}=" "$env_file"; then
+    sudo -u chatwoot perl -pi -e "s|^\Q${key}\E=.*|${key}=${value}|" "$env_file"
+  else
+    echo "${key}=${value}" | sudo -u chatwoot tee -a "$env_file" > /dev/null
+  fi
+}
+
+##############################################################################
 # Clone repo, install deps, configure .env, compile assets
 ##############################################################################
 function setup_chatwoot() {
   local secret=$(head /dev/urandom | tr -dc A-Za-z0-9 | head -c 63 ; echo '')
   get_pgpass
 
+  # Step 1: Clone and install deps
   sudo -i -u chatwoot bash -lc "
     set -e
-
-    # Clone the repo
     if [ ! -d ~/chatwoot ]; then
       git clone ${REPO_URL} ~/chatwoot
     fi
@@ -391,59 +404,49 @@ function setup_chatwoot() {
     git fetch --all
     git checkout ${BRANCH}
     git pull origin ${BRANCH} || true
-
-    # Install Ruby deps
     gem install bundler --no-document
     bundle install --jobs \$(nproc) --retry 3
-
-    # Install JS deps
     pnpm install --frozen-lockfile || pnpm install
-
-    # Configure .env from template
-    cp .env.example .env
-    sed -i \"s|^SECRET_KEY_BASE=.*|SECRET_KEY_BASE=${secret}|\" .env
-    sed -i \"s|^REDIS_URL=.*|REDIS_URL=redis://localhost:6379|\" .env
-    sed -i \"s|^POSTGRES_HOST=.*|POSTGRES_HOST=localhost|\" .env
-    sed -i \"s|^POSTGRES_USERNAME=.*|POSTGRES_USERNAME=chatwoot|\" .env
-    sed -i \"s|^POSTGRES_PASSWORD=.*|POSTGRES_PASSWORD=${pg_pass}|\" .env
-    sed -i \"s|^RAILS_ENV=.*|RAILS_ENV=production|\" .env
-    sed -i \"s|^ENABLE_ACCOUNT_SIGNUP=.*|ENABLE_ACCOUNT_SIGNUP=false|\" .env
-
-    # SPX defaults
-    grep -q '^INSTALLATION_ENV=' .env || echo 'INSTALLATION_ENV=linux_script' >> .env
-
-    # Timezone
-    grep -q '^TZ=' .env && sed -i \"s|^TZ=.*|TZ=${cfg_timezone}|\" .env || echo 'TZ=${cfg_timezone}' >> .env
-
-    # Performance
-    grep -q '^RAILS_MAX_THREADS=' .env && sed -i \"s|^RAILS_MAX_THREADS=.*|RAILS_MAX_THREADS=${cfg_threads}|\" .env || echo 'RAILS_MAX_THREADS=${cfg_threads}' >> .env
-    grep -q '^WEB_CONCURRENCY=' .env && sed -i \"s|^WEB_CONCURRENCY=.*|WEB_CONCURRENCY=${cfg_web_concurrency}|\" .env || echo 'WEB_CONCURRENCY=${cfg_web_concurrency}' >> .env
-    grep -q '^SIDEKIQ_CONCURRENCY=' .env && sed -i \"s|^SIDEKIQ_CONCURRENCY=.*|SIDEKIQ_CONCURRENCY=${cfg_sidekiq}|\" .env || echo 'SIDEKIQ_CONCURRENCY=${cfg_sidekiq}' >> .env
   "
 
-  # SMTP config (run as separate block to handle special chars in password)
+  # Step 2: Configure .env
+  sudo -u chatwoot cp /home/chatwoot/chatwoot/.env.example /home/chatwoot/chatwoot/.env
+
+  # Core
+  set_env "SECRET_KEY_BASE" "$secret"
+  set_env "REDIS_URL" "redis://localhost:6379"
+  set_env "POSTGRES_HOST" "localhost"
+  set_env "POSTGRES_USERNAME" "chatwoot"
+  set_env "POSTGRES_PASSWORD" "$pg_pass"
+  set_env "RAILS_ENV" "production"
+  set_env "ENABLE_ACCOUNT_SIGNUP" "false"
+  set_env "INSTALLATION_ENV" "linux_script"
+
+  # Timezone
+  set_env "TZ" "$cfg_timezone"
+
+  # Performance
+  set_env "RAILS_MAX_THREADS" "$cfg_threads"
+  set_env "WEB_CONCURRENCY" "$cfg_web_concurrency"
+  set_env "SIDEKIQ_CONCURRENCY" "$cfg_sidekiq"
+
+  # SMTP
   if [ "${configure_smtp:-nao}" == "sim" ]; then
-    sudo -i -u chatwoot bash -lc "
-      cd ~/chatwoot
-      sed -i \"s|^MAILER_SENDER_EMAIL=.*|MAILER_SENDER_EMAIL=${cfg_mailer_sender}|\" .env
-      sed -i \"s|^SMTP_DOMAIN=.*|SMTP_DOMAIN=${cfg_smtp_domain}|\" .env
-      sed -i \"s|^SMTP_ADDRESS=.*|SMTP_ADDRESS=${cfg_smtp_address}|\" .env
-      sed -i \"s|^SMTP_PORT=.*|SMTP_PORT=${cfg_smtp_port}|\" .env
-      sed -i \"s|^SMTP_USERNAME=.*|SMTP_USERNAME=${cfg_smtp_user}|\" .env
-      sed -i \"s|^SMTP_PASSWORD=.*|SMTP_PASSWORD=${cfg_smtp_pass}|\" .env
-      sed -i \"s|^SMTP_AUTHENTICATION=.*|SMTP_AUTHENTICATION=${cfg_smtp_auth}|\" .env
-      sed -i \"s|^SMTP_ENABLE_STARTTLS_AUTO=.*|SMTP_ENABLE_STARTTLS_AUTO=true|\" .env
-    "
+    set_env "MAILER_SENDER_EMAIL" "$cfg_mailer_sender"
+    set_env "SMTP_DOMAIN" "$cfg_smtp_domain"
+    set_env "SMTP_ADDRESS" "$cfg_smtp_address"
+    set_env "SMTP_PORT" "$cfg_smtp_port"
+    set_env "SMTP_USERNAME" "$cfg_smtp_user"
+    set_env "SMTP_PASSWORD" "$cfg_smtp_pass"
+    set_env "SMTP_AUTHENTICATION" "$cfg_smtp_auth"
+    set_env "SMTP_ENABLE_STARTTLS_AUTO" "true"
   fi
 
-  # WAHA config
+  # WAHA
   if [ "${configure_waha:-nao}" == "sim" ]; then
-    sudo -i -u chatwoot bash -lc "
-      cd ~/chatwoot
-      grep -q '^WAHA_API_URL=' .env && sed -i \"s|^WAHA_API_URL=.*|WAHA_API_URL=${cfg_waha_url}|\" .env || echo 'WAHA_API_URL=${cfg_waha_url}' >> .env
-      grep -q '^WAHA_API_KEY=' .env && sed -i \"s|^WAHA_API_KEY=.*|WAHA_API_KEY=${cfg_waha_key}|\" .env || echo 'WAHA_API_KEY=${cfg_waha_key}' >> .env
-      grep -q '^WAHA_DEFAULT_SESSION=' .env || echo 'WAHA_DEFAULT_SESSION=${cfg_waha_session}' >> .env
-    "
+    set_env "WAHA_API_URL" "$cfg_waha_url"
+    set_env "WAHA_API_KEY" "$cfg_waha_key"
+    set_env "WAHA_DEFAULT_SESSION" "$cfg_waha_session"
   fi
 
   # Compile assets
@@ -469,38 +472,39 @@ function run_db_migrations() {
 ##############################################################################
 function create_first_account() {
   if [ -z "${cfg_admin_email:-}" ] || [ -z "${cfg_admin_password:-}" ]; then
-    echo "Skipping account creation (no admin credentials provided)."
+    echo "Pulando criacao de conta (credenciais nao informadas)."
     return
   fi
 
-  sudo -i -u chatwoot bash -lc "
-    cd ~/chatwoot
-    RAILS_ENV=production bundle exec rails runner \"
-      return if User.exists?(email: '${cfg_admin_email}')
+  # Write a Ruby script to a temp file to avoid shell escaping issues
+  local script_file="/tmp/chatwoot_create_account.rb"
+  cat > "$script_file" <<RUBY
+return if User.exists?(email: '$cfg_admin_email')
 
-      account = Account.create!(name: '${cfg_account_name}')
+account = Account.create!(name: '$cfg_account_name')
 
-      user = User.new(
-        name: '${cfg_admin_name}',
-        email: '${cfg_admin_email}',
-        password: '${cfg_admin_password}',
-        type: 'SuperAdmin'
-      )
-      user.skip_confirmation!
-      user.save!
+user = User.new(
+  name: '$cfg_admin_name',
+  email: '$cfg_admin_email',
+  password: '$cfg_admin_password',
+  type: 'SuperAdmin'
+)
+user.skip_confirmation!
+user.save!
 
-      AccountUser.create!(
-        account_id: account.id,
-        user_id: user.id,
-        role: :administrator
-      )
+AccountUser.create!(
+  account_id: account.id,
+  user_id: user.id,
+  role: :administrator
+)
 
-      # Disable onboarding screen since we already have an account
-      Redis::Alfred.delete(Redis::Alfred::CHATWOOT_INSTALLATION_ONBOARDING)
+Redis::Alfred.delete(Redis::Alfred::CHATWOOT_INSTALLATION_ONBOARDING)
+puts "Conta '#{account.name}' criada com admin #{user.email}"
+RUBY
 
-      puts \\\"Account '#{account.name}' created with admin #{user.email}\\\"
-    \"
-  "
+  chmod 644 "$script_file"
+  sudo -i -u chatwoot bash -lc "cd ~/chatwoot && RAILS_ENV=production bundle exec rails runner /tmp/chatwoot_create_account.rb"
+  rm -f "$script_file"
 }
 
 ##############################################################################
@@ -578,10 +582,8 @@ function setup_ssl() {
   rm -f /etc/nginx/sites-enabled/default
   nginx -t && systemctl restart nginx
 
-  sudo -i -u chatwoot bash -lc "
-    cd ~/chatwoot
-    sed -i 's|^FRONTEND_URL=.*|FRONTEND_URL=https://${domain_name}|' .env
-  "
+  local env_file="/home/chatwoot/chatwoot/.env"
+  set_env "FRONTEND_URL" "https://${domain_name}"
 
   # Restart appropriate chatwoot target
   if [ -f "/etc/systemd/system/chatwoot-web.target" ]; then
