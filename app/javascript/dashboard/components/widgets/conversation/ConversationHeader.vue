@@ -14,6 +14,7 @@ import wootConstants from 'dashboard/constants/globals';
 import { conversationListPageURL } from 'dashboard/helper/URLHelper';
 import { snoozedReopenTime } from 'dashboard/helper/snoozeHelpers';
 import { useInbox } from 'dashboard/composables/useInbox';
+import { useUISettings } from 'dashboard/composables/useUISettings';
 import { useI18n } from 'vue-i18n';
 
 const props = defineProps({
@@ -33,7 +34,15 @@ const route = useRoute();
 const conversationHeader = ref(null);
 const { width } = useElementSize(conversationHeader);
 const { isAWebWidgetInbox } = useInbox();
+const { uiSettings, updateUISettings } = useUISettings();
 const showMessageSearch = ref(false);
+
+const toggleContactPanel = () => {
+  updateUISettings({
+    is_contact_sidebar_open: !uiSettings.value.is_contact_sidebar_open,
+    is_copilot_panel_open: false,
+  });
+};
 
 const currentChat = computed(() => store.getters.getSelectedChat);
 const accountId = computed(() => store.getters.getCurrentAccountId);
@@ -123,7 +132,10 @@ const hasSlaPolicyId = computed(() => props.chat?.sla_policy_id);
       >
         <div class="flex flex-row items-center max-w-full gap-1 p-0 m-0">
           <span
-            class="text-sm font-medium truncate leading-tight text-n-slate-12"
+            class="text-sm font-medium truncate leading-tight text-n-slate-12 cursor-pointer hover:text-n-brand-default transition-colors"
+            role="button"
+            tabindex="0"
+            @click="toggleContactPanel"
           >
             {{ currentContact.name }}
           </span>
