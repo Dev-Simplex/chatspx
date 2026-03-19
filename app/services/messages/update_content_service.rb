@@ -15,7 +15,7 @@ module Messages
       validate!
       waha_message_id = resolve_waha_message_id
       edit_on_waha(waha_message_id)
-      persist_edit
+      persist_edit(waha_message_id)
       @message
     end
 
@@ -27,6 +27,7 @@ module Messages
       raise StandardError, 'Message has been deleted' if @message.content_attributes['deleted']
       raise StandardError, 'Inbox does not support message editing' unless waha_inbox?
       raise StandardError, 'Only the sender can edit this message' unless sent_by_current_user?
+      raise StandardError, 'Message is too old to edit (15 minute limit)' unless within_edit_window?
     end
 
     def waha_inbox?
@@ -35,6 +36,10 @@ module Messages
 
     def sent_by_current_user?
       Current.user && @message.sender_id == Current.user.id && @message.sender_type == 'User'
+    end
+
+    def within_edit_window?
+      (Time.zone.now - @message.created_at) < EDIT_WINDOW_SECONDS
     end
 
     # Returns the WAHA message ID to use for editing.
@@ -49,7 +54,7 @@ module Messages
       Rails.logger.info("[UpdateContentService] Looking up WAHA message for message_id=#{@message.id}, chat_id=#{chat_id}, " \
                         "session=#{inbox.waha_session_name}, content=#{@message.content.truncate(100).inspect}")
 
-      messages = Waha::ApiService.new.get_messages(inbox.waha_session_name, chat_id, limit: 50)
+      messages = Waha::ApiService.new.get_messages(inbox.waha_session_name, chat_id, limit: 100)
 
       unless messages.is_a?(Array)
         Rails.logger.warn("[UpdateContentService] WAHA API returned non-array: #{messages.class} => #{messages.inspect.truncate(500)}")
@@ -73,14 +78,16 @@ module Messages
 
         # WAHA prefixes outgoing message bodies with "*AgentName*:\n", strip it before comparing
         stripped_body = body.sub(/\A\*[^*]*\*:\n/, '')
-        content_match = stripped_body == @message.content || body == @message.content
+        previous_content = @message.content_attributes&.[]('previous_content')
+        content_match = stripped_body == @message.content || body == @message.content ||
+                        (previous_content.present? && (stripped_body == previous_content || body == previous_content))
         time_diff = (timestamp - created_at_ts).abs
         time_match = time_diff < EDIT_WINDOW_SECONDS
 
         if from_me
           Rails.logger.info("[UpdateContentService] Candidate fromMe message: body=#{body.truncate(100).inspect}, " \
-                          "timestamp=#{timestamp}, chatwoot_ts=#{created_at_ts}, time_diff=#{time_diff}s, " \
-                          "content_match=#{content_match}, time_match=#{time_match}")
+                            "timestamp=#{timestamp}, chatwoot_ts=#{created_at_ts}, time_diff=#{time_diff}s, " \
+                            "content_match=#{content_match}, time_match=#{time_match}")
         end
 
         from_me && content_match && time_match
@@ -112,18 +119,21 @@ module Messages
       raise StandardError, "WAHA API error: #{e.message}"
     end
 
-    def persist_edit
+    def persist_edit(waha_message_id)
       previous = @message.content
       editor = Current.user
-      @message.update!(
+      attrs = {
         content: @new_content,
         content_attributes: @message.content_attributes.merge(
           'previous_content' => previous,
-          'edited'           => true,
-          'edited_at'        => Time.zone.now.iso8601,
-          'edited_by'        => editor ? { 'id' => editor.id, 'name' => editor.name } : nil
+          'edited' => true,
+          'edited_at' => Time.zone.now.iso8601,
+          'edited_by' => editor ? { 'id' => editor.id, 'name' => editor.name } : nil
         )
-      )
+      }
+      # Persist WAHA message ID so future edits skip the API lookup
+      attrs[:source_id] = waha_message_id if @message.source_id.blank? && waha_message_id.present?
+      @message.update!(attrs)
     end
 
     def inbox
