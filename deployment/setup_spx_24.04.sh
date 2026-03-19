@@ -462,8 +462,12 @@ BUILDSCRIPT
 ##############################################################################
 function run_db_migrations() {
   sudo -i -u chatwoot bash -l <<'MIGRATESCRIPT'
+    set -e
     cd ~/chatwoot
-    RAILS_ENV=production POSTGRES_STATEMENT_TIMEOUT=600s bundle exec rails db:chatwoot_prepare
+    RAILS_ENV=production bundle exec rails db:create 2>/dev/null || true
+    RAILS_ENV=production POSTGRES_STATEMENT_TIMEOUT=600s bundle exec rails db:schema:load
+    RAILS_ENV=production POSTGRES_STATEMENT_TIMEOUT=600s bundle exec rails db:migrate
+    RAILS_ENV=production bundle exec rails db:seed
 MIGRATESCRIPT
 }
 
