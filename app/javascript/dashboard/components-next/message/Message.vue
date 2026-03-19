@@ -166,7 +166,7 @@ const isWithinEditWindow = computed(() => {
 });
 
 const isSentByCurrentUser = computed(() => {
-  return props.senderId === props.currentUserId;
+  return (props.senderId || props.sender?.id) === props.currentUserId;
 });
 
 const scheduledBy = computed(() => props.contentAttributes?.scheduledBy);

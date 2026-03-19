@@ -9,9 +9,7 @@ class Contacts::WhatsappValidationJob < ApplicationJob
     return if session_names.blank?
 
     scope = account.contacts.where.not(phone_number: [nil, ''])
-    if only_missing
-      scope = scope.where("custom_attributes ->> 'whatsapp_last_checked_at' IS NULL")
-    end
+    scope = scope.where("custom_attributes ->> 'whatsapp_last_checked_at' IS NULL") if only_missing
 
     scope.find_in_batches(batch_size: batch_size) do |batch|
       batch.each do |contact|
@@ -44,7 +42,13 @@ class Contacts::WhatsappValidationJob < ApplicationJob
 
   def resolve_session_names(account)
     session_names = account.inboxes.where.not(waha_session_name: nil).pluck(:waha_session_name).uniq
-    return ['Simplex'] if session_names.blank?
+    if session_names.blank?
+      default_session = ENV.fetch('WAHA_DEFAULT_SESSION', nil)
+      return [default_session] if default_session.present?
+
+      Rails.logger.info('[WhatsappValidationJob] No WAHA sessions found and WAHA_DEFAULT_SESSION not set. Skipping.')
+      return []
+    end
 
     session_names
   end
@@ -61,21 +65,19 @@ class Contacts::WhatsappValidationJob < ApplicationJob
     last_session = nil
 
     session_names.each do |session_name|
-      begin
-        response = service.check_contact_exists(
-          session_name: session_name,
-          phone: normalized_phone
-        )
-        number_exists = response.fetch('numberExists') { response[:numberExists] }
-        had_response = true
-        last_session = session_name
+      response = service.check_contact_exists(
+        session_name: session_name,
+        phone: normalized_phone
+      )
+      number_exists = response.fetch('numberExists') { response[:numberExists] }
+      had_response = true
+      last_session = session_name
 
-        return [true, session_name] if number_exists
+      return [true, session_name] if number_exists
 
-        had_false = true if number_exists == false
-      rescue Waha::ApiService::Error
-        next
-      end
+      had_false = true if number_exists == false
+    rescue Waha::ApiService::Error
+      next
     end
 
     return [false, last_session] if had_response && had_false

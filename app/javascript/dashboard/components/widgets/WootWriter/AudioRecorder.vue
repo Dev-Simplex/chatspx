@@ -32,6 +32,7 @@ const isRecordingPaused = ref(false);
 const isProcessing = ref(false);
 const isPlaying = ref(false);
 const hasRecording = ref(false);
+const currentAudioUrl = ref(null);
 
 const formatTimeProgress = time => {
   const duration = intervalToDuration({ start: 0, end: time });
@@ -92,7 +93,11 @@ const initWaveSurfer = () => {
     emit('recordProcessing');
 
     try {
+      if (currentAudioUrl.value) {
+        URL.revokeObjectURL(currentAudioUrl.value);
+      }
       const audioUrl = URL.createObjectURL(blob);
+      currentAudioUrl.value = audioUrl;
       const audioBlob = await convertAudio(blob, props.audioRecordFormat);
       const fileName = `${getUuid()}.mp3`;
       const file = new File([audioBlob], fileName, {
@@ -158,6 +163,10 @@ onMounted(() => {
 });
 
 onUnmounted(() => {
+  if (currentAudioUrl.value) {
+    URL.revokeObjectURL(currentAudioUrl.value);
+    currentAudioUrl.value = null;
+  }
   if (wavesurfer.value) {
     wavesurfer.value.destroy();
   }

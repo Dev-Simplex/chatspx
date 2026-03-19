@@ -101,6 +101,7 @@ class Attachment < ApplicationRecord
 
   def audio_metadata
     audio_file_data = base_data.merge(file_metadata)
+    audio_file_data[:data_url] = download_url if file.attached?
     audio_file_data.merge(
       {
         transcribed_text: meta&.[]('transcribed_text') || ''

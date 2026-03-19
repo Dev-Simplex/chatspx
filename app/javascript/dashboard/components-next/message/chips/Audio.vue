@@ -2,6 +2,7 @@
 import {
   computed,
   onMounted,
+  onBeforeUnmount,
   useTemplateRef,
   ref,
   getCurrentInstance,
@@ -33,11 +34,13 @@ const audioContainer = useTemplateRef('audioContainer');
 
 const isPlaying = ref(false);
 const isMuted = ref(false);
+const isBuffering = ref(false);
 const currentTime = ref(0);
 const duration = ref(0);
 const playbackSpeed = ref(1);
 const hasLoadedSource = ref(false);
 const hasPrewarmedMetadata = ref(false);
+const isLoadingSource = ref(false);
 
 const { uid } = getCurrentInstance();
 
@@ -55,11 +58,14 @@ const audioSourceUrl = computed(() => {
 
 const ensureAudioSourceLoaded = async () => {
   if (hasLoadedSource.value) return true;
+  if (isLoadingSource.value) return false;
   if (!attachment.dataUrl) return false;
 
+  isLoadingSource.value = true;
   hasLoadedSource.value = true;
   await nextTick();
   audioPlayer.value?.load();
+  isLoadingSource.value = false;
   return true;
 };
 
@@ -92,6 +98,17 @@ onMounted(() => {
   if (audioPlayer.value) {
     audioPlayer.value.playbackRate = playbackSpeed.value;
   }
+});
+
+onBeforeUnmount(() => {
+  if (audioPlayer.value) {
+    audioPlayer.value.pause();
+    audioPlayer.value.removeAttribute('src');
+    audioPlayer.value.load();
+  }
+  isPlaying.value = false;
+  isBuffering.value = false;
+  currentTime.value = 0;
 });
 
 // Listen for global audio play events and pause if it's not this audio
@@ -167,6 +184,19 @@ const changePlaybackSpeed = () => {
   audioPlayer.value.playbackRate = playbackSpeed.value;
 };
 
+const onWaiting = () => {
+  isBuffering.value = true;
+};
+
+const onCanPlay = () => {
+  isBuffering.value = false;
+};
+
+const onAudioError = () => {
+  isPlaying.value = false;
+  isBuffering.value = false;
+};
+
 const downloadAudio = async () => {
   const { fileType, dataUrl, extension } = attachment;
   downloadFile({ url: dataUrl, type: fileType, extension });
@@ -177,12 +207,15 @@ const downloadAudio = async () => {
   <audio
     ref="audioPlayer"
     controls
-    preload="metadata"
+    preload="auto"
     class="hidden"
     playsinline
     @loadedmetadata="onLoadedMetadata"
     @timeupdate="onTimeUpdate"
     @ended="onEnd"
+    @waiting="onWaiting"
+    @canplay="onCanPlay"
+    @error="onAudioError"
   >
     <source :src="audioSourceUrl" />
   </audio>
@@ -198,7 +231,12 @@ const downloadAudio = async () => {
     <div class="flex gap-1 w-full flex-1 items-center justify-start">
       <button class="p-0 border-0 size-8" @click="playOrPause">
         <Icon
-          v-if="isPlaying"
+          v-if="isBuffering"
+          class="size-8 animate-spin"
+          icon="i-lucide-loader-2"
+        />
+        <Icon
+          v-else-if="isPlaying"
           class="size-8"
           icon="i-teenyicons-pause-small-solid"
         />

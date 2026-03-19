@@ -1,7 +1,7 @@
 class Api::V1::Accounts::ContactsController < Api::V1::Accounts::BaseController
   include Sift
 
-  WAHA_VALIDATION_SESSION_NAME = 'Simplex'.freeze
+  WAHA_VALIDATION_SESSION_NAME = ENV.fetch('WAHA_DEFAULT_SESSION', nil).freeze
   REVALIDATION_COOLDOWN_SECONDS = 300
 
   sort_on :email, type: :string
@@ -240,9 +240,9 @@ class Api::V1::Accounts::ContactsController < Api::V1::Accounts::BaseController
 
   def resolve_waha_session_name
     session_names = Current.account.inboxes.where.not(waha_session_name: [nil, '']).distinct.order(:waha_session_name).pluck(:waha_session_name)
-    return WAHA_VALIDATION_SESSION_NAME if session_names.blank?
+    return WAHA_VALIDATION_SESSION_NAME if session_names.blank? && WAHA_VALIDATION_SESSION_NAME.present?
     return session_names.first if session_names.one?
-    return WAHA_VALIDATION_SESSION_NAME if session_names.include?(WAHA_VALIDATION_SESSION_NAME)
+    return WAHA_VALIDATION_SESSION_NAME if WAHA_VALIDATION_SESSION_NAME.present? && session_names.include?(WAHA_VALIDATION_SESSION_NAME)
 
     session_names.first
   end
