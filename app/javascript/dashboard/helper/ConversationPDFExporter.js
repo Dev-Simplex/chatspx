@@ -1,4 +1,4 @@
-// eslint-disable-next-line import/no-extraneous-dependencies
+/* eslint-disable no-plusplus, no-await-in-loop, no-shadow */
 import html2pdf from 'html2pdf.js';
 import MessageAPI from '../api/inbox/message';
 import { format, fromUnixTime } from 'date-fns';
@@ -757,6 +757,22 @@ const generateHTMLTemplate = ({
 /**
  * Gera o PDF com as conversas selecionadas
  */
+/**
+ * Filtra mensagens por período e notas privadas
+ */
+export const filterMessages = (
+  messages,
+  { dateFrom, dateTo, includePrivateNotes = true } = {}
+) => {
+  return messages.filter(msg => {
+    const timestamp = msg.createdAt || msg.created_at || 0;
+    if (dateFrom && timestamp < dateFrom) return false;
+    if (dateTo && timestamp > dateTo) return false;
+    if (!includePrivateNotes && msg.private === true) return false;
+    return true;
+  });
+};
+
 export const generateConversationsPDF = async ({
   conversations,
   contact,
@@ -766,6 +782,9 @@ export const generateConversationsPDF = async ({
   user,
   account,
   onProgress,
+  dateFrom,
+  dateTo,
+  includePrivateNotes = true,
 }) => {
   let offscreenContainer;
   let hiddenNinjaKeys = [];
@@ -799,20 +818,24 @@ export const generateConversationsPDF = async ({
       }
 
       try {
-        const messages = await fetchAllMessages(
-          conversation.id,
-          (total, batch) => {
-            if (onProgress) {
-              onProgress({
-                current: i + 1,
-                total: sortedConversations.length,
-                conversationId: conversation.id,
-                messagesLoaded: total,
-                status: 'fetching',
-              });
-            }
+        let messages = await fetchAllMessages(conversation.id, total => {
+          if (onProgress) {
+            onProgress({
+              current: i + 1,
+              total: sortedConversations.length,
+              conversationId: conversation.id,
+              messagesLoaded: total,
+              status: 'fetching',
+            });
           }
-        );
+        });
+
+        // Aplicar filtros de período e notas privadas
+        messages = filterMessages(messages, {
+          dateFrom,
+          dateTo,
+          includePrivateNotes,
+        });
 
         // Validar limite de mensagens por conversa
         if (messages.length > MAX_MESSAGES_PER_CONVERSATION) {

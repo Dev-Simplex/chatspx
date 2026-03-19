@@ -532,5 +532,27 @@
     "CLEAR_CONVERSATION": "Limpar conversa",
     "CLEAR_CONVERSATION_CONFIRM": "Tem certeza? Todas as mensagens serão removidas e isso não pode ser desfeito.",
     "CONFIRM_CLEAR": "Limpar"
+  },
+  "EXPORT_CONVERSATION": {
+    "TITLE": "Exportar Conversa",
+    "BUTTON_LABEL": "Exportar PDF",
+    "CONVERSATIONS_COUNT": "{count} conversas",
+    "LIMIT_WARNING": "Você selecionou {count} conversas mas o máximo é {max}. Selecione menos conversas.",
+    "DATE_RANGE": "Período",
+    "DATE_FROM": "De",
+    "DATE_TO": "Até",
+    "DATE_TO_LABEL": "até",
+    "DATE_HINT": "Deixe vazio para exportar todas as mensagens",
+    "INCLUDE_PRIVATE": "Incluir notas privadas",
+    "INCLUDE_PRIVATE_HINT": "Notas internas serão incluídas no PDF",
+    "EXPORT_PDF": "Exportar PDF",
+    "CANCEL": "Cancelar",
+    "SUCCESS": "PDF exportado com sucesso",
+    "ERROR": "Falha ao exportar PDF",
+    "PROGRESS": {
+      "FETCHING": "Buscando mensagens...",
+      "LOADING_MESSAGES": "{count} mensagens carregadas...",
+      "GENERATING": "Gerando PDF..."
+    }
   }
 }
