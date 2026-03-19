@@ -9,18 +9,9 @@ import Icon from 'next/icon/Icon.vue';
 import { MESSAGE_TYPES } from './constants';
 
 const props = defineProps({
-  show: {
-    type: Boolean,
-    default: false,
-  },
-  message: {
-    type: Object,
-    required: true,
-  },
-  selectedMessageIds: {
-    type: Array,
-    default: () => [],
-  },
+  show: { type: Boolean, default: false },
+  message: { type: Object, required: true },
+  selectedMessageIds: { type: Array, default: () => [] },
 });
 
 const emit = defineEmits(['close', 'forwarded']);
@@ -29,19 +20,44 @@ const { t } = useI18n();
 const store = useStore();
 
 const searchQuery = ref('');
-const selectedConversations = ref([]);
-const selectedMessageIds = ref([]);
+const selectedItems = ref([]);
+const pickedMessageIds = ref([]);
 const showMessagePicker = ref(false);
 const isForwarding = ref(false);
 const isLoadingConversations = ref(false);
+const isSearching = ref(false);
 const allConversations = ref([]);
-const currentConversationId = computed(() => props.message?.conversationId || props.message?.conversation_id);
+const searchResults = ref([]);
+const searchTimeout = ref(null);
+const currentConversationId = computed(
+  () => props.message?.conversationId || props.message?.conversation_id
+);
 const MAX_MESSAGES = 20;
+const MAX_TARGETS = 10;
 
-// Buscar conversas quando modal abrir
+const handleClose = () => {
+  searchQuery.value = '';
+  selectedItems.value = [];
+  pickedMessageIds.value = [];
+  showMessagePicker.value = false;
+  searchResults.value = [];
+  emit('close');
+};
+
+const mapConversation = (conv, fallbackName) => ({
+  id: conv.id,
+  displayId: conv.display_id || conv.id,
+  type: 'conversation',
+  name: conv.meta?.sender?.name || fallbackName,
+  phone: conv.meta?.sender?.phone_number || '',
+  email: conv.meta?.sender?.email || '',
+  avatar: conv.meta?.sender?.thumbnail || conv.meta?.sender?.avatar_url || '',
+  lastMessage: conv.messages?.[0]?.content || '',
+  contactId: conv.meta?.sender?.id,
+});
+
 const fetchConversations = async () => {
   if (isLoadingConversations.value) return;
-  
   isLoadingConversations.value = true;
   try {
     const response = await ConversationsAPI.getAllConversationsForForward({
@@ -49,130 +65,159 @@ const fetchConversations = async () => {
       page: 1,
       perPage: 100,
     });
-    
-    // Filtrar a conversa atual e formatar dados
-    const conversations = (response.data?.data?.payload || response.data?.payload || []).filter(
-      conv => conv.id !== currentConversationId.value
+    const conversations = (
+      response.data?.data?.payload ||
+      response.data?.payload ||
+      []
+    ).filter(conv => conv.id !== currentConversationId.value);
+    const unknownLabel = t('CONVERSATION.UNKNOWN_CONTACT');
+    allConversations.value = conversations.map(conv =>
+      mapConversation(conv, unknownLabel)
     );
-    
-    allConversations.value = conversations;
-  } catch (error) {
-    console.error('Error fetching conversations:', error);
-    useAlert(
-      t('CONVERSATION.FORWARD.ERROR_LOADING') || 'Erro ao carregar conversas'
-    );
-    // Fallback para conversas do store
+  } catch {
     const storeConversations = store.getters.getAllConversations || [];
-    allConversations.value = storeConversations.filter(
-      conv => conv.id !== currentConversationId.value
-    );
+    const unknownLabel = t('CONVERSATION.UNKNOWN_CONTACT');
+    allConversations.value = storeConversations
+      .filter(conv => conv.id !== currentConversationId.value)
+      .map(conv => mapConversation(conv, unknownLabel));
   } finally {
     isLoadingConversations.value = false;
   }
 };
 
-const selectedConversationDetails = computed(() => {
-  const selectedSet = new Set(selectedConversations.value);
-  return allConversations.value.filter(conv => selectedSet.has(conv.id));
-});
-
-const getConversationName = conversation =>
-  conversation.meta?.sender?.name || t('CONVERSATION.UNKNOWN_CONTACT');
-
-const getConversationSecondary = conversation =>
-  conversation.meta?.sender?.phone_number ||
-  conversation.meta?.sender?.email ||
-  '';
-
-const getConversationAvatar = conversation =>
-  conversation.meta?.sender?.thumbnail ||
-  conversation.meta?.sender?.avatar_url ||
-  '';
-
-const getLastMessagePreview = conversation => {
-  const message = conversation.messages?.[0];
-  if (!message) return '';
-  if (message.content) return message.content;
-  const attachmentCount = message.attachments?.length || 0;
-  if (attachmentCount > 0) {
-    return t('CONVERSATION.FORWARD.ATTACHMENT_PREVIEW', {
-      count: attachmentCount,
-    });
+const searchContacts = async query => {
+  if (!query || query.length < 2) {
+    searchResults.value = [];
+    return;
   }
-  return t('CONVERSATION.NO_CONTENT');
+  isSearching.value = true;
+  try {
+    const response = await ConversationsAPI.searchContactsForForward({
+      query,
+    });
+    const contacts = response.data?.payload || [];
+    const existingContactIds = new Set(
+      allConversations.value.map(c => c.contactId).filter(Boolean)
+    );
+    const unknownLabel = t('CONVERSATION.UNKNOWN_CONTACT');
+    searchResults.value = contacts
+      .filter(contact => !existingContactIds.has(contact.id))
+      .map(contact => ({
+        id: `contact-${contact.id}`,
+        contactId: contact.id,
+        type: 'contact',
+        name: contact.name || unknownLabel,
+        phone: contact.phone_number || '',
+        email: contact.email || '',
+        avatar: contact.thumbnail || '',
+        lastMessage: '',
+      }));
+  } catch {
+    searchResults.value = [];
+  } finally {
+    isSearching.value = false;
+  }
 };
 
-// Filter conversations based on search
-const filteredConversations = computed(() => {
-  if (!searchQuery.value) {
-    return allConversations.value.slice(0, 50); // Show first 50
+const debouncedSearch = query => {
+  clearTimeout(searchTimeout.value);
+  searchTimeout.value = setTimeout(() => searchContacts(query), 300);
+};
+
+watch(searchQuery, newQuery => {
+  if (newQuery && newQuery.length >= 2) {
+    debouncedSearch(newQuery);
+  } else {
+    searchResults.value = [];
   }
-  
-  const query = searchQuery.value.toLowerCase();
-  return allConversations.value.filter(conv => {
-    const contactName = conv.meta?.sender?.name?.toLowerCase() || '';
-    const email = conv.meta?.sender?.email?.toLowerCase() || '';
-    const phone = conv.meta?.sender?.phone_number?.toLowerCase() || '';
-    const displayId = String(conv.id || '').toLowerCase();
-    return (
-      contactName.includes(query) ||
-      email.includes(query) ||
-      phone.includes(query) ||
-      displayId.includes(query)
-    );
-  });
 });
 
-const isConversationSelected = (convId) => {
-  return selectedConversations.value.includes(convId);
+const filteredList = computed(() => {
+  const query = searchQuery.value?.toLowerCase();
+  let conversationItems = allConversations.value;
+  if (query && query.length >= 1) {
+    conversationItems = conversationItems.filter(
+      item =>
+        item.name?.toLowerCase().includes(query) ||
+        item.email?.toLowerCase().includes(query) ||
+        item.phone?.toLowerCase().includes(query) ||
+        String(item.displayId).includes(query)
+    );
+  } else {
+    conversationItems = conversationItems.slice(0, 50);
+  }
+  return [...conversationItems, ...searchResults.value];
+});
+
+const selectedItemDetails = computed(() => {
+  const selectedSet = new Set(selectedItems.value);
+  const fromConversations = allConversations.value.filter(c =>
+    selectedSet.has(c.id)
+  );
+  const fromContacts = searchResults.value.filter(c => selectedSet.has(c.id));
+  return [...fromConversations, ...fromContacts];
+});
+
+const isItemSelected = itemId => selectedItems.value.includes(itemId);
+
+const toggleItem = itemId => {
+  const index = selectedItems.value.indexOf(itemId);
+  if (index > -1) {
+    selectedItems.value.splice(index, 1);
+  } else {
+    if (selectedItems.value.length >= MAX_TARGETS) {
+      useAlert(t('CONVERSATION.FORWARD.MAX_CONVERSATIONS'));
+      return;
+    }
+    selectedItems.value.push(itemId);
+  }
+};
+
+const removeSelectedItem = itemId => {
+  const index = selectedItems.value.indexOf(itemId);
+  if (index > -1) selectedItems.value.splice(index, 1);
 };
 
 const messageCandidates = computed(() => {
   const selectedChat = store.getters.getSelectedChat || {};
   if (!selectedChat.id) return [];
-  if (Number(selectedChat.id) !== Number(currentConversationId.value)) {
+  if (Number(selectedChat.id) !== Number(currentConversationId.value))
     return [];
-  }
-
   const messages = selectedChat.messages || [];
   return messages
-    .filter(message => {
-      const messageType = message.message_type ?? message.messageType;
+    .filter(msg => {
+      const messageType = msg.message_type ?? msg.messageType;
       if (messageType === MESSAGE_TYPES.ACTIVITY) return false;
       const contentAttributes =
-        message.content_attributes ?? message.contentAttributes ?? {};
+        msg.content_attributes ?? msg.contentAttributes ?? {};
       if (contentAttributes.deleted) return false;
-      const hasContent = !!message.content;
-      const hasAttachments = (message.attachments?.length || 0) > 0;
-      return hasContent || hasAttachments;
+      return !!msg.content || (msg.attachments?.length || 0) > 0;
     })
     .slice()
     .reverse();
 });
 
-const getMessageTimestamp = message => {
-  const timestamp = message?.created_at ?? message?.createdAt ?? 0;
+const getMessageTimestamp = msg => {
+  const timestamp = msg?.created_at ?? msg?.createdAt ?? 0;
   return Number(timestamp) || 0;
 };
 
 const selectedMessages = computed(() => {
-  const selectedSet = new Set(selectedMessageIds.value);
-  return messageCandidates.value.filter(message => selectedSet.has(message.id));
+  const selectedSet = new Set(pickedMessageIds.value);
+  return messageCandidates.value.filter(msg => selectedSet.has(msg.id));
 });
 
-const orderedSelectedMessages = computed(() => {
-  return selectedMessages.value
-    .slice()
-    .sort((a, b) => {
-      const timeDiff = getMessageTimestamp(a) - getMessageTimestamp(b);
-      if (timeDiff !== 0) return timeDiff;
-      return a.id - b.id;
-    });
-});
+const orderedSelectedMessages = computed(() =>
+  selectedMessages.value.slice().sort((a, b) => {
+    const timeDiff = getMessageTimestamp(a) - getMessageTimestamp(b);
+    if (timeDiff !== 0) return timeDiff;
+    return a.id - b.id;
+  })
+);
 
-const getMessagePreview = message => {
-  if (message?.content) return message.content;
-  const attachmentCount = message?.attachments?.length || 0;
+const getMessagePreview = msg => {
+  if (msg?.content) return msg.content;
+  const attachmentCount = msg?.attachments?.length || 0;
   if (attachmentCount > 0) {
     return t('CONVERSATION.FORWARD.ATTACHMENT_PREVIEW', {
       count: attachmentCount,
@@ -182,78 +227,77 @@ const getMessagePreview = message => {
 };
 
 const selectedMessagePreviewList = computed(() => {
-  if (selectedMessageIds.value.length === 0) return [];
+  if (pickedMessageIds.value.length === 0) return [];
   if (orderedSelectedMessages.value.length) {
     return orderedSelectedMessages.value.map(getMessagePreview);
   }
-  if (props.message && selectedMessageIds.value.includes(props.message.id)) {
+  if (props.message && pickedMessageIds.value.includes(props.message.id)) {
     return [getMessagePreview(props.message)];
   }
   return [];
 });
 
 const messagePreviewLabel = computed(() =>
-  selectedMessageIds.value.length > 1
+  pickedMessageIds.value.length > 1
     ? t('CONVERSATION.FORWARD.MESSAGES_PREVIEW')
     : t('CONVERSATION.FORWARD.MESSAGE_PREVIEW')
 );
 
-const isMessageSelected = messageId => {
-  return selectedMessageIds.value.includes(messageId);
-};
+const isMessageSelected = messageId =>
+  pickedMessageIds.value.includes(messageId);
 
 const toggleMessageSelection = messageId => {
-  const index = selectedMessageIds.value.indexOf(messageId);
+  const index = pickedMessageIds.value.indexOf(messageId);
   if (index > -1) {
-    selectedMessageIds.value.splice(index, 1);
+    pickedMessageIds.value.splice(index, 1);
     return;
   }
-  if (selectedMessageIds.value.length >= MAX_MESSAGES) {
-    useAlert(
-      t('CONVERSATION.FORWARD.MAX_MESSAGES', { count: MAX_MESSAGES })
-    );
+  if (pickedMessageIds.value.length >= MAX_MESSAGES) {
+    useAlert(t('CONVERSATION.FORWARD.MAX_MESSAGES', { count: MAX_MESSAGES }));
     return;
   }
-  selectedMessageIds.value.push(messageId);
+  pickedMessageIds.value.push(messageId);
 };
 
-const toggleConversation = (convId) => {
-  const index = selectedConversations.value.indexOf(convId);
-  if (index > -1) {
-    selectedConversations.value.splice(index, 1);
-  } else {
-    if (selectedConversations.value.length >= 10) {
-      useAlert(t('CONVERSATION.FORWARD.MAX_CONVERSATIONS'));
-      return;
-    }
-    selectedConversations.value.push(convId);
-  }
-};
+const forwardAllMessages = (messageIds, conversationIds, contactIds) =>
+  Promise.all(
+    messageIds.map(messageId =>
+      ConversationsAPI.forwardMessage({
+        messageId,
+        conversationIds,
+        contactIds,
+      })
+    )
+  );
 
 const handleForward = async () => {
-  if (selectedConversations.value.length === 0) {
+  if (selectedItems.value.length === 0) {
     useAlert(t('CONVERSATION.FORWARD.SELECT_CONVERSATIONS'));
     return;
   }
-
-  if (selectedMessageIds.value.length === 0) {
+  if (pickedMessageIds.value.length === 0) {
     useAlert(t('CONVERSATION.FORWARD.SELECT_MESSAGES'));
     return;
   }
-  
+
   isForwarding.value = true;
-  
+
   try {
-    const accountId = store.getters.getCurrentAccountId;
-    // Usar display_id se disponível, senão usar id
-    const conversationIds = selectedConversations.value.map(id => {
-      const conv = allConversations.value.find(c => c.id === id);
-      return conv?.display_id || conv?.id || id;
+    const conversationIds = [];
+    const contactIds = [];
+
+    selectedItems.value.forEach(itemId => {
+      if (typeof itemId === 'string' && itemId.startsWith('contact-')) {
+        contactIds.push(Number(itemId.replace('contact-', '')));
+      } else {
+        const conv = allConversations.value.find(c => c.id === itemId);
+        conversationIds.push(conv?.displayId || itemId);
+      }
     });
-    
-    const selectedSet = new Set(selectedMessageIds.value);
+
+    const selectedSet = new Set(pickedMessageIds.value);
     const orderedMessages = messageCandidates.value
-      .filter(message => selectedSet.has(message.id))
+      .filter(msg => selectedSet.has(msg.id))
       .slice()
       .sort((a, b) => {
         const timeDiff = getMessageTimestamp(a) - getMessageTimestamp(b);
@@ -261,75 +305,55 @@ const handleForward = async () => {
         return a.id - b.id;
       });
 
-    const orderedMessageIds = orderedMessages.map(message => message.id);
-    const fallbackIds = selectedMessageIds.value.filter(
-      messageId => !orderedMessageIds.includes(messageId)
+    const orderedMessageIds = orderedMessages.map(msg => msg.id);
+    const fallbackIds = pickedMessageIds.value.filter(
+      id => !orderedMessageIds.includes(id)
     );
     const messageIds = [...new Set([...orderedMessageIds, ...fallbackIds])];
 
-    let successCount = 0;
-    for (const messageId of messageIds) {
-      await ConversationsAPI.forwardMessage({
-        accountId,
-        messageId,
-        conversationIds,
-      });
-      successCount += 1;
-    }
+    await forwardAllMessages(messageIds, conversationIds, contactIds);
 
-    if (successCount === 0) throw new Error('No messages forwarded');
-
+    const successKey =
+      messageIds.length > 1
+        ? 'CONVERSATION.FORWARD.SUCCESS_MULTIPLE'
+        : 'CONVERSATION.FORWARD.SUCCESS';
     useAlert(
-      t(
-        messageIds.length > 1
-          ? 'CONVERSATION.FORWARD.SUCCESS_MULTIPLE'
-          : 'CONVERSATION.FORWARD.SUCCESS',
-        {
-          count: selectedConversations.value.length,
-          messages: messageIds.length,
-        }
-      )
+      t(successKey, {
+        count: selectedItems.value.length,
+        messages: messageIds.length,
+      })
     );
-    
+
     emit('forwarded', {
-      forwarded_count: selectedConversations.value.length,
-      conversation_count: selectedConversations.value.length,
+      forwarded_count: selectedItems.value.length,
+      conversation_count: conversationIds.length,
+      contact_count: contactIds.length,
       message_count: messageIds.length,
     });
     handleClose();
-  } catch (error) {
-    console.error('Error forwarding message:', error);
-    useAlert(t('CONVERSATION.FORWARD.ERROR') || 'Erro ao encaminhar mensagem');
+  } catch {
+    useAlert(t('CONVERSATION.FORWARD.ERROR'));
   } finally {
     isForwarding.value = false;
   }
 };
 
-const handleClose = () => {
-  searchQuery.value = '';
-  selectedConversations.value = [];
-  selectedMessageIds.value = [];
-  showMessagePicker.value = false;
-  emit('close');
-};
-
-// Reset state when modal closes and fetch conversations when opens
-watch(() => props.show, (newValue) => {
-  if (newValue) {
-    fetchConversations();
-    if (props.selectedMessageIds?.length) {
-      selectedMessageIds.value = [...props.selectedMessageIds];
+watch(
+  () => props.show,
+  newValue => {
+    if (newValue) {
+      fetchConversations();
+      if (props.selectedMessageIds?.length) {
+        pickedMessageIds.value = [...props.selectedMessageIds];
+      } else {
+        pickedMessageIds.value = props.message?.id ? [props.message.id] : [];
+      }
+      showMessagePicker.value = false;
     } else {
-      selectedMessageIds.value = props.message?.id ? [props.message.id] : [];
+      handleClose();
     }
-    showMessagePicker.value = false;
-  } else {
-    searchQuery.value = '';
-    selectedConversations.value = [];
-    selectedMessageIds.value = [];
-    showMessagePicker.value = false;
   }
-});
+);
 </script>
 
 <template>
@@ -347,227 +371,296 @@ watch(() => props.show, (newValue) => {
         class="fixed inset-0 z-[10000] overflow-y-auto"
         @click.self="handleClose"
       >
-        <!-- Overlay -->
         <div class="fixed inset-0 bg-slate-900/60 dark:bg-black/70" />
-        
-        <!-- Modal -->
+
         <div class="relative flex min-h-full items-center justify-center p-4">
           <div
-            class="relative w-full max-w-3xl bg-white dark:bg-slate-800 rounded-2xl shadow-2xl ring-1 ring-slate-900/5"
+            class="relative flex w-full max-w-md max-h-[85vh] flex-col bg-white dark:bg-slate-800 rounded-2xl shadow-2xl ring-1 ring-slate-900/5"
           >
             <!-- Header -->
-            <div class="flex items-center justify-between px-6 py-5 border-b border-slate-200 dark:border-slate-700">
-              <div class="flex items-center gap-3">
-                <span class="flex items-center justify-center size-10 rounded-full bg-woot-50 text-woot-600 dark:bg-woot-900/40 dark:text-woot-200">
-                  <Icon icon="i-lucide-share-2" class="size-5" />
-                </span>
-                <div>
-                  <h3 class="text-lg font-semibold text-slate-900 dark:text-slate-100">
-                    {{ t('CONVERSATION.FORWARD.TITLE') }}
-                  </h3>
-                  <p class="text-xs text-slate-500 dark:text-slate-400">
-                    {{ t('CONVERSATION.FORWARD.SELECTED_COUNT', { count: selectedConversations.length }) }}
-                  </p>
-                </div>
-              </div>
+            <div
+              class="flex items-center gap-3 px-4 py-3 border-b border-slate-200 dark:border-slate-700"
+            >
               <button
-                class="p-2 rounded-full hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors"
+                class="p-1.5 rounded-full hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors"
                 @click="handleClose"
               >
-                <Icon icon="i-lucide-x" class="size-5 text-slate-600 dark:text-slate-300" />
+                <Icon
+                  icon="i-lucide-arrow-left"
+                  class="size-5 text-slate-600 dark:text-slate-300"
+                />
               </button>
-            </div>
-            
-            <!-- Message Preview -->
-            <div class="px-6 py-4 bg-slate-50 dark:bg-slate-900/50 border-b border-slate-200 dark:border-slate-700">
-              <p class="text-xs uppercase tracking-wide text-slate-500 dark:text-slate-400 mb-2">
-                {{ messagePreviewLabel }}
-              </p>
-              <div class="space-y-2">
-                <p
-                  v-if="selectedMessagePreviewList.length === 0"
-                  class="text-sm text-slate-500 dark:text-slate-400"
+              <div class="flex-1">
+                <h3
+                  class="text-base font-semibold text-slate-900 dark:text-slate-100"
                 >
-                  {{ t('CONVERSATION.FORWARD.SELECT_MESSAGES') }}
-                </p>
-                <div
-                  v-for="(preview, index) in selectedMessagePreviewList.slice(0, 3)"
-                  :key="`preview-${index}`"
-                  class="p-3 bg-white dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700"
-                >
-                  <p class="text-sm text-slate-900 dark:text-slate-100 line-clamp-2">
-                    {{ preview }}
-                  </p>
-                </div>
+                  {{ t('CONVERSATION.FORWARD.TITLE') }}
+                </h3>
                 <p
-                  v-if="selectedMessagePreviewList.length > 3"
+                  v-if="selectedItems.length > 0"
                   class="text-xs text-slate-500 dark:text-slate-400"
                 >
-                  {{ t('CONVERSATION.FORWARD.MORE_MESSAGES', { count: selectedMessagePreviewList.length - 3 }) }}
+                  {{
+                    t('CONVERSATION.FORWARD.SELECTED_COUNT', {
+                      count: selectedItems.length,
+                    })
+                  }}
                 </p>
               </div>
             </div>
 
-            <!-- Message Picker -->
-            <div class="px-6 py-3 border-b border-slate-200 dark:border-slate-700">
-              <button
-                class="inline-flex items-center gap-2 text-sm font-medium text-woot-600 dark:text-woot-200 hover:text-woot-700"
-                @click="showMessagePicker = !showMessagePicker"
-              >
-                <Icon icon="i-lucide-layers" class="size-4" />
-                {{ t('CONVERSATION.FORWARD.SELECT_MORE_MESSAGES') }}
-              </button>
-            </div>
-
-            <div
-              v-if="showMessagePicker"
-              class="px-6 py-3 border-b border-slate-200 dark:border-slate-700"
-            >
-              <div class="max-h-60 overflow-y-auto space-y-2">
-                <div
-                  v-if="messageCandidates.length === 0"
-                  class="text-sm text-slate-500 dark:text-slate-400 py-2"
-                >
-                  {{ t('CONVERSATION.FORWARD.NO_MESSAGES') }}
-                </div>
-                <div
-                  v-for="message in messageCandidates"
-                  :key="`message-${message.id}`"
-                  class="flex items-start gap-3 px-3 py-2 rounded-xl cursor-pointer transition-colors border border-transparent hover:bg-slate-50 dark:hover:bg-slate-900/40"
-                  :class="{
-                    'bg-woot-50/80 border-woot-200 dark:bg-woot-900/30 dark:border-woot-900/80': isMessageSelected(message.id),
-                  }"
-                  @click="toggleMessageSelection(message.id)"
-                >
-                  <input
-                    type="checkbox"
-                    class="mt-1 size-4 text-woot-500 rounded border-slate-300 focus:ring-woot-500"
-                    :checked="isMessageSelected(message.id)"
-                  />
-                  <div class="flex-1 min-w-0">
-                    <p class="text-sm text-slate-900 dark:text-slate-100 line-clamp-2">
-                      {{ getMessagePreview(message) }}
-                    </p>
-                  </div>
-                </div>
-              </div>
-            </div>
-            
             <!-- Search -->
-            <div class="px-6 py-4 border-b border-slate-200 dark:border-slate-700">
+            <div
+              class="px-3 py-2 border-b border-slate-200 dark:border-slate-700"
+            >
               <div class="relative">
                 <span
                   class="i-lucide-search absolute left-3 top-1/2 -translate-y-1/2 size-4 text-slate-400 pointer-events-none inline-block"
                   aria-hidden="true"
-                ></span>
+                />
                 <input
                   v-model="searchQuery"
                   type="text"
-                  :placeholder="t('CONVERSATION.FORWARD.SEARCH_CONVERSATIONS')"
-                  class="w-full !pl-12 pr-4 py-2.5 border border-slate-300 dark:border-slate-600 rounded-xl bg-white dark:bg-slate-900 text-slate-900 dark:text-slate-100 placeholder-slate-400 focus:ring-2 focus:ring-woot-500 focus:border-transparent"
+                  :placeholder="t('CONVERSATION.FORWARD.SEARCH_PLACEHOLDER')"
+                  class="w-full !pl-10 pr-4 py-2 border-0 bg-slate-100 dark:bg-slate-900 rounded-lg text-sm text-slate-900 dark:text-slate-100 placeholder-slate-400 focus:ring-1 focus:ring-woot-500"
                 />
               </div>
             </div>
 
-            <!-- Selected Conversations -->
+            <!-- Selected chips -->
             <div
-              v-if="selectedConversationDetails.length > 0"
-              class="px-6 py-3 border-b border-slate-200 dark:border-slate-700"
+              v-if="selectedItemDetails.length > 0"
+              class="flex flex-wrap gap-1.5 px-3 py-2 border-b border-slate-200 dark:border-slate-700"
             >
-              <div class="flex items-center gap-2 overflow-x-auto">
-                <div
-                  v-for="conversation in selectedConversationDetails"
-                  :key="`selected-${conversation.id}`"
-                  class="flex items-center gap-2 px-2.5 py-1.5 rounded-full bg-woot-50 text-woot-700 dark:bg-woot-900/30 dark:text-woot-200"
+              <div
+                v-for="item in selectedItemDetails"
+                :key="`chip-${item.id}`"
+                class="flex items-center gap-1.5 pl-1 pr-2 py-0.5 rounded-full bg-woot-50 dark:bg-woot-900/30"
+              >
+                <Avatar :name="item.name" :src="item.avatar" :size="20" />
+                <span
+                  class="text-xs font-medium text-woot-700 dark:text-woot-200 max-w-[80px] truncate"
                 >
-                  <Avatar
-                    :name="getConversationName(conversation)"
-                    :src="getConversationAvatar(conversation)"
-                    :size="20"
-                  />
-                  <span class="text-xs font-medium truncate max-w-[120px]">
-                    {{ getConversationName(conversation) }}
-                  </span>
-                </div>
+                  {{ item.name }}
+                </span>
+                <button
+                  class="p-0.5 rounded-full hover:bg-woot-200 dark:hover:bg-woot-800 transition-colors"
+                  @click.stop="removeSelectedItem(item.id)"
+                >
+                  <Icon icon="i-lucide-x" class="size-3 text-woot-500" />
+                </button>
               </div>
             </div>
-            
-            <!-- Conversations List -->
-            <div class="max-h-[26rem] overflow-y-auto px-4 py-2">
+
+            <!-- Conversations & Contacts List -->
+            <div class="flex-1 overflow-y-auto min-h-0">
               <div
                 v-if="isLoadingConversations"
-                class="text-center py-8 text-slate-500"
+                class="flex items-center justify-center py-12 text-slate-400"
               >
-                {{ t('CONVERSATION.FORWARD.LOADING') || 'Carregando conversas...' }}
+                <Icon
+                  icon="i-lucide-loader-2"
+                  class="size-5 animate-spin mr-2"
+                />
+                {{ t('CONVERSATION.FORWARD.LOADING') }}
               </div>
+
               <div
-                v-else-if="filteredConversations.length === 0"
-                class="text-center py-8 text-slate-500"
+                v-else-if="filteredList.length === 0 && !isSearching"
+                class="text-center py-12 text-slate-400 text-sm"
               >
-                {{ t('CONVERSATION.FORWARD.NO_CONVERSATIONS') || 'Nenhuma conversa encontrada' }}
+                {{ t('CONVERSATION.FORWARD.NO_RESULTS') }}
               </div>
-              
-              <div
-                v-for="conversation in filteredConversations"
-                :key="conversation.id"
-                class="group flex items-center gap-3 px-3 py-3 rounded-2xl cursor-pointer transition-all border border-transparent hover:border-woot-100 hover:bg-woot-50/60 dark:hover:border-woot-900/60 dark:hover:bg-slate-900/50"
-                :class="{
-                  'bg-woot-50/80 border-woot-200 dark:bg-woot-900/30 dark:border-woot-900/80': isConversationSelected(conversation.id),
-                }"
-                @click="toggleConversation(conversation.id)"
-              >
-                <div class="relative">
-                  <Avatar
-                    :name="getConversationName(conversation)"
-                    :src="getConversationAvatar(conversation)"
-                    :size="44"
-                  />
-                  <span
-                    v-if="isConversationSelected(conversation.id)"
-                    class="absolute -bottom-1 -right-1 flex items-center justify-center size-5 rounded-full bg-woot-500 text-white shadow"
+
+              <template v-else>
+                <div
+                  v-if="searchResults.length > 0 && searchQuery.length >= 2"
+                  class="px-4 pt-3 pb-1"
+                >
+                  <p
+                    class="text-[10px] uppercase tracking-wider font-semibold text-slate-400 dark:text-slate-500"
                   >
-                    <Icon icon="i-lucide-check" class="size-3" />
-                  </span>
+                    {{ t('CONVERSATION.FORWARD.CONTACTS_LABEL') }}
+                  </p>
                 </div>
-                
-                <div class="flex-1 min-w-0">
-                  <div class="flex items-center justify-between gap-2">
-                    <p class="text-sm font-semibold text-slate-900 dark:text-slate-100 truncate">
-                      {{ getConversationName(conversation) }}
+
+                <div
+                  v-for="item in filteredList"
+                  :key="item.id"
+                  class="flex items-center gap-3 px-4 py-2.5 cursor-pointer transition-colors hover:bg-slate-50 dark:hover:bg-slate-700/50"
+                  :class="{
+                    'bg-woot-50/60 dark:bg-woot-900/20': isItemSelected(
+                      item.id
+                    ),
+                  }"
+                  @click="toggleItem(item.id)"
+                >
+                  <div class="relative shrink-0">
+                    <Avatar :name="item.name" :src="item.avatar" :size="40" />
+                    <span
+                      v-if="isItemSelected(item.id)"
+                      class="absolute -bottom-0.5 -right-0.5 flex items-center justify-center size-[18px] rounded-full bg-woot-500 text-white ring-2 ring-white dark:ring-slate-800"
+                    >
+                      <Icon icon="i-lucide-check" class="size-2.5" />
+                    </span>
+                  </div>
+
+                  <div class="flex-1 min-w-0">
+                    <div class="flex items-center gap-2">
+                      <p
+                        class="text-sm font-medium text-slate-900 dark:text-slate-100 truncate"
+                      >
+                        {{ item.name }}
+                      </p>
+                      <span
+                        v-if="item.type === 'contact'"
+                        class="shrink-0 text-[10px] font-medium px-1.5 py-0.5 rounded bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-300"
+                      >
+                        {{ t('CONVERSATION.FORWARD.NEW_CONVERSATION') }}
+                      </span>
+                    </div>
+                    <p
+                      class="text-xs text-slate-500 dark:text-slate-400 truncate"
+                    >
+                      {{ item.phone || item.email }}
+                    </p>
+                    <p
+                      v-if="item.lastMessage"
+                      class="text-xs text-slate-400 dark:text-slate-500 truncate"
+                    >
+                      {{ item.lastMessage }}
                     </p>
                   </div>
-                  <p class="text-xs text-slate-500 dark:text-slate-400 truncate">
-                    {{ getConversationSecondary(conversation) }}
-                  </p>
-                  <p class="text-xs text-slate-400 dark:text-slate-500 line-clamp-1">
-                    {{ getLastMessagePreview(conversation) }}
+                </div>
+              </template>
+
+              <div
+                v-if="isSearching"
+                class="flex items-center justify-center py-4 text-slate-400 text-xs"
+              >
+                <Icon
+                  icon="i-lucide-loader-2"
+                  class="size-4 animate-spin mr-1"
+                />
+                {{ t('CONVERSATION.FORWARD.SEARCHING') }}
+              </div>
+            </div>
+
+            <!-- Message Preview (collapsible) -->
+            <div class="border-t border-slate-200 dark:border-slate-700">
+              <button
+                class="flex items-center gap-2 w-full px-4 py-2.5 text-left hover:bg-slate-50 dark:hover:bg-slate-700/50 transition-colors"
+                @click="showMessagePicker = !showMessagePicker"
+              >
+                <Icon
+                  :icon="
+                    showMessagePicker
+                      ? 'i-lucide-chevron-down'
+                      : 'i-lucide-chevron-right'
+                  "
+                  class="size-4 text-slate-400"
+                />
+                <span
+                  class="text-xs font-medium text-slate-600 dark:text-slate-300"
+                >
+                  {{ messagePreviewLabel }}
+                  {{ `(${pickedMessageIds.length})` }}
+                </span>
+              </button>
+
+              <div
+                v-if="showMessagePicker"
+                class="max-h-48 overflow-y-auto border-t border-slate-100 dark:border-slate-700"
+              >
+                <div
+                  v-if="messageCandidates.length === 0"
+                  class="text-sm text-slate-400 py-4 text-center"
+                >
+                  {{ t('CONVERSATION.FORWARD.NO_MESSAGES') }}
+                </div>
+                <div
+                  v-for="msg in messageCandidates"
+                  :key="`msg-${msg.id}`"
+                  class="flex items-start gap-2.5 px-4 py-2 cursor-pointer transition-colors hover:bg-slate-50 dark:hover:bg-slate-700/50"
+                  :class="{
+                    'bg-woot-50/60 dark:bg-woot-900/20': isMessageSelected(
+                      msg.id
+                    ),
+                  }"
+                  @click="toggleMessageSelection(msg.id)"
+                >
+                  <input
+                    type="checkbox"
+                    class="mt-0.5 size-4 text-woot-500 rounded border-slate-300 focus:ring-woot-500 pointer-events-none"
+                    :checked="isMessageSelected(msg.id)"
+                  />
+                  <p
+                    class="flex-1 text-xs text-slate-700 dark:text-slate-300 line-clamp-2"
+                  >
+                    {{ getMessagePreview(msg) }}
                   </p>
                 </div>
               </div>
-            </div>
-            
-            <!-- Footer -->
-            <div class="flex items-center justify-between px-6 py-4 border-t border-slate-200 dark:border-slate-700">
-              <p class="text-xs text-slate-500 dark:text-slate-400">
-                {{ t('CONVERSATION.FORWARD.MAX_CONVERSATIONS') }}
-              </p>
-              
-              <div class="flex gap-3">
-                <button
-                  class="px-4 py-2 text-sm font-medium text-slate-700 dark:text-slate-300 bg-white dark:bg-slate-800 border border-slate-300 dark:border-slate-600 rounded-xl hover:bg-slate-50 dark:hover:bg-slate-700 transition-colors"
-                  @click="handleClose"
+
+              <div
+                v-if="
+                  !showMessagePicker && selectedMessagePreviewList.length > 0
+                "
+                class="px-4 pb-2"
+              >
+                <div
+                  v-for="(preview, index) in selectedMessagePreviewList.slice(
+                    0,
+                    2
+                  )"
+                  :key="`preview-${index}`"
+                  class="text-xs text-slate-500 dark:text-slate-400 truncate py-0.5"
                 >
-                  {{ t('CONVERSATION.FORWARD.CANCEL') }}
-                </button>
-                
-                <button
-                  :disabled="selectedConversations.length === 0 || isForwarding"
-                  class="px-5 py-2 text-sm font-medium text-white bg-woot-500 rounded-xl hover:bg-woot-600 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-                  @click="handleForward"
+                  {{ preview }}
+                </div>
+                <p
+                  v-if="selectedMessagePreviewList.length > 2"
+                  class="text-[10px] text-slate-400"
                 >
-                  {{ isForwarding ? t('CONVERSATION.FORWARD.FORWARDING') : t('CONVERSATION.FORWARD.FORWARD') }}
-                </button>
+                  {{
+                    t('CONVERSATION.FORWARD.MORE_MESSAGES', {
+                      count: selectedMessagePreviewList.length - 2,
+                    })
+                  }}
+                </p>
               </div>
+            </div>
+
+            <!-- Footer -->
+            <div
+              class="flex items-center justify-end gap-2 px-4 py-3 border-t border-slate-200 dark:border-slate-700"
+            >
+              <button
+                class="px-4 py-2 text-sm font-medium text-slate-600 dark:text-slate-300 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors"
+                @click="handleClose"
+              >
+                {{ t('CONVERSATION.FORWARD.CANCEL') }}
+              </button>
+              <button
+                :disabled="
+                  selectedItems.length === 0 ||
+                  pickedMessageIds.length === 0 ||
+                  isForwarding
+                "
+                class="flex items-center gap-2 px-5 py-2 text-sm font-medium text-white bg-woot-500 rounded-lg hover:bg-woot-600 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+                @click="handleForward"
+              >
+                <Icon
+                  v-if="isForwarding"
+                  icon="i-lucide-loader-2"
+                  class="size-4 animate-spin"
+                />
+                {{
+                  isForwarding
+                    ? t('CONVERSATION.FORWARD.FORWARDING')
+                    : t('CONVERSATION.FORWARD.FORWARD')
+                }}
+              </button>
             </div>
           </div>
         </div>

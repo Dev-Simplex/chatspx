@@ -4,7 +4,8 @@ class Api::V1::Accounts::Messages::ForwardController < Api::V1::Accounts::BaseCo
   def create
     result = Messages::ForwardService.new(
       message: @message,
-      target_conversation_ids: permitted_params[:conversation_ids],
+      target_conversation_ids: permitted_params[:conversation_ids] || [],
+      target_contact_ids: permitted_params[:contact_ids] || [],
       user: Current.user
     ).perform
 
@@ -29,7 +30,7 @@ class Api::V1::Accounts::Messages::ForwardController < Api::V1::Accounts::BaseCo
   end
 
   def permitted_params
-    params.require(:forward).permit(conversation_ids: [])
+    params.require(:forward).permit(conversation_ids: [], contact_ids: [])
   end
 
   def message_json(message)
@@ -42,4 +43,3 @@ class Api::V1::Accounts::Messages::ForwardController < Api::V1::Accounts::BaseCo
     }
   end
 end
-
