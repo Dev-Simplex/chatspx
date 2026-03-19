@@ -41,7 +41,9 @@ class ActionCableListener < BaseListener
   def message_created(event)
     message, account = extract_message_and_account(event)
     conversation = message.conversation
-    tokens = user_tokens(account, conversation.inbox.members) + contact_tokens(conversation.contact_inbox, message)
+    tokens = user_tokens(account, conversation.inbox.members) +
+             participant_tokens(conversation) +
+             contact_tokens(conversation.contact_inbox, message)
 
     broadcast(account, tokens, MESSAGE_CREATED, message.push_event_data)
   end
@@ -49,7 +51,9 @@ class ActionCableListener < BaseListener
   def message_updated(event)
     message, account = extract_message_and_account(event)
     conversation = message.conversation
-    tokens = user_tokens(account, conversation.inbox.members) + contact_tokens(conversation.contact_inbox, message)
+    tokens = user_tokens(account, conversation.inbox.members) +
+             participant_tokens(conversation) +
+             contact_tokens(conversation.contact_inbox, message)
 
     broadcast(account, tokens, MESSAGE_UPDATED, message.push_event_data.merge(previous_changes: event.data[:previous_changes]))
   end
@@ -188,6 +192,10 @@ class ActionCableListener < BaseListener
     agent_tokens = agents.pluck(:pubsub_token)
     admin_tokens = account.administrators.pluck(:pubsub_token)
     (agent_tokens + admin_tokens).uniq
+  end
+
+  def participant_tokens(conversation)
+    conversation.conversation_participants.includes(:user).map { |cp| cp.user.pubsub_token }
   end
 
   def contact_tokens(contact_inbox, message)
