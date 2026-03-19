@@ -200,12 +200,12 @@ function configure_rvm() {
   adduser chatwoot rvm
 
   # Install Ruby as chatwoot user
-  sudo -i -u chatwoot bash -lc "
+  sudo -i -u chatwoot bash -l <<RVMSCRIPT
     rvm autolibs disable
     rvm install ruby-${RUBY_VERSION}
     rvm use ${RUBY_VERSION} --default
     ruby --version
-  "
+RVMSCRIPT
 }
 
 ##############################################################################
@@ -395,7 +395,7 @@ function setup_chatwoot() {
   get_pgpass
 
   # Step 1: Clone and install deps
-  sudo -i -u chatwoot bash -lc "
+  sudo -i -u chatwoot bash -l <<CLONESCRIPT
     set -e
     if [ ! -d ~/chatwoot ]; then
       git clone ${REPO_URL} ~/chatwoot
@@ -407,7 +407,7 @@ function setup_chatwoot() {
     gem install bundler --no-document
     bundle install --jobs \$(nproc) --retry 3
     pnpm install --frozen-lockfile || pnpm install
-  "
+CLONESCRIPT
 
   # Step 2: Configure .env
   sudo -u chatwoot cp /home/chatwoot/chatwoot/.env.example /home/chatwoot/chatwoot/.env
@@ -450,21 +450,21 @@ function setup_chatwoot() {
   fi
 
   # Compile assets
-  sudo -i -u chatwoot bash -lc "
+  sudo -i -u chatwoot bash -l <<'BUILDSCRIPT'
     set -e
     cd ~/chatwoot
     RAILS_ENV=production NODE_OPTIONS='--max-old-space-size=4096' bundle exec rake assets:precompile
-  "
+BUILDSCRIPT
 }
 
 ##############################################################################
 # Run database migrations
 ##############################################################################
 function run_db_migrations() {
-  sudo -i -u chatwoot bash -lc "
+  sudo -i -u chatwoot bash -l <<'MIGRATESCRIPT'
     cd ~/chatwoot
     RAILS_ENV=production POSTGRES_STATEMENT_TIMEOUT=600s bundle exec rails db:chatwoot_prepare
-  "
+MIGRATESCRIPT
 }
 
 ##############################################################################
@@ -503,7 +503,7 @@ puts "Conta '#{account.name}' criada com admin #{user.email}"
 RUBY
 
   chmod 644 "$script_file"
-  sudo -i -u chatwoot bash -lc "cd ~/chatwoot && RAILS_ENV=production bundle exec rails runner /tmp/chatwoot_create_account.rb"
+  sudo -i -u chatwoot bash -l -c 'cd ~/chatwoot && RAILS_ENV=production bundle exec rails runner /tmp/chatwoot_create_account.rb'
   rm -f "$script_file"
 }
 
@@ -747,7 +747,9 @@ EOF
 # Console
 ##############################################################################
 function get_console() {
-  sudo -i -u chatwoot bash -lc "cd ~/chatwoot && RAILS_ENV=production bundle exec rails c"
+  sudo -i -u chatwoot bash -l <<'CONSOLESCRIPT'
+    cd ~/chatwoot && RAILS_ENV=production bundle exec rails c
+CONSOLESCRIPT
 }
 
 ##############################################################################
@@ -827,7 +829,7 @@ function ssl() {
 # Upgrade prerequisites
 ##############################################################################
 function upgrade_prereq() {
-  sudo -i -u chatwoot bash -lc "
+  sudo -i -u chatwoot bash -l <<'PREREQSCRIPT'
     cd ~/chatwoot
     git update-index --refresh
     if ! git diff-index --quiet HEAD --; then
@@ -835,7 +837,7 @@ function upgrade_prereq() {
       echo 'Stashing changes before upgrade...'
       git stash
     fi
-  "
+PREREQSCRIPT
 }
 
 function upgrade_redis() {
@@ -878,7 +880,7 @@ function get_pnpm() {
   fi
   echo "Installing pnpm..."
   npm install -g pnpm
-  sudo -i -u chatwoot bash -lc "cd ~/chatwoot && rm -rf node_modules"
+  sudo -i -u chatwoot bash -l -c 'cd ~/chatwoot && rm -rf node_modules'
 }
 
 ##############################################################################
@@ -908,7 +910,7 @@ EOF
   upgrade_node
   get_pnpm
 
-  sudo -i -u chatwoot bash -lc "
+  sudo -i -u chatwoot bash -l <<UPGRADESCRIPT
     set -e
     cd ~/chatwoot
 
@@ -916,21 +918,16 @@ EOF
     git checkout ${BRANCH}
     git pull origin ${BRANCH}
 
-    # Ensure correct Ruby version
     latest_ruby_version=\$(cat .ruby-version)
-    rvm install \"ruby-\${latest_ruby_version}\"
-    rvm use \"\${latest_ruby_version}\" --default
+    rvm install "ruby-\${latest_ruby_version}"
+    rvm use "\${latest_ruby_version}" --default
 
-    # Update deps
     bundle install --jobs \$(nproc) --retry 3
     pnpm install --frozen-lockfile || pnpm install
 
-    # Recompile assets
     RAILS_ENV=production NODE_OPTIONS='--max-old-space-size=4096' bundle exec rake assets:precompile
-
-    # Migrate database
     RAILS_ENV=production POSTGRES_STATEMENT_TIMEOUT=600s bundle exec rails db:migrate
-  "
+UPGRADESCRIPT
 
   # Update systemd services
   local CW_HOME="/home/chatwoot/chatwoot/deployment"
