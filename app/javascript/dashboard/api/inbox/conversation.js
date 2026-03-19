@@ -1,6 +1,7 @@
 /* global axios */
 import ApiClient from '../ApiClient';
 
+/* eslint-disable no-underscore-dangle */
 class ConversationApi extends ApiClient {
   constructor() {
     super('conversations', { accountScoped: true });
@@ -169,15 +170,14 @@ class ConversationApi extends ApiClient {
     return axios.delete(`${this.url}/${conversationId}`);
   }
 
-  forwardMessage({ accountId, messageId, conversationIds }) {
-    return axios.post(
-      `/api/v1/accounts/${accountId}/messages/${messageId}/forward`,
-      {
-        forward: {
-          conversation_ids: conversationIds,
-        },
-      }
-    );
+  forwardMessage({ messageId, conversationIds, contactIds }) {
+    const accountUrl = this.url.replace('/conversations', '');
+    return axios.post(`${accountUrl}/messages/${messageId}/forward`, {
+      forward: {
+        conversation_ids: conversationIds || [],
+        contact_ids: contactIds || [],
+      },
+    });
   }
 
   getAllConversationsForForward({ status = 'all', page = 1, perPage = 100 }) {
@@ -188,6 +188,13 @@ class ConversationApi extends ApiClient {
         per_page: perPage,
         sort_by: 'last_activity_at_desc',
       },
+    });
+  }
+
+  searchContactsForForward({ query }) {
+    const accountId = this.url.match(/accounts\/(\d+)/)?.[1];
+    return axios.get(`/api/v1/accounts/${accountId}/contacts/search`, {
+      params: { q: query, page: 1, per_page: 15 },
     });
   }
 }
