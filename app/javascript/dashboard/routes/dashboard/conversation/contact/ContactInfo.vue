@@ -1,4 +1,5 @@
 <script>
+/* eslint-disable vue/no-undef-components */
 import { mapGetters } from 'vuex';
 import { useAlert } from 'dashboard/composables';
 import { dynamicTime } from 'shared/helpers/timeHelper';
@@ -9,6 +10,7 @@ import SocialIcons from './SocialIcons.vue';
 import EditContact from './EditContact.vue';
 import ContactMergeModal from 'dashboard/modules/contact/ContactMergeModal.vue';
 import ComposeConversation from 'dashboard/components-next/NewConversation/ComposeConversation.vue';
+import ExportConversationModal from 'dashboard/components-next/message/ExportConversationModal.vue';
 import { BUS_EVENTS } from 'shared/constants/busEvents';
 import NextButton from 'dashboard/components-next/button/Button.vue';
 
@@ -28,6 +30,7 @@ export default {
     ComposeConversation,
     SocialIcons,
     ContactMergeModal,
+    ExportConversationModal,
   },
   props: {
     contact: {
@@ -51,10 +54,14 @@ export default {
       showEditModal: false,
       showMergeModal: false,
       showDeleteModal: false,
+      showExportModal: false,
     };
   },
   computed: {
-    ...mapGetters({ uiFlags: 'contacts/getUIFlags' }),
+    ...mapGetters({
+      uiFlags: 'contacts/getUIFlags',
+      currentChat: 'getSelectedChat',
+    }),
     contactProfileLink() {
       return `/app/accounts/${this.$route.params.accountId}/contacts/${this.contact.id}`;
     },
@@ -304,6 +311,14 @@ export default {
           @click="openMergeModal"
         />
         <NextButton
+          v-tooltip.top-end="$t('EXPORT_CONVERSATION.BUTTON_LABEL')"
+          icon="i-ph-file-pdf"
+          slate
+          faded
+          sm
+          @click="showExportModal = true"
+        />
+        <NextButton
           v-if="isAdmin"
           v-tooltip.top-end="$t('DELETE_CONTACT.BUTTON_LABEL')"
           icon="i-ph-trash"
@@ -328,6 +343,12 @@ export default {
         @close="closeMergeModal"
       />
     </div>
+    <ExportConversationModal
+      :show="showExportModal"
+      :conversations="currentChat?.id ? [currentChat] : []"
+      :contact="contact"
+      @close="showExportModal = false"
+    />
     <woot-delete-modal
       v-if="showDeleteModal"
       v-model:show="showDeleteModal"
