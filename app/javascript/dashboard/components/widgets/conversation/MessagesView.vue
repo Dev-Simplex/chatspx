@@ -366,17 +366,44 @@ export default {
       emitter.off(BUS_EVENTS.SCROLL_TO_MESSAGE, this.onScrollToMessage);
     },
     onScrollToMessage({ messageId = '' } = {}) {
+      const scrollToElement = () => {
+        const el = document.getElementById(`message${messageId}`);
+        if (!el) return false;
+        this.isProgrammaticScroll = true;
+        el.scrollIntoView({ behavior: 'smooth' });
+        el.classList.add('highlight-message');
+        setTimeout(() => el.classList.remove('highlight-message'), 2000);
+        return true;
+      };
+
       this.$nextTick(() => {
-        const messageElement = document.getElementById('message' + messageId);
-        if (messageElement) {
-          this.isProgrammaticScroll = true;
-          messageElement.scrollIntoView({ behavior: 'smooth' });
+        if (scrollToElement()) {
           this.fetchPreviousMessages();
-        } else {
-          this.scrollToBottom();
+          this.makeMessagesRead();
+          return;
         }
+        if (!messageId || !this.currentChat?.id) {
+          this.scrollToBottom();
+          this.makeMessagesRead();
+          return;
+        }
+        this.$store
+          .dispatch('fetchPreviousMessages', {
+            after: Number(messageId) - 1,
+            conversationId: this.currentChat.id,
+            includeMeta: true,
+          })
+          .then(() => {
+            setTimeout(() => {
+              scrollToElement();
+              this.makeMessagesRead();
+            }, 300);
+          })
+          .catch(() => {
+            this.scrollToBottom();
+            this.makeMessagesRead();
+          });
       });
-      this.makeMessagesRead();
     },
     addScrollListener() {
       this.conversationPanel = this.$el.querySelector('.conversation-panel');
@@ -490,9 +517,7 @@ export default {
         this.forwardSelectedMessageIds.splice(index, 1);
       } else {
         if (this.forwardSelectedMessageIds.length >= 20) {
-          useAlert(
-            this.$t('CONVERSATION.FORWARD.MAX_MESSAGES', { count: 20 })
-          );
+          useAlert(this.$t('CONVERSATION.FORWARD.MAX_MESSAGES', { count: 20 }));
           return;
         }
         this.forwardSelectedMessageIds.push(messageId);
@@ -663,7 +688,8 @@ export default {
       <div
         class="relative z-10"
         :class="{
-          'w-full flex justify-center items-start overflow-auto min-h-0': isPopOutReplyBox,
+          'w-full flex justify-center items-start overflow-auto min-h-0':
+            isPopOutReplyBox,
         }"
       >
         <ReplyBox
@@ -739,6 +765,22 @@ export default {
     .emoji-dialog {
       @apply absolute ltr:left-auto rtl:right-auto bottom-1;
     }
+  }
+}
+
+:deep(.highlight-message) {
+  animation: message-highlight 2s ease-out;
+}
+
+@keyframes message-highlight {
+  0%,
+  30% {
+    background-color: rgb(250 204 21 / 0.25);
+    border-radius: 0.5rem;
+  }
+
+  100% {
+    background-color: transparent;
   }
 }
 </style>
