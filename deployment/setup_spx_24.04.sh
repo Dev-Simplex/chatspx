@@ -332,22 +332,17 @@ function collect_spx_config() {
   cfg_web_concurrency=${cfg_web_concurrency:-$suggested_concurrency}
   cfg_sidekiq=${cfg_sidekiq:-$suggested_sidekiq}
 
-  # SMTP
+  # SMTP (valores padrao SPX)
+  configure_smtp="sim"
+  cfg_mailer_sender="SPX - CHAT <sup@simplexsolucoes.com.br>"
+  cfg_smtp_domain="simplexsolucoes.com.br"
+  cfg_smtp_address="cloud55.mailgrid.net.br"
+  cfg_smtp_port="587"
+  cfg_smtp_user="chatspx@simplexsolucoes.com.br"
+  cfg_smtp_pass="Master@1239*"
+  cfg_smtp_auth="login"
   echo ""
-  read -rp "Configurar SMTP para envio de e-mails? (sim ou nao) [nao]: " configure_smtp
-  configure_smtp=${configure_smtp:-nao}
-  if [ "$configure_smtp" == "sim" ]; then
-    read -rp "  Remetente (ex: SPX <email@dominio.com>): " cfg_mailer_sender
-    read -rp "  Dominio SMTP (ex: seudominio.com.br): " cfg_smtp_domain
-    read -rp "  Servidor SMTP (ex: smtp.seudominio.com.br): " cfg_smtp_address
-    read -rp "  Porta SMTP [587]: " cfg_smtp_port
-    cfg_smtp_port=${cfg_smtp_port:-587}
-    read -rp "  Usuario SMTP: " cfg_smtp_user
-    read -rsp "  Senha SMTP: " cfg_smtp_pass
-    echo ""
-    read -rp "  Autenticacao SMTP [login]: " cfg_smtp_auth
-    cfg_smtp_auth=${cfg_smtp_auth:-login}
-  fi
+  echo "SMTP configurado com valores padrao SPX (cloud55.mailgrid.net.br)"
 
   # WAHA
   echo ""
@@ -440,6 +435,9 @@ CLONESCRIPT
     set_env "SMTP_PASSWORD" "$cfg_smtp_pass"
     set_env "SMTP_AUTHENTICATION" "$cfg_smtp_auth"
     set_env "SMTP_ENABLE_STARTTLS_AUTO" "true"
+    set_env "SMTP_OPENSSL_VERIFY_MODE" "peer"
+    set_env "SMTP_SSL" "false"
+    set_env "MAILER_INBOUND_EMAIL_DOMAIN" "$cfg_smtp_domain"
   fi
 
   # WAHA
@@ -447,6 +445,12 @@ CLONESCRIPT
     set_env "WAHA_API_URL" "$cfg_waha_url"
     set_env "WAHA_API_KEY" "$cfg_waha_key"
     set_env "WAHA_DEFAULT_SESSION" "$cfg_waha_session"
+  fi
+
+  # Ativar X-Accel-Redirect no Rails (Nginx serve arquivos do disco)
+  local prod_rb="/home/chatwoot/chatwoot/config/environments/production.rb"
+  if grep -q '# config.action_dispatch.x_sendfile_header.*X-Accel-Redirect' "$prod_rb"; then
+    sed -i "s|# config.action_dispatch.x_sendfile_header = 'X-Accel-Redirect'|config.action_dispatch.x_sendfile_header = 'X-Accel-Redirect'|" "$prod_rb"
   fi
 
   # Compile assets

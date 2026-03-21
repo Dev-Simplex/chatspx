@@ -4,3 +4,7 @@
 %chatwoot ALL=NOPASSWD: /bin/systemctl stop chatwoot.target
 %chatwoot ALL=NOPASSWD: /bin/systemctl restart chatwoot.target
 %chatwoot ALL=NOPASSWD: /usr/local/bin/cwctl
+%chatwoot ALL=NOPASSWD: /usr/sbin/nginx -t
+%chatwoot ALL=NOPASSWD: /usr/bin/systemctl reload nginx
+%chatwoot ALL=NOPASSWD: /usr/bin/tee /etc/nginx/sites-available/nginx_chatwoot.conf
+%chatwoot ALL=NOPASSWD: /usr/bin/cp /etc/nginx/sites-available/nginx_chatwoot.conf *
