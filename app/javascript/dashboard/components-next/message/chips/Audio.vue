@@ -207,7 +207,7 @@ const downloadAudio = async () => {
   <audio
     ref="audioPlayer"
     controls
-    preload="auto"
+    preload="none"
     class="hidden"
     playsinline
     @loadedmetadata="onLoadedMetadata"
