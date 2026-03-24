@@ -186,6 +186,8 @@ function create_cw_user() {
   if ! id -u "chatwoot" &>/dev/null; then
     adduser --disabled-password --gecos "" chatwoot
   fi
+  # Nginx (www-data) precisa acessar /home/chatwoot pra servir assets estaticos
+  chmod 755 /home/chatwoot
 }
 
 ##############################################################################
