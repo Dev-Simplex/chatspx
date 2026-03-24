@@ -583,15 +583,11 @@ function configure_systemd_services() {
 ##############################################################################
 function has_public_ip() {
   local public_ip=$(curl -s --max-time 5 http://checkip.amazonaws.com 2>/dev/null)
-  local local_ip=$(hostname -I | awk '{print $1}')
   # Se o IP publico bate com algum IP local, tem IP publico direto
-  if ip addr show | grep -q "$public_ip"; then
+  if ip addr show 2>/dev/null | grep -q "$public_ip"; then
     return 0
   fi
-  # Tenta acessar a porta 80 de fora
-  if curl -s --max-time 5 -o /dev/null -w "%{http_code}" "http://${public_ip}" 2>/dev/null | grep -q "200\|301\|302\|404"; then
-    return 0
-  fi
+  # IP nao bate = VM atras de proxy/NAT
   return 1
 }
 
