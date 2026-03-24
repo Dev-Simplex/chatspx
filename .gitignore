@@ -101,3 +101,10 @@ CLAUDE.local.md
 .histoire
 .pnpm-store/*
 local/
+
+# SPX - arquivos locais que nao devem subir
+*.pem
+*.ppk
+*.png
+nps_checker.rb
+deployment/fix_sudoers.sh

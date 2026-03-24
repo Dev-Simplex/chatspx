@@ -59,3 +59,10 @@ periodic_assignment_job:
   cron: '*/30 * * * *'
   class: 'AutoAssignment::PeriodicAssignmentJob'
   queue: scheduled_jobs
+
+# executed weekly on Sunday at 03:00 UTC
+# purge orphan ActiveStorage blobs (no attachment, older than 7 days)
+purge_orphan_blobs_job:
+  cron: '0 3 * * 0'
+  class: 'Internal::PurgeOrphanBlobsJob'
+  queue: housekeeping

@@ -137,6 +137,8 @@ export default {
       showArticleSearchPopover: false,
       hasRecordedAudio: false,
       pendingAudioAutoSend: false,
+      pendingAudioConversationId: null,
+      isUploadingAudio: false,
       whatsappInvalidNotice: '',
       whatsappNoticeTimeoutId: null,
       isRevalidatingWhatsapp: false,
@@ -828,6 +830,29 @@ export default {
         this.$emit('update:popOutReplyBox', false);
       }
     },
+    sendToConversation(conversationId) {
+      if (this.isReplyButtonDisabled && !this.attachedFiles.length) return;
+      const isOnWhatsApp =
+        this.isATwilioWhatsAppChannel ||
+        this.isAWhatsAppCloudChannel ||
+        this.is360DialogWhatsAppChannel;
+      const isOnInstagram = this.isAnInstagramChannel;
+      if ((isOnWhatsApp || isOnInstagram) && !this.isPrivate) {
+        const messages = this.getMultipleMessagesPayload(
+          this.message,
+          conversationId
+        );
+        messages.forEach(mp => this.sendMessage(mp));
+      } else {
+        const messagePayload = this.getMessagePayload(
+          this.message,
+          conversationId
+        );
+        this.sendMessage(messagePayload);
+      }
+      this.clearMessage();
+      this.hideEmojiPicker();
+    },
     sendMessageAsMultipleMessages(message) {
       const messages = this.getMultipleMessagesPayload(message);
       messages.forEach(messagePayload => {
@@ -847,6 +872,12 @@ export default {
     async onSendReply() {
       if (this.stopRecordingForSend()) {
         this.pendingAudioAutoSend = true;
+        this.pendingAudioConversationId = this.currentChat.id;
+        return;
+      }
+      if (this.isUploadingAudio) {
+        this.pendingAudioAutoSend = true;
+        this.pendingAudioConversationId = this.currentChat.id;
         return;
       }
 
@@ -965,6 +996,8 @@ export default {
     clearMessage() {
       this.message = '';
       this.pendingAudioAutoSend = false;
+      this.pendingAudioConversationId = null;
+      this.isUploadingAudio = false;
       if (this.sendWithSignature && !this.isPrivate) {
         // if signature is enabled, append it to the message
         const effectiveChannelType = getEffectiveChannelType(
@@ -996,6 +1029,8 @@ export default {
       this.recordingAudioState = this.isRecordingAudio ? 'recording' : '';
       if (!this.isRecordingAudio) {
         this.pendingAudioAutoSend = false;
+        this.pendingAudioConversationId = null;
+        this.isUploadingAudio = false;
         this.resetAudioRecorderInput();
       }
     },
@@ -1052,8 +1087,7 @@ export default {
     onFinishRecorder(file) {
       this.recordingAudioState = 'stopped';
       this.hasRecordedAudio = true;
-      // Added a new key isRecordedAudio to the file to find it's and recorded audio
-      // Because to filter and show only non recorded audio and other attachments
+      this.isUploadingAudio = true;
       const autoRecordedFile = {
         ...file,
         isRecordedAudio: true,
@@ -1078,8 +1112,12 @@ export default {
       const reader = new FileReader();
       reader.readAsDataURL(file.file);
       reader.onloadend = () => {
+        const capturedChatId = file?.isRecordedAudio
+          ? this.pendingAudioConversationId || this.currentChat.id
+          : this.currentChat.id;
+
         this.attachedFiles.push({
-          currentChatId: this.currentChat.id,
+          currentChatId: capturedChatId,
           resource: blob || file,
           isPrivate: this.isPrivate,
           thumb: reader.result,
@@ -1087,11 +1125,15 @@ export default {
           isRecordedAudio: file?.isRecordedAudio || false,
         });
 
-        if (file?.isRecordedAudio && this.pendingAudioAutoSend) {
-          this.pendingAudioAutoSend = false;
-          this.$nextTick(() => {
-            this.onSendReply();
-          });
+        if (file?.isRecordedAudio) {
+          this.isUploadingAudio = false;
+          if (this.pendingAudioAutoSend) {
+            this.pendingAudioAutoSend = false;
+            const savedConversationId = capturedChatId;
+            this.$nextTick(() => {
+              this.sendToConversation(savedConversationId);
+            });
+          }
         }
       };
     },
@@ -1111,8 +1153,9 @@ export default {
 
       return payload;
     },
-    getMultipleMessagesPayload(message) {
+    getMultipleMessagesPayload(message, overrideConversationId) {
       const multipleMessagePayload = [];
+      const conversationId = overrideConversationId || this.currentChat.id;
 
       if (this.attachedFiles && this.attachedFiles.length) {
         let caption = this.isAnInstagramChannel ? '' : message;
@@ -1121,7 +1164,7 @@ export default {
             ? attachment.blobSignedId
             : attachment.resource.file;
           let attachmentPayload = {
-            conversationId: this.currentChat.id,
+            conversationId: attachment.currentChatId || conversationId,
             files: [attachedFile],
             private: false,
             message: caption,
@@ -1144,7 +1187,7 @@ export default {
         (!this.isAnInstagramChannel && hasNoAttachments)
       ) {
         let messagePayload = {
-          conversationId: this.currentChat.id,
+          conversationId,
           message,
           private: false,
           sender: this.sender,
@@ -1157,11 +1200,15 @@ export default {
 
       return multipleMessagePayload;
     },
-    getMessagePayload(message) {
+    getMessagePayload(message, overrideConversationId) {
       const messageWithQuote = this.getMessageWithQuotedEmailText(message);
+      const conversationId =
+        overrideConversationId ||
+        this.attachedFiles?.[0]?.currentChatId ||
+        this.currentChat.id;
 
       let messagePayload = {
-        conversationId: this.currentChat.id,
+        conversationId,
         message: messageWithQuote,
         private: this.isPrivate,
         sender: this.sender,
@@ -1251,6 +1298,8 @@ export default {
       this.recordingAudioState = '';
       this.hasRecordedAudio = false;
       this.pendingAudioAutoSend = false;
+      this.pendingAudioConversationId = null;
+      this.isUploadingAudio = false;
       // Only clear the recorded audio when we click toggle button.
       this.attachedFiles = this.attachedFiles.filter(
         file => !file?.isRecordedAudio
