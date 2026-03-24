@@ -579,9 +579,52 @@ function configure_systemd_services() {
 }
 
 ##############################################################################
-# SSL setup
+# Detectar se a VM tem IP publico (pode usar LetsEncrypt)
 ##############################################################################
-function setup_ssl() {
+function has_public_ip() {
+  local public_ip=$(curl -s --max-time 5 http://checkip.amazonaws.com 2>/dev/null)
+  local local_ip=$(hostname -I | awk '{print $1}')
+  # Se o IP publico bate com algum IP local, tem IP publico direto
+  if ip addr show | grep -q "$public_ip"; then
+    return 0
+  fi
+  # Tenta acessar a porta 80 de fora
+  if curl -s --max-time 5 -o /dev/null -w "%{http_code}" "http://${public_ip}" 2>/dev/null | grep -q "200\|301\|302\|404"; then
+    return 0
+  fi
+  return 1
+}
+
+##############################################################################
+# Gerar certificado auto-assinado (para VMs internas sem IP publico)
+##############################################################################
+function setup_selfsigned_ssl() {
+  echo "VM interna detectada. Gerando certificado auto-assinado..."
+  mkdir -p /etc/nginx/ssl
+  openssl req -x509 -nodes -days 3650 -newkey rsa:2048 \
+    -keyout /etc/nginx/ssl/selfsigned.key \
+    -out /etc/nginx/ssl/selfsigned.crt \
+    -subj "/CN=${domain_name}" 2>/dev/null
+
+  cp /home/chatwoot/chatwoot/deployment/nginx_chatwoot.conf /etc/nginx/sites-available/nginx_chatwoot.conf
+  sed -i "s/chatwoot.domain.com/$domain_name/g" /etc/nginx/sites-available/nginx_chatwoot.conf
+  # Trocar caminhos do LetsEncrypt pro auto-assinado
+  sed -i "s|/etc/letsencrypt/live/$domain_name/fullchain.pem|/etc/nginx/ssl/selfsigned.crt|g" /etc/nginx/sites-available/nginx_chatwoot.conf
+  sed -i "s|/etc/letsencrypt/live/$domain_name/privkey.pem|/etc/nginx/ssl/selfsigned.key|g" /etc/nginx/sites-available/nginx_chatwoot.conf
+  # Remover dhparam se nao existir
+  if [ ! -f /etc/ssl/dhparam ]; then
+    sed -i '/ssl_dhparam/d' /etc/nginx/sites-available/nginx_chatwoot.conf
+  fi
+  ln -sf /etc/nginx/sites-available/nginx_chatwoot.conf /etc/nginx/sites-enabled/nginx_chatwoot.conf
+  rm -f /etc/nginx/sites-enabled/default
+  nginx -t && systemctl restart nginx
+}
+
+##############################################################################
+# SSL setup com LetsEncrypt (para VMs com IP publico)
+##############################################################################
+function setup_letsencrypt_ssl() {
+  echo "IP publico detectado. Gerando certificado LetsEncrypt..."
   curl -s https://ssl-config.mozilla.org/ffdhe4096.txt >> /etc/ssl/dhparam
   cp /home/chatwoot/chatwoot/deployment/nginx_chatwoot.conf /etc/nginx/sites-available/nginx_chatwoot.conf
   certbot certonly --non-interactive --agree-tos --nginx -m "$le_email" -d "$domain_name"
@@ -589,8 +632,18 @@ function setup_ssl() {
   ln -sf /etc/nginx/sites-available/nginx_chatwoot.conf /etc/nginx/sites-enabled/nginx_chatwoot.conf
   rm -f /etc/nginx/sites-enabled/default
   nginx -t && systemctl restart nginx
+}
 
-  local env_file="/home/chatwoot/chatwoot/.env"
+##############################################################################
+# SSL setup (detecta automaticamente o tipo)
+##############################################################################
+function setup_ssl() {
+  if has_public_ip; then
+    setup_letsencrypt_ssl
+  else
+    setup_selfsigned_ssl
+  fi
+
   set_env "FRONTEND_URL" "https://${domain_name}"
 
   # Restart appropriate chatwoot target
