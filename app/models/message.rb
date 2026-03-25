@@ -450,7 +450,9 @@ class Message < ApplicationRecord
   end
 
   def set_team_id_from_conversation
-    self.team_id = conversation.team_id if conversation.present?
+    return unless conversation.present?
+
+    self.team_id = conversation.reload.team_id
   end
 
   # Delega ao serviço NPS: evita reabertura quando a mensagem é resposta a pesquisa NPS ativa.

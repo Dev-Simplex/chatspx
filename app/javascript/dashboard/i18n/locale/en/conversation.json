@@ -367,6 +367,10 @@
       "REJECT_CALL": "Reject",
       "JOIN_CALL": "Join call",
       "END_CALL": "End call"
+    },
+    "TEAM_ISOLATION": {
+      "RESTRICTED_TITLE": "Team: {team}",
+      "RESTRICTED_SUBTITLE": "Restricted content"
     }
   },
   "EMAIL_TRANSCRIPT": {

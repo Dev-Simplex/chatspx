@@ -304,6 +304,10 @@
       "REJECT_CALL": "Reject",
       "JOIN_CALL": "Join call",
       "END_CALL": "End call"
+    },
+    "TEAM_ISOLATION": {
+      "RESTRICTED_TITLE": "Time: {team}",
+      "RESTRICTED_SUBTITLE": "Conteúdo restrito"
     }
   },
   "EMAIL_TRANSCRIPT": {

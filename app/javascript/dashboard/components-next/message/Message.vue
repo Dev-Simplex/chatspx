@@ -1,4 +1,5 @@
 <script setup>
+/* eslint-disable no-shadow, vue/no-unused-properties, no-console, vue/custom-event-name-casing */
 import { onMounted, computed, ref, toRefs, useTemplateRef, nextTick } from 'vue';
 import { useTimeoutFn } from '@vueuse/core';
 import { provideMessageContext } from './provider.js';
@@ -48,6 +49,7 @@ import MessageAPI from 'dashboard/api/inbox/message';
 import { useStore } from 'dashboard/composables/store';
 import { useAlert } from 'dashboard/composables';
 import NextButton from 'dashboard/components-next/button/Button.vue';
+import RestrictedMessage from './RestrictedMessage.vue';
 
 /**
  * @typedef {Object} Attachment
@@ -143,6 +145,7 @@ const props = defineProps({
   isWahaInbox: { type: Boolean, default: false },
   isForwardMode: { type: Boolean, default: false },
   isForwardSelected: { type: Boolean, default: false },
+  teamId: { type: Number, default: null }, // eslint-disable-line vue/no-unused-properties
 });
 
 const emit = defineEmits(['forward', 'toggle-forward-selection']);
@@ -157,6 +160,40 @@ const dropdownButtonRef = useTemplateRef('dropdownButtonRef');
 const { t } = useI18n();
 const route = useRoute();
 const store = useStore();
+
+// Team isolation: check if message should be restricted
+const currentChat = computed(() => store.getters.getSelectedChat || {});
+const currentInbox = computed(() => {
+  const inboxId = currentChat.value?.inbox_id;
+  return inboxId ? store.getters['inboxes/getInbox'](inboxId) : {};
+});
+const myTeams = computed(() => {
+  const teams = store.getters['teams/getMyTeams'] || [];
+  return teams.map(team => team.id);
+});
+const currentAccount = computed(() => store.getters.getCurrentAccount || {});
+const isAdmin = computed(() => {
+  const user = store.getters.getCurrentUser || {};
+  const accountId = currentAccount.value?.id;
+  const accountUser = user.accounts?.find(a => a.id === accountId);
+  return accountUser?.role === 'administrator';
+});
+const teamIsolationEnabled = computed(
+  () => currentInbox.value?.team_message_isolation === true
+);
+const allTeams = computed(() => store.getters['teams/getTeams'] || []);
+const restrictedTeamName = computed(() => {
+  if (!props.teamId) return '';
+  const team = allTeams.value.find(t => t.id === props.teamId);
+  return team?.name || `#${props.teamId}`;
+});
+const isRestrictedByTeam = computed(() => {
+  if (!teamIsolationEnabled.value) return false;
+  if (!props.teamId) return false;
+  if (props.messageType === MESSAGE_TYPES.ACTIVITY) return false;
+  if (isAdmin.value) return false;
+  return !myTeams.value.includes(props.teamId);
+});
 
 const EDIT_WINDOW_SECONDS = 900;
 
@@ -677,6 +714,12 @@ provideMessageContext({
     <div v-if="variant === MESSAGE_VARIANTS.ACTIVITY">
       <ActivityBubble :content="content" />
     </div>
+    <RestrictedMessage
+      v-else-if="isRestrictedByTeam"
+      :team-name="restrictedTeamName"
+      :message-type="messageType"
+      :created-at="createdAt"
+    />
     <div
       v-else
       :class="[

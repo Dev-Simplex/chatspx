@@ -1,4 +1,5 @@
 <script>
+/* eslint-disable no-unused-vars, no-console, vue/no-bare-strings-in-template */
 import { mapGetters } from 'vuex';
 import { shouldBeUrl } from 'shared/helpers/Validators';
 import { useAlert } from 'dashboard/composables';
@@ -72,6 +73,7 @@ export default {
       senderNameType: 'friendly',
       businessName: '',
       locktoSingleConversation: false,
+      teamMessageIsolation: false,
       allowMessagesAfterResolved: true,
       continuityViaEmail: true,
       selectedInboxName: '',
@@ -201,7 +203,7 @@ export default {
       return visibleToAllChannelTabs;
     },
     currentInboxId() {
-      return this.$route.params.inboxId;
+      return Number(this.$route.params.inboxId);
     },
     inbox() {
       return this.$store.getters['inboxes/getInbox'](this.currentInboxId);
@@ -323,12 +325,32 @@ export default {
       }
     },
     inbox: {
-      handler() {
-        // Also set tab when route changes
+      handler(newInbox) {
+        if (newInbox && newInbox.id) {
+          this.selectedInboxName = newInbox.name || '';
+          this.webhookUrl = newInbox.webhook_url || '';
+          this.greetingEnabled = newInbox.greeting_enabled || false;
+          this.greetingMessage = newInbox.greeting_message || '';
+          this.emailCollectEnabled = newInbox.enable_email_collect;
+          this.senderNameType = newInbox.sender_name_type;
+          this.businessName = newInbox.business_name;
+          this.allowMessagesAfterResolved = newInbox.allow_messages_after_resolved;
+          this.continuityViaEmail = newInbox.continuity_via_email;
+          this.channelWebsiteUrl = newInbox.website_url;
+          this.channelWelcomeTitle = newInbox.welcome_title;
+          this.channelWelcomeTagline = newInbox.welcome_tagline || '';
+          this.selectedFeatureFlags = newInbox.selected_feature_flags || [];
+          this.replyTime = newInbox.reply_time;
+          this.locktoSingleConversation = newInbox.lock_to_single_conversation;
+          this.teamMessageIsolation = newInbox.team_message_isolation || false;
+          this.avatarUrl = newInbox.avatar_url;
+          this.selectedPortalSlug = newInbox.help_center ? newInbox.help_center.slug : '';
+        }
         this.$nextTick(() => {
           this.setTabFromRouteParam();
         });
-      }
+      },
+      immediate: true,
     },
     tabs: {
       handler() {
@@ -446,6 +468,7 @@ export default {
         this.selectedFeatureFlags = this.inbox.selected_feature_flags || [];
         this.replyTime = this.inbox.reply_time;
         this.locktoSingleConversation = this.inbox.lock_to_single_conversation;
+        this.teamMessageIsolation = this.inbox.team_message_isolation || false;
         this.selectedPortalSlug = this.inbox.help_center
           ? this.inbox.help_center.slug
           : '';
@@ -469,6 +492,7 @@ export default {
               ).id
             : null,
           lock_to_single_conversation: this.locktoSingleConversation,
+          team_message_isolation: this.teamMessageIsolation,
           sender_name_type: this.senderNameType,
           business_name: this.businessName || null,
           channel: {
@@ -836,6 +860,23 @@ export default {
                 $t(
                   'INBOX_MGMT.SETTINGS_POPUP.LOCK_TO_SINGLE_CONVERSATION_SUB_TEXT'
                 )
+              }}
+            </p>
+          </label>
+
+          <label class="pb-4">
+            {{ $t('INBOX_MGMT.SETTINGS_POPUP.TEAM_MESSAGE_ISOLATION') }}
+            <select v-model="teamMessageIsolation">
+              <option :value="true">
+                {{ $t('INBOX_MGMT.EDIT.TEAM_MESSAGE_ISOLATION.ENABLED') }}
+              </option>
+              <option :value="false">
+                {{ $t('INBOX_MGMT.EDIT.TEAM_MESSAGE_ISOLATION.DISABLED') }}
+              </option>
+            </select>
+            <p class="pb-1 text-sm not-italic text-n-slate-11">
+              {{
+                $t('INBOX_MGMT.SETTINGS_POPUP.TEAM_MESSAGE_ISOLATION_SUB_TEXT')
               }}
             </p>
           </label>

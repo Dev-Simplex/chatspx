@@ -366,6 +366,10 @@
       "REJECT_CALL": "Recusar",
       "JOIN_CALL": "Entrar na chamada",
       "END_CALL": "Encerrar chamada"
+    },
+    "TEAM_ISOLATION": {
+      "RESTRICTED_TITLE": "Time: {team}",
+      "RESTRICTED_SUBTITLE": "Conteúdo restrito"
     }
   },
   "EMAIL_TRANSCRIPT": {

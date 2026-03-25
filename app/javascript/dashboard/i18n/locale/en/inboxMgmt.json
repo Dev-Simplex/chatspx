@@ -592,6 +592,10 @@
         "ENABLED": "Enabled",
         "DISABLED": "Disabled"
       },
+      "TEAM_MESSAGE_ISOLATION": {
+        "ENABLED": "Enabled",
+        "DISABLED": "Disabled"
+      },
       "ENABLE_HMAC": {
         "LABEL": "Enable"
       }
@@ -710,6 +714,8 @@
       "ENABLE_CONTINUITY_VIA_EMAIL_SUB_TEXT": "Conversations will continue over email if the contact email address is available.",
       "LOCK_TO_SINGLE_CONVERSATION": "Lock to single conversation",
       "LOCK_TO_SINGLE_CONVERSATION_SUB_TEXT": "Enable or disable multiple conversations for the same contact in this inbox",
+      "TEAM_MESSAGE_ISOLATION": "Team message isolation",
+      "TEAM_MESSAGE_ISOLATION_SUB_TEXT": "When enabled, agents can only see messages from their own team. Messages from other teams appear blurred with restricted access.",
       "INBOX_UPDATE_TITLE": "Inbox Settings",
       "INBOX_UPDATE_SUB_TEXT": "Update your inbox settings",
       "AUTO_ASSIGNMENT_SUB_TEXT": "Enable or disable the automatic assignment of new conversations to the agents added to this inbox.",

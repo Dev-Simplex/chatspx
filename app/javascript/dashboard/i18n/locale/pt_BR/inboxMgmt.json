@@ -592,6 +592,10 @@
         "ENABLED": "Ativado",
         "DISABLED": "Desativado"
       },
+      "TEAM_MESSAGE_ISOLATION": {
+        "ENABLED": "Ativado",
+        "DISABLED": "Desativado"
+      },
       "ENABLE_HMAC": {
         "LABEL": "Ativar"
       }
@@ -711,6 +715,8 @@
       "ENABLE_CONTINUITY_VIA_EMAIL_SUB_TEXT": "As conversas continuarão sobre o e-mail se o endereço de e-mail de contato estiver disponível.",
       "LOCK_TO_SINGLE_CONVERSATION": "Bloquear para conversa única",
       "LOCK_TO_SINGLE_CONVERSATION_SUB_TEXT": "Ativar ou desativar várias conversas para o mesmo contato nesta caixa de entrada",
+      "TEAM_MESSAGE_ISOLATION": "Isolamento de mensagens por time",
+      "TEAM_MESSAGE_ISOLATION_SUB_TEXT": "Quando ativado, agentes só visualizam mensagens do seu próprio time. Mensagens de outros times aparecem com acesso restrito.",
       "INBOX_UPDATE_TITLE": "Configurações da Caixa de Entrada",
       "INBOX_UPDATE_SUB_TEXT": "Atualize suas configurações de caixa de entrada",
       "AUTO_ASSIGNMENT_SUB_TEXT": "Ativar ou desativar a atribuição automática de novas conversas aos agentes adicionados a essa caixa de entrada.",

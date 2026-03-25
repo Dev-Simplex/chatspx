@@ -3,6 +3,7 @@ import { computed } from 'vue';
 import { useRouter } from 'vue-router';
 import { useI18n } from 'vue-i18n';
 import { useMapGetter } from 'dashboard/composables/store';
+import { useTeamIsolation } from 'dashboard/composables/useTeamIsolation';
 import Button from 'dashboard/components-next/button/Button.vue';
 import Icon from 'dashboard/components-next/icon/Icon.vue';
 import Avatar from 'dashboard/components-next/avatar/Avatar.vue';
@@ -28,6 +29,8 @@ const router = useRouter();
 const { t } = useI18n();
 
 const getContactById = useMapGetter('contacts/getContactById');
+const inboxById = useMapGetter('inboxes/getInboxById');
+const { isMessageRestricted } = useTeamIsolation();
 
 const contactId = computed(() => {
   return (
@@ -82,6 +85,10 @@ const lastMessage = computed(() => {
     props.conversation?.last_message ||
     props.conversation?.lastNonActivityMessage ||
     props.conversation?.last_non_activity_message;
+
+  const inbox = inboxById.value(props.conversation?.inboxId || props.conversation?.inbox_id);
+  if (isMessageRestricted(message, inbox)) return '🔒';
+
   return message?.content || message?.processed_message_content || '';
 });
 
