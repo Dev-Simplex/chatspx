@@ -1,6 +1,9 @@
+# frozen_string_literal: true
+
 class Contacts::ResolveLidJob < ApplicationJob
-  queue_as :default
-  retry_on Waha::ApiService::Error, wait: :polynomially_longer, attempts: 5
+  queue_as :high
+  # Backoff agressivo: 5s, 15s, 30s, 60s, 120s, 300s, 600s (~18min total)
+  retry_on Waha::ApiService::Error, wait: ->(executions) { [5, 15, 30, 60, 120, 300, 600][executions - 1] || 600 }, attempts: 7
 
   def perform(contact_inbox_id)
     contact_inbox = ContactInbox.find_by(id: contact_inbox_id)
@@ -13,10 +16,17 @@ class Contacts::ResolveLidJob < ApplicationJob
 
     waha_service = Waha::ApiService.new
     pn = resolve_lid(waha_service, session_name, contact_inbox.source_id)
-    return if pn.blank?
+
+    if pn.blank?
+      Rails.logger.info("[ResolveLidJob] LID #{contact_inbox.source_id} still unresolved (contact_inbox=#{contact_inbox_id})")
+      raise Waha::ApiService::Error, "LID not yet resolvable: #{contact_inbox.source_id}"
+    end
 
     normalized_phone = normalize_phone(pn)
     merge_or_update(inbox, contact_inbox, pn, normalized_phone)
+
+    # Notificar frontend via ActionCable que o contato foi atualizado
+    broadcast_contact_update(contact_inbox, inbox)
   end
 
   private
@@ -63,19 +73,36 @@ class Contacts::ResolveLidJob < ApplicationJob
         end
         contact_inbox_by_lid.reload
         contact_inbox_by_lid.destroy! if contact_inbox_by_lid.persisted?
+
+        Rails.logger.info("[ResolveLidJob] Merged LID contact #{mergee_contact.id} into PN contact #{base_contact.id}")
       else
         contact_inbox_by_lid.update!(source_id: pn)
         contact = contact_inbox_by_lid.contact
         contact.update!(phone_number: normalized_phone) if normalized_phone.present? && contact.phone_number.blank?
         update_contact_name_from_phone(contact, normalized_phone) if contact.name.match?(/\A[a-z]+-[a-z]+-\d+\z/)
+
+        Rails.logger.info("[ResolveLidJob] Updated LID #{contact_inbox_by_lid.source_id} to PN #{pn}")
       end
     end
   end
 
-  # If the contact still has a Haikunator-generated name, try to set it from the phone number
   def update_contact_name_from_phone(contact, phone)
     return if phone.blank?
 
     contact.update!(name: phone)
+  end
+
+  def broadcast_contact_update(contact_inbox, inbox)
+    contact = contact_inbox.contact.reload
+    account = inbox.account
+
+    Rails.configuration.dispatcher.dispatch(
+      'contact.updated',
+      Time.zone.now,
+      contact: contact,
+      account: account
+    )
+  rescue StandardError => e
+    Rails.logger.warn("[ResolveLidJob] Failed to broadcast contact update: #{e.message}")
   end
 end

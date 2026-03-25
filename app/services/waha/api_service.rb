@@ -19,10 +19,10 @@ module Waha
 
     def create_session(name:, config: {})
       post('/api/sessions', {
-        name: name,
-        config: config,
-        start: false
-      })
+             name: name,
+             config: config,
+             start: false
+           })
     end
 
     def get_session(name)
@@ -60,7 +60,7 @@ module Waha
 
     def get_qr_code(name, format: 'image')
       response = request(:get, "/api/#{name}/auth/qr", { format: format }, raw: true)
-      
+
       if format == 'image'
         response.body
       else
@@ -88,6 +88,10 @@ module Waha
       get("/api/#{session_name}/lids", limit: limit, offset: offset)
     end
 
+    def get_groups(session_name)
+      get("/api/#{session_name}/groups")
+    end
+
     def create_chatwoot_app(session_name:, config:)
       request_body = {
         enabled: true,
@@ -96,9 +100,9 @@ module Waha
         app: 'chatwoot',
         config: config
       }
-      
+
       Rails.logger.info("WAHA API - Creating app with body: #{request_body.to_json}")
-      
+
       post('/api/apps', request_body)
     end
 
@@ -144,13 +148,11 @@ module Waha
       request = request_class.new(uri)
       request['X-Api-Key'] = @api_key if @api_key.present?
 
-      if %i[post put].include?(method)
-        if params.any?
-          request['Content-Type'] = 'application/json'
-          json_body = params.to_json
-          Rails.logger.info("WAHA API - Sending #{method.upcase} to #{uri.path} with body: #{json_body}")
-          request.body = json_body
-        end
+      if %i[post put].include?(method) && params.any?
+        request['Content-Type'] = 'application/json'
+        json_body = params.to_json
+        Rails.logger.info("WAHA API - Sending #{method.upcase} to #{uri.path} with body: #{json_body}")
+        request.body = json_body
       end
 
       response = http.request(request)
@@ -178,13 +180,13 @@ module Waha
         error_data = begin
           parsed = JSON.parse(response.body)
           error_message = parsed['message'] || parsed['error'] || response.body
-          
+
           # Log detailed error for 400/422 (validation errors)
           if [400, 422].include?(response.code.to_i)
             Rails.logger.error("WAHA API validation error (#{response.code}):")
             Rails.logger.error("Response body: #{response.body}")
             Rails.logger.error("Parsed error: #{parsed.inspect}")
-            
+
             # Include validation details in error message if available
             if parsed['message'].is_a?(Array)
               error_message = parsed['message'].join(', ')
@@ -192,13 +194,13 @@ module Waha
               error_message = parsed['message']
             end
           end
-          
+
           error_message
         rescue StandardError => e
           Rails.logger.error("Failed to parse error response: #{e.message}")
           response.body
         end
-        
+
         raise Error, "WAHA API error (#{response.code}): #{error_data}"
       end
     end

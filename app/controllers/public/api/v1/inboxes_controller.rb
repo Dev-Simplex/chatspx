@@ -166,7 +166,10 @@ class Public::Api::V1::InboxesController < PublicController
     return if inbox.blank?
 
     contact_inbox = inbox.contact_inboxes.find_by(source_id: lid_source_id)
-    Contacts::ResolveLidJob.set(wait: 10.seconds).perform_later(contact_inbox.id) if contact_inbox.present?
+    return if contact_inbox.blank?
+
+    # Retry agressivo: primeira tentativa em 5s
+    Contacts::ResolveLidJob.set(wait: 5.seconds).perform_later(contact_inbox.id)
   end
 
   def waha_session_name

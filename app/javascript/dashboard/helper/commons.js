@@ -98,6 +98,41 @@ export const sanitizeVariableSearchKey = (searchKey = '') => {
 };
 
 /**
+ * Check if a source_id is an unresolved WhatsApp LID.
+ * @param {string} sourceId
+ * @returns {boolean}
+ */
+export const isUnresolvedLid = sourceId => {
+  return typeof sourceId === 'string' && sourceId.endsWith('@lid');
+};
+
+/**
+ * Returns a display-safe contact name, masking LID identifiers.
+ * @param {object} contact - Contact object with name, phoneNumber, sourceId
+ * @returns {string}
+ */
+export const getSafeContactName = contact => {
+  if (!contact) return '';
+  const name = contact.name || contact.availableName || '';
+  const sourceId =
+    contact.sourceId ||
+    contact.source_id ||
+    contact.contactInboxes?.[0]?.sourceId ||
+    '';
+
+  if (
+    isUnresolvedLid(sourceId) &&
+    !contact.phoneNumber &&
+    !contact.phone_number
+  ) {
+    if (name.match(/^[a-z]+-[a-z]+-\d+$/)) {
+      return 'Identificando contato...';
+    }
+  }
+  return name;
+};
+
+/**
  * Convert underscore-separated string to title case.
  * Eg. "round_robin" => "Round Robin"
  * @param {string} str
