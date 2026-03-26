@@ -159,9 +159,9 @@
     .vm-select-item:hover{border-color:var(--brand);background:var(--bg-hover)}
     .vm-select-item.selected{border-color:var(--brand);background:var(--brand-light)}
     .vm-select-item.disabled{opacity:.4;cursor:not-allowed}
-    .cb{width:18px;height:18px;border:2px solid var(--border);border-radius:4px;display:flex;align-items:center;justify-content:center;flex-shrink:0;transition:.15s}
+    .cb{width:20px;height:20px;min-width:20px;min-height:20px;border:2px solid var(--border);border-radius:5px;display:flex;align-items:center;justify-content:center;flex-shrink:0;transition:.15s}
     .cb.on{background:var(--brand);border-color:var(--brand)}
-    .cb.on svg{color:#fff}
+    .cb.on svg{color:#fff;width:13px;height:13px}
 
     /* TOAST */
     .toast{position:fixed;top:70px;right:20px;padding:12px 18px;border-radius:10px;font-size:13px;font-weight:600;box-shadow:var(--shadow-lg);z-index:200;display:flex;align-items:center;gap:8px;animation:slideIn .3s}
@@ -190,8 +190,8 @@
         </div>
         <template x-if="loginErr"><div class="login-err"><i data-lucide="alert-circle" style="width:15px;height:15px"></i><span x-text="loginErr"></span></div></template>
         <form @submit.prevent="login()">
-          <div class="field"><label>Usuario</label><input type="text" x-model="loginU" placeholder="admin" autofocus></div>
-          <div class="field"><label>Senha</label><input type="password" x-model="loginP" placeholder="••••••"></div>
+          <div class="field"><label>Usuario</label><input type="text" x-model="loginU" placeholder="admin" autocomplete="username" autofocus></div>
+          <div class="field"><label>Senha</label><input type="password" x-model="loginP" placeholder="••••••" autocomplete="current-password"></div>
           <button type="submit" class="btn btn-brand" :disabled="loginL"><template x-if="loginL"><i data-lucide="loader-2" class="spinner" style="width:16px;height:16px"></i></template><span x-text="loginL?'Entrando...':'Entrar'"></span></button>
         </form>
       </div>
@@ -270,7 +270,7 @@
         <div class="deploy-bar">
           <select x-model="branch"><template x-for="b in branches" :key="b"><option :value="b" x-text="b"></option></template></select>
           <button class="btn-deploy" @click="openDeployModal()" :disabled="deployingCount>0"><i data-lucide="rocket" style="width:16px;height:16px"></i> Deploy</button>
-          <a :href="'https://github.com/'+github+'/tree/'+branch" target="_blank" style="font-size:12px;display:flex;align-items:center;gap:4px;margin-left:auto"><i data-lucide="github" style="width:14px;height:14px"></i> Ver no GitHub</a>
+          <a :href="'https://github.com/'+github+'/tree/'+branch" target="_blank" style="font-size:12px;display:flex;align-items:center;gap:4px;margin-left:auto"><i data-lucide="git-branch" style="width:14px;height:14px"></i> Ver no GitHub</a>
         </div>
 
         <!-- Terminal -->
@@ -352,7 +352,7 @@ function app(){return{
   init(){
     document.documentElement.setAttribute('data-theme',this.theme);
     this.$nextTick(()=>lucide.createIcons());
-    fetch('/api/status').then(r=>{if(r.ok)r.json().then(d=>{this.auth=true;this.vms=d.vms;this.branches=d.branches;this.github=d.github;this.$nextTick(()=>{lucide.createIcons();this.connectSocket()})})}).catch(()=>{});
+    fetch('/api/status').then(r=>{if(r.ok)return r.json();return null}).then(d=>{if(!d)return;this.auth=true;this.vms=d.vms;this.branches=d.branches;this.github=d.github;this.$nextTick(()=>{lucide.createIcons();this.connectSocket()})}).catch(()=>{});
   },
 
   async login(){

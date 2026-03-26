@@ -14,7 +14,7 @@ const AUTH = { user: 'admin', pass: 'Jzs72144#$GSpx' };
 const GITHUB_REPO = 'Dev-Simplex/chatspx';
 const SESSION_SECRET = 'spx-panel-s3cr3t-k3y-2026';
 const PORT = 4000;
-const STATUS_INTERVAL = 30000;
+const STATUS_INTERVAL = 60000; // 1 minuto
 const HEARTBEAT_SIZE = 60;
 
 const SSH_KEY = `-----BEGIN RSA PRIVATE KEY-----
@@ -147,9 +147,50 @@ function execLocal(command) {
 // STATUS CHECK
 // ============================================================
 
-const METRICS_CMD_REMOTE = `echo "---METRICS---" && LC_ALL=C top -bn1 | grep 'Cpu(s)' | awk '{printf "%.0f", 100-$8}' && echo "" && free | awk '/Mem:/{printf "%.0f", $3/$2*100}' && echo "" && df / | awk 'NR==2{gsub(/%/,"",$5); print $5}' && echo "" && sudo -i -u chatwoot bash -c 'cd ~/chatwoot && git rev-parse --short HEAD' && echo "" && sudo -i -u chatwoot bash -c 'cd ~/chatwoot && git rev-parse --abbrev-ref HEAD' && echo "" && uptime -p && echo "" && sudo systemctl is-active chatwoot.target 2>/dev/null || echo unknown`;
+// Using KEY=VALUE format for reliable parsing across locales and SSH
+function buildMetricsCmd(vm) {
+  // For password-based VMs, use echo password | sudo -S
+  const sudoPrefix = vm.type === 'password' ? `echo '${SSH_PASSWORD}' | sudo -S` : 'sudo';
+  return [
+    'echo "SPX_START"',
+    "printf 'SPX_CPU=%s\\n' $(LC_ALL=C top -bn1 | grep 'Cpu(s)' | awk '{printf \"%.0f\", 100-$8}')",
+    "printf 'SPX_RAM=%s\\n' $(free | awk '/Mem:/{printf \"%.0f\", $3/$2*100}')",
+    "printf 'SPX_DISK=%s\\n' $(df / | awk 'NR==2{gsub(/%/,\"\",$5); print $5}')",
+    `printf 'SPX_COMMIT=%s\\n' $(${sudoPrefix} -i -u chatwoot bash -c 'cd ~/chatwoot && git rev-parse --short HEAD 2>/dev/null || echo none')`,
+    `printf 'SPX_BRANCH=%s\\n' $(${sudoPrefix} -i -u chatwoot bash -c 'cd ~/chatwoot && git rev-parse --abbrev-ref HEAD 2>/dev/null || echo none')`,
+    "printf 'SPX_UPTIME=%s\\n' \"$(uptime -p 2>/dev/null || echo unknown)\"",
+    `printf 'SPX_SERVICE=%s\\n' $(${sudoPrefix} systemctl is-active chatwoot.target 2>/dev/null || echo unknown)`,
+  ].join(' && ');
+}
 
-const METRICS_CMD_LOCAL = `echo "---METRICS---" && LC_ALL=C top -bn1 | grep 'Cpu(s)' | awk '{printf "%.0f", 100-$8}' && echo "" && free | awk '/Mem:/{printf "%.0f", $3/$2*100}' && echo "" && df / | awk 'NR==2{gsub(/%/,"",$5); print $5}' && echo "" && cd /home/chatwoot/chatwoot && git rev-parse --short HEAD && echo "" && git rev-parse --abbrev-ref HEAD && echo "" && uptime -p && echo "" && systemctl is-active chatwoot.target 2>/dev/null || echo unknown`;
+const METRICS_CMD_LOCAL = [
+  'echo "SPX_START"',
+  "printf 'SPX_CPU=%s\\n' $(LC_ALL=C top -bn1 | grep 'Cpu(s)' | awk '{printf \"%.0f\", 100-$8}')",
+  "printf 'SPX_RAM=%s\\n' $(free | awk '/Mem:/{printf \"%.0f\", $3/$2*100}')",
+  "printf 'SPX_DISK=%s\\n' $(df / | awk 'NR==2{gsub(/%/,\"\",$5); print $5}')",
+  "printf 'SPX_COMMIT=%s\\n' $(cd /home/chatwoot/chatwoot && git rev-parse --short HEAD 2>/dev/null || echo none)",
+  "printf 'SPX_BRANCH=%s\\n' $(cd /home/chatwoot/chatwoot && git rev-parse --abbrev-ref HEAD 2>/dev/null || echo none)",
+  "printf 'SPX_UPTIME=%s\\n' \"$(uptime -p 2>/dev/null || echo unknown)\"",
+  "printf 'SPX_SERVICE=%s\\n' $(systemctl is-active chatwoot.target 2>/dev/null || echo unknown)",
+].join(' && ');
+
+function parseMetrics(output) {
+  const lines = output.split('\n');
+  const data = {};
+  for (const line of lines) {
+    const match = line.match(/^SPX_(\w+)=(.*)$/);
+    if (match) data[match[1]] = match[2].trim();
+  }
+  return {
+    cpu: Math.min(parseFloat(data.CPU) || 0, 100),
+    ram: Math.min(parseFloat(data.RAM) || 0, 100),
+    disk: Math.min(parseFloat(data.DISK) || 0, 100),
+    commit: data.COMMIT && data.COMMIT !== 'none' ? data.COMMIT : null,
+    branch: data.BRANCH && data.BRANCH !== 'none' ? data.BRANCH : null,
+    uptime: data.UPTIME && data.UPTIME !== 'unknown' ? data.UPTIME : null,
+    chatwootStatus: data.SERVICE || 'unknown',
+  };
+}
 
 async function checkVM(vm) {
   if (!vm.active) {
@@ -166,27 +207,15 @@ async function checkVM(vm) {
       const output = execLocal(METRICS_CMD_LOCAL);
       result = { stdout: output, code: 0 };
     } else {
-      result = await sshExec(vm, METRICS_CMD_REMOTE, 12000);
+      result = await sshExec(vm, buildMetricsCmd(vm), 12000);
     }
 
     const ping = Date.now() - startTime;
-    const lines = result.stdout.split('\n').map(l => l.trim());
-    const metricsIdx = lines.indexOf('---METRICS---');
-    const data = metricsIdx >= 0 ? lines.slice(metricsIdx + 1) : lines;
-
-    const cpu = parseFloat(data[0]) || 0;
-    const ram = parseFloat(data[1]) || 0;
-    const disk = parseFloat(data[2]) || 0;
+    const metrics = parseMetrics(result.stdout);
 
     vmStatus[vm.id] = {
       online: true,
-      cpu: Math.min(cpu, 100),
-      ram: Math.min(ram, 100),
-      disk: Math.min(disk, 100),
-      commit: data[3] || null,
-      branch: data[4] || null,
-      uptime: data[5] || null,
-      chatwootStatus: data[6] || 'unknown',
+      ...metrics,
       lastCheck: new Date().toISOString(),
       ping,
     };
