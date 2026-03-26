@@ -59,13 +59,17 @@ export const buildConversationList = (
 ) => {
   const { payload: conversationList, meta: metaData } = responseData;
   context.commit(types.SET_ALL_CONVERSATION, conversationList);
-  // Não atualizar contagens das abas quando a requisição inclui assignee_type
-  // (me/unassigned), pois o meta retornado tem contagens filtradas e sobrescreveria
-  // os valores corretos vindos do endpoint /conversations/meta
+  // Always update counts on the first page load (view/route switch).
+  // Only skip on subsequent pages (pagination) with assignee filter,
+  // because the meta returned there has filtered counts that would
+  // overwrite the correct global values.
+  const isFirstPage =
+    (!requestPayload.page || requestPayload.page <= 1) &&
+    !requestPayload.cursor;
   const hasAssigneeFilter =
     requestPayload.assigneeType === 'me' ||
     requestPayload.assigneeType === 'unassigned';
-  if (!hasAssigneeFilter) {
+  if (isFirstPage || !hasAssigneeFilter) {
     context.dispatch('conversationStats/set', metaData);
   }
   context.dispatch(
