@@ -42,11 +42,27 @@ export function useAgentsList(includeNoneAgent = true) {
     return inboxId.value ? assignable.value(inboxId.value) : [];
   });
 
+  const conversationTeamId = computed(
+    () =>
+      currentChat.value?.meta?.team?.id || currentChat.value?.team_id || null
+  );
+
   /**
    * @type {import('vue').ComputedRef<Array>}
    */
   const agentsList = computed(() => {
-    const agents = assignableAgents.value || [];
+    let agents = assignableAgents.value || [];
+
+    // When conversation has a team, filter to agents belonging to that team
+    // plus administrators (who can be assigned to any team)
+    if (conversationTeamId.value) {
+      agents = agents.filter(agent => {
+        if (agent.role === 'administrator') return true;
+        const teamIds = agent.team_ids || [];
+        return teamIds.includes(conversationTeamId.value);
+      });
+    }
+
     const agentsByUpdatedPresence = getAgentsByUpdatedPresence(
       agents,
       currentUser.value,

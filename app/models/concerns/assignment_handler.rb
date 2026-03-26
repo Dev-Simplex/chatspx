@@ -11,10 +11,28 @@ module AssignmentHandler
   private
 
   def ensure_assignee_is_from_team
-    return unless team_id_changed?
+    if team_id_changed?
+      validate_current_assignee_team
+      self.assignee ||= find_assignee_from_team
+    elsif will_save_change_to_assignee_id? && assignee_id.present?
+      sync_team_from_assignee
+    end
+  end
 
-    validate_current_assignee_team
-    self.assignee ||= find_assignee_from_team
+  def sync_team_from_assignee
+    agent = User.find_by(id: assignee_id)
+    return unless agent
+
+    agent_teams = agent.teams.where(account_id: account_id)
+    count = agent_teams.count
+
+    return if count.zero?
+
+    if count == 1
+      self.team_id = agent_teams.first.id
+    elsif agent_teams.where(id: team_id).none?
+      self.team_id = nil
+    end
   end
 
   def set_assignee_last_changed_at

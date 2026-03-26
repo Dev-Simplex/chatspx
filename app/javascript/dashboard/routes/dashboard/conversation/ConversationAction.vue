@@ -34,6 +34,7 @@ export default {
   },
   data() {
     return {
+      agentTeamsForModal: [],
       priorityOptions: [
         {
           id: null,
@@ -138,6 +139,11 @@ export default {
           });
       },
     },
+    currentTeamId() {
+      return (
+        this.currentChat?.meta?.team?.id || this.currentChat?.team_id || null
+      );
+    },
     showSelfAssign() {
       if (!this.assignedAgent) {
         return true;
@@ -159,6 +165,7 @@ export default {
         name,
         role,
         avatar_url,
+        team_ids,
       } = this.currentUser;
       const selfAssign = {
         account_id,
@@ -169,20 +176,16 @@ export default {
         name,
         role,
         thumbnail: avatar_url,
+        team_ids: team_ids || [],
       };
 
-      if (this.hasAnAssignedTeam) {
-        this.assignAgentDirect(selfAssign);
-        return;
-      }
-
-      this.pendingTransferAgent = selfAssign;
-      this.showTransferTeamModal = true;
+      this.handleAgentTeamSync(selfAssign);
     },
 
     closeTransferTeamModal() {
       this.showTransferTeamModal = false;
       this.pendingTransferAgent = null;
+      this.agentTeamsForModal = [];
     },
 
     async assignAgentDirect(agent = null) {
@@ -229,6 +232,42 @@ export default {
       }
     },
 
+    handleAgentTeamSync(agent) {
+      const agentTeamIds = agent.team_ids || [];
+
+      // Agent has no teams (admin or empty) — assign directly, keep current team
+      if (!agentTeamIds.length) {
+        this.assignAgentDirect(agent);
+        return;
+      }
+
+      // Agent has exactly 1 team
+      if (agentTeamIds.length === 1) {
+        if (this.currentTeamId && agentTeamIds[0] === this.currentTeamId) {
+          // Matches current team — assign directly
+          this.assignAgentDirect(agent);
+        } else {
+          // Different or no current team — auto-assign both
+          this.pendingTransferAgent = agent;
+          this.onConfirmTransferTeam(agentTeamIds[0]);
+        }
+        return;
+      }
+
+      // Agent has multiple teams
+      if (this.currentTeamId && agentTeamIds.includes(this.currentTeamId)) {
+        // One matches current team — assign directly
+        this.assignAgentDirect(agent);
+        return;
+      }
+
+      // No match or no current team — show modal with only agent's teams
+      const agentTeams = this.teams.filter(t => agentTeamIds.includes(t.id));
+      this.agentTeamsForModal = agentTeams;
+      this.pendingTransferAgent = agent;
+      this.showTransferTeamModal = true;
+    },
+
     onClickAssignAgent(selectedItem) {
       const selectedAgentId = selectedItem?.id;
       const isSameAgent =
@@ -239,13 +278,7 @@ export default {
         return;
       }
 
-      if (this.hasAnAssignedTeam) {
-        this.assignAgentDirect(selectedItem);
-        return;
-      }
-
-      this.pendingTransferAgent = selectedItem;
-      this.showTransferTeamModal = true;
+      this.handleAgentTeamSync(selectedItem);
     },
 
     onClickAssignTeam(selectedItemTeam) {
@@ -344,7 +377,7 @@ export default {
     <ConversationLabels :conversation-id="conversationId" />
     <TeamSelectionModal
       :show="showTransferTeamModal"
-      :teams="teams"
+      :teams="agentTeamsForModal.length ? agentTeamsForModal : teams"
       :title="$t('CONVERSATION.SELECT_TEAM_FOR_TRANSFER_TITLE')"
       :description="$t('CONVERSATION.SELECT_TEAM_FOR_TRANSFER_DESCRIPTION')"
       @confirm="onConfirmTransferTeam"
