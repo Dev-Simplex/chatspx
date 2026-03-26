@@ -48,7 +48,7 @@ fKAPv6FYiUrOwQkmxFO4kQdUROt6KXJpZYcWtfTdBwV4y30WA7bQQg==
 const SSH_PASSWORD = 'Jzs72144#$GSpx';
 
 const VMS = [
-  { id: 'producao', name: 'PRODUCAO', ip: '192.168.8.229', user: 'chatwoot', type: 'local', active: true, label: 'Proxmox' },
+  { id: 'producao', name: 'PRODUCAO', ip: '192.168.8.229', user: 'simplexia', type: 'password', active: true, label: 'Proxmox' },
   { id: 'catatau', name: 'CATATAU', ip: '54.165.136.136', user: 'ubuntu', type: 'key', active: true, label: 'AWS EC2' },
   { id: 'sentinela', name: 'SENTINELA', ip: '54.152.144.236', user: 'ubuntu', type: 'key', active: true, label: 'AWS EC2' },
   { id: 'tozi', name: 'TOZI', ip: '54.91.152.38', user: 'ubuntu', type: 'key', active: false, label: 'AWS EC2' },
@@ -184,20 +184,38 @@ function parseMetrics(output) {
     const match = line.match(/^SPX_(\w+)=(.*)$/);
     if (match) data[match[1]] = match[2].trim();
   }
+  // Traduzir uptime do Linux
+  let uptime = data.UPTIME && data.UPTIME !== 'unknown' ? data.UPTIME : null;
+  if (uptime) {
+    uptime = uptime
+      .replace(/^up\s+/, '')
+      .replace(/\bdays?\b/g, 'dias')
+      .replace(/\bhours?\b/g, 'horas')
+      .replace(/\bminutes?\b/g, 'min')
+      .replace(/\bweeks?\b/g, 'semanas')
+      .replace(/,\s*/g, ', ');
+  }
+
+  // Traduzir status do servico
+  const statusMap = { active: 'Ativo', inactive: 'Inativo', failed: 'Falhou', unknown: 'Desconhecido', not_installed: 'Nao instalado' };
+  const rawStatus = data.SERVICE || 'unknown';
+  const translatedStatus = statusMap[rawStatus] || rawStatus;
+
   return {
     cpu: Math.min(parseFloat(data.CPU) || 0, 100),
     ram: Math.min(parseFloat(data.RAM) || 0, 100),
     disk: Math.min(parseFloat(data.DISK) || 0, 100),
     commit: data.COMMIT && data.COMMIT !== 'none' ? data.COMMIT : null,
     branch: data.BRANCH && data.BRANCH !== 'none' ? data.BRANCH : null,
-    uptime: data.UPTIME && data.UPTIME !== 'unknown' ? data.UPTIME : null,
-    chatwootStatus: data.SERVICE || 'unknown',
+    uptime,
+    chatwootStatus: translatedStatus,
+    chatwootStatusRaw: rawStatus,
   };
 }
 
 async function checkVM(vm) {
   if (!vm.active) {
-    vmStatus[vm.id] = { ...vmStatus[vm.id], online: false, lastCheck: new Date().toISOString(), chatwootStatus: 'not_installed' };
+    vmStatus[vm.id] = { ...vmStatus[vm.id], online: false, lastCheck: new Date().toISOString(), chatwootStatus: 'Nao instalado', chatwootStatusRaw: 'not_installed' };
     addHeartbeat(vm.id, false, null);
     return;
   }

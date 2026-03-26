@@ -259,7 +259,7 @@
                   <div class="info-item"><span>Commit</span><a :href="'https://github.com/'+github+'/commit/'+vm.status.commit" target="_blank" x-text="vm.status.commit||'-'"></a></div>
                   <div class="info-item"><span>Branch</span><a :href="'https://github.com/'+github+'/tree/'+vm.status.branch" target="_blank" x-text="vm.status.branch||'-'"></a></div>
                   <div class="info-item"><span>Uptime</span><strong x-text="vm.status.uptime||'-'"></strong></div>
-                  <div class="info-item"><span>Servico</span><strong x-text="vm.status.chatwootStatus||'-'" :style="{color:vm.status.chatwootStatus==='active'?'var(--online)':'var(--offline)'}"></strong></div>
+                  <div class="info-item"><span>Servico</span><strong x-text="vm.status.chatwootStatus||'-'" :style="{color:vm.status.chatwootStatusRaw==='active'?'var(--online)':'var(--offline)'}"></strong></div>
                 </div>
               </div>
             </template>
