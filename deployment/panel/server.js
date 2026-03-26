@@ -3,17 +3,19 @@ const session = require('express-session');
 const http = require('http');
 const { Server } = require('socket.io');
 const { Client } = require('ssh2');
+const { execSync } = require('child_process');
 const path = require('path');
 
 // ============================================================
-// CONFIGURACAO HARDCODED
+// CONFIG HARDCODED
 // ============================================================
 
 const AUTH = { user: 'admin', pass: 'Jzs72144#$GSpx' };
 const GITHUB_REPO = 'Dev-Simplex/chatspx';
 const SESSION_SECRET = 'spx-panel-s3cr3t-k3y-2026';
 const PORT = 4000;
-const STATUS_INTERVAL = 30000; // 30s
+const STATUS_INTERVAL = 30000;
+const HEARTBEAT_SIZE = 60;
 
 const SSH_KEY = `-----BEGIN RSA PRIVATE KEY-----
 MIIEpAIBAAKCAQEAjGyZwywsYUjDVYa8yyafsTpj+39b0bTN0+GgEGwi1ZQKQFGV
@@ -46,18 +48,18 @@ fKAPv6FYiUrOwQkmxFO4kQdUROt6KXJpZYcWtfTdBwV4y30WA7bQQg==
 const SSH_PASSWORD = 'Jzs72144#$GSpx';
 
 const VMS = [
-  { id: 'producao', name: 'PRODUCAO', ip: '192.168.8.229', user: 'chatwoot', type: 'key', active: true },
-  { id: 'catatau', name: 'CATATAU', ip: '54.165.136.136', user: 'ubuntu', type: 'key', active: true },
-  { id: 'sentinela', name: 'SENTINELA', ip: '54.152.144.236', user: 'ubuntu', type: 'key', active: true },
-  { id: 'tozi', name: 'TOZI', ip: '54.91.152.38', user: 'ubuntu', type: 'key', active: false },
-  { id: 'alternativo', name: 'ALTERNATIVO', ip: '192.168.8.169', user: 'simplexia', type: 'password', active: true },
+  { id: 'producao', name: 'PRODUCAO', ip: '192.168.8.229', user: 'chatwoot', type: 'local', active: true, label: 'Proxmox' },
+  { id: 'catatau', name: 'CATATAU', ip: '54.165.136.136', user: 'ubuntu', type: 'key', active: true, label: 'AWS EC2' },
+  { id: 'sentinela', name: 'SENTINELA', ip: '54.152.144.236', user: 'ubuntu', type: 'key', active: true, label: 'AWS EC2' },
+  { id: 'tozi', name: 'TOZI', ip: '54.91.152.38', user: 'ubuntu', type: 'key', active: false, label: 'AWS EC2' },
+  { id: 'alternativo', name: 'ALTERNATIVO', ip: '192.168.8.169', user: 'simplexia', type: 'password', active: true, label: 'Proxmox' },
 ];
 
 const BRANCHES = ['producao', 'homologacao', 'develop'];
 const BRANCH_REGEX = /^[a-zA-Z0-9._\-/]{1,100}$/;
 
 // ============================================================
-// APP SETUP
+// APP
 // ============================================================
 
 const app = express();
@@ -68,15 +70,13 @@ const sessionMiddleware = session({
   secret: SESSION_SECRET,
   resave: false,
   saveUninitialized: false,
-  cookie: { maxAge: 4 * 60 * 60 * 1000 }, // 4h
+  cookie: { maxAge: 4 * 60 * 60 * 1000 },
 });
 
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 app.use(sessionMiddleware);
 app.use(express.static(path.join(__dirname, 'public')));
-
-// Share session with Socket.IO
 io.engine.use(sessionMiddleware);
 
 // ============================================================
@@ -84,141 +84,143 @@ io.engine.use(sessionMiddleware);
 // ============================================================
 
 const vmStatus = {};
-const deployLocks = new Map(); // vmId -> true
+const heartbeats = {};
+const deployLocks = new Map();
 
 VMS.forEach(vm => {
-  vmStatus[vm.id] = {
-    online: false,
-    cpu: null,
-    ram: null,
-    disk: null,
-    commit: null,
-    branch: null,
-    uptime: null,
-    lastCheck: null,
-    chatwootStatus: null,
-  };
+  vmStatus[vm.id] = { online: false, cpu: null, ram: null, disk: null, commit: null, branch: null, uptime: null, lastCheck: null, ping: null, chatwootStatus: null };
+  heartbeats[vm.id] = [];
 });
 
 // ============================================================
-// SSH HELPERS
+// SSH
 // ============================================================
 
 function getSSHConfig(vm) {
-  const config = {
-    host: vm.ip,
-    port: 22,
-    username: vm.user,
-    readyTimeout: 10000,
-    keepaliveInterval: 5000,
-  };
-  if (vm.type === 'key') {
-    config.privateKey = SSH_KEY;
-  } else {
-    config.password = SSH_PASSWORD;
-  }
+  const config = { host: vm.ip, port: 22, username: vm.user, readyTimeout: 10000, keepaliveInterval: 5000 };
+  if (vm.type === 'key') config.privateKey = SSH_KEY;
+  else if (vm.type === 'password') config.password = SSH_PASSWORD;
+  else if (vm.type === 'local') config.privateKey = SSH_KEY;
   return config;
 }
 
 function sshExec(vm, command, timeout = 15000) {
   return new Promise((resolve, reject) => {
     const conn = new Client();
-    const timer = setTimeout(() => {
-      conn.end();
-      reject(new Error('SSH timeout'));
-    }, timeout);
-
+    const timer = setTimeout(() => { conn.end(); reject(new Error('timeout')); }, timeout);
     conn.on('ready', () => {
       conn.exec(command, (err, stream) => {
         if (err) { clearTimeout(timer); conn.end(); return reject(err); }
-        let stdout = '';
-        let stderr = '';
+        let stdout = '', stderr = '';
         stream.on('data', d => { stdout += d.toString(); });
         stream.stderr.on('data', d => { stderr += d.toString(); });
-        stream.on('close', (code) => {
-          clearTimeout(timer);
-          conn.end();
-          resolve({ stdout: stdout.trim(), stderr: stderr.trim(), code });
-        });
+        stream.on('close', (code) => { clearTimeout(timer); conn.end(); resolve({ stdout: stdout.trim(), stderr: stderr.trim(), code }); });
       });
     });
-
-    conn.on('error', (err) => {
-      clearTimeout(timer);
-      reject(err);
-    });
-
+    conn.on('error', err => { clearTimeout(timer); reject(err); });
     conn.connect(getSSHConfig(vm));
   });
 }
 
 function sshExecStream(vm, command, onData, onDone) {
   const conn = new Client();
-
   conn.on('ready', () => {
     conn.exec(command, { pty: true }, (err, stream) => {
       if (err) { conn.end(); return onDone(err); }
       stream.on('data', d => onData(d.toString()));
       stream.stderr.on('data', d => onData(d.toString()));
-      stream.on('close', (code) => {
-        conn.end();
-        onDone(null, code);
-      });
+      stream.on('close', code => { conn.end(); onDone(null, code); });
     });
   });
-
-  conn.on('error', (err) => onDone(err));
+  conn.on('error', err => onDone(err));
   conn.connect(getSSHConfig(vm));
   return conn;
 }
 
+function execLocal(command) {
+  try {
+    return execSync(command, { encoding: 'utf8', timeout: 10000 }).trim();
+  } catch { return ''; }
+}
+
 // ============================================================
-// VM STATUS CHECK
+// STATUS CHECK
 // ============================================================
+
+const METRICS_CMD_REMOTE = `echo "---METRICS---" && LC_ALL=C top -bn1 | grep 'Cpu(s)' | awk '{printf "%.0f", 100-$8}' && echo "" && free | awk '/Mem:/{printf "%.0f", $3/$2*100}' && echo "" && df / | awk 'NR==2{gsub(/%/,"",$5); print $5}' && echo "" && sudo -i -u chatwoot bash -c 'cd ~/chatwoot && git rev-parse --short HEAD' && echo "" && sudo -i -u chatwoot bash -c 'cd ~/chatwoot && git rev-parse --abbrev-ref HEAD' && echo "" && uptime -p && echo "" && sudo systemctl is-active chatwoot.target 2>/dev/null || echo unknown`;
+
+const METRICS_CMD_LOCAL = `echo "---METRICS---" && LC_ALL=C top -bn1 | grep 'Cpu(s)' | awk '{printf "%.0f", 100-$8}' && echo "" && free | awk '/Mem:/{printf "%.0f", $3/$2*100}' && echo "" && df / | awk 'NR==2{gsub(/%/,"",$5); print $5}' && echo "" && cd /home/chatwoot/chatwoot && git rev-parse --short HEAD && echo "" && git rev-parse --abbrev-ref HEAD && echo "" && uptime -p && echo "" && systemctl is-active chatwoot.target 2>/dev/null || echo unknown`;
 
 async function checkVM(vm) {
   if (!vm.active) {
     vmStatus[vm.id] = { ...vmStatus[vm.id], online: false, lastCheck: new Date().toISOString(), chatwootStatus: 'not_installed' };
+    addHeartbeat(vm.id, false, null);
     return;
   }
 
+  const startTime = Date.now();
+
   try {
-    const cmd = vm.user === 'chatwoot'
-      ? "echo OK && top -bn1 | grep 'Cpu(s)' | awk '{print 100-$8}' && free -m | awk '/Mem:/{printf \"%.0f\", $3/$2*100}' && df -h / | awk 'NR==2{print $5}' | tr -d '%' && cd ~/chatwoot && git rev-parse --short HEAD && git rev-parse --abbrev-ref HEAD && uptime -p && systemctl is-active chatwoot.target 2>/dev/null || echo inactive"
-      : "echo OK && top -bn1 | grep 'Cpu(s)' | awk '{print 100-$8}' && free -m | awk '/Mem:/{printf \"%.0f\", $3/$2*100}' && df -h / | awk 'NR==2{print $5}' | tr -d '%' && sudo -i -u chatwoot bash -c 'cd ~/chatwoot && git rev-parse --short HEAD && git rev-parse --abbrev-ref HEAD' && uptime -p && sudo systemctl is-active chatwoot.target 2>/dev/null || echo inactive";
+    let result;
+    if (vm.type === 'local') {
+      const output = execLocal(METRICS_CMD_LOCAL);
+      result = { stdout: output, code: 0 };
+    } else {
+      result = await sshExec(vm, METRICS_CMD_REMOTE, 12000);
+    }
 
-    const result = await sshExec(vm, cmd, 12000);
+    const ping = Date.now() - startTime;
     const lines = result.stdout.split('\n').map(l => l.trim());
+    const metricsIdx = lines.indexOf('---METRICS---');
+    const data = metricsIdx >= 0 ? lines.slice(metricsIdx + 1) : lines;
+
+    const cpu = parseFloat(data[0]) || 0;
+    const ram = parseFloat(data[1]) || 0;
+    const disk = parseFloat(data[2]) || 0;
 
     vmStatus[vm.id] = {
-      online: lines[0] === 'OK',
-      cpu: parseFloat(lines[1]) || null,
-      ram: parseFloat(lines[2]) || null,
-      disk: parseFloat(lines[3]) || null,
-      commit: lines[4] || null,
-      branch: lines[5] || null,
-      uptime: lines[6] || null,
-      chatwootStatus: lines[7] || 'unknown',
+      online: true,
+      cpu: Math.min(cpu, 100),
+      ram: Math.min(ram, 100),
+      disk: Math.min(disk, 100),
+      commit: data[3] || null,
+      branch: data[4] || null,
+      uptime: data[5] || null,
+      chatwootStatus: data[6] || 'unknown',
       lastCheck: new Date().toISOString(),
+      ping,
     };
+    addHeartbeat(vm.id, true, ping);
   } catch {
-    vmStatus[vm.id] = {
-      ...vmStatus[vm.id],
-      online: false,
-      lastCheck: new Date().toISOString(),
-    };
+    const ping = Date.now() - startTime;
+    vmStatus[vm.id] = { ...vmStatus[vm.id], online: false, lastCheck: new Date().toISOString(), ping };
+    addHeartbeat(vm.id, false, ping);
   }
+}
+
+function addHeartbeat(vmId, online, ping) {
+  heartbeats[vmId].push({ time: new Date().toISOString(), online, ping });
+  if (heartbeats[vmId].length > HEARTBEAT_SIZE) heartbeats[vmId].shift();
+}
+
+function getUptimePercent(vmId) {
+  const hb = heartbeats[vmId];
+  if (hb.length === 0) return null;
+  const online = hb.filter(h => h.online).length;
+  return ((online / hb.length) * 100).toFixed(1);
 }
 
 async function checkAllVMs() {
   await Promise.allSettled(VMS.map(vm => checkVM(vm)));
-  io.emit('status:update', getStatusPayload());
+  io.emit('status:update', getPayload());
 }
 
-function getStatusPayload() {
+function getPayload() {
   return VMS.map(vm => ({
     ...vm,
     status: vmStatus[vm.id],
+    heartbeat: heartbeats[vm.id],
+    uptimePercent: getUptimePercent(vm.id),
     deploying: deployLocks.has(vm.id),
   }));
 }
@@ -236,50 +238,38 @@ function deployVM(vm, branch, socket) {
   deployLocks.set(vm.id, true);
   io.emit('deploy:lock', { vmId: vm.id, locked: true });
 
-  return new Promise((resolve) => {
-    const timestamp = () => new Date().toLocaleTimeString('pt-BR');
-
-    socket.emit('deploy:log', { vmId: vm.id, data: `[${timestamp()}] [${vm.name}] Iniciando deploy (branch: ${branch})...\n` });
+  return new Promise(resolve => {
+    const ts = () => new Date().toLocaleTimeString('pt-BR');
+    socket.emit('deploy:log', { vmId: vm.id, data: `[${ts()}] [${vm.name}] Iniciando deploy (branch: ${branch})...\n` });
 
     let cmd;
-    if (vm.user === 'chatwoot') {
-      // VM local (producao) - roda direto
-      cmd = `cd ~/chatwoot && git fetch origin && git checkout ${branch} && git pull origin ${branch} && source /usr/local/rvm/scripts/rvm && rvm use 3.4.4 && bundle install --jobs $(nproc) --retry 3 && pnpm install --frozen-lockfile 2>/dev/null || pnpm install && RAILS_ENV=production NODE_OPTIONS='--max-old-space-size=4096' bundle exec rake assets:precompile && RAILS_ENV=production bundle exec rails db:migrate && sudo systemctl restart chatwoot.target && echo '=== DEPLOY CONCLUIDO COM SUCESSO ==='`;
+    if (vm.type === 'local') {
+      cmd = `cd /home/chatwoot/chatwoot && git fetch origin && git checkout ${branch} && git pull origin ${branch} && source /usr/local/rvm/scripts/rvm && rvm use 3.4.4 && bundle install --jobs $(nproc) --retry 3 && pnpm install --frozen-lockfile 2>/dev/null || pnpm install && RAILS_ENV=production NODE_OPTIONS='--max-old-space-size=4096' bundle exec rake assets:precompile && RAILS_ENV=production bundle exec rails db:migrate && sudo systemctl restart chatwoot.target && echo '=== DEPLOY CONCLUIDO ==='`;
     } else {
-      // VM remota - roda via sudo cwctl
       cmd = `sudo wget -q https://raw.githubusercontent.com/${GITHUB_REPO}/${branch}/deployment/setup_spx_24.04.sh -O /usr/local/bin/cwctl && sudo chmod +x /usr/local/bin/cwctl && echo 'y' | sudo cwctl -U ${branch}`;
     }
 
-    const conn = sshExecStream(vm, cmd,
-      (data) => {
-        socket.emit('deploy:log', { vmId: vm.id, data });
-      },
+    sshExecStream(vm, cmd,
+      data => socket.emit('deploy:log', { vmId: vm.id, data }),
       (err, code) => {
         deployLocks.delete(vm.id);
         io.emit('deploy:lock', { vmId: vm.id, locked: false });
-
         if (err) {
           socket.emit('deploy:log', { vmId: vm.id, data: `\n[ERRO] ${err.message}\n` });
-          socket.emit('deploy:done', { vmId: vm.id, success: false });
+          socket.emit('deploy:done', { vmId: vm.id, success: false, vmName: vm.name });
         } else {
-          socket.emit('deploy:log', { vmId: vm.id, data: `\n[${timestamp()}] [${vm.name}] Finalizado (exit code: ${code})\n` });
-          socket.emit('deploy:done', { vmId: vm.id, success: code === 0 });
+          socket.emit('deploy:log', { vmId: vm.id, data: `\n[${ts()}] [${vm.name}] Finalizado (exit: ${code})\n` });
+          socket.emit('deploy:done', { vmId: vm.id, success: code === 0, vmName: vm.name });
         }
-
-        // Refresh status after deploy
-        setTimeout(() => checkVM(vm).then(() => io.emit('status:update', getStatusPayload())), 5000);
+        setTimeout(() => checkVM(vm).then(() => io.emit('status:update', getPayload())), 5000);
         resolve();
       }
     );
-
-    // Store connection for potential cancel
-    socket.deployConns = socket.deployConns || {};
-    socket.deployConns[vm.id] = conn;
   });
 }
 
 // ============================================================
-// AUTH MIDDLEWARE
+// AUTH
 // ============================================================
 
 function requireAuth(req, res, next) {
@@ -301,64 +291,36 @@ app.post('/api/login', (req, res) => {
   }
 });
 
-app.post('/api/logout', (req, res) => {
-  req.session.destroy();
-  res.json({ success: true });
-});
+app.post('/api/logout', (req, res) => { req.session.destroy(); res.json({ success: true }); });
 
 app.get('/api/status', requireAuth, (req, res) => {
-  res.json({
-    vms: getStatusPayload(),
-    branches: BRANCHES,
-    github: GITHUB_REPO,
-  });
+  res.json({ vms: getPayload(), branches: BRANCHES, github: GITHUB_REPO });
 });
 
-app.get('/api/health', (req, res) => {
-  res.json({ status: 'ok', uptime: process.uptime() });
-});
+app.get('/api/health', (req, res) => { res.json({ status: 'ok', uptime: process.uptime() }); });
 
 // ============================================================
 // SOCKET.IO
 // ============================================================
 
 io.use((socket, next) => {
-  const req = socket.request;
-  if (req.session?.authenticated) return next();
+  if (socket.request.session?.authenticated) return next();
   next(new Error('Nao autenticado'));
 });
 
-io.on('connection', (socket) => {
-  // Send current status on connect
-  socket.emit('status:update', getStatusPayload());
+io.on('connection', socket => {
+  socket.emit('status:update', getPayload());
 
-  // Deploy request
   socket.on('deploy', async ({ vmIds, branch }) => {
-    if (!BRANCH_REGEX.test(branch)) {
-      socket.emit('deploy:log', { vmId: 'system', data: '[ERRO] Nome de branch invalido\n' });
-      return;
-    }
-
-    const selectedVMs = VMS.filter(vm => vmIds.includes(vm.id) && vm.active);
-    if (selectedVMs.length === 0) {
-      socket.emit('deploy:log', { vmId: 'system', data: '[ERRO] Nenhuma VM selecionada\n' });
-      return;
-    }
-
-    socket.emit('deploy:start', { vmIds: selectedVMs.map(v => v.id), branch });
-
-    // Deploy sequentially
-    for (const vm of selectedVMs) {
-      await deployVM(vm, branch, socket);
-    }
-
+    if (!BRANCH_REGEX.test(branch)) { socket.emit('deploy:log', { vmId: 'system', data: '[ERRO] Branch invalida\n' }); return; }
+    const selected = VMS.filter(v => vmIds.includes(v.id) && v.active);
+    if (!selected.length) { socket.emit('deploy:log', { vmId: 'system', data: '[ERRO] Nenhuma VM selecionada\n' }); return; }
+    socket.emit('deploy:start', { vmIds: selected.map(v => v.id), branch });
+    for (const vm of selected) await deployVM(vm, branch, socket);
     socket.emit('deploy:allDone');
   });
 
-  // Refresh status on demand
-  socket.on('refresh', () => {
-    checkAllVMs();
-  });
+  socket.on('refresh', () => checkAllVMs());
 });
 
 // ============================================================
@@ -366,7 +328,7 @@ io.on('connection', (socket) => {
 // ============================================================
 
 server.listen(PORT, '0.0.0.0', () => {
-  console.log(`ChatSPX Panel rodando em http://0.0.0.0:${PORT}`);
+  console.log(`ChatSPX Panel v2 rodando em http://0.0.0.0:${PORT}`);
   checkAllVMs();
   setInterval(checkAllVMs, STATUS_INTERVAL);
 });

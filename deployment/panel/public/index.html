@@ -3,993 +3,391 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>ChatSPX - Painel de Controle</title>
-  <link rel="preconnect" href="https://fonts.googleapis.com">
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+  <title>SPX - CHAT | Painel</title>
+  <link rel="icon" type="image/svg+xml" href="/logo.svg">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
   <script src="https://unpkg.com/lucide@latest/dist/umd/lucide.js"></script>
   <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js"></script>
   <script src="/socket.io/socket.io.js"></script>
   <style>
-    :root {
-      --bg-primary: #F8F9FA;
-      --bg-secondary: #FFFFFF;
-      --bg-tertiary: #F0F2F5;
-      --bg-terminal: #1A1A2E;
-      --text-primary: #1A1A2E;
-      --text-secondary: #5F6368;
-      --text-tertiary: #9AA0A6;
-      --border: #E0E3E8;
-      --primary: #1565C0;
-      --primary-light: #E3F2FD;
-      --primary-hover: #0D47A1;
-      --success: #2E7D32;
-      --success-light: #E8F5E9;
-      --success-bg: rgba(46,125,50,0.08);
-      --error: #C62828;
-      --error-light: #FFEBEE;
-      --error-bg: rgba(198,40,40,0.08);
-      --warning: #E65100;
-      --warning-light: #FFF3E0;
-      --shadow-sm: 0 1px 3px rgba(0,0,0,0.08);
-      --shadow-md: 0 4px 12px rgba(0,0,0,0.08);
-      --shadow-lg: 0 8px 30px rgba(0,0,0,0.12);
-      --radius: 12px;
-      --radius-sm: 8px;
-      --transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+    :root{
+      --bg:            #F8FAFB;
+      --bg-card:       #FFFFFF;
+      --bg-hover:      #F1F5F9;
+      --bg-terminal:   #0f172a;
+      --border:        #E2E8F0;
+      --border-hover:  #CBD5E1;
+      --text:          #1E293B;
+      --text-2:        #475569;
+      --text-3:        #94A3B8;
+      --brand:         #2dc46f;
+      --brand-light:   #dcfce7;
+      --online:        #22c55e;
+      --offline:       #ef4444;
+      --warn:          #eab308;
+      --neutral:       #cbd5e1;
+      --cpu:           #3b82f6;
+      --ram:           #8b5cf6;
+      --disk:          #f59e0b;
+      --shadow:        0 1px 3px rgba(0,0,0,.06),0 1px 2px rgba(0,0,0,.04);
+      --shadow-lg:     0 10px 40px rgba(0,0,0,.08);
+      --radius:        12px;
     }
+    [data-theme="dark"]{
+      --bg:            #0B0F19;
+      --bg-card:       #151B2B;
+      --bg-hover:      #1E293B;
+      --bg-terminal:   #080C14;
+      --border:        #1E293B;
+      --border-hover:  #334155;
+      --text:          #F1F5F9;
+      --text-2:        #94A3B8;
+      --text-3:        #475569;
+      --brand-light:   rgba(45,196,111,.12);
+      --shadow:        0 1px 3px rgba(0,0,0,.3);
+      --shadow-lg:     0 10px 40px rgba(0,0,0,.4);
+    }
+    *{margin:0;padding:0;box-sizing:border-box}
+    body{font-family:'Inter',sans-serif;background:var(--bg);color:var(--text);transition:background .3s,color .3s;min-height:100vh}
+    ::-webkit-scrollbar{width:5px}::-webkit-scrollbar-thumb{background:var(--text-3);border-radius:3px}
+    a{color:var(--brand);text-decoration:none}a:hover{text-decoration:underline}
 
-    [data-theme="dark"] {
-      --bg-primary: #0F0F17;
-      --bg-secondary: #1A1A2E;
-      --bg-tertiary: #16213E;
-      --bg-terminal: #0A0A14;
-      --text-primary: #E8EAED;
-      --text-secondary: #9AA0A6;
-      --text-tertiary: #5F6368;
-      --border: #2A2A3E;
-      --primary: #64B5F6;
-      --primary-light: rgba(100,181,246,0.12);
-      --primary-hover: #90CAF9;
-      --success: #66BB6A;
-      --success-light: rgba(102,187,106,0.12);
-      --success-bg: rgba(102,187,106,0.08);
-      --error: #EF5350;
-      --error-light: rgba(239,83,80,0.12);
-      --error-bg: rgba(239,83,80,0.08);
-      --warning: #FFA726;
-      --warning-light: rgba(255,167,38,0.12);
-      --shadow-sm: 0 1px 3px rgba(0,0,0,0.3);
-      --shadow-md: 0 4px 12px rgba(0,0,0,0.3);
-      --shadow-lg: 0 8px 30px rgba(0,0,0,0.4);
-    }
+    /* LOGIN */
+    .login-bg{min-height:100vh;display:flex;align-items:center;justify-content:center;background:var(--bg)}
+    .login-box{background:var(--bg-card);border:1px solid var(--border);border-radius:16px;padding:48px 40px;width:100%;max-width:400px;box-shadow:var(--shadow-lg)}
+    .login-logo{text-align:center;margin-bottom:28px}
+    .login-logo img{height:48px;margin-bottom:12px}
+    .login-logo h1{font-size:22px;font-weight:700;letter-spacing:-.3px}
+    .login-logo p{color:var(--text-3);font-size:13px;margin-top:2px}
+    .field{margin-bottom:16px}
+    .field label{display:block;font-size:12px;font-weight:600;color:var(--text-2);margin-bottom:5px;letter-spacing:.3px;text-transform:uppercase}
+    .field input{width:100%;padding:11px 14px;border:1.5px solid var(--border);border-radius:8px;font-size:14px;font-family:inherit;background:var(--bg);color:var(--text);outline:none;transition:.2s}
+    .field input:focus{border-color:var(--brand);box-shadow:0 0 0 3px var(--brand-light)}
+    .btn{display:inline-flex;align-items:center;justify-content:center;gap:7px;padding:11px 22px;border:none;border-radius:8px;font-size:14px;font-weight:600;font-family:inherit;cursor:pointer;transition:.2s;outline:none}
+    .btn-brand{background:var(--brand);color:#fff;width:100%}.btn-brand:hover{filter:brightness(1.1);transform:translateY(-1px)}.btn-brand:disabled{opacity:.5;cursor:not-allowed;transform:none}
+    .btn-ghost{background:transparent;color:var(--text);border:1.5px solid var(--border);padding:8px 16px;font-size:13px}.btn-ghost:hover{background:var(--bg-hover);border-color:var(--border-hover)}
+    .btn-deploy{background:var(--brand);color:#fff;padding:12px 28px;font-size:14px;border-radius:10px}.btn-deploy:hover{filter:brightness(1.1);box-shadow:0 4px 20px rgba(45,196,111,.3);transform:translateY(-1px)}.btn-deploy:disabled{opacity:.4;cursor:not-allowed;transform:none;box-shadow:none}
+    .login-err{background:rgba(239,68,68,.1);color:var(--offline);padding:10px 14px;border-radius:8px;font-size:13px;margin-bottom:14px;display:flex;align-items:center;gap:8px}
 
-    * { margin: 0; padding: 0; box-sizing: border-box; }
+    /* HEADER */
+    .header{background:var(--bg-card);border-bottom:1px solid var(--border);height:56px;display:flex;align-items:center;justify-content:space-between;padding:0 24px;position:sticky;top:0;z-index:50;box-shadow:var(--shadow)}
+    .header-left{display:flex;align-items:center;gap:10px}
+    .header-left img{height:28px}
+    .header-left span{font-size:16px;font-weight:700;letter-spacing:-.2px}
+    .header-right{display:flex;align-items:center;gap:6px}
+    .icon-btn{width:36px;height:36px;display:flex;align-items:center;justify-content:center;border:none;background:var(--bg-hover);border-radius:8px;cursor:pointer;color:var(--text-2);transition:.2s}.icon-btn:hover{background:var(--border);color:var(--text)}
 
-    body {
-      font-family: 'Inter', -apple-system, sans-serif;
-      background: var(--bg-primary);
-      color: var(--text-primary);
-      transition: background 0.3s ease, color 0.3s ease;
-      min-height: 100vh;
-    }
+    /* MAIN */
+    .main{max-width:900px;margin:0 auto;padding:24px 20px}
 
-    /* ===== SCROLLBAR ===== */
-    ::-webkit-scrollbar { width: 6px; height: 6px; }
-    ::-webkit-scrollbar-track { background: transparent; }
-    ::-webkit-scrollbar-thumb { background: var(--text-tertiary); border-radius: 3px; }
+    /* STATUS BANNER */
+    .banner{padding:14px 20px;border-radius:10px;font-size:14px;font-weight:600;display:flex;align-items:center;gap:10px;margin-bottom:24px;transition:background .5s}
+    .banner.ok{background:var(--brand-light);color:#166534}
+    .banner.bad{background:rgba(239,68,68,.1);color:#991b1b}
+    [data-theme="dark"] .banner.ok{color:var(--online)}
+    [data-theme="dark"] .banner.bad{color:var(--offline)}
 
-    /* ===== LOGIN ===== */
-    .login-wrapper {
-      min-height: 100vh;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      background: linear-gradient(135deg, var(--bg-primary) 0%, var(--bg-tertiary) 100%);
-    }
+    /* VM CARD */
+    .vm-card{background:var(--bg-card);border:1px solid var(--border);border-radius:var(--radius);margin-bottom:10px;box-shadow:var(--shadow);transition:.2s;overflow:hidden}
+    .vm-card:hover{border-color:var(--border-hover)}
+    .vm-card.offline-border{border-left:3px solid var(--offline)}
+    .vm-card.online-border{border-left:3px solid var(--online)}
+    .vm-card.disabled-border{border-left:3px solid var(--neutral);opacity:.5}
 
-    .login-card {
-      background: var(--bg-secondary);
-      border: 1px solid var(--border);
-      border-radius: 16px;
-      padding: 48px 40px;
-      width: 100%;
-      max-width: 420px;
-      box-shadow: var(--shadow-lg);
-      animation: slideUp 0.5s ease;
-    }
+    .vm-row{display:flex;align-items:center;gap:14px;padding:16px 20px;cursor:pointer;user-select:none}
+    .dot{width:10px;height:10px;border-radius:50%;flex-shrink:0}
+    .dot.on{background:var(--online);box-shadow:0 0 8px var(--online);animation:pulse 2s infinite}
+    .dot.off{background:var(--offline)}
+    .dot.none{background:var(--neutral)}
+    .dot.deploying{background:var(--warn);animation:pulse 1s infinite}
 
-    .logo { text-align: center; margin-bottom: 32px; }
-    .logo-icon {
-      width: 56px; height: 56px;
-      background: linear-gradient(135deg, var(--primary), #7C4DFF);
-      border-radius: 14px;
-      display: inline-flex;
-      align-items: center;
-      justify-content: center;
-      margin-bottom: 16px;
-    }
-    .logo-icon svg { color: white; }
-    .logo h1 { font-size: 24px; font-weight: 700; letter-spacing: -0.5px; }
-    .logo p { color: var(--text-secondary); font-size: 14px; margin-top: 4px; }
+    .vm-name-col{flex:1;min-width:0}
+    .vm-name-col h3{font-size:15px;font-weight:600;display:flex;align-items:center;gap:8px}
+    .vm-name-col .sub{font-size:12px;color:var(--text-3);font-family:'JetBrains Mono',monospace;margin-top:1px}
+    .vm-tag{font-size:10px;font-weight:600;padding:2px 7px;border-radius:4px;background:var(--bg-hover);color:var(--text-3);letter-spacing:.3px}
+    .vm-deploying-tag{font-size:10px;font-weight:600;padding:2px 7px;border-radius:4px;background:rgba(234,179,8,.15);color:var(--warn);display:flex;align-items:center;gap:3px}
+    .vm-ping{font-size:13px;font-weight:500;color:var(--text-2);font-family:'JetBrains Mono',monospace;min-width:50px;text-align:right}
+    .vm-uptime{font-size:13px;font-weight:600;min-width:55px;text-align:right}
+    .vm-uptime.good{color:var(--online)}.vm-uptime.mid{color:var(--warn)}.vm-uptime.bad{color:var(--offline)}
+    .vm-chevron{color:var(--text-3);transition:transform .2s}.vm-chevron.open{transform:rotate(180deg)}
 
-    .input-group { margin-bottom: 20px; position: relative; }
-    .input-group label {
-      display: block;
-      font-size: 13px;
-      font-weight: 500;
-      color: var(--text-secondary);
-      margin-bottom: 6px;
-    }
-    .input-group input {
-      width: 100%;
-      padding: 12px 16px 12px 44px;
-      border: 1.5px solid var(--border);
-      border-radius: var(--radius-sm);
-      font-size: 15px;
-      font-family: inherit;
-      background: var(--bg-primary);
-      color: var(--text-primary);
-      transition: var(--transition);
-      outline: none;
-    }
-    .input-group input:focus {
-      border-color: var(--primary);
-      box-shadow: 0 0 0 3px var(--primary-light);
-    }
-    .input-icon {
-      position: absolute;
-      left: 14px;
-      top: 35px;
-      color: var(--text-tertiary);
-    }
+    /* HEARTBEAT BAR */
+    .hb-bar{display:flex;gap:1.5px;padding:0 20px 12px;align-items:flex-end}
+    .hb-seg{width:100%;height:22px;border-radius:2px;transition:opacity .1s;min-width:2px;flex:1}
+    .hb-seg.on{background:var(--online);opacity:.8}.hb-seg.on:hover{opacity:1}
+    .hb-seg.off{background:var(--offline);opacity:.8}.hb-seg.off:hover{opacity:1}
+    .hb-seg.none{background:var(--neutral);opacity:.3}
+    .hb-labels{display:flex;justify-content:space-between;padding:0 20px 8px;font-size:10px;color:var(--text-3)}
 
-    .btn {
-      display: inline-flex;
-      align-items: center;
-      justify-content: center;
-      gap: 8px;
-      padding: 12px 24px;
-      border: none;
-      border-radius: var(--radius-sm);
-      font-size: 14px;
-      font-weight: 600;
-      font-family: inherit;
-      cursor: pointer;
-      transition: var(--transition);
-      outline: none;
-    }
-    .btn-primary {
-      background: var(--primary);
-      color: white;
-      width: 100%;
-    }
-    .btn-primary:hover { background: var(--primary-hover); transform: translateY(-1px); box-shadow: var(--shadow-md); }
-    .btn-primary:active { transform: translateY(0); }
-    .btn-primary:disabled { opacity: 0.6; cursor: not-allowed; transform: none; }
+    /* EXPANDED DETAILS */
+    .vm-details{padding:0 20px 20px;border-top:1px solid var(--border)}
+    .metrics-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:16px;margin:16px 0}
+    .metric-item label{font-size:11px;font-weight:600;color:var(--text-3);text-transform:uppercase;letter-spacing:.5px}
+    .metric-item .bar-bg{height:6px;background:var(--bg-hover);border-radius:3px;margin-top:6px;overflow:hidden}
+    .metric-item .bar-fill{height:100%;border-radius:3px;transition:width .5s}
+    .metric-item .val{font-size:20px;font-weight:700;margin-top:4px;letter-spacing:-.5px}
+    .info-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:10px;margin-top:14px}
+    .info-item{font-size:13px}.info-item span{color:var(--text-3);font-size:11px;display:block;margin-bottom:2px;text-transform:uppercase;letter-spacing:.3px;font-weight:600}
+    .info-item a,.info-item strong{font-family:'JetBrains Mono',monospace;font-size:13px}
 
-    .btn-outline {
-      background: transparent;
-      color: var(--text-primary);
-      border: 1.5px solid var(--border);
-    }
-    .btn-outline:hover { background: var(--bg-tertiary); border-color: var(--text-tertiary); }
+    /* DEPLOY SECTION */
+    .deploy-bar{display:flex;align-items:center;gap:10px;margin:24px 0 16px;flex-wrap:wrap}
+    .deploy-bar select{appearance:none;padding:10px 36px 10px 14px;border:1.5px solid var(--border);border-radius:8px;font-size:13px;font-weight:500;font-family:inherit;background:var(--bg-card);color:var(--text);cursor:pointer;outline:none;background-image:url("data:image/svg+xml,%3Csvg width='10' height='6' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='M1 1l4 4 4-4' stroke='%2394A3B8' fill='none' stroke-width='1.5'/%3E%3C/svg%3E");background-repeat:no-repeat;background-position:right 12px center}
+    .deploy-bar select:focus{border-color:var(--brand)}
 
-    .btn-deploy {
-      background: linear-gradient(135deg, #1565C0, #7C4DFF);
-      color: white;
-      padding: 14px 32px;
-      font-size: 15px;
-      border-radius: var(--radius);
-    }
-    .btn-deploy:hover { box-shadow: 0 4px 20px rgba(21,101,192,0.4); transform: translateY(-2px); }
-    .btn-deploy:disabled { opacity: 0.5; cursor: not-allowed; transform: none; box-shadow: none; }
+    /* TERMINAL */
+    .terminal{background:var(--bg-terminal);border-radius:var(--radius);border:1px solid var(--border);overflow:hidden;box-shadow:var(--shadow-lg);margin-top:16px}
+    .terminal-top{background:rgba(255,255,255,.04);padding:10px 16px;display:flex;align-items:center;justify-content:space-between;border-bottom:1px solid rgba(255,255,255,.06)}
+    .terminal-top .dots{display:flex;gap:6px}.terminal-top .dots span{width:10px;height:10px;border-radius:50%}.terminal-top .dots span:nth-child(1){background:#ff5f57}.terminal-top .dots span:nth-child(2){background:#febc2e}.terminal-top .dots span:nth-child(3){background:#28c840}
+    .terminal-top .title{color:#94a3b8;font-size:12px;font-weight:500;display:flex;align-items:center;gap:6px}
+    .terminal-top button{background:none;border:none;color:#64748b;cursor:pointer;padding:2px}.terminal-top button:hover{color:#fff}
+    .terminal-body{padding:14px;font-family:'JetBrains Mono',monospace;font-size:12px;line-height:1.8;color:#e2e8f0;max-height:350px;overflow-y:auto;white-space:pre-wrap;word-break:break-all}
+    .terminal-body .err{color:#ef4444}.terminal-body .ok{color:#22c55e}.terminal-body .ts{color:var(--brand)}
 
-    .login-error {
-      background: var(--error-light);
-      color: var(--error);
-      padding: 10px 16px;
-      border-radius: var(--radius-sm);
-      font-size: 13px;
-      margin-bottom: 16px;
-      display: flex;
-      align-items: center;
-      gap: 8px;
-    }
+    /* MODAL */
+    .modal-bg{position:fixed;inset:0;background:rgba(0,0,0,.5);backdrop-filter:blur(4px);display:flex;align-items:center;justify-content:center;z-index:100;animation:fadeIn .2s}
+    .modal{background:var(--bg-card);border:1px solid var(--border);border-radius:16px;padding:28px;max-width:500px;width:92%;box-shadow:var(--shadow-lg);animation:slideUp .3s}
+    .modal h3{font-size:17px;font-weight:700;margin-bottom:6px}
+    .modal p{color:var(--text-2);font-size:13px;line-height:1.6;margin-bottom:20px}
+    .modal-vms{display:flex;flex-wrap:wrap;gap:6px;margin:12px 0 20px}
+    .modal-vm{font-size:12px;font-weight:600;padding:5px 10px;border-radius:6px;background:var(--bg-hover);display:flex;align-items:center;gap:4px}
+    .modal-actions{display:flex;gap:10px;justify-content:flex-end}
 
-    /* ===== DASHBOARD ===== */
-    .dashboard { min-height: 100vh; display: flex; flex-direction: column; }
+    /* VM SELECT MODAL */
+    .vm-select-list{max-height:300px;overflow-y:auto;margin:16px 0}
+    .vm-select-item{display:flex;align-items:center;gap:12px;padding:12px 14px;border:1.5px solid var(--border);border-radius:10px;margin-bottom:8px;cursor:pointer;transition:.15s;user-select:none}
+    .vm-select-item:hover{border-color:var(--brand);background:var(--bg-hover)}
+    .vm-select-item.selected{border-color:var(--brand);background:var(--brand-light)}
+    .vm-select-item.disabled{opacity:.4;cursor:not-allowed}
+    .cb{width:18px;height:18px;border:2px solid var(--border);border-radius:4px;display:flex;align-items:center;justify-content:center;flex-shrink:0;transition:.15s}
+    .cb.on{background:var(--brand);border-color:var(--brand)}
+    .cb.on svg{color:#fff}
 
-    .header {
-      background: var(--bg-secondary);
-      border-bottom: 1px solid var(--border);
-      padding: 0 24px;
-      height: 64px;
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      position: sticky;
-      top: 0;
-      z-index: 50;
-      box-shadow: var(--shadow-sm);
-    }
-    .header-left { display: flex; align-items: center; gap: 16px; }
-    .header-logo { display: flex; align-items: center; gap: 10px; }
-    .header-logo-icon {
-      width: 36px; height: 36px;
-      background: linear-gradient(135deg, var(--primary), #7C4DFF);
-      border-radius: 10px;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-    }
-    .header-logo-icon svg { color: white; width: 20px; height: 20px; }
-    .header-logo span { font-size: 18px; font-weight: 700; letter-spacing: -0.3px; }
-    .header-right { display: flex; align-items: center; gap: 8px; }
+    /* TOAST */
+    .toast{position:fixed;top:70px;right:20px;padding:12px 18px;border-radius:10px;font-size:13px;font-weight:600;box-shadow:var(--shadow-lg);z-index:200;display:flex;align-items:center;gap:8px;animation:slideIn .3s}
+    .toast.success{background:var(--online);color:#fff}.toast.error{background:var(--offline);color:#fff}
 
-    .theme-toggle {
-      width: 40px; height: 40px;
-      display: flex; align-items: center; justify-content: center;
-      border: none;
-      background: var(--bg-tertiary);
-      border-radius: 10px;
-      cursor: pointer;
-      color: var(--text-secondary);
-      transition: var(--transition);
-    }
-    .theme-toggle:hover { background: var(--border); color: var(--text-primary); }
+    @keyframes pulse{0%,100%{opacity:1}50%{opacity:.3}}
+    @keyframes slideUp{from{opacity:0;transform:translateY(16px)}to{opacity:1;transform:translateY(0)}}
+    @keyframes fadeIn{from{opacity:0}to{opacity:1}}
+    @keyframes slideIn{from{opacity:0;transform:translateX(20px)}to{opacity:1;transform:translateX(0)}}
+    .spinner{animation:spin 1s linear infinite}@keyframes spin{to{transform:rotate(360deg)}}
 
-    .main { flex: 1; padding: 24px; max-width: 1200px; margin: 0 auto; width: 100%; }
-
-    /* Stats */
-    .stats { display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; margin-bottom: 24px; }
-    .stat-card {
-      background: var(--bg-secondary);
-      border: 1px solid var(--border);
-      border-radius: var(--radius);
-      padding: 20px;
-      box-shadow: var(--shadow-sm);
-      transition: var(--transition);
-    }
-    .stat-card:hover { box-shadow: var(--shadow-md); }
-    .stat-label { font-size: 12px; font-weight: 500; color: var(--text-tertiary); text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 8px; }
-    .stat-value { font-size: 28px; font-weight: 700; letter-spacing: -1px; }
-    .stat-sub { font-size: 12px; color: var(--text-secondary); margin-top: 4px; }
-
-    /* Controls */
-    .controls {
-      display: flex;
-      align-items: center;
-      gap: 12px;
-      margin-bottom: 24px;
-      flex-wrap: wrap;
-    }
-    .select-wrapper { position: relative; }
-    .select-wrapper select {
-      appearance: none;
-      padding: 10px 40px 10px 16px;
-      border: 1.5px solid var(--border);
-      border-radius: var(--radius-sm);
-      font-size: 14px;
-      font-family: inherit;
-      font-weight: 500;
-      background: var(--bg-secondary);
-      color: var(--text-primary);
-      cursor: pointer;
-      outline: none;
-      transition: var(--transition);
-    }
-    .select-wrapper select:focus { border-color: var(--primary); }
-    .select-wrapper::after {
-      content: '';
-      position: absolute;
-      right: 14px;
-      top: 50%;
-      transform: translateY(-50%);
-      width: 0; height: 0;
-      border-left: 5px solid transparent;
-      border-right: 5px solid transparent;
-      border-top: 5px solid var(--text-tertiary);
-      pointer-events: none;
-    }
-
-    .controls-right { margin-left: auto; display: flex; gap: 8px; }
-
-    /* VM List */
-    .vm-list { display: flex; flex-direction: column; gap: 12px; margin-bottom: 24px; }
-
-    .vm-card {
-      background: var(--bg-secondary);
-      border: 1px solid var(--border);
-      border-radius: var(--radius);
-      padding: 20px 24px;
-      display: flex;
-      align-items: center;
-      gap: 16px;
-      box-shadow: var(--shadow-sm);
-      transition: var(--transition);
-      cursor: pointer;
-      user-select: none;
-    }
-    .vm-card:hover { box-shadow: var(--shadow-md); border-color: var(--primary); }
-    .vm-card.selected { border-color: var(--primary); background: var(--primary-light); }
-    .vm-card.offline { border-left: 3px solid var(--error); }
-    .vm-card.online { border-left: 3px solid var(--success); }
-    .vm-card.disabled { opacity: 0.5; cursor: default; border-left: 3px solid var(--text-tertiary); }
-    .vm-card.deploying { border-left: 3px solid var(--warning); }
-
-    .vm-checkbox {
-      width: 20px; height: 20px;
-      border: 2px solid var(--border);
-      border-radius: 4px;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      flex-shrink: 0;
-      transition: var(--transition);
-    }
-    .vm-checkbox.checked {
-      background: var(--primary);
-      border-color: var(--primary);
-    }
-    .vm-checkbox.checked svg { color: white; }
-
-    .vm-info { flex: 1; min-width: 0; }
-    .vm-name { font-size: 16px; font-weight: 600; display: flex; align-items: center; gap: 8px; }
-    .vm-ip { font-size: 13px; color: var(--text-tertiary); font-family: 'JetBrains Mono', monospace; margin-top: 2px; }
-
-    .vm-status { display: flex; align-items: center; gap: 6px; font-size: 13px; font-weight: 500; }
-    .status-dot {
-      width: 8px; height: 8px;
-      border-radius: 50%;
-      flex-shrink: 0;
-    }
-    .status-dot.online { background: var(--success); box-shadow: 0 0 8px var(--success); animation: pulse 2s infinite; }
-    .status-dot.offline { background: var(--error); }
-    .status-dot.disabled { background: var(--text-tertiary); }
-    .status-dot.deploying { background: var(--warning); animation: pulse 1s infinite; }
-
-    .vm-metrics { display: flex; gap: 16px; align-items: center; }
-    .metric {
-      text-align: center;
-      min-width: 50px;
-    }
-    .metric-value { font-size: 14px; font-weight: 600; }
-    .metric-label { font-size: 10px; color: var(--text-tertiary); text-transform: uppercase; letter-spacing: 0.5px; }
-    .metric-bar {
-      width: 50px; height: 4px;
-      background: var(--bg-tertiary);
-      border-radius: 2px;
-      overflow: hidden;
-      margin-top: 4px;
-    }
-    .metric-bar-fill {
-      height: 100%;
-      border-radius: 2px;
-      transition: width 0.5s ease;
-    }
-    .metric-bar-fill.low { background: var(--success); }
-    .metric-bar-fill.medium { background: var(--warning); }
-    .metric-bar-fill.high { background: var(--error); }
-
-    .vm-commit {
-      font-family: 'JetBrains Mono', monospace;
-      font-size: 12px;
-      font-weight: 500;
-    }
-    .vm-commit a {
-      color: var(--primary);
-      text-decoration: none;
-      transition: var(--transition);
-    }
-    .vm-commit a:hover { text-decoration: underline; }
-
-    /* Terminal */
-    .terminal-wrapper {
-      background: var(--bg-terminal);
-      border-radius: var(--radius);
-      border: 1px solid var(--border);
-      overflow: hidden;
-      box-shadow: var(--shadow-lg);
-      animation: slideUp 0.3s ease;
-    }
-    .terminal-header {
-      background: rgba(255,255,255,0.05);
-      padding: 12px 16px;
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      border-bottom: 1px solid rgba(255,255,255,0.08);
-    }
-    .terminal-header span {
-      color: #9AA0A6;
-      font-size: 13px;
-      font-weight: 500;
-      display: flex;
-      align-items: center;
-      gap: 8px;
-    }
-    .terminal-dots { display: flex; gap: 6px; }
-    .terminal-dots span { width: 10px; height: 10px; border-radius: 50%; }
-    .terminal-dots span:nth-child(1) { background: #FF5F57; }
-    .terminal-dots span:nth-child(2) { background: #FEBC2E; }
-    .terminal-dots span:nth-child(3) { background: #28C840; }
-
-    .terminal-body {
-      padding: 16px;
-      font-family: 'JetBrains Mono', monospace;
-      font-size: 13px;
-      line-height: 1.7;
-      color: #D4D4D8;
-      max-height: 400px;
-      overflow-y: auto;
-      white-space: pre-wrap;
-      word-break: break-all;
-    }
-    .terminal-body .error { color: #EF5350; }
-    .terminal-body .success { color: #66BB6A; }
-    .terminal-body .info { color: #64B5F6; }
-    .terminal-body .timestamp { color: #7C4DFF; }
-
-    .terminal-clear {
-      background: none; border: none; color: #9AA0A6; cursor: pointer; padding: 4px;
-      transition: var(--transition);
-    }
-    .terminal-clear:hover { color: white; }
-
-    /* Confirm Modal */
-    .modal-overlay {
-      position: fixed;
-      inset: 0;
-      background: rgba(0,0,0,0.5);
-      backdrop-filter: blur(4px);
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      z-index: 100;
-      animation: fadeIn 0.2s ease;
-    }
-    .modal-card {
-      background: var(--bg-secondary);
-      border: 1px solid var(--border);
-      border-radius: 16px;
-      padding: 32px;
-      max-width: 460px;
-      width: 90%;
-      box-shadow: var(--shadow-lg);
-      animation: slideUp 0.3s ease;
-    }
-    .modal-card h3 { font-size: 18px; font-weight: 600; margin-bottom: 12px; }
-    .modal-card p { color: var(--text-secondary); font-size: 14px; line-height: 1.6; margin-bottom: 24px; }
-    .modal-actions { display: flex; gap: 12px; justify-content: flex-end; }
-
-    /* Toast */
-    .toast {
-      position: fixed;
-      top: 80px;
-      right: 24px;
-      padding: 14px 20px;
-      border-radius: var(--radius-sm);
-      font-size: 14px;
-      font-weight: 500;
-      box-shadow: var(--shadow-lg);
-      z-index: 200;
-      display: flex;
-      align-items: center;
-      gap: 10px;
-      animation: slideIn 0.3s ease;
-    }
-    .toast.success { background: var(--success); color: white; }
-    .toast.error { background: var(--error); color: white; }
-
-    /* Animations */
-    @keyframes pulse {
-      0%, 100% { opacity: 1; }
-      50% { opacity: 0.4; }
-    }
-    @keyframes slideUp {
-      from { opacity: 0; transform: translateY(20px); }
-      to { opacity: 1; transform: translateY(0); }
-    }
-    @keyframes fadeIn {
-      from { opacity: 0; }
-      to { opacity: 1; }
-    }
-    @keyframes slideIn {
-      from { opacity: 0; transform: translateX(30px); }
-      to { opacity: 1; transform: translateX(0); }
-    }
-    @keyframes stagger {
-      from { opacity: 0; transform: translateY(12px); }
-      to { opacity: 1; transform: translateY(0); }
-    }
-
-    .stagger-enter { animation: stagger 0.4s ease forwards; opacity: 0; }
-
-    /* Spinner */
-    .spinner { animation: spin 1s linear infinite; }
-    @keyframes spin { to { transform: rotate(360deg); } }
-
-    /* Responsive */
-    @media (max-width: 768px) {
-      .stats { grid-template-columns: 1fr; }
-      .vm-metrics { display: none; }
-      .controls { flex-direction: column; align-items: stretch; }
-      .controls-right { margin-left: 0; }
-      .header { padding: 0 16px; }
-      .main { padding: 16px; }
-    }
+    @media(max-width:640px){.vm-ping,.vm-uptime,.vm-tag{display:none}.metrics-grid{grid-template-columns:1fr}.info-grid{grid-template-columns:1fr}.deploy-bar{flex-direction:column;align-items:stretch}.header{padding:0 14px}.main{padding:16px 12px}}
   </style>
 </head>
 <body>
-
 <div x-data="app()" x-init="init()">
 
-  <!-- ===== LOGIN ===== -->
-  <template x-if="!authenticated">
-    <div class="login-wrapper">
-      <div class="login-card">
-        <div class="logo">
-          <div class="logo-icon">
-            <i data-lucide="message-square-code" style="width:28px;height:28px;color:white"></i>
-          </div>
-          <h1>ChatSPX</h1>
+  <!-- LOGIN -->
+  <template x-if="!auth">
+    <div class="login-bg">
+      <div class="login-box" style="animation:slideUp .5s">
+        <div class="login-logo">
+          <img src="/logo.svg" alt="SPX">
+          <h1>SPX - CHAT</h1>
           <p>Painel de Controle</p>
         </div>
-
-        <template x-if="loginError">
-          <div class="login-error">
-            <i data-lucide="alert-circle" style="width:16px;height:16px"></i>
-            <span x-text="loginError"></span>
-          </div>
-        </template>
-
+        <template x-if="loginErr"><div class="login-err"><i data-lucide="alert-circle" style="width:15px;height:15px"></i><span x-text="loginErr"></span></div></template>
         <form @submit.prevent="login()">
-          <div class="input-group">
-            <label>Usuario</label>
-            <i data-lucide="user" class="input-icon" style="width:18px;height:18px"></i>
-            <input type="text" x-model="loginUser" placeholder="admin" autofocus>
-          </div>
-          <div class="input-group">
-            <label>Senha</label>
-            <i data-lucide="lock" class="input-icon" style="width:18px;height:18px"></i>
-            <input type="password" x-model="loginPass" placeholder="••••••••">
-          </div>
-          <button type="submit" class="btn btn-primary" :disabled="loginLoading">
-            <template x-if="loginLoading"><i data-lucide="loader-2" class="spinner" style="width:18px;height:18px"></i></template>
-            <span x-text="loginLoading ? 'Entrando...' : 'Entrar'"></span>
-          </button>
+          <div class="field"><label>Usuario</label><input type="text" x-model="loginU" placeholder="admin" autofocus></div>
+          <div class="field"><label>Senha</label><input type="password" x-model="loginP" placeholder="••••••"></div>
+          <button type="submit" class="btn btn-brand" :disabled="loginL"><template x-if="loginL"><i data-lucide="loader-2" class="spinner" style="width:16px;height:16px"></i></template><span x-text="loginL?'Entrando...':'Entrar'"></span></button>
         </form>
       </div>
     </div>
   </template>
 
-  <!-- ===== DASHBOARD ===== -->
-  <template x-if="authenticated">
-    <div class="dashboard">
-
-      <!-- Header -->
+  <!-- DASHBOARD -->
+  <template x-if="auth">
+    <div>
       <header class="header">
-        <div class="header-left">
-          <div class="header-logo">
-            <div class="header-logo-icon">
-              <i data-lucide="message-square-code"></i>
-            </div>
-            <span>ChatSPX</span>
-          </div>
-        </div>
+        <div class="header-left"><img src="/logo.svg" alt=""><span>SPX - CHAT</span></div>
         <div class="header-right">
-          <button class="theme-toggle" @click="toggleTheme()" :title="theme === 'light' ? 'Modo escuro' : 'Modo claro'">
-            <i :data-lucide="theme === 'light' ? 'moon' : 'sun'" style="width:18px;height:18px"></i>
-          </button>
-          <button class="btn btn-outline" style="padding:8px 16px;font-size:13px" @click="logout()">
-            <i data-lucide="log-out" style="width:16px;height:16px"></i>
-            Sair
-          </button>
+          <button class="icon-btn" @click="toggleTheme()" :title="theme==='light'?'Modo escuro':'Modo claro'"><i :data-lucide="theme==='light'?'moon':'sun'" style="width:16px;height:16px"></i></button>
+          <button class="icon-btn" @click="doRefresh()" :title="'Atualizar'"><i data-lucide="refresh-cw" style="width:16px;height:16px" :class="{'spinner':refreshing}"></i></button>
+          <button class="btn-ghost" style="font-size:12px;padding:6px 12px" @click="logout()"><i data-lucide="log-out" style="width:14px;height:14px"></i> Sair</button>
         </div>
       </header>
 
-      <!-- Main -->
       <div class="main">
-
-        <!-- Stats -->
-        <div class="stats">
-          <div class="stat-card stagger-enter" style="animation-delay:0ms">
-            <div class="stat-label">VMs Online</div>
-            <div class="stat-value" :style="{color: onlineCount === totalActive ? 'var(--success)' : 'var(--error)'}">
-              <span x-text="onlineCount"></span><span style="color:var(--text-tertiary);font-size:16px"> / <span x-text="totalActive"></span></span>
-            </div>
-            <div class="stat-sub" x-text="onlineCount === totalActive ? 'Todas operacionais' : 'Atencao: VMs offline'"></div>
-          </div>
-          <div class="stat-card stagger-enter" style="animation-delay:80ms">
-            <div class="stat-label">Deploys Ativos</div>
-            <div class="stat-value" x-text="deployingCount" :style="{color: deployingCount > 0 ? 'var(--warning)' : 'var(--text-primary)'}"></div>
-            <div class="stat-sub" x-text="deployingCount > 0 ? 'Deploy em andamento...' : 'Nenhum deploy ativo'"></div>
-          </div>
-          <div class="stat-card stagger-enter" style="animation-delay:160ms">
-            <div class="stat-label">Branch Ativa</div>
-            <div class="stat-value" style="font-size:20px" x-text="selectedBranch"></div>
-            <div class="stat-sub">
-              <a :href="'https://github.com/' + github + '/tree/' + selectedBranch" target="_blank" style="color:var(--primary);text-decoration:none;font-size:12px">
-                Ver no GitHub <i data-lucide="external-link" style="width:11px;height:11px;vertical-align:middle"></i>
-              </a>
-            </div>
-          </div>
+        <!-- Banner -->
+        <div class="banner" :class="onlineCount===totalActive?'ok':'bad'">
+          <i :data-lucide="onlineCount===totalActive?'check-circle':'alert-triangle'" style="width:18px;height:18px"></i>
+          <span x-text="onlineCount===totalActive?'Todas as VMs estao operacionais':onlineCount+' de '+totalActive+' VMs online — atencao!'"></span>
         </div>
 
-        <!-- Controls -->
-        <div class="controls">
-          <div class="select-wrapper">
-            <select x-model="selectedBranch">
-              <template x-for="b in branches" :key="b">
-                <option :value="b" x-text="b"></option>
-              </template>
-            </select>
-          </div>
-
-          <button class="btn btn-outline" style="padding:8px 16px;font-size:13px" @click="selectAll()">
-            <i data-lucide="check-square" style="width:15px;height:15px"></i>
-            <span x-text="allSelected ? 'Desmarcar' : 'Selecionar Todas'"></span>
-          </button>
-
-          <button class="btn btn-outline" style="padding:8px 16px;font-size:13px" @click="refresh()">
-            <i data-lucide="refresh-cw" style="width:15px;height:15px" :class="{'spinner': refreshing}"></i>
-            Atualizar
-          </button>
-
-          <div class="controls-right">
-            <button class="btn btn-deploy" @click="confirmDeploy()" :disabled="selectedVMs.length === 0 || deployingCount > 0">
-              <i data-lucide="rocket" style="width:18px;height:18px"></i>
-              Deploy (<span x-text="selectedVMs.length"></span>)
-            </button>
-          </div>
-        </div>
-
-        <!-- VM List -->
-        <div class="vm-list">
-          <template x-for="(vm, index) in vms" :key="vm.id">
-            <div class="vm-card stagger-enter"
-                 :class="{
-                   selected: selectedVMs.includes(vm.id),
-                   online: vm.status.online && vm.active,
-                   offline: !vm.status.online && vm.active,
-                   disabled: !vm.active,
-                   deploying: vm.deploying
-                 }"
-                 :style="'animation-delay:' + (index * 60) + 'ms'"
-                 @click="vm.active && toggleVM(vm.id)">
-
-              <div class="vm-checkbox" :class="{ checked: selectedVMs.includes(vm.id) }">
-                <template x-if="selectedVMs.includes(vm.id)">
-                  <i data-lucide="check" style="width:14px;height:14px"></i>
-                </template>
-              </div>
-
-              <div class="vm-info">
-                <div class="vm-name">
+        <!-- VM Cards -->
+        <template x-for="(vm,i) in vms" :key="vm.id">
+          <div class="vm-card" :class="{'online-border':vm.status.online&&vm.active,'offline-border':!vm.status.online&&vm.active,'disabled-border':!vm.active}" style="animation:slideUp .4s" :style="'animation-delay:'+(i*50)+'ms'">
+            <div class="vm-row" @click="vm.active&&toggle(vm.id)">
+              <span class="dot" :class="{'on':vm.status.online&&vm.active&&!vm.deploying,'off':!vm.status.online&&vm.active,'none':!vm.active,'deploying':vm.deploying}"></span>
+              <div class="vm-name-col">
+                <h3>
                   <span x-text="vm.name"></span>
-                  <template x-if="vm.deploying">
-                    <span style="font-size:11px;font-weight:500;color:var(--warning);display:flex;align-items:center;gap:4px">
-                      <i data-lucide="loader-2" class="spinner" style="width:12px;height:12px"></i> Deployando
-                    </span>
+                  <span class="vm-tag" x-text="vm.label"></span>
+                  <template x-if="vm.deploying"><span class="vm-deploying-tag"><i data-lucide="loader-2" class="spinner" style="width:10px;height:10px"></i> Deploy</span></template>
+                </h3>
+                <div class="sub" x-text="vm.ip"></div>
+              </div>
+              <template x-if="vm.status.ping!=null&&vm.active"><span class="vm-ping" x-text="vm.status.ping+'ms'"></span></template>
+              <template x-if="vm.uptimePercent!=null&&vm.active"><span class="vm-uptime" :class="{'good':vm.uptimePercent>=99,'mid':vm.uptimePercent>=95&&vm.uptimePercent<99,'bad':vm.uptimePercent<95}" x-text="vm.uptimePercent+'%'"></span></template>
+              <template x-if="vm.active"><i data-lucide="chevron-down" style="width:16px;height:16px" class="vm-chevron" :class="{'open':expanded.includes(vm.id)}"></i></template>
+            </div>
+
+            <!-- Heartbeat bar -->
+            <template x-if="vm.active">
+              <div>
+                <div class="hb-bar">
+                  <template x-for="(hb,j) in padHeartbeat(vm.heartbeat)" :key="j">
+                    <div class="hb-seg" :class="{'on':hb.online===true,'off':hb.online===false,'none':hb.online===null}" :title="hb.time?new Date(hb.time).toLocaleTimeString('pt-BR')+(hb.ping!=null?' — '+hb.ping+'ms':''):''"></div>
                   </template>
                 </div>
-                <div class="vm-ip" x-text="vm.ip"></div>
+                <div class="hb-labels"><span>30 min atras</span><span>agora</span></div>
               </div>
+            </template>
 
-              <div class="vm-status">
-                <span class="status-dot" :class="{
-                  online: vm.status.online && vm.active && !vm.deploying,
-                  offline: !vm.status.online && vm.active,
-                  disabled: !vm.active,
-                  deploying: vm.deploying
-                }"></span>
-                <span x-text="!vm.active ? 'Nao instalado' : vm.deploying ? 'Deployando' : vm.status.online ? 'Online' : 'Offline'"
-                      :style="{color: !vm.active ? 'var(--text-tertiary)' : vm.status.online ? 'var(--success)' : 'var(--error)'}"></span>
-              </div>
-
-              <template x-if="vm.status.online && vm.active">
-                <div class="vm-metrics">
-                  <div class="metric">
-                    <div class="metric-value" x-text="(vm.status.cpu || 0).toFixed(0) + '%'"></div>
-                    <div class="metric-label">CPU</div>
-                    <div class="metric-bar">
-                      <div class="metric-bar-fill" :class="{ low: vm.status.cpu < 60, medium: vm.status.cpu >= 60 && vm.status.cpu < 85, high: vm.status.cpu >= 85 }" :style="'width:' + (vm.status.cpu || 0) + '%'"></div>
-                    </div>
-                  </div>
-                  <div class="metric">
-                    <div class="metric-value" x-text="(vm.status.ram || 0).toFixed(0) + '%'"></div>
-                    <div class="metric-label">RAM</div>
-                    <div class="metric-bar">
-                      <div class="metric-bar-fill" :class="{ low: vm.status.ram < 60, medium: vm.status.ram >= 60 && vm.status.ram < 85, high: vm.status.ram >= 85 }" :style="'width:' + (vm.status.ram || 0) + '%'"></div>
-                    </div>
-                  </div>
-                  <div class="metric">
-                    <div class="metric-value" x-text="(vm.status.disk || 0).toFixed(0) + '%'"></div>
-                    <div class="metric-label">Disco</div>
-                    <div class="metric-bar">
-                      <div class="metric-bar-fill" :class="{ low: vm.status.disk < 60, medium: vm.status.disk >= 60 && vm.status.disk < 85, high: vm.status.disk >= 85 }" :style="'width:' + (vm.status.disk || 0) + '%'"></div>
-                    </div>
-                  </div>
+            <!-- Expanded -->
+            <template x-if="expanded.includes(vm.id)&&vm.status.online">
+              <div class="vm-details" style="animation:slideUp .2s">
+                <div class="metrics-grid">
+                  <div class="metric-item"><label>CPU</label><div class="val" :style="{color:'var(--cpu)'}" x-text="(vm.status.cpu||0)+'%'"></div><div class="bar-bg"><div class="bar-fill" style="background:var(--cpu)" :style="'width:'+Math.min(vm.status.cpu||0,100)+'%'"></div></div></div>
+                  <div class="metric-item"><label>RAM</label><div class="val" :style="{color:'var(--ram)'}" x-text="(vm.status.ram||0)+'%'"></div><div class="bar-bg"><div class="bar-fill" style="background:var(--ram)" :style="'width:'+Math.min(vm.status.ram||0,100)+'%'"></div></div></div>
+                  <div class="metric-item"><label>Disco</label><div class="val" :style="{color:'var(--disk)'}" x-text="(vm.status.disk||0)+'%'"></div><div class="bar-bg"><div class="bar-fill" style="background:var(--disk)" :style="'width:'+Math.min(vm.status.disk||0,100)+'%'"></div></div></div>
                 </div>
-              </template>
-
-              <template x-if="vm.status.commit">
-                <div class="vm-commit">
-                  <a :href="'https://github.com/' + github + '/commit/' + vm.status.commit" target="_blank" @click.stop x-text="vm.status.commit"></a>
+                <div class="info-grid">
+                  <div class="info-item"><span>Commit</span><a :href="'https://github.com/'+github+'/commit/'+vm.status.commit" target="_blank" x-text="vm.status.commit||'-'"></a></div>
+                  <div class="info-item"><span>Branch</span><a :href="'https://github.com/'+github+'/tree/'+vm.status.branch" target="_blank" x-text="vm.status.branch||'-'"></a></div>
+                  <div class="info-item"><span>Uptime</span><strong x-text="vm.status.uptime||'-'"></strong></div>
+                  <div class="info-item"><span>Chatwoot</span><strong x-text="vm.status.chatwootStatus||'-'" :style="{color:vm.status.chatwootStatus==='active'?'var(--online)':'var(--offline)'}"></strong></div>
                 </div>
-              </template>
-            </div>
-          </template>
-        </div>
-
-        <!-- Terminal -->
-        <template x-if="terminalVisible">
-          <div class="terminal-wrapper">
-            <div class="terminal-header">
-              <div class="terminal-dots">
-                <span></span><span></span><span></span>
               </div>
-              <span>
-                <i data-lucide="terminal" style="width:14px;height:14px"></i>
-                Terminal de Deploy
-              </span>
-              <button class="terminal-clear" @click="clearTerminal()">
-                <i data-lucide="x" style="width:16px;height:16px"></i>
-              </button>
-            </div>
-            <div class="terminal-body" x-ref="terminal" x-html="terminalContent"></div>
+            </template>
           </div>
         </template>
 
+        <!-- Deploy Bar -->
+        <div class="deploy-bar">
+          <select x-model="branch"><template x-for="b in branches" :key="b"><option :value="b" x-text="b"></option></template></select>
+          <button class="btn-deploy" @click="openDeployModal()" :disabled="deployingCount>0"><i data-lucide="rocket" style="width:16px;height:16px"></i> Deploy</button>
+          <a :href="'https://github.com/'+github+'/tree/'+branch" target="_blank" style="font-size:12px;display:flex;align-items:center;gap:4px;margin-left:auto"><i data-lucide="github" style="width:14px;height:14px"></i> Ver no GitHub</a>
+        </div>
+
+        <!-- Terminal -->
+        <template x-if="termShow">
+          <div class="terminal">
+            <div class="terminal-top">
+              <div class="dots"><span></span><span></span><span></span></div>
+              <div class="title"><i data-lucide="terminal" style="width:13px;height:13px"></i> Deploy Log</div>
+              <button @click="termShow=false;termContent=''"><i data-lucide="x" style="width:14px;height:14px"></i></button>
+            </div>
+            <div class="terminal-body" x-ref="term" x-html="termContent"></div>
+          </div>
+        </template>
       </div>
     </div>
   </template>
 
-  <!-- Confirm Modal -->
-  <template x-if="showConfirm">
-    <div class="modal-overlay" @click.self="showConfirm = false">
-      <div class="modal-card">
-        <h3>Confirmar Deploy</h3>
-        <p>
-          Isso vai deployar a branch <strong x-text="selectedBranch"></strong> em
-          <strong x-text="selectedVMs.length"></strong> VM(s):
-          <br><br>
-          <template x-for="vmId in selectedVMs" :key="vmId">
-            <span style="display:inline-flex;align-items:center;gap:4px;background:var(--bg-tertiary);padding:4px 10px;border-radius:6px;margin:2px;font-size:13px;font-weight:500">
-              <i data-lucide="server" style="width:12px;height:12px"></i>
-              <span x-text="vms.find(v => v.id === vmId)?.name"></span>
-            </span>
+  <!-- DEPLOY MODAL -->
+  <template x-if="showDeploy">
+    <div class="modal-bg" @click.self="showDeploy=false">
+      <div class="modal">
+        <h3>Iniciar Deploy</h3>
+        <p>Selecione as VMs e a branch para deploy. As VMs selecionadas serao atualizadas e reiniciadas.</p>
+        <div style="margin-bottom:16px">
+          <label class="field" style="margin-bottom:8px"><span style="font-size:12px;font-weight:600;color:var(--text-2);letter-spacing:.3px;text-transform:uppercase">Branch</span></label>
+          <select x-model="branch" style="width:100%;padding:10px 14px;border:1.5px solid var(--border);border-radius:8px;font-size:14px;font-family:inherit;background:var(--bg);color:var(--text);outline:none">
+            <template x-for="b in branches" :key="b"><option :value="b" x-text="b"></option></template>
+          </select>
+        </div>
+        <label style="font-size:12px;font-weight:600;color:var(--text-2);letter-spacing:.3px;text-transform:uppercase;display:block;margin-bottom:8px">VMs</label>
+        <div class="vm-select-list">
+          <template x-for="vm in vms" :key="vm.id">
+            <div class="vm-select-item" :class="{'selected':deployVMs.includes(vm.id),'disabled':!vm.active}" @click="vm.active&&toggleDeploy(vm.id)">
+              <div class="cb" :class="{'on':deployVMs.includes(vm.id)}"><template x-if="deployVMs.includes(vm.id)"><i data-lucide="check" style="width:12px;height:12px"></i></template></div>
+              <span class="dot" :class="{'on':vm.status.online&&vm.active,'off':!vm.status.online&&vm.active,'none':!vm.active}" style="width:8px;height:8px"></span>
+              <div style="flex:1">
+                <div style="font-size:14px;font-weight:600" x-text="vm.name"></div>
+                <div style="font-size:11px;color:var(--text-3);font-family:'JetBrains Mono',monospace" x-text="vm.ip+' · '+vm.label"></div>
+              </div>
+              <template x-if="vm.status.commit"><span style="font-size:11px;font-family:'JetBrains Mono',monospace;color:var(--brand)" x-text="vm.status.commit"></span></template>
+            </div>
           </template>
-          <br><br>
-          As VMs serao atualizadas e reiniciadas. Deseja continuar?
-        </p>
+        </div>
+        <div style="display:flex;align-items:center;gap:8px;margin-bottom:16px">
+          <button class="btn-ghost" style="font-size:12px" @click="deployVMs=vms.filter(v=>v.active).map(v=>v.id)"><i data-lucide="check-square" style="width:13px;height:13px"></i> Todas</button>
+          <button class="btn-ghost" style="font-size:12px" @click="deployVMs=[]"><i data-lucide="square" style="width:13px;height:13px"></i> Nenhuma</button>
+          <span style="flex:1"></span>
+          <span style="font-size:12px;color:var(--text-3)" x-text="deployVMs.length+' selecionada(s)'"></span>
+        </div>
         <div class="modal-actions">
-          <button class="btn btn-outline" @click="showConfirm = false">Cancelar</button>
-          <button class="btn btn-deploy" style="width:auto;padding:10px 24px" @click="executeDeploy()">
-            <i data-lucide="rocket" style="width:16px;height:16px"></i>
-            Confirmar Deploy
-          </button>
+          <button class="btn-ghost" @click="showDeploy=false">Cancelar</button>
+          <button class="btn-deploy" :disabled="deployVMs.length===0" @click="execDeploy()"><i data-lucide="rocket" style="width:15px;height:15px"></i> Deployar</button>
         </div>
       </div>
     </div>
   </template>
 
-  <!-- Toast -->
-  <template x-if="toast.show">
-    <div class="toast" :class="toast.type">
-      <i :data-lucide="toast.type === 'success' ? 'check-circle' : 'alert-circle'" style="width:18px;height:18px"></i>
-      <span x-text="toast.message"></span>
-    </div>
-  </template>
+  <!-- TOAST -->
+  <template x-if="toast.show"><div class="toast" :class="toast.type"><i :data-lucide="toast.type==='success'?'check-circle':'alert-circle'" style="width:16px;height:16px"></i><span x-text="toast.msg"></span></div></template>
 
 </div>
-
 <script>
-function app() {
-  return {
-    // Auth
-    authenticated: false,
-    loginUser: '',
-    loginPass: '',
-    loginError: '',
-    loginLoading: false,
+function app(){return{
+  auth:false,loginU:'',loginP:'',loginErr:'',loginL:false,
+  theme:localStorage.getItem('spx-theme')||'light',
+  vms:[],branches:['producao','homologacao','develop'],github:'Dev-Simplex/chatspx',branch:'producao',
+  expanded:[],refreshing:false,
+  showDeploy:false,deployVMs:[],
+  termShow:false,termContent:'',
+  toast:{show:false,type:'',msg:''},
+  socket:null,
 
-    // Theme
-    theme: localStorage.getItem('spx-theme') || 'light',
+  get onlineCount(){return this.vms.filter(v=>v.status?.online&&v.active).length},
+  get totalActive(){return this.vms.filter(v=>v.active).length},
+  get deployingCount(){return this.vms.filter(v=>v.deploying).length},
 
-    // Data
-    vms: [],
-    branches: ['producao', 'homologacao', 'develop'],
-    github: 'Dev-Simplex/chatspx',
-    selectedBranch: 'producao',
-    selectedVMs: [],
-    refreshing: false,
+  padHeartbeat(hb){const pad=[];for(let i=0;i<60-hb.length;i++)pad.push({online:null,ping:null,time:null});return[...pad,...hb]},
 
-    // Terminal
-    terminalVisible: false,
-    terminalContent: '',
+  init(){
+    document.documentElement.setAttribute('data-theme',this.theme);
+    this.$nextTick(()=>lucide.createIcons());
+    fetch('/api/status').then(r=>{if(r.ok)r.json().then(d=>{this.auth=true;this.vms=d.vms;this.branches=d.branches;this.github=d.github;this.$nextTick(()=>{lucide.createIcons();this.connectSocket()})})}).catch(()=>{});
+  },
 
-    // Modal
-    showConfirm: false,
+  async login(){
+    this.loginL=true;this.loginErr='';
+    try{const r=await fetch('/api/login',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({user:this.loginU,pass:this.loginP})});
+      if(r.ok){this.auth=true;const d=await(await fetch('/api/status')).json();this.vms=d.vms;this.branches=d.branches;this.github=d.github;this.$nextTick(()=>{lucide.createIcons();this.connectSocket()})}
+      else this.loginErr='Usuario ou senha incorretos'}catch(e){this.loginErr='Erro de conexao'}
+    this.loginL=false;this.$nextTick(()=>lucide.createIcons())},
 
-    // Toast
-    toast: { show: false, type: '', message: '' },
+  async logout(){await fetch('/api/logout',{method:'POST'});this.auth=false;this.socket?.disconnect();this.$nextTick(()=>lucide.createIcons())},
 
-    // Socket
-    socket: null,
+  connectSocket(){
+    this.socket=io();
+    this.socket.on('status:update',d=>{this.vms=d;this.$nextTick(()=>lucide.createIcons())});
+    this.socket.on('deploy:lock',({vmId,locked})=>{const v=this.vms.find(x=>x.id===vmId);if(v)v.deploying=locked;this.$nextTick(()=>lucide.createIcons())});
+    this.socket.on('deploy:log',({vmId,data})=>{
+      this.termShow=true;
+      const e=data.replace(/</g,'&lt;').replace(/>/g,'&gt;')
+        .replace(/\[ERRO\]/g,'<span class="err">[ERRO]</span>')
+        .replace(/\[([\d:]+)\]/g,'<span class="ts">[$1]</span>')
+        .replace(/=== .* ===/g,'<span class="ok">$&</span>')
+        .replace(/(concluido|sucesso|OK)/gi,'<span class="ok">$1</span>');
+      this.termContent+=e;
+      this.$nextTick(()=>{if(this.$refs.term)this.$refs.term.scrollTop=this.$refs.term.scrollHeight;lucide.createIcons()})});
+    this.socket.on('deploy:done',({vmId,success,vmName})=>{this.showToast(success?'success':'error',success?vmName+' atualizado!':'Falha em '+vmName)});
+    this.socket.on('deploy:allDone',()=>{this.showToast('success','Todos os deploys concluidos!')})},
 
-    get onlineCount() {
-      return this.vms.filter(v => v.status?.online && v.active).length;
-    },
-    get totalActive() {
-      return this.vms.filter(v => v.active).length;
-    },
-    get deployingCount() {
-      return this.vms.filter(v => v.deploying).length;
-    },
-    get allSelected() {
-      const active = this.vms.filter(v => v.active).map(v => v.id);
-      return active.length > 0 && active.every(id => this.selectedVMs.includes(id));
-    },
-
-    init() {
-      document.documentElement.setAttribute('data-theme', this.theme);
-      this.$nextTick(() => lucide.createIcons());
-
-      // Check if already authenticated (page reload)
-      fetch('/api/status').then(r => {
-        if (r.ok) {
-          r.json().then(data => {
-            this.authenticated = true;
-            this.vms = data.vms;
-            this.branches = data.branches;
-            this.github = data.github;
-            this.$nextTick(() => {
-              lucide.createIcons();
-              this.connectSocket();
-            });
-          });
-        }
-      }).catch(() => {});
-    },
-
-    async login() {
-      this.loginLoading = true;
-      this.loginError = '';
-      try {
-        const res = await fetch('/api/login', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ user: this.loginUser, pass: this.loginPass }),
-        });
-        if (res.ok) {
-          this.authenticated = true;
-          const data = await (await fetch('/api/status')).json();
-          this.vms = data.vms;
-          this.branches = data.branches;
-          this.github = data.github;
-          this.$nextTick(() => {
-            lucide.createIcons();
-            this.connectSocket();
-          });
-        } else {
-          this.loginError = 'Usuario ou senha incorretos';
-        }
-      } catch {
-        this.loginError = 'Erro de conexao';
-      }
-      this.loginLoading = false;
-      this.$nextTick(() => lucide.createIcons());
-    },
-
-    async logout() {
-      await fetch('/api/logout', { method: 'POST' });
-      this.authenticated = false;
-      this.socket?.disconnect();
-      this.$nextTick(() => lucide.createIcons());
-    },
-
-    connectSocket() {
-      this.socket = io();
-
-      this.socket.on('status:update', (data) => {
-        this.vms = data;
-        this.$nextTick(() => lucide.createIcons());
-      });
-
-      this.socket.on('deploy:lock', ({ vmId, locked }) => {
-        const vm = this.vms.find(v => v.id === vmId);
-        if (vm) vm.deploying = locked;
-        this.$nextTick(() => lucide.createIcons());
-      });
-
-      this.socket.on('deploy:log', ({ vmId, data }) => {
-        this.terminalVisible = true;
-        const escaped = data.replace(/</g, '&lt;').replace(/>/g, '&gt;');
-        // Color code
-        const colored = escaped
-          .replace(/\[ERRO\]/g, '<span class="error">[ERRO]</span>')
-          .replace(/\[([\d:]+)\]/g, '<span class="timestamp">[$1]</span>')
-          .replace(/=== .* ===/g, '<span class="success">$&</span>')
-          .replace(/(OK|sucesso|concluido)/gi, '<span class="success">$1</span>');
-        this.terminalContent += colored;
-        this.$nextTick(() => {
-          if (this.$refs.terminal) {
-            this.$refs.terminal.scrollTop = this.$refs.terminal.scrollHeight;
-          }
-          lucide.createIcons();
-        });
-      });
-
-      this.socket.on('deploy:done', ({ vmId, success }) => {
-        if (success) {
-          this.showToast('success', `Deploy concluido para ${vmId}`);
-        } else {
-          this.showToast('error', `Deploy falhou para ${vmId}`);
-        }
-      });
-
-      this.socket.on('deploy:allDone', () => {
-        this.showToast('success', 'Todos os deploys concluidos!');
-      });
-    },
-
-    toggleTheme() {
-      this.theme = this.theme === 'light' ? 'dark' : 'light';
-      document.documentElement.setAttribute('data-theme', this.theme);
-      localStorage.setItem('spx-theme', this.theme);
-      this.$nextTick(() => lucide.createIcons());
-    },
-
-    toggleVM(vmId) {
-      const idx = this.selectedVMs.indexOf(vmId);
-      if (idx === -1) { this.selectedVMs.push(vmId); }
-      else { this.selectedVMs.splice(idx, 1); }
-    },
-
-    selectAll() {
-      if (this.allSelected) {
-        this.selectedVMs = [];
-      } else {
-        this.selectedVMs = this.vms.filter(v => v.active).map(v => v.id);
-      }
-    },
-
-    refresh() {
-      this.refreshing = true;
-      this.socket?.emit('refresh');
-      setTimeout(() => { this.refreshing = false; }, 2000);
-    },
-
-    confirmDeploy() {
-      this.showConfirm = true;
-      this.$nextTick(() => lucide.createIcons());
-    },
-
-    executeDeploy() {
-      this.showConfirm = false;
-      this.terminalContent = '';
-      this.terminalVisible = true;
-      this.socket.emit('deploy', {
-        vmIds: [...this.selectedVMs],
-        branch: this.selectedBranch,
-      });
-      this.$nextTick(() => lucide.createIcons());
-    },
-
-    clearTerminal() {
-      this.terminalContent = '';
-      this.terminalVisible = false;
-    },
-
-    showToast(type, message) {
-      this.toast = { show: true, type, message };
-      this.$nextTick(() => lucide.createIcons());
-      setTimeout(() => { this.toast.show = false; }, 4000);
-    },
-  };
-}
+  toggleTheme(){this.theme=this.theme==='light'?'dark':'light';document.documentElement.setAttribute('data-theme',this.theme);localStorage.setItem('spx-theme',this.theme);this.$nextTick(()=>lucide.createIcons())},
+  toggle(id){const i=this.expanded.indexOf(id);if(i===-1)this.expanded.push(id);else this.expanded.splice(i,1);this.$nextTick(()=>lucide.createIcons())},
+  doRefresh(){this.refreshing=true;this.socket?.emit('refresh');setTimeout(()=>{this.refreshing=false},2000)},
+  openDeployModal(){this.deployVMs=[];this.showDeploy=true;this.$nextTick(()=>lucide.createIcons())},
+  toggleDeploy(id){const i=this.deployVMs.indexOf(id);if(i===-1)this.deployVMs.push(id);else this.deployVMs.splice(i,1)},
+  execDeploy(){this.showDeploy=false;this.termContent='';this.termShow=true;this.socket.emit('deploy',{vmIds:[...this.deployVMs],branch:this.branch});this.$nextTick(()=>lucide.createIcons())},
+  showToast(type,msg){this.toast={show:true,type,msg};this.$nextTick(()=>lucide.createIcons());setTimeout(()=>{this.toast.show=false},4000)},
+}}
 </script>
-
 </body>
 </html>
