@@ -59,6 +59,25 @@ class ConversationFinder
     }
   end
 
+  def perform_counts_only
+    set_up
+
+    all_count, mine_count, unassigned_count = compute_counts_in_single_query
+    assigned_count = all_count - unassigned_count
+
+    {
+      count: {
+        mine_count: mine_count,
+        assigned_count: assigned_count,
+        unassigned_count: unassigned_count,
+        all_count: all_count,
+        unattended_assigned_to_me_count: @unattended_assigned_to_me_count || 0,
+        unattended_unassigned_count: @unattended_unassigned_count || 0,
+        unattended_all_count: @unattended_all_count || 0
+      }
+    }
+  end
+
   private
 
   def set_up
@@ -170,11 +189,6 @@ class ConversationFinder
     return if params[:status] == 'all'
 
     @conversations = @conversations.where(status: params[:status]) if params[:status].present?
-    if @team_ids.present? && @team_ids.any?
-      @conversations = @conversations.where('team_id IN (?) OR team_id IS NULL', @team_ids)
-    elsif @team
-      @conversations = @conversations.where('team_id = ? OR team_id IS NULL', @team.id)
-    end
   end
 
   def filter_by_team

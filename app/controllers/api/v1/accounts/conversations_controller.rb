@@ -7,7 +7,7 @@ class Api::V1::Accounts::ConversationsController < Api::V1::Accounts::BaseContro
   before_action :inbox, :contact, :contact_inbox, only: [:create]
   before_action :authorize_team_access, only: [:show, :update, :destroy, :attachments, :mute, :unmute, :transcript, :toggle_status, :toggle_priority, :toggle_typing_status, :update_last_seen, :unread, :custom_attributes]
 
-  ATTACHMENT_RESULTS_PER_PAGE = 100
+  ATTACHMENT_RESULTS_PER_PAGE = 20
 
   def index
     result = conversation_finder.perform
@@ -18,7 +18,7 @@ class Api::V1::Accounts::ConversationsController < Api::V1::Accounts::BaseContro
   end
 
   def meta
-    result = conversation_finder.perform
+    result = conversation_finder.perform_counts_only
     @conversations_count = result[:count]
   end
 
@@ -30,15 +30,14 @@ class Api::V1::Accounts::ConversationsController < Api::V1::Accounts::BaseContro
   end
 
   def attachments
-    @attachments_count = @conversation.attachments.count
-    @attachments = @conversation.attachments
-                                .includes(
-                                  { file_attachment: [:blob] },
-                                  { message: { sender: { avatar_attachment: [:blob] } } }
-                                )
-                                .order(created_at: :desc)
-                                .page(attachment_params[:page])
-                                .per(ATTACHMENT_RESULTS_PER_PAGE)
+    base_scope = @conversation.attachments
+                              .includes(
+                                { file_attachment: [:blob] },
+                                { message: { sender: { avatar_attachment: [:blob] } } }
+                              )
+                              .order(created_at: :desc)
+    @attachments = base_scope.page(attachment_params[:page]).per(ATTACHMENT_RESULTS_PER_PAGE)
+    @attachments_count = @attachments.total_count
   end
 
   def show; end
