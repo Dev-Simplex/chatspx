@@ -706,6 +706,13 @@ function resetAndFetchData() {
   store.dispatch('conversationPage/reset');
   store.dispatch('emptyAllConversations');
   store.dispatch('clearConversationFilters');
+  // Force refresh tab counts when switching views/routes
+  if (!hasAppliedFiltersOrActiveFolders.value) {
+    const filtersForMeta = { ...conversationFilters.value };
+    delete filtersForMeta.assigneeType;
+    filtersForMeta.force = true;
+    store.dispatch('conversationStats/get', filtersForMeta);
+  }
   if (hasActiveFolders.value) {
     const payload = activeFolder.value.query;
     fetchSavedFilteredConversations(payload);
@@ -968,6 +975,7 @@ onMounted(() => {
   if (!hasAppliedFiltersOrActiveFolders.value) {
     const filtersForMeta = { ...conversationFilters.value };
     delete filtersForMeta.assigneeType;
+    filtersForMeta.force = true;
     store.dispatch('conversationStats/get', filtersForMeta);
   }
   resetAndFetchData();

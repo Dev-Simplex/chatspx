@@ -43,11 +43,18 @@ const superLongDebouncedFetchMetaData = debounce(
 
 export const actions = {
   get: async ({ commit, state: $state }, params) => {
+    // Skip threshold check when force flag is set (e.g., view/route change)
     if (
+      !params?.force &&
       $state.updatedOn &&
       Date.now() - new Date($state.updatedOn) < META_FRESH_THRESHOLD_MS
     ) {
       return;
+    }
+    // Remove force flag before sending to API
+    if (params?.force) {
+      const { force, ...apiParams } = params;
+      params = apiParams;
     }
     // First load: fetch meta immediately so tab counts appear without waiting for list
     if ($state.updatedOn == null) {
