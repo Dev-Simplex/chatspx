@@ -259,7 +259,7 @@
                   <div class="info-item"><span>Commit</span><a :href="'https://github.com/'+github+'/commit/'+vm.status.commit" target="_blank" x-text="vm.status.commit||'-'"></a></div>
                   <div class="info-item"><span>Branch</span><a :href="'https://github.com/'+github+'/tree/'+vm.status.branch" target="_blank" x-text="vm.status.branch||'-'"></a></div>
                   <div class="info-item"><span>Uptime</span><strong x-text="vm.status.uptime||'-'"></strong></div>
-                  <div class="info-item"><span>Chatwoot</span><strong x-text="vm.status.chatwootStatus||'-'" :style="{color:vm.status.chatwootStatus==='active'?'var(--online)':'var(--offline)'}"></strong></div>
+                  <div class="info-item"><span>Servico</span><strong x-text="vm.status.chatwootStatus||'-'" :style="{color:vm.status.chatwootStatus==='active'?'var(--online)':'var(--offline)'}"></strong></div>
                 </div>
               </div>
             </template>
@@ -270,7 +270,7 @@
         <div class="deploy-bar">
           <select x-model="branch"><template x-for="b in branches" :key="b"><option :value="b" x-text="b"></option></template></select>
           <button class="btn-deploy" @click="openDeployModal()" :disabled="deployingCount>0"><i data-lucide="rocket" style="width:16px;height:16px"></i> Deploy</button>
-          <a :href="'https://github.com/'+github+'/tree/'+branch" target="_blank" style="font-size:12px;display:flex;align-items:center;gap:4px;margin-left:auto"><i data-lucide="git-branch" style="width:14px;height:14px"></i> Ver no GitHub</a>
+          <a :href="'https://github.com/'+github+'/tree/'+branch" target="_blank" style="font-size:12px;display:flex;align-items:center;gap:4px;margin-left:auto"><i data-lucide="code-2" style="width:14px;height:14px"></i> Ver no GitHub</a>
         </div>
 
         <!-- Terminal -->
@@ -278,7 +278,7 @@
           <div class="terminal">
             <div class="terminal-top">
               <div class="dots"><span></span><span></span><span></span></div>
-              <div class="title"><i data-lucide="terminal" style="width:13px;height:13px"></i> Deploy Log</div>
+              <div class="title"><i data-lucide="terminal" style="width:13px;height:13px"></i> Log de Deploy</div>
               <button @click="termShow=false;termContent=''"><i data-lucide="x" style="width:14px;height:14px"></i></button>
             </div>
             <div class="terminal-body" x-ref="term" x-html="termContent"></div>

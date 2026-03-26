@@ -139,7 +139,10 @@ function sshExecStream(vm, command, onData, onDone) {
 
 function execLocal(command) {
   try {
-    return execSync(command, { encoding: 'utf8', timeout: 10000 }).trim();
+    const fs = require('fs');
+    const tmpFile = '/tmp/spx_metrics.sh';
+    fs.writeFileSync(tmpFile, command, { mode: 0o755 });
+    return execSync(`bash ${tmpFile}`, { encoding: 'utf8', timeout: 12000 }).trim();
   } catch { return ''; }
 }
 
@@ -163,16 +166,16 @@ function buildMetricsCmd(vm) {
   ].join(' && ');
 }
 
-const METRICS_CMD_LOCAL = [
-  'echo "SPX_START"',
-  "printf 'SPX_CPU=%s\\n' $(LC_ALL=C top -bn1 | grep 'Cpu(s)' | awk '{printf \"%.0f\", 100-$8}')",
-  "printf 'SPX_RAM=%s\\n' $(free | awk '/Mem:/{printf \"%.0f\", $3/$2*100}')",
-  "printf 'SPX_DISK=%s\\n' $(df / | awk 'NR==2{gsub(/%/,\"\",$5); print $5}')",
-  "printf 'SPX_COMMIT=%s\\n' $(cd /home/chatwoot/chatwoot && git rev-parse --short HEAD 2>/dev/null || echo none)",
-  "printf 'SPX_BRANCH=%s\\n' $(cd /home/chatwoot/chatwoot && git rev-parse --abbrev-ref HEAD 2>/dev/null || echo none)",
-  "printf 'SPX_UPTIME=%s\\n' \"$(uptime -p 2>/dev/null || echo unknown)\"",
-  "printf 'SPX_SERVICE=%s\\n' $(systemctl is-active chatwoot.target 2>/dev/null || echo unknown)",
-].join(' && ');
+const METRICS_CMD_LOCAL = `#!/bin/bash
+echo "SPX_START"
+printf 'SPX_CPU=%s\\n' "$(LC_ALL=C top -bn1 | grep 'Cpu(s)' | awk '{printf "%.0f", 100-$8}')"
+printf 'SPX_RAM=%s\\n' "$(free | awk '/Mem:/{printf "%.0f", $3/$2*100}')"
+printf 'SPX_DISK=%s\\n' "$(df / | awk 'NR==2{gsub(/%/,"",$5); print $5}')"
+printf 'SPX_COMMIT=%s\\n' "$(cd /home/chatwoot/chatwoot && git rev-parse --short HEAD 2>/dev/null || echo none)"
+printf 'SPX_BRANCH=%s\\n' "$(cd /home/chatwoot/chatwoot && git rev-parse --abbrev-ref HEAD 2>/dev/null || echo none)"
+printf 'SPX_UPTIME=%s\\n' "$(uptime -p 2>/dev/null || echo unknown)"
+printf 'SPX_SERVICE=%s\\n' "$(systemctl is-active chatwoot.target 2>/dev/null || echo unknown)"
+`;
 
 function parseMetrics(output) {
   const lines = output.split('\n');
