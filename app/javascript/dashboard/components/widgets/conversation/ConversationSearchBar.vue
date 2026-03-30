@@ -24,6 +24,7 @@ const store = useStore();
 const searchQuery = ref('');
 const searchInputRef = ref(null);
 const hasSearchedOnce = ref(false);
+const isFocused = ref(false);
 
 const uiFlags = computed(() => store.getters['conversationSearch/getUIFlags']);
 
@@ -109,19 +110,33 @@ const handleContainerClick = () => {
 </script>
 
 <template>
-  <div class="sticky top-0 z-10 mb-2.5 bg-n-solid-1 backdrop-blur-lg">
-    <div class="flex items-center px-1.5 py-px">
+  <div class="sticky top-0 z-10 mb-2.5 bg-n-solid-1">
+    <div class="flex items-center px-2 py-1.5">
       <div
-        class="flex items-center w-full min-h-[30px] bg-n-slate-2 dark:bg-n-slate-5 rounded-full px-2.5 py-0.5 gap-2 border border-n-weak transition-colors duration-200 cursor-default select-none focus-within:bg-n-slate-1 dark:focus-within:bg-n-slate-4 focus-within:border-[#2dc46f]"
+        class="search-container flex items-center w-full h-[35px] rounded-lg px-3 gap-2 transition-all duration-200 cursor-text"
+        :class="[
+          isFocused
+            ? 'bg-white dark:bg-[#2a3942]'
+            : 'bg-[#f0f2f5] dark:bg-[#202c33]',
+        ]"
         @click="handleContainerClick"
       >
-        <div
-          class="flex items-center justify-center text-n-slate-10 dark:text-n-slate-11 shrink-0"
-        >
-          <fluent-icon v-if="!isSearching" icon="search" size="16" />
+        <div class="flex items-center justify-center shrink-0 transition-colors duration-200">
+          <fluent-icon
+            v-if="!isSearching && !isFocused"
+            icon="search"
+            size="16"
+            class="text-[#54656f] dark:text-[#aebac1]"
+          />
+          <fluent-icon
+            v-else-if="!isSearching && isFocused"
+            icon="arrow-left"
+            size="16"
+            class="text-[#00a884] dark:text-[#00a884]"
+          />
           <div
             v-else
-            class="block size-4 border-2 border-n-slate-10 dark:border-n-slate-11 border-t-transparent rounded-full animate-spin"
+            class="block size-4 border-2 border-[#00a884] border-t-transparent rounded-full animate-spin"
           />
         </div>
         <input
@@ -129,14 +144,16 @@ const handleContainerClick = () => {
           v-model="searchQuery"
           type="text"
           :placeholder="placeholderText"
-          class="reset-base no-margin flex-1 min-w-0 border-0 bg-transparent text-[13px] leading-tight p-0 m-0 text-n-slate-12 dark:text-n-slate-1 shadow-none appearance-none rounded-none w-full font-normal cursor-text select-text placeholder:opacity-60 placeholder:text-n-slate-10 dark:placeholder:text-n-slate-11 placeholder:font-normal focus:border-0 focus:bg-transparent focus:shadow-none focus:outline-none focus:ring-0"
+          class="reset-base no-margin flex-1 min-w-0 border-0 bg-transparent text-[13px] leading-[35px] p-0 m-0 shadow-none appearance-none rounded-none w-full font-normal cursor-text select-text focus:border-0 focus:bg-transparent focus:shadow-none focus:outline-none focus:ring-0 text-[#111b21] dark:text-[#e9edef] placeholder:text-[#667781] dark:placeholder:text-[#8696a0] placeholder:font-normal caret-[#00a884]"
           @input="handleSearch"
           @keydown="handleKeyDown"
+          @focus="isFocused = true"
+          @blur="isFocused = false"
         />
         <button
           v-if="hasSearchQuery && !isSearching"
           type="button"
-          class="flex items-center justify-center text-n-slate-10 dark:text-n-slate-11 bg-transparent border-0 p-px cursor-pointer transition-colors duration-200 shrink-0 min-w-[18px] min-h-[18px] hover:text-n-slate-12 dark:hover:text-n-slate-1 focus:outline-none"
+          class="flex items-center justify-center bg-transparent border-0 p-0.5 cursor-pointer transition-colors duration-200 shrink-0 text-[#54656f] dark:text-[#aebac1] hover:text-[#111b21] dark:hover:text-[#e9edef] focus:outline-none"
           :aria-label="t('GENERAL_SETTINGS.WAHA_BANNER.CLEAR_SEARCH')"
           @click="clearSearch"
         >
