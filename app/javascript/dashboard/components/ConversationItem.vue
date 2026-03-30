@@ -10,6 +10,7 @@ export default {
     'assignAgent',
     'assignTeam',
     'assignLabels',
+    'removeLabels',
     'updateConversationStatus',
     'toggleContextMenu',
     'markAsUnread',
@@ -53,7 +54,6 @@ export default {
 
 <template>
   <ConversationCard
-    :key="source.id"
     :active-label="label"
     :team-id="teamId"
     :folders-id="foldersId"
@@ -68,6 +68,7 @@ export default {
     @assign-agent="assignAgent"
     @assign-team="assignTeam"
     @assign-label="assignLabels"
+    @remove-label="removeLabels"
     @update-conversation-status="updateConversationStatus"
     @context-menu-toggle="toggleContextMenu"
     @mark-as-unread="markAsUnread"

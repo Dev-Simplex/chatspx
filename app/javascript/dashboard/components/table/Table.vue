@@ -81,10 +81,7 @@ const cellClass = computed(() =>
         <td
           v-for="cell in row.getVisibleCells()"
           :key="cell.id"
-          :class="[
-            isRelaxed ? 'py-4 px-5' : 'py-2 px-5',
-            cellClass,
-          ]"
+          :class="[isRelaxed ? 'py-4 px-5' : 'py-2 px-5', cellClass]"
         >
           <FlexRender
             :render="cell.column.columnDef.cell"

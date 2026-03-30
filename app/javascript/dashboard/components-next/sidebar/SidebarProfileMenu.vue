@@ -15,7 +15,7 @@ import {
 } from 'next/dropdown-menu/base';
 import CustomBrandPolicyWrapper from '../../components/CustomBrandPolicyWrapper.vue';
 
-const props = defineProps({
+defineProps({
   isCollapsed: { type: Boolean, default: false },
 });
 
@@ -124,16 +124,17 @@ const allowedMenuItems = computed(() => {
 </script>
 
 <template>
-  <DropdownContainer class="relative w-full min-w-0" @close="emit('close')">
+  <DropdownContainer
+    class="relative min-w-0"
+    :class="isCollapsed ? 'w-auto' : 'w-full'"
+    @close="emit('close')"
+  >
     <template #trigger="{ toggle, isOpen }">
       <button
-        class="flex items-center p-1 w-full min-w-0 rounded-lg cursor-pointer hover:bg-n-alpha-1"
+        class="flex gap-2 items-center p-1 text-left rounded-lg cursor-pointer hover:bg-n-alpha-1"
         :class="[
-          {
-            'justify-center': isCollapsed,
-            'gap-2 text-left': !isCollapsed,
-          },
           { 'bg-n-alpha-1': isOpen },
+          isCollapsed ? 'justify-center' : 'w-full',
         ]"
         :title="isCollapsed ? currentUser.available_name : undefined"
         @click="toggle"
@@ -146,8 +147,8 @@ const allowedMenuItems = computed(() => {
           class="flex-shrink-0"
           rounded-full
         />
-        <div v-if="!isCollapsed" class="min-w-0 flex-1 overflow-hidden">
-          <div class="min-w-0 truncate text-sm font-medium leading-4 text-n-slate-12">
+        <div v-if="!isCollapsed" class="min-w-0">
+          <div class="text-sm font-medium leading-4 truncate text-n-slate-12">
             {{ currentUser.available_name }}
           </div>
           <div class="min-w-0 truncate text-xs text-n-slate-11">

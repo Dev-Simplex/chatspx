@@ -35,21 +35,20 @@ const formData = ref({
 const dialogRef = ref(null);
 const isLoading = ref(false);
 
-const isDefaultStage = (stage) => {
+const isDefaultStage = stage => {
   if (!stage) return false;
   const isDefaultByName =
     stage.name === 'Abertos' ||
     stage.name === 'Resolvidos' ||
     stage.name === 'Em Andamento';
   const isDefaultByAutomation =
-    stage.automation_type === 'open' ||
-    stage.automation_type === 'resolved';
+    stage.automation_type === 'open' || stage.automation_type === 'resolved';
   return isDefaultByName || isDefaultByAutomation;
 };
 
 watch(
   () => props.stage,
-  (newStage) => {
+  newStage => {
     if (newStage) {
       formData.value = {
         name: newStage.name || '',
@@ -66,7 +65,7 @@ watch(
 
 watch(
   () => props.show,
-  (newShow) => {
+  newShow => {
     if (newShow) {
       nextTick(() => {
         setTimeout(() => {
@@ -75,10 +74,8 @@ watch(
           }
         }, 10);
       });
-    } else {
-      if (dialogRef.value && typeof dialogRef.value.close === 'function') {
-        dialogRef.value.close();
-      }
+    } else if (dialogRef.value && typeof dialogRef.value.close === 'function') {
+      dialogRef.value.close();
     }
   },
   { immediate: true }
@@ -149,7 +146,7 @@ const save = async () => {
       <!-- Nome da etapa -->
       <div v-if="!isDefaultStage(stage)">
         <label
-          :for="`stage-form-name`"
+          for="stage-form-name"
           class="block text-sm font-semibold mb-2 text-n-slate-12"
         >
           <div class="flex items-center gap-2">
@@ -158,7 +155,7 @@ const save = async () => {
           </div>
         </label>
         <input
-          :id="`stage-form-name`"
+          id="stage-form-name"
           v-model="formData.name"
           type="text"
           class="w-full px-4 !py-3 !h-12 border border-n-weak rounded-lg bg-n-solid-3 text-n-slate-12 text-sm leading-5 focus:outline-none focus:ring-2 focus:ring-n-blue-9"
@@ -170,7 +167,7 @@ const save = async () => {
       <!-- Cor da etapa -->
       <div>
         <label
-          :for="`stage-form-color`"
+          for="stage-form-color"
           class="block text-sm font-semibold mb-2 text-n-slate-12"
         >
           <div class="flex items-center gap-2">
@@ -180,7 +177,7 @@ const save = async () => {
         </label>
         <div class="flex items-center gap-3">
           <input
-            :id="`stage-form-color`"
+            id="stage-form-color"
             v-model="formData.color"
             type="color"
             class="w-12 h-12 border border-n-weak rounded-lg cursor-pointer"
@@ -196,7 +193,7 @@ const save = async () => {
       <!-- Tipo de automação -->
       <div v-if="!isDefaultStage(stage)">
         <label
-          :for="`stage-form-automation`"
+          for="stage-form-automation"
           class="block text-sm font-semibold mb-2 text-n-slate-12"
         >
           <div class="flex items-center gap-2">
@@ -205,7 +202,7 @@ const save = async () => {
           </div>
         </label>
         <select
-          :id="`stage-form-automation`"
+          id="stage-form-automation"
           v-model="formData.automation_type"
           class="w-full px-4 py-3 border border-n-weak rounded-lg bg-n-solid-3 text-n-slate-12 focus:outline-none focus:ring-2 focus:ring-n-blue-9 text-sm"
         >

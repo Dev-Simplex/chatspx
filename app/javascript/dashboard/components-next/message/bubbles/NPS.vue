@@ -22,14 +22,19 @@ const score = computed(() => {
 
 <template>
   <BaseBubble class="px-4 py-3" data-bubble-name="nps">
-    <h4>{{ content || t('CONVERSATION.NPS_REPLY_MESSAGE', { default: 'De 0 a 10, o quanto você recomendaria nossa empresa?' }) }}</h4>
+    <h4>
+      {{
+        content ||
+        t('CONVERSATION.NPS_REPLY_MESSAGE', {
+          default: 'De 0 a 10, o quanto você recomendaria nossa empresa?',
+        })
+      }}
+    </h4>
     <dl v-if="isScoreSubmitted" class="mt-4">
       <dt class="text-n-slate-11 italic">
         {{ t('CONVERSATION.SCORE_TITLE', { default: 'Nota' }) }}
       </dt>
-      <dd class="text-lg font-semibold">
-        {{ score }}/10
-      </dd>
+      <dd class="text-lg font-semibold">{{ score }}/10</dd>
 
       <dt v-if="response.comment" class="text-n-slate-11 italic mt-2">
         {{ t('CONVERSATION.COMMENT_TITLE', { default: 'Comentário' }) }}

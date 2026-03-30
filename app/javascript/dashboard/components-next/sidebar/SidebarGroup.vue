@@ -1,14 +1,15 @@
 <script setup>
-import { computed, onMounted, watch, nextTick } from 'vue';
-import { useSidebarContext } from './provider';
+import { computed, onMounted, onUnmounted, watch, nextTick, ref } from 'vue';
+import { useSidebarContext, usePopoverState } from './provider';
 import { useRoute, useRouter } from 'vue-router';
 import { useMapGetter } from 'dashboard/composables/store';
 import Policy from 'dashboard/components/policy.vue';
+import Icon from 'next/icon/Icon.vue';
 import SidebarGroupHeader from './SidebarGroupHeader.vue';
 import SidebarGroupLeaf from './SidebarGroupLeaf.vue';
 import SidebarSubGroup from './SidebarSubGroup.vue';
 import SidebarGroupEmptyLeaf from './SidebarGroupEmptyLeaf.vue';
-import Icon from 'next/icon/Icon.vue';
+import SidebarCollapsedPopover from './SidebarCollapsedPopover.vue';
 
 const props = defineProps({
   name: { type: String, required: true },
@@ -18,7 +19,6 @@ const props = defineProps({
   activeOn: { type: Array, default: () => [] },
   children: { type: Array, default: undefined },
   getterKeys: { type: Object, default: () => ({}) },
-  isCollapsed: { type: Boolean, default: false },
 });
 
 const {
@@ -28,7 +28,17 @@ const {
   resolvePermissions,
   resolveFeatureFlag,
   isAllowed,
+  isCollapsed,
+  isResizing,
 } = useSidebarContext();
+
+const {
+  activePopover,
+  setActivePopover,
+  closeActivePopover,
+  scheduleClose,
+  cancelClose,
+} = usePopoverState();
 
 const navigableChildren = computed(() => {
   return props.children?.flatMap(child => child.children || child) || [];
@@ -41,6 +51,54 @@ const isExpandable = computed(() => props.children);
 const hasChildren = computed(
   () => Array.isArray(props.children) && props.children.length > 0
 );
+
+// Use shared popover state - only one popover can be open at a time
+const isPopoverOpen = computed(() => activePopover.value === props.name);
+const triggerRef = ref(null);
+const triggerRect = ref({ top: 0, left: 0, bottom: 0, right: 0 });
+
+const openPopover = () => {
+  if (triggerRef.value) {
+    const rect = triggerRef.value.getBoundingClientRect();
+    triggerRect.value = {
+      top: rect.top,
+      left: rect.left,
+      bottom: rect.bottom,
+      right: rect.right,
+    };
+  }
+  setActivePopover(props.name);
+};
+
+const closePopover = () => {
+  if (activePopover.value === props.name) {
+    closeActivePopover();
+  }
+};
+
+const handleMouseEnter = () => {
+  if (!hasChildren.value || isResizing.value) return;
+  cancelClose();
+  openPopover();
+};
+
+const handleMouseLeave = () => {
+  if (!hasChildren.value) return;
+  scheduleClose(200);
+};
+
+const handlePopoverMouseEnter = () => {
+  cancelClose();
+};
+
+const handlePopoverMouseLeave = () => {
+  scheduleClose(100);
+};
+
+// Close popover when mouse leaves the window
+const handleWindowBlur = () => {
+  closeActivePopover();
+};
 
 const accessibleItems = computed(() => {
   if (!hasChildren.value) return [];
@@ -58,31 +116,6 @@ const accessibleItems = computed(() => {
 
 const hasAccessibleChildren = computed(() => {
   return accessibleItems.value.length > 0;
-});
-
-const firstNavigableItem = computed(() => {
-  if (!hasChildren.value || !hasAccessibleChildren.value) return null;
-
-  // Primeiro, tentar encontrar um item direto (sem children)
-  const directItem = accessibleItems.value.find(child => !child.children);
-  if (directItem && directItem.to) {
-    return directItem;
-  }
-
-  // Se não houver item direto, buscar o primeiro filho do primeiro subgrupo
-  const firstSubgroup = accessibleItems.value.find(
-    child => child.children && Array.isArray(child.children)
-  );
-  if (firstSubgroup && firstSubgroup.children) {
-    const firstAccessibleChild = firstSubgroup.children.find(
-      subChild => subChild.to && isAllowed(subChild.to)
-    );
-    if (firstAccessibleChild) {
-      return firstAccessibleChild;
-    }
-  }
-
-  return null;
 });
 
 const isActive = computed(() => {
@@ -163,19 +196,16 @@ const hasActiveChild = computed(() => {
 const badgeGetter = props.getterKeys?.badge
   ? useMapGetter(props.getterKeys.badge)
   : null;
-const countGetter = props.getterKeys?.count
-  ? useMapGetter(props.getterKeys.count)
-  : null;
-
 const showBadge = computed(() => {
   return badgeGetter?.value ?? false;
 });
 
-const dynamicCount = computed(() => {
-  if (!countGetter?.value) return null;
-  const count = countGetter.value;
-  return count > 99 ? '99+' : count;
-});
+const handleCollapsedClick = () => {
+  if (hasChildren.value && hasAccessibleChildren.value) {
+    const firstItem = accessibleItems.value[0];
+    router.push(firstItem.to);
+  }
+};
 
 const toggleTrigger = () => {
   if (
@@ -190,18 +220,18 @@ const toggleTrigger = () => {
   setExpandedItem(props.name);
 };
 
-const navigateToFirstItem = () => {
-  const item = firstNavigableItem.value;
-  if (item && item.to) {
-    router.push(resolvePath(item.to));
-  }
-};
-
 onMounted(async () => {
   await nextTick();
   if (hasActiveChild.value) {
     setExpandedItem(props.name);
   }
+  window.addEventListener('blur', handleWindowBlur);
+  document.addEventListener('mouseleave', handleWindowBlur);
+});
+
+onUnmounted(() => {
+  window.removeEventListener('blur', handleWindowBlur);
+  document.removeEventListener('mouseleave', handleWindowBlur);
 });
 
 watch(
@@ -222,73 +252,90 @@ watch(
     :permissions="resolvePermissions(to)"
     :feature-flag="resolveFeatureFlag(to)"
     as="li"
-    class="grid gap-1 text-sm cursor-pointer select-none"
+    class="grid gap-1 text-sm cursor-pointer select-none min-w-0"
   >
-    <div
-      v-if="isCollapsed && hasChildren && hasAccessibleChildren"
-      class="flex items-center rounded-lg h-8 min-w-0 justify-center px-2 cursor-pointer"
-      :class="{
-        'text-n-blue-text bg-n-alpha-2 font-medium':
-          isActive && !hasActiveChild,
-        'text-n-slate-12 font-medium': hasActiveChild,
-        'text-n-slate-11 hover:bg-n-alpha-2': !isActive && !hasActiveChild,
-      }"
-      role="button"
-      draggable="false"
-      :title="isCollapsed ? label : undefined"
-      @click.stop="navigateToFirstItem"
-    >
-      <div v-if="icon" class="relative flex items-center">
-        <Icon v-if="icon" :icon="icon" class="size-4" />
-        <span
-          v-if="showBadge"
-          class="size-2 -top-px ltr:-right-px rtl:-left-px bg-n-brand absolute rounded-full border border-n-solid-2"
+    <!-- Collapsed State -->
+    <template v-if="isCollapsed">
+      <div
+        class="relative"
+        @mouseenter="handleMouseEnter"
+        @mouseleave="handleMouseLeave"
+      >
+        <component
+          :is="to && !hasChildren ? 'router-link' : 'button'"
+          ref="triggerRef"
+          :to="to && !hasChildren ? to : undefined"
+          type="button"
+          class="flex items-center justify-center size-10 rounded-lg"
+          :class="{
+            'text-n-slate-12 bg-n-alpha-2': isActive || hasActiveChild,
+            'text-n-slate-11 hover:bg-n-alpha-2': !isActive && !hasActiveChild,
+          }"
+          :title="label"
+          @click="hasChildren ? handleCollapsedClick() : undefined"
+        >
+          <div v-if="icon" class="relative flex items-center">
+            <Icon v-if="icon" :icon="icon" class="size-4" />
+            <span
+              v-if="showBadge"
+              class="size-2 -top-px ltr:-right-px rtl:-left-px bg-n-brand absolute rounded-full border border-n-solid-2"
+            />
+          </div>
+        </component>
+        <SidebarCollapsedPopover
+          v-if="hasChildren && isPopoverOpen"
+          :label="label"
+          :children="children"
+          :active-child="activeChild"
+          :trigger-rect="triggerRect"
+          @close="closePopover"
+          @mouseenter="handlePopoverMouseEnter"
+          @mouseleave="handlePopoverMouseLeave"
         />
       </div>
-    </div>
-    <SidebarGroupHeader
-      v-else
-      :icon
-      :name
-      :label
-      :to
-      :getter-keys="getterKeys"
-      :is-active="isActive"
-      :has-active-child="hasActiveChild"
-      :expandable="hasChildren"
-      :is-expanded="isExpanded"
-      :is-collapsed="isCollapsed"
-      @toggle="toggleTrigger"
-    />
-    <ul
-      v-if="hasChildren"
-      v-show="!isCollapsed && (isExpanded || hasActiveChild)"
-      class="grid m-0 list-none sidebar-group-children"
-    >
-      <template v-for="child in children" :key="child.name">
-        <SidebarSubGroup
-          v-if="child.children"
-          :name="child.name"
-          :parent-name="name"
-          :label="child.label"
-          :icon="child.icon"
-          :children="child.children"
-          :is-expanded="isExpanded"
-          :active-child="activeChild"
-          :is-collapsed="isCollapsed"
-        />
-        <SidebarGroupLeaf
-          v-else-if="isAllowed(child.to)"
-          v-show="isExpanded || activeChild?.name === child.name"
-          v-bind="child"
-          :active="activeChild?.name === child.name"
-          :is-collapsed="isCollapsed"
-        />
-      </template>
-    </ul>
-    <ul v-else-if="isExpandable && isExpanded">
-      <SidebarGroupEmptyLeaf />
-    </ul>
+    </template>
+    <!-- Expanded State -->
+    <template v-else>
+      <SidebarGroupHeader
+        :icon
+        :name
+        :label
+        :to
+        :getter-keys="getterKeys"
+        :is-active="isActive"
+        :has-active-child="hasActiveChild"
+        :expandable="hasChildren"
+        :is-expanded="isExpanded"
+        @toggle="toggleTrigger"
+      />
+      <ul
+        v-if="hasChildren"
+        v-show="isExpanded || hasActiveChild"
+        class="grid m-0 list-none sidebar-group-children min-w-0"
+      >
+        <template v-for="child in children" :key="child.name">
+          <SidebarSubGroup
+            v-if="child.children"
+            :name="child.name"
+            :parent-name="name"
+            :label="child.label"
+            :icon="child.icon"
+            :children="child.children"
+            :is-expanded="isExpanded"
+            :active-child="activeChild"
+          />
+          <SidebarGroupLeaf
+            v-else-if="isAllowed(child.to)"
+            v-show="isExpanded || activeChild?.name === child.name"
+            v-bind="child"
+            :active="activeChild?.name === child.name"
+          />
+        </template>
+      </ul>
+      <ul v-else-if="isExpandable && isExpanded">
+        <SidebarGroupEmptyLeaf />
+      </ul>
+    </template>
   </Policy>
 </template>
 

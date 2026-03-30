@@ -47,7 +47,9 @@ const isVideo = computed(
     attachmentFileType.value === ATTACHMENT_TYPES.IG_REEL
 );
 
-const isAudio = computed(() => attachmentFileType.value === ATTACHMENT_TYPES.AUDIO);
+const isAudio = computed(
+  () => attachmentFileType.value === ATTACHMENT_TYPES.AUDIO
+);
 
 const isFile = computed(
   () =>
@@ -72,7 +74,9 @@ const attachmentLabel = computed(() => {
   if (!type) return t('CONVERSATION.REPLY_MESSAGE_NOT_FOUND');
   const key = `CHAT_LIST.ATTACHMENTS.${type}.CONTENT`;
   const translated = t(key);
-  return translated !== key ? translated : t('CHAT_LIST.ATTACHMENTS.file.CONTENT');
+  return translated !== key
+    ? translated
+    : t('CHAT_LIST.ATTACHMENTS.file.CONTENT');
 });
 
 const fileName = computed(() => {
@@ -90,7 +94,9 @@ const fileName = computed(() => {
     const ext = att.extension ?? segment.split('.').pop() ?? '';
     return ext ? `Documento.${ext}` : t('CONVERSATION.UNKNOWN_FILE_TYPE');
   } catch {
-    return att.extension ? `Documento.${att.extension}` : t('CONVERSATION.UNKNOWN_FILE_TYPE');
+    return att.extension
+      ? `Documento.${att.extension}`
+      : t('CONVERSATION.UNKNOWN_FILE_TYPE');
   }
 });
 
@@ -101,7 +107,6 @@ const fileExtension = computed(() => {
   const parts = name.split('.');
   return parts.length > 1 ? parts.pop().toLowerCase() : 'file';
 });
-
 </script>
 
 <template>
@@ -161,7 +166,9 @@ const fileExtension = computed(() => {
         >
           <FileIcon :file-type="fileExtension" class="size-5 text-n-slate-11" />
         </div>
-        <span class="min-w-0 truncate text-inherit" :title="fileName">{{ fileName }}</span>
+        <span class="min-w-0 truncate text-inherit" :title="fileName">{{
+          fileName
+        }}</span>
       </template>
 
       <!-- Other types (location, contact, embed, etc.): icon + label -->

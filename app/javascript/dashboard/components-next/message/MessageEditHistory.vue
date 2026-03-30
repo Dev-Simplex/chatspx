@@ -19,10 +19,16 @@ const POPOVER_GAP = 8;
 
 const popoverStyle = computed(() => {
   // Use clientWidth (excludes scrollbar) for accurate clamping
-  const viewportWidth = document.documentElement.clientWidth || window.innerWidth;
+  const viewportWidth =
+    document.documentElement.clientWidth || window.innerWidth;
 
   if (!props.triggerRect) {
-    return { position: 'fixed', top: '-9999px', left: '-9999px', visibility: 'hidden' };
+    return {
+      position: 'fixed',
+      top: '-9999px',
+      left: '-9999px',
+      visibility: 'hidden',
+    };
   }
 
   const { top, left, width } = props.triggerRect;
@@ -59,7 +65,9 @@ function handleOutsideClick(e) {
 }
 
 onMounted(() => document.addEventListener('click', handleOutsideClick, true));
-onUnmounted(() => document.removeEventListener('click', handleOutsideClick, true));
+onUnmounted(() =>
+  document.removeEventListener('click', handleOutsideClick, true)
+);
 </script>
 
 <template>
@@ -69,7 +77,9 @@ onUnmounted(() => document.removeEventListener('click', handleOutsideClick, true
       :style="popoverStyle"
     >
       <div class="flex items-center justify-between mb-2">
-        <span class="font-medium text-n-slate-12 text-xs uppercase tracking-wide">
+        <span
+          class="font-medium text-n-slate-12 text-xs uppercase tracking-wide"
+        >
           {{ t('CONVERSATION.EDIT_HISTORY.TITLE') }}
         </span>
         <button
@@ -80,13 +90,17 @@ onUnmounted(() => document.removeEventListener('click', handleOutsideClick, true
         </button>
       </div>
 
-      <p class="text-n-slate-11 whitespace-pre-wrap break-words leading-relaxed mb-3">
+      <p
+        class="text-n-slate-11 whitespace-pre-wrap break-words leading-relaxed mb-3"
+      >
         {{ previousContent || t('CONVERSATION.EDIT_HISTORY.NO_CONTENT') }}
       </p>
 
       <div class="border-t border-n-strong pt-2 space-y-0.5">
         <p v-if="editedBy?.name" class="text-xs text-n-slate-10">
-          {{ t('CONVERSATION.EDIT_HISTORY.EDITED_BY', { name: editedBy.name }) }}
+          {{
+            t('CONVERSATION.EDIT_HISTORY.EDITED_BY', { name: editedBy.name })
+          }}
         </p>
         <p v-if="editedAt" class="text-xs text-n-slate-10">
           {{ formattedDate(editedAt) }}

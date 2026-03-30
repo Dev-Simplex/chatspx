@@ -8,7 +8,12 @@ const MAX_RECONNECT_INTERVAL = 30000;
 class BaseActionCableConnector {
   static isDisconnected = false;
 
-  constructor(app, pubsubToken, websocketHost = '') {
+  constructor(
+    app,
+    pubsubToken,
+    websocketHost = '',
+    presenceInterval = PRESENCE_INTERVAL
+  ) {
     const websocketURL = websocketHost ? `${websocketHost}/cable` : undefined;
     this.isDestroyed = false;
     this.reconnectTimer = null;
@@ -46,7 +51,7 @@ class BaseActionCableConnector {
         if (this.isDestroyed) return;
         this.subscription.updatePresence();
         this.triggerPresenceInterval();
-      }, PRESENCE_INTERVAL + jitter);
+      }, presenceInterval + jitter);
     };
     this.triggerPresenceInterval();
   }

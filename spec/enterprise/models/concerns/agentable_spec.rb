@@ -9,10 +9,9 @@ RSpec.describe Concerns::Agentable do
 
       attr_accessor :temperature, :account
 
-      def initialize(name: 'Test Agent', temperature: 0.8, account: nil)
+      def initialize(name: 'Test Agent', temperature: 0.8)
         @name = name
         @temperature = temperature
-        @account = account
       end
 
       def self.name
@@ -31,13 +30,14 @@ RSpec.describe Concerns::Agentable do
     end
   end
 
-  let(:account_with_model) { instance_double(Account, captain_assistant_model: 'gpt-4-turbo') }
-  let(:dummy_instance) { dummy_class.new(account: account_with_model) }
+  let(:dummy_instance) { dummy_class.new }
   let(:mock_agents_agent) { instance_double(Agents::Agent) }
+  let(:mock_account) { double('Account', captain_assistant_model: 'gpt-4-turbo') }
 
   before do
     allow(Agents::Agent).to receive(:new).and_return(mock_agents_agent)
     allow(Captain::PromptRenderer).to receive(:render).and_return('rendered_template')
+    dummy_instance.account = mock_account
   end
 
   describe '#agent' do
@@ -89,6 +89,7 @@ RSpec.describe Concerns::Agentable do
       context_double = instance_double(Agents::RunContext,
                                        context: {
                                          state: {
+                                           assistant_config: { 'feature_contact_attributes' => true },
                                            conversation: { id: 123 },
                                            contact: { name: 'John' }
                                          }
@@ -97,12 +98,33 @@ RSpec.describe Concerns::Agentable do
       expected_context = {
         base_key: 'base_value',
         conversation: { id: 123 },
-        contact: { name: 'John' }
+        contact: { name: 'John' },
+        campaign: {}
       }
 
       expect(Captain::PromptRenderer).to receive(:render).with(
         'dummy_class',
         hash_including(expected_context)
+      )
+
+      dummy_instance.agent_instructions(context_double)
+    end
+
+    it 'merges campaign data from context state' do
+      context_double = instance_double(Agents::RunContext,
+                                       context: {
+                                         state: {
+                                           conversation: { id: 123 },
+                                           contact: { name: 'John' },
+                                           campaign: { id: 10, title: 'Summer Sale', message: 'Check it out' }
+                                         }
+                                       })
+
+      expect(Captain::PromptRenderer).to receive(:render).with(
+        'dummy_class',
+        hash_including(
+          campaign: { id: 10, title: 'Summer Sale', message: 'Check it out' }
+        )
       )
 
       dummy_instance.agent_instructions(context_double)
@@ -116,7 +138,8 @@ RSpec.describe Concerns::Agentable do
         hash_including(
           base_key: 'base_value',
           conversation: {},
-          contact: {}
+          contact: nil,
+          campaign: {}
         )
       )
 
@@ -137,21 +160,20 @@ RSpec.describe Concerns::Agentable do
   end
 
   describe '#agent_model' do
-    it 'returns account model preference when present' do
+    it 'returns value from account captain_assistant_model when present' do
       expect(dummy_instance.send(:agent_model)).to eq('gpt-4-turbo')
     end
 
-    it 'returns default model when account is not available' do
-      instance_without_account = dummy_class.new(account: nil)
+    it 'returns default model when account is nil' do
+      dummy_instance.account = nil
 
-      expect(instance_without_account.send(:agent_model)).to eq('gpt-4.1-mini')
+      expect(dummy_instance.send(:agent_model)).to eq('gpt-4.1')
     end
 
-    it 'returns default model when account preference is blank' do
-      account_without_model = instance_double(Account, captain_assistant_model: nil)
-      instance_without_model = dummy_class.new(account: account_without_model)
+    it 'returns default model when captain_assistant_model is nil' do
+      allow(mock_account).to receive(:captain_assistant_model).and_return(nil)
 
-      expect(instance_without_model.send(:agent_model)).to eq('gpt-4.1-mini')
+      expect(dummy_instance.send(:agent_model)).to eq('gpt-4.1')
     end
   end
 

@@ -94,6 +94,8 @@ yarn-debug.log*
 .vscode
 .claude/settings.local.json
 .cursor
+.codex/
+.claude/
 CLAUDE.local.md
 .mcp.json
 
@@ -109,3 +111,4 @@ local/
 *.png
 nps_checker.rb
 deployment/fix_sudoers.sh
+Procfile.worktree

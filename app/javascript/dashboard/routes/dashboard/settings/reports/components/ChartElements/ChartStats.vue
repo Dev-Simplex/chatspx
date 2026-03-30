@@ -72,9 +72,7 @@ const trendColor = (value, key) => {
           class="h-0 w-0 border-x-4 medium border-x-transparent border-b-[8px]"
           :class="trendColor(metric.trend, metric.KEY)"
         />
-        <span class="font-medium">
-          {{ calculateTrend(metric.KEY) }}%
-        </span>
+        <span class="font-medium"> {{ calculateTrend(metric.KEY) }}% </span>
       </div>
     </div>
   </div>

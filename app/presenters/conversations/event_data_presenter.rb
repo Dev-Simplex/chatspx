@@ -24,8 +24,7 @@ class Conversations::EventDataPresenter < SimpleDelegator
   private
 
   def push_messages
-    msg = messages.chat.includes(attachments: { file_attachment: :blob }).last
-    [msg&.push_event_data].compact
+    [messages.where(account_id: account_id).chat.includes(attachments: { file_attachment: :blob }).last&.push_event_data].compact
   end
 
   def push_meta

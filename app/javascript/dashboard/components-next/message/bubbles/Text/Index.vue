@@ -35,9 +35,11 @@ const isTemplate = computed(() => {
 
 const mediaAttachments = computed(() =>
   (attachments.value || []).filter(attachment =>
-    [ATTACHMENT_TYPES.IMAGE, ATTACHMENT_TYPES.VIDEO, ATTACHMENT_TYPES.IG_REEL].includes(
-      attachment.fileType
-    )
+    [
+      ATTACHMENT_TYPES.IMAGE,
+      ATTACHMENT_TYPES.VIDEO,
+      ATTACHMENT_TYPES.IG_REEL,
+    ].includes(attachment.fileType)
   )
 );
 

@@ -84,14 +84,14 @@ export const mutations = {
     _state.attachments = {};
     _state.syncConversationsMessages = {};
   },
-  [types.SET_ALL_MESSAGES_LOADED](_state) {
-    const [chat] = getSelectedChatConversation(_state);
+  [types.SET_ALL_MESSAGES_LOADED](_state, conversationId) {
+    const chat = findConversation(_state, conversationId);
     if (!chat) return;
     chat.allMessagesLoaded = true;
   },
 
-  [types.CLEAR_ALL_MESSAGES_LOADED](_state) {
-    const [chat] = getSelectedChatConversation(_state);
+  [types.CLEAR_ALL_MESSAGES_LOADED](_state, conversationId) {
+    const chat = findConversation(_state, conversationId);
     if (!chat) return;
     chat.allMessagesLoaded = false;
   },
@@ -116,19 +116,23 @@ export const mutations = {
     chat.messages = data;
   },
 
+  [types.SET_CHAT_DATA_FETCHED](_state, conversationId) {
+    const chat = findConversation(_state, conversationId);
+    if (chat) {
+      chat.dataFetched = true;
+    }
+  },
+
   [types.SET_CURRENT_CHAT_WINDOW](_state, activeChat) {
     if (activeChat) {
       _state.selectedChatId = activeChat.id;
     }
   },
 
-  [types.ASSIGN_AGENT](_state, assignee) {
-    const [chat] = getSelectedChatConversation(_state);
+  [types.ASSIGN_AGENT](_state, { conversationId, assignee }) {
+    const chat = findConversation(_state, conversationId);
     if (!chat) return;
-    const updated = { ...chat, meta: { ...chat.meta, assignee } };
-    const index = _state.allConversations.indexOf(chat);
-    if (index !== -1) _state.allConversations.splice(index, 1, updated);
-    if (_state.conversationMap) _state.conversationMap[updated.id] = updated;
+    chat.meta.assignee = assignee;
   },
 
   [types.ASSIGN_TEAM](_state, { team, conversationId }) {
@@ -157,10 +161,16 @@ export const mutations = {
     if (_state.conversationMap) _state.conversationMap[updated.id] = updated;
   },
 
-  [types.UPDATE_CONVERSATION_CUSTOM_ATTRIBUTES](_state, custom_attributes) {
-    const [chat] = getSelectedChatConversation(_state);
-    if (!chat) return;
-    chat.custom_attributes = custom_attributes;
+  [types.UPDATE_CONVERSATION_CUSTOM_ATTRIBUTES](
+    _state,
+    { conversationId, customAttributes }
+  ) {
+    const conversation = findConversation(_state, conversationId);
+    if (!conversation) return;
+    conversation.custom_attributes = {
+      ...conversation.custom_attributes,
+      ...customAttributes,
+    };
   },
 
   [types.CHANGE_CONVERSATION_STATUS](
@@ -244,9 +254,12 @@ export const mutations = {
   },
 
   [types.ADD_CONVERSATION](_state, conversation) {
-    _state.allConversations.push(conversation);
-    if (_state.conversationMap) {
-      _state.conversationMap[conversation.id] = conversation;
+    const exists = findConversation(_state, conversation.id);
+    if (!exists) {
+      _state.allConversations.push(conversation);
+      if (_state.conversationMap) {
+        _state.conversationMap[conversation.id] = conversation;
+      }
     }
   },
 
@@ -320,13 +333,7 @@ export const mutations = {
   [types.UPDATE_ASSIGNEE](_state, payload) {
     const chat = findConversation(_state, payload.id);
     if (!chat) return;
-    const updated = {
-      ...chat,
-      meta: { ...chat.meta, assignee: payload.assignee },
-    };
-    const index = _state.allConversations.indexOf(chat);
-    if (index !== -1) _state.allConversations.splice(index, 1, updated);
-    if (_state.conversationMap) _state.conversationMap[updated.id] = updated;
+    chat.meta.assignee = payload.assignee;
   },
 
   [types.UPDATE_CONVERSATION_CONTACT](_state, { conversationId, ...payload }) {

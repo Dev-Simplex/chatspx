@@ -51,8 +51,7 @@ const store = useStore();
 const router = useRouter();
 
 const isWhatsAppValidationMessage = message =>
-  typeof message === 'string' &&
-  message.toLowerCase().includes('whatsapp');
+  typeof message === 'string' && message.toLowerCase().includes('whatsapp');
 
 const whatsappAlertAction = message =>
   isWhatsAppValidationMessage(message)
@@ -81,8 +80,7 @@ const hasActiveSegments = computed(
 );
 const activeSegmentName = computed(() => props.activeSegment?.name);
 
-const openCreateNewContactDialog = async () => {
-  await createNewContactDialogRef.value?.contactsFormRef.resetValidation();
+const openCreateNewContactDialog = () => {
   createNewContactDialogRef.value?.dialogRef.open();
 };
 const openContactImportDialog = () =>
@@ -106,7 +104,10 @@ const onCreate = async contact => {
     if (error instanceof DuplicateContactException) {
       if (Array.isArray(error.data) && error.data.includes('email')) {
         useAlert(t(`${i18nPrefix}.EMAIL_ADDRESS_DUPLICATE`));
-      } else if (Array.isArray(error.data) && error.data.includes('phone_number')) {
+      } else if (
+        Array.isArray(error.data) &&
+        error.data.includes('phone_number')
+      ) {
         useAlert(t(`${i18nPrefix}.PHONE_NUMBER_DUPLICATE`));
       } else {
         useAlert(t(`${i18nPrefix}.ERROR_MESSAGE`));

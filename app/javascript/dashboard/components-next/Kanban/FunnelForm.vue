@@ -28,18 +28,20 @@ const formData = ref({
   inbox_ids: [],
 });
 
-const normalizeInboxIds = (ids) => {
+const normalizeInboxIds = ids => {
   if (!Array.isArray(ids)) {
     return [];
   }
-  return ids
-    .map(id => Number(id))
-    .filter(id => Number.isFinite(id));
+  return ids.map(id => Number(id)).filter(id => Number.isFinite(id));
 };
 
 const stages = ref([]);
 const isEditing = computed(() => !!props.funnel);
-const isLoading = computed(() => store.getters['kanban/getUIFlags'].isCreating || store.getters['kanban/getUIFlags'].isUpdating);
+const isLoading = computed(
+  () =>
+    store.getters['kanban/getUIFlags'].isCreating ||
+    store.getters['kanban/getUIFlags'].isUpdating
+);
 
 // Inboxes disponíveis
 const availableInboxes = computed(() => {
@@ -50,7 +52,7 @@ const dialogRef = ref(null);
 
 watch(
   () => props.funnel,
-  (newFunnel) => {
+  newFunnel => {
     if (newFunnel) {
       const inboxIds = normalizeInboxIds(
         newFunnel.inbox_ids ?? newFunnel.inboxIds ?? []
@@ -61,7 +63,9 @@ watch(
         inbox_ids: inboxIds,
       };
       store.dispatch('kanban/fetchFunnelStages', newFunnel.id).then(() => {
-        const fetchedStages = store.getters['kanban/getFunnelStages'](newFunnel.id);
+        const fetchedStages = store.getters['kanban/getFunnelStages'](
+          newFunnel.id
+        );
         // Converter etapas existentes para o formato do formulário
         // IMPORTANTE: Preservar automation_type mesmo se for null/undefined para etapas padrão
         stages.value = fetchedStages.map(stage => ({
@@ -70,7 +74,8 @@ watch(
           color: stage.color || '#94a3b8',
           position: stage.position || 0,
           // Preservar automation_type do servidor - não usar || null que pode sobrescrever valores válidos
-          automation_type: stage.automation_type !== undefined ? stage.automation_type : null,
+          automation_type:
+            stage.automation_type !== undefined ? stage.automation_type : null,
         }));
       });
     } else {
@@ -88,7 +93,7 @@ watch(
 // Usar watchEffect para garantir que o Dialog abra quando show mudar
 watch(
   () => props.show,
-  (newShow) => {
+  newShow => {
     if (newShow) {
       // Aguardar múltiplos ticks para garantir que o componente está montado
       nextTick(() => {
@@ -98,10 +103,8 @@ watch(
           }
         }, 10);
       });
-    } else {
-      if (dialogRef.value && typeof dialogRef.value.close === 'function') {
-        dialogRef.value.close();
-      }
+    } else if (dialogRef.value && typeof dialogRef.value.close === 'function') {
+      dialogRef.value.close();
     }
   },
   { immediate: true }
@@ -112,7 +115,7 @@ onMounted(() => {
   if (availableInboxes.value.length === 0) {
     store.dispatch('inboxes/fetch');
   }
-  
+
   if (props.show) {
     nextTick(() => {
       setTimeout(() => {
@@ -124,7 +127,7 @@ onMounted(() => {
   }
 });
 
-const toggleInbox = (inboxId) => {
+const toggleInbox = inboxId => {
   const normalizedInboxId = Number(inboxId);
   const index = formData.value.inbox_ids.indexOf(normalizedInboxId);
   if (index > -1) {
@@ -136,7 +139,7 @@ const toggleInbox = (inboxId) => {
   formData.value = { ...formData.value };
 };
 
-const getChannelTypeLabel = (channelType) => {
+const getChannelTypeLabel = channelType => {
   const channelTypes = {
     'Channel::WebWidget': t('KANBAN.CHANNEL_TYPES.WEB_WIDGET'),
     'Channel::Api': t('KANBAN.CHANNEL_TYPES.API'),
@@ -170,28 +173,32 @@ const addStage = () => {
   });
 };
 
-const isDefaultStage = (stage) => {
+const isDefaultStage = stage => {
   // Verificar pelo nome OU pelo automation_type para ser mais robusta
-  const isDefaultByName = stage.name === 'Abertos' || stage.name === 'Resolvidos' || stage.name === 'Em Andamento';
-  const isDefaultByAutomation = stage.automation_type === 'open' || stage.automation_type === 'resolved';
+  const isDefaultByName =
+    stage.name === 'Abertos' ||
+    stage.name === 'Resolvidos' ||
+    stage.name === 'Em Andamento';
+  const isDefaultByAutomation =
+    stage.automation_type === 'open' || stage.automation_type === 'resolved';
   return isDefaultByName || isDefaultByAutomation;
 };
 
-const removeStage = async (index) => {
+const removeStage = async index => {
   const stage = stages.value[index];
-  
+
   // Não permitir deletar etapas padrão
   if (isDefaultStage(stage)) {
     alert(t('KANBAN.STAGES.CANNOT_DELETE_DEFAULT'));
     return;
   }
-  
+
   // Se é uma etapa existente (tem ID numérico), deletar do servidor
   if (stage.id && !stage.id.toString().startsWith('temp-') && isEditing.value) {
     if (!confirm(t('KANBAN.STAGES.CONFIRM_DELETE'))) {
       return;
     }
-    
+
     try {
       await store.dispatch('kanban/deleteStage', {
         funnelId: props.funnel.id,
@@ -203,7 +210,7 @@ const removeStage = async (index) => {
       return;
     }
   }
-  
+
   // Remover da lista local
   stages.value.splice(index, 1);
   stages.value.forEach((stage, idx) => {
@@ -228,21 +235,25 @@ const save = async () => {
         funnelId: props.funnel.id,
         data: formData.value,
       });
-      
+
       const funnelId = props.funnel.id;
       const existingStages = store.getters['kanban/getFunnelStages'](funnelId);
       const existingStageIds = existingStages.map(s => s.id);
-      
+
       // Atualizar etapas existentes e criar novas
       for (let i = 0; i < stages.value.length; i++) {
         const stage = stages.value[i];
-        
+
         if (!stage.name || !stage.name.trim()) {
           continue; // Pular etapas sem nome
         }
-        
+
         // Se é uma etapa existente (tem ID numérico), atualizar
-        if (stage.id && !stage.id.toString().startsWith('temp-') && existingStageIds.includes(parseInt(stage.id))) {
+        if (
+          stage.id &&
+          !stage.id.toString().startsWith('temp-') &&
+          existingStageIds.includes(parseInt(stage.id))
+        ) {
           try {
             // Não atualizar etapas padrão, apenas permitir mudanças de cor
             if (isDefaultStage(stage)) {
@@ -275,7 +286,7 @@ const save = async () => {
             console.error('Erro ao atualizar etapa:', error);
             // Não bloquear se falhar atualização
           }
-        } 
+        }
         // Se é uma etapa nova, criar
         else if (!stage.id || stage.id.toString().startsWith('temp-')) {
           try {
@@ -291,22 +302,29 @@ const save = async () => {
             await new Promise(resolve => setTimeout(resolve, 200));
           } catch (error) {
             console.error('Erro ao criar etapa:', error);
-            alert(`Erro ao criar etapa "${stage.name}": ${error.message || error}`);
+            alert(
+              `Erro ao criar etapa "${stage.name}": ${error.message || error}`
+            );
           }
         }
       }
-      
+
       // Buscar etapas atualizadas
       await new Promise(resolve => setTimeout(resolve, 300));
       await store.dispatch('kanban/fetchFunnelStages', funnelId);
     } else {
-      const response = await store.dispatch('kanban/createFunnel', formData.value);
+      const response = await store.dispatch(
+        'kanban/createFunnel',
+        formData.value
+      );
       const funnelId = response.data.id;
 
       // Criar etapas sequencialmente e aguardar cada uma
-      const validStages = stages.value.filter(stage => stage.name && stage.name.trim());
+      const validStages = stages.value.filter(
+        stage => stage.name && stage.name.trim()
+      );
       const createdStages = [];
-      
+
       for (let i = 0; i < validStages.length; i++) {
         const stage = validStages[i];
         try {
@@ -327,10 +345,12 @@ const save = async () => {
           await new Promise(resolve => setTimeout(resolve, 150));
         } catch (error) {
           console.error('Erro ao criar etapa:', error);
-          alert(`Erro ao criar etapa "${stage.name}": ${error.message || error}`);
+          alert(
+            `Erro ao criar etapa "${stage.name}": ${error.message || error}`
+          );
         }
       }
-      
+
       // Sempre buscar etapas após criar para garantir sincronização
       if (createdStages.length > 0) {
         await new Promise(resolve => setTimeout(resolve, 300));
@@ -352,11 +372,11 @@ const close = () => {
 
 const handleDeleteFunnel = async () => {
   if (!isEditing.value || !props.funnel) return;
-  
+
   if (!confirm(t('KANBAN.FUNNELS.CONFIRM_DELETE'))) {
     return;
   }
-  
+
   try {
     await store.dispatch('kanban/deleteFunnel', props.funnel.id);
     emit('saved'); // Para atualizar a lista
@@ -382,7 +402,10 @@ const handleDeleteFunnel = async () => {
     <div class="space-y-6" @submit.prevent.stop>
       <!-- Funnel Name -->
       <div>
-        <label for="funnel-name" class="block text-sm font-semibold mb-2 text-n-slate-12">
+        <label
+          for="funnel-name"
+          class="block text-sm font-semibold mb-2 text-n-slate-12"
+        >
           <div class="flex items-center gap-2">
             <Icon icon="i-lucide-tag" class="size-4" />
             {{ t('KANBAN.FUNNELS.NAME') }}
@@ -400,7 +423,10 @@ const handleDeleteFunnel = async () => {
 
       <!-- Funnel Color -->
       <div>
-        <label for="funnel-color" class="block text-sm font-semibold mb-2 text-n-slate-12">
+        <label
+          for="funnel-color"
+          class="block text-sm font-semibold mb-2 text-n-slate-12"
+        >
           <div class="flex items-center gap-2">
             <Icon icon="i-lucide-palette" class="size-4" />
             {{ t('KANBAN.FUNNELS.COLOR') }}
@@ -413,7 +439,9 @@ const handleDeleteFunnel = async () => {
             type="color"
             class="w-16 h-16 border border-n-weak rounded-lg cursor-pointer"
           />
-          <div class="flex-1 px-4 py-3 border border-n-weak rounded-lg bg-n-solid-3 text-n-slate-12 font-mono">
+          <div
+            class="flex-1 px-4 py-3 border border-n-weak rounded-lg bg-n-solid-3 text-n-slate-12 font-mono"
+          >
             {{ formData.color }}
           </div>
         </div>
@@ -430,8 +458,13 @@ const handleDeleteFunnel = async () => {
             {{ t('KANBAN.FUNNELS.INBOXES_DESCRIPTION') }}
           </p>
         </label>
-        <div class="border border-n-weak rounded-lg bg-n-solid-3 p-4 max-h-[200px] overflow-y-auto">
-          <div v-if="availableInboxes.length === 0" class="text-sm text-n-slate-10 text-center py-4">
+        <div
+          class="border border-n-weak rounded-lg bg-n-solid-3 p-4 max-h-[200px] overflow-y-auto"
+        >
+          <div
+            v-if="availableInboxes.length === 0"
+            class="text-sm text-n-slate-10 text-center py-4"
+          >
             {{ t('KANBAN.FUNNELS.NO_INBOXES') }}
           </div>
           <div v-else class="space-y-2">
@@ -450,7 +483,9 @@ const handleDeleteFunnel = async () => {
                 @change="toggleInbox(inbox.id)"
               />
               <div class="flex-1">
-                <div class="text-sm font-medium text-n-slate-12">{{ inbox.name }}</div>
+                <div class="text-sm font-medium text-n-slate-12">
+                  {{ inbox.name }}
+                </div>
                 <div v-if="inbox.channel_type" class="text-xs text-n-slate-10">
                   {{ getChannelTypeLabel(inbox.channel_type) }}
                 </div>
@@ -500,9 +535,14 @@ const handleDeleteFunnel = async () => {
             :key="stage.id || `stage-${index}`"
             class="group flex flex-col sm:flex-row gap-3 items-start sm:items-center p-4 bg-n-solid-3 rounded-lg border border-n-weak hover:border-n-teal-9 transition-colors"
           >
-            <div class="flex-1 w-full sm:w-auto space-y-2 sm:space-y-0 sm:flex sm:items-center sm:gap-3">
+            <div
+              class="flex-1 w-full sm:w-auto space-y-2 sm:space-y-0 sm:flex sm:items-center sm:gap-3"
+            >
               <div class="flex-1 min-w-0">
-                <label :for="`stage-name-${index}`" class="block text-xs font-medium text-n-slate-11 mb-1">
+                <label
+                  :for="`stage-name-${index}`"
+                  class="block text-xs font-medium text-n-slate-11 mb-1"
+                >
                   {{ t('KANBAN.STAGES.NAME') }}
                 </label>
                 <input
@@ -516,7 +556,10 @@ const handleDeleteFunnel = async () => {
               </div>
               <div class="flex items-center gap-2">
                 <div>
-                  <label :for="`stage-color-${index}`" class="block text-xs font-medium text-n-slate-11 mb-1">
+                  <label
+                    :for="`stage-color-${index}`"
+                    class="block text-xs font-medium text-n-slate-11 mb-1"
+                  >
                     {{ t('KANBAN.STAGES.COLOR') }}
                   </label>
                   <div class="flex items-center gap-2">
@@ -527,12 +570,17 @@ const handleDeleteFunnel = async () => {
                       class="w-10 h-10 border border-n-weak rounded-lg cursor-pointer"
                       :disabled="isDefaultStage(stage)"
                     />
-                    <span class="text-xs text-n-slate-10 font-mono">{{ stage.color }}</span>
+                    <span class="text-xs text-n-slate-10 font-mono">{{
+                      stage.color
+                    }}</span>
                   </div>
                 </div>
               </div>
               <div class="flex-1 min-w-[150px]">
-                <label :for="`stage-automation-${index}`" class="block text-xs font-medium text-n-slate-11 mb-1">
+                <label
+                  :for="`stage-automation-${index}`"
+                  class="block text-xs font-medium text-n-slate-11 mb-1"
+                >
                   {{ t('KANBAN.STAGES.AUTOMATION_TYPE') }}
                 </label>
                 <select
@@ -541,9 +589,15 @@ const handleDeleteFunnel = async () => {
                   class="w-full px-3 py-2 border border-n-weak rounded-lg bg-n-solid-2 text-n-slate-12 focus:outline-none focus:ring-2 focus:ring-n-blue-9 text-sm disabled:opacity-75 disabled:cursor-not-allowed"
                   :disabled="isDefaultStage(stage)"
                 >
-                  <option :value="null">{{ t('KANBAN.STAGES.NO_AUTOMATION') }}</option>
-                  <option value="open">{{ t('KANBAN.STAGES.AUTOMATION_OPEN') }}</option>
-                  <option value="resolved">{{ t('KANBAN.STAGES.AUTOMATION_RESOLVED') }}</option>
+                  <option :value="null">
+                    {{ t('KANBAN.STAGES.NO_AUTOMATION') }}
+                  </option>
+                  <option value="open">
+                    {{ t('KANBAN.STAGES.AUTOMATION_OPEN') }}
+                  </option>
+                  <option value="resolved">
+                    {{ t('KANBAN.STAGES.AUTOMATION_RESOLVED') }}
+                  </option>
                 </select>
               </div>
             </div>
@@ -561,7 +615,11 @@ const handleDeleteFunnel = async () => {
                 icon="i-lucide-trash"
                 color="ruby"
                 class="opacity-70 hover:opacity-100 transition-opacity"
-                :title="isDefaultStage(stage) ? t('KANBAN.STAGES.CANNOT_DELETE_DEFAULT') : t('KANBAN.STAGES.DELETE')"
+                :title="
+                  isDefaultStage(stage)
+                    ? t('KANBAN.STAGES.CANNOT_DELETE_DEFAULT')
+                    : t('KANBAN.STAGES.DELETE')
+                "
                 :disabled="isDefaultStage(stage)"
                 @click="removeStage(index)"
               />
@@ -571,7 +629,10 @@ const handleDeleteFunnel = async () => {
             v-if="stages.length === 0"
             class="text-center py-8 text-n-slate-10 border-2 border-dashed border-n-weak rounded-lg"
           >
-            <Icon icon="i-lucide-git-branch" class="size-8 mx-auto mb-2 opacity-50" />
+            <Icon
+              icon="i-lucide-git-branch"
+              class="size-8 mx-auto mb-2 opacity-50"
+            />
             <p class="text-sm">{{ t('KANBAN.STAGES.ADD_FIRST_STAGE') }}</p>
           </div>
         </div>
@@ -590,12 +651,18 @@ const handleDeleteFunnel = async () => {
         >
           <span class="ml-2">{{ t('KANBAN.FUNNELS.DELETE') }}</span>
         </Button>
-        <div v-else></div>
+        <div v-else />
         <div class="flex gap-3">
           <Button variant="ghost" icon="i-lucide-x" @click="close">
             <span class="ml-2">{{ t('KANBAN.CANCEL') }}</span>
           </Button>
-          <Button :is-loading="isLoading" color="blue" icon="i-lucide-check" type="button" @click="save">
+          <Button
+            :is-loading="isLoading"
+            color="blue"
+            icon="i-lucide-check"
+            type="button"
+            @click="save"
+          >
             <span class="ml-2">{{ t('KANBAN.SAVE') }}</span>
           </Button>
         </div>

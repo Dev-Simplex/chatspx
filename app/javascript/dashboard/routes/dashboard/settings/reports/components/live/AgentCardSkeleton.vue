@@ -2,7 +2,9 @@
 import { ref, onMounted, onUnmounted } from 'vue';
 
 // Tema atual para data-theme (controle de shimmer/estilo)
-const theme = ref(document.body?.classList?.contains('dark') ? 'dark' : 'light');
+const theme = ref(
+  document.body?.classList?.contains('dark') ? 'dark' : 'light'
+);
 let observer = null;
 
 function updateTheme() {
@@ -12,7 +14,10 @@ function updateTheme() {
 onMounted(() => {
   updateTheme();
   observer = new MutationObserver(updateTheme);
-  observer.observe(document.body, { attributes: true, attributeFilter: ['class'] });
+  observer.observe(document.body, {
+    attributes: true,
+    attributeFilter: ['class'],
+  });
 });
 
 onUnmounted(() => {
@@ -26,7 +31,9 @@ onUnmounted(() => {
     class="agent-card-skeleton flex flex-col h-[400px] bg-n-solid-2 rounded-xl shadow outline-1 outline outline-n-container overflow-hidden"
   >
     <!-- Header: avatar + nome + status -->
-    <div class="flex items-center gap-3 p-4 border-b border-n-weak bg-n-alpha-2 flex-shrink-0">
+    <div
+      class="flex items-center gap-3 p-4 border-b border-n-weak bg-n-alpha-2 flex-shrink-0"
+    >
       <div class="skeleton-box size-10 rounded-full flex-shrink-0" />
       <div class="flex-1 min-w-0 space-y-2">
         <div class="skeleton-box h-4 w-3/4 max-w-[140px] rounded-md" />
@@ -35,11 +42,7 @@ onUnmounted(() => {
     </div>
     <!-- Body: itens de conversa -->
     <div class="flex-1 min-h-0 overflow-hidden p-4 space-y-4">
-      <div
-        v-for="n in 4"
-        :key="n"
-        class="flex items-center gap-3"
-      >
+      <div v-for="n in 4" :key="n" class="flex items-center gap-3">
         <div class="skeleton-box size-8 rounded-full flex-shrink-0" />
         <div class="flex-1 min-w-0 space-y-1.5">
           <div class="skeleton-box h-3 w-2/3 rounded-md" />
@@ -48,7 +51,9 @@ onUnmounted(() => {
       </div>
     </div>
     <!-- Footer: total de chamadas -->
-    <div class="p-4 border-t border-n-weak bg-n-alpha-2 flex-shrink-0 flex items-center justify-between gap-2">
+    <div
+      class="p-4 border-t border-n-weak bg-n-alpha-2 flex-shrink-0 flex items-center justify-between gap-2"
+    >
       <div class="skeleton-box h-4 w-28 rounded-md" />
       <div class="skeleton-box h-7 min-w-[1.75rem] w-10 rounded-lg" />
     </div>

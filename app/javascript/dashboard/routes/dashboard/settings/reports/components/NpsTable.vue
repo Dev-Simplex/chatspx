@@ -26,7 +26,7 @@ const props = defineProps({
   responseState: {
     type: String,
     default: 'responded',
-    validator: (v) => ['responded', 'not_responded'].includes(v),
+    validator: v => ['responded', 'not_responded'].includes(v),
   },
 });
 
@@ -38,24 +38,34 @@ const listTotalCount = useMapGetter('npsResponses/getNpsListTotalCount');
 
 const getClassification = (score, classificationFromBackend = null) => {
   // If classification comes from backend, translate it first
-  if (classificationFromBackend && typeof classificationFromBackend === 'string') {
+  if (
+    classificationFromBackend &&
+    typeof classificationFromBackend === 'string'
+  ) {
     const classificationMap = {
-      'promoter': t('NPS_REPORTS.CLASSIFICATION.PROMOTER', { default: 'Promotor' }),
-      'passive': t('NPS_REPORTS.CLASSIFICATION.PASSIVE', { default: 'Passivo' }),
-      'detractor': t('NPS_REPORTS.CLASSIFICATION.DETRACTOR', { default: 'Detrator' }),
+      promoter: t('NPS_REPORTS.CLASSIFICATION.PROMOTER', {
+        default: 'Promotor',
+      }),
+      passive: t('NPS_REPORTS.CLASSIFICATION.PASSIVE', { default: 'Passivo' }),
+      detractor: t('NPS_REPORTS.CLASSIFICATION.DETRACTOR', {
+        default: 'Detrator',
+      }),
     };
-    const translated = classificationMap[classificationFromBackend.toLowerCase()];
+    const translated =
+      classificationMap[classificationFromBackend.toLowerCase()];
     if (translated) return translated;
   }
-  
+
   // Otherwise, calculate from score
   if (score === null || score === undefined) return '--';
-  if (score >= 9) return t('NPS_REPORTS.CLASSIFICATION.PROMOTER', { default: 'Promotor' });
-  if (score >= 7) return t('NPS_REPORTS.CLASSIFICATION.PASSIVE', { default: 'Passivo' });
+  if (score >= 9)
+    return t('NPS_REPORTS.CLASSIFICATION.PROMOTER', { default: 'Promotor' });
+  if (score >= 7)
+    return t('NPS_REPORTS.CLASSIFICATION.PASSIVE', { default: 'Passivo' });
   return t('NPS_REPORTS.CLASSIFICATION.DETRACTOR', { default: 'Detrator' });
 };
 
-const getClassificationColor = (score) => {
+const getClassificationColor = score => {
   if (score === null || score === undefined) return 'text-n-slate-10';
   if (score >= 9) return 'text-green-600';
   if (score >= 7) return 'text-yellow-600';
@@ -66,18 +76,21 @@ const tableData = computed(() => {
   if (!npsResponses.value) return [];
   const responsesArray = Array.isArray(npsResponses.value)
     ? npsResponses.value
-    : (npsResponses.value && Array.from ? Array.from(npsResponses.value) : []);
+    : npsResponses.value && Array.from
+      ? Array.from(npsResponses.value)
+      : [];
   if (!Array.isArray(responsesArray) || responsesArray.length === 0) return [];
 
   return responsesArray.map(response => {
     // Get valid date - prefer answered_at, fallback to sent_at, then created_at
     // Backend should return Unix timestamps (numbers), but handle both formats
-    let dateValue = response.answered_at || response.sent_at || response.created_at;
-    
+    let dateValue =
+      response.answered_at || response.sent_at || response.created_at;
+
     // Convert date to Unix timestamp if needed
     // dynamicTime and messageStamp expect Unix timestamp (number in seconds)
     let unixTimestamp = null;
-    
+
     if (dateValue != null && dateValue !== undefined) {
       try {
         // If it's already a number (Unix timestamp), use it directly
@@ -92,20 +105,31 @@ const tableData = computed(() => {
           }
         }
       } catch (e) {
-        console.warn('NpsTable: Invalid date value:', dateValue, 'for response:', response.id, e);
+        console.warn(
+          'NpsTable: Invalid date value:',
+          dateValue,
+          'for response:',
+          response.id,
+          e
+        );
       }
     }
-    
+
     return {
       id: response.id,
       contact: response.contact,
       assignedAgent: response.assigned_agent,
       score: response.score,
-      classification: getClassification(response.score, response.classification),
+      classification: getClassification(
+        response.score,
+        response.classification
+      ),
       conversationId: response.conversation_id,
       conversation: response.conversation,
       createdAgo: unixTimestamp ? dynamicTime(unixTimestamp) : '--',
-      createdAt: unixTimestamp ? messageStamp(unixTimestamp, 'LLL d yyyy, h:mm a') : '--',
+      createdAt: unixTimestamp
+        ? messageStamp(unixTimestamp, 'LLL d yyyy, h:mm a')
+        : '--',
     };
   });
 });
@@ -160,7 +184,9 @@ const columns = computed(() => [
     },
   }),
   columnHelper.accessor('classification', {
-    header: t('NPS_REPORTS.TABLE.HEADER.CLASSIFICATION', { default: 'Classificação' }),
+    header: t('NPS_REPORTS.TABLE.HEADER.CLASSIFICATION', {
+      default: 'Classificação',
+    }),
     align: 'center',
     width: 120,
     cell: cellProps => {
@@ -197,7 +223,9 @@ const table = useVueTable({
   enableSorting: false,
   getCoreRowModel: getCoreRowModel(),
   get rowCount() {
-    return listTotalCount.value > 0 ? listTotalCount.value : (metrics.value.total_count || 0);
+    return listTotalCount.value > 0
+      ? listTotalCount.value
+      : metrics.value.total_count || 0;
   },
   state: {
     get pagination() {
@@ -237,7 +265,11 @@ const table = useVueTable({
           class="!h-8"
           @click="emit('responseStateChange', 'not_responded')"
         >
-          {{ t('NPS_REPORTS.FILTER.NOT_RESPONDED', { default: 'Não respondidos' }) }}
+          {{
+            t('NPS_REPORTS.FILTER.NOT_RESPONDED', {
+              default: 'Não respondidos',
+            })
+          }}
         </Button>
       </div>
     </div>
@@ -252,9 +284,14 @@ const table = useVueTable({
       v-else
       class="h-48 flex items-center justify-center text-n-slate-12 text-sm"
     >
-      {{ $t('NPS_REPORTS.NO_RECORDS', { default: 'Nenhum registro encontrado' }) }}
+      {{
+        $t('NPS_REPORTS.NO_RECORDS', { default: 'Nenhum registro encontrado' })
+      }}
     </div>
-    <div v-if="(listTotalCount.value || metrics.total_count) > 0" class="table-pagination">
+    <div
+      v-if="(listTotalCount.value || metrics.total_count) > 0"
+      class="table-pagination"
+    >
       <Pagination class="mt-2" :table="table" />
     </div>
   </div>

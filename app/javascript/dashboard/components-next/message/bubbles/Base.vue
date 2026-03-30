@@ -1,5 +1,6 @@
 <script setup>
 import { computed } from 'vue';
+import { useI18n } from 'vue-i18n';
 
 import MessageMeta from '../MessageMeta.vue';
 import ReplyPreview from './ReplyPreview.vue';
@@ -7,6 +8,7 @@ import ReplyPreview from './ReplyPreview.vue';
 import { emitter } from 'shared/helpers/mitt';
 import { useMessageContext } from '../provider.js';
 
+import MessageFormatter from 'shared/helpers/MessageFormatter.js';
 import { BUS_EVENTS } from 'shared/constants/busEvents';
 import { MESSAGE_VARIANTS, ORIENTATION } from '../constants';
 
@@ -16,6 +18,8 @@ const props = defineProps({
 
 const { variant, orientation, inReplyTo, shouldGroupWithNext } =
   useMessageContext();
+
+const { t } = useI18n();
 
 const varaintBaseMap = {
   [MESSAGE_VARIANTS.AGENT]: 'bg-n-solid-blue text-n-slate-12',
@@ -75,6 +79,7 @@ const shouldShowMeta = computed(
     !shouldGroupWithNext.value &&
     variant.value !== MESSAGE_VARIANTS.ACTIVITY
 );
+
 </script>
 
 <template>

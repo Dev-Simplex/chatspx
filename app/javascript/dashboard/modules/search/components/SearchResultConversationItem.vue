@@ -5,7 +5,6 @@ import { dynamicTime } from 'shared/helpers/timeHelper';
 import { useInbox } from 'dashboard/composables/useInbox';
 import { getInboxIconByType } from 'dashboard/helper/inbox';
 
-
 const props = defineProps({
   id: {
     type: Number,

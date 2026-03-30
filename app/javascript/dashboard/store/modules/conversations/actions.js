@@ -112,7 +112,7 @@ const actions = {
       });
 
       if (hasMoreAvailable ? !hasMore : !payload.length) {
-        commit(types.SET_ALL_MESSAGES_LOADED);
+        commit(types.SET_ALL_MESSAGES_LOADED, data.conversationId);
       }
     } catch (error) {
       // Handle error
@@ -206,7 +206,7 @@ const actions = {
 
   async setActiveChat({ commit, dispatch }, { data, after }) {
     commit(types.SET_CURRENT_CHAT_WINDOW, data);
-    commit(types.CLEAR_ALL_MESSAGES_LOADED);
+    commit(types.CLEAR_ALL_MESSAGES_LOADED, data.id);
     if (data.dataFetched === undefined) {
       try {
         await dispatch('fetchPreviousMessages', {
@@ -215,7 +215,7 @@ const actions = {
           conversationId: data.id,
           includeMeta: true,
         });
-        data.dataFetched = true;
+        commit(types.SET_CHAT_DATA_FETCHED, data.id);
       } catch (error) {
         // Ignore error
       }
@@ -231,7 +231,10 @@ const actions = {
         conversationId,
         agentId,
       });
-      dispatch('setCurrentChatAssignee', response.data);
+      dispatch('setCurrentChatAssignee', {
+        conversationId,
+        assignee: response.data,
+      });
     } catch (error) {
       if (rethrow) {
         throw error;
@@ -239,8 +242,8 @@ const actions = {
     }
   },
 
-  setCurrentChatAssignee({ commit }, assignee) {
-    commit(types.ASSIGN_AGENT, assignee);
+  setCurrentChatAssignee({ commit }, { conversationId, assignee }) {
+    commit(types.ASSIGN_AGENT, { conversationId, assignee });
   },
 
   assignTeam: async (
@@ -266,25 +269,41 @@ const actions = {
 
   toggleStatus: async (
     { commit },
-    { conversationId, status, snoozedUntil = null }
+    { conversationId, status, snoozedUntil = null, customAttributes = null }
   ) => {
-    const {
-      data: {
-        payload: {
-          current_status: updatedStatus,
-          snoozed_until: updatedSnoozedUntil,
+    try {
+      // Update custom attributes first if provided
+      if (customAttributes) {
+        await ConversationApi.updateCustomAttributes({
+          conversationId,
+          customAttributes,
+        });
+        commit(types.UPDATE_CONVERSATION_CUSTOM_ATTRIBUTES, {
+          conversationId,
+          customAttributes,
+        });
+      }
+
+      const {
+        data: {
+          payload: {
+            current_status: updatedStatus,
+            snoozed_until: updatedSnoozedUntil,
+          } = {},
         } = {},
-      } = {},
-    } = await ConversationApi.toggleStatus({
-      conversationId,
-      status,
-      snoozedUntil,
-    });
-    commit(types.CHANGE_CONVERSATION_STATUS, {
-      conversationId,
-      status: updatedStatus,
-      snoozedUntil: updatedSnoozedUntil,
-    });
+      } = await ConversationApi.toggleStatus({
+        conversationId,
+        status,
+        snoozedUntil,
+      });
+      commit(types.CHANGE_CONVERSATION_STATUS, {
+        conversationId,
+        status: updatedStatus,
+        snoozedUntil: updatedSnoozedUntil,
+      });
+    } catch (error) {
+      // Handle error
+    }
   },
 
   createPendingMessageAndSend: async ({ dispatch }, data) => {
@@ -480,11 +499,7 @@ const actions = {
   },
 
   sendEmailTranscript: async (_, { conversationId, email }) => {
-    try {
-      await ConversationApi.sendEmailTranscript({ conversationId, email });
-    } catch (error) {
-      throw new Error(error);
-    }
+    await ConversationApi.sendEmailTranscript({ conversationId, email });
   },
 
   updateCustomAttributes: async (
@@ -497,7 +512,10 @@ const actions = {
         customAttributes,
       });
       const { custom_attributes } = response.data;
-      commit(types.UPDATE_CONVERSATION_CUSTOM_ATTRIBUTES, custom_attributes);
+      commit(types.UPDATE_CONVERSATION_CUSTOM_ATTRIBUTES, {
+        conversationId,
+        customAttributes: custom_attributes,
+      });
     } catch (error) {
       // Handle error
     }

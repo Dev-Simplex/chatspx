@@ -1,15 +1,24 @@
 <script setup>
 /* eslint-disable no-shadow, vue/no-unused-properties, no-console, vue/custom-event-name-casing */
-import { onMounted, computed, ref, toRefs, useTemplateRef, nextTick } from 'vue';
+import {
+  onMounted,
+  computed,
+  ref,
+  toRefs,
+  useTemplateRef,
+  nextTick,
+} from 'vue';
 import { useTimeoutFn } from '@vueuse/core';
 import { provideMessageContext } from './provider.js';
 import { useTrack } from 'dashboard/composables';
+import { useMapGetter } from 'dashboard/composables/store';
 import { emitter } from 'shared/helpers/mitt';
 import { useI18n } from 'vue-i18n';
 import { useRoute } from 'vue-router';
 import { LocalStorage } from 'shared/helpers/localStorage';
 import { ACCOUNT_EVENTS } from 'dashboard/helper/AnalyticsHelper/events';
 import { LOCAL_STORAGE_KEYS } from 'dashboard/constants/localStorage';
+import { getInboxIconByType } from 'dashboard/helper/inbox';
 import { BUS_EVENTS } from 'shared/constants/busEvents';
 import {
   MESSAGE_TYPES,
@@ -50,6 +59,7 @@ import { useStore } from 'dashboard/composables/store';
 import { useAlert } from 'dashboard/composables';
 import NextButton from 'dashboard/components-next/button/Button.vue';
 import RestrictedMessage from './RestrictedMessage.vue';
+import { useBranding } from 'shared/composables/useBranding';
 
 /**
  * @typedef {Object} Attachment
@@ -135,6 +145,7 @@ const props = defineProps({
   inReplyTo: { type: Object, default: null }, // eslint-disable-line vue/no-unused-properties
   isEmailInbox: { type: Boolean, default: false },
   private: { type: Boolean, default: false },
+  additionalAttributes: { type: Object, default: () => ({}) }, // eslint-disable-line vue/no-unused-properties
   sender: { type: Object, default: null },
   senderId: { type: Number, default: null },
   senderType: { type: String, default: null },
@@ -160,6 +171,9 @@ const dropdownButtonRef = useTemplateRef('dropdownButtonRef');
 const { t } = useI18n();
 const route = useRoute();
 const store = useStore();
+const inboxGetter = useMapGetter('inboxes/getInbox');
+const inbox = computed(() => inboxGetter.value(props.inboxId) || {});
+const { replaceInstallationName } = useBranding();
 
 // Team isolation: check if message should be restricted
 const currentChat = computed(() => store.getters.getSelectedChat || {});
@@ -199,7 +213,7 @@ const EDIT_WINDOW_SECONDS = 900;
 
 const isWithinEditWindow = computed(() => {
   if (!props.createdAt) return false;
-  return (Date.now() / 1000 - props.createdAt) < EDIT_WINDOW_SECONDS;
+  return Date.now() / 1000 - props.createdAt < EDIT_WINDOW_SECONDS;
 });
 
 const isSentByCurrentUser = computed(() => {
@@ -248,7 +262,14 @@ const variant = computed(() => {
   if (props.contentAttributes?.isUnsupported)
     return MESSAGE_VARIANTS.UNSUPPORTED;
 
-  const isBot = !props.sender || props.sender.type === SENDER_TYPES.AGENT_BOT;
+  if (props.contentAttributes?.externalEcho) {
+    return MESSAGE_VARIANTS.AGENT;
+  }
+
+  const isBot =
+    props.sender?.type === SENDER_TYPES.AGENT_BOT ||
+    props.senderType === SENDER_TYPES.AGENT_BOT ||
+    (!props.sender && !props.additionalAttributes?.senderName);
   if (isBot && props.messageType === MESSAGE_TYPES.OUTGOING) {
     return MESSAGE_VARIANTS.BOT;
   }
@@ -389,6 +410,7 @@ const componentToRender = computed(() => {
   const instagramSharedTypes = [
     ATTACHMENT_TYPES.STORY_MENTION,
     ATTACHMENT_TYPES.IG_STORY,
+    ATTACHMENT_TYPES.IG_STORY_REPLY,
     ATTACHMENT_TYPES.IG_POST,
   ];
   if (instagramSharedTypes.includes(props.contentAttributes.imageType)) {
@@ -461,7 +483,11 @@ const contextMenuEnabledOptions = computed(() => {
     props.status === MESSAGE_STATUS.PROGRESS;
   const isActivity = props.messageType === MESSAGE_TYPES.ACTIVITY;
   const canEditBase =
-    isOutgoing && hasText && !isMessageDeleted.value && !isFailedOrProcessing && props.isWahaInbox;
+    isOutgoing &&
+    hasText &&
+    !isMessageDeleted.value &&
+    !isFailedOrProcessing &&
+    props.isWahaInbox;
 
   return {
     copy: hasText,
@@ -480,15 +506,11 @@ const contextMenuEnabledOptions = computed(() => {
       !isFailedOrProcessing,
     forward: !isActivity && !isFailedOrProcessing && !isMessageDeleted.value,
     star: !isActivity && !isFailedOrProcessing && !isMessageDeleted.value,
-    edit:
-      canEditBase && isSentByCurrentUser.value && isWithinEditWindow.value,
+    edit: canEditBase && isSentByCurrentUser.value && isWithinEditWindow.value,
     editExpired:
       canEditBase && isSentByCurrentUser.value && !isWithinEditWindow.value,
-    editNotSender:
-      canEditBase && !isSentByCurrentUser.value,
+    editNotSender: canEditBase && !isSentByCurrentUser.value,
   };
-
-  return result;
 });
 
 const shouldRenderMessage = computed(() => {
@@ -497,13 +519,17 @@ const shouldRenderMessage = computed(() => {
   const isUnsupported = props.contentAttributes?.isUnsupported;
   const isAnIntegrationMessage =
     props.contentType === CONTENT_TYPES.INTEGRATIONS;
+  const isFailedMessage = props.status === MESSAGE_STATUS.FAILED;
+  const hasExternalError = !!props.contentAttributes?.externalError;
 
   return (
     hasAttachments ||
     props.content ||
     isEmailContentType ||
     isUnsupported ||
-    isAnIntegrationMessage
+    isAnIntegrationMessage ||
+    isFailedMessage ||
+    hasExternalError
   );
 });
 
@@ -544,20 +570,20 @@ function openHoverDropdown(e) {
     const buttonComponent = dropdownButtonRef.value;
     const buttonEl = buttonComponent?.$el || buttonComponent;
     if (!buttonEl || !buttonEl.getBoundingClientRect) return;
-    
+
     const rect = buttonEl.getBoundingClientRect();
-    
+
     // Posição abaixo da seta (botão)
     // Alinha à direita do botão
     // O ContextMenu usa position: fixed, então usamos coordenadas da viewport
     // O ContextMenu ajustará automaticamente se o menu ultrapassar os limites
     const x = rect.right;
-    
+
     contextMenuPosition.value = {
       x: x,
       y: rect.bottom + 4, // 4px de espaçamento abaixo da seta
     };
-    
+
     showContextMenu.value = true;
     useTrack(ACCOUNT_EVENTS.OPEN_MESSAGE_CONTEXT_MENU);
   });
@@ -622,17 +648,32 @@ async function handleRetry() {
     // A mensagem será atualizada automaticamente via websocket
   } catch (error) {
     console.error('Error retrying message:', error);
-    useAlert(t('CONVERSATION.RETRY_ERROR') || 'Erro ao tentar reenviar mensagem');
+    useAlert(
+      t('CONVERSATION.RETRY_ERROR') || 'Erro ao tentar reenviar mensagem'
+    );
   }
 }
 
 const avatarInfo = computed(() => {
-  // If no sender, return bot info
-  if (!props.sender) {
+  if (props.contentAttributes?.externalEcho) {
+    const { name, avatar_url, channel_type, medium } = inbox.value;
+    const iconName = avatar_url
+      ? null
+      : getInboxIconByType(channel_type, medium);
     return {
-      name: t('CONVERSATION.BOT'),
-      src: '',
+      name: iconName ? '' : name || t('CONVERSATION.NATIVE_APP'),
+      src: avatar_url || '',
+      iconName,
     };
+  }
+
+  // If no sender, check for Slack (or other integration) sender info
+  if (!props.sender) {
+    const { senderName, senderAvatarUrl } = props.additionalAttributes || {};
+    if (senderName) {
+      return { name: senderName, src: senderAvatarUrl ?? '' };
+    }
+    return { name: t('CONVERSATION.BOT'), src: '' };
   }
 
   const { sender } = props;
@@ -654,6 +695,9 @@ const avatarInfo = computed(() => {
 });
 
 const avatarTooltip = computed(() => {
+  if (props.contentAttributes?.externalEcho) {
+    return replaceInstallationName(t('CONVERSATION.NATIVE_APP_ADVISORY'));
+  }
   if (avatarInfo.value.name === '') return '';
   return `${t('CONVERSATION.SENT_BY')} ${avatarInfo.value.name}`;
 });
@@ -687,7 +731,7 @@ provideMessageContext({
   <div
     v-if="shouldRenderMessage"
     :id="`message${props.id}`"
-    class="flex mb-2 w-full message-bubble-container"
+    class="flex w-full mb-2 message-bubble-container"
     :data-message-id="props.id"
     :class="[
       flexOrientationClass,
@@ -750,7 +794,9 @@ provideMessageContext({
         }"
         @contextmenu="openContextMenu($event)"
       >
-        <div class="relative w-full group-hover/message:bg-n-alpha-1 group-hover/message:ltr:pr-8 group-hover/message:rtl:pl-8 transition-all duration-200">
+        <div
+          class="relative w-full group-hover/message:bg-n-alpha-1 group-hover/message:ltr:pr-8 group-hover/message:rtl:pl-8 transition-all duration-200"
+        >
           <!-- Badge de Encaminhada, Estrela e Mensagem agendada -->
           <div
             v-if="forwarded || starred || isScheduledMessage"
@@ -763,10 +809,7 @@ provideMessageContext({
               <Icon icon="i-lucide-clock" class="size-3" />
               <span>{{ scheduledByLabel }}</span>
             </div>
-            <div
-              v-if="forwarded"
-              class="inline-flex items-center gap-1 italic"
-            >
+            <div v-if="forwarded" class="inline-flex items-center gap-1 italic">
               <Icon icon="i-lucide-share-2" class="size-3" />
               <span>{{ t('CONVERSATION.FORWARDED') || 'Encaminhada' }}</span>
             </div>
@@ -795,7 +838,12 @@ provideMessageContext({
           >
             <button
               class="inline-flex items-center gap-1 text-xs text-n-slate-10 hover:text-n-slate-12 transition-colors mt-0.5 select-none"
-              @click.stop="e => { historyTriggerRect = e.currentTarget.getBoundingClientRect(); isHistoryOpen = !isHistoryOpen; }"
+              @click.stop="
+                e => {
+                  historyTriggerRect = e.currentTarget.getBoundingClientRect();
+                  isHistoryOpen = !isHistoryOpen;
+                }
+              "
             >
               <Icon icon="i-lucide-pencil-line" class="size-3" />
               <span>{{ t('CONVERSATION.EDIT_HISTORY.BADGE') }}</span>
@@ -815,9 +863,18 @@ provideMessageContext({
             v-if="shouldShowContextMenu && isBubble"
             class="absolute ltr:right-0 rtl:left-0 top-0 bottom-0 w-10 opacity-0 group-hover/message:opacity-100 transition-opacity duration-200 ease-in-out z-[11] flex items-start justify-end pt-2 ltr:pr-1 rtl:pl-1"
             :class="{
-              'bg-n-slate-4 ltr:rounded-tr-xl ltr:rounded-br-xl rtl:rounded-tl-xl rtl:rounded-bl-xl': variant === MESSAGE_VARIANTS.USER && orientation === ORIENTATION.LEFT,
-              'bg-n-solid-blue ltr:rounded-tr-xl ltr:rounded-br-sm rtl:rounded-tl-xl rtl:rounded-bl-sm': (variant === MESSAGE_VARIANTS.AGENT || variant === MESSAGE_VARIANTS.BOT || variant === MESSAGE_VARIANTS.TEMPLATE) && orientation === ORIENTATION.RIGHT,
-              'bg-n-solid-amber ltr:rounded-tr-xl ltr:rounded-br-xl rtl:rounded-tl-xl rtl:rounded-bl-xl': [MESSAGE_VARIANTS.PRIVATE, MESSAGE_VARIANTS.SCHEDULED].includes(variant),
+              'bg-n-slate-4 ltr:rounded-tr-xl ltr:rounded-br-xl rtl:rounded-tl-xl rtl:rounded-bl-xl':
+                variant === MESSAGE_VARIANTS.USER &&
+                orientation === ORIENTATION.LEFT,
+              'bg-n-solid-blue ltr:rounded-tr-xl ltr:rounded-br-sm rtl:rounded-tl-xl rtl:rounded-bl-sm':
+                (variant === MESSAGE_VARIANTS.AGENT ||
+                  variant === MESSAGE_VARIANTS.BOT ||
+                  variant === MESSAGE_VARIANTS.TEMPLATE) &&
+                orientation === ORIENTATION.RIGHT,
+              'bg-n-solid-amber ltr:rounded-tr-xl ltr:rounded-br-xl rtl:rounded-tl-xl rtl:rounded-bl-xl':
+                [MESSAGE_VARIANTS.PRIVATE, MESSAGE_VARIANTS.SCHEDULED].includes(
+                  variant
+                ),
             }"
           >
             <NextButton
@@ -825,12 +882,11 @@ provideMessageContext({
               ghost
               slate
               sm
-              :icon="'i-lucide-chevron-down'"
+              icon="i-lucide-chevron-down"
               class="rounded-md p-1 shadow-none"
               @click.stop="openHoverDropdown($event)"
             />
           </div>
-
         </div>
       </div>
       <MessageError
@@ -858,7 +914,6 @@ provideMessageContext({
         @edit="handleEdit"
       />
     </div>
-
   </div>
 </template>
 

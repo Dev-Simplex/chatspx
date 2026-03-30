@@ -3,7 +3,13 @@ import { computed } from 'vue';
 import { useI18n } from 'vue-i18n';
 import { useRouter } from 'vue-router';
 import { useAccount } from 'dashboard/composables/useAccount';
-import { fromUnixTime, format, isToday, isYesterday, differenceInHours } from 'date-fns';
+import {
+  fromUnixTime,
+  format,
+  isToday,
+  isYesterday,
+  differenceInHours,
+} from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import Avatar from 'next/avatar/Avatar.vue';
 
@@ -23,7 +29,7 @@ const hasUnread = computed(() => unreadCount.value > 0);
 
 const formatTime = time => {
   if (!time) return '';
-  
+
   // Converter timestamp Unix (segundos) ou string ISO para Date
   let date;
   if (typeof time === 'number') {
@@ -53,22 +59,22 @@ const formatTime = time => {
   } else {
     return '';
   }
-  
+
   // Verificar se a data é válida
   if (isNaN(date.getTime())) {
     return '';
   }
-  
+
   const now = new Date();
   const diffInHours = differenceInHours(now, date);
 
   if (isToday(date)) {
     return format(date, 'HH:mm', { locale: ptBR });
-  } else if (isYesterday(date)) {
-    return t('LIVE_REPORTS.IN_SERVICE.YESTERDAY');
-  } else {
-    return format(date, 'dd/MM/yyyy', { locale: ptBR });
   }
+  if (isYesterday(date)) {
+    return t('LIVE_REPORTS.IN_SERVICE.YESTERDAY');
+  }
+  return format(date, 'dd/MM/yyyy', { locale: ptBR });
 };
 
 const handleConversationClick = () => {
@@ -168,4 +174,3 @@ const handleConversationClick = () => {
   animation: slideIn 0.3s ease-out;
 }
 </style>
-
