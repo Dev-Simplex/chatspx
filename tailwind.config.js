@@ -43,6 +43,12 @@ const tailwindConfig = {
         inter: ['Inter', ...defaultSansFonts],
         interDisplay: ['InterDisplay', ...defaultSansFonts],
       },
+      fontWeight: {
+        420: '420',
+        440: '440',
+        460: '460',
+        520: '520',
+      },
       typography: {
         bubble: {
           css: {
@@ -187,6 +193,7 @@ const tailwindConfig = {
       lg: '1024px',
       xl: '1280px',
       '2xl': '1536px',
+      '3xl': '1900px',
     },
     fontSize: {
       ...defaultTheme.fontSize,
@@ -248,8 +255,7 @@ const tailwindConfig = {
       'loader-pulse': 'loader-pulse 1.5s cubic-bezier(0.4, 0, 0.6, 1) infinite',
       'card-select': 'card-select 0.25s ease-in-out',
       shake: 'shake 0.3s ease-in-out 0s 2',
-      'sidebar-attention':
-        'sidebar-attention 2.5s ease-in-out infinite',
+      'sidebar-attention': 'sidebar-attention 2.5s ease-in-out infinite',
     },
   },
   plugins: [
@@ -265,6 +271,7 @@ const tailwindConfig = {
           'ph',
           'material-symbols',
           'teenyicons',
+          'fluent',
         ]),
       },
     }),

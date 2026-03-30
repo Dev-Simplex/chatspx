@@ -112,6 +112,19 @@ const containerStyles = computed(() => ({
   height: `${props.size}px`,
 }));
 
+const borderRadiusClass = computed(() => {
+  if (props.roundedFull) {
+    return 'rounded-full';
+  }
+
+  // Approximates 25% of size
+  if (props.size <= 16) return 'rounded'; // 4px
+  if (props.size <= 24) return 'rounded-md'; // 6px
+  if (props.size <= 32) return 'rounded-lg'; // 8px
+  if (props.size <= 48) return 'rounded-xl'; // 12px
+  return 'rounded-2xl'; // 16px
+});
+
 const avatarStyles = computed(() => ({
   ...containerStyles.value,
   backgroundColor:
@@ -167,7 +180,7 @@ const invalidateCurrentImage = () => {
   isImageValid.value = false;
 };
 
-const openPreview = (e) => {
+const openPreview = e => {
   // Don't open preview if clicking on checkbox/overlay
   if (e?.target?.tagName === 'INPUT' || e?.target?.closest('label')) {
     return;
@@ -207,7 +220,7 @@ const handleDismiss = event => {
   handleDeleteAvatar();
 };
 
-const handleOverlayClick = (e) => {
+const handleOverlayClick = e => {
   // Don't handle if clicking on checkbox
   if (e?.target?.tagName === 'INPUT' || e?.target?.closest('label')) {
     return;
@@ -230,7 +243,7 @@ watch(
 
 <template>
   <span
-    class="relative inline-flex group/avatar z-0"
+    class="relative inline-flex group/avatar z-0 flex-shrink-0 align-middle"
     :class="{ 'cursor-zoom-in': canPreview }"
     :style="containerStyles"
   >
@@ -256,9 +269,9 @@ watch(
     <!-- Avatar Container -->
     <span
       role="img"
-      class="relative inline-flex items-center justify-center object-cover overflow-hidden font-medium"
+      class="relative inline-flex items-center justify-center object-cover overflow-hidden font-medium outline outline-1 -outline-offset-1 outline-[rgb(0_0_0_/_0.03)] dark:outline-[rgb(255_255_255_/_0.04)]"
       :class="[
-        roundedFull ? 'rounded-full' : 'rounded-xl',
+        borderRadiusClass,
         {
           'dark:!bg-[var(--dark-bg)] dark:!text-[var(--dark-text)]':
             !showDefaultAvatar && (!src || !isImageValid),

@@ -13,8 +13,11 @@ import { removeEmoji } from 'shared/helpers/emoji';
 export default {
   components: {
     Avatar,
-    GalleryView: defineAsyncComponent(() =>
-      import('dashboard/components/widgets/conversation/components/GalleryView.vue')
+    GalleryView: defineAsyncComponent(
+      () =>
+        import(
+          'dashboard/components/widgets/conversation/components/GalleryView.vue'
+        )
     ),
   },
   props: {
@@ -272,4 +275,3 @@ export default {
   }
 }
 </style>
-

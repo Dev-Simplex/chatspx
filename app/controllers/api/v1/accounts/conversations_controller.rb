@@ -78,13 +78,16 @@ class Api::V1::Accounts::ConversationsController < Api::V1::Accounts::BaseContro
 
   def transcript
     render json: { error: 'email param missing' }, status: :unprocessable_entity and return if params[:email].blank?
+    return render_payment_required('Email transcript is not available on your plan') unless @conversation.account.email_transcript_enabled?
+    return head :too_many_requests unless @conversation.account.within_email_rate_limit?
 
     ConversationReplyMailer.with(account: @conversation.account).conversation_transcript(@conversation, params[:email])&.deliver_later
+    @conversation.account.increment_email_sent_count
     head :ok
   end
 
   def toggle_status
-    Conversations::ToggleStatusService.new(conversation: @conversation, params: params, user: Current.user).perform
+    @status = Conversations::ToggleStatusService.new(conversation: @conversation, params: params, user: Current.user).perform.present?
   rescue Conversations::ToggleStatusService::TeamRequiredError => e
     render json: { error: e.message }, status: :unprocessable_entity
   end
@@ -95,12 +98,21 @@ class Api::V1::Accounts::ConversationsController < Api::V1::Accounts::BaseContro
   end
 
   def toggle_typing_status
-    typing_status_manager = ::Conversations::TypingStatusManager.new(@conversation, current_user, params)
+    typing_status_manager = ::Conversations::TypingStatusManager.new(@conversation, Current.user, params)
     typing_status_manager.toggle_typing_status
     head :ok
   end
 
   def update_last_seen
+    # High-traffic accounts generate excessive DB writes when agents frequently switch between conversations.
+    # Throttle last_seen updates to once per hour when there are no unread messages to reduce DB load.
+    # Always update immediately if there are unread messages to maintain accurate read/unread state.
+    return update_last_seen_on_conversation(DateTime.now.utc, true) if assignee? && @conversation.assignee_unread_messages.any?
+    return update_last_seen_on_conversation(DateTime.now.utc, false) if !assignee? && @conversation.unread_messages.any?
+
+    # No unread messages - apply throttling to limit DB writes
+    return unless should_update_last_seen?
+
     update_last_seen_on_conversation(DateTime.now.utc, assignee?)
   end
 
@@ -137,11 +149,33 @@ class Api::V1::Accounts::ConversationsController < Api::V1::Accounts::BaseContro
   end
 
   def update_last_seen_on_conversation(last_seen_at, update_assignee)
+    updates = { agent_last_seen_at: last_seen_at }
+    updates[:assignee_last_seen_at] = last_seen_at if update_assignee.present?
+
     # rubocop:disable Rails/SkipsModelValidations
-    cols = { agent_last_seen_at: last_seen_at }
-    cols[:assignee_last_seen_at] = last_seen_at if update_assignee.present?
-    @conversation.update_columns(cols)
+    @conversation.update_columns(updates)
     # rubocop:enable Rails/SkipsModelValidations
+  end
+
+  def should_update_last_seen?
+    # Update if at least one relevant timestamp is older than 1 hour or not set
+    # This prevents redundant DB writes when agents repeatedly view the same conversation
+    agent_needs_update = @conversation.agent_last_seen_at.blank? || @conversation.agent_last_seen_at < 1.hour.ago
+    return agent_needs_update unless assignee?
+
+    # For assignees, check both timestamps - update if either is old
+    assignee_needs_update = @conversation.assignee_last_seen_at.blank? || @conversation.assignee_last_seen_at < 1.hour.ago
+    agent_needs_update || assignee_needs_update
+  end
+
+  def set_conversation_status
+    @conversation.status = params[:status]
+    @conversation.snoozed_until = parse_date_time(params[:snoozed_until].to_s) if params[:snoozed_until]
+  end
+
+  def assign_conversation
+    @conversation.assignee = current_user
+    @conversation.save!
   end
 
   def conversation

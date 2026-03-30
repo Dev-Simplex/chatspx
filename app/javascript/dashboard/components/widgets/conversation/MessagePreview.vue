@@ -127,8 +127,13 @@ export default {
     },
     inputFallbackMessage() {
       if (!this.contentType) return '';
-      if (this.contentType.startsWith('input_') || this.contentType === 'form') {
-        return this.submittedValuesPreview || this.$t('CONVERSATION.NO_RESPONSE');
+      if (
+        this.contentType.startsWith('input_') ||
+        this.contentType === 'form'
+      ) {
+        return (
+          this.submittedValuesPreview || this.$t('CONVERSATION.NO_RESPONSE')
+        );
       }
       return '';
     },

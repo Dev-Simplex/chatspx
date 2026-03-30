@@ -81,21 +81,32 @@ export default {
       type: Boolean,
       default: false,
     },
+    compact: {
+      type: Boolean,
+      default: false,
+    },
     enableContextMenu: {
       type: Boolean,
       default: false,
+    },
+    allowedContextMenuOptions: {
+      type: Array,
+      default: () => [],
     },
   },
   emits: [
     'contextMenuToggle',
     'assignAgent',
     'assignLabel',
+    'removeLabel',
     'assignTeam',
     'markAsUnread',
     'markAsRead',
     'assignPriority',
     'updateConversationStatus',
     'deleteConversation',
+    'selectConversation', // eslint-disable-line vue/no-unused-emit-declarations -- used dynamically in onSelectConversation
+    'deSelectConversation', // eslint-disable-line vue/no-unused-emit-declarations -- used dynamically in onSelectConversation
   ],
   data() {
     return {
@@ -364,6 +375,10 @@ export default {
       this.$emit('assignLabel', [label.title], [this.chat.id]);
       this.closeContextMenu();
     },
+    async onRemoveLabel(label) {
+      this.$emit('removeLabel', [label.title], [this.chat.id]);
+      this.closeContextMenu();
+    },
     async onAssignTeam(team) {
       this.$emit('assignTeam', team, this.chat.id);
       this.closeContextMenu();
@@ -397,6 +412,9 @@ export default {
       'unread-chat': hasUnread,
       'has-inbox-name': showInboxName,
       'conversation-selected': selected,
+      'bg-n-slate-2': selected,
+      'px-0': compact,
+      'px-3': !compact,
       'ltr:border-l-2 rtl:border-r-2 border-n-amber-7 bg-n-amber-5/25 ring-1 ring-n-amber-6/50 ring-inset animate-sidebar-attention motion-reduce:animate-none':
         isUnattendedAndMine && !isActiveChat && !selected,
     }"
@@ -506,6 +524,7 @@ export default {
               chat.created_at
             "
             :created-at-timestamp="chat.created_at"
+            :conversation-id="chat.id"
           />
         </span>
         <span
@@ -532,9 +551,12 @@ export default {
         :priority="chat.priority"
         :chat-id="chat.id"
         :has-unread-messages="hasUnread"
+        :conversation-labels="chat.labels"
+        :allowed-options="allowedContextMenuOptions"
         @update-conversation="onUpdateConversation"
         @assign-agent="onAssignAgent"
         @assign-label="onAssignLabel"
+        @remove-label="onRemoveLabel"
         @assign-team="onAssignTeam"
         @mark-as-unread="markAsUnread"
         @mark-as-read="markAsRead"

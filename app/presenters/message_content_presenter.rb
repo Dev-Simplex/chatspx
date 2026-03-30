@@ -1,31 +1,27 @@
 class MessageContentPresenter < SimpleDelegator
   def outgoing_content
-    # Remove signature patterns from NPS and CSAT messages
-    # The "**: " pattern is likely from markdown signature formatting
-    remove_signature_from_content(content)
-
-    cleaned_content_to_send = if should_append_survey_link?
-                                survey_link = survey_url(conversation.uuid)
-                                custom_message = inbox.csat_config&.dig('message')
-                                message_with_link = if custom_message.present?
-                                                      "#{custom_message} #{survey_link}"
-                                                    else
-                                                      I18n.t('conversations.survey.response',
-                                                             link: survey_link)
-                                                    end
-                                remove_signature_from_content(message_with_link)
-                              else
-                                content
-                              end
-
     Messages::MarkdownRendererService.new(
-      cleaned_content_to_send,
+      remove_signature_from_content(content_with_survey_link),
       conversation.inbox.channel_type,
       conversation.inbox.channel
     ).render
   end
 
+  def webhook_content
+    content_with_survey_link
+  end
+
   private
+
+  def content_with_survey_link
+    if should_append_survey_link?
+      survey_link = survey_url(conversation.uuid)
+      custom_message = inbox.csat_config&.dig('message')
+      custom_message.present? ? "#{custom_message} #{survey_link}" : I18n.t('conversations.survey.response', link: survey_link)
+    else
+      content
+    end
+  end
 
   def should_append_survey_link?
     input_csat? && !inbox.web_widget?

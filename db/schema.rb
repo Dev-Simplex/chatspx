@@ -650,6 +650,24 @@ ActiveRecord::Schema[7.1].define(version: 2026_03_30_120000) do
     t.index ["phone_number"], name: "idx_contacts_phone_trgm", opclass: :gin_trgm_ops, using: :gin
   end
 
+  create_table "conversation_assignment_histories", force: :cascade do |t|
+    t.bigint "conversation_id", null: false
+    t.bigint "account_id", null: false
+    t.bigint "assignee_id"
+    t.bigint "team_id"
+    t.datetime "assigned_at", null: false
+    t.datetime "unassigned_at"
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["account_id", "assigned_at"], name: "idx_conv_assign_hist_account_assigned_at"
+    t.index ["account_id", "assignee_id"], name: "idx_conv_assign_hist_account_assignee"
+    t.index ["account_id", "team_id"], name: "idx_conv_assign_hist_account_team"
+    t.index ["account_id"], name: "index_conversation_assignment_histories_on_account_id"
+    t.index ["assignee_id"], name: "index_conversation_assignment_histories_on_assignee_id"
+    t.index ["conversation_id"], name: "index_conversation_assignment_histories_on_conversation_id"
+    t.index ["team_id"], name: "index_conversation_assignment_histories_on_team_id"
+  end
+
   create_table "conversation_participants", force: :cascade do |t|
     t.bigint "account_id", null: false
     t.bigint "user_id", null: false
@@ -1241,6 +1259,7 @@ ActiveRecord::Schema[7.1].define(version: 2026_03_30_120000) do
     t.datetime "event_start_time", precision: nil
     t.datetime "event_end_time", precision: nil
     t.index ["account_id", "name", "created_at"], name: "reporting_events__account_id__name__created_at"
+    t.index ["account_id", "name", "inbox_id", "created_at"], name: "index_reporting_events_for_response_distribution"
     t.index ["account_id"], name: "index_reporting_events_on_account_id"
     t.index ["conversation_id"], name: "index_reporting_events_on_conversation_id"
     t.index ["created_at"], name: "index_reporting_events_on_created_at_brin", using: :brin
@@ -1249,12 +1268,28 @@ ActiveRecord::Schema[7.1].define(version: 2026_03_30_120000) do
     t.index ["user_id"], name: "index_reporting_events_on_user_id"
   end
 
+  create_table "reporting_events_rollups", force: :cascade do |t|
+    t.integer "account_id", null: false
+    t.date "date", null: false
+    t.string "dimension_type", null: false
+    t.bigint "dimension_id", null: false
+    t.string "metric", null: false
+    t.bigint "count", default: 0, null: false
+    t.float "sum_value", default: 0.0, null: false
+    t.float "sum_value_business_hours", default: 0.0, null: false
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["account_id", "date", "dimension_type", "dimension_id", "metric"], name: "index_rollup_unique_key", unique: true
+    t.index ["account_id", "dimension_type", "date"], name: "index_rollup_summary"
+    t.index ["account_id", "metric", "date"], name: "index_rollup_timeseries"
+  end
+
   create_table "scheduled_messages", force: :cascade do |t|
     t.bigint "conversation_id", null: false
     t.bigint "inbox_id", null: false
     t.text "message", null: false
     t.datetime "scheduled_at", precision: nil, null: false
-    t.integer "status", default: 0
+    t.integer "status", default: 0, null: false
     t.datetime "sent_at", precision: nil
     t.text "error_message"
     t.datetime "created_at", null: false
@@ -1397,6 +1432,7 @@ ActiveRecord::Schema[7.1].define(version: 2026_03_30_120000) do
     t.integer "webhook_type", default: 0
     t.jsonb "subscriptions", default: ["conversation_status_changed", "conversation_updated", "conversation_created", "contact_created", "contact_updated", "message_created", "message_updated", "webwidget_triggered"]
     t.string "name"
+    t.string "secret"
     t.index ["account_id", "url"], name: "index_webhooks_on_account_id_and_url", unique: true
   end
 
@@ -1416,14 +1452,6 @@ ActiveRecord::Schema[7.1].define(version: 2026_03_30_120000) do
     t.index ["inbox_id"], name: "index_working_hours_on_inbox_id"
   end
 
-  add_foreign_key "active_storage_attachments", "active_storage_blobs", column: "blob_id"
-  add_foreign_key "active_storage_variant_records", "active_storage_blobs", column: "blob_id"
-  add_foreign_key "contact_inboxes", "contacts", on_delete: :cascade
-  add_foreign_key "contact_inboxes", "inboxes", on_delete: :cascade
-  add_foreign_key "conversation_participants", "accounts", on_delete: :cascade
-  add_foreign_key "conversation_participants", "conversations", on_delete: :cascade
-  add_foreign_key "conversations", "accounts", on_delete: :cascade
-  add_foreign_key "conversations", "contacts", on_delete: :restrict
   add_foreign_key "conversations", "inboxes", on_delete: :cascade
   add_foreign_key "conversations", "teams", on_delete: :nullify
   add_foreign_key "conversations", "users", column: "assignee_id", on_delete: :nullify
@@ -1433,16 +1461,12 @@ ActiveRecord::Schema[7.1].define(version: 2026_03_30_120000) do
   add_foreign_key "funnel_items", "funnels"
   add_foreign_key "funnel_items", "users", column: "moved_by_id"
   add_foreign_key "funnel_stages", "funnels"
-  add_foreign_key "funnels", "accounts"
   add_foreign_key "funnels", "teams"
   add_foreign_key "inboxes", "portals"
   add_foreign_key "mentions", "conversations", on_delete: :cascade
-  add_foreign_key "message_reactions", "accounts"
   add_foreign_key "message_reactions", "messages"
-  add_foreign_key "messages", "accounts", on_delete: :cascade
   add_foreign_key "messages", "conversations", on_delete: :cascade
   add_foreign_key "messages", "inboxes", on_delete: :cascade
-  add_foreign_key "notifications", "accounts", on_delete: :cascade
   add_foreign_key "notifications", "users", on_delete: :cascade
   add_foreign_key "nps_responses", "conversations", on_delete: :cascade
   add_foreign_key "reporting_events", "conversations", on_delete: :cascade

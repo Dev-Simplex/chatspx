@@ -112,6 +112,8 @@ export default {
     onCmdSnoozeConversation(snoozeType) {
       if (snoozeType === wootConstants.SNOOZE_OPTIONS.UNTIL_CUSTOM_TIME) {
         this.showCustomTimeSnoozeModal = true;
+      } else if (typeof snoozeType === 'number') {
+        this.updateConversations('snoozed', snoozeType);
       } else {
         this.updateConversations('snoozed', findSnoozeTime(snoozeType) || null);
       }
@@ -273,7 +275,7 @@ export default {
     <TeamSelectionModal
       :show="showTeamModal"
       :teams="teams"
-      :is-bulk="true"
+      is-bulk
       @confirm="$emit('teamSelected', $event)"
       @close="$emit('cancelTeamSelection')"
     />

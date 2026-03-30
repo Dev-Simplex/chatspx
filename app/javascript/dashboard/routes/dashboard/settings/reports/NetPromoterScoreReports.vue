@@ -75,7 +75,11 @@ export default {
           ...this.requestPayload,
         });
       } catch (error) {
-        useAlert(this.$t('REPORT.NPS_REPORTS.DOWNLOAD_FAILED', { default: 'Erro ao baixar relatório NPS' }));
+        useAlert(
+          this.$t('REPORT.NPS_REPORTS.DOWNLOAD_FAILED', {
+            default: 'Erro ao baixar relatório NPS',
+          })
+        );
       }
     },
     onPageNumberChange(pageIndex) {
@@ -87,13 +91,7 @@ export default {
       this.pageIndex = 0;
       this.getResponses();
     },
-    onFilterChange({
-      from,
-      to,
-      selectedAgents,
-      selectedInbox,
-      selectedTeam,
-    }) {
+    onFilterChange({ from, to, selectedAgents, selectedInbox, selectedTeam }) {
       // do not track filter change on initial load
       if (this.from !== 0 && this.to !== 0) {
         useTrack(REPORTS_EVENTS.FILTER_REPORT, {
@@ -116,7 +114,9 @@ export default {
 </script>
 
 <template>
-  <ReportHeader :header-title="$t('NPS_REPORTS.HEADER', { default: 'Relatórios NPS' })">
+  <ReportHeader
+    :header-title="$t('NPS_REPORTS.HEADER', { default: 'Relatórios NPS' })"
+  >
     <V4Button
       :label="$t('NPS_REPORTS.DOWNLOAD', { default: 'Exportar CSV' })"
       icon="i-ph-download-simple"

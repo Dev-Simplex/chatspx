@@ -6,6 +6,14 @@ describe Whatsapp::IncomingMessageService do
       stub_request(:post, 'https://waba.360dialog.io/v1/configs/webhook')
     end
 
+    after do
+      # The atomic dedup lock lives in Redis and is not rolled back by
+      # transactional fixtures. Clean up any keys created during the test.
+      Redis::Alfred.scan_each(match: 'MESSAGE_SOURCE_KEY::*') do |key|
+        Redis::Alfred.delete(key)
+      end
+    end
+
     let!(:whatsapp_channel) { create(:channel_whatsapp, sync_templates: false) }
     let(:wa_id) { '2423423243' }
     let!(:params) do
@@ -393,8 +401,8 @@ describe Whatsapp::IncomingMessageService do
       end
     end
 
-    describe 'when message processing is in progress' do
-      it 'ignores the current message creation request' do
+    describe 'when another worker already holds the dedup lock' do
+      it 'skips message creation' do
         params = { 'contacts' => [{ 'profile' => { 'name' => 'Kedar' }, 'wa_id' => '919746334593' }],
                    'messages' => [{ 'from' => '919446284490',
                                     'id' => 'wamid.SDFADSf23sfasdafasdfa',
@@ -409,21 +417,18 @@ describe Whatsapp::IncomingMessageService do
                                         'phones' => [{ 'phone' => '+1 (415) 341-8386' }] }
                                     ] }] }.with_indifferent_access
 
-        expect(Message.find_by(source_id: 'wamid.SDFADSf23sfasdafasdfa')).not_to be_present
-        key = format(Redis::RedisKeys::MESSAGE_SOURCE_KEY, id: 'wamid.SDFADSf23sfasdafasdfa')
-
-        Redis::Alfred.setex(key, true)
-        expect(Redis::Alfred.get(key)).to be_truthy
+        # Simulate another worker holding the lock
+        lock = Whatsapp::MessageDedupLock.new('wamid.SDFADSf23sfasdafasdfa')
+        expect(lock.acquire!).to be_truthy
 
         described_class.new(inbox: whatsapp_channel.inbox, params: params).perform
         expect(whatsapp_channel.inbox.messages.count).to eq(0)
-        expect(Message.find_by(source_id: 'wamid.SDFADSf23sfasdafasdfa')).not_to be_present
-
-        expect(Redis::Alfred.get(key)).to be_truthy
+      ensure
+        key = format(Redis::RedisKeys::MESSAGE_SOURCE_KEY, id: 'wamid.SDFADSf23sfasdafasdfa')
         Redis::Alfred.delete(key)
       end
 
-      it 'clears the message processing key when an error occurs after caching' do
+      it 'keeps the dedup lock when an error occurs after acquiring it' do
         message_id = 'wamid.cleanup_key_after_error'
         params = {
           'contacts' => [{ 'profile' => { 'name' => 'Kedar' }, 'wa_id' => '919746334593' }],
@@ -441,7 +446,12 @@ describe Whatsapp::IncomingMessageService do
         allow(ContactInboxWithContactBuilder).to receive(:new).and_return(builder_double)
 
         expect { described_class.new(inbox: whatsapp_channel.inbox, params: params).perform }.to raise_error(ActiveRecord::RecordInvalid)
-        expect(Redis::Alfred.get(key)).to be_nil
+        # The dedup lock (SET NX EX) intentionally persists after errors to prevent
+        # duplicate processing from retried webhook deliveries. The TTL ensures
+        # eventual expiry.
+        expect(Redis::Alfred.get(key)).to be_present
+      ensure
+        Redis::Alfred.delete(key)
       end
     end
 

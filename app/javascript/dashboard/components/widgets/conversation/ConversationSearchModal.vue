@@ -40,9 +40,7 @@ const hasResults = computed(() => {
 
 const showEmptyState = computed(() => {
   return (
-    !isSearching.value &&
-    searchQuery.value.length > 0 &&
-    !hasResults.value
+    !isSearching.value && searchQuery.value.length > 0 && !hasResults.value
   );
 });
 

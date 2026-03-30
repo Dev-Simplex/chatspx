@@ -52,11 +52,7 @@ const formattedTime = computed(() => dynamicTime(props.createdAt));
         <div
           class="flex items-center justify-center size-6 rounded-full bg-n-amber-3 dark:bg-n-amber-4"
         >
-          <fluent-icon
-            icon="lock-closed"
-            size="12"
-            class="text-n-amber-11"
-          />
+          <fluent-icon icon="lock-closed" size="12" class="text-n-amber-11" />
         </div>
         <div class="min-w-0">
           <p class="text-xs font-medium text-n-slate-12 truncate">

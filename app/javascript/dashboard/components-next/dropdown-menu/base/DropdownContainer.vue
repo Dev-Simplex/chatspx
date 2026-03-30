@@ -68,17 +68,13 @@ watch(isOpen, open => {
       updateTeleportPosition();
       nextTick(updateTeleportPosition);
       // Só registra click-outside depois do menu estar no DOM, evitando que o próprio clique do trigger feche o menu
-      stopClickOutside = onClickOutside(
-        menuRef,
-        () => closeMenu(),
-        { ignore: [triggerRef] }
-      );
+      stopClickOutside = onClickOutside(menuRef, () => closeMenu(), {
+        ignore: [triggerRef],
+      });
     });
-  } else {
-    if (stopClickOutside) {
-      stopClickOutside();
-      stopClickOutside = null;
-    }
+  } else if (stopClickOutside) {
+    stopClickOutside();
+    stopClickOutside = null;
   }
 });
 

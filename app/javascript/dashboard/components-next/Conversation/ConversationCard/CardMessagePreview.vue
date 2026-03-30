@@ -25,7 +25,9 @@ const lastNonActivityMessageContent = computed(() => {
   const { lastNonActivityMessage = {}, customAttributes = {} } =
     props.conversation;
 
-  const inbox = inboxById.value(props.conversation.inboxId || props.conversation.inbox_id);
+  const inbox = inboxById.value(
+    props.conversation.inboxId || props.conversation.inbox_id
+  );
   if (isMessageRestricted(lastNonActivityMessage, inbox)) return '🔒';
   const { email: { subject } = {} } = customAttributes;
   if (subject) return getPlainText(subject);
@@ -69,7 +71,8 @@ const lastNonActivityMessageContent = computed(() => {
   if (contentType === CONTENT_TYPES.VOICE_CALL) {
     const status = contentAttributes?.data?.status?.toString();
     const messageType =
-      lastNonActivityMessage?.messageType ?? lastNonActivityMessage?.message_type;
+      lastNonActivityMessage?.messageType ??
+      lastNonActivityMessage?.message_type;
     const isOutbound = messageType === 1;
     const isFailed = ['no-answer', 'failed'].includes(status);
 

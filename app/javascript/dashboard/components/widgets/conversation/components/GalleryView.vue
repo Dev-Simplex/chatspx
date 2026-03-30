@@ -116,7 +116,10 @@ const senderDetails = computed(() => {
   } = activeAttachment.value?.sender || props.attachment?.sender || {};
 
   return {
-    name: currentUser.value?.id === id ? t('GALLERY_VIEW.SENT_BY_YOU') : name || availableName || '',
+    name:
+      currentUser.value?.id === id
+        ? t('GALLERY_VIEW.SENT_BY_YOU')
+        : name || availableName || '',
     avatar: thumbnail || avatar_url || '',
   };
 });

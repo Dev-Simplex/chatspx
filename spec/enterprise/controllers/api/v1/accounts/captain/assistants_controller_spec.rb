@@ -254,17 +254,23 @@ RSpec.describe 'Api::V1::Accounts::Captain::Assistants', type: :request do
 
   describe 'POST /api/v1/accounts/{account.id}/captain/assistants/{id}/playground' do
     let(:assistant) { create(:captain_assistant, account: account) }
-    let!(:openai_hook) do
-      create(:integrations_hook, :openai, account: account, settings: { api_key: 'test-key' })
-    end
     let(:valid_params) do
       {
-        message_content: 'Hello assistant',
-        message_history: [
-          { role: 'user', content: 'Previous message' },
-          { role: 'assistant', content: 'Previous response' }
-        ]
+        assistant: {
+          message_content: 'Hello assistant',
+          message_history: [
+            { role: 'user', content: 'Previous message' },
+            { role: 'assistant', content: 'Previous response', agent_name: 'billing_scenario' }
+          ]
+        }
       }
+    end
+    let(:chat_service) { instance_double(Captain::Llm::AssistantChatService) }
+    let(:agent_runner_service) { instance_double(Captain::Assistant::AgentRunnerService) }
+
+    before do
+      hook_service = instance_double(Captain::OpenaiHookService, configured?: true)
+      allow(Captain::OpenaiHookService).to receive(:new).and_return(hook_service)
     end
 
     context 'when it is an un-authenticated user' do
@@ -277,11 +283,14 @@ RSpec.describe 'Api::V1::Accounts::Captain::Assistants', type: :request do
       end
     end
 
-    context 'when it is an agent' do
-      it 'generates a response' do
-        chat_service = instance_double(Captain::Llm::AssistantChatService)
-        allow(Captain::Llm::AssistantChatService).to receive(:new).with(assistant: assistant).and_return(chat_service)
+    context 'when captain v2 is disabled' do
+      it 'generates a response with the legacy assistant chat service' do
+        allow(Captain::Llm::AssistantChatService).to receive(:new).with(
+          assistant: assistant,
+          source: 'playground'
+        ).and_return(chat_service)
         allow(chat_service).to receive(:generate_response).and_return({ content: 'Assistant response' })
+        expect(Captain::Assistant::AgentRunnerService).not_to receive(:new)
 
         post "/api/v1/accounts/#{account.id}/captain/assistants/#{assistant.id}/playground",
              params: valid_params,
@@ -290,19 +299,20 @@ RSpec.describe 'Api::V1::Accounts::Captain::Assistants', type: :request do
 
         expect(response).to have_http_status(:success)
         expect(chat_service).to have_received(:generate_response).with(
-          additional_message: valid_params[:message_content],
-          message_history: valid_params[:message_history]
+          additional_message: valid_params[:assistant][:message_content],
+          message_history: valid_params[:assistant][:message_history]
         )
         expect(json_response[:content]).to eq('Assistant response')
       end
-    end
 
-    context 'when message_history is not provided' do
       it 'uses empty array as default' do
-        params_without_history = { message_content: 'Hello assistant' }
-        chat_service = instance_double(Captain::Llm::AssistantChatService)
-        allow(Captain::Llm::AssistantChatService).to receive(:new).with(assistant: assistant).and_return(chat_service)
+        params_without_history = { assistant: { message_content: 'Hello assistant' } }
+        allow(Captain::Llm::AssistantChatService).to receive(:new).with(
+          assistant: assistant,
+          source: 'playground'
+        ).and_return(chat_service)
         allow(chat_service).to receive(:generate_response).and_return({ content: 'Assistant response' })
+        expect(Captain::Assistant::AgentRunnerService).not_to receive(:new)
 
         post "/api/v1/accounts/#{account.id}/captain/assistants/#{assistant.id}/playground",
              params: params_without_history,
@@ -311,26 +321,59 @@ RSpec.describe 'Api::V1::Accounts::Captain::Assistants', type: :request do
 
         expect(response).to have_http_status(:success)
         expect(chat_service).to have_received(:generate_response).with(
-          additional_message: params_without_history[:message_content],
+          additional_message: params_without_history[:assistant][:message_content],
           message_history: []
         )
       end
     end
 
-    context 'when account OpenAI key is missing' do
+    context 'when captain v2 is enabled' do
       before do
-        openai_hook.destroy!
+        account.enable_features('captain_integration_v2')
       end
 
-      it 'returns a standardized missing key error' do
+      it 'generates a response with the agent runner service' do
+        allow(Captain::Assistant::AgentRunnerService).to receive(:new).with(
+          assistant: assistant,
+          source: 'playground'
+        ).and_return(agent_runner_service)
+        allow(agent_runner_service).to receive(:generate_response).and_return({ response: 'Assistant response' })
+        expect(Captain::Llm::AssistantChatService).not_to receive(:new)
+
         post "/api/v1/accounts/#{account.id}/captain/assistants/#{assistant.id}/playground",
              params: valid_params,
              headers: agent.create_new_auth_token,
              as: :json
 
-        expect(response).to have_http_status(:unprocessable_entity)
-        expect(json_response[:code]).to eq('captain_api_key_missing')
-        expect(json_response[:message]).to eq(I18n.t('captain.errors.missing_api_key'))
+        expect(response).to have_http_status(:success)
+        expect(agent_runner_service).to have_received(:generate_response).with(
+          message_history: valid_params[:assistant][:message_history] + [{ role: 'user', content: valid_params[:assistant][:message_content] }]
+        )
+        expect(json_response[:response]).to eq('Assistant response')
+      end
+
+      it 'does not duplicate the latest user message if it is already in history' do
+        params_with_latest_message = {
+          assistant: {
+            message_content: 'Hello assistant',
+            message_history: [{ role: 'user', content: 'Hello assistant' }]
+          }
+        }
+        allow(Captain::Assistant::AgentRunnerService).to receive(:new).with(
+          assistant: assistant,
+          source: 'playground'
+        ).and_return(agent_runner_service)
+        allow(agent_runner_service).to receive(:generate_response).and_return({ response: 'Assistant response' })
+
+        post "/api/v1/accounts/#{account.id}/captain/assistants/#{assistant.id}/playground",
+             params: params_with_latest_message,
+             headers: agent.create_new_auth_token,
+             as: :json
+
+        expect(response).to have_http_status(:success)
+        expect(agent_runner_service).to have_received(:generate_response).with(
+          message_history: params_with_latest_message[:assistant][:message_history]
+        )
       end
     end
   end

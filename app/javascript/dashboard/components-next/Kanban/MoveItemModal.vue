@@ -35,7 +35,7 @@ const stages = computed(() =>
 
 watch(
   () => props.show,
-  async (newShow) => {
+  async newShow => {
     if (newShow && props.item) {
       selectedStageId.value = props.item.funnelStageId;
       await store.dispatch('kanban/fetchFunnelStages', props.funnelId);
@@ -46,10 +46,8 @@ watch(
           }
         }, 10);
       });
-    } else {
-      if (dialogRef.value && typeof dialogRef.value.close === 'function') {
-        dialogRef.value.close();
-      }
+    } else if (dialogRef.value && typeof dialogRef.value.close === 'function') {
+      dialogRef.value.close();
     }
   },
   { immediate: true }
@@ -104,8 +102,8 @@ const close = () => {
           <div
             v-for="stage in stages"
             :key="stage.id"
+            class="flex items-center gap-3 p-3 rounded-lg border cursor-pointer transition-colors"
             :class="[
-              'flex items-center gap-3 p-3 rounded-lg border cursor-pointer transition-colors',
               selectedStageId === stage.id
                 ? 'bg-n-teal-3 border-n-teal-9'
                 : 'bg-n-solid-3 border-n-weak hover:bg-n-solid-4',
@@ -114,7 +112,7 @@ const close = () => {
           >
             <div
               v-if="stage.color"
-              :class="['w-4 h-4 rounded-full flex-shrink-0']"
+              class="w-4 h-4 rounded-full flex-shrink-0"
               :style="{ backgroundColor: stage.color }"
             />
             <span class="text-sm font-medium text-n-slate-12 flex-1">

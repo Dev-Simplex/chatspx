@@ -86,7 +86,9 @@ const lastMessage = computed(() => {
     props.conversation?.lastNonActivityMessage ||
     props.conversation?.last_non_activity_message;
 
-  const inbox = inboxById.value(props.conversation?.inboxId || props.conversation?.inbox_id);
+  const inbox = inboxById.value(
+    props.conversation?.inboxId || props.conversation?.inbox_id
+  );
   if (isMessageRestricted(message, inbox)) return '🔒';
 
   return message?.content || message?.processed_message_content || '';

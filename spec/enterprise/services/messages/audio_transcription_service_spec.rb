@@ -3,13 +3,14 @@ require 'rails_helper'
 RSpec.describe Messages::AudioTranscriptionService, type: :service do
   let(:account) { create(:account, audio_transcriptions: true) }
   let(:conversation) { create(:conversation, account: account) }
-  let(:message) { create(:message, conversation: conversation, account: account) }
+  let(:message) { create(:message, conversation: conversation) }
   let(:attachment) { message.attachments.create!(account: account, file_type: :audio) }
-  let!(:openai_hook) do
-    create(:integrations_hook, :openai, account: account, settings: { api_key: 'test-api-key' })
-  end
 
   before do
+    # Create required installation configs
+    InstallationConfig.find_or_create_by!(name: 'CAPTAIN_OPEN_AI_API_KEY') { |config| config.value = 'test-api-key' }
+    InstallationConfig.find_or_create_by!(name: 'CAPTAIN_OPEN_AI_MODEL') { |config| config.value = 'gpt-4o-mini' }
+
     # Mock usage limits for transcription to be available
     allow(account).to receive(:usage_limits).and_return({ captain: { responses: { current_available: 100 } } })
   end
@@ -64,14 +65,23 @@ RSpec.describe Messages::AudioTranscriptionService, type: :service do
     end
   end
 
-  describe '#initialize' do
-    it 'raises a missing key error when the account does not have an OpenAI hook key' do
-      openai_hook.destroy!
+  describe '#fetch_audio_file' do
+    let(:service) { described_class.new(attachment) }
 
-      expect { described_class.new(attachment) }.to raise_error(
-        Llm::Config::MissingAccountApiKeyError,
-        I18n.t('captain.errors.missing_api_key')
+    before do
+      attachment.file.attach(
+        io: File.open(Rails.public_path.join('audio/widget/ding.mp3')),
+        filename: 'speech',
+        content_type: 'audio/mpeg'
       )
+    end
+
+    it 'adds extension from content type when filename has no extension' do
+      temp_file_path = service.send(:fetch_audio_file)
+
+      expect(File.extname(temp_file_path)).to eq('.mpeg')
+    ensure
+      FileUtils.rm_f(temp_file_path) if temp_file_path.present?
     end
   end
 end
