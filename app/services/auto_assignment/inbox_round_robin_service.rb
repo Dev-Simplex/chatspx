@@ -8,7 +8,10 @@ class AutoAssignment::InboxRoundRobinService
 
   # called on inbox member create
   def add_agent_to_queue(user_id)
-    ::Redis::Alfred.lpush(round_robin_key, user_id)
+    user_ids = Array(user_id)
+    return if user_ids.blank?
+
+    ::Redis::Alfred.lpush(round_robin_key, user_ids)
   end
 
   # called on inbox member delete
@@ -49,7 +52,7 @@ class AutoAssignment::InboxRoundRobinService
   end
 
   def validate_queue?
-    return true if inbox.inbox_members.map(&:user_id).sort == queue.map(&:to_i).sort
+    return true if inbox.inbox_members.pluck(:user_id).sort == queue.map(&:to_i).sort
   end
 
   def queue

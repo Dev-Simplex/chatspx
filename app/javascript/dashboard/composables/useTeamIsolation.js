@@ -19,7 +19,9 @@ export function useTeamIsolation() {
   });
 
   const isMessageRestricted = (message, inbox) => {
-    if (!inbox?.team_message_isolation && !inbox?.teamMessageIsolation) return false;
+    if (!inbox?.team_message_isolation && !inbox?.teamMessageIsolation) {
+      return false;
+    }
     const teamId = message?.team_id ?? message?.teamId;
     if (!teamId) return false;
     if (message?.message_type === 2 || message?.messageType === 2) return false;

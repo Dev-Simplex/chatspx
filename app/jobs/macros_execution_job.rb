@@ -1,7 +1,10 @@
 class MacrosExecutionJob < ApplicationJob
   queue_as :medium
 
-  def perform(macro, conversation_ids:, user:)
+  def perform(macro_id, conversation_ids:, user_id:)
+    return unless (macro = Macro.find_by(id: macro_id))
+    return unless (user = User.find_by(id: user_id))
+
     account = macro.account
     conversations = account.conversations.where(display_id: conversation_ids.to_a)
 

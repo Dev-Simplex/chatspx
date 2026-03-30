@@ -164,25 +164,29 @@ has been assigned to you"
     it 'calls remove duplicate notification job' do
       allow(Notification::RemoveDuplicateNotificationJob).to receive(:perform_later)
       notification = create(:notification, notification_type: 'conversation_mention')
-      expect(Notification::RemoveDuplicateNotificationJob).to have_received(:perform_later).with(notification)
+      expect(Notification::RemoveDuplicateNotificationJob).to have_received(:perform_later).with(notification.id)
     end
   end
 
   context 'when fcm push data' do
     it 'returns correct data for primary actor conversation' do
       notification = create(:notification, notification_type: 'conversation_creation')
-      expect(notification.fcm_push_data[:primary_actor]).to eq({
-                                                                 'id' => notification.primary_actor.display_id
-                                                               })
+      push_data = notification.fcm_push_data[:primary_actor]
+      expect(push_data[:id]).to eq(notification.primary_actor.id)
+      expect(push_data[:meta]).to be_a(Hash)
+      expect(push_data[:meta]).to have_key(:sender)
+      expect(push_data[:meta]).to have_key(:assignee)
     end
 
     it 'returns correct data for primary actor message' do
       message = create(:message, sender: create(:user), content: Faker::Lorem.paragraphs(number: 2))
       notification = create(:notification, notification_type: 'assigned_conversation_new_message', primary_actor: message.conversation,
                                            secondary_actor: message)
-      expect(notification.fcm_push_data[:primary_actor]).to eq({
-                                                                 'id' => notification.primary_actor.display_id
-                                                               })
+      push_data = notification.fcm_push_data[:primary_actor]
+      expect(push_data[:id]).to eq(notification.primary_actor.id)
+      expect(push_data[:meta]).to be_a(Hash)
+      expect(push_data[:meta]).to have_key(:sender)
+      expect(push_data[:meta]).to have_key(:assignee)
     end
   end
 
@@ -192,7 +196,7 @@ has been assigned to you"
     it 'clears notifications' do
       notification = create(:notification, notification_type: 'conversation_creation', primary_actor: conversation)
       perform_enqueued_jobs do
-        conversation.inbox.destroy!
+        conversation.destroy!
       end
 
       expect { notification.reload }.to raise_error(ActiveRecord::RecordNotFound)

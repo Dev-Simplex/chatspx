@@ -5,7 +5,7 @@ class Inboxes::FetchImapEmailInboxesJob < ApplicationJob
   def perform
     email_inboxes = Inbox.where(channel_type: 'Channel::Email')
     email_inboxes.find_each(batch_size: 100) do |inbox|
-      ::Inboxes::FetchImapEmailsJob.perform_later(inbox.channel) if should_fetch_emails?(inbox)
+      ::Inboxes::FetchImapEmailsJob.perform_later(inbox.channel.id) if should_fetch_emails?(inbox)
     end
   end
 

@@ -26,19 +26,16 @@ describe('#getters', () => {
     it('returns current role if account is available', () => {
       expect(
         getters.getCurrentRole(
-          { currentUser: { accounts: [{ id: 1, role: 'admin' }] } },
-          { getCurrentAccountId: 1 }
+          {},
+          { getCurrentAccount: { id: 1, role: 'admin' } }
         )
       ).toEqual('admin');
     });
 
     it('returns undefined if account is not available', () => {
-      expect(
-        getters.getCurrentRole(
-          { currentUser: { accounts: [{ id: 1, role: 'admin' }] } },
-          { getCurrentAccountId: 2 }
-        )
-      ).toEqual(undefined);
+      expect(getters.getCurrentRole({}, { getCurrentAccount: {} })).toEqual(
+        undefined
+      );
     });
   });
 
@@ -46,18 +43,15 @@ describe('#getters', () => {
     it('returns current custom role id', () => {
       expect(
         getters.getCurrentCustomRoleId(
-          { currentUser: { accounts: [{ id: 1, custom_role_id: 1 }] } },
-          { getCurrentAccountId: 1 }
+          {},
+          { getCurrentAccount: { id: 1, custom_role_id: 1 } }
         )
       ).toEqual(1);
     });
 
     it('returns undefined if account is not available', () => {
       expect(
-        getters.getCurrentCustomRoleId(
-          { currentUser: { accounts: [{ id: 1, custom_role_id: 1 }] } },
-          { getCurrentAccountId: 2 }
-        )
+        getters.getCurrentCustomRoleId({}, { getCurrentAccount: {} })
       ).toEqual(undefined);
     });
   });
@@ -66,14 +60,8 @@ describe('#getters', () => {
     it('returns correct availability status', () => {
       expect(
         getters.getCurrentUserAvailability(
-          {
-            currentAccountId: 1,
-            currentUser: {
-              id: 1,
-              accounts: [{ id: 1, availability: 'busy' }],
-            },
-          },
-          { getCurrentAccountId: 1 }
+          {},
+          { getCurrentAccount: { id: 1, availability: 'busy' } }
         )
       ).toEqual('busy');
     });

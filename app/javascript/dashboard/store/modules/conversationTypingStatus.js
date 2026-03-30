@@ -38,9 +38,9 @@ export const mutations = {
     { conversationId, user }
   ) => {
     const records = $state.records[conversationId] || [];
-    const hasUserRecordAlready = !!records.filter(
+    const hasUserRecordAlready = records.some(
       record => record.id === user.id && record.type === user.type
-    ).length;
+    );
     if (!hasUserRecordAlready) {
       $state.records = {
         ...$state.records,

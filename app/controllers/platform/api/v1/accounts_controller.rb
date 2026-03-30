@@ -22,7 +22,7 @@ class Platform::Api::V1::AccountsController < PlatformController
   end
 
   def destroy
-    DeleteObjectJob.perform_later(@resource)
+    DeleteObjectJob.perform_later(@resource.class.name, @resource.id)
     head :ok
   end
 

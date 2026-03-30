@@ -24,8 +24,13 @@ class InboxMember < ApplicationRecord
 
   after_create :add_agent_to_round_robin
   after_destroy :remove_agent_from_round_robin
+  after_commit :invalidate_member_tokens_cache
 
   private
+
+  def invalidate_member_tokens_cache
+    Rails.cache.delete("inbox:#{inbox_id}:member_pubsub_tokens")
+  end
 
   def add_agent_to_round_robin
     ::AutoAssignment::InboxRoundRobinService.new(inbox: inbox).add_agent_to_queue(user_id)

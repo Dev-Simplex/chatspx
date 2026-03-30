@@ -27,7 +27,7 @@ class Messages::NewMessageNotificationService
   end
 
   def notify_participating_users
-    participating_users = conversation.conversation_participants.map(&:user)
+    participating_users = conversation.conversation_participants.includes(:user).map(&:user)
     participating_users -= [sender] if sender.is_a?(User)
 
     participating_users.uniq.each do |participant|
@@ -46,6 +46,12 @@ class Messages::NewMessageNotificationService
   # The user could already have been notified via a mention or via assignment
   # So we don't need to notify them again
   def already_notified?(user)
-    conversation.notifications.exists?(user: user, secondary_actor: message)
+    already_notified_user_ids.include?(user.id)
+  end
+
+  def already_notified_user_ids
+    @already_notified_user_ids ||= conversation.notifications
+                                               .where(secondary_actor: message)
+                                               .pluck(:user_id).to_set
   end
 end

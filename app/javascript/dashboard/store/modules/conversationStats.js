@@ -18,7 +18,7 @@ export const getters = {
   getStats: $state => $state,
 };
 
-// Create a debounced version of the actual API call function
+// Fetch metadata with single retry on transient failure
 const fetchMetaData = async (commit, params) => {
   try {
     const response = await ConversationApi.meta(params);
@@ -27,7 +27,18 @@ const fetchMetaData = async (commit, params) => {
     } = response;
     commit(types.SET_CONV_TAB_META, meta);
   } catch (error) {
-    // ignore
+    if (error?.name === 'AbortError' || error?.name === 'CanceledError') return;
+    const status = error?.response?.status;
+    if (status && status < 500) return;
+    try {
+      const response = await ConversationApi.meta(params);
+      const {
+        data: { meta },
+      } = response;
+      commit(types.SET_CONV_TAB_META, meta);
+    } catch {
+      // ignore after retry
+    }
   }
 };
 
@@ -43,20 +54,20 @@ const superLongDebouncedFetchMetaData = debounce(
 
 export const actions = {
   get: async ({ commit, state: $state }, params) => {
-    // Skip threshold check when force flag is set (e.g., view/route change)
+    // When force flag is set (view/route change), fetch immediately
+    // bypassing both threshold and debounce
+    if (params?.force) {
+      const { force, ...apiParams } = params;
+      await fetchMetaData(commit, apiParams);
+      return;
+    }
     if (
-      !params?.force &&
       $state.updatedOn &&
       Date.now() - new Date($state.updatedOn) < META_FRESH_THRESHOLD_MS
     ) {
       return;
     }
-    // Remove force flag before sending to API
-    if (params?.force) {
-      const { force, ...apiParams } = params;
-      params = apiParams;
-    }
-    // First load: fetch meta immediately so tab counts appear without waiting for list
+    // First load: fetch immediately so tab counts appear without waiting for list
     if ($state.updatedOn == null) {
       await fetchMetaData(commit, params);
       return;

@@ -38,29 +38,29 @@ RSpec.describe Inboxes::FetchImapEmailInboxesJob do
   context 'when called' do
     it 'fetches emails only for active accounts with imap enabled' do
       # Should call perform_later only once for the active, imap-enabled inbox
-      expect(Inboxes::FetchImapEmailsJob).to receive(:perform_later).with(imap_email_channel).once
+      expect(Inboxes::FetchImapEmailsJob).to receive(:perform_later).with(imap_email_channel.id).once
 
       # Should not call for suspended account or disabled IMAP channels
-      expect(Inboxes::FetchImapEmailsJob).not_to receive(:perform_later).with(imap_email_channel_suspended)
-      expect(Inboxes::FetchImapEmailsJob).not_to receive(:perform_later).with(disabled_imap_channel)
+      expect(Inboxes::FetchImapEmailsJob).not_to receive(:perform_later).with(imap_email_channel_suspended.id)
+      expect(Inboxes::FetchImapEmailsJob).not_to receive(:perform_later).with(disabled_imap_channel.id)
 
       described_class.perform_now
     end
 
     it 'skips suspended accounts' do
-      expect(Inboxes::FetchImapEmailsJob).not_to receive(:perform_later).with(imap_email_channel_suspended)
+      expect(Inboxes::FetchImapEmailsJob).not_to receive(:perform_later).with(imap_email_channel_suspended.id)
 
       described_class.perform_now
     end
 
     it 'skips disabled imap channels' do
-      expect(Inboxes::FetchImapEmailsJob).not_to receive(:perform_later).with(disabled_imap_channel)
+      expect(Inboxes::FetchImapEmailsJob).not_to receive(:perform_later).with(disabled_imap_channel.id)
 
       described_class.perform_now
     end
 
     it 'skips channels requiring reauthorization' do
-      expect(Inboxes::FetchImapEmailsJob).not_to receive(:perform_later).with(reauth_required_channel)
+      expect(Inboxes::FetchImapEmailsJob).not_to receive(:perform_later).with(reauth_required_channel.id)
 
       described_class.perform_now
     end

@@ -34,7 +34,7 @@ class Contacts::WhatsappValidationJob < ApplicationJob
     custom_attributes['whatsapp_validation_source'] = session_used
 
     # Avoid validation failures on legacy duplicates by updating only JSONB.
-    contact.update_columns(
+    contact.update_columns( # rubocop:disable Rails/SkipsModelValidations
       custom_attributes: custom_attributes,
       updated_at: Time.zone.now
     )
@@ -58,7 +58,7 @@ class Contacts::WhatsappValidationJob < ApplicationJob
     normalized.to_s.delete_prefix('+')
   end
 
-  def check_number_exists(session_names, normalized_phone)
+  def check_number_exists(session_names, normalized_phone) # rubocop:disable Metrics/CyclomaticComplexity
     service = waha_service
     had_response = false
     had_false = false

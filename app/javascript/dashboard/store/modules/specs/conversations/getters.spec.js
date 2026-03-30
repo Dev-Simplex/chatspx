@@ -162,8 +162,9 @@ describe('#getters', () => {
       ];
 
       expect(
-        getters.getUnAssignedChats({ allConversations: conversationList })({
-          status: 1,
+        getters.getUnAssignedChats({
+          allConversations: conversationList,
+          conversationFilters: { status: 1 },
         })
       ).toEqual([
         {

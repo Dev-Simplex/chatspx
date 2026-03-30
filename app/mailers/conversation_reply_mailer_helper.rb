@@ -53,7 +53,7 @@ module ConversationReplyMailerHelper
       domain: domain,
       tls: false,
       enable_starttls_auto: true,
-      openssl_verify_mode: 'none',
+      openssl_verify_mode: 'peer',
       open_timeout: 15,
       read_timeout: 15,
       authentication: 'xoauth2'

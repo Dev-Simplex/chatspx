@@ -26,7 +26,7 @@ export const getters = {
   getIntegration:
     $state =>
     (integrationId, defaultValue = {}) => {
-      const [integration] = $state.records.filter(
+      const integration = $state.records.find(
         record => record.id === integrationId
       );
       return integration || defaultValue;
@@ -82,6 +82,8 @@ export const actions = {
       const response = await IntegrationsAPI.listAllSlackChannels();
       return response.data;
     } catch (error) {
+      // Ignore error
+    } finally {
       commit(types.default.SET_INTEGRATIONS_UI_FLAG, {
         isFetchingSlackChannels: false,
       });

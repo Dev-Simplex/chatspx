@@ -1,8 +1,9 @@
 class Notification::RemoveDuplicateNotificationJob < ApplicationJob
   queue_as :default
 
-  def perform(notification)
-    return unless notification.is_a?(Notification)
+  def perform(notification_id)
+    notification = Notification.find_by(id: notification_id)
+    return unless notification
 
     user_id = notification.user_id
     primary_actor_id = notification.primary_actor_id

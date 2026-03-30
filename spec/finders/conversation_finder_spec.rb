@@ -106,12 +106,12 @@ describe ConversationFinder do
 
       it 'returns the correct meta' do
         result = conversation_finder.perform
-        expect(result[:count]).to eq({
-                                       mine_count: 2,
-                                       assigned_count: 3,
-                                       unassigned_count: 1,
-                                       all_count: 4
-                                     })
+        expect(result[:count]).to include(
+          mine_count: 2,
+          assigned_count: 3,
+          unassigned_count: 1,
+          all_count: 4
+        )
       end
     end
 

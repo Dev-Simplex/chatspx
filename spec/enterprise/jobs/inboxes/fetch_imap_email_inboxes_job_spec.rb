@@ -14,12 +14,12 @@ RSpec.describe Inboxes::FetchImapEmailInboxesJob do
     end
 
     it 'skips inboxes with default plan' do
-      expect(Inboxes::FetchImapEmailsJob).not_to receive(:perform_later).with(imap_email_channel)
+      expect(Inboxes::FetchImapEmailsJob).not_to receive(:perform_later).with(imap_email_channel.id)
       described_class.perform_now
     end
 
     it 'processes inboxes with premium plan' do
-      expect(Inboxes::FetchImapEmailsJob).to receive(:perform_later).with(premium_imap_channel)
+      expect(Inboxes::FetchImapEmailsJob).to receive(:perform_later).with(premium_imap_channel.id)
       described_class.perform_now
     end
   end

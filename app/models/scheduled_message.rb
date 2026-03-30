@@ -37,6 +37,7 @@ class ScheduledMessage < ApplicationRecord
   belongs_to :sent_message,
              class_name: 'Message',
              foreign_key: :message_id,
+             inverse_of: false,
              optional: true
   has_many_attached :attachments
 
@@ -54,14 +55,14 @@ class ScheduledMessage < ApplicationRecord
   def scheduled_at_must_be_in_future
     return if scheduled_at.blank?
 
-    # Tolerância de 2 min no passado: evita rejeitar por diferença de relógio ou fuso (Manaus).
-    errors.add(:scheduled_at, 'deve ser no futuro') if scheduled_at <= 2.minutes.ago
+    # Allow 2-minute tolerance in the past to account for clock drift or timezone differences.
+    errors.add(:scheduled_at, 'must be in the future') if scheduled_at <= 2.minutes.ago
   end
 
   def message_or_attachments_present
     return if message.present? || attachments.attached?
 
-    errors.add(:message, 'deve ter conteúdo ou anexos')
+    errors.add(:message, 'must have content or attachments')
   end
 
   def validate_future_scheduled_at?

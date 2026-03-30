@@ -255,10 +255,9 @@ const highlightTerm = text => {
                   {{ dynamicTime(message.created_at) }}
                 </span>
               </div>
-              <!-- eslint-disable-next-line vue/no-v-html -->
               <p
+                v-dompurify-html="highlightTerm(getPreview(message))"
                 class="text-xs text-n-slate-11 leading-relaxed line-clamp-2"
-                v-html="highlightTerm(getPreview(message))"
               />
             </div>
           </div>

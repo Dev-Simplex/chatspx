@@ -33,7 +33,7 @@ class Internal::ProcessStaleContactsJob < ApplicationJob
 
       # Add a small delay between jobs to further reduce queue pressure
       delay = rand(1..10).minutes
-      Internal::RemoveStaleContactsJob.set(wait: delay).perform_later(account)
+      Internal::RemoveStaleContactsJob.set(wait: delay).perform_later(account.id)
     end
   end
 end

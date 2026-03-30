@@ -115,205 +115,206 @@ const getters = {
 };
 
 export const actions = {
-  fetchAccountReport({ commit }, reportObj) {
+  async fetchAccountReport({ commit }, reportObj) {
     const { metric } = reportObj;
     commit(types.default.TOGGLE_ACCOUNT_REPORT_LOADING, {
       metric,
       value: true,
     });
-    Report.getReports(reportObj).then(accountReport => {
+    try {
+      const accountReport = await Report.getReports(reportObj);
       let { data } = accountReport;
       data = clampDataBetweenTimeline(data, reportObj.from, reportObj.to);
-      commit(types.default.SET_ACCOUNT_REPORTS, {
-        metric,
-        data,
-      });
+      commit(types.default.SET_ACCOUNT_REPORTS, { metric, data });
+    } catch (error) {
+      // Ignore error
+    } finally {
       commit(types.default.TOGGLE_ACCOUNT_REPORT_LOADING, {
         metric,
         value: false,
       });
-    });
+    }
   },
-  fetchAccountConversationHeatmap({ commit }, reportObj) {
+  async fetchAccountConversationHeatmap({ commit }, reportObj) {
     commit(types.default.TOGGLE_HEATMAP_LOADING, true);
-    Report.getReports({ ...reportObj, groupBy: 'hour' }).then(heatmapData => {
+    try {
+      const heatmapData = await Report.getReports({
+        ...reportObj,
+        groupBy: 'hour',
+      });
       let { data } = heatmapData;
       data = clampDataBetweenTimeline(data, reportObj.from, reportObj.to);
-
       commit(types.default.SET_HEATMAP_DATA, data);
+    } catch (error) {
+      // Ignore error
+    } finally {
       commit(types.default.TOGGLE_HEATMAP_LOADING, false);
-    });
+    }
   },
-  fetchAccountResolutionHeatmap({ commit }, reportObj) {
+  async fetchAccountResolutionHeatmap({ commit }, reportObj) {
     commit(types.default.TOGGLE_RESOLUTION_HEATMAP_LOADING, true);
-    Report.getReports({ ...reportObj, groupBy: 'hour' }).then(heatmapData => {
+    try {
+      const heatmapData = await Report.getReports({
+        ...reportObj,
+        groupBy: 'hour',
+      });
       let { data } = heatmapData;
       data = clampDataBetweenTimeline(data, reportObj.from, reportObj.to);
-
       commit(types.default.SET_RESOLUTION_HEATMAP_DATA, data);
+    } catch (error) {
+      // Ignore error
+    } finally {
       commit(types.default.TOGGLE_RESOLUTION_HEATMAP_LOADING, false);
-    });
+    }
   },
-  fetchAccountSummary({ commit }, reportObj) {
+  async fetchAccountSummary({ commit }, reportObj) {
     commit(types.default.SET_ACCOUNT_SUMMARY_STATUS, STATUS.FETCHING);
-    Report.getSummary(
-      reportObj.from,
-      reportObj.to,
-      reportObj.type,
-      reportObj.id,
-      reportObj.groupBy,
-      reportObj.businessHours
-    )
-      .then(accountSummary => {
-        commit(types.default.SET_ACCOUNT_SUMMARY, accountSummary.data);
-        commit(types.default.SET_ACCOUNT_SUMMARY_STATUS, STATUS.FINISHED);
-      })
-      .catch(() => {
-        commit(types.default.SET_ACCOUNT_SUMMARY_STATUS, STATUS.FAILED);
-      });
+    try {
+      const accountSummary = await Report.getSummary(
+        reportObj.from,
+        reportObj.to,
+        reportObj.type,
+        reportObj.id,
+        reportObj.groupBy,
+        reportObj.businessHours
+      );
+      commit(types.default.SET_ACCOUNT_SUMMARY, accountSummary.data);
+      commit(types.default.SET_ACCOUNT_SUMMARY_STATUS, STATUS.FINISHED);
+    } catch {
+      commit(types.default.SET_ACCOUNT_SUMMARY_STATUS, STATUS.FAILED);
+    }
   },
-  fetchBotSummary({ commit }, reportObj) {
+  async fetchBotSummary({ commit }, reportObj) {
     commit(types.default.SET_BOT_SUMMARY_STATUS, STATUS.FETCHING);
-    Report.getBotSummary({
-      from: reportObj.from,
-      to: reportObj.to,
-      groupBy: reportObj.groupBy,
-      businessHours: reportObj.businessHours,
-    })
-      .then(botSummary => {
-        commit(types.default.SET_BOT_SUMMARY, botSummary.data);
-        commit(types.default.SET_BOT_SUMMARY_STATUS, STATUS.FINISHED);
-      })
-      .catch(() => {
-        commit(types.default.SET_BOT_SUMMARY_STATUS, STATUS.FAILED);
+    try {
+      const botSummary = await Report.getBotSummary({
+        from: reportObj.from,
+        to: reportObj.to,
+        groupBy: reportObj.groupBy,
+        businessHours: reportObj.businessHours,
       });
+      commit(types.default.SET_BOT_SUMMARY, botSummary.data);
+      commit(types.default.SET_BOT_SUMMARY_STATUS, STATUS.FINISHED);
+    } catch {
+      commit(types.default.SET_BOT_SUMMARY_STATUS, STATUS.FAILED);
+    }
   },
-  fetchAccountConversationMetric({ commit }, params = {}) {
+  async fetchAccountConversationMetric({ commit }, params = {}) {
     commit(types.default.TOGGLE_ACCOUNT_CONVERSATION_METRIC_LOADING, true);
-    liveReports
-      .getConversationMetric(params)
-      .then(accountConversationMetric => {
-        commit(
-          types.default.SET_ACCOUNT_CONVERSATION_METRIC,
-          accountConversationMetric.data
-        );
-        commit(types.default.TOGGLE_ACCOUNT_CONVERSATION_METRIC_LOADING, false);
-      })
-      .catch(() => {
-        commit(types.default.TOGGLE_ACCOUNT_CONVERSATION_METRIC_LOADING, false);
-      });
+    try {
+      const { data } = await liveReports.getConversationMetric(params);
+      commit(types.default.SET_ACCOUNT_CONVERSATION_METRIC, data);
+    } catch {
+      // silently handle
+    } finally {
+      commit(types.default.TOGGLE_ACCOUNT_CONVERSATION_METRIC_LOADING, false);
+    }
   },
-  fetchAgentConversationMetric({ commit }) {
+  async fetchAgentConversationMetric({ commit }) {
     commit(types.default.TOGGLE_AGENT_CONVERSATION_METRIC_LOADING, true);
-    liveReports
-      .getGroupedConversations({ groupBy: 'assignee_id' })
-      .then(agentConversationMetric => {
-        commit(
-          types.default.SET_AGENT_CONVERSATION_METRIC,
-          agentConversationMetric.data
-        );
-        commit(types.default.TOGGLE_AGENT_CONVERSATION_METRIC_LOADING, false);
-      })
-      .catch(() => {
-        commit(types.default.TOGGLE_AGENT_CONVERSATION_METRIC_LOADING, false);
+    try {
+      const { data } = await liveReports.getGroupedConversations({
+        groupBy: 'assignee_id',
       });
+      commit(types.default.SET_AGENT_CONVERSATION_METRIC, data);
+    } catch {
+      // silently handle
+    } finally {
+      commit(types.default.TOGGLE_AGENT_CONVERSATION_METRIC_LOADING, false);
+    }
   },
-  fetchTeamConversationMetric({ commit }) {
+  async fetchTeamConversationMetric({ commit }) {
     commit(types.default.TOGGLE_TEAM_CONVERSATION_METRIC_LOADING, true);
-    liveReports
-      .getGroupedConversations({ groupBy: 'team_id' })
-      .then(teamMetric => {
-        commit(types.default.SET_TEAM_CONVERSATION_METRIC, teamMetric.data);
-        commit(types.default.TOGGLE_TEAM_CONVERSATION_METRIC_LOADING, false);
-      })
-      .catch(() => {
-        commit(types.default.TOGGLE_TEAM_CONVERSATION_METRIC_LOADING, false);
+    try {
+      const { data } = await liveReports.getGroupedConversations({
+        groupBy: 'team_id',
       });
+      commit(types.default.SET_TEAM_CONVERSATION_METRIC, data);
+    } catch {
+      // silently handle
+    } finally {
+      commit(types.default.TOGGLE_TEAM_CONVERSATION_METRIC_LOADING, false);
+    }
   },
-  downloadAgentReports(_, reportObj) {
-    return Report.getAgentReports(reportObj)
-      .then(response => {
-        downloadCsvFile(reportObj.fileName, response.data);
-        AnalyticsHelper.track(REPORTS_EVENTS.DOWNLOAD_REPORT, {
-          reportType: 'agent',
-          businessHours: reportObj?.businessHours,
-        });
-      })
-      .catch(error => {
-        console.error(error);
+  async downloadAgentReports(_, reportObj) {
+    try {
+      const { data } = await Report.getAgentReports(reportObj);
+      downloadCsvFile(reportObj.fileName, data);
+      AnalyticsHelper.track(REPORTS_EVENTS.DOWNLOAD_REPORT, {
+        reportType: 'agent',
+        businessHours: reportObj?.businessHours,
       });
+    } catch (error) {
+      console.error(error);
+    }
   },
-  downloadConversationsSummaryReports(_, reportObj) {
-    return Report.getConversationsSummaryReports(reportObj)
-      .then(response => {
-        downloadCsvFile(reportObj.fileName, response.data);
-        AnalyticsHelper.track(REPORTS_EVENTS.DOWNLOAD_REPORT, {
-          reportType: 'conversations_summary',
-          businessHours: reportObj?.businessHours,
-        });
-      })
-      .catch(error => {
-        console.error(error);
+  async downloadConversationsSummaryReports(_, reportObj) {
+    try {
+      const { data } = await Report.getConversationsSummaryReports(reportObj);
+      downloadCsvFile(reportObj.fileName, data);
+      AnalyticsHelper.track(REPORTS_EVENTS.DOWNLOAD_REPORT, {
+        reportType: 'conversations_summary',
+        businessHours: reportObj?.businessHours,
       });
+    } catch (error) {
+      console.error(error);
+    }
   },
-  downloadLabelReports(_, reportObj) {
-    return Report.getLabelReports(reportObj)
-      .then(response => {
-        downloadCsvFile(reportObj.fileName, response.data);
-        AnalyticsHelper.track(REPORTS_EVENTS.DOWNLOAD_REPORT, {
-          reportType: 'label',
-          businessHours: reportObj?.businessHours,
-        });
-      })
-      .catch(error => {
-        console.error(error);
+  async downloadLabelReports(_, reportObj) {
+    try {
+      const { data } = await Report.getLabelReports(reportObj);
+      downloadCsvFile(reportObj.fileName, data);
+      AnalyticsHelper.track(REPORTS_EVENTS.DOWNLOAD_REPORT, {
+        reportType: 'label',
+        businessHours: reportObj?.businessHours,
       });
+    } catch (error) {
+      console.error(error);
+    }
   },
-  downloadInboxReports(_, reportObj) {
-    return Report.getInboxReports(reportObj)
-      .then(response => {
-        downloadCsvFile(reportObj.fileName, response.data);
-        AnalyticsHelper.track(REPORTS_EVENTS.DOWNLOAD_REPORT, {
-          reportType: 'inbox',
-          businessHours: reportObj?.businessHours,
-        });
-      })
-      .catch(error => {
-        console.error(error);
+  async downloadInboxReports(_, reportObj) {
+    try {
+      const { data } = await Report.getInboxReports(reportObj);
+      downloadCsvFile(reportObj.fileName, data);
+      AnalyticsHelper.track(REPORTS_EVENTS.DOWNLOAD_REPORT, {
+        reportType: 'inbox',
+        businessHours: reportObj?.businessHours,
       });
+    } catch (error) {
+      console.error(error);
+    }
   },
-  downloadTeamReports(_, reportObj) {
-    return Report.getTeamReports(reportObj)
-      .then(response => {
-        downloadCsvFile(reportObj.fileName, response.data);
-        AnalyticsHelper.track(REPORTS_EVENTS.DOWNLOAD_REPORT, {
-          reportType: 'team',
-          businessHours: reportObj?.businessHours,
-        });
-      })
-      .catch(error => {
-        console.error(error);
+  async downloadTeamReports(_, reportObj) {
+    try {
+      const { data } = await Report.getTeamReports(reportObj);
+      downloadCsvFile(reportObj.fileName, data);
+      AnalyticsHelper.track(REPORTS_EVENTS.DOWNLOAD_REPORT, {
+        reportType: 'team',
+        businessHours: reportObj?.businessHours,
       });
+    } catch (error) {
+      console.error(error);
+    }
   },
-  downloadAccountConversationHeatmap(_, reportObj) {
-    Report.getConversationTrafficCSV({ daysBefore: reportObj.daysBefore })
-      .then(response => {
-        downloadCsvFile(
-          generateFileName({
-            type: 'Conversation traffic',
-            to: reportObj.to,
-          }),
-          response.data
-        );
-
-        AnalyticsHelper.track(REPORTS_EVENTS.DOWNLOAD_REPORT, {
-          reportType: 'conversation_heatmap',
-          businessHours: false,
-        });
-      })
-      .catch(error => {
-        console.error(error);
+  async downloadAccountConversationHeatmap(_, reportObj) {
+    try {
+      const { data } = await Report.getConversationTrafficCSV({
+        daysBefore: reportObj.daysBefore,
       });
+      downloadCsvFile(
+        generateFileName({
+          type: 'Conversation traffic',
+          to: reportObj.to,
+        }),
+        data
+      );
+      AnalyticsHelper.track(REPORTS_EVENTS.DOWNLOAD_REPORT, {
+        reportType: 'conversation_heatmap',
+        businessHours: false,
+      });
+    } catch (error) {
+      console.error(error);
+    }
   },
 };
 

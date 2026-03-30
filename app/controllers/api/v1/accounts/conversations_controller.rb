@@ -1,11 +1,12 @@
 class Api::V1::Accounts::ConversationsController < Api::V1::Accounts::BaseController
   include Events::Types
-  include DateRangeHelper
   include HmacConcern
 
   before_action :conversation, except: [:index, :meta, :search, :create, :filter]
   before_action :inbox, :contact, :contact_inbox, only: [:create]
-  before_action :authorize_team_access, only: [:show, :update, :destroy, :attachments, :mute, :unmute, :transcript, :toggle_status, :toggle_priority, :toggle_typing_status, :update_last_seen, :unread, :custom_attributes]
+  before_action :authorize_team_access,
+                only: [:show, :update, :destroy, :attachments, :mute, :unmute, :transcript, :toggle_status, :toggle_priority, :toggle_typing_status,
+                       :update_last_seen, :unread, :custom_attributes]
 
   ATTACHMENT_RESULTS_PER_PAGE = 20
 
@@ -54,7 +55,7 @@ class Api::V1::Accounts::ConversationsController < Api::V1::Accounts::BaseContro
   end
 
   def filter
-    result = ::Conversations::FilterService.new(params.permit!, current_user, current_account).perform
+    result = ::Conversations::FilterService.new(permitted_filter_params, current_user, current_account).perform
     @conversations = result[:conversations]
     @conversations_count = result[:count]
     @list_preloaded = Conversations::ListPreloader.call(@conversations)
@@ -83,33 +84,9 @@ class Api::V1::Accounts::ConversationsController < Api::V1::Accounts::BaseContro
   end
 
   def toggle_status
-    # Validate team requirement when resolving
-    if params[:status] == 'resolved' && @conversation.team_id.blank?
-      return render json: {
-        error: I18n.t('conversations.errors.team_required_for_resolution')
-      }, status: :unprocessable_entity
-    end
-
-    # FIXME: move this logic into a service object
-    if pending_to_open_by_bot?
-      @conversation.bot_handoff!
-    elsif params[:status].present?
-      set_conversation_status
-      @status = @conversation.save!
-    else
-      @status = @conversation.toggle_status
-    end
-    assign_conversation if should_assign_conversation?
-  end
-
-  def pending_to_open_by_bot?
-    return false unless Current.user.is_a?(AgentBot)
-
-    @conversation.status == 'pending' && params[:status] == 'open'
-  end
-
-  def should_assign_conversation?
-    @conversation.status == 'open' && Current.user.is_a?(User) && Current.user&.agent?
+    Conversations::ToggleStatusService.new(conversation: @conversation, params: params, user: Current.user).perform
+  rescue Conversations::ToggleStatusService::TeamRequiredError => e
+    render json: { error: e.message }, status: :unprocessable_entity
   end
 
   def toggle_priority
@@ -140,11 +117,15 @@ class Api::V1::Accounts::ConversationsController < Api::V1::Accounts::BaseContro
 
   def destroy
     authorize @conversation, :destroy?
-    ::DeleteObjectJob.perform_later(@conversation, Current.user, request.ip)
+    ::DeleteObjectJob.perform_later(@conversation.class.name, @conversation.id, Current.user&.id, request.ip)
     head :ok
   end
 
   private
+
+  def permitted_filter_params
+    params.permit(:page, payload: [:attribute_key, :filter_operator, :query_operator, :custom_attribute_type, { values: [] }])
+  end
 
   def permitted_update_params
     # TODO: Move the other conversation attributes to this method and remove specific endpoints for each attribute
@@ -161,16 +142,6 @@ class Api::V1::Accounts::ConversationsController < Api::V1::Accounts::BaseContro
     cols[:assignee_last_seen_at] = last_seen_at if update_assignee.present?
     @conversation.update_columns(cols)
     # rubocop:enable Rails/SkipsModelValidations
-  end
-
-  def set_conversation_status
-    @conversation.status = params[:status]
-    @conversation.snoozed_until = parse_date_time(params[:snoozed_until].to_s) if params[:snoozed_until]
-  end
-
-  def assign_conversation
-    @conversation.assignee = current_user
-    @conversation.save!
   end
 
   def conversation
@@ -223,28 +194,31 @@ class Api::V1::Accounts::ConversationsController < Api::V1::Accounts::BaseContro
   end
 
   def authorize_team_access
+    return if Current.user.is_a?(AgentBot)
     return if Current.user.administrator?
     return if @conversation.team_id.nil?
 
-    # Se a URL tem team_id, só permite se o usuário faz parte desse time
-    if params[:team_id].present?
-      unless Current.user.teams.exists?(id: params[:team_id].to_i)
-        render json: { error: 'Você não tem permissão para acessar este time.' }, status: :forbidden
-        return
-      end
-      # E só permite se a conversa realmente pertence a esse time
-      unless @conversation.team_id == params[:team_id].to_i
-        render json: { error: 'Conversa não pertence a este time.' }, status: :forbidden
-        return
-      end
-    end
+    validate_team_param_access if params[:team_id].present?
+    return if performed?
 
-    # Se não faz parte do time da conversa, bloqueia
-    unless Current.user.teams.exists?(id: @conversation.team_id)
-      render json: { error: 'Você não tem permissão para acessar esta conversa.' }, status: :forbidden
-    end
+    # Block access if the user is not a member of the conversation's team
+    return if Current.user.teams.exists?(id: @conversation.team_id)
+
+    render json: { error: 'You do not have permission to access this conversation.' }, status: :forbidden
   end
 
+  def validate_team_param_access
+    team_id = params[:team_id].to_i
+
+    unless Current.user.teams.exists?(id: team_id)
+      render json: { error: 'You do not have permission to access this team.' }, status: :forbidden
+      return
+    end
+
+    return if @conversation.team_id == team_id
+
+    render json: { error: 'Conversation does not belong to this team.' }, status: :forbidden
+  end
 end
 
 Api::V1::Accounts::ConversationsController.prepend_mod_with('Api::V1::Accounts::ConversationsController')

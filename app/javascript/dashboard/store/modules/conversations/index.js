@@ -8,8 +8,11 @@ import { BUS_EVENTS } from '../../../../shared/constants/busEvents';
 import { emitter } from 'shared/helpers/mitt';
 import { CONTENT_TYPES } from 'dashboard/components-next/message/constants.js';
 
+export const MAX_MESSAGES_PER_CONVERSATION = 200;
+
 const state = {
   allConversations: [],
+  conversationMap: {},
   attachments: {},
   listLoadingStatus: true,
   chatStatusFilter: wootConstants.STATUS_TYPE.OPEN,
@@ -25,51 +28,71 @@ const state = {
   copilotAssistant: {},
 };
 
-const getConversationById = _state => conversationId => {
-  return _state.allConversations.find(c => c.id === conversationId);
+// Helper to rebuild the conversationMap from the allConversations array
+const rebuildConversationMap = _state => {
+  const map = {};
+  _state.allConversations.forEach(c => {
+    map[c.id] = c;
+  });
+  _state.conversationMap = map;
+};
+
+// O(1) lookup with fallback for when conversationMap is not initialized
+const findConversation = (_state, id) => {
+  const numId = Number(id);
+  if (_state.conversationMap) {
+    return _state.conversationMap[numId];
+  }
+  return _state.allConversations.find(c => c.id === numId);
+};
+
+// Helper to trim messages array to MAX_MESSAGES_PER_CONVERSATION
+const trimMessages = chat => {
+  if (chat.messages && chat.messages.length > MAX_MESSAGES_PER_CONVERSATION) {
+    chat.messages = chat.messages.slice(
+      chat.messages.length - MAX_MESSAGES_PER_CONVERSATION
+    );
+  }
 };
 
 // mutations
 export const mutations = {
   [types.SET_ALL_CONVERSATION](_state, conversationList) {
-    const newAllConversations = [..._state.allConversations];
+    const existingMap = new Map(_state.allConversations.map(c => [c.id, c]));
     conversationList.forEach(conversation => {
-      const indexInCurrentList = newAllConversations.findIndex(
-        c => c.id === conversation.id
-      );
-      if (indexInCurrentList < 0) {
-        newAllConversations.push(conversation);
+      const existing = existingMap.get(conversation.id);
+      if (!existing) {
+        existingMap.set(conversation.id, conversation);
       } else if (conversation.id !== _state.selectedChatId) {
-        // If the conversation is already in the list, replace it
-        // Added this to fix the issue of the conversation not being updated
-        // When reconnecting to the websocket. If the selectedChatId is not the same as
-        // the conversation.id in the store, replace the existing conversation with the new one
-        newAllConversations[indexInCurrentList] = conversation;
+        existingMap.set(conversation.id, conversation);
       } else {
-        // If the conversation is already in the list and selectedChatId is the same,
-        // replace all data except the messages array, attachments, dataFetched, allMessagesLoaded
-        const existingConversation = newAllConversations[indexInCurrentList];
-        newAllConversations[indexInCurrentList] = {
+        existingMap.set(conversation.id, {
           ...conversation,
-          allMessagesLoaded: existingConversation.allMessagesLoaded,
-          messages: existingConversation.messages,
-          dataFetched: existingConversation.dataFetched,
-        };
+          allMessagesLoaded: existing.allMessagesLoaded,
+          messages: existing.messages,
+          dataFetched: existing.dataFetched,
+        });
       }
     });
-    _state.allConversations = newAllConversations;
+    _state.allConversations = Array.from(existingMap.values());
+    rebuildConversationMap(_state);
   },
   [types.EMPTY_ALL_CONVERSATION](_state) {
     _state.allConversations = [];
+    _state.conversationMap = {};
     _state.selectedChatId = null;
+    _state.attachments = {};
+    _state.syncConversationsMessages = {};
   },
   [types.SET_ALL_MESSAGES_LOADED](_state) {
     const [chat] = getSelectedChatConversation(_state);
+    if (!chat) return;
     chat.allMessagesLoaded = true;
   },
 
   [types.CLEAR_ALL_MESSAGES_LOADED](_state) {
     const [chat] = getSelectedChatConversation(_state);
+    if (!chat) return;
     chat.allMessagesLoaded = false;
   },
   [types.CLEAR_CURRENT_CHAT_WINDOW](_state) {
@@ -78,15 +101,17 @@ export const mutations = {
 
   [types.SET_PREVIOUS_CONVERSATIONS](_state, { id, data }) {
     if (data.length) {
-      const [chat] = _state.allConversations.filter(c => c.id === id);
+      const chat = findConversation(_state, id);
+      if (!chat) return;
       chat.messages.unshift(...data);
+      trimMessages(chat);
     }
   },
   [types.SET_ALL_ATTACHMENTS](_state, { id, data }) {
     _state.attachments[id] = [...data];
   },
   [types.SET_MISSING_MESSAGES](_state, { id, data }) {
-    const [chat] = _state.allConversations.filter(c => c.id === id);
+    const chat = findConversation(_state, id);
     if (!chat) return;
     chat.messages = data;
   },
@@ -99,30 +124,42 @@ export const mutations = {
 
   [types.ASSIGN_AGENT](_state, assignee) {
     const [chat] = getSelectedChatConversation(_state);
-    chat.meta.assignee = assignee;
+    if (!chat) return;
+    const updated = { ...chat, meta: { ...chat.meta, assignee } };
+    const index = _state.allConversations.indexOf(chat);
+    if (index !== -1) _state.allConversations.splice(index, 1, updated);
+    if (_state.conversationMap) _state.conversationMap[updated.id] = updated;
   },
 
   [types.ASSIGN_TEAM](_state, { team, conversationId }) {
-    const [chat] = _state.allConversations.filter(c => c.id === conversationId);
-    chat.meta.team = team;
+    const chat = findConversation(_state, conversationId);
+    if (!chat) return;
+    const updated = { ...chat, meta: { ...chat.meta, team } };
+    const index = _state.allConversations.indexOf(chat);
+    if (index !== -1) _state.allConversations.splice(index, 1, updated);
+    if (_state.conversationMap) _state.conversationMap[updated.id] = updated;
   },
 
   [types.UPDATE_CONVERSATION_LAST_ACTIVITY](
     _state,
     { lastActivityAt, conversationId }
   ) {
-    const [chat] = _state.allConversations.filter(c => c.id === conversationId);
-    if (chat) {
-      chat.last_activity_at = lastActivityAt;
-    }
+    const chat = findConversation(_state, conversationId);
+    if (!chat) return;
+    chat.last_activity_at = lastActivityAt;
   },
   [types.ASSIGN_PRIORITY](_state, { priority, conversationId }) {
-    const [chat] = _state.allConversations.filter(c => c.id === conversationId);
-    chat.priority = priority;
+    const chat = findConversation(_state, conversationId);
+    if (!chat) return;
+    const updated = { ...chat, priority };
+    const index = _state.allConversations.indexOf(chat);
+    if (index !== -1) _state.allConversations.splice(index, 1, updated);
+    if (_state.conversationMap) _state.conversationMap[updated.id] = updated;
   },
 
   [types.UPDATE_CONVERSATION_CUSTOM_ATTRIBUTES](_state, custom_attributes) {
     const [chat] = getSelectedChatConversation(_state);
+    if (!chat) return;
     chat.custom_attributes = custom_attributes;
   },
 
@@ -130,19 +167,23 @@ export const mutations = {
     _state,
     { conversationId, status, snoozedUntil }
   ) {
-    const conversation =
-      getters.getConversationById(_state)(conversationId) || {};
-    conversation.snoozed_until = snoozedUntil;
-    conversation.status = status;
+    const conversation = findConversation(_state, conversationId);
+    if (!conversation) return;
+    const updated = { ...conversation, status, snoozed_until: snoozedUntil };
+    const index = _state.allConversations.indexOf(conversation);
+    if (index !== -1) _state.allConversations.splice(index, 1, updated);
+    if (_state.conversationMap) _state.conversationMap[updated.id] = updated;
   },
 
   [types.MUTE_CONVERSATION](_state) {
     const [chat] = getSelectedChatConversation(_state);
+    if (!chat) return;
     chat.muted = true;
   },
 
   [types.UNMUTE_CONVERSATION](_state) {
     const [chat] = getSelectedChatConversation(_state);
+    if (!chat) return;
     chat.muted = false;
   },
 
@@ -182,12 +223,9 @@ export const mutations = {
     });
   },
 
-  [types.ADD_MESSAGE]({ allConversations, selectedChatId }, message) {
+  [types.ADD_MESSAGE](_state, message) {
     const { conversation_id: conversationId } = message;
-    const [chat] = getSelectedChatConversation({
-      allConversations,
-      selectedChatId: conversationId,
-    });
+    const chat = findConversation(_state, conversationId);
     if (!chat) return;
 
     const pendingMessageIndex = findPendingMessageIndex(chat, message);
@@ -195,10 +233,11 @@ export const mutations = {
       chat.messages[pendingMessageIndex] = message;
     } else {
       chat.messages.push(message);
+      trimMessages(chat);
       chat.timestamp = message.created_at;
       const { conversation: { unread_count: unreadCount = 0 } = {} } = message;
       chat.unread_count = unreadCount;
-      if (selectedChatId === conversationId) {
+      if (_state.selectedChatId === conversationId) {
         emitter.emit(BUS_EVENTS.SCROLL_TO_MESSAGE);
       }
     }
@@ -206,33 +245,49 @@ export const mutations = {
 
   [types.ADD_CONVERSATION](_state, conversation) {
     _state.allConversations.push(conversation);
+    if (_state.conversationMap) {
+      _state.conversationMap[conversation.id] = conversation;
+    }
   },
 
   [types.DELETE_CONVERSATION](_state, conversationId) {
     _state.allConversations = _state.allConversations.filter(
       c => c.id !== conversationId
     );
+    if (_state.conversationMap) {
+      delete _state.conversationMap[conversationId];
+    }
+    if (_state.attachments) delete _state.attachments[conversationId];
+    if (_state.syncConversationsMessages) {
+      delete _state.syncConversationsMessages[conversationId];
+    }
   },
 
   [types.UPDATE_CONVERSATION](_state, conversation) {
     const { allConversations } = _state;
-    const index = allConversations.findIndex(c => c.id === conversation.id);
+    const existingChat = findConversation(_state, conversation.id);
 
-    if (index > -1) {
-      const selectedConversation = allConversations[index];
-
+    if (existingChat) {
       // ignore out of order events
-      if (conversation.updated_at < selectedConversation.updated_at) {
+      if (conversation.updated_at < existingChat.updated_at) {
         return;
       }
 
+      const index = allConversations.indexOf(existingChat);
       const { messages, ...updates } = conversation;
-      allConversations[index] = { ...selectedConversation, ...updates };
+      const updated = { ...existingChat, ...updates };
+      allConversations[index] = updated;
+      if (_state.conversationMap) {
+        _state.conversationMap[conversation.id] = updated;
+      }
       if (_state.selectedChatId === conversation.id) {
         emitter.emit(BUS_EVENTS.SCROLL_TO_MESSAGE);
       }
     } else {
       _state.allConversations.push(conversation);
+      if (_state.conversationMap) {
+        _state.conversationMap[conversation.id] = conversation;
+      }
     }
   },
 
@@ -248,11 +303,10 @@ export const mutations = {
     _state,
     { id, lastSeen, unreadCount = 0 }
   ) {
-    const [chat] = _state.allConversations.filter(c => c.id === id);
-    if (chat) {
-      chat.agent_last_seen_at = lastSeen;
-      chat.unread_count = unreadCount;
-    }
+    const chat = findConversation(_state, id);
+    if (!chat) return;
+    chat.agent_last_seen_at = lastSeen;
+    chat.unread_count = unreadCount;
   },
   [types.CHANGE_CHAT_STATUS_FILTER](_state, data) {
     _state.chatStatusFilter = data;
@@ -264,22 +318,28 @@ export const mutations = {
 
   // Update assignee on action cable message
   [types.UPDATE_ASSIGNEE](_state, payload) {
-    const [chat] = _state.allConversations.filter(c => c.id === payload.id);
-    chat.meta.assignee = payload.assignee;
+    const chat = findConversation(_state, payload.id);
+    if (!chat) return;
+    const updated = {
+      ...chat,
+      meta: { ...chat.meta, assignee: payload.assignee },
+    };
+    const index = _state.allConversations.indexOf(chat);
+    if (index !== -1) _state.allConversations.splice(index, 1, updated);
+    if (_state.conversationMap) _state.conversationMap[updated.id] = updated;
   },
 
   [types.UPDATE_CONVERSATION_CONTACT](_state, { conversationId, ...payload }) {
-    const [chat] = _state.allConversations.filter(c => c.id === conversationId);
-    if (chat) {
-      chat.meta.sender = payload;
-    }
+    const chat = findConversation(_state, conversationId);
+    if (!chat) return;
+    chat.meta.sender = payload;
   },
 
   [types.UPDATE_CONVERSATION_CALL_STATUS](
     _state,
     { conversationId, callStatus }
   ) {
-    const chat = getConversationById(_state)(conversationId);
+    const chat = findConversation(_state, conversationId);
     if (!chat) return;
 
     chat.additional_attributes = {
@@ -289,7 +349,7 @@ export const mutations = {
   },
 
   [types.UPDATE_MESSAGE_CALL_STATUS](_state, { conversationId, callStatus }) {
-    const chat = getConversationById(_state)(conversationId);
+    const chat = findConversation(_state, conversationId);
     if (!chat) return;
 
     const lastCall = (chat.messages || []).findLast(
@@ -310,10 +370,9 @@ export const mutations = {
   },
 
   [types.SET_CONVERSATION_CAN_REPLY](_state, { conversationId, canReply }) {
-    const [chat] = _state.allConversations.filter(c => c.id === conversationId);
-    if (chat) {
-      chat.can_reply = canReply;
-    }
+    const chat = findConversation(_state, conversationId);
+    if (!chat) return;
+    chat.can_reply = canReply;
   },
 
   [types.CLEAR_CONTACT_CONVERSATIONS](_state, contactId) {
@@ -321,6 +380,9 @@ export const mutations = {
       c => c.meta.sender.id !== contactId
     );
     _state.allConversations = chats;
+    if (_state.conversationMap) {
+      rebuildConversationMap(_state);
+    }
   },
 
   [types.SET_CONVERSATION_FILTERS](_state, data) {

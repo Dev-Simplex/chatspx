@@ -21,8 +21,8 @@ class Api::V1::Accounts::BulkActionsController < Api::V1::Accounts::BaseControll
 
   def enqueue_conversation_job
     ::BulkActionsJob.perform_later(
-      account: @current_account,
-      user: current_user,
+      account_id: @current_account.id,
+      user_id: current_user.id,
       params: conversation_params
     )
   end

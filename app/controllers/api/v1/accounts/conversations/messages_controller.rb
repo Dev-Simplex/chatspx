@@ -1,6 +1,11 @@
 class Api::V1::Accounts::Conversations::MessagesController < Api::V1::Accounts::Conversations::BaseController
   before_action :ensure_api_inbox, only: :update, unless: :content_update?
 
+  WAHA_ECHO_MARKER_API = 'Enviado via API'.freeze
+  WAHA_ECHO_MARKER_EDITED = 'Editado no WhatsApp'.freeze
+  WAHA_ERROR_MARKER = 'Não foi possível receber uma mensagem do WhatsApp'.freeze
+  WAHA_ERROR_EVENT = 'message.edited'.freeze
+
   def index
     @include_meta = include_meta?
     @messages = message_finder.perform
@@ -15,7 +20,7 @@ class Api::V1::Accounts::Conversations::MessagesController < Api::V1::Accounts::
     user = Current.user || @resource
     mb = Messages::MessageBuilder.new(user, @conversation, params)
     @message = mb.perform
-  rescue StandardError => e
+  rescue ActiveRecord::RecordInvalid, ArgumentError => e
     render_could_not_create_error(e.message)
   end
 
@@ -26,7 +31,7 @@ class Api::V1::Accounts::Conversations::MessagesController < Api::V1::Accounts::
       Messages::StatusUpdateService.new(message, permitted_params[:status], permitted_params[:external_error]).perform
     end
     @message = message
-  rescue StandardError => e
+  rescue ActiveRecord::RecordInvalid, ActiveRecord::RecordNotFound, ArgumentError => e
     render_could_not_create_error(e.message)
   end
 
@@ -48,24 +53,17 @@ class Api::V1::Accounts::Conversations::MessagesController < Api::V1::Accounts::
     service.perform
     message.update!(content_attributes: {})
     ::SendReplyJob.perform_later(message.id)
-  rescue StandardError => e
+  rescue ActiveRecord::RecordInvalid, ArgumentError => e
     render_could_not_create_error(e.message)
   end
 
   def translate
-    return head :ok if already_translated_content_available?
-
-    translated_content = Integrations::GoogleTranslate::ProcessorService.new(
+    translated_content = Messages::TranslateService.new(
       message: message,
       target_language: permitted_params[:target_language]
     ).perform
 
-    if translated_content.present?
-      translations = {}
-      translations[permitted_params[:target_language]] = translated_content
-      translations = message.translations.merge!(translations) if message.translations.present?
-      message.update!(translations: translations)
-    end
+    return head :ok if translated_content.nil?
 
     render json: { content: translated_content }
   end
@@ -94,10 +92,6 @@ class Api::V1::Accounts::Conversations::MessagesController < Api::V1::Accounts::
     ActiveModel::Type::Boolean.new.cast(params[:include_meta])
   end
 
-  def already_translated_content_available?
-    message.translations.present? && message.translations[permitted_params[:target_language]].present?
-  end
-
   # API inbox check
   def ensure_api_inbox
     # Only API inboxes can update messages
@@ -124,7 +118,7 @@ class Api::V1::Accounts::Conversations::MessagesController < Api::V1::Accounts::
     return false unless inbox.channel_type == 'Channel::Api' && inbox.waha_session_name.present?
 
     content = params[:content].to_s
-    content.include?('Enviado via API') && content.include?('Editado no WhatsApp')
+    content.include?(WAHA_ECHO_MARKER_API) && content.include?(WAHA_ECHO_MARKER_EDITED)
   end
 
   def waha_edit_error_notification?
@@ -132,8 +126,8 @@ class Api::V1::Accounts::Conversations::MessagesController < Api::V1::Accounts::
     return false unless inbox.channel_type == 'Channel::Api' && inbox.waha_session_name.present?
 
     content = params[:content].to_s
-    content.include?('Não foi possível receber uma mensagem do WhatsApp') &&
-      content.include?('message.edited')
+    content.include?(WAHA_ERROR_MARKER) &&
+      content.include?(WAHA_ERROR_EVENT)
   end
 
   def whatsapp_inbox?
@@ -142,13 +136,9 @@ class Api::V1::Accounts::Conversations::MessagesController < Api::V1::Accounts::
 
     return true if inbox.channel_type == 'Channel::Whatsapp'
 
-    if inbox.channel_type == 'Channel::TwilioSms'
-      return inbox.channel&.medium == 'whatsapp'
-    end
+    return inbox.channel&.medium == 'whatsapp' if inbox.channel_type == 'Channel::TwilioSms'
 
-    if inbox.channel_type == 'Channel::Api'
-      return true
-    end
+    return inbox.waha_session_name.present? if inbox.channel_type == 'Channel::Api'
 
     false
   end

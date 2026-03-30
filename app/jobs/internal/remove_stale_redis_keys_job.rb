@@ -9,7 +9,7 @@ class Internal::RemoveStaleRedisKeysJob < ApplicationJob
     Account.find_in_batches(batch_size: 100) do |accounts|
       accounts.each do |account|
         Rails.logger.info "Enqueuing ProcessStaleRedisKeysJob for account #{account.id}"
-        Internal::ProcessStaleRedisKeysJob.perform_later(account)
+        Internal::ProcessStaleRedisKeysJob.perform_later(account.id)
       end
     end
   end

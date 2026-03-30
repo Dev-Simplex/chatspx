@@ -1,12 +1,12 @@
 class AutomationRules::ConditionValidationService
   ATTRIBUTE_MODEL = 'conversation_attribute'.freeze
+  FILTER_KEYS = YAML.safe_load(File.read('./lib/filters/filter_keys.yml')).freeze
 
   def initialize(rule)
     @rule = rule
     @account = rule.account
 
-    file = File.read('./lib/filters/filter_keys.yml')
-    @filters = YAML.safe_load(file)
+    @filters = FILTER_KEYS
 
     @conversation_filters = @filters['conversations']
     @contact_filters = @filters['contacts']

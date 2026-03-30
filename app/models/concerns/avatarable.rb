@@ -22,7 +22,7 @@ module Avatarable
 
     # Incase avatar_url is supplied, we don't want to fetch avatar from gravatar
     # So we will wait for it to be processed
-    Avatar::AvatarFromGravatarJob.set(wait: 30.seconds).perform_later(self, email)
+    Avatar::AvatarFromGravatarJob.set(wait: 30.seconds).perform_later(self.class.name, id, email)
   end
 
   def acceptable_avatar

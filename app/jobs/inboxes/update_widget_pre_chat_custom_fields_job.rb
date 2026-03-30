@@ -1,7 +1,10 @@
 class Inboxes::UpdateWidgetPreChatCustomFieldsJob < ApplicationJob
   queue_as :default
 
-  def perform(account, custom_attribute)
+  def perform(account_id, custom_attribute)
+    account = Account.find_by(id: account_id)
+    return unless account
+
     attribute_key = custom_attribute['attribute_key']
     account.web_widgets.all.find_each do |web_widget|
       pre_chat_fields = web_widget.pre_chat_form_options['pre_chat_fields']

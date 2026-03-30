@@ -34,7 +34,7 @@ describe('#ContactsAPI', () => {
     it('#get', () => {
       contactAPI.get(1, 'name', 'customer-support');
       expect(axiosMock.get).toHaveBeenCalledWith(
-        '/api/v1/contacts?include_contact_inboxes=false&page=1&sort=name&labels[]=customer-support'
+        '/api/v1/contacts?include_contact_inboxes=false&page=1&sort=name&labels%5B%5D=customer-support'
       );
     });
 
@@ -68,7 +68,7 @@ describe('#ContactsAPI', () => {
     it('#search', () => {
       contactAPI.search('leads', 1, 'date', 'customer-support');
       expect(axiosMock.get).toHaveBeenCalledWith(
-        '/api/v1/contacts/search?include_contact_inboxes=false&page=1&sort=date&q=leads&labels[]=customer-support'
+        '/api/v1/contacts/search?include_contact_inboxes=false&page=1&sort=date&q=leads&labels%5B%5D=customer-support'
       );
     });
 
@@ -134,12 +134,12 @@ describe('#buildContactParams', () => {
       'include_contact_inboxes=false&page=1&sort=name'
     );
     expect(buildContactParams(1, 'name', 'customer-support', '')).toBe(
-      'include_contact_inboxes=false&page=1&sort=name&labels[]=customer-support'
+      'include_contact_inboxes=false&page=1&sort=name&labels%5B%5D=customer-support'
     );
     expect(
       buildContactParams(1, 'name', 'customer-support', 'message-content')
     ).toBe(
-      'include_contact_inboxes=false&page=1&sort=name&q=message-content&labels[]=customer-support'
+      'include_contact_inboxes=false&page=1&sort=name&q=message-content&labels%5B%5D=customer-support'
     );
   });
 });

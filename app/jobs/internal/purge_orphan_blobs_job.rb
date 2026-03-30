@@ -35,7 +35,7 @@ class Internal::PurgeOrphanBlobsJob < ApplicationJob
     return unless Dir.exist?(storage_path)
 
     Dir.glob("#{storage_path}/**/").sort_by(&:length).reverse_each do |dir|
-      next if dir == storage_path.to_s + '/'
+      next if dir == "#{storage_path}/"
 
       Dir.rmdir(dir) if Dir.empty?(dir)
     rescue Errno::ENOTEMPTY, Errno::ENOENT

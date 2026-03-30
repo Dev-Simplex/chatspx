@@ -65,8 +65,8 @@ describe ActionCableListener do
         a_collection_containing_exactly(
           admin.pubsub_token, conversation.contact_inbox.pubsub_token
         ),
-        'conversation.typing_on', { conversation: conversation.push_event_data,
-                                    user: agent.push_event_data,
+        'conversation.typing_on', { conversation: { id: conversation.display_id },
+                                    user: { id: agent.id, name: agent.name, type: 'user' },
                                     account_id: account.id,
                                     is_private: false }
       )
@@ -85,8 +85,8 @@ describe ActionCableListener do
         a_collection_containing_exactly(
           admin.pubsub_token, agent.pubsub_token
         ),
-        'conversation.typing_on', { conversation: conversation.push_event_data,
-                                    user: conversation.contact.push_event_data,
+        'conversation.typing_on', { conversation: { id: conversation.display_id },
+                                    user: { id: conversation.contact.id, name: conversation.contact.name, type: 'contact' },
                                     account_id: account.id,
                                     is_private: false }
       )
@@ -105,8 +105,8 @@ describe ActionCableListener do
         a_collection_containing_exactly(
           admin.pubsub_token, conversation.contact_inbox.pubsub_token
         ),
-        'conversation.typing_off', { conversation: conversation.push_event_data,
-                                     user: agent.push_event_data,
+        'conversation.typing_off', { conversation: { id: conversation.display_id },
+                                     user: { id: agent.id, name: agent.name, type: 'user' },
                                      account_id: account.id,
                                      is_private: false }
       )

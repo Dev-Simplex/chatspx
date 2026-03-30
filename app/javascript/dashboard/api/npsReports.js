@@ -6,7 +6,16 @@ class NpsReportsAPI extends ApiClient {
     super('nps_responses', { accountScoped: true });
   }
 
-  get({ page, from, to, user_ids, inbox_id, status, response_state, contact_id } = {}) {
+  get({
+    page,
+    from,
+    to,
+    user_ids,
+    inbox_id,
+    status,
+    response_state,
+    contact_id,
+  } = {}) {
     return axios.get(this.url, {
       params: {
         page,
@@ -22,15 +31,21 @@ class NpsReportsAPI extends ApiClient {
     });
   }
 
+  // eslint-disable-next-line class-methods-use-this
   getByConversation({ accountId, conversationId }) {
-    return axios.get(`/api/v1/accounts/${accountId}/conversations/${conversationId}/nps_response`).catch(error => {
-      if (error.response?.status === 404) {
-        return { data: null };
-      }
-      throw error;
-    });
+    return axios
+      .get(
+        `/api/v1/accounts/${accountId}/conversations/${conversationId}/nps_response`
+      )
+      .catch(error => {
+        if (error.response?.status === 404) {
+          return { data: null };
+        }
+        throw error;
+      });
   }
 
+  // eslint-disable-next-line class-methods-use-this
   getByContact({ accountId, contactId }) {
     return axios.get(`/api/v1/accounts/${accountId}/nps_responses`, {
       params: {
@@ -41,8 +56,11 @@ class NpsReportsAPI extends ApiClient {
     });
   }
 
+  // eslint-disable-next-line class-methods-use-this
   sendSurvey({ accountId, conversationId }) {
-    return axios.post(`/api/v1/accounts/${accountId}/conversations/${conversationId}/nps_responses/send`);
+    return axios.post(
+      `/api/v1/accounts/${accountId}/conversations/${conversationId}/nps_responses/send`
+    );
   }
 
   download({ from, to, user_ids, inbox_id, status } = {}) {

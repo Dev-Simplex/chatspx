@@ -7,7 +7,7 @@ RSpec.describe BulkActionsJob do
     ids: Conversation.first(3).pluck(:display_id)
   }
 
-  subject(:job) { described_class.perform_later(account: account, params: params, user: agent) }
+  subject(:job) { described_class.perform_later(account_id: account.id, params: params, user_id: agent.id) }
 
   let(:account) { create(:account) }
   let!(:agent) { create(:user, account: account, role: :agent) }
@@ -23,7 +23,7 @@ RSpec.describe BulkActionsJob do
 
   it 'enqueues the job' do
     expect { job }.to have_enqueued_job(described_class)
-      .with(account: account, params: params, user: agent)
+      .with(account_id: account.id, params: params, user_id: agent.id)
       .on_queue('medium')
   end
 
@@ -38,12 +38,12 @@ RSpec.describe BulkActionsJob do
       params = {
         type: 'Conversation',
         fields: { status: 'snoozed', assignee_id: agent.id },
-        ids: Conversation.first(3).pluck(:display_id)
+        ids: [conversation_1, conversation_2, conversation_3].map(&:display_id)
       }
 
-      expect(Conversation.first.status).to eq('open')
+      expect(conversation_1.status).to eq('open')
 
-      described_class.perform_now(account: account, params: params, user: agent)
+      described_class.perform_now(account_id: account.id, params: params, user_id: agent.id)
 
       expect(conversation_1.reload.status).to eq('snoozed')
       expect(conversation_2.reload.status).to eq('snoozed')
@@ -54,30 +54,30 @@ RSpec.describe BulkActionsJob do
       params = {
         type: 'Conversation',
         fields: { status: 'snoozed', assignee_id: agent.id },
-        ids: Conversation.first(3).pluck(:display_id)
+        ids: [conversation_1, conversation_2, conversation_3].map(&:display_id)
       }
 
-      expect(Conversation.first.assignee_id).to be_nil
+      expect(conversation_1.assignee_id).to be_nil
 
-      described_class.perform_now(account: account, params: params, user: agent)
+      described_class.perform_now(account_id: account.id, params: params, user_id: agent.id)
 
-      expect(Conversation.first.assignee_id).to eq(agent.id)
-      expect(Conversation.second.assignee_id).to eq(agent.id)
-      expect(Conversation.third.assignee_id).to eq(agent.id)
+      expect(conversation_1.reload.assignee_id).to eq(agent.id)
+      expect(conversation_2.reload.assignee_id).to eq(agent.id)
+      expect(conversation_3.reload.assignee_id).to eq(agent.id)
     end
 
     it 'bulk updates the snoozed_until' do
       params = {
         type: 'Conversation',
         fields: { status: 'snoozed', snoozed_until: Time.zone.now },
-        ids: Conversation.first(3).pluck(:display_id)
+        ids: [conversation_1, conversation_2, conversation_3].map(&:display_id)
       }
 
-      expect(Conversation.first.snoozed_until).to be_nil
+      expect(conversation_1.snoozed_until).to be_nil
 
-      described_class.perform_now(account: account, params: params, user: agent)
+      described_class.perform_now(account_id: account.id, params: params, user_id: agent.id)
 
-      expect(Conversation.first.snoozed_until).to be_present
+      expect(conversation_1.reload.snoozed_until).to be_present
       expect(Conversation.second.snoozed_until).to be_present
       expect(Conversation.third.snoozed_until).to be_present
     end

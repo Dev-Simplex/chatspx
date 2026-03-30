@@ -110,16 +110,19 @@ class Conversation < ApplicationRecord
   belongs_to :campaign, optional: true
 
   has_many :mentions, dependent: :destroy_async
-  has_many :messages, ->(conversation) { conversation.team_id.nil? ? where(team_id: nil) : where(team_id: conversation.team_id) }, dependent: :destroy_async, autosave: true
+  has_many :messages, lambda { |conversation| # rubocop:disable Rails/InverseOf
+    conversation.team_id.nil? ? where(team_id: nil) : where(team_id: conversation.team_id)
+  }, dependent: :destroy_async, autosave: true
   has_many :all_messages, class_name: 'Message', dependent: :destroy_async, autosave: true
   has_one :csat_survey_response, dependent: :destroy_async
   has_many :nps_responses, dependent: :destroy_async
-  has_one :nps_response, -> { order(created_at: :desc) }, class_name: 'NpsResponse'
+  has_one :nps_response, -> { order(created_at: :desc) }, class_name: 'NpsResponse', # rubocop:disable Rails/HasManyOrHasOneDependent
+                                                          inverse_of: :conversation
   has_many :conversation_participants, dependent: :destroy_async
   has_many :notifications, as: :primary_actor, dependent: :destroy_async
   has_many :attachments, through: :messages
   has_many :reporting_events, dependent: :destroy_async
-  has_many :funnel_items, dependent: :destroy_async
+  has_many :funnel_items, dependent: :destroy
   has_many :scheduled_messages, dependent: :destroy_async
 
   before_save :ensure_snooze_until_reset
@@ -181,12 +184,12 @@ class Conversation < ApplicationRecord
   end
 
   def unread_incoming_messages
-    unread_messages.where(account_id: account_id).incoming.last(10)
+    unread_messages.incoming.last(10)
   end
 
   def memoized_unread_count
     @memoized_unread_count ||= begin
-      base = messages.where(account_id: account_id).incoming
+      base = messages.incoming
       agent_last_seen_at.present? ? base.where('created_at > ?', agent_last_seen_at).count : base.count
     end
   end
@@ -234,7 +237,7 @@ class Conversation < ApplicationRecord
   def mark_as_unread!
     last_incoming_message = messages.incoming.last
     last_seen_at = last_incoming_message.present? ? (last_incoming_message.created_at - 1.second) : nil
-    update_columns(agent_last_seen_at: last_seen_at, assignee_last_seen_at: last_seen_at)
+    update_columns(agent_last_seen_at: last_seen_at, assignee_last_seen_at: last_seen_at) # rubocop:disable Rails/SkipsModelValidations
     dispatcher_dispatch(CONVERSATION_UPDATED, { 'agent_last_seen_at' => true, 'assignee_last_seen_at' => true })
   rescue StandardError => e
     Rails.logger.warn("Conversation#mark_as_unread! failed for conversation #{id}: #{e.message}")
@@ -249,12 +252,11 @@ class Conversation < ApplicationRecord
     notify_conversation_updation
     update_messages_team_id
   end
-  
-  # atualiza as mensagens que nao tem team_id e adiciona para o time atual
+
   def update_messages_team_id
     return unless saved_change_to_team_id?
-    
-    all_messages.update_all(team_id: team_id)
+
+    Conversations::UpdateMessagesTeamIdJob.perform_later(id, team_id)
   end
 
   def handle_resolved_status_change
@@ -279,7 +281,7 @@ class Conversation < ApplicationRecord
   end
 
   def reset_agent_bot_when_assignee_present
-    return unless assignee_id.present?
+    return if assignee_id.blank?
 
     self.assignee_agent_bot_id = nil if assignee_agent_bot_id.present?
   end
@@ -312,6 +314,10 @@ class Conversation < ApplicationRecord
 
   def notify_conversation_updation
     return unless previous_changes.keys.present? && allowed_keys?
+    # Skip generic CONVERSATION_UPDATED only for status changes (which have dedicated events:
+    # CONVERSATION_OPENED, CONVERSATION_RESOLVED, CONVERSATION_STATUS_CHANGED).
+    # Assignee/team changes still need CONVERSATION_UPDATED for automation rules.
+    return if saved_change_to_status?
 
     dispatch_conversation_updated_event(previous_changes)
   end
@@ -332,9 +338,9 @@ class Conversation < ApplicationRecord
     # Display id is set via a trigger in the database
     # So we need to specifically fetch it after the record is created
     # We can't use reload because it will clear the previous changes, which we need for the dispatcher
-    obj_from_db = self.class.find(id)
-    self[:display_id] = obj_from_db[:display_id]
-    self[:uuid] = obj_from_db[:uuid]
+    attrs = self.class.where(id: id).pick(:display_id, :uuid)
+    self[:display_id] = attrs[0]
+    self[:uuid] = attrs[1]
   end
 
   def notify_status_change
@@ -377,24 +383,10 @@ class Conversation < ApplicationRecord
     self['additional_attributes']['referer'] = nil unless url_valid?(additional_attributes['referer'])
   end
 
-  def add_to_appropriate_funnel
-    funnels = []
+  def add_to_appropriate_funnel # rubocop:disable Metrics/AbcSize
+    funnels = Kanban::FunnelLookupService.new(account_id: account_id, inbox_id: inbox_id, team_id: team_id).perform
 
-    if team_id.present?
-      team_funnel = Funnel.where(team_id: team_id, account_id: account_id)
-                          .find { |f| f.allows_inbox?(inbox_id) }
-      funnels << team_funnel if team_funnel
-
-      default_funnel = Funnel.where(account_id: account_id, team_id: nil)
-                             .find { |f| f.allows_inbox?(inbox_id) }
-      funnels << default_funnel if default_funnel
-    else
-      default_funnel = Funnel.where(account_id: account_id, team_id: nil)
-                             .find { |f| f.allows_inbox?(inbox_id) }
-      funnels << default_funnel if default_funnel
-    end
-
-    funnels.compact.uniq.each do |funnel|
+    funnels.each do |funnel|
       target_stage = if status == 'open'
                        funnel.funnel_stages.find_by(automation_type: 'open')
                      elsif status == 'resolved'
@@ -405,15 +397,12 @@ class Conversation < ApplicationRecord
 
       next unless target_stage
 
-      FunnelItem.find_or_create_by(
-        funnel_id: funnel.id,
-        conversation_id: id
-      ) do |item|
+      FunnelItem.find_or_create_by(funnel_id: funnel.id, conversation_id: id) do |item|
         item.funnel_stage_id = target_stage.id
       end
     end
   rescue StandardError => e
-    Rails.logger.error "Erro ao adicionar conversa #{id} ao funil: #{e.message}"
+    Rails.logger.error "Error adding conversation #{id} to funnel: #{e.message}"
     Rails.logger.error e.backtrace.join("\n")
   end
 

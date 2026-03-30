@@ -437,6 +437,16 @@ pt_BR:
     seconds:
       one: '%{count} segundo'
       other: '%{count} segundos'
+  kanban:
+    stages:
+      general: 'Geral'
+      open: 'Abertos'
+      in_progress: 'Em Andamento'
+      resolved: 'Resolvidos'
+  scheduled_messages:
+    errors:
+      failed_to_create: 'Falha ao criar mensagem'
+      only_pending_allowed: 'Apenas mensagens pendentes podem ser alteradas ou canceladas'
   automation:
     system_name: 'Sistema de Automação'
   crm:

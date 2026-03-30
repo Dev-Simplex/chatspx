@@ -36,22 +36,6 @@ export const getters = {
     return $state.uiFlags;
   },
 
-  getCurrentUserAvailability($state, $getters) {
-    const { accounts = [] } = $state.currentUser;
-    const [currentAccount = {}] = accounts.filter(
-      account => account.id === $getters.getCurrentAccountId
-    );
-    return currentAccount.availability;
-  },
-
-  getCurrentUserAutoOffline($state, $getters) {
-    const { accounts = [] } = $state.currentUser;
-    const [currentAccount = {}] = accounts.filter(
-      account => account.id === $getters.getCurrentAccountId
-    );
-    return currentAccount.auto_offline;
-  },
-
   getCurrentAccountId(_, __, rootState) {
     if (rootState.route.params && rootState.route.params.accountId) {
       return Number(rootState.route.params.accountId);
@@ -59,20 +43,28 @@ export const getters = {
     return null;
   },
 
-  getCurrentRole($state, $getters) {
+  getCurrentAccount($state, $getters) {
     const { accounts = [] } = $state.currentUser;
-    const [currentAccount = {}] = accounts.filter(
-      account => account.id === $getters.getCurrentAccountId
+    return (
+      accounts.find(account => account.id === $getters.getCurrentAccountId) ||
+      {}
     );
-    return currentAccount.role;
   },
 
-  getCurrentCustomRoleId($state, $getters) {
-    const { accounts = [] } = $state.currentUser;
-    const [currentAccount = {}] = accounts.filter(
-      account => account.id === $getters.getCurrentAccountId
-    );
-    return currentAccount.custom_role_id;
+  getCurrentUserAvailability(_, $getters) {
+    return $getters.getCurrentAccount.availability;
+  },
+
+  getCurrentUserAutoOffline(_, $getters) {
+    return $getters.getCurrentAccount.auto_offline;
+  },
+
+  getCurrentRole(_, $getters) {
+    return $getters.getCurrentAccount.role;
+  },
+
+  getCurrentCustomRoleId(_, $getters) {
+    return $getters.getCurrentAccount.custom_role_id;
   },
 
   getCurrentUser($state) {
@@ -83,14 +75,6 @@ export const getters = {
     const { message_signature: messageSignature } = $state.currentUser;
 
     return messageSignature || '';
-  },
-
-  getCurrentAccount($state, $getters) {
-    const { accounts = [] } = $state.currentUser;
-    const [currentAccount = {}] = accounts.filter(
-      account => account.id === $getters.getCurrentAccountId
-    );
-    return currentAccount || {};
   },
 
   getUserAccounts($state) {

@@ -3,7 +3,7 @@ import MessagesView from '../MessagesView.vue';
 describe('MessagesView methods', () => {
   const { methods } = MessagesView;
 
-  it('uses optimized pagination params and restores scroll anchor', async () => {
+  it('fetches previous messages when scrollTop is below threshold', async () => {
     const conversationPanel = {
       scrollHeight: 1000,
       scrollTop: 180,
@@ -20,29 +20,23 @@ describe('MessagesView methods', () => {
       },
       listLoadingStatus: false,
       isLoadingPrevious: false,
-      optimizedMessageScrollLoading: true,
-      inFlightBeforeCursor: null,
       conversationPanel,
       heightBeforeLoad: 0,
       scrollTopBeforeLoad: 0,
       $store: { dispatch },
-      captureScrollSnapshot: methods.captureScrollSnapshot,
+      setScrollParams: methods.setScrollParams,
     };
 
-    await methods.fetchPreviousMessages.call(vm, { forceLoad: true });
+    await methods.fetchPreviousMessages.call(vm, 50);
 
     expect(dispatch).toHaveBeenCalledWith('fetchPreviousMessages', {
       conversationId: 45,
       before: 321,
-      limit: 40,
-      includeMeta: false,
     });
-    expect(conversationPanel.scrollTop).toBe(360);
     expect(vm.isLoadingPrevious).toBe(false);
-    expect(vm.inFlightBeforeCursor).toBeNull();
   });
 
-  it('dedupes in-flight requests for the same before cursor', async () => {
+  it('does not fetch when scrollTop is above threshold', async () => {
     const dispatch = vi.fn();
     const vm = {
       currentChat: {
@@ -52,19 +46,19 @@ describe('MessagesView methods', () => {
       },
       listLoadingStatus: false,
       isLoadingPrevious: false,
-      optimizedMessageScrollLoading: true,
-      inFlightBeforeCursor: 321,
-      conversationPanel: { scrollHeight: 1000, scrollTop: 20 },
+      conversationPanel: { scrollHeight: 1000, scrollTop: 200 },
+      heightBeforeLoad: 0,
+      scrollTopBeforeLoad: 0,
       $store: { dispatch },
-      captureScrollSnapshot: methods.captureScrollSnapshot,
+      setScrollParams: methods.setScrollParams,
     };
 
-    await methods.fetchPreviousMessages.call(vm, { forceLoad: true });
+    await methods.fetchPreviousMessages.call(vm, 300);
 
     expect(dispatch).not.toHaveBeenCalled();
   });
 
-  it('keeps legacy scroll threshold behavior when optimization flag is off', async () => {
+  it('does not fetch when already loading previous messages', async () => {
     const dispatch = vi.fn();
     const vm = {
       currentChat: {
@@ -73,23 +67,15 @@ describe('MessagesView methods', () => {
         messages: [{ id: 120 }],
       },
       listLoadingStatus: false,
-      isLoadingPrevious: false,
-      optimizedMessageScrollLoading: false,
-      inFlightBeforeCursor: null,
-      conversationPanel: { scrollHeight: 800, scrollTop: 120 },
+      isLoadingPrevious: true,
+      conversationPanel: { scrollHeight: 800, scrollTop: 10 },
+      heightBeforeLoad: 0,
+      scrollTopBeforeLoad: 0,
       $store: { dispatch },
-      captureScrollSnapshot: methods.captureScrollSnapshot,
+      setScrollParams: methods.setScrollParams,
     };
 
-    await methods.fetchPreviousMessages.call(vm, { scrollTop: 300 });
+    await methods.fetchPreviousMessages.call(vm, 10);
     expect(dispatch).not.toHaveBeenCalled();
-
-    dispatch.mockResolvedValue({});
-    await methods.fetchPreviousMessages.call(vm, { scrollTop: 80 });
-    expect(dispatch).toHaveBeenCalledWith('fetchPreviousMessages', {
-      conversationId: 77,
-      before: 120,
-      includeMeta: true,
-    });
   });
 });

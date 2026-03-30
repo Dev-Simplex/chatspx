@@ -12,8 +12,8 @@ RSpec.describe DeleteObjectJob, type: :job do
       end
 
       it 'enqueues on the low queue' do
-        expect { described_class.perform_later(inbox) }
-          .to have_enqueued_job(described_class).with(inbox).on_queue('low')
+        expect { described_class.perform_later('Inbox', inbox.id) }
+          .to have_enqueued_job(described_class).with('Inbox', inbox.id).on_queue('low')
       end
 
       it 'pre-deletes heavy associations and then destroys the object' do
@@ -22,7 +22,7 @@ RSpec.describe DeleteObjectJob, type: :job do
         contact_ids = inbox.contacts.pluck(:id)
         re_ids = inbox.reporting_events.pluck(:id)
 
-        described_class.perform_now(inbox)
+        described_class.perform_now('Inbox', inbox.id)
 
         # Reload associations to ensure database state is current
         expect(Conversation.where(id: conv_ids).reload).to be_empty
@@ -52,7 +52,7 @@ RSpec.describe DeleteObjectJob, type: :job do
         inbox_ids = account.inboxes.pluck(:id)
         re_ids = account.reporting_events.pluck(:id)
 
-        described_class.perform_now(account)
+        described_class.perform_now('Account', account.id)
 
         # Reload associations to ensure database state is current
         expect(Conversation.where(id: conv_ids).reload).to be_empty
@@ -67,7 +67,7 @@ RSpec.describe DeleteObjectJob, type: :job do
       it 'just destroys the object' do
         label = create(:label)
 
-        described_class.perform_now(label)
+        described_class.perform_now('Label', label.id)
 
         expect { label.reload }.to raise_error(ActiveRecord::RecordNotFound)
       end

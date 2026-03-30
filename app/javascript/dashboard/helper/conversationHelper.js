@@ -22,23 +22,13 @@ const getLastNonActivityMessage = (messageInStore, messageFromAPI) => {
  * @returns {Array} An array of messages without duplicates.
  */
 export const filterDuplicateSourceMessages = (messages = []) => {
-  const messagesWithoutDuplicates = [];
-  // We cannot use Map or any short hand method as it returns the last message with the duplicate ID
-  // We should return the message with smaller id when there is a duplicate
-  messages.forEach(m1 => {
-    if (m1.source_id) {
-      const index = messagesWithoutDuplicates.findIndex(
-        m2 => m1.source_id === m2.source_id
-      );
-
-      if (index < 0) {
-        messagesWithoutDuplicates.push(m1);
-      }
-    } else {
-      messagesWithoutDuplicates.push(m1);
-    }
+  const seen = new Set();
+  return messages.filter(m => {
+    if (!m.source_id) return true;
+    if (seen.has(m.source_id)) return false;
+    seen.add(m.source_id);
+    return true;
   });
-  return messagesWithoutDuplicates;
 };
 
 /**
@@ -47,10 +37,15 @@ export const filterDuplicateSourceMessages = (messages = []) => {
  * @returns {Object} The last message of the conversation.
  */
 export const getLastMessage = m => {
-  if (!m || !m.messages || !Array.isArray(m.messages) || m.messages.length === 0) {
-    return null;
+  if (!m) return null;
+
+  const messages = Array.isArray(m.messages) ? m.messages : [];
+
+  if (messages.length === 0) {
+    return m.last_non_activity_message || null;
   }
-  const lastMessageIncludingActivity = m.messages[m.messages.length - 1];
+
+  const lastMessageIncludingActivity = messages[messages.length - 1];
 
   const nonActivityMessages = m.messages.filter(
     message => message.message_type !== 2

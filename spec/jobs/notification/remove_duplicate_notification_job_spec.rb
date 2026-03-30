@@ -7,7 +7,7 @@ RSpec.describe Notification::RemoveDuplicateNotificationJob do
   it 'enqueues the job' do
     duplicate_notification = create(:notification, user: user, notification_type: 'conversation_creation', primary_actor: conversation)
     expect do
-      described_class.perform_later(duplicate_notification)
+      described_class.perform_later(duplicate_notification.id)
     end.to have_enqueued_job(described_class)
       .on_queue('default')
   end
@@ -16,7 +16,7 @@ RSpec.describe Notification::RemoveDuplicateNotificationJob do
     create(:notification, user: user, notification_type: 'conversation_creation', primary_actor: conversation)
     duplicate_notification = create(:notification, user: user, notification_type: 'conversation_creation', primary_actor: conversation)
 
-    described_class.perform_now(duplicate_notification)
+    described_class.perform_now(duplicate_notification.id)
     expect(Notification.count).to eq(1)
   end
 end

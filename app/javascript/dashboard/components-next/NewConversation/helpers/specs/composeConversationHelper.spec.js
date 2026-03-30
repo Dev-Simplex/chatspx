@@ -596,6 +596,7 @@ describe('composeConversationHelper', () => {
         expect(ContactAPI.create).toHaveBeenCalledWith({
           name: '919999999999',
           phone_number: '+919999999999',
+          validate_whatsapp: true,
         });
       });
     });

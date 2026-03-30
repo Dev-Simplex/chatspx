@@ -148,7 +148,7 @@ class Message < ApplicationRecord
     @token ||= inbox.channel.try(:page_access_token)
   end
 
-  def push_event_data
+  def push_event_data # rubocop:disable Metrics/AbcSize, Metrics/CyclomaticComplexity, Metrics/PerceivedComplexity
     data = attributes.symbolize_keys.merge(
       created_at: created_at.to_i,
       message_type: message_type_before_type_cast,
@@ -288,7 +288,8 @@ class Message < ApplicationRecord
     return if conversation.blank?
 
     # there are cases where automations can result in message loops, we need to prevent such cases.
-    if conversation.messages.where('created_at >= ?', 1.minute.ago).count >= Limits.conversation_message_per_minute_limit
+    flood_limit = Limits.conversation_message_per_minute_limit
+    if conversation.messages.where('created_at >= ?', 1.minute.ago).limit(flood_limit + 1).count >= flood_limit
       Rails.logger.error "Too many message: Account Id - #{account_id} : Conversation id - #{conversation_id}"
       errors.add(:base, 'Too many messages')
     end
@@ -389,7 +390,7 @@ class Message < ApplicationRecord
 
   def trigger_assignee_first_reply
     return unless human_response? && !private?
-    return unless conversation.assignee_last_changed_at.present?
+    return if conversation.assignee_last_changed_at.blank?
     return unless conversation.assignee_id == sender_id
 
     Rails.configuration.dispatcher.dispatch(
@@ -408,7 +409,7 @@ class Message < ApplicationRecord
     attachments.blank? ? ::SendReplyJob.perform_later(id) : ::SendReplyJob.set(wait: 2.seconds).perform_later(id)
   end
 
-  def reopen_conversation
+  def reopen_conversation # rubocop:disable Metrics/CyclomaticComplexity
     return if conversation.muted?
     return if conversation.contact&.blocked?
     return unless incoming?
@@ -450,18 +451,20 @@ class Message < ApplicationRecord
   end
 
   def set_team_id_from_conversation
-    return unless conversation.present?
+    return if conversation.blank?
 
-    self.team_id = conversation.reload.team_id
+    self.team_id = Conversation.where(id: conversation_id).pick(:team_id)
   end
 
-  # Delega ao serviço NPS: evita reabertura quando a mensagem é resposta a pesquisa NPS ativa.
-  # Regras e nps_config (expiration_hours etc.) aplicadas em NpsSurveys::ReopenGuard.
+  # Delegates to the NPS service: prevents reopening when the message is a response to an active NPS survey.
+  # Rules and nps_config (expiration_hours etc.) are applied in NpsSurveys::ReopenGuard.
   def response_to_active_nps_survey?
     NpsSurveys::ReopenGuard.new(message: self).prevent_reopen?
   end
 
   def reindex_for_search
+    return unless respond_to?(:reindex)
+
     reindex(mode: :async)
   end
 end

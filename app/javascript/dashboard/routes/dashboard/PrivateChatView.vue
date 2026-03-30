@@ -55,65 +55,6 @@ export default {
       });
     });
 
-    const loadMessages = async () => {
-      if (!token.value || !accountId.value) return;
-      loading.value = true;
-      error.value = '';
-      try {
-        const { data } = await privateChatApi.getMessages(accountId.value, token.value);
-        messages.value = data.payload || [];
-      } catch (e) {
-        if (e.response && e.response.status === 401) {
-          token.value = '';
-          conversationId.value = '';
-          sessionStorage.removeItem(STORAGE_TOKEN_KEY);
-          sessionStorage.removeItem(STORAGE_CONVERSATION_ID_KEY);
-          if (cableSubscription) {
-            cableSubscription.unsubscribe();
-            cableSubscription = null;
-          }
-        } else if (e.response && e.response.status === 404) {
-          token.value = '';
-          conversationId.value = '';
-          sessionStorage.removeItem(STORAGE_TOKEN_KEY);
-          sessionStorage.removeItem(STORAGE_CONVERSATION_ID_KEY);
-          if (cableSubscription) {
-            cableSubscription.unsubscribe();
-            cableSubscription = null;
-          }
-          error.value = '';
-        } else {
-          error.value = e.response?.data?.error || 'Erro ao carregar mensagens';
-        }
-      } finally {
-        loading.value = false;
-      }
-    };
-
-    const unlock = async () => {
-      if (!password.value.trim()) return;
-      loading.value = true;
-      error.value = '';
-      try {
-        const { data } = await privateChatApi.unlock(
-          accountId.value,
-          (password.value || '').trim()
-        );
-        token.value = data.token;
-        conversationId.value = String(data.conversation_id || '');
-        sessionStorage.setItem(STORAGE_TOKEN_KEY, data.token);
-        sessionStorage.setItem(STORAGE_CONVERSATION_ID_KEY, conversationId.value);
-        password.value = '';
-        await loadMessages();
-        subscribeCable();
-      } catch (e) {
-        error.value =
-          e.response?.data?.error || 'Senha inválida. Tente novamente.';
-      } finally {
-        loading.value = false;
-      }
-    };
-
     const subscribeCable = () => {
       if (!token.value || cableSubscription) return;
       const { websocketURL = '' } = window.chatwootConfig || {};
@@ -137,6 +78,72 @@ export default {
       );
     };
 
+    const loadMessages = async () => {
+      if (!token.value || !accountId.value) return;
+      loading.value = true;
+      error.value = '';
+      try {
+        const { data } = await privateChatApi.getMessages(
+          accountId.value,
+          token.value
+        );
+        messages.value = data.payload || [];
+      } catch (e) {
+        if (e.response && e.response.status === 401) {
+          token.value = '';
+          conversationId.value = '';
+          sessionStorage.removeItem(STORAGE_TOKEN_KEY);
+          sessionStorage.removeItem(STORAGE_CONVERSATION_ID_KEY);
+          if (cableSubscription) {
+            cableSubscription.unsubscribe();
+            cableSubscription = null;
+          }
+        } else if (e.response && e.response.status === 404) {
+          token.value = '';
+          conversationId.value = '';
+          sessionStorage.removeItem(STORAGE_TOKEN_KEY);
+          sessionStorage.removeItem(STORAGE_CONVERSATION_ID_KEY);
+          if (cableSubscription) {
+            cableSubscription.unsubscribe();
+            cableSubscription = null;
+          }
+          error.value = '';
+        } else {
+          error.value =
+            e.response?.data?.error || t('PRIVATE_CHAT.ERRORS.LOAD_MESSAGES');
+        }
+      } finally {
+        loading.value = false;
+      }
+    };
+
+    const unlock = async () => {
+      if (!password.value.trim()) return;
+      loading.value = true;
+      error.value = '';
+      try {
+        const { data } = await privateChatApi.unlock(
+          accountId.value,
+          (password.value || '').trim()
+        );
+        token.value = data.token;
+        conversationId.value = String(data.conversation_id || '');
+        sessionStorage.setItem(STORAGE_TOKEN_KEY, data.token);
+        sessionStorage.setItem(
+          STORAGE_CONVERSATION_ID_KEY,
+          conversationId.value
+        );
+        password.value = '';
+        await loadMessages();
+        subscribeCable();
+      } catch (e) {
+        error.value =
+          e.response?.data?.error || t('PRIVATE_CHAT.ERRORS.INVALID_PASSWORD');
+      } finally {
+        loading.value = false;
+      }
+    };
+
     const clearConversation = async () => {
       if (!token.value || !accountId.value || clearing.value) return;
       clearing.value = true;
@@ -150,7 +157,9 @@ export default {
           sessionStorage.removeItem(STORAGE_TOKEN_KEY);
           sessionStorage.removeItem(STORAGE_CONVERSATION_ID_KEY);
         } else {
-          error.value = e.response?.data?.error || 'Erro ao limpar conversa';
+          error.value =
+            e.response?.data?.error ||
+            t('PRIVATE_CHAT.ERRORS.CLEAR_CONVERSATION');
         }
       } finally {
         clearing.value = false;
@@ -186,7 +195,8 @@ export default {
           sessionStorage.removeItem(STORAGE_TOKEN_KEY);
           sessionStorage.removeItem(STORAGE_CONVERSATION_ID_KEY);
         }
-        error.value = e.response?.data?.error || 'Erro ao enviar';
+        error.value =
+          e.response?.data?.error || t('PRIVATE_CHAT.ERRORS.SEND_MESSAGE');
       } finally {
         sending.value = false;
       }
@@ -252,19 +262,16 @@ export default {
     class="conversation-details-wrap flex flex-col min-w-0 w-full bg-n-background relative h-full"
   >
     <template v-if="!isUnlocked">
-      <div
-        class="flex flex-1 items-center justify-center p-4"
-        style="min-height: 20rem"
-      >
+      <div class="flex flex-1 items-center justify-center p-4 min-h-[20rem]">
         <div class="w-full max-w-sm rounded-lg border border-n-200 bg-n-50 p-4">
           <label class="mb-2 block text-sm font-medium text-n-700">
-            Acesso
+            {{ $t('PRIVATE_CHAT.ACCESS') }}
           </label>
           <input
             v-model="password"
             type="password"
             class="w-full rounded border border-n-200 px-3 py-2 text-n-900"
-            placeholder="Senha"
+            :placeholder="$t('PRIVATE_CHAT.PASSWORD_PLACEHOLDER')"
             autocomplete="off"
             @keydown.enter="unlock"
           />
@@ -275,7 +282,9 @@ export default {
             :disabled="loading"
             @click="unlock"
           >
-            {{ loading ? 'Entrando...' : 'Entrar' }}
+            {{
+              loading ? $t('PRIVATE_CHAT.LOGGING_IN') : $t('PRIVATE_CHAT.LOGIN')
+            }}
           </button>
         </div>
       </div>
@@ -284,9 +293,13 @@ export default {
       <header
         class="flex flex-col gap-3 items-center justify-between flex-1 w-full min-w-0 xl:flex-row px-3 py-2 border-b bg-n-background border-n-weak h-24 xl:h-12 shrink-0"
       >
-        <div class="flex items-center justify-start w-full xl:w-auto max-w-full min-w-0 xl:flex-1">
-          <span class="text-sm font-medium truncate leading-tight text-n-slate-12">
-            Notas
+        <div
+          class="flex items-center justify-start w-full xl:w-auto max-w-full min-w-0 xl:flex-1"
+        >
+          <span
+            class="text-sm font-medium truncate leading-tight text-n-slate-12"
+          >
+            {{ $t('PRIVATE_CHAT.NOTES') }}
           </span>
         </div>
         <div
@@ -311,12 +324,14 @@ export default {
           />
         </div>
       </header>
-      <div class="flex flex-col justify-between flex-grow h-full min-w-0 m-0 min-h-0">
+      <div
+        class="flex flex-col justify-between flex-grow h-full min-w-0 m-0 min-h-0"
+      >
         <div
           v-if="loading && messages.length === 0"
           class="min-h-[4rem] flex flex-shrink-0 flex-grow-0 items-center justify-center max-w-full p-4"
         >
-          <span class="text-n-600">Carregando...</span>
+          <span class="text-n-600">{{ $t('PRIVATE_CHAT.LOADING') }}</span>
         </div>
         <MessageList
           v-else
@@ -327,12 +342,14 @@ export default {
         <div
           class="flex relative flex-col bg-n-background -mt-px border-t border-n-weak"
         >
-          <div class="relative z-10 flex gap-2 py-1 px-3 min-h-[2.75rem] items-center mx-2 mb-2 rounded-3xl bg-[#e9edef] dark:bg-[#2d2d2d]">
+          <div
+            class="relative z-10 flex gap-2 py-1 px-3 min-h-[2.75rem] items-center mx-2 mb-2 rounded-3xl bg-[#e9edef] dark:bg-[#2d2d2d]"
+          >
             <input
               v-model="messageInput"
               type="text"
               class="min-w-0 flex-1 rounded border-0 bg-transparent px-2 py-2 text-n-900 dark:text-n-slate-12 focus:outline-none focus:ring-0 text-sm"
-              placeholder="Digite uma mensagem..."
+              :placeholder="$t('PRIVATE_CHAT.MESSAGE_PLACEHOLDER')"
               :disabled="sending"
               @keydown.enter.prevent="sendMessage"
             />
@@ -342,12 +359,14 @@ export default {
               :disabled="sending || !messageInput?.trim()"
               @click="sendMessage"
             >
-              Enviar
+              {{ $t('PRIVATE_CHAT.SEND') }}
             </button>
           </div>
         </div>
       </div>
-      <p v-if="error" class="px-4 py-2 text-sm text-r-500 shrink-0">{{ error }}</p>
+      <p v-if="error" class="px-4 py-2 text-sm text-r-500 shrink-0">
+        {{ error }}
+      </p>
       <woot-confirm-modal
         ref="clearConfirmRef"
         :title="$t('NOTESPAD.CLEAR_CONVERSATION')"

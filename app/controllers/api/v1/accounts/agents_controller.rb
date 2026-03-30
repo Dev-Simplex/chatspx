@@ -84,7 +84,7 @@ class Api::V1::Accounts::AgentsController < Api::V1::Accounts::BaseController
   end
 
   def agents
-    @agents ||= Current.account.users.order_by_full_name.includes(:account_users, { avatar_attachment: [:blob] })
+    @agents ||= Current.account.users.order_by_full_name.includes(:account_users, :teams, { avatar_attachment: [:blob] })
   end
 
   def validate_limit_for_bulk_create
@@ -106,7 +106,7 @@ class Api::V1::Accounts::AgentsController < Api::V1::Accounts::BaseController
   end
 
   def delete_user_record(agent)
-    DeleteObjectJob.perform_later(agent) if agent.reload.account_users.blank?
+    DeleteObjectJob.perform_later(agent.class.name, agent.id) if agent.reload.account_users.blank?
   end
 end
 

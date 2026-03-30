@@ -41,7 +41,7 @@
 
 # rubocop:enable Layout/LineLength
 
-class Contact < ApplicationRecord
+class Contact < ApplicationRecord # rubocop:disable Metrics/ClassLength
   include Avatarable
   include AvailabilityStatusable
   include Labelable
@@ -200,7 +200,7 @@ class Contact < ApplicationRecord
   def ip_lookup
     return unless account.feature_enabled?('ip_lookup')
 
-    ContactIpLookupJob.perform_later(self)
+    ContactIpLookupJob.perform_later(id)
   end
 
   def phone_number_format

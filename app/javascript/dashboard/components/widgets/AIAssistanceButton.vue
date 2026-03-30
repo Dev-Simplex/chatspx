@@ -88,6 +88,10 @@ export default {
     this.initializeMessage(this.draftMessage);
   },
 
+  unmounted() {
+    emitter.off(CMD_AI_ASSIST, this.onAIAssist);
+  },
+
   methods: {
     hideAIAssistanceModal() {
       this.recordAnalytics('DISMISS_AI_SUGGESTION', {

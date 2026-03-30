@@ -881,8 +881,13 @@
     "TITLE": "Conexões WhatsApp",
     "DESCRIPTION": "Gerencie suas conexões WhatsApp e monitore em tempo real",
     "ADD_CONNECTION": "Adicionar Conexão",
+    "ADD_FIRST_CONNECTION": "Adicionar Primeira Conexão",
     "NO_CONNECTIONS": "Nenhuma conexão encontrada",
     "NO_CONNECTIONS_DESCRIPTION": "Adicione sua primeira conexão para começar a atender pelo CHAT - SPX",
+    "AUTO_UPDATE": "Atualização Automática",
+    "UPDATED_AT": "Atualizado às {time}",
+    "REFRESH": "Atualizar",
+    "NOT_CONNECTED": "Não conectado",
     "TABLE": {
       "SESSION_NAME": "Nome",
       "STATUS": "Status",
@@ -909,27 +914,51 @@
       "TITLE": "Adicionar Conexão WhatsApp",
       "DESCRIPTION": "Crie uma nova conexão WhatsApp para atendimento",
       "CONNECTION_NAME": "Nome da Conexão",
+      "CONNECTION_NAME_REQUIRED": "obrigatório",
       "CONNECTION_NAME_PLACEHOLDER": "ex: Atendimento Principal",
       "CONNECTION_NAME_HELP": "Nome que será usado para identificar esta conexão",
       "CANCEL": "Cancelar",
       "CREATE": "Criar Conexão",
+      "CREATING": "Criando...",
+      "INFO_TITLE": "O que acontece após criar?",
+      "INFO_NEW_CONNECTION": "Uma nova conexão será criada",
+      "INFO_INBOX_LINKED": "Uma caixa de entrada será vinculada automaticamente",
+      "INFO_QR_CODE": "Um QR Code será exibido para você escanear com WhatsApp",
       "VALIDATION": {
         "CONNECTION_NAME_REQUIRED": "Nome da conexão é obrigatório"
       }
     },
     "QR_MODAL": {
-      "TITLE": "Escanear QR Code",
-      "DESCRIPTION": "Escaneie este QR code com seu WhatsApp para conectar",
-      "WAITING": "Aguardando conexão...",
-      "CONNECTED": "Conectado com sucesso!",
+      "TITLE_CONNECTED": "Conectado!",
+      "TITLE_SCAN": "Escanear QR Code",
+      "CONNECTED_TITLE": "Conectado com Sucesso!",
+      "CONNECTED_DESCRIPTION": "Seu WhatsApp foi vinculado à caixa de entrada",
+      "ELAPSED_TIME": "Tempo decorrido: {time}",
+      "LOADING": "Carregando QR Code...",
+      "ERROR_TITLE": "Erro ao Carregar QR Code",
       "ERROR": "Falha ao carregar QR code",
-      "RETRY": "Tentar novamente",
-      "CLOSE": "Fechar",
+      "RETRY": "Tentar Novamente",
       "FAILED_TITLE": "QR Code Expirado",
       "FAILED_MESSAGE": "O QR code expirou porque demorou muito para ser escaneado. Clique em \"Reiniciar\" para gerar um novo QR code.",
       "RESTARTING": "Reiniciando...",
       "RESTART": "Reiniciar",
-      "RESTART_ERROR": "Erro ao reiniciar conexão. Tente novamente."
+      "RESTART_ERROR": "Erro ao reiniciar conexão. Tente novamente.",
+      "HOW_TO_CONNECT": "Como Conectar:",
+      "STEP_1": "Abra o {whatsapp} no seu celular",
+      "STEP_1_WHATSAPP": "WhatsApp",
+      "STEP_2_PREFIX": "Toque em",
+      "STEP_2_MENU": "Menu (\u22ee)",
+      "STEP_2_OR": "ou",
+      "STEP_2_SETTINGS": "Configurações",
+      "STEP_3_PREFIX": "Toque em",
+      "STEP_3_LINKED_DEVICES": "Aparelhos conectados",
+      "STEP_3_AND_THEN": "e depois em",
+      "STEP_3_LINK_DEVICE": "Conectar um aparelho",
+      "STEP_4": "Aponte seu celular para {thisScreen} para escanear o QR Code",
+      "STEP_4_THIS_SCREEN": "esta tela",
+      "WAITING": "Aguardando conexão...",
+      "CANCEL": "Cancelar",
+      "DONE": "Concluir"
     },
     "MESSAGES": {
       "CREATE_SUCCESS": "Conexão criada com sucesso",
@@ -945,6 +974,22 @@
       "RESTART_ERROR": "Erro ao reiniciar conexão. Tente novamente.",
       "LOADING": "Carregando conexões...",
       "API_ERROR": "Não foi possível conectar ao serviço. Verifique sua configuração e tente novamente."
+    }
+  },
+  "PRIVATE_CHAT": {
+    "ACCESS": "Acesso",
+    "PASSWORD_PLACEHOLDER": "Senha",
+    "LOGGING_IN": "Entrando...",
+    "LOGIN": "Entrar",
+    "NOTES": "Notas",
+    "LOADING": "Carregando...",
+    "SEND": "Enviar",
+    "MESSAGE_PLACEHOLDER": "Digite uma mensagem...",
+    "ERRORS": {
+      "LOAD_MESSAGES": "Erro ao carregar mensagens",
+      "INVALID_PASSWORD": "Senha inválida. Tente novamente.",
+      "CLEAR_CONVERSATION": "Erro ao limpar conversa",
+      "SEND_MESSAGE": "Erro ao enviar"
     }
   }
 }

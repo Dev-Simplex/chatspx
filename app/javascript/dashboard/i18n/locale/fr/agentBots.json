@@ -42,7 +42,7 @@
       "TITLE": "Supprimer le bot",
       "CONFIRM": {
         "TITLE": "Confirmer la suppression",
-        "MESSAGE": "Êtes-vous sûr de vouloir supprimer {name} ?",
+        "MESSAGE": "Êtes-vous sûr de vouloir supprimer {name} ?",
         "YES": "Oui, supprimer",
         "NO": "Non, Conserver"
       },

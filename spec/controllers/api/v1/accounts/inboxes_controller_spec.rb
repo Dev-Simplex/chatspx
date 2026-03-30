@@ -1028,7 +1028,7 @@ RSpec.describe 'Inboxes API', type: :request do
     context 'when it is an authenticated administrator' do
       context 'with WhatsApp inbox' do
         it 'successfully initiates template sync' do
-          expect(Channels::Whatsapp::TemplatesSyncJob).to receive(:perform_later).with(whatsapp_channel)
+          expect(Channels::Whatsapp::TemplatesSyncJob).to receive(:perform_later).with(whatsapp_channel.id)
 
           post "/api/v1/accounts/#{account.id}/inboxes/#{whatsapp_inbox.id}/sync_templates",
                headers: admin.create_new_auth_token,

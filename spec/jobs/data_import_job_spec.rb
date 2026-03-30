@@ -1,30 +1,29 @@
 require 'rails_helper'
 
 RSpec.describe DataImportJob do
-  subject(:job) { described_class.perform_later(data_import) }
+  subject(:job) { described_class.perform_later(data_import.id) }
 
   let!(:data_import) { create(:data_import) }
 
   describe 'enqueueing the job' do
     it 'queues the job on the low priority queue' do
       expect { job }.to have_enqueued_job(described_class)
-        .with(data_import)
+        .with(data_import.id)
         .on_queue('low')
     end
   end
 
   describe 'retrying the job' do
     context 'when ActiveStorage::FileNotFoundError is raised' do
-      let(:import_file_double) { instance_double(ActiveStorage::Blob) }
-
       before do
-        allow(data_import).to receive(:import_file).and_return(import_file_double)
+        import_file_double = instance_double(ActiveStorage::Blob)
+        allow_any_instance_of(DataImport).to receive(:import_file).and_return(import_file_double) # rubocop:disable RSpec/AnyInstance
         allow(import_file_double).to receive(:open).and_raise(ActiveStorage::FileNotFoundError)
       end
 
       it 'retries the job' do
         expect do
-          described_class.perform_now(data_import)
+          described_class.perform_now(data_import.id)
         end.to have_enqueued_job(described_class).at_least(1).times
       end
     end
@@ -35,7 +34,7 @@ RSpec.describe DataImportJob do
       it 'imports data into the account' do
         csv_length = CSV.parse(data_import.import_file.download, headers: true).length
 
-        described_class.perform_now(data_import)
+        described_class.perform_now(data_import.id)
         expect(data_import.account.contacts.count).to eq(csv_length)
         expect(data_import.reload.total_records).to eq(csv_length)
         expect(data_import.reload.processed_records).to eq(csv_length)
@@ -59,7 +58,7 @@ RSpec.describe DataImportJob do
         csv_data = CSV.parse(invalid_data_import.import_file.download, headers: true)
         csv_length = csv_data.length
 
-        described_class.perform_now(invalid_data_import)
+        described_class.perform_now(invalid_data_import.id)
         expect(invalid_data_import.account.contacts.count).to eq(csv_length - 1)
         expect(invalid_data_import.reload.total_records).to eq(csv_length)
         expect(invalid_data_import.reload.processed_records).to eq(csv_length)
@@ -72,7 +71,7 @@ RSpec.describe DataImportJob do
         csv_data = CSV.parse(data_import.import_file.download, headers: true)
         csv_length = csv_data.length
 
-        described_class.perform_now(data_import)
+        described_class.perform_now(data_import.id)
         expect(data_import.account.contacts.count).to eq(csv_length)
 
         expect(data_import.account.contacts.first.name).to eq('T 🏠 🔥 Test')
@@ -85,7 +84,7 @@ RSpec.describe DataImportJob do
         csv_data = CSV.parse(invalid_data_import.import_file.download, headers: true)
         csv_length = csv_data.length
 
-        described_class.perform_now(invalid_data_import)
+        described_class.perform_now(invalid_data_import.id)
         expect(invalid_data_import.account.contacts.count).to eq(csv_length)
 
         expect(invalid_data_import.account.contacts.first.name).to eq(csv_data[0]['name'].encode('UTF-8', 'binary', invalid: :replace,
@@ -112,7 +111,7 @@ RSpec.describe DataImportJob do
 
           csv_length = csv_data.length
 
-          described_class.perform_now(existing_data_import)
+          described_class.perform_now(existing_data_import.id)
           expect(existing_data_import.account.contacts.count).to eq(csv_length)
           contact = Contact.from_email(csv_data[0]['email'])
           expect(contact).to be_present
@@ -128,7 +127,7 @@ RSpec.describe DataImportJob do
           expect(contact.reload.email).to be_nil
           csv_length = csv_data.length
 
-          described_class.perform_now(existing_data_import)
+          described_class.perform_now(existing_data_import.id)
           expect(existing_data_import.account.contacts.count).to eq(csv_length)
 
           contact = Contact.find_by(phone_number: "+#{csv_data[0]['phone_number']}")
@@ -146,7 +145,8 @@ RSpec.describe DataImportJob do
 
           csv_length = csv_data.length
 
-          described_class.perform_now(existing_data_import)
+          described_class.perform_now(existing_data_import.id)
+          existing_data_import.reload
           expect(phone_contact.reload.email).to be_nil
           expect(email_contact.reload.phone_number).to be_nil
           expect(existing_data_import.total_records).to eq(csv_length)
@@ -164,10 +164,11 @@ RSpec.describe DataImportJob do
         import_file_double = instance_double(ActiveStorage::Blob)
         allow(data_import).to receive(:import_file).and_return(import_file_double)
         allow(import_file_double).to receive(:open).and_yield(StringIO.new(invalid_csv_content))
+        allow(DataImport).to receive(:find_by).with(id: data_import.id).and_return(data_import)
       end
 
       it 'does not import any data and handles the MalformedCSVError' do
-        expect { described_class.perform_now(data_import) }
+        expect { described_class.perform_now(data_import.id) }
           .to change { data_import.reload.status }.from('pending').to('failed')
       end
     end

@@ -2,7 +2,7 @@ class ActionService
   include EmailHelper
 
   def initialize(conversation)
-    @conversation = conversation.reload
+    @conversation = conversation
     @account = @conversation.account
   end
 

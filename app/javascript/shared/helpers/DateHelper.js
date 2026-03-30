@@ -14,7 +14,7 @@ export const formatDate = ({ date, todayText, yesterdayText }) => {
   const dateValue = new Date(date);
   if (isToday(dateValue)) return todayText;
   if (isYesterday(dateValue)) return yesterdayText;
-  
+
   // Formata a data em português brasileiro
   return format(dateValue, "d 'de' MMMM 'de' yyyy", { locale: ptBR });
 };

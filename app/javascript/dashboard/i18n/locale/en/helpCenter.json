@@ -839,7 +839,7 @@
       "STATUS": {
         "UPLOADED": "Ready",
         "PROCESSING": "Processing",
-        "PROCESSED": "Completed", 
+        "PROCESSED": "Completed",
         "FAILED": "Failed"
       }
     },

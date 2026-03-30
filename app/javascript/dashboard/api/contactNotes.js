@@ -1,28 +1,25 @@
+/* global axios */
 import ApiClient from './ApiClient';
 
 class ContactNotes extends ApiClient {
   constructor() {
     super('notes', { accountScoped: true });
-    this.contactId = null;
   }
 
-  get url() {
-    return `${this.baseUrl()}/contacts/${this.contactId}/notes`;
+  contactUrl(contactId) {
+    return `${this.baseUrl()}/contacts/${contactId}/notes`;
   }
 
   get(contactId) {
-    this.contactId = contactId;
-    return super.get();
+    return axios.get(this.contactUrl(contactId));
   }
 
   create(contactId, content) {
-    this.contactId = contactId;
-    return super.create({ content });
+    return axios.post(this.contactUrl(contactId), { content });
   }
 
   delete(contactId, id) {
-    this.contactId = contactId;
-    return super.delete(id);
+    return axios.delete(`${this.contactUrl(contactId)}/${id}`);
   }
 }
 

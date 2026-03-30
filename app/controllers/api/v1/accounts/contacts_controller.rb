@@ -1,4 +1,4 @@
-class Api::V1::Accounts::ContactsController < Api::V1::Accounts::BaseController
+class Api::V1::Accounts::ContactsController < Api::V1::Accounts::BaseController # rubocop:disable Metrics/ClassLength
   include Sift
 
   WAHA_VALIDATION_SESSION_NAME = ENV.fetch('WAHA_DEFAULT_SESSION', nil).freeze
@@ -64,7 +64,7 @@ class Api::V1::Accounts::ContactsController < Api::V1::Accounts::BaseController
 
   def export
     column_names = params['column_names']
-    filter_params = { :payload => params.permit!['payload'], :label => params.permit!['label'] }
+    filter_params = { payload: permitted_filter_params[:payload], label: permitted_filter_params[:label] }
     Account::ContactsExportJob.perform_later(Current.account.id, Current.user.id, column_names, filter_params)
     head :ok, message: I18n.t('errors.contacts.export.success')
   end
@@ -80,7 +80,7 @@ class Api::V1::Accounts::ContactsController < Api::V1::Accounts::BaseController
   def show; end
 
   def filter
-    result = ::Contacts::FilterService.new(Current.account, Current.user, params.permit!).perform
+    result = ::Contacts::FilterService.new(Current.account, Current.user, permitted_filter_params).perform
     contacts = result[:contacts]
     @contacts_count = result[:count]
     @contacts = fetch_contacts(contacts)
@@ -190,6 +190,10 @@ class Api::V1::Accounts::ContactsController < Api::V1::Accounts::BaseController
     ).perform
   end
 
+  def permitted_filter_params
+    params.permit(:label, payload: [:attribute_key, :filter_operator, :query_operator, :custom_attribute_type, { values: [] }])
+  end
+
   def permitted_params
     params.permit(
       :name, :identifier, :email, :phone_number, :avatar, :blocked, :avatar_url, :validate_whatsapp,
@@ -239,7 +243,12 @@ class Api::V1::Accounts::ContactsController < Api::V1::Accounts::BaseController
   end
 
   def resolve_waha_session_name
-    session_names = Current.account.inboxes.where.not(waha_session_name: [nil, '']).distinct.order(:waha_session_name).pluck(:waha_session_name)
+    @resolve_waha_session_name ||= find_waha_session_name
+  end
+
+  def find_waha_session_name
+    session_names = Current.account.inboxes.where.not(waha_session_name: [nil, ''])
+                           .distinct.order(:waha_session_name).pluck(:waha_session_name)
     return WAHA_VALIDATION_SESSION_NAME if session_names.blank? && WAHA_VALIDATION_SESSION_NAME.present?
     return session_names.first if session_names.one?
     return WAHA_VALIDATION_SESSION_NAME if WAHA_VALIDATION_SESSION_NAME.present? && session_names.include?(WAHA_VALIDATION_SESSION_NAME)
@@ -294,7 +303,7 @@ class Api::V1::Accounts::ContactsController < Api::V1::Accounts::BaseController
   end
 
   def process_avatar_from_url
-    ::Avatar::AvatarFromUrlJob.perform_later(@contact, params[:avatar_url]) if params[:avatar_url].present?
+    ::Avatar::AvatarFromUrlJob.perform_later(@contact.class.name, @contact.id, params[:avatar_url]) if params[:avatar_url].present?
   end
 
   def render_error(error, error_status)

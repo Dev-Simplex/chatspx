@@ -184,10 +184,10 @@ describe Conversations::FilterService do
                      custom_attribute_type: 'conversation_attribute' }.with_indifferent_access]
         params[:payload] = payload
         result = filter_service.new(params, user_1, account).perform
-        conversations = Conversation.where(
+        conversations = account.conversations.where(inbox: user_1.inboxes).where(
           "custom_attributes ->> 'conversation_type' NOT IN (?) OR custom_attributes ->> 'conversation_type' IS NULL", ['platinum']
         )
-        expect(result[:count][:all_count]).to be conversations.count
+        expect(result[:count][:all_count]).to eq conversations.count
       end
 
       it 'filter conversations by tags' do
@@ -413,8 +413,8 @@ describe Conversations::FilterService do
           }.with_indifferent_access
         ]
         result = filter_service.new(params, user_1, account).perform
-        expected_count = Conversation.where('created_at > ?', DateTime.parse('2022-01-20')).count
-        expect(result[:conversations].length).to be expected_count
+        expected_count = account.conversations.where(inbox: user_1.inboxes).where('created_at > ?', DateTime.parse('2022-01-20')).count
+        expect(result[:conversations].length).to eq expected_count
       end
 
       it 'filter by created_at and conversation_type' do
@@ -513,10 +513,10 @@ describe Conversations::FilterService do
           }.with_indifferent_access
         ]
         result = filter_service.new(params, user_1, account).perform
-        expected_count = Conversation.where('created_at > ?', DateTime.parse('2022-01-20')).count
+        expected_count = account.conversations.where(inbox: user_1.inboxes).where('created_at > ?', DateTime.parse('2022-01-20')).count
 
         expect(Current.account).to be_nil
-        expect(result[:conversations].length).to be expected_count
+        expect(result[:conversations].length).to eq expected_count
       end
     end
   end

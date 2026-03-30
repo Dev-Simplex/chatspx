@@ -11,7 +11,7 @@ class AccountDeletionService
 
     soft_delete_orphaned_users
     send_compliance_notification
-    DeleteObjectJob.perform_later(account)
+    DeleteObjectJob.perform_later(account.class.name, account.id)
   end
 
   private

@@ -1,7 +1,7 @@
 require 'rails_helper'
 
 RSpec.describe Migration::ConversationsFirstReplySchedulerJob do
-  subject(:job) { described_class.perform_later(account) }
+  subject(:job) { described_class.perform_later(account.id) }
 
   let!(:account) { create(:account) }
   let!(:inbox) { create(:inbox, account: account) }
@@ -10,7 +10,7 @@ RSpec.describe Migration::ConversationsFirstReplySchedulerJob do
   it 'enqueues the job' do
     expect { job }.to have_enqueued_job(described_class)
       .on_queue('scheduled_jobs')
-      .with(account)
+      .with(account.id)
   end
 
   context 'when there is an outgoing message in conversation' do
@@ -24,7 +24,7 @@ RSpec.describe Migration::ConversationsFirstReplySchedulerJob do
       create(:message, content: 'Hello', message_type: 'outgoing', account: account, inbox: inbox,
                        conversation: conversation)
 
-      described_class.perform_now(account)
+      described_class.perform_now(account.id)
       conversation.reload
 
       expect(conversation.messages.count).to eq 2
@@ -39,7 +39,7 @@ RSpec.describe Migration::ConversationsFirstReplySchedulerJob do
       create(:message, content: 'Hello', message_type: 'incoming', account: account, inbox: inbox,
                        conversation: conversation)
 
-      described_class.perform_now(account)
+      described_class.perform_now(account.id)
       conversation.reload
 
       expect(conversation.messages.count).to eq 1

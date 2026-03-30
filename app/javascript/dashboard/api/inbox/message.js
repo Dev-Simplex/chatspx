@@ -127,7 +127,9 @@ class MessageApi extends ApiClient {
     return axios.get(`${this.url}/${conversationId}/messages`, { params });
   }
 
+  // eslint-disable-next-line class-methods-use-this
   async getAllMessages(conversationId, options = {}) {
+    /* eslint-disable no-await-in-loop, no-plusplus, no-promise-executor-return */
     const {
       onProgress,
       maxMessages = 500,
@@ -242,6 +244,7 @@ class MessageApi extends ApiClient {
     }
 
     return { data: { payload: allMessages } };
+    /* eslint-enable no-await-in-loop, no-plusplus, no-promise-executor-return */
   }
 
   translateMessage(conversationId, messageId, targetLanguage) {
@@ -257,21 +260,49 @@ class MessageApi extends ApiClient {
 /**
  * Busca todas as mensagens de uma conversa usando paginação
  * @param {number} conversationId - ID da conversa
+ * @param {Object} options - Opções de controle
+ * @param {AbortSignal} options.signal - AbortController signal para cancelamento
+ * @param {number} options.maxIterations - Limite de iterações (padrão: 100)
+ * @param {number} options.requestTimeout - Timeout por request em ms (padrão: 30000)
+ * @param {number} options.totalTimeout - Timeout total em ms (padrão: 120000)
  * @returns {Promise<Array>} Array de todas as mensagens
  */
-export const getAllMessages = async conversationId => {
+/* eslint-disable no-await-in-loop */
+export const getAllMessages = async (conversationId, options = {}) => {
+  const {
+    signal,
+    maxIterations = 100,
+    requestTimeout = 30000,
+    totalTimeout = 120000,
+  } = options;
+
   let allMessages = [];
   let before = null;
   let hasMore = true;
-  const maxIterations = 100; // Limite de segurança para evitar loops infinitos
   let iterations = 0;
+  const startTime = Date.now();
 
   while (hasMore && iterations < maxIterations) {
+    // Verificar cancelamento externo
+    if (signal?.aborted) {
+      break;
+    }
+
+    // Verificar timeout total
+    if (Date.now() - startTime > totalTimeout) {
+      // eslint-disable-next-line no-console
+      console.warn(
+        `Timeout total ao buscar mensagens da conversa ${conversationId}`
+      );
+      break;
+    }
+
     try {
-      const response = await MessageApi.getPreviousMessages({
-        conversationId,
-        before,
-      });
+      const params = before ? { before } : {};
+      const response = await axios.get(
+        `${MessageApi.url}/${conversationId}/messages`,
+        { params, signal, timeout: requestTimeout }
+      );
 
       const messages = response.data?.payload || [];
 
@@ -295,6 +326,10 @@ export const getAllMessages = async conversationId => {
       }
       iterations += 1;
     } catch (error) {
+      // Propagate abort errors so callers can distinguish cancellation
+      if (axios.isCancel(error) || error.name === 'AbortError') {
+        throw error;
+      }
       // eslint-disable-next-line no-console
       console.error(
         `Erro ao buscar mensagens da conversa ${conversationId}:`,
@@ -306,5 +341,6 @@ export const getAllMessages = async conversationId => {
 
   return allMessages;
 };
+/* eslint-enable no-await-in-loop */
 
 export default new MessageApi();

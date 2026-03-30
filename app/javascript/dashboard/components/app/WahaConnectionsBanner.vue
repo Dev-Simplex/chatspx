@@ -20,6 +20,19 @@ const PROBLEMATIC_STATUSES = ['STOPPED', 'FAILED', 'SCAN_QR_CODE'];
 const POLLING_INTERVAL = 90000; // 90 segundos
 const DISMISS_STORAGE_KEY = 'wahaConnectionsBannerDismissed';
 
+const isValidAccountId = value => {
+  return value && !Number.isNaN(Number(value)) && value > 0;
+};
+
+const getStatusText = status => {
+  const statusMap = {
+    STOPPED: t('GENERAL_SETTINGS.WAHA_BANNER.STATUS_STOPPED'),
+    FAILED: t('GENERAL_SETTINGS.WAHA_BANNER.STATUS_FAILED'),
+    SCAN_QR_CODE: t('GENERAL_SETTINGS.WAHA_BANNER.STATUS_SCAN_QR'),
+  };
+  return statusMap[status] || status;
+};
+
 const problematicConnections = computed(() => {
   return connections.value.filter(connection =>
     PROBLEMATIC_STATUSES.includes(connection.status)
@@ -34,9 +47,7 @@ const shouldShowBanner = computed(() => {
   return (
     hasProblematicConnections.value &&
     !userDismissedBanner.value &&
-    accountId.value &&
-    !isNaN(accountId.value) &&
-    accountId.value > 0
+    isValidAccountId(accountId.value)
   );
 });
 
@@ -51,18 +62,24 @@ const bannerMessage = computed(() => {
   if (count === 1 && problematicConnections.value[0]) {
     const connection = problematicConnections.value[0];
     const statusText = getStatusText(connection?.status);
-    return `Uma conexão WhatsApp está ${statusText.toLowerCase()}.`;
+    return t('GENERAL_SETTINGS.WAHA_BANNER.SINGLE_CONNECTION_ISSUE', {
+      status: statusText.toLowerCase(),
+    });
   }
-  return `${count} conexões WhatsApp estão com problemas.`;
+  return t('GENERAL_SETTINGS.WAHA_BANNER.MULTIPLE_CONNECTIONS_ISSUE', {
+    count,
+  });
 });
 
-const getStatusText = status => {
-  const statusMap = {
-    STOPPED: 'desconectada',
-    FAILED: 'com falha',
-    SCAN_QR_CODE: 'aguardando escanear QR code',
-  };
-  return statusMap[status] || 'com problema';
+const checkDismissedState = () => {
+  try {
+    const dismissed = LocalStorage.get(DISMISS_STORAGE_KEY);
+    if (dismissed) {
+      userDismissedBanner.value = true;
+    }
+  } catch {
+    // If localStorage access fails, continue without dismiss
+  }
 };
 
 const loadConnections = async () => {
@@ -70,41 +87,31 @@ const loadConnections = async () => {
     return;
   }
 
-  // Verificar se accountId é válido antes de fazer a chamada
-  if (!accountId.value || isNaN(accountId.value) || accountId.value <= 0) {
+  if (!isValidAccountId(accountId.value)) {
     return;
   }
 
   isLoading.value = true;
   try {
     const response = await wahaConnectionsAPI.getAll();
-    // Garantir que response.data seja um array
     connections.value = Array.isArray(response?.data) ? response.data : [];
-    
-    // Verificar se há conexões problemáticas após atualizar
-    const problematic = connections.value.filter(connection =>
-      connection && PROBLEMATIC_STATUSES.includes(connection.status)
+
+    const problematic = connections.value.filter(
+      connection =>
+        connection && PROBLEMATIC_STATUSES.includes(connection.status)
     );
-    
-    // Se houver conexões problemáticas e o banner estava fechado, reabrir
+
     if (problematic.length > 0 && userDismissedBanner.value) {
-      // Verificar se ainda está no localStorage (pode ter sido fechado em outra aba)
       try {
         const dismissed = LocalStorage.get(DISMISS_STORAGE_KEY);
         if (!dismissed) {
           userDismissedBanner.value = false;
         }
-      } catch (e) {
-        // Se houver erro ao acessar localStorage, ignorar
-        console.warn('Erro ao acessar localStorage:', e);
+      } catch {
+        // If localStorage access fails, ignore
       }
     }
-  } catch (error) {
-    // Silenciosamente falha - não queremos mostrar erro se a API falhar
-    // Apenas log em desenvolvimento
-    if (process.env.NODE_ENV === 'development') {
-      console.error('Erro ao carregar conexões WAHA:', error);
-    }
+  } catch {
     connections.value = [];
   } finally {
     isLoading.value = false;
@@ -116,21 +123,17 @@ const startPolling = () => {
     return;
   }
 
-  // Verificar se accountId é válido antes de iniciar polling
-  if (!accountId.value || isNaN(accountId.value) || accountId.value <= 0) {
+  if (!isValidAccountId(accountId.value)) {
     return;
   }
 
-  // Limpar qualquer intervalo existente
   if (pollingInterval.value) {
     clearInterval(pollingInterval.value);
     pollingInterval.value = null;
   }
-  
-  // Carregar imediatamente
+
   loadConnections();
-  
-  // Depois fazer polling periódico
+
   pollingInterval.value = setInterval(() => {
     if (document.visibilityState === 'visible') {
       loadConnections();
@@ -146,16 +149,11 @@ const stopPolling = () => {
 };
 
 const goToConnections = () => {
-  if (accountId.value && !isNaN(accountId.value) && accountId.value > 0) {
-    try {
-      router.push({
-        name: 'waha_connections_list',
-        params: { accountId: accountId.value },
-      });
-    } catch (error) {
-      // Se houver erro na navegação, apenas log (não quebrar a aplicação)
-      console.warn('Erro ao navegar para conexões:', error);
-    }
+  if (isValidAccountId(accountId.value)) {
+    router.push({
+      name: 'waha_connections_list',
+      params: { accountId: accountId.value },
+    });
   }
 };
 
@@ -163,32 +161,15 @@ const dismissBanner = () => {
   userDismissedBanner.value = true;
   try {
     LocalStorage.set(DISMISS_STORAGE_KEY, true);
-  } catch (error) {
-    // Se houver erro ao salvar no localStorage (ex: modo privado), apenas atualizar estado local
-    console.warn('Erro ao salvar no localStorage:', error);
+  } catch {
+    // If localStorage write fails (e.g. private mode), just update local state
   }
 };
 
-// Verificar se o banner foi fechado anteriormente
-const checkDismissedState = () => {
-  try {
-    const dismissed = LocalStorage.get(DISMISS_STORAGE_KEY);
-    if (dismissed) {
-      userDismissedBanner.value = true;
-    }
-  } catch (error) {
-    // Se houver erro ao acessar localStorage, apenas continuar sem dismiss
-    console.warn('Erro ao verificar localStorage:', error);
-  }
-};
-
-// Watch para accountId - reiniciar polling quando mudar
 watch(
   accountId,
   (newAccountId, oldAccountId) => {
-    // Verificar se o novo accountId é válido
-    const isValidNewId = newAccountId && !isNaN(newAccountId) && newAccountId > 0;
-    const isValidOldId = oldAccountId && !isNaN(oldAccountId) && oldAccountId > 0;
+    const isValidNewId = isValidAccountId(newAccountId);
 
     if (isValidNewId && newAccountId !== oldAccountId) {
       stopPolling();
@@ -215,7 +196,10 @@ watch(
 );
 
 const handleVisibilityChange = () => {
-  if (document.visibilityState === 'visible' && shouldPollOnCurrentRoute.value) {
+  if (
+    document.visibilityState === 'visible' &&
+    shouldPollOnCurrentRoute.value
+  ) {
     loadConnections();
   }
 };
@@ -223,13 +207,7 @@ const handleVisibilityChange = () => {
 onMounted(() => {
   checkDismissedState();
   document.addEventListener('visibilitychange', handleVisibilityChange);
-  // Verificar se accountId é válido antes de iniciar
-  if (
-    shouldPollOnCurrentRoute.value &&
-    accountId.value &&
-    !isNaN(accountId.value) &&
-    accountId.value > 0
-  ) {
+  if (shouldPollOnCurrentRoute.value && isValidAccountId(accountId.value)) {
     startPolling();
   }
 });
@@ -256,7 +234,7 @@ onUnmounted(() => {
             class="banner-action-button"
             @click="goToConnections"
           >
-            Ir para Conexões
+            {{ t('GENERAL_SETTINGS.WAHA_BANNER.GO_TO_CONNECTIONS') }}
           </button>
         </span>
       </div>

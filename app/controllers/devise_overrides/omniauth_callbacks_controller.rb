@@ -79,7 +79,7 @@ class DeviseOverrides::OmniauthCallbacksController < DeviseTokenAuth::OmniauthCa
       locale: I18n.locale,
       confirmed: auth_hash['info']['email_verified']
     ).perform
-    Avatar::AvatarFromUrlJob.perform_later(@resource, auth_hash['info']['image'])
+    Avatar::AvatarFromUrlJob.perform_later(@resource.class.name, @resource.id, auth_hash['info']['image'])
   end
 
   def default_devise_mapping

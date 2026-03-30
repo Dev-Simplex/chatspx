@@ -8,9 +8,7 @@ class Api::V1::Accounts::MacrosController < Api::V1::Accounts::BaseController
     @macros = Macro.with_visibility(current_user, params)
   end
 
-  def show
-    head :not_found if @macro.nil?
-  end
+  def show; end
 
   def create
     blobs, actions, error = validate_and_prepare_attachments(params[:actions])
@@ -48,7 +46,7 @@ class Api::V1::Accounts::MacrosController < Api::V1::Accounts::BaseController
   end
 
   def execute
-    ::MacrosExecutionJob.perform_later(@macro, conversation_ids: params[:conversation_ids], user: Current.user)
+    ::MacrosExecutionJob.perform_later(@macro.id, conversation_ids: params[:conversation_ids], user_id: Current.user.id)
 
     head :ok
   end
@@ -67,10 +65,10 @@ class Api::V1::Accounts::MacrosController < Api::V1::Accounts::BaseController
   end
 
   def fetch_macro
-    @macro = Current.account.macros.find_by(id: params[:id])
+    @macro = Current.account.macros.find(params[:id])
   end
 
   def check_authorization
-    authorize(@macro) if @macro.present?
+    authorize(@macro)
   end
 end

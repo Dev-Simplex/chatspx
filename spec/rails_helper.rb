@@ -39,6 +39,16 @@ rescue ActiveRecord::PendingMigrationError => e
   exit 1
 end
 RSpec.configure do |config|
+  config.around do |example|
+    I18n.with_locale(:en) { example.run }
+  end
+
+  # Skip team_required_for_resolution validation by default in tests.
+  # Specs that explicitly test this validation should set it to false.
+  config.before do
+    allow_any_instance_of(Conversation).to receive(:team_required_for_resolution).and_return(nil) # rubocop:disable RSpec/AnyInstance
+  end
+
   config.include FactoryBot::Syntax::Methods
   # Remove this line if you're not using ActiveRecord or ActiveRecord fixtures
   config.fixture_path = Rails.root.join('spec/fixtures')

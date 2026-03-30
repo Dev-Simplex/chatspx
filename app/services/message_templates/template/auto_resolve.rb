@@ -28,7 +28,7 @@ class MessageTemplates::Template::AutoResolve
       message_type: :activity,
       content: content
     }
-    ::Conversations::ActivityMessageJob.perform_later(conversation, activity_message_params) if content
+    ::Conversations::ActivityMessageJob.perform_later(conversation.id, activity_message_params) if content
   end
 
   def auto_resolve_message_params

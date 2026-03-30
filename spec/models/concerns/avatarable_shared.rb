@@ -21,7 +21,10 @@ shared_examples_for 'avatarable' do
         expect(Avatar::AvatarFromGravatarJob).to receive(:set).with(wait: 30.seconds).and_call_original
       end
       avatarable.save!
-      expect(Avatar::AvatarFromGravatarJob).to have_been_enqueued.with(avatarable, avatarable.email) if avatarable.respond_to?(:email)
+      if avatarable.respond_to?(:email)
+        expect(Avatar::AvatarFromGravatarJob).to have_been_enqueued.with(avatarable.class.name, avatarable.id,
+                                                                         avatarable.email)
+      end
     end
 
     it 'enques job when email is changes on avatarable update' do
@@ -31,7 +34,10 @@ shared_examples_for 'avatarable' do
         expect(Avatar::AvatarFromGravatarJob).to receive(:set).with(wait: 30.seconds).and_call_original
       end
       avatarable.save!
-      expect(Avatar::AvatarFromGravatarJob).to have_been_enqueued.with(avatarable, avatarable.email) if avatarable.respond_to?(:email)
+      if avatarable.respond_to?(:email)
+        expect(Avatar::AvatarFromGravatarJob).to have_been_enqueued.with(avatarable.class.name, avatarable.id,
+                                                                         avatarable.email)
+      end
     end
 
     it 'will not enqueu when email is not changed on avatarable update' do

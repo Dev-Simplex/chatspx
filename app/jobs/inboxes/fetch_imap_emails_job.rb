@@ -3,7 +3,9 @@ require 'net/imap'
 class Inboxes::FetchImapEmailsJob < MutexApplicationJob
   queue_as :scheduled_jobs
 
-  def perform(channel, interval = 1)
+  def perform(channel_id, interval = 1)
+    channel = Channel::Email.find_by(id: channel_id)
+    return unless channel
     return unless should_fetch_email?(channel)
 
     key = format(::Redis::Alfred::EMAIL_MESSAGE_MUTEX, inbox_id: channel.inbox.id)
@@ -12,13 +14,13 @@ class Inboxes::FetchImapEmailsJob < MutexApplicationJob
       process_email_for_channel(channel, interval)
     end
   rescue *ExceptionList::IMAP_EXCEPTIONS => e
-    Rails.logger.error "Authorization error for email channel - #{channel.inbox.id} : #{e.message}"
+    Rails.logger.error "Authorization error for email channel - #{channel&.inbox&.id} : #{e.message}"
   rescue EOFError, OpenSSL::SSL::SSLError, Net::IMAP::NoResponseError, Net::IMAP::BadResponseError, Net::IMAP::InvalidResponseError => e
-    Rails.logger.error "Error for email channel - #{channel.inbox.id} : #{e.message}"
+    Rails.logger.error "Error for email channel - #{channel&.inbox&.id} : #{e.message}"
   rescue LockAcquisitionError
-    Rails.logger.error "Lock failed for #{channel.inbox.id}"
+    Rails.logger.error "Lock failed for #{channel&.inbox&.id}"
   rescue StandardError => e
-    ChatwootExceptionTracker.new(e, account: channel.account).capture_exception
+    ChatwootExceptionTracker.new(e, account: channel&.account).capture_exception
   end
 
   private

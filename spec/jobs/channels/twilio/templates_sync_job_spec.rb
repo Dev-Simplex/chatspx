@@ -5,9 +5,9 @@ RSpec.describe Channels::Twilio::TemplatesSyncJob do
   let!(:twilio_channel) { create(:channel_twilio_sms, medium: :whatsapp, account: account) }
 
   it 'enqueues the job' do
-    expect { described_class.perform_later(twilio_channel) }.to have_enqueued_job(described_class)
+    expect { described_class.perform_later(twilio_channel.id) }.to have_enqueued_job(described_class)
       .on_queue('low')
-      .with(twilio_channel)
+      .with(twilio_channel.id)
   end
 
   describe '#perform' do
@@ -18,7 +18,7 @@ RSpec.describe Channels::Twilio::TemplatesSyncJob do
         expect(Twilio::TemplateSyncService).to receive(:new).with(channel: twilio_channel).and_return(template_sync_service)
         expect(template_sync_service).to receive(:call).and_return(true)
 
-        described_class.perform_now(twilio_channel)
+        described_class.perform_now(twilio_channel.id)
       end
     end
 
@@ -31,13 +31,15 @@ RSpec.describe Channels::Twilio::TemplatesSyncJob do
       end
 
       it 'does not suppress the exception' do
-        expect { described_class.perform_now(twilio_channel) }.to raise_error(StandardError, error_message)
+        expect { described_class.perform_now(twilio_channel.id) }.to raise_error(StandardError, error_message)
       end
     end
 
-    context 'with nil channel' do
-      it 'handles nil channel gracefully' do
-        expect { described_class.perform_now(nil) }.to raise_error(NoMethodError)
+    context 'with nil channel id' do
+      it 'returns early when channel not found' do
+        expect(Twilio::TemplateSyncService).not_to receive(:new)
+
+        described_class.perform_now(0)
       end
     end
   end

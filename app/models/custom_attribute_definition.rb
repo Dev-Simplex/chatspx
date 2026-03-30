@@ -50,11 +50,18 @@ class CustomAttributeDefinition < ApplicationRecord
   private
 
   def sync_widget_pre_chat_custom_fields
-    ::Inboxes::SyncWidgetPreChatCustomFieldsJob.perform_later(account, attribute_key)
+    ::Inboxes::SyncWidgetPreChatCustomFieldsJob.perform_later(account_id, attribute_key)
   end
 
   def update_widget_pre_chat_custom_fields
-    ::Inboxes::UpdateWidgetPreChatCustomFieldsJob.perform_later(account, self)
+    attrs = {
+      'attribute_key' => attribute_key,
+      'attribute_display_name' => attribute_display_name,
+      'attribute_values' => attribute_values,
+      'regex_pattern' => regex_pattern,
+      'regex_cue' => regex_cue
+    }
+    ::Inboxes::UpdateWidgetPreChatCustomFieldsJob.perform_later(account_id, attrs)
   end
 
   def cleanup_conversation_required_attributes

@@ -1,10 +1,10 @@
-class NpsSurveyService
+class NpsSurveyService # rubocop:disable Metrics/ClassLength
   def initialize(conversation:, mode: nil)
     @conversation = conversation
     @mode = mode || 'auto'
   end
 
-  def perform
+  def perform # rubocop:disable Metrics/AbcSize, Metrics/MethodLength
     Rails.logger.info "NpsSurveyService: Starting for conversation #{conversation.id}, mode: #{mode}"
 
     # Reload inbox association to ensure we have the latest NPS configuration
@@ -30,11 +30,11 @@ class NpsSurveyService
     Rails.logger.info "NpsSurveyService: All checks passed, sending NPS survey for conversation #{conversation.id}"
 
     if within_messaging_window?
-      Rails.logger.info "NpsSurveyService: Within messaging window, creating NPS survey message"
+      Rails.logger.info 'NpsSurveyService: Within messaging window, creating NPS survey message'
       ::MessageTemplates::Template::NpsSurvey.new(conversation: conversation).perform
-      Rails.logger.info "NpsSurveyService: NPS survey message created successfully"
+      Rails.logger.info 'NpsSurveyService: NPS survey message created successfully'
     else
-      Rails.logger.info "NpsSurveyService: Outside messaging window, creating activity message"
+      Rails.logger.info 'NpsSurveyService: Outside messaging window, creating activity message'
       create_nps_not_sent_activity_message
     end
   rescue StandardError => e
@@ -49,30 +49,32 @@ class NpsSurveyService
 
   delegate :inbox, :contact, to: :conversation
 
-  def should_send_nps_survey?
+  def should_send_nps_survey? # rubocop:disable Metrics/AbcSize, Metrics/MethodLength
     Rails.logger.info "NpsSurveyService: Checking conditions for conversation #{conversation.id}:"
-    
+
     nps_enabled_result = nps_enabled?
     Rails.logger.info "NpsSurveyService:   nps_enabled? = #{nps_enabled_result}"
-    
+
     conversation_allows_result = conversation_allows_nps?
-    Rails.logger.info "NpsSurveyService:   conversation_allows_nps? = #{conversation_allows_result} (conversation.status = #{conversation.status}, is_tweet? = #{conversation.tweet?})"
-    
+    Rails.logger.info "NpsSurveyService:   conversation_allows_nps? = #{conversation_allows_result} " \
+                      "(conversation.status = #{conversation.status}, is_tweet? = #{conversation.tweet?})"
+
     nps_already_sent_result = nps_already_sent?
     Rails.logger.info "NpsSurveyService:   nps_already_sent? = #{nps_already_sent_result}"
-    
+
     mode_allows_result = mode_allows_sending?
-    Rails.logger.info "NpsSurveyService:   mode_allows_sending? = #{mode_allows_result} (configured_mode = #{nps_config['mode']}, requested_mode = #{@mode})"
-    
+    Rails.logger.info "NpsSurveyService:   mode_allows_sending? = #{mode_allows_result} " \
+                      "(configured_mode = #{nps_config['mode']}, requested_mode = #{@mode})"
+
     cooldown_result = cooldown_respected?
     Rails.logger.info "NpsSurveyService:   cooldown_respected? = #{cooldown_result}"
-    
+
     blocked_result = blocked_by_labels?
     Rails.logger.info "NpsSurveyService:   blocked_by_labels? = #{blocked_result}"
-    
+
     optional_rules_result = optional_rules_met?
     Rails.logger.info "NpsSurveyService:   optional_rules_met? = #{optional_rules_result}"
-    
+
     result = nps_enabled_result &&
              conversation_allows_result &&
              !nps_already_sent_result &&
@@ -87,8 +89,6 @@ class NpsSurveyService
   end
 
   def nps_enabled?
-    # Reload inbox to ensure we have the latest data
-    inbox.reload
     result = inbox.nps_survey_enabled?
     Rails.logger.info "NpsSurveyService: nps_enabled? = #{result} (inbox.nps_survey_enabled = #{inbox.nps_survey_enabled.inspect})"
     result
@@ -99,58 +99,70 @@ class NpsSurveyService
   end
 
   def nps_already_sent?
+    return @nps_already_sent if defined?(@nps_already_sent)
+
+    @nps_already_sent = compute_nps_already_sent?
+  end
+
+  def compute_nps_already_sent? # rubocop:disable Metrics/AbcSize, Metrics/CyclomaticComplexity, Metrics/MethodLength
     # Only block if an NPS was sent in this conversation in the last 5 minutes (avoid duplicate on same resolution).
     # Re-sending in the same conversation is allowed after cooldown (see cooldown_respected?).
-    # Verificar se já foi enviado um NPS recentemente (últimos 5 minutos)
-    # Isso permite múltiplos envios quando a conversa é resolvida e reaberta várias vezes
-    # mas evita envios duplicados na mesma resolução
+    # Check if an NPS was already sent recently (last 5 minutes)
+    # This allows multiple sends when the conversation is resolved and reopened multiple times
+    # but prevents duplicate sends on the same resolution
     recent_time_threshold = 5.minutes.ago
 
-    # Buscar o último NPS response enviado recentemente
+    # Find the most recent NPS response sent recently
     last_nps_response = conversation.nps_responses
-      .where('created_at >= ?', recent_time_threshold)
-      .where(status: :sent)
-      .order(created_at: :desc)
-      .first
-    
-    return false unless last_nps_response.present?
+                                    .where('created_at >= ?', recent_time_threshold)
+                                    .where(status: :sent)
+                                    .order(created_at: :desc)
+                                    .first
 
-    # Verificar se existe uma mensagem NPS associada e se ela tem conteúdo
+    return false if last_nps_response.blank?
+
+    # Check if there is an associated NPS message and if it has content
     message_id = last_nps_response.metadata&.dig('message_id')
     if message_id
       message = Message.find_by(id: message_id)
       if message.nil?
-        Rails.logger.info "NpsSurveyService: nps_already_sent? = false (NPS response exists but message is missing. Response ID: #{last_nps_response.id}, Message ID: #{message_id})"
+        Rails.logger.info 'NpsSurveyService: nps_already_sent? = false ' \
+                          "(NPS response exists but message is missing. Response ID: #{last_nps_response.id}, Message ID: #{message_id})"
         return false
       end
       # Treat deleted messages as still sent (prevent duplicate NPS after deletion)
       if message.content_attributes&.dig('deleted')
-        Rails.logger.info "NpsSurveyService: nps_already_sent? = true (NPS message was deleted but still counts as sent. Response ID: #{last_nps_response.id}, Message ID: #{message_id})"
+        Rails.logger.info 'NpsSurveyService: nps_already_sent? = true ' \
+                          "(NPS message was deleted but still counts as sent. Response ID: #{last_nps_response.id}, Message ID: #{message_id})"
         return true
       end
-      Rails.logger.info "NpsSurveyService: nps_already_sent? = true (NPS response ID: #{last_nps_response.id}, status: #{last_nps_response.status}, message ID: #{message_id}, message content present: #{message.content.present?}, sent recently: #{last_nps_response.created_at >= recent_time_threshold})"
+      Rails.logger.info 'NpsSurveyService: nps_already_sent? = true ' \
+                        "(NPS response ID: #{last_nps_response.id}, status: #{last_nps_response.status}, " \
+                        "message ID: #{message_id}, content present: #{message.content.present?})"
       return true
     end
 
-    # Se não há message_id no metadata, verificar se existe alguma mensagem NPS válida criada recentemente
+    # If there is no message_id in metadata, check if there is any valid NPS message created recently
     nps_message = conversation.messages
-      .where('created_at >= ?', recent_time_threshold)
-      .where.not(content: [nil, ''])
-      .where(
-        "content_type = :input_nps OR (content_type = :text AND content_attributes ->> 'nps_survey' = 'true')",
-        input_nps: Message.content_types[:input_nps],
-        text: Message.content_types[:text]
-      )
-      .order(created_at: :desc)
-      .first
-    
+                              .where('created_at >= ?', recent_time_threshold)
+                              .where.not(content: [nil, ''])
+                              .where(
+                                "content_type = :input_nps OR (content_type = :text AND content_attributes ->> 'nps_survey' = 'true')",
+                                input_nps: Message.content_types[:input_nps],
+                                text: Message.content_types[:text]
+                              )
+                              .order(created_at: :desc)
+                              .first
+
     if nps_message.present?
-      Rails.logger.info "NpsSurveyService: nps_already_sent? = true (NPS response exists and valid NPS message found recently. Response ID: #{last_nps_response.id}, Message ID: #{nps_message.id})"
+      Rails.logger.info 'NpsSurveyService: nps_already_sent? = true ' \
+                        "(NPS response exists and valid NPS message found. Response ID: #{last_nps_response.id}, Message ID: #{nps_message.id})"
       return true
     end
 
-    # Se não há mensagem válida, considerar como não enviado
-    Rails.logger.info "NpsSurveyService: nps_already_sent? = false (NPS response exists but no valid NPS message found recently. Response ID: #{last_nps_response.id})"
+    # If there is no valid message, consider as not sent
+    Rails.logger.info 'NpsSurveyService: nps_already_sent? = false ' \
+                      "(NPS response exists but no valid NPS message found. Response ID: #{last_nps_response.id})"
     false
   end
 
@@ -165,15 +177,21 @@ class NpsSurveyService
       requested_mode == 'manual'
     when 'both'
       true
-    else
+    else # rubocop:disable Lint/DuplicateBranch
       requested_mode == 'auto'
     end
   end
 
-  # Cooldown: quando o contato já respondeu a uma pesquisa NPS recentemente, não envia outra.
-  # Prioridade: cooldown_hours (horas) se configurado; senão cooldown_days (dias), para compatibilidade.
-  # Usar horas permite que vários agentes conversem no mesmo dia sem disparar NPS em toda resolução.
+  # Cooldown: when the contact has already responded to an NPS survey recently, do not send another.
+  # Priority: cooldown_hours if configured; otherwise cooldown_days, for backwards compatibility.
+  # Using hours allows multiple agents to chat on the same day without triggering NPS on every resolution.
   def cooldown_respected?
+    return @cooldown_respected if defined?(@cooldown_respected)
+
+    @cooldown_respected = compute_cooldown_respected?
+  end
+
+  def compute_cooldown_respected? # rubocop:disable Metrics/AbcSize, Metrics/CyclomaticComplexity, Metrics/MethodLength, Metrics/PerceivedComplexity
     cooldown_hours = nps_config['cooldown_hours']
     if cooldown_hours.present? && cooldown_hours.to_s != ''
       return true if cooldown_hours.to_i.zero?
@@ -186,7 +204,8 @@ class NpsSurveyService
 
       hours_since_last = (Time.current - last_response.answered_at) / 1.hour
       result = hours_since_last >= cooldown_hours.to_i
-      Rails.logger.info "NpsSurveyService: cooldown_respected? = #{result} (cooldown_hours: #{cooldown_hours}, contact_id: #{contact.id}, hours_since_last: #{hours_since_last})"
+      Rails.logger.info "NpsSurveyService: cooldown_respected? = #{result} " \
+                        "(cooldown_hours: #{cooldown_hours}, contact_id: #{contact.id}, hours_since_last: #{hours_since_last})"
       return result
     end
 
@@ -195,18 +214,25 @@ class NpsSurveyService
     return true if cooldown_days.to_i.zero?
 
     last_response = contact.nps_responses
-                          .where(status: :responded)
-                          .order(answered_at: :desc)
-                          .first
+                           .where(status: :responded)
+                           .order(answered_at: :desc)
+                           .first
     return true unless last_response&.answered_at
 
     days_since_last = (Time.current - last_response.answered_at) / 1.day
     result = days_since_last >= cooldown_days.to_i
-    Rails.logger.info "NpsSurveyService: cooldown_respected? = #{result} (cooldown_days: #{cooldown_days}, contact_id: #{contact.id}, days_since_last: #{days_since_last})"
+    Rails.logger.info "NpsSurveyService: cooldown_respected? = #{result} " \
+                      "(cooldown_days: #{cooldown_days}, contact_id: #{contact.id}, days_since_last: #{days_since_last})"
     result
   end
 
   def blocked_by_labels?
+    return @blocked_by_labels if defined?(@blocked_by_labels)
+
+    @blocked_by_labels = compute_blocked_by_labels?
+  end
+
+  def compute_blocked_by_labels?
     return false unless blocklist_configured?
 
     labels_to_check = labels_to_check_for_blocklist
@@ -237,11 +263,9 @@ class NpsSurveyService
   end
 
   def optional_rules_met?
-    return false unless min_messages_met?
-    return false unless min_duration_met?
-    return false unless required_tags_met?
+    return @optional_rules_met if defined?(@optional_rules_met)
 
-    true
+    @optional_rules_met = min_messages_met? && min_duration_met? && required_tags_met?
   end
 
   def min_messages_met?
@@ -274,7 +298,8 @@ class NpsSurveyService
   end
 
   def create_nps_not_sent_activity_message
-    content = I18n.t('conversations.activity.nps.not_sent_due_to_messaging_window', default: 'NPS survey could not be sent due to messaging window restrictions.')
+    content = I18n.t('conversations.activity.nps.not_sent_due_to_messaging_window',
+                     default: 'NPS survey could not be sent due to messaging window restrictions.')
     create_activity_message(content)
   end
 
@@ -306,7 +331,7 @@ class NpsSurveyService
       message_type: :activity,
       content: content
     }
-    ::Conversations::ActivityMessageJob.perform_later(conversation, activity_message_params)
+    ::Conversations::ActivityMessageJob.perform_later(conversation.id, activity_message_params)
   end
 
   def nps_config
@@ -320,7 +345,7 @@ class NpsSurveyService
     blocking_label = find_blocking_label
     return unless blocking_label
 
-    nps_response = NpsResponse.create!(
+    NpsResponse.create!(
       account_id: conversation.account_id,
       conversation_id: conversation.id,
       contact_id: conversation.contact_id,
@@ -339,7 +364,7 @@ class NpsSurveyService
   def find_blocking_label
     labels_to_check = labels_to_check_for_blocklist
     blocklist_labels = nps_config['blocklist_labels'] || []
-    
+
     blocklist_labels.find { |label| labels_to_check.include?(label) }
   end
 

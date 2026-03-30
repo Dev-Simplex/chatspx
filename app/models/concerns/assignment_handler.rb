@@ -38,11 +38,7 @@ module AssignmentHandler
   def set_assignee_last_changed_at
     return unless will_save_change_to_assignee_id? || will_save_change_to_assignee_agent_bot_id?
 
-    if assignee_id.present? && assignee_agent_bot_id.blank?
-      self.assignee_last_changed_at = Time.current
-    else
-      self.assignee_last_changed_at = nil
-    end
+    self.assignee_last_changed_at = (Time.current if assignee_id.present? && assignee_agent_bot_id.blank?)
   end
 
   def validate_current_assignee_team

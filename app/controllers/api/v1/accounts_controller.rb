@@ -21,13 +21,13 @@ class Api::V1::AccountsController < Api::BaseController
     @maintenance_banner = begin
       MaintenanceBanner.info
     rescue StandardError => e
-      Rails.logger.error("Erro ao buscar banner de manutenção: #{e.message}")
+      Rails.logger.error("Error fetching maintenance banner: #{e.message}")
       { enabled: false }
     end
     @update_banner = begin
       UpdateBanner.info
     rescue StandardError => e
-      Rails.logger.error("Erro ao buscar banner de atualização: #{e.message}")
+      Rails.logger.error("Error fetching update banner: #{e.message}")
       { enabled: false }
     end
     render 'api/v1/accounts/show', format: :json

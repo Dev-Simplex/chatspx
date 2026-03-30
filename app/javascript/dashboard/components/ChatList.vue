@@ -57,7 +57,11 @@ import filterQueryGenerator from '../helper/filterQueryGenerator.js';
 import languages from 'dashboard/components/widgets/conversation/advancedFilterItems/languages';
 import countries from 'shared/constants/countries';
 import { generateValuesForEditCustomViews } from 'dashboard/helper/customViewsHelper';
-import { conversationListPageURL, conversationUrl, frontendURL } from '../helper/URLHelper';
+import {
+  conversationListPageURL,
+  conversationUrl,
+  frontendURL,
+} from '../helper/URLHelper';
 import {
   isOnMentionsView,
   isOnUnattendedView,
@@ -223,7 +227,8 @@ const assigneeTabItems = computed(() => {
   const useUnattendedCounts = props.conversationType === 'unattended';
   const countKeyForTab = key => {
     if (useUnattendedCounts) {
-      if (key === wootConstants.ASSIGNEE_TYPE.ME) return 'unattendedAssignedCount';
+      if (key === wootConstants.ASSIGNEE_TYPE.ME)
+        return 'unattendedAssignedCount';
       if (key === wootConstants.ASSIGNEE_TYPE.UNASSIGNED)
         return 'unattendedUnassignedCount';
       if (key === wootConstants.ASSIGNEE_TYPE.ALL) return 'allCount';
@@ -302,9 +307,12 @@ const conversationListPagination = computed(() => {
   return currentPage.value + 1;
 });
 
+const dateRangeFilter = ref(null);
+
 const conversationFilters = computed(() => {
   const filterKey = activeAssigneeTab.value;
-  const nextCursor = store.getters['conversationPage/getNextCursor']?.(filterKey);
+  const nextCursor =
+    store.getters['conversationPage/getNextCursor']?.(filterKey);
   return {
     inboxId: props.conversationInbox ? props.conversationInbox : undefined,
     assigneeType: activeAssigneeTab.value,
@@ -317,20 +325,6 @@ const conversationFilters = computed(() => {
     conversationType: props.conversationType || undefined,
     dateFrom: dateRangeFilter.value?.from || undefined,
     dateTo: dateRangeFilter.value?.to || undefined,
-  };
-});
-
-const dateRangeFilter = ref(null);
-
-const conversationStatsFiltersForUnattended = computed(() => {
-  if (props.conversationType !== 'unattended') return null;
-  return {
-    inboxId: props.conversationInbox ? props.conversationInbox : undefined,
-    assigneeType: wootConstants.ASSIGNEE_TYPE.ALL,
-    status: activeStatus.value,
-    labels: props.label ? [props.label] : undefined,
-    teamId: props.teamId || undefined,
-    conversationType: 'unattended',
   };
 });
 
@@ -379,37 +373,35 @@ const pageTitle = computed(() => {
   return t('CHAT_LIST.TAB_HEADING');
 });
 
-const searchResults = computed(() => 
-  store.getters['conversationSearch/getConversationRecords'] || []
+const searchResults = computed(
+  () => store.getters['conversationSearch/getConversationRecords'] || []
 );
 
-const conversationSearchQuery = computed(() =>
-  store.getters['conversationSearch/getConversationSearchQuery'] || ''
-);
-
-const isSearchFetching = computed(() =>
-  store.getters['conversationSearch/getUIFlags']?.conversation?.isFetching || false
+const conversationSearchQuery = computed(
+  () => store.getters['conversationSearch/getConversationSearchQuery'] || ''
 );
 
 const isSearchActive = computed(() => {
-  const active = cachedSearchQuery.value.length > 0 || cachedSearchResults.value.length > 0;
+  const active =
+    cachedSearchQuery.value.length > 0 || cachedSearchResults.value.length > 0;
   return active;
 });
 
 // Mostrar empty state "nenhum resultado" só depois que a API de busca respondeu (não antes nem durante o loading)
 const conversationSearchCompleted = computed(
-  () => store.getters['conversationSearch/getConversationSearchCompleted'] || false
+  () =>
+    store.getters['conversationSearch/getConversationSearchCompleted'] || false
 );
 
 // Sync Vuex search results to local cache when new results arrive
-watch(searchResults, (newResults) => {
+watch(searchResults, newResults => {
   if (newResults && newResults.length > 0) {
     cachedSearchResults.value = [...newResults];
   }
 });
 
 // Sync Vuex search query to local cache
-watch(conversationSearchQuery, (newQuery) => {
+watch(conversationSearchQuery, newQuery => {
   if (newQuery && newQuery.trim().length > 0) {
     cachedSearchQuery.value = newQuery.trim();
   }
@@ -431,12 +423,14 @@ const conversationList = computed(() => {
     // Deduplicar por contato — mostrar só a conversa mais recente de cada contato
     const byContact = new Map();
     filteredResults.forEach(conv => {
-      const contactId = conv.contact?.id || conv.meta?.sender?.id || `conv_${conv.id}`;
+      const contactId =
+        conv.contact?.id || conv.meta?.sender?.id || `conv_${conv.id}`;
       const existing = byContact.get(contactId);
       if (!existing) {
         byContact.set(contactId, conv);
       } else {
-        const existingTime = existing.last_activity_at || existing.created_at || 0;
+        const existingTime =
+          existing.last_activity_at || existing.created_at || 0;
         const currentTime = conv.last_activity_at || conv.created_at || 0;
         if (currentTime > existingTime) {
           byContact.set(contactId, conv);
@@ -450,16 +444,15 @@ const conversationList = computed(() => {
   let localConversationList = [];
 
   if (!hasAppliedFiltersOrActiveFolders.value) {
-    const filters = conversationFilters.value;
     if (activeAssigneeTab.value === 'me') {
-      localConversationList = [...mineChatsList.value(filters)];
+      localConversationList = mineChatsList.value;
     } else if (activeAssigneeTab.value === 'unassigned') {
-      localConversationList = [...unAssignedChatsList.value(filters)];
+      localConversationList = unAssignedChatsList.value;
     } else {
-      localConversationList = [...allChatList.value(filters)];
+      localConversationList = allChatList.value;
     }
   } else {
-    localConversationList = [...chatLists.value];
+    localConversationList = chatLists.value;
   }
 
   if (activeFolder.value) {
@@ -498,7 +491,8 @@ function setFiltersFromUISettings() {
   const { conversations_filter_by: filterBy = {} } = uiSettings.value;
   const { status, order_by: orderBy } = filterBy;
   // Prioritize conversationStatus prop from route over saved filter
-  activeStatus.value = props.conversationStatus || status || wootConstants.STATUS_TYPE.OPEN;
+  activeStatus.value =
+    props.conversationStatus || status || wootConstants.STATUS_TYPE.OPEN;
   activeSortBy.value = Object.values(wootConstants.SORT_BY_TYPE).includes(
     orderBy
   )
@@ -707,6 +701,7 @@ function resetAndFetchData() {
   store.dispatch('emptyAllConversations');
   store.dispatch('clearConversationFilters');
   // Force refresh tab counts when switching views/routes
+  // The /meta endpoint is lightweight (counts only), safe to run in parallel
   if (!hasAppliedFiltersOrActiveFolders.value) {
     const filtersForMeta = { ...conversationFilters.value };
     delete filtersForMeta.assigneeType;
@@ -755,12 +750,12 @@ function handleScroll() {
 
 function updateAssigneeTab(selectedTab) {
   if (props.conversationType === 'unattended') {
-    const query =
-      selectedTab === wootConstants.ASSIGNEE_TYPE.UNASSIGNED
-        ? { assignee_type: 'unassigned' }
-        : selectedTab === wootConstants.ASSIGNEE_TYPE.ALL
-          ? { assignee_type: 'all' }
-          : undefined;
+    let query;
+    if (selectedTab === wootConstants.ASSIGNEE_TYPE.UNASSIGNED) {
+      query = { assignee_type: 'unassigned' };
+    } else if (selectedTab === wootConstants.ASSIGNEE_TYPE.ALL) {
+      query = { assignee_type: 'all' };
+    }
     router.push({
       name: 'conversation_unattended',
       params: { accountId: currentAccountId.value },
@@ -936,7 +931,6 @@ function onSearch() {
 }
 
 function onClearSearch() {
-  console.log('[SEARCH-DEBUG] onClearSearch called', new Error().stack?.split('\n').slice(1, 4).join(' | '));
   clearLocalSearchCache();
 }
 
@@ -972,35 +966,11 @@ onMounted(() => {
   setFiltersFromUISettings();
   store.dispatch('setChatStatusFilter', activeStatus.value);
   store.dispatch('setChatSortFilter', activeSortBy.value);
-  if (!hasAppliedFiltersOrActiveFolders.value) {
-    const filtersForMeta = { ...conversationFilters.value };
-    delete filtersForMeta.assigneeType;
-    filtersForMeta.force = true;
-    store.dispatch('conversationStats/get', filtersForMeta);
-  }
   resetAndFetchData();
   if (hasActiveFolders.value) {
     store.dispatch('campaigns/get');
   }
 });
-
-// Watch for conversationStatus prop changes (when navigating between status tabs)
-watch(
-  () => props.conversationStatus,
-  (newStatus) => {
-    if (newStatus) {
-      activeStatus.value = newStatus;
-      store.dispatch('setChatStatusFilter', newStatus);
-      resetAndFetchData();
-    } else {
-      const { conversations_filter_by: filterBy = {} } = uiSettings.value;
-      const { status } = filterBy;
-      activeStatus.value = status || wootConstants.STATUS_TYPE.OPEN;
-      store.dispatch('setChatStatusFilter', activeStatus.value);
-      resetAndFetchData();
-    }
-  }
-);
 
 const deleteConversationDialogRef = ref(null);
 const selectedConversationId = ref(null);
@@ -1035,17 +1005,18 @@ provide('assignPriority', assignPriority);
 provide('isConversationSelected', isConversationSelected);
 provide('deleteConversation', handleDelete);
 
+// Unattended route: sync assignee tab from query params
 watch(
   () => [route.name, route.query],
   () => {
     if (route.name === 'conversation_unattended') {
       const qt = route.query.assignee_type;
-      const newTab =
-        qt === 'unassigned'
-          ? wootConstants.ASSIGNEE_TYPE.UNASSIGNED
-          : qt === 'all'
-            ? wootConstants.ASSIGNEE_TYPE.ALL
-            : wootConstants.ASSIGNEE_TYPE.ME;
+      let newTab = wootConstants.ASSIGNEE_TYPE.ME;
+      if (qt === 'unassigned') {
+        newTab = wootConstants.ASSIGNEE_TYPE.UNASSIGNED;
+      } else if (qt === 'all') {
+        newTab = wootConstants.ASSIGNEE_TYPE.ALL;
+      }
       const prevTab = activeAssigneeTab.value;
       activeAssigneeTab.value = newTab;
       if (prevTab !== newTab) {
@@ -1058,36 +1029,58 @@ watch(
   { deep: true }
 );
 
-watch(activeTeam, () => resetAndFetchData());
+// Single watcher for all view-level changes that require a full re-fetch.
+// Consolidates 6 separate watchers into 1, preventing duplicate API calls
+// when multiple props change simultaneously (e.g., route navigation).
+watch(
+  [
+    () => props.conversationStatus,
+    () => props.conversationInbox,
+    () => props.label,
+    () => props.conversationType,
+    activeTeam,
+    activeFolder,
+  ],
+  (
+    [newStatus, , , newType, , newFolder],
+    [prevStatus, , , prevType, , prevFolder]
+  ) => {
+    // Side effect: sync status filter
+    if (newStatus !== prevStatus) {
+      if (newStatus) {
+        activeStatus.value = newStatus;
+        store.dispatch('setChatStatusFilter', newStatus);
+      } else {
+        const { conversations_filter_by: filterBy = {} } = uiSettings.value;
+        const { status } = filterBy;
+        activeStatus.value = status || wootConstants.STATUS_TYPE.OPEN;
+        store.dispatch('setChatStatusFilter', activeStatus.value);
+      }
+    }
 
-watch(
-  computed(() => props.conversationInbox),
-  () => resetAndFetchData()
-);
-watch(
-  computed(() => props.label),
-  () => resetAndFetchData()
-);
-watch(
-  computed(() => props.conversationType),
-  () => resetAndFetchData()
-);
+    // Side effect: reset assignee tab when leaving unattended view
+    if (newType !== prevType && newType !== 'unattended') {
+      activeAssigneeTab.value = wootConstants.ASSIGNEE_TYPE.ME;
+    }
 
-watch(activeFolder, (newVal, oldVal) => {
-  if (newVal !== oldVal) {
-    store.dispatch('customViews/setActiveConversationFolder', newVal || null);
+    // Side effect: sync active folder in store
+    if (newFolder !== prevFolder) {
+      store.dispatch(
+        'customViews/setActiveConversationFolder',
+        newFolder || null
+      );
+    }
+
+    resetAndFetchData();
   }
-  resetAndFetchData();
-});
+);
 
 watch(chatLists, () => {
   chatsOnView.value = conversationList.value;
 });
 
-watch(conversationFilters, (newVal, oldVal) => {
-  if (newVal !== oldVal) {
-    store.dispatch('updateChatListFilters', newVal);
-  }
+watch(conversationFilters, newVal => {
+  store.dispatch('updateChatListFilters', newVal);
 });
 </script>
 
@@ -1161,11 +1154,7 @@ watch(conversationFilters, (newVal, oldVal) => {
       <div
         class="w-12 h-12 rounded-full bg-n-slate-3 dark:bg-n-solid-3 flex items-center justify-center mb-4"
       >
-        <fluent-icon
-          icon="search"
-          size="24"
-          class="text-n-slate-11"
-        />
+        <fluent-icon icon="search" size="24" class="text-n-slate-11" />
       </div>
       <p class="text-base font-medium text-n-slate-12 mb-1">
         {{ $t('CONVERSATION.SEARCH.NO_RESULTS_TITLE') }}
@@ -1224,10 +1213,9 @@ watch(conversationFilters, (newVal, oldVal) => {
             :active="active"
             :data-index="index"
             :size-dependencies="[
-              item.messages,
               item.labels,
-              item.uuid,
-              item.inbox_id,
+              item.sla_policy_id,
+              item.priority,
             ]"
           >
             <ConversationItem
@@ -1245,7 +1233,15 @@ watch(conversationFilters, (newVal, oldVal) => {
           </DynamicScrollerItem>
         </template>
         <template #after>
-          <div v-if="(isSearchActive && store.getters['conversationSearch/getUIFlags']?.conversation?.isFetching) || (!isSearchActive && chatListLoading)" class="flex justify-center my-4">
+          <div
+            v-if="
+              (isSearchActive &&
+                store.getters['conversationSearch/getUIFlags']?.conversation
+                  ?.isFetching) ||
+              (!isSearchActive && chatListLoading)
+            "
+            class="flex justify-center my-4"
+          >
             <Spinner class="text-n-brand" />
           </div>
           <p

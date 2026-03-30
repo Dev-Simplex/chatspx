@@ -460,6 +460,16 @@ en:
     seconds:
       one: '%{count} second'
       other: '%{count} seconds'
+  kanban:
+    stages:
+      general: 'General'
+      open: 'Open'
+      in_progress: 'In Progress'
+      resolved: 'Resolved'
+  scheduled_messages:
+    errors:
+      failed_to_create: 'Failed to create message'
+      only_pending_allowed: 'Only pending messages can be modified or cancelled'
   automation:
     system_name: 'Automation System'
   crm:

@@ -6,7 +6,7 @@ import WootReports from './components/WootReports.vue';
 import Spinner from 'dashboard/components-next/spinner/Spinner.vue';
 
 const route = useRoute();
-const team = useFunctionGetter('teams/getTeamById', route.params.id);
+const team = useFunctionGetter('teams/getTeam', route.params.id);
 </script>
 
 <template>

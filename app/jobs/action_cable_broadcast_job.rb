@@ -26,7 +26,11 @@ class ActionCableBroadcastJob < ApplicationJob
     return data unless CONVERSATION_UPDATE_EVENTS.include?(event_name)
 
     account = Account.find(data[:account_id])
-    conversation = account.conversations.find_by!(display_id: data[:id])
+    conversation = account.conversations
+                          .includes(:taggings, :inbox, :contact_inbox, :team,
+                                    contact: :avatar_attachment,
+                                    assignee: :avatar_attachment)
+                          .find_by!(display_id: data[:id])
     conversation.push_event_data.merge(account_id: data[:account_id])
   end
 

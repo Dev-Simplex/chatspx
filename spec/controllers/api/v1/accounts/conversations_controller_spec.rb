@@ -966,7 +966,7 @@ RSpec.describe 'Conversations API', type: :request do
           delete "/api/v1/accounts/#{account.id}/conversations/#{conversation.display_id}",
                  headers: administrator.create_new_auth_token,
                  as: :json
-        end.to have_enqueued_job(DeleteObjectJob).with(conversation, administrator, anything)
+        end.to have_enqueued_job(DeleteObjectJob).with('Conversation', conversation.id, administrator.id, anything)
 
         expect(response).to have_http_status(:ok)
       end
@@ -979,7 +979,7 @@ RSpec.describe 'Conversations API', type: :request do
           delete "/api/v1/accounts/#{account.id}/conversations/#{other_conversation.display_id}",
                  headers: administrator.create_new_auth_token,
                  as: :json
-        end.to have_enqueued_job(DeleteObjectJob).with(other_conversation, administrator, anything)
+        end.to have_enqueued_job(DeleteObjectJob).with('Conversation', other_conversation.id, administrator.id, anything)
 
         expect(response).to have_http_status(:ok)
       end

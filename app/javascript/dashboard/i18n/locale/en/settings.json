@@ -335,6 +335,7 @@
     "AGENT_BOTS": "Bots",
     "AUDIT_LOGS": "Audit Logs",
     "INBOXES": "Inboxes",
+    "WAHA_CONNECTIONS": "WhatsApp Connections",
     "NOTIFICATIONS": "Notifications",
     "CANNED_RESPONSES": "Canned Responses",
     "INTEGRATIONS": "Integrations",
@@ -874,6 +875,121 @@
       "DESCRIPTION": "Are you sure you want to delete this policy? This action cannot be undone.",
       "CONFIRM_BUTTON_LABEL": "Delete",
       "CANCEL_BUTTON_LABEL": "Cancel"
+    }
+  },
+  "WAHA_CONNECTIONS": {
+    "TITLE": "WhatsApp Connections",
+    "DESCRIPTION": "Manage your WhatsApp connections and monitor in real time",
+    "ADD_CONNECTION": "Add Connection",
+    "ADD_FIRST_CONNECTION": "Add First Connection",
+    "NO_CONNECTIONS": "No connections found",
+    "NO_CONNECTIONS_DESCRIPTION": "Add your first connection to start serving customers",
+    "AUTO_UPDATE": "Auto Update",
+    "UPDATED_AT": "Updated at {time}",
+    "REFRESH": "Refresh",
+    "NOT_CONNECTED": "Not connected",
+    "TABLE": {
+      "SESSION_NAME": "Name",
+      "STATUS": "Status",
+      "PHONE_NUMBER": "Phone Number",
+      "INBOX": "Inbox",
+      "CREATED_AT": "Created at",
+      "ACTIONS": "Actions"
+    },
+    "STATUS": {
+      "WORKING": "Connected",
+      "SCAN_QR_CODE": "Scan QR Code",
+      "FAILED": "Failed",
+      "STOPPED": "Disconnected",
+      "STARTING": "Starting"
+    },
+    "ACTIONS": {
+      "VIEW_QR": "View QR Code",
+      "CONNECT": "Connect",
+      "DISCONNECT": "Disconnect",
+      "DELETE": "Delete",
+      "RESTART": "Restart"
+    },
+    "ADD_MODAL": {
+      "TITLE": "Add WhatsApp Connection",
+      "DESCRIPTION": "Create a new WhatsApp connection for customer service",
+      "CONNECTION_NAME": "Connection Name",
+      "CONNECTION_NAME_REQUIRED": "required",
+      "CONNECTION_NAME_PLACEHOLDER": "e.g.: Main Support",
+      "CONNECTION_NAME_HELP": "Name used to identify this connection",
+      "CANCEL": "Cancel",
+      "CREATE": "Create Connection",
+      "CREATING": "Creating...",
+      "INFO_TITLE": "What happens after creating?",
+      "INFO_NEW_CONNECTION": "A new connection will be created",
+      "INFO_INBOX_LINKED": "An inbox will be linked automatically",
+      "INFO_QR_CODE": "A QR Code will be displayed for you to scan with WhatsApp",
+      "VALIDATION": {
+        "CONNECTION_NAME_REQUIRED": "Connection name is required"
+      }
+    },
+    "QR_MODAL": {
+      "TITLE_CONNECTED": "Connected!",
+      "TITLE_SCAN": "Scan QR Code",
+      "CONNECTED_TITLE": "Connected Successfully!",
+      "CONNECTED_DESCRIPTION": "Your WhatsApp has been linked to the inbox",
+      "ELAPSED_TIME": "Elapsed time: {time}",
+      "LOADING": "Loading QR Code...",
+      "ERROR_TITLE": "Error Loading QR Code",
+      "ERROR": "Failed to load QR code",
+      "RETRY": "Try Again",
+      "FAILED_TITLE": "QR Code Expired",
+      "FAILED_MESSAGE": "The QR code expired because it took too long to be scanned. Click \"Restart\" to generate a new QR code.",
+      "RESTARTING": "Restarting...",
+      "RESTART": "Restart",
+      "RESTART_ERROR": "Error restarting connection. Please try again.",
+      "HOW_TO_CONNECT": "How to Connect:",
+      "STEP_1": "Open {whatsapp} on your phone",
+      "STEP_1_WHATSAPP": "WhatsApp",
+      "STEP_2_PREFIX": "Tap on",
+      "STEP_2_MENU": "Menu (\u22ee)",
+      "STEP_2_OR": "or",
+      "STEP_2_SETTINGS": "Settings",
+      "STEP_3_PREFIX": "Tap on",
+      "STEP_3_LINKED_DEVICES": "Linked Devices",
+      "STEP_3_AND_THEN": "and then",
+      "STEP_3_LINK_DEVICE": "Link a Device",
+      "STEP_4": "Point your phone at {thisScreen} to scan the QR Code",
+      "STEP_4_THIS_SCREEN": "this screen",
+      "WAITING": "Waiting for connection...",
+      "CANCEL": "Cancel",
+      "DONE": "Done"
+    },
+    "MESSAGES": {
+      "CREATE_SUCCESS": "Connection created successfully",
+      "CREATE_ERROR": "Error creating connection. Please check the data and try again",
+      "CONNECT_SUCCESS": "Connection started successfully",
+      "CONNECT_ERROR": "Error starting connection. Please try again",
+      "DISCONNECT_SUCCESS": "Connection disconnected successfully",
+      "DISCONNECT_ERROR": "Error disconnecting. Please try again",
+      "DELETE_SUCCESS": "Connection deleted successfully",
+      "DELETE_ERROR": "Error deleting connection. Please try again",
+      "DELETE_CONFIRM": "Are you sure you want to delete this connection? The associated inbox will also be deleted.",
+      "RESTART_SUCCESS": "Connection restarted successfully. Please scan the QR code again.",
+      "RESTART_ERROR": "Error restarting connection. Please try again.",
+      "LOADING": "Loading connections...",
+      "API_ERROR": "Could not connect to the service. Please check your configuration and try again."
+    }
+  },
+  "PRIVATE_CHAT": {
+    "ACCESS": "Access",
+    "PASSWORD_PLACEHOLDER": "Password",
+    "LOGGING_IN": "Logging in...",
+    "LOGIN": "Log in",
+    "NOTES": "Notes",
+    "LOADING": "Loading...",
+    "SEND": "Send",
+    "MESSAGE_PLACEHOLDER": "Type a message...",
+    "ERRORS": {
+      "LOAD_MESSAGES": "Error loading messages",
+      "INVALID_PASSWORD": "Invalid password. Please try again.",
+      "CLEAR_CONVERSATION": "Error clearing conversation",
+      "SEND_MESSAGE": "Error sending message"
     }
   }
 }

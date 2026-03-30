@@ -8,8 +8,13 @@ class BulkActionsJob < ApplicationJob
 
   MODEL_TYPE = ['Conversation'].freeze
 
-  def perform(account:, params:, user:)
-    @account = account
+  def perform(account_id:, params:, user_id:)
+    @account = Account.find_by(id: account_id)
+    return unless @account
+
+    user = User.find_by(id: user_id)
+    return unless user
+
     Current.user = user
     @params = params
     @records = records_to_updated(params[:ids])
@@ -28,13 +33,13 @@ class BulkActionsJob < ApplicationJob
     records.each do |conversation|
       bulk_add_labels(conversation)
       bulk_snoozed_until(conversation)
-      
+
       # Validate team requirement when resolving
       if params && params[:status] == 'resolved' && conversation.team_id.blank?
         Rails.logger.warn("Skipping resolution of conversation #{conversation.id} - team required")
         next
       end
-      
+
       conversation.update(params) if params
     end
   end
@@ -71,5 +76,6 @@ class BulkActionsJob < ApplicationJob
     return unless MODEL_TYPE.include?(current_model)
 
     current_model.constantize&.where(account_id: @account.id, display_id: ids)
+                 &.includes(:inbox, :contact, :team, :assignee, :account)
   end
 end

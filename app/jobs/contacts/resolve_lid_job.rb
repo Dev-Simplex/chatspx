@@ -49,7 +49,7 @@ class Contacts::ResolveLidJob < ApplicationJob
     hash['pn'].presence || hash[:pn].presence || hash['number'].presence || hash[:number].presence
   end
 
-  def normalize_phone(pn)
+  def normalize_phone(pn) # rubocop:disable Naming/MethodParameterName
     clean_number = pn.to_s.split('@').first
     return nil if clean_number.blank?
 
@@ -57,7 +57,7 @@ class Contacts::ResolveLidJob < ApplicationJob
     Contacts::BrazilPhoneNormalizer.normalize(phone_number)
   end
 
-  def merge_or_update(inbox, contact_inbox_by_lid, pn, normalized_phone)
+  def merge_or_update(inbox, contact_inbox_by_lid, pn, normalized_phone) # rubocop:disable Metrics/AbcSize, Metrics/CyclomaticComplexity, Metrics/MethodLength, Metrics/PerceivedComplexity, Naming/MethodParameterName
     contact_inbox_by_pn = inbox.contact_inboxes.find_by(source_id: pn)
 
     ActiveRecord::Base.transaction do

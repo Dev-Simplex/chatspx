@@ -8,19 +8,19 @@ class FilterService
   ATTRIBUTE_TYPES = {
     date: 'date', text: 'text', number: 'numeric', link: 'text', list: 'text', checkbox: 'boolean'
   }.with_indifferent_access
+  FILTER_KEYS = YAML.safe_load(File.read('./lib/filters/filter_keys.yml')).freeze
 
   def initialize(params, user)
     @params = params
     @user = user
-    file = File.read('./lib/filters/filter_keys.yml')
-    @filters = YAML.safe_load(file)
+    @filters = FILTER_KEYS
     @query_string = ''
     @filter_values = {}
   end
 
   def perform; end
 
-  def filter_operation(query_hash, current_index)
+  def filter_operation(query_hash, current_index) # rubocop:disable Metrics/MethodLength
     case query_hash[:filter_operator]
     when 'equal_to', 'not_equal_to'
       @filter_values["value_#{current_index}"] = filter_values(query_hash)
@@ -34,8 +34,10 @@ class FilterService
       @filter_values["value_#{current_index}"] = 'IS NULL'
     when 'is_greater_than', 'is_less_than'
       @filter_values["value_#{current_index}"] = lt_gt_filter_values(query_hash)
+      "#{lt_gt_operator(query_hash)} :value_#{current_index}::#{lt_gt_data_type(query_hash)}"
     when 'days_before'
       @filter_values["value_#{current_index}"] = days_before_filter_values(query_hash)
+      "#{lt_gt_operator(query_hash)} :value_#{current_index}::#{lt_gt_data_type(query_hash)}"
     else
       @filter_values["value_#{current_index}"] = filter_values(query_hash).to_s
       "= :value_#{current_index}"
@@ -82,13 +84,18 @@ class FilterService
   end
 
   def lt_gt_filter_values(query_hash)
+    query_hash['values'][0].to_s
+  end
+
+  def lt_gt_operator(query_hash)
+    query_hash['filter_operator'] == 'is_less_than' ? '<' : '>'
+  end
+
+  def lt_gt_data_type(query_hash)
     attribute_key = query_hash[:attribute_key]
     attribute_model = query_hash['custom_attribute_type'].presence || self.class::ATTRIBUTE_MODEL
     attribute_type = custom_attribute(attribute_key, @account, attribute_model).try(:attribute_display_type)
-    attribute_data_type = self.class::ATTRIBUTE_TYPES[attribute_type]
-    value = query_hash['values'][0]
-    operator = query_hash['filter_operator'] == 'is_less_than' ? '<' : '>'
-    "#{operator} '#{value}'::#{attribute_data_type}"
+    self.class::ATTRIBUTE_TYPES[attribute_type]
   end
 
   def days_before_filter_values(query_hash)
@@ -131,6 +138,8 @@ class FilterService
 
   def custom_attribute_query(query_hash, custom_attribute_type, current_index)
     @attribute_key = query_hash[:attribute_key]
+    raise "Invalid attribute key: #{@attribute_key}" unless @attribute_key.match?(/\A[a-zA-Z0-9_]+\z/)
+
     @custom_attribute_type = custom_attribute_type
     attribute_data_type
     return '' if @custom_attribute.blank?

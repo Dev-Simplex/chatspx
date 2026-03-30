@@ -14,15 +14,19 @@ class SearchAPI extends ApiClient {
     });
   }
 
-  contacts({ q, page = 1, since, until }) {
-    return axios.get(`${this.url}/contacts`, {
+  contacts({ q, page = 1, since, until } = {}, options = {}) {
+    const config = {
       params: {
         q,
         page: page,
         since,
         until,
       },
-    });
+    };
+    if (options.signal) {
+      config.signal = options.signal;
+    }
+    return axios.get(`${this.url}/contacts`, config);
   }
 
   conversations({ q, page = 1, since, until } = {}, options = {}) {
@@ -40,7 +44,10 @@ class SearchAPI extends ApiClient {
     return axios.get(`${this.url}/conversations`, config);
   }
 
-  messages({ q, page = 1, conversation_id = null, since, until, from, inboxId }) {
+  messages(
+    { q, page = 1, conversation_id = null, since, until, from, inboxId } = {},
+    options = {}
+  ) {
     const params = {
       q,
       page: page,
@@ -52,18 +59,26 @@ class SearchAPI extends ApiClient {
     if (conversation_id) {
       params.conversation_id = conversation_id;
     }
-    return axios.get(`${this.url}/messages`, { params });
+    const config = { params };
+    if (options.signal) {
+      config.signal = options.signal;
+    }
+    return axios.get(`${this.url}/messages`, config);
   }
 
-  articles({ q, page = 1, since, until }) {
-    return axios.get(`${this.url}/articles`, {
+  articles({ q, page = 1, since, until } = {}, options = {}) {
+    const config = {
       params: {
         q,
         page: page,
         since,
         until,
       },
-    });
+    };
+    if (options.signal) {
+      config.signal = options.signal;
+    }
+    return axios.get(`${this.url}/articles`, config);
   }
 }
 

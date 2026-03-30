@@ -9,7 +9,7 @@ RSpec.describe Internal::ProcessStaleRedisKeysJob do
         .with(account_id: account.id)
         .and_call_original
 
-      described_class.perform_now(account)
+      described_class.perform_now(account.id)
     end
   end
 end

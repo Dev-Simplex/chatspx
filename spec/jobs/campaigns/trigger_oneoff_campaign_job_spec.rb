@@ -12,14 +12,15 @@ RSpec.describe Campaigns::TriggerOneoffCampaignJob do
   end
 
   it 'enqueues the job' do
-    expect { described_class.perform_later(campaign) }.to have_enqueued_job(described_class)
+    expect { described_class.perform_later(campaign.id) }.to have_enqueued_job(described_class)
       .on_queue('low')
   end
 
   context 'when called with a campaign' do
     it 'triggers the campaign' do
+      allow(Campaign).to receive(:find_by).with(id: campaign.id).and_return(campaign)
       expect(campaign).to receive(:trigger!)
-      described_class.perform_now(campaign)
+      described_class.perform_now(campaign.id)
     end
   end
 end

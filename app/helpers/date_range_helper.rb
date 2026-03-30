@@ -8,8 +8,8 @@ module DateRangeHelper
     # Treat 0 as blank/nil - 0 is not a valid timestamp
     since = params[:since]
     until_param = params[:until]
-    
-    return if since.blank? || until_param.blank? || since.to_i == 0 || until_param.to_i == 0
+
+    return if since.blank? || until_param.blank? || since.to_i.zero? || until_param.to_i.zero?
 
     parse_date_time(since)...parse_date_time(until_param)
   end

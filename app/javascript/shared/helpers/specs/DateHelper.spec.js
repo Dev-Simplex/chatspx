@@ -21,7 +21,7 @@ describe('#DateHelper', () => {
         todayText: 'Today',
         yesterdayText: 'Yesterday',
       })
-    ).toEqual('Dec 14, 2019');
+    ).toEqual('14 de dezembro de 2019');
   });
   it('should format date as today ', () => {
     expect(

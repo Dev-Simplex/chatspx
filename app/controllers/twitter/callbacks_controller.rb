@@ -64,7 +64,7 @@ class Twitter::CallbacksController < Twitter::BaseController
 
     parsed_user_profile = response.body
 
-    ::Avatar::AvatarFromUrlJob.perform_later(inbox, parsed_user_profile['profile_image_url_https'])
+    ::Avatar::AvatarFromUrlJob.perform_later(inbox.class.name, inbox.id, parsed_user_profile['profile_image_url_https'])
   end
 
   def permitted_params

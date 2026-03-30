@@ -10,6 +10,15 @@
     "SUBMIT": "Update settings",
     "BACK": "Back",
     "DISMISS": "Dismiss",
+    "WAHA_BANNER": {
+      "GO_TO_CONNECTIONS": "Go to Connections",
+      "CLEAR_SEARCH": "Clear search",
+      "SINGLE_CONNECTION_ISSUE": "One WhatsApp connection is {status}.",
+      "MULTIPLE_CONNECTIONS_ISSUE": "{count} WhatsApp connections have issues.",
+      "STATUS_STOPPED": "disconnected",
+      "STATUS_FAILED": "failing",
+      "STATUS_SCAN_QR": "waiting for QR code scan"
+    },
     "UPDATE": {
       "ERROR": "Could not update settings, try again!",
       "SUCCESS": "Successfully updated account settings"

@@ -37,7 +37,8 @@ class SearchService
                                               'conversations.last_activity_at')
     end
 
-    @conversations = conversations_query.order('conversations.created_at DESC')
+    @conversations = conversations_query.includes(:contact, :inbox, :assignee, :team, contact: :avatar_attachment)
+                                        .order('conversations.created_at DESC')
                                         .page(params[:page])
                                         .per(15)
   end

@@ -12,7 +12,7 @@ module SlaActivityMessageHandler
               when 'updated'
                 I18n.t('conversations.activity.sla.updated', user_name: user_name, sla_name: sla_policy_name)
               end
-    ::Conversations::ActivityMessageJob.perform_later(self, activity_message_params(content)) if content
+    ::Conversations::ActivityMessageJob.perform_later(id, activity_message_params(content)) if content
   end
 
   def sla_policy_name

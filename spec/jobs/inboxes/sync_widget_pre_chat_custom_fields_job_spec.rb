@@ -16,7 +16,7 @@ RSpec.describe Inboxes::SyncWidgetPreChatCustomFieldsJob do
 
   context 'when called' do
     it 'sync pre chat fields if custom attribute deleted' do
-      described_class.perform_now(account, 'developer_id')
+      described_class.perform_now(account.id, 'developer_id')
       expect(web_widget.reload.pre_chat_form_options['pre_chat_fields']).to eq [{
         'label' => 'Full Name',
         'name' => 'full_name'

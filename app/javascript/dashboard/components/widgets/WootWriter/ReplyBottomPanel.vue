@@ -461,7 +461,7 @@ export default {
   @apply flex items-center gap-1;
 }
 
-::v-deep .file-uploads {
+:deep(.file-uploads) {
   label {
     @apply cursor-pointer;
   }

@@ -1,4 +1,4 @@
-class Messages::MessageBuilder
+class Messages::MessageBuilder # rubocop:disable Metrics/ClassLength
   include ::FileTypeHelper
   include ::EmailHelper
   include ::DataHelper
@@ -167,13 +167,9 @@ class Messages::MessageBuilder
 
     return true if inbox.channel_type == 'Channel::Whatsapp'
 
-    if inbox.channel_type == 'Channel::TwilioSms'
-      return inbox.channel&.medium == 'whatsapp'
-    end
+    return inbox.channel&.medium == 'whatsapp' if inbox.channel_type == 'Channel::TwilioSms'
 
-    if inbox.channel_type == 'Channel::Api'
-      return true
-    end
+    return true if inbox.channel_type == 'Channel::Api'
 
     false
   end

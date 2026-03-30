@@ -1,4 +1,4 @@
-module Api::V1::InboxesHelper
+module Api::V1::InboxesHelper # rubocop:disable Metrics/ModuleLength
   def inbox_name(channel)
     return channel.try(:bot_name) if channel.is_a?(Channel::Telegram)
 
@@ -92,8 +92,17 @@ module Api::V1::InboxesHelper
     end
   end
 
+  OPENSSL_VERIFY_MODES = {
+    'none' => OpenSSL::SSL::VERIFY_NONE,
+    'peer' => OpenSSL::SSL::VERIFY_PEER,
+    'fail_if_no_peer_cert' => OpenSSL::SSL::VERIFY_FAIL_IF_NO_PEER_CERT,
+    'client_once' => OpenSSL::SSL::VERIFY_CLIENT_ONCE
+  }.freeze
+
   def enable_openssl_mode(smtp_openssl_verify_mode)
-    openssl_verify_mode = "OpenSSL::SSL::VERIFY_#{smtp_openssl_verify_mode.upcase}".constantize if smtp_openssl_verify_mode.is_a?(String)
+    openssl_verify_mode = OPENSSL_VERIFY_MODES[smtp_openssl_verify_mode.to_s.downcase] if smtp_openssl_verify_mode.is_a?(String)
+    raise ArgumentError, "Invalid OpenSSL verify mode: #{smtp_openssl_verify_mode}" if openssl_verify_mode.nil?
+
     context = Net::SMTP.default_ssl_context
     context.verify_mode = openssl_verify_mode
     context

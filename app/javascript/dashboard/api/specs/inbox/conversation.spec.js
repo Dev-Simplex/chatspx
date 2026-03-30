@@ -48,17 +48,20 @@ describe('#ConversationAPI', () => {
         teamId: 1,
         updatedWithin: 20,
       });
-      expect(axiosMock.get).toHaveBeenCalledWith('/api/v1/conversations', {
-        params: {
-          inbox_id: 1,
-          team_id: 1,
-          status: 'open',
-          assignee_type: 'me',
-          page: 1,
-          labels: [],
-          updated_within: 20,
-        },
-      });
+      expect(axiosMock.get).toHaveBeenCalledWith(
+        '/api/v1/conversations',
+        expect.objectContaining({
+          params: {
+            inbox_id: 1,
+            team_id: 1,
+            status: 'open',
+            assignee_type: 'me',
+            page: 1,
+            labels: [],
+            updated_within: 20,
+          },
+        })
+      );
     });
 
     it('#search', () => {
@@ -218,7 +221,7 @@ describe('#ConversationAPI', () => {
       expect(axiosMock.post).toHaveBeenCalledWith(
         '/api/v1/conversations/filter',
         payload.queryData,
-        { params: { page: payload.page } }
+        expect.objectContaining({ params: { page: payload.page } })
       );
     });
 

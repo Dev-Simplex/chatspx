@@ -7,7 +7,7 @@ class EventDispatcherJob < ApplicationJob
     unless data.is_a?(Hash)
       Rails.logger.warn(
         "[EventDispatcherJob] Third argument (data) is not a Hash: #{data.class} - event=#{event_name}. " \
-        "Skipping publish to avoid listener crash. Check job argument serialization."
+        'Skipping publish to avoid listener crash. Check job argument serialization.'
       )
       return
     end

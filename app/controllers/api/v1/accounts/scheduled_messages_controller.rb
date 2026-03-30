@@ -1,6 +1,6 @@
 # frozen_string_literal: true
 
-class Api::V1::Accounts::ScheduledMessagesController < Api::V1::Accounts::BaseController
+class Api::V1::Accounts::ScheduledMessagesController < Api::V1::Accounts::BaseController # rubocop:disable Metrics/ClassLength
   before_action :set_scheduled_message, except: [:index, :create, :inboxes]
   before_action :check_authorization
   before_action :ensure_pending_message!, only: [:update, :destroy]
@@ -13,6 +13,7 @@ class Api::V1::Accounts::ScheduledMessagesController < Api::V1::Accounts::BaseCo
     scope = scope.where(conversation_id: params[:conversation_id]) if params[:conversation_id].present?
     scope = apply_status_filter(scope, requested_status)
     return if performed?
+
     scope = apply_date_filter(scope) unless cursor_mode?
     scope = scope.upcoming if should_apply_upcoming_filter?(requested_status)
 
@@ -34,20 +35,20 @@ class Api::V1::Accounts::ScheduledMessagesController < Api::V1::Accounts::BaseCo
     render 'api/v1/accounts/scheduled_messages/show', formats: [:json]
   end
 
-  def create
+  def create # rubocop:disable Metrics/AbcSize, Metrics/CyclomaticComplexity, Metrics/MethodLength, Metrics/PerceivedComplexity
     if Current.user.blank?
-      render json: { error: 'Usuário não autenticado' }, status: :unauthorized
+      render json: { error: 'User not authenticated' }, status: :unauthorized
       return
     end
 
     if Current.account.blank?
-      render json: { error: 'Conta não encontrada' }, status: :unauthorized
+      render json: { error: 'Account not found' }, status: :unauthorized
       return
     end
 
     sm_params = scheduled_message_params
     unless sm_params
-      render json: { error: 'Parâmetros inválidos: envie { scheduled_message: { conversation_id ou contact_id+inbox_id, message, scheduled_at } }' },
+      render json: { error: 'Invalid parameters: send { scheduled_message: { conversation_id or contact_id+inbox_id, message, scheduled_at } }' },
              status: :unprocessable_entity
       return
     end
@@ -61,7 +62,7 @@ class Api::V1::Accounts::ScheduledMessagesController < Api::V1::Accounts::BaseCo
 
     inbox_to_use = conv.inbox
     unless inbox_to_use
-      render json: { error: 'Conversa não tem inbox associado' }, status: :unprocessable_entity
+      render json: { error: 'Conversation does not have an associated inbox' }, status: :unprocessable_entity
       return
     end
 
@@ -91,26 +92,21 @@ class Api::V1::Accounts::ScheduledMessagesController < Api::V1::Accounts::BaseCo
 
     render 'api/v1/accounts/scheduled_messages/create', formats: [:json], status: :created
   rescue ActiveRecord::RecordNotFound
-    render json: { error: 'Conversa ou inbox não encontrado' }, status: :not_found
+    render json: { error: 'Conversation or inbox not found' }, status: :not_found
   rescue ArgumentError => e
     render json: { error: e.message }, status: :unprocessable_entity
   rescue ActionController::ParameterMissing => e
-    render json: { error: "Parâmetros inválidos: #{e.message}" }, status: :unprocessable_entity
+    render json: { error: "Invalid parameters: #{e.message}" }, status: :unprocessable_entity
   rescue StandardError => e
     Rails.logger.error "ScheduledMessagesController#create: #{e.class}: #{e.message}"
     Rails.logger.error e.backtrace.first(10).join("\n")
-    msg = e.message.to_s
-    msg += ' (rode db:migrate se a tabela scheduled_messages estiver desatualizada)' if msg.include?('column') && msg.include?('does not exist')
-    render json: {
-      error: "Erro ao criar mensagem agendada: #{msg}",
-      error_class: e.class.name
-    }, status: :internal_server_error
+    render json: { error: 'An unexpected error occurred while creating the scheduled message' }, status: :internal_server_error
   end
 
   def update
     sm_params = scheduled_message_params(for_update: true)
     if sm_params.blank?
-      render json: { error: 'Parâmetros inválidos' }, status: :unprocessable_entity
+      render json: { error: 'Invalid parameters' }, status: :unprocessable_entity
       return
     end
 
@@ -171,7 +167,7 @@ class Api::V1::Accounts::ScheduledMessagesController < Api::V1::Accounts::BaseCo
     return scope if requested_status.blank? || requested_status == 'all'
 
     unless ALLOWED_STATUS_FILTERS.include?(requested_status)
-      render json: { error: "Status inválido. Use: #{ALLOWED_STATUS_FILTERS.join(', ')}" }, status: :unprocessable_entity
+      render json: { error: "Invalid status. Use: #{ALLOWED_STATUS_FILTERS.join(', ')}" }, status: :unprocessable_entity
       return scope
     end
 
@@ -208,7 +204,7 @@ class Api::V1::Accounts::ScheduledMessagesController < Api::V1::Accounts::BaseCo
   def ensure_pending_message!
     return if @scheduled_message.pending?
 
-    render json: { error: 'Apenas mensagens pendentes podem ser alteradas ou canceladas' }, status: :unprocessable_entity
+    render json: { error: I18n.t('scheduled_messages.errors.only_pending_allowed') }, status: :unprocessable_entity
   end
 
   def check_authorization

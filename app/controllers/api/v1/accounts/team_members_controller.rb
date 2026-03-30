@@ -4,7 +4,7 @@ class Api::V1::Accounts::TeamMembersController < Api::V1::Accounts::BaseControll
   before_action :validate_member_id_params, only: [:create, :update, :destroy]
 
   def index
-    @team_members = @team.team_members.map(&:user)
+    @team_members = @team.team_members.includes(user: { avatar_attachment: :blob }).map(&:user)
   end
 
   def create

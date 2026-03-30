@@ -6,7 +6,7 @@ RSpec.describe 'Contacts API', type: :request do
     {
       attribute_key: 'email',
       filter_operator: 'contains',
-      values: 'looped',
+      values: ['looped'],
       query_operator: 'and',
       attribute_model: 'standard',
       custom_attribute_type: ''
@@ -260,9 +260,12 @@ RSpec.describe 'Contacts API', type: :request do
       end
 
       it 'enqueues a contact export job with payload' do
+        expected_filter = ActionController::Parameters.new(
+          email_filter.slice(:attribute_key, :filter_operator, :query_operator, :custom_attribute_type, :values)
+        ).permit!
         expect(Account::ContactsExportJob).to receive(:perform_later).with(account.id, admin.id, nil,
                                                                            {
-                                                                             :payload => [ActionController::Parameters.new(email_filter).permit!],
+                                                                             :payload => [expected_filter],
                                                                              :label => nil
                                                                            }).once
 
@@ -650,6 +653,7 @@ RSpec.describe 'Contacts API', type: :request do
       end
 
       it 'uses Simplex when no WAHA sessions are linked' do
+        stub_const('Api::V1::Accounts::ContactsController::WAHA_VALIDATION_SESSION_NAME', 'Simplex')
         waha_service = instance_double(Waha::ApiService)
         allow(Waha::ApiService).to receive(:new).and_return(waha_service)
         expect(waha_service).to receive(:check_contact_exists)
@@ -665,6 +669,7 @@ RSpec.describe 'Contacts API', type: :request do
       end
 
       it 'uses Simplex when multiple WAHA sessions include it' do
+        stub_const('Api::V1::Accounts::ContactsController::WAHA_VALIDATION_SESSION_NAME', 'Simplex')
         create(:inbox, account: account, waha_session_name: 'session-one')
         create(:inbox, account: account, waha_session_name: 'Simplex')
         waha_service = instance_double(Waha::ApiService)

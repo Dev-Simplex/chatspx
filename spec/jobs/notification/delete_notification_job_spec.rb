@@ -25,12 +25,12 @@ RSpec.describe Notification::DeleteNotificationJob do
     end
 
     it 'deletes all notifications' do
-      described_class.perform_now(user, type: :all)
+      described_class.perform_now(user.id, type: 'all')
       expect(user.notifications.count).to eq(0)
     end
 
     it 'deletes only read notifications' do
-      described_class.perform_now(user, type: :read)
+      described_class.perform_now(user.id, type: 'read')
       expect(user.notifications.count).to eq(1)
       expect(user.notifications.where(read_at: nil).count).to eq(1)
     end

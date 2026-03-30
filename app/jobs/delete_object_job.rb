@@ -3,7 +3,19 @@ class DeleteObjectJob < ApplicationJob
 
   BATCH_SIZE = 5_000
 
-  def perform(object, user = nil, ip = nil)
+  ALLOWED_OBJECT_TYPES = %w[
+    Account Inbox Conversation Contact User
+    AgentBot Label SlaPolicy CustomAttributeDefinition
+  ].freeze
+
+  def perform(object_type, object_id, user_id = nil, ip = nil)
+    return unless ALLOWED_OBJECT_TYPES.include?(object_type)
+
+    object = object_type.constantize.find_by(id: object_id)
+    return unless object
+
+    user = user_id ? User.find_by(id: user_id) : nil
+
     # Pre-purge heavy associations for large objects to avoid
     # timeouts & race conditions due to destroy_async fan-out.
     purge_heavy_associations(object)

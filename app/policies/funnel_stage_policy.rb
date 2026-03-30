@@ -23,10 +23,10 @@ class FunnelStagePolicy < ApplicationPolicy
 
   class Scope < ApplicationPolicy::Scope
     def resolve
-      return scope.none unless account.present?
+      return scope.none if account.blank?
 
       target_account = account || Current.account
-      return scope.none unless target_account.present?
+      return scope.none if target_account.blank?
 
       scope.joins(:funnel).where(funnels: { account_id: target_account.id })
     end

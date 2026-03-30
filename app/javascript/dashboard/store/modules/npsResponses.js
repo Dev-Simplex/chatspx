@@ -1,4 +1,3 @@
-import * as MutationHelpers from 'shared/helpers/vuex/mutationHelpers';
 import types from '../mutation-types';
 import NpsReports from '../../api/npsReports';
 import { downloadCsvFile } from '../../helper/downloadHelper';
@@ -55,10 +54,13 @@ export const actions = {
       const response = await NpsReports.get(params);
       const data = Array.isArray(response.data)
         ? response.data
-        : (response.data?.payload || response.data || []);
+        : response.data?.payload || response.data || [];
       commit(types.SET_NPS_RESPONSE, data);
       const totalCount = parseInt(response.headers?.['x-total-count'], 10);
-      commit(types.SET_NPS_LIST_TOTAL_COUNT, Number.isFinite(totalCount) ? totalCount : 0);
+      commit(
+        types.SET_NPS_LIST_TOTAL_COUNT,
+        Number.isFinite(totalCount) ? totalCount : 0
+      );
     } catch (error) {
       commit(types.SET_NPS_RESPONSE, []);
       commit(types.SET_NPS_LIST_TOTAL_COUNT, 0);
@@ -66,9 +68,15 @@ export const actions = {
       commit(types.SET_NPS_RESPONSE_UI_FLAG, { isFetching: false });
     }
   },
-  getByConversation: async function getByConversation({ commit }, { accountId, conversationId }) {
+  getByConversation: async function getByConversation(
+    { commit },
+    { accountId, conversationId }
+  ) {
     try {
-      const response = await NpsReports.getByConversation({ accountId, conversationId });
+      const response = await NpsReports.getByConversation({
+        accountId,
+        conversationId,
+      });
       commit(types.SET_NPS_RESPONSE_BY_CONVERSATION, response.data);
       return response.data;
     } catch (error) {
@@ -79,7 +87,10 @@ export const actions = {
       throw error;
     }
   },
-  getByContact: async function getByContact({ commit }, { accountId, contactId }) {
+  getByContact: async function getByContact(
+    { commit },
+    { accountId, contactId }
+  ) {
     try {
       const response = await NpsReports.getByContact({ accountId, contactId });
       commit(types.SET_NPS_HISTORY, response.data || []);
@@ -89,13 +100,12 @@ export const actions = {
       return [];
     }
   },
-  sendSurvey: async function sendSurvey({ dispatch }, { accountId, conversationId }) {
-    try {
-      await NpsReports.sendSurvey({ accountId, conversationId });
-      await dispatch('getByConversation', { accountId, conversationId });
-    } catch (error) {
-      throw error;
-    }
+  sendSurvey: async function sendSurvey(
+    { dispatch },
+    { accountId, conversationId }
+  ) {
+    await NpsReports.sendSurvey({ accountId, conversationId });
+    await dispatch('getByConversation', { accountId, conversationId });
   },
   getMetrics: async function getMetrics({ commit }, params) {
     commit(types.SET_NPS_RESPONSE_UI_FLAG, { isFetchingMetrics: true });
@@ -103,8 +113,6 @@ export const actions = {
       const response = await NpsReports.getMetrics(params);
       commit(types.SET_NPS_RESPONSE_METRICS, response.data);
     } catch (error) {
-      console.error('Error fetching NPS metrics:', error);
-      console.error('Error details:', error.response?.data || error.message);
       // Reset metrics on error
       commit(types.SET_NPS_RESPONSE_METRICS, {
         total_count: 0,
@@ -140,21 +148,21 @@ export const mutations = {
   },
 
   [types.SET_NPS_RESPONSE](_state, data) {
-    _state.records = Array.isArray(data) ? [...data] : (data || []);
+    _state.records = Array.isArray(data) ? [...data] : data || [];
   },
 
   [types.SET_NPS_LIST_TOTAL_COUNT](_state, count) {
     _state.listTotalCount = count;
   },
-  
+
   [types.SET_NPS_RESPONSE_BY_CONVERSATION](_state, data) {
     _state.currentResponse = data;
   },
-  
+
   [types.SET_NPS_HISTORY](_state, data) {
     _state.history = data;
   },
-  
+
   [types.SET_NPS_RESPONSE_METRICS](
     _state,
     {

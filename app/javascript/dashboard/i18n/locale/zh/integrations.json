@@ -14,10 +14,7 @@
         "404": "There are no webhooks configured for this account.",
         "TITLE": "Manage webhooks",
         "DESC": "Webhooks are predefined reply templates which can be used to quickly send out replies to tickets.",
-        "TABLE_HEADER": [
-          "Webhook endpoint",
-          "Actions"
-        ]
+        "TABLE_HEADER": ["Webhook endpoint", "Actions"]
       },
       "ADD": {
         "CANCEL": "Cancel",

@@ -32,19 +32,15 @@ export const hasMessageFailedWithExternalError = pendingMessage => {
 // actions
 const actions = {
   getConversation: async ({ commit }, conversationId) => {
-    try {
-      const response = await ConversationApi.show(conversationId);
-      commit(types.UPDATE_CONVERSATION, response.data);
-      commit(`contacts/${types.SET_CONTACT_ITEM}`, response.data.meta.sender);
-    } catch (error) {
-      throw error;
-    }
+    const response = await ConversationApi.show(conversationId);
+    commit(types.UPDATE_CONVERSATION, response.data);
+    commit(`contacts/${types.SET_CONTACT_ITEM}`, response.data.meta.sender);
   },
 
   fetchAllConversations: async ({ commit, state, dispatch }) => {
     commit(types.SET_LIST_LOADING_STATUS);
+    const params = state.conversationFilters;
     try {
-      const params = state.conversationFilters;
       const {
         data: { data },
       } = await ConversationApi.get(params);
@@ -55,6 +51,10 @@ const actions = {
         params.assigneeType
       );
     } catch (error) {
+      // Aborted/canceled = a newer fetch replaced this one — ignore silently
+      const isAbort =
+        error?.name === 'AbortError' || error?.code === 'ERR_CANCELED';
+      if (isAbort) return;
       commit(types.CLEAR_LIST_LOADING_STATUS);
     }
   },
@@ -70,6 +70,9 @@ const actions = {
         'appliedFilters'
       );
     } catch (error) {
+      const isAbort =
+        error?.name === 'AbortError' || error?.code === 'ERR_CANCELED';
+      if (isAbort) return;
       commit(types.CLEAR_LIST_LOADING_STATUS);
     }
   },
@@ -162,9 +165,8 @@ const actions = {
         data: meta,
       });
       // Find the messages that are not already present in the store
-      const missingMessages = payload.filter(
-        message => !messages.find(item => item.id === message.id)
-      );
+      const existingIds = new Set(messages.map(m => m.id));
+      const missingMessages = payload.filter(m => !existingIds.has(m.id));
       selectedChat.messages.push(...missingMessages);
       // Sort the messages by created_at
       const sortedMessages = selectedChat.messages.sort((a, b) => {
@@ -266,28 +268,23 @@ const actions = {
     { commit },
     { conversationId, status, snoozedUntil = null }
   ) => {
-    try {
-      const {
-        data: {
-          payload: {
-            current_status: updatedStatus,
-            snoozed_until: updatedSnoozedUntil,
-          } = {},
+    const {
+      data: {
+        payload: {
+          current_status: updatedStatus,
+          snoozed_until: updatedSnoozedUntil,
         } = {},
-      } = await ConversationApi.toggleStatus({
-        conversationId,
-        status,
-        snoozedUntil,
-      });
-      commit(types.CHANGE_CONVERSATION_STATUS, {
-        conversationId,
-        status: updatedStatus,
-        snoozedUntil: updatedSnoozedUntil,
-      });
-    } catch (error) {
-      // Re-throw error to be handled by caller
-      throw error;
-    }
+      } = {},
+    } = await ConversationApi.toggleStatus({
+      conversationId,
+      status,
+      snoozedUntil,
+    });
+    commit(types.CHANGE_CONVERSATION_STATUS, {
+      conversationId,
+      status: updatedStatus,
+      snoozedUntil: updatedSnoozedUntil,
+    });
   },
 
   createPendingMessageAndSend: async ({ dispatch }, data) => {
@@ -345,7 +342,7 @@ const actions = {
     handleVoiceCallUpdated(commit, message, rootGetters?.getCurrentUserID);
   },
 
-  deleteMessage: async function deleteLabels(
+  deleteMessage: async function deleteMessage(
     { commit },
     { conversationId, messageId }
   ) {
@@ -358,9 +355,16 @@ const actions = {
     }
   },
 
-  updateMessageContent: async function ({ commit }, { conversationId, messageId, content }) {
+  updateMessageContent: async function updateMessageContent(
+    { commit },
+    { conversationId, messageId, content }
+  ) {
     try {
-      const { data } = await MessageApi.updateContent(conversationId, messageId, content);
+      const { data } = await MessageApi.updateContent(
+        conversationId,
+        messageId,
+        content
+      );
       commit(types.ADD_MESSAGE, data);
     } catch (error) {
       throw new Error(error);

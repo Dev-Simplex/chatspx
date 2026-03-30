@@ -53,7 +53,7 @@ module ActivityMessageHandler
                 user_status_change_activity_content(user_name)
               end
 
-    ::Conversations::ActivityMessageJob.perform_later(self, activity_message_params(content)) if content
+    ::Conversations::ActivityMessageJob.perform_later(id, activity_message_params(content)) if content
   end
 
   def auto_resolve_message_key(minutes)
@@ -102,7 +102,7 @@ module ActivityMessageHandler
     return unless Current.user
 
     content = I18n.t("conversations.activity.#{change_type}", user_name: Current.user.name)
-    ::Conversations::ActivityMessageJob.perform_later(self, activity_message_params(content)) if content
+    ::Conversations::ActivityMessageJob.perform_later(id, activity_message_params(content)) if content
   end
 
   def generate_assignee_change_activity_content(user_name)
@@ -118,7 +118,7 @@ module ActivityMessageHandler
     return unless user_name
 
     content = generate_assignee_change_activity_content(user_name)
-    ::Conversations::ActivityMessageJob.perform_later(self, activity_message_params(content)) if content
+    ::Conversations::ActivityMessageJob.perform_later(id, activity_message_params(content)) if content
   end
 
   def activity_message_owner(user_name)

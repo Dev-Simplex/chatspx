@@ -131,7 +131,7 @@ class Account < ApplicationRecord
   has_many :webhooks, dependent: :destroy_async
   has_many :whatsapp_channels, dependent: :destroy_async, class_name: '::Channel::Whatsapp'
   has_many :working_hours, dependent: :destroy_async
-  has_many :funnels, dependent: :destroy_async
+  has_many :funnels, dependent: :destroy
 
   has_one_attached :contacts_export
 
@@ -154,13 +154,10 @@ class Account < ApplicationRecord
   end
 
   def all_conversation_tags
-    # returns array of tags
-    conversation_ids = conversations.pluck(:id)
-    ActsAsTaggableOn::Tagging.includes(:tag)
-                             .where(context: 'labels',
-                                    taggable_type: 'Conversation',
-                                    taggable_id: conversation_ids)
-                             .map { |tagging| tagging.tag.name }
+    ActsAsTaggableOn::Tag.joins(:taggings)
+                         .where(taggings: { context: 'labels', taggable_type: 'Conversation' })
+                         .where(taggings: { taggable_id: conversations.select(:id) })
+                         .distinct.pluck(:name)
   end
 
   def webhook_data
@@ -199,7 +196,7 @@ class Account < ApplicationRecord
   def create_default_funnel
     Kanban::CreateDefaultFunnelService.new(account: self).perform
   rescue StandardError => e
-    Rails.logger.error "Erro ao criar funil padrão para account #{id}: #{e.message}"
+    Rails.logger.error "Error creating default funnel for account #{id}: #{e.message}"
   end
 
   def notify_creation

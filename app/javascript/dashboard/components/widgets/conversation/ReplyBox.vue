@@ -543,6 +543,10 @@ export default {
       BUS_EVENTS.NEW_CONVERSATION_MODAL,
       this.onNewConversationModalActive
     );
+    if (this.whatsappNoticeTimeoutId) {
+      clearTimeout(this.whatsappNoticeTimeoutId);
+      this.whatsappNoticeTimeoutId = null;
+    }
   },
   methods: {
     showWhatsappInvalidNotice(message) {

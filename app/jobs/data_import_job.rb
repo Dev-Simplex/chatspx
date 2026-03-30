@@ -5,8 +5,9 @@ class DataImportJob < ApplicationJob
   queue_as :low
   retry_on ActiveStorage::FileNotFoundError, wait: 1.minute, attempts: 3
 
-  def perform(data_import)
-    @data_import = data_import
+  def perform(data_import_id)
+    return unless (@data_import = DataImport.find_by(id: data_import_id))
+
     @contact_manager = DataImport::ContactManager.new(@data_import.account)
     begin
       process_import_file

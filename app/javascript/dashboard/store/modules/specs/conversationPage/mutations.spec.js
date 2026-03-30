@@ -19,11 +19,18 @@ describe('#mutations', () => {
     it('resets the state to initial state', () => {
       const state = {
         currentPage: { me: 1, unassigned: 2, all: 3 },
+        nextCursor: { me: 'abc', unassigned: 'def', all: 'ghi' },
         hasEndReached: { me: true, unassigned: true, all: true },
       };
       mutations[types.default.CLEAR_CONVERSATION_PAGE](state);
       expect(state).toEqual({
         currentPage: { me: 0, unassigned: 0, all: 0, appliedFilters: 0 },
+        nextCursor: {
+          me: null,
+          unassigned: null,
+          all: null,
+          appliedFilters: null,
+        },
         hasEndReached: {
           me: false,
           unassigned: false,

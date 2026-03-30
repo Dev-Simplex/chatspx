@@ -70,9 +70,11 @@ describe('#actions', () => {
         ['contacts/SET_CONTACT_ITEM', { id: 1, name: 'Contact 1' }],
       ]);
     });
-    it('sends correct actions if API is error', async () => {
+    it('throws error if API fails', async () => {
       axios.get.mockRejectedValue({ message: 'Incorrect header' });
-      await actions.getConversation({ commit });
+      await expect(actions.getConversation({ commit })).rejects.toEqual({
+        message: 'Incorrect header',
+      });
       expect(commit.mock.calls).toEqual([]);
     });
   });
@@ -135,9 +137,9 @@ describe('#actions', () => {
       await actions.muteConversation({ commit }, 1);
       expect(commit.mock.calls).toEqual([[types.MUTE_CONVERSATION]]);
     });
-    it('sends correct actions if API is error', async () => {
-      axios.get.mockRejectedValue({ message: 'Incorrect header' });
-      await actions.getConversation({ commit });
+    it('silently handles API error', async () => {
+      axios.post.mockRejectedValue({ message: 'Incorrect header' });
+      await actions.muteConversation({ commit }, 1);
       expect(commit.mock.calls).toEqual([]);
     });
   });
@@ -506,11 +508,18 @@ describe('#actions', () => {
       axios.post.mockResolvedValue({
         data: dataReceived,
       });
-      await actions.fetchFilteredConversations({ commit }, dataToSend);
-      expect(commit).toHaveBeenCalledTimes(2);
+      await actions.fetchFilteredConversations(
+        { commit, dispatch },
+        dataToSend
+      );
       expect(commit.mock.calls).toEqual([
         ['SET_LIST_LOADING_STATUS'],
         ['SET_ALL_CONVERSATION', dataReceived.payload],
+        ['CLEAR_LIST_LOADING_STATUS'],
+        [
+          'contacts/SET_CONTACTS',
+          dataReceived.payload.map(chat => chat.meta.sender),
+        ],
       ]);
     });
   });

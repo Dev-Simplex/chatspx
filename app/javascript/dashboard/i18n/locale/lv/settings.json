@@ -129,7 +129,7 @@
         "CONDITIONS": {
           "TITLE": "Brīdinājumu nosacījumi:",
           "CONDITION_ONE": "Sūtīt audio brīdinājumus tikai tad, ja pārlūkprogrammas logs nav aktīvs",
-          "CONDITION_TWO": "Sūtīt brīdinājumus ik pēc 30 sekundēm, līdz visas piešķirtās sarunas ir izlasītas"
+          "CONDITION_TWO": "Sūtīt brīdinājumus ik pēc 30 sekundēm, līdz visas piešķirtās sarunas ir izlasītas"
         },
         "SOUND_PERMISSION_ERROR": "Automātiskā atskaņošana jūsu pārlūkprogrammā ir atspējota. Lai automātiski dzirdētu brīdinājumus, pārlūkprogrammas iestatījumos iespējojiet skaņas atļauju vai mijiedarbojieties ar lapu.",
         "READ_MORE": "Lasīt vairāk"

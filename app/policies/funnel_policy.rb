@@ -7,13 +7,12 @@ class FunnelPolicy < ApplicationPolicy
 
   def show?
     return false unless index? && record.account_id == account.id
-    return false unless @account_user.present?
+    return false if @account_user.blank?
 
     if record.team_id.present?
-      return false unless @account_user.user.present?
+      return false if @account_user.user.blank?
 
-      user_teams = @account_user.user.teams.where(account_id: account.id)
-      user_teams.exists?(id: record.team_id)
+      user_team_ids.include?(record.team_id)
     else
       @account_user.agent? || @account_user.administrator?
     end
@@ -35,18 +34,20 @@ class FunnelPolicy < ApplicationPolicy
     update?
   end
 
+  private
+
+  def user_team_ids
+    @user_team_ids ||= @account_user.user.teams.where(account_id: account.id).pluck(:id)
+  end
+
   class Scope < ApplicationPolicy::Scope
-    def resolve
-      return scope.none unless @account_user.present?
+    def resolve # rubocop:disable Metrics/AbcSize, Metrics/CyclomaticComplexity, Metrics/PerceivedComplexity
+      return scope.none if @account_user.blank?
 
       target_account = account || Current.account
-      return scope.none unless target_account.present?
+      return scope.none if target_account.blank?
 
-      team_ids = []
-      if @account_user.user.present?
-        user_teams = @account_user.user.teams.where(account_id: target_account.id)
-        team_ids = user_teams.pluck(:id)
-      end
+      team_ids = user_team_ids(target_account)
 
       base_scope = scope.where(account_id: target_account.id)
       arel_table = base_scope.arel_table
@@ -60,9 +61,20 @@ class FunnelPolicy < ApplicationPolicy
       else
         scope.none
       end
-    rescue StandardError => e
+    rescue ActiveRecord::StatementInvalid => e
       Rails.logger.error "FunnelPolicy::Scope#resolve: #{e.class}: #{e.message}"
       scope.none
+    end
+
+    private
+
+    def user_team_ids(target_account)
+      @user_team_ids ||= {}
+      @user_team_ids[target_account.id] ||= if @account_user.user.present?
+                                              @account_user.user.teams.where(account_id: target_account.id).pluck(:id)
+                                            else
+                                              []
+                                            end
     end
   end
 end

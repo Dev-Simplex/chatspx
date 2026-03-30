@@ -28,8 +28,13 @@ class ConversationParticipant < ApplicationRecord
   belongs_to :user
 
   before_validation :ensure_account_id
+  after_commit :invalidate_participant_tokens_cache
 
   private
+
+  def invalidate_participant_tokens_cache
+    Rails.cache.delete("conversation:#{conversation_id}:participant_tokens")
+  end
 
   def ensure_account_id
     self.account_id = conversation&.account_id

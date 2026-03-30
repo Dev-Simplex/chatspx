@@ -55,11 +55,7 @@
       },
       "AVAILABILITY": {
         "LABEL": "有效的",
-        "STATUSES_LIST": [
-          "在线的",
-          "忙碌中",
-          "离线的"
-        ]
+        "STATUSES_LIST": ["在线的", "忙碌中", "离线的"]
       },
       "EMAIL": {
         "LABEL": "您的电子邮件地址",

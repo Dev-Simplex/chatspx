@@ -4,7 +4,10 @@ class Migration::UpdateFirstResponseTimeInReportingEventsJob < ApplicationJob
 
   queue_as :async_database_migration
 
-  def perform(account)
+  def perform(account_id)
+    account = Account.find_by(id: account_id)
+    return if account.blank?
+
     get_conversations_with_bot_handoffs(account)
     account.reporting_events.where(name: 'first_response').find_each do |event|
       conversation = event.conversation

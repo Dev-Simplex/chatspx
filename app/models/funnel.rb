@@ -35,12 +35,14 @@ class Funnel < ApplicationRecord
 
   def allows_inbox?(inbox_id)
     return true if inbox_ids.blank? || inbox_ids.empty?
+
     inbox_ids.include?(inbox_id.to_i)
   end
 
   def allowed_inboxes
     all_inboxes = Inbox.where(account_id: account_id)
     return all_inboxes if inbox_ids.blank? || inbox_ids.empty?
+
     all_inboxes.where(id: inbox_ids)
   end
 

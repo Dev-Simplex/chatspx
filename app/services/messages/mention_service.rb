@@ -49,10 +49,14 @@ class Messages::MentionService
   end
 
   def generate_notifications_for_mentions(validated_mentioned_ids)
+    users = User.where(id: validated_mentioned_ids).index_by(&:id)
     validated_mentioned_ids.each do |user_id|
+      user = users[user_id.to_i]
+      next unless user
+
       NotificationBuilder.new(
         notification_type: 'conversation_mention',
-        user: User.find(user_id),
+        user: user,
         account: message.account,
         primary_actor: message.conversation,
         secondary_actor: message

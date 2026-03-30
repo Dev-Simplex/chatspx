@@ -3,15 +3,17 @@ import BaseActionCableConnector from '../../shared/helpers/BaseActionCableConnec
 import DashboardAudioNotificationHelper from './AudioAlerts/DashboardAudioNotificationHelper';
 import { BUS_EVENTS } from 'shared/constants/busEvents';
 import { emitter } from 'shared/helpers/mitt';
-import { useImpersonation } from 'dashboard/composables/useImpersonation';
+import SessionStorage from 'shared/helpers/sessionStorage';
+import { SESSION_STORAGE_KEYS } from 'dashboard/constants/sessionStorage';
 
-const { isImpersonating } = useImpersonation();
+const isImpersonating = () =>
+  !!SessionStorage.get(SESSION_STORAGE_KEYS.IMPERSONATION_USER);
 
 class ActionCableConnector extends BaseActionCableConnector {
   constructor(app, pubsubToken) {
     const { websocketURL = '' } = window.chatwootConfig || {};
     super(app, pubsubToken, websocketURL);
-    this.CancelTyping = [];
+    this.CancelTyping = {};
     this.events = {
       'message.created': this.onMessageCreated,
       'message.updated': this.onMessageUpdated,
@@ -55,8 +57,11 @@ class ActionCableConnector extends BaseActionCableConnector {
     this.app.$store.dispatch('updateMessage', data);
   };
 
+  // Three separate dispatches are required here: contacts and agents live in
+  // different Vuex modules and setCurrentUserAvailability updates the root state.
+  // Vuex does not support batching commits across modules in a single dispatch.
   onPresenceUpdate = data => {
-    if (isImpersonating.value) return;
+    if (isImpersonating()) return;
     this.app.$store.dispatch('contacts/updatePresence', data.contacts);
     this.app.$store.dispatch('agents/updatePresence', data.users);
     this.app.$store.dispatch('setCurrentUserAvailability', data.users);
@@ -100,6 +105,8 @@ class ActionCableConnector extends BaseActionCableConnector {
     } = data;
     DashboardAudioNotificationHelper.onNewMessage(data);
     this.app.$store.dispatch('addMessage', data);
+    // addMessage does not update last_activity_at on the conversation object;
+    // a separate dispatch is needed to keep sort order in sync.
     this.app.$store.dispatch('updateConversationLastActivity', {
       lastActivityAt,
       conversationId,
@@ -144,6 +151,14 @@ class ActionCableConnector extends BaseActionCableConnector {
     this.app.$store.dispatch('addMentions', data);
   };
 
+  disconnect() {
+    Object.keys(this.CancelTyping).forEach(conversationId => {
+      clearTimeout(this.CancelTyping[conversationId]);
+    });
+    this.CancelTyping = {};
+    super.disconnect();
+  }
+
   clearTimer = conversationId => {
     const timerEvent = this.CancelTyping[conversationId];
 
@@ -161,6 +176,8 @@ class ActionCableConnector extends BaseActionCableConnector {
     }, 30000);
   };
 
+  // The conversationStats store already has adaptive debouncing (500ms-10s)
+  // and a META_FRESH_THRESHOLD_MS guard, so no extra debounce is needed here.
   // eslint-disable-next-line class-methods-use-this
   fetchConversationStats = () => {
     emitter.emit('fetch_conversation_stats');
