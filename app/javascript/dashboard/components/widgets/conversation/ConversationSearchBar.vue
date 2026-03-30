@@ -129,7 +129,7 @@ const handleContainerClick = () => {
           v-model="searchQuery"
           type="text"
           :placeholder="placeholderText"
-          class="flex-1 min-w-0 border-0 bg-transparent text-[13px] leading-tight p-0 m-0 text-n-slate-12 dark:text-n-slate-1 shadow-none appearance-none rounded-none w-full font-normal cursor-text select-text placeholder:opacity-60 placeholder:text-n-slate-10 dark:placeholder:text-n-slate-11 placeholder:font-normal focus:border-0 focus:bg-transparent focus:shadow-none focus:outline-none focus:ring-0"
+          class="reset-base no-margin flex-1 min-w-0 border-0 bg-transparent text-[13px] leading-tight p-0 m-0 text-n-slate-12 dark:text-n-slate-1 shadow-none appearance-none rounded-none w-full font-normal cursor-text select-text placeholder:opacity-60 placeholder:text-n-slate-10 dark:placeholder:text-n-slate-11 placeholder:font-normal focus:border-0 focus:bg-transparent focus:shadow-none focus:outline-none focus:ring-0"
           @input="handleSearch"
           @keydown="handleKeyDown"
         />
