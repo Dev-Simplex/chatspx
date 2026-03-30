@@ -130,7 +130,7 @@ const handleContainerClick = () => {
           />
           <fluent-icon
             v-else-if="!isSearching && isFocused"
-            icon="arrow-left"
+            icon="arrow-chevron-left"
             size="16"
             class="text-[#00a884] dark:text-[#00a884]"
           />
