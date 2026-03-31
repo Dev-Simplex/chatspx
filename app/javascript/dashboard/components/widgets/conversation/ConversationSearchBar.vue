@@ -123,16 +123,10 @@ const handleContainerClick = () => {
       >
         <div class="flex items-center justify-center shrink-0 transition-colors duration-200">
           <fluent-icon
-            v-if="!isSearching && !isFocused"
+            v-if="!isSearching"
             icon="search"
             size="16"
             class="text-[#54656f] dark:text-[#aebac1]"
-          />
-          <fluent-icon
-            v-else-if="!isSearching && isFocused"
-            icon="arrow-chevron-left"
-            size="16"
-            class="text-[#00a884] dark:text-[#00a884]"
           />
           <div
             v-else
