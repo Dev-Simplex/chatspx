@@ -1,9 +1,6 @@
 import types from '../../mutation-types';
 import camelcaseKeys from 'camelcase-keys';
 
-const normalizeContact = contact =>
-  camelcaseKeys(contact, { deep: true, stopPaths: ['custom_attributes'] });
-
 export const mutations = {
   [types.SET_CONTACT_UI_FLAG]($state, data) {
     $state.uiFlags = {
@@ -40,30 +37,28 @@ export const mutations = {
 
   [types.SET_CONTACTS]: ($state, data) => {
     const sortOrder = data.map(contact => {
-      const normalized = normalizeContact(contact);
-      $state.records[normalized.id] = {
-        ...($state.records[normalized.id] || {}),
-        ...normalized,
+      $state.records[contact.id] = {
+        ...($state.records[contact.id] || {}),
+        ...contact,
       };
-      return normalized.id;
+      return contact.id;
     });
     $state.sortOrder = sortOrder;
   },
 
   [types.SET_CONTACT_ITEM]: ($state, data) => {
-    const normalized = normalizeContact(data);
-    $state.records[normalized.id] = {
-      ...($state.records[normalized.id] || {}),
-      ...normalized,
+    $state.records[data.id] = {
+      ...($state.records[data.id] || {}),
+      ...data,
     };
 
-    if (!$state.sortOrder.includes(normalized.id)) {
-      $state.sortOrder.push(normalized.id);
+    if (!$state.sortOrder.includes(data.id)) {
+      $state.sortOrder.push(data.id);
     }
   },
 
   [types.EDIT_CONTACT]: ($state, data) => {
-    $state.records[data.id] = normalizeContact(data);
+    $state.records[data.id] = data;
   },
 
   [types.DELETE_CONTACT]: ($state, id) => {
