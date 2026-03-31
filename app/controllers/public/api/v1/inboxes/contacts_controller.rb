@@ -13,6 +13,7 @@ class Public::Api::V1::Inboxes::ContactsController < Public::Api::V1::InboxesCon
     )
     contact_attributes = permitted_params.except(:identifier_hash).to_h.with_indifferent_access
     contact_attributes[:phone_number] = normalized[:phone_number] if normalized[:phone_number].present?
+    contact_attributes[:name] = sanitize_waha_contact_name(contact_attributes[:name], contact_attributes[:phone_number])
 
     @contact_inbox = ::ContactInboxWithContactBuilder.new(
       source_id: normalized[:source_id],

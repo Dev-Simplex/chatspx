@@ -179,4 +179,19 @@ class Public::Api::V1::InboxesController < PublicController
   def waha_service
     @waha_service ||= Waha::ApiService.new
   end
+
+  def sanitize_waha_contact_name(name, phone_number = nil)
+    return name if name.blank?
+
+    # Remove WhatsApp JID suffixes (@c.us, @s.whatsapp.net, @lid, @g.us)
+    cleaned = name.gsub(/@(c\.us|s\.whatsapp\.net|lid|g\.us)\z/, '')
+
+    # If the cleaned name is just digits (phone number), format it nicely
+    return "+#{cleaned}" if cleaned.match?(/\A\d{10,15}\z/) && phone_number.blank?
+
+    # If we have phone_number and name equals the raw number, use phone_number (already formatted)
+    return phone_number if phone_number.present? && cleaned.gsub(/\D/, '') == phone_number.gsub(/\D/, '')
+
+    cleaned
+  end
 end
