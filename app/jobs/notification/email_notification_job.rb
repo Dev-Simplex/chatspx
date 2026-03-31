@@ -1,7 +1,10 @@
 class Notification::EmailNotificationJob < ApplicationJob
   queue_as :default
 
-  def perform(notification)
+  def perform(notification_id)
+    notification = Notification.find_by(id: notification_id)
+    return unless notification
+
     # no need to send email if notification has been read already
     return if notification.read_at.present?
 

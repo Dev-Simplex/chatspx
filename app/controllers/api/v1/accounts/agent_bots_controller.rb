@@ -46,6 +46,6 @@ class Api::V1::Accounts::AgentBotsController < Api::V1::Accounts::BaseController
   end
 
   def process_avatar_from_url
-    ::Avatar::AvatarFromUrlJob.perform_later(@agent_bot, params[:avatar_url]) if params[:avatar_url].present?
+    ::Avatar::AvatarFromUrlJob.perform_later(@agent_bot.class.name, @agent_bot.id, params[:avatar_url]) if params[:avatar_url].present?
   end
 end

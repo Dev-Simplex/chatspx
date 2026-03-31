@@ -152,12 +152,7 @@
     "LIST": {
       "LOADING_MESSAGE": "جاري جلب الإشعارات...",
       "404": "لا يوجد إشعارات",
-      "TABLE_HEADER": [
-        "الاسم",
-        "رقم الهاتف",
-        "المحادثات",
-        "آخر تواصل"
-      ]
+      "TABLE_HEADER": ["الاسم", "رقم الهاتف", "المحادثات", "آخر تواصل"]
     },
     "TYPE_LABEL": {
       "conversation_creation": "محادثة جديدة",
@@ -182,6 +177,7 @@
   },
   "COMMAND_BAR": {
     "SEARCH_PLACEHOLDER": "البحث أو القفز إلى",
+    "SNOOZE_PLACEHOLDER": "Type a time e.g. tomorrow, 2 hours, next friday, jan 15...",
     "SECTIONS": {
       "GENERAL": "عام",
       "REPORTS": "التقارير",

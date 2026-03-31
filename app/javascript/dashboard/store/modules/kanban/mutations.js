@@ -197,7 +197,11 @@ const defaultViewBootstrap = () => ({
 
 const normalizeFilterIdList = values => {
   if (!Array.isArray(values)) return [];
-  return [...new Set(values.map(value => Number(value)).filter(value => !Number.isNaN(value)))];
+  return [
+    ...new Set(
+      values.map(value => Number(value)).filter(value => !Number.isNaN(value))
+    ),
+  ];
 };
 
 const scheduledTimestamp = scheduledMessage =>
@@ -496,9 +500,15 @@ export const mutations = {
       ...defaultViewFilters(),
       ...$state.viewFilters,
       ...filters,
-      query: String(filters.query ?? $state.viewFilters?.query ?? '').trimStart(),
-      stageIds: normalizeFilterIdList(filters.stageIds ?? $state.viewFilters?.stageIds),
-      labelIds: normalizeFilterIdList(filters.labelIds ?? $state.viewFilters?.labelIds),
+      query: String(
+        filters.query ?? $state.viewFilters?.query ?? ''
+      ).trimStart(),
+      stageIds: normalizeFilterIdList(
+        filters.stageIds ?? $state.viewFilters?.stageIds
+      ),
+      labelIds: normalizeFilterIdList(
+        filters.labelIds ?? $state.viewFilters?.labelIds
+      ),
       status: filters.status || $state.viewFilters?.status || 'all',
     };
   },

@@ -1,7 +1,7 @@
 /* global axios */
 import ApiClient from '../ApiClient';
 
-class MicrosoftClient extends ApiClient {
+class GoogleClient extends ApiClient {
   constructor() {
     super('google', { accountScoped: true });
   }
@@ -11,4 +11,4 @@ class MicrosoftClient extends ApiClient {
   }
 }
 
-export default new MicrosoftClient();
+export default new GoogleClient();

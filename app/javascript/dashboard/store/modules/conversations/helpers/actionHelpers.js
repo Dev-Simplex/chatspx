@@ -9,9 +9,13 @@ export const setPageFilter = ({
 }) => {
   dispatch('conversationPage/setCurrentPage', { filter, page }, { root: true });
   if (nextCursor !== undefined) {
-    dispatch('conversationPage/setNextCursor', { filter, nextCursor }, {
-      root: true,
-    });
+    dispatch(
+      'conversationPage/setNextCursor',
+      { filter, nextCursor },
+      {
+        root: true,
+      }
+    );
   }
   if (markEndReached) {
     dispatch('conversationPage/setEndReached', { filter }, { root: true });
@@ -59,17 +63,16 @@ export const buildConversationList = (
 ) => {
   const { payload: conversationList, meta: metaData } = responseData;
   context.commit(types.SET_ALL_CONVERSATION, conversationList);
-  // Always update counts on the first page load (view/route switch).
-  // Only skip on subsequent pages (pagination) with assignee filter,
-  // because the meta returned there has filtered counts that would
-  // overwrite the correct global values.
-  const isFirstPage =
-    (!requestPayload.page || requestPayload.page <= 1) &&
-    !requestPayload.cursor;
+  // Never update tab counts from the list API when an assignee filter is
+  // active (me/unassigned/assigned), because the backend computes counts
+  // on the already-filtered set (e.g. all_count=2 when only "mine" are
+  // fetched). Correct counts come from the /conversations/meta endpoint,
+  // which is called separately without assigneeType.
   const hasAssigneeFilter =
     requestPayload.assigneeType === 'me' ||
-    requestPayload.assigneeType === 'unassigned';
-  if (isFirstPage || !hasAssigneeFilter) {
+    requestPayload.assigneeType === 'unassigned' ||
+    requestPayload.assigneeType === 'assigned';
+  if (!hasAssigneeFilter) {
     context.dispatch('conversationStats/set', metaData);
   }
   context.dispatch(

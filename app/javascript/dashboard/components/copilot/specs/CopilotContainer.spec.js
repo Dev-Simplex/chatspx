@@ -1,3 +1,4 @@
+/* eslint-disable vue/custom-event-name-casing */
 import { ref } from 'vue';
 import { createStore } from 'vuex';
 import { flushPromises, shallowMount } from '@vue/test-utils';

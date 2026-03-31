@@ -43,7 +43,7 @@ describe('#actions', () => {
       );
       expect(commit.mock.calls).toEqual([
         [
-          types.SET_DRAFT_MESSAGES,
+          types.REMOVE_DRAFT_MESSAGES,
           {
             key: 'draft-32-REPLY',
           },

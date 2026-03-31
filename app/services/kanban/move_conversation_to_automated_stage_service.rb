@@ -1,57 +1,38 @@
 # frozen_string_literal: true
 
-module Kanban
-  class MoveConversationToAutomatedStageService
-    def initialize(conversation:, status:)
-      @conversation = conversation
-      @status = status
+class Kanban::MoveConversationToAutomatedStageService
+  pattr_initialize [:conversation!, :status!]
+
+  def perform # rubocop:disable Metrics/AbcSize
+    automation_type = resolve_automation_type
+    return if automation_type.nil?
+
+    funnels = Kanban::FunnelLookupService.new(
+      account_id: conversation.account_id, inbox_id: conversation.inbox_id, team_id: conversation.team_id
+    ).perform
+
+    funnels.filter_map do |funnel|
+      stage = funnel.funnel_stages.with_automation(automation_type).first
+      next if stage.blank?
+
+      funnel_item = FunnelItem.find_or_initialize_by(conversation_id: conversation.id, funnel_id: funnel.id)
+      funnel_item.funnel_stage_id = stage.id
+      funnel_item.moved_by_id = Current.user&.id
+      funnel_item.save!
+      funnel_item
     end
+  rescue StandardError => e
+    Rails.logger.error "Error moving conversation #{conversation.id} to automated stage: #{e.message}"
+    Rails.logger.error e.backtrace.join("\n")
+    nil
+  end
 
-    def perform
-      funnels = []
+  private
 
-      if @conversation.team_id.present?
-        team_funnel = Funnel.where(team_id: @conversation.team_id, account_id: @conversation.account_id)
-                            .find { |f| f.allows_inbox?(@conversation.inbox_id) }
-        funnels << team_funnel if team_funnel
-
-        default_funnel = Funnel.where(account_id: @conversation.account_id, team_id: nil)
-                               .find { |f| f.allows_inbox?(@conversation.inbox_id) }
-        funnels << default_funnel if default_funnel
-      else
-        default_funnel = Funnel.where(account_id: @conversation.account_id, team_id: nil)
-                               .find { |f| f.allows_inbox?(@conversation.inbox_id) }
-        funnels << default_funnel if default_funnel
-      end
-
-      automation_type = case @status.to_s
-                        when 'open', '0'
-                          'open'
-                        when 'resolved', '1'
-                          'resolved'
-                        else
-                          return nil
-                        end
-
-      funnels.compact.uniq.map do |funnel|
-        stage = funnel.funnel_stages.with_automation(automation_type).first
-        next unless stage.present?
-
-        funnel_item = FunnelItem.find_or_initialize_by(
-          conversation_id: @conversation.id,
-          funnel_id: funnel.id
-        )
-
-        funnel_item.funnel_stage_id = stage.id
-        funnel_item.moved_by_id = Current.user&.id
-        funnel_item.save!
-
-        funnel_item
-      end.compact
-    rescue StandardError => e
-      Rails.logger.error "Erro ao mover conversa #{@conversation.id} para etapa automatizada: #{e.message}"
-      Rails.logger.error e.backtrace.join("\n")
-      nil
+  def resolve_automation_type
+    case status.to_s
+    when 'open', '0' then 'open'
+    when 'resolved', '1' then 'resolved'
     end
   end
 end

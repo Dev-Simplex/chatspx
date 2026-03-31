@@ -152,12 +152,7 @@
     "LIST": {
       "LOADING_MESSAGE": "Laster varsler...",
       "404": "Ingen varsler",
-      "TABLE_HEADER": [
-        "Navn",
-        "Telefonnummer",
-        "Samtaler",
-        "Siste kontakt"
-      ]
+      "TABLE_HEADER": ["Navn", "Telefonnummer", "Samtaler", "Siste kontakt"]
     },
     "TYPE_LABEL": {
       "conversation_creation": "Ny samtale",
@@ -182,6 +177,7 @@
   },
   "COMMAND_BAR": {
     "SEARCH_PLACEHOLDER": "Search or jump to",
+    "SNOOZE_PLACEHOLDER": "Type a time e.g. tomorrow, 2 hours, next friday, jan 15...",
     "SECTIONS": {
       "GENERAL": "General",
       "REPORTS": "Rapporter",

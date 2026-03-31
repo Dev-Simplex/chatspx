@@ -1,4 +1,4 @@
-module Api::V1::InboxesHelper
+module Api::V1::InboxesHelper # rubocop:disable Metrics/ModuleLength
   def inbox_name(channel)
     return channel.try(:bot_name) if channel.is_a?(Channel::Telegram)
 
@@ -57,43 +57,48 @@ module Api::V1::InboxesHelper
   end
 
   def check_smtp_connection(channel_data, smtp)
+    smtp.open_timeout = 10
     smtp.start(channel_data[:smtp_domain], channel_data[:smtp_login], channel_data[:smtp_password],
                channel_data[:smtp_authentication]&.to_sym || :login)
     smtp.finish
+  rescue Net::SMTPAuthenticationError
+    raise StandardError, I18n.t('errors.inboxes.smtp.authentication_error')
+  rescue SocketError, Errno::ECONNREFUSED, Errno::EHOSTUNREACH, Errno::ENETUNREACH, Net::OpenTimeout
+    raise StandardError, I18n.t('errors.inboxes.smtp.connection_error')
+  rescue OpenSSL::SSL::SSLError
+    raise StandardError, I18n.t('errors.inboxes.smtp.ssl_error')
+  rescue Net::SMTPServerBusy, Net::SMTPSyntaxError, Net::SMTPFatalError
+    raise StandardError, I18n.t('errors.inboxes.smtp.smtp_error')
+  rescue StandardError => e
+    raise StandardError, e.message
   end
 
   def set_smtp_encryption(channel_data, smtp)
     if channel_data[:smtp_enable_ssl_tls]
-      set_enable_tls(channel_data, smtp)
+      set_smtp_ssl_method(smtp, :enable_tls, channel_data[:smtp_openssl_verify_mode])
     elsif channel_data[:smtp_enable_starttls_auto]
-      set_enable_starttls_auto(channel_data, smtp)
+      set_smtp_ssl_method(smtp, :enable_starttls_auto, channel_data[:smtp_openssl_verify_mode])
     end
   end
 
-  def set_enable_starttls_auto(channel_data, smtp)
-    return unless smtp.respond_to?(:enable_starttls_auto)
+  def set_smtp_ssl_method(smtp, method, openssl_verify_mode)
+    return unless smtp.respond_to?(method)
 
-    if channel_data[:smtp_openssl_verify_mode]
-      context = enable_openssl_mode(channel_data[:smtp_openssl_verify_mode])
-      smtp.enable_starttls_auto(context)
-    else
-      smtp.enable_starttls_auto
-    end
+    context = enable_openssl_mode(openssl_verify_mode) if openssl_verify_mode
+    context ? smtp.send(method, context) : smtp.send(method)
   end
 
-  def set_enable_tls(channel_data, smtp)
-    return unless smtp.respond_to?(:enable_tls)
-
-    if channel_data[:smtp_openssl_verify_mode]
-      context = enable_openssl_mode(channel_data[:smtp_openssl_verify_mode])
-      smtp.enable_tls(context)
-    else
-      smtp.enable_tls
-    end
-  end
+  OPENSSL_VERIFY_MODES = {
+    'none' => OpenSSL::SSL::VERIFY_NONE,
+    'peer' => OpenSSL::SSL::VERIFY_PEER,
+    'fail_if_no_peer_cert' => OpenSSL::SSL::VERIFY_FAIL_IF_NO_PEER_CERT,
+    'client_once' => OpenSSL::SSL::VERIFY_CLIENT_ONCE
+  }.freeze
 
   def enable_openssl_mode(smtp_openssl_verify_mode)
-    openssl_verify_mode = "OpenSSL::SSL::VERIFY_#{smtp_openssl_verify_mode.upcase}".constantize if smtp_openssl_verify_mode.is_a?(String)
+    openssl_verify_mode = OPENSSL_VERIFY_MODES[smtp_openssl_verify_mode.to_s.downcase] if smtp_openssl_verify_mode.is_a?(String)
+    raise ArgumentError, "Invalid OpenSSL verify mode: #{smtp_openssl_verify_mode}" if openssl_verify_mode.nil?
+
     context = Net::SMTP.default_ssl_context
     context.verify_mode = openssl_verify_mode
     context

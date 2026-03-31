@@ -16,6 +16,15 @@ import ContextMenu from 'dashboard/components/ui/ContextMenu.vue';
 import NextButton from 'dashboard/components-next/button/Button.vue';
 import VoiceCallStatus from './VoiceCallStatus.vue';
 
+const hasValidContent = msg => {
+  if (!msg) return false;
+  const hasContent =
+    msg.content != null && String(msg.content).trim().length > 0;
+  const hasAttachments =
+    Array.isArray(msg.attachments) && msg.attachments.length > 0;
+  return hasContent || hasAttachments || msg.private === true;
+};
+
 export default {
   components: {
     CardLabels,
@@ -72,21 +81,32 @@ export default {
       type: Boolean,
       default: false,
     },
+    compact: {
+      type: Boolean,
+      default: false,
+    },
     enableContextMenu: {
       type: Boolean,
       default: false,
+    },
+    allowedContextMenuOptions: {
+      type: Array,
+      default: () => [],
     },
   },
   emits: [
     'contextMenuToggle',
     'assignAgent',
     'assignLabel',
+    'removeLabel',
     'assignTeam',
     'markAsUnread',
     'markAsRead',
     'assignPriority',
     'updateConversationStatus',
     'deleteConversation',
+    'selectConversation', // eslint-disable-line vue/no-unused-emit-declarations -- used dynamically in onSelectConversation
+    'deSelectConversation', // eslint-disable-line vue/no-unused-emit-declarations -- used dynamically in onSelectConversation
   ],
   data() {
     return {
@@ -118,8 +138,7 @@ export default {
       const waitingSince =
         this.chat.waiting_since ?? this.chatMetadata.waiting_since ?? 0;
       const isUnattended = Number(waitingSince) > 0;
-      const assigneeId =
-        this.assignee?.id ?? this.chatMetadata.assignee?.id;
+      const assigneeId = this.assignee?.id ?? this.chatMetadata.assignee?.id;
       const isMine =
         this.currentUser?.id &&
         assigneeId &&
@@ -135,86 +154,40 @@ export default {
     },
 
     currentContact() {
-      // Prioridade 1: contact diretamente (dados já normalizados na busca)
-      if (this.chat.contact) {
-        // Se já vem normalizado da store, pode ter estrutura completa
-        const contact = {
-          id: this.chat.contact.id || null,
-          name: this.chat.contact.name || this.chat.contact.full_name || 'Unknown',
-          thumbnail: this.chat.contact.thumbnail || this.chat.contact.avatar_url || this.chat.contact.avatar || this.chat.contact.profile_image_url || '',
-          availability_status: this.chat.contact.availability_status || 'offline',
-        };
-        
-        // Se tem ID mas não tem thumbnail, tentar buscar na store
-        if (contact.id && !contact.thumbnail) {
-          const storeContact = this.$store.getters['contacts/getContact'](contact.id);
-          if (storeContact && storeContact.thumbnail) {
-            contact.thumbnail = storeContact.thumbnail;
-          }
-          if (storeContact && storeContact.name && !contact.name) {
-            contact.name = storeContact.name;
-          }
-        }
-        
-        return contact;
-      }
-      
-      // Prioridade 2: meta.contact
-      if (this.chatMetadata.contact) {
-        const contact = {
-          id: this.chatMetadata.contact.id || null,
-          name: this.chatMetadata.contact.name || this.chatMetadata.contact.full_name || 'Unknown',
-          thumbnail: this.chatMetadata.contact.thumbnail || this.chatMetadata.contact.avatar_url || this.chatMetadata.contact.avatar || '',
-          availability_status: this.chatMetadata.contact.availability_status || 'offline',
-        };
-        
-        if (contact.id && !contact.thumbnail) {
-          const storeContact = this.$store.getters['contacts/getContact'](contact.id);
-          if (storeContact && storeContact.thumbnail) {
-            contact.thumbnail = storeContact.thumbnail;
-          }
-        }
-        
-        return contact;
-      }
-      
-      // Prioridade 3: sender (estrutura normal de conversas)
-      const sender = this.chatMetadata.sender || this.chat.sender || this.chat.meta?.sender;
-      
-      if (!sender) {
+      const raw =
+        this.chat.contact ||
+        this.chatMetadata.contact ||
+        this.chatMetadata.sender ||
+        this.chat.sender ||
+        this.chat.meta?.sender;
+      if (!raw)
         return {
           name: 'Unknown',
           thumbnail: '',
           availability_status: 'offline',
           id: null,
         };
-      }
-      
-      // Se tem ID, tentar buscar na store primeiro (tem dados mais completos)
-      if (sender.id) {
-        const storeContact = this.$store.getters['contacts/getContact'](sender.id);
-        if (storeContact && storeContact.name) {
-          return storeContact;
-        }
-      }
-      
-      // Fallback: usar dados do sender diretamente
-      const senderContact = {
-        id: sender.id || null,
-        name: sender.name || sender.full_name || 'Unknown',
-        thumbnail: sender.thumbnail || sender.avatar_url || sender.avatar || sender.profile_image_url || '',
-        availability_status: sender.availability_status || 'offline',
+
+      const id = raw.id || null;
+      const storeContact = id
+        ? this.$store.getters['contacts/getContact'](id)
+        : null;
+
+      return {
+        id,
+        name: storeContact?.name || raw.name || raw.full_name || 'Unknown',
+        thumbnail:
+          storeContact?.thumbnail ||
+          raw.thumbnail ||
+          raw.avatar_url ||
+          raw.avatar ||
+          raw.profile_image_url ||
+          '',
+        availability_status:
+          storeContact?.availability_status ||
+          raw.availability_status ||
+          'offline',
       };
-      
-      // Última tentativa de buscar na store
-      if (senderContact.id && !senderContact.thumbnail) {
-        const storeContact = this.$store.getters['contacts/getContact'](senderContact.id);
-        if (storeContact && storeContact.thumbnail) {
-          senderContact.thumbnail = storeContact.thumbnail;
-        }
-      }
-      
-      return senderContact;
     },
 
     isActiveChat() {
@@ -234,56 +207,57 @@ export default {
     },
 
     lastMessageInChat() {
-      // Helper para verificar se mensagem tem conteúdo válido
-      const hasValidContent = (msg) => {
-        if (!msg) return false;
-        // Verificar se tem conteúdo de texto (pode ser string vazia ou apenas espaços)
-        const hasContent = msg.content != null && String(msg.content).trim().length > 0;
-        // Verificar se tem anexos
-        const hasAttachments = msg.attachments && Array.isArray(msg.attachments) && msg.attachments.length > 0;
-        // Verificar se tem private_note (notas privadas também são mensagens válidas)
-        const hasPrivateNote = msg.private === true;
-        return hasContent || hasAttachments || hasPrivateNote;
-      };
-      
       // Se tem array de mensagens, usar helper (como na lista normal)
-      if (this.chat.messages && Array.isArray(this.chat.messages) && this.chat.messages.length > 0) {
+      if (
+        this.chat.messages &&
+        Array.isArray(this.chat.messages) &&
+        this.chat.messages.length > 0
+      ) {
         const msg = getLastMessage(this.chat);
         if (msg) {
           return msg;
         }
       }
-      
+
       // Prioridade 1: last_non_activity_message (mais importante, como na lista normal)
       if (this.chat.last_non_activity_message) {
         return this.chat.last_non_activity_message;
       }
-      
+
       // Prioridade 2: meta.last_non_activity_message
       if (this.chatMetadata.last_non_activity_message) {
         return this.chatMetadata.last_non_activity_message;
       }
-      
+
       // Prioridade 3: last_message (verificar se tem conteúdo válido)
       if (this.chat.last_message && hasValidContent(this.chat.last_message)) {
         return this.chat.last_message;
       }
-      
+
       // Prioridade 4: meta.last_message
-      if (this.chatMetadata.last_message && hasValidContent(this.chatMetadata.last_message)) {
+      if (
+        this.chatMetadata.last_message &&
+        hasValidContent(this.chatMetadata.last_message)
+      ) {
         return this.chatMetadata.last_message;
       }
-      
+
       // Prioridade 5: last_activity_message (fallback)
-      if (this.chat.last_activity_message && hasValidContent(this.chat.last_activity_message)) {
+      if (
+        this.chat.last_activity_message &&
+        hasValidContent(this.chat.last_activity_message)
+      ) {
         return this.chat.last_activity_message;
       }
-      
+
       // Prioridade 6: meta.last_activity_message
-      if (this.chatMetadata.last_activity_message && hasValidContent(this.chatMetadata.last_activity_message)) {
+      if (
+        this.chatMetadata.last_activity_message &&
+        hasValidContent(this.chatMetadata.last_activity_message)
+      ) {
         return this.chatMetadata.last_activity_message;
       }
-      
+
       // Se nada funcionar, retornar null (não mostrar "Nova Mensagem")
       return null;
     },
@@ -368,12 +342,12 @@ export default {
       this.$nextTick(() => {
         const buttonEl = buttonRef.$el || buttonRef;
         if (!buttonEl || !buttonEl.getBoundingClientRect) return;
-        
+
         const rect = buttonEl.getBoundingClientRect();
-        
+
         this.contextMenu.x = rect.right;
         this.contextMenu.y = rect.bottom + 4;
-        
+
         this.showContextMenu = true;
         this.$emit('contextMenuToggle', true);
       });
@@ -399,6 +373,10 @@ export default {
     },
     async onAssignLabel(label) {
       this.$emit('assignLabel', [label.title], [this.chat.id]);
+      this.closeContextMenu();
+    },
+    async onRemoveLabel(label) {
+      this.$emit('removeLabel', [label.title], [this.chat.id]);
       this.closeContextMenu();
     },
     async onAssignTeam(team) {
@@ -434,6 +412,9 @@ export default {
       'unread-chat': hasUnread,
       'has-inbox-name': showInboxName,
       'conversation-selected': selected,
+      'bg-n-slate-2': selected,
+      'px-0': compact,
+      'px-3': !compact,
       'ltr:border-l-2 rtl:border-r-2 border-n-amber-7 bg-n-amber-5/25 ring-1 ring-n-amber-6/50 ring-inset animate-sidebar-attention motion-reduce:animate-none':
         isUnattendedAndMine && !isActiveChat && !selected,
     }"
@@ -481,7 +462,9 @@ export default {
         class="absolute ltr:right-0 rtl:left-0 top-2 opacity-0 group-hover:opacity-100 transition-opacity duration-200 ease-in-out z-10"
         @click.stop="openHoverDropdown($event)"
       />
-      <div class="flex justify-between conversation-card--meta group-hover:ltr:pr-8 group-hover:rtl:pl-8 transition-all duration-200">
+      <div
+        class="flex justify-between conversation-card--meta group-hover:ltr:pr-8 group-hover:rtl:pl-8 transition-all duration-200"
+      >
         <InboxName v-if="showInboxName" :inbox="inbox" />
         <div class="flex gap-2 ml-2 rtl:mr-2 rtl:ml-0">
           <span
@@ -496,9 +479,8 @@ export default {
       </div>
       <h4
         v-if="currentContact"
-        class="conversation--user text-sm my-0 mx-2 capitalize pt-0.5 text-ellipsis overflow-hidden whitespace-nowrap text-n-slate-12 group-hover:ltr:pr-8 group-hover:rtl:pl-8 transition-all duration-200"
+        class="conversation--user text-sm my-0 mx-2 capitalize pt-0.5 text-ellipsis overflow-hidden whitespace-nowrap text-n-slate-12 group-hover:ltr:pr-8 group-hover:rtl:pl-8 transition-all duration-200 w-[calc(100%-70px)]"
         :class="hasUnread ? 'font-semibold' : 'font-medium'"
-        style="width: calc(100% - 70px)"
       >
         {{ currentContact.name }}
       </h4>
@@ -512,16 +494,14 @@ export default {
       <MessagePreview
         v-if="lastMessageInChat"
         :message="lastMessageInChat"
-        :default-empty-message="''"
-        class="conversation--message my-0 mx-2 leading-6 h-6 text-sm group-hover:ltr:pr-8 group-hover:rtl:pl-8 transition-all duration-200"
+        default-empty-message=""
+        class="conversation--message my-0 mx-2 leading-6 h-6 text-sm group-hover:ltr:pr-8 group-hover:rtl:pl-8 transition-all duration-200 max-w-[96%] w-[16.875rem]"
         :class="hasUnread ? 'font-medium text-n-slate-12' : 'text-n-slate-11'"
-        style="max-width: 96%; width: 16.875rem"
       />
       <p
         v-else
-        class="conversation--message text-n-slate-11 text-sm my-0 mx-2 leading-6 h-6 overflow-hidden text-ellipsis whitespace-nowrap group-hover:ltr:pr-8 group-hover:rtl:pl-8 transition-all duration-200"
+        class="conversation--message text-n-slate-11 text-sm my-0 mx-2 leading-6 h-6 overflow-hidden text-ellipsis whitespace-nowrap group-hover:ltr:pr-8 group-hover:rtl:pl-8 transition-all duration-200 max-w-[96%] w-[16.875rem]"
         :class="hasUnread ? 'font-medium text-n-slate-12' : 'text-n-slate-11'"
-        style="max-width: 96%; width: 16.875rem"
       >
         <fluent-icon
           size="16"
@@ -532,11 +512,19 @@ export default {
           {{ $t(`CHAT_LIST.NO_MESSAGES`) }}
         </span>
       </p>
-      <div class="absolute flex flex-col mt-4 ltr:right-4 rtl:left-4 top-4 group-hover:ltr:right-10 group-hover:rtl:left-10 transition-all duration-200">
+      <div
+        class="absolute flex flex-col mt-4 ltr:right-4 rtl:left-4 top-4 group-hover:ltr:right-10 group-hover:rtl:left-10 transition-all duration-200"
+      >
         <span class="ml-auto font-normal leading-4 text-xxs">
           <TimeAgo
-            :last-activity-timestamp="chat.last_activity_at || chat.updated_at || chat.timestamp || chat.created_at"
+            :last-activity-timestamp="
+              chat.last_activity_at ||
+              chat.updated_at ||
+              chat.timestamp ||
+              chat.created_at
+            "
             :created-at-timestamp="chat.created_at"
+            :conversation-id="chat.id"
           />
         </span>
         <span
@@ -563,9 +551,12 @@ export default {
         :priority="chat.priority"
         :chat-id="chat.id"
         :has-unread-messages="hasUnread"
+        :conversation-labels="chat.labels"
+        :allowed-options="allowedContextMenuOptions"
         @update-conversation="onUpdateConversation"
         @assign-agent="onAssignAgent"
         @assign-label="onAssignLabel"
+        @remove-label="onRemoveLabel"
         @assign-team="onAssignTeam"
         @mark-as-unread="markAsUnread"
         @mark-as-read="markAsRead"
@@ -596,7 +587,7 @@ export default {
     }
   }
 
-  &::v-deep .user-thumbnail-box {
+  :deep(.user-thumbnail-box) {
     @apply mt-4;
   }
 
@@ -605,7 +596,7 @@ export default {
   }
 
   &.has-inbox-name {
-    &::v-deep .user-thumbnail-box {
+    :deep(.user-thumbnail-box) {
       @apply mt-8;
     }
 
@@ -622,8 +613,7 @@ export default {
     @apply flex items-center justify-center rounded-full cursor-pointer mt-4;
 
     input[type='checkbox'] {
-      @apply m-0 cursor-pointer;
-      accent-color: #2dc46f;
+      @apply m-0 cursor-pointer accent-[#2dc46f];
     }
   }
 }

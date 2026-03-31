@@ -67,7 +67,8 @@ describe('#mutations', () => {
 
   describe('#SET_CONTACT_FILTERS', () => {
     it('set contact filter', () => {
-      const appliedFilters = [
+      const state = { appliedFilters: [] };
+      const filtersData = [
         {
           attribute_key: 'name',
           filter_operator: 'equal_to',
@@ -75,13 +76,13 @@ describe('#mutations', () => {
           query_operator: 'and',
         },
       ];
-      mutations[types.SET_CONTACT_FILTERS](appliedFilters);
-      expect(appliedFilters).toEqual([
+      mutations[types.SET_CONTACT_FILTERS](state, filtersData);
+      expect(state.appliedFilters).toEqual([
         {
-          attribute_key: 'name',
-          filter_operator: 'equal_to',
+          attributeKey: 'name',
+          filterOperator: 'equal_to',
           values: ['fayaz'],
-          query_operator: 'and',
+          queryOperator: 'and',
         },
       ]);
     });

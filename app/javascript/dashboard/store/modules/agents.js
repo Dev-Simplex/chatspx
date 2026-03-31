@@ -26,16 +26,11 @@ export const getters = {
     return $state.records.find(record => record.id === Number(id)) || {};
   },
   getAgentStatus($state) {
-    let status = {
-      online: $state.records.filter(
-        agent => agent.availability_status === 'online'
-      ).length,
-      busy: $state.records.filter(agent => agent.availability_status === 'busy')
-        .length,
-      offline: $state.records.filter(
-        agent => agent.availability_status === 'offline'
-      ).length,
-    };
+    const status = { online: 0, busy: 0, offline: 0 };
+    $state.records.forEach(agent => {
+      const s = agent.availability_status || 'offline';
+      if (s in status) status[s] += 1;
+    });
     return status;
   },
 };

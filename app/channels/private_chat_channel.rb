@@ -10,7 +10,7 @@ class PrivateChatChannel < ApplicationCable::Channel
       return
     end
 
-    stream_from "private_chat_#{PrivateChat::Config.conversation_id}"
+    stream_from "private_chat_#{PrivateChat::Config.account_id}_#{PrivateChat::Config.conversation_id}"
   end
 
   def unsubscribed

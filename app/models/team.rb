@@ -54,11 +54,11 @@ class Team < ApplicationRecord
   end
 
   def messages
-    account.messages.where(conversation_id: conversations.pluck(:id))
+    account.messages.where(conversation_id: conversations.select(:id))
   end
 
   def reporting_events
-    account.reporting_events.where(conversation_id: conversations.pluck(:id))
+    account.reporting_events.where(conversation_id: conversations.select(:id))
   end
 
   def push_event_data
@@ -73,7 +73,7 @@ class Team < ApplicationRecord
   def create_default_funnel
     Kanban::CreateFunnelForTeamService.new(team: self).perform
   rescue StandardError => e
-    Rails.logger.error "Erro ao criar funil padrão para time #{id}: #{e.message}"
+    Rails.logger.error "Error creating default funnel for team #{id}: #{e.message}"
   end
 end
 

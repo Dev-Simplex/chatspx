@@ -52,7 +52,7 @@ class SuperAdmin::AccountsController < SuperAdmin::ApplicationController
   # for more information
 
   def seed
-    Internal::SeedAccountJob.perform_later(requested_resource)
+    Internal::SeedAccountJob.perform_later(requested_resource.id)
     # rubocop:disable Rails/I18nLocaleTexts
     redirect_back(fallback_location: [namespace, requested_resource], notice: 'Account seeding triggered')
     # rubocop:enable Rails/I18nLocaleTexts
@@ -68,7 +68,7 @@ class SuperAdmin::AccountsController < SuperAdmin::ApplicationController
   def destroy
     account = Account.find(params[:id])
 
-    DeleteObjectJob.perform_later(account) if account.present?
+    DeleteObjectJob.perform_later(account.class.name, account.id) if account.present?
     # rubocop:disable Rails/I18nLocaleTexts
     redirect_back(fallback_location: [namespace, requested_resource], notice: 'Account deletion is in progress.')
     # rubocop:enable Rails/I18nLocaleTexts

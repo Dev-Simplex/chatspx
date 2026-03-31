@@ -14,7 +14,7 @@ class Linear::ActivityMessageService
     content = generate_activity_content
     return unless content
 
-    ::Conversations::ActivityMessageJob.perform_later(conversation, activity_message_params(content))
+    ::Conversations::ActivityMessageJob.perform_later(conversation.id, activity_message_params(content))
   end
 
   private

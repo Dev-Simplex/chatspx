@@ -2,13 +2,24 @@
 # Currently the file there is used only for search endpoint.
 # Everywhere else we use conversation builder in partials folder
 
-json.meta do
+json.meta do # rubocop:disable Metrics/BlockLength
   if conversation.contact.present?
+    contact = conversation.contact
     json.sender do
-      json.partial! 'api/v1/models/contact', formats: [:json], resource: conversation.contact
+      json.additional_attributes contact.additional_attributes
+      json.availability_status contact.availability_status
+      json.email contact.email
+      json.id contact.id
+      json.name contact.name
+      json.phone_number contact.phone_number
+      json.blocked contact.blocked
+      json.identifier contact.identifier
+      json.thumbnail contact.avatar_url
+      json.custom_attributes contact.custom_attributes
+      json.last_activity_at contact.last_activity_at.to_i if contact[:last_activity_at].present?
+      json.created_at contact.created_at.to_i if contact[:created_at].present?
     end
   else
-    # Keep sender payload shape stable even when historical contact was deleted.
     json.sender do
       json.additional_attributes({})
       json.availability_status(nil)
@@ -24,8 +35,21 @@ json.meta do
   end
   json.channel conversation.inbox.try(:channel_type)
   if conversation.assignee.present?
+    assignee = conversation.assignee
     json.assignee do
-      json.partial! 'api/v1/models/agent', formats: [:json], resource: conversation.assignee
+      json.id assignee.id
+      json.account_id Current.account&.id
+      json.availability_status assignee.availability_status
+      json.auto_offline assignee.auto_offline
+      json.confirmed assignee.confirmed?
+      json.email assignee.email
+      json.available_name assignee.available_name
+      json.custom_attributes assignee.custom_attributes if assignee.custom_attributes.present?
+      json.name assignee.name
+      json.role assignee.role
+      json.thumbnail assignee.avatar_url
+      json.team_ids assignee.teams.select { |t| t.account_id == Current.account&.id }.map(&:id)
+      json.custom_role_id assignee.current_account_user&.custom_role_id if ChatwootApp.enterprise?
     end
   elsif conversation.assignee_id.present?
     json.assignee do
@@ -39,8 +63,14 @@ json.meta do
     end
   end
   if conversation.team.present?
+    team = conversation.team
     json.team do
-      json.partial! 'api/v1/models/team', formats: [:json], resource: conversation.team
+      json.id team.id
+      json.name team.name
+      json.description team.description
+      json.allow_auto_assign team.allow_auto_assign
+      json.account_id team.account_id
+      json.is_member @current_user_team_ids&.include?(team.id) || Current.user&.teams&.exists?(id: team.id)
     end
   end
   json.hmac_verified conversation.contact_inbox&.hmac_verified
@@ -59,7 +89,7 @@ elsif conversation.messages.where(account_id: conversation.account_id).last.blan
   json.messages []
 else
   last_message = conversation.messages.where(account_id: conversation.account_id)
-                .includes([{ attachments: [{ file_attachment: [:blob] }] }])
+                             .includes([{ attachments: [{ file_attachment: [:blob] }] }])
   json.messages [last_message.last.try(:push_event_data)]
 end
 
@@ -81,7 +111,11 @@ json.updated_at conversation.updated_at.to_f
 json.timestamp conversation.last_activity_at.to_i
 json.first_reply_created_at conversation.first_reply_created_at.to_i
 json.unread_count preloaded ? preloaded.unread_counts[conversation.id].to_i : conversation.unread_incoming_messages.count
-last_non_activity_msg = preloaded ? preloaded.last_non_activity_messages[conversation.id] : conversation.messages.where(account_id: conversation.account_id).non_activity_messages.first
+last_non_activity_msg = if preloaded
+                          preloaded.last_non_activity_messages[conversation.id]
+                        else
+                          conversation.messages.where(account_id: conversation.account_id).non_activity_messages.first
+                        end
 json.last_non_activity_message last_non_activity_msg.try(:push_event_data)
 json.last_activity_at conversation.last_activity_at.to_i
 json.priority conversation.priority

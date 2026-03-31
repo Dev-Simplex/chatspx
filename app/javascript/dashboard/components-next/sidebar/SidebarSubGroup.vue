@@ -97,15 +97,19 @@ watch(
     :icon
     collapsible
     :is-expanded="isSubgroupExpanded"
-    @toggle="toggleSubgroup"
     class="my-1"
+    @toggle="toggleSubgroup"
   />
-  <ul v-if="children.length" class="m-0 list-none reset-base relative group">
+  <ul
+    v-if="children.length"
+    class="m-0 list-none reset-base relative group min-w-0"
+  >
     <!-- Each element has h-8, which is 32px, we will show 7 items with one hidden at the end,
     which is 14rem. Then we add 16px so that we have some text visible from the next item  -->
     <div
-      ref="scrollableContainer"
       v-show="isSubgroupExpanded"
+      ref="scrollableContainer"
+      class="min-w-0"
       :class="{
         'max-h-[calc(14rem+16px)] overflow-y-scroll no-scrollbar': isScrollable,
       }"
@@ -122,7 +126,7 @@ watch(
     <div
       v-if="isScrollable && isExpanded && isSubgroupExpanded"
       v-show="!scrollEnd"
-      class="absolute bg-gradient-to-t from-n-solid-2 w-full h-12 to-transparent -bottom-1 pointer-events-none flex items-end justify-end px-2 animate-fade-in-up"
+      class="absolute bg-gradient-to-t from-n-background w-full h-12 to-transparent -bottom-1 pointer-events-none flex items-end justify-end px-2 animate-fade-in-up"
     >
       <svg
         width="16"

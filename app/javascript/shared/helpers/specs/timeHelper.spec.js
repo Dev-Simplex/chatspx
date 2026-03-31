@@ -40,7 +40,7 @@ describe('#messageTimestamp', () => {
 describe('#dynamicTime', () => {
   it('returns correct value', () => {
     Date.now = vi.fn(() => new Date(Date.UTC(2023, 1, 14)).valueOf());
-    expect(dynamicTime(1612971343)).toEqual('about 2 years ago');
+    expect(dynamicTime(1612971343)).toEqual('há cerca de 2 anos');
   });
 });
 
@@ -54,6 +54,7 @@ describe('#dateFormat', () => {
 describe('#shortTimestamp', () => {
   // Test cases when withAgo is false or not provided
   it('returns correct value without ago', () => {
+    expect(shortTimestamp('in less than a minute')).toEqual('now');
     expect(shortTimestamp('less than a minute ago')).toEqual('now');
     expect(shortTimestamp('1 minute ago')).toEqual('1m');
     expect(shortTimestamp('12 minutes ago')).toEqual('12m');

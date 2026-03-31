@@ -1,7 +1,9 @@
 class ContactIpLookupJob < ApplicationJob
   queue_as :default
 
-  def perform(contact)
+  def perform(contact_id)
+    return unless (contact = Contact.find_by(id: contact_id))
+
     update_contact_location_from_ip(contact)
   rescue Errno::ETIMEDOUT => e
     Rails.logger.warn "Exception: ip resolution failed : #{e.message}"

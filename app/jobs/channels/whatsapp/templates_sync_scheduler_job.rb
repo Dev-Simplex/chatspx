@@ -6,7 +6,7 @@ class Channels::Whatsapp::TemplatesSyncSchedulerJob < ApplicationJob
                      .where('message_templates_last_updated <= ? OR message_templates_last_updated IS NULL', 3.hours.ago)
                      .limit(Limits::BULK_EXTERNAL_HTTP_CALLS_LIMIT)
                      .each do |channel|
-      Channels::Whatsapp::TemplatesSyncJob.perform_later(channel)
+      Channels::Whatsapp::TemplatesSyncJob.perform_later(channel.id)
     end
   end
 end

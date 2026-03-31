@@ -41,9 +41,9 @@ describe('Captain pt-BR i18n parity', () => {
     expect(
       ptBrIntegrations.CAPTAIN.ASSISTANT_SWITCHER.SWITCH_ASSISTANT
     ).not.toEqual(enIntegrations.CAPTAIN.ASSISTANT_SWITCHER.SWITCH_ASSISTANT);
-    expect(ptBrIntegrations.CAPTAIN.ASSISTANT_SWITCHER.NEW_ASSISTANT).not.toEqual(
-      enIntegrations.CAPTAIN.ASSISTANT_SWITCHER.NEW_ASSISTANT
-    );
+    expect(
+      ptBrIntegrations.CAPTAIN.ASSISTANT_SWITCHER.NEW_ASSISTANT
+    ).not.toEqual(enIntegrations.CAPTAIN.ASSISTANT_SWITCHER.NEW_ASSISTANT);
     expect(ptBrIntegrations.CAPTAIN.ASSISTANT_SWITCHER.EMPTY_LIST).not.toEqual(
       enIntegrations.CAPTAIN.ASSISTANT_SWITCHER.EMPTY_LIST
     );

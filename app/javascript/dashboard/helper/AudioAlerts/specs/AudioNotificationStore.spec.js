@@ -17,10 +17,15 @@ describe('AudioNotificationStore', () => {
   beforeEach(() => {
     store = {
       getters: {
-        getMineChats: vi.fn(),
+        getCurrentUser: { id: 1 },
         getSelectedChat: null,
         getCurrentAccountId: 1,
         getConversationById: vi.fn(),
+      },
+      state: {
+        conversations: {
+          allConversations: [],
+        },
       },
     };
     audioNotificationStore = new AudioNotificationStore(store);
@@ -28,37 +33,66 @@ describe('AudioNotificationStore', () => {
 
   describe('hasUnreadConversation', () => {
     it('should return true when there are unread conversations', () => {
-      store.getters.getMineChats.mockReturnValue([
-        { id: 1, unread_count: 2 },
-        { id: 2, unread_count: 0 },
-      ]);
+      store.state.conversations.allConversations = [
+        {
+          id: 1,
+          status: 'open',
+          unread_count: 2,
+          meta: { assignee: { id: 1 } },
+        },
+        {
+          id: 2,
+          status: 'open',
+          unread_count: 0,
+          meta: { assignee: { id: 1 } },
+        },
+      ];
 
       expect(audioNotificationStore.hasUnreadConversation()).toBe(true);
     });
 
     it('should return false when there are no unread conversations', () => {
-      store.getters.getMineChats.mockReturnValue([
-        { id: 1, unread_count: 0 },
-        { id: 2, unread_count: 0 },
-      ]);
+      store.state.conversations.allConversations = [
+        {
+          id: 1,
+          status: 'open',
+          unread_count: 0,
+          meta: { assignee: { id: 1 } },
+        },
+        {
+          id: 2,
+          status: 'open',
+          unread_count: 0,
+          meta: { assignee: { id: 1 } },
+        },
+      ];
 
       expect(audioNotificationStore.hasUnreadConversation()).toBe(false);
     });
 
     it('should return false when there are no conversations', () => {
-      store.getters.getMineChats.mockReturnValue([]);
+      store.state.conversations.allConversations = [];
 
       expect(audioNotificationStore.hasUnreadConversation()).toBe(false);
     });
 
-    it('should call getMineChats with correct parameters', () => {
-      store.getters.getMineChats.mockReturnValue([]);
-      audioNotificationStore.hasUnreadConversation();
+    it('should only match open conversations assigned to current user', () => {
+      store.state.conversations.allConversations = [
+        {
+          id: 1,
+          status: 'resolved',
+          unread_count: 5,
+          meta: { assignee: { id: 1 } },
+        },
+        {
+          id: 2,
+          status: 'open',
+          unread_count: 3,
+          meta: { assignee: { id: 2 } },
+        },
+      ];
 
-      expect(store.getters.getMineChats).toHaveBeenCalledWith({
-        assigneeType: 'me',
-        status: 'open',
-      });
+      expect(audioNotificationStore.hasUnreadConversation()).toBe(false);
     });
   });
 

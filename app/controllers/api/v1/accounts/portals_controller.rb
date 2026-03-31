@@ -69,7 +69,7 @@ class Api::V1::Accounts::PortalsController < Api::V1::Accounts::BaseController
   private
 
   def fetch_portal
-    @portal = Current.account.portals.find_by(slug: permitted_params[:id])
+    @portal = Current.account.portals.find_by!(slug: permitted_params[:id])
   end
 
   def permitted_params
@@ -79,7 +79,7 @@ class Api::V1::Accounts::PortalsController < Api::V1::Accounts::BaseController
   def portal_params
     params.require(:portal).permit(
       :id, :color, :custom_domain, :header_text, :homepage_link,
-      :name, :page_title, :slug, :archived, { config: [:default_locale, { allowed_locales: [] }] }
+      :name, :page_title, :slug, :archived, { config: [:default_locale, { allowed_locales: [] }, { draft_locales: [] }] }
     )
   end
 

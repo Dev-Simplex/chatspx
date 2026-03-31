@@ -51,7 +51,13 @@ onMounted(fetchAttachments);
 watch(
   () => props.conversationId,
   () => {
-    visibleCounts.value = { image: PAGE_SIZE, video: PAGE_SIZE, audio: PAGE_SIZE, file: PAGE_SIZE, embed: PAGE_SIZE };
+    visibleCounts.value = {
+      image: PAGE_SIZE,
+      video: PAGE_SIZE,
+      audio: PAGE_SIZE,
+      file: PAGE_SIZE,
+      embed: PAGE_SIZE,
+    };
     fetchAttachments();
   }
 );
@@ -95,23 +101,53 @@ const visibleCounts = ref({
   embed: PAGE_SIZE,
 });
 
-const visibleImages = computed(() => grouped.value.image.slice(0, visibleCounts.value.image));
-const visibleVideos = computed(() => grouped.value.video.slice(0, visibleCounts.value.video));
-const visibleAudios = computed(() => grouped.value.audio.slice(0, visibleCounts.value.audio));
-const visibleFiles = computed(() => grouped.value.file.slice(0, visibleCounts.value.file));
-const visibleEmbeds = computed(() => grouped.value.embed.slice(0, visibleCounts.value.embed));
+const visibleImages = computed(() =>
+  grouped.value.image.slice(0, visibleCounts.value.image)
+);
+const visibleVideos = computed(() =>
+  grouped.value.video.slice(0, visibleCounts.value.video)
+);
+const visibleAudios = computed(() =>
+  grouped.value.audio.slice(0, visibleCounts.value.audio)
+);
+const visibleFiles = computed(() =>
+  grouped.value.file.slice(0, visibleCounts.value.file)
+);
+const visibleEmbeds = computed(() =>
+  grouped.value.embed.slice(0, visibleCounts.value.embed)
+);
 
-const hasMoreImages = computed(() => grouped.value.image.length > visibleCounts.value.image);
-const hasMoreVideos = computed(() => grouped.value.video.length > visibleCounts.value.video);
-const hasMoreAudios = computed(() => grouped.value.audio.length > visibleCounts.value.audio);
-const hasMoreFiles = computed(() => grouped.value.file.length > visibleCounts.value.file);
-const hasMoreEmbeds = computed(() => grouped.value.embed.length > visibleCounts.value.embed);
+const hasMoreImages = computed(
+  () => grouped.value.image.length > visibleCounts.value.image
+);
+const hasMoreVideos = computed(
+  () => grouped.value.video.length > visibleCounts.value.video
+);
+const hasMoreAudios = computed(
+  () => grouped.value.audio.length > visibleCounts.value.audio
+);
+const hasMoreFiles = computed(
+  () => grouped.value.file.length > visibleCounts.value.file
+);
+const hasMoreEmbeds = computed(
+  () => grouped.value.embed.length > visibleCounts.value.embed
+);
 
-const remainingImages = computed(() => grouped.value.image.length - visibleCounts.value.image);
-const remainingVideos = computed(() => grouped.value.video.length - visibleCounts.value.video);
-const remainingAudios = computed(() => grouped.value.audio.length - visibleCounts.value.audio);
-const remainingFiles = computed(() => grouped.value.file.length - visibleCounts.value.file);
-const remainingEmbeds = computed(() => grouped.value.embed.length - visibleCounts.value.embed);
+const remainingImages = computed(
+  () => grouped.value.image.length - visibleCounts.value.image
+);
+const remainingVideos = computed(
+  () => grouped.value.video.length - visibleCounts.value.video
+);
+const remainingAudios = computed(
+  () => grouped.value.audio.length - visibleCounts.value.audio
+);
+const remainingFiles = computed(
+  () => grouped.value.file.length - visibleCounts.value.file
+);
+const remainingEmbeds = computed(
+  () => grouped.value.embed.length - visibleCounts.value.embed
+);
 
 const showMore = type => {
   visibleCounts.value[type] += PAGE_SIZE;
@@ -220,7 +256,11 @@ const getLinkUrl = att => att?.data_url || att?.external_url || '#';
           class="mt-2 w-full text-xs text-n-blue-text hover:underline text-center py-1"
           @click="showMore('image')"
         >
-          {{ t('CONVERSATION_SIDEBAR.SHOW_MORE', { count: Math.min(remainingImages, PAGE_SIZE) }) }}
+          {{
+            t('CONVERSATION_SIDEBAR.SHOW_MORE', {
+              count: Math.min(remainingImages, PAGE_SIZE),
+            })
+          }}
         </button>
       </div>
 
@@ -279,7 +319,11 @@ const getLinkUrl = att => att?.data_url || att?.external_url || '#';
           class="mt-2 w-full text-xs text-n-blue-text hover:underline text-center py-1"
           @click="showMore('video')"
         >
-          {{ t('CONVERSATION_SIDEBAR.SHOW_MORE', { count: Math.min(remainingVideos, PAGE_SIZE) }) }}
+          {{
+            t('CONVERSATION_SIDEBAR.SHOW_MORE', {
+              count: Math.min(remainingVideos, PAGE_SIZE),
+            })
+          }}
         </button>
       </div>
 
@@ -313,7 +357,11 @@ const getLinkUrl = att => att?.data_url || att?.external_url || '#';
           class="mt-2 w-full text-xs text-n-blue-text hover:underline text-center py-1"
           @click="showMore('audio')"
         >
-          {{ t('CONVERSATION_SIDEBAR.SHOW_MORE', { count: Math.min(remainingAudios, PAGE_SIZE) }) }}
+          {{
+            t('CONVERSATION_SIDEBAR.SHOW_MORE', {
+              count: Math.min(remainingAudios, PAGE_SIZE),
+            })
+          }}
         </button>
       </div>
 
@@ -349,7 +397,11 @@ const getLinkUrl = att => att?.data_url || att?.external_url || '#';
           class="mt-2 w-full text-xs text-n-blue-text hover:underline text-center py-1"
           @click="showMore('file')"
         >
-          {{ t('CONVERSATION_SIDEBAR.SHOW_MORE', { count: Math.min(remainingFiles, PAGE_SIZE) }) }}
+          {{
+            t('CONVERSATION_SIDEBAR.SHOW_MORE', {
+              count: Math.min(remainingFiles, PAGE_SIZE),
+            })
+          }}
         </button>
       </div>
 
@@ -382,7 +434,11 @@ const getLinkUrl = att => att?.data_url || att?.external_url || '#';
           class="mt-2 w-full text-xs text-n-blue-text hover:underline text-center py-1"
           @click="showMore('embed')"
         >
-          {{ t('CONVERSATION_SIDEBAR.SHOW_MORE', { count: Math.min(remainingEmbeds, PAGE_SIZE) }) }}
+          {{
+            t('CONVERSATION_SIDEBAR.SHOW_MORE', {
+              count: Math.min(remainingEmbeds, PAGE_SIZE),
+            })
+          }}
         </button>
       </div>
     </template>

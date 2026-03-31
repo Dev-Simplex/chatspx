@@ -152,12 +152,7 @@
     "LIST": {
       "LOADING_MESSAGE": "Hleð skilaboðum...",
       "404": "Engin skilaboð",
-      "TABLE_HEADER": [
-        "Nafn",
-        "Símanúmer",
-        "Samtöl",
-        "Síðast samband"
-      ]
+      "TABLE_HEADER": ["Nafn", "Símanúmer", "Samtöl", "Síðast samband"]
     },
     "TYPE_LABEL": {
       "conversation_creation": "Nýtt samtal",
@@ -182,6 +177,7 @@
   },
   "COMMAND_BAR": {
     "SEARCH_PLACEHOLDER": "Leita eða stökkva til",
+    "SNOOZE_PLACEHOLDER": "Type a time e.g. tomorrow, 2 hours, next friday, jan 15...",
     "SECTIONS": {
       "GENERAL": "Almennar",
       "REPORTS": "Skýrslur",

@@ -21,13 +21,13 @@ class Api::V1::AccountsController < Api::BaseController
     @maintenance_banner = begin
       MaintenanceBanner.info
     rescue StandardError => e
-      Rails.logger.error("Erro ao buscar banner de manutenção: #{e.message}")
+      Rails.logger.error("Error fetching maintenance banner: #{e.message}")
       { enabled: false }
     end
     @update_banner = begin
       UpdateBanner.info
     rescue StandardError => e
-      Rails.logger.error("Erro ao buscar banner de atualização: #{e.message}")
+      Rails.logger.error("Error fetching update banner: #{e.message}")
       { enabled: false }
     end
     render 'api/v1/accounts/show', format: :json
@@ -104,12 +104,15 @@ class Api::V1::AccountsController < Api::BaseController
   end
 
   def settings_params
-    params.permit(:auto_resolve_after, :auto_resolve_message, :auto_resolve_ignore_waiting, :audio_transcriptions, :auto_resolve_label,
-                  conversation_required_attributes: [])
+    params.permit(*permitted_settings_attributes)
+  end
+
+  def permitted_settings_attributes
+    [:auto_resolve_after, :auto_resolve_message, :auto_resolve_ignore_waiting, :audio_transcriptions, :auto_resolve_label]
   end
 
   def check_signup_enabled
-    raise ActionController::RoutingError, 'Not Found' if GlobalConfigService.load('ENABLE_ACCOUNT_SIGNUP', 'false') == 'false'
+    raise ActionController::RoutingError, 'Not Found' unless GlobalConfigService.account_signup_enabled?
   end
 
   def validate_captcha
@@ -124,3 +127,5 @@ class Api::V1::AccountsController < Api::BaseController
     }
   end
 end
+
+Api::V1::AccountsController.prepend_mod_with('Api::V1::AccountsSettings')

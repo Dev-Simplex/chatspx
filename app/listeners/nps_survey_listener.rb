@@ -1,24 +1,25 @@
 class NpsSurveyListener < BaseListener
-  def conversation_status_changed(event)
-    Rails.logger.info "NpsSurveyListener: conversation_status_changed event received"
-    
+  def conversation_status_changed(event) # rubocop:disable Metrics/AbcSize, Metrics/MethodLength
+    Rails.logger.info 'NpsSurveyListener: conversation_status_changed event received'
+
     conversation = extract_conversation_and_account(event)[0]
 
-    Rails.logger.info "NpsSurveyListener: conversation_status_changed for conversation #{conversation.id}, status: #{conversation.status}, inbox_id: #{conversation.inbox_id}"
+    Rails.logger.info "NpsSurveyListener: conversation_status_changed for conversation #{conversation.id}, " \
+                      "status: #{conversation.status}, inbox_id: #{conversation.inbox_id}"
 
     return unless conversation.resolved?
 
-    Rails.logger.debug "NpsSurveyListener: conversation #{conversation.id} is resolved, checking NPS config"
+    Rails.logger.debug { "NpsSurveyListener: conversation #{conversation.id} is resolved, checking NPS config" }
 
     # Reload inbox to ensure we have the latest NPS configuration
     # Use find to ensure we get fresh data from database
     inbox = Inbox.find(conversation.inbox_id)
 
-    Rails.logger.debug "NpsSurveyListener: inbox #{inbox.id}, nps_survey_enabled: #{inbox.nps_survey_enabled}"
+    Rails.logger.debug { "NpsSurveyListener: inbox #{inbox.id}, nps_survey_enabled: #{inbox.nps_survey_enabled}" }
 
     # Check if NPS is enabled for this inbox first
     unless inbox.nps_survey_enabled?
-      Rails.logger.debug "NpsSurveyListener: NPS not enabled for inbox #{inbox.id}"
+      Rails.logger.debug { "NpsSurveyListener: NPS not enabled for inbox #{inbox.id}" }
       return
     end
 
@@ -26,10 +27,10 @@ class NpsSurveyListener < BaseListener
     nps_config = inbox.nps_config || {}
     mode = nps_config['mode'] || 'auto'
 
-    Rails.logger.debug "NpsSurveyListener: NPS mode is '#{mode}'"
+    Rails.logger.debug { "NpsSurveyListener: NPS mode is '#{mode}'" }
 
     unless %w[auto both].include?(mode)
-      Rails.logger.debug "NpsSurveyListener: Mode '#{mode}' does not allow automatic sending"
+      Rails.logger.debug { "NpsSurveyListener: Mode '#{mode}' does not allow automatic sending" }
       return
     end
 
@@ -60,20 +61,20 @@ class NpsSurveyListener < BaseListener
     NpsSurveys::ResponseBuilder.new(message: message).perform
   end
 
-  private
-
-  def dismiss_active_nps(conversation)
-    dismissed = conversation.nps_responses
-                            .where(status: :sent, answered_at: nil)
-                            .update_all(status: NpsResponse.statuses[:dismissed])
-    Rails.logger.info "NpsSurveyListener: dismissed #{dismissed} active NPS for conversation #{conversation.id}" if dismissed.positive?
-  end
-
   def message_updated(event)
     message = extract_message_and_account(event)[0]
     return unless message.input_nps?
 
     # Handle widget submissions for NPS
     NpsSurveys::ResponseBuilder.new(message: message).perform
+  end
+
+  private
+
+  def dismiss_active_nps(conversation)
+    dismissed = conversation.nps_responses
+                            .where(status: :sent, answered_at: nil)
+                            .update_all(status: NpsResponse.statuses[:dismissed]) # rubocop:disable Rails/SkipsModelValidations
+    Rails.logger.info "NpsSurveyListener: dismissed #{dismissed} active NPS for conversation #{conversation.id}" if dismissed.positive?
   end
 end

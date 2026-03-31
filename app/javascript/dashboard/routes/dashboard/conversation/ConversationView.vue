@@ -67,7 +67,7 @@ export default {
     // Navegar de volta ao dashboard ao pressionar ESC dentro de uma conversa
     const keyboardEvents = {
       Escape: {
-        action: (e) => {
+        action: e => {
           // Prevenir o comportamento padrão do ESC
           e.preventDefault();
           e.stopPropagation();

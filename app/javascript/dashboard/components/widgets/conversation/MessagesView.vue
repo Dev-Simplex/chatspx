@@ -1,9 +1,8 @@
 <script>
 import { ref, provide } from 'vue';
 // composable
-import { useConfig } from 'dashboard/composables/useConfig';
 import { useKeyboardEvents } from 'dashboard/composables/useKeyboardEvents';
-import { useAI } from 'dashboard/composables/useAI';
+import { useLabelSuggestions } from 'dashboard/composables/useLabelSuggestions';
 import { useSnakeCase } from 'dashboard/composables/useTransformKeys';
 
 // components
@@ -52,7 +51,6 @@ export default {
   setup() {
     const isPopOutReplyBox = ref(false);
     const conversationPanelRef = ref(null);
-    const { isEnterprise } = useConfig();
 
     const keyboardEvents = {
       Escape: {
@@ -65,21 +63,18 @@ export default {
     useKeyboardEvents(keyboardEvents);
 
     const {
-      isAIIntegrationEnabled,
+      captainTasksEnabled,
       isLabelSuggestionFeatureEnabled,
-      fetchIntegrationsIfRequired,
-      fetchLabelSuggestions,
-    } = useAI();
+      getLabelSuggestions,
+    } = useLabelSuggestions();
 
     provide('contextMenuElementTarget', conversationPanelRef);
 
     return {
-      isEnterprise,
       isPopOutReplyBox,
-      isAIIntegrationEnabled,
+      captainTasksEnabled,
+      getLabelSuggestions,
       isLabelSuggestionFeatureEnabled,
-      fetchIntegrationsIfRequired,
-      fetchLabelSuggestions,
       conversationPanelRef,
     };
   },
@@ -113,8 +108,8 @@ export default {
     shouldShowLabelSuggestions() {
       return (
         this.isOpen &&
-        this.isEnterprise &&
-        this.isAIIntegrationEnabled &&
+        this.captainTasksEnabled &&
+        this.isLabelSuggestionFeatureEnabled &&
         !this.messageSentSinceOpened
       );
     },
@@ -293,9 +288,7 @@ export default {
     emitter.on(BUS_EVENTS.SCROLL_TO_MESSAGE, this.onScrollToMessage);
     // when a message is sent we set the flag to true this hides the label suggestions,
     // until the chat is changed and the flag is reset in the watch for currentChat
-    emitter.on(BUS_EVENTS.MESSAGE_SENT, () => {
-      this.messageSentSinceOpened = true;
-    });
+    emitter.on(BUS_EVENTS.MESSAGE_SENT, this.onMessageSent);
   },
 
   mounted() {
@@ -320,24 +313,15 @@ export default {
         return;
       }
 
-      if (!this.isEnterprise) {
-        return;
-      }
-
       // Early exit if conversation already has labels - no need to suggest more
       const existingLabels = this.currentChat?.labels || [];
       if (existingLabels.length > 0) return;
 
-      // method available in mixin, need to ensure that integrations are present
-      await this.fetchIntegrationsIfRequired();
-
-      if (!this.isLabelSuggestionFeatureEnabled) {
+      if (!this.captainTasksEnabled || !this.isLabelSuggestionFeatureEnabled) {
         return;
       }
 
-      this.labelSuggestions = await this.fetchLabelSuggestions({
-        conversationId: this.currentChat.id,
-      });
+      this.labelSuggestions = await this.getLabelSuggestions();
 
       // once the labels are fetched, we need to scroll to bottom
       // but we need to wait for the DOM to be updated
@@ -365,8 +349,12 @@ export default {
     fetchAllAttachmentsFromCurrentChat() {
       this.$store.dispatch('fetchAllAttachments', this.currentChat.id);
     },
+    onMessageSent() {
+      this.messageSentSinceOpened = true;
+    },
     removeBusListeners() {
       emitter.off(BUS_EVENTS.SCROLL_TO_MESSAGE, this.onScrollToMessage);
+      emitter.off(BUS_EVENTS.MESSAGE_SENT, this.onMessageSent);
     },
     onScrollToMessage({ messageId = '' } = {}) {
       const scrollToElement = () => {
@@ -636,7 +624,7 @@ export default {
       class="flex relative flex-col"
       :class="{
         'modal-mask': isPopOutReplyBox,
-        'bg-n-background': !isPopOutReplyBox,
+        'bg-n-surface-1': !isPopOutReplyBox,
       }"
     >
       <div
@@ -745,30 +733,28 @@ export default {
 .modal-mask {
   @apply fixed inset-0 min-h-screen flex flex-col justify-center items-center;
 
-  &::v-deep {
-    .ProseMirror-woot-style {
-      @apply max-h-[25rem] min-h-[12rem];
-    }
+  :deep(.ProseMirror-woot-style) {
+    @apply max-h-[25rem] min-h-[12rem];
+  }
 
-    .reply-box {
-      @apply border border-n-weak max-w-[75rem] w-[95%] sm:w-[85%] md:w-[70%] max-h-[90vh] overflow-y-auto;
+  :deep(.reply-box) {
+    @apply border border-n-weak max-w-[75rem] w-[95%] sm:w-[85%] md:w-[70%] max-h-[90vh] overflow-y-auto;
 
-      &.is-private {
-        @apply dark:border-n-amber-3/30 border-n-amber-12/5;
-      }
+    &.is-private {
+      @apply dark:border-n-amber-3/30 border-n-amber-12/5;
     }
+  }
 
-    .reply-box.reply-box--popout .reply-box__top {
-      min-height: 27.5rem !important;
-    }
+  :deep(.reply-box.reply-box--popout .reply-box__top) {
+    min-height: 27.5rem !important;
+  }
 
-    .reply-box.reply-box--popout .reply-box__top .input {
-      min-height: 27.5rem !important;
-    }
+  :deep(.reply-box.reply-box--popout .reply-box__top .input) {
+    min-height: 27.5rem !important;
+  }
 
-    .emoji-dialog {
-      @apply absolute ltr:left-auto rtl:right-auto bottom-1;
-    }
+  :deep(.emoji-dialog) {
+    @apply absolute ltr:left-auto rtl:right-auto bottom-1;
   }
 }
 

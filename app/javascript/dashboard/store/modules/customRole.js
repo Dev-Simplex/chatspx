@@ -68,10 +68,10 @@ export const actions = {
     try {
       await CustomRoleAPI.delete(id);
       commit(types.default.DELETE_CUSTOM_ROLE, id);
-      commit(types.default.SET_CUSTOM_ROLE_UI_FLAG, { deletingItem: true });
+      commit(types.default.SET_CUSTOM_ROLE_UI_FLAG, { deletingItem: false });
       return id;
     } catch (error) {
-      commit(types.default.SET_CUSTOM_ROLE_UI_FLAG, { deletingItem: true });
+      commit(types.default.SET_CUSTOM_ROLE_UI_FLAG, { deletingItem: false });
       return throwErrorMessage(error);
     }
   },

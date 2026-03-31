@@ -5,16 +5,12 @@ module ReportingEventHelper
     inbox_working_hours = configure_working_hours(inbox.working_hours)
     return 0 if inbox_working_hours.blank?
 
-    # Configure working hours
-    WorkingHours::Config.working_hours = inbox_working_hours
-
-    # Configure timezone
-    WorkingHours::Config.time_zone = inbox.timezone
-
-    # Use inbox timezone to change from & to values.
     from_in_inbox_timezone = from.in_time_zone(inbox.timezone).to_time
     to_in_inbox_timezone = to.in_time_zone(inbox.timezone).to_time
-    from_in_inbox_timezone.working_time_until(to_in_inbox_timezone)
+
+    WorkingHours::Config.with_config(working_hours: inbox_working_hours, time_zone: inbox.timezone) do
+      from_in_inbox_timezone.working_time_until(to_in_inbox_timezone)
+    end
   end
 
   def last_non_human_activity(conversation)

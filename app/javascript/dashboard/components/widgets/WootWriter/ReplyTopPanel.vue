@@ -1,14 +1,24 @@
 <script>
+import { ref } from 'vue';
 import { useKeyboardEvents } from 'dashboard/composables/useKeyboardEvents';
+import { useCaptain } from 'dashboard/composables/useCaptain';
+import { useTrack } from 'dashboard/composables';
+import { vOnClickOutside } from '@vueuse/components';
 import { REPLY_EDITOR_MODES, CHAR_LENGTH_WARNING } from './constants';
-import EditorModeToggle from './EditorModeToggle.vue';
+import { CAPTAIN_EVENTS } from 'dashboard/helper/AnalyticsHelper/events';
 import NextButton from 'dashboard/components-next/button/Button.vue';
+import EditorModeToggle from './EditorModeToggle.vue';
+import CopilotMenuBar from './CopilotMenuBar.vue';
 
 export default {
   name: 'ReplyTopPanel',
   components: {
     EditorModeToggle,
     NextButton,
+    CopilotMenuBar,
+  },
+  directives: {
+    OnClickOutside: vOnClickOutside,
   },
   props: {
     mode: {
@@ -18,6 +28,18 @@ export default {
     isReplyRestricted: {
       type: Boolean,
       default: false,
+    },
+    disabled: {
+      type: Boolean,
+      default: false,
+    },
+    isEditorDisabled: {
+      type: Boolean,
+      default: false,
+    },
+    conversationId: {
+      type: Number,
+      default: null,
     },
     isMessageLengthReachingThreshold: {
       type: Boolean,
@@ -31,8 +53,17 @@ export default {
       type: Boolean,
       default: false,
     },
+    editorContent: {
+      type: String,
+      default: undefined,
+    },
   },
-  emits: ['setReplyMode', 'closePopout'],
+  emits: [
+    'setReplyMode',
+    'closePopout',
+    'togglePopout',
+    'executeCopilotAction',
+  ],
   setup(props, { emit }) {
     const setReplyMode = mode => {
       emit('setReplyMode', mode);
@@ -51,6 +82,30 @@ export default {
           : REPLY_EDITOR_MODES.REPLY;
       setReplyMode(newMode);
     };
+
+    const { captainTasksEnabled } = useCaptain();
+    const showCopilotMenu = ref(false);
+
+    const handleCopilotAction = (actionKey, data) => {
+      emit('executeCopilotAction', actionKey, data || props.editorContent);
+      showCopilotMenu.value = false;
+    };
+
+    const toggleCopilotMenu = () => {
+      const isOpening = !showCopilotMenu.value;
+      if (isOpening) {
+        useTrack(CAPTAIN_EVENTS.EDITOR_AI_MENU_OPENED, {
+          conversationId: props.conversationId,
+          entryPoint: 'top_panel',
+        });
+      }
+      showCopilotMenu.value = isOpening;
+    };
+
+    const handleClickOutside = () => {
+      showCopilotMenu.value = false;
+    };
+
     const keyboardEvents = {
       'Alt+KeyP': {
         action: () => handleNoteClick(),
@@ -68,6 +123,11 @@ export default {
       handleReplyClick,
       handleNoteClick,
       REPLY_EDITOR_MODES,
+      captainTasksEnabled,
+      handleCopilotAction,
+      showCopilotMenu,
+      toggleCopilotMenu,
+      handleClickOutside,
     };
   },
   computed: {
@@ -94,27 +154,64 @@ export default {
 </script>
 
 <template>
-  <div class="flex justify-between h-[2.5rem] gap-2 ltr:pl-2 rtl:pr-2 ltr:pr-2 rtl:pl-2">
+  <div
+    class="flex justify-between gap-2 h-[3.25rem] items-center ltr:pl-3 ltr:pr-2 rtl:pr-3 rtl:pl-2"
+  >
     <EditorModeToggle
       :mode="mode"
-      :disabled="isReplyRestricted"
-      class="my-1.5"
+      :disabled="disabled"
+      :is-reply-restricted="isReplyRestricted"
       @toggle-mode="handleModeToggle"
     />
     <div class="flex flex-1 items-center justify-center mx-2 my-0 min-w-0">
-      <div v-if="isMessageLengthReachingThreshold" class="text-[11px] text-n-slate-11">
+      <div
+        v-if="isMessageLengthReachingThreshold"
+        class="text-[11px] text-n-slate-11"
+      >
         <span :class="charLengthClass">
           {{ characterLengthWarning }}
         </span>
       </div>
     </div>
-    <NextButton
-      v-if="popOutReplyBox"
-      v-tooltip.top-end="$t('CONVERSATION.HEADER.CLOSE')"
-      ghost
-      icon="i-ph-x"
-      class="my-1.5 shrink-0 !size-8"
-      @click="$emit('closePopout')"
-    />
+    <div class="flex items-center gap-2">
+      <div v-if="captainTasksEnabled" class="relative">
+        <NextButton
+          ghost
+          :disabled="disabled || isEditorDisabled"
+          :class="{
+            'text-n-violet-9 hover:enabled:!bg-n-violet-3': !showCopilotMenu,
+            'text-n-violet-9 bg-n-violet-3': showCopilotMenu,
+          }"
+          sm
+          icon="i-ph-sparkle-fill"
+          @click="toggleCopilotMenu"
+        />
+        <CopilotMenuBar
+          v-if="showCopilotMenu"
+          v-on-click-outside="handleClickOutside"
+          :has-selection="false"
+          :editor-content="editorContent"
+          :conversation-id="conversationId"
+          class="ltr:right-0 rtl:left-0 bottom-full mb-2"
+          @execute-copilot-action="handleCopilotAction"
+        />
+      </div>
+      <NextButton
+        v-if="popOutReplyBox"
+        v-tooltip.top-end="$t('CONVERSATION.HEADER.CLOSE')"
+        ghost
+        icon="i-ph-x"
+        class="shrink-0 !size-8"
+        @click="$emit('closePopout')"
+      />
+      <NextButton
+        v-else
+        ghost
+        class="text-n-slate-11"
+        sm
+        icon="i-lucide-maximize-2"
+        @click="$emit('togglePopout')"
+      />
+    </div>
   </div>
 </template>

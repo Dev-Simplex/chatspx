@@ -88,32 +88,33 @@ const getStatusConfig = status => {
         'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200',
       icon: 'i-lucide-check-circle',
       iconColor: 'text-green-600',
-      text: 'Conectado',
+      text: t('WAHA_CONNECTIONS.STATUS.WORKING'),
     },
     SCAN_QR_CODE: {
       color:
         'bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-200',
       icon: 'i-lucide-qr-code',
       iconColor: 'text-yellow-600',
-      text: 'Escanear QR Code',
+      text: t('WAHA_CONNECTIONS.STATUS.SCAN_QR_CODE'),
     },
     FAILED: {
       color: 'bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200',
       icon: 'i-lucide-x-circle',
       iconColor: 'text-red-600',
-      text: 'Falhou',
+      text: t('WAHA_CONNECTIONS.STATUS.FAILED'),
     },
     STOPPED: {
       color: 'bg-gray-100 text-gray-800 dark:bg-gray-700 dark:text-gray-300',
       icon: 'i-lucide-circle',
       iconColor: 'text-gray-600',
-      text: 'Desconectado',
+      text: t('WAHA_CONNECTIONS.STATUS.STOPPED'),
     },
     STARTING: {
-      color: 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200',
+      color:
+        'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200',
       icon: 'i-lucide-loader-circle',
       iconColor: 'text-green-600',
-      text: 'Iniciando',
+      text: t('WAHA_CONNECTIONS.STATUS.STARTING'),
     },
   };
   return configs[status] || configs.STOPPED;
@@ -227,16 +228,15 @@ onUnmounted(() => {
 
         <!-- Título -->
         <h1 class="text-4xl font-bold text-n-slate-12 mb-3">
-          Conexões WhatsApp
+          {{ $t('WAHA_CONNECTIONS.TITLE') }}
         </h1>
         <p class="text-lg text-n-slate-11 max-w-2xl mx-auto mb-8">
-          Gerencie suas conexões WhatsApp e monitore em tempo real
+          {{ $t('WAHA_CONNECTIONS.DESCRIPTION') }}
         </p>
 
         <!-- Botão Principal GRANDE -->
         <button
-          class="inline-flex items-center gap-3 px-10 py-4 text-lg font-bold text-white bg-green-600 hover:bg-green-700 rounded-xl shadow-xl hover:shadow-2xl transition-all duration-200 transform hover:scale-105"
-          style="background-color: #25d366"
+          class="inline-flex items-center gap-3 px-10 py-4 text-lg font-bold text-white bg-[#25d366] hover:bg-green-700 rounded-xl shadow-xl hover:shadow-2xl transition-all duration-200 transform hover:scale-105"
           @click="handleAddConnection"
         >
           <svg
@@ -248,7 +248,7 @@ onUnmounted(() => {
           >
             <path d="M12 5v14m-7-7h14" />
           </svg>
-          <span>Adicionar Nova Conexão</span>
+          <span>{{ $t('WAHA_CONNECTIONS.ADD_CONNECTION') }}</span>
         </button>
 
         <!-- Indicadores -->
@@ -260,14 +260,18 @@ onUnmounted(() => {
                 class="absolute inset-0 size-2 rounded-full bg-green-500 animate-ping"
               />
             </div>
-            <span class="text-n-slate-11 font-medium">Atualização Automática</span>
+            <span class="text-n-slate-11 font-medium">{{
+              $t('WAHA_CONNECTIONS.AUTO_UPDATE')
+            }}</span>
           </div>
           <div
             v-if="lastUpdate"
             class="flex items-center gap-2 text-n-slate-11"
           >
             <div class="i-lucide-clock size-4" />
-            <span>Atualizado às {{ formattedLastUpdate }}</span>
+            <span>{{
+              $t('WAHA_CONNECTIONS.UPDATED_AT', { time: formattedLastUpdate })
+            }}</span>
           </div>
           <button
             class="flex items-center gap-2 text-n-slate-11 hover:text-green-600 transition-colors"
@@ -277,7 +281,7 @@ onUnmounted(() => {
               class="i-lucide-refresh-cw size-4"
               :class="{ 'animate-spin': isRefreshing }"
             />
-            <span>Atualizar</span>
+            <span>{{ $t('WAHA_CONNECTIONS.REFRESH') }}</span>
           </button>
         </div>
       </div>
@@ -292,7 +296,9 @@ onUnmounted(() => {
         <div
           class="inline-block animate-spin rounded-full h-16 w-16 border-4 border-green-200 border-t-green-600 mb-6"
         />
-        <p class="text-lg text-n-slate-11">Carregando conexões...</p>
+        <p class="text-lg text-n-slate-11">
+          {{ $t('WAHA_CONNECTIONS.MESSAGES.LOADING') }}
+        </p>
       </div>
     </div>
 
@@ -310,14 +316,13 @@ onUnmounted(() => {
           </svg>
         </div>
         <h3 class="text-2xl font-bold text-n-slate-12 mb-3">
-          Nenhuma conexão encontrada
+          {{ $t('WAHA_CONNECTIONS.NO_CONNECTIONS') }}
         </h3>
         <p class="text-base text-n-slate-11 max-w-md mx-auto mb-8">
-          Adicione sua primeira conexão para começar a atender pelo CHAT - SPX
+          {{ $t('WAHA_CONNECTIONS.NO_CONNECTIONS_DESCRIPTION') }}
         </p>
         <button
-          class="inline-flex items-center gap-2 px-8 py-3 text-base font-semibold text-white bg-green-600 hover:bg-green-700 rounded-lg shadow-lg transition-all"
-          style="background-color: #25d366"
+          class="inline-flex items-center gap-2 px-8 py-3 text-base font-semibold text-white bg-[#25d366] hover:bg-green-700 rounded-lg shadow-lg transition-all"
           @click="handleAddConnection"
         >
           <svg
@@ -329,7 +334,7 @@ onUnmounted(() => {
           >
             <path d="M12 5v14m-7-7h14" />
           </svg>
-          <span>Adicionar Primeira Conexão</span>
+          <span>{{ $t('WAHA_CONNECTIONS.ADD_FIRST_CONNECTION') }}</span>
         </button>
       </div>
     </div>
@@ -348,8 +353,7 @@ onUnmounted(() => {
               <!-- Logo WhatsApp -->
               <div class="relative flex-shrink-0">
                 <div
-                  class="size-12 rounded-lg flex items-center justify-center"
-                  style="background-color: #25d366"
+                  class="size-12 rounded-lg flex items-center justify-center bg-[#25d366]"
                 >
                   <svg viewBox="0 0 32 32" class="size-7">
                     <path
@@ -360,8 +364,7 @@ onUnmounted(() => {
                 </div>
                 <div
                   v-if="connection.status === 'WORKING'"
-                  class="absolute -top-1 -right-1 size-3 rounded-full border-2 border-white dark:border-n-solid-2"
-                  style="background-color: #25d366"
+                  class="absolute -top-1 -right-1 size-3 rounded-full border-2 border-white dark:border-n-solid-2 bg-[#25d366]"
                 />
               </div>
 
@@ -411,7 +414,7 @@ onUnmounted(() => {
                 >
                   {{
                     formatPhoneNumber(connection.phone_number) ||
-                    'Não conectado'
+                    $t('WAHA_CONNECTIONS.NOT_CONNECTED')
                   }}
                 </span>
               </div>
@@ -441,17 +444,16 @@ onUnmounted(() => {
               @click="handleViewQR(connection)"
             >
               <div class="i-lucide-qr-code size-4" />
-              <span>QR Code</span>
+              <span>{{ $t('WAHA_CONNECTIONS.QR_MODAL.TITLE_SCAN') }}</span>
             </button>
 
             <button
               v-if="connection.status === 'STOPPED'"
-              class="flex-1 inline-flex items-center justify-center gap-1.5 px-3 py-2 text-sm font-semibold text-white rounded-lg transition-all"
-              style="background-color: #25d366"
+              class="flex-1 inline-flex items-center justify-center gap-1.5 px-3 py-2 text-sm font-semibold text-white rounded-lg transition-all bg-[#25d366]"
               @click="handleConnect(connection)"
             >
               <div class="i-lucide-plug size-4" />
-              <span>Conectar</span>
+              <span>{{ $t('WAHA_CONNECTIONS.ACTIONS.CONNECT') }}</span>
             </button>
 
             <button
@@ -460,13 +462,12 @@ onUnmounted(() => {
               @click="handleDisconnect(connection)"
             >
               <div class="i-lucide-unplug size-4" />
-              <span>Desconectar</span>
+              <span>{{ $t('WAHA_CONNECTIONS.ACTIONS.DISCONNECT') }}</span>
             </button>
 
             <button
               v-if="connection.status === 'FAILED'"
-              class="flex-1 inline-flex items-center justify-center gap-1.5 px-3 py-2 text-sm font-semibold text-white rounded-lg transition-all"
-              style="background-color: #25d366"
+              class="flex-1 inline-flex items-center justify-center gap-1.5 px-3 py-2 text-sm font-semibold text-white rounded-lg transition-all bg-[#25d366]"
               @click="handleRestart(connection)"
             >
               <div class="i-lucide-refresh-cw size-4" />

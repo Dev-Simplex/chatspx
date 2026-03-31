@@ -43,16 +43,25 @@ class HookListener < BaseListener
       next if hook.inbox.present? && hook.inbox != message.inbox
       next unless supported_hook_event?(hook, event.name)
 
-      HookJob.perform_later(hook, event.name, message: message)
+      HookJob.perform_later(hook.id, event.name, message_id: message.id)
     end
   end
 
   def execute_account_hooks(event, account, event_data = {})
+    serialized_data = serialize_event_data(event_data)
     account.hooks.account_hooks.find_each do |hook|
       next unless supported_hook_event?(hook, event.name)
 
-      HookJob.perform_later(hook, event.name, event_data)
+      HookJob.perform_later(hook.id, event.name, serialized_data)
     end
+  end
+
+  def serialize_event_data(event_data)
+    serialized = {}
+    serialized[:contact_id] = event_data[:contact].id if event_data[:contact]
+    serialized[:conversation_id] = event_data[:conversation].id if event_data[:conversation]
+    serialized[:message_id] = event_data[:message].id if event_data[:message]
+    serialized
   end
 
   def supported_hook_event?(hook, event_name)

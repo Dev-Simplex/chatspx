@@ -9,35 +9,36 @@
 class Llm::LegacyBaseOpenAiService
   DEFAULT_MODEL = 'gpt-4.1-mini'
 
-  attr_reader :client, :model, :account
+  attr_reader :client, :model
 
-  def initialize(account:)
-    @account = account
-    resolver = Llm::AccountCredentialsResolver.new(account: account)
-    api_key = resolver.openai_api_key
-    raise Llm::Config::MissingAccountApiKeyError, I18n.t('captain.errors.missing_api_key') if api_key.blank?
-
+  def initialize
     @client = OpenAI::Client.new(
-      access_token: api_key,
-      uri_base: resolver.openai_api_base,
+      access_token: InstallationConfig.find_by!(name: 'CAPTAIN_OPEN_AI_API_KEY').value,
+      uri_base: uri_base,
       log_errors: Rails.env.development?
     )
     setup_model
-  rescue Llm::Config::MissingAccountApiKeyError
-    raise
   rescue StandardError => e
     raise "Failed to initialize OpenAI client: #{e.message}"
   end
 
   private
 
-  def setup_model
-    method_name = "captain_#{feature_name}_model"
-    configured_model = account.respond_to?(method_name) ? account.public_send(method_name) : nil
-    @model = configured_model.presence || DEFAULT_MODEL
+  # Strips markdown code fences (```json ... ``` or ``` ... ```) that some
+  # LLM providers/gateways wrap around JSON responses despite response_format hints.
+  def sanitize_json_response(response)
+    return response if response.nil?
+
+    response.strip.sub(/\A```(?:\w*)\s*\n?/, '').sub(/\n?\s*```\s*\z/, '').strip
   end
 
-  def feature_name
-    'assistant'
+  def uri_base
+    endpoint = InstallationConfig.find_by(name: 'CAPTAIN_OPEN_AI_ENDPOINT')&.value
+    endpoint.presence || 'https://api.openai.com/'
+  end
+
+  def setup_model
+    config_value = InstallationConfig.find_by(name: 'CAPTAIN_OPEN_AI_MODEL')&.value
+    @model = (config_value.presence || DEFAULT_MODEL)
   end
 end

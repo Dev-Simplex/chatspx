@@ -32,4 +32,12 @@ class NotificationSetting < ApplicationRecord
 
   has_flags EMAIL_NOTIFICATION_FLAGS.merge(column: 'email_flags').merge(DEFAULT_QUERY_SETTING)
   has_flags PUSH_NOTIFICATION_FLAGS.merge(column: 'push_flags').merge(DEFAULT_QUERY_SETTING)
+
+  after_commit :invalidate_notification_cache
+
+  private
+
+  def invalidate_notification_cache
+    Rails.cache.delete("user:#{user_id}:notif_settings:#{account_id}")
+  end
 end

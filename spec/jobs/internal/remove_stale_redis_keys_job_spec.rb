@@ -5,7 +5,7 @@ RSpec.describe Internal::RemoveStaleRedisKeysJob do
 
   describe '#perform' do
     it 'enqueues ProcessStaleRedisKeysJob for the account' do
-      expect(Internal::ProcessStaleRedisKeysJob).to receive(:perform_later).with(account)
+      expect(Internal::ProcessStaleRedisKeysJob).to receive(:perform_later).with(account.id)
 
       described_class.perform_now
     end

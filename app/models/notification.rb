@@ -87,8 +87,8 @@ class Notification < ApplicationRecord
     }
   end
 
-  def fcm_primary_actor_data
-    return {} unless primary_actor.present?
+  def fcm_primary_actor_data # rubocop:disable Metrics/CyclomaticComplexity, Metrics/MethodLength, Metrics/PerceivedComplexity
+    return {} if primary_actor.blank?
 
     actor_data = { id: primary_actor.id }
 
@@ -101,16 +101,24 @@ class Notification < ApplicationRecord
       assignee = primary_actor.try(:assignee)
 
       actor_data[:meta] = {
-        sender: contact ? {
-          id: contact.id,
-          name: contact.name,
-          thumbnail: contact.try(:avatar_url).presence || ''
-        } : {},
-        assignee: assignee ? {
-          id: assignee.id,
-          name: assignee.name,
-          thumbnail: assignee.try(:avatar_url).presence || ''
-        } : {}
+        sender: if contact
+                  {
+                    id: contact.id,
+                    name: contact.name,
+                    thumbnail: contact.try(:avatar_url).presence || ''
+                  }
+                else
+                  {}
+                end,
+        assignee: if assignee
+                    {
+                      id: assignee.id,
+                      name: assignee.name,
+                      thumbnail: assignee.try(:avatar_url).presence || ''
+                    }
+                  else
+                    {}
+                  end
       }
     end
 
@@ -119,7 +127,7 @@ class Notification < ApplicationRecord
 
   # rubocop:disable Metrics/MethodLength
   def push_message_title
-    return '' unless primary_actor.present?
+    return '' if primary_actor.blank?
 
     notification_title_map = {
       'conversation_creation' => 'notifications.notification_title.conversation_creation',
@@ -147,17 +155,18 @@ class Notification < ApplicationRecord
   # rubocop:enable Metrics/MethodLength
 
   def push_message_body
-    return '' unless conversation.present?
+    return '' if conversation.blank?
 
     case notification_type
     when 'conversation_creation', 'sla_missed_first_response'
-      message_body(conversation.messages.first)
+      message_body(conversation.messages.reorder(created_at: :asc).limit(1).first)
     when 'assigned_conversation_new_message', 'participating_conversation_new_message', 'conversation_mention'
       message_body(secondary_actor)
     when 'conversation_assignment', 'sla_missed_next_response', 'sla_missed_resolution'
-      message_body((conversation.messages.incoming.last || conversation.messages.outgoing.last))
-    else
-      ''
+      msg = conversation.messages.incoming.reorder(created_at: :desc).limit(1).first ||
+            conversation.messages.outgoing.reorder(created_at: :desc).limit(1).first
+      message_body(msg)
+    else ''
     end
   end
 
@@ -189,21 +198,20 @@ class Notification < ApplicationRecord
   end
 
   def process_notification_delivery
-    Notification::PushNotificationJob.perform_later(self) if user_subscribed_to_notification?('push')
+    Notification::PushNotificationJob.perform_later(id) if user_subscribed_to_notification?('push')
 
     # Should we do something about the case where user subscribed to both push and email ?
     # In future, we could probably add condition here to enqueue the job for 30 seconds later
     # when push enabled and then check in email job whether notification has been read already.
-    Notification::EmailNotificationJob.perform_later(self) if user_subscribed_to_notification?('email')
+    Notification::EmailNotificationJob.perform_later(id) if user_subscribed_to_notification?('email')
 
-    Notification::RemoveDuplicateNotificationJob.perform_later(self)
+    Notification::RemoveDuplicateNotificationJob.perform_later(id)
   end
 
   def user_subscribed_to_notification?(delivery_type)
-    notification_setting = user.notification_settings.find_by(account_id: account.id)
+    notification_setting = user.notification_settings.detect { |ns| ns.account_id == account_id }
     return false if notification_setting.blank?
 
-    # Check if the user has subscribed to the specified type of notification
     notification_setting.public_send("#{delivery_type}_#{notification_type}?")
   end
 

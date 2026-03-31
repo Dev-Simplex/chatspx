@@ -3,8 +3,11 @@ class HookJob < MutexApplicationJob
 
   queue_as :medium
 
-  def perform(hook, event_name, event_data = {})
+  def perform(hook_id, event_name, event_data = {})
+    return unless (hook = Integrations::Hook.find_by(id: hook_id))
     return if hook.disabled?
+
+    event_data = resolve_event_data(event_data)
 
     case hook.app_id
     when 'slack'
@@ -22,14 +25,24 @@ class HookJob < MutexApplicationJob
 
   private
 
+  def resolve_event_data(event_data)
+    resolved = {}
+    resolved[:message] = Message.find_by(id: event_data[:message_id]) if event_data[:message_id]
+    resolved[:contact] = Contact.find_by(id: event_data[:contact_id]) if event_data[:contact_id]
+    resolved[:conversation] = Conversation.find_by(id: event_data[:conversation_id]) if event_data[:conversation_id]
+    resolved
+  end
+
   def process_slack_integration(hook, event_name, event_data)
     return unless ['message.created'].include?(event_name)
 
     message = event_data[:message]
+    return unless message
+
     if message.attachments.blank?
-      ::SendOnSlackJob.perform_later(message, hook)
+      ::SendOnSlackJob.perform_later(message.id, hook.id)
     else
-      ::SendOnSlackJob.set(wait: 2.seconds).perform_later(message, hook)
+      ::SendOnSlackJob.set(wait: 2.seconds).perform_later(message.id, hook.id)
     end
   end
 
@@ -43,6 +56,8 @@ class HookJob < MutexApplicationJob
     return unless ['message.created'].include?(event_name)
 
     message = event_data[:message]
+    return unless message
+
     Integrations::GoogleTranslate::DetectLanguageService.new(hook: hook, message: message).perform
   end
 

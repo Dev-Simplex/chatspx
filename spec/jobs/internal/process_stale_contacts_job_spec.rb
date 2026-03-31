@@ -25,7 +25,7 @@ RSpec.describe Internal::ProcessStaleContactsJob do
 
       # Mock the delay setting
       allow(Internal::RemoveStaleContactsJob).to receive(:set).and_return(Internal::RemoveStaleContactsJob)
-      expect(Internal::RemoveStaleContactsJob).to receive(:perform_later).with(account)
+      expect(Internal::RemoveStaleContactsJob).to receive(:perform_later).with(account.id)
 
       described_class.perform_now
     end
@@ -45,7 +45,7 @@ RSpec.describe Internal::ProcessStaleContactsJob do
         expect(args[:wait]).to be_between(1.minute, 10.minutes)
         Internal::RemoveStaleContactsJob
       end
-      expect(Internal::RemoveStaleContactsJob).to receive(:perform_later).with(account)
+      expect(Internal::RemoveStaleContactsJob).to receive(:perform_later).with(account.id)
 
       described_class.perform_now
     end

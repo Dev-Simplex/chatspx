@@ -68,13 +68,25 @@ export default {
     getFrameId(index) {
       return `dashboard-app--frame-${this.position}-${index}`;
     },
+    getTargetOrigin(index) {
+      try {
+        const url = this.config[index]?.url;
+        return url ? new URL(url).origin : window.location.origin;
+      } catch {
+        return window.location.origin;
+      }
+    },
     onIframeLoad(index) {
       // A possible alternative is to use ref instead of document.getElementById
       // However, when ref is used together with v-for, the ref you get will be
       // an array containing the child components mirroring the data source.
       const frameElement = document.getElementById(this.getFrameId(index));
       const eventData = { event: 'appContext', data: this.dashboardAppContext };
-      frameElement.contentWindow.postMessage(JSON.stringify(eventData), '*');
+      const targetOrigin = this.getTargetOrigin(index);
+      frameElement.contentWindow.postMessage(
+        JSON.stringify(eventData),
+        targetOrigin
+      );
       this.iframeLoading = false;
     },
   },

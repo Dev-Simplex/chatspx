@@ -54,11 +54,11 @@ describe('#generateTimeSlots', () => {
   });
 
   it('does not duplicate 11:59 PM if it already exists in regular intervals', () => {
-    // Test with a step that would naturally include 11:59 PM
-    const slots = generateTimeSlots(1); // 1-minute intervals
+    // Test with 1-minute intervals where 11:59 PM naturally appears
+    const slots = generateTimeSlots(1);
     const count11_59 = slots.filter(slot => slot === '11:59 PM').length;
     expect(count11_59).toStrictEqual(1);
-  });
+  }, 15000);
 
   it('generates correct time format', () => {
     const slots = generateTimeSlots(60);

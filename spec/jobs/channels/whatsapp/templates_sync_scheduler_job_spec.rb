@@ -14,13 +14,13 @@ RSpec.describe Channels::Whatsapp::TemplatesSyncSchedulerJob do
       synced_old = create(:channel_whatsapp, sync_templates: false, message_templates_last_updated: 4.hours.ago)
       described_class.perform_now
       expect(Channels::Whatsapp::TemplatesSyncJob).not_to(
-        have_been_enqueued.with(synced_recently).on_queue('low')
+        have_been_enqueued.with(synced_recently.id).on_queue('low')
       )
       expect(Channels::Whatsapp::TemplatesSyncJob).to(
-        have_been_enqueued.with(synced_old).on_queue('low')
+        have_been_enqueued.with(synced_old.id).on_queue('low')
       )
       expect(Channels::Whatsapp::TemplatesSyncJob).to(
-        have_been_enqueued.with(non_synced).on_queue('low')
+        have_been_enqueued.with(non_synced.id).on_queue('low')
       )
     end
 
@@ -32,13 +32,13 @@ RSpec.describe Channels::Whatsapp::TemplatesSyncSchedulerJob do
       synced_old = create(:channel_whatsapp, sync_templates: false, message_templates_last_updated: 6.hours.ago)
       described_class.perform_now
       expect(Channels::Whatsapp::TemplatesSyncJob).not_to(
-        have_been_enqueued.with(synced_recently).on_queue('low')
+        have_been_enqueued.with(synced_recently.id).on_queue('low')
       )
       expect(Channels::Whatsapp::TemplatesSyncJob).to(
-        have_been_enqueued.with(synced_old).on_queue('low')
+        have_been_enqueued.with(synced_old.id).on_queue('low')
       )
       expect(Channels::Whatsapp::TemplatesSyncJob).to(
-        have_been_enqueued.with(non_synced).on_queue('low')
+        have_been_enqueued.with(non_synced.id).on_queue('low')
       )
     end
   end

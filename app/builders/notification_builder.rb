@@ -12,7 +12,7 @@ class NotificationBuilder
   end
 
   def user_subscribed_to_notification?
-    notification_setting = user.notification_settings.find_by(account_id: account.id)
+    notification_setting = user.notification_settings.detect { |ns| ns.account_id == account.id }
     # added for the case where an assignee might be removed from the account but remains in conversation
     return false if notification_setting.blank?
 

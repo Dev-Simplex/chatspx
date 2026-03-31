@@ -25,14 +25,22 @@ class ConversationPolicy < ApplicationPolicy
     user.is_a?(AgentBot)
   end
 
+  def accessible_inbox_ids
+    @accessible_inbox_ids ||= user.inboxes.where(account_id: account&.id).pluck(:id).to_set
+  end
+
+  def accessible_team_ids
+    @accessible_team_ids ||= user.teams.where(account_id: account&.id).pluck(:id).to_set
+  end
+
   def inbox_access?
-    user.inboxes.where(account_id: account&.id).exists?(id: record.inbox_id)
+    accessible_inbox_ids.include?(record.inbox_id)
   end
 
   def team_access?
     return false if record.team_id.blank?
 
-    user.teams.where(account_id: account&.id).exists?(id: record.team_id)
+    accessible_team_ids.include?(record.team_id)
   end
 
   def assigned_to_user?

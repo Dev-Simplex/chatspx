@@ -29,16 +29,17 @@ export function useCallSession() {
     { immediate: true }
   );
 
+  const onCallDisconnected = () => callsStore.clearActiveCall();
+
   onMounted(() => {
-    TwilioVoiceClient.addEventListener('call:disconnected', () =>
-      callsStore.clearActiveCall()
-    );
+    TwilioVoiceClient.addEventListener('call:disconnected', onCallDisconnected);
   });
 
   onUnmounted(() => {
     durationTimer.stop();
-    TwilioVoiceClient.removeEventListener('call:disconnected', () =>
-      callsStore.clearActiveCall()
+    TwilioVoiceClient.removeEventListener(
+      'call:disconnected',
+      onCallDisconnected
     );
   });
 

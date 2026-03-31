@@ -387,14 +387,12 @@ describe SearchService do
         described_class.new(current_user: admin_user, current_account: account, params: params, search_type: search_type)
       end
 
-      it 'does not filter by inbox_id' do
-        # Testing the private method itself seems like the best way to ensure
-        # that the inboxes are not added to the search query
+      it 'filters by all accessible inbox_ids for admin' do
         base_query = admin_search.send(:message_base_query)
 
-        # Should only have the time filter, not inbox filter
+        # Admin still filters by inbox_id (all assigned inboxes)
         expect(base_query.to_sql).to include('created_at >= ')
-        expect(base_query.to_sql).not_to include('inbox_id')
+        expect(base_query.to_sql).to include('inbox_id')
       end
     end
 
@@ -422,12 +420,12 @@ describe SearchService do
           create(:inbox_member, user: user, inbox: other_inbox)
         end
 
-        it 'skips inbox filtering as optimization' do
+        it 'includes inbox filtering even when user has all inboxes' do
           base_query = search.send(:message_base_query)
 
-          # Should only have the time filter, not inbox filter
+          # Always filters by accessible inbox_ids
           expect(base_query.to_sql).to include('created_at >= ')
-          expect(base_query.to_sql).not_to include('inbox_id')
+          expect(base_query.to_sql).to include('inbox_id')
         end
       end
     end
@@ -706,6 +704,11 @@ describe SearchService do
     let(:search_type) { 'Message' }
 
     context 'when Elasticsearch is unavailable' do
+      before do
+        # advanced_search is defined in enterprise overlay; define a stub method for OSS tests
+        described_class.define_method(:advanced_search) { raise NotImplementedError } unless described_class.method_defined?(:advanced_search)
+      end
+
       it 'falls back to LIKE search when Elasticsearch connection fails' do
         allow(account).to receive(:feature_enabled?).and_call_original
         allow(account).to receive(:feature_enabled?).with('advanced_search').and_return(true)

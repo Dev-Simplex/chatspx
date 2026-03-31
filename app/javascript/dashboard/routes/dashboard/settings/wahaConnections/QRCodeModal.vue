@@ -32,6 +32,13 @@ const formattedTime = computed(() => {
   return `${minutes}:${seconds.toString().padStart(2, '0')}`;
 });
 
+const stopPolling = () => {
+  if (pollingInterval.value) {
+    clearInterval(pollingInterval.value);
+    pollingInterval.value = null;
+  }
+};
+
 const loadQRCode = async () => {
   isLoading.value = true;
   error.value = null;
@@ -48,12 +55,10 @@ const loadQRCode = async () => {
     if (response.data instanceof Blob) {
       qrCode.value = URL.createObjectURL(response.data);
     } else {
-      error.value = 'Formato de resposta inválido';
-      console.error('Resposta não é um Blob:', response.data);
+      error.value = t('WAHA_CONNECTIONS.QR_MODAL.ERROR');
     }
   } catch (err) {
     error.value = t('WAHA_CONNECTIONS.QR_MODAL.ERROR');
-    console.error('Erro ao carregar QR Code:', err);
   } finally {
     isLoading.value = false;
   }
@@ -71,8 +76,8 @@ const checkStatus = async () => {
       }, 2000);
     }
     // FAILED será tratado no template
-  } catch (err) {
-    console.error('Error checking status:', err);
+  } catch {
+    // Status check failed, will retry on next poll
   }
 };
 
@@ -82,16 +87,9 @@ const startPolling = () => {
   }, 3000);
 };
 
-const stopPolling = () => {
-  if (pollingInterval.value) {
-    clearInterval(pollingInterval.value);
-    pollingInterval.value = null;
-  }
-};
-
 const startTimer = () => {
   timerInterval.value = setInterval(() => {
-    elapsedTime.value++;
+    elapsedTime.value += 1;
   }, 1000);
 };
 
@@ -139,10 +137,7 @@ const handleRestart = async () => {
       startPolling();
     }
   } catch (err) {
-    error.value =
-      t('WAHA_CONNECTIONS.QR_MODAL.RESTART_ERROR') ||
-      'Erro ao reiniciar conexão. Tente novamente.';
-    console.error('Error restarting connection:', err);
+    error.value = t('WAHA_CONNECTIONS.QR_MODAL.RESTART_ERROR');
   } finally {
     isLoading.value = false;
   }
@@ -171,7 +166,7 @@ onUnmounted(() => {
 </script>
 
 <template>
-  <Modal :show="true" :on-close="handleClose" size="medium">
+  <Modal show :on-close="handleClose" size="medium">
     <div class="flex flex-col">
       <!-- Header -->
       <div
@@ -185,7 +180,11 @@ onUnmounted(() => {
           </div>
           <div>
             <h2 class="text-2xl font-bold text-n-slate-12">
-              {{ isConnected ? 'Conectado!' : 'Escanear QR Code' }}
+              {{
+                isConnected
+                  ? $t('WAHA_CONNECTIONS.QR_MODAL.TITLE_CONNECTED')
+                  : $t('WAHA_CONNECTIONS.QR_MODAL.TITLE_SCAN')
+              }}
             </h2>
             <p class="text-sm text-n-slate-11 mt-1">
               {{ connection.session_name }}
@@ -211,16 +210,20 @@ onUnmounted(() => {
             </div>
           </div>
           <h3 class="text-2xl font-bold text-green-600 mb-2">
-            Conectado com Sucesso!
+            {{ $t('WAHA_CONNECTIONS.QR_MODAL.CONNECTED_TITLE') }}
           </h3>
           <p class="text-sm text-n-slate-11 mb-4">
-            Seu WhatsApp foi vinculado à caixa de entrada
+            {{ $t('WAHA_CONNECTIONS.QR_MODAL.CONNECTED_DESCRIPTION') }}
           </p>
           <div
             class="inline-flex items-center gap-2 px-4 py-2 bg-green-50 dark:bg-green-900/20 rounded-full text-sm text-green-700 dark:text-green-300"
           >
             <div class="i-lucide-clock size-4" />
-            Tempo decorrido: {{ formattedTime }}
+            {{
+              $t('WAHA_CONNECTIONS.QR_MODAL.ELAPSED_TIME', {
+                time: formattedTime,
+              })
+            }}
           </div>
         </div>
 
@@ -229,7 +232,9 @@ onUnmounted(() => {
           <div
             class="inline-block animate-spin rounded-full h-16 w-16 border-4 border-green-200 border-t-green-600 mb-4"
           />
-          <p class="text-sm text-n-slate-11">Carregando QR Code...</p>
+          <p class="text-sm text-n-slate-11">
+            {{ $t('WAHA_CONNECTIONS.QR_MODAL.LOADING') }}
+          </p>
         </div>
 
         <!-- Error State -->
@@ -240,7 +245,7 @@ onUnmounted(() => {
             <div class="i-lucide-x-circle size-12 text-red-600" />
           </div>
           <h3 class="text-lg font-semibold text-n-slate-12 mb-2">
-            Erro ao Carregar QR Code
+            {{ $t('WAHA_CONNECTIONS.QR_MODAL.ERROR_TITLE') }}
           </h3>
           <p class="text-sm text-n-slate-11 mb-6">{{ error }}</p>
           <Button
@@ -249,7 +254,7 @@ onUnmounted(() => {
             class="!bg-green-600 hover:!bg-green-700 !text-white"
             @click="handleRetry"
           >
-            Tentar Novamente
+            {{ $t('WAHA_CONNECTIONS.QR_MODAL.RETRY') }}
           </Button>
         </div>
 
@@ -261,15 +266,10 @@ onUnmounted(() => {
             <div class="i-lucide-x-circle size-12 text-red-600" />
           </div>
           <h3 class="text-lg font-semibold text-n-slate-12 mb-2">
-            {{
-              t('WAHA_CONNECTIONS.QR_MODAL.FAILED_TITLE') || 'QR Code Expirado'
-            }}
+            {{ $t('WAHA_CONNECTIONS.QR_MODAL.FAILED_TITLE') }}
           </h3>
           <p class="text-sm text-n-slate-11 mb-6">
-            {{
-              t('WAHA_CONNECTIONS.QR_MODAL.FAILED_MESSAGE') ||
-              'O QR code expirou porque demorou muito para ser escaneado. Clique em "Reiniciar" para gerar um novo QR code.'
-            }}
+            {{ $t('WAHA_CONNECTIONS.QR_MODAL.FAILED_MESSAGE') }}
           </p>
           <Button
             color="blue"
@@ -280,8 +280,8 @@ onUnmounted(() => {
           >
             {{
               isLoading
-                ? t('WAHA_CONNECTIONS.QR_MODAL.RESTARTING') || 'Reiniciando...'
-                : t('WAHA_CONNECTIONS.QR_MODAL.RESTART') || 'Reiniciar'
+                ? $t('WAHA_CONNECTIONS.QR_MODAL.RESTARTING')
+                : $t('WAHA_CONNECTIONS.QR_MODAL.RESTART')
             }}
           </Button>
         </div>
@@ -317,56 +317,79 @@ onUnmounted(() => {
           <!-- Instructions -->
           <div class="w-full max-w-md space-y-4 mb-6">
             <h4 class="text-lg font-semibold text-n-slate-12 text-center mb-4">
-              Como Conectar:
+              {{ $t('WAHA_CONNECTIONS.QR_MODAL.HOW_TO_CONNECT') }}
             </h4>
             <div class="space-y-3">
               <div class="flex items-start gap-3 p-3 bg-n-solid-1 rounded-lg">
                 <div
                   class="size-8 rounded-full bg-green-100 dark:bg-green-900/30 flex items-center justify-center flex-shrink-0"
                 >
+                  <!-- eslint-disable-next-line vue/no-bare-strings-in-template -->
                   <span class="text-sm font-bold text-green-600">1</span>
                 </div>
                 <div class="flex-1 text-sm text-n-slate-11">
-                  Abra o
-                  <span class="font-semibold text-n-slate-12">WhatsApp</span> no
-                  seu celular
+                  <!-- eslint-disable-next-line vue/no-undef-components -->
+                  <i18n-t keypath="WAHA_CONNECTIONS.QR_MODAL.STEP_1" tag="span">
+                    <template #whatsapp>
+                      <span class="font-semibold text-n-slate-12">{{
+                        $t('WAHA_CONNECTIONS.QR_MODAL.STEP_1_WHATSAPP')
+                      }}</span>
+                    </template>
+                  </i18n-t>
                 </div>
               </div>
               <div class="flex items-start gap-3 p-3 bg-n-solid-1 rounded-lg">
                 <div
                   class="size-8 rounded-full bg-green-100 dark:bg-green-900/30 flex items-center justify-center flex-shrink-0"
                 >
+                  <!-- eslint-disable-next-line vue/no-bare-strings-in-template -->
                   <span class="text-sm font-bold text-green-600">2</span>
                 </div>
                 <div class="flex-1 text-sm text-n-slate-11">
-                  Toque em
-                  <span class="font-semibold text-n-slate-12">Menu (⋮)</span> ou
-                  <span class="font-semibold text-n-slate-12">Configurações</span>
+                  {{ $t('WAHA_CONNECTIONS.QR_MODAL.STEP_2_PREFIX') }}
+                  <span class="font-semibold text-n-slate-12">{{
+                    $t('WAHA_CONNECTIONS.QR_MODAL.STEP_2_MENU')
+                  }}</span>
+                  {{ $t('WAHA_CONNECTIONS.QR_MODAL.STEP_2_OR') }}
+                  <span class="font-semibold text-n-slate-12">{{
+                    $t('WAHA_CONNECTIONS.QR_MODAL.STEP_2_SETTINGS')
+                  }}</span>
                 </div>
               </div>
               <div class="flex items-start gap-3 p-3 bg-n-solid-1 rounded-lg">
                 <div
                   class="size-8 rounded-full bg-green-100 dark:bg-green-900/30 flex items-center justify-center flex-shrink-0"
                 >
+                  <!-- eslint-disable-next-line vue/no-bare-strings-in-template -->
                   <span class="text-sm font-bold text-green-600">3</span>
                 </div>
                 <div class="flex-1 text-sm text-n-slate-11">
-                  Toque em
-                  <span class="font-semibold text-n-slate-12">Aparelhos conectados</span>
-                  e depois em
-                  <span class="font-semibold text-n-slate-12">Conectar um aparelho</span>
+                  {{ $t('WAHA_CONNECTIONS.QR_MODAL.STEP_3_PREFIX') }}
+                  <span class="font-semibold text-n-slate-12">{{
+                    $t('WAHA_CONNECTIONS.QR_MODAL.STEP_3_LINKED_DEVICES')
+                  }}</span>
+                  {{ $t('WAHA_CONNECTIONS.QR_MODAL.STEP_3_AND_THEN') }}
+                  <span class="font-semibold text-n-slate-12">{{
+                    $t('WAHA_CONNECTIONS.QR_MODAL.STEP_3_LINK_DEVICE')
+                  }}</span>
                 </div>
               </div>
               <div class="flex items-start gap-3 p-3 bg-n-solid-1 rounded-lg">
                 <div
                   class="size-8 rounded-full bg-green-100 dark:bg-green-900/30 flex items-center justify-center flex-shrink-0"
                 >
+                  <!-- eslint-disable-next-line vue/no-bare-strings-in-template -->
                   <span class="text-sm font-bold text-green-600">4</span>
                 </div>
                 <div class="flex-1 text-sm text-n-slate-11">
-                  Aponte seu celular para
-                  <span class="font-semibold text-n-slate-12">esta tela</span>
-                  para escanear o QR Code
+                  <!-- eslint-disable-next-line vue/no-undef-components -->
+                  <i18n-t keypath="WAHA_CONNECTIONS.QR_MODAL.STEP_4" tag="span">
+                    <template #thisScreen>
+                      <span class="font-semibold text-n-slate-12">{{
+                        $t('WAHA_CONNECTIONS.QR_MODAL.STEP_4_THIS_SCREEN')
+                      }}</span>
+                    </template>
+                  </i18n-t>
                 </div>
               </div>
             </div>
@@ -383,10 +406,14 @@ onUnmounted(() => {
               <p
                 class="text-sm font-medium text-yellow-800 dark:text-yellow-200"
               >
-                Aguardando conexão...
+                {{ $t('WAHA_CONNECTIONS.QR_MODAL.WAITING') }}
               </p>
               <p class="text-xs text-yellow-700 dark:text-yellow-300">
-                Tempo decorrido: {{ formattedTime }}
+                {{
+                  $t('WAHA_CONNECTIONS.QR_MODAL.ELAPSED_TIME', {
+                    time: formattedTime,
+                  })
+                }}
               </p>
             </div>
           </div>
@@ -403,7 +430,7 @@ onUnmounted(() => {
           size="lg"
           @click="handleClose"
         >
-          Cancelar
+          {{ $t('WAHA_CONNECTIONS.QR_MODAL.CANCEL') }}
         </Button>
         <Button
           v-else
@@ -413,7 +440,7 @@ onUnmounted(() => {
           class="!bg-green-600 hover:!bg-green-700 !text-white"
           @click="handleClose"
         >
-          Concluir
+          {{ $t('WAHA_CONNECTIONS.QR_MODAL.DONE') }}
         </Button>
       </div>
     </div>

@@ -7,6 +7,7 @@ import { useStore, useStoreGetters } from 'dashboard/composables/store';
 import { useEmitter } from 'dashboard/composables/emitter';
 import { useKeyboardEvents } from 'dashboard/composables/useKeyboardEvents';
 import { useResolveValidation } from 'dashboard/composables/useResolveValidation';
+import { useConversationRequiredAttributes } from 'dashboard/composables/useConversationRequiredAttributes';
 
 import WootDropdownItem from 'shared/components/ui/dropdown/DropdownItem.vue';
 import WootDropdownMenu from 'shared/components/ui/dropdown/DropdownMenu.vue';
@@ -19,10 +20,12 @@ import {
 import ButtonGroup from 'dashboard/components-next/buttonGroup/ButtonGroup.vue';
 import Button from 'dashboard/components-next/button/Button.vue';
 import TeamSelectionModal from 'dashboard/components/widgets/conversation/TeamSelectionModal.vue';
+import ConversationResolveAttributesModal from 'dashboard/components-next/ConversationWorkflow/ConversationResolveAttributesModal.vue';
 
 const store = useStore();
 const getters = useStoreGetters();
 const { t } = useI18n();
+const { checkMissingAttributes } = useConversationRequiredAttributes();
 
 const {
   showTeamModal,
@@ -34,6 +37,7 @@ const {
 
 const arrowDownButtonRef = ref(null);
 const isLoading = ref(false);
+const resolveAttributesModalRef = ref(null);
 
 const [showActionsDropdown, toggleDropdown] = useToggle();
 const closeDropdown = () => toggleDropdown(false);
@@ -87,11 +91,26 @@ const openSnoozeModal = () => {
   ninja.open({ parent: 'snooze_conversation' });
 };
 
-const toggleStatus = async (status, snoozedUntil) => {
+const toggleStatus = async (status, snoozedUntil, customAttributes = null) => {
   closeDropdown();
   isLoading.value = true;
   try {
-    await validateAndResolve(currentChat.value.id, status, snoozedUntil);
+    const payload = {
+      conversationId: currentChat.value.id,
+      status,
+      snoozedUntil,
+    };
+
+    if (customAttributes) {
+      payload.customAttributes = customAttributes;
+    }
+
+    // Use team validation for resolve
+    if (status === wootConstants.STATUS_TYPE.RESOLVED && !customAttributes) {
+      await validateAndResolve(currentChat.value.id, status, snoozedUntil);
+    } else {
+      await store.dispatch('toggleStatus', payload);
+    }
     useAlert(t('CONVERSATION.CHANGE_STATUS'));
   } catch (error) {
     if (error.message !== 'TEAM_REQUIRED') {
@@ -102,12 +121,41 @@ const toggleStatus = async (status, snoozedUntil) => {
   }
 };
 
+const handleResolveWithAttributes = ({ attributes, context }) => {
+  if (context) {
+    const currentCustomAttributes = currentChat.value.custom_attributes || {};
+    const mergedAttributes = { ...currentCustomAttributes, ...attributes };
+    toggleStatus(
+      wootConstants.STATUS_TYPE.RESOLVED,
+      context.snoozedUntil,
+      mergedAttributes
+    );
+  }
+};
+
 const onCmdOpenConversation = () => {
   toggleStatus(wootConstants.STATUS_TYPE.OPEN);
 };
 
 const onCmdResolveConversation = () => {
-  toggleStatus(wootConstants.STATUS_TYPE.RESOLVED);
+  const currentCustomAttributes = currentChat.value.custom_attributes || {};
+  const { hasMissing, missing } = checkMissingAttributes(
+    currentCustomAttributes
+  );
+
+  if (hasMissing) {
+    const conversationContext = {
+      id: currentChat.value.id,
+      snoozedUntil: null,
+    };
+    resolveAttributesModalRef.value?.open(
+      missing,
+      currentCustomAttributes,
+      conversationContext
+    );
+  } else {
+    toggleStatus(wootConstants.STATUS_TYPE.RESOLVED);
+  }
 };
 
 const handleTeamSelected = async teamId => {
@@ -125,13 +173,13 @@ const keyboardEvents = {
   },
   'Alt+KeyE': {
     action: async () => {
-      await toggleStatus(wootConstants.STATUS_TYPE.RESOLVED);
+      onCmdResolveConversation();
     },
   },
   '$mod+Alt+KeyE': {
     action: async event => {
       const { all, activeIndex, lastIndex } = getConversationParams();
-      await toggleStatus(wootConstants.STATUS_TYPE.RESOLVED);
+      onCmdResolveConversation();
 
       if (activeIndex < lastIndex) {
         all[activeIndex + 1].click();
@@ -151,9 +199,9 @@ useEmitter(CMD_RESOLVE_CONVERSATION, onCmdResolveConversation);
 </script>
 
 <template>
-  <div class="relative flex items-center justify-end resolve-actions">
+  <div class="flex relative justify-end items-center resolve-actions">
     <ButtonGroup
-      class="rounded-lg shadow outline-1 outline flex-shrink-0"
+      class="flex-shrink-0 rounded-lg shadow outline-1 outline"
       :class="!showOpenButton ? 'outline-n-container' : 'outline-transparent'"
     >
       <Button
@@ -236,6 +284,10 @@ useEmitter(CMD_RESOLVE_CONVERSATION, onCmdResolveConversation);
       :is-bulk="false"
       @confirm="handleTeamSelected"
       @close="cancelTeamSelection"
+    />
+    <ConversationResolveAttributesModal
+      ref="resolveAttributesModalRef"
+      @submit="handleResolveWithAttributes"
     />
   </div>
 </template>

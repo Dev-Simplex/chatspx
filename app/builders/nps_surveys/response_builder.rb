@@ -10,7 +10,7 @@ class NpsSurveys::ResponseBuilder
     return if agent_responded_after_nps?(conversation, nps_response)
 
     score = extract_score_from_message
-    
+
     if score.nil?
       send_invalid_response_message(nps_response)
       return
@@ -33,12 +33,12 @@ class NpsSurveys::ResponseBuilder
   end
 
   def find_active_nps_response(conversation)
-    # Buscar o NPS response mais recente com status "sent" que ainda não foi respondido
+    # Find the most recent NPS response with status "sent" that has not yet been answered
     nps_response = conversation.nps_responses
-      .where(status: :sent)
-      .where(answered_at: nil)
-      .order(created_at: :desc)
-      .first
+                               .where(status: :sent)
+                               .where(answered_at: nil)
+                               .order(created_at: :desc)
+                               .first
 
     return nil if nps_response.blank?
     return nil if nps_response.expired?
@@ -84,8 +84,8 @@ class NpsSurveys::ResponseBuilder
   end
 
   def create_responded_activity_message(nps_response, score)
-    content = I18n.t('conversations.activity.nps.responded', 
-                     score: score, 
+    content = I18n.t('conversations.activity.nps.responded',
+                     score: score,
                      default: "NPS survey responded with score #{score}")
     activity_message_params = {
       account_id: nps_response.account_id,
@@ -94,21 +94,20 @@ class NpsSurveys::ResponseBuilder
       content: content
     }
     conversation = nps_response.conversation
-    ::Conversations::ActivityMessageJob.perform_later(conversation, activity_message_params) if content
+    ::Conversations::ActivityMessageJob.perform_later(conversation.id, activity_message_params) if content
   end
 
   def activity_message_exists?(nps_response, score)
     # Check if an activity message with the same content was created recently (within last 5 minutes)
     # This prevents duplicate activity messages when the job is retried
-    expected_content = I18n.t('conversations.activity.nps.responded', 
-                              score: score, 
+    expected_content = I18n.t('conversations.activity.nps.responded',
+                              score: score,
                               default: "NPS survey responded with score #{score}")
     conversation = nps_response.conversation
     conversation.messages
-      .where(message_type: :activity)
-      .where(content: expected_content)
-      .where('created_at >= ?', 5.minutes.ago)
-      .exists?
+                .where(message_type: :activity)
+                .where(content: expected_content)
+                .exists?(['created_at >= ?', 5.minutes.ago])
   end
 
   def extract_comment
@@ -122,7 +121,7 @@ class NpsSurveys::ResponseBuilder
     return nil if score_in_content.present?
 
     # If message doesn't contain a score, it might be a comment
-    message.content.present? ? message.content : nil
+    (message.content.presence)
   end
 
   def should_send_thank_you?(nps_response)
@@ -134,8 +133,8 @@ class NpsSurveys::ResponseBuilder
   def send_thank_you_message(nps_response)
     inbox = nps_response.inbox
     nps_config = inbox.nps_config || {}
-    thank_you_message = nps_config['thank_you_message'] || I18n.t('conversations.templates.nps_thank_you', default: 'Obrigado pela sua avaliação!')
-    
+    thank_you_message = nps_config['thank_you_message'] || I18n.t('conversations.templates.nps_thank_you', default: 'Thank you for your feedback!')
+
     # Remove any signature patterns that might have been added
     thank_you_message = thank_you_message.gsub(/\*\*:\s*/, '').gsub(/\n\n--\s*\n\n\*\*:.*$/m, '').strip
 
@@ -154,9 +153,9 @@ class NpsSurveys::ResponseBuilder
   def send_invalid_response_message(nps_response)
     inbox = nps_response.inbox
     nps_config = inbox.nps_config || {}
-    invalid_message = nps_config['invalid_response_message'] || 
-                     I18n.t('conversations.templates.nps_invalid_response', 
-                            default: 'Por favor, responda com um número de 0 a 10.')
+    invalid_message = nps_config['invalid_response_message'] ||
+                      I18n.t('conversations.templates.nps_invalid_response',
+                             default: 'Please respond with a number from 0 to 10.')
 
     conversation = nps_response.conversation
     conversation.messages.create!(

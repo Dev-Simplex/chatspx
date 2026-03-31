@@ -22,7 +22,7 @@ RSpec.describe Inboxes::UpdateWidgetPreChatCustomFieldsJob do
 
   context 'when called' do
     it 'sync pre chat fields if custom attribute updated' do
-      described_class.perform_now(account, custom_attribute)
+      described_class.perform_now(account.id, custom_attribute)
       expect(web_widget.reload.pre_chat_form_options['pre_chat_fields']).to eq [
         { 'label' => 'Developer Number', 'name' => 'developer_id', 'placeholder' => 'Developer Number',
           'values' => nil, 'regex_pattern' => '^[0-9]*', 'regex_cue' => 'It should be only digits' },

@@ -4,7 +4,12 @@ class CsatSurveyListener < BaseListener
 
     return unless conversation.resolved?
 
-    CsatSurveyService.new(conversation: conversation).perform
+    begin
+      CsatSurveyService.new(conversation: conversation).perform
+    rescue StandardError => e
+      Rails.logger.error "Failed to send CSAT survey for conversation #{conversation.id}: #{e.message}"
+      Rails.logger.error e.backtrace.join("\n")
+    end
   end
 
   def message_updated(event)

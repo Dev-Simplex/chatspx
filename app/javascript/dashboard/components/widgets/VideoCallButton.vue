@@ -27,12 +27,16 @@ export default {
   },
   mounted() {
     if (!this.appIntegrations.length) {
-      const requestIdleCallback = window.requestIdleCallback || (cb => setTimeout(cb, 1000));
-      requestIdleCallback(() => {
-        if (!this.appIntegrations.length) {
-          this.$store.dispatch('integrations/get');
-        }
-      }, { timeout: 2000 });
+      const requestIdleCallback =
+        window.requestIdleCallback || (cb => setTimeout(cb, 1000));
+      requestIdleCallback(
+        () => {
+          if (!this.appIntegrations.length) {
+            this.$store.dispatch('integrations/get');
+          }
+        },
+        { timeout: 2000 }
+      );
     }
   },
   methods: {

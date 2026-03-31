@@ -60,4 +60,3 @@ class Contacts::BrazilPhoneNormalizer
     "#{country_code_part}#{ddd}9#{number_part}"
   end
 end
-

@@ -93,7 +93,7 @@ class Contacts::ContactableInboxesService
     @contact.phone_number == "+#{lid_digits}"
   end
 
-  def waha_phone_number_from_custom_attributes
+  def waha_phone_number_from_custom_attributes # rubocop:disable Metrics/CyclomaticComplexity, Metrics/PerceivedComplexity
     attributes = @contact.custom_attributes || {}
     jid = attributes['waha_whatsapp_jid'].presence
     chat_id = attributes['waha_whatsapp_chat_id'].presence

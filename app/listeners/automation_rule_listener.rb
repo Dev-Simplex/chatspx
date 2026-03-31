@@ -63,11 +63,11 @@ class AutomationRuleListener < BaseListener
   end
 
   def current_account_rules(event_name, account)
-    AutomationRule.where(
-      event_name: event_name,
-      account_id: account.id,
-      active: true
-    )
+    cache_key = "automation_rules:#{account.id}:#{event_name}"
+    rule_ids = Rails.cache.fetch(cache_key, expires_in: 2.minutes) do
+      AutomationRule.where(event_name: event_name, account_id: account.id, active: true).pluck(:id)
+    end
+    AutomationRule.where(id: rule_ids)
   end
 
   def performed_by_automation?(event)
@@ -81,6 +81,7 @@ class AutomationRuleListener < BaseListener
 
   def ignore_message_created_event?(event)
     message = event.data[:message]
-    performed_by_automation?(event) || message.activity? || message.auto_reply_email?
+    performed_by_automation?(event) || message.activity? || message.auto_reply_email? ||
+      message.content_attributes&.dig('automation_rule_id').present?
   end
 end

@@ -120,7 +120,7 @@ class Tiktok::CallbacksController < ApplicationController
   end
 
   def set_avatar(inbox, avatar_url)
-    Avatar::AvatarFromUrlJob.perform_later(inbox, avatar_url)
+    Avatar::AvatarFromUrlJob.perform_later(inbox.class.name, inbox.id, avatar_url)
   end
 
   def account_id

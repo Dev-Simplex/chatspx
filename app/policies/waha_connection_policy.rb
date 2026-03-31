@@ -33,5 +33,3 @@ class WahaConnectionPolicy < ApplicationPolicy
     @account_user.administrator?
   end
 end
-
-

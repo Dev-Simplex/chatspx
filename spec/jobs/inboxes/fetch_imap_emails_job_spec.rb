@@ -12,7 +12,7 @@ RSpec.describe Inboxes::FetchImapEmailsJob do
   describe '#perform' do
     it 'enqueues the job' do
       expect do
-        described_class.perform_later(imap_email_channel, 1)
+        described_class.perform_later(imap_email_channel.id, 1)
       end.to have_enqueued_job(described_class).on_queue('scheduled_jobs')
     end
 
@@ -20,7 +20,7 @@ RSpec.describe Inboxes::FetchImapEmailsJob do
       it 'does not fetch emails' do
         expect(Imap::FetchEmailService).not_to receive(:new)
         expect(Imap::MicrosoftFetchEmailService).not_to receive(:new)
-        described_class.perform_now(channel_with_imap_disabled)
+        described_class.perform_now(channel_with_imap_disabled.id)
       end
     end
 
@@ -34,7 +34,7 @@ RSpec.describe Inboxes::FetchImapEmailsJob do
         # Confirm the imap_enabled flag is true to avoid false positives.
         expect(imap_email_channel.imap_enabled?).to be true
 
-        described_class.perform_now(imap_email_channel)
+        described_class.perform_now(imap_email_channel.id)
       end
     end
 
@@ -44,7 +44,7 @@ RSpec.describe Inboxes::FetchImapEmailsJob do
         allow(Imap::FetchEmailService).to receive(:new).with(channel: imap_email_channel, interval: 1).and_return(fetch_service)
         allow(fetch_service).to receive(:perform).and_return([])
 
-        described_class.perform_now(imap_email_channel)
+        described_class.perform_now(imap_email_channel.id)
         expect(fetch_service).to have_received(:perform)
       end
 
@@ -53,7 +53,7 @@ RSpec.describe Inboxes::FetchImapEmailsJob do
         allow(Imap::FetchEmailService).to receive(:new).with(channel: imap_email_channel, interval: 4).and_return(fetch_service)
         allow(fetch_service).to receive(:perform).and_return([])
 
-        described_class.perform_now(imap_email_channel, 4)
+        described_class.perform_now(imap_email_channel.id, 4)
         expect(fetch_service).to have_received(:perform)
       end
     end
@@ -64,7 +64,7 @@ RSpec.describe Inboxes::FetchImapEmailsJob do
         allow(Imap::MicrosoftFetchEmailService).to receive(:new).with(channel: microsoft_imap_email_channel, interval: 1).and_return(fetch_service)
         allow(fetch_service).to receive(:perform).and_return([])
 
-        described_class.perform_now(microsoft_imap_email_channel)
+        described_class.perform_now(microsoft_imap_email_channel.id)
         expect(fetch_service).to have_received(:perform)
       end
     end
@@ -83,7 +83,7 @@ RSpec.describe Inboxes::FetchImapEmailsJob do
         expect(Redis::Alfred).to receive(:incr)
           .with("AUTHORIZATION_ERROR_COUNT:channel_email:#{microsoft_imap_email_channel.id}")
 
-        described_class.perform_now(microsoft_imap_email_channel)
+        described_class.perform_now(microsoft_imap_email_channel.id)
       end
     end
 
@@ -108,7 +108,7 @@ RSpec.describe Inboxes::FetchImapEmailsJob do
         expect(fetch_service).to receive(:perform).and_return([inbound_mail])
         expect(mailbox).to receive(:process).with(inbound_mail, imap_email_channel)
 
-        described_class.perform_now(imap_email_channel)
+        described_class.perform_now(imap_email_channel.id)
       end
 
       it 'logs errors if mailbox returns errors' do
@@ -116,7 +116,7 @@ RSpec.describe Inboxes::FetchImapEmailsJob do
 
         expect(exception_tracker).to receive(:capture_exception)
 
-        described_class.perform_now(imap_email_channel)
+        described_class.perform_now(imap_email_channel.id)
       end
     end
   end

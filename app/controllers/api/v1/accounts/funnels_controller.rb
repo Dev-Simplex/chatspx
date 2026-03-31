@@ -31,7 +31,7 @@ class Api::V1::Accounts::FunnelsController < Api::V1::Accounts::BaseController
     head :ok
   rescue StandardError => e
     Rails.logger.error "FunnelsController#reorder_stages: #{e.class} - #{e.message}"
-    render json: { error: 'Erro ao reordenar etapas', details: (Rails.env.development? ? e.message : nil) }, status: :internal_server_error
+    render json: { error: 'Error reordering stages', details: (Rails.env.development? ? e.message : nil) }, status: :internal_server_error
   end
 
   private

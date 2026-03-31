@@ -51,8 +51,7 @@ class DeviseOverrides::OmniauthCallbacksController < DeviseTokenAuth::OmniauthCa
   end
 
   def account_signup_allowed?
-    # set it to true by default, this is the behaviour across the app
-    GlobalConfigService.load('ENABLE_ACCOUNT_SIGNUP', 'false') != 'false'
+    GlobalConfigService.account_signup_enabled?
   end
 
   def resource_class(_mapping = nil)
@@ -79,7 +78,7 @@ class DeviseOverrides::OmniauthCallbacksController < DeviseTokenAuth::OmniauthCa
       locale: I18n.locale,
       confirmed: auth_hash['info']['email_verified']
     ).perform
-    Avatar::AvatarFromUrlJob.perform_later(@resource, auth_hash['info']['image'])
+    Avatar::AvatarFromUrlJob.perform_later(@resource.class.name, @resource.id, auth_hash['info']['image'])
   end
 
   def default_devise_mapping

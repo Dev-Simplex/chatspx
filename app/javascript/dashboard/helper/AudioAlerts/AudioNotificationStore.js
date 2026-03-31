@@ -11,12 +11,15 @@ class AudioNotificationStore {
   }
 
   hasUnreadConversation = () => {
-    const mineConversation = this.store.getters.getMineChats({
-      assigneeType: 'me',
-      status: 'open',
-    });
+    const currentUserId = this.store.getters.getCurrentUser?.id;
+    const allConversations =
+      this.store.state.conversations?.allConversations || [];
 
-    return mineConversation.some(conv => conv.unread_count > 0);
+    return allConversations.some(conv => {
+      const isAssignedToMe = conv.meta?.assignee?.id === currentUserId;
+      const isOpen = conv.status === 'open';
+      return isAssignedToMe && isOpen && conv.unread_count > 0;
+    });
   };
 
   isMessageFromPendingConversation = (message = {}) => {

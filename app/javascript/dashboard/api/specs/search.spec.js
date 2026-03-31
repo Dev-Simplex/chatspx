@@ -79,7 +79,10 @@ describe('#SearchAPI', () => {
 
     it('#conversations accepts options with signal for cancellation', () => {
       const controller = new AbortController();
-      searchAPI.conversations({ q: 'test', page: 1 }, { signal: controller.signal });
+      searchAPI.conversations(
+        { q: 'test', page: 1 },
+        { signal: controller.signal }
+      );
       expect(axiosMock.get).toHaveBeenCalledWith(
         '/api/v1/search/conversations',
         {

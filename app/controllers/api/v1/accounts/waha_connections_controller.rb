@@ -1,8 +1,9 @@
 # frozen_string_literal: true
 
-class Api::V1::Accounts::WahaConnectionsController < Api::V1::Accounts::BaseController
+class Api::V1::Accounts::WahaConnectionsController < Api::V1::Accounts::BaseController # rubocop:disable Metrics/ClassLength
   before_action :check_authorization
   before_action :set_waha_service
+  before_action :find_account_inbox!, only: %i[show qr_code connect disconnect restart destroy]
 
   def index
     # Get only inboxes from current account that have WAHA session
@@ -24,21 +25,22 @@ class Api::V1::Accounts::WahaConnectionsController < Api::V1::Accounts::BaseCont
 
     render json: @connections
   rescue Waha::ApiService::Error => e
-    render json: { error: e.message }, status: :service_unavailable
+    Rails.logger.error("WAHA API error listing connections: #{e.message}")
+    render json: { error: 'Failed to fetch WAHA connections' }, status: :service_unavailable
   end
 
   def show
     session = @waha_service.get_session(params[:id])
-    inbox = Current.account.inboxes.find_by(waha_session_name: params[:id])
 
-    render json: format_connection(session, inbox)
+    render json: format_connection(session, @inbox)
   rescue Waha::ApiService::NotFoundError
     render json: { error: 'Session not found' }, status: :not_found
   rescue Waha::ApiService::Error => e
-    render json: { error: e.message }, status: :service_unavailable
+    Rails.logger.error("WAHA API error fetching session #{params[:id]}: #{e.message}")
+    render json: { error: 'Failed to fetch WAHA session' }, status: :service_unavailable
   end
 
-  def create
+  def create # rubocop:disable Metrics/AbcSize, Metrics/CyclomaticComplexity, Metrics/MethodLength, Metrics/PerceivedComplexity
     session_name = params[:session_name]
     inbox_name = params[:inbox_name]
 
@@ -74,9 +76,9 @@ class Api::V1::Accounts::WahaConnectionsController < Api::V1::Accounts::BaseCont
     end
 
     # Validate all required fields
-    raise StandardError, 'Failed to create access token for user' unless current_user.access_token&.token.present?
+    raise StandardError, 'Failed to create access token for user' if current_user.access_token&.token.blank?
 
-    raise StandardError, 'Channel identifier is missing' unless channel.identifier.present?
+    raise StandardError, 'Channel identifier is missing' if channel.identifier.blank?
 
     app_config = {
       url: chatwoot_base_url,
@@ -88,7 +90,7 @@ class Api::V1::Accounts::WahaConnectionsController < Api::V1::Accounts::BaseCont
       agentSignatureEnabled: true
     }
 
-    Rails.logger.info("Creating Chatwoot app in WAHA with config: #{app_config.inspect}")
+    Rails.logger.info("Creating Chatwoot app in WAHA with config: #{app_config.except(:accountToken).inspect}")
 
     begin
       @waha_service.create_chatwoot_app(
@@ -108,11 +110,10 @@ class Api::V1::Accounts::WahaConnectionsController < Api::V1::Accounts::BaseCont
       error_message = e.message
       Rails.logger.error("Failed to create Chatwoot app in WAHA: #{error_message}")
       Rails.logger.error("Error details: #{e.inspect}")
-      Rails.logger.error("Config that failed: #{app_config.inspect}")
+      Rails.logger.error("Config that failed: #{app_config.except(:accountToken).inspect}")
 
-      # Return error message from WAHA API
       render json: {
-        error: error_message
+        error: 'Failed to create Chatwoot app in WAHA'
       }, status: :unprocessable_entity
       return
     end
@@ -123,8 +124,8 @@ class Api::V1::Accounts::WahaConnectionsController < Api::V1::Accounts::BaseCont
     session = @waha_service.get_session(session_name)
     render json: format_connection(session, @inbox), status: :created
   rescue Waha::ApiService::Error => e
-    Rails.logger.error("WAHA API Error: #{e.message}")
-    render json: { error: e.message }, status: :unprocessable_entity
+    Rails.logger.error("WAHA API Error during create: #{e.message}")
+    render json: { error: 'Failed to create WAHA connection' }, status: :unprocessable_entity
   rescue ActiveRecord::RecordInvalid => e
     # Clean up WAHA session if inbox creation failed
     begin
@@ -132,7 +133,8 @@ class Api::V1::Accounts::WahaConnectionsController < Api::V1::Accounts::BaseCont
     rescue StandardError
       nil
     end
-    render json: { error: e.message }, status: :unprocessable_entity
+    Rails.logger.error("Record invalid during WAHA create: #{e.message}")
+    render json: { error: 'Failed to create inbox for WAHA connection' }, status: :unprocessable_entity
   end
 
   def qr_code
@@ -144,7 +146,8 @@ class Api::V1::Accounts::WahaConnectionsController < Api::V1::Accounts::BaseCont
   rescue Waha::ApiService::NotFoundError
     render json: { error: 'Session not found' }, status: :not_found
   rescue Waha::ApiService::Error => e
-    render json: { error: e.message }, status: :service_unavailable
+    Rails.logger.error("WAHA API error fetching QR code: #{e.message}")
+    render json: { error: 'Failed to fetch QR code' }, status: :service_unavailable
   end
 
   def connect
@@ -152,11 +155,11 @@ class Api::V1::Accounts::WahaConnectionsController < Api::V1::Accounts::BaseCont
     @waha_service.start_session(session_name)
 
     session = @waha_service.get_session(session_name)
-    inbox = Current.account.inboxes.find_by(waha_session_name: session_name)
 
-    render json: format_connection(session, inbox)
+    render json: format_connection(session, @inbox)
   rescue Waha::ApiService::Error => e
-    render json: { error: e.message }, status: :unprocessable_entity
+    Rails.logger.error("WAHA API error connecting session #{params[:id]}: #{e.message}")
+    render json: { error: 'Failed to connect WAHA session' }, status: :unprocessable_entity
   end
 
   def disconnect
@@ -164,28 +167,20 @@ class Api::V1::Accounts::WahaConnectionsController < Api::V1::Accounts::BaseCont
     @waha_service.stop_session(session_name)
 
     session = @waha_service.get_session(session_name)
-    inbox = Current.account.inboxes.find_by(waha_session_name: session_name)
 
-    render json: format_connection(session, inbox)
+    render json: format_connection(session, @inbox)
   rescue Waha::ApiService::Error => e
-    render json: { error: e.message }, status: :unprocessable_entity
+    Rails.logger.error("WAHA API error disconnecting session #{params[:id]}: #{e.message}")
+    render json: { error: 'Failed to disconnect WAHA session' }, status: :unprocessable_entity
   end
 
-  def restart
+  def restart # rubocop:disable Metrics/AbcSize, Metrics/MethodLength
     session_name = params[:id]
 
     begin
       Rails.logger.info('=== RESTART START ===')
       Rails.logger.info("Session name: #{session_name}")
-
-      inbox = Current.account.inboxes.find_by(waha_session_name: session_name)
-
-      unless inbox
-        Rails.logger.error("Inbox not found for session: #{session_name}")
-        return render json: { error: 'Inbox not found' }, status: :not_found
-      end
-
-      Rails.logger.info("Inbox found: #{inbox.id}")
+      Rails.logger.info("Inbox found: #{@inbox.id}")
 
       # Use WAHA's native restart endpoint
       Rails.logger.info('Calling restart_session...')
@@ -193,57 +188,52 @@ class Api::V1::Accounts::WahaConnectionsController < Api::V1::Accounts::BaseCont
       Rails.logger.info("Restart result: #{restart_result.inspect}")
       Rails.logger.info("Restart result class: #{restart_result.class}")
 
-      # Wait a moment for session to be ready
-      sleep(1.5)
+      # Brief wait for session to be ready
+      sleep(0.5)
 
       # Get updated session
       Rails.logger.info('Getting session after restart...')
       session = @waha_service.get_session(session_name)
       Rails.logger.info("Session after restart: #{session.inspect}")
 
-      if session.nil? || session.empty?
+      if session.blank?
         Rails.logger.error('Session is nil or empty after restart')
         return render json: { error: 'Session not found after restart' }, status: :unprocessable_entity
       end
 
       # Format and return
       Rails.logger.info('Calling format_connection...')
-      formatted = format_connection(session, inbox)
+      formatted = format_connection(session, @inbox)
       Rails.logger.info("Formatted connection: #{formatted.inspect}")
       Rails.logger.info('=== RESTART SUCCESS ===')
 
       render json: formatted
     rescue Waha::ApiService::NotFoundError => e
       Rails.logger.error("WAHA session not found: #{e.message}")
-      Rails.logger.error("Backtrace: #{e.backtrace.first(5).join("\n")}")
-      render json: { error: "Sessão não encontrada: #{e.message}" }, status: :not_found
+      render json: { error: 'Session not found' }, status: :not_found
     rescue Waha::ApiService::Error => e
       Rails.logger.error("WAHA restart error: #{e.message}")
-      Rails.logger.error("Error details: #{e.inspect}")
-      Rails.logger.error("Backtrace: #{e.backtrace.first(5).join("\n")}")
-      render json: { error: e.message }, status: :unprocessable_entity
+      render json: { error: 'Failed to restart WAHA session' }, status: :unprocessable_entity
     rescue StandardError => e
-      Rails.logger.error('=== RESTART ERROR ===')
-      Rails.logger.error("Error message: #{e.message}")
-      Rails.logger.error("Error class: #{e.class}")
-      Rails.logger.error("Error backtrace: #{e.backtrace.first(20).join("\n")}")
-      render json: { error: "Erro ao reiniciar conexão: #{e.message}" }, status: :internal_server_error
+      Rails.logger.error("WAHA restart unexpected error: #{e.class} - #{e.message}")
+      Rails.logger.error("Backtrace: #{e.backtrace.first(5).join("\n")}")
+      render json: { error: 'Internal error restarting connection' }, status: :internal_server_error
     end
   end
 
   def destroy
     session_name = params[:id]
-    inbox = Current.account.inboxes.find_by(waha_session_name: session_name)
 
     # Delete WAHA session
     @waha_service.delete_session(session_name)
 
-    # Delete associated inbox if exists
-    inbox&.destroy
+    # Delete associated inbox
+    @inbox.destroy
 
     head :ok
   rescue Waha::ApiService::Error => e
-    render json: { error: e.message }, status: :unprocessable_entity
+    Rails.logger.error("WAHA API error deleting session #{params[:id]}: #{e.message}")
+    render json: { error: 'Failed to delete WAHA connection' }, status: :unprocessable_entity
   end
 
   private
@@ -256,7 +246,12 @@ class Api::V1::Accounts::WahaConnectionsController < Api::V1::Accounts::BaseCont
     @waha_service = Waha::ApiService.new
   end
 
-  def format_connection(session, inbox)
+  def find_account_inbox!
+    @inbox = Current.account.inboxes.find_by(waha_session_name: params[:id])
+    render json: { error: 'Connection not found' }, status: :not_found unless @inbox
+  end
+
+  def format_connection(session, inbox) # rubocop:disable Metrics/AbcSize, Metrics/CyclomaticComplexity, Metrics/MethodLength, Metrics/PerceivedComplexity
     # Ensure we have a hash
     session_hash = if session.is_a?(Hash)
                      session

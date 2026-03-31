@@ -2,7 +2,7 @@ class ActionService
   include EmailHelper
 
   def initialize(conversation)
-    @conversation = conversation.reload
+    @conversation = conversation
     @account = @conversation.account
   end
 
@@ -20,6 +20,10 @@ class ActionService
 
   def open_conversation(_params)
     @conversation.open!
+  end
+
+  def pending_conversation(_params)
+    @conversation.pending!
   end
 
   def change_status(status)
@@ -43,7 +47,9 @@ class ActionService
 
     @agent = @account.users.find_by(id: agent_ids)
 
-    @conversation.update!(assignee_id: @agent.id) if @agent.present?
+    return unless @agent.present? && @agent.confirmed?
+
+    @conversation.update!(assignee_id: @agent.id)
   end
 
   def remove_label(labels)
@@ -71,11 +77,16 @@ class ActionService
   end
 
   def send_email_transcript(emails)
+    return unless @account.email_transcript_enabled?
+
     emails = emails[0].gsub(/\s+/, '').split(',')
 
     emails.each do |email|
+      break unless @account.within_email_rate_limit?
+
       email = parse_email_variables(@conversation, email)
       ConversationReplyMailer.with(account: @conversation.account).conversation_transcript(@conversation, email)&.deliver_later
+      @account.increment_email_sent_count
     end
   end
 

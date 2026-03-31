@@ -5,8 +5,8 @@ class Migration::ConversationBatchCacheLabelJob < ApplicationJob
   # saved in the future, ActsAsTaggable will automatically recompute it. This process is done
   # initially when the user has not performed any action.
   # Reference: https://github.com/mbleigh/acts-as-taggable-on/wiki/Caching
-  def perform(conversation_batch)
-    conversation_batch.each do |conversation|
+  def perform(conversation_ids)
+    Conversation.where(id: conversation_ids).find_each do |conversation|
       conversation.label_list
       conversation.save!
     end

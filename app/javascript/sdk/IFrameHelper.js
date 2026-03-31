@@ -93,9 +93,12 @@ export const IFrameHelper = {
   getBubbleHolder: () => document.getElementsByClassName('woot--bubble-holder'),
   sendMessage: (key, value) => {
     const element = IFrameHelper.getAppFrame();
+    const targetOrigin = element?.src
+      ? new URL(element.src).origin
+      : window.location.origin;
     element.contentWindow.postMessage(
       `chatwoot-widget:${JSON.stringify({ event: key, ...value })}`,
-      '*'
+      targetOrigin
     );
   },
   initPostMessageCommunication: () => {

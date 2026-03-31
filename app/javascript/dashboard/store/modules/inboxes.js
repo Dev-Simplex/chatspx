@@ -8,7 +8,6 @@ import TwilioChannel from '../../api/channel/twilioChannel';
 import WhatsappChannel from '../../api/channel/whatsappChannel';
 import { throwErrorMessage } from '../utils/api';
 import AnalyticsHelper from '../../helper/AnalyticsHelper';
-import camelcaseKeys from 'camelcase-keys';
 import { ACCOUNT_EVENTS } from '../../helper/AnalyticsHelper/events';
 import { channelActions, buildInboxData } from './inboxes/channelActions';
 
@@ -30,12 +29,10 @@ export const getters = {
     return $state.records;
   },
   getAllInboxes($state) {
-    return camelcaseKeys($state.records, { deep: true });
+    return $state.records;
   },
   getWhatsAppTemplates: $state => inboxId => {
-    const [inbox] = $state.records.filter(
-      record => record.id === Number(inboxId)
-    );
+    const inbox = $state.records.find(record => record.id === Number(inboxId));
 
     const {
       message_templates: whatsAppMessageTemplates,
@@ -50,9 +47,7 @@ export const getters = {
     return messagesTemplates;
   },
   getFilteredWhatsAppTemplates: $state => inboxId => {
-    const [inbox] = $state.records.filter(
-      record => record.id === Number(inboxId)
-    );
+    const inbox = $state.records.find(record => record.id === Number(inboxId));
 
     const {
       message_templates: whatsAppMessageTemplates,
@@ -120,16 +115,12 @@ export const getters = {
     });
   },
   getInbox: $state => inboxId => {
-    const [inbox] = $state.records.filter(
-      record => record.id === Number(inboxId)
-    );
+    const inbox = $state.records.find(record => record.id === Number(inboxId));
     return inbox || {};
   },
   getInboxById: $state => inboxId => {
-    const [inbox] = $state.records.filter(
-      record => record.id === Number(inboxId)
-    );
-    return camelcaseKeys(inbox || {}, { deep: true });
+    const inbox = $state.records.find(record => record.id === Number(inboxId));
+    return inbox || {};
   },
   getUIFlags($state) {
     return $state.uiFlags;
@@ -358,6 +349,13 @@ export const actions = {
   },
   getCSATTemplateStatus: async (_, { inboxId }) => {
     const response = await InboxesAPI.getCSATTemplateStatus(inboxId);
+    return response.data;
+  },
+  analyzeCSATTemplateUtility: async (_, { inboxId, template }) => {
+    const response = await InboxesAPI.analyzeCSATTemplateUtility(
+      inboxId,
+      template
+    );
     return response.data;
   },
 };

@@ -60,7 +60,7 @@ class Api::V1::Accounts::FunnelItemsController < Api::V1::Accounts::BaseControll
     conversation_ids = params[:conversation_ids] || []
     stage_id = params[:stage_id]
 
-    return render json: { error: 'stage_id é obrigatório' }, status: :unprocessable_entity if stage_id.blank?
+    return render json: { error: 'stage_id is required' }, status: :unprocessable_entity if stage_id.blank?
 
     stage = funnel.funnel_stages.find(stage_id)
     conversations = Current.account.conversations.where(id: conversation_ids)
@@ -121,27 +121,25 @@ class Api::V1::Accounts::FunnelItemsController < Api::V1::Accounts::BaseControll
     @last_messages_by_conversation_id = last_messages.index_by(&:conversation_id)
   end
 
-  def legacy_scope(scope)
+  def legacy_scope(scope) # rubocop:disable Metrics/AbcSize, Metrics/CyclomaticComplexity, Metrics/PerceivedComplexity
     scoped = scope
     scoped = scoped.by_stage(params[:stage_id]) if params[:stage_id].present?
 
     inbox_ids = funnel.inbox_ids
     if inbox_ids.is_a?(Array) && inbox_ids.any?
-      normalized_inbox_ids = inbox_ids.map(&:to_i).compact
+      normalized_inbox_ids = inbox_ids.filter_map(&:to_i)
       scoped = scoped.joins(:conversation).where(conversations: { inbox_id: normalized_inbox_ids }) if normalized_inbox_ids.any?
     end
 
-    if funnel.team_id.present?
-      scoped = scoped.joins(:conversation).where(conversations: { team_id: funnel.team_id })
-    end
+    scoped = scoped.joins(:conversation).where(conversations: { team_id: funnel.team_id }) if funnel.team_id.present?
 
     if params[:exclude_automation_type].present?
       scoped = scoped.joins(:funnel_stage).where.not(funnel_stages: { automation_type: params[:exclude_automation_type] })
     end
 
-    return scoped unless params[:stage_id].present?
+    return scoped if params[:stage_id].blank?
 
-    per_page = [[(params[:per_page] || 50).to_i, 1].max, 100].min
+    per_page = (params[:per_page] || 50).to_i.clamp(1, 100)
     page = [(params[:page] || 1).to_i, 1].max
     scoped = scoped.joins(:conversation).reorder('conversations.last_activity_at DESC, conversations.id DESC')
     scoped.limit(per_page).offset((page - 1) * per_page)
@@ -157,7 +155,7 @@ class Api::V1::Accounts::FunnelItemsController < Api::V1::Accounts::BaseControll
     # Best effort: backfill should never block list rendering
   end
 
-  def deduplicate_by_contact_phone(items)
+  def deduplicate_by_contact_phone(items) # rubocop:disable Metrics/AbcSize, Metrics/CyclomaticComplexity, Metrics/MethodLength, Metrics/PerceivedComplexity
     return items if items.blank?
 
     by_stage_and_phone = {}
@@ -175,8 +173,8 @@ class Api::V1::Accounts::FunnelItemsController < Api::V1::Accounts::BaseControll
       stage_key = "#{item.funnel_stage_id}-#{key}"
 
       existing = by_stage_and_phone[stage_key]
-      recency = item.conversation&.last_activity_at || item.created_at || Time.at(0)
-      if existing.nil? || recency > (existing.conversation&.last_activity_at || existing.created_at || Time.at(0))
+      recency = item.conversation&.last_activity_at || item.created_at || Time.zone.at(0)
+      if existing.nil? || recency > (existing.conversation&.last_activity_at || existing.created_at || Time.zone.at(0))
         by_stage_and_phone[stage_key] = item
       end
     end
@@ -187,7 +185,7 @@ class Api::V1::Accounts::FunnelItemsController < Api::V1::Accounts::BaseControll
     digits = phone.to_s.gsub(/\D/, '')
     return nil if digits.blank?
 
-    digits = digits[0, 4] + '9' + digits[4, 8] if digits.start_with?('55') && digits.length == 12
+    digits = "#{digits[0, 4]}9#{digits[4, 8]}" if digits.start_with?('55') && digits.length == 12
     digits.presence
   end
 end

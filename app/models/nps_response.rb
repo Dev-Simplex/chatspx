@@ -58,18 +58,20 @@ class NpsResponse < ApplicationRecord
   validates :inbox_id, presence: true
   validates :score, inclusion: { in: 0..10 }, allow_nil: true
 
-  scope :filter_by_created_at, ->(range) { 
-    return all unless range.present?
-    
+  scope :filter_by_created_at, lambda { |range|
+    return all if range.blank?
+
     start_date = range.first
     end_date = range.last
-    
+
     # Use answered_at for responded (if present), otherwise use created_at
     # For non-responded, use created_at
     # This ensures we filter by when the response was actually given or when it was created
     responded_status = statuses[:responded]
     where(
-      "(status = ? AND answered_at IS NOT NULL AND answered_at BETWEEN ? AND ?) OR (status = ? AND answered_at IS NULL AND created_at BETWEEN ? AND ?) OR (status != ? AND created_at BETWEEN ? AND ?)",
+      '(status = ? AND answered_at IS NOT NULL AND answered_at BETWEEN ? AND ?) OR ' \
+      '(status = ? AND answered_at IS NULL AND created_at BETWEEN ? AND ?) OR ' \
+      '(status != ? AND created_at BETWEEN ? AND ?)',
       responded_status, start_date, end_date,
       responded_status, start_date, end_date,
       responded_status, start_date, end_date
@@ -78,8 +80,8 @@ class NpsResponse < ApplicationRecord
   scope :filter_by_assigned_agent_id, ->(user_ids) { where(assigned_agent_id: user_ids) if user_ids.present? }
   scope :filter_by_inbox_id, ->(inbox_id) { where(inbox_id: inbox_id) if inbox_id.present? }
   scope :filter_by_status, ->(status) { where(status: status) if status.present? }
-  scope :filter_by_response_state, ->(state) {
-    return all unless state.present?
+  scope :filter_by_response_state, lambda { |state|
+    return all if state.blank?
 
     case state.to_s
     when 'responded' then where(status: :responded)
@@ -132,8 +134,6 @@ class NpsResponse < ApplicationRecord
       'passive'
     elsif detractor?
       'detractor'
-    else
-      nil
     end
   end
 end

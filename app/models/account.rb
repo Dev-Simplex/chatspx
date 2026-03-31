@@ -29,6 +29,7 @@ class Account < ApplicationRecord
   include Featurable
   include CacheKeys
   include CaptainFeaturable
+  include AccountEmailRateLimitable
 
   SETTINGS_PARAMS_SCHEMA = {
     'type': 'object',
@@ -39,6 +40,8 @@ class Account < ApplicationRecord
         'auto_resolve_ignore_waiting': { 'type': %w[boolean null] },
         'audio_transcriptions': { 'type': %w[boolean null] },
         'auto_resolve_label': { 'type': %w[string null] },
+        'keep_pending_on_bot_failure': { 'type': %w[boolean null] },
+        'captain_auto_resolve_mode': { 'type': %w[string null], 'enum': ['evaluated', 'legacy', 'disabled', nil] },
         'conversation_required_attributes': {
           'type': %w[array null],
           'items': { 'type': 'string' }
@@ -82,11 +85,16 @@ class Account < ApplicationRecord
   validates_with JsonSchemaValidator,
                  schema: SETTINGS_PARAMS_SCHEMA,
                  attribute_resolver: ->(record) { record.settings }
+  validate :validate_reporting_timezone
 
   store_accessor :settings, :auto_resolve_after, :auto_resolve_message, :auto_resolve_ignore_waiting
 
-  store_accessor :settings, :audio_transcriptions, :auto_resolve_label, :conversation_required_attributes
+  store_accessor :settings, :audio_transcriptions, :auto_resolve_label
   store_accessor :settings, :captain_models, :captain_features
+  store_accessor :settings, :reporting_timezone
+  store_accessor :settings, :keep_pending_on_bot_failure
+  store_accessor :settings, :captain_auto_resolve_mode
+  include AccountCaptainAutoResolve
 
   has_many :account_users, dependent: :destroy_async
   has_many :agent_bot_inboxes, dependent: :destroy_async
@@ -131,7 +139,7 @@ class Account < ApplicationRecord
   has_many :webhooks, dependent: :destroy_async
   has_many :whatsapp_channels, dependent: :destroy_async, class_name: '::Channel::Whatsapp'
   has_many :working_hours, dependent: :destroy_async
-  has_many :funnels, dependent: :destroy_async
+  has_many :funnels, dependent: :destroy
 
   has_one_attached :contacts_export
 
@@ -154,13 +162,10 @@ class Account < ApplicationRecord
   end
 
   def all_conversation_tags
-    # returns array of tags
-    conversation_ids = conversations.pluck(:id)
-    ActsAsTaggableOn::Tagging.includes(:tag)
-                             .where(context: 'labels',
-                                    taggable_type: 'Conversation',
-                                    taggable_id: conversation_ids)
-                             .map { |tagging| tagging.tag.name }
+    ActsAsTaggableOn::Tag.joins(:taggings)
+                         .where(taggings: { context: 'labels', taggable_type: 'Conversation' })
+                         .where(taggings: { taggable_id: conversations.select(:id) })
+                         .distinct.pluck(:name)
   end
 
   def webhook_data
@@ -199,7 +204,7 @@ class Account < ApplicationRecord
   def create_default_funnel
     Kanban::CreateDefaultFunnelService.new(account: self).perform
   rescue StandardError => e
-    Rails.logger.error "Erro ao criar funil padrão para account #{id}: #{e.message}"
+    Rails.logger.error "Error creating default funnel for account #{id}: #{e.message}"
   end
 
   def notify_creation
@@ -216,6 +221,12 @@ class Account < ApplicationRecord
 
   def validate_limit_keys
     # method overridden in enterprise module
+  end
+
+  def validate_reporting_timezone
+    return if reporting_timezone.blank? || ActiveSupport::TimeZone[reporting_timezone].present?
+
+    errors.add(:reporting_timezone, I18n.t('errors.account.reporting_timezone.invalid'))
   end
 
   def remove_account_sequences

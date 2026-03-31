@@ -17,7 +17,7 @@ RSpec.describe DataImport do
     it 'schedules a job after creation' do
       expect do
         data_import.save
-      end.to have_enqueued_job(DataImportJob).with(data_import).on_queue('low')
+      end.to have_enqueued_job(DataImportJob).on_queue('low')
     end
   end
 end

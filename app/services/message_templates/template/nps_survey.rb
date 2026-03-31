@@ -11,7 +11,8 @@ class MessageTemplates::Template::NpsSurvey
       message_content_text = message_content
       Rails.logger.info "NpsSurveyTemplate: Creating NPS message with content: #{message_content_text.inspect}"
       message = conversation.messages.create!(nps_survey_message_params)
-      Rails.logger.info "NpsSurveyTemplate: NPS message created with ID: #{message.id}, content: #{message.content.inspect}, content_type: #{message.content_type}"
+      Rails.logger.info "NpsSurveyTemplate: NPS message created with ID: #{message.id}, " \
+                        "content: #{message.content.inspect}, content_type: #{message.content_type}"
       create_nps_response(message)
     end
   end
@@ -58,16 +59,16 @@ class MessageTemplates::Template::NpsSurvey
   end
 
   def default_message
-    company_name = account.name || 'nossa empresa'
-    "De 0 a 10, o quanto você recomendaria a #{company_name} para um amigo ou colega?"
+    company_name = account.name || 'our company'
+    "On a scale of 0 to 10, how likely are you to recommend #{company_name} to a friend or colleague?"
   end
 
   def process_placeholders(content)
     content
-      .gsub('{contact_name}', contact.name || 'você')
-      .gsub('{agent_name}', conversation.assignee&.name || 'nosso time')
-      .gsub('{inbox_name}', inbox.name || 'atendimento')
-      .gsub('{company_name}', account.name || 'nossa empresa')
+      .gsub('{contact_name}', contact.name || 'you')
+      .gsub('{agent_name}', conversation.assignee&.name || 'our team')
+      .gsub('{inbox_name}', inbox.name || 'support')
+      .gsub('{company_name}', account.name || 'our company')
       .gsub('{conversation_id}', conversation.display_id.to_s)
       .gsub('{brand_name}', account.name || 'nossa empresa')
   end
@@ -125,6 +126,6 @@ class MessageTemplates::Template::NpsSurvey
       message_type: :activity,
       content: content
     }
-    ::Conversations::ActivityMessageJob.perform_later(conversation, activity_message_params) if content
+    ::Conversations::ActivityMessageJob.perform_later(conversation.id, activity_message_params) if content
   end
 end

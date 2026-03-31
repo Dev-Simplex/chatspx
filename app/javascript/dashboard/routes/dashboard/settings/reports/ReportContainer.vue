@@ -182,7 +182,7 @@ export default {
 
 <template>
   <div
-    class="grid grid-cols-1 xl:grid-cols-2 gap-5"
+    class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-2 px-6 py-5 shadow outline-1 outline outline-n-container rounded-xl bg-n-solid-2 mt-4"
   >
     <div
       v-for="metric in metrics"
@@ -196,15 +196,14 @@ export default {
             :account-summary-key="accountSummaryKey"
             :summary-fetching-key="summaryFetchingKey"
           />
-          <span
-            v-if="metric.DESC"
-            class="text-xs text-n-slate-11 max-w-md"
-          >
+          <span v-if="metric.DESC" class="text-xs text-n-slate-11 max-w-md">
             {{ metric.DESC }}
           </span>
         </div>
       </div>
-      <div class="h-72 rounded-xl bg-n-background/60 border border-n-container/40 p-2">
+      <div
+        class="h-72 rounded-xl bg-n-background/60 border border-n-container/40 p-2"
+      >
         <woot-loading-state
           v-if="accountReport.isFetching[metric.KEY]"
           class="text-xs"

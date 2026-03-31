@@ -118,11 +118,28 @@ const setAssistant = async assistant => {
 const shouldShowCopilotPanel = computed(() => {
   const { is_copilot_panel_open: isCopilotPanelOpen } = uiSettings.value;
   return (
-    isCaptainEnabled.value &&
-    isCopilotPanelOpen &&
-    !uiFlags.value.fetchingList
+    isCaptainEnabled.value && isCopilotPanelOpen && !uiFlags.value.fetchingList
   );
 });
+
+const clearResponseTracking = () => {
+  if (responsePollIntervalId.value) {
+    clearInterval(responsePollIntervalId.value);
+    responsePollIntervalId.value = null;
+  }
+
+  if (responseTimeoutId.value) {
+    clearTimeout(responseTimeoutId.value);
+    responseTimeoutId.value = null;
+  }
+
+  isAwaitingResponse.value = false;
+  isSyncingThreadMessages.value = false;
+};
+
+const stopAwaitingResponse = () => {
+  clearResponseTracking();
+};
 
 const handleReset = () => {
   selectedCopilotThreadId.value = null;
@@ -171,25 +188,6 @@ const ensureCopilotApiKeyConfigured = async () => {
   }
 };
 
-const clearResponseTracking = () => {
-  if (responsePollIntervalId.value) {
-    clearInterval(responsePollIntervalId.value);
-    responsePollIntervalId.value = null;
-  }
-
-  if (responseTimeoutId.value) {
-    clearTimeout(responseTimeoutId.value);
-    responseTimeoutId.value = null;
-  }
-
-  isAwaitingResponse.value = false;
-  isSyncingThreadMessages.value = false;
-};
-
-const stopAwaitingResponse = () => {
-  clearResponseTracking();
-};
-
 const getThreadMessages = threadId => {
   return store.getters['copilotMessages/getMessagesByThreadId'](threadId);
 };
@@ -229,10 +227,10 @@ const startAwaitingResponse = threadId => {
   clearResponseTracking();
   isAwaitingResponse.value = true;
 
-  void syncThreadMessages(normalizedThreadId);
+  syncThreadMessages(normalizedThreadId);
 
   responsePollIntervalId.value = setInterval(() => {
-    void syncThreadMessages(normalizedThreadId);
+    syncThreadMessages(normalizedThreadId);
   }, RESPONSE_POLL_INTERVAL_MS);
 
   responseTimeoutId.value = setTimeout(() => {
@@ -320,7 +318,7 @@ onBeforeUnmount(() => {
   <div
     v-if="shouldShowCopilotPanel"
     v-on-click-outside="() => closeCopilotPanel()"
-    class="bg-n-background h-full overflow-hidden flex-col fixed top-0 ltr:right-0 rtl:left-0 z-40 w-full max-w-sm transition-transform duration-300 ease-in-out md:static md:w-[320px] md:min-w-[320px] ltr:border-l rtl:border-r border-n-weak 2xl:min-w-[360px] 2xl:w-[360px] shadow-lg md:shadow-none"
+    class="bg-n-surface-2 h-full overflow-hidden flex-col fixed top-0 ltr:right-0 rtl:left-0 z-40 w-full max-w-sm transition-transform duration-300 ease-in-out md:static md:w-[320px] md:min-w-[320px] ltr:border-l rtl:border-r border-n-weak 2xl:min-w-[360px] 2xl:w-[360px] shadow-lg md:shadow-none"
     :class="[
       {
         'md:flex': shouldShowCopilotPanel,

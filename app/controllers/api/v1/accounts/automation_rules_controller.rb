@@ -5,7 +5,8 @@ class Api::V1::Accounts::AutomationRulesController < Api::V1::Accounts::BaseCont
   before_action :fetch_automation_rule, only: [:show, :update, :destroy, :clone]
 
   def index
-    @automation_rules = Current.account.automation_rules
+    @automation_rules = Current.account.automation_rules.order(created_at: :desc)
+    @automation_rules = @automation_rules.page(params[:page]).per(25) if params[:page].present?
   end
 
   def show; end
@@ -46,8 +47,7 @@ class Api::V1::Accounts::AutomationRulesController < Api::V1::Accounts::BaseCont
   end
 
   def clone
-    automation_rule = Current.account.automation_rules.find_by(id: params[:automation_rule_id])
-    new_rule = automation_rule.dup
+    new_rule = @automation_rule.dup
     new_rule.save!
     @automation_rule = new_rule
   end
@@ -63,6 +63,6 @@ class Api::V1::Accounts::AutomationRulesController < Api::V1::Accounts::BaseCont
   end
 
   def fetch_automation_rule
-    @automation_rule = Current.account.automation_rules.find_by(id: params[:id])
+    @automation_rule = Current.account.automation_rules.find(params[:automation_rule_id] || params[:id])
   end
 end

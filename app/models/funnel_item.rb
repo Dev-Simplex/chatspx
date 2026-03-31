@@ -24,7 +24,7 @@ class FunnelItem < ApplicationRecord
   validates :conversation_id, presence: true
   validates :funnel_id, presence: true
   validates :funnel_stage_id, presence: true
-  validates :conversation_id, uniqueness: { scope: :funnel_id, message: 'já está neste funil' }
+  validates :conversation_id, uniqueness: { scope: :funnel_id, message: 'already in this funnel' } # rubocop:disable Rails/I18nLocaleTexts
 
   before_save :set_moved_at, if: :will_save_change_to_funnel_stage_id?
 

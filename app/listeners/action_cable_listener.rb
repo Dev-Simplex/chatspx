@@ -1,4 +1,4 @@
-class ActionCableListener < BaseListener
+class ActionCableListener < BaseListener # rubocop:disable Metrics/ClassLength
   include Events::Types
 
   def notification_created(event)
@@ -105,7 +105,7 @@ class ActionCableListener < BaseListener
       tokens,
       CONVERSATION_TYPING_ON,
       conversation: { id: conversation.display_id },
-      user: user.push_event_data,
+      user: { id: user.id, name: user.name, type: user.is_a?(Contact) ? 'contact' : 'user' },
       is_private: event.data[:is_private] || false
     )
   end
@@ -121,7 +121,7 @@ class ActionCableListener < BaseListener
       tokens,
       CONVERSATION_TYPING_OFF,
       conversation: { id: conversation.display_id },
-      user: user.push_event_data,
+      user: { id: user.id, name: user.name, type: user.is_a?(Contact) ? 'contact' : 'user' },
       is_private: event.data[:is_private] || false
     )
   end
@@ -184,18 +184,41 @@ class ActionCableListener < BaseListener
   end
 
   def typing_event_listener_tokens(account, conversation, user)
-    current_user_token = user.is_a?(Contact) ? conversation.contact_inbox.pubsub_token : user.pubsub_token
-    (user_tokens(account, conversation.inbox.members) + [conversation.contact_inbox.pubsub_token]) - [current_user_token]
+    current_user_token = if user.is_a?(Contact)
+                           conversation.contact_inbox.pubsub_token
+                         elsif user.respond_to?(:pubsub_token)
+                           user.pubsub_token
+                         end
+
+    tokens = user_tokens(account, conversation.inbox.members) + [conversation.contact_inbox.pubsub_token]
+    current_user_token.present? ? tokens - [current_user_token] : tokens
   end
 
   def user_tokens(account, agents)
-    agent_tokens = agents.pluck(:pubsub_token)
-    admin_tokens = account.administrators.pluck(:pubsub_token)
+    inbox = agents.try(:proxy_association)&.owner
+    agent_tokens = if inbox
+                     Rails.cache.fetch("inbox:#{inbox.id}:member_pubsub_tokens", expires_in: 2.minutes,
+                                                                                 race_condition_ttl: 10.seconds) do
+                       agents.pluck(:pubsub_token)
+                     end
+                   else
+                     agents.pluck(:pubsub_token)
+                   end
+    admin_tokens = Rails.cache.fetch(
+      "account:#{account.id}:admin_pubsub_tokens",
+      expires_in: 2.minutes,
+      race_condition_ttl: 10.seconds
+    ) do
+      account.administrators.pluck(:pubsub_token)
+    end
     (agent_tokens + admin_tokens).uniq
   end
 
   def participant_tokens(conversation)
-    conversation.conversation_participants.includes(:user).map { |cp| cp.user.pubsub_token }
+    Rails.cache.fetch("conversation:#{conversation.id}:participant_tokens", expires_in: 30.seconds,
+                                                                            race_condition_ttl: 5.seconds) do
+      conversation.conversation_participants.joins(:user).pluck('users.pubsub_token')
+    end
   end
 
   def contact_tokens(contact_inbox, message)
@@ -207,9 +230,11 @@ class ActionCableListener < BaseListener
   end
 
   def contact_inbox_tokens(contact_inbox)
+    return [] if contact_inbox.nil?
+
     contact = contact_inbox.contact
 
-    contact_inbox.hmac_verified? ? contact.contact_inboxes.where(hmac_verified: true).filter_map(&:pubsub_token) : [contact_inbox.pubsub_token]
+    contact_inbox.hmac_verified? ? contact.contact_inboxes.where(hmac_verified: true).pluck(:pubsub_token) : [contact_inbox.pubsub_token]
   end
 
   def broadcast(account, tokens, event_name, data)

@@ -12,7 +12,13 @@ class Avatar::AvatarFromUrlJob < ApplicationJob
   MAX_DOWNLOAD_SIZE = 15 * 1024 * 1024
   RATE_LIMIT_WINDOW = 1.minute
 
-  def perform(avatarable, avatar_url)
+  ALLOWED_AVATARABLE_TYPES = %w[Contact User Inbox AgentBot].freeze
+
+  def perform(avatarable_type, avatarable_id, avatar_url)
+    return unless ALLOWED_AVATARABLE_TYPES.include?(avatarable_type)
+
+    avatarable = avatarable_type.constantize.find_by(id: avatarable_id)
+    return unless avatarable
     return unless avatarable.respond_to?(:avatar)
     return unless url_valid?(avatar_url)
 
@@ -27,7 +33,9 @@ class Avatar::AvatarFromUrlJob < ApplicationJob
       content_type: avatar_file.content_type
     )
 
-  rescue Down::NotFound, Down::Error => e
+  rescue Down::NotFound
+    Rails.logger.info "AvatarFromUrlJob: avatar not found at #{avatar_url}"
+  rescue Down::Error => e
     Rails.logger.error "AvatarFromUrlJob error for #{avatar_url}: #{e.class} - #{e.message}"
   ensure
     update_avatar_sync_attributes(avatarable, avatar_url)

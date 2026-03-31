@@ -24,55 +24,65 @@ export const mutations = {
     $state.meta.unreadCount = count < 0 ? 0 : count;
   },
   [types.SET_NOTIFICATIONS]: ($state, data) => {
+    const newRecords = { ...$state.records };
+    const actorIndex = {};
+    Object.entries(newRecords).forEach(([id, record]) => {
+      if (record.primary_actor_id) actorIndex[record.primary_actor_id] = id;
+    });
     data.forEach(notification => {
-      // Find existing notification with same primary_actor_id (primary_actor_id is unique)
-      const existingNotification = Object.values($state.records).find(
-        record => record.primary_actor_id === notification.primary_actor_id
-      );
-      // This is to handle the case where the same notification is received multiple times
-      // On reconnect, if there is existing notification with same primary_actor_id,
-      // it will be deleted and the new one will be added. So it will solve with duplicate notification
-      if (existingNotification) {
-        delete $state.records[existingNotification.id];
+      const existingId = actorIndex[notification.primary_actor_id];
+      if (existingId && existingId !== String(notification.id)) {
+        delete newRecords[existingId];
       }
-
-      $state.records[notification.id] = {
-        ...($state.records[notification.id] || {}),
+      newRecords[notification.id] = {
+        ...(newRecords[notification.id] || {}),
         ...notification,
       };
+      actorIndex[notification.primary_actor_id] = notification.id;
     });
+    $state.records = newRecords;
   },
   [types.READ_NOTIFICATION]: ($state, { id, read_at }) => {
-    $state.records[id].read_at = read_at;
+    if (!$state.records[id]) return;
+    $state.records[id] = { ...$state.records[id], read_at };
   },
   [types.UPDATE_ALL_NOTIFICATIONS]: $state => {
-    Object.values($state.records).forEach(item => {
-      $state.records[item.id].read_at = true;
+    const updated = {};
+    Object.entries($state.records).forEach(([id, item]) => {
+      updated[id] = { ...item, read_at: true };
     });
+    $state.records = updated;
   },
 
   [types.ADD_NOTIFICATION]($state, data) {
     const { notification, unread_count: unreadCount, count } = data;
 
-    $state.records[notification.id] = {
-      ...($state.records[notification.id] || {}),
-      ...notification,
+    $state.records = {
+      ...$state.records,
+      [notification.id]: {
+        ...($state.records[notification.id] || {}),
+        ...notification,
+      },
     };
     $state.meta.unreadCount = unreadCount;
     $state.meta.count = count;
   },
   [types.UPDATE_NOTIFICATION]($state, data) {
     const { notification, unread_count: unreadCount, count } = data;
-    $state.records[notification.id] = {
-      ...($state.records[notification.id] || {}),
-      ...notification,
+    $state.records = {
+      ...$state.records,
+      [notification.id]: {
+        ...($state.records[notification.id] || {}),
+        ...notification,
+      },
     };
     $state.meta.unreadCount = unreadCount;
     $state.meta.count = count;
   },
   [types.DELETE_NOTIFICATION]($state, data) {
     const { notification, unread_count: unreadCount, count } = data;
-    delete $state.records[notification.id];
+    const { [notification.id]: _, ...rest } = $state.records;
+    $state.records = rest;
     $state.meta.unreadCount = unreadCount;
     $state.meta.count = count;
   },
@@ -81,18 +91,21 @@ export const mutations = {
   },
 
   [types.DELETE_READ_NOTIFICATIONS]: $state => {
-    Object.values($state.records).forEach(item => {
-      if (item.read_at) {
-        delete $state.records[item.id];
+    const unread = {};
+    Object.entries($state.records).forEach(([id, item]) => {
+      if (!item.read_at) {
+        unread[id] = item;
       }
     });
+    $state.records = unread;
   },
   [types.DELETE_ALL_NOTIFICATIONS]: $state => {
     $state.records = {};
   },
 
   [types.SNOOZE_NOTIFICATION]: ($state, { id, snoozed_until }) => {
-    $state.records[id].snoozed_until = snoozed_until;
+    if (!$state.records[id]) return;
+    $state.records[id] = { ...$state.records[id], snoozed_until };
   },
 
   [types.SET_NOTIFICATION_FILTERS]: ($state, filters) => {

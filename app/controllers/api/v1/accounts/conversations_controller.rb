@@ -1,11 +1,12 @@
 class Api::V1::Accounts::ConversationsController < Api::V1::Accounts::BaseController
   include Events::Types
-  include DateRangeHelper
   include HmacConcern
 
   before_action :conversation, except: [:index, :meta, :search, :create, :filter]
   before_action :inbox, :contact, :contact_inbox, only: [:create]
-  before_action :authorize_team_access, only: [:show, :update, :destroy, :attachments, :mute, :unmute, :transcript, :toggle_status, :toggle_priority, :toggle_typing_status, :update_last_seen, :unread, :custom_attributes]
+  before_action :authorize_team_access,
+                only: [:show, :update, :destroy, :attachments, :mute, :unmute, :transcript, :toggle_status, :toggle_priority, :toggle_typing_status,
+                       :update_last_seen, :unread, :custom_attributes]
 
   ATTACHMENT_RESULTS_PER_PAGE = 20
 
@@ -54,7 +55,7 @@ class Api::V1::Accounts::ConversationsController < Api::V1::Accounts::BaseContro
   end
 
   def filter
-    result = ::Conversations::FilterService.new(params.permit!, current_user, current_account).perform
+    result = ::Conversations::FilterService.new(permitted_filter_params, current_user, current_account).perform
     @conversations = result[:conversations]
     @conversations_count = result[:count]
     @list_preloaded = Conversations::ListPreloader.call(@conversations)
@@ -77,39 +78,18 @@ class Api::V1::Accounts::ConversationsController < Api::V1::Accounts::BaseContro
 
   def transcript
     render json: { error: 'email param missing' }, status: :unprocessable_entity and return if params[:email].blank?
+    return render_payment_required('Email transcript is not available on your plan') unless @conversation.account.email_transcript_enabled?
+    return head :too_many_requests unless @conversation.account.within_email_rate_limit?
 
     ConversationReplyMailer.with(account: @conversation.account).conversation_transcript(@conversation, params[:email])&.deliver_later
+    @conversation.account.increment_email_sent_count
     head :ok
   end
 
   def toggle_status
-    # Validate team requirement when resolving
-    if params[:status] == 'resolved' && @conversation.team_id.blank?
-      return render json: {
-        error: I18n.t('conversations.errors.team_required_for_resolution')
-      }, status: :unprocessable_entity
-    end
-
-    # FIXME: move this logic into a service object
-    if pending_to_open_by_bot?
-      @conversation.bot_handoff!
-    elsif params[:status].present?
-      set_conversation_status
-      @status = @conversation.save!
-    else
-      @status = @conversation.toggle_status
-    end
-    assign_conversation if should_assign_conversation?
-  end
-
-  def pending_to_open_by_bot?
-    return false unless Current.user.is_a?(AgentBot)
-
-    @conversation.status == 'pending' && params[:status] == 'open'
-  end
-
-  def should_assign_conversation?
-    @conversation.status == 'open' && Current.user.is_a?(User) && Current.user&.agent?
+    @status = Conversations::ToggleStatusService.new(conversation: @conversation, params: params, user: Current.user).perform.present?
+  rescue Conversations::ToggleStatusService::TeamRequiredError => e
+    render json: { error: e.message }, status: :unprocessable_entity
   end
 
   def toggle_priority
@@ -118,12 +98,21 @@ class Api::V1::Accounts::ConversationsController < Api::V1::Accounts::BaseContro
   end
 
   def toggle_typing_status
-    typing_status_manager = ::Conversations::TypingStatusManager.new(@conversation, current_user, params)
+    typing_status_manager = ::Conversations::TypingStatusManager.new(@conversation, Current.user, params)
     typing_status_manager.toggle_typing_status
     head :ok
   end
 
   def update_last_seen
+    # High-traffic accounts generate excessive DB writes when agents frequently switch between conversations.
+    # Throttle last_seen updates to once per hour when there are no unread messages to reduce DB load.
+    # Always update immediately if there are unread messages to maintain accurate read/unread state.
+    return update_last_seen_on_conversation(DateTime.now.utc, true) if assignee? && @conversation.assignee_unread_messages.any?
+    return update_last_seen_on_conversation(DateTime.now.utc, false) if !assignee? && @conversation.unread_messages.any?
+
+    # No unread messages - apply throttling to limit DB writes
+    return unless should_update_last_seen?
+
     update_last_seen_on_conversation(DateTime.now.utc, assignee?)
   end
 
@@ -140,11 +129,15 @@ class Api::V1::Accounts::ConversationsController < Api::V1::Accounts::BaseContro
 
   def destroy
     authorize @conversation, :destroy?
-    ::DeleteObjectJob.perform_later(@conversation, Current.user, request.ip)
+    ::DeleteObjectJob.perform_later(@conversation.class.name, @conversation.id, Current.user&.id, request.ip)
     head :ok
   end
 
   private
+
+  def permitted_filter_params
+    params.permit(:page, payload: [:attribute_key, :filter_operator, :query_operator, :custom_attribute_type, { values: [] }])
+  end
 
   def permitted_update_params
     # TODO: Move the other conversation attributes to this method and remove specific endpoints for each attribute
@@ -156,11 +149,23 @@ class Api::V1::Accounts::ConversationsController < Api::V1::Accounts::BaseContro
   end
 
   def update_last_seen_on_conversation(last_seen_at, update_assignee)
+    updates = { agent_last_seen_at: last_seen_at }
+    updates[:assignee_last_seen_at] = last_seen_at if update_assignee.present?
+
     # rubocop:disable Rails/SkipsModelValidations
-    cols = { agent_last_seen_at: last_seen_at }
-    cols[:assignee_last_seen_at] = last_seen_at if update_assignee.present?
-    @conversation.update_columns(cols)
+    @conversation.update_columns(updates)
     # rubocop:enable Rails/SkipsModelValidations
+  end
+
+  def should_update_last_seen?
+    # Update if at least one relevant timestamp is older than 1 hour or not set
+    # This prevents redundant DB writes when agents repeatedly view the same conversation
+    agent_needs_update = @conversation.agent_last_seen_at.blank? || @conversation.agent_last_seen_at < 1.hour.ago
+    return agent_needs_update unless assignee?
+
+    # For assignees, check both timestamps - update if either is old
+    assignee_needs_update = @conversation.assignee_last_seen_at.blank? || @conversation.assignee_last_seen_at < 1.hour.ago
+    agent_needs_update || assignee_needs_update
   end
 
   def set_conversation_status
@@ -223,28 +228,31 @@ class Api::V1::Accounts::ConversationsController < Api::V1::Accounts::BaseContro
   end
 
   def authorize_team_access
+    return if Current.user.is_a?(AgentBot)
     return if Current.user.administrator?
     return if @conversation.team_id.nil?
 
-    # Se a URL tem team_id, só permite se o usuário faz parte desse time
-    if params[:team_id].present?
-      unless Current.user.teams.exists?(id: params[:team_id].to_i)
-        render json: { error: 'Você não tem permissão para acessar este time.' }, status: :forbidden
-        return
-      end
-      # E só permite se a conversa realmente pertence a esse time
-      unless @conversation.team_id == params[:team_id].to_i
-        render json: { error: 'Conversa não pertence a este time.' }, status: :forbidden
-        return
-      end
-    end
+    validate_team_param_access if params[:team_id].present?
+    return if performed?
 
-    # Se não faz parte do time da conversa, bloqueia
-    unless Current.user.teams.exists?(id: @conversation.team_id)
-      render json: { error: 'Você não tem permissão para acessar esta conversa.' }, status: :forbidden
-    end
+    # Block access if the user is not a member of the conversation's team
+    return if Current.user.teams.exists?(id: @conversation.team_id)
+
+    render json: { error: 'You do not have permission to access this conversation.' }, status: :forbidden
   end
 
+  def validate_team_param_access
+    team_id = params[:team_id].to_i
+
+    unless Current.user.teams.exists?(id: team_id)
+      render json: { error: 'You do not have permission to access this team.' }, status: :forbidden
+      return
+    end
+
+    return if @conversation.team_id == team_id
+
+    render json: { error: 'Conversation does not belong to this team.' }, status: :forbidden
+  end
 end
 
 Api::V1::Accounts::ConversationsController.prepend_mod_with('Api::V1::Accounts::ConversationsController')

@@ -32,6 +32,7 @@ RSpec.describe 'Inboxes API', type: :request do
             as: :json
 
         expect(response).to have_http_status(:success)
+        expect(response).to conform_schema(200)
         expect(JSON.parse(response.body, symbolize_names: true)[:payload].size).to eq(2)
       end
 
@@ -95,6 +96,7 @@ RSpec.describe 'Inboxes API', type: :request do
             as: :json
 
         expect(response).to have_http_status(:success)
+        expect(response).to conform_schema(200)
         expect(JSON.parse(response.body, symbolize_names: true)[:id]).to eq(inbox.id)
       end
 
@@ -313,7 +315,7 @@ RSpec.describe 'Inboxes API', type: :request do
       let(:admin) { create(:user, account: account, role: :administrator) }
 
       it 'deletes inbox' do
-        expect(DeleteObjectJob).to receive(:perform_later).with(inbox, admin, anything).once
+        expect(DeleteObjectJob).to receive(:perform_later).with(inbox.class.name, inbox.id, admin.id, anything).once
 
         perform_enqueued_jobs(only: DeleteObjectJob) do
           delete "/api/v1/accounts/#{account.id}/inboxes/#{inbox.id}",
@@ -383,6 +385,7 @@ RSpec.describe 'Inboxes API', type: :request do
              as: :json
 
         expect(response).to have_http_status(:success)
+        expect(response).to conform_schema(200)
         expect(response.body).to include('test.com')
       end
 
@@ -478,6 +481,7 @@ RSpec.describe 'Inboxes API', type: :request do
               as: :json
 
         expect(response).to have_http_status(:success)
+        expect(response).to conform_schema(200)
         expect(inbox.reload.enable_auto_assignment).to be_falsey
         expect(inbox.reload.portal_id).to eq(portal.id)
         expect(response.parsed_body['name']).to eq 'new test inbox'
@@ -631,6 +635,7 @@ RSpec.describe 'Inboxes API', type: :request do
 
       it 'updates smtp configuration with starttls encryption' do
         smtp_connection = double
+        allow(smtp_connection).to receive(:open_timeout=).and_return(10)
         allow(smtp_connection).to receive(:start).and_return(true)
         allow(smtp_connection).to receive(:finish).and_return(true)
         allow(smtp_connection).to receive(:respond_to?).and_return(true)
@@ -661,6 +666,7 @@ RSpec.describe 'Inboxes API', type: :request do
 
       it 'updates smtp configuration with ssl/tls encryption' do
         smtp_connection = double
+        allow(smtp_connection).to receive(:open_timeout=).and_return(10)
         allow(smtp_connection).to receive(:start).and_return(true)
         allow(smtp_connection).to receive(:finish).and_return(true)
         allow(smtp_connection).to receive(:respond_to?).and_return(true)
@@ -691,6 +697,7 @@ RSpec.describe 'Inboxes API', type: :request do
 
       it 'updates smtp configuration with authentication mechanism' do
         smtp_connection = double
+        allow(smtp_connection).to receive(:open_timeout=).and_return(10)
         allow(smtp_connection).to receive(:start).and_return(true)
         allow(smtp_connection).to receive(:finish).and_return(true)
         allow(smtp_connection).to receive(:respond_to?).and_return(true)
@@ -1028,7 +1035,7 @@ RSpec.describe 'Inboxes API', type: :request do
     context 'when it is an authenticated administrator' do
       context 'with WhatsApp inbox' do
         it 'successfully initiates template sync' do
-          expect(Channels::Whatsapp::TemplatesSyncJob).to receive(:perform_later).with(whatsapp_channel)
+          expect(Channels::Whatsapp::TemplatesSyncJob).to receive(:perform_later).with(whatsapp_channel.id)
 
           post "/api/v1/accounts/#{account.id}/inboxes/#{whatsapp_inbox.id}/sync_templates",
                headers: admin.create_new_auth_token,
@@ -1048,7 +1055,7 @@ RSpec.describe 'Inboxes API', type: :request do
 
           expect(response).to have_http_status(:internal_server_error)
           json_response = response.parsed_body
-          expect(json_response['error']).to eq('Job failed')
+          expect(json_response['error']).to eq('Failed to sync templates')
         end
       end
 
@@ -1168,7 +1175,7 @@ RSpec.describe 'Inboxes API', type: :request do
 
           expect(response).to have_http_status(:unprocessable_entity)
           json_response = response.parsed_body
-          expect(json_response['error']).to include('API Error')
+          expect(json_response['error']).to eq('Failed to fetch health data')
         end
       end
 

@@ -8,8 +8,9 @@ class CannedResponse extends ApiClient {
   }
 
   get({ searchKey }) {
-    const url = searchKey ? `${this.url}?search=${searchKey}` : this.url;
-    return axios.get(url);
+    return axios.get(this.url, {
+      params: searchKey ? { search: searchKey } : {},
+    });
   }
 }
 

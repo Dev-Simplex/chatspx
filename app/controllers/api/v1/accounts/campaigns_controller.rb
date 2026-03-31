@@ -3,7 +3,8 @@ class Api::V1::Accounts::CampaignsController < Api::V1::Accounts::BaseController
   before_action :check_authorization
 
   def index
-    @campaigns = Current.account.campaigns
+    @campaigns = Current.account.campaigns.includes(:inbox, sender: [:teams, { avatar_attachment: :blob }]).order(created_at: :desc)
+    @campaigns = @campaigns.page(params[:page]).per(25) if params[:page].present?
   end
 
   def show; end
@@ -24,7 +25,7 @@ class Api::V1::Accounts::CampaignsController < Api::V1::Accounts::BaseController
   private
 
   def campaign
-    @campaign ||= Current.account.campaigns.find_by(display_id: params[:id])
+    @campaign ||= Current.account.campaigns.find_by!(display_id: params[:id])
   end
 
   def campaign_params

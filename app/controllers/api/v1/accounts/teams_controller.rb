@@ -4,6 +4,7 @@ class Api::V1::Accounts::TeamsController < Api::V1::Accounts::BaseController
 
   def index
     @teams = Current.account.teams
+    @current_user_team_ids = Current.user.teams.pluck(:id).to_set
   end
 
   def show; end

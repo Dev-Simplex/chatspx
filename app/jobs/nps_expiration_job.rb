@@ -11,6 +11,7 @@ class NpsExpirationJob < ApplicationJob
     # Find all sent NPS responses that haven't been responded yet
     sent_nps_responses = NpsResponse.where(status: :sent)
                                     .where.not(sent_at: nil)
+                                    .includes(:inbox, :conversation)
 
     sent_nps_responses.find_each do |nps_response|
       next unless expired?(nps_response)
@@ -29,7 +30,7 @@ class NpsExpirationJob < ApplicationJob
       content: content
     }
     conversation = nps_response.conversation
-    ::Conversations::ActivityMessageJob.perform_later(conversation, activity_message_params) if content
+    ::Conversations::ActivityMessageJob.perform_later(conversation.id, activity_message_params) if content
   end
 
   def expired?(nps_response)

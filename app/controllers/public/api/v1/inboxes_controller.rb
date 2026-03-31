@@ -23,7 +23,7 @@ class Public::Api::V1::InboxesController < PublicController
     resolved_source_id = normalized[:source_id]
 
     @contact_inbox = @inbox_channel.inbox.contact_inboxes.find_by(source_id: resolved_source_id)
-    @contact_inbox ||= @inbox_channel.inbox.contact_inboxes.find_by!(source_id: source_id)
+    @contact_inbox ||= @inbox_channel.inbox.contact_inboxes.find_by!(source_id: source_id) # rubocop:disable Naming/MemoizedInstanceVariableName
   end
 
   def set_conversation
@@ -32,7 +32,7 @@ class Public::Api::V1::InboxesController < PublicController
     @conversation = @contact_inbox.contact.conversations.find_by!(display_id: params[:conversation_id])
   end
 
-  def normalize_waha_contact_params(source_id:, phone_number:, custom_attributes: nil)
+  def normalize_waha_contact_params(source_id:, phone_number:, custom_attributes: nil) # rubocop:disable Metrics/CyclomaticComplexity, Metrics/MethodLength, Metrics/PerceivedComplexity
     return { source_id: source_id, phone_number: phone_number } if source_id.blank?
     return { source_id: source_id, phone_number: phone_number } unless waha_lid?(source_id)
 
@@ -109,7 +109,7 @@ class Public::Api::V1::InboxesController < PublicController
   end
 
   # When LID resolved to pn, unify contact_inbox: update orphan LID contact_inbox to pn, or merge contacts if both exist.
-  def merge_waha_lid_contact_inbox_to_pn(lid:, pn:, normalized_phone:)
+  def merge_waha_lid_contact_inbox_to_pn(lid:, pn:, normalized_phone:) # rubocop:disable Metrics/AbcSize, Metrics/CyclomaticComplexity, Metrics/MethodLength, Metrics/PerceivedComplexity, Naming/MethodParameterName
     inbox = @inbox_channel&.inbox
     return if inbox.blank?
 
@@ -145,7 +145,7 @@ class Public::Api::V1::InboxesController < PublicController
     end
   end
 
-  def normalize_waha_phone_number(pn)
+  def normalize_waha_phone_number(pn) # rubocop:disable Naming/MethodParameterName
     clean_number = pn.to_s.split('@').first
     return nil if clean_number.blank?
 

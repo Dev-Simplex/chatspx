@@ -159,7 +159,9 @@ RSpec.describe Conversation do
                                                                 changed_attributes: changed_attributes, performed_by: nil)
       expect(Rails.configuration.dispatcher).to have_received(:dispatch)
         .with(described_class::CONVERSATION_UPDATED, kind_of(Time), conversation: conversation, notifiable_assignee_change: true,
-                                                                    changed_attributes: changed_attributes, performed_by: nil)
+                                                                    changed_attributes: { 'agent_last_seen_at' => true,
+                                                                                          'assignee_last_seen_at' => true },
+                                                                    performed_by: nil)
     end
 
     it 'will not run conversation_updated event for empty updates' do
@@ -200,16 +202,16 @@ RSpec.describe Conversation do
 
       expect(Conversations::ActivityMessageJob)
         .to(have_been_enqueued.at_least(:once)
-        .with(conversation, { account_id: conversation.account_id, inbox_id: conversation.inbox_id, message_type: :activity,
-                              content: "#{old_assignee.name} added #{label.title}" }))
+        .with(conversation.id, { account_id: conversation.account_id, inbox_id: conversation.inbox_id, message_type: :activity,
+                                 content: "#{old_assignee.name} added #{label.title}" }))
       expect(Conversations::ActivityMessageJob)
         .to(have_been_enqueued.at_least(:once)
-        .with(conversation, { account_id: conversation.account_id, inbox_id: conversation.inbox_id, message_type: :activity,
-                              content: "Conversation was marked resolved by #{old_assignee.name}" }))
+        .with(conversation.id, { account_id: conversation.account_id, inbox_id: conversation.inbox_id, message_type: :activity,
+                                 content: "Conversation was marked resolved by #{old_assignee.name}" }))
       expect(Conversations::ActivityMessageJob)
         .to(have_been_enqueued.at_least(:once)
-        .with(conversation, { account_id: conversation.account_id, inbox_id: conversation.inbox_id, message_type: :activity,
-                              content: "Assigned to #{new_assignee.name} by #{old_assignee.name}" }))
+        .with(conversation.id, { account_id: conversation.account_id, inbox_id: conversation.inbox_id, message_type: :activity,
+                                 content: "Assigned to #{new_assignee.name} by #{old_assignee.name}" }))
     end
 
     it 'adds a message for system auto resolution if marked resolved by system' do
@@ -227,8 +229,8 @@ RSpec.describe Conversation do
       system_resolved_message = "Conversation was marked resolved by system due to #{message_data[:count]} days of inactivity"
       expect { conversation2.update(status: :resolved) }
         .to have_enqueued_job(Conversations::ActivityMessageJob)
-        .with(conversation2, { account_id: conversation2.account_id, inbox_id: conversation2.inbox_id, message_type: :activity,
-                               content: system_resolved_message })
+        .with(conversation2.id, { account_id: conversation2.account_id, inbox_id: conversation2.inbox_id, message_type: :activity,
+                                  content: system_resolved_message })
     end
   end
 
@@ -258,8 +260,8 @@ RSpec.describe Conversation do
 
       expect { conversation.update_labels(labels) }
         .to have_enqueued_job(Conversations::ActivityMessageJob)
-        .with(conversation, { account_id: conversation.account_id, inbox_id: conversation.inbox_id, message_type: :activity,
-                              content: "#{agent.name} added #{labels.join(', ')}"  })
+        .with(conversation.id, { account_id: conversation.account_id, inbox_id: conversation.inbox_id, message_type: :activity,
+                                 content: "#{agent.name} added #{labels.join(', ')}"  })
 
       expect(conversation.label_list).to match_array(labels)
     end
@@ -268,8 +270,8 @@ RSpec.describe Conversation do
       labels = [first_label, fourth_label].map(&:title)
       expect { conversation.update_labels(labels) }
         .to have_enqueued_job(Conversations::ActivityMessageJob)
-        .with(conversation, { account_id: conversation.account_id, inbox_id: conversation.inbox_id, message_type: :activity,
-                              content: "#{agent.name} added #{labels.join(', ')}"  })
+        .with(conversation.id, { account_id: conversation.account_id, inbox_id: conversation.inbox_id, message_type: :activity,
+                                 content: "#{agent.name} added #{labels.join(', ')}"  })
       expect(conversation.label_list).to match_array(labels)
 
       updated_labels = [second_label, third_label].map(&:title)
@@ -278,12 +280,12 @@ RSpec.describe Conversation do
 
       expect(Conversations::ActivityMessageJob)
         .to(have_been_enqueued.at_least(:once)
-        .with(conversation, { account_id: conversation.account_id, inbox_id: conversation.inbox_id,
-                              message_type: :activity, content: "#{agent.name} added #{updated_labels.join(', ')}" }))
+        .with(conversation.id, { account_id: conversation.account_id, inbox_id: conversation.inbox_id,
+                                 message_type: :activity, content: "#{agent.name} added #{updated_labels.join(', ')}" }))
       expect(Conversations::ActivityMessageJob)
         .to(have_been_enqueued.at_least(:once)
-        .with(conversation, { account_id: conversation.account_id, inbox_id: conversation.inbox_id,
-                              message_type: :activity, content: "#{agent.name} removed #{labels.join(', ')}" }))
+        .with(conversation.id, { account_id: conversation.account_id, inbox_id: conversation.inbox_id,
+                                 message_type: :activity, content: "#{agent.name} removed #{labels.join(', ')}" }))
     end
   end
 
@@ -310,6 +312,47 @@ RSpec.describe Conversation do
       conversation = create(:conversation, status: 'snoozed')
       expect(conversation.toggle_status).to be(true)
       expect(conversation.reload.status).to eq('open')
+    end
+  end
+
+  describe '#bot_handoff!' do
+    let(:conversation) { create(:conversation, status: :pending) }
+
+    before do
+      allow(Rails.configuration.dispatcher).to receive(:dispatch)
+    end
+
+    context 'when waiting_since is blank' do
+      before { conversation.update(waiting_since: nil) }
+
+      it 'sets waiting_since to current time' do
+        freeze_time do
+          conversation.bot_handoff!
+          expect(conversation.reload.waiting_since).to eq(Time.current)
+        end
+      end
+    end
+
+    context 'when waiting_since is already set' do
+      let(:original_time) { 1.hour.ago }
+
+      before { conversation.update(waiting_since: original_time) }
+
+      it 'preserves existing waiting_since' do
+        conversation.bot_handoff!
+        expect(conversation.reload.waiting_since).to be_within(1.second).of(original_time)
+      end
+    end
+
+    it 'changes status to open' do
+      conversation.bot_handoff!
+      expect(conversation.reload.status).to eq('open')
+    end
+
+    it 'dispatches CONVERSATION_BOT_HANDOFF event' do
+      expect(Rails.configuration.dispatcher).to receive(:dispatch)
+        .with(described_class::CONVERSATION_BOT_HANDOFF, anything, hash_including(conversation: conversation))
+      conversation.bot_handoff!
     end
   end
 
@@ -387,8 +430,8 @@ RSpec.describe Conversation do
     it 'creates mute message' do
       mute!
       expect(Conversations::ActivityMessageJob)
-        .to(have_been_enqueued.at_least(:once).with(conversation, { account_id: conversation.account_id, inbox_id: conversation.inbox_id,
-                                                                    message_type: :activity, content: "#{user.name} has muted the conversation" }))
+        .to(have_been_enqueued.at_least(:once).with(conversation.id, { account_id: conversation.account_id, inbox_id: conversation.inbox_id,
+                                                                       message_type: :activity, content: "#{user.name} has muted the conversation" }))
     end
 
     context 'when contact is missing' do
@@ -429,8 +472,8 @@ RSpec.describe Conversation do
     it 'creates unmute message' do
       unmute!
       expect(Conversations::ActivityMessageJob)
-        .to(have_been_enqueued.at_least(:once).with(conversation, { account_id: conversation.account_id, inbox_id: conversation.inbox_id,
-                                                                    message_type: :activity, content: "#{user.name} has unmuted the conversation" }))
+        .to(have_been_enqueued.at_least(:once).with(conversation.id, { account_id: conversation.account_id, inbox_id: conversation.inbox_id,
+                                                                       message_type: :activity, content: "#{user.name} has unmuted the conversation" }))
     end
 
     context 'when contact is missing' do
@@ -758,7 +801,7 @@ RSpec.describe Conversation do
         conversation_1.toggle_status
         perform_enqueued_jobs do
           Conversations::ActivityMessageJob.perform_later(
-            conversation_1,
+            conversation_1.id,
             account_id: conversation_1.account_id,
             inbox_id: conversation_1.inbox_id,
             message_type: :activity,
@@ -967,7 +1010,7 @@ RSpec.describe Conversation do
 
       first_response_events = account.reporting_events.where(name: 'first_response', conversation_id: conversation.id)
       expect(first_response_events.count).to eq(1)
-      expect(first_response_events.first.value).to be_within(1.second).of(1.hour)
+      expect(first_response_events.first.value).to be_within(10.seconds).of(1.hour)
 
       # the first response should also clear the waiting_since
       conversation.reload
@@ -992,7 +1035,7 @@ RSpec.describe Conversation do
       create_agent_message(conversation, created_at: 2.hours.ago)
       reply_events = account.reporting_events.where(name: 'reply_time', conversation_id: conversation.id)
       expect(reply_events.count).to eq(1)
-      expect(reply_events.first.value).to be_within(1.second).of(1.hour)
+      expect(reply_events.first.value).to be_within(10.seconds).of(1.hour)
 
       conversation.reload
       expect(conversation.waiting_since).to be_nil

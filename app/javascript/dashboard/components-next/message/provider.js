@@ -120,7 +120,10 @@ export function useMessageContext() {
   const store = useStore();
   const currentChatAttachments = useMapGetter('getSelectedChatAttachments');
 
-  if (currentChatAttachments.value.length === 0 && context.conversationId?.value) {
+  if (
+    currentChatAttachments.value.length === 0 &&
+    context.conversationId?.value
+  ) {
     store.dispatch('fetchAllAttachments', context.conversationId.value);
   }
 

@@ -76,10 +76,7 @@ function handleKeydown(e) {
       ref="textareaRef"
       v-model="editedContent"
       rows="1"
-      class="w-full resize-none overflow-hidden rounded-lg border px-3 py-2 text-sm
-             bg-n-background text-n-slate-12 outline-none leading-relaxed
-             border-n-strong focus:border-woot-500 focus:ring-1 focus:ring-woot-500
-             disabled:opacity-50 transition-colors"
+      class="w-full resize-none overflow-hidden rounded-lg border px-3 py-2 text-sm bg-n-background text-n-slate-12 outline-none leading-relaxed border-n-strong focus:border-woot-500 focus:ring-1 focus:ring-woot-500 disabled:opacity-50 transition-colors"
       :disabled="isLoading"
       @input="autoResize"
       @keydown="handleKeydown"

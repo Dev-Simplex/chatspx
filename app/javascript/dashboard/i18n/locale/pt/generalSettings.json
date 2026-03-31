@@ -10,6 +10,15 @@
     "SUBMIT": "Atualizar configurações",
     "BACK": "Voltar",
     "DISMISS": "Descartar",
+    "WAHA_BANNER": {
+      "GO_TO_CONNECTIONS": "Ir para Conexões",
+      "CLEAR_SEARCH": "Limpar busca",
+      "SINGLE_CONNECTION_ISSUE": "Uma conexão WhatsApp está {status}.",
+      "MULTIPLE_CONNECTIONS_ISSUE": "{count} conexões WhatsApp estão com problemas.",
+      "STATUS_STOPPED": "desconectada",
+      "STATUS_FAILED": "com falha",
+      "STATUS_SCAN_QR": "aguardando escanear QR code"
+    },
     "UPDATE": {
       "ERROR": "Não foi possível atualizar as configurações, por favor, tente novamente!",
       "SUCCESS": "Configurações de conta atualizadas com sucesso"
@@ -182,6 +191,7 @@
   },
   "COMMAND_BAR": {
     "SEARCH_PLACEHOLDER": "Pesquisar ou passar para",
+    "SNOOZE_PLACEHOLDER": "Type a time e.g. tomorrow, 2 hours, next friday, jan 15...",
     "SECTIONS": {
       "GENERAL": "Geral",
       "REPORTS": "Relatórios",

@@ -41,6 +41,6 @@ class Platform::Api::V1::AgentBotsController < PlatformController
   end
 
   def process_avatar_from_url
-    ::Avatar::AvatarFromUrlJob.perform_later(@resource, params[:avatar_url]) if params[:avatar_url].present?
+    ::Avatar::AvatarFromUrlJob.perform_later(@resource.class.name, @resource.id, params[:avatar_url]) if params[:avatar_url].present?
   end
 end

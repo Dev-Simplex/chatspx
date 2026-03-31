@@ -152,12 +152,7 @@
     "LIST": {
       "LOADING_MESSAGE": "Indlæser notifikationer...",
       "404": "Ingen Notifikationer",
-      "TABLE_HEADER": [
-        "Navn",
-        "Telefonnummer",
-        "Samtaler",
-        "Sidst Kontaktet"
-      ]
+      "TABLE_HEADER": ["Navn", "Telefonnummer", "Samtaler", "Sidst Kontaktet"]
     },
     "TYPE_LABEL": {
       "conversation_creation": "Ny samtale",
@@ -182,6 +177,7 @@
   },
   "COMMAND_BAR": {
     "SEARCH_PLACEHOLDER": "Søg eller hop til",
+    "SNOOZE_PLACEHOLDER": "Type a time e.g. tomorrow, 2 hours, next friday, jan 15...",
     "SECTIONS": {
       "GENERAL": "Generelt",
       "REPORTS": "Rapporter",

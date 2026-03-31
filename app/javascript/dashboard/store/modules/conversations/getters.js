@@ -9,10 +9,20 @@ import {
 import camelcaseKeys from 'camelcase-keys';
 
 export const getSelectedChatConversation = ({
+  conversationMap,
   allConversations,
   selectedChatId,
-}) =>
-  allConversations.filter(conversation => conversation.id === selectedChatId);
+}) => {
+  if (conversationMap) {
+    const chat = conversationMap[selectedChatId];
+    return chat ? [chat] : [];
+  }
+  // Fallback for cases where conversationMap is not available (e.g., tests)
+  const chat = allConversations.find(
+    conversation => conversation.id === selectedChatId
+  );
+  return chat ? [chat] : [];
+};
 
 const getters = {
   getAllConversations: ({ allConversations, chatSortFilter: sortKey }) => {
@@ -48,7 +58,10 @@ const getters = {
       })
       .sort((a, b) => sortComparator(a, b, chatSortFilter));
   },
-  getSelectedChat: ({ selectedChatId, allConversations }) => {
+  getSelectedChat: ({ selectedChatId, conversationMap, allConversations }) => {
+    if (conversationMap) {
+      return conversationMap[selectedChatId] || {};
+    }
     const selectedChat = allConversations.find(
       conversation => conversation.id === selectedChatId
     );
@@ -72,14 +85,15 @@ const getters = {
 
     return lastEmail;
   },
-  getMineChats: (_state, _, __, rootGetters) => activeFilters => {
+  getMineChats: (_state, _, __, rootGetters) => {
     const currentUserID = rootGetters.getCurrentUser?.id;
+    const filters = _state.conversationFilters;
 
     return _state.allConversations
       .filter(conversation => {
         const { assignee } = conversation.meta;
         const isAssignedToMe = assignee && assignee.id === currentUserID;
-        const shouldFilter = applyPageFilters(conversation, activeFilters);
+        const shouldFilter = applyPageFilters(conversation, filters);
         return isAssignedToMe && shouldFilter;
       })
       .sort((a, b) => sortComparator(a, b, _state.chatSortFilter));
@@ -95,26 +109,29 @@ const getters = {
     const hasAppliedFilters = _state.appliedFilters.length !== 0;
     return hasAppliedFilters ? filterQueryGenerator(_state.appliedFilters) : [];
   },
-  getUnAssignedChats: _state => activeFilters => {
+  getUnAssignedChats: _state => {
+    const filters = _state.conversationFilters;
+
     return _state.allConversations
       .filter(conversation => {
         const isUnAssigned = !conversation.meta.assignee;
-        const shouldFilter = applyPageFilters(conversation, activeFilters);
+        const shouldFilter = applyPageFilters(conversation, filters);
         return isUnAssigned && shouldFilter;
       })
       .sort((a, b) => sortComparator(a, b, _state.chatSortFilter));
   },
-  getAllStatusChats: (_state, _, __, rootGetters) => activeFilters => {
+  getAllStatusChats: (_state, _, __, rootGetters) => {
     const currentUser = rootGetters.getCurrentUser;
     const currentUserId = rootGetters.getCurrentUser.id;
     const currentAccountId = rootGetters.getCurrentAccountId;
 
     const permissions = getUserPermissions(currentUser, currentAccountId);
     const userRole = getUserRole(currentUser, currentAccountId);
+    const filters = _state.conversationFilters;
 
     return _state.allConversations
       .filter(conversation => {
-        const shouldFilter = applyPageFilters(conversation, activeFilters);
+        const shouldFilter = applyPageFilters(conversation, filters);
         const allowedForRole = applyRoleFilter(
           conversation,
           userRole,
@@ -146,6 +163,9 @@ const getters = {
   getChatSortFilter: ({ chatSortFilter }) => chatSortFilter,
   getSelectedInbox: ({ currentInbox }) => currentInbox,
   getConversationById: _state => conversationId => {
+    if (_state.conversationMap) {
+      return _state.conversationMap[Number(conversationId)];
+    }
     return _state.allConversations.find(
       value => value.id === Number(conversationId)
     );

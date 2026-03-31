@@ -32,19 +32,15 @@ export const hasMessageFailedWithExternalError = pendingMessage => {
 // actions
 const actions = {
   getConversation: async ({ commit }, conversationId) => {
-    try {
-      const response = await ConversationApi.show(conversationId);
-      commit(types.UPDATE_CONVERSATION, response.data);
-      commit(`contacts/${types.SET_CONTACT_ITEM}`, response.data.meta.sender);
-    } catch (error) {
-      throw error;
-    }
+    const response = await ConversationApi.show(conversationId);
+    commit(types.UPDATE_CONVERSATION, response.data);
+    commit(`contacts/${types.SET_CONTACT_ITEM}`, response.data.meta.sender);
   },
 
   fetchAllConversations: async ({ commit, state, dispatch }) => {
     commit(types.SET_LIST_LOADING_STATUS);
+    const params = state.conversationFilters;
     try {
-      const params = state.conversationFilters;
       const {
         data: { data },
       } = await ConversationApi.get(params);
@@ -55,6 +51,10 @@ const actions = {
         params.assigneeType
       );
     } catch (error) {
+      // Aborted/canceled = a newer fetch replaced this one — ignore silently
+      const isAbort =
+        error?.name === 'AbortError' || error?.code === 'ERR_CANCELED';
+      if (isAbort) return;
       commit(types.CLEAR_LIST_LOADING_STATUS);
     }
   },
@@ -70,6 +70,9 @@ const actions = {
         'appliedFilters'
       );
     } catch (error) {
+      const isAbort =
+        error?.name === 'AbortError' || error?.code === 'ERR_CANCELED';
+      if (isAbort) return;
       commit(types.CLEAR_LIST_LOADING_STATUS);
     }
   },
@@ -109,7 +112,7 @@ const actions = {
       });
 
       if (hasMoreAvailable ? !hasMore : !payload.length) {
-        commit(types.SET_ALL_MESSAGES_LOADED);
+        commit(types.SET_ALL_MESSAGES_LOADED, data.conversationId);
       }
     } catch (error) {
       // Handle error
@@ -162,9 +165,8 @@ const actions = {
         data: meta,
       });
       // Find the messages that are not already present in the store
-      const missingMessages = payload.filter(
-        message => !messages.find(item => item.id === message.id)
-      );
+      const existingIds = new Set(messages.map(m => m.id));
+      const missingMessages = payload.filter(m => !existingIds.has(m.id));
       selectedChat.messages.push(...missingMessages);
       // Sort the messages by created_at
       const sortedMessages = selectedChat.messages.sort((a, b) => {
@@ -204,7 +206,7 @@ const actions = {
 
   async setActiveChat({ commit, dispatch }, { data, after }) {
     commit(types.SET_CURRENT_CHAT_WINDOW, data);
-    commit(types.CLEAR_ALL_MESSAGES_LOADED);
+    commit(types.CLEAR_ALL_MESSAGES_LOADED, data.id);
     if (data.dataFetched === undefined) {
       try {
         await dispatch('fetchPreviousMessages', {
@@ -213,7 +215,7 @@ const actions = {
           conversationId: data.id,
           includeMeta: true,
         });
-        data.dataFetched = true;
+        commit(types.SET_CHAT_DATA_FETCHED, data.id);
       } catch (error) {
         // Ignore error
       }
@@ -229,7 +231,10 @@ const actions = {
         conversationId,
         agentId,
       });
-      dispatch('setCurrentChatAssignee', response.data);
+      dispatch('setCurrentChatAssignee', {
+        conversationId,
+        assignee: response.data,
+      });
     } catch (error) {
       if (rethrow) {
         throw error;
@@ -237,8 +242,8 @@ const actions = {
     }
   },
 
-  setCurrentChatAssignee({ commit }, assignee) {
-    commit(types.ASSIGN_AGENT, assignee);
+  setCurrentChatAssignee({ commit }, { conversationId, assignee }) {
+    commit(types.ASSIGN_AGENT, { conversationId, assignee });
   },
 
   assignTeam: async (
@@ -264,9 +269,21 @@ const actions = {
 
   toggleStatus: async (
     { commit },
-    { conversationId, status, snoozedUntil = null }
+    { conversationId, status, snoozedUntil = null, customAttributes = null }
   ) => {
     try {
+      // Update custom attributes first if provided
+      if (customAttributes) {
+        await ConversationApi.updateCustomAttributes({
+          conversationId,
+          customAttributes,
+        });
+        commit(types.UPDATE_CONVERSATION_CUSTOM_ATTRIBUTES, {
+          conversationId,
+          customAttributes,
+        });
+      }
+
       const {
         data: {
           payload: {
@@ -285,8 +302,7 @@ const actions = {
         snoozedUntil: updatedSnoozedUntil,
       });
     } catch (error) {
-      // Re-throw error to be handled by caller
-      throw error;
+      // Handle error
     }
   },
 
@@ -345,7 +361,7 @@ const actions = {
     handleVoiceCallUpdated(commit, message, rootGetters?.getCurrentUserID);
   },
 
-  deleteMessage: async function deleteLabels(
+  deleteMessage: async function deleteMessage(
     { commit },
     { conversationId, messageId }
   ) {
@@ -358,9 +374,16 @@ const actions = {
     }
   },
 
-  updateMessageContent: async function ({ commit }, { conversationId, messageId, content }) {
+  updateMessageContent: async function updateMessageContent(
+    { commit },
+    { conversationId, messageId, content }
+  ) {
     try {
-      const { data } = await MessageApi.updateContent(conversationId, messageId, content);
+      const { data } = await MessageApi.updateContent(
+        conversationId,
+        messageId,
+        content
+      );
       commit(types.ADD_MESSAGE, data);
     } catch (error) {
       throw new Error(error);
@@ -476,11 +499,7 @@ const actions = {
   },
 
   sendEmailTranscript: async (_, { conversationId, email }) => {
-    try {
-      await ConversationApi.sendEmailTranscript({ conversationId, email });
-    } catch (error) {
-      throw new Error(error);
-    }
+    await ConversationApi.sendEmailTranscript({ conversationId, email });
   },
 
   updateCustomAttributes: async (
@@ -493,7 +512,10 @@ const actions = {
         customAttributes,
       });
       const { custom_attributes } = response.data;
-      commit(types.UPDATE_CONVERSATION_CUSTOM_ATTRIBUTES, custom_attributes);
+      commit(types.UPDATE_CONVERSATION_CUSTOM_ATTRIBUTES, {
+        conversationId,
+        customAttributes: custom_attributes,
+      });
     } catch (error) {
       // Handle error
     }

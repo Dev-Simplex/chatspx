@@ -40,7 +40,7 @@ class Api::V1::Accounts::NpsResponsesController < Api::V1::Accounts::BaseControl
   def show_by_conversation
     conversation = Current.account.conversations.find(params[:conversation_id])
     authorize conversation, :show?
-    
+
     # Get the latest NPS response for this conversation
     @nps_response = conversation.nps_responses.order(created_at: :desc).first
     if @nps_response
@@ -50,8 +50,8 @@ class Api::V1::Accounts::NpsResponsesController < Api::V1::Accounts::BaseControl
     end
   rescue StandardError => e
     Rails.logger.error "Error fetching NPS response for conversation #{params[:conversation_id]}: #{e.message}"
-    Rails.logger.error e.backtrace.join("\n")
-    render json: { error: e.message }, status: :internal_server_error
+    Rails.logger.error e.backtrace.first(5).join("\n")
+    render json: { error: 'Failed to fetch NPS response' }, status: :internal_server_error
   end
 
   def send_survey
@@ -79,19 +79,19 @@ class Api::V1::Accounts::NpsResponsesController < Api::V1::Accounts::BaseControl
     @total_sent_count = @total_sent_count.count
   end
 
-  def set_nps_responses
+  def set_nps_responses # rubocop:disable Metrics/AbcSize
     base_query = Current.account.nps_responses.includes([:conversation, :assigned_agent, :contact, :inbox])
     filtered_query = filtrate(base_query)
     @nps_responses = filtered_query.filter_by_created_at(range)
 
     # Apply other filters (response_state takes precedence over status for list view)
     @nps_responses = @nps_responses.filter_by_assigned_agent_id(params[:user_ids])
-                                    .filter_by_inbox_id(params[:inbox_id])
-    if params[:response_state].present?
-      @nps_responses = @nps_responses.filter_by_response_state(params[:response_state])
-    else
-      @nps_responses = @nps_responses.filter_by_status(params[:status])
-    end
+                                   .filter_by_inbox_id(params[:inbox_id])
+    @nps_responses = if params[:response_state].present?
+                       @nps_responses.filter_by_response_state(params[:response_state])
+                     else
+                       @nps_responses.filter_by_status(params[:status])
+                     end
 
     @nps_responses = @nps_responses.where(contact_id: params[:contact_id]) if params[:contact_id].present?
   end

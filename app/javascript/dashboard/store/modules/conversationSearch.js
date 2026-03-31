@@ -109,7 +109,8 @@ export const actions = {
   async conversationSearch({ commit, state, rootGetters }, payload) {
     const { page = 1, ...searchParams } = payload;
     const requestId = Date.now();
-    const query = typeof searchParams.q === 'string' ? searchParams.q.trim() : '';
+    const query =
+      typeof searchParams.q === 'string' ? searchParams.q.trim() : '';
 
     // Set state BEFORE aborting previous request to avoid flicker
     commit(types.SET_CONVERSATION_SEARCH_REQUEST_ID, requestId);
@@ -141,7 +142,8 @@ export const actions = {
         // Flatten meta - copiar campos importantes para o nível superior
         if (normalized.meta) {
           if (!normalized.contact) {
-            normalized.contact = normalized.meta.contact || normalized.meta.sender;
+            normalized.contact =
+              normalized.meta.contact || normalized.meta.sender;
           }
           if (!normalized.sender && normalized.meta.sender) {
             normalized.sender = normalized.meta.sender;
@@ -149,27 +151,50 @@ export const actions = {
           if (!normalized.last_message && normalized.meta.last_message) {
             normalized.last_message = normalized.meta.last_message;
           }
-          if (!normalized.last_non_activity_message && normalized.meta.last_non_activity_message) {
-            normalized.last_non_activity_message = normalized.meta.last_non_activity_message;
+          if (
+            !normalized.last_non_activity_message &&
+            normalized.meta.last_non_activity_message
+          ) {
+            normalized.last_non_activity_message =
+              normalized.meta.last_non_activity_message;
           }
-          if (!normalized.last_activity_message && normalized.meta.last_activity_message) {
-            normalized.last_activity_message = normalized.meta.last_activity_message;
+          if (
+            !normalized.last_activity_message &&
+            normalized.meta.last_activity_message
+          ) {
+            normalized.last_activity_message =
+              normalized.meta.last_activity_message;
           }
         }
 
         // Garantir que contact existe e tem estrutura completa
-        const contactSource = normalized.contact || normalized.sender || normalized.meta?.contact || normalized.meta?.sender;
+        const contactSource =
+          normalized.contact ||
+          normalized.sender ||
+          normalized.meta?.contact ||
+          normalized.meta?.sender;
         if (contactSource) {
           normalized.contact = {
             id: contactSource.id || null,
             name: contactSource.name || contactSource.full_name || 'Unknown',
-            thumbnail: contactSource.thumbnail || contactSource.avatar_url || contactSource.avatar || contactSource.profile_image_url || '',
+            thumbnail:
+              contactSource.thumbnail ||
+              contactSource.avatar_url ||
+              contactSource.avatar ||
+              contactSource.profile_image_url ||
+              '',
             availability_status: contactSource.availability_status || 'offline',
             ...contactSource,
           };
 
-          if (normalized.contact.id && !normalized.contact.thumbnail && rootGetters['contacts/getContact']) {
-            const storeContact = rootGetters['contacts/getContact'](normalized.contact.id);
+          if (
+            normalized.contact.id &&
+            !normalized.contact.thumbnail &&
+            rootGetters['contacts/getContact']
+          ) {
+            const storeContact = rootGetters['contacts/getContact'](
+              normalized.contact.id
+            );
             if (storeContact && storeContact.thumbnail) {
               normalized.contact.thumbnail = storeContact.thumbnail;
             }
@@ -190,7 +215,7 @@ export const actions = {
       if (error?.name === 'AbortError' || error?.code === 'ERR_CANCELED') {
         return;
       }
-      console.error('[conversationSearch] Erro:', error);
+      // Ignore error
     } finally {
       // Only update flags if this is still the current request
       if (state.lastConversationSearchRequestId === requestId) {
@@ -212,7 +237,10 @@ export const actions = {
     }
   },
   // Search messages within a specific conversation
-  async messageSearchInConversation({ commit }, { q, conversation_id, page = 1 }) {
+  async messageSearchInConversation(
+    { commit },
+    { q, conversation_id, page = 1 }
+  ) {
     // Always clear previous results when starting a new search in conversation
     commit(types.CLEAR_MESSAGE_SEARCH_RESULTS);
     commit(types.MESSAGE_SEARCH_SET_UI_FLAG, { isFetching: true });
@@ -222,7 +250,7 @@ export const actions = {
       // Replace results instead of appending
       commit(types.MESSAGE_SEARCH_SET_REPLACE, messages);
     } catch (error) {
-      console.error('[messageSearchInConversation] Erro:', error);
+      // Ignore error
     } finally {
       commit(types.MESSAGE_SEARCH_SET_UI_FLAG, { isFetching: false });
     }
@@ -249,7 +277,9 @@ export const mutations = {
     state.records = records;
   },
   [types.CONTACT_SEARCH_SET](state, records) {
-    state.contactRecords = [...state.contactRecords, ...records];
+    const existingIds = new Set(state.contactRecords.map(r => r.id));
+    const newRecords = records.filter(r => !existingIds.has(r.id));
+    state.contactRecords = [...state.contactRecords, ...newRecords].slice(-500);
   },
   [types.CONVERSATION_SEARCH_SET](state, records) {
     state.conversationRecords = records || [];
@@ -262,7 +292,9 @@ export const mutations = {
     state.lastConversationSearchRequestId = requestId;
   },
   [types.MESSAGE_SEARCH_SET](state, records) {
-    state.messageRecords = [...state.messageRecords, ...records];
+    const existingIds = new Set(state.messageRecords.map(r => r.id));
+    const newRecords = records.filter(r => !existingIds.has(r.id));
+    state.messageRecords = [...state.messageRecords, ...newRecords].slice(-500);
   },
   [types.MESSAGE_SEARCH_SET_REPLACE](state, records) {
     state.messageRecords = records || [];
@@ -271,7 +303,9 @@ export const mutations = {
     state.messageRecords = [];
   },
   [types.ARTICLE_SEARCH_SET](state, records) {
-    state.articleRecords = [...state.articleRecords, ...records];
+    const existingIds = new Set(state.articleRecords.map(r => r.id));
+    const newRecords = records.filter(r => !existingIds.has(r.id));
+    state.articleRecords = [...state.articleRecords, ...newRecords].slice(-500);
   },
   [types.SEARCH_CONVERSATIONS_SET_UI_FLAG](state, uiFlags) {
     state.uiFlags = { ...state.uiFlags, ...uiFlags };

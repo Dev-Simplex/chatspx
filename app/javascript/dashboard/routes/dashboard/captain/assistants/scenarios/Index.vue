@@ -1,5 +1,6 @@
 <script setup>
 import { computed, h, ref, onMounted } from 'vue';
+import DOMPurify from 'dompurify';
 import { useI18n } from 'vue-i18n';
 import { useRoute } from 'vue-router';
 import { picoSearch } from '@scmmishra/pico-search';
@@ -36,7 +37,7 @@ const LINK_INSTRUCTION_CLASS =
 const renderInstruction = instruction => () =>
   h('span', {
     class: `text-sm text-n-slate-12 py-4 prose prose-sm min-w-0 break-words ${LINK_INSTRUCTION_CLASS}`,
-    innerHTML: instruction,
+    innerHTML: DOMPurify.sanitize(instruction),
   });
 
 const ALLOWED_SCENARIO_TOOLS = new Set([
@@ -191,6 +192,7 @@ const addScenario = async scenario => {
 
 const addAllExampleScenarios = async () => {
   try {
+    /* eslint-disable no-restricted-syntax, no-await-in-loop */
     for (const scenario of scenariosExample.value) {
       await store.dispatch('captainScenarios/create', {
         assistantId: assistantId.value,
@@ -201,6 +203,7 @@ const addAllExampleScenarios = async () => {
         ]),
       });
     }
+    /* eslint-enable no-restricted-syntax, no-await-in-loop */
     useAlert(t('CAPTAIN.ASSISTANTS.SCENARIOS.API.ADD.SUCCESS'));
   } catch (error) {
     const errorMessage =
@@ -220,7 +223,7 @@ onMounted(() => {
 
 <template>
   <PageLayout
-    :header-title="$t('CAPTAIN.DOCUMENTS.HEADER')"
+    :header-title="$t('CAPTAIN.ASSISTANTS.SCENARIOS.TITLE')"
     :is-fetching="isFetching"
     :show-know-more="false"
     :show-pagination-footer="false"

@@ -1,9 +1,13 @@
 class RoomChannel < ApplicationCable::Channel
   def subscribed
-    # TODO: should we only do ensure stream  if current account is present?
-    # for now going ahead with guard clauses in update_subscription and broadcast_presence
     current_user
     current_account
+
+    unless @current_user && @current_account
+      reject
+      return
+    end
+
     ensure_stream
     update_subscription
     broadcast_presence
@@ -45,15 +49,19 @@ class RoomChannel < ApplicationCable::Channel
                       else
                         User.find_by!(pubsub_token: pubsub_token, id: params[:user_id])
                       end
+  rescue ActiveRecord::RecordNotFound
+    nil
   end
 
   def current_account
-    return if current_user.blank?
+    return if @current_user.blank?
 
     @current_account ||= if @current_user.is_a? Contact
                            @current_user.account
                          else
                            @current_user.accounts.find(params[:account_id])
                          end
+  rescue ActiveRecord::RecordNotFound
+    nil
   end
 end

@@ -80,7 +80,7 @@ describe('#actions', () => {
       expect(commit.mock.calls).toEqual([
         [types.default.SET_CUSTOM_ROLE_UI_FLAG, { deletingItem: true }],
         [types.default.DELETE_CUSTOM_ROLE, 1],
-        [types.default.SET_CUSTOM_ROLE_UI_FLAG, { deletingItem: true }],
+        [types.default.SET_CUSTOM_ROLE_UI_FLAG, { deletingItem: false }],
       ]);
     });
     it('sends correct actions if API is error', async () => {
@@ -90,7 +90,7 @@ describe('#actions', () => {
       );
       expect(commit.mock.calls).toEqual([
         [types.default.SET_CUSTOM_ROLE_UI_FLAG, { deletingItem: true }],
-        [types.default.SET_CUSTOM_ROLE_UI_FLAG, { deletingItem: true }],
+        [types.default.SET_CUSTOM_ROLE_UI_FLAG, { deletingItem: false }],
       ]);
     });
   });

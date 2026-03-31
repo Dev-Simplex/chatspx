@@ -74,7 +74,9 @@ onUnmounted(() => {
 <style scoped>
 .toast-fade-enter-active,
 .toast-fade-leave-active {
-  transition: opacity 180ms ease, transform 220ms ease;
+  transition:
+    opacity 180ms ease,
+    transform 220ms ease;
 }
 
 .toast-fade-enter-from,

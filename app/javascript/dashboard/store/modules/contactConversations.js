@@ -82,8 +82,8 @@ export const getters = {
     const records = $state.records[Number(id)] || [];
     return camelcaseKeys(records, { deep: true });
   },
-  getActiveConversationByInbox: ($state, getters) => (contactId, inboxId) => {
-    const conversations = getters.getAllConversationsByContactId(contactId);
+  getActiveConversationByInbox: ($state, _getters) => (contactId, inboxId) => {
+    const conversations = _getters.getAllConversationsByContactId(contactId);
     const normalized = Array.isArray(conversations) ? conversations : [];
     return (
       normalized.find(

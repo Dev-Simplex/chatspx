@@ -1,6 +1,11 @@
 /* global axios */
 
 const DEFAULT_API_VERSION = 'v1';
+const DEFAULT_TIMEOUT_MS = 30000;
+
+if (typeof axios !== 'undefined') {
+  axios.defaults.timeout = DEFAULT_TIMEOUT_MS;
+}
 
 class ApiClient {
   constructor(resource, options = {}) {

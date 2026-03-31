@@ -1,4 +1,4 @@
-class ConversationFinder
+class ConversationFinder # rubocop:disable Metrics/ClassLength
   attr_reader :current_user, :current_account, :params
 
   DEFAULT_STATUS = 'open'.freeze
@@ -11,6 +11,7 @@ class ConversationFinder
     'priority_desc' => %w[sort_on_priority desc],
     'waiting_since_asc' => %w[sort_on_waiting_since asc],
     'waiting_since_desc' => %w[sort_on_waiting_since desc],
+    'priority_desc_created_at_asc' => %w[sort_on_priority_created_at desc],
 
     # To be removed in v3.5.0
     'latest' => %w[sort_on_last_activity_at desc],
@@ -32,28 +33,29 @@ class ConversationFinder
   def initialize(current_user, params)
     @current_user = current_user
     @current_account = current_user.account
-    @is_admin = current_account.account_users.find_by(user_id: current_user.id)&.administrator?
+    @is_admin = Current.account_user&.administrator?
     @params = params
   end
 
   def perform
     set_up
 
-    all_count, mine_count, unassigned_count = compute_counts_in_single_query
-    assigned_count = all_count - unassigned_count
+    counts = compute_all_counts
+    assigned_count = counts[:all_count] - counts[:unassigned_count]
 
+    filter_by_assignee_type if @assignee_type.present?
     convs, next_cursor = fetch_conversations
 
     {
       conversations: convs,
       count: {
-        mine_count: mine_count,
+        mine_count: counts[:mine_count],
         assigned_count: assigned_count,
-        unassigned_count: unassigned_count,
-        all_count: all_count,
-        unattended_assigned_to_me_count: @unattended_assigned_to_me_count || 0,
-        unattended_unassigned_count: @unattended_unassigned_count || 0,
-        unattended_all_count: @unattended_all_count || 0
+        unassigned_count: counts[:unassigned_count],
+        all_count: counts[:all_count],
+        unattended_assigned_to_me_count: counts[:unattended_mine_count],
+        unattended_unassigned_count: counts[:unattended_unassigned_count],
+        unattended_all_count: counts[:unattended_all_count]
       },
       next_cursor: next_cursor
     }
@@ -62,7 +64,26 @@ class ConversationFinder
   def perform_counts_only
     set_up
 
-    all_count, mine_count, unassigned_count = compute_counts_in_single_query
+    counts = compute_all_counts
+    assigned_count = counts[:all_count] - counts[:unassigned_count]
+
+    {
+      count: {
+        mine_count: counts[:mine_count],
+        assigned_count: assigned_count,
+        unassigned_count: counts[:unassigned_count],
+        all_count: counts[:all_count],
+        unattended_assigned_to_me_count: counts[:unattended_mine_count],
+        unattended_unassigned_count: counts[:unattended_unassigned_count],
+        unattended_all_count: counts[:unattended_all_count]
+      }
+    }
+  end
+
+  def perform_meta_only
+    set_up
+
+    mine_count, unassigned_count, all_count, = set_count_for_all_conversations
     assigned_count = all_count - unassigned_count
 
     {
@@ -70,10 +91,7 @@ class ConversationFinder
         mine_count: mine_count,
         assigned_count: assigned_count,
         unassigned_count: unassigned_count,
-        all_count: all_count,
-        unattended_assigned_to_me_count: @unattended_assigned_to_me_count || 0,
-        unattended_unassigned_count: @unattended_unassigned_count || 0,
-        unattended_all_count: @unattended_all_count || 0
+        all_count: all_count
       }
     }
   end
@@ -86,9 +104,9 @@ class ConversationFinder
     set_assignee_type
 
     find_all_conversations
-    filter_by_assignee_type if @assignee_type.present?
     filter_by_status unless params[:q]
     filter_by_team
+    filter_by_conversation_type if params[:conversation_type]
     filter_by_labels
     filter_by_query
     filter_by_source_id
@@ -144,9 +162,6 @@ class ConversationFinder
       current_account
     ).perform
     filter_blocked_contacts
-    # Count open unattended (for sidebar) before applying conversation_type filter
-    set_unattended_counts
-    filter_by_conversation_type if params[:conversation_type]
     @conversations
   end
 
@@ -165,8 +180,7 @@ class ConversationFinder
   def filter_by_conversation_type
     case @params[:conversation_type]
     when 'mention'
-      conversation_ids = current_account.mentions.where(user: current_user).pluck(:conversation_id)
-      @conversations = @conversations.where(id: conversation_ids)
+      @conversations = @conversations.where(id: current_account.mentions.where(user: current_user).select(:conversation_id))
     when 'participating'
       @conversations = current_user.participating_conversations.where(account_id: current_account.id)
     when 'unattended'
@@ -179,26 +193,24 @@ class ConversationFinder
     return unless params[:q]
 
     allowed_message_types = [Message.message_types[:incoming], Message.message_types[:outgoing]]
-    @conversations = conversations.joins(:messages)
-                                  .where('messages.content ILIKE :search', search: "%#{params[:q]}%")
-                                  .where(messages: { message_type: allowed_message_types })
-                                  .distinct
+    @conversations = @conversations.where(
+      'EXISTS (SELECT 1 FROM messages WHERE messages.conversation_id = conversations.id ' \
+      'AND messages.content ILIKE :search AND messages.message_type IN (:types))',
+      search: "%#{ActiveRecord::Base.sanitize_sql_like(params[:q])}%",
+      types: allowed_message_types
+    )
   end
 
   def filter_by_status
     return if params[:status] == 'all'
 
-    @conversations = @conversations.where(status: params[:status]) if params[:status].present?
+    @conversations = @conversations.where(status: params[:status] || DEFAULT_STATUS)
   end
 
   def filter_by_team
-    return unless @team || (@team_ids.present? && @team_ids.any?)
+    return unless @team_ids.present? && @team_ids.any?
 
-    if @team_ids.present? && @team_ids.any?
-      @conversations = @conversations.where(team_id: @team_ids)
-    elsif @team
-      @conversations = @conversations.where(team: @team)
-    end
+    @conversations = @conversations.where(team_id: @team_ids)
   end
 
   def filter_by_labels
@@ -228,48 +240,39 @@ class ConversationFinder
     @conversations = @conversations.where('conversations.last_activity_at <= ?', to) if to
   end
 
-  def set_unattended_counts
-    subquery = @conversations.open.unattended.reselect('conversations.id', 'conversations.assignee_id').distinct
-    sql = <<~SQL.squish
-      SELECT
-        COUNT(*)::int AS all_count,
-        COUNT(*) FILTER (WHERE sub.assignee_id = #{sanitized_user_id})::int AS mine_count,
-        COUNT(*) FILTER (WHERE sub.assignee_id IS NULL)::int AS unassigned_count
-      FROM (#{subquery.to_sql}) sub
-    SQL
-    result = Conversation.connection.select_one(sql)
-    @unattended_assigned_to_me_count = result['mine_count'].to_i
-    @unattended_unassigned_count = result['unassigned_count'].to_i
-    @unattended_all_count = result['all_count'].to_i
-  end
+  def compute_all_counts # rubocop:disable Metrics/MethodLength
+    subquery = @conversations.reselect(
+      'conversations.id', 'conversations.assignee_id', 'conversations.status',
+      'conversations.first_reply_created_at', 'conversations.waiting_since'
+    ).distinct
 
-  def compute_counts_in_single_query
-    subquery = @conversations.reselect('conversations.id', 'conversations.assignee_id').distinct
+    uid = sanitized_user_id
+    unattended = 'sub.status = 0 AND (sub.first_reply_created_at IS NULL OR sub.waiting_since IS NOT NULL)'
+
     sql = <<~SQL.squish
       SELECT
         COUNT(*)::int AS all_count,
-        COUNT(*) FILTER (WHERE sub.assignee_id = #{sanitized_user_id})::int AS mine_count,
-        COUNT(*) FILTER (WHERE sub.assignee_id IS NULL)::int AS unassigned_count
+        COUNT(*) FILTER (WHERE sub.assignee_id = #{uid})::int AS mine_count,
+        COUNT(*) FILTER (WHERE sub.assignee_id IS NULL)::int AS unassigned_count,
+        COUNT(*) FILTER (WHERE #{unattended})::int AS unattended_all_count,
+        COUNT(*) FILTER (WHERE #{unattended} AND sub.assignee_id = #{uid})::int AS unattended_mine_count,
+        COUNT(*) FILTER (WHERE #{unattended} AND sub.assignee_id IS NULL)::int AS unattended_unassigned_count
       FROM (#{subquery.to_sql}) sub
     SQL
+
     result = Conversation.connection.select_one(sql)
-    [
-      result['all_count'].to_i,
-      result['mine_count'].to_i,
-      result['unassigned_count'].to_i
-    ]
+    {
+      all_count: result['all_count'].to_i,
+      mine_count: result['mine_count'].to_i,
+      unassigned_count: result['unassigned_count'].to_i,
+      unattended_all_count: result['unattended_all_count'].to_i,
+      unattended_mine_count: result['unattended_mine_count'].to_i,
+      unattended_unassigned_count: result['unattended_unassigned_count'].to_i
+    }
   end
 
   def sanitized_user_id
     Conversation.connection.quote(current_user.id)
-  end
-
-  def set_count_for_all_conversations
-    [
-      @conversations.assigned_to(current_user).count,
-      @conversations.unassigned.count,
-      @conversations.count
-    ]
   end
 
   def current_page
@@ -283,7 +286,7 @@ class ConversationFinder
 
   def conversations_base_query
     @conversations.includes(
-      :taggings, :inbox, { assignee: :avatar_attachment }, { contact: :avatar_attachment }, :team, :contact_inbox
+      :taggings, :inbox, { assignee: [:avatar_attachment, :teams] }, { contact: :avatar_attachment }, :team, :contact_inbox
     )
   end
 
@@ -291,9 +294,10 @@ class ConversationFinder
     base = conversations_base_query
     sort_by, sort_order = SORT_OPTIONS[params[:sort_by]] || SORT_OPTIONS['last_activity_at_desc']
 
-    base = base.where('conversations.updated_at > ?', Time.zone.now - params[:updated_within].to_i.seconds) if params[:updated_within].present?
-
-    if use_keyset_pagination?(sort_by, sort_order)
+    if params[:updated_within].present?
+      base = base.where('conversations.updated_at > ?', Time.zone.now - params[:updated_within].to_i.seconds)
+      [base.send(sort_by, sort_order), nil]
+    elsif use_keyset_pagination?(sort_by, sort_order)
       apply_keyset_and_fetch(base, sort_order)
     else
       convs = base.send(sort_by, sort_order).page(current_page).per(per_page)

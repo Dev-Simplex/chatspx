@@ -30,10 +30,12 @@ class CustomAttributeDefinition < ApplicationRecord
 
   scope :with_attribute_model, ->(attribute_model) { attribute_model.presence && where(attribute_model: attribute_model) }
   validates :attribute_display_name, presence: true
+  before_validation :normalize_attribute_fields
 
   validates :attribute_key,
             presence: true,
-            uniqueness: { scope: [:account_id, :attribute_model] }
+            uniqueness: { scope: [:account_id, :attribute_model] },
+            format: { with: /\A[\p{L}\p{N}_.\-]+\z/, message: I18n.t('errors.custom_attribute_definition.attribute_key_format') }
 
   validates :attribute_display_type, presence: true
   validates :attribute_model, presence: true
@@ -45,23 +47,27 @@ class CustomAttributeDefinition < ApplicationRecord
   belongs_to :account
   after_update :update_widget_pre_chat_custom_fields
   after_destroy :sync_widget_pre_chat_custom_fields
-  after_destroy :cleanup_conversation_required_attributes
 
   private
 
+  def normalize_attribute_fields
+    self.attribute_key = attribute_key.strip if attribute_key.present?
+    self.attribute_display_name = attribute_display_name.strip if attribute_display_name.present?
+  end
+
   def sync_widget_pre_chat_custom_fields
-    ::Inboxes::SyncWidgetPreChatCustomFieldsJob.perform_later(account, attribute_key)
+    ::Inboxes::SyncWidgetPreChatCustomFieldsJob.perform_later(account_id, attribute_key)
   end
 
   def update_widget_pre_chat_custom_fields
-    ::Inboxes::UpdateWidgetPreChatCustomFieldsJob.perform_later(account, self)
-  end
-
-  def cleanup_conversation_required_attributes
-    return unless conversation_attribute? && account.conversation_required_attributes&.include?(attribute_key)
-
-    account.conversation_required_attributes = account.conversation_required_attributes - [attribute_key]
-    account.save!
+    attrs = {
+      'attribute_key' => attribute_key,
+      'attribute_display_name' => attribute_display_name,
+      'attribute_values' => attribute_values,
+      'regex_pattern' => regex_pattern,
+      'regex_cue' => regex_cue
+    }
+    ::Inboxes::UpdateWidgetPreChatCustomFieldsJob.perform_later(account_id, attrs)
   end
 
   def attribute_must_not_conflict
@@ -71,3 +77,5 @@ class CustomAttributeDefinition < ApplicationRecord
     errors.add(:attribute_key, I18n.t('errors.custom_attribute_definition.key_conflict'))
   end
 end
+
+CustomAttributeDefinition.include_mod_with('Concerns::CustomAttributeDefinition')

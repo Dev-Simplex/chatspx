@@ -41,15 +41,32 @@ const state = reactive({
 });
 
 const modeOptions = [
-  { label: t('INBOX_MGMT.NPS.MODE.AUTO', { default: 'Automático' }), value: 'auto' },
-  { label: t('INBOX_MGMT.NPS.MODE.MANUAL', { default: 'Manual' }), value: 'manual' },
+  {
+    label: t('INBOX_MGMT.NPS.MODE.AUTO', { default: 'Automático' }),
+    value: 'auto',
+  },
+  {
+    label: t('INBOX_MGMT.NPS.MODE.MANUAL', { default: 'Manual' }),
+    value: 'manual',
+  },
   { label: t('INBOX_MGMT.NPS.MODE.BOTH', { default: 'Ambos' }), value: 'both' },
 ];
 
 const blocklistScopeOptions = [
-  { label: t('INBOX_MGMT.NPS.BLOCKLIST_SCOPE.CONTACT', { default: 'Contato' }), value: 'contact' },
-  { label: t('INBOX_MGMT.NPS.BLOCKLIST_SCOPE.CONVERSATION', { default: 'Conversa' }), value: 'conversation' },
-  { label: t('INBOX_MGMT.NPS.BLOCKLIST_SCOPE.BOTH', { default: 'Ambos' }), value: 'both' },
+  {
+    label: t('INBOX_MGMT.NPS.BLOCKLIST_SCOPE.CONTACT', { default: 'Contato' }),
+    value: 'contact',
+  },
+  {
+    label: t('INBOX_MGMT.NPS.BLOCKLIST_SCOPE.CONVERSATION', {
+      default: 'Conversa',
+    }),
+    value: 'conversation',
+  },
+  {
+    label: t('INBOX_MGMT.NPS.BLOCKLIST_SCOPE.BOTH', { default: 'Ambos' }),
+    value: 'both',
+  },
 ];
 
 const labelOptions = computed(() =>
@@ -204,10 +221,18 @@ const saveSettings = async () => {
     // Forçar atualização do estado local para garantir que está sincronizado
     state.npsSurveyEnabled = npsSurveyEnabledValue;
 
-    useAlert(t('INBOX_MGMT.NPS.API.SUCCESS_MESSAGE', { default: 'Configurações NPS atualizadas com sucesso!' }));
+    useAlert(
+      t('INBOX_MGMT.NPS.API.SUCCESS_MESSAGE', {
+        default: 'Configurações NPS atualizadas com sucesso!',
+      })
+    );
   } catch (error) {
     console.error('Erro ao salvar configurações NPS:', error);
-    useAlert(t('INBOX_MGMT.NPS.API.ERROR_MESSAGE', { default: 'Erro ao atualizar configurações NPS' }));
+    useAlert(
+      t('INBOX_MGMT.NPS.API.ERROR_MESSAGE', {
+        default: 'Erro ao atualizar configurações NPS',
+      })
+    );
   } finally {
     // Aguardar um pouco antes de desabilitar para garantir que o store foi atualizado
     // e o watch não vai sobrescrever o estado
@@ -221,8 +246,14 @@ const saveSettings = async () => {
 <template>
   <div class="mx-8">
     <SectionLayout
-      :title="$t('INBOX_MGMT.NPS.TITLE', { default: 'Net Promoter Score (NPS)' })"
-      :description="$t('INBOX_MGMT.NPS.SUBTITLE', { default: 'Configure a pesquisa NPS para esta caixa de entrada' })"
+      :title="
+        $t('INBOX_MGMT.NPS.TITLE', { default: 'Net Promoter Score (NPS)' })
+      "
+      :description="
+        $t('INBOX_MGMT.NPS.SUBTITLE', {
+          default: 'Configure a pesquisa NPS para esta caixa de entrada',
+        })
+      "
     >
       <template #headerActions>
         <div class="flex justify-end">
@@ -232,7 +263,9 @@ const saveSettings = async () => {
 
       <div class="grid gap-5">
         <WithLabel
-          :label="$t('INBOX_MGMT.NPS.MODE.LABEL', { default: 'Modo de Disparo' })"
+          :label="
+            $t('INBOX_MGMT.NPS.MODE.LABEL', { default: 'Modo de Disparo' })
+          "
           name="mode"
         >
           <FilterSelect
@@ -242,50 +275,92 @@ const saveSettings = async () => {
           />
         </WithLabel>
 
-        <WithLabel :label="$t('INBOX_MGMT.NPS.MESSAGE.LABEL', { default: 'Mensagem da Pesquisa' })" name="message">
+        <WithLabel
+          :label="
+            $t('INBOX_MGMT.NPS.MESSAGE.LABEL', {
+              default: 'Mensagem da Pesquisa',
+            })
+          "
+          name="message"
+        >
           <Editor
             v-model="state.message"
-            :placeholder="$t('INBOX_MGMT.NPS.MESSAGE.PLACEHOLDER', { default: 'De 0 a 10, o quanto você recomendaria...' })"
+            :placeholder="
+              $t('INBOX_MGMT.NPS.MESSAGE.PLACEHOLDER', {
+                default: 'De 0 a 10, o quanto você recomendaria...',
+              })
+            "
             :max-length="500"
             class="w-full"
           />
         </WithLabel>
 
-        <WithLabel :label="$t('INBOX_MGMT.NPS.THANK_YOU_MESSAGE.LABEL', { default: 'Mensagem de Agradecimento' })" name="thank_you_message">
+        <WithLabel
+          :label="
+            $t('INBOX_MGMT.NPS.THANK_YOU_MESSAGE.LABEL', {
+              default: 'Mensagem de Agradecimento',
+            })
+          "
+          name="thank_you_message"
+        >
           <Editor
             v-model="state.thankYouMessage"
-            :placeholder="$t('INBOX_MGMT.NPS.THANK_YOU_MESSAGE.PLACEHOLDER', { default: 'Obrigado pela sua avaliação!' })"
+            :placeholder="
+              $t('INBOX_MGMT.NPS.THANK_YOU_MESSAGE.PLACEHOLDER', {
+                default: 'Obrigado pela sua avaliação!',
+              })
+            "
             :max-length="200"
             class="w-full"
           />
         </WithLabel>
 
         <WithLabel
-          :label="$t('INBOX_MGMT.NPS.INVALID_RESPONSE_MESSAGE.LABEL', { default: 'Mensagem para Resposta Inválida' })"
+          :label="
+            $t('INBOX_MGMT.NPS.INVALID_RESPONSE_MESSAGE.LABEL', {
+              default: 'Mensagem para Resposta Inválida',
+            })
+          "
           name="invalid_response_message"
         >
           <Editor
             v-model="state.invalidResponseMessage"
-            :placeholder="$t('INBOX_MGMT.NPS.INVALID_RESPONSE_MESSAGE.PLACEHOLDER', { default: 'Por favor, responda com um número de 0 a 10.' })"
+            :placeholder="
+              $t('INBOX_MGMT.NPS.INVALID_RESPONSE_MESSAGE.PLACEHOLDER', {
+                default: 'Por favor, responda com um número de 0 a 10.',
+              })
+            "
             :max-length="200"
             class="w-full"
           />
         </WithLabel>
 
         <WithLabel
-          :label="$t('INBOX_MGMT.NPS.COMMENT_PROMPT_MESSAGE.LABEL', { default: 'Mensagem de Prompt para Comentário' })"
+          :label="
+            $t('INBOX_MGMT.NPS.COMMENT_PROMPT_MESSAGE.LABEL', {
+              default: 'Mensagem de Prompt para Comentário',
+            })
+          "
           name="comment_prompt_message"
         >
           <Editor
             v-model="state.commentPromptMessage"
-            :placeholder="$t('INBOX_MGMT.NPS.COMMENT_PROMPT_MESSAGE.PLACEHOLDER', { default: 'Gostaria de adicionar algum comentário?' })"
+            :placeholder="
+              $t('INBOX_MGMT.NPS.COMMENT_PROMPT_MESSAGE.PLACEHOLDER', {
+                default: 'Gostaria de adicionar algum comentário?',
+              })
+            "
             :max-length="200"
             class="w-full"
           />
         </WithLabel>
 
         <WithLabel
-          :label="$t('INBOX_MGMT.NPS.EXPIRATION_HOURS.LABEL', { default: 'Expiração (horas)' })"
+          :label="
+            $t('INBOX_MGMT.NPS.EXPIRATION_HOURS.LABEL', {
+              default: 'Expiração (horas)',
+            })
+          "
           name="expiration_hours"
         >
           <input
@@ -297,8 +372,17 @@ const saveSettings = async () => {
         </WithLabel>
 
         <WithLabel
-          :label="$t('INBOX_MGMT.NPS.COOLDOWN_HOURS.LABEL', { default: 'Cooldown (horas)' })"
-          :help-message="$t('INBOX_MGMT.NPS.COOLDOWN_HOURS.HINT', { default: 'Ex.: 24 = 1 dia. Vários agentes podem atender no mesmo dia sem enviar NPS em toda resolução.' })"
+          :label="
+            $t('INBOX_MGMT.NPS.COOLDOWN_HOURS.LABEL', {
+              default: 'Cooldown (horas)',
+            })
+          "
+          :help-message="
+            $t('INBOX_MGMT.NPS.COOLDOWN_HOURS.HINT', {
+              default:
+                'Ex.: 24 = 1 dia. Vários agentes podem atender no mesmo dia sem enviar NPS em toda resolução.',
+            })
+          "
           name="cooldown_hours"
         >
           <input
@@ -310,7 +394,11 @@ const saveSettings = async () => {
         </WithLabel>
 
         <WithLabel
-          :label="$t('INBOX_MGMT.NPS.MIN_MESSAGES.LABEL', { default: 'Mínimo de Mensagens' })"
+          :label="
+            $t('INBOX_MGMT.NPS.MIN_MESSAGES.LABEL', {
+              default: 'Mínimo de Mensagens',
+            })
+          "
           name="min_messages"
         >
           <input
@@ -323,7 +411,11 @@ const saveSettings = async () => {
         </WithLabel>
 
         <WithLabel
-          :label="$t('INBOX_MGMT.NPS.MIN_DURATION_MINUTES.LABEL', { default: 'Duração Mínima (minutos)' })"
+          :label="
+            $t('INBOX_MGMT.NPS.MIN_DURATION_MINUTES.LABEL', {
+              default: 'Duração Mínima (minutos)',
+            })
+          "
           name="min_duration_minutes"
         >
           <input
@@ -336,11 +428,17 @@ const saveSettings = async () => {
         </WithLabel>
 
         <WithLabel
-          :label="$t('INBOX_MGMT.NPS.BLOCKLIST.LABEL', { default: 'Etiquetas de Bloqueio' })"
+          :label="
+            $t('INBOX_MGMT.NPS.BLOCKLIST.LABEL', {
+              default: 'Etiquetas de Bloqueio',
+            })
+          "
           name="blocklist"
         >
           <div class="mb-4">
-            <span class="inline-flex flex-wrap items-center gap-1.5 text-sm text-n-slate-12">
+            <span
+              class="inline-flex flex-wrap items-center gap-1.5 text-sm text-n-slate-12"
+            >
               <NextButton
                 v-for="label in selectedBlocklistLabels"
                 :key="label"
@@ -356,7 +454,11 @@ const saveSettings = async () => {
               <FilterSelect
                 v-model="currentLabel"
                 :options="labelOptions"
-                :label="$t('INBOX_MGMT.NPS.BLOCKLIST.SELECT_PLACEHOLDER', { default: 'Adicionar etiqueta' })"
+                :label="
+                  $t('INBOX_MGMT.NPS.BLOCKLIST.SELECT_PLACEHOLDER', {
+                    default: 'Adicionar etiqueta',
+                  })
+                "
                 hide-label
                 variant="faded"
                 class="inline-flex shrink-0"
@@ -367,7 +469,11 @@ const saveSettings = async () => {
         </WithLabel>
 
         <WithLabel
-          :label="$t('INBOX_MGMT.NPS.BLOCKLIST_SCOPE.LABEL', { default: 'Escopo do Bloqueio' })"
+          :label="
+            $t('INBOX_MGMT.NPS.BLOCKLIST_SCOPE.LABEL', {
+              default: 'Escopo do Bloqueio',
+            })
+          "
           name="blocklist_scope"
         >
           <FilterSelect
@@ -378,11 +484,17 @@ const saveSettings = async () => {
         </WithLabel>
 
         <WithLabel
-          :label="$t('INBOX_MGMT.NPS.REQUIRED_TAGS.LABEL', { default: 'Etiquetas Obrigatórias' })"
+          :label="
+            $t('INBOX_MGMT.NPS.REQUIRED_TAGS.LABEL', {
+              default: 'Etiquetas Obrigatórias',
+            })
+          "
           name="required_tags"
         >
           <div class="mb-4">
-            <span class="inline-flex flex-wrap items-center gap-1.5 text-sm text-n-slate-12">
+            <span
+              class="inline-flex flex-wrap items-center gap-1.5 text-sm text-n-slate-12"
+            >
               <NextButton
                 v-for="tag in selectedRequiredTags"
                 :key="tag"
@@ -398,7 +510,11 @@ const saveSettings = async () => {
               <FilterSelect
                 v-model="currentRequiredTag"
                 :options="requiredTagOptions"
-                :label="$t('INBOX_MGMT.NPS.REQUIRED_TAGS.SELECT_PLACEHOLDER', { default: 'Adicionar etiqueta' })"
+                :label="
+                  $t('INBOX_MGMT.NPS.REQUIRED_TAGS.SELECT_PLACEHOLDER', {
+                    default: 'Adicionar etiqueta',
+                  })
+                "
                 hide-label
                 variant="faded"
                 class="inline-flex shrink-0"
@@ -411,7 +527,9 @@ const saveSettings = async () => {
         <div>
           <NextButton
             type="submit"
-            :label="$t('INBOX_MGMT.SETTINGS_POPUP.UPDATE', { default: 'Atualizar' })"
+            :label="
+              $t('INBOX_MGMT.SETTINGS_POPUP.UPDATE', { default: 'Atualizar' })
+            "
             :is-loading="isUpdating"
             @click="saveSettings"
           />

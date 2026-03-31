@@ -6,7 +6,7 @@ class Api::V1::Accounts::FunnelStagesController < Api::V1::Accounts::BaseControl
   before_action :check_authorization, except: [:create]
 
   def index
-    return render json: { error: 'Funil não encontrado' }, status: :not_found unless funnel
+    return render json: { error: 'Funnel not found' }, status: :not_found unless funnel
 
     authorize(FunnelStage.new(funnel: funnel), :index?)
     @funnel_stages = funnel.funnel_stages.order(:position, :created_at)
@@ -18,14 +18,14 @@ class Api::V1::Accounts::FunnelStagesController < Api::V1::Accounts::BaseControl
   end
 
   def create
-    return render json: { error: 'Funil não encontrado' }, status: :not_found unless funnel
+    return render json: { error: 'Funnel not found' }, status: :not_found unless funnel
 
     @funnel_stage = funnel.funnel_stages.build(funnel_stage_params)
     authorize(@funnel_stage)
     @funnel_stage.save!
     render 'api/v1/accounts/funnels/funnel_stages/create', formats: [:json], status: :created
   rescue Pundit::NotAuthorizedError
-    render json: { error: 'Não autorizado' }, status: :forbidden
+    render json: { error: 'Not authorized' }, status: :forbidden
   rescue ActiveRecord::RecordInvalid => e
     render json: { errors: e.record.errors.full_messages }, status: :unprocessable_entity
   end
@@ -48,7 +48,7 @@ class Api::V1::Accounts::FunnelStagesController < Api::V1::Accounts::BaseControl
     funnel_id = params[:funnel_id]
     @funnel = policy_scope(Funnel).find_by(id: funnel_id)
     unless @funnel
-      render json: { error: 'Funil não encontrado' }, status: :not_found
+      render json: { error: 'Funnel not found' }, status: :not_found
       return nil
     end
     @funnel
