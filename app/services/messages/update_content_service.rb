@@ -21,12 +21,12 @@ class Messages::UpdateContentService
   private
 
   def validate!
-    raise StandardError, 'Only outgoing messages can be edited' unless @message.outgoing?
-    raise StandardError, 'Only text messages can be edited' unless @message.content_type.to_s == 'text'
-    raise StandardError, 'Message has been deleted' if @message.content_attributes['deleted']
-    raise StandardError, 'Inbox does not support message editing' unless waha_inbox?
-    raise StandardError, 'Only the sender can edit this message' unless sent_by_current_user?
-    raise StandardError, 'Message is too old to edit (15 minute limit)' unless within_edit_window?
+    raise ArgumentError, 'Only outgoing messages can be edited' unless @message.outgoing?
+    raise ArgumentError, 'Only text messages can be edited' unless @message.content_type.to_s == 'text'
+    raise ArgumentError, 'Message has been deleted' if @message.content_attributes['deleted']
+    raise ArgumentError, 'Inbox does not support message editing' unless waha_inbox?
+    raise ArgumentError, 'Only the sender can edit this message' unless sent_by_current_user?
+    raise ArgumentError, 'Message is too old to edit (15 minute limit)' unless within_edit_window?
   end
 
   def waha_inbox?
@@ -94,7 +94,7 @@ class Messages::UpdateContentService
 
     if match.nil?
       Rails.logger.warn("[UpdateContentService] No match found among #{messages.size} messages for content=#{@message.content.truncate(100).inspect}")
-      raise StandardError, 'Message not found on WhatsApp. It may still be sending.'
+      raise ArgumentError, 'Message not found on WhatsApp. It may still be sending.'
     end
 
     waha_id = match.dig('key', 'id') || match['id']
@@ -102,11 +102,11 @@ class Messages::UpdateContentService
     waha_id
   rescue Waha::ApiService::Error => e
     Rails.logger.error("[UpdateContentService] WAHA API error: #{e.message}")
-    raise StandardError, "WAHA API error: #{e.message}"
+    raise ArgumentError, "WAHA API error: #{e.message}"
   end
 
   def edit_on_waha(waha_message_id)
-    raise StandardError, 'Message not found on WhatsApp. It may still be sending.' if waha_message_id.blank?
+    raise ArgumentError, 'Message not found on WhatsApp. It may still be sending.' if waha_message_id.blank?
 
     Waha::ApiService.new.edit_message(
       inbox.waha_session_name,
@@ -115,7 +115,7 @@ class Messages::UpdateContentService
       @new_content
     )
   rescue Waha::ApiService::Error => e
-    raise StandardError, "WAHA API error: #{e.message}"
+    raise ArgumentError, "WAHA API error: #{e.message}"
   end
 
   def persist_edit(waha_message_id)

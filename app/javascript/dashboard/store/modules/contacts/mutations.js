@@ -1,6 +1,9 @@
 import types from '../../mutation-types';
 import camelcaseKeys from 'camelcase-keys';
 
+const normalizeContact = contact =>
+  camelcaseKeys(contact, { deep: true, stopPaths: ['custom_attributes'] });
+
 export const mutations = {
   [types.SET_CONTACT_UI_FLAG]($state, data) {
     $state.uiFlags = {
@@ -25,40 +28,43 @@ export const mutations = {
 
   [types.APPEND_CONTACTS]: ($state, data) => {
     data.forEach(contact => {
-      $state.records[contact.id] = {
-        ...($state.records[contact.id] || {}),
-        ...contact,
+      const normalized = normalizeContact(contact);
+      $state.records[normalized.id] = {
+        ...($state.records[normalized.id] || {}),
+        ...normalized,
       };
-      if (!$state.sortOrder.includes(contact.id)) {
-        $state.sortOrder.push(contact.id);
+      if (!$state.sortOrder.includes(normalized.id)) {
+        $state.sortOrder.push(normalized.id);
       }
     });
   },
 
   [types.SET_CONTACTS]: ($state, data) => {
     const sortOrder = data.map(contact => {
-      $state.records[contact.id] = {
-        ...($state.records[contact.id] || {}),
-        ...contact,
+      const normalized = normalizeContact(contact);
+      $state.records[normalized.id] = {
+        ...($state.records[normalized.id] || {}),
+        ...normalized,
       };
-      return contact.id;
+      return normalized.id;
     });
     $state.sortOrder = sortOrder;
   },
 
   [types.SET_CONTACT_ITEM]: ($state, data) => {
-    $state.records[data.id] = {
-      ...($state.records[data.id] || {}),
-      ...data,
+    const normalized = normalizeContact(data);
+    $state.records[normalized.id] = {
+      ...($state.records[normalized.id] || {}),
+      ...normalized,
     };
 
-    if (!$state.sortOrder.includes(data.id)) {
-      $state.sortOrder.push(data.id);
+    if (!$state.sortOrder.includes(normalized.id)) {
+      $state.sortOrder.push(normalized.id);
     }
   },
 
   [types.EDIT_CONTACT]: ($state, data) => {
-    $state.records[data.id] = data;
+    $state.records[data.id] = normalizeContact(data);
   },
 
   [types.DELETE_CONTACT]: ($state, id) => {

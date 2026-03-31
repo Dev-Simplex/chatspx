@@ -58,7 +58,7 @@ const primaryContactList = computed(() => {
     meta: {
       thumbnail: contact.thumbnail,
       email: contact.email,
-      phoneNumber: contact.phone_number,
+      phoneNumber: contact.phoneNumber,
     },
   }));
 });
