@@ -113,7 +113,7 @@ const handleContainerClick = () => {
   <div class="sticky top-0 z-10 mb-2.5 bg-n-solid-1">
     <div class="flex items-center px-2 py-1.5">
       <div
-        class="search-container flex items-center w-full h-[35px] rounded-lg px-3 gap-2 transition-all duration-200 cursor-text"
+        class="search-container flex items-center w-full h-[40px] rounded-lg px-3 gap-2 transition-all duration-200 cursor-text"
         :class="[
           isFocused
             ? 'bg-white dark:bg-[#2a3942]'

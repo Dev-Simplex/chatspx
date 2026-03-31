@@ -37,38 +37,24 @@ class Public::Api::V1::Inboxes::ConversationsController < Public::Api::V1::Inbox
   end
 
   def update_last_seen
-    # Per-message status update when WAHA sends ack payload — skip bulk update
-    if waha_ack_params_present?
-      handle_waha_ack_status_update
-      return head :ok
-    end
-
-    # Bulk update (existing behavior for non-WAHA calls)
     @conversation.contact_last_seen_at = DateTime.now.utc
     @conversation.save!
-    ::Conversations::UpdateMessageStatusJob.perform_later(@conversation.id, @conversation.contact_last_seen_at)
+
+    if waha_inbox?
+      # WAHA: fetch per-message ack from WAHA API for granular status (sent/delivered/read)
+      ::Waha::MessageStatusSyncJob.perform_later(@conversation.id)
+    else
+      # Non-WAHA: bulk mark as read
+      ::Conversations::UpdateMessageStatusJob.perform_later(@conversation.id, @conversation.contact_last_seen_at)
+    end
+
     head :ok
   end
 
   private
 
-  def waha_ack_params_present?
-    params.dig(:payload, :ack).present?
-  end
-
-  def handle_waha_ack_status_update
-    waha_message_id = params.dig(:payload, :id)
-    ack = params.dig(:payload, :ack).to_i
-    status = waha_ack_to_chatwoot_status(ack)
-
-    return if waha_message_id.blank? || status.blank?
-
-    message = @conversation.messages.find_by(source_id: waha_message_id)
-    Messages::StatusUpdateService.new(message, status).perform if message
-  end
-
-  def waha_ack_to_chatwoot_status(ack)
-    { 1 => 'sent', 2 => 'delivered', 3 => 'read', 4 => 'read' }[ack]
+  def waha_inbox?
+    @conversation&.inbox&.waha_session_name.present?
   end
 
   def set_conversation
