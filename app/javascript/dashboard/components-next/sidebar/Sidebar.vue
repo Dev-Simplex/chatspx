@@ -932,23 +932,18 @@ const menuItems = computed(() => {
         >
           <span class="i-lucide-search size-4 text-n-slate-11" />
         </RouterLink>
-        <ComposeConversation align-position="right" @close="onComposeClose">
-          <template #trigger="{ toggle, isOpen }">
-            <Button
-              icon="i-lucide-pen-line"
-              color="slate"
-              size="sm"
-              class="dark:hover:!bg-n-slate-9/30"
-              :class="[
-                isEffectivelyCollapsed
-                  ? '!size-8 !outline-n-weak !text-n-slate-11'
-                  : '!h-7 !outline-n-weak !text-n-slate-11',
-                { '!bg-n-alpha-2 dark:!bg-n-slate-9/30': isOpen },
-              ]"
-              @click="onComposeOpen(toggle)"
-            />
-          </template>
-        </ComposeConversation>
+        <Button
+          :icon="isEffectivelyCollapsed ? 'i-lucide-panel-left-open' : 'i-lucide-panel-left-close'"
+          color="slate"
+          size="sm"
+          class="dark:hover:!bg-n-slate-9/30"
+          :class="[
+            isEffectivelyCollapsed
+              ? '!size-8 !outline-n-weak !text-n-slate-11'
+              : '!h-7 !outline-n-weak !text-n-slate-11',
+          ]"
+          @click="isCollapsed ? snapToExpanded() : snapToCollapsed()"
+        />
       </div>
     </section>
     <nav
