@@ -39,11 +39,23 @@ class Public::Api::V1::Inboxes::ConversationsController < Public::Api::V1::Inbox
   def update_last_seen
     @conversation.contact_last_seen_at = DateTime.now.utc
     @conversation.save!
-    ::Conversations::UpdateMessageStatusJob.perform_later(@conversation.id, @conversation.contact_last_seen_at)
+
+    if waha_inbox?
+      # WAHA: fetch per-message ack from WAHA API for granular status (sent/delivered/read)
+      ::Waha::MessageStatusSyncJob.perform_later(@conversation.id)
+    else
+      # Non-WAHA: bulk mark as read
+      ::Conversations::UpdateMessageStatusJob.perform_later(@conversation.id, @conversation.contact_last_seen_at)
+    end
+
     head :ok
   end
 
   private
+
+  def waha_inbox?
+    @conversation&.inbox&.waha_session_name.present?
+  end
 
   def set_conversation
     @conversation = if @contact_inbox.hmac_verified?

@@ -67,11 +67,11 @@ const isSent = computed(() => {
     return sourceId.value && status.value === MESSAGE_STATUS.SENT;
   }
 
-  // API inbox messages use real sent/delivered/read status values from the external system.
-  if (isAPIInbox.value) return status.value === MESSAGE_STATUS.SENT;
-
   // All messages will be mark as sent for the Line channel, as there is no source ID.
   if (isALineChannel.value) return true;
+
+  // API inbox (WAHA): use real status from backend
+  if (isAPIInbox.value) return status.value === MESSAGE_STATUS.SENT;
 
   return false;
 });
@@ -89,9 +89,9 @@ const isDelivered = computed(() => {
   ) {
     return sourceId.value && status.value === MESSAGE_STATUS.DELIVERED;
   }
-  // API inbox messages use real delivered status from the external system.
+  // API inbox (WAHA): use real delivered status from backend
   if (isAPIInbox.value) return status.value === MESSAGE_STATUS.DELIVERED;
-  // All messages marked as delivered for the web widget inbox once they are sent.
+  // Web widget: mark as delivered once sent
   if (isAWebWidgetInbox.value) {
     return status.value === MESSAGE_STATUS.SENT;
   }

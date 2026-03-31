@@ -14,6 +14,8 @@ class Public::Api::V1::Inboxes::MessagesController < Public::Api::V1::InboxesCon
   end
 
   def update
+    return handle_waha_message_update if waha_update?
+
     render json: { error: 'You cannot update the CSAT survey after 14 days' }, status: :unprocessable_entity and return if check_csat_locked
 
     @message.update!(message_update_params)
@@ -22,6 +24,16 @@ class Public::Api::V1::Inboxes::MessagesController < Public::Api::V1::InboxesCon
   end
 
   private
+
+  def waha_update?
+    params[:source_id].present? || params[:status].present?
+  end
+
+  def handle_waha_message_update
+    @message.update!(source_id: params[:source_id]) if params[:source_id].present? && @message.outgoing? && @message.source_id.blank?
+    Messages::StatusUpdateService.new(@message, params[:status]).perform if params[:status].present?
+    head :ok
+  end
 
   def build_attachment
     return if params[:attachments].blank?
