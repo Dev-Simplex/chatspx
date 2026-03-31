@@ -237,8 +237,8 @@ export default {
             show-copy
           />
           <ContactInfoRow
-            :href="contact.phone_number ? `tel:${contact.phone_number}` : ''"
-            :value="contact.phone_number"
+            :href="contact.phoneNumber ? `tel:${contact.phoneNumber}` : ''"
+            :value="contact.phoneNumber"
             icon="call"
             emoji="📞"
             :title="$t('CONTACT_PANEL.PHONE_NUMBER')"
@@ -285,7 +285,7 @@ export default {
           </template>
         </ComposeConversation>
         <VoiceCallButton
-          :phone="contact.phone_number"
+          :phone="contact.phoneNumber"
           :contact-id="contact.id"
           icon="i-ri-phone-fill"
           size="sm"

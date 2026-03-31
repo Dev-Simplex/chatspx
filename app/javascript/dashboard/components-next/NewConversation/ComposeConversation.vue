@@ -11,6 +11,7 @@ import { debounce } from '@chatwoot/utils';
 import { useKeyboardEvents } from 'dashboard/composables/useKeyboardEvents';
 import { emitter } from 'shared/helpers/mitt';
 import { BUS_EVENTS } from 'shared/constants/busEvents';
+import camelcaseKeys from 'camelcase-keys';
 import {
   createContactSearcher,
   createNewContact,
@@ -271,8 +272,12 @@ watch(
       }
 
       // First process the contactable inboxes to get the right structure
+      // Store data may use snake_case keys (contact_inboxes) after
+      // removing camelcaseKeys normalization from the contacts store.
+      const rawInboxes =
+        currentContact.contactInboxes || currentContact.contact_inboxes || [];
       const processedInboxes = processContactableInboxes(
-        currentContact.contactInboxes || []
+        camelcaseKeys(rawInboxes, { deep: true })
       );
       // Then Merge processedInboxes with the inboxes list
       selectedContact.value = {

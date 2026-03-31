@@ -107,7 +107,7 @@ const searchContacts = async query => {
         contactId: contact.id,
         type: 'contact',
         name: contact.name || unknownLabel,
-        phone: contact.phone_number || '',
+        phone: contact.phoneNumber || '',
         email: contact.email || '',
         avatar: contact.thumbnail || '',
         lastMessage: '',
