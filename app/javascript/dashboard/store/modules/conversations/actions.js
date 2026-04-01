@@ -121,23 +121,51 @@ const actions = {
 
   fetchAllAttachments: async ({ commit }, conversationId) => {
     let attachments = [];
+    let meta = {};
 
     try {
-      const { data } = await ConversationApi.getAllAttachments(conversationId);
+      const { data } = await ConversationApi.getAllAttachments(
+        conversationId,
+        1
+      );
       attachments = data.payload;
+      meta = data.meta || {};
     } catch (error) {
-      // in case of error, log the error and continue
       Sentry.setContext('Conversation', {
         id: conversationId,
       });
       Sentry.captureException(error);
     } finally {
-      // we run the commit even if the request fails
-      // this ensures that the `attachment` variable is always present on chat
       commit(types.SET_ALL_ATTACHMENTS, {
         id: conversationId,
         data: attachments,
+        meta,
       });
+    }
+  },
+
+  fetchMoreAttachments: async ({ commit, state }, conversationId) => {
+    const currentMeta = state.attachmentsMeta[conversationId];
+    if (!currentMeta || currentMeta.currentPage >= currentMeta.totalPages)
+      return;
+
+    const nextPage = currentMeta.currentPage + 1;
+
+    try {
+      const { data } = await ConversationApi.getAllAttachments(
+        conversationId,
+        nextPage
+      );
+      commit(types.APPEND_ATTACHMENTS, {
+        id: conversationId,
+        data: data.payload,
+        meta: data.meta || {},
+      });
+    } catch (error) {
+      Sentry.setContext('Conversation', {
+        id: conversationId,
+      });
+      Sentry.captureException(error);
     }
   },
 

@@ -14,6 +14,7 @@ const state = {
   allConversations: [],
   conversationMap: {},
   attachments: {},
+  attachmentsMeta: {},
   listLoadingStatus: true,
   chatStatusFilter: wootConstants.STATUS_TYPE.OPEN,
   chatSortFilter: wootConstants.SORT_BY_TYPE.LATEST,
@@ -82,6 +83,7 @@ export const mutations = {
     _state.conversationMap = {};
     _state.selectedChatId = null;
     _state.attachments = {};
+    _state.attachmentsMeta = {};
     _state.syncConversationsMessages = {};
   },
   [types.SET_ALL_MESSAGES_LOADED](_state, conversationId) {
@@ -107,8 +109,28 @@ export const mutations = {
       trimMessages(chat);
     }
   },
-  [types.SET_ALL_ATTACHMENTS](_state, { id, data }) {
+  [types.SET_ALL_ATTACHMENTS](_state, { id, data, meta }) {
     _state.attachments[id] = [...data];
+    if (meta) {
+      _state.attachmentsMeta[id] = {
+        currentPage: meta.current_page || 1,
+        totalPages: meta.total_pages || 1,
+        totalCount: meta.total_count || data.length,
+      };
+    }
+  },
+  [types.APPEND_ATTACHMENTS](_state, { id, data, meta }) {
+    const existing = _state.attachments[id] || [];
+    const existingIds = new Set(existing.map(a => a.id));
+    const newAttachments = data.filter(a => !existingIds.has(a.id));
+    _state.attachments[id] = [...existing, ...newAttachments];
+    if (meta) {
+      _state.attachmentsMeta[id] = {
+        currentPage: meta.current_page || 1,
+        totalPages: meta.total_pages || 1,
+        totalCount: meta.total_count || _state.attachments[id].length,
+      };
+    }
   },
   [types.SET_MISSING_MESSAGES](_state, { id, data }) {
     const chat = findConversation(_state, id);

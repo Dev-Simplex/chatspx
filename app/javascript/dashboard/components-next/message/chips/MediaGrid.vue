@@ -19,7 +19,11 @@ const props = defineProps({
 });
 
 const { t } = useI18n();
-const { filteredCurrentChatAttachments } = useMessageContext();
+const {
+  filteredCurrentChatAttachments,
+  hasMoreAttachments,
+  loadMoreAttachments,
+} = useMessageContext();
 
 const showGallery = ref(false);
 const activeAttachment = ref(null);
@@ -233,6 +237,8 @@ const shouldShowMoreOverlay = index =>
     v-model:show="showGallery"
     :attachment="activeAttachmentSnake"
     :all-attachments="filteredCurrentChatAttachments"
+    :has-more="hasMoreAttachments"
+    @load-more="loadMoreAttachments"
     @close="() => (showGallery = false)"
   />
 </template>
