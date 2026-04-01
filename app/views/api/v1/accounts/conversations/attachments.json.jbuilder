@@ -1,5 +1,7 @@
 json.meta do
   json.total_count @attachments_count
+  json.current_page @attachments.current_page
+  json.total_pages @attachments.total_pages
 end
 
 json.payload @attachments do |attachment|
@@ -14,6 +16,7 @@ json.payload @attachments do |attachment|
   json.extension attachment_data[:extension]
   json.width attachment_data[:width]
   json.height attachment_data[:height]
+  json.filename attachment.file.attached? ? attachment.file.filename.to_s : nil
   json.created_at attachment.message.created_at.to_i
   json.sender attachment.message.sender.push_event_data if attachment.message.sender
 end

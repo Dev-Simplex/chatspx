@@ -14,7 +14,12 @@ import GalleryView from 'dashboard/components/widgets/conversation/components/Ga
 
 const { t } = useI18n();
 
-const { filteredCurrentChatAttachments, attachments } = useMessageContext();
+const {
+  filteredCurrentChatAttachments,
+  attachments,
+  hasMoreAttachments,
+  loadMoreAttachments,
+} = useMessageContext();
 
 const attachment = computed(() => {
   return attachments.value[0];
@@ -91,6 +96,8 @@ const handleImageError = () => {
     v-model:show="showGallery"
     :attachment="useSnakeCase(attachment)"
     :all-attachments="filteredCurrentChatAttachments"
+    :has-more="hasMoreAttachments"
+    @load-more="loadMoreAttachments"
     @error="handleImageError"
     @close="() => (showGallery = false)"
   />

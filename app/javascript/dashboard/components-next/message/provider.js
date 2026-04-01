@@ -119,6 +119,7 @@ export function useMessageContext() {
 
   const store = useStore();
   const currentChatAttachments = useMapGetter('getSelectedChatAttachments');
+  const attachmentsMeta = useMapGetter('getSelectedChatAttachmentsMeta');
 
   if (
     currentChatAttachments.value.length === 0 &&
@@ -133,14 +134,29 @@ export function useMessageContext() {
         ATTACHMENT_TYPES.IMAGE,
         ATTACHMENT_TYPES.VIDEO,
         ATTACHMENT_TYPES.IG_REEL,
-        ATTACHMENT_TYPES.AUDIO,
       ].includes(attachment.file_type)
     );
 
     return useSnakeCase(attachments);
   });
 
-  return { ...context, filteredCurrentChatAttachments };
+  const hasMoreAttachments = computed(() => {
+    const meta = attachmentsMeta.value;
+    return meta && meta.currentPage < meta.totalPages;
+  });
+
+  const loadMoreAttachments = () => {
+    if (hasMoreAttachments.value && context.conversationId?.value) {
+      store.dispatch('fetchMoreAttachments', context.conversationId.value);
+    }
+  };
+
+  return {
+    ...context,
+    filteredCurrentChatAttachments,
+    hasMoreAttachments,
+    loadMoreAttachments,
+  };
 }
 
 export function provideMessageContext(context) {

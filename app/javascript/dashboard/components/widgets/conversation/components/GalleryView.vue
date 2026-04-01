@@ -1,5 +1,5 @@
 <script setup>
-import { ref, computed, onMounted, useTemplateRef } from 'vue';
+import { ref, computed, onMounted, useTemplateRef, watch } from 'vue';
 import { useI18n } from 'vue-i18n';
 import { useAlert } from 'dashboard/composables';
 
@@ -22,9 +22,13 @@ const props = defineProps({
     type: Array,
     required: true,
   },
+  hasMore: {
+    type: Boolean,
+    default: false,
+  },
 });
 
-const emit = defineEmits(['close']);
+const emit = defineEmits(['close', 'loadMore']);
 const show = defineModel('show', { type: Boolean, default: false });
 
 const { t } = useI18n();
@@ -34,7 +38,6 @@ const ALLOWED_FILE_TYPES = {
   IMAGE: 'image',
   VIDEO: 'video',
   IG_REEL: 'ig_reel',
-  AUDIO: 'audio',
 };
 
 const isDownloading = ref(false);
@@ -93,10 +96,6 @@ const isVideo = computed(() =>
     activeFileType.value
   )
 );
-const isAudio = computed(
-  () => activeFileType.value === ALLOWED_FILE_TYPES.AUDIO
-);
-
 const actionButtonClass =
   '!text-white/80 hover:!text-white !bg-transparent hover:!bg-white/10';
 const navButtonClass =
@@ -125,6 +124,8 @@ const senderDetails = computed(() => {
 });
 
 const fileNameFromDataUrl = computed(() => {
+  if (activeAttachment.value?.filename) return activeAttachment.value.filename;
+
   const { data_url: dataUrl } = activeAttachment.value;
   if (!dataUrl) return '';
 
@@ -191,9 +192,6 @@ const isVideoAttachment = attachment =>
     attachment?.file_type
   );
 
-const isAudioAttachment = attachment =>
-  attachment?.file_type === ALLOWED_FILE_TYPES.AUDIO;
-
 const touchStartX = ref(0);
 const touchEndX = ref(0);
 const onTouchStart = event => {
@@ -210,6 +208,19 @@ const onTouchEnd = event => {
     goPrev();
   }
 };
+
+const LOAD_MORE_THRESHOLD = 5;
+const checkLoadMore = () => {
+  if (!props.hasMore) return;
+  const remaining = props.allAttachments.length - 1 - activeImageIndex.value;
+  if (remaining <= LOAD_MORE_THRESHOLD) {
+    emit('loadMore');
+  }
+};
+
+watch(activeImageIndex, () => {
+  checkLoadMore();
+});
 
 const onClickDownload = async () => {
   const { file_type: type, data_url: url, extension } = activeAttachment.value;
@@ -403,17 +414,6 @@ onMounted(() => {
               class="max-h-full max-w-full object-contain"
               @click.stop
             />
-
-            <audio
-              v-if="isAudio"
-              :key="activeAttachment.message_id"
-              controls
-              preload="metadata"
-              class="w-full max-w-md"
-              @click.stop
-            >
-              <source :src="activeAttachment.data_url" />
-            </audio>
           </div>
 
           <div class="flex items-center justify-center w-16 shrink-0">
@@ -464,14 +464,7 @@ onMounted(() => {
                     v-else
                     class="w-full h-full bg-white/5 flex items-center justify-center"
                   >
-                    <Icon
-                      :icon="
-                        isAudioAttachment(attachment)
-                          ? 'i-lucide-volume-2'
-                          : 'i-lucide-image'
-                      "
-                      class="text-white/70"
-                    />
+                    <Icon icon="i-lucide-image" class="text-white/70" />
                   </div>
                   <div
                     v-if="isVideoAttachment(attachment)"

@@ -158,8 +158,10 @@ class ConversationApi extends ApiClient {
     });
   }
 
-  getAllAttachments(conversationId) {
-    return axios.get(`${this.url}/${conversationId}/attachments`);
+  getAllAttachments(conversationId, page = 1) {
+    return axios.get(`${this.url}/${conversationId}/attachments`, {
+      params: { page },
+    });
   }
 
   getInboxAssistant(conversationId) {

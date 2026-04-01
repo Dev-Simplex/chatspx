@@ -8,7 +8,7 @@ class Api::V1::Accounts::ConversationsController < Api::V1::Accounts::BaseContro
                 only: [:show, :update, :destroy, :attachments, :mute, :unmute, :transcript, :toggle_status, :toggle_priority, :toggle_typing_status,
                        :update_last_seen, :unread, :custom_attributes]
 
-  ATTACHMENT_RESULTS_PER_PAGE = 20
+  ATTACHMENT_RESULTS_PER_PAGE = 40
 
   def index
     result = conversation_finder.perform
@@ -32,6 +32,7 @@ class Api::V1::Accounts::ConversationsController < Api::V1::Accounts::BaseContro
 
   def attachments
     base_scope = @conversation.attachments
+                              .where(file_type: [:image, :video, :ig_reel])
                               .includes(
                                 { file_attachment: [:blob] },
                                 { message: { sender: { avatar_attachment: [:blob] } } }
