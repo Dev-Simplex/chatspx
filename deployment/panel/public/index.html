@@ -197,10 +197,31 @@
         <a :href="'https://github.com/'+github+'/tree/'+branch" target="_blank" style="font-size:12px;display:flex;align-items:center;gap:4px;margin-left:auto"><i data-lucide="code-2" style="width:14px;height:14px"></i> Ver no GitHub</a>
       </div>
 
-      <!-- Terminal -->
-      <template x-if="termShow"><div class="terminal">
-        <div class="terminal-top"><div class="dots"><span></span><span></span><span></span></div><div class="title"><i data-lucide="terminal" style="width:13px;height:13px"></i> <span x-text="termTitle"></span></div><button @click="termShow=false;termContent=''"><i data-lucide="x" style="width:14px;height:14px"></i></button></div>
-        <div class="terminal-body" x-ref="term" x-html="termContent"></div>
+      <!-- Terminal with auto-scroll -->
+      <template x-if="termShow"><div class="terminal" style="position:relative">
+        <div class="terminal-top"><div class="dots"><span></span><span></span><span></span></div><div class="title"><i data-lucide="terminal" style="width:13px;height:13px"></i> <span x-text="termTitle"></span></div><button @click="closeTerm()"><i data-lucide="x" style="width:14px;height:14px"></i></button></div>
+        <!-- Deploy steps -->
+        <template x-if="deploySteps.length>0">
+          <div style="padding:12px 14px;border-bottom:1px solid rgba(255,255,255,.06)">
+            <template x-for="step in deploySteps" :key="step.id">
+              <div style="display:flex;align-items:center;gap:8px;padding:5px 0;font-size:13px">
+                <template x-if="step.status==='pending'"><span style="width:16px;height:16px;border-radius:50%;border:2px solid #475569;display:inline-block"></span></template>
+                <template x-if="step.status==='running'"><i data-lucide="loader-2" class="spinner" style="width:16px;height:16px;color:#3b82f6"></i></template>
+                <template x-if="step.status==='success'"><i data-lucide="check-circle" style="width:16px;height:16px;color:#22c55e"></i></template>
+                <template x-if="step.status==='failed'"><i data-lucide="x-circle" style="width:16px;height:16px;color:#ef4444"></i></template>
+                <span :style="{color:step.status==='running'?'#93c5fd':step.status==='success'?'#86efac':step.status==='failed'?'#fca5a5':'#64748b'}" x-text="step.label"></span>
+                <template x-if="step.duration"><span style="font-size:11px;color:#64748b;font-family:'JetBrains Mono',monospace;margin-left:auto" x-text="step.duration"></span></template>
+              </div>
+            </template>
+          </div>
+        </template>
+        <div class="terminal-body" x-ref="term" @scroll="onTermScroll()" x-html="termContent"></div>
+        <!-- Scroll to bottom FAB -->
+        <template x-if="!termAutoScroll&&termShow">
+          <button @click="termScrollToBottom()" style="position:absolute;bottom:12px;right:12px;display:flex;align-items:center;gap:5px;padding:5px 12px;background:#1e293b;color:#94a3b8;border:1px solid #334155;border-radius:20px;font-size:11px;cursor:pointer;box-shadow:0 4px 12px rgba(0,0,0,.4);z-index:10">
+            <i data-lucide="arrow-down" style="width:12px;height:12px"></i> Novas linhas
+          </button>
+        </template>
       </div></template>
     </div>
   </div></template>
@@ -245,7 +266,8 @@ function app(){return{
   vms:[],branches:['producao','homologacao','develop'],github:'Dev-Simplex/chatspx',branch:'producao',
   expanded:[],refreshing:false,
   showDeploy:false,deployVMs:[],
-  termShow:false,termContent:'',termTitle:'Log',
+  termShow:false,termContent:'',termTitle:'Log',termAutoScroll:true,termProgrammaticScroll:false,
+  deploySteps:[],
   showConfirm:false,confirmVmId:'',confirmService:'',confirmTitle:'',confirmVmName:'',
   toast:{show:false,type:'',msg:''},
   socket:null,
@@ -288,10 +310,53 @@ function app(){return{
 
   appendTerm(data){
     this.termShow=true;
-    const e=data.replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/\[ERRO\]/g,'<span class="err">[ERRO]</span>').replace(/(concluido|sucesso|OK|Ativo)/gi,'<span class="ok">$1</span>');
+    // Parse deploy steps
+    const lines=data.split('\n');
+    for(const line of lines){
+      const stepMatch=line.match(/=== ETAPA: (.+) ===/);
+      if(stepMatch){
+        // Close previous running step
+        const prev=this.deploySteps.find(s=>s.status==='running');
+        if(prev){prev.status='success';prev.duration=prev.startTime?((Date.now()-prev.startTime)/1000).toFixed(1)+'s':'';prev.startTime=null}
+        // Start new step
+        this.deploySteps.push({id:this.deploySteps.length,label:stepMatch[1],status:'running',duration:null,startTime:Date.now()});
+        this.$nextTick(()=>lucide.createIcons());
+        continue;
+      }
+      if(line.match(/=== DEPLOY CONCLUIDO ===/)){
+        const prev=this.deploySteps.find(s=>s.status==='running');
+        if(prev){prev.status='success';prev.duration=prev.startTime?((Date.now()-prev.startTime)/1000).toFixed(1)+'s':''}
+      }
+      if(line.match(/\[ERRO\]/)){
+        const prev=this.deploySteps.find(s=>s.status==='running');
+        if(prev){prev.status='failed';prev.duration=prev.startTime?((Date.now()-prev.startTime)/1000).toFixed(1)+'s':''}
+      }
+    }
+    const e=data.replace(/</g,'&lt;').replace(/>/g,'&gt;')
+      .replace(/\[ERRO\]/g,'<span class="err">[ERRO]</span>')
+      .replace(/=== ETAPA: .+ ===/g,'')
+      .replace(/=== DEPLOY CONCLUIDO ===/g,'<span class="ok">Deploy concluido com sucesso!</span>')
+      .replace(/(concluido|sucesso|OK|Ativo)/gi,'<span class="ok">$1</span>');
     this.termContent+=e;
-    this.$nextTick(()=>{if(this.$refs.term)this.$refs.term.scrollTop=this.$refs.term.scrollHeight;lucide.createIcons()});
+    if(this.termAutoScroll){this.$nextTick(()=>this.termScrollToBottom())}
+    this.$nextTick(()=>lucide.createIcons());
   },
+
+  onTermScroll(){
+    if(this.termProgrammaticScroll)return;
+    const el=this.$refs.term;if(!el)return;
+    this.termAutoScroll=(el.scrollHeight-el.scrollTop-el.clientHeight)<50;
+  },
+
+  termScrollToBottom(){
+    const el=this.$refs.term;if(!el)return;
+    this.termProgrammaticScroll=true;
+    this.termAutoScroll=true;
+    el.scrollTop=el.scrollHeight;
+    requestAnimationFrame(()=>{this.termProgrammaticScroll=false});
+  },
+
+  closeTerm(){this.termShow=false;this.termContent='';this.deploySteps=[];this.termAutoScroll=true},
 
   toggleTheme(){this.theme=this.theme==='light'?'dark':'light';document.documentElement.setAttribute('data-theme',this.theme);localStorage.setItem('spx-theme',this.theme);this.$nextTick(()=>lucide.createIcons())},
   toggle(id){const i=this.expanded.indexOf(id);if(i===-1)this.expanded.push(id);else this.expanded.splice(i,1);this.$nextTick(()=>lucide.createIcons())},
@@ -299,7 +364,7 @@ function app(){return{
 
   openDeployModal(){this.deployVMs=[];this.showDeploy=true;this.$nextTick(()=>lucide.createIcons())},
   toggleDep(id){const i=this.deployVMs.indexOf(id);if(i===-1)this.deployVMs.push(id);else this.deployVMs.splice(i,1)},
-  execDeploy(){this.showDeploy=false;this.termContent='';this.termTitle='Log de Deploy';this.termShow=true;this.socket.emit('deploy',{vmIds:[...this.deployVMs],branch:this.branch});this.$nextTick(()=>lucide.createIcons())},
+  execDeploy(){this.showDeploy=false;this.termContent='';this.deploySteps=[];this.termAutoScroll=true;this.termTitle='Deploy - '+this.branch;this.termShow=true;this.socket.emit('deploy',{vmIds:[...this.deployVMs],branch:this.branch});this.$nextTick(()=>lucide.createIcons())},
 
   confirmAction(vmId,service,title){this.confirmVmId=vmId;this.confirmService=service;this.confirmTitle=title;this.confirmVmName=this.vms.find(v=>v.id===vmId)?.name||vmId;this.showConfirm=true;this.$nextTick(()=>lucide.createIcons())},
   execAction(){this.showConfirm=false;this.termContent='';this.termTitle=this.confirmTitle+' - '+this.confirmVmName;this.termShow=true;this.socket.emit('restart',{vmId:this.confirmVmId,service:this.confirmService});this.$nextTick(()=>lucide.createIcons())},

@@ -267,8 +267,23 @@ function deployVM(vm, branch, socket) {
     const ts = () => new Date().toLocaleTimeString('pt-BR');
     socket.emit('deploy:log', { vmId: vm.id, data: `[${ts()}] [${vm.name}] Iniciando deploy (branch: ${branch})...\n` });
 
+    // Deploy: git pull + bundle + pnpm + assets + migrate + restart
     const s = vm.type === 'password' ? `echo '${SSH_PASSWORD}' | sudo -S` : 'sudo';
-    const cmd = `${s} wget -q https://raw.githubusercontent.com/${GITHUB_REPO}/${branch}/deployment/setup_spx_24.04.sh -O /usr/local/bin/cwctl && ${s} chmod +x /usr/local/bin/cwctl && echo 'y' | ${s} cwctl -U ${branch}`;
+    const cmd = [
+      `echo '=== ETAPA: Atualizando codigo ==='`,
+      `${s} -i -u chatwoot bash -c 'cd ~/chatwoot && git fetch origin && git checkout ${branch} && git pull origin ${branch}'`,
+      `echo '=== ETAPA: Instalando dependencias Ruby ==='`,
+      `${s} -i -u chatwoot bash -c 'cd ~/chatwoot && bundle install --jobs $(nproc) --retry 3 2>&1 | tail -5'`,
+      `echo '=== ETAPA: Instalando dependencias JavaScript ==='`,
+      `${s} -i -u chatwoot bash -c 'cd ~/chatwoot && pnpm install --frozen-lockfile 2>&1 | tail -3 || pnpm install 2>&1 | tail -3'`,
+      `echo '=== ETAPA: Compilando assets ==='`,
+      `${s} -i -u chatwoot bash -c 'cd ~/chatwoot && RAILS_ENV=production NODE_OPTIONS="--max-old-space-size=4096" bundle exec rake assets:precompile 2>&1 | tail -5'`,
+      `echo '=== ETAPA: Migrando banco de dados ==='`,
+      `${s} -i -u chatwoot bash -c 'cd ~/chatwoot && RAILS_ENV=production bundle exec rails db:migrate 2>&1 | tail -10'`,
+      `echo '=== ETAPA: Reiniciando servico ==='`,
+      `${s} systemctl restart chatwoot.target`,
+      `echo '=== DEPLOY CONCLUIDO ==='`,
+    ].join(' && ');
 
     sshExecStream(vm, cmd,
       data => socket.emit('deploy:log', { vmId: vm.id, data }),
