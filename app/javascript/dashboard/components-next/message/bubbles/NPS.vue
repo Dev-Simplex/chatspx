@@ -21,7 +21,7 @@ const score = computed(() => {
 </script>
 
 <template>
-  <BaseBubble class="px-4 py-3" data-bubble-name="nps">
+  <BaseBubble class="px-3 py-2" data-bubble-name="nps">
     <h4>
       {{
         content ||

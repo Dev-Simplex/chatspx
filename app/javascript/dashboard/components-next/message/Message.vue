@@ -731,7 +731,8 @@ provideMessageContext({
   <div
     v-if="shouldRenderMessage"
     :id="`message${props.id}`"
-    class="flex w-full mb-2 message-bubble-container"
+    class="flex w-full message-bubble-container"
+    :style="{ marginBottom: shouldGroupWithNext ? '2px' : '8px' }"
     :data-message-id="props.id"
     :class="[
       flexOrientationClass,
@@ -863,15 +864,15 @@ provideMessageContext({
             v-if="shouldShowContextMenu && isBubble"
             class="absolute ltr:right-0 rtl:left-0 top-0 bottom-0 w-10 opacity-0 group-hover/message:opacity-100 transition-opacity duration-200 ease-in-out z-[11] flex items-start justify-end pt-2 ltr:pr-1 rtl:pl-1"
             :class="{
-              'bg-n-slate-4 ltr:rounded-tr-xl ltr:rounded-br-xl rtl:rounded-tl-xl rtl:rounded-bl-xl':
+              'bg-white dark:bg-n-slate-3 ltr:rounded-tr-lg ltr:rounded-br-lg rtl:rounded-tl-lg rtl:rounded-bl-lg':
                 variant === MESSAGE_VARIANTS.USER &&
                 orientation === ORIENTATION.LEFT,
-              'bg-n-solid-blue ltr:rounded-tr-xl ltr:rounded-br-sm rtl:rounded-tl-xl rtl:rounded-bl-sm':
+              'bg-n-solid-blue ltr:rounded-tr-lg ltr:rounded-br-lg rtl:rounded-tl-lg rtl:rounded-bl-lg':
                 (variant === MESSAGE_VARIANTS.AGENT ||
                   variant === MESSAGE_VARIANTS.BOT ||
                   variant === MESSAGE_VARIANTS.TEMPLATE) &&
                 orientation === ORIENTATION.RIGHT,
-              'bg-n-solid-amber ltr:rounded-tr-xl ltr:rounded-br-xl rtl:rounded-tl-xl rtl:rounded-bl-xl':
+              'bg-n-solid-amber ltr:rounded-tr-lg ltr:rounded-br-lg rtl:rounded-tl-lg rtl:rounded-bl-lg':
                 [MESSAGE_VARIANTS.PRIVATE, MESSAGE_VARIANTS.SCHEDULED].includes(
                   variant
                 ),
@@ -920,11 +921,11 @@ provideMessageContext({
 <style lang="scss">
 .group-with-next + .message-bubble-container {
   .left-bubble {
-    @apply ltr:rounded-tl-sm rtl:rounded-tr-sm;
+    @apply ltr:rounded-tl-[4px] rtl:rounded-tr-[4px];
   }
 
   .right-bubble {
-    @apply ltr:rounded-tr-sm rtl:rounded-tl-sm;
+    @apply ltr:rounded-tr-[4px] rtl:rounded-tl-[4px];
   }
 }
 

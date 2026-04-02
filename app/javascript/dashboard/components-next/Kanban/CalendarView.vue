@@ -126,10 +126,10 @@ const getMessageStatusLabel = status => {
 };
 
 const getMessageStatusClass = status => {
-  if (status === 'pending') return 'bg-n-blue-9 text-white';
-  if (status === 'sent') return 'bg-n-emerald-9 text-white';
-  if (status === 'failed') return 'bg-n-ruby-9 text-white';
-  return 'bg-n-slate-9 text-white';
+  if (status === 'pending') return 'bg-n-teal-3 text-n-teal-11 border-n-teal-6';
+  if (status === 'sent') return 'bg-n-emerald-3 text-n-emerald-11 border-n-emerald-6';
+  if (status === 'failed') return 'bg-n-ruby-3 text-n-ruby-11 border-n-ruby-6';
+  return 'bg-n-slate-3 text-n-slate-11 border-n-slate-6';
 };
 
 const canManageMessage = message => message?.status === 'pending';
@@ -298,7 +298,7 @@ onBeforeUnmount(() => {
 
     <div v-else class="mx-auto flex max-w-7xl flex-col gap-4">
       <div
-        class="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-n-weak bg-n-solid-2 px-4 py-3"
+        class="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-n-weak bg-white dark:bg-n-solid-2 px-4 py-3"
       >
         <div class="flex items-center gap-2">
           <Button
@@ -319,7 +319,6 @@ onBeforeUnmount(() => {
         </div>
 
         <Button
-          color="blue"
           icon="i-lucide-plus"
           @click="handleDateClick(new Date())"
         >
@@ -327,8 +326,8 @@ onBeforeUnmount(() => {
         </Button>
       </div>
 
-      <div class="overflow-hidden rounded-xl border border-n-weak bg-n-solid-2">
-        <div class="grid grid-cols-7 border-b border-n-weak bg-n-solid-3">
+      <div class="overflow-hidden rounded-xl border border-n-weak bg-white dark:bg-n-solid-2">
+        <div class="grid grid-cols-7 border-b border-n-weak bg-n-slate-2/50 dark:bg-n-solid-3">
           <div
             v-for="day in weekDays"
             :key="day"
@@ -342,10 +341,10 @@ onBeforeUnmount(() => {
           <div
             v-for="(day, index) in daysInMonth"
             :key="`${index}-${format(day, 'yyyy-MM-dd')}`"
-            class="calendar-day min-h-[132px] border-b border-r border-n-weak p-2.5 transition"
+            class="calendar-day min-h-[100px] border-b border-r border-n-weak/50 p-2 transition"
             :class="[
-              !isCurrentMonth(day) ? 'bg-n-solid-1 opacity-60' : 'bg-n-solid-2',
-              isToday(day) ? 'ring-1 ring-inset ring-n-blue-8' : '',
+              !isCurrentMonth(day) ? 'bg-n-slate-1 dark:bg-n-solid-1 opacity-60' : 'bg-white dark:bg-n-solid-2',
+              isToday(day) ? 'bg-n-teal-2/30 dark:bg-n-teal-3/10' : '',
             ]"
             @click="handleDateClick(day)"
           >
@@ -353,7 +352,7 @@ onBeforeUnmount(() => {
               <span
                 class="inline-flex size-6 items-center justify-center rounded-full text-xs font-semibold"
                 :class="
-                  isToday(day) ? 'bg-n-blue-9 text-white' : 'text-n-slate-11'
+                  isToday(day) ? 'bg-n-teal-9 text-white' : 'text-n-slate-11'
                 "
               >
                 {{ format(day, 'd') }}
@@ -371,7 +370,7 @@ onBeforeUnmount(() => {
                 v-for="message in getPreviewMessagesForDate(day)"
                 :key="message.id"
                 type="button"
-                class="w-full rounded-md border border-n-weak px-2 py-1.5 text-left"
+                class="w-full rounded-md px-2 py-1 text-left truncate"
                 :class="getMessageStatusClass(message.status)"
                 @click.stop="openConversation(message)"
               >
@@ -431,7 +430,6 @@ onBeforeUnmount(() => {
           </p>
 
           <Button
-            color="blue"
             icon="i-lucide-plus"
             size="sm"
             @click="handleScheduleFromDay"
@@ -526,15 +524,11 @@ onBeforeUnmount(() => {
 </template>
 
 <style scoped>
-.calendar-view-container {
-  background: var(--n-background);
-}
-
 .calendar-day {
   cursor: pointer;
 }
 
 .calendar-day:hover {
-  background: var(--n-solid-3);
+  background: rgba(var(--slate-3), 0.5);
 }
 </style>

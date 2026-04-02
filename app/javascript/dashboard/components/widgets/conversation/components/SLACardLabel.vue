@@ -38,6 +38,10 @@ const slaTextStyles = computed(() =>
   isSlaMissed.value ? 'text-n-ruby-11' : 'text-n-amber-11'
 );
 
+const slaBadgeBgStyles = computed(() =>
+  isSlaMissed.value ? 'bg-n-ruby-3' : 'bg-n-amber-3'
+);
+
 const slaStatusText = computed(() => {
   const upperCaseType = slaStatus.value?.type?.toUpperCase(); // FRT, NRT, or RT
   const statusKey = isSlaMissed.value ? 'MISSED' : 'DUE';
@@ -52,9 +56,10 @@ const showSlaPopoverCard = computed(
 );
 
 const groupClass = computed(() => {
-  return props.showExtendedInfo
-    ? 'h-[26px] rounded-lg bg-n-alpha-1'
-    : 'rounded h-5  border border-n-strong';
+  if (props.showExtendedInfo) {
+    return `h-6 rounded-full ${slaBadgeBgStyles.value}`;
+  }
+  return 'rounded h-5 border border-n-strong';
 });
 
 const updateSlaStatus = () => {
@@ -125,7 +130,7 @@ onUnmounted(() => {
         </span>
       </div>
       <span
-        class="text-xs font-medium"
+        class="text-xs font-medium tabular-nums"
         :class="[slaTextStyles, showExtendedInfo && 'ltr:pl-1.5 rtl:pr-1.5']"
       >
         {{ slaStatus.threshold }}

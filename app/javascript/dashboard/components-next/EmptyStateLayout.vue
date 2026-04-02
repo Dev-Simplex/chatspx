@@ -42,18 +42,19 @@ defineProps({
         }"
       >
         <div
-          class="flex flex-col items-center justify-center gap-6"
+          class="flex flex-col items-center justify-center gap-6 py-16 px-8 text-center"
           :class="{
             'mt-48': !showBackdrop,
           }"
         >
-          <div class="flex flex-col items-center justify-center gap-3">
-            <h2 class="text-3xl font-medium text-center text-n-slate-12">
+          <slot name="icon" />
+          <div class="flex flex-col items-center justify-center gap-2">
+            <h2 class="text-lg font-semibold text-center text-n-slate-12">
               {{ title }}
             </h2>
             <p
               v-if="subtitle"
-              class="max-w-xl text-base text-center text-n-slate-11 tracking-[0.3px]"
+              class="max-w-sm text-sm text-center text-n-slate-10"
             >
               {{ subtitle }}
             </p>

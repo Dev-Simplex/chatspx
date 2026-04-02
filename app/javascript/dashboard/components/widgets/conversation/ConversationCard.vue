@@ -405,24 +405,21 @@ export default {
 
 <template>
   <div
-    class="relative flex items-start flex-grow-0 flex-shrink-0 w-auto max-w-full px-3 py-0 border-t-0 border-b-0 border-l-2 border-r-0 border-transparent border-solid cursor-pointer conversation hover:bg-n-alpha-1 dark:hover:bg-n-alpha-3 group"
+    class="flex items-start gap-3 px-3 py-2.5 cursor-pointer border-b border-n-weak/30 transition-colors duration-150 hover:bg-n-slate-3/50 dark:hover:bg-n-alpha-2 group conversation"
     :class="{
-      'active animate-card-select bg-n-alpha-1 dark:bg-n-alpha-3 border-n-weak':
+      'bg-n-selected dark:bg-n-selected ltr:border-l-2 rtl:border-r-2 border-l-n-brand border-r-n-brand':
         isActiveChat,
       'unread-chat': hasUnread,
       'has-inbox-name': showInboxName,
-      'conversation-selected': selected,
-      'bg-n-slate-2': selected,
+      'conversation-selected bg-n-slate-2 dark:bg-n-slate-3': selected,
       'px-0': compact,
-      'px-3': !compact,
-      'ltr:border-l-2 rtl:border-r-2 border-n-amber-7 bg-n-amber-5/25 ring-1 ring-n-amber-6/50 ring-inset animate-sidebar-attention motion-reduce:animate-none':
-        isUnattendedAndMine && !isActiveChat && !selected,
     }"
     @click="onCardClick"
     @contextmenu="openContextMenu($event)"
   >
+    <!-- Avatar area with checkbox on hover -->
     <div
-      class="relative"
+      class="relative flex-shrink-0"
       @mouseenter="onThumbnailHover"
       @mouseleave="onThumbnailLeave"
     >
@@ -445,12 +442,12 @@ export default {
         :badge="inboxBadge"
         :username="currentContact.name"
         :status="currentContact.availability_status"
-        size="32px"
+        size="40px"
       />
     </div>
-    <div
-      class="px-0 py-3 border-b group-hover:border-transparent flex-1 border-n-slate-3 w-[calc(100%-40px)] relative"
-    >
+
+    <!-- Content area -->
+    <div class="flex flex-col flex-1 min-w-0 gap-0.5 relative">
       <!-- Botão de dropdown no hover -->
       <NextButton
         v-if="enableContextMenu"
@@ -459,63 +456,20 @@ export default {
         slate
         sm
         icon="i-lucide-chevron-down"
-        class="absolute ltr:right-0 rtl:left-0 top-2 opacity-0 group-hover:opacity-100 transition-opacity duration-200 ease-in-out z-10"
+        class="absolute ltr:right-0 rtl:left-0 top-0 opacity-0 group-hover:opacity-100 transition-opacity duration-200 ease-in-out z-10"
         @click.stop="openHoverDropdown($event)"
       />
-      <div
-        class="flex justify-between conversation-card--meta group-hover:ltr:pr-8 group-hover:rtl:pl-8 transition-all duration-200"
-      >
-        <InboxName v-if="showInboxName" :inbox="inbox" />
-        <div class="flex gap-2 ml-2 rtl:mr-2 rtl:ml-0">
-          <span
-            v-if="showAssignee && assignee.name"
-            class="text-n-slate-11 text-xs font-medium leading-3 py-0.5 px-0 inline-flex text-ellipsis overflow-hidden whitespace-nowrap"
-          >
-            <fluent-icon icon="person" size="12" class="text-n-slate-11" />
-            {{ assignee.name }}
-          </span>
-          <PriorityMark :priority="chat.priority" />
-        </div>
-      </div>
-      <h4
-        v-if="currentContact"
-        class="conversation--user text-sm my-0 mx-2 capitalize pt-0.5 text-ellipsis overflow-hidden whitespace-nowrap text-n-slate-12 group-hover:ltr:pr-8 group-hover:rtl:pl-8 transition-all duration-200 w-[calc(100%-70px)]"
-        :class="hasUnread ? 'font-semibold' : 'font-medium'"
-      >
-        {{ currentContact.name }}
-      </h4>
-      <VoiceCallStatus
-        v-if="voiceCallData.status"
-        key="voice-status-row"
-        :status="voiceCallData.status"
-        :direction="voiceCallData.direction"
-        :message-preview-class="messagePreviewClass"
-      />
-      <MessagePreview
-        v-if="lastMessageInChat"
-        :message="lastMessageInChat"
-        default-empty-message=""
-        class="conversation--message my-0 mx-2 leading-6 h-6 text-sm group-hover:ltr:pr-8 group-hover:rtl:pl-8 transition-all duration-200 max-w-[96%] w-[16.875rem]"
-        :class="hasUnread ? 'font-medium text-n-slate-12' : 'text-n-slate-11'"
-      />
-      <p
-        v-else
-        class="conversation--message text-n-slate-11 text-sm my-0 mx-2 leading-6 h-6 overflow-hidden text-ellipsis whitespace-nowrap group-hover:ltr:pr-8 group-hover:rtl:pl-8 transition-all duration-200 max-w-[96%] w-[16.875rem]"
-        :class="hasUnread ? 'font-medium text-n-slate-12' : 'text-n-slate-11'"
-      >
-        <fluent-icon
-          size="16"
-          class="-mt-0.5 align-middle inline-block text-n-slate-10"
-          icon="info"
-        />
-        <span>
-          {{ $t(`CHAT_LIST.NO_MESSAGES`) }}
-        </span>
-      </p>
-      <div
-        class="absolute flex flex-col mt-4 ltr:right-4 rtl:left-4 top-4 group-hover:ltr:right-10 group-hover:rtl:left-10 transition-all duration-200"
-      >
-        <span class="ml-auto font-normal leading-4 text-xxs">
+
+      <!-- Line 1: Name + Timestamp -->
+      <div class="flex items-center justify-between gap-2">
+        <h4
+          v-if="currentContact"
+          class="text-sm my-0 capitalize truncate text-n-slate-12"
+          :class="hasUnread ? 'font-semibold' : 'font-medium'"
+        >
+          {{ currentContact.name }}
+        </h4>
+        <span class="flex-shrink-0 whitespace-nowrap text-xs text-n-slate-10">
           <TimeAgo
             :last-activity-timestamp="
               chat.last_activity_at ||
@@ -527,17 +481,78 @@ export default {
             :conversation-id="chat.id"
           />
         </span>
+      </div>
+
+      <!-- Line 2: Message Preview + Unread Badge -->
+      <div class="flex items-center justify-between gap-2">
+        <div class="flex-1 min-w-0">
+          <InboxName v-if="showInboxName" :inbox="inbox" class="mb-0.5" />
+          <VoiceCallStatus
+            v-if="voiceCallData.status"
+            key="voice-status-row"
+            :status="voiceCallData.status"
+            :direction="voiceCallData.direction"
+            :message-preview-class="messagePreviewClass"
+          />
+          <MessagePreview
+            v-else-if="lastMessageInChat"
+            :message="lastMessageInChat"
+            default-empty-message=""
+            class="text-sm truncate leading-5"
+            :class="
+              hasUnread ? 'font-medium text-n-slate-12' : 'text-n-slate-11'
+            "
+          />
+          <p
+            v-else
+            class="text-sm text-n-slate-11 truncate leading-5 my-0"
+          >
+            <fluent-icon
+              size="16"
+              class="-mt-0.5 align-middle inline-block text-n-slate-10"
+              icon="info"
+            />
+            <span>
+              {{ $t(`CHAT_LIST.NO_MESSAGES`) }}
+            </span>
+          </p>
+        </div>
         <span
-          class="unread shadow-lg rounded-full hidden text-xxs font-semibold h-4 leading-4 ltr:ml-auto rtl:mr-auto mt-1 min-w-[1rem] px-1 py-0 text-center text-white bg-n-teal-9"
+          v-if="hasUnread"
+          class="inline-flex items-center justify-center flex-shrink-0 rounded-full min-w-[20px] h-5 px-1.5 text-xs font-medium text-white bg-n-brand"
         >
           {{ unreadCount > 9 ? '9+' : unreadCount }}
         </span>
       </div>
-      <CardLabels :conversation-labels="chat.labels" class="mt-0.5 mx-2 mb-0">
-        <template v-if="hasSlaPolicyId" #before>
-          <SLACardLabel :chat="chat" class="ltr:mr-1 rtl:ml-1" />
-        </template>
-      </CardLabels>
+
+      <!-- Line 3 (optional): Metadata - Labels + Priority + SLA + Assignee -->
+      <div
+        v-if="
+          chat.labels?.length ||
+          hasSlaPolicyId ||
+          chat.priority ||
+          (showAssignee && assignee.name)
+        "
+        class="flex items-center gap-1.5 mt-0.5"
+      >
+        <PriorityMark :priority="chat.priority" />
+        <SLACardLabel
+          v-if="hasSlaPolicyId"
+          :chat="chat"
+          class="flex-shrink-0"
+        />
+        <CardLabels
+          :conversation-labels="chat.labels"
+          class="flex-1 min-w-0"
+        />
+        <span
+          v-if="showAssignee && assignee.name"
+          class="flex-shrink-0 text-xs text-n-slate-11 truncate max-w-[80px]"
+        >
+          <fluent-icon icon="person" size="12" class="text-n-slate-11" />
+          {{ assignee.name }}
+        </span>
+      </div>
     </div>
     <ContextMenu
       v-if="showContextMenu"
@@ -569,48 +584,8 @@ export default {
 
 <style lang="scss" scoped>
 .conversation {
-  &.unread-chat {
-    .unread {
-      @apply block;
-    }
-  }
-
-  &.compact {
-    @apply pl-0;
-
-    .conversation-card--meta {
-      @apply ltr:pr-4 rtl:pl-4;
-    }
-
-    .conversation--details {
-      @apply rounded-sm ml-0 pl-5 pr-2;
-    }
-  }
-
-  :deep(.user-thumbnail-box) {
-    @apply mt-4;
-  }
-
-  &.conversation-selected {
-    @apply bg-n-slate-2 dark:bg-n-slate-3;
-  }
-
-  &.has-inbox-name {
-    :deep(.user-thumbnail-box) {
-      @apply mt-8;
-    }
-
-    .checkbox-wrapper {
-      @apply mt-8;
-    }
-
-    .conversation--meta {
-      @apply mt-4;
-    }
-  }
-
   .checkbox-wrapper {
-    @apply flex items-center justify-center rounded-full cursor-pointer mt-4;
+    @apply flex items-center justify-center rounded-full cursor-pointer;
 
     input[type='checkbox'] {
       @apply m-0 cursor-pointer accent-[#2dc46f];

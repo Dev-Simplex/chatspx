@@ -40,7 +40,8 @@ const activeAssistantLabel = computed(() => {
           ghost
           slate
           xs
-          :class="{ 'bg-n-alpha-2': isOpen }"
+          class="!text-n-slate-11 hover:!text-n-slate-12"
+          :class="{ '!bg-n-alpha-2': isOpen }"
           @click="toggle"
         />
       </template>

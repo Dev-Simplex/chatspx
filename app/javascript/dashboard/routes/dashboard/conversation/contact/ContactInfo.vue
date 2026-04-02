@@ -12,7 +12,6 @@ import ContactMergeModal from 'dashboard/modules/contact/ContactMergeModal.vue';
 import ComposeConversation from 'dashboard/components-next/NewConversation/ComposeConversation.vue';
 import ExportConversationModal from 'dashboard/components-next/message/ExportConversationModal.vue';
 import { BUS_EVENTS } from 'shared/constants/busEvents';
-import NextButton from 'dashboard/components-next/button/Button.vue';
 
 import {
   isAConversationRoute,
@@ -23,7 +22,6 @@ import { emitter } from 'shared/helpers/mitt';
 
 export default {
   components: {
-    NextButton,
     ContactInfoRow,
     EditContact,
     Thumbnail,
@@ -183,105 +181,77 @@ export default {
 </script>
 
 <template>
-  <div class="relative items-center w-full p-4">
-    <div class="flex flex-col w-full gap-2 text-left rtl:text-right">
-      <div class="flex flex-row justify-between">
-        <Thumbnail
-          v-if="showAvatar"
-          :src="contact.thumbnail"
-          size="48px"
-          :username="contact.name"
-          :status="contact.availability_status"
-          allow-preview
+  <div class="relative w-full px-4 py-5">
+    <div class="flex flex-col items-center w-full">
+      <!-- Avatar centered 64px -->
+      <Thumbnail
+        v-if="showAvatar"
+        :src="contact.thumbnail"
+        size="64px"
+        :username="contact.name"
+        :status="contact.availability_status"
+        allow-preview
+      />
+
+      <!-- Name centered -->
+      <div v-if="showAvatar" class="flex items-center gap-2 mt-3">
+        <h3
+          class="my-0 text-base font-semibold capitalize break-words text-n-slate-12 text-center"
+        >
+          {{ contact.name }}
+        </h3>
+        <span
+          v-if="contact.created_at"
+          v-tooltip.top="
+            `${$t('CONTACT_PANEL.CREATED_AT_LABEL')} ${dynamicTime(
+              contact.created_at
+            )}`
+          "
+          class="i-lucide-info text-sm text-n-slate-10"
         />
+        <a
+          :href="contactProfileLink"
+          target="_blank"
+          rel="noopener nofollow noreferrer"
+          class="leading-3"
+        >
+          <span class="i-lucide-external-link text-sm text-n-slate-10" />
+        </a>
       </div>
 
-      <div class="flex flex-col items-start gap-1.5 min-w-0 w-full">
-        <div v-if="showAvatar" class="flex items-center w-full min-w-0 gap-3">
-          <h3
-            class="flex-shrink max-w-full min-w-0 my-0 text-base capitalize break-words text-n-slate-12"
-          >
-            {{ contact.name }}
-          </h3>
-          <div class="flex flex-row items-center gap-2">
-            <span
-              v-if="contact.created_at"
-              v-tooltip.left="
-                `${$t('CONTACT_PANEL.CREATED_AT_LABEL')} ${dynamicTime(
-                  contact.created_at
-                )}`
-              "
-              class="i-lucide-info text-sm text-n-slate-10"
-            />
-            <a
-              :href="contactProfileLink"
-              target="_blank"
-              rel="noopener nofollow noreferrer"
-              class="leading-3"
-            >
-              <span class="i-lucide-external-link text-sm text-n-slate-10" />
-            </a>
-          </div>
-        </div>
-
-        <p v-if="additionalAttributes.description" class="break-words mb-0.5">
-          {{ additionalAttributes.description }}
-        </p>
-        <div class="flex flex-col items-start w-full gap-2">
-          <ContactInfoRow
-            :href="contact.email ? `mailto:${contact.email}` : ''"
-            :value="contact.email"
-            icon="mail"
-            emoji="✉️"
-            :title="$t('CONTACT_PANEL.EMAIL_ADDRESS')"
-            show-copy
-          />
-          <ContactInfoRow
-            :href="contact.phoneNumber ? `tel:${contact.phoneNumber}` : ''"
-            :value="contact.phoneNumber"
-            icon="call"
-            emoji="📞"
-            :title="$t('CONTACT_PANEL.PHONE_NUMBER')"
-            show-copy
-          />
-          <ContactInfoRow
-            v-if="contact.identifier"
-            :value="contact.identifier"
-            icon="contact-identify"
-            emoji="🪪"
-            :title="$t('CONTACT_PANEL.IDENTIFIER')"
-          />
-          <ContactInfoRow
-            :value="additionalAttributes.company_name"
-            icon="building-bank"
-            emoji="🏢"
-            :title="$t('CONTACT_PANEL.COMPANY')"
-          />
-          <ContactInfoRow
-            v-if="location || additionalAttributes.location"
-            :value="location || additionalAttributes.location"
-            icon="map"
-            emoji="🌍"
-            :title="$t('CONTACT_PANEL.LOCATION')"
-          />
-          <SocialIcons :social-profiles="socialProfiles" />
-        </div>
+      <!-- Email/Phone centered -->
+      <div class="flex flex-col items-center gap-0.5 mt-1">
+        <span v-if="contact.email" class="text-sm text-n-slate-10 text-center">
+          {{ contact.email }}
+        </span>
+        <span
+          v-if="contact.phoneNumber"
+          class="text-sm text-n-slate-10 text-center"
+        >
+          {{ contact.phoneNumber }}
+        </span>
       </div>
-      <div class="flex items-center w-full mt-0.5 gap-2">
+
+      <!-- Social icons -->
+      <div class="mt-3">
+        <SocialIcons :social-profiles="socialProfiles" />
+      </div>
+
+      <!-- Action buttons -->
+      <div class="flex items-center gap-2 mt-4">
         <ComposeConversation
           :contact-id="String(contact.id)"
           is-modal
           @close="closeComposeConversationModal"
         >
           <template #trigger="{ toggle }">
-            <NextButton
+            <button
               v-tooltip.top-end="$t('CONTACT_PANEL.NEW_MESSAGE')"
-              icon="i-ph-chat-circle-dots"
-              slate
-              faded
-              sm
+              class="px-3 h-8 rounded-lg border border-n-weak text-sm text-n-slate-12 hover:bg-n-slate-3/50 inline-flex items-center justify-center"
               @click="openComposeConversationModal(toggle)"
-            />
+            >
+              <span class="i-ph-chat-circle-dots size-4" />
+            </button>
           </template>
         </ComposeConversation>
         <VoiceCallButton
@@ -293,51 +263,87 @@ export default {
           slate
           faded
         />
-        <NextButton
+        <button
           v-tooltip.top-end="$t('EDIT_CONTACT.BUTTON_LABEL')"
-          icon="i-ph-pencil-simple"
-          slate
-          faded
-          sm
+          class="px-3 h-8 rounded-lg border border-n-weak text-sm text-n-slate-12 hover:bg-n-slate-3/50 inline-flex items-center justify-center"
           @click="toggleEditModal"
-        />
-        <NextButton
+        >
+          <span class="i-ph-pencil-simple size-4" />
+        </button>
+        <button
           v-tooltip.top-end="$t('CONTACT_PANEL.MERGE_CONTACT')"
-          icon="i-ph-arrows-merge"
-          slate
-          faded
-          sm
+          class="px-3 h-8 rounded-lg border border-n-weak text-sm text-n-slate-12 hover:bg-n-slate-3/50 inline-flex items-center justify-center"
           :disabled="uiFlags.isMerging"
           @click="openMergeModal"
-        />
-        <NextButton
+        >
+          <span class="i-ph-arrows-merge size-4" />
+        </button>
+        <button
           v-tooltip.top-end="$t('EXPORT_CONVERSATION.BUTTON_LABEL')"
-          icon="i-ph-file-pdf"
-          slate
-          faded
-          sm
+          class="px-3 h-8 rounded-lg border border-n-weak text-sm text-n-slate-12 hover:bg-n-slate-3/50 inline-flex items-center justify-center"
           @click="showExportModal = true"
-        />
-        <NextButton
+        >
+          <span class="i-ph-file-pdf size-4" />
+        </button>
+        <button
           v-if="isAdmin"
           v-tooltip.top-end="$t('DELETE_CONTACT.BUTTON_LABEL')"
-          icon="i-ph-trash"
-          slate
-          faded
-          sm
-          ruby
+          class="px-3 h-8 rounded-lg border border-n-weak text-sm text-n-ruby-9 hover:bg-n-ruby-3/50 inline-flex items-center justify-center"
           :disabled="uiFlags.isDeleting"
           @click="toggleDeleteModal"
+        >
+          <span class="i-ph-trash size-4" />
+        </button>
+      </div>
+
+      <!-- Additional info rows (below action buttons) -->
+      <div
+        v-if="
+          contact.identifier ||
+          additionalAttributes.company_name ||
+          location ||
+          additionalAttributes.location ||
+          additionalAttributes.description
+        "
+        class="flex flex-col items-start w-full gap-2 mt-4 pt-4 border-t border-n-weak/50"
+      >
+        <p
+          v-if="additionalAttributes.description"
+          class="break-words mb-0 text-sm text-n-slate-11"
+        >
+          {{ additionalAttributes.description }}
+        </p>
+        <ContactInfoRow
+          v-if="contact.identifier"
+          :value="contact.identifier"
+          icon="contact-identify"
+          emoji="🪪"
+          :title="$t('CONTACT_PANEL.IDENTIFIER')"
+        />
+        <ContactInfoRow
+          v-if="additionalAttributes.company_name"
+          :value="additionalAttributes.company_name"
+          icon="building-bank"
+          emoji="🏢"
+          :title="$t('CONTACT_PANEL.COMPANY')"
+        />
+        <ContactInfoRow
+          v-if="location || additionalAttributes.location"
+          :value="location || additionalAttributes.location"
+          icon="map"
+          emoji="🌍"
+          :title="$t('CONTACT_PANEL.LOCATION')"
         />
       </div>
-      <EditContact
-        v-if="showEditModal"
-        :show="showEditModal"
-        :contact="contact"
-        @cancel="toggleEditModal"
-      />
-      <ContactMergeModal ref="mergeModal" :primary-contact="contact" />
     </div>
+
+    <EditContact
+      v-if="showEditModal"
+      :show="showEditModal"
+      :contact="contact"
+      @cancel="toggleEditModal"
+    />
+    <ContactMergeModal ref="mergeModal" :primary-contact="contact" />
     <ExportConversationModal
       :show="showExportModal"
       :conversations="currentChat?.id ? [currentChat] : []"

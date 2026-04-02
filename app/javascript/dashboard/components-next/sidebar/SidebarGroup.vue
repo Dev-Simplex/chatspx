@@ -266,10 +266,10 @@ watch(
           ref="triggerRef"
           :to="to && !hasChildren ? to : undefined"
           type="button"
-          class="flex items-center justify-center size-10 rounded-lg"
+          class="flex items-center justify-center size-11 rounded-xl"
           :class="{
-            'text-n-slate-12 bg-n-alpha-2': isActive || hasActiveChild,
-            'text-n-slate-11 hover:bg-n-alpha-2': !isActive && !hasActiveChild,
+            'text-n-brand bg-n-brand/10 dark:bg-n-brand/15': isActive || hasActiveChild,
+            'text-n-slate-11 hover:bg-n-slate-3/50 dark:hover:bg-n-alpha-2': !isActive && !hasActiveChild,
           }"
           :title="label"
           @click="hasChildren ? handleCollapsedClick() : undefined"

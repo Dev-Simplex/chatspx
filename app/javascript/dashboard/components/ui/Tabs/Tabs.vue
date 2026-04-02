@@ -66,8 +66,7 @@ watch(
 <template>
   <div
     ref="tabsContainer"
-    class="flex"
-    :class="[border && 'border-b border-b-n-weak']"
+    class="flex items-center"
   >
     <button
       v-if="hasScroll"
@@ -78,9 +77,9 @@ watch(
     </button>
     <ul
       ref="tabsList"
-      class="border-r-0 border-l-0 border-t-0 flex min-w-[6.25rem] py-0 px-4 list-none mb-0"
+      class="flex items-center gap-2 px-3 py-2 list-none mb-0 overflow-x-auto no-scrollbar"
       :class="
-        hasScroll ? 'overflow-hidden py-0 px-1 max-w-[calc(100%-64px)]' : ''
+        hasScroll ? 'max-w-[calc(100%-64px)]' : ''
       "
     >
       <slot />

@@ -14,14 +14,21 @@ const emit = defineEmits(['dismiss']);
 
 <template>
   <div
-    class="reply-editor bg-n-slate-9/10 rounded-md py-1 pl-2 pr-1 text-xs tracking-wide mt-2 flex items-center gap-1.5"
+    class="reply-editor flex items-start gap-2 p-2 mx-2 mt-2 bg-n-slate-3/30 dark:bg-n-alpha-1 rounded-lg border-l-2 border-l-n-brand"
   >
-    <fluent-icon class="flex-shrink-0 icon" icon="arrow-reply" size="14" />
-    <div class="flex flex-grow items-center gap-2 min-w-0 mt-px text-xs">
-      <span class="flex-shrink-0">
+    <div class="flex flex-grow items-center gap-2 min-w-0 mt-px">
+      <fluent-icon
+        class="flex-shrink-0 icon text-n-brand"
+        icon="arrow-reply"
+        size="14"
+      />
+      <span class="text-xs font-medium text-n-brand flex-shrink-0">
         {{ $t('CONVERSATION.REPLYBOX.REPLYING_TO') }}
       </span>
-      <ReplyPreview :in-reply-to="message" class="min-w-0 flex-grow" />
+      <ReplyPreview
+        :in-reply-to="message"
+        class="min-w-0 flex-grow text-sm text-n-slate-11 line-clamp-2"
+      />
     </div>
     <Button
       v-tooltip="$t('CONVERSATION.REPLYBOX.DISMISS_REPLY')"
@@ -29,7 +36,7 @@ const emit = defineEmits(['dismiss']);
       xs
       slate
       icon="i-lucide-x"
-      class="flex-shrink-0"
+      class="flex-shrink-0 size-6 rounded-full hover:bg-n-slate-3 text-n-slate-10"
       @click.stop="emit('dismiss')"
     />
   </div>

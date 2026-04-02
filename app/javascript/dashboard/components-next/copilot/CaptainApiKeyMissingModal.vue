@@ -72,6 +72,7 @@ defineExpose({
     :confirm-button-label="confirmButtonLabel"
     :show-cancel-button="isAdmin"
     :cancel-button-label="t('CAPTAIN.COPILOT.API_KEY_MISSING.CLOSE_BUTTON')"
+    class="[&_.dialog-content]:bg-n-amber-3/50 [&_.dialog-content]:border [&_.dialog-content]:border-n-amber-6/30 [&_.dialog-content]:rounded-xl"
     @confirm="handleConfirm"
     @close="handleClose"
   />

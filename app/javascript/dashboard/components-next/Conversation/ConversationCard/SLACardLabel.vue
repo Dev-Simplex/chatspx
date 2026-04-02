@@ -83,8 +83,8 @@ defineExpose({
 </script>
 
 <template>
-  <div class="flex items-center min-w-fit gap-0.5 h-6">
-    <div class="flex items-center justify-center size-4">
+  <div class="flex items-center min-w-fit gap-0.5 h-5">
+    <div class="flex items-center justify-center size-3.5">
       <svg
         width="10"
         height="13"
@@ -100,7 +100,7 @@ defineExpose({
     </div>
 
     <span
-      class="text-sm truncate"
+      class="text-xs truncate"
       :class="isSlaMissed ? 'text-n-ruby-11' : 'text-n-slate-11'"
     >
       {{ `${slaStatusText}: ${slaStatus.threshold}` }}

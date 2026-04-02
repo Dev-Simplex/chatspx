@@ -73,9 +73,9 @@ const AVATAR_COLORS = {
 };
 
 const STATUS_CLASSES = {
-  online: 'bg-n-teal-10',
+  online: 'bg-n-brand',
   busy: 'bg-n-amber-10',
-  offline: 'bg-n-slate-10',
+  offline: 'bg-n-slate-8',
 };
 
 const showDefaultAvatar = computed(() => !props.src && !props.name);

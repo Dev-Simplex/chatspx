@@ -68,11 +68,11 @@ const updateVisibleLabels = () => {
   <div
     ref="containerRef"
     v-resize="updateVisibleLabels"
-    class="flex items-center gap-2.5 w-full min-w-0 h-6 overflow-hidden"
+    class="flex items-center gap-1.5 w-full min-w-0 h-5 overflow-hidden"
   >
     <template v-for="(label, index) in visibleLabels" :key="label.id">
       <div
-        class="flex items-center gap-1.5 min-w-0"
+        class="flex items-center gap-1 min-w-0"
         :class="[
           index !== visibleLabels.length - 1
             ? 'flex-shrink-0 text-ellipsis'
@@ -84,12 +84,18 @@ const updateVisibleLabels = () => {
           class="size-1.5 rounded-full flex-shrink-0"
         />
         <span
-          class="text-sm text-n-slate-10 whitespace-nowrap"
+          class="text-xs text-n-slate-10 whitespace-nowrap"
           :class="{ truncate: index === visibleLabels.length - 1 }"
         >
           {{ label.title }}
         </span>
       </div>
     </template>
+    <span
+      v-if="activeLabels.length > maxLabels"
+      class="text-xs text-n-slate-9 flex-shrink-0 whitespace-nowrap"
+    >
+      +{{ activeLabels.length - maxLabels }}
+    </span>
   </div>
 </template>

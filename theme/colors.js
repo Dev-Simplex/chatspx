@@ -224,7 +224,8 @@ export const colors = {
     },
 
     black: '#000000',
-    brand: '#2dc46f',
+    brand: '#25D366',
+    'brand-hover': '#1FB85A',
     background: 'rgb(var(--background-color) / <alpha-value>)',
     'input-background': 'rgba(var(--background-input-box))',
     surface: {
@@ -255,7 +256,7 @@ export const colors = {
     },
     // Border colors
     weak: 'rgb(var(--border-weak) / <alpha-value>)',
-    container: 'rgba(var(--border-container))',
+    container: 'rgb(var(--border-container) / <alpha-value>)',
     strong: 'rgb(var(--border-strong) / <alpha-value>)',
     'blue-strong': 'rgb(var(--border-blue-strong) / <alpha-value>)',
     'blue-border': 'rgba(var(--border-blue))',
@@ -266,6 +267,8 @@ export const colors = {
     'teal-text': 'rgb(var(--teal-11) / <alpha-value>)',
     'teal-border': 'rgb(var(--teal-9) / <alpha-value>)',
     card: 'rgb(var(--card-color) / <alpha-value>)',
+    selected: 'rgb(var(--bg-selected) / <alpha-value>)',
+    'chat-bg': 'rgb(var(--bg-chat) / <alpha-value>)',
     overlay: {
       default: 'rgba(var(--overlay))',
       avatar: 'rgba(var(--overlay-avatar))',

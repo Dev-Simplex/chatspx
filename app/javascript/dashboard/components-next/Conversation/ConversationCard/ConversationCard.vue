@@ -87,41 +87,43 @@ const onCardClick = e => {
 <template>
   <div
     role="button"
-    class="flex w-full gap-3 px-3 py-4 transition-all duration-300 ease-in-out cursor-pointer"
+    class="flex items-start w-full gap-3 px-3 py-2.5 cursor-pointer border-b border-n-weak/30 transition-colors duration-150 hover:bg-n-slate-3/50 dark:hover:bg-n-alpha-2"
     @click="onCardClick"
   >
     <Avatar
       :name="currentContactName"
       :src="currentContactThumbnail"
-      :size="24"
+      :size="40"
       :status="currentContactStatus"
       rounded-full
     />
-    <div class="flex flex-col w-full gap-1 min-w-0">
-      <div class="flex items-center justify-between h-6 gap-2">
-        <h4 class="text-base font-medium truncate text-n-slate-12">
+    <div class="flex flex-col w-full gap-0.5 min-w-0">
+      <!-- Line 1: Name + Timestamp -->
+      <div class="flex items-center justify-between gap-2">
+        <h4 class="text-sm font-medium truncate text-n-slate-12">
           {{ currentContactName }}
         </h4>
-        <div class="flex items-center gap-2">
-          <CardPriorityIcon :priority="conversation.priority || null" />
+        <div class="flex items-center gap-2 flex-shrink-0">
           <div
             v-tooltip.left="inboxName"
-            class="flex items-center justify-center flex-shrink-0 rounded-full bg-n-alpha-2 size-5"
+            class="flex items-center justify-center flex-shrink-0 rounded-full bg-n-alpha-2 size-4"
           >
             <Icon
               :icon="inboxIcon"
-              class="flex-shrink-0 text-n-slate-11 size-3"
+              class="flex-shrink-0 text-n-slate-11 size-2.5"
             />
           </div>
-          <span class="text-sm text-n-slate-10">
+          <span class="text-xs text-n-slate-10 whitespace-nowrap">
             {{ lastActivityAt }}
           </span>
         </div>
       </div>
+      <!-- Line 2: Message Preview + Unread Badge -->
       <CardMessagePreview
         v-show="showMessagePreviewWithoutMeta"
         :conversation="conversation"
       />
+      <!-- Line 2+3: Message Preview with Metadata -->
       <CardMessagePreviewWithMeta
         v-show="!showMessagePreviewWithoutMeta"
         ref="cardMessagePreviewWithMetaRef"

@@ -83,13 +83,13 @@ const handleAction = ({ action, value }) => {
       <div class="flex justify-between w-full gap-2">
         <div class="flex items-center justify-start w-full min-w-0 gap-2">
           <span
-            class="text-base truncate cursor-pointer hover:underline underline-offset-2 hover:text-n-blue-11 text-n-slate-12"
+            class="text-sm font-medium truncate cursor-pointer hover:underline underline-offset-2 hover:text-n-blue-11 text-n-slate-12"
             @click="handleClick(slug)"
           >
             {{ categoryTitleWithIcon }}
           </span>
           <span
-            class="inline-flex items-center justify-center h-6 px-2 py-1 text-xs text-center border rounded-lg bg-n-slate-1 whitespace-nowrap shrink-0 text-n-slate-11 border-n-slate-4"
+            class="inline-flex items-center justify-center h-6 px-2 py-0.5 text-xs text-center rounded-full bg-n-slate-3 whitespace-nowrap shrink-0 text-n-slate-10"
           >
             {{
               t('HELP_CENTER.CATEGORY_PAGE.CATEGORY_CARD.ARTICLES_COUNT', {
@@ -107,7 +107,7 @@ const handleAction = ({ action, value }) => {
             color="slate"
             size="xs"
             variant="ghost"
-            class="rounded-md group-hover:bg-n-alpha-2"
+            class="rounded-lg group-hover:bg-n-slate-3/50"
             @click="toggleDropdown()"
           />
           <DropdownMenu

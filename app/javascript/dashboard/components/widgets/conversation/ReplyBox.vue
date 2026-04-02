@@ -1714,10 +1714,20 @@ export default {
 }
 
 .reply-box {
-  @apply relative mb-2 mx-2 border border-n-weak rounded-xl bg-n-solid-1;
+  @apply relative mb-2 mx-2 border border-n-weak rounded-xl bg-white dark:bg-n-solid-2 transition-colors duration-200;
+
+  &.is-focused,
+  &:focus-within {
+    @apply border-n-brand/50 ring-1 ring-n-brand/20;
+  }
 
   &.is-private {
-    @apply bg-n-solid-amber dark:border-n-amber-3/10 border-n-amber-12/5;
+    @apply bg-n-solid-amber/30 dark:bg-n-solid-amber/10 border-n-amber-7/50;
+
+    &.is-focused,
+    &:focus-within {
+      @apply border-n-amber-7/50 ring-1 ring-n-amber-7/20;
+    }
   }
 }
 

@@ -72,12 +72,12 @@ function getDayOfTheWeek(date) {
 
 const COLOR_SCHEMES = {
   blue: [
-    'bg-n-blue-3 border border-n-blue-4/30',
-    'bg-n-blue-5 border border-n-blue-6/30',
-    'bg-n-blue-7 border border-n-blue-8/30',
-    'bg-n-blue-8 border border-n-blue-9/30',
-    'bg-n-blue-10 border border-n-blue-8/30',
-    'bg-n-blue-11 border border-n-blue-10/30',
+    'bg-n-brand/10 border border-n-brand/20',
+    'bg-n-brand/25 border border-n-brand/30',
+    'bg-n-brand/40 border border-n-brand/40',
+    'bg-n-brand/55 border border-n-brand/50',
+    'bg-n-brand/70 border border-n-brand/60',
+    'bg-n-brand/85 border border-n-brand/70',
   ],
   green: [
     'bg-n-teal-3 border border-n-teal-4/30',
@@ -93,7 +93,7 @@ const COLOR_SCHEMES = {
 const getHeatmapLevelClass = useMemoize(
   (value, quantileRangeArray, colorScheme) => {
     if (!value)
-      return 'border border-n-container bg-n-slate-2 dark:bg-n-slate-1/30';
+      return 'border border-n-weak bg-n-slate-2 dark:bg-n-slate-1/30';
     let level = [...quantileRangeArray, Infinity].findIndex(
       range => value <= range && value > 0
     );
@@ -101,7 +101,7 @@ const getHeatmapLevelClass = useMemoize(
     if (level > 6) level = 5;
 
     if (level === 0) {
-      return 'border border-n-container bg-n-slate-2 dark:bg-n-slate-1/30';
+      return 'border border-n-weak bg-n-slate-2 dark:bg-n-slate-1/30';
     }
 
     return COLOR_SCHEMES[colorScheme][level - 1];
@@ -192,7 +192,7 @@ const tooltip = useHeatmapTooltip();
       </div>
       <div />
       <div
-        class="grid grid-cols-[repeat(24,_1fr)] gap-[5px] w-full text-[8px] font-semibold h-5 text-n-slate-12"
+        class="grid grid-cols-[repeat(24,_1fr)] gap-[5px] w-full text-[8px] font-semibold h-5 text-n-slate-10"
       >
         <div
           v-for="ii in 24"

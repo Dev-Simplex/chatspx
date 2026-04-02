@@ -20,10 +20,10 @@ defineProps({
 </script>
 
 <template>
-  <div class="flex flex-col w-full h-full gap-4 font-inter">
+  <div class="flex flex-col w-full h-full gap-4 font-inter bg-white dark:bg-n-solid-1">
     <slot name="header" />
     <!-- Added to render any templates that should be rendered before body -->
-    <main>
+    <main class="flex-1 max-w-[960px] w-full mx-auto">
       <slot name="preBody" />
       <slot v-if="isLoading" name="loading">
         <woot-loading-state :message="loadingMessage" />

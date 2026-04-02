@@ -49,6 +49,19 @@ const tailwindConfig = {
         460: '460',
         520: '520',
       },
+      borderRadius: {
+        'bubble-in': '0 8px 8px 8px',
+        'bubble-out': '8px 0 8px 8px',
+        'bubble-note': '0 8px 8px 8px',
+      },
+      boxShadow: {
+        bubble: '0 1px 1px rgba(0,0,0,0.06)',
+        card: '0 1px 2px rgba(0,0,0,0.05)',
+        panel: 'none',
+        dropdown: '0 4px 12px rgba(0,0,0,0.1)',
+        overlay: '0 8px 24px rgba(0,0,0,0.15)',
+        focus: '0 0 0 2px rgba(37,211,102,0.3)',
+      },
       typography: {
         bubble: {
           css: {

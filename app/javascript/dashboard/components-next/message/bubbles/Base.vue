@@ -18,27 +18,32 @@ const { variant, orientation, inReplyTo, shouldGroupWithNext } =
   useMessageContext();
 
 const varaintBaseMap = {
-  [MESSAGE_VARIANTS.AGENT]: 'bg-n-solid-blue text-n-slate-12',
+  [MESSAGE_VARIANTS.AGENT]:
+    'bg-n-solid-blue dark:bg-n-solid-blue text-n-slate-12 shadow-bubble',
   [MESSAGE_VARIANTS.PRIVATE]:
-    'bg-n-solid-amber text-n-amber-12 [&_.prosemirror-mention-node]:font-semibold',
+    'bg-n-solid-amber dark:bg-n-solid-amber text-n-slate-12 shadow-bubble [&_.prosemirror-mention-node]:font-semibold',
   [MESSAGE_VARIANTS.SCHEDULED]:
-    'bg-n-solid-amber text-n-amber-12 [&_.prosemirror-mention-node]:font-semibold',
-  [MESSAGE_VARIANTS.USER]: 'bg-n-slate-4 text-n-slate-12',
-  [MESSAGE_VARIANTS.ACTIVITY]: 'bg-n-alpha-1 text-n-slate-11 text-sm',
-  [MESSAGE_VARIANTS.BOT]: 'bg-n-solid-iris text-n-slate-12',
-  [MESSAGE_VARIANTS.TEMPLATE]: 'bg-n-solid-iris text-n-slate-12',
-  [MESSAGE_VARIANTS.ERROR]: 'bg-n-ruby-4 text-n-ruby-12',
-  [MESSAGE_VARIANTS.EMAIL]: 'w-full',
+    'bg-n-solid-amber dark:bg-n-solid-amber text-n-slate-12 shadow-bubble [&_.prosemirror-mention-node]:font-semibold',
+  [MESSAGE_VARIANTS.USER]:
+    'bg-white dark:bg-n-slate-3 text-n-slate-12 shadow-bubble',
+  [MESSAGE_VARIANTS.ACTIVITY]: 'bg-transparent text-n-slate-10 text-xs',
+  [MESSAGE_VARIANTS.BOT]:
+    'bg-n-solid-blue dark:bg-n-solid-blue text-n-slate-12 shadow-bubble',
+  [MESSAGE_VARIANTS.TEMPLATE]:
+    'bg-n-solid-blue dark:bg-n-solid-blue text-n-slate-12 shadow-bubble',
+  [MESSAGE_VARIANTS.ERROR]: 'bg-n-ruby-4 text-n-ruby-12 rounded-lg',
+  [MESSAGE_VARIANTS.EMAIL]:
+    'w-full bg-white dark:bg-n-slate-3 border border-n-weak rounded-lg',
   [MESSAGE_VARIANTS.UNSUPPORTED]:
-    'bg-n-solid-amber/70 border border-dashed border-n-amber-12 text-n-amber-12',
+    'bg-n-solid-amber/70 border border-dashed border-n-amber-12 text-n-amber-12 rounded-lg',
 };
 
 const orientationMap = {
   [ORIENTATION.LEFT]:
-    'left-bubble rounded-xl ltr:rounded-bl-sm rtl:rounded-br-sm',
+    'left-bubble rounded-bubble-in rtl:rounded-[8px_0_8px_8px]',
   [ORIENTATION.RIGHT]:
-    'right-bubble rounded-xl ltr:rounded-br-sm rtl:rounded-bl-sm',
-  [ORIENTATION.CENTER]: 'rounded-md',
+    'right-bubble rounded-bubble-out rtl:rounded-[0_8px_8px_8px]',
+  [ORIENTATION.CENTER]: 'rounded-lg',
 };
 
 const flexOrientationClass = computed(() => {
@@ -51,13 +56,18 @@ const flexOrientationClass = computed(() => {
   return map[orientation.value];
 });
 
+const NON_DIRECTIONAL_VARIANTS = [
+  MESSAGE_VARIANTS.ACTIVITY,
+  MESSAGE_VARIANTS.EMAIL,
+  MESSAGE_VARIANTS.ERROR,
+  MESSAGE_VARIANTS.UNSUPPORTED,
+];
+
 const messageClass = computed(() => {
   const classToApply = [varaintBaseMap[variant.value]];
 
-  if (variant.value !== MESSAGE_VARIANTS.ACTIVITY) {
+  if (!NON_DIRECTIONAL_VARIANTS.includes(variant.value)) {
     classToApply.push(orientationMap[orientation.value]);
-  } else {
-    classToApply.push('rounded-lg');
   }
 
   return classToApply;

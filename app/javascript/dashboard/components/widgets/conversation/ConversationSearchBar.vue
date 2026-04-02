@@ -113,11 +113,11 @@ const handleContainerClick = () => {
   <div class="sticky top-0 z-10 mb-2.5 bg-n-solid-1">
     <div class="flex items-center px-2 py-1.5">
       <div
-        class="search-container flex items-center w-full h-[40px] rounded-lg px-3 gap-2 transition-all duration-200 cursor-text"
+        class="flex items-center w-full h-9 rounded-lg px-3 gap-2 transition-all duration-200 cursor-text"
         :class="[
           isFocused
-            ? 'bg-white dark:bg-[#2a3942]'
-            : 'bg-[#f0f2f5] dark:bg-[#202c33]',
+            ? 'bg-white dark:bg-n-solid-2 border border-n-weak ring-1 ring-n-brand/20'
+            : 'bg-n-slate-3/50 dark:bg-n-solid-3 border border-transparent',
         ]"
         @click="handleContainerClick"
       >
@@ -126,11 +126,11 @@ const handleContainerClick = () => {
             v-if="!isSearching"
             icon="search"
             size="16"
-            class="text-[#54656f] dark:text-[#aebac1]"
+            :class="isFocused ? 'text-n-brand' : 'text-n-slate-10'"
           />
           <div
             v-else
-            class="block size-4 border-2 border-[#00a884] border-t-transparent rounded-full animate-spin"
+            class="block size-4 border-2 border-n-brand border-t-transparent rounded-full animate-spin"
           />
         </div>
         <input
@@ -138,7 +138,7 @@ const handleContainerClick = () => {
           v-model="searchQuery"
           type="text"
           :placeholder="placeholderText"
-          class="reset-base no-margin flex-1 min-w-0 border-0 bg-transparent text-[13px] leading-[35px] p-0 m-0 shadow-none appearance-none rounded-none w-full font-normal cursor-text select-text focus:border-0 focus:bg-transparent focus:shadow-none focus:outline-none focus:ring-0 text-[#111b21] dark:text-[#e9edef] placeholder:text-[#667781] dark:placeholder:text-[#8696a0] placeholder:font-normal caret-[#00a884]"
+          class="reset-base no-margin flex-1 min-w-0 border-0 bg-transparent text-sm leading-[35px] p-0 m-0 shadow-none appearance-none rounded-none w-full font-normal cursor-text select-text focus:border-0 focus:bg-transparent focus:shadow-none focus:outline-none focus:ring-0 text-n-slate-12 placeholder:text-n-slate-9 placeholder:font-normal caret-[#25D366]"
           @input="handleSearch"
           @keydown="handleKeyDown"
           @focus="isFocused = true"
@@ -147,7 +147,7 @@ const handleContainerClick = () => {
         <button
           v-if="hasSearchQuery && !isSearching"
           type="button"
-          class="flex items-center justify-center bg-transparent border-0 p-0.5 cursor-pointer transition-colors duration-200 shrink-0 text-[#54656f] dark:text-[#aebac1] hover:text-[#111b21] dark:hover:text-[#e9edef] focus:outline-none"
+          class="flex items-center justify-center size-6 rounded-full bg-transparent border-0 cursor-pointer transition-colors duration-200 shrink-0 text-n-slate-10 hover:bg-n-slate-3 focus:outline-none"
           :aria-label="t('GENERAL_SETTINGS.WAHA_BANNER.CLEAR_SEARCH')"
           @click="clearSearch"
         >

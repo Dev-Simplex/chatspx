@@ -27,16 +27,16 @@ const headerClass = computed(() =>
 );
 const headerRowClass = computed(() =>
   isReports.value
-    ? 'bg-n-solid-2/80 border-b border-n-container/60'
+    ? 'bg-n-slate-2/50 dark:bg-n-solid-3'
     : 'bg-n-slate-1'
 );
 const rowClass = computed(() =>
   isReports.value
-    ? 'odd:bg-n-alpha-2/40 hover:bg-n-alpha-2/70 transition-colors'
+    ? 'border-t border-n-weak/30 hover:bg-n-slate-3/30 transition-colors'
     : ''
 );
 const cellClass = computed(() =>
-  isReports.value ? 'py-3.5 px-5 text-sm text-n-slate-12' : ''
+  isReports.value ? 'px-4 py-3 text-sm text-n-slate-12' : ''
 );
 </script>
 
@@ -54,7 +54,7 @@ const cellClass = computed(() =>
           :style="{
             width: `${header.getSize()}px`,
           }"
-          class="text-left py-3 px-5 font-medium text-sm text-n-slate-12"
+          class="text-left px-4 py-3 text-xs font-medium text-n-slate-10 uppercase tracking-wider"
           :class="headerClass"
           @click="header.column.getCanSort() && header.column.toggleSorting()"
         >
@@ -72,7 +72,7 @@ const cellClass = computed(() =>
       </tr>
     </thead>
 
-    <tbody class="divide-y divide-n-slate-2">
+    <tbody class="divide-y divide-n-weak/30">
       <tr
         v-for="row in table.getRowModel().rows"
         :key="row.id"

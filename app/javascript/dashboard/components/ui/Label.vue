@@ -57,6 +57,13 @@ export default {
       }`;
     },
     labelStyle() {
+      if (this.variant === 'smooth' && this.color) {
+        return {
+          background: `${this.color}1A`,
+          color: this.color,
+          border: 'none',
+        };
+      }
       if (this.bgColor) {
         return {
           background: this.bgColor,
@@ -83,7 +90,7 @@ export default {
 
 <template>
   <div
-    class="inline-flex ltr:mr-1 rtl:ml-1 mb-1"
+    class="inline-flex"
     :class="labelClass"
     :style="labelStyle"
     :title="description"
@@ -92,7 +99,7 @@ export default {
       <fluent-icon :icon="icon" size="12" class="label--icon cursor-pointer" />
     </span>
     <span
-      v-if="['smooth', 'dashed'].includes(variant) && title && !icon"
+      v-if="variant === 'dashed' && title && !icon"
       :style="{ background: color }"
       class="label-color-dot flex-shrink-0"
     />
@@ -103,10 +110,14 @@ export default {
     <button
       v-if="showClose"
       class="label-close--button p-0"
-      :style="{ color: textColor }"
+      :style="{ color: variant === 'smooth' && color ? color : textColor }"
       @click="onClick"
     >
-      <fluent-icon icon="dismiss" size="12" class="close--icon" />
+      <fluent-icon
+        icon="dismiss"
+        size="12"
+        class="close--icon opacity-60 hover:opacity-100"
+      />
     </button>
   </div>
 </template>
@@ -184,11 +195,11 @@ export default {
   }
 
   &.smooth {
-    @apply bg-transparent text-n-slate-11 dark:text-n-slate-12 border border-solid border-n-strong;
+    @apply bg-transparent text-n-slate-11 dark:text-n-slate-12 border-none rounded-full px-2;
   }
 
   &.dashed {
-    @apply bg-transparent text-n-slate-11 dark:text-n-slate-12 border border-dashed border-n-strong;
+    @apply bg-transparent text-n-slate-11 dark:text-n-slate-12 border border-dashed border-n-weak rounded-full px-2 hover:border-n-slate-6;
   }
 }
 

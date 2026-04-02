@@ -331,27 +331,29 @@ export default {
 </script>
 
 <template>
-  <div class="flex justify-between p-3" :class="wrapClass">
+  <div class="flex justify-between px-4 py-2" :class="wrapClass">
     <div class="left-wrap">
-      <NextButton
+      <button
         v-if="!isEditorDisabled"
         v-tooltip.top-end="$t('CONVERSATION.REPLYBOX.TIP_EMOJI_ICON')"
-        icon="i-ph-smiley-sticker"
-        slate
-        faded
-        sm
+        class="size-8 rounded-lg flex items-center justify-center hover:bg-n-slate-3/50 transition-colors"
         @click="toggleEmojiPicker"
-      />
+      >
+        <span
+          class="i-ph-smiley-sticker size-[18px] text-n-slate-10 hover:text-n-slate-12"
+        />
+      </button>
       <DropdownContainer v-if="hasMoreMenuItems" placement="top">
         <template #trigger="{ toggle }">
-          <NextButton
+          <button
             v-tooltip.top-end="$t('CONVERSATION.REPLYBOX.MORE_OPTIONS')"
-            icon="i-ph-plus"
-            slate
-            faded
-            sm
+            class="size-8 rounded-lg flex items-center justify-center hover:bg-n-slate-3/50 transition-colors"
             @click="toggle"
-          />
+          >
+            <span
+              class="i-ph-plus size-[18px] text-n-slate-10 hover:text-n-slate-12"
+            />
+          </button>
         </template>
         <DropdownBody class="min-w-[12rem]">
           <DropdownItem
@@ -430,16 +432,16 @@ export default {
       </transition>
     </div>
     <div class="right-wrap">
-      <NextButton
+      <button
         v-if="showAudioRecorderButton && !showAudioPlayStopButton"
         v-tooltip.top-end="$t('CONVERSATION.REPLYBOX.TIP_AUDIORECORDER_ICON')"
-        icon="i-ph-microphone"
-        slate
-        faded
-        sm
-        class="!size-8 !min-w-8 flex-shrink-0 rounded-full"
+        class="size-8 rounded-lg flex items-center justify-center hover:bg-n-slate-3/50 transition-colors flex-shrink-0"
         @click="toggleAudioRecorder"
-      />
+      >
+        <span
+          class="i-ph-microphone size-[18px] text-n-slate-10 hover:text-n-slate-12"
+        />
+      </button>
       <NextButton
         v-if="showAudioPlayStopButton"
         v-tooltip.top-end="$t('CONVERSATION.REPLYBOX.DISCARD_AUDIO_RECORDING')"
@@ -460,17 +462,20 @@ export default {
         :disabled="isAudioRecorderActionDisabled"
         @click="toggleAudioRecorderPlayPause"
       />
-      <NextButton
+      <button
         v-tooltip.top-end="sendButtonText"
         type="submit"
-        sm
-        :color="isNote ? 'amber' : 'blue'"
         :disabled="isSendDisabled"
-        icon="i-ph-paper-plane-tilt"
-        :label="sendButtonText"
-        class="flex-shrink-0 h-9 px-3 rounded-full"
+        class="flex-shrink-0 size-9 rounded-full flex items-center justify-center text-white shadow-sm transition-all duration-150 active:scale-[0.97]"
+        :class="[
+          isNote
+            ? 'bg-n-amber-9 hover:bg-n-amber-10 disabled:opacity-50 disabled:cursor-not-allowed'
+            : 'bg-n-brand hover:bg-[#1FB85A] disabled:opacity-50 disabled:cursor-not-allowed',
+        ]"
         @click="onSend"
-      />
+      >
+        <span class="i-ph-paper-plane-tilt size-[18px]" />
+      </button>
     </div>
   </div>
 </template>

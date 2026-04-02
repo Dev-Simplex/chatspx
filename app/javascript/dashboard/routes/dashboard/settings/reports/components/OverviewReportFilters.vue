@@ -87,7 +87,7 @@ onMounted(() => {
 
 <template>
   <div
-    class="flex flex-col justify-between gap-3 md:flex-row"
+    class="flex flex-col justify-between gap-3 md:flex-row items-center mb-6"
     :class="{ 'pointer-events-none opacity-50': disabled }"
   >
     <div class="flex flex-col flex-wrap items-start gap-2 md:flex-row">

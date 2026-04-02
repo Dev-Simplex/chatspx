@@ -8,17 +8,12 @@ export default {
 </script>
 
 <template>
-  <div class="empty-state py-16 px-1 ml-0 mr-0">
-    <h3
-      v-if="title"
-      class="text-n-slate-12 block text-center w-full text-xl font-medium"
-    >
+  <div class="flex flex-col items-center justify-center py-16 px-8 text-center">
+    <slot name="icon" />
+    <h3 v-if="title" class="text-lg font-semibold text-n-slate-12 mb-2">
       {{ title }}
     </h3>
-    <p
-      v-if="message"
-      class="block text-center text-n-slate-11 my-4 mx-auto w-[90%]"
-    >
+    <p v-if="message" class="text-sm text-n-slate-10 max-w-sm mb-6">
       {{ message }}
     </p>
     <slot />

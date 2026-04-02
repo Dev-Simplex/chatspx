@@ -415,7 +415,7 @@ const handleDeleteFunnel = async () => {
           id="funnel-name"
           v-model="formData.name"
           type="text"
-          class="w-full px-4 !py-3 !h-12 border border-n-weak rounded-lg bg-n-solid-3 text-n-slate-12 text-sm leading-5 focus:outline-none focus:ring-2 focus:ring-n-blue-9"
+          class="w-full px-4 !py-3 !h-12 border border-n-weak rounded-xl bg-white dark:bg-n-solid-3 text-n-slate-12 text-sm leading-5 focus:outline-none focus:ring-2 focus:ring-n-teal-9"
           :placeholder="t('KANBAN.FUNNELS.NAME_PLACEHOLDER')"
           @keydown.enter.prevent="save"
         />
@@ -437,10 +437,10 @@ const handleDeleteFunnel = async () => {
             id="funnel-color"
             v-model="formData.color"
             type="color"
-            class="w-16 h-16 border border-n-weak rounded-lg cursor-pointer"
+            class="w-16 h-16 border border-n-weak rounded-xl cursor-pointer"
           />
           <div
-            class="flex-1 px-4 py-3 border border-n-weak rounded-lg bg-n-solid-3 text-n-slate-12 font-mono"
+            class="flex-1 px-4 py-3 border border-n-weak rounded-xl bg-white dark:bg-n-solid-3 text-n-slate-12 font-mono"
           >
             {{ formData.color }}
           </div>
@@ -459,7 +459,7 @@ const handleDeleteFunnel = async () => {
           </p>
         </label>
         <div
-          class="border border-n-weak rounded-lg bg-n-solid-3 p-4 max-h-[200px] overflow-y-auto"
+          class="border border-n-weak rounded-xl bg-white dark:bg-n-solid-3 p-4 max-h-[200px] overflow-y-auto"
         >
           <div
             v-if="availableInboxes.length === 0"
@@ -471,14 +471,14 @@ const handleDeleteFunnel = async () => {
             <label
               v-for="inbox in availableInboxes"
               :key="inbox.id"
-              class="flex items-center gap-3 p-2 rounded-lg hover:bg-n-solid-2 cursor-pointer transition-colors"
+              class="flex items-center gap-3 p-2 rounded-lg hover:bg-n-slate-3/50 cursor-pointer transition-colors"
               @click.prevent="toggleInbox(inbox.id)"
             >
               <input
                 type="checkbox"
                 :value="inbox.id"
                 :checked="formData.inbox_ids.includes(inbox.id)"
-                class="w-4 h-4 text-n-teal-9 border-n-weak rounded focus:ring-2 focus:ring-n-blue-9 cursor-pointer"
+                class="w-4 h-4 text-n-teal-9 border-n-weak rounded focus:ring-2 focus:ring-n-teal-9 cursor-pointer"
                 @click.stop
                 @change="toggleInbox(inbox.id)"
               />
@@ -533,7 +533,7 @@ const handleDeleteFunnel = async () => {
           <div
             v-for="(stage, index) in stages"
             :key="stage.id || `stage-${index}`"
-            class="group flex flex-col sm:flex-row gap-3 items-start sm:items-center p-4 bg-n-solid-3 rounded-lg border border-n-weak hover:border-n-teal-9 transition-colors"
+            class="group flex flex-col sm:flex-row gap-3 items-start sm:items-center p-4 bg-white dark:bg-n-solid-3 rounded-xl border border-n-weak hover:border-n-teal-9 transition-colors"
           >
             <div
               class="flex-1 w-full sm:w-auto space-y-2 sm:space-y-0 sm:flex sm:items-center sm:gap-3"
@@ -549,7 +549,7 @@ const handleDeleteFunnel = async () => {
                   :id="`stage-name-${index}`"
                   v-model="stage.name"
                   type="text"
-                  class="w-full px-3 py-2 border border-n-weak rounded-lg bg-n-solid-2 text-n-slate-12 focus:outline-none focus:ring-2 focus:ring-n-blue-9 text-sm"
+                  class="w-full px-3 py-2 border border-n-weak rounded-xl bg-white dark:bg-n-solid-2 text-n-slate-12 focus:outline-none focus:ring-2 focus:ring-n-teal-9 text-sm"
                   :placeholder="t('KANBAN.STAGES.NAME_PLACEHOLDER')"
                   :disabled="isDefaultStage(stage)"
                 />
@@ -567,7 +567,7 @@ const handleDeleteFunnel = async () => {
                       :id="`stage-color-${index}`"
                       v-model="stage.color"
                       type="color"
-                      class="w-10 h-10 border border-n-weak rounded-lg cursor-pointer"
+                      class="w-10 h-10 border border-n-weak rounded-xl cursor-pointer"
                       :disabled="isDefaultStage(stage)"
                     />
                     <span class="text-xs text-n-slate-10 font-mono">{{
@@ -586,7 +586,7 @@ const handleDeleteFunnel = async () => {
                 <select
                   :id="`stage-automation-${index}`"
                   v-model="stage.automation_type"
-                  class="w-full px-3 py-2 border border-n-weak rounded-lg bg-n-solid-2 text-n-slate-12 focus:outline-none focus:ring-2 focus:ring-n-blue-9 text-sm disabled:opacity-75 disabled:cursor-not-allowed"
+                  class="w-full px-3 py-2 border border-n-weak rounded-xl bg-white dark:bg-n-solid-2 text-n-slate-12 focus:outline-none focus:ring-2 focus:ring-n-teal-9 text-sm disabled:opacity-75 disabled:cursor-not-allowed"
                   :disabled="isDefaultStage(stage)"
                 >
                   <option :value="null">
@@ -627,7 +627,7 @@ const handleDeleteFunnel = async () => {
           </div>
           <div
             v-if="stages.length === 0"
-            class="text-center py-8 text-n-slate-10 border-2 border-dashed border-n-weak rounded-lg"
+            class="text-center py-8 text-n-slate-10 border-2 border-dashed border-n-weak rounded-xl"
           >
             <Icon
               icon="i-lucide-git-branch"

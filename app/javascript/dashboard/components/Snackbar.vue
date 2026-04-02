@@ -24,17 +24,29 @@ export default {
     icon() {
       return this.action?.icon;
     },
+    defaultIcon() {
+      const iconMap = {
+        success: 'i-lucide-check-circle',
+        error: 'i-lucide-alert-circle',
+        warning: 'i-lucide-alert-triangle',
+        info: 'i-lucide-info',
+      };
+      return this.icon || iconMap[this.variant] || null;
+    },
     containerClass() {
-      if (this.variant === 'error') {
-        return 'bg-n-ruby-9 text-white ring-1 ring-n-ruby-7/40 shadow-lg';
-      }
-      if (this.variant === 'warning') {
-        return 'bg-n-amber-9 text-white ring-1 ring-n-amber-7/40 shadow-lg';
-      }
-      if (this.variant === 'success') {
-        return 'bg-n-teal-9 text-white ring-1 ring-n-teal-7/40 shadow-lg';
-      }
-      return 'bg-n-slate-12 dark:bg-n-slate-7 text-white shadow-sm';
+      const classMap = {
+        success:
+          'bg-n-brand/10 border border-n-brand/30 text-n-brand shadow-dropdown',
+        error:
+          'bg-n-ruby-3/50 border border-n-ruby-6/30 text-n-ruby-11 shadow-dropdown',
+        warning:
+          'bg-n-amber-3/50 border border-n-amber-6/30 text-n-amber-11 shadow-dropdown',
+        info: 'bg-n-blue-3/50 border border-n-blue-6/30 text-n-blue-11 shadow-dropdown',
+      };
+      return (
+        classMap[this.variant] ||
+        'bg-n-slate-12 dark:bg-n-slate-7 text-white shadow-sm'
+      );
     },
   },
   mounted() {},
@@ -45,16 +57,15 @@ export default {
 <template>
   <div>
     <div
-      class="rounded-lg items-center gap-3 inline-flex mb-2 max-w-[25rem] min-h-[1.875rem] min-w-[15rem] px-6 py-3 text-left"
+      class="rounded-xl items-center gap-3 inline-flex mb-2 max-w-[25rem] min-h-[1.875rem] min-w-[15rem] px-4 py-3 text-left"
       :class="containerClass"
     >
-      <Icon v-if="icon" :icon="icon" class="text-white/90 size-4" />
-      <div class="text-sm font-medium text-white dark:text-white">
+      <Icon v-if="defaultIcon" :icon="defaultIcon" class="size-4 shrink-0" />
+      <div class="text-sm font-medium">
         {{ message }}
       </div>
       <div v-if="action?.type === 'link'">
         <router-link
-          v-if="action.type == 'link'"
           :to="action.to"
           class="font-medium cursor-pointer select-none text-n-blue-10 hover:text-n-brand"
         >

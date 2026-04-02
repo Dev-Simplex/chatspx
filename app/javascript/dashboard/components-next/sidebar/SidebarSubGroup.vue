@@ -126,7 +126,7 @@ watch(
     <div
       v-if="isScrollable && isExpanded && isSubgroupExpanded"
       v-show="!scrollEnd"
-      class="absolute bg-gradient-to-t from-n-background w-full h-12 to-transparent -bottom-1 pointer-events-none flex items-end justify-end px-2 animate-fade-in-up"
+      class="absolute bg-gradient-to-t from-white dark:from-n-solid-1 w-full h-12 to-transparent -bottom-1 pointer-events-none flex items-end justify-end px-2 animate-fade-in-up"
     >
       <svg
         width="16"

@@ -40,7 +40,7 @@ const starRatingValue = computed(() => {
 </script>
 
 <template>
-  <BaseBubble class="px-4 py-3" data-bubble-name="csat">
+  <BaseBubble class="px-3 py-2" data-bubble-name="csat">
     <h4>{{ content || t('CONVERSATION.CSAT_REPLY_MESSAGE') }}</h4>
     <dl v-if="isRatingSubmitted" class="mt-4">
       <dt class="text-n-slate-11 italic">

@@ -61,7 +61,7 @@ const isEmpty = computed(() => {
 });
 
 const bubbleClass = computed(() => {
-  return hasMediaAttachments.value ? 'px-2 py-2' : 'px-4 py-3';
+  return hasMediaAttachments.value ? 'px-2 py-2' : 'px-3 py-2';
 });
 
 const contentGapClass = computed(() => {

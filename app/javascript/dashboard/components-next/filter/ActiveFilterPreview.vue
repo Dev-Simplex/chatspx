@@ -56,7 +56,7 @@ const formatFilterValue = value => {
         class="inline-flex items-center gap-2 h-7"
       >
         <div
-          class="flex items-center h-full min-w-0 gap-1 px-2 py-1 text-xs border rounded-lg hover:bg-n-solid-2 max-w-72 border-n-weak hover:cursor-pointer"
+          class="flex items-center h-full min-w-0 gap-1 px-2 py-1 text-xs rounded-full bg-n-brand/10 border border-n-brand/20 text-n-brand hover:bg-n-brand/15 max-w-72 hover:cursor-pointer"
           @click="emit('openFilter')"
         >
           <span

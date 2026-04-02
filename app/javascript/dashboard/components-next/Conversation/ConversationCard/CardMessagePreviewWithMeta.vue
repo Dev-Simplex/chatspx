@@ -151,37 +151,31 @@ defineExpose({
 </script>
 
 <template>
-  <div class="flex flex-col w-full gap-1">
-    <div class="flex items-center justify-between w-full gap-2 py-1 h-7">
-      <p class="mb-0 text-sm leading-7 text-n-slate-12 line-clamp-1">
+  <div class="flex flex-col w-full gap-0.5">
+    <!-- Line 2: Message preview + Unread badge -->
+    <div class="flex items-center justify-between w-full gap-2">
+      <p class="mb-0 text-sm text-n-slate-11 truncate leading-5">
         {{ lastNonActivityMessageContent }}
       </p>
-
       <div
         v-if="unreadMessagesCount > 0"
-        class="inline-flex items-center justify-center flex-shrink-0 rounded-full size-5 bg-n-brand"
+        class="inline-flex items-center justify-center flex-shrink-0 rounded-full min-w-[20px] h-5 px-1.5 bg-n-brand"
       >
-        <span class="text-xs font-semibold text-white">
+        <span class="text-xs font-medium text-white">
           {{ unreadMessagesCount }}
         </span>
       </div>
     </div>
 
-    <div
-      class="grid items-center gap-2.5 h-7"
-      :class="
-        hasSlaThreshold
-          ? 'grid-cols-[auto_auto_1fr_20px]'
-          : 'grid-cols-[1fr_20px]'
-      "
-    >
+    <!-- Line 3: Metadata - SLA + Labels + Assignee -->
+    <div class="flex items-center gap-1.5 mt-0.5">
       <SLACardLabel
         v-show="hasSlaThreshold"
         ref="slaCardLabelRef"
         :conversation="conversation"
       />
       <div v-if="hasSlaThreshold" class="w-px h-3 bg-n-slate-4" />
-      <div class="overflow-hidden">
+      <div class="flex-1 min-w-0 overflow-hidden">
         <CardLabels
           :conversation-labels="conversation.labels"
           :account-labels="accountLabels"
@@ -194,6 +188,7 @@ defineExpose({
         :size="20"
         :status="assignee.status"
         rounded-full
+        class="flex-shrink-0"
       />
     </div>
   </div>

@@ -275,7 +275,7 @@ const shouldShowDateSeparator = (index, messageList) => {
 </script>
 
 <template>
-  <ul class="px-4 bg-n-surface-1">
+  <ul class="px-4 bg-n-chat-bg">
     <slot name="beforeAll" />
     <template v-for="(item, index) in renderItems" :key="item.key">
       <DateSeparator

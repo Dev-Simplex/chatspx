@@ -274,9 +274,9 @@ onBeforeUnmount(() => {
     />
 
     <div
-      class="relative flex h-full w-full max-w-[30rem] flex-col border-l border-n-weak bg-n-solid-2 shadow-2xl"
+      class="relative flex h-full w-full max-w-[30rem] flex-col border-l border-n-weak bg-white dark:bg-n-solid-2 shadow-2xl"
     >
-      <div class="border-b border-n-weak bg-n-solid-3 px-5 py-4">
+      <div class="border-b border-n-weak bg-n-slate-2/50 dark:bg-n-solid-3 px-5 py-4">
         <div class="flex items-start justify-between gap-3">
           <div>
             <h2 class="text-base font-semibold text-n-slate-12">
@@ -308,7 +308,7 @@ onBeforeUnmount(() => {
               v-model="searchQuery"
               type="text"
               :placeholder="t('KANBAN.SCHEDULED_MESSAGES.SEARCH_PLACEHOLDER')"
-              class="w-full rounded-lg border border-n-weak bg-n-solid-2 py-2.5 pl-9 pr-3 text-sm text-n-slate-12"
+              class="w-full rounded-xl border border-n-weak bg-white dark:bg-n-solid-2 py-2.5 pl-9 pr-3 text-sm text-n-slate-12 focus:outline-none focus:ring-2 focus:ring-n-teal-9"
             />
           </div>
 
@@ -320,8 +320,8 @@ onBeforeUnmount(() => {
               class="rounded-full px-3 py-1 text-xs font-semibold transition"
               :class="
                 statusFilter === option.key
-                  ? 'bg-n-blue-9 text-white'
-                  : 'bg-n-solid-2 text-n-slate-11 hover:bg-n-solid-4'
+                  ? 'bg-n-teal-9 text-white'
+                  : 'bg-n-slate-3/50 text-n-slate-11 hover:bg-n-slate-3'
               "
               @click="statusFilter = option.key"
             >
@@ -373,7 +373,7 @@ onBeforeUnmount(() => {
           <div
             v-for="message in filteredMessages"
             :key="message.id"
-            class="rounded-xl border border-n-weak bg-n-solid-3 p-3"
+            class="rounded-xl border border-n-weak bg-white dark:bg-n-solid-3 p-3 hover:shadow-sm transition-shadow"
           >
             <div class="mb-2 flex items-center justify-between gap-2">
               <span class="text-xs font-medium text-n-slate-11">

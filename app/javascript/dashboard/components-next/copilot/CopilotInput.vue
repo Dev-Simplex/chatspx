@@ -41,21 +41,21 @@ onMounted(() => {
 </script>
 
 <template>
-  <form class="relative" @submit.prevent="sendMessage">
+  <form class="relative flex items-end gap-2" @submit.prevent="sendMessage">
     <textarea
       ref="textareaRef"
       v-model="message"
       :placeholder="$t('CAPTAIN.COPILOT.SEND_MESSAGE')"
-      class="w-full reset-base bg-n-alpha-3 ltr:pl-4 ltr:pr-12 rtl:pl-12 rtl:pr-4 py-3 text-sm border border-n-weak rounded-lg focus:outline-0 focus:outline-none focus:ring-2 focus:ring-n-blue-11 focus:border-n-blue-11 resize-none overflow-hidden max-h-[200px] mb-0 text-n-slate-12"
+      class="w-full reset-base bg-white dark:bg-n-solid-3 ltr:pl-3 ltr:pr-3 rtl:pl-3 rtl:pr-3 py-2 text-sm border border-n-weak rounded-lg focus:outline-0 focus:outline-none focus:ring-1 focus:ring-n-brand/20 focus:border-n-brand/50 resize-none overflow-hidden max-h-[200px] mb-0 text-n-slate-12 placeholder:text-n-slate-9"
       rows="1"
       @input="handleInput"
       @keydown.enter.exact="handleEnterKey"
     />
     <button
-      class="absolute ltr:right-1 rtl:left-1 top-1/2 -translate-y-1/2 h-9 w-10 flex items-center justify-center text-n-slate-11 hover:text-n-blue-11"
+      class="size-8 flex-shrink-0 flex items-center justify-center rounded-full bg-n-brand text-white hover:bg-n-brand-hover transition-colors"
       type="submit"
     >
-      <i class="i-ph-arrow-up" />
+      <i class="i-lucide-send size-4" />
     </button>
   </form>
 </template>

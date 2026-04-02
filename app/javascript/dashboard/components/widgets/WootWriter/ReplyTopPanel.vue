@@ -154,9 +154,7 @@ export default {
 </script>
 
 <template>
-  <div
-    class="flex justify-between gap-2 h-[3.25rem] items-center ltr:pl-3 ltr:pr-2 rtl:pr-3 rtl:pl-2"
-  >
+  <div class="flex justify-between gap-2 h-[3.25rem] items-center px-3">
     <EditorModeToggle
       :mode="mode"
       :disabled="disabled"

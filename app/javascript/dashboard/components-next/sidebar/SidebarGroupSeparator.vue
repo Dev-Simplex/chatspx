@@ -37,7 +37,7 @@ const emit = defineEmits(['toggle']);
     @click="props.collapsible ? emit('toggle') : undefined"
   >
     <Icon v-if="props.icon" :icon="props.icon" class="size-4" />
-    <span class="text-sm font-medium leading-5 flex-grow">
+    <span class="text-xs font-medium leading-5 flex-grow">
       {{ props.label }}
     </span>
     <span

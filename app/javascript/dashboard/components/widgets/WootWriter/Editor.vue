@@ -980,7 +980,13 @@ useEmitter(BUS_EVENTS.INSERT_INTO_RICH_EDITOR, insertContentIntoEditor);
 }
 
 .ProseMirror-woot-style {
-  @apply overflow-auto min-h-[5rem] max-h-[7.5rem];
+  @apply overflow-auto min-h-[2.75rem] max-h-[12.5rem] text-sm text-n-slate-12;
+  caret-color: #25d366;
+
+  &::placeholder,
+  p.is-editor-empty:first-child::before {
+    @apply text-n-slate-9;
+  }
 }
 
 .ProseMirror-prompt-backdrop::backdrop {

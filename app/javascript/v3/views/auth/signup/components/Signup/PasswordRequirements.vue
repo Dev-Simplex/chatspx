@@ -58,7 +58,7 @@ const requirements = computed(() => {
         <Icon
           class="flex-none flex-shrink-0 w-3 mt-0.5"
           :icon="item.met ? 'i-lucide-circle-check-big' : 'i-lucide-circle'"
-          :class="item.met ? 'text-n-teal-10' : 'text-n-slate-10'"
+          :class="item.met ? 'text-n-brand' : 'text-n-slate-10'"
         />
         <span :class="item.met ? 'text-n-slate-11' : 'text-n-slate-10'">
           {{ item.label }}

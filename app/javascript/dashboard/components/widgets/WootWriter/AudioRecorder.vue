@@ -45,8 +45,8 @@ const formatTimeProgress = time => {
 const initWaveSurfer = () => {
   wavesurfer.value = WaveSurfer.create({
     container: waveformContainer.value,
-    waveColor: '#1F93FF',
-    progressColor: '#6E6F73',
+    waveColor: '#25D366',
+    progressColor: '#128C7E',
     height: 100,
     barWidth: 2,
     barGap: 1,

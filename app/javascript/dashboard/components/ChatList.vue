@@ -1119,7 +1119,7 @@ watch(conversationFilters, newVal => {
 
 <template>
   <div
-    class="flex flex-col flex-shrink-0 conversations-list-wrap bg-n-surface-1"
+    class="flex flex-col flex-shrink-0 conversations-list-wrap bg-white dark:bg-n-solid-1"
     :class="[
       { hidden: !showConversationList },
       isOnExpandedLayout ? 'basis-full' : 'w-[340px] 2xl:w-[412px]',
@@ -1226,7 +1226,7 @@ watch(conversationFilters, newVal => {
     />
     <div
       ref="conversationListRef"
-      class="flex-1 min-h-0 overflow-y-auto conversations-list"
+      class="flex-1 min-h-0 overflow-y-auto conversations-list py-1"
       :class="{ '!overflow-hidden': isContextMenuOpen }"
     >
       <Virtualizer

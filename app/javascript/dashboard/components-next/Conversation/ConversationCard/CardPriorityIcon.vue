@@ -15,8 +15,8 @@ defineProps({
     <!-- Low Priority -->
     <svg
       v-if="priority === CONVERSATION_PRIORITY.LOW"
-      width="20"
-      height="20"
+      width="16"
+      height="16"
       viewBox="0 0 20 20"
       fill="none"
       xmlns="http://www.w3.org/2000/svg"
@@ -63,8 +63,8 @@ defineProps({
     <!-- Medium Priority  -->
     <svg
       v-if="priority === CONVERSATION_PRIORITY.MEDIUM"
-      width="20"
-      height="20"
+      width="16"
+      height="16"
       viewBox="0 0 20 20"
       fill="none"
       xmlns="http://www.w3.org/2000/svg"
@@ -111,8 +111,8 @@ defineProps({
     <!-- High Priority -->
     <svg
       v-if="priority === CONVERSATION_PRIORITY.HIGH"
-      width="20"
-      height="20"
+      width="16"
+      height="16"
       viewBox="0 0 20 20"
       fill="none"
       xmlns="http://www.w3.org/2000/svg"
@@ -159,8 +159,8 @@ defineProps({
     <!-- Urgent Priority -->
     <svg
       v-if="priority === CONVERSATION_PRIORITY.URGENT"
-      width="20"
-      height="20"
+      width="16"
+      height="16"
       viewBox="0 0 20 20"
       fill="none"
       xmlns="http://www.w3.org/2000/svg"

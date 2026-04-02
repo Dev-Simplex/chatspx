@@ -103,14 +103,7 @@ const handleSeeOriginal = () => {
 </script>
 
 <template>
-  <BaseBubble
-    class="w-full"
-    :class="{
-      'bg-n-slate-4': isIncoming,
-      'bg-n-solid-blue': isOutgoing,
-    }"
-    data-bubble-name="email"
-  >
+  <BaseBubble class="w-full" data-bubble-name="email">
     <EmailMeta
       class="p-3"
       :class="{

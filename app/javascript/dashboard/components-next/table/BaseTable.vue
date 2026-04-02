@@ -29,12 +29,12 @@ const showHeaders = computed(
 <template>
   <div class="w-full">
     <table class="min-w-full table-auto divide-y divide-n-weak">
-      <thead v-if="showHeaders" class="border-t border-n-weak">
+      <thead v-if="showHeaders" class="bg-n-slate-2/50 dark:bg-n-solid-3">
         <tr>
           <th
             v-for="(header, index) in headers"
             :key="index"
-            class="py-4 ltr:pr-4 rtl:pl-4 text-start text-heading-3 text-n-slate-12 capitalize"
+            class="px-4 py-3 text-start text-xs font-medium text-n-slate-10 uppercase tracking-wider"
           >
             <slot :name="`header-${index}`" :header="header">
               {{ header }}
@@ -42,7 +42,7 @@ const showHeaders = computed(
           </th>
         </tr>
       </thead>
-      <tbody class="divide-y divide-n-weak text-n-slate-11">
+      <tbody class="divide-y divide-n-weak/30 text-n-slate-11">
         <template v-if="items.length">
           <slot name="row" :items="items" />
         </template>

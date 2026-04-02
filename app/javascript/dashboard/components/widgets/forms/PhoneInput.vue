@@ -175,7 +175,7 @@ export default {
 <template>
   <div class="relative phone-input--wrap">
     <div
-      class="flex items-center justify-start border-none outline outline-1 rounded-lg bg-n-alpha-black2"
+      class="flex items-center justify-start border-none outline outline-1 rounded-lg bg-white dark:bg-n-solid-2 focus-within:outline-n-brand focus-within:ring-1 focus-within:ring-n-brand/20"
       :class="
         error
           ? 'outline-n-ruby-8 dark:outline-n-ruby-8 hover:outline-n-ruby-9 dark:hover:outline-n-ruby-9 mb-1'
@@ -215,7 +215,7 @@ export default {
       ref="dropdown"
       v-on-clickaway="onOutsideClick"
       tabindex="0"
-      class="z-10 absolute h-60 w-[12.5rem] shadow-md overflow-y-auto top-10 rounded-lg px-0 pt-0 pb-1 bg-n-alpha-3 backdrop-blur-[100px]"
+      class="z-10 absolute h-60 w-[12.5rem] shadow-lg overflow-y-auto top-10 rounded-xl px-0 pt-0 pb-1 bg-white dark:bg-n-solid-2 border border-n-weak"
       @keydown.prevent.up="moveUp"
       @keydown.prevent.down="moveDown"
       @keydown.prevent.enter="
@@ -223,7 +223,7 @@ export default {
       "
     >
       <div
-        class="sticky top-0 p-1 bg-white dark:bg-transparent backdrop-blur-[100px]"
+        class="sticky top-0 p-1 bg-white dark:bg-n-solid-2"
       >
         <input
           ref="searchbar"
@@ -238,10 +238,10 @@ export default {
         v-for="(country, index) in filteredCountriesBySearch"
         ref="dropdownItem"
         :key="index"
-        class="flex items-center px-1 py-0 cursor-pointer h-7 hover:bg-n-alpha-1 dark:hover:bg-n-alpha-2"
+        class="flex items-center px-1 py-0 cursor-pointer h-7 rounded-lg hover:bg-n-slate-3/50"
         :class="{
-          'bg-n-alpha-1 dark:bg-n-alpha-2': country.id === activeCountryCode,
-          'bg-n-alpha-1 dark:bg-n-alpha-2': index === selectedIndex,
+          'bg-n-brand/10 text-n-brand': country.id === activeCountryCode,
+          'bg-n-slate-3/50': index === selectedIndex && country.id !== activeCountryCode,
         }"
         @click="onSelectCountry(country)"
       >

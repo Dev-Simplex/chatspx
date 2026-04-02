@@ -144,13 +144,13 @@ onMounted(() => {
             :key="page"
             xs
             outline
-            :color="page == currentPage ? 'blue' : 'slate'"
+            :color="page == currentPage ? 'green' : 'slate'"
             class="!h-6 min-w-6"
             @click="table.setPageIndex(page - 1)"
           >
             <span
               class="text-center"
-              :class="{ 'text-n-brand': page == currentPage }"
+              :class="{ 'text-n-brand font-semibold': page == currentPage }"
             >
               {{ page }}
             </span>

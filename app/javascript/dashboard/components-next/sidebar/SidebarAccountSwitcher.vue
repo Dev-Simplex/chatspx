@@ -56,8 +56,8 @@ const emitNewAccount = () => {
       <!-- Collapsed view: Logo trigger -->
       <button
         v-if="isCollapsed"
-        class="grid flex-shrink-0 place-content-center p-2 rounded-lg cursor-pointer hover:bg-n-alpha-1"
-        :class="{ 'bg-n-alpha-1': isOpen }"
+        class="grid flex-shrink-0 place-content-center p-2 rounded-lg cursor-pointer hover:bg-n-slate-3/50 dark:hover:bg-n-alpha-2"
+        :class="{ 'bg-n-slate-3/50 dark:bg-n-alpha-2': isOpen }"
         :title="currentAccount.name"
         @click="toggle"
       >
@@ -72,9 +72,9 @@ const emitNewAccount = () => {
         aria-controls="account-options"
         class="flex min-w-0 items-center gap-2 justify-between w-full rounded-lg px-2"
         :class="[
-          isOpen && 'bg-n-alpha-1',
+          isOpen && 'bg-n-slate-3/50 dark:bg-n-alpha-2',
           showAccountSwitcher
-            ? 'hover:bg-n-alpha-1 cursor-pointer'
+            ? 'hover:bg-n-slate-3/50 dark:hover:bg-n-alpha-2 cursor-pointer'
             : 'cursor-default',
         ]"
         @click="() => showAccountSwitcher && toggle()"
@@ -103,6 +103,7 @@ const emitNewAccount = () => {
           :id="`account-${account.id}`"
           :key="account.id"
           class="cursor-pointer"
+          :class="{ 'bg-n-brand/10 dark:bg-n-brand/15': account.id === accountId }"
           @click="onChangeAccount(account.id)"
         >
           <template #label>
@@ -131,7 +132,7 @@ const emitNewAccount = () => {
             <Icon
               v-show="account.id === accountId"
               icon="i-lucide-check"
-              class="text-n-teal-11 size-5"
+              class="text-n-brand size-5"
             />
           </template>
         </DropdownItem>

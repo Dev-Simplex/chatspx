@@ -64,14 +64,14 @@ export default {
 
 <template>
   <div
-    class="flex flex-col justify-center w-full min-h-screen py-12 bg-n-brand/5 dark:bg-n-background sm:px-6 lg:px-8"
+    class="flex flex-col items-center justify-center w-full min-h-screen py-12 bg-n-background sm:px-6 lg:px-8"
   >
     <form
-      class="bg-white shadow sm:mx-auto sm:w-full sm:max-w-lg dark:bg-n-solid-2 p-11 sm:shadow-lg sm:rounded-lg"
+      class="bg-white dark:bg-n-solid-2 border border-n-weak rounded-2xl shadow-card p-8 max-w-md w-full mx-auto"
       @submit.prevent="submit"
     >
       <h1
-        class="mb-1 text-2xl font-medium tracking-tight text-left text-n-slate-12"
+        class="mb-1 text-2xl font-semibold tracking-tight text-left text-n-slate-12"
       >
         {{ $t('RESET_PASSWORD.TITLE') }}
       </h1>
@@ -99,9 +99,12 @@ export default {
           :is-loading="resetPassword.showLoading"
         />
       </div>
-      <p class="mt-4 -mb-1 text-sm text-n-slate-11">
+      <p class="mt-4 -mb-1 text-sm text-n-slate-10">
         {{ $t('RESET_PASSWORD.GO_BACK_TO_LOGIN') }}
-        <router-link to="/auth/login" class="text-link text-n-brand">
+        <router-link
+          to="/auth/login"
+          class="text-n-brand hover:text-[#1FB85A] hover:underline"
+        >
           {{ $t('COMMON.CLICK_HERE') }}.
         </router-link>
       </p>

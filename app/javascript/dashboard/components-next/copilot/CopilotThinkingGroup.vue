@@ -101,16 +101,16 @@ watch(
 </script>
 
 <template>
-  <div class="flex flex-col gap-2">
+  <div class="border border-n-weak/50 rounded-lg overflow-hidden">
     <button
-      class="group flex items-center gap-2 text-xs text-n-slate-10 hover:text-n-slate-11 transition-colors duration-200 -ml-3"
+      class="w-full px-3 py-2 flex items-center gap-2 cursor-pointer hover:bg-n-slate-3/30 text-xs text-n-slate-10 transition-colors duration-200"
       @click="isExpanded = !isExpanded"
     >
       <Icon
-        :icon="isExpanded ? 'i-lucide-chevron-down' : 'i-lucide-chevron-right'"
-        class="w-4 h-4 transition-transform duration-200 group-hover:scale-110"
+        icon="i-lucide-sparkles"
+        class="w-3.5 h-3.5 flex-shrink-0 animate-pulse"
       />
-      <span class="flex items-center gap-2">
+      <span class="flex items-center gap-2 flex-1">
         {{ t('CAPTAIN.COPILOT.SHOW_STEPS') }}
         <span
           class="inline-flex items-center justify-center h-4 min-w-4 px-1 text-xs font-medium rounded-full bg-n-solid-3 text-n-slate-11"
@@ -118,10 +118,14 @@ watch(
           {{ thinkingCount }}
         </span>
       </span>
+      <Icon
+        :icon="isExpanded ? 'i-lucide-chevron-up' : 'i-lucide-chevron-down'"
+        class="w-3.5 h-3.5 transition-transform duration-200"
+      />
     </button>
     <div
       v-show="isExpanded"
-      class="space-y-3 transition-all duration-200"
+      class="px-3 py-2 bg-n-slate-2/50 border-t border-n-weak/50 space-y-2 transition-all duration-200"
       :class="{
         'opacity-100': isExpanded,
         'opacity-0 max-h-0 overflow-hidden': !isExpanded,

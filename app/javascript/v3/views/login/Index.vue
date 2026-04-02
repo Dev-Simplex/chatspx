@@ -220,9 +220,9 @@ export default {
 
 <template>
   <main
-    class="flex flex-col w-full min-h-screen py-20 bg-n-brand/5 dark:bg-n-background sm:px-6 lg:px-8"
+    class="flex flex-col items-center w-full min-h-screen py-20 bg-n-background sm:px-6 lg:px-8"
   >
-    <section class="max-w-5xl mx-auto">
+    <section class="max-w-md w-full mx-auto">
       <img
         :src="globalConfig.logo"
         :alt="globalConfig.installationName"
@@ -234,19 +234,27 @@ export default {
         :alt="globalConfig.installationName"
         class="hidden w-auto h-13 mx-auto dark:block"
       />
-      <h2 class="mt-6 text-3xl font-medium text-center text-n-slate-12">
+      <h2
+        class="mt-6 text-2xl font-semibold text-center text-n-slate-12"
+      >
         {{ replaceInstallationName($t('LOGIN.TITLE')) }}
       </h2>
-      <p v-if="showSignupLink" class="mt-3 text-sm text-center text-n-slate-11">
+      <p
+        v-if="showSignupLink"
+        class="mt-2 text-sm text-center text-n-slate-10"
+      >
         {{ $t('COMMON.OR') }}
-        <router-link to="auth/signup" class="lowercase text-link text-n-brand">
+        <router-link
+          to="auth/signup"
+          class="lowercase text-n-brand hover:text-[#1FB85A] hover:underline"
+        >
           {{ $t('LOGIN.CREATE_NEW_ACCOUNT') }}
         </router-link>
       </p>
     </section>
 
     <!-- MFA Verification Section -->
-    <section v-if="mfaRequired" class="mt-11">
+    <section v-if="mfaRequired" class="mt-8 max-w-md w-full mx-auto">
       <MfaVerification
         :mfa-token="mfaToken"
         @verified="handleMfaVerified"
@@ -257,9 +265,8 @@ export default {
     <!-- Regular Login Section -->
     <section
       v-else
-      class="bg-white shadow sm:mx-auto mt-11 sm:w-full sm:max-w-lg dark:bg-n-solid-2 p-11 sm:shadow-lg sm:rounded-lg"
+      class="bg-white dark:bg-n-solid-2 border border-n-weak rounded-2xl shadow-card p-8 mt-8 max-w-md w-full mx-auto"
       :class="{
-        'mb-8 mt-15': !showGoogleOAuth,
         'animate-wiggle': loginApi.hasErrored,
       }"
     >
@@ -269,13 +276,13 @@ export default {
           <div v-if="showSamlLogin" class="text-center">
             <router-link
               to="/app/login/sso"
-              class="inline-flex justify-center w-full px-4 py-3 items-center bg-n-background dark:bg-n-solid-3 rounded-md shadow-sm ring-1 ring-inset ring-n-container dark:ring-n-container focus:outline-offset-0 hover:bg-n-alpha-2 dark:hover:bg-n-alpha-2"
+              class="inline-flex justify-center w-full h-10 px-4 items-center border border-n-weak rounded-lg text-sm font-medium hover:bg-n-slate-3/50 transition-colors"
             >
               <Icon
                 icon="i-lucide-lock-keyhole"
                 class="size-5 text-n-slate-11"
               />
-              <span class="ml-2 text-base font-medium text-n-slate-12">
+              <span class="ml-2 text-sm font-medium text-n-slate-12">
                 {{ $t('LOGIN.SAML.LABEL') }}
               </span>
             </router-link>
@@ -314,7 +321,7 @@ export default {
             <p v-if="!globalConfig.disableUserProfileUpdate">
               <router-link
                 to="auth/reset/password"
-                class="text-sm text-link"
+                class="text-sm text-n-brand hover:text-[#1FB85A] hover:underline"
                 tabindex="4"
               >
                 {{ $t('LOGIN.FORGOT_PASSWORD') }}

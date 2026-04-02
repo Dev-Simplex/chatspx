@@ -1,6 +1,5 @@
 <script setup>
-import { computed, useTemplateRef } from 'vue';
-import { useElementSize } from '@vueuse/core';
+import { computed } from 'vue';
 import { REPLY_EDITOR_MODES } from './constants';
 
 const props = defineProps({
@@ -20,78 +19,43 @@ const props = defineProps({
 
 defineEmits(['toggleMode']);
 
-const wootEditorReplyMode = useTemplateRef('wootEditorReplyMode');
-const wootEditorPrivateMode = useTemplateRef('wootEditorPrivateMode');
-
-const replyModeSize = useElementSize(wootEditorReplyMode);
-const privateModeSize = useElementSize(wootEditorPrivateMode);
-
-/**
- * Computed boolean indicating if the editor is in private note mode
- * When isReplyRestricted is true, force switch to private note
- * Otherwise, respect the current mode prop
- * @type {ComputedRef<boolean>}
- */
 const isPrivate = computed(() => {
   if (props.isReplyRestricted) {
-    // Force switch to private note when replies are restricted
     return true;
   }
-  // Otherwise respect the current mode
   return props.mode === REPLY_EDITOR_MODES.NOTE;
-});
-
-/**
- * Computes the width of the sliding background chip in pixels
- * Includes 16px of padding in the calculation
- * @type {ComputedRef<string>}
- */
-const width = computed(() => {
-  const widthToUse = isPrivate.value
-    ? privateModeSize.width.value
-    : replyModeSize.width.value;
-
-  const widthWithPadding = widthToUse + 16;
-  return `${widthWithPadding}px`;
-});
-
-/**
- * Computes the X translation value for the sliding background chip
- * Translates by the width of reply mode + padding when in private mode
- * @type {ComputedRef<string>}
- */
-const translateValue = computed(() => {
-  const xTranslate = isPrivate.value ? replyModeSize.width.value + 16 : 0;
-
-  return `${xTranslate}px`;
 });
 </script>
 
 <template>
-  <button
-    class="flex items-center w-auto h-8 p-1 transition-all border rounded-full bg-n-alpha-2 group relative duration-300 ease-in-out z-0 active:scale-[0.995] active:duration-75"
-    :disabled="disabled || isReplyRestricted"
-    :class="{
-      'cursor-not-allowed': disabled || isReplyRestricted,
-    }"
-    @click="$emit('toggleMode')"
+  <div
+    class="flex items-center gap-1 p-1 bg-n-slate-3/50 dark:bg-n-alpha-2 rounded-lg"
   >
-    <div ref="wootEditorReplyMode" class="flex items-center gap-1 px-2 z-20">
+    <button
+      class="relative z-20 px-3 py-1 text-sm rounded-md transition-all duration-200"
+      :class="[
+        !isPrivate
+          ? 'bg-white dark:bg-n-solid-2 text-n-slate-12 shadow-sm font-medium'
+          : 'text-n-slate-10 hover:text-n-slate-12',
+        { 'cursor-not-allowed opacity-50': disabled || isReplyRestricted },
+      ]"
+      :disabled="disabled || isReplyRestricted"
+      @click="!isPrivate || $emit('toggleMode')"
+    >
       {{ $t('CONVERSATION.REPLYBOX.REPLY') }}
-    </div>
-    <div ref="wootEditorPrivateMode" class="flex items-center gap-1 px-2 z-20">
+    </button>
+    <button
+      class="relative z-20 px-3 py-1 text-sm rounded-md transition-all duration-200"
+      :class="[
+        isPrivate
+          ? 'bg-n-amber-3 dark:bg-n-amber-5/30 text-n-amber-11 shadow-sm font-medium'
+          : 'text-n-slate-10 hover:text-n-slate-12',
+        { 'cursor-not-allowed': disabled },
+      ]"
+      :disabled="disabled"
+      @click="isPrivate || $emit('toggleMode')"
+    >
       {{ $t('CONVERSATION.REPLYBOX.PRIVATE_NOTE') }}
-    </div>
-    <div
-      class="absolute top-1 left-1 h-6 w-[var(--chip-width)] rounded-full shadow-sm bg-n-solid-1 z-10 ease-in-out translate-x-[var(--translate-x)] rtl:translate-x-[var(--rtl-translate-x)] rtl:left-auto rtl:right-1"
-      :class="{
-        'transition-all duration-300': !disabled && !isReplyRestricted,
-      }"
-      :style="{
-        '--chip-width': width,
-        '--translate-x': translateValue,
-        '--rtl-translate-x': `calc(-1 * var(--translate-x))`,
-      }"
-    />
-  </button>
+    </button>
+  </div>
 </template>

@@ -9,14 +9,14 @@ export default {
 </script>
 
 <template>
-  <div class="overflow-auto" :class="compact ? 'py-0 px-0' : 'py-3 px-4'">
-    <div class="items-center flex justify-between mb-1.5">
-      <span class="text-sm font-medium text-n-slate-12">
+  <div class="overflow-auto" :class="compact ? 'py-0 px-0' : 'py-1.5 px-0'">
+    <div class="items-center flex justify-between mb-1">
+      <span class="text-xs text-n-slate-10">
         {{ title }}
       </span>
       <slot name="button" />
     </div>
-    <div v-if="value" class="break-words">
+    <div v-if="value" class="break-words text-sm text-n-slate-12">
       <slot>
         {{ value }}
       </slot>
