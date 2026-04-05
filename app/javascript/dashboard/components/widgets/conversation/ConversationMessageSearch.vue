@@ -162,10 +162,8 @@ const highlightTerm = text => {
     <div class="flex flex-col gap-3 -mt-1">
       <!-- Search bar -->
       <div class="relative">
-        <fluent-icon
-          icon="search"
-          size="16"
-          class="absolute left-3 top-[11px] text-n-slate-10 pointer-events-none"
+        <span
+          class="i-lucide-search size-4 absolute left-3 top-[11px] text-n-slate-10 pointer-events-none"
         />
         <input
           ref="inputRef"
@@ -208,7 +206,7 @@ const highlightTerm = text => {
           v-else-if="showEmptyState"
           class="flex flex-col items-center justify-center py-10 text-center"
         >
-          <fluent-icon icon="search" size="28" class="text-n-slate-9 mb-2" />
+          <span class="i-lucide-search size-7 text-n-slate-9 mb-2" />
           <p class="text-sm text-n-slate-11">
             {{ $t('SEARCH.EMPTY_STATE_DEFAULT') }}
           </p>
@@ -269,7 +267,7 @@ const highlightTerm = text => {
         v-else
         class="flex flex-col items-center justify-center py-8 text-center"
       >
-        <fluent-icon icon="search" size="28" class="text-n-slate-9 mb-2" />
+        <span class="i-lucide-search size-7 text-n-slate-9 mb-2" />
         <p class="text-sm text-n-slate-11">
           {{ $t('SEARCH.SEARCH_IN_CONVERSATION_PLACEHOLDER') }}
         </p>

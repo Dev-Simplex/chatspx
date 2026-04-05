@@ -125,7 +125,7 @@ const handleEnterKey = event => {
         ghost
         sm
         :disabled="!newMessage.trim()"
-        icon="i-lucide-send"
+        icon="i-lucide-send-horizontal"
         @click="sendMessage"
       />
     </div>

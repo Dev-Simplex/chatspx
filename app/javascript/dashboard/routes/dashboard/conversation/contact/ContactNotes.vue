@@ -98,7 +98,7 @@ watch(
 
 <template>
   <div>
-    <div class="px-4 pt-3 pb-2">
+    <div class="px-4 pt-2 pb-2">
       <NextButton
         ghost
         xs

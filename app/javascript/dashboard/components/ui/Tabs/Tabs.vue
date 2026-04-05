@@ -7,10 +7,6 @@ const props = defineProps({
     type: Number,
     default: 0,
   },
-  border: {
-    type: Boolean,
-    default: true,
-  },
 });
 
 const emit = defineEmits(['change']);
@@ -37,7 +33,9 @@ provide('updateActiveIndex', index => {
 
 const computeScrollWidth = () => {
   if (tabsContainer.value && tabsList.value) {
-    hasScroll.value = tabsList.value.scrollWidth > tabsList.value.clientWidth;
+    // Only show scroll buttons when content overflows by more than 20px
+    // This prevents chevrons from appearing when tabs barely overflow
+    hasScroll.value = tabsList.value.scrollWidth > tabsList.value.clientWidth + 20;
   }
 };
 
@@ -64,33 +62,26 @@ watch(
 </script>
 
 <template>
-  <div
-    ref="tabsContainer"
-    class="flex"
-    :class="[border && 'border-b border-b-n-weak']"
-  >
+  <div ref="tabsContainer" class="flex items-center w-full">
     <button
       v-if="hasScroll"
-      class="items-center rounded-none cursor-pointer flex h-auto justify-center min-w-8"
+      class="items-center rounded-none cursor-pointer flex h-auto justify-center min-w-6 opacity-60 hover:opacity-100 transition-opacity"
       @click="onScrollClick('left')"
     >
-      <fluent-icon icon="chevron-left" :size="16" />
+      <span class="i-lucide-chevron-left size-3.5" />
     </button>
     <ul
       ref="tabsList"
-      class="border-r-0 border-l-0 border-t-0 flex min-w-[6.25rem] py-0 px-4 list-none mb-0"
-      :class="
-        hasScroll ? 'overflow-hidden py-0 px-1 max-w-[calc(100%-64px)]' : ''
-      "
+      class="flex items-center gap-1.5 px-3 py-1.5 list-none mb-0 overflow-x-auto no-scrollbar flex-1 min-w-0"
     >
       <slot />
     </ul>
     <button
       v-if="hasScroll"
-      class="items-center rounded-none cursor-pointer flex h-auto justify-center min-w-8"
+      class="items-center rounded-none cursor-pointer flex h-auto justify-center min-w-6 opacity-60 hover:opacity-100 transition-opacity"
       @click="onScrollClick('right')"
     >
-      <fluent-icon icon="chevron-right" :size="16" />
+      <span class="i-lucide-chevron-right size-3.5" />
     </button>
   </div>
 </template>

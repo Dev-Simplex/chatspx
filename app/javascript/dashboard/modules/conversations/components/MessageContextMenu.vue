@@ -228,7 +228,7 @@ export default {
         <MenuItem
           v-if="enabledOptions['forward']"
           :option="{
-            icon: 'i-lucide-share-2',
+            icon: 'i-lucide-forward',
             label: $t('CONVERSATION.CONTEXT_MENU.FORWARD'),
           }"
           variant="icon"

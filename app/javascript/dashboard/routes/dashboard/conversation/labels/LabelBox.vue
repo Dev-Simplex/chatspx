@@ -86,7 +86,7 @@ export default {
     >
       <div
         v-on-clickaway="closeDropdownLabel"
-        class="label-wrap flex flex-wrap"
+        class="label-wrap flex flex-wrap gap-1.5"
         @keyup.esc="closeDropdownLabel"
       >
         <AddLabel @add="toggleLabels" />
@@ -132,7 +132,6 @@ export default {
   width: 100%;
 
   .label-wrap {
-    line-height: 1.5rem;
     position: relative;
   }
 }

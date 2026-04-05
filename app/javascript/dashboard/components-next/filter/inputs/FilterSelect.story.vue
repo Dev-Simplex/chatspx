@@ -3,39 +3,43 @@ import { ref } from 'vue';
 import FilterSelect from './FilterSelect.vue';
 
 const options = [
-  { value: 'EQUAL_TO', label: 'Equal To', icon: 'i-ph-equals-bold' },
+  { value: 'EQUAL_TO', label: 'Equal To', icon: 'i-lucide-equal' },
   {
     value: 'NOT_EQUAL_TO',
     label: 'Not Equal To',
-    icon: 'i-ph-not-equals-bold',
+    icon: 'i-lucide-equal-not',
   },
-  { value: 'IS_PRESENT', label: 'Is Present', icon: 'i-ph-member-of-bold' },
+  { value: 'IS_PRESENT', label: 'Is Present', icon: 'i-lucide-list-filter' },
   {
     value: 'IS_NOT_PRESENT',
     label: 'Is Not Present',
-    icon: 'i-ph-not-member-of-bold',
+    icon: 'i-lucide-list-x',
   },
-  { value: 'CONTAINS', label: 'Contains', icon: 'i-ph-superset-of-bold' },
+  { value: 'CONTAINS', label: 'Contains', icon: 'i-lucide-list-checks' },
   {
     value: 'DOES_NOT_CONTAIN',
     label: 'Does Not Contain',
-    icon: 'i-ph-not-superset-of-bold',
+    icon: 'i-lucide-list-minus',
   },
   {
     value: 'IS_GREATER_THAN',
     label: 'Is Greater Than',
-    icon: 'i-ph-greater-than-bold',
+    icon: 'i-lucide-chevron-right',
   },
-  { value: 'IS_LESS_THAN', label: 'Is Less Than', icon: 'i-ph-less-than-bold' },
+  {
+    value: 'IS_LESS_THAN',
+    label: 'Is Less Than',
+    icon: 'i-lucide-chevron-left',
+  },
   {
     value: 'DAYS_BEFORE',
     label: 'Days Before',
-    icon: 'i-ph-calendar-minus-bold',
+    icon: 'i-lucide-calendar-minus',
   },
   {
     value: 'STARTS_WITH',
     label: 'Starts With',
-    icon: 'i-ph-caret-line-right-bold',
+    icon: 'i-lucide-chevron-last',
   },
 ];
 

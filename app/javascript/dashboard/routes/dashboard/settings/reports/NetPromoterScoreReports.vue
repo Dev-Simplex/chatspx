@@ -119,7 +119,7 @@ export default {
   >
     <V4Button
       :label="$t('NPS_REPORTS.DOWNLOAD', { default: 'Exportar CSV' })"
-      icon="i-ph-download-simple"
+      icon="i-lucide-download"
       size="sm"
       @click="downloadReports"
     />

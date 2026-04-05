@@ -98,7 +98,7 @@ useKeyboardEvents(keyboardEvents);
       :class="{
         'bg-n-alpha-2 active:shadow-sm': isContactSidebarOpen,
       }"
-      icon="i-ph-user-bold"
+      icon="i-lucide-user"
       @click="handleConversationSidebarToggle"
     />
     <Button

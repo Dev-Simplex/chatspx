@@ -254,18 +254,18 @@ export default {
       switch (this.recordingAudioState) {
         // recording recording_paused playing paused stopped processing
         case 'recording':
-          return 'i-ph-pause';
+          return 'i-lucide-pause';
         case 'recording_paused':
-          return 'i-ph-play';
+          return 'i-lucide-play';
         case 'playing':
-          return 'i-ph-pause';
+          return 'i-lucide-pause';
         case 'paused':
         case 'stopped':
-          return 'i-ph-play';
+          return 'i-lucide-play';
         case 'processing':
-          return 'i-ph-stop';
+          return 'i-lucide-square';
         default:
-          return 'i-ph-play';
+          return 'i-lucide-play';
       }
     },
     isAudioRecorderActionLoading() {
@@ -336,7 +336,7 @@ export default {
       <NextButton
         v-if="!isEditorDisabled"
         v-tooltip.top-end="$t('CONVERSATION.REPLYBOX.TIP_EMOJI_ICON')"
-        icon="i-ph-smiley-sticker"
+        icon="i-lucide-smile"
         slate
         faded
         sm
@@ -346,7 +346,7 @@ export default {
         <template #trigger="{ toggle }">
           <NextButton
             v-tooltip.top-end="$t('CONVERSATION.REPLYBOX.MORE_OPTIONS')"
-            icon="i-ph-plus"
+            icon="i-lucide-plus"
             slate
             faded
             sm
@@ -357,36 +357,36 @@ export default {
           <DropdownItem
             v-if="showAttachButton"
             :label="$t('CONVERSATION.REPLYBOX.TIP_ATTACH_ICON')"
-            icon="i-ph-paperclip"
+            icon="i-lucide-paperclip"
             :click="triggerFileUpload"
           />
           <DropdownItem
             v-if="enableWhatsAppTemplates"
             :label="$t('CONVERSATION.FOOTER.WHATSAPP_TEMPLATES')"
-            icon="i-ph-whatsapp-logo"
+            icon="i-lucide-message-square-text"
             :click="() => $emit('selectWhatsappTemplate')"
           />
           <DropdownItem
             v-if="enableContentTemplates"
             label="Content Templates"
-            icon="i-ph-whatsapp-logo"
+            icon="i-lucide-message-square-text"
             :click="() => $emit('selectContentTemplate')"
           />
           <DropdownItem
             v-if="showQuotedReplyToggle"
             :label="$t('CONVERSATION.REPLYBOX.QUOTED_REPLY.ENABLE_TOOLTIP')"
-            icon="i-ph-quotes"
+            icon="i-lucide-quote"
             :click="() => $emit('toggleQuotedReply')"
           />
           <DropdownItem
             v-if="enableInsertArticleInReply"
             :label="$t('HELP_CENTER.ARTICLE_SEARCH.OPEN_ARTICLE_SEARCH')"
-            icon="i-ph-article-ny-times"
+            icon="i-lucide-file-text"
             :click="toggleInsertArticle"
           />
           <DropdownItem
             :label="$t('CONVERSATION.REPLYBOX.ADVANCED_EDITOR')"
-            icon="i-ph-text-aa"
+            icon="i-lucide-text"
             :click="() => $emit('togglePopout')"
           />
         </DropdownBody>
@@ -422,7 +422,7 @@ export default {
           v-show="uploadRef && uploadRef.dropActive"
           class="flex fixed top-0 right-0 bottom-0 left-0 z-20 flex-col gap-2 justify-center items-center w-full h-full text-n-slate-12 bg-modal-backdrop-light dark:bg-modal-backdrop-dark"
         >
-          <fluent-icon icon="cloud-backup" size="40" />
+          <span class="i-lucide-cloud-upload size-10" />
           <h4 class="text-2xl break-words text-n-slate-12">
             {{ $t('CONVERSATION.REPLYBOX.DRAG_DROP') }}
           </h4>
@@ -433,7 +433,7 @@ export default {
       <NextButton
         v-if="showAudioRecorderButton && !showAudioPlayStopButton"
         v-tooltip.top-end="$t('CONVERSATION.REPLYBOX.TIP_AUDIORECORDER_ICON')"
-        icon="i-ph-microphone"
+        icon="i-lucide-mic"
         slate
         faded
         sm
@@ -443,7 +443,7 @@ export default {
       <NextButton
         v-if="showAudioPlayStopButton"
         v-tooltip.top-end="$t('CONVERSATION.REPLYBOX.DISCARD_AUDIO_RECORDING')"
-        icon="i-ph-trash"
+        icon="i-lucide-trash-2"
         slate
         faded
         sm
@@ -466,7 +466,7 @@ export default {
         sm
         :color="isNote ? 'amber' : 'blue'"
         :disabled="isSendDisabled"
-        icon="i-ph-paper-plane-tilt"
+        icon="i-lucide-send-horizontal"
         :label="sendButtonText"
         class="flex-shrink-0 h-9 px-3 rounded-full"
         @click="onSend"

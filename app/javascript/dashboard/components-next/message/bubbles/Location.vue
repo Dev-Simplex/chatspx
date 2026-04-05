@@ -29,7 +29,7 @@ const mapUrl = computed(
 
 <template>
   <BaseAttachmentBubble
-    icon="i-ph-navigation-arrow-fill"
+    icon="i-lucide-navigation"
     icon-bg-color="bg-[#0D9B8A]"
     sender-translation-key="CONVERSATION.SHARED_ATTACHMENT.LOCATION"
     :content="title"

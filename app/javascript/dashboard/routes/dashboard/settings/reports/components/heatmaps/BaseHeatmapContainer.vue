@@ -261,7 +261,7 @@ onMounted(() => {
 </script>
 
 <template>
-  <div class="flex flex-row flex-wrap max-w-full">
+  <div class="flex flex-row flex-wrap max-w-full gap-4">
     <MetricCard :header="title">
       <template #control>
         <HeatmapDateRangeSelector

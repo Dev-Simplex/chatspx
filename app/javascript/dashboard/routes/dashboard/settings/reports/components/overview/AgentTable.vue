@@ -121,10 +121,16 @@ const table = useVueTable({
 </script>
 
 <template>
-  <div class="flex flex-col flex-1">
-    <Table :table="table" class="max-h-[calc(100vh-21.875rem)]" />
+  <div
+    class="flex flex-col flex-1 bg-white dark:bg-n-solid-2 border border-n-weak rounded-xl overflow-hidden"
+  >
+    <Table
+      :table="table"
+      type="reports"
+      class="max-h-[calc(100vh-21.875rem)]"
+    />
     <Pagination
-      class="mt-2"
+      class="px-4 py-3 border-t border-n-weak"
       :table="table"
       show-page-size-selector
       :default-page-size="getPageSize()"

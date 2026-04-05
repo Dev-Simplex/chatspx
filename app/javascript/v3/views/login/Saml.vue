@@ -69,26 +69,26 @@ onMounted(async () => {
 
 <template>
   <main
-    class="flex flex-col w-full min-h-screen py-20 bg-n-brand/5 dark:bg-n-background sm:px-6 lg:px-8"
+    class="flex flex-col items-center w-full min-h-screen py-20 bg-n-background sm:px-6 lg:px-8"
   >
-    <section class="max-w-5xl mx-auto">
+    <section class="max-w-md w-full mx-auto">
       <img
         :src="globalConfig.logo"
         :alt="globalConfig.installationName"
-        class="block w-auto h-8 mx-auto dark:hidden"
+        class="block w-auto h-13 mx-auto dark:hidden"
       />
       <img
         v-if="globalConfig.logoDark"
         :src="globalConfig.logoDark"
         :alt="globalConfig.installationName"
-        class="hidden w-auto h-8 mx-auto dark:block"
+        class="hidden w-auto h-13 mx-auto dark:block"
       />
-      <h2 class="mt-6 text-3xl font-medium text-center text-n-slate-12">
+      <h2 class="mt-6 text-2xl font-semibold text-center text-n-slate-12">
         {{ t('LOGIN.SAML.TITLE') }}
       </h2>
     </section>
     <section
-      class="bg-white shadow sm:mx-auto mt-11 sm:w-full sm:max-w-lg dark:bg-n-solid-2 p-11 sm:shadow-lg sm:rounded-lg"
+      class="bg-white dark:bg-n-solid-2 border border-n-weak rounded-2xl shadow-card p-8 mt-8 max-w-md w-full mx-auto"
       :class="{
         'animate-wiggle': loginApi.hasErrored,
       }"
@@ -123,8 +123,11 @@ onMounted(async () => {
         />
       </form>
     </section>
-    <p class="mt-6 text-sm text-center text-n-slate-11">
-      <router-link to="/app/login" class="text-link text-n-brand">
+    <p class="mt-6 text-sm text-center text-n-slate-10">
+      <router-link
+        to="/app/login"
+        class="text-n-brand hover:text-[#1FB85A] hover:underline"
+      >
         {{ t('LOGIN.SAML.BACK_TO_LOGIN') }}
       </router-link>
     </p>

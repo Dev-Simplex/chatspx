@@ -58,16 +58,18 @@ const togglePortalSwitcher = () => {
 </script>
 
 <template>
-  <section class="flex flex-col w-full h-full overflow-hidden bg-n-surface-1">
-    <header class="sticky top-0 z-10 px-6 pb-3">
+  <section class="flex flex-col w-full h-full overflow-hidden bg-n-background">
+    <header
+      class="sticky top-0 z-10 px-6 pb-3 bg-white dark:bg-n-solid-1 border-b border-n-weak"
+    >
       <div class="w-full max-w-5xl mx-auto">
         <div
           v-if="showHeaderTitle"
-          class="flex items-center justify-start h-20 gap-2"
+          class="flex items-center justify-start h-16 gap-2"
         >
           <span
             v-if="activePortalName"
-            class="text-xl font-medium text-n-slate-12"
+            class="text-lg font-semibold text-n-slate-12"
           >
             {{ activePortalName }}
           </span>
@@ -78,7 +80,7 @@ const togglePortalSwitcher = () => {
                 variant="ghost"
                 color="slate"
                 size="xs"
-                class="rounded-md group-hover:bg-n-slate-3 hover:bg-n-slate-3"
+                class="rounded-lg group-hover:bg-n-slate-3/50 hover:bg-n-slate-3/50"
                 @click="togglePortalSwitcher"
               />
 
@@ -96,11 +98,14 @@ const togglePortalSwitcher = () => {
       </div>
     </header>
     <main class="flex-1 px-6 overflow-y-auto">
-      <div class="w-full max-w-5xl mx-auto py-3">
+      <div class="w-full max-w-5xl mx-auto py-4">
         <slot name="content" />
       </div>
     </main>
-    <footer v-if="showPaginationFooter" class="sticky bottom-0 z-10">
+    <footer
+      v-if="showPaginationFooter"
+      class="sticky bottom-0 z-10 border-t border-n-weak bg-white dark:bg-n-solid-1"
+    >
       <PaginationFooter
         :current-page="currentPage"
         :total-items="totalItems"

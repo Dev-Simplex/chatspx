@@ -155,29 +155,26 @@ export default {
 </script>
 
 <template>
-  <div class="relative">
-    <div class="flex justify-between">
-      <div class="flex justify-between w-full mb-1">
-        <div>
-          <p v-if="watchersList.length" class="m-0 text-sm total-watchers">
-            <Spinner v-if="watchersUiFlas.isFetching" size="tiny" />
-            {{ totalWatchersText }}
-          </p>
-          <p v-else class="m-0 text-sm text-n-slate-10">
-            {{ $t('CONVERSATION_PARTICIPANTS.NO_PARTICIPANTS_TEXT') }}
-          </p>
-        </div>
-        <NextButton
-          v-tooltip.left="$t('CONVERSATION_PARTICIPANTS.ADD_PARTICIPANTS')"
-          slate
-          ghost
-          sm
-          icon="i-lucide-settings"
-          class="relative -top-1"
-          :title="$t('CONVERSATION_PARTICIPANTS.ADD_PARTICIPANTS')"
-          @click="onOpenDropdown"
-        />
+  <div class="relative px-4 pb-3">
+    <div class="flex items-center justify-between mb-1">
+      <div>
+        <p v-if="watchersList.length" class="m-0 text-sm text-n-slate-12">
+          <Spinner v-if="watchersUiFlas.isFetching" size="tiny" />
+          {{ totalWatchersText }}
+        </p>
+        <p v-else class="m-0 text-sm text-n-slate-10">
+          {{ $t('CONVERSATION_PARTICIPANTS.NO_PARTICIPANTS_TEXT') }}
+        </p>
       </div>
+      <NextButton
+        v-tooltip.left="$t('CONVERSATION_PARTICIPANTS.ADD_PARTICIPANTS')"
+        slate
+        ghost
+        sm
+        icon="i-lucide-settings"
+        :title="$t('CONVERSATION_PARTICIPANTS.ADD_PARTICIPANTS')"
+        @click="onOpenDropdown"
+      />
     </div>
     <div class="flex items-center justify-between">
       <ThumbnailGroup

@@ -199,6 +199,13 @@ const tailwindConfig = {
       ...defaultTheme.fontSize,
       xxs: '0.625rem',
     },
+    boxShadow: {
+      ...defaultTheme.boxShadow,
+      overlay:
+        '0 8px 30px rgba(0, 0, 0, 0.12), 0 2px 8px rgba(0, 0, 0, 0.06)',
+      dropdown:
+        '0 4px 16px rgba(0, 0, 0, 0.08), 0 1px 4px rgba(0, 0, 0, 0.04)',
+    },
     colors: {
       transparent: 'transparent',
       white: '#fff',
@@ -247,6 +254,22 @@ const tailwindConfig = {
         '0%, 100%': { opacity: '1' },
         '50%': { opacity: '0.85' },
       },
+      'message-in': {
+        '0%': { opacity: '0', transform: 'translateY(8px)' },
+        '100%': { opacity: '1', transform: 'translateY(0)' },
+      },
+      'typing-bounce': {
+        '0%, 60%, 100%': { transform: 'translateY(0)' },
+        '30%': { transform: 'translateY(-4px)' },
+      },
+      'dropdown-in': {
+        '0%': { opacity: '0', transform: 'scale(0.95)' },
+        '100%': { opacity: '1', transform: 'scale(1)' },
+      },
+      'scale-in': {
+        '0%': { opacity: '0', transform: 'scale(0.5)' },
+        '100%': { opacity: '1', transform: 'scale(1)' },
+      },
     },
     animation: {
       ...defaultTheme.animation,
@@ -256,6 +279,10 @@ const tailwindConfig = {
       'card-select': 'card-select 0.25s ease-in-out',
       shake: 'shake 0.3s ease-in-out 0s 2',
       'sidebar-attention': 'sidebar-attention 2.5s ease-in-out infinite',
+      'message-in': 'message-in 200ms ease-out',
+      'typing-bounce': 'typing-bounce 1.2s ease-in-out infinite',
+      'dropdown-in': 'dropdown-in 150ms ease-out',
+      'scale-in': 'scale-in 200ms ease-out',
     },
   },
   plugins: [

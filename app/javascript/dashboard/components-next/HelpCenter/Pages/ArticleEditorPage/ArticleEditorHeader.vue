@@ -116,7 +116,7 @@ const updateArticleStatus = async ({ value }) => {
 </script>
 
 <template>
-  <div class="flex items-center justify-between h-20">
+  <div class="flex items-center justify-between h-16">
     <Button
       :label="t('HELP_CENTER.EDIT_ARTICLE_PAGE.HEADER.BACK_TO_ARTICLES')"
       icon="i-lucide-chevron-left"

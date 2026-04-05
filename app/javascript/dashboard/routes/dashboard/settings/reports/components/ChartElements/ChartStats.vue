@@ -37,8 +37,8 @@ const trendColor = (value, key) => {
 </script>
 
 <template>
-  <div class="text-n-slate-11">
-    <span class="text-xs uppercase tracking-wide text-n-slate-10">
+  <div>
+    <span class="text-xs font-medium uppercase tracking-wider text-n-slate-10">
       {{ metric.NAME }}
     </span>
     <div class="flex items-end gap-3 text-n-slate-12 mt-1">
@@ -53,7 +53,7 @@ const trendColor = (value, key) => {
       </div>
       <div
         v-else-if="fetchingStatus === STATUS.FINISHED"
-        class="text-2xl font-semibold tracking-tight"
+        class="text-2xl font-semibold text-n-slate-12 tabular-nums"
       >
         {{ displayMetric(metric.KEY) }}
       </div>

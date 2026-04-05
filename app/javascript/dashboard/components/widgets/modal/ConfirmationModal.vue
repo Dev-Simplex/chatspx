@@ -56,7 +56,9 @@ export default {
   <Modal v-model:show="show" :on-close="cancel">
     <div class="h-auto overflow-auto flex flex-col">
       <woot-modal-header :header-title="title" :header-content="description" />
-      <div class="flex flex-row justify-end gap-2 py-4 px-6 w-full">
+      <div
+        class="flex flex-row justify-end gap-2 py-4 px-6 w-full border-t border-n-weak"
+      >
         <NextButton faded type="reset" :label="cancelLabel" @click="cancel" />
         <NextButton type="submit" :label="confirmLabel" @click="confirm" />
       </div>

@@ -157,7 +157,7 @@ const handleAvatarHover = isHovered => {
             <span class="inline-flex items-center gap-1">
               <span
                 v-if="additionalAttributes?.companyName"
-                class="i-ph-building-light size-4 text-n-slate-10 mb-0.5"
+                class="i-lucide-building size-4 text-n-slate-10 mb-0.5"
               />
               <span
                 v-if="additionalAttributes?.companyName"

@@ -923,7 +923,11 @@ const menuItems = computed(() => {
           <span class="i-lucide-search size-4 text-n-slate-11" />
         </RouterLink>
         <Button
-          :icon="isEffectivelyCollapsed ? 'i-lucide-panel-left-open' : 'i-lucide-panel-left-close'"
+          :icon="
+            isEffectivelyCollapsed
+              ? 'i-lucide-panel-left-open'
+              : 'i-lucide-panel-left-close'
+          "
           color="slate"
           size="sm"
           class="dark:hover:!bg-n-slate-9/30"

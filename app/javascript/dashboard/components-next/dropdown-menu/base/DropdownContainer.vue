@@ -117,7 +117,7 @@ function onTriggerClick(e) {
     <TeleportWithDirection v-else-if="isOpen && useTeleport()" to="body">
       <div
         ref="menuRef"
-        class="dropdown-menu-teleport bg-n-alpha-3 backdrop-blur-[100px] border border-n-weak shadow-xl rounded-xl overflow-y-auto overflow-x-hidden"
+        class="dropdown-menu-teleport bg-white dark:bg-n-solid-2 border border-n-weak shadow-dropdown rounded-xl overflow-y-auto overflow-x-hidden"
         :style="teleportStyle"
       >
         <!-- DropdownBody usa position:absolute; dentro do teleport o pai colapsa (altura 0). 

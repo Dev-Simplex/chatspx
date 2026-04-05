@@ -118,7 +118,7 @@ export default {
   <ReportHeader :header-title="$t('CSAT_REPORTS.HEADER')">
     <V4Button
       :label="$t('CSAT_REPORTS.DOWNLOAD')"
-      icon="i-ph-download-simple"
+      icon="i-lucide-download"
       size="sm"
       @click="downloadReports"
     />

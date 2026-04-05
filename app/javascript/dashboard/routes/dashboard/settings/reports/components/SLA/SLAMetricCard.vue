@@ -22,9 +22,11 @@ export default {
 </script>
 
 <template>
-  <div class="flex flex-col gap-2 items-start justify-center min-w-[10rem]">
+  <div
+    class="flex flex-col gap-2 items-start justify-center min-w-[10rem] bg-white dark:bg-n-solid-2 border border-n-weak rounded-xl p-5"
+  >
     <span
-      class="inline-flex items-center gap-1 text-sm font-medium text-n-slate-11"
+      class="inline-flex items-center gap-1 text-xs font-medium uppercase tracking-wider text-n-slate-10"
     >
       {{ label }}
       <fluent-icon
@@ -32,7 +34,7 @@ export default {
         size="14"
         icon="information"
         type="outline"
-        class="flex flex-shrink-0 text-sm font-normal sm:font-medium text-n-slate-10"
+        class="flex flex-shrink-0 text-n-slate-10"
       />
     </span>
     <div
@@ -40,7 +42,10 @@ export default {
       class="w-12 h-6 mb-0.5 rounded-md bg-n-slate-3 animate-pulse"
     />
 
-    <span v-else class="text-2xl font-medium text-n-slate-12">
+    <span
+      v-else
+      class="text-2xl font-semibold text-n-slate-12 tabular-nums mt-1"
+    >
       {{ value }}
     </span>
   </div>

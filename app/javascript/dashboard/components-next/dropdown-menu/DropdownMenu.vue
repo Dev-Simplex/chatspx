@@ -123,14 +123,14 @@ onMounted(() => {
 
 <template>
   <div
-    class="bg-n-alpha-3 backdrop-blur-[100px] border-0 outline outline-1 outline-n-container absolute rounded-xl z-50 gap-2 flex flex-col min-w-[136px] shadow-lg pb-2 px-2"
+    class="bg-white dark:bg-n-solid-2 border border-n-weak absolute rounded-xl z-50 gap-1 flex flex-col min-w-[136px] shadow-lg p-1 animate-dropdown-in"
     :class="{
-      'pt-2': !showSearch,
+      'pt-1': !showSearch,
     }"
   >
     <div
       v-if="showSearch"
-      class="sticky top-0 bg-n-alpha-3 backdrop-blur-sm pt-2 z-20"
+      class="sticky top-0 bg-white dark:bg-n-solid-2 pt-1 z-20"
     >
       <div class="relative">
         <span class="absolute i-lucide-search size-3.5 top-2 left-3" />
@@ -154,7 +154,7 @@ onMounted(() => {
       >
         <p
           v-if="section.title"
-          class="px-2 py-2 text-xs mb-0 font-medium text-n-slate-11 uppercase tracking-wide sticky z-10 bg-n-alpha-3 backdrop-blur-sm"
+          class="px-2 py-2 text-xs mb-0 font-medium text-n-slate-11 uppercase tracking-wide sticky z-10 bg-white dark:bg-n-solid-2"
           :class="showSearch ? 'top-10' : 'top-0'"
         >
           {{ section.title }}
@@ -175,10 +175,10 @@ onMounted(() => {
           v-for="(item, itemIndex) in section.items"
           :key="item.value || itemIndex"
           type="button"
-          class="inline-flex items-center justify-start w-full h-8 min-w-0 gap-2 px-2 py-1.5 transition-all duration-200 ease-in-out border-0 rounded-lg z-60 hover:bg-n-alpha-1 dark:hover:bg-n-alpha-2 disabled:cursor-not-allowed disabled:pointer-events-none disabled:opacity-50"
+          class="inline-flex items-center justify-start w-full h-8 min-w-0 gap-2 px-3 py-2 transition-all duration-200 ease-in-out border-0 rounded-lg z-60 hover:bg-n-slate-3/50 disabled:cursor-not-allowed disabled:pointer-events-none disabled:opacity-50"
           :class="{
-            'bg-n-alpha-1 dark:bg-n-solid-active': item.isSelected,
-            'text-n-ruby-11': item.action === 'delete',
+            'bg-n-slate-3/50': item.isSelected,
+            'text-n-ruby-11 hover:!bg-n-ruby-3/50': item.action === 'delete',
             'text-n-slate-12': item.action !== 'delete',
           }"
           :disabled="item.disabled"
@@ -209,7 +209,7 @@ onMounted(() => {
         </button>
         <div
           v-if="sectionIndex < filteredMenuSections.length - 1"
-          class="h-px bg-n-alpha-2 mx-2 my-1"
+          class="border-t border-n-weak my-1"
         />
       </div>
     </template>
@@ -218,7 +218,7 @@ onMounted(() => {
         v-for="(item, index) in filteredMenuItems"
         :key="index"
         type="button"
-        class="inline-flex items-center justify-start w-full h-8 min-w-0 gap-2 px-2 py-1.5 transition-all duration-200 ease-in-out border-0 rounded-lg z-60 hover:bg-n-alpha-1 dark:hover:bg-n-alpha-2 disabled:cursor-not-allowed disabled:pointer-events-none disabled:opacity-50"
+        class="inline-flex items-center justify-start w-full h-8 min-w-0 gap-2 px-3 py-2 transition-all duration-200 ease-in-out border-0 rounded-lg z-60 hover:bg-n-slate-3/50 disabled:cursor-not-allowed disabled:pointer-events-none disabled:opacity-50"
         :class="{
           'bg-n-alpha-1 dark:bg-n-solid-active': item.isSelected,
           'text-n-ruby-11': item.action === 'delete',

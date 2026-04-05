@@ -109,30 +109,26 @@ const hasSlaPolicyId = computed(() => props.chat?.sla_policy_id);
 <template>
   <div
     ref="conversationHeader"
-    class="flex flex-col gap-3 items-center justify-between flex-1 w-full min-w-0 xl:flex-row px-3 pt-3 pb-2 h-24 xl:h-12"
+    class="flex items-center justify-between flex-shrink-0 w-full h-14 px-4 bg-white dark:bg-n-solid-1 border-b border-n-weak"
   >
-    <div
-      class="flex items-center justify-start w-full xl:w-auto max-w-full min-w-0 xl:flex-1"
-    >
+    <div class="flex items-center gap-3 min-w-0 flex-1">
       <BackButton
         v-if="showBackButton"
         :back-url="backButtonUrl"
-        class="ltr:mr-2 rtl:ml-2"
+        class="ltr:mr-1 rtl:ml-1"
       />
       <Thumbnail
         :src="currentContact.thumbnail"
         :username="currentContact.name"
         :status="currentContact.availability_status"
-        size="32px"
+        size="40px"
         class="flex-shrink-0"
         allow-preview
       />
-      <div
-        class="flex flex-col items-start min-w-0 ml-2 overflow-hidden rtl:ml-0 rtl:mr-2"
-      >
+      <div class="flex flex-col items-start min-w-0 overflow-hidden">
         <div class="flex flex-row items-center max-w-full gap-1 p-0 m-0">
           <span
-            class="text-sm font-medium truncate leading-tight text-n-slate-12 cursor-pointer hover:text-n-brand-default transition-colors"
+            class="text-base font-semibold truncate leading-tight text-n-slate-12 cursor-pointer hover:text-n-brand-default transition-colors"
             role="button"
             tabindex="0"
             @click="toggleContactPanel"
@@ -149,7 +145,7 @@ const hasSlaPolicyId = computed(() => props.chat?.sla_policy_id);
         </div>
 
         <div
-          class="flex items-center gap-2 overflow-hidden text-xs conversation--header--actions text-ellipsis whitespace-nowrap"
+          class="flex items-center gap-2 overflow-hidden text-xs text-n-slate-10 text-ellipsis whitespace-nowrap"
         >
           <InboxName v-if="hasMultipleInboxes" :inbox="inbox" class="!mx-0" />
           <span v-if="isSnoozed" class="font-medium text-n-amber-10">
@@ -158,9 +154,7 @@ const hasSlaPolicyId = computed(() => props.chat?.sla_policy_id);
         </div>
       </div>
     </div>
-    <div
-      class="flex flex-row items-center justify-start xl:justify-end flex-shrink-0 gap-2 w-full xl:w-auto header-actions-wrap"
-    >
+    <div class="flex items-center gap-1 flex-shrink-0">
       <SLACardLabel
         v-if="hasSlaPolicyId"
         :chat="chat"
@@ -174,7 +168,7 @@ const hasSlaPolicyId = computed(() => props.chat?.sla_policy_id);
         variant="ghost"
         color="slate"
         icon="i-lucide-search"
-        class="rounded-md hover:bg-n-alpha-2"
+        class="size-8 rounded-lg hover:bg-n-slate-3/50 text-n-slate-10 hover:text-n-slate-12"
         @click="showMessageSearch = true"
       />
       <MoreActions :conversation-id="currentChat.id" />

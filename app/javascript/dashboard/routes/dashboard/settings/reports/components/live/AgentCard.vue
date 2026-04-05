@@ -28,8 +28,8 @@ const statusConfig = computed(() => {
   const configs = {
     online: {
       label: 'Online',
-      class: 'bg-n-teal-3 text-n-teal-11',
-      dotClass: 'bg-n-teal-10',
+      class: 'bg-n-brand/10 text-n-brand',
+      dotClass: 'bg-n-brand',
     },
     busy: {
       label: 'Ausente',
@@ -54,7 +54,7 @@ const loadMoreConversations = () => {
 
 <template>
   <div
-    class="flex flex-col h-[400px] bg-n-solid-2 rounded-xl shadow outline-1 outline outline-n-container overflow-hidden transition-all duration-300 hover:shadow-lg hover:outline-n-brand/20"
+    class="flex flex-col h-[400px] bg-white dark:bg-n-solid-2 border border-n-weak rounded-xl overflow-hidden transition-all duration-300 hover:shadow-lg"
   >
     <div
       class="flex items-center gap-3 p-4 border-b border-n-weak bg-n-alpha-2 flex-shrink-0"
@@ -75,18 +75,13 @@ const loadMoreConversations = () => {
             class="flex items-center gap-1.5 px-2 py-0.5 rounded-full text-xs font-medium transition-all"
             :class="statusConfig.class"
           >
-            <span
-              class="w-1.5 h-1.5 rounded-full animate-pulse"
-              :class="statusConfig.dotClass"
-            />
+            <span class="size-2 rounded-full" :class="statusConfig.dotClass" />
             {{ statusConfig.label }}
           </span>
         </div>
       </div>
     </div>
-    <div
-      class="flex-1 min-h-0 overflow-y-auto scrollbar-thin scrollbar-thumb-n-weak scrollbar-track-transparent"
-    >
+    <div class="flex-1 min-h-0 overflow-y-auto">
       <div
         v-if="
           isConversationsLoading &&
@@ -139,33 +134,10 @@ const loadMoreConversations = () => {
         {{ $t('LIVE_REPORTS.IN_SERVICE.AGENT_CARD.TOTAL_OPEN_CALLS') }}:
       </p>
       <span
-        class="flex items-center justify-center min-w-[1.75rem] h-7 px-2 rounded-lg font-semibold text-n-slate-12 bg-n-brand-3 text-n-brand-11 text-sm"
+        class="flex items-center justify-center min-w-[1.75rem] h-7 px-2 rounded-lg font-semibold bg-n-brand/10 text-n-brand text-sm tabular-nums"
       >
         {{ totalOpenCalls }}
       </span>
     </div>
   </div>
 </template>
-
-<style scoped>
-.scrollbar-thin {
-  scrollbar-width: thin;
-}
-
-.scrollbar-thin::-webkit-scrollbar {
-  width: 4px;
-}
-
-.scrollbar-thin::-webkit-scrollbar-track {
-  background: transparent;
-}
-
-.scrollbar-thin::-webkit-scrollbar-thumb {
-  background-color: rgba(148, 163, 184, 0.3);
-  border-radius: 2px;
-}
-
-.scrollbar-thin::-webkit-scrollbar-thumb:hover {
-  background-color: rgba(148, 163, 184, 0.5);
-}
-</style>

@@ -24,7 +24,7 @@ export default {
 <!-- eslint-disable vue/no-unused-refs -->
 <!-- Added ref for writing specs -->
 <template>
-  <div class="flex flex-col items-start px-8 pt-8 pb-0">
+  <div class="flex flex-col items-start px-6 py-4 border-b border-n-weak">
     <img v-if="headerImage" :src="headerImage" alt="No image" />
     <h2
       data-test-id="modal-header-title"

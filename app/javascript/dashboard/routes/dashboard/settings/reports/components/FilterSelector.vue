@@ -176,7 +176,7 @@ export default {
 
 <template>
   <div
-    class="rounded-2xl border border-n-container/60 bg-n-solid-2/80 backdrop-blur px-4 py-4 shadow-sm relative z-30"
+    class="bg-white dark:bg-n-solid-2 border border-n-weak rounded-xl px-4 py-4 relative z-30 mb-6"
   >
     <div class="flex flex-col gap-4 lg:flex-row lg:items-start">
       <div
@@ -221,7 +221,7 @@ export default {
       </div>
       <div
         v-if="showBusinessHoursSwitch"
-        class="flex items-center gap-3 rounded-xl border border-n-container/40 bg-n-background/70 px-4 py-3"
+        class="flex items-center gap-3 rounded-lg border border-n-weak px-3 h-8"
       >
         <span class="text-sm text-n-slate-12 whitespace-nowrap">
           {{ $t('REPORT.BUSINESS_HOURS') }}

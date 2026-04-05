@@ -383,7 +383,7 @@ const handleDeleteStage = async stage => {
   >
     <div
       v-if="isLoading && stages.length === 0"
-      class="flex h-full items-center justify-center bg-n-background"
+      class="flex h-full items-center justify-center"
     >
       <div
         class="flex max-w-sm flex-col items-center justify-center text-center"
@@ -403,7 +403,7 @@ const handleDeleteStage = async stage => {
 
     <div
       v-else
-      class="kanban-board flex h-full gap-4 overflow-x-auto overflow-y-hidden px-5 py-4"
+      class="kanban-board flex h-full gap-4 overflow-x-auto overflow-y-hidden bg-n-background px-5 py-4"
     >
       <draggable
         v-model="localStages"
@@ -434,7 +434,7 @@ const handleDeleteStage = async stage => {
 
       <div
         v-if="stages.length === 0"
-        class="flex w-full flex-col items-center justify-center rounded-xl border border-dashed border-n-weak bg-n-solid-2 p-8 text-center"
+        class="flex w-full flex-col items-center justify-center rounded-xl border-2 border-dashed border-n-weak bg-n-slate-2/50 dark:bg-n-solid-2 p-8 text-center"
       >
         <Icon icon="i-lucide-columns-3" class="mb-3 size-9 text-n-slate-10" />
         <h3 class="text-lg font-semibold text-n-slate-12">
@@ -489,10 +489,16 @@ const handleDeleteStage = async stage => {
 }
 
 :deep(.kanban-stage-ghost) {
-  opacity: 0.5;
+  opacity: 0.4;
+  border: 2px dashed var(--n-brand, #2dc46f);
+  background: rgba(45, 196, 111, 0.05);
 }
 
 :deep(.kanban-stage-drag) {
-  opacity: 0.9;
+  opacity: 0.95;
+  box-shadow:
+    0 20px 25px -5px rgba(0, 0, 0, 0.15),
+    0 8px 10px -6px rgba(0, 0, 0, 0.1);
+  transform: rotate(1deg);
 }
 </style>

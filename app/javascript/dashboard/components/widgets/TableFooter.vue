@@ -32,7 +32,7 @@ const isFooterVisible = computed(
 <template>
   <footer
     v-if="isFooterVisible"
-    class="flex items-center justify-between h-12 px-6"
+    class="flex items-center justify-between px-4 py-3 border-t border-n-weak"
   >
     <TableFooterResults
       :first-index="firstIndex"

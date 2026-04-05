@@ -18,9 +18,9 @@ const LABEL_KEYS = {
 };
 
 const ICON_MAP = {
-  [VOICE_CALL_STATUS.IN_PROGRESS]: 'i-ph-phone-call',
-  [VOICE_CALL_STATUS.NO_ANSWER]: 'i-ph-phone-x',
-  [VOICE_CALL_STATUS.FAILED]: 'i-ph-phone-x',
+  [VOICE_CALL_STATUS.IN_PROGRESS]: 'i-lucide-phone-call',
+  [VOICE_CALL_STATUS.NO_ANSWER]: 'i-lucide-phone-off',
+  [VOICE_CALL_STATUS.FAILED]: 'i-lucide-phone-off',
 };
 
 const COLOR_MAP = {
@@ -52,7 +52,9 @@ const labelKey = computed(() => {
 
 const iconName = computed(() => {
   if (ICON_MAP[props.status]) return ICON_MAP[props.status];
-  return isOutbound.value ? 'i-ph-phone-outgoing' : 'i-ph-phone-incoming';
+  return isOutbound.value
+    ? 'i-lucide-phone-outgoing'
+    : 'i-lucide-phone-incoming';
 });
 
 const statusColor = computed(

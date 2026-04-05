@@ -158,7 +158,7 @@ const save = async () => {
           id="stage-form-name"
           v-model="formData.name"
           type="text"
-          class="w-full px-4 !py-3 !h-12 border border-n-weak rounded-lg bg-n-solid-3 text-n-slate-12 text-sm leading-5 focus:outline-none focus:ring-2 focus:ring-n-blue-9"
+          class="w-full px-4 !py-3 !h-12 border border-n-weak rounded-xl bg-white dark:bg-n-solid-3 text-n-slate-12 text-sm leading-5 focus:outline-none focus:ring-2 focus:ring-n-teal-9"
           :placeholder="t('KANBAN.STAGES.NAME_PLACEHOLDER')"
           @keydown.enter.prevent="save"
         />
@@ -180,10 +180,10 @@ const save = async () => {
             id="stage-form-color"
             v-model="formData.color"
             type="color"
-            class="w-12 h-12 border border-n-weak rounded-lg cursor-pointer"
+            class="w-12 h-12 border border-n-weak rounded-xl cursor-pointer"
           />
           <span
-            class="px-4 py-3 border border-n-weak rounded-lg bg-n-solid-3 text-n-slate-12 font-mono text-sm"
+            class="px-4 py-3 border border-n-weak rounded-xl bg-white dark:bg-n-solid-3 text-n-slate-12 font-mono text-sm"
           >
             {{ formData.color }}
           </span>
@@ -204,7 +204,7 @@ const save = async () => {
         <select
           id="stage-form-automation"
           v-model="formData.automation_type"
-          class="w-full px-4 py-3 border border-n-weak rounded-lg bg-n-solid-3 text-n-slate-12 focus:outline-none focus:ring-2 focus:ring-n-blue-9 text-sm"
+          class="w-full px-4 py-3 border border-n-weak rounded-xl bg-white dark:bg-n-solid-3 text-n-slate-12 focus:outline-none focus:ring-2 focus:ring-n-teal-9 text-sm"
         >
           <option :value="null">{{ t('KANBAN.STAGES.NO_AUTOMATION') }}</option>
           <option value="open">{{ t('KANBAN.STAGES.AUTOMATION_OPEN') }}</option>

@@ -104,7 +104,7 @@ const handleConversationClick = () => {
     >
       <template #badge>
         <div
-          class="absolute z-20 flex items-center justify-center rounded-full bg-n-teal-9 border border-n-slate-3 flex-shrink-0"
+          class="absolute z-20 flex items-center justify-center rounded-full bg-n-brand border border-white dark:border-n-solid-2 flex-shrink-0"
           :style="{
             width: '14px',
             height: '14px',
@@ -137,7 +137,7 @@ const handleConversationClick = () => {
         </p>
         <span
           v-if="hasUnread"
-          class="flex items-center justify-center min-w-[1.25rem] h-5 px-1.5 rounded-full bg-n-ruby-9 text-white text-xs font-medium flex-shrink-0 animate-pulse"
+          class="flex items-center justify-center min-w-[1.25rem] h-5 px-1.5 rounded-full bg-n-brand text-white text-xs font-medium flex-shrink-0"
         >
           {{ unreadCount > 99 ? '99+' : unreadCount }}
         </span>
@@ -145,7 +145,7 @@ const handleConversationClick = () => {
           v-else-if="conversation.lastMessageStatus === 'read'"
           class="flex-shrink-0 opacity-70"
         >
-          <span class="i-lucide-check-check size-4 text-n-teal-10" />
+          <span class="i-lucide-check-check size-4 text-n-brand" />
         </span>
         <span
           v-else-if="conversation.lastMessageStatus === 'sent'"
@@ -157,20 +157,3 @@ const handleConversationClick = () => {
     </div>
   </div>
 </template>
-
-<style scoped>
-@keyframes slideIn {
-  from {
-    opacity: 0;
-    transform: translateY(-4px);
-  }
-  to {
-    opacity: 1;
-    transform: translateY(0);
-  }
-}
-
-.group {
-  animation: slideIn 0.3s ease-out;
-}
-</style>

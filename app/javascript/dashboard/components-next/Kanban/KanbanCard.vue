@@ -190,7 +190,7 @@ const handleCardClick = event => {
 
 <template>
   <div
-    class="kanban-card group relative flex w-full min-w-0 flex-shrink-0 cursor-pointer flex-col gap-3 rounded-xl border border-n-weak bg-n-solid-3 p-3.5 transition-colors duration-150 hover:bg-n-solid-4"
+    class="kanban-card group relative flex w-full min-w-0 flex-shrink-0 cursor-pointer flex-col gap-3 rounded-xl border border-n-weak bg-white dark:bg-n-solid-2 p-3 transition-shadow duration-150 hover:shadow-md"
     :style="{ borderLeftColor: accentColor }"
     @click="handleCardClick"
     @mousedown="handleMouseDown"
@@ -204,11 +204,11 @@ const handleCardClick = event => {
             :src="contactThumbnail"
             :size="24"
             rounded-full
-            class="flex-shrink-0 ring-2 ring-n-weak"
+            class="flex-shrink-0"
           />
           <div class="flex-1 min-w-0">
             <h4
-              class="font-semibold text-sm text-n-slate-12 truncate leading-tight"
+              class="font-medium text-sm text-n-slate-12 truncate leading-tight"
             >
               {{ contactName }}
             </h4>
@@ -217,7 +217,7 @@ const handleCardClick = event => {
         <div class="pl-0.5">
           <p
             v-if="lastMessage"
-            class="text-xs text-n-slate-11 line-clamp-3 leading-relaxed break-words"
+            class="text-xs text-n-slate-10 line-clamp-2 leading-relaxed break-words mt-1"
           >
             {{ lastMessage }}
           </p>
@@ -239,14 +239,13 @@ const handleCardClick = event => {
 
     <!-- Footer -->
     <div
-      class="grid grid-cols-[minmax(0,1fr)_auto] items-center gap-x-3 gap-y-2 pt-3 border-t border-n-weak mt-1"
+      class="flex items-center justify-between gap-3 pt-2 border-t border-n-weak mt-1"
     >
-      <div v-if="contactPhone" class="flex items-center gap-2 min-w-0">
-        <div
-          class="flex items-center justify-center size-5 rounded bg-n-solid-2"
-        >
-          <Icon icon="i-lucide-phone" class="size-3 text-n-slate-10" />
-        </div>
+      <div v-if="contactPhone" class="flex items-center gap-1.5 min-w-0">
+        <Icon
+          icon="i-lucide-phone"
+          class="size-3 text-n-slate-10 flex-shrink-0"
+        />
         <span
           class="text-xs text-n-slate-11 font-mono truncate font-medium"
           :title="contactPhone"
@@ -255,7 +254,7 @@ const handleCardClick = event => {
         </span>
       </div>
       <div
-        class="flex items-center gap-1 justify-self-end shrink-0 opacity-100 md:opacity-0 md:group-hover:opacity-100 transition-all duration-200"
+        class="flex items-center gap-1 shrink-0 opacity-100 md:opacity-0 md:group-hover:opacity-100 transition-all duration-200"
         @click.stop
       >
         <Button
@@ -289,7 +288,6 @@ const handleCardClick = event => {
 
 <style scoped>
 .kanban-card {
-  min-height: 148px;
   border-left-style: solid;
   border-left-width: 3px;
 }

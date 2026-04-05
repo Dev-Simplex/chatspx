@@ -156,6 +156,7 @@ const props = defineProps({
   isWahaInbox: { type: Boolean, default: false },
   isForwardMode: { type: Boolean, default: false },
   isForwardSelected: { type: Boolean, default: false },
+  isNew: { type: Boolean, default: false },
   teamId: { type: Number, default: null }, // eslint-disable-line vue/no-unused-properties
 });
 
@@ -738,6 +739,7 @@ provideMessageContext({
       {
         'group-with-next': shouldGroupWithNext,
         'bg-n-alpha-1': showBackgroundHighlight,
+        'animate-message-in': props.isNew,
       },
     ]"
   >
@@ -810,7 +812,7 @@ provideMessageContext({
               <span>{{ scheduledByLabel }}</span>
             </div>
             <div v-if="forwarded" class="inline-flex items-center gap-1 italic">
-              <Icon icon="i-lucide-share-2" class="size-3" />
+              <Icon icon="i-lucide-forward" class="size-3" />
               <span>{{ t('CONVERSATION.FORWARDED') || 'Encaminhada' }}</span>
             </div>
             <div

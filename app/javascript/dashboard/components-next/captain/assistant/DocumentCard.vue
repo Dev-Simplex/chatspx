@@ -49,7 +49,7 @@ const menuItems = computed(() => {
       label: t('CAPTAIN.DOCUMENTS.OPTIONS.VIEW_RELATED_RESPONSES'),
       value: 'viewRelatedQuestions',
       action: 'viewRelatedQuestions',
-      icon: 'i-ph-tree-view-duotone',
+      icon: 'i-lucide-git-branch',
     },
   ];
 
@@ -69,7 +69,7 @@ const createdAt = computed(() => dynamicTime(props.createdAt));
 
 const displayLink = computed(() => formatDocumentLink(props.externalLink));
 const linkIcon = computed(() =>
-  isPdfDocument(props.externalLink) ? 'i-ph-file-pdf' : 'i-ph-link-simple'
+  isPdfDocument(props.externalLink) ? 'i-lucide-file-text' : 'i-lucide-link'
 );
 
 const handleAction = ({ action, value }) => {

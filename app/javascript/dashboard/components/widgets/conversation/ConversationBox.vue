@@ -91,7 +91,7 @@ export default {
 
 <template>
   <div
-    class="conversation-details-wrap flex flex-col min-w-0 w-full bg-n-surface-1 relative"
+    class="conversation-details-wrap flex flex-col min-w-0 w-full bg-n-chat-bg relative"
     :class="{
       'border-l rtl:border-l-0 rtl:border-r border-n-weak': !isOnExpandedLayout,
     }"
@@ -102,7 +102,7 @@ export default {
       :show-back-button="isOnExpandedLayout && !isInboxView"
       :show-icon-only="!isOnExpandedLayout"
       :class="{
-        'border-b border-b-n-weak !pt-2': !dashboardApps.length,
+        '!pt-0': !dashboardApps.length,
       }"
     />
     <woot-tabs

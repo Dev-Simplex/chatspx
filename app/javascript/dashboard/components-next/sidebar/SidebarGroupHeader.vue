@@ -27,7 +27,7 @@ const count = computed(() =>
 <template>
   <component
     :is="to ? 'router-link' : 'div'"
-    class="flex items-center gap-2 px-1.5 py-1 rounded-lg h-8 min-w-0"
+    class="icon-animated flex items-center gap-2 px-1.5 py-1 rounded-lg h-8 min-w-0 transition-colors duration-150"
     role="button"
     draggable="false"
     :to="to"
@@ -47,7 +47,7 @@ const count = computed(() =>
       <Icon v-if="icon" :icon="icon" class="size-4" />
       <span
         v-if="showBadge"
-        class="size-2 -top-px ltr:-right-px rtl:-left-px bg-n-brand absolute rounded-full border border-n-solid-2"
+        class="size-2 -top-px ltr:-right-px rtl:-left-px bg-n-brand absolute rounded-full border border-n-solid-2 animate-scale-in"
       />
     </div>
     <div class="flex items-center gap-1.5 flex-grow min-w-0 flex-1">
@@ -73,8 +73,8 @@ const count = computed(() =>
     </div>
     <span
       v-if="expandable && !isCollapsed"
-      v-show="isExpanded"
-      class="i-lucide-chevron-up size-3"
+      class="i-lucide-chevron-up size-3 transition-transform duration-200"
+      :class="{ 'rotate-180': !isExpanded }"
       @click.stop="emit('toggle')"
     />
   </component>

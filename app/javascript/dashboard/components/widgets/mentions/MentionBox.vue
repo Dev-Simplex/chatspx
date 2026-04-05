@@ -73,7 +73,7 @@ const variableKey = (item = {}) => {
 <template>
   <div
     ref="mentionsListContainerRef"
-    class="bg-n-solid-1 p-1 rounded-xl overflow-auto absolute w-full z-20 shadow-md left-0 bottom-full max-h-[9.75rem] border border-solid border-n-strong mention--box"
+    class="bg-white dark:bg-n-solid-2 p-1 rounded-xl overflow-auto absolute w-full z-20 shadow-dropdown left-0 bottom-full mb-1 max-h-60 border border-n-weak mention--box animate-dropdown-in"
   >
     <ul class="mb-0 vertical dropdown menu">
       <woot-dropdown-item
@@ -84,9 +84,9 @@ const variableKey = (item = {}) => {
         @mouseover="onHover(index)"
       >
         <button
-          class="flex rounded-lg group flex-col gap-0.5 overflow-hidden cursor-pointer items-start px-3 py-2 justify-center w-full h-full text-left hover:bg-n-alpha-black2"
+          class="flex rounded-lg group flex-col gap-0.5 overflow-hidden cursor-pointer items-start px-3 py-2 justify-center w-full h-full text-left hover:bg-n-slate-3/50"
           :class="{
-            'bg-n-alpha-black2': index === selectedIndex,
+            'bg-n-brand/10': index === selectedIndex,
           }"
           @click="onListItemSelection(index)"
         >

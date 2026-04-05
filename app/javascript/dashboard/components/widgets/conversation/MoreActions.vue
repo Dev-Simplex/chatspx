@@ -91,14 +91,14 @@ onUnmounted(() => {
 </script>
 
 <template>
-  <div class="relative flex items-center gap-2 actions--container">
+  <div class="relative flex items-center gap-1 actions--container">
     <ResolveAction
       :conversation-id="currentChat.id"
       :status="currentChat.status"
     />
     <div
       v-on-clickaway="() => toggleDropdown(false)"
-      class="relative flex items-center group"
+      class="relative flex items-center"
     >
       <ButtonV4
         v-tooltip="$t('CONVERSATION.HEADER.MORE_ACTIONS')"
@@ -106,7 +106,7 @@ onUnmounted(() => {
         variant="ghost"
         color="slate"
         icon="i-lucide-more-vertical"
-        class="rounded-md group-hover:bg-n-alpha-2"
+        class="size-8 rounded-lg hover:bg-n-slate-3/50 text-n-slate-10 hover:text-n-slate-12"
         @click="toggleDropdown()"
       />
       <DropdownMenu

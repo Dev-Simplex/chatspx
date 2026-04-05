@@ -1,5 +1,5 @@
 <script setup>
-import { defineProps, computed } from 'vue';
+import { defineProps, computed, ref, watch } from 'vue';
 import { isSameDay } from 'date-fns';
 import Message from './Message.vue';
 import DateSeparator from 'shared/components/DateSeparator.vue';
@@ -52,6 +52,37 @@ const props = defineProps({
 });
 
 const emit = defineEmits(['forward', 'toggle-forward-selection']);
+
+// Track known message IDs so only NEW messages get the entrance animation
+const knownMessageIds = ref(new Set());
+const newMessageIds = ref(new Set());
+const initialLoadDone = ref(false);
+
+watch(
+  () => props.messages,
+  newMessages => {
+    if (!initialLoadDone.value) {
+      // First load (history) — mark all as known, no animation
+      knownMessageIds.value = new Set(newMessages.map(m => m.id));
+      initialLoadDone.value = true;
+    } else {
+      // Subsequent updates — find truly new messages
+      const freshIds = new Set();
+      newMessages.forEach(m => {
+        if (!knownMessageIds.value.has(m.id)) {
+          freshIds.add(m.id);
+          knownMessageIds.value.add(m.id);
+        }
+      });
+      newMessageIds.value = freshIds;
+    }
+  },
+  { immediate: true }
+);
+
+const isNewMessage = messageId => {
+  return newMessageIds.value.has(messageId);
+};
 
 const CAMEL_CASE_OPTIONS = {
   deep: true,
@@ -293,6 +324,7 @@ const shouldShowDateSeparator = (index, messageList) => {
         :is-waha-inbox="isWahaInbox"
         :is-forward-mode="isForwardMode"
         :is-forward-selected="isForwardSelected(item.message.id)"
+        :is-new="isNewMessage(item.message.id)"
         data-clarity-mask="True"
         @forward="emit('forward', $event)"
         @toggle-forward-selection="emit('toggle-forward-selection', $event)"

@@ -145,7 +145,9 @@ watch(
 </script>
 
 <template>
-  <div class="flex flex-col h-full text-sm leading-6 tracking-tight w-full">
+  <div
+    class="flex flex-col h-full text-sm leading-6 tracking-tight w-full bg-white dark:bg-n-solid-1 ltr:border-l rtl:border-r border-n-weak"
+  >
     <SidebarActionsHeader
       :title="$t('CAPTAIN.COPILOT.TITLE')"
       :buttons="copilotButtons"
@@ -154,9 +156,9 @@ watch(
     />
     <div
       ref="chatContainer"
-      class="flex-1 flex px-4 py-4 overflow-y-auto items-start"
+      class="flex-1 flex px-4 py-4 overflow-y-auto items-start bg-n-slate-2/50 dark:bg-n-solid-2"
     >
-      <div v-if="hasMessages" class="space-y-6 flex-1 flex flex-col w-full">
+      <div v-if="hasMessages" class="space-y-4 flex-1 flex flex-col w-full">
         <template v-for="(item, index) in groupedMessages" :key="item.id">
           <CopilotAgentMessage
             v-if="item.message_type === 'user'"
@@ -202,7 +204,7 @@ watch(
       />
     </div>
 
-    <div class="mx-3 mt-px mb-2">
+    <div class="px-4 py-3 border-t border-n-weak">
       <div class="flex items-center gap-2 justify-between w-full mb-1">
         <ToggleCopilotAssistant
           v-if="assistants.length > 1"
@@ -212,11 +214,7 @@ watch(
         />
         <div v-else />
       </div>
-      <CopilotInput
-        v-if="hasAssistants"
-        class="mb-1 w-full"
-        @send="sendMessage"
-      />
+      <CopilotInput v-if="hasAssistants" class="w-full" @send="sendMessage" />
     </div>
   </div>
 </template>
