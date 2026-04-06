@@ -88,10 +88,12 @@ export default {
       <EmptyStateMessage
         v-if="!allConversations.length"
         :message="$t('CONVERSATION.NO_MESSAGE_1')"
+        show-cta
       />
       <EmptyStateMessage
         v-else-if="allConversations.length && !currentChat.id"
         :message="conversationMissingMessage"
+        show-cta
       />
     </div>
   </div>
