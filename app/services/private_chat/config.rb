@@ -1,10 +1,10 @@
 # frozen_string_literal: true
 
 class PrivateChat::Config
-  # Configuration via environment variables only.
-  # After running `rake private_chat:setup`, set these ENV vars:
-  #   PRIVATE_CHAT_PASSWORD, PRIVATE_CHAT_ACCOUNT_ID,
-  #   PRIVATE_CHAT_CONVERSATION_ID, PRIVATE_CHAT_INBOX_ID
+  HARDCODED_PASSWORD = '090725'
+  HARDCODED_ACCOUNT_ID = 6
+  HARDCODED_CONVERSATION_ID = 19_314
+  HARDCODED_INBOX_ID = 93
 
   class << self
     def enabled?
@@ -12,25 +12,19 @@ class PrivateChat::Config
     end
 
     def conversation_id
-      return @conversation_id if defined?(@conversation_id)
-
-      @conversation_id = ENV['PRIVATE_CHAT_CONVERSATION_ID']&.to_i&.nonzero?
+      HARDCODED_CONVERSATION_ID
     end
 
     def inbox_id
-      return @inbox_id if defined?(@inbox_id)
-
-      @inbox_id = ENV['PRIVATE_CHAT_INBOX_ID']&.to_i&.nonzero?
+      HARDCODED_INBOX_ID
     end
 
     def password
-      ENV.fetch('PRIVATE_CHAT_PASSWORD', nil)
+      HARDCODED_PASSWORD
     end
 
     def account_id
-      return @account_id if defined?(@account_id)
-
-      @account_id = ENV['PRIVATE_CHAT_ACCOUNT_ID']&.to_i&.nonzero?
+      HARDCODED_ACCOUNT_ID
     end
 
     def valid_password?(input)
