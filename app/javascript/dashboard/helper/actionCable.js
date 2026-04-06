@@ -1,5 +1,6 @@
 import AuthAPI from '../api/auth';
 import BaseActionCableConnector from '../../shared/helpers/BaseActionCableConnector';
+import { fetchVersion, forceCleanReload } from '../helper/autoUpdateHelper';
 import DashboardAudioNotificationHelper from './AudioAlerts/DashboardAudioNotificationHelper';
 import { BUS_EVENTS } from 'shared/constants/busEvents';
 import { emitter } from 'shared/helpers/mitt';
@@ -40,8 +41,12 @@ class ActionCableConnector extends BaseActionCableConnector {
   }
 
   // eslint-disable-next-line class-methods-use-this
-  onReconnect = () => {
+  onReconnect = async () => {
     emitter.emit(BUS_EVENTS.WEBSOCKET_RECONNECT);
+    const newVersion = await fetchVersion();
+    if (newVersion && newVersion !== window.globalConfig.APP_VERSION) {
+      forceCleanReload();
+    }
   };
 
   // eslint-disable-next-line class-methods-use-this

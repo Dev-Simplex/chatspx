@@ -1,6 +1,7 @@
 import { createRouter, createWebHistory } from 'vue-router';
 
 import { frontendURL } from '../helper/URLHelper';
+import { forceCleanReload } from '../helper/autoUpdateHelper';
 import dashboard from './dashboard/dashboard.routes';
 import store from 'dashboard/store';
 import { validateLoggedInRoutes } from '../helper/routeHelpers';
@@ -34,6 +35,16 @@ export const validateAuthenticateRoutePermission = (to, next) => {
   const nextRoute = validateLoggedInRoutes(to, store.getters.getCurrentUser);
   return nextRoute ? next(frontendURL(nextRoute)) : next();
 };
+
+router.onError(error => {
+  if (
+    error.message.includes('Failed to fetch dynamically imported module') ||
+    error.message.includes('Loading chunk') ||
+    error.message.includes('Loading CSS chunk')
+  ) {
+    forceCleanReload();
+  }
+});
 
 export const initalizeRouter = () => {
   const userAuthentication = store.dispatch('setUser');
