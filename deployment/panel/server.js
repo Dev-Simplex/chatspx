@@ -271,7 +271,7 @@ function deployVM(vm, branch, socket) {
     const s = vm.type === 'password' ? `echo '${SSH_PASSWORD}' | sudo -S` : 'sudo';
     const cmd = [
       `echo '=== ETAPA: Atualizando codigo ==='`,
-      `${s} -i -u chatwoot bash -c 'cd ~/chatwoot && git stash -q 2>/dev/null; git fetch origin && git checkout ${branch} && git pull origin ${branch}'`,
+      `${s} -i -u chatwoot bash -c 'cd ~/chatwoot && git stash -q 2>/dev/null; git fetch origin && git checkout ${branch} && (git pull origin ${branch} || git reset --hard origin/${branch})'`,
       `echo '=== ETAPA: Instalando dependencias Ruby ==='`,
       `${s} -i -u chatwoot bash -c 'cd ~/chatwoot && bundle install --jobs $(nproc) --retry 3 2>&1 | tail -5'`,
       `echo '=== ETAPA: Instalando dependencias JavaScript ==='`,
