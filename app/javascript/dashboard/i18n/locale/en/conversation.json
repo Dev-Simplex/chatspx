@@ -16,7 +16,9 @@
     "VIEW_TRANSLATED": "View translated",
     "EMPTY_STATE": {
       "CMD_BAR": "to open command menu",
-      "KEYBOARD_SHORTCUTS": "to view keyboard shortcuts"
+      "KEYBOARD_SHORTCUTS": "to view keyboard shortcuts",
+      "NEW_CONVERSATION": "New conversation",
+      "ENCRYPTION_NOTICE": "Messages protected with end-to-end encryption"
     },
     "SEARCH": {
       "TITLE": "Search messages",

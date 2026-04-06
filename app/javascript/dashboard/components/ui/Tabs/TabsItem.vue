@@ -46,7 +46,7 @@ const onTabClick = event => {
 <template>
   <li class="flex-shrink-0">
     <button
-      class="flex items-center h-6 px-2.5 rounded-full text-xs font-medium select-none cursor-pointer transition-all duration-200 border whitespace-nowrap"
+      class="flex items-center h-7 px-3 rounded-full text-sm font-medium select-none cursor-pointer transition-all duration-200 border whitespace-nowrap"
       :class="[
         active
           ? 'bg-n-brand/20 text-n-slate-12 font-semibold border-transparent'
@@ -59,7 +59,7 @@ const onTabClick = event => {
       {{ name }}
       <div
         v-if="showBadge"
-        class="rounded-full px-1 text-[10px] min-w-[16px] h-4 inline-flex items-center justify-center ml-1"
+        class="rounded-full px-1.5 text-xs min-w-[18px] h-5 inline-flex items-center justify-center ml-1.5"
         :class="[
           active
             ? 'bg-n-brand/25 text-n-slate-12'
