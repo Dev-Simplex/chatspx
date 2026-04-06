@@ -216,7 +216,7 @@ Rails.application.routes.draw do
               resources :contact_inboxes, only: [:create]
               resources :labels, only: [:create, :index]
               resources :notes
-              
+
               post :call, on: :member, to: 'calls#create' if ChatwootApp.enterprise?
             end
           end
@@ -704,6 +704,7 @@ Rails.application.routes.draw do
 
       resource :settings, only: [:show] do
         get :refresh, on: :collection
+        post :force_refresh, on: :collection
       end
 
       # resources that doesn't appear in primary navigation in super admin

@@ -49,12 +49,12 @@
     "TWILIO_WHATSAPP_CAN_REPLY": "The 24-hour message window has expired. Send a template to resume the conversation.",
     "TWILIO_WHATSAPP_24_HOURS_WINDOW": "24 hour message window restriction",
     "WHATSAPP_WINDOW_EXPIRED": {
-      "TITLE": "24-hour window expired",
-      "DESCRIPTION": "WhatsApp only allows free-form messages within 24 hours of the customer's last message. To resume, send an approved template message.",
-      "QUICK_TEMPLATES": "Quick send",
-      "SEND_TEMPLATE": "Send Template",
-      "SEND_TEMPLATE_ACTION": "Send Template",
-      "PRIVATE_NOTE": "Private Note"
+      "TITLE": "Janela de 24 horas expirada",
+      "DESCRIPTION": "O WhatsApp só permite mensagens livres dentro de 24 horas após a última mensagem do cliente. Para retomar, envie um template aprovado.",
+      "QUICK_TEMPLATES": "Envio rápido",
+      "SEND_TEMPLATE": "Enviar Template",
+      "SEND_TEMPLATE_ACTION": "Enviar Template",
+      "PRIVATE_NOTE": "Nota Privada"
     },
     "OLD_INSTAGRAM_INBOX_REPLY_BANNER": "This Instagram account was migrated to the new Instagram channel inbox. All new messages will show up there. You won’t be able to send messages from this conversation anymore.",
     "REPLYING_TO": "You are replying to:",
