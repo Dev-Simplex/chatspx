@@ -112,6 +112,4 @@ local/
 nps_checker.rb
 deployment/fix_sudoers.sh
 Procfile.worktree
-
-# Auto-generated on deploy — causes merge conflicts if tracked
-public/version.json
+vault
