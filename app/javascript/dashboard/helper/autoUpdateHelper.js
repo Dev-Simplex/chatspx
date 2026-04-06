@@ -1,3 +1,13 @@
+let initialVersion = null;
+
+export function setInitialVersion(version) {
+  initialVersion = version;
+}
+
+export function getInitialVersion() {
+  return initialVersion;
+}
+
 export async function fetchVersion() {
   try {
     const response = await fetch(`/version.json?t=${Date.now()}`);

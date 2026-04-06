@@ -2,6 +2,7 @@ import { onMounted, onUnmounted } from 'vue';
 import {
   fetchVersion,
   forceCleanReload,
+  setInitialVersion,
 } from 'dashboard/helper/autoUpdateHelper';
 import { useAlert } from 'dashboard/composables';
 
@@ -10,20 +11,7 @@ const IDLE_TIMEOUT = 30_000;
 const UPDATED_FLAG = 'cw_just_updated';
 
 export function useAutoUpdate() {
-  const currentVersion = window.globalConfig?.APP_VERSION;
-  if (!currentVersion) return;
-
-  onMounted(() => {
-    if (localStorage.getItem(UPDATED_FLAG)) {
-      localStorage.removeItem(UPDATED_FLAG);
-      useAlert('Sistema atualizado com sucesso! 🚀', {
-        variant: 'success',
-        icon: 'i-lucide-refresh-cw',
-        duration: 5000,
-      });
-    }
-  });
-
+  let currentVersion = null;
   let pollTimer = null;
   let idleTimer = null;
   let pendingUpdate = false;
@@ -42,7 +30,15 @@ export function useAutoUpdate() {
 
   const checkVersion = async () => {
     const newVersion = await fetchVersion();
-    if (!newVersion || newVersion === currentVersion) return;
+    if (!newVersion) return;
+
+    if (!currentVersion) {
+      currentVersion = newVersion;
+      setInitialVersion(newVersion);
+      return;
+    }
+
+    if (newVersion === currentVersion) return;
 
     if (document.hidden || Date.now() - lastActivity >= IDLE_TIMEOUT) {
       forceCleanReload();
@@ -53,7 +49,19 @@ export function useAutoUpdate() {
     idleTimer = setTimeout(() => forceCleanReload(), IDLE_TIMEOUT);
   };
 
-  pollTimer = setInterval(checkVersion, POLL_INTERVAL);
+  onMounted(() => {
+    if (localStorage.getItem(UPDATED_FLAG)) {
+      localStorage.removeItem(UPDATED_FLAG);
+      useAlert('Sistema atualizado com sucesso! 🚀', {
+        variant: 'success',
+        icon: 'i-lucide-refresh-cw',
+        duration: 5000,
+      });
+    }
+
+    checkVersion();
+    pollTimer = setInterval(checkVersion, POLL_INTERVAL);
+  });
 
   onUnmounted(() => {
     clearInterval(pollTimer);
