@@ -305,6 +305,9 @@ export default {
   },
 
   methods: {
+    openWhatsappTemplateFromBanner() {
+      emitter.emit(BUS_EVENTS.OPEN_WHATSAPP_TEMPLATE_MODAL);
+    },
     async fetchSuggestions() {
       // start empty, this ensures that the label suggestions are not shown
       this.labelSuggestions = [];
@@ -563,6 +566,12 @@ export default {
       :banner-message="replyWindowBannerMessage"
       :href-link="replyWindowLink"
       :href-link-text="replyWindowLinkText"
+      :has-action-button="isAWhatsAppChannel"
+      :action-button-label="
+        $t('CONVERSATION.WHATSAPP_WINDOW_EXPIRED.SEND_TEMPLATE_ACTION')
+      "
+      action-button-icon="i-ph-whatsapp-logo"
+      @primary-action="openWhatsappTemplateFromBanner"
     />
     <Banner
       v-else-if="hasDuplicateInstagramInbox"

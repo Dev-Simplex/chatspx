@@ -31,6 +31,7 @@ import {
 } from '@chatwoot/utils';
 import ContactAPI from 'dashboard/api/contacts';
 import WhatsappTemplates from './WhatsappTemplates/Modal.vue';
+import WhatsappWindowExpired from './WhatsappTemplates/WhatsappWindowExpired.vue';
 import ContentTemplates from './ContentTemplates/ContentTemplatesModal.vue';
 import { MESSAGE_MAX_LENGTH } from 'shared/helpers/MessageTypeHelper';
 import inboxMixin, { INBOX_FEATURES } from 'shared/mixins/inboxMixin';
@@ -88,6 +89,7 @@ export default {
     ReplyTopPanel,
     ContentTemplates,
     WhatsappTemplates,
+    WhatsappWindowExpired,
     WootMessageEditor,
     QuotedEmailPreview,
     CopilotEditorSection,
@@ -495,6 +497,13 @@ export default {
         !this.currentChat.can_reply
       );
     },
+    showWhatsappWindowExpired() {
+      return (
+        this.isAWhatsAppChannel &&
+        !this.isOnPrivateNote &&
+        !this.currentChat.can_reply
+      );
+    },
   },
   watch: {
     currentChat(conversation, oldConversation) {
@@ -576,6 +585,10 @@ export default {
       this.onNewConversationModalActive
     );
     emitter.on(BUS_EVENTS.INSERT_INTO_NORMAL_EDITOR, this.addIntoEditor);
+    emitter.on(
+      BUS_EVENTS.OPEN_WHATSAPP_TEMPLATE_MODAL,
+      this.openWhatsappTemplateModal
+    );
     emitter.on(CMD_AI_ASSIST, this.executeCopilotAction);
   },
   unmounted() {
@@ -583,6 +596,10 @@ export default {
     document.removeEventListener('keydown', this.handleKeyEvents);
     emitter.off(BUS_EVENTS.TOGGLE_REPLY_TO_MESSAGE, this.onReplyToMessage);
     emitter.off(BUS_EVENTS.INSERT_INTO_NORMAL_EDITOR, this.addIntoEditor);
+    emitter.off(
+      BUS_EVENTS.OPEN_WHATSAPP_TEMPLATE_MODAL,
+      this.openWhatsappTemplateModal
+    );
     emitter.off(
       BUS_EVENTS.NEW_CONVERSATION_MODAL,
       this.onNewConversationModalActive
@@ -865,6 +882,12 @@ export default {
     },
     hideWhatsappTemplatesModal() {
       this.showWhatsAppTemplatesModal = false;
+    },
+    onExpiredSendTemplate() {
+      this.showWhatsAppTemplatesModal = true;
+    },
+    onExpiredSwitchToNote() {
+      this.setReplyMode(REPLY_EDITOR_MODES.NOTE);
     },
     openContentTemplateModal() {
       this.showContentTemplatesModal = true;
@@ -1527,108 +1550,117 @@ export default {
       leave-to-class="opacity-0 translate-y-2 scale-[0.98]"
     >
       <div :key="copilot.editorTransitionKey.value" class="reply-box__top">
-        <ReplyToMessage
-          v-if="shouldShowReplyToMessage"
-          :message="inReplyTo"
-          @dismiss="resetReplyToMessage"
+        <WhatsappWindowExpired
+          v-if="showWhatsappWindowExpired"
+          :inbox-id="inboxId"
+          @send-template="onExpiredSendTemplate"
+          @switch-to-note="onExpiredSwitchToNote"
         />
-        <EmojiInput
-          v-if="showEmojiPicker"
-          v-on-clickaway="hideEmojiPicker"
-          :class="{
-            'emoji-dialog--expanded': isOnExpandedLayout || popOutReplyBox,
-          }"
-          :on-click="addIntoEditor"
-        />
-        <ReplyEmailHead
-          v-if="showReplyHead && isDefaultEditorMode"
-          v-model:cc-emails="ccEmails"
-          v-model:bcc-emails="bccEmails"
-          v-model:to-emails="toEmails"
-        />
-        <AudioRecorder
-          v-if="showAudioRecorderEditor"
-          ref="audioRecorderInput"
-          :audio-record-format="audioRecordFormat"
-          @recorder-progress-changed="onRecordProgressChanged"
-          @finish-record="onFinishRecorder"
-          @play="recordingAudioState = 'playing'"
-          @pause="recordingAudioState = 'paused'"
-        />
-        <CopilotEditorSection
-          v-if="copilot.isActive.value && !showAudioRecorderEditor"
-          :show-copilot-editor="copilot.showEditor.value"
-          :is-generating-content="copilot.isGenerating.value"
-          :generated-content="copilot.generatedContent.value"
-          :is-popout="popOutReplyBox"
-          :placeholder="$t('CONVERSATION.FOOTER.COPILOT_MSG_INPUT')"
-          @focus="onFocus"
-          @blur="onBlur"
-          @clear-selection="clearEditorSelection"
-          @close="copilot.showEditor.value = false"
-          @content-ready="copilot.setContentReady"
-          @send="copilot.sendFollowUp"
-        />
-        <WootMessageEditor
-          v-else-if="!showAudioRecorderEditor"
-          ref="messageEditor"
-          v-model="message"
-          :conversation-id="conversationId"
-          :editor-id="editorStateId"
-          class="input popover-prosemirror-menu"
-          :is-private="isOnPrivateNote"
-          :placeholder="messagePlaceHolder"
-          :update-selection-with="updateEditorSelectionWith"
-          :min-height="4"
-          :disabled="isEditorDisabled"
-          enable-variables
-          :variables="messageVariables"
-          :signature="messageSignature"
-          allow-signature
-          :channel-type="channelType"
-          :medium="inbox.medium"
-          @typing-off="onTypingOff"
-          @typing-on="onTypingOn"
-          @focus="onFocus"
-          @blur="onBlur"
-          @toggle-user-mention="toggleUserMention"
-          @toggle-canned-menu="toggleCannedMenu"
-          @toggle-variables-menu="toggleVariablesMenu"
-          @clear-selection="clearEditorSelection"
-          @execute-copilot-action="executeCopilotAction"
-        />
-
-        <QuotedEmailPreview
-          v-if="shouldShowQuotedPreview && isDefaultEditorMode"
-          :quoted-email-text="quotedEmailText"
-          :preview-text="quotedEmailPreviewText"
-          class="mb-2"
-          @toggle="toggleQuotedReply"
-        />
-
-        <div
-          v-if="hasAttachments && isDefaultEditorMode"
-          class="bg-transparent py-0 mb-2"
-          @paste="onPaste"
-        >
-          <AttachmentPreview
-            class="mt-2"
-            :attachments="attachedFiles"
-            @remove-attachment="removeAttachment"
+        <template v-else>
+          <ReplyToMessage
+            v-if="shouldShowReplyToMessage"
+            :message="inReplyTo"
+            @dismiss="resetReplyToMessage"
           />
-        </div>
-        <MessageSignatureMissingAlert
-          v-if="
-            isSignatureEnabledForInbox &&
-            !isSignatureAvailable &&
-            isDefaultEditorMode
-          "
-          class="mb-2"
-        />
+          <EmojiInput
+            v-if="showEmojiPicker"
+            v-on-clickaway="hideEmojiPicker"
+            :class="{
+              'emoji-dialog--expanded': isOnExpandedLayout || popOutReplyBox,
+            }"
+            :on-click="addIntoEditor"
+          />
+          <ReplyEmailHead
+            v-if="showReplyHead && isDefaultEditorMode"
+            v-model:cc-emails="ccEmails"
+            v-model:bcc-emails="bccEmails"
+            v-model:to-emails="toEmails"
+          />
+          <AudioRecorder
+            v-if="showAudioRecorderEditor"
+            ref="audioRecorderInput"
+            :audio-record-format="audioRecordFormat"
+            @recorder-progress-changed="onRecordProgressChanged"
+            @finish-record="onFinishRecorder"
+            @play="recordingAudioState = 'playing'"
+            @pause="recordingAudioState = 'paused'"
+          />
+          <CopilotEditorSection
+            v-if="copilot.isActive.value && !showAudioRecorderEditor"
+            :show-copilot-editor="copilot.showEditor.value"
+            :is-generating-content="copilot.isGenerating.value"
+            :generated-content="copilot.generatedContent.value"
+            :is-popout="popOutReplyBox"
+            :placeholder="$t('CONVERSATION.FOOTER.COPILOT_MSG_INPUT')"
+            @focus="onFocus"
+            @blur="onBlur"
+            @clear-selection="clearEditorSelection"
+            @close="copilot.showEditor.value = false"
+            @content-ready="copilot.setContentReady"
+            @send="copilot.sendFollowUp"
+          />
+          <WootMessageEditor
+            v-else-if="!showAudioRecorderEditor"
+            ref="messageEditor"
+            v-model="message"
+            :conversation-id="conversationId"
+            :editor-id="editorStateId"
+            class="input popover-prosemirror-menu"
+            :is-private="isOnPrivateNote"
+            :placeholder="messagePlaceHolder"
+            :update-selection-with="updateEditorSelectionWith"
+            :min-height="4"
+            :disabled="isEditorDisabled"
+            enable-variables
+            :variables="messageVariables"
+            :signature="messageSignature"
+            allow-signature
+            :channel-type="channelType"
+            :medium="inbox.medium"
+            @typing-off="onTypingOff"
+            @typing-on="onTypingOn"
+            @focus="onFocus"
+            @blur="onBlur"
+            @toggle-user-mention="toggleUserMention"
+            @toggle-canned-menu="toggleCannedMenu"
+            @toggle-variables-menu="toggleVariablesMenu"
+            @clear-selection="clearEditorSelection"
+            @execute-copilot-action="executeCopilotAction"
+          />
+
+          <QuotedEmailPreview
+            v-if="shouldShowQuotedPreview && isDefaultEditorMode"
+            :quoted-email-text="quotedEmailText"
+            :preview-text="quotedEmailPreviewText"
+            class="mb-2"
+            @toggle="toggleQuotedReply"
+          />
+
+          <div
+            v-if="hasAttachments && isDefaultEditorMode"
+            class="bg-transparent py-0 mb-2"
+            @paste="onPaste"
+          >
+            <AttachmentPreview
+              class="mt-2"
+              :attachments="attachedFiles"
+              @remove-attachment="removeAttachment"
+            />
+          </div>
+          <MessageSignatureMissingAlert
+            v-if="
+              isSignatureEnabledForInbox &&
+              !isSignatureAvailable &&
+              isDefaultEditorMode
+            "
+            class="mb-2"
+          />
+        </template>
       </div>
     </Transition>
 
     <Transition
+      v-if="!showWhatsappWindowExpired"
       mode="out-in"
       enter-active-class="transition-all duration-300 ease-out"
       enter-from-class="opacity-0 translate-y-2 scale-[0.98]"
