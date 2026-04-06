@@ -22,6 +22,7 @@ const props = defineProps({
     type: Boolean,
     default: true,
   },
+  // eslint-disable-next-line vue/no-unused-properties
   isCompact: {
     type: Boolean,
     default: false,
@@ -43,33 +44,32 @@ const onTabClick = event => {
 </script>
 
 <template>
-  <li
-    class="flex-shrink-0 my-0 mx-2 ltr:first:ml-0 rtl:first:mr-0 ltr:last:mr-0 rtl:last:ml-0 hover:text-n-slate-12"
-  >
-    <a
-      class="flex items-center flex-row select-none cursor-pointer relative after:absolute after:bottom-px after:left-0 after:right-0 after:h-[2px] after:rounded-full after:transition-all after:duration-200 text-button"
+  <li class="flex-shrink-0">
+    <button
+      class="flex items-center h-7 px-3 rounded-full text-sm font-medium select-none cursor-pointer transition-all duration-200 border whitespace-nowrap"
       :class="[
         active
-          ? 'text-n-blue-11 after:bg-n-brand after:opacity-100'
-          : 'text-n-slate-11 after:bg-transparent after:opacity-0',
-        isCompact ? 'py-2.5' : '!text-base py-3',
+          ? 'bg-n-brand/20 text-n-slate-12 font-semibold border-transparent'
+          : 'bg-white dark:bg-n-solid-2 text-n-slate-11 border-n-weak hover:bg-n-slate-3/50 hover:border-n-slate-6 active:bg-n-slate-3',
+        disabled && 'opacity-50 cursor-not-allowed',
       ]"
+      :disabled="disabled"
       @click="onTabClick"
     >
       {{ name }}
       <div
         v-if="showBadge"
-        class="rounded-full h-5 flex items-center justify-center text-xs font-medium my-0 ltr:ml-1 rtl:mr-1 px-1.5 py-0 min-w-[20px]"
+        class="rounded-full px-1.5 text-xs min-w-[18px] h-5 inline-flex items-center justify-center ml-1.5"
         :class="[
           active
-            ? 'bg-n-blue-3 text-n-blue-11'
-            : 'bg-n-alpha-1 text-n-slate-10',
+            ? 'bg-n-brand/25 text-n-slate-12'
+            : 'bg-n-slate-3 text-n-slate-10',
         ]"
       >
         <span>
           {{ getItemCount }}
         </span>
       </div>
-    </a>
+    </button>
   </li>
 </template>

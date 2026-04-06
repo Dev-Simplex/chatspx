@@ -268,8 +268,10 @@ watch(
           type="button"
           class="flex items-center justify-center size-10 rounded-lg"
           :class="{
-            'text-n-slate-12 bg-n-alpha-2': isActive || hasActiveChild,
-            'text-n-slate-11 hover:bg-n-alpha-2': !isActive && !hasActiveChild,
+            'text-n-slate-12 bg-n-alpha-2 [&_svg]:opacity-100 [&_svg]:text-n-brand':
+              isActive || hasActiveChild,
+            'text-n-slate-11 hover:bg-n-alpha-2 [&_svg]:opacity-60':
+              !isActive && !hasActiveChild,
           }"
           :title="label"
           @click="hasChildren ? handleCollapsedClick() : undefined"
