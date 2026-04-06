@@ -112,7 +112,7 @@ export default {
             <div
               class="flex items-center justify-between h-8 gap-2 agent-list-search"
             >
-              <fluent-icon icon="search" class="search-icon" size="16" />
+              <span class="i-lucide-search size-4 search-icon" />
               <input
                 v-model="query"
                 type="search"

@@ -179,7 +179,7 @@ const handleSubmit = async () => {
               <div
                 class="flex justify-center items-center w-10 h-10 rounded-lg bg-n-slate-3"
               >
-                <i class="text-xl i-ph-file-pdf text-n-slate-11" />
+                <i class="text-xl i-lucide-file-text text-n-slate-11" />
               </div>
               <div class="flex flex-col flex-1 gap-1 items-start">
                 <p class="m-0 text-sm font-medium text-n-slate-12">

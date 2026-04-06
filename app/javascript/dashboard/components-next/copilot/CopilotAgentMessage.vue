@@ -8,9 +8,10 @@ defineProps({
 </script>
 
 <template>
-  <div class="space-y-1 text-n-slate-12">
-    <div class="font-medium">{{ $t('CAPTAIN.COPILOT.YOU') }}</div>
-    <div class="break-words">
+  <div class="flex justify-end">
+    <div
+      class="bg-n-brand/10 text-n-slate-12 rounded-lg px-3 py-2 text-sm max-w-[80%] break-words"
+    >
       {{ message.content }}
     </div>
   </div>

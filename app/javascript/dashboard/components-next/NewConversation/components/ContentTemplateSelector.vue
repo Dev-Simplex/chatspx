@@ -63,7 +63,7 @@ const handleSendMessage = template => {
 <template>
   <div class="relative">
     <Button
-      icon="i-ph-whatsapp-logo"
+      icon="i-lucide-message-square-text"
       :label="t('COMPOSE_NEW_CONVERSATION.FORM.TWILIO_OPTIONS.LABEL')"
       color="slate"
       size="sm"

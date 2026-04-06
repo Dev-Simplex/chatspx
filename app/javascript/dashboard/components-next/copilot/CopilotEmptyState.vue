@@ -60,11 +60,11 @@ const handleSuggestion = opt => {
 </script>
 
 <template>
-  <div class="flex-1 flex flex-col gap-6 px-2">
-    <div class="flex flex-col space-y-4 py-4">
-      <Icon icon="i-woot-captain" class="text-n-slate-9 text-4xl" />
+  <div class="flex-1 flex flex-col items-center justify-center gap-6 px-4">
+    <div class="flex flex-col items-center text-center space-y-3">
+      <Icon icon="i-woot-captain" class="text-n-brand text-4xl" />
       <div class="space-y-1">
-        <h3 class="text-base font-medium text-n-slate-12 leading-8">
+        <h3 class="text-base font-semibold text-n-slate-12 leading-8">
           {{ $t('CAPTAIN.COPILOT.PANEL_TITLE') }}
         </h3>
         <p class="text-sm text-n-slate-11 leading-6">
@@ -72,7 +72,7 @@ const handleSuggestion = opt => {
         </p>
       </div>
     </div>
-    <div v-if="!hasAssistants" class="w-full space-y-2">
+    <div v-if="!hasAssistants" class="w-full space-y-2 text-center">
       <p class="text-sm text-n-slate-11 leading-6">
         {{ $t('CAPTAIN.ASSISTANTS.NO_ASSISTANTS_AVAILABLE') }}
       </p>
@@ -83,7 +83,7 @@ const handleSuggestion = opt => {
             accountId: route.params.accountId,
           },
         }"
-        class="text-n-slate-11 underline hover:text-n-slate-12"
+        class="text-sm text-n-brand hover:underline"
       >
         {{ $t('CAPTAIN.ASSISTANTS.ADD_NEW') }}
       </router-link>
@@ -92,15 +92,14 @@ const handleSuggestion = opt => {
       <span class="text-xs text-n-slate-10 block">
         {{ $t('CAPTAIN.COPILOT.TRY_THESE_PROMPTS') }}
       </span>
-      <div class="space-y-1">
+      <div class="flex flex-wrap gap-2">
         <button
           v-for="prompt in promptOptions"
           :key="prompt.label"
-          class="w-full px-3 py-2 rounded-md border border-n-weak bg-n-slate-2 text-n-slate-11 flex items-center justify-between hover:bg-n-slate-3 transition-colors"
+          class="rounded-full border border-n-weak px-3 py-1 text-xs text-n-slate-11 hover:bg-n-slate-3/50 transition-colors"
           @click="handleSuggestion(prompt)"
         >
-          <span>{{ t(prompt.label) }}</span>
-          <Icon icon="i-lucide-chevron-right" />
+          {{ t(prompt.label) }}
         </button>
       </div>
     </div>

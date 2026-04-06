@@ -226,17 +226,17 @@ const handleDocumentableClick = () => {
           >
             <Icon
               v-if="documentable.type === 'Captain::Document'"
-              icon="i-ph-files-light"
+              icon="i-lucide-files"
               class="size-3.5"
             />
             <Icon
               v-else-if="documentable.type === 'User'"
-              icon="i-ph-user-circle-plus"
+              icon="i-lucide-user-plus"
               class="size-3.5"
             />
             <Icon
               v-else-if="documentable.type === 'Conversation'"
-              icon="i-ph-chat-circle-dots"
+              icon="i-lucide-message-circle"
               class="size-3.5"
             />
             <span
@@ -270,7 +270,7 @@ const handleDocumentableClick = () => {
         <div
           class="shrink-0 text-sm text-n-slate-11 line-clamp-1 inline-flex items-center gap-1"
         >
-          <Icon icon="i-ph-calendar-dot" class="size-3.5" />
+          <Icon icon="i-lucide-calendar-clock" class="size-3.5" />
           {{ timestamp }}
         </div>
       </div>

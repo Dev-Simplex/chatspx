@@ -57,7 +57,7 @@ useKeyboardEvents(keyboardEvents);
       <div
         class="absolute ltr:left-0 rtl:right-0 w-8 top-0.5 h-8 flex justify-center items-center"
       >
-        <fluent-icon icon="search" class="" size="18" />
+        <span class="i-lucide-search size-[18px]" />
       </div>
       <input
         ref="searchInputRef"

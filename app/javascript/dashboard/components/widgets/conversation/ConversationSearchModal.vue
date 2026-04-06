@@ -110,7 +110,7 @@ const handleSelectConversation = conversation => {
         <input
           v-model="searchQuery"
           type="text"
-          class="w-full px-3 py-2 text-sm border rounded-lg bg-n-solid-1 border-n-slate-6 text-n-slate-12 focus:outline-none focus:ring-2 focus:ring-n-brand focus:border-transparent"
+          class="w-full px-3 py-2 text-sm border rounded-lg bg-transparent border-n-weak text-n-slate-12 focus:outline-none focus:ring-0 placeholder:text-n-slate-9 caret-[#25D366]"
           :placeholder="$t('CONVERSATION.SEARCH_CONVERSATIONS')"
           autocomplete="off"
           @input="handleSearchInput"

@@ -47,13 +47,14 @@ export default {
 </script>
 
 <template>
-  <div v-if="!uiFlags.isFetching" class="">
-    <div v-if="!previousConversations.length" class="no-label-message px-4 p-3">
-      <span>
-        {{ $t('CONTACT_PANEL.CONVERSATIONS.NO_RECORDS_FOUND') }}
-      </span>
+  <div v-if="!uiFlags.isFetching" class="px-2">
+    <div
+      v-if="!previousConversations.length"
+      class="text-n-slate-11 text-sm text-center py-3"
+    >
+      {{ $t('CONTACT_PANEL.CONVERSATIONS.NO_RECORDS_FOUND') }}
     </div>
-    <div v-else class="contact-conversation--list">
+    <div v-else class="flex flex-col">
       <ConversationCard
         v-for="conversation in previousConversations"
         :key="conversation.id"
@@ -70,9 +71,3 @@ export default {
     <Spinner />
   </div>
 </template>
-
-<style lang="scss" scoped>
-.no-label-message {
-  @apply text-n-slate-11 mb-4;
-}
-</style>

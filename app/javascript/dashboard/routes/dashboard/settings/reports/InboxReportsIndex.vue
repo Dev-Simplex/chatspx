@@ -18,7 +18,7 @@ const onDownloadClick = () => {
   >
     <V4Button
       :label="$t('INBOX_REPORTS.DOWNLOAD_INBOX_REPORTS')"
-      icon="i-ph-download-simple"
+      icon="i-lucide-download"
       size="sm"
       @click="onDownloadClick"
     />

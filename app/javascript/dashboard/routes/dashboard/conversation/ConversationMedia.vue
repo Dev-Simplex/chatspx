@@ -214,7 +214,7 @@ const getLinkUrl = att => att?.data_url || att?.external_url || '#';
 </script>
 
 <template>
-  <div class="conversation-media px-2 py-3 text-sm">
+  <div class="max-h-[50vh] overflow-y-auto px-4 pb-3 text-sm">
     <template v-if="!hasAnyMedia">
       <p class="text-n-slate-11 text-center py-2">
         {{ t('CONVERSATION_SIDEBAR.MEDIA_EMPTY') }}
@@ -228,12 +228,12 @@ const getLinkUrl = att => att?.data_url || att?.external_url || '#';
           {{ t('CONVERSATION_SIDEBAR.MEDIA_SECTIONS.IMAGES') }}
           ({{ grouped.image.length }})
         </h6>
-        <div class="grid grid-cols-3 gap-1.5">
+        <div class="grid grid-cols-3 gap-1">
           <button
             v-for="(att, idx) in visibleImages"
             :key="att.id ?? att.message_id ?? idx"
             type="button"
-            class="aspect-square rounded-md overflow-hidden bg-n-slate-2 border border-n-weak focus:outline-none focus:ring-2 focus:ring-n-blue"
+            class="aspect-square rounded-lg overflow-hidden bg-n-slate-2 cursor-pointer hover:opacity-80 transition-opacity focus:outline-none focus:ring-2 focus:ring-n-blue"
             @click="openGallery(att, grouped.image)"
           >
             <img
@@ -271,12 +271,12 @@ const getLinkUrl = att => att?.data_url || att?.external_url || '#';
           {{ t('CONVERSATION_SIDEBAR.MEDIA_SECTIONS.VIDEOS') }}
           ({{ grouped.video.length }})
         </h6>
-        <div class="grid grid-cols-3 gap-1.5">
+        <div class="grid grid-cols-3 gap-1">
           <button
             v-for="(att, idx) in visibleVideos"
             :key="att.id ?? att.message_id ?? idx"
             type="button"
-            class="aspect-square rounded-md overflow-hidden bg-n-slate-2 border border-n-weak focus:outline-none focus:ring-2 focus:ring-n-blue"
+            class="aspect-square rounded-lg overflow-hidden bg-n-slate-2 cursor-pointer hover:opacity-80 transition-opacity focus:outline-none focus:ring-2 focus:ring-n-blue"
             @pointerenter="prewarmVideoPreview(att, idx)"
             @pointerdown="prewarmVideoPreview(att, idx)"
             @touchstart.passive="prewarmVideoPreview(att, idx)"
@@ -452,10 +452,3 @@ const getLinkUrl = att => att?.data_url || att?.external_url || '#';
     />
   </div>
 </template>
-
-<style scoped>
-.conversation-media {
-  max-height: 50vh;
-  overflow-y: auto;
-}
-</style>

@@ -50,7 +50,6 @@ export default {
 
   computed: {
     ...mapGetters({
-      widgetColor: 'appConfig/getWidgetColor',
       isWidgetOpen: 'appConfig/getIsWidgetOpen',
       shouldShowEmojiPicker: 'appConfig/getShouldShowEmojiPicker',
     }),
@@ -128,10 +127,10 @@ export default {
 
 <template>
   <div
-    class="items-center flex ltr:pl-3 rtl:pr-3 ltr:pr-2 rtl:pl-2 rounded-[7px] transition-all duration-200 bg-n-background !shadow-[0_0_0_1px,0_0_2px_3px]"
+    class="items-center flex ltr:pl-3 rtl:pr-3 ltr:pr-2 rtl:pl-2 rounded-lg transition-all duration-200 bg-white dark:bg-n-solid-2 border"
     :class="{
-      '!shadow-[var(--widget-color,#2781f6)]': isFocused,
-      '!shadow-n-strong dark:!shadow-n-strong': !isFocused,
+      'border-n-brand shadow-focus': isFocused,
+      'border-n-weak': !isFocused,
     }"
     @keydown.esc="hideEmojiPicker"
   >
@@ -175,11 +174,7 @@ export default {
         :on-click="emojiOnClick"
         @keydown.esc="hideEmojiPicker"
       />
-      <ChatSendButton
-        v-if="showSendButton"
-        :color="widgetColor"
-        @click="handleButtonClick"
-      />
+      <ChatSendButton v-if="showSendButton" @click="handleButtonClick" />
     </div>
   </div>
 </template>
@@ -190,6 +185,6 @@ export default {
 }
 
 .user-message-input {
-  @apply border-none outline-none w-full placeholder:text-n-slate-10 resize-none h-8 min-h-8 max-h-60 py-1 px-0 my-2 bg-n-background text-n-slate-12 transition-all duration-200;
+  @apply border-none outline-none w-full placeholder:text-n-slate-10 resize-none h-8 min-h-8 max-h-60 py-1 px-0 my-2 bg-transparent text-n-slate-12 transition-all duration-200;
 }
 </style>

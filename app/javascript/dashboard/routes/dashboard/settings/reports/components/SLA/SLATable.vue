@@ -57,10 +57,10 @@ export default {
 <template>
   <div>
     <div
-      class="min-w-full shadow outline-1 outline outline-n-container rounded-xl bg-n-solid-2 p-6"
+      class="min-w-full bg-white dark:bg-n-solid-2 border border-n-weak rounded-xl overflow-hidden"
     >
       <div
-        class="grid content-center h-12 grid-cols-12 gap-4 px-6 py-0 bg-n-slate-2 rounded-md"
+        class="grid content-center h-12 grid-cols-12 gap-4 px-4 py-0 bg-n-slate-2/50 dark:bg-n-solid-3"
       >
         <TableHeaderCell
           :span="6"
@@ -91,7 +91,10 @@ export default {
           :sla-events="slaReport.sla_events"
         />
       </div>
-      <div v-else class="flex items-center justify-center h-32">
+      <div
+        v-else
+        class="flex items-center justify-center h-32 text-sm text-n-slate-10"
+      >
         {{ $t('SLA_REPORTS.NO_RECORDS') }}
       </div>
     </div>

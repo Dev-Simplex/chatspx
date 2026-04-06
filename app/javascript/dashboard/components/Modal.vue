@@ -76,9 +76,9 @@ onMounted(() => {
       @mousedown="handleMouseDown"
     >
       <div
-        class="relative max-h-full overflow-auto bg-n-alpha-3 shadow-md modal-container rtl:text-right skip-context-menu"
+        class="relative max-h-full overflow-auto bg-white dark:bg-n-solid-2 border border-n-weak shadow-overlay modal-container rtl:text-right skip-context-menu animate-dropdown-in"
         :class="{
-          'rounded-xl w-[37.5rem]': !fullWidth,
+          'rounded-2xl w-[37.5rem]': !fullWidth,
           'items-center rounded-none flex h-full justify-center w-full':
             fullWidth,
           [size]: true,
@@ -102,16 +102,14 @@ onMounted(() => {
 
 <style lang="scss">
 .modal-mask {
-  @apply flex items-center justify-center bg-n-alpha-black2 backdrop-blur-[4px] z-[9990] h-full left-0 fixed top-0 w-full;
+  @apply flex items-center justify-center backdrop-blur-sm z-[9990] h-full left-0 fixed top-0 w-full;
+  background-color: rgba(0, 0, 0, 0.5);
 
   .modal-container {
     &.medium {
       @apply max-w-[80%] w-[56.25rem];
     }
 
-    // .content-box {
-    //   @apply h-auto p-0;
-    // }
     .content {
       @apply p-8;
     }

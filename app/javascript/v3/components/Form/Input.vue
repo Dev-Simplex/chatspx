@@ -76,16 +76,17 @@ const currentInputType = computed(() => {
       v-model="model"
       :name="name"
       :type="currentInputType"
-      class="block w-full border-none rounded-md shadow-sm bg-n-alpha-black2 appearance-none outline outline-1 focus:outline focus:outline-1 text-n-slate-12 placeholder:text-n-slate-10 sm:text-sm sm:leading-6 px-3 py-3"
+      class="block w-full border-none rounded-lg bg-white dark:bg-n-solid-2 appearance-none outline outline-1 focus:outline focus:outline-1 text-n-slate-12 placeholder:text-n-slate-9 sm:text-sm sm:leading-6 h-10"
       :class="{
-        'error outline-n-ruby-8 dark:outline-n-ruby-8 hover:outline-n-ruby-9 dark:hover:outline-n-ruby-9 disabled:outline-n-ruby-8 dark:disabled:outline-n-ruby-8':
+        'error outline-n-ruby-8 dark:outline-n-ruby-8 hover:outline-n-ruby-9 dark:hover:outline-n-ruby-9 disabled:outline-n-ruby-8 dark:disabled:outline-n-ruby-8 focus:ring-n-ruby-7/20':
           hasError,
-        'outline-n-weak dark:outline-n-weak hover:outline-n-slate-6 dark:hover:outline-n-slate-6 focus:outline-n-brand dark:focus:outline-n-brand':
+        'outline-n-weak dark:outline-n-weak hover:outline-n-slate-6 dark:hover:outline-n-slate-6 focus:outline-n-brand dark:focus:outline-n-brand focus:ring-1 focus:ring-n-brand/20':
           !hasError,
-        'px-3 py-3': spacing === 'base',
-        'px-3 py-2 mb-0': spacing === 'compact',
+        'px-3 py-2': spacing === 'base',
+        'px-3 py-1.5 mb-0': spacing === 'compact',
         'pl-9': icon,
         'pr-10': isPasswordField,
+        'bg-n-slate-3/50 text-n-slate-9 cursor-not-allowed': $attrs.disabled,
       }"
     />
     <Button

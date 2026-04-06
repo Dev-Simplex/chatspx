@@ -28,7 +28,11 @@ const installationName = computed(() => {
 });
 
 const logoUrl = computed(() => {
-  return globalConfig.value?.logoThumbnail || globalConfig.value?.logo || '/brand-assets/logo_thumbnail.svg';
+  return (
+    globalConfig.value?.logoThumbnail ||
+    globalConfig.value?.logo ||
+    '/brand-assets/logo_thumbnail.svg'
+  );
 });
 
 const logoVisible = ref(true);
@@ -57,7 +61,9 @@ function openNewConversation() {
         {{ installationName }}
       </h3>
 
-      <p class="mt-3 text-sm text-center text-n-slate-10 max-w-sm leading-relaxed">
+      <p
+        class="mt-3 text-sm text-center text-n-slate-10 max-w-sm leading-relaxed"
+      >
         {{ message }}
       </p>
 
@@ -94,7 +100,12 @@ function openNewConversation() {
   animation: float-gentle 3s ease-in-out infinite;
 }
 @keyframes float-gentle {
-  0%, 100% { transform: translateY(0); }
-  50% { transform: translateY(-8px); }
+  0%,
+  100% {
+    transform: translateY(0);
+  }
+  50% {
+    transform: translateY(-8px);
+  }
 }
 </style>

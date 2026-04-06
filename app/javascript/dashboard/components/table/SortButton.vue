@@ -14,5 +14,10 @@ const sortIconMap = {
 </script>
 
 <template>
-  <span :class="sortIconMap[header.column.getIsSorted() || 'default']" />
+  <span
+    :class="[
+      sortIconMap[header.column.getIsSorted() || 'default'],
+      header.column.getIsSorted() ? 'text-n-brand' : 'text-n-slate-10',
+    ]"
+  />
 </template>

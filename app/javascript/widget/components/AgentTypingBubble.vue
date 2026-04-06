@@ -9,9 +9,7 @@ export default {
     <div class="agent-message">
       <div class="avatar-wrap" />
       <div class="message-wrap mt-2">
-        <div
-          class="chat-bubble agent typing-bubble bg-n-background dark:bg-n-solid-3"
-        >
+        <div class="chat-bubble agent typing-bubble bg-white dark:bg-n-solid-3">
           <img
             src="assets/images/typing.gif"
             alt="Agent is typing a message"

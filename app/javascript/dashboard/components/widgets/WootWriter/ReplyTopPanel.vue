@@ -183,7 +183,7 @@ export default {
             'text-n-violet-9 bg-n-violet-3': showCopilotMenu,
           }"
           sm
-          icon="i-ph-sparkle-fill"
+          icon="i-lucide-sparkles"
           @click="toggleCopilotMenu"
         />
         <CopilotMenuBar
@@ -200,7 +200,7 @@ export default {
         v-if="popOutReplyBox"
         v-tooltip.top-end="$t('CONVERSATION.HEADER.CLOSE')"
         ghost
-        icon="i-ph-x"
+        icon="i-lucide-x"
         class="shrink-0 !size-8"
         @click="$emit('closePopout')"
       />

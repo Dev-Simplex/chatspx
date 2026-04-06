@@ -181,13 +181,11 @@ export default {
 </script>
 
 <template>
-  <div
-    class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-2 px-6 py-5 shadow outline-1 outline outline-n-container rounded-xl bg-n-solid-2 mt-4"
-  >
+  <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mt-4">
     <div
       v-for="metric in metrics"
       :key="metric.KEY"
-      class="flex flex-col gap-4 rounded-2xl border border-n-container/60 bg-n-solid-2/90 p-5 shadow-sm"
+      class="flex flex-col gap-4 bg-white dark:bg-n-solid-2 border border-n-weak rounded-xl p-5"
     >
       <div class="flex items-start justify-between gap-4">
         <div class="flex flex-col gap-2">
@@ -196,14 +194,12 @@ export default {
             :account-summary-key="accountSummaryKey"
             :summary-fetching-key="summaryFetchingKey"
           />
-          <span v-if="metric.DESC" class="text-xs text-n-slate-11 max-w-md">
+          <span v-if="metric.DESC" class="text-sm text-n-slate-10">
             {{ metric.DESC }}
           </span>
         </div>
       </div>
-      <div
-        class="h-72 rounded-xl bg-n-background/60 border border-n-container/40 p-2"
-      >
+      <div class="h-72 rounded-xl p-2">
         <woot-loading-state
           v-if="accountReport.isFetching[metric.KEY]"
           class="text-xs"

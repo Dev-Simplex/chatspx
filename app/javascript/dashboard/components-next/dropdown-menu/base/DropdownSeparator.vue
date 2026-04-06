@@ -1,3 +1,3 @@
 <template>
-  <div class="h-0 border-b border-n-strong -mx-2" />
+  <div class="h-0 border-t border-n-weak/50 my-1" />
 </template>

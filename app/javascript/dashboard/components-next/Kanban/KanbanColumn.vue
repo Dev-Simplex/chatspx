@@ -175,15 +175,13 @@ const handleColumnObserved = async () => {
 
 <template>
   <div
-    class="kanban-column flex h-full w-80 flex-shrink-0 flex-col rounded-xl border border-n-weak bg-n-solid-2"
+    class="kanban-column flex h-full w-[300px] flex-shrink-0 flex-col rounded-xl bg-n-slate-2/50 dark:bg-n-solid-2"
   >
-    <div
-      class="sticky top-0 z-10 border-b border-n-weak bg-n-solid-2 px-4 py-3"
-    >
+    <div class="sticky top-0 z-10 px-4 py-3">
       <div class="group flex items-center justify-between gap-2">
         <div class="flex min-w-0 items-center gap-2">
           <div
-            class="kanban-column-drag-handle -ml-1 cursor-grab rounded p-1 opacity-60 transition hover:bg-n-solid-4 hover:opacity-100 active:cursor-grabbing"
+            class="kanban-column-drag-handle -ml-1 cursor-grab rounded-lg p-1 opacity-60 transition hover:bg-n-slate-3/50 hover:opacity-100 active:cursor-grabbing"
           >
             <Icon icon="i-lucide-grip-vertical" class="size-4 text-n-slate-9" />
           </div>
@@ -199,7 +197,7 @@ const handleColumnObserved = async () => {
           </h3>
 
           <span
-            class="rounded-full bg-n-solid-4 px-2 py-0.5 text-xs font-semibold text-n-slate-11"
+            class="rounded-full bg-n-slate-3 px-2 py-0.5 text-xs text-n-slate-10"
           >
             {{ items.length }}
           </span>
@@ -210,13 +208,13 @@ const handleColumnObserved = async () => {
             size="xs"
             variant="ghost"
             icon="i-lucide-more-vertical"
-            class="!h-7 !w-7 !p-0 opacity-0 transition-opacity group-hover:opacity-100"
+            class="!size-7 !p-0 rounded-lg hover:bg-n-slate-3/50 text-n-slate-10 opacity-0 transition-opacity group-hover:opacity-100"
             @click.stop="showStageMenu = !showStageMenu"
           />
 
           <div
             v-if="showStageMenu"
-            class="absolute right-0 top-8 z-20 w-48 rounded-lg border border-n-weak bg-n-solid-2 py-1 shadow-lg"
+            class="absolute right-0 top-8 z-20 w-48 rounded-xl border border-n-weak bg-white dark:bg-n-solid-2 py-1 shadow-lg"
             @click.stop
           >
             <button
@@ -259,7 +257,7 @@ const handleColumnObserved = async () => {
       :model-value="itemsWithConversations"
       :group="{ name: 'kanban-items', pull: true, put: true }"
       item-key="id"
-      class="kanban-column-content flex min-h-0 flex-1 flex-col gap-3 overflow-y-auto px-3 py-3"
+      class="kanban-column-content flex min-h-0 flex-1 flex-col gap-2 overflow-y-auto px-2 py-2"
       :animation="180"
       ghost-class="kanban-ghost"
       drag-class="kanban-drag"
@@ -363,10 +361,17 @@ const handleColumnObserved = async () => {
 }
 
 :deep(.kanban-ghost) {
-  opacity: 0.4;
+  opacity: 0.3;
+  border: 2px dashed var(--n-brand, #2dc46f);
+  border-radius: 0.75rem;
+  background: rgba(45, 196, 111, 0.05);
 }
 
 :deep(.kanban-drag) {
-  opacity: 0.85;
+  opacity: 0.95;
+  box-shadow:
+    0 20px 25px -5px rgba(0, 0, 0, 0.15),
+    0 8px 10px -6px rgba(0, 0, 0, 0.1);
+  transform: rotate(1deg);
 }
 </style>

@@ -250,10 +250,7 @@ onMounted(() => {
   initializeSettings();
 });
 
-const evenClass = [
-  '[&>*:nth-child(odd)]:!bg-n-surface-1 [&>*:nth-child(even)]:!bg-n-slate-1',
-  'dark:[&>*:nth-child(odd)]:!bg-n-surface-2 dark:[&>*:nth-child(even)]:!bg-n-surface-1',
-];
+const evenClass = [];
 </script>
 
 <template>
@@ -272,7 +269,7 @@ const evenClass = [
     >
       <template #item="{ element }">
         <div
-          class="drag-handle relative border-b border-n-weak/50 dark:border-n-weak/90"
+          class="drag-handle relative"
           :class="{
             'cursor-grab': showAllAttributes,
             'last:border-transparent dark:last:border-transparent':

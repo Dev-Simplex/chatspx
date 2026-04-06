@@ -241,9 +241,9 @@ const table = useVueTable({
 
 <template>
   <div
-    class="rounded-2xl border border-n-container/60 bg-n-solid-2/90 px-6 py-5 shadow-sm"
+    class="bg-white dark:bg-n-solid-2 border border-n-weak rounded-xl overflow-hidden"
   >
-    <div class="mb-4 flex items-center justify-between">
+    <div class="mb-4 flex items-center justify-between px-5 pt-5">
       <div
         class="inline-flex gap-1 rounded-lg border border-n-weak bg-n-solid-3 p-1"
         role="group"
@@ -273,7 +273,7 @@ const table = useVueTable({
         </Button>
       </div>
     </div>
-    <div v-if="tableData.length > 0">
+    <div v-if="tableData.length > 0" class="px-5">
       <Table
         :table="table"
         type="reports"
@@ -282,7 +282,7 @@ const table = useVueTable({
     </div>
     <div
       v-else
-      class="h-48 flex items-center justify-center text-n-slate-12 text-sm"
+      class="h-48 flex items-center justify-center text-n-slate-10 text-sm"
     >
       {{
         $t('NPS_REPORTS.NO_RECORDS', { default: 'Nenhum registro encontrado' })
@@ -290,9 +290,9 @@ const table = useVueTable({
     </div>
     <div
       v-if="(listTotalCount.value || metrics.total_count) > 0"
-      class="table-pagination"
+      class="flex items-center justify-between px-4 py-3 border-t border-n-weak"
     >
-      <Pagination class="mt-2" :table="table" />
+      <Pagination :table="table" />
     </div>
   </div>
 </template>

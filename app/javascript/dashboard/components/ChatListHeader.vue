@@ -139,8 +139,8 @@ const canCreateContacts = computed(() => {
 });
 
 const openCreateNewContactDialog = async () => {
-  await createNewContactDialogRef.value?.contactsFormRef.resetValidation();
-  createNewContactDialogRef.value?.dialogRef.open();
+  await createNewContactDialogRef.value?.contactsFormRef?.resetValidation();
+  createNewContactDialogRef.value?.dialogRef?.open();
 };
 
 const onCreateContact = async contact => {

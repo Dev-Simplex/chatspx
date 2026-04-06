@@ -72,7 +72,7 @@ export default {
       <div v-if="!hasAccounts" class="mx-8 mt-6 mb-0 text-sm">
         <div class="flex items-center rounded-md alert">
           <div class="ml-1 mr-3">
-            <fluent-icon icon="warning" />
+            <span class="i-lucide-alert-triangle size-4" />
           </div>
           {{ $t('CREATE_ACCOUNT.NO_ACCOUNT_WARNING') }}
         </div>

@@ -301,7 +301,7 @@ export default {
 </script>
 
 <template>
-  <div>
+  <div class="px-4 pb-3">
     <div>
       <ContactDetailsItem
         compact

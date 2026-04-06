@@ -118,7 +118,7 @@ export default {
   >
     <V4Button
       :label="$t('REPORT.DOWNLOAD_CONVERSATION_REPORTS')"
-      icon="i-ph-download-simple"
+      icon="i-lucide-download"
       size="sm"
       @click="downloadConversationReports"
     />

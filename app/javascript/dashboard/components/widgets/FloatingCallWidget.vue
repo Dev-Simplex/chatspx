@@ -118,13 +118,13 @@ watch(
           class="flex justify-center items-center w-10 h-10 bg-n-ruby-9 hover:bg-n-ruby-10 rounded-full transition-colors"
           @click="dismissCall(call.callSid)"
         >
-          <i class="text-lg text-white i-ph-phone-x-bold" />
+          <i class="text-lg text-white i-lucide-phone-off" />
         </button>
         <button
           class="flex justify-center items-center w-10 h-10 bg-n-teal-9 hover:bg-n-teal-10 rounded-full transition-colors"
           @click="handleJoinCall(call)"
         >
-          <i class="text-lg text-white i-ph-phone-bold" />
+          <i class="text-lg text-white i-lucide-phone" />
         </button>
       </div>
     </div>
@@ -169,14 +169,14 @@ watch(
               : rejectIncomingCall(incomingCalls[0]?.callSid)
           "
         >
-          <i class="text-lg text-white i-ph-phone-x-bold" />
+          <i class="text-lg text-white i-lucide-phone-off" />
         </button>
         <button
           v-if="!hasActiveCall"
           class="flex justify-center items-center w-10 h-10 bg-n-teal-9 hover:bg-n-teal-10 rounded-full transition-colors"
           @click="handleJoinCall(incomingCalls[0])"
         >
-          <i class="text-lg text-white i-ph-phone-bold" />
+          <i class="text-lg text-white i-lucide-phone" />
         </button>
       </div>
     </div>

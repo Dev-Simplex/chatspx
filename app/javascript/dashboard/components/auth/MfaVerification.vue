@@ -160,7 +160,7 @@ const handleTryAnotherMethod = () => {
 <template>
   <div class="w-full max-w-md mx-auto">
     <div
-      class="bg-white shadow sm:mx-auto sm:w-full sm:max-w-lg dark:bg-n-solid-2 p-11 sm:shadow-lg sm:rounded-lg"
+      class="bg-white dark:bg-n-solid-2 border border-n-weak rounded-2xl shadow-card p-8"
     >
       <!-- Header -->
       <div class="text-center mb-6">
@@ -215,7 +215,7 @@ const handleTryAnotherMethod = () => {
               maxlength="1"
               pattern="[0-9]"
               inputmode="numeric"
-              class="w-12 h-12 text-center text-lg font-semibold border-2 border-n-weak hover:border-n-strong rounded-lg focus:border-n-brand bg-n-alpha-black2 text-n-slate-12 placeholder:text-n-slate-10"
+              class="w-10 h-12 text-center text-lg font-semibold border border-n-weak rounded-lg focus:border-n-brand focus:outline-none bg-n-alpha-black2 text-n-slate-12 placeholder:text-n-slate-10 transition-colors"
               @input="handleOtpInput(i)"
               @keydown.left.prevent="focusInput(i - 1)"
               @keydown.right.prevent="focusInput(i + 1)"
@@ -245,9 +245,9 @@ const handleTryAnotherMethod = () => {
         <!-- Error Message -->
         <div
           v-if="errorMessage"
-          class="p-3 bg-n-ruby-3 outline outline-n-ruby-5 outline-1 rounded-lg"
+          class="p-3 bg-n-ruby-3/50 border border-n-ruby-6/30 rounded-lg"
         >
-          <p class="text-sm text-n-ruby-9">{{ errorMessage }}</p>
+          <p class="text-sm text-n-ruby-11">{{ errorMessage }}</p>
         </div>
 
         <!-- Submit Button -->
@@ -288,8 +288,8 @@ const handleTryAnotherMethod = () => {
     </div>
 
     <!-- Help Text -->
-    <div class="mt-6 text-center">
-      <p class="text-sm text-n-slate-11">
+    <div class="mt-4 text-center">
+      <p class="text-xs text-n-slate-10">
         {{ $t('MFA_VERIFICATION.HELP_TEXT') }}
       </p>
       <NextButton

@@ -405,7 +405,7 @@ export default {
 
 <template>
   <div
-    class="relative flex items-start flex-grow-0 flex-shrink-0 w-auto max-w-full px-3 py-0 border-t-0 border-b-0 border-l-2 border-r-0 border-transparent border-solid cursor-pointer conversation hover:bg-n-alpha-1 dark:hover:bg-n-alpha-3 group"
+    class="icon-animated relative flex items-start flex-grow-0 flex-shrink-0 w-auto max-w-full px-3 py-0 border-t-0 border-b-0 border-l-2 border-r-0 border-transparent border-solid cursor-pointer conversation hover:bg-n-alpha-1 dark:hover:bg-n-alpha-3 group"
     :class="{
       'active animate-card-select bg-n-alpha-1 dark:bg-n-alpha-3':
         isActiveChat,
@@ -469,7 +469,7 @@ export default {
             v-if="showAssignee && assignee.name"
             class="text-n-slate-11 text-xs font-medium leading-3 py-0.5 px-0 inline-flex text-ellipsis overflow-hidden whitespace-nowrap"
           >
-            <fluent-icon icon="person" size="12" class="text-n-slate-11" />
+            <span class="i-lucide-user size-3 text-n-slate-11" />
             {{ assignee.name }}
           </span>
           <PriorityMark :priority="chat.priority" />
@@ -501,10 +501,8 @@ export default {
         class="conversation--message text-n-slate-11 text-sm my-0 mx-2 leading-6 h-6 overflow-hidden text-ellipsis whitespace-nowrap group-hover:ltr:pr-8 group-hover:rtl:pl-8 transition-all duration-200 max-w-[96%] w-[16.875rem]"
         :class="hasUnread ? 'font-medium text-n-slate-12' : 'text-n-slate-11'"
       >
-        <fluent-icon
-          size="16"
-          class="-mt-0.5 align-middle inline-block text-n-slate-10"
-          icon="info"
+        <span
+          class="i-lucide-info size-4 -mt-0.5 align-middle inline-block text-n-slate-10"
         />
         <span>
           {{ $t(`CHAT_LIST.NO_MESSAGES`) }}

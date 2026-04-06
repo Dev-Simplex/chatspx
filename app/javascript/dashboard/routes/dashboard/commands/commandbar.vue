@@ -232,23 +232,42 @@ onMounted(() => {
 
 <style lang="scss">
 ninja-keys {
-  --ninja-accent-color: rgba(45, 196, 111, 1);
+  --ninja-accent-color: #25d366;
   --ninja-font-family: 'Inter';
+  --ninja-overflow-background: rgba(0, 0, 0, 0.5);
+  --ninja-modal-background: #ffffff;
+  --ninja-modal-shadow: 0 8px 30px rgba(0, 0, 0, 0.12),
+    0 2px 8px rgba(0, 0, 0, 0.06);
+  --ninja-secondary-background-color: #f8f9fa;
+  --ninja-selected-background: rgba(37, 211, 102, 0.1);
+  --ninja-footer-background: #f8f9fa;
+  --ninja-text-color: #1a1a1a;
+  --ninja-icon-color: #64748b;
+  --ninja-secondary-text-color: #64748b;
+  --ninja-z-index: 9999;
+  --ninja-width: 36rem;
   z-index: 9999;
 }
 
-// Wrapped with body.dark to avoid overriding the default theme
-// If OS is in dark theme and app is in light mode, It will prevent showing dark theme in command bar
+ninja-keys::part(modal-header) {
+  border-bottom: 1px solid #e5e7eb;
+}
+
+ninja-keys::part(ninja-action) {
+  border-radius: 0.5rem;
+  border-left: none;
+}
+
 body.dark {
   ninja-keys {
-    --ninja-overflow-background: rgba(26, 29, 30, 0.5);
-    --ninja-modal-background: #151718;
+    --ninja-overflow-background: rgba(0, 0, 0, 0.5);
+    --ninja-modal-background: #1a1d1e;
     --ninja-secondary-background-color: #26292b;
-    --ninja-selected-background: #26292b;
-    --ninja-footer-background: #2b2f31;
+    --ninja-selected-background: rgba(37, 211, 102, 0.1);
+    --ninja-footer-background: #1f2224;
     --ninja-text-color: #f8faf9;
-    --ninja-icon-color: #f8faf9;
-    --ninja-secondary-text-color: #c2c9c6;
+    --ninja-icon-color: #94a3b8;
+    --ninja-secondary-text-color: #94a3b8;
   }
 }
 </style>

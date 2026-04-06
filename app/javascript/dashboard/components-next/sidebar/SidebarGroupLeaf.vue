@@ -36,7 +36,7 @@ const displayCount = computed(() => (props.count > 99 ? '99+' : props.count));
       :is="to ? 'router-link' : 'div'"
       :to="to"
       :title="label"
-      class="icon-animated flex h-8 items-center gap-2 px-2 py-1 rounded-lg hover:bg-gradient-to-r from-transparent via-n-slate-3/70 to-n-slate-3/70 group min-w-0 transition-colors duration-150 [&_svg]:opacity-60"
+      class="icon-animated flex h-8 items-center gap-2 px-2 py-1 rounded-lg hover:bg-gradient-to-r from-transparent via-n-slate-3/70 to-n-slate-3/70 group min-w-0 transition-colors duration-150"
       :class="{
         'text-n-slate-12 bg-n-alpha-2 active [&_svg]:opacity-100 [&_svg]:text-n-brand':
           active,

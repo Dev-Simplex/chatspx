@@ -51,10 +51,10 @@ export default {
 
 <template>
   <section
-    class="flex-grow flex-shrink h-full px-4 py-8 overflow-hidden bg-n-background"
+    class="flex-grow flex-shrink h-full px-4 py-8 overflow-hidden bg-white dark:bg-n-solid-1"
   >
-    <div class="flex w-full items-center justify-between gap-2 mb-4">
-      <h6 class="text-xl font-medium text-n-slate-12">
+    <div class="flex w-full items-center justify-between gap-2 mb-4 h-14 px-0">
+      <h6 class="text-base font-semibold text-n-slate-12">
         {{ $t('NOTIFICATIONS_PAGE.HEADER') }}
       </h6>
       <NextButton
@@ -74,7 +74,7 @@ export default {
           :class="{
             'is-unread': notificationItem.read_at === null,
           }"
-          class="border-b border-n-weak"
+          class="border-b border-n-weak/30"
           @click="() => onClickNotification(notificationItem)"
         >
           <td class="p-2.5 text-n-slate-12">
@@ -150,10 +150,10 @@ export default {
 .notifications-table {
   > tbody {
     > tr {
-      @apply cursor-pointer;
+      @apply cursor-pointer transition-colors;
 
       &:hover {
-        @apply bg-n-slate-3;
+        @apply bg-n-slate-3/30;
       }
 
       &.is-active {
@@ -174,7 +174,7 @@ export default {
 }
 
 .is-unread {
-  @apply font-semibold;
+  @apply font-semibold bg-n-brand/5;
 }
 
 .notifications--loader {
@@ -182,11 +182,11 @@ export default {
 }
 
 .notification--unread-indicator {
-  @apply w-2.5 h-2.5 rounded-full bg-n-brand;
+  @apply size-2 rounded-full bg-n-brand flex-shrink-0;
 }
 
 .notification--created-at {
-  @apply text-n-slate-11 text-xs;
+  @apply text-n-slate-10 text-xs;
 }
 
 .notification--type {

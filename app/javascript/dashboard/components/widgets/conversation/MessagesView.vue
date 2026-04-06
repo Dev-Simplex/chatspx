@@ -12,6 +12,7 @@ import ForwardMessageModal from 'next/message/ForwardMessageModal.vue';
 import ConversationLabelSuggestion from './conversation/LabelSuggestion.vue';
 import Banner from 'dashboard/components/ui/Banner.vue';
 import Spinner from 'dashboard/components-next/spinner/Spinner.vue';
+import TypingIndicator from 'next/message/TypingIndicator.vue';
 import { useAlert } from 'dashboard/composables';
 
 // stores and apis
@@ -46,6 +47,7 @@ export default {
     Banner,
     ConversationLabelSuggestion,
     Spinner,
+    TypingIndicator,
   },
   mixins: [inboxMixin],
   setup() {
@@ -644,17 +646,13 @@ export default {
       />
       <div
         v-if="isAnyoneTyping"
-        class="absolute flex items-center w-full h-0 -top-7 z-10"
+        class="absolute flex items-center justify-center w-full h-0 -top-7 z-10"
       >
         <div
-          class="flex py-2 pr-4 pl-5 shadow-md rounded-full bg-white dark:bg-n-solid-3 text-n-slate-11 text-xs font-semibold my-2.5 mx-auto"
+          class="flex items-center py-1.5 pr-4 pl-4 shadow-md rounded-full bg-white dark:bg-n-solid-3 text-n-slate-11 text-xs font-semibold my-2.5"
         >
-          {{ typingUserNames }}
-          <img
-            class="w-6 ltr:ml-2 rtl:mr-2"
-            src="assets/images/typing.gif"
-            alt="Someone is typing"
-          />
+          <span class="mr-1">{{ typingUserNames }}</span>
+          <TypingIndicator />
         </div>
       </div>
       <div

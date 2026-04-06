@@ -1187,7 +1187,7 @@ watch(conversationFilters, newVal => {
       <div
         class="w-12 h-12 rounded-full bg-n-slate-3 dark:bg-n-solid-3 flex items-center justify-center mb-4"
       >
-        <fluent-icon icon="search" size="24" class="text-n-slate-11" />
+        <span class="i-lucide-search size-6 text-n-slate-11" />
       </div>
       <p class="text-base font-medium text-n-slate-12 mb-1">
         {{ $t('CONVERSATION.SEARCH.NO_RESULTS_TITLE') }}
