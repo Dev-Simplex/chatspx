@@ -31,44 +31,53 @@ class NpsSurveys::ScoreValidator
   end
 
   def extract_from_text
-    # 1. Bare number (with optional zero-padding): "8", "10", "09", "08"
+    extract_bare_number || extract_nota_pattern || extract_minha_nota ||
+      extract_score_at_start || extract_quoted_score || extract_short_pattern
+  end
+
+  def extract_bare_number
     bare_match = @input.match(/\A\s*0?(10|[0-9])\s*[!.]*\s*\z/)
-    return bare_match[1].to_i if bare_match
+    bare_match&.captures&.first&.to_i
+  end
 
-    # 2. "nota/nata X" anywhere — explicit NPS intent regardless of message length
+  def extract_nota_pattern
     nota_match = @input.match(/\bn[ao]t[ao]\s*[,:]?\s*(10|[0-9])\b/i)
-    return nota_match[1].to_i if nota_match
+    nota_match&.captures&.first&.to_i
+  end
 
-    # 3. "minha nota é X" — explicit score statement
+  def extract_minha_nota
     minha_match = @input.match(/\bminha\s*nota\s*[ée:\s]\s*(10|[0-9])\b/i)
-    return minha_match[1].to_i if minha_match
+    minha_match&.captures&.first&.to_i
+  end
 
-    # 4. Score at START of message followed by non-digit — customer typed score then comment
-    #    "10 com certeza", "10 gostei muito", "0, pois me cobrou...", "10 👍"
+  # Score at START of message followed by non-digit — customer typed score then comment
+  def extract_score_at_start
     start_match = @input.match(/\A\s*(10|[0-9])\s*[,\s!.]\s*\S/m)
-    return start_match[1].to_i if start_match
+    start_match&.captures&.first&.to_i
+  end
 
-    # 5. WhatsApp quoted name + score on next line: "**Nome**:\n10"
+  # WhatsApp quoted name + score on next line: "**Nome**:\n10"
+  def extract_quoted_score
     quoted_match = @input.match(/:\s*\n\s*(10|[0-9])\s*\z/m)
-    return quoted_match[1].to_i if quoted_match
+    quoted_match&.captures&.first&.to_i
+  end
 
-    # 6. Short messages (≤30 chars) with structured patterns
+  SHORT_PATTERNS = [
+    %r{\A\s*(10|[0-9])\s*/\s*10\s*\z}i,   # "8/10"
+    /\A\s*(10|[0-9])\s*de\s*10\s*\z/i,    # "8 de 10"
+    /\Ascore[:\s]+(10|[0-9])\s*\z/i,      # "score: 7"
+    /\Arating[:\s]+(10|[0-9])\s*\z/i,     # "rating: 6"
+    /\A\s*(10|[0-9])\s*estrelas?\s*\z/i,  # "9 estrelas"
+    /\A\s*(10|[0-9])\s*stars?\s*\z/i      # "9 stars"
+  ].freeze
+
+  def extract_short_pattern
     return nil if @input.length > 30
 
-    short_patterns = [
-      %r{\A\s*(10|[0-9])\s*/\s*10\s*\z}i,   # "8/10"
-      /\A\s*(10|[0-9])\s*de\s*10\s*\z/i,    # "8 de 10"
-      /\Ascore[:\s]+(10|[0-9])\s*\z/i,      # "score: 7"
-      /\Arating[:\s]+(10|[0-9])\s*\z/i,     # "rating: 6"
-      /\A\s*(10|[0-9])\s*estrelas?\s*\z/i,  # "9 estrelas"
-      /\A\s*(10|[0-9])\s*stars?\s*\z/i      # "9 stars"
-    ]
-
-    short_patterns.each do |pattern|
+    SHORT_PATTERNS.each do |pattern|
       match = @input.match(pattern)
       return match[1].to_i if match
     end
-
     nil
   end
 
