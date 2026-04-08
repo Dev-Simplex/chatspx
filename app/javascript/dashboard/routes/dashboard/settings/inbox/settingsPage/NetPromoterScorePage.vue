@@ -31,7 +31,6 @@ const state = reactive({
   message: '',
   thankYouMessage: '',
   invalidResponseMessage: '',
-  commentPromptMessage: '',
   expirationHours: 72,
   cooldownHours: 24,
   blocklistScope: 'both',
@@ -99,7 +98,6 @@ const initializeState = () => {
     state.message = '';
     state.thankYouMessage = '';
     state.invalidResponseMessage = '';
-    state.commentPromptMessage = '';
     state.expirationHours = 72;
     state.cooldownHours = 24;
     state.blocklistScope = 'both';
@@ -115,7 +113,6 @@ const initializeState = () => {
   state.message = nps_config.message || '';
   state.thankYouMessage = nps_config.thank_you_message || '';
   state.invalidResponseMessage = nps_config.invalid_response_message || '';
-  state.commentPromptMessage = nps_config.comment_prompt_message || '';
   state.expirationHours = nps_config.expiration_hours || 72;
   // Cooldown em horas (prioridade); fallback: cooldown_days convertido para horas
   state.cooldownHours =
@@ -200,7 +197,6 @@ const saveSettings = async () => {
       message: state.message,
       thank_you_message: state.thankYouMessage,
       invalid_response_message: state.invalidResponseMessage,
-      comment_prompt_message: state.commentPromptMessage,
       expiration_hours: state.expirationHours,
       cooldown_hours: state.cooldownHours,
       blocklist_labels: selectedBlocklistLabels.value,
@@ -226,8 +222,7 @@ const saveSettings = async () => {
         default: 'Configurações NPS atualizadas com sucesso!',
       })
     );
-  } catch (error) {
-    console.error('Erro ao salvar configurações NPS:', error);
+  } catch {
     useAlert(
       t('INBOX_MGMT.NPS.API.ERROR_MESSAGE', {
         default: 'Erro ao atualizar configurações NPS',
@@ -328,26 +323,6 @@ const saveSettings = async () => {
             :placeholder="
               $t('INBOX_MGMT.NPS.INVALID_RESPONSE_MESSAGE.PLACEHOLDER', {
                 default: 'Por favor, responda com um número de 0 a 10.',
-              })
-            "
-            :max-length="200"
-            class="w-full"
-          />
-        </WithLabel>
-
-        <WithLabel
-          :label="
-            $t('INBOX_MGMT.NPS.COMMENT_PROMPT_MESSAGE.LABEL', {
-              default: 'Mensagem de Prompt para Comentário',
-            })
-          "
-          name="comment_prompt_message"
-        >
-          <Editor
-            v-model="state.commentPromptMessage"
-            :placeholder="
-              $t('INBOX_MGMT.NPS.COMMENT_PROMPT_MESSAGE.PLACEHOLDER', {
-                default: 'Gostaria de adicionar algum comentário?',
               })
             "
             :max-length="200"

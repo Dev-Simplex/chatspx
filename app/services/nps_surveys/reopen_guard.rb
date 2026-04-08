@@ -77,15 +77,21 @@ class NpsSurveys::ReopenGuard
     looks_like_wrong_nps_attempt_only?(normalize_content(text))
   end
 
+  NPS_SCORE_PATTERNS = [
+    /\A\s*(10|[0-9])\s*[!.]*\s*\z/,
+    %r{\A\s*(10|[0-9])\s*/\s*10\s*\z}i,
+    /\A\s*(10|[0-9])\s*de\s*10\s*\z/i,
+    /\A\s*nota\s*(10|[0-9])\s*\z/i,
+    /\A\s*score[:\s]+(10|[0-9])\s*\z/i,
+    /\A\s*rating[:\s]+(10|[0-9])\s*\z/i,
+    /\A\s*(10|[0-9])\s*estrelas?\s*\z/i,
+    /\A\s*(10|[0-9])\s*stars?\s*\z/i
+  ].freeze
+
   def nps_score_like_content?(normalized)
-    return false if normalized.blank?
+    return false if normalized.blank? || normalized.length > 30
 
-    return true if normalized.match?(/^\s*(10|[0-9])\s*!*\s*$/)
-    return true if normalized.match?(%r{\b(10|[0-9])\s*/\s*10\b})
-    return true if normalized.match?(/\b(10|[0-9])\s*de\s*10\b/i)
-
-    keyword_present = normalized.match?(/\b(nota|score|rating|estrelas?|stars?)\b/i)
-    keyword_present && normalized.match?(/\b(10|[0-9])\b/)
+    NPS_SCORE_PATTERNS.any? { |pattern| normalized.match?(pattern) }
   end
 
   def looks_like_wrong_nps_attempt_only?(normalized)

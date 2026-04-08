@@ -117,7 +117,7 @@ export default {
     npsFallbackMessage() {
       if (!this.isNpsMessage || this.message?.content) return '';
       const fallback =
-        'De 0 a 10, o quanto voc\u00ea recomendaria nossa empresa?';
+        'On a scale of 0 to 10, how likely are you to recommend our company?';
       const translated = this.$t('CONVERSATION.NPS_REPLY_MESSAGE', {
         default: fallback,
       });

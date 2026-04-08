@@ -12,7 +12,9 @@ class NpsSurveys::ResponseBuilder
     score = extract_score_from_message
 
     if score.nil?
-      send_invalid_response_message(nps_response)
+      # Only send "invalid response" for short messages that look like NPS attempts
+      # (e.g. "onze", "abc", "?"), and cap at 2 retries to avoid annoying loops.
+      send_invalid_response_message(nps_response) if looks_like_nps_attempt? && retry_count_within_limit?(nps_response)
       return
     end
 
@@ -148,6 +150,45 @@ class NpsSurveys::ResponseBuilder
       content: thank_you_message,
       content_attributes: { skip_signature: true }
     )
+  end
+
+  MAX_INVALID_RETRIES = 2
+
+  # Cap retries: count incoming messages after the NPS survey that didn't produce a valid score.
+  # After 2 failed attempts, stop sending "invalid response" to avoid annoying the customer.
+  def retry_count_within_limit?(nps_response)
+    nps_message_id = nps_response.metadata&.dig('message_id')
+    return true unless nps_message_id
+
+    failed_attempts = message.conversation.messages
+                             .where(message_type: :incoming)
+                             .where('id > ?', nps_message_id)
+                             .where('id < ?', message.id)
+                             .count
+    failed_attempts < MAX_INVALID_RETRIES
+  end
+
+  # Short messages that look like failed NPS attempts (number out of range, single char, "?", etc.)
+  # We send "invalid response" only for these — not for normal conversation messages.
+  def looks_like_nps_attempt?
+    text = NpsSurveys::ScoreValidator.normalize(message.content)
+    return false if text.blank?
+    return false if text.length > 25
+
+    # Bare number outside 0-10 range (e.g. "11", "100", "-1")
+    return true if text.match?(/\A\s*-?\d+\s*\z/)
+
+    # Short skip/confusion patterns (single char, punctuation, "nao sei", etc.)
+    short_patterns = [
+      /\A(n[ãa]o\s*)?sei\z/i,
+      %r{\An/a\z}i,
+      /\A\?+\z/,
+      /\A\.+\z/,
+      /\A(nao|não)\z/i,
+      /\A[a-z]\z/i,
+      /\A[\s\?\.,!\-]+\z/
+    ]
+    short_patterns.any? { |p| text.match?(p) }
   end
 
   def send_invalid_response_message(nps_response)
