@@ -37,27 +37,32 @@ namespace :nps do # rubocop:disable Metrics/BlockLength
         next
       end
 
-      msg_id = nps.metadata&.dig('message_id')
-      unless msg_id
+      nps_msg_id = nps.metadata&.dig('message_id')
+      unless nps_msg_id
         stats[:no_message] += 1
         next
       end
 
-      message = Message.find_by(id: msg_id)
-      unless message
+      # Find the customer's RESPONSE — first incoming message after the NPS survey question
+      response_message = Message.where(conversation_id: nps.conversation_id, message_type: :incoming)
+                                .where('id > ?', nps_msg_id)
+                                .order(:id)
+                                .first
+      unless response_message
         stats[:no_message] += 1
         next
       end
 
       # Widget submissions (buttons) are always legit — score came from structured input
-      widget_score = message.content_attributes&.dig('submitted_values', 'nps_response', 'score')
+      widget_score = response_message.content_attributes&.dig('submitted_values', 'nps_response', 'score')
       if widget_score.present?
         stats[:widget] += 1
         stats[:ok] += 1
         next
       end
 
-      # Re-run the FIXED ScoreValidator against the original message
+      message = response_message
+      # Re-run the FIXED ScoreValidator against the customer's response
       revalidated = NpsSurveys::ScoreValidator.validate_and_extract(message.content)
 
       if revalidated == nps.score

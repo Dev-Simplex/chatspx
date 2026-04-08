@@ -31,16 +31,31 @@ class NpsSurveys::ScoreValidator
   end
 
   def extract_from_text
-    # 1. Bare number only (entire message is just "8", "10", "0", etc.)
-    bare_match = @input.match(/\A\s*(10|[0-9])\s*[!.]*\s*\z/)
+    # 1. Bare number (with optional zero-padding): "8", "10", "09", "08"
+    bare_match = @input.match(/\A\s*0?(10|[0-9])\s*[!.]*\s*\z/)
     return bare_match[1].to_i if bare_match
 
-    # 2. Short messages (≤30 chars) with explicit NPS patterns
-    #    Longer messages likely contain incidental numbers, not NPS scores
+    # 2. "nota/nata X" anywhere — explicit NPS intent regardless of message length
+    nota_match = @input.match(/\bn[ao]t[ao]\s*[,:]?\s*(10|[0-9])\b/i)
+    return nota_match[1].to_i if nota_match
+
+    # 3. "minha nota é X" — explicit score statement
+    minha_match = @input.match(/\bminha\s*nota\s*[ée:\s]\s*(10|[0-9])\b/i)
+    return minha_match[1].to_i if minha_match
+
+    # 4. Score at START of message followed by non-digit — customer typed score then comment
+    #    "10 com certeza", "10 gostei muito", "0, pois me cobrou...", "10 👍"
+    start_match = @input.match(/\A\s*(10|[0-9])\s*[,\s!.]\s*\S/m)
+    return start_match[1].to_i if start_match
+
+    # 5. WhatsApp quoted name + score on next line: "**Nome**:\n10"
+    quoted_match = @input.match(/:\s*\n\s*(10|[0-9])\s*\z/m)
+    return quoted_match[1].to_i if quoted_match
+
+    # 6. Short messages (≤30 chars) with structured patterns
     return nil if @input.length > 30
 
     short_patterns = [
-      /\Anota\s*(10|[0-9])\s*\z/i,          # "nota 9"
       %r{\A\s*(10|[0-9])\s*/\s*10\s*\z}i,   # "8/10"
       /\A\s*(10|[0-9])\s*de\s*10\s*\z/i,    # "8 de 10"
       /\Ascore[:\s]+(10|[0-9])\s*\z/i,      # "score: 7"

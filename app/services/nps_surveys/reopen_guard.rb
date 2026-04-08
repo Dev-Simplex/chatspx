@@ -77,21 +77,11 @@ class NpsSurveys::ReopenGuard
     looks_like_wrong_nps_attempt_only?(normalize_content(text))
   end
 
-  NPS_SCORE_PATTERNS = [
-    /\A\s*(10|[0-9])\s*[!.]*\s*\z/,
-    %r{\A\s*(10|[0-9])\s*/\s*10\s*\z}i,
-    /\A\s*(10|[0-9])\s*de\s*10\s*\z/i,
-    /\A\s*nota\s*(10|[0-9])\s*\z/i,
-    /\A\s*score[:\s]+(10|[0-9])\s*\z/i,
-    /\A\s*rating[:\s]+(10|[0-9])\s*\z/i,
-    /\A\s*(10|[0-9])\s*estrelas?\s*\z/i,
-    /\A\s*(10|[0-9])\s*stars?\s*\z/i
-  ].freeze
-
   def nps_score_like_content?(normalized)
-    return false if normalized.blank? || normalized.length > 30
+    return false if normalized.blank?
 
-    NPS_SCORE_PATTERNS.any? { |pattern| normalized.match?(pattern) }
+    # Delegate to ScoreValidator — single source of truth for score extraction
+    NpsSurveys::ScoreValidator.validate_and_extract(normalized).present?
   end
 
   def looks_like_wrong_nps_attempt_only?(normalized)
