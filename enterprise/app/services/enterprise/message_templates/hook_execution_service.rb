@@ -6,7 +6,7 @@ module Enterprise::MessageTemplates::HookExecutionService
     return unless should_process_captain_response?
     return perform_handoff unless inbox.captain_active?
 
-    schedule_captain_response
+    process_captain_behavior(inbox.captain_assistant)
   end
 
   def should_send_greeting?
@@ -28,6 +28,46 @@ module Enterprise::MessageTemplates::HookExecutionService
   end
 
   private
+
+  def process_captain_behavior(assistant)
+    return trigger_copilot_if_applicable(assistant) if message.private?
+    return log_and_skip(assistant, 'router_skip') unless router_allows?(assistant)
+    return log_and_skip(assistant, 'business_hours_skip') if outside_hours_ignore?(assistant)
+
+    schedule_or_debounce(assistant)
+  end
+
+  def router_allows?(assistant)
+    Captain::Behavior::RouterService.new(assistant: assistant, conversation: conversation, message: message).should_respond?
+  end
+
+  def outside_hours_ignore?(assistant)
+    status = Captain::Behavior::BusinessHoursChecker.new(assistant: assistant).status
+    status == :outside && assistant.behavior.dig('business_hours', 'outside_hours_action') == 'ignore'
+  end
+
+  def schedule_or_debounce(assistant)
+    debounce = assistant.behavior['debounce_seconds'].to_i
+    if debounce.positive?
+      Captain::Behavior::DebounceService.new(assistant: assistant, conversation: conversation).schedule
+    else
+      schedule_captain_response
+    end
+  end
+
+  def log_and_skip(assistant, event_type)
+    Captain::AssistantLog.create!(captain_assistant: assistant, conversation: conversation,
+                                  message_id: message.id, event_type: event_type)
+  end
+
+  def trigger_copilot_if_applicable(assistant)
+    service = Captain::Behavior::CopilotTriggerService.new(assistant: assistant, message: message, conversation: conversation)
+    return unless service.should_trigger?
+
+    Captain::AssistantLog.create!(captain_assistant: assistant, conversation: conversation,
+                                  message_id: message.id, event_type: 'copilot_trigger')
+    service.trigger
+  end
 
   def schedule_captain_response
     job_args = [conversation, conversation.inbox.captain_assistant]

@@ -17,7 +17,8 @@ RSpec.describe LlmFormatter::ContactLlmFormatter do
           'Location: ',
           'Country Code: ',
           'Contact Notes:',
-          'No notes for this contact'
+          'No notes for this contact',
+          'Conversation History: No previous conversations'
         ].join("\n")
 
         expect(formatter.format).to eq(expected_output)
@@ -41,7 +42,8 @@ RSpec.describe LlmFormatter::ContactLlmFormatter do
           'Country Code: ',
           'Contact Notes:',
           ' - First interaction',
-          ' - Follow up needed'
+          ' - Follow up needed',
+          'Conversation History: No previous conversations'
         ].join("\n")
 
         expect(formatter.format).to eq(expected_output)
@@ -68,7 +70,8 @@ RSpec.describe LlmFormatter::ContactLlmFormatter do
           'Country Code: ',
           'Company: Acme Inc',
           'Contact Notes:',
-          'No notes for this contact'
+          'No notes for this contact',
+          'Conversation History: No previous conversations'
         ].join("\n")
 
         expect(formatter.format).to eq(expected_output)

@@ -23,10 +23,10 @@
     "SEARCH_PLACEHOLDER": "Pesquisar integrações...",
     "NO_RESULTS": "Nenhuma integração encontrada correspondente à sua busca",
     "CAPTAIN": {
-      "DISABLED": "O capitão não está ativado na sua conta.",
+      "DISABLED": "Agentes IA não está ativado na sua conta.",
       "CLICK_HERE_TO_CONFIGURE": "Clique aqui para configurar",
-      "LOADING_CONSOLE": "Carregando console do Capitão...",
-      "FAILED_TO_LOAD_CONSOLE": "Falha ao carregar o Console do Capitão. Atualize e tente novamente."
+      "LOADING_CONSOLE": "Carregando console dos Agentes IA...",
+      "FAILED_TO_LOAD_CONSOLE": "Falha ao carregar o Console dos Agentes IA. Atualize e tente novamente."
     },
     "WEBHOOK": {
       "SUBSCRIBED_EVENTS": "Eventos Inscritos",
@@ -389,7 +389,7 @@
     }
   },
   "CAPTAIN": {
-    "NAME": "Capitão",
+    "NAME": "Agentes IA",
     "HEADER_KNOW_MORE": "Saiba mais",
     "ASSISTANT_SWITCHER": {
       "ASSISTANTS": "Assistentes",
@@ -404,7 +404,7 @@
       "KICK_OFF_MESSAGE": "Precisa de um resumo rápido, quer verificar conversas passadas ou redigir uma resposta melhor? O Copiloto está aqui para acelerar as coisas.",
       "SEND_MESSAGE": "Enviar mensagem...",
       "EMPTY_MESSAGE": "Houve um erro ao gerar a resposta. Por favor, tente novamente.",
-      "LOADER": "Capitão está pensando",
+      "LOADER": "Agente IA está pensando",
       "YOU": "Você",
       "USE": "Use isto",
       "RESET": "Reiniciar",
@@ -426,12 +426,12 @@
       },
       "SELECT_ASSISTANT": "Selecione o Assistente",
       "RESPONSE_TIMEOUT_TITLE": "A resposta está demorando mais do que o esperado",
-      "RESPONSE_TIMEOUT_BODY": "O Capitão não conseguiu concluir este pedido em 30 segundos. Tente novamente.",
+      "RESPONSE_TIMEOUT_BODY": "O Agente IA não conseguiu concluir este pedido em 30 segundos. Tente novamente.",
       "RETRY": "Tentar novamente",
       "API_KEY_MISSING": {
         "TITLE": "Configure a chave da OpenAI para usar o Copiloto",
-        "DESCRIPTION_ADMIN": "Esta conta ainda não tem chave OpenAI configurada. Configure em Ajustes do Captain para habilitar respostas do Copiloto.",
-        "DESCRIPTION_AGENT": "Esta conta ainda não tem chave OpenAI configurada. Peça para um administrador configurar a chave em Ajustes do Captain.",
+        "DESCRIPTION_ADMIN": "Esta conta ainda não tem chave de API configurada. Configure em Ajustes dos Agentes IA para habilitar respostas do Copiloto.",
+        "DESCRIPTION_AGENT": "Esta conta ainda não tem chave de API configurada. Peça para um administrador configurar nas configurações dos Agentes IA.",
         "CONFIGURE_BUTTON": "Configurar OpenAI",
         "OK_BUTTON": "Entendi",
         "CLOSE_BUTTON": "Fechar"
@@ -465,23 +465,23 @@
       "MESSAGE_PLACEHOLDER": "Digite sua mensagem...",
       "HEADER": "Playground",
       "DESCRIPTION": "Use este playground para enviar mensagens para seu assistente e verificar se ele responde com precisão, rápido e no tom que você espera.",
-      "CREDIT_NOTE": "As mensagens enviadas aqui usam os créditos do seu Capitão."
+      "CREDIT_NOTE": "As mensagens enviadas aqui consomem créditos dos Agentes IA."
     },
     "PAYWALL": {
-      "TITLE": "Atualize para usar o Capitão IA",
-      "AVAILABLE_ON": "O Capitão não está disponível no plano gratuito.",
+      "TITLE": "Atualize para usar Agentes IA",
+      "AVAILABLE_ON": "Agentes IA não está disponível no plano gratuito.",
       "UPGRADE_PROMPT": "Atualize seu plano para ter acesso aos nossos assistentes, copilotos e muito mais.",
       "UPGRADE_NOW": "Atualizar agora",
       "CANCEL_ANYTIME": "Você pode alterar ou cancelar seu plano a qualquer momento"
     },
     "ENTERPRISE_PAYWALL": {
-      "AVAILABLE_ON": "O Captain AI está disponível apenas em planos Enterprise.",
+      "AVAILABLE_ON": "Agentes IA está disponível apenas em planos Enterprise.",
       "UPGRADE_PROMPT": "Atualize seu plano para ter acesso aos nossos assistentes, copilotos e muito mais.",
       "ASK_ADMIN": "Entre em contato com seu administrador para fazer a atualização."
     },
     "BANNER": {
-      "RESPONSES": "Você usou mais de 80% do seu limite de respostas. Para continuar usando o Capitão AI, faça o upgrade.",
-      "DOCUMENTS": "Limite de documentos atingido. Atualize para continuar usando o Capitão AI."
+      "RESPONSES": "Você usou mais de 80% do seu limite de respostas. Para continuar usando Agentes IA, faça o upgrade.",
+      "DOCUMENTS": "Limite de documentos atingido. Atualize para continuar usando Agentes IA."
     },
     "FORM": {
       "CANCEL": "Cancelar",
@@ -602,8 +602,8 @@
         "TITLE": "Não há assistentes disponíveis",
         "SUBTITLE": "Crie um assistente para fornecer respostas rápidas e precisas aos seus usuários. Ele pode aprender com seus artigos de ajuda e conversas passadas.",
         "FEATURE_SPOTLIGHT": {
-          "TITLE": "Captain Assistant",
-          "NOTE": "O Assistente Captain interage diretamente com os clientes, aprende com seus documentos de ajuda e conversas passadas, e fornece respostas instantâneas e precisas. Ele lida com as consultas iniciais, fornecendo resoluções rápidas antes de transferir para um agente quando necessário."
+          "TITLE": "Assistente IA",
+          "NOTE": "O Assistente IA interage diretamente com os clientes, aprende com seus documentos de ajuda e conversas passadas, e fornece respostas instantâneas e precisas. Ele lida com as consultas iniciais, fornecendo resoluções rápidas antes de transferir para um agente quando necessário."
         }
       },
       "GUARDRAILS": {
@@ -820,8 +820,8 @@
         "TITLE": "Nenhum documento disponível",
         "SUBTITLE": "Os documentos são usados pelo seu assistente para gerar perguntas frequentes. Pode importar documentos para fornecer um contexto para seu assistente.",
         "FEATURE_SPOTLIGHT": {
-          "TITLE": "Captain Document",
-          "NOTE": "Um documento no Captain serve como recurso de conhecimento para o assistente. Ao conectar seu centro de ajuda ou guias, o Captain pode analisar o conteúdo e fornecer respostas precisas para consultas de clientes."
+          "TITLE": "Documento do Agente IA",
+          "NOTE": "Um documento serve como recurso de conhecimento para o assistente. Ao conectar seu centro de ajuda ou guias, o Agente IA pode analisar o conteúdo e fornecer respostas precisas para consultas de clientes."
         }
       }
     },
@@ -977,7 +977,7 @@
         "ALL": "Todos"
       },
       "PENDING_BANNER": {
-        "TITLE": "O Capitão encontrou algumas FAQs que seus clientes estavam procurando.",
+        "TITLE": "O Agente IA encontrou algumas FAQs que seus clientes estavam procurando.",
         "ACTION": "Clique aqui para revisar"
       },
       "FORM_DESCRIPTION": "Adicione uma pergunta e sua resposta correspondente à base de conhecimento e selecione o assistente ao qual deve estar associado.",
@@ -1015,8 +1015,8 @@
         "SUBTITLE": "Perguntas Frequentes ajudam seu assistente a fornecer respostas rápidas e precisas para perguntas de seus clientes. Eles podem ser gerados automaticamente a partir do seu conteúdo ou podem ser adicionados manualmente.",
         "CLEAR_SEARCH": "Limpar filtros ativos",
         "FEATURE_SPOTLIGHT": {
-          "TITLE": "Captain FAQ",
-          "NOTE": "O Captain FAQs detecta perguntas comuns dos clientes—sejam elas ausentes da sua base de conhecimento ou frequentemente feitas—e gera FAQs relevantes para melhorar o suporte. Você pode revisar cada sugestão e decidir se aprova ou rejeita."
+          "TITLE": "FAQ do Agente IA",
+          "NOTE": "O Agente IA detecta perguntas comuns dos clientes—sejam elas ausentes da sua base de conhecimento ou frequentemente feitas—e gera FAQs relevantes para melhorar o suporte. Você pode revisar cada sugestão e decidir se aprova ou rejeita."
         }
       }
     },
@@ -1049,6 +1049,149 @@
       "EMPTY_STATE": {
         "TITLE": "Caixa de entrada não conectada",
         "SUBTITLE": "Conectar uma caixa de entrada permite ao assistente lidar com perguntas iniciais de seus clientes antes de transferi-las para você."
+      }
+    },
+    "BEHAVIOR": {
+      "SAVE": "Salvar Comportamento",
+      "DEBOUNCE": {
+        "TITLE": "Debounce",
+        "DESCRIPTION": "Aguardar o cliente terminar de digitar antes de responder.",
+        "SECONDS_LABEL": "Segundos"
+      },
+      "ROUTER": {
+        "TITLE": "Roteador",
+        "DESCRIPTION": "Controlar quando o agente deve responder.",
+        "SKIP_LABELS": "Ignorar etiquetas",
+        "SKIP_LABELS_PLACEHOLDER": "Etiquetas separadas por vírgula",
+        "SKIP_GROUPS": "Ignorar conversas em grupo",
+        "SKIP_ACTIVITY": "Ignorar mensagens de atividade",
+        "SKIP_AGENT_BOT": "Ignorar quando bot atribuído"
+      },
+      "BUSINESS_HOURS": {
+        "TITLE": "Horário Comercial",
+        "DESCRIPTION": "Definir quando o agente está ativo.",
+        "OUTSIDE_ACTION": "Ação fora do horário",
+        "ACTION_IGNORE": "Ignorar mensagens",
+        "ACTION_QUALIFY": "Qualificar mais"
+      },
+      "MEDIA_PIPELINE": {
+        "TITLE": "Pipeline de Mídia",
+        "DESCRIPTION": "Processar áudio e imagens antes de enviar à IA.",
+        "AUDIO_TRANSCRIPTION": "Transcrição de áudio",
+        "IMAGE_DESCRIPTION": "Descrição de imagem"
+      },
+      "HUMANIZER": {
+        "TITLE": "Humanizador",
+        "DESCRIPTION": "Dividir respostas longas em partes naturais.",
+        "MAX_CHARS": "Máx. caracteres por parte",
+        "DELAY_MS": "Intervalo entre partes (ms)"
+      },
+      "COPILOT_TRIGGER": {
+        "TITLE": "Gatilho do Copiloto",
+        "DESCRIPTION": "Acionar copiloto via notas privadas com hashtag.",
+        "HASHTAG_LABEL": "Hashtag"
+      },
+      "DEDUP": {
+        "TITLE": "Dedup",
+        "DESCRIPTION": "Evitar respostas duplicadas em uma janela de tempo.",
+        "TTL_LABEL": "TTL (segundos)"
+      }
+    },
+    "LOGS": {
+      "TITLE": "Logs de Atividade"
+    },
+    "AGENT_TABS": {
+      "OVERVIEW": {
+        "RESPONSES": "Respostas",
+        "DOCUMENTS": "Documentos",
+        "INBOXES": "Caixas de Entrada",
+        "SCENARIOS_LABEL": "Cenários",
+        "INFO_TITLE": "Informações",
+        "MODEL": "Modelo",
+        "TEMPERATURE": "Temperatura",
+        "PRODUCT": "Produto",
+        "BEHAVIOR_JSON": "Configuração de Comportamento",
+        "CONFIG_JSON": "Configuração do Agente",
+        "COPIED": "Copiado!",
+        "COPY": "Copiar",
+        "CONFIGURE_TITLE": "Configure seu Agente",
+        "CONFIGURE_DESCRIPTION": "Este agente ainda não tem behavior configurado. Use a aba Comportamento para configurar o pipeline, ou copie o JSON template abaixo e configure via código.",
+        "AGENT_CONFIG": "Configuração do Agente",
+        "BEHAVIORS": "Behaviors",
+        "NONE_CONFIGURED": "Nenhum configurado"
+      },
+      "KNOWLEDGE": {
+        "DOCUMENTS": "Documentos",
+        "FAQS": "FAQs",
+        "LOADING": "Carregando...",
+        "NO_DOCUMENTS": "Nenhum documento adicionado.",
+        "REMOVE": "Remover",
+        "NO_FAQS": "Nenhuma FAQ cadastrada.",
+        "APPROVED": "Aprovada",
+        "PENDING": "Pendente"
+      },
+      "TOOLS": {
+        "NEW_TOOL": "Nova Ferramenta",
+        "NAME_PLACEHOLDER": "Nome",
+        "DESCRIPTION_PLACEHOLDER": "Descrição",
+        "URL_PLACEHOLDER": "URL do endpoint",
+        "SAVE": "Salvar",
+        "LOADING": "Carregando...",
+        "NO_TOOLS": "Nenhuma ferramenta configurada.",
+        "ACTIVE": "Ativo",
+        "INACTIVE": "Inativo",
+        "COPILOT_TOOLS": "Copilot Tools",
+        "AVAILABLE": "disponíveis",
+        "CUSTOM_TOOLS": "Ferramentas Customizadas",
+        "MCP_SERVERS": "MCP Servers",
+        "MCP_DESCRIPTION": "Conecte ferramentas externas via Model Context Protocol. Copie o template abaixo e configure no seu cliente MCP.",
+        "MCP_HOW_TO": "Como conectar",
+        "MCP_STEP_1": "Copie o template acima",
+        "MCP_STEP_2": "Edite command, args e env conforme seu server MCP",
+        "MCP_STEP_3": "Cole no arquivo de configuração do seu cliente (Claude Desktop, Cursor, etc.)",
+        "MCP_STEP_4": "Reinicie o cliente para conectar"
+      },
+      "SCENARIOS": {
+        "LOADING": "Carregando...",
+        "NO_SCENARIOS": "Nenhum cenário cadastrado.",
+        "PLAYGROUND": "Playground",
+        "THINKING": "Pensando...",
+        "SEND": "Enviar",
+        "MESSAGE_PLACEHOLDER": "Digite uma mensagem..."
+      },
+      "INBOXES": {
+        "CONNECT": "Conectar Inbox",
+        "SELECT_INBOX": "Selecione uma inbox",
+        "CONNECT_BTN": "Conectar",
+        "LOADING": "Carregando...",
+        "NO_INBOXES": "Nenhuma inbox conectada.",
+        "DISCONNECT": "Desconectar"
+      },
+      "LOGS": {
+        "ALL": "Todos",
+        "LOADING": "Carregando...",
+        "NO_LOGS": "Nenhum log encontrado."
+      },
+      "SETTINGS": {
+        "INFO_TITLE": "Informações",
+        "NAME": "Nome",
+        "DESCRIPTION": "Descrição",
+        "PRODUCT_NAME": "Nome do Produto",
+        "MODEL_CONFIG": "Configuração do Modelo",
+        "LLM_MODEL": "Modelo LLM",
+        "TEMPERATURE": "Temperatura",
+        "GUARDRAILS": "Guardrails",
+        "NEW_RULE_PLACEHOLDER": "Nova regra...",
+        "RESPONSE_GUIDELINES": "Response Guidelines",
+        "NEW_GUIDELINE_PLACEHOLDER": "Nova guideline...",
+        "SAVE": "Salvar Configurações",
+        "DANGER_ZONE": "Zona de Perigo",
+        "DANGER_DESCRIPTION": "Excluir este agente é uma ação irreversível.",
+        "DELETE_AGENT": "Deletar Agente",
+        "CONFIRM_DELETE": "Tem certeza?",
+        "YES_DELETE": "Sim, deletar",
+        "CANCEL": "Cancelar",
+        "DELETE_SUCCESS": "Agente deletado com sucesso"
       }
     }
   }

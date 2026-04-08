@@ -63,7 +63,8 @@ class Api::V1::Accounts::Captain::AssistantsController < Api::V1::Accounts::Base
                                                     :feature_contact_attributes,
                                                     :welcome_message, :handoff_message, :resolution_message,
                                                     :instructions, :temperature
-                                                  ])
+                                                  ],
+                                                  behavior: {})
 
     # Handle array parameters separately to allow partial updates
     permitted[:response_guidelines] = params[:assistant][:response_guidelines] if params[:assistant].key?(:response_guidelines)

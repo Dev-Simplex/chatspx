@@ -114,8 +114,40 @@ class Captain::Conversation::ResponseBuilderJob < ApplicationJob
   end
 
   def create_messages
-    validate_message_content!(@response['response'])
-    create_outgoing_message(@response['response'], agent_name: @response['agent_name'])
+    content = @response['response']
+    validate_message_content!(content)
+    return if skip_duplicate?(content)
+
+    send_response(content)
+  end
+
+  def skip_duplicate?(content)
+    return false unless dedup_enabled?
+
+    dedup = Captain::Behavior::DedupService.new(assistant: @assistant, conversation: @conversation)
+    return false unless dedup.duplicate?(content)
+
+    log_behavior_event('dedup_skip', { content_hash: Digest::MD5.hexdigest(content) })
+    true
+  end
+
+  def send_response(content)
+    if humanizer_enabled?
+      send_humanized_response(content)
+    else
+      create_outgoing_message(content, agent_name: @response['agent_name'])
+    end
+  end
+
+  def send_humanized_response(content)
+    chunks = Captain::Behavior::HumanizerService.new(config: @assistant.behavior['humanizer']).split(content)
+    delay_seconds = @assistant.behavior.dig('humanizer', 'delay_ms').to_f / 1000
+
+    chunks.each_with_index do |chunk, i|
+      create_outgoing_message(chunk, agent_name: @response['agent_name'])
+      sleep(delay_seconds) if i < chunks.size - 1
+    end
+    log_behavior_event('humanizer_split', { chunks: chunks.size }) if chunks.size > 1
   end
 
   def validate_message_content!(content)
@@ -148,6 +180,23 @@ class Captain::Conversation::ResponseBuilderJob < ApplicationJob
 
   def captain_v2_enabled?
     account.feature_enabled?('captain_integration_v2')
+  end
+
+  def dedup_enabled?
+    @assistant.behavior.dig('dedup', 'enabled') == true
+  end
+
+  def humanizer_enabled?
+    @assistant.behavior.dig('humanizer', 'enabled') == true
+  end
+
+  def log_behavior_event(event_type, payload = {})
+    Captain::AssistantLog.create!(
+      captain_assistant: @assistant,
+      conversation: @conversation,
+      event_type: event_type,
+      payload: payload
+    )
   end
 
   def conversation_pending?

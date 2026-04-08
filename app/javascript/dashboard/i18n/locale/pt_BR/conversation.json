@@ -543,7 +543,13 @@
     "MULTIPLE": "{user} e {count} outros estão digitando"
   },
   "COPILOT": {
-    "TRY_THESE_PROMPTS": "Experimente estes comandos"
+    "TRY_THESE_PROMPTS": "Experimente estes comandos",
+    "QUICK_ACTIONS": {
+      "SUMMARIZE": "Resumir",
+      "SUGGEST_REPLY": "Sugerir resposta",
+      "WHO_SHOULD": "Quem deve atender?",
+      "CONTACT_HISTORY": "Histórico do contato"
+    }
   },
   "GALLERY_VIEW": {
     "ERROR_DOWNLOADING": "Não foi possível baixar o anexo. Por favor, tente novamente",

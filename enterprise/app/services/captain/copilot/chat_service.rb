@@ -60,19 +60,42 @@ class Captain::Copilot::ChatService < Llm::BaseAiService
                         end
   end
 
+  TOOL_CLASSES = [
+    Captain::Tools::SearchDocumentationService,
+    Captain::Tools::Copilot::GetConversationService,
+    Captain::Tools::Copilot::SearchConversationsService,
+    Captain::Tools::Copilot::GetContactService,
+    Captain::Tools::Copilot::GetArticleService,
+    Captain::Tools::Copilot::SearchArticlesService,
+    Captain::Tools::Copilot::SearchContactsService,
+    Captain::Tools::Copilot::SearchLinearIssuesService,
+    Captain::Tools::Copilot::GetAccountStatsService,
+    Captain::Tools::Copilot::GetAgentWorkloadService,
+    Captain::Tools::Copilot::GetTeamInfoService,
+    Captain::Tools::Copilot::AssignConversationService,
+    Captain::Tools::Copilot::AddLabelService,
+    Captain::Tools::Copilot::ChangeStatusService,
+    Captain::Tools::Copilot::ChangePriorityService,
+    Captain::Tools::Copilot::GetCsatDataService,
+    Captain::Tools::Copilot::SearchMessagesService,
+    Captain::Tools::Copilot::GetInboxInfoService,
+    Captain::Tools::Copilot::GetConversationFullService,
+    Captain::Tools::Copilot::SendMessageService,
+    Captain::Tools::Copilot::SendTemplateService,
+    Captain::Tools::Copilot::UpdateContactService,
+    Captain::Tools::Copilot::SetCustomAttributesService,
+    Captain::Tools::Copilot::RemoveLabelService,
+    Captain::Tools::Copilot::SnoozeConversationService,
+    Captain::Tools::Copilot::TransferToInboxService,
+    Captain::Tools::Copilot::GetContactConversationsService,
+    Captain::Tools::Copilot::AddNoteToContactService,
+    Captain::Tools::Copilot::ResolveConversationService,
+    Captain::Tools::Copilot::GetLabelsService,
+    Captain::Tools::Copilot::GetAgentsService
+  ].freeze
+
   def build_tools
-    tools = []
-
-    tools << Captain::Tools::SearchDocumentationService.new(@assistant, user: @user)
-    tools << Captain::Tools::Copilot::GetConversationService.new(@assistant, user: @user)
-    tools << Captain::Tools::Copilot::SearchConversationsService.new(@assistant, user: @user)
-    tools << Captain::Tools::Copilot::GetContactService.new(@assistant, user: @user)
-    tools << Captain::Tools::Copilot::GetArticleService.new(@assistant, user: @user)
-    tools << Captain::Tools::Copilot::SearchArticlesService.new(@assistant, user: @user)
-    tools << Captain::Tools::Copilot::SearchContactsService.new(@assistant, user: @user)
-    tools << Captain::Tools::Copilot::SearchLinearIssuesService.new(@assistant, user: @user)
-
-    tools.select(&:active?)
+    TOOL_CLASSES.map { |klass| klass.new(@assistant, user: @user) }.select(&:active?)
   end
 
   def system_message

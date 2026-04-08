@@ -551,7 +551,13 @@
     "MULTIPLE": "{user} and {count} others are typing"
   },
   "COPILOT": {
-    "TRY_THESE_PROMPTS": "Try these prompts"
+    "TRY_THESE_PROMPTS": "Try these prompts",
+    "QUICK_ACTIONS": {
+      "SUMMARIZE": "Summarize",
+      "SUGGEST_REPLY": "Suggest reply",
+      "WHO_SHOULD": "Who should handle?",
+      "CONTACT_HISTORY": "Contact history"
+    }
   },
   "GALLERY_VIEW": {
     "ERROR_DOWNLOADING": "Unable to download attachment. Please try again",
