@@ -185,8 +185,7 @@ class Api::V1::Accounts::InboxesController < Api::V1::Accounts::BaseController #
       'min_duration_minutes' => config['min_duration_minutes']&.to_i,
       'required_tags' => Array(config['required_tags'] || []),
       'thank_you_message' => config['thank_you_message'] || '',
-      'invalid_response_message' => config['invalid_response_message'] || '',
-      'comment_prompt_message' => config['comment_prompt_message'] || ''
+      'invalid_response_message' => config['invalid_response_message'] || ''
     }.compact
   end
 
@@ -199,7 +198,7 @@ class Api::V1::Accounts::InboxesController < Api::V1::Accounts::BaseController #
                        template: [:name, :template_id, :friendly_name, :content_sid, :approval_sid, :created_at, :language, :status] }] },
      { nps_config: [:mode, :message, :cooldown_hours, :cooldown_days, :expiration_hours, :blocklist_scope,
                     :min_messages, :min_duration_minutes, :thank_you_message, :invalid_response_message,
-                    :comment_prompt_message, { blocklist_labels: [] }, { required_tags: [] }] }]
+                    { blocklist_labels: [] }, { required_tags: [] }] }]
   end
 
   def permitted_params(channel_attributes = [])

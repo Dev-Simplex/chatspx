@@ -30,31 +30,28 @@ class NpsSurveys::ScoreValidator
     self.class.normalize(text)
   end
 
-  def extract_from_text # rubocop:disable Metrics/MethodLength
-    # Try direct integer match first
-    integer_match = @input.match(/^\s*(\d+)\s*$/)
-    return integer_match[1].to_i if integer_match && valid_score?(integer_match[1].to_i)
+  def extract_from_text
+    # 1. Bare number only (entire message is just "8", "10", "0", etc.)
+    bare_match = @input.match(/\A\s*(10|[0-9])\s*[!.]*\s*\z/)
+    return bare_match[1].to_i if bare_match
 
-    # Try patterns like "10!!!", "nota 9", "8/10", "score: 7"
-    patterns = [
-      /(\d+)\s*!+/,                    # "10!!!"
-      /nota\s*(\d+)/i,                 # "nota 9"
-      %r{(\d+)\s*/\s*10}i,              # "8/10"
-      /score[:\s]+(\d+)/i,             # "score: 7"
-      /(\d+)\s*de\s*10/i,              # "8 de 10"
-      /rating[:\s]+(\d+)/i,             # "rating: 6"
-      /(\d+)\s*estrelas?/i,            # "9 estrelas"
-      /(\d+)\s*stars?/i,               # "9 stars"
-      %r{(\d+)\s*/\s*(\d+)},            # "8/10" (capture first number)
-      /(\d+)/                           # Any number
+    # 2. Short messages (≤30 chars) with explicit NPS patterns
+    #    Longer messages likely contain incidental numbers, not NPS scores
+    return nil if @input.length > 30
+
+    short_patterns = [
+      /\Anota\s*(10|[0-9])\s*\z/i,          # "nota 9"
+      %r{\A\s*(10|[0-9])\s*/\s*10\s*\z}i,   # "8/10"
+      /\A\s*(10|[0-9])\s*de\s*10\s*\z/i,    # "8 de 10"
+      /\Ascore[:\s]+(10|[0-9])\s*\z/i,      # "score: 7"
+      /\Arating[:\s]+(10|[0-9])\s*\z/i,     # "rating: 6"
+      /\A\s*(10|[0-9])\s*estrelas?\s*\z/i,  # "9 estrelas"
+      /\A\s*(10|[0-9])\s*stars?\s*\z/i      # "9 stars"
     ]
 
-    patterns.each do |pattern|
+    short_patterns.each do |pattern|
       match = @input.match(pattern)
-      next unless match
-
-      score = match[1].to_i
-      return score if valid_score?(score)
+      return match[1].to_i if match
     end
 
     nil

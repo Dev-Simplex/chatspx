@@ -12,11 +12,32 @@ const response = computed(() => {
 });
 
 const isScoreSubmitted = computed(() => {
-  return !!response.value.score;
+  return response.value.score !== undefined && response.value.score !== null;
 });
 
 const score = computed(() => {
-  return response.value.score || null;
+  return isScoreSubmitted.value ? response.value.score : null;
+});
+
+const classification = computed(() => {
+  if (!isScoreSubmitted.value) return null;
+  const s = response.value.score;
+  if (s >= 9) {
+    return {
+      label: t('NPS_REPORTS.CLASSIFICATION.PROMOTER', { default: 'Promoter' }),
+      color: 'text-green-600',
+    };
+  }
+  if (s >= 7) {
+    return {
+      label: t('NPS_REPORTS.CLASSIFICATION.PASSIVE', { default: 'Passive' }),
+      color: 'text-yellow-600',
+    };
+  }
+  return {
+    label: t('NPS_REPORTS.CLASSIFICATION.DETRACTOR', { default: 'Detractor' }),
+    color: 'text-red-600',
+  };
 });
 </script>
 
@@ -26,20 +47,36 @@ const score = computed(() => {
       {{
         content ||
         t('CONVERSATION.NPS_REPLY_MESSAGE', {
-          default: 'De 0 a 10, o quanto você recomendaria nossa empresa?',
+          default:
+            'On a scale of 0 to 10, how likely are you to recommend our company?',
         })
       }}
     </h4>
     <dl v-if="isScoreSubmitted" class="mt-4">
       <dt class="text-n-slate-11 italic">
-        {{ t('CONVERSATION.SCORE_TITLE', { default: 'Nota' }) }}
+        {{ t('CONVERSATION.SCORE_TITLE', { default: 'Score' }) }}
       </dt>
-      <dd class="text-lg font-semibold">{{ score }}/10</dd>
+      <dd class="flex items-center gap-2">
+        <span class="text-lg font-semibold">
+          {{
+            t('CONVERSATION.SCORE_FORMAT', { score, default: `${score}/10` })
+          }}
+        </span>
+        <span
+          v-if="classification"
+          class="text-xs font-medium px-2 py-0.5 rounded-full"
+          :class="classification.color"
+        >
+          {{ classification.label }}
+        </span>
+      </dd>
 
       <dt v-if="response.comment" class="text-n-slate-11 italic mt-2">
-        {{ t('CONVERSATION.COMMENT_TITLE', { default: 'Comentário' }) }}
+        {{ t('CONVERSATION.COMMENT_TITLE', { default: 'Comment' }) }}
       </dt>
-      <dd>{{ response.comment }}</dd>
+      <dd v-if="response.comment">
+        {{ response.comment }}
+      </dd>
     </dl>
   </BaseBubble>
 </template>

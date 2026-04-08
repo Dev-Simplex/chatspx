@@ -1,49 +1,18 @@
 class NpsSurveyListener < BaseListener
-  def conversation_status_changed(event) # rubocop:disable Metrics/AbcSize, Metrics/MethodLength
-    Rails.logger.info 'NpsSurveyListener: conversation_status_changed event received'
-
+  def conversation_status_changed(event)
     conversation = extract_conversation_and_account(event)[0]
-
-    Rails.logger.info "NpsSurveyListener: conversation_status_changed for conversation #{conversation.id}, " \
-                      "status: #{conversation.status}, inbox_id: #{conversation.inbox_id}"
-
     return unless conversation.resolved?
 
-    Rails.logger.debug { "NpsSurveyListener: conversation #{conversation.id} is resolved, checking NPS config" }
-
-    # Reload inbox to ensure we have the latest NPS configuration
-    # Use find to ensure we get fresh data from database
     inbox = Inbox.find(conversation.inbox_id)
+    return unless inbox.nps_survey_enabled?
 
-    Rails.logger.debug { "NpsSurveyListener: inbox #{inbox.id}, nps_survey_enabled: #{inbox.nps_survey_enabled}" }
-
-    # Check if NPS is enabled for this inbox first
-    unless inbox.nps_survey_enabled?
-      Rails.logger.debug { "NpsSurveyListener: NPS not enabled for inbox #{inbox.id}" }
-      return
-    end
-
-    # Only send automatically if mode is 'auto' or 'both'
     nps_config = inbox.nps_config || {}
     mode = nps_config['mode'] || 'auto'
+    return unless %w[auto both].include?(mode)
 
-    Rails.logger.debug { "NpsSurveyListener: NPS mode is '#{mode}'" }
-
-    unless %w[auto both].include?(mode)
-      Rails.logger.debug { "NpsSurveyListener: Mode '#{mode}' does not allow automatic sending" }
-      return
-    end
-
-    Rails.logger.info "NpsSurveyListener: Attempting to send NPS survey for conversation #{conversation.id}"
-
-    begin
-      NpsSurveyService.new(conversation: conversation, mode: 'auto').perform
-      Rails.logger.info "NpsSurveyListener: Successfully processed NPS survey for conversation #{conversation.id}"
-    rescue StandardError => e
-      Rails.logger.error "Failed to send NPS survey for conversation #{conversation.id}: #{e.message}"
-      Rails.logger.error e.backtrace.join("\n")
-      # Don't raise - fail silently to avoid breaking the conversation status change
-    end
+    NpsSurveyService.new(conversation: conversation, mode: 'auto').perform
+  rescue StandardError => e
+    Rails.logger.error "Failed to send NPS survey for conversation #{conversation.id}: #{e.message}"
   end
 
   def message_created(event)

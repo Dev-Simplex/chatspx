@@ -74,11 +74,14 @@ const getClassificationColor = score => {
 
 const tableData = computed(() => {
   if (!npsResponses.value) return [];
-  const responsesArray = Array.isArray(npsResponses.value)
-    ? npsResponses.value
-    : npsResponses.value && Array.from
-      ? Array.from(npsResponses.value)
-      : [];
+  let responsesArray;
+  if (Array.isArray(npsResponses.value)) {
+    responsesArray = npsResponses.value;
+  } else if (npsResponses.value) {
+    responsesArray = Array.from(npsResponses.value);
+  } else {
+    responsesArray = [];
+  }
   if (!Array.isArray(responsesArray) || responsesArray.length === 0) return [];
 
   return responsesArray.map(response => {
@@ -99,19 +102,13 @@ const tableData = computed(() => {
         } else if (typeof dateValue === 'string' && dateValue.trim() !== '') {
           // If it's a string, try to parse it
           const date = new Date(dateValue);
-          if (!isNaN(date.getTime()) && date.getTime() > 0) {
+          if (!Number.isNaN(date.getTime()) && date.getTime() > 0) {
             // Convert to Unix timestamp (seconds)
             unixTimestamp = Math.floor(date.getTime() / 1000);
           }
         }
-      } catch (e) {
-        console.warn(
-          'NpsTable: Invalid date value:',
-          dateValue,
-          'for response:',
-          response.id,
-          e
-        );
+      } catch {
+        // Invalid date value — ignore
       }
     }
 
@@ -247,7 +244,11 @@ const table = useVueTable({
       <div
         class="inline-flex gap-1 rounded-lg border border-n-weak bg-n-solid-3 p-1"
         role="group"
-        aria-label="Filtrar por status de resposta"
+        :aria-label="
+          t('NPS_REPORTS.FILTER.ARIA_LABEL', {
+            default: 'Filter by response status',
+          })
+        "
       >
         <Button
           :color="props.responseState === 'responded' ? 'blue' : 'slate'"
@@ -289,7 +290,7 @@ const table = useVueTable({
       }}
     </div>
     <div
-      v-if="(listTotalCount.value || metrics.total_count) > 0"
+      v-if="listTotalCount > 0 || metrics.total_count > 0"
       class="flex items-center justify-between px-4 py-3 border-t border-n-weak"
     >
       <Pagination :table="table" />

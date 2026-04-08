@@ -3,15 +3,22 @@ import { mapGetters } from 'vuex';
 import ReportMetricCard from './ReportMetricCard.vue';
 import BarChart from 'shared/components/charts/BarChart.vue';
 
+function scoreColor(i) {
+  if (i >= 9) return '#10b981';
+  if (i >= 7) return '#f59e0b';
+  return '#ef4444';
+}
+
 const NPS_SCORES = Array.from({ length: 11 }, (_, i) => ({
   value: i,
   label: i.toString(),
-  color: i >= 9 ? '#10b981' : i >= 7 ? '#f59e0b' : '#ef4444', // Verde para promotores, amarelo para passivos, vermelho para detratores
+  color: scoreColor(i),
 }));
 
 export default {
   components: { BarChart, ReportMetricCard },
   props: {
+    // eslint-disable-next-line vue/no-unused-properties
     filters: {
       type: Object,
       required: true,
@@ -27,11 +34,6 @@ export default {
       metrics: 'npsResponses/getMetrics',
     }),
     totalCount() {
-      console.log('NpsMetrics: totalCount computed - metrics:', this.metrics);
-      console.log(
-        'NpsMetrics: totalCount computed - total_count:',
-        this.metrics.total_count
-      );
       return this.metrics.total_count
         ? this.metrics.total_count.toLocaleString()
         : '--';
@@ -120,8 +122,8 @@ export default {
           tooltip: {
             enabled: true,
             callbacks: {
-              label: function (context) {
-                return `Score ${context.label}: ${context.parsed.y} respostas`;
+              label(context) {
+                return `Score ${context.label}: ${context.parsed.y}`;
               },
             },
           },
@@ -249,7 +251,6 @@ export default {
         metrics.scores_count &&
         Object.keys(metrics.scores_count).length > 0
       "
-      ref="npsBarChart"
       class="w-full md:w-1/2 md:max-w-[50%] flex-1 rtl:[direction:initial]"
     >
       <h3
