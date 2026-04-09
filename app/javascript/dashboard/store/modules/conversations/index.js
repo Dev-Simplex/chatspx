@@ -8,7 +8,7 @@ import { BUS_EVENTS } from '../../../../shared/constants/busEvents';
 import { emitter } from 'shared/helpers/mitt';
 import { CONTENT_TYPES } from 'dashboard/components-next/message/constants.js';
 
-export const MAX_MESSAGES_PER_CONVERSATION = 200;
+export const MESSAGE_WINDOW_SIZE = 500;
 
 const state = {
   allConversations: [],
@@ -47,12 +47,20 @@ const findConversation = (_state, id) => {
   return _state.allConversations.find(c => c.id === numId);
 };
 
-// Helper to trim messages array to MAX_MESSAGES_PER_CONVERSATION
-const trimMessages = chat => {
-  if (chat.messages && chat.messages.length > MAX_MESSAGES_PER_CONVERSATION) {
+// Trim oldest messages (keep newest) — used when new messages arrive
+const trimOldest = chat => {
+  if (chat.messages && chat.messages.length > MESSAGE_WINDOW_SIZE) {
     chat.messages = chat.messages.slice(
-      chat.messages.length - MAX_MESSAGES_PER_CONVERSATION
+      chat.messages.length - MESSAGE_WINDOW_SIZE
     );
+  }
+};
+
+// Trim newest messages (keep oldest) — used when loading older messages
+const trimNewest = chat => {
+  if (chat.messages && chat.messages.length > MESSAGE_WINDOW_SIZE) {
+    chat.messages = chat.messages.slice(0, MESSAGE_WINDOW_SIZE);
+    chat.hasNewerMessages = true;
   }
 };
 
@@ -106,8 +114,26 @@ export const mutations = {
       const chat = findConversation(_state, id);
       if (!chat) return;
       chat.messages.unshift(...data);
-      trimMessages(chat);
+      trimNewest(chat);
     }
+  },
+  [types.SET_NEXT_CONVERSATIONS](_state, { id, data }) {
+    if (data.length) {
+      const chat = findConversation(_state, id);
+      if (!chat) return;
+      chat.messages.push(...data);
+      trimOldest(chat);
+    }
+  },
+  [types.SET_ALL_NEWER_MESSAGES_LOADED](_state, conversationId) {
+    const chat = findConversation(_state, conversationId);
+    if (!chat) return;
+    chat.hasNewerMessages = false;
+  },
+  [types.CLEAR_NEWER_MESSAGES_FLAG](_state, conversationId) {
+    const chat = findConversation(_state, conversationId);
+    if (!chat) return;
+    chat.hasNewerMessages = false;
   },
   [types.SET_ALL_ATTACHMENTS](_state, { id, data, meta }) {
     _state.attachments[id] = [...data];
@@ -263,9 +289,16 @@ export const mutations = {
     const pendingMessageIndex = findPendingMessageIndex(chat, message);
     if (pendingMessageIndex !== -1) {
       chat.messages[pendingMessageIndex] = message;
+    } else if (chat.hasNewerMessages) {
+      // User is browsing old history — don't inject new messages into the window.
+      // Just update metadata so the UI can show a "new messages" indicator.
+      chat.pendingNewMessageCount = (chat.pendingNewMessageCount || 0) + 1;
+      chat.timestamp = message.created_at;
+      const { conversation: { unread_count: unreadCount = 0 } = {} } = message;
+      chat.unread_count = unreadCount;
     } else {
       chat.messages.push(message);
-      trimMessages(chat);
+      trimOldest(chat);
       chat.timestamp = message.created_at;
       const { conversation: { unread_count: unreadCount = 0 } = {} } = message;
       chat.unread_count = unreadCount;
