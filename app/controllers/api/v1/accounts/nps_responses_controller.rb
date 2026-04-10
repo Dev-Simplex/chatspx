@@ -17,7 +17,7 @@ class Api::V1::Accounts::NpsResponsesController < Api::V1::Accounts::BaseControl
   end
 
   def metrics
-    responded_responses = @nps_responses.where(status: :responded).where.not(score: nil)
+    responded_responses = @nps_responses.where(status: :responded).where.not(score: nil).trusted
     @total_count = responded_responses.count
     @scores_count = responded_responses.group(:score).count
     @status_count = @nps_responses.group(:status).count

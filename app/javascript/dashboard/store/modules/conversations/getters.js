@@ -158,6 +158,14 @@ const getters = {
       ? false
       : chat.allMessagesLoaded;
   },
+  getHasNewerMessages(_state) {
+    const [chat] = getSelectedChatConversation(_state);
+    return chat ? !!chat.hasNewerMessages : false;
+  },
+  getPendingNewMessageCount(_state) {
+    const [chat] = getSelectedChatConversation(_state);
+    return chat ? chat.pendingNewMessageCount || 0 : 0;
+  },
   getUnreadCount(_state) {
     const [chat] = getSelectedChatConversation(_state);
     if (!chat) return [];

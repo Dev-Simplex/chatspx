@@ -95,6 +95,8 @@ class NpsResponse < ApplicationRecord
   scope :detractors, -> { where(score: 0..6) }
   scope :responded, -> { where(status: :responded) }
   scope :active, -> { where(status: [:sent, :pending]) }
+  scope :trusted, -> { where(data_quality_flag: [nil, 'verified', 'recovered']) }
+  scope :flagged, -> { where.not(data_quality_flag: [nil, 'verified', 'recovered']) }
 
   def promoter?
     score.present? && score >= 9 && score <= 10

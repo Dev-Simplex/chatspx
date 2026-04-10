@@ -80,12 +80,8 @@ class NpsSurveys::ReopenGuard
   def nps_score_like_content?(normalized)
     return false if normalized.blank?
 
-    return true if normalized.match?(/^\s*(10|[0-9])\s*!*\s*$/)
-    return true if normalized.match?(%r{\b(10|[0-9])\s*/\s*10\b})
-    return true if normalized.match?(/\b(10|[0-9])\s*de\s*10\b/i)
-
-    keyword_present = normalized.match?(/\b(nota|score|rating|estrelas?|stars?)\b/i)
-    keyword_present && normalized.match?(/\b(10|[0-9])\b/)
+    # Delegate to ScoreValidator — single source of truth for score extraction
+    NpsSurveys::ScoreValidator.validate_and_extract(normalized).present?
   end
 
   def looks_like_wrong_nps_attempt_only?(normalized)

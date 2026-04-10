@@ -119,6 +119,61 @@ const actions = {
     }
   },
 
+  fetchNextMessages: async ({ commit }, data) => {
+    try {
+      const {
+        data: { meta = {}, payload = [] },
+      } = await MessageApi.getPreviousMessages({
+        conversationId: data.conversationId,
+        after: data.after,
+        includeMeta: true,
+      });
+
+      commit(types.SET_NEXT_CONVERSATIONS, {
+        id: data.conversationId,
+        data: payload,
+      });
+
+      const hasMore = meta.has_more;
+      if (typeof hasMore === 'boolean' ? !hasMore : !payload.length) {
+        commit(types.SET_ALL_NEWER_MESSAGES_LOADED, data.conversationId);
+      }
+    } catch (error) {
+      // Handle error
+    }
+  },
+
+  jumpToLatest: async ({ commit }, conversationId) => {
+    commit(types.CLEAR_NEWER_MESSAGES_FLAG, conversationId);
+    commit(types.CLEAR_ALL_MESSAGES_LOADED, conversationId);
+    try {
+      const {
+        data: { meta = {}, payload = [] },
+      } = await MessageApi.getPreviousMessages({
+        conversationId,
+        includeMeta: true,
+      });
+
+      if (Object.keys(meta).length) {
+        commit(`conversationMetadata/${types.SET_CONVERSATION_METADATA}`, {
+          id: conversationId,
+          data: meta,
+        });
+      }
+
+      commit(types.SET_MISSING_MESSAGES, {
+        id: conversationId,
+        data: payload,
+      });
+
+      if (!meta.has_more) {
+        commit(types.SET_ALL_MESSAGES_LOADED, conversationId);
+      }
+    } catch (error) {
+      // Handle error
+    }
+  },
+
   fetchAllAttachments: async ({ commit }, conversationId) => {
     let attachments = [];
     let meta = {};

@@ -8,11 +8,7 @@ class MessageTemplates::Template::NpsSurvey
     # The NPS message will be sent even if conversation is resolved
     # Similar to CSAT behavior
     ActiveRecord::Base.transaction do
-      message_content_text = message_content
-      Rails.logger.info "NpsSurveyTemplate: Creating NPS message with content: #{message_content_text.inspect}"
       message = conversation.messages.create!(nps_survey_message_params)
-      Rails.logger.info "NpsSurveyTemplate: NPS message created with ID: #{message.id}, " \
-                        "content: #{message.content.inspect}, content_type: #{message.content_type}"
       create_nps_response(message)
     end
   end

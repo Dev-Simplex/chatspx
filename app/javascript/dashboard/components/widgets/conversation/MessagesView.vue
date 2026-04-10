@@ -83,7 +83,9 @@ export default {
   data() {
     return {
       isLoadingPrevious: true,
+      isLoadingNext: false,
       heightBeforeLoad: null,
+      scrollTopBeforeLoad: null,
       conversationPanel: null,
       hasUserScrolled: false,
       isProgrammaticScroll: false,
@@ -103,6 +105,8 @@ export default {
       currentUserId: 'getCurrentUserID',
       listLoadingStatus: 'getAllMessagesLoaded',
       currentAccountId: 'getCurrentAccountId',
+      hasNewerMessages: 'getHasNewerMessages',
+      pendingNewMessageCount: 'getPendingNewMessageCount',
     }),
     isOpen() {
       return this.currentChat?.status === wootConstants.STATUS_TYPE.OPEN;
@@ -480,16 +484,49 @@ export default {
       }
     },
 
+    async fetchNextMessages() {
+      if (this.isLoadingNext || !this.hasNewerMessages) return;
+
+      const { messages } = this.currentChat;
+      if (!messages.length) return;
+
+      this.isLoadingNext = true;
+      this.setScrollParams();
+      try {
+        await this.$store.dispatch('fetchNextMessages', {
+          conversationId: this.currentChat.id,
+          after: messages[messages.length - 1].id,
+        });
+        this.setScrollParams();
+      } catch (error) {
+        // Ignore Error
+      } finally {
+        this.isLoadingNext = false;
+      }
+    },
+
+    async jumpToLatest() {
+      this.isProgrammaticScroll = true;
+      await this.$store.dispatch('jumpToLatest', this.currentChat.id);
+      this.$nextTick(() => this.scrollToBottom());
+    },
+
     handleScroll(e) {
       if (this.isProgrammaticScroll) {
-        // Reset the flag
         this.isProgrammaticScroll = false;
         this.hasUserScrolled = false;
       } else {
         this.hasUserScrolled = true;
       }
       emitter.emit(BUS_EVENTS.ON_MESSAGE_LIST_SCROLL);
-      this.fetchPreviousMessages(e.target.scrollTop);
+
+      const { scrollTop, scrollHeight, clientHeight } = e.target;
+      this.fetchPreviousMessages(scrollTop);
+
+      const distanceFromBottom = scrollHeight - scrollTop - clientHeight;
+      if (distanceFromBottom < 100 && this.hasNewerMessages) {
+        this.fetchNextMessages();
+      }
     },
 
     makeMessagesRead() {
@@ -644,6 +681,28 @@ export default {
         aria-hidden="true"
         @click="isPopOutReplyBox = false"
       />
+      <div
+        v-if="hasNewerMessages"
+        class="absolute flex items-center justify-center w-full -top-10 z-10"
+      >
+        <button
+          class="flex items-center gap-1.5 py-1.5 px-4 shadow-md rounded-full bg-woot-500 hover:bg-woot-600 text-white text-xs font-semibold cursor-pointer transition-colors"
+          @click="jumpToLatest"
+        >
+          <span v-if="pendingNewMessageCount > 0">
+            {{ pendingNewMessageCount }}
+            {{
+              pendingNewMessageCount === 1
+                ? $t('CONVERSATION.UNREAD_MESSAGE')
+                : $t('CONVERSATION.UNREAD_MESSAGES')
+            }}
+          </span>
+          <span v-else>
+            {{ $t('CONVERSATION.NEWEST_MESSAGE') }}
+          </span>
+          <i class="i-lucide-arrow-down size-3.5" />
+        </button>
+      </div>
       <div
         v-if="isAnyoneTyping"
         class="absolute flex items-center justify-center w-full h-0 -top-7 z-10"
