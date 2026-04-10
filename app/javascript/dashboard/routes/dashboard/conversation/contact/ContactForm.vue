@@ -154,19 +154,29 @@ export default {
       }
     },
     setContactObject() {
-      const {
-        email: emailAddress,
-        phone_number: phoneNumber,
-        name,
-      } = this.contact;
-      const additionalAttributes = this.contact.additional_attributes || {};
+      // this.contact vem da store `contacts/getContact`, que normaliza via
+      // camelcaseKeys. Lemos camelCase primeiro e mantemos snake_case como
+      // fallback para o caso de a prop vir direto de uma resposta crua da API.
+      const { email: emailAddress, name } = this.contact;
+      const phoneNumber =
+        this.contact.phoneNumber || this.contact.phone_number || '';
+      const additionalAttributes =
+        this.contact.additionalAttributes ||
+        this.contact.additional_attributes ||
+        {};
 
       this.name = name || '';
       this.email = emailAddress || '';
-      this.phoneNumber = phoneNumber || '';
-      this.companyName = additionalAttributes.company_name || '';
+      this.phoneNumber = phoneNumber;
+      this.companyName =
+        additionalAttributes.companyName ||
+        additionalAttributes.company_name ||
+        '';
       this.country = {
-        id: additionalAttributes.country_code || '',
+        id:
+          additionalAttributes.countryCode ||
+          additionalAttributes.country_code ||
+          '',
         name:
           additionalAttributes.country ||
           this.$t('CONTACT_FORM.FORM.COUNTRY.SELECT_COUNTRY'),
@@ -174,11 +184,15 @@ export default {
       this.city = additionalAttributes.city || '';
       this.description = additionalAttributes.description || '';
       this.avatarUrl = this.contact.thumbnail || '';
-      const {
-        social_profiles: socialProfiles = {},
-        screen_name: twitterScreenName,
-        social_telegram_user_name: telegramUserName,
-      } = additionalAttributes;
+      const socialProfiles =
+        additionalAttributes.socialProfiles ||
+        additionalAttributes.social_profiles ||
+        {};
+      const twitterScreenName =
+        additionalAttributes.screenName || additionalAttributes.screen_name;
+      const telegramUserName =
+        additionalAttributes.socialTelegramUserName ||
+        additionalAttributes.social_telegram_user_name;
       this.socialProfileUserNames = {
         twitter: socialProfiles.twitter || twitterScreenName || '',
         facebook: socialProfiles.facebook || '',
@@ -196,13 +210,19 @@ export default {
           name: '',
         };
       }
+      // Preserva chaves extras de additional_attributes (ex.: waha_whatsapp_jid,
+      // metadados de integrações) que a store guarda em camelCase.
+      const existingAdditionalAttributes =
+        this.contact.additionalAttributes ||
+        this.contact.additional_attributes ||
+        {};
       const contactObject = {
         id: this.contact.id,
         name: this.name,
         email: this.email,
         phone_number: this.setPhoneNumber,
         additional_attributes: {
-          ...this.contact.additional_attributes,
+          ...existingAdditionalAttributes,
           description: this.description,
           company_name: this.companyName,
           country_code: this.country.id,
