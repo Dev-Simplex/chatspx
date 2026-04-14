@@ -27,7 +27,7 @@ CWCTL_URL="https://raw.githubusercontent.com/Dev-Simplex/chatspx/${BRANCH}/deplo
 # Lista de VMs: nome|ip|tipo(aws|local)|usuario
 VMS=(
   "PRODUCAO|local|local|chatwoot"
-  "CATATAU|54.165.136.136|aws|ubuntu"
+  "CATATAU|3.85.130.14|aws|ubuntu"
   "SENTINELA|54.152.144.236|aws|ubuntu"
   # "TOZI|54.91.152.38|aws|ubuntu"  # Descomentar quando instalar o ChatSPX
   "ALTERNATIVO|192.168.8.169|local|simplexia"
