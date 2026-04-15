@@ -95,6 +95,7 @@ const openDeleteSegmentDialog = () =>
 const onCreate = async contact => {
   try {
     await store.dispatch('contacts/create', contact);
+    await store.dispatch('contacts/get', { page: 1 });
     createNewContactDialogRef.value?.onSuccess();
     useAlert(
       t('CONTACTS_LAYOUT.HEADER.ACTIONS.CONTACT_CREATION.SUCCESS_MESSAGE')
