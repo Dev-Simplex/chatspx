@@ -1,5 +1,5 @@
 <script setup>
-import { reactive, ref, computed, onMounted, watch } from 'vue';
+import { reactive, ref, computed, onMounted, onUnmounted, watch } from 'vue';
 import { useStore, useMapGetter } from 'dashboard/composables/store';
 import { useI18n } from 'vue-i18n';
 import { useWindowSize } from '@vueuse/core';
@@ -301,7 +301,20 @@ const onModalBackdropClick = () => {
   handleClickOutside();
 };
 
-onMounted(() => resetContacts());
+const onNewConversationBusEvent = isActive => {
+  if (isActive) {
+    showComposeNewConversation.value = true;
+  }
+};
+
+onMounted(() => {
+  resetContacts();
+  emitter.on(BUS_EVENTS.NEW_CONVERSATION_MODAL, onNewConversationBusEvent);
+});
+
+onUnmounted(() => {
+  emitter.off(BUS_EVENTS.NEW_CONVERSATION_MODAL, onNewConversationBusEvent);
+});
 
 const keyboardEvents = {
   Escape: {

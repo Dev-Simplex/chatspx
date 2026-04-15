@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[7.1].define(version: 2026_03_30_120000) do
+ActiveRecord::Schema[7.1].define(version: 2026_04_09_120000) do
   # These extensions should be enabled to support this database
   enable_extension "pg_stat_statements"
   enable_extension "pg_trgm"
@@ -1178,6 +1178,9 @@ ActiveRecord::Schema[7.1].define(version: 2026_03_30_120000) do
     t.jsonb "metadata"
     t.datetime "created_at", null: false
     t.datetime "updated_at", null: false
+    t.string "data_quality_flag"
+    t.string "flag_reason"
+    t.datetime "flagged_at"
     t.index ["account_id", "answered_at"], name: "index_nps_responses_on_account_id_and_answered_at"
     t.index ["account_id", "sent_at"], name: "index_nps_responses_on_account_id_and_sent_at"
     t.index ["account_id", "status", "answered_at"], name: "idx_nps_responses_account_status_answered_at"

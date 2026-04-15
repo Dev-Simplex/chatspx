@@ -39,9 +39,7 @@ const updateRange = range => {
       track-by="id"
       label="name"
       :placeholder="$t('FORMS.MULTISELECT.SELECT_ONE')"
-      selected-label
-      :select-label="$t('FORMS.MULTISELECT.ENTER_TO_SELECT')"
-      deselect-label=""
+      :show-labels="false"
       :options="options"
       :searchable="false"
       :allow-empty="false"

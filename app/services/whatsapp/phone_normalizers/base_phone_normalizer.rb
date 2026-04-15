@@ -11,6 +11,13 @@ class Whatsapp::PhoneNormalizers::BasePhoneNormalizer
     raise NotImplementedError, 'Subclasses must implement #normalize'
   end
 
+  # Returns every equivalent waid representation this normalizer knows about
+  # (e.g., Brazilian numbers with and without the ninth digit).
+  # Subclasses can override to expose more than one variant.
+  def variants(waid)
+    [waid, normalize(waid)].compact.uniq
+  end
+
   private
 
   def country_code_pattern

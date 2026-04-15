@@ -37,10 +37,8 @@ export default {
       :close-on-select="false"
       :clear-on-select="false"
       hide-selected
-      :placeholder="$t('CSAT_REPORTS.FILTERS.AGENTS.PLACEHOLDER')"
-      selected-label
-      :select-label="$t('FORMS.MULTISELECT.ENTER_TO_SELECT')"
-      :deselect-label="$t('FORMS.MULTISELECT.ENTER_TO_REMOVE')"
+      :placeholder="$t('CSAT_REPORTS.FILTERS.INPUT_PLACEHOLDER.AGENTS')"
+      :show-labels="false"
       @update:model-value="handleInput"
     />
   </div>

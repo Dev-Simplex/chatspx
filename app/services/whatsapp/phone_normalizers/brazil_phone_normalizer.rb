@@ -18,9 +18,30 @@ class Whatsapp::PhoneNormalizers::BrazilPhoneNormalizer < Whatsapp::PhoneNormali
     normalized_number
   end
 
+  # Brazilian mobile numbers exist in two forms after the 2012 ninth-digit reform:
+  # 12 digits (55 + DDD + 8) for legacy records and 13 digits (55 + DDD + 9 + 8) for current ones.
+  # Meta's Cloud API delivers 13-digit wa_ids, so we need to match contacts stored in either form.
+  def variants(waid)
+    return [waid].compact.uniq unless handles_country?(waid)
+
+    with_nine = normalize(waid)
+    without_nine = strip_ninth_digit(with_nine)
+    [waid, with_nine, without_nine].compact.uniq
+  end
+
   private
 
   def country_code_pattern
     /^55/
+  end
+
+  def strip_ninth_digit(waid_13)
+    return unless waid_13&.length == 13
+
+    ddd = waid_13[COUNTRY_CODE_LENGTH, DDD_LENGTH]
+    rest = waid_13[(COUNTRY_CODE_LENGTH + DDD_LENGTH)..]
+    return unless rest&.start_with?('9')
+
+    "55#{ddd}#{rest[1..]}"
   end
 end

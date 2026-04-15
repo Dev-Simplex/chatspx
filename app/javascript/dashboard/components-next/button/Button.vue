@@ -70,12 +70,13 @@ const computedVariant = computed(() => {
 });
 
 const computedColor = computed(() => {
-  if (props.color) return props.color;
+  if (props.color && COLOR_OPTIONS.includes(props.color)) return props.color;
   if (attrs.blue || attrs.blue === '') return 'blue';
   if (attrs.ruby || attrs.ruby === '') return 'ruby';
   if (attrs.amber || attrs.amber === '') return 'amber';
   if (attrs.slate || attrs.slate === '') return 'slate';
   if (attrs.teal || attrs.teal === '') return 'teal';
+  if (attrs.green || attrs.green === '') return 'green';
   return 'blue'; // Default color
 });
 
@@ -152,6 +153,17 @@ const STYLE_CONFIG = {
       link: 'text-n-teal-9 hover:enabled:underline focus-visible:underline outline-transparent',
       ghost:
         'text-n-teal-9 hover:enabled:bg-n-alpha-2 focus-visible:bg-n-alpha-2 outline-transparent',
+    },
+    green: {
+      solid:
+        'bg-n-brand text-white hover:enabled:brightness-110 focus-visible:brightness-110 outline-transparent',
+      faded:
+        'bg-n-brand/10 text-n-blue-11 hover:enabled:bg-n-brand/20 focus-visible:bg-n-brand/20 outline-transparent',
+      outline:
+        'text-n-blue-11 hover:enabled:bg-n-brand/10 focus-visible:bg-n-brand/10 outline-n-brand',
+      link: 'text-n-blue-11 hover:enabled:underline focus-visible:underline outline-transparent',
+      ghost:
+        'text-n-blue-11 hover:enabled:bg-n-alpha-2 focus-visible:bg-n-alpha-2 outline-transparent',
     },
   },
   sizes: {
