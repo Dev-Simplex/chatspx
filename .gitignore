@@ -113,3 +113,24 @@ nps_checker.rb
 deployment/fix_sudoers.sh
 Procfile.worktree
 vault
+
+# Environment & Secrets (AIOX)
+.env.local
+.env.*.local
+*.key
+
+# Dependencies (AIOX)
+node_modules/
+
+# Build & Logs (AIOX)
+dist/
+build/
+logs/
+
+# IDE & OS (AIOX)
+Thumbs.db
+.idea/
+
+# AIOX Local (AIOX)
+.aiox-core/local/
+.aiox/install-log.txt
