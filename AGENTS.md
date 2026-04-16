@@ -153,6 +153,38 @@ Chatwoot tem overlay Enterprise em `enterprise/` que extende/sobrescreve codigo 
 
 [Preencher durante desenvolvimento]
 
+## Trocar entre branches (feature <-> homologacao)
+
+Script pronto em `~/switch-branch.sh` para trocar de branch e recompilar assets automaticamente:
+
+```bash
+~/switch-branch.sh feature/agentes-ia   # trabalhar na feature
+~/switch-branch.sh homologacao          # voltar para homologacao
+```
+
+O script faz:
+- Stasha alteracoes locais nao commitadas (seguro, nada e perdido)
+- `git checkout` da branch alvo
+- `git pull --ff-only` se tiver upstream
+- `RAILS_ENV=production bundle exec rails assets:precompile`
+- Mostra comando de restart ao final
+
+Depois do script, **reiniciar os servicos** para servir os novos assets:
+```bash
+sudo systemctl restart chatwoot-web.1 chatwoot-worker.1
+```
+
+**Branches feature parqueadas (nao em homologacao/producao):**
+- `feature/agentes-ia` — redesign completo Agentes IA (Captain -> AI Agents)
+
+Para mergear uma feature de volta em homologacao quando estiver pronta:
+```bash
+~/switch-branch.sh homologacao
+git merge feature/agentes-ia
+git push origin homologacao
+# recompilar + restart
+```
+
 # Ao compactar, preservar:
 # - Plano de implementacao atual
 # - Lista de arquivos modificados

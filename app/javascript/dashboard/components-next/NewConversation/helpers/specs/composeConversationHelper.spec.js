@@ -582,7 +582,7 @@ describe('composeConversationHelper', () => {
       it('creates new contact with phone number', async () => {
         const mockContact = {
           id: 1,
-          name: '919999999999',
+          name: '+919999999999',
           phone_number: '+919999999999',
         };
         ContactAPI.create.mockResolvedValue({
@@ -592,12 +592,30 @@ describe('composeConversationHelper', () => {
         const result = await helpers.createNewContact('+919999999999');
         expect(result).toEqual({
           id: 1,
-          name: '919999999999',
+          name: '+919999999999',
           phoneNumber: '+919999999999',
         });
         expect(ContactAPI.create).toHaveBeenCalledWith({
-          name: '919999999999',
+          name: '+919999999999',
           phone_number: '+919999999999',
+          validate_whatsapp: true,
+        });
+      });
+
+      it('creates new contact normalizing phone without plus prefix', async () => {
+        const mockContact = {
+          id: 2,
+          name: '+5566999000123',
+          phone_number: '+5566999000123',
+        };
+        ContactAPI.create.mockResolvedValue({
+          data: { payload: { contact: mockContact } },
+        });
+
+        await helpers.createNewContact('5566999000123');
+        expect(ContactAPI.create).toHaveBeenCalledWith({
+          name: '+5566999000123',
+          phone_number: '+5566999000123',
           validate_whatsapp: true,
         });
       });

@@ -107,6 +107,9 @@
         "DIAL_CODE_ERROR": "Por favor, selecione um código de discagem da lista",
         "DUPLICATE": "Este número de telefone está em uso para outro contato."
       },
+      "CONTACT_IDENTIFIER": {
+        "DUPLICATE": "Este identificador já está em uso em outro contato."
+      },
       "LOCATION": {
         "PLACEHOLDER": "Insira a localização do contato",
         "LABEL": "Localização"
@@ -625,6 +628,7 @@
     }
   },
   "COMPOSE_NEW_CONVERSATION": {
+    "TITLE": "Nova conversa",
     "CONTACT_SEARCH": {
       "ERROR_MESSAGE": "Não foi possível completar a pesquisa. Por favor, tente novamente."
     },
@@ -634,13 +638,18 @@
       "ERROR_MESSAGE": "Ocorreu um erro ao criar a conversa. Tente novamente mais tarde.",
       "NO_INBOX_ALERT": "Não há caixas de entrada disponíveis para iniciar uma conversa com este contato.",
       "CONTACT_SELECTOR": {
-        "LABEL": "Para:",
-        "TAG_INPUT_PLACEHOLDER": "Digite pelo menos 2 caracteres para pesquisar por nome, e-mail ou número de telefone",
-        "CONTACT_CREATING": "Criando contato..."
+        "TAG_INPUT_PLACEHOLDER": "Digite o telefone ou busque um contato...",
+        "TAG_INPUT_HINT": "Inclua o DDD. Não precisa salvar o contato.",
+        "DIAL_PLACEHOLDER": "Digite o número com DDD",
+        "DIAL_TOGGLE_TOOLTIP": "Digitar número de telefone",
+        "SEARCH_TOGGLE_TOOLTIP": "Buscar contato",
+        "CONTACT_CREATING": "Criando contato...",
+        "PHONE_CTA": {
+          "START_CONVERSATION": "Iniciar conversa"
+        }
       },
       "INBOX_SELECTOR": {
-        "LABEL": "Via:",
-        "BUTTON": "Mostrar Caixas de Entrada"
+        "BUTTON": "Escolher caixa de entrada"
       },
       "EMAIL_OPTIONS": {
         "SUBJECT_LABEL": "Assunto:",

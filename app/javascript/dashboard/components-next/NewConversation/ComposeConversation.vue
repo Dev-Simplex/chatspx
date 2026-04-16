@@ -1,8 +1,8 @@
 <script setup>
 import { reactive, ref, computed, onMounted, onUnmounted, watch } from 'vue';
+import { useRouter } from 'vue-router';
 import { useStore, useMapGetter } from 'dashboard/composables/store';
 import { useI18n } from 'vue-i18n';
-import { useWindowSize } from '@vueuse/core';
 import { useUISettings } from 'dashboard/composables/useUISettings';
 import { vOnClickOutside } from '@vueuse/components';
 import { useAlert } from 'dashboard/composables';
@@ -19,8 +19,6 @@ import {
   processContactableInboxes,
   mergeInboxDetails,
 } from 'dashboard/components-next/NewConversation/helpers/composeConversationHelper';
-import wootConstants from 'dashboard/constants/globals';
-
 import ComposeNewConversationForm from 'dashboard/components-next/NewConversation/components/ComposeNewConversationForm.vue';
 
 const props = defineProps({
@@ -32,18 +30,14 @@ const props = defineProps({
     type: String,
     default: null,
   },
-  isModal: {
-    type: Boolean,
-    default: false,
-  },
 });
 
 const emit = defineEmits(['close']);
 
 const searchContacts = createContactSearcher();
 const store = useStore();
+const router = useRouter();
 const { t } = useI18n();
-const { width: windowWidth } = useWindowSize();
 
 const { fetchSignatureFlagFromUISettings } = useUISettings();
 
@@ -59,11 +53,28 @@ const whatsappAlertAction = message =>
       }
     : null;
 
-const isSmallScreen = computed(
-  () => windowWidth.value < wootConstants.SMALL_SCREEN_BREAKPOINT
-);
+// Traduz mensagens de validação do ActiveRecord (Rails) que chegam em inglês
+// para as chaves i18n pt-BR equivalentes. Fallback: mensagem genérica.
+const resolveContactCreateErrorMessage = error => {
+  const rawMessage = error?.response?.data?.message || '';
+  const lower = rawMessage.toLowerCase();
 
-const viewInModal = computed(() => props.isModal || isSmallScreen.value);
+  if (/phone[_ ]?number.*(already|taken)/.test(lower)) {
+    return t('CONTACT_FORM.FORM.PHONE_NUMBER.DUPLICATE');
+  }
+  if (/email.*(already|taken)/.test(lower)) {
+    return t('CONTACT_FORM.FORM.EMAIL_ADDRESS.DUPLICATE');
+  }
+  if (/identifier.*(already|taken)/.test(lower)) {
+    return t('CONTACT_FORM.FORM.CONTACT_IDENTIFIER.DUPLICATE');
+  }
+
+  return t('CONTACTS_LAYOUT.HEADER.ACTIONS.CONTACT_CREATION.ERROR_MESSAGE');
+};
+
+// Always render as centered modal overlay (desktop + mobile)
+// Legacy popover behavior removed for consistent UX.
+const viewInModal = computed(() => true);
 
 const contacts = ref([]);
 const selectedContact = ref(null);
@@ -148,10 +159,11 @@ const handleSelectedContact = async ({ value, action, ...rest }) => {
       isCreatingContact.value = false;
     } catch (error) {
       isCreatingContact.value = false;
-      const message =
-        error?.response?.data?.message ||
-        t('CONTACTS_LAYOUT.HEADER.ACTIONS.CONTACT_CREATION.ERROR_MESSAGE');
-      useAlert(message, whatsappAlertAction(message));
+      const rawMessage = error?.response?.data?.message || '';
+      const message = resolveContactCreateErrorMessage(error);
+      // Passa rawMessage para whatsappAlertAction: a heurística busca "whatsapp"
+      // no texto e a tradução pt-BR pode não conter esse token.
+      useAlert(message, whatsappAlertAction(rawMessage));
       return;
     }
   } else {
@@ -212,7 +224,7 @@ const createConversation = async ({ payload, isFromWhatsApp }) => {
     const contactId = payload.contactId;
     const inboxId = payload.inboxId;
 
-    if (props.contactId && contactId && inboxId) {
+    if (contactId && inboxId) {
       await store.dispatch('contactConversations/get', contactId);
       const existingConversation = store.getters[
         'contactConversations/getActiveConversationByInbox'
@@ -238,13 +250,11 @@ const createConversation = async ({ payload, isFromWhatsApp }) => {
 
     const accountId = data.account_id ?? data.accountId;
     const conversationId = data.id;
-    const action = {
-      type: 'link',
-      to: `/app/accounts/${accountId}/conversations/${conversationId}`,
-      message: t('COMPOSE_NEW_CONVERSATION.FORM.GO_TO_CONVERSATION'),
-    };
     discardCompose();
-    useAlert(t('COMPOSE_NEW_CONVERSATION.FORM.SUCCESS_MESSAGE'), action);
+    useAlert(t('COMPOSE_NEW_CONVERSATION.FORM.SUCCESS_MESSAGE'));
+    if (accountId && conversationId) {
+      router.push(`/app/accounts/${accountId}/conversations/${conversationId}`);
+    }
     return true; // Return success
   } catch (error) {
     const message =
