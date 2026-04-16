@@ -67,6 +67,13 @@ const showContactsDropdown = ref(false);
 const showInboxesDropdown = ref(false);
 const showCcEmailsDropdown = ref(false);
 const showBccEmailsDropdown = ref(false);
+const inputMode = ref('search');
+
+const toggleInputMode = () => {
+  inputMode.value = inputMode.value === 'dial' ? 'search' : 'dial';
+  showContactsDropdown.value = false;
+  emit('resetContactSearch');
+};
 
 const isCreating = computed(() => props.contactConversationsUiFlags.isCreating);
 
@@ -463,9 +470,33 @@ useKeyboardEvents({
 
 <template>
   <div
-    class="w-[42rem] divide-y divide-n-strong overflow-visible transition-all duration-300 ease-in-out top-full flex flex-col bg-n-alpha-3 border border-n-strong shadow-sm backdrop-blur-[100px] rounded-xl min-w-0 max-h-[calc(100vh-8rem)]"
+    class="w-[40rem] overflow-visible transition-all duration-150 ease-in-out top-full flex flex-col bg-n-solid-1 border border-n-weak/60 shadow-2xl shadow-n-slate-1/60 rounded-3xl ring-1 ring-n-slate-1/5 min-w-0 max-h-[calc(100vh-8rem)]"
   >
-    <div class="flex-1 overflow-y-auto divide-y divide-n-strong">
+    <header
+      class="flex items-center justify-between px-6 h-14 border-b border-n-weak/50"
+    >
+      <div class="flex items-center gap-3 min-w-0">
+        <span
+          class="i-lucide-message-square-plus size-[18px] text-n-brand"
+          aria-hidden="true"
+        />
+        <h3
+          class="text-base font-semibold tracking-tight text-n-slate-12 truncate"
+        >
+          {{ t('COMPOSE_NEW_CONVERSATION.TITLE') }}
+        </h3>
+      </div>
+      <button
+        type="button"
+        class="size-8 rounded-lg grid place-items-center text-n-slate-10 hover:text-n-slate-12 hover:bg-n-alpha-2 transition-colors duration-150"
+        :aria-label="t('COMPOSE_NEW_CONVERSATION.FORM.ACTION_BUTTONS.DISCARD')"
+        @click="$emit('discard')"
+      >
+        <span class="i-lucide-x size-[18px]" aria-hidden="true" />
+      </button>
+    </header>
+
+    <div class="flex-1 overflow-y-auto">
       <transition name="whatsapp-invalid">
         <div
           v-if="shouldShowWhatsappInvalidBanner"
@@ -500,10 +531,12 @@ useKeyboardEvents({
         :contactable-inboxes-list="contactableInboxesList"
         :show-inboxes-dropdown="showInboxesDropdown"
         :has-errors="validationStates.isContactInvalid"
+        :mode="inputMode"
         @search-contacts="handleContactSearch"
         @set-selected-contact="setSelectedContact"
         @clear-selected-contact="clearSelectedContact"
         @update-dropdown="handleDropdownUpdate"
+        @toggle-input-mode="toggleInputMode"
       />
       <InboxEmptyState v-if="showNoInboxAlert" />
       <InboxSelector
@@ -534,16 +567,20 @@ useKeyboardEvents({
         @update-dropdown="handleDropdownUpdate"
       />
 
-      <MessageEditor
+      <div
         v-if="shouldShowMessageEditor"
-        v-model="state.message"
-        :message-signature="messageSignature"
-        :send-with-signature="sendWithSignature"
-        :has-errors="validationStates.isMessageInvalid"
-        :channel-type="inboxChannelType"
-        :medium="targetInbox?.medium || ''"
-        :copilot="copilot"
-      />
+        class="px-5 py-5 border-t border-n-weak/40 bg-n-alpha-1/40"
+      >
+        <MessageEditor
+          v-model="state.message"
+          :message-signature="messageSignature"
+          :send-with-signature="sendWithSignature"
+          :has-errors="validationStates.isMessageInvalid"
+          :channel-type="inboxChannelType"
+          :medium="targetInbox?.medium || ''"
+          :copilot="copilot"
+        />
+      </div>
 
       <AttachmentPreviews
         v-if="state.attachedFiles.length > 0"

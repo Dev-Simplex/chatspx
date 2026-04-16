@@ -107,6 +107,9 @@
         "DIAL_CODE_ERROR": "Please select a dial code from the list",
         "DUPLICATE": "This phone number is in use for another contact."
       },
+      "CONTACT_IDENTIFIER": {
+        "DUPLICATE": "This identifier is already in use for another contact."
+      },
       "LOCATION": {
         "PLACEHOLDER": "Enter the location of the contact",
         "LABEL": "Location"
@@ -627,6 +630,7 @@
   },
 
   "COMPOSE_NEW_CONVERSATION": {
+    "TITLE": "New conversation",
     "CONTACT_SEARCH": {
       "ERROR_MESSAGE": "We couldn’t complete the search. Please try again."
     },
@@ -636,13 +640,18 @@
       "ERROR_MESSAGE": "An error occurred while creating the conversation. Please try again later.",
       "NO_INBOX_ALERT": "There are no available inboxes to start a conversation with this contact.",
       "CONTACT_SELECTOR": {
-        "LABEL": "To:",
-        "TAG_INPUT_PLACEHOLDER": "Enter at least 2 characters to search by name, email, or phone number",
-        "CONTACT_CREATING": "Creating contact..."
+        "TAG_INPUT_PLACEHOLDER": "Type a phone number or search a contact...",
+        "TAG_INPUT_HINT": "Include the area code. No need to save the contact.",
+        "DIAL_PLACEHOLDER": "Type the phone number with code",
+        "DIAL_TOGGLE_TOOLTIP": "Type a phone number",
+        "SEARCH_TOGGLE_TOOLTIP": "Search a contact",
+        "CONTACT_CREATING": "Creating contact...",
+        "PHONE_CTA": {
+          "START_CONVERSATION": "Start conversation"
+        }
       },
       "INBOX_SELECTOR": {
-        "LABEL": "Via:",
-        "BUTTON": "Show inboxes"
+        "BUTTON": "Choose an inbox"
       },
       "EMAIL_OPTIONS": {
         "SUBJECT_LABEL": "Subject :",

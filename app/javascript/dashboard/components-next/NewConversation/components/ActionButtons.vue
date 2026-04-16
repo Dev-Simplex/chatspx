@@ -192,7 +192,7 @@ useEventListener(document, 'paste', onPaste);
 
 <template>
   <div
-    class="flex items-center justify-between w-full h-[3.25rem] gap-2 px-4 py-3"
+    class="flex items-center justify-between w-full h-14 gap-2 px-6 py-3 border-t border-n-weak/60 bg-n-alpha-1 rounded-b-3xl"
   >
     <div class="flex gap-2 items-center">
       <WhatsAppOptions
@@ -268,8 +268,10 @@ useEventListener(document, 'paste', onPaste);
       <Button
         v-if="isRegularMessageMode"
         :label="sendButtonLabel"
-        size="sm"
-        class="!text-xs font-medium"
+        size="md"
+        color="green"
+        icon="i-lucide-send"
+        class="font-semibold px-4 shadow-sm"
         :disabled="isLoading || disableSendButton"
         :is-loading="isLoading"
         @click="emit('sendMessage')"

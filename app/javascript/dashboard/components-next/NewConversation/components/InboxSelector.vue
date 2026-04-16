@@ -49,17 +49,20 @@ const targetInboxLabel = computed(() => {
 </script>
 
 <template>
-  <div
-    class="flex items-center flex-1 w-full gap-3 px-4 py-3 overflow-y-visible"
-  >
-    <label class="mb-0.5 text-sm font-medium text-n-slate-11 whitespace-nowrap">
-      {{ t('COMPOSE_NEW_CONVERSATION.FORM.INBOX_SELECTOR.LABEL') }}
-    </label>
+  <div class="relative px-5 py-4 overflow-y-visible">
     <div
       v-if="targetInbox"
-      class="flex items-center gap-1.5 rounded-md bg-n-alpha-2 truncate ltr:pl-3 rtl:pr-3 ltr:pr-1 rtl:pl-1 h-7 min-w-0"
+      class="inline-flex items-center gap-2 rounded-xl border border-n-weak/80 bg-n-alpha-3 shadow-sm px-3 py-2 min-h-10 min-w-0 max-w-full"
     >
-      <span class="text-sm truncate text-n-slate-12">
+      <span
+        class="size-2 rounded-full bg-n-brand ring-2 ring-n-brand/20 flex-shrink-0"
+        aria-hidden="true"
+      />
+      <span
+        class="i-lucide-inbox size-4 text-n-slate-11 flex-shrink-0"
+        aria-hidden="true"
+      />
+      <span class="text-sm font-medium truncate text-n-slate-12">
         {{ targetInboxLabel }}
       </span>
       <Button
@@ -67,30 +70,41 @@ const targetInboxLabel = computed(() => {
         icon="i-lucide-x"
         color="slate"
         size="xs"
-        class="flex-shrink-0"
+        class="flex-shrink-0 ltr:ml-1 rtl:mr-1"
         @click="emit('updateInbox', null)"
       />
     </div>
     <div
       v-else
       v-on-click-outside="() => emit('toggleDropdown', false)"
-      class="relative flex items-center h-7"
+      class="relative"
     >
-      <Spinner v-if="isFetchingInboxes" :size="16" />
-      <Button
+      <Spinner v-if="isFetchingInboxes" :size="20" />
+      <button
         v-else
-        :label="t('COMPOSE_NEW_CONVERSATION.FORM.INBOX_SELECTOR.BUTTON')"
-        variant="link"
-        size="sm"
-        :color="hasErrors ? 'ruby' : 'slate'"
+        type="button"
         :disabled="!selectedContact"
-        class="hover:!no-underline"
+        class="w-full flex items-center gap-3 px-4 py-3 rounded-xl border border-dashed transition-colors duration-150 disabled:opacity-50 disabled:cursor-not-allowed"
+        :class="
+          hasErrors
+            ? 'border-n-ruby-9/50 bg-n-ruby-3/30 text-n-ruby-11 hover:border-n-ruby-9/80'
+            : 'border-n-strong bg-n-alpha-1 hover:bg-n-brand/5 hover:border-n-brand/40 text-n-slate-11'
+        "
         @click="emit('toggleDropdown', !showInboxesDropdown)"
-      />
+      >
+        <span class="i-lucide-inbox size-4" aria-hidden="true" />
+        <span class="text-sm font-medium">
+          {{ t('COMPOSE_NEW_CONVERSATION.FORM.INBOX_SELECTOR.BUTTON') }}
+        </span>
+        <span
+          class="i-lucide-chevron-down size-4 ltr:ml-auto rtl:mr-auto"
+          aria-hidden="true"
+        />
+      </button>
       <DropdownMenu
         v-if="contactableInboxesList?.length > 0 && showInboxesDropdown"
         :menu-items="contactableInboxesList"
-        class="ltr:left-0 rtl:right-0 z-[100] top-8 overflow-y-auto max-h-56 w-fit max-w-sm dark:!outline-n-slate-5"
+        class="ltr:left-0 rtl:right-0 z-[100] top-12 overflow-y-auto max-h-56 w-full dark:!outline-n-slate-5"
         @action="emit('handleInboxAction', $event)"
       />
     </div>
