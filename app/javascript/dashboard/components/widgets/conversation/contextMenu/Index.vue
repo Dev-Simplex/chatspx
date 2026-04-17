@@ -96,23 +96,6 @@ export default {
         label: this.$t('CONVERSATION.CARD_CONTEXT_MENU.MARK_AS_UNREAD'),
         icon: 'mail-unread',
       },
-      statusMenuConfig: [
-        {
-          key: wootConstants.STATUS_TYPE.RESOLVED,
-          label: this.$t('CONVERSATION.CARD_CONTEXT_MENU.RESOLVED'),
-          icon: 'checkmark',
-        },
-        {
-          key: wootConstants.STATUS_TYPE.OPEN,
-          label: this.$t('CONVERSATION.CARD_CONTEXT_MENU.REOPEN'),
-          icon: 'arrow-redo',
-        },
-        {
-          key: wootConstants.STATUS_TYPE.PENDING,
-          label: this.$t('CONVERSATION.CARD_CONTEXT_MENU.PENDING'),
-          icon: 'book-clock',
-        },
-      ],
       snoozeOption: {
         key: wootConstants.STATUS_TYPE.SNOOZED,
         label: this.$t('CONVERSATION.CARD_CONTEXT_MENU.SNOOZE.TITLE'),
@@ -215,6 +198,38 @@ export default {
     showSnooze() {
       // Don't show snooze if the conversation is already snoozed/resolved/pending
       return this.status === wootConstants.STATUS_TYPE.OPEN;
+    },
+    currentInbox() {
+      if (!this.inboxId) return null;
+      return this.$store.getters['inboxes/getInbox'](this.inboxId);
+    },
+    isPendingStatusEnabled() {
+      // Default to hiding when inbox lookup fails (opt-in feature).
+      return !!this.currentInbox?.pending_status_enabled;
+    },
+    statusMenuConfig() {
+      const options = [
+        {
+          key: wootConstants.STATUS_TYPE.RESOLVED,
+          label: this.$t('CONVERSATION.CARD_CONTEXT_MENU.RESOLVED'),
+          icon: 'checkmark',
+        },
+        {
+          key: wootConstants.STATUS_TYPE.OPEN,
+          label: this.$t('CONVERSATION.CARD_CONTEXT_MENU.REOPEN'),
+          icon: 'arrow-redo',
+        },
+        {
+          key: wootConstants.STATUS_TYPE.PENDING,
+          label: this.$t('CONVERSATION.CARD_CONTEXT_MENU.PENDING'),
+          icon: 'book-clock',
+        },
+      ];
+      return options.filter(
+        item =>
+          item.key !== wootConstants.STATUS_TYPE.PENDING ||
+          this.isPendingStatusEnabled
+      );
     },
   },
   mounted() {

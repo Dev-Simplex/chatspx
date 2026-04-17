@@ -88,6 +88,7 @@ export default {
       businessName: '',
       locktoSingleConversation: false,
       teamMessageIsolation: false,
+      pendingStatusEnabled: false,
       allowMessagesAfterResolved: true,
       continuityViaEmail: true,
       selectedInboxName: '',
@@ -397,6 +398,7 @@ export default {
       this.selectedFeatureFlags = this.inbox.selected_feature_flags || [];
       this.replyTime = this.inbox.reply_time;
       this.locktoSingleConversation = this.inbox.lock_to_single_conversation;
+      this.pendingStatusEnabled = this.inbox.pending_status_enabled || false;
       this.selectedPortalSlug = this.inbox.help_center
         ? this.inbox.help_center.slug
         : '';
@@ -515,6 +517,7 @@ export default {
             : null,
           lock_to_single_conversation: this.locktoSingleConversation,
           team_message_isolation: this.teamMessageIsolation,
+          pending_status_enabled: this.pendingStatusEnabled,
           sender_name_type: this.senderNameType,
           business_name: this.businessName || null,
           channel: {
@@ -784,27 +787,23 @@ export default {
               </template>
             </SettingsFieldSection>
 
-            <SettingsFieldSection
-              :label="$t('INBOX_MGMT.SETTINGS_POPUP.TEAM_MESSAGE_ISOLATION')"
-            >
-              <select v-model="teamMessageIsolation" class="mb-0">
-                <option :value="true">
-                  {{ $t('INBOX_MGMT.EDIT.TEAM_MESSAGE_ISOLATION.ENABLED') }}
-                </option>
-                <option :value="false">
-                  {{ $t('INBOX_MGMT.EDIT.TEAM_MESSAGE_ISOLATION.DISABLED') }}
-                </option>
-              </select>
-              <template #extra>
-                <p class="pb-1 text-sm not-italic text-n-slate-11">
-                  {{
-                    $t(
-                      'INBOX_MGMT.SETTINGS_POPUP.TEAM_MESSAGE_ISOLATION_SUB_TEXT'
-                    )
-                  }}
-                </p>
-              </template>
-            </SettingsFieldSection>
+            <SettingsToggleSection
+              v-model="teamMessageIsolation"
+              :header="$t('INBOX_MGMT.SETTINGS_POPUP.TEAM_MESSAGE_ISOLATION')"
+              :description="
+                $t('INBOX_MGMT.SETTINGS_POPUP.TEAM_MESSAGE_ISOLATION_SUB_TEXT')
+              "
+              class="mb-4"
+            />
+
+            <SettingsToggleSection
+              v-model="pendingStatusEnabled"
+              :header="$t('INBOX_MGMT.SETTINGS_POPUP.PENDING_STATUS.TITLE')"
+              :description="
+                $t('INBOX_MGMT.SETTINGS_POPUP.PENDING_STATUS.SUB_TEXT')
+              "
+              class="mb-4"
+            />
 
             <SettingsFieldSection
               v-if="isAWebWidgetInbox || isAnEmailChannel"
