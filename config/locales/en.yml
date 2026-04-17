@@ -48,6 +48,8 @@ en:
     inbox_deletetion_response: Your inbox deletion request will be processed in some time.
 
   errors:
+    conversation:
+      pending_status_disabled_for_inbox: "cannot be Pending — feature disabled for this inbox"
     private_chat:
       invalid_password: Invalid password
     account:

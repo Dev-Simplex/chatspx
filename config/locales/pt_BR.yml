@@ -34,6 +34,8 @@ pt_BR:
     saml_not_available: A autenticação SAML não está disponível nesta instalação.
     inbox_deletetion_response: Seu pedido de exclusão da caixa de entrada será processado dentro de algum tempo.
   errors:
+    conversation:
+      pending_status_disabled_for_inbox: "não pode ser Pendente — recurso desativado para esta caixa de entrada"
     private_chat:
       invalid_password: Senha inválida
     account:
