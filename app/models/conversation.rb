@@ -74,6 +74,7 @@ class Conversation < ApplicationRecord
   validates :uuid, uniqueness: true
   validate :validate_referer_url
   validate :team_required_for_resolution
+  validate :pending_status_allowed_by_inbox
 
   enum status: { open: 0, resolved: 1, pending: 2, snoozed: 3 }
   enum priority: { low: 0, medium: 1, high: 2, urgent: 3 }
@@ -299,18 +300,25 @@ class Conversation < ApplicationRecord
     errors.add(:team_id, I18n.t('conversations.errors.team_required_for_resolution'))
   end
 
+  def pending_status_allowed_by_inbox
+    return unless will_save_change_to_status? && status == 'pending'
+    return if inbox&.pending_status_enabled?
+
+    errors.add(:status, I18n.t('errors.conversation.pending_status_disabled_for_inbox',
+                               default: 'cannot be Pending — feature disabled for this inbox'))
+  end
+
   def determine_conversation_status
     self.status = :resolved and return if contact&.blocked?
 
     return handle_campaign_status if campaign.present?
 
-    # TODO: make this an inbox config instead of assuming bot conversations should start as pending
-    self.status = :pending if inbox.active_bot?
+    self.status = :pending if inbox.active_bot? && inbox.pending_status_enabled?
   end
 
   def handle_campaign_status
     # If campaign has no sender (bot-initiated) and inbox has active bot, let bot handle it
-    self.status = :pending if campaign.sender_id.nil? && inbox.active_bot?
+    self.status = :pending if campaign.sender_id.nil? && inbox.active_bot? && inbox.pending_status_enabled?
   end
 
   def notify_conversation_creation
