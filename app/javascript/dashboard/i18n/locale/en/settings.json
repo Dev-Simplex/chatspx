@@ -301,6 +301,8 @@
     "CONVERSATIONS": "Conversations",
     "INBOX": "My Inbox",
     "KANBAN": "Kanban",
+    "WORKSPACE": "Workspace",
+    "INSIGHTS": "Insights",
     "ALL_CONVERSATIONS": "All Conversations",
     "MENTIONED_CONVERSATIONS": "Mentions",
     "PARTICIPATING_CONVERSATIONS": "Participating",
