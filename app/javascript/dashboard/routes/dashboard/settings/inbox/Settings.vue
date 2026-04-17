@@ -787,27 +787,14 @@ export default {
               </template>
             </SettingsFieldSection>
 
-            <SettingsFieldSection
-              :label="$t('INBOX_MGMT.SETTINGS_POPUP.TEAM_MESSAGE_ISOLATION')"
-            >
-              <select v-model="teamMessageIsolation" class="mb-0">
-                <option :value="true">
-                  {{ $t('INBOX_MGMT.EDIT.TEAM_MESSAGE_ISOLATION.ENABLED') }}
-                </option>
-                <option :value="false">
-                  {{ $t('INBOX_MGMT.EDIT.TEAM_MESSAGE_ISOLATION.DISABLED') }}
-                </option>
-              </select>
-              <template #extra>
-                <p class="pb-1 text-sm not-italic text-n-slate-11">
-                  {{
-                    $t(
-                      'INBOX_MGMT.SETTINGS_POPUP.TEAM_MESSAGE_ISOLATION_SUB_TEXT'
-                    )
-                  }}
-                </p>
-              </template>
-            </SettingsFieldSection>
+            <SettingsToggleSection
+              v-model="teamMessageIsolation"
+              :header="$t('INBOX_MGMT.SETTINGS_POPUP.TEAM_MESSAGE_ISOLATION')"
+              :description="
+                $t('INBOX_MGMT.SETTINGS_POPUP.TEAM_MESSAGE_ISOLATION_SUB_TEXT')
+              "
+              class="mb-4"
+            />
 
             <SettingsToggleSection
               v-model="pendingStatusEnabled"
