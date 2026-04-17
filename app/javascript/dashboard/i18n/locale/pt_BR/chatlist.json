@@ -25,16 +25,16 @@
     },
     "CHAT_STATUS_FILTER_ITEMS": {
       "open": {
-        "TEXT": "Abertas"
+        "TEXT": "Aberta"
       },
       "resolved": {
-        "TEXT": "Resolvidas"
+        "TEXT": "Concluída"
       },
       "pending": {
-        "TEXT": "Pendentes"
+        "TEXT": "Em andamento"
       },
       "snoozed": {
-        "TEXT": "Adiadas"
+        "TEXT": "Depois"
       },
       "all": {
         "TEXT": "Todas"

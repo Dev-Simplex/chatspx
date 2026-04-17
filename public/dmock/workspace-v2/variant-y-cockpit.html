@@ -1,0 +1,527 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Variante Y · Cockpit · ChatSPX V2</title>
+<script src="https://cdn.tailwindcss.com"></script>
+<link rel="stylesheet" href="https://unpkg.com/lucide-static@latest/font/lucide.css">
+<style>
+  body { font-family: -apple-system, BlinkMacSystemFont, 'Inter', sans-serif; }
+  .lucide { font-size: 16px; }
+  kbd { @apply inline-flex items-center px-1 py-0.5 text-[10px] font-mono bg-slate-100 border border-slate-300 rounded text-slate-700; }
+  .rail-btn { @apply w-10 h-10 flex items-center justify-center rounded-lg text-slate-500 hover:bg-slate-100 hover:text-slate-900 transition-colors cursor-pointer relative; }
+  .rail-btn.active { @apply bg-emerald-50 text-emerald-700; }
+  .rail-btn[data-tip]:hover::after { content: attr(data-tip); position: absolute; left: calc(100% + 12px); top: 50%; transform: translateY(-50%); background: #0f172a; color: white; font-size: 11px; padding: 4px 8px; border-radius: 6px; white-space: nowrap; z-index: 50; pointer-events: none; box-shadow: 0 4px 8px rgba(0,0,0,0.1); }
+  .conv-item:hover { @apply bg-slate-50; }
+  .conv-item.active { @apply bg-emerald-50/70 border-l-2 border-emerald-500; padding-left: calc(0.75rem - 2px); }
+  .msg-bubble-customer { @apply bg-white rounded-2xl rounded-tl-sm px-4 py-2 shadow-sm border border-slate-100; }
+  .msg-bubble-agent    { @apply bg-emerald-600 text-white rounded-2xl rounded-tr-sm px-4 py-2 shadow-sm; }
+  .msg-bubble-internal { @apply bg-amber-50 rounded-2xl px-4 py-2 border-l-4 border-amber-400; }
+  .status-pill { @apply inline-flex items-center gap-1 text-[11px] px-2 py-0.5 rounded-full font-medium cursor-pointer hover:ring-2 hover:ring-emerald-300 transition; }
+  .ghost-text { color: #94a3b8; font-style: italic; }
+  .kpi-card { @apply flex items-center gap-2 px-3 py-1.5 bg-white rounded-lg border border-slate-200; }
+  details > summary { list-style: none; cursor: pointer; }
+  details > summary::-webkit-details-marker { display: none; }
+</style>
+</head>
+<body class="bg-slate-50 h-screen overflow-hidden">
+
+<!-- Banner -->
+<div class="bg-slate-900 text-white text-xs px-4 py-2 flex items-center gap-3">
+  <a href="./" class="text-slate-300 hover:text-white flex items-center gap-1"><i class="lucide">arrow-left</i> Voltar</a>
+  <span class="text-slate-500">|</span>
+  <span class="font-semibold">Variante Y — Cockpit <span class="bg-emerald-600 px-1.5 py-0.5 rounded text-[10px] ml-1">RECOMENDADA</span></span>
+  <span class="text-slate-400 hidden md:inline">· Densa, contexto sempre visível, IA inline, notas threaded</span>
+  <div class="ml-auto flex gap-2">
+    <a href="./variant-x-focus.html" class="px-2 py-0.5 hover:bg-slate-700 rounded">X</a>
+    <a href="./variant-y-cockpit.html" class="px-2 py-0.5 bg-slate-700 rounded">Y</a>
+    <a href="./variant-z-whatsapp.html" class="px-2 py-0.5 hover:bg-slate-700 rounded">Z</a>
+  </div>
+</div>
+
+<!-- Top bar -->
+<header class="h-12 bg-white border-b border-slate-200 flex items-center gap-3 px-4">
+  <div class="flex items-center gap-2">
+    <div class="w-7 h-7 rounded-lg bg-emerald-600 flex items-center justify-center text-white font-bold text-xs">S</div>
+    <span class="font-semibold text-slate-900 text-sm">ChatSPX</span>
+  </div>
+  <!-- Cmd+K search bar (star feature) -->
+  <button class="flex-1 max-w-xl mx-auto flex items-center gap-2 px-3 py-1.5 bg-slate-100 hover:bg-slate-200 rounded-lg text-slate-500 text-sm transition">
+    <i class="lucide">search</i>
+    <span class="flex-1 text-left">Buscar conversa, contato, ação...</span>
+    <kbd>⌘K</kbd>
+  </button>
+  <div class="flex items-center gap-2">
+    <button class="p-1.5 rounded-lg hover:bg-slate-100 text-slate-500" title="Notificações">
+      <i class="lucide">bell</i>
+      <span class="absolute w-2 h-2 bg-red-500 rounded-full -mt-4 -mr-1"></span>
+    </button>
+    <button class="p-1.5 rounded-lg hover:bg-slate-100 text-slate-500" title="Tema">
+      <i class="lucide">moon</i>
+    </button>
+    <button class="p-1.5 rounded-lg hover:bg-slate-100 text-slate-500" title="Atalhos (?)">
+      <i class="lucide">keyboard</i>
+    </button>
+    <div class="w-8 h-8 rounded-full bg-gradient-to-br from-emerald-400 to-emerald-600 flex items-center justify-center text-white text-xs font-semibold cursor-pointer">W</div>
+  </div>
+</header>
+
+<!-- KPI strip (novo) -->
+<div class="bg-gradient-to-r from-emerald-50 to-sky-50 border-b border-slate-200 px-4 py-2 flex items-center gap-3 text-sm">
+  <div class="kpi-card">
+    <i class="lucide text-emerald-600">inbox</i>
+    <span><strong class="text-slate-900">23</strong> abertas</span>
+  </div>
+  <div class="kpi-card">
+    <i class="lucide text-amber-500">clock</i>
+    <span><strong class="text-slate-900">8</strong> esperando</span>
+  </div>
+  <div class="kpi-card">
+    <i class="lucide text-red-500">alert-triangle</i>
+    <span>SLA risco: <strong class="text-red-600">2</strong></span>
+  </div>
+  <div class="kpi-card">
+    <i class="lucide text-sky-500">trending-up</i>
+    <span>TMA hoje <strong class="text-slate-900">2m 14s</strong></span>
+  </div>
+  <div class="ml-auto text-xs text-slate-500">
+    Último login há 2h · <span class="text-emerald-700">3 atendentes online</span>
+  </div>
+</div>
+
+<div class="flex h-[calc(100vh-34px-48px-44px)]">
+
+  <!-- Rail esquerdo compacto (48px, 3 peers + bottom) -->
+  <aside class="w-12 bg-white border-r border-slate-200 flex flex-col py-3 flex-shrink-0">
+    <div class="flex flex-col gap-1 mx-auto">
+      <div class="rail-btn active" data-tip="Conversas (G,I)">
+        <i class="lucide">message-circle</i>
+        <span class="absolute -top-0.5 -right-0.5 w-4 h-4 bg-emerald-600 text-white text-[9px] font-bold rounded-full flex items-center justify-center">7</span>
+      </div>
+      <div class="rail-btn" data-tip="Workspace (G,W)">
+        <i class="lucide">users-round</i>
+      </div>
+      <div class="rail-btn" data-tip="Insights (G,R)">
+        <i class="lucide">chart-spline</i>
+      </div>
+    </div>
+    <div class="mx-2 my-4 border-t border-slate-200"></div>
+    <div class="flex flex-col gap-1 mx-auto mt-auto">
+      <div class="rail-btn" data-tip="Capitão IA">
+        <i class="lucide">sparkles</i>
+      </div>
+      <div class="rail-btn" data-tip="Configurações">
+        <i class="lucide">settings</i>
+      </div>
+    </div>
+  </aside>
+
+  <!-- Secondary: filtros de conversas (3 estados) -->
+  <aside class="w-56 bg-white border-r border-slate-200 flex flex-col flex-shrink-0">
+    <div class="p-3 border-b border-slate-100">
+      <div class="flex items-center justify-between mb-2">
+        <h2 class="font-semibold text-slate-900 text-sm">Minha fila</h2>
+        <button class="text-slate-400 hover:text-slate-700 text-xs">
+          <i class="lucide">filter</i>
+        </button>
+      </div>
+      <!-- 3-state triagem -->
+      <div class="grid grid-cols-3 gap-1 bg-slate-100 p-0.5 rounded-lg">
+        <button class="px-2 py-1.5 text-xs font-medium rounded-md bg-white shadow-sm text-slate-900">
+          <div>Aberta</div>
+          <div class="text-emerald-600 font-bold">23</div>
+        </button>
+        <button class="px-2 py-1.5 text-xs font-medium rounded-md text-slate-600 hover:bg-white/50">
+          <div>Depois</div>
+          <div class="text-amber-600 font-bold">8</div>
+        </button>
+        <button class="px-2 py-1.5 text-xs font-medium rounded-md text-slate-600 hover:bg-white/50">
+          <div>Concluída</div>
+          <div class="text-slate-400 font-bold">84</div>
+        </button>
+      </div>
+    </div>
+
+    <div class="flex-1 overflow-y-auto p-2 space-y-3">
+      <details open>
+        <summary class="flex items-center justify-between px-2 py-1 text-[11px] font-semibold text-slate-500 uppercase tracking-wide">
+          <span>Filtros rápidos</span>
+          <i class="lucide" style="font-size:12px">chevron-down</i>
+        </summary>
+        <div class="mt-1 space-y-0.5">
+          <button class="w-full flex items-center justify-between px-2 py-1 rounded hover:bg-slate-50 text-sm text-slate-700">
+            <span class="flex items-center gap-2"><i class="lucide text-slate-400" style="font-size:14px">user</i> Minhas</span>
+            <span class="text-xs text-slate-400">5</span>
+          </button>
+          <button class="w-full flex items-center justify-between px-2 py-1 rounded hover:bg-slate-50 text-sm text-slate-700">
+            <span class="flex items-center gap-2"><i class="lucide text-slate-400" style="font-size:14px">at-sign</i> Menções</span>
+            <span class="text-xs text-slate-400">1</span>
+          </button>
+          <button class="w-full flex items-center justify-between px-2 py-1 rounded hover:bg-slate-50 text-sm text-red-700 bg-red-50/50">
+            <span class="flex items-center gap-2"><i class="lucide" style="font-size:14px">alert-triangle</i> SLA em risco</span>
+            <span class="text-xs font-bold">2</span>
+          </button>
+        </div>
+      </details>
+
+      <details open>
+        <summary class="flex items-center justify-between px-2 py-1 text-[11px] font-semibold text-slate-500 uppercase tracking-wide">
+          <span>Canais</span>
+          <i class="lucide" style="font-size:12px">chevron-down</i>
+        </summary>
+        <div class="mt-1 space-y-0.5">
+          <button class="w-full flex items-center justify-between px-2 py-1 rounded hover:bg-slate-50 text-sm">
+            <span class="flex items-center gap-2"><span class="w-2 h-2 rounded-full bg-green-500"></span> WhatsApp</span>
+            <span class="text-xs text-slate-400">18</span>
+          </button>
+          <button class="w-full flex items-center justify-between px-2 py-1 rounded hover:bg-slate-50 text-sm">
+            <span class="flex items-center gap-2"><span class="w-2 h-2 rounded-full bg-blue-500"></span> Webchat</span>
+            <span class="text-xs text-slate-400">3</span>
+          </button>
+          <button class="w-full flex items-center justify-between px-2 py-1 rounded hover:bg-slate-50 text-sm">
+            <span class="flex items-center gap-2"><span class="w-2 h-2 rounded-full bg-sky-500"></span> Email</span>
+            <span class="text-xs text-slate-400">2</span>
+          </button>
+        </div>
+      </details>
+
+      <details>
+        <summary class="flex items-center justify-between px-2 py-1 text-[11px] font-semibold text-slate-500 uppercase tracking-wide">
+          <span>Times</span>
+          <i class="lucide" style="font-size:12px">chevron-right</i>
+        </summary>
+      </details>
+
+      <details>
+        <summary class="flex items-center justify-between px-2 py-1 text-[11px] font-semibold text-slate-500 uppercase tracking-wide">
+          <span>Etiquetas</span>
+          <i class="lucide" style="font-size:12px">chevron-right</i>
+        </summary>
+      </details>
+    </div>
+  </aside>
+
+  <!-- Lista de conversas (denser, pinnable) -->
+  <section class="w-72 bg-white border-r border-slate-200 flex flex-col flex-shrink-0">
+    <div class="px-3 py-2 border-b border-slate-100 flex items-center justify-between">
+      <h3 class="text-sm font-semibold text-slate-700">23 conversas</h3>
+      <div class="flex items-center gap-1">
+        <button class="p-1 rounded hover:bg-slate-100 text-slate-400" title="Lista"><i class="lucide" style="font-size:14px">list</i></button>
+        <button class="p-1 rounded hover:bg-slate-100 text-slate-400" title="Kanban"><i class="lucide" style="font-size:14px">layout-grid</i></button>
+        <button class="p-1 rounded hover:bg-slate-100 text-slate-400" title="Split"><i class="lucide" style="font-size:14px">columns-2</i></button>
+      </div>
+    </div>
+    <div class="flex-1 overflow-y-auto">
+      <!-- Active -->
+      <div class="conv-item active px-3 py-2.5 border-b border-slate-100 cursor-pointer">
+        <div class="flex items-start gap-2.5">
+          <div class="relative shrink-0">
+            <div class="w-9 h-9 rounded-full bg-gradient-to-br from-purple-400 to-purple-600 flex items-center justify-center text-white text-sm font-semibold">CT</div>
+            <div class="absolute -bottom-0.5 -right-0.5 w-3.5 h-3.5 rounded-full border-2 border-white bg-green-500"></div>
+          </div>
+          <div class="flex-1 min-w-0">
+            <div class="flex items-center justify-between">
+              <div class="font-medium text-sm text-slate-900 truncate flex items-center gap-1">
+                Clara Tozi
+                <span class="text-[9px] px-1 bg-purple-100 text-purple-700 rounded">VIP</span>
+              </div>
+              <div class="text-[10px] text-emerald-700 font-medium">agora</div>
+            </div>
+            <div class="text-xs text-slate-500 truncate">🎙 Áudio (47s) · transcrito</div>
+            <div class="flex items-center gap-1 mt-1">
+              <span class="text-[10px] px-1.5 py-0.5 bg-emerald-100 text-emerald-700 rounded">WhatsApp</span>
+              <span class="text-[10px] px-1.5 py-0.5 bg-amber-50 text-amber-700 rounded">⏱ 21h</span>
+            </div>
+          </div>
+          <div class="w-5 h-5 rounded-full bg-emerald-600 text-white text-[10px] flex items-center justify-center font-bold">2</div>
+        </div>
+      </div>
+
+      <div class="conv-item px-3 py-2.5 border-b border-slate-100 cursor-pointer">
+        <div class="flex items-start gap-2.5">
+          <div class="w-9 h-9 rounded-full bg-gradient-to-br from-red-400 to-red-600 flex items-center justify-center text-white text-sm font-semibold shrink-0">ML</div>
+          <div class="flex-1 min-w-0">
+            <div class="flex items-center justify-between">
+              <div class="font-medium text-sm text-slate-900 truncate">Maria Larissa</div>
+              <div class="text-[10px] text-red-600 font-bold">SLA 2min</div>
+            </div>
+            <div class="text-xs text-slate-500 truncate">Boa noite, preciso trocar endereço do pedi...</div>
+            <div class="flex items-center gap-1 mt-1">
+              <span class="text-[10px] px-1.5 py-0.5 bg-emerald-100 text-emerald-700 rounded">WhatsApp</span>
+              <span class="text-[10px] px-1.5 py-0.5 bg-red-100 text-red-700 rounded">🤖 reembolso</span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="conv-item px-3 py-2.5 border-b border-slate-100 cursor-pointer">
+        <div class="flex items-start gap-2.5">
+          <div class="w-9 h-9 rounded-full bg-gradient-to-br from-blue-400 to-blue-600 flex items-center justify-center text-white text-sm font-semibold shrink-0">RS</div>
+          <div class="flex-1 min-w-0">
+            <div class="flex items-center justify-between">
+              <div class="font-medium text-sm text-slate-900 truncate">Roberto Silva</div>
+              <div class="text-[10px] text-slate-400">5min</div>
+            </div>
+            <div class="text-xs text-slate-500 truncate">Obrigado pela ajuda, vou testar aqui</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="conv-item px-3 py-2.5 border-b border-slate-100 cursor-pointer">
+        <div class="flex items-start gap-2.5">
+          <div class="w-9 h-9 rounded-full bg-gradient-to-br from-amber-400 to-amber-600 flex items-center justify-center text-white text-sm font-semibold shrink-0">JC</div>
+          <div class="flex-1 min-w-0">
+            <div class="flex items-center justify-between">
+              <div class="font-medium text-sm text-slate-900 truncate">João Carlos</div>
+              <div class="text-[10px] text-slate-400">1h</div>
+            </div>
+            <div class="text-xs text-slate-500 truncate">Dá pra gerar segunda via?</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="conv-item px-3 py-2.5 border-b border-slate-100 cursor-pointer">
+        <div class="flex items-start gap-2.5">
+          <div class="w-9 h-9 rounded-full bg-gradient-to-br from-teal-400 to-teal-600 flex items-center justify-center text-white text-sm font-semibold shrink-0">PM</div>
+          <div class="flex-1 min-w-0">
+            <div class="flex items-center justify-between">
+              <div class="font-medium text-sm text-slate-900 truncate">Pedro Morais</div>
+              <div class="text-[10px] text-slate-400">2h</div>
+            </div>
+            <div class="text-xs text-slate-500 truncate">Perfeito, muito obrigado!</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Conversa ativa -->
+  <section class="flex-1 flex flex-col bg-slate-50 min-w-0">
+    <!-- Header da conversa (com pills inline editáveis) -->
+    <header class="bg-white border-b border-slate-200 px-4 py-2.5 flex items-center gap-3">
+      <div class="flex items-center gap-2.5 min-w-0">
+        <div class="w-9 h-9 rounded-full bg-gradient-to-br from-purple-400 to-purple-600 flex items-center justify-center text-white font-semibold text-sm">CT</div>
+        <div class="min-w-0">
+          <div class="flex items-center gap-1.5">
+            <span class="font-semibold text-slate-900 text-sm truncate">Clara Tozi</span>
+            <span class="text-[9px] px-1 bg-purple-100 text-purple-700 rounded font-bold">VIP</span>
+          </div>
+          <div class="text-xs text-slate-500 truncate">+55 65 99123-4567 · online</div>
+        </div>
+      </div>
+      <!-- Inline-editable pills -->
+      <div class="flex items-center gap-1.5 ml-4 flex-wrap">
+        <span class="status-pill bg-emerald-100 text-emerald-800">
+          <i class="lucide" style="font-size:12px">inbox</i> Aberta
+          <i class="lucide opacity-60" style="font-size:10px">chevron-down</i>
+        </span>
+        <span class="status-pill bg-sky-100 text-sky-800">
+          <i class="lucide" style="font-size:12px">user-check</i> Walisson
+          <i class="lucide opacity-60" style="font-size:10px">chevron-down</i>
+        </span>
+        <span class="status-pill bg-slate-100 text-slate-700">
+          <i class="lucide" style="font-size:12px">users</i> Vendas
+          <i class="lucide opacity-60" style="font-size:10px">chevron-down</i>
+        </span>
+        <span class="status-pill bg-amber-100 text-amber-800">
+          <i class="lucide" style="font-size:12px">tag</i> + Etiqueta
+        </span>
+      </div>
+      <div class="ml-auto flex items-center gap-1">
+        <button class="p-1.5 rounded hover:bg-slate-100" title="Snooze (S)"><i class="lucide text-slate-500">clock</i></button>
+        <button class="px-3 py-1 bg-emerald-600 text-white rounded-lg text-xs font-medium hover:bg-emerald-700 flex items-center gap-1">
+          Resolver <kbd class="bg-emerald-500/40 border-emerald-400 text-emerald-50">E</kbd>
+        </button>
+      </div>
+    </header>
+
+    <!-- Mensagens -->
+    <div class="flex-1 overflow-y-auto p-6 space-y-3">
+      <div class="text-center"><span class="text-[11px] text-slate-400 bg-white px-2 py-0.5 rounded-full border border-slate-200">Hoje · 14:00</span></div>
+
+      <div class="flex gap-2 max-w-3xl">
+        <div class="msg-bubble-customer max-w-md">
+          <p class="text-sm text-slate-800">Boa tarde! Gostaria de saber se o pedido #SPX-2847 já saiu?</p>
+          <div class="text-[10px] text-slate-400 mt-1">14:02</div>
+        </div>
+      </div>
+
+      <!-- Audio transcrito -->
+      <div class="flex gap-2 max-w-3xl">
+        <div class="msg-bubble-customer max-w-md">
+          <div class="flex items-center gap-2 mb-1 text-xs text-slate-500">
+            <i class="lucide" style="font-size:14px">mic</i> Áudio · 47s
+            <button class="ml-auto text-emerald-600 hover:text-emerald-700 text-[10px] font-semibold">▶ Ouvir</button>
+          </div>
+          <div class="bg-slate-50 rounded px-2 py-1.5 border border-dashed border-slate-200 mb-1">
+            <div class="text-[10px] font-semibold text-emerald-700 mb-0.5">🤖 Transcrição automática</div>
+            <p class="text-sm text-slate-700 italic">"Oi, é porque assim, eu preciso saber onde está meu pedido, já faz 3 dias que comprei e até agora nada. O código é SPX-2847, pode verificar pra mim? Obrigada!"</p>
+          </div>
+          <div class="text-[10px] text-slate-400">14:03</div>
+        </div>
+      </div>
+
+      <!-- Nota interna threaded (estilo Missive) -->
+      <div class="flex gap-2 max-w-3xl ml-4">
+        <div class="msg-bubble-internal max-w-md">
+          <div class="flex items-center gap-2 mb-1 text-xs">
+            <div class="w-5 h-5 rounded-full bg-gradient-to-br from-blue-400 to-blue-600 flex items-center justify-center text-white text-[10px] font-bold">R</div>
+            <span class="font-semibold text-amber-900">Roberto · nota interna</span>
+          </div>
+          <p class="text-sm text-slate-800">@Walisson VIP alta prioridade, já comprou 8x esse ano. Me avisa se precisar do relatório.</p>
+          <div class="text-[10px] text-amber-600 mt-1">14:04</div>
+        </div>
+      </div>
+
+      <div class="flex gap-2 justify-end">
+        <div class="msg-bubble-agent max-w-md">
+          <p class="text-sm">Oi Clara, tudo bem? Já verifiquei aqui — seu pedido foi despachado hoje às 13h42, saiu pra entrega. Chega até amanhã fim do dia 📦</p>
+          <div class="text-[10px] text-emerald-100 mt-1 text-right">14:05 ✓✓</div>
+        </div>
+      </div>
+
+      <div class="flex gap-2 max-w-3xl">
+        <div class="msg-bubble-customer max-w-md">
+          <p class="text-sm text-slate-800">Perfeito, muito obrigada! 💚</p>
+          <div class="text-[10px] text-slate-400 mt-1">14:05</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Composer dobrável com IA ghost text -->
+    <footer class="bg-white border-t border-slate-200 px-4 py-2">
+      <!-- Quick replies sugeridas por IA -->
+      <div class="flex items-center gap-2 mb-2 text-xs">
+        <span class="text-slate-500 font-medium flex items-center gap-1"><i class="lucide text-emerald-600" style="font-size:12px">sparkles</i> Sugestões do Capitão:</span>
+        <button class="px-2 py-0.5 bg-emerald-50 hover:bg-emerald-100 text-emerald-800 rounded border border-emerald-200">Fico à disposição 💚</button>
+        <button class="px-2 py-0.5 bg-emerald-50 hover:bg-emerald-100 text-emerald-800 rounded border border-emerald-200">Enviar link de rastreio</button>
+      </div>
+      <div class="flex items-end gap-2 bg-slate-50 border border-slate-200 rounded-xl p-2 focus-within:border-emerald-500 transition">
+        <button class="p-1.5 rounded hover:bg-slate-200 text-slate-500" title="Anexar (/arquivo)"><i class="lucide">paperclip</i></button>
+        <button class="p-1.5 rounded hover:bg-slate-200 text-slate-500" title="Macros (/)"><i class="lucide">zap</i></button>
+        <div class="flex-1 relative">
+          <textarea rows="1" placeholder="Responder para Clara... (/ comandos)" class="w-full resize-none px-2 py-1.5 bg-transparent focus:outline-none text-sm text-slate-900 placeholder-slate-400"></textarea>
+          <!-- Ghost text de sugestão IA -->
+          <div class="absolute top-1.5 left-2 pointer-events-none text-sm">
+            <span class="opacity-0">Fico à </span><span class="ghost-text">disposição se precisar de mais alguma coisa, Clara! 🌟  <kbd>Tab</kbd> pra aceitar</span>
+          </div>
+        </div>
+        <button class="p-1.5 rounded hover:bg-slate-200 text-slate-500" title="Emoji"><i class="lucide">smile</i></button>
+        <button class="p-1.5 rounded hover:bg-slate-200 text-slate-500" title="Gravar áudio"><i class="lucide">mic</i></button>
+        <button class="px-3 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg text-sm font-medium flex items-center gap-1.5">
+          Enviar <kbd class="bg-emerald-500/40 border-emerald-400 text-emerald-50">⌘↵</kbd>
+        </button>
+      </div>
+      <!-- Toolbar switch resposta/nota -->
+      <div class="flex items-center gap-2 mt-1.5 text-xs text-slate-500">
+        <button class="flex items-center gap-1 px-1.5 py-0.5 bg-emerald-100 text-emerald-800 rounded">
+          <i class="lucide" style="font-size:11px">message-circle</i> Resposta <kbd class="bg-white">R</kbd>
+        </button>
+        <button class="flex items-center gap-1 px-1.5 py-0.5 hover:bg-slate-100 rounded">
+          <i class="lucide" style="font-size:11px">pencil-line</i> Nota interna <kbd>N</kbd>
+        </button>
+        <span class="ml-auto text-amber-700 font-medium flex items-center gap-1">
+          <i class="lucide" style="font-size:11px">clock</i> WhatsApp expira em <strong>21h 32min</strong>
+        </span>
+      </div>
+    </footer>
+  </section>
+
+  <!-- Info panel do cliente (SEMPRE visível, 288px) -->
+  <aside class="w-72 bg-white border-l border-slate-200 flex flex-col flex-shrink-0 overflow-y-auto">
+    <div class="p-4 border-b border-slate-100 text-center">
+      <div class="w-16 h-16 mx-auto rounded-full bg-gradient-to-br from-purple-400 to-purple-600 flex items-center justify-center text-white text-xl font-bold">CT</div>
+      <div class="mt-2 font-semibold text-slate-900">Clara Tozi</div>
+      <div class="text-xs text-slate-500">clara.tozi@email.com</div>
+      <div class="text-xs text-slate-500">+55 65 99123-4567</div>
+      <div class="mt-2 flex gap-1 justify-center">
+        <span class="text-[9px] px-1.5 py-0.5 bg-purple-100 text-purple-700 rounded font-bold">VIP</span>
+        <span class="text-[9px] px-1.5 py-0.5 bg-emerald-100 text-emerald-700 rounded font-bold">FIDELIDADE 2024</span>
+      </div>
+    </div>
+
+    <div class="p-3 border-b border-slate-100">
+      <div class="text-[11px] font-semibold text-slate-500 uppercase tracking-wide mb-2">Valor como cliente</div>
+      <div class="grid grid-cols-2 gap-2 text-center">
+        <div class="bg-emerald-50 rounded p-2">
+          <div class="text-lg font-bold text-emerald-900">R$ 4.2k</div>
+          <div class="text-[10px] text-emerald-700">LTV</div>
+        </div>
+        <div class="bg-sky-50 rounded p-2">
+          <div class="text-lg font-bold text-sky-900">8</div>
+          <div class="text-[10px] text-sky-700">Pedidos</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="p-3 border-b border-slate-100">
+      <div class="flex items-center justify-between mb-2">
+        <div class="text-[11px] font-semibold text-slate-500 uppercase tracking-wide">Pedido atual</div>
+        <button class="text-[10px] text-emerald-700 hover:underline">Ver detalhes</button>
+      </div>
+      <div class="bg-slate-50 rounded-lg p-2 text-xs">
+        <div class="font-semibold text-slate-900">#SPX-2847</div>
+        <div class="text-slate-500">3 itens · R$ 247,90</div>
+        <div class="mt-1 flex items-center gap-1 text-emerald-700">
+          <i class="lucide" style="font-size:11px">truck</i> Em trânsito · chega amanhã
+        </div>
+      </div>
+    </div>
+
+    <div class="p-3 border-b border-slate-100">
+      <div class="flex items-center justify-between mb-2">
+        <div class="text-[11px] font-semibold text-slate-500 uppercase tracking-wide">Conversas anteriores</div>
+        <span class="text-xs text-slate-400">8</span>
+      </div>
+      <div class="space-y-1">
+        <div class="flex items-start gap-2 text-xs">
+          <i class="lucide text-emerald-500 mt-0.5" style="font-size:12px">check-circle</i>
+          <div class="flex-1 min-w-0">
+            <div class="font-medium text-slate-700 truncate">Pedido atrasado #SPX-2613</div>
+            <div class="text-slate-400">há 2 semanas · Walisson</div>
+          </div>
+        </div>
+        <div class="flex items-start gap-2 text-xs">
+          <i class="lucide text-emerald-500 mt-0.5" style="font-size:12px">check-circle</i>
+          <div class="flex-1 min-w-0">
+            <div class="font-medium text-slate-700 truncate">Troca de produto</div>
+            <div class="text-slate-400">há 1 mês · Roberto</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="p-3 border-b border-slate-100">
+      <div class="text-[11px] font-semibold text-slate-500 uppercase tracking-wide mb-2">Notas sobre o cliente</div>
+      <div class="bg-amber-50 border-l-2 border-amber-400 rounded-r p-2 text-xs text-slate-700">
+        Gosta de ser tratada pelo nome. Alérgica a leite, não enviar brindes com lactose.
+      </div>
+    </div>
+
+    <!-- Pergunta ao Capitão (AI conversational) -->
+    <div class="p-3 mt-auto">
+      <button class="w-full flex items-center gap-2 px-3 py-2 bg-gradient-to-r from-emerald-50 to-sky-50 border border-emerald-200 rounded-lg text-sm text-emerald-800 font-medium hover:shadow-sm transition">
+        <i class="lucide">sparkles</i>
+        Pergunte ao Capitão
+        <kbd class="ml-auto bg-white">⌘J</kbd>
+      </button>
+    </div>
+  </aside>
+</div>
+
+<!-- Legend flutuante -->
+<div class="fixed bottom-4 right-4 bg-white border border-slate-200 rounded-lg p-3 shadow-xl text-xs max-w-[320px]">
+  <div class="font-semibold text-slate-900 mb-1 flex items-center gap-1">
+    <i class="lucide text-emerald-600" style="font-size:14px">info</i> Variante Y — Cockpit
+  </div>
+  <p class="text-slate-600 leading-snug">
+    Tudo visível de uma vez: KPIs no topo, <strong>3 estados</strong> (Aberta/Depois/Concluída),
+    lista densa, chat com <strong>notas threaded</strong>, sugestão IA <strong>ghost text</strong> no composer,
+    <strong>cliente sempre à direita</strong>.
+    <strong class="text-emerald-700">Simule Tab</strong> no composer pra ver ghost text; clique nas pills Aberta/Walisson/Vendas pra trocar inline.
+  </p>
+</div>
+
+</body>
+</html>

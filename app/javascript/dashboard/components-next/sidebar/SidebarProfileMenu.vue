@@ -1,11 +1,14 @@
 <script setup>
-import { computed } from 'vue';
+import { computed, ref, onMounted, onBeforeUnmount } from 'vue';
 import Auth from 'dashboard/api/auth';
 import { useMapGetter } from 'dashboard/composables/store';
 import { useI18n } from 'vue-i18n';
 import Avatar from 'next/avatar/Avatar.vue';
 import SidebarProfileMenuStatus from './SidebarProfileMenuStatus.vue';
 import { FEATURE_FLAGS } from 'dashboard/featureFlags';
+import { LocalStorage } from 'shared/helpers/localStorage';
+import { LOCAL_STORAGE_KEYS } from 'dashboard/constants/localStorage';
+import { setColorTheme } from 'dashboard/helper/themeHelper';
 
 import {
   DropdownContainer,
@@ -44,6 +47,37 @@ const showChatSupport = computed(() => {
   );
 });
 
+const prefersDarkMedia = window.matchMedia('(prefers-color-scheme: dark)');
+const isOSOnDarkMode = ref(prefersDarkMedia.matches);
+const colorScheme = ref(
+  LocalStorage.get(LOCAL_STORAGE_KEYS.COLOR_SCHEME) || 'auto'
+);
+
+const isCurrentlyDark = computed(() => {
+  if (colorScheme.value === 'dark') return true;
+  if (colorScheme.value === 'light') return false;
+  return isOSOnDarkMode.value;
+});
+
+const toggleDarkMode = () => {
+  const next = isCurrentlyDark.value ? 'light' : 'dark';
+  LocalStorage.set(LOCAL_STORAGE_KEYS.COLOR_SCHEME, next);
+  colorScheme.value = next;
+  setColorTheme(isOSOnDarkMode.value);
+};
+
+const handleOSColorSchemeChange = event => {
+  isOSOnDarkMode.value = event.matches;
+};
+
+onMounted(() => {
+  prefersDarkMedia.addEventListener('change', handleOSColorSchemeChange);
+});
+
+onBeforeUnmount(() => {
+  prefersDarkMedia.removeEventListener('change', handleOSColorSchemeChange);
+});
+
 const menuItems = computed(() => {
   return [
     {
@@ -80,6 +114,15 @@ const menuItems = computed(() => {
         const ninja = document.querySelector('ninja-keys');
         ninja.open({ parent: 'appearance_settings' });
       },
+    },
+    {
+      show: true,
+      showOnCustomBrandedInstance: true,
+      label: isCurrentlyDark.value
+        ? t('SIDEBAR_ITEMS.LIGHT_MODE')
+        : t('SIDEBAR_ITEMS.DARK_MODE'),
+      icon: isCurrentlyDark.value ? 'i-lucide-sun' : 'i-lucide-moon',
+      click: toggleDarkMode,
     },
     {
       show: true,

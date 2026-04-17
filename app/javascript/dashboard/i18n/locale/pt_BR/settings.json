@@ -237,6 +237,8 @@
     "YEAR_IN_REVIEW": "Retrospectiva do Ano",
     "KEYBOARD_SHORTCUTS": "Atalhos do teclado",
     "APPEARANCE": "Alterar Tema",
+    "DARK_MODE": "Modo escuro",
+    "LIGHT_MODE": "Modo claro",
     "SUPER_ADMIN_CONSOLE": "Console de Super Admin",
     "DOCS": "Ler documentação",
     "CHANGELOG": "Notas de versão",
@@ -295,6 +297,7 @@
   },
   "SIDEBAR": {
     "NO_ITEMS": "Nenhum item",
+    "SEARCH_PLACEHOLDER": "Buscar ou executar...",
     "CURRENTLY_VIEWING_ACCOUNT": "Visualização atual:",
     "SWITCH": "Trocar",
     "INBOX_VIEW": "Caixa de entrada",
