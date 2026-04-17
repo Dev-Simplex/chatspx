@@ -11,8 +11,6 @@ import { vOnClickOutside } from '@vueuse/components';
 
 import { FEATURE_FLAGS } from 'dashboard/featureFlags';
 import { useWindowSize, useEventListener } from '@vueuse/core';
-import { emitter } from 'shared/helpers/mitt';
-import { BUS_EVENTS } from 'shared/constants/busEvents';
 
 import Button from 'dashboard/components-next/button/Button.vue';
 import SidebarGroup from './SidebarGroup.vue';
@@ -69,6 +67,11 @@ const toggleShortcutModalFn = show => {
   } else {
     emit('closeKeyShortcutModal');
   }
+};
+
+const openCommandPalette = () => {
+  const ninja = document.querySelector('ninja-keys');
+  if (ninja && typeof ninja.open === 'function') ninja.open();
 };
 
 useSidebarKeyboardShortcuts(toggleShortcutModalFn);
@@ -899,21 +902,22 @@ const menuItems = computed(() => {
         class="flex gap-2"
         :class="isEffectivelyCollapsed ? 'flex-col items-center' : 'px-2'"
       >
-        <RouterLink
+        <button
           v-if="!isEffectivelyCollapsed"
-          :to="{ name: 'search' }"
-          class="flex gap-2 items-center px-2 py-1 w-full h-7 rounded-lg outline outline-1 outline-n-weak bg-n-button-color transition-all duration-100 ease-out"
+          type="button"
+          class="flex gap-2 items-center px-3 py-2 w-full rounded-lg bg-n-slate-3 hover:bg-n-slate-4 dark:bg-n-slate-9/40 dark:hover:bg-n-slate-9/60 text-n-slate-11 text-sm transition-colors duration-100 ease-out"
+          @click="openCommandPalette"
         >
-          <span class="flex-shrink-0 i-lucide-search size-4 text-n-slate-10" />
-          <span class="flex-grow text-start text-n-slate-10">
-            {{ t('COMBOBOX.SEARCH_PLACEHOLDER') }}
+          <span class="flex-shrink-0 i-lucide-search size-4" />
+          <span class="flex-grow text-start truncate">
+            {{ t('SIDEBAR.SEARCH_PLACEHOLDER') }}
           </span>
-          <span
-            class="hidden tracking-wide pointer-events-none select-none text-n-slate-10"
+          <kbd
+            class="text-[11px] bg-n-slate-1 dark:bg-n-slate-9 border border-n-slate-6 text-n-slate-11 px-1.5 py-0.5 rounded font-mono leading-none tracking-wide pointer-events-none select-none"
           >
             {{ searchShortcut }}
-          </span>
-        </RouterLink>
+          </kbd>
+        </button>
         <RouterLink
           v-else
           :to="{ name: 'search' }"

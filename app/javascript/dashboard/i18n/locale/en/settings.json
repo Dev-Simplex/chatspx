@@ -237,6 +237,8 @@
     "YEAR_IN_REVIEW": "Year in Review",
     "KEYBOARD_SHORTCUTS": "Keyboard shortcuts",
     "APPEARANCE": "Change appearance",
+    "DARK_MODE": "Dark mode",
+    "LIGHT_MODE": "Light mode",
     "SUPER_ADMIN_CONSOLE": "SuperAdmin console",
     "DOCS": "Read documentation",
     "CHANGELOG": "Changelog",
@@ -295,6 +297,7 @@
   },
   "SIDEBAR": {
     "NO_ITEMS": "No items",
+    "SEARCH_PLACEHOLDER": "Search or run...",
     "CURRENTLY_VIEWING_ACCOUNT": "Currently viewing:",
     "SWITCH": "Switch",
     "INBOX_VIEW": "Inbox View",

@@ -56,8 +56,16 @@ const currentSortBy = computed(() => {
 
 const chatStatusOptions = computed(() => [
   {
+    label: t('CHAT_LIST.CHAT_STATUS_FILTER_ITEMS.all.TEXT'),
+    value: 'all',
+  },
+  {
     label: t('CHAT_LIST.CHAT_STATUS_FILTER_ITEMS.open.TEXT'),
     value: 'open',
+  },
+  {
+    label: t('CHAT_LIST.CHAT_STATUS_FILTER_ITEMS.snoozed.TEXT'),
+    value: 'snoozed',
   },
   {
     label: t('CHAT_LIST.CHAT_STATUS_FILTER_ITEMS.resolved.TEXT'),
@@ -66,14 +74,6 @@ const chatStatusOptions = computed(() => [
   {
     label: t('CHAT_LIST.CHAT_STATUS_FILTER_ITEMS.pending.TEXT'),
     value: 'pending',
-  },
-  {
-    label: t('CHAT_LIST.CHAT_STATUS_FILTER_ITEMS.snoozed.TEXT'),
-    value: 'snoozed',
-  },
-  {
-    label: t('CHAT_LIST.CHAT_STATUS_FILTER_ITEMS.all.TEXT'),
-    value: 'all',
   },
 ]);
 
