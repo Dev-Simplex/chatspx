@@ -18,7 +18,7 @@ class ContactInboxBuilder
   private
 
   def reuse_existing_waha_contact_inbox
-    return nil unless @contact.present?
+    return nil if @contact.blank?
     return nil unless @inbox.channel_type == 'Channel::Api' && @inbox.waha_session_name.present?
 
     @inbox.contact_inboxes.where(contact_id: @contact.id).order(:created_at).first
