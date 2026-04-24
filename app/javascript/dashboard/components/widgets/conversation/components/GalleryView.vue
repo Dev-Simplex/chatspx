@@ -392,7 +392,10 @@ onMounted(() => {
             >
               <img
                 ref="imageRef"
-                :key="activeAttachment.message_id"
+                :key="
+                  activeAttachment.id ||
+                  `${activeAttachment.message_id}-${activeImageIndex}`
+                "
                 :src="activeAttachment.data_url"
                 :style="imageStyle"
                 class="max-h-full max-w-full object-contain duration-100 ease-in-out transform select-none"
@@ -406,7 +409,10 @@ onMounted(() => {
 
             <video
               v-if="isVideo"
-              :key="activeAttachment.message_id"
+              :key="
+                activeAttachment.id ||
+                `${activeAttachment.message_id}-${activeImageIndex}`
+              "
               :src="activeAttachment.data_url"
               controls
               preload="metadata"
@@ -445,7 +451,7 @@ onMounted(() => {
               <div class="flex items-center gap-2">
                 <button
                   v-for="(attachment, index) in allAttachments"
-                  :key="attachment.id || attachment.message_id || index"
+                  :key="attachment.id || `${attachment.message_id}-${index}`"
                   type="button"
                   :class="[
                     thumbnailButtonBase,

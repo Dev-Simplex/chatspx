@@ -157,6 +157,45 @@ const activeAttachmentSnake = computed(() => {
   return useSnakeCase(activeAttachment.value);
 });
 
+const messageMediaAttachmentsSnake = computed(() =>
+  props.attachments
+    .filter(
+      attachment =>
+        [
+          ATTACHMENT_TYPES.IMAGE,
+          ATTACHMENT_TYPES.VIDEO,
+          ATTACHMENT_TYPES.IG_REEL,
+        ].includes(attachment.fileType) ||
+        [
+          ATTACHMENT_TYPES.IMAGE,
+          ATTACHMENT_TYPES.VIDEO,
+          ATTACHMENT_TYPES.IG_REEL,
+        ].includes(attachment.file_type)
+    )
+    .map(attachment => useSnakeCase(attachment))
+);
+
+// Guarantee the gallery always contains the attachments from the clicked
+// message (even if they are older than the first page loaded by pagination).
+// Current-message media come first, then the rest of the conversation media
+// (deduped by id, then by message_id+data_url as fallback for unsaved items).
+const galleryAttachments = computed(() => {
+  const ordered = [...messageMediaAttachmentsSnake.value];
+  const seenIds = new Set(
+    ordered.map(a => a.id).filter(id => id !== undefined && id !== null)
+  );
+  const seenFallback = new Set(
+    ordered.map(a => `${a.message_id}|${a.data_url}`)
+  );
+  filteredCurrentChatAttachments.value.forEach(attachment => {
+    if (attachment.id != null && seenIds.has(attachment.id)) return;
+    const key = `${attachment.message_id}|${attachment.data_url}`;
+    if (seenFallback.has(key)) return;
+    ordered.push(attachment);
+  });
+  return ordered;
+});
+
 const shouldShowMoreOverlay = index =>
   extraCount.value > 0 && index === visibleAttachments.value.length - 1;
 </script>
@@ -236,7 +275,7 @@ const shouldShowMoreOverlay = index =>
     v-if="showGallery && activeAttachmentSnake"
     v-model:show="showGallery"
     :attachment="activeAttachmentSnake"
-    :all-attachments="filteredCurrentChatAttachments"
+    :all-attachments="galleryAttachments"
     :has-more="hasMoreAttachments"
     @load-more="loadMoreAttachments"
     @close="() => (showGallery = false)"
