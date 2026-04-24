@@ -586,12 +586,22 @@ function configure_systemd_services() {
 # Detectar se a VM tem IP publico (pode usar LetsEncrypt)
 ##############################################################################
 function has_public_ip() {
-  local public_ip=$(curl -s --max-time 5 http://checkip.amazonaws.com 2>/dev/null)
-  # Se o IP publico bate com algum IP local, tem IP publico direto
+  local public_ip
+  public_ip=$(curl -s --max-time 5 http://checkip.amazonaws.com 2>/dev/null)
+  [ -z "$public_ip" ] && return 1
+
+  # Cenario 1: IP publico direto na interface (bare-metal, sem NAT)
   if ip addr show 2>/dev/null | grep -q "$public_ip"; then
     return 0
   fi
-  # IP nao bate = VM atras de proxy/NAT
+
+  # Cenario 2: NAT 1:1 (AWS/GCP/Azure) — dominio resolve pro IP publico detectado
+  local resolved_ip
+  resolved_ip=$(getent hosts "$domain_name" 2>/dev/null | awk '{print $1}' | head -1)
+  if [ -n "$resolved_ip" ] && [ "$resolved_ip" = "$public_ip" ]; then
+    return 0
+  fi
+
   return 1
 }
 
