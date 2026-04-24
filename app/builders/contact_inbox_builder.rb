@@ -5,11 +5,24 @@ class ContactInboxBuilder
   pattr_initialize [:contact, :inbox, :source_id, { hmac_verified: false }]
 
   def perform
+    # Idempotencia para WAHA: reusa ContactInbox existente do mesmo (contact, inbox)
+    # para evitar duplicacao via UUID novo a cada chamada (race conditions da WAHA
+    # e "Nova conversa" manual do agente geram source_id UUID diferente a cada vez).
+    existing = reuse_existing_waha_contact_inbox
+    return existing if existing
+
     @source_id ||= generate_source_id
     create_contact_inbox if source_id.present?
   end
 
   private
+
+  def reuse_existing_waha_contact_inbox
+    return nil unless @contact.present?
+    return nil unless @inbox.channel_type == 'Channel::Api' && @inbox.waha_session_name.present?
+
+    @inbox.contact_inboxes.where(contact_id: @contact.id).order(:created_at).first
+  end
 
   def generate_source_id
     case @inbox.channel_type
