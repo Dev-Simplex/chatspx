@@ -1,0 +1,131 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate" />
+<meta http-equiv="Pragma" content="no-cache" />
+<meta http-equiv="Expires" content="0" />
+<title>ChatSPX — Limpeza de Cache (Diagnóstico)</title>
+<style>
+  body { margin:0; font-family: Inter, system-ui, sans-serif; background:#f0f2f5; color:#111b21; }
+  .wrap { max-width: 760px; margin: 32px auto; background:#fff; border:1px solid #e9edef; border-radius: 12px; padding: 32px; box-shadow: 0 2px 8px rgba(11,20,26,0.06); }
+  h1 { margin: 0 0 8px; font-size: 22px; color:#00a884; }
+  h2 { margin: 24px 0 8px; font-size: 15px; color:#54656f; font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px; }
+  p { color:#54656f; font-size: 14px; line-height: 1.55; }
+  .btn { background:#00a884; color:#fff; border:0; padding: 14px 28px; font-size: 15px; font-weight: 500; border-radius: 8px; cursor:pointer; box-shadow: 0 1px 3px rgba(0,168,132,0.3); }
+  .btn:hover { background:#008c70; }
+  .btn:disabled { background:#8696a0; cursor:not-allowed; }
+  pre { background:#f5f6f7; padding: 14px; border-radius: 6px; font-size: 12px; line-height: 1.5; overflow:auto; border:1px solid #e9edef; }
+  .ok { color:#00a884; font-weight:600; }
+  .warn { color:#d97706; font-weight:600; }
+  .bad { color:#b3261e; font-weight:600; }
+  .shot-grid { display:grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-top: 12px; }
+  .shot-grid img { width:100%; border:1px solid #e9edef; border-radius: 8px; background:#fff; }
+  .shot-grid figcaption { font-size: 12px; color:#667781; margin-top: 4px; text-align: center; }
+  .step { margin: 12px 0; padding: 12px 14px; background:#f5f6f7; border-left: 3px solid #00a884; border-radius: 4px; font-size: 14px; }
+  .kbd { background:#233138; color:#e9edef; padding: 2px 8px; border-radius: 4px; font-family: monospace; font-size: 13px; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>🧹 Limpeza de Cache ChatSPX</h1>
+  <p>
+    Esta página detecta e remove <b>Service Workers residuais</b>, limpa <b>caches</b>,
+    <b>localStorage</b> e <b>sessionStorage</b> do domínio <code>hmlchat.simplexsolucoes.com.br</code>.
+    Isso resolve o problema "tá tudo a mesma coisa" quando o browser teima em servir versão antiga.
+  </p>
+
+  <h2>Etapa 1 — Diagnóstico</h2>
+  <pre id="diag">Rodando diagnóstico…</pre>
+
+  <h2>Etapa 2 — Limpeza automática</h2>
+  <p>Clica no botão abaixo. Isso vai:</p>
+  <ol>
+    <li>Desregistrar <b>TODOS</b> Service Workers do domínio</li>
+    <li>Apagar <b>TODOS</b> Cache API entries</li>
+    <li>Limpar <b>localStorage</b> e <b>sessionStorage</b></li>
+    <li>Redirecionar para o app com um <code>?cachebust=</code> forçado</li>
+  </ol>
+  <button class="btn" id="btnClean" onclick="doClean()">🧹 Limpar tudo e voltar ao app</button>
+
+  <h2>Etapa 3 — O que o servidor está REALMENTE servindo (screenshots)</h2>
+  <p>Capturados via Chromium headless com login real (<code>sup@simplexsolucoes.com.br</code>), renderização fresca:</p>
+  <div class="shot-grid">
+    <figure><img src="/wa-proof/01-dashboard.png" alt="Dashboard" /><figcaption>Dashboard principal — rail 72px + lista 380px + painel</figcaption></figure>
+    <figure><img src="/wa-proof/02-lista-conversas.png" alt="Lista" /><figcaption>Lista de conversas com paleta WA</figcaption></figure>
+    <figure><img src="/wa-proof/03-rail.png" alt="Rail" /><figcaption>Rail sidebar 72px fixo</figcaption></figure>
+    <figure><img src="/wa-proof/05-conversa-aberta.png" alt="Conversa" /><figcaption>Conversa aberta com bubbles WA</figcaption></figure>
+    <figure><img src="/wa-proof/06-toast-topright.png" alt="Toast" /><figcaption>Toast top-right (novo!)</figcaption></figure>
+    <figure><img src="/wa-proof/07-dark-mode.png" alt="Dark" /><figcaption>Dark mode WA</figcaption></figure>
+  </div>
+
+  <h2>Etapa 4 — Se ainda ver diferente depois da limpeza</h2>
+  <div class="step">
+    <b>Chrome</b>: F12 → <b>Application</b> → <b>Storage</b> → botão <b>Clear site data</b> (marcado tudo) → depois <b>Ctrl+Shift+R</b>.
+  </div>
+  <div class="step">
+    <b>Modo anônimo</b>: <span class="kbd">Ctrl+Shift+N</span> → acessa <code>hmlchat.simplexsolucoes.com.br</code> → loga. Se aparecer WhatsApp-fiel na janela anônima, é 100% cache da janela normal.
+  </div>
+  <div class="step">
+    <b>Outro browser</b>: Firefox, Edge, Safari — se aparecer correto em outro browser, é cache isolado do Chrome normal.
+  </div>
+</div>
+
+<script>
+async function runDiag() {
+  const out = [];
+  try {
+    if ('serviceWorker' in navigator) {
+      const regs = await navigator.serviceWorker.getRegistrations();
+      out.push(`🔧 Service Workers registrados: ${regs.length}`);
+      regs.forEach((r, i) => out.push(`   [${i}] scope=${r.scope} active=${!!r.active} waiting=${!!r.waiting}`));
+    } else {
+      out.push('🔧 Service Worker: não suportado neste browser');
+    }
+    if ('caches' in self) {
+      const names = await caches.keys();
+      out.push(`💾 Cache API storage keys: ${names.length}`);
+      names.forEach(n => out.push(`   - ${n}`));
+    }
+    out.push(`🗂️ localStorage keys: ${localStorage.length}`);
+    out.push(`🗂️ sessionStorage keys: ${sessionStorage.length}`);
+    out.push('');
+    out.push(`🌐 User agent: ${navigator.userAgent}`);
+    out.push(`📍 URL atual: ${location.href}`);
+    out.push(`⏰ Agora: ${new Date().toISOString()}`);
+  } catch (e) {
+    out.push('ERRO: ' + e.message);
+  }
+  document.getElementById('diag').textContent = out.join('\n');
+}
+
+async function doClean() {
+  const btn = document.getElementById('btnClean');
+  btn.disabled = true;
+  btn.textContent = '🔄 Limpando…';
+  try {
+    if ('serviceWorker' in navigator) {
+      const regs = await navigator.serviceWorker.getRegistrations();
+      for (const r of regs) { await r.unregister(); }
+    }
+    if ('caches' in self) {
+      const names = await caches.keys();
+      for (const n of names) { await caches.delete(n); }
+    }
+    try { localStorage.clear(); } catch(e) {}
+    try { sessionStorage.clear(); } catch(e) {}
+    btn.textContent = '✅ Limpo! Redirecionando…';
+    setTimeout(() => {
+      location.href = '/app/login?cachebust=' + Date.now();
+    }, 1000);
+  } catch (e) {
+    btn.disabled = false;
+    btn.textContent = 'Erro: ' + e.message;
+  }
+}
+
+runDiag();
+</script>
+</body>
+</html>

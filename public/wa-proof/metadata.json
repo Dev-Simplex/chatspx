@@ -1,0 +1,16 @@
+{
+  "js": [
+    "https://hmlchat.simplexsolucoes.com.br/vite/assets/dashboard-D1U_11Tr.js"
+  ],
+  "css": [
+    "https://hmlchat.simplexsolucoes.com.br/vite/assets/dashboard-CIglcyQ6.css"
+  ],
+  "tokens": {
+    "slate3": "32 44 51",
+    "slate11": "134 150 160",
+    "slate12": "233 237 239",
+    "iris9": "37 211 102"
+  },
+  "userAgent": "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) HeadlessChrome/147.0.0.0 Safari/537.36",
+  "timestamp": "2026-04-19T02:59:59.565Z"
+}
