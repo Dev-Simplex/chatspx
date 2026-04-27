@@ -21,7 +21,9 @@ import {
 import ReconnectService from 'dashboard/helper/ReconnectService';
 import { useUISettings } from 'dashboard/composables/useUISettings';
 import { useAutoUpdate } from 'dashboard/composables/useAutoUpdate';
+import { useDocumentTitle } from 'dashboard/composables/useDocumentTitle';
 import AppVersionBanner from './components/app/AppVersionBanner.vue';
+import MessageToast from './components-next/notifications/MessageToast.vue';
 
 export default {
   name: 'App',
@@ -35,6 +37,7 @@ export default {
     PaymentPendingBanner,
     WootSnackbarBox,
     PendingEmailVerificationBanner,
+    MessageToast,
   },
   setup() {
     const router = useRouter();
@@ -44,6 +47,7 @@ export default {
     const { currentFontSize } = useFontSize();
     const { uiSettings } = useUISettings();
     useAutoUpdate();
+    useDocumentTitle();
 
     return {
       router,
@@ -181,6 +185,7 @@ export default {
     </router-view>
     <WootSnackbarBox />
     <NetworkNotification />
+    <MessageToast />
   </div>
   <LoadingState v-else />
 </template>
