@@ -196,8 +196,20 @@ const hasActiveChild = computed(() => {
 const badgeGetter = props.getterKeys?.badge
   ? useMapGetter(props.getterKeys.badge)
   : null;
+const countGetter = props.getterKeys?.count
+  ? useMapGetter(props.getterKeys.count)
+  : null;
+
 const showBadge = computed(() => {
   return badgeGetter?.value ?? false;
+});
+
+const countValue = computed(() => Number(countGetter?.value) || 0);
+
+const countLabel = computed(() => {
+  const v = countValue.value;
+  if (v <= 0) return null;
+  return v > 99 ? '99+' : String(v);
 });
 
 const handleCollapsedClick = () => {
@@ -220,9 +232,14 @@ const toggleTrigger = () => {
   setExpandedItem(props.name);
 };
 
+// WA-style fidelity: only the Conversation group auto-expands on mount when
+// its child is active. Other groups stay collapsed unless the user clicks
+// them open, matching WhatsApp Web's behaviour.
+const AUTO_EXPANDABLE_GROUPS = ['Conversation'];
+
 onMounted(async () => {
   await nextTick();
-  if (hasActiveChild.value) {
+  if (hasActiveChild.value && AUTO_EXPANDABLE_GROUPS.includes(props.name)) {
     setExpandedItem(props.name);
   }
   window.addEventListener('blur', handleWindowBlur);
@@ -237,7 +254,11 @@ onUnmounted(() => {
 watch(
   hasActiveChild,
   hasNewActiveChild => {
-    if (hasNewActiveChild && !isExpanded.value) {
+    if (
+      hasNewActiveChild &&
+      !isExpanded.value &&
+      AUTO_EXPANDABLE_GROUPS.includes(props.name)
+    ) {
       setExpandedItem(props.name);
     }
   },
@@ -264,6 +285,9 @@ watch(
         <component
           :is="to && !hasChildren ? 'router-link' : 'button'"
           ref="triggerRef"
+          v-tooltip.right="label"
+          data-hover-host
+          :data-sidebar-active="String(isActive || hasActiveChild)"
           :to="to && !hasChildren ? to : undefined"
           type="button"
           class="flex items-center justify-center size-10 rounded-lg"
@@ -273,13 +297,20 @@ watch(
             'text-n-slate-11 hover:bg-n-alpha-2 [&_svg]:opacity-60':
               !isActive && !hasActiveChild,
           }"
-          :title="label"
           @click="hasChildren ? handleCollapsedClick() : undefined"
         >
           <div v-if="icon" class="relative flex items-center">
             <Icon v-if="icon" :icon="icon" class="size-4" />
+            <!-- Badge vermelho com contador (notificações, mensagens) -->
             <span
-              v-if="showBadge"
+              v-if="countLabel"
+              class="absolute -top-1.5 ltr:-right-2 rtl:-left-2 min-w-[18px] h-[18px] px-1 rounded-full bg-[#ef4444] text-white text-[10px] font-bold flex items-center justify-center border border-n-solid-2 leading-none animate-scale-in pointer-events-none"
+            >
+              {{ countLabel }}
+            </span>
+            <!-- Badge dot (sem contador) — só se NÃO tem countLabel -->
+            <span
+              v-else-if="showBadge"
               class="size-2 -top-px ltr:-right-px rtl:-left-px bg-n-brand absolute rounded-full border border-n-solid-2 animate-scale-in"
             />
           </div>
