@@ -4,6 +4,8 @@ import { getInboxIconByType } from 'dashboard/helper/inbox';
 import { useRouter, useRoute } from 'vue-router';
 import { frontendURL, conversationUrl } from 'dashboard/helper/URLHelper.js';
 import { dynamicTime, shortTimestamp } from 'shared/helpers/timeHelper';
+import { useMapGetter } from 'dashboard/composables/store';
+import { useConversationUrgency } from 'dashboard/composables/useConversationUrgency';
 
 import Icon from 'dashboard/components-next/icon/Icon.vue';
 import Avatar from 'dashboard/components-next/avatar/Avatar.vue';
@@ -57,6 +59,17 @@ const lastActivityAt = computed(() => {
   return timestamp ? shortTimestamp(dynamicTime(timestamp)) : '';
 });
 
+// Urgência: destaca conversas atribuídas a mim com mensagens não respondidas,
+// escalando cor por tempo (5min âmbar / 15min laranja / 30min vermelho).
+const currentUser = useMapGetter('getCurrentUser');
+const currentUserId = computed(() => currentUser.value?.id);
+const conversationRef = computed(() => props.conversation);
+const { urgencyClass } = useConversationUrgency(
+  conversationRef,
+  currentUserId,
+  inbox
+);
+
 const showMessagePreviewWithoutMeta = computed(() => {
   const { labels = [] } = props.conversation;
   return (
@@ -87,19 +100,20 @@ const onCardClick = e => {
 <template>
   <div
     role="button"
-    class="flex w-full gap-3 px-3 py-4 transition-all duration-300 ease-in-out cursor-pointer"
+    class="flex w-full gap-3 pl-3 pr-3 py-2.5 transition-all duration-150 ease-in-out cursor-pointer wa-conversation-card relative"
+    :class="urgencyClass"
     @click="onCardClick"
   >
     <Avatar
       :name="currentContactName"
       :src="currentContactThumbnail"
-      :size="24"
+      :size="48"
       :status="currentContactStatus"
       rounded-full
     />
-    <div class="flex flex-col w-full gap-1 min-w-0">
+    <div class="flex flex-col w-full gap-0.5 min-w-0">
       <div class="flex items-center justify-between h-6 gap-2">
-        <h4 class="text-base font-medium truncate text-n-slate-12">
+        <h4 class="text-[17px] font-normal truncate text-n-slate-12">
           {{ currentContactName }}
         </h4>
         <div class="flex items-center gap-2">
@@ -113,7 +127,7 @@ const onCardClick = e => {
               class="flex-shrink-0 text-n-slate-11 size-3"
             />
           </div>
-          <span class="text-sm text-n-slate-10">
+          <span class="text-xs text-n-slate-11">
             {{ lastActivityAt }}
           </span>
         </div>

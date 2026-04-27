@@ -154,7 +154,7 @@ onBeforeMount(contextMenuActions.close);
 <template>
   <div
     role="button"
-    class="flex flex-col w-full gap-1 p-3 transition-all duration-300 ease-in-out cursor-pointer"
+    class="flex flex-col w-full gap-1 p-3 transition-colors duration-150 ease-out cursor-pointer"
     @contextmenu="contextMenuActions.open($event)"
     @click="emit('click')"
   >
