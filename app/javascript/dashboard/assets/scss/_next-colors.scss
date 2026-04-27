@@ -1,47 +1,55 @@
 // scss-lint:disable PropertySortOrder
+// =============================================================================
+// NEXT COLORS — retonados para paleta WhatsApp (ChatSPX WA-fiel)
+// Tokens globais que alimentam Tailwind classes `bg-n-*`, `text-n-*`, `border-n-*`.
+// Troca de paleta inteira para que o redesign propague automaticamente.
+// =============================================================================
 @layer base {
   // NEXT COLORS START
   :root {
-    // slate
-    --slate-1: 252 252 253;
-    --slate-2: 249 249 251;
-    --slate-3: 240 240 243;
-    --slate-4: 232 232 236;
-    --slate-5: 224 225 230;
-    --slate-6: 217 217 224;
-    --slate-7: 205 206 214;
-    --slate-8: 185 187 198;
-    --slate-9: 139 141 152;
-    --slate-10: 128 131 141;
-    --slate-11: 96 100 108;
-    --slate-12: 28 32 36;
+    // slate — cinzas WhatsApp Light (panel/backgrounds/borders/text)
+    --slate-1: 255 255 255; // app background (branco puro)
+    --slate-2: 249 250 251; // surface offset sutil
+    --slate-3: 240 242 245; // #f0f2f5  WA panel bg
+    --slate-4: 233 237 239; // #e9edef  WA list border / subtle bg
+    --slate-5: 217 219 223; // #d9dbdf  active subtle
+    --slate-6: 209 215 219; // #d1d7db  border
+    --slate-7: 199 201 204; // #c7c9cc  scrollbar thumb
+    --slate-8: 168 171 175; // #a8abaf  scrollbar hover
+    --slate-9: 134 150 160; // #8696a0  inactive icon / muted
+    --slate-10: 102 119 129; // #667781 secondary text alt
+    --slate-11: 102 119 129; // #667781  WA secondary text (exato)
+    --slate-12: 17 27 33; // #111b21  WA primary text
 
-    --iris-1: 250 254 252;
-    --iris-2: 241 252 246;
-    --iris-3: 226 248 237;
-    --iris-4: 208 243 227;
-    --iris-5: 188 237 216;
-    --iris-6: 165 229 203;
-    --iris-7: 135 219 185;
-    --iris-8: 95 208 163;
-    --iris-9: 45 196 111;
-    --iris-10: 32 176 97;
-    --iris-11: 24 166 88;
-    --iris-12: 12 74 42;
+    // iris — brand verde WhatsApp (#00a884)
+    --iris-1: 246 253 250;
+    --iris-2: 230 249 243;
+    --iris-3: 217 253 211; // #d9fdd3  WA bubble out
+    --iris-4: 184 241 224;
+    --iris-5: 153 232 207;
+    --iris-6: 111 217 180;
+    --iris-7: 79 203 155;
+    --iris-8: 38 187 136;
+    --iris-9: 45 196 111; // #00a884  WA primary
+    --iris-10: 0 140 112; // #008c70
+    --iris-11: 0 108 85;
+    --iris-12: 0 77 58;
 
-    --blue-1: 250 254 252;
-    --blue-2: 241 252 246;
-    --blue-3: 226 248 237;
-    --blue-4: 208 243 227;
-    --blue-5: 188 237 216;
-    --blue-6: 165 229 203;
-    --blue-7: 135 219 185;
-    --blue-8: 95 208 163;
+    // blue — retonado para verde WA (alias brand)
+    --blue-1: 246 253 250;
+    --blue-2: 230 249 243;
+    --blue-3: 217 253 211;
+    --blue-4: 184 241 224;
+    --blue-5: 153 232 207;
+    --blue-6: 111 217 180;
+    --blue-7: 79 203 155;
+    --blue-8: 38 187 136;
     --blue-9: 45 196 111;
-    --blue-10: 32 176 97;
-    --blue-11: 24 166 88;
-    --blue-12: 12 74 42;
+    --blue-10: 0 140 112;
+    --blue-11: 0 108 85;
+    --blue-12: 0 77 58;
 
+    // ruby — vermelhos (erros/destroy) — mantidos calibrados
     --ruby-1: 255 252 253;
     --ruby-2: 255 247 248;
     --ruby-3: 254 234 237;
@@ -55,6 +63,7 @@
     --ruby-11: 202 36 77;
     --ruby-12: 100 23 43;
 
+    // amber — pendentes / notas privadas (mantido — combina com WA yellow sticky)
     --amber-1: 254 253 251;
     --amber-2: 254 251 233;
     --amber-3: 255 247 194;
@@ -68,32 +77,35 @@
     --amber-11: 171 100 0;
     --amber-12: 79 52 34;
 
-    --teal-1: 250 254 253;
-    --teal-2: 243 251 249;
-    --teal-3: 224 248 243;
-    --teal-4: 204 243 234;
-    --teal-5: 184 234 224;
-    --teal-6: 161 222 210;
-    --teal-7: 131 205 193;
-    --teal-8: 83 185 171;
-    --teal-9: 18 165 148;
-    --teal-10: 13 155 138;
-    --teal-11: 0 133 115;
-    --teal-12: 13 61 56;
+    // teal — acento WA complementar (#12a594 → #00a884 family)
+    --teal-1: 246 253 251;
+    --teal-2: 233 249 245;
+    --teal-3: 212 242 234;
+    --teal-4: 184 234 224;
+    --teal-5: 153 222 209;
+    --teal-6: 119 207 190;
+    --teal-7: 87 190 171;
+    --teal-8: 38 170 150;
+    --teal-9: 45 196 111;
+    --teal-10: 0 140 112;
+    --teal-11: 0 108 85;
+    --teal-12: 0 77 58;
 
-    --gray-1: 252 252 252;
-    --gray-2: 249 249 249;
-    --gray-3: 240 240 240;
-    --gray-4: 232 232 232;
-    --gray-5: 224 224 224;
-    --gray-6: 217 217 217;
-    --gray-7: 206 206 206;
-    --gray-8: 187 187 187;
-    --gray-9: 141 141 141;
-    --gray-10: 131 131 131;
-    --gray-11: 100 100 100;
-    --gray-12: 32 32 32;
+    // gray — neutros (usado em surfaces diversos) — WA tonalizado
+    --gray-1: 255 255 255;
+    --gray-2: 249 250 251;
+    --gray-3: 240 242 245;
+    --gray-4: 233 237 239;
+    --gray-5: 217 219 223;
+    --gray-6: 209 215 219;
+    --gray-7: 199 201 204;
+    --gray-8: 168 171 175;
+    --gray-9: 134 150 160;
+    --gray-10: 102 119 129;
+    --gray-11: 84 101 111;
+    --gray-12: 17 27 33;
 
+    // violet — mantido para ocorrências raras (mantido calibrado)
     --violet-1: 253 252 254;
     --violet-2: 250 248 255;
     --violet-3: 244 240 254;
@@ -107,86 +119,96 @@
     --violet-11: 101 85 183;
     --violet-12: 47 38 95;
 
-    --background-color: 253 253 253;
-    --surface-1: 254 254 254;
+    // Surface + fundos base (WA light)
+    --background-color: 255 255 255; // #ffffff  app root branco puro
+    --surface-1: 240 242 245; // #f0f2f5  panel bg
     --surface-2: 255 255 255;
-    --surface-active: 255 255 255;
+    --surface-active: 240 242 245;
     --background-input-box: 0, 0, 0, 0.03;
-    --text-blue: 24 166 88;
-    --text-purple: 2 4 49;
-    --text-amber: 37 24 1;
-    --border-container: 236 236 236;
-    --border-strong: 226 227 231;
-    --border-weak: 234 234 234;
-    --border-blue-strong: 18 61 117;
+
+    // Text colors retonadas para WA
+    --text-blue: 45 196 111; // #00a884  links em verde WA
+    --text-purple: 17 27 33; // primary text WA
+    --text-amber: 54 46 20;
+
+    // Borders WA
+    --border-container: 233 237 239; // #e9edef
+    --border-strong: 209 215 219; // #d1d7db
+    --border-weak: 233 237 239; // #e9edef
+    --border-blue-strong: 45 196 111;
+
+    // Solid (botões/chips)
     --solid-1: 255 255 255;
     --solid-2: 255 255 255;
     --solid-3: 255 255 255;
-    --solid-active: 255 255 255;
+    --solid-active: 240 242 245;
     --solid-amber: 252 232 193;
-    --solid-blue: 208 243 227;
-    --solid-blue-2: 251 253 255;
-    --solid-iris: 208 243 227;
-    --solid-purple: 230 231 255;
-    --solid-red: 254 200 201;
+    --solid-blue: 217 253 211; // #d9fdd3  bubble out WA
+    --solid-blue-2: 246 253 250;
+    --solid-iris: 217 253 211;
+    --solid-purple: 217 253 211; // retone para WA green
+    --solid-red: 254 215 215;
     --solid-amber-button: 255 221 141;
+
     --card-color: 255 255 255;
-    --overlay: 0, 0, 0, 0.12;
+    --overlay: 11, 20, 26, 0.5;
     --overlay-avatar: 255, 255, 255, 0.67;
-    --button-color: 255 255 255;
+    --button-color: 240 242 245; // #f0f2f5  WA panel bg
     --button-hover-color: 255, 255, 255, 0.2;
-    --label-background: 247 247 247;
+    --label-background: 240 242 245;
     --label-border: 0, 0, 0, 0.04;
 
-    --alpha-1: 215, 215, 215, 0.22;
-    --alpha-2: 196, 197, 198, 0.22;
-    --alpha-3: 255, 255, 255, 0.96;
+    // Alphas — calibradas para hover WA-fiel (sutis, não cobertura)
+    --alpha-1: 17, 27, 33, 0.04; // hover light #f5f6f7 WA
+    --alpha-2: 134, 150, 160, 0.12; // #8696a0 tint WA
+    --alpha-3: 17, 27, 33, 0.06;
     --black-alpha-1: 0, 0, 0, 0.12;
     --black-alpha-2: 0, 0, 0, 0.04;
-    --border-blue: 45, 196, 111, 0.5;
+    --border-blue: 0, 168, 132, 0.5;
     --white-alpha: 255, 255, 255, 0.8;
   }
 
   .dark {
-    // slate
-    --slate-1: 17 17 19;
-    --slate-2: 24 25 27;
-    --slate-3: 33 34 37;
-    --slate-4: 39 42 45;
-    --slate-5: 46 49 53;
-    --slate-6: 54 58 63;
-    --slate-7: 67 72 78;
-    --slate-8: 90 97 105;
-    --slate-9: 105 110 119;
-    --slate-10: 119 123 132;
-    --slate-11: 176 180 186;
-    --slate-12: 237 238 240;
+    // slate — WhatsApp Dark palette
+    --slate-1: 11 20 26; // #0b141a  WA chat bg dark
+    --slate-2: 17 27 33; // #111b21  WA list bg dark
+    --slate-3: 32 44 51; // #202c33  WA header bg dark
+    --slate-4: 35 49 56; // #233138  modal bg dark
+    --slate-5: 42 57 66; // #2a3942  active/hover dark
+    --slate-6: 55 64 69; // #374045  border dark
+    --slate-7: 74 84 89; // #4a5459  strong border dark
+    --slate-8: 107 115 119; // #6b7377
+    --slate-9: 134 150 160; // #8696a0  inactive icon
+    --slate-10: 174 186 193; // #aebac1
+    --slate-11: 134 150 160; // #8696a0  WA secondary text dark (exato)
+    --slate-12: 233 237 239; // #e9edef  primary text WA dark
 
-    --iris-1: 11 23 17;
-    --iris-2: 13 31 22;
-    --iris-3: 13 50 33;
-    --iris-4: 8 66 42;
-    --iris-5: 14 82 52;
-    --iris-6: 23 100 63;
-    --iris-7: 32 121 77;
-    --iris-8: 37 144 91;
-    --iris-9: 45 196 111;
-    --iris-10: 38 208 117;
-    --iris-11: 95 236 156;
-    --iris-12: 195 247 221;
+    // iris — WA brand dark (verde mais vivo)
+    --iris-1: 1 26 19;
+    --iris-2: 5 40 33;
+    --iris-3: 8 61 49;
+    --iris-4: 0 92 75; // #005c4b  bubble out WA dark
+    --iris-5: 0 122 99;
+    --iris-6: 0 140 112;
+    --iris-7: 45 196 111;
+    --iris-8: 20 186 149;
+    --iris-9: 37 211 102; // #25d366  WA unread green
+    --iris-10: 77 229 152;
+    --iris-11: 134 240 188;
+    --iris-12: 217 253 211;
 
-    --blue-1: 11 23 17;
-    --blue-2: 13 31 22;
-    --blue-3: 13 50 33;
-    --blue-4: 8 66 42;
-    --blue-5: 14 82 52;
-    --blue-6: 23 100 63;
-    --blue-7: 32 121 77;
-    --blue-8: 37 144 91;
-    --blue-9: 45 196 111;
-    --blue-10: 38 208 117;
-    --blue-11: 95 236 156;
-    --blue-12: 195 247 221;
+    --blue-1: 1 26 19;
+    --blue-2: 5 40 33;
+    --blue-3: 8 61 49;
+    --blue-4: 0 92 75;
+    --blue-5: 0 122 99;
+    --blue-6: 0 140 112;
+    --blue-7: 45 196 111;
+    --blue-8: 20 186 149;
+    --blue-9: 37 211 102;
+    --blue-10: 77 229 152;
+    --blue-11: 134 240 188;
+    --blue-12: 217 253 211;
 
     --ruby-1: 25 17 19;
     --ruby-2: 30 21 23;
@@ -214,31 +236,31 @@
     --amber-11: 255 202 22;
     --amber-12: 255 231 179;
 
-    --teal-1: 13 21 20;
-    --teal-2: 17 28 27;
-    --teal-3: 13 45 42;
-    --teal-4: 2 59 55;
-    --teal-5: 8 72 67;
-    --teal-6: 20 87 80;
-    --teal-7: 28 105 97;
-    --teal-8: 32 126 115;
-    --teal-9: 18 165 148;
-    --teal-10: 14 179 158;
-    --teal-11: 11 216 182;
-    --teal-12: 173 240 221;
+    --teal-1: 1 26 19;
+    --teal-2: 5 40 33;
+    --teal-3: 8 61 49;
+    --teal-4: 0 92 75;
+    --teal-5: 0 122 99;
+    --teal-6: 0 140 112;
+    --teal-7: 45 196 111;
+    --teal-8: 20 186 149;
+    --teal-9: 37 211 102;
+    --teal-10: 77 229 152;
+    --teal-11: 134 240 188;
+    --teal-12: 217 253 211;
 
-    --gray-1: 17 17 17;
-    --gray-2: 25 25 25;
-    --gray-3: 34 34 34;
-    --gray-4: 42 42 42;
-    --gray-5: 49 49 49;
-    --gray-6: 58 58 58;
-    --gray-7: 72 72 72;
-    --gray-8: 96 96 96;
-    --gray-9: 110 110 110;
-    --gray-10: 123 123 123;
-    --gray-11: 180 180 180;
-    --gray-12: 238 238 238;
+    --gray-1: 11 20 26;
+    --gray-2: 17 27 33;
+    --gray-3: 32 44 51;
+    --gray-4: 35 49 56;
+    --gray-5: 42 57 66;
+    --gray-6: 55 64 69;
+    --gray-7: 74 84 89;
+    --gray-8: 107 115 119;
+    --gray-9: 134 150 160;
+    --gray-10: 174 186 193;
+    --gray-11: 209 215 219;
+    --gray-12: 233 237 239;
 
     --violet-1: 20 17 31;
     --violet-2: 27 21 37;
@@ -253,43 +275,48 @@
     --violet-11: 169 153 236;
     --violet-12: 226 221 254;
 
-    --background-color: 28 29 32;
-    --surface-1: 20 21 23;
-    --surface-2: 22 23 26;
-    --surface-active: 53 57 66;
+    --background-color: 17 27 33; // #111b21  WA main dark
+    --surface-1: 11 20 26; // #0b141a
+    --surface-2: 32 44 51; // #202c33
+    --surface-active: 42 57 66;
     --background-input-box: 255, 255, 255, 0.02;
-    --text-purple: 232 233 254;
-    --text-amber: 255 247 234;
-    --border-strong: 46 45 50;
-    --border-weak: 31 31 37;
-    --border-blue-strong: 201 226 255;
-    --solid-1: 23 23 26;
-    --solid-2: 29 30 36;
-    --solid-3: 44 45 54;
-    --solid-active: 53 57 66;
+
+    --text-purple: 233 237 239;
+    --text-amber: 255 231 179;
+    --text-blue: 83 189 235; // #53bdeb  WA check-read blue (dark) — WCAG safe
+
+    --border-strong: 55 64 69; // #374045
+    --border-weak: 42 57 66; // #2a3942
+    --border-blue-strong: 45 196 111;
+    --border-container: 42, 57, 66, 1;
+
+    --solid-1: 32 44 51;
+    --solid-2: 35 49 56;
+    --solid-3: 42 57 66;
+    --solid-active: 55 64 69;
     --solid-amber: 42 37 30;
-    --solid-blue: 14 66 42;
+    --solid-blue: 0 92 75; // #005c4b  bubble out WA dark
     --solid-blue-2: 26 29 35;
-    --solid-iris: 14 66 42;
-    --solid-purple: 51 51 107;
+    --solid-iris: 0 92 75;
+    --solid-purple: 0 92 75;
     --solid-red: 90 33 34;
     --solid-amber-button: 255 221 141;
-    --card-color: 28 30 34;
-    --overlay: 0, 0, 0, 0.4;
-    --overlay-avatar: 0, 0, 0, 0.05;
-    --button-color: 42 43 51;
-    --button-hover-color: 0, 0, 0, 0.15;
-    --label-background: 36 38 45;
-    --label-border: 255, 255, 255, 0.03;
-    --text-blue: 95 236 156;
 
-    --alpha-1: 35, 36, 42, 0.8;
-    --alpha-2: 147, 153, 176, 0.12;
-    --alpha-3: 33, 34, 38, 0.95;
+    --card-color: 32 44 51;
+    --overlay: 0, 0, 0, 0.6;
+    --overlay-avatar: 0, 0, 0, 0.05;
+    --button-color: 32 44 51;
+    --button-hover-color: 0, 0, 0, 0.15;
+    --label-background: 35 49 56;
+    --label-border: 255, 255, 255, 0.03;
+
+    // Alphas dark — WA hover sutil
+    --alpha-1: 134, 150, 160, 0.08; // hover dark sutil (#202c33 equiv)
+    --alpha-2: 134, 150, 160, 0.12;
+    --alpha-3: 134, 150, 160, 0.16; // hover dark mais firme
     --black-alpha-1: 0, 0, 0, 0.3;
     --black-alpha-2: 0, 0, 0, 0.2;
-    --border-blue: 45, 196, 111, 0.5;
-    --border-container: 236, 236, 236, 0;
+    --border-blue: 0, 168, 132, 0.5;
     --white-alpha: 255, 255, 255, 0.1;
   }
 }

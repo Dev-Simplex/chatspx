@@ -6,12 +6,19 @@
     "SWITCH_VIEW_LAYOUT": "Alternar o layout",
     "DASHBOARD_APP_TAB_MESSAGES": "Mensagens",
     "UNVERIFIED_SESSION": "A identidade deste usuário não foi verificada",
+    "WHATSAPP_WINDOW": {
+      "HOURS_LEFT": "{hours}h restantes",
+      "EXPIRING": "Expira em {time}",
+      "EXPIRED": "Janela expirada — use template",
+      "TOOLTIP": "Janela de 24h do WhatsApp Business. Após expirar, só templates aprovados podem ser enviados."
+    },
     "NO_MESSAGE_1": "Oh oh! Parece que não há mensagens de clientes na sua caixa de entrada.",
     "NO_MESSAGE_2": " para enviar uma mensagem para sua página!",
     "NO_INBOX_1": "Hola! Parece que você não adicionou nenhuma caixa de entrada ainda.",
     "NO_INBOX_2": " para começar",
     "NO_INBOX_AGENT": "Uh Oh! Parece que você não faz parte de nenhuma caixa de entrada. Por favor, contate seu administrador",
     "SEARCH_MESSAGES": "Pesquisar por mensagens nas conversas",
+    "SEARCH_CONVERSATIONS": "Buscar conversas",
     "VIEW_ORIGINAL": "Ver original",
     "VIEW_TRANSLATED": "Ver traduzido",
     "EMPTY_STATE": {
@@ -103,6 +110,21 @@
       "SNOOZED_UNTIL_TOMORROW": "Adiado até amanhã",
       "SNOOZED_UNTIL_NEXT_WEEK": "Adiada até a próxima semana",
       "SNOOZED_UNTIL_NEXT_REPLY": "Adiado até a próxima resposta",
+      "STATUS_PILL": {
+        "OPEN": "Aberta",
+        "PENDING": "Em andamento",
+        "SNOOZED": "Adiada",
+        "RESOLVED": "Resolvida",
+        "CHANGE_TOOLTIP": "Alterar status"
+      },
+      "STATUS_BADGE": {
+        "OPEN_ASSIGNED": "Em atendimento",
+        "OPEN_UNASSIGNED": "Não atribuída",
+        "PENDING": "Aguardando triagem",
+        "SNOOZED_UNTIL": "Adiada até {time}",
+        "SNOOZED_NEXT_REPLY": "Adiada",
+        "RESOLVED": "Resolvida"
+      },
       "SLA_STATUS": {
         "FRT": "FRT {status}",
         "NRT": "NRT {status}",

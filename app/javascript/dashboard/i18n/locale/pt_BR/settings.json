@@ -239,10 +239,18 @@
     "APPEARANCE": "Alterar Tema",
     "DARK_MODE": "Modo escuro",
     "LIGHT_MODE": "Modo claro",
+    "AUTO_MODE": "Modo automático",
     "SUPER_ADMIN_CONSOLE": "Console de Super Admin",
     "DOCS": "Ler documentação",
     "CHANGELOG": "Notas de versão",
-    "LOGOUT": "Encerrar sessão"
+    "LOGOUT": "Encerrar sessão",
+    "SETTINGS": "Configurações",
+    "REPORTS": "Relatórios",
+    "CAMPAIGNS": "Campanhas",
+    "HELP_CENTER": "Central de Ajuda",
+    "KANBAN": "Kanban",
+    "CONTACTS": "Contatos",
+    "LIVE": "Ao Vivo"
   },
   "APP_GLOBAL": {
     "TRIAL_MESSAGE": "dias de teste restantes.",
@@ -302,8 +310,9 @@
     "SWITCH": "Trocar",
     "INBOX_VIEW": "Caixa de entrada",
     "CONVERSATIONS": "Conversas",
-    "INBOX": "Caixa de Entrada",
+    "INBOX": "Notificações",
     "KANBAN": "Kanban",
+    "GALLERY": "Galeria",
     "ALL_CONVERSATIONS": "Todas as conversas",
     "MENTIONED_CONVERSATIONS": "Menções",
     "PARTICIPATING_CONVERSATIONS": "Participantes",
@@ -391,7 +400,7 @@
       "LOCALES": "Localidades",
       "SETTINGS": "Configurações"
     },
-    "CHANNELS": "Canais",
+    "CHANNELS": "Caixa de entrada",
     "SET_AUTO_OFFLINE": {
       "TEXT": "Marcar offline automaticamente",
       "INFO_TEXT": "Deixe o sistema marcar você automaticamente quando você não estiver usando o app ou o painel de controle.",

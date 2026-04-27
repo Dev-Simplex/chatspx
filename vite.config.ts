@@ -29,7 +29,7 @@ const isTestMode = process.env.TEST === 'true';
 const vueOptions = {
   template: {
     compilerOptions: {
-      isCustomElement: tag => ['ninja-keys'].includes(tag),
+      isCustomElement: tag => ['ninja-keys', 'lord-icon'].includes(tag),
     },
   },
 };

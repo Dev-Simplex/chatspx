@@ -6,12 +6,19 @@
     "SWITCH_VIEW_LAYOUT": "Switch the layout",
     "DASHBOARD_APP_TAB_MESSAGES": "Messages",
     "UNVERIFIED_SESSION": "The identity of this user is not verified",
+    "WHATSAPP_WINDOW": {
+      "HOURS_LEFT": "{hours}h left",
+      "EXPIRING": "Expires in {time}",
+      "EXPIRED": "Window expired — use template",
+      "TOOLTIP": "WhatsApp Business 24-hour customer service window. Once expired, only approved templates can be sent."
+    },
     "NO_MESSAGE_1": "Uh oh! Looks like there are no messages from customers in your inbox.",
     "NO_MESSAGE_2": " to send a message to your page!",
     "NO_INBOX_1": "Hola! Looks like you haven't added any inboxes yet.",
     "NO_INBOX_2": " to get started",
     "NO_INBOX_AGENT": "Uh Oh! Looks like you are not part of any inbox. Please contact your administrator",
     "SEARCH_MESSAGES": "Search for messages in conversations",
+    "SEARCH_CONVERSATIONS": "Search conversations",
     "VIEW_ORIGINAL": "View original",
     "VIEW_TRANSLATED": "View translated",
     "EMPTY_STATE": {
@@ -125,6 +132,21 @@
       "SNOOZED_UNTIL_TOMORROW": "Snoozed until tomorrow",
       "SNOOZED_UNTIL_NEXT_WEEK": "Snoozed until next week",
       "SNOOZED_UNTIL_NEXT_REPLY": "Snoozed until next reply",
+      "STATUS_PILL": {
+        "OPEN": "Open",
+        "PENDING": "Pending",
+        "SNOOZED": "Snoozed",
+        "RESOLVED": "Resolved",
+        "CHANGE_TOOLTIP": "Change status"
+      },
+      "STATUS_BADGE": {
+        "OPEN_ASSIGNED": "In progress",
+        "OPEN_UNASSIGNED": "Unassigned",
+        "PENDING": "Awaiting triage",
+        "SNOOZED_UNTIL": "Snoozed until {time}",
+        "SNOOZED_NEXT_REPLY": "Snoozed",
+        "RESOLVED": "Resolved"
+      },
       "SLA_STATUS": {
         "FRT": "FRT {status}",
         "NRT": "NRT {status}",

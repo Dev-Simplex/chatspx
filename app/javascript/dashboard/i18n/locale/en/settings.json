@@ -239,10 +239,18 @@
     "APPEARANCE": "Change appearance",
     "DARK_MODE": "Dark mode",
     "LIGHT_MODE": "Light mode",
+    "AUTO_MODE": "Auto mode",
     "SUPER_ADMIN_CONSOLE": "SuperAdmin console",
     "DOCS": "Read documentation",
     "CHANGELOG": "Changelog",
-    "LOGOUT": "Log out"
+    "LOGOUT": "Log out",
+    "SETTINGS": "Settings",
+    "REPORTS": "Reports",
+    "CAMPAIGNS": "Campaigns",
+    "HELP_CENTER": "Help Center",
+    "KANBAN": "Kanban",
+    "CONTACTS": "Contacts",
+    "LIVE": "Live"
   },
   "APP_GLOBAL": {
     "TRIAL_MESSAGE": "days trial remaining.",
@@ -302,8 +310,9 @@
     "SWITCH": "Switch",
     "INBOX_VIEW": "Inbox View",
     "CONVERSATIONS": "Conversations",
-    "INBOX": "My Inbox",
+    "INBOX": "Notifications",
     "KANBAN": "Kanban",
+    "GALLERY": "Gallery",
     "ALL_CONVERSATIONS": "All Conversations",
     "MENTIONED_CONVERSATIONS": "Mentions",
     "PARTICIPATING_CONVERSATIONS": "Participating",
@@ -390,7 +399,7 @@
       "LOCALES": "Locales",
       "SETTINGS": "Settings"
     },
-    "CHANNELS": "Channels",
+    "CHANNELS": "Inbox",
     "SET_AUTO_OFFLINE": {
       "TEXT": "Mark offline automatically",
       "INFO_TEXT": "Let the system automatically mark you offline when you aren't using the app or dashboard.",
