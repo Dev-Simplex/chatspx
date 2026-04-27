@@ -37,13 +37,18 @@ const props = defineProps({
     default: () => ({}),
   },
 });
+/* eslint-disable vue/no-unused-emit-declarations */
 const emit = defineEmits([
   'addFolders',
   'deleteFolders',
   'resetFilters',
   'basicFilterChange',
   'filtersModal',
+  'openSearch',
+  'search',
+  'clearSearch',
 ]);
+/* eslint-enable vue/no-unused-emit-declarations */
 const { t } = useI18n();
 const store = useStore();
 
@@ -296,7 +301,7 @@ const onCreateContact = async contact => {
           />
           <div
             v-if="showHeaderActionsDropdown"
-            class="absolute z-40 mt-2 top-full p-1 rounded-xl border border-n-weak bg-n-alpha-3 backdrop-blur-[100px]"
+            class="absolute z-40 mt-2 top-full p-1 rounded-lg border border-[var(--wa-list-border)] dark:border-[var(--wa-list-border-dark)] bg-n-solid-1 dark:bg-[#233138] shadow-[0_2px_8px_rgba(11,20,26,0.12)]"
             :class="{ 'ltr:right-0 rtl:left-0': isOnExpandedLayout }"
           >
             <div class="flex flex-col gap-1 min-w-[12rem]">

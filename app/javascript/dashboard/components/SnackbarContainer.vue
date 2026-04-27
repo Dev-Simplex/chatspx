@@ -1,5 +1,5 @@
 <script setup>
-import { ref, onMounted, onUnmounted, nextTick } from 'vue';
+import { ref, onMounted, onUnmounted } from 'vue';
 import WootSnackbar from './Snackbar.vue';
 import { emitter } from 'shared/helpers/mitt';
 import { useI18n } from 'vue-i18n';
@@ -14,19 +14,6 @@ const props = defineProps({
 const { t } = useI18n();
 
 const snackMessages = ref([]);
-const snackbarContainer = ref(null);
-
-const showPopover = () => {
-  try {
-    const el = snackbarContainer.value;
-    if (el?.matches(':popover-open')) {
-      el.hidePopover();
-    }
-    el?.showPopover();
-  } catch (e) {
-    // ignore
-  }
-};
 
 const onNewToastMessage = ({ message: originalMessage, action }) => {
   const message = action?.usei18n ? t(originalMessage) : originalMessage;
@@ -37,8 +24,6 @@ const onNewToastMessage = ({ message: originalMessage, action }) => {
     message,
     action,
   });
-
-  nextTick(showPopover);
 
   setTimeout(() => {
     snackMessages.value.shift();
@@ -55,20 +40,26 @@ onUnmounted(() => {
 </script>
 
 <template>
-  <div
-    ref="snackbarContainer"
-    popover="manual"
-    class="fixed top-4 left-1/2 -translate-x-1/2 max-w-[25rem] w-[calc(100%-2rem)] text-center bg-transparent border-0 p-0 m-0 outline-none overflow-visible"
-  >
-    <transition-group name="toast-fade" tag="div">
-      <WootSnackbar
-        v-for="snackMessage in snackMessages"
-        :key="snackMessage.key"
-        :message="snackMessage.message"
-        :action="snackMessage.action"
-      />
-    </transition-group>
-  </div>
+  <Teleport to="body">
+    <div
+      v-show="snackMessages.length > 0"
+      class="wa-toast-stack fixed top-4 right-6 max-w-[22rem] min-w-[16rem] text-start bg-transparent pointer-events-none z-[9999]"
+    >
+      <transition-group
+        name="toast-fade"
+        tag="div"
+        class="flex flex-col gap-2 items-end"
+      >
+        <WootSnackbar
+          v-for="snackMessage in snackMessages"
+          :key="snackMessage.key"
+          :message="snackMessage.message"
+          :action="snackMessage.action"
+          class="pointer-events-auto"
+        />
+      </transition-group>
+    </div>
+  </Teleport>
 </template>
 
 <style scoped>

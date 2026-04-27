@@ -34,7 +34,8 @@ export default {
       if (this.variant === 'success') {
         return 'bg-n-teal-9 text-white ring-1 ring-n-teal-7/40 shadow-lg';
       }
-      return 'bg-n-slate-12 dark:bg-n-slate-7 text-white shadow-sm';
+      // Default WA-fiel: header escuro (#233138) em ambos temas — alto contraste e consistente.
+      return 'bg-[#233138] text-white shadow-lg ring-1 ring-black/10';
     },
   },
   mounted() {},
