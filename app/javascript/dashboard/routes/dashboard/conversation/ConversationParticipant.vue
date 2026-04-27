@@ -205,7 +205,7 @@ export default {
         'block visible': showDropDown,
         'hidden invisible': !showDropDown,
       }"
-      class="border rounded-lg shadow-lg bg-n-alpha-3 absolute backdrop-blur-[100px] border-n-strong dark:border-n-strong p-2 z-[9999] box-border top-8 w-full"
+      class="border rounded-lg shadow-[0_2px_8px_rgba(11,20,26,0.12)] bg-n-solid-1 dark:bg-[#233138] absolute border-[var(--wa-list-border)] dark:border-[var(--wa-list-border-dark)] p-2 z-[9999] box-border top-8 w-full"
     >
       <div class="flex items-center justify-between mb-1">
         <h4

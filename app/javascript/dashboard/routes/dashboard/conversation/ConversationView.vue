@@ -1,5 +1,6 @@
 <script>
 import { mapGetters } from 'vuex';
+import { ref, onMounted, onBeforeUnmount } from 'vue';
 import { useUISettings } from 'dashboard/composables/useUISettings';
 import { useAccount } from 'dashboard/composables/useAccount';
 import { useKeyboardEvents } from 'dashboard/composables/useKeyboardEvents';
@@ -64,6 +65,16 @@ export default {
     const { accountId } = useAccount();
     const router = useRouter();
 
+    // Viewport width reativo — desktop >=1280px forca o info panel sempre visivel
+    const viewportWidth = ref(
+      typeof window !== 'undefined' ? window.innerWidth : 1280
+    );
+    const onResize = () => {
+      viewportWidth.value = window.innerWidth;
+    };
+    onMounted(() => window.addEventListener('resize', onResize));
+    onBeforeUnmount(() => window.removeEventListener('resize', onResize));
+
     // Navegar de volta ao dashboard ao pressionar ESC dentro de uma conversa
     const keyboardEvents = {
       Escape: {
@@ -86,6 +97,7 @@ export default {
       uiSettings,
       updateUISettings,
       accountId,
+      viewportWidth,
     };
   },
   data() {
@@ -96,6 +108,18 @@ export default {
     };
   },
   computed: {
+    permissionTitle() {
+      return this.$t('CONVERSATION.PERMISSION_MODAL.TITLE') !==
+        'CONVERSATION.PERMISSION_MODAL.TITLE'
+        ? this.$t('CONVERSATION.PERMISSION_MODAL.TITLE')
+        : 'Atenção';
+    },
+    permissionBackLabel() {
+      return this.$t('CONVERSATION.PERMISSION_MODAL.BACK') !==
+        'CONVERSATION.PERMISSION_MODAL.BACK'
+        ? this.$t('CONVERSATION.PERMISSION_MODAL.BACK')
+        : 'Voltar para conversas';
+    },
     ...mapGetters({
       chatList: 'getAllConversations',
       currentChat: 'getSelectedChat',
@@ -118,6 +142,12 @@ export default {
     shouldShowSidebar() {
       if (!this.currentChat.id) {
         return false;
+      }
+
+      // WhatsApp-fiel: em desktop (>=1280px) o info panel fica sempre visivel.
+      // Em telas menores, respeita o toggle is_contact_sidebar_open.
+      if (this.viewportWidth >= 1280) {
+        return true;
       }
 
       const { is_contact_sidebar_open: isContactSidebarOpen } = this.uiSettings;
@@ -256,7 +286,7 @@ export default {
     <CmdBarConversationSnooze />
     <div v-if="showPermissionModal" class="modal-overlay">
       <div class="modal-content">
-        <h2>Atenção</h2>
+        <h2>{{ permissionTitle }}</h2>
         <p>{{ permissionErrorMessage }}</p>
         <button
           @click="
@@ -266,7 +296,7 @@ export default {
             }
           "
         >
-          Voltar para conversas
+          {{ permissionBackLabel }}
         </button>
       </div>
     </div>
