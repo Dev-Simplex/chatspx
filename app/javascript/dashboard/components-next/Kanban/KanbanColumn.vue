@@ -214,7 +214,7 @@ const handleColumnObserved = async () => {
 
           <div
             v-if="showStageMenu"
-            class="absolute right-0 top-8 z-20 w-48 rounded-xl border border-n-weak bg-white dark:bg-n-solid-2 py-1 shadow-lg"
+            class="absolute right-0 top-8 z-20 w-48 rounded-xl border border-n-weak bg-n-solid-1 py-1 shadow-lg"
             @click.stop
           >
             <button

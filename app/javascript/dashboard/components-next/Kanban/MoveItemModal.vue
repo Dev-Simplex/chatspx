@@ -71,6 +71,7 @@ const move = async () => {
     emit('moved');
     emit('close');
   } catch (error) {
+    // eslint-disable-next-line no-console
     console.error('Erro ao mover item:', error);
     alert(t('KANBAN.ITEMS.MOVE_ERROR'));
   }
