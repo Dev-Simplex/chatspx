@@ -569,7 +569,7 @@ useKeyboardEvents({
 
       <div
         v-if="shouldShowMessageEditor"
-        class="px-5 py-5 border-t border-n-weak/40 bg-n-alpha-1/40"
+        class="px-5 py-5 border-t border-n-weak/40 bg-n-solid-1 dark:bg-n-solid-2"
       >
         <MessageEditor
           v-model="state.message"

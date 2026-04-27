@@ -206,7 +206,7 @@ watch(
 <template>
   <div class="relative px-5 py-4 overflow-y-visible">
     <div
-      class="flex items-center w-full gap-3 rounded-2xl border border-n-weak/70 bg-n-solid-1 px-4 py-3.5 shadow-sm transition-all duration-150 focus-within:border-n-brand/50 focus-within:ring-[3px] focus-within:ring-n-brand/25 focus-within:shadow-md"
+      class="flex items-center w-full gap-3 rounded-2xl border border-n-weak/70 bg-transparent px-4 py-3.5 transition-all duration-150 focus-within:border-n-brand/50 focus-within:ring-[3px] focus-within:ring-n-brand/25"
       :class="{
         '!ring-2 !ring-n-ruby-9/40 !border-n-ruby-9/60': hasErrors,
       }"

@@ -88,7 +88,7 @@ const targetInboxLabel = computed(() => {
         :class="
           hasErrors
             ? 'border-n-ruby-9/50 bg-n-ruby-3/30 text-n-ruby-11 hover:border-n-ruby-9/80'
-            : 'border-n-strong bg-n-alpha-1 hover:bg-n-brand/5 hover:border-n-brand/40 text-n-slate-11'
+            : 'border-n-strong bg-n-solid-1 dark:bg-n-solid-2 hover:bg-n-brand/5 hover:border-n-brand/40 text-n-slate-11'
         "
         @click="emit('toggleDropdown', !showInboxesDropdown)"
       >
