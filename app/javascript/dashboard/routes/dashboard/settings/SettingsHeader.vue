@@ -41,7 +41,7 @@ export default {
 
 <template>
   <div
-    class="flex justify-between items-center min-h-[3.5rem] px-8 py-4 bg-white dark:bg-n-solid-1"
+    class="flex justify-between items-center min-h-[3.5rem] px-8 py-4 bg-n-solid-1"
   >
     <h1 class="flex items-center mb-0 text-display text-n-slate-12">
       <BackButton

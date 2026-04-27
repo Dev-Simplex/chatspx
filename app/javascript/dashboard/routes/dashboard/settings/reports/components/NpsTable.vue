@@ -237,9 +237,7 @@ const table = useVueTable({
 </script>
 
 <template>
-  <div
-    class="bg-white dark:bg-n-solid-2 border border-n-weak rounded-xl overflow-hidden"
-  >
+  <div class="bg-n-solid-1 border border-n-weak rounded-xl overflow-hidden">
     <div class="mb-4 flex items-center justify-between px-5 pt-5">
       <div
         class="inline-flex gap-1 rounded-lg border border-n-weak bg-n-solid-3 p-1"

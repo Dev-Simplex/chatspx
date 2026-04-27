@@ -176,7 +176,7 @@ export default {
 
 <template>
   <div
-    class="bg-white dark:bg-n-solid-2 border border-n-weak rounded-xl px-4 py-4 relative z-30 mb-6"
+    class="bg-n-solid-1 border border-n-weak rounded-xl px-4 py-4 relative z-30 mb-6"
   >
     <div class="flex flex-col gap-4 lg:flex-row lg:items-start">
       <div

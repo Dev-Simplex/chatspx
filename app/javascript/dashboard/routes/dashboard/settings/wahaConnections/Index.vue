@@ -104,9 +104,10 @@ const getStatusConfig = status => {
       text: t('WAHA_CONNECTIONS.STATUS.FAILED'),
     },
     STOPPED: {
-      color: 'bg-gray-100 text-gray-800 dark:bg-gray-700 dark:text-gray-300',
+      color:
+        'bg-n-slate-3 text-n-slate-12 dark:bg-n-slate-3 dark:text-n-slate-12',
       icon: 'i-lucide-circle',
-      iconColor: 'text-gray-600',
+      iconColor: 'text-n-slate-11',
       text: t('WAHA_CONNECTIONS.STATUS.STOPPED'),
     },
     STARTING: {
@@ -236,7 +237,7 @@ onUnmounted(() => {
 
         <!-- Botão Principal GRANDE -->
         <button
-          class="inline-flex items-center gap-3 px-10 py-4 text-lg font-bold text-white bg-[#25d366] hover:bg-green-700 rounded-xl shadow-xl hover:shadow-2xl transition-all duration-200 transform hover:scale-105"
+          class="inline-flex items-center gap-3 px-10 py-4 text-lg font-bold text-white bg-[#00a884] hover:bg-[#008f72] rounded-xl shadow-xl hover:shadow-2xl transition-all duration-200 transform hover:scale-105"
           @click="handleAddConnection"
         >
           <svg
@@ -322,7 +323,7 @@ onUnmounted(() => {
           {{ $t('WAHA_CONNECTIONS.NO_CONNECTIONS_DESCRIPTION') }}
         </p>
         <button
-          class="inline-flex items-center gap-2 px-8 py-3 text-base font-semibold text-white bg-[#25d366] hover:bg-green-700 rounded-lg shadow-lg transition-all"
+          class="inline-flex items-center gap-2 px-8 py-3 text-base font-semibold text-white bg-[#00a884] hover:bg-[#008f72] rounded-lg shadow-lg transition-all"
           @click="handleAddConnection"
         >
           <svg
@@ -353,7 +354,7 @@ onUnmounted(() => {
               <!-- Logo WhatsApp -->
               <div class="relative flex-shrink-0">
                 <div
-                  class="size-12 rounded-lg flex items-center justify-center bg-[#25d366]"
+                  class="size-12 rounded-lg flex items-center justify-center bg-[#00a884]"
                 >
                   <svg viewBox="0 0 32 32" class="size-7">
                     <path
@@ -364,7 +365,7 @@ onUnmounted(() => {
                 </div>
                 <div
                   v-if="connection.status === 'WORKING'"
-                  class="absolute -top-1 -right-1 size-3 rounded-full border-2 border-white dark:border-n-solid-2 bg-[#25d366]"
+                  class="absolute -top-1 -right-1 size-3 rounded-full border-2 border-white dark:border-n-solid-2 bg-[#00a884]"
                 />
               </div>
 
@@ -449,7 +450,7 @@ onUnmounted(() => {
 
             <button
               v-if="connection.status === 'STOPPED'"
-              class="flex-1 inline-flex items-center justify-center gap-1.5 px-3 py-2 text-sm font-semibold text-white rounded-lg transition-all bg-[#25d366]"
+              class="flex-1 inline-flex items-center justify-center gap-1.5 px-3 py-2 text-sm font-semibold text-white rounded-lg transition-all bg-[#00a884]"
               @click="handleConnect(connection)"
             >
               <div class="i-lucide-plug size-4" />
@@ -467,7 +468,7 @@ onUnmounted(() => {
 
             <button
               v-if="connection.status === 'FAILED'"
-              class="flex-1 inline-flex items-center justify-center gap-1.5 px-3 py-2 text-sm font-semibold text-white rounded-lg transition-all bg-[#25d366]"
+              class="flex-1 inline-flex items-center justify-center gap-1.5 px-3 py-2 text-sm font-semibold text-white rounded-lg transition-all bg-[#00a884]"
               @click="handleRestart(connection)"
             >
               <div class="i-lucide-refresh-cw size-4" />

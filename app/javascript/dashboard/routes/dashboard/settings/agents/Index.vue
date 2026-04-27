@@ -214,7 +214,7 @@ const confirmDeletion = () => {
                   {{ getAgentRoleName(agent) }}
 
                   <div
-                    class="absolute ltr:left-0 rtl:right-0 z-10 hidden w-[300px] bg-n-alpha-3 backdrop-blur-[100px] rounded-xl outline outline-1 outline-n-container shadow-lg top-14 md:top-12"
+                    class="absolute ltr:left-0 rtl:right-0 z-10 hidden w-[300px] bg-n-solid-1 dark:bg-[#233138] rounded-lg border border-[var(--wa-list-border)] dark:border-[var(--wa-list-border-dark)] shadow-[0_2px_8px_rgba(11,20,26,0.12)] top-14 md:top-12"
                     :class="{ 'group-hover:block': agent.custom_role_id }"
                   >
                     <div class="flex flex-col gap-1 p-4">

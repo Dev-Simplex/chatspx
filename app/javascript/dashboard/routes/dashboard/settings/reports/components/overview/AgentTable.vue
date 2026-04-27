@@ -122,7 +122,7 @@ const table = useVueTable({
 
 <template>
   <div
-    class="flex flex-col flex-1 bg-white dark:bg-n-solid-2 border border-n-weak rounded-xl overflow-hidden"
+    class="flex flex-col flex-1 bg-n-solid-1 border border-n-weak rounded-xl overflow-hidden"
   >
     <Table
       :table="table"

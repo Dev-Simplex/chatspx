@@ -62,7 +62,7 @@ const handleClose = () => {
       >
         <div class="flex items-center gap-4">
           <div
-            class="size-14 rounded-xl flex items-center justify-center shadow-lg bg-[#25D366]"
+            class="size-14 rounded-xl flex items-center justify-center shadow-lg bg-[var(--wa-primary)]"
           >
             <svg viewBox="0 0 32 32" class="size-7">
               <path
@@ -160,7 +160,7 @@ const handleClose = () => {
           {{ $t('WAHA_CONNECTIONS.ADD_MODAL.CANCEL') }}
         </button>
         <button
-          class="inline-flex items-center gap-2 px-6 py-2 text-sm font-semibold text-white rounded-lg shadow-md hover:shadow-lg transition-all disabled:opacity-50 disabled:cursor-not-allowed min-w-[140px] justify-center bg-[#25D366]"
+          class="inline-flex items-center gap-2 px-6 py-2 text-sm font-semibold text-white rounded-lg shadow-md hover:shadow-lg transition-all disabled:opacity-50 disabled:cursor-not-allowed min-w-[140px] justify-center bg-[var(--wa-primary)]"
           :disabled="isSubmitting"
           @click="handleSubmit"
         >
