@@ -12,6 +12,7 @@ import {
 } from './AudioMessageHelper';
 import WindowVisibilityHelper from './WindowVisibilityHelper';
 import { useAlert } from 'dashboard/composables';
+import { emitter } from 'shared/helpers/mitt';
 
 const NOTIFICATION_TIME = 30000;
 const ALERT_DURATION = 10000;
@@ -211,6 +212,23 @@ export class DashboardAudioNotificationHelper {
     this.playAudioAlert();
     showBadgeOnFavicon();
     this.playAudioEvery30Seconds();
+
+    // Toast in-app — regras INDEPENDENTES do som:
+    //   1. Aba visível (se não, desktop notification + favicon badge cuidam)
+    //   2. Conversa ATRIBUÍDA ao user logado (não polui com mensagens de outros agentes)
+    if (
+      WindowVisibilityHelper.isWindowVisible() &&
+      isConversationAssignedToMe(message, this.currentUser?.id)
+    ) {
+      emitter.emit('newMessageToast', {
+        conversationId: message.conversation_id,
+        contactName:
+          message.sender?.name || message.sender?.available_name || '',
+        contactAvatar: message.sender?.thumbnail || '',
+        messagePreview: (message.content || '').substring(0, 80),
+        accountId: message.account_id,
+      });
+    }
   };
 }
 

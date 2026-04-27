@@ -203,6 +203,7 @@ useEmitter(CMD_RESOLVE_CONVERSATION, onCmdResolveConversation);
     <ButtonGroup class="flex-shrink-0 rounded-lg">
       <Button
         v-if="isOpen"
+        v-tooltip.top="`${t('CONVERSATION.HEADER.RESOLVE_ACTION')} (Alt+E)`"
         :label="t('CONVERSATION.HEADER.RESOLVE_ACTION')"
         size="sm"
         no-animation
@@ -212,6 +213,7 @@ useEmitter(CMD_RESOLVE_CONVERSATION, onCmdResolveConversation);
       />
       <Button
         v-else-if="isResolved"
+        v-tooltip.top="t('CONVERSATION.HEADER.REOPEN_ACTION')"
         :label="t('CONVERSATION.HEADER.REOPEN_ACTION')"
         size="sm"
         no-animation
@@ -221,6 +223,7 @@ useEmitter(CMD_RESOLVE_CONVERSATION, onCmdResolveConversation);
       />
       <Button
         v-else-if="showOpenButton"
+        v-tooltip.top="t('CONVERSATION.HEADER.OPEN_ACTION')"
         :label="t('CONVERSATION.HEADER.OPEN_ACTION')"
         size="sm"
         no-animation
@@ -231,6 +234,7 @@ useEmitter(CMD_RESOLVE_CONVERSATION, onCmdResolveConversation);
       <Button
         v-if="showAdditionalActions"
         ref="arrowDownButtonRef"
+        v-tooltip.top="`${t('CONVERSATION.HEADER.MORE_ACTIONS')} (Alt+M)`"
         icon="i-lucide-chevron-down"
         :disabled="isLoading"
         size="sm"
@@ -248,7 +252,7 @@ useEmitter(CMD_RESOLVE_CONVERSATION, onCmdResolveConversation);
     <div
       v-if="showActionsDropdown"
       v-on-clickaway="closeDropdown"
-      class="bg-white dark:bg-n-solid-2 border border-n-weak rounded-xl shadow-lg p-1 w-fit z-10 absolute block left-auto top-full mt-0.5 start-0 xl:start-auto xl:end-0 max-w-[12.5rem] min-w-[9.75rem] [&_ul>li]:mb-0"
+      class="bg-n-solid-1 border border-n-weak rounded-xl shadow-lg p-1 w-fit z-10 absolute block left-auto top-full mt-0.5 start-0 xl:start-auto xl:end-0 max-w-[12.5rem] min-w-[9.75rem] [&_ul>li]:mb-0"
     >
       <WootDropdownMenu class="mb-0">
         <WootDropdownItem v-if="!isPending">

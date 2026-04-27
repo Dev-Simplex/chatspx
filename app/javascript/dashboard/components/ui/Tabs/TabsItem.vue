@@ -27,6 +27,10 @@ const props = defineProps({
     type: Boolean,
     default: false,
   },
+  icon: {
+    type: String,
+    default: '',
+  },
 });
 
 const activeIndex = inject('activeIndex');
@@ -46,25 +50,24 @@ const onTabClick = event => {
 <template>
   <li class="flex-shrink-0">
     <button
-      class="flex items-center h-7 px-3 rounded-full text-sm font-medium select-none cursor-pointer transition-all duration-200 border whitespace-nowrap"
+      class="wa-tab-item flex items-center h-7 px-3 rounded-full text-sm font-medium select-none cursor-pointer transition-all duration-200 border border-transparent whitespace-nowrap"
       :class="[
-        active
-          ? 'bg-n-brand/20 text-n-slate-12 font-semibold border-transparent'
-          : 'bg-white dark:bg-n-solid-2 text-n-slate-11 border-n-weak hover:bg-n-slate-3/50 hover:border-n-slate-6 active:bg-n-slate-3',
+        active ? 'active font-semibold' : '',
         disabled && 'opacity-50 cursor-not-allowed',
       ]"
       :disabled="disabled"
       @click="onTabClick"
     >
+      <span
+        v-if="icon"
+        :class="icon"
+        class="size-3.5 mr-1.5 shrink-0"
+        aria-hidden="true"
+      />
       {{ name }}
       <div
         v-if="showBadge"
-        class="rounded-full px-1.5 text-xs min-w-[18px] h-5 inline-flex items-center justify-center ml-1.5"
-        :class="[
-          active
-            ? 'bg-n-brand/25 text-n-slate-12'
-            : 'bg-n-slate-3 text-n-slate-10',
-        ]"
+        class="wa-tab-item__badge rounded-full px-1.5 text-xs min-w-[18px] h-5 inline-flex items-center justify-center ml-1.5"
       >
         <span>
           {{ getItemCount }}

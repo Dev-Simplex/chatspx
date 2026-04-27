@@ -468,7 +468,7 @@ export default {
         :disabled="isSendDisabled"
         icon="i-lucide-send-horizontal"
         :label="sendButtonText"
-        class="flex-shrink-0 h-9 px-3 rounded-full"
+        class="wa-send-btn flex-shrink-0 h-9 px-3 rounded-full"
         @click="onSend"
       />
     </div>

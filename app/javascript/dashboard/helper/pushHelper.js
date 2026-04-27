@@ -15,8 +15,15 @@ export const verifyServiceWorkerExistence = (callback = () => {}) => {
   }
 
   navigator.serviceWorker
-    .register('/sw.js')
-    .then(registration => callback(registration))
+    .register('/sw.js', { updateViaCache: 'none' })
+    .then(registration => {
+      // Força checagem imediata de update — evita SW velho de sessões antigas
+      // ficar instalado por até 24h conforme padrão Chrome.
+      if (registration.update) {
+        registration.update().catch(() => {});
+      }
+      callback(registration);
+    })
     .catch(registrationError => {
       // eslint-disable-next-line
       console.log('SW registration failed: ', registrationError);

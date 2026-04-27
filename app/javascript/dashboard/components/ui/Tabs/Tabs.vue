@@ -35,7 +35,8 @@ const computeScrollWidth = () => {
   if (tabsContainer.value && tabsList.value) {
     // Only show scroll buttons when content overflows by more than 20px
     // This prevents chevrons from appearing when tabs barely overflow
-    hasScroll.value = tabsList.value.scrollWidth > tabsList.value.clientWidth + 20;
+    hasScroll.value =
+      tabsList.value.scrollWidth > tabsList.value.clientWidth + 20;
   }
 };
 
@@ -62,7 +63,7 @@ watch(
 </script>
 
 <template>
-  <div ref="tabsContainer" class="flex items-center w-full">
+  <div ref="tabsContainer" class="wa-tabs flex items-center w-full">
     <button
       v-if="hasScroll"
       class="items-center rounded-none cursor-pointer flex h-auto justify-center min-w-6 opacity-60 hover:opacity-100 transition-opacity"
