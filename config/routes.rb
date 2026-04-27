@@ -191,6 +191,12 @@ Rails.application.routes.draw do
             end
           end
 
+          resources :attachments, only: [:index] do
+            collection do
+              get :links
+            end
+          end
+
           resources :companies, only: [:index, :show, :create, :update, :destroy] do
             collection do
               get :search

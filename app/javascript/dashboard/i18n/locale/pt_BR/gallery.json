@@ -1,0 +1,53 @@
+{
+  "GALLERY": {
+    "TITLE": "Galeria",
+    "SUBTITLE": "Mídias, documentos e links compartilhados nas conversas",
+    "TOTAL_COUNT": "{count} itens",
+    "SEARCH_PLACEHOLDER": "Buscar por nome, contato ou descrição",
+    "UNNAMED_FILE": "Arquivo sem nome",
+    "UNKNOWN_SENDER": "Sem remetente",
+    "AUDIO_MESSAGE": "Mensagem de áudio",
+    "TABS": {
+      "MEDIA": "Mídia",
+      "DOCUMENTS": "Documentos",
+      "LINKS": "Links"
+    },
+    "DATE": {
+      "TODAY": "Hoje",
+      "YESTERDAY": "Ontem",
+      "THIS_WEEK": "Esta semana",
+      "THIS_MONTH": "Este mês"
+    },
+    "EMPTY": {
+      "MEDIA_TITLE": "Nenhuma mídia ainda",
+      "MEDIA": "Fotos e vídeos compartilhados nas conversas vão aparecer aqui.",
+      "DOCUMENTS_TITLE": "Nenhum documento ainda",
+      "DOCUMENTS": "Arquivos PDF, planilhas e áudios trocados com clientes ficam aqui.",
+      "LINKS_TITLE": "Nenhum link ainda",
+      "LINKS": "Links enviados nas conversas vão aparecer aqui."
+    },
+    "SORT": {
+      "DATE_DESC": "Mais recente",
+      "DATE_ASC": "Mais antigo"
+    },
+    "FILTERS": {
+      "ALL_INBOXES": "Todas as caixas",
+      "ALL_CONTACTS": "Todos os contatos",
+      "DATE_RANGE": "Período"
+    },
+    "ACTIONS": {
+      "DOWNLOAD": "Baixar",
+      "DOWNLOAD_EMPTY": "Nenhum arquivo selecionado para baixar.",
+      "DOWNLOAD_LIMIT": "Limite de 5 arquivos por vez. Selecione menos itens.",
+      "FORWARD": "Encaminhar",
+      "SHARE": "Compartilhar",
+      "SHARE_UNSUPPORTED": "Compartilhamento não suportado neste navegador.",
+      "OPEN_CONVERSATION": "Abrir conversa",
+      "SELECT": "Selecionar",
+      "SELECT_ALL": "Selecionar todos",
+      "DESELECT": "Limpar seleção",
+      "SELECTED": "{count} selecionado(s)",
+      "CLOSE": "Fechar"
+    }
+  }
+}

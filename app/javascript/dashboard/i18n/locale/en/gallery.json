@@ -1,0 +1,53 @@
+{
+  "GALLERY": {
+    "TITLE": "Gallery",
+    "SUBTITLE": "Media, documents and links shared across conversations",
+    "TOTAL_COUNT": "{count} items",
+    "SEARCH_PLACEHOLDER": "Search by name, contact or description",
+    "UNNAMED_FILE": "Unnamed file",
+    "UNKNOWN_SENDER": "Unknown sender",
+    "AUDIO_MESSAGE": "Audio message",
+    "TABS": {
+      "MEDIA": "Media",
+      "DOCUMENTS": "Documents",
+      "LINKS": "Links"
+    },
+    "DATE": {
+      "TODAY": "Today",
+      "YESTERDAY": "Yesterday",
+      "THIS_WEEK": "This week",
+      "THIS_MONTH": "This month"
+    },
+    "EMPTY": {
+      "MEDIA_TITLE": "No media yet",
+      "MEDIA": "Photos and videos shared in conversations will appear here.",
+      "DOCUMENTS_TITLE": "No documents yet",
+      "DOCUMENTS": "PDFs, spreadsheets and audio files exchanged with customers go here.",
+      "LINKS_TITLE": "No links yet",
+      "LINKS": "Links shared in conversations will appear here."
+    },
+    "SORT": {
+      "DATE_DESC": "Newest first",
+      "DATE_ASC": "Oldest first"
+    },
+    "FILTERS": {
+      "ALL_INBOXES": "All inboxes",
+      "ALL_CONTACTS": "All contacts",
+      "DATE_RANGE": "Date range"
+    },
+    "ACTIONS": {
+      "DOWNLOAD": "Download",
+      "DOWNLOAD_EMPTY": "No downloadable files selected.",
+      "DOWNLOAD_LIMIT": "Limit of 5 files per batch. Please select fewer items.",
+      "FORWARD": "Forward",
+      "SHARE": "Share",
+      "SHARE_UNSUPPORTED": "Sharing is not supported in this browser.",
+      "OPEN_CONVERSATION": "Open conversation",
+      "SELECT": "Select",
+      "SELECT_ALL": "Select all",
+      "DESELECT": "Clear selection",
+      "SELECTED": "{count} selected",
+      "CLOSE": "Close"
+    }
+  }
+}
