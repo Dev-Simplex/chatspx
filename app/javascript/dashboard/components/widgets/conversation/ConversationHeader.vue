@@ -1,14 +1,16 @@
 <script setup>
-import { computed, ref } from 'vue';
+import { computed, onBeforeUnmount, onMounted, ref } from 'vue';
 import { useRoute } from 'vue-router';
 import { useStore } from 'vuex';
 import { useElementSize } from '@vueuse/core';
+import { MESSAGE_TYPE } from 'shared/constants/messages';
 import BackButton from '../BackButton.vue';
 import InboxName from '../InboxName.vue';
 import MoreActions from './MoreActions.vue';
 import Thumbnail from '../Thumbnail.vue';
 import SLACardLabel from './components/SLACardLabel.vue';
 import ConversationMessageSearch from './ConversationMessageSearch.vue';
+import ConversationStatusActions from 'dashboard/components-next/Conversation/ConversationStatusActions.vue';
 import ButtonV4 from 'dashboard/components-next/button/Button.vue';
 import wootConstants from 'dashboard/constants/globals';
 import { conversationListPageURL } from 'dashboard/helper/URLHelper';
@@ -104,12 +106,127 @@ const hasMultipleInboxes = computed(
 );
 
 const hasSlaPolicyId = computed(() => props.chat?.sla_policy_id);
+
+// --- WhatsApp 24h window timer -------------------------------------------
+// Re-render every 60s so "remaining" stays fresh without per-component timers.
+const nowTick = ref(Date.now());
+let nowIntervalId = null;
+
+onMounted(() => {
+  nowIntervalId = setInterval(() => {
+    nowTick.value = Date.now();
+  }, 60 * 1000);
+});
+
+onBeforeUnmount(() => {
+  if (nowIntervalId) {
+    clearInterval(nowIntervalId);
+    nowIntervalId = null;
+  }
+});
+
+const isWhatsAppChannel = computed(() => {
+  const channel = inbox.value?.channel_type || '';
+  const medium = inbox.value?.medium || '';
+  // Native WhatsApp (Cloud + 360Dialog) uses Channel::Whatsapp; Twilio SMS/WhatsApp
+  // shares Channel::TwilioSms with medium === 'whatsapp'.
+  return (
+    channel === 'Channel::Whatsapp' ||
+    (channel === 'Channel::TwilioSms' && medium === 'whatsapp')
+  );
+});
+
+const lastIncomingMessage = computed(() => {
+  const messages = props.chat?.messages || [];
+  for (let i = messages.length - 1; i >= 0; i -= 1) {
+    const msg = messages[i];
+    if (msg && msg.message_type === MESSAGE_TYPE.INCOMING && !msg.private) {
+      return msg;
+    }
+  }
+  return null;
+});
+
+const whatsAppWindowRemainingMs = computed(() => {
+  if (!isWhatsAppChannel.value) return null;
+  const msg = lastIncomingMessage.value;
+  if (!msg) return null;
+  // Chatwoot API exposes `created_at` as seconds-since-epoch.
+  const createdAt = Number(msg.created_at);
+  if (!createdAt) return null;
+  const expiresAt = createdAt * 1000 + 24 * 60 * 60 * 1000;
+  return expiresAt - nowTick.value;
+});
+
+const whatsAppWindowDisplay = computed(() => {
+  const remaining = whatsAppWindowRemainingMs.value;
+  if (remaining === null) return null;
+
+  if (remaining <= 0) {
+    return {
+      level: 'expired',
+      text: t('CONVERSATION.WHATSAPP_WINDOW.EXPIRED'),
+    };
+  }
+
+  const totalMinutes = Math.floor(remaining / (60 * 1000));
+  const hours = Math.floor(totalMinutes / 60);
+  const minutes = totalMinutes % 60;
+
+  if (remaining >= 12 * 60 * 60 * 1000) {
+    return {
+      level: 'ok',
+      text: t('CONVERSATION.WHATSAPP_WINDOW.HOURS_LEFT', { hours }),
+    };
+  }
+
+  if (remaining >= 2 * 60 * 60 * 1000) {
+    const label = minutes ? `${hours}h ${minutes}min` : `${hours}h`;
+    return {
+      level: 'warning',
+      text: t('CONVERSATION.WHATSAPP_WINDOW.EXPIRING', { time: label }),
+    };
+  }
+
+  const label = hours ? `${hours}h ${minutes}min` : `${minutes}min`;
+  return {
+    level: 'urgent',
+    text: t('CONVERSATION.WHATSAPP_WINDOW.EXPIRING', { time: label }),
+  };
+});
+
+const whatsAppWindowClass = computed(() => {
+  const display = whatsAppWindowDisplay.value;
+  if (!display) return '';
+  switch (display.level) {
+    case 'urgent':
+      return 'text-red-600 dark:text-red-400 font-semibold';
+    case 'expired':
+      return 'text-red-700 dark:text-red-400 font-semibold';
+    case 'warning':
+      return 'text-amber-600 dark:text-amber-400';
+    case 'ok':
+    default:
+      return 'text-n-slate-11';
+  }
+});
+
+const whatsAppWindowIcon = computed(() => {
+  const display = whatsAppWindowDisplay.value;
+  if (!display) return '';
+  return display.level === 'expired'
+    ? 'i-lucide-triangle-alert'
+    : 'i-lucide-timer';
+});
+
+// Status badge agora é informativo (read-only) — ações de mudança de status
+// ficam em ResolveAction (botão primário) + MoreActions (kebab).
 </script>
 
 <template>
   <div
     ref="conversationHeader"
-    class="flex items-center justify-between flex-shrink-0 w-full h-14 px-4 bg-white dark:bg-n-solid-1 border-b border-n-weak"
+    class="flex items-center justify-between flex-shrink-0 w-full px-4 bg-n-background dark:bg-n-solid-1 border-b border-n-weak wa-conversation-header"
   >
     <div class="flex items-center gap-3 min-w-0 flex-1">
       <BackButton
@@ -128,7 +245,7 @@ const hasSlaPolicyId = computed(() => props.chat?.sla_policy_id);
       <div class="flex flex-col items-start min-w-0 overflow-hidden">
         <div class="flex flex-row items-center max-w-full gap-1 p-0 m-0">
           <span
-            class="text-base font-semibold truncate leading-tight text-n-slate-12 cursor-pointer hover:text-n-brand-default transition-colors"
+            class="wa-contact-name truncate text-n-slate-12 cursor-pointer hover:text-n-brand-default transition-colors"
             role="button"
             tabindex="0"
             @click="toggleContactPanel"
@@ -145,16 +262,30 @@ const hasSlaPolicyId = computed(() => props.chat?.sla_policy_id);
         </div>
 
         <div
-          class="flex items-center gap-2 overflow-hidden text-xs text-n-slate-10 text-ellipsis whitespace-nowrap"
+          class="wa-contact-subtitle flex items-center gap-2 overflow-hidden text-ellipsis whitespace-nowrap"
         >
           <InboxName v-if="hasMultipleInboxes" :inbox="inbox" class="!mx-0" />
           <span v-if="isSnoozed" class="font-medium text-n-amber-10">
             {{ snoozedDisplayText }}
           </span>
+          <span
+            v-if="whatsAppWindowDisplay"
+            v-tooltip="$t('CONVERSATION.WHATSAPP_WINDOW.TOOLTIP')"
+            class="inline-flex items-center gap-1 whitespace-nowrap"
+            :class="whatsAppWindowClass"
+          >
+            <span class="size-3" :class="whatsAppWindowIcon" />
+            {{ whatsAppWindowDisplay.text }}
+          </span>
         </div>
       </div>
     </div>
     <div class="flex items-center gap-1 flex-shrink-0">
+      <ConversationStatusActions
+        v-if="currentChat.id"
+        :chat="currentChat"
+        class="hidden md:inline-flex"
+      />
       <SLACardLabel
         v-if="hasSlaPolicyId"
         :chat="chat"
@@ -168,7 +299,7 @@ const hasSlaPolicyId = computed(() => props.chat?.sla_policy_id);
         variant="ghost"
         color="slate"
         icon="i-lucide-search"
-        class="size-8 rounded-lg hover:bg-n-slate-3/50 text-n-slate-10 hover:text-n-slate-12"
+        class="wa-header-icon-btn"
         @click="showMessageSearch = true"
       />
       <MoreActions :conversation-id="currentChat.id" />

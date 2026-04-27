@@ -163,6 +163,7 @@ export default {
       whatsappNoticeTimeoutId: null,
       isRevalidatingWhatsapp: false,
       copilotAcceptedMessages: {},
+      isGhostSuggestionDismissed: false,
     };
   },
   computed: {
@@ -362,7 +363,47 @@ export default {
       return {
         'is-private': this.isPrivate,
         'is-focused': this.isFocused || this.hasAttachments,
+        'is-collapsed': this.isComposerCollapsed,
       };
+    },
+    // Visual compact mode à la WhatsApp Web: single-line input when empty AND
+    // not focused. Expands as soon as the agent clicks/tabs in or types.
+    isComposerCollapsed() {
+      if (this.isFocused) return false;
+      if (!this.isMessageEmpty) return false;
+      if (this.hasAttachments) return false;
+      if (this.isRecordingAudio || this.hasRecordedAudio) return false;
+      if (this.copilot.isActive.value) return false;
+      return true;
+    },
+    shouldShowGhostSuggestion() {
+      if (this.isGhostSuggestionDismissed) return false;
+      if (this.isComposerCollapsed) return false;
+      if (!this.isMessageEmpty) return false;
+      if (this.isEditorDisabled || this.isPrivate) return false;
+      if (this.hasAttachments || this.isRecordingAudio) return false;
+      const msg = this.lastIncomingMessage;
+      if (!msg || !msg.created_at) return false;
+      const ageMs = Date.now() - Number(msg.created_at) * 1000;
+      return ageMs >= 0 && ageMs <= 30 * 1000;
+    },
+    lastIncomingMessage() {
+      const messages = this.currentChat?.messages || [];
+      for (let i = messages.length - 1; i >= 0; i -= 1) {
+        const m = messages[i];
+        if (m && m.message_type === 0 && !m.private) return m;
+      }
+      return null;
+    },
+    ghostSuggestionText() {
+      const suggestions = [
+        'Obrigado pelo contato! Como posso ajudar?',
+        'Oi! Tudo bem? Em que posso ajudar?',
+        'Um momento, vou verificar aqui pra você.',
+        'Perfeito, já tomei nota!',
+      ];
+      const id = Number(this.currentChat?.id) || 0;
+      return suggestions[Math.abs(id) % suggestions.length];
     },
     hasAttachments() {
       return this.attachedFiles.length;
@@ -547,6 +588,7 @@ export default {
         this.setToDraft(oldConversationId, this.replyType);
         this.getFromDraft();
         this.resetRecorderAndClearAttachments();
+        this.isGhostSuggestionDismissed = false;
       }
     },
     message() {
@@ -792,6 +834,18 @@ export default {
         Escape: {
           action: () => {
             this.hideEmojiPicker();
+            if (this.shouldShowGhostSuggestion) {
+              this.dismissGhostSuggestion();
+            }
+          },
+          allowOnFocusedInput: true,
+        },
+        Tab: {
+          action: e => {
+            if (this.shouldShowGhostSuggestion) {
+              e.preventDefault();
+              this.acceptGhostSuggestion();
+            }
           },
           allowOnFocusedInput: true,
         },
@@ -1236,6 +1290,18 @@ export default {
     },
     onFocus() {
       this.isFocused = true;
+      this.isGhostSuggestionDismissed = false;
+    },
+    acceptGhostSuggestion() {
+      if (!this.shouldShowGhostSuggestion) return;
+      this.message = this.ghostSuggestionText;
+      this.isGhostSuggestionDismissed = true;
+      this.$nextTick(() => {
+        this.messageEditor?.focusEditorInputField?.('end');
+      });
+    },
+    dismissGhostSuggestion() {
+      this.isGhostSuggestionDismissed = true;
     },
     onRecordProgressChanged(duration) {
       this.recordingAudioDurationText = duration;
@@ -1628,6 +1694,22 @@ export default {
             @execute-copilot-action="executeCopilotAction"
           />
 
+          <div
+            v-if="shouldShowGhostSuggestion"
+            v-tooltip="'Pressione Tab para aceitar, Esc para dispensar'"
+            class="wa-ghost-suggestion"
+            role="button"
+            tabindex="0"
+            @click="acceptGhostSuggestion"
+            @keydown.enter="acceptGhostSuggestion"
+          >
+            <span class="i-lucide-sparkles size-3 shrink-0 text-n-brand/70" />
+            <span class="wa-ghost-suggestion__text italic">
+              {{ ghostSuggestionText }}
+            </span>
+            <span class="wa-ghost-suggestion__hint">{{ 'Tab' }}</span>
+          </div>
+
           <QuotedEmailPreview
             v-if="shouldShowQuotedPreview && isDefaultEditorMode"
             :quoted-email-text="quotedEmailText"
@@ -1746,7 +1828,10 @@ export default {
 }
 
 .reply-box {
-  @apply relative mb-2 mx-2 border border-n-weak rounded-xl bg-n-solid-1;
+  @apply relative mb-2 mx-2 rounded-2xl;
+  border: 1px solid transparent;
+  box-shadow: 0 1px 2px rgba(11, 20, 26, 0.08);
+  // Colors (light + dark) are owned by the WA skin (_wa-skin.scss).
 
   &.is-private {
     @apply bg-n-solid-amber dark:border-n-amber-3/10 border-n-amber-12/5;

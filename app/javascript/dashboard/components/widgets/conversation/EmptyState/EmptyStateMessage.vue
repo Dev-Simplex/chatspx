@@ -76,7 +76,7 @@ function openNewConversation() {
 
       <button
         v-if="showCta"
-        class="flex items-center gap-2 mt-8 px-6 h-10 rounded-full bg-n-brand text-white font-medium text-sm hover:bg-[#1FB85A] transition-colors active:scale-[0.97]"
+        class="wa-empty-cta flex items-center gap-2 mt-8 px-6 h-10 rounded-full text-white font-medium text-sm transition-colors active:scale-[0.97]"
         @click="openNewConversation"
       >
         <span class="i-lucide-message-square-plus size-4" />

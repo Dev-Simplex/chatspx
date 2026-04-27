@@ -686,7 +686,7 @@ export default {
         class="absolute flex items-center justify-center w-full -top-10 z-10"
       >
         <button
-          class="flex items-center gap-1.5 py-1.5 px-4 shadow-md rounded-full bg-woot-500 hover:bg-woot-600 text-white text-xs font-semibold cursor-pointer transition-colors"
+          class="flex items-center gap-1.5 py-1.5 px-4 shadow-md rounded-full bg-n-brand hover:bg-n-brand text-white text-xs font-semibold cursor-pointer transition-colors"
           @click="jumpToLatest"
         >
           <span v-if="pendingNewMessageCount > 0">
@@ -708,7 +708,7 @@ export default {
         class="absolute flex items-center justify-center w-full h-0 -top-7 z-10"
       >
         <div
-          class="flex items-center py-1.5 pr-4 pl-4 shadow-md rounded-full bg-white dark:bg-n-solid-3 text-n-slate-11 text-xs font-semibold my-2.5"
+          class="flex items-center py-1.5 pr-4 pl-4 shadow-md rounded-full bg-n-background text-n-slate-11 text-xs font-semibold my-2.5"
         >
           <span class="mr-1">{{ typingUserNames }}</span>
           <TypingIndicator />
@@ -716,10 +716,10 @@ export default {
       </div>
       <div
         v-if="forwardSelectionMode"
-        class="mx-4 mb-2 p-3 rounded-xl bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 shadow-sm"
+        class="mx-4 mb-2 p-3 rounded-xl bg-n-background border border-n-weak shadow-sm"
       >
         <div class="flex items-center justify-between gap-3">
-          <span class="text-sm text-slate-600 dark:text-slate-300">
+          <span class="text-sm text-n-slate-11">
             {{
               $t('CONVERSATION.FORWARD.SELECTED_COUNT', {
                 count: forwardSelectedMessageIds.length,
@@ -728,14 +728,14 @@ export default {
           </span>
           <div class="flex gap-2">
             <button
-              class="px-3 py-1.5 text-sm font-medium text-slate-700 dark:text-slate-200 border border-slate-300 dark:border-slate-600 rounded-lg hover:bg-slate-50 dark:hover:bg-slate-700 transition-colors"
+              class="px-3 py-1.5 text-sm font-medium text-n-slate-12 border border-n-weak rounded-lg hover:bg-n-slate-3 transition-colors"
               @click="cancelForwardSelection"
             >
               {{ $t('CONVERSATION.FORWARD.CANCEL') }}
             </button>
             <button
               :disabled="forwardSelectedMessageIds.length === 0"
-              class="px-3 py-1.5 text-sm font-medium text-white bg-woot-500 rounded-lg hover:bg-woot-600 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+              class="px-3 py-1.5 text-sm font-medium text-white bg-n-brand rounded-lg hover:bg-n-brand disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
               @click="openForwardModal"
             >
               {{ $t('CONVERSATION.FORWARD.FORWARD') }}
@@ -769,26 +769,13 @@ export default {
 <style scoped lang="scss">
 .conversation-panel {
   position: relative;
-  background-image: linear-gradient(rgba(0, 0, 0, 0.85), rgba(0, 0, 0, 0.85)),
-    url('/assets/images/chat-spx-background.png');
+  // Background colors/images are owned by the WA skin (_wa-skin.scss).
+  // Keep structural rules only (stacking context for messages).
   background-size: auto, 400px;
   background-position:
     0 0,
     0 0;
   background-repeat: repeat, repeat;
-
-  &.conversation-panel-light {
-    background-image: linear-gradient(
-        rgba(255, 255, 255, 0.85),
-        rgba(255, 255, 255, 0.85)
-      ),
-      url('/assets/images/chat-spx-background-light.png');
-    background-size: auto, 400px;
-    background-position:
-      0 0,
-      0 0;
-    background-repeat: repeat, repeat;
-  }
 
   > * {
     position: relative;

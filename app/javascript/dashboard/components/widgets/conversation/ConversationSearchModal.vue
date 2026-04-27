@@ -1,4 +1,5 @@
 <script setup>
+/* eslint-disable vue/no-unused-properties, no-unused-vars */
 import { ref, computed, watch } from 'vue';
 import { useI18n } from 'vue-i18n';
 import { useStore } from 'vuex';
@@ -17,7 +18,7 @@ const props = defineProps({
   },
 });
 
-const emit = defineEmits(['close', 'select-conversation']);
+const emit = defineEmits(['close', 'selectConversation']);
 
 const { t } = useI18n();
 const store = useStore();
@@ -90,7 +91,7 @@ const handleClose = () => {
 };
 
 const handleSelectConversation = conversation => {
-  emit('select-conversation', conversation);
+  emit('selectConversation', conversation);
 };
 </script>
 
@@ -105,23 +106,26 @@ const handleSelectConversation = conversation => {
     @close="handleClose"
   >
     <div class="flex flex-col gap-4">
-      <!-- Campo de busca -->
-      <div class="relative">
+      <!-- Campo de busca (WA-fiel, consistente com ConversationSearchBar) -->
+      <div
+        class="flex items-center w-full h-[35px] rounded-lg px-3 gap-3 bg-n-solid-1 dark:bg-[#202c33] border border-transparent focus-within:border-[var(--wa-primary)]"
+      >
+        <div class="flex items-center justify-center shrink-0">
+          <span
+            v-if="!isSearching"
+            class="i-lucide-search size-4 text-[#54656f] dark:text-[#aebac1]"
+          />
+          <Spinner v-else class="text-n-brand" :size="16" />
+        </div>
         <input
           v-model="searchQuery"
           type="text"
-          class="w-full px-3 py-2 text-sm border rounded-lg bg-transparent border-n-weak text-n-slate-12 focus:outline-none focus:ring-0 placeholder:text-n-slate-9 caret-[#25D366]"
+          class="reset-base no-margin flex-1 min-w-0 border-0 bg-transparent text-[15px] leading-[35px] p-0 m-0 shadow-none appearance-none rounded-none w-full font-normal focus:border-0 focus:bg-transparent focus:shadow-none focus:outline-none focus:ring-0 text-[#111b21] dark:text-[#e9edef] placeholder:text-[#8696a0] placeholder:font-normal caret-[var(--wa-primary)]"
           :placeholder="$t('CONVERSATION.SEARCH_CONVERSATIONS')"
           autocomplete="off"
           @input="handleSearchInput"
           @keydown.esc="handleClose"
         />
-        <div
-          v-if="isSearching"
-          class="absolute right-3 top-1/2 -translate-y-1/2"
-        >
-          <Spinner class="text-n-brand" :size="16" />
-        </div>
       </div>
 
       <!-- Lista de resultados -->

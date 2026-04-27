@@ -44,7 +44,7 @@ const handleAssign = () => {
 <template>
   <div
     v-on-click-outside="onClose"
-    class="absolute ltr:right-2 rtl:left-2 top-12 origin-top-right z-20 w-60 bg-n-alpha-3 backdrop-blur-[100px] border-n-weak rounded-lg border border-solid shadow-md"
+    class="absolute ltr:right-2 rtl:left-2 top-12 origin-top-right z-20 w-60 bg-n-solid-1 dark:bg-[#233138] border-[var(--wa-list-border)] dark:border-[var(--wa-list-border-dark)] rounded-lg border border-solid shadow-[0_2px_8px_rgba(11,20,26,0.12)]"
     role="dialog"
     aria-labelledby="label-dialog-title"
   >
@@ -135,7 +135,7 @@ const handleAssign = () => {
   @apply block z-10 absolute text-left -top-3 ltr:right-[--triangle-position] rtl:left-[--triangle-position];
 
   svg path {
-    @apply fill-n-alpha-3 backdrop-blur-[100px]  stroke-n-weak;
+    @apply fill-white dark:fill-[#233138] stroke-n-weak;
   }
 }
 </style>

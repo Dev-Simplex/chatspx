@@ -64,16 +64,16 @@ const chatStatusOptions = computed(() => [
     value: 'open',
   },
   {
+    label: t('CHAT_LIST.CHAT_STATUS_FILTER_ITEMS.pending.TEXT'),
+    value: 'pending',
+  },
+  {
     label: t('CHAT_LIST.CHAT_STATUS_FILTER_ITEMS.snoozed.TEXT'),
     value: 'snoozed',
   },
   {
     label: t('CHAT_LIST.CHAT_STATUS_FILTER_ITEMS.resolved.TEXT'),
     value: 'resolved',
-  },
-  {
-    label: t('CHAT_LIST.CHAT_STATUS_FILTER_ITEMS.pending.TEXT'),
-    value: 'pending',
   },
 ]);
 
@@ -178,14 +178,14 @@ const handleSortChange = value => {
     <div
       v-if="showActionsDropdown"
       v-on-click-outside="() => toggleDropdown()"
-      class="mt-1 rounded-xl shadow-lg bg-white dark:bg-n-solid-2 border border-n-weak w-72 p-3 absolute z-40 top-full"
+      class="wa-filter-dropdown mt-1 rounded-lg shadow-[0_2px_8px_rgba(11,20,26,0.12)] w-72 p-3 absolute z-40 top-full"
       :class="{
         'ltr:left-0 rtl:right-0': !isOnExpandedLayout,
         'ltr:right-0 rtl:left-0': isOnExpandedLayout,
       }"
     >
       <div class="flex items-center justify-between last:mt-4 gap-2">
-        <span class="text-sm truncate text-n-slate-12">
+        <span class="wa-filter-dropdown__label text-sm truncate">
           {{ $t('CHAT_LIST.CHAT_SORT.STATUS') }}
         </span>
         <SelectMenu
@@ -197,7 +197,7 @@ const handleSortChange = value => {
         />
       </div>
       <div class="flex items-center justify-between last:mt-4 gap-2">
-        <span class="text-sm truncate text-n-slate-12">
+        <span class="wa-filter-dropdown__label text-sm truncate">
           {{ $t('CHAT_LIST.CHAT_SORT.ORDER_BY') }}
         </span>
         <SelectMenu
