@@ -26,7 +26,7 @@ const beforeClass = computed(() => {
 <template>
   <div class="absolute">
     <ul
-      class="text-sm bg-white dark:bg-n-solid-2 border rounded-xl shadow-dropdown p-1 n-dropdown-body gap-2 grid list-none reset-base relative animate-dropdown-in"
+      class="text-sm bg-n-solid-1 border rounded-xl shadow-dropdown p-1 n-dropdown-body gap-2 grid list-none reset-base relative animate-dropdown-in"
       :class="[borderClass, beforeClass]"
     >
       <slot />

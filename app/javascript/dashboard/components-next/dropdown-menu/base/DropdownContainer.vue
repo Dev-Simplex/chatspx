@@ -107,7 +107,7 @@ function onTriggerClick(e) {
     <!-- Inline (placement bottom): menu no fluxo -->
     <div
       v-if="isOpen && !useTeleport()"
-      v-on-click-outside="closeMenu"
+      v-on-click-outside="[closeMenu, { ignore: [triggerRef] }]"
       class="absolute z-10"
     >
       <slot />
@@ -117,7 +117,7 @@ function onTriggerClick(e) {
     <TeleportWithDirection v-else-if="isOpen && useTeleport()" to="body">
       <div
         ref="menuRef"
-        class="dropdown-menu-teleport bg-white dark:bg-n-solid-2 border border-n-weak shadow-dropdown rounded-xl overflow-y-auto overflow-x-hidden"
+        class="dropdown-menu-teleport bg-n-solid-1 border border-n-weak shadow-dropdown rounded-xl overflow-y-auto overflow-x-hidden"
         :style="teleportStyle"
       >
         <!-- DropdownBody usa position:absolute; dentro do teleport o pai colapsa (altura 0). 

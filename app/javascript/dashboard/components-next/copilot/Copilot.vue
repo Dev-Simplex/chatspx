@@ -1,4 +1,5 @@
 <script setup>
+/* eslint-disable no-use-before-define, vue/no-undef-components */
 import { nextTick, ref, watch, computed } from 'vue';
 import { useTrack } from 'dashboard/composables';
 import { COPILOT_EVENTS } from 'dashboard/helper/AnalyticsHelper/events';
@@ -146,7 +147,7 @@ watch(
 
 <template>
   <div
-    class="flex flex-col h-full text-sm leading-6 tracking-tight w-full bg-white dark:bg-n-solid-1 ltr:border-l rtl:border-r border-n-weak"
+    class="flex flex-col h-full text-sm leading-6 tracking-tight w-full bg-n-solid-1 ltr:border-l rtl:border-r border-n-weak"
   >
     <SidebarActionsHeader
       :title="$t('CAPTAIN.COPILOT.TITLE')"

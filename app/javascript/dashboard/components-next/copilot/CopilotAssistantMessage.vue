@@ -59,7 +59,7 @@ const useCopilotResponse = () => {
   <div class="flex justify-start">
     <div class="max-w-[90%]">
       <div
-        class="bg-white dark:bg-n-solid-3 text-n-slate-12 rounded-lg px-3 py-2 text-sm border border-n-weak/50"
+        class="bg-n-solid-1 text-n-slate-12 rounded-lg px-3 py-2 text-sm border border-n-weak/50"
       >
         <span v-if="hasEmptyMessageContent" class="text-n-ruby-11">
           {{ $t('CAPTAIN.COPILOT.EMPTY_MESSAGE') }}

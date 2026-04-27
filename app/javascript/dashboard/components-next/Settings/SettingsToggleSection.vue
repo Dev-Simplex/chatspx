@@ -25,7 +25,7 @@ const modelValue = defineModel({ type: Boolean, default: false });
 
 <template>
   <div
-    class="flex flex-col items-start bg-white dark:bg-n-solid-2 border border-n-weak rounded-xl [interpolate-size:allow-keywords]"
+    class="flex flex-col items-start bg-n-solid-1 border border-n-weak rounded-xl [interpolate-size:allow-keywords]"
   >
     <div class="flex flex-col gap-1 items-start w-full p-6">
       <div class="flex items-center gap-3 w-full justify-between">
