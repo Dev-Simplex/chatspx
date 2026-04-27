@@ -58,7 +58,7 @@ const handleSelect = value => {
     />
     <div
       v-if="isOpen"
-      class="absolute select-none max-w-64 flex flex-col gap-1 bg-n-alpha-3 backdrop-blur-[100px] p-1 top-0 shadow-lg z-40 rounded-lg border border-n-weak dark:border-n-strong/50"
+      class="wa-select-menu absolute select-none max-w-64 flex flex-col gap-1 p-1 top-0 shadow-[0_2px_8px_rgba(11,20,26,0.12)] z-40 rounded-lg"
       :class="{
         'ltr:left-full rtl:right-full ltr:ml-1 rtl:mr-1':
           subMenuPosition === 'right',
@@ -76,8 +76,8 @@ const handleSelect = value => {
         variant="ghost"
         color="slate"
         trailing-icon
-        class="!justify-end !px-2.5 !h-7"
-        :class="{ '!bg-n-alpha-2': option.value === modelValue }"
+        class="wa-select-menu__item !justify-end !px-2.5 !h-7"
+        :class="{ 'wa-select-menu__item--active': option.value === modelValue }"
         @click="handleSelect(option.value)"
       />
     </div>

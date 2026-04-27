@@ -58,7 +58,7 @@ const onClickCancel = () => {
     />
     <div
       v-if="showPopover"
-      class="absolute w-[26.5rem] top-9 z-50 ltr:left-0 rtl:right-0 flex flex-col gap-5 bg-n-alpha-3 backdrop-blur-[100px] p-4 rounded-xl border border-n-weak shadow-md"
+      class="absolute w-[26.5rem] top-9 z-50 ltr:left-0 rtl:right-0 flex flex-col gap-5 bg-n-solid-1 dark:bg-[#233138] p-4 rounded-lg border border-[var(--wa-list-border)] dark:border-[var(--wa-list-border-dark)] shadow-[0_2px_8px_rgba(11,20,26,0.12)]"
     >
       <InlineInput
         v-model="modelValue"

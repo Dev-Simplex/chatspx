@@ -935,6 +935,6 @@ provideMessageContext({
 }
 
 .forward-select__input {
-  @apply size-4 text-woot-500 rounded border-slate-300 focus:ring-woot-500;
+  @apply size-4 text-n-brand rounded border-slate-300 focus:ring-n-brand;
 }
 </style>

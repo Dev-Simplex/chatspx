@@ -19,7 +19,7 @@ const handleClick = () => {
 
 <template>
   <div
-    class="flex flex-col w-full border border-n-weak group/cardLayout rounded-xl bg-white dark:bg-n-solid-2 hover:shadow-sm transition-shadow"
+    class="flex flex-col w-full border border-n-weak group/cardLayout rounded-xl bg-n-solid-1 hover:shadow-sm transition-shadow"
   >
     <div
       class="flex w-full gap-3 py-5"

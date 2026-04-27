@@ -88,7 +88,7 @@ const openCreateAssistantDialog = () => {
 
 <template>
   <div
-    class="pt-5 pb-3 bg-n-alpha-3 backdrop-blur-[100px] outline outline-n-container outline-1 z-50 absolute w-[27.5rem] rounded-xl shadow-md flex flex-col gap-4"
+    class="pt-5 pb-3 bg-n-solid-1 dark:bg-[#233138] border border-[var(--wa-list-border)] dark:border-[var(--wa-list-border-dark)] z-50 absolute w-[27.5rem] rounded-lg shadow-[0_2px_8px_rgba(11,20,26,0.12)] flex flex-col gap-4"
   >
     <div
       class="flex items-center justify-between gap-4 px-6 pb-3 border-b border-n-alpha-2"
