@@ -51,7 +51,7 @@ export default {
 
 <template>
   <section
-    class="flex-grow flex-shrink h-full px-4 py-8 overflow-hidden bg-white dark:bg-n-solid-1"
+    class="flex-grow flex-shrink h-full px-4 py-8 overflow-hidden bg-n-solid-1"
   >
     <div class="flex w-full items-center justify-between gap-2 mb-4 h-14 px-0">
       <h6 class="text-base font-semibold text-n-slate-12">
