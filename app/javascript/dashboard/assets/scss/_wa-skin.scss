@@ -1,0 +1,2263 @@
+// scss-lint:disable ColorVariable, Comment, EmptyLineBetweenBlocks, HexLength, MergeableSelector, PropertySortOrder, PropertySpelling, QualifyingElement, Shorthand, SingleLinePerSelector, VendorPrefix
+// =============================================================================
+// WhatsApp-Web visual skin for ChatSPX (agent workspace)
+// Aggressive restyle applied on top of existing Tailwind/SCSS.
+// Scope: message bubbles, chat wallpaper, header, composer, conversation list.
+// -----------------------------------------------------------------------------
+// Global skin for MVP — applied to the whole dashboard. !important is used
+// ONLY where strictly necessary (background colors / background images that
+// fight with scoped component styles). Structural rules (border-radius,
+// padding, etc.) are kept free of !important.
+// =============================================================================
+
+// --- Design tokens -----------------------------------------------------------
+:root {
+  --wa-bubble-out: #d9fdd3;
+  --wa-bubble-out-dark: #005c4b;
+  --wa-bubble-in: #ffffff;
+  --wa-bubble-in-dark: #202c33;
+  --wa-bubble-note: #fff3c4;
+  --wa-bubble-note-border: #e9a700;
+  --wa-bubble-shadow: 0 1px 0.5px rgba(11, 20, 26, 0.13);
+  --wa-header-bg: #f0f2f5;
+  --wa-header-bg-dark: #202c33;
+  --wa-list-bg: #ffffff;
+  --wa-list-bg-dark: #111b21;
+  --wa-list-hover: #f5f6f7;
+  --wa-list-hover-dark: #202c33;
+  --wa-list-active: #f0f2f5;
+  --wa-list-active-dark: #2a3942;
+  --wa-list-border: #e9edef;
+  --wa-list-border-dark: #2a3942;
+  --wa-text-primary: #111b21;
+  --wa-text-primary-dark: #e9edef;
+  --wa-text-secondary: #667781;
+  --wa-text-secondary-dark: #8696a0;
+  --wa-unread-bg: #25d366;
+  --wa-check-read: #53bdeb;
+  --wa-check-delivered: #8696a0;
+  --wa-primary: #2dc46f;
+  --wa-chat-bg: #efeae2;
+  --wa-chat-bg-dark: #0b141a;
+  --wa-composer-bg: #ffffff;
+  --wa-composer-bg-dark: #2a3942;
+  --wa-note-bg-dark: #2f2917;
+
+  // Sidebar + global chrome
+  --wa-sidebar-bg: #f0f2f5;
+  --wa-sidebar-bg-dark: #111b21;
+  --wa-sidebar-item-hover: #e9edef;
+  --wa-sidebar-item-hover-dark: #202c33;
+  --wa-sidebar-item-active: #d9dbdf;
+  --wa-sidebar-item-active-dark: #2a3942;
+  --wa-sidebar-icon-inactive: #54656f;
+  --wa-sidebar-icon-inactive-dark: #8696a0;
+  --wa-sidebar-icon-active: #2dc46f;
+  --wa-sidebar-border: #d1d7db;
+  --wa-sidebar-border-dark: #222d34;
+
+  // Workspace background (behind empty states / panels without chat)
+  --wa-workspace-bg: #f0f2f5;
+  --wa-workspace-bg-dark: #111b21;
+
+  // Scrollbar
+  --wa-scrollbar-thumb: #c7c9cc;
+  --wa-scrollbar-thumb-dark: #374045;
+  --wa-scrollbar-thumb-hover: #a8abaf;
+  --wa-scrollbar-thumb-hover-dark: #4a5459;
+
+  // Modal / dialog
+  --wa-modal-header-bg: #f0f2f5;
+  --wa-modal-header-bg-dark: #233138;
+  --wa-modal-body-bg: #ffffff;
+  --wa-modal-body-bg-dark: #111b21;
+}
+
+// --- Chat wallpaper ----------------------------------------------------------
+.conversation-panel {
+  &.conversation-panel-light {
+    background-image: linear-gradient(
+        rgba(239, 234, 226, 0.92),
+        rgba(239, 234, 226, 0.92)
+      ),
+      url('/assets/images/chat-spx-background-light.png') !important;
+    background-color: var(--wa-chat-bg) !important;
+  }
+
+  &.conversation-panel-dark {
+    background-image: linear-gradient(
+        rgba(11, 20, 26, 0.92),
+        rgba(11, 20, 26, 0.92)
+      ),
+      url('/assets/images/chat-spx-background.png') !important;
+    background-color: var(--wa-chat-bg-dark) !important;
+  }
+}
+
+// Fall-back outer wrap colour when panel isn't present yet.
+.conversation-details-wrap {
+  background-color: var(--wa-chat-bg) !important;
+}
+.dark .conversation-details-wrap {
+  background-color: var(--wa-chat-bg-dark) !important;
+}
+
+// --- Message bubbles ---------------------------------------------------------
+// Base.vue renders:
+//   - right-bubble .bg-n-solid-blue (AGENT/BOT/TEMPLATE)
+//   - left-bubble  .bg-n-slate-4    (USER)
+//   - .bg-n-solid-amber             (PRIVATE/SCHEDULED)
+// WA uses asymmetric radius: right bubble is flat on the top-right corner,
+// left bubble flat on the top-left corner.
+
+.right-bubble.bg-n-solid-blue,
+.right-bubble.bg-n-solid-iris {
+  background-color: var(--wa-bubble-out) !important;
+  color: var(--wa-text-primary);
+  border-radius: 7.5px 0 7.5px 7.5px;
+  box-shadow: var(--wa-bubble-shadow);
+  position: relative;
+  overflow: visible !important;
+
+  &.px-4 {
+    padding-left: 9px;
+    padding-right: 9px;
+  }
+  &.py-3 {
+    padding-top: 6px;
+    padding-bottom: 6px;
+  }
+
+  .text-n-slate-11,
+  .text-n-slate-12 {
+    color: var(--wa-text-secondary);
+  }
+
+  // WA-style beak (top-right corner of outgoing bubble).
+  &::after {
+    content: '';
+    position: absolute;
+    top: 0;
+    right: -7px;
+    width: 8px;
+    height: 13px;
+    background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='8' height='13' viewBox='0 0 8 13' fill='%23d9fdd3'><path d='M0 0 L8 0 C8 0 7.5 5 1 13 Z'/></svg>");
+    background-repeat: no-repeat;
+    pointer-events: none;
+  }
+}
+
+.left-bubble.bg-n-slate-4 {
+  background-color: var(--wa-bubble-in) !important;
+  color: var(--wa-text-primary);
+  border-radius: 0 7.5px 7.5px 7.5px;
+  box-shadow: var(--wa-bubble-shadow);
+  position: relative;
+  overflow: visible !important;
+
+  &.px-4 {
+    padding-left: 9px;
+    padding-right: 9px;
+  }
+  &.py-3 {
+    padding-top: 6px;
+    padding-bottom: 6px;
+  }
+
+  .text-n-slate-11 {
+    color: var(--wa-text-secondary);
+  }
+
+  // WA-style beak (top-left corner of incoming bubble) — mirrored.
+  &::after {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: -7px;
+    width: 8px;
+    height: 13px;
+    background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='8' height='13' viewBox='0 0 8 13' fill='%23ffffff'><path d='M8 0 L0 0 C0 0 0.5 5 7 13 Z'/></svg>");
+    background-repeat: no-repeat;
+    pointer-events: none;
+  }
+}
+
+// Tail grouping.
+// `.group-with-next` lives on the outer `.message-bubble-container` and means
+// THIS bubble groups with the next one (same author run). WA shows the tail
+// only on the LAST bubble of a run, so hide the beak on any bubble whose
+// container is `.group-with-next`.
+.message-bubble-container.group-with-next .right-bubble.bg-n-solid-blue::after,
+.message-bubble-container.group-with-next .right-bubble.bg-n-solid-iris::after,
+.message-bubble-container.group-with-next .left-bubble.bg-n-slate-4::after {
+  display: none;
+}
+
+// Private note / scheduled — WA-ish sticky-note yellow.
+.message-bubble-container .right-bubble.bg-n-solid-amber,
+.message-bubble-container .left-bubble.bg-n-solid-amber {
+  background-color: var(--wa-bubble-note) !important;
+  color: #3b2f00;
+  border-left: 3px solid var(--wa-bubble-note-border);
+  border-radius: 7.5px;
+  box-shadow: var(--wa-bubble-shadow);
+
+  .text-n-amber-12,
+  .text-n-amber-12\/50 {
+    color: #5a4500;
+  }
+}
+
+// --- Dark mode bubbles -------------------------------------------------------
+.dark {
+  .right-bubble.bg-n-solid-blue,
+  .right-bubble.bg-n-solid-iris {
+    background-color: var(--wa-bubble-out-dark) !important;
+    color: var(--wa-text-primary-dark);
+
+    &::after {
+      background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='8' height='13' viewBox='0 0 8 13' fill='%23005c4b'><path d='M0 0 L8 0 C8 0 7.5 5 1 13 Z'/></svg>");
+    }
+    .text-n-slate-11,
+    .text-n-slate-12 {
+      color: var(--wa-text-secondary-dark);
+    }
+  }
+
+  .left-bubble.bg-n-slate-4 {
+    background-color: var(--wa-bubble-in-dark) !important;
+    color: var(--wa-text-primary-dark);
+
+    &::after {
+      background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='8' height='13' viewBox='0 0 8 13' fill='%23202c33'><path d='M8 0 L0 0 C0 0 0.5 5 7 13 Z'/></svg>");
+    }
+    .text-n-slate-11 {
+      color: var(--wa-text-secondary-dark);
+    }
+  }
+
+  .message-bubble-container .right-bubble.bg-n-solid-amber,
+  .message-bubble-container .left-bubble.bg-n-solid-amber {
+    background-color: var(--wa-note-bg-dark) !important;
+    color: #ffe9a3;
+    border-left-color: var(--wa-bubble-note-border);
+    .text-n-amber-12,
+    .text-n-amber-12\/50 {
+      color: #ffd86b;
+    }
+  }
+}
+
+// --- Conversation header -----------------------------------------------------
+// Target the actual header row: flex items-center justify-between flex-shrink-0
+// w-full h-14, plus the dedicated .wa-conversation-header class.
+.conversation-details-wrap > div:first-child.h-14,
+.wa-conversation-header {
+  background-color: var(--wa-header-bg) !important;
+  border-bottom-color: var(--wa-list-border);
+}
+.dark .conversation-details-wrap > div:first-child.h-14,
+.dark .wa-conversation-header {
+  background-color: var(--wa-header-bg-dark) !important;
+  border-bottom-color: var(--wa-list-border-dark);
+}
+
+// --- Conversation list -------------------------------------------------------
+// The main conversation list uses the LEGACY card:
+// app/javascript/dashboard/components/widgets/conversation/ConversationCard.vue
+// root class is `.conversation` (also `.active`, `.unread-chat`,
+// `.conversation-selected`). The next-gen card
+// (components-next/Conversation/ConversationCard/ConversationCard.vue) is only
+// used inside the contact history sidebar and exposes `.wa-conversation-card`.
+
+// Hover / borders / transitions (both cards).
+.conversations-list .conversation,
+.conversations-list-wrap .conversation,
+.conversations-list [role='button'].cursor-pointer,
+.conversations-list-wrap [role='button'].cursor-pointer,
+.contact-conversations .wa-conversation-card {
+  border-bottom: 1px solid var(--wa-list-border);
+  transition: background-color 120ms ease-out;
+
+  &:hover {
+    background-color: var(--wa-list-hover) !important;
+  }
+}
+
+.dark .conversations-list .conversation,
+.dark .conversations-list-wrap .conversation,
+.dark .conversations-list [role='button'].cursor-pointer,
+.dark .conversations-list-wrap [role='button'].cursor-pointer,
+.dark .contact-conversations .wa-conversation-card {
+  border-bottom-color: var(--wa-list-border-dark);
+  &:hover {
+    background-color: var(--wa-list-hover-dark) !important;
+  }
+}
+
+// Active state — legacy card uses `.conversation.active`, next-gen uses
+// router-link-active wrapping the card.
+.conversations-list .conversation.active,
+.conversations-list-wrap .conversation.active,
+.conversations-list .router-link-active [role='button'],
+.conversations-list-wrap .router-link-active [role='button'],
+.conversations-list a.router-link-active > div,
+.conversations-list-wrap a.router-link-active > div {
+  background-color: var(--wa-list-active) !important;
+}
+.dark .conversations-list .conversation.active,
+.dark .conversations-list-wrap .conversation.active,
+.dark .conversations-list .router-link-active [role='button'],
+.dark .conversations-list-wrap .router-link-active [role='button'],
+.dark .conversations-list a.router-link-active > div,
+.dark .conversations-list-wrap a.router-link-active > div {
+  background-color: var(--wa-list-active-dark) !important;
+}
+
+// Legacy card: scale thumbnail + typography to WA sizes.
+// Colors são definidas na fonte única (bloco "CONVERSATION CARD — WA palette
+// enforcement" no final do arquivo). Aqui apenas dimensões e font-size.
+.conversations-list .conversation {
+  :deep(.user-thumbnail-box),
+  .user-thumbnail-box {
+    width: 48px;
+    height: 48px;
+  }
+
+  .conversation--user {
+    font-size: 15px;
+  }
+
+  .conversation--message,
+  .conversation--message-unread,
+  .conversation--assignee {
+    font-size: 13px;
+  }
+
+  .conversation--message-unread {
+    font-weight: 500;
+  }
+}
+
+/* Attention state (unattended assigned to me): destaque amber preservado.
+   Conversas atribuídas ao atendente atual ganham tint amber proeminente. */
+.conversations-list .conversation.animate-sidebar-attention,
+.conversations-list .conversation[class*='bg-n-amber-5'],
+.conversations-list .conversation[class*='border-n-amber-7'],
+.conversations-list .conversation[class*='ring-n-amber'] {
+  .conversation--user,
+  .conversation--message,
+  .conversation--message-unread {
+    color: var(--wa-text-primary);
+  }
+  .conversation--assignee,
+  .conversation--timestamp,
+  time,
+  .i-lucide-info {
+    color: var(--wa-text-secondary);
+  }
+}
+.dark .conversations-list .conversation.animate-sidebar-attention,
+.dark .conversations-list .conversation[class*='bg-n-amber-5'],
+.dark .conversations-list .conversation[class*='border-n-amber-7'],
+.dark .conversations-list .conversation[class*='ring-n-amber'] {
+  .conversation--user,
+  .conversation--message,
+  .conversation--message-unread {
+    color: var(--wa-text-primary-dark);
+  }
+  .conversation--assignee,
+  .conversation--timestamp,
+  time,
+  .i-lucide-info {
+    color: var(--wa-text-secondary-dark);
+  }
+}
+
+// Unread pill (WA green) — legacy uses `.unread` with `bg-n-teal-9`,
+// next-gen uses classes containing `bg-n-brand`. Scope strictly to a
+// conversation card root so send buttons, signature alerts, etc. are not
+// affected.
+.conversations-list .conversation .unread {
+  background-color: var(--wa-unread-bg) !important;
+  color: #ffffff;
+}
+
+.conversations-list .conversation [class*='bg-n-brand']:not(button),
+.conversations-list-wrap
+  .wa-conversation-card
+  [class*='bg-n-brand']:not(button) {
+  background-color: var(--wa-unread-bg) !important;
+  color: #ffffff;
+}
+
+// --- Composer / ReplyBox -----------------------------------------------------
+// Background-color consolidado no bloco final do arquivo (ver "REPLY BOX —
+// fundo WA-fiel"). Aqui só mantemos forma (border-radius / shadow) e o
+// override da nota privada, que tem cor própria.
+.reply-box {
+  border-radius: 12px;
+  border-color: transparent;
+  box-shadow: 0 1px 2px rgba(11, 20, 26, 0.06);
+
+  &.is-private {
+    background-color: var(--wa-bubble-note) !important;
+  }
+}
+
+.dark .reply-box {
+  box-shadow: none;
+
+  &.is-private {
+    background-color: var(--wa-note-bg-dark) !important;
+  }
+}
+
+// Send button — specifically target the .wa-send-btn class we added to
+// ReplyBottomPanel's send <NextButton>. Avoids repainting Copilot generate,
+// signature alerts, WA template CTAs, etc.
+.reply-box .wa-send-btn,
+.reply-box .wa-send-btn[class*='bg-n-brand'],
+.reply-box .wa-send-btn[class*='bg-woot-500'] {
+  background-color: var(--wa-primary) !important;
+  color: #ffffff;
+  border-radius: 9999px;
+}
+
+// Composer icon buttons — round the square-ish icon buttons in the bottom panel.
+.reply-box .reply-bottom-panel button[class*='rounded-md'] {
+  border-radius: 9999px;
+}
+
+// --- Message check marks -----------------------------------------------------
+.message-bubble-container .i-lucide-check-check,
+.message-bubble-container [class*='check-check'] {
+  color: var(--wa-check-read);
+}
+.message-bubble-container .i-lucide-check:not(.i-lucide-check-check),
+.message-bubble-container [class*='lucide-check']:not([class*='check-check']) {
+  color: var(--wa-check-delivered);
+}
+
+// =============================================================================
+// Sidebar + Global Chrome
+// -----------------------------------------------------------------------------
+// The next-gen sidebar lives in <aside class="bg-n-background ..."> in
+// Sidebar.vue. We paint it with the WA sidebar colour and push the
+// group headers / leaves / profile menu / account switcher into the
+// WA palette without touching Vue templates.
+// =============================================================================
+
+aside.bg-n-background {
+  background-color: var(--wa-sidebar-bg) !important;
+  border-right-color: var(--wa-sidebar-border) !important;
+  border-left-color: var(--wa-sidebar-border) !important;
+
+  // Hover over menu items (SidebarGroupHeader / SidebarGroupLeaf).
+  // These components use `hover:bg-n-alpha-2` and the gradient hover trick.
+  .hover\:bg-n-alpha-2:hover,
+  [class*='hover:bg-n-alpha-2']:hover,
+  [class*='hover\\:bg-n-alpha-2']:hover {
+    background-color: var(--wa-sidebar-item-hover) !important;
+  }
+
+  // Active sidebar item (both the parent header with active child and the
+  // leaf itself rely on `bg-n-alpha-2`).
+  .bg-n-alpha-2 {
+    background-color: var(--wa-sidebar-item-active) !important;
+  }
+
+  // Brand-accented SVG on active leaf. `[&_svg]:text-n-brand` paints the
+  // icon with the Chatwoot brand; swap it for WA green.
+  [class*='text-n-brand'] svg,
+  svg.text-n-brand {
+    color: var(--wa-sidebar-icon-active) !important;
+  }
+
+  // Inactive text / secondary rows — softer WA secondary grey.
+  .text-n-slate-11 {
+    color: var(--wa-sidebar-icon-inactive);
+  }
+
+  // The Cmd+K search button (bg-n-slate-3 default).
+  button.bg-n-slate-3 {
+    background-color: #ffffff !important;
+    border: 1px solid var(--wa-sidebar-border);
+  }
+  button.bg-n-slate-3:hover,
+  button[class*='hover:bg-n-slate-4']:hover {
+    background-color: var(--wa-sidebar-item-hover) !important;
+  }
+
+  // Border-top of profile menu strip (`border-n-weak`).
+  .border-n-weak,
+  [class*='border-n-weak'] {
+    border-color: var(--wa-sidebar-border) !important;
+  }
+
+  // Soft bottom fade gradient above profile row — kill the
+  // `from-n-background` color so it doesn't flash the slate bg.
+  .from-n-background {
+    --tw-gradient-from: var(--wa-sidebar-bg) var(--tw-gradient-from-position);
+    --tw-gradient-to: rgba(240, 242, 245, 0) var(--tw-gradient-to-position);
+    --tw-gradient-stops: var(--tw-gradient-from), var(--tw-gradient-to);
+  }
+}
+
+.dark aside.bg-n-background {
+  background-color: var(--wa-sidebar-bg-dark) !important;
+  border-right-color: var(--wa-sidebar-border-dark) !important;
+  border-left-color: var(--wa-sidebar-border-dark) !important;
+
+  .hover\:bg-n-alpha-2:hover,
+  [class*='hover:bg-n-alpha-2']:hover,
+  [class*='hover\\:bg-n-alpha-2']:hover {
+    background-color: var(--wa-sidebar-item-hover-dark) !important;
+  }
+  .bg-n-alpha-2 {
+    background-color: var(--wa-sidebar-item-active-dark) !important;
+  }
+  .text-n-slate-11 {
+    color: var(--wa-sidebar-icon-inactive-dark);
+  }
+
+  button.bg-n-slate-3,
+  button[class*='dark:bg-n-slate-9\\/40'],
+  button[class*='dark:bg-n-slate-9/40'] {
+    background-color: #202c33 !important;
+    border-color: var(--wa-sidebar-border-dark);
+  }
+  button[class*='dark:hover:bg-n-slate-9\\/60']:hover,
+  button[class*='dark:hover:bg-n-slate-9/60']:hover {
+    background-color: var(--wa-sidebar-item-hover-dark) !important;
+  }
+
+  .border-n-weak,
+  [class*='border-n-weak'] {
+    border-color: var(--wa-sidebar-border-dark) !important;
+  }
+
+  .from-n-background {
+    --tw-gradient-from: var(--wa-sidebar-bg-dark)
+      var(--tw-gradient-from-position);
+    --tw-gradient-to: rgba(17, 27, 33, 0) var(--tw-gradient-to-position);
+    --tw-gradient-stops: var(--tw-gradient-from), var(--tw-gradient-to);
+  }
+}
+
+// Sidebar account switcher + profile menu triggers live inside aside — the
+// rules above already re-paint hover/active. Nothing extra needed unless we
+// spot inline bg overrides.
+
+// =============================================================================
+// Scrollbars (WebKit)
+// -----------------------------------------------------------------------------
+// Thin WA-style scrollbars on dashboard surfaces. Keep browser defaults on
+// public-facing/embed widgets by scoping to `.app-wrapper` (existing wrapper
+// around the authenticated app) + the conversation panel / sidebar.
+// =============================================================================
+
+.app-wrapper,
+.app-wrapper *,
+aside.bg-n-background *,
+.conversations-list *,
+.conversations-list-wrap *,
+.conversation-details-wrap * {
+  scrollbar-width: thin;
+  scrollbar-color: var(--wa-scrollbar-thumb) transparent;
+}
+
+.app-wrapper ::-webkit-scrollbar,
+aside.bg-n-background ::-webkit-scrollbar,
+.conversations-list ::-webkit-scrollbar,
+.conversations-list-wrap ::-webkit-scrollbar,
+.conversation-details-wrap ::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+.app-wrapper ::-webkit-scrollbar-track,
+aside.bg-n-background ::-webkit-scrollbar-track,
+.conversations-list ::-webkit-scrollbar-track,
+.conversations-list-wrap ::-webkit-scrollbar-track,
+.conversation-details-wrap ::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.app-wrapper ::-webkit-scrollbar-thumb,
+aside.bg-n-background ::-webkit-scrollbar-thumb,
+.conversations-list ::-webkit-scrollbar-thumb,
+.conversations-list-wrap ::-webkit-scrollbar-thumb,
+.conversation-details-wrap ::-webkit-scrollbar-thumb {
+  background-color: var(--wa-scrollbar-thumb);
+  border-radius: 3px;
+}
+
+.app-wrapper ::-webkit-scrollbar-thumb:hover,
+aside.bg-n-background ::-webkit-scrollbar-thumb:hover,
+.conversations-list ::-webkit-scrollbar-thumb:hover,
+.conversations-list-wrap ::-webkit-scrollbar-thumb:hover,
+.conversation-details-wrap ::-webkit-scrollbar-thumb:hover {
+  background-color: var(--wa-scrollbar-thumb-hover);
+}
+
+.dark .app-wrapper,
+.dark .app-wrapper *,
+.dark aside.bg-n-background *,
+.dark .conversations-list *,
+.dark .conversations-list-wrap *,
+.dark .conversation-details-wrap * {
+  scrollbar-color: var(--wa-scrollbar-thumb-dark) transparent;
+}
+
+.dark .app-wrapper ::-webkit-scrollbar-thumb,
+.dark aside.bg-n-background ::-webkit-scrollbar-thumb,
+.dark .conversations-list ::-webkit-scrollbar-thumb,
+.dark .conversations-list-wrap ::-webkit-scrollbar-thumb,
+.dark .conversation-details-wrap ::-webkit-scrollbar-thumb {
+  background-color: var(--wa-scrollbar-thumb-dark);
+}
+
+.dark .app-wrapper ::-webkit-scrollbar-thumb:hover,
+.dark aside.bg-n-background ::-webkit-scrollbar-thumb:hover,
+.dark .conversations-list ::-webkit-scrollbar-thumb:hover,
+.dark .conversations-list-wrap ::-webkit-scrollbar-thumb:hover,
+.dark .conversation-details-wrap ::-webkit-scrollbar-thumb:hover {
+  background-color: var(--wa-scrollbar-thumb-hover-dark);
+}
+
+// =============================================================================
+// Workspace / empty states
+// -----------------------------------------------------------------------------
+// When no conversation is selected, EmptyState.vue lands on an
+// `h-full bg-n-surface-1` container. Re-tone it to the WA workspace grey
+// (same colour as the header, so the split feels cohesive).
+// =============================================================================
+
+.bg-n-surface-1 {
+  background-color: var(--wa-workspace-bg) !important;
+}
+.dark .bg-n-surface-1 {
+  background-color: var(--wa-workspace-bg-dark) !important;
+}
+
+// EmptyStateMessage CTA (bg-n-brand) → WA green.
+.bg-n-brand.rounded-full.text-white,
+button.bg-n-brand[class*='rounded-full'] {
+  background-color: var(--wa-primary) !important;
+}
+.bg-n-brand.rounded-full.text-white:hover,
+button.bg-n-brand[class*='rounded-full']:hover {
+  background-color: #008f72 !important;
+}
+
+// =============================================================================
+// Modal / Dialog chrome
+// -----------------------------------------------------------------------------
+// Modal.vue renders:
+//   <div class="modal-mask ...">
+//     <div class="modal-container bg-white dark:bg-n-solid-2 rounded-2xl ...">
+// WA uses a subtler 5px radius + greyer header strip. We only touch the
+// outer chrome so component content (forms, lists) stays untouched.
+// =============================================================================
+
+.modal-mask .modal-container {
+  border-radius: 5px !important;
+  border-color: var(--wa-sidebar-border) !important;
+}
+.dark .modal-mask .modal-container {
+  border-color: var(--wa-sidebar-border-dark) !important;
+}
+
+// =============================================================================
+// Enforce neutral bg on admin surfaces
+// -----------------------------------------------------------------------------
+// Settings / Reports / Captain / Campaigns / Contacts keep their native
+// layouts but should pick up the WA workspace grey when the component
+// renders an n-surface-1 wrapper (covered above). We do NOT repaint brand
+// buttons globally — only the WA primary round CTA above (empty state) and
+// the explicit `.wa-send-btn` already in the composer section.
+// =============================================================================
+
+/* ========== GLOBAL PRIMARY RETONE TO WA GREEN ==========
+   Overrides Simplex brand (#2dc46f), Chatwoot legacy (bg-woot-*),
+   and hardcoded #25d366 / #1FB85A with WA primary #2dc46f / #008f72.
+   Defensive: catches occurrences that escape direct file patches.
+=========================================================== */
+
+:root {
+  --wa-primary: #2dc46f;
+  --wa-primary-hover: #008f72;
+  --wa-primary-10: rgba(0, 168, 132, 0.10);
+  --wa-primary-20: rgba(0, 168, 132, 0.20);
+}
+
+/* (A) Generic brand buttons — any element using bg-n-brand as background.
+   Exception list: .wa-send-btn (already WA), rounded-full badges/avatars. */
+button[class*='bg-n-brand']:not(.wa-send-btn):not([class*='rounded-full']),
+a[class*='bg-n-brand']:not([class*='rounded-full']),
+[class*='bg-n-brand'][class*='hover:bg-n-brand'] {
+  background-color: var(--wa-primary);
+  &:hover { background-color: var(--wa-primary-hover); }
+}
+
+/* (B) Text/border using brand token */
+[class*='text-n-brand']:not(.wa-brand-green-preserved) {
+  color: var(--wa-primary);
+}
+[class*='border-n-brand'] {
+  border-color: var(--wa-primary);
+}
+
+/* (C) Kill legacy bg-woot-500/600 (Chatwoot blue-purple) */
+[class*='bg-woot-500'] { background-color: var(--wa-primary); }
+[class*='bg-woot-600'] { background-color: var(--wa-primary-hover); }
+[class*='hover\\:bg-woot-600']:hover,
+[class*='hover:bg-woot-600']:hover { background-color: var(--wa-primary-hover); }
+[class*='text-woot-500'] { color: var(--wa-primary); }
+[class*='text-woot-600'] { color: var(--wa-primary-hover); }
+[class*='bg-woot-50'] { background-color: var(--wa-primary-10); }
+[class*='border-woot-500'] { border-color: var(--wa-primary); }
+[class*='ring-woot-500'] { --tw-ring-color: var(--wa-primary); }
+[class*='focus\\:ring-woot-500']:focus,
+[class*='focus:ring-woot-500']:focus { --tw-ring-color: var(--wa-primary); }
+
+/* (D) Saturated WhatsApp green #25d366 → WA primary */
+[class*='bg-\\[\\#25d366\\]'],
+[class*='bg-\\[\\#25D366\\]'] { background-color: var(--wa-primary); }
+[class*='hover\\:bg-green-700']:hover,
+[class*='hover:bg-green-700']:hover { background-color: var(--wa-primary-hover); }
+
+/* (E) Hover #1FB85A (Simplex darker) → WA primary hover */
+[class*='hover\\:bg-\\[\\#1FB85A\\]']:hover,
+[class*='hover:bg-[#1FB85A]']:hover { background-color: var(--wa-primary-hover); }
+[class*='hover\\:text-\\[\\#1FB85A\\]']:hover,
+[class*='hover:text-[#1FB85A]']:hover { color: var(--wa-primary-hover); }
+
+/* (F) Checkbox / radio accent color */
+input[type='checkbox'][class*='text-woot-500'],
+input[type='radio'][class*='text-woot-500'] {
+  accent-color: var(--wa-primary);
+}
+
+/* (G) Dark mode equivalent — slight lift on hover for contrast on dark bg */
+.dark {
+  --wa-primary: #2dc46f;
+  --wa-primary-hover: #06cf9c;
+}
+
+/* (G.1) Sidebar resize handle — exclude from retone. The inner div carries
+   `group-hover:bg-n-brand` so it should ONLY paint while the agent hovers /
+   drags the handle. Force transparent otherwise, and repaint to WA green on
+   hover/active so it matches the skin tokens. */
+aside [class*='cursor-col-resize'] > div {
+  background-color: transparent !important;
+}
+aside [class*='cursor-col-resize']:hover > div,
+aside [class*='cursor-col-resize']:active > div,
+aside [class*='cursor-col-resize'] > div[class*='bg-n-brand'] {
+  background-color: var(--wa-primary) !important;
+}
+
+/* (H) Ring / focus states */
+button:focus-visible,
+a:focus-visible,
+input:focus-visible {
+  &[class*='n-brand'] {
+    outline-color: var(--wa-primary);
+  }
+}
+
+// =============================================================================
+// Composer — collapsible (WhatsApp-style)
+// -----------------------------------------------------------------------------
+// When the editor is empty and not focused, collapse the composer to a slim
+// single-line pill. As soon as the agent focuses or starts typing, it expands
+// back into the full editor + bottom panel height.
+// =============================================================================
+
+.reply-box {
+  transition: padding 0.15s ease, box-shadow 0.15s ease;
+}
+
+.reply-box.is-collapsed .reply-box__top {
+  padding-top: 0;
+  padding-bottom: 0;
+  min-height: 0;
+}
+
+.reply-box.is-collapsed .reply-bottom-panel {
+  padding-top: 4px;
+  padding-bottom: 4px;
+}
+
+// Hide secondary affordances (signature alert, quoted-email preview,
+// reply-to banner) when collapsed. Send + mic remain visible so the agent
+// can still trigger a voice note without expanding.
+.reply-box.is-collapsed .message-signature-missing-alert,
+.reply-box.is-collapsed .quoted-email-preview,
+.reply-box.is-collapsed .reply-to-message {
+  display: none;
+}
+
+// Shrink the editor's min-height when collapsed.
+.reply-box.is-collapsed .ProseMirror {
+  min-height: 1.5rem;
+}
+
+// Ghost suggestion overlay.
+.wa-ghost-suggestion {
+  @apply flex items-center gap-2 mt-1 mb-2 px-3 py-1.5 rounded-md cursor-pointer;
+  background-color: rgba(0, 168, 132, 0.06);
+  border: 1px dashed rgba(0, 168, 132, 0.35);
+  transition: background-color 120ms ease-out;
+  user-select: none;
+}
+
+.wa-ghost-suggestion:hover {
+  background-color: rgba(0, 168, 132, 0.12);
+}
+
+.wa-ghost-suggestion__text {
+  @apply flex-1 truncate text-sm text-n-slate-11;
+}
+
+.wa-ghost-suggestion__hint {
+  @apply shrink-0 rounded px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-wide;
+  color: var(--wa-primary);
+  background-color: rgba(0, 168, 132, 0.10);
+}
+
+.dark .wa-ghost-suggestion {
+  background-color: rgba(6, 207, 156, 0.08);
+  border-color: rgba(6, 207, 156, 0.30);
+}
+
+.dark .wa-ghost-suggestion:hover {
+  background-color: rgba(6, 207, 156, 0.14);
+}
+
+.dark .wa-ghost-suggestion__hint {
+  background-color: rgba(6, 207, 156, 0.14);
+}
+
+/* ========== CONTACT PANEL (direita) + ACTIONS + SEARCH ========== */
+
+/* Contact panel container */
+.wa-contact-panel {
+  background-color: var(--wa-workspace-bg) !important;
+  border-left: 1px solid var(--wa-list-border);
+}
+.dark .wa-contact-panel {
+  background-color: var(--wa-workspace-bg-dark) !important;
+  border-left-color: var(--wa-list-border-dark);
+}
+
+/* Contact panel header */
+.wa-contact-panel-header {
+  background-color: var(--wa-header-bg) !important;
+  border-bottom: 1px solid var(--wa-list-border);
+}
+.dark .wa-contact-panel-header {
+  background-color: var(--wa-header-bg-dark) !important;
+  border-bottom-color: var(--wa-list-border-dark);
+}
+.wa-contact-panel-close {
+  color: var(--wa-text-secondary);
+  background-color: transparent;
+  transition: background 120ms ease;
+}
+.wa-contact-panel-close:hover {
+  background-color: rgba(84, 101, 111, 0.1);
+}
+.dark .wa-contact-panel-close {
+  color: var(--wa-text-secondary-dark);
+}
+.dark .wa-contact-panel-close:hover {
+  background-color: rgba(134, 150, 160, 0.15);
+}
+
+/* Sections inside contact panel */
+.wa-contact-panel .conversation--media,
+.wa-contact-panel .conversation--actions,
+.wa-contact-panel [class*='AccordionItem'] {
+  background-color: #ffffff;
+  border-radius: 0 !important;
+  border-bottom: 1px solid var(--wa-list-border);
+}
+.dark .wa-contact-panel .conversation--media,
+.dark .wa-contact-panel .conversation--actions,
+.dark .wa-contact-panel [class*='AccordionItem'] {
+  background-color: #111b21;
+  border-bottom-color: var(--wa-list-border-dark);
+}
+.wa-contact-panel [class*='border-n-weak'] {
+  border-color: transparent !important;
+}
+
+/* Action buttons in contact panel */
+.wa-action-btn {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  padding: 10px 4px;
+  border-radius: 8px;
+  color: var(--wa-primary);
+  background-color: transparent;
+  transition: background 120ms ease;
+}
+.wa-action-btn:hover {
+  background-color: rgba(0, 168, 132, 0.08);
+}
+.wa-action-btn--danger {
+  color: #e11d48;
+}
+.wa-action-btn--danger:hover {
+  background-color: rgba(225, 29, 72, 0.08);
+}
+.dark .wa-action-btn:hover {
+  background-color: rgba(0, 168, 132, 0.12);
+}
+.dark .wa-action-btn--danger:hover {
+  background-color: rgba(225, 29, 72, 0.12);
+}
+.wa-action-label {
+  font-size: 11px;
+  color: var(--wa-text-secondary);
+  font-weight: 500;
+  line-height: 1.2;
+  text-align: center;
+}
+.dark .wa-action-label {
+  color: var(--wa-text-secondary-dark);
+}
+
+/* Assignee rows in ConversationAction */
+.wa-assign-section {
+  padding: 0;
+}
+.wa-assign-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+  padding: 12px 24px 4px;
+  background-color: transparent;
+  text-align: left;
+}
+.wa-assign-label {
+  font-size: 14px;
+  color: var(--wa-text-secondary);
+  font-weight: 400;
+}
+.dark .wa-assign-label {
+  color: var(--wa-text-secondary-dark);
+}
+.wa-assign-value-wrap {
+  padding: 0 16px 12px;
+}
+.wa-assign-value {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 14px;
+  color: var(--wa-text-primary);
+  font-weight: 500;
+}
+.dark .wa-assign-value {
+  color: var(--wa-text-primary-dark);
+}
+
+/* ========== WA-STYLE COLLAPSED RAIL ========== */
+:root {
+  --wa-rail-width: 64px;
+  --wa-rail-bg: #f0f2f5;
+  --wa-rail-bg-dark: #202c33;
+}
+
+/* When collapsed, force WA look */
+aside.bg-n-background[style*='width: 64'],
+aside.bg-n-background[style*='width: 56'] {
+  background-color: var(--wa-rail-bg) !important;
+}
+.dark aside.bg-n-background[style*='width: 64'],
+.dark aside.bg-n-background[style*='width: 56'] {
+  background-color: var(--wa-rail-bg-dark) !important;
+}
+
+/* Center icons when collapsed */
+aside.bg-n-background[style*='width: 64'] nav a,
+aside.bg-n-background[style*='width: 64'] nav [role='button'] {
+  justify-content: center;
+}
+aside.bg-n-background[style*='width: 64'] .sidebar-group-children {
+  display: none;
+}
+
+/* ========== COMPREHENSIVE DARK MODE (WhatsApp dark) ========== */
+
+.dark {
+  /* Body wrapper */
+  body, html { background-color: #0b141a; }
+
+  /* All main surfaces */
+  .app-wrapper { background-color: #0b141a !important; }
+  .dashboard { background-color: #0b141a !important; }
+
+  /* Settings / Reports / Captain surface-1 (slight elevation).
+     IMPORTANTE: não usar [class*='flex-1'] global — era catch-all que pintava
+     span/div em popovers, tooltips, cards com bg fantasma #0b141a atrás do texto.
+     Mantemos apenas seletores específicos dos containers de layout. */
+  main,
+  .app-wrapper > .flex.flex-1.flex-col,
+  .dashboard > .flex.flex-1.flex-col,
+  .app-content > .flex.flex-1.flex-col {
+    background-color: #0b141a;
+  }
+  .page-top-bar, [class*='page-header'] {
+    background-color: #111b21 !important;
+    border-color: #2a3942 !important;
+  }
+
+  /* Cards and surfaces (exact class to avoid catching hovers/variants) */
+  .bg-n-solid-1 { background-color: #111b21 !important; }
+  .bg-n-solid-2 { background-color: #202c33 !important; }
+  .bg-n-solid-3 { background-color: #233138 !important; }
+  .bg-n-background { background-color: #111b21 !important; }
+
+  /* Borders globalmente */
+  [class*='border-n-weak'] { border-color: #2a3942 !important; }
+  [class*='border-n-strong'] { border-color: #374045 !important; }
+
+  /* Text */
+  [class*='text-n-slate-12'] { color: #e9edef !important; }
+  [class*='text-n-slate-11'] { color: #aebac1 !important; }
+  [class*='text-n-slate-10'] { color: #8696a0 !important; }
+  [class*='text-n-slate-9'] { color: #667781 !important; }
+
+  /* Hover states */
+  [class*='hover\\:bg-n-alpha-1']:hover,
+  [class*='hover\\:bg-n-alpha-2']:hover,
+  [class*='hover\\:bg-n-slate-3']:hover {
+    background-color: rgba(134, 150, 160, 0.08) !important;
+  }
+  [class*='hover\\:bg-n-slate-9']:hover {
+    background-color: rgba(134, 150, 160, 0.12) !important;
+  }
+
+  /* Inputs */
+  input, textarea, select {
+    background-color: #2a3942 !important;
+    color: #e9edef !important;
+    border-color: transparent !important;
+  }
+  input::placeholder, textarea::placeholder {
+    color: #8696a0 !important;
+  }
+  input:focus, textarea:focus {
+    border-color: var(--wa-primary) !important;
+  }
+
+  /* Tables */
+  table { background-color: #111b21 !important; }
+  th { background-color: #202c33 !important; color: #aebac1 !important; }
+  td { border-color: #2a3942 !important; }
+  tr:hover td { background-color: #202c33 !important; }
+
+  /* Dropdowns (reforço do skin anterior) */
+  [class*='rounded-lg'][class*='shadow'][class*='bg-white'],
+  [role='menu'], [role='listbox'] {
+    background-color: #233138 !important;
+    border-color: #2a3942 !important;
+  }
+}
+
+/* ========== EMPTY STATES — WhatsApp-style ========== */
+
+/* Quando não há conversa selecionada — Dashboard landing */
+.conversation-empty,
+.empty-state-container,
+[class*='EmptyStateMessage'] {
+  background-color: var(--wa-workspace-bg) !important;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  min-height: 100%;
+  padding: 60px 40px;
+  text-align: center;
+}
+.dark .conversation-empty,
+.dark .empty-state-container,
+.dark [class*='EmptyStateMessage'] {
+  background-color: var(--wa-workspace-bg-dark) !important;
+}
+
+/* Ícone central grande */
+.conversation-empty > svg,
+.conversation-empty > [class*='i-lucide'],
+[class*='EmptyStateMessage'] [class*='i-lucide'] {
+  width: 64px;
+  height: 64px;
+  color: var(--wa-text-secondary);
+  opacity: 0.6;
+  margin-bottom: 16px;
+}
+
+/* Título e subtítulo calmos */
+.conversation-empty h1, .conversation-empty h2, .conversation-empty h3,
+[class*='EmptyStateMessage'] h1, [class*='EmptyStateMessage'] h2, [class*='EmptyStateMessage'] h3 {
+  font-size: 32px;
+  font-weight: 300;
+  color: var(--wa-text-primary);
+  margin: 12px 0 8px;
+}
+.dark .conversation-empty h1,
+.dark .conversation-empty h2,
+.dark [class*='EmptyStateMessage'] h1,
+.dark [class*='EmptyStateMessage'] h2 {
+  color: var(--wa-text-primary-dark);
+}
+.conversation-empty p,
+[class*='EmptyStateMessage'] p {
+  font-size: 14px;
+  color: var(--wa-text-secondary);
+  max-width: 420px;
+  line-height: 1.5;
+  margin: 0;
+}
+
+/* ========== SCROLLBAR reinforcement (dark) ========== */
+.dark ::-webkit-scrollbar-thumb {
+  background-color: #374045;
+  border-radius: 4px;
+}
+.dark ::-webkit-scrollbar-thumb:hover {
+  background-color: #4a555a;
+}
+.dark ::-webkit-scrollbar-track {
+  background-color: transparent;
+}
+
+/* ========== TYPOGRAPHY + DENSITY SCALE (WhatsApp-like) ========== */
+
+/* Base font size aligned with WA Web */
+.app-wrapper, .dashboard--main, aside.bg-n-background {
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Helvetica Neue', Helvetica, 'Lucida Grande', Arial, sans-serif;
+}
+
+/* ConversationCard: density matching WA Web exactly.
+   Colors intencionalmente ausentes aqui — fonte única no bloco
+   "CONVERSATION CARD — WA palette enforcement" no final do arquivo. */
+.conversations-list .conversation {
+  padding: 10px 13px !important;
+}
+.conversations-list .conversation .conversation--user {
+  font-size: 15px; /* WA Web real */
+  font-weight: 400;
+  line-height: 21px;
+}
+.conversations-list .conversation .conversation--message {
+  font-size: 14px;
+  line-height: 20px;
+}
+.conversations-list .conversation .conversation--timestamp,
+.conversations-list .conversation time {
+  font-size: 12px;
+}
+
+/* Conversation header typography */
+.wa-conversation-header .conversation--header-title,
+.conversation-details-wrap .conversation--header h1,
+.conversation-details-wrap h2 {
+  font-size: 16px;
+  font-weight: 500;
+}
+
+/* Section labels (Status, Canais, Times, Etiquetas) — muted + uppercase micro */
+aside.bg-n-background nav .sidebar-group-label,
+.conversations-list .sidebar-group-label {
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--wa-text-secondary);
+  padding: 8px 12px 4px;
+}
+.dark aside.bg-n-background nav .sidebar-group-label {
+  color: var(--wa-text-secondary-dark);
+}
+
+/* Button scale — WA-like (32px regular, 28px small) */
+button.wa-btn,
+.reply-box button[class*='bg-n-brand']:not(.wa-send-btn),
+button[class*='wa-action-btn']:not(.wa-action-btn) {
+  height: 32px;
+  padding: 0 14px;
+  font-size: 14px;
+  font-weight: 500;
+}
+/* Primary buttons */
+.reply-box .wa-send-btn,
+button.wa-btn--primary {
+  background: var(--wa-primary) !important;
+  color: #ffffff !important;
+  border-radius: 8px;
+  transition: background 120ms ease;
+}
+.reply-box .wa-send-btn:hover,
+button.wa-btn--primary:hover {
+  background: var(--wa-primary-hover) !important;
+}
+
+/* ========== HEADER + FILA POLISH ========== */
+
+/* ---------- Conversation header polish ---------- */
+
+.wa-conversation-header {
+  min-height: 60px !important;
+  height: 60px !important;
+}
+
+/* Status/agent/label pills — WA-like compact */
+.wa-conversation-header .conversation--meta-pill,
+.wa-conversation-header [class*='inline-edit-pill'] {
+  height: 26px;
+  padding: 0 10px;
+  font-size: 12px;
+  font-weight: 500;
+  border-radius: 13px; /* fully rounded */
+  border: 1px solid transparent;
+  transition: all 120ms ease;
+  cursor: pointer;
+}
+.wa-conversation-header .conversation--meta-pill:hover,
+.wa-conversation-header [class*='inline-edit-pill']:hover {
+  background-color: rgba(0, 168, 132, 0.08);
+}
+
+/* Inline status pill (chosen status in header) — tighter WA feel */
+.wa-conversation-header .wa-status-pill {
+  height: 26px;
+  border-radius: 13px;
+  font-size: 12px;
+  font-weight: 500;
+  padding: 0 10px;
+  transition: all 120ms ease;
+}
+
+/* Contact name + subtitle scale (name 16/medium, subtitle 13/regular) */
+.wa-conversation-header .wa-contact-name {
+  font-size: 16px;
+  font-weight: 500;
+  line-height: 20px;
+}
+.wa-conversation-header .wa-contact-subtitle {
+  font-size: 13px;
+  font-weight: 400;
+  line-height: 16px;
+  color: var(--wa-text-secondary);
+}
+.dark .wa-conversation-header .wa-contact-subtitle {
+  color: var(--wa-text-secondary-dark);
+}
+
+/* Secondary header actions — icon-only, subtle hover */
+.wa-conversation-header .wa-header-icon-btn {
+  height: 34px;
+  width: 34px;
+  border-radius: 50%;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--wa-text-secondary);
+  transition: all 120ms ease;
+}
+.wa-conversation-header .wa-header-icon-btn:hover {
+  background-color: rgba(0, 168, 132, 0.08);
+  color: var(--wa-primary);
+}
+.dark .wa-conversation-header .wa-header-icon-btn {
+  color: var(--wa-text-secondary-dark);
+}
+
+/* ---------- Fila / tab header polish ---------- */
+
+.conversation-list-tabs, [class*='chat-list-tabs'] {
+  padding: 6px 12px;
+  gap: 4px;
+}
+
+/* Kill the horizontal scroll + chevron affordance for the chat list tabs —
+   they only ever render Mine / Unassigned / All, so overflow scroll is
+   both unnecessary and ugly. Wrap instead. */
+.conversation-list-tabs,
+[class*='chat-list-tabs'] {
+  /* Tabs.vue renders two wrapping button siblings (chevron left/right) around
+     the <ul>. They are v-if-ed by JS, but the overflow detection still
+     occasionally flags a tiny mismatch. Force them hidden here. */
+  & > button:first-child,
+  & > button:last-child {
+    display: none !important;
+  }
+  ul {
+    overflow-x: visible !important;
+    flex-wrap: nowrap;
+  }
+}
+
+.conversation-list-tabs button,
+.conversation-list-tabs a,
+[class*='chat-list-tabs'] button {
+  padding: 5px 11px;
+  font-size: 13px;
+  font-weight: 500;
+  border-radius: 16px;
+  color: var(--wa-text-secondary) !important;
+  background-color: transparent !important;
+  border-color: transparent !important;
+  transition: all 120ms ease;
+}
+.dark .conversation-list-tabs button,
+.dark [class*='chat-list-tabs'] button {
+  color: var(--wa-text-secondary-dark) !important;
+}
+.conversation-list-tabs button.active,
+.conversation-list-tabs a.active,
+[class*='chat-list-tabs'] button.active {
+  background-color: rgba(0, 168, 132, 0.15) !important;
+  color: var(--wa-primary) !important;
+  border-color: transparent !important;
+}
+.conversation-list-tabs button:not(.active):hover,
+[class*='chat-list-tabs'] button:not(.active):hover {
+  background-color: rgba(0, 168, 132, 0.08) !important;
+  color: var(--wa-primary) !important;
+}
+
+/* Count badge inside tabs — subtle when inactive, WA green when active */
+.conversation-list-tabs button:not(.active) > div,
+[class*='chat-list-tabs'] button:not(.active) > div {
+  background-color: rgba(134, 150, 160, 0.12) !important;
+  color: var(--wa-text-secondary) !important;
+}
+.dark .conversation-list-tabs button:not(.active) > div,
+.dark [class*='chat-list-tabs'] button:not(.active) > div {
+  background-color: rgba(134, 150, 160, 0.20) !important;
+  color: var(--wa-text-secondary-dark) !important;
+}
+.conversation-list-tabs button.active > div,
+[class*='chat-list-tabs'] button.active > div {
+  background-color: var(--wa-primary) !important;
+  color: #ffffff !important;
+}
+
+/* ---------- Message composer polish ---------- */
+/* Background-color consolidado no bloco final (REPLY BOX — fundo WA-fiel).
+   Aqui apenas spacing/min-height. */
+
+.reply-box {
+  padding: 8px 12px !important;
+  min-height: 62px;
+}
+.reply-box .message-text-input,
+.reply-box textarea,
+.reply-box [contenteditable="true"] {
+  font-size: 15px !important;
+  line-height: 20px !important;
+  border-radius: 8px !important;
+  background-color: #ffffff !important;
+  padding: 9px 12px !important;
+}
+.dark .reply-box .message-text-input,
+.dark .reply-box textarea,
+.dark .reply-box [contenteditable="true"] {
+  background-color: #2a3942 !important;
+  color: var(--wa-text-primary-dark) !important;
+}
+
+/* Bottom panel buttons smaller */
+.reply-box .reply-bottom-panel button,
+.reply-box .reply-top-panel button {
+  height: 32px;
+  width: 32px;
+  border-radius: 50%;
+  padding: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--wa-text-secondary);
+}
+.reply-box .reply-bottom-panel button:hover,
+.reply-box .reply-top-panel button:hover {
+  background-color: rgba(0, 168, 132, 0.08);
+  color: var(--wa-primary);
+}
+
+/* =======================================================================
+   SIDEBAR LEAF ITEMS (Adiadas, Pendentes, etc) — WA palette override
+   Overrides hardcoded `text-n-slate-11` on Policy wrapper inside
+   SidebarGroupLeaf.vue so child items follow WhatsApp secondary text color.
+   ======================================================================= */
+li.child-item {
+  color: #54656f; /* WA secondary text (light) */
+}
+li.child-item > a,
+li.child-item > div {
+  color: inherit;
+}
+li.child-item > a .text-sm,
+li.child-item > div .text-sm {
+  color: #111b21; /* WA primary text */
+  font-weight: 400;
+}
+li.child-item > a:hover .text-sm,
+li.child-item > div:hover .text-sm {
+  color: #111b21;
+}
+li.child-item > a.active .text-sm,
+li.child-item > a.router-link-active .text-sm {
+  color: #2dc46f;
+  font-weight: 500;
+}
+.dark li.child-item {
+  color: #8696a0;
+}
+.dark li.child-item > a .text-sm,
+.dark li.child-item > div .text-sm {
+  color: #e9edef;
+}
+.dark li.child-item > a.active .text-sm,
+.dark li.child-item > a.router-link-active .text-sm {
+  color: #2dc46f;
+}
+
+/* Counts/badges on leaf items — use WA chip style */
+li.child-item .text-xxs {
+  background: transparent !important;
+  color: #667781 !important;
+  font-weight: 500;
+}
+li.child-item > a.active .text-xxs,
+li.child-item > a.router-link-active .text-xxs {
+  color: #2dc46f !important;
+  background: rgba(0, 168, 132, 0.12) !important;
+}
+.dark li.child-item .text-xxs {
+  color: #8696a0 !important;
+}
+
+/* =======================================================================
+   RAIL COLLAPSED PERMANENT — WhatsApp-Desktop fidelity
+   Sidebar.vue forces isEffectivelyCollapsed=true on desktop. Hide the
+   resize handle since the rail width is now fixed at 72px.
+   ======================================================================= */
+aside .cursor-col-resize,
+aside [class*='cursor-col-resize'] {
+  display: none !important;
+}
+
+/* =======================================================================
+   CONVERSATION HEADER — status pills + dropdown
+   ======================================================================= */
+
+/* Status pill tones — subtle WA palette, per-status accent */
+.wa-conversation-header .wa-status-pill--open,
+.wa-conversation-header .wa-status-pill--open-assigned {
+  background-color: rgba(0, 168, 132, 0.12);
+  color: #046a5a;
+}
+.dark .wa-conversation-header .wa-status-pill--open,
+.dark .wa-conversation-header .wa-status-pill--open-assigned {
+  background-color: rgba(0, 168, 132, 0.18);
+  color: #25d29a;
+}
+.wa-conversation-header .wa-status-pill--open-unassigned {
+  background-color: rgba(233, 167, 0, 0.14);
+  color: #8a5a00;
+}
+.dark .wa-conversation-header .wa-status-pill--open-unassigned {
+  background-color: rgba(233, 167, 0, 0.22);
+  color: #ffd06b;
+}
+/* Read-only badge: sem hover, sem cursor pointer */
+.wa-conversation-header .wa-status-pill--readonly {
+  cursor: default;
+  user-select: none;
+}
+.wa-conversation-header .wa-status-pill--readonly:hover {
+  opacity: 1;
+}
+.wa-conversation-header .wa-status-pill--pending {
+  background-color: rgba(233, 167, 0, 0.14);
+  color: #8a5a00;
+}
+.dark .wa-conversation-header .wa-status-pill--pending {
+  background-color: rgba(233, 167, 0, 0.22);
+  color: #ffd06b;
+}
+.wa-conversation-header .wa-status-pill--snoozed {
+  background-color: rgba(83, 189, 235, 0.16);
+  color: #035a73;
+}
+.dark .wa-conversation-header .wa-status-pill--snoozed {
+  background-color: rgba(83, 189, 235, 0.22);
+  color: #8ad2ee;
+}
+.wa-conversation-header .wa-status-pill--resolved {
+  background-color: rgba(134, 150, 160, 0.18);
+  color: var(--wa-text-primary);
+}
+.dark .wa-conversation-header .wa-status-pill--resolved {
+  background-color: rgba(134, 150, 160, 0.24);
+  color: var(--wa-text-primary-dark);
+}
+
+/* Status dropdown in header */
+.wa-status-dropdown {
+  background-color: #ffffff;
+  border: 1px solid var(--wa-list-border);
+}
+.dark .wa-status-dropdown {
+  background-color: #233138;
+  border-color: var(--wa-list-border-dark);
+}
+.wa-status-dropdown__item {
+  color: var(--wa-text-primary);
+}
+.wa-status-dropdown__item:hover {
+  background-color: rgba(0, 168, 132, 0.08);
+  color: var(--wa-primary);
+}
+.wa-status-dropdown__icon {
+  color: var(--wa-text-secondary);
+}
+.dark .wa-status-dropdown__item {
+  color: var(--wa-text-primary-dark);
+}
+.dark .wa-status-dropdown__item:hover {
+  background-color: rgba(0, 168, 132, 0.15);
+  color: var(--wa-primary);
+}
+.dark .wa-status-dropdown__icon {
+  color: var(--wa-text-secondary-dark);
+}
+
+/* =======================================================================
+   SELECT MENU + FILTER DROPDOWN — Todas/Abertas/Pendentes...
+   ======================================================================= */
+
+.wa-select-menu {
+  background-color: #ffffff;
+  border: 1px solid var(--wa-list-border);
+}
+.dark .wa-select-menu {
+  background-color: #233138;
+  border-color: var(--wa-list-border-dark);
+}
+.wa-select-menu__item {
+  color: var(--wa-text-primary) !important;
+}
+.wa-select-menu__item:hover {
+  background-color: rgba(0, 168, 132, 0.08) !important;
+  color: var(--wa-primary) !important;
+}
+.dark .wa-select-menu__item {
+  color: var(--wa-text-primary-dark) !important;
+}
+.dark .wa-select-menu__item:hover {
+  background-color: rgba(0, 168, 132, 0.15) !important;
+}
+/* Active option — WA primary tint + check */
+.wa-select-menu__item--active {
+  background-color: rgba(0, 168, 132, 0.10) !important;
+  color: var(--wa-primary) !important;
+}
+.wa-select-menu__item--active .i-lucide-check {
+  color: var(--wa-primary);
+}
+.dark .wa-select-menu__item--active {
+  background-color: rgba(0, 168, 132, 0.18) !important;
+  color: var(--wa-primary) !important;
+}
+
+/* Filter dropdown container (ConversationBasicFilter outer box) */
+.wa-filter-dropdown {
+  background-color: #ffffff;
+  border: 1px solid var(--wa-list-border);
+}
+.dark .wa-filter-dropdown {
+  background-color: #233138;
+  border-color: var(--wa-list-border-dark);
+}
+.wa-filter-dropdown__label {
+  color: var(--wa-text-primary);
+  font-weight: 500;
+}
+.dark .wa-filter-dropdown__label {
+  color: var(--wa-text-primary-dark);
+}
+
+/* =======================================================================
+   TABS (Mine / Unassigned / All) — zero-hardcode + WA tint
+   ======================================================================= */
+
+/* Esconde chevrons de scroll gerados pelo componente Tabs */
+.wa-tabs > button:first-child,
+.wa-tabs > button:last-child {
+  display: none !important;
+}
+
+/* UL interno: forçar uma linha só, scroll horizontal sem scrollbar visível */
+.wa-tabs ul {
+  overflow-x: auto !important;
+  flex-wrap: nowrap !important;
+  scrollbar-width: none;
+  padding-inline: 8px !important;
+  padding-block: 8px !important;
+  gap: 4px !important;
+}
+.wa-tabs ul::-webkit-scrollbar { display: none; }
+
+.wa-tab-item {
+  background-color: transparent;
+  color: var(--wa-text-secondary);
+  padding-inline: 10px;
+  height: 28px;
+  font-size: 13px;
+  transition: background 0.15s ease, color 0.15s ease;
+}
+
+.wa-tab-item .i-lucide-user,
+.wa-tab-item .i-lucide-user-round-x,
+.wa-tab-item .i-lucide-users {
+  margin-right: 4px;
+}
+
+/* Hover WA-fiel — SÓ muda bg (sutil), texto mantém cor secondary
+   (padrão WhatsApp Web: tabs não viram verde no hover). */
+.wa-tab-item:not(.active):hover {
+  background-color: rgba(17, 27, 33, 0.06);
+  /* color inalterado — mantém var(--wa-text-secondary) */
+}
+.wa-tab-item.active {
+  background-color: rgba(0, 168, 132, 0.14);
+  color: var(--wa-primary);
+  border-color: transparent;
+}
+.dark .wa-tab-item {
+  color: var(--wa-text-secondary-dark);
+}
+.dark .wa-tab-item:not(.active):hover {
+  background-color: rgba(134, 150, 160, 0.10);
+  /* color inalterado — mantém var(--wa-text-secondary-dark) */
+}
+.dark .wa-tab-item.active {
+  background-color: rgba(0, 168, 132, 0.20);
+  color: var(--wa-primary);
+}
+
+.wa-tab-item__badge {
+  background-color: rgba(134, 150, 160, 0.18);
+  color: var(--wa-text-secondary);
+}
+.dark .wa-tab-item__badge {
+  background-color: rgba(134, 150, 160, 0.25);
+  color: var(--wa-text-secondary-dark);
+}
+.wa-tab-item.active .wa-tab-item__badge {
+  background-color: var(--wa-primary);
+  color: #ffffff;
+}
+
+/* =======================================================================
+   CONTACT PANEL — accordion headers + secondary text
+   ======================================================================= */
+
+/* Secondary text on contact info (email/phone) */
+.wa-contact-secondary {
+  color: var(--wa-text-secondary);
+}
+.dark .wa-contact-secondary {
+  color: var(--wa-text-secondary-dark);
+}
+
+/* Accordion header labels — WA uppercase micro */
+.wa-contact-panel .drag-handle .text-n-slate-12 {
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--wa-text-primary);
+  letter-spacing: 0;
+}
+.dark .wa-contact-panel .drag-handle .text-n-slate-12 {
+  color: var(--wa-text-primary-dark);
+}
+.wa-contact-panel .drag-handle:hover {
+  background-color: rgba(0, 168, 132, 0.06) !important;
+}
+.dark .wa-contact-panel .drag-handle:hover {
+  background-color: rgba(0, 168, 132, 0.10) !important;
+}
+.wa-contact-panel .i-lucide-chevron-down {
+  color: var(--wa-text-secondary);
+}
+.dark .wa-contact-panel .i-lucide-chevron-down {
+  color: var(--wa-text-secondary-dark);
+}
+
+/* =======================================================================
+   EMPTY STATE — WA green CTA
+   ======================================================================= */
+
+.wa-empty-cta {
+  background-color: var(--wa-primary);
+}
+.wa-empty-cta:hover {
+  background-color: var(--wa-primary-hover);
+}
+
+/* Empty state surface picks up WA workspace bg via .bg-n-surface-1 above,
+   so no extra rule needed — but tighten the encryption footer color. */
+.bg-n-surface-1 .i-lucide-lock,
+.bg-n-surface-1 .text-n-slate-9 {
+  color: var(--wa-text-secondary);
+}
+.dark .bg-n-surface-1 .i-lucide-lock,
+.dark .bg-n-surface-1 .text-n-slate-9 {
+  color: var(--wa-text-secondary-dark);
+}
+
+/* =======================================================================
+   CONVERSATION CARD — WA palette enforcement (override outlier colors)
+   ======================================================================= */
+.conversation .conversation--user {
+  color: #111b21 !important;
+  font-weight: 500;
+}
+.dark .conversation .conversation--user {
+  color: #e9edef !important;
+}
+.conversation .conversation--message,
+.conversation .conversation--message span,
+.conversation .conversation--message svg {
+  color: #667781 !important;
+}
+.dark .conversation .conversation--message,
+.dark .conversation .conversation--message span,
+.dark .conversation .conversation--message svg {
+  color: #8696a0 !important;
+}
+/* Timestamp — cor WA secondary. Override inclui :hover e &:hover com
+   !important para cancelar o `hover:text-n-slate-11` aplicado no template
+   que mudava a cor do timestamp quando o mouse passava sobre ele. */
+.conversation .conversation--timestamp,
+.conversation .conversation--timestamp div,
+.conversation .conversation--timestamp span,
+.conversation .conversation--timestamp:hover,
+.conversation .conversation--timestamp div:hover,
+.conversation .conversation--timestamp span:hover,
+.conversation:hover .conversation--timestamp,
+.conversation:hover .conversation--timestamp div,
+.conversation:hover .conversation--timestamp span {
+  color: #667781 !important;
+  font-size: 12px;
+}
+.dark .conversation .conversation--timestamp,
+.dark .conversation .conversation--timestamp div,
+.dark .conversation .conversation--timestamp span,
+.dark .conversation .conversation--timestamp:hover,
+.dark .conversation .conversation--timestamp div:hover,
+.dark .conversation .conversation--timestamp span:hover,
+.dark .conversation:hover .conversation--timestamp,
+.dark .conversation:hover .conversation--timestamp div,
+.dark .conversation:hover .conversation--timestamp span {
+  color: #8696a0 !important;
+}
+.conversation .conversation-card--meta .text-n-slate-11 {
+  color: #667781 !important;
+}
+.dark .conversation .conversation-card--meta .text-n-slate-11 {
+  color: #8696a0 !important;
+}
+/* Hover WA — destaque visível (WhatsApp-Web 2025 pattern): fundo cinza
+   médio + tint verde sutil. Mais forte que o hover default do Chatwoot. */
+.conversation:not(.active):hover {
+  background-color: #e9edef !important;
+  box-shadow: inset 2px 0 0 rgba(0, 168, 132, 0.35) !important;
+}
+.dark .conversation:not(.active):hover {
+  background-color: #202c33 !important;
+  box-shadow: inset 2px 0 0 rgba(0, 168, 132, 0.5) !important;
+}
+/* Conversa ativa/selecionada — indicador FORTE verde WA (imita WA Web) */
+.conversation.active,
+.conversation.active:hover {
+  background-color: #f0f2f5 !important;
+  box-shadow: inset 3px 0 0 #2dc46f !important;
+}
+.dark .conversation.active,
+.dark .conversation.active:hover {
+  background-color: #2a3942 !important;
+  box-shadow: inset 3px 0 0 #2dc46f !important;
+}
+/* Texto da conversa ativa em peso um pouco maior (WA-fiel) */
+.conversation.active .conversation--user {
+  font-weight: 500 !important;
+}
+/* Unread counter em verde WA */
+.conversation .unread {
+  background-color: #25d366 !important;
+  color: #ffffff !important;
+}
+
+/* =======================================================================
+   UNREAD HIGHLIGHT — conversa com mensagens não-lidas (WA-fiel)
+   Usa :has() para detectar que .unread NÃO está .hidden — torna nome
+   semi-bold + timestamp verde WA, pattern WhatsApp Web.
+   ======================================================================= */
+.conversation:has(.unread:not(.hidden)) .conversation--user {
+  font-weight: 600 !important;
+}
+.conversation:has(.unread:not(.hidden)) .conversation--timestamp,
+.conversation:has(.unread:not(.hidden)) .conversation--timestamp *,
+.conversation:has(.unread:not(.hidden)) .conversation--timestamp > div {
+  color: #2dc46f !important;
+  font-weight: 500;
+}
+.dark .conversation:has(.unread:not(.hidden)) .conversation--timestamp,
+.dark .conversation:has(.unread:not(.hidden)) .conversation--timestamp * {
+  color: #25d366 !important;
+}
+
+/* =======================================================================
+   TOAST / SNACKBAR — posicionamento WA-fiel (top-right stack)
+   Evita centro do viewport que fica visualmente longe quando o atendente
+   está focado no painel direito da conversa. Segue padrão Slack/WhatsApp.
+   ======================================================================= */
+.wa-toast-stack {
+  /* Garante visibilidade mesmo quando popover API falha em fallback */
+  display: block !important;
+}
+.wa-toast-stack:not(:popover-open) {
+  /* Se popover API não estiver ativa, ainda renderiza como stack normal */
+  visibility: visible;
+}
+.wa-toast-stack > div {
+  pointer-events: auto;
+}
+
+/* =======================================================================
+   TOOLTIP — compacto e colado ao anchor (WA-fiel)
+   ======================================================================= */
+.v-popper--theme-tooltip .v-popper__inner {
+  background: #233138 !important;
+  color: #e9edef !important;
+  font-size: 13px !important;
+  padding: 6px 10px !important;
+  border-radius: 6px !important;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.25) !important;
+}
+.v-popper--theme-tooltip .v-popper__arrow-outer {
+  border-color: #233138 !important;
+}
+/* Distance global agora vem do FloatingVue config (themes.tooltip.distance = 6).
+   Zeramos margens legadas para não empilhar gap e afastar o tooltip do rail. */
+.v-popper__popper[data-popper-placement^='right'],
+.v-popper__popper[data-popper-placement^='left'],
+.v-popper__popper[data-popper-placement^='top'],
+.v-popper__popper[data-popper-placement^='bottom'] {
+  margin: 0 !important;
+}
+
+/* =======================================================================
+   RAIL SIDEBAR — Active state WhatsApp-Desktop fiel
+   WhatsApp Web: ícone ativo em verde vivo + fundo translúcido verde,
+   ícones com borda arredondada sutil. Bem diferente do cinza-sobre-cinza
+   que estava antes.
+   ======================================================================= */
+
+/* Base: todos itens do rail mantêm padding e radius WA */
+aside .icon-animated,
+aside [role='button'],
+aside .sidebar-group .icon-animated,
+aside a[class*='group'] {
+  border-radius: 12px;
+  transition: background-color 0.15s ease, color 0.15s ease;
+}
+
+/* Espaçamento entre ícones do rail */
+aside nav,
+aside [class*='flex flex-col gap-'],
+aside ul.flex.flex-col {
+  gap: 6px !important;
+}
+
+/* Ícones do rail maiores para leitura WA */
+aside .sidebar-group .size-4,
+aside .sidebar-group [class*='size-4'],
+aside a .size-4,
+aside button .size-4 {
+  width: 26px !important;
+  height: 26px !important;
+}
+
+/* ACTIVE state WA — fundo verde translúcido + ícone verde sólido */
+aside .router-link-active,
+aside a.active,
+aside .sidebar-group--active,
+aside [class*='router-link-active'] {
+  background-color: rgba(0, 168, 132, 0.12) !important;
+  color: #2dc46f !important;
+}
+aside .router-link-active svg,
+aside a.active svg,
+aside .sidebar-group--active svg,
+aside [class*='router-link-active'] svg,
+aside .router-link-active [class^='i-'],
+aside .router-link-active [class*=' i-'],
+aside [class*='router-link-active'] [class^='i-'] {
+  color: #2dc46f !important;
+  opacity: 1 !important;
+}
+
+.dark aside .router-link-active,
+.dark aside a.active,
+.dark aside .sidebar-group--active,
+.dark aside [class*='router-link-active'] {
+  background-color: rgba(0, 168, 132, 0.18) !important;
+  color: #2dc46f !important;
+}
+
+/* Hover mais WA (cinza claro, não o alpha-2 default) */
+aside a:not(.router-link-active):hover,
+aside button:not(.router-link-active):hover,
+aside .sidebar-group:not(.sidebar-group--active):hover {
+  background-color: rgba(17, 27, 33, 0.04) !important;
+}
+.dark aside a:not(.router-link-active):hover,
+.dark aside button:not(.router-link-active):hover,
+.dark aside .sidebar-group:not(.sidebar-group--active):hover {
+  background-color: rgba(134, 150, 160, 0.08) !important;
+}
+
+/* Indicador vertical verde à esquerda do item ativo (tipo WA Desktop) */
+aside .router-link-active::before,
+aside a.active::before,
+aside .sidebar-group--active::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  top: 8px;
+  bottom: 8px;
+  width: 3px;
+  border-radius: 0 3px 3px 0;
+  background-color: #2dc46f;
+}
+aside .router-link-active,
+aside a.active,
+aside .sidebar-group--active {
+  position: relative;
+}
+
+/* =======================================================================
+   CONVERSATION PANEL (chat aberto) — fallback APENAS no wrap externo.
+   NÃO redefinir `.conversation-panel` aqui: o bloco L76 aplica o
+   background-image do wallpaper WA e um background-color aqui sem a
+   imagem apaga a wallpaper. O wrap externo (`.conversation-details-wrap`)
+   já é tratado no L97-102 via var(--wa-chat-bg*). Mantido vazio por
+   documentação — fix consolidado.
+   ======================================================================= */
+
+/* =======================================================================
+   REPLY BOX — fundo WA-fiel, input dentro com #f0f2f5 / #2a3942
+   Fonte única de background-color do composer (antes redefinido em 4 blocos).
+   ======================================================================= */
+.reply-box,
+.message-reply-box {
+  background-color: #f0f2f5 !important;
+  border-top-color: #d1d7db !important;
+}
+.dark .reply-box,
+.dark .message-reply-box {
+  background-color: #202c33 !important;
+  border-top-color: #2a3942 !important;
+}
+
+/* =======================================================================
+   INPUT WEBKIT AUTOFILL — Chromium pinta inputs de contato/telefone com
+   fundo amarelo/cinza claro (via -webkit-autofill). Isso cria o retângulo
+   cinza dentro do input mesmo com bg-transparent. Força bg herdado.
+   ======================================================================= */
+input:-webkit-autofill,
+input:-webkit-autofill:hover,
+input:-webkit-autofill:focus,
+input:-webkit-autofill:active,
+textarea:-webkit-autofill,
+textarea:-webkit-autofill:hover,
+textarea:-webkit-autofill:focus,
+select:-webkit-autofill,
+select:-webkit-autofill:hover,
+select:-webkit-autofill:focus {
+  -webkit-box-shadow: 0 0 0 1000px transparent inset !important;
+  box-shadow: 0 0 0 1000px transparent inset !important;
+  -webkit-text-fill-color: currentColor !important;
+  background-color: transparent !important;
+  background-image: none !important;
+  transition: background-color 5000s ease-in-out 0s !important;
+}
+.dark input:-webkit-autofill,
+.dark input:-webkit-autofill:hover,
+.dark input:-webkit-autofill:focus,
+.dark input:-webkit-autofill:active {
+  -webkit-box-shadow: 0 0 0 1000px transparent inset !important;
+  box-shadow: 0 0 0 1000px transparent inset !important;
+  -webkit-text-fill-color: #e9edef !important;
+}
+
+/* Remove :-internal-autofill-selected / :autofill (novos browsers) */
+input:autofill,
+input:autofill:hover,
+input:autofill:focus {
+  background-color: transparent !important;
+  background-image: none !important;
+}
+
+/* =======================================================================
+   INPUT bg-transparent DEVE PERMANECER TRANSPARENT — existem regras legacy
+   de Chatwoot que pintam `input` direto com `background-color: #fff` ou
+   `rgba(var(--black-alpha-2))` mesmo quando o template pede bg-transparent.
+   Força transparência quando a classe Tailwind bg-transparent está presente.
+   ======================================================================= */
+input.bg-transparent,
+input[class*='bg-transparent'],
+input.reset-base,
+input.no-margin,
+textarea.bg-transparent,
+textarea[class*='bg-transparent'],
+textarea.reset-base {
+  background-color: transparent !important;
+  background-image: none !important;
+}
+.dark input.bg-transparent,
+.dark input[class*='bg-transparent'],
+.dark input.reset-base,
+.dark input.no-margin,
+.dark textarea.bg-transparent,
+.dark textarea[class*='bg-transparent'],
+.dark textarea.reset-base {
+  background-color: transparent !important;
+  background-image: none !important;
+}
+
+/* =======================================================================
+   TEXT SELECTION GLOBAL — WA palette (evita o retângulo cinza/escuro que
+   aparece sobre textos quando o usuário seleciona, ou quando o browser
+   aplica highlight default em focus/clique). Substitui por verde WA sutil.
+   ======================================================================= */
+::selection {
+  background-color: rgba(0, 168, 132, 0.25) !important;
+  color: inherit !important;
+}
+::-moz-selection {
+  background-color: rgba(0, 168, 132, 0.25) !important;
+  color: inherit !important;
+}
+.dark ::selection {
+  background-color: rgba(0, 168, 132, 0.35) !important;
+  color: inherit !important;
+}
+.dark ::-moz-selection {
+  background-color: rgba(0, 168, 132, 0.35) !important;
+  color: inherit !important;
+}
+
+/* =======================================================================
+   REMOVER OUTLINE/BG FANTASMA DE INPUTS — Chrome/Firefox adicionam
+   outline preto ou bg cinza fantasma em inputs focados/hovered. Força
+   ausência desses defaults, só deixa o focus ring WA via ring Tailwind.
+   ======================================================================= */
+input,
+textarea,
+select,
+button,
+[contenteditable='true'] {
+  -webkit-tap-highlight-color: transparent !important;
+}
+input:focus,
+input:focus-visible,
+textarea:focus,
+textarea:focus-visible,
+select:focus,
+[contenteditable='true']:focus,
+[contenteditable='true']:focus-visible {
+  outline: none !important;
+  box-shadow: none;
+}
+/* Mantém focus ring WA-primary só em componentes que o usam intencionalmente
+   (usam focus-within:ring-* ou focus:ring-*). O reset acima não mata isso
+   porque ring é via box-shadow Tailwind e eles sobrescrevem via !important. */
+
+/* =======================================================================
+   INVALID STATE — Firefox aplica box-shadow vermelho em :invalid, remove
+   ======================================================================= */
+input:invalid,
+input:-moz-ui-invalid,
+input:-moz-submit-invalid {
+  box-shadow: none !important;
+}
+
+/* =======================================================================
+   TOOLTIP POPPER INNER — discreto, cor uniforme com modais/menus (#202c33)
+   ======================================================================= */
+html body .v-popper--theme-tooltip .v-popper__inner,
+.v-popper--theme-tooltip.v-popper--theme-tooltip .v-popper__inner {
+  background: #202c33 !important;
+  background-color: #202c33 !important;
+  color: #e9edef !important;
+  font-size: 12px !important;
+  padding: 5px 10px !important;
+  border-radius: 4px !important;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.3) !important;
+  border: none !important;
+}
+
+/* =======================================================================
+   CONVERSATION CARD — inner div wrapper do texto NÃO deve ter bg próprio
+   (alguma regra legacy pinta div com .flex-1 ou similar com bg slate-1).
+   Garante que todos os descendentes do .conversation não tenham bg fantasma.
+   ======================================================================= */
+.conversations-list .conversation > div,
+.conversations-list-wrap .conversation > div,
+.conversation > div,
+.conversation > div > div:not(.unread):not([class*='bg-n-iris']):not([class*='bg-n-teal']):not([class*='bg-n-brand']):not([class*='bg-n-solid']) {
+  background-color: transparent !important;
+}
+/* Exceção: wrappers que DEVEM ter bg (unread badge, etc) mantêm bg via
+   classes utilitárias específicas (whitelist no :not acima). */
+
+/* =======================================================================
+   POPOVERS / TOOLTIPS / DROPDOWNS — descendentes INTERNOS (spans, divs
+   com [class*='flex-1']) não podem herdar bg de catch-all legacy.
+   IMPORTANTE: NÃO mirar o próprio .v-popper__inner — ele precisa manter
+   seu bg (#233138 no tooltip, etc). Só DESCENDENTES dele ficam transparentes.
+   ======================================================================= */
+.v-popper__inner *,
+[class*='fixed z-\[100\]'] [class*='flex-1'],
+[class*='fixed z-\[100\]'] span,
+[class*='fixed z-\[100\]'] [class*='truncate'],
+.n-dropdown-body [class*='flex-1'],
+.n-dropdown-body span,
+.dropdown-pane [class*='flex-1'],
+.dropdown-pane span {
+  background-color: transparent !important;
+}
+/* REMOVIDO: "whitelist" que zerava o bg de containers com bg-n-solid/brand/etc.
+   O SCSS compilava `unset !important` em `transparent !important`, apagando
+   o fundo do container interno de popovers como SidebarCollapsedPopover
+   (que usa bg-n-solid-1). A regra catch-all acima JÁ é seletiva — atinge
+   apenas spans/truncate/flex-1 descendentes, nunca o div container. Não
+   precisa desse bloco. */
+
+/* =======================================================================
+   TOOLTIP BACKGROUND — NUCLEAR OVERRIDE
+   Usuário reportava tooltip "vazado" mesmo com regra #202c33 aplicada.
+   Solução: pintar bg em MÚLTIPLAS camadas (popper root, wrapper, inner)
+   com seletores de alta especificidade. Garante opacidade inteira e
+   isola o stacking context para evitar qualquer transparência herdada.
+   ======================================================================= */
+html body .v-popper__popper.v-popper--theme-tooltip,
+html body .v-popper__popper.v-popper--theme-tooltip .v-popper__wrapper,
+html body .v-popper__popper.v-popper--theme-tooltip .v-popper__inner,
+html.dark body .v-popper__popper.v-popper--theme-tooltip .v-popper__inner,
+html body [role='tooltip'].v-popper--theme-tooltip .v-popper__inner {
+  background: #202c33 !important;
+  background-color: #202c33 !important;
+  color: #e9edef !important;
+  backdrop-filter: none !important;
+  -webkit-backdrop-filter: none !important;
+  opacity: 1 !important;
+}
+
+/* O root popper precisa de bg transparente (só o inner carrega cor),
+   mas FORCE opacity:1 e isolate pra criar novo stacking context.
+   Caso contrário, --hidden com opacity:0 pode "vazar" nos frames finais. */
+html body .v-popper__popper.v-popper--theme-tooltip.v-popper__popper--shown {
+  isolation: isolate;
+}
+
+/* Arrow do tooltip — garante cor correspondente */
+html body .v-popper__popper.v-popper--theme-tooltip .v-popper__arrow-outer,
+html body .v-popper__popper.v-popper--theme-tooltip .v-popper__arrow-inner {
+  border-color: #202c33 !important;
+}
+
+/* =======================================================================
+   LORDICON — integração com sidebar
+   ======================================================================= */
+lord-icon {
+  display: block;
+  width: 100%;
+  height: 100%;
+}
+.lord-icon-wrapper {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  position: relative;
+}
+
+/* Transição suave ao entrar no estado ativo */
+aside lord-icon {
+  transition: filter 0.2s ease;
+}
+
+/* =======================================================================
+   URGÊNCIA — destaque escalado pra conversas atribuídas a mim
+   sem resposta. 3 níveis: âmbar / laranja / vermelho.
+   Aplicado via classe `wa-urgency-{1,2,3}` no `.wa-conversation-card`.
+   ======================================================================= */
+.wa-conversation-card.wa-urgency-1 {
+  border-left: 3px solid #f59e0b;
+}
+.wa-conversation-card.wa-urgency-1 span,
+.wa-conversation-card.wa-urgency-1 .text-n-slate-11:last-child {
+  color: #f59e0b !important;
+}
+
+.wa-conversation-card.wa-urgency-2 {
+  border-left: 4px solid #f97316;
+  background: linear-gradient(
+    90deg,
+    rgba(249, 115, 22, 0.04) 0%,
+    transparent 60%
+  );
+}
+.wa-conversation-card.wa-urgency-2 .text-n-slate-11:last-child {
+  color: #f97316 !important;
+  font-weight: 600;
+}
+
+.wa-conversation-card.wa-urgency-3 {
+  border-left: 4px solid #ef4444;
+  background: linear-gradient(
+    90deg,
+    rgba(239, 68, 68, 0.07) 0%,
+    transparent 60%
+  );
+  animation: wa-urgency-pulse 2.4s ease-in-out infinite;
+}
+.wa-conversation-card.wa-urgency-3 .text-n-slate-11:last-child {
+  color: #ef4444 !important;
+  font-weight: 700;
+}
+
+@keyframes wa-urgency-pulse {
+  0%, 100% {
+    box-shadow: inset 4px 0 0 0 #ef4444;
+  }
+  50% {
+    box-shadow: inset 4px 0 0 0 #ef4444, 0 0 12px rgba(239, 68, 68, 0.18);
+  }
+}

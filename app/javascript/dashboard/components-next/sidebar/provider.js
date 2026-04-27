@@ -9,6 +9,9 @@ const DEFAULT_WIDTH = 200;
 const MIN_WIDTH = 56;
 const COLLAPSED_THRESHOLD = 160;
 const MAX_WIDTH = 320;
+// WA-style collapsed-first: when user has no stored preference, start in the
+// slim rail (64px). Once they resize, their choice wins via uiSettings.
+const COLLAPSED_DEFAULT_WIDTH = 64;
 
 // Shared state for active popover (only one can be open at a time)
 const activePopover = ref(null);
@@ -17,7 +20,9 @@ let globalCloseTimeout = null;
 export function useSidebarResize() {
   const { uiSettings, updateUISettings } = useUISettings();
 
-  const sidebarWidth = ref(uiSettings.value.sidebar_width || DEFAULT_WIDTH);
+  const sidebarWidth = ref(
+    uiSettings.value.sidebar_width || COLLAPSED_DEFAULT_WIDTH
+  );
   const isCollapsed = computed(() => sidebarWidth.value < COLLAPSED_THRESHOLD);
 
   const setSidebarWidth = width => {
