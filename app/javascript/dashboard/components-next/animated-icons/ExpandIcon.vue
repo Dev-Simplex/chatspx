@@ -47,7 +47,6 @@ const wrapStyle = computed(() => ({
       stroke-width="2"
       stroke-linecap="round"
       stroke-linejoin="round"
-      style="overflow: visible"
     >
       <!-- Top-left corner -->
       <g :class="{ 'anim-tl': animating }">

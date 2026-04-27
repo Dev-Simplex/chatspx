@@ -47,7 +47,6 @@ const wrapStyle = computed(() => ({
       stroke-width="2"
       stroke-linecap="round"
       stroke-linejoin="round"
-      style="overflow: visible"
     >
       <path :class="{ 'anim-line': animating }" d="M5 12h14" />
       <path :class="{ 'anim-head': animating }" d="m12 5 7 7-7 7" />

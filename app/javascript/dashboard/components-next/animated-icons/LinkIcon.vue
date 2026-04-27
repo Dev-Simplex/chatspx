@@ -1,28 +1,3 @@
-<template>
-  <div
-    :class="props.class"
-    :style="wrapStyle"
-    @mouseenter="animating = true"
-    @animationend="animating = false"
-  >
-    <svg
-      xmlns="http://www.w3.org/2000/svg"
-      :width="size"
-      :height="size"
-      viewBox="0 0 24 24"
-      fill="none"
-      stroke="currentColor"
-      stroke-width="2"
-      stroke-linecap="round"
-      stroke-linejoin="round"
-      :class="{ 'is-animating': animating }"
-      style="overflow: visible;"
-    >
-      <g fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></g>
-    </svg>
-  </div>
-</template>
-
 <script>
 export default {
   name: 'LinkIcon',
@@ -47,12 +22,54 @@ const wrapStyle = computed(() => ({
 }));
 </script>
 
+<template>
+  <div
+    :class="props.class"
+    :style="wrapStyle"
+    @mouseenter="animating = true"
+    @animationend="animating = false"
+  >
+    <svg
+      xmlns="http://www.w3.org/2000/svg"
+      :width="size"
+      :height="size"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      stroke-width="2"
+      stroke-linecap="round"
+      stroke-linejoin="round"
+      class="overflow-visible"
+      :class="[{ 'is-animating': animating }]"
+    >
+      <g
+        fill="none"
+        stroke="currentColor"
+        stroke-linecap="round"
+        stroke-linejoin="round"
+        stroke-width="2"
+      >
+        <path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71" />
+        <path
+          d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"
+        />
+      </g>
+    </svg>
+  </div>
+</template>
+
 <style scoped>
 svg.is-animating {
   animation: anim-link 500ms cubic-bezier(0.34, 1.56, 0.64, 1) forwards;
 }
 @keyframes anim-link {
-  0% { stroke-dashoffset: 1; opacity: 0; }
-  100% { stroke-dashoffset: 0; opacity: 1; }
+  0% {
+    stroke-dashoffset: 1;
+    opacity: 0;
+  }
+  100% {
+    stroke-dashoffset: 0;
+    opacity: 1;
+  }
 }
 </style>

@@ -1,28 +1,3 @@
-<template>
-  <div
-    :class="props.class"
-    :style="wrapStyle"
-    @mouseenter="animating = true"
-    @animationend="animating = false"
-  >
-    <svg
-      xmlns="http://www.w3.org/2000/svg"
-      :width="size"
-      :height="size"
-      viewBox="0 0 24 24"
-      fill="none"
-      stroke="currentColor"
-      stroke-width="2"
-      stroke-linecap="round"
-      stroke-linejoin="round"
-      :class="{ 'is-animating': animating }"
-      style="overflow: visible;"
-    >
-      <path fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2 5h20M6 12h12m-9 7h6"/>
-    </svg>
-  </div>
-</template>
-
 <script>
 export default {
   name: 'ListFilterIcon',
@@ -47,14 +22,54 @@ const wrapStyle = computed(() => ({
 }));
 </script>
 
+<template>
+  <div
+    :class="props.class"
+    :style="wrapStyle"
+    @mouseenter="animating = true"
+    @animationend="animating = false"
+  >
+    <svg
+      xmlns="http://www.w3.org/2000/svg"
+      :width="size"
+      :height="size"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      stroke-width="2"
+      stroke-linecap="round"
+      stroke-linejoin="round"
+      class="overflow-visible"
+      :class="[{ 'is-animating': animating }]"
+    >
+      <path
+        fill="none"
+        stroke="currentColor"
+        stroke-linecap="round"
+        stroke-linejoin="round"
+        stroke-width="2"
+        d="M2 5h20M6 12h12m-9 7h6"
+      />
+    </svg>
+  </div>
+</template>
+
 <style scoped>
 svg.is-animating {
   animation: anim-list-filter 400ms cubic-bezier(0.34, 1.56, 0.64, 1) forwards;
 }
 @keyframes anim-list-filter {
-  0% { transform: scale(1) rotate(0deg); }
-  30% { transform: scale(0.8) rotate(-90deg); }
-  60% { transform: scale(1.15) rotate(0deg); }
-  100% { transform: scale(1) rotate(0deg); }
+  0% {
+    transform: scale(1) rotate(0deg);
+  }
+  30% {
+    transform: scale(0.8) rotate(-90deg);
+  }
+  60% {
+    transform: scale(1.15) rotate(0deg);
+  }
+  100% {
+    transform: scale(1) rotate(0deg);
+  }
 }
 </style>
