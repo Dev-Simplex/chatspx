@@ -112,7 +112,14 @@ class Conversation < ApplicationRecord
 
   has_many :mentions, dependent: :destroy_async
   has_many :messages, lambda { |conversation| # rubocop:disable Rails/InverseOf
-    conversation.team_id.nil? ? where(team_id: nil) : where(team_id: conversation.team_id)
+    # Mensagens com team_id NULL sao "publicas" (sem restricao por time) e sempre aparecem.
+    # Se a conversa pertence a um time, alem das publicas, mostra so as msgs daquele time.
+    # Resolve casos onde UpdateMessagesTeamIdJob nao sincronizou apos mudanca de team.
+    if conversation.team_id.nil?
+      all
+    else
+      where('messages.team_id IS NULL OR messages.team_id = ?', conversation.team_id)
+    end
   }, dependent: :destroy_async, autosave: true
   has_many :all_messages, class_name: 'Message', dependent: :destroy_async, autosave: true
   has_one :csat_survey_response, dependent: :destroy_async

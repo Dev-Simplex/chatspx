@@ -32,7 +32,7 @@ class Conversations::ListPreloader
       LEFT JOIN messages m ON m.conversation_id = c.id
         AND m.account_id = c.account_id
         AND m.message_type = 0
-        AND (c.team_id IS NULL AND m.team_id IS NULL OR c.team_id IS NOT NULL AND m.team_id = c.team_id)
+        AND (c.team_id IS NULL OR m.team_id IS NULL OR m.team_id = c.team_id)
         AND (c.agent_last_seen_at IS NULL OR m.created_at > c.agent_last_seen_at)
       WHERE c.id IN (?)
       GROUP BY c.id
@@ -63,7 +63,7 @@ class Conversations::ListPreloader
         INNER JOIN conversations c ON c.id = m.conversation_id
         WHERE m.conversation_id IN (?)
           AND m.account_id = c.account_id
-          AND (c.team_id IS NULL AND m.team_id IS NULL OR c.team_id IS NOT NULL AND m.team_id = c.team_id)
+          AND (c.team_id IS NULL OR m.team_id IS NULL OR m.team_id = c.team_id)
         ORDER BY m.conversation_id, m.created_at DESC, m.id DESC
       ),
       last_non_activity AS (
@@ -73,7 +73,7 @@ class Conversations::ListPreloader
         WHERE m.conversation_id IN (?)
           AND m.account_id = c.account_id
           AND m.message_type != 2
-          AND (c.team_id IS NULL AND m.team_id IS NULL OR c.team_id IS NOT NULL AND m.team_id = c.team_id)
+          AND (c.team_id IS NULL OR m.team_id IS NULL OR m.team_id = c.team_id)
         ORDER BY m.conversation_id, m.id DESC
       )
       SELECT 'all' AS kind, id, conversation_id FROM last_all
