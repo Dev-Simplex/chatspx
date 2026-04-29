@@ -29,6 +29,7 @@ class Messages::MessageBuilder # rubocop:disable Metrics/ClassLength
     # The frontend is equipped to handle this case
     process_email_content
     @message.save!
+    schedule_waha_ack_polling
     @message
   end
 
@@ -172,6 +173,21 @@ class Messages::MessageBuilder # rubocop:disable Metrics/ClassLength
     return true if inbox.channel_type == 'Channel::Api'
 
     false
+  end
+
+  def waha_session_inbox?
+    inbox = @conversation.inbox
+    inbox&.channel_type == 'Channel::Api' && inbox.waha_session_name.present?
+  end
+
+  def schedule_waha_ack_polling
+    return unless @message&.persisted?
+    return unless @message.outgoing?
+    return unless waha_session_inbox?
+
+    [5.seconds, 30.seconds, 2.minutes, 10.minutes].each do |delay|
+      Waha::MessageStatusSyncJob.set(wait: delay).perform_later(@conversation.id)
+    end
   end
 
   def email_inbox?

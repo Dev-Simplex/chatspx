@@ -10,6 +10,7 @@ class Api::V1::Accounts::Conversations::MessagesController < Api::V1::Accounts::
     @include_meta = include_meta?
     @messages = message_finder.perform
     @has_more = message_finder.has_more
+    enqueue_waha_status_sync
   end
 
   def create
@@ -68,7 +69,28 @@ class Api::V1::Accounts::Conversations::MessagesController < Api::V1::Accounts::
     render json: { content: translated_content }
   end
 
+  def star
+    message.update!(starred: !message.starred?)
+    Rails.configuration.dispatcher.dispatch(
+      ::Events::Types::MESSAGE_UPDATED,
+      Time.zone.now,
+      message: message,
+      performed_by: Current.user
+    )
+    render json: { starred: message.starred }
+  end
+
   private
+
+  def enqueue_waha_status_sync
+    inbox = @conversation.inbox
+    return unless inbox&.channel_type == 'Channel::Api' && inbox.waha_session_name.present?
+    return unless @conversation.messages.exists?(
+      message_type: :outgoing, status: :sent, created_at: 1.hour.ago..30.seconds.ago
+    )
+
+    Waha::MessageStatusSyncJob.perform_later(@conversation.id)
+  end
 
   def message
     @message ||= @conversation.messages.find(permitted_params[:id])

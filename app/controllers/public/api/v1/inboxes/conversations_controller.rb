@@ -37,14 +37,19 @@ class Public::Api::V1::Inboxes::ConversationsController < Public::Api::V1::Inbox
   end
 
   def update_last_seen
+    # Caminho rápido (WAHA): se o webhook trouxer payload.ack, atualiza o status da mensagem direto.
+    # Caso contrário cai no fallback de polling/bulk mark.
+    if waha_ack_params_present?
+      handle_waha_ack_status_update
+      return head :ok
+    end
+
     @conversation.contact_last_seen_at = DateTime.now.utc
     @conversation.save!
 
     if waha_inbox?
-      # WAHA: fetch per-message ack from WAHA API for granular status (sent/delivered/read)
       ::Waha::MessageStatusSyncJob.perform_later(@conversation.id)
     else
-      # Non-WAHA: bulk mark as read
       ::Conversations::UpdateMessageStatusJob.perform_later(@conversation.id, @conversation.contact_last_seen_at)
     end
 
@@ -55,6 +60,26 @@ class Public::Api::V1::Inboxes::ConversationsController < Public::Api::V1::Inbox
 
   def waha_inbox?
     @conversation&.inbox&.waha_session_name.present?
+  end
+
+  def waha_ack_params_present?
+    waha_inbox? && params.dig(:payload, :ack).present?
+  end
+
+  def handle_waha_ack_status_update
+    waha_message_id = params.dig(:payload, :id)
+    ack = params.dig(:payload, :ack).to_i
+    status = waha_ack_to_chatwoot_status(ack)
+    return if waha_message_id.blank? || status.blank?
+
+    message = @conversation.messages.find_by(source_id: waha_message_id)
+    return unless message
+
+    Messages::StatusUpdateService.new(message, status).perform
+  end
+
+  def waha_ack_to_chatwoot_status(ack)
+    { 1 => 'sent', 2 => 'delivered', 3 => 'read', 4 => 'read' }[ack]
   end
 
   def set_conversation
