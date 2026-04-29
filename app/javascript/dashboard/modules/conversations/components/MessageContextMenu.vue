@@ -280,6 +280,24 @@ export default {
           variant="icon"
           @click.stop="handleEdit"
         />
+        <MenuItem
+          v-if="enabledOptions['star'] && !isStarred"
+          :option="{
+            icon: 'i-lucide-star',
+            label: $t('CONVERSATION.CONTEXT_MENU.STAR'),
+          }"
+          variant="icon"
+          @click.stop="handleStar"
+        />
+        <MenuItem
+          v-if="enabledOptions['star'] && isStarred"
+          :option="{
+            icon: 'i-lucide-star-off',
+            label: $t('CONVERSATION.CONTEXT_MENU.UNSTAR'),
+          }"
+          variant="icon"
+          @click.stop="handleUnstar"
+        />
         <div
           v-if="enabledOptions['editExpired']"
           v-tooltip="$t('CONVERSATION.CONTEXT_MENU.EDIT_EXPIRED')"

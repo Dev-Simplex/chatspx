@@ -11,6 +11,9 @@ import MediaGrid from './components/MediaGrid.vue';
 import DocumentList from './components/DocumentList.vue';
 import LinkList from './components/LinkList.vue';
 import MediaLightbox from './components/MediaLightbox.vue';
+import MediaGridSkeleton from './components/MediaGridSkeleton.vue';
+import DocumentListSkeleton from './components/DocumentListSkeleton.vue';
+import LinkListSkeleton from './components/LinkListSkeleton.vue';
 
 const store = useStore();
 const router = useRouter();
@@ -178,15 +181,19 @@ const emptyMeta = computed(() => {
     />
 
     <main
+      :aria-busy="uiFlags.isFetching"
       class="flex-1 overflow-y-auto overflow-x-hidden min-h-0 px-6 sm:px-8 lg:px-10 pt-6 pb-10"
     >
-      <!-- Loading inicial -->
-      <div
-        v-if="uiFlags.isFetching && !records.length"
-        class="flex items-center justify-center min-h-[300px]"
-      >
-        <span class="i-lucide-loader-2 size-7 animate-spin text-n-slate-10" />
-      </div>
+      <!-- Loading inicial — skeleton por tab -->
+      <MediaGridSkeleton
+        v-if="uiFlags.isFetching && !records.length && tab === 'media'"
+      />
+      <DocumentListSkeleton
+        v-else-if="uiFlags.isFetching && !records.length && tab === 'documents'"
+      />
+      <LinkListSkeleton
+        v-else-if="uiFlags.isFetching && !records.length && tab === 'links'"
+      />
 
       <!-- Empty state ilustrativo -->
       <div

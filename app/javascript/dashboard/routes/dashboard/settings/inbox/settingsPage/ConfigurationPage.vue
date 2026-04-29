@@ -44,6 +44,8 @@ export default {
       allowedDomains: '',
       isUpdatingAllowedDomains: false,
       isSettingDefaults: false,
+      pinMode: 'per_agent',
+      isUpdatingPinMode: false,
     };
   },
   validations: {
@@ -83,9 +85,32 @@ export default {
         this.inbox.selected_feature_flags || []
       ).includes('allow_mobile_webview');
       this.allowedDomains = this.inbox.allowed_domains || '';
+      this.pinMode = this.inbox.additional_attributes?.pin_mode || 'per_agent';
       this.$nextTick(() => {
         this.isSettingDefaults = false;
       });
+    },
+    async updatePinMode(value) {
+      if (this.isUpdatingPinMode || value === this.pinMode) return;
+      this.isUpdatingPinMode = true;
+      const previous = this.pinMode;
+      this.pinMode = value;
+      try {
+        await this.$store.dispatch('inboxes/updateInbox', {
+          id: this.inbox.id,
+          formData: false,
+          additional_attributes: {
+            ...(this.inbox.additional_attributes || {}),
+            pin_mode: value,
+          },
+        });
+        useAlert(this.$t('INBOX_MGMT.EDIT.API.SUCCESS_MESSAGE'));
+      } catch (error) {
+        this.pinMode = previous;
+        useAlert(this.$t('INBOX_MGMT.EDIT.API.ERROR_MESSAGE'));
+      } finally {
+        this.isUpdatingPinMode = false;
+      }
     },
     handleHmacFlag() {
       this.updateInbox();
@@ -459,6 +484,55 @@ export default {
       :inbox="inbox"
       class="hidden"
     />
+  </div>
+  <div class="mt-6">
+    <SettingsFieldSection
+      :label="$t('INBOX_MGMT.SETTINGS_POPUP.PIN_MODE.TITLE')"
+      :help-text="$t('INBOX_MGMT.SETTINGS_POPUP.PIN_MODE.SUBTITLE')"
+    >
+      <div class="flex flex-col gap-2">
+        <label
+          class="flex items-start gap-2 cursor-pointer p-2 rounded-md hover:bg-n-alpha-2"
+        >
+          <input
+            type="radio"
+            value="per_agent"
+            :checked="pinMode === 'per_agent'"
+            :disabled="isUpdatingPinMode"
+            class="mt-1"
+            @change="updatePinMode('per_agent')"
+          />
+          <div>
+            <div class="text-body-main text-n-slate-12">
+              {{ $t('INBOX_MGMT.SETTINGS_POPUP.PIN_MODE.PER_AGENT.LABEL') }}
+            </div>
+            <div class="text-label-small text-n-slate-11">
+              {{ $t('INBOX_MGMT.SETTINGS_POPUP.PIN_MODE.PER_AGENT.HINT') }}
+            </div>
+          </div>
+        </label>
+        <label
+          class="flex items-start gap-2 cursor-pointer p-2 rounded-md hover:bg-n-alpha-2"
+        >
+          <input
+            type="radio"
+            value="per_inbox"
+            :checked="pinMode === 'per_inbox'"
+            :disabled="isUpdatingPinMode"
+            class="mt-1"
+            @change="updatePinMode('per_inbox')"
+          />
+          <div>
+            <div class="text-body-main text-n-slate-12">
+              {{ $t('INBOX_MGMT.SETTINGS_POPUP.PIN_MODE.PER_INBOX.LABEL') }}
+            </div>
+            <div class="text-label-small text-n-slate-11">
+              {{ $t('INBOX_MGMT.SETTINGS_POPUP.PIN_MODE.PER_INBOX.HINT') }}
+            </div>
+          </div>
+        </label>
+      </div>
+    </SettingsFieldSection>
   </div>
 </template>
 

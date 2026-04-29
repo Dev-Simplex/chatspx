@@ -351,8 +351,8 @@ const gridClass = computed(() => {
 const gridTemplate = computed(() => {
   const map = {
     [ORIENTATION.LEFT]: `
-      "bubble"
-      "meta"
+      "avatar bubble"
+      "spacer meta"
     `,
     [ORIENTATION.RIGHT]: `
       "bubble avatar"
@@ -371,7 +371,6 @@ const shouldGroupWithNext = computed(() => {
 
 const shouldShowAvatar = computed(() => {
   if (props.messageType === MESSAGE_TYPES.ACTIVITY) return false;
-  if (orientation.value === ORIENTATION.LEFT) return false;
 
   return true;
 });
@@ -775,7 +774,7 @@ provideMessageContext({
           'w-full': variant === MESSAGE_VARIANTS.EMAIL,
         },
       ]"
-      class="gap-x-2"
+      class="gap-x-1.5"
       :style="{
         gridTemplateAreas: gridTemplate,
       }"
@@ -783,9 +782,12 @@ provideMessageContext({
       <div
         v-if="!shouldGroupWithNext && shouldShowAvatar"
         v-tooltip.left-end="avatarTooltip"
-        class="[grid-area:avatar] flex items-end"
+        class="[grid-area:avatar] flex items-start pt-0.5"
       >
-        <Avatar v-bind="avatarInfo" :size="24" />
+        <Avatar
+          v-bind="avatarInfo"
+          :size="orientation === ORIENTATION.LEFT ? 28 : 24"
+        />
       </div>
       <div
         class="[grid-area:bubble] flex relative group/message"

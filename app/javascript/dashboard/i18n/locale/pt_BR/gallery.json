@@ -35,6 +35,7 @@
       "ALL_CONTACTS": "Todos os contatos",
       "DATE_RANGE": "Período"
     },
+    "LOADING": "Carregando galeria",
     "ACTIONS": {
       "DOWNLOAD": "Baixar",
       "DOWNLOAD_EMPTY": "Nenhum arquivo selecionado para baixar.",

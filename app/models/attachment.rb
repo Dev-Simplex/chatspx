@@ -42,6 +42,8 @@ class Attachment < ApplicationRecord
   enum file_type: { :image => 0, :audio => 1, :video => 2, :file => 3, :location => 4, :fallback => 5, :share => 6, :story_mention => 7,
                     :contact => 8, :ig_reel => 9, :ig_post => 10, :ig_story => 11, :embed => 12 }
 
+  after_create_commit :schedule_audio_transcription
+
   def push_event_data
     return unless file_type
 
@@ -182,6 +184,16 @@ class Attachment < ApplicationRecord
 
   def media_file?(file_content_type)
     file_content_type.start_with?('image/', 'video/', 'audio/')
+  end
+
+  def schedule_audio_transcription
+    return unless file_type.to_s == 'audio'
+    return if message.blank? || !message.incoming?
+    return unless account&.audio_transcriptions
+
+    AudioTranscriptionJob.perform_later(id)
+  rescue StandardError => e
+    Rails.logger.warn("[Attachment#schedule_audio_transcription] #{e.class}: #{e.message}")
   end
 end
 

@@ -98,6 +98,19 @@ class MessageApi extends ApiClient {
     );
   }
 
+  toggleReaction(conversationId, messageId, emoji) {
+    return axios.post(
+      `${this.url}/${conversationId}/messages/${messageId}/reactions`,
+      { emoji }
+    );
+  }
+
+  toggleStar(conversationId, messageId) {
+    return axios.post(
+      `${this.url}/${conversationId}/messages/${messageId}/star`
+    );
+  }
+
   getPreviousMessages({
     conversationId,
     after,

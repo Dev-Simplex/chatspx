@@ -105,6 +105,44 @@
         "LABEL": "Excluir conversas não atendidas",
         "HELP": "Se ativado, o sistema não resolverá conversas que estiverem aguardando a resposta de um atendente."
       },
+      "DENSITY": {
+        "TITLE": "Densidade da lista de conversas",
+        "NOTE": "Ajuste o espaçamento dos cards de conversa na sidebar.",
+        "OPTIONS": {
+          "COMPACT": "Compacto",
+          "COMFORTABLE": "Confortável",
+          "SPACIOUS": "Espaçoso"
+        }
+      },
+      "CHAT_WALLPAPER": {
+        "TITLE": "Wallpaper do chat",
+        "NOTE": "Personalize o fundo das conversas. Informe uma URL de imagem ou faça upload — deixe vazio para usar o padrão.",
+        "PLACEHOLDER": "https://exemplo.com/wallpaper.jpg",
+        "SAVE": "Salvar",
+        "RESET": "Voltar ao padrão",
+        "TABS": {
+          "URL": "URL externa",
+          "UPLOAD": "Upload"
+        },
+        "UPLOAD": {
+          "BUTTON": "Escolher arquivo",
+          "HINT": "JPEG, PNG ou WebP, até 5MB.",
+          "INVALID_TYPE": "Tipo de arquivo não suportado. Use JPEG, PNG ou WebP.",
+          "TOO_LARGE": "Arquivo muito grande. Máximo 5MB."
+        },
+        "API": {
+          "SUCCESS": "Wallpaper atualizado com sucesso",
+          "ERROR": "Falha ao atualizar wallpaper"
+        }
+      },
+      "KPI_STRIP": {
+        "TITLE": "Faixa de KPIs do dashboard",
+        "NOTE": "Mostrar a faixa de métricas no topo do dashboard de conversas.",
+        "API": {
+          "SUCCESS": "Configuração da faixa de KPIs atualizada",
+          "ERROR": "Falha ao atualizar configuração da faixa de KPIs"
+        }
+      },
       "AUDIO_TRANSCRIPTION": {
         "TITLE": "Transcrever Mensagens de Áudio",
         "NOTE": "Transcreve automaticamente mensagens de áudio nas conversas. Gera uma transcrição de texto sempre que uma mensagem de áudio é enviada ou recebida, e a exibe junto da mensagem.",

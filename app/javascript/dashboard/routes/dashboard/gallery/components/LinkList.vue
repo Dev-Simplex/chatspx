@@ -80,7 +80,7 @@ const faviconUrl = url => {
         <li
           v-for="item in group.items"
           :key="item.id"
-          class="group flex items-start gap-3 py-4 px-4 rounded-2xl transition-all border border-transparent"
+          class="group flex items-start gap-3 py-4 px-4 rounded-2xl transition-all border border-transparent [content-visibility:auto] [contain-intrinsic-size:0_120px]"
           :class="
             selectedIds.has(item.id)
               ? 'bg-n-brand/10 !border-n-brand/40'

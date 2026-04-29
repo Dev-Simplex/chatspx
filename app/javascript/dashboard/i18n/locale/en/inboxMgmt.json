@@ -717,6 +717,18 @@
         "DESCRIPTION": "Restrict which websites can embed your chat widget. For security, only add domains you own and trust. Add one or more domains separated by commas. Leave blank to allow all domains (not recommended for production).",
         "PLACEHOLDER": "example.com, www.example.com, app.example.com"
       },
+      "PIN_MODE": {
+        "TITLE": "Pinned conversations",
+        "SUBTITLE": "Decide whether pins are stored per agent (each agent keeps their own list) or per inbox (the whole team shares the same pinned list).",
+        "PER_AGENT": {
+          "LABEL": "Per agent",
+          "HINT": "Each agent maintains their own pinned conversations."
+        },
+        "PER_INBOX": {
+          "LABEL": "Per inbox",
+          "HINT": "All agents in this inbox see the same pinned conversations."
+        }
+      },
       "ALLOW_MOBILE_WEBVIEW": {
         "LABEL": "Enable widget in mobile apps",
         "SUBTITLE": "Check this if you embed the widget in iOS or Android apps. Mobile apps don't send domain information, so they would be blocked by domain restrictions unless this is enabled."

@@ -9,6 +9,7 @@ import Slack from './Slack.vue';
 import Linear from './Linear.vue';
 import Notion from './Notion.vue';
 import Shopify from './Shopify.vue';
+import Openai from './Openai.vue';
 
 export default {
   routes: [
@@ -41,6 +42,14 @@ export default {
           name: 'settings_integrations_webhook',
           meta: {
             featureFlag: FEATURE_FLAGS.INTEGRATIONS,
+            permissions: ['administrator'],
+          },
+        },
+        {
+          path: 'openai',
+          component: Openai,
+          name: 'settings_integrations_openai',
+          meta: {
             permissions: ['administrator'],
           },
         },

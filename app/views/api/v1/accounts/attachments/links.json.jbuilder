@@ -1,7 +1,7 @@
 json.meta do
   json.total_count @messages_count
-  json.current_page @messages.current_page
-  json.total_pages @messages.total_pages
+  json.current_page @current_page
+  json.total_pages @total_pages
 end
 
 json.payload @messages do |message|

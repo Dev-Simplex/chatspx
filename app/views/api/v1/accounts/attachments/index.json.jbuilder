@@ -1,7 +1,7 @@
 json.meta do
   json.total_count @attachments_count
-  json.current_page @attachments.current_page
-  json.total_pages @attachments.total_pages
+  json.current_page @current_page
+  json.total_pages @total_pages
 end
 
 json.payload @attachments do |attachment|

@@ -16,6 +16,38 @@
       },
       "ERROR": "There was an error connecting to Shopify. Please try again or contact support if the issue persists."
     },
+    "OPENAI": {
+      "LOGO": "AI",
+      "HEADER": "OpenAI",
+      "DESCRIPTION": "Per-account OpenAI key and model configuration. Used by Ghost, Copilot, audio transcription and AI agents.",
+      "API_KEY": {
+        "TITLE": "API key",
+        "DESCRIPTION": "Stored at the account level. Falls back to the platform key when empty.",
+        "PLACEHOLDER": "sk-proj-..."
+      },
+      "TEST": {
+        "BUTTON": "Test key",
+        "RUNNING": "Testing...",
+        "SUCCESS": "Key is valid.",
+        "ERROR": "Invalid key. Check the value and try again."
+      },
+      "SAVE": {
+        "BUTTON": "Save",
+        "SUCCESS": "OpenAI settings saved.",
+        "ERROR": "Could not save the OpenAI settings."
+      },
+      "MODEL_DEFAULT": {
+        "TITLE": "Default model (general use)",
+        "DESCRIPTION": "Used by ghost suggestion, side Copilot, language detection and short tasks.",
+        "HELP": "gpt-4o-mini is the recommended balance between cost and quality."
+      },
+      "MODEL_ADVANCED": {
+        "TITLE": "Advanced model (multi-step reasoning)",
+        "DESCRIPTION": "Used by AI agents, complex tool calling and multi-turn workflows.",
+        "HELP": "gpt-4o is the recommended choice for advanced reasoning."
+      },
+      "RESTORE_DEFAULTS": "Restore defaults"
+    },
     "HEADER": "Integrations",
     "DESCRIPTION": "Chatwoot integrates with multiple tools and services to improve your team's efficiency. Explore the list below to configure your favorite apps.",
     "LEARN_MORE": "Learn more about integrations",

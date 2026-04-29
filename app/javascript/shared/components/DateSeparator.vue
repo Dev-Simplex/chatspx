@@ -4,7 +4,7 @@ import { formatDate } from 'shared/helpers/DateHelper';
 export default {
   props: {
     date: {
-      type: String,
+      type: [String, Date],
       required: true,
     },
   },

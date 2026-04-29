@@ -121,6 +121,9 @@
       "YOU_ANSWERED": "You answered"
     },
     "HEADER": {
+      "TYPING": "typing…",
+      "ONLINE": "online",
+      "LAST_SEEN": "last seen {relative}",
       "RESOLVE_ACTION": "Resolve",
       "REOPEN_ACTION": "Reopen",
       "OPEN_ACTION": "Open",
@@ -174,8 +177,30 @@
       "APPLY": "Snooze",
       "CANCEL": "Cancel"
     },
+    "PIN": {
+      "PIN": "Pin conversation",
+      "UNPIN": "Unpin conversation"
+    },
+    "COPILOT": {
+      "TITLE": "Copilot",
+      "WELCOME": "Hi! Ask me to summarize this conversation, suggest a reply, or flag risks.",
+      "PLACEHOLDER": "Ask the Copilot…",
+      "SEND": "Send",
+      "HINT": "Enter to send · Shift+Enter for newline",
+      "THINKING": "Thinking…",
+      "ERROR": "Could not reach the Copilot. Try again.",
+      "NO_REPLY": "No reply.",
+      "CLEAR_HISTORY": "Clear history",
+      "QUICK": {
+        "SUMMARIZE": "Summarize this conversation",
+        "NEXT_STEP": "Suggest the next step",
+        "WRITE_REPLY": "Draft a reply for me"
+      }
+    },
     "PRIORITY": {
       "TITLE": "Priority",
+      "LABEL": "Priority",
+      "NO_PRIORITY": "No priority",
       "OPTIONS": {
         "NONE": "None",
         "URGENT": "Urgent",
@@ -358,6 +383,12 @@
         "DELETE": "Delete",
         "CANCEL": "Cancel"
       }
+    },
+    "REACTIONS": {
+      "PICKER_TOOLTIP": "Add reaction"
+    },
+    "PDF_PREVIEW": {
+      "OPEN_FULL": "Open"
     },
     "FORWARD": {
       "TITLE": "Forward Message",

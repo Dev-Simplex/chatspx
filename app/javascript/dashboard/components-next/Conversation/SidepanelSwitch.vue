@@ -4,7 +4,6 @@ import ButtonGroup from 'dashboard/components-next/buttonGroup/ButtonGroup.vue';
 import ScheduledMessageForm from 'dashboard/components-next/Kanban/ScheduledMessageForm.vue';
 import { useUISettings } from 'dashboard/composables/useUISettings';
 import { computed, ref } from 'vue';
-import { useWindowSize } from '@vueuse/core';
 import { FEATURE_FLAGS } from 'dashboard/featureFlags';
 import { useMapGetter } from 'dashboard/composables/store';
 import { useKeyboardEvents } from 'dashboard/composables/useKeyboardEvents';
@@ -25,11 +24,6 @@ const showCopilotTab = computed(() =>
 );
 
 const { uiSettings } = useUISettings();
-const { width: windowWidth } = useWindowSize();
-
-// WhatsApp-fiel: em desktop (>=1280px) o contact sidebar fica SEMPRE visivel,
-// entao esconder o botao de toggle "contato". Copilot/Schedule continuam.
-const isDesktopAlwaysOnContact = computed(() => windowWidth.value >= 1280);
 
 const isContactSidebarOpen = computed(
   () => uiSettings.value.is_contact_sidebar_open
@@ -96,7 +90,6 @@ useKeyboardEvents(keyboardEvents);
     class="flex flex-col justify-center items-center absolute top-36 xl:top-24 ltr:right-2 rtl:left-2 bg-n-solid-2/90 backdrop-blur-lg border border-n-weak/50 rounded-full gap-1.5 p-1.5 shadow-sm transition-shadow duration-200 hover:shadow z-10"
   >
     <Button
-      v-if="!isDesktopAlwaysOnContact"
       v-tooltip.top="$t('CONVERSATION.SIDEBAR.CONTACT')"
       data-testid="conversation-sidebar-contact-toggle"
       ghost

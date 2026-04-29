@@ -23,6 +23,7 @@ json.pending_status_enabled resource.pending_status_enabled
 json.team_message_isolation resource.team_message_isolation
 json.sender_name_type resource.sender_name_type
 json.business_name resource.business_name
+json.additional_attributes resource.additional_attributes
 
 if resource.portal.present?
   json.help_center do

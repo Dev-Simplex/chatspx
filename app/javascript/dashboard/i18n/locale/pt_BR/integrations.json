@@ -16,6 +16,38 @@
       },
       "ERROR": "Ocorreu um erro ao tentar conectar com o Shopify. Por favor, tente novamente ou entre em contato com o suporte se o problema persistir."
     },
+    "OPENAI": {
+      "LOGO": "IA",
+      "HEADER": "OpenAI",
+      "DESCRIPTION": "Configuração da chave e dos modelos OpenAI por conta. Usados pelo Ghost, Copilot, transcrição de áudio e Agentes IA.",
+      "API_KEY": {
+        "TITLE": "Chave da API",
+        "DESCRIPTION": "Salva no nível da conta. Quando vazia, usa a chave da plataforma como fallback.",
+        "PLACEHOLDER": "sk-proj-..."
+      },
+      "TEST": {
+        "BUTTON": "Testar chave",
+        "RUNNING": "Testando...",
+        "SUCCESS": "Chave válida.",
+        "ERROR": "Chave inválida. Verifique o valor e tente novamente."
+      },
+      "SAVE": {
+        "BUTTON": "Salvar",
+        "SUCCESS": "Configurações OpenAI salvas.",
+        "ERROR": "Não foi possível salvar as configurações OpenAI."
+      },
+      "MODEL_DEFAULT": {
+        "TITLE": "Modelo padrão (uso geral)",
+        "DESCRIPTION": "Usado em sugestão ghost, Copilot lateral, detecção de idioma e tarefas curtas.",
+        "HELP": "gpt-4o-mini é o equilíbrio recomendado entre custo e qualidade."
+      },
+      "MODEL_ADVANCED": {
+        "TITLE": "Modelo avançado (raciocínio multi-step)",
+        "DESCRIPTION": "Usado pelos Agentes IA, tool calling complexo e workflows multi-turn.",
+        "HELP": "gpt-4o é o recomendado para raciocínio avançado."
+      },
+      "RESTORE_DEFAULTS": "Restaurar padrões"
+    },
     "HEADER": "Integrações",
     "DESCRIPTION": "Chatwoot se integra com várias ferramentas e serviços para melhorar a eficiência de seu time. Explore a lista abaixo para configurar seus aplicativos favoritos.",
     "LEARN_MORE": "Aprenda mais sobre integrações",

@@ -69,7 +69,39 @@ class Api::V1::AccountsController < Api::BaseController
     head :ok
   end
 
+  CHAT_WALLPAPER_TYPES = %w[image/jpeg image/png image/webp].freeze
+  CHAT_WALLPAPER_MAX_BYTES = 5.megabytes
+
+  def chat_wallpaper
+    return remove_chat_wallpaper if request.delete?
+
+    file = params[:image]
+    error = chat_wallpaper_validation_error(file)
+    return render(json: { error: error }, status: :unprocessable_entity) if error
+
+    @account.chat_wallpaper_image.attach(file)
+    url = Rails.application.routes.url_helpers.rails_blob_url(@account.chat_wallpaper_image, only_path: true)
+    @account.settings['chat_wallpaper_url'] = url
+    @account.save!
+    render json: { url: url }
+  end
+
   private
+
+  def remove_chat_wallpaper
+    @account.chat_wallpaper_image.purge if @account.chat_wallpaper_image.attached?
+    @account.settings['chat_wallpaper_url'] = ''
+    @account.save!
+    render json: { url: '' }
+  end
+
+  def chat_wallpaper_validation_error(file)
+    return 'no_file' if file.blank?
+    return 'invalid_type' unless CHAT_WALLPAPER_TYPES.include?(file.content_type)
+    return 'too_large' if file.size > CHAT_WALLPAPER_MAX_BYTES
+
+    nil
+  end
 
   def ensure_account_name
     # ensure that account_name and user_full_name is present
@@ -108,7 +140,10 @@ class Api::V1::AccountsController < Api::BaseController
   end
 
   def permitted_settings_attributes
-    [:auto_resolve_after, :auto_resolve_message, :auto_resolve_ignore_waiting, :audio_transcriptions, :auto_resolve_label]
+    [:auto_resolve_after, :auto_resolve_message, :auto_resolve_ignore_waiting, :audio_transcriptions, :auto_resolve_label,
+     :chat_wallpaper_url, :show_dashboard_kpi_strip, :onboarding_dismissed,
+     :openai_api_key, :openai_model_default, :openai_model_advanced,
+     { onboarding_completed_steps: [] }]
   end
 
   def check_signup_enabled

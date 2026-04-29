@@ -15,6 +15,9 @@ import AccountId from './components/AccountId.vue';
 import BuildInfo from './components/BuildInfo.vue';
 import AccountDelete from './components/AccountDelete.vue';
 import AudioTranscription from './components/AudioTranscription.vue';
+import ChatWallpaper from './components/ChatWallpaper.vue';
+import DashboardKpiStrip from './components/DashboardKpiStrip.vue';
+import DensityToggle from './components/DensityToggle.vue';
 import SectionLayout from './components/SectionLayout.vue';
 
 export default {
@@ -25,6 +28,9 @@ export default {
     BuildInfo,
     AccountDelete,
     AudioTranscription,
+    ChatWallpaper,
+    DashboardKpiStrip,
+    DensityToggle,
     SectionLayout,
     WithLabel,
     NextInput,
@@ -237,6 +243,9 @@ export default {
       <woot-loading-state v-if="uiFlags.isFetchingItem" />
     </div>
     <AudioTranscription v-if="showAudioTranscriptionConfig" />
+    <ChatWallpaper />
+    <DashboardKpiStrip />
+    <DensityToggle />
     <AccountId />
     <div v-if="!uiFlags.isFetchingItem && isOnChatwootCloud">
       <AccountDelete />

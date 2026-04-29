@@ -99,6 +99,9 @@
       "YOU_ANSWERED": "Você respondeu"
     },
     "HEADER": {
+      "TYPING": "digitando…",
+      "ONLINE": "online",
+      "LAST_SEEN": "visto por último {relative}",
       "RESOLVE_ACTION": "Resolver",
       "REOPEN_ACTION": "Reabrir",
       "OPEN_ACTION": "Abrir",
@@ -152,8 +155,30 @@
       "APPLY": "Adiar",
       "CANCEL": "Cancelar"
     },
+    "PIN": {
+      "PIN": "Fixar conversa",
+      "UNPIN": "Desafixar conversa"
+    },
+    "COPILOT": {
+      "TITLE": "Copilot",
+      "WELCOME": "Oi! Me peça pra resumir a conversa, sugerir resposta ou apontar riscos.",
+      "PLACEHOLDER": "Pergunte ao Copilot…",
+      "SEND": "Enviar",
+      "HINT": "Enter envia · Shift+Enter quebra linha",
+      "THINKING": "Pensando…",
+      "ERROR": "Não consegui falar com o Copilot. Tente de novo.",
+      "NO_REPLY": "Sem resposta.",
+      "CLEAR_HISTORY": "Limpar histórico",
+      "QUICK": {
+        "SUMMARIZE": "Resumir esta conversa",
+        "NEXT_STEP": "Sugerir próximo passo",
+        "WRITE_REPLY": "Rascunhar uma resposta"
+      }
+    },
     "PRIORITY": {
       "TITLE": "Prioridade",
+      "LABEL": "Prioridade",
+      "NO_PRIORITY": "Sem prioridade",
       "OPTIONS": {
         "NONE": "Nenhuma",
         "URGENT": "Urgente",
@@ -349,6 +374,12 @@
       "TITLE": "Mensagem original",
       "NO_CONTENT": "(sem conteúdo)",
       "EDITED_BY": "Editado por {name}"
+    },
+    "REACTIONS": {
+      "PICKER_TOOLTIP": "Adicionar reação"
+    },
+    "PDF_PREVIEW": {
+      "OPEN_FULL": "Abrir"
     },
     "FORWARD": {
       "TITLE": "Encaminhar Mensagem",

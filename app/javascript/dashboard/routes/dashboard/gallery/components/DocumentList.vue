@@ -111,7 +111,7 @@ const cleanFilename = name => {
         <li
           v-for="item in group.items"
           :key="item.id"
-          class="group flex items-center gap-3 py-3 px-4 rounded-2xl cursor-pointer transition-all border border-transparent"
+          class="group flex items-center gap-3 py-3 px-4 rounded-2xl cursor-pointer transition-all border border-transparent [content-visibility:auto] [contain-intrinsic-size:0_72px]"
           :class="
             selectedIds.has(item.id)
               ? 'bg-n-brand/10 !border-n-brand/40'

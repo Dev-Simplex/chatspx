@@ -15,7 +15,6 @@ import ReplyBottomPanel from 'dashboard/components/widgets/WootWriter/ReplyBotto
 import CopilotReplyBottomPanel from 'dashboard/components/widgets/WootWriter/CopilotReplyBottomPanel.vue';
 import ArticleSearchPopover from 'dashboard/routes/dashboard/helpcenter/components/ArticleSearch/SearchPopover.vue';
 import CopilotEditorSection from './CopilotEditorSection.vue';
-import MessageSignatureMissingAlert from './MessageSignatureMissingAlert.vue';
 import ReplyBoxBanner from './ReplyBoxBanner.vue';
 import QuotedEmailPreview from './QuotedEmailPreview.vue';
 import { REPLY_EDITOR_MODES } from 'dashboard/components/widgets/WootWriter/constants';
@@ -30,6 +29,7 @@ import {
   replaceVariablesInMessage,
 } from '@chatwoot/utils';
 import ContactAPI from 'dashboard/api/contacts';
+import ConversationAPI from 'dashboard/api/conversations';
 import WhatsappTemplates from './WhatsappTemplates/Modal.vue';
 import WhatsappWindowExpired from './WhatsappTemplates/WhatsappWindowExpired.vue';
 import ContentTemplates from './ContentTemplates/ContentTemplatesModal.vue';
@@ -94,7 +94,6 @@ export default {
     QuotedEmailPreview,
     CopilotEditorSection,
     CopilotReplyBottomPanel,
-    MessageSignatureMissingAlert,
   },
   mixins: [inboxMixin, fileUploadMixin, keyboardEventListenerMixins],
   props: {
@@ -164,6 +163,8 @@ export default {
       isRevalidatingWhatsapp: false,
       copilotAcceptedMessages: {},
       isGhostSuggestionDismissed: false,
+      remoteGhostSuggestion: '',
+      ghostSuggestionFetchedFor: null,
     };
   },
   computed: {
@@ -215,10 +216,12 @@ export default {
       return this.shouldBlockWhatsappSend ? this.whatsappInvalidMessage : '';
     },
     shouldShowReplyToMessage() {
+      // Phase 3.4: allow reply-to also on private notes so they thread.
+      const featureAvailable =
+        this.inboxHasFeature(INBOX_FEATURES.REPLY_TO) || this.isOnPrivateNote;
       return (
         this.inReplyTo?.id &&
-        !this.isPrivate &&
-        this.inboxHasFeature(INBOX_FEATURES.REPLY_TO) &&
+        featureAvailable &&
         !this.is360DialogWhatsAppChannel &&
         !this.copilot.isActive.value
       );
@@ -396,6 +399,7 @@ export default {
       return null;
     },
     ghostSuggestionText() {
+      if (this.remoteGhostSuggestion) return this.remoteGhostSuggestion;
       const suggestions = [
         'Obrigado pelo contato! Como posso ajudar?',
         'Oi! Tudo bem? Em que posso ajudar?',
@@ -589,7 +593,18 @@ export default {
         this.getFromDraft();
         this.resetRecorderAndClearAttachments();
         this.isGhostSuggestionDismissed = false;
+        this.remoteGhostSuggestion = '';
+        this.ghostSuggestionFetchedFor = null;
       }
+    },
+    'lastIncomingMessage.id': {
+      handler(newId) {
+        if (!newId) return;
+        if (this.ghostSuggestionFetchedFor === newId) return;
+        if (this.isPrivate || this.isEditorDisabled) return;
+        this.fetchRemoteGhostSuggestion(newId);
+      },
+      immediate: true,
     },
     message() {
       // Autosave the current message draft.
@@ -987,6 +1002,11 @@ export default {
         this.clearMessage();
         this.hideEmojiPicker();
         this.$emit('update:popOutReplyBox', false);
+        // Re-collapse the composer to its single-line WA-Web look after sending.
+        this.$nextTick(() => {
+          if (typeof document !== 'undefined') document.activeElement?.blur?.();
+          this.isFocused = false;
+        });
       }
     },
     sendToConversation(conversationId) {
@@ -1299,6 +1319,21 @@ export default {
       this.$nextTick(() => {
         this.messageEditor?.focusEditorInputField?.('end');
       });
+    },
+    async fetchRemoteGhostSuggestion(messageId) {
+      try {
+        this.ghostSuggestionFetchedFor = messageId;
+        const conversationId = this.currentChat?.id;
+        if (!conversationId) return;
+        const { data } =
+          await ConversationAPI.getGhostSuggestion(conversationId);
+        if (this.ghostSuggestionFetchedFor !== messageId) return;
+        if (data?.suggestion) {
+          this.remoteGhostSuggestion = data.suggestion;
+        }
+      } catch (error) {
+        // silent — fallback hardcoded keeps working
+      }
     },
     dismissGhostSuggestion() {
       this.isGhostSuggestionDismissed = true;
@@ -1729,14 +1764,6 @@ export default {
               @remove-attachment="removeAttachment"
             />
           </div>
-          <MessageSignatureMissingAlert
-            v-if="
-              isSignatureEnabledForInbox &&
-              !isSignatureAvailable &&
-              isDefaultEditorMode
-            "
-            class="mb-2"
-          />
         </template>
       </div>
     </Transition>

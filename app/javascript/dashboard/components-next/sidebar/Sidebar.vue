@@ -1,9 +1,11 @@
 <script setup>
-import { h, ref, computed, onMounted } from 'vue';
+import { h, ref, computed, onMounted, watch } from 'vue';
 import { provideSidebarContext, useSidebarResize } from './provider';
 import { useAccount } from 'dashboard/composables/useAccount';
 import { useKbd } from 'dashboard/composables/utils/useKbd';
 import { useMapGetter } from 'dashboard/composables/store';
+import { useUISettings } from 'dashboard/composables/useUISettings';
+import draggable from 'vuedraggable';
 import { useStore } from 'vuex';
 import { useI18n } from 'vue-i18n';
 import { useSidebarKeyboardShortcuts } from './useSidebarKeyboardShortcuts';
@@ -51,6 +53,7 @@ const { accountScopedRoute, isOnChatwootCloud } = useAccount();
 const store = useStore();
 const searchShortcut = useKbd([`$mod`, 'k']);
 const { t } = useI18n();
+const { uiSettings, updateUISettings } = useUISettings();
 
 const isACustomBrandedInstance = useMapGetter(
   'globalConfig/isACustomBrandedInstance'
@@ -856,7 +859,36 @@ const menuItems = computed(() => {
 
 // WA-style rail: show ALL top-level items, sempre como ícones (collapsed).
 // Tooltip no hover mostra o label. Admin itens permanecem acessíveis.
-const visibleMenuItems = computed(() => menuItems.value);
+const orderedMenuItems = computed(() => {
+  const order = Array.isArray(uiSettings.value?.sidebar_order)
+    ? uiSettings.value.sidebar_order
+    : [];
+  if (!order.length) return menuItems.value;
+  const byName = Object.fromEntries(
+    menuItems.value.map(item => [item.name, item])
+  );
+  const ordered = order.map(name => byName[name]).filter(Boolean);
+  const remaining = menuItems.value.filter(item => !order.includes(item.name));
+  return [...ordered, ...remaining];
+});
+
+const visibleMenuItems = computed(() => orderedMenuItems.value);
+
+// Live ref synced with computed — vuedraggable mutates this array
+// then we persist the resulting order to uiSettings.
+const liveMenuItems = ref([]);
+watch(
+  visibleMenuItems,
+  v => {
+    liveMenuItems.value = [...v];
+  },
+  { immediate: true }
+);
+
+const onSidebarReorder = () => {
+  const newOrder = liveMenuItems.value.map(item => item.name);
+  updateUISettings({ sidebar_order: newOrder });
+};
 </script>
 
 <template>
@@ -959,17 +991,22 @@ const visibleMenuItems = computed(() => menuItems.value);
       class="grid overflow-y-auto flex-grow gap-2 pb-5 no-scrollbar min-w-0"
       :class="isEffectivelyCollapsed ? 'px-1' : 'px-2'"
     >
-      <ul
+      <draggable
+        v-model="liveMenuItems"
+        tag="ul"
+        item-key="name"
+        :animation="150"
+        :delay="120"
+        delay-on-touch-only
         class="flex flex-col gap-1 m-0 list-none min-w-0"
         :class="{ 'items-center': isEffectivelyCollapsed }"
+        ghost-class="opacity-50"
+        @end="onSidebarReorder"
       >
-        <SidebarGroup
-          v-for="item in visibleMenuItems"
-          :key="item.name"
-          v-bind="item"
-          :is-collapsed="isCollapsed"
-        />
-      </ul>
+        <template #item="{ element }">
+          <SidebarGroup v-bind="element" :is-collapsed="isCollapsed" />
+        </template>
+      </draggable>
     </nav>
     <section
       class="flex relative flex-col flex-shrink-0 gap-1 justify-between items-center"

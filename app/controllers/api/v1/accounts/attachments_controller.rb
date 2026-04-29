@@ -1,6 +1,8 @@
 class Api::V1::Accounts::AttachmentsController < Api::V1::Accounts::BaseController
   ALLOWED_TYPES = %w[image video file audio ig_reel].freeze
   RESULTS_PER_PAGE = 30
+  CACHE_EXPIRES_IN = 5.minutes
+  CACHE_VERSION = 'v2'
 
   # Canais cuja origem de mídia é uma integração externa (WhatsApp via WAHA/Cloud API).
   # Esconde TODAS as mídias INCOMING (do contato) desses canais. Mantém:
@@ -11,29 +13,74 @@ class Api::V1::Accounts::AttachmentsController < Api::V1::Accounts::BaseControll
   before_action :ensure_user
 
   def index
-    base = base_scope.where(file_type: requested_types)
-    deduped_ids = deduplicate_documents(base)
-    @attachments = Attachment.where(id: deduped_ids)
+    cached = Rails.cache.fetch(attachments_cache_key, expires_in: CACHE_EXPIRES_IN) do
+      result = deduped_attachments_scope
+               .reorder(sort_clause)
+               .page(page_param).per(RESULTS_PER_PAGE)
+      {
+        ids: result.pluck(:id),
+        total_count: result.total_count,
+        current_page: result.current_page,
+        total_pages: result.total_pages
+      }
+    end
+
+    @attachments_count = cached[:total_count]
+    @current_page = cached[:current_page]
+    @total_pages = cached[:total_pages]
+    @attachments = Attachment.where(id: cached[:ids])
                              .includes(
                                { file_attachment: [:blob] },
                                { message: [{ sender: { avatar_attachment: [:blob] } }, :conversation] }
                              )
                              .reorder(sort_clause)
-                             .page(page_param).per(RESULTS_PER_PAGE)
-    @attachments_count = @attachments.total_count
+    set_cache_control_headers
   end
 
   def links
-    @messages = links_scope
-                .reorder(created_at: :desc)
-                .page(page_param).per(RESULTS_PER_PAGE)
-    @messages_count = @messages.total_count
+    cached = Rails.cache.fetch(links_cache_key, expires_in: CACHE_EXPIRES_IN) do
+      result = links_scope.reorder(created_at: :desc).page(page_param).per(RESULTS_PER_PAGE)
+      {
+        ids: result.pluck(:id),
+        total_count: result.total_count,
+        current_page: result.current_page,
+        total_pages: result.total_pages
+      }
+    end
+
+    @messages_count = cached[:total_count]
+    @current_page = cached[:current_page]
+    @total_pages = cached[:total_pages]
+    @messages = Message.where(id: cached[:ids])
+                       .includes(:conversation, { sender: { avatar_attachment: [:blob] } })
+                       .reorder(created_at: :desc)
+    set_cache_control_headers
   end
 
   private
 
   def ensure_user
     render json: { error: 'unauthorized' }, status: :unauthorized and return if Current.user.blank?
+  end
+
+  def set_cache_control_headers
+    response.cache_control[:private] = true
+    response.cache_control[:max_age] = 60
+  end
+
+  def attachments_cache_key
+    ['gallery_attachments', CACHE_VERSION, Current.account.id, Current.user.id,
+     filter_token, page_param].join(':')
+  end
+
+  def links_cache_key
+    ['gallery_links', CACHE_VERSION, Current.account.id, Current.user.id,
+     filter_token, page_param].join(':')
+  end
+
+  def filter_token
+    [params[:type], params[:inbox_id], params[:contact_id],
+     params[:after], params[:before], params[:q], params[:sort]].map(&:to_s).join('|')
   end
 
   def requested_types
@@ -70,27 +117,33 @@ class Api::V1::Accounts::AttachmentsController < Api::V1::Accounts::BaseControll
 
   # Deduplica anexos repetidos: mesmo blob (filename + byte_size) enviado pelo mesmo sender
   # dentro da mesma hora. Mantém o mais recente.
-  def deduplicate_documents(scope)
-    scope.joins('JOIN active_storage_attachments asa ON asa.record_id = attachments.id ' \
-                "AND asa.record_type = 'Attachment' AND asa.name = 'file'")
-         .joins('JOIN active_storage_blobs asb ON asb.id = asa.blob_id')
-         .select(Arel.sql(
-                   'DISTINCT ON (asb.byte_size, asb.filename, messages.sender_id, messages.sender_type, ' \
-                   "date_trunc('hour', attachments.created_at)) attachments.id, attachments.created_at"
-                 ))
-         .reorder(Arel.sql(
-                    'asb.byte_size, asb.filename, messages.sender_id, messages.sender_type, ' \
-                    "date_trunc('hour', attachments.created_at), attachments.created_at DESC"
-                  ))
-         .map(&:id)
+  # Window function ROW_NUMBER PARTITION evita materializar todos os IDs em memória.
+  def deduped_attachments_scope
+    base = base_scope.where(file_type: requested_types)
+    inner_sql = base
+                .joins('JOIN active_storage_attachments asa ON asa.record_id = attachments.id ' \
+                       "AND asa.record_type = 'Attachment' AND asa.name = 'file'")
+                .joins('JOIN active_storage_blobs asb ON asb.id = asa.blob_id')
+                .select(Arel.sql(<<~SQL.squish))
+                  attachments.*,
+                  ROW_NUMBER() OVER (
+                    PARTITION BY asb.byte_size, asb.filename, messages.sender_id, messages.sender_type,
+                                 date_trunc('hour', attachments.created_at)
+                    ORDER BY attachments.created_at DESC
+                  ) AS dedup_rn
+                SQL
+                .to_sql
+
+    Attachment.from(Arel.sql("(#{inner_sql}) AS attachments")).where('dedup_rn = 1')
   end
 
   def links_scope
     inbox_ids = visible_inbox_ids
     return Message.none if inbox_ids.blank?
 
+    # ILIKE com '://' aproveita índice GIN pg_trgm em messages.content (>= 3 chars).
     scope = Current.account.messages
-                   .where('content ~* ?', '\bhttps?://[^\s]+')
+                   .where("content ILIKE '%://%'")
                    .joins(conversation: :inbox)
                    .where(conversations: { inbox_id: inbox_ids })
     scope = filter_messages_by_inbox(scope)

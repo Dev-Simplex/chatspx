@@ -24,6 +24,9 @@ import { useAutoUpdate } from 'dashboard/composables/useAutoUpdate';
 import { useDocumentTitle } from 'dashboard/composables/useDocumentTitle';
 import AppVersionBanner from './components/app/AppVersionBanner.vue';
 import MessageToast from './components-next/notifications/MessageToast.vue';
+import OnboardingChecklist from './components-next/Onboarding/OnboardingChecklist.vue';
+import PwaInstallPrompt from './components-next/PwaInstallPrompt/PwaInstallPrompt.vue';
+import PushPermissionPrompt from './components-next/PushPermissionPrompt/PushPermissionPrompt.vue';
 
 export default {
   name: 'App',
@@ -38,6 +41,9 @@ export default {
     WootSnackbarBox,
     PendingEmailVerificationBanner,
     MessageToast,
+    OnboardingChecklist,
+    PwaInstallPrompt,
+    PushPermissionPrompt,
   },
   setup() {
     const router = useRouter();
@@ -186,6 +192,9 @@ export default {
     <WootSnackbarBox />
     <NetworkNotification />
     <MessageToast />
+    <OnboardingChecklist v-if="currentAccountId" />
+    <PwaInstallPrompt v-if="currentAccountId" />
+    <PushPermissionPrompt v-if="currentAccountId" />
   </div>
   <LoadingState v-else />
 </template>

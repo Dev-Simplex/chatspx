@@ -1,7 +1,8 @@
 <script setup>
-import { onBeforeUnmount, onMounted, ref, toRef } from 'vue';
+import { computed, onBeforeUnmount, onMounted, ref, toRef } from 'vue';
 import { useI18n } from 'vue-i18n';
 import SenderAvatar from './SenderAvatar.vue';
+import MediaThumb from './MediaThumb.vue';
 import {
   useGroupedByDate,
   formatTime,
@@ -21,10 +22,25 @@ const emit = defineEmits([
   'loadMore',
 ]);
 
+const EAGER_LCP_COUNT = 6;
+
 const { t } = useI18n();
 const groups = useGroupedByDate(toRef(props, 'items'), t);
 const sentinel = ref(null);
 let observer = null;
+
+const groupOffsets = computed(() => {
+  const offsets = [];
+  let total = 0;
+  groups.value.forEach(group => {
+    offsets.push(total);
+    total += group.items.length;
+  });
+  return offsets;
+});
+
+const globalIndex = (groupIndex, localIndex) =>
+  (groupOffsets.value[groupIndex] || 0) + localIndex;
 
 onMounted(() => {
   if (!sentinel.value) return;
@@ -48,7 +64,11 @@ onBeforeUnmount(() => {
 
 <template>
   <div>
-    <section v-for="group in groups" :key="group.key" class="mb-10 last:mb-0">
+    <section
+      v-for="(group, groupIndex) in groups"
+      :key="group.key"
+      class="mb-10 last:mb-0"
+    >
       <h3
         class="sticky -top-px z-20 -mx-6 sm:-mx-8 lg:-mx-10 px-6 sm:px-8 lg:px-10 py-3 mb-4 text-[13px] uppercase tracking-wider font-semibold text-n-slate-11 bg-n-background/95 dark:bg-n-solid-1/95 backdrop-blur"
       >
@@ -57,9 +77,9 @@ onBeforeUnmount(() => {
 
       <div class="grid gap-3 grid-cols-[repeat(auto-fill,minmax(180px,1fr))]">
         <article
-          v-for="item in group.items"
+          v-for="(item, index) in group.items"
           :key="item.id"
-          class="group relative aspect-square overflow-hidden rounded-2xl bg-n-solid-2 dark:bg-n-solid-3 cursor-pointer ring-2 ring-transparent transition-all hover:ring-n-brand/30"
+          class="group relative aspect-square overflow-hidden rounded-2xl bg-n-solid-2 dark:bg-n-solid-3 cursor-pointer ring-2 ring-transparent transition-all hover:ring-n-brand/30 [content-visibility:auto] [contain-intrinsic-size:0_220px]"
           :class="{
             '!ring-n-brand !ring-offset-2 !ring-offset-n-background dark:!ring-offset-n-solid-1':
               selectedIds.has(item.id),
@@ -67,14 +87,14 @@ onBeforeUnmount(() => {
           @click="$emit('open', item)"
         >
           <!-- Thumbnail -->
-          <img
+          <MediaThumb
             v-if="item.fileType !== 'video' && (item.thumbUrl || item.dataUrl)"
             :src="item.thumbUrl || item.dataUrl"
             :alt="item.filename || ''"
-            loading="lazy"
-            decoding="async"
-            fetchpriority="low"
-            class="w-full h-full object-cover transition-transform duration-300 group-hover:scale-105"
+            :width="item.width || 400"
+            :height="item.height || 400"
+            :eager="globalIndex(groupIndex, index) < EAGER_LCP_COUNT"
+            :high-priority="globalIndex(groupIndex, index) < EAGER_LCP_COUNT"
           />
           <div
             v-else-if="item.fileType === 'video'"
