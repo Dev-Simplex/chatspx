@@ -34,7 +34,6 @@ const displayCount = computed(() => (props.count > 99 ? '99+' : props.count));
   >
     <component
       :is="to ? 'router-link' : 'div'"
-      v-tooltip.right="label"
       :to="to"
       data-hover-host
       :data-sidebar-active="String(active)"

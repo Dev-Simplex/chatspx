@@ -1,5 +1,12 @@
 <script setup>
-import { computed, onBeforeUnmount, onMounted, ref } from 'vue';
+import {
+  computed,
+  nextTick,
+  onBeforeUnmount,
+  onMounted,
+  ref,
+  watch,
+} from 'vue';
 import { useRoute } from 'vue-router';
 import { useStore } from 'vuex';
 import { useElementSize } from '@vueuse/core';
@@ -18,6 +25,8 @@ import { snoozedReopenTime } from 'dashboard/helper/snoozeHelpers';
 import { useInbox } from 'dashboard/composables/useInbox';
 import { useUISettings } from 'dashboard/composables/useUISettings';
 import { useI18n } from 'vue-i18n';
+import { CONVERSATION_PRIORITY } from 'shared/constants/messages';
+import { formatDistanceToNowStrict } from 'date-fns';
 
 const props = defineProps({
   chat: {
@@ -82,6 +91,50 @@ const currentContact = computed(() => {
   const senderId = props.chat?.meta?.sender?.id;
   if (!senderId) return {};
   return store.getters['contacts/getContact'](senderId);
+});
+
+const typingUsers = computed(() => {
+  const id = currentChat.value?.id;
+  if (!id) return [];
+  const fn = store.getters['conversationTypingStatus/getUserList'];
+  return fn ? fn(id) || [] : [];
+});
+
+const isContactTyping = computed(() =>
+  typingUsers.value.some(u => u?.type === 'contact' || u?.type === 'Contact')
+);
+
+const lastSeenAt = computed(() => {
+  return (
+    currentContact.value?.last_seen_at ||
+    chatMetadata.value?.sender?.last_seen_at ||
+    null
+  );
+});
+
+const isContactOnline = computed(() => {
+  if (currentContact.value?.availability_status === 'online') return true;
+  const ts = lastSeenAt.value;
+  if (!ts) return false;
+  return Date.now() / 1000 - Number(ts) < 30;
+});
+
+const lastSeenLabel = computed(() => {
+  if (!lastSeenAt.value) return '';
+  try {
+    const seenDate = new Date(Number(lastSeenAt.value) * 1000);
+    return t('CONVERSATION.HEADER.LAST_SEEN', {
+      relative: formatDistanceToNowStrict(seenDate, { addSuffix: true }),
+    });
+  } catch {
+    return '';
+  }
+});
+
+const presenceText = computed(() => {
+  if (isContactTyping.value) return t('CONVERSATION.HEADER.TYPING');
+  if (isContactOnline.value) return t('CONVERSATION.HEADER.ONLINE');
+  return lastSeenLabel.value;
 });
 
 const isSnoozed = computed(
@@ -221,6 +274,96 @@ const whatsAppWindowIcon = computed(() => {
 
 // Status badge agora é informativo (read-only) — ações de mudança de status
 // ficam em ResolveAction (botão primário) + MoreActions (kebab).
+
+// --- Inline priority editor (Fase 3.5) -----------------------------------
+const PRIORITY_OPTIONS = [
+  {
+    value: '',
+    icon: 'i-lucide-circle-dashed',
+    label: 'CONVERSATION.PRIORITY.NO_PRIORITY',
+  },
+  {
+    value: CONVERSATION_PRIORITY.URGENT,
+    icon: 'i-lucide-flame',
+    label: 'CONVERSATION.PRIORITY.OPTIONS.URGENT',
+  },
+  {
+    value: CONVERSATION_PRIORITY.HIGH,
+    icon: 'i-lucide-arrow-up',
+    label: 'CONVERSATION.PRIORITY.OPTIONS.HIGH',
+  },
+  {
+    value: CONVERSATION_PRIORITY.MEDIUM,
+    icon: 'i-lucide-equal',
+    label: 'CONVERSATION.PRIORITY.OPTIONS.MEDIUM',
+  },
+  {
+    value: CONVERSATION_PRIORITY.LOW,
+    icon: 'i-lucide-arrow-down',
+    label: 'CONVERSATION.PRIORITY.OPTIONS.LOW',
+  },
+];
+
+const showPriorityMenu = ref(false);
+const priorityWrapper = ref(null);
+const priorityMenu = ref(null);
+const priorityMenuStyle = ref({});
+
+const currentPriorityOption = computed(() => {
+  const value = currentChat.value?.priority || '';
+  return PRIORITY_OPTIONS.find(o => o.value === value) || PRIORITY_OPTIONS[0];
+});
+
+const updatePriorityMenuPosition = () => {
+  const el = priorityWrapper.value;
+  if (!el) return;
+  const rect = el.getBoundingClientRect();
+  priorityMenuStyle.value = {
+    position: 'fixed',
+    top: `${rect.bottom + 4}px`,
+    left: `${rect.left}px`,
+    minWidth: '160px',
+    zIndex: 9999,
+  };
+};
+
+const togglePriorityMenu = () => {
+  if (!showPriorityMenu.value) updatePriorityMenuPosition();
+  showPriorityMenu.value = !showPriorityMenu.value;
+};
+
+const closePriorityMenu = () => {
+  showPriorityMenu.value = false;
+};
+
+const handlePriorityOutsideClick = e => {
+  const inWrapper = priorityWrapper.value?.contains(e.target);
+  const inMenu = priorityMenu.value?.contains(e.target);
+  if (!inWrapper && !inMenu) closePriorityMenu();
+};
+
+watch(showPriorityMenu, async open => {
+  await nextTick();
+  if (open) {
+    document.addEventListener('click', handlePriorityOutsideClick);
+  } else {
+    document.removeEventListener('click', handlePriorityOutsideClick);
+  }
+});
+
+onBeforeUnmount(() => {
+  document.removeEventListener('click', handlePriorityOutsideClick);
+});
+
+const setPriority = async value => {
+  const id = currentChat.value?.id;
+  if (!id) return;
+  await store.dispatch('assignPriority', {
+    conversationId: id,
+    priority: value || null,
+  });
+  closePriorityMenu();
+};
 </script>
 
 <template>
@@ -237,7 +380,9 @@ const whatsAppWindowIcon = computed(() => {
       <Thumbnail
         :src="currentContact.thumbnail"
         :username="currentContact.name"
-        :status="currentContact.availability_status"
+        :status="
+          isContactOnline ? 'online' : currentContact.availability_status
+        "
         size="40px"
         class="flex-shrink-0"
         allow-preview
@@ -260,6 +405,17 @@ const whatsAppWindowIcon = computed(() => {
             icon="warning"
           />
         </div>
+        <div
+          v-if="presenceText"
+          class="wa-contact-presence text-[12px] leading-tight truncate"
+          :class="
+            isContactTyping || isContactOnline
+              ? 'text-n-teal-11'
+              : 'text-n-slate-11'
+          "
+        >
+          {{ presenceText }}
+        </div>
 
         <div
           class="wa-contact-subtitle flex items-center gap-2 overflow-hidden text-ellipsis whitespace-nowrap"
@@ -276,6 +432,44 @@ const whatsAppWindowIcon = computed(() => {
           >
             <span class="size-3" :class="whatsAppWindowIcon" />
             {{ whatsAppWindowDisplay.text }}
+          </span>
+          <span ref="priorityWrapper" class="relative inline-flex">
+            <button
+              :title="$t('CONVERSATION.PRIORITY.LABEL')"
+              type="button"
+              class="!p-0 !border-0 inline-flex items-center gap-1 px-1.5 h-5 rounded-md text-[11px] font-medium text-n-slate-11 hover:bg-n-alpha-2 transition-colors"
+              :class="{ 'bg-n-alpha-2': showPriorityMenu }"
+              @click="togglePriorityMenu"
+            >
+              <span
+                class="size-3 pointer-events-none"
+                :class="currentPriorityOption.icon"
+              />
+              <span class="truncate max-w-[80px] pointer-events-none">
+                {{ $t(currentPriorityOption.label) }}
+              </span>
+            </button>
+            <div
+              v-if="showPriorityMenu"
+              ref="priorityMenu"
+              :style="priorityMenuStyle"
+              class="rounded-lg border border-n-weak bg-n-solid-1 dark:bg-n-solid-2 shadow-md py-1"
+            >
+              <button
+                v-for="option in PRIORITY_OPTIONS"
+                :key="option.value || 'none'"
+                type="button"
+                class="!border-0 w-full flex items-center gap-2 px-3 py-1.5 text-sm text-n-slate-12 hover:bg-n-alpha-2"
+                :class="{
+                  'bg-n-alpha-2 font-medium':
+                    option.value === currentPriorityOption.value,
+                }"
+                @click.stop="setPriority(option.value)"
+              >
+                <span class="size-3.5 text-n-slate-11" :class="option.icon" />
+                <span>{{ $t(option.label) }}</span>
+              </button>
+            </div>
           </span>
         </div>
       </div>

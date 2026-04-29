@@ -29,7 +29,7 @@ const count = computed(() =>
 <template>
   <component
     :is="to ? 'router-link' : 'div'"
-    v-tooltip.right="label"
+    v-tooltip.right="isCollapsed ? label : undefined"
     data-hover-host
     :data-sidebar-active="
       String((isActive && !hasActiveChild) || hasActiveChild)

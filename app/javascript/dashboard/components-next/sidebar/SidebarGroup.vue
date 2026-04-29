@@ -285,7 +285,7 @@ watch(
         <component
           :is="to && !hasChildren ? 'router-link' : 'button'"
           ref="triggerRef"
-          v-tooltip.right="label"
+          v-tooltip.right="hasChildren ? undefined : label"
           data-hover-host
           :data-sidebar-active="String(isActive || hasActiveChild)"
           :to="to && !hasChildren ? to : undefined"
