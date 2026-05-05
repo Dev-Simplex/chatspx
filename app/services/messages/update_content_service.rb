@@ -53,7 +53,7 @@ class Messages::UpdateContentService
     Rails.logger.info("[UpdateContentService] Looking up WAHA message for message_id=#{@message.id}, chat_id=#{chat_id}, " \
                       "session=#{inbox.waha_session_name}, content=#{@message.content.truncate(100).inspect}")
 
-    messages = Waha::ApiService.new.get_messages(inbox.waha_session_name, chat_id, limit: 100)
+    messages = Waha::ApiService.new.get_messages(inbox.waha_session_name, chat_id, limit: 20)
 
     unless messages.is_a?(Array)
       Rails.logger.warn("[UpdateContentService] WAHA API returned non-array: #{messages.class} => #{messages.inspect.truncate(500)}")

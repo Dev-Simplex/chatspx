@@ -113,7 +113,10 @@ export const mutations = {
     if (data.length) {
       const chat = findConversation(_state, id);
       if (!chat) return;
-      chat.messages.unshift(...data);
+      const existingIds = new Set(chat.messages.map(m => m.id));
+      const incoming = data.filter(m => !existingIds.has(m.id));
+      if (!incoming.length) return;
+      chat.messages.unshift(...incoming);
       trimNewest(chat);
     }
   },
@@ -121,7 +124,10 @@ export const mutations = {
     if (data.length) {
       const chat = findConversation(_state, id);
       if (!chat) return;
-      chat.messages.push(...data);
+      const existingIds = new Set(chat.messages.map(m => m.id));
+      const incoming = data.filter(m => !existingIds.has(m.id));
+      if (!incoming.length) return;
+      chat.messages.push(...incoming);
       trimOldest(chat);
     }
   },
