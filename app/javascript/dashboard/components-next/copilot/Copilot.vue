@@ -12,7 +12,7 @@ import CopilotAssistantMessage from './CopilotAssistantMessage.vue';
 import CopilotThinkingGroup from './CopilotThinkingGroup.vue';
 import ToggleCopilotAssistant from './ToggleCopilotAssistant.vue';
 import CopilotEmptyState from './CopilotEmptyState.vue';
-import SidebarActionsHeader from 'dashboard/components-next/SidebarActionsHeader.vue';
+import Icon from '../icon/Icon.vue';
 import { useI18n } from 'vue-i18n';
 
 const props = defineProps({
@@ -136,6 +136,18 @@ const copilotButtons = computed(() => {
   }
   return [];
 });
+
+const statusLabel = computed(() => {
+  if (props.hasTimedOut) return t('CAPTAIN.COPILOT.STATUS_OFFLINE');
+  if (shouldShowLoader.value) return t('CAPTAIN.COPILOT.STATUS_THINKING');
+  return t('CAPTAIN.COPILOT.STATUS_READY');
+});
+
+const statusDotColor = computed(() => {
+  if (props.hasTimedOut) return 'bg-n-slate-9';
+  if (shouldShowLoader.value) return 'bg-n-amber-9 animate-pulse';
+  return 'bg-n-teal-9';
+});
 watch(
   [() => props.messages],
   () => {
@@ -149,12 +161,55 @@ watch(
   <div
     class="flex flex-col h-full text-sm leading-6 tracking-tight w-full bg-n-solid-1 ltr:border-l rtl:border-r border-n-weak"
   >
-    <SidebarActionsHeader
-      :title="$t('CAPTAIN.COPILOT.TITLE')"
-      :buttons="copilotButtons"
-      @click="handleSidebarAction"
-      @close="closeCopilotPanel"
-    />
+    <div
+      class="flex items-center justify-between px-4 h-[60px] border-b border-n-weak shrink-0"
+    >
+      <div class="flex items-center gap-3 min-w-0">
+        <div class="relative flex items-center justify-center size-9 shrink-0">
+          <div
+            v-if="!shouldShowLoader"
+            class="absolute inset-0 rounded-full bg-n-brand/10 ai-glow"
+            aria-hidden="true"
+          />
+          <Icon
+            icon="i-woot-captain"
+            class="relative z-10 text-n-brand text-2xl"
+          />
+          <span
+            class="absolute -bottom-0.5 -right-0.5 size-2.5 rounded-full ring-2 ring-n-solid-1"
+            :class="statusDotColor"
+            aria-hidden="true"
+          />
+        </div>
+        <div class="flex flex-col min-w-0">
+          <span
+            class="text-[15px] font-semibold text-n-slate-12 leading-tight truncate"
+          >
+            {{ $t('CAPTAIN.COPILOT.TITLE') }}
+          </span>
+          <span class="text-xs text-n-slate-10 leading-tight truncate">
+            {{ statusLabel }}
+          </span>
+        </div>
+      </div>
+      <div class="flex items-center gap-1 shrink-0">
+        <button
+          v-for="btn in copilotButtons"
+          :key="btn.key"
+          v-tooltip="btn.tooltip"
+          class="flex items-center justify-center size-8 rounded-lg hover:bg-n-slate-3 transition-colors"
+          @click="handleSidebarAction(btn.key)"
+        >
+          <span :class="btn.icon" class="size-4 text-n-slate-11" />
+        </button>
+        <button
+          class="flex items-center justify-center size-8 rounded-lg hover:bg-n-slate-3 transition-colors"
+          @click="closeCopilotPanel"
+        >
+          <span class="i-lucide-x size-4 text-n-slate-11" />
+        </button>
+      </div>
+    </div>
     <div
       ref="chatContainer"
       class="flex-1 flex px-4 py-4 overflow-y-auto items-start bg-n-slate-2/50 dark:bg-n-solid-2"

@@ -199,6 +199,7 @@
         "STRAIGHTFORWARD": "Use straightforward tone"
       },
       "REPLY_OPTIONS": {
+        "MENU_LABEL": "Copilot actions",
         "IMPROVE_REPLY": "Improve reply",
         "IMPROVE_REPLY_SELECTION": "Improve the selection",
         "CHANGE_TONE": {
@@ -214,7 +215,93 @@
         "GRAMMAR": "Fix grammar & spelling",
         "SUGGESTION": "Suggest a reply",
         "SUMMARIZE": "Summarize the conversation",
-        "ASK_COPILOT": "Ask Copilot"
+        "ASK_COPILOT": "Ask Copilot",
+        "CATEGORIES": {
+          "UNDERSTAND": "About the conversation",
+          "REWRITE": "Adjust my reply",
+          "CREATE": "Create from scratch"
+        },
+        "ITEMS": {
+          "SENTIMENT": {
+            "LABEL": "Analyze customer tone",
+            "DESCRIPTION": "Detect calm, frustrated or neutral",
+            "TOOLTIP": "Reads recent messages and returns a short diagnosis"
+          },
+          "SUMMARIZE": {
+            "LABEL": "Summarize the conversation",
+            "DESCRIPTION": "Get the main points",
+            "TOOLTIP": "Summary in bullets of recent messages"
+          },
+          "IMPROVE": {
+            "LABEL": "Improve",
+            "DESCRIPTION": "Clarity, grammar and tone",
+            "TOOLTIP": "Rewrites preserving your intent (Ctrl+M)"
+          },
+          "PROFESSIONAL": {
+            "LABEL": "Make it formal",
+            "DESCRIPTION": "Corporate email tone",
+            "TOOLTIP": "For serious situations or new clients"
+          },
+          "FRIENDLY": {
+            "LABEL": "Make it friendly",
+            "DESCRIPTION": "Closer conversation tone",
+            "TOOLTIP": "For returning customers"
+          },
+          "CASUAL": {
+            "LABEL": "Make it casual",
+            "DESCRIPTION": "Like talking to a friend",
+            "TOOLTIP": "Use with caution, depends on the customer"
+          },
+          "CONFIDENT": {
+            "LABEL": "Make it firm",
+            "DESCRIPTION": "Confident and direct",
+            "TOOLTIP": "For complaints or collections"
+          },
+          "STRAIGHTFORWARD": {
+            "LABEL": "Get to the point",
+            "DESCRIPTION": "No fluff",
+            "TOOLTIP": "Cuts long greetings and rambling"
+          },
+          "SHORTEN": {
+            "LABEL": "Shorten",
+            "DESCRIPTION": "Summarize in fewer words",
+            "TOOLTIP": "Keeps the essence, reduces size"
+          },
+          "EXPAND": {
+            "LABEL": "Expand",
+            "DESCRIPTION": "Add detail",
+            "TOOLTIP": "Adds context and examples"
+          },
+          "FIX_SPELLING": {
+            "LABEL": "Fix only spelling",
+            "DESCRIPTION": "Keep text, only fix mistakes",
+            "TOOLTIP": "Does not change style, only fixes accents and grammar"
+          },
+          "REPLY_SUGGESTION": {
+            "LABEL": "Suggest a reply",
+            "DESCRIPTION": "I create a draft for you",
+            "TOOLTIP": "Based on the customer's recent messages"
+          },
+          "ASK_COPILOT": {
+            "LABEL": "Ask Copilot",
+            "DESCRIPTION": "Opens the panel to chat",
+            "TOOLTIP": "Side panel with full chat"
+          }
+        },
+        "DISABLED": {
+          "EMPTY_INPUT": "Type something first",
+          "PRIVATE_NOTE": "Not available in private notes",
+          "ATTACHMENT": "Only available for text",
+          "WHATSAPP_EXPIRED": "Reconnect WhatsApp to use AI"
+        },
+        "SEARCH_PLACEHOLDER": "Search action…",
+        "QUICK_ACTIONS": "Most used",
+        "NO_RESULTS": "No actions found",
+        "SUBGROUPS": {
+          "POLISH": "Polish",
+          "TONE": "Change tone",
+          "SIZE": "Change length"
+        }
       },
       "ASSISTANCE_MODAL": {
         "DRAFT_TITLE": "Draft content",
@@ -431,12 +518,13 @@
     },
     "COPILOT": {
       "TITLE": "Copilot",
-      "TRY_THESE_PROMPTS": "Try these prompts",
-      "PANEL_TITLE": "Get started with Copilot",
-      "KICK_OFF_MESSAGE": "Need a quick summary, want to check past conversations, or draft a better reply? Copilot’s here to speed things up.",
+      "TRY_THESE_PROMPTS": "Suggestions to get started",
+      "PANEL_TITLE": "How can I help you today?",
+      "KICK_OFF_MESSAGE": "I'm Copilot, your support AI. I can summarize conversations, suggest replies, or answer questions.",
       "SEND_MESSAGE": "Send message...",
+      "INPUT_HINT": "Enter to send · Shift+Enter for new line",
       "EMPTY_MESSAGE": "There was an error generating the response. Please try again.",
-      "LOADER": "Captain is thinking",
+      "LOADER": "Thinking of a great response…",
       "YOU": "You",
       "USE": "Use this",
       "RESET": "Reset",
@@ -445,6 +533,15 @@
       "RESPONSE_TIMEOUT_TITLE": "This response is taking longer than expected",
       "RESPONSE_TIMEOUT_BODY": "Captain could not complete this request within 30 seconds. Please try again.",
       "RETRY": "Try again",
+      "STATUS_READY": "Ready to help",
+      "STATUS_THINKING": "Thinking…",
+      "STATUS_OFFLINE": "Offline",
+      "ACTIONS": {
+        "COPY": "Copy",
+        "COPIED": "Copied!",
+        "GOOD": "Good answer",
+        "BAD": "Not helpful"
+      },
       "API_KEY_MISSING": {
         "TITLE": "Configure OpenAI API key to use Copilot",
         "DESCRIPTION_ADMIN": "This account does not have an OpenAI API key configured yet. Configure it in Captain settings to enable Copilot replies.",
@@ -455,23 +552,28 @@
       },
       "PROMPTS": {
         "SUMMARIZE": {
-          "LABEL": "Summarize this conversation",
+          "LABEL": "Summarize this chat",
+          "HINT": "Quick recap of what happened",
           "CONTENT": "Summarize the key points discussed between the customer and the support agent, including the customer's concerns, questions, and the solutions or responses provided by the support agent"
         },
         "SUGGEST": {
-          "LABEL": "Suggest an answer",
+          "LABEL": "Suggest a reply",
+          "HINT": "I draft something you can edit",
           "CONTENT": "Analyze the customer's inquiry, and draft a response that effectively addresses their concerns or questions. Ensure the reply is clear, concise, and provides helpful information."
         },
         "RATE": {
           "LABEL": "Rate this conversation",
+          "HINT": "Tone and quality analysis",
           "CONTENT": "Review the conversation to see how well it meets the customer's needs. Share a rating out of 5 based on tone, clarity, and effectiveness."
         },
         "HIGH_PRIORITY": {
-          "LABEL": "High priority conversations",
+          "LABEL": "Urgent conversations",
+          "HINT": "What needs attention right now",
           "CONTENT": "Give me a summary of all high priority open conversations. Include the conversation ID, customer name (if available), last message content, and assigned agent. Group by status if relevant."
         },
         "LIST_CONTACTS": {
           "LABEL": "List contacts",
+          "HINT": "Overview of your contact base",
           "CONTENT": "Show me the list of top 10 contacts. Include name, email or phone number (if available), last seen time, tags (if any)."
         }
       }

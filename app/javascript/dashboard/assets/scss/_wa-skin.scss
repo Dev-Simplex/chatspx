@@ -43,6 +43,32 @@
   --wa-composer-bg-dark: #2a3942;
   --wa-note-bg-dark: #2f2917;
 
+  // ChatSPX composer (WhatsApp-fiel pill) — Plan 2026-04-29
+  // Outer wrapper background (the strip behind action clusters + pill).
+  --wa-composer-strip-bg: #f0f2f5;
+  --wa-composer-strip-bg-dark: #202c33;
+  // Inner pill (white, holds ProseMirror + copilot/expand icons).
+  --wa-composer-input-bg: #ffffff;
+  --wa-composer-input-bg-dark: #2a3942;
+  // Generic icon colour (emoji, plus, mic, expand).
+  --wa-composer-icon: #54656f;
+  --wa-composer-icon-dark: #aebac1;
+  // Send button (circular, green).
+  --wa-composer-send-bg: #00a884;
+  --wa-composer-send-bg-dark: #00a884;
+  --wa-composer-send-fg: #ffffff;
+  // Placeholder text colour inside pill.
+  --wa-composer-placeholder: #667781;
+  --wa-composer-placeholder-dark: #8696a0;
+  // Slim "Modo nota privada" chip above composer.
+  --wa-composer-private-bg: #fff8c5;
+  --wa-composer-private-bg-dark: #533f03;
+  --wa-composer-private-fg: #6b5800;
+  --wa-composer-private-fg-dark: #ffd43b;
+  // Copilot accent (purple, ChatSPX brand).
+  --wa-composer-copilot: #8b5cf6;
+  --wa-composer-copilot-dark: #a78bfa;
+
   // Sidebar + global chrome
   --wa-sidebar-bg: #f0f2f5;
   --wa-sidebar-bg-dark: #111b21;
@@ -71,6 +97,19 @@
   --wa-modal-header-bg-dark: #233138;
   --wa-modal-body-bg: #ffffff;
   --wa-modal-body-bg-dark: #111b21;
+}
+
+// Dark-mode overrides for the WhatsApp composer pill tokens.
+// Tailwind utilities like bg-wa-composer-strip resolve to var(--wa-composer-strip-bg);
+// in dark we re-assign that variable so the same utility paints the dark value.
+.dark {
+  --wa-composer-strip-bg: #202c33;
+  --wa-composer-input-bg: #2a3942;
+  --wa-composer-icon: #aebac1;
+  --wa-composer-placeholder: #8696a0;
+  --wa-composer-private-bg: #533f03;
+  --wa-composer-private-fg: #ffd43b;
+  --wa-composer-copilot: #a78bfa;
 }
 
 // --- Chat wallpaper ----------------------------------------------------------
@@ -692,11 +731,22 @@ button.bg-n-brand[class*='rounded-full']:hover {
   --wa-primary-20: rgba(0, 168, 132, 0.20);
 }
 
-/* (A) Generic brand buttons — any element using bg-n-brand as background.
-   Exception list: .wa-send-btn (already WA), rounded-full badges/avatars. */
-button[class*='bg-n-brand']:not(.wa-send-btn):not([class*='rounded-full']),
-a[class*='bg-n-brand']:not([class*='rounded-full']),
-[class*='bg-n-brand'][class*='hover:bg-n-brand'] {
+/* (A) Generic brand buttons — any element using bg-n-brand as base background.
+   Exception list: .wa-send-btn (already WA), rounded-full badges/avatars.
+   IMPORTANTE: usar `[class~='bg-n-brand']` (whitespace-separated word match)
+   ao invés de `[class*='bg-n-brand']` (substring match). O substring match
+   casava `hover:bg-n-brand/5` indevidamente, pintando de verde sólido botões
+   que só usam o brand no hover. `~=` casa apenas a palavra exata `bg-n-brand`
+   na lista de classes. Variantes `bg-n-brand/X` e `bg-n-brand-X` cobertas
+   pelos seletores adicionais abaixo (com prefixo de início ou espaço). */
+button[class~='bg-n-brand']:not(.wa-send-btn):not([class*='rounded-full']),
+button[class*=' bg-n-brand/']:not(.wa-send-btn):not([class*='rounded-full']),
+button[class^='bg-n-brand/']:not(.wa-send-btn):not([class*='rounded-full']),
+button[class*=' bg-n-brand-']:not(.wa-send-btn):not([class*='rounded-full']),
+button[class^='bg-n-brand-']:not(.wa-send-btn):not([class*='rounded-full']),
+a[class~='bg-n-brand']:not([class*='rounded-full']),
+a[class*=' bg-n-brand/']:not([class*='rounded-full']),
+a[class^='bg-n-brand/']:not([class*='rounded-full']) {
   background-color: var(--wa-primary);
   &:hover { background-color: var(--wa-primary-hover); }
 }
@@ -803,6 +853,754 @@ input:focus-visible {
 // Shrink the editor's min-height when collapsed.
 .reply-box.is-collapsed .ProseMirror {
   min-height: 1.5rem;
+}
+
+// =============================================================================
+// Phase C — WhatsApp Web composer (WA-fiel real, take 5: rounded pill + footer)
+// -----------------------------------------------------------------------------
+// Two-layer architecture mirroring real WhatsApp Web:
+//   1. .wa-composer-bar    → footer outer, transparent, lets the chat
+//                            wallpaper bleed around the pill (Walisson opção A)
+//   2. .wa-composer-bar__pill → THE rounded pill containing all 4 elements
+//                            [+ 40×40] [😀 40×40] [input + 🔒] [🎤/➤ 40×40]
+//      Surface: var(--wa-composer-input-bg) (white light / #2A3942 dark)
+//      Radius: 24px (1.5rem) — segura cantos quando cresce multiline
+// =============================================================================
+.wa-composer-bar {
+  display: block;
+  padding: 0.5rem 0.75rem;
+  background-color: transparent !important;
+  border: 0;
+
+  &--disabled {
+    opacity: 0.55;
+    pointer-events: none;
+  }
+}
+
+.wa-composer-bar__pill {
+  display: flex;
+  align-items: center;
+  gap: 0;
+  background-color: var(--wa-composer-input-bg);
+  border-radius: 1.5rem;
+  padding: 0.125rem 0.25rem;
+  min-height: 3rem;
+  max-height: 12em;
+  box-shadow: 0 1px 1.5px rgba(11, 20, 26, 0.08);
+  transition: background-color 160ms ease;
+
+  &--private {
+    background-color: var(--wa-composer-private-bg);
+  }
+
+  // Flatten DropdownContainer wrappers (`relative space-y-2` + `inline-block`)
+  // so the + button stays aligned with the other 3 elements.
+  > div[class*="space-y"],
+  > div.relative {
+    display: inline-flex;
+    align-items: center;
+    margin: 0 !important;
+    padding: 0 !important;
+  }
+  > div[class*="space-y"] > * + *,
+  > div.relative > * + * {
+    margin-top: 0 !important;
+  }
+}
+.dark .wa-composer-bar__pill {
+  box-shadow: 0 1px 1.5px rgba(0, 0, 0, 0.3);
+}
+
+// Icon button — 40×40 circular, transparent until hover.
+.wa-composer-bar__icon {
+  flex-shrink: 0;
+  width: 2.5rem;
+  height: 2.5rem;
+  border-radius: 9999px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--wa-composer-icon);
+  background-color: transparent;
+  border: 0;
+  cursor: pointer;
+  transition: background-color 120ms ease,
+    color 120ms ease,
+    transform 80ms ease;
+
+  &:hover:not(:disabled) {
+    background-color: rgba(11, 20, 26, 0.06);
+  }
+  &:active:not(:disabled) {
+    transform: scale(0.92);
+  }
+  &:disabled {
+    opacity: 0.45;
+    cursor: not-allowed;
+  }
+}
+
+.dark .wa-composer-bar__icon:hover:not(:disabled) {
+  background-color: rgba(255, 255, 255, 0.08);
+}
+
+// Input region — TRANSPARENT, sits flat directly on the bar background.
+// WhatsApp Web does NOT paint a separate inner pill — input is part of
+// the unified bar surface.
+.wa-composer-bar__input-wrap {
+  flex: 1 1 auto;
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  gap: 0.25rem;
+  background-color: transparent !important;
+  border-radius: 0;
+  padding: 0 0.5rem;
+  min-height: 2.5rem;
+  // IMPORTANTE: overflow visible! Antes era `overflow-y: auto`, mas isso
+  // CLIPAVA os popups de @ (mentions), / (canned), : (emoji) e {{ (vars)
+  // que renderizam com `position: absolute; bottom: 100%` (acima do editor).
+  // O scroll vertical do texto multiline foi movido para dentro do ProseMirror.
+  overflow: visible !important;
+  box-shadow: none !important;
+  outline: none !important;
+}
+
+// O scroll vertical do texto vive AQUI, no ProseMirror em si — não no
+// input-wrap. Isso permite que popups absolutos (mentions/canned/emoji/vars)
+// possam "vazar" para cima sem ficarem cortados.
+.wa-composer-bar__editor .ProseMirror {
+  max-height: 11rem !important;
+  overflow-y: auto !important;
+}
+
+// ProseMirror surface inside the pill — flatten EVERYTHING.
+// IMPORTANTE: a classe `ProseMirror-woot-style` em conjunto com
+// `ProseMirror-focused` aplica bg branco com especificidade 0,2,0 via
+// estilo global do Chatwoot (.input.ProseMirror...) — precisamos cobrir
+// múltiplas combinações para garantir transparência total.
+.wa-composer-bar__editor,
+.wa-composer-bar__editor .message-editor,
+.wa-composer-bar__editor .editor-wrap,
+.wa-composer-bar__editor .ProseMirror,
+.wa-composer-bar__editor .ProseMirror-focused,
+.wa-composer-bar__editor .ProseMirror-menubar-wrapper,
+.wa-composer-bar .ProseMirror,
+.wa-composer-bar .ProseMirror-woot-style,
+.wa-composer-bar .ProseMirror.ProseMirror-focused,
+.wa-composer-bar .ProseMirror.ProseMirror-woot-style.ProseMirror-focused,
+.wa-composer-bar .input.popover-prosemirror-menu,
+.wa-composer-bar .input.popover-prosemirror-menu .ProseMirror,
+.wa-composer-bar .input.popover-prosemirror-menu .ProseMirror-focused {
+  outline: none !important;
+  border: none !important;
+  box-shadow: none !important;
+  background: transparent !important;
+  background-color: transparent !important;
+  margin: 0 !important;
+}
+.wa-composer-bar__editor {
+  flex: 1 1 auto;
+  min-width: 0;
+  padding: 0 !important;
+}
+.wa-composer-bar__editor .editor-wrap {
+  margin-bottom: 0 !important;
+}
+// AGGRESSIVE: nuke the static ProseMirror menubar (Copilot/Bold/Italic/
+// Undo/Redo) and the image-resize toolbar (Small/Medium/Large/Original)
+// whenever they render inside the wa-composer-bar. WhatsApp doesn't show
+// any of these at the composer level.
+.wa-composer-bar .ProseMirror-menubar,
+.wa-composer-bar .ProseMirror-menubar-wrapper > .ProseMirror-menubar,
+.wa-composer-bar .ProseMirror-menubar-wrapper .ProseMirror-menubar,
+.wa-composer-bar div.ProseMirror-menubar,
+.wa-composer-bar [class*="ProseMirror-menubar"]:not(.ProseMirror-menubar-wrapper),
+.wa-composer-bar .wa-composer-bar__editor > div > .ProseMirror-menubar-wrapper > .ProseMirror-menubar {
+  display: none !important;
+  visibility: hidden !important;
+  height: 0 !important;
+  min-height: 0 !important;
+  padding: 0 !important;
+  margin: 0 !important;
+  border: none !important;
+  overflow: hidden !important;
+}
+
+// Strip the image-resize/font-size float toolbar (Small/Medium/Large/
+// Original Size buttons). It's an `<div class="absolute shadow-md ...">`
+// inside the editor that only matters when an image node is selected.
+// In the composer it's spurious noise — hide outright.
+//
+// IMPORTANTE: NÃO esconder .mention--box (canned responses, mentions,
+// variables, emojis) — esse popup também tem `absolute` na classe.
+// Targeting é restrito a `.absolute.shadow-md` ou
+// `bg-n-solid-3 + outline-n-weak` (ambos exclusivos do toolbar).
+.wa-composer-bar [class*="bg-n-solid-3"][class*="outline-n-weak"],
+.wa-composer-bar > div > div > .absolute.shadow-md,
+.wa-composer-bar .wa-composer-bar__editor > div.absolute.shadow-md {
+  display: none !important;
+}
+
+.wa-composer-bar__editor .ProseMirror {
+  min-height: 1.5rem !important;
+  padding: 0.5rem 0 !important;
+  font-size: 0.9375rem;
+  line-height: 1.35;
+}
+.wa-composer-bar__editor .ProseMirror p {
+  margin: 0;
+}
+
+// =============================================================================
+// SPARKLES inline — botão Copilot dentro do pill, ao lado do lock.
+// Roxo/iris suave, com hover bonito e estado aberto destacado.
+// =============================================================================
+.wa-composer-bar__sparkles-wrap {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+}
+.wa-composer-bar__sparkles {
+  flex-shrink: 0;
+  width: 2.25rem;
+  height: 2.25rem;
+  border-radius: 9999px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  position: relative;
+  color: #7c3aed;  // n-iris-9 (roxo)
+  background-color: transparent;
+  border: 0;
+  cursor: pointer;
+  transition: background-color 120ms ease,
+    color 120ms ease,
+    transform 80ms ease,
+    box-shadow 160ms ease;
+
+  &:hover {
+    background-color: rgba(124, 58, 237, 0.10);
+    color: #6d28d9;
+    transform: scale(1.05);
+  }
+  &:active {
+    transform: scale(0.92);
+  }
+  &.is-open {
+    background-color: rgba(124, 58, 237, 0.15);
+    color: #5b21b6;
+    box-shadow: 0 0 0 2px rgba(124, 58, 237, 0.20);
+  }
+
+  // Onboarding 1ª vez: pulse + ring permanente roxo claro.
+  // Quando reduced-motion estiver ativo (`.is-onboarding-static`), a animação
+  // some e em vez disso aparece um dot indicator no canto superior direito.
+  &.is-onboarding {
+    box-shadow: 0 0 0 2px rgba(196, 181, 253, 0.55);
+    animation: wa-sparkles-pulse 2.4s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+  }
+  &.is-onboarding-static {
+    box-shadow: 0 0 0 2px rgba(196, 181, 253, 0.55);
+    animation: none;
+
+    &::after {
+      content: '';
+      position: absolute;
+      top: 4px;
+      right: 4px;
+      width: 8px;
+      height: 8px;
+      border-radius: 9999px;
+      background-color: #8b5cf6;
+      box-shadow: 0 0 0 2px #ffffff;
+    }
+  }
+}
+
+@keyframes wa-sparkles-pulse {
+  0%, 100% {
+    box-shadow: 0 0 0 2px rgba(196, 181, 253, 0.55);
+  }
+  50% {
+    box-shadow: 0 0 0 6px rgba(196, 181, 253, 0.0);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .wa-composer-bar__sparkles.is-onboarding {
+    animation: none;
+  }
+}
+.dark .wa-composer-bar__sparkles {
+  color: #c4b5fd;  // n-iris-light
+  &:hover {
+    background-color: rgba(196, 181, 253, 0.14);
+    color: #ddd6fe;
+  }
+  &.is-open {
+    background-color: rgba(196, 181, 253, 0.20);
+    box-shadow: 0 0 0 2px rgba(196, 181, 253, 0.25);
+  }
+}
+
+// Menu popup do Copilot inline — anchored ao sparkles, abre acima
+.wa-composer-bar__sparkles-menu {
+  position: absolute;
+  bottom: calc(100% + 0.5rem);
+  right: 0;
+  z-index: 30;
+  background-color: var(--wa-composer-input-bg);
+  border-radius: 0.75rem;
+  box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.18), 0 4px 8px -2px rgba(0, 0, 0, 0.08);
+  border: 1px solid rgba(0, 0, 0, 0.06);
+  transform-origin: bottom right;
+}
+.dark .wa-composer-bar__sparkles-menu {
+  background-color: var(--wa-composer-input-bg);
+  border-color: rgba(255, 255, 255, 0.08);
+}
+
+// Animação fade + scale + slide-up ao abrir o dropdown sparkles
+.wa-sparkles-menu-enter-active {
+  transition: opacity 180ms cubic-bezier(0.16, 1, 0.3, 1),
+    transform 200ms cubic-bezier(0.16, 1, 0.3, 1);
+}
+.wa-sparkles-menu-leave-active {
+  transition: opacity 140ms ease-out,
+    transform 140ms ease-out;
+}
+.wa-sparkles-menu-enter-from,
+.wa-sparkles-menu-leave-to {
+  opacity: 0;
+  transform: translateY(6px) scale(0.94);
+}
+.wa-sparkles-menu-enter-to,
+.wa-sparkles-menu-leave-from {
+  opacity: 1;
+  transform: translateY(0) scale(1);
+}
+
+// =============================================================================
+// COR DOS POPUPS (mention/canned/emoji/vars) — substitui o verde horrível
+// `bg-n-brand/10` por uma seleção neutra/legível.
+// =============================================================================
+.wa-composer-bar .mention--box,
+.reply-box:has(.wa-composer-bar) ~ * .mention--box,
+.mention--box {
+  // Item destacado (selecionado por teclado/hover)
+  button.bg-n-brand\/10,
+  button[class*="bg-n-brand"] {
+    background-color: rgba(124, 58, 237, 0.08) !important; // iris suave
+    color: var(--wa-text-primary, #111b21) !important;
+  }
+  button:hover {
+    background-color: rgba(11, 20, 26, 0.05) !important;
+  }
+}
+.dark .wa-composer-bar .mention--box,
+.dark .mention--box {
+  button.bg-n-brand\/10,
+  button[class*="bg-n-brand"] {
+    background-color: rgba(196, 181, 253, 0.16) !important;
+    color: var(--wa-text-primary-dark, #e9edef) !important;
+  }
+  button:hover {
+    background-color: rgba(255, 255, 255, 0.06) !important;
+  }
+}
+
+// Lock button living inside the pill (right edge). Discreto mas visível —
+// 36×36 com ícone 18px (entre os 40×40 dos icons principais e os 28×28 que
+// pareciam pequenos demais).
+.wa-composer-bar__lock {
+  flex-shrink: 0;
+  width: 2.25rem;
+  height: 2.25rem;
+  border-radius: 9999px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--wa-composer-icon);
+  background-color: transparent;
+  border: 0;
+  cursor: pointer;
+  opacity: 0.7;
+  transition: background-color 120ms ease,
+    color 120ms ease,
+    opacity 120ms ease,
+    transform 80ms ease;
+
+  &:hover {
+    opacity: 1;
+    background-color: rgba(11, 20, 26, 0.06);
+  }
+  &:active {
+    transform: scale(0.9);
+  }
+  &.is-active {
+    opacity: 1;
+    color: #92400e;
+    background-color: rgba(245, 158, 11, 0.22);
+  }
+}
+.dark .wa-composer-bar__lock:hover {
+  background-color: rgba(255, 255, 255, 0.08);
+}
+.dark .wa-composer-bar__lock.is-active {
+  color: #fcd34d;
+  background-color: rgba(245, 158, 11, 0.18);
+}
+
+// Send button — circular green WhatsApp.
+.wa-composer-bar__send {
+  flex-shrink: 0;
+  width: 2.5rem;
+  height: 2.5rem;
+  border-radius: 9999px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background-color: var(--wa-composer-send-bg) !important;
+  color: var(--wa-composer-send-fg) !important;
+  border: 0;
+  cursor: pointer;
+  transition: transform 80ms ease,
+    filter 120ms ease;
+
+  &:hover:not(:disabled) {
+    filter: brightness(1.08);
+  }
+  &:active:not(:disabled) {
+    transform: scale(0.92);
+  }
+  &.is-disabled,
+  &:disabled {
+    opacity: 0.45;
+    cursor: not-allowed;
+  }
+
+  &--note {
+    background-color: var(--wa-composer-private-fg) !important;
+    color: #fff !important;
+  }
+}
+
+// Mic ↔ Send transition (key swap).
+.wa-action-enter-active,
+.wa-action-leave-active {
+  transition: opacity 140ms ease,
+    transform 140ms ease;
+}
+.wa-action-enter-from,
+.wa-action-leave-to {
+  opacity: 0;
+  transform: scale(0.85);
+}
+
+// =============================================================================
+// MODO AUDIO — gravação inline dentro do pill.
+// Layout: [trash] [waveform/duration grow] [play-pause] [send]
+// =============================================================================
+.wa-composer-bar__pill--audio {
+  background-color: var(--wa-composer-input-bg);
+}
+.wa-composer-bar__audio-area {
+  flex: 1 1 auto;
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0 0.5rem;
+}
+.wa-composer-bar__audio-recorder {
+  flex: 1 1 auto;
+  min-width: 0;
+  // Neutralize legacy AudioRecorder card styling so it lives inline in pill
+  background: transparent !important;
+  border: none !important;
+  box-shadow: none !important;
+  padding: 0 !important;
+  margin: 0 !important;
+}
+.wa-composer-bar__audio-recorder canvas,
+.wa-composer-bar__audio-recorder .recorder-container,
+.wa-composer-bar__audio-recorder > div {
+  background: transparent !important;
+}
+.wa-composer-bar__audio-duration {
+  flex-shrink: 0;
+  font-variant-numeric: tabular-nums;
+  font-size: 0.875rem;
+  color: var(--wa-composer-icon);
+  min-width: 3rem;
+  text-align: right;
+}
+
+// =============================================================================
+// MODO COPILOT INLINE — input do copilot dentro do pill.
+// Layout: [X close] [copilot input grow]
+// =============================================================================
+.wa-composer-bar__pill--copilot {
+  background-color: var(--wa-composer-input-bg);
+}
+.wa-composer-bar__copilot-inline {
+  width: 100%;
+  max-width: 100%;
+
+  // O CopilotEditorSection root é `<Transition><CopilotEditor/></Transition>`
+  // O CopilotEditor é `<div class="space-y-2 mb-4">`. Aqui neutralizamos
+  // margens e wrappers p/ ele ficar inline no pill.
+  > div, > .copilot-editor {
+    margin: 0 !important;
+    padding: 0 !important;
+  }
+
+  // Conteúdo GERADO pelo copilot (resposta) — limita altura e adiciona
+  // scroll quando texto é longo (resumos, suggestions com várias linhas).
+  // Isso impede que o pill seja "esticado" para fora do composer.
+  > .copilot-editor > .overflow-y-auto,
+  > div > .overflow-y-auto {
+    max-height: 9rem !important;
+    overflow-y: auto !important;
+    padding-right: 0.25rem;
+    // Estiliza markdown gerado para legibilidade dentro do pill
+    .prose-sm,
+    p {
+      font-size: 0.875rem !important;
+      line-height: 1.4 !important;
+      color: var(--wa-text-primary, #111b21) !important;
+    }
+    strong, b { font-weight: 600; }
+  }
+  .dark > .copilot-editor > .overflow-y-auto,
+  .dark > div > .overflow-y-auto {
+    p, .prose-sm { color: var(--wa-text-primary-dark, #e9edef) !important; }
+  }
+
+  .editor--copilot {
+    background: transparent !important;
+    border: none !important;
+    box-shadow: none !important;
+    padding: 0 !important;
+    margin: 0 !important;
+
+    .ProseMirror-woot-style {
+      min-height: 1.5rem !important;
+      max-height: 6rem !important;
+      padding: 0.25rem 0 !important;
+    }
+    // Botão arrow-up some — usaremos apenas Enter para enviar
+    > .flex.items-center.justify-end.absolute {
+      display: none !important;
+    }
+  }
+  .ProseMirror-menubar {
+    display: none !important;
+    height: 0 !important;
+  }
+}
+
+// O modo copilot pode crescer verticalmente quando há resposta longa —
+// max-height generoso + overflow no pill garante visual contido.
+.wa-composer-bar__pill--copilot {
+  max-height: 18rem;
+  overflow-y: auto;
+}
+
+// =============================================================================
+// POPOUT MODE — pill dentro do modal "Expandir". O usuário tem mais espaço
+// pra escrever. Aproveitamos o tamanho do modal pra deixar o input maior e
+// o pill com cantos mais "respiráveis".
+// =============================================================================
+.reply-box.reply-box--popout .wa-composer-bar {
+  padding: 1rem 1.25rem;
+}
+.reply-box.reply-box--popout .wa-composer-bar__pill {
+  border-radius: 1.25rem;  // pouco menos arredondado pra parecer "card"
+  padding: 0.5rem 0.75rem;
+  min-height: 3.5rem;
+  align-items: flex-end;  // ícones colam no rodapé quando textarea cresce
+}
+.reply-box.reply-box--popout .wa-composer-bar__icon,
+.reply-box.reply-box--popout .wa-composer-bar__lock,
+.reply-box.reply-box--popout .wa-composer-bar__sparkles,
+.reply-box.reply-box--popout .wa-composer-bar__send {
+  margin-bottom: 0.125rem;
+}
+// Input do popout: 4-12 linhas pra escrever conforto
+.reply-box.reply-box--popout .wa-composer-bar__editor .ProseMirror {
+  min-height: 6rem !important;
+  max-height: 22rem !important;
+}
+// Conteúdo gerado pelo copilot tem mais altura no popout (resumos longos
+// cabem confortavelmente).
+.reply-box.reply-box--popout .wa-composer-bar__copilot-inline > .copilot-editor > .overflow-y-auto,
+.reply-box.reply-box--popout .wa-composer-bar__copilot-inline > div > .overflow-y-auto {
+  max-height: 18rem !important;
+}
+.reply-box.reply-box--popout .wa-composer-bar__pill--copilot {
+  max-height: 32rem;
+}
+
+// When the wa-composer-bar is in use, fully neutralise the legacy reply-box
+// wrapper and the empty .reply-box__top shell — they were leftover chrome
+// from the old multi-row layout.
+.reply-box:has(.wa-composer-bar) {
+  box-shadow: none !important;
+  border: none !important;
+  margin: 0 !important;
+  padding: 0 !important;
+  background-color: transparent !important;
+  border-radius: 0 !important;
+  min-height: 0 !important;
+}
+.reply-box:has(.wa-composer-bar) > .reply-box__top:empty,
+.reply-box:has(.wa-composer-bar) > .reply-box__top:not(:has(*:not(template))) {
+  display: none !important;
+}
+// Also collapse it when the only children are Vue's <!--v-if--> placeholder
+// comments (no real DOM content).
+.reply-box:has(.wa-composer-bar) > .reply-box__top {
+  padding: 0 !important;
+  margin: 0 !important;
+  min-height: 0 !important;
+}
+.dark .reply-box:has(.wa-composer-bar) {
+  background-color: transparent !important;
+}
+
+// MessagesView wraps the ReplyBox in a flex column with `bg-n-surface-1`,
+// which paints a solid surface behind the whole footer (preto no dark mode).
+// Estendemos o MESMO wallpaper do .conversation-panel para esse wrapper, para
+// não haver corte abrupto entre área de mensagens e composer.
+//
+// IMPORTANTE: usamos `:has(> div > .reply-box ...)` (estrutura exata) para
+// só pegar o wrapper imediato — não o `<main>` (que também tem
+// `bg-n-surface-1`) nem outros ancestors mais distantes.
+.bg-n-surface-1:has(> div > .reply-box .wa-composer-bar),
+.bg-n-surface-1:has(> div.relative > .reply-box .wa-composer-bar) {
+  background-color: var(--wa-chat-bg) !important;
+  background-image: linear-gradient(
+      rgba(239, 234, 226, 0.92),
+      rgba(239, 234, 226, 0.92)
+    ),
+    url('/assets/images/chat-spx-background-light.png') !important;
+  background-repeat: repeat;
+}
+.dark .bg-n-surface-1:has(> div > .reply-box .wa-composer-bar),
+.dark .bg-n-surface-1:has(> div.relative > .reply-box .wa-composer-bar) {
+  background-color: var(--wa-chat-bg-dark) !important;
+  background-image: linear-gradient(
+      rgba(11, 20, 26, 0.92),
+      rgba(11, 20, 26, 0.92)
+    ),
+    url('/assets/images/chat-spx-background.png') !important;
+}
+// Also kill any background painted by ReplyBottomPanel (it stays in the DOM
+// with v-show=false, but in some intermediate states/transitions it can
+// briefly paint while collapsing).
+.reply-box:has(.wa-composer-bar) .reply-bottom-panel {
+  background-color: transparent !important;
+}
+
+// Private note: the .reply-box gets `is-private` and Chatwoot's base
+// styles paint a yellow surface OVER the pill, hiding our private bg.
+// When wa-composer-bar is active we want a single uniform yellow pill —
+// neutralise the wrapper-level paint and let the pill own the colour.
+.reply-box.is-private:has(.wa-composer-bar) {
+  background-color: transparent !important;
+  border-color: transparent !important;
+}
+.reply-box.is-private:has(.wa-composer-bar) .wa-composer-bar__pill {
+  // Slightly stronger yellow so the pill reads as "private" against the
+  // chat wallpaper. (Original token is fff8c5 — bump saturation a touch.)
+  background-color: #fff3a8;
+}
+.dark .reply-box.is-private:has(.wa-composer-bar) .wa-composer-bar__pill {
+  background-color: #4a3a06;
+}
+// And make sure the editor surface inside the private pill is fully
+// transparent — no white "ilha" leaking through.
+.reply-box.is-private .wa-composer-bar__input-wrap,
+.reply-box.is-private .wa-composer-bar__editor,
+.reply-box.is-private .wa-composer-bar__editor .ProseMirror,
+.reply-box.is-private .wa-composer-bar__editor .editor-wrap,
+.reply-box.is-private .wa-composer-bar__editor .message-editor {
+  background: transparent !important;
+}
+
+// =============================================================================
+// COPILOT EDITOR — quando o Copilot está ativo, useWaComposerBar fica false e
+// o ReplyBox cai no fluxo `<CopilotEditorSection>` que renderiza CopilotEditor
+// com identidade Iris (paleta lilás). Aqui ajustamos para:
+//   - wrapper externo (.copilot-editor) totalmente transparente
+//   - input real (.editor--copilot) virar pill arredondado completo
+//   - botão "arrow up" alinhado dentro do pill
+//   - menubar do ProseMirror oculto (sem B/I/Undo/Redo)
+// =============================================================================
+.reply-box:has(.copilot-editor) {
+  background-color: transparent !important;
+  border: none !important;
+  box-shadow: none !important;
+  padding: 0 !important;
+}
+.bg-n-surface-1:has(.copilot-editor) {
+  background-color: transparent !important;
+}
+// Outer wrapper passado pelo CopilotEditorSection (`<CopilotEditor class="copilot-editor">`)
+// — esse div é o `<div class="space-y-2 mb-4 copilot-editor">`. Mantemos só
+// margem mínima horizontal pra alinhar com o pill do composer normal.
+.reply-box .copilot-editor {
+  margin: 0.25rem 0.75rem 0.5rem !important;
+}
+
+// Real input do copilot — pill arredondado, mantendo a paleta Iris.
+.reply-box .editor--copilot {
+  border-radius: 1.5rem !important;
+  padding: 0.5rem 0.75rem !important;
+  box-shadow: 0 1px 1.5px rgba(11, 20, 26, 0.08);
+
+  .ProseMirror-menubar {
+    display: none !important;
+    height: 0 !important;
+  }
+
+  .ProseMirror-woot-style {
+    min-height: 2.5rem !important;
+    max-height: 8rem !important;
+    padding-right: 3rem !important;  // espaço pro botão arrow-up
+  }
+
+  // Botão arrow-up no canto direito
+  > .flex.items-center.justify-end.absolute {
+    right: 0.5rem !important;
+    bottom: 0.5rem !important;
+  }
+}
+.dark .reply-box .editor--copilot {
+  box-shadow: 0 1px 1.5px rgba(0, 0, 0, 0.3);
+}
+
+// Mobile: tighten gaps on small viewports.
+@media (max-width: 640px) {
+  .wa-composer-bar {
+    gap: 0;
+    padding: 0.25rem 0.375rem;
+    min-height: 2.75rem;
+  }
+  .wa-composer-bar__icon {
+    width: 2.25rem;
+    height: 2.25rem;
+  }
+  .wa-composer-bar__send {
+    width: 2.25rem;
+    height: 2.25rem;
+  }
+  .wa-composer-bar__input-wrap {
+    min-height: 2.25rem;
+  }
 }
 
 // Ghost suggestion overlay.
@@ -2152,6 +2950,52 @@ html body .v-popper--theme-tooltip .v-popper__inner,
 .dropdown-pane span {
   background-color: transparent !important;
 }
+
+/* Reset de bg em botões do dropdown que usam apenas modifier `hover:bg-n-brand/X`.
+   A regra geral mais abaixo (`button[class*='bg-n-brand']`) usa attribute substring
+   match e casa `hover:bg-n-brand/5`, pintando o botão inteiro de verde sólido.
+   Aqui sobrescrevemos com especificidade maior pra deixar o estado base transparente
+   (o hover continua via utility Tailwind). */
+.n-dropdown-body button[class*='hover:bg-n-brand'],
+.dropdown-pane button[class*='hover:bg-n-brand'],
+[class*='fixed z-\[100\]'] button[class*='hover:bg-n-brand'] {
+  background-color: transparent !important;
+}
+
+/* Re-habilita bg dos spans-ícone do plugin @egoist/tailwindcss-icons.
+   Esses spans usam mask-image + bg currentColor pra renderizar o glyph;
+   a regra acima zerava o bg e deixava o ícone invisível. Whitelist por
+   prefixo de classe das coleções de ícones em uso (ver tailwind.config.js). */
+.v-popper__inner span[class*='i-fluent'],
+.v-popper__inner span[class*='i-lucide'],
+.v-popper__inner span[class*='i-woot'],
+.v-popper__inner span[class*='i-ph'],
+.v-popper__inner span[class*='i-ri'],
+.v-popper__inner span[class*='i-logos'],
+.v-popper__inner span[class*='i-teenyicons'],
+[class*='fixed z-\[100\]'] span[class*='i-fluent'],
+[class*='fixed z-\[100\]'] span[class*='i-lucide'],
+[class*='fixed z-\[100\]'] span[class*='i-woot'],
+[class*='fixed z-\[100\]'] span[class*='i-ph'],
+[class*='fixed z-\[100\]'] span[class*='i-ri'],
+[class*='fixed z-\[100\]'] span[class*='i-logos'],
+[class*='fixed z-\[100\]'] span[class*='i-teenyicons'],
+.n-dropdown-body span[class*='i-fluent'],
+.n-dropdown-body span[class*='i-lucide'],
+.n-dropdown-body span[class*='i-woot'],
+.n-dropdown-body span[class*='i-ph'],
+.n-dropdown-body span[class*='i-ri'],
+.n-dropdown-body span[class*='i-logos'],
+.n-dropdown-body span[class*='i-teenyicons'],
+.dropdown-pane span[class*='i-fluent'],
+.dropdown-pane span[class*='i-lucide'],
+.dropdown-pane span[class*='i-woot'],
+.dropdown-pane span[class*='i-ph'],
+.dropdown-pane span[class*='i-ri'],
+.dropdown-pane span[class*='i-logos'],
+.dropdown-pane span[class*='i-teenyicons'] {
+  background-color: currentColor !important;
+}
 /* REMOVIDO: "whitelist" que zerava o bg de containers com bg-n-solid/brand/etc.
    O SCSS compilava `unset !important` em `transparent !important`, apagando
    o fundo do container interno de popovers como SidebarCollapsedPopover
@@ -2261,3 +3105,170 @@ aside lord-icon {
     box-shadow: inset 4px 0 0 0 #ef4444, 0 0 12px rgba(239, 68, 68, 0.18);
   }
 }
+
+// =============================================================================
+// Phase B1 — hide the ProseMirror static menubar inside the reply composer.
+// WhatsApp doesn't expose Bold/Italic/etc. as a top toolbar; agents keep
+// access through Ctrl+B / Ctrl+I / Ctrl+U keymap, and the new bubble menu
+// (Phase B2) will surface formatting on selection.
+// =============================================================================
+.reply-box .ProseMirror-menubar-wrapper > .ProseMirror-menubar,
+.reply-box .ProseMirror-menubar {
+  display: none !important;
+}
+
+// Drop the empty space the menubar used to occupy.
+.reply-box .ProseMirror-menubar-wrapper > .ProseMirror {
+  padding-top: 0;
+}
+
+// =============================================================================
+// Phase E — Composer micro-animations (active scale, focus ring, slide-down)
+// -----------------------------------------------------------------------------
+// Subtle WhatsApp-fiel feedback on agent interactions. We avoid heavy
+// transitions because the composer already has many state changes.
+// =============================================================================
+
+// Send button: tactile press feedback.
+.reply-box .wa-send-btn {
+  transition: background-color 120ms ease,
+    transform 80ms ease;
+}
+.reply-box .wa-send-btn:active:not(:disabled) {
+  transform: scale(0.94);
+}
+
+// Editor focus ring: subtle green glow around the composer when ProseMirror
+// is focused. Mirrors WhatsApp's input pill which highlights on focus.
+.reply-box.is-focused {
+  box-shadow: 0 1px 2px rgba(11, 20, 26, 0.08),
+    0 0 0 2px rgba(0, 168, 132, 0.16);
+  transition: box-shadow 160ms ease;
+}
+.dark .reply-box.is-focused {
+  box-shadow: 0 0 0 2px rgba(0, 168, 132, 0.28);
+}
+
+// Private-note chip slide-down. The chip is rendered conditionally on
+// isOnPrivateNote so we use a CSS animation rather than a Vue Transition
+// to keep ReplyTopPanel.vue's render tree simple.
+@keyframes wa-chip-slide-down {
+  from {
+    opacity: 0;
+    transform: translateY(-4px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+.reply-top-panel-private-chip {
+  animation: wa-chip-slide-down 180ms ease-out;
+}
+
+// =============================================================================
+// Phase G — Email inbox carve-out
+// -----------------------------------------------------------------------------
+// Email channels render <ReplyEmailHead> with To/CC/BCC fields, signature
+// management, etc. The WhatsApp pill aesthetic doesn't fit there, so when
+// ReplyEmailHead is present we relax the slim/round overrides and let the
+// stock Chatwoot composer take over.
+// =============================================================================
+.reply-box:has(.reply-email-head) {
+  border-radius: 8px;
+
+  .ProseMirror {
+    min-height: 4rem;
+  }
+
+  // Bring back the menubar for email — agents heavily use formatting in email.
+  .ProseMirror-menubar-wrapper > .ProseMirror-menubar,
+  .ProseMirror-menubar {
+    display: flex !important;
+  }
+}
+
+// =============================================================================
+// Phase G — Mobile composer responsiveness
+// -----------------------------------------------------------------------------
+// Tighten paddings on small viewports so the composer remains slim on phones
+// where viewport width is < 640px.
+// =============================================================================
+@media (max-width: 640px) {
+  .reply-box .reply-bottom-panel {
+    padding: 6px 8px;
+  }
+  .reply-box .reply-bottom-panel button {
+    transform: scale(0.92);
+  }
+  .reply-box .reply-bottom-panel .wa-send-btn {
+    height: 2rem;
+    padding-left: 0.625rem;
+    padding-right: 0.625rem;
+  }
+}
+
+/* ============================================
+   COPILOT 2026 — AI Animation Tokens
+   Reutilizado por: Loader, EmptyState, Header,
+   Launcher, Empty cards
+   ============================================ */
+
+@keyframes ai-sparkle-float {
+  0%, 100% { transform: translateY(0) scale(1); opacity: 0.6; }
+  50% { transform: translateY(-3px) scale(1.1); opacity: 1; }
+}
+
+@keyframes ai-shimmer {
+  0% { background-position: -200% 0; }
+  100% { background-position: 200% 0; }
+}
+
+@keyframes ai-glow-pulse {
+  0%, 100% {
+    box-shadow: 0 0 0 0 rgba(34, 197, 94, 0.4),
+                0 0 20px 0 rgba(34, 197, 94, 0.2);
+  }
+  50% {
+    box-shadow: 0 0 0 6px rgba(34, 197, 94, 0),
+                0 0 30px 4px rgba(34, 197, 94, 0.3);
+  }
+}
+
+@keyframes ai-launcher-pulse {
+  0%, 100% { box-shadow: 0 0 0 0 rgba(34, 197, 94, 0.5); }
+  70% { box-shadow: 0 0 0 12px rgba(34, 197, 94, 0); }
+}
+
+.ai-sparkle {
+  animation: ai-sparkle-float 2.4s ease-in-out infinite;
+}
+.ai-sparkle-delay-1 { animation-delay: 0.3s; }
+.ai-sparkle-delay-2 { animation-delay: 0.6s; }
+.ai-sparkle-delay-3 { animation-delay: 0.9s; }
+
+.ai-shimmer {
+  background: linear-gradient(
+    90deg,
+    rgba(148, 163, 184, 0.15) 0%,
+    rgba(148, 163, 184, 0.35) 50%,
+    rgba(148, 163, 184, 0.15) 100%
+  );
+  background-size: 200% 100%;
+  animation: ai-shimmer 1.6s ease-in-out infinite;
+}
+
+.ai-glow {
+  animation: ai-glow-pulse 2.8s ease-in-out infinite;
+}
+
+.ai-launcher-pulse {
+  animation: ai-launcher-pulse 2.4s ease-in-out infinite;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .ai-sparkle, .ai-shimmer, .ai-glow, .ai-launcher-pulse {
+    animation: none;
+  }
+}
+

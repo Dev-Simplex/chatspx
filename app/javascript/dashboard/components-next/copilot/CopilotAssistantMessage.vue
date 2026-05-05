@@ -1,7 +1,8 @@
 <script setup>
-import { computed } from 'vue';
+import { computed, ref } from 'vue';
+import { useI18n } from 'vue-i18n';
 import { emitter } from 'shared/helpers/mitt';
-import { useTrack } from 'dashboard/composables';
+import { useTrack, useAlert } from 'dashboard/composables';
 
 import { BUS_EVENTS } from 'shared/constants/busEvents';
 import { INBOX_TYPES } from 'dashboard/helper/inbox';
@@ -24,6 +25,9 @@ const props = defineProps({
     required: true,
   },
 });
+
+const { t } = useI18n();
+
 const hasEmptyMessageContent = computed(() => !props.message?.content);
 
 const showUseButton = computed(() => {
@@ -53,6 +57,22 @@ const useCopilotResponse = () => {
   }
   useTrack(COPILOT_EVENTS.USE_CAPTAIN_RESPONSE);
 };
+
+const feedback = ref(null);
+
+const copyToClipboard = async () => {
+  try {
+    await navigator.clipboard.writeText(props.message?.content || '');
+    useAlert(t('CAPTAIN.COPILOT.ACTIONS.COPIED'));
+  } catch (e) {
+    /* noop */
+  }
+};
+
+const setFeedback = val => {
+  feedback.value = feedback.value === val ? null : val;
+  // TODO backend: emit('feedback', { messageId: props.message.id, value: feedback.value })
+};
 </script>
 
 <template>
@@ -77,6 +97,42 @@ const useCopilotResponse = () => {
           class="!px-3 !h-7 !rounded-lg !bg-n-brand !text-white !text-xs !font-medium hover:!bg-n-brand-hover"
           @click="useCopilotResponse"
         />
+      </div>
+      <div
+        v-if="!hasEmptyMessageContent"
+        class="flex items-center gap-1 mt-2 px-1 opacity-60 hover:opacity-100 transition-opacity"
+      >
+        <button
+          v-tooltip="$t('CAPTAIN.COPILOT.ACTIONS.COPY')"
+          type="button"
+          class="flex items-center justify-center size-6 rounded hover:bg-n-slate-3 text-n-slate-11 focus:outline-none focus-visible:ring-2 focus-visible:ring-n-brand/40"
+          :aria-label="$t('CAPTAIN.COPILOT.ACTIONS.COPY')"
+          @click="copyToClipboard"
+        >
+          <span class="i-lucide-copy size-3.5" aria-hidden="true" />
+        </button>
+        <button
+          v-tooltip="$t('CAPTAIN.COPILOT.ACTIONS.GOOD')"
+          type="button"
+          class="flex items-center justify-center size-6 rounded hover:bg-n-slate-3 text-n-slate-11 focus:outline-none focus-visible:ring-2 focus-visible:ring-n-brand/40"
+          :class="{ '!text-n-teal-10 !bg-n-teal-3': feedback === 'up' }"
+          :aria-label="$t('CAPTAIN.COPILOT.ACTIONS.GOOD')"
+          :aria-pressed="feedback === 'up'"
+          @click="setFeedback('up')"
+        >
+          <span class="i-lucide-thumbs-up size-3.5" aria-hidden="true" />
+        </button>
+        <button
+          v-tooltip="$t('CAPTAIN.COPILOT.ACTIONS.BAD')"
+          type="button"
+          class="flex items-center justify-center size-6 rounded hover:bg-n-slate-3 text-n-slate-11 focus:outline-none focus-visible:ring-2 focus-visible:ring-n-brand/40"
+          :class="{ '!text-n-ruby-10 !bg-n-ruby-3': feedback === 'down' }"
+          :aria-label="$t('CAPTAIN.COPILOT.ACTIONS.BAD')"
+          :aria-pressed="feedback === 'down'"
+          @click="setFeedback('down')"
+        >
+          <span class="i-lucide-thumbs-down size-3.5" aria-hidden="true" />
+        </button>
       </div>
     </div>
   </div>
