@@ -58,8 +58,8 @@ onMounted(() => {
         class="size-8 flex-shrink-0 flex items-center justify-center rounded-full text-white transition-all duration-200"
         :class="
           hasContent
-            ? 'bg-n-brand hover:bg-n-brand-hover shadow-md shadow-n-brand/30'
-            : 'bg-n-brand/40 cursor-not-allowed'
+            ? 'bg-n-violet-9 hover:bg-n-violet-10 shadow-md shadow-n-violet-9/30'
+            : 'bg-n-violet-9/40 cursor-not-allowed'
         "
         :disabled="!hasContent"
         type="submit"
