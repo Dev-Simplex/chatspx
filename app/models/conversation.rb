@@ -112,10 +112,13 @@ class Conversation < ApplicationRecord
 
   has_many :mentions, dependent: :destroy_async
   has_many :messages, lambda { |conversation| # rubocop:disable Rails/InverseOf
-    # Mensagens com team_id NULL sao "publicas" (sem restricao por time) e sempre aparecem.
-    # Se a conversa pertence a um time, alem das publicas, mostra so as msgs daquele time.
-    # Resolve casos onde UpdateMessagesTeamIdJob nao sincronizou apos mudanca de team.
-    if conversation.team_id.nil?
+    # Filtragem por team_id so se aplica quando o inbox tem team_message_isolation ATIVADO.
+    # Caso contrario (default), retorna todas as mensagens — alinhando o backend com o frontend
+    # (Message.vue isRestrictedByTeam) e com a expectativa do admin que desabilita o setting.
+    # Quando isolation esta ON e a conv pertence a um time, mensagens com team_id NULL ainda
+    # aparecem (publicas) mais as do time atual. Mensagens com team_id stale (de team anterior)
+    # ficam ocultas — o UpdateMessagesTeamIdJob deve sincroniza-las.
+    if conversation.team_id.nil? || !conversation.inbox&.team_message_isolation
       all
     else
       where('messages.team_id IS NULL OR messages.team_id = ?', conversation.team_id)
