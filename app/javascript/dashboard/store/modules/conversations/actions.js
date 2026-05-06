@@ -443,8 +443,18 @@ const actions = {
     handleVoiceCallCreated(message, rootGetters?.getCurrentUserID);
   },
 
-  updateMessage({ commit, rootGetters }, message) {
-    commit(types.ADD_MESSAGE, message);
+  updateMessage({ commit, rootGetters, state }, message) {
+    // Status updates (e.g. WAHA status sync) re-emit `message.updated` over ActionCable
+    // for messages that may not be in the current window. Re-injecting them via
+    // ADD_MESSAGE used to break chronological order (see Bug fix 06-mai-2026).
+    // Skip when the message is not visible — the user will get fresh state on next fetch.
+    const chat = state.allConversations.find(
+      c => c.id === message.conversation_id
+    );
+    const exists = chat?.messages?.some(m => m.id === message.id);
+    if (exists) {
+      commit(types.ADD_MESSAGE, message);
+    }
     handleVoiceCallUpdated(commit, message, rootGetters?.getCurrentUserID);
   },
 

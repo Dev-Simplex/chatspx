@@ -1,7 +1,7 @@
 import types from '../../mutation-types';
 import getters, { getSelectedChatConversation } from './getters';
 import actions from './actions';
-import { findPendingMessageIndex } from './helpers';
+import { findPendingMessageIndex, insertSortedByCreatedAt } from './helpers';
 import { MESSAGE_STATUS } from 'shared/constants/messages';
 import wootConstants from 'dashboard/constants/globals';
 import { BUS_EVENTS } from '../../../../shared/constants/busEvents';
@@ -303,7 +303,10 @@ export const mutations = {
       const { conversation: { unread_count: unreadCount = 0 } = {} } = message;
       chat.unread_count = unreadCount;
     } else {
-      chat.messages.push(message);
+      // Defensive: preserve ascending chronological order even if a caller emits an
+      // out-of-order message (e.g. WAHA status sync re-emitting old messages over WS).
+      // Invariant documented in docs/adr/0002-chat-messages-invariants.md.
+      insertSortedByCreatedAt(chat.messages, message);
       trimOldest(chat);
       chat.timestamp = message.created_at;
       const { conversation: { unread_count: unreadCount = 0 } = {} } = message;

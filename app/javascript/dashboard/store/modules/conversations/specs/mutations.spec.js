@@ -1,7 +1,178 @@
 import { mutations } from '../index';
 import types from '../../../mutation-types';
 
+const buildStateWithChat = chat => {
+  const state = {
+    allConversations: [chat],
+    conversationMap: { [chat.id]: chat },
+    selectedChatId: null,
+  };
+  return state;
+};
+
 describe('#mutations', () => {
+  describe('#ADD_MESSAGE order preservation', () => {
+    it('inserts out-of-order message at correct chronological position', () => {
+      const chat = {
+        id: 1,
+        messages: [
+          { id: 100, created_at: 1700000000 },
+          { id: 200, created_at: 1750000000 },
+          { id: 300, created_at: 1778025000 },
+        ],
+        hasNewerMessages: false,
+      };
+      const state = buildStateWithChat(chat);
+
+      mutations[types.ADD_MESSAGE](state, {
+        id: 150,
+        conversation_id: 1,
+        created_at: 1740000000,
+      });
+
+      const ids = state.allConversations[0].messages.map(m => m.id);
+      expect(ids).toEqual([100, 150, 200, 300]);
+    });
+
+    it('appends to end when message is the newest', () => {
+      const chat = {
+        id: 1,
+        messages: [
+          { id: 100, created_at: 1700000000 },
+          { id: 200, created_at: 1750000000 },
+        ],
+        hasNewerMessages: false,
+      };
+      const state = buildStateWithChat(chat);
+
+      mutations[types.ADD_MESSAGE](state, {
+        id: 300,
+        conversation_id: 1,
+        created_at: 1780000000,
+      });
+
+      const ids = state.allConversations[0].messages.map(m => m.id);
+      expect(ids).toEqual([100, 200, 300]);
+    });
+
+    it('prepends when message is the oldest', () => {
+      const chat = {
+        id: 1,
+        messages: [
+          { id: 200, created_at: 1750000000 },
+          { id: 300, created_at: 1780000000 },
+        ],
+        hasNewerMessages: false,
+      };
+      const state = buildStateWithChat(chat);
+
+      mutations[types.ADD_MESSAGE](state, {
+        id: 100,
+        conversation_id: 1,
+        created_at: 1700000000,
+      });
+
+      const ids = state.allConversations[0].messages.map(m => m.id);
+      expect(ids).toEqual([100, 200, 300]);
+    });
+
+    it('reproduces Tozi scenario: out-of-order push from WAHA status sync stays sorted', () => {
+      // Simulates Bug 1 (06-mai-2026): array has today's messages, status sync
+      // re-emits a message from 11-abril → must be inserted at position, not appended.
+      const today = 1778025000;
+      const aprilEleven = 1744300000;
+      const chat = {
+        id: 1177,
+        messages: [
+          { id: 9001, created_at: today - 7200 },
+          { id: 9002, created_at: today - 3600 },
+          { id: 9003, created_at: today },
+        ],
+        hasNewerMessages: false,
+      };
+      const state = buildStateWithChat(chat);
+
+      mutations[types.ADD_MESSAGE](state, {
+        id: 5500,
+        conversation_id: 1177,
+        created_at: aprilEleven,
+        status: 'delivered',
+      });
+
+      const messages = state.allConversations[0].messages;
+      const timestamps = messages.map(m => m.created_at);
+      const sorted = [...timestamps].sort((a, b) => a - b);
+      expect(timestamps).toEqual(sorted);
+      expect(messages[0].id).toBe(5500);
+    });
+
+    it('replaces existing message in place when id matches (preserves order)', () => {
+      const chat = {
+        id: 1,
+        messages: [
+          { id: 100, created_at: 1700000000, status: 'sent' },
+          { id: 200, created_at: 1750000000, status: 'sent' },
+          { id: 300, created_at: 1780000000, status: 'sent' },
+        ],
+        hasNewerMessages: false,
+      };
+      const state = buildStateWithChat(chat);
+
+      mutations[types.ADD_MESSAGE](state, {
+        id: 200,
+        conversation_id: 1,
+        created_at: 1750000000,
+        status: 'delivered',
+      });
+
+      const messages = state.allConversations[0].messages;
+      expect(messages.map(m => m.id)).toEqual([100, 200, 300]);
+      expect(messages[1].status).toBe('delivered');
+    });
+
+    it('handles empty messages array (push)', () => {
+      const chat = {
+        id: 1,
+        messages: [],
+        hasNewerMessages: false,
+      };
+      const state = buildStateWithChat(chat);
+
+      mutations[types.ADD_MESSAGE](state, {
+        id: 100,
+        conversation_id: 1,
+        created_at: 1700000000,
+      });
+
+      expect(state.allConversations[0].messages).toHaveLength(1);
+      expect(state.allConversations[0].messages[0].id).toBe(100);
+    });
+
+    it('does not inject when hasNewerMessages is true (user browsing history)', () => {
+      const chat = {
+        id: 1,
+        messages: [
+          { id: 100, created_at: 1700000000 },
+          { id: 200, created_at: 1750000000 },
+        ],
+        hasNewerMessages: true,
+        pendingNewMessageCount: 0,
+      };
+      const state = buildStateWithChat(chat);
+
+      mutations[types.ADD_MESSAGE](state, {
+        id: 300,
+        conversation_id: 1,
+        created_at: 1780000000,
+      });
+
+      expect(state.allConversations[0].messages.map(m => m.id)).toEqual([
+        100, 200,
+      ]);
+      expect(state.allConversations[0].pendingNewMessageCount).toBe(1);
+    });
+  });
+
   describe('#UPDATE_CONVERSATION_CALL_STATUS', () => {
     it('does nothing if conversation is not found', () => {
       const state = { allConversations: [] };

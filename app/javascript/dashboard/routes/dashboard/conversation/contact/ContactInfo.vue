@@ -11,6 +11,7 @@ import EditContact from './EditContact.vue';
 import ContactMergeModal from 'dashboard/modules/contact/ContactMergeModal.vue';
 import ComposeConversation from 'dashboard/components-next/NewConversation/ComposeConversation.vue';
 import ExportConversationModal from 'dashboard/components-next/message/ExportConversationModal.vue';
+import VoiceCallButton from 'dashboard/components-next/Contacts/VoiceCallButton.vue';
 import { BUS_EVENTS } from 'shared/constants/busEvents';
 
 import {
@@ -29,6 +30,7 @@ export default {
     SocialIcons,
     ContactMergeModal,
     ExportConversationModal,
+    VoiceCallButton,
   },
   props: {
     contact: {
