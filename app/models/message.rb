@@ -64,6 +64,7 @@ class Message < ApplicationRecord
   }.to_json.freeze
 
   before_validation :ensure_content_type
+  before_validation :ensure_json_attributes
   before_validation :prevent_message_flooding
   before_save :ensure_processed_message_content
   before_save :ensure_in_reply_to
@@ -228,7 +229,9 @@ class Message < ApplicationRecord
   def valid_first_reply?
     return false unless human_response? && !private?
     return false if conversation.first_reply_created_at.present?
-    return false if conversation.messages.outgoing
+    # Usa all_messages (sem filtro de team_message_isolation) — first_reply_created_at e
+    # contagem de respostas humanas previas sao globais por conversa, nao por team.
+    return false if conversation.all_messages.outgoing
                                 .where.not(sender_type: ['AgentBot', 'Captain::Assistant'])
                                 .where.not(private: true)
                                 .where("(additional_attributes->'campaign_id') is null").limit(2).count > 1
@@ -295,8 +298,9 @@ class Message < ApplicationRecord
     return if conversation.blank?
 
     # there are cases where automations can result in message loops, we need to prevent such cases.
+    # Usa all_messages para contar globalmente — rate-limit nao deve depender de team_message_isolation.
     flood_limit = Limits.conversation_message_per_minute_limit
-    if conversation.messages.where('created_at >= ?', 1.minute.ago).limit(flood_limit + 1).count >= flood_limit
+    if conversation.all_messages.where('created_at >= ?', 1.minute.ago).limit(flood_limit + 1).count >= flood_limit
       Rails.logger.error "Too many message: Account Id - #{account_id} : Conversation id - #{conversation_id}"
       errors.add(:base, 'Too many messages')
     end
@@ -324,6 +328,14 @@ class Message < ApplicationRecord
 
   def ensure_content_type
     self.content_type ||= Message.content_types[:text]
+  end
+
+  # Mensagens criadas via insert_all! ou SQL direto podem persistir JSON columns como NULL
+  # literal. Isso quebra acessos diretos (content_attributes['key']) em human_response? e
+  # callbacks correlatos com NoMethodError silencioso.
+  def ensure_json_attributes
+    self.content_attributes = {} if content_attributes.nil?
+    self.additional_attributes = {} if additional_attributes.nil?
   end
 
   def execute_after_create_commit_callbacks

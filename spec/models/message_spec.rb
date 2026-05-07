@@ -219,6 +219,61 @@ RSpec.describe Message do
       expect(conversation.first_reply_created_at).to be_nil
       expect(conversation.waiting_since).to eq conversation.created_at
     end
+
+    it 'normalizes nil content_attributes/additional_attributes to {} before validation' do
+      message = build(:message, message_type: :outgoing, conversation: conversation,
+                                content_attributes: nil, additional_attributes: nil)
+
+      expect { message.save! }.not_to raise_error
+      expect(message.content_attributes).to eq({})
+      expect(message.additional_attributes).to eq({})
+    end
+
+    it 'clears waiting_since for outgoing message when content_attributes was nil' do
+      message = build(:message, message_type: :outgoing, conversation: conversation,
+                                content_attributes: nil, additional_attributes: nil)
+      message.save!
+
+      expect(conversation.reload.waiting_since).to be_nil
+      expect(conversation.first_reply_created_at.to_i).to eq message.created_at.to_i
+    end
+  end
+
+  describe 'message create event with team_message_isolation' do
+    let(:account) { create(:account) }
+    let(:inbox) { create(:inbox, account: account) }
+    let(:team_a) { create(:team, account: account) }
+    let(:team_b) { create(:team, account: account) }
+    let(:conversation) { create(:conversation, account: account, inbox: inbox, team: team_a) }
+
+    before do
+      inbox.update!(team_message_isolation: true)
+      conversation.reload
+    end
+
+    it 'preserves first_reply_created_at after team reassignment' do
+      first_reply = create(:message, message_type: :outgoing, conversation: conversation, account: account, inbox: inbox)
+      original_time = conversation.reload.first_reply_created_at
+      expect(original_time).not_to be_nil
+
+      conversation.update!(team: team_b)
+      first_reply.update_column(:team_id, team_a.id) # rubocop:disable Rails/SkipsModelValidations
+
+      create(:message, message_type: :outgoing, conversation: conversation, account: account, inbox: inbox)
+
+      expect(conversation.reload.first_reply_created_at.to_i).to eq original_time.to_i
+    end
+
+    it 'does not bypass flood limit when conversation was multi-team' do
+      flood_limit = Limits.conversation_message_per_minute_limit
+      flood_limit.times { create(:message, message_type: :outgoing, conversation: conversation, account: account, inbox: inbox) }
+      conversation.update!(team: team_b)
+
+      overflow = build(:message, message_type: :outgoing, conversation: conversation, account: account, inbox: inbox)
+
+      expect(overflow.valid?).to be false
+      expect(overflow.errors[:base]).to include('Too many messages')
+    end
   end
 
   describe '#reopen_conversation' do
