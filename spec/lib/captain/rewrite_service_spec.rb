@@ -36,6 +36,25 @@ RSpec.describe Captain::RewriteService do
 
       service.perform
     end
+
+    it 'redacts PII from user content before sending to LLM' do
+      pii_content = 'Confirme o documento 123.456.789-09 por favor'
+      svc = described_class.new(
+        account: account,
+        content: pii_content,
+        operation: 'fix_spelling_grammar',
+        conversation_display_id: conversation.display_id
+      )
+
+      expect(svc).to receive(:make_api_call) do |args|
+        user_msg = args[:messages][1][:content]
+        expect(user_msg).to include('[CPF]')
+        expect(user_msg).not_to include('123.456.789-09')
+        { message: 'Fixed' }
+      end
+
+      svc.perform
+    end
   end
 
   describe 'tone rewrite methods' do
@@ -55,6 +74,26 @@ RSpec.describe Captain::RewriteService do
         end
 
         service.perform
+      end
+
+      it 'redacts PII from user content before sending to LLM' do
+        pii_content = 'Confirma o cartão 4111 1111 1111 1111 por favor'
+        svc = described_class.new(
+          account: account,
+          content: pii_content,
+          operation: 'casual',
+          conversation_display_id: conversation.display_id
+        )
+        allow(svc).to receive(:prompt_from_file).with('tone_rewrite').and_return(tone_prompt_template)
+
+        expect(svc).to receive(:make_api_call) do |args|
+          user_msg = args[:messages][1][:content]
+          expect(user_msg).to include('[CARTAO]')
+          expect(user_msg).not_to include('4111 1111 1111 1111')
+          { message: 'rewritten' }
+        end
+
+        svc.perform
       end
     end
 

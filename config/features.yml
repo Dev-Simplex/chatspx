@@ -247,3 +247,8 @@
   display_name: Advanced Assignment
   enabled: false
   premium: true
+- name: ai_assistant_v2
+  display_name: AI Assistant v2 (Copilot redesign)
+  enabled: false
+  premium: false
+  chatwoot_internal: false

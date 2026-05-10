@@ -29,16 +29,36 @@ class WebhookListener < BaseListener
     return unless message.webhook_sendable?
 
     payload = message.webhook_data.merge(event: __method__.to_s)
+
+    # WAHA: location/contact attachments não são suportados pelo WAHA Chatwoot App.
+    # Despachamos via REST direto e ainda assim entregamos os webhooks de account.
+    if waha_direct_case?(message, inbox)
+      Waha::OutboundSpecialMessageService.new(message).perform
+      deliver_account_webhooks(payload, inbox.account)
+      return
+    end
+
     deliver_webhook_payloads(payload, inbox)
   end
 
   def message_updated(event)
     message = extract_message_and_account(event)[0]
     inbox = message.inbox
+    changed_attributes = extract_changed_attributes(event)
 
     return unless message.webhook_sendable?
 
-    payload = message.webhook_data.merge(event: __method__.to_s)
+    payload = message.webhook_data.merge(event: __method__.to_s, changed_attributes: changed_attributes)
+
+    # Channel::Api WAHA: location/contact já foi entregue via REST direto no
+    # message_created. Em updates de status (sent → delivered → read) NÃO
+    # devemos reenviar via REST nem entregar webhook (app externo renderiza
+    # como texto pseudo-card e duplica).
+    if waha_direct_case?(message, inbox)
+      deliver_account_webhooks(payload, inbox.account)
+      return
+    end
+
     deliver_webhook_payloads(payload, inbox)
   end
 
@@ -123,6 +143,14 @@ class WebhookListener < BaseListener
 
     WebhookJob.perform_later(inbox.channel.webhook_url, payload, :api_inbox_webhook,
                              delivery_id: SecureRandom.uuid)
+  end
+
+  def waha_direct_case?(message, inbox)
+    return false unless inbox&.channel_type == 'Channel::Api'
+    return false if inbox.waha_session_name.blank?
+
+    file_type = message.attachments.first&.file_type.to_s
+    %w[location contact].include?(file_type)
   end
 
   def deliver_webhook_payloads(payload, inbox)

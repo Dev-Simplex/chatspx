@@ -31,7 +31,8 @@ class Captain::ReplySuggestionService < Captain::BaseTaskService
   end
 
   def formatted_conversation
-    LlmFormatter::ConversationLlmFormatter.new(conversation).format(token_limit: TOKEN_LIMIT)
+    raw = LlmFormatter::ConversationLlmFormatter.new(conversation).format(token_limit: TOKEN_LIMIT)
+    Captain::PiiSanitizer.sanitize(raw)
   end
 
   def event_name

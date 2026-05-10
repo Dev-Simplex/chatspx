@@ -44,6 +44,7 @@ export const FEATURE_FLAGS = {
   COMPANIES: 'companies',
   ADVANCED_SEARCH: 'advanced_search',
   CONVERSATION_REQUIRED_ATTRIBUTES: 'conversation_required_attributes',
+  AI_ASSISTANT_V2: 'ai_assistant_v2',
 };
 
 export const PREMIUM_FEATURES = [

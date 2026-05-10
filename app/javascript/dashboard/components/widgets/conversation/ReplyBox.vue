@@ -1,6 +1,7 @@
 <script>
 import { defineAsyncComponent, useTemplateRef } from 'vue';
 import { mapGetters } from 'vuex';
+import { toast as sonnerToast } from 'vue-sonner';
 import { useAlert } from 'dashboard/composables';
 import { useUISettings } from 'dashboard/composables/useUISettings';
 import { useTrack } from 'dashboard/composables';
@@ -15,6 +16,8 @@ import ReplyBottomPanel from 'dashboard/components/widgets/WootWriter/ReplyBotto
 import CopilotReplyBottomPanel from 'dashboard/components/widgets/WootWriter/CopilotReplyBottomPanel.vue';
 import ArticleSearchPopover from 'dashboard/routes/dashboard/helpcenter/components/ArticleSearch/SearchPopover.vue';
 import CopilotEditorSection from './CopilotEditorSection.vue';
+import CopilotMenuBar from 'dashboard/components/widgets/WootWriter/CopilotMenuBar.vue';
+import { vOnClickOutside } from '@vueuse/components';
 import ReplyBoxBanner from './ReplyBoxBanner.vue';
 import QuotedEmailPreview from './QuotedEmailPreview.vue';
 import { REPLY_EDITOR_MODES } from 'dashboard/components/widgets/WootWriter/constants';
@@ -33,6 +36,14 @@ import ConversationAPI from 'dashboard/api/conversations';
 import WhatsappTemplates from './WhatsappTemplates/Modal.vue';
 import WhatsappWindowExpired from './WhatsappTemplates/WhatsappWindowExpired.vue';
 import ContentTemplates from './ContentTemplates/ContentTemplatesModal.vue';
+import CannedResponseModal from 'dashboard/components-next/canned-response/CannedResponseModal.vue';
+const LocationPickerModal = defineAsyncComponent(
+  () => import('dashboard/components-next/location/LocationPickerModal.vue')
+);
+const ShareContactModal = defineAsyncComponent(
+  () => import('dashboard/components-next/share-contact/ShareContactModal.vue')
+);
+import MessageApi from 'dashboard/api/inbox/message';
 import { MESSAGE_MAX_LENGTH } from 'shared/helpers/MessageTypeHelper';
 import inboxMixin, { INBOX_FEATURES } from 'shared/mixins/inboxMixin';
 import { trimContent, debounce, getRecipients } from '@chatwoot/utils';
@@ -54,8 +65,21 @@ import {
   getEffectiveChannelType,
 } from 'dashboard/helper/editorHelper';
 import { useCopilotReply } from 'dashboard/composables/useCopilotReply';
+import { useCaptain } from 'dashboard/composables/useCaptain';
 import { useKbd } from 'dashboard/composables/utils/useKbd';
+import { useAIOnboarding } from 'dashboard/composables/useAIOnboarding';
+import { useReducedMotion } from 'dashboard/composables/useReducedMotion';
+import { useAIAssistantFlag } from 'dashboard/components-next/ai-assistant/composables/useAIAssistantFlag';
+import { useAITour } from 'dashboard/components-next/ai-assistant/composables/useAITour';
+import AIOnboardingCoachmark from './AIOnboardingCoachmark.vue';
+import AISuggestionChip from 'dashboard/components-next/ai-assistant/AISuggestionChip.vue';
+import { CAPTAIN_ERROR_TYPES } from 'dashboard/composables/captain/constants';
 import { isFileTypeAllowedForChannel } from 'shared/helpers/FileHelper';
+import {
+  DropdownContainer,
+  DropdownBody,
+  DropdownItem,
+} from 'dashboard/components-next/dropdown-menu/base';
 
 import { LOCAL_STORAGE_KEYS } from 'dashboard/constants/localStorage';
 import { LocalStorage } from 'shared/helpers/localStorage';
@@ -90,10 +114,22 @@ export default {
     ContentTemplates,
     WhatsappTemplates,
     WhatsappWindowExpired,
+    CannedResponseModal,
     WootMessageEditor,
     QuotedEmailPreview,
     CopilotEditorSection,
     CopilotReplyBottomPanel,
+    CopilotMenuBar,
+    AIOnboardingCoachmark,
+    AISuggestionChip,
+    DropdownContainer,
+    DropdownBody,
+    DropdownItem,
+    LocationPickerModal,
+    ShareContactModal,
+  },
+  directives: {
+    OnClickOutside: vOnClickOutside,
   },
   mixins: [inboxMixin, fileUploadMixin, keyboardEventListenerMixins],
   props: {
@@ -114,8 +150,15 @@ export default {
 
     const replyEditor = useTemplateRef('replyEditor');
     const messageEditor = useTemplateRef('messageEditor');
+    const sparklesButtonRef = useTemplateRef('sparklesButtonRef');
     const copilot = useCopilotReply();
     const shortcutKey = useKbd(['$mod', '+', 'enter']);
+    const { captainTasksEnabled, processEvent: captainProcessEvent } =
+      useCaptain();
+    const aiOnboarding = useAIOnboarding();
+    const { prefersReducedMotion } = useReducedMotion();
+    const aiAssistantFlag = useAIAssistantFlag();
+    const aiTour = useAITour();
 
     return {
       uiSettings,
@@ -125,8 +168,15 @@ export default {
       fetchQuotedReplyFlagFromUISettings,
       replyEditor,
       messageEditor,
+      sparklesButtonRef,
       copilot,
       shortcutKey,
+      captainTasksEnabled,
+      captainProcessEvent,
+      aiOnboarding,
+      prefersReducedMotion,
+      aiAssistantFlag,
+      aiTour,
     };
   },
   data() {
@@ -146,12 +196,16 @@ export default {
       doAutoSaveDraft: () => {},
       showWhatsAppTemplatesModal: false,
       showContentTemplatesModal: false,
+      showCannedResponseModal: false,
+      showLocationPickerModal: false,
+      showShareContactModal: false,
       updateEditorSelectionWith: '',
       undefinedVariableMessage: '',
       showMentions: false,
       showUserMentions: false,
       showCannedMenu: false,
       showVariablesMenu: false,
+      showInlineCopilotMenu: false,
       newConversationModalActive: false,
       showArticleSearchPopover: false,
       hasRecordedAudio: false,
@@ -165,6 +219,11 @@ export default {
       isGhostSuggestionDismissed: false,
       remoteGhostSuggestion: '',
       ghostSuggestionFetchedFor: null,
+      // === Phase 5 — AI suggestion chip preview state ===
+      // null when no preview, or { text, isStreaming, errorType, action }
+      aiSuggestionChip: null,
+      aiSuggestionChipStartedAt: null,
+      aiSuggestionChipAbortController: null,
     };
   },
   computed: {
@@ -269,9 +328,16 @@ export default {
         }
         return this.$t('CONVERSATION.FOOTER.MESSAGING_RESTRICTED');
       }
+      // Email channels keep the verbose Chatwoot placeholder; everything else
+      // adopts the WhatsApp-style "Mensagem" / "Message" copy from REPLYBOX.
+      if (this.isAnEmailChannel) {
+        return this.isPrivate
+          ? this.$t('CONVERSATION.FOOTER.PRIVATE_MSG_INPUT')
+          : this.$t('CONVERSATION.REPLYBOX.PLACEHOLDER_EMAIL');
+      }
       return this.isPrivate
         ? this.$t('CONVERSATION.FOOTER.PRIVATE_MSG_INPUT')
-        : this.$t('CONVERSATION.FOOTER.MSG_INPUT');
+        : this.$t('CONVERSATION.REPLYBOX.PLACEHOLDER');
     },
     isMessageLengthReachingThreshold() {
       return this.message.length > this.maxLength - 50;
@@ -549,6 +615,96 @@ export default {
         !this.currentChat.can_reply
       );
     },
+    // ==== WhatsApp single-row composer bar (Phase C true rewrite) ====
+    // Renders a single horizontal pill [+ anexar][😀 emoji][input][🔒][✨][⛶][🎤/➤]
+    // when none of the legacy alternative editors are active.
+    useWaComposerBar() {
+      // Pill é sempre o root quando não é email e a janela WA não expirou.
+      // Conteúdo central (input, audio, copilot) é trocado DENTRO do pill —
+      // não cai mais no fluxo legacy quando audio/copilot são ativados.
+      return !this.isAnEmailChannel && !this.showWhatsappWindowExpired;
+    },
+    waMode() {
+      // Estados visuais possíveis dentro do pill.
+      if (this.showAudioRecorderEditor) return 'audio';
+      if (this.copilot.isActive.value) return 'copilot';
+      return 'input';
+    },
+    audioStateIcon() {
+      switch (this.recordingAudioState) {
+        case 'recording':
+        case 'playing':
+          return 'i-lucide-pause';
+        case 'recording_paused':
+        case 'paused':
+        case 'stopped':
+          return 'i-lucide-play';
+        case 'processing':
+          return 'i-lucide-square';
+        default:
+          return 'i-lucide-play';
+      }
+    },
+    audioStateTitle() {
+      if (this.recordingAudioState === 'processing') {
+        return this.$t('CONVERSATION.REPLYBOX.RECORD');
+      }
+      return ['recording', 'playing'].includes(this.recordingAudioState)
+        ? this.$t('CONVERSATION.REPLYBOX.RECORD')
+        : this.$t('CONVERSATION.REPLYBOX.RECORD');
+    },
+    hasMessageContent() {
+      const hasText = (this.message || '').trim().length > 0;
+      return hasText || this.hasAttachments || this.hasRecordedAudio;
+    },
+    canShowCopilotInline() {
+      return this.captainTasksEnabled && !this.isOnPrivateNote;
+    },
+    shouldShowAIOnboarding() {
+      // Coachmark + pulse só fazem sentido se o sparkles está visível e o
+      // menu inline ainda não foi aberto pela 1ª vez.
+      return (
+        this.canShowCopilotInline &&
+        this.aiOnboarding.shouldShowOnboarding.value &&
+        !this.showInlineCopilotMenu
+      );
+    },
+    sparklesOnboardingClass() {
+      if (!this.shouldShowAIOnboarding) return null;
+      return this.prefersReducedMotion
+        ? 'is-onboarding-static'
+        : 'is-onboarding';
+    },
+    sparklesAriaDescribedBy() {
+      return this.shouldShowAIOnboarding ? 'ai-onboarding-coachmark' : null;
+    },
+    waLockIcon() {
+      return this.isOnPrivateNote ? 'i-lucide-lock' : 'i-lucide-lock-open';
+    },
+    waLockTooltip() {
+      return this.isOnPrivateNote
+        ? this.$t('CONVERSATION.REPLYBOX.LOCK_OFF_TOOLTIP')
+        : this.$t('CONVERSATION.REPLYBOX.LOCK_ON_TOOLTIP');
+    },
+    showAttachInBar() {
+      if (this.isEditorDisabled) return false;
+      return (
+        this.showFileUpload ||
+        this.isOnPrivateNote ||
+        this.showWhatsappTemplates ||
+        this.showContentTemplates
+      );
+    },
+    showAudioInBar() {
+      if (this.isEditorDisabled) return false;
+      if (this.isALineChannel || this.isATiktokChannel) return false;
+      return (
+        this.isFeatureEnabledonAccount(
+          this.accountId,
+          FEATURE_FLAGS.VOICE_RECORDER
+        ) && this.showAudioRecorder
+      );
+    },
   },
   watch: {
     currentChat(conversation, oldConversation) {
@@ -560,6 +716,8 @@ export default {
         this.setCCAndToEmailsFromLastChat();
         // Reset Copilot editor state (includes cancelling ongoing generation)
         this.copilot.reset();
+        // Phase 5 — clear chip preview when navigating to a different conversation
+        this.discardAiSuggestionChip({ trackReason: 'context_switch' });
       }
 
       if (this.isOnPrivateNote) {
@@ -613,6 +771,14 @@ export default {
     replyType(updatedReplyType, oldReplyType) {
       this.setToDraft(this.conversationIdByRoute, oldReplyType);
       this.getFromDraft();
+      // WhatsApp-style toast confirming the mode flip
+      if (oldReplyType !== updatedReplyType) {
+        const key =
+          updatedReplyType === REPLY_EDITOR_MODES.NOTE
+            ? 'CONVERSATION.REPLYBOX.PRIVATE_NOTE_TOAST_ON'
+            : 'CONVERSATION.REPLYBOX.PRIVATE_NOTE_TOAST_OFF';
+        useAlert(this.$t(key));
+      }
     },
   },
 
@@ -949,6 +1115,10 @@ export default {
     openWhatsappTemplateModal() {
       this.showWhatsAppTemplatesModal = true;
     },
+    openScheduleMessage() {
+      if (!this.currentChat?.id) return;
+      emitter.emit('open-schedule-message-form');
+    },
     hideWhatsappTemplatesModal() {
       this.showWhatsAppTemplatesModal = false;
     },
@@ -963,6 +1133,66 @@ export default {
     },
     hideContentTemplatesModal() {
       this.showContentTemplatesModal = false;
+    },
+    openCannedResponseModal() {
+      this.showCannedResponseModal = true;
+    },
+    hideCannedResponseModal() {
+      this.showCannedResponseModal = false;
+    },
+    onCannedResponseSelect({ content }) {
+      this.hideCannedResponseModal();
+      if (typeof content === 'string') {
+        this.replaceText(content);
+      }
+    },
+    openLocationPicker() {
+      if (!this.currentChat?.id) return;
+      this.showLocationPickerModal = true;
+    },
+    hideLocationPicker() {
+      this.showLocationPickerModal = false;
+    },
+    async onLocationSelect({ latitude, longitude, address }) {
+      this.hideLocationPicker();
+      try {
+        await MessageApi.shareLocation(this.currentChat.id, {
+          latitude,
+          longitude,
+          address,
+        });
+        emitter.emit(BUS_EVENTS.SCROLL_TO_MESSAGE);
+        emitter.emit(BUS_EVENTS.MESSAGE_SENT);
+      } catch (error) {
+        const errorMessage =
+          error?.response?.data?.error || this.$t('CONVERSATION.MESSAGE_ERROR');
+        useAlert(errorMessage);
+      }
+    },
+    openShareContactModal() {
+      if (!this.currentChat?.id) return;
+      this.showShareContactModal = true;
+    },
+    hideShareContactModal() {
+      this.showShareContactModal = false;
+    },
+    async onShareContactSelect(payload) {
+      this.hideShareContactModal();
+      try {
+        await MessageApi.shareContact(this.currentChat.id, {
+          source: payload.source,
+          name: payload.name,
+          phone: payload.phone,
+          contact_id: payload.contactId,
+          agent_id: payload.agentId,
+        });
+        emitter.emit(BUS_EVENTS.SCROLL_TO_MESSAGE);
+        emitter.emit(BUS_EVENTS.MESSAGE_SENT);
+      } catch (error) {
+        const errorMessage =
+          error?.response?.data?.error || this.$t('CONVERSATION.MESSAGE_ERROR');
+        useAlert(errorMessage);
+      }
     },
     confirmOnSendReply() {
       if (this.isReplyButtonDisabled) {
@@ -1220,7 +1450,228 @@ export default {
       this.onFocus();
     },
     executeCopilotAction(action, data) {
+      // Phase 5 — when AI Assistant V2 is on, route inline rewrite/reply
+      // actions through the suggestion chip preview instead of swapping the
+      // composer in place. `ask_copilot` and `summarize` keep the legacy
+      // behaviour (delegate to useCopilotReply, which opens the panel).
+      const PANEL_BYPASS = ['ask_copilot', 'summarize'];
+      if (this.aiAssistantFlag?.value && !PANEL_BYPASS.includes(action)) {
+        this.startAiSuggestionChip(action, data || this.message || '');
+        return;
+      }
       this.copilot.execute(action, data);
+    },
+
+    // === Phase 5 — Suggestion chip lifecycle ===
+    async startAiSuggestionChip(action, data) {
+      // Cancel any in-flight chip generation before starting a new one.
+      this.discardAiSuggestionChip({ trackReason: 'replaced' });
+      const controller = new AbortController();
+      this.aiSuggestionChipAbortController = controller;
+      this.aiSuggestionChip = {
+        text: '',
+        isStreaming: true,
+        errorType: null,
+        action,
+      };
+      this.aiSuggestionChipStartedAt = Date.now();
+
+      useTrack('ai.action.triggered', {
+        action,
+        surface: 'chip',
+        conversation_id: this.currentChat?.id,
+      });
+
+      try {
+        const { message, errorType } = await this.captainProcessEvent(
+          action,
+          data,
+          { signal: controller.signal }
+        );
+
+        // Conversation switch / replaced: chip already cleared by watcher.
+        if (this.aiSuggestionChipAbortController !== controller) return;
+
+        if (errorType === CAPTAIN_ERROR_TYPES.ABORTED) return;
+        if (errorType === CAPTAIN_ERROR_TYPES.PRIVATE_MODE_BLOCKED) {
+          this.aiSuggestionChip = null;
+          return;
+        }
+        if (errorType === CAPTAIN_ERROR_TYPES.RATE_LIMIT) {
+          this.aiSuggestionChip = {
+            ...this.aiSuggestionChip,
+            isStreaming: false,
+            errorType: 'rate_limit',
+          };
+          return;
+        }
+        if (errorType === CAPTAIN_ERROR_TYPES.TIMEOUT) {
+          this.aiSuggestionChip = {
+            ...this.aiSuggestionChip,
+            isStreaming: false,
+            errorType: 'timeout',
+          };
+          return;
+        }
+        if (errorType === CAPTAIN_ERROR_TYPES.NETWORK) {
+          this.aiSuggestionChip = {
+            ...this.aiSuggestionChip,
+            isStreaming: false,
+            errorType: 'network',
+          };
+          return;
+        }
+        if (errorType === CAPTAIN_ERROR_TYPES.EMPTY_RESPONSE || !message) {
+          this.aiSuggestionChip = {
+            ...this.aiSuggestionChip,
+            isStreaming: false,
+            errorType: 'empty_response',
+          };
+          return;
+        }
+        if (errorType) {
+          this.aiSuggestionChip = {
+            ...this.aiSuggestionChip,
+            isStreaming: false,
+            errorType: 'captain_unstable',
+          };
+          return;
+        }
+
+        this.aiSuggestionChip = {
+          ...this.aiSuggestionChip,
+          text: message,
+          isStreaming: false,
+          errorType: null,
+        };
+      } catch (error) {
+        if (this.aiSuggestionChipAbortController !== controller) return;
+        if (controller.signal.aborted) return;
+        this.aiSuggestionChip = {
+          ...this.aiSuggestionChip,
+          isStreaming: false,
+          errorType: 'captain_unstable',
+        };
+      } finally {
+        if (this.aiSuggestionChipAbortController === controller) {
+          this.aiSuggestionChipAbortController = null;
+        }
+      }
+    },
+
+    handleAiSuggestionAccept(text) {
+      const elapsed = this.aiSuggestionChipStartedAt
+        ? Date.now() - this.aiSuggestionChipStartedAt
+        : 0;
+      const action = this.aiSuggestionChip?.action;
+      this.message = text || '';
+      this.setCopilotAcceptedMessage(this.message);
+      sonnerToast.success(
+        this.$t('CONVERSATION.AI_ASSISTANT_PANEL.SUGGESTION_CHIP.USED_TOAST')
+      );
+      useTrack('ai.suggestion.applied', {
+        action_id: action,
+        time_to_apply_ms: elapsed,
+        was_edited: false,
+        conversation_id: this.currentChat?.id,
+      });
+      this.aiSuggestionChip = null;
+      this.aiSuggestionChipStartedAt = null;
+      this.$nextTick(() => {
+        this.messageEditor?.focusEditorInputField?.('end');
+        // Trigger first-time tour after agent accepts a suggestion.
+        if (this.aiTour && !this.aiTour.isCompleted()) {
+          this.aiTour.startTour({ resume: false });
+        }
+      });
+    },
+
+    handleAiSuggestionEdit(text) {
+      const elapsed = this.aiSuggestionChipStartedAt
+        ? Date.now() - this.aiSuggestionChipStartedAt
+        : 0;
+      const action = this.aiSuggestionChip?.action;
+      this.message = text || '';
+      this.setCopilotAcceptedMessage(this.message);
+      sonnerToast(
+        this.$t('CONVERSATION.AI_ASSISTANT_PANEL.SUGGESTION_CHIP.EDIT_TOAST')
+      );
+      useTrack('ai.suggestion.edited', {
+        action_id: action,
+        time_to_edit_ms: elapsed,
+        conversation_id: this.currentChat?.id,
+      });
+      this.aiSuggestionChip = null;
+      this.aiSuggestionChipStartedAt = null;
+      this.$nextTick(() => {
+        this.messageEditor?.focusEditorInputField?.('end');
+        // Best-effort select-all so the agent can immediately overwrite.
+        if (typeof this.messageEditor?.selectAll === 'function') {
+          try {
+            this.messageEditor.selectAll();
+          } catch {
+            /* editor may not expose selectAll — focus is enough */
+          }
+        }
+      });
+    },
+
+    discardAiSuggestionChip({ trackReason = 'manual' } = {}) {
+      const action = this.aiSuggestionChip?.action;
+      const wasOpen = !!this.aiSuggestionChip;
+      if (this.aiSuggestionChipAbortController) {
+        try {
+          this.aiSuggestionChipAbortController.abort();
+        } catch {
+          /* ignore */
+        }
+        this.aiSuggestionChipAbortController = null;
+      }
+      this.aiSuggestionChip = null;
+      this.aiSuggestionChipStartedAt = null;
+      if (wasOpen && trackReason === 'manual') {
+        sonnerToast(
+          this.$t(
+            'CONVERSATION.AI_ASSISTANT_PANEL.SUGGESTION_CHIP.DISCARDED_TOAST'
+          )
+        );
+      }
+      if (wasOpen) {
+        useTrack('ai.suggestion.dismissed', {
+          action_id: action,
+          reason: trackReason,
+          conversation_id: this.currentChat?.id,
+        });
+      }
+    },
+
+    handleAiSuggestionDiscard() {
+      this.discardAiSuggestionChip({ trackReason: 'manual' });
+    },
+
+    handleAiSuggestionRetry() {
+      const action = this.aiSuggestionChip?.action;
+      if (!action) return;
+      this.startAiSuggestionChip(action, this.message || '');
+    },
+
+    handleAiSuggestionCancelStreaming() {
+      if (this.aiSuggestionChipAbortController) {
+        try {
+          this.aiSuggestionChipAbortController.abort();
+        } catch {
+          /* ignore */
+        }
+        this.aiSuggestionChipAbortController = null;
+      }
+      // Keep the chip visible but in a non-streaming, no-content state so the
+      // agent can retry or discard explicitly.
+      if (this.aiSuggestionChip) {
+        this.aiSuggestionChip = {
+          ...this.aiSuggestionChip,
+          isStreaming: false,
+        };
+      }
     },
     clearMessage() {
       this.message = '';
@@ -1253,6 +1704,72 @@ export default {
 
     toggleEmojiPicker() {
       this.showEmojiPicker = !this.showEmojiPicker;
+    },
+    togglePrivateNote() {
+      if (this.isReplyRestricted) return;
+      const next =
+        this.replyType === REPLY_EDITOR_MODES.NOTE
+          ? REPLY_EDITOR_MODES.REPLY
+          : REPLY_EDITOR_MODES.NOTE;
+      this.setReplyMode(next);
+    },
+    closeCopilot() {
+      // copilot.isActive é COMPUTED (showEditor || isGenerating), não pode
+      // ser setado direto. reset() já zera showEditor + isGenerating + content.
+      this.copilot.reset();
+    },
+    toggleInlineCopilotMenu() {
+      this.showInlineCopilotMenu = !this.showInlineCopilotMenu;
+      // Abrir o menu manualmente conta como onboarded (usuário já achou
+      // o botão), evita que o coachmark continue piscando depois.
+      if (
+        this.showInlineCopilotMenu &&
+        this.aiOnboarding?.shouldShowOnboarding?.value
+      ) {
+        this.aiOnboarding.markOnboarded('confirm');
+      }
+    },
+    closeInlineCopilotMenu() {
+      this.showInlineCopilotMenu = false;
+    },
+    handleAIOnboardingConfirm() {
+      this.aiOnboarding.markOnboarded('confirm');
+      sonnerToast.success(this.$t('COPILOT_ONBOARDING.TOAST_CONFIRMED'));
+    },
+    handleAIOnboardingDismiss(reason) {
+      // 'auto' marca como onboarded silenciosamente (sem toast).
+      // 'escape' / 'outside' / 'later' também marcam para não ficar piscando
+      // sempre — mas só 'confirm' dispara toast.
+      const method = reason === 'auto' ? 'auto' : 'true';
+      this.aiOnboarding.markOnboarded(method);
+    },
+    handleInlineCopilotAction(actionKey, content) {
+      this.showInlineCopilotMenu = false;
+      const data = content || this.message || '';
+
+      // Ações exploratórias (resposta longa) abrem o painel lateral do
+      // Chatwoot — não ativam o pill copilot inline, evitando dois UIs.
+      // Ações de rewrite/tone/grammar continuam inline porque substituem
+      // o texto do input.
+      const PANEL_ACTIONS = ['ask_copilot', 'summarize'];
+      if (PANEL_ACTIONS.includes(actionKey)) {
+        // Garante que qualquer copilot inline pendente seja resetado
+        this.copilot.reset();
+        // Abre o painel lateral existente
+        this.$store.dispatch('updateUISettings', {
+          uiSettings: {
+            is_contact_sidebar_open: false,
+            is_copilot_panel_open: true,
+          },
+        });
+        return;
+      }
+
+      this.executeCopilotAction(actionKey, data);
+    },
+    triggerWaFileUpload() {
+      const el = document.getElementById('conversationAttachment');
+      if (el) el.click();
     },
     toggleAudioRecorder() {
       this.isRecordingAudio = !this.isRecordingAudio;
@@ -1606,6 +2123,7 @@ export default {
       :characters-remaining="charactersRemaining"
       :pop-out-reply-box="popOutReplyBox"
       :editor-content="message"
+      :is-copilot-active="copilot.isActive.value"
       @set-reply-mode="setReplyMode"
       @close-popout="$emit('update:popOutReplyBox', false)"
       @toggle-popout="togglePopout"
@@ -1658,6 +2176,23 @@ export default {
           @switch-to-note="onExpiredSwitchToNote"
         />
         <template v-else>
+          <!-- Phase 5 — Copilot suggestion chip preview (above composer) -->
+          <div
+            v-if="aiSuggestionChip"
+            class="px-3 pt-2"
+            data-testid="ai-suggestion-chip-wrap"
+          >
+            <AISuggestionChip
+              :text="aiSuggestionChip.text"
+              :is-streaming="aiSuggestionChip.isStreaming"
+              :error-type="aiSuggestionChip.errorType"
+              @accept="handleAiSuggestionAccept"
+              @edit="handleAiSuggestionEdit"
+              @discard="handleAiSuggestionDiscard"
+              @cancel-streaming="handleAiSuggestionCancelStreaming"
+              @retry="handleAiSuggestionRetry"
+            />
+          </div>
           <ReplyToMessage
             v-if="shouldShowReplyToMessage"
             :message="inReplyTo"
@@ -1677,8 +2212,10 @@ export default {
             v-model:bcc-emails="bccEmails"
             v-model:to-emails="toEmails"
           />
+          <!-- Audio e Copilot legacy só rendem quando NÃO estamos no pill
+               (email ou WhatsApp expirado). No pill, ambos rendem inline. -->
           <AudioRecorder
-            v-if="showAudioRecorderEditor"
+            v-if="showAudioRecorderEditor && !useWaComposerBar"
             ref="audioRecorderInput"
             :audio-record-format="audioRecordFormat"
             @recorder-progress-changed="onRecordProgressChanged"
@@ -1687,7 +2224,11 @@ export default {
             @pause="recordingAudioState = 'paused'"
           />
           <CopilotEditorSection
-            v-if="copilot.isActive.value && !showAudioRecorderEditor"
+            v-if="
+              copilot.isActive.value &&
+              !showAudioRecorderEditor &&
+              !useWaComposerBar
+            "
             :show-copilot-editor="copilot.showEditor.value"
             :is-generating-content="copilot.isGenerating.value"
             :generated-content="copilot.generatedContent.value"
@@ -1701,7 +2242,7 @@ export default {
             @send="copilot.sendFollowUp"
           />
           <WootMessageEditor
-            v-else-if="!showAudioRecorderEditor"
+            v-else-if="!showAudioRecorderEditor && !useWaComposerBar"
             ref="messageEditor"
             v-model="message"
             :conversation-id="conversationId"
@@ -1710,7 +2251,7 @@ export default {
             :is-private="isOnPrivateNote"
             :placeholder="messagePlaceHolder"
             :update-selection-with="updateEditorSelectionWith"
-            :min-height="4"
+            :min-height="isAnEmailChannel ? 4 : 1"
             :disabled="isEditorDisabled"
             enable-variables
             :variables="messageVariables"
@@ -1768,6 +2309,296 @@ export default {
       </div>
     </Transition>
 
+    <!--
+      WhatsApp Web single-row composer (Phase C, take 2 — WA-fiel).
+      Mirrors the real WhatsApp Web layout: 4 visible elements only,
+        [+ anexar dropdown] [😀 emoji] [pill input com 🔒 lock dentro] [🎤 mic / ➤ send]
+      Copilot, Expand, Templates etc. movidos pro dropdown do +.
+    -->
+    <div
+      v-if="useWaComposerBar"
+      class="wa-composer-bar group"
+      :class="{
+        'wa-composer-bar--focused': isFocused,
+        'wa-composer-bar--disabled': isEditorDisabled,
+        [`wa-composer-bar--mode-${waMode}`]: true,
+      }"
+    >
+      <div
+        class="wa-composer-bar__pill"
+        :class="{
+          'wa-composer-bar__pill--private': isOnPrivateNote,
+          'wa-composer-bar__pill--copilot': waMode === 'copilot',
+          'wa-composer-bar__pill--audio': waMode === 'audio',
+        }"
+      >
+        <!-- MODO AUDIO: trash + waveform/duração + play-pause + send INLINE -->
+        <template v-if="waMode === 'audio'">
+          <button
+            type="button"
+            class="wa-composer-bar__icon"
+            :title="$t('CONVERSATION.REPLYBOX.DISCARD_AUDIO_RECORDING')"
+            @click="resetAudioRecorderInput"
+          >
+            <span class="i-lucide-trash-2 size-[20px]" />
+          </button>
+          <div class="wa-composer-bar__audio-area">
+            <AudioRecorder
+              ref="audioRecorderInput"
+              class="wa-composer-bar__audio-recorder"
+              :audio-record-format="audioRecordFormat"
+              @recorder-progress-changed="onRecordProgressChanged"
+              @finish-record="onFinishRecorder"
+              @play="recordingAudioState = 'playing'"
+              @pause="recordingAudioState = 'paused'"
+            />
+            <span class="wa-composer-bar__audio-duration">{{
+              recordingAudioDurationText
+            }}</span>
+          </div>
+          <button
+            type="button"
+            class="wa-composer-bar__icon"
+            :title="audioStateTitle"
+            :disabled="recordingAudioState === 'processing'"
+            @click="toggleAudioRecorderPlayPause"
+          >
+            <span :class="`${audioStateIcon} size-[20px]`" />
+          </button>
+          <button
+            type="button"
+            class="wa-composer-bar__send wa-send-btn"
+            :class="{ 'wa-composer-bar__send--note': isOnPrivateNote }"
+            :title="$t('CONVERSATION.REPLYBOX.SEND')"
+            @click="onSendReply"
+          >
+            <span class="i-lucide-send size-[18px]" />
+          </button>
+        </template>
+
+        <!-- MODO COPILOT: input do copilot inline + botão fechar -->
+        <template v-else-if="waMode === 'copilot'">
+          <button
+            type="button"
+            class="wa-composer-bar__icon"
+            :title="$t('GENERAL.DISCARD')"
+            @click="closeCopilot"
+          >
+            <span class="i-lucide-x size-[20px]" />
+          </button>
+          <div class="wa-composer-bar__input-wrap">
+            <CopilotEditorSection
+              class="wa-composer-bar__copilot-inline"
+              :show-copilot-editor="copilot.showEditor.value"
+              :is-generating-content="copilot.isGenerating.value"
+              :generated-content="copilot.generatedContent.value"
+              :is-popout="popOutReplyBox"
+              :placeholder="$t('CONVERSATION.FOOTER.COPILOT_MSG_INPUT')"
+              @focus="onFocus"
+              @blur="onBlur"
+              @clear-selection="clearEditorSelection"
+              @close="copilot.showEditor.value = false"
+              @content-ready="copilot.setContentReady"
+              @send="copilot.sendFollowUp"
+            />
+          </div>
+        </template>
+
+        <!-- MODO INPUT (default): + emoji input lock send/mic -->
+        <template v-else>
+          <DropdownContainer placement="top">
+            <template #trigger="{ toggle }">
+              <button
+                type="button"
+                class="wa-composer-bar__icon"
+                :title="$t('CONVERSATION.REPLYBOX.ATTACH')"
+                :disabled="isEditorDisabled"
+                @click="toggle"
+              >
+                <span class="i-lucide-plus size-[22px]" />
+              </button>
+            </template>
+            <DropdownBody class="min-w-[14rem]">
+              <DropdownItem
+                v-if="showFileUpload || isOnPrivateNote"
+                :label="$t('CONVERSATION.REPLYBOX.TIP_ATTACH_ICON')"
+                icon="i-lucide-paperclip"
+                :click="triggerWaFileUpload"
+              />
+              <DropdownItem
+                v-if="currentChat.id"
+                data-testid="replybox-schedule-message"
+                :label="$t('CONVERSATION.REPLYBOX.SCHEDULE_MESSAGE')"
+                icon="i-lucide-calendar-clock"
+                :click="openScheduleMessage"
+              />
+              <DropdownItem
+                v-if="showWhatsappTemplates"
+                :label="$t('CONVERSATION.FOOTER.WHATSAPP_TEMPLATES')"
+                icon="i-lucide-message-square-text"
+                :click="openWhatsappTemplateModal"
+              />
+              <DropdownItem
+                v-if="showContentTemplates"
+                label="Content Templates"
+                icon="i-lucide-message-square-text"
+                :click="openContentTemplateModal"
+              />
+              <!-- F1 — Resposta pronta (Slot 5). F2 (localização) abaixo. F3 (contato) abaixo. -->
+              <DropdownItem
+                v-if="!isPrivate"
+                data-testid="replybox-canned-response"
+                :label="$t('CONVERSATION.REPLYBOX.CANNED_RESPONSE_MENU')"
+                icon="i-lucide-message-square-quote"
+                :click="openCannedResponseModal"
+              />
+              <!-- F2 — Compartilhar localização (Slot 6) -->
+              <DropdownItem
+                v-if="!isPrivate"
+                data-testid="replybox-share-location"
+                :label="$t('CONVERSATION.LOCATION.MENU')"
+                icon="i-lucide-map-pin"
+                :click="openLocationPicker"
+              />
+              <!-- F3 — Compartilhar contato (Slot 7) -->
+              <DropdownItem
+                v-if="!isPrivate"
+                data-testid="replybox-share-contact"
+                :label="$t('CONVERSATION.SHARE_CONTACT.MENU')"
+                icon="i-lucide-user-round-plus"
+                :click="openShareContactModal"
+              />
+            </DropdownBody>
+          </DropdownContainer>
+          <button
+            type="button"
+            class="wa-composer-bar__icon"
+            :title="$t('CONVERSATION.REPLYBOX.EMOJI')"
+            :disabled="isEditorDisabled"
+            @click="toggleEmojiPicker"
+          >
+            <span class="i-lucide-smile size-[22px]" />
+          </button>
+          <div class="wa-composer-bar__input-wrap">
+            <WootMessageEditor
+              ref="messageEditor"
+              v-model="message"
+              :conversation-id="conversationId"
+              :editor-id="editorStateId"
+              class="wa-composer-bar__editor input popover-prosemirror-menu"
+              :is-private="isOnPrivateNote"
+              :placeholder="messagePlaceHolder"
+              :update-selection-with="updateEditorSelectionWith"
+              :min-height="1"
+              :disabled="isEditorDisabled"
+              enable-variables
+              :variables="messageVariables"
+              :signature="messageSignature"
+              allow-signature
+              :channel-type="channelType"
+              :medium="inbox.medium"
+              @typing-off="onTypingOff"
+              @typing-on="onTypingOn"
+              @focus="onFocus"
+              @blur="onBlur"
+              @toggle-user-mention="toggleUserMention"
+              @toggle-canned-menu="toggleCannedMenu"
+              @toggle-variables-menu="toggleVariablesMenu"
+              @clear-selection="clearEditorSelection"
+              @execute-copilot-action="executeCopilotAction"
+            />
+            <button
+              v-if="!isReplyRestricted"
+              type="button"
+              class="wa-composer-bar__lock"
+              :class="{ 'is-active': isOnPrivateNote }"
+              :title="waLockTooltip"
+              :aria-pressed="isOnPrivateNote"
+              @click="togglePrivateNote"
+            >
+              <span :class="`${waLockIcon} size-[18px]`" />
+            </button>
+            <div
+              v-if="canShowCopilotInline"
+              v-on-click-outside="closeInlineCopilotMenu"
+              class="wa-composer-bar__sparkles-wrap"
+            >
+              <button
+                ref="sparklesButtonRef"
+                type="button"
+                class="wa-composer-bar__sparkles"
+                :class="[
+                  { 'is-open': showInlineCopilotMenu },
+                  sparklesOnboardingClass,
+                ]"
+                :title="$t('CONVERSATION.SIDEBAR.COPILOT')"
+                :aria-pressed="showInlineCopilotMenu"
+                :aria-describedby="sparklesAriaDescribedBy"
+                data-ai-tour="sparkles-button"
+                data-testid="ai-button"
+                @click="toggleInlineCopilotMenu"
+              >
+                <span class="i-lucide-sparkles size-[18px]" />
+              </button>
+              <Transition name="wa-sparkles-menu">
+                <CopilotMenuBar
+                  v-if="showInlineCopilotMenu"
+                  class="wa-composer-bar__sparkles-menu"
+                  :has-selection="false"
+                  :editor-content="message"
+                  :conversation-id="conversationId"
+                  :has-attachment="!!hasAttachments"
+                  @execute-copilot-action="handleInlineCopilotAction"
+                />
+              </Transition>
+              <AIOnboardingCoachmark
+                v-if="shouldShowAIOnboarding"
+                :anchor-ref="sparklesButtonRef"
+                @confirm="handleAIOnboardingConfirm"
+                @dismiss="handleAIOnboardingDismiss"
+              />
+            </div>
+          </div>
+          <Transition name="wa-action" mode="out-in">
+            <button
+              v-if="hasMessageContent"
+              key="send"
+              type="button"
+              class="wa-composer-bar__send wa-send-btn"
+              :class="{
+                'wa-composer-bar__send--note': isOnPrivateNote,
+                'is-disabled': isReplyButtonDisabled,
+              }"
+              :title="replyButtonLabel"
+              :disabled="isReplyButtonDisabled"
+              @click="onSendReply"
+            >
+              <span class="i-lucide-send size-[18px]" />
+            </button>
+            <button
+              v-else-if="showAudioInBar"
+              key="mic"
+              type="button"
+              class="wa-composer-bar__icon wa-composer-bar__icon--mic"
+              :title="$t('CONVERSATION.REPLYBOX.RECORD')"
+              @click="toggleAudioRecorder"
+            >
+              <span class="i-lucide-mic size-[22px]" />
+            </button>
+            <button
+              v-else
+              key="send-empty"
+              type="button"
+              class="wa-composer-bar__send is-disabled"
+              disabled
+            >
+              <span class="i-lucide-send size-[18px]" />
+            </button>
+          </Transition>
+        </template>
+      </div>
+    </div>
+
     <Transition
       v-if="!showWhatsappWindowExpired"
       mode="out-in"
@@ -1787,6 +2618,7 @@ export default {
       />
       <ReplyBottomPanel
         v-else
+        v-show="!useWaComposerBar"
         key="reply-bottom-panel"
         :conversation-id="conversationId"
         :enable-multiple-file-upload="enableMultipleFileUpload"
@@ -1839,6 +2671,26 @@ export default {
       @close="hideContentTemplatesModal"
       @on-send="onSendContentTemplateReply"
       @cancel="hideContentTemplatesModal"
+    />
+
+    <CannedResponseModal
+      :show="showCannedResponseModal"
+      @close="hideCannedResponseModal"
+      @select="onCannedResponseSelect"
+    />
+
+    <LocationPickerModal
+      v-if="showLocationPickerModal"
+      :show="showLocationPickerModal"
+      @close="hideLocationPicker"
+      @select="onLocationSelect"
+    />
+
+    <ShareContactModal
+      v-if="showShareContactModal"
+      :show="showShareContactModal"
+      @close="hideShareContactModal"
+      @select="onShareContactSelect"
     />
 
     <woot-confirm-modal

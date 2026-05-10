@@ -125,11 +125,16 @@ class Attachment < ApplicationRecord
   end
 
   def location_metadata
+    # Defensive defaults: external integrations (e.g. WAHA Chatwoot App) call
+    # `.split` on these fields and crash when null. Empty strings are safe.
     {
       coordinates_lat: coordinates_lat,
       coordinates_long: coordinates_long,
-      fallback_title: fallback_title,
-      data_url: external_url
+      fallback_title: fallback_title.to_s,
+      data_url: external_url.to_s,
+      thumb_url: '',
+      extension: '',
+      file_size: 0
     }
   end
 
@@ -150,9 +155,14 @@ class Attachment < ApplicationRecord
   end
 
   def contact_metadata
+    # Defensive defaults — same rationale as location_metadata.
     {
-      fallback_title: fallback_title,
-      meta: meta || {}
+      fallback_title: fallback_title.to_s,
+      meta: meta || {},
+      data_url: '',
+      thumb_url: '',
+      extension: 'vcf',
+      file_size: 0
     }
   end
 

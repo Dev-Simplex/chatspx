@@ -1,6 +1,6 @@
 # frozen_string_literal: true
 
-class Waha::ApiService
+class Waha::ApiService # rubocop:disable Metrics/ClassLength
   class Error < StandardError; end
   class ConnectionError < Error; end
   class AuthenticationError < Error; end
@@ -89,6 +89,62 @@ class Waha::ApiService
 
   def get_groups(session_name)
     get("/api/#{session_name}/groups")
+  end
+
+  # Sends a WhatsApp location message via WAHA REST.
+  # Used as fallback path for outbound location messages when the standard
+  # SendReplyJob pipeline doesn't carry the coordinates through.
+  # WAHA docs: https://waha.devlike.pro/docs/how-to/send-messages/#location
+  def send_location(session:, chat_id:, latitude:, longitude:, accuracy: nil)
+    payload = {
+      session: session,
+      chatId: chat_id,
+      latitude: latitude,
+      longitude: longitude
+    }
+    payload[:accuracy] = accuracy if accuracy
+    post('/api/sendLocation', payload)
+  end
+
+  # Send a saved contact card (vCard) via WAHA when we have the WhatsApp JID
+  # (contactId) of the person being shared. WAHA renders this as a tappable
+  # contact card in the recipient's WhatsApp.
+  #
+  # WAHA payload uses `contactsIds` (plural ARRAY) — confirmed via official docs:
+  # https://waha.devlike.pro/docs/how-to/send-messages/#contact-vcard
+  def send_contact_vcard(session:, chat_id:, contact_ids:)
+    ids = Array(contact_ids).compact.reject(&:blank?)
+    payload = { session: session, chatId: chat_id, contactsIds: ids }
+    post('/api/sendContactVcard', payload)
+  end
+
+  # Fallback path for "Telefone livre": we have a name + raw phone number but no
+  # WhatsApp JID. We build a vCard 3.0 string and ship it through /api/sendText.
+  # The recipient sees the vCard inline; long-press still allows saving on most
+  # WhatsApp clients.
+  def send_text_with_vcard(session:, chat_id:, name:, phone:)
+    payload = {
+      session: session,
+      chatId: chat_id,
+      text: build_vcard(name: name, phone: phone)
+    }
+    post('/api/sendText', payload)
+  end
+
+  # Builds a minimal vCard 3.0 (FN + TEL CELL). Strips CR/LF from name and
+  # normalizes phone to E.164-ish. Public so callers (and specs) can verify the
+  # exact wire format without going through HTTP.
+  def build_vcard(name:, phone:)
+    safe_name = name.to_s.tr("\r\n", ' ').strip
+    digits = phone.to_s.gsub(/[^\d+]/, '')
+    digits = "+#{digits}" unless digits.start_with?('+')
+    [
+      'BEGIN:VCARD',
+      'VERSION:3.0',
+      "FN:#{safe_name}",
+      "TEL;TYPE=CELL:#{digits}",
+      'END:VCARD'
+    ].join("\n")
   end
 
   def create_chatwoot_app(session_name:, config:)

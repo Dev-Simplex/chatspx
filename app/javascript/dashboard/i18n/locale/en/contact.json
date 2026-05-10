@@ -17,7 +17,9 @@
     "IP_ADDRESS": "IP Address",
     "CREATED_AT_LABEL": "Created",
     "NEW_MESSAGE": "New message",
+    "NEW_MESSAGE_SHORT": "Message",
     "CALL": "Call",
+    "CALL_SHORT": "Call",
     "CALL_INITIATED": "Calling the contact…",
     "CALL_FAILED": "Unable to start the call. Please try again.",
     "VOICE_INBOX_PICKER": {
@@ -44,6 +46,7 @@
       }
     },
     "MERGE_CONTACT": "Merge contact",
+    "MERGE_CONTACT_SHORT": "Merge",
     "CONTACT_ACTIONS": "Contact actions",
     "MUTE_CONTACT": "Block Contact",
     "UNMUTE_CONTACT": "Unblock Contact",
@@ -60,11 +63,13 @@
   },
   "EDIT_CONTACT": {
     "BUTTON_LABEL": "Edit Contact",
+    "BUTTON_LABEL_SHORT": "Edit",
     "TITLE": "Edit contact",
     "DESC": "Edit contact details"
   },
   "DELETE_CONTACT": {
     "BUTTON_LABEL": "Delete Contact",
+    "BUTTON_LABEL_SHORT": "Delete",
     "TITLE": "Delete contact",
     "DESC": "Delete contact details",
     "CONFIRM": {

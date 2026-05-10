@@ -20,17 +20,19 @@ class Captain::FollowUpService < Captain::BaseTaskService
     # Build context-aware system prompt
     system_prompt = build_follow_up_system_prompt(follow_up_context)
 
-    # Build full message array (convert history from string keys to symbol keys)
+    # Build full message array (convert history from string keys to symbol keys).
+    # Sanitize each leg of the conversation — defense-in-depth to keep PII out
+    # of upstream LLM prompts even if the frontend filter is bypassed.
     history = follow_up_context['conversation_history'].to_a.map do |msg|
-      { role: msg['role'], content: msg['content'] }
+      { role: msg['role'], content: Captain::PiiSanitizer.sanitize(msg['content']) }
     end
 
     messages = [
       { role: 'system', content: system_prompt },
-      { role: 'user', content: follow_up_context['original_context'] },
-      { role: 'assistant', content: follow_up_context['last_response'] },
+      { role: 'user', content: Captain::PiiSanitizer.sanitize(follow_up_context['original_context']) },
+      { role: 'assistant', content: Captain::PiiSanitizer.sanitize(follow_up_context['last_response']) },
       *history,
-      { role: 'user', content: user_message }
+      { role: 'user', content: Captain::PiiSanitizer.sanitize(user_message) }
     ]
 
     response = make_api_call(model: GPT_MODEL, messages: messages)

@@ -102,6 +102,22 @@ class TasksAPI extends ApiClient {
       { signal }
     );
   }
+
+  /**
+   * Analyzes the customer's emotional tone in the most recent messages.
+   * @param {string} conversationId - The conversation ID.
+   * @param {AbortSignal} [signal] - AbortSignal to cancel the request.
+   * @returns {Promise} A promise that resolves with the sentiment analysis.
+   */
+  sentimentAnalysis(conversationId, signal) {
+    return axios.post(
+      `${this.url}/sentiment_analysis`,
+      {
+        conversation_display_id: conversationId,
+      },
+      { signal }
+    );
+  }
 }
 
 export default new TasksAPI();

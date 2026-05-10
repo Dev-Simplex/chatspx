@@ -32,6 +32,42 @@ RSpec.describe Captain::FollowUpService do
     allow(account).to receive(:feature_enabled?).with('captain_tasks').and_return(true)
   end
 
+  describe '#perform — PII sanitization' do
+    let(:follow_up_context) do
+      {
+        'event_name' => 'professional',
+        'original_context' => 'meu CPF é 123.456.789-09',
+        'last_response' => 'CNPJ 12.345.678/0001-90 confirmado',
+        'conversation_history' => [
+          { 'role' => 'user', 'content' => 'cartão 4111 1111 1111 1111' }
+        ]
+      }
+    end
+    let(:user_message) { 'liga 11912345678' }
+
+    def captured_contents
+      captured = nil
+      allow(service).to receive(:make_api_call) do |args|
+        captured = args[:messages].map { |m| m[:content] }.join(' ')
+        { message: 'Refined' }
+      end
+      service.perform
+      captured
+    end
+
+    it 'redacts PII masks across all message legs' do
+      contents = captured_contents
+      expect(contents).to include('[CPF]', '[CNPJ]', '[CARTAO]', '[TELEFONE]')
+    end
+
+    it 'strips raw PII from message bodies' do
+      contents = captured_contents
+      expect(contents).not_to include('123.456.789-09')
+      expect(contents).not_to include('12.345.678/0001-90')
+      expect(contents).not_to include('4111 1111 1111 1111')
+    end
+  end
+
   describe '#perform' do
     context 'when conversation_display_id is provided' do
       it 'resolves conversation for instrumentation' do

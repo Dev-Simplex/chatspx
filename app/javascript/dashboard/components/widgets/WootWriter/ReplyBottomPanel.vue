@@ -331,7 +331,7 @@ export default {
 </script>
 
 <template>
-  <div class="flex justify-between p-3" :class="wrapClass">
+  <div class="reply-bottom-panel flex justify-between p-3" :class="wrapClass">
     <div class="left-wrap">
       <NextButton
         v-if="!isEditorDisabled"

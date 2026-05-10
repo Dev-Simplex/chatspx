@@ -17,7 +17,9 @@
     "IP_ADDRESS": "Endereço IP",
     "CREATED_AT_LABEL": "Criado",
     "NEW_MESSAGE": "Nova Mensagem",
+    "NEW_MESSAGE_SHORT": "Mensagem",
     "CALL": "Chamada",
+    "CALL_SHORT": "Ligar",
     "CALL_INITIATED": "Efetuando chamada…",
     "CALL_FAILED": "Não foi possível iniciar a chamada. Tente novamente.",
     "VOICE_INBOX_PICKER": {
@@ -44,6 +46,7 @@
       }
     },
     "MERGE_CONTACT": "Mesclar contatos",
+    "MERGE_CONTACT_SHORT": "Mesclar",
     "CONTACT_ACTIONS": "Ações de contatos",
     "MUTE_CONTACT": "Bloquear Contato",
     "UNMUTE_CONTACT": "Desbloquear Contato",
@@ -60,11 +63,13 @@
   },
   "EDIT_CONTACT": {
     "BUTTON_LABEL": "Editar Contato",
+    "BUTTON_LABEL_SHORT": "Editar",
     "TITLE": "Editar contato",
     "DESC": "Alterar detalhes do contato"
   },
   "DELETE_CONTACT": {
     "BUTTON_LABEL": "Excluir Contato",
+    "BUTTON_LABEL_SHORT": "Excluir",
     "TITLE": "Excluir contato",
     "DESC": "Excluir detalhes do contato",
     "CONFIRM": {

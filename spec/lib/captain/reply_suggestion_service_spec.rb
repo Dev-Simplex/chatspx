@@ -44,6 +44,18 @@ RSpec.describe Captain::ReplySuggestionService do
       expect(user_message[:content]).to include('User: I need help')
     end
 
+    it 'redacts PII from the conversation context before sending' do
+      create(:message, conversation: conversation, message_type: :incoming, content: 'meu CPF é 123.456.789-09 e cartão 4111 1111 1111 1111')
+
+      service.perform
+
+      user_message = captured_messages.find { |m| m[:role] == 'user' }
+      expect(user_message[:content]).to include('[CPF]')
+      expect(user_message[:content]).to include('[CARTAO]')
+      expect(user_message[:content]).not_to include('123.456.789-09')
+      expect(user_message[:content]).not_to include('4111 1111 1111 1111')
+    end
+
     context 'with chat channel' do
       it 'uses chat-specific instructions' do
         service.perform

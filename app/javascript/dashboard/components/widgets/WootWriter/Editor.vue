@@ -345,6 +345,25 @@ function focusEditorInputField(pos = 'end') {
   editorView.focus();
 }
 
+function selectAll() {
+  // Select the full document so the agent can immediately overwrite the
+  // applied AI suggestion. Mimics Ctrl+A. We build a selection from start
+  // to end using `Selection.atStart`/`atEnd` chained via `tr.setSelection`
+  // (works because PM's default Selection class returned by atStart/atEnd
+  // is a TextSelection whose constructor accepts ResolvedPos pairs).
+  if (!editorView) return;
+  const { tr, doc } = editorView.state;
+  const startSel = Selection.atStart(doc);
+  const endSel = Selection.atEnd(doc);
+  // Both `startSel` and `endSel` are TextSelection instances (they come from
+  // PM's default behaviour). We can use the constructor directly to build
+  // a selection spanning both anchors.
+  // eslint-disable-next-line new-cap
+  const fullSelection = new endSel.constructor(startSel.$anchor, endSel.$head);
+  editorView.dispatch(tr.setSelection(fullSelection));
+  editorView.focus();
+}
+
 function isBodyEmpty(content) {
   // if content is undefined, we assume that the body is empty
   if (!content) return true;
@@ -830,7 +849,7 @@ onMounted(() => {
   }
 });
 
-defineExpose({ focusEditorInputField });
+defineExpose({ focusEditorInputField, selectAll });
 
 // BUS Event to insert text or markdown into the editor at the
 // current cursor position.

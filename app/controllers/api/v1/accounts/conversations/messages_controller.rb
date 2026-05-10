@@ -1,10 +1,38 @@
-class Api::V1::Accounts::Conversations::MessagesController < Api::V1::Accounts::Conversations::BaseController
+class Api::V1::Accounts::Conversations::MessagesController < Api::V1::Accounts::Conversations::BaseController # rubocop:disable Metrics/ClassLength
   before_action :ensure_api_inbox, only: :update, unless: :content_update?
 
   WAHA_ECHO_MARKER_API = 'Enviado via API'.freeze
   WAHA_ECHO_MARKER_EDITED = 'Editado no WhatsApp'.freeze
+  # Echo markers para special messages que o app WAHA externo replica como
+  # mensagem de texto formatada (location, contact, etc). Quando o conteúdo bate
+  # com WAHA_ECHO_MARKER_API + qualquer um destes, a criação é suprimida — o
+  # painel já tem a Message original (com attachment) criada pela própria UI.
+  WAHA_ECHO_MARKER_LOCATION = 'Localização compartilhada'.freeze
+  WAHA_ECHO_MARKER_CONTACT = 'Contato compartilhado'.freeze
+  WAHA_ECHO_MARKERS_SPECIAL = [
+    WAHA_ECHO_MARKER_EDITED,
+    WAHA_ECHO_MARKER_LOCATION,
+    WAHA_ECHO_MARKER_CONTACT
+  ].freeze
   WAHA_ERROR_MARKER = 'Não foi possível receber uma mensagem do WhatsApp'.freeze
   WAHA_ERROR_EVENT = 'message.edited'.freeze
+
+  # Markers de mensagens-erro técnicas postadas pelo app WAHA externo
+  # (chatwoot-waha-app, Node.js fora do nosso repo) quando ele tem erro
+  # interno (retry/timeout/timestamp NaN) e cospe o stacktrace via API do
+  # Chatwoot. Suprimidos para não poluir o painel do agente.
+  WAHA_ERROR_MARKERS = [
+    '⚠️ Não foi possível',
+    '❌ Não há mais tentativas',
+    'ChatWoot API Error',
+    'API Error: Request failed',
+    'error: insert into',
+    '0NaN-NaN-NaN',
+    'Invalid URL',
+    'ERR_INVALID_URL',
+    'app_chatwoot_chatwoot_messages',
+    'Tentativa: 3 / 3'
+  ].freeze
 
   def index
     @include_meta = include_meta?
@@ -14,8 +42,9 @@ class Api::V1::Accounts::Conversations::MessagesController < Api::V1::Accounts::
   end
 
   def create
-    return render json: { status: 'suppressed' }, status: :ok if waha_edit_echo?
+    return render json: { status: 'suppressed' }, status: :ok if waha_echo?
     return render json: { status: 'suppressed' }, status: :ok if waha_edit_error_notification?
+    return render json: { status: 'suppressed', reason: 'waha_error_message' }, status: :ok if waha_error_message?(params[:content])
     return render_whatsapp_invalid_error if whatsapp_number_invalid_for_outgoing?
 
     user = Current.user || @resource
@@ -80,6 +109,88 @@ class Api::V1::Accounts::Conversations::MessagesController < Api::V1::Accounts::
     render json: { starred: message.starred }
   end
 
+  def share_location # rubocop:disable Metrics/AbcSize, Metrics/MethodLength
+    latitude = location_params[:latitude].to_f
+    longitude = location_params[:longitude].to_f
+    address = location_params[:address].to_s.presence
+
+    return render_could_not_create_error('Coordinates are required') if latitude.zero? && longitude.zero?
+
+    user = Current.user || @resource
+
+    # content fica vazio: o LocationBubble nativo (frontend) renderiza só o
+    # mapa + endereço como subtítulo via attachment.fallback_title. O
+    # additional_attributes['location']['address'] é redundância pra
+    # resiliência futura (ex: render fora do attachment).
+    location_extras = address ? { 'location' => { 'address' => address } } : {}
+
+    @message = ActiveRecord::Base.transaction do
+      msg = @conversation.messages.create!(
+        account_id: @conversation.account_id,
+        inbox_id: @conversation.inbox_id,
+        message_type: :outgoing,
+        content: '',
+        additional_attributes: location_extras,
+        sender: user
+      )
+
+      msg.attachments.create!(
+        account_id: @conversation.account_id,
+        file_type: :location,
+        coordinates_lat: latitude,
+        coordinates_long: longitude,
+        fallback_title: address
+      )
+
+      msg
+    end
+
+    render partial: 'api/v1/models/message', formats: [:json], locals: { message: @message }
+  rescue ActiveRecord::RecordInvalid, ArgumentError => e
+    render_could_not_create_error(e.message)
+  end
+
+  # F3 — Compartilhar contato.
+  # Resolves name/phone from one of three sources (agent | contact | manual),
+  # then creates an outgoing Message carrying an Attachment of file_type=:contact.
+  # The downstream WhatsApp send pipeline (WAHA Channel::Api) is responsible
+  # for shipping the vCard to the recipient.
+  def share_contact # rubocop:disable Metrics/MethodLength
+    source = share_contact_params[:source].to_s
+    return render_could_not_create_error('Invalid source') unless %w[agent contact manual].include?(source)
+
+    name, phone, contact_ref = resolve_share_contact_payload(source)
+
+    return render_could_not_create_error('Phone is required') if phone.blank?
+    return render_could_not_create_error('Name is required') if name.blank?
+
+    user = Current.user || @resource
+
+    @message = ActiveRecord::Base.transaction do
+      msg = @conversation.messages.create!(
+        account_id: @conversation.account_id,
+        inbox_id: @conversation.inbox_id,
+        message_type: :outgoing,
+        content: "#{name} — #{phone}",
+        sender: user,
+        additional_attributes: { contact: { name: name, phone: phone, source: source, ref: contact_ref }.compact }
+      )
+
+      msg.attachments.create!(
+        account_id: @conversation.account_id,
+        file_type: :contact,
+        fallback_title: phone,
+        meta: { firstName: name, lastName: '' }
+      )
+
+      msg
+    end
+
+    render partial: 'api/v1/models/message', formats: [:json], locals: { message: @message }
+  rescue ActiveRecord::RecordInvalid, ArgumentError => e
+    render_could_not_create_error(e.message)
+  end
+
   private
 
   def enqueue_waha_status_sync
@@ -102,6 +213,41 @@ class Api::V1::Accounts::Conversations::MessagesController < Api::V1::Accounts::
 
   def permitted_params
     params.permit(:id, :target_language, :status, :external_error, :content)
+  end
+
+  def location_params
+    params.permit(:latitude, :longitude, :address)
+  end
+
+  def share_contact_params
+    params.permit(:source, :name, :phone, :contact_id, :agent_id)
+  end
+
+  # Returns [name, phone_string, ref] tuple. ref is the underlying record id
+  # (or nil for "manual"). Phone is normalized to keep digits and a leading "+".
+  def resolve_share_contact_payload(source) # rubocop:disable Metrics/AbcSize
+    case source
+    when 'contact'
+      contact = Current.account.contacts.find_by(id: share_contact_params[:contact_id])
+      raise ActiveRecord::RecordNotFound, 'Contact not found' if contact.nil?
+
+      [contact.name.to_s, normalize_share_phone(contact.phone_number), contact.id]
+    when 'agent'
+      agent = Current.account.users.find_by(id: share_contact_params[:agent_id])
+      raise ActiveRecord::RecordNotFound, 'Agent not found' if agent.nil?
+
+      raw_phone = share_contact_params[:phone].presence
+      [agent.name.to_s, normalize_share_phone(raw_phone), agent.id]
+    else # 'manual'
+      [share_contact_params[:name].to_s.strip, normalize_share_phone(share_contact_params[:phone]), nil]
+    end
+  end
+
+  def normalize_share_phone(value)
+    digits = value.to_s.gsub(/[^\d+]/, '')
+    return '' if digits.blank?
+
+    digits.start_with?('+') ? digits : "+#{digits}"
   end
 
   def content_update?
@@ -135,12 +281,14 @@ class Api::V1::Accounts::Conversations::MessagesController < Api::V1::Accounts::
     render_could_not_create_error(I18n.t('errors.contacts.whatsapp_validation.not_registered'))
   end
 
-  def waha_edit_echo?
+  def waha_echo?
     inbox = @conversation.inbox
     return false unless inbox.channel_type == 'Channel::Api' && inbox.waha_session_name.present?
 
     content = params[:content].to_s
-    content.include?(WAHA_ECHO_MARKER_API) && content.include?(WAHA_ECHO_MARKER_EDITED)
+    return false unless content.include?(WAHA_ECHO_MARKER_API)
+
+    WAHA_ECHO_MARKERS_SPECIAL.any? { |marker| content.include?(marker) }
   end
 
   def waha_edit_error_notification?
@@ -150,6 +298,20 @@ class Api::V1::Accounts::Conversations::MessagesController < Api::V1::Accounts::
     content = params[:content].to_s
     content.include?(WAHA_ERROR_MARKER) &&
       content.include?(WAHA_ERROR_EVENT)
+  end
+
+  # Suprime mensagens postadas pelo app WAHA externo quando ele tem erro
+  # interno (retry/timeout/timestamp NaN). O app posta esses erros como Message
+  # via API do Chatwoot, poluindo o painel. A mensagem real do WhatsApp já
+  # chegou (ou não) por outro caminho — esse texto é só ruído técnico.
+  # Exige >= 2 markers pra evitar falso-positivo (ex: agente digitando uma
+  # frase legítima que casualmente contém um dos markers).
+  def waha_error_message?(content)
+    text = content.to_s
+    return false if text.blank?
+
+    matches = WAHA_ERROR_MARKERS.count { |marker| text.include?(marker) }
+    matches >= 2
   end
 
   def whatsapp_inbox?

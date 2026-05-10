@@ -86,6 +86,27 @@ class MessageApi extends ApiClient {
     return axios.delete(`${this.url}/${conversationID}/messages/${messageId}`);
   }
 
+  shareLocation(conversationId, { latitude, longitude, address }) {
+    return axios.post(`${this.url}/${conversationId}/messages/share_location`, {
+      latitude,
+      longitude,
+      address,
+    });
+  }
+
+  shareContact(
+    conversationId,
+    { source, name, phone, contact_id: contactId, agent_id: agentId }
+  ) {
+    return axios.post(`${this.url}/${conversationId}/messages/share_contact`, {
+      source,
+      name,
+      phone,
+      contact_id: contactId,
+      agent_id: agentId,
+    });
+  }
+
   updateContent(conversationId, messageId, content) {
     return axios.patch(`${this.url}/${conversationId}/messages/${messageId}`, {
       content,

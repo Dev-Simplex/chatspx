@@ -6,6 +6,7 @@ import { useUISettings } from 'dashboard/composables/useUISettings';
 import { computed, ref } from 'vue';
 import { useMapGetter } from 'dashboard/composables/store';
 import { useKeyboardEvents } from 'dashboard/composables/useKeyboardEvents';
+import { useEmitter } from 'dashboard/composables/emitter';
 
 const { updateUISettings } = useUISettings();
 
@@ -46,14 +47,14 @@ const handleConversationSidebarToggle = () => {
   });
 };
 
-const handleScheduleMessageClick = () => {
-  if (!hasActiveConversation.value) return;
-  showScheduledMessageForm.value = true;
-};
-
 const closeScheduledMessageForm = () => {
   showScheduledMessageForm.value = false;
 };
+
+useEmitter('open-schedule-message-form', () => {
+  if (!hasActiveConversation.value) return;
+  showScheduledMessageForm.value = true;
+});
 
 const keyboardEvents = {
   'Alt+KeyO': {
@@ -79,20 +80,6 @@ useKeyboardEvents(keyboardEvents);
       }"
       icon="i-lucide-user"
       @click="handleConversationSidebarToggle"
-    />
-    <Button
-      v-tooltip.top="$t('CONVERSATION.SIDEBAR.SCHEDULE')"
-      data-testid="conversation-sidebar-schedule-toggle"
-      ghost
-      slate
-      sm
-      class="!rounded-full transition-all duration-[250ms] ease-out active:!scale-95 active:!brightness-105 active:duration-75"
-      :class="{
-        'bg-n-alpha-2 active:shadow-sm': showScheduledMessageForm,
-      }"
-      icon="i-lucide-calendar-clock"
-      :disabled="!hasActiveConversation"
-      @click="handleScheduleMessageClick"
     />
   </ButtonGroup>
   <ScheduledMessageForm

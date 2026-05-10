@@ -262,9 +262,9 @@ watch(
   justify-content: space-between;
   gap: 0.5rem;
   border-radius: 0.75rem;
-  border: 1px solid var(--n-weak);
-  background-color: var(--n-solid-2, #1f2937);
-  color: var(--n-slate-12);
+  border: 1px solid rgb(var(--border-weak));
+  background-color: rgb(var(--solid-2));
+  color: rgb(var(--slate-12));
   padding: 0 0.75rem;
   font-size: 0.875rem;
   line-height: 1.25rem;
@@ -278,9 +278,9 @@ watch(
 
 .kanban-filter-select-trigger:focus-visible {
   outline: none;
-  border-color: var(--n-blue-9);
-  box-shadow: 0 0 0 2px var(--n-blue-5);
-  background: var(--n-solid-1);
+  border-color: rgb(var(--blue-9));
+  box-shadow: 0 0 0 2px rgb(var(--blue-5));
+  background: rgb(var(--solid-1));
 }
 
 .kanban-filter-select-trigger:disabled {
@@ -299,8 +299,8 @@ watch(
   overflow-y: auto;
   list-style: none;
   border-radius: 0.75rem;
-  border: 1px solid var(--n-weak);
-  background-color: var(--n-solid-2, #1f2937);
+  border: 1px solid rgb(var(--border-weak));
+  background-color: rgb(var(--solid-2));
   padding: 0.375rem;
   backdrop-filter: blur(8px);
   box-shadow:
@@ -323,7 +323,7 @@ watch(
   font-size: 0.875rem;
   line-height: 1.25rem;
   background-color: transparent;
-  color: var(--n-slate-12);
+  color: rgb(var(--slate-12));
   text-align: left;
   -webkit-appearance: none;
   appearance: none;
@@ -331,12 +331,12 @@ watch(
 
 .kanban-filter-select-option:hover,
 .kanban-filter-select-option.is-highlighted {
-  background-color: var(--n-solid-4, #334155);
+  background-color: rgb(var(--solid-3));
 }
 
 .kanban-filter-select-option.is-selected {
-  background-color: var(--n-blue-3);
-  color: var(--n-blue-11);
+  background-color: rgb(var(--blue-3));
+  color: rgb(var(--blue-11));
 }
 
 .kanban-filter-select-option:disabled {

@@ -907,7 +907,7 @@ onMounted(async () => {
   font-size: 0.75rem;
   font-weight: 600;
   line-height: 1.2;
-  color: var(--n-slate-10);
+  color: rgb(var(--slate-10));
 }
 
 .kanban-filter-action {

@@ -83,6 +83,7 @@ Rails.application.routes.draw do
               post :reply_suggestion
               post :label_suggestion
               post :follow_up
+              post :sentiment_analysis
             end
           end
           resource :saml_settings, only: [:show, :create, :update, :destroy]
@@ -153,6 +154,10 @@ Rails.application.routes.draw do
                   post :translate
                   post :retry
                   post :star
+                end
+                collection do
+                  post :share_location
+                  post :share_contact
                 end
                 scope module: :messages do
                   resource :reactions, only: [:create]

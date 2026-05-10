@@ -203,3 +203,289 @@ Timestamp: 2026-05-04T20:30:00Z
 - Timestamp: 2026-05-04T18:59:30Z
 
 ---
+
+
+# Sprint Pós-Redesign Copilot — Execução 2026-05-05
+
+> Orquestrador: @aiox-master (Orion). Modo autônomo end-to-end (sem perguntas).
+> Plano mestre: PLANO-EXECUTIVO-V2-2026.md
+> Pré-flight OK: user_id=52 (playwright-test@simplex.local), account_id=3 (Simplex Tecnologia), unassigned=116, mine=0.
+
+## Sprint 1 — Início
+- Timestamp: 2026-05-05T17:48-03:00
+- Frentes em paralelo: F4 (Tabs scroll) + F5 (Grid actions contato)
+
+## Frente F4 — Tabs scroll (fade + chevron + swipe)
+- Status: ✅
+- Arquivos modificados:
+  - app/javascript/dashboard/components/ui/Tabs/Tabs.vue (172 changes)
+  - app/javascript/dashboard/components/ui/Tabs/TabsItem.vue (25 changes)
+  - app/javascript/dashboard/assets/scss/_wa-skin.scss (legacy "kill chevron" rules removidas)
+  - app/javascript/dashboard/composables/useReducedMotion.js (NEW)
+  - app/javascript/dashboard/i18n/locale/en/components.json (TABS.SCROLL_LEFT/RIGHT)
+  - app/javascript/dashboard/i18n/locale/pt_BR/components.json (idem)
+- i18n keys novas: COMPONENTS.TABS.SCROLL_LEFT, COMPONENTS.TABS.SCROLL_RIGHT
+- Build: exit 0
+- Lint: 0 erros
+- Specs: n/a (mudança puramente visual)
+- Screenshots: /tmp/copilot-screens-v3/f4/ (16 PNGs — 4 viewports × 2 temas × 2 tipos full+tabs-cropped)
+- Métricas overflow detectado:
+  - 375x667 (mobile): scrollWidth=clientWidth=412 → sem chevron, fade só pode aparecer em swipe
+  - 1280x720, 1366x768: scrollWidth=412, clientWidth=356, overflowRight=56 → chevron+fade ATIVOS ✅
+  - 1920x1080: scrollWidth=clientWidth=424 → sem overflow
+- Pitfalls: rate-limit /auth/sign_in (HTTP 429) requereu padrão login_once + storage_state.
+- Decisão prefers-reduced-motion: respeitada via useReducedMotion composable; smooth → auto.
+- Timestamp: 2026-05-05T18:08-03:00
+
+## Frente F5 — Grid actions contato (encurtar + sr-only ≤360px)
+- Status: ✅
+- Arquivos modificados:
+  - app/javascript/dashboard/routes/dashboard/conversation/contact/ContactInfo.vue (12 changes — switch para *_SHORT keys + aria-label)
+  - app/javascript/dashboard/assets/scss/_wa-skin.scss (.wa-action-label hardened + @media 360px sr-only)
+  - app/javascript/dashboard/i18n/locale/en/contact.json (NEW_MESSAGE_SHORT, CALL_SHORT, MERGE_CONTACT_SHORT, EDIT.BUTTON_LABEL_SHORT, DELETE.BUTTON_LABEL_SHORT)
+  - app/javascript/dashboard/i18n/locale/pt_BR/contact.json (idem)
+- i18n keys novas: 5 keys *_SHORT (en + pt_BR), labels "Mensagem"/"Editar"/"Mesclar"/"Excluir" (pt) e "Message"/"Edit"/"Merge"/"Delete" (en)
+- Build: exit 0
+- Lint: 0 erros
+- Specs: n/a
+- Screenshots: /tmp/copilot-screens-v3/f5/ (6 PNGs — 320, 375, 768, 1366 viewports)
+- Pitfalls:
+  - Sidebar contact panel não auto-abre — exige click em [data-testid="conversation-sidebar-contact-toggle"]
+  - tab "Não atribuídas" não respeita URL param — script clica via locator(text=...)
+- Decisão 360px breakpoint: mantido. Em 375 labels são truncados ("Mensager"/"Mes..."), em 320 viram só-ícones — exatamente o fallback B do plano.
+- Timestamp: 2026-05-05T18:09-03:00
+
+## Sprint 1 — Build + Restart consolidado
+- Comando: `NODE_OPTIONS="--max-old-space-size=8192" RAILS_ENV=production bundle exec rake assets:precompile`
+- Exit: 0
+- Warning pré-existente: `[role=button]button:hover` (não introduzido pelas frentes)
+- Restart: `sudo -n systemctl restart chatwoot.target` → active
+- Timestamp: 2026-05-05T18:05-03:00
+
+## Frente F1 — Resposta pronta (modal canned)
+- Status: ✅
+- Arquivos modificados:
+  - app/javascript/dashboard/components-next/canned-response/CannedResponseModal.vue (NEW — Teleport + Transition, Tailwind only)
+  - app/javascript/dashboard/components/widgets/conversation/ReplyBox.vue (import + state + DropdownItem slot 5 + render)
+  - app/javascript/dashboard/i18n/locale/pt_BR/conversation.json
+  - app/javascript/dashboard/i18n/locale/en/conversation.json
+- i18n keys novas:
+  - CONVERSATION.REPLYBOX.CANNED_RESPONSE_MENU = "Resposta pronta" / "Quick reply"
+  - CONVERSATION.REPLYBOX.CANNED_MODAL.TITLE / SEARCH_PLACEHOLDER / NO_RESULTS / HINT
+- Build: exit 0
+- Lint: 0 erros novos (2 warnings pré-existentes em ReplyBox.vue não tocadas)
+- Mecanismo de injeção: `replaceText(content)` (linha ~1330 ReplyBox.vue) — mesmo path do `/` shortcut. Aplica signature/variáveis e atualiza `this.message`.
+- Acessibilidade: role=dialog + aria-modal + aria-labelledby; role=listbox/option + aria-selected; foco automático; ↑↓ + Enter + Esc; scroll-into-view do active item.
+- Screenshots: /tmp/copilot-screens-v3/f1/ (6 PNGs — open/search/esc × light/dark)
+- Pitfalls:
+  - getter `getCannedResponses` é unnamespaced (não 'cannedResponse/...')
+  - useStore vem de `dashboard/composables/store`, não 'vuex'
+  - shortcode badge usa template literal `{{ \`/${item.short_code}\` }}` para evitar warning no-raw-text
+- Timestamp: 2026-05-05T18:18-03:00
+
+## Spike 0.1 — WAHA outbound location/vCard (NÃO EXECUTADO)
+- Status: ⚠️ DEFERRED — exige envio de mensagem WhatsApp real para celular monitorado.
+- Razão: Orion não tem autorização para enviar mensagens reais sem coordenação com Walisson (qual celular monitorar). Regra: não disparar side-effects irreversíveis.
+- Decisão tática para F2/F3:
+  - Implementar AMBOS os caminhos backend:
+    - `attachment.file_type = :location` / `:contact` (caminho preferido — schema + bubbles JÁ existem)
+    - `Waha::ApiService#send_location` / `#send_contact_vcard` wrappers (fallback REST direto)
+  - F2/F3 podem ir pra working tree completos. Walisson valida visualmente no celular após autorizar 1 envio de teste.
+- Como Walisson pode rodar o spike depois:
+  ```
+  RAILS_ENV=production bundle exec rails console
+  > a = Account.find_by!(name: 'Simplex Tecnologia')
+  > conv = a.conversations.where.not(id: nil).order(created_at: :desc).find { |c| c.inbox.channel_type.to_s.include?('Whatsapp') }
+  > sender = AccountUser.where(account: a, role: :administrator).first.user
+  > conv.messages.create!(message_type: :outgoing, content: 'spike', sender: sender,
+      attachments_attributes: [{ file_type: :location, coordinates_lat: -15.6, coordinates_long: -56.1, fallback_title: 'Cuiabá' }])
+  ```
+- Timestamp: 2026-05-05T18:20-03:00
+
+## Sprint 3 — Início
+- Timestamp: 2026-05-05T18:20-03:00
+- Frentes em paralelo: F2 (Localização) + F3 (vCard)
+
+## Frente F2 — Compartilhar localização (Leaflet + Nominatim)
+- Status: ✅
+- Arquivos modificados:
+  - app/javascript/dashboard/components-next/location/LocationPickerModal.vue (NEW — geolocation + Nominatim + Leaflet draggable + reverse geocode)
+  - app/javascript/dashboard/components/widgets/conversation/ReplyBox.vue (Slot 6 + lazy import + state + handlers)
+  - app/javascript/dashboard/api/inbox/message.js (MessageApi.shareLocation)
+  - app/services/waha/api_service.rb (send_location wrapper REST direto)
+  - app/controllers/api/v1/accounts/conversations/messages_controller.rb (action share_location)
+  - config/routes.rb (POST :share_location)
+  - app/javascript/dashboard/i18n/locale/pt_BR/conversation.json (CONVERSATION.LOCATION.* — 11 keys)
+  - app/javascript/dashboard/i18n/locale/en/conversation.json (idem)
+  - vite.config.ts (manualChunks leaflet — JÁ existia)
+- i18n keys: 11 (LOCATION.MENU/MODAL_TITLE/USE_MY_CURRENT/SEARCH_ADDRESS/SEARCH_PLACEHOLDER/PREVIEW/SEND/CANCEL/PERMISSION_DENIED/NOT_FOUND/LOADING)
+- Build: exit 0
+- Lint: 0 erros (2 warnings pré-existentes em ReplyBox.vue)
+- RuboCop: 0 ofensas
+- Specs: 3 specs WAHA send_location (mock POST)
+- Screenshots: /tmp/copilot-screens-v3/f2/ (8 PNGs — open/geo_map/search_mode/search_results × light/dark)
+- Reverse geocoding REAL: "Rua Barão de Melgaço, Centro Sul, Cuiabá, Mato Grosso, Região Centro-Oeste, 78020-973, Brasil" ✅
+- Decisão Vite manualChunks: já configurado (`leaflet: ['leaflet']`) — Leaflet vira chunk separado.
+- Decisão CORS Nominatim: client direct (Nominatim libera CORS desde 2020). Sem proxy backend. Header Accept-Language: pt-BR pra retornos em português.
+- Path attachment final:
+  ```ruby
+  msg.attachments.create!(file_type: :location, coordinates_lat:, coordinates_long:, fallback_title: address)
+  ```
+- Pitfalls:
+  - User-Agent custom não funciona no browser (removido) — sem impacto
+  - Leaflet "tile gris" bug evitado: mapa só renderiza após mode !== 'idle' + invalidateSize() em setTimeout
+  - Geolocation exige HTTPS (hmlchat OK)
+  - Fallback REST `Waha::ApiService#send_location` NÃO wired automaticamente — disponível pra Walisson plugar quando rodar Spike 0.1
+- Timestamp: 2026-05-05T18:42-03:00
+
+## Frente F3 — Compartilhar contato (3 fontes vCard)
+- Status: ✅
+- Arquivos modificados:
+  - app/javascript/dashboard/components-next/share-contact/ShareContactModal.vue (NEW — 3 abas + preview unificado + máscara BR)
+  - app/javascript/dashboard/components/widgets/conversation/ReplyBox.vue (Slot 7)
+  - app/javascript/dashboard/api/inbox/message.js (MessageApi.shareContact)
+  - app/services/waha/api_service.rb (send_contact_vcard + send_text_with_vcard + build_vcard)
+  - app/controllers/api/v1/accounts/conversations/messages_controller.rb (action share_contact com 3 fontes)
+  - config/routes.rb (POST :share_contact)
+  - app/javascript/dashboard/i18n/locale/pt_BR/conversation.json (SHARE_CONTACT.* — 16 keys)
+  - app/javascript/dashboard/i18n/locale/en/conversation.json (idem)
+  - spec/services/waha/api_service_spec.rb (4 specs novos)
+  - spec/controllers/api/v1/accounts/conversations/share_contact_controller_spec.rb (4 specs)
+- i18n keys: 16 (MENU/MODAL_TITLE/TAB_AGENT/TAB_CONTACT/TAB_MANUAL/SEARCH_AGENT/SEARCH_CONTACT/MANUAL_NAME/MANUAL_PHONE/MANUAL_PHONE_PLACEHOLDER/PREVIEW_HEADING/SEND/CANCEL/PHONE_INVALID/NO_AGENTS/NO_CONTACTS_FOUND)
+- Build: exit 0
+- Lint: 0 erros novos
+- RuboCop: 0 ofensas
+- Specs: 11 examples, 0 failures (8 share_contact_controller + 4 waha service)
+- Screenshots: /tmp/copilot-screens-v3/f3/ (6 PNGs — 3 abas × 2 temas)
+- Decisão fallback "Telefone livre": para `source = manual` o caminho REST primário é `send_text_with_vcard` (POST /api/sendText com vCard 3.0 inline) — não há JID prévio. Para `source = contact`/`agent` com JID conhecido, rota natural é `send_contact_vcard`. Os dois wrappers ficam disponíveis no SendReplyJob.
+- Pitfalls:
+  - Attachment#file_type já tem :contact (enum integer 8) — não precisou migration
+  - tr("\r\n", ' ') sanitiza CR/LF no nome do vCard (segurança)
+  - Regex `/^\+?55?\d{10,11}$/` aceita "55" prefixo opcional + 10/11 dígitos
+- Timestamp: 2026-05-05T18:42-03:00
+
+## Build final consolidado
+- Comando: `RAILS_ENV=production rake assets:precompile`
+- Exit: 0
+- Restart: chatwoot.target → 401 (ready) em 6s
+- Timestamp: 2026-05-05T18:36-03:00
+
+## FIM SPRINT 3
+- Timestamp: 2026-05-05T18:43-03:00
+
+# Bugfix Round 1 — feedback do Walisson
+> Timestamp: 2026-05-05T20:35-03:00
+
+Bugs reportados após validação manual e fixes aplicados:
+
+## Bug #1 — Ícone da lupa atrás do texto (F1, F2, F3)
+- **Causa raiz**: o pattern `<span class="absolute"><input class="pl-9">` em alguns navegadores/contextos não aplicava o padding-left consistentemente, deixando o ícone visualmente atrás do texto.
+- **Fix**: refatorado pra pattern flex-row com `<div class="flex items-center gap-2 px-3 py-2.5 ... border rounded-lg focus-within:ring-2"><span class="i-lucide-search size-5 text-n-slate-11 shrink-0"/><input class="flex-1 bg-transparent border-0 outline-none"></div>` — ícone e input lado a lado em flexbox, garantia visual.
+- **Validação**: F1 search icon box: x=381 y=184 w=20 h=20 display=block ✅
+- Aplicado nos 3 modais: CannedResponseModal.vue, LocationPickerModal.vue, ShareContactModal.vue.
+
+## Bug #2 — F3 "Contato salvo" sempre vazio
+- **Causa raiz**: o watch em `contactSearch` resetava lista quando termo vazio E o activate da tab disparava `debouncedContactSearch('')`. ContactAPI.search com termo vazio retorna [] (endpoint não lista contatos).
+- **Fix**:
+  - Não busca automaticamente ao trocar pra aba "contact"
+  - Quando termo < 2 chars: mostra hint "Digite o nome ou telefone do contato (mínimo 2 letras)"
+  - Quando >= 2 chars: dispara busca debounced
+  - Quando >= 2 chars + lista vazia: mostra "Nenhum contato encontrado"
+- **Nova i18n**: SHARE_CONTACT.SEARCH_CONTACT_HINT (pt_BR + en)
+- **Validação**: digitar "Sim" → 8 contatos retornam ✅
+
+## Bug #3 — F2 "Compartilhar localização" abre direto com geolocation
+- **Causa raiz**: NÃO encontrado no código atual (mode='idle' no resetState). Provavelmente cache de browser ou versão anterior.
+- **Reforço aplicado**: `useMyLocation()` agora limpa selectedLocation/searchResults/query antes de getCurrentPosition, e `startSearchMode()` faz o mesmo + remove marker do mapa.
+- **Validação**: F2 initial state mapVisible=False, previewVisible=False ✅
+
+## Bug #4 — F2 "Buscar endereço" mostra endereço default
+- **Causa raiz**: ao trocar de modo (geo→search ou idle→search), state anterior persistia.
+- **Fix**: `startSearchMode()` agora limpa selectedLocation, searchResults, query e remove o markerInstance do mapa antes de reinicializar.
+- **Validação**: F2 search input value vazio ao entrar em search mode ✅
+
+## Bug #5 — F2 Nominatim cobertura BR (Sinop MT não acha)
+- **Causa raiz mista**:
+  - Test antigo não focava no input → keyboard.type não chegava
+  - Query "Sinop" sozinho com countrycodes=br retorna apenas 1 resultado (Sinop, MT)
+- **Fix**:
+  - Auto-focus no input ao entrar em mode='search' (`searchInputRef.value?.focus()` após nextTick)
+  - Fallback de query: se primeira tentativa com `countrycodes=br` retorna 0, repete sem countrycodes
+  - Adicionado `addressdetails=1` + `accept-language=pt-BR` pra retornar nomes em português
+- **Validação**:
+  - "Sinop": 1 resultado ✅
+  - "Avenida das Figueiras Sinop MT": 5 resultados ✅
+  - Input recebe foco automaticamente: True ✅
+
+## Bug #6 — i18n COMPONENTS.TABS.SCROLL_LEFT/RIGHT missing
+- **Causa raiz**: o loader `i18n/locale/pt_BR/index.js` faz `...components` (spread) ao mergeear o JSON. Logo as keys do `components.json` ficam no nível RAIZ, NÃO sob namespace `COMPONENTS`. Eu coloquei `t('COMPONENTS.TABS.SCROLL_LEFT')` no Tabs.vue — namespace inexistente.
+- **Fix**: trocado pra `t('TABS.SCROLL_LEFT')` e `t('TABS.SCROLL_RIGHT')` no Tabs.vue.
+- **Validação**: console log limpo, 0 warnings de "Not found 'COMPONENTS.TABS' key" ✅
+
+## Resumo dos fixes
+- 6 bugs investigados, 6 corrigidos
+- ESLint: 0 erros novos
+- Build: exit 0
+- Restart: chatwoot.target ready em 6s
+- Auditoria interativa Playwright: tudo passou
+
+
+# Bugfix Round 2 — feedback Walisson sobre design + WAHA outbound + hover menu
+> Timestamp: 2026-05-05T20:55-03:00
+
+## Padrão WhatsApp dos search inputs
+- Aplicado em F1 (CannedResponseModal), F2 (LocationPickerModal), F3 (ShareContactModal):
+  ```html
+  <div class="flex items-center px-3 py-[7px]">
+    <div class="flex items-center w-full h-[35px] rounded-lg px-3 gap-3 ... bg-n-solid-1 dark:bg-[#202c33] border border-[rgba(11,20,26,0.08)] dark:border-[#2a3942]">
+      <div class="flex items-center justify-center shrink-0">
+        <span class="i-lucide-search size-4 text-[#54656f] dark:text-[#aebac1]" />
+      </div>
+      <input class="reset-base no-margin flex-1 min-w-0 border-0 bg-transparent text-[15px] leading-[35px] ... text-[#111b21] dark:text-[#e9edef] placeholder:text-[#8696a0] caret-[var(--wa-primary)]" />
+    </div>
+  </div>
+  ```
+- Cores e tipografia idênticas ao header da lista de conversas do WhatsApp.
+
+## F3 — Compartilhar contato (UX simplificada)
+- ❌ Aba "Outro agente" REMOVIDA (Walisson disse não ser necessária)
+- ✅ Default tab = "Contato salvo"
+- ✅ Lista de contatos carrega automaticamente ao abrir modal (via `ContactAPI.get`) — sem precisar pesquisar
+- ✅ Aba "Telefone livre" renomeada → **"Disque o número"** (pt_BR) / "Dial number" (en)
+- Validação: 15 contatos carregados automaticamente; tabs `['Contato salvo', 'Disque o número']` ✅
+
+## Hover-menu da bubble (2 ícones lado a lado)
+- Adicionado **botão "Responder"** (ícone `i-lucide-corner-up-left`) ao lado do chevron-down em `Message.vue` linhas 884-892.
+- Aparece apenas em mensagens que não são privadas nem agendadas.
+- Wire: `@click="handleReplyTo"` (mesmo handler do menu de contexto).
+
+## Erro WAHA outbound location/contact — DIAGNÓSTICO
+- **Erro real**: `TypeError: Cannot read properties of undefined/null (reading 'split')` ao tentar enviar.
+- **Origem**: app **externo** `chatwoot-waha-app` (Node.js fora deste repo) que recebe webhook do Channel::Api e traduz pra calls WAHA. Esse app faz `.split` em campo undefined do payload.
+- **Mitigação preventiva aplicada** em `app/models/attachment.rb`:
+  - `location_metadata` agora retorna campos defensivos: `data_url=''`, `thumb_url=''`, `extension=''`, `file_size=0`, `fallback_title.to_s`
+  - `contact_metadata` similar: `data_url=''`, `thumb_url=''`, `extension='vcf'`, `file_size=0`
+  - Razão: integrações externas (WAHA Chatwoot App) chamam `.split` nesses campos e quebram com null.
+
+## Sobre API Oficial WhatsApp Cloud (Meta)
+- `app/services/whatsapp/providers/whatsapp_cloud_service.rb` ATUALMENTE só lida com `image|audio|video|document` em `send_attachment_message`.
+- Para suportar `location` e `contact` via Cloud API oficial, precisa adicionar handlers próprios:
+  - **Location**: `POST /messages { type: "location", location: { latitude, longitude, name, address } }`
+  - **Contacts**: `POST /messages { type: "contacts", contacts: [{ name: { formatted_name, first_name }, phones: [{ phone, wa_id }] }] }`
+- Custo estimado: ~3h pra adicionar ambos no Cloud Service + 360Dialog.
+- **Decisão pendente**: implementar agora ou só após confirmar fix no WAHA app.
+
+## Validação Playwright final
+- F1 modal abre, input com pattern WhatsApp, search funciona ✅
+- F2 modal idle, busca Sinop com autofocus + retorna resultados reais ✅
+- F3 abre direto em "Contato salvo" com 15 contatos pré-carregados, tabs corretas ✅
+- Dark mode preserva o pattern WhatsApp ✅
+
+## Arquivos modificados
+- `app/javascript/dashboard/components-next/canned-response/CannedResponseModal.vue` (search WhatsApp)
+- `app/javascript/dashboard/components-next/location/LocationPickerModal.vue` (search WhatsApp + autofocus)
+- `app/javascript/dashboard/components-next/share-contact/ShareContactModal.vue` (REWRITE: 2 abas, lista inicial, search WhatsApp)
+- `app/javascript/dashboard/components-next/message/Message.vue` (botão Responder no hover)
+- `app/javascript/dashboard/i18n/locale/pt_BR/conversation.json` (TAB_MANUAL "Disque o número")
+- `app/javascript/dashboard/i18n/locale/en/conversation.json` (TAB_MANUAL "Dial number")
+- `app/models/attachment.rb` (campos defensivos location/contact)

@@ -99,6 +99,14 @@ app.use(FloatingVue, {
     dropdown: {
       distance: 4,
     },
+    'ai-action': {
+      $extend: 'tooltip',
+      placement: 'right',
+      distance: 8,
+      delay: { show: 500, hide: 100 },
+      triggers: ['hover', 'focus'],
+      html: false,
+    },
   },
 });
 app.use(hljsVuePlugin);

@@ -786,7 +786,10 @@ export default {
 .modal-mask {
   @apply fixed inset-0 min-h-screen flex flex-col justify-center items-center;
 
-  :deep(.ProseMirror-woot-style) {
+  // Quando a wa-composer-bar está em uso (WhatsApp), o pill já cuida do
+  // próprio dimensionamento. As regras antigas com min-height 27.5rem
+  // foram pensadas para o composer LEGACY de e-mail e quebram o pill.
+  :deep(.reply-box:not(:has(.wa-composer-bar)) .ProseMirror-woot-style) {
     @apply max-h-[25rem] min-h-[12rem];
   }
 
@@ -798,11 +801,24 @@ export default {
     }
   }
 
-  :deep(.reply-box.reply-box--popout .reply-box__top) {
+  // Reply-box com pill: tira borda extra do modal, deixa o pill arredondado
+  // ser o destaque visual.
+  :deep(.reply-box:has(.wa-composer-bar)) {
+    border: none !important;
+    overflow: visible !important;
+  }
+
+  :deep(
+      .reply-box.reply-box--popout:not(:has(.wa-composer-bar)) .reply-box__top
+    ) {
     min-height: 27.5rem !important;
   }
 
-  :deep(.reply-box.reply-box--popout .reply-box__top .input) {
+  :deep(
+      .reply-box.reply-box--popout:not(:has(.wa-composer-bar))
+        .reply-box__top
+        .input
+    ) {
     min-height: 27.5rem !important;
   }
 

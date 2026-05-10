@@ -882,6 +882,16 @@ provideMessageContext({
             }"
           >
             <NextButton
+              v-if="!props.private && !isScheduledMessage"
+              ghost
+              slate
+              sm
+              icon="i-lucide-corner-up-left"
+              :title="$t('CONVERSATION.REPLYBOX.REPLY')"
+              class="rounded-md p-1 shadow-none"
+              @click.stop="handleReplyTo"
+            />
+            <NextButton
               ref="dropdownButtonRef"
               ghost
               slate

@@ -589,79 +589,52 @@ aside.bg-n-background {
 // spot inline bg overrides.
 
 // =============================================================================
-// Scrollbars (WebKit)
+// Scrollbars — branding global (light + dark)
 // -----------------------------------------------------------------------------
-// Thin WA-style scrollbars on dashboard surfaces. Keep browser defaults on
-// public-facing/embed widgets by scoping to `.app-wrapper` (existing wrapper
-// around the authenticated app) + the conversation panel / sidebar.
+// REGRA DE DESIGN SYSTEM: todas as barras de rolagem do dashboard seguem
+// branding ChatSPX. Aplicado globalmente (html/body/*) para alcançar tambem
+// modais, dropdowns e popovers via Teleport (que vão pro body). Widgets
+// publicos/embed nao carregam este SCSS, entao continuam com scrollbar
+// default. Para esconder em casos especificos, usar a classe `.no-scrollbar`
+// (definida em _woot.scss e _base.scss).
 // =============================================================================
 
-.app-wrapper,
-.app-wrapper *,
-aside.bg-n-background *,
-.conversations-list *,
-.conversations-list-wrap *,
-.conversation-details-wrap * {
+html,
+body,
+body * {
   scrollbar-width: thin;
   scrollbar-color: var(--wa-scrollbar-thumb) transparent;
 }
 
-.app-wrapper ::-webkit-scrollbar,
-aside.bg-n-background ::-webkit-scrollbar,
-.conversations-list ::-webkit-scrollbar,
-.conversations-list-wrap ::-webkit-scrollbar,
-.conversation-details-wrap ::-webkit-scrollbar {
+::-webkit-scrollbar {
   width: 8px;
   height: 8px;
 }
 
-.app-wrapper ::-webkit-scrollbar-track,
-aside.bg-n-background ::-webkit-scrollbar-track,
-.conversations-list ::-webkit-scrollbar-track,
-.conversations-list-wrap ::-webkit-scrollbar-track,
-.conversation-details-wrap ::-webkit-scrollbar-track {
+::-webkit-scrollbar-track {
   background: transparent;
 }
 
-.app-wrapper ::-webkit-scrollbar-thumb,
-aside.bg-n-background ::-webkit-scrollbar-thumb,
-.conversations-list ::-webkit-scrollbar-thumb,
-.conversations-list-wrap ::-webkit-scrollbar-thumb,
-.conversation-details-wrap ::-webkit-scrollbar-thumb {
+::-webkit-scrollbar-thumb {
   background-color: var(--wa-scrollbar-thumb);
   border-radius: 3px;
 }
 
-.app-wrapper ::-webkit-scrollbar-thumb:hover,
-aside.bg-n-background ::-webkit-scrollbar-thumb:hover,
-.conversations-list ::-webkit-scrollbar-thumb:hover,
-.conversations-list-wrap ::-webkit-scrollbar-thumb:hover,
-.conversation-details-wrap ::-webkit-scrollbar-thumb:hover {
+::-webkit-scrollbar-thumb:hover {
   background-color: var(--wa-scrollbar-thumb-hover);
 }
 
-.dark .app-wrapper,
-.dark .app-wrapper *,
-.dark aside.bg-n-background *,
-.dark .conversations-list *,
-.dark .conversations-list-wrap *,
-.dark .conversation-details-wrap * {
+// Dark theme override (Tailwind darkMode: 'class')
+.dark,
+.dark * {
   scrollbar-color: var(--wa-scrollbar-thumb-dark) transparent;
 }
 
-.dark .app-wrapper ::-webkit-scrollbar-thumb,
-.dark aside.bg-n-background ::-webkit-scrollbar-thumb,
-.dark .conversations-list ::-webkit-scrollbar-thumb,
-.dark .conversations-list-wrap ::-webkit-scrollbar-thumb,
-.dark .conversation-details-wrap ::-webkit-scrollbar-thumb {
+.dark ::-webkit-scrollbar-thumb {
   background-color: var(--wa-scrollbar-thumb-dark);
 }
 
-.dark .app-wrapper ::-webkit-scrollbar-thumb:hover,
-.dark aside.bg-n-background ::-webkit-scrollbar-thumb:hover,
-.dark .conversations-list ::-webkit-scrollbar-thumb:hover,
-.dark .conversations-list-wrap ::-webkit-scrollbar-thumb:hover,
-.dark .conversation-details-wrap ::-webkit-scrollbar-thumb:hover {
+.dark ::-webkit-scrollbar-thumb:hover {
   background-color: var(--wa-scrollbar-thumb-hover-dark);
 }
 
@@ -1698,12 +1671,21 @@ input:focus-visible {
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 4px;
+  justify-content: center;
+  gap: 6px;
   padding: 10px 4px;
   border-radius: 8px;
   color: var(--wa-primary);
   background-color: transparent;
   transition: background 120ms ease;
+  /* Equal-width distribution within flex container (auto-collapses hidden siblings) */
+  flex: 1 1 0;
+  min-width: 0;
+  overflow: hidden;
+}
+.wa-action-btn > [class*='i-lucide'],
+.wa-action-btn > [class*='i-ri'] {
+  flex-shrink: 0;
 }
 .wa-action-btn:hover {
   background-color: rgba(0, 168, 132, 0.08);
@@ -1721,11 +1703,17 @@ input:focus-visible {
   background-color: rgba(225, 29, 72, 0.12);
 }
 .wa-action-label {
+  display: block;
+  width: 100%;
+  min-width: 0;
   font-size: 11px;
   color: var(--wa-text-secondary);
   font-weight: 500;
   line-height: 1.2;
   text-align: center;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 .dark .wa-action-label {
   color: var(--wa-text-secondary-dark);
@@ -1926,17 +1914,9 @@ aside.bg-n-background[style*='width: 64'] .sidebar-group-children {
   margin: 0;
 }
 
-/* ========== SCROLLBAR reinforcement (dark) ========== */
-.dark ::-webkit-scrollbar-thumb {
-  background-color: #374045;
-  border-radius: 4px;
-}
-.dark ::-webkit-scrollbar-thumb:hover {
-  background-color: #4a555a;
-}
-.dark ::-webkit-scrollbar-track {
-  background-color: transparent;
-}
+/* ========== SCROLLBAR — definicoes globais movidas para o bloco
+   "Scrollbars — branding global" no inicio deste arquivo.
+   Mantemos esta marca para evitar reinsercao acidental. ========== */
 
 /* ========== TYPOGRAPHY + DENSITY SCALE (WhatsApp-like) ========== */
 
@@ -2087,20 +2067,15 @@ button.wa-btn--primary:hover {
   gap: 4px;
 }
 
-/* Kill the horizontal scroll + chevron affordance for the chat list tabs —
-   they only ever render Mine / Unassigned / All, so overflow scroll is
-   both unnecessary and ugly. Wrap instead. */
+/* Tabs do chat list (Minhas / Não atribuídas / Todos) — permitem scroll
+   horizontal com fade + chevron quando há overflow real. O componente
+   Tabs.vue renderiza chevrons com classe específica `.wa-tabs-chevron`
+   posicionados absolutamente, então o legado `> button:first-child` deixou
+   de aplicar (fica para retro-compat caso alguém reuse a classe antiga). */
 .conversation-list-tabs,
 [class*='chat-list-tabs'] {
-  /* Tabs.vue renders two wrapping button siblings (chevron left/right) around
-     the <ul>. They are v-if-ed by JS, but the overflow detection still
-     occasionally flags a tiny mismatch. Force them hidden here. */
-  & > button:first-child,
-  & > button:last-child {
-    display: none !important;
-  }
   ul {
-    overflow-x: visible !important;
+    overflow-x: auto;
     flex-wrap: nowrap;
   }
 }
@@ -2401,13 +2376,10 @@ aside [class*='cursor-col-resize'] {
    TABS (Mine / Unassigned / All) — zero-hardcode + WA tint
    ======================================================================= */
 
-/* Esconde chevrons de scroll gerados pelo componente Tabs */
-.wa-tabs > button:first-child,
-.wa-tabs > button:last-child {
-  display: none !important;
-}
-
-/* UL interno: forçar uma linha só, scroll horizontal sem scrollbar visível */
+/* UL interno: forçar uma linha só, scroll horizontal sem scrollbar visível.
+   Os chevrons agora têm classe própria (`.wa-tabs-chevron`) e ficam
+   posicionados absolute — não são mais filhos diretos `<button>` que
+   precisam ser ocultados. */
 .wa-tabs ul {
   overflow-x: auto !important;
   flex-wrap: nowrap !important;
@@ -2417,6 +2389,53 @@ aside [class*='cursor-col-resize'] {
   gap: 4px !important;
 }
 .wa-tabs ul::-webkit-scrollbar { display: none; }
+
+/* Fade gradient nas bordas — pista visual de que há mais conteúdo
+   roláveis. Usa as superfícies WA (light/dark) para se misturar
+   naturalmente com o fundo. */
+.wa-tabs-fade-left {
+  background: linear-gradient(
+    to right,
+    var(--wa-list-bg, #ffffff) 0%,
+    rgba(255, 255, 255, 0) 100%
+  );
+}
+.wa-tabs-fade-right {
+  background: linear-gradient(
+    to left,
+    var(--wa-list-bg, #ffffff) 0%,
+    rgba(255, 255, 255, 0) 100%
+  );
+}
+.dark .wa-tabs-fade-left {
+  background: linear-gradient(
+    to right,
+    var(--wa-list-bg-dark, #111b21) 0%,
+    rgba(17, 27, 33, 0) 100%
+  );
+}
+.dark .wa-tabs-fade-right {
+  background: linear-gradient(
+    to left,
+    var(--wa-list-bg-dark, #111b21) 0%,
+    rgba(17, 27, 33, 0) 100%
+  );
+}
+
+/* Chevrons: cor adapta ao tema, hover só aumenta a opacidade. */
+.wa-tabs-chevron {
+  color: var(--wa-text-secondary);
+}
+.dark .wa-tabs-chevron {
+  color: var(--wa-text-secondary-dark);
+}
+
+/* Reduced motion: scroll suave fica instantâneo. */
+@media (prefers-reduced-motion: reduce) {
+  .wa-tabs ul {
+    scroll-behavior: auto !important;
+  }
+}
 
 .wa-tab-item {
   background-color: transparent;

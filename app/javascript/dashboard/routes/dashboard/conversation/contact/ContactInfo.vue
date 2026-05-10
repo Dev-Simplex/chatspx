@@ -241,26 +241,29 @@ export default {
         <SocialIcons :social-profiles="socialProfiles" />
       </div>
 
-      <!-- Action buttons (5-column grid, WA style) -->
-      <div class="grid grid-cols-5 gap-2 mt-6 w-full max-w-[260px] mx-auto">
-        <ComposeConversation
-          :contact-id="String(contact.id)"
-          is-modal
-          @close="closeComposeConversationModal"
-        >
-          <template #trigger="{ toggle }">
-            <button
-              v-tooltip.top-end="$t('CONTACT_PANEL.NEW_MESSAGE')"
-              class="wa-action-btn"
-              @click="openComposeConversationModal(toggle)"
-            >
-              <span class="i-lucide-message-circle size-5" />
-              <span class="wa-action-label">
-                {{ $t('CONTACT_PANEL.NEW_MESSAGE') }}
-              </span>
-            </button>
-          </template>
-        </ComposeConversation>
+      <!-- Action buttons (flex, WA style — auto-distributes when some are hidden) -->
+      <div class="flex items-stretch justify-center gap-1.5 mt-6 w-full max-w-[300px] mx-auto">
+        <div class="flex-1 min-w-0">
+          <ComposeConversation
+            :contact-id="String(contact.id)"
+            is-modal
+            @close="closeComposeConversationModal"
+          >
+            <template #trigger="{ toggle }">
+              <button
+                v-tooltip.top-end="$t('CONTACT_PANEL.NEW_MESSAGE')"
+                class="wa-action-btn"
+                :aria-label="$t('CONTACT_PANEL.NEW_MESSAGE')"
+                @click="openComposeConversationModal(toggle)"
+              >
+                <span class="i-lucide-message-circle size-5" />
+                <span class="wa-action-label">
+                  {{ $t('CONTACT_PANEL.NEW_MESSAGE_SHORT') }}
+                </span>
+              </button>
+            </template>
+          </ComposeConversation>
+        </div>
         <VoiceCallButton
           :phone="contact.phoneNumber"
           :contact-id="contact.id"
@@ -273,34 +276,37 @@ export default {
         <button
           v-tooltip.top-end="$t('EDIT_CONTACT.BUTTON_LABEL')"
           class="wa-action-btn"
+          :aria-label="$t('EDIT_CONTACT.BUTTON_LABEL')"
           @click="toggleEditModal"
         >
           <span class="i-lucide-pencil size-5" />
           <span class="wa-action-label">
-            {{ $t('EDIT_CONTACT.BUTTON_LABEL') }}
+            {{ $t('EDIT_CONTACT.BUTTON_LABEL_SHORT') }}
           </span>
         </button>
         <button
           v-tooltip.top-end="$t('CONTACT_PANEL.MERGE_CONTACT')"
           class="wa-action-btn"
+          :aria-label="$t('CONTACT_PANEL.MERGE_CONTACT')"
           :disabled="uiFlags.isMerging"
           @click="openMergeModal"
         >
           <span class="i-lucide-merge size-5" />
           <span class="wa-action-label">
-            {{ $t('CONTACT_PANEL.MERGE_CONTACT') }}
+            {{ $t('CONTACT_PANEL.MERGE_CONTACT_SHORT') }}
           </span>
         </button>
         <button
           v-if="isAdmin"
           v-tooltip.top-end="$t('DELETE_CONTACT.BUTTON_LABEL')"
           class="wa-action-btn wa-action-btn--danger"
+          :aria-label="$t('DELETE_CONTACT.BUTTON_LABEL')"
           :disabled="uiFlags.isDeleting"
           @click="toggleDeleteModal"
         >
           <span class="i-lucide-trash-2 size-5" />
           <span class="wa-action-label">
-            {{ $t('DELETE_CONTACT.BUTTON_LABEL') }}
+            {{ $t('DELETE_CONTACT.BUTTON_LABEL_SHORT') }}
           </span>
         </button>
       </div>

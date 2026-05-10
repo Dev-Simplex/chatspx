@@ -1,5 +1,6 @@
 <script setup>
-import { computed, inject } from 'vue';
+import { computed, inject, useTemplateRef } from 'vue';
+import { useReducedMotion } from 'dashboard/composables/useReducedMotion';
 
 const props = defineProps({
   index: {
@@ -36,6 +37,9 @@ const props = defineProps({
 const activeIndex = inject('activeIndex');
 const updateActiveIndex = inject('updateActiveIndex');
 
+const tabButton = useTemplateRef('tabButton');
+const { prefersReducedMotion } = useReducedMotion();
+
 const active = computed(() => props.index === activeIndex.value);
 const getItemCount = computed(() => props.count);
 
@@ -45,18 +49,33 @@ const onTabClick = event => {
     updateActiveIndex(props.index);
   }
 };
+
+const onTabFocus = () => {
+  if (!tabButton.value) return;
+  // Garante que a tab focada seja visível mesmo se cortada por overflow.
+  tabButton.value.scrollIntoView({
+    inline: 'nearest',
+    block: 'nearest',
+    behavior: prefersReducedMotion.value ? 'auto' : 'smooth',
+  });
+};
 </script>
 
 <template>
-  <li class="flex-shrink-0">
+  <li class="flex-shrink-0" role="presentation">
     <button
-      class="wa-tab-item flex items-center h-7 px-3 rounded-full text-sm font-medium select-none cursor-pointer transition-all duration-200 border border-transparent whitespace-nowrap"
+      ref="tabButton"
+      role="tab"
+      :aria-selected="active ? 'true' : 'false'"
+      :tabindex="active ? 0 : -1"
+      class="wa-tab-item flex items-center h-7 px-3 rounded-full text-sm font-medium select-none cursor-pointer transition-all duration-200 border border-transparent whitespace-nowrap focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-n-brand/60"
       :class="[
         active ? 'active font-semibold' : '',
         disabled && 'opacity-50 cursor-not-allowed',
       ]"
       :disabled="disabled"
       @click="onTabClick"
+      @focus="onTabFocus"
     >
       <span
         v-if="icon"

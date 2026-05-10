@@ -51,5 +51,19 @@ RSpec.describe Captain::SummaryService do
       expect(result[:usage]['prompt_tokens']).to eq(100)
       expect(result[:usage]['completion_tokens']).to eq(50)
     end
+
+    it 'redacts PII from conversation text before sending to LLM' do
+      allow(conversation).to receive(:to_llm_text).and_return('cliente: meu CPF é 123.456.789-09')
+      allow(service).to receive(:conversation).and_return(conversation)
+
+      expect(service).to receive(:make_api_call) do |args|
+        user_msg = args[:messages][1][:content]
+        expect(user_msg).to include('[CPF]')
+        expect(user_msg).not_to include('123.456.789-09')
+        { message: 'Summary' }
+      end
+
+      service.perform
+    end
   end
 end

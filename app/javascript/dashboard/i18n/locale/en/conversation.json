@@ -274,11 +274,72 @@
       "CLICK_HERE": "Click here to update",
       "WHATSAPP_TEMPLATES": "Whatsapp Templates"
     },
+    "LOCATION": {
+      "MENU": "Share location",
+      "MODAL_TITLE": "Share location",
+      "USE_MY_CURRENT": "Use my current location",
+      "SEARCH_ADDRESS": "Search an address",
+      "SEARCH_PLACEHOLDER": "Type an address, ZIP or place",
+      "PREVIEW": "You will send: {address}",
+      "SEND": "Send location",
+      "CANCEL": "Cancel",
+      "PERMISSION_DENIED": "Location permission denied. Check your browser settings.",
+      "GPS_DENIED": "GPS permission denied. Allow location access in your browser settings.",
+      "GPS_UNAVAILABLE": "We couldn't get your location. Make sure GPS is on and try again.",
+      "GPS_TIMEOUT": "Timed out while getting GPS. Try again where you have better signal.",
+      "GPS_INSECURE_CONTEXT": "GPS requires a secure connection (HTTPS). Access via https to use your location.",
+      "GPS_LOW_ACCURACY": "Location is inaccurate. Check your browser's GPS permissions for a better result.",
+      "NOT_FOUND": "We didn't find this address. Try another.",
+      "LOADING": "Searching...",
+      "LOADING_LOCATION": "Loading location...",
+      "CEP_LABEL": "ZIP code",
+      "CEP_PLACEHOLDER": "00000-000",
+      "NUMBER_LABEL": "Number",
+      "NUMBER_PLACEHOLDER": "e.g. 1000",
+      "CEP_NOT_FOUND": "ZIP code not found.",
+      "CEP_INVALID": "Invalid ZIP code. Use 00000-000."
+    },
+    "SHARE_CONTACT": {
+      "MENU": "Share contact",
+      "MODAL_TITLE": "Share contact",
+      "TAB_AGENT": "Another agent",
+      "TAB_CONTACT": "Saved contact",
+      "TAB_MANUAL": "Dial number",
+      "SEARCH_AGENT": "Search agent...",
+      "SEARCH_CONTACT": "Search contact...",
+      "SEARCH_CONTACT_HINT": "Type the contact name or phone (min 2 chars)",
+      "MANUAL_NAME": "Name",
+      "MANUAL_PHONE": "Phone (with area code)",
+      "MANUAL_PHONE_PLACEHOLDER": "+55 (XX) XXXXX-XXXX",
+      "PREVIEW_HEADING": "Preview",
+      "SEND": "Send contact",
+      "CANCEL": "Cancel",
+      "PHONE_INVALID": "Invalid phone. Include the area code (10 or 11 digits).",
+      "NO_AGENTS": "No other agents on the team.",
+      "NO_CONTACTS_FOUND": "No contacts found."
+    },
     "REPLYBOX": {
       "REPLY": "Reply",
       "PRIVATE_NOTE": "Private Note",
       "SEND": "Send",
       "CREATE": "Add Note",
+      "PLACEHOLDER": "Message",
+      "PLACEHOLDER_EMAIL": "Write a reply...",
+      "EMOJI": "Emoji",
+      "ATTACH": "Attach",
+      "ATTACH_IMAGE": "Photo",
+      "ATTACH_VIDEO": "Video",
+      "ATTACH_AUDIO": "Audio",
+      "ATTACH_DOC": "Document",
+      "ATTACH_CONTACT": "Contact",
+      "RECORD": "Record voice message",
+      "EXPAND": "Expand",
+      "PRIVATE_NOTE_BANNER": "Private note mode — visible only to agents",
+      "SWITCH_TO_REPLY": "Switch to reply",
+      "PRIVATE_NOTE_TOAST_ON": "🔒 Private note mode — visible to agents only",
+      "PRIVATE_NOTE_TOAST_OFF": "💬 Reply mode — visible to the customer",
+      "LOCK_ON_TOOLTIP": "Mark as private note",
+      "LOCK_OFF_TOOLTIP": "Switch back to reply",
       "WHATSAPP_INVALID": "This number is not registered on WhatsApp. Please verify and try again.",
       "WHATSAPP_REVALIDATE": "Verify again",
       "WHATSAPP_REVALIDATING": "Verifying...",
@@ -293,6 +354,14 @@
       "MORE_OPTIONS": "More options",
       "ADVANCED_EDITOR": "Advanced text editor",
       "TIP_ATTACH_ICON": "Attach files",
+      "SCHEDULE_MESSAGE": "Schedule message",
+      "CANNED_RESPONSE_MENU": "Quick reply",
+      "CANNED_MODAL": {
+        "TITLE": "Quick reply",
+        "SEARCH_PLACEHOLDER": "Search a reply...",
+        "NO_RESULTS": "No reply found",
+        "HINT": "↑↓ navigate · Enter use · Esc close"
+      },
       "TIP_AUDIORECORDER_ICON": "Record audio",
       "TIP_AUDIORECORDER_PERMISSION": "Allow access to audio",
       "TIP_AUDIORECORDER_ERROR": "Could not open the audio",
@@ -606,6 +675,158 @@
   },
   "COPILOT": {
     "TRY_THESE_PROMPTS": "Try these prompts"
+  },
+  "COPILOT_ONBOARDING": {
+    "BADGE": "NEW",
+    "TITLE": "New: Copilot helps you reply faster",
+    "BODY": "Click here to summarize conversations, improve replies or ask questions. In your language.",
+    "CONFIRM": "Show me",
+    "DISMISS": "Later",
+    "TOAST_CONFIRMED": "Got it! Copilot is always on this button"
+  },
+  "COPILOT_ERRORS": {
+    "PRIVATE_MODE": "Private mode: AI disabled to prevent internal note leak",
+    "CTA_RETRY": "Retry",
+    "CTA_DISMISS": "Dismiss",
+    "RATE_LIMIT": {
+      "TITLE": "Too many requests",
+      "BODY": "Wait {seconds}s and try again",
+      "CTA_COUNTDOWN": "Wait {seconds}s"
+    },
+    "CAPTAIN_UNSTABLE": {
+      "TITLE": "Copilot unavailable",
+      "BODY": "Try again in a few minutes"
+    },
+    "TIMEOUT": {
+      "TITLE": "Taking longer than usual",
+      "BODY": "The response is delayed. You can keep waiting or cancel.",
+      "CTA_PRIMARY": "Keep waiting",
+      "CTA_CANCEL": "Cancel"
+    },
+    "EMPTY_RESPONSE": {
+      "TITLE": "I didn't receive a valid response",
+      "BODY": "Something went wrong with Copilot. Want to try again?"
+    },
+    "NETWORK": {
+      "TITLE": "No connection",
+      "BODY": "Check your internet and try again"
+    }
+  },
+  "AI_ASSISTANT_PANEL": {
+    "TITLE": "Copilot",
+    "CLOSE": "Close panel",
+    "SEND": "Send prompt",
+    "LOADING": "Generating response...",
+    "STREAM_COMPLETE": "Response ready",
+    "HISTORY_LABEL": "Copilot history",
+    "EMPTY": {
+      "GREETING_EMOJI": "👋 ",
+      "GREETING_NAMED": "Hi, {name}! How can I help?",
+      "GREETING_GENERIC": "Hi! How can I help?",
+      "SUBTITLE": "Pick a quick action or just ask."
+    },
+    "SECTIONS": {
+      "UNDERSTAND": "UNDERSTAND THE CONVERSATION",
+      "REWRITE": "REWRITE MY REPLY",
+      "CREATE": "CREATE A REPLY"
+    },
+    "PROMPTS": {
+      "SENTIMENT": {
+        "LABEL": "Analyze customer tone",
+        "DESCRIPTION": "I analyze how the customer feels"
+      },
+      "SUMMARIZE": {
+        "LABEL": "Summarize this conversation",
+        "DESCRIPTION": "See the key points"
+      },
+      "REPLY_SUGGESTION": {
+        "LABEL": "Suggest a reply",
+        "DESCRIPTION": "I draft one for you"
+      }
+    },
+    "TEXTAREA": {
+      "PLACEHOLDER": "Ask or request something (e.g. \"summarize the latest orders\")",
+      "HINT": "Enter sends · Shift+Enter breaks line"
+    },
+    "ACTIONS": {
+      "COPY": "Copy",
+      "APPLY": "Use in composer",
+      "RETRY": "Generate another",
+      "CANCEL": "Cancel",
+      "FEEDBACK_GOOD": "Good response",
+      "FEEDBACK_BAD": "Bad response",
+      "COPIED_TOAST": "Copied to clipboard",
+      "APPLIED_TOAST": "Response applied to composer",
+      "COPY_FAILED": "Could not copy"
+    },
+    "EDGE_CASES": {
+      "EMPTY_CONVERSATION_TITLE": "New customer, conversation starting.",
+      "EMPTY_CONVERSATION_BODY": "Once there are messages, I can summarize, analyze tone or suggest replies.",
+      "PRIVATE_MODE_TITLE": "Private note mode",
+      "PRIVATE_MODE_BODY": "The content is not sent to Copilot to avoid leaking the internal note. Switch back to \"Reply\" to use the AI.",
+      "WHATSAPP_EXPIRED_TITLE": "WhatsApp disconnected",
+      "WHATSAPP_EXPIRED_BODY": "Some actions are unavailable until you reconnect the session.",
+      "LONG_CONVERSATION_HINT": "I consider the last 50 messages"
+    },
+    "TOAST": {
+      "COPIED": "Copied to clipboard",
+      "APPLIED": "Response applied to composer",
+      "COPY_FAILED": "Could not copy",
+      "FEEDBACK_SAVED": "Thanks for the feedback!",
+      "PRIVATE_MODE_BLOCKED": "Private note mode — Copilot unavailable"
+    },
+    "TOUR": {
+      "NEXT": "Next",
+      "SKIP": "Skip tour",
+      "FINISH": "Got it, close",
+      "CLOSE": "Close tour",
+      "SKIP_TOAST": "You can run the tour again any time from your account settings.",
+      "STEP_LABEL": "Step {current} of {total}: {title}",
+      "STEP_1": {
+        "TITLE": "Everything starts here",
+        "BODY": "This is your AI shortcut, on the sparkles button of the composer. Anytime you need to tweak a reply or ask for a suggestion, just click it."
+      },
+      "STEP_2": {
+        "TITLE": "Use the quick prompts",
+        "BODY": "Pre-written actions in pt-BR. Hover to see what each one does before clicking."
+      },
+      "STEP_3": {
+        "TITLE": "Review before sending",
+        "BODY": "AI generates, you decide. Use it, edit it or discard it — the customer only receives it when you hit Send."
+      },
+      "STEP_4": {
+        "TITLE": "Side panel for whatever you need",
+        "BODY": "Long conversation? Tricky customer? Open the panel via the Copilot button on the header and chat with the AI directly. Shortcut: Ctrl+J."
+      }
+    },
+    "SMART_BANNER": {
+      "DISMISS_TOOLTIP": "Dismiss",
+      "DISMISSED_TOAST": "Ok, won't show again in this conversation",
+      "LONG_THREAD": {
+        "BODY": "Long thread ({count} msgs). Want a summary?",
+        "CTA": "Summarize now"
+      },
+      "SENTIMENT": {
+        "BODY": "Customer seems frustrated. Want help replying with empathy?",
+        "CTA": "Suggest reply"
+      },
+      "WAITING": {
+        "BODY": "Customer waiting for {minutes} min. Want a quick reply?",
+        "CTA": "Quick reply"
+      }
+    },
+    "SUGGESTION_CHIP": {
+      "HEADER": "Copilot suggestion",
+      "SUBTITLE": "Review before sending",
+      "USE": "Use this one",
+      "EDIT": "Edit",
+      "DISCARD": "Discard",
+      "EDIT_TOOLTIP": "Puts it in the field and selects all for you to adjust",
+      "DISCARD_TOOLTIP": "Discard suggestion (Esc)",
+      "USED_TOAST": "Done, just review and send",
+      "EDIT_TOAST": "Suggestion ready to edit",
+      "DISCARDED_TOAST": "Suggestion discarded"
+    }
   },
   "GALLERY_VIEW": {
     "ERROR_DOWNLOADING": "Unable to download attachment. Please try again",

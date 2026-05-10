@@ -27,6 +27,8 @@ import MessageToast from './components-next/notifications/MessageToast.vue';
 import OnboardingChecklist from './components-next/Onboarding/OnboardingChecklist.vue';
 import PwaInstallPrompt from './components-next/PwaInstallPrompt/PwaInstallPrompt.vue';
 import PushPermissionPrompt from './components-next/PushPermissionPrompt/PushPermissionPrompt.vue';
+import { Toaster } from 'vue-sonner';
+import 'vue-sonner/style.css';
 
 export default {
   name: 'App',
@@ -44,6 +46,7 @@ export default {
     OnboardingChecklist,
     PwaInstallPrompt,
     PushPermissionPrompt,
+    Toaster,
   },
   setup() {
     const router = useRouter();
@@ -197,6 +200,14 @@ export default {
     <PushPermissionPrompt v-if="currentAccountId" />
   </div>
   <LoadingState v-else />
+  <Toaster
+    position="bottom-right"
+    :duration="5000"
+    :visible-toasts="3"
+    close-button
+    rich-colors
+    :toast-options="{ class: 'z-[9999]' }"
+  />
 </template>
 
 <style lang="scss">
