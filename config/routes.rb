@@ -45,6 +45,8 @@ Rails.application.routes.draw do
         member do
           post :update_active_at
           get :cache_keys
+          post :chat_wallpaper
+          delete :chat_wallpaper
         end
 
         scope module: :accounts do
@@ -81,6 +83,7 @@ Rails.application.routes.draw do
               post :reply_suggestion
               post :label_suggestion
               post :follow_up
+              post :sentiment_analysis
             end
           end
           resource :saml_settings, only: [:show, :create, :update, :destroy]
@@ -150,6 +153,14 @@ Rails.application.routes.draw do
                 member do
                   post :translate
                   post :retry
+                  post :star
+                end
+                collection do
+                  post :share_location
+                  post :share_contact
+                end
+                scope module: :messages do
+                  resource :reactions, only: [:create]
                 end
               end
               resources :assignments, only: [:create]
@@ -157,6 +168,8 @@ Rails.application.routes.draw do
               resource :participants, only: [:show, :create, :update, :destroy]
               resource :direct_uploads, only: [:create]
               resource :draft_messages, only: [:show, :update, :destroy]
+              resource :ghost_suggestion, only: [:create]
+              resource :copilot_chat, only: [:create, :show, :destroy]
             end
             member do
               post :mute
@@ -188,6 +201,12 @@ Rails.application.routes.draw do
               get :messages
               get :contacts
               get :articles
+            end
+          end
+
+          resources :attachments, only: [:index] do
+            collection do
+              get :links
             end
           end
 
@@ -400,6 +419,11 @@ Rails.application.routes.draw do
             resource :notion, controller: 'notion', only: [] do
               collection do
                 delete :destroy
+              end
+            end
+            resource :openai, controller: 'openai', only: [] do
+              collection do
+                post :test_key
               end
             end
           end

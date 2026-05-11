@@ -87,7 +87,7 @@ export default {
 </script>
 
 <template>
-  <div>
+  <div class="reply-email-head">
     <div v-if="toEmails">
       <div class="input-group small" :class="{ error: v$.toEmailsVal.$error }">
         <label class="input-group-label">

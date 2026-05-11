@@ -1,13 +1,13 @@
 <script setup>
 // [TODO] Use Teleport to move the modal to the end of the body
-import { ref, computed, defineEmits, onMounted } from 'vue';
+import { ref, computed, defineEmits } from 'vue';
 import { useEventListener } from '@vueuse/core';
 import Button from 'dashboard/components-next/button/Button.vue';
 
 const { modalType, closeOnBackdropClick, onClose } = defineProps({
   closeOnBackdropClick: { type: Boolean, default: true },
   showCloseButton: { type: Boolean, default: true },
-  onClose: { type: Function, required: true },
+  onClose: { type: Function, default: null },
   fullWidth: { type: Boolean, default: false },
   modalType: { type: String, default: 'centered' },
   size: { type: String, default: '' },
@@ -35,7 +35,7 @@ const handleMouseDown = () => {
 const close = () => {
   show.value = false;
   emit('close');
-  onClose();
+  if (typeof onClose === 'function') onClose();
 };
 
 const onMouseUp = () => {
@@ -56,15 +56,6 @@ const onKeydown = e => {
 
 useEventListener(document.body, 'mouseup', onMouseUp);
 useEventListener(document, 'keydown', onKeydown);
-
-onMounted(() => {
-  if (import.meta.env.DEV && onClose && typeof onClose === 'function') {
-    // eslint-disable-next-line no-console
-    console.warn(
-      "[DEPRECATED] The 'onClose' prop is deprecated. Please use the 'close' event instead."
-    );
-  }
-});
 </script>
 
 <template>
@@ -76,7 +67,7 @@ onMounted(() => {
       @mousedown="handleMouseDown"
     >
       <div
-        class="relative max-h-full overflow-auto bg-white dark:bg-n-solid-2 border border-n-weak shadow-overlay modal-container rtl:text-right skip-context-menu animate-dropdown-in"
+        class="relative max-h-full overflow-auto bg-n-solid-1 border border-n-weak shadow-overlay modal-container rtl:text-right skip-context-menu animate-dropdown-in"
         :class="{
           'rounded-2xl w-[37.5rem]': !fullWidth,
           'items-center rounded-none flex h-full justify-center w-full':

@@ -4,6 +4,8 @@ import { useRouter } from 'vue-router';
 import { useSidebarContext } from './provider';
 import { useMapGetter } from 'dashboard/composables/store';
 import Icon from 'next/icon/Icon.vue';
+import LordIconIcon from 'next/icon/LordIconIcon.vue';
+import { LORDICON } from 'dashboard/constants/lordicons';
 import TeleportWithDirection from 'dashboard/components-next/TeleportWithDirection.vue';
 
 const props = defineProps({
@@ -110,7 +112,7 @@ onMounted(async () => {
       @mouseleave="emit('mouseleave')"
     >
       <div
-        class="bg-n-alpha-3 backdrop-blur-[100px] outline outline-1 -outline-offset-1 w-56 outline-n-weak rounded-xl shadow-lg py-2 px-2"
+        class="bg-n-solid-1 dark:bg-[#233138] border border-[var(--wa-list-border)] dark:border-[var(--wa-list-border-dark)] w-56 rounded-lg shadow-[0_2px_8px_rgba(11,20,26,0.12)] py-2 px-2"
       >
         <div
           class="px-2 py-1.5 text-xs font-medium text-n-slate-11 uppercase tracking-wider border-b border-n-weak mb-1"
@@ -124,6 +126,7 @@ onMounted(async () => {
             <!-- SubGroup with children -->
             <li v-if="child.children" class="py-0.5">
               <button
+                data-hover-host
                 class="flex items-center gap-2 px-2 py-1.5 w-full rounded-lg text-n-slate-11 hover:bg-n-alpha-2 transition-colors duration-150 ease-out text-left rtl:text-right"
                 @click="toggleSubGroup(child.name)"
               >
@@ -133,8 +136,13 @@ onMounted(async () => {
                   class="size-4 flex-shrink-0"
                 />
                 <span class="flex-1 truncate text-sm">{{ child.label }}</span>
-                <span
-                  class="size-3 transition-transform i-lucide-chevron-down"
+                <LordIconIcon
+                  :src="LORDICON.chevronDown.idle"
+                  :src-active="LORDICON.chevronDown.active"
+                  :family="LORDICON.chevronDown.family"
+                  fallback-lucide="i-lucide-chevron-down"
+                  :size="12"
+                  class="transition-transform duration-200"
                   :class="{
                     'rotate-180': expandedSubGroup === child.name,
                   }"
@@ -151,6 +159,8 @@ onMounted(async () => {
                     class="py-0.5"
                   >
                     <button
+                      data-hover-host
+                      :data-sidebar-active="String(isActive(subChild))"
                       class="flex items-center gap-2 px-2 py-1.5 w-full rounded-lg text-sm text-left rtl:text-right transition-colors duration-150 ease-out"
                       :class="{
                         'text-n-slate-12 bg-n-alpha-2': isActive(subChild),
@@ -174,6 +184,8 @@ onMounted(async () => {
             <!-- Direct child item -->
             <li v-else class="py-0.5">
               <button
+                data-hover-host
+                :data-sidebar-active="String(isActive(child))"
                 class="flex items-center gap-2 px-2 py-1.5 w-full rounded-lg text-sm text-left rtl:text-right transition-colors duration-150 ease-out"
                 :class="{
                   'text-n-slate-12 bg-n-alpha-2': isActive(child),

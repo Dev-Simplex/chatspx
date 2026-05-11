@@ -32,7 +32,7 @@ const onMenuItemClick = key => {
     @close="handleClose"
   >
     <div
-      class="p-1 rounded-md shadow-xl bg-n-alpha-3/50 backdrop-blur-[100px] outline-1 outline outline-n-weak/50"
+      class="p-1 rounded-md shadow-[0_2px_8px_rgba(11,20,26,0.12)] bg-n-solid-1 dark:bg-[#233138] border border-[var(--wa-list-border)] dark:border-[var(--wa-list-border-dark)]"
     >
       <MenuItem
         v-for="item in menuItems"

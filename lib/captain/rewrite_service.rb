@@ -2,7 +2,7 @@ class Captain::RewriteService < Captain::BaseTaskService
   pattr_initialize [:account!, :content!, :operation!, { conversation_display_id: nil }]
 
   TONE_OPERATIONS = %i[casual professional friendly confident straightforward].freeze
-  ALLOWED_OPERATIONS = (%i[fix_spelling_grammar improve] + TONE_OPERATIONS).freeze
+  ALLOWED_OPERATIONS = (%i[fix_spelling_grammar improve shorten expand] + TONE_OPERATIONS).freeze
 
   def perform
     operation_sym = operation.to_sym
@@ -26,20 +26,44 @@ class Captain::RewriteService < Captain::BaseTaskService
   def improve
     template = prompt_from_file('improve')
 
+    sanitized_context = Captain::PiiSanitizer.sanitize(
+      conversation.to_llm_text(include_contact_details: true)
+    )
+    sanitized_content = Captain::PiiSanitizer.sanitize(content)
+
     system_prompt = render_liquid_template(template, {
-                                             'conversation_context' => conversation.to_llm_text(include_contact_details: true),
-                                             'draft_message' => content
+                                             'conversation_context' => sanitized_context,
+                                             'draft_message' => sanitized_content
                                            })
 
-    call_llm_with_prompt(system_prompt, content)
+    call_llm_with_prompt(system_prompt, sanitized_content)
   end
 
-  def call_llm_with_prompt(system_content, user_content = content)
+  def shorten
+    template = prompt_from_file('shorten')
+    sanitized = Captain::PiiSanitizer.sanitize(content)
+    system_prompt = render_liquid_template(template, 'content' => sanitized)
+    call_llm_with_prompt(system_prompt, sanitized)
+  end
+
+  def expand
+    template = prompt_from_file('expand')
+    sanitized = Captain::PiiSanitizer.sanitize(content)
+    system_prompt = render_liquid_template(template, 'content' => sanitized)
+    call_llm_with_prompt(system_prompt, sanitized)
+  end
+
+  # Defense-in-depth: sanitize the user payload here too, so callers that
+  # forget to pre-sanitize (e.g. fix_spelling_grammar / tone operations
+  # invoked with raw content) never leak PII to the upstream LLM provider.
+  # Pre-sanitized inputs are idempotent under Captain::PiiSanitizer.
+  def call_llm_with_prompt(system_content, user_content = nil)
+    sanitized_user = Captain::PiiSanitizer.sanitize(user_content || content)
     make_api_call(
       model: GPT_MODEL,
       messages: [
         { role: 'system', content: system_content },
-        { role: 'user', content: user_content }
+        { role: 'user', content: sanitized_user }
       ]
     )
   end

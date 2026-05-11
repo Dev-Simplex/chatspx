@@ -48,7 +48,7 @@ useKeyboardEvents(keyboardEvents);
 <template>
   <woot-tabs
     :index="activeTabIndex"
-    class="w-full py-0 [&_ul]:px-3 [&_ul]:py-1"
+    class="w-full py-0 conversation-list-tabs chat-list-tabs [&_ul]:px-3 [&_ul]:py-1"
     @change="onTabChange"
   >
     <woot-tabs-item
@@ -58,6 +58,7 @@ useKeyboardEvents(keyboardEvents);
       :index="index"
       :name="item.name"
       :count="item.count"
+      :icon="item.icon"
       is-compact
     />
   </woot-tabs>

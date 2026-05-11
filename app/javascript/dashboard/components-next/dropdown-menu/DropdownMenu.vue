@@ -123,15 +123,12 @@ onMounted(() => {
 
 <template>
   <div
-    class="bg-white dark:bg-n-solid-2 border border-n-weak absolute rounded-xl z-50 gap-1 flex flex-col min-w-[136px] shadow-lg p-1 animate-dropdown-in"
+    class="bg-n-solid-1 border border-n-weak absolute rounded-xl z-50 gap-1 flex flex-col min-w-[136px] shadow-lg p-1 animate-dropdown-in"
     :class="{
       'pt-1': !showSearch,
     }"
   >
-    <div
-      v-if="showSearch"
-      class="sticky top-0 bg-white dark:bg-n-solid-2 pt-1 z-20"
-    >
+    <div v-if="showSearch" class="sticky top-0 bg-n-solid-1 pt-1 z-20">
       <div class="relative">
         <span class="absolute i-lucide-search size-3.5 top-2 left-3" />
         <input
@@ -154,7 +151,7 @@ onMounted(() => {
       >
         <p
           v-if="section.title"
-          class="px-2 py-2 text-xs mb-0 font-medium text-n-slate-11 uppercase tracking-wide sticky z-10 bg-white dark:bg-n-solid-2"
+          class="px-2 py-2 text-xs mb-0 font-medium text-n-slate-11 uppercase tracking-wide sticky z-10 bg-n-solid-1"
           :class="showSearch ? 'top-10' : 'top-0'"
         >
           {{ section.title }}

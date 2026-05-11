@@ -44,6 +44,7 @@ const triggerClick = () => {
     <component
       :is="componentIs"
       v-bind="$attrs"
+      data-hover-host
       class="icon-animated flex text-left rtl:text-right items-center px-3 py-2 reset-base text-sm text-n-slate-12 w-full border-0"
       :class="{
         'hover:bg-n-slate-3/50 rounded-lg w-full gap-2': !$slots.default,

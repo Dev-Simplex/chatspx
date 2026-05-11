@@ -89,6 +89,25 @@ app.use(FloatingVue, {
   instantMove: true,
   arrowOverflow: false,
   disposeTimeout: 5000000,
+  themes: {
+    tooltip: {
+      placement: 'top',
+      distance: 10,
+      delay: { show: 250, hide: 0 },
+      html: false,
+    },
+    dropdown: {
+      distance: 4,
+    },
+    'ai-action': {
+      $extend: 'tooltip',
+      placement: 'right',
+      distance: 8,
+      delay: { show: 500, hide: 100 },
+      triggers: ['hover', 'focus'],
+      html: false,
+    },
+  },
 });
 app.use(hljsVuePlugin);
 

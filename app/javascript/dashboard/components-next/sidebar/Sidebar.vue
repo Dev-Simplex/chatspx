@@ -1,9 +1,11 @@
 <script setup>
-import { h, ref, computed, onMounted } from 'vue';
+import { h, ref, computed, onMounted, watch } from 'vue';
 import { provideSidebarContext, useSidebarResize } from './provider';
 import { useAccount } from 'dashboard/composables/useAccount';
 import { useKbd } from 'dashboard/composables/utils/useKbd';
 import { useMapGetter } from 'dashboard/composables/store';
+import { useUISettings } from 'dashboard/composables/useUISettings';
+import draggable from 'vuedraggable';
 import { useStore } from 'vuex';
 import { useI18n } from 'vue-i18n';
 import { useSidebarKeyboardShortcuts } from './useSidebarKeyboardShortcuts';
@@ -11,10 +13,7 @@ import { vOnClickOutside } from '@vueuse/components';
 
 import { FEATURE_FLAGS } from 'dashboard/featureFlags';
 import { useWindowSize, useEventListener } from '@vueuse/core';
-import { emitter } from 'shared/helpers/mitt';
-import { BUS_EVENTS } from 'shared/constants/busEvents';
 
-import Button from 'dashboard/components-next/button/Button.vue';
 import SidebarGroup from './SidebarGroup.vue';
 import SidebarProfileMenu from './SidebarProfileMenu.vue';
 import SidebarChangelogCard from './SidebarChangelogCard.vue';
@@ -23,6 +22,8 @@ import ChannelLeaf from './ChannelLeaf.vue';
 import ChannelIcon from 'next/icon/ChannelIcon.vue';
 import SidebarAccountSwitcher from './SidebarAccountSwitcher.vue';
 import Logo from 'next/icon/Logo.vue';
+import LordIconIcon from 'next/icon/LordIconIcon.vue';
+import { LORDICON } from 'dashboard/constants/lordicons';
 
 const props = defineProps({
   isMobileSidebarOpen: {
@@ -38,10 +39,21 @@ const emit = defineEmits([
   'closeMobileSidebar',
 ]);
 
+const lordIcon = (srcKey, fallback = '') => {
+  const cfg = LORDICON[srcKey] || {};
+  return h(LordIconIcon, {
+    src: cfg.idle,
+    srcActive: cfg.active,
+    family: cfg.family || 'system',
+    fallbackLucide: fallback,
+  });
+};
+
 const { accountScopedRoute, isOnChatwootCloud } = useAccount();
 const store = useStore();
 const searchShortcut = useKbd([`$mod`, 'k']);
 const { t } = useI18n();
+const { uiSettings, updateUISettings } = useUISettings();
 
 const isACustomBrandedInstance = useMapGetter(
   'globalConfig/isACustomBrandedInstance'
@@ -71,6 +83,11 @@ const toggleShortcutModalFn = show => {
   }
 };
 
+const openCommandPalette = () => {
+  const ninja = document.querySelector('ninja-keys');
+  if (ninja && typeof ninja.open === 'function') ninja.open();
+};
+
 useSidebarKeyboardShortcuts(toggleShortcutModalFn);
 
 const expandedItem = ref(null);
@@ -89,10 +106,9 @@ const {
   COLLAPSED_THRESHOLD,
 } = useSidebarResize();
 
-// On mobile, sidebar is always expanded (flyout mode)
-const isEffectivelyCollapsed = computed(
-  () => !isMobile.value && isCollapsed.value
-);
+// WhatsApp-fidelity: desktop rail is ALWAYS collapsed (ícones only).
+// Mobile keeps flyout (expanded) behavior untouched.
+const isEffectivelyCollapsed = computed(() => !isMobile.value);
 
 // Resize handle logic
 const isResizing = ref(false);
@@ -221,7 +237,7 @@ const menuItems = computed(() => {
     {
       name: 'Inbox',
       label: t('SIDEBAR.INBOX'),
-      icon: 'i-lucide-inbox',
+      icon: lordIcon('notifications', 'i-lucide-bell'),
       to: accountScopedRoute('inbox_view'),
       activeOn: ['inbox_view', 'inbox_view_conversation'],
       getterKeys: {
@@ -231,7 +247,7 @@ const menuItems = computed(() => {
     {
       name: 'Conversation',
       label: t('SIDEBAR.CONVERSATIONS'),
-      icon: 'i-lucide-message-circle',
+      icon: lordIcon('chatMessage', 'i-lucide-message-circle'),
       children: [
         {
           name: 'All',
@@ -248,7 +264,7 @@ const menuItems = computed(() => {
         {
           name: 'UnattendedGroup',
           label: t('SIDEBAR.UNATTENDED_CONVERSATIONS'),
-          icon: 'i-lucide-clock',
+          icon: lordIcon('unattended', 'i-lucide-clock'),
           children: [
             {
               name: 'Unattended',
@@ -296,7 +312,7 @@ const menuItems = computed(() => {
         {
           name: 'Status',
           label: t('SIDEBAR.STATUS'),
-          icon: 'i-lucide-filter',
+          icon: lordIcon('filter', 'i-lucide-filter'),
           activeOn: ['conversation_status', 'conversation_through_status'],
           children: [
             {
@@ -334,7 +350,7 @@ const menuItems = computed(() => {
         {
           name: 'Folders',
           label: t('SIDEBAR.CUSTOM_VIEWS_FOLDER'),
-          icon: 'i-lucide-folder',
+          icon: lordIcon('folder', 'i-lucide-folder'),
           activeOn: ['conversations_through_folders'],
           children: conversationCustomViews.value.map(view => ({
             name: `${view.name}-${view.id}`,
@@ -345,7 +361,7 @@ const menuItems = computed(() => {
         {
           name: 'Teams',
           label: t('SIDEBAR.TEAMS'),
-          icon: 'i-lucide-users',
+          icon: lordIcon('team', 'i-lucide-users'),
           activeOn: ['conversations_through_team'],
           children: teams.value.map(team => ({
             name: `${team.name}-${team.id}`,
@@ -356,7 +372,7 @@ const menuItems = computed(() => {
         {
           name: 'Channels',
           label: t('SIDEBAR.CHANNELS'),
-          icon: 'i-lucide-mailbox',
+          icon: lordIcon('channels', 'i-lucide-inbox'),
           activeOn: ['conversation_through_inbox'],
           children: sortedInboxes.value.map(inbox => ({
             name: `${inbox.name}-${inbox.id}`,
@@ -374,7 +390,7 @@ const menuItems = computed(() => {
         {
           name: 'Labels',
           label: t('SIDEBAR.LABELS'),
-          icon: 'i-lucide-tag',
+          icon: lordIcon('label', 'i-lucide-tag'),
           activeOn: ['conversations_through_label'],
           children: labels.value.map(label => ({
             name: `${label.title}-${label.id}`,
@@ -393,13 +409,20 @@ const menuItems = computed(() => {
     {
       name: 'Kanban',
       label: t('SIDEBAR.KANBAN'),
-      icon: 'i-lucide-layout-grid',
+      icon: lordIcon('kanban', 'i-lucide-layout-grid'),
       to: accountScopedRoute('kanban_index'),
       activeOn: ['kanban_index', 'kanban_funnel'],
     },
     {
+      name: 'Gallery',
+      label: t('SIDEBAR.GALLERY'),
+      icon: lordIcon('gallery', 'i-lucide-image'),
+      to: accountScopedRoute('gallery_index'),
+      activeOn: ['gallery_index'],
+    },
+    {
       name: 'Captain',
-      icon: 'i-woot-captain',
+      icon: lordIcon('captain', 'i-woot-captain'),
       label: t('SIDEBAR.CAPTAIN'),
       activeOn: ['captain_assistants_create_index'],
       children: [
@@ -477,7 +500,7 @@ const menuItems = computed(() => {
     {
       name: 'Contacts',
       label: t('SIDEBAR.CONTACTS'),
-      icon: 'i-lucide-contact',
+      icon: lordIcon('contacts', 'i-lucide-contact'),
       children: [
         {
           name: 'All Contacts',
@@ -497,7 +520,7 @@ const menuItems = computed(() => {
         },
         {
           name: 'Segments',
-          icon: 'i-lucide-group',
+          icon: lordIcon('team', 'i-lucide-group'),
           label: t('SIDEBAR.CUSTOM_VIEWS_SEGMENTS'),
           children: contactCustomViews.value.map(view => ({
             name: `${view.name}-${view.id}`,
@@ -515,7 +538,7 @@ const menuItems = computed(() => {
         },
         {
           name: 'Tagged With',
-          icon: 'i-lucide-tag',
+          icon: lordIcon('label', 'i-lucide-tag'),
           label: t('SIDEBAR.TAGGED_WITH'),
           children: labels.value.map(label => ({
             name: `${label.title}-${label.id}`,
@@ -540,7 +563,7 @@ const menuItems = computed(() => {
     {
       name: 'Companies',
       label: t('SIDEBAR.COMPANIES'),
-      icon: 'i-lucide-building-2',
+      icon: lordIcon('companies', 'i-lucide-building-2'),
       children: [
         {
           name: 'All Companies',
@@ -557,7 +580,7 @@ const menuItems = computed(() => {
     {
       name: 'Reports',
       label: t('SIDEBAR.REPORTS'),
-      icon: 'i-lucide-chart-spline',
+      icon: lordIcon('reports', 'i-lucide-chart-spline'),
       children: [
         {
           name: 'Report Overview',
@@ -595,7 +618,7 @@ const menuItems = computed(() => {
     {
       name: 'Live',
       label: t('SIDEBAR.REPORTS_LIVE'),
-      icon: 'i-lucide-activity',
+      icon: lordIcon('live', 'i-lucide-activity'),
       children: [
         {
           name: 'Live In Service',
@@ -607,7 +630,7 @@ const menuItems = computed(() => {
     {
       name: 'Campaigns',
       label: t('SIDEBAR.CAMPAIGNS'),
-      icon: 'i-lucide-megaphone',
+      icon: lordIcon('megaphone', 'i-lucide-megaphone'),
       children: [
         {
           name: 'Live chat',
@@ -629,7 +652,7 @@ const menuItems = computed(() => {
     {
       name: 'Portals',
       label: t('SIDEBAR.HELP_CENTER.TITLE'),
-      icon: 'i-lucide-library-big',
+      icon: lordIcon('helpCenter', 'i-lucide-library-big'),
       children: [
         {
           name: 'Articles',
@@ -676,12 +699,12 @@ const menuItems = computed(() => {
     {
       name: 'Settings',
       label: t('SIDEBAR.SETTINGS'),
-      icon: 'i-lucide-bolt',
+      icon: lordIcon('settings', 'i-lucide-bolt'),
       children: [
         {
           name: 'Settings Account Settings',
           label: t('SIDEBAR.ACCOUNT_SETTINGS'),
-          icon: 'i-lucide-briefcase',
+          icon: lordIcon('account', 'i-lucide-briefcase'),
           to: accountScopedRoute('general_settings_index'),
         },
         // {
@@ -693,13 +716,13 @@ const menuItems = computed(() => {
         {
           name: 'Settings Agents',
           label: t('SIDEBAR.AGENTS'),
-          icon: 'i-lucide-square-user',
+          icon: lordIcon('agent', 'i-lucide-square-user'),
           to: accountScopedRoute('agent_list'),
         },
         {
           name: 'Settings Teams',
           label: t('SIDEBAR.TEAMS'),
-          icon: 'i-lucide-users',
+          icon: lordIcon('team', 'i-lucide-users'),
           activeOn: [
             'settings_teams_list',
             'settings_teams_new',
@@ -717,7 +740,7 @@ const menuItems = computed(() => {
               {
                 name: 'Settings Agent Assignment',
                 label: t('SIDEBAR.AGENT_ASSIGNMENT'),
-                icon: 'i-lucide-user-cog',
+                icon: lordIcon('settings', 'i-lucide-user-cog'),
                 activeOn: [
                   'assignment_policy_index',
                   'agent_assignment_policy_index',
@@ -734,7 +757,7 @@ const menuItems = computed(() => {
         {
           name: 'Settings Inboxes',
           label: t('SIDEBAR.INBOXES'),
-          icon: 'i-lucide-inbox',
+          icon: lordIcon('channels', 'i-lucide-inbox'),
           activeOn: [
             'settings_inbox_list',
             'settings_inbox_show',
@@ -748,106 +771,124 @@ const menuItems = computed(() => {
         {
           name: 'Settings WAHA Connections',
           label: t('SIDEBAR.WAHA_CONNECTIONS'),
-          icon: h(
-            'svg',
-            {
-              xmlns: 'http://www.w3.org/2000/svg',
-              width: '16',
-              height: '16',
-              fill: 'currentColor',
-              viewBox: '0 0 16 16',
-              class: 'inline-block',
-            },
-            [
-              h('path', {
-                d: 'M13.601 2.326A7.85 7.85 0 0 0 7.994 0C3.627 0 .068 3.558.064 7.926c0 1.399.366 2.76 1.057 3.965L0 16l4.204-1.102a7.9 7.9 0 0 0 3.79.965h.004c4.368 0 7.926-3.558 7.93-7.93A7.9 7.9 0 0 0 13.6 2.326zM7.994 14.521a6.6 6.6 0 0 1-3.356-.92l-.24-.144-2.494.654.666-2.433-.156-.251a6.56 6.56 0 0 1-1.007-3.505c0-3.626 2.957-6.584 6.591-6.584a6.56 6.56 0 0 1 4.66 1.931 6.56 6.56 0 0 1 1.928 4.66c-.004 3.639-2.961 6.592-6.592 6.592m3.615-4.934c-.197-.099-1.17-.578-1.353-.646-.182-.065-.315-.099-.445.099-.133.197-.513.646-.627.775-.114.133-.232.148-.43.05-.197-.1-.836-.308-1.592-.985-.59-.525-.985-1.175-1.103-1.372-.114-.198-.011-.304.088-.403.087-.088.197-.232.296-.346.1-.114.133-.198.198-.33.065-.134.034-.248-.015-.347-.05-.099-.445-1.076-.612-1.47-.16-.389-.323-.335-.445-.34-.114-.007-.247-.007-.38-.007a.73.73 0 0 0-.529.247c-.182.198-.691.677-.691 1.654s.71 1.916.81 2.049c.098.133 1.394 2.132 3.383 2.992.47.205.84.326 1.129.418.475.152.904.129 1.246.08.38-.058 1.171-.48 1.338-.943.164-.464.164-.86.114-.943-.049-.084-.182-.133-.38-.232',
-              }),
-            ]
-          ),
+          icon: lordIcon('waha'),
           to: accountScopedRoute('waha_connections_list'),
         },
         {
           name: 'Settings Labels',
           label: t('SIDEBAR.LABELS'),
-          icon: 'i-lucide-tags',
+          icon: lordIcon('label', 'i-lucide-tags'),
           to: accountScopedRoute('labels_list'),
         },
         {
           name: 'Settings Custom Attributes',
           label: t('SIDEBAR.CUSTOM_ATTRIBUTES'),
-          icon: 'i-lucide-code',
+          icon: lordIcon('customAttrs', 'i-lucide-code'),
           to: accountScopedRoute('attributes_list'),
         },
         {
           name: 'Settings Automation',
           label: t('SIDEBAR.AUTOMATION'),
-          icon: 'i-lucide-repeat',
+          icon: lordIcon('automation', 'i-lucide-repeat'),
           to: accountScopedRoute('automation_list'),
         },
         {
           name: 'Settings Agent Bots',
           label: t('SIDEBAR.AGENT_BOTS'),
-          icon: 'i-lucide-bot',
+          icon: lordIcon('bots', 'i-lucide-bot'),
           to: accountScopedRoute('agent_bots'),
         },
         {
           name: 'Settings Macros',
           label: t('SIDEBAR.MACROS'),
-          icon: 'i-lucide-toy-brick',
+          icon: lordIcon('macros', 'i-lucide-toy-brick'),
           to: accountScopedRoute('macros_wrapper'),
         },
         {
           name: 'Settings Canned Responses',
           label: t('SIDEBAR.CANNED_RESPONSES'),
-          icon: 'i-lucide-message-square-quote',
+          icon: lordIcon('cannedResp', 'i-lucide-message-square-quote'),
           to: accountScopedRoute('canned_list'),
         },
         {
           name: 'Settings Integrations',
           label: t('SIDEBAR.INTEGRATIONS'),
-          icon: 'i-lucide-blocks',
+          icon: lordIcon('integration', 'i-lucide-blocks'),
           to: accountScopedRoute('settings_applications'),
         },
         {
           name: 'Settings Audit Logs',
           label: t('SIDEBAR.AUDIT_LOGS'),
-          icon: 'i-lucide-briefcase',
+          icon: lordIcon('audit', 'i-lucide-briefcase'),
           to: accountScopedRoute('auditlogs_list'),
         },
         {
           name: 'Settings Custom Roles',
           label: t('SIDEBAR.CUSTOM_ROLES'),
-          icon: 'i-lucide-shield-plus',
+          icon: lordIcon('customRoles', 'i-lucide-shield-plus'),
           to: accountScopedRoute('custom_roles_list'),
         },
         {
           name: 'Settings Sla',
           label: t('SIDEBAR.SLA'),
-          icon: 'i-lucide-clock-alert',
+          icon: lordIcon('sla', 'i-lucide-clock-alert'),
           to: accountScopedRoute('sla_list'),
         },
         {
           name: 'Conversation Workflow',
           label: t('SIDEBAR.CONVERSATION_WORKFLOW'),
-          icon: 'i-lucide-workflow',
+          icon: lordIcon('workflow', 'i-lucide-workflow'),
           to: accountScopedRoute('conversation_workflow_index'),
         },
         {
           name: 'Settings Security',
           label: t('SIDEBAR.SECURITY'),
-          icon: 'i-lucide-shield',
+          icon: lordIcon('customRoles', 'i-lucide-shield'),
           to: accountScopedRoute('security_settings_index'),
         },
         {
           name: 'Settings Billing',
           label: t('SIDEBAR.BILLING'),
-          icon: 'i-lucide-credit-card',
+          icon: lordIcon('billing', 'i-lucide-credit-card'),
           to: accountScopedRoute('billing_settings_index'),
         },
       ],
     },
   ];
 });
+
+// WA-style rail: show ALL top-level items, sempre como ícones (collapsed).
+// Tooltip no hover mostra o label. Admin itens permanecem acessíveis.
+const orderedMenuItems = computed(() => {
+  const order = Array.isArray(uiSettings.value?.sidebar_order)
+    ? uiSettings.value.sidebar_order
+    : [];
+  if (!order.length) return menuItems.value;
+  const byName = Object.fromEntries(
+    menuItems.value.map(item => [item.name, item])
+  );
+  const ordered = order.map(name => byName[name]).filter(Boolean);
+  const remaining = menuItems.value.filter(item => !order.includes(item.name));
+  return [...ordered, ...remaining];
+});
+
+const visibleMenuItems = computed(() => orderedMenuItems.value);
+
+// Live ref synced with computed — vuedraggable mutates this array
+// then we persist the resulting order to uiSettings.
+const liveMenuItems = ref([]);
+watch(
+  visibleMenuItems,
+  v => {
+    liveMenuItems.value = [...v];
+  },
+  { immediate: true }
+);
+
+const onSidebarReorder = () => {
+  const newOrder = liveMenuItems.value.map(item => item.name);
+  updateUISettings({ sidebar_order: newOrder });
+};
 </script>
 
 <template>
@@ -865,11 +906,15 @@ const menuItems = computed(() => {
           !isResizing,
       },
     ]"
-    :style="isMobile ? undefined : { width: `${sidebarWidth}px` }"
+    :style="
+      isMobile
+        ? undefined
+        : { width: isEffectivelyCollapsed ? '72px' : `${sidebarWidth}px` }
+    "
   >
     <section
       class="grid"
-      :class="isEffectivelyCollapsed ? 'mt-3 mb-6 gap-4' : 'mt-1 mb-4 gap-2'"
+      :class="isEffectivelyCollapsed ? 'mt-3 mb-2 gap-3' : 'mt-1 mb-4 gap-2'"
     >
       <div
         class="flex gap-2 items-center min-w-0"
@@ -896,65 +941,72 @@ const menuItems = computed(() => {
         </template>
       </div>
       <div
-        class="flex gap-2"
+        class="flex gap-2 min-w-0"
         :class="isEffectivelyCollapsed ? 'flex-col items-center' : 'px-2'"
       >
-        <RouterLink
+        <button
           v-if="!isEffectivelyCollapsed"
-          :to="{ name: 'search' }"
-          class="flex gap-2 items-center px-2 py-1 w-full h-7 rounded-lg outline outline-1 outline-n-weak bg-n-button-color transition-all duration-100 ease-out"
+          data-hover-host
+          type="button"
+          class="flex gap-2 items-center px-3 py-2 w-full min-w-0 overflow-hidden rounded-lg bg-n-slate-3 hover:bg-n-slate-4 dark:bg-n-slate-9/40 dark:hover:bg-n-slate-9/60 text-n-slate-11 text-sm transition-colors duration-100 ease-out"
+          @click="openCommandPalette"
         >
-          <span class="flex-shrink-0 i-lucide-search size-4 text-n-slate-10" />
-          <span class="flex-grow text-start text-n-slate-10">
-            {{ t('COMBOBOX.SEARCH_PLACEHOLDER') }}
+          <LordIconIcon
+            :src="LORDICON.search.idle"
+            :src-active="LORDICON.search.active"
+            :family="LORDICON.search.family"
+            fallback-lucide="i-lucide-search"
+            :size="16"
+            class="flex-shrink-0"
+          />
+          <span class="flex-1 min-w-0 text-start truncate">
+            {{ t('SIDEBAR.SEARCH_PLACEHOLDER') }}
           </span>
-          <span
-            class="hidden tracking-wide pointer-events-none select-none text-n-slate-10"
+          <kbd
+            class="hidden xl:inline-flex flex-shrink-0 text-[11px] bg-n-slate-1 dark:bg-n-slate-9 border border-n-slate-6 text-n-slate-11 px-1.5 py-0.5 rounded font-mono leading-none tracking-wide pointer-events-none select-none"
           >
             {{ searchShortcut }}
-          </span>
-        </RouterLink>
+          </kbd>
+        </button>
         <RouterLink
           v-else
+          v-tooltip.right="t('SIDEBAR.SEARCH_PLACEHOLDER')"
+          data-hover-host
           :to="{ name: 'search' }"
-          class="flex items-center justify-center size-8 rounded-lg outline outline-1 outline-n-weak bg-n-button-color transition-all duration-100 ease-out hover:bg-n-alpha-2 dark:hover:bg-n-slate-9/30"
-          :title="t('COMBOBOX.SEARCH_PLACEHOLDER')"
+          class="flex items-center justify-center size-10 rounded-lg text-n-slate-11 hover:bg-n-alpha-2 [&_svg]:opacity-60 hover:[&_svg]:opacity-100 transition-colors duration-150"
+          :title="t('SIDEBAR.SEARCH_PLACEHOLDER')"
         >
-          <span class="i-lucide-search size-4 text-n-slate-11" />
+          <LordIconIcon
+            :src="LORDICON.search.idle"
+            :src-active="LORDICON.search.active"
+            :family="LORDICON.search.family"
+            fallback-lucide="i-lucide-search"
+            :size="18"
+            class="text-current"
+          />
         </RouterLink>
-        <Button
-          :icon="
-            isEffectivelyCollapsed
-              ? 'i-lucide-panel-left-open'
-              : 'i-lucide-panel-left-close'
-          "
-          color="slate"
-          size="sm"
-          class="dark:hover:!bg-n-slate-9/30"
-          :class="[
-            isEffectivelyCollapsed
-              ? '!size-8 !outline-n-weak !text-n-slate-11'
-              : '!h-7 !outline-n-weak !text-n-slate-11',
-          ]"
-          @click="isCollapsed ? snapToExpanded() : snapToCollapsed()"
-        />
       </div>
     </section>
     <nav
-      class="grid overflow-y-scroll flex-grow gap-2 pb-5 no-scrollbar min-w-0"
+      class="grid overflow-y-auto flex-grow gap-2 pb-5 no-scrollbar min-w-0"
       :class="isEffectivelyCollapsed ? 'px-1' : 'px-2'"
     >
-      <ul
+      <draggable
+        v-model="liveMenuItems"
+        tag="ul"
+        item-key="name"
+        :animation="150"
+        :delay="120"
+        delay-on-touch-only
         class="flex flex-col gap-1 m-0 list-none min-w-0"
         :class="{ 'items-center': isEffectivelyCollapsed }"
+        ghost-class="opacity-50"
+        @end="onSidebarReorder"
       >
-        <SidebarGroup
-          v-for="item in menuItems"
-          :key="item.name"
-          v-bind="item"
-          :is-collapsed="isCollapsed"
-        />
-      </ul>
+        <template #item="{ element }">
+          <SidebarGroup v-bind="element" :is-collapsed="isCollapsed" />
+        </template>
+      </draggable>
     </nav>
     <section
       class="flex relative flex-col flex-shrink-0 gap-1 justify-between items-center"

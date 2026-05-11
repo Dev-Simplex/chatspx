@@ -31,10 +31,10 @@
         "TEXT": "Resolved"
       },
       "pending": {
-        "TEXT": "Pending"
+        "TEXT": "In progress"
       },
       "snoozed": {
-        "TEXT": "Snoozed"
+        "TEXT": "Later"
       },
       "all": {
         "TEXT": "All"

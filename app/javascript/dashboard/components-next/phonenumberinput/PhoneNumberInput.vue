@@ -163,7 +163,7 @@ watch(
   <div>
     <div
       v-on-clickaway="() => closeCountryDropdown()"
-      class="relative flex items-center h-8 transition-all duration-500 ease-in-out outline outline-1 outline-offset-[-1px] rounded-lg bg-n-alpha-black2"
+      class="relative flex items-center h-8 transition-[outline-color,background-color] duration-150 ease-out outline outline-1 outline-offset-[-1px] rounded-lg bg-n-alpha-black2"
       :class="[inputBorderClass, { 'cursor-not-allowed opacity-50': disabled }]"
     >
       <Input
@@ -216,7 +216,7 @@ watch(
     <template v-if="phoneNumberError">
       <p
         v-if="phoneNumberError"
-        class="min-w-0 mt-1 mb-0 text-xs truncate transition-all duration-500 ease-in-out text-n-ruby-9 dark:text-n-ruby-9"
+        class="min-w-0 mt-1 mb-0 text-xs truncate transition-opacity duration-150 ease-out text-n-ruby-9 dark:text-n-ruby-9"
       >
         {{ phoneNumberError }}
       </p>

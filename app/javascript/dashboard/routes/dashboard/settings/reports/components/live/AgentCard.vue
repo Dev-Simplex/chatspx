@@ -54,7 +54,7 @@ const loadMoreConversations = () => {
 
 <template>
   <div
-    class="flex flex-col h-[400px] bg-white dark:bg-n-solid-2 border border-n-weak rounded-xl overflow-hidden transition-all duration-300 hover:shadow-lg"
+    class="flex flex-col h-[400px] bg-n-solid-1 border border-n-weak rounded-xl overflow-hidden transition-all duration-300 hover:shadow-lg"
   >
     <div
       class="flex items-center gap-3 p-4 border-b border-n-weak bg-n-alpha-2 flex-shrink-0"

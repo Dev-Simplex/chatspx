@@ -28,7 +28,7 @@ const handleMouseEnter = () => {
 
 <template>
   <div
-    class="flex items-center px-1 py-1 overflow-hidden transition-all duration-300 ease-out rounded-md bg-n-alpha-2 h-7"
+    class="flex items-center px-1 py-1 overflow-hidden transition-[width,background-color] duration-150 ease-out rounded-md bg-n-alpha-2 h-7"
     @mouseenter="handleMouseEnter"
   >
     <div

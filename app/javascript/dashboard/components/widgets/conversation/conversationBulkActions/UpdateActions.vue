@@ -68,7 +68,7 @@ const actionLabel = key => {
 <template>
   <div
     v-on-clickaway="onClose"
-    class="absolute z-20 w-auto origin-top-right border border-solid rounded-lg shadow-md ltr:right-2 rtl:left-2 top-12 bg-n-alpha-3 backdrop-blur-[100px] border-n-weak"
+    class="absolute z-20 w-auto origin-top-right border border-solid rounded-lg shadow-[0_2px_8px_rgba(11,20,26,0.12)] ltr:right-2 rtl:left-2 top-12 bg-n-solid-1 dark:bg-[#233138] border-[var(--wa-list-border)] dark:border-[var(--wa-list-border-dark)]"
   >
     <div
       class="right-[var(--triangle-position)] block z-10 absolute text-left -top-3"
@@ -78,7 +78,7 @@ const actionLabel = key => {
           d="M20 12l-8-8-12 12"
           fill-rule="evenodd"
           stroke-width="1px"
-          class="fill-n-alpha-3 backdrop-blur-[100px] stroke-n-weak"
+          class="fill-white dark:fill-[#233138] stroke-n-weak"
         />
       </svg>
     </div>

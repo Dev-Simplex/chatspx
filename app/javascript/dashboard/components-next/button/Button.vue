@@ -169,15 +169,15 @@ const STYLE_CONFIG = {
   sizes: {
     regular: {
       xs: 'h-6 px-2',
-      sm: 'h-8 px-3',
-      md: 'h-10 px-4',
-      lg: 'h-12 px-5',
+      sm: 'h-7 px-3',
+      md: 'h-8 px-3',
+      lg: 'h-10 px-4',
     },
     iconOnly: {
       xs: 'h-6 w-6 p-0',
-      sm: 'h-8 w-8 p-0',
-      md: 'h-10 w-10 p-0',
-      lg: 'h-12 w-12 p-0',
+      sm: 'h-7 w-7 p-0',
+      md: 'h-8 w-8 p-0',
+      lg: 'h-10 w-10 p-0',
     },
     link: {
       xs: 'p-0',
@@ -190,7 +190,7 @@ const STYLE_CONFIG = {
     xs: 'text-xs',
     sm: 'text-sm',
     md: 'text-sm font-medium',
-    lg: 'text-base',
+    lg: 'text-sm',
   },
   clickAnimation: {
     xs: 'active:enabled:scale-[0.97]',

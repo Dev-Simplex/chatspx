@@ -47,7 +47,6 @@ const wrapStyle = computed(() => ({
       stroke-width="2"
       stroke-linecap="round"
       stroke-linejoin="round"
-      style="overflow: visible"
     >
       <g :class="{ 'anim-mail': animating }">
         <path d="M22 13V6a2 2 0 0 0-2-2H4a2 2 0 0 0-2 2v12c0 1.1.9 2 2 2h8" />

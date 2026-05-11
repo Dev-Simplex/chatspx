@@ -444,7 +444,7 @@ const loadMoreResults = async () => {
 
     <template v-else>
       <div
-        class="flex items-center justify-between gap-3 border-b border-n-weak bg-white dark:bg-n-solid-2 px-5 py-3"
+        class="flex items-center justify-between gap-3 border-b border-n-weak bg-n-solid-1 px-5 py-3"
       >
         <div class="flex items-center gap-2 text-sm text-n-slate-10">
           <Icon icon="i-lucide-list-filter" class="size-4" />
@@ -485,7 +485,7 @@ const loadMoreResults = async () => {
       <div v-else class="flex-1 overflow-y-auto">
         <div class="hidden min-w-[980px] lg:block">
           <div
-            class="grid grid-cols-[2.1fr_1.1fr_0.9fr_1.6fr_1fr_0.8fr] items-center gap-3 border-b border-n-weak bg-white dark:bg-n-solid-2 px-5 py-3 text-xs font-semibold uppercase tracking-wide text-n-slate-10"
+            class="grid grid-cols-[2.1fr_1.1fr_0.9fr_1.6fr_1fr_0.8fr] items-center gap-3 border-b border-n-weak bg-n-solid-1 px-5 py-3 text-xs font-semibold uppercase tracking-wide text-n-slate-10"
           >
             <span>{{ t('KANBAN.LIST.CONTACT') }}</span>
             <span>{{ t('KANBAN.LIST.STAGE') }}</span>
@@ -614,7 +614,7 @@ const loadMoreResults = async () => {
           <div
             v-for="item in filteredItems"
             :key="item.id"
-            class="rounded-xl border border-n-weak bg-white dark:bg-n-solid-2 p-3 hover:shadow-sm transition-shadow"
+            class="rounded-xl border border-n-weak bg-n-solid-1 p-3 hover:shadow-sm transition-shadow"
           >
             <div class="flex items-start justify-between gap-3">
               <button
@@ -696,9 +696,7 @@ const loadMoreResults = async () => {
           </div>
         </div>
 
-        <div
-          class="border-t border-n-weak bg-white dark:bg-n-solid-2 px-4 py-3"
-        >
+        <div class="border-t border-n-weak bg-n-solid-1 px-4 py-3">
           <Button
             v-if="hasMoreResults"
             variant="ghost"

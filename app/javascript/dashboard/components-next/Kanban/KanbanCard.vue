@@ -99,10 +99,10 @@ const statusColor = computed(() => {
   const statusMap = {
     open: 'bg-green-600',
     pending: 'bg-yellow-500',
-    resolved: 'bg-gray-500',
+    resolved: 'bg-n-slate-9',
     snoozed: 'bg-blue-500',
   };
-  return statusMap[status] || 'bg-gray-500';
+  return statusMap[status] || 'bg-n-slate-9';
 });
 
 const statusIcon = computed(() => {
@@ -190,7 +190,7 @@ const handleCardClick = event => {
 
 <template>
   <div
-    class="kanban-card group relative flex w-full min-w-0 flex-shrink-0 cursor-pointer flex-col gap-3 rounded-xl border border-n-weak bg-white dark:bg-n-solid-2 p-3 transition-shadow duration-150 hover:shadow-md"
+    class="kanban-card group relative flex w-full min-w-0 flex-shrink-0 cursor-pointer flex-col gap-3 rounded-xl border border-n-weak bg-n-solid-1 p-3 transition-shadow duration-150 hover:shadow-md"
     :style="{ borderLeftColor: accentColor }"
     @click="handleCardClick"
     @mousedown="handleMouseDown"

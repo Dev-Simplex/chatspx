@@ -20,9 +20,9 @@ const handleButtonClick = button => {
 
 <template>
   <div
-    class="flex items-center justify-between px-4 h-14 border-b border-n-weak"
+    class="wa-contact-panel-header flex items-center justify-between px-4 h-[60px] border-b border-n-weak"
   >
-    <span class="text-base font-semibold text-n-slate-12">{{ title }}</span>
+    <span class="text-[17px] font-semibold text-n-slate-12">{{ title }}</span>
     <div class="flex items-center gap-1">
       <Button
         v-for="button in buttons"
@@ -35,7 +35,7 @@ const handleButtonClick = button => {
       />
       <button
         v-tooltip="$t('GENERAL.CLOSE')"
-        class="flex items-center justify-center size-8 rounded-lg hover:bg-n-slate-3/50 text-n-slate-10"
+        class="wa-contact-panel-close flex items-center justify-center size-8 rounded-lg"
         @click="$emit('close')"
       >
         <span class="i-lucide-x size-4" />

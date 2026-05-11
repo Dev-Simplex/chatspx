@@ -13,3 +13,5 @@ json.source_id message.source_id
 json.team_id message.team_id
 json.sender message.sender.push_event_data if message.sender
 json.attachments message.attachments.map(&:push_event_data) if message.attachments.present?
+json.additional_attributes message.additional_attributes
+json.starred message.starred?

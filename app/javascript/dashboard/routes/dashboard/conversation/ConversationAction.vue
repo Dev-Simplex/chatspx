@@ -3,7 +3,6 @@
 import { mapGetters } from 'vuex';
 import { useAlert } from 'dashboard/composables';
 import { useAgentsList } from 'dashboard/composables/useAgentsList';
-import ContactDetailsItem from './ContactDetailsItem.vue';
 import MultiselectDropdown from 'shared/components/ui/MultiselectDropdown.vue';
 import ConversationLabels from './labels/LabelBox.vue';
 import { CONVERSATION_PRIORITY } from '../../../../shared/constants/messages';
@@ -14,7 +13,6 @@ import TeamSelectionModal from 'dashboard/components/widgets/conversation/TeamSe
 
 export default {
   components: {
-    ContactDetailsItem,
     MultiselectDropdown,
     ConversationLabels,
     NextButton,
@@ -301,24 +299,22 @@ export default {
 </script>
 
 <template>
-  <div class="px-4 pb-3">
-    <div>
-      <ContactDetailsItem
-        compact
-        :title="$t('CONVERSATION_SIDEBAR.ASSIGNEE_LABEL')"
-      >
-        <template #button>
-          <NextButton
-            v-if="showSelfAssign"
-            link
-            xs
-            icon="i-lucide-arrow-right"
-            class="!gap-1"
-            :label="$t('CONVERSATION_SIDEBAR.SELF_ASSIGN')"
-            @click="onSelfAssign"
-          />
-        </template>
-      </ContactDetailsItem>
+  <div class="wa-assign-section">
+    <div class="wa-assign-row">
+      <span class="wa-assign-label">
+        {{ $t('CONVERSATION_SIDEBAR.ASSIGNEE_LABEL') }}
+      </span>
+      <NextButton
+        v-if="showSelfAssign"
+        link
+        xs
+        icon="i-lucide-arrow-right"
+        class="!gap-1"
+        :label="$t('CONVERSATION_SIDEBAR.SELF_ASSIGN')"
+        @click="onSelfAssign"
+      />
+    </div>
+    <div class="wa-assign-value-wrap">
       <MultiselectDropdown
         :options="agentsList"
         :selected-item="assignedAgent"
@@ -333,11 +329,12 @@ export default {
         @select="onClickAssignAgent"
       />
     </div>
-    <div>
-      <ContactDetailsItem
-        compact
-        :title="$t('CONVERSATION_SIDEBAR.TEAM_LABEL')"
-      />
+    <div class="wa-assign-row">
+      <span class="wa-assign-label">
+        {{ $t('CONVERSATION_SIDEBAR.TEAM_LABEL') }}
+      </span>
+    </div>
+    <div class="wa-assign-value-wrap">
       <MultiselectDropdown
         :options="teamsList"
         :selected-item="assignedTeam"
@@ -352,8 +349,12 @@ export default {
         @select="onClickAssignTeam"
       />
     </div>
-    <div>
-      <ContactDetailsItem compact :title="$t('CONVERSATION.PRIORITY.TITLE')" />
+    <div class="wa-assign-row">
+      <span class="wa-assign-label">
+        {{ $t('CONVERSATION.PRIORITY.TITLE') }}
+      </span>
+    </div>
+    <div class="wa-assign-value-wrap">
       <MultiselectDropdown
         :options="priorityOptions"
         :selected-item="assignedPriority"
@@ -370,11 +371,14 @@ export default {
         @select="onClickAssignPriority"
       />
     </div>
-    <ContactDetailsItem
-      compact
-      :title="$t('CONVERSATION_SIDEBAR.ACCORDION.CONVERSATION_LABELS')"
-    />
-    <ConversationLabels :conversation-id="conversationId" />
+    <div class="wa-assign-row">
+      <span class="wa-assign-label">
+        {{ $t('CONVERSATION_SIDEBAR.ACCORDION.CONVERSATION_LABELS') }}
+      </span>
+    </div>
+    <div class="wa-assign-value-wrap">
+      <ConversationLabels :conversation-id="conversationId" />
+    </div>
     <TeamSelectionModal
       :show="showTransferTeamModal"
       :teams="agentTeamsForModal.length ? agentTeamsForModal : teams"

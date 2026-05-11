@@ -96,6 +96,18 @@ export default {
     };
   },
   computed: {
+    permissionTitle() {
+      return this.$t('CONVERSATION.PERMISSION_MODAL.TITLE') !==
+        'CONVERSATION.PERMISSION_MODAL.TITLE'
+        ? this.$t('CONVERSATION.PERMISSION_MODAL.TITLE')
+        : 'Atenção';
+    },
+    permissionBackLabel() {
+      return this.$t('CONVERSATION.PERMISSION_MODAL.BACK') !==
+        'CONVERSATION.PERMISSION_MODAL.BACK'
+        ? this.$t('CONVERSATION.PERMISSION_MODAL.BACK')
+        : 'Voltar para conversas';
+    },
     ...mapGetters({
       chatList: 'getAllConversations',
       currentChat: 'getSelectedChat',
@@ -256,7 +268,7 @@ export default {
     <CmdBarConversationSnooze />
     <div v-if="showPermissionModal" class="modal-overlay">
       <div class="modal-content">
-        <h2>Atenção</h2>
+        <h2>{{ permissionTitle }}</h2>
         <p>{{ permissionErrorMessage }}</p>
         <button
           @click="
@@ -266,7 +278,7 @@ export default {
             }
           "
         >
-          Voltar para conversas
+          {{ permissionBackLabel }}
         </button>
       </div>
     </div>

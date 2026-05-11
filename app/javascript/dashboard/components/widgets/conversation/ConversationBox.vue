@@ -1,6 +1,9 @@
 <script>
 import { mapGetters } from 'vuex';
 import ConversationHeader from './ConversationHeader.vue';
+// CopilotPanel.vue removido — CopilotContainer (Dashboard.vue) já renderiza
+// o painel oficial Chatwoot. Manter os dois causava 2 painéis sobrepostos
+// quando is_copilot_panel_open virava true.
 import DashboardAppFrame from '../DashboardApp/Frame.vue';
 import EmptyState from './EmptyState/EmptyState.vue';
 import MessagesView from './MessagesView.vue';
@@ -38,7 +41,18 @@ export default {
     ...mapGetters({
       currentChat: 'getSelectedChat',
       dashboardApps: 'dashboardApps/getRecords',
+      currentAccount: 'getCurrentAccount',
+      uiSettings: 'getUISettings',
     }),
+    chatWallpaperStyle() {
+      const url = this.currentAccount?.settings?.chat_wallpaper_url;
+      if (!url) return null;
+      return {
+        backgroundImage: `url('${url}')`,
+        backgroundSize: 'cover',
+        backgroundPosition: 'center',
+      };
+    },
     dashboardAppTabs() {
       return [
         {
@@ -95,6 +109,7 @@ export default {
     :class="{
       'border-l rtl:border-l-0 rtl:border-r border-n-weak': !isOnExpandedLayout,
     }"
+    :style="chatWallpaperStyle"
   >
     <ConversationHeader
       v-if="currentChat.id"

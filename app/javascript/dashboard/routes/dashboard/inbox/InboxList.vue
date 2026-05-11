@@ -224,7 +224,7 @@ onMounted(() => {
 <template>
   <section class="flex w-full h-full bg-n-surface-1">
     <div
-      class="flex flex-col h-full w-full lg:min-w-[340px] lg:max-w-[340px] ltr:border-r rtl:border-l border-n-weak"
+      class="flex flex-col h-full w-full xl:min-w-[380px] xl:max-w-[380px] 2xl:min-w-[448px] 2xl:max-w-[448px] ltr:border-r rtl:border-l border-n-weak"
       :class="!currentConversationId ? 'flex' : 'hidden xl:flex'"
     >
       <InboxListHeader

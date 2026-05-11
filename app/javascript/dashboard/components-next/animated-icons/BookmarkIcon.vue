@@ -37,7 +37,6 @@ const wrapStyle = computed(() => ({
       stroke-width="2"
       stroke-linecap="round"
       stroke-linejoin="round"
-      style="overflow: visible"
     >
       <path
         :class="{ 'anim-bookmark': animating }"

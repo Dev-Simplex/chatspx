@@ -30,6 +30,7 @@ const {
   sourceId,
   messageType,
   contentAttributes,
+  starred,
 } = useMessageContext();
 
 const readableTime = computed(() =>
@@ -137,6 +138,11 @@ const statusToShow = computed(() => {
       <time class="inline">{{ readableTime }}</time>
     </div>
     <Icon v-if="isPrivate" icon="i-lucide-lock-keyhole" class="size-3" />
+    <Icon
+      v-if="starred"
+      icon="i-lucide-star"
+      class="size-3 text-n-amber-11 fill-current"
+    />
     <MessageStatus v-if="showStatusIndicator" :status="statusToShow" />
   </div>
 </template>

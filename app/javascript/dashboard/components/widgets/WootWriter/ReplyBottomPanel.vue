@@ -331,7 +331,7 @@ export default {
 </script>
 
 <template>
-  <div class="flex justify-between p-3" :class="wrapClass">
+  <div class="reply-bottom-panel flex justify-between p-3" :class="wrapClass">
     <div class="left-wrap">
       <NextButton
         v-if="!isEditorDisabled"
@@ -468,7 +468,7 @@ export default {
         :disabled="isSendDisabled"
         icon="i-lucide-send-horizontal"
         :label="sendButtonText"
-        class="flex-shrink-0 h-9 px-3 rounded-full"
+        class="wa-send-btn flex-shrink-0 h-9 px-3 rounded-full"
         @click="onSend"
       />
     </div>

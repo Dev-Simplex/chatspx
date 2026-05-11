@@ -60,7 +60,7 @@ defineExpose({
 <template>
   <div
     v-show="open"
-    class="absolute z-50 w-full mt-1 transition-opacity duration-200 rounded-xl shadow-lg bg-white dark:bg-n-solid-2 border border-n-weak"
+    class="absolute z-50 w-full mt-1 transition-opacity duration-200 rounded-xl shadow-lg bg-n-solid-1 border border-n-weak"
   >
     <div class="relative border-b border-n-weak">
       <span
@@ -71,7 +71,7 @@ defineExpose({
         :value="searchValue"
         type="search"
         :placeholder="searchPlaceholder || t('COMBOBOX.SEARCH_PLACEHOLDER')"
-        class="reset-base w-full py-2 pl-10 pr-2 text-sm focus:outline-none border-none rounded-t-xl bg-white dark:bg-n-solid-2 text-n-slate-12 placeholder:text-n-slate-9"
+        class="reset-base w-full py-2 pl-10 pr-2 text-sm focus:outline-none border-none rounded-t-xl bg-n-solid-1 text-n-slate-12 placeholder:text-n-slate-9"
         @input="onInputSearch"
       />
     </div>

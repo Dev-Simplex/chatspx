@@ -113,6 +113,44 @@
           "ERROR": "Failed to update audio transcription setting"
         }
       },
+      "DENSITY": {
+        "TITLE": "Conversation list density",
+        "NOTE": "Adjust the spacing of conversation cards in the sidebar.",
+        "OPTIONS": {
+          "COMPACT": "Compact",
+          "COMFORTABLE": "Comfortable",
+          "SPACIOUS": "Spacious"
+        }
+      },
+      "CHAT_WALLPAPER": {
+        "TITLE": "Chat Wallpaper",
+        "NOTE": "Customize the conversation background. Provide an image URL or upload a file — leave empty to use the default.",
+        "PLACEHOLDER": "https://example.com/wallpaper.jpg",
+        "SAVE": "Save",
+        "RESET": "Reset to default",
+        "TABS": {
+          "URL": "External URL",
+          "UPLOAD": "Upload"
+        },
+        "UPLOAD": {
+          "BUTTON": "Choose file",
+          "HINT": "JPEG, PNG or WebP, up to 5MB.",
+          "INVALID_TYPE": "Unsupported file type. Use JPEG, PNG or WebP.",
+          "TOO_LARGE": "File is too large. Maximum 5MB."
+        },
+        "API": {
+          "SUCCESS": "Wallpaper updated successfully",
+          "ERROR": "Failed to update wallpaper"
+        }
+      },
+      "KPI_STRIP": {
+        "TITLE": "Dashboard KPI Strip",
+        "NOTE": "Show the metrics strip at the top of the conversations dashboard.",
+        "API": {
+          "SUCCESS": "KPI strip setting updated successfully",
+          "ERROR": "Failed to update KPI strip setting"
+        }
+      },
       "AUTO_RESOLVE_DURATION": {
         "LABEL": "Inactivity duration for resolution",
         "HELP": "Duration after a conversation should auto resolve if there is no activity",

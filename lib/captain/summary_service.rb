@@ -6,12 +6,17 @@ class Captain::SummaryService < Captain::BaseTaskService
       model: GPT_MODEL,
       messages: [
         { role: 'system', content: prompt_from_file('summary') },
-        { role: 'user', content: conversation.to_llm_text(include_contact_details: false) }
+        { role: 'user', content: sanitized_conversation_text }
       ]
     )
   end
 
   private
+
+  def sanitized_conversation_text
+    raw = conversation.to_llm_text(include_contact_details: false)
+    Captain::PiiSanitizer.sanitize(raw)
+  end
 
   def event_name
     'summarize'

@@ -37,8 +37,8 @@ const wrapStyle = computed(() => ({
       stroke-width="2"
       stroke-linecap="round"
       stroke-linejoin="round"
-      :class="{ 'is-animating': animating }"
-      style="overflow: visible"
+      class="overflow-visible"
+      :class="[{ 'is-animating': animating }]"
     >
       <circle cx="11" cy="11" r="8" />
       <path d="m21 21-4.34-4.34" />

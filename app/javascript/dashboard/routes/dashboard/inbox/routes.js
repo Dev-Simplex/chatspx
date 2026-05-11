@@ -9,7 +9,7 @@ import {
 
 export const routes = [
   {
-    path: frontendURL('accounts/:accountId/inbox-view'),
+    path: frontendURL('accounts/:accountId/notifications'),
     component: InboxListView,
     children: [
       {

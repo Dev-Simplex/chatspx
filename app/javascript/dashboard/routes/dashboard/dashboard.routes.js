@@ -10,6 +10,7 @@ import helpcenterRoutes from './helpcenter/helpcenter.routes';
 import campaignsRoutes from './campaigns/campaigns.routes';
 import { routes as captainRoutes } from './captain/captain.routes';
 import { routes as kanbanRoutes } from './kanban/routes';
+import { routes as galleryRoutes } from './gallery/routes';
 import AppContainer from './Dashboard.vue';
 import Suspended from './suspended/Index.vue';
 import NoAccounts from './noAccounts/Index.vue';
@@ -24,6 +25,7 @@ export default {
         ...captainRoutes,
         ...kanbanRoutes,
         ...inboxRoutes,
+        ...galleryRoutes,
         {
           path: frontendURL('accounts/:accountId/notes'),
           name: 'account_notes',

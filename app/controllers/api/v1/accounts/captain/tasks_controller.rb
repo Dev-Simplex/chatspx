@@ -51,6 +51,15 @@ class Api::V1::Accounts::Captain::TasksController < Api::V1::Accounts::BaseContr
     render_result(result)
   end
 
+  def sentiment_analysis
+    result = Captain::SentimentAnalysisService.new(
+      account: Current.account,
+      conversation_display_id: params[:conversation_display_id]
+    ).perform
+
+    render_result(result)
+  end
+
   private
 
   def render_result(result)

@@ -1,14 +1,23 @@
 <script setup>
-import { computed, ref } from 'vue';
+import {
+  computed,
+  nextTick,
+  onBeforeUnmount,
+  onMounted,
+  ref,
+  watch,
+} from 'vue';
 import { useRoute } from 'vue-router';
 import { useStore } from 'vuex';
 import { useElementSize } from '@vueuse/core';
+import { MESSAGE_TYPE } from 'shared/constants/messages';
 import BackButton from '../BackButton.vue';
 import InboxName from '../InboxName.vue';
 import MoreActions from './MoreActions.vue';
 import Thumbnail from '../Thumbnail.vue';
 import SLACardLabel from './components/SLACardLabel.vue';
 import ConversationMessageSearch from './ConversationMessageSearch.vue';
+import ConversationStatusActions from 'dashboard/components-next/Conversation/ConversationStatusActions.vue';
 import ButtonV4 from 'dashboard/components-next/button/Button.vue';
 import wootConstants from 'dashboard/constants/globals';
 import { conversationListPageURL } from 'dashboard/helper/URLHelper';
@@ -16,6 +25,8 @@ import { snoozedReopenTime } from 'dashboard/helper/snoozeHelpers';
 import { useInbox } from 'dashboard/composables/useInbox';
 import { useUISettings } from 'dashboard/composables/useUISettings';
 import { useI18n } from 'vue-i18n';
+import { CONVERSATION_PRIORITY } from 'shared/constants/messages';
+import { formatDistanceToNowStrict } from 'date-fns';
 
 const props = defineProps({
   chat: {
@@ -82,6 +93,50 @@ const currentContact = computed(() => {
   return store.getters['contacts/getContact'](senderId);
 });
 
+const typingUsers = computed(() => {
+  const id = currentChat.value?.id;
+  if (!id) return [];
+  const fn = store.getters['conversationTypingStatus/getUserList'];
+  return fn ? fn(id) || [] : [];
+});
+
+const isContactTyping = computed(() =>
+  typingUsers.value.some(u => u?.type === 'contact' || u?.type === 'Contact')
+);
+
+const lastSeenAt = computed(() => {
+  return (
+    currentContact.value?.last_seen_at ||
+    chatMetadata.value?.sender?.last_seen_at ||
+    null
+  );
+});
+
+const isContactOnline = computed(() => {
+  if (currentContact.value?.availability_status === 'online') return true;
+  const ts = lastSeenAt.value;
+  if (!ts) return false;
+  return Date.now() / 1000 - Number(ts) < 30;
+});
+
+const lastSeenLabel = computed(() => {
+  if (!lastSeenAt.value) return '';
+  try {
+    const seenDate = new Date(Number(lastSeenAt.value) * 1000);
+    return t('CONVERSATION.HEADER.LAST_SEEN', {
+      relative: formatDistanceToNowStrict(seenDate, { addSuffix: true }),
+    });
+  } catch {
+    return '';
+  }
+});
+
+const presenceText = computed(() => {
+  if (isContactTyping.value) return t('CONVERSATION.HEADER.TYPING');
+  if (isContactOnline.value) return t('CONVERSATION.HEADER.ONLINE');
+  return lastSeenLabel.value;
+});
+
 const isSnoozed = computed(
   () => currentChat.value.status === wootConstants.STATUS_TYPE.SNOOZED
 );
@@ -104,12 +159,217 @@ const hasMultipleInboxes = computed(
 );
 
 const hasSlaPolicyId = computed(() => props.chat?.sla_policy_id);
+
+// --- WhatsApp 24h window timer -------------------------------------------
+// Re-render every 60s so "remaining" stays fresh without per-component timers.
+const nowTick = ref(Date.now());
+let nowIntervalId = null;
+
+onMounted(() => {
+  nowIntervalId = setInterval(() => {
+    nowTick.value = Date.now();
+  }, 60 * 1000);
+});
+
+onBeforeUnmount(() => {
+  if (nowIntervalId) {
+    clearInterval(nowIntervalId);
+    nowIntervalId = null;
+  }
+});
+
+const isWhatsAppChannel = computed(() => {
+  const channel = inbox.value?.channel_type || '';
+  const medium = inbox.value?.medium || '';
+  // Native WhatsApp (Cloud + 360Dialog) uses Channel::Whatsapp; Twilio SMS/WhatsApp
+  // shares Channel::TwilioSms with medium === 'whatsapp'.
+  return (
+    channel === 'Channel::Whatsapp' ||
+    (channel === 'Channel::TwilioSms' && medium === 'whatsapp')
+  );
+});
+
+const lastIncomingMessage = computed(() => {
+  const messages = props.chat?.messages || [];
+  for (let i = messages.length - 1; i >= 0; i -= 1) {
+    const msg = messages[i];
+    if (msg && msg.message_type === MESSAGE_TYPE.INCOMING && !msg.private) {
+      return msg;
+    }
+  }
+  return null;
+});
+
+const whatsAppWindowRemainingMs = computed(() => {
+  if (!isWhatsAppChannel.value) return null;
+  const msg = lastIncomingMessage.value;
+  if (!msg) return null;
+  // Chatwoot API exposes `created_at` as seconds-since-epoch.
+  const createdAt = Number(msg.created_at);
+  if (!createdAt) return null;
+  const expiresAt = createdAt * 1000 + 24 * 60 * 60 * 1000;
+  return expiresAt - nowTick.value;
+});
+
+const whatsAppWindowDisplay = computed(() => {
+  const remaining = whatsAppWindowRemainingMs.value;
+  if (remaining === null) return null;
+
+  if (remaining <= 0) {
+    return {
+      level: 'expired',
+      text: t('CONVERSATION.WHATSAPP_WINDOW.EXPIRED'),
+    };
+  }
+
+  const totalMinutes = Math.floor(remaining / (60 * 1000));
+  const hours = Math.floor(totalMinutes / 60);
+  const minutes = totalMinutes % 60;
+
+  if (remaining >= 12 * 60 * 60 * 1000) {
+    return {
+      level: 'ok',
+      text: t('CONVERSATION.WHATSAPP_WINDOW.HOURS_LEFT', { hours }),
+    };
+  }
+
+  if (remaining >= 2 * 60 * 60 * 1000) {
+    const label = minutes ? `${hours}h ${minutes}min` : `${hours}h`;
+    return {
+      level: 'warning',
+      text: t('CONVERSATION.WHATSAPP_WINDOW.EXPIRING', { time: label }),
+    };
+  }
+
+  const label = hours ? `${hours}h ${minutes}min` : `${minutes}min`;
+  return {
+    level: 'urgent',
+    text: t('CONVERSATION.WHATSAPP_WINDOW.EXPIRING', { time: label }),
+  };
+});
+
+const whatsAppWindowClass = computed(() => {
+  const display = whatsAppWindowDisplay.value;
+  if (!display) return '';
+  switch (display.level) {
+    case 'urgent':
+      return 'text-red-600 dark:text-red-400 font-semibold';
+    case 'expired':
+      return 'text-red-700 dark:text-red-400 font-semibold';
+    case 'warning':
+      return 'text-amber-600 dark:text-amber-400';
+    case 'ok':
+    default:
+      return 'text-n-slate-11';
+  }
+});
+
+const whatsAppWindowIcon = computed(() => {
+  const display = whatsAppWindowDisplay.value;
+  if (!display) return '';
+  return display.level === 'expired'
+    ? 'i-lucide-triangle-alert'
+    : 'i-lucide-timer';
+});
+
+// Status badge agora é informativo (read-only) — ações de mudança de status
+// ficam em ResolveAction (botão primário) + MoreActions (kebab).
+
+// --- Inline priority editor (Fase 3.5) -----------------------------------
+const PRIORITY_OPTIONS = [
+  {
+    value: '',
+    icon: 'i-lucide-circle-dashed',
+    label: 'CONVERSATION.PRIORITY.NO_PRIORITY',
+  },
+  {
+    value: CONVERSATION_PRIORITY.URGENT,
+    icon: 'i-lucide-flame',
+    label: 'CONVERSATION.PRIORITY.OPTIONS.URGENT',
+  },
+  {
+    value: CONVERSATION_PRIORITY.HIGH,
+    icon: 'i-lucide-arrow-up',
+    label: 'CONVERSATION.PRIORITY.OPTIONS.HIGH',
+  },
+  {
+    value: CONVERSATION_PRIORITY.MEDIUM,
+    icon: 'i-lucide-equal',
+    label: 'CONVERSATION.PRIORITY.OPTIONS.MEDIUM',
+  },
+  {
+    value: CONVERSATION_PRIORITY.LOW,
+    icon: 'i-lucide-arrow-down',
+    label: 'CONVERSATION.PRIORITY.OPTIONS.LOW',
+  },
+];
+
+const showPriorityMenu = ref(false);
+const priorityWrapper = ref(null);
+const priorityMenu = ref(null);
+const priorityMenuStyle = ref({});
+
+const currentPriorityOption = computed(() => {
+  const value = currentChat.value?.priority || '';
+  return PRIORITY_OPTIONS.find(o => o.value === value) || PRIORITY_OPTIONS[0];
+});
+
+const updatePriorityMenuPosition = () => {
+  const el = priorityWrapper.value;
+  if (!el) return;
+  const rect = el.getBoundingClientRect();
+  priorityMenuStyle.value = {
+    position: 'fixed',
+    top: `${rect.bottom + 4}px`,
+    left: `${rect.left}px`,
+    minWidth: '160px',
+    zIndex: 9999,
+  };
+};
+
+const togglePriorityMenu = () => {
+  if (!showPriorityMenu.value) updatePriorityMenuPosition();
+  showPriorityMenu.value = !showPriorityMenu.value;
+};
+
+const closePriorityMenu = () => {
+  showPriorityMenu.value = false;
+};
+
+const handlePriorityOutsideClick = e => {
+  const inWrapper = priorityWrapper.value?.contains(e.target);
+  const inMenu = priorityMenu.value?.contains(e.target);
+  if (!inWrapper && !inMenu) closePriorityMenu();
+};
+
+watch(showPriorityMenu, async open => {
+  await nextTick();
+  if (open) {
+    document.addEventListener('click', handlePriorityOutsideClick);
+  } else {
+    document.removeEventListener('click', handlePriorityOutsideClick);
+  }
+});
+
+onBeforeUnmount(() => {
+  document.removeEventListener('click', handlePriorityOutsideClick);
+});
+
+const setPriority = async value => {
+  const id = currentChat.value?.id;
+  if (!id) return;
+  await store.dispatch('assignPriority', {
+    conversationId: id,
+    priority: value || null,
+  });
+  closePriorityMenu();
+};
 </script>
 
 <template>
   <div
     ref="conversationHeader"
-    class="flex items-center justify-between flex-shrink-0 w-full h-14 px-4 bg-white dark:bg-n-solid-1 border-b border-n-weak"
+    class="flex items-center justify-between flex-shrink-0 w-full px-4 bg-n-background dark:bg-n-solid-1 border-b border-n-weak wa-conversation-header"
   >
     <div class="flex items-center gap-3 min-w-0 flex-1">
       <BackButton
@@ -120,7 +380,9 @@ const hasSlaPolicyId = computed(() => props.chat?.sla_policy_id);
       <Thumbnail
         :src="currentContact.thumbnail"
         :username="currentContact.name"
-        :status="currentContact.availability_status"
+        :status="
+          isContactOnline ? 'online' : currentContact.availability_status
+        "
         size="40px"
         class="flex-shrink-0"
         allow-preview
@@ -128,7 +390,7 @@ const hasSlaPolicyId = computed(() => props.chat?.sla_policy_id);
       <div class="flex flex-col items-start min-w-0 overflow-hidden">
         <div class="flex flex-row items-center max-w-full gap-1 p-0 m-0">
           <span
-            class="text-base font-semibold truncate leading-tight text-n-slate-12 cursor-pointer hover:text-n-brand-default transition-colors"
+            class="wa-contact-name truncate text-n-slate-12 cursor-pointer hover:text-n-brand-default transition-colors"
             role="button"
             tabindex="0"
             @click="toggleContactPanel"
@@ -143,18 +405,81 @@ const hasSlaPolicyId = computed(() => props.chat?.sla_policy_id);
             icon="warning"
           />
         </div>
+        <div
+          v-if="presenceText"
+          class="wa-contact-presence text-[12px] leading-tight truncate"
+          :class="
+            isContactTyping || isContactOnline
+              ? 'text-n-teal-11'
+              : 'text-n-slate-11'
+          "
+        >
+          {{ presenceText }}
+        </div>
 
         <div
-          class="flex items-center gap-2 overflow-hidden text-xs text-n-slate-10 text-ellipsis whitespace-nowrap"
+          class="wa-contact-subtitle flex items-center gap-2 overflow-hidden text-ellipsis whitespace-nowrap"
         >
           <InboxName v-if="hasMultipleInboxes" :inbox="inbox" class="!mx-0" />
           <span v-if="isSnoozed" class="font-medium text-n-amber-10">
             {{ snoozedDisplayText }}
           </span>
+          <span
+            v-if="whatsAppWindowDisplay"
+            v-tooltip="$t('CONVERSATION.WHATSAPP_WINDOW.TOOLTIP')"
+            class="inline-flex items-center gap-1 whitespace-nowrap"
+            :class="whatsAppWindowClass"
+          >
+            <span class="size-3" :class="whatsAppWindowIcon" />
+            {{ whatsAppWindowDisplay.text }}
+          </span>
+          <span ref="priorityWrapper" class="relative inline-flex">
+            <button
+              :title="$t('CONVERSATION.PRIORITY.LABEL')"
+              type="button"
+              class="!p-0 !border-0 inline-flex items-center gap-1 px-1.5 h-5 rounded-md text-[11px] font-medium text-n-slate-11 hover:bg-n-alpha-2 transition-colors"
+              :class="{ 'bg-n-alpha-2': showPriorityMenu }"
+              @click="togglePriorityMenu"
+            >
+              <span
+                class="size-3 pointer-events-none"
+                :class="currentPriorityOption.icon"
+              />
+              <span class="truncate max-w-[80px] pointer-events-none">
+                {{ $t(currentPriorityOption.label) }}
+              </span>
+            </button>
+            <div
+              v-if="showPriorityMenu"
+              ref="priorityMenu"
+              :style="priorityMenuStyle"
+              class="rounded-lg border border-n-weak bg-n-solid-1 dark:bg-n-solid-2 shadow-md py-1"
+            >
+              <button
+                v-for="option in PRIORITY_OPTIONS"
+                :key="option.value || 'none'"
+                type="button"
+                class="!border-0 w-full flex items-center gap-2 px-3 py-1.5 text-sm text-n-slate-12 hover:bg-n-alpha-2"
+                :class="{
+                  'bg-n-alpha-2 font-medium':
+                    option.value === currentPriorityOption.value,
+                }"
+                @click.stop="setPriority(option.value)"
+              >
+                <span class="size-3.5 text-n-slate-11" :class="option.icon" />
+                <span>{{ $t(option.label) }}</span>
+              </button>
+            </div>
+          </span>
         </div>
       </div>
     </div>
     <div class="flex items-center gap-1 flex-shrink-0">
+      <ConversationStatusActions
+        v-if="currentChat.id"
+        :chat="currentChat"
+        class="hidden md:inline-flex"
+      />
       <SLACardLabel
         v-if="hasSlaPolicyId"
         :chat="chat"
@@ -168,7 +493,7 @@ const hasSlaPolicyId = computed(() => props.chat?.sla_policy_id);
         variant="ghost"
         color="slate"
         icon="i-lucide-search"
-        class="size-8 rounded-lg hover:bg-n-slate-3/50 text-n-slate-10 hover:text-n-slate-12"
+        class="wa-header-icon-btn"
         @click="showMessageSearch = true"
       />
       <MoreActions :conversation-id="currentChat.id" />

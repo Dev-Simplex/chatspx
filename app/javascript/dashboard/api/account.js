@@ -16,6 +16,22 @@ class AccountAPI extends ApiClient {
     );
     return response.data.cache_keys;
   }
+
+  uploadChatWallpaper(file) {
+    const formData = new FormData();
+    formData.append('image', file);
+    return axios.post(
+      `/api/v1/accounts/${this.accountIdFromRoute}/chat_wallpaper`,
+      formData,
+      { headers: { 'Content-Type': 'multipart/form-data' } }
+    );
+  }
+
+  removeChatWallpaper() {
+    return axios.delete(
+      `/api/v1/accounts/${this.accountIdFromRoute}/chat_wallpaper`
+    );
+  }
 }
 
 export default new AccountAPI();

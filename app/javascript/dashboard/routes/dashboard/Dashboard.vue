@@ -1,5 +1,5 @@
 <script>
-import { defineAsyncComponent, ref, computed } from 'vue';
+import { defineAsyncComponent, ref, computed, onMounted } from 'vue';
 
 import NextSidebar from 'next/sidebar/Sidebar.vue';
 import WootKeyShortcutModal from 'dashboard/components/widgets/modal/WootKeyShortcutModal.vue';
@@ -22,6 +22,11 @@ const FloatingCallWidget = defineAsyncComponent(
 
 import CopilotLauncher from 'dashboard/components-next/copilot/CopilotLauncher.vue';
 import CopilotContainer from 'dashboard/components/copilot/CopilotContainer.vue';
+import AIAssistantPanel from 'dashboard/components-next/ai-assistant/AIAssistantPanel.vue';
+import {
+  useAIAssistantFlag,
+  applyAIAssistantQueryOverride,
+} from 'dashboard/components-next/ai-assistant/composables/useAIAssistantFlag';
 
 import MobileSidebarLauncher from 'dashboard/components-next/sidebar/MobileSidebarLauncher.vue';
 import { useCallsStore } from 'dashboard/stores/calls';
@@ -35,6 +40,7 @@ export default {
     UpgradePage,
     CopilotLauncher,
     CopilotContainer,
+    AIAssistantPanel,
     FloatingCallWidget,
     MobileSidebarLauncher,
   },
@@ -45,12 +51,32 @@ export default {
     const { width: windowWidth } = useWindowSize();
     const callsStore = useCallsStore();
 
+    // Phase 3 — AI Assistant v2 flag. Resolution order is documented in
+    // useAIAssistantFlag (server kill-switch -> session -> local -> default).
+    const aiAssistantFlag = useAIAssistantFlag();
+    const isAIAssistantPanelOpen = computed(() =>
+      Boolean(uiSettings.value?.is_copilot_panel_open)
+    );
+
+    onMounted(() => {
+      // Read `?aiv2=1` / `?aiv2=0` once at boot and persist to sessionStorage
+      // so the resolver picks it up on subsequent reads. No-op when absent.
+      applyAIAssistantQueryOverride();
+    });
+
+    const closeAIAssistantPanel = () => {
+      updateUISettings({ is_copilot_panel_open: false });
+    };
+
     return {
       uiSettings,
       updateUISettings,
       accountId,
       upgradePageRef,
       windowWidth,
+      aiAssistantFlag,
+      isAIAssistantPanelOpen,
+      closeAIAssistantPanel,
       hasActiveCall: computed(() => callsStore.hasActiveCall),
       hasIncomingCall: computed(() => callsStore.hasIncomingCall),
     };
@@ -161,7 +187,13 @@ export default {
           :is-mobile-sidebar-open="isMobileSidebarOpen"
           @toggle="toggleMobileSidebar"
         />
-        <CopilotContainer />
+        <!-- Mutex V1/V2 — never both at the same time. -->
+        <AIAssistantPanel
+          v-if="aiAssistantFlag"
+          :open="isAIAssistantPanelOpen"
+          @close="closeAIAssistantPanel"
+        />
+        <CopilotContainer v-else />
         <FloatingCallWidget v-if="hasActiveCall || hasIncomingCall" />
       </template>
       <AddAccountModal

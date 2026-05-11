@@ -9,6 +9,8 @@ const uiSettings = ref({
   is_copilot_panel_open: false,
 });
 
+const emitterListeners = new Map();
+
 vi.mock('dashboard/composables/useUISettings', () => ({
   useUISettings: () => ({
     uiSettings,
@@ -18,6 +20,12 @@ vi.mock('dashboard/composables/useUISettings', () => ({
 
 vi.mock('dashboard/composables/useKeyboardEvents', () => ({
   useKeyboardEvents: vi.fn(),
+}));
+
+vi.mock('dashboard/composables/emitter', () => ({
+  useEmitter: (eventName, callback) => {
+    emitterListeners.set(eventName, callback);
+  },
 }));
 
 const ButtonGroupStub = {
@@ -76,13 +84,14 @@ const mountComponent = currentChat =>
 describe('SidepanelSwitch.vue', () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    emitterListeners.clear();
     uiSettings.value = {
       is_contact_sidebar_open: true,
       is_copilot_panel_open: false,
     };
   });
 
-  it('renders schedule quick action when a conversation is active', () => {
+  it('does not render the schedule button (moved to reply box)', () => {
     const wrapper = mountComponent({
       id: 321,
       inbox_id: 17,
@@ -98,10 +107,10 @@ describe('SidepanelSwitch.vue', () => {
       wrapper
         .find('[data-testid="conversation-sidebar-schedule-toggle"]')
         .exists()
-    ).toBe(true);
+    ).toBe(false);
   });
 
-  it('opens scheduled message form with mapped current conversation payload', async () => {
+  it('opens scheduled message form via open-schedule-message-form emitter event', async () => {
     const wrapper = mountComponent({
       id: 654,
       inbox_id: 22,
@@ -113,15 +122,18 @@ describe('SidepanelSwitch.vue', () => {
       },
     });
 
-    await wrapper
-      .find('[data-testid="conversation-sidebar-schedule-toggle"]')
-      .trigger('click');
-
     const scheduledForm = wrapper.findComponent(ScheduledMessageFormStub);
+    expect(scheduledForm.props('show')).toBe(false);
 
-    expect(scheduledForm.props('show')).toBe(true);
-    expect(scheduledForm.props('requireConversation')).toBeTruthy();
-    expect(scheduledForm.props('conversation')).toMatchObject({
+    const handler = emitterListeners.get('open-schedule-message-form');
+    expect(handler).toBeTypeOf('function');
+    handler();
+    await nextTick();
+
+    const opened = wrapper.findComponent(ScheduledMessageFormStub);
+    expect(opened.props('show')).toBe(true);
+    expect(opened.props('requireConversation')).toBeTruthy();
+    expect(opened.props('conversation')).toMatchObject({
       id: 654,
       inboxId: 22,
       inbox_id: 22,
@@ -131,7 +143,20 @@ describe('SidepanelSwitch.vue', () => {
       },
     });
 
-    scheduledForm.vm.$emit('close');
+    opened.vm.$emit('close');
+    await nextTick();
+
+    expect(wrapper.findComponent(ScheduledMessageFormStub).props('show')).toBe(
+      false
+    );
+  });
+
+  it('does not open the form when there is no active conversation', async () => {
+    const wrapper = mountComponent(undefined);
+
+    const handler = emitterListeners.get('open-schedule-message-form');
+    expect(handler).toBeTypeOf('function');
+    handler();
     await nextTick();
 
     expect(wrapper.findComponent(ScheduledMessageFormStub).props('show')).toBe(

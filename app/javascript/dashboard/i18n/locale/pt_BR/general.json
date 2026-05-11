@@ -1,6 +1,18 @@
 {
   "TODAY": "Hoje",
   "YESTERDAY": "Ontem",
+  "PWA_INSTALL": {
+    "TITLE": "Instalar o ChatSPX",
+    "DESCRIPTION": "Adicione o ChatSPX ao desktop para acesso rápido e notificações.",
+    "INSTALL": "Instalar",
+    "LATER": "Agora não"
+  },
+  "PUSH_PROMPT": {
+    "TITLE": "Ativar notificações desktop",
+    "DESCRIPTION": "Receba avisos de novas conversas e menções mesmo com a aba em segundo plano.",
+    "ENABLE": "Ativar",
+    "LATER": "Agora não"
+  },
   "GENERAL": {
     "SHOWING_RESULTS": "Mostrando {firstIndex}—{lastIndex} de {totalCount} itens",
     "PHONE_INPUT": {
@@ -17,5 +29,19 @@
   "CHOICE_TOGGLE": {
     "YES": "Sim",
     "NO": "Não"
+  },
+  "ONBOARDING": {
+    "TITLE": "Comece por aqui",
+    "DISMISS": "Dispensar",
+    "STEPS": {
+      "INBOX": "Configurar caixa de entrada",
+      "INBOX_DESC": "Conecte seu primeiro canal (WhatsApp, e-mail, etc.)",
+      "TEAM": "Convidar a equipe",
+      "TEAM_DESC": "Adicione agentes para responder os clientes",
+      "LABELS": "Criar tags",
+      "LABELS_DESC": "Organize conversas com etiquetas",
+      "WALLPAPER": "Personalizar wallpaper",
+      "WALLPAPER_DESC": "Defina o fundo das suas conversas"
+    }
   }
 }

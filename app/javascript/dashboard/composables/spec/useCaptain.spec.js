@@ -78,11 +78,15 @@ describe('useCaptain', () => {
         operation: 'improve',
         conversationId: '123',
       },
-      undefined
+      // useCaptain now wraps every Captain call with `buildTimeoutSignal`
+      // (Phase 2.5 hardening) so an AbortSignal is always passed to the API.
+      expect.any(AbortSignal)
     );
+    // Phase 2.5 added an `errorType` discriminator to every result.
     expect(result).toEqual({
       message: 'Rewritten content',
       followUpContext: { id: 'ctx1' },
+      errorType: null,
     });
   });
 
@@ -94,10 +98,14 @@ describe('useCaptain', () => {
     const { summarizeConversation } = useCaptain();
     const result = await summarizeConversation({});
 
-    expect(TasksAPI.summarize).toHaveBeenCalledWith('123', undefined);
+    expect(TasksAPI.summarize).toHaveBeenCalledWith(
+      '123',
+      expect.any(AbortSignal)
+    );
     expect(result).toEqual({
       message: 'Summary',
       followUpContext: { id: 'ctx2' },
+      errorType: null,
     });
   });
 
@@ -109,10 +117,14 @@ describe('useCaptain', () => {
     const { getReplySuggestion } = useCaptain();
     const result = await getReplySuggestion({});
 
-    expect(TasksAPI.replySuggestion).toHaveBeenCalledWith('123', undefined);
+    expect(TasksAPI.replySuggestion).toHaveBeenCalledWith(
+      '123',
+      expect.any(AbortSignal)
+    );
     expect(result).toEqual({
       message: 'Reply suggestion',
       followUpContext: { id: 'ctx3' },
+      errorType: null,
     });
   });
 
@@ -136,11 +148,12 @@ describe('useCaptain', () => {
         message: 'Make it shorter',
         conversationId: '123',
       },
-      undefined
+      expect.any(AbortSignal)
     );
     expect(result).toEqual({
       message: 'Follow-up response',
       followUpContext: { id: 'ctx4' },
+      errorType: null,
     });
   });
 

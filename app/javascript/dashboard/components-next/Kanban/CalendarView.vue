@@ -299,7 +299,7 @@ onBeforeUnmount(() => {
 
     <div v-else class="mx-auto flex max-w-7xl flex-col gap-4">
       <div
-        class="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-n-weak bg-white dark:bg-n-solid-2 px-4 py-3"
+        class="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-n-weak bg-n-solid-1 px-4 py-3"
       >
         <div class="flex items-center gap-2">
           <Button
@@ -324,9 +324,7 @@ onBeforeUnmount(() => {
         </Button>
       </div>
 
-      <div
-        class="overflow-hidden rounded-xl border border-n-weak bg-white dark:bg-n-solid-2"
-      >
+      <div class="overflow-hidden rounded-xl border border-n-weak bg-n-solid-1">
         <div
           class="grid grid-cols-7 border-b border-n-weak bg-n-slate-2/50 dark:bg-n-solid-3"
         >
@@ -347,7 +345,7 @@ onBeforeUnmount(() => {
             :class="[
               !isCurrentMonth(day)
                 ? 'bg-n-slate-1 dark:bg-n-solid-1 opacity-60'
-                : 'bg-white dark:bg-n-solid-2',
+                : 'bg-n-solid-1',
               isToday(day) ? 'bg-n-teal-2/30 dark:bg-n-teal-3/10' : '',
             ]"
             @click="handleDateClick(day)"

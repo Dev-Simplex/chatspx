@@ -3,7 +3,15 @@ class Whatsapp::Providers::WhatsappCloudService < Whatsapp::Providers::BaseServi
     @message = message
 
     if message.attachments.present?
-      send_attachment_message(phone_number, message)
+      attachment = message.attachments.first
+      case attachment.file_type.to_s
+      when 'location'
+        send_location_message(phone_number, attachment)
+      when 'contact'
+        send_contacts_message(phone_number, message, attachment)
+      else
+        send_attachment_message(phone_number, message)
+      end
     elsif message.content_type == 'input_select'
       send_interactive_text_message(phone_number, message)
     else
@@ -109,6 +117,62 @@ class Whatsapp::Providers::WhatsappCloudService < Whatsapp::Providers::BaseServi
         text: { body: message.outgoing_content },
         type: 'text'
       }.to_json
+    )
+
+    process_response(response, message)
+  end
+
+  # WhatsApp Cloud API — Location message.
+  # Spec: https://developers.facebook.com/docs/whatsapp/cloud-api/messages/location-messages
+  def send_location_message(phone_number, attachment)
+    location_payload = {
+      latitude: attachment.coordinates_lat,
+      longitude: attachment.coordinates_long
+    }
+    name = attachment.fallback_title.to_s.presence
+    location_payload[:name] = name if name
+    location_payload[:address] = name if name
+
+    response = HTTParty.post(
+      "#{phone_id_path}/messages",
+      headers: api_headers,
+      body: {
+        messaging_product: 'whatsapp',
+        context: whatsapp_reply_context(@message),
+        to: phone_number,
+        type: 'location',
+        location: location_payload
+      }.compact.to_json
+    )
+
+    process_response(response, @message)
+  end
+
+  # WhatsApp Cloud API — Contacts message.
+  # Spec: https://developers.facebook.com/docs/whatsapp/cloud-api/messages/contacts-messages
+  # We accept either a single contact saved via the share_contact controller
+  # (additional_attributes.contact = { name, phone, source }) or fall back to
+  # the attachment's meta.firstName / fallback_title.
+  def send_contacts_message(phone_number, message, attachment)
+    contact_data = (message.additional_attributes || {})['contact'] || {}
+    contact_name = contact_data['name'].presence || attachment.meta&.[]('firstName').presence || attachment.fallback_title.to_s
+    contact_phone = contact_data['phone'].presence || attachment.fallback_title.to_s
+    digits = contact_phone.to_s.gsub(/[^\d+]/, '')
+    digits = "+#{digits}" unless digits.start_with?('+')
+
+    response = HTTParty.post(
+      "#{phone_id_path}/messages",
+      headers: api_headers,
+      body: {
+        messaging_product: 'whatsapp',
+        context: whatsapp_reply_context(message),
+        to: phone_number,
+        type: 'contacts',
+        contacts: [{
+          name: { formatted_name: contact_name, first_name: contact_name },
+          phones: [{ phone: digits, type: 'CELL', wa_id: digits.gsub(/\D/, '') }]
+        }]
+      }.compact.to_json
     )
 
     process_response(response, message)

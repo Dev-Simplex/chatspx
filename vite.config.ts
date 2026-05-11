@@ -29,7 +29,7 @@ const isTestMode = process.env.TEST === 'true';
 const vueOptions = {
   template: {
     compilerOptions: {
-      isCustomElement: tag => ['ninja-keys'].includes(tag),
+      isCustomElement: tag => ['ninja-keys', 'lord-icon'].includes(tag),
     },
   },
 };
@@ -61,6 +61,15 @@ export default defineConfig({
             }
           : {}),
         inlineDynamicImports: isLibraryMode, // Disable code-splitting for SDK
+        // Isolate heavy / rarely-used vendor deps in their own chunk so the
+        // first-paint dashboard bundle stays small.
+        ...(!isLibraryMode
+          ? {
+              manualChunks: {
+                leaflet: ['leaflet'],
+              },
+            }
+          : {}),
       },
     },
     lib: isLibraryMode

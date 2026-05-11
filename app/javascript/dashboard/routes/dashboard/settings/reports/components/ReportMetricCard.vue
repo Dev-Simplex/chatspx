@@ -22,7 +22,7 @@ defineProps({
 <template>
   <div
     data-test-id="reportMetricContainer"
-    class="bg-white dark:bg-n-solid-2 border border-n-weak rounded-xl p-5"
+    class="bg-n-solid-1 border border-n-weak rounded-xl p-5"
     :class="{
       'grayscale pointer-events-none opacity-30': disabled,
     }"

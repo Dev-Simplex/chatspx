@@ -1,4 +1,4 @@
-import { ref, computed } from 'vue';
+import { ref, computed, watch } from 'vue';
 import { useCaptain } from 'dashboard/composables/useCaptain';
 import { useUISettings } from 'dashboard/composables/useUISettings';
 import { useTrack } from 'dashboard/composables';
@@ -351,6 +351,26 @@ export function useCopilotReply() {
 
     return content;
   }
+
+  // === Phase 2.5 — AbortController contract on context switch ===
+  // When the agent navigates to a different conversation while a Captain
+  // request or typewriter is mid-flight, abort it. Without this, the response
+  // arrives in the wrong conversation and races the new context.
+  watch(
+    () => currentChat.value?.id,
+    (newId, oldId) => {
+      if (oldId && newId !== oldId && abortController.value) {
+        useTrack('ai.streaming.cancelled', {
+          reason: 'context_switch',
+          from_conversation: oldId,
+          to_conversation: newId,
+        });
+        // reset(false) cancels the AbortController and clears state without
+        // emitting a "DISMISSED" tracking event (this is not a user dismiss).
+        reset(false);
+      }
+    }
+  );
 
   return {
     showEditor,

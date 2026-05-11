@@ -175,7 +175,7 @@ export default {
 <template>
   <div class="relative phone-input--wrap">
     <div
-      class="flex items-center justify-start border-none outline outline-1 rounded-lg bg-white dark:bg-n-solid-2 focus-within:outline-n-brand focus-within:ring-1 focus-within:ring-n-brand/20"
+      class="flex items-center justify-start border-none outline outline-1 rounded-lg bg-n-solid-1 focus-within:outline-n-brand focus-within:ring-1 focus-within:ring-n-brand/20"
       :class="
         error
           ? 'outline-n-ruby-8 dark:outline-n-ruby-8 hover:outline-n-ruby-9 dark:hover:outline-n-ruby-9 mb-1'
@@ -215,14 +215,14 @@ export default {
       ref="dropdown"
       v-on-clickaway="onOutsideClick"
       tabindex="0"
-      class="z-10 absolute h-60 w-[12.5rem] shadow-lg overflow-y-auto top-10 rounded-xl px-0 pt-0 pb-1 bg-white dark:bg-n-solid-2 border border-n-weak"
+      class="z-10 absolute h-60 w-[12.5rem] shadow-lg overflow-y-auto top-10 rounded-xl px-0 pt-0 pb-1 bg-n-solid-1 border border-n-weak"
       @keydown.prevent.up="moveUp"
       @keydown.prevent.down="moveDown"
       @keydown.prevent.enter="
         onSelectCountry(filteredCountriesBySearch[selectedIndex])
       "
     >
-      <div class="sticky top-0 p-1 bg-white dark:bg-n-solid-2">
+      <div class="sticky top-0 p-1 bg-n-solid-1">
         <input
           ref="searchbar"
           v-model="searchCountry"

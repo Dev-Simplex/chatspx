@@ -1,5 +1,4 @@
 <script>
-/* eslint-disable vue/no-undef-components */
 import { mapGetters } from 'vuex';
 import { useAlert } from 'dashboard/composables';
 import { dynamicTime } from 'shared/helpers/timeHelper';
@@ -183,13 +182,13 @@ export default {
 </script>
 
 <template>
-  <div class="relative w-full px-4 py-5">
+  <div class="relative w-full pt-10 pb-6 px-6">
     <div class="flex flex-col items-center w-full">
-      <!-- Avatar centered 64px -->
+      <!-- Avatar centered 120px -->
       <Thumbnail
         v-if="showAvatar"
         :src="contact.thumbnail"
-        size="64px"
+        size="120px"
         :username="contact.name"
         :status="contact.availability_status"
         allow-preview
@@ -198,7 +197,7 @@ export default {
       <!-- Name centered -->
       <div v-if="showAvatar" class="flex items-center gap-2 mt-3">
         <h3
-          class="my-0 text-base font-semibold capitalize break-words text-n-slate-12 text-center"
+          class="my-0 text-[19px] font-semibold capitalize break-words text-n-slate-12 text-center"
         >
           {{ contact.name }}
         </h3>
@@ -223,12 +222,15 @@ export default {
 
       <!-- Email/Phone centered -->
       <div class="flex flex-col items-center gap-0.5 mt-1">
-        <span v-if="contact.email" class="text-sm text-n-slate-10 text-center">
+        <span
+          v-if="contact.email"
+          class="text-[14px] wa-contact-secondary text-center"
+        >
           {{ contact.email }}
         </span>
         <span
           v-if="contact.phoneNumber"
-          class="text-sm text-n-slate-10 text-center"
+          class="text-[14px] wa-contact-secondary text-center"
         >
           {{ contact.phoneNumber }}
         </span>
@@ -239,23 +241,29 @@ export default {
         <SocialIcons :social-profiles="socialProfiles" />
       </div>
 
-      <!-- Action buttons -->
-      <div class="flex items-center gap-2 mt-4">
-        <ComposeConversation
-          :contact-id="String(contact.id)"
-          is-modal
-          @close="closeComposeConversationModal"
-        >
-          <template #trigger="{ toggle }">
-            <button
-              v-tooltip.top-end="$t('CONTACT_PANEL.NEW_MESSAGE')"
-              class="px-3 h-8 rounded-lg border border-n-weak text-sm text-n-slate-12 hover:bg-n-slate-3/50 inline-flex items-center justify-center"
-              @click="openComposeConversationModal(toggle)"
-            >
-              <span class="i-lucide-message-circle size-4" />
-            </button>
-          </template>
-        </ComposeConversation>
+      <!-- Action buttons (flex, WA style — auto-distributes when some are hidden) -->
+      <div class="flex items-stretch justify-center gap-1.5 mt-6 w-full max-w-[300px] mx-auto">
+        <div class="flex-1 min-w-0">
+          <ComposeConversation
+            :contact-id="String(contact.id)"
+            is-modal
+            @close="closeComposeConversationModal"
+          >
+            <template #trigger="{ toggle }">
+              <button
+                v-tooltip.top-end="$t('CONTACT_PANEL.NEW_MESSAGE')"
+                class="wa-action-btn"
+                :aria-label="$t('CONTACT_PANEL.NEW_MESSAGE')"
+                @click="openComposeConversationModal(toggle)"
+              >
+                <span class="i-lucide-message-circle size-5" />
+                <span class="wa-action-label">
+                  {{ $t('CONTACT_PANEL.NEW_MESSAGE_SHORT') }}
+                </span>
+              </button>
+            </template>
+          </ComposeConversation>
+        </div>
         <VoiceCallButton
           :phone="contact.phoneNumber"
           :contact-id="contact.id"
@@ -267,34 +275,39 @@ export default {
         />
         <button
           v-tooltip.top-end="$t('EDIT_CONTACT.BUTTON_LABEL')"
-          class="px-3 h-8 rounded-lg border border-n-weak text-sm text-n-slate-12 hover:bg-n-slate-3/50 inline-flex items-center justify-center"
+          class="wa-action-btn"
+          :aria-label="$t('EDIT_CONTACT.BUTTON_LABEL')"
           @click="toggleEditModal"
         >
-          <span class="i-lucide-pencil size-4" />
+          <span class="i-lucide-pencil size-5" />
+          <span class="wa-action-label">
+            {{ $t('EDIT_CONTACT.BUTTON_LABEL_SHORT') }}
+          </span>
         </button>
         <button
           v-tooltip.top-end="$t('CONTACT_PANEL.MERGE_CONTACT')"
-          class="px-3 h-8 rounded-lg border border-n-weak text-sm text-n-slate-12 hover:bg-n-slate-3/50 inline-flex items-center justify-center"
+          class="wa-action-btn"
+          :aria-label="$t('CONTACT_PANEL.MERGE_CONTACT')"
           :disabled="uiFlags.isMerging"
           @click="openMergeModal"
         >
-          <span class="i-lucide-merge size-4" />
-        </button>
-        <button
-          v-tooltip.top-end="$t('EXPORT_CONVERSATION.BUTTON_LABEL')"
-          class="px-3 h-8 rounded-lg border border-n-weak text-sm text-n-slate-12 hover:bg-n-slate-3/50 inline-flex items-center justify-center"
-          @click="showExportModal = true"
-        >
-          <span class="i-lucide-file-text size-4" />
+          <span class="i-lucide-merge size-5" />
+          <span class="wa-action-label">
+            {{ $t('CONTACT_PANEL.MERGE_CONTACT_SHORT') }}
+          </span>
         </button>
         <button
           v-if="isAdmin"
           v-tooltip.top-end="$t('DELETE_CONTACT.BUTTON_LABEL')"
-          class="px-3 h-8 rounded-lg border border-n-weak text-sm text-n-ruby-9 hover:bg-n-ruby-3/50 inline-flex items-center justify-center"
+          class="wa-action-btn wa-action-btn--danger"
+          :aria-label="$t('DELETE_CONTACT.BUTTON_LABEL')"
           :disabled="uiFlags.isDeleting"
           @click="toggleDeleteModal"
         >
-          <span class="i-lucide-trash-2 size-4" />
+          <span class="i-lucide-trash-2 size-5" />
+          <span class="wa-action-label">
+            {{ $t('DELETE_CONTACT.BUTTON_LABEL_SHORT') }}
+          </span>
         </button>
       </div>
 

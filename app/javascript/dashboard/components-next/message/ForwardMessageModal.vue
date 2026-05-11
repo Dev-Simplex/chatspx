@@ -371,34 +371,32 @@ watch(
         class="fixed inset-0 z-[10000] overflow-y-auto"
         @click.self="handleClose"
       >
-        <div class="fixed inset-0 bg-slate-900/60 dark:bg-black/70" />
+        <div class="fixed inset-0 bg-n-slate-12/60 dark:bg-black/70" />
 
         <div class="relative flex min-h-full items-center justify-center p-4">
           <div
-            class="relative flex w-full max-w-md max-h-[85vh] flex-col bg-white dark:bg-slate-800 rounded-2xl shadow-2xl ring-1 ring-slate-900/5"
+            class="relative flex w-full max-w-md max-h-[85vh] flex-col bg-n-background rounded-2xl shadow-2xl ring-1 ring-n-slate-12/5"
           >
             <!-- Header -->
             <div
-              class="flex items-center gap-3 px-4 py-3 border-b border-slate-200 dark:border-slate-700"
+              class="flex items-center gap-3 px-4 py-3 border-b border-n-weak"
             >
               <button
-                class="p-1.5 rounded-full hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors"
+                class="p-1.5 rounded-full hover:bg-n-slate-3 transition-colors"
                 @click="handleClose"
               >
                 <Icon
                   icon="i-lucide-arrow-left"
-                  class="size-5 text-slate-600 dark:text-slate-300"
+                  class="size-5 text-n-slate-11"
                 />
               </button>
               <div class="flex-1">
-                <h3
-                  class="text-base font-semibold text-slate-900 dark:text-slate-100"
-                >
+                <h3 class="text-base font-semibold text-n-slate-12">
                   {{ t('CONVERSATION.FORWARD.TITLE') }}
                 </h3>
                 <p
                   v-if="selectedItems.length > 0"
-                  class="text-xs text-slate-500 dark:text-slate-400"
+                  class="text-xs text-n-slate-11"
                 >
                   {{
                     t('CONVERSATION.FORWARD.SELECTED_COUNT', {
@@ -410,19 +408,17 @@ watch(
             </div>
 
             <!-- Search -->
-            <div
-              class="px-3 py-2 border-b border-slate-200 dark:border-slate-700"
-            >
+            <div class="px-3 py-2 border-b border-n-weak">
               <div class="relative">
                 <span
-                  class="i-lucide-search absolute left-3 top-1/2 -translate-y-1/2 size-4 text-slate-400 pointer-events-none inline-block"
+                  class="i-lucide-search absolute left-3 top-1/2 -translate-y-1/2 size-4 text-n-slate-10 pointer-events-none inline-block"
                   aria-hidden="true"
                 />
                 <input
                   v-model="searchQuery"
                   type="text"
                   :placeholder="t('CONVERSATION.FORWARD.SEARCH_PLACEHOLDER')"
-                  class="w-full !pl-10 pr-4 py-2 border-0 bg-slate-100 dark:bg-slate-900 rounded-lg text-sm text-slate-900 dark:text-slate-100 placeholder-slate-400 focus:ring-1 focus:ring-woot-500"
+                  class="w-full !pl-10 pr-4 py-2 border-0 bg-n-slate-3 rounded-lg text-sm text-n-slate-12 placeholder-n-slate-10 focus:ring-1 focus:ring-n-brand"
                 />
               </div>
             </div>
@@ -430,7 +426,7 @@ watch(
             <!-- Selected chips -->
             <div
               v-if="selectedItemDetails.length > 0"
-              class="flex flex-wrap gap-1.5 px-3 py-2 border-b border-slate-200 dark:border-slate-700"
+              class="flex flex-wrap gap-1.5 px-3 py-2 border-b border-n-weak"
             >
               <div
                 v-for="item in selectedItemDetails"
@@ -447,7 +443,7 @@ watch(
                   class="p-0.5 rounded-full hover:bg-woot-200 dark:hover:bg-woot-800 transition-colors"
                   @click.stop="removeSelectedItem(item.id)"
                 >
-                  <Icon icon="i-lucide-x" class="size-3 text-woot-500" />
+                  <Icon icon="i-lucide-x" class="size-3 text-n-brand" />
                 </button>
               </div>
             </div>
@@ -456,7 +452,7 @@ watch(
             <div class="flex-1 overflow-y-auto min-h-0">
               <div
                 v-if="isLoadingConversations"
-                class="flex items-center justify-center py-12 text-slate-400"
+                class="flex items-center justify-center py-12 text-n-slate-10"
               >
                 <Icon
                   icon="i-lucide-loader-2"
@@ -467,7 +463,7 @@ watch(
 
               <div
                 v-else-if="filteredList.length === 0 && !isSearching"
-                class="text-center py-12 text-slate-400 text-sm"
+                class="text-center py-12 text-n-slate-10 text-sm"
               >
                 {{ t('CONVERSATION.FORWARD.NO_RESULTS') }}
               </div>
@@ -478,7 +474,7 @@ watch(
                   class="px-4 pt-3 pb-1"
                 >
                   <p
-                    class="text-[10px] uppercase tracking-wider font-semibold text-slate-400 dark:text-slate-500"
+                    class="text-[10px] uppercase tracking-wider font-semibold text-n-slate-10"
                   >
                     {{ t('CONVERSATION.FORWARD.CONTACTS_LABEL') }}
                   </p>
@@ -487,9 +483,9 @@ watch(
                 <div
                   v-for="item in filteredList"
                   :key="item.id"
-                  class="flex items-center gap-3 px-4 py-2.5 cursor-pointer transition-colors hover:bg-slate-50 dark:hover:bg-slate-700/50"
+                  class="flex items-center gap-3 px-4 py-2.5 cursor-pointer transition-colors hover:bg-n-slate-3"
                   :class="{
-                    'bg-woot-50/60 dark:bg-woot-900/20': isItemSelected(
+                    'bg-n-iris-3/60 dark:bg-n-iris-4/20': isItemSelected(
                       item.id
                     ),
                   }"
@@ -499,7 +495,7 @@ watch(
                     <Avatar :name="item.name" :src="item.avatar" :size="40" />
                     <span
                       v-if="isItemSelected(item.id)"
-                      class="absolute -bottom-0.5 -right-0.5 flex items-center justify-center size-[18px] rounded-full bg-woot-500 text-white ring-2 ring-white dark:ring-slate-800"
+                      class="absolute -bottom-0.5 -right-0.5 flex items-center justify-center size-[18px] rounded-full bg-n-brand text-white ring-2 ring-n-background"
                     >
                       <Icon icon="i-lucide-check" class="size-2.5" />
                     </span>
@@ -507,9 +503,7 @@ watch(
 
                   <div class="flex-1 min-w-0">
                     <div class="flex items-center gap-2">
-                      <p
-                        class="text-sm font-medium text-slate-900 dark:text-slate-100 truncate"
-                      >
+                      <p class="text-sm font-medium text-n-slate-12 truncate">
                         {{ item.name }}
                       </p>
                       <span
@@ -519,14 +513,12 @@ watch(
                         {{ t('CONVERSATION.FORWARD.NEW_CONVERSATION') }}
                       </span>
                     </div>
-                    <p
-                      class="text-xs text-slate-500 dark:text-slate-400 truncate"
-                    >
+                    <p class="text-xs text-n-slate-11 truncate">
                       {{ item.phone || item.email }}
                     </p>
                     <p
                       v-if="item.lastMessage"
-                      class="text-xs text-slate-400 dark:text-slate-500 truncate"
+                      class="text-xs text-n-slate-10 truncate"
                     >
                       {{ item.lastMessage }}
                     </p>
@@ -536,7 +528,7 @@ watch(
 
               <div
                 v-if="isSearching"
-                class="flex items-center justify-center py-4 text-slate-400 text-xs"
+                class="flex items-center justify-center py-4 text-n-slate-10 text-xs"
               >
                 <Icon
                   icon="i-lucide-loader-2"
@@ -547,9 +539,9 @@ watch(
             </div>
 
             <!-- Message Preview (collapsible) -->
-            <div class="border-t border-slate-200 dark:border-slate-700">
+            <div class="border-t border-n-weak">
               <button
-                class="flex items-center gap-2 w-full px-4 py-2.5 text-left hover:bg-slate-50 dark:hover:bg-slate-700/50 transition-colors"
+                class="flex items-center gap-2 w-full px-4 py-2.5 text-left hover:bg-n-slate-3 transition-colors"
                 @click="showMessagePicker = !showMessagePicker"
               >
                 <Icon
@@ -558,11 +550,9 @@ watch(
                       ? 'i-lucide-chevron-down'
                       : 'i-lucide-chevron-right'
                   "
-                  class="size-4 text-slate-400"
+                  class="size-4 text-n-slate-10"
                 />
-                <span
-                  class="text-xs font-medium text-slate-600 dark:text-slate-300"
-                >
+                <span class="text-xs font-medium text-n-slate-11">
                   {{ messagePreviewLabel }}
                   {{ `(${pickedMessageIds.length})` }}
                 </span>
@@ -570,20 +560,20 @@ watch(
 
               <div
                 v-if="showMessagePicker"
-                class="max-h-48 overflow-y-auto border-t border-slate-100 dark:border-slate-700"
+                class="max-h-48 overflow-y-auto border-t border-n-weak"
               >
                 <div
                   v-if="messageCandidates.length === 0"
-                  class="text-sm text-slate-400 py-4 text-center"
+                  class="text-sm text-n-slate-10 py-4 text-center"
                 >
                   {{ t('CONVERSATION.FORWARD.NO_MESSAGES') }}
                 </div>
                 <div
                   v-for="msg in messageCandidates"
                   :key="`msg-${msg.id}`"
-                  class="flex items-start gap-2.5 px-4 py-2 cursor-pointer transition-colors hover:bg-slate-50 dark:hover:bg-slate-700/50"
+                  class="flex items-start gap-2.5 px-4 py-2 cursor-pointer transition-colors hover:bg-n-slate-3"
                   :class="{
-                    'bg-woot-50/60 dark:bg-woot-900/20': isMessageSelected(
+                    'bg-n-iris-3/60 dark:bg-n-iris-4/20': isMessageSelected(
                       msg.id
                     ),
                   }"
@@ -591,12 +581,10 @@ watch(
                 >
                   <input
                     type="checkbox"
-                    class="mt-0.5 size-4 text-woot-500 rounded border-slate-300 focus:ring-woot-500 pointer-events-none"
+                    class="mt-0.5 size-4 text-n-brand rounded border-n-weak focus:ring-n-brand pointer-events-none"
                     :checked="isMessageSelected(msg.id)"
                   />
-                  <p
-                    class="flex-1 text-xs text-slate-700 dark:text-slate-300 line-clamp-2"
-                  >
+                  <p class="flex-1 text-xs text-n-slate-11 line-clamp-2">
                     {{ getMessagePreview(msg) }}
                   </p>
                 </div>
@@ -614,13 +602,13 @@ watch(
                     2
                   )"
                   :key="`preview-${index}`"
-                  class="text-xs text-slate-500 dark:text-slate-400 truncate py-0.5"
+                  class="text-xs text-n-slate-11 truncate py-0.5"
                 >
                   {{ preview }}
                 </div>
                 <p
                   v-if="selectedMessagePreviewList.length > 2"
-                  class="text-[10px] text-slate-400"
+                  class="text-[10px] text-n-slate-10"
                 >
                   {{
                     t('CONVERSATION.FORWARD.MORE_MESSAGES', {
@@ -633,10 +621,10 @@ watch(
 
             <!-- Footer -->
             <div
-              class="flex items-center justify-end gap-2 px-4 py-3 border-t border-slate-200 dark:border-slate-700"
+              class="flex items-center justify-end gap-2 px-4 py-3 border-t border-n-weak"
             >
               <button
-                class="px-4 py-2 text-sm font-medium text-slate-600 dark:text-slate-300 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors"
+                class="px-4 py-2 text-sm font-medium text-n-slate-11 rounded-lg hover:bg-n-slate-3 transition-colors"
                 @click="handleClose"
               >
                 {{ t('CONVERSATION.FORWARD.CANCEL') }}
@@ -647,7 +635,7 @@ watch(
                   pickedMessageIds.length === 0 ||
                   isForwarding
                 "
-                class="flex items-center gap-2 px-5 py-2 text-sm font-medium text-white bg-woot-500 rounded-lg hover:bg-woot-600 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+                class="flex items-center gap-2 px-5 py-2 text-sm font-medium text-white bg-n-brand rounded-lg hover:bg-n-brand disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
                 @click="handleForward"
               >
                 <Icon

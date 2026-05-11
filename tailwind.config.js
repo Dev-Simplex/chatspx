@@ -38,6 +38,19 @@ const tailwindConfig = {
   ],
   theme: {
     extend: {
+      colors: {
+        'wa-composer': {
+          strip: 'var(--wa-composer-strip-bg)',
+          input: 'var(--wa-composer-input-bg)',
+          icon: 'var(--wa-composer-icon)',
+          send: 'var(--wa-composer-send-bg)',
+          'send-fg': 'var(--wa-composer-send-fg)',
+          placeholder: 'var(--wa-composer-placeholder)',
+          'private-bg': 'var(--wa-composer-private-bg)',
+          'private-fg': 'var(--wa-composer-private-fg)',
+          copilot: 'var(--wa-composer-copilot)',
+        },
+      },
       fontFamily: {
         sans: defaultSansFonts,
         inter: ['Inter', ...defaultSansFonts],
@@ -270,6 +283,18 @@ const tailwindConfig = {
         '0%': { opacity: '0', transform: 'scale(0.5)' },
         '100%': { opacity: '1', transform: 'scale(1)' },
       },
+      'copilot-menu-in': {
+        '0%': { opacity: '0', transform: 'translateY(8px) scale(0.96)' },
+        '100%': { opacity: '1', transform: 'translateY(0) scale(1)' },
+      },
+      'copilot-item-in': {
+        '0%': { opacity: '0', transform: 'translateY(4px)' },
+        '100%': { opacity: '1', transform: 'translateY(0)' },
+      },
+      shimmer: {
+        '0%': { backgroundPosition: '-100% 0' },
+        '100%': { backgroundPosition: '100% 0' },
+      },
     },
     animation: {
       ...defaultTheme.animation,
@@ -283,6 +308,11 @@ const tailwindConfig = {
       'typing-bounce': 'typing-bounce 1.2s ease-in-out infinite',
       'dropdown-in': 'dropdown-in 150ms ease-out',
       'scale-in': 'scale-in 200ms ease-out',
+      'copilot-menu-in':
+        'copilot-menu-in 180ms cubic-bezier(0.16, 1, 0.3, 1) both',
+      'copilot-item-in':
+        'copilot-item-in 180ms cubic-bezier(0.16, 1, 0.3, 1) both',
+      shimmer: 'shimmer 1.5s linear infinite',
     },
   },
   plugins: [

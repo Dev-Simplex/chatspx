@@ -52,7 +52,7 @@ onMounted(() => {
 
 <template>
   <div
-    class="flex flex-col absolute w-[25rem] bg-n-alpha-3 outline outline-1 outline-n-container backdrop-blur-[100px] shadow-lg gap-6 rounded-xl p-6"
+    class="flex flex-col absolute w-[25rem] bg-n-solid-1 dark:bg-[#233138] border border-[var(--wa-list-border)] dark:border-[var(--wa-list-border-dark)] shadow-[0_2px_8px_rgba(11,20,26,0.12)] gap-6 rounded-lg p-6"
   >
     <div class="flex items-center justify-between">
       <h3>

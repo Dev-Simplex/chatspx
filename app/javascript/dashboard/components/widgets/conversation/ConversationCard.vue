@@ -407,8 +407,7 @@ export default {
   <div
     class="icon-animated relative flex items-start flex-grow-0 flex-shrink-0 w-auto max-w-full px-3 py-0 border-t-0 border-b-0 border-l-2 border-r-0 border-transparent border-solid cursor-pointer conversation hover:bg-n-alpha-1 dark:hover:bg-n-alpha-3 group"
     :class="{
-      'active animate-card-select bg-n-alpha-1 dark:bg-n-alpha-3':
-        isActiveChat,
+      'active animate-card-select bg-n-alpha-1 dark:bg-n-alpha-3': isActiveChat,
       'unread-chat': hasUnread,
       'has-inbox-name': showInboxName,
       'conversation-selected': selected,
@@ -467,9 +466,9 @@ export default {
         <div class="flex gap-2 ml-2 rtl:mr-2 rtl:ml-0">
           <span
             v-if="showAssignee && assignee.name"
-            class="text-n-slate-11 text-xs font-medium leading-3 py-0.5 px-0 inline-flex text-ellipsis overflow-hidden whitespace-nowrap"
+            class="conversation--assignee text-xs font-medium leading-3 py-0.5 px-0 inline-flex text-ellipsis overflow-hidden whitespace-nowrap"
           >
-            <span class="i-lucide-user size-3 text-n-slate-11" />
+            <span class="i-lucide-user size-3" />
             {{ assignee.name }}
           </span>
           <PriorityMark :priority="chat.priority" />
@@ -477,8 +476,7 @@ export default {
       </div>
       <h4
         v-if="currentContact"
-        class="conversation--user text-sm my-0 mx-2 capitalize pt-0.5 text-ellipsis overflow-hidden whitespace-nowrap text-n-slate-12 group-hover:ltr:pr-8 group-hover:rtl:pl-8 transition-all duration-200 w-[calc(100%-70px)]"
-        :class="hasUnread ? 'font-semibold' : 'font-medium'"
+        class="conversation--user text-n-slate-12 my-0 mx-2 capitalize pt-0.5 text-ellipsis overflow-hidden whitespace-nowrap group-hover:ltr:pr-8 group-hover:rtl:pl-8 transition-all duration-200 w-[calc(100%-140px)] font-normal"
       >
         {{ currentContact.name }}
       </h4>
@@ -493,17 +491,15 @@ export default {
         v-if="lastMessageInChat"
         :message="lastMessageInChat"
         default-empty-message=""
-        class="conversation--message my-0 mx-2 leading-6 h-6 text-sm group-hover:ltr:pr-8 group-hover:rtl:pl-8 transition-all duration-200 max-w-[96%] w-[16.875rem]"
-        :class="hasUnread ? 'font-medium text-n-slate-12' : 'text-n-slate-11'"
+        class="conversation--message text-n-slate-11 my-0 mx-2 leading-6 h-6 text-sm overflow-hidden text-ellipsis whitespace-nowrap group-hover:ltr:pr-8 group-hover:rtl:pl-8 transition-all duration-200 max-w-[96%] w-[16.875rem]"
+        :class="hasUnread ? 'conversation--message-unread font-medium' : ''"
       />
       <p
         v-else
         class="conversation--message text-n-slate-11 text-sm my-0 mx-2 leading-6 h-6 overflow-hidden text-ellipsis whitespace-nowrap group-hover:ltr:pr-8 group-hover:rtl:pl-8 transition-all duration-200 max-w-[96%] w-[16.875rem]"
-        :class="hasUnread ? 'font-medium text-n-slate-12' : 'text-n-slate-11'"
+        :class="hasUnread ? 'conversation--message-unread font-medium' : ''"
       >
-        <span
-          class="i-lucide-info size-4 -mt-0.5 align-middle inline-block text-n-slate-10"
-        />
+        <span class="i-lucide-info size-4 -mt-0.5 align-middle inline-block" />
         <span>
           {{ $t(`CHAT_LIST.NO_MESSAGES`) }}
         </span>
@@ -511,7 +507,7 @@ export default {
       <div
         class="absolute flex flex-col mt-4 ltr:right-4 rtl:left-4 top-4 group-hover:ltr:right-10 group-hover:rtl:left-10 transition-all duration-200"
       >
-        <span class="ml-auto font-normal leading-4 text-xxs">
+        <span class="conversation--timestamp ml-auto font-normal leading-4">
           <TimeAgo
             :last-activity-timestamp="
               chat.last_activity_at ||
@@ -609,7 +605,7 @@ export default {
     @apply flex items-center justify-center rounded-full cursor-pointer mt-4;
 
     input[type='checkbox'] {
-      @apply m-0 cursor-pointer accent-[#2dc46f];
+      @apply m-0 cursor-pointer accent-[#00a884];
     }
   }
 }

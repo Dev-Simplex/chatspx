@@ -47,7 +47,7 @@ const resolvedMacro = computed(() => {
 
 <template>
   <div
-    class="macro-preview absolute border border-n-weak max-h-[22.5rem] z-50 w-64 rounded-md bg-n-alpha-3 backdrop-blur-[100px] shadow-lg bottom-8 right-8 overflow-y-auto p-4 text-left rtl:text-right"
+    class="macro-preview absolute border border-[var(--wa-list-border)] dark:border-[var(--wa-list-border-dark)] max-h-[22.5rem] z-50 w-64 rounded-md bg-n-solid-1 dark:bg-[#233138] shadow-[0_2px_8px_rgba(11,20,26,0.12)] bottom-8 right-8 overflow-y-auto p-4 text-left rtl:text-right"
   >
     <h6 class="mb-4 text-sm text-n-slate-12">
       {{ macro.name }}

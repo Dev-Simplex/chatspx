@@ -22,7 +22,7 @@
 #  index_accounts_on_status  (status)
 #
 
-class Account < ApplicationRecord
+class Account < ApplicationRecord # rubocop:disable Metrics/ClassLength
   # used for single column multi flags
   include FlagShihTzu
   include Reportable
@@ -90,6 +90,9 @@ class Account < ApplicationRecord
   store_accessor :settings, :auto_resolve_after, :auto_resolve_message, :auto_resolve_ignore_waiting
 
   store_accessor :settings, :audio_transcriptions, :auto_resolve_label
+  store_accessor :settings, :chat_wallpaper_url, :show_dashboard_kpi_strip
+  store_accessor :settings, :onboarding_completed_steps, :onboarding_dismissed
+  store_accessor :settings, :openai_api_key, :openai_model_default, :openai_model_advanced
   store_accessor :settings, :captain_models, :captain_features
   store_accessor :settings, :reporting_timezone
   store_accessor :settings, :keep_pending_on_bot_failure
@@ -142,6 +145,7 @@ class Account < ApplicationRecord
   has_many :funnels, dependent: :destroy
 
   has_one_attached :contacts_export
+  has_one_attached :chat_wallpaper_image
 
   enum :locale, LANGUAGES_CONFIG.map { |key, val| [val[:iso_639_1_code], key] }.to_h, prefix: true
   enum :status, { active: 0, suspended: 1 }

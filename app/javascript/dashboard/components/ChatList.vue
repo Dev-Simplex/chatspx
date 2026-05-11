@@ -231,6 +231,13 @@ const assigneeTabItems = computed(() => {
     return ASSIGNEE_TYPE_TAB_PERMISSIONS[key]?.count ?? 'allCount';
   };
   const stats = conversationStats.value;
+  const iconForKey = key => {
+    if (key === wootConstants.ASSIGNEE_TYPE.ME) return 'i-lucide-user';
+    if (key === wootConstants.ASSIGNEE_TYPE.UNASSIGNED)
+      return 'i-lucide-user-round-x';
+    if (key === wootConstants.ASSIGNEE_TYPE.ALL) return 'i-lucide-users';
+    return null;
+  };
   const items = filterItemsByPermission(
     ASSIGNEE_TYPE_TAB_PERMISSIONS,
     userPermissions.value,
@@ -239,6 +246,7 @@ const assigneeTabItems = computed(() => {
     key,
     name: t(`CHAT_LIST.ASSIGNEE_TYPE_TABS.${key}`),
     count: stats[countKeyForTab(key)] ?? 0,
+    icon: iconForKey(key),
   }));
   return items;
 });
@@ -1122,7 +1130,7 @@ watch(conversationFilters, newVal => {
     class="flex flex-col flex-shrink-0 conversations-list-wrap bg-n-surface-1"
     :class="[
       { hidden: !showConversationList },
-      isOnExpandedLayout ? 'basis-full' : 'w-[340px] 2xl:w-[412px]',
+      isOnExpandedLayout ? 'basis-full' : 'w-[380px] 2xl:w-[448px]',
     ]"
   >
     <slot />

@@ -11,7 +11,6 @@ import ContactAPI from 'dashboard/api/contacts';
 import ScheduleRecipientPicker from './ScheduleRecipientPicker.vue';
 import ScheduleComposer from './ScheduleComposer.vue';
 import ScheduleDateTimePicker from './ScheduleDateTimePicker.vue';
-import ScheduleSummary from './ScheduleSummary.vue';
 import {
   checkFileSizeLimit,
   DEFAULT_MAXIMUM_FILE_UPLOAD_SIZE,
@@ -64,6 +63,7 @@ const isFetchingConversations = ref(false);
 const attachedFiles = ref([]);
 const uploadCount = ref(0);
 const dialogRef = ref(null);
+const dateTimePickerRef = ref(null);
 
 const inboxes = computed(() => store.getters['kanban/getWahaInboxes']);
 const isEditMode = computed(() => Boolean(props.scheduledMessage?.id));
@@ -93,13 +93,18 @@ const installationLimit = computed(() =>
 const isUploadingAttachments = computed(() => uploadCount.value > 0);
 const dialogTitle = computed(() =>
   isEditMode.value
-    ? t('KANBAN.SCHEDULED_MESSAGES.EDIT')
-    : t('KANBAN.SCHEDULED_MESSAGES.CREATE')
+    ? t('KANBAN.SCHEDULED_MESSAGES.EDIT_TITLE')
+    : t('KANBAN.SCHEDULED_MESSAGES.CREATE_TITLE')
+);
+const dialogSubtitle = computed(() =>
+  isEditMode.value
+    ? t('KANBAN.SCHEDULED_MESSAGES.EDIT_SUBTITLE')
+    : t('KANBAN.SCHEDULED_MESSAGES.CREATE_SUBTITLE')
 );
 const submitButtonLabel = computed(() =>
   isEditMode.value
     ? t('KANBAN.SCHEDULED_MESSAGES.SAVE_CHANGES')
-    : t('KANBAN.SCHEDULED_MESSAGES.SCHEDULE')
+    : t('KANBAN.SCHEDULED_MESSAGES.CONFIRM_SCHEDULE')
 );
 const showContactSelector = computed(
   () => !isEditMode.value && !props.requireConversation && !props.conversation
@@ -155,16 +160,6 @@ const activeInbox = computed(() => {
   return inboxes.value.find(
     inbox => Number(inbox.id) === Number(activeInboxId.value)
   );
-});
-
-const scheduledAtLabel = computed(() => {
-  if (!formData.value.scheduledAt) return '';
-  const parsed = new Date(formData.value.scheduledAt);
-  if (Number.isNaN(parsed.getTime())) return '';
-  return `${parsed.toLocaleDateString()} ${parsed.toLocaleTimeString([], {
-    hour: '2-digit',
-    minute: '2-digit',
-  })}`;
 });
 
 const dateToLocalInput = date => {
@@ -357,7 +352,7 @@ const setDefaultScheduledDate = () => {
   if (defaultDate <= now) {
     defaultDate = new Date(now);
     defaultDate.setSeconds(0, 0);
-    defaultDate.setMinutes(defaultDate.getMinutes() + 5);
+    defaultDate.setMinutes(defaultDate.getMinutes() + 60);
   }
 
   formData.value.scheduledAt = dateToLocalInput(defaultDate);
@@ -478,12 +473,12 @@ const save = async () => {
   const hasText = Boolean((formData.value.message || '').trim());
   const hasAttachments = attachedFiles.value.length > 0;
   if (!hasText && !hasAttachments) {
-    useAlert(t('KANBAN.SCHEDULED_MESSAGES.MESSAGE_REQUIRED'));
+    useAlert(t('KANBAN.SCHEDULED_MESSAGES.MESSAGE_REQUIRED_FRIENDLY'));
     return;
   }
 
   if (!formData.value.scheduledAt) {
-    useAlert(t('KANBAN.SCHEDULED_MESSAGES.DATE_REQUIRED'));
+    useAlert(t('KANBAN.SCHEDULED_MESSAGES.DATE_REQUIRED_FRIENDLY'));
     return;
   }
 
@@ -495,8 +490,8 @@ const save = async () => {
     return;
   }
 
-  if (new Date(scheduledAtUTC) <= new Date()) {
-    useAlert(t('KANBAN.SCHEDULED_MESSAGES.DATE_FUTURE'));
+  if (new Date(scheduledAtUTC).getTime() - Date.now() < 60 * 1000) {
+    useAlert(t('KANBAN.SCHEDULED_MESSAGES.DATE_FUTURE_FRIENDLY'));
     return;
   }
 
@@ -582,7 +577,7 @@ const save = async () => {
     emit('saved');
     emit('close');
   } catch (_) {
-    useAlert(t('KANBAN.SCHEDULED_MESSAGES.SAVE_ERROR'));
+    useAlert(t('KANBAN.SCHEDULED_MESSAGES.SAVE_ERROR_FRIENDLY'));
   }
 };
 
@@ -597,6 +592,8 @@ watch(
       resetDialogState();
       await nextTick();
       dialogRef.value?.open?.();
+      await nextTick();
+      dateTimePickerRef.value?.focusFirstQuickOption?.();
       return;
     }
 
@@ -624,14 +621,33 @@ onMounted(async () => {
   <Dialog
     v-if="show"
     ref="dialogRef"
-    :title="dialogTitle"
     :show-cancel-button="false"
     :show-confirm-button="false"
-    width="xl"
+    width="2xl"
     overflow-y-auto
     @close="close"
   >
     <div class="space-y-5">
+      <header class="flex items-start gap-3">
+        <div
+          class="flex size-10 shrink-0 items-center justify-center rounded-full bg-n-brand/10 text-n-brand"
+          aria-hidden="true"
+        >
+          <span class="i-lucide-send-horizontal size-5" />
+        </div>
+        <div class="min-w-0">
+          <h2
+            id="scheduled-message-title"
+            class="text-lg font-semibold leading-6 text-n-slate-12"
+          >
+            {{ dialogTitle }}
+          </h2>
+          <p class="mt-1 text-sm text-n-slate-11">
+            {{ dialogSubtitle }}
+          </p>
+        </div>
+      </header>
+
       <ScheduleRecipientPicker
         :show-selector="showContactSelector"
         :search-query="searchQuery"
@@ -646,7 +662,31 @@ onMounted(async () => {
         @clear-contact="clearContactSelection"
       />
 
-      <div class="grid gap-5 lg:grid-cols-[1.4fr_1fr]">
+      <section
+        class="rounded-xl border border-n-weak bg-n-solid-2/40 p-4"
+        aria-labelledby="schedule-when-heading"
+      >
+        <h3 id="schedule-when-heading" class="sr-only">
+          {{ t('KANBAN.SCHEDULED_MESSAGES.WHEN_TO_SEND') }}
+        </h3>
+        <ScheduleDateTimePicker
+          ref="dateTimePickerRef"
+          :scheduled-at="formData.scheduledAt"
+          :timezone-label="timezoneLabel"
+          @update:scheduled-at="formData.scheduledAt = $event"
+        />
+      </section>
+
+      <section
+        class="rounded-xl border border-n-weak bg-n-solid-2/40 p-4"
+        aria-labelledby="schedule-message-heading"
+      >
+        <h3
+          id="schedule-message-heading"
+          class="mb-3 text-sm font-semibold text-n-slate-12"
+        >
+          {{ t('KANBAN.SCHEDULED_MESSAGES.YOUR_MESSAGE_HEADING') }}
+        </h3>
         <ScheduleComposer
           :message="formData.message"
           :inbox-id="formData.inboxId"
@@ -659,38 +699,29 @@ onMounted(async () => {
           @update:attached-files="attachedFiles = $event"
           @file-upload="handleFileUpload"
         />
-
-        <div class="space-y-4">
-          <ScheduleDateTimePicker
-            :scheduled-at="formData.scheduledAt"
-            :timezone-label="timezoneLabel"
-            @update:scheduled-at="formData.scheduledAt = $event"
-          />
-
-          <ScheduleSummary
-            :contact-info="contactInfo"
-            :scheduled-at-label="scheduledAtLabel"
-            :message-length="formData.message.length"
-          />
-        </div>
-      </div>
+      </section>
     </div>
 
     <template #footer>
-      <div class="flex w-full items-center justify-between gap-3">
+      <div
+        class="flex w-full flex-col-reverse items-stretch gap-2 sm:flex-row sm:items-center sm:justify-end sm:gap-3"
+      >
         <Button
-          :label="t('DIALOG.BUTTONS.CANCEL')"
+          :label="t('KANBAN.SCHEDULED_MESSAGES.BACK')"
           type="button"
-          variant="link"
-          class="h-10"
+          variant="faded"
+          color="slate"
+          class="h-10 sm:w-auto"
           @click="close"
         />
         <Button
           :label="submitButtonLabel"
           color="blue"
           type="button"
+          icon="i-lucide-send-horizontal"
           :is-loading="isLoading || isUploadingAttachments"
           :disabled="isUploadingAttachments"
+          class="h-10 sm:w-auto"
           @click="save"
         />
       </div>

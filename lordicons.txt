@@ -1,0 +1,321 @@
+mailbox: <script src="https://cdn.lordicon.com/lordicon.js"></script>
+<lord-icon
+    src="https://cdn.lordicon.com/vxnjveem.json"
+    trigger="hover"
+    stroke="bold"
+    style="width:22px;height:22px">
+</lord-icon>
+
+chat message: <script src="https://cdn.lordicon.com/lordicon.js"></script>
+<lord-icon
+    src="https://cdn.lordicon.com/ncdmfugz.json"
+    trigger="hover"
+    stroke="bold"
+    colors="primary:#8696a0,secondary:#00a884"
+    style="width:22px;height:22px">
+</lord-icon>
+
+kanban: <script src="https://cdn.lordicon.com/lordicon.js"></script>
+<lord-icon
+    src="https://cdn.lordicon.com/ervhjijl.json"
+    trigger="hover"
+    stroke="bold"
+    style="width:24px;height:22px">
+</lord-icon>
+
+captain: <script src="https://cdn.lordicon.com/lordicon.js"></script>
+<lord-icon
+    src="https://cdn.lordicon.com/ohcvbvqh.json"
+    trigger="hover"
+    stroke="bold"
+    style="width:22px;height:22px">
+</lord-icon>
+
+contatos: <script src="https://cdn.lordicon.com/lordicon.js"></script>
+<lord-icon
+    src="https://cdn.lordicon.com/lawxkrzu.json"
+    trigger="hover"
+    stroke="bold"
+    style="width:22px;height:22px">
+</lord-icon>
+
+empresa: <script src="https://cdn.lordicon.com/lordicon.js"></script>
+<lord-icon
+    src="https://cdn.lordicon.com/mzcapxae.json"
+    trigger="hover"
+    stroke="bold"
+    style="width:22px;height:22px">
+</lord-icon>
+
+relatório: <script src="https://cdn.lordicon.com/lordicon.js"></script>
+<lord-icon
+    src="https://cdn.lordicon.com/osnqlnce.json"
+    trigger="hover"
+    stroke="bold"
+    style="width:22px;height:22px">
+</lord-icon>
+
+ao vivo: <script src="https://cdn.lordicon.com/lordicon.js"></script>
+<lord-icon
+    src="https://cdn.lordicon.com/susybnwv.json"
+    trigger="hover"
+    stroke="bold"
+    style="width:22px;height:22px">
+</lord-icon>
+
+megafone: <script src="https://cdn.lordicon.com/lordicon.js"></script>
+<lord-icon
+    src="https://cdn.lordicon.com/jdnoclpe.json"
+    trigger="hover"
+    stroke="bold"
+    style="width:22px;height:22px">
+</lord-icon>
+
+central de ajuda: <script src="https://cdn.lordicon.com/lordicon.js"></script>
+<lord-icon
+    src="https://cdn.lordicon.com/vcavyyll.json"
+    trigger="hover"
+    stroke="bold"
+    style="width:22px;height:22px">
+</lord-icon>
+
+config: <script src="https://cdn.lordicon.com/lordicon.js"></script>
+<lord-icon
+    src="https://cdn.lordicon.com/ripbvsga.json"
+    trigger="hover"
+    stroke="bold"
+    style="width:22px;height:22px">
+</lord-icon>
+
+não atendido: <script src="https://cdn.lordicon.com/lordicon.js"></script>
+<lord-icon
+    src="https://cdn.lordicon.com/warimioc.json"
+    trigger="hover"
+    stroke="bold"
+    style="width:22px;height:22px">
+</lord-icon>
+
+status filtro: <script src="https://cdn.lordicon.com/lordicon.js"></script>
+<lord-icon
+    src="https://cdn.lordicon.com/tophydxf.json"
+    trigger="hover"
+    stroke="bold"
+    style="width:22px;height:22px">
+</lord-icon>
+
+pasta: <script src="https://cdn.lordicon.com/lordicon.js"></script>
+<lord-icon
+    src="https://cdn.lordicon.com/tsrgicte.json"
+    trigger="hover"
+    stroke="bold"
+    style="width:22px;height:22px">
+</lord-icon>
+
+time: <script src="https://cdn.lordicon.com/lordicon.js"></script>
+<lord-icon
+    src="https://cdn.lordicon.com/zjdxuyoy.json"
+    trigger="hover"
+    stroke="bold"
+    style="width:22px;height:22px">
+</lord-icon>
+
+
+etiqueta eu coloquei price tag: <script src="https://cdn.lordicon.com/lordicon.js"></script>
+<lord-icon
+    src="https://cdn.lordicon.com/vhlsvodo.json"
+    trigger="hover"
+    stroke="bold"
+    style="width:22px;height:22px">
+</lord-icon>
+
+conta: <script src="https://cdn.lordicon.com/lordicon.js"></script>
+<lord-icon
+    src="https://cdn.lordicon.com/zhiiqoue.json"
+    trigger="hover"
+    stroke="bold"
+    style="width:22px;height:22px">
+</lord-icon>
+
+agente vou usar esse: <script src="https://cdn.lordicon.com/lordicon.js"></script>
+<lord-icon
+    src="https://cdn.lordicon.com/ucbznuay.json"
+    trigger="hover"
+    stroke="bold"
+    style="width:22px;height:22px">
+</lord-icon>
+
+conexão do whatsapp usar esse: <script src="https://cdn.lordicon.com/lordicon.js"></script>
+<lord-icon
+    src="https://cdn.lordicon.com/dnphlhar.json"
+    trigger="hover"
+    stroke="bold"
+    style="width:22px;height:22px">
+</lord-icon>
+
+custom atributes: <script src="https://cdn.lordicon.com/lordicon.js"></script>
+<lord-icon
+    src="https://cdn.lordicon.com/gvtjlyjf.json"
+    trigger="hover"
+    stroke="bold"
+    style="width:22px;height:22px">
+</lord-icon>
+
+automação: <script src="https://cdn.lordicon.com/lordicon.js"></script>
+<lord-icon
+    src="https://cdn.lordicon.com/freooygd.json"
+    trigger="hover"
+    stroke="bold"
+    style="width:22px;height:22px">
+</lord-icon>
+
+bots: <script src="https://cdn.lordicon.com/lordicon.js"></script>
+<lord-icon
+    src="https://cdn.lordicon.com/jhntkrwu.json"
+    trigger="hover"
+    stroke="bold"
+    style="width:22px;height:22px">
+</lord-icon>
+
+macros: <script src="https://cdn.lordicon.com/lordicon.js"></script>
+<lord-icon
+    src="https://cdn.lordicon.com/glzqezmf.json"
+    trigger="hover"
+    stroke="bold"
+    style="width:22px;height:22px">
+</lord-icon>
+
+resposta pronta: <script src="https://cdn.lordicon.com/lordicon.js"></script>
+<lord-icon
+    src="https://cdn.lordicon.com/mhjhxcxu.json"
+    trigger="hover"
+    stroke="bold"
+    style="width:22px;height:22px">
+</lord-icon>
+
+integração: <script src="https://cdn.lordicon.com/lordicon.js"></script>
+<lord-icon
+    src="https://cdn.lordicon.com/adbkylwa.json"
+    trigger="hover"
+    stroke="bold"
+    style="width:22px;height:22px">
+</lord-icon>
+
+audit: <script src="https://cdn.lordicon.com/lordicon.js"></script>
+<lord-icon
+    src="https://cdn.lordicon.com/zttqeqnn.json"
+    trigger="hover"
+    stroke="bold"
+    style="width:250px;height:22px">
+</lord-icon>
+
+custom roles: <script src="https://cdn.lordicon.com/lordicon.js"></script>
+<lord-icon
+    src="https://cdn.lordicon.com/gjlzobte.json"
+    trigger="hover"
+    stroke="bold"
+    style="width:22px;height:22px">
+</lord-icon>
+
+sla: <script src="https://cdn.lordicon.com/lordicon.js"></script>
+<lord-icon
+    src="https://cdn.lordicon.com/psyssele.json"
+    trigger="hover"
+    stroke="bold"
+    style="width:22px;height:22px">
+</lord-icon>
+
+workflow: <script src="https://cdn.lordicon.com/lordicon.js"></script>
+<lord-icon
+    src="https://cdn.lordicon.com/ygqtedpk.json"
+    trigger="hover"
+    stroke="bold"
+    style="width:22px;height:22px">
+</lord-icon>
+
+billing: <script src="https://cdn.lordicon.com/lordicon.js"></script>
+<lord-icon
+    src="https://cdn.lordicon.com/uemybdyy.json"
+    trigger="hover"
+    stroke="bold"
+    style="width:250px;height:22px">
+</lord-icon>
+
+busca: <script src="https://cdn.lordicon.com/lordicon.js"></script>
+<lord-icon
+    src="https://cdn.lordicon.com/wjyqkiew.json"
+    trigger="hover"
+    stroke="bold"
+    style="width:22px;height:22px">
+</lord-icon>
+
+suporte: <script src="https://cdn.lordicon.com/lordicon.js"></script>
+<lord-icon
+    src="https://cdn.lordicon.com/lemrzdkt.json"
+    trigger="hover"
+    stroke="bold"
+    style="width:22px;height:22px">
+</lord-icon>
+
+teclado: <script src="https://cdn.lordicon.com/lordicon.js"></script>
+<lord-icon
+    src="https://cdn.lordicon.com/nyrkwwyh.json"
+    trigger="hover"
+    stroke="bold"
+    style="width:22px;height:22px">
+</lord-icon>
+
+tema: <script src="https://cdn.lordicon.com/lordicon.js"></script>
+<lord-icon
+    src="https://cdn.lordicon.com/cyzlkgid.json"
+    trigger="hover"
+    stroke="bold"
+    style="width:22px;height:22px">
+</lord-icon>
+
+devices: <script src="https://cdn.lordicon.com/lordicon.js"></script>
+<lord-icon
+    src="https://cdn.lordicon.com/hmskmhmi.json"
+    trigger="hover"
+    stroke="bold"
+    style="width:22px;height:22px">
+</lord-icon> 
+
+changlog: <script src="https://cdn.lordicon.com/lordicon.js"></script>
+<lord-icon
+    src="https://cdn.lordicon.com/wqxkssmu.json"
+    trigger="hover"
+    stroke="bold"
+    style="width:22px;height:22px">
+</lord-icon>
+
+superadmin: <script src="https://cdn.lordicon.com/lordicon.js"></script>
+<lord-icon
+    src="https://cdn.lordicon.com/qpuplinu.json"
+    trigger="hover"
+    stroke="bold"
+    style="width:22px;height:22px">
+</lord-icon>
+
+logout: <script src="https://cdn.lordicon.com/lordicon.js"></script>
+<lord-icon
+    src="https://cdn.lordicon.com/pbalszem.json"
+    trigger="hover"
+    stroke="bold"
+    style="width:22px;height:22px">
+</lord-icon>
+
+seta pra baixo: <script src="https://cdn.lordicon.com/lordicon.js"></script>
+<lord-icon
+    src="https://cdn.lordicon.com/ptsmfzxx.json"
+    trigger="hover"
+    stroke="bold"
+    style="width:22px;height:22px">
+</lord-icon>
+
+seta pra cima: <script src="https://cdn.lordicon.com/lordicon.js"></script>
+<lord-icon
+    src="https://cdn.lordicon.com/wxatatht.json"
+    trigger="hover"
+    stroke="bold"
+    style="width:22px;height:22px">
+</lord-icon>

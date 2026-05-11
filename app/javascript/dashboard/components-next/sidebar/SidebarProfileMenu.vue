@@ -1,11 +1,13 @@
 <script setup>
-import { computed } from 'vue';
+import { h, computed } from 'vue';
 import Auth from 'dashboard/api/auth';
 import { useMapGetter } from 'dashboard/composables/store';
 import { useI18n } from 'vue-i18n';
 import Avatar from 'next/avatar/Avatar.vue';
 import SidebarProfileMenuStatus from './SidebarProfileMenuStatus.vue';
 import { FEATURE_FLAGS } from 'dashboard/featureFlags';
+import LordIconIcon from 'next/icon/LordIconIcon.vue';
+import { LORDICON } from 'dashboard/constants/lordicons';
 
 import {
   DropdownContainer,
@@ -34,7 +36,6 @@ const globalConfig = useMapGetter('globalConfig/get');
 const isFeatureEnabledonAccount = useMapGetter(
   'accounts/isFeatureEnabledonAccount'
 );
-
 const showChatSupport = computed(() => {
   return (
     isFeatureEnabledonAccount.value(
@@ -44,13 +45,24 @@ const showChatSupport = computed(() => {
   );
 });
 
+const lordIcon = (srcKey, fallback = '') => {
+  const cfg = LORDICON[srcKey] || {};
+  return h(LordIconIcon, {
+    src: cfg.idle,
+    srcActive: cfg.active,
+    family: cfg.family || 'system',
+    fallbackLucide: fallback,
+    size: 16,
+  });
+};
+
 const menuItems = computed(() => {
   return [
     {
       show: showChatSupport.value,
       showOnCustomBrandedInstance: false,
       label: t('SIDEBAR_ITEMS.CONTACT_SUPPORT'),
-      icon: 'i-lucide-life-buoy',
+      icon: lordIcon('support', 'i-lucide-life-buoy'),
       click: () => {
         window.$chatwoot.toggle();
       },
@@ -59,7 +71,7 @@ const menuItems = computed(() => {
       show: true,
       showOnCustomBrandedInstance: true,
       label: t('SIDEBAR_ITEMS.KEYBOARD_SHORTCUTS'),
-      icon: 'i-lucide-keyboard',
+      icon: lordIcon('keyboard', 'i-lucide-keyboard'),
       click: () => {
         emit('openKeyShortcutModal');
       },
@@ -68,24 +80,28 @@ const menuItems = computed(() => {
       show: true,
       showOnCustomBrandedInstance: true,
       label: t('SIDEBAR_ITEMS.PROFILE_SETTINGS'),
-      icon: 'i-lucide-user-pen',
+      icon: lordIcon('agent', 'i-lucide-user-pen'),
       link: { name: 'profile_settings_index' },
     },
     {
       show: true,
       showOnCustomBrandedInstance: true,
       label: t('SIDEBAR_ITEMS.APPEARANCE'),
-      icon: 'i-lucide-palette',
+      icon: lordIcon('theme', 'i-lucide-palette'),
       click: () => {
-        const ninja = document.querySelector('ninja-keys');
-        ninja.open({ parent: 'appearance_settings' });
+        document
+          .querySelector('ninja-keys')
+          ?.open?.({ parent: 'appearance_settings' });
       },
     },
+    // WA-fidelity: itens administrativos (Kanban/Contatos/Relatórios/Ao Vivo/
+    // Campanhas/Central de Ajuda/Configurações) ficam apenas no rail principal
+    // — não duplicar no menu de perfil para evitar redundância.
     {
       show: true,
       showOnCustomBrandedInstance: false,
       label: t('SIDEBAR_ITEMS.DOCS'),
-      icon: 'i-lucide-book',
+      icon: lordIcon('helpCenter', 'i-lucide-book'),
       link: 'https://www.chatwoot.com/hc/user-guide/en',
       nativeLink: true,
       target: '_blank',
@@ -94,7 +110,7 @@ const menuItems = computed(() => {
       show: true,
       showOnCustomBrandedInstance: false,
       label: t('SIDEBAR_ITEMS.CHANGELOG'),
-      icon: 'i-lucide-scroll-text',
+      icon: lordIcon('changelog', 'i-lucide-scroll-text'),
       link: 'https://www.chatwoot.com/changelog/',
       nativeLink: true,
       target: '_blank',
@@ -103,7 +119,7 @@ const menuItems = computed(() => {
       show: currentUser.value.type === 'SuperAdmin',
       showOnCustomBrandedInstance: true,
       label: t('SIDEBAR_ITEMS.SUPER_ADMIN_CONSOLE'),
-      icon: 'i-lucide-castle',
+      icon: lordIcon('superAdmin', 'i-lucide-castle'),
       link: '/super_admin',
       nativeLink: true,
       target: '_blank',
@@ -112,7 +128,7 @@ const menuItems = computed(() => {
       show: true,
       showOnCustomBrandedInstance: true,
       label: t('SIDEBAR_ITEMS.LOGOUT'),
-      icon: 'i-lucide-power',
+      icon: lordIcon('logout', 'i-lucide-power'),
       click: Auth.logout,
     },
   ];
@@ -131,12 +147,12 @@ const allowedMenuItems = computed(() => {
   >
     <template #trigger="{ toggle, isOpen }">
       <button
+        v-tooltip.right="isCollapsed ? currentUser.available_name : undefined"
         class="flex gap-2 items-center p-1 text-left rounded-lg cursor-pointer hover:bg-n-alpha-1"
         :class="[
           { 'bg-n-alpha-1': isOpen },
           isCollapsed ? 'justify-center' : 'w-full',
         ]"
-        :title="isCollapsed ? currentUser.available_name : undefined"
         @click="toggle"
       >
         <Avatar

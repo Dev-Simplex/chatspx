@@ -6,12 +6,19 @@
     "SWITCH_VIEW_LAYOUT": "Alternar o layout",
     "DASHBOARD_APP_TAB_MESSAGES": "Mensagens",
     "UNVERIFIED_SESSION": "A identidade deste usuário não foi verificada",
+    "WHATSAPP_WINDOW": {
+      "HOURS_LEFT": "{hours}h restantes",
+      "EXPIRING": "Expira em {time}",
+      "EXPIRED": "Janela expirada — use template",
+      "TOOLTIP": "Janela de 24h do WhatsApp Business. Após expirar, só templates aprovados podem ser enviados."
+    },
     "NO_MESSAGE_1": "Oh oh! Parece que não há mensagens de clientes na sua caixa de entrada.",
     "NO_MESSAGE_2": " para enviar uma mensagem para sua página!",
     "NO_INBOX_1": "Hola! Parece que você não adicionou nenhuma caixa de entrada ainda.",
     "NO_INBOX_2": " para começar",
     "NO_INBOX_AGENT": "Uh Oh! Parece que você não faz parte de nenhuma caixa de entrada. Por favor, contate seu administrador",
     "SEARCH_MESSAGES": "Pesquisar por mensagens nas conversas",
+    "SEARCH_CONVERSATIONS": "Buscar conversas",
     "VIEW_ORIGINAL": "Ver original",
     "VIEW_TRANSLATED": "Ver traduzido",
     "EMPTY_STATE": {
@@ -92,6 +99,9 @@
       "YOU_ANSWERED": "Você respondeu"
     },
     "HEADER": {
+      "TYPING": "digitando…",
+      "ONLINE": "online",
+      "LAST_SEEN": "visto por último {relative}",
       "RESOLVE_ACTION": "Resolver",
       "REOPEN_ACTION": "Reabrir",
       "OPEN_ACTION": "Abrir",
@@ -103,6 +113,21 @@
       "SNOOZED_UNTIL_TOMORROW": "Adiado até amanhã",
       "SNOOZED_UNTIL_NEXT_WEEK": "Adiada até a próxima semana",
       "SNOOZED_UNTIL_NEXT_REPLY": "Adiado até a próxima resposta",
+      "STATUS_PILL": {
+        "OPEN": "Aberta",
+        "PENDING": "Em andamento",
+        "SNOOZED": "Adiada",
+        "RESOLVED": "Resolvida",
+        "CHANGE_TOOLTIP": "Alterar status"
+      },
+      "STATUS_BADGE": {
+        "OPEN_ASSIGNED": "Em atendimento",
+        "OPEN_UNASSIGNED": "Não atribuída",
+        "PENDING": "Aguardando triagem",
+        "SNOOZED_UNTIL": "Adiada até {time}",
+        "SNOOZED_NEXT_REPLY": "Adiada",
+        "RESOLVED": "Resolvida"
+      },
       "SLA_STATUS": {
         "FRT": "FRT {status}",
         "NRT": "NRT {status}",
@@ -130,8 +155,30 @@
       "APPLY": "Adiar",
       "CANCEL": "Cancelar"
     },
+    "PIN": {
+      "PIN": "Fixar conversa",
+      "UNPIN": "Desafixar conversa"
+    },
+    "COPILOT": {
+      "TITLE": "Copilot",
+      "WELCOME": "Oi! Me peça pra resumir a conversa, sugerir resposta ou apontar riscos.",
+      "PLACEHOLDER": "Pergunte ao Copilot…",
+      "SEND": "Enviar",
+      "HINT": "Enter envia · Shift+Enter quebra linha",
+      "THINKING": "Pensando…",
+      "ERROR": "Não consegui falar com o Copilot. Tente de novo.",
+      "NO_REPLY": "Sem resposta.",
+      "CLEAR_HISTORY": "Limpar histórico",
+      "QUICK": {
+        "SUMMARIZE": "Resumir esta conversa",
+        "NEXT_STEP": "Sugerir próximo passo",
+        "WRITE_REPLY": "Rascunhar uma resposta"
+      }
+    },
     "PRIORITY": {
       "TITLE": "Prioridade",
+      "LABEL": "Prioridade",
+      "NO_PRIORITY": "Sem prioridade",
       "OPTIONS": {
         "NONE": "Nenhuma",
         "URGENT": "Urgente",
@@ -201,15 +248,76 @@
       "MESSAGING_RESTRICTED_WHATSAPP": "Você só pode responder usando uma mensagem de modelo devido à restrição da janela de 24 horas",
       "MESSAGING_RESTRICTED_API": "Você só pode responder usando uma mensagem de template devido à restrição da janela de mensagens",
       "MESSAGE_SIGNATURE_NOT_CONFIGURED": "A assinatura da mensagem não está configurada. Por favor, configure-a nas configurações do perfil.",
-      "COPILOT_MSG_INPUT": "Forneça instruções adicionais ao Copiloto ou pergunte algo mais... Pressione Enter para enviar",
+      "COPILOT_MSG_INPUT": "Forneça instruções adicionais ao Copilot ou pergunte algo mais... Pressione Enter para enviar",
       "CLICK_HERE": "Clique aqui para atualizar",
       "WHATSAPP_TEMPLATES": "Modelos do Whatsapp"
+    },
+    "LOCATION": {
+      "MENU": "Compartilhar localização",
+      "MODAL_TITLE": "Compartilhar localização",
+      "USE_MY_CURRENT": "Usar minha localização atual",
+      "SEARCH_ADDRESS": "Buscar endereço",
+      "SEARCH_PLACEHOLDER": "Digite um endereço, CEP ou ponto",
+      "PREVIEW": "Você vai enviar: {address}",
+      "SEND": "Enviar localização",
+      "CANCEL": "Cancelar",
+      "PERMISSION_DENIED": "Permissão de localização negada. Verifique nas configurações do navegador.",
+      "GPS_DENIED": "Permissão de GPS negada. Libere o acesso à localização nas configurações do navegador.",
+      "GPS_UNAVAILABLE": "Não conseguimos obter sua localização. Verifique se o GPS está ativo e tente novamente.",
+      "GPS_TIMEOUT": "Tempo esgotado tentando obter o GPS. Tente novamente em local com melhor sinal.",
+      "GPS_INSECURE_CONTEXT": "GPS exige conexão segura (HTTPS). Acesse via https para usar sua localização.",
+      "GPS_LOW_ACCURACY": "Localização imprecisa. Verifique as permissões de GPS do navegador para resultado melhor.",
+      "NOT_FOUND": "Não encontramos esse endereço. Tente outro.",
+      "LOADING": "Buscando...",
+      "LOADING_LOCATION": "Carregando localização...",
+      "CEP_LABEL": "CEP",
+      "CEP_PLACEHOLDER": "00000-000",
+      "NUMBER_LABEL": "Número",
+      "NUMBER_PLACEHOLDER": "Ex: 1000",
+      "CEP_NOT_FOUND": "CEP não encontrado.",
+      "CEP_INVALID": "CEP inválido. Use 00000-000."
+    },
+    "SHARE_CONTACT": {
+      "MENU": "Compartilhar contato",
+      "MODAL_TITLE": "Compartilhar contato",
+      "TAB_AGENT": "Outro agente",
+      "TAB_CONTACT": "Contato salvo",
+      "TAB_MANUAL": "Disque o número",
+      "SEARCH_AGENT": "Buscar agente...",
+      "SEARCH_CONTACT": "Buscar contato...",
+      "SEARCH_CONTACT_HINT": "Digite o nome ou telefone do contato (mínimo 2 letras)",
+      "MANUAL_NAME": "Nome",
+      "MANUAL_PHONE": "Telefone (com DDD)",
+      "MANUAL_PHONE_PLACEHOLDER": "+55 (XX) XXXXX-XXXX",
+      "PREVIEW_HEADING": "Pré-visualização",
+      "SEND": "Enviar contato",
+      "CANCEL": "Cancelar",
+      "PHONE_INVALID": "Telefone inválido. Inclua DDD (10 ou 11 dígitos).",
+      "NO_AGENTS": "Sem outros agentes na equipe.",
+      "NO_CONTACTS_FOUND": "Nenhum contato encontrado."
     },
     "REPLYBOX": {
       "REPLY": "Responder",
       "PRIVATE_NOTE": "Mensagem Privada",
       "SEND": "Enviar",
       "CREATE": "Enviar",
+      "PLACEHOLDER": "Mensagem",
+      "PLACEHOLDER_EMAIL": "Escreva uma resposta...",
+      "EMOJI": "Emoji",
+      "ATTACH": "Anexar",
+      "ATTACH_IMAGE": "Foto",
+      "ATTACH_VIDEO": "Vídeo",
+      "ATTACH_AUDIO": "Áudio",
+      "ATTACH_DOC": "Documento",
+      "ATTACH_CONTACT": "Contato",
+      "RECORD": "Gravar áudio",
+      "EXPAND": "Expandir",
+      "PRIVATE_NOTE_BANNER": "Modo nota privada — visível só para agentes",
+      "SWITCH_TO_REPLY": "Trocar para resposta",
+      "PRIVATE_NOTE_TOAST_ON": "🔒 Modo nota privada — visível só para agentes",
+      "PRIVATE_NOTE_TOAST_OFF": "💬 Modo resposta — visível para o cliente",
+      "LOCK_ON_TOOLTIP": "Marcar como nota privada",
+      "LOCK_OFF_TOOLTIP": "Voltar para resposta",
       "WHATSAPP_INVALID": "Este número não está registrado no WhatsApp. Verifique o número e tente novamente.",
       "WHATSAPP_REVALIDATE": "Verificar novamente",
       "WHATSAPP_REVALIDATING": "Verificando...",
@@ -224,6 +332,14 @@
       "MORE_OPTIONS": "Mais opções",
       "ADVANCED_EDITOR": "Editor de texto avançado",
       "TIP_ATTACH_ICON": "Anexar arquivos",
+      "SCHEDULE_MESSAGE": "Agendar mensagem",
+      "CANNED_RESPONSE_MENU": "Resposta pronta",
+      "CANNED_MODAL": {
+        "TITLE": "Resposta pronta",
+        "SEARCH_PLACEHOLDER": "Buscar resposta...",
+        "NO_RESULTS": "Nenhuma resposta encontrada",
+        "HINT": "↑↓ navegar · Enter usar · Esc fechar"
+      },
       "TIP_AUDIORECORDER_ICON": "Gravar áudio",
       "TIP_AUDIORECORDER_PERMISSION": "Permitir acesso ao áudio",
       "TIP_AUDIORECORDER_ERROR": "Não foi possível abrir o áudio",
@@ -231,7 +347,7 @@
       "START_AUDIO_RECORDING": "Iniciar gravação de áudio",
       "STOP_AUDIO_RECORDING": "Parar gravação de áudio",
       "DISCARD_AUDIO_RECORDING": "Descartar gravação",
-      "COPILOT_THINKING": "O Copiloto está pensando",
+      "COPILOT_THINKING": "O Copilot está pensando",
       "EMAIL_HEAD": {
         "TO": "Para",
         "ADD_BCC": "Adicionar cco",
@@ -328,6 +444,12 @@
       "NO_CONTENT": "(sem conteúdo)",
       "EDITED_BY": "Editado por {name}"
     },
+    "REACTIONS": {
+      "PICKER_TOOLTIP": "Adicionar reação"
+    },
+    "PDF_PREVIEW": {
+      "OPEN_FULL": "Abrir"
+    },
     "FORWARD": {
       "TITLE": "Encaminhar Mensagem",
       "MESSAGE_PREVIEW": "Mensagem a encaminhar:",
@@ -372,7 +494,7 @@
     "NO_STARRED_MESSAGES": "Nenhuma mensagem favoritada",
     "SIDEBAR": {
       "CONTACT": "Contatos",
-      "COPILOT": "Copiloto",
+      "COPILOT": "Copilot",
       "SCHEDULE": "Agendar mensagem"
     },
     "VOICE_WIDGET": {
@@ -548,6 +670,158 @@
   },
   "COPILOT": {
     "TRY_THESE_PROMPTS": "Experimente estes comandos"
+  },
+  "COPILOT_ONBOARDING": {
+    "BADGE": "NOVO",
+    "TITLE": "Novo: o Copilot ajuda você a responder mais rápido",
+    "BODY": "Clique aqui para resumir conversas, melhorar respostas ou tirar dúvidas. Tudo em português.",
+    "CONFIRM": "Quero conhecer",
+    "DISMISS": "Mais tarde",
+    "TOAST_CONFIRMED": "Beleza! O Copilot fica sempre nesse botão"
+  },
+  "COPILOT_ERRORS": {
+    "PRIVATE_MODE": "Modo privado: IA desativada para evitar vazamento da nota interna",
+    "CTA_RETRY": "Tentar de novo",
+    "CTA_DISMISS": "Fechar",
+    "RATE_LIMIT": {
+      "TITLE": "Muitas solicitações",
+      "BODY": "Aguarde {seconds}s e tente outra vez",
+      "CTA_COUNTDOWN": "Aguarde {seconds}s"
+    },
+    "CAPTAIN_UNSTABLE": {
+      "TITLE": "Copilot indisponível",
+      "BODY": "Tente de novo em alguns minutos"
+    },
+    "TIMEOUT": {
+      "TITLE": "Demorando mais que o normal",
+      "BODY": "A resposta está demorando. Você pode esperar ou cancelar.",
+      "CTA_PRIMARY": "Continuar esperando",
+      "CTA_CANCEL": "Cancelar"
+    },
+    "EMPTY_RESPONSE": {
+      "TITLE": "Não recebi resposta válida",
+      "BODY": "Algo deu errado no Copilot. Quer tentar gerar de novo?"
+    },
+    "NETWORK": {
+      "TITLE": "Sem conexão",
+      "BODY": "Verifique sua internet e tente de novo"
+    }
+  },
+  "AI_ASSISTANT_PANEL": {
+    "TITLE": "Copilot",
+    "CLOSE": "Fechar painel",
+    "SEND": "Enviar pergunta",
+    "LOADING": "Gerando resposta...",
+    "STREAM_COMPLETE": "Resposta gerada",
+    "HISTORY_LABEL": "Histórico do Copilot",
+    "EMPTY": {
+      "GREETING_EMOJI": "👋 ",
+      "GREETING_NAMED": "Olá, {name}! Como posso ajudar?",
+      "GREETING_GENERIC": "Olá! Como posso ajudar?",
+      "SUBTITLE": "Escolha uma ação rápida ou pergunte algo direto."
+    },
+    "SECTIONS": {
+      "UNDERSTAND": "ENTENDER A CONVERSA",
+      "REWRITE": "AJUSTAR MINHA RESPOSTA",
+      "CREATE": "CRIAR RESPOSTA"
+    },
+    "PROMPTS": {
+      "SENTIMENT": {
+        "LABEL": "Analisar tom do cliente",
+        "DESCRIPTION": "Analiso o tom do cliente"
+      },
+      "SUMMARIZE": {
+        "LABEL": "Resumir esta conversa",
+        "DESCRIPTION": "Vê os pontos principais"
+      },
+      "REPLY_SUGGESTION": {
+        "LABEL": "Sugerir uma resposta",
+        "DESCRIPTION": "Crio um rascunho pra você"
+      }
+    },
+    "TEXTAREA": {
+      "PLACEHOLDER": "Pergunte ou peça algo (ex: \"resuma os últimos pedidos\")",
+      "HINT": "Enter envia · Shift+Enter quebra linha"
+    },
+    "ACTIONS": {
+      "COPY": "Copiar",
+      "APPLY": "Usar no composer",
+      "RETRY": "Gerar outra",
+      "CANCEL": "Cancelar",
+      "FEEDBACK_GOOD": "Resposta útil",
+      "FEEDBACK_BAD": "Resposta ruim",
+      "COPIED_TOAST": "Copiado para a área de transferência",
+      "APPLIED_TOAST": "Resposta aplicada no composer",
+      "COPY_FAILED": "Não consegui copiar"
+    },
+    "EDGE_CASES": {
+      "EMPTY_CONVERSATION_TITLE": "Cliente novo, conversa começando.",
+      "EMPTY_CONVERSATION_BODY": "Quando tiver mensagens, posso resumir, analisar tom ou sugerir respostas.",
+      "PRIVATE_MODE_TITLE": "Modo nota privada",
+      "PRIVATE_MODE_BODY": "O conteúdo não vai pro Copilot pra evitar vazamento. Volte pra \"Resposta\" pra usar a IA.",
+      "WHATSAPP_EXPIRED_TITLE": "WhatsApp desconectado",
+      "WHATSAPP_EXPIRED_BODY": "Algumas ações ficam indisponíveis até reconectar a sessão.",
+      "LONG_CONVERSATION_HINT": "Considero as últimas 50 mensagens"
+    },
+    "TOAST": {
+      "COPIED": "Copiado para a área de transferência",
+      "APPLIED": "Resposta aplicada no composer",
+      "COPY_FAILED": "Não consegui copiar",
+      "FEEDBACK_SAVED": "Feedback registrado, valeu!",
+      "PRIVATE_MODE_BLOCKED": "Modo nota privada — Copilot indisponível"
+    },
+    "TOUR": {
+      "NEXT": "Próximo",
+      "SKIP": "Pular tour",
+      "FINISH": "Entendi, fechar",
+      "CLOSE": "Fechar tour",
+      "SKIP_TOAST": "Pode chamar o tour quando quiser nas configurações da conta.",
+      "STEP_LABEL": "Passo {current} de {total}: {title}",
+      "STEP_1": {
+        "TITLE": "Tudo começa aqui",
+        "BODY": "Esse é o seu atalho de IA, no botão sparkles do composer. Toda vez que precisar ajustar uma resposta ou pedir uma sugestão, é só clicar."
+      },
+      "STEP_2": {
+        "TITLE": "Use os atalhos rápidos",
+        "BODY": "São ações prontas em pt-BR. Passe o mouse pra ver o que cada uma faz antes de clicar."
+      },
+      "STEP_3": {
+        "TITLE": "Revise antes de enviar",
+        "BODY": "A IA gera, mas quem decide é você. Use, edite ou descarte — o cliente só recebe quando você apertar Enviar."
+      },
+      "STEP_4": {
+        "TITLE": "Painel lateral pro que precisar",
+        "BODY": "Conversa longa? Cliente complicado? Abra o painel pelo botão Copilot do header e converse com a IA direto. Atalho: Ctrl+J."
+      }
+    },
+    "SMART_BANNER": {
+      "DISMISS_TOOLTIP": "Dispensar",
+      "DISMISSED_TOAST": "Ok, não mostro mais nessa conversa",
+      "LONG_THREAD": {
+        "BODY": "Conversa longa ({count} msgs). Quer um resumo?",
+        "CTA": "Resumir agora"
+      },
+      "SENTIMENT": {
+        "BODY": "Parece que o cliente está frustrado. Quer ajuda pra responder com empatia?",
+        "CTA": "Sugerir resposta"
+      },
+      "WAITING": {
+        "BODY": "Cliente aguardando há {minutes} min. Posso preparar uma resposta rápida?",
+        "CTA": "Resposta rápida"
+      }
+    },
+    "SUGGESTION_CHIP": {
+      "HEADER": "Sugestão do Copilot",
+      "SUBTITLE": "Revise antes de enviar",
+      "USE": "Usar essa",
+      "EDIT": "Editar",
+      "DISCARD": "Descartar",
+      "EDIT_TOOLTIP": "Coloca no campo e seleciona tudo pra você ajustar",
+      "DISCARD_TOOLTIP": "Apaga a sugestão (Esc)",
+      "USED_TOAST": "Pronto, é só revisar e enviar",
+      "EDIT_TOAST": "Sugestão pronta pra editar",
+      "DISCARDED_TOAST": "Sugestão descartada"
+    }
   },
   "GALLERY_VIEW": {
     "ERROR_DOWNLOADING": "Não foi possível baixar o anexo. Por favor, tente novamente",

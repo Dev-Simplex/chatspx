@@ -40,7 +40,7 @@ const handleSubmit = campaignDetails => {
 
 <template>
   <div
-    class="w-[25rem] z-50 min-w-0 absolute top-10 ltr:right-0 rtl:left-0 bg-n-alpha-3 backdrop-blur-[100px] p-6 rounded-xl border border-n-weak shadow-md flex flex-col gap-6 max-h-[85vh] overflow-y-auto"
+    class="w-[25rem] z-50 min-w-0 absolute top-10 ltr:right-0 rtl:left-0 bg-n-solid-1 dark:bg-[#233138] p-6 rounded-lg border border-[var(--wa-list-border)] dark:border-[var(--wa-list-border-dark)] shadow-[0_2px_8px_rgba(11,20,26,0.12)] flex flex-col gap-6 max-h-[85vh] overflow-y-auto"
   >
     <h3 class="text-base font-medium text-n-slate-12">
       {{ t(`CAMPAIGN.LIVE_CHAT.CREATE.TITLE`) }}

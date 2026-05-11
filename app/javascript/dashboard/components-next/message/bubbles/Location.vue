@@ -32,10 +32,17 @@ const mapUrl = computed(
     icon="i-lucide-navigation"
     icon-bg-color="bg-[#0D9B8A]"
     sender-translation-key="CONVERSATION.SHARED_ATTACHMENT.LOCATION"
-    :content="title"
+    :content="title || ''"
     :action="{
       label: t('COMPONENTS.LOCATION_BUBBLE.SEE_ON_MAP'),
       href: mapUrl,
     }"
-  />
+  >
+    <div
+      v-if="title"
+      class="text-sm text-n-slate-11 line-clamp-3 break-words leading-snug"
+    >
+      {{ title }}
+    </div>
+  </BaseAttachmentBubble>
 </template>

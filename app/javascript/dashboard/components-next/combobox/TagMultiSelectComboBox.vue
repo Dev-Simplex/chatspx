@@ -123,7 +123,7 @@ defineExpose({
   >
     <OnClickOutside @trigger="open = false">
       <div
-        class="flex flex-wrap w-full gap-2 px-3 py-2.5 rounded-lg cursor-pointer bg-white dark:bg-n-solid-2 min-h-[42px] transition-all duration-500 ease-in-out border"
+        class="flex flex-wrap w-full gap-2 px-3 py-2.5 rounded-lg cursor-pointer bg-n-solid-1 min-h-[42px] transition-all duration-500 ease-in-out border"
         :class="{
           'border-n-ruby-8': hasError,
           'border-n-weak dark:border-n-weak hover:border-n-slate-6 dark:hover:border-n-slate-6':

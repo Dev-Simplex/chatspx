@@ -94,6 +94,119 @@ describe Whatsapp::Providers::WhatsappCloudService do
     end
   end
 
+  describe '#send_location_message' do
+    let(:location_message) do
+      msg = create(:message, conversation: conversation, message_type: :outgoing, content: 'Cuiabá',
+                             inbox: whatsapp_channel.inbox, source_id: 'location_msg')
+      attachment = msg.attachments.new(
+        account_id: msg.account_id,
+        file_type: :location,
+        coordinates_lat: -15.6,
+        coordinates_long: -56.1,
+        fallback_title: 'Cuiabá'
+      )
+      attachment.save!
+      msg.reload
+    end
+
+    it 'POSTs the WhatsApp Cloud location payload with name and address' do
+      stub_request(:post, 'https://graph.facebook.com/v13.0/123456789/messages')
+        .with(
+          body: hash_including(
+            'messaging_product' => 'whatsapp',
+            'to' => '+123456789',
+            'type' => 'location',
+            'location' => hash_including(
+              'latitude' => -15.6,
+              'longitude' => -56.1,
+              'name' => 'Cuiabá',
+              'address' => 'Cuiabá'
+            )
+          )
+        )
+        .to_return(status: 200, body: whatsapp_response.to_json, headers: response_headers)
+
+      expect(service.send_message('+123456789', location_message)).to eq 'message_id'
+    end
+
+    it 'omits name and address when fallback_title is blank' do
+      no_title_message = create(:message, conversation: conversation, message_type: :outgoing,
+                                          inbox: whatsapp_channel.inbox)
+      no_title_message.attachments.create!(
+        account_id: no_title_message.account_id,
+        file_type: :location,
+        coordinates_lat: -15.6,
+        coordinates_long: -56.1,
+        fallback_title: ''
+      )
+
+      stub_request(:post, 'https://graph.facebook.com/v13.0/123456789/messages')
+        .with do |req|
+          body = JSON.parse(req.body)
+          body['type'] == 'location' &&
+            !body['location'].key?('name') &&
+            !body['location'].key?('address')
+        end
+        .to_return(status: 200, body: whatsapp_response.to_json, headers: response_headers)
+
+      service.send_message('+123456789', no_title_message.reload)
+    end
+  end
+
+  describe '#send_contacts_message' do
+    let(:contact_message) do
+      msg = create(:message, conversation: conversation, message_type: :outgoing,
+                             inbox: whatsapp_channel.inbox,
+                             additional_attributes: { 'contact' => { 'name' => 'Walisson', 'phone' => '+5566999998888', 'source' => 'manual' } })
+      msg.attachments.create!(
+        account_id: msg.account_id,
+        file_type: :contact,
+        fallback_title: '+5566999998888',
+        meta: { 'firstName' => 'Walisson' }
+      )
+      msg.reload
+    end
+
+    it 'POSTs the WhatsApp Cloud contacts payload with formatted_name, phone CELL and wa_id' do
+      stub_request(:post, 'https://graph.facebook.com/v13.0/123456789/messages')
+        .with do |req|
+          body = JSON.parse(req.body)
+          contact = body.dig('contacts', 0)
+          body['type'] == 'contacts' &&
+            contact.dig('name', 'formatted_name') == 'Walisson' &&
+            contact.dig('name', 'first_name') == 'Walisson' &&
+            contact.dig('phones', 0, 'phone') == '+5566999998888' &&
+            contact.dig('phones', 0, 'type') == 'CELL' &&
+            contact.dig('phones', 0, 'wa_id') == '5566999998888'
+        end
+        .to_return(status: 200, body: whatsapp_response.to_json, headers: response_headers)
+
+      expect(service.send_message('+123456789', contact_message)).to eq 'message_id'
+    end
+
+    it 'falls back to attachment meta firstName when additional_attributes contact is absent' do
+      msg = create(:message, conversation: conversation, message_type: :outgoing, inbox: whatsapp_channel.inbox)
+      msg.attachments.create!(
+        account_id: msg.account_id,
+        file_type: :contact,
+        fallback_title: '+5511988887777',
+        meta: { 'firstName' => 'Maria' }
+      )
+
+      stub_request(:post, 'https://graph.facebook.com/v13.0/123456789/messages')
+        .with do |req|
+          body = JSON.parse(req.body)
+          contact = body.dig('contacts', 0)
+          contact.dig('name', 'formatted_name') == 'Maria' &&
+            contact.dig('phones', 0, 'phone') == '+5511988887777' &&
+            contact.dig('phones', 0, 'wa_id') == '5511988887777'
+        end
+        .to_return(status: 200, body: whatsapp_response.to_json, headers: response_headers)
+
+      service.send_message('+123456789', msg.reload)
+    end
+  end
+
   describe '#send_interactive message' do
     context 'when called' do
       it 'calls message endpoints with button payload when number of items is less than or equal to 3' do

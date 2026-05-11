@@ -15,6 +15,10 @@
     "EMPTY_STATE": "Nenhum resultado encontrado.",
     "SEARCHING": "Procurando..."
   },
+  "TABS": {
+    "SCROLL_LEFT": "Rolar abas para a esquerda",
+    "SCROLL_RIGHT": "Rolar abas para a direita"
+  },
   "DIALOG": {
     "BUTTONS": {
       "CANCEL": "Cancelar",

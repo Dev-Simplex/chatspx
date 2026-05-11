@@ -123,6 +123,7 @@ const save = async () => {
     emit('saved');
     close();
   } catch (error) {
+    // eslint-disable-next-line no-console
     console.error('StageForm: Erro ao atualizar etapa', error);
     alert(t('KANBAN.STAGES.SAVE_ERROR') || 'Erro ao salvar etapa');
   } finally {
@@ -158,7 +159,7 @@ const save = async () => {
           id="stage-form-name"
           v-model="formData.name"
           type="text"
-          class="w-full px-4 !py-3 !h-12 border border-n-weak rounded-xl bg-white dark:bg-n-solid-3 text-n-slate-12 text-sm leading-5 focus:outline-none focus:ring-2 focus:ring-n-teal-9"
+          class="w-full px-4 !py-3 !h-12 border border-n-weak rounded-xl bg-n-solid-1 text-n-slate-12 text-sm leading-5 focus:outline-none focus:ring-2 focus:ring-n-teal-9"
           :placeholder="t('KANBAN.STAGES.NAME_PLACEHOLDER')"
           @keydown.enter.prevent="save"
         />
@@ -183,7 +184,7 @@ const save = async () => {
             class="w-12 h-12 border border-n-weak rounded-xl cursor-pointer"
           />
           <span
-            class="px-4 py-3 border border-n-weak rounded-xl bg-white dark:bg-n-solid-3 text-n-slate-12 font-mono text-sm"
+            class="px-4 py-3 border border-n-weak rounded-xl bg-n-solid-1 text-n-slate-12 font-mono text-sm"
           >
             {{ formData.color }}
           </span>
@@ -204,7 +205,7 @@ const save = async () => {
         <select
           id="stage-form-automation"
           v-model="formData.automation_type"
-          class="w-full px-4 py-3 border border-n-weak rounded-xl bg-white dark:bg-n-solid-3 text-n-slate-12 focus:outline-none focus:ring-2 focus:ring-n-teal-9 text-sm"
+          class="w-full px-4 py-3 border border-n-weak rounded-xl bg-n-solid-1 text-n-slate-12 focus:outline-none focus:ring-2 focus:ring-n-teal-9 text-sm"
         >
           <option :value="null">{{ t('KANBAN.STAGES.NO_AUTOMATION') }}</option>
           <option value="open">{{ t('KANBAN.STAGES.AUTOMATION_OPEN') }}</option>

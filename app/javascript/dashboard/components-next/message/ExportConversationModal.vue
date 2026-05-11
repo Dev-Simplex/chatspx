@@ -130,15 +130,15 @@ watch(
         class="fixed inset-0 z-[10000] overflow-y-auto"
         @click.self="handleClose"
       >
-        <div class="fixed inset-0 bg-slate-900/60 dark:bg-black/70" />
+        <div class="fixed inset-0 bg-n-slate-12/60 dark:bg-black/70" />
 
         <div class="relative flex min-h-full items-center justify-center p-4">
           <div
-            class="relative w-full max-w-sm bg-white dark:bg-slate-800 rounded-2xl shadow-2xl ring-1 ring-slate-900/5"
+            class="relative w-full max-w-sm bg-n-background rounded-2xl shadow-2xl ring-1 ring-n-slate-12/5"
           >
             <!-- Header -->
             <div
-              class="flex items-center gap-3 px-5 py-4 border-b border-slate-200 dark:border-slate-700"
+              class="flex items-center gap-3 px-5 py-4 border-b border-n-weak"
             >
               <span
                 class="flex items-center justify-center size-9 rounded-full bg-n-teal-2 dark:bg-n-teal-3"
@@ -146,12 +146,10 @@ watch(
                 <Icon icon="i-lucide-file-down" class="size-4 text-n-teal-11" />
               </span>
               <div class="flex-1 min-w-0">
-                <h3
-                  class="text-sm font-semibold text-slate-900 dark:text-slate-100"
-                >
+                <h3 class="text-sm font-semibold text-n-slate-12">
                   {{ t('EXPORT_CONVERSATION.TITLE') }}
                 </h3>
-                <p class="text-xs text-slate-500 dark:text-slate-400 truncate">
+                <p class="text-xs text-n-slate-11 truncate">
                   {{
                     conversationCount === 1
                       ? `#${conversations[0]?.display_id || conversations[0]?.id}`
@@ -163,10 +161,10 @@ watch(
               </div>
               <button
                 :disabled="isExporting"
-                class="p-1.5 rounded-full hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors disabled:opacity-30"
+                class="p-1.5 rounded-full hover:bg-n-slate-3 transition-colors disabled:opacity-30"
                 @click="handleClose"
               >
-                <Icon icon="i-lucide-x" class="size-4 text-slate-400" />
+                <Icon icon="i-lucide-x" class="size-4 text-n-slate-10" />
               </button>
             </div>
 
@@ -189,53 +187,51 @@ watch(
             <div class="px-5 py-4 space-y-4">
               <!-- Date range -->
               <div>
-                <label
-                  class="block text-xs font-medium text-slate-600 dark:text-slate-300 mb-2"
-                >
+                <label class="block text-xs font-medium text-n-slate-11 mb-2">
                   {{ t('EXPORT_CONVERSATION.DATE_RANGE') }}
                 </label>
                 <div class="grid grid-cols-2 gap-2">
                   <div>
-                    <span class="block text-[10px] text-slate-400 mb-1">
+                    <span class="block text-[10px] text-n-slate-10 mb-1">
                       {{ t('EXPORT_CONVERSATION.DATE_FROM') }}
                     </span>
                     <input
                       v-model="dateFrom"
                       type="date"
-                      class="w-full px-3 py-2 text-sm border border-slate-200 dark:border-slate-600 rounded-lg bg-white dark:bg-slate-900 text-slate-900 dark:text-slate-100 focus:ring-1 focus:ring-woot-500 focus:border-woot-500"
+                      class="w-full px-3 py-2 text-sm border border-n-weak rounded-lg bg-n-background text-n-slate-12 focus:ring-1 focus:ring-n-brand focus:border-n-brand"
                     />
                   </div>
                   <div>
-                    <span class="block text-[10px] text-slate-400 mb-1">
+                    <span class="block text-[10px] text-n-slate-10 mb-1">
                       {{ t('EXPORT_CONVERSATION.DATE_TO') }}
                     </span>
                     <input
                       v-model="dateTo"
                       type="date"
-                      class="w-full px-3 py-2 text-sm border border-slate-200 dark:border-slate-600 rounded-lg bg-white dark:bg-slate-900 text-slate-900 dark:text-slate-100 focus:ring-1 focus:ring-woot-500 focus:border-woot-500"
+                      class="w-full px-3 py-2 text-sm border border-n-weak rounded-lg bg-n-background text-n-slate-12 focus:ring-1 focus:ring-n-brand focus:border-n-brand"
                     />
                   </div>
                 </div>
-                <p class="mt-1.5 text-[10px] text-slate-400">
+                <p class="mt-1.5 text-[10px] text-n-slate-10">
                   {{ t('EXPORT_CONVERSATION.DATE_HINT') }}
                 </p>
               </div>
 
               <!-- Private notes toggle -->
               <label
-                class="flex items-center gap-3 px-3 py-3 rounded-lg border border-slate-200 dark:border-slate-700 cursor-pointer hover:bg-slate-50 dark:hover:bg-slate-700/30 transition-colors"
+                class="flex items-center gap-3 px-3 py-3 rounded-lg border border-n-weak cursor-pointer hover:bg-n-slate-3 transition-colors"
               >
                 <input
                   v-model="includePrivateNotes"
                   type="checkbox"
-                  class="size-4 text-woot-500 rounded border-slate-300 focus:ring-woot-500"
+                  class="size-4 text-n-brand rounded border-n-weak focus:ring-n-brand"
                 />
                 <div class="flex-1 min-w-0">
-                  <span class="text-sm text-slate-700 dark:text-slate-200">
+                  <span class="text-sm text-n-slate-11">
                     {{ t('EXPORT_CONVERSATION.INCLUDE_PRIVATE') }}
                   </span>
                 </div>
-                <Icon icon="i-lucide-lock" class="size-3.5 text-slate-400" />
+                <Icon icon="i-lucide-lock" class="size-3.5 text-n-slate-10" />
               </label>
 
               <!-- Progress -->
@@ -255,11 +251,11 @@ watch(
 
             <!-- Footer -->
             <div
-              class="flex items-center justify-end gap-2 px-5 py-3 border-t border-slate-200 dark:border-slate-700"
+              class="flex items-center justify-end gap-2 px-5 py-3 border-t border-n-weak"
             >
               <button
                 :disabled="isExporting"
-                class="px-4 py-2 text-sm font-medium text-slate-500 dark:text-slate-400 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors disabled:opacity-30"
+                class="px-4 py-2 text-sm font-medium text-n-slate-11 rounded-lg hover:bg-n-slate-3 transition-colors disabled:opacity-30"
                 @click="handleClose"
               >
                 {{ t('EXPORT_CONVERSATION.CANCEL') }}

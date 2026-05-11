@@ -18,7 +18,7 @@ const showSettingsHeader = computed(
 </script>
 
 <template>
-  <div class="flex flex-col h-full m-0 bg-white dark:bg-n-solid-1 w-full">
+  <div class="flex flex-col h-full m-0 bg-n-solid-1 w-full">
     <SettingsHeader
       v-if="showSettingsHeader"
       :icon="icon"

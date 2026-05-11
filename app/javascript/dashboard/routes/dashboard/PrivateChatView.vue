@@ -343,7 +343,7 @@ export default {
           class="flex relative flex-col bg-n-background -mt-px border-t border-n-weak"
         >
           <div
-            class="relative z-10 flex gap-2 py-1 px-3 min-h-[2.75rem] items-center mx-2 mb-2 rounded-3xl bg-[#e9edef] dark:bg-[#2d2d2d]"
+            class="relative z-10 flex gap-2 py-1 px-3 min-h-[2.75rem] items-center mx-2 mb-2 rounded-3xl bg-n-alpha-2 dark:bg-n-solid-3"
           >
             <input
               v-model="messageInput"
@@ -355,7 +355,7 @@ export default {
             />
             <button
               type="button"
-              class="rounded-full bg-woot-500 hover:bg-woot-600 px-4 py-2 text-white disabled:opacity-50 flex-shrink-0 text-sm font-medium"
+              class="rounded-full bg-n-brand hover:bg-n-brand px-4 py-2 text-white disabled:opacity-50 flex-shrink-0 text-sm font-medium"
               :disabled="sending || !messageInput?.trim()"
               @click="sendMessage"
             >

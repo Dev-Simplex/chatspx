@@ -352,8 +352,8 @@ const gridClass = computed(() => {
 const gridTemplate = computed(() => {
   const map = {
     [ORIENTATION.LEFT]: `
-      "bubble"
-      "meta"
+      "avatar bubble"
+      "spacer meta"
     `,
     [ORIENTATION.RIGHT]: `
       "bubble avatar"
@@ -372,7 +372,6 @@ const shouldGroupWithNext = computed(() => {
 
 const shouldShowAvatar = computed(() => {
   if (props.messageType === MESSAGE_TYPES.ACTIVITY) return false;
-  if (orientation.value === ORIENTATION.LEFT) return false;
 
   return true;
 });
@@ -776,7 +775,7 @@ provideMessageContext({
           'w-full': variant === MESSAGE_VARIANTS.EMAIL,
         },
       ]"
-      class="gap-x-2"
+      class="gap-x-1.5"
       :style="{
         gridTemplateAreas: gridTemplate,
       }"
@@ -784,9 +783,12 @@ provideMessageContext({
       <div
         v-if="!shouldGroupWithNext && shouldShowAvatar"
         v-tooltip.left-end="avatarTooltip"
-        class="[grid-area:avatar] flex items-end"
+        class="[grid-area:avatar] flex items-start pt-0.5"
       >
-        <Avatar v-bind="avatarInfo" :size="24" />
+        <Avatar
+          v-bind="avatarInfo"
+          :size="orientation === ORIENTATION.LEFT ? 28 : 24"
+        />
       </div>
       <div
         class="[grid-area:bubble] flex relative group/message"
@@ -885,6 +887,16 @@ provideMessageContext({
             }"
           >
             <NextButton
+              v-if="!props.private && !isScheduledMessage"
+              ghost
+              slate
+              sm
+              icon="i-lucide-corner-up-left"
+              :title="$t('CONVERSATION.REPLYBOX.REPLY')"
+              class="rounded-md p-1 shadow-none"
+              @click.stop="handleReplyTo"
+            />
+            <NextButton
               ref="dropdownButtonRef"
               ghost
               slate
@@ -940,6 +952,6 @@ provideMessageContext({
 }
 
 .forward-select__input {
-  @apply size-4 text-woot-500 rounded border-slate-300 focus:ring-woot-500;
+  @apply size-4 text-n-brand rounded border-slate-300 focus:ring-n-brand;
 }
 </style>

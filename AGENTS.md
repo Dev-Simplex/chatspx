@@ -64,6 +64,7 @@ Voce tem um cerebro persistente com TUDO sobre este projeto.
   - Nao usar inline styles
   - Sempre usar Tailwind utility classes
 - **Colors**: ver `tailwind.config.js`
+- **Scrollbars**: TODAS as barras de rolagem seguem branding. Estilizadas globalmente em `app/javascript/dashboard/assets/scss/_wa-skin.scss` via vars `--wa-scrollbar-thumb*` (light + dark). Nao usar scrollbar default do browser; nao restilizar por componente — herda automaticamente. Para esconder em casos especificos, usar classe `.no-scrollbar`.
 
 ## Regras de Arquitetura
 

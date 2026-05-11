@@ -2,6 +2,8 @@
 import { computed } from 'vue';
 import { useMapGetter } from 'dashboard/composables/store.js';
 import Icon from 'next/icon/Icon.vue';
+import LordIconIcon from 'next/icon/LordIconIcon.vue';
+import { LORDICON } from 'dashboard/constants/lordicons';
 
 const props = defineProps({
   to: { type: [Object, String], default: '' },
@@ -27,11 +29,15 @@ const count = computed(() =>
 <template>
   <component
     :is="to ? 'router-link' : 'div'"
+    v-tooltip.right="isCollapsed ? label : undefined"
+    data-hover-host
+    :data-sidebar-active="
+      String((isActive && !hasActiveChild) || hasActiveChild)
+    "
     class="icon-animated flex items-center gap-2 px-1.5 py-1 rounded-lg h-8 min-w-0 transition-colors duration-150"
     role="button"
     draggable="false"
     :to="to"
-    :title="label"
     :class="{
       'text-n-slate-12 bg-n-alpha-2 font-medium [&_svg]:opacity-100 [&_svg]:text-n-brand':
         isActive && !hasActiveChild,
@@ -74,10 +80,15 @@ const count = computed(() =>
         {{ count }}
       </span>
     </div>
-    <span
+    <LordIconIcon
       v-if="expandable && !isCollapsed"
-      class="i-lucide-chevron-up size-3 transition-transform duration-200"
-      :class="{ 'rotate-180': !isExpanded }"
+      :src="LORDICON.chevronDown.idle"
+      :src-active="LORDICON.chevronDown.active"
+      :family="LORDICON.chevronDown.family"
+      fallback-lucide="i-lucide-chevron-down"
+      :size="12"
+      class="transition-transform duration-200"
+      :class="{ 'rotate-180': isExpanded }"
       @click.stop="emit('toggle')"
     />
   </component>

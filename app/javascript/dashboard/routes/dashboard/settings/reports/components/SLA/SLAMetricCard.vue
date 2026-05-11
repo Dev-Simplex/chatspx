@@ -23,7 +23,7 @@ export default {
 
 <template>
   <div
-    class="flex flex-col gap-2 items-start justify-center min-w-[10rem] bg-white dark:bg-n-solid-2 border border-n-weak rounded-xl p-5"
+    class="flex flex-col gap-2 items-start justify-center min-w-[10rem] bg-n-solid-1 border border-n-weak rounded-xl p-5"
   >
     <span
       class="inline-flex items-center gap-1 text-xs font-medium uppercase tracking-wider text-n-slate-10"

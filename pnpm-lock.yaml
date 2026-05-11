@@ -40,6 +40,9 @@ importers:
       '@hcaptcha/vue3-hcaptcha':
         specifier: ^1.3.0
         version: 1.3.0(vue@3.5.12(typescript@5.6.2))
+      '@headlessui/vue':
+        specifier: ^1.7.23
+        version: 1.7.23(vue@3.5.12(typescript@5.6.2))
       '@highlightjs/vue-plugin':
         specifier: ^2.1.0
         version: 2.1.0(highlight.js@11.10.0)(vue@3.5.12(typescript@5.6.2))
@@ -160,6 +163,9 @@ importers:
       json-logic-js:
         specifier: ^2.0.5
         version: 2.0.5
+      leaflet:
+        specifier: ^1.9.4
+        version: 1.9.4
       lettersanitizer:
         specifier: ^1.0.6
         version: 1.0.6
@@ -190,9 +196,15 @@ importers:
       semver:
         specifier: 7.6.3
         version: 7.6.3
+      shepherd.js:
+        specifier: ^15.0.0
+        version: 15.2.2
       snakecase-keys:
         specifier: ^8.0.1
         version: 8.0.1
+      sortablejs:
+        specifier: 1.14.0
+        version: 1.14.0
       timezone-phone-codes:
         specifier: ^0.0.2
         version: 0.0.2
@@ -241,6 +253,12 @@ importers:
       vue-router:
         specifier: ~4.4.5
         version: 4.4.5(vue@3.5.12(typescript@5.6.2))
+      vue-shepherd:
+        specifier: ^6.0.0
+        version: 6.0.0(vue@3.5.12(typescript@5.6.2))
+      vue-sonner:
+        specifier: ^2.0.9
+        version: 2.0.9
       vue-upload-component:
         specifier: ^3.1.17
         version: 3.1.17
@@ -338,6 +356,9 @@ importers:
       lint-staged:
         specifier: ^16.2.7
         version: 16.2.7
+      playwright:
+        specifier: ^1.59.1
+        version: 1.59.1
       postcss:
         specifier: ^8.4.47
         version: 8.4.47
@@ -881,8 +902,17 @@ packages:
   '@floating-ui/core@1.6.7':
     resolution: {integrity: sha512-yDzVT/Lm101nQ5TCVeK65LtdN7Tj4Qpr9RTXJ2vPFLqtLxwOrpoxAHAJI8J3yYWUc40J0BDBheaitK5SJmno2g==}
 
+  '@floating-ui/core@1.7.5':
+    resolution: {integrity: sha512-1Ih4WTWyw0+lKyFMcBHGbb5U5FtuHJuujoyyr5zTaWS5EYMeT6Jb2AuDeftsCsEuchO+mM2ij5+q9crhydzLhQ==}
+
   '@floating-ui/dom@1.1.1':
     resolution: {integrity: sha512-TpIO93+DIujg3g7SykEAGZMDtbJRrmnYRCNYSjJlvIbGhBjRSNTLVbNeDQBrzy9qDgUbiWdc7KA0uZHZ2tJmiw==}
+
+  '@floating-ui/dom@1.7.6':
+    resolution: {integrity: sha512-9gZSAI5XM36880PPMm//9dfiEngYoC6Am2izES1FF406YFsjvyBMmeJ2g4SAju3xWwtuynNRFL2s9hgxpLI5SQ==}
+
+  '@floating-ui/utils@0.2.11':
+    resolution: {integrity: sha512-RiB/yIh78pcIxl6lLMG0CgBXAZ2Y0eVHqMPYugu+9U0AeT6YBeiJpf7lbdJNIugFP5SIjwNRgo4DhR1Qxi26Gg==}
 
   '@floating-ui/utils@0.2.7':
     resolution: {integrity: sha512-X8R8Oj771YRl/w+c1HqAC1szL8zWQRwFvgDwT129k9ACdBoud/+/rX9V0qiMl6LWUdP9voC2nDVZYPMQQsb6eA==}
@@ -923,6 +953,12 @@ packages:
     resolution: {integrity: sha512-IEonS6JiYdU7uy6aeib8cYtMO4nj8utwStbA9bWHyYbOvOvhpkV+AW8vfSKh6SntYxqle/TRwhv+kU9p92CfsA==}
     peerDependencies:
       vue: ^3.0.0
+
+  '@headlessui/vue@1.7.23':
+    resolution: {integrity: sha512-JzdCNqurrtuu0YW6QaDtR2PIYCKPUWq28csDyMvN4zmGccmE7lz40Is6hc3LA4HFeCI7sekZ/PQMTNmn9I/4Wg==}
+    engines: {node: '>=10'}
+    peerDependencies:
+      vue: ^3.2.0
 
   '@highlightjs/vue-plugin@2.1.0':
     resolution: {integrity: sha512-E+bmk4ncca+hBEYRV2a+1aIzIV0VSY/e5ArjpuSN9IO7wBJrzUE2u4ESCwrbQD7sAy+jWQjkV5qCCWgc+pu7CQ==}
@@ -1325,11 +1361,19 @@ packages:
     resolution: {integrity: sha512-P9dF7XbibHph2PFRz8gfBKEXEY/HJPOhym8CHmjF8y3q5mWpKx9xtZapXQUWCgkqvsK0R46Azuz+VaxD4Xl+Tg==}
     engines: {node: '>=12'}
 
+  '@tanstack/virtual-core@3.14.0':
+    resolution: {integrity: sha512-JLANqGy/D6k4Ujmh8Tr25lGimuOXNiaVyXaCAZS0W+1390sADdGnyUdSWNIfd49gebtIxGMij4IktRVzrdr12Q==}
+
   '@tanstack/vue-table@8.20.5':
     resolution: {integrity: sha512-2xixT3BEgSDw+jOSqPt6ylO/eutDI107t2WdFMVYIZZ45UmTHLySqNriNs0+dMaKR56K5z3t+97P6VuVnI2L+Q==}
     engines: {node: '>=12'}
     peerDependencies:
       vue: '>=3.2'
+
+  '@tanstack/vue-virtual@3.13.24':
+    resolution: {integrity: sha512-A0k2qF0zFSUStXSZkGXABouXr2Tw2Ztl/cVIYG9qy84uR8W7UNjAcX3DvzBS3YnDcwvLxab8v7dbmYBZ39itDA==}
+    peerDependencies:
+      vue: ^2.7.0 || ^3.0.0
 
   '@tootallnate/once@2.0.0':
     resolution: {integrity: sha512-XCuKFP5PS55gnMVu3dty8KPatLqUoy/ZYzDzAGCQ8JNFCkLXzmI7vNHCR+XpbZaMWQK/vQubr7PkYq8g470J/A==}
@@ -2137,6 +2181,10 @@ packages:
   deep-is@0.1.4:
     resolution: {integrity: sha512-oIPzksmTg4/MriiaYGO+okXDT7ztn/w3Eptv/+gSIdMdKsJo0u4CfYNFJPy+4SKMuCqGw2wxnA+URMg3t8a/bQ==}
 
+  deepmerge-ts@7.1.5:
+    resolution: {integrity: sha512-HOJkrhaYsweh+W+e74Yn7YStZOilkoPb6fycpwNLKzSPtruFs48nYis0zy5yJz1+ktUhHxoRDJ27RQAWLIJVJw==}
+    engines: {node: '>=16.0.0'}
+
   define-data-property@1.1.4:
     resolution: {integrity: sha512-rBMvIzlpA8v6E+SJZoo++HAYqsLrkg7MSfIinMPFhmkorw7X+dOXVJQs+QT69zGkzMyfDnIMN2Wid1+NbL3T+A==}
     engines: {node: '>= 0.4'}
@@ -2597,6 +2645,11 @@ packages:
 
   fs.realpath@1.0.0:
     resolution: {integrity: sha512-OO0pH2lK6a0hZnAdau5ItzHPI6pUlvI7jMVnxUQRtw4owF2wk8lOSabtGDCTP4Ggrg2MbGnWO9X8K1t4+fGMDw==}
+
+  fsevents@2.3.2:
+    resolution: {integrity: sha512-xiqMQR4xAeHTuB9uWm+fFRcIOgKBMiOBP+eXiyT7jsgVCq1bkVygt00oASowB7EdtpOHaaPgKt812P9ab+DDKA==}
+    engines: {node: ^8.16.0 || ^10.6.0 || >=11.0.0}
+    os: [darwin]
 
   fsevents@2.3.3:
     resolution: {integrity: sha512-5xoDfX+fL7faATnagmWPpbFtwh/R77WmMMqqHGS65C3vvB0YHrgF+B1YmZ3441tMj5n63k0212XNoJwzlhffQw==}
@@ -3125,6 +3178,9 @@ packages:
   launch-editor@2.9.1:
     resolution: {integrity: sha512-Gcnl4Bd+hRO9P9icCP/RVVT2o8SFlPXofuCxvA2SaZuH45whSvf5p8x5oih5ftLiVhEI4sp5xDY+R+b3zJBh5w==}
 
+  leaflet@1.9.4:
+    resolution: {integrity: sha512-nxS1ynzJOmOlHp+iL3FyWqK89GtNL8U8rvlMOsQdTTssxZwCXh8N2NB3GDQOL+YR3XnWyZAxwQixURb+FA74PA==}
+
   lettersanitizer@1.0.6:
     resolution: {integrity: sha512-2vj0tUtBRjlmTCFsgVlFmfi04p049Zwv/4eBGWBUOKropEoL+q+jTQQfFyDu50j7gL76pycMvrqD0uV0vxX2zg==}
 
@@ -3633,6 +3689,16 @@ packages:
   pkg-types@1.3.1:
     resolution: {integrity: sha512-/Jm5M4RvtBFVkKWRu2BLUTNP8/M2a+UwuAX+ae4770q1qVGtfjG+WTCupoZixokjmHiry8uI+dlY8KXYV5HVVQ==}
 
+  playwright-core@1.59.1:
+    resolution: {integrity: sha512-HBV/RJg81z5BiiZ9yPzIiClYV/QMsDCKUyogwH9p3MCP6IYjUFu/MActgYAvK0oWyV9NlwM3GLBjADyWgydVyg==}
+    engines: {node: '>=18'}
+    hasBin: true
+
+  playwright@1.59.1:
+    resolution: {integrity: sha512-C8oWjPR3F81yljW9o5OxcWzfh6avkVwDD2VYdwIGqTkl+OGFISgypqzfu7dOe4QNLL2aqcWBmI3PMtLIK233lw==}
+    engines: {node: '>=18'}
+    hasBin: true
+
   pngjs@5.0.0:
     resolution: {integrity: sha512-40QW5YalBNfQo5yRYmiw7Yz6TKKVr3h6970B2YE+3fQpsWcrbj1PzJgxeJ19DRQjhMbKPIuMY8rFaXc8moolVw==}
     engines: {node: '>=10.13.0'}
@@ -4118,6 +4184,10 @@ packages:
 
   shell-quote@1.8.1:
     resolution: {integrity: sha512-6j1W9l1iAs/4xYBI1SYOVZyFcCis9b4KCLQ8fgAGG07QvzaRLVVRQvAy85yNmmZSjYjg4MWh4gNvlPujU/5LpA==}
+
+  shepherd.js@15.2.2:
+    resolution: {integrity: sha512-WDJDjZ8tUG2HF93C9mJCXsdGJ01bpZKjonyMABMkU6I4KjSD9pZ0zFKaeSducdFIx9inKHbDmcFE82uJ65HmgA==}
+    engines: {node: '>= 20'}
 
   shiki-es@0.2.0:
     resolution: {integrity: sha512-RbRMD+IuJJseSZljDdne9ThrUYrwBwJR04FvN4VXpfsU3MNID5VJGHLAD5je/HGThCyEKNgH+nEkSFEWKD7C3Q==}
@@ -4695,6 +4765,26 @@ packages:
     resolution: {integrity: sha512-4fKZygS8cH1yCyuabAXGUAsyi1b2/o/OKgu/RUb+znIYOxPRxdkytJEx+0wGcpBE1pX6vUgh5jwWOKRGvuA/7Q==}
     peerDependencies:
       vue: ^3.2.0
+
+  vue-shepherd@6.0.0:
+    resolution: {integrity: sha512-vQPr8fp7SgGUu3bfJSD1nm8EQfjnnj92iaMf529HQSQHEPDfdPbeYf8MIa8vEjqsxJvu7NPC0913+HOyxarxbg==}
+    engines: {node: '>= 20'}
+    peerDependencies:
+      vue: '>=3.0.0'
+
+  vue-sonner@2.0.9:
+    resolution: {integrity: sha512-i6BokNlNDL93fpzNxN/LZSn6D6MzlO+i3qXt6iVZne3x1k7R46d5HlFB4P8tYydhgqOrRbIZEsnRd3kG7qGXyw==}
+    peerDependencies:
+      '@nuxt/kit': ^4.0.3
+      '@nuxt/schema': ^4.0.3
+      nuxt: ^4.0.3
+    peerDependenciesMeta:
+      '@nuxt/kit':
+        optional: true
+      '@nuxt/schema':
+        optional: true
+      nuxt:
+        optional: true
 
   vue-upload-component@3.1.17:
     resolution: {integrity: sha512-1orTC5apoFzBz4ku2HAydpviaAOck+ABc83rGypIK/Bgl+TqhtoWsQOhXqbb7vDv7pKlvRVWwml9PM224HyhkA==}
@@ -5423,9 +5513,20 @@ snapshots:
     dependencies:
       '@floating-ui/utils': 0.2.7
 
+  '@floating-ui/core@1.7.5':
+    dependencies:
+      '@floating-ui/utils': 0.2.11
+
   '@floating-ui/dom@1.1.1':
     dependencies:
       '@floating-ui/core': 1.6.7
+
+  '@floating-ui/dom@1.7.6':
+    dependencies:
+      '@floating-ui/core': 1.7.5
+      '@floating-ui/utils': 0.2.11
+
+  '@floating-ui/utils@0.2.11': {}
 
   '@floating-ui/utils@0.2.7': {}
 
@@ -5487,6 +5588,11 @@ snapshots:
 
   '@hcaptcha/vue3-hcaptcha@1.3.0(vue@3.5.12(typescript@5.6.2))':
     dependencies:
+      vue: 3.5.12(typescript@5.6.2)
+
+  '@headlessui/vue@1.7.23(vue@3.5.12(typescript@5.6.2))':
+    dependencies:
+      '@tanstack/vue-virtual': 3.13.24(vue@3.5.12(typescript@5.6.2))
       vue: 3.5.12(typescript@5.6.2)
 
   '@highlightjs/vue-plugin@2.1.0(highlight.js@11.10.0)(vue@3.5.12(typescript@5.6.2))':
@@ -5901,9 +6007,16 @@ snapshots:
 
   '@tanstack/table-core@8.20.5': {}
 
+  '@tanstack/virtual-core@3.14.0': {}
+
   '@tanstack/vue-table@8.20.5(vue@3.5.12(typescript@5.6.2))':
     dependencies:
       '@tanstack/table-core': 8.20.5
+      vue: 3.5.12(typescript@5.6.2)
+
+  '@tanstack/vue-virtual@3.13.24(vue@3.5.12(typescript@5.6.2))':
+    dependencies:
+      '@tanstack/virtual-core': 3.14.0
       vue: 3.5.12(typescript@5.6.2)
 
   '@tootallnate/once@2.0.0': {}
@@ -6850,6 +6963,8 @@ snapshots:
 
   deep-is@0.1.4: {}
 
+  deepmerge-ts@7.1.5: {}
+
   define-data-property@1.1.4:
     dependencies:
       es-define-property: 1.0.1
@@ -7451,6 +7566,9 @@ snapshots:
       universalify: 2.0.1
 
   fs.realpath@1.0.0: {}
+
+  fsevents@2.3.2:
+    optional: true
 
   fsevents@2.3.3:
     optional: true
@@ -8079,6 +8197,8 @@ snapshots:
       picocolors: 1.1.0
       shell-quote: 1.8.1
 
+  leaflet@1.9.4: {}
+
   lettersanitizer@1.0.6: {}
 
   levn@0.4.1:
@@ -8574,6 +8694,14 @@ snapshots:
       confbox: 0.1.8
       mlly: 1.8.1
       pathe: 2.0.3
+
+  playwright-core@1.59.1: {}
+
+  playwright@1.59.1:
+    dependencies:
+      playwright-core: 1.59.1
+    optionalDependencies:
+      fsevents: 2.3.2
 
   pngjs@5.0.0: {}
 
@@ -9156,6 +9284,11 @@ snapshots:
   shebang-regex@3.0.0: {}
 
   shell-quote@1.8.1: {}
+
+  shepherd.js@15.2.2:
+    dependencies:
+      '@floating-ui/dom': 1.7.6
+      deepmerge-ts: 7.1.5
 
   shiki-es@0.2.0: {}
 
@@ -9784,6 +9917,13 @@ snapshots:
     dependencies:
       '@vue/devtools-api': 6.6.4
       vue: 3.5.12(typescript@5.6.2)
+
+  vue-shepherd@6.0.0(vue@3.5.12(typescript@5.6.2)):
+    dependencies:
+      shepherd.js: 15.2.2
+      vue: 3.5.12(typescript@5.6.2)
+
+  vue-sonner@2.0.9: {}
 
   vue-upload-component@3.1.17: {}
 

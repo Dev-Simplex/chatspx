@@ -43,12 +43,7 @@ watch(
 </script>
 
 <template>
-  <component
-    :is="comp"
-    v-if="loaded && comp"
-    :size="size"
-    v-bind="$attrs"
-  />
+  <component :is="comp" v-if="loaded && comp" :size="size" v-bind="$attrs" />
   <span
     v-else
     :class="`i-lucide-${name}`"

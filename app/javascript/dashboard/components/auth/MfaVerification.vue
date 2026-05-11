@@ -159,9 +159,7 @@ const handleTryAnotherMethod = () => {
 
 <template>
   <div class="w-full max-w-md mx-auto">
-    <div
-      class="bg-white dark:bg-n-solid-2 border border-n-weak rounded-2xl shadow-card p-8"
-    >
+    <div class="bg-n-solid-1 border border-n-weak rounded-2xl shadow-card p-8">
       <!-- Header -->
       <div class="text-center mb-6">
         <div

@@ -80,6 +80,119 @@ describe WebhookListener do
         listener.message_created(api_event)
       end
     end
+
+    context 'when inbox is a WAHA Channel::Api with location/contact attachment' do
+      it 'dispatches via WAHA REST direct and skips api_inbox_webhook' do
+        channel_api = create(:channel_api, account: account)
+        api_inbox = channel_api.inbox
+        api_inbox.update(waha_session_name: 'simplexteste')
+        api_conversation = create(:conversation, account: account, inbox: api_inbox, assignee: user)
+        api_message = create(
+          :message,
+          message_type: 'outgoing',
+          account: account,
+          inbox: api_inbox,
+          conversation: api_conversation
+        )
+        api_message.attachments.create!(
+          account_id: account.id,
+          file_type: :location,
+          coordinates_lat: -15.6,
+          coordinates_long: -56.1
+        )
+        api_event = Events::Base.new(event_name, Time.zone.now, message: api_message.reload)
+
+        allow_any_instance_of(Waha::OutboundSpecialMessageService).to receive(:perform).and_return(true)
+        expect(WebhookJob).not_to receive(:perform_later).with(
+          channel_api.webhook_url, anything, :api_inbox_webhook, anything
+        )
+
+        listener.message_created(api_event)
+      end
+
+      it 'falls through to webhook for plain text messages' do
+        channel_api = create(:channel_api, account: account)
+        api_inbox = channel_api.inbox
+        api_inbox.update(waha_session_name: 'simplexteste')
+        api_conversation = create(:conversation, account: account, inbox: api_inbox, assignee: user)
+        api_message = create(
+          :message,
+          message_type: 'outgoing',
+          account: account,
+          inbox: api_inbox,
+          conversation: api_conversation,
+          content: 'hello'
+        )
+        api_event = Events::Base.new(event_name, Time.zone.now, message: api_message)
+
+        expect(Waha::OutboundSpecialMessageService).not_to receive(:new)
+        expect(WebhookJob).to receive(:perform_later).with(
+          channel_api.webhook_url, api_message.webhook_data.merge(event: 'message_created'),
+          :api_inbox_webhook, delivery_id: instance_of(String)
+        ).once
+
+        listener.message_created(api_event)
+      end
+    end
+  end
+
+  describe '#message_updated' do
+    let(:event_name) { :'message.updated' }
+
+    context 'when inbox is a WAHA Channel::Api with location attachment' do
+      it 'does NOT re-dispatch via WAHA REST and does NOT trigger api_inbox_webhook' do
+        channel_api = create(:channel_api, account: account)
+        api_inbox = channel_api.inbox
+        api_inbox.update(waha_session_name: 'simplexteste')
+        api_conversation = create(:conversation, account: account, inbox: api_inbox, assignee: user)
+        api_message = create(
+          :message,
+          message_type: 'outgoing',
+          account: account,
+          inbox: api_inbox,
+          conversation: api_conversation
+        )
+        api_message.attachments.create!(
+          account_id: account.id,
+          file_type: :location,
+          coordinates_lat: -15.6,
+          coordinates_long: -56.1
+        )
+        api_event = Events::Base.new(event_name, Time.zone.now, message: api_message.reload)
+
+        expect(Waha::OutboundSpecialMessageService).not_to receive(:new)
+        expect(WebhookJob).not_to receive(:perform_later).with(
+          channel_api.webhook_url, anything, :api_inbox_webhook, anything
+        )
+
+        listener.message_updated(api_event)
+      end
+    end
+
+    context 'when inbox is a WAHA Channel::Api with a regular text message' do
+      it 'still goes through normal webhook delivery' do
+        channel_api = create(:channel_api, account: account)
+        api_inbox = channel_api.inbox
+        api_inbox.update(waha_session_name: 'simplexteste')
+        api_conversation = create(:conversation, account: account, inbox: api_inbox, assignee: user)
+        api_message = create(
+          :message,
+          message_type: 'outgoing',
+          account: account,
+          inbox: api_inbox,
+          conversation: api_conversation,
+          content: 'hello world'
+        )
+        api_event = Events::Base.new(event_name, Time.zone.now, message: api_message)
+
+        expect(Waha::OutboundSpecialMessageService).not_to receive(:new)
+        expect(WebhookJob).to receive(:perform_later).with(
+          channel_api.webhook_url, anything, :api_inbox_webhook, delivery_id: instance_of(String)
+        ).once
+
+        listener.message_updated(api_event)
+      end
+    end
   end
 
   describe '#conversation_created' do

@@ -1,5 +1,5 @@
 <script>
-import { ref } from 'vue';
+import { computed, ref } from 'vue';
 import { useKeyboardEvents } from 'dashboard/composables/useKeyboardEvents';
 import { useCaptain } from 'dashboard/composables/useCaptain';
 import { useTrack } from 'dashboard/composables';
@@ -57,6 +57,10 @@ export default {
       type: String,
       default: undefined,
     },
+    isCopilotActive: {
+      type: Boolean,
+      default: false,
+    },
   },
   emits: [
     'setReplyMode',
@@ -106,6 +110,26 @@ export default {
       showCopilotMenu.value = false;
     };
 
+    const isOnPrivateNote = computed(
+      () => props.mode === REPLY_EDITOR_MODES.NOTE
+    );
+
+    // Hide the legacy bar entirely when:
+    //   - mode is Reply AND
+    //   - copilot is not active AND
+    //   - we are not in popout mode (popout still needs the close button)
+    // In that case the parent should rely on shortcut Alt+P to switch to NOTE
+    // and on the new in-pill copilot/expand buttons (Phase C).
+    // O top panel legacy só aparece em casos onde o pill não cobre:
+    //   - popout (modal expandido precisa do botão fechar)
+    //   - aviso de limite de caracteres (WhatsApp 4096)
+    // Em modo Copilot ativo, o pill agora mostra um botão "X" inline para
+    // fechar e o sparkles inline para reabrir o menu — não precisa do
+    // EditorModeToggle / sparkles do top panel.
+    const shouldRenderLegacyBar = computed(
+      () => props.popOutReplyBox || props.isMessageLengthReachingThreshold
+    );
+
     const keyboardEvents = {
       'Alt+KeyP': {
         action: () => handleNoteClick(),
@@ -128,6 +152,8 @@ export default {
       showCopilotMenu,
       toggleCopilotMenu,
       handleClickOutside,
+      isOnPrivateNote,
+      shouldRenderLegacyBar,
     };
   },
   computed: {
@@ -154,7 +180,11 @@ export default {
 </script>
 
 <template>
+  <!-- Legacy bar — kept for Copilot active / popout / character warning.
+       The slim "Privada" chip moved into the inline lock toggle inside
+       wa-composer-bar (ReplyBox.vue) plus a toast on toggle. -->
   <div
+    v-if="shouldRenderLegacyBar"
     class="flex justify-between gap-2 h-[3.25rem] items-center ltr:pl-3 ltr:pr-2 rtl:pr-3 rtl:pl-2"
   >
     <EditorModeToggle
@@ -215,3 +245,10 @@ export default {
     </div>
   </div>
 </template>
+
+<style lang="scss" scoped>
+.reply-top-panel-private-chip {
+  background-color: var(--wa-composer-private-bg);
+  color: var(--wa-composer-private-fg);
+}
+</style>

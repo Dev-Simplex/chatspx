@@ -50,14 +50,14 @@ const openLink = link => {
       ]"
     >
       <section
-        class="absolute top-full mt-6 ltr:left-0 rtl:right-0 outline outline-1 outline-n-weak bg-n-alpha-3 backdrop-blur-[100px] rounded-xl p-4 w-80 z-20"
+        class="absolute top-full mt-2 ltr:left-0 rtl:right-0 border border-[var(--wa-list-border)] dark:border-[var(--wa-list-border-dark)] bg-n-solid-1 dark:bg-[#233138] shadow-[0_2px_8px_rgba(11,20,26,0.12)] rounded-lg p-4 w-80 z-20"
       >
         <div
-          class="absolute -top-[0.77rem] ltr:left-12 rtl:right-12 w-6 h-6 ltr:rotate-45 rtl:-rotate-45 rtl:rounded-tr ltr:rounded-tl rtl:border-r ltr:border-l border-t border-n-weak bg-n-alpha-3 z-10"
+          class="absolute -top-[0.35rem] ltr:left-12 rtl:right-12 w-3 h-3 ltr:rotate-45 rtl:-rotate-45 rtl:rounded-tr ltr:rounded-tl rtl:border-r ltr:border-l border-t border-n-weak bg-n-solid-1 dark:bg-[#233138] z-10"
         />
 
         <div class="relative flex flex-col items-start gap-4 z-20">
-          <div class="flex-shrink-0 bg-gray-800 w-full h-[7.5rem] rounded-lg">
+          <div class="flex-shrink-0 bg-n-slate-11 w-full h-[7.5rem] rounded-lg">
             <img
               v-if="!imageError && thumbnail"
               :src="thumbnail"

@@ -21,7 +21,14 @@ import {
 import ReconnectService from 'dashboard/helper/ReconnectService';
 import { useUISettings } from 'dashboard/composables/useUISettings';
 import { useAutoUpdate } from 'dashboard/composables/useAutoUpdate';
+import { useDocumentTitle } from 'dashboard/composables/useDocumentTitle';
 import AppVersionBanner from './components/app/AppVersionBanner.vue';
+import MessageToast from './components-next/notifications/MessageToast.vue';
+import OnboardingChecklist from './components-next/Onboarding/OnboardingChecklist.vue';
+import PwaInstallPrompt from './components-next/PwaInstallPrompt/PwaInstallPrompt.vue';
+import PushPermissionPrompt from './components-next/PushPermissionPrompt/PushPermissionPrompt.vue';
+import { Toaster } from 'vue-sonner';
+import 'vue-sonner/style.css';
 
 export default {
   name: 'App',
@@ -35,6 +42,11 @@ export default {
     PaymentPendingBanner,
     WootSnackbarBox,
     PendingEmailVerificationBanner,
+    MessageToast,
+    OnboardingChecklist,
+    PwaInstallPrompt,
+    PushPermissionPrompt,
+    Toaster,
   },
   setup() {
     const router = useRouter();
@@ -44,6 +56,7 @@ export default {
     const { currentFontSize } = useFontSize();
     const { uiSettings } = useUISettings();
     useAutoUpdate();
+    useDocumentTitle();
 
     return {
       router,
@@ -181,8 +194,20 @@ export default {
     </router-view>
     <WootSnackbarBox />
     <NetworkNotification />
+    <MessageToast />
+    <OnboardingChecklist v-if="currentAccountId" />
+    <PwaInstallPrompt v-if="currentAccountId" />
+    <PushPermissionPrompt v-if="currentAccountId" />
   </div>
   <LoadingState v-else />
+  <Toaster
+    position="bottom-right"
+    :duration="5000"
+    :visible-toasts="3"
+    close-button
+    rich-colors
+    :toast-options="{ class: 'z-[9999]' }"
+  />
 </template>
 
 <style lang="scss">

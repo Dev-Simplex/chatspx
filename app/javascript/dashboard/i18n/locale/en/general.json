@@ -1,6 +1,18 @@
 {
   "TODAY": "Today",
   "YESTERDAY": "Yesterday",
+  "PWA_INSTALL": {
+    "TITLE": "Install ChatSPX",
+    "DESCRIPTION": "Add ChatSPX to your desktop for quick access and notifications.",
+    "INSTALL": "Install",
+    "LATER": "Not now"
+  },
+  "PUSH_PROMPT": {
+    "TITLE": "Enable desktop notifications",
+    "DESCRIPTION": "Get notified about new conversations and mentions even with the tab in the background.",
+    "ENABLE": "Enable",
+    "LATER": "Not now"
+  },
   "GENERAL": {
     "SHOWING_RESULTS": "Showing {firstIndex}-{lastIndex} of {totalCount} items",
     "PHONE_INPUT": {
@@ -17,5 +29,19 @@
   "CHOICE_TOGGLE": {
     "YES": "Yes",
     "NO": "No"
+  },
+  "ONBOARDING": {
+    "TITLE": "Get started",
+    "DISMISS": "Dismiss",
+    "STEPS": {
+      "INBOX": "Set up an inbox",
+      "INBOX_DESC": "Connect your first channel (WhatsApp, email, etc.)",
+      "TEAM": "Invite your team",
+      "TEAM_DESC": "Add agents to reply to customers",
+      "LABELS": "Create labels",
+      "LABELS_DESC": "Organize conversations with tags",
+      "WALLPAPER": "Personalize wallpaper",
+      "WALLPAPER_DESC": "Set the chat background"
+    }
   }
 }

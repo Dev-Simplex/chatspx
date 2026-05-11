@@ -303,6 +303,18 @@ watch(messages, newMessages => {
   }
 });
 
+// Phase 2.5 — abort any in-flight polling/timeouts when the agent switches
+// conversation. Otherwise the polling for the old thread keeps firing in the
+// background and the timeout fires against a stale context.
+watch(
+  () => currentChat.value?.id,
+  (newId, oldId) => {
+    if (oldId && newId !== oldId) {
+      handleReset();
+    }
+  }
+);
+
 onMounted(() => {
   if (isCaptainEnabled.value) {
     store.dispatch('captainAssistants/get');
@@ -318,6 +330,7 @@ onBeforeUnmount(() => {
   <div
     v-if="shouldShowCopilotPanel"
     v-on-click-outside="() => closeCopilotPanel()"
+    data-testid="copilot-container-legacy"
     class="bg-n-surface-2 h-full overflow-hidden flex-col fixed top-0 ltr:right-0 rtl:left-0 z-40 w-full max-w-sm transition-transform duration-300 ease-in-out md:static md:w-[320px] md:min-w-[320px] ltr:border-l rtl:border-r border-n-weak 2xl:min-w-[360px] 2xl:w-[360px] shadow-lg md:shadow-none"
     :class="[
       {

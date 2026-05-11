@@ -57,7 +57,7 @@ export default {
 <template>
   <div>
     <div
-      class="min-w-full bg-white dark:bg-n-solid-2 border border-n-weak rounded-xl overflow-hidden"
+      class="min-w-full bg-n-solid-1 border border-n-weak rounded-xl overflow-hidden"
     >
       <div
         class="grid content-center h-12 grid-cols-12 gap-4 px-4 py-0 bg-n-slate-2/50 dark:bg-n-solid-3"
