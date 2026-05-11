@@ -1,7 +1,6 @@
 import { inject, provide, ref, computed } from 'vue';
 import { usePolicy } from 'dashboard/composables/usePolicy';
 import { useRouter } from 'vue-router';
-import { useUISettings } from 'dashboard/composables/useUISettings';
 
 const SidebarControl = Symbol('SidebarControl');
 
@@ -9,47 +8,28 @@ const DEFAULT_WIDTH = 200;
 const MIN_WIDTH = 56;
 const COLLAPSED_THRESHOLD = 160;
 const MAX_WIDTH = 320;
-// WA-style collapsed-first: when user has no stored preference, start in the
-// slim rail (64px). Once they resize, their choice wins via uiSettings.
 const COLLAPSED_DEFAULT_WIDTH = 64;
 
 // Shared state for active popover (only one can be open at a time)
 const activePopover = ref(null);
 let globalCloseTimeout = null;
 
+// Sidebar travado em colapsado para todos os usuarios.
+// Toggle/resize foi removido da UI; aqui as funcoes ficam como no-op
+// para preservar a interface dos consumers sem efeito colateral.
 export function useSidebarResize() {
-  const { uiSettings, updateUISettings } = useUISettings();
-
-  const sidebarWidth = ref(
-    uiSettings.value.sidebar_width || COLLAPSED_DEFAULT_WIDTH
-  );
+  const sidebarWidth = ref(COLLAPSED_DEFAULT_WIDTH);
   const isCollapsed = computed(() => sidebarWidth.value < COLLAPSED_THRESHOLD);
 
-  const setSidebarWidth = width => {
-    sidebarWidth.value = Math.max(MIN_WIDTH, Math.min(MAX_WIDTH, width));
-  };
-
-  const saveWidth = () => {
-    updateUISettings({ sidebar_width: sidebarWidth.value });
-  };
-
-  const snapToCollapsed = () => {
-    sidebarWidth.value = MIN_WIDTH;
-    updateUISettings({ sidebar_width: MIN_WIDTH });
-  };
-
-  const snapToExpanded = () => {
-    sidebarWidth.value = DEFAULT_WIDTH;
-    updateUISettings({ sidebar_width: DEFAULT_WIDTH });
-  };
+  const noop = () => {};
 
   return {
     sidebarWidth,
     isCollapsed,
-    setSidebarWidth,
-    saveWidth,
-    snapToCollapsed,
-    snapToExpanded,
+    setSidebarWidth: noop,
+    saveWidth: noop,
+    snapToCollapsed: noop,
+    snapToExpanded: noop,
     MIN_WIDTH,
     MAX_WIDTH,
     COLLAPSED_THRESHOLD,

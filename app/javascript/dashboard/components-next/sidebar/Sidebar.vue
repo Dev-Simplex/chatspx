@@ -12,7 +12,7 @@ import { useSidebarKeyboardShortcuts } from './useSidebarKeyboardShortcuts';
 import { vOnClickOutside } from '@vueuse/components';
 
 import { FEATURE_FLAGS } from 'dashboard/featureFlags';
-import { useWindowSize, useEventListener } from '@vueuse/core';
+import { useWindowSize } from '@vueuse/core';
 
 import SidebarGroup from './SidebarGroup.vue';
 import SidebarProfileMenu from './SidebarProfileMenu.vue';
@@ -58,7 +58,6 @@ const { uiSettings, updateUISettings } = useUISettings();
 const isACustomBrandedInstance = useMapGetter(
   'globalConfig/isACustomBrandedInstance'
 );
-const isRTL = useMapGetter('accounts/isRTL');
 
 const { width: windowWidth } = useWindowSize();
 const isMobile = computed(() => windowWidth.value < 768);
@@ -96,24 +95,13 @@ const setExpandedItem = name => {
   expandedItem.value = expandedItem.value === name ? null : name;
 };
 
-const {
-  sidebarWidth,
-  isCollapsed,
-  setSidebarWidth,
-  saveWidth,
-  snapToCollapsed,
-  snapToExpanded,
-  COLLAPSED_THRESHOLD,
-} = useSidebarResize();
+const { sidebarWidth } = useSidebarResize();
 
 // WhatsApp-fidelity: desktop rail is ALWAYS collapsed (ícones only).
 // Mobile keeps flyout (expanded) behavior untouched.
 const isEffectivelyCollapsed = computed(() => !isMobile.value);
 
-// Resize handle logic
 const isResizing = ref(false);
-const startX = ref(0);
-const startWidth = ref(0);
 
 provideSidebarContext({
   expandedItem,
@@ -122,56 +110,6 @@ provideSidebarContext({
   sidebarWidth,
   isResizing,
 });
-
-// Get clientX from mouse or touch event
-const getClientX = event =>
-  event.touches ? event.touches[0].clientX : event.clientX;
-
-const onResizeStart = event => {
-  isResizing.value = true;
-  startX.value = getClientX(event);
-  startWidth.value = sidebarWidth.value;
-  Object.assign(document.body.style, {
-    cursor: 'col-resize',
-    userSelect: 'none',
-  });
-  // Prevent default to avoid scrolling on touch
-  event.preventDefault();
-};
-
-const onResizeMove = event => {
-  if (!isResizing.value) return;
-
-  const delta = isRTL.value
-    ? startX.value - getClientX(event)
-    : getClientX(event) - startX.value;
-  setSidebarWidth(startWidth.value + delta);
-};
-
-const onResizeEnd = () => {
-  if (!isResizing.value) return;
-
-  isResizing.value = false;
-  Object.assign(document.body.style, { cursor: '', userSelect: '' });
-
-  // Snap to collapsed state if below threshold
-  if (sidebarWidth.value < COLLAPSED_THRESHOLD) {
-    snapToCollapsed();
-  } else {
-    saveWidth();
-  }
-};
-
-const onResizeHandleDoubleClick = () => {
-  if (isCollapsed.value) snapToExpanded();
-  else snapToCollapsed();
-};
-
-// Support both mouse and touch events
-useEventListener(document, 'mousemove', onResizeMove);
-useEventListener(document, 'mouseup', onResizeEnd);
-useEventListener(document, 'touchmove', onResizeMove, { passive: false });
-useEventListener(document, 'touchend', onResizeEnd);
 
 const inboxes = useMapGetter('inboxes/getInboxes');
 const labels = useMapGetter('labels/getLabelsOnSidebar');
@@ -1038,17 +976,5 @@ const onSidebarReorder = () => {
         />
       </div>
     </section>
-    <!-- Resize Handle (desktop only) -->
-    <div
-      class="hidden md:block absolute top-0 h-full w-1 cursor-col-resize z-40 ltr:right-0 rtl:left-0 group"
-      @mousedown="onResizeStart"
-      @touchstart="onResizeStart"
-      @dblclick="onResizeHandleDoubleClick"
-    >
-      <div
-        class="absolute top-0 h-full w-px ltr:right-0 rtl:left-0 bg-transparent group-hover:bg-n-brand transition-colors"
-        :class="{ 'bg-n-brand': isResizing }"
-      />
-    </div>
   </aside>
 </template>
