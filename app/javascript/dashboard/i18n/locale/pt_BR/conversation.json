@@ -358,6 +358,10 @@
       "ERROR": "Falha ao encaminhar mensagem"
     },
     "UNKNOWN_CONTACT": "Contato Desconhecido",
+    "REFERRAL": {
+      "FROM_AD": "Veio de um anúncio",
+      "OPEN_AD": "Abrir anúncio no Facebook"
+    },
     "FORWARDED": "Encaminhada",
     "STARRED": "Favoritada",
     "STAR_SUCCESS": "Mensagem favoritada com sucesso",

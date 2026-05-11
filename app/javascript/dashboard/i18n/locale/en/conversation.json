@@ -367,6 +367,10 @@
       "ERROR": "Failed to forward message"
     },
     "UNKNOWN_CONTACT": "Unknown Contact",
+    "REFERRAL": {
+      "FROM_AD": "Sent from an ad",
+      "OPEN_AD": "Open ad on Facebook"
+    },
     "FORWARDED": "Forwarded",
     "STARRED": "Starred",
     "STAR_SUCCESS": "Message starred successfully",
