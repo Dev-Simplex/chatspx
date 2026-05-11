@@ -371,9 +371,15 @@ class Message < ApplicationRecord
     conversation.update(waiting_since: nil) if bot_response? && !preserve_waiting_since
   end
 
+  # Guard contra repop em conversa resolved: NPS responses (via NpsSurveys::ReopenGuard)
+  # nao reabrem a conversa, entao incoming chega com status=resolved. Sem este guard,
+  # waiting_since seria populado em estado invalido. Ver Conversation#handle_resolved_status_change
+  # que mantem a invariante "resolved => waiting_since IS NULL".
   def set_waiting_since_on_incoming_message
-    # Set waiting_since when customer sends a message (if currently blank)
-    conversation.update(waiting_since: created_at) if incoming? && conversation.waiting_since.blank?
+    return unless incoming? && conversation.waiting_since.blank?
+    return if conversation.resolved?
+
+    conversation.update(waiting_since: created_at)
   end
 
   def human_response?

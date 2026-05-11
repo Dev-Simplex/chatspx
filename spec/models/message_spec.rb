@@ -237,6 +237,71 @@ RSpec.describe Message do
       expect(conversation.reload.waiting_since).to be_nil
       expect(conversation.first_reply_created_at.to_i).to eq message.created_at.to_i
     end
+
+    context 'with conversation status guard on set_waiting_since_on_incoming_message' do
+      it 'does not populate waiting_since when incoming arrives in resolved conversation (NPS regression)' do
+        conv = create(:conversation)
+        conv.update!(status: :resolved, waiting_since: nil)
+        # NpsSurveys::ReopenGuard impede o reopen, entao incoming chega em conversa resolved.
+        guard = instance_double(NpsSurveys::ReopenGuard, prevent_reopen?: true)
+        allow(NpsSurveys::ReopenGuard).to receive(:new).and_return(guard)
+
+        create(:message, message_type: :incoming, conversation: conv)
+
+        conv.reload
+        expect(conv.status).to eq('resolved')
+        expect(conv.waiting_since).to be_nil
+      end
+
+      it 'populates waiting_since when incoming arrives in pending conversation' do
+        conv = create(:conversation)
+        # Pending requer feature flag por inbox; forcamos via update_column para isolar o teste do guard.
+        conv.update_columns(status: 2, waiting_since: nil) # rubocop:disable Rails/SkipsModelValidations
+
+        message = create(:message, message_type: :incoming, conversation: conv)
+
+        conv.reload
+        # mark_pending_conversation_as_open_for_human_response pode reabrir; o que importa e que
+        # waiting_since foi setado (guard so bloqueia em resolved).
+        expect(conv.waiting_since).not_to be_nil
+        expect(conv.waiting_since.to_i).to eq message.created_at.to_i
+      end
+
+      it 'populates waiting_since when incoming arrives in snoozed conversation (after reopen)' do
+        conv = create(:conversation)
+        conv.update!(status: :snoozed, waiting_since: nil)
+
+        create(:message, message_type: :incoming, conversation: conv)
+
+        conv.reload
+        expect(conv.status).to eq('open')
+        expect(conv.waiting_since).not_to be_nil
+      end
+
+      it 'populates waiting_since when incoming arrives in open conversation with blank waiting_since' do
+        conv = create(:conversation)
+        conv.update!(waiting_since: nil)
+
+        message = create(:message, message_type: :incoming, conversation: conv)
+
+        conv.reload
+        expect(conv.status).to eq('open')
+        expect(conv.waiting_since).not_to be_nil
+        expect(conv.waiting_since.to_i).to eq message.created_at.to_i
+      end
+
+      it 'does not populate waiting_since for resolved+muted conversation' do
+        conv = create(:conversation)
+        conv.update!(status: :resolved, waiting_since: nil)
+        conv.mute!
+
+        create(:message, message_type: :incoming, conversation: conv)
+
+        conv.reload
+        expect(conv.status).to eq('resolved')
+        expect(conv.waiting_since).to be_nil
+      end
+    end
   end
 
   describe 'message create event with team_message_isolation' do
