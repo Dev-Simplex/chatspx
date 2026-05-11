@@ -201,7 +201,7 @@ watch(
     <button
       ref="triggerRef"
       type="button"
-      class="kanban-filter-select-trigger"
+      class="flex h-10 w-full items-center justify-between gap-2 rounded-xl border border-n-weak bg-n-solid-2 text-n-slate-12 px-3 text-sm leading-5 appearance-none transition-colors focus-visible:outline-none focus-visible:border-n-blue-9 focus-visible:ring-2 focus-visible:ring-n-blue-5 focus-visible:bg-n-solid-1 disabled:cursor-not-allowed disabled:opacity-70"
       :disabled="disabled"
       :aria-expanded="isOpen"
       aria-haspopup="listbox"
@@ -221,7 +221,7 @@ watch(
       ref="listRef"
       tabindex="-1"
       role="listbox"
-      class="kanban-filter-select-options"
+      class="absolute inset-x-0 z-50 mt-2 max-h-64 w-full overflow-y-auto list-none rounded-xl border border-n-weak bg-n-solid-2 p-1.5 shadow-lg backdrop-blur-sm focus-visible:outline-none"
       @keydown="handleListKeydown"
     >
       <li
@@ -231,10 +231,13 @@ watch(
         <button
           type="button"
           role="option"
-          class="kanban-filter-select-option"
+          class="flex w-full items-center justify-between gap-2 rounded-lg py-2 px-2.5 text-sm leading-5 bg-transparent text-n-slate-12 text-left appearance-none hover:bg-n-alpha-2 disabled:cursor-not-allowed disabled:opacity-60"
           :class="{
-            'is-selected': String(option.value) === String(modelValue),
-            'is-highlighted': index === highlightedIndex,
+            '!bg-n-blue-3 !text-n-blue-11':
+              String(option.value) === String(modelValue),
+            'bg-n-alpha-2':
+              index === highlightedIndex &&
+              String(option.value) !== String(modelValue),
           }"
           :aria-selected="String(option.value) === String(modelValue)"
           :disabled="option.disabled"
@@ -252,95 +255,3 @@ watch(
     </ul>
   </div>
 </template>
-
-<style scoped>
-.kanban-filter-select-trigger {
-  display: flex;
-  height: 2.5rem;
-  width: 100%;
-  align-items: center;
-  justify-content: space-between;
-  gap: 0.5rem;
-  border-radius: 0.75rem;
-  border: 1px solid var(--n-weak);
-  background-color: var(--n-solid-2, #1f2937);
-  color: var(--n-slate-12);
-  padding: 0 0.75rem;
-  font-size: 0.875rem;
-  line-height: 1.25rem;
-  -webkit-appearance: none;
-  appearance: none;
-  transition:
-    border-color 0.2s ease,
-    box-shadow 0.2s ease,
-    background-color 0.2s ease;
-}
-
-.kanban-filter-select-trigger:focus-visible {
-  outline: none;
-  border-color: var(--n-blue-9);
-  box-shadow: 0 0 0 2px var(--n-blue-5);
-  background: var(--n-solid-1);
-}
-
-.kanban-filter-select-trigger:disabled {
-  cursor: not-allowed;
-  opacity: 0.7;
-}
-
-.kanban-filter-select-options {
-  position: absolute;
-  left: 0;
-  right: 0;
-  z-index: 30;
-  margin: 0.5rem 0 0;
-  max-height: 16rem;
-  width: 100%;
-  overflow-y: auto;
-  list-style: none;
-  border-radius: 0.75rem;
-  border: 1px solid var(--n-weak);
-  background-color: var(--n-solid-2, #1f2937);
-  padding: 0.375rem;
-  backdrop-filter: blur(8px);
-  box-shadow:
-    0 10px 20px rgba(2, 6, 23, 0.12),
-    0 4px 8px rgba(2, 6, 23, 0.08);
-}
-
-.kanban-filter-select-options:focus-visible {
-  outline: none;
-}
-
-.kanban-filter-select-option {
-  display: flex;
-  width: 100%;
-  align-items: center;
-  justify-content: space-between;
-  gap: 0.5rem;
-  border-radius: 0.5rem;
-  padding: 0.5rem 0.625rem;
-  font-size: 0.875rem;
-  line-height: 1.25rem;
-  background-color: transparent;
-  color: var(--n-slate-12);
-  text-align: left;
-  -webkit-appearance: none;
-  appearance: none;
-}
-
-.kanban-filter-select-option:hover,
-.kanban-filter-select-option.is-highlighted {
-  background-color: var(--n-solid-4, #334155);
-}
-
-.kanban-filter-select-option.is-selected {
-  background-color: var(--n-blue-3);
-  color: var(--n-blue-11);
-}
-
-.kanban-filter-select-option:disabled {
-  cursor: not-allowed;
-  opacity: 0.6;
-}
-</style>
