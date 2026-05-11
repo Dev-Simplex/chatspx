@@ -50,7 +50,7 @@ const SSH_PASSWORD = 'Jzs72144#$GSpx';
 const VMS = [
   { id: 'producao', name: 'PRODUCAO', ip: '192.168.8.229', user: 'simplexia', type: 'password', active: true, label: 'Proxmox' },
   { id: 'catatau', name: 'CATATAU', ip: '3.85.130.14', user: 'ubuntu', type: 'key', active: true, label: 'AWS EC2' },
-  { id: 'sentinela', name: 'SENTINELA', ip: '54.152.144.236', user: 'ubuntu', type: 'key', active: true, label: 'AWS EC2' },
+  { id: 'sentinela', name: 'SENTINELA', ip: '54.166.220.138', user: 'ubuntu', type: 'key', active: true, label: 'AWS EC2' },
   { id: 'tozi', name: 'TOZI', ip: '54.91.152.38', user: 'ubuntu', type: 'key', active: false, label: 'AWS EC2' },
   { id: 'alternativo', name: 'ALTERNATIVO', ip: '192.168.8.169', user: 'simplexia', type: 'password', active: true, label: 'Proxmox' },
 ];
