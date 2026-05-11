@@ -124,6 +124,7 @@ Chatwoot tem overlay Enterprise em `enterprise/` que extende/sobrescreve codigo 
 - .env de producao tem TZ=America/Manaus (nao Cuiaba)
 - Seeds: `db:seed` para dev rapido, `AccountSeeder` para dados ricos
 - rbenv: sempre inicializar antes de qualquer comando Ruby
+- **CRITICO — Nunca `systemctl restart` em producao sem antes rodar `rails db:migrate:status`.** Migration pendente + restart = 500 em cadeia (PG::UndefinedColumn em queries que usam a coluna nova). Bomba latente pode ficar 7+ dias oculta porque codigo antigo em memoria nao a referencia. Ver vault: `01-Permanentes/Incidente - Pending Migration 24-abr-2026.md`. Para aplicar migration especifica pulando outras pendentes (ex: uma com orphan data), usar `db:migrate:up VERSION=YYYYMMDDHHMMSS` (nao `db:migrate VERSION=X` que aplica TODAS ate X).
 
 ## Commit Messages
 
