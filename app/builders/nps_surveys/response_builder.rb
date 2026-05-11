@@ -27,7 +27,8 @@ class NpsSurveys::ResponseBuilder
     nps_message_id = nps_response.metadata&.dig('message_id')
     return false unless nps_message_id
 
-    conversation.messages
+    # Usa all_messages — deteccao de resposta agente apos NPS deve ver historico global.
+    conversation.all_messages
                 .where(message_type: :outgoing)
                 .where('id > ?', nps_message_id)
                 .where.not("content_attributes ->> 'nps_survey' = 'true'")

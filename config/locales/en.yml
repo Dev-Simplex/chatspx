@@ -99,6 +99,8 @@ en:
     messages:
       search:
         time_range_limit_exceeded: 'Search is limited to the last %{days} days'
+      update:
+        timeout: 'WhatsApp took too long to respond. Please try again in a few seconds.'
     categories:
       locale:
         unique: should be unique in the category and portal

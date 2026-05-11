@@ -53,6 +53,7 @@ import FormBubble from './bubbles/Form.vue';
 import MessageError from './MessageError.vue';
 import MessageEditInput from './MessageEditInput.vue';
 import MessageEditHistory from './MessageEditHistory.vue';
+import ReferralCard from './ReferralCard.vue';
 import ContextMenu from 'dashboard/modules/conversations/components/MessageContextMenu.vue';
 import MessageAPI from 'dashboard/api/inbox/message';
 import { useStore } from 'dashboard/composables/store';
@@ -826,6 +827,10 @@ provideMessageContext({
             </div>
           </div>
 
+          <ReferralCard
+            v-if="contentAttributes?.referral"
+            :referral="contentAttributes.referral"
+          />
           <MessageEditInput
             v-if="isEditing"
             :message-id="id"

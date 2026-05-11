@@ -7,6 +7,26 @@ export const findPendingMessageIndex = (chat, message) => {
   );
 };
 
+const messageTimestamp = m => {
+  if (typeof m.created_at === 'number') return m.created_at;
+  const parsed = new Date(m.created_at).getTime();
+  return Number.isFinite(parsed) ? parsed / 1000 : 0;
+};
+
+// Inserts message into messages array preserving ascending chronological order.
+// Mutates and returns the array. Falls back to push when array is empty or message is the newest.
+// See docs/adr/0002-chat-messages-invariants.md for the invariant this helper enforces.
+export const insertSortedByCreatedAt = (messages, message) => {
+  const ts = messageTimestamp(message);
+  const idx = messages.findIndex(m => messageTimestamp(m) > ts);
+  if (idx === -1) {
+    messages.push(message);
+  } else {
+    messages.splice(idx, 0, message);
+  }
+  return messages;
+};
+
 export const filterByStatus = (chatStatus, filterStatus) =>
   filterStatus === 'all' ? true : chatStatus === filterStatus;
 

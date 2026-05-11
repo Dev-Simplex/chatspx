@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { applyRoleFilter } from '../helpers';
+import { applyRoleFilter, insertSortedByCreatedAt } from '../helpers';
 
 describe('Conversation Helpers', () => {
   describe('#applyRoleFilter', () => {
@@ -271,6 +271,53 @@ describe('Conversation Helpers', () => {
           )
         ).toBe(true);
       });
+    });
+  });
+
+  describe('#insertSortedByCreatedAt', () => {
+    it('appends when message is the newest', () => {
+      const messages = [
+        { id: 1, created_at: 1700000000 },
+        { id: 2, created_at: 1750000000 },
+      ];
+      insertSortedByCreatedAt(messages, { id: 3, created_at: 1780000000 });
+      expect(messages.map(m => m.id)).toEqual([1, 2, 3]);
+    });
+
+    it('prepends when message is the oldest', () => {
+      const messages = [
+        { id: 2, created_at: 1750000000 },
+        { id: 3, created_at: 1780000000 },
+      ];
+      insertSortedByCreatedAt(messages, { id: 1, created_at: 1700000000 });
+      expect(messages.map(m => m.id)).toEqual([1, 2, 3]);
+    });
+
+    it('inserts in the middle', () => {
+      const messages = [
+        { id: 1, created_at: 1700000000 },
+        { id: 3, created_at: 1780000000 },
+      ];
+      insertSortedByCreatedAt(messages, { id: 2, created_at: 1750000000 });
+      expect(messages.map(m => m.id)).toEqual([1, 2, 3]);
+    });
+
+    it('handles empty array', () => {
+      const messages = [];
+      insertSortedByCreatedAt(messages, { id: 1, created_at: 1700000000 });
+      expect(messages.map(m => m.id)).toEqual([1]);
+    });
+
+    it('coerces ISO string created_at to comparable timestamp', () => {
+      const messages = [
+        { id: 1, created_at: '2026-01-01T00:00:00Z' },
+        { id: 3, created_at: '2026-03-01T00:00:00Z' },
+      ];
+      insertSortedByCreatedAt(messages, {
+        id: 2,
+        created_at: '2026-02-01T00:00:00Z',
+      });
+      expect(messages.map(m => m.id)).toEqual([1, 2, 3]);
     });
   });
 });

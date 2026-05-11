@@ -462,6 +462,12 @@ CLONESCRIPT
     set -e
     cd ~/chatwoot
     RAILS_ENV=production NODE_OPTIONS='--max-old-space-size=4096' bundle exec rake assets:precompile
+    # Pre-compress assets so Nginx gzip_static serves *.gz directly (no runtime CPU)
+    if [ -d public/vite/assets ]; then
+      find public/vite/assets -maxdepth 1 -type f \
+        \( -name '*.js' -o -name '*.css' -o -name '*.svg' -o -name '*.json' \) ! -name '*.gz' \
+        -exec sh -c '[ -f "$1.gz" ] || gzip -k -9 "$1"' _ {} \;
+    fi
 BUILDSCRIPT
 }
 
@@ -586,12 +592,22 @@ function configure_systemd_services() {
 # Detectar se a VM tem IP publico (pode usar LetsEncrypt)
 ##############################################################################
 function has_public_ip() {
-  local public_ip=$(curl -s --max-time 5 http://checkip.amazonaws.com 2>/dev/null)
-  # Se o IP publico bate com algum IP local, tem IP publico direto
+  local public_ip
+  public_ip=$(curl -s --max-time 5 http://checkip.amazonaws.com 2>/dev/null)
+  [ -z "$public_ip" ] && return 1
+
+  # Cenario 1: IP publico direto na interface (bare-metal, sem NAT)
   if ip addr show 2>/dev/null | grep -q "$public_ip"; then
     return 0
   fi
-  # IP nao bate = VM atras de proxy/NAT
+
+  # Cenario 2: NAT 1:1 (AWS/GCP/Azure) — dominio resolve pro IP publico detectado
+  local resolved_ip
+  resolved_ip=$(getent hosts "$domain_name" 2>/dev/null | awk '{print $1}' | head -1)
+  if [ -n "$resolved_ip" ] && [ "$resolved_ip" = "$public_ip" ]; then
+    return 0
+  fi
+
   return 1
 }
 
@@ -617,7 +633,49 @@ function setup_selfsigned_ssl() {
   fi
   ln -sf /etc/nginx/sites-available/nginx_chatwoot.conf /etc/nginx/sites-enabled/nginx_chatwoot.conf
   rm -f /etc/nginx/sites-enabled/default
+  ensure_nginx_traverse
+  ensure_maintenance_page
+  ensure_nginx_gzip
   nginx -t && systemctl restart nginx
+}
+
+##############################################################################
+# Garantir que nginx (www-data) consegue atravessar /home/chatwoot
+# Sem isso, location /vite/ /packs/ /assets/ retorna 403 e Rails serve estatico
+##############################################################################
+function ensure_nginx_traverse() {
+  if [ -d /home/chatwoot ]; then
+    chmod o+x /home/chatwoot
+  fi
+}
+
+##############################################################################
+# Habilita gzip_types no /etc/nginx/nginx.conf (default Ubuntu so comprime HTML)
+# Sem isso, JS/CSS de 4MB sao servidos sem compressao
+##############################################################################
+function ensure_nginx_gzip() {
+  local ngx=/etc/nginx/nginx.conf
+  if ! grep -qE '^\s*gzip_types\s+' "$ngx"; then
+    sed -i '/^\s*gzip on;/a\
+\tgzip_vary on;\
+\tgzip_min_length 1024;\
+\tgzip_comp_level 6;\
+\tgzip_types text/plain text/css text/javascript application/javascript application/x-javascript application/json application/xml application/xml+rss image/svg+xml font/ttf font/otf;' "$ngx"
+  fi
+}
+
+##############################################################################
+# Pagina de manutencao usada por error_page 502 503 504 no nginx_chatwoot.conf
+##############################################################################
+function ensure_maintenance_page() {
+  if [ ! -f /var/www/custom_errors/manutencao.html ]; then
+    mkdir -p /var/www/custom_errors
+    cat > /var/www/custom_errors/manutencao.html <<'HTML'
+<!DOCTYPE html><html lang="pt-BR"><head><meta charset="UTF-8"><title>Manutencao - SPX CHAT</title>
+<style>body{font-family:system-ui,sans-serif;background:#0f172a;color:#e2e8f0;display:flex;align-items:center;justify-content:center;height:100vh;margin:0;text-align:center}h1{color:#2dc46f;font-size:2rem;margin:0 0 1rem}p{margin:.25rem 0}</style>
+</head><body><div><h1>Sistema em manutencao</h1><p>Voltamos em instantes.</p><p style="opacity:.6;margin-top:1rem">SPX - CHAT</p></div></body></html>
+HTML
+  fi
 }
 
 ##############################################################################
@@ -631,6 +689,9 @@ function setup_letsencrypt_ssl() {
   sed -i "s/chatwoot.domain.com/$domain_name/g" /etc/nginx/sites-available/nginx_chatwoot.conf
   ln -sf /etc/nginx/sites-available/nginx_chatwoot.conf /etc/nginx/sites-enabled/nginx_chatwoot.conf
   rm -f /etc/nginx/sites-enabled/default
+  ensure_nginx_traverse
+  ensure_maintenance_page
+  ensure_nginx_gzip
   nginx -t && systemctl restart nginx
 }
 

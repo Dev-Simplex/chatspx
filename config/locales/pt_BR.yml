@@ -85,6 +85,8 @@ pt_BR:
     messages:
       search:
         time_range_limit_exceeded: 'A pesquisa está limitada aos últimos %{days} dias'
+      update:
+        timeout: 'WhatsApp demorou para responder. Tente novamente em alguns segundos.'
     categories:
       locale:
         unique: deve ser único na categoria e no portal

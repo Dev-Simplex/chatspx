@@ -9,7 +9,9 @@ class Waha::ApiService # rubocop:disable Metrics/ClassLength
   def initialize
     @base_url = ENV.fetch('WAHA_API_URL', 'http://localhost:3000')
     @api_key = ENV.fetch('WAHA_API_KEY', nil)
-    @timeout = 10
+    # Keep below Rack::Timeout (15s) so Net::ReadTimeout fires first and we
+    # surface a friendly error instead of a hard 500.
+    @timeout = 8
   end
 
   def list_sessions(all: true)

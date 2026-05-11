@@ -290,6 +290,10 @@ const actions = {
   async setActiveChat({ commit, dispatch }, { data, after }) {
     commit(types.SET_CURRENT_CHAT_WINDOW, data);
     commit(types.CLEAR_ALL_MESSAGES_LOADED, data.id);
+    // Reset hasNewerMessages so WS pushes resume after re-entering a long thread
+    // that previously triggered the sliding-window trim. Without this, the flag
+    // stays true and ADD_MESSAGE silently drops every realtime message.
+    commit(types.CLEAR_NEWER_MESSAGES_FLAG, data.id);
     if (data.dataFetched === undefined) {
       try {
         await dispatch('fetchPreviousMessages', {
@@ -439,8 +443,18 @@ const actions = {
     handleVoiceCallCreated(message, rootGetters?.getCurrentUserID);
   },
 
-  updateMessage({ commit, rootGetters }, message) {
-    commit(types.ADD_MESSAGE, message);
+  updateMessage({ commit, rootGetters, state }, message) {
+    // Status updates (e.g. WAHA status sync) re-emit `message.updated` over ActionCable
+    // for messages that may not be in the current window. Re-injecting them via
+    // ADD_MESSAGE used to break chronological order (see Bug fix 06-mai-2026).
+    // Skip when the message is not visible — the user will get fresh state on next fetch.
+    const chat = state.allConversations.find(
+      c => c.id === message.conversation_id
+    );
+    const exists = chat?.messages?.some(m => m.id === message.id);
+    if (exists) {
+      commit(types.ADD_MESSAGE, message);
+    }
     handleVoiceCallUpdated(commit, message, rootGetters?.getCurrentUserID);
   },
 
