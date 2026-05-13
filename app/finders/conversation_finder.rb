@@ -190,13 +190,14 @@ class ConversationFinder # rubocop:disable Metrics/ClassLength
   end
 
   def filter_by_query
-    return unless params[:q]
+    query = params[:q].is_a?(String) ? params[:q] : params[:q].to_s
+    return if query.blank?
 
     allowed_message_types = [Message.message_types[:incoming], Message.message_types[:outgoing]]
     @conversations = @conversations.where(
       'EXISTS (SELECT 1 FROM messages WHERE messages.conversation_id = conversations.id ' \
       'AND messages.content ILIKE :search AND messages.message_type IN (:types))',
-      search: "%#{ActiveRecord::Base.sanitize_sql_like(params[:q])}%",
+      search: "%#{ActiveRecord::Base.sanitize_sql_like(query)}%",
       types: allowed_message_types
     )
   end

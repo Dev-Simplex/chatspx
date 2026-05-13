@@ -238,5 +238,32 @@ describe ConversationFinder do
         expect(result[:conversations].length).to be 2
       end
     end
+
+    context 'with query param' do
+      it 'filters conversations matching message content when q is a string' do
+        match_conv = create(:conversation, account: account, inbox: inbox, assignee: user_1)
+        create(:message, account: account, inbox: inbox, conversation: match_conv,
+                         content: 'hello search needle here', message_type: :incoming)
+        params = { q: 'needle', assignee_type: 'me' }
+        result = described_class.new(user_1, params).perform
+        expect(result[:conversations].map(&:id)).to include(match_conv.id)
+        expect(result[:conversations].map(&:id)).not_to include(*account.conversations.where.not(id: match_conv.id).pluck(:id))
+      end
+
+      # Regression: malformed q (nested params) used to crash with
+      # NoMethodError: undefined method 'gsub' for ActionController::Parameters
+      # in app/finders/conversation_finder.rb:199 via sanitize_sql_like.
+      it 'does not raise when q is passed as nested ActionController::Parameters' do
+        nested_params = ActionController::Parameters.new(q: { malformed: '1' }, assignee_type: 'me')
+        finder = described_class.new(user_1, nested_params)
+        expect { finder.perform }.not_to raise_error
+      end
+
+      it 'does not raise when q is an empty ActionController::Parameters hash' do
+        nested_params = ActionController::Parameters.new(q: {}, assignee_type: 'me')
+        finder = described_class.new(user_1, nested_params)
+        expect { finder.perform }.not_to raise_error
+      end
+    end
   end
 end
