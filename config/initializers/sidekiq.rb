@@ -3,7 +3,7 @@ require Rails.root.join('lib/redis/config')
 schedule_file = 'config/schedule.yml'
 
 Sidekiq.configure_client do |config|
-  config.redis = Redis::Config.app
+  config.redis = Redis::Config.sidekiq
 end
 
 # Logs whenever a job is pulled off Redis for execution.
@@ -16,7 +16,7 @@ class ChatwootDequeuedLogger
 end
 
 Sidekiq.configure_server do |config|
-  config.redis = Redis::Config.app
+  config.redis = Redis::Config.sidekiq
 
   if ActiveModel::Type::Boolean.new.cast(ENV.fetch('ENABLE_SIDEKIQ_DEQUEUE_LOGGER', false))
     config.server_middleware do |chain|

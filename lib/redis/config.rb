@@ -9,6 +9,12 @@ module Redis::Config
       @config ||= sentinel? ? sentinel_config : base_config
     end
 
+    # Sidekiq dedicated config. Reads REDIS_SIDEKIQ_URL when set; otherwise falls back to REDIS_URL.
+    # Used by config/initializers/sidekiq.rb to keep queues isolated from cache/cable in their own logical DB.
+    def sidekiq
+      @sidekiq ||= sentinel? ? sentinel_config : base_config.merge(url: sidekiq_url)
+    end
+
     def base_config
       {
         url: ENV.fetch('REDIS_URL', 'redis://127.0.0.1:6379'),
@@ -17,6 +23,10 @@ module Redis::Config
         reconnect_attempts: 5,
         timeout: 3
       }
+    end
+
+    def sidekiq_url
+      ENV.fetch('REDIS_SIDEKIQ_URL', ENV.fetch('REDIS_URL', 'redis://127.0.0.1:6379'))
     end
 
     def sentinel?

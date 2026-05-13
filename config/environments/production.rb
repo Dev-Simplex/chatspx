@@ -56,6 +56,8 @@ Rails.application.configure do
   config.log_tags = [:request_id]
 
   # Use Redis as cache store in production for shared, persistent caching across processes.
+  # Cache lives on REDIS_URL (logical db 1 in production) — Sidekiq uses REDIS_SIDEKIQ_URL (db 0)
+  # and ActionCable uses REDIS_CABLE_URL (db 2). See .env.example.
   config.cache_store = :redis_cache_store, {
     url: ENV.fetch('REDIS_URL', 'redis://127.0.0.1:6379'),
     namespace: 'chatwoot_cache',
