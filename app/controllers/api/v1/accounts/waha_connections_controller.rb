@@ -1,6 +1,9 @@
 # frozen_string_literal: true
 
 class Api::V1::Accounts::WahaConnectionsController < Api::V1::Accounts::BaseController # rubocop:disable Metrics/ClassLength
+  CACHE_TTL = 30.seconds
+  CACHE_KEY = ->(account_id) { "waha_conns:#{account_id}" }
+
   before_action :check_authorization
   before_action :set_waha_service
   before_action :find_account_inbox!, only: %i[show qr_code connect disconnect restart destroy]
@@ -10,8 +13,8 @@ class Api::V1::Accounts::WahaConnectionsController < Api::V1::Accounts::BaseCont
     @inboxes = Current.account.inboxes.where.not(waha_session_name: nil)
     session_names = @inboxes.pluck(:waha_session_name)
 
-    # Fetch all WAHA sessions
-    all_sessions = @waha_service.list_sessions(all: true)
+    # Fetch all WAHA sessions (cached for 30s to reduce load on upstream API)
+    all_sessions = fetch_cached_sessions
 
     # Filter to show only sessions that belong to this account
     account_sessions = all_sessions.select { |session| session_names.include?(session['name']) }
@@ -120,6 +123,9 @@ class Api::V1::Accounts::WahaConnectionsController < Api::V1::Accounts::BaseCont
 
     # Start the session
     @waha_service.start_session(session_name)
+
+    # Invalidate cache so next #index reflects the new session immediately
+    invalidate_sessions_cache
 
     session = @waha_service.get_session(session_name)
     render json: format_connection(session, @inbox), status: :created
@@ -230,6 +236,9 @@ class Api::V1::Accounts::WahaConnectionsController < Api::V1::Accounts::BaseCont
     # Delete associated inbox
     @inbox.destroy
 
+    # Invalidate cache so next #index reflects the removal immediately
+    invalidate_sessions_cache
+
     head :ok
   rescue Waha::ApiService::Error => e
     Rails.logger.error("WAHA API error deleting session #{params[:id]}: #{e.message}")
@@ -244,6 +253,16 @@ class Api::V1::Accounts::WahaConnectionsController < Api::V1::Accounts::BaseCont
 
   def set_waha_service
     @waha_service = Waha::ApiService.new
+  end
+
+  def fetch_cached_sessions
+    Rails.cache.fetch(CACHE_KEY.call(Current.account.id), expires_in: CACHE_TTL) do
+      @waha_service.list_sessions(all: true)
+    end
+  end
+
+  def invalidate_sessions_cache
+    Rails.cache.delete(CACHE_KEY.call(Current.account.id))
   end
 
   def find_account_inbox!

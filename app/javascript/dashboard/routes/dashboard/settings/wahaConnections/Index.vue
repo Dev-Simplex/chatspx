@@ -42,8 +42,9 @@ const loadConnections = async (silent = false) => {
 
 const startPolling = () => {
   pollingInterval.value = setInterval(() => {
+    if (document.visibilityState !== 'visible') return;
     loadConnections(true);
-  }, 5000);
+  }, 30000);
 };
 
 const stopPolling = () => {
