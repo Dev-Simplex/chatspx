@@ -123,6 +123,7 @@ Chatwoot tem overlay Enterprise em `enterprise/` que extende/sobrescreve codigo 
 - Branding: usar `replaceInstallationName`, nunca hardcodar "Chatwoot"
 - Branch `producao` (nao `main`) — deploy script aponta para esta branch
 - .env de producao tem TZ=America/Manaus (nao Cuiaba)
+- **Vite `assets:precompile` NAO limpa chunks antigos** — `public/vite/assets/` acumula a cada deploy (4.7k arquivos em prod, mai/2026). Chunks orfaos causam `forceCleanReload` quando cliente com `index.html` cacheado tenta carregar hash que ja nao existe. Deploy chama `scripts/cleanup-vite-assets.sh` apos `assets:precompile` (mantem arquivos do `manifest.json` atual + modificados <24h). Rollback estrategico precisa de re-precompile, nao simples `git checkout`.
 - Seeds: `db:seed` para dev rapido, `AccountSeeder` para dados ricos
 - rbenv: sempre inicializar antes de qualquer comando Ruby
 

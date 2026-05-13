@@ -96,6 +96,11 @@ update_vm() {
     RAILS_ENV=production NODE_OPTIONS='--max-old-space-size=4096' bundle exec rake assets:precompile
     RAILS_ENV=production bundle exec rails db:migrate
 
+    # Cleanup de chunks Vite orfaos (mantem manifest atual + arquivos <24h)
+    bash /home/chatwoot/chatwoot/scripts/cleanup-vite-assets.sh \
+         /home/chatwoot/chatwoot/public/vite/assets || \
+         warn "[$name] cleanup-vite-assets falhou — continuando deploy"
+
     if [ "$NO_RESTART" == "false" ]; then
       sudo systemctl restart chatwoot.target
       log "[$name] Servico reiniciado"
@@ -153,6 +158,10 @@ update_vm() {
         pnpm install --frozen-lockfile 2>/dev/null || pnpm install
         RAILS_ENV=production NODE_OPTIONS='--max-old-space-size=4096' bundle exec rake assets:precompile
         RAILS_ENV=production bundle exec rails db:migrate
+        # Cleanup de chunks Vite orfaos (mantem manifest atual + <24h)
+        bash /home/chatwoot/chatwoot/scripts/cleanup-vite-assets.sh \
+             /home/chatwoot/chatwoot/public/vite/assets || \
+             echo "[cleanup-vite] WARN: falhou — continuando deploy"
 UPDSCRIPT
     "
     local output

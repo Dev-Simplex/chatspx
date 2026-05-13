@@ -988,6 +988,13 @@ EOF
 
     RAILS_ENV=production NODE_OPTIONS='--max-old-space-size=4096' bundle exec rake assets:precompile
     RAILS_ENV=production POSTGRES_STATEMENT_TIMEOUT=600s bundle exec rails db:migrate
+
+    # Cleanup de chunks Vite orfaos (mantem manifest atual + arquivos <24h)
+    if [ -x /home/chatwoot/chatwoot/scripts/cleanup-vite-assets.sh ]; then
+      bash /home/chatwoot/chatwoot/scripts/cleanup-vite-assets.sh \
+           /home/chatwoot/chatwoot/public/vite/assets || \
+           echo "[cleanup-vite] WARN: falhou — continuando deploy"
+    fi
 UPGRADESCRIPT
 
   # Update systemd services
