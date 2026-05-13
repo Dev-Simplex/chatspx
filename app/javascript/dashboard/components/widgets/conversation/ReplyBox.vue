@@ -1232,10 +1232,16 @@ export default {
         this.clearMessage();
         this.hideEmojiPicker();
         this.$emit('update:popOutReplyBox', false);
-        // Re-collapse the composer to its single-line WA-Web look after sending.
+        // Re-collapse the composer to its single-line WA-Web look after sending,
+        // then return focus to the editor so the agent keeps typing without
+        // reaching for the mouse. rAF runs after the collapse paint, avoiding
+        // any fight between the blur-driven re-render and the immediate refocus.
         this.$nextTick(() => {
           if (typeof document !== 'undefined') document.activeElement?.blur?.();
           this.isFocused = false;
+          requestAnimationFrame(() => {
+            this.messageEditor?.focusEditorInputField?.('end');
+          });
         });
       }
     },

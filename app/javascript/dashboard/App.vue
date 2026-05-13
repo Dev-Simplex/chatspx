@@ -11,6 +11,8 @@ import { useRouter } from 'vue-router';
 import { useStore } from 'dashboard/composables/store';
 import WootSnackbarBox from './components/SnackbarContainer.vue';
 import { setColorTheme } from './helper/themeHelper';
+import { LocalStorage } from 'shared/helpers/localStorage';
+import { LOCAL_STORAGE_KEYS } from 'dashboard/constants/localStorage';
 import { isOnOnboardingView } from 'v3/helpers/RouteHelper';
 import { useAccount } from 'dashboard/composables/useAccount';
 import { useFontSize } from 'dashboard/composables/useFontSize';
@@ -95,6 +97,20 @@ export default {
         if (this.currentAccountId) {
           this.initializeAccount();
         }
+      },
+    },
+    'uiSettings.color_scheme': {
+      handler(newScheme) {
+        // Backend é fonte de verdade. Se ui_settings.color_scheme chegou e
+        // diverge do localStorage, reconcilia (cobre cross-device + recovery
+        // de localStorage limpo pelo forceCleanReload).
+        if (!newScheme) return;
+        const stored = LocalStorage.get(LOCAL_STORAGE_KEYS.COLOR_SCHEME);
+        if (newScheme === stored) return;
+        LocalStorage.set(LOCAL_STORAGE_KEYS.COLOR_SCHEME, newScheme);
+        setColorTheme(
+          window.matchMedia('(prefers-color-scheme: dark)').matches
+        );
       },
     },
   },

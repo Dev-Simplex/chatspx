@@ -222,9 +222,9 @@
   },
   "NETWORK": {
     "NOTIFICATION": {
-      "OFFLINE": "Desconectado",
+      "OFFLINE": "Sem conexão",
       "RECONNECTING": "Reconectando...",
-      "RECONNECT_SUCCESS": "Reconectado"
+      "RECONNECT_SUCCESS": "Conectado"
     },
     "BUTTON": {
       "REFRESH": "Atualizar"

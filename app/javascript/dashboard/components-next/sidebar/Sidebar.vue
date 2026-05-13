@@ -942,7 +942,10 @@ const onSidebarReorder = () => {
         @end="onSidebarReorder"
       >
         <template #item="{ element }">
-          <SidebarGroup v-bind="element" :is-collapsed="isCollapsed" />
+          <SidebarGroup
+            v-bind="element"
+            :is-collapsed="isEffectivelyCollapsed"
+          />
         </template>
       </draggable>
     </nav>

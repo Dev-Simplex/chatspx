@@ -19,7 +19,17 @@ export async function fetchVersion() {
 }
 
 export function forceCleanReload() {
-  const preservePatterns = ['token', 'user_id', 'cw_d_', 'cw_just_updated'];
+  // 'color_scheme' garante que o tema do usuário não vire dark após update
+  // (cobre também 'color_scheme:ts' do LocalStorage helper via includes).
+  // 'cw_pref_' reserva prefixo para futuras preferências persistidas localmente.
+  const preservePatterns = [
+    'token',
+    'user_id',
+    'cw_d_',
+    'cw_just_updated',
+    'color_scheme',
+    'cw_pref_',
+  ];
 
   if (navigator.serviceWorker) {
     navigator.serviceWorker.getRegistrations().then(registrations => {

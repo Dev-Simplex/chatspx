@@ -9,6 +9,7 @@ import {
 import { LocalStorage } from 'shared/helpers/localStorage';
 import { LOCAL_STORAGE_KEYS } from 'dashboard/constants/localStorage';
 import { setColorTheme } from 'dashboard/helper/themeHelper.js';
+import { useUISettings } from 'dashboard/composables/useUISettings';
 
 const getThemeOptions = t => [
   {
@@ -28,16 +29,20 @@ const getThemeOptions = t => [
   },
 ];
 
-const setAppearance = theme => {
-  LocalStorage.set(LOCAL_STORAGE_KEYS.COLOR_SCHEME, theme);
-  const isOSOnDarkMode = window.matchMedia(
-    '(prefers-color-scheme: dark)'
-  ).matches;
-  setColorTheme(isOSOnDarkMode);
-};
-
 export function useAppearanceHotKeys() {
   const { t } = useI18n();
+  const { updateUISettings } = useUISettings();
+
+  // localStorage = cache local (zero flash no boot)
+  // ui_settings.color_scheme = fonte de verdade (sobrevive limpeza local)
+  const setAppearance = theme => {
+    LocalStorage.set(LOCAL_STORAGE_KEYS.COLOR_SCHEME, theme);
+    const isOSOnDarkMode = window.matchMedia(
+      '(prefers-color-scheme: dark)'
+    ).matches;
+    setColorTheme(isOSOnDarkMode);
+    updateUISettings({ color_scheme: theme });
+  };
 
   const themeOptions = computed(() => getThemeOptions(t));
 

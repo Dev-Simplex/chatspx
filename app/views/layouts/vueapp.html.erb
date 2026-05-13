@@ -77,6 +77,23 @@
     <script src="https://cdn.lordicon.com/lordicon.js" defer></script>
   </head>
   <body class="text-slate-600">
+    <script>
+      // Pré-paint do tema: evita flash de dark/light entre o parse do HTML
+      // e o mount do Vue. Espelha a lógica de applyTheme() em themeHelper.js.
+      (function () {
+        try {
+          var scheme = window.localStorage.getItem('color_scheme');
+          var prefersDark = window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches;
+          var dark = scheme === 'dark' || ((!scheme || scheme === 'auto') && prefersDark);
+          if (dark) {
+            document.body.classList.add('dark');
+            document.documentElement.style.colorScheme = 'dark';
+          } else {
+            document.documentElement.style.colorScheme = 'light';
+          }
+        } catch (e) { /* localStorage indisponível: ignora */ }
+      })();
+    </script>
     <div id="app"></div>
     <noscript id="noscript">This app works best with JavaScript enabled.</noscript>
     <%= yield %>

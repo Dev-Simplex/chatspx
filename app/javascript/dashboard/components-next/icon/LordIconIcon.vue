@@ -1,3 +1,21 @@
+<script>
+// Module-level (compartilhado entre todas as instâncias). Não pode viver no
+// <script setup> porque lá tudo é re-criado por instância.
+
+// URLs cujo <lord-icon> já emitiu 'ready' nesta sessão. Browser já mantém HTTP
+// cache; este Set evita o flash de fallback em remontagens (route change, v-if).
+const readyCache = new Set();
+
+// Sob 300ms o usuário percebe como "instantâneo" (NN/G) — em CDN rápido o
+// fallback nunca chega a aparecer.
+const SHOW_FALLBACK_AFTER_MS = 250;
+// Quando o cache local diz "já carregou antes", esperamos bem mais: na prática
+// o ready chega em ms e o fallback nunca renderiza.
+const SHOW_FALLBACK_AFTER_MS_CACHED = 1200;
+// Reduzido de 3000 → 1500: ainda dá margem pra rede ruim sem prender o usuário.
+const SAFETY_TIMEOUT_MS = 1500;
+</script>
+
 <script setup>
 import { ref, computed, watch, onMounted, onBeforeUnmount } from 'vue';
 
@@ -27,6 +45,7 @@ const isActive = computed(() => props.active || ancestorActive.value);
 const wrapperRef = ref(null);
 const iconRef = ref(null);
 const loaded = ref(false);
+const showFallback = ref(false);
 
 const isDarkMode = ref(
   typeof document !== 'undefined' && document.body?.classList.contains('dark')
@@ -87,6 +106,8 @@ onMounted(() => {
 
   const onReady = () => {
     loaded.value = true;
+    readyCache.add(props.src);
+    if (props.srcActive) readyCache.add(props.srcActive);
     if (isActive.value) playAnimation();
   };
   iconEl.addEventListener('ready', onReady);
@@ -117,15 +138,23 @@ onMounted(() => {
     });
   }
 
+  const fallbackDelay = readyCache.has(props.src)
+    ? SHOW_FALLBACK_AFTER_MS_CACHED
+    : SHOW_FALLBACK_AFTER_MS;
+  const fallbackTimer = setTimeout(() => {
+    if (!loaded.value) showFallback.value = true;
+  }, fallbackDelay);
+
   const loadTimeout = setTimeout(() => {
     loaded.value = true;
-  }, 3000);
+  }, SAFETY_TIMEOUT_MS);
 
   cleanup = () => {
     iconEl.removeEventListener('ready', onReady);
     if (host && onEnter) host.removeEventListener('mouseenter', onEnter);
     themeObserver?.disconnect();
     activeObserver?.disconnect();
+    clearTimeout(fallbackTimer);
     clearTimeout(loadTimeout);
   };
 });
@@ -147,7 +176,7 @@ watch(isActive, val => {
     aria-hidden="true"
   >
     <span
-      v-if="!loaded && fallbackLucide"
+      v-if="!loaded && showFallback && fallbackLucide"
       :class="fallbackLucide"
       class="lord-icon-fallback"
     />
