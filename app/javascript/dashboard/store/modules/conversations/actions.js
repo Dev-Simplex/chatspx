@@ -390,15 +390,21 @@ const actions = {
   },
 
   createPendingMessageAndSend: async ({ dispatch }, data) => {
-    const pendingMessage = createPendingMessage(data);
+    // P1.2 — keep `onUploadProgress` (a function) out of the Vuex store; it is
+    // forwarded straight to axios via MessageApi.create.
+    const { onUploadProgress, ...rest } = data;
+    const pendingMessage = createPendingMessage(rest);
+    if (onUploadProgress) pendingMessage.onUploadProgress = onUploadProgress;
     dispatch('sendMessageWithData', pendingMessage);
   },
 
   sendMessageWithData: async ({ commit }, pendingMessage) => {
     const { conversation_id: conversationId, id } = pendingMessage;
+    // P1.2 — onUploadProgress is a function and must not land in store state.
+    const { onUploadProgress, ...storedPendingMessage } = pendingMessage;
     try {
       commit(types.ADD_MESSAGE, {
-        ...pendingMessage,
+        ...storedPendingMessage,
         status: MESSAGE_STATUS.PROGRESS,
       });
       const response = hasMessageFailedWithExternalError(pendingMessage)
@@ -417,12 +423,19 @@ const actions = {
         ? error.response.data.error
         : undefined;
       commit(types.ADD_MESSAGE, {
-        ...pendingMessage,
+        ...storedPendingMessage,
         meta: {
           error: errorMessage,
         },
         status: MESSAGE_STATUS.FAILED,
       });
+      // P1.2 — capture upload failures (timeouts >=60s, 5xx) so ops can correlate
+      // with "audio not delivered" reports.
+      if (pendingMessage.isRecordedAudio) {
+        Sentry.captureException(error, {
+          tags: { feature: 'audio-recorder', step: 'message-upload' },
+        });
+      }
       throw error;
     }
   },

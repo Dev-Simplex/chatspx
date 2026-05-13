@@ -4,6 +4,7 @@ import { ref, onMounted, onUnmounted, defineEmits, defineExpose } from 'vue';
 import WaveSurfer from 'wavesurfer.js';
 import RecordPlugin from 'wavesurfer.js/dist/plugins/record.js';
 import { format, intervalToDuration } from 'date-fns';
+import * as Sentry from '@sentry/vue';
 import { convertAudio } from './utils/mp3ConversionUtils';
 
 const props = defineProps({
@@ -16,6 +17,7 @@ const props = defineProps({
 const emit = defineEmits([
   'recorderProgressChanged',
   'finishRecord',
+  'recordError',
   'pause',
   'play',
   'recordStart',
@@ -111,6 +113,14 @@ const initWaveSurfer = () => {
         file,
       });
       hasRecording.value = true;
+    } catch (err) {
+      // P1.2 — without this catch the blob silently vanishes when convertAudio
+      // throws (decodeAudioData failures on Chromium 122+). Surface the error
+      // to ReplyBox so the agent sees a toast instead of "audio just gone".
+      Sentry.captureException(err, {
+        tags: { feature: 'audio-recorder', step: 'convertAudio' },
+      });
+      emit('recordError', err);
     } finally {
       isProcessing.value = false;
     }

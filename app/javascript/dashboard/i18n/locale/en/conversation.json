@@ -369,6 +369,11 @@
       "START_AUDIO_RECORDING": "Start audio recording",
       "STOP_AUDIO_RECORDING": "Stop audio recording",
       "DISCARD_AUDIO_RECORDING": "Discard recording",
+      "AUDIO_RECORD_ERROR": "Could not process the audio. Please record again.",
+      "AUDIO_UPLOAD_TIMEOUT": "Audio upload took too long and was cancelled. Please try again.",
+      "AUDIO_RECOVERY_PROMPT": "You have an unsent audio from before — recover it?",
+      "AUDIO_RECOVERY_RECOVER": "Recover",
+      "AUDIO_RECOVERY_DISCARD": "Discard",
       "COPILOT_THINKING": "Copilot is thinking",
       "EMAIL_HEAD": {
         "TO": "TO",

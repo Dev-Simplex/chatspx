@@ -64,6 +64,8 @@ class MessageApi extends ApiClient {
     bccEmails = '',
     toEmails = '',
     templateParams,
+    onUploadProgress,
+    timeout = 60_000,
   }) {
     return axios({
       method: 'post',
@@ -79,6 +81,8 @@ class MessageApi extends ApiClient {
         toEmails,
         templateParams,
       }),
+      timeout,
+      onUploadProgress,
     });
   }
 

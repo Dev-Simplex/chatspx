@@ -84,6 +84,11 @@ import {
 import { LOCAL_STORAGE_KEYS } from 'dashboard/constants/localStorage';
 import { LocalStorage } from 'shared/helpers/localStorage';
 import { emitter } from 'shared/helpers/mitt';
+import {
+  savePendingAudio,
+  getPendingAudio,
+  clearPendingAudio,
+} from 'dashboard/helper/pendingAudioStore';
 const EmojiInput = defineAsyncComponent(
   () => import('shared/components/emoji/EmojiInput.vue')
 );
@@ -224,6 +229,9 @@ export default {
       aiSuggestionChip: null,
       aiSuggestionChipStartedAt: null,
       aiSuggestionChipAbortController: null,
+      // === Story P1.2 — audio resilience ===
+      audioUploadProgress: 0,
+      pendingAudioRecovery: null, // { entry, conversationId } when an unsent audio is found in IDB
     };
   },
   computed: {
@@ -753,6 +761,8 @@ export default {
         this.isGhostSuggestionDismissed = false;
         this.remoteGhostSuggestion = '';
         this.ghostSuggestionFetchedFor = null;
+        // P1.2 — re-check pending audio recovery when switching conversations.
+        this.checkPendingAudioRecovery();
       }
     },
     'lastIncomingMessage.id': {
@@ -784,6 +794,8 @@ export default {
 
   mounted() {
     this.getFromDraft();
+    // P1.2 — surface unsent audio left over by a previous reload/crash.
+    this.checkPendingAudioRecovery();
     // Don't use the keyboard listener mixin here as the events here are supposed to be
     // working even if the editor is focussed.
     document.addEventListener('paste', this.onPaste);
@@ -1371,6 +1383,11 @@ export default {
           'createPendingMessageAndSend',
           messagePayload
         );
+        // P1.2 — upload succeeded; drop the IDB recovery copy.
+        if (messagePayload.isRecordedAudio) {
+          clearPendingAudio(messagePayload.conversationId);
+          this.audioUploadProgress = 0;
+        }
         emitter.emit(BUS_EVENTS.SCROLL_TO_MESSAGE);
         emitter.emit(BUS_EVENTS.MESSAGE_SENT);
         this.removeFromDraft();
@@ -1380,11 +1397,67 @@ export default {
         });
       } catch (error) {
         const errorMessage =
-          error?.response?.data?.error || this.$t('CONVERSATION.MESSAGE_ERROR');
+          error?.response?.data?.error ||
+          (error?.code === 'ECONNABORTED'
+            ? this.$t('CONVERSATION.REPLYBOX.AUDIO_UPLOAD_TIMEOUT')
+            : this.$t('CONVERSATION.MESSAGE_ERROR'));
         if (isWhatsAppValidationMessage(errorMessage)) {
           this.showWhatsappInvalidNotice(errorMessage);
         }
         useAlert(errorMessage, whatsappAlertAction(errorMessage));
+      }
+    },
+    onAudioUploadProgress(progressEvent) {
+      // axios passes { loaded, total } — total may be undefined behind some proxies.
+      const total = progressEvent?.total || progressEvent?.loaded || 0;
+      if (!total) return;
+      const loaded = progressEvent.loaded || 0;
+      this.audioUploadProgress = Math.min(
+        100,
+        Math.round((loaded / total) * 100)
+      );
+    },
+    async checkPendingAudioRecovery() {
+      const conversationId = this.conversationIdByRoute;
+      if (!conversationId) {
+        this.pendingAudioRecovery = null;
+        return;
+      }
+      const entry = await getPendingAudio(conversationId);
+      if (entry) {
+        this.pendingAudioRecovery = { entry, conversationId };
+      } else {
+        this.pendingAudioRecovery = null;
+      }
+    },
+    recoverPendingAudio() {
+      const recovery = this.pendingAudioRecovery;
+      if (!recovery) return;
+      const { entry } = recovery;
+      const blob = entry.blob;
+      const file =
+        blob instanceof File
+          ? blob
+          : new File([blob], entry.name || 'audio.mp3', {
+              type: entry.mimeType || 'audio/mp3',
+            });
+      const recoveredFile = {
+        name: file.name,
+        type: file.type,
+        size: file.size,
+        file,
+        isRecordedAudio: true,
+      };
+      this.hasRecordedAudio = true;
+      this.isUploadingAudio = true;
+      this.pendingAudioRecovery = null;
+      this.onFileUpload(recoveredFile);
+    },
+    discardPendingAudio() {
+      const recovery = this.pendingAudioRecovery;
+      this.pendingAudioRecovery = null;
+      if (recovery?.conversationId) {
+        clearPendingAudio(recovery.conversationId);
       }
     },
     async onSendWhatsAppReply(messagePayload) {
@@ -1868,6 +1941,17 @@ export default {
       };
       return file && this.onFileUpload(autoRecordedFile);
     },
+    onRecordError() {
+      // P1.2 — convertAudio threw; the AudioRecorder already reported to Sentry.
+      // Surface a visible alert so the operator does not think the audio "vanished".
+      this.recordingAudioState = '';
+      this.hasRecordedAudio = false;
+      this.isUploadingAudio = false;
+      this.isRecordingAudio = false;
+      this.pendingAudioAutoSend = false;
+      this.pendingAudioConversationId = null;
+      useAlert(this.$t('CONVERSATION.REPLYBOX.AUDIO_RECORD_ERROR'));
+    },
     toggleTyping(status) {
       const conversationId = this.currentChat.id;
       const isPrivate = this.isPrivate;
@@ -1901,6 +1985,11 @@ export default {
 
         if (file?.isRecordedAudio) {
           this.isUploadingAudio = false;
+          // P1.2 — persist blob to IndexedDB so the agent can recover the
+          // audio after a reload/crash before the upload completes.
+          if (file?.file) {
+            savePendingAudio(capturedChatId, file.file);
+          }
           if (this.pendingAudioAutoSend) {
             this.pendingAudioAutoSend = false;
             const savedConversationId = capturedChatId;
@@ -1945,6 +2034,12 @@ export default {
             message: caption,
             sender: this.sender,
           };
+
+          // P1.2 — wire upload progress + IDB cleanup for recorded audio.
+          if (attachment.isRecordedAudio) {
+            attachmentPayload.isRecordedAudio = true;
+            attachmentPayload.onUploadProgress = this.onAudioUploadProgress;
+          }
 
           attachmentPayload = this.setReplyToInPayload(attachmentPayload);
           multipleMessagePayload.push(attachmentPayload);
@@ -2001,6 +2096,11 @@ export default {
             messagePayload.files.push(attachment.resource.file);
           }
         });
+        // P1.2 — wire upload progress + IDB cleanup for recorded audio.
+        if (this.attachedFiles.some(a => a?.isRecordedAudio)) {
+          messagePayload.isRecordedAudio = true;
+          messagePayload.onUploadProgress = this.onAudioUploadProgress;
+        }
       }
 
       if (this.ccEmails && !this.isOnPrivateNote) {
@@ -2220,6 +2320,7 @@ export default {
             :audio-record-format="audioRecordFormat"
             @recorder-progress-changed="onRecordProgressChanged"
             @finish-record="onFinishRecorder"
+            @record-error="onRecordError"
             @play="recordingAudioState = 'playing'"
             @pause="recordingAudioState = 'paused'"
           />
@@ -2305,6 +2406,40 @@ export default {
               @remove-attachment="removeAttachment"
             />
           </div>
+          <!-- P1.2 — pending audio recovery prompt -->
+          <div
+            v-if="pendingAudioRecovery"
+            class="mb-2 mt-2 flex items-center gap-3 rounded-md border border-n-weak bg-n-alpha-1 px-3 py-2 text-sm text-n-slate-12"
+          >
+            <span class="i-lucide-mic size-4 shrink-0 text-n-brand" />
+            <span class="flex-1">
+              {{ $t('CONVERSATION.REPLYBOX.AUDIO_RECOVERY_PROMPT') }}
+            </span>
+            <button
+              type="button"
+              class="rounded-md px-2 py-1 text-xs font-medium text-n-brand hover:bg-n-alpha-2"
+              @click="recoverPendingAudio"
+            >
+              {{ $t('CONVERSATION.REPLYBOX.AUDIO_RECOVERY_RECOVER') }}
+            </button>
+            <button
+              type="button"
+              class="rounded-md px-2 py-1 text-xs font-medium text-n-slate-11 hover:bg-n-alpha-2"
+              @click="discardPendingAudio"
+            >
+              {{ $t('CONVERSATION.REPLYBOX.AUDIO_RECOVERY_DISCARD') }}
+            </button>
+          </div>
+          <!-- P1.2 — audio upload progress bar -->
+          <div
+            v-if="audioUploadProgress > 0 && audioUploadProgress < 100"
+            class="mb-2 mt-1 h-1 w-full overflow-hidden rounded bg-n-alpha-2"
+          >
+            <div
+              class="h-full bg-n-brand transition-all"
+              :style="{ width: audioUploadProgress + '%' }"
+            />
+          </div>
         </template>
       </div>
     </Transition>
@@ -2349,6 +2484,7 @@ export default {
               :audio-record-format="audioRecordFormat"
               @recorder-progress-changed="onRecordProgressChanged"
               @finish-record="onFinishRecorder"
+              @record-error="onRecordError"
               @play="recordingAudioState = 'playing'"
               @pause="recordingAudioState = 'paused'"
             />
