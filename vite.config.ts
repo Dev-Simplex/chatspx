@@ -21,10 +21,25 @@ We need to edit the `asset:precompile` rake task to include the SDK in the preco
 import { defineConfig } from 'vite';
 import ruby from 'vite-plugin-ruby';
 import path from 'path';
+import fs from 'fs';
 import vue from '@vitejs/plugin-vue';
+import { sentryVitePlugin } from '@sentry/vite-plugin';
 
 const isLibraryMode = process.env.BUILD_MODE === 'library';
 const isTestMode = process.env.TEST === 'true';
+
+// Release tag puxa de public/version.json (gerado pelo deploy) ou ENV SENTRY_RELEASE.
+let releaseVersion = process.env.SENTRY_RELEASE || 'dev';
+try {
+  const versionFile = path.resolve(__dirname, 'public/version.json');
+  if (fs.existsSync(versionFile)) {
+    const parsed = JSON.parse(fs.readFileSync(versionFile, 'utf8'));
+    releaseVersion = process.env.SENTRY_RELEASE || parsed.version || releaseVersion;
+  }
+} catch (_err) {
+  // mantem fallback
+}
+process.env.VITE_APP_VERSION = releaseVersion;
 
 const vueOptions = {
   template: {
@@ -40,11 +55,30 @@ if (isLibraryMode) {
   plugins = [];
 } else if (isTestMode) {
   plugins = [vue(vueOptions)];
+} else if (process.env.SENTRY_AUTH_TOKEN && process.env.SENTRY_ORG && process.env.SENTRY_PROJECT) {
+  // Sentry plugin so ativa quando todas as ENVs de upload estiverem presentes.
+  // Em dev/build sem token o build segue normal sem subir source maps.
+  plugins.push(
+    sentryVitePlugin({
+      org: process.env.SENTRY_ORG,
+      project: process.env.SENTRY_PROJECT,
+      authToken: process.env.SENTRY_AUTH_TOKEN,
+      release: { name: releaseVersion },
+      sourcemaps: {
+        assets: ['public/vite/**/*.js', 'public/vite/**/*.js.map'],
+      },
+      telemetry: false,
+    })
+  );
 }
 
 export default defineConfig({
   plugins: plugins,
   build: {
+    // 'hidden' gera .js.map mas sem // # sourceMappingURL comment no JS publicado.
+    // Sentry consome via upload do plugin; usuarios finais nao baixam source maps.
+    // Em library mode (SDK), desliga para nao expor o codigo do widget.
+    sourcemap: isLibraryMode ? false : 'hidden',
     rollupOptions: {
       output: {
         // [NOTE] when not in library mode, no new keys will be addedd or overwritten
