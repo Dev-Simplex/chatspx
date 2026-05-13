@@ -1,4 +1,8 @@
+import { canReloadNow } from 'dashboard/composables/useReloadGate';
+import { LOCAL_STORAGE_KEYS } from 'dashboard/constants/localStorage';
+
 let initialVersion = null;
+let pendingReloadCheck = null;
 
 export function setInitialVersion(version) {
   initialVersion = version;
@@ -18,9 +22,26 @@ export async function fetchVersion() {
   }
 }
 
-export function forceCleanReload() {
-  const preservePatterns = ['token', 'user_id', 'cw_d_', 'cw_just_updated'];
+// Keys that must survive a `forceCleanReload`. Drafts (Vuex `draftMessages`
+// module persists to `LOCAL_STORAGE_KEYS.DRAFT_MESSAGES`) used to be wiped on
+// every auto-update, which is what made operators "lose what they were typing"
+// after a silent reload. Reply-to context and recent searches are equally
+// session-local UX state that should not be destroyed.
+const PRESERVE_PATTERNS = [
+  'token',
+  'user_id',
+  'cw_d_',
+  'cw_just_updated',
+  LOCAL_STORAGE_KEYS.DRAFT_MESSAGES,
+  LOCAL_STORAGE_KEYS.MESSAGE_REPLY_TO,
+  LOCAL_STORAGE_KEYS.COLOR_SCHEME,
+  LOCAL_STORAGE_KEYS.RECENT_SEARCHES,
+];
 
+const shouldPreserveKey = key =>
+  PRESERVE_PATTERNS.some(pattern => key.includes(pattern));
+
+export function forceCleanReload() {
   if (navigator.serviceWorker) {
     navigator.serviceWorker.getRegistrations().then(registrations => {
       registrations.forEach(r => r.unregister());
@@ -36,7 +57,7 @@ export function forceCleanReload() {
   const keysToRemove = [];
   for (let i = 0; i < localStorage.length; i += 1) {
     const key = localStorage.key(i);
-    if (!preservePatterns.some(pattern => key.includes(pattern))) {
+    if (!shouldPreserveKey(key)) {
       keysToRemove.push(key);
     }
   }
@@ -46,4 +67,23 @@ export function forceCleanReload() {
 
   localStorage.setItem('cw_just_updated', 'true');
   window.location.reload(true);
+}
+
+// Gate-aware reload. If a critical operation (audio recording, upload,
+// in-progress message composition) holds a lock in `useReloadGate`, we
+// retry every 2s — never force-interrupt the operator.
+export function reloadWhenSafe({ onWait } = {}) {
+  if (canReloadNow()) {
+    forceCleanReload();
+    return;
+  }
+  if (typeof onWait === 'function') onWait();
+  if (pendingReloadCheck) return;
+  pendingReloadCheck = setInterval(() => {
+    if (canReloadNow()) {
+      clearInterval(pendingReloadCheck);
+      pendingReloadCheck = null;
+      forceCleanReload();
+    }
+  }, 2_000);
 }

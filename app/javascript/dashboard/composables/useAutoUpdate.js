@@ -1,32 +1,25 @@
-import { onMounted, onUnmounted } from 'vue';
+import { onMounted, onUnmounted, ref } from 'vue';
 import {
   fetchVersion,
-  forceCleanReload,
   setInitialVersion,
 } from 'dashboard/helper/autoUpdateHelper';
 import { useAlert } from 'dashboard/composables';
 
 const POLL_INTERVAL = 300_000;
-const IDLE_TIMEOUT = 30_000;
 const UPDATED_FLAG = 'cw_just_updated';
+
+// Module-level reactive flag: any consumer (toast banner, dev tools) can
+// observe `pendingUpdate` and react. We do not force a reload here — the
+// operator decides when via the toast button.
+const pendingUpdate = ref(false);
+
+export function usePendingUpdate() {
+  return pendingUpdate;
+}
 
 export function useAutoUpdate() {
   let currentVersion = null;
   let pollTimer = null;
-  let idleTimer = null;
-  let pendingUpdate = false;
-  let lastActivity = Date.now();
-
-  const onActivity = () => {
-    lastActivity = Date.now();
-    if (pendingUpdate) {
-      clearTimeout(idleTimer);
-      idleTimer = setTimeout(() => forceCleanReload(), IDLE_TIMEOUT);
-    }
-  };
-
-  const events = ['keydown', 'mousedown', 'touchstart'];
-  events.forEach(e => document.addEventListener(e, onActivity, true));
 
   const checkVersion = async () => {
     const newVersion = await fetchVersion();
@@ -40,13 +33,7 @@ export function useAutoUpdate() {
 
     if (newVersion === currentVersion) return;
 
-    if (document.hidden || Date.now() - lastActivity >= IDLE_TIMEOUT) {
-      forceCleanReload();
-      return;
-    }
-
-    pendingUpdate = true;
-    idleTimer = setTimeout(() => forceCleanReload(), IDLE_TIMEOUT);
+    pendingUpdate.value = true;
   };
 
   onMounted(() => {
@@ -65,7 +52,5 @@ export function useAutoUpdate() {
 
   onUnmounted(() => {
     clearInterval(pollTimer);
-    clearTimeout(idleTimer);
-    events.forEach(e => document.removeEventListener(e, onActivity, true));
   });
 }

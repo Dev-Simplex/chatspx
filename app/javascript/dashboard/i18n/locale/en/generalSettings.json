@@ -287,6 +287,13 @@
       "DARK_MODE": "Dark",
       "SYSTEM_MODE": "System",
       "SNOOZE_NOTIFICATION": "Snooze Notification"
+    },
+    "VERSION_UPDATE": {
+      "TITLE": "New version available",
+      "DESCRIPTION": "Reload to get the latest improvements.",
+      "RELOAD": "Reload now",
+      "DISMISS": "Dismiss",
+      "WAITING": "Waiting for current task to finish..."
     }
   },
   "DASHBOARD_APPS": {

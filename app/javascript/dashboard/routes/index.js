@@ -1,7 +1,7 @@
 import { createRouter, createWebHistory } from 'vue-router';
 
 import { frontendURL } from '../helper/URLHelper';
-import { forceCleanReload } from '../helper/autoUpdateHelper';
+import { reloadWhenSafe } from '../helper/autoUpdateHelper';
 import dashboard from './dashboard/dashboard.routes';
 import store from 'dashboard/store';
 import { validateLoggedInRoutes } from '../helper/routeHelpers';
@@ -10,6 +10,10 @@ import AnalyticsHelper from '../helper/AnalyticsHelper';
 const routes = [...dashboard.routes];
 
 export const router = createRouter({ history: createWebHistory(), routes });
+
+const CHUNK_LOAD_ERROR_PATTERN =
+  /(Failed to fetch dynamically imported module|Loading chunk|Loading CSS chunk)/;
+let chunkRetryInFlight = false;
 
 export const validateAuthenticateRoutePermission = (to, next) => {
   const { isLoggedIn, getCurrentUser: user } = store.getters;
@@ -36,13 +40,27 @@ export const validateAuthenticateRoutePermission = (to, next) => {
   return nextRoute ? next(frontendURL(nextRoute)) : next();
 };
 
-router.onError(error => {
-  if (
-    error.message.includes('Failed to fetch dynamically imported module') ||
-    error.message.includes('Loading chunk') ||
-    error.message.includes('Loading CSS chunk')
-  ) {
-    forceCleanReload();
+router.onError(async (error, to) => {
+  if (!CHUNK_LOAD_ERROR_PATTERN.test(error.message)) return;
+
+  // Pos-deploy is the dominant cause of chunk-load errors (stale index.html
+  // pointing at chunks that were just replaced). Retry the navigation once
+  // after a short delay before nuking the session — most of the time the
+  // CDN/nginx serves the new chunk and the reload is avoided entirely.
+  if (chunkRetryInFlight) {
+    reloadWhenSafe();
+    return;
+  }
+  chunkRetryInFlight = true;
+  await new Promise(resolve => {
+    setTimeout(resolve, 500);
+  });
+  try {
+    await router.push(to.fullPath);
+    chunkRetryInFlight = false;
+  } catch {
+    chunkRetryInFlight = false;
+    reloadWhenSafe();
   }
 });
 

@@ -1,10 +1,5 @@
 import AuthAPI from '../api/auth';
 import BaseActionCableConnector from '../../shared/helpers/BaseActionCableConnector';
-import {
-  fetchVersion,
-  forceCleanReload,
-  getInitialVersion,
-} from '../helper/autoUpdateHelper';
 import DashboardAudioNotificationHelper from './AudioAlerts/DashboardAudioNotificationHelper';
 import { BUS_EVENTS } from 'shared/constants/busEvents';
 import { emitter } from 'shared/helpers/mitt';
@@ -44,16 +39,12 @@ class ActionCableConnector extends BaseActionCableConnector {
     };
   }
 
+  // Reconnect no longer triggers `forceCleanReload`. The polling in
+  // `useAutoUpdate` is the single source of truth for version drift, and
+  // it surfaces the upgrade via the opt-in toast — never silently.
   // eslint-disable-next-line class-methods-use-this
-  onReconnect = async () => {
+  onReconnect = () => {
     emitter.emit(BUS_EVENTS.WEBSOCKET_RECONNECT);
-    const initialVersion = getInitialVersion();
-    if (initialVersion) {
-      const newVersion = await fetchVersion();
-      if (newVersion && newVersion !== initialVersion) {
-        forceCleanReload();
-      }
-    }
   };
 
   // eslint-disable-next-line class-methods-use-this

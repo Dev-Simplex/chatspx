@@ -1,44 +1,65 @@
 <script setup>
-import { onMounted, onUnmounted } from 'vue';
+import { watch, ref } from 'vue';
+import { useI18n } from 'vue-i18n';
+import { toast } from 'vue-sonner';
+import { usePendingUpdate } from 'dashboard/composables/useAutoUpdate';
+import { useReloadGate } from 'dashboard/composables/useReloadGate';
+import { reloadWhenSafe } from 'dashboard/helper/autoUpdateHelper';
 
-let loadedVersion = null;
-let pollInterval = null;
-let reloadTimer = null;
+const TOAST_ID = 'cw-version-update';
 
-async function fetchVersion() {
-  try {
-    const res = await fetch(`/version.json?t=${Date.now()}`, {
-      cache: 'no-store',
-    });
-    if (!res.ok) return null;
-    const data = await res.json();
-    return data.version || null;
-  } catch {
-    return null;
+const { t } = useI18n();
+const pendingUpdate = usePendingUpdate();
+const { canReload } = useReloadGate();
+const waitingForSafeWindow = ref(false);
+
+const handleReload = () => {
+  if (!canReload.value) {
+    waitingForSafeWindow.value = true;
+    reloadWhenSafe({ onWait: () => {} });
+    return;
   }
-}
+  reloadWhenSafe();
+};
 
-onMounted(async () => {
-  loadedVersion = await fetchVersion();
-
-  pollInterval = setInterval(
-    async () => {
-      const current = await fetchVersion();
-      if (current && loadedVersion && current !== loadedVersion) {
-        clearInterval(pollInterval);
-        reloadTimer = setTimeout(() => window.location.reload(), 5 * 60 * 1000);
-      }
+watch(pendingUpdate, isPending => {
+  if (!isPending) return;
+  toast(t('GENERAL_SETTINGS.VERSION_UPDATE.TITLE'), {
+    id: TOAST_ID,
+    description: t('GENERAL_SETTINGS.VERSION_UPDATE.DESCRIPTION'),
+    duration: Infinity,
+    action: {
+      label: t('GENERAL_SETTINGS.VERSION_UPDATE.RELOAD'),
+      onClick: handleReload,
     },
-    2 * 60 * 1000
-  );
+    cancel: {
+      label: t('GENERAL_SETTINGS.VERSION_UPDATE.DISMISS'),
+      onClick: () => toast.dismiss(TOAST_ID),
+    },
+  });
 });
 
-onUnmounted(() => {
-  clearInterval(pollInterval);
-  clearTimeout(reloadTimer);
+watch(canReload, canNow => {
+  if (canNow && waitingForSafeWindow.value) {
+    waitingForSafeWindow.value = false;
+  }
 });
 </script>
 
 <template>
-  <div />
+  <div
+    data-testid="version-update-toast"
+    class="hidden"
+    aria-hidden="true"
+    :data-pending-update="pendingUpdate ? 'true' : 'false'"
+  >
+    <button
+      v-if="pendingUpdate"
+      type="button"
+      data-testid="version-update-reload"
+      @click="handleReload"
+    >
+      {{ t('GENERAL_SETTINGS.VERSION_UPDATE.RELOAD') }}
+    </button>
+  </div>
 </template>

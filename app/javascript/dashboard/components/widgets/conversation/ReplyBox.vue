@@ -71,6 +71,7 @@ import { useAIOnboarding } from 'dashboard/composables/useAIOnboarding';
 import { useReducedMotion } from 'dashboard/composables/useReducedMotion';
 import { useAIAssistantFlag } from 'dashboard/components-next/ai-assistant/composables/useAIAssistantFlag';
 import { useAITour } from 'dashboard/components-next/ai-assistant/composables/useAITour';
+import { useReloadGate } from 'dashboard/composables/useReloadGate';
 import AIOnboardingCoachmark from './AIOnboardingCoachmark.vue';
 import AISuggestionChip from 'dashboard/components-next/ai-assistant/AISuggestionChip.vue';
 import { CAPTAIN_ERROR_TYPES } from 'dashboard/composables/captain/constants';
@@ -159,6 +160,7 @@ export default {
     const { prefersReducedMotion } = useReducedMotion();
     const aiAssistantFlag = useAIAssistantFlag();
     const aiTour = useAITour();
+    const reloadGate = useReloadGate();
 
     return {
       uiSettings,
@@ -177,6 +179,7 @@ export default {
       prefersReducedMotion,
       aiAssistantFlag,
       aiTour,
+      reloadGate,
     };
   },
   data() {
@@ -764,9 +767,14 @@ export default {
       },
       immediate: true,
     },
-    message() {
+    message(value) {
       // Autosave the current message draft.
       this.doAutoSaveDraft();
+      // Hold the reload gate while the operator is composing so an auto-update
+      // toast cannot interrupt a half-typed message.
+      const hasContent = !!trimContent(value || '');
+      if (hasContent) this.reloadGate.acquire('reply-box-composing');
+      else this.reloadGate.release('reply-box-composing');
     },
     replyType(updatedReplyType, oldReplyType) {
       this.setToDraft(this.conversationIdByRoute, oldReplyType);
@@ -779,6 +787,18 @@ export default {
             : 'CONVERSATION.REPLYBOX.PRIVATE_NOTE_TOAST_OFF';
         useAlert(this.$t(key));
       }
+    },
+    // Reload-gate locks — see `composables/useReloadGate.js`. Each critical
+    // operation acquires a key; the version-update toast cannot reload while
+    // any key is held. TTL in the gate prevents a forgotten release from
+    // pinning the lock forever.
+    isRecordingAudio(active) {
+      if (active) this.reloadGate.acquire('reply-box-audio-recording');
+      else this.reloadGate.release('reply-box-audio-recording');
+    },
+    isUploadingAudio(active) {
+      if (active) this.reloadGate.acquire('reply-box-audio-upload');
+      else this.reloadGate.release('reply-box-audio-upload');
     },
   },
 
@@ -832,6 +852,9 @@ export default {
       this.whatsappNoticeTimeoutId = null;
     }
     emitter.off(CMD_AI_ASSIST, this.executeCopilotAction);
+    this.reloadGate.release('reply-box-audio-recording');
+    this.reloadGate.release('reply-box-audio-upload');
+    this.reloadGate.release('reply-box-composing');
   },
   methods: {
     showWhatsappInvalidNotice(message) {
