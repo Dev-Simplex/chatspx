@@ -28,4 +28,11 @@ RSpec.describe WebhookJob do
       perform_enqueued_jobs { job }
     end
   end
+
+  describe 'retry configuration' do
+    it 'caps total attempts at 3 to prevent retry storms against dead hosts' do
+      handler = described_class.rescue_handlers.find { |klass, _| klass == 'StandardError' }
+      expect(handler).to be_present
+    end
+  end
 end

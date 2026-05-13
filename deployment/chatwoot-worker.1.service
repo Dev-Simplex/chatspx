@@ -7,7 +7,7 @@ Type=simple
 User=chatwoot
 WorkingDirectory=/home/chatwoot/chatwoot
 
-ExecStart=/bin/bash -lc 'dotenv bundle exec sidekiq -C config/sidekiq.yml'
+ExecStart=/bin/bash -lc 'dotenv bundle exec sidekiq -C config/sidekiq.yml -q critical,5 -q high,4 -q medium,3 -q default,3 -q mailers,2 -q action_mailbox_routing,2 -q low,1 -q scheduled_jobs,1 -q deferred,1 -q purgable,1 -q housekeeping,1 -q bulk_reindex_low,1 -q async_database_migration,1 -q active_storage_analysis,1 -q active_storage_purge,1 -q action_mailbox_incineration,1'
 
 Restart=always
 RestartSec=1
