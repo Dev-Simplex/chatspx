@@ -1,9 +1,24 @@
 class Conversations::UserSettingUpdateService
-  # Allowed keys inside user_settings.{user_id}. theme_key validation deferida para PR G14.
+  # Allowed keys inside user_settings.{user_id}.
   ALLOWED_KEYS = %w[pinned archived_at muted_until theme_key].freeze
   ISO_DATETIME_KEYS = %w[archived_at muted_until].freeze
   BOOLEAN_KEYS = %w[pinned].freeze
   STRING_KEYS = %w[theme_key].freeze
+
+  # Whitelist of accepted theme_key values for per-chat themes (PR G14).
+  # Source of truth: chatspx-mobile/src/constants/wallpapers.ts (Story 6.5 will mirror this list).
+  # nil is also accepted to clear the theme back to default.
+  ALLOWED_THEME_KEYS = %w[
+    default
+    dark_emerald
+    wallpaper_doodle
+    midnight
+    forest
+    sunset
+    ocean
+    plain_white
+    plain_dark
+  ].freeze
 
   class ValidationError < StandardError; end
 
@@ -66,10 +81,23 @@ class Conversations::UserSettingUpdateService
     elsif ISO_DATETIME_KEYS.include?(key)
       coerce_iso_datetime(key, value)
     elsif STRING_KEYS.include?(key)
-      value.is_a?(String) ? value : (raise ValidationError, "#{key} must be a string")
+      coerce_string(key, value)
     else
       value
     end
+  end
+
+  def coerce_string(key, value)
+    raise ValidationError, "#{key} must be a string" unless value.is_a?(String)
+
+    validate_theme_key(value) if key == 'theme_key'
+    value
+  end
+
+  def validate_theme_key(value)
+    return if ALLOWED_THEME_KEYS.include?(value)
+
+    raise ValidationError, "theme_key '#{value}' is not in allowed enum"
   end
 
   def coerce_boolean(key, value)

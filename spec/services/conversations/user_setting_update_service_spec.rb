@@ -85,6 +85,47 @@ describe Conversations::UserSettingUpdateService do
       end.to raise_error(described_class::ValidationError, /pinned/)
     end
 
+    context 'with theme_key enum validation (PR G14)' do
+      it 'persists a valid theme_key from the allowed enum' do
+        result = described_class.new(
+          conversation: conversation,
+          user_id: user_a.id,
+          patch: { theme_key: 'dark_emerald' }
+        ).perform
+
+        expect(result['theme_key']).to eq('dark_emerald')
+        conversation.reload
+        expect(conversation.user_setting_for(user_a.id)['theme_key']).to eq('dark_emerald')
+      end
+
+      it 'raises ValidationError with descriptive message for theme_key outside the enum' do
+        expect do
+          described_class.new(
+            conversation: conversation,
+            user_id: user_a.id,
+            patch: { theme_key: 'rainbow' }
+          ).perform
+        end.to raise_error(described_class::ValidationError, /theme_key 'rainbow' is not in allowed enum/)
+      end
+
+      it 'allows nil theme_key to clear the per-chat theme' do
+        described_class.new(
+          conversation: conversation,
+          user_id: user_a.id,
+          patch: { theme_key: 'midnight' }
+        ).perform
+
+        described_class.new(
+          conversation: conversation,
+          user_id: user_a.id,
+          patch: { theme_key: nil }
+        ).perform
+
+        conversation.reload
+        expect(conversation.user_setting_for(user_a.id)['theme_key']).to be_nil
+      end
+    end
+
     it 'isolates settings between users (user A cannot mutate user B)' do
       described_class.new(
         conversation: conversation,
