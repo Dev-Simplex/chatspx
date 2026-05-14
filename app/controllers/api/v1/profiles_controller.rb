@@ -43,6 +43,15 @@ class Api::V1::ProfilesController < Api::BaseController
     @user.reload
   end
 
+  def update_ui_settings
+    service = Users::UiSettingUpdateService.new(user: @user, params: ui_settings_params)
+    if service.perform
+      render partial: 'api/v1/models/user', formats: [:json], locals: { resource: @user }
+    else
+      render json: { message: service.errors.join(', '), attributes: ['ui_settings'] }, status: :unprocessable_entity
+    end
+  end
+
   private
 
   def set_user
@@ -79,5 +88,9 @@ class Api::V1::ProfilesController < Api::BaseController
       :password,
       :password_confirmation
     )
+  end
+
+  def ui_settings_params
+    params.require(:profile).permit(:wallpaper_key, :font_scale, :theme_preference)
   end
 end

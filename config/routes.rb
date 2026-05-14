@@ -467,6 +467,7 @@ Rails.application.routes.draw do
           put :set_active_account
           post :resend_confirmation
           post :reset_access_token
+          patch :ui_settings, action: :update_ui_settings
         end
 
         # MFA routes
