@@ -231,4 +231,46 @@ describe ActionCableListener do
       listener.conversation_updated(event)
     end
   end
+
+  # PR B4 — broadcast restricted to the owning user (per-user settings privacy).
+  describe '#conversation_user_setting_changed' do
+    let(:event_name) { :'conversation.user_setting_changed' }
+    let!(:other_agent) { create(:user, account: account, role: :agent) }
+    let!(:event) do
+      Events::Base.new(event_name, Time.zone.now, conversation: conversation, user_id: agent.id)
+    end
+
+    before do
+      create(:inbox_member, inbox: inbox, user: other_agent)
+      conversation.update!(
+        additional_attributes: { 'user_settings' => { agent.id.to_s => { 'pinned' => true } } }
+      )
+    end
+
+    it 'broadcasts only to the owning user, not to other agents or admins' do
+      expect(ActionCableBroadcastJob).to receive(:perform_later) do |tokens, name, payload|
+        expect(tokens).to eq([agent.pubsub_token])
+        expect(tokens).not_to include(other_agent.pubsub_token, admin.pubsub_token)
+        expect(name).to eq('conversation.user_setting_changed')
+        expect(payload[:user_id]).to eq(agent.id)
+        expect(payload[:user_settings]).to eq('pinned' => true)
+        expect(payload[:conversation][:id]).to eq(conversation.display_id)
+        expect(payload[:account_id]).to eq(account.id)
+      end
+
+      listener.conversation_user_setting_changed(event)
+    end
+
+    it 'does nothing when user_id is blank' do
+      blank_event = Events::Base.new(event_name, Time.zone.now, conversation: conversation, user_id: nil)
+      expect(ActionCableBroadcastJob).not_to receive(:perform_later)
+      listener.conversation_user_setting_changed(blank_event)
+    end
+
+    it 'does nothing when user no longer exists' do
+      missing_event = Events::Base.new(event_name, Time.zone.now, conversation: conversation, user_id: -1)
+      expect(ActionCableBroadcastJob).not_to receive(:perform_later)
+      listener.conversation_user_setting_changed(missing_event)
+    end
+  end
 end

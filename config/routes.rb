@@ -172,6 +172,8 @@ Rails.application.routes.draw do
               resource :draft_messages, only: [:show, :update, :destroy]
               resource :ghost_suggestion, only: [:create]
               resource :copilot_chat, only: [:create, :show, :destroy]
+              # PR B4 — per-user jsonb settings (pinned, archived_at, muted_until, theme_key)
+              resource :user_setting, only: [:update, :destroy], controller: 'user_settings'
             end
             member do
               post :mute
