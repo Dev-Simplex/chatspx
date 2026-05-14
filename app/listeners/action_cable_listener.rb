@@ -177,18 +177,40 @@ class ActionCableListener < BaseListener # rubocop:disable Metrics/ClassLength
     broadcast(account, [user.pubsub_token], CONVERSATION_MENTIONED, conversation.push_event_data)
   end
 
-  # PR B7 — Scaffolding stubs (no-op). Implementacao real em PR B1, B4 e G1.
-  # Mantem ActionCableListener pronto para receber os eventos sem broadcasts ate
-  # que a logica seja conectada. Webapp Vue nao recebe novos eventos enquanto
-  # estes handlers permanecerem inertes.
+  # PR B1 — emoji reaction lifecycle. Broadcasts to the same audience as
+  # `message_updated` (inbox members + admins + participants + contact),
+  # so the panel and mobile clients converge on the same recipient set.
   def message_reaction_added(event)
-    Rails.logger.debug { "[PR B7 stub] message_reaction_added received: #{event&.data&.keys}. Handler will be implemented in PR B1." }
-    nil
+    message, account = extract_message_and_account(event)
+    reaction = event.data[:reaction]
+    conversation = message.conversation
+    tokens = user_tokens(account, conversation.inbox.members) +
+             participant_tokens(conversation) +
+             contact_tokens(conversation.contact_inbox, message)
+
+    broadcast(account, tokens, MESSAGE_REACTION_ADDED, {
+                message_id: message.id,
+                conversation_id: conversation.display_id,
+                reaction: reaction.push_event_data
+              })
   end
 
   def message_reaction_removed(event)
-    Rails.logger.debug { "[PR B7 stub] message_reaction_removed received: #{event&.data&.keys}. Handler will be implemented in PR B1." }
-    nil
+    message, account = extract_message_and_account(event)
+    reaction = event.data[:reaction]
+    conversation = message.conversation
+    tokens = user_tokens(account, conversation.inbox.members) +
+             participant_tokens(conversation) +
+             contact_tokens(conversation.contact_inbox, message)
+
+    broadcast(account, tokens, MESSAGE_REACTION_REMOVED, {
+                message_id: message.id,
+                conversation_id: conversation.display_id,
+                reaction_id: reaction.id,
+                emoji: reaction.emoji,
+                user_id: reaction.user_id,
+                user_type: reaction.user_type
+              })
   end
 
   # PR B4 — broadcasts the updated user_settings node only to the owning user's tokens.
