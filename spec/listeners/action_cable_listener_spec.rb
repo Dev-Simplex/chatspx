@@ -328,4 +328,63 @@ describe ActionCableListener do
       listener.message_reaction_removed(event)
     end
   end
+
+  # PR G1 — pin é coletivo: broadcast para todos os agents/admins do inbox.
+  describe '#conversation_pin_added' do
+    let(:event_name) { :'conversation.pin_added' }
+    let(:message) { create(:message, conversation: conversation, account: account, inbox: inbox) }
+    let!(:event) do
+      Events::Base.new(
+        event_name,
+        Time.zone.now,
+        conversation: conversation,
+        message_id: message.id,
+        pinned_message_ids: [message.id]
+      )
+    end
+
+    it 'broadcasts to all inbox members and admins' do
+      expect(ActionCableBroadcastJob).to receive(:perform_later) do |tokens, name, payload|
+        expect(tokens).to include(agent.pubsub_token, admin.pubsub_token)
+        expect(name).to eq('conversation.pin_added')
+        expect(payload[:conversation][:id]).to eq(conversation.display_id)
+        expect(payload[:message_id]).to eq(message.id)
+        expect(payload[:pinned_message_ids]).to eq([message.id])
+        expect(payload[:account_id]).to eq(account.id)
+      end
+
+      listener.conversation_pin_added(event)
+    end
+
+    it 'does nothing when conversation is missing' do
+      blank_event = Events::Base.new(event_name, Time.zone.now, conversation: nil, message_id: message.id)
+      expect(ActionCableBroadcastJob).not_to receive(:perform_later)
+      listener.conversation_pin_added(blank_event)
+    end
+  end
+
+  describe '#conversation_pin_removed' do
+    let(:event_name) { :'conversation.pin_removed' }
+    let(:message) { create(:message, conversation: conversation, account: account, inbox: inbox) }
+    let!(:event) do
+      Events::Base.new(
+        event_name,
+        Time.zone.now,
+        conversation: conversation,
+        message_id: message.id,
+        pinned_message_ids: []
+      )
+    end
+
+    it 'broadcasts to all inbox members and admins' do
+      expect(ActionCableBroadcastJob).to receive(:perform_later) do |tokens, name, payload|
+        expect(tokens).to include(agent.pubsub_token, admin.pubsub_token)
+        expect(name).to eq('conversation.pin_removed')
+        expect(payload[:pinned_message_ids]).to eq([])
+        expect(payload[:message_id]).to eq(message.id)
+      end
+
+      listener.conversation_pin_removed(event)
+    end
+  end
 end

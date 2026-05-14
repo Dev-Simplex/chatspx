@@ -235,17 +235,34 @@ class ActionCableListener < BaseListener # rubocop:disable Metrics/ClassLength
     broadcast(account, tokens, CONVERSATION_USER_SETTING_CHANGED, payload)
   end
 
+  # PR G1 — broadcasts the pinned_message_ids array to ALL agents/admins of the inbox.
+  # Pin é coletivo: todos os agents do account compartilham a lista (diferente do pin per-user de B4).
   def conversation_pin_added(event)
-    Rails.logger.debug { "[PR B7 stub] conversation_pin_added received: #{event&.data&.keys}. Handler will be implemented in PR G1." }
-    nil
+    broadcast_conversation_pin(event, CONVERSATION_PIN_ADDED)
   end
 
   def conversation_pin_removed(event)
-    Rails.logger.debug { "[PR B7 stub] conversation_pin_removed received: #{event&.data&.keys}. Handler will be implemented in PR G1." }
-    nil
+    broadcast_conversation_pin(event, CONVERSATION_PIN_REMOVED)
   end
 
   private
+
+  # PR G1 — shared payload for both pin_added and pin_removed.
+  def broadcast_conversation_pin(event, event_name)
+    conversation = event.data[:conversation]
+    return if conversation.blank?
+
+    account = conversation.account
+    tokens = user_tokens(account, conversation.inbox.members)
+
+    payload = {
+      conversation: { id: conversation.display_id },
+      message_id: event.data[:message_id],
+      pinned_message_ids: event.data[:pinned_message_ids] || Messages::PinService.pinned_ids(conversation)
+    }
+
+    broadcast(account, tokens, event_name, payload)
+  end
 
   def account_token(account)
     "account_#{account.id}"

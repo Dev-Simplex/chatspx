@@ -153,6 +153,9 @@ Rails.application.routes.draw do
                 member do
                   post :translate
                   post :retry
+                  # PR G1 — coletivo pin (cap 3) em conversations.additional_attributes.pinned_message_ids
+                  post :pin, to: 'messages/pin#create'
+                  delete :pin, to: 'messages/pin#destroy'
                 end
                 collection do
                   post :share_location
