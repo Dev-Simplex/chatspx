@@ -155,6 +155,96 @@ RSpec.describe Attachment do
     end
   end
 
+  describe 'push_event_data contact_card parsing' do
+    let(:contact_message) { create(:message) }
+
+    it 'returns contact_card payload when file_type is contact and meta is present' do
+      attachment = contact_message.attachments.create!(
+        account_id: contact_message.account_id,
+        file_type: :contact,
+        fallback_title: '+1234567890',
+        meta: {
+          name: 'John Doe',
+          phones: [
+            { number: '+1234567890', label: 'mobile' },
+            { number: '+0987654321', label: 'work' }
+          ],
+          emails: [
+            { address: 'john@example.com', label: 'home' }
+          ]
+        }
+      )
+
+      event_data = attachment.push_event_data
+      expect(event_data).to have_key(:contact_card)
+      expect(event_data[:contact_card][:name]).to eq('John Doe')
+      expect(event_data[:contact_card][:phones]).to eq([
+                                                         { number: '+1234567890', label: 'mobile' },
+                                                         { number: '+0987654321', label: 'work' }
+                                                       ])
+      expect(event_data[:contact_card][:emails]).to eq([
+                                                         { address: 'john@example.com', label: 'home' }
+                                                       ])
+    end
+
+    it 'returns empty arrays when phones or emails are absent in meta' do
+      attachment = contact_message.attachments.create!(
+        account_id: contact_message.account_id,
+        file_type: :contact,
+        fallback_title: '+1234567890',
+        meta: { name: 'Jane' }
+      )
+
+      event_data = attachment.push_event_data
+      expect(event_data[:contact_card][:name]).to eq('Jane')
+      expect(event_data[:contact_card][:phones]).to eq([])
+      expect(event_data[:contact_card][:emails]).to eq([])
+    end
+
+    it 'omits contact_card key when meta is absent for a contact attachment' do
+      attachment = contact_message.attachments.create!(
+        account_id: contact_message.account_id,
+        file_type: :contact,
+        fallback_title: '+1234567890'
+      )
+
+      expect(attachment.push_event_data).not_to have_key(:contact_card)
+    end
+
+    it 'does not include contact_card for non-contact file types even when meta is present' do
+      attachment = contact_message.attachments.new(
+        account_id: contact_message.account_id,
+        file_type: :image,
+        meta: { name: 'Should not appear', phones: [{ number: '+1', label: 'mobile' }] }
+      )
+      attachment.file.attach(
+        io: Rails.root.join('spec/assets/avatar.png').open,
+        filename: 'avatar.png',
+        content_type: 'image/png'
+      )
+      attachment.save!
+
+      expect(attachment.push_event_data).not_to have_key(:contact_card)
+    end
+
+    it 'exposes vcard_url when a vcf file is attached to a contact attachment' do
+      attachment = contact_message.attachments.new(
+        account_id: contact_message.account_id,
+        file_type: :contact,
+        fallback_title: '+1234567890',
+        meta: { name: 'Alice', phones: [{ number: '+5511999999999', label: 'mobile' }] }
+      )
+      attachment.file.attach(
+        io: StringIO.new('BEGIN:VCARD\nVERSION:3.0\nFN:Alice\nEND:VCARD'),
+        filename: 'alice.vcf',
+        content_type: 'text/vcard'
+      )
+      attachment.save!
+
+      expect(attachment.push_event_data[:contact_card][:vcard_url]).to be_present
+    end
+  end
+
   describe 'push_event_data for ig_reel attachments' do
     it 'returns external_url as data_url when no file is attached' do
       attachment = message.attachments.create!(
