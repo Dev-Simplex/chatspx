@@ -240,6 +240,14 @@ class Conversation < ApplicationRecord
     dispatcher_dispatch(CONVERSATION_UPDATED, previous_changes)
   end
 
+  # Per-user settings stored in additional_attributes.user_settings.{user_id}.
+  # Namespace introduced em PR B4 (jsonb additivo). Webapp Vue ignora este nó.
+  def user_setting_for(user_id)
+    return {} if user_id.blank?
+
+    (additional_attributes || {}).dig('user_settings', user_id.to_s) || {}
+  end
+
   def mark_as_unread!
     last_incoming_message = messages.incoming.last
     last_seen_at = last_incoming_message.present? ? (last_incoming_message.created_at - 1.second) : nil

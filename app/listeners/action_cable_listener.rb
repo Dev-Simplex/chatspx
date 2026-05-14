@@ -191,11 +191,26 @@ class ActionCableListener < BaseListener # rubocop:disable Metrics/ClassLength
     nil
   end
 
+  # PR B4 — broadcasts the updated user_settings node only to the owning user's tokens.
+  # Other agents do NOT receive this event (per-user privacy: pinned/archived/muted/theme).
   def conversation_user_setting_changed(event)
-    Rails.logger.debug do
-      "[PR B7 stub] conversation_user_setting_changed received: #{event&.data&.keys}. Handler will be implemented in PR B4."
-    end
-    nil
+    conversation = event.data[:conversation]
+    user_id = event.data[:user_id]
+    return if conversation.blank? || user_id.blank?
+
+    user = User.find_by(id: user_id)
+    return if user.blank?
+
+    account = conversation.account
+    tokens = [user.pubsub_token].compact
+
+    payload = {
+      conversation: { id: conversation.display_id },
+      user_id: user.id,
+      user_settings: conversation.user_setting_for(user_id)
+    }
+
+    broadcast(account, tokens, CONVERSATION_USER_SETTING_CHANGED, payload)
   end
 
   def conversation_pin_added(event)
