@@ -177,6 +177,37 @@ class ActionCableListener < BaseListener # rubocop:disable Metrics/ClassLength
     broadcast(account, [user.pubsub_token], CONVERSATION_MENTIONED, conversation.push_event_data)
   end
 
+  # PR B7 — Scaffolding stubs (no-op). Implementacao real em PR B1, B4 e G1.
+  # Mantem ActionCableListener pronto para receber os eventos sem broadcasts ate
+  # que a logica seja conectada. Webapp Vue nao recebe novos eventos enquanto
+  # estes handlers permanecerem inertes.
+  def message_reaction_added(event)
+    Rails.logger.debug { "[PR B7 stub] message_reaction_added received: #{event&.data&.keys}. Handler will be implemented in PR B1." }
+    nil
+  end
+
+  def message_reaction_removed(event)
+    Rails.logger.debug { "[PR B7 stub] message_reaction_removed received: #{event&.data&.keys}. Handler will be implemented in PR B1." }
+    nil
+  end
+
+  def conversation_user_setting_changed(event)
+    Rails.logger.debug do
+      "[PR B7 stub] conversation_user_setting_changed received: #{event&.data&.keys}. Handler will be implemented in PR B4."
+    end
+    nil
+  end
+
+  def conversation_pin_added(event)
+    Rails.logger.debug { "[PR B7 stub] conversation_pin_added received: #{event&.data&.keys}. Handler will be implemented in PR G1." }
+    nil
+  end
+
+  def conversation_pin_removed(event)
+    Rails.logger.debug { "[PR B7 stub] conversation_pin_removed received: #{event&.data&.keys}. Handler will be implemented in PR G1." }
+    nil
+  end
+
   private
 
   def account_token(account)
