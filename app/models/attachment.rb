@@ -156,7 +156,7 @@ class Attachment < ApplicationRecord
 
   def contact_metadata
     # Defensive defaults — same rationale as location_metadata.
-    {
+    data = {
       fallback_title: fallback_title.to_s,
       meta: meta || {},
       data_url: '',
@@ -164,6 +164,29 @@ class Attachment < ApplicationRecord
       extension: 'vcf',
       file_size: 0
     }
+    data[:contact_card] = build_contact_card if meta.present?
+    data
+  end
+
+  def build_contact_card
+    {
+      name: meta['name'],
+      phones: parse_contact_phones(meta['phones']),
+      emails: parse_contact_emails(meta['emails']),
+      vcard_url: file.attached? ? file_url : nil
+    }
+  end
+
+  def parse_contact_phones(raw)
+    return [] unless raw.is_a?(Array)
+
+    raw.map { |p| { number: p['number'], label: p['label'] } }
+  end
+
+  def parse_contact_emails(raw)
+    return [] unless raw.is_a?(Array)
+
+    raw.map { |e| { address: e['address'], label: e['label'] } }
   end
 
   def should_validate_file?
