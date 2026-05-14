@@ -31,6 +31,10 @@ module Events::Types
   CONVERSATION_TYPING_ON = 'conversation.typing_on'
   CONVERSATION_TYPING_OFF = 'conversation.typing_off'
   CONVERSATION_MENTIONED = 'conversation.mentioned'
+  # conversation events (PR B7) — handlers implementados em B4 e G1
+  CONVERSATION_USER_SETTING_CHANGED = 'conversation.user_setting_changed'
+  CONVERSATION_PIN_ADDED = 'conversation.pin_added'
+  CONVERSATION_PIN_REMOVED = 'conversation.pin_removed'
 
   # message events
   MESSAGE_CREATED = 'message.created'
@@ -38,6 +42,9 @@ module Events::Types
   FIRST_REPLY_AFTER_ASSIGNMENT_CREATED = 'first.reply.after_assignment.created'
   REPLY_CREATED = 'reply.created'
   MESSAGE_UPDATED = 'message.updated'
+  # message events (PR B7) — handlers implementados em B1
+  MESSAGE_REACTION_ADDED = 'message.reaction_added'
+  MESSAGE_REACTION_REMOVED = 'message.reaction_removed'
 
   # contact events
   CONTACT_CREATED = 'contact.created'
