@@ -153,14 +153,16 @@ Rails.application.routes.draw do
                 member do
                   post :translate
                   post :retry
-                  post :star
                 end
                 collection do
                   post :share_location
                   post :share_contact
                 end
                 scope module: :messages do
-                  resource :reactions, only: [:create]
+                  # PR B1 — persisted reactions (index/create/destroy). Plural `resources`
+                  # so each reaction has its own id for destroy.
+                  resources :reactions, only: [:index, :create, :destroy]
+                  resource :star, only: [:create, :destroy]
                 end
               end
               resources :assignments, only: [:create]

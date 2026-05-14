@@ -30,9 +30,18 @@ class MessageFinder
   end
 
   def messages
-    return conversation_messages if @params[:filter_internal_messages].blank?
+    scope = conversation_messages
+    scope = scope.where.not('private = ? OR message_type = ?', true, 2) if @params[:filter_internal_messages].present?
+    scope = scope.where(starred: true) if starred_filter?
+    scope
+  end
 
-    conversation_messages.where.not('private = ? OR message_type = ?', true, 2)
+  # Accepts boolean-ish values: true / "true" / "1". Anything else is ignored
+  # (the filter is opt-in; absence means "return everything").
+  def starred_filter?
+    return false if @params[:starred].nil?
+
+    ActiveModel::Type::Boolean.new.cast(@params[:starred])
   end
 
   def current_messages

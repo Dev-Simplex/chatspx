@@ -126,10 +126,13 @@ class MessageApi extends ApiClient {
     );
   }
 
-  toggleStar(conversationId, messageId) {
-    return axios.post(
-      `${this.url}/${conversationId}/messages/${messageId}/star`
-    );
+  // PR B3 — the toggle endpoint was split into explicit POST (star) /
+  // DELETE (unstar) verbs for idempotency on the mobile client. The Vue
+  // UI keeps a single "toggle" semantic by picking the verb based on the
+  // caller's known current state.
+  toggleStar(conversationId, messageId, currentlyStarred = false) {
+    const url = `${this.url}/${conversationId}/messages/${messageId}/star`;
+    return currentlyStarred ? axios.delete(url) : axios.post(url);
   }
 
   getPreviousMessages({
