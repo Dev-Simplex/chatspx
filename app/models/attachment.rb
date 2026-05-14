@@ -43,6 +43,7 @@ class Attachment < ApplicationRecord
                     :contact => 8, :ig_reel => 9, :ig_post => 10, :ig_story => 11, :embed => 12 }
 
   after_create_commit :schedule_audio_transcription
+  after_create_commit :schedule_waveform_generation
 
   def push_event_data
     return unless file_type
@@ -103,11 +104,12 @@ class Attachment < ApplicationRecord
 
   def audio_metadata
     audio_file_data = base_data.merge(file_metadata)
-    audio_file_data.merge(
-      {
-        transcribed_text: meta&.[]('transcribed_text') || ''
-      }
-    )
+    audio_file_data.merge!(transcribed_text: meta&.[]('transcribed_text') || '')
+
+    peaks = meta&.[]('waveform_peaks')
+    audio_file_data[:waveform_peaks] = peaks if peaks.is_a?(Array) && peaks.any?
+
+    audio_file_data
   end
 
   def file_metadata
@@ -204,6 +206,14 @@ class Attachment < ApplicationRecord
     AudioTranscriptionJob.perform_later(id)
   rescue StandardError => e
     Rails.logger.warn("[Attachment#schedule_audio_transcription] #{e.class}: #{e.message}")
+  end
+
+  def schedule_waveform_generation
+    return unless file_type.to_s == 'audio'
+
+    Audio::WaveformGenerationJob.perform_later(id)
+  rescue StandardError => e
+    Rails.logger.warn("[Attachment#schedule_waveform_generation] #{e.class}: #{e.message}")
   end
 end
 

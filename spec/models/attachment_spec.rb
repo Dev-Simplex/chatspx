@@ -187,6 +187,94 @@ RSpec.describe Attachment do
     end
   end
 
+  describe 'audio waveform generation' do
+    let(:audio_message) { create(:message) }
+
+    before do
+      allow(AudioTranscriptionJob).to receive(:perform_later)
+      allow(Audio::WaveformGenerationJob).to receive(:perform_later)
+    end
+
+    it 'enqueues Audio::WaveformGenerationJob after creating an audio attachment' do
+      attachment = audio_message.attachments.new(account_id: audio_message.account_id, file_type: :audio)
+      attachment.file.attach(
+        io: Rails.root.join('spec/assets/sample.mp3').open,
+        filename: 'sample.mp3',
+        content_type: 'audio/mpeg'
+      )
+      attachment.save!
+
+      expect(Audio::WaveformGenerationJob).to have_received(:perform_later).with(attachment.id)
+    end
+
+    it 'does not enqueue Audio::WaveformGenerationJob for non-audio attachments' do
+      attachment = audio_message.attachments.new(account_id: audio_message.account_id, file_type: :image)
+      attachment.file.attach(
+        io: Rails.root.join('spec/assets/avatar.png').open,
+        filename: 'avatar.png',
+        content_type: 'image/png'
+      )
+      attachment.save!
+
+      expect(Audio::WaveformGenerationJob).not_to have_received(:perform_later)
+    end
+
+    it 'swallows enqueue failures and logs a warning' do
+      allow(Audio::WaveformGenerationJob).to receive(:perform_later).and_raise(StandardError, 'redis down')
+      expect(Rails.logger).to receive(:warn).with(/schedule_waveform_generation/).at_least(:once)
+
+      attachment = audio_message.attachments.new(account_id: audio_message.account_id, file_type: :audio)
+      attachment.file.attach(
+        io: Rails.root.join('spec/assets/sample.mp3').open,
+        filename: 'sample.mp3',
+        content_type: 'audio/mpeg'
+      )
+      expect { attachment.save! }.not_to raise_error
+    end
+
+    describe 'push_event_data with waveform peaks' do
+      let(:peaks) { Array.new(64) { |i| (i / 63.0).round(4) } }
+
+      it 'exposes waveform_peaks when present in meta' do
+        attachment = audio_message.attachments.new(account_id: audio_message.account_id, file_type: :audio)
+        attachment.file.attach(
+          io: Rails.root.join('spec/assets/sample.mp3').open,
+          filename: 'sample.mp3',
+          content_type: 'audio/mpeg'
+        )
+        attachment.save!
+        attachment.update_column(:meta, { 'waveform_peaks' => peaks }) # rubocop:disable Rails/SkipsModelValidations
+
+        expect(attachment.reload.push_event_data[:waveform_peaks]).to eq(peaks)
+      end
+
+      it 'omits waveform_peaks when meta has no peaks' do
+        attachment = audio_message.attachments.new(account_id: audio_message.account_id, file_type: :audio)
+        attachment.file.attach(
+          io: Rails.root.join('spec/assets/sample.mp3').open,
+          filename: 'sample.mp3',
+          content_type: 'audio/mpeg'
+        )
+        attachment.save!
+
+        expect(attachment.push_event_data).not_to have_key(:waveform_peaks)
+      end
+
+      it 'omits waveform_peaks when meta key is an empty array' do
+        attachment = audio_message.attachments.new(account_id: audio_message.account_id, file_type: :audio)
+        attachment.file.attach(
+          io: Rails.root.join('spec/assets/sample.mp3').open,
+          filename: 'sample.mp3',
+          content_type: 'audio/mpeg'
+        )
+        attachment.save!
+        attachment.update_column(:meta, { 'waveform_peaks' => [] }) # rubocop:disable Rails/SkipsModelValidations
+
+        expect(attachment.reload.push_event_data).not_to have_key(:waveform_peaks)
+      end
+    end
+  end
+
   describe 'file size validation' do
     let(:attachment) { message.attachments.new(account_id: message.account_id, file_type: :image) }
 
