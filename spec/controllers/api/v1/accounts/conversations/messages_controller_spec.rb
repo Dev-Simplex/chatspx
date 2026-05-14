@@ -396,6 +396,60 @@ RSpec.describe 'Conversation Messages API', type: :request do
         expect(JSON.parse(response.body, symbolize_names: true)[:meta][:contact][:id]).to eq(conversation.contact_id)
       end
 
+      # PR 0.1 — hardening: garante que os campos `starred`, `forwarded`,
+      # `forwarded_from_message_id` e `additional_attributes` chegam ao
+      # cliente REST. Eles já eram enviados via ActionCable
+      # (Message#push_event_data), mas o jbuilder não os expunha — o que
+      # quebrava o cold-start de clientes mobile que dependem do GET.
+      context 'when serializing message payload (PR 0.1 hardening)' do
+        let!(:plain_message) do
+          create(:message, account: account, inbox: conversation.inbox, conversation: conversation)
+        end
+
+        let!(:starred_forwarded_message) do
+          source = create(:message, account: account, inbox: conversation.inbox, conversation: conversation)
+          create(
+            :message,
+            account: account,
+            inbox: conversation.inbox,
+            conversation: conversation,
+            starred: true,
+            forwarded: true,
+            forwarded_from_message_id: source.id,
+            additional_attributes: { 'location' => { 'address' => 'Av. Brasil, 1000' } }
+          )
+        end
+
+        def fetch_message(id)
+          get "/api/v1/accounts/#{account.id}/conversations/#{conversation.display_id}/messages",
+              headers: agent.create_new_auth_token,
+              as: :json
+          response.parsed_body['payload'].find { |m| m['id'] == id }
+        end
+
+        it 'serializes defaults (starred=false, forwarded=false, forwarded_from=nil) on a plain message' do
+          payload = fetch_message(plain_message.id)
+
+          expect(payload).to include(
+            'starred' => false,
+            'forwarded' => false,
+            'forwarded_from_message_id' => nil
+          )
+          expect(payload).to have_key('additional_attributes')
+        end
+
+        it 'serializes truthy starred/forwarded plus forwarded_from_message_id and additional_attributes' do
+          payload = fetch_message(starred_forwarded_message.id)
+
+          expect(payload['starred']).to be(true)
+          expect(payload['forwarded']).to be(true)
+          expect(payload['forwarded_from_message_id']).to eq(starred_forwarded_message.forwarded_from_message_id)
+          expect(payload['additional_attributes']).to eq(
+            'location' => { 'address' => 'Av. Brasil, 1000' }
+          )
+        end
+      end
+
       context 'with cursor pagination params' do
         before do
           create_list(
