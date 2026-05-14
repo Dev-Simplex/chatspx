@@ -98,17 +98,6 @@ class Api::V1::Accounts::Conversations::MessagesController < Api::V1::Accounts::
     render json: { content: translated_content }
   end
 
-  def star
-    message.update!(starred: !message.starred?)
-    Rails.configuration.dispatcher.dispatch(
-      ::Events::Types::MESSAGE_UPDATED,
-      Time.zone.now,
-      message: message,
-      performed_by: Current.user
-    )
-    render json: { starred: message.starred }
-  end
-
   def share_location # rubocop:disable Metrics/AbcSize, Metrics/MethodLength
     latitude = location_params[:latitude].to_f
     longitude = location_params[:longitude].to_f
