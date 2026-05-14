@@ -25,6 +25,7 @@ class MessageFinder
                  .includes(
                    { attachments: [{ file_attachment: [:blob] }] },
                    :sender,
+                   :reactions,
                    sender: { avatar_attachment: [:blob] }
                  )
   end

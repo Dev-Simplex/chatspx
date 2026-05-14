@@ -273,4 +273,59 @@ describe ActionCableListener do
       listener.conversation_user_setting_changed(missing_event)
     end
   end
+
+  # PR B1 — emoji reactions are broadcast to the same audience as message.updated
+  # (inbox members, account admins and the contact for non-private messages).
+  describe '#message_reaction_added' do
+    let(:event_name) { :'message.reaction_added' }
+    let!(:message) { create(:message, account: account, inbox: inbox, conversation: conversation, message_type: 'outgoing') }
+    let!(:reaction) { create(:message_reaction, message: message, account: account, reactor: agent, emoji: '👍') }
+    let!(:event) { Events::Base.new(event_name, Time.zone.now, message: message, reaction: reaction) }
+
+    it 'broadcasts MESSAGE_REACTION_ADDED to inbox members, admins and the contact' do
+      expect(conversation.inbox.reload.inbox_members.count).to eq(1)
+
+      expect(ActionCableBroadcastJob).to receive(:perform_later).with(
+        a_collection_containing_exactly(
+          agent.pubsub_token, admin.pubsub_token, conversation.contact_inbox.pubsub_token
+        ),
+        'message.reaction_added',
+        hash_including(
+          message_id: message.id,
+          conversation_id: conversation.display_id,
+          reaction: reaction.push_event_data,
+          account_id: account.id
+        )
+      )
+      listener.message_reaction_added(event)
+    end
+  end
+
+  describe '#message_reaction_removed' do
+    let(:event_name) { :'message.reaction_removed' }
+    let!(:message) { create(:message, account: account, inbox: inbox, conversation: conversation, message_type: 'outgoing') }
+    let!(:reaction) { create(:message_reaction, message: message, account: account, reactor: agent, emoji: '👍') }
+    let!(:event) { Events::Base.new(event_name, Time.zone.now, message: message, reaction: reaction) }
+
+    it 'broadcasts MESSAGE_REACTION_REMOVED with reaction_id and emoji' do
+      expect(conversation.inbox.reload.inbox_members.count).to eq(1)
+
+      expect(ActionCableBroadcastJob).to receive(:perform_later).with(
+        a_collection_containing_exactly(
+          agent.pubsub_token, admin.pubsub_token, conversation.contact_inbox.pubsub_token
+        ),
+        'message.reaction_removed',
+        hash_including(
+          message_id: message.id,
+          conversation_id: conversation.display_id,
+          reaction_id: reaction.id,
+          emoji: '👍',
+          user_id: agent.id,
+          user_type: 'User',
+          account_id: account.id
+        )
+      )
+      listener.message_reaction_removed(event)
+    end
+  end
 end

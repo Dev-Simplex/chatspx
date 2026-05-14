@@ -21,5 +21,7 @@ json.starred message.starred?
 # environments where the AddForwardedToMessages migration has not run yet.
 json.forwarded message.forwarded if message.has_attribute?(:forwarded)
 json.forwarded_from_message_id message.forwarded_from_message_id if message.has_attribute?(:forwarded_from_message_id)
-# Reactions — DEIXAR COMENTADO (só descomentar em PR B1):
-# json.reactions message.reactions.group_by(&:emoji).transform_values(&:count) if message.respond_to?(:reactions)
+# PR B1 — Reactions: aggregated `{emoji => count}` map exposed to the panel/mobile.
+# `respond_to?(:reactions)` keeps the partial resilient if the association is
+# ever removed (defensive — mirrors the pattern for forwarded fields above).
+json.reactions message.reactions.group_by(&:emoji).transform_values(&:count) if message.respond_to?(:reactions)
