@@ -24,13 +24,36 @@ class Captain::Behavior::RouterService
   end
 
   def contact_phone_allowed?
-    allowed = Array(@config['only_contact_phones']).compact_blank.map { |p| normalize_phone(p) }
-    contact_phone = normalize_phone(@conversation.contact&.phone_number)
-    contact_phone.present? && allowed.include?(contact_phone)
+    allowed_variations = Array(@config['only_contact_phones']).compact_blank.flat_map { |p| phone_variations(p) }.uniq
+    contact_variations = candidate_contact_phones.flat_map { |p| phone_variations(p) }.uniq
+    contact_variations.intersect?(allowed_variations)
   end
 
-  def normalize_phone(value)
-    value.to_s.gsub(/\D/, '')
+  # Telefones a tentar match: contact.phone_number e o JID puro do WAHA (sem @c.us)
+  # se a inbox for WAHA. O JID canônico não tem o "9 a mais" do celular brasileiro,
+  # enquanto phone_number pode ter — então olhamos os dois.
+  def candidate_contact_phones
+    contact = @conversation.contact
+    return [] unless contact
+    jid = contact.custom_attributes&.dig('waha_whatsapp_jid').to_s.split('@').first
+    [contact.phone_number, jid].compact_blank
+  end
+
+  # Para números brasileiros (DDI 55), gera as duas formas — com o "9 a mais" do
+  # celular e sem — para que a comparação seja robusta a como o WAHA, o operador
+  # ou o usuário tenham digitado o número.
+  def phone_variations(value)
+    digits = value.to_s.gsub(/\D/, '')
+    return [digits] if digits.blank?
+    return [digits] unless digits.start_with?('55') && [12, 13].include?(digits.length)
+
+    prefix = digits[0, 4] # "55" + DDD
+    rest = digits[4..]    # "996247866" (com 9) ou "96247866" (sem 9)
+    return [digits] if rest.blank?
+
+    with_9 = rest.start_with?('9') && rest.length == 9 ? digits : "#{prefix}9#{rest}"
+    without_9 = rest.start_with?('9') && rest.length == 9 ? "#{prefix}#{rest[1..]}" : digits
+    [with_9, without_9].uniq
   end
 
   def skip_labels?
