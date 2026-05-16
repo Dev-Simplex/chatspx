@@ -39,21 +39,26 @@ class Captain::Behavior::RouterService
     [contact.phone_number, jid].compact_blank
   end
 
-  # Para números brasileiros (DDI 55), gera as duas formas — com o "9 a mais" do
-  # celular e sem — para que a comparação seja robusta a como o WAHA, o operador
-  # ou o usuário tenham digitado o número.
+  # Para números brasileiros gera variações cobrindo: com/sem DDI 55, com/sem o
+  # "9 a mais" do celular pós-2012. Cobre o WAHA (que historicamente persiste
+  # JID sem o 9), o phone_number do contato (que o WAHA já tenha normalizado pro
+  # formato novo), e operadores digitando à mão sem DDI.
   def phone_variations(value)
     digits = value.to_s.gsub(/\D/, '')
     return [digits] if digits.blank?
-    return [digits] unless digits.start_with?('55') && [12, 13].include?(digits.length)
 
-    prefix = digits[0, 4] # "55" + DDD
-    rest = digits[4..]    # "996247866" (com 9) ou "96247866" (sem 9)
+    br_with_ddi = digits.start_with?('55') && [12, 13].include?(digits.length)
+    br_no_ddi   = !digits.start_with?('55') && [10, 11].include?(digits.length)
+    return [digits] unless br_with_ddi || br_no_ddi
+
+    with_ddi = br_with_ddi ? digits : "55#{digits}"
+    prefix = with_ddi[0, 4] # "55" + DDD
+    rest = with_ddi[4..]    # número local (8 ou 9 dígitos)
     return [digits] if rest.blank?
 
-    with_9 = rest.start_with?('9') && rest.length == 9 ? digits : "#{prefix}9#{rest}"
-    without_9 = rest.start_with?('9') && rest.length == 9 ? "#{prefix}#{rest[1..]}" : digits
-    [with_9, without_9].uniq
+    with_9 = rest.start_with?('9') && rest.length == 9 ? with_ddi : "#{prefix}9#{rest}"
+    without_9 = rest.start_with?('9') && rest.length == 9 ? "#{prefix}#{rest[1..]}" : with_ddi
+    [with_ddi, with_9, without_9].uniq
   end
 
   def skip_labels?
