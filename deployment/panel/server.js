@@ -53,6 +53,7 @@ const VMS = [
   { id: 'sentinela', name: 'SENTINELA', ip: '54.166.220.138', user: 'ubuntu', type: 'key', active: true, label: 'AWS EC2' },
   { id: 'tozi', name: 'TOZI', ip: '54.91.152.38', user: 'ubuntu', type: 'key', active: false, label: 'AWS EC2' },
   { id: 'alternativo', name: 'ALTERNATIVO', ip: '192.168.8.169', user: 'simplexia', type: 'password', active: true, label: 'Proxmox' },
+  { id: 'paulao', name: 'PAULAO', ip: '192.168.8.100', user: 'paulo', type: 'password', active: true, label: 'Sandbox', password: 'master123', fixedBranch: 'paulao' },
 ];
 
 const BRANCHES = ['producao', 'homologacao', 'develop'];
@@ -98,8 +99,12 @@ VMS.forEach(vm => {
 function getSSHConfig(vm) {
   const config = { host: vm.ip, port: 22, username: vm.user, readyTimeout: 10000, keepaliveInterval: 5000 };
   if (vm.type === 'key') config.privateKey = SSH_KEY;
-  else config.password = SSH_PASSWORD;
+  else config.password = vm.password || SSH_PASSWORD;
   return config;
+}
+
+function vmPassword(vm) {
+  return vm.password || SSH_PASSWORD;
 }
 
 function sshExec(vm, command, timeout = 15000) {
@@ -140,7 +145,7 @@ function sshExecStream(vm, command, onData, onDone) {
 // ============================================================
 
 function buildMetricsCmd(vm) {
-  const s = vm.type === 'password' ? `echo '${SSH_PASSWORD}' | sudo -S` : 'sudo';
+  const s = vm.type === 'password' ? `echo '${vmPassword(vm)}' | sudo -S` : 'sudo';
   return [
     'echo SPX_START',
     `printf 'SPX_CPU=%s\\n' "$(LC_ALL=C top -bn1 | grep 'Cpu(s)' | awk '{printf \"%.0f\", 100-$8}')"`,
@@ -241,14 +246,17 @@ async function checkAllVMs() {
 }
 
 function getPayload() {
-  return VMS.map(vm => ({
-    ...vm,
-    status: vmStatus[vm.id],
-    heartbeat: heartbeats[vm.id],
-    uptimePercent: getUptimePercent(vm.id),
-    deploying: deployLocks.has(vm.id),
-    actionRunning: actionLocks.has(vm.id),
-  }));
+  return VMS.map(vm => {
+    const { password, ...safe } = vm;
+    return {
+      ...safe,
+      status: vmStatus[vm.id],
+      heartbeat: heartbeats[vm.id],
+      uptimePercent: getUptimePercent(vm.id),
+      deploying: deployLocks.has(vm.id),
+      actionRunning: actionLocks.has(vm.id),
+    };
+  });
 }
 
 // ============================================================
@@ -268,7 +276,7 @@ function deployVM(vm, branch, socket) {
     socket.emit('deploy:log', { vmId: vm.id, data: `[${ts()}] [${vm.name}] Iniciando deploy (branch: ${branch})...\n` });
 
     // Deploy: git pull + bundle + pnpm + assets + migrate + restart
-    const s = vm.type === 'password' ? `echo '${SSH_PASSWORD}' | sudo -S` : 'sudo';
+    const s = vm.type === 'password' ? `echo '${vmPassword(vm)}' | sudo -S` : 'sudo';
     const cmd = [
       `echo '=== ETAPA: Atualizando codigo ==='`,
       `${s} -i -u chatwoot bash -c 'cd ~/chatwoot && git stash -q 2>/dev/null; git fetch origin && git checkout ${branch} && (git pull origin ${branch} || git reset --hard origin/${branch})'`,
@@ -313,7 +321,7 @@ function restartService(vm, service, socket) {
   if (actionLocks.has(lockKey)) return;
   actionLocks.set(lockKey, true);
 
-  const s = vm.type === 'password' ? `echo '${SSH_PASSWORD}' | sudo -S` : 'sudo';
+  const s = vm.type === 'password' ? `echo '${vmPassword(vm)}' | sudo -S` : 'sudo';
   const cmd = `${s} systemctl restart ${service}`;
   const ts = () => new Date().toLocaleTimeString('pt-BR');
 
@@ -336,7 +344,7 @@ function restartService(vm, service, socket) {
 }
 
 function viewLogs(vm, service, socket) {
-  const s = vm.type === 'password' ? `echo '${SSH_PASSWORD}' | sudo -S` : 'sudo';
+  const s = vm.type === 'password' ? `echo '${vmPassword(vm)}' | sudo -S` : 'sudo';
   const cmd = `${s} journalctl -u ${service} --no-pager -n 80 --output=short-iso`;
 
   socket.emit('logs:start', { vmId: vm.id, service });
@@ -386,7 +394,13 @@ io.on('connection', socket => {
     const selected = VMS.filter(v => vmIds.includes(v.id) && v.active);
     if (!selected.length) return;
     socket.emit('deploy:start', { vmIds: selected.map(v => v.id), branch });
-    for (const vm of selected) await deployVM(vm, branch, socket);
+    for (const vm of selected) {
+      const effectiveBranch = vm.fixedBranch || branch;
+      if (vm.fixedBranch && vm.fixedBranch !== branch) {
+        socket.emit('deploy:log', { vmId: vm.id, data: `[INFO] ${vm.name} usa branch fixa "${vm.fixedBranch}" (selecao "${branch}" ignorada para esta VM)\n` });
+      }
+      await deployVM(vm, effectiveBranch, socket);
+    }
     socket.emit('deploy:allDone');
   });
 
