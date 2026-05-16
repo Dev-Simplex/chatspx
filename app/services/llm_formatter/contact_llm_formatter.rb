@@ -11,6 +11,8 @@ class LlmFormatter::ContactLlmFormatter < LlmFormatter::DefaultLlmFormatter
                   'No notes for this contact'
                 end
 
+    sections << build_conversation_history
+
     sections.join("\n")
   end
 
@@ -18,6 +20,16 @@ class LlmFormatter::ContactLlmFormatter < LlmFormatter::DefaultLlmFormatter
 
   def build_notes
     @record.notes.all.map { |note| " - #{note.content}" }.join("\n")
+  end
+
+  def build_conversation_history
+    conversations = @record.conversations.order(created_at: :desc).limit(10)
+    return 'Conversation History: No previous conversations' if conversations.empty?
+
+    lines = conversations.map do |conv|
+      "- Conv ##{conv.display_id}: #{conv.status} (#{conv.created_at.strftime('%Y-%m-%d')}) - #{conv.messages.count} messages"
+    end
+    "Conversation History (last #{conversations.size}):\n#{lines.join("\n")}"
   end
 
   def build_attributes

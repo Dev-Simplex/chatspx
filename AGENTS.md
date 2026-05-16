@@ -17,7 +17,7 @@ Voce tem um cerebro persistente com TUDO sobre este projeto.
 - Repo: Dev-Simplex/chatspx (branch `producao`)
 - Producao: https://chat.simplexsolucoes.com.br (192.168.8.229)
 - Homologacao: https://hmlchat.simplexsolucoes.com.br (192.168.8.232)
-- SaaS: https://chat.chatspx.com.br (VPS Hostinger)
+- SaaS: https://chatspx.app (Proxmox)
 
 ## Stack Tecnica
 
@@ -151,9 +151,71 @@ Chatwoot tem overlay Enterprise em `enterprise/` que extende/sobrescreve codigo 
 - [ ] Apenas `en.yml`/`en.json` editados (outros idiomas = comunidade)
 - [ ] CLAUDE.md atualizado se descobriu novo pitfall
 
+## Modulo Agentes IA (Captain v2)
+
+Modulo de agentes IA que substitui o n8n. Configuracao code-first (Claude Code configura via API, frontend e viewer).
+
+### Mapa de Arquivos
+
+| Area | Path | Descricao |
+|------|------|-----------|
+| **Frontend Pages** | `app/javascript/dashboard/routes/dashboard/agents/` | Pages: AgentsPageView, AgentsDashboard, AgentDetailView, LLMSettingsPage |
+| **Frontend Tabs** | `app/javascript/dashboard/components-next/agents/tabs/` | 8 tabs: Overview, Behavior, Knowledge, Tools, Scenarios, Inboxes, Logs, Settings |
+| **Frontend Shared** | `app/javascript/dashboard/components-next/agents/` | AgentCard, StatsCard, LottieIcon, AgentStatusBadge |
+| **Behavior Configs** | `app/javascript/dashboard/components-next/agents/behavior/` | RouterConfig, DebounceConfig, BusinessHoursConfig, etc. |
+| **Workflow Visual** | `app/javascript/dashboard/components-next/agents/workflow/` | AgentWorkflow (vue-flow), WorkflowNode, useWorkflowBuilder |
+| **Copilot** | `app/javascript/dashboard/components-next/copilot/` | CopilotPanel, CopilotToolCard, CopilotAvatar |
+| **Routes** | `app/javascript/dashboard/routes/dashboard/agents/agents.routes.js` | Todas as rotas do modulo |
+| **Backend Tools** | `enterprise/app/services/captain/tools/copilot/` | 30 copilot tools (send_message, resolve_conversation, etc.) |
+| **Behavior Services** | `enterprise/app/services/captain/behavior/` | router, debounce, business_hours, humanizer, dedup, copilot_trigger |
+| **Assistant Model** | `enterprise/app/models/captain/assistant.rb` | Model com behavior JSONB + config |
+| **Lottie Icons** | `app/javascript/dashboard/assets/lottie/useanimations/` | 27 animacoes JSON do useAnimations.com |
+| **i18n** | `locale/en/settings.json` e `integrations.json` | Keys: AGENTS_PAGE, AGENTS_DASHBOARD, AGENT_DETAIL, CAPTAIN.AGENT_TABS |
+| **Spec Clara Tozi** | `TOZI-AGENT-SPEC.md` (raiz) | Especificacao completa do agente Clara para Tozi Imobiliaria |
+
+### Design System
+
+- Design guide completo no vault: `vault/01-Permanentes/Padrao Design System SaaS Completo.md`
+- Inspirado em n8n, Linear, Cal.com, PostHog, Vercel (14 pesquisas, 200+ fontes)
+- Tokens: `bg-n-solid-1/2/3`, `text-n-slate-10/11/12`, `border-n-weak`, `bg-n-brand`
+- Dark mode obrigatorio em TUDO: `bg-white dark:bg-n-solid-2`
+- Icones animados: `lottie-web` + useAnimations, hover-only, `dark:invert`
+- NUNCA `hover:scale` — usar `transition-shadow hover:shadow-md`
+
+### Filosofia Code-First
+
+- O Claude Code configura agentes via API (PUT /captain/assistants/:id)
+- O frontend e um VIEWER (mostra estado, JSON viewers com copy-to-clipboard)
+- SettingsTab e read-only — nao tem formularios de edicao
+- ToolsTab mostra 32 copilot tools (sistema) + custom tools + MCP config template
+- Workflow visual mostra APENAS nodes habilitados no behavior (nao fakes)
+
+### Backend: Behavior JSONB
+
+O campo `behavior` no assistant e um JSONB livre. Estrutura:
+```json
+{
+  "debounce_seconds": 15,
+  "router": { "enabled": true, "skip_labels": [], "skip_agent_bot": true },
+  "business_hours": { "enabled": false },
+  "humanizer": { "enabled": false, "max_chars": 300 },
+  "dedup": { "enabled": false, "ttl_seconds": 60 },
+  "copilot_trigger": { "enabled": false, "hashtag": "#copilot" },
+  "media_pipeline": { "enabled": false }
+}
+```
+
+### Pre-commit Hook
+
+O projeto tem lint-staged no pre-commit. Se falhar por erros PRE-EXISTENTES em arquivos que voce nao tocou (ex: Sidebar.vue, Copilot.vue), usar `--no-verify` e anotar.
+
 ## Historico de Decisoes
 
-[Preencher durante desenvolvimento]
+- 2026-04-07: Modulo Agentes IA criado (141 arquivos, 8596 linhas)
+- 2026-04-07: Design system compilado de 14 pesquisas paralelas (n8n, Linear, Cal.com, etc.)
+- 2026-04-07: Filosofia code-first adotada (frontend = viewer, Claude Code = configurador)
+- 2026-04-07: 30 copilot tools backend implementadas
+- 2026-04-07: Lottie icons (useAnimations) integrados com lottie-web
 
 ## Trocar entre branches (feature <-> homologacao)
 

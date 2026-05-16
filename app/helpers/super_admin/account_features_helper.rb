@@ -19,7 +19,7 @@ module SuperAdmin::AccountFeaturesHelper
       feature_name = feature['name']
       hash[feature_name] =
         if feature_name == CANONICAL_CAPTAIN_FEATURE
-          'Captain'
+          'AI Agents'
         else
           feature['display_name']
         end

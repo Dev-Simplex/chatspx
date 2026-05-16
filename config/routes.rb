@@ -70,6 +70,7 @@ Rails.application.routes.draw do
               resources :inboxes, only: [:index, :create, :destroy], param: :inbox_id
               resources :scenarios
             end
+            resources :assistant_logs, only: [:index]
             resources :assistant_responses
             resources :bulk_actions, only: [:create]
             resources :copilot_threads, only: [:index, :create] do

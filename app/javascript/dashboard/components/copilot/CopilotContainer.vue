@@ -10,7 +10,7 @@ import {
 import { useI18n } from 'vue-i18n';
 import { useAlert } from 'dashboard/composables';
 import { useStore } from 'dashboard/composables/store';
-import Copilot from 'dashboard/components-next/copilot/Copilot.vue';
+import CopilotPanel from 'dashboard/components-next/copilot/CopilotPanel.vue';
 import { useMapGetter } from 'dashboard/composables/store';
 import { useUISettings } from 'dashboard/composables/useUISettings';
 import { useWindowSize } from '@vueuse/core';
@@ -339,7 +339,7 @@ onBeforeUnmount(() => {
       },
     ]"
   >
-    <Copilot
+    <CopilotPanel
       :messages="messages"
       :support-agent="currentUser"
       :conversation-inbox-type="conversationInboxType"

@@ -13,6 +13,12 @@ export const useCaptainConfigStore = defineStore('captainConfig', {
       maskedApiKey: null,
       updatedAt: null,
     },
+    anthropicConnection: {
+      provider: 'anthropic',
+      configured: false,
+      maskedApiKey: null,
+      updatedAt: null,
+    },
     uiFlags: {
       isFetching: false,
     },
@@ -23,6 +29,7 @@ export const useCaptainConfigStore = defineStore('captainConfig', {
     getModels: state => state.models,
     getFeatures: state => state.features,
     getLlmConnection: state => state.llmConnection,
+    getAnthropicConnection: state => state.anthropicConnection,
     getUIFlags: state => state.uiFlags,
     getModelsForFeature: state => featureKey => {
       const feature = state.features[featureKey];
@@ -82,6 +89,13 @@ export const useCaptainConfigStore = defineStore('captainConfig', {
           maskedApiKey: llmConnection.masked_api_key || null,
           updatedAt: llmConnection.updated_at || null,
         };
+        const anthropicConn = response.data.anthropic_connection || {};
+        this.anthropicConnection = {
+          provider: anthropicConn.provider || 'anthropic',
+          configured: Boolean(anthropicConn.configured),
+          maskedApiKey: anthropicConn.masked_api_key || null,
+          updatedAt: anthropicConn.updated_at || null,
+        };
       } catch (error) {
         // Ignore error
       } finally {
@@ -100,6 +114,13 @@ export const useCaptainConfigStore = defineStore('captainConfig', {
         configured: Boolean(llmConnection.configured),
         maskedApiKey: llmConnection.masked_api_key || null,
         updatedAt: llmConnection.updated_at || null,
+      };
+      const anthropicConn = response.data.anthropic_connection || {};
+      this.anthropicConnection = {
+        provider: anthropicConn.provider || 'anthropic',
+        configured: Boolean(anthropicConn.configured),
+        maskedApiKey: anthropicConn.masked_api_key || null,
+        updatedAt: anthropicConn.updated_at || null,
       };
     },
   },
