@@ -2,7 +2,7 @@ class Captain::AssistantLog < ApplicationRecord
   self.table_name = 'captain_assistant_logs'
 
   belongs_to :captain_assistant, class_name: 'Captain::Assistant'
-  belongs_to :conversation, optional: true
+  belongs_to :conversation, class_name: '::Conversation', optional: true
 
   EVENT_TYPES = %w[
     response debounce_skip debounce_fire router_skip business_hours_skip
