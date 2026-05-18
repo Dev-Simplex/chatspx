@@ -339,10 +339,10 @@ function collect_spx_config() {
   # SMTP (valores padrao SPX)
   configure_smtp="sim"
   cfg_mailer_sender="SPX - CHAT <sup@simplexsolucoes.com.br>"
-  cfg_smtp_domain="simplexsolucoes.com.br"
+  cfg_smtp_domain="chatspx.app"
   cfg_smtp_address="cloud55.mailgrid.net.br"
   cfg_smtp_port="587"
-  cfg_smtp_user="chatspx@simplexsolucoes.com.br"
+  cfg_smtp_user="contato@chatspx.app"
   cfg_smtp_pass="Master@1239*"
   cfg_smtp_auth="login"
   echo ""
