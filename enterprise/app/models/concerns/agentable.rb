@@ -43,7 +43,8 @@ module Concerns::Agentable
   end
 
   def agent_model
-    account&.captain_assistant_model.presence || LlmConstants::DEFAULT_MODEL
+    raw = account&.captain_assistant_model.presence || LlmConstants::DEFAULT_MODEL
+    Llm::Models.runtime_id_for(raw)
   end
 
   def agent_response_schema
