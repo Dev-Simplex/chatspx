@@ -23,6 +23,14 @@ function updateSkipLabels(event) {
     .filter(Boolean);
   updateField('skip_labels', labels);
 }
+
+function updateOnlyContactPhones(event) {
+  const phones = event.target.value
+    .split(',')
+    .map(p => p.trim())
+    .filter(Boolean);
+  updateField('only_contact_phones', phones);
+}
 </script>
 
 <template>
@@ -38,6 +46,24 @@ function updateSkipLabels(event) {
     </p>
 
     <div class="space-y-3">
+      <div>
+        <label class="mb-1 block text-xs text-n-slate-10">
+          {{ $t('CAPTAIN.BEHAVIOR.ROUTER.ONLY_CONTACT_PHONES') }}
+        </label>
+        <input
+          :value="(config.only_contact_phones || []).join(', ')"
+          type="text"
+          class="w-full rounded border border-n-weak bg-white px-2 py-1 text-sm dark:bg-n-solid-3 dark:text-n-slate-12"
+          :placeholder="
+            $t('CAPTAIN.BEHAVIOR.ROUTER.ONLY_CONTACT_PHONES_PLACEHOLDER')
+          "
+          @change="updateOnlyContactPhones"
+        />
+        <p class="mt-1 text-xs text-n-slate-10">
+          {{ $t('CAPTAIN.BEHAVIOR.ROUTER.ONLY_CONTACT_PHONES_HINT') }}
+        </p>
+      </div>
+
       <div>
         <label class="mb-1 block text-xs text-n-slate-10">
           {{ $t('CAPTAIN.BEHAVIOR.ROUTER.SKIP_LABELS') }}
@@ -58,6 +84,17 @@ function updateSkipLabels(event) {
           @change="updateField('skip_groups', $event.target.checked)"
         />
         {{ $t('CAPTAIN.BEHAVIOR.ROUTER.SKIP_GROUPS') }}
+      </label>
+
+      <label class="flex items-center gap-2 text-sm text-n-slate-12">
+        <input
+          :checked="config.skip_after_human_response"
+          type="checkbox"
+          @change="
+            updateField('skip_after_human_response', $event.target.checked)
+          "
+        />
+        {{ $t('CAPTAIN.BEHAVIOR.ROUTER.SKIP_AFTER_HUMAN_RESPONSE') }}
       </label>
 
       <label class="flex items-center gap-2 text-sm text-n-slate-12">

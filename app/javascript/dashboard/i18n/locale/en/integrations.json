@@ -1181,9 +1181,13 @@
       "ROUTER": {
         "TITLE": "Router",
         "DESCRIPTION": "Control when the agent should respond.",
+        "ONLY_CONTACT_PHONES": "Whitelist by phone number",
+        "ONLY_CONTACT_PHONES_PLACEHOLDER": "+5566996247866, +551199...",
+        "ONLY_CONTACT_PHONES_HINT": "If filled, agent only replies to messages from these phone numbers. Useful for testing on a specific contact before broad rollout. Brazilian numbers tolerate variations (with/without 9, with/without DDI).",
         "SKIP_LABELS": "Skip labels",
         "SKIP_LABELS_PLACEHOLDER": "Comma-separated labels to skip",
         "SKIP_GROUPS": "Skip group conversations",
+        "SKIP_AFTER_HUMAN_RESPONSE": "Stop after a human agent replies",
         "SKIP_ACTIVITY": "Skip activity messages",
         "SKIP_AGENT_BOT": "Skip when agent bot assigned"
       },
