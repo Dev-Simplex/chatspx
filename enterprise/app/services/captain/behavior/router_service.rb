@@ -13,6 +13,7 @@ class Captain::Behavior::RouterService
     return false if skip_labels?
     return false if skip_groups?
     return false if skip_agent_bot?
+    return false if skip_after_human_response?
 
     true
   end
@@ -95,5 +96,23 @@ class Captain::Behavior::RouterService
 
   def skip_agent_bot?
     @config['skip_agent_bot'] && @conversation.agent_bot_id.present?
+  end
+
+  # Quando a última mensagem outgoing pública (não-privada, não-template, não-NPS) foi
+  # enviada por um User (humano), assume que o atendimento foi assumido manualmente
+  # e Captain para de responder. Mensagens enviadas pelo próprio assistant (AgentBot)
+  # NÃO contam — assim Clara pode responder múltiplas vezes em sequência sem se silenciar.
+  def skip_after_human_response?
+    return false unless @config['skip_after_human_response']
+
+    last_outgoing = @conversation.messages
+                                 .where(message_type: :outgoing, private: false)
+                                 .where.not(id: @message.id)
+                                 .order(created_at: :desc)
+                                 .limit(5)
+                                 .find { |m| !m.content_attributes&.dig('nps_survey') }
+    return false unless last_outgoing
+
+    last_outgoing.sender.is_a?(User)
   end
 end
