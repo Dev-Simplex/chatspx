@@ -1252,7 +1252,19 @@
         "REMOVE": "Remove",
         "NO_FAQS": "No FAQs registered.",
         "APPROVED": "Approved",
-        "PENDING": "Pending"
+        "PENDING": "Pending",
+        "ADD_DOCUMENT": "Add document",
+        "ADD_FAQ": "Add FAQ",
+        "DOC_NAME_PLACEHOLDER": "Name (optional)",
+        "DOC_URL_PLACEHOLDER": "https://... (page to crawl)",
+        "FAQ_QUESTION_PLACEHOLDER": "Question",
+        "FAQ_ANSWER_PLACEHOLDER": "Answer",
+        "SAVE": "Save",
+        "CANCEL": "Cancel",
+        "DOC_CREATED": "Document added. Crawling will start shortly.",
+        "DOC_CREATE_ERROR": "Could not add document.",
+        "FAQ_CREATED": "FAQ added.",
+        "FAQ_CREATE_ERROR": "Could not add FAQ."
       },
       "TOOLS": {
         "NEW_TOOL": "New Tool",

@@ -15,6 +15,17 @@ class CaptainDocument extends ApiClient {
       },
     });
   }
+
+  // Backend espera params.require(:document).permit(:name, :external_link, :assistant_id, :pdf_file)
+  create({ name, externalLink, assistantId } = {}) {
+    return axios.post(this.url, {
+      document: {
+        name,
+        external_link: externalLink,
+        assistant_id: assistantId,
+      },
+    });
+  }
 }
 
 export default new CaptainDocument();

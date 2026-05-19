@@ -3,6 +3,7 @@ import { ref, computed, onMounted } from 'vue';
 import { useRoute } from 'vue-router';
 import { useStore } from 'vuex';
 import { useI18n } from 'vue-i18n';
+import { useAlert } from 'dashboard/composables';
 
 const { t } = useI18n();
 const route = useRoute();
@@ -14,10 +15,10 @@ const assistantId = computed(() => Number(route.params.assistantId));
 const documents = computed(() => store.getters['captainDocuments/getRecords']);
 const responses = computed(() => store.getters['captainResponses/getRecords']);
 const isFetchingDocs = computed(
-  () => store.getters['captainDocuments/getUIFlags'].isFetching
+  () => store.getters['captainDocuments/getUIFlags'].fetchingList
 );
 const isFetchingResponses = computed(
-  () => store.getters['captainResponses/getUIFlags'].isFetching
+  () => store.getters['captainResponses/getUIFlags'].fetchingList
 );
 
 const DOC_TYPE_ICONS = {
@@ -28,6 +29,63 @@ const DOC_TYPE_ICONS = {
 
 function docTypeIcon(docType) {
   return DOC_TYPE_ICONS[docType] || 'i-lucide-file';
+}
+
+// --- Criacao de documento (URL) ---
+const showDocForm = ref(false);
+const docForm = ref({ name: '', externalLink: '' });
+const savingDoc = ref(false);
+
+async function createDocument() {
+  if (!docForm.value.externalLink.trim() || savingDoc.value) return;
+  savingDoc.value = true;
+  try {
+    await store.dispatch('captainDocuments/create', {
+      name: docForm.value.name.trim() || docForm.value.externalLink.trim(),
+      externalLink: docForm.value.externalLink.trim(),
+      assistantId: assistantId.value,
+    });
+    useAlert(t('CAPTAIN.AGENT_TABS.KNOWLEDGE.DOC_CREATED'));
+    docForm.value = { name: '', externalLink: '' };
+    showDocForm.value = false;
+    store.dispatch('captainDocuments/get', { assistantId: assistantId.value });
+  } catch {
+    useAlert(t('CAPTAIN.AGENT_TABS.KNOWLEDGE.DOC_CREATE_ERROR'));
+  } finally {
+    savingDoc.value = false;
+  }
+}
+
+// --- Criacao de FAQ ---
+const showFaqForm = ref(false);
+const faqForm = ref({ question: '', answer: '' });
+const savingFaq = ref(false);
+
+async function createFaq() {
+  if (
+    !faqForm.value.question.trim() ||
+    !faqForm.value.answer.trim() ||
+    savingFaq.value
+  ) {
+    return;
+  }
+  savingFaq.value = true;
+  try {
+    await store.dispatch('captainResponses/create', {
+      question: faqForm.value.question.trim(),
+      answer: faqForm.value.answer.trim(),
+      assistantId: assistantId.value,
+      status: 'approved',
+    });
+    useAlert(t('CAPTAIN.AGENT_TABS.KNOWLEDGE.FAQ_CREATED'));
+    faqForm.value = { question: '', answer: '' };
+    showFaqForm.value = false;
+    store.dispatch('captainResponses/get', { assistantId: assistantId.value });
+  } catch {
+    useAlert(t('CAPTAIN.AGENT_TABS.KNOWLEDGE.FAQ_CREATE_ERROR'));
+  } finally {
+    savingFaq.value = false;
+  }
 }
 
 onMounted(() => {
@@ -79,6 +137,52 @@ async function deleteDocument(id) {
 
     <!-- Documents -->
     <div v-if="activeSubTab === 'documents'">
+      <div class="mb-3 flex justify-end">
+        <button
+          type="button"
+          class="inline-flex items-center gap-1.5 rounded-lg bg-n-brand px-3 py-1.5 text-sm font-medium text-white transition-colors hover:brightness-95"
+          @click="showDocForm = !showDocForm"
+        >
+          <i class="i-lucide-plus size-3.5" />
+          {{ t('CAPTAIN.AGENT_TABS.KNOWLEDGE.ADD_DOCUMENT') }}
+        </button>
+      </div>
+
+      <div
+        v-if="showDocForm"
+        class="mb-4 space-y-2 rounded-xl border border-n-weak bg-n-alpha-1 p-4"
+      >
+        <input
+          v-model="docForm.name"
+          type="text"
+          class="w-full rounded border border-n-weak bg-white px-2 py-1.5 text-sm dark:bg-n-solid-3 dark:text-n-slate-12"
+          :placeholder="t('CAPTAIN.AGENT_TABS.KNOWLEDGE.DOC_NAME_PLACEHOLDER')"
+        />
+        <input
+          v-model="docForm.externalLink"
+          type="url"
+          class="w-full rounded border border-n-weak bg-white px-2 py-1.5 text-sm dark:bg-n-solid-3 dark:text-n-slate-12"
+          :placeholder="t('CAPTAIN.AGENT_TABS.KNOWLEDGE.DOC_URL_PLACEHOLDER')"
+        />
+        <div class="flex gap-2">
+          <button
+            type="button"
+            class="rounded-lg bg-n-brand px-3 py-1.5 text-sm font-medium text-white transition-colors hover:brightness-95 disabled:opacity-60"
+            :disabled="savingDoc"
+            @click="createDocument"
+          >
+            {{ t('CAPTAIN.AGENT_TABS.KNOWLEDGE.SAVE') }}
+          </button>
+          <button
+            type="button"
+            class="rounded-lg bg-n-alpha-2 px-3 py-1.5 text-sm text-n-slate-12 transition-colors hover:bg-n-alpha-3"
+            @click="showDocForm = false"
+          >
+            {{ t('CAPTAIN.AGENT_TABS.KNOWLEDGE.CANCEL') }}
+          </button>
+        </div>
+      </div>
+
       <div
         v-if="isFetchingDocs"
         class="flex items-center gap-2 text-sm text-n-slate-10"
@@ -129,6 +233,54 @@ async function deleteDocument(id) {
 
     <!-- FAQs -->
     <div v-if="activeSubTab === 'faqs'">
+      <div class="mb-3 flex justify-end">
+        <button
+          type="button"
+          class="inline-flex items-center gap-1.5 rounded-lg bg-n-brand px-3 py-1.5 text-sm font-medium text-white transition-colors hover:brightness-95"
+          @click="showFaqForm = !showFaqForm"
+        >
+          <i class="i-lucide-plus size-3.5" />
+          {{ t('CAPTAIN.AGENT_TABS.KNOWLEDGE.ADD_FAQ') }}
+        </button>
+      </div>
+
+      <div
+        v-if="showFaqForm"
+        class="mb-4 space-y-2 rounded-xl border border-n-weak bg-n-alpha-1 p-4"
+      >
+        <input
+          v-model="faqForm.question"
+          type="text"
+          class="w-full rounded border border-n-weak bg-white px-2 py-1.5 text-sm dark:bg-n-solid-3 dark:text-n-slate-12"
+          :placeholder="
+            t('CAPTAIN.AGENT_TABS.KNOWLEDGE.FAQ_QUESTION_PLACEHOLDER')
+          "
+        />
+        <textarea
+          v-model="faqForm.answer"
+          rows="3"
+          class="w-full rounded border border-n-weak bg-white px-2 py-1.5 text-sm dark:bg-n-solid-3 dark:text-n-slate-12"
+          :placeholder="t('CAPTAIN.AGENT_TABS.KNOWLEDGE.FAQ_ANSWER_PLACEHOLDER')"
+        />
+        <div class="flex gap-2">
+          <button
+            type="button"
+            class="rounded-lg bg-n-brand px-3 py-1.5 text-sm font-medium text-white transition-colors hover:brightness-95 disabled:opacity-60"
+            :disabled="savingFaq"
+            @click="createFaq"
+          >
+            {{ t('CAPTAIN.AGENT_TABS.KNOWLEDGE.SAVE') }}
+          </button>
+          <button
+            type="button"
+            class="rounded-lg bg-n-alpha-2 px-3 py-1.5 text-sm text-n-slate-12 transition-colors hover:bg-n-alpha-3"
+            @click="showFaqForm = false"
+          >
+            {{ t('CAPTAIN.AGENT_TABS.KNOWLEDGE.CANCEL') }}
+          </button>
+        </div>
+      </div>
+
       <div
         v-if="isFetchingResponses"
         class="flex items-center gap-2 text-sm text-n-slate-10"

@@ -1266,7 +1266,19 @@
         "REMOVE": "Remover",
         "NO_FAQS": "Nenhuma FAQ cadastrada.",
         "APPROVED": "Aprovada",
-        "PENDING": "Pendente"
+        "PENDING": "Pendente",
+        "ADD_DOCUMENT": "Adicionar documento",
+        "ADD_FAQ": "Adicionar FAQ",
+        "DOC_NAME_PLACEHOLDER": "Nome (opcional)",
+        "DOC_URL_PLACEHOLDER": "https://... (página para indexar)",
+        "FAQ_QUESTION_PLACEHOLDER": "Pergunta",
+        "FAQ_ANSWER_PLACEHOLDER": "Resposta",
+        "SAVE": "Salvar",
+        "CANCEL": "Cancelar",
+        "DOC_CREATED": "Documento adicionado. A indexação começa em instantes.",
+        "DOC_CREATE_ERROR": "Não foi possível adicionar o documento.",
+        "FAQ_CREATED": "FAQ adicionada.",
+        "FAQ_CREATE_ERROR": "Não foi possível adicionar a FAQ."
       },
       "TOOLS": {
         "NEW_TOOL": "Nova Ferramenta",
