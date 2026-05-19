@@ -26,6 +26,17 @@ class CaptainDocument extends ApiClient {
       },
     });
   }
+
+  // Upload de PDF via multipart. Backend valida content_type application/pdf e tamanho <= 10MB.
+  createWithFile({ name, file, assistantId } = {}) {
+    const formData = new FormData();
+    if (name) formData.append('document[name]', name);
+    formData.append('document[assistant_id]', assistantId);
+    formData.append('document[pdf_file]', file);
+    return axios.post(this.url, formData, {
+      headers: { 'Content-Type': 'multipart/form-data' },
+    });
+  }
 }
 
 export default new CaptainDocument();

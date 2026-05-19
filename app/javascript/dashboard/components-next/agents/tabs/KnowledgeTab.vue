@@ -4,6 +4,7 @@ import { useRoute } from 'vue-router';
 import { useStore } from 'vuex';
 import { useI18n } from 'vue-i18n';
 import { useAlert } from 'dashboard/composables';
+import CaptainDocumentAPI from 'dashboard/api/captain/document';
 
 const { t } = useI18n();
 const route = useRoute();
@@ -31,23 +32,60 @@ function docTypeIcon(docType) {
   return DOC_TYPE_ICONS[docType] || 'i-lucide-file';
 }
 
-// --- Criacao de documento (URL) ---
+// --- Criacao de documento (URL ou PDF) ---
 const showDocForm = ref(false);
+const docMode = ref('url'); // 'url' | 'file'
 const docForm = ref({ name: '', externalLink: '' });
+const docFile = ref(null);
 const savingDoc = ref(false);
 
+function handleFileChange(event) {
+  const file = event.target.files?.[0] || null;
+  if (file && file.type !== 'application/pdf') {
+    useAlert(t('CAPTAIN.AGENT_TABS.KNOWLEDGE.PDF_ONLY'));
+    event.target.value = '';
+    docFile.value = null;
+    return;
+  }
+  if (file && file.size > 10 * 1024 * 1024) {
+    useAlert(t('CAPTAIN.AGENT_TABS.KNOWLEDGE.PDF_TOO_BIG'));
+    event.target.value = '';
+    docFile.value = null;
+    return;
+  }
+  docFile.value = file;
+}
+
+function resetDocForm() {
+  docForm.value = { name: '', externalLink: '' };
+  docFile.value = null;
+  docMode.value = 'url';
+  showDocForm.value = false;
+}
+
 async function createDocument() {
-  if (!docForm.value.externalLink.trim() || savingDoc.value) return;
+  if (savingDoc.value) return;
+  const isFile = docMode.value === 'file';
+  if (isFile && !docFile.value) return;
+  if (!isFile && !docForm.value.externalLink.trim()) return;
+
   savingDoc.value = true;
   try {
-    await store.dispatch('captainDocuments/create', {
-      name: docForm.value.name.trim() || docForm.value.externalLink.trim(),
-      externalLink: docForm.value.externalLink.trim(),
-      assistantId: assistantId.value,
-    });
+    if (isFile) {
+      await CaptainDocumentAPI.createWithFile({
+        name: docForm.value.name.trim() || docFile.value.name,
+        file: docFile.value,
+        assistantId: assistantId.value,
+      });
+    } else {
+      await store.dispatch('captainDocuments/create', {
+        name: docForm.value.name.trim() || docForm.value.externalLink.trim(),
+        externalLink: docForm.value.externalLink.trim(),
+        assistantId: assistantId.value,
+      });
+    }
     useAlert(t('CAPTAIN.AGENT_TABS.KNOWLEDGE.DOC_CREATED'));
-    docForm.value = { name: '', externalLink: '' };
-    showDocForm.value = false;
+    resetDocForm();
     store.dispatch('captainDocuments/get', { assistantId: assistantId.value });
   } catch {
     useAlert(t('CAPTAIN.AGENT_TABS.KNOWLEDGE.DOC_CREATE_ERROR'));
@@ -152,6 +190,34 @@ async function deleteDocument(id) {
         v-if="showDocForm"
         class="mb-4 space-y-2 rounded-xl border border-n-weak bg-n-alpha-1 p-4"
       >
+        <!-- Toggle URL / Arquivo -->
+        <div class="flex gap-1 rounded-lg bg-n-alpha-2 p-0.5 text-sm">
+          <button
+            type="button"
+            class="flex-1 rounded-md px-3 py-1 transition-colors"
+            :class="
+              docMode === 'url'
+                ? 'bg-white font-medium text-n-slate-12 dark:bg-n-solid-3'
+                : 'text-n-slate-10'
+            "
+            @click="docMode = 'url'"
+          >
+            {{ t('CAPTAIN.AGENT_TABS.KNOWLEDGE.MODE_URL') }}
+          </button>
+          <button
+            type="button"
+            class="flex-1 rounded-md px-3 py-1 transition-colors"
+            :class="
+              docMode === 'file'
+                ? 'bg-white font-medium text-n-slate-12 dark:bg-n-solid-3'
+                : 'text-n-slate-10'
+            "
+            @click="docMode = 'file'"
+          >
+            {{ t('CAPTAIN.AGENT_TABS.KNOWLEDGE.MODE_FILE') }}
+          </button>
+        </div>
+
         <input
           v-model="docForm.name"
           type="text"
@@ -159,11 +225,23 @@ async function deleteDocument(id) {
           :placeholder="t('CAPTAIN.AGENT_TABS.KNOWLEDGE.DOC_NAME_PLACEHOLDER')"
         />
         <input
+          v-if="docMode === 'url'"
           v-model="docForm.externalLink"
           type="url"
           class="w-full rounded border border-n-weak bg-white px-2 py-1.5 text-sm dark:bg-n-solid-3 dark:text-n-slate-12"
           :placeholder="t('CAPTAIN.AGENT_TABS.KNOWLEDGE.DOC_URL_PLACEHOLDER')"
         />
+        <div v-else>
+          <input
+            type="file"
+            accept="application/pdf,.pdf"
+            class="w-full rounded border border-n-weak bg-white px-2 py-1.5 text-sm text-n-slate-11 file:mr-3 file:rounded file:border-0 file:bg-n-alpha-2 file:px-3 file:py-1 file:text-n-slate-12 dark:bg-n-solid-3"
+            @change="handleFileChange"
+          />
+          <p class="mt-1 text-xs text-n-slate-9">
+            {{ t('CAPTAIN.AGENT_TABS.KNOWLEDGE.PDF_HINT') }}
+          </p>
+        </div>
         <div class="flex gap-2">
           <button
             type="button"
@@ -176,7 +254,7 @@ async function deleteDocument(id) {
           <button
             type="button"
             class="rounded-lg bg-n-alpha-2 px-3 py-1.5 text-sm text-n-slate-12 transition-colors hover:bg-n-alpha-3"
-            @click="showDocForm = false"
+            @click="resetDocForm"
           >
             {{ t('CAPTAIN.AGENT_TABS.KNOWLEDGE.CANCEL') }}
           </button>

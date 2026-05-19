@@ -1261,10 +1261,15 @@
         "FAQ_ANSWER_PLACEHOLDER": "Answer",
         "SAVE": "Save",
         "CANCEL": "Cancel",
-        "DOC_CREATED": "Document added. Crawling will start shortly.",
+        "DOC_CREATED": "Document added. Processing will start shortly.",
         "DOC_CREATE_ERROR": "Could not add document.",
         "FAQ_CREATED": "FAQ added.",
-        "FAQ_CREATE_ERROR": "Could not add FAQ."
+        "FAQ_CREATE_ERROR": "Could not add FAQ.",
+        "MODE_URL": "URL",
+        "MODE_FILE": "PDF file",
+        "PDF_HINT": "PDF only, up to 10 MB.",
+        "PDF_ONLY": "Only PDF files are accepted.",
+        "PDF_TOO_BIG": "File exceeds the 10 MB limit."
       },
       "TOOLS": {
         "NEW_TOOL": "New Tool",

@@ -1275,10 +1275,15 @@
         "FAQ_ANSWER_PLACEHOLDER": "Resposta",
         "SAVE": "Salvar",
         "CANCEL": "Cancelar",
-        "DOC_CREATED": "Documento adicionado. A indexação começa em instantes.",
+        "DOC_CREATED": "Documento adicionado. O processamento começa em instantes.",
         "DOC_CREATE_ERROR": "Não foi possível adicionar o documento.",
         "FAQ_CREATED": "FAQ adicionada.",
-        "FAQ_CREATE_ERROR": "Não foi possível adicionar a FAQ."
+        "FAQ_CREATE_ERROR": "Não foi possível adicionar a FAQ.",
+        "MODE_URL": "URL",
+        "MODE_FILE": "Arquivo PDF",
+        "PDF_HINT": "Apenas PDF, até 10 MB.",
+        "PDF_ONLY": "Somente arquivos PDF são aceitos.",
+        "PDF_TOO_BIG": "O arquivo excede o limite de 10 MB."
       },
       "TOOLS": {
         "NEW_TOOL": "Nova Ferramenta",
