@@ -1195,9 +1195,13 @@
       "ROUTER": {
         "TITLE": "Roteador",
         "DESCRIPTION": "Controlar quando o agente deve responder.",
+        "ONLY_CONTACT_PHONES": "Lista branca por telefone",
+        "ONLY_CONTACT_PHONES_PLACEHOLDER": "+5566996247866, +551199...",
+        "ONLY_CONTACT_PHONES_HINT": "Se preenchido, o agente só responde mensagens vindas destes telefones. Útil pra testar em um contato específico antes de liberar pra toda a caixa de entrada. Números brasileiros toleram variações (com/sem 9, com/sem DDI).",
         "SKIP_LABELS": "Ignorar etiquetas",
         "SKIP_LABELS_PLACEHOLDER": "Etiquetas separadas por vírgula",
         "SKIP_GROUPS": "Ignorar conversas em grupo",
+        "SKIP_AFTER_HUMAN_RESPONSE": "Parar quando um atendente humano responde",
         "SKIP_ACTIVITY": "Ignorar mensagens de atividade",
         "SKIP_AGENT_BOT": "Ignorar quando bot atribuído"
       },
