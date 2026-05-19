@@ -1357,7 +1357,17 @@
         "CONFIRM_DELETE": "Tem certeza?",
         "YES_DELETE": "Sim, deletar",
         "CANCEL": "Cancelar",
-        "DELETE_SUCCESS": "Agente deletado com sucesso"
+        "DELETE_SUCCESS": "Agente deletado com sucesso",
+        "PROMPT_TITLE": "Prompt e diretrizes",
+        "PROMPT_EDIT": "Editar",
+        "PROMPT_DESCRIPTION": "Descrição do papel",
+        "PROMPT_GUIDELINES": "Diretrizes de resposta",
+        "PROMPT_GUARDRAILS": "Limites (guardrails)",
+        "ONE_PER_LINE": "(um por linha)",
+        "PROMPT_SAVE": "Salvar",
+        "PROMPT_CANCEL": "Cancelar",
+        "PROMPT_SAVED": "Prompt atualizado.",
+        "PROMPT_SAVE_ERROR": "Não foi possível salvar o prompt."
       }
     }
   }

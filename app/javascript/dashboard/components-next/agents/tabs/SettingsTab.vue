@@ -1,5 +1,5 @@
 <script setup>
-import { ref, computed } from 'vue';
+import { ref, computed, watch } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import { useStore } from 'vuex';
 import { useI18n } from 'vue-i18n';
@@ -18,6 +18,57 @@ const agent = computed(() =>
 );
 
 const showDeleteConfirm = ref(false);
+
+// --- Editor de prompt (description + guidelines + guardrails) ---
+const isEditing = ref(false);
+const savingPrompt = ref(false);
+const promptForm = ref({
+  description: '',
+  responseGuidelines: '',
+  guardrails: '',
+});
+
+function startEditPrompt() {
+  promptForm.value = {
+    description: agent.value?.description || '',
+    responseGuidelines: (agent.value?.response_guidelines || []).join('\n'),
+    guardrails: (agent.value?.guardrails || []).join('\n'),
+  };
+  isEditing.value = true;
+}
+
+const descriptionTooLong = computed(
+  () => promptForm.value.description.length > 255
+);
+
+async function savePrompt() {
+  if (savingPrompt.value || descriptionTooLong.value) return;
+  savingPrompt.value = true;
+  try {
+    await store.dispatch('captainAssistants/update', {
+      id: assistantId.value,
+      description: promptForm.value.description.trim(),
+      response_guidelines: promptForm.value.responseGuidelines
+        .split('\n')
+        .map(l => l.trim())
+        .filter(Boolean),
+      guardrails: promptForm.value.guardrails
+        .split('\n')
+        .map(l => l.trim())
+        .filter(Boolean),
+    });
+    useAlert(t('CAPTAIN.AGENT_TABS.SETTINGS.PROMPT_SAVED'));
+    isEditing.value = false;
+  } catch {
+    useAlert(t('CAPTAIN.AGENT_TABS.SETTINGS.PROMPT_SAVE_ERROR'));
+  } finally {
+    savingPrompt.value = false;
+  }
+}
+
+watch(assistantId, () => {
+  isEditing.value = false;
+});
 
 const fullConfig = computed(() => {
   if (!agent.value) return '';
@@ -49,6 +100,134 @@ async function deleteAgent() {
 <!-- eslint-disable vue/no-bare-strings-in-template, @intlify/vue-i18n/no-raw-text -->
 <template>
   <div class="max-w-3xl space-y-6 p-6">
+    <!-- Prompt Editor -->
+    <div
+      class="overflow-hidden rounded-xl border border-n-weak bg-white dark:bg-n-solid-2"
+    >
+      <div
+        class="flex items-center justify-between border-b border-n-weak px-5 py-4"
+      >
+        <h3
+          class="flex items-center gap-2 text-sm font-semibold text-n-slate-12"
+        >
+          <i class="i-lucide-message-square-text size-4" />
+          {{ t('CAPTAIN.AGENT_TABS.SETTINGS.PROMPT_TITLE') }}
+        </h3>
+        <button
+          v-if="!isEditing"
+          type="button"
+          class="flex items-center gap-1.5 rounded-md bg-n-brand px-3 py-1.5 text-xs font-medium text-white transition-colors hover:brightness-95"
+          @click="startEditPrompt"
+        >
+          <i class="i-lucide-pencil size-3" />
+          {{ t('CAPTAIN.AGENT_TABS.SETTINGS.PROMPT_EDIT') }}
+        </button>
+      </div>
+
+      <!-- Read mode -->
+      <dl v-if="!isEditing" class="divide-y divide-n-weak">
+        <div v-if="agent?.description" class="px-5 py-3">
+          <dt class="mb-1 text-xs text-n-slate-10">
+            {{ t('CAPTAIN.AGENT_TABS.SETTINGS.PROMPT_DESCRIPTION') }}
+          </dt>
+          <dd class="text-sm whitespace-pre-wrap text-n-slate-12">
+            {{ agent.description }}
+          </dd>
+        </div>
+        <div v-if="agent?.response_guidelines?.length" class="px-5 py-3">
+          <dt class="mb-1 text-xs text-n-slate-10">
+            {{ t('CAPTAIN.AGENT_TABS.SETTINGS.PROMPT_GUIDELINES') }}
+          </dt>
+          <dd>
+            <ul class="list-disc space-y-0.5 pl-4 text-sm text-n-slate-12">
+              <li v-for="(g, idx) in agent.response_guidelines" :key="idx">
+                {{ g }}
+              </li>
+            </ul>
+          </dd>
+        </div>
+        <div v-if="agent?.guardrails?.length" class="px-5 py-3">
+          <dt class="mb-1 text-xs text-n-slate-10">
+            {{ t('CAPTAIN.AGENT_TABS.SETTINGS.PROMPT_GUARDRAILS') }}
+          </dt>
+          <dd class="flex flex-wrap gap-1.5">
+            <span
+              v-for="(rule, idx) in agent.guardrails"
+              :key="idx"
+              class="rounded-md bg-n-alpha-2 px-2 py-0.5 text-xs text-n-slate-11"
+            >
+              {{ rule }}
+            </span>
+          </dd>
+        </div>
+      </dl>
+
+      <!-- Edit mode -->
+      <div v-else class="space-y-4 p-5">
+        <div>
+          <label class="mb-1 flex items-center justify-between text-xs text-n-slate-10">
+            <span>{{ t('CAPTAIN.AGENT_TABS.SETTINGS.PROMPT_DESCRIPTION') }}</span>
+            <span :class="descriptionTooLong ? 'text-red-600' : 'text-n-slate-9'">
+              {{ promptForm.description.length }}/255
+            </span>
+          </label>
+          <textarea
+            v-model="promptForm.description"
+            rows="3"
+            class="w-full rounded border px-2 py-1.5 text-sm dark:bg-n-solid-3 dark:text-n-slate-12"
+            :class="
+              descriptionTooLong
+                ? 'border-red-400'
+                : 'border-n-weak bg-white'
+            "
+          />
+        </div>
+        <div>
+          <label class="mb-1 block text-xs text-n-slate-10">
+            {{ t('CAPTAIN.AGENT_TABS.SETTINGS.PROMPT_GUIDELINES') }}
+            <span class="text-n-slate-9">{{
+              t('CAPTAIN.AGENT_TABS.SETTINGS.ONE_PER_LINE')
+            }}</span>
+          </label>
+          <textarea
+            v-model="promptForm.responseGuidelines"
+            rows="8"
+            class="w-full rounded border border-n-weak bg-white px-2 py-1.5 text-sm dark:bg-n-solid-3 dark:text-n-slate-12"
+          />
+        </div>
+        <div>
+          <label class="mb-1 block text-xs text-n-slate-10">
+            {{ t('CAPTAIN.AGENT_TABS.SETTINGS.PROMPT_GUARDRAILS') }}
+            <span class="text-n-slate-9">{{
+              t('CAPTAIN.AGENT_TABS.SETTINGS.ONE_PER_LINE')
+            }}</span>
+          </label>
+          <textarea
+            v-model="promptForm.guardrails"
+            rows="6"
+            class="w-full rounded border border-n-weak bg-white px-2 py-1.5 text-sm dark:bg-n-solid-3 dark:text-n-slate-12"
+          />
+        </div>
+        <div class="flex gap-2">
+          <button
+            type="button"
+            class="rounded-lg bg-n-brand px-3 py-1.5 text-sm font-medium text-white transition-colors hover:brightness-95 disabled:opacity-60"
+            :disabled="savingPrompt || descriptionTooLong"
+            @click="savePrompt"
+          >
+            {{ t('CAPTAIN.AGENT_TABS.SETTINGS.PROMPT_SAVE') }}
+          </button>
+          <button
+            type="button"
+            class="rounded-lg bg-n-alpha-2 px-3 py-1.5 text-sm text-n-slate-12 transition-colors hover:bg-n-alpha-3"
+            @click="isEditing = false"
+          >
+            {{ t('CAPTAIN.AGENT_TABS.SETTINGS.PROMPT_CANCEL') }}
+          </button>
+        </div>
+      </div>
+    </div>
+
     <!-- Agent Info Card (read-only) -->
     <div
       class="overflow-hidden rounded-xl border border-n-weak bg-white dark:bg-n-solid-2"

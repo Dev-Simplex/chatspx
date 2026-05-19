@@ -1343,7 +1343,17 @@
         "CONFIRM_DELETE": "Are you sure?",
         "YES_DELETE": "Yes, delete",
         "CANCEL": "Cancel",
-        "DELETE_SUCCESS": "Agent deleted successfully"
+        "DELETE_SUCCESS": "Agent deleted successfully",
+        "PROMPT_TITLE": "Prompt & guidelines",
+        "PROMPT_EDIT": "Edit",
+        "PROMPT_DESCRIPTION": "Role description",
+        "PROMPT_GUIDELINES": "Response guidelines",
+        "PROMPT_GUARDRAILS": "Guardrails",
+        "ONE_PER_LINE": "(one per line)",
+        "PROMPT_SAVE": "Save",
+        "PROMPT_CANCEL": "Cancel",
+        "PROMPT_SAVED": "Prompt updated.",
+        "PROMPT_SAVE_ERROR": "Could not save prompt."
       }
     }
   }
