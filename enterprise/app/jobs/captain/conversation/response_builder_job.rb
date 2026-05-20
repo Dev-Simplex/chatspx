@@ -132,11 +132,24 @@ class Captain::Conversation::ResponseBuilderJob < ApplicationJob
   end
 
   def send_response(content)
+    content = sanitize_for_whatsapp(content)
     if humanizer_enabled?
       send_humanized_response(content)
     else
       create_outgoing_message(content, agent_name: @response['agent_name'])
     end
+  end
+
+  # WhatsApp não renderiza markdown; alguns LLMs (ex: gpt-5-mini) insistem em
+  # **negrito** mesmo instruídos a não usar. Remove a formatação markdown comum
+  # antes de enviar, pra não aparecer literal pro cliente.
+  def sanitize_for_whatsapp(content)
+    return content if content.blank?
+
+    content.gsub(/\*\*(.*?)\*\*/m, '\1')   # **negrito** -> negrito
+           .gsub(/__(.*?)__/m, '\1')        # __negrito__ -> negrito
+           .gsub(/^\s{0,3}#+\s+/, '')        # ## títulos -> texto
+           .gsub(/^\s{0,3}[-*]\s+/, '')      # - bullets -> texto
   end
 
   def send_humanized_response(content)
