@@ -95,7 +95,16 @@ class Captain::Copilot::ChatService < Llm::BaseAiService
   ].freeze
 
   def build_tools
-    TOOL_CLASSES.map { |klass| klass.new(@assistant, user: @user) }.select(&:active?)
+    native = TOOL_CLASSES.map { |klass| klass.new(@assistant, user: @user) }.select(&:active?)
+    # Custom Tools do account (ex: Vista da Tozi) também ficam disponíveis pro Copilot.
+    # HttpTool herda de Agents::Tool (RubyLLM-compatível), então pluga direto via with_tool.
+    custom = @account.captain_custom_tools.enabled.filter_map do |custom_tool|
+      custom_tool.tool(@assistant)
+    rescue StandardError => e
+      Rails.logger.warn("[Copilot] skip custom tool #{custom_tool.slug}: #{e.message}")
+      nil
+    end
+    native + custom
   end
 
   def system_message
