@@ -5,6 +5,17 @@ class Captain::Behavior::HumanizerService
   end
 
   def split(text)
+    return [] if text.blank?
+
+    # Cada parágrafo (separado por linha em branco) vira uma mensagem própria,
+    # pra ficar picado como conversa de WhatsApp. Parágrafo acima do limite é
+    # quebrado por frase.
+    text.split(/\n{2,}/).flat_map { |paragraph| split_by_length(paragraph.strip) }.reject(&:blank?)
+  end
+
+  private
+
+  def split_by_length(text)
     return [text] if text.blank? || text.length <= @max_chars
 
     sentences = text.split(/(?<=[.!?])\s+/)
