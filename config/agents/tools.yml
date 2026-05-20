@@ -39,3 +39,8 @@
   title: 'Handoff to Human'
   description: 'Hand off the conversation to a human agent'
   icon: 'user-switch'
+
+- id: buscar_imoveis
+  title: 'Buscar Imóveis (Vista)'
+  description: 'Busca imóveis no acervo da Tozi (Vista) e retorna opções com o link correto do site'
+  icon: 'home'
