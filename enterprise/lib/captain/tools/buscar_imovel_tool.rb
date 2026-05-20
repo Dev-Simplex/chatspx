@@ -1,4 +1,4 @@
-class Captain::Tools::BuscarImoveisTool < Captain::Tools::BasePublicTool
+class Captain::Tools::BuscarImovelTool < Captain::Tools::BasePublicTool
   description 'Busca imóveis no acervo da Tozi (sistema Vista) e retorna até 5 opções com o link correto do site. ' \
               "Use status_tipo='venda' para comprar e status_tipo='locacao' para alugar. " \
               'Para proximidade geográfica, passe lat_min/lat_max/lng_min/lng_max vindos do buscar_localizacao.'
