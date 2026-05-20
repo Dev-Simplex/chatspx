@@ -6,6 +6,7 @@ class Captain::Tools::EnviarFotosImovelTool < Captain::Tools::BasePublicTool
   param :codigo, type: 'string', desc: 'Código do imóvel (ex: 6573), tirado do resultado da busca.', required: true
 
   BATCH = 3
+  SEND_INTERVAL = 2 # segundos entre cada foto, pra o WhatsApp entregar uma por uma
 
   def perform(tool_context, codigo:)
     conversation = find_conversation(tool_context&.state)
@@ -19,7 +20,11 @@ class Captain::Tools::EnviarFotosImovelTool < Captain::Tools::BasePublicTool
     batch = fotos[sent, BATCH] || []
     return 'Já enviei todas as fotos que tenho desse imóvel.' if batch.empty?
 
-    batch.each { |url| send_photo(conversation, url) }
+    # Envia uma por uma com intervalo: em rajada o bridge do WhatsApp entrega só a 1ª.
+    batch.each_with_index do |url, i|
+      send_photo(conversation, url)
+      sleep(SEND_INTERVAL) if i < batch.size - 1
+    end
     new_sent = sent + batch.size
     conversation.update!(custom_attributes: conversation.custom_attributes.merge(key => new_sent))
 
