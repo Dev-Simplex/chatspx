@@ -74,7 +74,9 @@ class Captain::Tools::BuscarImovelTool < Captain::Tools::BasePublicTool
   end
 
   def build_url(im)
-    "https://www.toziimoveis.com.br/#{slugify(im['TituloSite'])}-#{slugify(im['Cidade'])},#{im['Codigo']}"
+    titulo = im['TituloSite'].to_s.strip
+    titulo = "#{im['Categoria']} #{im['Bairro']}".strip if titulo.empty?
+    "https://www.toziimoveis.com.br/#{slugify(titulo)}-#{slugify(im['Cidade'])},#{im['Codigo']}"
   end
 
   def slugify(str)
