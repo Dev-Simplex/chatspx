@@ -44,3 +44,8 @@
   title: 'Buscar Imóveis (Vista)'
   description: 'Busca imóveis no acervo da Tozi (Vista) e retorna opções com o link correto do site'
   icon: 'home'
+
+- id: enviar_fotos_imovel
+  title: 'Enviar Fotos do Imóvel'
+  description: 'Envia ao cliente as fotos de um imóvel em lotes de 3'
+  icon: 'image'

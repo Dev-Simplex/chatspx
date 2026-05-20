@@ -68,7 +68,7 @@ class Captain::Tools::BuscarImovelTool < Captain::Tools::BasePublicTool
     linhas = imoveis.first(5).map do |im|
       valor = venda ? "R$ #{im['ValorVenda']}" : "R$ #{im['ValorLocacao']}/mês"
       dorm = im['Dormitorios'].to_i.positive? ? "#{im['Dormitorios']} quartos, " : ''
-      "#{im['Categoria']} #{dorm}no #{im['Bairro']}, #{valor}. #{build_url(im)}"
+      "(cód #{im['Codigo']}) #{im['Categoria']} #{dorm}no #{im['Bairro']}, #{valor}. #{build_url(im)}"
     end
     "Encontrei #{linhas.size} opção(ões):\n#{linhas.join("\n")}"
   end
