@@ -49,3 +49,8 @@
   title: 'Enviar Fotos do Imóvel'
   description: 'Envia ao cliente as fotos de um imóvel em lotes de 3'
   icon: 'image'
+
+- id: salvar_info_lead
+  title: 'Salvar Info do Lead'
+  description: 'Salva status do lead e descrição curta do cliente na conversa, e marca follow-up'
+  icon: 'person'
