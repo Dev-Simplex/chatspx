@@ -91,7 +91,8 @@ class Captain::Copilot::ChatService < Llm::BaseAiService
     Captain::Tools::Copilot::AddNoteToContactService,
     Captain::Tools::Copilot::ResolveConversationService,
     Captain::Tools::Copilot::GetLabelsService,
-    Captain::Tools::Copilot::GetAgentsService
+    Captain::Tools::Copilot::GetAgentsService,
+    Captain::Tools::Copilot::GetConversationAnalysisService
   ].freeze
 
   def build_tools
