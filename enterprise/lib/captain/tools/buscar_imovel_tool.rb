@@ -5,7 +5,8 @@ class Captain::Tools::BuscarImovelTool < Captain::Tools::BasePublicTool
 
   param :status_tipo, type: 'string', desc: "'venda' para comprar, 'locacao' para alugar", required: true
   param :categoria, type: 'string', desc: 'Casa, Apartamento, Terreno, Sala Comercial, Kitnet. Vazio se não especificou.', required: false
-  param :bairro, type: 'string', desc: 'Bairro em Sinop. Vazio se não especificou.', required: false
+  param :bairro, type: 'string', desc: 'Bairro/condomínio em Sinop. Vazio se não especificou.', required: false
+  param :endereco, type: 'string', desc: 'Rua, avenida ou logradouro, quando o cliente especificar (ex: "Mário Lago"). Estreita a busca dentro do bairro.', required: false
   param :valor_max, type: 'number', desc: 'Valor máximo: aluguel mensal pra locação, valor total pra venda.', required: false
   param :dormitorios, type: 'number', desc: 'Quantidade de dormitórios.', required: false
   param :lat_min, type: 'string', desc: 'Latitude mínima do bbox (do buscar_localizacao).', required: false
@@ -16,7 +17,7 @@ class Captain::Tools::BuscarImovelTool < Captain::Tools::BasePublicTool
   VISTA_FIELDS = %w[Codigo ImoCodigo Categoria Status Dormitorios Cidade Bairro BairroComercial ValorLocacao ValorVenda TituloSite].freeze
   META_KEYS = %w[total paginas pagina quantidade].freeze
 
-  def perform(_tool_context, status_tipo:, categoria: nil, bairro: nil, valor_max: nil,
+  def perform(_tool_context, status_tipo:, categoria: nil, bairro: nil, endereco: nil, valor_max: nil,
               dormitorios: nil, lat_min: nil, lat_max: nil, lng_min: nil, lng_max: nil)
     venda = status_tipo.to_s == 'venda'
     filter = { 'Cidade' => 'Sinop' }
@@ -27,6 +28,7 @@ class Captain::Tools::BuscarImovelTool < Captain::Tools::BasePublicTool
     filter['Categoria'] = categoria if categoria.present?
     # match parcial: cliente diz "Aquarela", base tem "Residencial Aquarela Das Artes"
     filter['Bairro'] = ['like', "%#{bairro}%"] if bairro.present?
+    filter['Endereco'] = ['like', "%#{endereco}%"] if endereco.present?
     filter['Dormitorios'] = dormitorios if dormitorios.present?
     filter['Latitude'] = [lat_min, lat_max] if lat_min.present? && lat_max.present?
     filter['Longitude'] = [lng_min, lng_max] if lng_min.present? && lng_max.present?
