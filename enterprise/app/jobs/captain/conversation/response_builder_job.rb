@@ -65,7 +65,7 @@ class Captain::Conversation::ResponseBuilderJob < ApplicationJob
       .where(private: false)
       .map do |message|
       message_hash = {
-        content: prepare_multimodal_message_content(message),
+        content: with_reply_context(message, prepare_multimodal_message_content(message)),
         role: determine_role(message)
       }
 
@@ -78,6 +78,26 @@ class Captain::Conversation::ResponseBuilderJob < ApplicationJob
 
   def determine_role(message)
     message.message_type == 'incoming' ? 'user' : 'assistant'
+  end
+
+  # Quando o cliente responde (reply) a uma mensagem específica do WhatsApp,
+  # injeta o texto citado no contexto pra o agente saber a qual imóvel/mensagem
+  # ele se refere. Sem isso, "é essa" / "quero essa" ficavam sem referência.
+  def with_reply_context(message, content)
+    attrs = message.content_attributes || {}
+    reply_id = attrs['in_reply_to']
+    reply_ext = attrs['in_reply_to_external_id']
+    quoted = nil
+    quoted = @conversation.messages.find_by(id: reply_id) if reply_id.present?
+    quoted ||= @conversation.messages.find_by(source_id: reply_ext) if reply_ext.present?
+    return content if quoted&.content.blank?
+
+    prefix = "[Respondendo a esta mensagem anterior: \"#{quoted.content.to_s.gsub(/\s+/, ' ').strip[0, 180]}\"] "
+    case content
+    when String then prefix + content
+    when Array then [{ type: 'text', text: prefix }] + content
+    else content
+    end
   end
 
   def prepare_multimodal_message_content(message)
