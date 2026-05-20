@@ -25,7 +25,8 @@ class Captain::Tools::BuscarImovelTool < Captain::Tools::BasePublicTool
       filter[venda ? 'ValorVenda' : 'ValorLocacao'] = ['', valor_max]
     end
     filter['Categoria'] = categoria if categoria.present?
-    filter['Bairro'] = bairro if bairro.present?
+    # match parcial: cliente diz "Aquarela", base tem "Residencial Aquarela Das Artes"
+    filter['Bairro'] = ['like', "%#{bairro}%"] if bairro.present?
     filter['Dormitorios'] = dormitorios if dormitorios.present?
     filter['Latitude'] = [lat_min, lat_max] if lat_min.present? && lat_max.present?
     filter['Longitude'] = [lng_min, lng_max] if lng_min.present? && lng_max.present?
