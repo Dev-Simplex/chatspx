@@ -13,7 +13,7 @@ class Captain::Tools::BuscarImovelTool < Captain::Tools::BasePublicTool
   param :lng_min, type: 'string', desc: 'Longitude mínima do bbox.', required: false
   param :lng_max, type: 'string', desc: 'Longitude máxima do bbox.', required: false
 
-  VISTA_FIELDS = %w[Codigo Categoria Status Dormitorios Cidade Bairro ValorLocacao ValorVenda TituloSite].freeze
+  VISTA_FIELDS = %w[Codigo ImoCodigo Categoria Status Dormitorios Cidade Bairro BairroComercial ValorLocacao ValorVenda TituloSite].freeze
   META_KEYS = %w[total paginas pagina quantidade].freeze
 
   def perform(_tool_context, status_tipo:, categoria: nil, bairro: nil, valor_max: nil,
@@ -68,15 +68,20 @@ class Captain::Tools::BuscarImovelTool < Captain::Tools::BasePublicTool
     linhas = imoveis.first(5).map do |im|
       valor = venda ? "R$ #{im['ValorVenda']}" : "R$ #{im['ValorLocacao']}/mês"
       dorm = im['Dormitorios'].to_i.positive? ? "#{im['Dormitorios']} quartos, " : ''
-      "(cód #{im['Codigo']}) #{im['Categoria']} #{dorm}no #{im['Bairro']}, #{valor}. #{build_url(im)}"
+      "(cód #{im['Codigo']}) #{im['Categoria']} #{dorm}no #{im['Bairro']}, #{valor}. #{build_url(im, venda)}"
     end
     "Encontrei #{linhas.size} opção(ões):\n#{linhas.join("\n")}"
   end
 
-  def build_url(im)
-    titulo = im['TituloSite'].to_s.strip
-    titulo = "#{im['Categoria']} #{im['Bairro']}".strip if titulo.empty?
-    "https://www.toziimoveis.com.br/#{slugify(titulo)}-#{slugify(im['Cidade'])},#{im['Codigo']}"
+  # O site da Tozi acha o imóvel pelo ImoCodigo (não pelo Codigo do Vista); o slug
+  # é cosmético. Padrão observado: {finalidade}-{categoria}-{N}-dormitorios-{bairroComercial}-{cidade},{ImoCodigo}
+  def build_url(im, venda)
+    bairro = im['BairroComercial'].presence || im['Bairro']
+    parts = [venda ? 'venda' : 'aluguel', slugify(im['Categoria'])]
+    parts << "#{im['Dormitorios']}-dormitorios" if im['Dormitorios'].to_i.positive?
+    parts << slugify(bairro) << slugify(im['Cidade'])
+    id = im['ImoCodigo'].presence || im['Codigo']
+    "https://www.toziimoveis.com.br/#{parts.reject(&:blank?).join('-')},#{id}"
   end
 
   def slugify(str)
