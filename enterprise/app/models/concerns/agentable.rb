@@ -13,7 +13,7 @@ module Concerns::Agentable
   end
 
   def agent_instructions(context = nil)
-    enhanced_context = prompt_context
+    enhanced_context = prompt_context.merge(time_awareness)
 
     if context
       state = context.context[:state] || {}
@@ -45,6 +45,23 @@ module Concerns::Agentable
   def agent_model
     raw = account&.captain_assistant_model.presence || LlmConstants::DEFAULT_MODEL
     Llm::Models.runtime_id_for(raw)
+  end
+
+  # Injeta data/hora atual e status do horário comercial no contexto do prompt,
+  # pra o agente não adivinhar/alucinar horário (ex: dizer "volta segunda" numa quarta).
+  def time_awareness
+    asst = is_a?(Captain::Assistant) ? self : assistant
+    bh = asst.behavior['business_hours'] || {}
+    tz = ActiveSupport::TimeZone[bh['timezone'].presence || 'America/Cuiaba'] || ActiveSupport::TimeZone['UTC']
+    now = Time.current.in_time_zone(tz)
+    dias = %w[domingo segunda-feira terça-feira quarta-feira quinta-feira sexta-feira sábado]
+    inside = Captain::Behavior::BusinessHoursChecker.new(assistant: asst).status == :inside
+    {
+      current_datetime: "#{dias[now.wday]}, #{now.strftime('%d/%m/%Y às %H:%M')}",
+      business_status: inside ? 'dentro do horário comercial, com atendentes disponíveis agora' : 'fora do horário comercial no momento'
+    }
+  rescue StandardError
+    {}
   end
 
   def agent_response_schema
