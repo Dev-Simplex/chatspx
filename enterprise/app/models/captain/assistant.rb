@@ -56,7 +56,7 @@ class Captain::Assistant < ApplicationRecord
   def available_agent_tools
     tools = self.class.built_in_agent_tools.dup
 
-    custom_tools = account.captain_custom_tools.enabled.map(&:to_tool_metadata)
+    custom_tools = account.captain_custom_tools.enabled.where(copilot_only: false).map(&:to_tool_metadata)
     tools.concat(custom_tools)
 
     tools

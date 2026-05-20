@@ -5,6 +5,7 @@
 #  id                :bigint           not null, primary key
 #  auth_config       :jsonb
 #  auth_type         :string           default("none")
+#  copilot_only      :boolean          default(FALSE), not null
 #  description       :text
 #  enabled           :boolean          default(TRUE), not null
 #  endpoint_url      :text             not null

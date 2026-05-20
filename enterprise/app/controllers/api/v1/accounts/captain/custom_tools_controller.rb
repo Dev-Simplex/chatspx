@@ -42,6 +42,7 @@ class Api::V1::Accounts::Captain::CustomToolsController < Api::V1::Accounts::Bas
       :response_template,
       :auth_type,
       :enabled,
+      :copilot_only,
       auth_config: {},
       param_schema: [:name, :type, :description, :required]
     )
