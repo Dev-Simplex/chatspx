@@ -135,10 +135,18 @@ class Captain::Conversation::ResponseBuilderJob < ApplicationJob
 
   def create_messages
     content = @response['response']
-    validate_message_content!(content)
+    return if no_reply?(content)
     return if skip_duplicate?(content)
 
     send_response(content)
+  end
+
+  # O agente decide quando NÃO responder (ex: cliente só mandou "ok"/"blz" e não há
+  # nada pendente). Sinaliza com [IGNORAR] ou resposta vazia -> não envia nada.
+  def no_reply?(content)
+    return true if content.blank?
+
+    content.to_s.strip.match?(/\A\[?\s*(ignorar|sem[\s_-]?resposta|no[\s_-]?reply)\s*\]?\z/i)
   end
 
   def skip_duplicate?(content)
