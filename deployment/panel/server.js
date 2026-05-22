@@ -54,6 +54,7 @@ const VMS = [
   { id: 'tozi', name: 'TOZI', ip: '54.91.152.38', user: 'ubuntu', type: 'key', active: false, label: 'AWS EC2' },
   { id: 'alternativo', name: 'ALTERNATIVO', ip: '192.168.8.169', user: 'simplexia', type: 'password', active: true, label: 'Proxmox' },
   { id: 'paulao', name: 'PAULAO', ip: '192.168.8.100', user: 'paulo', type: 'password', active: true, label: 'Sandbox', password: 'master123', fixedBranch: 'paulao' },
+  { id: 'fabrica', name: 'CHATSPX-FABRICA', ip: '3.87.182.184', user: 'ubuntu', type: 'key', active: true, label: 'AWS EC2' },
 ];
 
 const BRANCHES = ['producao', 'homologacao', 'develop'];
