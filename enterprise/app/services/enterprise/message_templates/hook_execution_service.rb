@@ -90,7 +90,11 @@ module Enterprise::MessageTemplates::HookExecutionService
   end
 
   def should_process_captain_response?
-    conversation.pending? && message.incoming? && inbox.captain_assistant.present?
+    # Responde em pending E em open: depois do handoff/atribuição o bot continua
+    # atendendo até um humano de fato responder (skip_after_human_response no
+    # RouterService corta quando um atendente envia mensagem). Evita deixar o
+    # cliente sem resposta quando não há humano disponível na hora.
+    (conversation.pending? || conversation.open?) && message.incoming? && inbox.captain_assistant.present?
   end
 
   def perform_handoff
@@ -116,6 +120,6 @@ module Enterprise::MessageTemplates::HookExecutionService
   end
 
   def captain_handling_conversation?
-    conversation.pending? && inbox.respond_to?(:captain_assistant) && inbox.captain_assistant.present?
+    (conversation.pending? || conversation.open?) && inbox.respond_to?(:captain_assistant) && inbox.captain_assistant.present?
   end
 end

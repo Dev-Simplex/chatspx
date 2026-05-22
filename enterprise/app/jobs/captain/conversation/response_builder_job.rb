@@ -8,7 +8,7 @@ class Captain::Conversation::ResponseBuilderJob < ApplicationJob
     @inbox = conversation.inbox
     @assistant = assistant
 
-    return unless conversation_pending?
+    return unless captain_can_respond?
 
     Current.executed_by = @assistant
 
@@ -45,7 +45,7 @@ class Captain::Conversation::ResponseBuilderJob < ApplicationJob
   end
 
   def process_response
-    return unless conversation_pending?
+    return unless captain_can_respond?
 
     if handoff_requested?
       process_action('handoff')
@@ -235,5 +235,12 @@ class Captain::Conversation::ResponseBuilderJob < ApplicationJob
   def conversation_pending?
     status = Conversation.uncached { Conversation.where(id: @conversation.id).pick(:status) }
     status == 'pending' || status == Conversation.statuses[:pending]
+  end
+
+  # Captain responde em pending E em open (continua atendendo após handoff/atribuição
+  # até um humano responder; skip_after_human_response corta quando o atendente fala).
+  def captain_can_respond?
+    status = Conversation.uncached { Conversation.where(id: @conversation.id).pick(:status) }
+    [Conversation.statuses[:pending], Conversation.statuses[:open], 'pending', 'open'].include?(status)
   end
 end
