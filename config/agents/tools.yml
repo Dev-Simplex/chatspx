@@ -54,3 +54,8 @@
   title: 'Salvar Info do Lead'
   description: 'Salva status do lead e descrição curta do cliente na conversa, e marca follow-up'
   icon: 'person'
+
+- id: programar_followup
+  title: 'Programar Follow-up'
+  description: 'Programa uma cutucada futura pra retomar a conversa se o cliente não responder'
+  icon: 'clock'

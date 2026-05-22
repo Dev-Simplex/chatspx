@@ -3,12 +3,15 @@ class Captain::Conversation::ResponseBuilderJob < ApplicationJob
   retry_on ActiveStorage::FileNotFoundError, attempts: 3, wait: 2.seconds
   retry_on Faraday::BadRequestError, attempts: 3, wait: 2.seconds
 
-  def perform(conversation, assistant)
+  def perform(conversation, assistant, directive: nil)
     @conversation = conversation
     @inbox = conversation.inbox
     @assistant = assistant
+    @directive = directive
 
     return unless captain_can_respond?
+
+    reset_followup_state if @directive.nil?
 
     Current.executed_by = @assistant
 
@@ -73,7 +76,21 @@ class Captain::Conversation::ResponseBuilderJob < ApplicationJob
       message_hash[:agent_name] = message.additional_attributes['agent_name'] if message.additional_attributes&.dig('agent_name').present?
 
       message_hash
+    end.tap do |history|
+      # Diretiva interna de follow-up (cutucada): entra como último turno pro agente decidir.
+      history << { content: @directive, role: 'user' } if @directive.present?
     end
+  end
+
+  # Quando o cliente volta a responder (resposta normal, sem diretiva), a cadência
+  # de cutucada zera: lead reengajado começa do zero.
+  def reset_followup_state
+    attrs = @conversation.custom_attributes || {}
+    return if attrs['followup_token'].blank? && attrs['followup_count'].to_i.zero?
+
+    @conversation.update!(custom_attributes: attrs.merge('followup_token' => nil, 'followup_count' => 0, 'followup_status' => nil))
+  rescue StandardError => e
+    Rails.logger.warn("[ResponseBuilderJob] reset_followup: #{e.message}")
   end
 
   def determine_role(message)

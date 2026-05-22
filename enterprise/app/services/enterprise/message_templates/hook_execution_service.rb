@@ -94,7 +94,12 @@ module Enterprise::MessageTemplates::HookExecutionService
     # atendendo até um humano de fato responder (skip_after_human_response no
     # RouterService corta quando um atendente envia mensagem). Evita deixar o
     # cliente sem resposta quando não há humano disponível na hora.
-    (conversation.pending? || conversation.open?) && message.incoming? && inbox.captain_assistant.present?
+    (conversation.pending? || conversation.open?) && message.incoming? && inbox.captain_assistant.present? && !human_takeover_locked?
+  end
+
+  # Checkbox "Atendimento humano" no painel lateral: trava o bot pra o atendente assumir.
+  def human_takeover_locked?
+    [true, 'true', 1, '1'].include?(conversation.custom_attributes&.dig('atendimento_humano'))
   end
 
   def perform_handoff
