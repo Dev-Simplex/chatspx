@@ -551,6 +551,10 @@ Rails.application.routes.draw do
               get :in_service_conversations
             end
           end
+
+          resources :conversations, only: [] do
+            resources :pdf_exports, only: %i[create show], controller: 'conversations/pdf_exports'
+          end
         end
       end
     end

@@ -843,21 +843,32 @@
     "BUTTON_LABEL": "Exportar PDF",
     "CONVERSATIONS_COUNT": "{count} conversas",
     "LIMIT_WARNING": "Você selecionou {count} conversas mas o máximo é {max}. Selecione menos conversas.",
+    "MULTI_WARNING": "{count} conversas selecionadas. Apenas a primeira será exportada nesta requisição — repita para as demais.",
     "DATE_RANGE": "Período",
     "DATE_FROM": "De",
     "DATE_TO": "Até",
     "DATE_TO_LABEL": "até",
     "DATE_HINT": "Deixe vazio para exportar todas as mensagens",
-    "INCLUDE_PRIVATE": "Incluir notas privadas",
+    "FILTERS_LABEL": "Quais mensagens incluir",
+    "INCLUDE_INCOMING": "Mensagens do cliente (recebidas)",
+    "INCLUDE_OUTGOING": "Mensagens do agente (enviadas)",
+    "INCLUDE_PRIVATE": "Notas privadas (internas)",
     "INCLUDE_PRIVATE_HINT": "Notas internas serão incluídas no PDF",
+    "INCLUDE_ACTIVITY": "Eventos do sistema (transferências, atribuições, status)",
     "EXPORT_PDF": "Exportar PDF",
+    "DOWNLOAD": "Baixar PDF",
     "CANCEL": "Cancelar",
+    "CLOSE": "Fechar",
+    "READY_TITLE": "PDF pronto",
+    "READY_HINT": "Clique no botão abaixo para baixar o arquivo.",
+    "TIMEOUT": "Geração está demorando demais. Tente novamente ou reduza o período.",
     "SUCCESS": "PDF exportado com sucesso",
     "ERROR": "Falha ao exportar PDF",
     "PROGRESS": {
+      "QUEUED": "Na fila para geração...",
       "FETCHING": "Buscando mensagens...",
       "LOADING_MESSAGES": "{count} mensagens carregadas...",
-      "GENERATING": "Gerando PDF..."
+      "GENERATING": "Gerando PDF no servidor..."
     }
   }
 }

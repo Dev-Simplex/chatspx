@@ -17,7 +17,6 @@ const route = useRoute();
 const conversations = useMapGetter(
   'contactConversations/getAllConversationsByContactId'
 );
-const contactsById = useMapGetter('contacts/getContactById');
 const stateInbox = useMapGetter('inboxes/getInboxById');
 const accountLabels = useMapGetter('labels/getLabels');
 
@@ -33,10 +32,6 @@ const contactConversations = computed(() =>
 const selectedConversationIds = ref(new Set());
 const selectAllChecked = ref(false);
 const showExportModal = ref(false);
-
-const currentContact = computed(() =>
-  contactsById.value(route.params.contactId)
-);
 
 const updateSelectAllState = () => {
   if (contactConversations.value.length === 0) {
@@ -158,7 +153,6 @@ const openExportModal = () => {
     <ExportConversationModal
       :show="showExportModal"
       :conversations="selectedConversations"
-      :contact="currentContact"
       @close="showExportModal = false"
     />
   </div>
