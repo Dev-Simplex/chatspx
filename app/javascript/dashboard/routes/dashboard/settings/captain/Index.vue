@@ -21,11 +21,14 @@ const { accountId } = useAccount();
 const { captainEnabled } = useCaptain();
 
 const captainConfigStore = useCaptainConfigStore();
-const { uiFlags, llmConnection } = storeToRefs(captainConfigStore);
+const { uiFlags, llmConnection, anthropicConnection } =
+  storeToRefs(captainConfigStore);
 
 const isLoading = computed(() => uiFlags.value.isFetching);
 const openaiApiKey = ref('');
+const anthropicApiKey = ref('');
 const isUpdatingConnection = ref(false);
+const isUpdatingAnthropic = ref(false);
 
 const isOpenAiConfigured = computed(() =>
   Boolean(llmConnection.value?.configured)
@@ -50,6 +53,24 @@ const connectionStatusLabel = computed(() =>
   isOpenAiConfigured.value
     ? t('CAPTAIN_SETTINGS.OPENAI_CONNECTION.STATUS_CONFIGURED')
     : t('CAPTAIN_SETTINGS.OPENAI_CONNECTION.STATUS_NOT_CONFIGURED')
+);
+
+const isAnthropicConfigured = computed(() =>
+  Boolean(anthropicConnection.value?.configured)
+);
+const maskedAnthropicKey = computed(
+  () => anthropicConnection.value?.maskedApiKey || null
+);
+const canSaveAnthropicKey = computed(
+  () => anthropicApiKey.value.trim().length > 0 && !isUpdatingAnthropic.value
+);
+const canRemoveAnthropicKey = computed(
+  () => isAnthropicConfigured.value && !isUpdatingAnthropic.value
+);
+const anthropicStatusLabel = computed(() =>
+  isAnthropicConfigured.value
+    ? t('CAPTAIN_SETTINGS.ANTHROPIC_CONNECTION.STATUS_CONFIGURED')
+    : t('CAPTAIN_SETTINGS.ANTHROPIC_CONNECTION.STATUS_NOT_CONFIGURED')
 );
 
 const modelFeatures = computed(() => [
@@ -132,6 +153,45 @@ async function handleRemoveOpenAiKey() {
     );
   } finally {
     isUpdatingConnection.value = false;
+  }
+}
+
+async function handleSaveAnthropicKey() {
+  if (!canSaveAnthropicKey.value) return;
+
+  isUpdatingAnthropic.value = true;
+  try {
+    await captainConfigStore.updatePreferences({
+      llm_connection: { anthropic_api_key: anthropicApiKey.value.trim() },
+    });
+    anthropicApiKey.value = '';
+    useAlert(t('CAPTAIN_SETTINGS.ANTHROPIC_CONNECTION.API.SUCCESS'));
+  } catch (error) {
+    useAlert(
+      parseAPIErrorResponse(error) ||
+        t('CAPTAIN_SETTINGS.ANTHROPIC_CONNECTION.API.ERROR')
+    );
+  } finally {
+    isUpdatingAnthropic.value = false;
+  }
+}
+
+async function handleRemoveAnthropicKey() {
+  if (!canRemoveAnthropicKey.value) return;
+
+  isUpdatingAnthropic.value = true;
+  try {
+    await captainConfigStore.updatePreferences({
+      llm_connection: { remove_anthropic_key: true },
+    });
+    useAlert(t('CAPTAIN_SETTINGS.ANTHROPIC_CONNECTION.API.SUCCESS'));
+  } catch (error) {
+    useAlert(
+      parseAPIErrorResponse(error) ||
+        t('CAPTAIN_SETTINGS.ANTHROPIC_CONNECTION.API.ERROR')
+    );
+  } finally {
+    isUpdatingAnthropic.value = false;
   }
 }
 
@@ -254,6 +314,59 @@ onMounted(() => {
                 @click="handleRemoveOpenAiKey"
               >
                 {{ t('CAPTAIN_SETTINGS.OPENAI_CONNECTION.REMOVE') }}
+              </button>
+            </div>
+          </div>
+        </SectionLayout>
+
+        <!-- Anthropic Connection Section -->
+        <SectionLayout
+          :title="t('CAPTAIN_SETTINGS.ANTHROPIC_CONNECTION.TITLE')"
+          :description="t('CAPTAIN_SETTINGS.ANTHROPIC_CONNECTION.DESCRIPTION')"
+        >
+          <div class="rounded-xl border border-n-weak bg-n-solid-1 p-4">
+            <div class="flex flex-col gap-1">
+              <p class="text-sm font-medium text-n-slate-12">
+                {{ anthropicStatusLabel }}
+              </p>
+              <p v-if="maskedAnthropicKey" class="text-xs text-n-slate-11">
+                {{
+                  t('CAPTAIN_SETTINGS.ANTHROPIC_CONNECTION.CONFIGURED_KEY', {
+                    key: maskedAnthropicKey,
+                  })
+                }}
+              </p>
+            </div>
+
+            <div class="mt-4 flex flex-col gap-3 md:flex-row md:items-center">
+              <input
+                v-model="anthropicApiKey"
+                type="password"
+                autocomplete="off"
+                class="w-full rounded-lg border border-n-weak bg-n-solid-2 px-3 py-2 text-sm text-n-slate-12 outline-none focus:border-n-brand focus:ring-1 focus:ring-n-brand"
+                :placeholder="
+                  t('CAPTAIN_SETTINGS.ANTHROPIC_CONNECTION.API_KEY_PLACEHOLDER')
+                "
+              />
+              <button
+                type="button"
+                class="inline-flex items-center justify-center rounded-lg bg-n-brand px-4 py-2 text-sm font-medium text-white transition hover:brightness-95 disabled:cursor-not-allowed disabled:opacity-60"
+                :disabled="!canSaveAnthropicKey"
+                @click="handleSaveAnthropicKey"
+              >
+                {{
+                  isUpdatingAnthropic
+                    ? t('CAPTAIN_SETTINGS.ANTHROPIC_CONNECTION.SAVING')
+                    : t('CAPTAIN_SETTINGS.ANTHROPIC_CONNECTION.SAVE')
+                }}
+              </button>
+              <button
+                type="button"
+                class="inline-flex items-center justify-center rounded-lg border border-n-weak bg-transparent px-4 py-2 text-sm font-medium text-n-slate-12 transition hover:bg-n-alpha-2 disabled:cursor-not-allowed disabled:opacity-60"
+                :disabled="!canRemoveAnthropicKey"
+                @click="handleRemoveAnthropicKey"
+              >
+                {{ t('CAPTAIN_SETTINGS.ANTHROPIC_CONNECTION.REMOVE') }}
               </button>
             </div>
           </div>

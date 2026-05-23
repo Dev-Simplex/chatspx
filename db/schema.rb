@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[7.1].define(version: 2026_05_06_120000) do
+ActiveRecord::Schema[7.1].define(version: 2026_05_19_210000) do
   # These extensions should be enabled to support this database
   enable_extension "pg_stat_statements"
   enable_extension "pg_trgm"
@@ -298,6 +298,21 @@ ActiveRecord::Schema[7.1].define(version: 2026_05_06_120000) do
     t.index ["account_id"], name: "idx_canned_responses_account_id"
   end
 
+  create_table "captain_assistant_logs", force: :cascade do |t|
+    t.bigint "captain_assistant_id", null: false
+    t.bigint "conversation_id"
+    t.bigint "message_id"
+    t.string "event_type", null: false
+    t.jsonb "payload", default: {}, null: false
+    t.integer "duration_ms"
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["captain_assistant_id", "event_type"], name: "idx_captain_logs_assistant_event"
+    t.index ["captain_assistant_id"], name: "index_captain_assistant_logs_on_captain_assistant_id"
+    t.index ["conversation_id"], name: "index_captain_assistant_logs_on_conversation_id"
+    t.index ["created_at"], name: "index_captain_assistant_logs_on_created_at"
+  end
+
   create_table "captain_assistant_responses", force: :cascade do |t|
     t.string "question", null: false
     t.text "answer", null: false
@@ -325,6 +340,7 @@ ActiveRecord::Schema[7.1].define(version: 2026_05_06_120000) do
     t.jsonb "config", default: {}, null: false
     t.jsonb "response_guidelines", default: []
     t.jsonb "guardrails", default: []
+    t.jsonb "behavior", default: {}, null: false
     t.index ["account_id"], name: "index_captain_assistants_on_account_id"
   end
 
@@ -341,6 +357,7 @@ ActiveRecord::Schema[7.1].define(version: 2026_05_06_120000) do
     t.jsonb "auth_config", default: {}
     t.jsonb "param_schema", default: []
     t.boolean "enabled", default: true, null: false
+    t.boolean "copilot_only", default: false, null: false
     t.datetime "created_at", null: false
     t.datetime "updated_at", null: false
     t.index ["account_id", "slug"], name: "index_captain_custom_tools_on_account_id_and_slug", unique: true
@@ -1458,6 +1475,20 @@ ActiveRecord::Schema[7.1].define(version: 2026_05_06_120000) do
     t.index ["inbox_id"], name: "index_working_hours_on_inbox_id"
   end
 
+  add_foreign_key "active_storage_attachments", "active_storage_blobs", column: "blob_id"
+  add_foreign_key "active_storage_variant_records", "active_storage_blobs", column: "blob_id"
+  add_foreign_key "captain_assistant_logs", "captain_assistants"
+  add_foreign_key "captain_assistant_logs", "conversations"
+  add_foreign_key "contact_inboxes", "contacts", on_delete: :cascade
+  add_foreign_key "contact_inboxes", "inboxes", on_delete: :cascade
+  add_foreign_key "conversation_assignment_histories", "accounts"
+  add_foreign_key "conversation_assignment_histories", "conversations"
+  add_foreign_key "conversation_assignment_histories", "teams"
+  add_foreign_key "conversation_assignment_histories", "users", column: "assignee_id"
+  add_foreign_key "conversation_participants", "accounts", on_delete: :cascade
+  add_foreign_key "conversation_participants", "conversations", on_delete: :cascade
+  add_foreign_key "conversations", "accounts", on_delete: :cascade
+  add_foreign_key "conversations", "contacts", on_delete: :restrict
   add_foreign_key "conversations", "inboxes", on_delete: :cascade
   add_foreign_key "conversations", "teams", on_delete: :nullify
   add_foreign_key "conversations", "users", column: "assignee_id", on_delete: :nullify
@@ -1467,12 +1498,16 @@ ActiveRecord::Schema[7.1].define(version: 2026_05_06_120000) do
   add_foreign_key "funnel_items", "funnels"
   add_foreign_key "funnel_items", "users", column: "moved_by_id"
   add_foreign_key "funnel_stages", "funnels"
+  add_foreign_key "funnels", "accounts"
   add_foreign_key "funnels", "teams"
   add_foreign_key "inboxes", "portals"
   add_foreign_key "mentions", "conversations", on_delete: :cascade
+  add_foreign_key "message_reactions", "accounts"
   add_foreign_key "message_reactions", "messages"
+  add_foreign_key "messages", "accounts", on_delete: :cascade
   add_foreign_key "messages", "conversations", on_delete: :cascade
   add_foreign_key "messages", "inboxes", on_delete: :cascade
+  add_foreign_key "notifications", "accounts", on_delete: :cascade
   add_foreign_key "notifications", "users", on_delete: :cascade
   add_foreign_key "nps_responses", "conversations", on_delete: :cascade
   add_foreign_key "reporting_events", "conversations", on_delete: :cascade

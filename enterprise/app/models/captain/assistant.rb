@@ -35,8 +35,11 @@ class Captain::Assistant < ApplicationRecord
   has_many :messages, as: :sender, dependent: :nullify
   has_many :copilot_threads, dependent: :destroy_async
   has_many :scenarios, class_name: 'Captain::Scenario', dependent: :destroy_async
+  has_many :assistant_logs, class_name: 'Captain::AssistantLog', foreign_key: :captain_assistant_id, dependent: :destroy_async
 
   store_accessor :config, :temperature, :feature_faq, :feature_memory, :feature_contact_attributes, :product_name
+  store_accessor :behavior, :debounce_seconds, :business_hours_config, :humanizer_config, :media_pipeline_config,
+                 :router_config, :copilot_trigger_config, :dedup_config
 
   validates :name, presence: true
   validates :description, presence: true
@@ -53,7 +56,7 @@ class Captain::Assistant < ApplicationRecord
   def available_agent_tools
     tools = self.class.built_in_agent_tools.dup
 
-    custom_tools = account.captain_custom_tools.enabled.map(&:to_tool_metadata)
+    custom_tools = account.captain_custom_tools.enabled.where(copilot_only: false).map(&:to_tool_metadata)
     tools.concat(custom_tools)
 
     tools

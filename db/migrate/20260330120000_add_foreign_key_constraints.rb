@@ -5,31 +5,35 @@ class AddForeignKeyConstraints < ActiveRecord::Migration[7.1]
   # Uses the non-blocking pattern: clean orphans -> add unvalidated FK -> validate separately.
 
   FOREIGN_KEYS = [
-    # HIGH Priority — core tables
+    # ALL tables referencing conversations — must be processed FIRST so their FKs
+    # use cascade before we attempt to clean orphaned conversations below
+    { from: :conversation_assignment_histories, to: :conversations, column: :conversation_id, on_delete: :cascade, nullable: false },
+    { from: :applied_slas, to: :conversations, column: :conversation_id, on_delete: :cascade, nullable: false },
+    { from: :sla_events, to: :conversations, column: :conversation_id, on_delete: :cascade, nullable: false },
+    { from: :funnel_items, to: :conversations, column: :conversation_id, on_delete: :cascade, nullable: false },
+    { from: :scheduled_messages, to: :conversations, column: :conversation_id, on_delete: :cascade, nullable: false },
+    { from: :nps_responses, to: :conversations, column: :conversation_id, on_delete: :cascade, nullable: true },
+    { from: :csat_survey_responses, to: :conversations, column: :conversation_id, on_delete: :cascade, nullable: true },
+    { from: :reporting_events, to: :conversations, column: :conversation_id, on_delete: :cascade, nullable: true },
+    { from: :conversation_participants, to: :conversations, column: :conversation_id, on_delete: :cascade, nullable: false },
+    { from: :mentions, to: :conversations, column: :conversation_id, on_delete: :cascade, nullable: false },
+    { from: :messages, to: :conversations, column: :conversation_id, on_delete: :cascade, nullable: false },
+
+    # HIGH Priority — core tables (conversations can now be safely cleaned)
     { from: :conversations, to: :accounts,  column: :account_id,  on_delete: :cascade,  nullable: false },
     { from: :conversations, to: :inboxes,   column: :inbox_id,    on_delete: :cascade,  nullable: false },
     { from: :conversations, to: :contacts,  column: :contact_id,  on_delete: :restrict, nullable: true },
     { from: :conversations, to: :users,     column: :assignee_id, on_delete: :nullify,  nullable: true },
     { from: :conversations, to: :teams,     column: :team_id,     on_delete: :nullify,  nullable: true },
-    { from: :messages,      to: :accounts,       column: :account_id,      on_delete: :cascade, nullable: false },
-    { from: :messages,      to: :conversations,  column: :conversation_id, on_delete: :cascade, nullable: false },
-    { from: :messages,      to: :inboxes,        column: :inbox_id,        on_delete: :cascade, nullable: false },
+    { from: :messages,      to: :accounts,  column: :account_id,  on_delete: :cascade,  nullable: false },
+    { from: :messages,      to: :inboxes,   column: :inbox_id,    on_delete: :cascade,  nullable: false },
 
     # MEDIUM Priority
     { from: :notifications, to: :accounts, column: :account_id, on_delete: :cascade, nullable: false },
     { from: :notifications, to: :users,    column: :user_id,    on_delete: :cascade, nullable: false },
     { from: :contact_inboxes, to: :contacts, column: :contact_id, on_delete: :cascade, nullable: true },
     { from: :contact_inboxes, to: :inboxes,  column: :inbox_id,   on_delete: :cascade, nullable: true },
-    { from: :conversation_participants, to: :accounts,      column: :account_id,      on_delete: :cascade, nullable: false },
-    { from: :conversation_participants, to: :conversations, column: :conversation_id, on_delete: :cascade, nullable: false },
-    { from: :mentions, to: :conversations, column: :conversation_id, on_delete: :cascade, nullable: false },
-
-    # Tables that reference conversations and need cascade for consistency when conversations are deleted via DB cascade
-    { from: :funnel_items, to: :conversations, column: :conversation_id, on_delete: :cascade, nullable: false },
-    { from: :scheduled_messages, to: :conversations, column: :conversation_id, on_delete: :cascade, nullable: false },
-    { from: :nps_responses, to: :conversations, column: :conversation_id, on_delete: :cascade, nullable: true },
-    { from: :csat_survey_responses, to: :conversations, column: :conversation_id, on_delete: :cascade, nullable: true },
-    { from: :reporting_events, to: :conversations, column: :conversation_id, on_delete: :cascade, nullable: true }
+    { from: :conversation_participants, to: :accounts, column: :account_id, on_delete: :cascade, nullable: false }
   ].freeze
 
   def up

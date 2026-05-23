@@ -23,9 +23,12 @@ module Concerns::SafeEndpointValidatable
   end
 
   def parse_endpoint_uri
-    # Strip Liquid template syntax for validation
-    # Replace {{ variable }} with a placeholder value
-    sanitized_url = endpoint_url.gsub(/\{\{[^}]+\}\}/, 'placeholder')
+    # Strip Liquid template syntax for validation:
+    # - {{ variable }} expressions
+    # - {% if/for/etc %} control tags (without these the URI parser breaks
+    #   when an endpoint_url uses conditional Liquid like buscar_imoveis_vista
+    #   from the Tozi project)
+    sanitized_url = endpoint_url.gsub(/\{\{[^}]+\}\}|\{%[^%]+%\}/, 'placeholder')
     URI.parse(sanitized_url)
   rescue URI::InvalidURIError
     nil

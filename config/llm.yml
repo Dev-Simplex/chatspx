@@ -34,13 +34,19 @@ models:
   claude-haiku-4.5:
     provider: anthropic
     display_name: 'Claude Haiku 4.5'
-    coming_soon: true
     credit_multiplier: 2
   claude-sonnet-4.5:
     provider: anthropic
     display_name: 'Claude Sonnet 4.5'
-    coming_soon: true
     credit_multiplier: 3
+  claude-sonnet-4:
+    provider: anthropic
+    display_name: 'Claude Sonnet 4'
+    credit_multiplier: 3
+  claude-opus-4:
+    provider: anthropic
+    display_name: 'Claude Opus 4'
+    credit_multiplier: 5
   gemini-3-flash:
     provider: gemini
     display_name: 'Gemini 3 Flash'

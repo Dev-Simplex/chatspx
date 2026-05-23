@@ -13,6 +13,8 @@ import CopilotThinkingGroup from './CopilotThinkingGroup.vue';
 import ToggleCopilotAssistant from './ToggleCopilotAssistant.vue';
 import CopilotEmptyState from './CopilotEmptyState.vue';
 import Icon from '../icon/Icon.vue';
+import CopilotQuickActions from './CopilotQuickActions.vue';
+import SidebarActionsHeader from 'dashboard/components-next/SidebarActionsHeader.vue';
 import { useI18n } from 'vue-i18n';
 
 const props = defineProps({
@@ -270,6 +272,7 @@ watch(
         />
         <div v-else />
       </div>
+      <CopilotQuickActions v-if="hasAssistants && !hasMessages" @send="sendMessage" />
       <CopilotInput v-if="hasAssistants" class="w-full" @send="sendMessage" />
     </div>
   </div>
