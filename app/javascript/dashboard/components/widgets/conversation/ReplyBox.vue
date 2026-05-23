@@ -1,5 +1,9 @@
 <script>
-import { defineAsyncComponent, useTemplateRef } from 'vue';
+import { defineAsyncComponent, useTemplateRef, ref, computed } from 'vue';
+import { useGlobalDropZone } from 'dashboard/composables/useGlobalDropZone';
+import GlobalDropOverlay from 'dashboard/components-next/message/GlobalDropOverlay.vue';
+import AttachmentPreviewModal from 'dashboard/components-next/message/AttachmentPreviewModal.vue';
+import ImageEditor from 'dashboard/components-next/message/ImageEditor.vue';
 import { mapGetters } from 'vuex';
 import { toast as sonnerToast } from 'vue-sonner';
 import { useAlert } from 'dashboard/composables';
@@ -104,7 +108,10 @@ export default {
   components: {
     ArticleSearchPopover,
     AttachmentPreview,
+    AttachmentPreviewModal,
     AudioRecorder,
+    GlobalDropOverlay,
+    ImageEditor,
     ReplyBoxBanner,
     EmojiInput,
     ReplyBottomPanel,
@@ -152,6 +159,19 @@ export default {
     const messageEditor = useTemplateRef('messageEditor');
     const sparklesButtonRef = useTemplateRef('sparklesButtonRef');
     const copilot = useCopilotReply();
+
+    // Drag-and-drop global estilo WhatsApp Web. Files arrastados sobre a
+    // janela caem em `globalDropFiles`; o watcher abaixo (Options API)
+    // processa cada arquivo via `onFileUpload` do fileUploadMixin e abre o
+    // AttachmentPreviewModal automaticamente.
+    const globalDropFiles = ref([]);
+    const globalDropEnabled = ref(true);
+    const { isOverDropZone: isGlobalDragActive } = useGlobalDropZone({
+      enabled: computed(() => globalDropEnabled.value),
+      onDrop: files => {
+        globalDropFiles.value = files;
+      },
+    });
     const shortcutKey = useKbd(['$mod', '+', 'enter']);
     const { captainTasksEnabled, processEvent: captainProcessEvent } =
       useCaptain();
@@ -177,6 +197,9 @@ export default {
       prefersReducedMotion,
       aiAssistantFlag,
       aiTour,
+      globalDropFiles,
+      globalDropEnabled,
+      isGlobalDragActive,
     };
   },
   data() {
@@ -186,6 +209,13 @@ export default {
       isFocused: false,
       showEmojiPicker: false,
       attachedFiles: [],
+      // Fase 3: modal de preview WhatsApp-fiel + editor de imagem
+      showAttachmentModal: false,
+      isSendingAttachment: false,
+      showImageEditor: false,
+      imageEditorFile: null,
+      imageEditorMode: 'crop',
+      imageEditorTargetIndex: -1,
       isRecordingAudio: false,
       recordingAudioState: '',
       recordingAudioDurationText: '00:00',
@@ -707,6 +737,25 @@ export default {
     },
   },
   watch: {
+    // Processa arquivos arrastados pelo overlay global (Fase 3 drag-drop WA).
+    globalDropFiles(files) {
+      if (!files || files.length === 0) return;
+      files.forEach(file => this.handleGlobalDroppedFile(file));
+      // Limpa o ref pra permitir novo drop sequencial
+      this.globalDropFiles = [];
+    },
+    // Abre/fecha modal premium conforme attachedFiles muda
+    'attachedFiles.length': function watchAttachedFilesLength(newLen) {
+      if (newLen > 0 && !this.showAttachmentModal) {
+        this.showAttachmentModal = true;
+      } else if (newLen === 0) {
+        this.showAttachmentModal = false;
+      }
+    },
+    // Desativa drop global quando o modal de nova conversa está aberto
+    newConversationModalActive(active) {
+      this.globalDropEnabled = !active;
+    },
     currentChat(conversation, oldConversation) {
       const { can_reply: canReply } = conversation;
       if (oldConversation && oldConversation.id !== conversation.id) {
@@ -834,6 +883,87 @@ export default {
     emitter.off(CMD_AI_ASSIST, this.executeCopilotAction);
   },
   methods: {
+    // Fase 3 — pipeline drag-drop WhatsApp-fiel
+    handleGlobalDroppedFile(file) {
+      if (!file || !file.size) return;
+      const isAllowed = isFileTypeAllowedForChannel(file, {
+        channelType: this.channelType || this.inbox?.channel_type,
+        medium: this.inbox?.medium,
+        conversationType: this.conversationType,
+        isInstagramChannel: this.isAnInstagramChannel,
+        isOnPrivateNote: this.isOnPrivateNote,
+      });
+      if (!isAllowed) {
+        useAlert(
+          this.$t('CONVERSATION.FILE_TYPE_NOT_SUPPORTED', {
+            fileName: file.name,
+          })
+        );
+        return;
+      }
+      const { name, type, size } = file;
+      this.onFileUpload({ name, type, size, file });
+    },
+    onAttachmentModalSend() {
+      if (this.isSendingAttachment) return;
+      this.isSendingAttachment = true;
+      try {
+        this.onSendReply();
+      } finally {
+        this.$nextTick(() => {
+          this.isSendingAttachment = false;
+        });
+      }
+    },
+    onAttachmentModalClose() {
+      this.attachedFiles = [];
+      this.showAttachmentModal = false;
+    },
+    onAttachmentModalAddMore() {
+      // Reaproveita o input file do ReplyBottomPanel (vue-upload-component)
+      const input = document.getElementById('conversationAttachment');
+      if (input) input.click();
+    },
+    onEditImage({ file, action }) {
+      if (!file) return;
+      const idx = this.attachedFiles.findIndex(f => f === file);
+      if (idx < 0) return;
+      this.imageEditorTargetIndex = idx;
+      this.imageEditorFile = file;
+      this.imageEditorMode = action || 'crop';
+      this.showImageEditor = true;
+    },
+    onImageEditorApply(blob) {
+      const idx = this.imageEditorTargetIndex;
+      if (idx >= 0 && blob) {
+        const reader = new FileReader();
+        reader.readAsDataURL(blob);
+        reader.onloadend = () => {
+          const current = this.attachedFiles[idx];
+          if (!current) return;
+          const editedFile = new File(
+            [blob],
+            current.resource?.name || `edited_${Date.now()}.jpg`,
+            { type: 'image/jpeg' }
+          );
+          this.attachedFiles.splice(idx, 1, {
+            ...current,
+            resource: editedFile,
+            thumb: reader.result,
+            blobSignedId: undefined,
+          });
+        };
+      }
+      this.closeImageEditor();
+    },
+    onImageEditorCancel() {
+      this.closeImageEditor();
+    },
+    closeImageEditor() {
+      this.showImageEditor = false;
+      this.imageEditorFile = null;
+      this.imageEditorTargetIndex = -1;
+    },
     showWhatsappInvalidNotice(message) {
       this.whatsappInvalidNotice = message;
       if (this.whatsappNoticeTimeoutId) {
@@ -1232,10 +1362,11 @@ export default {
         this.clearMessage();
         this.hideEmojiPicker();
         this.$emit('update:popOutReplyBox', false);
-        // Re-collapse the composer to its single-line WA-Web look after sending.
+        // Manter foco no editor depois de enviar (igual WhatsApp Web) — agente
+        // consegue digitar a próxima mensagem direto sem novo clique.
         this.$nextTick(() => {
-          if (typeof document !== 'undefined') document.activeElement?.blur?.();
-          this.isFocused = false;
+          this.messageEditor?.focusEditorInputField?.('end');
+          this.isFocused = true;
         });
       }
     },
@@ -2697,6 +2828,28 @@ export default {
       ref="confirmDialog"
       :title="$t('CONVERSATION.REPLYBOX.UNDEFINED_VARIABLES.TITLE')"
       :description="undefinedVariableMessage"
+    />
+
+    <!-- Fase 3 — Drag-and-drop premium WhatsApp Web -->
+    <GlobalDropOverlay :show="isGlobalDragActive" />
+    <AttachmentPreviewModal
+      :show="showAttachmentModal"
+      :files="attachedFiles"
+      :caption="message"
+      :sending="isSendingAttachment"
+      @update:caption="message = $event"
+      @update:files="attachedFiles = $event"
+      @send="onAttachmentModalSend"
+      @close="onAttachmentModalClose"
+      @add-more="onAttachmentModalAddMore"
+      @edit-image="onEditImage"
+    />
+    <ImageEditor
+      :show="showImageEditor"
+      :file="imageEditorFile"
+      :initial-mode="imageEditorMode"
+      @apply="onImageEditorApply"
+      @cancel="onImageEditorCancel"
     />
   </div>
 </template>

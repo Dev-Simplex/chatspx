@@ -879,5 +879,37 @@
       "LOADING_MESSAGES": "{count} messages loaded...",
       "GENERATING": "Generating PDF on the server..."
     }
+  },
+  "GLOBAL_DROP": {
+    "TITLE": "Drop files here to send",
+    "SUBTITLE": "Share files with the customer",
+    "ARIA_LABEL": "Drop zone — release to attach files"
+  },
+  "ATTACHMENT_PREVIEW": {
+    "CAPTION_PLACEHOLDER": "Add a caption...",
+    "SEND": "Send",
+    "CLOSE": "Close",
+    "ADD_MORE": "Add more",
+    "CROP": "Crop",
+    "DRAW": "Draw",
+    "ADD_TEXT": "Add text",
+    "REMOVE": "Remove",
+    "COUNTER": "{current} of {total}"
+  },
+  "IMAGE_EDITOR": {
+    "TITLE": "Edit image",
+    "CROP": "Crop",
+    "DRAW": "Draw",
+    "TEXT": "Text",
+    "ROTATE_LEFT": "Rotate left",
+    "ROTATE_RIGHT": "Rotate right",
+    "FLIP_H": "Flip horizontal",
+    "FLIP_V": "Flip vertical",
+    "RESET": "Reset",
+    "UNDO": "Undo",
+    "CLEAR": "Clear",
+    "ERASER": "Eraser",
+    "APPLY": "Apply",
+    "CANCEL": "Cancel"
   }
 }
