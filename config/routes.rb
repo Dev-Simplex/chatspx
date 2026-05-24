@@ -8,6 +8,13 @@ Rails.application.routes.draw do
     omniauth_callbacks: 'devise_overrides/omniauth_callbacks'
   }, via: [:get, :post]
 
+  # SSO de migracao Tozi -> AWS (2026-05)
+  # /migration_sso/issue chamado no PROD pelo banner Account 6
+  # /migration_sso/consume chamado no DESTINO via redirect com token JWT
+  post '/migration_sso/issue', to: 'migration_sso#issue'
+  get '/migration_sso/issue', to: 'migration_sso#issue'
+  get '/migration_sso/consume', to: 'migration_sso#consume'
+
   ## renders the frontend paths only if its not an api only server
   if ActiveModel::Type::Boolean.new.cast(ENV.fetch('CW_API_ONLY_SERVER', false))
     root to: 'api#index'
