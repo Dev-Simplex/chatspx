@@ -381,6 +381,10 @@ en:
       name: 'LeadSquared'
       short_description: 'Sync your contacts and conversations with LeadSquared CRM.'
       description: 'Sync your contacts and conversations with LeadSquared CRM. This integration automatically creates leads in LeadSquared when new contacts are added, and logs conversation activity to provide your sales team with complete context.'
+    meta_lead_ads:
+      name: 'Meta Lead Ads'
+      short_description: 'Receive Facebook/Instagram Lead Ads as conversations.'
+      description: 'When a user submits a Lead Form on Facebook or Instagram Ads, Chatwoot creates a conversation in the target inbox and sends the initial outgoing message. Supports multiple pages (one hook per page) and uses System User Token (preferred) or Page Access Token.'
   captain:
     errors:
       missing_api_key: 'OpenAI API key is not configured for this account. Please configure it in Captain settings.'

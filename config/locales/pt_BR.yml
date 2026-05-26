@@ -369,6 +369,10 @@ pt_BR:
       name: 'LeadSquared'
       short_description: 'Sincronize seus contatos e conversas com LeadSquared CRM.'
       description: 'Sincronize seus contatos e conversas com LeadSquared CRM. Essa integração cria automaticamente leads em LeadSquared quando novos contatos são adicionados, e registra a atividade de conversação para fornecer à sua equipe de vendas um contexto completo.'
+    meta_lead_ads:
+      name: 'Meta Lead Ads'
+      short_description: 'Receba leads do Facebook/Instagram como conversas automáticas.'
+      description: 'Quando um lead preenche um formulário de Lead Ads no Facebook ou Instagram, o SPX cria uma conversa na inbox alvo e envia a primeira mensagem. Suporta múltiplas páginas (um hook por página) e usa System User Token (recomendado) ou Page Access Token.'
   captain:
     errors:
       missing_api_key: 'A chave da OpenAI não está configurada para esta conta. Configure em Ajustes do Captain.'
