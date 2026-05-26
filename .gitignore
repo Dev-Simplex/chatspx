@@ -95,7 +95,9 @@ yarn-debug.log*
 .claude/settings.local.json
 .cursor
 .codex/
-.claude/
+.claude/*
+# STATE.md é versionado: single source of truth do in-flight do projeto (ver CLAUDE.md)
+!.claude/STATE.md
 CLAUDE.local.md
 .mcp.json
 
