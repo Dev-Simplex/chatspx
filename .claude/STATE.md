@@ -1,4 +1,4 @@
-# Estado ChatSPX — atualizado 2026-05-25
+# Estado ChatSPX — atualizado 2026-05-27
 
 > Single source of truth do que está **in-flight** no projeto.
 > Coisas estáveis vão pro [`MEMORY.md`](../../../.claude/projects/C--Users-paulo-Workspaces-chatspx/memory/MEMORY.md) (per-projeto) ou pro vault Obsidian.
@@ -8,7 +8,44 @@
 
 ## 🚧 Em andamento
 
-### [2026-05-25] Meta Lead Ads → Clara (Tozi) — em implementação
+### [2026-05-27] Meta Lead Ads → Clara (Tozi) — 🟢 EM PRODUÇÃO, aguardando lead orgânico
+
+**Status:** Pipeline completo funcionando E2E. App em modo Live no Meta. Subscription ativa. Hook configurado. Testado via Lead Ads Testing Tool — webhook real chegou no SPX, conversa criada (id=146). Aguarda primeiro lead orgânico real (de campanha rodando) pra fechar ciclo com WAHA+Clara.
+
+**Configuração final (27/05):**
+- App Meta: **SPX Lead Ads Tozi** id=`1658426868710322`, criado dentro do BM Tozi, modo **Ao Vivo**
+- Page Tozi: `539594042748152`, subscribed em field `leadgen` ✅
+- Lead Access Manager: SPX Lead Ads Tozi listado como CRM ✅
+- SU Token: nunca expira, salvo em `Obsidian/credenciais/tozi.md` seção "Meta Lead Ads"
+- App Secret: `4c27cd1eb604a196f6ed1d74c05abacf` (vault)
+- Verify Token: `228d3c9f0065ab7fa859255dce9b24795a60ff0bbd9988f2` (vault)
+- Hook no SPX (Account 1): id=3, `skip_initial_message=true` (modo teste — não dispara 1ª msg ao lead até validar com lead real)
+- Inbox alvo: 1 (WAHA Tozi, paulo.chatspx.app)
+- Último commit: `005661347` (fix substring match + dummy filter na extração de campos)
+
+**Validação E2E (27/05):**
+- ✅ GET challenge respondido (Meta verificou webhook)
+- ✅ POST de Meta IP real (`2a03:2880:2ff:4d::`) chegou em 13:23
+- ✅ Job processou em 611ms, criou Conversation 146 (sem phone — form de teste tinha dummy data)
+- ✅ Conversations criadas: 144, 145, 146 (todas testes, podem ser deletadas)
+
+**Bugs identificados e corrigidos hoje:**
+1. `Lead has no phone_number` raise → agora aceita lead sem phone (cria conv mesmo assim, não envia 1ª msg) — commit `09958905a`
+2. Form com nomes custom PT-BR (`qual_seu_telefone?`) não casavam com lista exata de chaves → substring match + normalização de acentos/caracteres especiais — commit `005661347`
+3. Test Tool injeta `<test lead: dummy data>` como valor → agora filtra via TEST_DUMMY_REGEX
+
+**Bloqueios resolvidos hoje:**
+- "App is not installed by any of the admins" → resolvido adicionando app ao Lead Access Manager
+- "App em desenvolvimento, leads reais não disparam webhook" → resolvido ativando modo Live (URL política privacidade + categoria já configurados)
+- Webhook ficava Pending no Tool → resolvido com DELETE+POST subscribed_apps (reset)
+
+**Pesquisa-base:** [`Obsidian/pesquisas/meta-lead-ads-webhook-api.md`](C:/Users/paulo/Workspaces/Obsidian/pesquisas/meta-lead-ads-webhook-api.md)
+
+**Antes do primeiro lead orgânico responder:**
+- ⚠ Remover/ampliar whitelist `only_contact_phones` da Clara (hoje só responde +5566996247866)
+- ⚠ Quando confiante, desligar flag `skip_initial_message` no hook (Settings → Integrations → Meta Lead Ads → Editar)
+
+### [2026-05-25] Meta Lead Ads — histórico de implementação
 - **Objetivo:** webhook Meta Lead Ads → cria conversa na Inbox 1 (WAHA Tozi) → Clara assume e inicia atendimento automaticamente
 - **Acesso confirmado:** Paulo tem app **Business MW (Midwest)** no Meta for Developers; página Tozi compartilhada via Lead Access; MCP Meta Marketing API já configurado (separado, não conflita)
 - **Caminho escolhido:** UI manual no SPX (admin cola tokens) + webhook público. Caminho longo (Tech Provider OAuth tipo ManyChat) corre em paralelo em outra sessão.
@@ -92,6 +129,9 @@ config/routes.rb               # match /webhooks/meta_lead_ads via [:get, :post]
 
 ## ✅ Decisões recentes (rolling 30 dias)
 
+- **[2026-05-27]** Criado app **SPX Lead Ads Tozi** (id `1658426868710322`) dentro do BM Tozi (não cross-BM via Business MW). Caminho cross-BM exigia Partnership e era overhead — app no BM dono da página é mais limpo.
+- **[2026-05-27]** Implementada UI de editar hook (`EditHook.vue`) — não é mais limitação do Chatwoot core, fork nosso. Vale pra todas integrações declarativas.
+- **[2026-05-27]** Adicionada flag `skip_initial_message` no hook pra modo teste sem enviar msg ao lead.
 - **[2026-05-25]** Adotado modelo STATE.md + hook SessionEnd como solução pra perda de contexto multi-sessão. MCP de memória semântica (Supermemory/Mem0) fica como opcional.
 - **[2026-05-19]** SPX institucional (SimplexIA) usa **Meta WhatsApp Cloud API direta** (Account 3, Inbox 89, `provider=whatsapp_cloud`) — NÃO WAHA. Corrige assumption anterior.
 - **[2026-05-17]** Stack escolhida pra agente IA Tozi: **Captain V2 nativo + camada fina futura** em `app/services/spx/tozi/`. Descartado tozi-agent/ Python e AIOX (meta-framework dev, não runtime).
@@ -100,8 +140,9 @@ config/routes.rb               # match /webhooks/meta_lead_ads via [:get, :post]
 
 ## ⏳ Aguardando externos
 
-- **Paulo:** rodar setup Meta Developers (passos 1-5) + configurar hook na UI do SPX (passo 6) + testar via Lead Ads Testing Tool (passo 7). Detalhes em "Em andamento".
-- **Paulo:** remover ou ampliar `only_contact_phones` da Clara antes do teste com leads reais.
+- **Lead orgânico real** de campanha Tozi rodando → vai disparar webhook automático e criar conversa (Clara não responderá enquanto flag `skip_initial_message=true` e whitelist `only_contact_phones` estiverem ativos).
+- **Paulo:** quando quiser, ampliar `only_contact_phones` da Clara + desligar `skip_initial_message` no hook.
+- **(Opcional, limpeza):** deletar conversas de teste 144, 145, 146 (mesmo lead replay, source=meta_lead_ads).
 
 ---
 
