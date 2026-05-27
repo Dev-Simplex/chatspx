@@ -11,7 +11,7 @@ const props = defineProps({
   },
 });
 
-defineEmits(['add', 'delete']);
+defineEmits(['add', 'delete', 'edit']);
 
 const { integration, hasConnectedHooks } = useIntegrationHook(
   props.integrationId
@@ -43,24 +43,28 @@ const { replaceInstallationName } = useBranding();
           {{ replaceInstallationName(integration.description) }}
         </p>
       </div>
-      <div class="flex justify-center items-center mb-0 w-[15%]">
-        <div v-if="hasConnectedHooks">
-          <div @click="$emit('delete', integration.hooks[0])">
-            <Button
-              ruby
-              faded
-              :label="$t('INTEGRATION_APPS.DISCONNECT.BUTTON_TEXT')"
-            />
-          </div>
-        </div>
-        <div v-else>
+      <div class="flex justify-center items-center mb-0 gap-2 w-[25%]">
+        <template v-if="hasConnectedHooks">
           <Button
-            blue
+            slate
             faded
-            :label="$t('INTEGRATION_APPS.CONNECT.BUTTON_TEXT')"
-            @click="$emit('add')"
+            :label="$t('INTEGRATION_APPS.LIST.EDIT.BUTTON_TEXT')"
+            @click="$emit('edit', integration.hooks[0])"
           />
-        </div>
+          <Button
+            ruby
+            faded
+            :label="$t('INTEGRATION_APPS.DISCONNECT.BUTTON_TEXT')"
+            @click="$emit('delete', integration.hooks[0])"
+          />
+        </template>
+        <Button
+          v-else
+          blue
+          faded
+          :label="$t('INTEGRATION_APPS.CONNECT.BUTTON_TEXT')"
+          @click="$emit('add')"
+        />
       </div>
     </div>
   </div>
