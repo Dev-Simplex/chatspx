@@ -7,10 +7,15 @@ module Meta
       GRAPH_VERSION = 'v22.0'.freeze
       FIELDS = 'id,created_time,ad_id,ad_name,form_id,campaign_id,campaign_name,adset_id,adset_name,field_data,platform'.freeze
 
-      PHONE_KEYS = %w[phone_number phone telefone celular whatsapp].freeze
-      NAME_KEYS = %w[full_name name nome nome_completo].freeze
-      EMAIL_KEYS = %w[email e-mail].freeze
-      CITY_KEYS = %w[city cidade].freeze
+      # Substrings que identificam o tipo do campo. Match parcial — funciona
+      # com qualquer form (nomes custom tipo "qual_seu_telefone?", "celular_contato", etc).
+      PHONE_HINTS = %w[phone telefone celular whatsapp numero_de_telefone numero_telefone].freeze
+      NAME_HINTS = %w[full_name nome name].freeze
+      EMAIL_HINTS = %w[email e-mail mail].freeze
+      CITY_HINTS = %w[city cidade].freeze
+
+      # Filtra dummy data do Lead Ads Testing Tool (`<test lead: dummy data for X>`)
+      TEST_DUMMY_REGEX = /\A\s*<test lead:.*?>\s*\z/i.freeze
 
       def initialize(leadgen_id:, access_token:)
         @leadgen_id = leadgen_id
@@ -32,7 +37,11 @@ module Meta
 
       def parse(json)
         fields = (json['field_data'] || []).each_with_object({}) do |f, acc|
-          acc[f['name'].to_s.downcase] = Array(f['values']).first
+          key = normalize_key(f['name'])
+          value = Array(f['values']).first
+          # Filtra dummy data de Test Tool — preserva chave pra raw_fields mas com nil
+          value = nil if value.to_s.match?(TEST_DUMMY_REGEX)
+          acc[key] = value
         end
 
         {
@@ -46,16 +55,27 @@ module Meta
           campaign_id: json['campaign_id'],
           campaign_name: json['campaign_name'],
           platform: json['platform'],
-          full_name: pick(fields, NAME_KEYS),
-          phone_number: pick(fields, PHONE_KEYS),
-          email: pick(fields, EMAIL_KEYS),
-          city: pick(fields, CITY_KEYS),
+          full_name: find_by_hints(fields, NAME_HINTS),
+          phone_number: find_by_hints(fields, PHONE_HINTS),
+          email: find_by_hints(fields, EMAIL_HINTS),
+          city: find_by_hints(fields, CITY_HINTS),
           raw_fields: fields
         }
       end
 
-      def pick(fields, keys)
-        keys.each { |k| return fields[k] if fields[k].present? }
+      # Normaliza: lowercase, remove ? e caracteres especiais, normaliza acentos
+      def normalize_key(name)
+        s = name.to_s.downcase
+        s = s.tr("áàâãäéèêëíìîïóòôõöúùûüç", "aaaaaeeeeiiiiooooouuuuc")
+        s.gsub(/[^a-z0-9_]/, "_")
+      end
+
+      # Match por substring: campo "qual_seu_telefone_" casa com hint "telefone"
+      def find_by_hints(fields, hints)
+        fields.each do |key, value|
+          next if value.blank?
+          return value if hints.any? { |h| key.include?(h) }
+        end
         nil
       end
     end
