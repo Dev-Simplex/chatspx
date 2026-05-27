@@ -1,6 +1,10 @@
 # Recebe lead enriquecido + hook, cria Contact (ou reutiliza) na inbox alvo,
 # abre Conversation em status pending (Captain dispara) e envia 1a mensagem
 # outgoing renderizada a partir do template Liquid do hook.
+#
+# Flag de teste: `settings.skip_initial_message = true` cria a conversa mas
+# NÃO envia a 1ª mensagem outgoing. Útil enquanto valida o fluxo sem
+# incomodar leads reais.
 module Meta
   module LeadAds
     class CreateConversationService
@@ -18,11 +22,21 @@ module Meta
         normalized = normalize_phone(@lead[:phone_number])
         contact_inbox = build_contact_inbox(normalized)
         conversation = create_conversation(contact_inbox)
-        create_initial_message(conversation)
+
+        if skip_initial_message?
+          Rails.logger.info("Meta Lead Ads: skip_initial_message=true hook=#{@hook.id} conversation=#{conversation.id} — conversa criada sem 1a mensagem")
+        else
+          create_initial_message(conversation)
+        end
+
         conversation
       end
 
       private
+
+      def skip_initial_message?
+        ActiveModel::Type::Boolean.new.cast(@hook.settings['skip_initial_message'])
+      end
 
       def normalize_phone(phone)
         digits = phone.to_s.gsub(/\D/, '')

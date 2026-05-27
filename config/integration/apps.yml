@@ -226,6 +226,7 @@ meta_lead_ads:
           'page_access_token': { 'type': 'string' },
           'target_inbox_id': { 'type': ['integer', 'string'] },
           'initial_message_template': { 'type': 'string' },
+          'skip_initial_message': { 'type': 'boolean' },
           'enabled': { 'type': 'boolean' },
         },
       'required':
@@ -281,8 +282,14 @@ meta_lead_ads:
         'name': 'initial_message_template',
         'help': "Variáveis: {{full_name}}, {{first_name}}, {{ad_name}}, {{campaign_name}}, {{city}}, {{email}}. Se vazio, usa default em PT-BR.",
       },
+      {
+        'label': 'Modo teste — não enviar 1ª mensagem',
+        'type': 'checkbox',
+        'name': 'skip_initial_message',
+        'help': 'Marque enquanto está testando. SPX cria a conversa, mas NÃO envia a 1ª mensagem outgoing pro lead. Útil pra validar fluxo sem incomodar leads reais.',
+      },
     ]
-  visible_properties: ['page_name', 'page_id', 'target_inbox_id']
+  visible_properties: ['page_name', 'page_id', 'target_inbox_id', 'skip_initial_message']
 leadsquared:
   id: leadsquared
   feature_flag: crm_integration
