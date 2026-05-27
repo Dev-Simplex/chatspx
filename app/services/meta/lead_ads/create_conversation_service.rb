@@ -17,13 +17,19 @@ module Meta
       end
 
       def perform
-        raise 'Lead has no phone_number' if @lead[:phone_number].blank?
+        normalized_phone = @lead[:phone_number].present? ? normalize_phone(@lead[:phone_number]) : nil
 
-        normalized = normalize_phone(@lead[:phone_number])
-        contact_inbox = build_contact_inbox(normalized)
+        if normalized_phone.blank?
+          Rails.logger.warn("Meta Lead Ads: lead sem phone_number hook=#{@hook.id} leadgen=#{@lead[:leadgen_id]} form=#{@lead[:form_id]} — criando conversa mesmo assim, sem envio de 1a mensagem")
+        end
+
+        contact_inbox = build_contact_inbox(normalized_phone)
         conversation = create_conversation(contact_inbox)
 
-        if skip_initial_message?
+        if normalized_phone.blank?
+          # Sem phone nao da pra mandar via WAHA — anota e pula 1a msg
+          Rails.logger.info("Meta Lead Ads: hook=#{@hook.id} conversation=#{conversation.id} — sem phone, sem 1a mensagem (lead exige follow-up manual)")
+        elsif skip_initial_message?
           Rails.logger.info("Meta Lead Ads: skip_initial_message=true hook=#{@hook.id} conversation=#{conversation.id} — conversa criada sem 1a mensagem")
         else
           create_initial_message(conversation)
@@ -40,6 +46,8 @@ module Meta
 
       def normalize_phone(phone)
         digits = phone.to_s.gsub(/\D/, '')
+        return nil if digits.blank?
+
         digits = "55#{digits}" if digits.length.between?(10, 11)
         formatted = "+#{digits}"
         Contacts::BrazilPhoneNormalizer.normalize(formatted) || formatted
@@ -49,11 +57,12 @@ module Meta
         ContactInboxWithContactBuilder.new(
           inbox: @inbox,
           contact_attributes: {
-            name: @lead[:full_name].presence || "Lead Meta #{normalized_phone}",
+            name: contact_name(normalized_phone),
             phone_number: normalized_phone,
             email: @lead[:email],
             additional_attributes: {
               source: 'meta_lead_ads',
+              leadgen_id: @lead[:leadgen_id],
               ad_id: @lead[:ad_id],
               ad_name: @lead[:ad_name],
               adset_id: @lead[:adset_id],
@@ -69,12 +78,23 @@ module Meta
         ).perform
       end
 
+      def contact_name(normalized_phone)
+        return @lead[:full_name] if @lead[:full_name].present?
+        return "Lead Meta #{normalized_phone}" if normalized_phone.present?
+        return "Lead Meta #{@lead[:email]}" if @lead[:email].present?
+
+        "Lead Meta #{@lead[:leadgen_id]}"
+      end
+
       def source_id_for(phone)
-        # WAHA inbox usa JID `<digits>@c.us` como source_id
-        if @inbox.channel_type == 'Channel::Api' && @inbox.respond_to?(:waha_session_name) && @inbox.waha_session_name.present?
+        # WAHA inbox usa JID `<digits>@c.us` como source_id (quando ha phone)
+        if phone.present? && @inbox.channel_type == 'Channel::Api' && @inbox.respond_to?(:waha_session_name) && @inbox.waha_session_name.present?
           digits = phone.to_s.gsub(/\D/, '')
           return "#{digits}@c.us"
         end
+
+        # Sem phone: fallback unico por leadgen_id (evita duplicidade e nao colide com outros contatos)
+        return "meta_lead:#{@lead[:leadgen_id]}" if phone.blank?
 
         phone
       end
