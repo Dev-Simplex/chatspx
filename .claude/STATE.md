@@ -45,6 +45,27 @@
 - ⚠ Remover/ampliar whitelist `only_contact_phones` da Clara (hoje só responde +5566996247866)
 - ⚠ Quando confiante, desligar flag `skip_initial_message` no hook (Settings → Integrations → Meta Lead Ads → Editar)
 
+### [2026-05-27] Kanban de Pré-Venda Tozi + Cadência de Follow-up — 🟡 EM CONSTRUÇÃO
+
+**Descoberta chave:** o fork chatspx JÁ TEM sistema Kanban completo e robusto — não precisa construir. Componentes existentes a reusar:
+- `Funnel` / `FunnelStage` / `FunnelItem` (models) — Kanban com colunas/cards/drag-and-drop
+- `KanbanBoard.vue` + `ListView` + `CalendarView` (3 visualizações prontas em `routes/dashboard/kanban/`)
+- `FunnelStage.automation_type` — move card automático (hoje só open/resolved)
+- **`ScheduledMessage` + `ScheduledMessages::SendJob`/`CreateService`** — base PRONTA da cadência de follow-up (envio agendado, status pending/sent/failed/cancelled)
+- `Kanban::FunnelItemsBackfillService`, `MoveConversationToAutomatedStageService`
+
+**Diagramas de design (v3):** `docs/tozi-followup-{kanban,flow}.excalidraw` + `.png`. Renderer offline: `docs/render_excalidraw_offline.py` (PIL, sem CDN — porque esm.sh está bloqueado no ambiente). Cadência definida: A (frio, 2h/24h/3d, Marketing), B (silêncio, trigger=pergunta pendente, 15min/1h/6h/24h, Service→Marketing), AGENDADO só com horário definido, 24/7 (sem horário comercial), QUALIFICADO = saída.
+
+**Implementado hoje (PAULAO, Account 1, Inbox 1):**
+- Bloco 1 ✅ — `rake spx:tozi:setup_funnel[1,1]` cria funil "Pré-Venda Tozi" (id=6) com 7 stages (automation_type: novo_lead, aguardando_1a, em_conversa, em_silencio, agendado, qualificado, frio). Idempotente, parametrizável pra prod (6,91).
+- Bloco 2 ✅ — `Spx::Tozi::FunnelPlacementService` + hook no `CreateConversationService` → lead Meta entra em "Novo Lead". `rake spx:tozi:backfill_funnel[1]` colocou 45 leads existentes.
+
+**Falta (próxima sessão):**
+- Bloco 3 — `Spx::Tozi::FunnelAutomationService` (state machine): move cards por evento (incoming→em_conversa, pergunta+15min→em_silencio, cap→frio, handoff→qualificado). Hook em message_created.
+- Bloco 4 — cadência via ScheduledMessages: cria mensagens agendadas (A/B) quando lead em espera, cancela pending quando responde. Reusa SendJob existente.
+
+**Produção:** trabalho feito no PAULAO (WAHA). Em prod (Account 6, Inbox 91 = número fixo Tozi com Cloud API oficial), cadência usa templates HSM (janela 24h + categorias Marketing/Utility/Service valem). ScheduledMessage envia pelo canal da inbox → mesmo código, transparente.
+
 ### [2026-05-25] Meta Lead Ads — histórico de implementação
 - **Objetivo:** webhook Meta Lead Ads → cria conversa na Inbox 1 (WAHA Tozi) → Clara assume e inicia atendimento automaticamente
 - **Acesso confirmado:** Paulo tem app **Business MW (Midwest)** no Meta for Developers; página Tozi compartilhada via Lead Access; MCP Meta Marketing API já configurado (separado, não conflita)
