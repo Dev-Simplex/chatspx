@@ -30,6 +30,12 @@
     "YES": "Yes",
     "NO": "No"
   },
+  "GENERIC": {
+    "ERROR_BOUNDARY": {
+      "MESSAGE": "Something went wrong loading this content.",
+      "RETRY": "Try again"
+    }
+  },
   "ONBOARDING": {
     "TITLE": "Get started",
     "DISMISS": "Dismiss",
