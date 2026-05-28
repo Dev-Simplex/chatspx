@@ -51,5 +51,29 @@ namespace :spx do
         puts "  [#{s.position}] #{s.name.ljust(24)} automation=#{s.automation_type.ljust(16)} color=#{s.color} (id=#{s.id})"
       end
     end
+
+    desc 'Backfill: coloca leads existentes do Meta Lead Ads no estágio Novo Lead (account_id)'
+    task :backfill_funnel, %i[account_id] => :environment do |_t, args|
+      account = Account.find(Integer(args[:account_id]))
+      funnel = account.funnels.find_by(name: FUNNEL_NAME)
+      raise "Funil '#{FUNNEL_NAME}' não existe. Rode setup_funnel primeiro." if funnel.nil?
+
+      stage = funnel.funnel_stages.with_automation('novo_lead').first
+      raise "Estágio novo_lead não existe no funil." if stage.nil?
+
+      convs = account.conversations.where("additional_attributes->>'source' = ?", 'meta_lead_ads')
+      created = 0
+      convs.find_each do |conversation|
+        item = FunnelItem.find_or_initialize_by(conversation_id: conversation.id, funnel_id: funnel.id)
+        next if item.persisted?
+
+        item.funnel_stage_id = stage.id
+        item.save!
+        created += 1
+      end
+
+      puts "== Backfill concluído: #{created} leads Meta colocados em 'Novo Lead' (funil id=#{funnel.id}) =="
+      puts "   Total de conversas meta_lead_ads no account: #{convs.count}"
+    end
   end
 end

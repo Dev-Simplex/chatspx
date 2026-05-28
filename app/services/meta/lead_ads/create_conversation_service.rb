@@ -25,6 +25,7 @@ module Meta
 
         contact_inbox = build_contact_inbox(normalized_phone)
         conversation = create_conversation(contact_inbox)
+        place_in_funnel(conversation)
 
         if normalized_phone.blank?
           # Sem phone nao da pra mandar via WAHA — anota e pula 1a msg
@@ -42,6 +43,14 @@ module Meta
 
       def skip_initial_message?
         ActiveModel::Type::Boolean.new.cast(@hook.settings['skip_initial_message'])
+      end
+
+      # Coloca o lead no estágio "Novo Lead" do funil de pré-venda Tozi (Kanban).
+      # No-op se o funil não existir na inbox (não quebra a criação da conversa).
+      def place_in_funnel(conversation)
+        Spx::Tozi::FunnelPlacementService.new(
+          conversation: conversation, automation_type: 'novo_lead'
+        ).perform
       end
 
       def normalize_phone(phone)
