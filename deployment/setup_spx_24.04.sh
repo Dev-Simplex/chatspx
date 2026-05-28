@@ -188,6 +188,18 @@ function install_webserver() {
 }
 
 ##############################################################################
+# Install Chromium (Ferrum PDF export server-side — feat e3adc43a7)
+# config/initializers/ferrum_pdf.rb aponta para /snap/bin/chromium
+##############################################################################
+function install_chromium() {
+  if [ ! -x /snap/bin/chromium ]; then
+    echo "Installing chromium snap (required by Ferrum PDF export)..."
+    snap install chromium >/dev/null 2>&1 || \
+      echo "WARN: snap install chromium falhou — instale manualmente apos o setup"
+  fi
+}
+
+##############################################################################
 # Create chatwoot system user
 ##############################################################################
 function create_cw_user() {
@@ -816,6 +828,9 @@ EOF
   else
     echo "=> 4/10 Pulando instalacao do servidor web."
   fi
+
+  echo "=> 4.5/10 Instalando Chromium (Ferrum PDF export)..."
+  install_chromium &>> "$LOG_FILE"
 
   echo "=> 5/10 Instalando Ruby ${RUBY_VERSION} via RVM..."
   configure_rvm &>> "$LOG_FILE"
