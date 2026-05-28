@@ -303,6 +303,8 @@ Rails.application.routes.draw do
             resource :csat_template, only: [:show, :create], controller: 'inbox_csat_templates' do
               post :analyze, on: :collection
             end
+
+            resources :message_templates, only: [:index, :create, :destroy], controller: 'inbox_message_templates'
           end
           resources :waha_connections, only: [:index, :show, :create, :destroy] do
             member do
