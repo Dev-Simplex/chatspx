@@ -52,6 +52,61 @@ namespace :spx do
       end
     end
 
+    # Templates HSM da cadência de pré-venda (formato Graph API).
+    # MARKETING = ativação/reengajamento (pago). UTILITY = transacional (barato).
+    CADENCE_TEMPLATES = [
+      {
+        name: 'tozi_lead_inicial', category: 'MARKETING', language: 'pt_BR',
+        components: [{
+          type: 'BODY',
+          text: "Oi {{1}}! Sou da equipe Tozi Imóveis 👋\n\nVi que você se interessou pelo anúncio \"{{2}}\".\n\nPosso te ajudar a achar o imóvel certo? Me conta um pouco do que você procura.",
+          example: { body_text: [%w[Maria Apartamento]] }
+        }]
+      },
+      {
+        name: 'tozi_lead_followup_dia', category: 'MARKETING', language: 'pt_BR',
+        components: [{
+          type: 'BODY',
+          text: "Oi {{1}}, ainda procurando imóvel?\n\nSou da Tozi Imóveis e estou aqui pra ajudar. Se tiver 2 minutinhos, me responde tipo de imóvel e bairro que tenho boas opções.",
+          example: { body_text: [['Maria']] }
+        }]
+      },
+      {
+        name: 'tozi_lead_reativacao', category: 'MARKETING', language: 'pt_BR',
+        components: [{
+          type: 'BODY',
+          text: "Oi {{1}}!\n\nLembra que você se interessou pela Tozi Imóveis? Apareceram novos imóveis em {{2}} que podem combinar com o que você procurava.\n\nQuer que eu te mande?",
+          example: { body_text: [%w[Maria Sinop]] }
+        }]
+      },
+      {
+        name: 'tozi_followup_horario_combinado', category: 'UTILITY', language: 'pt_BR',
+        components: [{
+          type: 'BODY',
+          text: "Oi {{1}}, conforme combinamos, voltei aqui pra continuar nossa conversa.\n\nAinda quer falar sobre o imóvel?",
+          example: { body_text: [['Maria']] }
+        }]
+      }
+    ].freeze
+
+    desc 'Cria os 4 templates HSM da cadência Tozi via Cloud API (account_id, inbox_id Cloud API)'
+    task :create_templates, %i[account_id inbox_id] => :environment do |_t, args|
+      account = Account.find(Integer(args[:account_id]))
+      inbox = account.inboxes.find(Integer(args[:inbox_id]))
+      raise "Inbox #{inbox.id} não é WhatsApp Cloud API (sem WABA)." unless inbox.channel_type == 'Channel::Whatsapp' && inbox.channel.provider_config['business_account_id'].present?
+
+      svc = Whatsapp::TemplateManagementService.new(inbox.channel)
+      CADENCE_TEMPLATES.each do |spec|
+        result = svc.create(name: spec[:name], language: spec[:language], category: spec[:category], components: spec[:components])
+        if result[:success]
+          puts "OK   #{spec[:name].ljust(34)} → #{result[:status]} (id=#{result[:template_id]})"
+        else
+          puts "FAIL #{spec[:name].ljust(34)} → #{result[:error]} | #{result[:response_body]}"
+        end
+      end
+      puts '== Aguardar aprovação Meta (minutos a 24h). Status via sync_templates ou GET message_templates. =='
+    end
+
     desc 'Backfill: coloca leads existentes do Meta Lead Ads no estágio Novo Lead (account_id)'
     task :backfill_funnel, %i[account_id] => :environment do |_t, args|
       account = Account.find(Integer(args[:account_id]))
