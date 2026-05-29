@@ -60,6 +60,6 @@ class Api::V1::Accounts::Captain::DocumentsController < Api::V1::Accounts::BaseC
   end
 
   def document_params
-    params.require(:document).permit(:name, :external_link, :assistant_id, :pdf_file)
+    params.require(:document).permit(:name, :external_link, :assistant_id, :pdf_file, :content)
   end
 end

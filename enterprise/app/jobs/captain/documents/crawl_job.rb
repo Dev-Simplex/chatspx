@@ -2,7 +2,10 @@ class Captain::Documents::CrawlJob < ApplicationJob
   queue_as :low
 
   def perform(document)
-    if document.pdf_document?
+    if document.inline_content?
+      # Conteúdo colado direto: nada pra crawlear; só marca available pra disparar os builders.
+      document.update!(status: :available)
+    elsif document.pdf_document?
       perform_pdf_processing(document)
     elsif InstallationConfig.find_by(name: 'CAPTAIN_FIRECRAWL_API_KEY')&.value.present?
       perform_firecrawl_crawl(document)

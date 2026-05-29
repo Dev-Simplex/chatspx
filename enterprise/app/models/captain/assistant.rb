@@ -36,6 +36,7 @@ class Captain::Assistant < ApplicationRecord
   has_many :copilot_threads, dependent: :destroy_async
   has_many :scenarios, class_name: 'Captain::Scenario', dependent: :destroy_async
   has_many :assistant_logs, class_name: 'Captain::AssistantLog', foreign_key: :captain_assistant_id, dependent: :destroy_async
+  has_many :document_chunks, class_name: 'Captain::DocumentChunk', dependent: :destroy_async
 
   store_accessor :config, :temperature, :feature_faq, :feature_memory, :feature_contact_attributes, :product_name
   store_accessor :behavior, :debounce_seconds, :business_hours_config, :humanizer_config, :media_pipeline_config,
@@ -64,6 +65,26 @@ class Captain::Assistant < ApplicationRecord
 
   def available_tool_ids
     available_agent_tools.pluck(:id)
+  end
+
+  # Modo de knowledge/RAG: 'faq' (só FAQ Q&A, padrão/legado), 'chunks' (só chunk-RAG),
+  # 'hybrid' (FAQ + chunk-RAG). Default 'faq' preserva o comportamento de contas existentes.
+  def knowledge_mode
+    config['knowledge_mode'].presence || 'faq'
+  end
+
+  def faq_knowledge_enabled?
+    %w[faq hybrid].include?(knowledge_mode)
+  end
+
+  def chunk_knowledge_enabled?
+    %w[chunks hybrid].include?(knowledge_mode)
+  end
+
+  # Contextual retrieval (1 chamada LLM por chunk). Ligado por padrão quando chunk-RAG ativo;
+  # desligue com config['contextual_chunks'] = false pra economizar custo de ingestão.
+  def contextual_chunks_enabled?
+    chunk_knowledge_enabled? && config['contextual_chunks'] != false
   end
 
   def push_event_data
@@ -95,10 +116,16 @@ class Captain::Assistant < ApplicationRecord
   end
 
   def agent_tools
-    [
+    tools = [
       self.class.resolve_tool_class('faq_lookup').new(self),
       self.class.resolve_tool_class('handoff').new(self)
     ]
+
+    if chunk_knowledge_enabled? && (knowledge_tool = self.class.resolve_tool_class('search_knowledge'))
+      tools.unshift(knowledge_tool.new(self))
+    end
+
+    tools
   end
 
   def prompt_context

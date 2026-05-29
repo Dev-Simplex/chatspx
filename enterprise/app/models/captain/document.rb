@@ -26,6 +26,7 @@ class Captain::Document < ApplicationRecord
 
   belongs_to :assistant, class_name: 'Captain::Assistant'
   has_many :responses, class_name: 'Captain::AssistantResponse', dependent: :destroy, as: :documentable
+  has_many :document_chunks, class_name: 'Captain::DocumentChunk', foreign_key: :captain_document_id, dependent: :destroy
   belongs_to :account
   has_one_attached :pdf_file
 
@@ -37,6 +38,7 @@ class Captain::Document < ApplicationRecord
   validate :validate_file_attachment, if: -> { pdf_file.attached? }
   before_validation :ensure_account_id
   before_validation :set_external_link_for_pdf
+  before_validation :set_external_link_for_inline_content
   before_validation :normalize_external_link
 
   enum status: {
@@ -49,6 +51,7 @@ class Captain::Document < ApplicationRecord
   after_create_commit :update_document_usage
   after_destroy :update_document_usage
   after_commit :enqueue_response_builder_job
+  after_commit :enqueue_chunk_builder_job
   scope :ordered, -> { order(created_at: :desc) }
 
   scope :for_account, ->(account_id) { where(account_id: account_id) }
@@ -58,6 +61,12 @@ class Captain::Document < ApplicationRecord
     return true if pdf_file.attached? && pdf_file.blob.content_type == 'application/pdf'
 
     external_link&.ends_with?('.pdf')
+  end
+
+  # Documento "inline": conteúdo colado direto (sem URL pra crawl, sem PDF).
+  # Permite operador adicionar texto como knowledge. Não passa por crawl.
+  def inline_content?
+    external_link.to_s.start_with?('TEXT:')
   end
 
   def content_type
@@ -96,6 +105,7 @@ class Captain::Document < ApplicationRecord
 
   def enqueue_response_builder_job
     return unless should_enqueue_response_builder?
+    return unless assistant.faq_knowledge_enabled?
 
     Captain::Documents::ResponseBuilderJob.perform_later(self)
   end
@@ -107,6 +117,14 @@ class Captain::Document < ApplicationRecord
     return saved_change_to_status? if pdf_document?
 
     (saved_change_to_status? || saved_change_to_content?) && content.present?
+  end
+
+  # Espelha o gate do FAQ, mas para o caminho de chunk-RAG (knowledge_mode chunks|hybrid).
+  def enqueue_chunk_builder_job
+    return unless should_enqueue_response_builder?
+    return unless assistant.chunk_knowledge_enabled?
+
+    Captain::Documents::ChunkBuilderJob.perform_later(self)
   end
 
   def update_document_usage
@@ -143,6 +161,17 @@ class Captain::Document < ApplicationRecord
     # Format: PDF: filename_timestamp (without extension)
     timestamp = Time.current.strftime('%Y%m%d%H%M%S')
     self.external_link = "PDF: #{pdf_file.filename.base}_#{timestamp}"
+  end
+
+  # Conteúdo inline (texto colado): gera um external_link sentinela "TEXT: nome_timestamp"
+  # pra satisfazer a validação de presença e marcar o documento como não-crawlável.
+  def set_external_link_for_inline_content
+    return if pdf_file.attached?
+    return if external_link.present?
+    return if content.blank?
+
+    timestamp = Time.current.strftime('%Y%m%d%H%M%S')
+    self.external_link = "TEXT: #{(name.presence || 'documento')}_#{timestamp}"
   end
 
   def normalize_external_link
