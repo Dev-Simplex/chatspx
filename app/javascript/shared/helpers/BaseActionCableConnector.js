@@ -1,9 +1,16 @@
 import { createConsumer } from '@rails/actioncable';
+import WindowVisibilityHelper from 'dashboard/helper/AudioAlerts/WindowVisibilityHelper';
 
 const PRESENCE_INTERVAL = 20000;
 const PRESENCE_JITTER = 5000;
 const BASE_RECONNECT_INTERVAL = 1000;
 const MAX_RECONNECT_INTERVAL = 30000;
+// How often we check whether the realtime stream has gone silent.
+const STALE_CHECK_INTERVAL = 30000;
+// If no inbound event arrives within this window (and the tab is visible) we
+// assume the websocket is silently stale and trigger a route-specific refetch,
+// removing the need for a manual F5.
+const STALE_EVENT_THRESHOLD = 120000;
 
 class BaseActionCableConnector {
   static isDisconnected = false;
@@ -18,7 +25,9 @@ class BaseActionCableConnector {
     this.isDestroyed = false;
     this.reconnectTimer = null;
     this.presenceTimer = null;
+    this.staleCheckTimer = null;
     this.reconnectAttempts = 0;
+    this.lastEventReceivedAt = Date.now();
 
     this.consumer = createConsumer(websocketURL);
     this.subscription = this.consumer.subscriptions.create(
@@ -54,7 +63,29 @@ class BaseActionCableConnector {
       }, presenceInterval + jitter);
     };
     this.triggerPresenceInterval();
+    this.triggerStaleCheckInterval();
   }
+
+  // Dormant watchdog: if the realtime stream goes silent while the tab is
+  // visible, refetch the current route's data instead of waiting for a manual
+  // page reload. Reuses ReconnectService's existing fetch logic; presence pings
+  // are outbound and never update lastEventReceivedAt.
+  triggerStaleCheckInterval = () => {
+    if (this.isDestroyed) return;
+    this.staleCheckTimer = setTimeout(() => {
+      if (this.isDestroyed) return;
+      const isTabVisible =
+        typeof document === 'undefined' ||
+        WindowVisibilityHelper.isWindowVisible();
+      const isStale =
+        Date.now() - this.lastEventReceivedAt > STALE_EVENT_THRESHOLD;
+      if (isTabVisible && isStale && window.reconnectService) {
+        window.reconnectService.handleRouteSpecificFetch?.();
+        this.lastEventReceivedAt = Date.now();
+      }
+      this.triggerStaleCheckInterval();
+    }, STALE_CHECK_INTERVAL);
+  };
 
   checkConnection() {
     if (this.isDestroyed) return;
@@ -106,9 +137,15 @@ class BaseActionCableConnector {
       clearTimeout(this.presenceTimer);
       this.presenceTimer = null;
     }
+    if (this.staleCheckTimer) {
+      clearTimeout(this.staleCheckTimer);
+      this.staleCheckTimer = null;
+    }
   }
 
   onReceived = ({ event, data } = {}) => {
+    // Single chokepoint for all inbound events: mark the stream as alive.
+    this.lastEventReceivedAt = Date.now();
     if (this.isAValidEvent(data)) {
       if (this.events[event] && typeof this.events[event] === 'function') {
         this.events[event](data);

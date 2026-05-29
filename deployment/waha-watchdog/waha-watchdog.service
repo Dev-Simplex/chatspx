@@ -1,0 +1,32 @@
+[Unit]
+Description=WAHA watchdog (oneshot — disparado pelo .timer)
+Documentation=file:///opt/waha-watchdog/README.md
+# Roda apos a rede; nao depende do WAHA estar up (o proprio script lida com /ping morto).
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+
+# Carrega a config NAO versionada (copiar de waha-watchdog.env.example e preencher).
+# Permite ausencia do arquivo durante bootstrap (-) sem falhar o unit.
+EnvironmentFile=-/etc/waha-watchdog/waha-watchdog.env
+
+ExecStart=/opt/waha-watchdog/waha-watchdog.sh
+
+# Estado persistente (cooldown/rate-limit) em /var/lib/waha-watchdog.
+StateDirectory=waha-watchdog
+Environment=STATE_DIR=/var/lib/waha-watchdog
+
+# Hardening basico — script so precisa de rede + STATE_DIR.
+DynamicUser=true
+NoNewPrivileges=true
+ProtectSystem=strict
+ProtectHome=true
+PrivateTmp=true
+
+# Nao reinicia em loop: o agendamento e responsabilidade do .timer.
+SuccessExitStatus=0
+
+[Install]
+WantedBy=multi-user.target
