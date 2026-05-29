@@ -4,9 +4,30 @@
 > Coisas estáveis vão pro [`MEMORY.md`](../../../.claude/projects/C--Users-paulo-Workspaces-chatspx/memory/MEMORY.md) (per-projeto) ou pro vault Obsidian.
 > Decisões com mais de 30 dias devem ser movidas pra `clientes/tozi-conversation-log.md` no vault.
 
+> 🔴 **HANDOFF DE FECHAMENTO 29/05 → ler [`docs/HANDOFF-2026-05-29.md`](../docs/HANDOFF-2026-05-29.md) PRIMEIRO.**
+> Próxima sessão foca em: reconciliar conflito de templates (2 sessões divergiram), corrigir deploy AWS (não-git + credencial), subir código paulao→prod Tozi, re-aplicar dados (funil/prompt Júlia #5/knowledge/hook), verificar quebras, implementar Bloco 3+4 cadência, e generalizar multi-cliente. Múltiplas sessões trabalharam no branch paulao em paralelo (5 commits de outras sessões — ver handoff §3).
+
 ---
 
 ## 🚧 Em andamento
+
+### [2026-05-29] Vendas Tozi — Júlia repaginada + templates HSM + knowledge
+
+**Base:** análise de 400+ áudios de atendimentos reais (corretor Henrique, alta conversão) em `C:/Users/paulo/Workspaces/tozi/analise-atendimentos/` (ANALISE-COMPORTAMENTAL.md, PLAYBOOK-VENDAS-TOZI.md, FAQ-TOZI.md, julia-vendas-PROPOSTA.md). Método: consultivo, tom "de Sinop", descobre a pessoa antes dos números (direção do gerente Guilherme: "não quero SDR que pergunta 'qual sua renda bruta'").
+
+**Feito (PAULAO + WABA prod):**
+1. ✅ **Prompt da Júlia (Scenario Vendas #1, account 1)** atualizado da proposta: 4458→6273 chars, agora com consciência de nicho (5 nichos), qualificação humanizada, represamento de lançamentos, handoff por nicho, consulta à knowledge. Backup: `/tmp/julia_backup_1780092115.txt` na VM PAULAO. **A proposta NÃO estava aplicada antes — só era documento.**
+2. ✅ **Knowledge anexada à Clara** (assistant 1, knowledge_mode=chunks): doc#3 Playbook (19 chunks) + doc#4 FAQ (13 chunks), embeddings OK. Júlia consulta via search_documentation (RAG).
+3. ✅ **4 templates HSM submetidos** no WABA Tozi (905788818829319) — PENDING aprovação Meta. IDs em `Obsidian/credenciais/tozi.md`.
+
+**Acesso produção descoberto:** VM AWS `3.82.215.109` (tozi.chatspx.app), chave `Downloads/handoff-tozi/simplex.linux.pem`, Account 6. **Não é git** (deploy via script). Detalhes em `credenciais/tozi.md`.
+
+**Falta:**
+- Aplicar o mesmo (prompt Júlia + knowledge) em **produção AWS Account 6** quando subir — lá o Scenario Vendas é #5, assistant Clara #7, ainda com prompt antigo (4458).
+- Aprovar/ajustar templates com o time (Paulo confirmando).
+- Subir o código da branch paulao pra AWS (processo não-git a definir).
+- Bloco 3+4 da cadência (state machine + ScheduledMessages) — ainda pendente.
+
 
 ### [2026-05-27] Meta Lead Ads → Clara (Tozi) — 🟢 EM PRODUÇÃO, aguardando lead orgânico
 
@@ -44,6 +65,19 @@
 **Antes do primeiro lead orgânico responder:**
 - ⚠ Remover/ampliar whitelist `only_contact_phones` da Clara (hoje só responde +5566996247866)
 - ⚠ Quando confiante, desligar flag `skip_initial_message` no hook (Settings → Integrations → Meta Lead Ads → Editar)
+
+### [2026-05-27] Templates HSM WhatsApp via API do SPX — 🟢 mecanismo pronto, falta criar os templates Tozi
+
+**Objetivo:** criar/submeter message templates (HSM) pra aprovação Meta sem abrir WhatsApp Manager — tudo via API do SPX. Base pra cadência em produção (Cloud API).
+
+**Implementado (commits `de4014dd2` + `2991b61e7`):**
+- `Whatsapp::TemplateManagementService` — generaliza `CsatTemplateService`. create/list/status/delete via Graph API v22.0. Aceita MARKETING/UTILITY/AUTHENTICATION + components livres. Usa `provider_config` business_account_id + api_key. Normaliza nome (lowercase+underscore).
+- `Api::V1::Accounts::InboxMessageTemplatesController` — index/create/destroy scoped por inbox. Valida Cloud API (WAHA rejeitado). Rota: `resources :message_templates` dentro de inboxes.
+- `rake spx:tozi:create_templates[account_id,inbox_id]` — cria os 4 templates da cadência: tozi_lead_inicial (MKT), tozi_lead_followup_dia (MKT), tozi_lead_reativacao (MKT), tozi_followup_horario_combinado (UTILITY).
+
+**Status sync de aprovação:** já existe `Channel::Whatsapp#sync_templates` + `templates_sync_job`.
+
+**Falta:** rodar `create_templates` numa inbox Cloud API. PAULAO é WAHA (sem WABA). Prod inbox 91 (número fixo Tozi Cloud API) serve. Precisa WABA id + api_key do provider_config da inbox 91, OU rodar a rake em prod.
 
 ### [2026-05-27] Kanban de Pré-Venda Tozi + Cadência de Follow-up — 🟡 EM CONSTRUÇÃO
 
