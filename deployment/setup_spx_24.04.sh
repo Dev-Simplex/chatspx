@@ -91,20 +91,27 @@ function exit_handler() {
 }
 
 ##############################################################################
-# Ensure swap exists (needed for asset compilation on small VMs)
+# Ensure swap exists + sysctl tuned (lessons from Tozi AWS — produção 27/05/2026)
 ##############################################################################
 function ensure_swap() {
+  # Swap: 4GB pra absorver picos do Vite build + WAHA media + restart bursts
+  # (2GB era insuficiente em VMs com 7.6GB RAM — observado em fabrica/catatau)
   if [ "$(swapon --show | wc -l)" -eq 0 ]; then
-    local mem_mb=$(free -m | awk '/^Mem:/{print $2}')
-    if [ "$mem_mb" -lt 4096 ]; then
-      echo "Creating 2GB swap file for build stability..."
-      fallocate -l 2G /swapfile
-      chmod 600 /swapfile
-      mkswap /swapfile
-      swapon /swapfile
-      echo '/swapfile none swap sw 0 0' >> /etc/fstab
-    fi
+    echo "Creating 4GB swap file..."
+    fallocate -l 4G /swapfile
+    chmod 600 /swapfile
+    mkswap /swapfile
+    swapon /swapfile
+    grep -q swapfile /etc/fstab || echo '/swapfile none swap sw 0 0' >> /etc/fstab
   fi
+
+  # Sysctl tuning persistente: prefere cache de página vs swap;
+  # libera cache de filesystem mais cedo. Diferença grande em VMs ~8GB.
+  cat > /etc/sysctl.d/99-chatspx-mem.conf <<'EOF'
+vm.swappiness = 10
+vm.vfs_cache_pressure = 50
+EOF
+  sysctl -p /etc/sysctl.d/99-chatspx-mem.conf >/dev/null 2>&1 || true
 }
 
 ##############################################################################
@@ -178,6 +185,18 @@ function install_databases() {
 ##############################################################################
 function install_webserver() {
   apt-get install -y nginx nginx-full certbot python3-certbot-nginx
+}
+
+##############################################################################
+# Install Chromium (Ferrum PDF export server-side — feat e3adc43a7)
+# config/initializers/ferrum_pdf.rb aponta para /snap/bin/chromium
+##############################################################################
+function install_chromium() {
+  if [ ! -x /snap/bin/chromium ]; then
+    echo "Installing chromium snap (required by Ferrum PDF export)..."
+    snap install chromium >/dev/null 2>&1 || \
+      echo "WARN: snap install chromium falhou — instale manualmente apos o setup"
+  fi
 }
 
 ##############################################################################
@@ -809,6 +828,9 @@ EOF
   else
     echo "=> 4/10 Pulando instalacao do servidor web."
   fi
+
+  echo "=> 4.5/10 Instalando Chromium (Ferrum PDF export)..."
+  install_chromium &>> "$LOG_FILE"
 
   echo "=> 5/10 Instalando Ruby ${RUBY_VERSION} via RVM..."
   configure_rvm &>> "$LOG_FILE"
