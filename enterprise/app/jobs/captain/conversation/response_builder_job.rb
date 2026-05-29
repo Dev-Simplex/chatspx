@@ -195,6 +195,11 @@ class Captain::Conversation::ResponseBuilderJob < ApplicationJob
            .gsub(/__(.*?)__/m, '\1')        # __negrito__ -> negrito
            .gsub(/^\s{0,3}#+\s+/, '')        # ## títulos -> texto
            .gsub(/^\s{0,3}[-*]\s+/, '')      # - bullets -> texto
+           .gsub(/\s*[—―]\s*/, ', ')         # travessão/barra (pausa) -> vírgula (humano no WhatsApp não usa —)
+           .gsub('–', '-')                   # en-dash -> hífen comum (preserva intervalos: 7-11, R$3.200-5.000)
+           .gsub(/ +,/, ',')                 # " ," -> ","
+           .gsub(/,\s*([.!?;:])/, '\1')      # ", ." -> "."
+           .gsub(/,(\s*,)+/, ',')            # ",," -> ","
   end
 
   def send_humanized_response(content)
