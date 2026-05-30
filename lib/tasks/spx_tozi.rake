@@ -90,7 +90,7 @@ namespace :spx do
         name: 'tozi_followup_horario_combinado', category: 'UTILITY', language: 'pt_BR',
         components: [{
           type: 'BODY',
-          text: "Oi {{1}}, conforme combinamos, voltei no horário que marcamos pra continuar de onde paramos. Pode falar agora?",
+          text: 'Oi {{1}}, conforme combinamos, voltei no horário que marcamos pra continuar de onde paramos. Pode falar agora?',
           example: { body_text: [['Maria']] }
         }]
       }
