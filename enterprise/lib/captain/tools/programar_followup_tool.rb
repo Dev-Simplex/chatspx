@@ -21,6 +21,8 @@ class Captain::Tools::ProgramarFollowupTool < Captain::Tools::BasePublicTool
       'followup_motivo' => motivo.to_s,
       'followup_status' => "cutucada programada em ~#{minutes} min"
     ))
+    # Bloco 3 (funil Tozi): lead silenciou e foi programada cutucada -> card "Em Silêncio".
+    Spx::Tozi::FunnelPlacementService.move(conversation: conversation, to: 'em_silencio')
     Captain::Conversation::FollowupJob.set(wait: minutes.minutes).perform_later(conversation, token)
     'Follow-up programado.'
   rescue StandardError => e

@@ -12,6 +12,34 @@
 module Spx
   module Tozi
     class FunnelPlacementService
+      # automation_types do funil "Pré-Venda Tozi" (ver lib/tasks/spx_tozi.rake).
+      PREVENDA_AUTOMATION_TYPES = %w[novo_lead aguardando_1a em_conversa em_silencio agendado qualificado frio].freeze
+
+      # Move o card pra `to`. Idempotente e seguro: no-op se a inbox não for
+      # coberta pelo funil de pré-venda (FunnelPlacementService#perform filtra).
+      # Os guards de "de onde mover" ficam no chamador (ex.: FunnelAutomationListener
+      # gateia via current_type).
+      def self.move(conversation:, to:)
+        new(conversation: conversation, automation_type: to).perform
+      end
+
+      # automation_type atual da conversa no funil de pré-venda, ou nil.
+      def self.current_type(conversation)
+        funnel = prevenda_funnel(conversation)
+        return if funnel.nil?
+
+        conversation.funnel_items.find_by(funnel_id: funnel.id)&.funnel_stage&.automation_type
+      end
+
+      # Funil de pré-venda que cobre a inbox da conversa (casa por qualquer stage do funil).
+      def self.prevenda_funnel(conversation)
+        conversation.account.funnels
+                    .for_inbox(conversation.inbox_id)
+                    .joins(:funnel_stages)
+                    .where(funnel_stages: { automation_type: PREVENDA_AUTOMATION_TYPES })
+                    .distinct.first
+      end
+
       def initialize(conversation:, automation_type:)
         @conversation = conversation
         @automation_type = automation_type.to_s
