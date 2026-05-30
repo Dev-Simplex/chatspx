@@ -31,7 +31,10 @@
 - ✅ **Prompt da Júlia** aplicado no Scenario Vendas **#5** (Clara #7): 4458→6274 chars (da proposta `julia-vendas-PROPOSTA.md`). Backup do antigo em `/tmp/julia_vendas_5_backup.txt` na AWS.
 - ✅ **Knowledge** anexada à Clara #7 (knowledge_mode `faq`→`chunks`): doc#1 Playbook (19 chunks) + doc#2 FAQ (13 chunks) = **32 chunks, todos com embedding**. RAG funcionando.
 
-**Falta (próxima sessão):**
+**Falta (próxima sessão) — PRÉ-REQUISITO de ativação:**
+- 🔴 **Agentes IA NÃO habilitado na Account 6** (UI `agents/settings` 29/05: "Agentes IA não está habilitado para esta conta") + **Conexão LLM não configurada**. Logo, a **Clara/Júlia NÃO responde em prod hoje** — o prompt + knowledge aplicados estão STAGED/dormentes. Nada que foi deployado envia mensagem sozinho (listener só move card de Kanban; cadência/followup só disparam com o agente ativo; hook Meta não configurado). Pra ATIVAR (cuidado, libera mensagens): (1) habilitar feature Captain v2 na Account 6 (ver gotcha `feature_ai_assistant_v2` bigint overflow no MEMORY.md `reference-captain-v2-gotchas`), (2) configurar Conexão LLM (chave OpenAI/Anthropic da conta — gotcha "chave em 2 lugares"). **Paulo manteve desabilitado de propósito (evitar msgs sem autorização) — correto.**
+
+**Falta (próxima sessão) — depois de ativar o agente:**
 - 🔴 **Hook Meta Lead Ads em prod BLOQUEADO por gap de código.** `create_initial_message` (`app/services/meta/lead_ads/create_conversation_service.rb:129`) manda **texto livre**. Na inbox 91 (Cloud API), a 1ª msg a um lead de formulário (sem sessão WhatsApp aberta) é **bloqueada pela Meta** — fora da janela 24h só HSM passa. **Construir: 1ª-mensagem-como-HSM (`tozi_lead_abertura` via `template_params`) quando inbox.whatsapp?**. Sem isso, ativar o hook = leads entram no funil mas não recebem abertura (morrem). Em WAHA (PAULAO) funciona porque texto livre passa.
   - Meta-side (Paulo): switch do callback do app Meta pra `https://tozi.chatspx.app/webhooks/meta_lead_ads` (hoje aponta pra PAULAO) + confirmar aprovação do template `tozi_lead_abertura` no WABA.
 - **Teste E2E** em prod (depende do hook OU teste manual da state machine/Júlia numa conversa controlada).
