@@ -50,7 +50,7 @@ class Whatsapp::TemplateManagementService
   end
 
   def status(name)
-    response = HTTParty.get("#{waba_path}/message_templates?name=#{name}", headers: api_headers)
+    response = HTTParty.get("#{waba_path}/message_templates?name=#{CGI.escape(name.to_s)}", headers: api_headers)
     if response.success? && response['data']&.any?
       t = response['data'].first
       { success: true, template: t.slice('id', 'name', 'status', 'category', 'language') }
@@ -62,7 +62,7 @@ class Whatsapp::TemplateManagementService
   end
 
   def delete(name)
-    response = HTTParty.delete("#{waba_path}/message_templates?name=#{name}", headers: api_headers)
+    response = HTTParty.delete("#{waba_path}/message_templates?name=#{CGI.escape(name.to_s)}", headers: api_headers)
     { success: response.success?, response_body: response.body }
   end
 

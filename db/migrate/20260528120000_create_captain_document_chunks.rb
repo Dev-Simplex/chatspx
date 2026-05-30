@@ -1,6 +1,12 @@
 class CreateCaptainDocumentChunks < ActiveRecord::Migration[7.1]
+  # Sem transacao DDL: o fallback HNSW->ivfflat (add_vector_index) faz rescue de
+  # uma falha de add_index. Dentro de transacao, o erro do HNSW abortaria toda a
+  # transacao (PG::InFailedSqlTransaction) e o fallback nao rodaria. Fora dela,
+  # cada statement commita isolado e o rescue funciona.
+  disable_ddl_transaction!
+
   def up
-    create_table :captain_document_chunks do |t|
+    create_table :captain_document_chunks, if_not_exists: true do |t|
       t.bigint :account_id, null: false
       t.bigint :assistant_id, null: false
       t.bigint :captain_document_id, null: false
@@ -17,10 +23,10 @@ class CreateCaptainDocumentChunks < ActiveRecord::Migration[7.1]
       t.timestamps
     end
 
-    add_index :captain_document_chunks, :account_id
-    add_index :captain_document_chunks, :assistant_id
-    add_index :captain_document_chunks, :captain_document_id, name: 'idx_cap_doc_chunks_on_document'
-    add_index :captain_document_chunks, :content_search, using: :gin, name: 'idx_cap_doc_chunks_fulltext'
+    add_index :captain_document_chunks, :account_id, if_not_exists: true
+    add_index :captain_document_chunks, :assistant_id, if_not_exists: true
+    add_index :captain_document_chunks, :captain_document_id, name: 'idx_cap_doc_chunks_on_document', if_not_exists: true
+    add_index :captain_document_chunks, :content_search, using: :gin, name: 'idx_cap_doc_chunks_fulltext', if_not_exists: true
 
     add_vector_index
   end
@@ -36,7 +42,7 @@ class CreateCaptainDocumentChunks < ActiveRecord::Migration[7.1]
   def add_vector_index
     add_index :captain_document_chunks, :embedding,
               using: :hnsw, opclass: :vector_cosine_ops,
-              name: 'idx_cap_doc_chunks_embedding_hnsw'
+              name: 'idx_cap_doc_chunks_embedding_hnsw', if_not_exists: true
   rescue StandardError => e
     Rails.logger.warn("[CreateCaptainDocumentChunks] HNSW indisponível (#{e.message}); usando ivfflat")
     execute <<~SQL.squish

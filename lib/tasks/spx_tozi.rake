@@ -52,22 +52,28 @@ namespace :spx do
       end
     end
 
-    # Templates HSM da cadência de pré-venda (formato Graph API).
-    # MARKETING = ativação/reengajamento (pago). UTILITY = transacional (barato).
+    # Templates HSM da cadência de pré-venda (formato Graph API), com os NOMES v2
+    # aprovados no WABA da Tozi (ver Obsidian/credenciais/tozi.md). MARKETING =
+    # ativação/reengajamento (pago); UTILITY = transacional (barato). Tom consultivo
+    # "de Sinop" (morar/investir). Variáveis: {{1}}=nome; {{2}}=referência (empreendimento/cidade).
+    #
+    # ATENÇÃO: para o WABA da Tozi os 4 já estão aprovados — create_templates é
+    # idempotente e PULA os existentes. Os corpos abaixo são a fonte reproduzível
+    # (ex.: novo cliente). Para paridade exata com o aprovado, conferir via `svc.list`.
     CADENCE_TEMPLATES = [
       {
-        name: 'tozi_lead_inicial', category: 'MARKETING', language: 'pt_BR',
+        name: 'tozi_lead_abertura', category: 'MARKETING', language: 'pt_BR',
         components: [{
           type: 'BODY',
-          text: "Oi {{1}}! Sou da equipe Tozi Imóveis 👋\n\nVi que você se interessou pelo anúncio \"{{2}}\".\n\nPosso te ajudar a achar o imóvel certo? Me conta um pouco do que você procura.",
-          example: { body_text: [%w[Maria Apartamento]] }
+          text: "Oi {{1}}, aqui é da Tozi Imóveis 👋\n\nVi seu interesse em {{2}}. Pra eu te ajudar do jeito certo: é pra morar ou investir? E já tem uma região de Sinop em mente?",
+          example: { body_text: [%w[Maria Pacaembu]] }
         }]
       },
       {
-        name: 'tozi_lead_followup_dia', category: 'MARKETING', language: 'pt_BR',
+        name: 'tozi_lead_followup', category: 'MARKETING', language: 'pt_BR',
         components: [{
           type: 'BODY',
-          text: "Oi {{1}}, ainda procurando imóvel?\n\nSou da Tozi Imóveis e estou aqui pra ajudar. Se tiver 2 minutinhos, me responde tipo de imóvel e bairro que tenho boas opções.",
+          text: "Oi {{1}}, tudo bem? Fiquei de te ajudar a achar o imóvel certo e não quero te deixar sem retorno.\n\nQuando puder, me diz o que faz mais sentido pra você que eu já adianto umas opções boas. 🏡",
           example: { body_text: [['Maria']] }
         }]
       },
@@ -75,7 +81,7 @@ namespace :spx do
         name: 'tozi_lead_reativacao', category: 'MARKETING', language: 'pt_BR',
         components: [{
           type: 'BODY',
-          text: "Oi {{1}}!\n\nLembra que você se interessou pela Tozi Imóveis? Apareceram novos imóveis em {{2}} que podem combinar com o que você procurava.\n\nQuer que eu te mande?",
+          text: "Oi {{1}}! Apareceram novidades em {{2}} que têm a ver com o que você estava procurando com a gente.\n\nQuer que eu te mostre? Sem compromisso, só pra você não perder uma boa oportunidade.",
           example: { body_text: [%w[Maria Sinop]] }
         }]
       },
@@ -83,20 +89,29 @@ namespace :spx do
         name: 'tozi_followup_horario_combinado', category: 'UTILITY', language: 'pt_BR',
         components: [{
           type: 'BODY',
-          text: "Oi {{1}}, conforme combinamos, voltei aqui pra continuar nossa conversa.\n\nAinda quer falar sobre o imóvel?",
+          text: "Oi {{1}}, conforme combinamos, voltei no horário que marcamos pra continuar de onde paramos. Pode falar agora?",
           example: { body_text: [['Maria']] }
         }]
       }
     ].freeze
 
-    desc 'Cria os 4 templates HSM da cadência Tozi via Cloud API (account_id, inbox_id Cloud API)'
+    desc 'Cria os 4 templates HSM da cadência Tozi via Cloud API (account_id, inbox_id Cloud API). Idempotente.'
     task :create_templates, %i[account_id inbox_id] => :environment do |_t, args|
       account = Account.find(Integer(args[:account_id]))
       inbox = account.inboxes.find(Integer(args[:inbox_id]))
       raise "Inbox #{inbox.id} não é WhatsApp Cloud API (sem WABA)." unless inbox.channel_type == 'Channel::Whatsapp' && inbox.channel.provider_config['business_account_id'].present?
 
       svc = Whatsapp::TemplateManagementService.new(inbox.channel)
+      listing = svc.list
+      existing_names = listing[:success] ? Array(listing[:templates]).map { |t| t['name'] } : []
+      puts "AVISO: não consegui listar templates existentes (#{listing[:error]}). Vou tentar criar mesmo assim." unless listing[:success]
+
       CADENCE_TEMPLATES.each do |spec|
+        if existing_names.include?(spec[:name])
+          puts "SKIP #{spec[:name].ljust(34)} → já existe no WABA (idempotente)"
+          next
+        end
+
         result = svc.create(name: spec[:name], language: spec[:language], category: spec[:category], components: spec[:components])
         if result[:success]
           puts "OK   #{spec[:name].ljust(34)} → #{result[:status]} (id=#{result[:template_id]})"
