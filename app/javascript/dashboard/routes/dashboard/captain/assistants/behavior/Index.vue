@@ -10,12 +10,12 @@ const route = useRoute();
 
 const assistantId = computed(() => route.params.assistantId);
 const assistant = computed(() =>
-  store.getters['captainAssistant/getRecord'](assistantId.value)
+  store.getters['captainAssistants/getRecord'](assistantId.value)
 );
 
 async function saveBehavior(behavior) {
   try {
-    await store.dispatch('captainAssistant/update', {
+    await store.dispatch('captainAssistants/update', {
       id: assistantId.value,
       behavior,
     });

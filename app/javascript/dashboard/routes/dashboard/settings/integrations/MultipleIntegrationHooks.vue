@@ -22,7 +22,7 @@ const props = defineProps({
   },
 });
 
-defineEmits(['delete', 'add']);
+defineEmits(['delete', 'add', 'edit']);
 const { t } = useI18n();
 
 const { integration, isHookTypeInbox, hasConnectedHooks } = useIntegrationHook(
@@ -126,6 +126,16 @@ const inboxName = hook => (hook.inbox ? hook.inbox.name : '');
 
               <BaseTableCell align="end" class="w-12">
                 <div class="flex justify-end gap-3 flex-shrink-0">
+                  <NextButton
+                    v-tooltip.top="
+                      $t('INTEGRATION_APPS.LIST.EDIT.BUTTON_TEXT')
+                    "
+                    icon="i-woot-edit-pen"
+                    slate
+                    sm
+                    class="hover:enabled:text-n-azure-11 hover:enabled:bg-n-azure-2"
+                    @click="$emit('edit', hook)"
+                  />
                   <NextButton
                     v-tooltip.top="
                       $t('INTEGRATION_APPS.LIST.DELETE.BUTTON_TEXT')

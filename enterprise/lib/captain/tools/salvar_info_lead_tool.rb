@@ -19,6 +19,7 @@ class Captain::Tools::SalvarInfoLeadTool < Captain::Tools::BasePublicTool
     attrs['sobre_cliente'] = sobre_cliente if sobre_cliente.present?
     conversation.update!(custom_attributes: attrs)
 
+    move_funnel_by_status(conversation, status)
     mark_followup(conversation) if precisa_followup
 
     'Informações do lead salvas.'
@@ -28,6 +29,18 @@ class Captain::Tools::SalvarInfoLeadTool < Captain::Tools::BasePublicTool
   end
 
   private
+
+  # Bloco 3 (funil Tozi): espelha o status do lead no estágio do Kanban.
+  def move_funnel_by_status(conversation, status)
+    case status
+    when 'qualificado', 'convertido'
+      Spx::Tozi::ReactivationCadenceService.cancel_pending(conversation)
+      Spx::Tozi::FunnelPlacementService.move(conversation: conversation, to: 'qualificado')
+    when 'esfriado', 'perdido'
+      Spx::Tozi::FunnelPlacementService.move(conversation: conversation, to: 'frio')
+      Spx::Tozi::ReactivationCadenceService.new(conversation: conversation).perform
+    end
+  end
 
   def mark_followup(conversation)
     conversation.add_labels((conversation.label_list + ['followup-ativo']).uniq)

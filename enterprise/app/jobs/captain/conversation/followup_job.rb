@@ -27,6 +27,10 @@ class Captain::Conversation::FollowupJob < ApplicationJob
         'followup_status' => 'esfriado (sem resposta após cutucadas)',
         'followup_token' => nil
       ))
+      # Bloco 3+4 (funil Tozi): esgotou as cutucadas in-window -> card "Frio" e, em
+      # inbox Cloud API, agenda a cadência de reativação por HSM (fora da janela 24h).
+      Spx::Tozi::FunnelPlacementService.move(conversation: conversation, to: 'frio')
+      Spx::Tozi::ReactivationCadenceService.new(conversation: conversation).perform
       return
     end
 
