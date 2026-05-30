@@ -32,10 +32,12 @@ module Spx
       def self.cancel_pending(conversation)
         return unless ScheduledMessage.column_names.include?('template_params')
 
+        # rubocop:disable Rails/SkipsModelValidations
         ScheduledMessage.pending
                         .where(conversation_id: conversation.id)
                         .where.not(template_params: nil)
                         .update_all(status: ScheduledMessage.statuses[:cancelled], updated_at: Time.current)
+        # rubocop:enable Rails/SkipsModelValidations
       end
 
       def initialize(conversation:)

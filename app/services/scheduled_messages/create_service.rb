@@ -3,7 +3,7 @@
 class ScheduledMessages::CreateService
   attr_reader :conversation, :inbox, :message_content, :scheduled_at, :user, :attachments, :template_params
 
-  def initialize(conversation:, inbox:, message:, scheduled_at:, user: nil, attachments: [], template_params: nil) # rubocop:disable Metrics/ParameterLists
+  def initialize(conversation:, inbox:, message:, scheduled_at:, user: nil, attachments: [], template_params: nil) # rubocop:disable Metrics/ParameterLists, Layout/LineLength
     @conversation = conversation
     @inbox = inbox
     @message_content = message
@@ -30,7 +30,9 @@ class ScheduledMessages::CreateService
     scheduled_message_params[:account_id] = conversation.account_id if ScheduledMessage.column_names.include?('account_id')
     scheduled_message_params[:message] = (message_content.presence || '').to_s if ScheduledMessage.column_names.include?('message')
     scheduled_message_params[:scheduled_by] = user if ScheduledMessage.column_names.include?('scheduled_by_id')
-    scheduled_message_params[:template_params] = template_params if template_params.present? && ScheduledMessage.column_names.include?('template_params')
+    if template_params.present? && ScheduledMessage.column_names.include?('template_params')
+      scheduled_message_params[:template_params] = template_params
+    end
 
     scheduled_message = ScheduledMessage.new(scheduled_message_params)
 

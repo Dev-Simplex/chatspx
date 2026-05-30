@@ -60,6 +60,7 @@ namespace :spx do
     # ATENÇÃO: para o WABA da Tozi os 4 já estão aprovados — create_templates é
     # idempotente e PULA os existentes. Os corpos abaixo são a fonte reproduzível
     # (ex.: novo cliente). Para paridade exata com o aprovado, conferir via `svc.list`.
+    # rubocop:disable Layout/LineLength
     CADENCE_TEMPLATES = [
       {
         name: 'tozi_lead_abertura', category: 'MARKETING', language: 'pt_BR',
@@ -94,12 +95,13 @@ namespace :spx do
         }]
       }
     ].freeze
+    # rubocop:enable Layout/LineLength
 
     desc 'Cria os 4 templates HSM da cadência Tozi via Cloud API (account_id, inbox_id Cloud API). Idempotente.'
     task :create_templates, %i[account_id inbox_id] => :environment do |_t, args|
       account = Account.find(Integer(args[:account_id]))
       inbox = account.inboxes.find(Integer(args[:inbox_id]))
-      raise "Inbox #{inbox.id} não é WhatsApp Cloud API (sem WABA)." unless inbox.channel_type == 'Channel::Whatsapp' && inbox.channel.provider_config['business_account_id'].present?
+      raise "Inbox #{inbox.id} não é WhatsApp Cloud API (sem WABA)." unless inbox.channel_type == 'Channel::Whatsapp' && inbox.channel.provider_config['business_account_id'].present? # rubocop:disable Layout/LineLength
 
       svc = Whatsapp::TemplateManagementService.new(inbox.channel)
       listing = svc.list
