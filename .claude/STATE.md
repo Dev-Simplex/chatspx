@@ -1,4 +1,4 @@
-# Estado ChatSPX — atualizado 2026-05-27
+# Estado ChatSPX — atualizado 2026-05-29 (deploy Bloco 3+4 em prod)
 
 > Single source of truth do que está **in-flight** no projeto.
 > Coisas estáveis vão pro [`MEMORY.md`](../../../.claude/projects/C--Users-paulo-Workspaces-chatspx/memory/MEMORY.md) (per-projeto) ou pro vault Obsidian.
@@ -10,6 +10,35 @@
 ---
 
 ## 🚧 Em andamento
+
+### [2026-05-29] 🟢 Bloco 3+4 + branch paulao DEPLOYADO em produção AWS (Account 6)
+
+**Status:** Branch paulao (19 commits) MERGEADO em `producao` (PR #19, merge `cc4536209`) e DEPLOYADO na VM Tozi AWS (`3.82.215.109`, Account 6). App **live e saudável** (HTTP 200 local+público, web/worker/target active, bundle novo `BaY3jm5l` servido). `zeitwerk:check` "All is good!" na AWS e na PAULAO.
+
+**Implementado nesta sessão (Bloco 3+4):**
+- **Bloco 3 — state machine do funil:** `Spx::Tozi::FunnelAutomationListener` (Wisper/AsyncDispatcher, rescue-wrapped, no-op p/ contas sem o funil) + `FunnelPlacementService.move/current_type/prevenda_funnel`. Transições: incoming→em_conversa (+cancel cadência); handoff humano→qualificado; programar_followup→em_silencio; followup MAX→frio; salvar_info_lead status→qualificado/frio. Hooks em `enterprise/lib/captain/tools/{programar_followup,salvar_info_lead}_tool.rb` + `followup_job.rb`.
+- **Bloco 4 — cadência HSM fora-da-janela 24h:** `ScheduledMessages` aceita `template_params` (coluna jsonb + create/send service; o `MessageBuilder` já fazia a ponte→`SendOnWhatsappService`). `Spx::Tozi::ReactivationCadenceService` agenda HSM (1d/3d/7d), só Cloud API, idempotente, cancel-on-reply. **Dentro da janela = follow-up do agente (já existia); fora = HSM determinístico.** Estágio do funil arbitra.
+- **Fixes:** CGI.escape no template service; migration de chunks `disable_ddl_transaction!`+`if_not_exists`; rake `create_templates` idempotente (list-then-skip) + nomes v2.
+- Review adversarial (4 reviewers) + 6 fixes (HIGH: handoff não cancelava cadência; MEDIUM: listener sem rescue derrubava event chain global).
+
+**Deploy AWS — GOTCHAS (críticos pra próxima vez):**
+- **🔴 LANDMINE migration:** `20260330120000_add_foreign_key_constraints` é **DESTRUTIVA** (`DELETE` de órfãos em conversations/messages/scheduled_messages/etc.) e está `down` há 6+ dias **DE PROPÓSITO**. **NUNCA rodar `db:migrate` puro na AWS** — dispararia ela = perda de dados. Aplicar SEMPRE alvo: `db:migrate:up VERSION=<ts>`.
+- **Transporte (não-git):** tar-pipe de `git archive origin/producao` → AWS. **`tar` extrai como ROOT** (`--owner` é opção de criação, ignorada na extração; sem `--no-same-owner` usa uid do archive=0) → `EACCES` no boot (`public/version.json`). **Fix: `sudo chown -R chatwoot:chatwoot` exceto storage/node_modules.** Alternativa melhor: extrair via `sudo -u chatwoot tar`. Também `git archive` do Windows traz CRLF (Ruby tolera; limpei `bin/*`).
+- pgvector **0.8.2** → HNSW direto (fix H1 é só rede de segurança). Precompile com `NODE_OPTIONS=--max-old-space-size=4096`.
+- `rake spx:tozi:setup_funnel[6,91]` → **funil "Pré-Venda Tozi" id=41** (stages 127-133). Backfill: 0 leads (hook Meta nunca rodou em prod).
+
+**Re-apply em prod (FEITO 29/05):**
+- ✅ **Prompt da Júlia** aplicado no Scenario Vendas **#5** (Clara #7): 4458→6274 chars (da proposta `julia-vendas-PROPOSTA.md`). Backup do antigo em `/tmp/julia_vendas_5_backup.txt` na AWS.
+- ✅ **Knowledge** anexada à Clara #7 (knowledge_mode `faq`→`chunks`): doc#1 Playbook (19 chunks) + doc#2 FAQ (13 chunks) = **32 chunks, todos com embedding**. RAG funcionando.
+
+**Falta (próxima sessão):**
+- 🔴 **Hook Meta Lead Ads em prod BLOQUEADO por gap de código.** `create_initial_message` (`app/services/meta/lead_ads/create_conversation_service.rb:129`) manda **texto livre**. Na inbox 91 (Cloud API), a 1ª msg a um lead de formulário (sem sessão WhatsApp aberta) é **bloqueada pela Meta** — fora da janela 24h só HSM passa. **Construir: 1ª-mensagem-como-HSM (`tozi_lead_abertura` via `template_params`) quando inbox.whatsapp?**. Sem isso, ativar o hook = leads entram no funil mas não recebem abertura (morrem). Em WAHA (PAULAO) funciona porque texto livre passa.
+  - Meta-side (Paulo): switch do callback do app Meta pra `https://tozi.chatspx.app/webhooks/meta_lead_ads` (hoje aponta pra PAULAO) + confirmar aprovação do template `tozi_lead_abertura` no WABA.
+- **Teste E2E** em prod (depende do hook OU teste manual da state machine/Júlia numa conversa controlada).
+- Reconciliar corpos exatos dos templates v2 com o WABA (rake tem corpos-fonte; conferir via `svc.list`).
+- Tuning de produto: cadência até 4 cutucadas in-window + 3 HSM; `agendado`/`aguardando_1a` sem trigger automático.
+
+**Acesso AWS:** `ssh -i Downloads/handoff-tozi/simplex.linux.pem ubuntu@3.82.215.109` · RVM · `sudo -u chatwoot bash -lc "cd /home/chatwoot/chatwoot && RAILS_ENV=production bundle exec ..."`.
 
 ### [2026-05-29] Vendas Tozi — Júlia repaginada + templates HSM + knowledge
 
