@@ -67,6 +67,9 @@
     },
     "PREVIEW": {
       "TITLE": "Pré-visualização",
+      "VIEW": "Ver como WhatsApp",
+      "BUSINESS_FALLBACK": "Empresa",
+      "ONLINE": "online",
       "IMAGE": "Imagem",
       "VIDEO": "Vídeo",
       "DOCUMENT": "Documento",

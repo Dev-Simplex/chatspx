@@ -8,6 +8,7 @@ import Button from 'dashboard/components-next/button/Button.vue';
 import Dialog from 'dashboard/components-next/dialog/Dialog.vue';
 import Icon from 'dashboard/components-next/icon/Icon.vue';
 import TemplateBuilder from './TemplateBuilder.vue';
+import TemplateWhatsappPreview from './TemplateWhatsappPreview.vue';
 
 const props = defineProps({
   inbox: { type: Object, default: () => ({}) },
@@ -22,6 +23,7 @@ const view = ref('list');
 const selectedTemplate = ref(null);
 const deleteDialogRef = ref(null);
 const isDeleting = ref(false);
+const previewTemplate = ref(null);
 
 const inboxId = computed(() => Number(props.inbox.id));
 
@@ -196,20 +198,38 @@ onMounted(fetchTemplates);
               <td class="px-4 py-3 align-top text-n-slate-11">{{ template.category }}</td>
               <td class="px-4 py-3 align-top text-n-slate-11">{{ template.language }}</td>
               <td class="px-4 py-3 align-top text-end">
-                <Button
-                  variant="ghost"
-                  color="slate"
-                  size="sm"
-                  icon="i-lucide-trash-2"
-                  class="hover:enabled:text-n-ruby-11"
-                  @click="openDelete(template)"
-                />
+                <div class="flex items-center justify-end gap-1">
+                  <Button
+                    variant="ghost"
+                    color="slate"
+                    size="sm"
+                    icon="i-lucide-eye"
+                    :title="t('WHATSAPP_TEMPLATES_MGMT.PREVIEW.VIEW')"
+                    @click="previewTemplate = template"
+                  />
+                  <Button
+                    variant="ghost"
+                    color="slate"
+                    size="sm"
+                    icon="i-lucide-trash-2"
+                    class="hover:enabled:text-n-ruby-11"
+                    @click="openDelete(template)"
+                  />
+                </div>
               </td>
             </tr>
           </tbody>
         </table>
       </div>
     </div>
+
+    <!-- Preview estilo WhatsApp -->
+    <TemplateWhatsappPreview
+      v-if="previewTemplate"
+      :template="previewTemplate"
+      :business-name="inbox.name"
+      @close="previewTemplate = null"
+    />
 
     <!-- Delete confirm -->
     <Dialog

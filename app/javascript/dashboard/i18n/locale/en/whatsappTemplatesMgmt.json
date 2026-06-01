@@ -67,6 +67,9 @@
     },
     "PREVIEW": {
       "TITLE": "Preview",
+      "VIEW": "Preview as WhatsApp",
+      "BUSINESS_FALLBACK": "Business",
+      "ONLINE": "online",
       "IMAGE": "Image",
       "VIDEO": "Video",
       "DOCUMENT": "Document",
