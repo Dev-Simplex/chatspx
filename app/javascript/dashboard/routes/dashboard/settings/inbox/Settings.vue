@@ -25,6 +25,7 @@ import ConfigurationPage from './settingsPage/ConfigurationPage.vue';
 import CustomerSatisfactionPage from './settingsPage/CustomerSatisfactionPage.vue';
 import NetPromoterScorePage from './settingsPage/NetPromoterScorePage.vue';
 import CollaboratorsPage from './settingsPage/CollaboratorsPage.vue';
+import MessageTemplatesPage from './settingsPage/messageTemplates/MessageTemplatesPage.vue';
 import BotConfiguration from './components/BotConfiguration.vue';
 import AccountHealth from './components/AccountHealth.vue';
 import { FEATURE_FLAGS } from '../../../../featureFlags';
@@ -46,6 +47,7 @@ export default {
     BotConfiguration,
     CollaboratorsPage,
     ConfigurationPage,
+    MessageTemplatesPage,
     CustomerSatisfactionPage,
     NetPromoterScorePage,
     FacebookReauthorize,
@@ -211,6 +213,10 @@ export default {
           {
             key: 'whatsapp-health',
             name: this.$t('INBOX_MGMT.TABS.ACCOUNT_HEALTH'),
+          },
+          {
+            key: 'message-templates',
+            name: this.$t('INBOX_MGMT.TABS.MESSAGE_TEMPLATES'),
           },
         ];
       }
@@ -1225,6 +1231,9 @@ export default {
             :is-registering-webhook="isRegisteringWebhook"
             @register-webhook="registerWebhook"
           />
+        </div>
+        <div v-if="selectedTabKey === 'message-templates'" class="mx-6 max-w-5xl">
+          <MessageTemplatesPage :inbox="inbox" />
         </div>
       </div>
     </section>

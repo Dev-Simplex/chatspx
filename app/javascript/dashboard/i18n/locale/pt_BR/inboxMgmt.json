@@ -633,7 +633,8 @@
       "BOT_CONFIGURATION": "Configuração do Bot",
       "ACCOUNT_HEALTH": "Saúde da conta",
       "CSAT": "CSAT",
-      "NPS": "NPS"
+      "NPS": "NPS",
+      "MESSAGE_TEMPLATES": "Modelos de mensagem"
     },
     "CHANNEL_PREFERENCES": "Preferências do Canal",
     "WIDGET_FEATURES": "Recursos do widget",
