@@ -105,7 +105,7 @@ onMounted(fetchTemplates);
 </script>
 
 <template>
-  <div class="py-4">
+  <div class="py-4 w-full min-w-0">
     <!-- BUILDER VIEW -->
     <TemplateBuilder
       v-if="view === 'builder'"
@@ -117,7 +117,7 @@ onMounted(fetchTemplates);
     <!-- LIST VIEW -->
     <div v-else class="flex flex-col gap-4">
       <div class="flex items-start justify-between gap-4">
-        <div class="flex flex-col gap-1">
+        <div class="flex flex-col gap-1 min-w-0">
           <h2 class="text-base font-medium text-n-slate-12">
             {{ t('WHATSAPP_TEMPLATES_MGMT.LIST.TITLE') }}
           </h2>
@@ -161,8 +161,8 @@ onMounted(fetchTemplates);
       </div>
 
       <!-- Table -->
-      <div v-else class="overflow-hidden border rounded-xl border-n-weak">
-        <table class="w-full text-sm">
+      <div v-else class="overflow-x-auto border rounded-xl border-n-weak">
+        <table class="w-full text-sm min-w-[36rem]">
           <thead class="bg-n-solid-2 text-n-slate-11">
             <tr>
               <th class="px-4 py-2.5 font-medium text-start">{{ t('WHATSAPP_TEMPLATES_MGMT.LIST.COL_NAME') }}</th>

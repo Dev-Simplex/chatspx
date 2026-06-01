@@ -177,7 +177,7 @@ const submit = async () => {
 
     <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
       <!-- FORM -->
-      <div class="flex flex-col gap-5">
+      <div class="flex flex-col gap-5 min-w-0">
         <!-- Basics -->
         <div class="flex flex-col gap-3">
           <Input

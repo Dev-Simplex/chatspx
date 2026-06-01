@@ -608,21 +608,23 @@ export default {
       :header-image="inbox.avatarUrl"
       :header-title="inboxName"
     >
-      <woot-tabs
-        class="[&_ul]:p-0 top-px relative"
-        :index="selectedTabIndex"
-        :border="false"
-        @change="onTabChange"
-      >
-        <woot-tabs-item
-          v-for="(tab, index) in tabs"
-          :key="tab.key"
-          :index="index"
-          :name="tab.name"
-          :show-badge="false"
-          is-compact
-        />
-      </woot-tabs>
+      <div class="w-full overflow-x-auto">
+        <woot-tabs
+          class="[&_ul]:p-0 top-px relative [&_ul]:flex-nowrap [&_ul]:w-max"
+          :index="selectedTabIndex"
+          :border="false"
+          @change="onTabChange"
+        >
+          <woot-tabs-item
+            v-for="(tab, index) in tabs"
+            :key="tab.key"
+            :index="index"
+            :name="tab.name"
+            :show-badge="false"
+            is-compact
+          />
+        </woot-tabs>
+      </div>
     </SettingIntroBanner>
     <section class="w-full overflow-auto py-8">
       <div class="max-w-7xl mx-auto w-full">
