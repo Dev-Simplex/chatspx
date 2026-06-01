@@ -602,13 +602,13 @@ export default {
   </div>
   <div
     v-else
-    class="grid grid-rows-[auto_1fr] h-full flex-grow flex-shrink pr-0 pl-0 w-full min-w-0 settings"
+    class="grid grid-rows-[auto_1fr] h-full flex-grow flex-shrink pr-0 pl-0 w-full min-w-0 overflow-x-hidden settings"
   >
     <SettingIntroBanner
       :header-image="inbox.avatarUrl"
       :header-title="inboxName"
     >
-      <div class="w-full overflow-x-auto">
+      <div class="w-full overflow-x-auto overflow-y-hidden">
         <woot-tabs
           class="[&_ul]:p-0 top-px relative [&_ul]:flex-nowrap [&_ul]:w-max"
           :index="selectedTabIndex"
