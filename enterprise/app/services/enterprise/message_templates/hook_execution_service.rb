@@ -47,7 +47,7 @@ module Enterprise::MessageTemplates::HookExecutionService
   end
 
   def schedule_or_debounce(assistant)
-    trigger_immediate_typing # "digitando..." na hora, ja cobrindo o tempo do debounce
+    mark_customer_message_read # tique azul (lido) na hora, SEM "digitando" continuo
     debounce = assistant.behavior['debounce_seconds'].to_i
     if debounce.positive?
       Captain::Behavior::DebounceService.new(assistant: assistant, conversation: conversation).schedule
@@ -56,15 +56,16 @@ module Enterprise::MessageTemplates::HookExecutionService
     end
   end
 
-  # Mostra "digitando..." pro cliente assim que a mensagem passa no router, antes
-  # mesmo do debounce — best-effort (so WhatsApp Cloud responde de fato).
-  def trigger_immediate_typing
+  # Marca a mensagem do cliente como lida assim que passa no router (best-effort,
+  # so WhatsApp Cloud). NAO mostra "digitando" continuo — isso fica pras rajadas
+  # curtas antes de cada resposta (mais natural).
+  def mark_customer_message_read
     source_id = message.try(:source_id)
     return if source_id.blank?
 
-    inbox.channel.try(:send_typing_indicator, source_id)
+    inbox.channel.try(:send_typing_indicator, source_id, false)
   rescue StandardError => e
-    Rails.logger.warn("[Captain] typing inicial falhou: #{e.message}")
+    Rails.logger.warn("[Captain] read receipt falhou: #{e.message}")
   end
 
   def log_and_skip(assistant, event_type)

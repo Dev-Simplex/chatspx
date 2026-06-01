@@ -41,7 +41,6 @@ class Captain::Conversation::ResponseBuilderJob < ApplicationJob
   end
 
   def generate_response_with_v2
-    trigger_typing_indicator # "digitando..." enquanto o Claude gera a resposta
     @response = Captain::Assistant::AgentRunnerService.new(assistant: @assistant, conversation: @conversation).generate_response(
       message_history: collect_previous_messages
     )
@@ -206,14 +205,12 @@ class Captain::Conversation::ResponseBuilderJob < ApplicationJob
   def send_humanized_response(content)
     chunks = Captain::Behavior::HumanizerService.new(config: @assistant.behavior['humanizer']).split(content)
 
-    chunks.each_with_index do |chunk, i|
-      if i.positive?
-        # Antes de cada pedaco (apos o 1o): mostra "digitando..." e espera um tempo
-        # proporcional ao tamanho do texto. Espaca as mensagens e impede que cheguem
-        # fora de ordem no WhatsApp (o que acontecia com o delay fixo curto de 0,5s).
-        trigger_typing_indicator
-        sleep(humanizer_typing_delay(chunk))
-      end
+    chunks.each_with_index do |chunk, _i|
+      # "digitando..." em rajada curta antes de CADA mensagem (proporcional ao
+      # tamanho do texto), com pausa entre elas — em vez de typing continuo desde a
+      # chegada. Tambem espaca o envio, impedindo as mensagens de chegarem fora de ordem.
+      trigger_typing_indicator
+      sleep(humanizer_typing_delay(chunk))
       create_outgoing_message(chunk, agent_name: @response['agent_name'])
     end
     log_behavior_event('humanizer_split', { chunks: chunks.size }) if chunks.size > 1

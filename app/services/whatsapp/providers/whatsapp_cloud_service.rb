@@ -91,18 +91,16 @@ class Whatsapp::Providers::WhatsappCloudService < Whatsapp::Providers::BaseServi
   # (ate ~25s, ou ate enviarmos uma mensagem). Best-effort: nunca levanta.
   # Requer Graph API v21.0+ (o endpoint padrao de mensagens usa v13.0, que nao
   # suporta typing_indicator).
-  def send_typing_indicator(source_id)
+  def send_typing_indicator(source_id, show_typing = true)
     return if source_id.blank?
+
+    body = { messaging_product: 'whatsapp', status: 'read', message_id: source_id }
+    body[:typing_indicator] = { type: 'text' } if show_typing
 
     HTTParty.post(
       "#{api_base_path}/v21.0/#{whatsapp_channel.provider_config['phone_number_id']}/messages",
       headers: api_headers,
-      body: {
-        messaging_product: 'whatsapp',
-        status: 'read',
-        message_id: source_id,
-        typing_indicator: { type: 'text' }
-      }.to_json
+      body: body.to_json
     )
   rescue StandardError => e
     Rails.logger.warn("[WhatsApp Cloud] typing_indicator falhou: #{e.class}: #{e.message}")
