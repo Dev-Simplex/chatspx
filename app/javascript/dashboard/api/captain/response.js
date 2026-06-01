@@ -29,6 +29,18 @@ class CaptainResponses extends ApiClient {
       },
     });
   }
+
+  // O update do ApiClient base manda o objeto cru; o backend exige o wrapper
+  // assistant_response (params.require), entao sobrescrevemos.
+  update(id, { question, answer, status } = {}) {
+    return axios.patch(`${this.url}/${id}`, {
+      assistant_response: {
+        question,
+        answer,
+        status,
+      },
+    });
+  }
 }
 
 export default new CaptainResponses();
