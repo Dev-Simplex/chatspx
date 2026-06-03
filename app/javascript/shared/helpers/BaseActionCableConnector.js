@@ -6,11 +6,13 @@ const PRESENCE_JITTER = 5000;
 const BASE_RECONNECT_INTERVAL = 1000;
 const MAX_RECONNECT_INTERVAL = 30000;
 // How often we check whether the realtime stream has gone silent.
-const STALE_CHECK_INTERVAL = 30000;
+const STALE_CHECK_INTERVAL = 15000;
 // If no inbound event arrives within this window (and the tab is visible) we
 // assume the websocket is silently stale and trigger a route-specific refetch,
-// removing the need for a manual F5.
-const STALE_EVENT_THRESHOLD = 120000;
+// removing the need for a manual F5. lastEventReceivedAt is bumped on EVERY
+// received event (incl. other agents' presence), so a healthy stream rarely
+// goes stale; the short window only fires when the socket is genuinely silent.
+const STALE_EVENT_THRESHOLD = 25000;
 
 class BaseActionCableConnector {
   static isDisconnected = false;
