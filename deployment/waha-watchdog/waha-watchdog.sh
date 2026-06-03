@@ -29,8 +29,9 @@
 #   CURL_TIMEOUT            Timeout por request curl em segundos (default 10).
 #   ALERT_WEBHOOK           URL opcional p/ POST de alertas (Slack/Discord/n8n).
 #   STATE_DIR               Dir de estado (default /var/lib/waha-watchdog).
-#   INBOUND_GAP_MONITOR     true = mede gap de inbound por sessao (SO-ALERTA, default false).
-#   INBOUND_GAP_THRESHOLD   Segundos sem inbound novo p/ alertar (default 1800).
+#   INBOUND_GAP_MONITOR     true = mede gap de inbound por sessao (detector do freeze #1482, default false).
+#   INBOUND_GAP_THRESHOLD   Segundos sem inbound novo p/ acionar (default 1800).
+#   INBOUND_GAP_RESTART     true = no gap detectado, RESTART de sessao (cura #1482); false = so-alerta (default false).
 #
 # Saida: stdout/stderr (capturado pelo journald quando rodando via systemd).
 
@@ -54,6 +55,7 @@ ALERT_WEBHOOK="${ALERT_WEBHOOK:-}"
 STATE_DIR="${STATE_DIR:-/var/lib/waha-watchdog}"
 INBOUND_GAP_MONITOR="${INBOUND_GAP_MONITOR:-false}"
 INBOUND_GAP_THRESHOLD="${INBOUND_GAP_THRESHOLD:-1800}"
+INBOUND_GAP_RESTART="${INBOUND_GAP_RESTART:-false}"
 
 WAHA_API_URL="${WAHA_API_URL%/}"
 
@@ -274,8 +276,17 @@ inbound_gap_check() {
   # Sem inbound recente E sem avanco desde a ultima checagem -> possivel freeze
   local age=$(( NOW - last_ts ))
   if [ "$last_ts" -gt 0 ] && [ "$age" -ge "$INBOUND_GAP_THRESHOLD" ] && [ "$last_ts" = "$prev_ts" ]; then
-    alert "Possivel freeze de inbound (SO-ALERTA)" \
-      "session=$session ultimo inbound ha ${age}s (>= ${INBOUND_GAP_THRESHOLD}s) e sem avanco entre execucoes"
+    if [ "$INBOUND_GAP_RESTART" = "true" ]; then
+      # Freeze #1482: API/status seguem WORKING mas o inbound parou — o status NAO acusa,
+      # entao o loop principal nunca reiniciaria. Acionamos o restart de SESSAO aqui.
+      # restart_session ainda respeita ALERT_ONLY + cooldown + rate-limit. Esta e a unica
+      # camada que CURA o #1482 automaticamente.
+      log "WARN" "inbound-gap: freeze suspeito (#1482) em '$session' (${age}s) — acionando restart de sessao"
+      restart_session "$session" "inbound-gap #1482 (${age}s sem inbound, status WORKING)"
+    else
+      alert "Possivel freeze de inbound (SO-ALERTA)" \
+        "session=$session ultimo inbound ha ${age}s (>= ${INBOUND_GAP_THRESHOLD}s) e sem avanco entre execucoes"
+    fi
   fi
 }
 

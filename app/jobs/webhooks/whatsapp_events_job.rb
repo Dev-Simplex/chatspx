@@ -1,5 +1,8 @@
 class Webhooks::WhatsappEventsJob < ApplicationJob
-  queue_as :low
+  # :high (nao :low): inbound do WhatsApp e tao time-sensitive quanto o send_reply (tambem :high).
+  # Em :low, sob backlog das filas superiores (ex.: jobs do Captain/Agentes IA), o inbound ficava
+  # preso na ordenacao estrita do Sidekiq -> mensagem so aparecia apos F5. Broadcasts seguem em :critical.
+  queue_as :high
 
   def perform(params = {})
     channel = find_channel_from_whatsapp_business_payload(params)
