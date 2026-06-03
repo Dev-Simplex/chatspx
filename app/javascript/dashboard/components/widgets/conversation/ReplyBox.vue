@@ -802,6 +802,7 @@ export default {
         this.isGhostSuggestionDismissed = false;
         this.remoteGhostSuggestion = '';
         this.ghostSuggestionFetchedFor = null;
+        this.focusReplyEditor();
       }
     },
     'lastIncomingMessage.id': {
@@ -862,6 +863,9 @@ export default {
       this.openWhatsappTemplateModal
     );
     emitter.on(CMD_AI_ASSIST, this.executeCopilotAction);
+
+    // Foco inicial ao montar o composer (abrir conversa direto pela URL/refresh).
+    this.focusReplyEditor();
   },
   unmounted() {
     document.removeEventListener('paste', this.onPaste);
@@ -1369,6 +1373,15 @@ export default {
           this.isFocused = true;
         });
       }
+    },
+    focusReplyEditor() {
+      // Foca o editor ao abrir/trocar de conversa. Nos inboxes Channel::Api/WhatsApp
+      // da Tozi o foco-na-troca dependia so do timing interno do Editor e falhava em
+      // navegacao SPA -> a atendente precisava clicar manualmente na caixa pra digitar.
+      if (this.isEditorDisabled) return;
+      this.$nextTick(() => {
+        this.messageEditor?.focusEditorInputField?.('end');
+      });
     },
     sendToConversation(conversationId) {
       if (this.isReplyButtonDisabled && !this.attachedFiles.length) return;

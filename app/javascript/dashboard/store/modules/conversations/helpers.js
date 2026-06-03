@@ -15,10 +15,17 @@ const messageTimestamp = m => {
 
 // Inserts message into messages array preserving ascending chronological order.
 // Mutates and returns the array. Falls back to push when array is empty or message is the newest.
+// created_at chega ao cliente truncado em SEGUNDOS (API serializa com .to_i), entao mensagens
+// de uma mesma rajada colidem no mesmo timestamp. Desempatamos por id (monotonico = ordem real
+// de criacao) para evitar a "ordem invertida" em rajadas do mesmo segundo.
 // See docs/adr/0002-chat-messages-invariants.md for the invariant this helper enforces.
 export const insertSortedByCreatedAt = (messages, message) => {
   const ts = messageTimestamp(message);
-  const idx = messages.findIndex(m => messageTimestamp(m) > ts);
+  const idx = messages.findIndex(
+    m =>
+      messageTimestamp(m) > ts ||
+      (messageTimestamp(m) === ts && m.id > message.id)
+  );
   if (idx === -1) {
     messages.push(message);
   } else {

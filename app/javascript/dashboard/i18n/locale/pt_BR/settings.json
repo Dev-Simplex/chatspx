@@ -9,7 +9,7 @@
     "INACTIVE": "Inativo"
   },
   "AGENTS_DASHBOARD": {
-    "TITLE": "Dashboard",
+    "TITLE": "Painel",
     "NEW_AGENT": "Novo Agente",
     "TOTAL_AGENTS": "Total de Agentes",
     "TOTAL_INBOXES": "Caixas Conectadas",
@@ -37,7 +37,7 @@
       "TOOLS": "Ferramentas",
       "SCENARIOS": "Cenários",
       "INBOXES": "Caixas de Entrada",
-      "LOGS": "Logs",
+      "LOGS": "Registros",
       "SETTINGS": "Configurações"
     }
   },
@@ -376,7 +376,7 @@
     "COMPANIES": "Empresas",
     "ALL_COMPANIES": "Todas as empresas",
     "CAPTAIN": "Agentes IA",
-    "CAPTAIN_ASSISTANTS": "Dashboard",
+    "CAPTAIN_ASSISTANTS": "Painel",
     "CAPTAIN_DOCUMENTS": "Documentos",
     "CAPTAIN_RESPONSES": "FAQs",
     "CAPTAIN_TOOLS": "Ferramentas",
@@ -384,7 +384,7 @@
     "CAPTAIN_PLAYGROUND": "Playground",
     "CAPTAIN_INBOXES": "Caixas de Entrada",
     "CAPTAIN_BEHAVIOR": "Comportamento",
-    "CAPTAIN_LOGS": "Logs",
+    "CAPTAIN_LOGS": "Registros",
     "CAPTAIN_SETTINGS": "Configurações",
     "CAPTAIN_OPENAI_CONNECTION": "Conexão LLM",
     "HOME": "Principal",
