@@ -18,7 +18,7 @@ class Llm::BaseAiService
   def chat(model: nil, temperature: @temperature)
     selected_model = model.presence || model_for_feature
     @model = selected_model
-    context_for_account.chat(model: selected_model).with_temperature(temperature)
+    context_for_account.chat(model: Llm::Models.runtime_id_for(selected_model)).with_temperature(temperature)
   end
 
   def refresh_model!
