@@ -15,10 +15,17 @@ const messageTimestamp = m => {
 
 // Inserts message into messages array preserving ascending chronological order.
 // Mutates and returns the array. Falls back to push when array is empty or message is the newest.
+// created_at chega ao cliente truncado em SEGUNDOS (API serializa com .to_i), entao mensagens
+// de uma mesma rajada colidem no mesmo timestamp. Desempatamos por id (monotonico = ordem real
+// de criacao) para evitar a "ordem invertida" em rajadas do mesmo segundo.
 // See docs/adr/0002-chat-messages-invariants.md for the invariant this helper enforces.
 export const insertSortedByCreatedAt = (messages, message) => {
   const ts = messageTimestamp(message);
-  const idx = messages.findIndex(m => messageTimestamp(m) > ts);
+  const idx = messages.findIndex(
+    m =>
+      messageTimestamp(m) > ts ||
+      (messageTimestamp(m) === ts && m.id > message.id)
+  );
   if (idx === -1) {
     messages.push(message);
   } else {
@@ -55,6 +62,12 @@ export const filterByUnattended = (
     : shouldFilter;
 };
 
+export const filterByUnread = (shouldFilter, conversationType, unreadCount) => {
+  return conversationType === 'unread'
+    ? unreadCount > 0 && shouldFilter
+    : shouldFilter;
+};
+
 export const applyPageFilters = (conversation, filters) => {
   const { inboxId, status, labels = [], teamId, conversationType } = filters;
   const {
@@ -64,6 +77,7 @@ export const applyPageFilters = (conversation, filters) => {
     meta = {},
     first_reply_created_at: firstReplyOn,
     waiting_since: waitingSince,
+    unread_count: unreadCount = 0,
   } = conversation;
   const team = meta.team || {};
   const { id: chatTeamId } = team;
@@ -78,6 +92,7 @@ export const applyPageFilters = (conversation, filters) => {
     firstReplyOn,
     waitingSince
   );
+  shouldFilter = filterByUnread(shouldFilter, conversationType, unreadCount);
 
   return shouldFilter;
 };

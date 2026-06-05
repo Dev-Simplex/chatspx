@@ -124,6 +124,112 @@ namespace :spx do
       puts '== Aguardar aprovação Meta (minutos a 24h). Status via sync_templates ou GET message_templates. =='
     end
 
+    # Corretores que recebem os disparos (round-robin). IDs do Account 6 (AWS prod).
+    # 128=Marcus 126=Kettlen 127=Lucas 131=Bruno 125=Guilherme(admin, também recebe).
+    # Isolamento garantido pela custom role "Corretor" (conversation_participating_manage):
+    # cada um só enxerga as conversas atribuídas a ele.
+    DISPARO_BROKERS = [128, 126, 127, 131, 125].freeze
+
+    # Templates aprovados do lançamento (rotacionam quando nenhum é fixado no arg).
+    DISPARO_TEMPLATES = %w[
+      tozi_lancamento_interagir
+      tozi_lancamento_qualifica
+      tozi_lancamento_curiosidade
+    ].freeze
+
+    desc 'Disparo em massa do lançamento: enfileira HSM espalhado em N min, round-robin corretores+templates. ' \
+         'Args: [csv_path, limit, dry_run, spread_min, template]. dry_run=true (default) só IMPRIME o plano.'
+    task :disparo, %i[csv_path limit dry_run spread_min template] => :environment do |_t, args|
+      require 'csv'
+
+      csv_path = args[:csv_path].to_s
+      raise "CSV não encontrado: #{csv_path.inspect}" unless File.exist?(csv_path)
+
+      limit      = args[:limit].present? ? Integer(args[:limit]) : nil
+      dry_run    = args[:dry_run].to_s.strip.downcase != 'false' # default TRUE (seguro)
+      spread_min = args[:spread_min].present? ? Float(args[:spread_min]) : 120.0
+      fixed_tmpl = args[:template].presence
+
+      if fixed_tmpl && DISPARO_TEMPLATES.exclude?(fixed_tmpl)
+        raise "Template #{fixed_tmpl.inspect} desconhecido. Use um de: #{DISPARO_TEMPLATES.join(', ')}"
+      end
+
+      # Lê a audiência (colunas: nome, telefone_e164, canonical).
+      leads = CSV.read(csv_path, headers: true).filter_map do |row|
+        nome = (row['nome'] || row['name']).to_s.strip
+        tel  = (row['telefone_e164'] || row['telefone'] || row['phone']).to_s.strip
+        next if tel.blank?
+
+        { nome: nome, telefone: tel }
+      end
+      leads = leads.first(limit) if limit
+
+      total = leads.size
+      raise 'Audiência vazia após leitura/limit.' if total.zero?
+
+      spread_seconds = spread_min * 60
+      step = total > 1 ? spread_seconds / (total - 1) : 0
+      broker_counts = Hash.new(0)
+      tmpl_counts = Hash.new(0)
+
+      leads.each_with_index do |lead, i|
+        assignee = DISPARO_BROKERS[i % DISPARO_BROKERS.size]
+        template = fixed_tmpl || DISPARO_TEMPLATES[i % DISPARO_TEMPLATES.size]
+        delay    = (step * i).round
+        broker_counts[assignee] += 1
+        tmpl_counts[template] += 1
+
+        next if dry_run
+
+        Spx::Tozi::DisparoLeadJob.set(wait: delay.seconds).perform_later(
+          nome: lead[:nome], telefone: lead[:telefone], assignee_id: assignee, template: template
+        )
+      end
+
+      mode = dry_run ? 'DRY-RUN (nada enfileirado)' : 'ENFILEIRADO'
+      puts '=' * 64
+      puts "== DISPARO LANÇAMENTO TOZI — #{mode} =="
+      puts '=' * 64
+      puts "audiência:        #{total} leads  (csv: #{File.basename(csv_path)})"
+      puts "janela:           #{spread_min.round} min  (1 a cada ~#{step.round(1)}s)"
+      puts "template:         #{fixed_tmpl || "rotação (#{DISPARO_TEMPLATES.size})"}"
+      puts 'primeiro envio:   imediato (delay 0s)'
+      puts "último envio:     ~#{(spread_seconds / 60).round} min após o start"
+      puts "\n-- por corretor --"
+      broker_counts.sort.each do |uid, n|
+        u = User.find_by(id: uid)
+        puts "  ##{uid} #{(u&.name || '?').to_s.ljust(20)} #{n} conversas"
+      end
+      puts "\n-- por template --"
+      tmpl_counts.sort.each { |tmpl, n| puts "  #{tmpl.ljust(30)} #{n}" }
+      puts "\n-- amostra (5) --"
+      leads.first(5).each_with_index do |lead, i|
+        assignee = DISPARO_BROKERS[i % DISPARO_BROKERS.size]
+        template = fixed_tmpl || DISPARO_TEMPLATES[i % DISPARO_TEMPLATES.size]
+        puts "  #{lead[:telefone].ljust(16)} #{lead[:nome][0, 24].ljust(24)} -> ##{assignee} | #{template}"
+      end
+      puts "\n#{dry_run ? '>>> DRY-RUN: rode de novo com dry_run=false pra ENVIAR.' : '>>> JOBS ENFILEIRADOS. Acompanhar via Sidekiq/logs.'}"
+    end
+
+    desc 'Disparo de TESTE: envia 1 HSM real imediato pra um número (valida ponta a ponta). ' \
+         'Args: [nome, telefone, template, assignee_id]'
+    task :disparo_teste, %i[nome telefone template assignee_id] => :environment do |_t, args|
+      nome     = args[:nome].presence || 'Paulo'
+      telefone = args[:telefone].to_s.strip
+      raise 'Informe o telefone: spx:tozi:disparo_teste[Paulo,+5566996350491,tozi_lancamento_interagir,128]' if telefone.blank?
+
+      template = args[:template].presence || DISPARO_TEMPLATES.first
+      raise "Template #{template.inspect} desconhecido." if DISPARO_TEMPLATES.exclude?(template)
+
+      assignee = args[:assignee_id].present? ? Integer(args[:assignee_id]) : DISPARO_BROKERS.first
+
+      Spx::Tozi::DisparoLeadJob.perform_now(
+        nome: nome, telefone: telefone, assignee_id: assignee, template: template
+      )
+      puts "== TESTE enviado: #{telefone} (#{nome}) -> corretor##{assignee} | #{template} =="
+      puts '   Confira a chegada no WhatsApp e a conversa atribuída no SPX.'
+    end
+
     desc 'Backfill: coloca leads existentes do Meta Lead Ads no estágio Novo Lead (account_id)'
     task :backfill_funnel, %i[account_id] => :environment do |_t, args|
       account = Account.find(Integer(args[:account_id]))

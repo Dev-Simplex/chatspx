@@ -60,6 +60,7 @@ const handleSelect = item => {
     id: item.id,
     content: item.content,
     shortCode: item.short_code,
+    attachments: item.attachments || [],
   });
 };
 

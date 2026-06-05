@@ -200,6 +200,13 @@ const menuItems = computed(() => {
           to: accountScopedRoute('conversation_mentions'),
         },
         {
+          name: 'Unread',
+          label: t('SIDEBAR.UNREAD_CONVERSATIONS'),
+          icon: lordIcon('unattended', 'i-lucide-mail-warning'),
+          activeOn: ['conversation_through_unread'],
+          to: accountScopedRoute('conversation_unread'),
+        },
+        {
           name: 'UnattendedGroup',
           label: t('SIDEBAR.UNATTENDED_CONVERSATIONS'),
           icon: lordIcon('unattended', 'i-lucide-clock'),

@@ -34,6 +34,9 @@
           "PLACEHOLDER": "Por favor, escreva a mensagem que deseja salvar como um modelo para usar posteriormente.",
           "ERROR": "A mensagem é obrigatória."
         },
+        "ATTACHMENT": {
+          "LABEL": "Anexo (opcional)"
+        },
         "SUBMIT": "Enviar"
       },
       "API": {
@@ -54,6 +57,9 @@
           "LABEL": "Mensagem",
           "PLACEHOLDER": "Por favor, escreva a mensagem que deseja salvar como um modelo para usar posteriormente.",
           "ERROR": "A mensagem é obrigatória."
+        },
+        "ATTACHMENT": {
+          "LABEL": "Anexo (opcional)"
         },
         "SUBMIT": "Enviar"
       },

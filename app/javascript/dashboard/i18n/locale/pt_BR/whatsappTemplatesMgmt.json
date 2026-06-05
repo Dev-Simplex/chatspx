@@ -1,0 +1,79 @@
+{
+  "WHATSAPP_TEMPLATES_MGMT": {
+    "LIST": {
+      "TITLE": "Modelos de mensagem",
+      "DESCRIPTION": "Veja, crie e exclua os modelos da API Oficial do WhatsApp (HSM) desta caixa de entrada. Novos modelos são enviados para aprovação da Meta.",
+      "SYNC": "Sincronizar",
+      "NEW": "Novo modelo",
+      "EMPTY": "Nenhum modelo ainda. Crie o primeiro.",
+      "LOAD_ERROR": "Não foi possível carregar os modelos.",
+      "SYNC_SUCCESS": "Modelos sincronizados.",
+      "SYNC_ERROR": "Não foi possível sincronizar os modelos.",
+      "COL_NAME": "Nome",
+      "COL_STATUS": "Status",
+      "COL_CATEGORY": "Categoria",
+      "COL_LANGUAGE": "Idioma"
+    },
+    "DELETE": {
+      "TITLE": "Excluir modelo",
+      "MESSAGE": "Excluir o modelo \"{name}\"? Isso remove ele da Meta e não pode ser desfeito.",
+      "CONFIRM": "Excluir",
+      "SUCCESS": "Modelo excluído.",
+      "ERROR": "Não foi possível excluir o modelo."
+    },
+    "CREATE": {
+      "SUCCESS": "Modelo enviado para aprovação (PENDENTE).",
+      "ERROR": "Não foi possível criar o modelo."
+    },
+    "BUILDER": {
+      "TITLE": "Novo modelo",
+      "NAME": "Nome",
+      "NAME_PLACEHOLDER": "ex.: abertura do lead",
+      "NAME_HINT": "Será criado como:",
+      "NAME_HINT_EMPTY": "Apenas letras minúsculas, números e underscore.",
+      "CATEGORY": "Categoria",
+      "CATEGORY_UTILITY": "Utilidade",
+      "CATEGORY_MARKETING": "Marketing",
+      "CATEGORY_AUTHENTICATION": "Autenticação",
+      "LANGUAGE": "Idioma",
+      "HEADER": "Cabeçalho (opcional)",
+      "HEADER_NONE": "Nenhum",
+      "HEADER_TEXT": "Texto",
+      "HEADER_IMAGE": "Imagem",
+      "HEADER_VIDEO": "Vídeo",
+      "HEADER_DOCUMENT": "Documento",
+      "HEADER_TEXT_PLACEHOLDER": "Texto do cabeçalho (pode usar {'{{'}1{'}}'})",
+      "HEADER_EXAMPLE": "Valor de exemplo para a variável do cabeçalho",
+      "HEADER_MEDIA_PLACEHOLDER": "URL de mídia de exemplo (https://...)",
+      "HEADER_MEDIA_HINT": "Uma URL de exemplo usada pela Meta na aprovação.",
+      "BODY": "Corpo",
+      "BODY_PLACEHOLDER": "Texto da mensagem. Use {'{{'}1{'}}'}, {'{{'}2{'}}'}... para variáveis.",
+      "BODY_HINT": "Use {'{{'}1{'}}'}, {'{{'}2{'}}'} para variáveis.",
+      "BODY_EXAMPLES": "Valores de exemplo para as variáveis",
+      "EXAMPLE_FOR": "Exemplo para",
+      "FOOTER": "Rodapé (opcional)",
+      "FOOTER_PLACEHOLDER": "Texto curto de rodapé (sem variáveis)",
+      "BUTTONS": "Botões (opcional)",
+      "BTN_QUICK_REPLY": "Resposta rápida",
+      "BTN_URL": "URL",
+      "BTN_PHONE": "Telefone",
+      "BTN_COPY_CODE": "Copiar código",
+      "BTN_TEXT_PLACEHOLDER": "Texto do botão",
+      "BTN_URL_EXAMPLE": "Valor de exemplo para a variável da URL",
+      "ADD_BUTTON": "Adicionar botão",
+      "REQUIRED": "Obrigatório",
+      "CANCEL": "Cancelar",
+      "SUBMIT": "Enviar para aprovação"
+    },
+    "PREVIEW": {
+      "TITLE": "Pré-visualização",
+      "VIEW": "Ver como WhatsApp",
+      "BUSINESS_FALLBACK": "Empresa",
+      "ONLINE": "online",
+      "IMAGE": "Imagem",
+      "VIDEO": "Vídeo",
+      "DOCUMENT": "Documento",
+      "BODY_PLACEHOLDER": "Sua mensagem aparece aqui..."
+    }
+  }
+}

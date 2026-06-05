@@ -48,6 +48,24 @@ class Inboxes extends CacheEnabledApiClient {
       template,
     });
   }
+
+  getMessageTemplates(inboxId) {
+    return axios.get(`${this.url}/${inboxId}/message_templates`);
+  }
+
+  createMessageTemplate(inboxId, template) {
+    return axios.post(`${this.url}/${inboxId}/message_templates`, {
+      template,
+    });
+  }
+
+  deleteMessageTemplate(inboxId, templateName) {
+    return axios.delete(
+      `${this.url}/${inboxId}/message_templates/${encodeURIComponent(
+        templateName
+      )}`
+    );
+  }
 }
 
 export default new Inboxes();

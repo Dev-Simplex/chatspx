@@ -25,6 +25,7 @@ import ConfigurationPage from './settingsPage/ConfigurationPage.vue';
 import CustomerSatisfactionPage from './settingsPage/CustomerSatisfactionPage.vue';
 import NetPromoterScorePage from './settingsPage/NetPromoterScorePage.vue';
 import CollaboratorsPage from './settingsPage/CollaboratorsPage.vue';
+import MessageTemplatesPage from './settingsPage/messageTemplates/MessageTemplatesPage.vue';
 import BotConfiguration from './components/BotConfiguration.vue';
 import AccountHealth from './components/AccountHealth.vue';
 import { FEATURE_FLAGS } from '../../../../featureFlags';
@@ -46,6 +47,7 @@ export default {
     BotConfiguration,
     CollaboratorsPage,
     ConfigurationPage,
+    MessageTemplatesPage,
     CustomerSatisfactionPage,
     NetPromoterScorePage,
     FacebookReauthorize,
@@ -211,6 +213,10 @@ export default {
           {
             key: 'whatsapp-health',
             name: this.$t('INBOX_MGMT.TABS.ACCOUNT_HEALTH'),
+          },
+          {
+            key: 'message-templates',
+            name: this.$t('INBOX_MGMT.TABS.MESSAGE_TEMPLATES'),
           },
         ];
       }
@@ -596,27 +602,29 @@ export default {
   </div>
   <div
     v-else
-    class="grid grid-rows-[auto_1fr] h-full flex-grow flex-shrink pr-0 pl-0 w-full min-w-0 settings"
+    class="grid grid-rows-[auto_1fr] h-full flex-grow flex-shrink pr-0 pl-0 w-full min-w-0 overflow-x-hidden settings"
   >
     <SettingIntroBanner
       :header-image="inbox.avatarUrl"
       :header-title="inboxName"
     >
-      <woot-tabs
-        class="[&_ul]:p-0 top-px relative"
-        :index="selectedTabIndex"
-        :border="false"
-        @change="onTabChange"
-      >
-        <woot-tabs-item
-          v-for="(tab, index) in tabs"
-          :key="tab.key"
-          :index="index"
-          :name="tab.name"
-          :show-badge="false"
-          is-compact
-        />
-      </woot-tabs>
+      <div class="w-full overflow-x-auto overflow-y-hidden">
+        <woot-tabs
+          class="[&_ul]:p-0 top-px relative [&_ul]:flex-nowrap [&_ul]:w-max"
+          :index="selectedTabIndex"
+          :border="false"
+          @change="onTabChange"
+        >
+          <woot-tabs-item
+            v-for="(tab, index) in tabs"
+            :key="tab.key"
+            :index="index"
+            :name="tab.name"
+            :show-badge="false"
+            is-compact
+          />
+        </woot-tabs>
+      </div>
     </SettingIntroBanner>
     <section class="w-full overflow-auto py-8">
       <div class="max-w-7xl mx-auto w-full">
@@ -1225,6 +1233,9 @@ export default {
             :is-registering-webhook="isRegisteringWebhook"
             @register-webhook="registerWebhook"
           />
+        </div>
+        <div v-if="selectedTabKey === 'message-templates'" class="mx-6 max-w-5xl">
+          <MessageTemplatesPage :inbox="inbox" />
         </div>
       </div>
     </section>

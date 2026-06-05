@@ -10,7 +10,7 @@ export default {
       default: '',
     },
   },
-  emits: ['replace'],
+  emits: ['replace', 'attach'],
   computed: {
     ...mapGetters({
       cannedMessages: 'getCannedResponses',
@@ -37,6 +37,12 @@ export default {
     },
     handleMentionClick(item = {}) {
       this.$emit('replace', item.description);
+      const selected = this.cannedMessages.find(
+        cannedMessage => cannedMessage.short_code === item.key
+      );
+      if (selected?.attachments?.length) {
+        this.$emit('attach', selected.attachments);
+      }
     },
   },
 };

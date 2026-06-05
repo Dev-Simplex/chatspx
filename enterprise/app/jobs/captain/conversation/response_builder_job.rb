@@ -204,13 +204,40 @@ class Captain::Conversation::ResponseBuilderJob < ApplicationJob
 
   def send_humanized_response(content)
     chunks = Captain::Behavior::HumanizerService.new(config: @assistant.behavior['humanizer']).split(content)
-    delay_seconds = @assistant.behavior.dig('humanizer', 'delay_ms').to_f / 1000
 
-    chunks.each_with_index do |chunk, i|
+    chunks.each_with_index do |chunk, _i|
+      # "digitando..." em rajada curta antes de CADA mensagem (proporcional ao
+      # tamanho do texto), com pausa entre elas — em vez de typing continuo desde a
+      # chegada. Tambem espaca o envio, impedindo as mensagens de chegarem fora de ordem.
+      trigger_typing_indicator
+      sleep(humanizer_typing_delay(chunk))
       create_outgoing_message(chunk, agent_name: @response['agent_name'])
-      sleep(delay_seconds) if i < chunks.size - 1
     end
     log_behavior_event('humanizer_split', { chunks: chunks.size }) if chunks.size > 1
+  end
+
+  # "Digitando..." pro cliente (best-effort; so WhatsApp Cloud responde de fato).
+  # Usa o source_id da ultima mensagem recebida — o typing_indicator da Meta precisa
+  # referenciar uma mensagem do cliente pra marcar como lida.
+  def trigger_typing_indicator
+    source_id = @conversation.messages.where(message_type: :incoming).where.not(source_id: nil)
+                             .order(created_at: :desc).limit(1).pick(:source_id)
+    return if source_id.blank?
+
+    @conversation.inbox.channel.try(:send_typing_indicator, source_id)
+  rescue StandardError => e
+    Rails.logger.warn("[Captain] typing falhou: #{e.message}")
+  end
+
+  # Atraso proporcional ao tamanho do proximo pedaco (~velocidade de digitacao), com
+  # piso e teto. Configuravel via humanizer.{delay_per_char_ms, delay_ms, min_delay_s, max_delay_s}.
+  def humanizer_typing_delay(chunk)
+    cfg = @assistant.behavior['humanizer'] || {}
+    per_char = (cfg['delay_per_char_ms'].presence&.to_f || 45) / 1000.0
+    base = (cfg['delay_ms'].presence&.to_f || 600) / 1000.0
+    min_s = cfg['min_delay_s'].presence&.to_f || 1.5
+    max_s = cfg['max_delay_s'].presence&.to_f || 7.0
+    [[base + chunk.to_s.length * per_char, min_s].max, max_s].min
   end
 
   def validate_message_content!(content)
