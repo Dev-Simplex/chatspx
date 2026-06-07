@@ -102,6 +102,7 @@ const emit = defineEmits([
   'typingOff',
   'toggleUserMention',
   'toggleCannedMenu',
+  'attachCannedFiles',
   'toggleVariablesMenu',
   'toggleToolsMenu',
   'clearSelection',
@@ -876,6 +877,7 @@ useEmitter(BUS_EVENTS.INSERT_INTO_RICH_EDITOR, insertContentIntoEditor);
       v-if="shouldShowCannedResponses"
       :search-key="cannedSearchTerm"
       @replace="content => insertSpecialContent('cannedResponse', content)"
+      @attach="files => emit('attachCannedFiles', files)"
     />
     <VariableList
       v-if="shouldShowVariables"

@@ -1140,11 +1140,34 @@ export default {
     hideCannedResponseModal() {
       this.showCannedResponseModal = false;
     },
-    onCannedResponseSelect({ content }) {
+    onCannedResponseSelect({ content, attachments }) {
       this.hideCannedResponseModal();
       if (typeof content === 'string') {
         this.replaceText(content);
       }
+      this.attachCannedResponseFiles(attachments);
+    },
+    async attachCannedResponseFiles(attachments) {
+      if (!Array.isArray(attachments) || !attachments.length) return;
+      await Promise.all(
+        attachments.map(async att => {
+          try {
+            const response = await fetch(att.file_url);
+            const blob = await response.blob();
+            const file = new File([blob], att.filename || 'anexo', {
+              type: att.file_type || blob.type,
+            });
+            this.onFileUpload({
+              name: file.name,
+              type: file.type,
+              size: file.size,
+              file,
+            });
+          } catch (error) {
+            // best-effort: anexo da resposta rapida nao bloqueia o envio do texto
+          }
+        })
+      );
     },
     openLocationPicker() {
       if (!this.currentChat?.id) return;
@@ -2265,6 +2288,7 @@ export default {
             @blur="onBlur"
             @toggle-user-mention="toggleUserMention"
             @toggle-canned-menu="toggleCannedMenu"
+            @attach-canned-files="attachCannedResponseFiles"
             @toggle-variables-menu="toggleVariablesMenu"
             @clear-selection="clearEditorSelection"
             @execute-copilot-action="executeCopilotAction"
@@ -2503,6 +2527,7 @@ export default {
               @blur="onBlur"
               @toggle-user-mention="toggleUserMention"
               @toggle-canned-menu="toggleCannedMenu"
+              @attach-canned-files="attachCannedResponseFiles"
               @toggle-variables-menu="toggleVariablesMenu"
               @clear-selection="clearEditorSelection"
               @execute-copilot-action="executeCopilotAction"
