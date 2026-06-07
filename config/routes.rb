@@ -122,7 +122,11 @@ Rails.application.routes.draw do
               resources :inbox_limits, only: [:create, :update, :destroy]
             end
           end
-          resources :campaigns, only: [:index, :create, :show, :update, :destroy]
+          resources :campaigns, only: [:index, :create, :show, :update, :destroy] do
+            member do
+              get :stats
+            end
+          end
           resources :funnels, only: [:index, :show, :create, :update, :destroy] do
             member do
               post :reorder_stages

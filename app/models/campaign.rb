@@ -70,7 +70,11 @@ class Campaign < ApplicationRecord
     when 'Sms'
       Sms::OneoffSmsCampaignService.new(campaign: self).perform
     when 'Whatsapp'
-      Whatsapp::OneoffCampaignService.new(campaign: self).perform if account.feature_enabled?(:whatsapp_campaign)
+      # Disparo de WhatsApp e feito pelo orquestrador SPX (Spx::Tozi / DisparoLeadJob):
+      # pacing, atribuicao round-robin por corretor e rotacao de template. O blaster
+      # nativo (loop sem pacing) fica DESATIVADO para nao atropelar a operacao nem a
+      # qualidade/tier do WABA. Campanhas WhatsApp existem so como ancora/registro.
+      Rails.logger.warn("[Campaign ##{id}] WhatsApp one-off nativo desativado — envio via orquestrador SPX.")
     end
   end
 
