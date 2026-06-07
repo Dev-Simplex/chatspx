@@ -1,4 +1,4 @@
-# Estado ChatSPX — atualizado 2026-05-29 (deploy Bloco 3+4 em prod)
+# Estado ChatSPX — atualizado 2026-06-02 (disparo copy-nova FINALIZADO + deploy tela-campanha + anexo resposta-rápida concluído + incidente IA resolvido)
 
 > Single source of truth do que está **in-flight** no projeto.
 > Coisas estáveis vão pro [`MEMORY.md`](../../../.claude/projects/C--Users-paulo-Workspaces-chatspx/memory/MEMORY.md) (per-projeto) ou pro vault Obsidian.
@@ -10,6 +10,173 @@
 ---
 
 ## 🚧 Em andamento
+
+### [2026-06-05] 🔁 FOLLOW-UP re-engajamento (capacidade nova: HSM na conversa EXISTENTE)
+
+> Re-bater nos NÃO-RESPONDENTES da campanha 1 (lançamento/locação). Paulo: 600 total, corretores Lucas+Bruno.
+
+- **Audiência:** campanha 1, alcançados (delivered/read) SEM incoming, atribuídos a Lucas(127)/Bruno(131) = 691 → cap **600** (interleave: Lucas 330 + Bruno 270, ambos cobertos). Script `Downloads/followup_schedule.rb`.
+- **🆕 `Spx::Tozi::FollowupHsmJob`** (`app/jobs/spx/tozi/followup_hsm_job.rb`, no repo + prod): envia o HSM **DENTRO da conversa que já existe** (não cria nova — diferente do DisparoLeadJob), `conv.open!` se resolvida, mantém o assignee. 1 variável ({{1}}=nome). Pausar: deletar `FollowupHsmJob` do ScheduledSet.
+- **Template `tozi_followup_lanc`** (id 2265413040930153, MARKETING/pt_BR, PENDING): "Oi {{1}}, mandei uma mensagem essa semana e ainda não tive retorno seu..." + botões `Tenho interesse`/`Me chama depois`. ⚠️ "Oi" adicionado antes de {{1}} (Meta não deixa corpo começar com variável).
+- **Monitor** espera DisparoLeadJob (inquilinos) zerar + template aprovar → sync → amostra do follow-up na conversa do Paulo → se OK, dispara 600, 5s ~50min.
+- **🟢 DISPAROU (05/06):** monitor disparou auto quando inquilinos zerou. Paulo mandou "não disparar inquilinos hoje" mas inquilinos **já tinha terminado** (1.178 enviados, 975 ok). Follow-up foi pausado no 44º, Paulo confirmou **"follow-up sim, inquilinos não"** → retomado com exclusão dos 44 já-enviados (`already_fu` no `followup_schedule.rb`), +556 → **600 total** (Lucas 330 / Bruno 270). 5s.
+- **🟢 FOLLOW-UP VENDA +400 (05/06):** Paulo pediu "mais 400" → base de VENDA. Mesmo template/job, alvo = não-respondentes da **campanha 2** no fio existente. Primeiro rodou K/L/B (134/133/133), mas Paulo corrigiu **"só Bruno e Lucas"** → pausei (375 deletados, incl. Kettlen) e re-disparei **400 = Lucas 200 + Bruno 200** (exclui já-enviados via `already_fu`). Script `Downloads/followup_venda_schedule.rb` (BROKERS=[127,131]). ⚠️ Número **YELLOW** (Paulo ciente; follow-up warm). Monitorar.
+
+### [2026-06-05] 🖼️ INQUILINOS — disparo com TEMPLATE DE IMAGEM (capacidade nova) + auto-armado
+
+> Lista nova `INQUILINOS.xlsx` (3.919). Guilherme vetou gatilho "sair do aluguel" (lista tem inativos, alguns já compraram). Copy refeita: ângulo oportunidade/investir/relacionamento, **sem nome** (nomes estranhos), **sem presumir status**.
+
+- **Ingestão `Downloads/ingestao_inquilinos.py`** — dedup 4 camadas: corretores + já-enviados + **CONVERSA ABERTA na inbox 91** (não-resolvida, p/ não misturar assunto) + dup. Recuperação: 9-díg→DDD 66, 8-díg→66+9, trunk-0→tira 0 mantém DDD. **3.654 net-new** (`tozi_inquilinos_limpa.csv`).
+- **🆕 TEMPLATE COM IMAGEM (1ª vez):** 3 criados `tozi_inq_lancamento`/`tozi_inq_invest` (header IMAGE = mapa localização, represamento) + `tozi_inq_cliente` (texto). Imagem subida via **resumable upload** (`POST /APP_ID/uploads` → handle; APP_ID=1147301410628990) em `Downloads/create_inq_templates.rb`. Hospedada pública p/ envio: `https://tozi.chatspx.app/inq-mapa.jpeg` (em `public/inq-mapa.jpeg`).
+- **🆕 JOB ESTENDIDO** (`disparo_lead_job.rb`): branch `NO_BODY_VAR` (templates inq = corpo SEM variável) + `no_var_params` monta `processed_params: {header: {media_url: URL, media_type: 'image'}}`. Formato descoberto em `Whatsapp::TemplateProcessorService#build_header_params` (espera `media_url`+`media_type`). Caminho de 2 variáveis intacto (A/B não quebra).
+- **Disparo:** `Downloads/disparo_inq.rb` — 1.200, 3 corretores **Bruno #131/Kettlen #126/Lucas #127** (400 cada), 3 templates decorrelacionados, 5s, ~1h40. CSV em `/home/chatwoot/tozi_inquilinos_limpa.csv`.
+- **Monitor background** espera A/B 227 zerar + 3 aprovarem → sync → **amostra com imagem pro Paulo** → se entregar (= Meta buscou a imagem) → solta os 1.200. Gotcha: "delivered" num template de imagem prova que a imagem foi buscada/entregue OK.
+
+### [2026-06-04] 🧪 A/B QUALIFICADO DISPAROU 20:41 (auto via monitor) — base de venda ESGOTADA
+
+> A/B `tozi_venda_oportunidade` (137) vs `tozi_venda_lembrei` (136) disparou automático às 20:41 (monitor esperou o 1.000 zerar → sync → amostra delivered pro Paulo → soltou). **273 leads, só Kettlen** (Bruno/Marcus/Lucas removidos a pedido), split 50/50 perfeito (fórmula `j % TEMPLATES.size`), 5s, ~23min. **Base de venda zerada após** (3.398 elegíveis todos disparados ao longo dos lotes). **PENDENTE:** medir a **taxa de resposta QUALIFICADA** de cada template (cliques `Quero saber` + interesse real / enviados) quando o lote terminar (~21:04) — esse é o payoff do teste. Motor `Downloads/disparo_ab.rb`.
+
+### [2026-06-03] 🟢 DISPARO VENDA Tozi (proprietários de venda, copy nova, 5s, SEM cap)
+
+> Segundo disparo. Público = **PROPRIETÁRIOS DE VENDA** (vendedores), segmento NOVO (lista de locação já tinha sido toda disparada — ver entrada de 02/06). Paulo quer **contínuo a 5s, sem cap, ele manda parar** (ver [[feedback-disparo-continuo-sem-cap]]).
+
+- **Audiência:** `PROPRIETARIOS VENDA - removidos ativos...xlsx` (3.505) → ingestão `Downloads/ingestao_tozi_v4.py` (canonical DDD+8, dedup tríplice: blacklist corretores 1.177 + já-enviados DB + dup interno + filtro fake `(\d)\1{6,}`) → **3.394 elegíveis** (`Downloads/tozi_venda_limpa.csv`). Só 5 overlap com locação (segmento limpo).
+- **Templates (APPROVED + sincronizados):** `tozi_venda_prioridade` (1507152557728445), `tozi_venda_investidor` (1473243537915273), `tozi_venda_condicoes` (1911525192852443). MARKETING/pt_BR, {{1}}=lead {{2}}=corretor, 2 botões quick-reply: **"Tenho interesse" / "Quero, mas outro horário"**. Criados via `Downloads/create_venda_templates.rb` (Net::HTTP→Graph API, rodado na AWS p/ não corromper acento).
+- **Motor:** `Downloads/disparo_venda.rb` (rodado na AWS via `rails runner`, `DRY=1` simula / `DRY=0` enfileira). Decorrelacionado (cada corretor manda os 3 templates), round-robin **Kettlen #126 / Bruno #131 / Lucas #127 / Marcus #128** (~849 cada), 5s, `campaign_id=2`.
+- **Campaign âncora #2** "Disparo Venda Tozi" (one_off/completed — nunca auto-dispara). Stats via tela de campanha por `campaign_id=2`.
+- **PAUSAR:** deletar `DisparoLeadJob` do `Sidekiq::ScheduledSet` (script igual aos de `Temp/`). Início: 3.379 na fila após enfileirar.
+- **🔴→✅ SUSTO "mensagens estranhas" (resolvido):** Paulo viu no painel a bolha cortada **"Oi Adriana!"** e mandou pausar. Diagnóstico: o `DisparoLeadJob` tem hash `PREVIEWS` (o `content` que o time vê na transcrição) e os `tozi_venda_*` **não estavam lá** → caía no fallback `'Oi %<n>s!'`. **Era só o rótulo interno** — o LEAD sempre recebeu o template completo (confirmado: corpo aprovado na Meta idêntico, params {{1}}/{{2}} certos, 0 duplicatas, 3 testes pro WhatsApp do Paulo chegaram perfeitos). **Fix:** adicionados os 3 `tozi_venda_*` ao `PREVIEWS` com corpo completo (`app/jobs/spx/tozi/disparo_lead_job.rb`, deploy + **restart worker** com disparo pausado) → painel agora mostra a mensagem inteira. Repo sincronizado com prod.
+- **Retomado 03/06:** re-enfileirado com dedup (`skip ja_enviado:51, fake:4`) → **3.343** a 5s. ⚠️ `prioridade` diz "aqui é **o** {{2}}" — fica "o Kettlen" (mulher), gramática torta só nesse template c/ corretora mulher.
+- **🔄 TROCA p/ template CURTO (03/06):** Paulo dispensou os 3 longos e pediu um **curto com botões**. Criado `tozi_venda_abertura` (id 1737345930628257, MARKETING/pt_BR, **APPROVED**): *"Oi {{1}}, tudo bem? Aqui é {{2}}, da Tozi Imóveis. Tá podendo falar agora?"* + botões **`Sim, pode falar` / `Agendar horário`**. Gênero-neutro ("Aqui é {{2}}"). Adicionado ao `PREVIEWS` do job (deploy + worker restart). **Kettlen #126 removida** da rotação → só **Bruno #131 / Lucas #127 / Marcus #128**. Motor: `Downloads/disparo_venda_curto.rb` (template único + 3 corretores). **314 já tinham recebido os 3 longos** (51 1ª leva + 263 na retomada); os **3.082 restantes** recebem o curto. Re-enfileirado 03/06 (`skip ja_enviado:312, fake:4`), 5s, ~4,3h.
+- **⚠️ Falhas esperadas:** lista de vendedores tem muito 131026 (sem WhatsApp) + 130472/131049 (pacing). Não-cobradas.
+- **🟢 FASE 2 (04/06):** 3 templates NOVOS APPROVED (`tozi_venda_condicao` 1391763976151966 / `tozi_venda_invest` 874042698421860 / `tozi_venda_suites` 996870739390338, copy refinada, **gênero-neutro "aqui é {{2}}"** + botões `Tenho interesse`/`Quero, mas outro horário`). Disparo **1.200** (Paulo deu cap explícito desta vez — exceção ao [[feedback-disparo-continuo-sem-cap]]) — 4 corretores Kettlen #126/Marcus #128/Lucas #127/Bruno #131 (300 cada), 3 templates (400 cada), 5s, ~1h40. Número GREEN, primeiros sends 0 falha. Motor `Downloads/disparo_venda2.rb` (cap `LIMIT=1200`) + `create_venda2_templates.rb`. Sobram ~1.273 na base após.
+- **🟢 LOTE 3 (04/06):** mais **1.000** com o template CURTO `tozi_venda_abertura` (4 corretores Kettlen/Marcus/Lucas/Bruno, 250 cada, cap 1.000, 5s, ~1h23). Motor `Downloads/disparo_curto_lote2.rb` (`LIMIT=1000`, 4 brokers). Dedup excluiu 2.121 já enviados → 1.000 de 1.273 disponíveis; **sobram ~273** após. Número GREEN.
+- **🧪 A/B QUALIFICADO (04/06) — auto-disparo armado:** insight do Paulo: curto "Tá podendo falar?" enche de volume DESQUALIFICADO (clientes acham que é sobre o imóvel deles); longo qualifica mas pouco volume. Solução = **curiosidade ancorada no benefício**. 2 templates novos APPROVED-pending p/ A/B: `tozi_venda_oportunidade` (3096853437186543, "Separei uma oportunidade boa pra você... valoriza rápido e dá pra alugar. Quer que eu te conte?") + `tozi_venda_lembrei` (1298701482390341, "Apareceu uma oportunidade que combina com cliente da casa e lembrei de você... valoriza e gera renda. Vale 2 min?"). Botões iguais (isola copy): `Quero saber`/`Me chama depois`. **Esgota os ~273 restantes**, split 50/50 por lead (`template = j % TEMPLATES.size` — fórmula trocada porque a antiga `(j + j/N)%2` quebrava com N=1 e mandava só 1 template). **SÓ Kettlen #126 — Bruno #131, Marcus #128 e Lucas #127 removidos a pedido 04/06** (jobs pendentes deles no lote de 1.000 reatribuídos pra Kettlen via `reassign_{bruno,marcus,lucas}.rb`, horários preservados: 66+59+75). ⚠️ Tudo concentrado na Kettlen (~423 convs: 150 do 1.000 + 273 A/B). Motor `Downloads/disparo_ab.rb` (LIMIT=0). **Monitor background** espera 1.000 zerar + aprovação → sync → amostra pro Paulo → se OK dispara. Previews dos 2 já no job. ⚠️ Gotcha de relógio: server loga UTC (≠ Sinop UTC-4) — "00:40 UTC" = 20:40 Sinop. Métrica do teste = **taxa de resposta QUALIFICADA** (não volume bruto).
+- **🟢 SAÚDE recuperou pra GREEN (04/06):** número estava YELLOW, voltou pra **GREEN** após pausa + engajamento alto (433 respostas, 24,5% no curto). WABA APPROVED/verified, `health_status.can_send_message=AVAILABLE` (WABA+Business+App), throughput STANDARD, inbound vivo (250/12h). **Seguro retomar.** Lição: blast de pitch longo em base fria derruba reputação; template curto que gera resposta a PROTEGE (Meta premia engajamento). Custo real acumulado (2 disparos, via pricing_analytics): **US$135,12 ≈ R$701** (2.162 marketing entregues; 2.954 service grátis). Relatório PDF: `Downloads/Relatorio-Disparos-Tozi.pdf` (1 pág, gerador `report_gen.py` + `report_data.rb`).
+- ⚠️ **Qualidade do número = YELLOW** (degradou no 1º disparo). Falhas iniciais: **131026 sem-WhatsApp** (lista de vendedores tem mais nº morto) + **131049/130472 pacing** (Meta já throttla marketing cedo no YELLOW). Risco real de RED se mandar tudo (3.394 = 4,7h, ~R$1.065). Paulo controla o stop.
+- **Job hardcoda** `source='disparo_lancamento'` → venda entra no mesmo dedup futuro (ok). `tozi_venda_limpa.csv` na AWS em `/home/chatwoot/`.
+
+### [2026-06-02 noite] 🟢 DEPLOY CONCLUÍDO (tela campanha + anexo resposta-rápida) — disparo FINALIZOU
+
+> Disparo copy-nova **terminou** (Paulo confirmou "os envios terminaram"). Com a fila zerada, as 2 features foram deployadas num **precompile único + restart só do `chatwoot-web.1`** (worker intocado — nenhuma das 2 usa job). Guard `migrate:status` = `down==1` (só a landmine). HTTP local+público 200. **Números finais do disparo (campaign_stats #1): total 1529, alcançados 1337, entregues 457, lidas 824, falhas 178 (131026=119 sem-WhatsApp, pacing 58, outro 1), respostas 180.** Distribuição Lucas 583 / Kettlen 583 / Bruno 363.
+
+**Disparo "Lançamento Tozi" — copy NOVA (Guilherme refinou), rodando:**
+- Templates novos **APROVADOS + sincronizados** no WABA: `tozi_lanc_prioridade` (id 874854259000986), `tozi_lanc_portfolio` (2773640852999289), `tozi_lanc_investidor` (869549619532683). MARKETING/pt_BR, **{{1}}=lead + {{2}}=corretor**, 2 botões ("Tenho interesse"/"Quero saber mais"). (Os `tozi_aquarela_*` com Guilherme fixo foram **apagados** no WhatsApp Manager — nome trava ~4 semanas.)
+- `app/jobs/spx/tozi/disparo_lead_job.rb` **DEPLOYADO**: `agent_first_name(assignee_id)` preenche `{{2}}`, PREVIEWS novos, grava `campaign_id=1`. Worker reiniciado.
+- **GOTCHA resolvido:** template novo dava `#132000 number of parameters` até `Inbox.find(91).channel.sync_templates` (o SendOnWhatsappService usa os templates SINCRONIZADOS, não só processed_params). Depois precisou **restart do worker** pra limpar cache de templates.
+- **Resume:** corretores **Kettlen #126 / Lucas #127 / Bruno #131**, **5s**, dedup. ~412 já enviados + **420 restantes DECORRELACIONADOS** (`template=(j + j/3)%3` — cada corretor manda os 3; o `i%3` original casava corretor↔template = cada um mandava só 1). Os ~412 da 1ª parte ficaram correlacionados (irreversível). 1ª leva (695) usou copy ANTIGA `tozi_lancamento_*`.
+- Scripts em `Temp/`: `resume_lanc.rb`, `fix_decorrelate.rb`, `monitor_lanc.rb`, `create_lanc_templates.rb`.
+
+**Respostas rápidas criadas** (Account 6, com `{{contact.name}}`): `/interesse` (loc+lista prioridade) + `/preco` (deflete preço + qualifica investir/uso).
+
+**🟢 DEPLOYADO (02/06 noite)** — precompile único (`✓ built in 2m20s`, manifest 23:35) + restart `chatwoot-web.1`:
+1. **Fix tela campanha** — `app/javascript/dashboard/api/campaigns.js`: **axios GLOBAL** (`/* global axios */`) em vez de `import axios` (era 401 → "Não foi possível carregar estatísticas"). ✅ no ar.
+2. **Anexo em respostas rápidas** (9 arquivos): Back — `canned_response.rb` (`has_many_attached :attachments`) + `canned_responses_controller.rb` (permit `attachments: []` + serialize `file_url: url_for(att)` + purge no update). Front — `api/cannedResponse.js` (FormData c/ anexo), `AddCanned.vue`+`EditCanned.vue` (input file), `CannedResponseModal.vue` (emite `attachments` no select), `ReplyBox.vue` (`onCannedResponseSelect`→`attachCannedResponseFiles`: fetch `file_url`→File→`onFileUpload`), `cannedMgmt.json` en+pt_BR (`FORM.ATTACHMENT.LABEL`). ✅ no ar.
+
+**Verificação pós-deploy (backend, server-side ✅):** `campaign_stats(#1)` retorna hash completo (números acima); `CannedResponse#attachments` carrega (`has_many_attached`); **mapa anexado na resposta #77 `/interesse`** (att id=411283, `mapa-localizacao.jpeg`, 290KB) e `rails_blob_url` serve com `302 → disco` (fetch do ReplyBox segue o redirect). Endpoint `GET /canned_responses` (HTTP 200) já traz `attachments:[{id,filename,file_type,file_url}]` por item.
+
+**🔴→✅ BUG do anexo inline (achado quando Paulo testou "não vi mapa no /interesse") — corrigido + deployado (02/06 ~00:12):** havia **2 caminhos** de resposta rápida e só o **modal** estava ligado ao anexo. O **`/` inline** (o que o time usa) é renderizado pelo editor ProseMirror (`Editor.vue` → `CannedResponse.vue` via `MentionBox`), que inseria **só o texto** (`@replace`) e descartava `attachments`. Fix aditivo em 3 arquivos: `CannedResponse.vue` emite `@attach` com `selected.attachments` (match por `short_code===item.key`); `Editor.vue` encaminha via emit `attachCannedFiles`; `ReplyBox.vue` liga **os 2 editores** (compositor padrão 2291 + wa-composer-bar 2530) ao `attachCannedResponseFiles` já existente. **Zero regressão** (canned sem anexo nunca dispara `@attach`). Revisão adversarial OK: MentionBox repassa item completo (`item.key` sobrevive); `onFileUpload({name,type,size,file})` = mesmo shape do drag-drop (ReplyBox:1103). **Falta só Paulo testar** (hard-refresh Ctrl+Shift+R p/ pegar o bundle novo): (a) 📊 no card da campanha carrega; (b) digitar `/interesse` inline → texto + mapa juntos.
+
+**Deploy B (tela de campanha) JÁ no ar:** endpoint `GET /api/v1/accounts/:id/campaigns/:id/stats` (`campaigns_controller#stats` + `campaign_stats`, agrega por `campaign_id`) + policy `stats?` + rota detalhe `campaigns_whatsapp_detail` (`whatsapp/:campaignId`) + `WhatsAppCampaignDetail.vue` + card 📊. Faltava só o fix do axios (item 1).
+
+### [2026-06-02] 🟢 PLANO DE GO-LIVE DA IA (prioridade — resolver o quanto antes)
+
+A Clara está **DESCONECTADA da inbox 91** (test-mode encerrado por causa do incidente abaixo). Pra religar pra valer, resolver ANTES (senão o incidente volta):
+
+1. **Pré-req reabertura:** com a Clara religada `active_bot?` volta a `true` → resposta de cliente em conversa resolvida vira **pending limbo** de novo (`Message#reopen_resolved_conversation`: inbox com bot → `pending!` em vez de `open!`). Resolver com UMA das opções: (a) Clara atende de verdade (tira whitelist) e abre a conversa, **ou** (b) corrigir o código — `mark_pending_conversation_as_open_for_human_response` está **stubbado `false`** em `app/models/message.rb` (`captain_pending_conversation?` retorna false), então nem resposta humana abre a pending.
+2. **Whitelist:** sair de `behavior.router.only_contact_phones=["+5566996350491"]` de forma controlada (piloto com N leads → geral).
+3. **Auto-resolve:** manter `captain_auto_resolve_mode='disabled'` OU reconfigurar com cuidado (mensagem PT decente, gateado, sem loop pending→resolve).
+4. **Reconectar:** recriar `CaptainInbox(inbox_id=91, captain_assistant_id=7)` só depois dos 3 acima. Testar E2E: cliente que volta é atendido (não fica pending).
+5. **Cérebro (já validado/staged):** prompt Júlia (Scenario Vendas #5, 6274 chars) + knowledge (1 doc Playbook 19 chunks + 40 Q&A nativas, modo hybrid) + tools (`buscar_imovel` via `TOZI_VISTA_API_KEY`, geocoding com chave embutida).
+
+### [2026-06-02] 🔴→✅ INCIDENTE: IA fechando conversas / "mensagens sumindo" — RESOLVIDO
+
+**Sintoma:** equipe achou que o número parou de receber mensagens + conversas fechando com *"Resolvendo a conversa dado que está inativa..."*. Suspeita: IA.
+
+**Diagnóstico (com dados):** número 100% saudável na Meta (`CONNECTED/GREEN/STANDARD`); inbound nunca parou (241 msgs/dia, última há 1 min). A causa era a combinação:
+- Inbox 91 com Clara conectada → `active_bot?=true`. Em `Message#reopen_resolved_conversation`, inbox com bot → conversa resolvida que recebe msg do cliente vira **`pending!`** (não `open!`), esperando o bot atender.
+- Clara com **whitelist** (`only_contact_phones`, só o nº do Paulo) → **não atende o lead** → conversa **presa em pending** (invisível na aba "Abertas").
+- **Auto-resolve do Captain** (`Enterprise::Account::ConversationsResolutionSchedulerJob` → `Captain::InboxPendingConversationsResolutionJob`) fechava as pending inativas >1h com a mensagem PT (pública) + nota EN "Auto-resolved:" (privada). **57 PT + 55 EN, ~17 convs, inboxes 61/62/91**, ondas 23/05 (47) + 01/06 (10), **última 01/06 15:34**.
+
+**Fixes aplicados (prod):**
+- **Auto-resolve:** `Account.find(6).captain_auto_resolve_mode='disabled'` (já estava, desde 01/06). Trava DUPLA no código (scheduler linha 15 + job linha 8: `return if captain_auto_resolve_disabled?`). **Zero auto-resolve desde 01/06 15:34** (confirmado: 0 hoje).
+- **Reabertura:** **Clara DESCONECTADA da inbox 91** — `CaptainInbox(91,7)` destruído → `active_bot?=false` → cliente que volta cai no `else → conversation.open!` (reabre como **Aberta**). Clara (assistant #7, config/knowledge/cenários) **intacta**, reconecta no go-live.
+- **Recuperação:** **76 conversas presas reabertas** (74 inbox 91 + 1+1 em 61/62) + 5 pending limbo zeradas.
+
+**Bug residual conhecido (não corrigido):** `reopen_resolved_conversation` manda pra `pending!` em inbox com bot — ok SE o bot atende; vira limbo se o bot está calado (whitelist). Tratar no go-live (item 1 do plano acima).
+
+### [2026-06-02] 🟡 Disparo "Lançamento Tozi" EXECUTADO (parcial, PAUSADO) + Campaign âncora + view "Não lidas"
+
+**Disparo (motor próprio, NÃO o nativo):**
+- **695 enviados de 1.526** (601 entregues, 335 lidas, **87 falhas**: 56 sem-WhatsApp `131026` + 31 pacing Meta `130472`/`131049`). **832 segurados** (pausados; jobs cancelados do Sidekiq).
+- Motor: `app/jobs/spx/tozi/disparo_lead_job.rb` (cria contato+conversa+atribui+HSM, grava `campaign_id`) + rake `spx:tozi:disparo[csv,limit,dry_run,spread_min,template]` + `spx:tozi:disparo_teste`. Pacing ~4,8s, round-robin, rotação 3 templates `tozi_lancamento_{interagir,qualifica,curiosidade}` (aprovados, 2 botões positivos + Agendar). CSV audiência: `Downloads/tozi_audiencia_limpa.csv` (1.526) na AWS em `/home/chatwoot/`.
+- **Distribuição final:** Kettlen #126 **305**, Lucas #127 **304**, Bruno #131 **86** (Marcus #128 e Guilherme #125 tirados e redistribuídos). Corretores isolados por custom role "Corretor".
+- ⚠️ **Adrian #63 e Gelson #72 mandaram ~11 HSM na mão** (fora do orquestrador, sem `campaign_id`) — equipe continuou disparo manual.
+- Pausar/retomar/redistribuir/dedup = scripts console (canonical = DDD+8). Pra retomar: re-enqueue com dedup pelos já-enviados.
+- **Relatório PDF:** `Downloads/Relatorio-Disparo-Tozi.pdf` (89 respostas → **63 positivas / 21 negativas / 5 neutras**; gerado via Python→HTML→Edge headless).
+
+**Campaign nativa como âncora (Campanhas › WhatsApp) — Deploy A no ar:**
+- **Campaign #1** "Disparo Lançamento Tozi" criada `completed` (NUNCA dispara o blaster nativo: scheduler ignora não-active + `trigger!` retorna `if completed?`). 695 conversas linkadas via FK `campaign_id`.
+- **Blaster WhatsApp nativo DESATIVADO** (`Campaign#execute_campaign` só loga — `Whatsapp::OneoffCampaignService` não tem pacing/atribuição/rotação, atropelaria o WABA) + **botão "Nova campanha WhatsApp" REMOVIDO** (`WhatsAppCampaignsPage.vue` vira viewer; `CampaignLayout.vue` botão `v-if="buttonLabel"`). Quebra 1 spec nativo (esperado).
+- ⚠️ **FALTA Deploy B:** tela de **detalhe** da campanha (dashboard agregado por `campaign_id`: progresso/entrega/distribuição/conversas + Pausar/Retomar). Conceito = "Painel de Disparos" (workflow). Card hoje só lista/exclui.
+
+**View "Não lidas" deployada (12 arquivos, no ar):** scope `Conversation.unread` (incoming após `agent_last_seen_at`) + finder `conversation_type=unread` + rotas `conversation_unread` + item sidebar (abaixo de "Mencionadas") + i18n en/pt_BR. Espelha o "Não respondidas". Validado E2E.
+
+### [2026-06-01] 🟡 Clara ATIVADA em MODO TESTE em prod (só +5566996350491)
+
+> ⚠️ **SUPERADO em 02/06:** a Clara foi DESCONECTADA da inbox 91 (ver incidente acima). O conteúdo abaixo é histórico do estado em 01/06.
+
+**Mudança de estado crítica:** a Clara (#7) saiu de DESLIGADA para **LIGADA em modo teste** na inbox 91 (Account 6).
+- `CaptainInbox(inbox_id=91, captain_assistant_id=7)` criado → `inbox91.captain_assistant=Clara`.
+- `behavior.router.only_contact_phones` trocado de 4 números antigos para **`["+5566996350491"]`** (número do Paulo). Só ele recebe resposta; todos os outros (386 conversas abertas + leads reais) → router skip → Clara calada.
+- `captain_active?=true` (cota captain.responses: 99.856 disponíveis de 100k) → **sem risco de `perform_handoff`** (que mandaria "Transferring to another agent" em inglês nas pending se a cota estivesse zerada). `skip_after_human_response=true` e `skip_groups=true` preservados.
+- Chaves LLM (InstallationConfig global OpenAI+Anthropic) setadas.
+- **[2026-06-01] Modelo trocado pra Claude:** `account.captain_models['assistant']` = **`claude-sonnet-4.5`** (era `gpt-4.1`). O modelo do runner v2 vem de `account.captain_assistant_model` (= dropdown "Assistente" da tela LLM Settings), lido a cada request. Chave: o `ai_agents.rb` configura o gem `agents` no boot com a Anthropic **GLOBAL** (`CAPTAIN_ANTHROPIC_API_KEY`) — a chave per-conta da UI NÃO alimenta o v2. **Chave global testada ao vivo: chamada a `claude-sonnet-4-5` respondeu "OK".**
+- **⚠️ Worker precisa reiniciar** pra carregar a chave Anthropic global no runtime (`Agents.configure` roda no boot). Modelo muda sem restart; chave não. Reiniciar `chatwoot-worker.1` antes do teste E2E.
+
+**Sessão de teste 01/06 — achados e fixes (todos em prod):**
+- ✅ **Modelo trocado pra Claude Sonnet 4.5** (`captain_models['assistant']`). Chave Anthropic global validada ao vivo. Teste direto do agente: Júlia respondeu natural em PT-BR, roteou pra cenário Locação. **Cérebro OK.**
+- 🔴→✅ **Auto-resolve estava ligando junto com a Clara e mandando "inicie uma nova conversa" + resolvendo conversas de CLIENTES REAIS** (10 msgs/6h, NÃO gateado pela whitelist). Kill-switch: `account.captain_auto_resolve_mode` (`store_accessor :settings`, default 'evaluated'). **Setado `'disabled'`** via `Account.find(6).update!(captain_auto_resolve_mode: 'disabled')`. Scheduler `Enterprise::Account::ConversationsResolutionSchedulerJob` roda p/ TODA `CaptainInbox` exceto `captain_auto_resolve_disabled?`.
+- 🐛→✅ **Bug do handoff v2:** quando o agente faz handoff, `result.output` volta vazio → `ResponseBuilderJob` tratava como `[IGNORAR]` → **fala de transferência sumia no WhatsApp**. Fix em `AgentRunnerService#process_agent_result` (fallback `last_assistant_message_text`). Commit `02bcbac0f`, transportado + worker restart.
+- ✅ **n8n desligado da inbox 91:** o `AgentBot "Clara" #7` (webhook n8n, 19.614 msgs) ainda estava plugado mesmo após Paulo remover workflow/webhook. **`AgentBotInbox(inbox_id=91)` destruído** → `inbox91.agent_bot=nil`. Captain Clara intacta. Migração n8n→SPX concluída na inbox 91.
+- ⚠️ **Whitelist FUNCIONA** (dezenas de `router_skip` p/ clientes reais; só o nº do Paulo engaja). Mas a inbox 91 é **produção viva** (atendentes reais + clientes o tempo todo) — cuidado com efeitos colaterais ao mexer.
+- ⚠️ **Conv 2159 = thread de teste podre** (centenas de msgs, multi-dia) → histórico polui o agente. Limpa: 2132 deletada, 2159 esvaziada (557 msgs+38 anexos). **inbox 91 tem `lock_to_single_conversation=true`** → não cria conversa nova por contato; reusa/reabre a última.
+- 🟢 **E2E APROVADO (01/06 16:07):** Clara (Captain v2, **Claude Sonnet 4.5**) respondeu "Oi, Paulo! Tudo bem? 😊" / "Como posso te ajudar hoje?" — outgoing público, humanizer quebrou em 2, enviado no WhatsApp. 2.9s. Sender=Captain::Assistant (não AgentBot). Pipeline completo OK.
+- 🟢 **Indicador "digitando" + espaçamento (commits `0b3307830`, `71629abe1`):** typing via Cloud API (`status:read`+`typing_indicator`, **v21.0** — v13.0 do endpoint padrão NÃO suporta). `Whatsapp::Providers::WhatsappCloudService#send_typing_indicator(source_id, show_typing=true)` (show_typing=false = só read/tique azul) + no-op no base + delegate no `Channel::Whatsapp`. **Comportamento final (após feedback do Paulo):** tique azul (read) imediato no hook **sem** typing contínuo; "digitando" só em **rajada curta antes de CADA pedaço** do humanizer, proporcional ao tamanho (`delay_per_char_ms` 45, piso 1,5s / teto 7s). Corrige "typing contínuo da chegada até a resposta" (robótico) + mensagens fora de ordem. Best-effort (rescue), só WhatsApp Cloud.
+- 🔴→✅ **Busca de imóvel NÃO achava nada — `TOZI_VISTA_API_KEY` faltava no `.env` de prod** (o n8n tinha; migração esqueceu). `Captain::Tools::BuscarImovelTool` lê `ENV['TOZI_VISTA_API_KEY']` (+ `TOZI_VISTA_BASE_URL` default `toz19328-rest.vistahost.com.br`, correto). Chave no vault `credenciais/tozi.md` como `VISTA_API_KEY` (nome diferente!). **Adicionada `TOZI_VISTA_API_KEY` no `.env`** + restart. Testado: acha apto cód 9532 (Aquarela). ⚠️ gotcha: o tool usa `TOZI_VISTA_*`, o vault/n8n usavam `VISTA_*`.
+- ✅ **Geocoding (busca por localização) OK** — custom tool #4 "Buscar localização (geocoding)" tem a **chave do Google Maps EMBUTIDA na endpoint_url** (não env var). Testado ao vivo: `google_status=OK`, coordenadas certas. Proximidade ~3km alimenta o `buscar_imovel` (lat/lng bbox).
+- ✅ **`buscar_imovel` confirmado E2E:** ferramenta built-in (`enterprise/lib/captain/tools/buscar_imovel_tool.rb`) consulta Vista, filtra Cidade/Status/Categoria/Bairro(like)/Dormitorios/Valor/lat-lng, retorna até 5 com URL `toziimoveis.com.br`. Clara também tem `enviar_fotos_imovel`, `salvar_info_lead`, `programar_followup`. Custom tool #3 "Buscar imóveis no Vista" está `enabled=false` (a built-in substitui).
+- ⚠️ **Reopen-on-incoming:** ao esvaziar+force-resolve a 2159 via `update_columns`, a conversa NÃO reabriu sozinha no incoming (hook não dispara em `resolved`). Disparei `ResponseBuilderJob.perform_now` manual + abri a conversa. Provável artefato do force-resolve; conferir se em prod normal (resolve via flow) o incoming reabre + Captain responde a cliente que retorna.
+
+**Go-live (quando validar):** remover a whitelist `only_contact_phones`. Antes disso, decidir as **57 conversas open+pending SEM resposta humana** (as 329 com resposta humana já são protegidas por `skip_after_human_response`): travar as 57 com `atendimento_humano=true` (script) OU deixar a Clara resgatá-las. 0 conversas com trava manual hoje.
+
+### [2026-06-01] 🟢 Knowledge da Clara reorganizada em prod (FAQ→Q&A nativa, modo hybrid)
+
+**Contexto:** Paulo apontou que o FAQ devia ser Q&A nativa (não doc) e o Playbook "parecia duplicado". Auditoria + verificação adversarial (workflow 3 frentes) confirmou: prod (Account 6, Clara #7) estava `knowledge_mode=chunks` com **0 Q&A nativas**; FAQ vivia como documento chunkado (13 chunks) duplicando ~factualmente o Playbook (19 chunks). O "playbook duplicado" é na **PAULAO** (2 docs "Playbook de Vendas Tozi" na aba Documents) — em prod só há 1 cópia. PAULAO tem as Q&A nativas corretas (aba FAQs, Approved) = `FAQ-TOZI.md` verbatim; nunca foram migradas pra prod.
+
+**Feito em prod (Account 6):**
+- ✅ **40 Q&A nativas criadas** (`Captain::AssistantResponse`, standalone `documentable=nil`, status approved, **40/40 com embedding**) — extraídas do `FAQ-TOZI.md` (16 institucional + 17 observada + 7 objeções; dropado 1 dup de FGTS). Script: `aws_create_faq.rb`.
+- ✅ **knowledge_mode `chunks`→`hybrid`** (liga faq_lookup + mantém search_knowledge). Retrieval testado com 6 perguntas reais → todas casaram na Q&A certa (dist 0.24–0.47).
+- ✅ **Documento FAQ (doc#2) DELETADO** (13 chunks foram em cascata; 0 responses atreladas — as 40 Q&A são standalone, intactas). Backup: `clara_knowledge_report.txt` (local) + `/tmp/faq_doc_backup_2.md` (AWS).
+- **Estado final:** 1 doc (Playbook, 19 chunks) + 40 Q&A. Zero duplicação de fatos.
+- **Playbook prod = fonte canônica** `PLAYBOOK-VENDAS-TOZI.md` (28/05/2026) verbatim — atualizado.
+
+**UI deployada em prod (commit `444e6afa4`, restart web):** aba Knowledge→FAQs agora tem **editar** (inline) + **excluir** (confirmação inline) nas Q&A — backend já tinha o CRUD (`resources :assistant_responses`); faltava só o front (botões + override do `update` no `api/captain/response.js` p/ envolver no wrapper `assistant_response`). Mesmo restart serviu o fix do scroll do Settings.vue. (PAULAO só vê quando recompilar na rede da empresa.)
+
+**Pendente:** limpeza PAULAO (Paulo, via UI: apagar 1 Playbook dup + doc FAQ). Opcional não-bloqueante: enxugar seções factuais 1/3/4 do Playbook prod.
+
+### [2026-06-01] Disparo em massa Tozi — audiência + templates de lançamento
+
+- **Fase A (ingestão) FEITA:** `PROPRIETARIOS DE LOCAÇÃO TOZI.xlsx` (1.614 donos, Nome+Tel sem DDI) cruzado com lista negra `TODOS CORRETORES DE SINOP.csv` (1.177, com DDI). Normalização canônica = **DDD + últimos 8 dígitos** (colapsa DDI + 9º dígito). Resultado v2 (recuperação aplicada): **1.526 leads limpos** (`Downloads/tozi_audiencia_limpa.csv`), 22 corretores cortados, **+12 recuperados** (trunk-0 e mobile 9-díg sem DDD → +66), 24 pra revisão manual (`tozi_revisao_manual.csv` — quase todos "9 duplicado/dígito a mais"), 43 dups. Script `Temp/ingestao_tozi_v2.py`. Verificado: 0 corretor vazou, 0 dup, encoding ok, recuperados presentes.
+- **Fase B FEITA:** Custom role **"Corretor" #1** (`conversation_participating_manage`) criada. Configurados na Account 6 + membros da inbox 91: Marcus #128, Kettlen #126 (rebaixado admin→agent), Lucas #127 (rebaixado admin→agent), Bruno #131 — todos **agent + role Corretor** (veem só o atribuído). Guilherme #125 = **administrator** (vê tudo + recebe lead na fila). **Isolamento verificado ao vivo:** corretor vê 0 (só o seu), Guilherme vê 11.216 (tudo). Mecanismo: `Enterprise::Conversations::PermissionFilterService` (participating → `accessible_conversations.assigned_to(user)`; admin bypassa). Senhas recebidas no chat NÃO salvas (contas já existiam).
+- **Fase C (orquestrador) A FAZER** — bloqueada por: templates `tozi_lancamento_*` aprovados (PENDING Meta) + tier WABA (~1.600/dia). Build `Spx::Tozi::DisparoEmMassa`: round-robin pros 5 + ScheduledMessages c/ HSM personalizado espalhado em 2h. Testar lote 5-10 antes do real.
+- **Templates de disparo recriados com nomes NOVOS `tozi_lancamento_{interagir,qualifica,curiosidade}`** (MARKETING, pt_BR, **2 botões positivos** + "Agendar horário", texto do Guilherme = lançamento apto 3 suítes). **PENDING** na Meta. Audiência = os proprietários (donos/investidores).
+- ⚠️ **2 gotchas Meta HSM:** (1) ao DELETAR um template, o **nome+idioma fica travado ~4 semanas** (`error_subcode 2388023`) → recriar exige nome diferente (por isso `tozi_disparo_*` virou `tozi_lancamento_*`). (2) **corpo NÃO pode começar/terminar com variável** (`2388299`) → precisa texto antes do `{{1}}` (usar "Oi {{1}}, ...").
+- **Plano disparo (Fase B/C):** Custom Role "Corretor" (`conversation_participating` = só vê o que é atribuído a ele) — **NÃO precisa de 5 times**, basta 5 contas + role + atribuição round-robin. Orquestrador `Spx::Tozi::DisparoEmMassa` sobre `ScheduledMessages` (cria conversa + atribui round-robin + HSM personalizado espalhado em 2h). Pré-req: 5 contas de corretor (Paulo cria), tier WABA p/ ~1.600/dia, recuperação dos 10 tels.
+
+### [2026-06-01] ⚠️ Gotcha: token da WABA Tozi cria templates mas NÃO deleta
+
+`Whatsapp::TemplateManagementService#delete` (e o botão excluir da nova UI de templates) falham com `#100 Need permission on either WhatsApp Business Account or owner/shared business`. O `api_key` do provider_config da inbox 91 cria/envia mas não tem management/delete. **Pra deletar HSM:** WhatsApp Manager (Paulo, admin). Impacto: os 3 `tozi_disparo_*` já estão **APPROVED com 2 botões**; pra trocar p/ botão único (regra: só positivo), Paulo apaga no Manager → eu recrio com 1 botão.
 
 ### [2026-05-29] 🟢 Bloco 3+4 + branch paulao DEPLOYADO em produção AWS (Account 6)
 
