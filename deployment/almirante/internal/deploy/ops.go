@@ -59,11 +59,19 @@ func (o LocalOps) appShell(ctx context.Context, script string) (string, int, err
 }
 
 func (o LocalOps) CurrentSHA(ctx context.Context) (string, error) {
-	out, code, err := o.appShell(ctx, "git rev-parse --short HEAD")
-	if err != nil || code != 0 {
-		return "", fmt.Errorf("rev-parse: %s", strings.TrimSpace(out))
+	// Determinístico: `git -C` direto, SEM login-shell (bash -lc). Evita a variância
+	// de profile/rbenv que fazia o read voltar vazio intermitente via SSH não-interativo.
+	cmd := exec.CommandContext(ctx, "sudo", "-n", "-u", o.Cfg.AppUser, "git", "-C", o.Cfg.AppDir, "rev-parse", "--short", "HEAD")
+	var out bytes.Buffer
+	cmd.Stdout, cmd.Stderr = &out, &out
+	if err := cmd.Run(); err != nil {
+		return "", fmt.Errorf("rev-parse: %s", strings.TrimSpace(out.String()))
 	}
-	return strings.TrimSpace(out), nil
+	sha := strings.TrimSpace(out.String())
+	if sha == "" {
+		return "", fmt.Errorf("rev-parse retornou vazio")
+	}
+	return sha, nil
 }
 
 func (o LocalOps) FetchAndCheckout(ctx context.Context, sha string) error {
