@@ -117,8 +117,11 @@ func RunAlmiranted(ctx context.Context, cfg Config, vm types.VM, args []string) 
 	}
 	defer sess.Close()
 
-	var out bytes.Buffer
-	sess.Stdout, sess.Stderr = &out, &out
+	// stdout e stderr em buffers SEPARADOS: a lib SSH copia cada stream numa
+	// goroutine propria; usar o MESMO bytes.Buffer pros dois = data race que perdia
+	// o stdout (o SHA) de forma intermitente. Lidos so depois do Run, sem corrida.
+	var stdout, stderr bytes.Buffer
+	sess.Stdout, sess.Stderr = &stdout, &stderr
 	// forced-command na VM mapeia para "sudo -u chatwoot /usr/local/bin/almiranted"
 	cmd := "almiranted"
 	for _, a := range args {
@@ -129,11 +132,11 @@ func RunAlmiranted(ctx context.Context, cfg Config, vm types.VM, args []string) 
 	select {
 	case <-ctx.Done():
 		_ = sess.Signal(gossh.SIGKILL)
-		return out.String(), ctx.Err()
+		return stdout.String(), ctx.Err()
 	case err := <-done:
 		if err != nil {
-			return out.String(), fmt.Errorf("almiranted %s: %v: %s", args[0], err, out.String())
+			return stdout.String(), fmt.Errorf("almiranted %s: %v: %s", args[0], err, stderr.String())
 		}
-		return out.String(), nil
+		return stdout.String(), nil
 	}
 }
