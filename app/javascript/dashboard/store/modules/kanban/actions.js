@@ -63,17 +63,6 @@ const isResolvedStage = stage => {
   return name === 'resolved' || name === 'resolvido';
 };
 
-const shouldUseCursorLoading = ({ rootState, rootGetters }) => {
-  const accountId = Number(rootState?.route?.params?.accountId);
-  const featureGetter = rootGetters?.['accounts/isFeatureEnabledonAccount'];
-
-  if (typeof featureGetter === 'function' && accountId) {
-    return featureGetter(accountId, 'kanban_cursor_loading');
-  }
-
-  return true;
-};
-
 const shouldUseKanbanUxV2 = ({ rootState, rootGetters }) => {
   const accountId = Number(rootState?.route?.params?.accountId);
   const featureGetter = rootGetters?.['accounts/isFeatureEnabledonAccount'];
@@ -263,7 +252,7 @@ export const actions = {
   },
 
   async fetchFunnelItemsPage(
-    { commit, rootState, rootGetters, getters },
+    { commit, getters },
     {
       funnelId,
       stageId,
@@ -271,6 +260,8 @@ export const actions = {
       cursor = null,
       limit = DEFAULT_STAGE_PAGE_LIMIT,
       append = false,
+      // P2-08: filtros server-side (lidos do getViewFilters quando omitidos).
+      filters = null,
     }
   ) {
     if (!funnelId || !stageId) {
@@ -292,17 +283,21 @@ export const actions = {
       });
 
       try {
-        const useCursor = shouldUseCursorLoading({ rootState, rootGetters });
+        const effectiveFilters = filters || getters.getViewFilters || {};
         const options = {
           stageId,
           excludeAutomationType,
+          mode: 'cursor',
+          limit,
+          cursor,
+          labelIds: Array.isArray(effectiveFilters.labelIds)
+            ? effectiveFilters.labelIds
+            : null,
+          assigneeId: effectiveFilters.assigneeId || null,
+          inboxId: effectiveFilters.inboxId || null,
+          status: effectiveFilters.status || null,
+          query: effectiveFilters.query || null,
         };
-
-        if (useCursor) {
-          options.mode = 'cursor';
-          options.limit = limit;
-          options.cursor = cursor;
-        }
 
         const response = await KanbanAPI.getFunnelItems(funnelId, options);
         const parsed = parseCursorResponse(response, limit);
@@ -495,6 +490,17 @@ export const actions = {
       excludeAutomationType: 'resolved',
       limit: DEFAULT_STAGE_PAGE_LIMIT,
     });
+  },
+
+  // P1-05: criação de item a partir de uma string livre.
+  async quickCreateItem({ commit }, { funnelId, stageId, contactQuery }) {
+    const response = await KanbanAPI.quickCreateItem(
+      funnelId,
+      stageId,
+      contactQuery
+    );
+    if (response?.data) commit(types.ADD_FUNNEL_ITEM, response.data);
+    return response?.data;
   },
 
   setViewFilters({ commit }, filters = {}) {

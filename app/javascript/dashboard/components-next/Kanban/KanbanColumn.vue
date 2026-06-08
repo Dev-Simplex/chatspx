@@ -4,6 +4,7 @@ import { useStore } from 'vuex';
 import { useI18n } from 'vue-i18n';
 import draggable from 'vuedraggable';
 import KanbanCard from './KanbanCard.vue';
+import KanbanInlineComposer from './KanbanInlineComposer.vue';
 import Icon from 'dashboard/components-next/icon/Icon.vue';
 import Button from 'dashboard/components-next/button/Button.vue';
 import IntersectionObserver from 'dashboard/components/IntersectionObserver.vue';
@@ -25,6 +26,11 @@ const props = defineProps({
     type: Object,
     default: () => ({}),
   },
+  // P2-07: ativa modo seleção múltipla.
+  bulkMode: {
+    type: Boolean,
+    default: false,
+  },
 });
 
 const emit = defineEmits([
@@ -33,6 +39,7 @@ const emit = defineEmits([
   'removeItem',
   'editStage',
   'deleteStage',
+  'openDrawer',
 ]);
 
 const store = useStore();
@@ -48,6 +55,11 @@ const isResolvedStage = computed(() => {
   const name = (props.stage?.name || '').toLowerCase();
   return name === 'resolvido' || name === 'resolved';
 });
+
+// P3-08: WIP limit derivado da stage.
+const wipLimit = computed(
+  () => Number(props.stage?.wipLimit || props.stage?.wip_limit || 0) || 0
+);
 
 const stageMeta = computed(() =>
   store.getters['kanban/getStageMeta'](props.funnelId, props.stage?.id)
@@ -197,9 +209,24 @@ const handleColumnObserved = async () => {
           </h3>
 
           <span
-            class="rounded-full bg-n-slate-3 px-2 py-0.5 text-xs text-n-slate-10"
+            class="rounded-full px-2 py-0.5 text-xs"
+            :class="
+              wipLimit && items.length > wipLimit
+                ? 'bg-amber-100 text-amber-700 dark:bg-amber-900/40 dark:text-amber-300 font-semibold'
+                : wipLimit && items.length >= wipLimit
+                  ? 'bg-amber-50 text-amber-700 dark:bg-amber-900/20 dark:text-amber-300'
+                  : 'bg-n-slate-3 text-n-slate-10'
+            "
+            :title="
+              wipLimit ? `${items.length} / ${wipLimit}` : `${items.length}`
+            "
           >
-            {{ items.length }}
+            <Icon
+              v-if="wipLimit && items.length > wipLimit"
+              icon="i-lucide-alert-triangle"
+              class="size-3 -mt-0.5 inline"
+            />
+            {{ wipLimit ? `${items.length}/${wipLimit}` : items.length }}
           </span>
         </div>
 
@@ -267,9 +294,14 @@ const handleColumnObserved = async () => {
         <KanbanCard
           :item="item"
           :conversation="item.conversation || {}"
+          :stage="stage"
+          :stage-name="stage.name"
+          :stage-color="stage.color"
+          :bulk-mode="bulkMode"
           @move="emit('moveItem', { item })"
           @schedule-message="emit('scheduleMessage', $event)"
           @remove="emit('removeItem', item)"
+          @open-drawer="emit('openDrawer', item)"
         />
       </template>
 
@@ -330,6 +362,13 @@ const handleColumnObserved = async () => {
         </Button>
       </template>
     </draggable>
+
+    <!-- P1-05: composer inline no final da coluna -->
+    <KanbanInlineComposer
+      :funnel-id="funnelId"
+      :stage-id="stage.id"
+      :stage-name="stage.name"
+    />
   </div>
 </template>
 

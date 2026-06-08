@@ -6,6 +6,7 @@ import { useI18n } from 'vue-i18n';
 import Dialog from 'dashboard/components-next/dialog/Dialog.vue';
 import Button from 'dashboard/components-next/button/Button.vue';
 import Icon from 'dashboard/components-next/icon/Icon.vue';
+import { isDefaultStage } from 'dashboard/composables/useKanbanStage';
 
 const props = defineProps({
   show: {
@@ -114,7 +115,7 @@ watch(
 onMounted(() => {
   // Carregar inboxes se ainda não foram carregadas
   if (availableInboxes.value.length === 0) {
-    store.dispatch('inboxes/fetch');
+    store.dispatch('inboxes/get');
   }
 
   if (props.show) {
@@ -172,17 +173,6 @@ const addStage = () => {
     automation_type: null,
     isNew: true,
   });
-};
-
-const isDefaultStage = stage => {
-  // Verificar pelo nome OU pelo automation_type para ser mais robusta
-  const isDefaultByName =
-    stage.name === 'Abertos' ||
-    stage.name === 'Resolvidos' ||
-    stage.name === 'Em Andamento';
-  const isDefaultByAutomation =
-    stage.automation_type === 'open' || stage.automation_type === 'resolved';
-  return isDefaultByName || isDefaultByAutomation;
 };
 
 const removeStage = async index => {

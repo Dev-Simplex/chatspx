@@ -70,6 +70,12 @@ class KanbanAPI extends ApiClient {
       cursor = null,
       page = null,
       perPage = null,
+      // P2-08: filtros server-side.
+      labelIds = null,
+      assigneeId = null,
+      inboxId = null,
+      status = null,
+      query: textQuery = null,
     } = options;
 
     if (stageId != null) {
@@ -92,6 +98,21 @@ class KanbanAPI extends ApiClient {
     }
     if (perPage != null) {
       params.set('per_page', String(perPage));
+    }
+    if (Array.isArray(labelIds) && labelIds.length) {
+      params.set('label_ids', labelIds.join(','));
+    }
+    if (assigneeId != null) {
+      params.set('assignee_id', String(assigneeId));
+    }
+    if (inboxId != null) {
+      params.set('inbox_id', String(inboxId));
+    }
+    if (status && status !== 'all') {
+      params.set('status', status);
+    }
+    if (textQuery && String(textQuery).trim().length) {
+      params.set('query', String(textQuery).trim());
     }
     const query = params.toString();
     if (query) {
@@ -116,10 +137,149 @@ class KanbanAPI extends ApiClient {
     return axios.delete(`${this.url}/${funnelId}/funnel_items/${itemId}`);
   }
 
-  bulkMoveItems(funnelId, conversationIds, stageId) {
+  bulkMoveItems(funnelId, conversationIds, stageId, itemIds = []) {
     return axios.post(`${this.url}/${funnelId}/funnel_items/bulk_move`, {
       conversation_ids: conversationIds,
+      item_ids: itemIds,
       stage_id: stageId,
+    });
+  }
+
+  // P2-07: bulk delete por item_ids.
+  bulkDeleteItems(funnelId, itemIds) {
+    const accountId = this.accountIdFromRoute;
+    const url = `${this.apiVersion}/accounts/${accountId}/kanbans/${funnelId}/kanban_items/bulk_delete`;
+    return axios.post(url, { item_ids: itemIds });
+  }
+
+  // P2-05: métricas do board (cache 60s no backend).
+  getMetrics(funnelId) {
+    const accountId = this.accountIdFromRoute;
+    const url = `${this.apiVersion}/accounts/${accountId}/kanbans/${funnelId}/metrics`;
+    return axios.get(url);
+  }
+
+  // P2-04: views salvas (filtros + sort + settings) por usuário.
+  getSavedViews(funnelId) {
+    const accountId = this.accountIdFromRoute;
+    const url = `${this.apiVersion}/accounts/${accountId}/kanbans/${funnelId}/kanban_views`;
+    return axios.get(url);
+  }
+
+  createSavedView(funnelId, data) {
+    const accountId = this.accountIdFromRoute;
+    const url = `${this.apiVersion}/accounts/${accountId}/kanbans/${funnelId}/kanban_views`;
+    return axios.post(url, { kanban_view: data });
+  }
+
+  updateSavedView(funnelId, viewId, data) {
+    const accountId = this.accountIdFromRoute;
+    const url = `${this.apiVersion}/accounts/${accountId}/kanbans/${funnelId}/kanban_views/${viewId}`;
+    return axios.patch(url, { kanban_view: data });
+  }
+
+  deleteSavedView(funnelId, viewId) {
+    const accountId = this.accountIdFromRoute;
+    const url = `${this.apiVersion}/accounts/${accountId}/kanbans/${funnelId}/kanban_views/${viewId}`;
+    return axios.delete(url);
+  }
+
+  // P2-01: templates pré-prontos pt-BR.
+  getTemplates() {
+    const accountId = this.accountIdFromRoute;
+    const url = `${this.apiVersion}/accounts/${accountId}/kanban_templates`;
+    return axios.get(url);
+  }
+
+  applyTemplate(templateId, options = {}) {
+    const accountId = this.accountIdFromRoute;
+    const url = `${this.apiVersion}/accounts/${accountId}/kanban_templates/${templateId}/apply`;
+    return axios.post(url, options);
+  }
+
+  // P2-06: won/lost
+  markItemWon(funnelId, itemId, data) {
+    const accountId = this.accountIdFromRoute;
+    const url = `${this.apiVersion}/accounts/${accountId}/kanbans/${funnelId}/kanban_items/${itemId}/mark_won`;
+    return axios.post(url, data);
+  }
+
+  markItemLost(funnelId, itemId, data) {
+    const accountId = this.accountIdFromRoute;
+    const url = `${this.apiVersion}/accounts/${accountId}/kanbans/${funnelId}/kanban_items/${itemId}/mark_lost`;
+    return axios.post(url, data);
+  }
+
+  // P3-01: envia mensagem rápida do card.
+  quickReply(funnelId, itemId, { content, isPrivate = false } = {}) {
+    const accountId = this.accountIdFromRoute;
+    const url = `${this.apiVersion}/accounts/${accountId}/kanbans/${funnelId}/kanban_items/${itemId}/quick_reply`;
+    return axios.post(url, { content, private: isPrivate });
+  }
+
+  // P3-02: aceita / rejeita sugestão Captain AI Triage.
+  acceptSuggestion(funnelId, itemId) {
+    const accountId = this.accountIdFromRoute;
+    const url = `${this.apiVersion}/accounts/${accountId}/kanbans/${funnelId}/kanban_items/${itemId}/accept_suggestion`;
+    return axios.post(url, {});
+  }
+
+  rejectSuggestion(funnelId, itemId) {
+    const accountId = this.accountIdFromRoute;
+    const url = `${this.apiVersion}/accounts/${accountId}/kanbans/${funnelId}/kanban_items/${itemId}/reject_suggestion`;
+    return axios.post(url, {});
+  }
+
+  // P3-03: envia o template configurado da stage destino.
+  sendTemplate(funnelId, itemId, { templateId, variables = {} } = {}) {
+    const accountId = this.accountIdFromRoute;
+    const url = `${this.apiVersion}/accounts/${accountId}/kanbans/${funnelId}/kanban_items/${itemId}/send_template`;
+    return axios.post(url, { template_id: templateId, variables });
+  }
+
+  // P3-05: automations.
+  listAutomations(funnelId) {
+    const accountId = this.accountIdFromRoute;
+    const url = `${this.apiVersion}/accounts/${accountId}/kanbans/${funnelId}/kanban_automations`;
+    return axios.get(url);
+  }
+
+  createAutomation(funnelId, data) {
+    const accountId = this.accountIdFromRoute;
+    const url = `${this.apiVersion}/accounts/${accountId}/kanbans/${funnelId}/kanban_automations`;
+    return axios.post(url, { kanban_automation: data });
+  }
+
+  updateAutomation(funnelId, automationId, data) {
+    const accountId = this.accountIdFromRoute;
+    const url = `${this.apiVersion}/accounts/${accountId}/kanbans/${funnelId}/kanban_automations/${automationId}`;
+    return axios.patch(url, { kanban_automation: data });
+  }
+
+  deleteAutomation(funnelId, automationId) {
+    const accountId = this.accountIdFromRoute;
+    const url = `${this.apiVersion}/accounts/${accountId}/kanbans/${funnelId}/kanban_automations/${automationId}`;
+    return axios.delete(url);
+  }
+
+  getAutomationRecipes(funnelId) {
+    const accountId = this.accountIdFromRoute;
+    const url = `${this.apiVersion}/accounts/${accountId}/kanbans/${funnelId}/kanban_automations/recipes`;
+    return axios.get(url);
+  }
+
+  sendSummaryNow(funnelId) {
+    const accountId = this.accountIdFromRoute;
+    const url = `${this.apiVersion}/accounts/${accountId}/kanbans/${funnelId}/kanban_automations/send_summary_now`;
+    return axios.post(url, {});
+  }
+
+  // P1-05: cria item a partir de uma query livre (nome/telefone).
+  quickCreateItem(funnelId, stageId, contactQuery) {
+    return axios.post(`${this.url}/${funnelId}/funnel_items/quick_create`, {
+      funnel_stage_id: stageId,
+      kanban_stage_id: stageId,
+      contact_query: contactQuery,
     });
   }
 

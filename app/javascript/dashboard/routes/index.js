@@ -7,7 +7,22 @@ import store from 'dashboard/store';
 import { validateLoggedInRoutes } from '../helper/routeHelpers';
 import AnalyticsHelper from '../helper/AnalyticsHelper';
 
-const routes = [...dashboard.routes];
+// Helper: chega no /app/accounts/:id/dashboard sem disparar warnings de "no match"
+// no caminho. O guard `validateAuthenticateRoutePermission` se encarrega do redirect
+// final assim que tiver o currentUser carregado — aqui só evitamos os steps `/app`
+// e `/app/` que o vue-router não tem rota literal pra casar.
+const resolveAccountDashboard = () => {
+  const user = store.getters?.getCurrentUser;
+  const accountId = user?.account_id || user?.accounts?.[0]?.id;
+  return accountId ? `/app/accounts/${accountId}/dashboard` : '/app/login';
+};
+
+const routes = [
+  { path: '/', redirect: resolveAccountDashboard },
+  { path: '/app', redirect: resolveAccountDashboard },
+  { path: '/app/', redirect: resolveAccountDashboard },
+  ...dashboard.routes,
+];
 
 export const router = createRouter({ history: createWebHistory(), routes });
 

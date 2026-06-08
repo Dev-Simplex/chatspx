@@ -5,6 +5,7 @@ import { useI18n } from 'vue-i18n';
 import Dialog from 'dashboard/components-next/dialog/Dialog.vue';
 import Button from 'dashboard/components-next/button/Button.vue';
 import Icon from 'dashboard/components-next/icon/Icon.vue';
+import { isDefaultStage } from 'dashboard/composables/useKanbanStage';
 
 const props = defineProps({
   show: {
@@ -30,21 +31,15 @@ const formData = ref({
   name: '',
   color: '#94a3b8',
   automation_type: null,
+  // P3-06 / P3-08 / P3-03
+  probability: null,
+  wip_limit: null,
+  default_message_template_id: null,
+  rot_after_days: null,
 });
 
 const dialogRef = ref(null);
 const isLoading = ref(false);
-
-const isDefaultStage = stage => {
-  if (!stage) return false;
-  const isDefaultByName =
-    stage.name === 'Abertos' ||
-    stage.name === 'Resolvidos' ||
-    stage.name === 'Em Andamento';
-  const isDefaultByAutomation =
-    stage.automation_type === 'open' || stage.automation_type === 'resolved';
-  return isDefaultByName || isDefaultByAutomation;
-};
 
 watch(
   () => props.stage,
@@ -57,6 +52,14 @@ watch(
           newStage.automation_type !== undefined
             ? newStage.automation_type
             : null,
+        probability: newStage.probability ?? null,
+        wip_limit: newStage.wip_limit ?? newStage.wipLimit ?? null,
+        default_message_template_id:
+          newStage.default_message_template_id ??
+          newStage.defaultMessageTemplateId ??
+          null,
+        rot_after_days:
+          newStage.rot_after_days ?? newStage.rotAfterDays ?? null,
       };
     }
   },
@@ -117,6 +120,11 @@ const save = async () => {
           name: formData.value.name.trim(),
           color: formData.value.color || '#94a3b8',
           automation_type: formData.value.automation_type || null,
+          probability: formData.value.probability,
+          wip_limit: formData.value.wip_limit,
+          default_message_template_id:
+            formData.value.default_message_template_id,
+          rot_after_days: formData.value.rot_after_days,
         },
       });
     }
@@ -220,6 +228,97 @@ const save = async () => {
         class="text-xs text-n-slate-10 bg-n-teal-4 text-n-teal-12 rounded-lg px-3 py-2 border border-n-teal-6"
       >
         {{ t('KANBAN.STAGES.DEFAULT_STAGE_TOOLTIP') }}
+      </div>
+
+      <!-- P3-06: probabilidade -->
+      <div>
+        <label
+          for="stage-form-probability"
+          class="block text-sm font-semibold mb-2 text-n-slate-12"
+        >
+          <div class="flex items-center gap-2">
+            <Icon icon="i-lucide-percent" class="size-4" />
+            {{ t('KANBAN.PROBABILITY.LABEL') }}
+          </div>
+        </label>
+        <input
+          id="stage-form-probability"
+          v-model.number="formData.probability"
+          type="number"
+          min="0"
+          max="100"
+          step="5"
+          :placeholder="t('KANBAN.PROBABILITY.PLACEHOLDER')"
+          class="w-full px-4 py-3 border border-n-weak rounded-xl bg-n-solid-1 text-n-slate-12 text-sm focus:outline-none focus:ring-2 focus:ring-n-teal-9"
+        />
+        <p class="mt-1 text-xs text-n-slate-10">
+          {{ t('KANBAN.PROBABILITY.HINT') }}
+        </p>
+      </div>
+
+      <!-- P3-08: WIP limit -->
+      <div>
+        <label
+          for="stage-form-wip"
+          class="block text-sm font-semibold mb-2 text-n-slate-12"
+        >
+          <div class="flex items-center gap-2">
+            <Icon icon="i-lucide-gauge" class="size-4" />
+            {{ t('KANBAN.WIP.LIMIT_LABEL') }}
+          </div>
+        </label>
+        <input
+          id="stage-form-wip"
+          v-model.number="formData.wip_limit"
+          type="number"
+          min="0"
+          :placeholder="t('KANBAN.WIP.LIMIT_PLACEHOLDER')"
+          class="w-full px-4 py-3 border border-n-weak rounded-xl bg-n-solid-1 text-n-slate-12 text-sm focus:outline-none focus:ring-2 focus:ring-n-teal-9"
+        />
+        <p class="mt-1 text-xs text-n-slate-10">
+          {{ t('KANBAN.WIP.LIMIT_HINT') }}
+        </p>
+      </div>
+
+      <!-- P3-03: template ID on stage -->
+      <div>
+        <label
+          for="stage-form-template"
+          class="block text-sm font-semibold mb-2 text-n-slate-12"
+        >
+          <div class="flex items-center gap-2">
+            <Icon icon="i-lucide-send" class="size-4" />
+            {{ t('KANBAN.TEMPLATE_FIELD.LABEL') }}
+          </div>
+        </label>
+        <input
+          id="stage-form-template"
+          v-model="formData.default_message_template_id"
+          type="text"
+          :placeholder="t('KANBAN.TEMPLATE_FIELD.PLACEHOLDER')"
+          class="w-full px-4 py-3 border border-n-weak rounded-xl bg-n-solid-1 text-n-slate-12 text-sm focus:outline-none focus:ring-2 focus:ring-n-teal-9"
+        />
+      </div>
+
+      <!-- P2-02: rot_after_days -->
+      <div>
+        <label
+          for="stage-form-rot"
+          class="block text-sm font-semibold mb-2 text-n-slate-12"
+        >
+          <div class="flex items-center gap-2">
+            <Icon icon="i-lucide-clock-alert" class="size-4" />
+            {{ t('KANBAN.AGING_FIELD.LABEL') }}
+          </div>
+        </label>
+        <input
+          id="stage-form-rot"
+          v-model.number="formData.rot_after_days"
+          type="number"
+          min="0"
+          :placeholder="t('KANBAN.AGING_FIELD.PLACEHOLDER')"
+          class="w-full px-4 py-3 border border-n-weak rounded-xl bg-n-solid-1 text-n-slate-12 text-sm focus:outline-none focus:ring-2 focus:ring-n-teal-9"
+        />
       </div>
     </div>
 

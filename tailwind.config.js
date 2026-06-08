@@ -36,6 +36,23 @@ const tailwindConfig = {
     './app/javascript/dashboard/routes/dashboard/**/**/*.js',
     './app/views/**/*.html.erb',
   ],
+  // Icones aplicados via classes dinamicas vindas do backend (templates Kanban)
+  // precisam de safelist explicita para o tailwindcss-icons gerar CSS.
+  safelist: [
+    'i-lucide-stethoscope',
+    'i-lucide-trending-up',
+    'i-lucide-headphones',
+    'i-lucide-rocket',
+    'i-lucide-home',
+    'i-lucide-shopping-cart',
+    'i-lucide-life-buoy',
+    'i-lucide-zap',
+    'i-lucide-sun',
+    'i-lucide-moon',
+    'i-lucide-chevron-left',
+    'i-lucide-chevron-right',
+    'i-lucide-layout-grid',
+  ],
   theme: {
     extend: {
       colors: {

@@ -122,14 +122,53 @@ Rails.application.routes.draw do
             end
           end
           resources :campaigns, only: [:index, :create, :show, :update, :destroy]
-          resources :funnels, only: [:index, :show, :create, :update, :destroy] do
+          # Routes Kanban (P0-03 EPIC-KANBAN-REDESIGN).
+          resources :kanbans, controller: 'kanbans', only: [:index, :show, :create, :update, :destroy] do
+            member do
+              post :reorder_stages
+              get  :metrics
+            end
+            resources :kanban_stages, controller: 'kanban_stages', only: [:index, :show, :create, :update, :destroy]
+            resources :kanban_items, controller: 'kanban_items', only: [:index, :create, :update, :destroy] do
+              collection do
+                post :bulk_move
+                post :bulk_delete
+                post :quick_create
+              end
+              member do
+                post :mark_won
+                post :mark_lost
+                post :quick_reply
+                post :accept_suggestion
+                post :reject_suggestion
+                post :send_template
+              end
+            end
+            resources :kanban_views, controller: 'kanban_views', only: [:index, :show, :create, :update, :destroy]
+            resources :kanban_automations, controller: 'kanban_automations',
+                                           only: [:index, :show, :create, :update, :destroy] do
+              collection do
+                get :recipes
+                post :send_summary_now
+              end
+            end
+          end
+          resources :kanban_templates, controller: 'kanban_templates', only: [:index, :show] do
+            member do
+              post :apply
+            end
+          end
+          # Compatibilidade temporaria: rotas /funnels apontam pros mesmos controllers Kanban.
+          # REMOVER em KANBAN-P0-08 apos frontend migrar para /kanbans (P0-05/P1-01).
+          resources :funnels, controller: 'kanbans', only: [:index, :show, :create, :update, :destroy] do
             member do
               post :reorder_stages
             end
-            resources :funnel_stages, only: [:index, :show, :create, :update, :destroy]
-            resources :funnel_items, only: [:index, :create, :update, :destroy] do
+            resources :funnel_stages, controller: 'kanban_stages', only: [:index, :show, :create, :update, :destroy]
+            resources :funnel_items, controller: 'kanban_items', only: [:index, :create, :update, :destroy] do
               collection do
                 post :bulk_move
+                post :quick_create
               end
             end
           end

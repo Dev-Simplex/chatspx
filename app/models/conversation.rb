@@ -52,6 +52,7 @@
 #
 
 class Conversation < ApplicationRecord
+  include Wisper::Publisher
   include Labelable
   include LlmFormattable
   include AssignmentHandler
@@ -123,7 +124,7 @@ class Conversation < ApplicationRecord
   has_many :notifications, as: :primary_actor, dependent: :destroy_async
   has_many :attachments, through: :messages
   has_many :reporting_events, dependent: :destroy_async
-  has_many :funnel_items, dependent: :destroy
+  has_many :kanban_items, dependent: :destroy
   has_many :scheduled_messages, dependent: :destroy_async
 
   before_save :ensure_snooze_until_reset
@@ -133,11 +134,15 @@ class Conversation < ApplicationRecord
   # Status changes must use update! or save! (never update_column) so these callbacks run and
   # CONVERSATION_STATUS_CHANGED is dispatched (e.g. for NPS survey).
   after_update_commit :execute_after_update_commit_callbacks
-  after_update_commit :move_to_automated_stage, if: :saved_change_to_status?
-  after_update_commit :move_to_team_funnel, if: :saved_change_to_team_id?
   after_create_commit :notify_conversation_creation
   after_create_commit :load_attributes_created_by_db_triggers
-  after_create_commit :add_to_appropriate_funnel
+
+  # Eventos Wisper: KanbanItems::ConversationListener reage a estes broadcasts.
+  # Antes existiam callbacks Ruby (`add_to_appropriate_funnel`, `move_to_team_funnel`,
+  # `move_to_automated_stage`); foram extraídos para listener via pub/sub.
+  after_create_commit -> { broadcast(:conversation_created, self) }
+  after_update_commit -> { broadcast(:conversation_status_changed, self) if saved_change_to_status? }
+  after_update_commit -> { broadcast(:conversation_team_changed, self) if saved_change_to_team_id? }
 
   delegate :auto_resolve_after, to: :account
 
@@ -394,43 +399,6 @@ class Conversation < ApplicationRecord
     return unless additional_attributes['referer']
 
     self['additional_attributes']['referer'] = nil unless url_valid?(additional_attributes['referer'])
-  end
-
-  def add_to_appropriate_funnel # rubocop:disable Metrics/AbcSize
-    funnels = Kanban::FunnelLookupService.new(account_id: account_id, inbox_id: inbox_id, team_id: team_id).perform
-
-    funnels.each do |funnel|
-      target_stage = if status == 'open'
-                       funnel.funnel_stages.find_by(automation_type: 'open')
-                     elsif status == 'resolved'
-                       funnel.funnel_stages.find_by(automation_type: 'resolved')
-                     else
-                       funnel.funnel_stages.ordered.first
-                     end
-
-      next unless target_stage
-
-      FunnelItem.find_or_create_by(funnel_id: funnel.id, conversation_id: id) do |item|
-        item.funnel_stage_id = target_stage.id
-      end
-    end
-  rescue StandardError => e
-    Rails.logger.error "Error adding conversation #{id} to funnel: #{e.message}"
-    Rails.logger.error e.backtrace.join("\n")
-  end
-
-  def move_to_automated_stage
-    Kanban::MoveConversationToAutomatedStageService.new(
-      conversation: self,
-      status: status
-    ).perform
-  end
-
-  def move_to_team_funnel
-    Kanban::MoveConversationToTeamFunnelService.new(
-      conversation: self,
-      team: team_id.present? ? team : nil
-    ).perform
   end
 
   # creating db triggers

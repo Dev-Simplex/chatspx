@@ -113,3 +113,6 @@ nps_checker.rb
 deployment/fix_sudoers.sh
 Procfile.worktree
 vault
+
+.env.bak
+.env.bak.*

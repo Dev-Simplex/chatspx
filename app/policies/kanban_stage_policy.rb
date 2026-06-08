@@ -1,0 +1,34 @@
+# frozen_string_literal: true
+
+class KanbanStagePolicy < ApplicationPolicy
+  def index?
+    @account_user&.agent? || @account_user&.administrator?
+  end
+
+  def show?
+    index? && record.kanban.account_id == account.id
+  end
+
+  def create?
+    @account_user&.agent? || @account_user&.administrator?
+  end
+
+  def update?
+    create? && record.kanban.account_id == account.id
+  end
+
+  def destroy?
+    create? && record.kanban.account_id == account.id
+  end
+
+  class Scope < ApplicationPolicy::Scope
+    def resolve
+      return scope.none if account.blank?
+
+      target_account = account || Current.account
+      return scope.none if target_account.blank?
+
+      scope.joins(:kanban).where(kanbans: { account_id: target_account.id })
+    end
+  end
+end

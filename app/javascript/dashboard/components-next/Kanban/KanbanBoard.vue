@@ -1,24 +1,47 @@
 <script setup>
-import { computed, ref, watch } from 'vue';
+// KanbanBoard redesenhado (P1-08).
+// - Vuex segue como fonte (consumers do KanbanColumn ainda dependem)
+// - Novo: integração com useKanbanBoardStore (Pinia) para real-time
+// - Novo: subscribe ao KanbanChannel (P1-13) via useKanbanCable
+// - Novo: PDND monitor (P1-07) para drag entre colunas
+// - Empty state via KanbanEmptyState quando funil sem stages/cards
+import { computed, ref, watch, onMounted, onUnmounted } from 'vue';
 import { useStore } from 'vuex';
 import { useI18n } from 'vue-i18n';
-import draggable from 'vuedraggable';
 import KanbanColumn from './KanbanColumn.vue';
-import Icon from 'dashboard/components-next/icon/Icon.vue';
+import KanbanEmptyState from './KanbanEmptyState.vue';
 import StageForm from './StageForm.vue';
+import KanbanTemplateConfirmModal from './KanbanTemplateConfirmModal.vue';
+import KanbanBoardSkeleton from './KanbanBoardSkeleton.vue';
+import KanbanFirstTimeTooltip from './KanbanFirstTimeTooltip.vue';
+import KanbanWipOverrideDialog from './KanbanWipOverrideDialog.vue';
+import KanbanConfirmDialog from './KanbanConfirmDialog.vue';
 import { useAlert } from 'dashboard/composables';
+import { useKanbanBoardStore } from 'dashboard/store/pinia/kanban/board';
+import { useKanbanCable } from 'dashboard/composables/kanban/useKanbanCable';
+import { useKanbanBoardMonitor } from 'dashboard/composables/kanban/useKanbanDrag';
+import { useKanbanSnackbar } from 'dashboard/composables/kanban/useKanbanSnackbar';
 
 const props = defineProps({
-  funnelId: {
-    type: Number,
-    required: true,
-  },
+  funnelId: { type: Number, required: true },
+  // P2-07: modo seleção múltipla (passa down para cards).
+  bulkMode: { type: Boolean, default: false },
 });
-
-const emit = defineEmits(['itemMoved', 'scheduleMessage', 'removeItem']);
+const emit = defineEmits([
+  'itemMoved',
+  'scheduleMessage',
+  'removeItem',
+  'openDrawer',
+  'wonLost',
+]);
 
 const store = useStore();
 const { t } = useI18n();
+// Pinia store é usada por composables (real-time / drag); referência mantida
+// para garantir mount/HMR.
+useKanbanBoardStore();
+const { subscribe, unsubscribe } = useKanbanCable();
+const snackbar = useKanbanSnackbar();
 
 const stages = computed(() =>
   store.getters['kanban/getFunnelStages'](props.funnelId)
@@ -32,206 +55,192 @@ const getConversationLabels = computed(
   () => store.getters['conversationLabels/getConversationLabels']
 );
 
-const localStages = ref([]);
 const showStageForm = ref(false);
 const selectedStage = ref(null);
 const movingItems = ref(new Set());
 
-watch(
-  () => stages.value,
-  newStages => {
-    if (Array.isArray(newStages)) {
-      localStages.value = [...newStages];
-    }
-  },
-  { immediate: true, deep: true }
-);
+// P3-03 + P3-08: derive pending UI from Pinia store
+const piniaBoard = useKanbanBoardStore();
+const pendingTemplate = computed(() => piniaBoard.pendingTemplateConfirm);
+const pendingWip = computed(() => piniaBoard.pendingWipOverride);
 
-const normalizeText = value => String(value || '').toLowerCase();
+const pendingTemplateStage = computed(() => {
+  const id = pendingTemplate.value?.stageId;
+  return id ? piniaBoard.stageById(id) : null;
+});
 
-const extractAssigneeId = source => {
-  if (!source) return null;
-
+const pendingTemplatePreview = computed(() => {
+  const stage = pendingTemplateStage.value;
+  if (!stage) return '';
   return (
-    source.assigneeId ||
-    source.assignee_id ||
-    source.assignee?.id ||
-    source.assignee?.user?.id ||
-    source.meta?.assignee?.id ||
-    source.meta?.assignee_id ||
+    stage.settings?.template_preview ||
+    stage.settings?.templatePreview ||
+    stage.settings?.template_body ||
+    ''
+  );
+});
+
+const pendingTemplateVariables = computed(() => {
+  const stage = pendingTemplateStage.value;
+  if (!stage) return {};
+  const itemId = pendingTemplate.value?.itemId;
+  const item = itemId ? piniaBoard.itemById(itemId) : null;
+  const conv = item?.conversation || {};
+  const contact = conv?.contact || conv?.meta?.sender || {};
+  const fullName = contact.name || '';
+  return {
+    name: fullName.split(' ')[0] || '',
+    last_name: fullName.split(' ').slice(-1)[0] || '',
+    full_name: fullName,
+    phone: contact.phone_number || '',
+    stage: stage.name || '',
+  };
+});
+
+const closeTemplateModal = () => piniaBoard.clearPendingTemplateConfirm();
+const acceptWipOverride = async () => {
+  const p = pendingWip.value;
+  if (!p) return;
+  piniaBoard.clearPendingWipOverride();
+  await piniaBoard.moveItem({
+    itemId: p.itemId,
+    toStageId: p.toStageId,
+    toPosition: p.toPosition,
+    bypassWip: true,
+  });
+};
+const cancelWipOverride = () => piniaBoard.clearPendingWipOverride();
+
+const normalizeText = v => String(v || '').toLowerCase();
+
+const extractAssigneeId = src => {
+  if (!src) return null;
+  return (
+    src.assigneeId ||
+    src.assignee_id ||
+    src.assignee?.id ||
+    src.assignee?.user?.id ||
+    src.meta?.assignee?.id ||
+    src.meta?.assignee_id ||
     null
   );
 };
 
 const resolveConversationKey = item => {
-  const value =
+  const v =
     item?.conversationId ||
     item?.conversation_id ||
     item?.conversation?.id ||
     item?.conversation?.displayId ||
     item?.conversation?.display_id;
-
-  if (value == null) return null;
-  return String(value);
+  return v == null ? null : String(v);
 };
 
 const resolveConversationId = item => {
-  const value =
-    item?.conversationId ||
-    item?.conversation_id ||
-    item?.conversation?.id ||
-    item?.conversation?.displayId ||
-    item?.conversation?.display_id;
-
-  const normalized = Number(value);
-  if (!Number.isNaN(normalized) && normalized > 0) {
-    return normalized;
-  }
-
-  return null;
+  const v =
+    item?.conversationId || item?.conversation_id || item?.conversation?.id;
+  const n = Number(v);
+  return !Number.isNaN(n) && n > 0 ? n : null;
 };
 
 const getItemsForStage = stageId =>
   store.getters['kanban/getFunnelItems'](props.funnelId, stageId);
 
 const conversations = computed(() => {
-  const conversationMap = {};
-
+  const map = {};
   (stages.value || []).forEach(stage => {
-    const stageItems = getItemsForStage(stage.id);
-
-    stageItems.forEach(item => {
-      const conversationKey = resolveConversationKey(item);
-      if (!conversationKey || conversationMap[conversationKey]) return;
-
-      const itemConversation = item.conversation || {};
-      const conversationId = resolveConversationId(item);
-      const storeConversation =
-        conversationId && typeof getConversationById.value === 'function'
-          ? getConversationById.value(conversationId)
+    getItemsForStage(stage.id).forEach(item => {
+      const key = resolveConversationKey(item);
+      if (!key || map[key]) return;
+      const itemConv = item.conversation || {};
+      const convId = resolveConversationId(item);
+      const storeConv =
+        convId && typeof getConversationById.value === 'function'
+          ? getConversationById.value(convId)
           : null;
-
-      const mergedConversation = {
-        ...(storeConversation || {}),
-        ...itemConversation,
-      };
-
-      const contactFromConversation =
-        mergedConversation.contact ||
-        storeConversation?.meta?.sender ||
-        storeConversation?.contact ||
-        {};
-
-      conversationMap[conversationKey] = {
-        ...mergedConversation,
-        id: conversationId || mergedConversation.id || null,
-        displayId:
-          mergedConversation.displayId ||
-          mergedConversation.display_id ||
-          conversationId ||
-          conversationKey,
-        status: mergedConversation.status || 'open',
-        assigneeId: extractAssigneeId(mergedConversation),
-        contact: {
-          ...contactFromConversation,
-        },
+      const merged = { ...(storeConv || {}), ...itemConv };
+      const contact =
+        merged.contact || storeConv?.meta?.sender || storeConv?.contact || {};
+      map[key] = {
+        ...merged,
+        id: convId || merged.id || null,
+        displayId: merged.displayId || merged.display_id || convId || key,
+        status: merged.status || 'open',
+        assigneeId: extractAssigneeId(merged),
+        contact: { ...contact },
       };
     });
   });
-
-  return conversationMap;
+  return map;
 });
 
 const getItemConversation = item => {
   const key = resolveConversationKey(item);
-  if (key && conversations.value[key]) {
-    return conversations.value[key];
-  }
-
+  if (key && conversations.value[key]) return conversations.value[key];
   return item?.conversation || {};
 };
 
 const getItemLabels = item => {
-  const conversationId = resolveConversationId(item);
-  if (!conversationId || typeof getConversationLabels.value !== 'function') {
-    return [];
-  }
-
-  const labels = getConversationLabels.value(conversationId);
+  const convId = resolveConversationId(item);
+  if (!convId || typeof getConversationLabels.value !== 'function') return [];
+  const labels = getConversationLabels.value(convId);
   return Array.isArray(labels) ? labels : [];
 };
 
-const matchesQueryFilter = (item, query) => {
-  if (!query) return true;
-
-  const conversation = getItemConversation(item);
-  const haystack = [
-    conversation?.contact?.name,
-    conversation?.contact?.phone_number,
-    conversation?.contact?.phoneNumber,
-    conversation?.displayId,
-    conversation?.display_id,
-    conversation?.lastMessage?.content,
-    conversation?.lastMessage?.processed_message_content,
-    conversation?.last_message?.content,
-    conversation?.last_message?.processed_message_content,
+const matchesQueryFilter = (item, q) => {
+  if (!q) return true;
+  const c = getItemConversation(item);
+  const hay = [
+    c?.contact?.name,
+    c?.contact?.phone_number,
+    c?.contact?.phoneNumber,
+    c?.displayId,
+    c?.lastMessage?.content,
+    c?.last_message?.content,
   ]
     .map(normalizeText)
     .join(' ');
-
-  return haystack.includes(query);
+  return hay.includes(q);
 };
 
 const matchesLabelFilter = item => {
-  const labelIds = viewFilters.value?.labelIds || [];
-  if (!labelIds.length) return true;
-
-  const labelSet = new Set(labelIds.map(Number));
-  return getItemLabels(item).some(label => labelSet.has(Number(label.id)));
+  const ids = viewFilters.value?.labelIds || [];
+  if (!ids.length) return true;
+  const set = new Set(ids.map(Number));
+  return getItemLabels(item).some(l => set.has(Number(l.id)));
 };
 
 const matchesAssigneeFilter = item => {
-  const selectedAssigneeId = Number(viewFilters.value?.assigneeId || 0);
-  if (!selectedAssigneeId) return true;
-
-  const conversation = getItemConversation(item);
-  const assigneeId =
+  const selected = Number(viewFilters.value?.assigneeId || 0);
+  if (!selected) return true;
+  const a =
     extractAssigneeId(item?.conversation) ||
-    extractAssigneeId(conversation) ||
-    null;
-
-  return Number(assigneeId) === selectedAssigneeId;
+    extractAssigneeId(getItemConversation(item));
+  return Number(a) === selected;
 };
 
 const matchesStatusFilter = item => {
-  const selectedStatus = viewFilters.value?.status || 'all';
-  if (selectedStatus === 'all') return true;
-
-  const conversation = getItemConversation(item);
-  return (conversation?.status || 'open') === selectedStatus;
+  const s = viewFilters.value?.status || 'all';
+  if (s === 'all') return true;
+  return (getItemConversation(item)?.status || 'open') === s;
 };
 
 const matchesStageFilter = stageId => {
-  const stageIds = viewFilters.value?.stageIds || [];
-  if (!stageIds.length) return true;
-  return stageIds.map(Number).includes(Number(stageId));
-};
-
-const isItemVisible = (item, stageId) => {
-  if (!matchesStageFilter(stageId)) return false;
-
-  const query = normalizeText(viewFilters.value?.query || '').trim();
-  return (
-    matchesQueryFilter(item, query) &&
-    matchesLabelFilter(item) &&
-    matchesAssigneeFilter(item) &&
-    matchesStatusFilter(item)
-  );
+  const ids = viewFilters.value?.stageIds || [];
+  if (!ids.length) return true;
+  return ids.map(Number).includes(Number(stageId));
 };
 
 const getFilteredItemsForStage = stageId => {
-  const stageItems = getItemsForStage(stageId);
-  return stageItems.filter(item => isItemVisible(item, stageId));
+  if (!matchesStageFilter(stageId)) return [];
+  const q = normalizeText(viewFilters.value?.query || '').trim();
+  return getItemsForStage(stageId).filter(
+    item =>
+      matchesQueryFilter(item, q) &&
+      matchesLabelFilter(item) &&
+      matchesAssigneeFilter(item) &&
+      matchesStatusFilter(item)
+  );
 };
 
 const handleMoveItem = async ({ item, stageId }) => {
@@ -239,42 +248,41 @@ const handleMoveItem = async ({ item, stageId }) => {
   const currentStageId = Number(item.funnelStageId || item.funnel_stage_id);
   const newStageId = Number(stageId);
   if (!itemId || !stageId || newStageId === currentStageId) return;
-
   const lockKey = `${props.funnelId}:${itemId}`;
   if (movingItems.value.has(lockKey)) return;
   movingItems.value.add(lockKey);
-
   try {
     await store.dispatch('kanban/updateItem', {
       funnelId: props.funnelId,
       itemId,
       data: { funnel_stage_id: newStageId },
     });
-
     emit('itemMoved', { item, newStageId });
-  } catch (error) {
-    const fallbackMessage = t('KANBAN.ITEMS.MOVE_ERROR');
-    const validationErrors = error?.response?.data?.errors;
-    let normalizedValidationErrors = null;
-    if (Array.isArray(validationErrors)) {
-      normalizedValidationErrors = validationErrors.join(', ');
-    } else if (
-      validationErrors &&
-      typeof validationErrors === 'object' &&
-      Object.keys(validationErrors).length
-    ) {
-      normalizedValidationErrors = Object.values(validationErrors)
-        .flat()
-        .join(', ');
+
+    // KANBAN-P2-06: detectar won/loss stage → abrir modal.
+    const destStage = (stages.value || []).find(
+      s => Number(s.id) === Number(newStageId)
+    );
+    const wonLossType =
+      destStage?.won_loss_type || destStage?.wonLossType || null;
+    if (wonLossType) {
+      emit('wonLost', { item, stage: destStage, mode: wonLossType });
     }
-    const backendMessage =
+  } catch (error) {
+    const fallback = t('KANBAN.ITEMS.MOVE_ERROR');
+    const errs = error?.response?.data?.errors;
+    let errMsg = null;
+    if (Array.isArray(errs)) {
+      errMsg = errs.join(', ');
+    } else if (errs && typeof errs === 'object' && Object.keys(errs).length) {
+      errMsg = Object.values(errs).flat().join(', ');
+    }
+    useAlert(
       error?.response?.data?.message ||
-      error?.response?.data?.error ||
-      normalizedValidationErrors ||
-      fallbackMessage;
-
-    useAlert(backendMessage);
-
+        error?.response?.data?.error ||
+        errMsg ||
+        fallback
+    );
     await Promise.allSettled(
       [currentStageId, newStageId]
         .filter(id => !Number.isNaN(id) && id > 0)
@@ -291,21 +299,45 @@ const handleMoveItem = async ({ item, stageId }) => {
   }
 };
 
-const handleScheduleMessage = conversation => {
-  emit('scheduleMessage', conversation);
-};
+const handleScheduleMessage = c => emit('scheduleMessage', c);
 
 const handleRemoveItem = async item => {
-  if (!window.confirm(t('KANBAN.ITEMS.CONFIRM_REMOVE'))) return;
-
+  // Soft-delete (otimista): chama Vuex e abre snackbar com Desfazer.
+  // Em P2-04 será trocado pelo restore endpoint dedicado.
+  const snapshotStageId = Number(item.funnelStageId || item.funnel_stage_id);
   try {
     await store.dispatch('kanban/deleteItem', {
       funnelId: props.funnelId,
       itemId: item.id,
     });
     emit('removeItem', item);
+    snackbar.show({
+      message: t('KANBAN.SNACKBAR.CARD_DELETED'),
+      timeout: 7000,
+      action: {
+        label: t('KANBAN.SNACKBAR.UNDO'),
+        onClick: async () => {
+          try {
+            await store.dispatch('kanban/createItem', {
+              funnelId: props.funnelId,
+              data: {
+                conversation_id: item.conversationId || item.conversation_id,
+                funnel_stage_id: snapshotStageId,
+              },
+            });
+            await store.dispatch('kanban/bootstrapView', {
+              view: 'kanban',
+              funnelId: props.funnelId,
+              force: true,
+            });
+          } catch (_) {
+            useAlert(t('KANBAN.SNACKBAR.UNDO_FAILED'));
+          }
+        },
+      },
+    });
   } catch (_) {
-    // noop
+    useAlert(t('KANBAN.ITEMS.MOVE_ERROR'));
   }
 };
 
@@ -322,49 +354,25 @@ const handleStageSaved = async () => {
     funnelId: props.funnelId,
     force: true,
   });
-
   showStageForm.value = false;
   selectedStage.value = null;
 };
 
-let isReordering = false;
+const deleteStageDialog = ref({ open: false, stage: null });
 
-const handleStageReorder = async evt => {
-  if (isReordering) return;
-
-  const hasMoved =
-    evt.moved ||
-    (evt.oldIndex !== undefined &&
-      evt.newIndex !== undefined &&
-      evt.oldIndex !== evt.newIndex);
-
-  if (!hasMoved || localStages.value.length === 0) return;
-
-  isReordering = true;
-  try {
-    const stageIds = localStages.value
-      .map(stage => Number(stage.id))
-      .filter(stageId => !Number.isNaN(stageId));
-
-    if (!stageIds.length) return;
-
-    await store.dispatch('kanban/reorderStages', {
-      funnelId: props.funnelId,
-      stageIds,
-    });
-
-    await store.dispatch('kanban/fetchFunnelStages', props.funnelId);
-  } catch (error) {
-    alert(error?.response?.data?.error || t('KANBAN.STAGES.SAVE_ERROR'));
-    await store.dispatch('kanban/fetchFunnelStages', props.funnelId);
-  } finally {
-    isReordering = false;
-  }
+const handleDeleteStage = stage => {
+  if (!stage) return;
+  deleteStageDialog.value = { open: true, stage };
 };
 
-const handleDeleteStage = async stage => {
-  if (!window.confirm(t('KANBAN.STAGES.CONFIRM_DELETE'))) return;
+const cancelDeleteStage = () => {
+  deleteStageDialog.value = { open: false, stage: null };
+};
 
+const confirmDeleteStage = async () => {
+  const stage = deleteStageDialog.value.stage;
+  deleteStageDialog.value = { open: false, stage: null };
+  if (!stage) return;
   try {
     await store.dispatch('kanban/deleteStage', {
       funnelId: props.funnelId,
@@ -372,81 +380,76 @@ const handleDeleteStage = async stage => {
     });
     await store.dispatch('kanban/fetchFunnelStages', props.funnelId);
   } catch (_) {
-    alert(t('KANBAN.STAGES.DELETE_ERROR'));
+    useAlert(t('KANBAN.STAGES.DELETE_ERROR'));
   }
 };
+
+const totalItemsAcrossStages = computed(() =>
+  (stages.value || []).reduce(
+    (sum, s) => sum + (getItemsForStage(s.id)?.length || 0),
+    0
+  )
+);
+
+// PDND monitor: ao soltar um card em outra coluna, encontra o item e
+// despacha handleMoveItem (que persiste via Vuex e refaz fetch em erro).
+useKanbanBoardMonitor({
+  moveItem: async ({ itemId, toStageId }) => {
+    const item = (stages.value || [])
+      .flatMap(s => getItemsForStage(s.id))
+      .find(i => Number(i.id) === Number(itemId));
+    if (!item) return;
+    await handleMoveItem({ item, stageId: toStageId });
+  },
+});
+
+onMounted(() => subscribe(props.funnelId));
+onUnmounted(() => unsubscribe());
+watch(
+  () => props.funnelId,
+  next => subscribe(next)
+);
 </script>
 
 <template>
   <div
-    class="kanban-board-container flex h-full w-full min-h-0 flex-col overflow-hidden"
+    class="flex h-full w-full min-h-0 flex-col overflow-hidden bg-slate-50 dark:bg-n-solid-1"
   >
+    <KanbanBoardSkeleton v-if="isLoading && stages.length === 0" />
+
     <div
-      v-if="isLoading && stages.length === 0"
-      class="flex h-full items-center justify-center"
+      v-else-if="stages.length === 0"
+      class="flex-1 flex items-center justify-center"
     >
-      <div
-        class="flex max-w-sm flex-col items-center justify-center text-center"
-      >
-        <Icon
-          icon="i-lucide-loader-2"
-          class="mb-4 size-8 animate-spin text-n-slate-10"
-        />
-        <h3 class="text-lg font-semibold text-n-slate-12">
-          {{ t('KANBAN.LOADING') }}
-        </h3>
-        <p class="mt-1 text-sm text-n-slate-10">
-          {{ t('KANBAN.LOADING_CONVERSATIONS') }}
-        </p>
-      </div>
+      <KanbanEmptyState variant="funnel" />
+    </div>
+
+    <div
+      v-else-if="totalItemsAcrossStages === 0"
+      class="flex-1 flex items-center justify-center"
+    >
+      <KanbanEmptyState variant="funnel" />
     </div>
 
     <div
       v-else
-      class="kanban-board flex h-full gap-4 overflow-x-auto overflow-y-hidden bg-n-background px-5 py-4"
+      class="flex flex-1 min-h-0 gap-3 overflow-x-auto overflow-y-hidden px-4 py-4"
     >
-      <draggable
-        v-model="localStages"
-        :group="{ name: 'kanban-stages', pull: false, put: false }"
-        item-key="id"
-        handle=".kanban-column-drag-handle"
-        class="flex h-full gap-4"
-        :animation="200"
-        ghost-class="kanban-stage-ghost"
-        drag-class="kanban-stage-drag"
-        @end="handleStageReorder"
-      >
-        <template #item="{ element: stage }">
-          <KanbanColumn
-            :key="`stage-${stage.id}`"
-            :funnel-id="funnelId"
-            :stage="stage"
-            :items="getFilteredItemsForStage(stage.id)"
-            :conversations="conversations"
-            @move-item="handleMoveItem"
-            @schedule-message="handleScheduleMessage"
-            @remove-item="handleRemoveItem"
-            @edit-stage="handleEditStage"
-            @delete-stage="handleDeleteStage"
-          />
-        </template>
-      </draggable>
-
-      <div
-        v-if="stages.length === 0"
-        class="flex w-full flex-col items-center justify-center rounded-xl border-2 border-dashed border-n-weak bg-n-slate-2/50 dark:bg-n-solid-2 p-8 text-center"
-      >
-        <Icon icon="i-lucide-columns-3" class="mb-3 size-9 text-n-slate-10" />
-        <h3 class="text-lg font-semibold text-n-slate-12">
-          {{ t('KANBAN.STAGES.NO_STAGES') }}
-        </h3>
-        <p class="mt-1 text-sm text-n-slate-10">
-          {{ t('KANBAN.STAGES.NO_STAGES_DESCRIPTION') }}
-        </p>
-        <p class="mt-1 text-xs text-n-slate-9">
-          {{ t('KANBAN.STAGES.EDIT_FUNNEL_HINT') }}
-        </p>
-      </div>
+      <KanbanColumn
+        v-for="stage in stages"
+        :key="`stage-${stage.id}`"
+        :funnel-id="funnelId"
+        :stage="stage"
+        :items="getFilteredItemsForStage(stage.id)"
+        :conversations="conversations"
+        :bulk-mode="bulkMode"
+        @move-item="handleMoveItem"
+        @schedule-message="handleScheduleMessage"
+        @remove-item="handleRemoveItem"
+        @edit-stage="handleEditStage"
+        @delete-stage="handleDeleteStage"
+        @open-drawer="item => emit('openDrawer', item)"
+      />
     </div>
 
     <StageForm
@@ -461,44 +464,47 @@ const handleDeleteStage = async stage => {
       "
       @saved="handleStageSaved"
     />
+
+    <!-- P3-03 -->
+    <KanbanTemplateConfirmModal
+      :open="!!pendingTemplate"
+      :funnel-id="funnelId"
+      :item-id="pendingTemplate?.itemId"
+      :stage="pendingTemplateStage || {}"
+      :template-preview="pendingTemplatePreview"
+      :template-name="pendingTemplate?.templateId"
+      :variables="pendingTemplateVariables"
+      @close="closeTemplateModal"
+      @sent="closeTemplateModal"
+    />
+
+    <!-- P3-08 -->
+    <KanbanWipOverrideDialog
+      :open="!!pendingWip"
+      :over="pendingWip ? pendingWip.count - pendingWip.limit + 1 : 0"
+      :limit="pendingWip?.limit || 0"
+      @cancel="cancelWipOverride"
+      @confirm="acceptWipOverride"
+    />
+
+    <!-- P3-07 -->
+    <KanbanFirstTimeTooltip v-if="stages.length > 0" />
+
+    <!-- DoD §35.3 -->
+    <KanbanConfirmDialog
+      :open="deleteStageDialog.open"
+      :title="
+        deleteStageDialog.stage?.name
+          ? t('KANBAN.CONFIRM.DELETE_STAGE_TITLE', {
+              name: deleteStageDialog.stage.name,
+            })
+          : t('KANBAN.CONFIRM.DELETE_STAGE_GENERIC_TITLE')
+      "
+      :message="t('KANBAN.CONFIRM.DELETE_STAGE_GENERIC_BODY')"
+      :confirm-label="t('KANBAN.CONFIRM.DELETE_CONFIRM_LABEL')"
+      variant="destructive"
+      @confirm="confirmDeleteStage"
+      @cancel="cancelDeleteStage"
+    />
   </div>
 </template>
-
-<style scoped>
-.kanban-board {
-  min-width: 100%;
-  scrollbar-width: thin;
-  scrollbar-color: var(--n-weak) transparent;
-}
-
-.kanban-board::-webkit-scrollbar {
-  height: 8px;
-}
-
-.kanban-board::-webkit-scrollbar-track {
-  background: transparent;
-}
-
-.kanban-board::-webkit-scrollbar-thumb {
-  background-color: var(--n-weak);
-  border-radius: 4px;
-}
-
-.kanban-board::-webkit-scrollbar-thumb:hover {
-  background-color: var(--n-strong);
-}
-
-:deep(.kanban-stage-ghost) {
-  opacity: 0.4;
-  border: 2px dashed var(--n-brand, #2dc46f);
-  background: rgba(45, 196, 111, 0.05);
-}
-
-:deep(.kanban-stage-drag) {
-  opacity: 0.95;
-  box-shadow:
-    0 20px 25px -5px rgba(0, 0, 0, 0.15),
-    0 8px 10px -6px rgba(0, 0, 0, 0.1);
-  transform: rotate(1deg);
-}
-</style>

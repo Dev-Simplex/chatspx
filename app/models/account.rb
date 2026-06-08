@@ -142,7 +142,12 @@ class Account < ApplicationRecord # rubocop:disable Metrics/ClassLength
   has_many :webhooks, dependent: :destroy_async
   has_many :whatsapp_channels, dependent: :destroy_async, class_name: '::Channel::Whatsapp'
   has_many :working_hours, dependent: :destroy_async
-  has_many :funnels, dependent: :destroy
+  has_many :kanbans, dependent: :destroy
+  # Alias temporario para compat (frontend/specs antigos chamam account.funnels).
+  # REMOVER em KANBAN-P0-08 apos migracao completa do frontend.
+  def funnels
+    kanbans
+  end
 
   has_one_attached :contacts_export
   has_one_attached :chat_wallpaper_image
@@ -154,7 +159,7 @@ class Account < ApplicationRecord # rubocop:disable Metrics/ClassLength
 
   before_validation :validate_limit_keys
   after_create_commit :notify_creation
-  after_create :create_default_funnel
+  after_create :create_default_kanban
   after_destroy :remove_account_sequences
 
   def agents
@@ -205,10 +210,10 @@ class Account < ApplicationRecord # rubocop:disable Metrics/ClassLength
 
   private
 
-  def create_default_funnel
-    Kanban::CreateDefaultFunnelService.new(account: self).perform
+  def create_default_kanban
+    Kanban::CreateDefaultKanbanService.new(account: self).perform
   rescue StandardError => e
-    Rails.logger.error "Error creating default funnel for account #{id}: #{e.message}"
+    Rails.logger.error "Error creating default kanban for account #{id}: #{e.message}"
   end
 
   def notify_creation

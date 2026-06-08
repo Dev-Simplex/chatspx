@@ -1,7 +1,7 @@
 <script setup>
 import Button from 'dashboard/components-next/button/Button.vue';
 import ButtonGroup from 'dashboard/components-next/buttonGroup/ButtonGroup.vue';
-import ScheduledMessageForm from 'dashboard/components-next/Kanban/ScheduledMessageForm.vue';
+import ScheduledMessageForm from 'dashboard/components-next/ScheduledMessages/ScheduledMessageForm.vue';
 import { useUISettings } from 'dashboard/composables/useUISettings';
 import { computed, ref } from 'vue';
 import { useMapGetter } from 'dashboard/composables/store';

@@ -1,56 +1,95 @@
 <script setup>
-import { computed } from 'vue';
+// KanbanCard redesenhado (P1-02) com anatomia CRM-WhatsApp:
+//   - Borda esquerda 3px com cor da stage
+//   - Linha 1: avatar (32px) + nome + ícone do canal
+//   - Linha 2: preview msg (1 linha, truncate)
+//   - Linha 3: aging + atendente + tags + badge unread
+// Drag via PDND (P1-07). Click abre conversa.
+// Sem CSS scoped (Tailwind only). Altura visual <= 120px.
+import { computed, ref } from 'vue';
 import { useRouter } from 'vue-router';
 import { useI18n } from 'vue-i18n';
 import { useMapGetter } from 'dashboard/composables/store';
 import { useTeamIsolation } from 'dashboard/composables/useTeamIsolation';
-import Button from 'dashboard/components-next/button/Button.vue';
 import Icon from 'dashboard/components-next/icon/Icon.vue';
 import Avatar from 'dashboard/components-next/avatar/Avatar.vue';
+import { useKanbanMessagePreview } from 'dashboard/composables/kanban/useKanbanMessagePreview';
+import { makeKanbanCardDraggable } from 'dashboard/composables/kanban/useKanbanDrag';
+import { useKanbanAging } from 'dashboard/composables/kanban/useKanbanAging';
+import { useKanbanBoardStore } from 'dashboard/store/pinia/kanban/board';
+import KanbanCardReply from './KanbanCardReply.vue';
+import KanbanCaptainSuggestion from './KanbanCaptainSuggestion.vue';
 
 const props = defineProps({
-  item: {
-    type: Object,
-    required: true,
-  },
-  conversation: {
-    type: Object,
-    required: true,
-  },
-  stageColor: {
-    type: String,
-    default: '#94a3b8',
-  },
+  item: { type: Object, required: true },
+  conversation: { type: Object, required: true },
+  stage: { type: Object, default: () => ({}) },
+  stageColor: { type: String, default: '#94a3b8' },
+  stageName: { type: String, default: '' },
+  index: { type: Number, default: 0 },
+  total: { type: Number, default: 0 },
+  // P2-07: bulk mode (mostra checkbox)
+  bulkMode: { type: Boolean, default: false },
+  // P2-03: drawer in side. Quando true, click emite "open-drawer" em vez de navegar.
+  openInDrawer: { type: Boolean, default: true },
 });
 
-const emit = defineEmits(['move', 'schedule-message', 'remove']);
+// eslint-disable-next-line vue/custom-event-name-casing -- kebab kept for legacy parent listeners
+const emit = defineEmits(['move', 'schedule-message', 'remove', 'open-drawer']);
 
 const router = useRouter();
+const boardStore = useKanbanBoardStore();
 const { t } = useI18n();
-
 const getContactById = useMapGetter('contacts/getContactById');
 const inboxById = useMapGetter('inboxes/getInboxById');
 const { isMessageRestricted } = useTeamIsolation();
+const { getMessagePreview } = useKanbanMessagePreview();
 
-const contactId = computed(() => {
-  return (
+const cardEl = ref(null);
+const showQuickReply = ref(false);
+
+const funnelIdForCard = computed(
+  () =>
+    props.item?.funnelId ||
+    props.item?.funnel_id ||
+    props.item?.kanbanId ||
+    props.item?.kanban_id ||
+    boardStore.activeKanbanId ||
+    null
+);
+
+const openQuickReply = e => {
+  e?.preventDefault?.();
+  e?.stopPropagation?.();
+  showQuickReply.value = true;
+};
+
+const closeQuickReply = () => {
+  showQuickReply.value = false;
+};
+
+makeKanbanCardDraggable(cardEl, {
+  itemId: Number(props.item?.id),
+  stageId: Number(props.item?.funnelStageId || props.item?.funnel_stage_id),
+});
+
+const contactId = computed(
+  () =>
     props.conversation?.contactId ||
     props.conversation?.contact_id ||
     props.conversation?.contact?.id ||
     props.conversation?.meta?.sender?.id ||
     props.conversation?.sender?.id ||
     null
-  );
-});
+);
 
-const contactFromConversation = computed(() => {
-  return (
+const contactFromConversation = computed(
+  () =>
     props.conversation?.contact ||
     props.conversation?.meta?.sender ||
     props.conversation?.sender ||
     null
-  );
-});
+);
 
 const contactFromStore = computed(() => {
   if (!contactId.value) return null;
@@ -66,229 +105,438 @@ const contact = computed(
 const contactName = computed(
   () => contact.value?.name || t('KANBAN.ITEMS.UNNAMED_CONTACT')
 );
-const contactThumbnail = computed(() => {
-  return (
+
+const contactThumbnail = computed(
+  () =>
     contact.value?.thumbnail ||
     contact.value?.avatar_url ||
     contact.value?.avatar ||
-    contact.value?.profile_image_url ||
     ''
-  );
-});
-const contactPhone = computed(
-  () => contact.value?.phoneNumber || contact.value?.phone_number || ''
 );
 
-const lastMessage = computed(() => {
-  const message =
+const inbox = computed(() =>
+  inboxById.value(props.conversation?.inboxId || props.conversation?.inbox_id)
+);
+
+const lastMessageRaw = computed(
+  () =>
     props.conversation?.lastMessage ||
     props.conversation?.last_message ||
     props.conversation?.lastNonActivityMessage ||
-    props.conversation?.last_non_activity_message;
+    props.conversation?.last_non_activity_message
+);
 
-  const inbox = inboxById.value(
-    props.conversation?.inboxId || props.conversation?.inbox_id
+const preview = computed(() => {
+  if (isMessageRestricted(lastMessageRaw.value, inbox.value)) {
+    return { text: '🔒', isPlaceholder: true, outgoing: false };
+  }
+  return getMessagePreview(lastMessageRaw.value, t);
+});
+
+const channelType = computed(() => {
+  const type = inbox.value?.channel_type || inbox.value?.channelType || '';
+  // ex.: "Channel::Api" -> "api"
+  const last = type.split('::').pop();
+  return (last || '').toLowerCase();
+});
+
+const channelIcon = computed(() => {
+  switch (channelType.value) {
+    case 'whatsapp':
+      return 'i-lucide-message-circle';
+    case 'facebook':
+      return 'i-lucide-facebook';
+    case 'instagram':
+      return 'i-lucide-instagram';
+    case 'email':
+      return 'i-lucide-mail';
+    case 'sms':
+      return 'i-lucide-smartphone';
+    case 'telegram':
+      return 'i-lucide-send';
+    case 'twitter':
+      return 'i-lucide-twitter';
+    case 'line':
+      return 'i-lucide-message-square';
+    case 'api':
+    case 'webwidget':
+    default:
+      return 'i-lucide-globe';
+  }
+});
+
+const channelLabel = computed(() => {
+  const map = {
+    whatsapp: 'WhatsApp',
+    facebook: 'Facebook',
+    instagram: 'Instagram',
+    email: 'Email',
+    sms: 'SMS',
+    telegram: 'Telegram',
+    twitter: 'Twitter',
+    line: 'Line',
+    api: 'API',
+    webwidget: 'Web',
+  };
+  return map[channelType.value] || (channelType.value || '').toUpperCase();
+});
+
+const unreadCount = computed(
+  () =>
+    Number(
+      props.conversation?.unreadCount ?? props.conversation?.unread_count ?? 0
+    ) || 0
+);
+
+const unreadLabel = computed(() => {
+  const n = unreadCount.value;
+  return n >= 10 ? '9+' : String(n);
+});
+
+const assignee = computed(
+  () =>
+    props.conversation?.assignee || props.conversation?.meta?.assignee || null
+);
+
+const labels = computed(() => {
+  const ls = props.conversation?.labels || props.conversation?.labelList || [];
+  return Array.isArray(ls) ? ls.slice(0, 3) : [];
+});
+
+const remainingLabels = computed(() => {
+  const ls = props.conversation?.labels || props.conversation?.labelList || [];
+  return Array.isArray(ls) && ls.length > 3 ? ls.length - 3 : 0;
+});
+
+// KANBAN-P2-02: aging visual / deal rotting.
+// Usa last_stage_change_at (do item) + rot_after_days (da stage).
+const stageRef = computed(() => props.stage || {});
+const { daysInStage, level: agingLevel } = useKanbanAging(
+  computed(() => props.item),
+  stageRef
+);
+
+const stageAgingClasses = computed(() => {
+  switch (agingLevel.value) {
+    case 'rotting':
+      return 'bg-ruby-100 text-ruby-700 dark:bg-ruby-900/40 dark:text-ruby-300';
+    case 'warning':
+      return 'bg-amber-100 text-amber-700 dark:bg-amber-900/40 dark:text-amber-300';
+    default:
+      return 'bg-slate-100 text-slate-600 dark:bg-slate-800 dark:text-slate-300';
+  }
+});
+
+const stageAgingIcon = computed(() => {
+  if (agingLevel.value === 'rotting') return 'i-lucide-clock-alert';
+  if (agingLevel.value === 'warning') return 'i-lucide-clock';
+  return null;
+});
+
+const stageAgingText = computed(() => {
+  const d = daysInStage.value;
+  if (d <= 0) return t('KANBAN.CARD.AGING_TODAY');
+  return t('KANBAN.CARD.AGING_DAYS', { days: d });
+});
+
+const stageAgingAria = computed(() =>
+  t('KANBAN.CARD.STAGE_AGING_ARIA', {
+    days: daysInStage.value,
+    level: agingLevel.value,
+  })
+);
+
+const stageBorderColor = computed(
+  () =>
+    props.item?.stageColor ||
+    props.item?.stage_color ||
+    props.stageColor ||
+    '#94a3b8'
+);
+
+// DoD §35 / P3-06: card mostra R$ valor + probability% quando definidos.
+const brlFormatter = new Intl.NumberFormat('pt-BR', {
+  style: 'currency',
+  currency: 'BRL',
+});
+
+const valueDisplay = computed(() => {
+  const cents = Number(
+    props.item?.metadata?.value_cents ?? props.item?.metadata?.valueCents ?? 0
   );
-  if (isMessageRestricted(message, inbox)) return '🔒';
-
-  return message?.content || message?.processed_message_content || '';
+  if (!cents || cents <= 0) return null;
+  return brlFormatter.format(cents / 100);
 });
 
-const statusColor = computed(() => {
-  const status = props.conversation?.status || 'open';
-  const statusMap = {
-    open: 'bg-green-600',
-    pending: 'bg-yellow-500',
-    resolved: 'bg-n-slate-9',
-    snoozed: 'bg-blue-500',
-  };
-  return statusMap[status] || 'bg-n-slate-9';
+const probabilityDisplay = computed(() => {
+  const p = props.stage?.probability;
+  if (p == null || p === '') return null;
+  const n = Number(p);
+  if (!Number.isFinite(n)) return null;
+  return `${n}%`;
 });
 
-const statusIcon = computed(() => {
-  const status = props.conversation?.status || 'open';
-  const iconMap = {
-    open: 'i-lucide-circle',
-    pending: 'i-lucide-clock',
-    resolved: 'i-lucide-check-circle',
-    snoozed: 'i-lucide-moon',
-  };
-  return iconMap[status] || 'i-lucide-circle';
-});
+const valueAriaLabel = computed(() =>
+  valueDisplay.value
+    ? t('KANBAN.CARD.VALUE_LABEL', { value: valueDisplay.value })
+    : null
+);
 
-const statusTitle = computed(() => {
-  const status = props.conversation?.status || 'open';
-  const statusMap = {
-    open: t('KANBAN.STATUS.OPEN') || 'Aberto',
-    pending: t('KANBAN.STATUS.PENDING') || 'Pendente',
-    resolved: t('KANBAN.STATUS.RESOLVED') || 'Resolvido',
-    snoozed: t('KANBAN.STATUS.SNOOZED') || 'Adiado',
-  };
-  return statusMap[status] || t('KANBAN.STATUS.OPEN') || 'Aberto';
-});
+const probabilityAriaLabel = computed(() =>
+  probabilityDisplay.value
+    ? t('KANBAN.CARD.PROBABILITY_LABEL', { value: probabilityDisplay.value })
+    : null
+);
 
-const accentColor = computed(() => {
-  return props.item?.stageColor || props.item?.stage_color || props.stageColor;
-});
+const ariaLabel = computed(() =>
+  t('KANBAN.CARD.ARIA_LABEL', {
+    name: contactName.value,
+    stage: props.stageName || '',
+    index: props.index + 1,
+    total: props.total,
+  })
+);
 
-const openConversation = () => {
+const isSelected = computed(() =>
+  boardStore.selectedItemIds.includes(Number(props.item?.id))
+);
+
+const toggleSelection = () => {
+  boardStore.toggleSelectItem(Number(props.item?.id));
+};
+
+const openConversation = e => {
+  if (e?.defaultPrevented) return;
+  if (props.bulkMode) {
+    toggleSelection();
+    return;
+  }
+  // Shift+Click ativa bulk mode (P2-07).
+  if (e?.shiftKey) {
+    toggleSelection();
+    return;
+  }
+  if (props.openInDrawer) {
+    // eslint-disable-next-line vue/custom-event-name-casing
+    emit('open-drawer', props.item);
+    return;
+  }
   const conversationId =
     props.conversation?.displayId ||
     props.conversation?.display_id ||
-    props.conversation?.id ||
-    props.conversationId;
-  if (conversationId) {
-    router.push({
-      name: 'inbox_conversation',
-      params: { conversation_id: conversationId },
-    });
-  }
-};
-
-let isDragging = false;
-let mouseDownTime = 0;
-let mouseDownX = 0;
-let mouseDownY = 0;
-
-const handleMouseDown = event => {
-  isDragging = false;
-  mouseDownTime = Date.now();
-  mouseDownX = event.clientX;
-  mouseDownY = event.clientY;
-
-  // Permitir que o drag and drop funcione
-  const handleMouseMove = () => {
-    isDragging = true;
-  };
-
-  const handleMouseUp = () => {
-    document.removeEventListener('mousemove', handleMouseMove);
-    document.removeEventListener('mouseup', handleMouseUp);
-  };
-
-  document.addEventListener('mousemove', handleMouseMove);
-  document.addEventListener('mouseup', handleMouseUp);
-};
-
-const handleCardClick = event => {
-  // Se foi um drag, não abrir a conversa
-  if (isDragging) {
-    isDragging = false;
-    return;
-  }
-
-  // Verificar se foi um clique simples (não um drag)
-  const timeDiff = Date.now() - mouseDownTime;
-  const xDiff = Math.abs(event.clientX - mouseDownX);
-  const yDiff = Math.abs(event.clientY - mouseDownY);
-
-  if (timeDiff < 200 && xDiff < 5 && yDiff < 5) {
-    openConversation();
-  }
+    props.conversation?.id;
+  if (!conversationId) return;
+  router.push({
+    name: 'inbox_conversation',
+    params: { conversation_id: conversationId },
+  });
 };
 </script>
 
 <template>
-  <div
-    class="kanban-card group relative flex w-full min-w-0 flex-shrink-0 cursor-pointer flex-col gap-3 rounded-xl border border-n-weak bg-n-solid-1 p-3 transition-shadow duration-150 hover:shadow-md"
-    :style="{ borderLeftColor: accentColor }"
-    @click="handleCardClick"
-    @mousedown="handleMouseDown"
+  <article
+    ref="cardEl"
+    role="button"
+    tabindex="0"
+    :aria-label="ariaLabel"
+    :aria-pressed="isSelected"
+    class="group relative flex w-full min-w-0 flex-col gap-2 rounded-lg border bg-white dark:bg-slate-900 px-3 py-2.5 cursor-pointer hover:shadow-md transition-shadow focus:outline-none focus:ring-2 focus:ring-iris-500 border-l-[3px]"
+    :class="
+      isSelected
+        ? 'border-iris-500 bg-iris-50 dark:bg-iris-900/20'
+        : 'border-slate-200 dark:border-slate-700'
+    "
+    :style="{ borderLeftColor: stageBorderColor }"
+    @click="openConversation"
+    @keydown.enter.prevent="openConversation"
+    @keydown.space.prevent="openConversation"
   >
-    <!-- Header -->
-    <div class="flex items-start justify-between gap-3">
-      <div class="flex-1 min-w-0">
-        <div class="flex items-center gap-2.5 mb-2">
-          <Avatar
-            :name="contactName"
-            :src="contactThumbnail"
-            :size="24"
-            rounded-full
-            class="flex-shrink-0"
-          />
-          <div class="flex-1 min-w-0">
-            <h4
-              class="font-medium text-sm text-n-slate-12 truncate leading-tight"
-            >
-              {{ contactName }}
-            </h4>
-          </div>
-        </div>
-        <div class="pl-0.5">
-          <p
-            v-if="lastMessage"
-            class="text-xs text-n-slate-10 line-clamp-2 leading-relaxed break-words mt-1"
-          >
-            {{ lastMessage }}
-          </p>
-          <p v-else class="text-xs text-n-slate-9 italic">
-            {{ t('KANBAN.ITEMS.NO_MESSAGE') }}
-          </p>
-        </div>
-      </div>
-      <div class="flex items-start gap-1.5 flex-shrink-0">
-        <div
-          class="flex items-center justify-center size-6 rounded-full border border-n-weak"
-          :class="statusColor"
-          :title="statusTitle"
-        >
-          <Icon :icon="statusIcon" class="size-3 text-white" />
-        </div>
-      </div>
-    </div>
-
-    <!-- Footer -->
-    <div
-      class="flex items-center justify-between gap-3 pt-2 border-t border-n-weak mt-1"
-    >
-      <div v-if="contactPhone" class="flex items-center gap-1.5 min-w-0">
-        <Icon
-          icon="i-lucide-phone"
-          class="size-3 text-n-slate-10 flex-shrink-0"
+    <input
+      v-if="bulkMode"
+      type="checkbox"
+      class="absolute top-2 right-2 size-4 rounded text-iris-600 focus:ring-iris-500"
+      :checked="isSelected"
+      :aria-label="t('KANBAN.BULK.TOGGLE')"
+      @click.stop="toggleSelection"
+    />
+    <!-- Linha 1: avatar + nome + canal -->
+    <div class="flex items-center gap-2 min-w-0">
+      <div class="relative flex-shrink-0">
+        <Avatar
+          :name="contactName"
+          :src="contactThumbnail"
+          :size="32"
+          rounded-full
         />
         <span
-          class="text-xs text-n-slate-11 font-mono truncate font-medium"
-          :title="contactPhone"
+          v-if="unreadCount > 0"
+          class="absolute -top-1 -right-1 min-w-[16px] h-[16px] px-1 rounded-full bg-red-500 text-white text-[10px] font-bold flex items-center justify-center leading-none"
+          :aria-label="t('KANBAN.CARD.UNREAD_LABEL', { count: unreadCount })"
         >
-          {{ contactPhone }}
+          {{ unreadLabel }}
         </span>
       </div>
+
+      <h4
+        class="flex-1 min-w-0 truncate text-sm font-medium text-slate-900 dark:text-white"
+      >
+        {{ contactName }}
+      </h4>
+
+      <span
+        :title="t('KANBAN.CARD.CHANNEL_TOOLTIP', { channel: channelLabel })"
+        :aria-label="
+          t('KANBAN.CARD.CHANNEL_TOOLTIP', { channel: channelLabel })
+        "
+        class="text-slate-400 dark:text-slate-500 flex-shrink-0"
+      >
+        <Icon :icon="channelIcon" class="size-4" />
+      </span>
+    </div>
+
+    <!-- Linha 2: preview da mensagem -->
+    <p
+      class="text-[13px] leading-snug text-slate-600 dark:text-slate-300 truncate"
+      :class="{ italic: preview.isPlaceholder }"
+    >
+      <span v-if="preview.outgoing" class="italic text-slate-500">{{
+        t('KANBAN.CARD.PREVIEW_OUTGOING_PREFIX')
+      }}</span>
+      <span>{{ preview.text }}</span>
+    </p>
+
+    <!-- DoD §35 / P3-06: valor estimado + probability -->
+    <div
+      v-if="valueDisplay || probabilityDisplay"
+      class="flex items-center gap-2 text-xs mt-0.5"
+    >
+      <span
+        v-if="valueDisplay"
+        class="font-semibold text-emerald-600 dark:text-emerald-400"
+        :aria-label="valueAriaLabel"
+        :title="valueAriaLabel"
+      >
+        {{ valueDisplay }}
+      </span>
+      <span
+        v-if="probabilityDisplay"
+        class="text-slate-500 dark:text-slate-400"
+        :aria-label="probabilityAriaLabel"
+        :title="probabilityAriaLabel"
+      >
+        {{ probabilityDisplay }}
+      </span>
+    </div>
+
+    <!-- Linha 3: aging + atendente + tags + ações hover -->
+    <div class="flex items-center gap-2 text-xs min-w-0">
+      <span
+        :aria-label="stageAgingAria"
+        :title="stageAgingAria"
+        class="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-full font-medium flex-shrink-0"
+        :class="stageAgingClasses"
+      >
+        <Icon
+          v-if="stageAgingIcon"
+          :icon="stageAgingIcon"
+          class="size-3"
+          aria-hidden="true"
+        />
+        {{ stageAgingText }}
+      </span>
+
+      <Avatar
+        v-if="assignee"
+        :name="assignee.name || assignee.available_name"
+        :src="assignee.thumbnail || assignee.avatar_url"
+        :size="20"
+        rounded-full
+        class="flex-shrink-0"
+      />
+
+      <div class="flex items-center gap-1 min-w-0 flex-1">
+        <span
+          v-for="label in labels"
+          :key="label.id"
+          class="inline-block px-1.5 py-0.5 rounded-full text-[10px] font-medium truncate max-w-[80px]"
+          :style="{
+            background: `${label.color || '#94a3b8'}22`,
+            color: label.color || '#475569',
+          }"
+        >
+          {{ label.title || label.name }}
+        </span>
+        <span
+          v-if="remainingLabels > 0"
+          class="text-[10px] text-slate-500 dark:text-slate-400 font-medium flex-shrink-0"
+        >
+          {{ t('KANBAN.CARD.MORE_TAGS', { count: remainingLabels }) }}
+        </span>
+      </div>
+
       <div
-        class="flex items-center gap-1 shrink-0 opacity-100 md:opacity-0 md:group-hover:opacity-100 transition-all duration-200"
+        class="flex items-center gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity flex-shrink-0"
         @click.stop
       >
-        <Button
-          size="xs"
-          variant="ghost"
-          icon="i-lucide-clock"
-          :title="t('KANBAN.SCHEDULED_MESSAGES.CREATE')"
-          class="!h-7 !w-7 !p-0 hover:bg-n-blue-3 hover:text-n-blue-11"
+        <button
+          type="button"
+          class="inline-flex items-center justify-center size-6 rounded-md text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-800 hover:text-iris-600 transition-colors"
+          :aria-label="t('KANBAN.CARD.ACTION_QUICK_REPLY')"
+          :title="t('KANBAN.CARD.ACTION_QUICK_REPLY')"
+          @click.stop="openQuickReply"
+        >
+          <Icon icon="i-lucide-corner-down-left" class="size-3.5" />
+        </button>
+        <button
+          type="button"
+          class="inline-flex items-center justify-center size-6 rounded-md text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-800 hover:text-iris-600 transition-colors"
+          :aria-label="t('KANBAN.CARD.ACTION_SCHEDULE')"
+          :title="t('KANBAN.CARD.ACTION_SCHEDULE')"
           @click="emit('schedule-message', conversation)"
-        />
-        <Button
-          size="xs"
-          variant="ghost"
-          icon="i-lucide-move"
-          :title="t('KANBAN.ITEMS.MOVE')"
-          class="!h-7 !w-7 !p-0 hover:bg-n-teal-3 hover:text-n-teal-11"
+        >
+          <Icon icon="i-lucide-clock" class="size-3.5" />
+        </button>
+        <button
+          type="button"
+          class="inline-flex items-center justify-center size-6 rounded-md text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-800 hover:text-teal-600 transition-colors"
+          :aria-label="t('KANBAN.CARD.ACTION_ASSIGN')"
+          :title="t('KANBAN.CARD.ACTION_ASSIGN')"
           @click="emit('move', item)"
-        />
-        <Button
-          size="xs"
-          variant="ghost"
-          icon="i-lucide-x"
-          :title="t('KANBAN.ITEMS.REMOVE')"
-          class="!h-7 !w-7 !p-0 hover:bg-n-ruby-3 hover:text-n-ruby-11"
+        >
+          <Icon icon="i-lucide-move" class="size-3.5" />
+        </button>
+        <button
+          type="button"
+          class="inline-flex items-center justify-center size-6 rounded-md text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-800 hover:text-ruby-600 transition-colors"
+          :aria-label="t('KANBAN.CARD.ACTION_DELETE')"
+          :title="t('KANBAN.CARD.ACTION_DELETE')"
           @click="emit('remove', item)"
-        />
+        >
+          <Icon icon="i-lucide-x" class="size-3.5" />
+        </button>
       </div>
     </div>
-  </div>
-</template>
 
-<style scoped>
-.kanban-card {
-  border-left-style: solid;
-  border-left-width: 3px;
-}
-</style>
+    <!-- P3-02: sugestão Captain AI Triage -->
+    <KanbanCaptainSuggestion
+      v-if="
+        item?.metadata?.captain_classification &&
+        !item?.metadata?.captain_classification?.feedback
+      "
+      :item="item"
+      :funnel-id="funnelIdForCard"
+      :stages="boardStore.stagesOf(funnelIdForCard)"
+      @click.stop
+    />
+
+    <!-- P3-01: mini-composer in-card -->
+    <KanbanCardReply
+      v-if="showQuickReply"
+      :funnel-id="funnelIdForCard"
+      :item-id="item?.id"
+      :contact-name="contactName"
+      @close="closeQuickReply"
+      @sent="closeQuickReply"
+    />
+  </article>
+</template>

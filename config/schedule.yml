@@ -90,3 +90,16 @@ remove_orphan_conversations_job:
   cron: '0 */12 * * *'
   class: 'Internal::RemoveOrphanConversationsJob'
   queue: housekeeping
+
+# KANBAN-P3-04: scan hourly + envia summary pra kanbans cuja hora local bate.
+# Cada Account define timezone próprio; o Job filtra internamente.
+kanban_daily_summary_dispatch_job:
+  cron: '0 * * * *'
+  class: 'Kanbans::DailySummaryJob'
+  queue: default
+
+# KANBAN-P3-05: dispara automations aging-based diariamente (08:00 UTC).
+kanban_aging_automations_job:
+  cron: '0 8 * * *'
+  class: 'Kanbans::AgingAutomationsJob'
+  queue: default

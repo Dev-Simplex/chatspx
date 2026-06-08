@@ -7,6 +7,7 @@ import { format } from 'date-fns';
 import Button from 'dashboard/components-next/button/Button.vue';
 import Icon from 'dashboard/components-next/icon/Icon.vue';
 import Avatar from 'dashboard/components-next/avatar/Avatar.vue';
+import KanbanConfirmDialog from './KanbanConfirmDialog.vue';
 
 const props = defineProps({
   funnelId: {
@@ -381,9 +382,21 @@ const openScheduledManager = item => {
   emit('manageScheduled', conversationId);
 };
 
-const handleRemove = async item => {
-  if (!window.confirm(t('KANBAN.ITEMS.CONFIRM_REMOVE'))) return;
+const removeDialog = ref({ open: false, item: null });
 
+const handleRemove = item => {
+  if (!item) return;
+  removeDialog.value = { open: true, item };
+};
+
+const cancelRemove = () => {
+  removeDialog.value = { open: false, item: null };
+};
+
+const confirmRemove = async () => {
+  const item = removeDialog.value.item;
+  removeDialog.value = { open: false, item: null };
+  if (!item) return;
   try {
     await store.dispatch('kanban/deleteItem', {
       funnelId: props.funnelId,
@@ -713,6 +726,16 @@ const loadMoreResults = async () => {
         </div>
       </div>
     </template>
+
+    <KanbanConfirmDialog
+      :open="removeDialog.open"
+      :title="t('KANBAN.CONFIRM.REMOVE_ITEM_TITLE')"
+      :message="t('KANBAN.CONFIRM.REMOVE_ITEM_BODY')"
+      :confirm-label="t('KANBAN.CONFIRM.REMOVE_CONFIRM_LABEL')"
+      variant="destructive"
+      @confirm="confirmRemove"
+      @cancel="cancelRemove"
+    />
   </div>
 </template>
 

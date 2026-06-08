@@ -242,7 +242,9 @@ export default {
       </div>
 
       <!-- Action buttons (flex, WA style — auto-distributes when some are hidden) -->
-      <div class="flex items-stretch justify-center gap-1.5 mt-6 w-full max-w-[300px] mx-auto">
+      <div
+        class="flex items-stretch justify-center gap-1.5 mt-6 w-full max-w-[300px] mx-auto"
+      >
         <div class="flex-1 min-w-0">
           <ComposeConversation
             :contact-id="String(contact.id)"

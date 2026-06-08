@@ -23,6 +23,20 @@ export const routes = [
         component: KanbanIndex,
         meta: commonMeta,
       },
+      {
+        // KANBAN-P3 GAP-FIX: rota dedicada para Automações.
+        path: ':funnelId/automations',
+        name: 'kanban_automations',
+        component: KanbanIndex,
+        meta: commonMeta,
+      },
+      {
+        // KANBAN-P3 GAP-FIX: rota dedicada para Resumo Diário.
+        path: ':funnelId/daily-summary',
+        name: 'kanban_daily_summary',
+        component: KanbanIndex,
+        meta: commonMeta,
+      },
     ],
   },
 ];

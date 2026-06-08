@@ -1,0 +1,77 @@
+---
+# KANBAN-P3-05: receitas pré-prontas. UI carrega via GET /automation_recipes.
+# Variáveis disponíveis no `actions[].variables`: {{name}}, {{phone}}, {{stage}}.
+recipes:
+  - slug: welcome_on_new_lead
+    name: Boas-vindas ao entrar em Lead novo
+    description: Envia template assim que o card cai na primeira etapa.
+    trigger: item_entered_stage
+    stage_match: lead_new
+    actions:
+      - type: send_template
+        template_slug: welcome_lead
+
+  - slug: rescue_24h_idle
+    name: Recuperação 24h sem resposta
+    description: Após 1 dia parado em "Em conversa", manda um cutuque.
+    trigger: item_aging_threshold
+    stage_match: in_conversation
+    conditions:
+      days: 1
+    actions:
+      - type: send_template
+        template_slug: rescue_24h
+
+  - slug: rotting_alert_5d
+    name: Alerta de card parado 5 dias
+    description: Notifica vendedor se o card ficar 5+ dias em Negociação.
+    trigger: item_aging_threshold
+    stage_match: negotiation
+    conditions:
+      days: 5
+    actions:
+      - type: create_task
+        title: "Recuperar lead esquecido: {{name}}"
+
+  - slug: won_confirmation
+    name: Confirmação ao mover pra Fechou
+    description: Envia confirmação automática quando card vira Won.
+    trigger: item_entered_stage
+    stage_match: won
+    actions:
+      - type: send_template
+        template_slug: won_confirmation
+
+  - slug: nps_after_lost
+    name: Pesquisa NPS após perda
+    description: Envia template de pesquisa quando o card vai pra Não rolou.
+    trigger: item_entered_stage
+    stage_match: lost
+    actions:
+      - type: send_template
+        template_slug: nps_lost
+
+  - slug: assign_to_owner_on_new
+    name: Atribuir dono ao entrar em Lead novo
+    description: Designa um responsável padrão.
+    trigger: item_entered_stage
+    stage_match: lead_new
+    actions:
+      - type: assign
+
+  - slug: tag_high_value
+    name: Marcar leads quentes
+    description: Adiciona tag "lead quente" quando card entra em Negociação.
+    trigger: item_entered_stage
+    stage_match: negotiation
+    actions:
+      - type: add_label
+        title: lead quente
+
+  - slug: move_after_won_template
+    name: Após template Won, move pra Pós-venda
+    description: Automatiza handoff após fechamento.
+    trigger: item_entered_stage
+    stage_match: won
+    actions:
+      - type: move

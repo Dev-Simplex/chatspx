@@ -31,7 +31,7 @@ class Team < ApplicationRecord
     self.name = name.downcase if attribute_present?('name')
   end
 
-  after_create :create_default_funnel
+  after_create :create_default_kanban
 
   # Adds multiple members to the team
   # @param user_ids [Array<Integer>] Array of user IDs to add as members
@@ -70,10 +70,10 @@ class Team < ApplicationRecord
 
   private
 
-  def create_default_funnel
-    Kanban::CreateFunnelForTeamService.new(team: self).perform
+  def create_default_kanban
+    Kanban::CreateKanbanForTeamService.new(team: self).perform
   rescue StandardError => e
-    Rails.logger.error "Error creating default funnel for team #{id}: #{e.message}"
+    Rails.logger.error "Error creating default kanban for team #{id}: #{e.message}"
   end
 end
 
