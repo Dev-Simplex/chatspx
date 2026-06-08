@@ -55,7 +55,9 @@
     .expand{ max-height:0; opacity:0; overflow:hidden; transition:max-height .5s cubic-bezier(.2,.8,.2,1), opacity .4s ease, margin-top .35s ease; }
     .card:hover .expand{ max-height:360px; opacity:1; margin-top:14px; }
     .mbar{ height:6px; border-radius:9999px; background:rgba(8,12,20,.6); overflow:hidden; }
-    .mbar>span{ display:block; height:100%; border-radius:9999px; background:linear-gradient(90deg,#22D3EE,#4F46E5); transition:width .6s cubic-bezier(.2,.8,.2,1); }
+    .mbar>span{ display:block; height:100%; border-radius:9999px; background:#22D3EE; transition:width .6s cubic-bezier(.2,.8,.2,1); }
+    @keyframes shimmer{ 0%{opacity:.35} 50%{opacity:.7} 100%{opacity:.35} }
+    .skel{ background:rgba(148,163,184,.10); border-radius:8px; animation:shimmer 1.4s ease-in-out infinite; }
     .press:active{ transform:scale(.96); }
     @keyframes pulse{ 0%{box-shadow:0 0 0 0 rgba(76,195,138,.55)} 70%{box-shadow:0 0 0 6px rgba(76,195,138,0)} 100%{box-shadow:0 0 0 0 rgba(76,195,138,0)} }
     .live{ animation:pulse 2.6s ease-out infinite; }
@@ -176,7 +178,18 @@
         const addUser = async () => { const email=prompt('Email do novo usuário:'); if(!email) return; const name=prompt('Nome:')||''; const role=prompt('Papel (viewer / operator / admin):','operator')||'operator'; try{ const r=await api('/users',{method:'POST',body:JSON.stringify({email,name,role})}); if(r.email_error){ window.prompt('Usuário criado, mas o email falhou. Envie este link manualmente:', r.link); } else { msg.value='✓ Convite enviado para '+email; } loadUsers(); }catch(e){ msg.value='⚠️ '+e.message; } };
         const delUser = async (id) => { if(!confirm('Remover usuário '+id+'?')) return; try{ await api('/users/'+id,{method:'DELETE'}); loadUsers(); }catch(e){ msg.value=e.message; } };
         // lazy-fetch das métricas ao passar o mouse (card expande estilo Apple)
-        const loadMetrics = async (id) => { if(metrics[id]) return; try{ metrics[id] = await api('/vms/'+id+'/metrics'); }catch(e){ metrics[id]={}; } };
+        const mstate = reactive({}); // id -> 'loading' | 'ok' | 'unavail' | 'error'
+        const loadMetrics = async (id) => {
+          if(mstate[id]) return; // busca 1x por VM; re-tentativa é manual (retry)
+          mstate[id]='loading';
+          const t=setTimeout(()=>{ if(mstate[id]==='loading') mstate[id]='error'; }, 10000);
+          try{
+            const m=await api('/vms/'+id+'/metrics'); clearTimeout(t);
+            if(m && m.online && m.uptime){ metrics[id]=m; mstate[id]='ok'; }
+            else { metrics[id]=m||{}; mstate[id]='unavail'; }
+          }catch(e){ clearTimeout(t); mstate[id]='error'; }
+        };
+        const retryMetrics = (id) => { delete mstate[id]; delete metrics[id]; loadMetrics(id); };
         const restartVM = async (id, unit, label) => {
           if(!confirm('Reiniciar '+label+'?\\n\\n(reinício direto, será registrado no histórico)')) return;
           msg.value='';
@@ -194,7 +207,7 @@
         const titleOf = { frota:'Frota', aprovacoes:'Aprovações', historico:'Histórico', tokens:'Tokens & Dispositivos', usuarios:'Usuários', conectar:'Como conectar' };
 
         onMounted(()=>{ if(!setpwToken.value) checkMe(); });
-        return { token, saveToken, view, go, fleet, status, metrics, deploys, tokens, msg, refresh, pending, recent, byEnv, onlineCount, act, loadTokens, newToken, revokeToken, envStyle, relTime, titleOf, loadMetrics, restartVM,
+        return { token, saveToken, view, go, fleet, status, metrics, deploys, tokens, msg, refresh, pending, recent, byEnv, onlineCount, act, loadTokens, newToken, revokeToken, envStyle, relTime, titleOf, loadMetrics, restartVM, mstate, retryMetrics,
                  me, setpwToken, li, sp, usersList, doLogin, doSetPw, logout, tokenLogin, loadUsers, addUser, delUser };
       },
       template: `
@@ -212,7 +225,7 @@
             <label class="text-[11px] uppercase tracking-wider text-t3 font-bold">Confirmar senha</label>
             <input v-model="sp.pass2" @keyup.enter="doSetPw" type="password" class="w-full mt-1 bg-void/70 border border-line rounded-xl px-3 py-2.5 text-sm text-t1 focus:border-accent outline-none" placeholder="repita a senha" />
             <p v-if="sp.err" class="text-bad text-xs mt-3">{{ sp.err }}</p>
-            <button @click="doSetPw" :disabled="sp.busy" class="press w-full mt-5 text-void font-bold rounded-full py-3 text-sm disabled:opacity-60" style="background:linear-gradient(120deg,#22D3EE,#4F46E5);box-shadow:0 8px 22px rgba(34,211,238,.3)">{{ sp.busy?'Salvando…':'Definir senha e entrar' }}</button>
+            <button @click="doSetPw" :disabled="sp.busy" class="press w-full mt-5 text-void font-bold rounded-full py-3 text-sm disabled:opacity-60" style="background:#22D3EE;box-shadow:0 6px 18px rgba(34,211,238,.25)">{{ sp.busy?'Salvando…':'Definir senha e entrar' }}</button>
           </div>
         </div>
 
@@ -229,7 +242,7 @@
             <label class="text-[11px] uppercase tracking-wider text-t3 font-bold">Senha</label>
             <input v-model="li.pass" @keyup.enter="doLogin" type="password" class="w-full mt-1 bg-void/70 border border-line rounded-xl px-3 py-2.5 text-sm text-t1 focus:border-accent outline-none" placeholder="••••••••" />
             <p v-if="li.err" class="text-bad text-xs mt-3">{{ li.err }}</p>
-            <button @click="doLogin" :disabled="li.busy" class="press w-full mt-5 text-void font-bold rounded-full py-3 text-sm disabled:opacity-60" style="background:linear-gradient(120deg,#22D3EE,#4F46E5);box-shadow:0 8px 22px rgba(34,211,238,.3)">{{ li.busy?'Entrando…':'Entrar' }}</button>
+            <button @click="doLogin" :disabled="li.busy" class="press w-full mt-5 text-void font-bold rounded-full py-3 text-sm disabled:opacity-60" style="background:#22D3EE;box-shadow:0 6px 18px rgba(34,211,238,.25)">{{ li.busy?'Entrando…':'Entrar' }}</button>
             <p class="text-t3 text-[11px] text-center mt-4">Acesso por convite. Sem conta? Fale com um admin.</p>
             <button @click="tokenLogin" class="w-full text-t3 text-[11px] text-center mt-2 hover:text-accentsoft underline">Acesso por token (MCP / emergência)</button>
           </div>
@@ -240,7 +253,7 @@
         <!-- Sidebar -->
         <aside class="w-60 shrink-0 glass border-r flex flex-col fixed h-screen" style="border-color:rgba(148,163,184,.1)">
           <div class="px-5 py-5 flex items-center gap-3">
-            <div class="w-11 h-11 rounded-2xl grid place-items-center" style="background:linear-gradient(120deg,#22D3EE,#4F46E5); box-shadow:0 8px 22px rgba(34,211,238,.30)"><ic n="anchor" cls="w-6 h-6 text-void"/></div>
+            <div class="w-11 h-11 rounded-2xl grid place-items-center" style="background:#22D3EE; box-shadow:0 6px 18px rgba(34,211,238,.25)"><ic n="anchor" cls="w-6 h-6 text-void"/></div>
             <div><div class="font-display font-extrabold text-[19px] leading-none text-t1">Almirante</div><div class="text-[11px] text-t3 mt-1 font-medium tracking-wide uppercase">Comando da Frota</div></div>
           </div>
           <nav class="px-3 mt-3 space-y-1 text-sm font-semibold">
@@ -279,7 +292,7 @@
               <ic n="anchor-d" cls="absolute right-2 -bottom-6 w-52 h-52 text-accent" style="opacity:.10"/>
               <div class="relative">
                 <div class="text-[11px] font-bold uppercase tracking-[.25em] text-accentsoft flex items-center gap-2"><ic n="gauge" cls="w-4 h-4"/>Mission Control · ChatSPX</div>
-                <h2 class="font-display font-extrabold text-[40px] leading-[1.05] mt-3 gtext">{{ onlineCount }} de {{ fleet.length }}<br/>embarcações no ar</h2>
+                <h2 class="font-display font-extrabold text-[40px] leading-[1.05] mt-3 text-t1">{{ onlineCount }} de {{ fleet.length }}<br/>embarcações no ar</h2>
                 <p class="text-t2 text-sm mt-3 max-w-md">Inspecione, promova e autorize operações da frota — tudo sob o gate humano.</p>
                 <div class="flex gap-3 mt-6">
                   <div class="rounded-2xl px-4 py-2.5" style="background:rgba(8,12,20,.4);border:1px solid rgba(148,163,184,.12)"><div class="font-display font-extrabold text-2xl text-ok">{{ onlineCount }}</div><div class="text-[11px] text-t3 font-semibold uppercase tracking-wide">no ar</div></div>
@@ -291,7 +304,7 @@
             <!-- cards por ambiente -->
             <div v-for="(vms, env, gi) in byEnv" :key="env" class="mb-8">
               <div class="flex items-center gap-2 mb-3 px-1"><ic :n="envStyle(env).icon" cls="w-4 h-4 text-t3"/><h3 class="text-[12px] uppercase tracking-[.16em] text-t3 font-bold">{{ env }}</h3><div class="flex-1 h-px" style="background:linear-gradient(90deg,rgba(148,163,184,.18),transparent)"></div></div>
-              <div class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
+              <div class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4 items-start">
                 <div v-for="(vm,i) in vms" :key="vm.id" @mouseenter="loadMetrics(vm.id)" class="card glass rounded-2xl p-5 relative overflow-hidden rise" :style="{ animationDelay:(gi*50+i*40)+'ms' }">
                   <ic :n="envStyle(vm.env).icon+'-d'" :class="['absolute -right-4 -bottom-5 w-32 h-32 pointer-events-none select-none', envStyle(vm.env).text]" style="opacity:.10"/>
                   <div class="relative">
@@ -310,16 +323,29 @@
                     <!-- expansível (hover) — métricas + restart -->
                     <div class="expand">
                       <div class="h-px my-1" style="background:linear-gradient(90deg,transparent,rgba(148,163,184,.18),transparent)"></div>
-                      <div class="grid grid-cols-3 gap-2.5 mt-2">
-                        <div v-for="m in [{k:'cpu',l:'CPU'},{k:'ram',l:'RAM'},{k:'disk',l:'Disco'}]" :key="m.k">
-                          <div class="flex justify-between items-baseline"><span class="text-[10px] uppercase tracking-wider text-t3 font-bold">{{ m.l }}</span><span class="font-mono text-[11px] text-t2">{{ metrics[vm.id] && metrics[vm.id][m.k]!=null ? metrics[vm.id][m.k]+'%' : '—' }}</span></div>
-                          <div class="mbar mt-1"><span :style="{ width: ((metrics[vm.id]&&metrics[vm.id][m.k])||0)+'%' }"></span></div>
+                      <!-- loading: skeleton (sem spinner) -->
+                      <div v-if="!mstate[vm.id] || mstate[vm.id]==='loading'" class="grid grid-cols-3 gap-2.5 mt-2">
+                        <div v-for="i in 3" :key="i" class="skel h-9"></div>
+                      </div>
+                      <!-- sem dado / indisponível -->
+                      <div v-else-if="mstate[vm.id]!=='ok'" class="mt-2 flex items-center gap-2 text-[11px] text-t3">
+                        <ic n="warning-octagon" cls="w-3.5 h-3.5"/>
+                        <span>{{ mstate[vm.id]==='error' ? 'métricas indisponíveis' : 'sem métricas nesta VM' }}</span>
+                        <button v-if="mstate[vm.id]==='error'" @click.stop="retryMetrics(vm.id)" class="text-accentsoft hover:underline font-semibold">tentar de novo</button>
+                      </div>
+                      <!-- ok: barras + uptime -->
+                      <template v-else>
+                        <div class="grid grid-cols-3 gap-2.5 mt-2">
+                          <div v-for="m in [{k:'cpu',l:'CPU'},{k:'ram',l:'RAM'},{k:'disk',l:'Disco'}]" :key="m.k">
+                            <div class="flex justify-between items-baseline"><span class="text-[10px] uppercase tracking-wider text-t3 font-bold">{{ m.l }}</span><span class="font-mono text-[11px] text-t2">{{ metrics[vm.id][m.k]!=null ? metrics[vm.id][m.k]+'%' : '—' }}</span></div>
+                            <div class="mbar mt-1"><span :style="{ width: (metrics[vm.id][m.k]||0)+'%' }"></span></div>
+                          </div>
                         </div>
-                      </div>
-                      <div class="flex items-center gap-4 mt-3 text-[11px] text-t2 font-medium">
-                        <span class="flex items-center gap-1.5"><ic n="clock-counter-clockwise" cls="w-3.5 h-3.5 text-accent"/>{{ (metrics[vm.id]&&metrics[vm.id].uptime) || 'carregando…' }}</span>
-                        <span class="flex items-center gap-1.5"><span class="w-1.5 h-1.5 rounded-full" :class="(metrics[vm.id]&&metrics[vm.id].service_active)?'bg-ok':'bg-idle'"></span>serviço</span>
-                      </div>
+                        <div class="flex items-center gap-4 mt-3 text-[11px] text-t2 font-medium">
+                          <span class="flex items-center gap-1.5"><ic n="clock-counter-clockwise" cls="w-3.5 h-3.5 text-accent"/>{{ metrics[vm.id].uptime }}</span>
+                          <span class="flex items-center gap-1.5"><span class="w-1.5 h-1.5 rounded-full" :class="metrics[vm.id].service_active?'bg-ok':'bg-idle'"></span>serviço</span>
+                        </div>
+                      </template>
                       <div class="flex gap-2 mt-3">
                         <button @click.stop="restartVM(vm.id,'chatwoot-web.1.service','web · '+vm.name)" class="press flex-1 text-[11px] font-bold rounded-lg py-2 flex items-center justify-center gap-1 text-accentsoft" style="background:rgba(34,211,238,.1);border:1px solid rgba(34,211,238,.25)"><ic n="arrows-clockwise" cls="w-3.5 h-3.5"/>web</button>
                         <button @click.stop="restartVM(vm.id,'chatwoot-worker.1.service','worker · '+vm.name)" class="press flex-1 text-[11px] font-bold rounded-lg py-2 flex items-center justify-center gap-1 text-violet" style="background:rgba(129,140,248,.1);border:1px solid rgba(129,140,248,.25)"><ic n="arrows-clockwise" cls="w-3.5 h-3.5"/>worker</button>
@@ -365,7 +391,7 @@
 
           <!-- TOKENS -->
           <div v-else-if="view==='tokens'">
-            <div class="flex justify-end mb-4"><button @click="newToken" class="press text-void font-bold rounded-full px-5 py-2.5 text-sm flex items-center gap-2" style="background:linear-gradient(120deg,#22D3EE,#4F46E5);box-shadow:0 8px 22px rgba(34,211,238,.3)"><ic n="plus" cls="w-4 h-4"/>Novo token</button></div>
+            <div class="flex justify-end mb-4"><button @click="newToken" class="press text-void font-bold rounded-full px-5 py-2.5 text-sm flex items-center gap-2" style="background:#22D3EE;box-shadow:0 6px 18px rgba(34,211,238,.25)"><ic n="plus" cls="w-4 h-4"/>Novo token</button></div>
             <div class="glass rounded-2xl overflow-hidden rise">
               <table class="w-full text-sm">
                 <thead class="text-t3 text-[11px] uppercase tracking-wider font-bold" style="background:rgba(8,12,20,.4)"><tr class="text-left"><th class="px-5 py-3.5">Dev</th><th>Papel</th><th>Dispositivo (PC)</th><th>Último acesso</th><th></th></tr></thead>
@@ -380,7 +406,7 @@
 
           <!-- CONECTAR -->
           <div v-else-if="view==='usuarios'">
-            <div class="flex justify-end mb-4"><button @click="addUser" class="press text-void font-bold rounded-full px-5 py-2.5 text-sm flex items-center gap-2" style="background:linear-gradient(120deg,#22D3EE,#4F46E5);box-shadow:0 8px 22px rgba(34,211,238,.3)"><ic n="plus" cls="w-4 h-4"/>Convidar usuário</button></div>
+            <div class="flex justify-end mb-4"><button @click="addUser" class="press text-void font-bold rounded-full px-5 py-2.5 text-sm flex items-center gap-2" style="background:#22D3EE;box-shadow:0 6px 18px rgba(34,211,238,.25)"><ic n="plus" cls="w-4 h-4"/>Convidar usuário</button></div>
             <div class="glass rounded-2xl overflow-hidden rise">
               <table class="w-full text-sm">
                 <thead class="text-t3 text-[11px] uppercase tracking-wider font-bold" style="background:rgba(8,12,20,.4)"><tr class="text-left"><th class="px-5 py-3.5">Usuário</th><th>Papel</th><th>Status</th><th>Último login</th><th></th></tr></thead>
