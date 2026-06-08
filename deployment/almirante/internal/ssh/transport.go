@@ -41,9 +41,14 @@ func LoadCreds(path string) (map[string]VMCred, error) {
 	if err != nil {
 		return nil, err
 	}
+	return ParseCreds(b)
+}
+
+// ParseCreds le o mesmo JSON direto de bytes (ex: env ALMIRANTE_CREDS_JSON no Coolify).
+func ParseCreds(b []byte) (map[string]VMCred, error) {
 	m := map[string]VMCred{}
 	if err := json.Unmarshal(b, &m); err != nil {
-		return nil, fmt.Errorf("parse creds %s: %w", path, err)
+		return nil, fmt.Errorf("parse creds: %w", err)
 	}
 	return m, nil
 }

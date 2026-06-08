@@ -9,6 +9,7 @@ import (
 	"io/fs"
 	"net/http"
 	"os"
+	"path/filepath"
 	"time"
 
 	"github.com/Dev-Simplex/almirante/internal/audit"
@@ -40,9 +41,25 @@ func main() {
 		fmt.Fprintln(os.Stderr, "ERRO fleet:", err)
 		os.Exit(1)
 	}
-	perVM, cerr := sshx.LoadCreds(os.Getenv("ALMIRANTE_CREDS_FILE"))
+	// creds por-VM: prioriza JSON inline (env, p/ Coolify) e cai pro arquivo.
+	var perVM map[string]sshx.VMCred
+	var cerr error
+	if j := os.Getenv("ALMIRANTE_CREDS_JSON"); j != "" {
+		perVM, cerr = sshx.ParseCreds([]byte(j))
+	} else {
+		perVM, cerr = sshx.LoadCreds(os.Getenv("ALMIRANTE_CREDS_FILE"))
+	}
 	if cerr != nil {
 		fmt.Fprintln(os.Stderr, "aviso creds-por-VM:", cerr)
+	}
+	// known_hosts: se vier inline por env (Coolify), materializa em arquivo no boot.
+	khPath := env("ALMIRANTE_KNOWN_HOSTS", os.Getenv("HOME")+"/.almirante/known_hosts")
+	if data := os.Getenv("ALMIRANTE_KNOWN_HOSTS_DATA"); data != "" {
+		khPath = filepath.Join(env("ALMIRANTE_STATE_DIR", "./state"), "known_hosts")
+		_ = os.MkdirAll(filepath.Dir(khPath), 0o700)
+		if werr := os.WriteFile(khPath, []byte(data), 0o600); werr != nil {
+			fmt.Fprintln(os.Stderr, "aviso known_hosts:", werr)
+		}
 	}
 	cfg := control.Config{
 		Mock:          env("ALMIRANTE_MOCK", "1") == "1",
@@ -53,7 +70,7 @@ func main() {
 		SSH: sshx.Config{
 			KeyPath:        os.Getenv("ALMIRANTE_TRANSPORT_KEY_PATH"),
 			Password:       os.Getenv("ALMIRANTE_TRANSPORT_PASSWORD"),
-			KnownHostsPath: env("ALMIRANTE_KNOWN_HOSTS", os.Getenv("HOME")+"/.almirante/known_hosts"),
+			KnownHostsPath: khPath,
 			PerVM:          perVM,
 		},
 	}
