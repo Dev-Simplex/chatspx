@@ -2,7 +2,9 @@ package control
 
 import (
 	"encoding/json"
+	"fmt"
 	"net/http"
+	"os"
 	"strings"
 	"time"
 
@@ -41,12 +43,16 @@ type Server struct {
 	merges   *mergeStore
 	exec     Executor
 	audit    *audit.Logger
-	tokens   map[string]user
-	tstore   *TokenStore
-	ttl      time.Duration
-	now      func() time.Time
-	mergeDir string
-	repoURL  string
+	tokens     map[string]user
+	tstore     *TokenStore
+	users      *UserStore
+	mailer     *Mailer
+	sessSecret []byte
+	appURL     string
+	ttl        time.Duration
+	now        func() time.Time
+	mergeDir   string
+	repoURL    string
 }
 
 // tokensCSV: "token:name:role,token2:name2:role2"
@@ -81,8 +87,12 @@ func NewServer(cfg Config, store *Store, aud *audit.Logger, tokensCSV string) *S
 		exec:     Executor{Cfg: cfg},
 		audit:    aud,
 		tokens:   tokens,
-		tstore:   NewTokenStore(store.StateDir()),
-		ttl:      ttl,
+		tstore:     NewTokenStore(store.StateDir()),
+		users:      NewUserStore(store.StateDir()),
+		mailer:     NewMailerFromEnv(),
+		sessSecret: sessionSecretFromEnv(),
+		appURL:     envOr2("ALMIRANTE_APP_URL", "https://painel.chatspx.app"),
+		ttl:        ttl,
 		now:      time.Now,
 		mergeDir: cfg.MergeCloneDir,
 		repoURL:  cfg.RepoURL,
@@ -115,6 +125,14 @@ func (s *Server) Handler() http.Handler {
 	mux.HandleFunc("GET /api/tokens", s.auth(RoleAdmin, s.listTokens))
 	mux.HandleFunc("POST /api/tokens", s.auth(RoleAdmin, s.issueToken))
 	mux.HandleFunc("DELETE /api/tokens/{id}", s.auth(RoleAdmin, s.revokeToken))
+	// auth de humano (login email+senha + convite) — login/set-password sao publicos
+	mux.HandleFunc("POST /api/login", s.login)
+	mux.HandleFunc("POST /api/logout", s.logout)
+	mux.HandleFunc("POST /api/set-password", s.setPassword)
+	mux.HandleFunc("GET /api/me", s.me)
+	mux.HandleFunc("GET /api/users", s.auth(RoleAdmin, s.listUsers))
+	mux.HandleFunc("POST /api/users", s.auth(RoleAdmin, s.inviteUser))
+	mux.HandleFunc("DELETE /api/users/{id}", s.auth(RoleAdmin, s.revokeUser))
 	return mux
 }
 
@@ -132,8 +150,15 @@ func (s *Server) auth(min Role, h func(http.ResponseWriter, *http.Request, user)
 				s.tstore.Touch(tok, r.Header.Get("X-Almirante-Host"), ip) // audita o dispositivo
 			}
 		}
+		if !ok { // sessao de humano (cookie assinado) — login email+senha
+			if c, e := r.Cookie("alm_session"); e == nil {
+				if su, valid := s.verifySession(c.Value); valid {
+					u, ok = su, true
+				}
+			}
+		}
 		if !ok {
-			writeErr(w, 401, "token invalido")
+			writeErr(w, 401, "nao autenticado")
 			return
 		}
 		if u.role < min {
@@ -362,6 +387,120 @@ func respond(w http.ResponseWriter, v any, err error) {
 		return
 	}
 	writeJSON(w, 200, v)
+}
+
+// ---------- auth de humano (login email+senha + convite por email) ----------
+
+func roleName(r Role) string {
+	switch r {
+	case RoleAdmin:
+		return "admin"
+	case RoleOperator:
+		return "operator"
+	default:
+		return "viewer"
+	}
+}
+
+func (s *Server) setSessionCookie(w http.ResponseWriter, email, role string) {
+	http.SetCookie(w, &http.Cookie{Name: "alm_session", Value: s.issueSession(email, role), Path: "/", HttpOnly: true, Secure: true, SameSite: http.SameSiteLaxMode, MaxAge: int(sessionTTL.Seconds())})
+}
+
+func (s *Server) login(w http.ResponseWriter, r *http.Request) {
+	var b struct{ Email, Password string }
+	_ = json.NewDecoder(r.Body).Decode(&b)
+	u, err := s.users.Authenticate(b.Email, b.Password)
+	if err != nil {
+		writeErr(w, 401, "email ou senha inválidos")
+		return
+	}
+	s.setSessionCookie(w, u.Email, u.Role)
+	s.audit.Append("login", u.Email, "", nil)
+	writeJSON(w, 200, map[string]string{"email": u.Email, "name": u.Name, "role": u.Role})
+}
+
+func (s *Server) logout(w http.ResponseWriter, r *http.Request) {
+	http.SetCookie(w, &http.Cookie{Name: "alm_session", Value: "", Path: "/", HttpOnly: true, Secure: true, MaxAge: -1})
+	writeJSON(w, 200, map[string]string{"status": "ok"})
+}
+
+func (s *Server) setPassword(w http.ResponseWriter, r *http.Request) {
+	var b struct{ Token, Password string }
+	_ = json.NewDecoder(r.Body).Decode(&b)
+	u, err := s.users.SetPassword(b.Token, b.Password)
+	if err != nil {
+		writeErr(w, 400, err.Error())
+		return
+	}
+	s.setSessionCookie(w, u.Email, u.Role)
+	writeJSON(w, 200, map[string]string{"email": u.Email, "name": u.Name, "role": u.Role})
+}
+
+func (s *Server) me(w http.ResponseWriter, r *http.Request) {
+	if c, e := r.Cookie("alm_session"); e == nil {
+		if su, ok := s.verifySession(c.Value); ok {
+			writeJSON(w, 200, map[string]string{"name": su.name, "role": roleName(su.role), "auth": "session"})
+			return
+		}
+	}
+	tok := strings.TrimPrefix(r.Header.Get("Authorization"), "Bearer ")
+	if u, ok := s.tokens[tok]; ok {
+		writeJSON(w, 200, map[string]string{"name": u.name, "role": roleName(u.role), "auth": "token"})
+		return
+	}
+	if t, ok := s.tstore.Lookup(tok); ok {
+		writeJSON(w, 200, map[string]string{"name": t.Name, "role": t.Role, "auth": "token"})
+		return
+	}
+	writeErr(w, 401, "nao autenticado")
+}
+
+func (s *Server) listUsers(w http.ResponseWriter, _ *http.Request, _ user) { writeJSON(w, 200, s.users.List()) }
+
+func (s *Server) inviteUser(w http.ResponseWriter, r *http.Request, u user) {
+	var b struct{ Email, Name, Role string }
+	_ = json.NewDecoder(r.Body).Decode(&b)
+	role := b.Role
+	if role == "" {
+		role = "operator"
+	}
+	au, tok, err := s.users.Invite(b.Email, b.Name, role, u.name)
+	if err != nil {
+		writeErr(w, 400, err.Error())
+		return
+	}
+	link := s.appURL + "/?setpw=" + tok
+	s.audit.Append("invite_user", u.name, au.Email, map[string]any{"role": role})
+	if err := s.mailer.Send(au.Email, "Almirante — defina sua senha", inviteHTML(au.Name, link)); err != nil {
+		writeJSON(w, 200, map[string]any{"email": au.Email, "status": "invited", "email_error": err.Error(), "link": link})
+		return
+	}
+	writeJSON(w, 200, map[string]string{"email": au.Email, "status": "invited"})
+}
+
+func (s *Server) revokeUser(w http.ResponseWriter, r *http.Request, u user) {
+	if s.users.Delete(r.PathValue("id")) {
+		s.audit.Append("delete_user", u.name, r.PathValue("id"), nil)
+		writeJSON(w, 200, map[string]string{"status": "deleted"})
+		return
+	}
+	writeErr(w, 404, "usuario nao encontrado")
+}
+
+// UsersCount/BootstrapAdmin: usados pelo main p/ semear o 1o admin no boot.
+func (s *Server) UsersCount() int { return s.users.Count() }
+func (s *Server) BootstrapAdmin(email string) {
+	au, tok, err := s.users.Invite(email, "Admin", "admin", "bootstrap")
+	if err != nil {
+		fmt.Fprintln(os.Stderr, "bootstrap admin:", err)
+		return
+	}
+	link := s.appURL + "/?setpw=" + tok
+	if err := s.mailer.Send(au.Email, "Almirante — defina sua senha (admin)", inviteHTML(au.Name, link)); err != nil {
+		fmt.Fprintf(os.Stderr, "bootstrap admin %s: email falhou (%v) — link manual: %s\n", email, err, link)
+	} else {
+		fmt.Fprintf(os.Stderr, "bootstrap admin %s: convite enviado por email\n", email)
+	}
 }
 
 func writeJSON(w http.ResponseWriter, code int, v any) {

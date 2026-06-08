@@ -114,6 +114,11 @@ func main() {
 	aud := audit.New(env("ALMIRANTE_AUDIT_FILE", "./audit-log.jsonl"))
 	srv := control.NewServer(cfg, store, aud, env("ALMIRANTE_DEV_TOKENS", "dev-demo-token:demo:operator"))
 
+	// 1o admin: sem usuarios + ALMIRANTE_BOOTSTRAP_ADMIN definido -> convida + email.
+	if admin := os.Getenv("ALMIRANTE_BOOTSTRAP_ADMIN"); admin != "" && srv.UsersCount() == 0 {
+		srv.BootstrapAdmin(admin)
+	}
+
 	sub, _ := fs.Sub(webFS, "web")
 	mux := http.NewServeMux()
 	mux.Handle("/api/", srv.Handler())
