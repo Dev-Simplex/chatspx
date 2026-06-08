@@ -11,19 +11,19 @@
     tailwind.config = {
       theme: { extend: {
         colors: {
-          ink:'#16181D', paper:'#F5F6F8', line:'#ECEEF2', mute:'#8A93A2',
-          coral:{ 50:'#FFF1ED',100:'#FFE2D8',200:'#FFC9B6',500:'#FF5A36',600:'#EE4421',700:'#C8360F' },
+          ink:'#1F1A1B', paper:'#FBF8F6', line:'#ECECEC', mute:'#717171',
+          coral:{ 50:'#FFF1F2',100:'#FFE0E2',200:'#FBC2C6',300:'#F58A92',400:'#F0535F',500:'#EE3744',600:'#EA1D2C',700:'#C41522',800:'#9E101B',900:'#7A0C15' },
         },
         fontFamily: { display:['"Bricolage Grotesque"','sans-serif'], sans:['"Hanken Grotesk"','system-ui','sans-serif'], mono:['"JetBrains Mono"','ui-monospace','monospace'] },
-        boxShadow: { soft:'0 2px 14px rgba(20,30,55,.06)', lift:'0 12px 30px rgba(20,30,55,.12)', glow:'0 8px 24px rgba(255,90,54,.35)' },
+        boxShadow: { soft:'0 1px 2px hsl(18 35% 28% / .06), 0 4px 12px hsl(18 35% 28% / .06)', lift:'0 2px 6px hsl(20 16% 11% / .06), 0 10px 26px hsl(355 83% 52% / .12)', glow:'0 12px 32px hsl(355 71% 42% / .28)' },
       } },
     }
   </script>
   <script src="./vendor/vue.global.prod.js"></script>
   <style>
-    body{ background:#F5F6F8; }
+    body{ background:#FBF8F6; }
     body::before{ content:''; position:fixed; inset:0; z-index:-1;
-      background:radial-gradient(900px 480px at 100% -5%, rgba(255,90,54,.06), transparent 60%), radial-gradient(700px 420px at -10% 8%, rgba(45,127,249,.05), transparent 60%); }
+      background:radial-gradient(900px 480px at 100% -5%, rgba(234,29,44,.06), transparent 60%), radial-gradient(700px 420px at -10% 8%, rgba(255,120,60,.05), transparent 60%); }
     @keyframes pop{ 0%{box-shadow:0 0 0 0 rgba(20,184,106,.5)} 70%{box-shadow:0 0 0 6px rgba(20,184,106,0)} 100%{box-shadow:0 0 0 0 rgba(20,184,106,0)} }
     .live{ animation:pop 2.4s ease-out infinite; }
     @keyframes rise{ from{opacity:0;transform:translateY(12px)} to{opacity:1;transform:none} }
@@ -171,7 +171,7 @@
 
           <!-- FROTA -->
           <div v-if="view==='frota'">
-            <div class="relative overflow-hidden rounded-3xl bg-gradient-to-br from-coral-500 to-coral-700 text-white p-7 mb-7 shadow-glow rise">
+            <div class="relative overflow-hidden rounded-3xl bg-gradient-to-br from-[#FF4E2B] to-[#EA1D2C] text-white p-8 mb-7 shadow-glow rise">
               <ic n="anchor-d" cls="absolute -right-4 -bottom-6 w-44 h-44 text-white/10"/>
               <div class="relative">
                 <div class="text-[11px] font-bold uppercase tracking-[.18em] text-white/80 flex items-center gap-1.5"><ic n="gauge" cls="w-4 h-4"/>Mission Control · ChatSPX</div>
@@ -218,8 +218,8 @@
                 </div>
               </div>
               <div class="flex gap-2 shrink-0">
-                <button @click="act(d.id,'approve')" class="press bg-emerald-500 hover:bg-emerald-600 text-white font-bold rounded-2xl px-5 py-3 text-sm flex items-center gap-2 shadow-soft"><ic n="check-circle" cls="w-5 h-5"/>Aprovar</button>
-                <button @click="act(d.id,'reject')" class="press border-2 border-line hover:border-rose-200 hover:text-rose-600 text-mute font-bold rounded-2xl px-4 py-3 text-sm flex items-center gap-2"><ic n="x-circle" cls="w-5 h-5"/>Rejeitar</button>
+                <button @click="act(d.id,'approve')" class="press bg-emerald-500 hover:bg-emerald-600 text-white font-bold rounded-full px-6 py-3 text-sm flex items-center gap-2 shadow-soft"><ic n="check-circle" cls="w-5 h-5"/>Aprovar</button>
+                <button @click="act(d.id,'reject')" class="press border-2 border-line hover:border-rose-200 hover:text-rose-600 text-mute font-bold rounded-full px-5 py-3 text-sm flex items-center gap-2"><ic n="x-circle" cls="w-5 h-5"/>Rejeitar</button>
               </div>
             </div>
           </div>
@@ -237,7 +237,7 @@
 
           <!-- TOKENS -->
           <div v-else-if="view==='tokens'">
-            <div class="flex justify-end mb-4"><button @click="newToken" class="press bg-coral-500 hover:bg-coral-600 text-white font-bold rounded-2xl px-4 py-2.5 text-sm flex items-center gap-2 shadow-glow"><ic n="plus" cls="w-4 h-4"/>Novo token</button></div>
+            <div class="flex justify-end mb-4"><button @click="newToken" class="press bg-coral-600 hover:bg-coral-700 text-white font-bold rounded-full px-5 py-2.5 text-sm flex items-center gap-2 shadow-glow"><ic n="plus" cls="w-4 h-4"/>Novo token</button></div>
             <div class="bg-white rounded-3xl shadow-soft overflow-hidden rise">
               <table class="w-full text-sm">
                 <thead class="text-mute text-[11px] uppercase tracking-wider font-bold bg-slate-50/60"><tr class="text-left"><th class="px-5 py-3.5">Dev</th><th>Papel</th><th>Dispositivo (PC)</th><th>Último acesso</th><th></th></tr></thead>
