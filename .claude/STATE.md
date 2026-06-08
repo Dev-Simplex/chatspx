@@ -11,6 +11,17 @@
 
 ## 🚧 Em andamento
 
+### [2026-06-08] 🟢 CONVERSA ÚNICA POR CONTATO — duplicatas de disparo CONSOLIDADAS (reply órfão resolvido)
+
+> **Reclamação:** leads que receberam disparo dias atrás e respondiam hoje apareciam **"Não atribuída", sem corretor e sem histórico**.
+
+- **Causa-raiz (diagnóstico com dados):** o `DisparoLeadJob` criava ficha (`ContactInbox`) com `source_id` no NOSSO formato (`BrazilPhoneNormalizer`, +9º dígito) e conversa nova via `Conversation.create!`. Pros números antigos, o **wa_id que o Meta entrega é a outra variante** (12d sem o 9). Aí o reply caía numa **ficha/conversa diferente** da do disparo → órfão; e a `AutomationRule #53 'iniciar zerado'` (event `conversation_opened`, inboxes 61/62/91, zera assignee+team) **desatribuía ao reabrir**. O `Whatsapp::PhoneNumberNormalizationService` (variantes 12d/13d) existe e é certo — o disparo é que **não o usava**. **275 contatos** ficaram com >1 conversa (203 com 2 fichas + 72 com 2 convs na mesma ficha).
+- **Decisão (com Paulo):** o SPX da Tozi exige **1 conversa por contato** (`lock_to_single`). Logo, **não** remendar roteamento (deixaria 2 convs) — **consolidar** (eliminar a duplicata) + **consertar a origem**. NÃO desativar a #53 (é consequência, não causa).
+- **🟢 FRENTE 2 — consolidação APLICADA + verificada (prod):** script `scripts/spx/tozi/consolida_conversas_duplicadas.rb`. Por contato: funde tudo na conversa com mais incoming (empate→mais recente), move msgs (`update_all`), atribui ao **corretor do disparo**, deixa **aberta**, migra `campaign_id`/`source`/`template`, apaga convs vazias + fichas duplicadas (`delete`/`update_columns`, sem callbacks/async, transação por contato). Validado com rollback em 1, depois rodado: **275 ok, 0 falhas, 810 msgs movidas, 298 convs + 203 fichas apagadas.** Pós-verificação: **0 contatos com >1 conversa/ficha**. SILMAR (exemplo): 1 ficha (`556699776106`) + 1 conversa aberta atribuída ao Bruno, 22 msgs (atendimento+HSM+follow-up+reply juntos). **Bônus:** o corretor agora **vê o histórico inteiro** (resolve o "sem histórico" da reclamação). **Bleeding parado** — replies agora roteiam certo sozinhos.
+- **🟡 FRENTE 1 — job consertado, COMMITADO LOCAL (`11b913531`), NÃO deployado.** `disparo_lead_job.rb`: `resolved_source_id` (usa `PhoneNumberNormalizationService` → reusa a ficha que o WhatsApp já usa) + `find_or_create_conversation` (reusa a conversa única, reabre+atribui; cria só se nunca existiu). **Impede o próximo disparo de re-duplicar.**
+  - ⚠️ **BLOQUEIO de deploy — DIVERGÊNCIA prod↔repo:** o job em prod (AWS, **124 linhas**) está **ATRÁS do repo** — **não tem** a lógica de inquilinos (`NO_BODY_VAR`/`INQ_IMAGE_URL`/`no_var_params` + chaves `tozi_inq_*`). Resíduo das múltiplas sessões. **NÃO transportar o arquivo inteiro** (clobberaria). Deploy de frente 1 = **patch cirúrgico in-place** (3 pontos: source_id + find_or_create + 2 helpers, baseline confere) + restart `chatwoot-worker.1`. Backup do job feito na AWS (`.bak.*`). `migrate:status` = **0 down** (restart seguro; ⚠️ contradiz o STATE que dizia a landmine `20260330120000` down — investigar se foi aplicada).
+  - **PENDENTE:** aval do Paulo pro patch cirúrgico + restart do worker. Não urgente (bleeding já parado; frente 1 só previne disparo futuro).
+
 ### [2026-06-05] 🔁 FOLLOW-UP re-engajamento (capacidade nova: HSM na conversa EXISTENTE)
 
 > Re-bater nos NÃO-RESPONDENTES da campanha 1 (lançamento/locação). Paulo: 600 total, corretores Lucas+Bruno.
