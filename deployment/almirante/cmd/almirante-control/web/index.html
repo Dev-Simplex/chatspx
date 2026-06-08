@@ -67,7 +67,8 @@
     ::-webkit-scrollbar{width:10px;height:10px} ::-webkit-scrollbar-thumb{background:#1E2A44;border-radius:6px;border:3px solid #080C14} ::-webkit-scrollbar-track{background:transparent}
     pre{font-family:'JetBrains Mono',monospace}
     [v-cloak]{display:none}
-    @media (prefers-reduced-motion: reduce){ .orb,.live,.rise,.card{ animation:none!important; transition:none!important } }
+    .hero-video{ z-index:0; }
+    @media (prefers-reduced-motion: reduce){ .orb,.live,.rise,.card{ animation:none!important; transition:none!important } .hero-video{ display:none } }
   </style>
 </head>
 <body class="font-sans antialiased text-t1">
@@ -289,7 +290,8 @@
             <!-- HERO cinematográfico -->
             <div class="relative overflow-hidden rounded-3xl p-8 mb-8 rise" style="border:1px solid rgba(56,189,248,.18); box-shadow:0 24px 60px rgba(2,6,18,.6), inset 0 1px 0 rgba(148,163,184,.12)">
               <div class="absolute inset-0" style="background:radial-gradient(120% 140% at 78% -20%, rgba(34,211,238,.22), transparent 55%), radial-gradient(90% 120% at 12% 120%, rgba(79,70,229,.28), transparent 55%), linear-gradient(180deg,#0E1730,#0A1120)"></div>
-              <ic n="anchor-d" cls="absolute right-2 -bottom-6 w-52 h-52 text-accent" style="opacity:.10"/>
+              <video class="hero-video absolute inset-0 w-full h-full object-cover" autoplay muted loop playsinline preload="auto"><source src="./hero.mp4" type="video/mp4"></video>
+              <div class="absolute inset-0" style="background:linear-gradient(90deg, rgba(8,12,20,.9) 0%, rgba(8,12,20,.6) 45%, rgba(8,12,20,.35) 100%)"></div>
               <div class="relative">
                 <div class="text-[11px] font-bold uppercase tracking-[.25em] text-accentsoft flex items-center gap-2"><ic n="gauge" cls="w-4 h-4"/>Mission Control · ChatSPX</div>
                 <h2 class="font-display font-extrabold text-[40px] leading-[1.05] mt-3 text-t1">{{ onlineCount }} de {{ fleet.length }}<br/>embarcações no ar</h2>
