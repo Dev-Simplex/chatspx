@@ -15,6 +15,8 @@ RUN apk add --no-cache git openssh-client ca-certificates tzdata && \
 WORKDIR /app
 COPY --from=build /out/almirante-control /usr/local/bin/almirante-control
 COPY fleet.json /app/fleet.json
+# /app/state (estado/known_hosts) e /app/secrets (creds montadas) graváveis pelo user nao-root
+RUN mkdir -p /app/state /app/secrets && chown -R almirante:almirante /app
 USER almirante
 EXPOSE 4100
 # Coolify: defina as ENV abaixo (secrets). Monte um volume em /app/state (estado/known_hosts).
