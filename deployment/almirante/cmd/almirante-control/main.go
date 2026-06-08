@@ -54,10 +54,17 @@ func main() {
 		fmt.Fprintln(os.Stderr, "ERRO fleet:", err)
 		os.Exit(1)
 	}
-	// creds por-VM: prioriza JSON inline (env, p/ Coolify) e cai pro arquivo.
+	// creds por-VM: prioriza BASE64 (env_file do Coolify nao expande $ em senhas),
+	// depois JSON inline, depois arquivo.
 	var perVM map[string]sshx.VMCred
 	var cerr error
-	if j := os.Getenv("ALMIRANTE_CREDS_JSON"); j != "" {
+	if b64 := os.Getenv("ALMIRANTE_CREDS_B64"); b64 != "" {
+		if dec, e := base64.StdEncoding.DecodeString(b64); e == nil {
+			perVM, cerr = sshx.ParseCreds(dec)
+		} else {
+			cerr = fmt.Errorf("ALMIRANTE_CREDS_B64 invalido: %w", e)
+		}
+	} else if j := os.Getenv("ALMIRANTE_CREDS_JSON"); j != "" {
 		perVM, cerr = sshx.ParseCreds([]byte(j))
 	} else {
 		perVM, cerr = sshx.LoadCreds(os.Getenv("ALMIRANTE_CREDS_FILE"))
