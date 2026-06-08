@@ -4,6 +4,16 @@
 # lint js and vue files
 npx --no-install lint-staged
 
+# audit Vue templates for missing useMapGetter references (CHAT-SPX prevention)
+if command -v python3 >/dev/null 2>&1 && [ -f bin/check_vue_template_refs.py ]; then
+  python3 bin/check_vue_template_refs.py --staged || {
+    echo ""
+    echo "Vue template references audit failed."
+    echo "Veja bin/check_vue_template_refs.py — declare o getter faltante no <script setup>."
+    exit 1
+  }
+fi
+
 # lint only staged ruby files that still exist (not deleted)
 git diff --name-only --cached | xargs -I {} sh -c 'test -f "{}" && echo "{}"' | grep '\.rb$' | xargs -I {} bundle exec rubocop --force-exclusion -a "{}" || true
 

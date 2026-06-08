@@ -6,6 +6,9 @@ class AddTrgmIndexToMessagesContent < ActiveRecord::Migration[7.1]
 
     return if index_exists?(:messages, :content, name: 'index_messages_on_content_trgm')
 
+    # CREATE INDEX CONCURRENTLY pode exceder statement_timeout em tabelas grandes
+    execute 'SET statement_timeout = 0'
+
     execute <<~SQL.squish
       CREATE INDEX CONCURRENTLY IF NOT EXISTS index_messages_on_content_trgm
         ON messages USING gin (content gin_trgm_ops)

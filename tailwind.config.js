@@ -67,6 +67,20 @@ const tailwindConfig = {
           'private-fg': 'var(--wa-composer-private-fg)',
           copilot: 'var(--wa-composer-copilot)',
         },
+        // Cores oficiais WhatsApp (drag-and-drop + preview modal)
+        wa: {
+          teal: '#00A884',
+          'teal-dark': '#008069',
+          'teal-medium': '#128C7E',
+          'pane-light': '#F0F2F5',
+          'pane-dark': '#0B141A',
+          'surface-light': '#FFFFFF',
+          'surface-dark': '#202C33',
+          'caption-bg-light': '#FFFFFF',
+          'caption-bg-dark': '#2A3942',
+          'text-muted': '#8696A0',
+          'text-secondary': '#667781',
+        },
       },
       fontFamily: {
         sans: defaultSansFonts,

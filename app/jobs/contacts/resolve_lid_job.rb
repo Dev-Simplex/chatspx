@@ -8,18 +8,24 @@ class Contacts::ResolveLidJob < ApplicationJob
   def perform(contact_inbox_id)
     contact_inbox = ContactInbox.find_by(id: contact_inbox_id)
     return if contact_inbox.blank?
-    return unless contact_inbox.source_id.to_s.end_with?('@lid')
+
+    contact = contact_inbox.contact
+    # Roda se o contact_inbox ainda tem LID OU se o proprio contato ainda
+    # carrega name/identifier com @lid (caso em que o contact_inbox ja foi
+    # parcialmente normalizado mas o contato ficou com lixo residual).
+    return unless needs_resolution?(contact_inbox, contact)
 
     inbox = contact_inbox.inbox
     session_name = inbox.waha_session_name
     return if session_name.blank?
 
-    waha_service = Waha::ApiService.new
-    pn = resolve_lid(waha_service, session_name, contact_inbox.source_id)
+    # Preferir JID ja capturado em custom_attributes (mais barato e confiavel)
+    pn = pn_from_custom_attributes(contact) || resolve_lid_via_waha(session_name, contact_inbox, contact)
 
     if pn.blank?
-      Rails.logger.info("[ResolveLidJob] LID #{contact_inbox.source_id} still unresolved (contact_inbox=#{contact_inbox_id})")
-      raise Waha::ApiService::Error, "LID not yet resolvable: #{contact_inbox.source_id}"
+      lid = contact_inbox.source_id.to_s.end_with?('@lid') ? contact_inbox.source_id : contact.identifier
+      Rails.logger.info("[ResolveLidJob] LID #{lid} still unresolved (contact_inbox=#{contact_inbox_id})")
+      raise Waha::ApiService::Error, "LID not yet resolvable: #{lid}"
     end
 
     normalized_phone = normalize_phone(pn)
@@ -30,6 +36,29 @@ class Contacts::ResolveLidJob < ApplicationJob
   end
 
   private
+
+  def needs_resolution?(contact_inbox, contact)
+    contact_inbox.source_id.to_s.end_with?('@lid') ||
+      contact.identifier.to_s.end_with?('@lid') ||
+      contact.name.to_s.end_with?('@lid')
+  end
+
+  # Se o webhook ja trouxe o JID em custom_attributes, evita rodar round-trip
+  # no WAHA e resolve inline.
+  def pn_from_custom_attributes(contact)
+    jid = contact.custom_attributes['waha_whatsapp_jid'].to_s
+    return nil unless jid.end_with?('@c.us')
+
+    jid
+  end
+
+  def resolve_lid_via_waha(session_name, contact_inbox, contact)
+    waha_service = Waha::ApiService.new
+    lid = contact_inbox.source_id.to_s.end_with?('@lid') ? contact_inbox.source_id : contact.identifier
+    return nil if lid.blank?
+
+    resolve_lid(waha_service, session_name, lid)
+  end
 
   def resolve_lid(waha_service, session_name, lid)
     response = waha_service.get_lid_phone_number(session_name, lid)
@@ -76,12 +105,17 @@ class Contacts::ResolveLidJob < ApplicationJob
 
         Rails.logger.info("[ResolveLidJob] Merged LID contact #{mergee_contact.id} into PN contact #{base_contact.id}")
       else
-        contact_inbox_by_lid.update!(source_id: pn)
+        contact_inbox_by_lid.update!(source_id: pn) if contact_inbox_by_lid.source_id.to_s.end_with?('@lid')
         contact = contact_inbox_by_lid.contact
-        contact.update!(phone_number: normalized_phone) if normalized_phone.present? && contact.phone_number.blank?
-        update_contact_name_from_phone(contact, normalized_phone) if contact.name.match?(/\A[a-z]+-[a-z]+-\d+\z/)
+        contact_updates = {}
+        contact_updates[:phone_number] = normalized_phone if normalized_phone.present? && contact.phone_number.blank?
+        # Limpa identifier residual com @lid (campo nao deve carregar LID pos-resolucao)
+        contact_updates[:identifier] = nil if contact.identifier.to_s.end_with?('@lid')
+        # Atualiza nome quando e o proprio LID ou placeholder de widget
+        contact_updates[:name] = normalized_phone || pn if contact.name.to_s.end_with?('@lid') || contact.name.to_s.match?(/\A[a-z]+-[a-z]+-\d+\z/)
+        contact.update!(contact_updates) if contact_updates.any?
 
-        Rails.logger.info("[ResolveLidJob] Updated LID #{contact_inbox_by_lid.source_id} to PN #{pn}")
+        Rails.logger.info("[ResolveLidJob] Resolved LID (contact_inbox=#{contact_inbox_by_lid.id}) to PN #{pn}")
       end
     end
   end

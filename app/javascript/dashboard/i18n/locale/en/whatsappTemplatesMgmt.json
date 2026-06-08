@@ -1,0 +1,79 @@
+{
+  "WHATSAPP_TEMPLATES_MGMT": {
+    "LIST": {
+      "TITLE": "Message templates",
+      "DESCRIPTION": "View, create and delete the WhatsApp Official API (HSM) templates for this inbox. New templates are submitted to Meta for approval.",
+      "SYNC": "Sync",
+      "NEW": "New template",
+      "EMPTY": "No templates yet. Create your first one.",
+      "LOAD_ERROR": "Could not load the templates.",
+      "SYNC_SUCCESS": "Templates synced.",
+      "SYNC_ERROR": "Could not sync the templates.",
+      "COL_NAME": "Name",
+      "COL_STATUS": "Status",
+      "COL_CATEGORY": "Category",
+      "COL_LANGUAGE": "Language"
+    },
+    "DELETE": {
+      "TITLE": "Delete template",
+      "MESSAGE": "Delete the template \"{name}\"? This removes it from Meta and cannot be undone.",
+      "CONFIRM": "Delete",
+      "SUCCESS": "Template deleted.",
+      "ERROR": "Could not delete the template."
+    },
+    "CREATE": {
+      "SUCCESS": "Template submitted for approval (PENDING).",
+      "ERROR": "Could not create the template."
+    },
+    "BUILDER": {
+      "TITLE": "New template",
+      "NAME": "Name",
+      "NAME_PLACEHOLDER": "e.g. lead opening",
+      "NAME_HINT": "Will be created as:",
+      "NAME_HINT_EMPTY": "Lowercase letters, numbers and underscore only.",
+      "CATEGORY": "Category",
+      "CATEGORY_UTILITY": "Utility",
+      "CATEGORY_MARKETING": "Marketing",
+      "CATEGORY_AUTHENTICATION": "Authentication",
+      "LANGUAGE": "Language",
+      "HEADER": "Header (optional)",
+      "HEADER_NONE": "None",
+      "HEADER_TEXT": "Text",
+      "HEADER_IMAGE": "Image",
+      "HEADER_VIDEO": "Video",
+      "HEADER_DOCUMENT": "Document",
+      "HEADER_TEXT_PLACEHOLDER": "Header text (you can use {'{{'}1{'}}'})",
+      "HEADER_EXAMPLE": "Example value for the header variable",
+      "HEADER_MEDIA_PLACEHOLDER": "Sample media URL (https://...)",
+      "HEADER_MEDIA_HINT": "A sample URL used by Meta during approval.",
+      "BODY": "Body",
+      "BODY_PLACEHOLDER": "Message text. Use {'{{'}1{'}}'}, {'{{'}2{'}}'}... for variables.",
+      "BODY_HINT": "Use {'{{'}1{'}}'}, {'{{'}2{'}}'} for variables.",
+      "BODY_EXAMPLES": "Example values for the variables",
+      "EXAMPLE_FOR": "Example for",
+      "FOOTER": "Footer (optional)",
+      "FOOTER_PLACEHOLDER": "Short footer text (no variables)",
+      "BUTTONS": "Buttons (optional)",
+      "BTN_QUICK_REPLY": "Quick reply",
+      "BTN_URL": "URL",
+      "BTN_PHONE": "Phone number",
+      "BTN_COPY_CODE": "Copy code",
+      "BTN_TEXT_PLACEHOLDER": "Button label",
+      "BTN_URL_EXAMPLE": "Example value for the URL variable",
+      "ADD_BUTTON": "Add button",
+      "REQUIRED": "Required",
+      "CANCEL": "Cancel",
+      "SUBMIT": "Submit for approval"
+    },
+    "PREVIEW": {
+      "TITLE": "Preview",
+      "VIEW": "Preview as WhatsApp",
+      "BUSINESS_FALLBACK": "Business",
+      "ONLINE": "online",
+      "IMAGE": "Image",
+      "VIDEO": "Video",
+      "DOCUMENT": "Document",
+      "BODY_PLACEHOLDER": "Your message will appear here..."
+    }
+  }
+}

@@ -329,6 +329,15 @@ GEM
     fcm (1.0.8)
       faraday (>= 1.0.0, < 3.0)
       googleauth (~> 1)
+    ferrum (0.17.2)
+      addressable (~> 2.5)
+      base64 (~> 0.2)
+      concurrent-ruby (~> 1.1)
+      webrick (~> 1.7)
+      websocket-driver (~> 0.7)
+    ferrum_pdf (3.1.0)
+      actionpack (>= 6.0.0)
+      ferrum (~> 0.15)
     ffi (1.17.2)
     ffi (1.17.2-arm64-darwin)
     ffi (1.17.2-x86_64-darwin)
@@ -1006,6 +1015,7 @@ GEM
       addressable (>= 2.8.0)
       crack (>= 0.3.2)
       hashdiff (>= 0.4.0, < 2.0.0)
+    webrick (1.9.2)
     websocket-driver (0.7.7)
       base64
       websocket-extensions (>= 0.1.0)
@@ -1069,6 +1079,7 @@ DEPENDENCIES
   faker
   faraday_middleware-aws-sigv4
   fcm
+  ferrum_pdf (~> 3.1)
   flag_shih_tzu
   foreman
   geocoder

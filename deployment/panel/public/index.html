@@ -190,6 +190,7 @@
               <span class="dot" :class="{'on':vm.status.online&&vm.active&&!vm.deploying,'off':!vm.status.online&&vm.active,'none':!vm.active,'dep':vm.deploying}"></span>
               <div class="vm-info">
                 <h3><span x-text="vm.name"></span><span class="tag" x-text="vm.label"></span>
+                  <template x-if="vm.fixedBranch"><span class="tag" style="background:var(--brand-l);color:var(--brand)" :title="'Branch travada em '+vm.fixedBranch" x-text="vm.fixedBranch"></span></template>
                   <template x-if="vm.deploying"><span class="tag tag-dep"><i data-lucide="loader-2" class="spinner" style="width:9px;height:9px"></i>Deploy</span></template>
                 </h3>
                 <div class="sub" x-text="vm.ip"></div>
@@ -275,7 +276,10 @@
       <div class="vm-sel-item" :class="{'sel':deployVMs.includes(vm.id),'dis':!vm.active}" @click="vm.active&&toggleDep(vm.id)">
         <div class="cb" :class="{'on':deployVMs.includes(vm.id)}"><template x-if="deployVMs.includes(vm.id)"><i data-lucide="check" style="width:11px;height:11px"></i></template></div>
         <span class="dot" :class="{'on':vm.status.online&&vm.active,'off':!vm.status.online&&vm.active,'none':!vm.active}" style="width:7px;height:7px"></span>
-        <div style="flex:1"><div style="font-size:13px;font-weight:500" x-text="vm.name"></div><div style="font-size:11px;color:var(--t3);font-family:'JetBrains Mono',monospace" x-text="vm.ip+' · '+vm.label"></div></div>
+        <div style="flex:1">
+          <div style="font-size:13px;font-weight:500;display:flex;align-items:center;gap:6px"><span x-text="vm.name"></span><template x-if="vm.fixedBranch"><span class="tag" style="background:var(--brand-l);color:var(--brand);font-size:9px" x-text="vm.fixedBranch"></span></template></div>
+          <div style="font-size:11px;color:var(--t3);font-family:'JetBrains Mono',monospace" x-text="vm.ip+' · '+vm.label+(vm.fixedBranch?' · branch fixa: '+vm.fixedBranch:'')"></div>
+        </div>
       </div>
     </template></div>
     <div style="display:flex;align-items:center;gap:8px;margin-bottom:4px">

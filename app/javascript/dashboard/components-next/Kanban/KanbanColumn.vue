@@ -379,7 +379,7 @@ const handleColumnObserved = async () => {
 
 .kanban-column-content {
   scrollbar-width: thin;
-  scrollbar-color: var(--n-weak) transparent;
+  scrollbar-color: rgb(var(--border-weak)) transparent;
 }
 
 .kanban-column-content::-webkit-scrollbar {
@@ -391,17 +391,17 @@ const handleColumnObserved = async () => {
 }
 
 .kanban-column-content::-webkit-scrollbar-thumb {
-  background-color: var(--n-weak);
+  background-color: rgb(var(--border-weak));
   border-radius: 3px;
 }
 
 .kanban-column-content::-webkit-scrollbar-thumb:hover {
-  background-color: var(--n-strong);
+  background-color: rgb(var(--border-strong));
 }
 
 :deep(.kanban-ghost) {
   opacity: 0.3;
-  border: 2px dashed var(--n-brand, #2dc46f);
+  border: 2px dashed #2dc46f;
   border-radius: 0.75rem;
   background: rgba(45, 196, 111, 0.05);
 }

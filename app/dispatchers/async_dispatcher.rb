@@ -11,6 +11,7 @@ class AsyncDispatcher < BaseDispatcher
   def listeners
     [
       AutomationRuleListener.instance,
+      Spx::Tozi::FunnelAutomationListener.instance,
       CampaignListener.instance,
       CsatSurveyListener.instance,
       NpsSurveyListener.instance,

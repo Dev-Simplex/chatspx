@@ -219,6 +219,126 @@ RSpec.describe Message do
       expect(conversation.first_reply_created_at).to be_nil
       expect(conversation.waiting_since).to eq conversation.created_at
     end
+
+    it 'normalizes nil content_attributes/additional_attributes to {} before validation' do
+      message = build(:message, message_type: :outgoing, conversation: conversation,
+                                content_attributes: nil, additional_attributes: nil)
+
+      expect { message.save! }.not_to raise_error
+      expect(message.content_attributes).to eq({})
+      expect(message.additional_attributes).to eq({})
+    end
+
+    it 'clears waiting_since for outgoing message when content_attributes was nil' do
+      message = build(:message, message_type: :outgoing, conversation: conversation,
+                                content_attributes: nil, additional_attributes: nil)
+      message.save!
+
+      expect(conversation.reload.waiting_since).to be_nil
+      expect(conversation.first_reply_created_at.to_i).to eq message.created_at.to_i
+    end
+
+    context 'with conversation status guard on set_waiting_since_on_incoming_message' do
+      it 'does not populate waiting_since when incoming arrives in resolved conversation (NPS regression)' do
+        conv = create(:conversation)
+        conv.update!(status: :resolved, waiting_since: nil)
+        # NpsSurveys::ReopenGuard impede o reopen, entao incoming chega em conversa resolved.
+        guard = instance_double(NpsSurveys::ReopenGuard, prevent_reopen?: true)
+        allow(NpsSurveys::ReopenGuard).to receive(:new).and_return(guard)
+
+        create(:message, message_type: :incoming, conversation: conv)
+
+        conv.reload
+        expect(conv.status).to eq('resolved')
+        expect(conv.waiting_since).to be_nil
+      end
+
+      it 'populates waiting_since when incoming arrives in pending conversation' do
+        conv = create(:conversation)
+        # Pending requer feature flag por inbox; forcamos via update_column para isolar o teste do guard.
+        conv.update_columns(status: 2, waiting_since: nil) # rubocop:disable Rails/SkipsModelValidations
+
+        message = create(:message, message_type: :incoming, conversation: conv)
+
+        conv.reload
+        # mark_pending_conversation_as_open_for_human_response pode reabrir; o que importa e que
+        # waiting_since foi setado (guard so bloqueia em resolved).
+        expect(conv.waiting_since).not_to be_nil
+        expect(conv.waiting_since.to_i).to eq message.created_at.to_i
+      end
+
+      it 'populates waiting_since when incoming arrives in snoozed conversation (after reopen)' do
+        conv = create(:conversation)
+        conv.update!(status: :snoozed, waiting_since: nil)
+
+        create(:message, message_type: :incoming, conversation: conv)
+
+        conv.reload
+        expect(conv.status).to eq('open')
+        expect(conv.waiting_since).not_to be_nil
+      end
+
+      it 'populates waiting_since when incoming arrives in open conversation with blank waiting_since' do
+        conv = create(:conversation)
+        conv.update!(waiting_since: nil)
+
+        message = create(:message, message_type: :incoming, conversation: conv)
+
+        conv.reload
+        expect(conv.status).to eq('open')
+        expect(conv.waiting_since).not_to be_nil
+        expect(conv.waiting_since.to_i).to eq message.created_at.to_i
+      end
+
+      it 'does not populate waiting_since for resolved+muted conversation' do
+        conv = create(:conversation)
+        conv.update!(status: :resolved, waiting_since: nil)
+        conv.mute!
+
+        create(:message, message_type: :incoming, conversation: conv)
+
+        conv.reload
+        expect(conv.status).to eq('resolved')
+        expect(conv.waiting_since).to be_nil
+      end
+    end
+  end
+
+  describe 'message create event with team_message_isolation' do
+    let(:account) { create(:account) }
+    let(:inbox) { create(:inbox, account: account) }
+    let(:team_a) { create(:team, account: account) }
+    let(:team_b) { create(:team, account: account) }
+    let(:conversation) { create(:conversation, account: account, inbox: inbox, team: team_a) }
+
+    before do
+      inbox.update!(team_message_isolation: true)
+      conversation.reload
+    end
+
+    it 'preserves first_reply_created_at after team reassignment' do
+      first_reply = create(:message, message_type: :outgoing, conversation: conversation, account: account, inbox: inbox)
+      original_time = conversation.reload.first_reply_created_at
+      expect(original_time).not_to be_nil
+
+      conversation.update!(team: team_b)
+      first_reply.update_column(:team_id, team_a.id) # rubocop:disable Rails/SkipsModelValidations
+
+      create(:message, message_type: :outgoing, conversation: conversation, account: account, inbox: inbox)
+
+      expect(conversation.reload.first_reply_created_at.to_i).to eq original_time.to_i
+    end
+
+    it 'does not bypass flood limit when conversation was multi-team' do
+      flood_limit = Limits.conversation_message_per_minute_limit
+      flood_limit.times { create(:message, message_type: :outgoing, conversation: conversation, account: account, inbox: inbox) }
+      conversation.update!(team: team_b)
+
+      overflow = build(:message, message_type: :outgoing, conversation: conversation, account: account, inbox: inbox)
+
+      expect(overflow.valid?).to be false
+      expect(overflow.errors[:base]).to include('Too many messages')
+    end
   end
 
   describe '#reopen_conversation' do

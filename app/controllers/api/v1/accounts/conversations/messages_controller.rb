@@ -63,6 +63,11 @@ class Api::V1::Accounts::Conversations::MessagesController < Api::V1::Accounts::
     @message = message
   rescue ActiveRecord::RecordInvalid, ActiveRecord::RecordNotFound, ArgumentError => e
     render_could_not_create_error(e.message)
+  rescue Rack::Timeout::RequestTimeoutException
+    # Synchronous WAHA lookup blew the 15s rack-timeout budget. Surface a friendly
+    # toast instead of a generic 500. The eager source_id backfill (SendReplyJob)
+    # should make this rescue rarely trigger.
+    render_could_not_create_error(I18n.t('errors.messages.update.timeout'))
   end
 
   def destroy

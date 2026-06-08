@@ -30,6 +30,12 @@
     "YES": "Sim",
     "NO": "Não"
   },
+  "GENERIC": {
+    "ERROR_BOUNDARY": {
+      "MESSAGE": "Ocorreu um erro ao carregar.",
+      "RETRY": "Tentar novamente"
+    }
+  },
   "ONBOARDING": {
     "TITLE": "Comece por aqui",
     "DISMISS": "Dispensar",

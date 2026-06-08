@@ -27,6 +27,7 @@ import MessageToast from './components-next/notifications/MessageToast.vue';
 import OnboardingChecklist from './components-next/Onboarding/OnboardingChecklist.vue';
 import PwaInstallPrompt from './components-next/PwaInstallPrompt/PwaInstallPrompt.vue';
 import PushPermissionPrompt from './components-next/PushPermissionPrompt/PushPermissionPrompt.vue';
+import MigrationBanner from './components-next/MigrationBanner/MigrationBanner.vue';
 import { Toaster } from 'vue-sonner';
 import 'vue-sonner/style.css';
 
@@ -46,6 +47,7 @@ export default {
     OnboardingChecklist,
     PwaInstallPrompt,
     PushPermissionPrompt,
+    MigrationBanner,
     Toaster,
   },
   setup() {
@@ -198,6 +200,7 @@ export default {
     <OnboardingChecklist v-if="currentAccountId" />
     <PwaInstallPrompt v-if="currentAccountId" />
     <PushPermissionPrompt v-if="currentAccountId" />
+    <MigrationBanner />
   </div>
   <LoadingState v-else />
   <Toaster

@@ -11,13 +11,11 @@ class ConversationBuilder
 
   def with_conversation_lock
     lock_key = "conv_builder:#{@contact_inbox.inbox_id}:#{@contact_inbox.contact_id}"
-    acquired = Redis::Alfred.set(lock_key, '1', nx: true, ex: 15)
+    # Lock TTL curto e abaixo do rack-timeout (15s) para evitar colisao
+    # quando um request que segura o lock e morto por timeout.
+    acquired = Redis::Alfred.set(lock_key, '1', nx: true, ex: 10)
 
-    unless acquired
-      # Another request is creating a conversation — wait briefly and return existing
-      sleep(0.5)
-      return look_up_exising_conversation
-    end
+    return look_up_exising_conversation unless acquired
 
     begin
       yield

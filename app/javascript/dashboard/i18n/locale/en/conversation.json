@@ -489,6 +489,10 @@
       "ERROR": "Failed to forward message"
     },
     "UNKNOWN_CONTACT": "Unknown Contact",
+    "REFERRAL": {
+      "FROM_AD": "Sent from an ad",
+      "OPEN_AD": "Open ad on Facebook"
+    },
     "FORWARDED": "Forwarded",
     "STARRED": "Starred",
     "STAR_SUCCESS": "Message starred successfully",
@@ -674,7 +678,13 @@
     "MULTIPLE": "{user} and {count} others are typing"
   },
   "COPILOT": {
-    "TRY_THESE_PROMPTS": "Try these prompts"
+    "TRY_THESE_PROMPTS": "Try these prompts",
+    "QUICK_ACTIONS": {
+      "SUMMARIZE": "Summarize",
+      "SUGGEST_REPLY": "Suggest reply",
+      "WHO_SHOULD": "Who should handle?",
+      "CONTACT_HISTORY": "Contact history"
+    }
   },
   "COPILOT_ONBOARDING": {
     "BADGE": "NEW",
@@ -842,21 +852,64 @@
     "BUTTON_LABEL": "Export PDF",
     "CONVERSATIONS_COUNT": "{count} conversations",
     "LIMIT_WARNING": "You selected {count} conversations but the maximum is {max}. Please select fewer conversations.",
+    "MULTI_WARNING": "{count} conversations selected. Only the first will be exported per request — repeat for the others.",
     "DATE_RANGE": "Period",
     "DATE_FROM": "From",
     "DATE_TO": "To",
     "DATE_TO_LABEL": "to",
     "DATE_HINT": "Leave empty to export all messages",
-    "INCLUDE_PRIVATE": "Include private notes",
+    "FILTERS_LABEL": "Which messages to include",
+    "INCLUDE_INCOMING": "Customer messages (incoming)",
+    "INCLUDE_OUTGOING": "Agent messages (outgoing)",
+    "INCLUDE_PRIVATE": "Private notes (internal)",
     "INCLUDE_PRIVATE_HINT": "Internal notes will be included in the PDF",
+    "INCLUDE_ACTIVITY": "System events (assignments, transfers, status)",
     "EXPORT_PDF": "Export PDF",
+    "DOWNLOAD": "Download PDF",
     "CANCEL": "Cancel",
+    "CLOSE": "Close",
+    "READY_TITLE": "PDF ready",
+    "READY_HINT": "Click the download button below to save your file.",
+    "TIMEOUT": "Generation is taking too long. Try again later or reduce the date range.",
     "SUCCESS": "PDF exported successfully",
     "ERROR": "Failed to export PDF",
     "PROGRESS": {
+      "QUEUED": "Queued for generation...",
       "FETCHING": "Fetching messages...",
       "LOADING_MESSAGES": "{count} messages loaded...",
-      "GENERATING": "Generating PDF..."
+      "GENERATING": "Generating PDF on the server..."
     }
+  },
+  "GLOBAL_DROP": {
+    "TITLE": "Drop files here to send",
+    "SUBTITLE": "Share files with the customer",
+    "ARIA_LABEL": "Drop zone — release to attach files"
+  },
+  "ATTACHMENT_PREVIEW": {
+    "CAPTION_PLACEHOLDER": "Add a caption...",
+    "SEND": "Send",
+    "CLOSE": "Close",
+    "ADD_MORE": "Add more",
+    "CROP": "Crop",
+    "DRAW": "Draw",
+    "ADD_TEXT": "Add text",
+    "REMOVE": "Remove",
+    "COUNTER": "{current} of {total}"
+  },
+  "IMAGE_EDITOR": {
+    "TITLE": "Edit image",
+    "CROP": "Crop",
+    "DRAW": "Draw",
+    "TEXT": "Text",
+    "ROTATE_LEFT": "Rotate left",
+    "ROTATE_RIGHT": "Rotate right",
+    "FLIP_H": "Flip horizontal",
+    "FLIP_V": "Flip vertical",
+    "RESET": "Reset",
+    "UNDO": "Undo",
+    "CLEAR": "Clear",
+    "ERASER": "Eraser",
+    "APPLY": "Apply",
+    "CANCEL": "Cancel"
   }
 }

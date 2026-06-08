@@ -27,9 +27,21 @@ class SendReplyJob < ApplicationJob
     return unless service_class
 
     service_class.new(message: message).perform
+    schedule_waha_status_sync(message)
   end
 
   private
+
+  # Eager backfill of source_id (WAHA message id) so subsequent edits skip the
+  # blocking WAHA API lookup. WAHA's outbound POST does not return the message
+  # id synchronously; this job pulls the recent chat history and matches by
+  # content + timestamp. Idempotent: no-op when source_id is already present.
+  def schedule_waha_status_sync(message)
+    inbox = message.conversation.inbox
+    return unless inbox.channel_type == 'Channel::Api' && inbox.waha_session_name.present?
+
+    Waha::MessageStatusSyncJob.set(wait: 10.seconds).perform_later(message.conversation_id)
+  end
 
   def send_on_facebook_page(message)
     if message.conversation.additional_attributes['type'] == 'instagram_direct_message'

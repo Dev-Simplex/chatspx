@@ -364,7 +364,6 @@ export default {
     <ExportConversationModal
       :show="showExportModal"
       :conversations="currentChat?.id ? [currentChat] : []"
-      :contact="contact"
       @close="showExportModal = false"
     />
     <woot-delete-modal

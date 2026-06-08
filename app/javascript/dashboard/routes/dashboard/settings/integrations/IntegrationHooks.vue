@@ -4,6 +4,7 @@ import { mapGetters } from 'vuex';
 import { useAlert } from 'dashboard/composables';
 import { useIntegrationHook } from 'dashboard/composables/useIntegrationHook';
 import NewHook from './NewHook.vue';
+import EditHook from './EditHook.vue';
 import SingleIntegrationHooks from './SingleIntegrationHooks.vue';
 import MultipleIntegrationHooks from './MultipleIntegrationHooks.vue';
 import SettingsLayout from '../SettingsLayout.vue';
@@ -12,6 +13,7 @@ import BaseSettingsHeader from '../components/BaseSettingsHeader.vue';
 export default {
   components: {
     NewHook,
+    EditHook,
     SingleIntegrationHooks,
     MultipleIntegrationHooks,
     SettingsLayout,
@@ -44,8 +46,10 @@ export default {
     return {
       loading: {},
       showAddHookModal: false,
+      showEditHookModal: false,
       showDeleteConfirmationPopup: false,
       selectedHook: {},
+      hookToEdit: {},
       alertMessage: '',
     };
   },
@@ -85,6 +89,14 @@ export default {
     },
     hideAddHookModal() {
       this.showAddHookModal = false;
+    },
+    openEditHookModal(hook) {
+      this.hookToEdit = hook;
+      this.showEditHookModal = true;
+    },
+    hideEditHookModal() {
+      this.showEditHookModal = false;
+      this.hookToEdit = {};
     },
     openDeletePopup(response) {
       this.showDeleteConfirmationPopup = true;
@@ -132,6 +144,7 @@ export default {
             :integration-id="integrationId"
             :show-add-button="showAddButton"
             @add="openAddHookModal"
+            @edit="openEditHookModal"
             @delete="openDeletePopup"
           />
         </div>
@@ -140,6 +153,7 @@ export default {
           <SingleIntegrationHooks
             :integration-id="integrationId"
             @add="openAddHookModal"
+            @edit="openEditHookModal"
             @delete="openDeletePopup"
           />
         </div>
@@ -147,6 +161,15 @@ export default {
     </template>
     <woot-modal v-model:show="showAddHookModal" :on-close="hideAddHookModal">
       <NewHook :integration-id="integrationId" @close="hideAddHookModal" />
+    </woot-modal>
+
+    <woot-modal v-model:show="showEditHookModal" :on-close="hideEditHookModal">
+      <EditHook
+        v-if="showEditHookModal"
+        :integration-id="integrationId"
+        :hook="hookToEdit"
+        @close="hideEditHookModal"
+      />
     </woot-modal>
 
     <woot-delete-modal

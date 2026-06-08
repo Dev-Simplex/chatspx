@@ -1,6 +1,7 @@
 {
-  "version": "5.0.4",
+  "version": "5.0.8",
   "installedAt": "2026-04-15T12:47:25.198Z",
+  "updatedAt": "2026-05-13T12:55:00.000Z",
   "mode": "project-development",
   "fileHashes": {
     "core/README.md": "sha256:d77dfc5392d7f486fc96bc282b0f82d85afb7850612199853e49c3ded89f9562",

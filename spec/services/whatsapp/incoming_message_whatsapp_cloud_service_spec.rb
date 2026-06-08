@@ -107,6 +107,77 @@ describe Whatsapp::IncomingMessageWhatsappCloudService do
       end
     end
 
+    context 'when message has a click-to-whatsapp referral' do
+      let(:referral_params) do
+        {
+          phone_number: whatsapp_channel.phone_number,
+          object: 'whatsapp_business_account',
+          entry: [{
+            changes: [{
+              value: {
+                contacts: [{ profile: { name: 'CTWA Lead' }, wa_id: '5566900000001' }],
+                messages: [{
+                  referral: {
+                    source_url: 'https://fb.me/test',
+                    source_id: 'ad-001',
+                    source_type: 'ad',
+                    headline: 'Apartamento 2 quartos',
+                    body: 'A partir de R$ 1.500/mes',
+                    media_type: 'image',
+                    image_url: 'https://example.com/ad.png'
+                  },
+                  from: '5566900000001',
+                  id: 'wamid.CTWA_MESSAGE_ID',
+                  timestamp: '1770407829',
+                  text: { body: 'Ola! Tenho interesse.' },
+                  type: 'text'
+                }]
+              }
+            }]
+          }]
+        }.with_indifferent_access
+      end
+
+      it 'preserves the referral object inside content_attributes' do
+        described_class.new(inbox: whatsapp_channel.inbox, params: referral_params).perform
+
+        message = whatsapp_channel.inbox.messages.last
+        expect(message.content_attributes['referral']).to be_present
+        expect(message.content_attributes['referral']['source_url']).to eq('https://fb.me/test')
+        expect(message.content_attributes['referral']['headline']).to eq('Apartamento 2 quartos')
+      end
+    end
+
+    context 'when message has no referral (regression)' do
+      let(:plain_text_params) do
+        {
+          phone_number: whatsapp_channel.phone_number,
+          object: 'whatsapp_business_account',
+          entry: [{
+            changes: [{
+              value: {
+                contacts: [{ profile: { name: 'Regular Lead' }, wa_id: '5566900000002' }],
+                messages: [{
+                  from: '5566900000002',
+                  id: 'wamid.PLAIN_MESSAGE_ID',
+                  timestamp: '1770407830',
+                  text: { body: 'Ola, tudo bem?' },
+                  type: 'text'
+                }]
+              }
+            }]
+          }]
+        }.with_indifferent_access
+      end
+
+      it 'does not add a referral key to content_attributes' do
+        described_class.new(inbox: whatsapp_channel.inbox, params: plain_text_params).perform
+
+        message = whatsapp_channel.inbox.messages.last
+        expect(message.content_attributes).not_to have_key('referral')
+      end
+    end
+
     context 'when message is a reply (has context)' do
       let(:reply_params) do
         {

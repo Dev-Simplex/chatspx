@@ -1,0 +1,110 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8"/>
+  <title>Histórico - <%= @contact_name %> - Conversa #<%= @conversation.display_id %></title>
+  <style>
+    @page { size: A4; margin: 14mm 12mm 18mm 12mm; }
+    * { box-sizing: border-box; }
+    body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif; font-size: 11.5px; color: #2b2b2b; line-height: 1.5; margin: 0; padding: 0; background: #fff; }
+    h1 { font-size: 19px; margin: 0 0 4px; color: #1a73e8; }
+    h2 { font-size: 13px; margin: 16px 0 8px; color: #555; border-bottom: 1px solid #ddd; padding-bottom: 4px; }
+    .subtitle { color: #666; font-size: 11px; margin-bottom: 8px; }
+    table.meta { border-collapse: collapse; margin: 8px 0 14px; width: 100%; font-size: 11px; }
+    table.meta th { text-align: left; padding: 4px 8px; background: #f4f6f8; width: 28%; border: 1px solid #e0e0e0; font-weight: 600; }
+    table.meta td { padding: 4px 8px; border: 1px solid #e0e0e0; }
+    .message { border: 1px solid #e8e8e8; border-radius: 7px; padding: 7px 10px; margin: 5px 0; page-break-inside: avoid; background: #fff; position: relative; }
+    .message--incoming { background: #f0f4ff; border-color: #d6dcf0; }
+    .message--outgoing { background: #e8f5e9; border-color: #c5e1c8; }
+    .message--activity { background: #fafafa; font-style: italic; color: #666; border-style: dashed; }
+    .message--private  { background: #fff7e0; border-color: #f0c97a; }
+    .message__header { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; font-size: 10.5px; color: #555; margin-bottom: 4px; }
+    .bates { display: inline-block; background: #1a73e8; color: #fff; padding: 1px 6px; border-radius: 3px; font-weight: 700; font-size: 9.5px; margin-right: 4px; font-family: 'Courier New', monospace; }
+    .message__sender { font-weight: 600; color: #222; }
+    .message__date { color: #888; }
+    .message__content { white-space: pre-wrap; word-wrap: break-word; color: #1a1a1a; }
+    .attachment { margin: 4px 0; font-size: 10.5px; padding: 4px 6px; background: rgba(0,0,0,0.025); border-radius: 4px; border-left: 3px solid #bbb; }
+    .attachment a { color: #1a73e8; word-break: break-all; }
+    .attachment img { max-width: 100%; max-height: 380px; border-radius: 5px; display: block; margin-top: 5px; border: 1px solid #ddd; }
+    .badge { display: inline-block; padding: 1px 6px; border-radius: 10px; font-size: 8.5px; font-weight: 700; letter-spacing: 0.4px; text-transform: uppercase; }
+    .badge--private { background: #ffb74d; color: #fff; }
+    .badge--activity { background: #bdbdbd; color: #fff; }
+    .audit { page-break-before: always; }
+    .audit table { width: 100%; border-collapse: collapse; font-size: 10.5px; margin-top: 8px; }
+    .audit th, .audit td { padding: 5px 8px; border: 1px solid #e0e0e0; text-align: left; vertical-align: top; }
+    .audit th { background: #f4f6f8; width: 30%; }
+    .audit .disclaimer { margin-top: 18px; padding: 10px; background: #fffbea; border-left: 4px solid #fbbf24; font-size: 10px; color: #5b4500; line-height: 1.5; }
+    .hash-block { font-family: 'Courier New', monospace; font-size: 9px; word-break: break-all; background: #f3f4f6; padding: 6px; border-radius: 4px; border: 1px solid #e0e0e0; }
+  </style>
+</head>
+<body>
+  <h1>Histórico de Conversa</h1>
+  <div class="subtitle">Documento gerado para fins de comprovação · Chat SPX · Simplex Soluções</div>
+
+  <h2>Identificação</h2>
+  <table class="meta">
+    <tr><th>Conversa</th><td>#<%= @conversation.display_id %> (id interno <%= @conversation.id %>)</td></tr>
+    <tr><th>Contato</th><td><%= @contact_name %><%= @contact.phone_number.present? ? " (#{@contact.phone_number})" : '' %></td></tr>
+    <% if @contact.email.present? %><tr><th>Email do contato</th><td><%= @contact.email %></td></tr><% end %>
+    <tr><th>Inbox</th><td><%= @inbox&.name %></td></tr>
+    <tr><th>Conta</th><td><%= @account.name %></td></tr>
+    <tr><th>Status</th><td><%= @conversation.status %></td></tr>
+    <tr><th>Criada em</th><td><%= fmt_dt(@conversation.created_at) %></td></tr>
+    <tr><th>Última mensagem</th><td><%= fmt_dt(@messages.last&.created_at) %></td></tr>
+    <tr><th>Mensagens incluídas</th><td><%= @messages.size %> de <%= @total_messages %> total</td></tr>
+    <tr><th>Filtros aplicados</th><td><%= filters_summary(@filters) %></td></tr>
+  </table>
+
+  <h2>Mensagens (<%= @messages.size %>)</h2>
+  <% @messages.each_with_index do |msg, idx| %>
+    <div class="<%= msg_css_class(msg) %>">
+      <div class="message__header">
+        <span class="bates">#<%= idx + 1 %></span>
+        <span class="message__sender"><%= sender_label(msg) %></span>
+        <span class="message__date"><%= fmt_dt(msg.created_at) %></span>
+        <% if msg.private %><span class="badge badge--private">Nota privada</span><% end %>
+        <% if msg.activity? %><span class="badge badge--activity">Sistema</span><% end %>
+      </div>
+      <% if msg.content.present? %>
+        <div class="message__content"><%= ChatwootMarkdownRenderer.new(msg.content).render_message %></div>
+      <% end %>
+      <% if msg.attachments.any? %>
+        <div class="message__attachments">
+          <% msg.attachments.each do |att| %>
+            <%= render_attachment(att).html_safe %>
+          <% end %>
+        </div>
+      <% end %>
+    </div>
+  <% end %>
+
+  <% if @messages.empty? %>
+    <p style="color:#888;font-style:italic;">Nenhuma mensagem após aplicar os filtros selecionados.</p>
+  <% end %>
+
+  <div class="audit">
+    <h2>Trilha de Auditoria</h2>
+    <p style="font-size:11px;color:#666;">Esta página registra quem solicitou a exportação, quando, sob que critérios e a partir de qual sistema. Faz parte da cadeia de custódia documental.</p>
+    <table>
+      <tr><th>Solicitado por</th><td><%= @audit_meta['requester_name'] %> &lt;<%= @audit_meta['requester_email'] %>&gt;</td></tr>
+      <tr><th>ID do usuário</th><td><%= @audit_meta['requester_user_id'] %></td></tr>
+      <tr><th>Account ID</th><td><%= @account.id %></td></tr>
+      <tr><th>Conversa</th><td>#<%= @conversation.display_id %> (id interno <%= @conversation.id %>)</td></tr>
+      <tr><th>Endereço IP</th><td><%= @audit_meta['ip'] || 'n/d' %></td></tr>
+      <tr><th>User-agent</th><td style="font-family:monospace;font-size:10px;"><%= @audit_meta['user_agent'] || 'n/d' %></td></tr>
+      <tr><th>Filtros aplicados</th><td><%= filters_summary(@filters) %></td></tr>
+      <tr><th>Mensagens incluídas</th><td><%= @messages.size %> de <%= @total_messages %> totais na conversa</td></tr>
+      <tr><th>ID do export</th><td><%= @export_id %></td></tr>
+      <tr><th>Sistema gerador</th><td>Chat SPX (chat.simplexsolucoes.com.br) · ferrum_pdf 3.1 · Chromium headless</td></tr>
+      <tr><th>Gerado em</th><td><%= fmt_dt(@generated_at) %> (<%= Time.zone.name %>)</td></tr>
+    </table>
+
+    <div class="disclaimer">
+      <strong>Validação de integridade:</strong> o rodapé de cada página contém o hash SHA-256 completo deste documento.
+      Qualquer alteração no PDF (mesmo de 1 byte) altera o hash. Para validar manualmente, baixe o arquivo original e execute
+      <code>sha256sum arquivo.pdf</code> — o valor deve corresponder ao apresentado no rodapé. Este documento foi gerado
+      eletronicamente pelo sistema Chat SPX a pedido do usuário identificado acima.
+    </div>
+  </div>
+</body>
+</html>

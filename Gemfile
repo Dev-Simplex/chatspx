@@ -156,6 +156,9 @@ gem 'email_reply_trimmer'
 
 gem 'html2text'
 
+# server-side PDF rendering via Chromium (Ferrum CDP, no Node required)
+gem 'ferrum_pdf', '~> 3.1'
+
 # to calculate working hours
 gem 'working_hours'
 

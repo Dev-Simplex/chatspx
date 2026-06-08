@@ -36,6 +36,8 @@ module Redis::RedisKeys
   # Check if a message create with same source-id is in progress?
   MESSAGE_SOURCE_KEY = 'MESSAGE_SOURCE_KEY::%<id>s'.freeze
   OPENAI_CONVERSATION_KEY = 'OPEN_AI_CONVERSATION_KEY::V1::%<event_name>s::%<conversation_id>d::%<updated_at>d'.freeze
+  CAPTAIN_DEBOUNCE_TOKEN = 'CAPTAIN_DEBOUNCE::%<conversation_id>d::%<assistant_id>d'.freeze
+  CAPTAIN_DEDUP_KEY = 'CAPTAIN_DEDUP::%<assistant_id>d::%<hash>s'.freeze
 
   ## Sempahores / Locks
   # We don't want to process messages from the same sender concurrently to prevent creating double conversations

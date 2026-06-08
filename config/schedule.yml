@@ -70,6 +70,15 @@ waha_refresh_groups_job:
   class: 'Waha::RefreshGroupsJob'
   queue: low
 
+# executed every 5 minutes
+# safety net for WAHA freeze #1482: re-inject inbound messages that never
+# reached Chatwoot. NO-OP unless ENV WAHA_RECONCILER_ENABLED is truthy.
+# Enable in homologacao first — can duplicate messages if dedup fails.
+waha_inbound_reconciler_job:
+  cron: '*/5 * * * *'
+  class: 'Waha::InboundReconcilerJob'
+  queue: low
+
 # executed weekly on Sunday at 03:00 UTC
 # purge orphan ActiveStorage blobs (no attachment, older than 7 days)
 purge_orphan_blobs_job:

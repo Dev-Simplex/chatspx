@@ -9,6 +9,10 @@ class Api::V1::Accounts::CampaignsController < Api::V1::Accounts::BaseController
 
   def show; end
 
+  def stats
+    render json: campaign_stats
+  end
+
   def create
     @campaign = Current.account.campaigns.create!(campaign_params)
   end
@@ -31,5 +35,53 @@ class Api::V1::Accounts::CampaignsController < Api::V1::Accounts::BaseController
   def campaign_params
     params.require(:campaign).permit(:title, :description, :message, :enabled, :trigger_only_during_business_hours, :inbox_id, :sender_id,
                                      :scheduled_at, audience: [:type, :id], trigger_rules: {}, template_params: {})
+  end
+
+  # Agregado read-only de um disparo ancorado nesta campanha (conversas linkadas por
+  # campaign_id + status das mensagens-template). Generico: vale pra qualquer campanha
+  # WhatsApp cujo orquestrador grave campaign_id nas conversas.
+  def campaign_stats # rubocop:disable Metrics/AbcSize, Metrics/MethodLength
+    conv_ids = @campaign.conversations.pluck(:id)
+    total = conv_ids.size
+
+    outgoing = Message.where(conversation_id: conv_ids, message_type: :outgoing)
+                      .where("messages.additional_attributes -> 'template_params' ->> 'name' IS NOT NULL")
+    by_status = outgoing.reorder(nil).group(:status).count
+    sent = by_status['sent'].to_i
+    delivered = by_status['delivered'].to_i
+    read = by_status['read'].to_i
+    failed = by_status['failed'].to_i
+    reached = sent + delivered + read
+
+    replied = Message.where(conversation_id: conv_ids, message_type: :incoming, private: false)
+                     .where.not(content: [nil, '']).reorder(nil).distinct.count(:conversation_id)
+
+    dist = Conversation.where(id: conv_ids).where.not(assignee_id: nil).reorder(nil).group(:assignee_id).count
+    agent_names = User.where(id: dist.keys).pluck(:id, :name).to_h
+    distribution = dist.map { |aid, n| { id: aid, name: agent_names[aid] || "##{aid}", count: n } }
+                       .sort_by { |h| -h[:count] }
+
+    codes = Hash.new(0)
+    outgoing.where(status: :failed).find_each { |m| codes[m.external_error.to_s[/\A\d+/] || 'outro'] += 1 }
+    failures = codes.map { |code, n| { code: code, count: n } }.sort_by { |h| -h[:count] }
+
+    recent = Conversation.where(id: conv_ids).includes(:contact, :assignee)
+                         .reorder(last_activity_at: :desc).limit(15).map do |conversation|
+      last_in = Message.where(conversation_id: conversation.id, message_type: :incoming, private: false)
+                       .where.not(content: [nil, '']).reorder(created_at: :desc).first
+      {
+        id: conversation.display_id, name: conversation.contact&.name, status: conversation.status,
+        agent: conversation.assignee&.name, last_reply: last_in&.content.to_s[0, 80],
+        last_activity_at: conversation.last_activity_at
+      }
+    end
+
+    {
+      campaign: { display_id: @campaign.display_id, title: @campaign.title, status: @campaign.campaign_status },
+      total: total, reached: reached, sent: sent, delivered: delivered, read: read, failed: failed, replied: replied,
+      delivery_rate: total.zero? ? 0 : (reached.to_f / total * 100).round(1),
+      read_rate: reached.zero? ? 0 : (read.to_f / reached * 100).round(1),
+      distribution: distribution, failures: failures, recent: recent
+    }
   end
 end
