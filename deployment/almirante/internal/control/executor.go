@@ -43,12 +43,20 @@ func (e Executor) Status(ctx context.Context, id string) (types.HostStatus, erro
 	if e.Cfg.Mock {
 		return mock.HostStatus(id, v.Branch), nil
 	}
-	out, err := sshx.RunAlmiranted(ctx, e.Cfg.SSH, v, []string{"current"})
-	if err != nil {
-		fmt.Fprintf(os.Stderr, "[ssh %s] current falhou: %v\n", id, err)
+	// Retry: o 1o `current` pode voltar vazio (login-shell `bash -lc` frio na VM).
+	// Re-tenta ate 3x — a chamada aquece a VM e o SHA estabiliza.
+	var out string
+	var err2 error
+	for try := 1; try <= 3; try++ {
+		out, err2 = sshx.RunAlmiranted(ctx, e.Cfg.SSH, v, []string{"current"})
+		if err2 == nil && strings.TrimSpace(out) != "" {
+			break
+		}
+		fmt.Fprintf(os.Stderr, "[ssh %s] current tentativa %d: err=%v out=%q\n", id, try, err2, strings.TrimSpace(out))
+	}
+	if err2 != nil {
 		return types.HostStatus{VM: id, Online: false}, nil
 	}
-	fmt.Fprintf(os.Stderr, "[ssh %s] current ok: %q\n", id, strings.TrimSpace(out))
 	return types.HostStatus{VM: id, Online: true, Commit: strings.TrimSpace(out), Branch: v.Branch}, nil
 }
 
