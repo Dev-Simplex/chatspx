@@ -82,6 +82,21 @@ func main() {
 		}
 		fmt.Fprintf(os.Stderr, "known_hosts materializado: %d bytes em %s\n", len(data), khPath)
 	}
+	// chave de transporte (AWS, auth=key) via base64: env_file expande $; base64 e seguro.
+	keyPath := os.Getenv("ALMIRANTE_TRANSPORT_KEY_PATH")
+	if kb64 := os.Getenv("ALMIRANTE_TRANSPORT_KEY_B64"); kb64 != "" {
+		if dec, e := base64.StdEncoding.DecodeString(kb64); e == nil {
+			keyPath = filepath.Join(env("ALMIRANTE_STATE_DIR", "./state"), "transport_key")
+			_ = os.MkdirAll(filepath.Dir(keyPath), 0o700)
+			if werr := os.WriteFile(keyPath, dec, 0o600); werr != nil {
+				fmt.Fprintln(os.Stderr, "aviso transport_key:", werr)
+			} else {
+				fmt.Fprintf(os.Stderr, "transport_key materializada: %d bytes em %s\n", len(dec), keyPath)
+			}
+		} else {
+			fmt.Fprintln(os.Stderr, "aviso: ALMIRANTE_TRANSPORT_KEY_B64 invalido")
+		}
+	}
 	cfg := control.Config{
 		Mock:          env("ALMIRANTE_MOCK", "1") == "1",
 		Fleet:         f,
@@ -89,7 +104,7 @@ func main() {
 		MergeCloneDir: env("ALMIRANTE_MERGE_DIR", "/home/chatwoot/almirante-merge"),
 		RepoURL:       env("ALMIRANTE_REPO_URL", "https://github.com/Dev-Simplex/chatspx.git"),
 		SSH: sshx.Config{
-			KeyPath:        os.Getenv("ALMIRANTE_TRANSPORT_KEY_PATH"),
+			KeyPath:        keyPath,
 			Password:       os.Getenv("ALMIRANTE_TRANSPORT_PASSWORD"),
 			KnownHostsPath: khPath,
 			PerVM:          perVM,
