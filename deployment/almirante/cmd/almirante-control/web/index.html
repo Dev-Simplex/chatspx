@@ -4,6 +4,7 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Almirante — Comando da Frota</title>
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Ccircle cx='12' cy='12' r='11' fill='%23FF5A36'/%3E%3C/svg%3E" />
   <link rel="stylesheet" href="./vendor/fonts/fonts.css" />
   <script src="./vendor/tailwind.js"></script>
   <script>
@@ -101,18 +102,18 @@
           msg.value='';
           try {
             fleet.value = (await api('/fleet')).vms || [];
-            deploys.value = await api('/deploys');
+            deploys.value = (await api('/deploys')) || [];
             for (const vm of fleet.value)
               api('/vms/'+vm.id+'/status').then(s=>{ status[vm.id]=s; }).catch(()=>{ status[vm.id]={online:false}; });
           } catch(e){ msg.value=e.message; }
         };
-        const pending = computed(()=> deploys.value.filter(d=>d.status==='pending'));
-        const recent = computed(()=> deploys.value.filter(d=>d.status!=='pending').slice(0,12));
+        const pending = computed(()=> (deploys.value||[]).filter(d=>d.status==='pending'));
+        const recent = computed(()=> (deploys.value||[]).filter(d=>d.status!=='pending').slice(0,12));
         const byEnv = computed(()=>{ const g={}; for (const v of fleet.value) (g[v.env]=g[v.env]||[]).push(v); return g; });
         const onlineCount = computed(()=> fleet.value.filter(v=> status[v.id] && status[v.id].online).length);
 
         const act = async (id, action) => { try{ await api('/deploys/'+id+'/'+action,{method:'POST'}); await refresh(); }catch(e){ msg.value=e.message; } };
-        const loadTokens = async () => { try{ tokens.value = await api('/tokens'); }catch(e){ msg.value=e.message; } };
+        const loadTokens = async () => { try{ tokens.value = (await api('/tokens')) || []; }catch(e){ msg.value=e.message; } };
         const newToken = async () => {
           const name=prompt('Nome do dev:'); if(!name) return;
           const role=prompt('Papel (viewer / operator / admin):','operator')||'operator';
