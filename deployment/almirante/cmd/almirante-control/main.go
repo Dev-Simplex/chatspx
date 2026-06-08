@@ -5,6 +5,7 @@ package main
 
 import (
 	"embed"
+	"encoding/base64"
 	"fmt"
 	"io/fs"
 	"net/http"
@@ -35,6 +36,18 @@ func env(k, def string) string {
 	return def
 }
 
+// knownHostsData devolve o conteudo do known_hosts vindo por env. Prefere BASE64
+// (linha unica, sobrevive ao env_file do Coolify); cai pro texto cru (_DATA) p/ uso local.
+func knownHostsData() string {
+	if b64 := os.Getenv("ALMIRANTE_KNOWN_HOSTS_B64"); b64 != "" {
+		if dec, err := base64.StdEncoding.DecodeString(b64); err == nil {
+			return string(dec)
+		}
+		fmt.Fprintln(os.Stderr, "aviso: ALMIRANTE_KNOWN_HOSTS_B64 invalido")
+	}
+	return os.Getenv("ALMIRANTE_KNOWN_HOSTS_DATA")
+}
+
 func main() {
 	f, err := fleet.Load(env("ALMIRANTE_FLEET_FILE", "fleet.json"))
 	if err != nil {
@@ -54,12 +67,13 @@ func main() {
 	}
 	// known_hosts: se vier inline por env (Coolify), materializa em arquivo no boot.
 	khPath := env("ALMIRANTE_KNOWN_HOSTS", os.Getenv("HOME")+"/.almirante/known_hosts")
-	if data := os.Getenv("ALMIRANTE_KNOWN_HOSTS_DATA"); data != "" {
+	if data := knownHostsData(); data != "" {
 		khPath = filepath.Join(env("ALMIRANTE_STATE_DIR", "./state"), "known_hosts")
 		_ = os.MkdirAll(filepath.Dir(khPath), 0o700)
 		if werr := os.WriteFile(khPath, []byte(data), 0o600); werr != nil {
 			fmt.Fprintln(os.Stderr, "aviso known_hosts:", werr)
 		}
+		fmt.Fprintf(os.Stderr, "known_hosts materializado: %d bytes em %s\n", len(data), khPath)
 	}
 	cfg := control.Config{
 		Mock:          env("ALMIRANTE_MOCK", "1") == "1",

@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"os"
 	"strings"
 	"time"
 
@@ -44,8 +45,10 @@ func (e Executor) Status(ctx context.Context, id string) (types.HostStatus, erro
 	}
 	out, err := sshx.RunAlmiranted(ctx, e.Cfg.SSH, v, []string{"current"})
 	if err != nil {
+		fmt.Fprintf(os.Stderr, "[ssh %s] current falhou: %v\n", id, err)
 		return types.HostStatus{VM: id, Online: false}, nil
 	}
+	fmt.Fprintf(os.Stderr, "[ssh %s] current ok: %q\n", id, strings.TrimSpace(out))
 	return types.HostStatus{VM: id, Online: true, Commit: strings.TrimSpace(out), Branch: v.Branch}, nil
 }
 
