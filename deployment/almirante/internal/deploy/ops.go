@@ -9,6 +9,7 @@ import (
 	"fmt"
 	"net/http"
 	"os/exec"
+	"strconv"
 	"strings"
 	"time"
 
@@ -159,6 +160,56 @@ func (o LocalOps) Health(ctx context.Context) types.HealthReport {
 	}
 	return r
 }
+
+// SysInfo coleta metricas leves da VM (uptime/cpu/ram/disco/servicos) p/ o card expandido.
+// Comandos sem sudo (uptime/free/df/systemctl is-active/pgrep); commit via sudo -u (CurrentSHA).
+func (o LocalOps) SysInfo(ctx context.Context) types.HostStatus {
+	s := types.HostStatus{Online: true}
+	s.Commit, _ = o.CurrentSHA(ctx)
+	s.Uptime = strings.TrimSpace(strings.TrimPrefix(cmdOut(ctx, "uptime", "-p"), "up "))
+	if la := cmdOut(ctx, "cat", "/proc/loadavg"); la != "" {
+		if f := strings.Fields(la); len(f) > 0 {
+			if load, err := strconv.ParseFloat(f[0], 64); err == nil {
+				if np, _ := strconv.Atoi(strings.TrimSpace(cmdOut(ctx, "nproc"))); np > 0 {
+					c := int(load / float64(np) * 100)
+					if c > 100 {
+						c = 100
+					}
+					s.CPU = &c
+				}
+			}
+		}
+	}
+	for _, ln := range strings.Split(cmdOut(ctx, "free", "-m"), "\n") {
+		if strings.HasPrefix(ln, "Mem:") {
+			if f := strings.Fields(ln); len(f) >= 7 {
+				total, _ := strconv.Atoi(f[1])
+				avail, _ := strconv.Atoi(f[6])
+				if total > 0 {
+					r := (total - avail) * 100 / total
+					s.RAM = &r
+				}
+			}
+		}
+	}
+	for _, ln := range strings.Split(cmdOut(ctx, "df", "-P", "/"), "\n") {
+		if f := strings.Fields(ln); len(f) >= 5 && strings.HasSuffix(f[4], "%") {
+			if d, err := strconv.Atoi(strings.TrimSuffix(f[4], "%")); err == nil {
+				s.Disk = &d
+			}
+		}
+	}
+	s.ServiceActive = strings.TrimSpace(cmdOut(ctx, "systemctl", "is-active", "chatwoot-web.1.service")) == "active"
+	s.Puma = atoiSafe(cmdOut(ctx, "pgrep", "-c", "puma"))
+	s.Sidekiq = atoiSafe(cmdOut(ctx, "pgrep", "-c", "sidekiq"))
+	return s
+}
+
+func cmdOut(ctx context.Context, name string, args ...string) string {
+	out, _, _ := runCmd(ctx, name, args...)
+	return out
+}
+func atoiSafe(s string) int { n, _ := strconv.Atoi(strings.TrimSpace(s)); return n }
 
 // ---------- helpers ----------
 

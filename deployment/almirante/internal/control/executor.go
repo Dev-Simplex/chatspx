@@ -103,6 +103,46 @@ func (e Executor) Health(ctx context.Context, id string) (types.HealthReport, er
 	return h, nil
 }
 
+// Metrics: status rico (uptime/cpu/ram/disco/servicos) p/ o card expandido.
+func (e Executor) Metrics(ctx context.Context, id string) (types.HostStatus, error) {
+	v, err := e.vm(id)
+	if err != nil {
+		return types.HostStatus{}, err
+	}
+	if e.Cfg.Mock {
+		return mock.HostStatus(id, v.Branch), nil
+	}
+	out, err := sshx.RunAlmiranted(ctx, e.Cfg.SSH, v, []string{"metrics"})
+	if err != nil {
+		return types.HostStatus{VM: id, Online: false}, nil
+	}
+	var s types.HostStatus
+	_ = json.Unmarshal([]byte(out), &s)
+	s.VM, s.Branch = id, v.Branch
+	return s, nil
+}
+
+var restartAllowed = map[string]bool{
+	"chatwoot.target": true, "chatwoot-web.1.service": true, "chatwoot-worker.1.service": true,
+	"chatwoot-worker.bulk.service": true, "chatwoot-worker.realtime.service": true,
+}
+
+// Restart: acao direta (admin) — reinicia uma unit permitida via almiranted.
+func (e Executor) Restart(ctx context.Context, id, unit string) error {
+	v, err := e.vm(id)
+	if err != nil {
+		return err
+	}
+	if !restartAllowed[unit] {
+		return fmt.Errorf("unit nao permitida: %s", unit)
+	}
+	if e.Cfg.Mock {
+		return nil
+	}
+	_, err = sshx.RunAlmiranted(ctx, e.Cfg.SSH, v, []string{"restart", unit})
+	return err
+}
+
 func (e Executor) Diff(ctx context.Context, id string) (types.GitDiff, error) {
 	if e.Cfg.Mock {
 		return mock.GitDiff(id, e.Cfg.Fleet.GitHubRepo), nil

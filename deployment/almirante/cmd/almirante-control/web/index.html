@@ -51,6 +51,11 @@
     .navp.on{ background:linear-gradient(90deg, rgba(34,211,238,.16), rgba(34,211,238,0)); color:#67E8F9; box-shadow:inset 2px 0 0 #22D3EE; }
     .card{ transition:transform .2s cubic-bezier(.2,.7,.2,1), border-color .2s, box-shadow .2s; }
     .card:hover{ transform:translateY(-3px); box-shadow:0 18px 40px rgba(2,6,18,.5), 0 0 0 1px rgba(56,189,248,.25), 0 8px 28px rgba(34,211,238,.10); }
+    /* expansão estilo Apple (hover revela métricas + restart) */
+    .expand{ max-height:0; opacity:0; overflow:hidden; transition:max-height .5s cubic-bezier(.2,.8,.2,1), opacity .4s ease, margin-top .35s ease; }
+    .card:hover .expand{ max-height:360px; opacity:1; margin-top:14px; }
+    .mbar{ height:6px; border-radius:9999px; background:rgba(8,12,20,.6); overflow:hidden; }
+    .mbar>span{ display:block; height:100%; border-radius:9999px; background:linear-gradient(90deg,#22D3EE,#4F46E5); transition:width .6s cubic-bezier(.2,.8,.2,1); }
     .press:active{ transform:scale(.96); }
     @keyframes pulse{ 0%{box-shadow:0 0 0 0 rgba(76,195,138,.55)} 70%{box-shadow:0 0 0 6px rgba(76,195,138,0)} 100%{box-shadow:0 0 0 0 rgba(76,195,138,0)} }
     .live{ animation:pulse 2.6s ease-out infinite; }
@@ -124,7 +129,7 @@
       setup() {
         const token = ref(localStorage.getItem('alm_token') || 'dev-demo-token');
         const view = ref('frota');
-        const fleet = ref([]); const status = reactive({}); const deploys = ref([]); const tokens = ref([]); const msg = ref('');
+        const fleet = ref([]); const status = reactive({}); const metrics = reactive({}); const deploys = ref([]); const tokens = ref([]); const msg = ref('');
 
         const api = async (path, opts={}) => {
           const r = await fetch('/api'+path, { ...opts, headers:{ 'Content-Type':'application/json', 'Authorization':'Bearer '+token.value } });
@@ -156,6 +161,14 @@
         };
         const revokeToken = async (id) => { if(!confirm('Revogar o token '+id+'?')) return; try{ await api('/tokens/'+id,{method:'DELETE'}); loadTokens(); }catch(e){ msg.value=e.message; } };
         const go = (v)=>{ view.value=v; if(v==='tokens') loadTokens(); };
+        // lazy-fetch das métricas ao passar o mouse (card expande estilo Apple)
+        const loadMetrics = async (id) => { if(metrics[id]) return; try{ metrics[id] = await api('/vms/'+id+'/metrics'); }catch(e){ metrics[id]={}; } };
+        const restartVM = async (id, unit, label) => {
+          if(!confirm('Reiniciar '+label+'?\\n\\n(reinício direto, será registrado no histórico)')) return;
+          msg.value='';
+          try{ await api('/vms/'+id+'/restart',{method:'POST',body:JSON.stringify({unit})}); msg.value='✓ Reiniciado: '+label; delete metrics[id]; }
+          catch(e){ msg.value='⚠️ '+e.message; }
+        };
 
         // icone + acento por ambiente (chip + watermark de fundo)
         const envStyle = (env)=>{
@@ -167,7 +180,7 @@
         const titleOf = { frota:'Frota', aprovacoes:'Aprovações', historico:'Histórico', tokens:'Tokens & Dispositivos', conectar:'Como conectar' };
 
         onMounted(refresh);
-        return { token, saveToken, view, go, fleet, status, deploys, tokens, msg, refresh, pending, recent, byEnv, onlineCount, act, loadTokens, newToken, revokeToken, envStyle, relTime, titleOf };
+        return { token, saveToken, view, go, fleet, status, metrics, deploys, tokens, msg, refresh, pending, recent, byEnv, onlineCount, act, loadTokens, newToken, revokeToken, envStyle, relTime, titleOf, loadMetrics, restartVM };
       },
       template: `
       <div class="flex min-h-screen relative" style="z-index:1">
@@ -224,7 +237,7 @@
             <div v-for="(vms, env, gi) in byEnv" :key="env" class="mb-8">
               <div class="flex items-center gap-2 mb-3 px-1"><ic :n="envStyle(env).icon" cls="w-4 h-4 text-t3"/><h3 class="text-[12px] uppercase tracking-[.16em] text-t3 font-bold">{{ env }}</h3><div class="flex-1 h-px" style="background:linear-gradient(90deg,rgba(148,163,184,.18),transparent)"></div></div>
               <div class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
-                <div v-for="(vm,i) in vms" :key="vm.id" class="card glass rounded-2xl p-5 relative overflow-hidden rise" :style="{ animationDelay:(gi*50+i*40)+'ms' }">
+                <div v-for="(vm,i) in vms" :key="vm.id" @mouseenter="loadMetrics(vm.id)" class="card glass rounded-2xl p-5 relative overflow-hidden rise" :style="{ animationDelay:(gi*50+i*40)+'ms' }">
                   <ic :n="envStyle(vm.env).icon+'-d'" :class="['absolute -right-4 -bottom-5 w-32 h-32 pointer-events-none select-none', envStyle(vm.env).text]" style="opacity:.10"/>
                   <div class="relative">
                     <div class="flex items-start gap-3">
@@ -238,6 +251,25 @@
                     <div class="mt-4 flex items-center justify-between">
                       <span class="font-mono text-xs rounded-lg px-2 py-1 text-t2" style="background:rgba(8,12,20,.5)">{{ (status[vm.id]&&status[vm.id].commit)||'·······' }}</span>
                       <span class="text-[11px] font-bold flex items-center gap-1" :class="(status[vm.id]&&status[vm.id].online)?'text-ok':'text-t3'"><ic n="broadcast" cls="w-3.5 h-3.5"/>{{ (status[vm.id]&&status[vm.id].online)?'online':'—' }}</span>
+                    </div>
+                    <!-- expansível (hover) — métricas + restart -->
+                    <div class="expand">
+                      <div class="h-px my-1" style="background:linear-gradient(90deg,transparent,rgba(148,163,184,.18),transparent)"></div>
+                      <div class="grid grid-cols-3 gap-2.5 mt-2">
+                        <div v-for="m in [{k:'cpu',l:'CPU'},{k:'ram',l:'RAM'},{k:'disk',l:'Disco'}]" :key="m.k">
+                          <div class="flex justify-between items-baseline"><span class="text-[10px] uppercase tracking-wider text-t3 font-bold">{{ m.l }}</span><span class="font-mono text-[11px] text-t2">{{ metrics[vm.id] && metrics[vm.id][m.k]!=null ? metrics[vm.id][m.k]+'%' : '—' }}</span></div>
+                          <div class="mbar mt-1"><span :style="{ width: ((metrics[vm.id]&&metrics[vm.id][m.k])||0)+'%' }"></span></div>
+                        </div>
+                      </div>
+                      <div class="flex items-center gap-4 mt-3 text-[11px] text-t2 font-medium">
+                        <span class="flex items-center gap-1.5"><ic n="clock-counter-clockwise" cls="w-3.5 h-3.5 text-accent"/>{{ (metrics[vm.id]&&metrics[vm.id].uptime) || 'carregando…' }}</span>
+                        <span class="flex items-center gap-1.5"><span class="w-1.5 h-1.5 rounded-full" :class="(metrics[vm.id]&&metrics[vm.id].service_active)?'bg-ok':'bg-idle'"></span>serviço</span>
+                      </div>
+                      <div class="flex gap-2 mt-3">
+                        <button @click.stop="restartVM(vm.id,'chatwoot-web.1.service','web · '+vm.name)" class="press flex-1 text-[11px] font-bold rounded-lg py-2 flex items-center justify-center gap-1 text-accentsoft" style="background:rgba(34,211,238,.1);border:1px solid rgba(34,211,238,.25)"><ic n="arrows-clockwise" cls="w-3.5 h-3.5"/>web</button>
+                        <button @click.stop="restartVM(vm.id,'chatwoot-worker.1.service','worker · '+vm.name)" class="press flex-1 text-[11px] font-bold rounded-lg py-2 flex items-center justify-center gap-1 text-violet" style="background:rgba(129,140,248,.1);border:1px solid rgba(129,140,248,.25)"><ic n="arrows-clockwise" cls="w-3.5 h-3.5"/>worker</button>
+                        <button @click.stop="restartVM(vm.id,'chatwoot.target','tudo · '+vm.name)" class="press flex-1 text-[11px] font-bold rounded-lg py-2 flex items-center justify-center gap-1 text-t2" style="background:rgba(148,163,184,.08);border:1px solid rgba(148,163,184,.18)"><ic n="arrows-clockwise" cls="w-3.5 h-3.5"/>tudo</button>
+                      </div>
                     </div>
                   </div>
                 </div>

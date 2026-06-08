@@ -98,6 +98,8 @@ func (s *Server) Handler() http.Handler {
 	mux.HandleFunc("GET /api/vms/{id}/migrations", s.auth(RoleViewer, s.vmMigrations))
 	mux.HandleFunc("GET /api/vms/{id}/diff", s.auth(RoleViewer, s.vmDiff))
 	mux.HandleFunc("GET /api/vms/{id}/history", s.auth(RoleViewer, s.vmHistory))
+	mux.HandleFunc("GET /api/vms/{id}/metrics", s.auth(RoleViewer, s.vmMetrics))
+	mux.HandleFunc("POST /api/vms/{id}/restart", s.auth(RoleAdmin, s.vmRestart))
 	mux.HandleFunc("POST /api/deploys", s.auth(RoleOperator, s.createDeploy))
 	mux.HandleFunc("GET /api/deploys", s.auth(RoleViewer, s.listDeploys))
 	mux.HandleFunc("GET /api/deploys/{id}", s.auth(RoleViewer, s.getDeploy))
@@ -147,6 +149,23 @@ func (s *Server) getFleet(w http.ResponseWriter, _ *http.Request, _ user) { writ
 func (s *Server) vmStatus(w http.ResponseWriter, r *http.Request, _ user) {
 	v, err := s.exec.Status(r.Context(), r.PathValue("id"))
 	respond(w, v, err)
+}
+func (s *Server) vmMetrics(w http.ResponseWriter, r *http.Request, _ user) {
+	v, err := s.exec.Metrics(r.Context(), r.PathValue("id"))
+	respond(w, v, err)
+}
+func (s *Server) vmRestart(w http.ResponseWriter, r *http.Request, u user) {
+	var b struct {
+		Unit string `json:"unit"`
+	}
+	_ = json.NewDecoder(r.Body).Decode(&b)
+	id := r.PathValue("id")
+	if err := s.exec.Restart(r.Context(), id, b.Unit); err != nil {
+		writeErr(w, 400, err.Error())
+		return
+	}
+	s.audit.Append("restart", u.name, id, map[string]any{"unit": b.Unit})
+	writeJSON(w, 200, map[string]string{"status": "restarted", "unit": b.Unit})
 }
 func (s *Server) vmHealth(w http.ResponseWriter, r *http.Request, _ user) {
 	v, err := s.exec.Health(r.Context(), r.PathValue("id"))

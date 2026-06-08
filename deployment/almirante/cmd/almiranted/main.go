@@ -46,6 +46,8 @@ func main() {
 		fmt.Println(sha)
 	case "health":
 		printJSON(ops.Health(ctx))
+	case "metrics":
+		printJSON(ops.SysInfo(ctx))
 	case "migrate-status":
 		st, err := ops.MigrateStatus(ctx)
 		fail(err)
