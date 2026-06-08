@@ -1,43 +1,71 @@
 <!doctype html>
-<html lang="pt-BR">
+<html lang="pt-BR" class="dark">
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Almirante — Comando da Frota</title>
-  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Ccircle cx='12' cy='12' r='11' fill='%23EA1D2C'/%3E%3C/svg%3E" />
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Ccircle cx='12' cy='12' r='11' fill='%2322D3EE'/%3E%3C/svg%3E" />
   <link rel="stylesheet" href="./vendor/fonts/fonts.css" />
   <script src="./vendor/tailwind.js"></script>
   <script>
     tailwind.config = {
+      darkMode: 'class',
       theme: { extend: {
         colors: {
-          ink:'#1F1A1B', paper:'#FBF8F6', line:'#ECECEC', mute:'#717171',
-          coral:{ 50:'#FFF1F2',100:'#FFE0E2',200:'#FBC2C6',300:'#F58A92',400:'#F0535F',500:'#EE3744',600:'#EA1D2C',700:'#C41522',800:'#9E101B',900:'#7A0C15' },
+          void:'#080C14', voidalt:'#0B1220', s1:'#0F172A', s2:'#16203A', s3:'#1E293B', overlay:'#243049',
+          t1:'#E6EDF6', t2:'#94A3B8', t3:'#64748B', line:'#1E2A44',
+          accent:'#22D3EE', accentstrong:'#06B6D4', accentdeep:'#0E7490', accentsoft:'#67E8F9',
+          violet:'#818CF8', violetdeep:'#4F46E5',
+          ok:'#4CC38A', warn:'#E8C76A', bad:'#F2A0A8', idle:'#64748B', info:'#38BDF8',
         },
         fontFamily: { display:['"Bricolage Grotesque"','sans-serif'], sans:['"Hanken Grotesk"','system-ui','sans-serif'], mono:['"JetBrains Mono"','ui-monospace','monospace'] },
-        boxShadow: { soft:'0 1px 2px hsl(18 35% 28% / .06), 0 4px 12px hsl(18 35% 28% / .06)', lift:'0 2px 6px hsl(20 16% 11% / .06), 0 10px 26px hsl(355 83% 52% / .12)', glow:'0 12px 32px hsl(355 71% 42% / .28)' },
       } },
     }
   </script>
   <script src="./vendor/vue.global.prod.js"></script>
   <style>
-    body{ background:#FBF8F6; }
-    body::before{ content:''; position:fixed; inset:0; z-index:-1;
-      background:radial-gradient(900px 480px at 100% -5%, rgba(234,29,44,.06), transparent 60%), radial-gradient(700px 420px at -10% 8%, rgba(255,120,60,.05), transparent 60%); }
-    @keyframes pop{ 0%{box-shadow:0 0 0 0 rgba(20,184,106,.5)} 70%{box-shadow:0 0 0 6px rgba(20,184,106,0)} 100%{box-shadow:0 0 0 0 rgba(20,184,106,0)} }
-    .live{ animation:pop 2.4s ease-out infinite; }
-    @keyframes rise{ from{opacity:0;transform:translateY(12px)} to{opacity:1;transform:none} }
-    .rise{ animation:rise .5s cubic-bezier(.2,.7,.2,1) both; }
-    .card{ transition:transform .18s cubic-bezier(.2,.7,.2,1), box-shadow .18s; }
-    .card:hover{ transform:translateY(-3px); }
-    .navp{ transition:all .15s; }
+    body{ background:#080C14; color:#E6EDF6; }
+    /* ── atmosfera cinematográfica (1 pilha fixed, decorativa) ── */
+    .atmos{ position:fixed; inset:0; z-index:-3; overflow:hidden; pointer-events:none; }
+    .atmos-mesh{ position:absolute; inset:-15%;
+      background:
+        radial-gradient(60% 80% at 50% -10%, rgba(34,211,238,.16), transparent 60%),
+        radial-gradient(45% 60% at 82% 16%, rgba(129,140,248,.15), transparent 55%),
+        radial-gradient(52% 62% at 16% 82%, rgba(14,116,144,.13), transparent 60%),
+        linear-gradient(180deg,#0B1220 0%,#080C14 72%); }
+    .orb{ position:absolute; border-radius:50%; filter:blur(80px); opacity:.45; }
+    .orb-a{ width:540px; height:540px; left:-130px; top:-150px; background:radial-gradient(circle,#22D3EE,transparent 70%); animation:drift 28s ease-in-out infinite; }
+    .orb-b{ width:480px; height:480px; right:-130px; bottom:-170px; background:radial-gradient(circle,#4F46E5,transparent 70%); animation:drift 34s ease-in-out infinite reverse; }
+    @keyframes drift{ 0%,100%{transform:translate(0,0)} 50%{transform:translate(46px,34px)} }
+    .atmos-grid{ position:absolute; inset:0; opacity:.6;
+      background-image:linear-gradient(rgba(148,163,184,.05) 1px,transparent 1px),linear-gradient(90deg,rgba(148,163,184,.05) 1px,transparent 1px);
+      background-size:50px 50px;
+      -webkit-mask-image:radial-gradient(ellipse 85% 70% at 50% 28%,#000,transparent 86%); mask-image:radial-gradient(ellipse 85% 70% at 50% 28%,#000,transparent 86%); }
+    .grain{ position:fixed; inset:0; z-index:-2; pointer-events:none; opacity:.045; mix-blend-mode:overlay;
+      background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='160' height='160'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E"); }
+    .vignette{ position:fixed; inset:0; z-index:-2; pointer-events:none; box-shadow:inset 0 0 260px 60px rgba(0,0,0,.65); }
+    /* ── superfícies / vidro ── */
+    .glass{ background:linear-gradient(180deg, rgba(22,32,58,.55), rgba(15,23,42,.5)); border:1px solid rgba(148,163,184,.12); backdrop-filter:blur(12px); }
+    .glass:hover{ border-color:rgba(56,189,248,.32); }
+    .navp{ transition:all .16s; }
+    .navp.on{ background:linear-gradient(90deg, rgba(34,211,238,.16), rgba(34,211,238,0)); color:#67E8F9; box-shadow:inset 2px 0 0 #22D3EE; }
+    .card{ transition:transform .2s cubic-bezier(.2,.7,.2,1), border-color .2s, box-shadow .2s; }
+    .card:hover{ transform:translateY(-3px); box-shadow:0 18px 40px rgba(2,6,18,.5), 0 0 0 1px rgba(56,189,248,.25), 0 8px 28px rgba(34,211,238,.10); }
     .press:active{ transform:scale(.96); }
-    ::-webkit-scrollbar{width:10px;height:10px} ::-webkit-scrollbar-thumb{background:#DDE1E7;border-radius:6px;border:3px solid #F5F6F8} ::-webkit-scrollbar-track{background:transparent}
+    @keyframes pulse{ 0%{box-shadow:0 0 0 0 rgba(76,195,138,.55)} 70%{box-shadow:0 0 0 6px rgba(76,195,138,0)} 100%{box-shadow:0 0 0 0 rgba(76,195,138,0)} }
+    .live{ animation:pulse 2.6s ease-out infinite; }
+    @keyframes rise{ from{opacity:0;transform:translateY(14px)} to{opacity:1;transform:none} }
+    .rise{ animation:rise .55s cubic-bezier(.2,.7,.2,1) both; }
+    .gtext{ background:linear-gradient(120deg,#E6EDF6 0%,#818CF8 44%,#22D3EE 100%); -webkit-background-clip:text; background-clip:text; color:transparent; }
+    ::-webkit-scrollbar{width:10px;height:10px} ::-webkit-scrollbar-thumb{background:#1E2A44;border-radius:6px;border:3px solid #080C14} ::-webkit-scrollbar-track{background:transparent}
     pre{font-family:'JetBrains Mono',monospace}
     [v-cloak]{display:none}
+    @media (prefers-reduced-motion: reduce){ .orb,.live,.rise,.card{ animation:none!important; transition:none!important } }
   </style>
 </head>
-<body class="font-sans text-ink antialiased">
+<body class="font-sans antialiased text-t1">
+  <div class="atmos"><div class="atmos-mesh"></div><div class="orb orb-a"></div><div class="orb orb-b"></div><div class="atmos-grid"></div></div>
+  <div class="grain"></div><div class="vignette"></div>
   <svg width="0" height="0" style="position:absolute" aria-hidden="true">
 <symbol id="i-anchor" viewBox="0 0 256 256"><path d="M216,132a12,12,0,0,0-12,12c0,21.86-11.41,25.95-35.16,32.42-9.12,2.49-19.61,5.36-28.84,10.69V132h28a12,12,0,0,0,0-24H140V89.94a36,36,0,1,0-24,0V108H88a12,12,0,0,0,0,24h28v55.11c-9.23-5.33-19.72-8.2-28.84-10.69C63.41,170,52,165.86,52,144a12,12,0,0,0-24,0c0,41.17,30.54,49.5,52.84,55.58C104.59,206.05,116,210.14,116,232a12,12,0,0,0,24,0c0-21.86,11.41-25.95,35.16-32.42C197.46,193.5,228,185.17,228,144A12,12,0,0,0,216,132ZM128,44a12,12,0,1,1-12,12A12,12,0,0,1,128,44Z"/></symbol>
 <symbol id="i-hard-drives" viewBox="0 0 256 256"><path d="M208,36H48A20,20,0,0,0,28,56V200a20,20,0,0,0,20,20H208a20,20,0,0,0,20-20V56A20,20,0,0,0,208,36Zm-4,24v56H52V60ZM52,196V140H204v56ZM160,88a16,16,0,1,1,16,16A16,16,0,0,1,160,88Zm32,80a16,16,0,1,1-16-16A16,16,0,0,1,192,168Z"/></symbol>
@@ -78,6 +106,12 @@
 <path d="M208,40H48A16,16,0,0,0,32,56v56c0,52.72,25.52,84.67,46.93,102.19,23.06,18.86,46,25.26,47,25.53a8,8,0,0,0,4.2,0c1-.27,23.91-6.67,47-25.53C198.48,196.67,224,164.72,224,112V56A16,16,0,0,0,208,40Zm0,72c0,37.07-13.66,67.16-40.6,89.42A129.3,129.3,0,0,1,128,223.62a128.25,128.25,0,0,1-38.92-21.81C61.82,179.51,48,149.3,48,112l0-56,160,0ZM82.34,141.66a8,8,0,0,1,11.32-11.32L112,148.69l50.34-50.35a8,8,0,0,1,11.32,11.32l-56,56a8,8,0,0,1-11.32,0Z"/></symbol>
 <symbol id="i-cloud-d" viewBox="0 0 256 256"><path d="M240,128a80,80,0,0,1-80,80H72A56,56,0,1,1,85.92,97.74l0,.1A80,80,0,0,1,240,128Z" opacity="0.2"/>
 <path d="M160,40A88.09,88.09,0,0,0,81.29,88.67,64,64,0,1,0,72,216h88a88,88,0,0,0,0-176Zm0,160H72a48,48,0,0,1,0-96c1.1,0,2.2,0,3.29.11A88,88,0,0,0,72,128a8,8,0,0,0,16,0,72,72,0,1,1,72,72Z"/></symbol>
+<symbol id="i-hard-drives-d" viewBox="0 0 256 256"><path d="M216,152v48a8,8,0,0,1-8,8H48a8,8,0,0,1-8-8V152a8,8,0,0,1,8-8H208A8,8,0,0,1,216,152ZM208,48H48a8,8,0,0,0-8,8v48a8,8,0,0,0,8,8H208a8,8,0,0,0,8-8V56A8,8,0,0,0,208,48Z" opacity="0.2"/>
+<path d="M208,136H48a16,16,0,0,0-16,16v48a16,16,0,0,0,16,16H208a16,16,0,0,0,16-16V152A16,16,0,0,0,208,136Zm0,64H48V152H208v48Zm0-160H48A16,16,0,0,0,32,56v48a16,16,0,0,0,16,16H208a16,16,0,0,0,16-16V56A16,16,0,0,0,208,40Zm0,64H48V56H208v48ZM192,80a12,12,0,1,1-12-12A12,12,0,0,1,192,80Zm0,96a12,12,0,1,1-12-12A12,12,0,0,1,192,176Z"/></symbol>
+<symbol id="i-cpu-d" viewBox="0 0 256 256"><path d="M200,48H56a8,8,0,0,0-8,8V200a8,8,0,0,0,8,8H200a8,8,0,0,0,8-8V56A8,8,0,0,0,200,48ZM152,152H104V104h48Z" opacity="0.2"/>
+<path d="M152,96H104a8,8,0,0,0-8,8v48a8,8,0,0,0,8,8h48a8,8,0,0,0,8-8V104A8,8,0,0,0,152,96Zm-8,48H112V112h32Zm88,0H216V112h16a8,8,0,0,0,0-16H216V56a16,16,0,0,0-16-16H160V24a8,8,0,0,0-16,0V40H112V24a8,8,0,0,0-16,0V40H56A16,16,0,0,0,40,56V96H24a8,8,0,0,0,0,16H40v32H24a8,8,0,0,0,0,16H40v40a16,16,0,0,0,16,16H96v16a8,8,0,0,0,16,0V216h32v16a8,8,0,0,0,16,0V216h40a16,16,0,0,0,16-16V160h16a8,8,0,0,0,0-16Zm-32,56H56V56H200v95.87s0,.09,0,.13,0,.09,0,.13V200Z"/></symbol>
+<symbol id="i-terminal-window-d" viewBox="0 0 256 256"><path d="M224,56V200a8,8,0,0,1-8,8H40a8,8,0,0,1-8-8V56a8,8,0,0,1,8-8H216A8,8,0,0,1,224,56Z" opacity="0.2"/>
+<path d="M128,128a8,8,0,0,1-3,6.25l-40,32a8,8,0,1,1-10-12.5L107.19,128,75,102.25a8,8,0,1,1,10-12.5l40,32A8,8,0,0,1,128,128Zm48,24H136a8,8,0,0,0,0,16h40a8,8,0,0,0,0-16Zm56-96V200a16,16,0,0,1-16,16H40a16,16,0,0,1-16-16V56A16,16,0,0,1,40,40H216A16,16,0,0,1,232,56ZM216,200V56H40V200H216Z"/></symbol>
 </svg>
   <div id="app" v-cloak></div>
 
@@ -101,7 +135,7 @@
         const refresh = async () => {
           msg.value='';
           try {
-            fleet.value = (await api('/fleet')).vms || [];
+            fleet.value = ((await api('/fleet')).vms) || [];
             deploys.value = (await api('/deploys')) || [];
             for (const vm of fleet.value)
               api('/vms/'+vm.id+'/status').then(s=>{ status[vm.id]=s; }).catch(()=>{ status[vm.id]={online:false}; });
@@ -123,11 +157,11 @@
         const revokeToken = async (id) => { if(!confirm('Revogar o token '+id+'?')) return; try{ await api('/tokens/'+id,{method:'DELETE'}); loadTokens(); }catch(e){ msg.value=e.message; } };
         const go = (v)=>{ view.value=v; if(v==='tokens') loadTokens(); };
 
-        // ícone + cor por ambiente (chip dos cards, estilo iFood)
+        // icone + acento por ambiente (chip + watermark de fundo)
         const envStyle = (env)=>{
-          if(/AWS/i.test(env)) return { icon:'cloud', chip:'bg-blue-50 text-blue-500' };
-          if(/Dev/i.test(env)) return { icon:'cpu', chip:'bg-violet-50 text-violet-500' };
-          return { icon:'hard-drives', chip:'bg-indigo-50 text-indigo-500' }; // Proxmox
+          if(/AWS/i.test(env)) return { icon:'cloud', text:'text-accent', chip:'bg-accent/10 text-accent' };
+          if(/Dev/i.test(env)) return { icon:'cpu', text:'text-violet', chip:'bg-violet/10 text-violet' };
+          return { icon:'hard-drives', text:'text-violet', chip:'bg-violet/10 text-violet' }; // Proxmox
         };
         const relTime = (s)=> s ? s.slice(0,16).replace('T',' ') : '—';
         const titleOf = { frota:'Frota', aprovacoes:'Aprovações', historico:'Histórico', tokens:'Tokens & Dispositivos', conectar:'Como conectar' };
@@ -136,28 +170,28 @@
         return { token, saveToken, view, go, fleet, status, deploys, tokens, msg, refresh, pending, recent, byEnv, onlineCount, act, loadTokens, newToken, revokeToken, envStyle, relTime, titleOf };
       },
       template: `
-      <div class="flex min-h-screen">
-        <!-- Sidebar clara -->
-        <aside class="w-60 shrink-0 bg-white border-r border-line flex flex-col fixed h-screen">
+      <div class="flex min-h-screen relative" style="z-index:1">
+        <!-- Sidebar -->
+        <aside class="w-60 shrink-0 glass border-r flex flex-col fixed h-screen" style="border-color:rgba(148,163,184,.1)">
           <div class="px-5 py-5 flex items-center gap-3">
-            <div class="w-11 h-11 rounded-2xl bg-gradient-to-br from-coral-500 to-coral-700 grid place-items-center shadow-glow"><ic n="anchor" cls="w-6 h-6 text-white"/></div>
-            <div><div class="font-display font-extrabold text-[19px] leading-none">Almirante</div><div class="text-[11px] text-mute mt-1 font-medium">Comando da Frota</div></div>
+            <div class="w-11 h-11 rounded-2xl grid place-items-center" style="background:linear-gradient(120deg,#22D3EE,#4F46E5); box-shadow:0 8px 22px rgba(34,211,238,.30)"><ic n="anchor" cls="w-6 h-6 text-void"/></div>
+            <div><div class="font-display font-extrabold text-[19px] leading-none text-t1">Almirante</div><div class="text-[11px] text-t3 mt-1 font-medium tracking-wide uppercase">Comando da Frota</div></div>
           </div>
           <nav class="px-3 mt-3 space-y-1 text-sm font-semibold">
-            <button @click="go('frota')" :class="['navp w-full text-left rounded-2xl px-3.5 py-2.5 flex items-center gap-3', view==='frota'?'bg-coral-50 text-coral-600':'text-slate-500 hover:bg-slate-50']"><ic n="anchor" cls="w-5 h-5"/><span class="flex-1">Frota</span><span class="text-xs font-mono opacity-70">{{ onlineCount }}/{{ fleet.length }}</span></button>
-            <button @click="go('aprovacoes')" :class="['navp w-full text-left rounded-2xl px-3.5 py-2.5 flex items-center gap-3', view==='aprovacoes'?'bg-coral-50 text-coral-600':'text-slate-500 hover:bg-slate-50']"><ic n="bell" cls="w-5 h-5"/><span class="flex-1">Aprovações</span><span v-if="pending.length" class="text-[11px] font-bold bg-coral-500 text-white rounded-full px-1.5 py-0.5">{{ pending.length }}</span></button>
-            <button @click="go('historico')" :class="['navp w-full text-left rounded-2xl px-3.5 py-2.5 flex items-center gap-3', view==='historico'?'bg-coral-50 text-coral-600':'text-slate-500 hover:bg-slate-50']"><ic n="clock-counter-clockwise" cls="w-5 h-5"/><span>Histórico</span></button>
-            <button @click="go('tokens')" :class="['navp w-full text-left rounded-2xl px-3.5 py-2.5 flex items-center gap-3', view==='tokens'?'bg-coral-50 text-coral-600':'text-slate-500 hover:bg-slate-50']"><ic n="key" cls="w-5 h-5"/><span>Tokens</span></button>
-            <button @click="go('conectar')" :class="['navp w-full text-left rounded-2xl px-3.5 py-2.5 flex items-center gap-3', view==='conectar'?'bg-coral-50 text-coral-600':'text-slate-500 hover:bg-slate-50']"><ic n="plugs-connected" cls="w-5 h-5"/><span>Como conectar</span></button>
+            <button @click="go('frota')" :class="['navp w-full text-left rounded-xl px-3.5 py-2.5 flex items-center gap-3', view==='frota'?'on':'text-t2 hover:text-t1']"><ic n="anchor" cls="w-5 h-5"/><span class="flex-1">Frota</span><span class="text-xs font-mono opacity-70">{{ onlineCount }}/{{ fleet.length }}</span></button>
+            <button @click="go('aprovacoes')" :class="['navp w-full text-left rounded-xl px-3.5 py-2.5 flex items-center gap-3', view==='aprovacoes'?'on':'text-t2 hover:text-t1']"><ic n="bell" cls="w-5 h-5"/><span class="flex-1">Aprovações</span><span v-if="pending.length" class="text-[11px] font-bold rounded-full px-1.5 py-0.5" style="background:#22D3EE;color:#080C14">{{ pending.length }}</span></button>
+            <button @click="go('historico')" :class="['navp w-full text-left rounded-xl px-3.5 py-2.5 flex items-center gap-3', view==='historico'?'on':'text-t2 hover:text-t1']"><ic n="clock-counter-clockwise" cls="w-5 h-5"/><span>Histórico</span></button>
+            <button @click="go('tokens')" :class="['navp w-full text-left rounded-xl px-3.5 py-2.5 flex items-center gap-3', view==='tokens'?'on':'text-t2 hover:text-t1']"><ic n="key" cls="w-5 h-5"/><span>Tokens</span></button>
+            <button @click="go('conectar')" :class="['navp w-full text-left rounded-xl px-3.5 py-2.5 flex items-center gap-3', view==='conectar'?'on':'text-t2 hover:text-t1']"><ic n="plugs-connected" cls="w-5 h-5"/><span>Como conectar</span></button>
           </nav>
           <div class="mt-auto p-4">
-            <div class="rounded-2xl bg-slate-50 p-3">
-              <label class="text-[10px] uppercase tracking-wider text-mute font-bold">Seu token</label>
+            <div class="rounded-2xl p-3" style="background:rgba(8,12,20,.5);border:1px solid rgba(148,163,184,.1)">
+              <label class="text-[10px] uppercase tracking-wider text-t3 font-bold">Seu token</label>
               <div class="flex gap-1.5 mt-1.5">
-                <input v-model="token" @keyup.enter="saveToken" class="flex-1 w-0 bg-white border border-line rounded-xl px-2.5 py-1.5 text-xs font-mono focus:border-coral-500 outline-none" />
-                <button @click="saveToken" class="press text-xs bg-coral-500 hover:bg-coral-600 text-white font-bold rounded-xl px-3">ok</button>
+                <input v-model="token" @keyup.enter="saveToken" class="flex-1 w-0 bg-void/70 border border-line rounded-lg px-2.5 py-1.5 text-xs font-mono text-t1 focus:border-accent outline-none" />
+                <button @click="saveToken" class="press text-xs font-bold rounded-lg px-3 text-void" style="background:#22D3EE">ok</button>
               </div>
-              <button @click="refresh" class="press mt-2 w-full flex items-center justify-center gap-1.5 text-xs text-mute hover:text-coral-600 font-semibold"><ic n="arrows-clockwise" cls="w-3.5 h-3.5"/>atualizar</button>
+              <button @click="refresh" class="press mt-2 w-full flex items-center justify-center gap-1.5 text-xs text-t3 hover:text-accentsoft font-semibold"><ic n="arrows-clockwise" cls="w-3.5 h-3.5"/>atualizar</button>
             </div>
           </div>
         </aside>
@@ -165,97 +199,105 @@
         <main class="flex-1 ml-60 px-8 py-7 max-w-[1320px]">
           <div class="flex items-center justify-between mb-6">
             <h1 class="font-display font-extrabold text-[28px] tracking-tight">{{ titleOf[view] }}</h1>
-            <div class="flex items-center gap-2 bg-white rounded-full pl-2.5 pr-3.5 py-1.5 shadow-soft text-sm font-semibold"><span class="w-2.5 h-2.5 rounded-full bg-emerald-500 live"></span>{{ onlineCount }}/{{ fleet.length }} no ar</div>
+            <div class="flex items-center gap-2 glass rounded-full pl-2.5 pr-3.5 py-1.5 text-sm font-semibold text-t2"><span class="w-2.5 h-2.5 rounded-full bg-ok live"></span>{{ onlineCount }}/{{ fleet.length }} no ar</div>
           </div>
-          <p v-if="msg" class="mb-5 text-rose-600 text-sm bg-rose-50 border border-rose-100 rounded-2xl px-4 py-2.5 flex items-center gap-2 font-medium"><ic n="warning-octagon" cls="w-4 h-4"/>{{ msg }}</p>
+          <p v-if="msg" class="mb-5 text-bad text-sm rounded-2xl px-4 py-2.5 flex items-center gap-2 font-medium" style="background:rgba(242,160,168,.08);border:1px solid rgba(242,160,168,.25)"><ic n="warning-octagon" cls="w-4 h-4"/>{{ msg }}</p>
 
           <!-- FROTA -->
           <div v-if="view==='frota'">
-            <div class="relative overflow-hidden rounded-3xl bg-gradient-to-br from-[#FF4E2B] to-[#EA1D2C] text-white p-8 mb-7 shadow-glow rise">
-              <ic n="anchor-d" cls="absolute -right-4 -bottom-6 w-44 h-44 text-white/10"/>
+            <!-- HERO cinematográfico -->
+            <div class="relative overflow-hidden rounded-3xl p-8 mb-8 rise" style="border:1px solid rgba(56,189,248,.18); box-shadow:0 24px 60px rgba(2,6,18,.6), inset 0 1px 0 rgba(148,163,184,.12)">
+              <div class="absolute inset-0" style="background:radial-gradient(120% 140% at 78% -20%, rgba(34,211,238,.22), transparent 55%), radial-gradient(90% 120% at 12% 120%, rgba(79,70,229,.28), transparent 55%), linear-gradient(180deg,#0E1730,#0A1120)"></div>
+              <ic n="anchor-d" cls="absolute right-2 -bottom-6 w-52 h-52 text-accent" style="opacity:.10"/>
               <div class="relative">
-                <div class="text-[11px] font-bold uppercase tracking-[.18em] text-white/80 flex items-center gap-1.5"><ic n="gauge" cls="w-4 h-4"/>Mission Control · ChatSPX</div>
-                <h2 class="font-display font-extrabold text-3xl mt-2">{{ onlineCount }} de {{ fleet.length }} embarcações no ar</h2>
-                <p class="text-white/85 text-sm mt-1 max-w-md">Inspecione, promova e autorize operações — tudo sob o gate humano.</p>
-                <div class="flex gap-3 mt-5">
-                  <div class="bg-white/15 backdrop-blur rounded-2xl px-4 py-2.5"><div class="font-display font-extrabold text-2xl">{{ onlineCount }}</div><div class="text-[11px] text-white/80 font-semibold uppercase tracking-wide">no ar</div></div>
-                  <div class="bg-white/15 backdrop-blur rounded-2xl px-4 py-2.5"><div class="font-display font-extrabold text-2xl">{{ pending.length }}</div><div class="text-[11px] text-white/80 font-semibold uppercase tracking-wide">aguardando</div></div>
-                  <div class="bg-white/15 backdrop-blur rounded-2xl px-4 py-2.5"><div class="font-display font-extrabold text-2xl">{{ fleet.length }}</div><div class="text-[11px] text-white/80 font-semibold uppercase tracking-wide">VMs</div></div>
+                <div class="text-[11px] font-bold uppercase tracking-[.25em] text-accentsoft flex items-center gap-2"><ic n="gauge" cls="w-4 h-4"/>Mission Control · ChatSPX</div>
+                <h2 class="font-display font-extrabold text-[40px] leading-[1.05] mt-3 gtext">{{ onlineCount }} de {{ fleet.length }}<br/>embarcações no ar</h2>
+                <p class="text-t2 text-sm mt-3 max-w-md">Inspecione, promova e autorize operações da frota — tudo sob o gate humano.</p>
+                <div class="flex gap-3 mt-6">
+                  <div class="rounded-2xl px-4 py-2.5" style="background:rgba(8,12,20,.4);border:1px solid rgba(148,163,184,.12)"><div class="font-display font-extrabold text-2xl text-ok">{{ onlineCount }}</div><div class="text-[11px] text-t3 font-semibold uppercase tracking-wide">no ar</div></div>
+                  <div class="rounded-2xl px-4 py-2.5" style="background:rgba(8,12,20,.4);border:1px solid rgba(148,163,184,.12)"><div class="font-display font-extrabold text-2xl text-accent">{{ pending.length }}</div><div class="text-[11px] text-t3 font-semibold uppercase tracking-wide">aguardando</div></div>
+                  <div class="rounded-2xl px-4 py-2.5" style="background:rgba(8,12,20,.4);border:1px solid rgba(148,163,184,.12)"><div class="font-display font-extrabold text-2xl text-violet">{{ fleet.length }}</div><div class="text-[11px] text-t3 font-semibold uppercase tracking-wide">VMs</div></div>
                 </div>
               </div>
             </div>
-            <div v-for="(vms, env, gi) in byEnv" :key="env" class="mb-7">
-              <div class="flex items-center gap-2 mb-3 px-1"><ic :n="envStyle(env).icon" cls="w-4 h-4 text-mute"/><h3 class="text-[12px] uppercase tracking-[.14em] text-mute font-bold">{{ env }}</h3><span class="text-mute/60 text-xs font-semibold">· {{ vms.length }}</span></div>
+            <!-- cards por ambiente -->
+            <div v-for="(vms, env, gi) in byEnv" :key="env" class="mb-8">
+              <div class="flex items-center gap-2 mb-3 px-1"><ic :n="envStyle(env).icon" cls="w-4 h-4 text-t3"/><h3 class="text-[12px] uppercase tracking-[.16em] text-t3 font-bold">{{ env }}</h3><div class="flex-1 h-px" style="background:linear-gradient(90deg,rgba(148,163,184,.18),transparent)"></div></div>
               <div class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
-                <div v-for="(vm,i) in vms" :key="vm.id" class="card bg-white rounded-3xl p-5 shadow-soft hover:shadow-lift rise" :style="{ animationDelay:(gi*50+i*40)+'ms' }">
-                  <div class="flex items-start gap-3">
-                    <div :class="['w-12 h-12 rounded-2xl grid place-items-center shrink-0', envStyle(vm.env).chip]"><ic :n="envStyle(vm.env).icon" cls="w-6 h-6"/></div>
-                    <div class="min-w-0 flex-1">
-                      <div class="flex items-center gap-2"><span class="font-display font-bold text-[17px] truncate">{{ vm.name }}</span><span v-if="vm.critical" class="text-[9px] font-bold text-rose-500 bg-rose-50 rounded-full px-1.5 py-0.5 uppercase">crítica</span></div>
-                      <div class="text-xs text-mute font-medium mt-0.5">{{ vm.env }} · {{ vm.branch }}</div>
+                <div v-for="(vm,i) in vms" :key="vm.id" class="card glass rounded-2xl p-5 relative overflow-hidden rise" :style="{ animationDelay:(gi*50+i*40)+'ms' }">
+                  <ic :n="envStyle(vm.env).icon+'-d'" :class="['absolute -right-4 -bottom-5 w-32 h-32 pointer-events-none select-none', envStyle(vm.env).text]" style="opacity:.10"/>
+                  <div class="relative">
+                    <div class="flex items-start gap-3">
+                      <div :class="['w-11 h-11 rounded-xl grid place-items-center shrink-0', envStyle(vm.env).chip]"><ic :n="envStyle(vm.env).icon" cls="w-5 h-5"/></div>
+                      <div class="min-w-0 flex-1">
+                        <div class="flex items-center gap-2"><span class="font-display font-bold text-[17px] text-t1 truncate">{{ vm.name }}</span><span v-if="vm.critical" class="text-[9px] font-bold rounded-full px-1.5 py-0.5 uppercase" style="background:rgba(242,160,168,.12);color:#F2A0A8">crítica</span></div>
+                        <div class="text-xs text-t3 font-medium mt-0.5">{{ vm.env }} · {{ vm.branch }}</div>
+                      </div>
+                      <span class="w-2.5 h-2.5 rounded-full mt-1 shrink-0" :class="(status[vm.id]&&status[vm.id].online)?'bg-ok live':'bg-idle'"></span>
                     </div>
-                    <span class="w-2.5 h-2.5 rounded-full mt-1 shrink-0" :class="(status[vm.id]&&status[vm.id].online)?'bg-emerald-500 live':'bg-slate-300'"></span>
-                  </div>
-                  <div class="mt-4 flex items-center justify-between">
-                    <span class="font-mono text-xs bg-slate-50 text-slate-500 rounded-lg px-2 py-1">{{ (status[vm.id]&&status[vm.id].commit)||'·······' }}</span>
-                    <span class="text-[11px] font-bold flex items-center gap-1" :class="(status[vm.id]&&status[vm.id].online)?'text-emerald-600':'text-slate-400'"><ic n="broadcast" cls="w-3.5 h-3.5"/>{{ (status[vm.id]&&status[vm.id].online)?'online':'—' }}</span>
+                    <div class="mt-4 flex items-center justify-between">
+                      <span class="font-mono text-xs rounded-lg px-2 py-1 text-t2" style="background:rgba(8,12,20,.5)">{{ (status[vm.id]&&status[vm.id].commit)||'·······' }}</span>
+                      <span class="text-[11px] font-bold flex items-center gap-1" :class="(status[vm.id]&&status[vm.id].online)?'text-ok':'text-t3'"><ic n="broadcast" cls="w-3.5 h-3.5"/>{{ (status[vm.id]&&status[vm.id].online)?'online':'—' }}</span>
+                    </div>
                   </div>
                 </div>
               </div>
             </div>
-            <p v-if="!fleet.length" class="text-mute text-sm">Carregando frota… (confira seu token na barra lateral)</p>
+            <p v-if="!fleet.length" class="text-t3 text-sm">Carregando frota… (confira seu token na barra lateral)</p>
           </div>
 
           <!-- APROVAÇÕES -->
           <div v-else-if="view==='aprovacoes'">
-            <div v-if="!pending.length" class="bg-white rounded-3xl p-12 text-center shadow-soft"><div class="w-16 h-16 rounded-3xl bg-emerald-50 grid place-items-center mx-auto mb-3"><ic n="shield-check-d" cls="w-9 h-9 text-emerald-500"/></div><p class="text-mute font-medium">Nenhuma operação aguardando autorização.</p></div>
-            <div v-for="(d,i) in pending" :key="d.id" class="bg-white rounded-3xl p-5 mb-4 shadow-soft rise flex flex-col md:flex-row md:items-center justify-between gap-4" :style="{ animationDelay:(i*50)+'ms' }">
-              <div class="flex items-start gap-3">
-                <div class="w-12 h-12 rounded-2xl bg-coral-50 text-coral-600 grid place-items-center shrink-0"><ic n="rocket-launch" cls="w-6 h-6"/></div>
+            <div v-if="!pending.length" class="glass rounded-3xl p-12 text-center"><div class="w-16 h-16 rounded-3xl grid place-items-center mx-auto mb-3" style="background:rgba(76,195,138,.12)"><ic n="shield-check-d" cls="w-9 h-9 text-ok"/></div><p class="text-t2 font-medium">Nenhuma operação aguardando autorização.</p></div>
+            <div v-for="(d,i) in pending" :key="d.id" class="card glass rounded-2xl p-5 mb-4 relative overflow-hidden rise flex flex-col md:flex-row md:items-center justify-between gap-4" :style="{ animationDelay:(i*50)+'ms' }">
+              <ic n="rocket-launch-d" cls="absolute right-2 -bottom-6 w-32 h-32 text-accent pointer-events-none" style="opacity:.08"/>
+              <div class="flex items-start gap-3 relative">
+                <div class="w-11 h-11 rounded-xl grid place-items-center shrink-0" style="background:rgba(34,211,238,.12);color:#22D3EE"><ic n="rocket-launch" cls="w-5 h-5"/></div>
                 <div>
-                  <div class="font-display font-bold text-lg flex items-center gap-2 flex-wrap">{{ d.vm }}<span class="font-mono text-xs text-mute font-normal">{{ d.current_sha }} → {{ d.target_sha }}</span></div>
-                  <div class="text-xs text-mute mt-1 flex items-center gap-2 flex-wrap font-medium">por <b class="text-ink">{{ d.requested_by }}</b> · {{ (d.migrations||[]).length }} migration(s)<span v-if="d.has_destructive" class="text-rose-600 bg-rose-50 rounded-full px-2 py-0.5 flex items-center gap-1 font-bold"><ic n="warning-octagon" cls="w-3.5 h-3.5"/>DESTRUTIVA</span></div>
+                  <div class="font-display font-bold text-lg flex items-center gap-2 flex-wrap text-t1">{{ d.vm }}<span class="font-mono text-xs text-t3 font-normal">{{ d.current_sha }} → {{ d.target_sha }}</span></div>
+                  <div class="text-xs text-t3 mt-1 flex items-center gap-2 flex-wrap font-medium">por <b class="text-t1">{{ d.requested_by }}</b> · {{ (d.migrations||[]).length }} migration(s)<span v-if="d.has_destructive" class="rounded-full px-2 py-0.5 flex items-center gap-1 font-bold" style="background:rgba(242,160,168,.14);color:#F2A0A8"><ic n="warning-octagon" cls="w-3.5 h-3.5"/>DESTRUTIVA</span></div>
                 </div>
               </div>
-              <div class="flex gap-2 shrink-0">
-                <button @click="act(d.id,'approve')" class="press bg-emerald-500 hover:bg-emerald-600 text-white font-bold rounded-full px-6 py-3 text-sm flex items-center gap-2 shadow-soft"><ic n="check-circle" cls="w-5 h-5"/>Aprovar</button>
-                <button @click="act(d.id,'reject')" class="press border-2 border-line hover:border-rose-200 hover:text-rose-600 text-mute font-bold rounded-full px-5 py-3 text-sm flex items-center gap-2"><ic n="x-circle" cls="w-5 h-5"/>Rejeitar</button>
+              <div class="flex gap-2 shrink-0 relative">
+                <button @click="act(d.id,'approve')" class="press text-void font-bold rounded-full px-6 py-3 text-sm flex items-center gap-2" style="background:#4CC38A;box-shadow:0 8px 22px rgba(76,195,138,.3)"><ic n="check-circle" cls="w-5 h-5"/>Aprovar</button>
+                <button @click="act(d.id,'reject')" class="press border border-line hover:text-bad text-t2 font-bold rounded-full px-5 py-3 text-sm flex items-center gap-2" style="background:rgba(8,12,20,.4)"><ic n="x-circle" cls="w-5 h-5"/>Rejeitar</button>
               </div>
             </div>
           </div>
 
           <!-- HISTÓRICO -->
-          <div v-else-if="view==='historico'" class="bg-white rounded-3xl shadow-soft overflow-hidden rise">
+          <div v-else-if="view==='historico'" class="glass rounded-2xl overflow-hidden rise">
             <table class="w-full text-sm">
-              <thead class="text-mute text-[11px] uppercase tracking-wider font-bold bg-slate-50/60"><tr class="text-left"><th class="px-5 py-3.5">VM</th><th>Mudança</th><th>Autor / Aprovou</th><th>Status</th></tr></thead>
+              <thead class="text-t3 text-[11px] uppercase tracking-wider font-bold" style="background:rgba(8,12,20,.4)"><tr class="text-left"><th class="px-5 py-3.5">VM</th><th>Mudança</th><th>Autor / Aprovou</th><th>Status</th></tr></thead>
               <tbody>
-                <tr v-for="d in recent" :key="d.id" class="border-t border-line hover:bg-slate-50/50"><td class="px-5 py-3 font-bold">{{ d.vm }}</td><td class="font-mono text-xs text-mute">{{ d.current_sha }}→{{ d.target_sha }}</td><td class="text-xs text-mute font-medium">{{ d.requested_by }} / {{ d.approved_by||'—' }}</td><td><span class="text-[11px] font-bold px-2.5 py-1 rounded-full" :class="d.status==='success'?'bg-emerald-50 text-emerald-600':'bg-slate-100 text-slate-500'">{{ d.status }}</span></td></tr>
-                <tr v-if="!recent.length"><td colspan="4" class="px-5 py-8 text-mute text-sm text-center">Sem histórico ainda.</td></tr>
+                <tr v-for="d in recent" :key="d.id" class="border-t hover:bg-white/5" style="border-color:rgba(148,163,184,.08)"><td class="px-5 py-3 font-bold text-t1">{{ d.vm }}</td><td class="font-mono text-xs text-t2">{{ d.current_sha }}→{{ d.target_sha }}</td><td class="text-xs text-t3 font-medium">{{ d.requested_by }} / {{ d.approved_by||'—' }}</td><td><span class="text-[11px] font-bold px-2.5 py-1 rounded-full" :class="d.status==='success'?'text-ok':'text-t3'" :style="d.status==='success'?'background:rgba(76,195,138,.12)':'background:rgba(100,116,139,.12)'">{{ d.status }}</span></td></tr>
+                <tr v-if="!recent.length"><td colspan="4" class="px-5 py-8 text-t3 text-sm text-center">Sem histórico ainda.</td></tr>
               </tbody>
             </table>
           </div>
 
           <!-- TOKENS -->
           <div v-else-if="view==='tokens'">
-            <div class="flex justify-end mb-4"><button @click="newToken" class="press bg-coral-600 hover:bg-coral-700 text-white font-bold rounded-full px-5 py-2.5 text-sm flex items-center gap-2 shadow-glow"><ic n="plus" cls="w-4 h-4"/>Novo token</button></div>
-            <div class="bg-white rounded-3xl shadow-soft overflow-hidden rise">
+            <div class="flex justify-end mb-4"><button @click="newToken" class="press text-void font-bold rounded-full px-5 py-2.5 text-sm flex items-center gap-2" style="background:linear-gradient(120deg,#22D3EE,#4F46E5);box-shadow:0 8px 22px rgba(34,211,238,.3)"><ic n="plus" cls="w-4 h-4"/>Novo token</button></div>
+            <div class="glass rounded-2xl overflow-hidden rise">
               <table class="w-full text-sm">
-                <thead class="text-mute text-[11px] uppercase tracking-wider font-bold bg-slate-50/60"><tr class="text-left"><th class="px-5 py-3.5">Dev</th><th>Papel</th><th>Dispositivo (PC)</th><th>Último acesso</th><th></th></tr></thead>
+                <thead class="text-t3 text-[11px] uppercase tracking-wider font-bold" style="background:rgba(8,12,20,.4)"><tr class="text-left"><th class="px-5 py-3.5">Dev</th><th>Papel</th><th>Dispositivo (PC)</th><th>Último acesso</th><th></th></tr></thead>
                 <tbody>
-                  <tr v-for="t in tokens" :key="t.id" class="border-t border-line" :class="{'opacity-40':t.revoked}"><td class="px-5 py-3 font-bold">{{ t.name }} <span class="text-slate-400 font-mono text-xs font-normal">{{ t.secret }}</span></td><td><span class="text-[11px] font-bold px-2.5 py-1 rounded-full bg-slate-100 uppercase">{{ t.role }}</span></td><td class="font-mono text-xs text-mute flex items-center gap-1.5 py-3"><ic n="hard-drives" cls="w-4 h-4 text-slate-300"/>{{ t.last_host||'—' }} <span class="text-slate-400">{{ t.last_ip }}</span></td><td class="text-xs text-mute font-medium">{{ t.last_seen?relTime(t.last_seen):'nunca usou' }}</td><td class="text-right pr-5"><button v-if="!t.revoked" @click="revokeToken(t.id)" class="press text-rose-500 hover:text-rose-600 text-xs font-bold flex items-center gap-1 ml-auto"><ic n="prohibit" cls="w-3.5 h-3.5"/>Revogar</button><span v-else class="text-mute text-xs">revogado</span></td></tr>
-                  <tr v-if="!tokens.length"><td colspan="5" class="px-5 py-8 text-mute text-sm text-center">Nenhum token emitido. Clique "Novo token".</td></tr>
+                  <tr v-for="t in tokens" :key="t.id" class="border-t" style="border-color:rgba(148,163,184,.08)" :class="{'opacity-40':t.revoked}"><td class="px-5 py-3 font-bold text-t1">{{ t.name }} <span class="text-t3 font-mono text-xs font-normal">{{ t.secret }}</span></td><td><span class="text-[11px] font-bold px-2.5 py-1 rounded-full uppercase text-t2" style="background:rgba(100,116,139,.15)">{{ t.role }}</span></td><td class="font-mono text-xs text-t2 flex items-center gap-1.5 py-3"><ic n="hard-drives" cls="w-4 h-4 text-t3"/>{{ t.last_host||'—' }} <span class="text-t3">{{ t.last_ip }}</span></td><td class="text-xs text-t3 font-medium">{{ t.last_seen?relTime(t.last_seen):'nunca usou' }}</td><td class="text-right pr-5"><button v-if="!t.revoked" @click="revokeToken(t.id)" class="press text-bad hover:opacity-80 text-xs font-bold flex items-center gap-1 ml-auto"><ic n="prohibit" cls="w-3.5 h-3.5"/>Revogar</button><span v-else class="text-t3 text-xs">revogado</span></td></tr>
+                  <tr v-if="!tokens.length"><td colspan="5" class="px-5 py-8 text-t3 text-sm text-center">Nenhum token emitido. Clique "Novo token".</td></tr>
                 </tbody>
               </table>
             </div>
-            <p class="text-mute text-xs mt-3 px-1 font-medium">O dev cola o token no <code class="text-coral-600 font-bold">.mcp.json</code>; na 1ª chamada o painel registra o <b class="text-ink">PC</b> (hostname/IP). Revogar corta o acesso na hora.</p>
+            <p class="text-t3 text-xs mt-3 px-1 font-medium">O dev cola o token no <code class="text-accentsoft font-bold">.mcp.json</code>; na 1ª chamada o painel registra o <b class="text-t1">PC</b> (hostname/IP). Revogar corta o acesso na hora.</p>
           </div>
 
           <!-- CONECTAR -->
           <div v-else-if="view==='conectar'" class="max-w-3xl space-y-4 rise">
-            <div class="bg-white rounded-3xl p-6 shadow-soft">
-              <h2 class="font-display font-bold text-xl mb-1 flex items-center gap-2"><div class="w-9 h-9 rounded-xl bg-violet-50 text-violet-500 grid place-items-center"><ic n="plugs-connected" cls="w-5 h-5"/></div>Plugar no Claude Code</h2>
-              <p class="text-mute text-sm mb-3 mt-2 font-medium">Cole no <code class="text-coral-600 font-bold">.mcp.json</code> do projeto e troque o token:</p>
-              <pre class="bg-ink text-slate-100 rounded-2xl p-4 text-xs overflow-x-auto leading-relaxed">{
+            <div class="glass rounded-2xl p-6 relative overflow-hidden">
+              <ic n="plugs-connected-d" cls="absolute right-2 -bottom-6 w-32 h-32 text-violet pointer-events-none" style="opacity:.08"/>
+              <h2 class="font-display font-bold text-xl mb-1 flex items-center gap-2 relative text-t1"><div class="w-9 h-9 rounded-xl grid place-items-center" style="background:rgba(129,140,248,.14);color:#818CF8"><ic n="plugs-connected" cls="w-5 h-5"/></div>Plugar no Claude Code</h2>
+              <p class="text-t2 text-sm mb-3 mt-2 font-medium relative">Cole no <code class="text-accentsoft font-bold">.mcp.json</code> do projeto e troque o token:</p>
+              <pre class="rounded-2xl p-4 text-xs overflow-x-auto leading-relaxed relative" style="background:#05070D;border:1px solid rgba(148,163,184,.1);color:#94A3B8">{
   "mcpServers": {
     "almirante": {
       "command": "/usr/local/bin/almirante-mcp",
@@ -267,22 +309,23 @@
     }
   }
 }</pre>
-              <p class="text-mute text-sm mt-4 mb-2 font-medium">Depois é só <b class="text-ink">falar natural</b>:</p>
-              <div class="space-y-1.5 text-sm font-medium">
-                <div class="flex items-center gap-2 text-slate-600"><ic n="caret-right" cls="w-4 h-4 text-coral-500"/>"qual o status da tozi?" · "quem precisa de deploy?"</div>
-                <div class="flex items-center gap-2 text-slate-600"><ic n="caret-right" cls="w-4 h-4 text-coral-500"/>"atualiza a homologação" · "reinicia a fábrica"</div>
-                <div class="flex items-center gap-2 text-slate-600"><ic n="caret-right" cls="w-4 h-4 text-coral-500"/>"promove a homologação pra produção" · "rollback da tozi"</div>
+              <p class="text-t2 text-sm mt-4 mb-2 font-medium relative">Depois é só <b class="text-t1">falar natural</b>:</p>
+              <div class="space-y-1.5 text-sm font-medium relative">
+                <div class="flex items-center gap-2 text-t2"><ic n="caret-right" cls="w-4 h-4 text-accent"/>"qual o status da tozi?" · "quem precisa de deploy?"</div>
+                <div class="flex items-center gap-2 text-t2"><ic n="caret-right" cls="w-4 h-4 text-accent"/>"atualiza a homologação" · "reinicia a fábrica"</div>
+                <div class="flex items-center gap-2 text-t2"><ic n="caret-right" cls="w-4 h-4 text-accent"/>"promove a homologação pra produção" · "rollback da tozi"</div>
               </div>
             </div>
-            <div class="bg-white rounded-3xl p-6 shadow-soft">
-              <h3 class="font-display font-bold text-lg mb-3 flex items-center gap-2"><div class="w-9 h-9 rounded-xl bg-coral-50 text-coral-600 grid place-items-center"><ic n="terminal-window" cls="w-5 h-5"/></div>Tools</h3>
-              <div class="grid md:grid-cols-2 gap-4 text-xs text-mute font-medium">
-                <div><b class="text-ink">Observabilidade</b><br/>fleet_status · vm_status · vm_health · migration_status · git_diff · deploy_history · version_matrix · drift_check · disk_usage · service_status · list_pending · whoami</div>
-                <div><b class="text-ink">Deploy &amp; Merge</b><br/>propose_deploy_vm · propose_deploy_all · propose_deploy_group · dry_run · <b class="text-coral-600">propose_merge</b></div>
-                <div><b class="text-ink">Ciclo-de-vida</b><br/>propose_restart_vm · propose_restart_service · propose_migrate · propose_precompile · propose_rollback</div>
-                <div><b class="text-ink">Manutenção</b><br/>freeze_deploys · unfreeze_deploys · freeze_status · cancel_request · deploy_logs · service_logs</div>
+            <div class="glass rounded-2xl p-6 relative overflow-hidden">
+              <ic n="terminal-window-d" cls="absolute right-2 -bottom-6 w-32 h-32 text-accent pointer-events-none" style="opacity:.07"/>
+              <h3 class="font-display font-bold text-lg mb-3 flex items-center gap-2 relative text-t1"><div class="w-9 h-9 rounded-xl grid place-items-center" style="background:rgba(34,211,238,.12);color:#22D3EE"><ic n="terminal-window" cls="w-5 h-5"/></div>Tools</h3>
+              <div class="grid md:grid-cols-2 gap-4 text-xs text-t3 font-medium relative">
+                <div><b class="text-t1">Observabilidade</b><br/>fleet_status · vm_status · vm_health · migration_status · git_diff · deploy_history · version_matrix · drift_check · disk_usage · service_status · list_pending · whoami</div>
+                <div><b class="text-t1">Deploy &amp; Merge</b><br/>propose_deploy_vm · propose_deploy_all · propose_deploy_group · dry_run · <b class="text-accentsoft">propose_merge</b></div>
+                <div><b class="text-t1">Ciclo-de-vida</b><br/>propose_restart_vm · propose_restart_service · propose_migrate · propose_precompile · propose_rollback</div>
+                <div><b class="text-t1">Manutenção</b><br/>freeze_deploys · unfreeze_deploys · freeze_status · cancel_request · deploy_logs · service_logs</div>
               </div>
-              <p class="text-mute text-xs mt-4 pt-3 border-t border-line font-medium">A IA <b class="text-ink">propõe</b>; nenhuma tool executa ou aprova sozinha — quem autoriza é um humano (gate fora do LLM).</p>
+              <p class="text-t3 text-xs mt-4 pt-3 font-medium relative" style="border-top:1px solid rgba(148,163,184,.1)">A IA <b class="text-t1">propõe</b>; nenhuma tool executa ou aprova sozinha — quem autoriza é um humano (gate fora do LLM).</p>
             </div>
           </div>
         </main>
