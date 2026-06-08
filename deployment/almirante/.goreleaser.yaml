@@ -1,0 +1,119 @@
+# .goreleaser.yaml — Almirante (plataforma de deploy da frota ChatSPX)
+# GoReleaser v2. Empacota os 3 binarios da plataforma.
+#
+# Dos 3 binarios, APENAS o `almiranted` vai para as VMs (instalado via
+# scripts/install-almiranted.sh em /usr/local/bin). Ele e o agente por-VM
+# que executa o pipeline faseado de deploy. Os outros dois rodam no host
+# de controle/operador:
+#   - almirante-mcp     : servidor MCP (25 tools) que o Claude Code consome.
+#   - almirante-control : dispatcher REST + RBAC + anti-self-review; serve o
+#                         painel web via go:embed (cmd/almirante-control/web/).
+#
+# Cross-compile estatico (CGO_ENABLED=0) para linux amd64+arm64.
+# Build local:   PATH=$HOME/sdk/go/bin:$PATH goreleaser build --clean --snapshot
+# Release (tag): PATH=$HOME/sdk/go/bin:$PATH goreleaser release --clean
+version: 2
+
+project_name: almirante
+
+before:
+  hooks:
+    # `go mod tidy` e responsabilidade de quem integra (evita corrida no go.mod).
+    # Aqui so garantimos que os modulos estao baixados para o build.
+    - go mod download
+
+builds:
+  # --- almiranted: O AGENTE QUE VAI PARA AS VMs ---
+  - id: almiranted
+    main: ./cmd/almiranted
+    binary: almiranted
+    env:
+      - CGO_ENABLED=0
+    goos:
+      - linux
+    goarch:
+      - amd64
+      - arm64
+    flags:
+      - -trimpath
+    ldflags:
+      - -s -w
+      - -X main.version={{ .Version }}
+      - -X main.commit={{ .ShortCommit }}
+      - -X main.date={{ .CommitDate }}
+
+  # --- almirante-mcp: servidor MCP consumido pelo Claude Code (host de controle) ---
+  - id: almirante-mcp
+    main: ./cmd/almirante-mcp
+    binary: almirante-mcp
+    env:
+      - CGO_ENABLED=0
+    goos:
+      - linux
+    goarch:
+      - amd64
+      - arm64
+    flags:
+      - -trimpath
+    ldflags:
+      - -s -w
+      - -X main.version={{ .Version }}
+      - -X main.commit={{ .ShortCommit }}
+      - -X main.date={{ .CommitDate }}
+
+  # --- almirante-control: dispatcher REST + RBAC; serve o painel (go:embed) ---
+  - id: almirante-control
+    main: ./cmd/almirante-control
+    binary: almirante-control
+    env:
+      - CGO_ENABLED=0
+    goos:
+      - linux
+    goarch:
+      - amd64
+      - arm64
+    flags:
+      - -trimpath
+    ldflags:
+      - -s -w
+      - -X main.version={{ .Version }}
+      - -X main.commit={{ .ShortCommit }}
+      - -X main.date={{ .CommitDate }}
+
+archives:
+  # Um archive tar.gz por binario, por plataforma. Mantem o agente isolado
+  # para facilitar o scp so do almiranted para as VMs.
+  - id: default
+    formats:
+      - tar.gz
+    name_template: >-
+      {{ .ProjectName }}_
+      {{- .Version }}_
+      {{- .Os }}_
+      {{- .Arch }}
+    files:
+      - README.md
+      - LICENSE*
+
+checksums:
+  name_template: "checksums.txt"
+  algorithm: sha256
+
+snapshot:
+  version_template: "{{ incpatch .Version }}-snapshot-{{ .ShortCommit }}"
+
+changelog:
+  use: github
+  sort: asc
+  filters:
+    exclude:
+      - "^docs:"
+      - "^test:"
+      - "^chore:"
+      - "Merge pull request"
+      - "Merge branch"
+
+release:
+  # So cria release no GitHub a partir de tag (o workflow chama em push de tag).
+  draft: false
+  prerelease: auto

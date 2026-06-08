@@ -1,0 +1,13 @@
+{
+  "github_repo": "Dev-Simplex/chatspx",
+  "default_branch": "producao",
+  "vms": [
+    { "id": "producao",    "name": "PRODUCAO",        "ip": "192.168.8.229",  "transport_user": "simplexia", "auth": "password", "env": "Proxmox", "branch": "producao", "critical": true,  "auto_approve": false },
+    { "id": "catatau",     "name": "CATATAU",         "ip": "3.85.130.14",    "transport_user": "ubuntu",    "auth": "key",      "env": "AWS EC2", "branch": "producao", "critical": true,  "auto_approve": false },
+    { "id": "sentinela",   "name": "SENTINELA",       "ip": "54.166.220.138", "transport_user": "ubuntu",    "auth": "key",      "env": "AWS EC2", "branch": "producao", "critical": true,  "auto_approve": false },
+    { "id": "tozi",        "name": "TOZI",            "ip": "3.82.215.109",   "transport_user": "ubuntu",    "auth": "key",      "env": "AWS EC2", "branch": "producao", "critical": true,  "auto_approve": false },
+    { "id": "fabrica",     "name": "CHATSPX-FABRICA", "ip": "3.87.182.184",   "transport_user": "ubuntu",    "auth": "key",      "env": "AWS EC2", "branch": "producao", "critical": true,  "auto_approve": false },
+    { "id": "homologacao", "name": "HOMOLOGACAO",     "ip": "192.168.8.232",  "transport_user": "chatwoot",  "auth": "password", "env": "Proxmox", "branch": "homologacao", "critical": false, "auto_approve": true },
+    { "id": "paulao",      "name": "PAULAO",          "ip": "192.168.8.100",  "transport_user": "paulo",     "auth": "password", "env": "Sandbox", "branch": "paulao",   "critical": false, "auto_approve": true }
+  ]
+}

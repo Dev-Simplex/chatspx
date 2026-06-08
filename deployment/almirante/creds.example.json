@@ -1,0 +1,10 @@
+{
+  "_comment": "Mapa VM -> credencial de transporte SSH. Copie para creds.json (NUNCA commitar) e aponte ALMIRANTE_CREDS_FILE pra ele. Tem prioridade sobre ALMIRANTE_TRANSPORT_KEY_PATH/PASSWORD (fallback global).",
+  "paulao":      { "password": "master123" },
+  "homologacao": { "password": "TROQUE_SENHA_PROXMOX" },
+  "producao":    { "password": "TROQUE_SENHA_PROXMOX" },
+  "catatau":     { "key_path": "/app/secrets/aws.pem" },
+  "sentinela":   { "key_path": "/app/secrets/aws.pem" },
+  "tozi":        { "key_path": "/app/secrets/aws.pem" },
+  "fabrica":     { "key_path": "/app/secrets/aws.pem" }
+}

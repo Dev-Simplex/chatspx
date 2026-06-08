@@ -1,0 +1,5 @@
+bin/
+*.log
+state/
+audit-log.jsonl
+creds.json

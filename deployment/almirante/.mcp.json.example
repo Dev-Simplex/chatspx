@@ -1,0 +1,14 @@
+{
+  "//": "Copie para o .mcp.json do projeto (ou ~/.claude.json) para plugar o Almirante no Claude Code.",
+  "//build": "Antes: cd deployment/almirante && make build  (gera bin/almirante-mcp).",
+  "//demo": "ALMIRANTE_MOCK=1 nao precisa de rede nem do control — dados mockados das 7 VMs.",
+  "mcpServers": {
+    "almirante": {
+      "command": "/home/chatwoot/chatwoot/deployment/almirante/bin/almirante-mcp",
+      "env": {
+        "ALMIRANTE_MOCK": "1",
+        "ALMIRANTE_FLEET_FILE": "/home/chatwoot/chatwoot/deployment/almirante/fleet.json"
+      }
+    }
+  }
+}

@@ -1,0 +1,126 @@
+package control
+
+import (
+	"context"
+	"encoding/json"
+	"fmt"
+	"strings"
+	"time"
+
+	"github.com/Dev-Simplex/almirante/internal/mock"
+	"github.com/Dev-Simplex/almirante/internal/safety"
+	sshx "github.com/Dev-Simplex/almirante/internal/ssh"
+	"github.com/Dev-Simplex/almirante/internal/types"
+)
+
+type Config struct {
+	Mock          bool
+	Fleet         *types.Fleet
+	SSH           sshx.Config
+	ApprovalTTL   time.Duration
+	MergeCloneDir string // clone dedicado p/ merges (NUNCA o working tree de prod)
+	RepoURL       string // origin p/ o clone de merge
+}
+
+// Executor faz a ponte control -> almiranted (real via SSH, ou mock local).
+type Executor struct{ Cfg Config }
+
+func (e Executor) vm(id string) (types.VM, error) {
+	for _, v := range e.Cfg.Fleet.VMs {
+		if v.ID == id {
+			return v, nil
+		}
+	}
+	return types.VM{}, fmt.Errorf("VM desconhecida: %s", id)
+}
+
+func (e Executor) Status(ctx context.Context, id string) (types.HostStatus, error) {
+	v, err := e.vm(id)
+	if err != nil {
+		return types.HostStatus{}, err
+	}
+	if e.Cfg.Mock {
+		return mock.HostStatus(id, v.Branch), nil
+	}
+	out, err := sshx.RunAlmiranted(ctx, e.Cfg.SSH, v, []string{"current"})
+	if err != nil {
+		return types.HostStatus{VM: id, Online: false}, nil
+	}
+	return types.HostStatus{VM: id, Online: true, Commit: strings.TrimSpace(out), Branch: v.Branch}, nil
+}
+
+func (e Executor) Migrations(ctx context.Context, id string) (types.MigrationStatus, error) {
+	v, err := e.vm(id)
+	if err != nil {
+		return types.MigrationStatus{}, err
+	}
+	if e.Cfg.Mock {
+		return mock.MigrationStatus(id), nil
+	}
+	out, err := sshx.RunAlmiranted(ctx, e.Cfg.SSH, v, []string{"migrate-status"})
+	if err != nil {
+		return types.MigrationStatus{VM: id}, err
+	}
+	var st types.MigrationStatus
+	_ = json.Unmarshal([]byte(out), &st)
+	st.VM = id
+	for i := range st.Pending {
+		st.Pending[i] = safety.Classify(st.Pending[i].Version, st.Pending[i].Name)
+		if st.Pending[i].Destructive {
+			st.HasDestructive = true
+		}
+	}
+	st.UpToDate = len(st.Pending) == 0
+	return st, nil
+}
+
+func (e Executor) Health(ctx context.Context, id string) (types.HealthReport, error) {
+	v, err := e.vm(id)
+	if err != nil {
+		return types.HealthReport{}, err
+	}
+	if e.Cfg.Mock {
+		return mock.Health(id), nil
+	}
+	out, err := sshx.RunAlmiranted(ctx, e.Cfg.SSH, v, []string{"health"})
+	if err != nil {
+		return types.HealthReport{VM: id}, err
+	}
+	var h types.HealthReport
+	_ = json.Unmarshal([]byte(out), &h)
+	h.VM = id
+	return h, nil
+}
+
+func (e Executor) Diff(ctx context.Context, id string) (types.GitDiff, error) {
+	if e.Cfg.Mock {
+		return mock.GitDiff(id, e.Cfg.Fleet.GitHubRepo), nil
+	}
+	st, _ := e.Status(ctx, id)
+	return types.GitDiff{VM: id, CurrentSHA: st.Commit}, nil
+}
+
+func (e Executor) History(_ context.Context, id string) ([]types.DeployHistoryEntry, error) {
+	if e.Cfg.Mock {
+		return mock.History(id), nil
+	}
+	return []types.DeployHistoryEntry{}, nil
+}
+
+// ApproveAndDeploy: chamado SO pelo endpoint /approve (apos RBAC admin + anti-self-review).
+func (e Executor) ApproveAndDeploy(ctx context.Context, id, sha, approver string) (bool, string) {
+	v, err := e.vm(id)
+	if err != nil {
+		return false, err.Error()
+	}
+	if e.Cfg.Mock {
+		return true, fmt.Sprintf("[MOCK] approve+deploy %s em %s por %s", sha, id, approver)
+	}
+	if _, err := sshx.RunAlmiranted(ctx, e.Cfg.SSH, v, []string{"approve", sha, approver}); err != nil {
+		return false, "approve falhou: " + err.Error()
+	}
+	if _, err := sshx.RunAlmiranted(ctx, e.Cfg.SSH, v, []string{"deploy", sha}); err != nil {
+		return false, "deploy falhou: " + err.Error()
+	}
+	return true, "deploy OK, health verde"
+}

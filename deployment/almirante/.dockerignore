@@ -1,0 +1,6 @@
+bin/
+state/
+*.log
+.env
+audit-log.jsonl
+.git
