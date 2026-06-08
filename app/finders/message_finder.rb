@@ -48,19 +48,19 @@ class MessageFinder
   end
 
   def messages_after(after_id)
-    messages.reorder('created_at asc').where('id > ?', after_id).limit(after_limit)
+    messages.reorder('created_at asc, id asc').where('id > ?', after_id).limit(after_limit)
   end
 
   def messages_before(before_id)
-    fetch_cursor_page(messages.reorder('created_at desc').where('id < ?', before_id), page_limit).reverse
+    fetch_cursor_page(messages.reorder('created_at desc, id desc').where('id < ?', before_id), page_limit).reverse
   end
 
   def messages_between(after_id, before_id)
-    messages.reorder('created_at asc').where('id >= ? AND id < ?', after_id, before_id).limit(between_limit)
+    messages.reorder('created_at asc, id asc').where('id >= ? AND id < ?', after_id, before_id).limit(between_limit)
   end
 
   def messages_latest
-    fetch_cursor_page(messages.reorder('created_at desc'), page_limit).reverse
+    fetch_cursor_page(messages.reorder('created_at desc, id desc'), page_limit).reverse
   end
 
   def fetch_cursor_page(relation, limit)

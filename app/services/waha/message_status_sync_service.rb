@@ -32,7 +32,9 @@ class Waha::MessageStatusSyncService
   end
 
   def sync_statuses(waha_messages)
-    @outgoing_messages = @conversation.messages.where(message_type: :outgoing, status: %w[sent delivered]).to_a
+    @outgoing_messages = @conversation.messages
+                                      .includes(:attachments)
+                                      .where(message_type: :outgoing, status: %w[sent delivered]).to_a
     return if @outgoing_messages.empty?
 
     waha_messages.select { |m| m['fromMe'] }.each { |waha_msg| sync_single_message(waha_msg) }
@@ -59,14 +61,42 @@ class Waha::MessageStatusSyncService
     by_source = outgoing_messages.find { |m| m.source_id == waha_id }
     return by_source if by_source
 
-    # Match by content + timestamp (fallback, same logic as UpdateContentService)
-    waha_content = extract_content(waha_msg)
     waha_timestamp = waha_msg['timestamp'].to_i
-    return if waha_content.blank? || waha_timestamp.zero?
+    return if waha_timestamp.zero?
+
+    match_by_content(outgoing_messages, waha_msg, waha_timestamp) ||
+      match_by_media(outgoing_messages, waha_msg, waha_timestamp)
+  end
+
+  # Match by content + timestamp (text messages), same logic as UpdateContentService
+  def match_by_content(outgoing_messages, waha_msg, waha_timestamp)
+    waha_content = extract_content(waha_msg)
+    return if waha_content.blank?
 
     outgoing_messages.find do |m|
       content_matches?(m.content, waha_content) && timestamp_matches?(m.created_at, waha_timestamp)
     end
+  end
+
+  # Match media (audio/video/image/doc) by attachment + timestamp.
+  # Midia sem legenda nao tem content -> antes nunca casava e a mensagem ficava presa em
+  # 'sent' sem source_id MESMO quando entregue. Casamos a mensagem outgoing com anexo, sem
+  # texto e ainda sem source_id, mais proxima no tempo -> backfill de source_id + status real
+  # (delivered/read). So confirma entrega quando o WAHA REPORTA a midia; nunca marca falha
+  # (evita falso-positivo em midia sem legenda).
+  def match_by_media(outgoing_messages, waha_msg, waha_timestamp)
+    return unless waha_media_message?(waha_msg)
+
+    outgoing_messages
+      .select { |m| m.content.blank? && m.source_id.blank? && m.attachments.present? }
+      .select { |m| timestamp_matches?(m.created_at, waha_timestamp) }
+      .min_by { |m| (m.created_at.to_i - waha_timestamp).abs }
+  end
+
+  def waha_media_message?(waha_msg)
+    return true if waha_msg['hasMedia']
+
+    %w[image audio video document ptt voice sticker].include?(waha_msg['type'].to_s.downcase)
   end
 
   def content_matches?(chatwoot_content, waha_content)

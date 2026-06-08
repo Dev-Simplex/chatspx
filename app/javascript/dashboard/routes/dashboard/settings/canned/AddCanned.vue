@@ -31,6 +31,7 @@ export default {
     return {
       shortCode: '',
       content: this.responseContent || '',
+      attachmentFiles: [],
       addCanned: {
         showLoading: false,
         message: '',
@@ -51,8 +52,12 @@ export default {
     resetForm() {
       this.shortCode = '';
       this.content = '';
+      this.attachmentFiles = [];
       this.v$.shortCode.$reset();
       this.v$.content.$reset();
+    },
+    onAttachmentChange(event) {
+      this.attachmentFiles = Array.from(event.target.files || []);
     },
     addCannedResponse() {
       // Show loading on button
@@ -62,6 +67,7 @@ export default {
         .dispatch('createCannedResponse', {
           short_code: this.shortCode,
           content: this.content,
+          attachments: this.attachmentFiles,
         })
         .then(() => {
           // Reset Form, Show success message
@@ -117,6 +123,19 @@ export default {
               @blur="v$.content.$touch"
             />
           </div>
+        </div>
+        <div class="w-full">
+          <label>{{ $t('CANNED_MGMT.ADD.FORM.ATTACHMENT.LABEL') }}</label>
+          <input
+            type="file"
+            multiple
+            accept="image/*,video/*,application/pdf"
+            class="text-sm"
+            @change="onAttachmentChange"
+          />
+          <span v-if="attachmentFiles.length" class="text-xs text-n-slate-11">
+            {{ attachmentFiles.length }}
+          </span>
         </div>
         <div class="flex flex-row justify-end w-full gap-2 px-0 py-2">
           <NextButton

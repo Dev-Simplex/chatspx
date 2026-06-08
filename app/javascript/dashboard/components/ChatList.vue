@@ -370,6 +370,9 @@ const pageTitle = computed(() => {
   if (props.conversationType === 'unattended') {
     return t('CHAT_LIST.UNATTENDED_HEADING');
   }
+  if (props.conversationType === 'unread') {
+    return t('CHAT_LIST.UNREAD_HEADING');
+  }
   if (hasActiveFolders.value) {
     return activeFolder.value.name;
   }

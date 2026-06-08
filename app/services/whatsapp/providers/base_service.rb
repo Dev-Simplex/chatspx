@@ -27,6 +27,12 @@ class Whatsapp::Providers::BaseService
     raise 'Overwrite this method in child class'
   end
 
+  # "Digitando..." pro cliente. No-op por padrao; provedores que suportam
+  # (WhatsApp Cloud API) sobrescrevem. Nunca deve levantar — e best-effort de UX.
+  def send_typing_indicator(_source_id, _show_typing = true)
+    nil
+  end
+
   def error_message
     raise 'Overwrite this method in child class'
   end

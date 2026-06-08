@@ -120,7 +120,7 @@ class Message < ApplicationRecord
 
   scope :created_since, ->(datetime) { where('created_at > ?', datetime) }
   scope :chat, -> { where.not(message_type: :activity).where(private: false) }
-  scope :non_activity_messages, -> { where.not(message_type: :activity).reorder('created_at desc') }
+  scope :non_activity_messages, -> { where.not(message_type: :activity).reorder('created_at desc, id desc') }
   scope :today, -> { where("date_trunc('day', created_at) = ?", Date.current) }
   scope :for_team, ->(team_id) { where(team_id: team_id) }
   scope :voice_calls, -> { where(content_type: :voice_call) }
@@ -130,7 +130,7 @@ class Message < ApplicationRecord
   # TODO: Get rid of default scope
   # https://stackoverflow.com/a/1834250/939299
   # if you want to change order, use `reorder`
-  default_scope { order(created_at: :asc) }
+  default_scope { order(created_at: :asc, id: :asc) }
 
   belongs_to :account
   belongs_to :inbox
@@ -465,7 +465,7 @@ class Message < ApplicationRecord
 
   def reopen_resolved_conversation
     # mark resolved bot conversation as pending to be reopened by bot processor service
-    if conversation.inbox.active_bot?
+    if conversation.inbox.active_bot? && conversation.inbox.pending_status_enabled?
       conversation.pending!
     elsif conversation.inbox.api?
       Current.executed_by = sender if reopened_by_contact?

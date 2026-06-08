@@ -802,6 +802,7 @@ export default {
         this.isGhostSuggestionDismissed = false;
         this.remoteGhostSuggestion = '';
         this.ghostSuggestionFetchedFor = null;
+        this.focusReplyEditor();
       }
     },
     'lastIncomingMessage.id': {
@@ -862,6 +863,9 @@ export default {
       this.openWhatsappTemplateModal
     );
     emitter.on(CMD_AI_ASSIST, this.executeCopilotAction);
+
+    // Foco inicial ao montar o composer (abrir conversa direto pela URL/refresh).
+    this.focusReplyEditor();
   },
   unmounted() {
     document.removeEventListener('paste', this.onPaste);
@@ -1270,11 +1274,34 @@ export default {
     hideCannedResponseModal() {
       this.showCannedResponseModal = false;
     },
-    onCannedResponseSelect({ content }) {
+    onCannedResponseSelect({ content, attachments }) {
       this.hideCannedResponseModal();
       if (typeof content === 'string') {
         this.replaceText(content);
       }
+      this.attachCannedResponseFiles(attachments);
+    },
+    async attachCannedResponseFiles(attachments) {
+      if (!Array.isArray(attachments) || !attachments.length) return;
+      await Promise.all(
+        attachments.map(async att => {
+          try {
+            const response = await fetch(att.file_url);
+            const blob = await response.blob();
+            const file = new File([blob], att.filename || 'anexo', {
+              type: att.file_type || blob.type,
+            });
+            this.onFileUpload({
+              name: file.name,
+              type: file.type,
+              size: file.size,
+              file,
+            });
+          } catch (error) {
+            // best-effort: anexo da resposta rapida nao bloqueia o envio do texto
+          }
+        })
+      );
     },
     openLocationPicker() {
       if (!this.currentChat?.id) return;
@@ -1369,6 +1396,15 @@ export default {
           this.isFocused = true;
         });
       }
+    },
+    focusReplyEditor() {
+      // Foca o editor ao abrir/trocar de conversa. Nos inboxes Channel::Api/WhatsApp
+      // da Tozi o foco-na-troca dependia so do timing interno do Editor e falhava em
+      // navegacao SPA -> a atendente precisava clicar manualmente na caixa pra digitar.
+      if (this.isEditorDisabled) return;
+      this.$nextTick(() => {
+        this.messageEditor?.focusEditorInputField?.('end');
+      });
     },
     sendToConversation(conversationId) {
       if (this.isReplyButtonDisabled && !this.attachedFiles.length) return;
@@ -2396,6 +2432,7 @@ export default {
             @blur="onBlur"
             @toggle-user-mention="toggleUserMention"
             @toggle-canned-menu="toggleCannedMenu"
+            @attach-canned-files="attachCannedResponseFiles"
             @toggle-variables-menu="toggleVariablesMenu"
             @clear-selection="clearEditorSelection"
             @execute-copilot-action="executeCopilotAction"
@@ -2634,6 +2671,7 @@ export default {
               @blur="onBlur"
               @toggle-user-mention="toggleUserMention"
               @toggle-canned-menu="toggleCannedMenu"
+              @attach-canned-files="attachCannedResponseFiles"
               @toggle-variables-menu="toggleVariablesMenu"
               @clear-selection="clearEditorSelection"
               @execute-copilot-action="executeCopilotAction"

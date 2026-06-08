@@ -83,6 +83,17 @@ class Conversation < ApplicationRecord
   scope :assigned, -> { where.not(assignee_id: nil) }
   scope :assigned_to, ->(agent) { where(assignee_id: agent.id) }
   scope :unattended, -> { where(first_reply_created_at: nil).or(where.not(waiting_since: nil)) }
+  # Conversas com mensagem recebida (incoming) ainda nao vista pelo agente:
+  # existe incoming criada depois do agent_last_seen_at (ou nunca aberta). Espelha
+  # memoized_unread_count > 0 em forma de scope, para filtragem da lista.
+  scope :unread, lambda {
+    where(
+      'EXISTS (SELECT 1 FROM messages WHERE messages.conversation_id = conversations.id ' \
+      'AND messages.message_type = ? ' \
+      'AND (conversations.agent_last_seen_at IS NULL OR messages.created_at > conversations.agent_last_seen_at))',
+      Message.message_types[:incoming]
+    )
+  }
   scope :resolvable_not_waiting, lambda { |auto_resolve_after|
     return none if auto_resolve_after.to_i.zero?
 
