@@ -221,9 +221,26 @@
 }`;
         const copied = ref('');
         const copy = (txt, id) => { try{ navigator.clipboard.writeText(txt); copied.value=id; setTimeout(()=>copied.value='',1600); }catch(e){} };
+        const claudePrompt = `Você tem o MCP "almirante" conectado — o painel de comando de deploy da frota ChatSPX. Regra de ouro: a IA PROPÕE, um humano APROVA no painel (https://painel.chatspx.app). Nunca presuma que executou.
+
+Frota (8 VMs): producao e homologacao (Proxmox); paulao e nicolas (dev); catatau, sentinela, tozi, fabrica (AWS).
+
+O que você pode fazer pelas tools do almirante:
+- OBSERVAR (livre): status, saúde, métricas (cpu/ram/disco/uptime), migrations pendentes, git diff, histórico, drift entre VMs, sidekiq, disco.
+- PROPOR (vira pedido pendente de aprovação): deploy de 1 VM / grupo / frota toda, merge-promote entre branches (ex: homologacao→producao), migrate, precompile, rollback.
+- OPERAR: restart de serviço (web/worker), freeze/unfreeze de deploys, cancelar pedido.
+
+Como agir:
+1. Entenda meu pedido em linguagem natural e use a tool certa do almirante.
+2. Tudo que MUDA algo (deploy/migrate/merge/restart) é uma PROPOSTA: me devolva o ID do pedido e diga que está PENDENTE de aprovação humana no painel. Não afirme que "fez/atualizou".
+3. Migrations destrutivas são sinalizadas — destaque o risco antes de propor.
+4. Para leitura (status/saúde/logs), responda direto com os dados.
+5. Fale comigo em português, objetivo.
+
+Exemplos: "qual o status da tozi?" · "a frota tá saudável?" · "atualiza a homologação" · "promove a homologação pra produção" · "reinicia o worker da fábrica" · "rollback da tozi".`;
 
         onMounted(()=>{ if(!setpwToken.value) checkMe(); });
-        return { token, saveToken, view, go, fleet, status, metrics, deploys, tokens, msg, refresh, pending, recent, byEnv, onlineCount, act, loadTokens, newToken, revokeToken, envStyle, relTime, titleOf, loadMetrics, restartVM, mstate, retryMetrics, mcpSnippet, copied, copy,
+        return { token, saveToken, view, go, fleet, status, metrics, deploys, tokens, msg, refresh, pending, recent, byEnv, onlineCount, act, loadTokens, newToken, revokeToken, envStyle, relTime, titleOf, loadMetrics, restartVM, mstate, retryMetrics, mcpSnippet, claudePrompt, copied, copy,
                  me, setpwToken, li, sp, usersList, doLogin, doSetPw, logout, tokenLogin, loadUsers, addUser, delUser };
       },
       template: `
@@ -488,6 +505,16 @@
                 </div>
                 <p class="text-t3 text-xs mt-4 flex items-center gap-1.5"><ic n="shield-check" cls="w-3.5 h-3.5 text-ok"/>Tudo que muda algo vira um <b class="text-t1">pedido</b> que um humano aprova aqui. A IA nunca executa sozinha.</p>
               </div>
+            </div>
+
+            <!-- prompt pro Claude -->
+            <div class="glass rounded-2xl p-6">
+              <div class="flex items-center justify-between gap-2 mb-1">
+                <h3 class="font-display font-bold text-lg text-t1 flex items-center gap-2"><div class="w-8 h-8 rounded-xl grid place-items-center" style="background:rgba(129,140,248,.14);color:#818CF8"><ic n="terminal-window" cls="w-4 h-4"/></div>Prompt pra colar no Claude</h3>
+                <button @click="copy(claudePrompt,'prompt')" class="press text-[12px] font-bold rounded-lg px-3 py-1.5 flex items-center gap-1.5 shrink-0" style="background:rgba(129,140,248,.14);color:#a5b4fc;border:1px solid rgba(129,140,248,.3)"><ic n="terminal-window" cls="w-3.5 h-3.5"/>{{ copied==='prompt' ? 'copiado ✓' : 'copiar prompt' }}</button>
+              </div>
+              <p class="text-t2 text-sm mt-1 mb-3">Cole como <b class="text-t1">primeira mensagem</b> no Claude Code (ou no <code class="text-accentsoft">CLAUDE.md</code> do projeto) — ensina o Claude a comandar a frota com o gate humano.</p>
+              <pre class="rounded-xl p-4 text-[11px] overflow-x-auto leading-relaxed whitespace-pre-wrap" style="background:#05070D;border:1px solid rgba(148,163,184,.1);color:#94A3B8">{{ claudePrompt }}</pre>
             </div>
 
             <!-- tools -->
