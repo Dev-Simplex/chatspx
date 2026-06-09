@@ -59,6 +59,7 @@
     @keyframes shimmer{ 0%{opacity:.35} 50%{opacity:.7} 100%{opacity:.35} }
     .skel{ background:rgba(148,163,184,.10); border-radius:8px; animation:shimmer 1.4s ease-in-out infinite; }
     .press:active{ transform:scale(.96); }
+    .chip{ font-size:12px; font-weight:500; padding:5px 10px; border-radius:8px; background:rgba(34,211,238,.07); color:#94A3B8; border:1px solid rgba(34,211,238,.16); }
     @keyframes pulse{ 0%{box-shadow:0 0 0 0 rgba(76,195,138,.55)} 70%{box-shadow:0 0 0 6px rgba(76,195,138,0)} 100%{box-shadow:0 0 0 0 rgba(76,195,138,0)} }
     .live{ animation:pulse 2.6s ease-out infinite; }
     @keyframes rise{ from{opacity:0;transform:translateY(14px)} to{opacity:1;transform:none} }
@@ -206,9 +207,23 @@
         };
         const relTime = (s)=> s ? s.slice(0,16).replace('T',' ') : '—';
         const titleOf = { frota:'Frota', aprovacoes:'Aprovações', historico:'Histórico', tokens:'Tokens & Dispositivos', usuarios:'Usuários', conectar:'Como conectar' };
+        const mcpSnippet = `{
+  "mcpServers": {
+    "almirante": {
+      "command": "/usr/local/bin/almirante-mcp",
+      "env": {
+        "ALMIRANTE_MOCK": "0",
+        "ALMIRANTE_CONTROL_URL": "https://painel.chatspx.app",
+        "ALMIRANTE_DEV_TOKEN": "SEU_TOKEN_AQUI"
+      }
+    }
+  }
+}`;
+        const copied = ref('');
+        const copy = (txt, id) => { try{ navigator.clipboard.writeText(txt); copied.value=id; setTimeout(()=>copied.value='',1600); }catch(e){} };
 
         onMounted(()=>{ if(!setpwToken.value) checkMe(); });
-        return { token, saveToken, view, go, fleet, status, metrics, deploys, tokens, msg, refresh, pending, recent, byEnv, onlineCount, act, loadTokens, newToken, revokeToken, envStyle, relTime, titleOf, loadMetrics, restartVM, mstate, retryMetrics,
+        return { token, saveToken, view, go, fleet, status, metrics, deploys, tokens, msg, refresh, pending, recent, byEnv, onlineCount, act, loadTokens, newToken, revokeToken, envStyle, relTime, titleOf, loadMetrics, restartVM, mstate, retryMetrics, mcpSnippet, copied, copy,
                  me, setpwToken, li, sp, usersList, doLogin, doSetPw, logout, tokenLogin, loadUsers, addUser, delUser };
       },
       template: `
@@ -428,39 +443,63 @@
           </div>
 
           <div v-else-if="view==='conectar'" class="max-w-3xl space-y-4 rise">
+            <!-- intro -->
             <div class="glass rounded-2xl p-6 relative overflow-hidden">
               <ic n="plugs-connected-d" cls="absolute right-2 -bottom-6 w-32 h-32 text-violet pointer-events-none" style="opacity:.08"/>
-              <h2 class="font-display font-bold text-xl mb-1 flex items-center gap-2 relative text-t1"><div class="w-9 h-9 rounded-xl grid place-items-center" style="background:rgba(129,140,248,.14);color:#818CF8"><ic n="plugs-connected" cls="w-5 h-5"/></div>Plugar no Claude Code</h2>
-              <p class="text-t2 text-sm mb-3 mt-2 font-medium relative">Cole no <code class="text-accentsoft font-bold">.mcp.json</code> do projeto e troque o token:</p>
-              <pre class="rounded-2xl p-4 text-xs overflow-x-auto leading-relaxed relative" style="background:#05070D;border:1px solid rgba(148,163,184,.1);color:#94A3B8">{
-  "mcpServers": {
-    "almirante": {
-      "command": "/usr/local/bin/almirante-mcp",
-      "env": {
-        "ALMIRANTE_MOCK": "0",
-        "ALMIRANTE_CONTROL_URL": "https://painel.chatspx.app",
-        "ALMIRANTE_DEV_TOKEN": "SEU_TOKEN_AQUI"
-      }
-    }
-  }
-}</pre>
-              <p class="text-t2 text-sm mt-4 mb-2 font-medium relative">Depois é só <b class="text-t1">falar natural</b>:</p>
-              <div class="space-y-1.5 text-sm font-medium relative">
-                <div class="flex items-center gap-2 text-t2"><ic n="caret-right" cls="w-4 h-4 text-accent"/>"qual o status da tozi?" · "quem precisa de deploy?"</div>
-                <div class="flex items-center gap-2 text-t2"><ic n="caret-right" cls="w-4 h-4 text-accent"/>"atualiza a homologação" · "reinicia a fábrica"</div>
-                <div class="flex items-center gap-2 text-t2"><ic n="caret-right" cls="w-4 h-4 text-accent"/>"promove a homologação pra produção" · "rollback da tozi"</div>
+              <div class="relative">
+                <div class="text-[11px] font-bold uppercase tracking-[.18em] text-accentsoft flex items-center gap-1.5"><ic n="plugs-connected" cls="w-4 h-4"/>Onboarding</div>
+                <h2 class="font-display font-extrabold text-2xl text-t1 mt-2">Conecte o Almirante ao Claude Code</h2>
+                <p class="text-t2 text-sm mt-2 max-w-lg">3 passos e o dev comanda a frota falando natural — a IA <b class="text-t1">propõe</b>, um humano <b class="text-t1">aprova</b> aqui. Funciona em qualquer máquina com o Claude Code.</p>
               </div>
             </div>
+
+            <!-- passo 1 -->
+            <div class="glass rounded-2xl p-6 flex gap-4">
+              <div class="w-8 h-8 rounded-full grid place-items-center font-display font-extrabold text-sm shrink-0 text-void" style="background:#22D3EE">1</div>
+              <div class="flex-1">
+                <h3 class="font-display font-bold text-lg text-t1">Pegue seu token</h3>
+                <p class="text-t2 text-sm mt-1">Um <b class="text-t1">admin</b> emite na aba <b class="text-accentsoft">Tokens → Novo token</b>. Cada dev tem o seu, com papel (viewer/operator/admin) e <b class="text-t1">revogável</b> a qualquer momento.</p>
+                <button v-if="me && me.role==='admin'" @click="go('tokens')" class="press mt-3 text-[13px] font-bold text-accentsoft flex items-center gap-1.5"><ic n="key" cls="w-4 h-4"/>Ir para Tokens →</button>
+              </div>
+            </div>
+
+            <!-- passo 2 -->
+            <div class="glass rounded-2xl p-6 flex gap-4">
+              <div class="w-8 h-8 rounded-full grid place-items-center font-display font-extrabold text-sm shrink-0 text-void" style="background:#22D3EE">2</div>
+              <div class="flex-1 min-w-0">
+                <div class="flex items-center justify-between gap-2">
+                  <h3 class="font-display font-bold text-lg text-t1">Cole no <code class="text-accentsoft">.mcp.json</code></h3>
+                  <button @click="copy(mcpSnippet,'mcp')" class="press text-[12px] font-bold rounded-lg px-3 py-1.5 flex items-center gap-1.5 shrink-0" style="background:rgba(34,211,238,.12);color:#67E8F9;border:1px solid rgba(34,211,238,.25)"><ic n="terminal-window" cls="w-3.5 h-3.5"/>{{ copied==='mcp' ? 'copiado ✓' : 'copiar' }}</button>
+                </div>
+                <p class="text-t2 text-sm mt-1 mb-3">No projeto (ou em <code class="text-t1">~/.claude.json</code>) — troque <b class="text-accentsoft">SEU_TOKEN_AQUI</b> pelo token do passo 1.</p>
+                <pre class="rounded-xl p-4 text-xs overflow-x-auto leading-relaxed" style="background:#05070D;border:1px solid rgba(148,163,184,.1);color:#94A3B8">{{ mcpSnippet }}</pre>
+              </div>
+            </div>
+
+            <!-- passo 3 -->
+            <div class="glass rounded-2xl p-6 flex gap-4">
+              <div class="w-8 h-8 rounded-full grid place-items-center font-display font-extrabold text-sm shrink-0 text-void" style="background:#22D3EE">3</div>
+              <div class="flex-1">
+                <h3 class="font-display font-bold text-lg text-t1">Fale natural</h3>
+                <p class="text-t2 text-sm mt-1 mb-3">Sem decorar comando — é só pedir:</p>
+                <div class="space-y-3">
+                  <div><div class="text-[10px] uppercase tracking-wider text-t3 font-bold mb-1.5">Consultar</div><div class="flex flex-wrap gap-1.5"><span class="chip">"status da tozi?"</span><span class="chip">"a frota tá saudável?"</span><span class="chip">"quem precisa de deploy?"</span></div></div>
+                  <div><div class="text-[10px] uppercase tracking-wider text-t3 font-bold mb-1.5">Operar</div><div class="flex flex-wrap gap-1.5"><span class="chip">"atualiza a homologação"</span><span class="chip">"reinicia a fábrica"</span><span class="chip">"promove homolog pra produção"</span><span class="chip">"rollback da tozi"</span></div></div>
+                </div>
+                <p class="text-t3 text-xs mt-4 flex items-center gap-1.5"><ic n="shield-check" cls="w-3.5 h-3.5 text-ok"/>Tudo que muda algo vira um <b class="text-t1">pedido</b> que um humano aprova aqui. A IA nunca executa sozinha.</p>
+              </div>
+            </div>
+
+            <!-- tools -->
             <div class="glass rounded-2xl p-6 relative overflow-hidden">
-              <ic n="terminal-window-d" cls="absolute right-2 -bottom-6 w-32 h-32 text-accent pointer-events-none" style="opacity:.07"/>
-              <h3 class="font-display font-bold text-lg mb-3 flex items-center gap-2 relative text-t1"><div class="w-9 h-9 rounded-xl grid place-items-center" style="background:rgba(34,211,238,.12);color:#22D3EE"><ic n="terminal-window" cls="w-5 h-5"/></div>Tools</h3>
+              <ic n="terminal-window-d" cls="absolute right-2 -bottom-6 w-32 h-32 text-accent pointer-events-none" style="opacity:.06"/>
+              <h3 class="font-display font-bold text-lg mb-3 flex items-center gap-2 relative text-t1"><ic n="terminal-window" cls="w-5 h-5 text-accent"/>Tools disponíveis</h3>
               <div class="grid md:grid-cols-2 gap-4 text-xs text-t3 font-medium relative">
                 <div><b class="text-t1">Observabilidade</b><br/>fleet_status · vm_status · vm_health · migration_status · git_diff · deploy_history · version_matrix · drift_check · disk_usage · service_status · list_pending · whoami</div>
                 <div><b class="text-t1">Deploy &amp; Merge</b><br/>propose_deploy_vm · propose_deploy_all · propose_deploy_group · dry_run · <b class="text-accentsoft">propose_merge</b></div>
                 <div><b class="text-t1">Ciclo-de-vida</b><br/>propose_restart_vm · propose_restart_service · propose_migrate · propose_precompile · propose_rollback</div>
                 <div><b class="text-t1">Manutenção</b><br/>freeze_deploys · unfreeze_deploys · freeze_status · cancel_request · deploy_logs · service_logs</div>
               </div>
-              <p class="text-t3 text-xs mt-4 pt-3 font-medium relative" style="border-top:1px solid rgba(148,163,184,.1)">A IA <b class="text-t1">propõe</b>; nenhuma tool executa ou aprova sozinha — quem autoriza é um humano (gate fora do LLM).</p>
             </div>
           </div>
         </main>
