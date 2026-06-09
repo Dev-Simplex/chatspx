@@ -8,6 +8,7 @@
     { "id": "tozi",        "name": "TOZI",            "ip": "3.82.215.109",   "transport_user": "ubuntu",    "auth": "key",      "env": "AWS EC2", "branch": "producao", "critical": true,  "auto_approve": false },
     { "id": "fabrica",     "name": "CHATSPX-FABRICA", "ip": "3.87.182.184",   "transport_user": "ubuntu",    "auth": "key",      "env": "AWS EC2", "branch": "producao", "critical": true,  "auto_approve": false },
     { "id": "homologacao", "name": "HOMOLOGACAO",     "ip": "192.168.8.232",  "transport_user": "chatwoot",  "auth": "password", "env": "Proxmox", "branch": "homologacao", "critical": false, "auto_approve": true },
-    { "id": "paulao",      "name": "PAULAO",          "ip": "192.168.8.100",  "transport_user": "paulo",     "auth": "password", "env": "Dev", "branch": "paulao",   "critical": false, "auto_approve": true }
+    { "id": "paulao",      "name": "PAULAO",          "ip": "192.168.8.100",  "transport_user": "paulo",     "auth": "password", "env": "Dev", "branch": "paulao",   "critical": false, "auto_approve": true },
+    { "id": "nicolas",     "name": "NICOLAS",         "ip": "192.168.8.98",   "transport_user": "nicolas",   "auth": "password", "env": "Dev", "branch": "nicolas",  "critical": false, "auto_approve": true }
   ]
 }
