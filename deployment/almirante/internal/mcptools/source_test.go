@@ -1,4 +1,4 @@
-package main
+package mcptools_test
 
 import (
 	"net/http/httptest"
@@ -8,9 +8,10 @@ import (
 	"github.com/Dev-Simplex/almirante/internal/audit"
 	"github.com/Dev-Simplex/almirante/internal/control"
 	"github.com/Dev-Simplex/almirante/internal/fleet"
+	"github.com/Dev-Simplex/almirante/internal/mcptools"
 )
 
-// Prova o modo REAL: controlSource (o que o MCP usa com ALMIRANTE_MOCK=0)
+// Prova o modo REAL: ControlSource (o que o MCP usa com ALMIRANTE_MOCK=0)
 // falando HTTP com o dispatcher control de verdade (em mock interno).
 func TestRealModeWiring(t *testing.T) {
 	f, err := fleet.Load("../../fleet.json")
@@ -24,7 +25,7 @@ func TestRealModeWiring(t *testing.T) {
 	ts := httptest.NewServer(h)
 	defer ts.Close()
 
-	cs := newControlSource(ts.URL, "op")
+	cs := mcptools.NewControlSource(ts.URL, "op")
 
 	if st, err := cs.Status("tozi"); err != nil || st.VM != "tozi" {
 		t.Fatalf("Status via control: %v / %+v", err, st)

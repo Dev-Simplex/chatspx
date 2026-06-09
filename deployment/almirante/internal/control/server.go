@@ -9,7 +9,9 @@ import (
 	"time"
 
 	"github.com/Dev-Simplex/almirante/internal/audit"
+	"github.com/Dev-Simplex/almirante/internal/mcptools"
 	"github.com/Dev-Simplex/almirante/internal/types"
+	"github.com/modelcontextprotocol/go-sdk/mcp"
 )
 
 type Role int
@@ -49,6 +51,7 @@ type Server struct {
 	mailer     *Mailer
 	sessSecret []byte
 	appURL     string
+	selfBase   string // base loopback p/ o MCP HTTP falar com a propria REST
 	ttl        time.Duration
 	now        func() time.Time
 	mergeDir   string
@@ -92,6 +95,7 @@ func NewServer(cfg Config, store *Store, aud *audit.Logger, tokensCSV string) *S
 		mailer:     NewMailerFromEnv(),
 		sessSecret: sessionSecretFromEnv(),
 		appURL:     envOr2("ALMIRANTE_APP_URL", "https://painel.chatspx.app"),
+		selfBase:   envOr2("ALMIRANTE_SELF_URL", "http://127.0.0.1:"+envOr2("ALMIRANTE_CONTROL_PORT", "4100")),
 		ttl:        ttl,
 		now:      time.Now,
 		mergeDir: cfg.MergeCloneDir,
@@ -134,6 +138,43 @@ func (s *Server) Handler() http.Handler {
 	mux.HandleFunc("POST /api/users", s.auth(RoleAdmin, s.inviteUser))
 	mux.HandleFunc("DELETE /api/users/{id}", s.auth(RoleAdmin, s.revokeUser))
 	return mux
+}
+
+// validToken: o token (env bootstrap ou emitido no painel) existe?
+func (s *Server) validToken(tok string) bool {
+	if tok == "" {
+		return false
+	}
+	if _, ok := s.tokens[tok]; ok {
+		return true
+	}
+	_, ok := s.tstore.Lookup(tok)
+	return ok
+}
+
+// MCPHandler hospeda o MCP do Almirante por HTTP (streamable). Assim o dev pluga
+// com UM comando, sem binario nem editar .mcp.json:
+//
+//	claude mcp add --transport http almirante https://painel.chatspx.app/mcp \
+//	  --header "Authorization: Bearer <token>" --scope user
+//
+// O token do dev (header) e validado aqui e repassado a uma Source loopback que
+// fala a propria REST — preservando requested_by e reusando todo o gate/freeze.
+func (s *Server) MCPHandler() http.Handler {
+	streamable := mcp.NewStreamableHTTPHandler(func(r *http.Request) *mcp.Server {
+		tok := strings.TrimPrefix(r.Header.Get("Authorization"), "Bearer ")
+		srv := mcp.NewServer(&mcp.Implementation{Name: "almirante", Version: "control", Title: "Almirante — deploy da frota ChatSPX"}, nil)
+		mcptools.Register(srv, s.fleet, mcptools.NewControlSource(s.selfBase, tok))
+		return srv
+	}, nil)
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		tok := strings.TrimPrefix(r.Header.Get("Authorization"), "Bearer ")
+		if !s.validToken(tok) {
+			writeErr(w, 401, "token invalido ou ausente — emita um na aba Tokens do painel")
+			return
+		}
+		streamable.ServeHTTP(w, r)
+	})
 }
 
 func (s *Server) auth(min Role, h func(http.ResponseWriter, *http.Request, user)) http.HandlerFunc {

@@ -6,6 +6,7 @@ import (
 	"testing"
 
 	"github.com/Dev-Simplex/almirante/internal/fleet"
+	"github.com/Dev-Simplex/almirante/internal/mcptools"
 	"github.com/modelcontextprotocol/go-sdk/mcp"
 )
 
@@ -29,7 +30,7 @@ func TestMCPServer(t *testing.T) {
 
 	ctx := context.Background()
 	srv := mcp.NewServer(&mcp.Implementation{Name: "almirante", Version: "test"}, nil)
-	registerTools(srv)
+	mcptools.Register(srv, fl, src)
 
 	st, ct := mcp.NewInMemoryTransports()
 	if _, err := srv.Connect(ctx, st, nil); err != nil {

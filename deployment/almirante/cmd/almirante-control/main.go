@@ -122,6 +122,7 @@ func main() {
 	sub, _ := fs.Sub(webFS, "web")
 	mux := http.NewServeMux()
 	mux.Handle("/api/", srv.Handler())
+	mux.Handle("/mcp", srv.MCPHandler()) // MCP remoto (1 comando pra plugar, sem binario)
 	mux.Handle("/", http.FileServer(http.FS(sub)))
 
 	port := env("ALMIRANTE_CONTROL_PORT", "4100")

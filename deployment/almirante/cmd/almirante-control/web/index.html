@@ -207,21 +207,16 @@
         };
         const relTime = (s)=> s ? s.slice(0,16).replace('T',' ') : '—';
         const titleOf = { frota:'Frota', aprovacoes:'Aprovações', historico:'Histórico', tokens:'Tokens & Dispositivos', usuarios:'Usuários', conectar:'Como conectar' };
-        const mcpSnippet = `{
-  "mcpServers": {
-    "almirante": {
-      "command": "/usr/local/bin/almirante-mcp",
-      "env": {
-        "ALMIRANTE_MOCK": "0",
-        "ALMIRANTE_CONTROL_URL": "https://painel.chatspx.app",
-        "ALMIRANTE_DEV_TOKEN": "SEU_TOKEN_AQUI"
-      }
-    }
-  }
-}`;
+        const addCmd = `claude mcp add --transport http almirante https://painel.chatspx.app/mcp --header "Authorization: Bearer SEU_TOKEN" --scope user`;
         const copied = ref('');
         const copy = (txt, id) => { try{ navigator.clipboard.writeText(txt); copied.value=id; setTimeout(()=>copied.value='',1600); }catch(e){} };
-        const claudePrompt = `Você tem o MCP "almirante" conectado — o painel de comando de deploy da frota ChatSPX. Regra de ouro: a IA PROPÕE, um humano APROVA no painel (https://painel.chatspx.app). Nunca presuma que executou.
+        const claudePrompt = `Conecte o MCP "almirante" no meu Claude Code, do zero. Rode no terminal:
+
+claude mcp add --transport http almirante https://painel.chatspx.app/mcp --header "Authorization: Bearer SEU_TOKEN" --scope user
+
+Troque SEU_TOKEN pela minha chave. Depois rode \`claude mcp list\` pra confirmar (deve aparecer "almirante: connected") e me avise.
+
+A partir daí, o almirante é o painel de comando de deploy da frota ChatSPX. Regra de ouro: você PROPÕE, um humano APROVA no painel (https://painel.chatspx.app). Nunca presuma que executou.
 
 Frota (8 VMs): producao e homologacao (Proxmox); paulao e nicolas (dev); catatau, sentinela, tozi, fabrica (AWS).
 
@@ -240,7 +235,7 @@ Como agir:
 Exemplos: "qual o status da tozi?" · "a frota tá saudável?" · "atualiza a homologação" · "promove a homologação pra produção" · "reinicia o worker da fábrica" · "rollback da tozi".`;
 
         onMounted(()=>{ if(!setpwToken.value) checkMe(); });
-        return { token, saveToken, view, go, fleet, status, metrics, deploys, tokens, msg, refresh, pending, recent, byEnv, onlineCount, act, loadTokens, newToken, revokeToken, envStyle, relTime, titleOf, loadMetrics, restartVM, mstate, retryMetrics, mcpSnippet, claudePrompt, copied, copy,
+        return { token, saveToken, view, go, fleet, status, metrics, deploys, tokens, msg, refresh, pending, recent, byEnv, onlineCount, act, loadTokens, newToken, revokeToken, envStyle, relTime, titleOf, loadMetrics, restartVM, mstate, retryMetrics, addCmd, claudePrompt, copied, copy,
                  me, setpwToken, li, sp, usersList, doLogin, doSetPw, logout, tokenLogin, loadUsers, addUser, delUser };
       },
       template: `
@@ -485,11 +480,11 @@ Exemplos: "qual o status da tozi?" · "a frota tá saudável?" · "atualiza a ho
               <div class="w-8 h-8 rounded-full grid place-items-center font-display font-extrabold text-sm shrink-0 text-void" style="background:#22D3EE">2</div>
               <div class="flex-1 min-w-0">
                 <div class="flex items-center justify-between gap-2">
-                  <h3 class="font-display font-bold text-lg text-t1">Cole no <code class="text-accentsoft">.mcp.json</code></h3>
-                  <button @click="copy(mcpSnippet,'mcp')" class="press text-[12px] font-bold rounded-lg px-3 py-1.5 flex items-center gap-1.5 shrink-0" style="background:rgba(34,211,238,.12);color:#67E8F9;border:1px solid rgba(34,211,238,.25)"><ic n="terminal-window" cls="w-3.5 h-3.5"/>{{ copied==='mcp' ? 'copiado ✓' : 'copiar' }}</button>
+                  <h3 class="font-display font-bold text-lg text-t1">Conecte com <span class="text-accentsoft">1 comando</span></h3>
+                  <button @click="copy(addCmd,'cmd')" class="press text-[12px] font-bold rounded-lg px-3 py-1.5 flex items-center gap-1.5 shrink-0" style="background:rgba(34,211,238,.12);color:#67E8F9;border:1px solid rgba(34,211,238,.25)"><ic n="terminal-window" cls="w-3.5 h-3.5"/>{{ copied==='cmd' ? 'copiado ✓' : 'copiar' }}</button>
                 </div>
-                <p class="text-t2 text-sm mt-1 mb-3">No projeto (ou em <code class="text-t1">~/.claude.json</code>) — troque <b class="text-accentsoft">SEU_TOKEN_AQUI</b> pelo token do passo 1.</p>
-                <pre class="rounded-xl p-4 text-xs overflow-x-auto leading-relaxed" style="background:#05070D;border:1px solid rgba(148,163,184,.1);color:#94A3B8">{{ mcpSnippet }}</pre>
+                <p class="text-t2 text-sm mt-1 mb-3">Rode no terminal e troque <b class="text-accentsoft">SEU_TOKEN</b>. <b class="text-t1">Sem binário, sem editar arquivo</b>, em qualquer SO — o Claude Code conecta sozinho.</p>
+                <pre class="rounded-xl p-4 text-xs overflow-x-auto leading-relaxed" style="background:#05070D;border:1px solid rgba(148,163,184,.1);color:#94A3B8">{{ addCmd }}</pre>
               </div>
             </div>
 
@@ -510,10 +505,10 @@ Exemplos: "qual o status da tozi?" · "a frota tá saudável?" · "atualiza a ho
             <!-- prompt pro Claude -->
             <div class="glass rounded-2xl p-6">
               <div class="flex items-center justify-between gap-2 mb-1">
-                <h3 class="font-display font-bold text-lg text-t1 flex items-center gap-2"><div class="w-8 h-8 rounded-xl grid place-items-center" style="background:rgba(129,140,248,.14);color:#818CF8"><ic n="terminal-window" cls="w-4 h-4"/></div>Prompt pra colar no Claude</h3>
+                <h3 class="font-display font-bold text-lg text-t1 flex items-center gap-2"><div class="w-8 h-8 rounded-xl grid place-items-center" style="background:rgba(129,140,248,.14);color:#818CF8"><ic n="terminal-window" cls="w-4 h-4"/></div>Prefere pedir pro Claude? Cole isto</h3>
                 <button @click="copy(claudePrompt,'prompt')" class="press text-[12px] font-bold rounded-lg px-3 py-1.5 flex items-center gap-1.5 shrink-0" style="background:rgba(129,140,248,.14);color:#a5b4fc;border:1px solid rgba(129,140,248,.3)"><ic n="terminal-window" cls="w-3.5 h-3.5"/>{{ copied==='prompt' ? 'copiado ✓' : 'copiar prompt' }}</button>
               </div>
-              <p class="text-t2 text-sm mt-1 mb-3">Cole como <b class="text-t1">primeira mensagem</b> no Claude Code (ou no <code class="text-accentsoft">CLAUDE.md</code> do projeto) — ensina o Claude a comandar a frota com o gate humano.</p>
+              <p class="text-t2 text-sm mt-1 mb-3">Em vez do terminal: cole no <b class="text-t1">Claude Code</b> (com sua chave no lugar de SEU_TOKEN) — ele <b class="text-t1">roda o comando, conecta sozinho</b> e já fica sabendo comandar a frota com o gate humano.</p>
               <pre class="rounded-xl p-4 text-[11px] overflow-x-auto leading-relaxed whitespace-pre-wrap" style="background:#05070D;border:1px solid rgba(148,163,184,.1);color:#94A3B8">{{ claudePrompt }}</pre>
             </div>
 
