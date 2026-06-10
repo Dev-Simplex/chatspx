@@ -16,6 +16,7 @@ import (
 var Allowed = map[string]map[string]bool{
 	"homologacao": {"producao": true},
 	"paulao":      {"producao": true, "homologacao": true},
+	"nicolas":     {"homologacao": true}, // dev chega no max em homologacao (NAO producao)
 }
 
 func IsAllowed(from, to string) bool {
