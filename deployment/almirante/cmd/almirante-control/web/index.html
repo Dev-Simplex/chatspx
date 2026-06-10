@@ -207,14 +207,28 @@
         };
         const relTime = (s)=> s ? s.slice(0,16).replace('T',' ') : '—';
         const titleOf = { frota:'Frota', aprovacoes:'Aprovações', historico:'Histórico', tokens:'Tokens & Dispositivos', usuarios:'Usuários', conectar:'Como conectar' };
-        const addCmd = `claude mcp add --transport http almirante https://painel.chatspx.app/mcp --header "Authorization: Bearer SEU_TOKEN" --scope user`;
         const copied = ref('');
         const copy = (txt, id) => { try{ navigator.clipboard.writeText(txt); copied.value=id; setTimeout(()=>copied.value='',1600); }catch(e){} };
-        const claudePrompt = `Conecte o MCP "almirante" no meu Claude Code, do zero. Rode no terminal:
+        // gerador de token na propria tela de conectar: gera e ja injeta no comando/prompt
+        const gen = reactive({ name:'', tok:'', id:'', busy:false, err:'' });
+        const genConnectToken = async () => {
+          gen.err=''; gen.busy=true;
+          try{
+            const nm = (gen.name||'').trim() || (me.value && me.value.name) || 'dev';
+            const t = await api('/tokens',{method:'POST',body:JSON.stringify({name:nm, role:'operator'})});
+            gen.tok = t.token; gen.id = t.id; gen.name = nm;
+          }catch(e){ gen.err = e.message || 'erro ao gerar token'; }
+          gen.busy=false;
+        };
+        const tokOr = () => gen.tok || 'SEU_TOKEN';
+        const addCmd = computed(()=> `claude mcp add --transport http almirante https://painel.chatspx.app/mcp --header "Authorization: Bearer ${tokOr()}" --scope user`);
+        const claudePrompt = computed(()=> {
+          const troca = gen.tok ? 'Esse token já é meu — é só rodar o comando.' : 'Troque SEU_TOKEN pela minha chave.';
+          return `Conecte o MCP "almirante" no meu Claude Code, do zero. Rode no terminal:
 
-claude mcp add --transport http almirante https://painel.chatspx.app/mcp --header "Authorization: Bearer SEU_TOKEN" --scope user
+claude mcp add --transport http almirante https://painel.chatspx.app/mcp --header "Authorization: Bearer ${tokOr()}" --scope user
 
-Troque SEU_TOKEN pela minha chave. Depois rode \`claude mcp list\` pra confirmar (deve aparecer "almirante: connected") e me avise.
+${troca} Depois rode \`claude mcp list\` pra confirmar (deve aparecer "almirante: connected") e me avise.
 
 A partir daí, o almirante é o painel de comando de deploy da frota ChatSPX. Regra de ouro: você PROPÕE, um humano APROVA no painel (https://painel.chatspx.app). Nunca presuma que executou.
 
@@ -233,9 +247,10 @@ Como agir:
 5. Fale comigo em português, objetivo.
 
 Exemplos: "qual o status da tozi?" · "a frota tá saudável?" · "atualiza a homologação" · "promove a homologação pra produção" · "reinicia o worker da fábrica" · "rollback da tozi".`;
+        });
 
         onMounted(()=>{ if(!setpwToken.value) checkMe(); });
-        return { token, saveToken, view, go, fleet, status, metrics, deploys, tokens, msg, refresh, pending, recent, byEnv, onlineCount, act, loadTokens, newToken, revokeToken, envStyle, relTime, titleOf, loadMetrics, restartVM, mstate, retryMetrics, addCmd, claudePrompt, copied, copy,
+        return { token, saveToken, view, go, fleet, status, metrics, deploys, tokens, msg, refresh, pending, recent, byEnv, onlineCount, act, loadTokens, newToken, revokeToken, envStyle, relTime, titleOf, loadMetrics, restartVM, mstate, retryMetrics, addCmd, claudePrompt, copied, copy, gen, genConnectToken,
                  me, setpwToken, li, sp, usersList, doLogin, doSetPw, logout, tokenLogin, loadUsers, addUser, delUser };
       },
       template: `
@@ -468,10 +483,26 @@ Exemplos: "qual o status da tozi?" · "a frota tá saudável?" · "atualiza a ho
             <!-- passo 1 -->
             <div class="glass rounded-2xl p-6 flex gap-4">
               <div class="w-8 h-8 rounded-full grid place-items-center font-display font-extrabold text-sm shrink-0 text-void" style="background:#22D3EE">1</div>
-              <div class="flex-1">
-                <h3 class="font-display font-bold text-lg text-t1">Pegue seu token</h3>
-                <p class="text-t2 text-sm mt-1">Um <b class="text-t1">admin</b> emite na aba <b class="text-accentsoft">Tokens → Novo token</b>. Cada dev tem o seu, com papel (viewer/operator/admin) e <b class="text-t1">revogável</b> a qualquer momento.</p>
-                <button v-if="me && me.role==='admin'" @click="go('tokens')" class="press mt-3 text-[13px] font-bold text-accentsoft flex items-center gap-1.5"><ic n="key" cls="w-4 h-4"/>Ir para Tokens →</button>
+              <div class="flex-1 min-w-0">
+                <h3 class="font-display font-bold text-lg text-t1">Gere seu token</h3>
+                <template v-if="me && me.role==='admin'">
+                  <p class="text-t2 text-sm mt-1 mb-3">Crie aqui mesmo — ele já entra no comando do passo 2. Nome é opcional (só pra identificar o dev na aba Tokens).</p>
+                  <div v-if="!gen.tok" class="flex flex-wrap items-center gap-2">
+                    <input v-model="gen.name" @keyup.enter="genConnectToken" placeholder="nome do dev (opcional)" class="rounded-lg px-3 py-2 text-sm text-t1 outline-none flex-1 min-w-[180px]" style="background:#0b1018;border:1px solid rgba(148,163,184,.18)"/>
+                    <button @click="genConnectToken" :disabled="gen.busy" class="press text-void font-bold rounded-lg px-4 py-2 text-sm flex items-center gap-1.5 disabled:opacity-60" style="background:#22D3EE"><ic n="key" cls="w-4 h-4"/>{{ gen.busy ? 'gerando…' : 'Gerar token' }}</button>
+                  </div>
+                  <div v-else class="rounded-xl p-3 flex flex-wrap items-center gap-x-2 gap-y-1" style="background:rgba(34,197,94,.1);border:1px solid rgba(34,197,94,.25)">
+                    <ic n="shield-check" cls="w-4 h-4 text-ok shrink-0"/>
+                    <span class="text-sm text-t1">Token de <b>{{ gen.name }}</b> gerado e <b>já injetado</b> no comando abaixo.</span>
+                    <button @click="copy(gen.tok,'tok')" class="press ml-auto text-[12px] font-bold text-accentsoft flex items-center gap-1">{{ copied==='tok' ? 'copiado ✓' : 'copiar só o token' }}</button>
+                    <button @click="gen.tok='';gen.name=''" class="press text-[12px] font-bold text-t3">gerar outro</button>
+                  </div>
+                  <p v-if="gen.err" class="text-xs mt-2" style="color:#fb7185">⚠️ {{ gen.err }}</p>
+                  <p class="text-t3 text-xs mt-2">O token aparece uma vez. Sai da tela, some — é só gerar de novo. Revogável na aba <b class="text-t2">Tokens</b>.</p>
+                </template>
+                <template v-else>
+                  <p class="text-t2 text-sm mt-1">Peça um token a um <b class="text-t1">admin</b> (ele gera na aba Tokens) e use no lugar de <b class="text-accentsoft">SEU_TOKEN</b> no comando abaixo.</p>
+                </template>
               </div>
             </div>
 
@@ -483,7 +514,7 @@ Exemplos: "qual o status da tozi?" · "a frota tá saudável?" · "atualiza a ho
                   <h3 class="font-display font-bold text-lg text-t1">Conecte com <span class="text-accentsoft">1 comando</span></h3>
                   <button @click="copy(addCmd,'cmd')" class="press text-[12px] font-bold rounded-lg px-3 py-1.5 flex items-center gap-1.5 shrink-0" style="background:rgba(34,211,238,.12);color:#67E8F9;border:1px solid rgba(34,211,238,.25)"><ic n="terminal-window" cls="w-3.5 h-3.5"/>{{ copied==='cmd' ? 'copiado ✓' : 'copiar' }}</button>
                 </div>
-                <p class="text-t2 text-sm mt-1 mb-3">Rode no terminal e troque <b class="text-accentsoft">SEU_TOKEN</b>. <b class="text-t1">Sem binário, sem editar arquivo</b>, em qualquer SO — o Claude Code conecta sozinho.</p>
+                <p class="text-t2 text-sm mt-1 mb-3"><template v-if="gen.tok"><b class="text-ok">Seu token já está no comando</b> — é só copiar e rodar. </template><template v-else>Rode no terminal e troque <b class="text-accentsoft">SEU_TOKEN</b> pela sua chave. </template><b class="text-t1">Sem binário, sem editar arquivo</b>, em qualquer SO.</p>
                 <pre class="rounded-xl p-4 text-xs overflow-x-auto leading-relaxed" style="background:#05070D;border:1px solid rgba(148,163,184,.1);color:#94A3B8">{{ addCmd }}</pre>
               </div>
             </div>
