@@ -20,10 +20,18 @@ O dev nunca vai direto pra produção.
 
 # PARTE 1 — O que o ADMIN configura no GitHub (uma vez)
 
-### 1.1 — Dar acesso ao time
-`Settings → Collaborators and teams → Add people`
-- Adicione cada dev com papel **Write**.
-- (Write deixa o dev **dar push na branch dele e abrir PR**; a proteção abaixo impede que ele mergeie em homologacao/producao.)
+### 1.1 — Dar acesso ao time (SÓ ao repo, NÃO à organização)
+> ⚠️ **Não** adicione os devs como **membros da org Dev-Simplex** (eles veriam outros repos/clientes). Adicione como **outside collaborator**, direto no repo `chatspx` — acesso isolado a 1 repo só.
+
+Passos (no repo **`chatspx`**):
+1. Cada dev precisa de uma **conta GitHub** (grátis) — peça o usuário/email.
+2. `Settings → Collaborators and teams → Add people`.
+3. Digite o usuário/email → papel **Write** → convide.
+4. O dev recebe **email de convite** → aceita → acesso **só ao `chatspx`**.
+
+- Como não são membros da org, o GitHub os adiciona como **outside collaborators** (o que queremos).
+- **Write** deixa o dev dar push na branch dele e abrir PR; a proteção abaixo impede mergear em `homologacao`/`producao`.
+- **O que veem:** o repo `chatspx` e suas branches. **NÃO** veem outros repos/clientes da Simplex, membros da org, nem billing.
 
 ### 1.2 — Proteger a branch `producao`
 `Settings → Branches → Add branch protection rule`
