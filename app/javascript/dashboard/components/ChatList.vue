@@ -63,6 +63,7 @@ import {
 import {
   isOnMentionsView,
   isOnUnattendedView,
+  isOnUnreadView,
 } from '../store/modules/conversations/helpers/actionHelpers';
 import {
   getUserPermissions,
@@ -810,6 +811,8 @@ function redirectToConversationList() {
     conversationType = 'mention';
   } else if (isOnUnattendedView({ route: { name } })) {
     conversationType = 'unattended';
+  } else if (isOnUnreadView({ route: { name } })) {
+    conversationType = 'unread';
   }
   router.push(
     conversationListPageURL({

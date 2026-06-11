@@ -69,6 +69,7 @@ const backButtonUrl = computed(() => {
   const conversationTypeMap = {
     conversation_through_mentions: 'mention',
     conversation_through_unattended: 'unattended',
+    conversation_through_unread: 'unread',
   };
   return conversationListPageURL({
     accountId: accountId.value,

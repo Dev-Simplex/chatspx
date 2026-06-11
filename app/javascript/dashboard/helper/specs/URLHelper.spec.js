@@ -40,6 +40,12 @@ describe('#URL Helpers', () => {
         '/app/accounts/1/custom_view/1'
       );
     });
+
+    it('should return url to unread list for unread type', () => {
+      expect(
+        conversationListPageURL({ accountId: 1, conversationType: 'unread' })
+      ).toBe('/app/accounts/1/unread/conversations');
+    });
   });
   describe('conversationUrl', () => {
     it('should return direct conversation URL if activeInbox is nil', () => {
@@ -61,6 +67,16 @@ describe('#URL Helpers', () => {
       expect(conversationUrl({ accountId: 1, teamId: 1, id: 1 })).toBe(
         'accounts/1/team/1/conversations/1'
       );
+    });
+    it('should return unattended conversation URL for unattended type', () => {
+      expect(
+        conversationUrl({ accountId: 1, id: 1, conversationType: 'unattended' })
+      ).toBe('accounts/1/unattended/conversations/1');
+    });
+    it('should return unread conversation URL for unread type', () => {
+      expect(
+        conversationUrl({ accountId: 1, id: 1, conversationType: 'unread' })
+      ).toBe('accounts/1/unread/conversations/1');
     });
   });
 

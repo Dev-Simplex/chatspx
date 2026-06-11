@@ -152,6 +152,23 @@ const activeChild = computed(() => {
     if (queryMatch) return queryMatch;
   }
 
+  // Unread children are also distinguished only by ?assignee_type, but unlike
+  // unattended their default (no query) is "All", not "Mine" (see
+  // unreadViewHelper.defaultAssigneeTab). Each child has an explicit
+  // assignee_type, so default an empty query to 'all' before matching.
+  if (
+    route.name === 'conversation_unread' ||
+    route.name === 'conversation_through_unread'
+  ) {
+    const qt = route.query.assignee_type || 'all';
+    const unreadMatch = navigableChildren.value.find(
+      child =>
+        child.to?.name === 'conversation_unread' &&
+        child.to?.query?.assignee_type === qt
+    );
+    if (unreadMatch) return unreadMatch;
+  }
+
   const pathSame = navigableChildren.value.find(
     child => child.to && route.path === resolvePath(child.to)
   );
