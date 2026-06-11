@@ -18,7 +18,8 @@
 
 - **Número Cloud API oficial funcionando: +55 66 2018-0686** (inbox 44 "SimplexIA", conta 3 Simplex Tecnologia). Equipe clonada da conta 1 → conta 3: **Clara #3 (CONECTADA à inbox 44)** · Júlia #10 · Bruna #11 · Letícia #12 · Marina #13 · Rafa #14. Modelo da conta 3: `claude-sonnet-4.5` (era gpt-4.1, sem uso). Custom tools clonadas (geocoding ON). Cota 99.965/100k. `audio_transcriptions=true` na conta 3. `pending_status_enabled=false` na inbox 44 (sem limbo). Sem whitelist — a Clara responde QUALQUER mensagem no número (é o teste).
 - **Para testar:** mandar WhatsApp pro +55 66 2018-0686 (texto/áudio). Trocar o agente conectado = `CaptainInbox.find_by(inbox_id: 44).destroy` + `create!(inbox_id: 44, captain_assistant_id: <id>)`.
-- Limitações conhecidas do teste: transferência IA→IA = handoff com destino no motivo (tool real = Fase C6) · knowledge vazia (curadoria pendente) · busca de imóvel usa o Vista da TOZI (chave no .env — ok pra teste).
+- Limitações conhecidas do teste: transferência IA→IA = handoff com destino no motivo (tool real = Fase C6) · busca de imóvel usa o Vista da TOZI (chave no .env — ok pra teste).
+- **Knowledge da AWS importada (11/06):** Playbook de Vendas (doc, 19 chunks com embedding, available) → Júlia #10 · 40 Q&A divididas conforme a spec: 4 institucionais → Clara #3, 36 vendas/objeções → Júlia #10, todas com embedding. Bruna/Letícia/Marina/Rafa seguem sem knowledge (curadoria §12 do EQUIPE doc — a base de prod não tem conteúdo de locação/suporte/captação/prestadores). `knowledge_mode=hybrid` (retrieval ON; `feature_faq=false` só desliga a GERAÇÃO automática de FAQ no resolve, não a consulta).
 
 ### [2026-06-11] 🟢 EQUIPE DE AGENTES CRIADA NA SANDBOX (chatspx.app, conta 1 SimplexIA)
 
