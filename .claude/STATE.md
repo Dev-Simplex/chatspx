@@ -10,6 +10,15 @@
 
 ## 🚧 Em andamento
 
+### [2026-06-11] 🟢 EQUIPE DE AGENTES CRIADA NA SANDBOX (hmlchat, conta 1 SimplexIA)
+
+> Spec completa: [`docs/EQUIPE-AGENTES-IA.md`](../docs/EQUIPE-AGENTES-IA.md). Setup idempotente: `Temp/hml_setup_sandbox.rb` (local, não versionado).
+
+- **6 agentes criados** (assistant ids 4–9): Clara (recepção/triagem por intenção) · Júlia (vendas, prompt = prod) · Bruna (locação, = prod) · Letícia (suporte, = prod) · Marina (captação, NOVO) · Rafa (prestadores de serviço, NOVO). Cada um: 1 cenário "Comportamento" com o prompt, config baseline (guardrails+guidelines da Clara prod + anti-senha; memory/faq OFF), behavior baseline (debounce 15s, humanizer 280, business_hours Sinop, sem whitelist), modelo `claude-sonnet-4.5`.
+- **Infra da sandbox**: chaves LLM (InstallationConfig) copiadas da AWS · custom tools geocoding (enabled) + vista (disabled, como prod) na conta 1 · `TOZI_VISTA_API_KEY` no .env · web+worker reiniciados (migrate 0 down) · HTTP 200. **Nenhum agente conectado a inbox** — não respondem nada até plugar (seguro).
+- **Critério de agente por setor** (DECISÕES §13 do EQUIPE doc): jurídico SEM agente (handoff humano); prestação de contas do proprietário → Letícia até Onda 5. Transferência IA→IA por enquanto = handoff com destino no motivo (tool real é Fase C6 da arquitetura).
+- **Próximo:** Paulo valida os agentes na UI (hmlchat → conta SimplexIA → Agentes IA) · plugar inbox de teste OU aguardar número SimplexIA Cloud API pro teste E2E · curadoria de knowledge (institucional/locação/suporte/captação/prestadores).
+
 ### [2026-06-11] 📐 ARQUITETURA "IA COMO AGENTE ATRIBUÍVEL" — DECIDIDA e PLANEJADA (não iniciada)
 
 > **Plano completo: [`docs/ARQUITETURA-IA-COMO-AGENTE.md`](../docs/ARQUITETURA-IA-COMO-AGENTE.md)** (fases A–D, ~2 semanas, aceites e roteiro E2E novo de 14 testes).

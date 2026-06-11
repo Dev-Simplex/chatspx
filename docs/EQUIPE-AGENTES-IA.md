@@ -4,6 +4,14 @@
 > conforme a intenção; + agentes de Vendas, Locação e Suporte, cada um com funções, prompts
 > e habilidades próprias.
 >
+> **🟢 CRIADOS NA SANDBOX (hmlchat, conta 1 SimplexIA, 11/06):** Clara #4 · Júlia #5 ·
+> Bruna #6 · Letícia #7 · Marina #8 · Rafa #9 — cada um com 1 cenário "Comportamento"
+> (prompt completo), config/behavior baseline, modelo `claude-sonnet-4.5`, chaves LLM e
+> custom tool de geocoding configuradas, `TOZI_VISTA_API_KEY` no env, serviços reiniciados.
+> Nenhum conectado a inbox (não respondem nada até plugar). Nota: as transferências IA→IA
+> estão como handoff-com-destino no motivo (a tool `transferir_para_agente` é da Fase C6);
+> knowledge ainda vazia (curadoria §12). Setup idempotente: `Temp/hml_setup_sandbox.rb`.
+>
 > **Base:** os 3 cenários validados em prod (Júlia 6.274 · Bruna 3.719 · Letícia 2.796 chars,
 > nascidos da análise de 400+ áudios reais) viram agentes independentes; a recepcionista
 > (Clara) é a peça nova. Modelo de runtime: [`ARQUITETURA-IA-COMO-AGENTE.md`](ARQUITETURA-IA-COMO-AGENTE.md)
