@@ -98,7 +98,9 @@ func (o LocalOps) Build(ctx context.Context) error {
 }
 
 func (o LocalOps) Precompile(ctx context.Context) error {
-	script := fmt.Sprintf("RAILS_ENV=%s NODE_OPTIONS=--max-old-space-size=4096 bundle exec rake assets:precompile", o.Cfg.RailsEnv)
+	// heap do node = ~75% da RAM da VM (piso 4096MB). O build do Vite estoura o teto
+	// fixo de 4GB mesmo com RAM sobrando; aqui liberamos a memoria da VM toda.
+	script := fmt.Sprintf("HEAP=$(free -m | awk '/^Mem:/{h=int($2*0.75); print (h<4096?4096:h)}'); RAILS_ENV=%s NODE_OPTIONS=--max-old-space-size=$HEAP bundle exec rake assets:precompile", o.Cfg.RailsEnv)
 	if out, code, err := o.appShell(ctx, script); err != nil || code != 0 {
 		return fmt.Errorf("assets:precompile: %s", tail(out))
 	}
