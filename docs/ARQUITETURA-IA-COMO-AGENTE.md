@@ -1,4 +1,12 @@
-# Plano — IA como Agente Atribuível (decidido 2026-06-11, NÃO INICIADO)
+# Plano — IA como Agente Atribuível (decidido 2026-06-11 · EM EXECUÇÃO no mesmo dia)
+
+> **STATUS (11/06 noite):** Fase A ✅ (loop autônomo da .41, aceite com 331 specs, commit `2bee0f724`) ·
+> B1 instructions ✅ · B3 tools por config ✅ · C4 action `assign_ai_agent` ✅ · C6 tool
+> `transferir_para_agente` ✅ (frente Claude local) · **orquestração E2E provada** (triagem
+> automática → Clara → transferência → Bruna) na conta 3/inbox 44 do chatspx.app ·
+> Fase C (UI) em andamento pelo loop · Pendentes: B2 formal (subprompts concatenados —
+> interim coberto), C1-C3 (UI), C5 (handoff team_id), Fase D (políticas/#53 — a triagem
+> via `assign_ai_agent` já substitui o conceito).
 
 > **Decisão do Paulo (11/06):** acabar com "uma Clara com cenários". Cada IA = um agente
 > independente, atribuível a conversa como um atendente, com time. **A IA só responde
