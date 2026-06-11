@@ -25,10 +25,41 @@ const LOWER_BETTER = {
   resolution_rate: false,
   csat: false,
   nps: false,
+  sla_hit_rate: false,
+  bot_resolution_rate: false,
+  bot_handoff_rate: true,
 };
 
-// Métricas exibidas como percentual (a meta recebe sufixo %); demais tempos viram formatTime.
-const PERCENT_METRICS = ['resolution_rate', 'csat'];
+// Métricas exibidas como percentual (a meta recebe sufixo %); score (nps) cru; resto tempo.
+const PERCENT_METRICS = [
+  'resolution_rate',
+  'csat',
+  'sla_hit_rate',
+  'bot_resolution_rate',
+  'bot_handoff_rate',
+];
+
+const SEVERITY = { good: 0, warn: 1, bad: 2 };
+const LEVEL_BY_SEVERITY = ['good', 'warn', 'bad'];
+
+// Pontinho de status p/ células de tabela (apenas cor de fundo).
+const DOT_BY_LEVEL = {
+  good: 'bg-n-teal-9',
+  warn: 'bg-n-amber-9',
+  bad: 'bg-n-ruby-9',
+};
+
+// Normaliza um signal vindo de stores que aplicam camelCase (deep) nas chaves.
+const normalizeSignal = signal => ({
+  metric: signal.metric,
+  value: signal.value,
+  goal: signal.goal,
+  level: signal.level,
+  ratio: signal.ratio,
+  delta_pct: signal.delta_pct ?? signal.deltaPct ?? null,
+  is_highlight: signal.is_highlight ?? signal.isHighlight ?? false,
+  is_attention: signal.is_attention ?? signal.isAttention ?? false,
+});
 
 // Apresentação visual da pílula por nível (tokens do design system n-*).
 const TONE_BY_LEVEL = {
@@ -96,9 +127,14 @@ export function useReportNarrative() {
       : signal.delta_pct > 0;
   };
 
+  /** Classe de cor do pontinho de status (para células de tabela). */
+  const dotClassFor = signal =>
+    signal ? DOT_BY_LEVEL[signal.level] || '' : '';
+
   /** Frase curta de insight para o gráfico (variação vs período anterior + meta). */
-  const phraseFor = signal => {
-    if (!signal) return '';
+  const phraseFor = rawSignal => {
+    if (!rawSignal) return '';
+    const signal = normalizeSignal(rawSignal);
     const improved = improvedVsPrevious(signal);
     const goal = t('REPORT.NARRATIVE.VS_GOAL', { goal: goalDisplay(signal) });
 
@@ -111,9 +147,63 @@ export function useReportNarrative() {
     return `${trend} · ${goal}`;
   };
 
+  /**
+   * Agrega signals de várias entidades (tabelas) em um veredito médio por métrica,
+   * pela severidade média (good<warn<bad). Usado no TL;DR das tabelas.
+   */
+  const aggregateSignals = signalArrays => {
+    const byMetric = {};
+    (signalArrays || [])
+      .flat()
+      .filter(Boolean)
+      .forEach(raw => {
+        const s = normalizeSignal(raw);
+        if (!s.metric) return;
+        (byMetric[s.metric] ||= []).push(s);
+      });
+
+    const agg = Object.entries(byMetric).map(([metric, sigs]) => {
+      const avgSev =
+        sigs.reduce((sum, s) => sum + (SEVERITY[s.level] ?? 1), 0) /
+        sigs.length;
+      const level = LEVEL_BY_SEVERITY[Math.round(avgSev)];
+      const avgRatio =
+        sigs.reduce((sum, s) => sum + (Number(s.ratio) || 0), 0) / sigs.length;
+      return {
+        metric,
+        level,
+        goal: sigs[0].goal,
+        value: null,
+        ratio: avgRatio,
+        delta_pct: null,
+        severity: SEVERITY[level],
+        is_highlight: false,
+        is_attention: false,
+      };
+    });
+
+    if (agg.length) {
+      const best = agg.reduce((a, b) =>
+        a.severity < b.severity ||
+        (a.severity === b.severity && a.ratio <= b.ratio)
+          ? a
+          : b
+      );
+      const worst = agg.reduce((a, b) =>
+        a.severity > b.severity ||
+        (a.severity === b.severity && a.ratio >= b.ratio)
+          ? a
+          : b
+      );
+      best.is_highlight = true;
+      if (worst.level !== 'good') worst.is_attention = true;
+    }
+    return agg;
+  };
+
   /** Extrai highlight/attention para o TL;DR. */
   const summaryFor = signals => {
-    const list = signals || [];
+    const list = (signals || []).map(normalizeSignal);
     const highlight = list.find(signal => signal.is_highlight) || null;
     const attention = list.find(signal => signal.is_attention) || null;
     return {
@@ -141,7 +231,9 @@ export function useReportNarrative() {
     metricLabel,
     goalDisplay,
     pillFor,
+    dotClassFor,
     phraseFor,
+    aggregateSignals,
     summaryFor,
   };
 }
