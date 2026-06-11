@@ -65,16 +65,20 @@ class Captain::Tools::EnviarFotosImovelTool < Captain::Tools::BasePublicTool
 
   def send_photo(conversation, url)
     io = Down.download(url, max_size: 15 * 1024 * 1024)
-    msg = conversation.messages.create!(
+    # Anexo construido ANTES do save: o envio dispara no after_create_commit da mensagem,
+    # entao criar o attachment depois (create! + create!) e corrida — o WhatsApp Cloud
+    # recebia payload de texto com body vazio e recusava (text.body expected string).
+    msg = conversation.messages.build(
       message_type: :outgoing,
       account_id: conversation.account_id,
       inbox_id: conversation.inbox_id,
       sender: @assistant
     )
-    msg.attachments.create!(
+    msg.attachments.build(
       account_id: conversation.account_id,
       file_type: :image,
       file: { io: io, filename: File.basename(URI.parse(url).path), content_type: 'image/jpeg' }
     )
+    msg.save!
   end
 end
