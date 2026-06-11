@@ -163,7 +163,9 @@
         "FIRST_RESPONSE": "Tempo de primeira resposta",
         "RESOLUTION": "Tempo de resolução",
         "REPLY": "Tempo de espera do cliente",
-        "RESOLUTION_RATE": "Taxa de resolução"
+        "RESOLUTION_RATE": "Taxa de resolução",
+        "CSAT": "Satisfação",
+        "NPS": "NPS"
       }
     }
   },
