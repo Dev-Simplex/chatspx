@@ -75,10 +75,22 @@ func TestControlGate(t *testing.T) {
 		t.Fatalf("self-review deveria 403, veio %d: %s", code, body)
 	}
 
-	// admin diferente (paulo) -> 200 + success
+	// admin diferente (paulo) -> 202 + executing (deploy roda async)
 	code, body = req(t, h, "POST", "/api/deploys/"+id+"/approve", "admin-paulo", "")
-	if code != 200 || !strings.Contains(body, "success") {
-		t.Fatalf("admin diferente deveria 200 success, veio %d: %s", code, body)
+	if code != 202 || !strings.Contains(body, "executing") {
+		t.Fatalf("admin diferente deveria 202 executing, veio %d: %s", code, body)
+	}
+	// o pipeline completa em background -> o status do pedido vira success
+	ok := false
+	for i := 0; i < 50; i++ {
+		if _, b := req(t, h, "GET", "/api/deploys/"+id, "op-tok", ""); strings.Contains(b, `"status":"success"`) {
+			ok = true
+			break
+		}
+		time.Sleep(20 * time.Millisecond)
+	}
+	if !ok {
+		t.Fatalf("deploy async deveria virar success em background")
 	}
 
 	// migration_status da tozi marca destrutiva

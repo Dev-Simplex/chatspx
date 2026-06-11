@@ -1,6 +1,7 @@
 package control
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"net/http"
@@ -314,20 +315,26 @@ func (s *Server) approve(w http.ResponseWriter, r *http.Request, u user) {
 		r.ApprovedAt = s.now().UTC().Format(time.RFC3339)
 	})
 	s.audit.Append("approve_deploy", u.name, req.VM, map[string]any{"id": req.ID})
-	vm, _ := findVM(s.fleet, req.VM)
-	okDeploy, detail := s.exec.ApproveAndDeploy(r.Context(), req.VM, req.TargetSHA, u.name)
-	updated, _ := s.store.Update(req.ID, func(r *types.DeployRequest) {
-		if okDeploy {
-			r.Status = types.StatusSuccess
-		} else {
-			r.Status = types.StatusFailed
-		}
-		r.FinishedAt = s.now().UTC().Format(time.RFC3339)
-		r.ResultDetail = detail
-	})
-	_ = vm
-	s.audit.Append(map[bool]string{true: "deploy_success", false: "deploy_failed"}[okDeploy], u.name, req.VM, map[string]any{"id": req.ID})
-	writeJSON(w, 200, updated)
+	// Deploy ASSÍNCRONO: o pipeline (precompile/migrate) leva minutos; rodar síncrono
+	// estouraria o timeout HTTP e o cancelamento mataria o deploy no meio. Roda em
+	// background com contexto próprio; o painel acompanha pelo status do pedido.
+	go func(id, vmID, sha, approver string) {
+		ctx, cancel := context.WithTimeout(context.Background(), 30*time.Minute)
+		defer cancel()
+		okDeploy, detail := s.exec.ApproveAndDeploy(ctx, vmID, sha, approver)
+		s.store.Update(id, func(r *types.DeployRequest) {
+			if okDeploy {
+				r.Status = types.StatusSuccess
+			} else {
+				r.Status = types.StatusFailed
+			}
+			r.FinishedAt = s.now().UTC().Format(time.RFC3339)
+			r.ResultDetail = detail
+		})
+		s.audit.Append(map[bool]string{true: "deploy_success", false: "deploy_failed"}[okDeploy], approver, vmID, map[string]any{"id": id})
+	}(req.ID, req.VM, req.TargetSHA, u.name)
+	executing, _ := s.store.Get(req.ID)
+	writeJSON(w, 202, executing) // 202 Accepted — em execução; acompanhe pelo status
 }
 
 func (s *Server) reject(w http.ResponseWriter, r *http.Request, u user) {
