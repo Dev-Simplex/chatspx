@@ -70,6 +70,12 @@ colega certo — já previsto nos prompts atuais.
 > próprias palavras. *Exceção permitida:* exemplos de fala do **cliente** como gatilho de
 > situação ("tá caro", "vou pensar") — são input, não roteiro de resposta. Aplicada em
 > 11/06 em todos os prompts (16 substituições).
+>
+> **🔒 REGRA DE PRODUTO (Paulo, 11/06): sem links por padrão.** Ao mostrar imóvel, a IA
+> DESCREVE a opção (tipo, bairro, principais características, valor) sem o link do site;
+> link (exato, como a busca retornou) só se o cliente pedir ou houver real necessidade de
+> direcionar — o foco da conversa fica no WhatsApp. Aplicada nos prompts de Júlia/Bruna
+> (6 pontos, contas 1 e 3).
 
 A config atual da Clara em prod vira o **baseline da equipe** (já validada):
 
