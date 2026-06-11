@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"os"
+	"os/exec"
 	"strings"
 	"time"
 
@@ -148,7 +149,38 @@ func (e Executor) Diff(ctx context.Context, id string) (types.GitDiff, error) {
 		return mock.GitDiff(id, e.Cfg.Fleet.GitHubRepo), nil
 	}
 	st, _ := e.Status(ctx, id)
-	return types.GitDiff{VM: id, CurrentSHA: st.Commit}, nil
+	gd := types.GitDiff{VM: id, CurrentSHA: st.Commit}
+	// resolve o alvo (HEAD de origin/<branch>) via ls-remote no control — usa o PAT no RepoURL.
+	// sem isso, o TargetSHA fica vazio e o checkout do deploy falha.
+	if v, err := e.vm(id); err == nil {
+		if target := e.remoteSHA(ctx, v.Branch); target != "" {
+			gd.TargetSHA = target
+			if st.Commit != "" && !strings.HasPrefix(target, st.Commit) {
+				gd.BehindCount = 1 // tem atualizacao (contagem exata exigiria clone)
+			}
+		}
+	}
+	return gd, nil
+}
+
+// remoteSHA devolve o HEAD curto de origin/<branch> via `git ls-remote` (no container do control).
+func (e Executor) remoteSHA(ctx context.Context, branch string) string {
+	if branch == "" || e.Cfg.RepoURL == "" {
+		return ""
+	}
+	out, err := exec.CommandContext(ctx, "git", "ls-remote", e.Cfg.RepoURL, "refs/heads/"+branch).Output()
+	if err != nil {
+		return ""
+	}
+	fields := strings.Fields(string(out))
+	if len(fields) == 0 {
+		return ""
+	}
+	sha := fields[0]
+	if len(sha) > 9 {
+		sha = sha[:9]
+	}
+	return sha
 }
 
 func (e Executor) History(_ context.Context, id string) ([]types.DeployHistoryEntry, error) {
