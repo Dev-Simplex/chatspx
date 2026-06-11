@@ -10,7 +10,10 @@ module Reports::PdfBenchmarks
     reply: { goal: 600, green: 600, yellow: 1800, lower_better: true },             # meta 10 min
     resolution_rate: { goal: 80, green: 80, yellow: 60, lower_better: false },      # meta 80%
     csat: { goal: 85, green: 85, yellow: 70, lower_better: false },                 # meta 85% satisfeitos
-    nps: { goal: 50, green: 50, yellow: 0, lower_better: false }                    # meta NPS 50
+    nps: { goal: 50, green: 50, yellow: 0, lower_better: false },                   # meta NPS 50
+    sla_hit_rate: { goal: 95, green: 95, yellow: 85, lower_better: false },         # meta 95% no prazo
+    bot_resolution_rate: { goal: 60, green: 60, yellow: 30, lower_better: false },  # meta 60% resolvidas pelo bot
+    bot_handoff_rate: { goal: 30, green: 30, yellow: 50, lower_better: true }       # meta <=30% transferidas
   }.freeze
 
   STATUS = {

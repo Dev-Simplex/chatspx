@@ -40,7 +40,11 @@ class Api::V2::Accounts::SummaryReportsController < Api::V1::Accounts::BaseContr
 
   def render_report_with(builder_class)
     builder = builder_class.new(account: Current.account, params: @builder_params)
-    render json: builder.build
+    data = builder.build
+    # Enriquece cada linha (entidade) com o semáforo estruturado (aditivo). O TL;DR da
+    # média é agregado no frontend a partir destes signals. Channel devolve hash → intacto.
+    data = data.map { |row| row.merge(signals: Reports::SummarySignals.for_row(row)) } if data.is_a?(Array)
+    render json: data
   end
 
   def permitted_params

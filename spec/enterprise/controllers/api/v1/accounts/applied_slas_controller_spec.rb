@@ -35,6 +35,10 @@ RSpec.describe 'Applied SLAs API', type: :request do
         expect(body).to include('total_applied_slas' => 1)
         expect(body).to include('number_of_sla_misses' => 1)
         expect(body).to include('hit_rate' => '0.0%')
+        # 1 SLA, todas perdidas => hit rate 0% => bad, e é highlight + attention
+        sla = body['signals'].find { |s| s['metric'] == 'sla_hit_rate' }
+        expect(sla).to include('metric' => 'sla_hit_rate', 'value' => 0.0, 'goal' => 95, 'level' => 'bad',
+                               'is_highlight' => true, 'is_attention' => true)
       end
 
       it 'filters sla metrics based on a date range' do
