@@ -10,6 +10,14 @@
 
 ## 🚧 Em andamento
 
+### [2026-06-11] 📐 ARQUITETURA "IA COMO AGENTE ATRIBUÍVEL" — DECIDIDA e PLANEJADA (não iniciada)
+
+> **Plano completo: [`docs/ARQUITETURA-IA-COMO-AGENTE.md`](../docs/ARQUITETURA-IA-COMO-AGENTE.md)** (fases A–D, ~2 semanas, aceites e roteiro E2E novo de 14 testes).
+
+- **Decisão do Paulo:** fim da "Clara com cenários". Cada IA = um agente independente, atribuível como atendente; **a IA só responde conversa atribuída a ela** (sem router/whitelist/labels). Cenário sobrevive só como SUBPROMPT de comportamento. Conversa da IA fica com composer BLOQUEADO pro humano — botão "Assumir conversa" rouba a atribuição explicitamente.
+- **Viabilidade verificada no código (6 agentes, 11/06): ~70% do trilho já existe** — `conversations.assignee_agent_bot_id` + AssignmentService com assignee_type + endpoint + callback `reset_agent_bot_when_assignee_present` (atribuir humano limpa o bot = "transferiu → cala" de graça). Trilho escolhido: **AgentBot-espelho por Captain::Assistant** (`bot_type :captain`). O gate atual é 100% por inbox (`inbox.captain_assistant`) — vira por conversa.
+- **Implicações:** whitelist/label atendimento/skip-pós-humano/pending-limbo MORREM; regra #53 TEM que morrer na virada; go-live da Clara deve acontecer JÁ neste modelo (não religar no modelo velho); substitui parte da Onda 2 do roadmap.
+
 ### [2026-06-11] ✅ RECONCILIAÇÃO DE BRANCHES EXECUTADA — `producao` é a canônica única
 
 > **O problema "cada redeploy re-dropa patches off-git" está MORTO.** Estado final dos ambientes:
