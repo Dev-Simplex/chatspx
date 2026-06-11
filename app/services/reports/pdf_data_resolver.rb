@@ -69,6 +69,7 @@ class Reports::PdfDataResolver # rubocop:disable Metrics/ClassLength
       subtitle: "Net Promoter Score de #{kpis[:nps_score]} apurado sobre #{total} avaliações válidas no período.",
       base_label: "#{total} avaliações válidas",
       kpis: kpis,
+      verdict: metric_verdict(metric: :nps, value: kpis[:nps_score], human: kpis[:nps_score].to_s, label: 'NPS'),
       distribution: nps_distribution(responded),
       agents: nps_by_agent(responded)
     }
@@ -155,6 +156,7 @@ class Reports::PdfDataResolver # rubocop:disable Metrics/ClassLength
       subtitle: "Índice de satisfação de #{kpis[:satisfaction]}% (notas 4 e 5) sobre #{total} respostas no período.",
       base_label: "#{total} respostas",
       kpis: kpis,
+      verdict: metric_verdict(metric: :csat, value: kpis[:satisfaction], human: "#{kpis[:satisfaction]}%", label: 'Satisfação'),
       distribution: csat_distribution(by_rating),
       feedbacks: csat_feedbacks(scope),
       agents: csat_by_agent(scope)
@@ -405,6 +407,28 @@ class Reports::PdfDataResolver # rubocop:disable Metrics/ClassLength
   def goal_human_for(signal)
     goal = Reports::PdfBenchmarks.goal(signal[:metric])
     signal[:kind] == :rate ? "#{goal}%" : format_seconds(goal)
+  end
+
+  # Veredito de um único indicador (CSAT/NPS) p/ o card de veredito do PDF.
+  # Mesma estrutura de verdict_card (kind/emoji/title/level/word/metric_label/
+  # value_human/goal_human/body), porém a partir de uma métrica avulsa.
+  def metric_verdict(metric:, value:, human:, label:)
+    status = Reports::PdfBenchmarks.status(value, metric)
+    level = status[:level]
+    good = level == :good
+    {
+      kind: good ? :highlight : :attention,
+      emoji: good ? '🏆' : '⚠️',
+      title: good ? 'Destaque' : 'Ponto de atenção',
+      level: level, word: status[:word],
+      metric_label: label, value_human: human, goal_human: metric_goal_human(metric),
+      body: "#{label}: #{human} (meta #{metric_goal_human(metric)}) — #{status[:word]}."
+    }
+  end
+
+  def metric_goal_human(metric)
+    goal = Reports::PdfBenchmarks.goal(metric)
+    metric == :nps ? goal.to_s : "#{goal}%"
   end
 
   def signal_phrase(signal)

@@ -1,0 +1,112 @@
+<%
+  k = @data[:kpis]
+  score = k[:nps_score]
+  zone, zone_class =
+    if score >= 75
+      ['Excelência', '']
+    elsif score >= 50
+      ['Zona de Qualidade', '']
+    elsif score >= 0
+      ['Aperfeiçoar', 'is-passive']
+    else
+      ['Zona Crítica', 'is-detractor']
+    end
+
+  composition = [
+    { label: 'Promotores', value: k[:promoters], color: '#2dc46f' },
+    { label: 'Passivos', value: k[:passives], color: '#ffc53d' },
+    { label: 'Detratores', value: k[:detractors], color: '#e54666' }
+  ]
+
+  recos = []
+  recos << { title: 'Recupere detratores', body: "Acione individualmente as #{k[:detractors]} avaliações de 0 a 6 com follow-up dedicado para reverter a percepção." } if k[:detractors].positive?
+  recos << { title: 'Amplie a taxa de resposta', body: "A taxa de resposta está em #{k[:response_rate]}%. Ajuste o gatilho da pesquisa e o canal de envio para ampliar a base." } if k[:response_rate].to_f < 40
+  recos << { title: 'Converta passivos', body: "#{k[:passives]} clientes passivos (7-8) estão a um passo de virar promotores — investigue o atrito final do atendimento." } if k[:passives].positive?
+  low_agent = (@data[:agents] || []).select { |a| a[:total].to_i.positive? }.min_by { |a| a[:nps_score] }
+  recos << { title: 'Apoie quem está abaixo da meta', body: "#{low_agent[:name]} está com NPS #{low_agent[:nps_score]}. Sessões de coaching e revisão de scripts tendem a recuperar o índice." } if low_agent && low_agent[:nps_score] < 50
+  recos << { title: 'Reconheça promotores', body: "#{k[:promoters]} clientes recomendam ativamente a operação. Mantenha o padrão e capture depoimentos para prova social." } if recos.size < 4 && k[:promoters].positive?
+  recos = recos.first(4)
+%>
+
+<%# ---------- Veredito (card com hierarquia: métrica · valor · meta · status) ---------- %>
+<div class="section">
+  <div class="verdict-grid">
+    <%= render 'reports/pdf/verdict', v: @data[:verdict] %>
+  </div>
+</div>
+
+<%# ---------- Hero score + composicao ---------- %>
+<div class="section">
+  <div class="hero-row">
+    <%= render 'reports/pdf/hero_stat',
+          value: score, value_class: zone_class,
+          label: 'NPS Score', pill: zone, pill_class: zone_class,
+          caption: 'Escala de -100 a +100' %>
+    <%= render 'reports/pdf/composition_bar',
+          title: 'Composição das avaliações',
+          segments: composition %>
+  </div>
+</div>
+
+<%# ---------- KPIs de apoio ---------- %>
+<div class="section">
+  <%= render 'reports/pdf/kpi_band', cards: [
+    { label: 'Avaliações válidas', value: number_with_delimiter(k[:total]) },
+    { label: 'Taxa de resposta', value: "#{k[:response_rate]}%", hint: 'respondidas / enviadas' },
+    { label: 'Promotores', value: "#{k[:promoters_pct]}%", modifier: 'is-promoter', hint: "#{k[:promoters]} (notas 9-10)" },
+    { label: 'Detratores', value: "#{k[:detractors_pct]}%", modifier: 'is-detractor', hint: "#{k[:detractors]} (notas 0-6)" },
+    { label: 'Suspeitas bloqueadas', value: number_with_delimiter(k[:blocked]), hint: 'anti-fraude' },
+  ] %>
+</div>
+
+<%# ---------- Gauge -100..+100 ---------- %>
+<div class="section">
+  <div class="section-title"><span class="dot">1</span> Posição na escala NPS</div>
+  <div class="card">
+    <%= pdf_gauge(value: score) %>
+  </div>
+</div>
+
+<%# ---------- Distribuicao das notas 0-10 ---------- %>
+<div class="section">
+  <div class="section-title"><span class="dot">2</span> Distribuição das notas</div>
+  <div class="card">
+    <%= pdf_nps_distribution(@data[:distribution]) %>
+    <%= render 'reports/pdf/chart_legend', items: [
+      { color: '#2dc46f', label: '😀 Promotores (notas 9-10)' },
+      { color: '#ffc53d', label: '😐 Passivos (notas 7-8)' },
+      { color: '#e54666', label: '😞 Detratores (notas 0-6)' },
+    ] %>
+  </div>
+</div>
+
+<%# ---------- NPS por atendente ---------- %>
+<% if @data[:agents].present? %>
+  <div class="section">
+    <div class="section-title"><span class="dot">3</span> NPS por atendente</div>
+    <%= render 'reports/pdf/perf_table',
+          columns: { entity: 'Atendente', count: 'Avaliações', perf: 'Desempenho (% promotores)', index: 'NPS' },
+          rows: @data[:agents].map { |agent|
+            nps = agent[:nps_score]
+            badge_class = nps >= 75 ? 'up' : (nps >= 50 ? 'mid' : 'down')
+            bar_color = nps >= 75 ? '#2dc46f' : (nps >= 50 ? '#ffc53d' : '#e54666')
+            { name: agent[:name], count: agent[:total], ratio: agent[:positive_pct].to_f / 100,
+              bar_color: bar_color, badge: nps, badge_class: badge_class }
+          } %>
+  </div>
+<% end %>
+
+<%# ---------- Recomendacoes (data-driven) ---------- %>
+<% if recos.present? %>
+  <div class="section">
+    <div class="section-title"><span class="dot">4</span> Recomendações</div>
+    <%= render 'reports/pdf/recommendations', items: recos %>
+  </div>
+<% end %>
+
+<%# ---------- Conclusao ---------- %>
+<div class="section">
+  <%= render 'reports/pdf/conclusion',
+        title: 'Leitura executiva',
+        body: raw("O NPS de <span class=\"hl\">#{score}</span> posiciona a operação em <span class=\"hl\">#{zone.downcase}</span>, sustentado por #{k[:promoters]} promotores sobre #{k[:total]} avaliações válidas. A apuração aplica filtro anti-fraude (#{k[:blocked]} respostas suspeitas descartadas) e considera apenas avaliações confiáveis.") %>
+</div>
