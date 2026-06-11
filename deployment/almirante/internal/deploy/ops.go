@@ -21,7 +21,7 @@ type Config struct {
 	AppDir    string // ~/chatwoot
 	AppUser   string // chatwoot
 	StateDir  string // /var/lib/almirante
-	HealthURL string // http://127.0.0.1:3000/up
+	HealthURL string // http://127.0.0.1:3000/ (raiz responde 200; /up nao existe nesta versao)
 	RailsEnv  string // production
 }
 
@@ -30,7 +30,7 @@ func DefaultConfig() Config {
 		AppDir:    envOr("ALMIRANTE_APP_DIR", "/home/chatwoot/chatwoot"),
 		AppUser:   envOr("ALMIRANTE_APP_USER", "chatwoot"),
 		StateDir:  envOr("ALMIRANTE_STATE_DIR", "/var/lib/almirante"),
-		HealthURL: envOr("ALMIRANTE_HEALTH_URL", "http://127.0.0.1:3000/up"),
+		HealthURL: envOr("ALMIRANTE_HEALTH_URL", "http://127.0.0.1:3000/"),
 		RailsEnv:  envOr("RAILS_ENV", "production"),
 	}
 }
@@ -143,10 +143,10 @@ func (o LocalOps) Health(ctx context.Context) types.HealthReport {
 	if out, _, _ := runCmd(ctx, "systemctl", "is-active", "chatwoot.target"); strings.TrimSpace(out) == "active" {
 		r.ServiceActive = true
 	}
-	// 2) HTTP 200 no /up
-	cli := &http.Client{Timeout: 8 * time.Second}
+	// 2) HTTP servindo: aceita 2xx/3xx na raiz (redirect p/ login conta como vivo).
+	cli := &http.Client{Timeout: 10 * time.Second, CheckRedirect: func(*http.Request, []*http.Request) error { return http.ErrUseLastResponse }}
 	if resp, err := cli.Get(o.Cfg.HealthURL); err == nil {
-		r.HTTP200 = resp.StatusCode == 200
+		r.HTTP200 = resp.StatusCode >= 200 && resp.StatusCode < 400
 		resp.Body.Close()
 	}
 	// 3) PG + Redis via rails runner
@@ -156,7 +156,7 @@ func (o LocalOps) Health(ctx context.Context) types.HealthReport {
 	r.Sidekiq = r.Redis // sidekiq vivo ~ redis respondendo + processo (checado no status)
 	r.Healthy = r.ServiceActive && r.HTTP200 && r.DB
 	if r.Healthy {
-		r.Detail = "chatwoot.target active; /up 200; PG+Redis OK"
+		r.Detail = "chatwoot.target active; HTTP 2xx/3xx; PG+Redis OK"
 	} else {
 		r.Detail = "degradado: " + healthDetail(r)
 	}
