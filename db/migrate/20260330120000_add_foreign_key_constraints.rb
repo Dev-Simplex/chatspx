@@ -44,6 +44,9 @@ class AddForeignKeyConstraints < ActiveRecord::Migration[7.1]
   PRECIOUS_TABLES = %i[conversations messages].freeze
 
   def up
+    # tabelas grandes (messages, reporting_events) demoram no validate/cleanup e estouram
+    # o statement_timeout do banco. Afrouxa SO para esta sessao de migration (online, sem lock exclusivo).
+    connection.execute("SET statement_timeout = '60min'")
     FOREIGN_KEYS.each { |fk| add_fk(fk) }
   end
 
@@ -58,6 +61,10 @@ class AddForeignKeyConstraints < ActiveRecord::Migration[7.1]
     to_table   = fk[:to]
     column     = fk[:column]
     on_delete  = fk[:on_delete]
+
+    # Pula a FK se a tabela (origem OU destino) nao existir neste schema
+    # (ex: conversation_assignment_histories ausente em algumas VMs) — evita PG::UndefinedTable
+    return unless table_exists?(from_table) && table_exists?(to_table)
 
     # Re-add com o on_delete correto se ja existir
     remove_foreign_key from_table, to_table, column: column if foreign_key_exists?(from_table, to_table, column: column)
