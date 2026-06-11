@@ -10,6 +10,11 @@
 
 ## 🚧 Em andamento
 
+### [2026-06-11] ✅ DECISÃO 2.7 EXECUTADA em prod Tozi — higiene das abertas só-HSM (4.013 resolvidas, 0 falhas)
+
+- **Critério estrito do Paulo:** conversa com APENAS template(s) outgoing, zero resposta do lead, zero texto humano, atribuída. Universo: 4.606 (nenhum corretor tinha escrito nada). Resolvidas as paradas 3d+: **4.013 em 369s, 0 falhas** (lotes de 50 + pacing; teams setados nas sem-team via MAP corretor→time de disparo; Gelson/Adrian via skip flag). Dry-run prévio: CSAT/NPS OFF (zero pesquisa pro lead), 0 webhooks de conta, resolve+rollback de teste OK.
+- **Resultado: inbox 91 caiu de 6.508 → 2.487 abertas** (resolved 11.077). Residual: 593 (<3 dias — ficam com os corretores). Cards dos funis moveram pra "Resolvidos" via callback. Reply futuro reabre zerada (#53) → triagem por intenção (decisão 3.5, batida hoje: labels `intencao:*` + automation `assign_team`). Detalhes: `docs/DECISOES-CLARA.md` §2.7 e §3.5 · script `Temp/executa_27.rb` · log `/tmp/resolve27.log` na AWS.
+
 ### [2026-06-11] 🚨 DESCOBERTA DE INFRA: 192.168.8.232 = chatspx.app (SaaS COM CLIENTES), não só "hmlchat"
 
 - `FRONTEND_URL` da VM 232 é `https://chatspx.app`; contas: 1 SimplexIA · 3 Simplex Tecnologia · 4 Colégio Alternativo · 5 Realizare Imobiliária. **Tratar como produção** (o restart/migrations de hoje passaram sem incidente, mas o risco era maior que o assumido). Auto-pull da homologacao SEM migrate vira risco crítico — corrigir urgente. Vault atualizado (`credenciais/infraestrutura.md`).
@@ -31,7 +36,16 @@
 - **Critério de agente por setor** (DECISÕES §13 do EQUIPE doc): jurídico SEM agente (handoff humano); prestação de contas do proprietário → Letícia até Onda 5. Transferência IA→IA por enquanto = handoff com destino no motivo (tool real é Fase C6 da arquitetura).
 - **Próximo:** Paulo valida os agentes na UI (hmlchat → conta SimplexIA → Agentes IA) · plugar inbox de teste OU aguardar número SimplexIA Cloud API pro teste E2E · curadoria de knowledge (institucional/locação/suporte/captação/prestadores).
 
-### [2026-06-11] 📐 ARQUITETURA "IA COMO AGENTE ATRIBUÍVEL" — DECIDIDA e PLANEJADA (não iniciada)
+### [2026-06-11 noite] 🟢 ORQUESTRAÇÃO IA FUNCIONANDO E2E no chatspx.app (conta 3, inbox 44)
+
+> **Fluxo provado em teste sintético:** conversa órfã → triagem automática atribui Clara (automation `assign_ai_agent`, rule #31) → Clara identifica intenção e **transfere via tool `transferir_para_agente`** → Bruna assume com contexto e atende. Transferência invisível, sem eco.
+
+- **Implementado por mim (commits na homologacao até `5fb885a2e`):** tool `transferir_para_agente` (C6, lookup direto do espelho) · action `assign_ai_agent` (C4) · entry tools.yml · B3 `configured_agent_tools` · B1 instructions no v2 · fix image-blocks no histórico (foto da IA quebrava turnos seguintes) · fixes de fotos (transação/reenvio/sem oferta) · gates aceitam `captain_integration_v2` (gotcha "não habilitado" morto na raiz, useCaptain+CSAT+áudio).
+- **Equipe conta 3:** Clara #3 recepcionista (transfere) · Júlia #10 · Bruna #11 · Letícia #12 · Marina #13 · Rafa #14 — agentes únicos standalone (cenários OFF, B1+B3), todos ELEGÍVEIS na inbox 44 (CaptainInbox; a Fase C endureceu: espelho não-elegível é recusado).
+- **Frente paralela (.41):** 2 sessões Claude Code NO SERVIDOR (loop autônomo `plano/ia-consolidado.md`; F0+A aceitas — commitei tudo em `2bee0f724`; Fase C/UI em andamento). ⚠️ Precompile SEGURADO até a Fase C fechar (SCSS em progresso quebra build + não servir UI parcial pros clientes do SaaS). Bugs da noite (todos mortos): multi-agente da gem (eco), worker dessincronizado, image-blocks, elegibilidade sem dados.
+- **Próximo:** teste do Paulo via WhatsApp (conversa 515 com a Clara) · Fase C fechar → precompile (UI de agentes + fix da tela) · curadoria de knowledge dos especialistas · espelhar a receita pro go-live Tozi.
+
+### [2026-06-11] 📐 ARQUITETURA "IA COMO AGENTE ATRIBUÍVEL" — planejada de manhã; Fases A (loop .41) + B1/B3/C4/C6 (eu) JÁ IMPLEMENTADAS — ver entrada acima
 
 > **Plano completo: [`docs/ARQUITETURA-IA-COMO-AGENTE.md`](../docs/ARQUITETURA-IA-COMO-AGENTE.md)** (fases A–D, ~2 semanas, aceites e roteiro E2E novo de 14 testes).
 
