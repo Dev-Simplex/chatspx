@@ -64,3 +64,8 @@
   title: 'Programar Follow-up'
   description: 'Programa uma cutucada futura pra retomar a conversa se o cliente não responder'
   icon: 'clock'
+
+- id: transferir_para_agente
+  title: 'Transferir para outro Agente IA'
+  description: 'Transfere a conversa para outro agente de IA da equipe (o novo agente assume e continua)'
+  icon: 'arrow-swap'
