@@ -25,40 +25,28 @@ class Reports::MetricSignalsBuilder
   end
 
   def build
-    signals = METRICS.filter_map { |config| signal_for(config) }
-    mark_highlight_and_attention(signals)
-    signals.map { |signal| present(signal) }
+    Reports::SignalSet.new(entries: entries, benchmarks: benchmarks).build
   end
 
   private
 
   attr_reader :summary, :previous, :benchmarks
 
+  # Traduz o summary de Conversas em entradas {metric, value, prev} para o SignalSet.
+  def entries
+    METRICS.map do |config|
+      {
+        metric: config[:metric],
+        value: value_for(config, summary),
+        prev: previous.present? ? value_for(config, previous) : nil
+      }
+    end
+  end
+
   def normalize(hash)
     return {} if hash.nil?
 
     hash.respond_to?(:with_indifferent_access) ? hash.with_indifferent_access : hash.to_h.with_indifferent_access
-  end
-
-  def signal_for(config)
-    metric = config[:metric]
-    bench = benchmarks[metric]
-    return nil if bench.nil?
-
-    value = value_for(config, summary)
-    prev = previous.present? ? value_for(config, previous) : nil
-    level = Reports::PdfBenchmarks.level_for(value, bench)
-
-    {
-      metric: metric,
-      kind: config[:kind],
-      value: value,
-      goal: bench[:goal],
-      level: level,
-      ratio: ratio_for(config[:kind], value, bench[:goal]),
-      delta_pct: delta_pct_for(value, prev),
-      severity: Reports::PdfBenchmarks.severity(level)
-    }
   end
 
   def value_for(config, source)
@@ -73,45 +61,5 @@ class Reports::MetricSignalsBuilder
     return 0 if total.zero?
 
     ((source[:resolutions_count].to_f / total) * 100).round.clamp(0, 100)
-  end
-
-  # Razão vs meta, normalizada para "menor = melhor" nas duas direções (mesma lógica do PDF).
-  def ratio_for(kind, value, goal)
-    goal = goal.to_f
-    return 99.0 if goal.zero?
-
-    raw = kind == :rate ? goal / [value, 1].max : value / goal
-    raw.round(2)
-  end
-
-  def delta_pct_for(value, prev)
-    return nil if prev.nil? || prev.zero?
-
-    (((value - prev) / prev) * 100).round
-  end
-
-  # Marca exatamente um highlight (melhor sinal) e, se houver algo fora do verde,
-  # um attention (pior sinal). Ordena por severidade e desempata por ratio.
-  def mark_highlight_and_attention(signals)
-    return if signals.empty?
-
-    best = signals.min_by { |signal| [signal[:severity], signal[:ratio]] }
-    worst = signals.max_by { |signal| [signal[:severity], signal[:ratio]] }
-
-    best[:is_highlight] = true
-    worst[:is_attention] = true if worst[:level] != :good
-  end
-
-  def present(signal)
-    {
-      metric: signal[:metric].to_s,
-      value: signal[:value],
-      goal: signal[:goal],
-      level: signal[:level].to_s,
-      ratio: signal[:ratio],
-      delta_pct: signal[:delta_pct],
-      is_highlight: signal.fetch(:is_highlight, false),
-      is_attention: signal.fetch(:is_attention, false)
-    }
   end
 end
