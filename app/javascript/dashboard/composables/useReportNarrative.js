@@ -17,13 +17,18 @@ export const SIGNAL_METRIC_BY_REPORT_KEY = {
   resolutions_count: 'resolution_rate',
 };
 
-// Direção do "bom": tempos = menor é melhor; taxa = maior é melhor.
+// Direção do "bom": tempos = menor é melhor; taxas/scores = maior é melhor.
 const LOWER_BETTER = {
   first_response: true,
   resolution: true,
   reply: true,
   resolution_rate: false,
+  csat: false,
+  nps: false,
 };
+
+// Métricas exibidas como percentual (a meta recebe sufixo %); demais tempos viram formatTime.
+const PERCENT_METRICS = ['resolution_rate', 'csat'];
 
 // Apresentação visual da pílula por nível (tokens do design system n-*).
 const TONE_BY_LEVEL = {
@@ -60,9 +65,14 @@ export function useReportNarrative() {
   const metricLabel = signal =>
     t(`REPORT.NARRATIVE.METRIC.${signal.metric.toUpperCase()}`);
 
-  /** Valor da meta formatado (tempo humanizado p/ segundos, % p/ taxa). */
+  /** Encontra um signal pela métrica (ex.: 'csat', 'nps'). */
+  const signalByMetric = (signals, metric) =>
+    (signals || []).find(signal => signal.metric === metric) || null;
+
+  /** Valor da meta formatado (% p/ taxas, número cru p/ score, tempo p/ segundos). */
   const goalDisplay = signal => {
-    if (signal.metric === 'resolution_rate') return `${signal.goal}%`;
+    if (PERCENT_METRICS.includes(signal.metric)) return `${signal.goal}%`;
+    if (signal.metric === 'nps') return `${signal.goal}`;
     return formatTime(signal.goal || 0);
   };
 
@@ -127,6 +137,7 @@ export function useReportNarrative() {
 
   return {
     signalForReportKey,
+    signalByMetric,
     metricLabel,
     goalDisplay,
     pillFor,

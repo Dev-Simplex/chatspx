@@ -20,6 +20,7 @@ export const state = {
       5: 0,
     },
     totalSentMessagesCount: 0,
+    signals: [],
   },
   uiFlags: {
     isFetching: false,
@@ -142,6 +143,7 @@ export const mutations = {
       total_count: totalResponseCount,
       ratings_count: ratingsCount,
       total_sent_messages_count: totalSentMessagesCount,
+      signals,
     }
   ) {
     _state.metrics.totalResponseCount = totalResponseCount || 0;
@@ -153,6 +155,7 @@ export const mutations = {
       5: ratingsCount['5'] || 0,
     };
     _state.metrics.totalSentMessagesCount = totalSentMessagesCount || 0;
+    _state.metrics.signals = signals || [];
   },
   [types.UPDATE_CSAT_RESPONSE]: MutationHelpers.update,
 };

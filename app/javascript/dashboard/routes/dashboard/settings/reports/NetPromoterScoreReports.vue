@@ -9,6 +9,8 @@ import { REPORTS_EVENTS } from '../../../../helper/AnalyticsHelper/events';
 import { FEATURE_FLAGS } from '../../../../featureFlags';
 import V4Button from 'dashboard/components-next/button/Button.vue';
 import ReportHeader from './components/ReportHeader.vue';
+import DownloadPdfButton from 'dashboard/components/reports/DownloadPdfButton.vue';
+import ReportNarrativeSummary from './components/ReportNarrativeSummary.vue';
 
 export default {
   name: 'NetPromoterScoreReports',
@@ -18,6 +20,8 @@ export default {
     ReportFilterSelector,
     ReportHeader,
     V4Button,
+    DownloadPdfButton,
+    ReportNarrativeSummary,
   },
   data() {
     return {
@@ -34,7 +38,11 @@ export default {
     ...mapGetters({
       accountId: 'getCurrentAccountId',
       isFeatureEnabledOnAccount: 'accounts/isFeatureEnabledonAccount',
+      npsMetrics: 'npsResponses/getMetrics',
     }),
+    npsSignals() {
+      return this.npsMetrics.signals || [];
+    },
     requestPayload() {
       return {
         from: this.from,
@@ -117,12 +125,15 @@ export default {
   <ReportHeader
     :header-title="$t('NPS_REPORTS.HEADER', { default: 'Relatórios NPS' })"
   >
-    <V4Button
-      :label="$t('NPS_REPORTS.DOWNLOAD', { default: 'Exportar CSV' })"
-      icon="i-lucide-download"
-      size="sm"
-      @click="downloadReports"
-    />
+    <div class="flex items-center gap-2">
+      <DownloadPdfButton report-type="nps" :filters="requestPayload" />
+      <V4Button
+        :label="$t('NPS_REPORTS.DOWNLOAD', { default: 'Exportar CSV' })"
+        icon="i-lucide-download"
+        size="sm"
+        @click="downloadReports"
+      />
+    </div>
   </ReportHeader>
 
   <div class="flex flex-col gap-6">
@@ -134,6 +145,7 @@ export default {
       @filter-change="onFilterChange"
     />
 
+    <ReportNarrativeSummary :signals="npsSignals" />
     <NpsMetrics :filters="requestPayload" />
     <NpsTable
       :page-index="pageIndex"
