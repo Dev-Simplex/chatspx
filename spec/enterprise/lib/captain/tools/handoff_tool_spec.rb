@@ -56,6 +56,9 @@ RSpec.describe Captain::Tools::HandoffTool, type: :model do
           # The tool finds the conversation by ID, so we need to mock the found conversation
           found_conversation = Conversation.find(conversation.id)
           scoped_conversations = Conversation.where(account_id: assistant.account_id)
+          # call_original first so unrelated internal Conversation.where calls
+          # (e.g. set_team_id_from_conversation) keep working.
+          allow(Conversation).to receive(:where).and_call_original
           allow(Conversation).to receive(:where).with(account_id: assistant.account_id).and_return(scoped_conversations)
           allow(scoped_conversations).to receive(:find_by).with(id: conversation.id).and_return(found_conversation)
           expect(found_conversation).to receive(:bot_handoff!)
@@ -88,15 +91,43 @@ RSpec.describe Captain::Tools::HandoffTool, type: :model do
         end
       end
 
+      context 'when the IA owns the conversation (mirror handoff)' do
+        let(:mirror) { assistant.mirror_agent_bot }
+
+        before do
+          create(:captain_inbox, captain_assistant: assistant, inbox: inbox)
+          create(:inbox_member, inbox: inbox, user: user)
+          conversation.update!(assignee_agent_bot: mirror)
+          # Round-robin only assigns online agents (OnlineStatusTracker).
+          allow(OnlineStatusTracker).to receive(:get_available_users)
+            .and_return({ user.id.to_s => 'online' })
+        end
+
+        it 'releases the captain mirror so the IA stops responding' do
+          perform_enqueued_jobs do
+            tool.perform(tool_context, reason: 'Customer needs a broker')
+          end
+
+          expect(conversation.reload.assignee_agent_bot_id).to be_nil
+        end
+
+        it 'assigns an available human agent (A2b guard does not block the handoff)' do
+          perform_enqueued_jobs do
+            tool.perform(tool_context, reason: 'Customer needs a broker')
+          end
+
+          expect(conversation.reload.assignee).to eq(user)
+        end
+      end
+
       context 'without reason provided' do
-        it 'creates a private note with nil content and hands off conversation' do
+        it 'hands off the conversation without creating a private note' do
+          # The tool only posts a private note when a reason is given
+          # (trigger_handoff guards it behind `if reason.present?`).
           expect do
             result = tool.perform(tool_context)
             expect(result).to eq('Conversation handed off to human support team')
-          end.to change(Message, :count).by(1)
-
-          created_message = Message.last
-          expect(created_message.content).to be_nil
+          end.not_to change(Message, :count)
         end
 
         it 'logs tool usage with default reason' do
@@ -114,6 +145,9 @@ RSpec.describe Captain::Tools::HandoffTool, type: :model do
           # Mock the conversation lookup and handoff failure
           found_conversation = Conversation.find(conversation.id)
           scoped_conversations = Conversation.where(account_id: assistant.account_id)
+          # call_original first so unrelated internal Conversation.where calls
+          # (e.g. set_team_id_from_conversation) keep working.
+          allow(Conversation).to receive(:where).and_call_original
           allow(Conversation).to receive(:where).with(account_id: assistant.account_id).and_return(scoped_conversations)
           allow(scoped_conversations).to receive(:find_by).with(id: conversation.id).and_return(found_conversation)
           allow(found_conversation).to receive(:bot_handoff!).and_raise(StandardError, 'Handoff error')

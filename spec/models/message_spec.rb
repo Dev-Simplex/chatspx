@@ -368,6 +368,7 @@ RSpec.describe Message do
       agent_bot = create(:agent_bot)
       inbox = conversation.inbox
       inbox.agent_bot = agent_bot
+      inbox.pending_status_enabled = true
       inbox.save!
       conversation.resolved!
       message.save!
@@ -377,7 +378,8 @@ RSpec.describe Message do
   end
 
   describe '#mark_pending_conversation_as_open_for_human_response' do
-    let(:conversation) { create(:conversation, status: :pending) }
+    let(:inbox) { create(:inbox, pending_status_enabled: true) }
+    let(:conversation) { create(:conversation, inbox: inbox, account: inbox.account, status: :pending) }
 
     it 'does not mark the conversation open when pending is used without captain' do
       create(:message, message_type: :outgoing, conversation: conversation)

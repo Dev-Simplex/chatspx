@@ -1,0 +1,6 @@
+Finished in 2 minutes 44.1 seconds (files took 11.57 seconds to load)
+331 examples, 3 failures
+
+3 falhas, todas PRÉ-EXISTENTES do fork (não atribuíveis à Fase A):
+- inbox_pending_conversations_resolution_job_spec :145 e :243 — lifecycle do captain_activity_reason (with_captain_activity_context não sobrevive ao after_commit create_activity); arquivos enterprise/conversation.rb e activity_message_handler.rb IDÊNTICOS ao HEAD
+- conversation_spec :17 — SLA activity, bug de aridade AvatarFromUrlJob#perform(2 args, espera 3) via perform_enqueued_jobs; jobs avatar IDÊNTICOS ao HEAD

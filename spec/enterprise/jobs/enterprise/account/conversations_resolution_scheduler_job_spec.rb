@@ -72,5 +72,32 @@ RSpec.describe Account::ConversationsResolutionSchedulerJob, type: :job do
           .with(inbox_without_captain)
       end
     end
+
+    # A4: com has_many (A5) duas IAs elegíveis na mesma inbox compartilham uma única
+    # CaptainInbox por (assistant, inbox). O scheduler dedupa por inbox_id — uma inbox
+    # com 2 elegíveis ainda enfileira o job UMA vez.
+    context 'when an inbox is eligible for two assistants' do
+      let!(:regular_inbox) { create(:inbox, account: account) }
+      let(:second_assistant) { create(:captain_assistant, account: account) }
+
+      before do
+        create(:captain_inbox, captain_assistant: assistant, inbox: regular_inbox)
+        # 2ª elegibilidade na mesma inbox: o índice único do banco é no PAR
+        # (captain_assistant_id, inbox_id), então usamos insert_all p/ não esbarrar na
+        # validação model-only (substituída por uniqueness composta em A5).
+        CaptainInbox.insert_all( # rubocop:disable Rails/SkipsModelValidations
+          [{ captain_assistant_id: second_assistant.id, inbox_id: regular_inbox.id,
+             created_at: Time.current, updated_at: Time.current }]
+        )
+      end
+
+      it 'enqueues the resolution job for the inbox exactly once' do
+        expect do
+          described_class.perform_now
+        end.to have_enqueued_job(Captain::InboxPendingConversationsResolutionJob)
+          .with(regular_inbox)
+          .exactly(:once)
+      end
+    end
   end
 end

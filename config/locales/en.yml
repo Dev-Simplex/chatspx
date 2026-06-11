@@ -242,6 +242,7 @@ en:
     errors:
       team_required_for_resolution: 'A team must be assigned before resolving this conversation'
     captain:
+      assignment_forbidden: 'Only administrators can assign AI agents to conversations.'
       handoff: 'Transferring to another agent for further assistance.'
     messages:
       instagram_story_content: '%{story_sender} mentioned you in the story: '
@@ -518,6 +519,8 @@ en:
 
       Transcript:
       %{format_messages}
+  agent_bots:
+    captain_mirror_immutable: 'AI mirror bots are managed automatically and cannot be modified.'
   agent_capacity_policy:
     inbox_already_assigned: 'Inbox has already been assigned to this policy'
   portals:

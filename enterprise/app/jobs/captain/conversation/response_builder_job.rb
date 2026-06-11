@@ -196,7 +196,7 @@ class Captain::Conversation::ResponseBuilderJob < ApplicationJob
            .gsub(/^\s{0,3}#+\s+/, '')        # ## títulos -> texto
            .gsub(/^\s{0,3}[-*]\s+/, '')      # - bullets -> texto
            .gsub(/\s*[—―]\s*/, ', ')         # travessão/barra (pausa) -> vírgula (humano no WhatsApp não usa —)
-           .gsub('–', '-')                   # en-dash -> hífen comum (preserva intervalos: 7-11, R$3.200-5.000)
+           .tr('–', '-')                   # en-dash -> hífen comum (preserva intervalos: 7-11, R$3.200-5.000)
            .gsub(/ +,/, ',')                 # " ," -> ","
            .gsub(/,\s*([.!?;:])/, '\1')      # ", ." -> "."
            .gsub(/,(\s*,)+/, ',')            # ",," -> ","
@@ -205,15 +205,22 @@ class Captain::Conversation::ResponseBuilderJob < ApplicationJob
   def send_humanized_response(content)
     chunks = Captain::Behavior::HumanizerService.new(config: @assistant.behavior['humanizer']).split(content)
 
-    chunks.each_with_index do |chunk, _i|
+    sent = 0
+    chunks.each do |chunk|
       # "digitando..." em rajada curta antes de CADA mensagem (proporcional ao
       # tamanho do texto), com pausa entre elas — em vez de typing continuo desde a
       # chegada. Tambem espaca o envio, impedindo as mensagens de chegarem fora de ordem.
       trigger_typing_indicator
       sleep(humanizer_typing_delay(chunk))
+      # Re-check POR CHUNK, depois do sleep e imediatamente antes do envio: humano (ou
+      # outra IA) assumiu no meio da rajada -> para AQUI. TOCTOU residual de ms (entre o
+      # pick e o create!) aceito — lock pessimista por mensagem seria desproporcional.
+      break unless captain_can_respond?
+
       create_outgoing_message(chunk, agent_name: @response['agent_name'])
+      sent += 1
     end
-    log_behavior_event('humanizer_split', { chunks: chunks.size }) if chunks.size > 1
+    log_behavior_event('humanizer_split', { chunks: chunks.size, sent: sent }) if chunks.size > 1
   end
 
   # "Digitando..." pro cliente (best-effort; so WhatsApp Cloud responde de fato).
@@ -237,7 +244,7 @@ class Captain::Conversation::ResponseBuilderJob < ApplicationJob
     base = (cfg['delay_ms'].presence&.to_f || 600) / 1000.0
     min_s = cfg['min_delay_s'].presence&.to_f || 1.5
     max_s = cfg['max_delay_s'].presence&.to_f || 7.0
-    [[base + chunk.to_s.length * per_char, min_s].max, max_s].min
+    [[base + (chunk.to_s.length * per_char), min_s].max, max_s].min
   end
 
   def validate_message_content!(content)
@@ -294,10 +301,19 @@ class Captain::Conversation::ResponseBuilderJob < ApplicationJob
     status == 'pending' || status == Conversation.statuses[:pending]
   end
 
-  # Captain responde em pending E em open (continua atendendo após handoff/atribuição
-  # até um humano responder; skip_after_human_response corta quando o atendente fala).
+  # Captain responde em pending E em open (fork), e SOMENTE se a conversa ainda está
+  # atribuída ao espelho DESTE assistant (gate por atribuição, D-6). Compara com o
+  # assistant do ARGUMENTO (serializado via GlobalID) — job em voo de IA antiga cala.
   def captain_can_respond?
-    status = Conversation.uncached { Conversation.where(id: @conversation.id).pick(:status) }
-    [Conversation.statuses[:pending], Conversation.statuses[:open], 'pending', 'open'].include?(status)
+    status, mirror_id = Conversation.uncached do
+      Conversation.where(id: @conversation.id).pick(:status, :assignee_agent_bot_id)
+    end
+    return false unless [Conversation.statuses[:pending], Conversation.statuses[:open], 'pending', 'open'].include?(status)
+
+    mirror_id.present? && mirror_id == assistant_mirror_id
+  end
+
+  def assistant_mirror_id
+    @assistant_mirror_id ||= AgentBot.captain.where(captain_assistant_id: @assistant.id).pick(:id)
   end
 end

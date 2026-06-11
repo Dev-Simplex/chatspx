@@ -11,8 +11,12 @@ module Enterprise::Inbox
     super || captain_active?
   end
 
+  # A9.1: re-keyado pra ELEGIBILIDADE (has_many do A5). "Inbox tem IA elegível + cota".
+  # Mantém active_bot? = super || captain_active? para os 4 consumidores (pending na
+  # criação/reopen + métricas "inbox tem bot"). A SUPRESSÃO real (gate por atribuição)
+  # vive no hook_execution_service, não aqui.
   def captain_active?
-    captain_assistant.present? && more_responses?
+    captain_assistants.exists? && more_responses?
   end
 
   private

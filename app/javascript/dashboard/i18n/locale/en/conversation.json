@@ -408,6 +408,8 @@
     "ASSIGN_LABEL_SUCCESFUL": "Label assigned successfully",
     "ASSIGN_LABEL_FAILED": "Label assignment failed",
     "CHANGE_TEAM": "Conversation team changed",
+    "CHANGE_TEAM_FAILED": "Couldn't change the conversation team, please try again",
+    "ASSIGNMENT_ACCESS_LOST": "You no longer have access to this conversation",
     "RESOLVE_REQUIRES_TEAM": "A team must be assigned before resolving this conversation",
     "SELECT_TEAM_TO_RESOLVE": "Select a team to resolve this conversation",
     "SELECT_TEAM_TITLE": "Select Team",

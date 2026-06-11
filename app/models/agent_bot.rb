@@ -2,19 +2,25 @@
 #
 # Table name: agent_bots
 #
-#  id           :bigint           not null, primary key
-#  bot_config   :jsonb
-#  bot_type     :integer          default("webhook")
-#  description  :string
-#  name         :string
-#  outgoing_url :string
-#  created_at   :datetime         not null
-#  updated_at   :datetime         not null
-#  account_id   :bigint
+#  id                   :bigint           not null, primary key
+#  bot_config           :jsonb
+#  bot_type             :integer          default("webhook")
+#  description          :string
+#  name                 :string
+#  outgoing_url         :string
+#  created_at           :datetime         not null
+#  updated_at           :datetime         not null
+#  account_id           :bigint
+#  captain_assistant_id :bigint
 #
 # Indexes
 #
-#  index_agent_bots_on_account_id  (account_id)
+#  index_agent_bots_on_account_id            (account_id)
+#  index_agent_bots_on_captain_assistant_id  (captain_assistant_id) UNIQUE WHERE (captain_assistant_id IS NOT NULL)
+#
+# Foreign Keys
+#
+#  fk_rails_...  (captain_assistant_id => captain_assistants.id) ON DELETE => nullify
 #
 
 class AgentBot < ApplicationRecord
@@ -34,9 +40,13 @@ class AgentBot < ApplicationRecord
                                     dependent: :nullify,
                                     inverse_of: :assignee_agent_bot
   belongs_to :account, optional: true
-  enum bot_type: { webhook: 0 }
+  belongs_to :captain_assistant, class_name: 'Captain::Assistant', optional: true
+  enum bot_type: { webhook: 0, captain: 1 }
 
   validates :outgoing_url, length: { maximum: Limits::URL_LENGTH_LIMIT }
+  validates :captain_assistant_id, presence: true, if: :captain?
+  validates :captain_assistant_id, absence: true, if: :webhook?
+  validates :outgoing_url, absence: true, if: :captain? # espelho NUNCA tem webhook URL
 
   def available_name
     name
@@ -46,7 +56,7 @@ class AgentBot < ApplicationRecord
     {
       id: id,
       name: name,
-      avatar_url: avatar_url || inbox&.avatar_url,
+      avatar_url: avatar_url.presence || captain_assistant&.push_event_data&.dig(:avatar_url) || inbox&.avatar_url,
       type: 'agent_bot'
     }
   end

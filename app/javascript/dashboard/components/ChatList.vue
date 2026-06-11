@@ -55,6 +55,7 @@ import filterQueryGenerator from '../helper/filterQueryGenerator.js';
 import languages from 'dashboard/components/widgets/conversation/advancedFilterItems/languages';
 import countries from 'shared/constants/countries';
 import { generateValuesForEditCustomViews } from 'dashboard/helper/customViewsHelper';
+import { losesConversationAccess } from 'dashboard/helper/conversationAccessHelper';
 import {
   conversationListPageURL,
   conversationUrl,
@@ -146,6 +147,8 @@ const inboxesList = useMapGetter('inboxes/getInboxes');
 const campaigns = useMapGetter('campaigns/getAllCampaigns');
 const labels = useMapGetter('labels/getLabels');
 const currentAccountId = useMapGetter('getCurrentAccountId');
+const currentRole = useMapGetter('getCurrentRole');
+const myTeams = useMapGetter('teams/getMyTeams');
 // We can't useFunctionGetter here since it needs to be called on setup?
 const getTeamFn = useMapGetter('teams/getTeam');
 const getConversationById = useMapGetter('getConversationById');
@@ -854,11 +857,39 @@ async function markAsRead(conversationId) {
   }
 }
 
+function leaveConversationIfAccessLost(team, conversationId) {
+  // Conversation routes use either :conversation_id or :conversationId
+  // depending on the view (conversation.routes.js).
+  const openConversationId = Number(
+    route.params.conversation_id ?? route.params.conversationId
+  );
+  if (!openConversationId || openConversationId !== Number(conversationId)) {
+    return;
+  }
+  // An empty teams store right after a team assignment means it has not
+  // loaded yet — fail open instead of ejecting a legitimate member.
+  if (!teamsList.value.length) return;
+  // assigneeId stays null: on a team change the backend clears or reassigns
+  // a non-member assignee (ensure_assignee_is_from_team).
+  const lostAccess = losesConversationAccess({
+    isAdmin: currentRole.value === 'administrator',
+    userId: currentUser.value.id,
+    userTeamIds: myTeams.value.map(memberTeam => memberTeam.id),
+    teamId: team.id,
+    assigneeId: null,
+  });
+  if (lostAccess) {
+    useAlert(t('CONVERSATION.ASSIGNMENT_ACCESS_LOST'));
+    router.push(`/app/accounts/${currentAccountId.value}/dashboard`);
+  }
+}
+
 async function onAssignTeam(team, conversationId = null) {
   try {
     await store.dispatch('assignTeam', {
       conversationId,
       teamId: team.id,
+      rethrow: true,
     });
     useAlert(
       t('CONVERSATION.CARD_CONTEXT_MENU.API.TEAM_ASSIGNMENT.SUCCESFUL', {
@@ -866,7 +897,7 @@ async function onAssignTeam(team, conversationId = null) {
         conversationId,
       })
     );
-    router.push(`/app/accounts/${currentAccountId.value}/dashboard`);
+    leaveConversationIfAccessLost(team, conversationId);
   } catch (error) {
     useAlert(t('CONVERSATION.CARD_CONTEXT_MENU.API.TEAM_ASSIGNMENT.FAILED'));
   }

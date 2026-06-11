@@ -228,6 +228,7 @@ pt_BR:
     errors:
       team_required_for_resolution: 'Um time deve ser atribuído antes de resolver esta conversa'
     captain:
+      assignment_forbidden: 'Somente administradores podem atribuir agentes IA a conversas.'
       handoff: 'Transferindo para que outro agente dê assistência.'
     messages:
       instagram_story_content: '%{story_sender} mencionou você na conversa: '
@@ -506,6 +507,8 @@ pt_BR:
 
       Transcrição:
       %{format_messages}
+  agent_bots:
+    captain_mirror_immutable: 'Bots-espelho de agentes IA são gerenciados automaticamente e não podem ser alterados.'
   agent_capacity_policy:
     inbox_already_assigned: 'A caixa de entrada já foi atribuída a esta política'
   portals:

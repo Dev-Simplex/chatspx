@@ -28,6 +28,38 @@ RSpec.describe AgentBot do
     end
   end
 
+  describe 'captain mirror validations' do
+    let(:account) { create(:account) }
+    let(:assistant) { create(:captain_assistant, account: account) }
+
+    it 'requires a captain_assistant for captain bots' do
+      bot = build(:agent_bot, account: account, bot_type: :captain, outgoing_url: nil, captain_assistant_id: nil)
+
+      expect(bot).not_to be_valid
+      expect(bot.errors[:captain_assistant_id]).to include("can't be blank")
+    end
+
+    it 'rejects outgoing_url for captain bots' do
+      bot = build(:agent_bot, account: account, bot_type: :captain, captain_assistant_id: assistant.id, outgoing_url: 'https://example.com')
+
+      expect(bot).not_to be_valid
+      expect(bot.errors[:outgoing_url]).to include('must be blank')
+    end
+
+    it 'rejects captain_assistant for webhook bots' do
+      bot = build(:agent_bot, account: account, bot_type: :webhook, captain_assistant_id: assistant.id)
+
+      expect(bot).not_to be_valid
+      expect(bot.errors[:captain_assistant_id]).to include('must be blank')
+    end
+
+    it 'accepts a captain bot with assistant and no outgoing_url' do
+      bot = build(:agent_bot, account: account, bot_type: :captain, captain_assistant_id: assistant.id, outgoing_url: nil)
+
+      expect(bot).to be_valid
+    end
+  end
+
   context 'when agent bot is deleted' do
     let(:agent_bot) { create(:agent_bot) }
     let(:message) { create(:message, sender: agent_bot) }

@@ -39,6 +39,14 @@ class Captain::Tools::HandoffTool < Captain::Tools::BasePublicTool
     # Trigger the bot handoff (sets status to open + dispatches events)
     conversation.bot_handoff!
 
+    # A IA abre mão da conversa no handoff: solta o espelho (mesmo padrão do
+    # handoff de cota em HookExecutionService#perform_handoff). Sem isso o gate
+    # continuaria vendo a IA como dona (ela responderia por cima) e o guard A2b
+    # — que impede o round-robin de roubar conversa da IA — bloquearia a
+    # atribuição do corretor abaixo. Limpar aqui faz a IA calar e libera o
+    # AgentAssignmentService a atribuir um humano.
+    conversation.update!(assignee_agent_bot_id: nil) if conversation.assignee_agent_bot&.captain?
+
     # Atribui a um atendente humano disponível (online) do inbox via round-robin.
     # bot_handoff! sozinho só muda o status pra open; sem isso a conversa fica
     # sem dono. A roleta por nicho (Vista/Loft) virá depois; por ora, qualquer

@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[7.1].define(version: 2026_05_19_210000) do
+ActiveRecord::Schema[7.1].define(version: 2026_06_11_184429) do
   # These extensions should be enabled to support this database
   enable_extension "pg_stat_statements"
   enable_extension "pg_trgm"
@@ -134,7 +134,9 @@ ActiveRecord::Schema[7.1].define(version: 2026_05_19_210000) do
     t.bigint "account_id"
     t.integer "bot_type", default: 0
     t.jsonb "bot_config", default: {}
+    t.bigint "captain_assistant_id"
     t.index ["account_id"], name: "index_agent_bots_on_account_id"
+    t.index ["captain_assistant_id"], name: "index_agent_bots_on_captain_assistant_id", unique: true, where: "(captain_assistant_id IS NOT NULL)"
   end
 
   create_table "agent_capacity_policies", force: :cascade do |t|
@@ -357,11 +359,30 @@ ActiveRecord::Schema[7.1].define(version: 2026_05_19_210000) do
     t.jsonb "auth_config", default: {}
     t.jsonb "param_schema", default: []
     t.boolean "enabled", default: true, null: false
-    t.boolean "copilot_only", default: false, null: false
     t.datetime "created_at", null: false
     t.datetime "updated_at", null: false
+    t.boolean "copilot_only", default: false, null: false
     t.index ["account_id", "slug"], name: "index_captain_custom_tools_on_account_id_and_slug", unique: true
     t.index ["account_id"], name: "index_captain_custom_tools_on_account_id"
+  end
+
+  create_table "captain_document_chunks", force: :cascade do |t|
+    t.bigint "account_id", null: false
+    t.bigint "assistant_id", null: false
+    t.bigint "captain_document_id", null: false
+    t.integer "position", default: 0, null: false
+    t.text "content", null: false
+    t.text "contextual_content"
+    t.vector "embedding", limit: 1536
+    t.virtual "content_search", type: :tsvector, as: "to_tsvector('simple'::regconfig, COALESCE(content, ''::text))", stored: true
+    t.jsonb "metadata", default: {}
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["account_id"], name: "index_captain_document_chunks_on_account_id"
+    t.index ["assistant_id"], name: "index_captain_document_chunks_on_assistant_id"
+    t.index ["captain_document_id"], name: "idx_cap_doc_chunks_on_document"
+    t.index ["content_search"], name: "idx_cap_doc_chunks_fulltext", using: :gin
+    t.index ["embedding"], name: "idx_cap_doc_chunks_embedding_hnsw", opclass: :vector_cosine_ops, using: :hnsw
   end
 
   create_table "captain_documents", force: :cascade do |t|
@@ -697,6 +718,31 @@ ActiveRecord::Schema[7.1].define(version: 2026_05_19_210000) do
     t.index ["user_id"], name: "index_conversation_participants_on_user_id"
   end
 
+  create_table "conversation_pdf_exports", force: :cascade do |t|
+    t.bigint "conversation_id", null: false
+    t.bigint "account_id", null: false
+    t.bigint "requester_user_id"
+    t.integer "status", default: 0, null: false
+    t.jsonb "filters", default: {}, null: false
+    t.jsonb "audit_meta", default: {}, null: false
+    t.string "sha256", limit: 64
+    t.bigint "file_size"
+    t.integer "bates_count"
+    t.binary "timestamp_token"
+    t.datetime "started_at"
+    t.datetime "completed_at"
+    t.datetime "expires_at"
+    t.text "error_message"
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["account_id"], name: "index_conversation_pdf_exports_on_account_id"
+    t.index ["conversation_id", "created_at"], name: "idx_conv_pdf_exports_on_conv_and_created", order: { created_at: :desc }
+    t.index ["conversation_id"], name: "index_conversation_pdf_exports_on_conversation_id"
+    t.index ["requester_user_id"], name: "index_conversation_pdf_exports_on_requester_user_id"
+    t.index ["sha256"], name: "index_conversation_pdf_exports_on_sha256", unique: true, where: "(sha256 IS NOT NULL)"
+    t.index ["status"], name: "index_conversation_pdf_exports_on_status"
+  end
+
   create_table "conversations", id: :serial, force: :cascade do |t|
     t.integer "account_id", null: false
     t.integer "inbox_id", null: false
@@ -725,6 +771,7 @@ ActiveRecord::Schema[7.1].define(version: 2026_05_19_210000) do
     t.text "cached_label_list"
     t.bigint "assignee_agent_bot_id"
     t.datetime "assignee_last_changed_at"
+    t.index "((additional_attributes -> 'user_settings'::text))", name: "index_conversations_on_user_settings_gin", using: :gin
     t.index ["account_id", "display_id"], name: "index_conversations_on_account_id_and_display_id", unique: true
     t.index ["account_id", "id"], name: "index_conversations_on_id_and_account_id"
     t.index ["account_id", "inbox_id", "status", "assignee_id"], name: "conv_acid_inbid_stat_asgnid_idx"
@@ -1010,6 +1057,129 @@ ActiveRecord::Schema[7.1].define(version: 2026_05_19_210000) do
     t.jsonb "settings", default: {}
     t.index ["account_id", "app_id"], name: "idx_integrations_hooks_account_app"
     t.index ["inbox_id"], name: "idx_integrations_hooks_inbox_id"
+  end
+
+  create_table "kanban_automations", force: :cascade do |t|
+    t.string "name", null: false
+    t.bigint "kanban_id", null: false
+    t.bigint "kanban_stage_id"
+    t.string "trigger", null: false
+    t.jsonb "conditions", default: {}, null: false
+    t.jsonb "actions", default: [], null: false
+    t.boolean "enabled", default: true, null: false
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["kanban_id", "enabled"], name: "index_kanban_automations_on_kanban_id_and_enabled"
+    t.index ["kanban_id"], name: "index_kanban_automations_on_kanban_id"
+    t.index ["kanban_stage_id"], name: "index_kanban_automations_on_kanban_stage_id"
+    t.index ["trigger"], name: "index_kanban_automations_on_trigger"
+  end
+
+  create_table "kanban_items", force: :cascade do |t|
+    t.bigint "kanban_id", null: false
+    t.bigint "kanban_stage_id", null: false
+    t.bigint "conversation_id", null: false
+    t.bigint "moved_by_id"
+    t.datetime "last_stage_change_at", precision: nil
+    t.datetime "aging_calculated_at", precision: nil
+    t.integer "aging_days", default: 0
+    t.decimal "position", precision: 20, scale: 10, default: "0.0"
+    t.string "won_reason"
+    t.string "loss_reason"
+    t.text "note"
+    t.jsonb "metadata", default: {}, null: false
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["aging_days"], name: "index_kanban_items_on_aging_days"
+    t.index ["conversation_id", "kanban_id"], name: "idx_kanban_items_unique", unique: true
+    t.index ["conversation_id"], name: "index_kanban_items_on_conversation_id"
+    t.index ["kanban_id", "created_at"], name: "index_kanban_items_on_kanban_id_and_created_at"
+    t.index ["kanban_id", "kanban_stage_id", "position"], name: "idx_kanban_items_stage_pos"
+    t.index ["kanban_id"], name: "index_kanban_items_on_kanban_id"
+    t.index ["kanban_stage_id", "position"], name: "idx_kanban_items_pos_keyset"
+    t.index ["kanban_stage_id"], name: "index_kanban_items_on_kanban_stage_id"
+    t.index ["last_stage_change_at"], name: "index_kanban_items_on_last_stage_change_at"
+    t.index ["moved_by_id"], name: "index_kanban_items_on_moved_by_id"
+  end
+
+  create_table "kanban_stages", force: :cascade do |t|
+    t.string "name", null: false
+    t.string "color", limit: 16
+    t.bigint "kanban_id", null: false
+    t.integer "position", default: 0, null: false
+    t.string "automation_type"
+    t.integer "rot_after_days"
+    t.integer "wip_limit"
+    t.string "won_loss_type"
+    t.bigint "default_message_template_id"
+    t.integer "probability"
+    t.jsonb "settings", default: {}, null: false
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["kanban_id", "automation_type"], name: "index_kanban_stages_unique_automation", unique: true, where: "(automation_type IS NOT NULL)"
+    t.index ["kanban_id", "position"], name: "index_kanban_stages_on_kanban_id_and_position"
+    t.index ["kanban_id", "won_loss_type"], name: "index_kanban_stages_unique_won_loss", unique: true, where: "(won_loss_type IS NOT NULL)"
+    t.index ["kanban_id"], name: "index_kanban_stages_on_kanban_id"
+  end
+
+  create_table "kanban_templates", force: :cascade do |t|
+    t.string "slug", null: false
+    t.string "name", null: false
+    t.string "description", limit: 500
+    t.string "vertical"
+    t.string "icon", limit: 32
+    t.string "color", limit: 16
+    t.string "locale", default: "pt-BR", null: false
+    t.integer "version", default: 1, null: false
+    t.jsonb "stages_config", default: [], null: false
+    t.jsonb "sample_cards", default: [], null: false
+    t.jsonb "automations_config", default: [], null: false
+    t.boolean "is_official", default: true, null: false
+    t.bigint "account_id"
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["account_id"], name: "index_kanban_templates_on_account_id"
+    t.index ["locale"], name: "index_kanban_templates_on_locale"
+    t.index ["slug"], name: "index_kanban_templates_on_slug", unique: true
+    t.index ["vertical"], name: "index_kanban_templates_on_vertical"
+  end
+
+  create_table "kanban_views", force: :cascade do |t|
+    t.string "name", null: false
+    t.bigint "kanban_id", null: false
+    t.bigint "user_id"
+    t.boolean "is_shared", default: false, null: false
+    t.jsonb "filters", default: {}, null: false
+    t.jsonb "sort", default: {"by" => "last_activity_at", "dir" => "desc"}, null: false
+    t.jsonb "settings", default: {}, null: false
+    t.integer "position", default: 0, null: false
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["kanban_id", "is_shared"], name: "index_kanban_views_on_kanban_id_and_is_shared"
+    t.index ["kanban_id", "user_id"], name: "index_kanban_views_on_kanban_id_and_user_id"
+    t.index ["kanban_id"], name: "index_kanban_views_on_kanban_id"
+    t.index ["user_id"], name: "index_kanban_views_on_user_id"
+  end
+
+  create_table "kanbans", force: :cascade do |t|
+    t.string "name", null: false
+    t.string "description", limit: 500
+    t.string "color", limit: 16
+    t.bigint "account_id", null: false
+    t.bigint "team_id"
+    t.jsonb "inbox_ids", default: [], null: false
+    t.integer "position", default: 0, null: false
+    t.jsonb "settings", default: {}, null: false
+    t.datetime "archived_at", precision: nil
+    t.bigint "created_by_id"
+    t.bigint "template_id"
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["account_id", "archived_at"], name: "index_kanbans_on_account_id_and_archived_at"
+    t.index ["account_id"], name: "index_kanbans_on_account_id"
+    t.index ["inbox_ids"], name: "index_kanbans_on_inbox_ids", using: :gin
+    t.index ["team_id"], name: "index_kanbans_on_team_id"
+    t.index ["template_id"], name: "index_kanbans_on_template_id"
   end
 
   create_table "labels", force: :cascade do |t|
@@ -1319,6 +1489,7 @@ ActiveRecord::Schema[7.1].define(version: 2026_05_19_210000) do
     t.datetime "updated_at", null: false
     t.bigint "message_id"
     t.bigint "scheduled_by_id"
+    t.jsonb "template_params"
     t.index ["conversation_id", "scheduled_at", "id"], name: "idx_scheduled_messages_conversation_timeline", order: { scheduled_at: :desc, id: :desc }
     t.index ["conversation_id"], name: "index_scheduled_messages_on_conversation_id"
     t.index ["inbox_id"], name: "index_scheduled_messages_on_inbox_id"
@@ -1475,20 +1646,13 @@ ActiveRecord::Schema[7.1].define(version: 2026_05_19_210000) do
     t.index ["inbox_id"], name: "index_working_hours_on_inbox_id"
   end
 
-  add_foreign_key "active_storage_attachments", "active_storage_blobs", column: "blob_id"
-  add_foreign_key "active_storage_variant_records", "active_storage_blobs", column: "blob_id"
+  add_foreign_key "agent_bots", "captain_assistants", on_delete: :nullify
   add_foreign_key "captain_assistant_logs", "captain_assistants"
   add_foreign_key "captain_assistant_logs", "conversations"
-  add_foreign_key "contact_inboxes", "contacts", on_delete: :cascade
-  add_foreign_key "contact_inboxes", "inboxes", on_delete: :cascade
-  add_foreign_key "conversation_assignment_histories", "accounts"
-  add_foreign_key "conversation_assignment_histories", "conversations"
-  add_foreign_key "conversation_assignment_histories", "teams"
-  add_foreign_key "conversation_assignment_histories", "users", column: "assignee_id"
-  add_foreign_key "conversation_participants", "accounts", on_delete: :cascade
-  add_foreign_key "conversation_participants", "conversations", on_delete: :cascade
-  add_foreign_key "conversations", "accounts", on_delete: :cascade
-  add_foreign_key "conversations", "contacts", on_delete: :restrict
+  add_foreign_key "conversation_pdf_exports", "accounts", on_delete: :cascade
+  add_foreign_key "conversation_pdf_exports", "conversations", on_delete: :cascade
+  add_foreign_key "conversation_pdf_exports", "users", column: "requester_user_id", on_delete: :nullify
+  add_foreign_key "conversations", "contacts", on_delete: :cascade
   add_foreign_key "conversations", "inboxes", on_delete: :cascade
   add_foreign_key "conversations", "teams", on_delete: :nullify
   add_foreign_key "conversations", "users", column: "assignee_id", on_delete: :nullify
@@ -1501,13 +1665,24 @@ ActiveRecord::Schema[7.1].define(version: 2026_05_19_210000) do
   add_foreign_key "funnels", "accounts"
   add_foreign_key "funnels", "teams"
   add_foreign_key "inboxes", "portals"
+  add_foreign_key "kanban_automations", "kanban_stages", on_delete: :cascade
+  add_foreign_key "kanban_automations", "kanbans", on_delete: :cascade
+  add_foreign_key "kanban_items", "conversations", on_delete: :cascade
+  add_foreign_key "kanban_items", "kanban_stages", on_delete: :restrict
+  add_foreign_key "kanban_items", "kanbans", on_delete: :cascade
+  add_foreign_key "kanban_items", "users", column: "moved_by_id", on_delete: :nullify
+  add_foreign_key "kanban_stages", "kanbans", on_delete: :cascade
+  add_foreign_key "kanban_templates", "accounts", on_delete: :cascade
+  add_foreign_key "kanban_views", "kanbans", on_delete: :cascade
+  add_foreign_key "kanban_views", "users", on_delete: :cascade
+  add_foreign_key "kanbans", "accounts"
+  add_foreign_key "kanbans", "kanban_templates", column: "template_id", on_delete: :nullify
+  add_foreign_key "kanbans", "teams", on_delete: :nullify
+  add_foreign_key "kanbans", "users", column: "created_by_id", on_delete: :nullify
   add_foreign_key "mentions", "conversations", on_delete: :cascade
-  add_foreign_key "message_reactions", "accounts"
   add_foreign_key "message_reactions", "messages"
-  add_foreign_key "messages", "accounts", on_delete: :cascade
   add_foreign_key "messages", "conversations", on_delete: :cascade
   add_foreign_key "messages", "inboxes", on_delete: :cascade
-  add_foreign_key "notifications", "accounts", on_delete: :cascade
   add_foreign_key "notifications", "users", on_delete: :cascade
   add_foreign_key "nps_responses", "conversations", on_delete: :cascade
   add_foreign_key "reporting_events", "conversations", on_delete: :cascade

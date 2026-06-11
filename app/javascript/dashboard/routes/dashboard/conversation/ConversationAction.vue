@@ -10,6 +10,7 @@ import { CONVERSATION_EVENTS } from '../../../helper/AnalyticsHelper/events';
 import { useTrack } from 'dashboard/composables';
 import NextButton from 'dashboard/components-next/button/Button.vue';
 import TeamSelectionModal from 'dashboard/components/widgets/conversation/TeamSelectionModal.vue';
+import { losesConversationAccess } from 'dashboard/helper/conversationAccessHelper';
 
 export default {
   components: {
@@ -68,7 +69,9 @@ export default {
     ...mapGetters({
       currentChat: 'getSelectedChat',
       currentUser: 'getCurrentUser',
+      currentRole: 'getCurrentRole',
       teams: 'teams/getTeams',
+      myTeams: 'teams/getMyTeams',
     }),
     hasAnAssignedTeam() {
       return Boolean(this.currentChat?.meta?.team || this.currentChat?.team_id);
@@ -92,14 +95,24 @@ export default {
       set(team) {
         const conversationId = this.currentChat.id;
         const teamId = team ? team.id : 0;
+        const previousTeam = this.currentChat.meta.team;
         this.$store.dispatch('setCurrentChatTeam', { team, conversationId });
         this.$store
-          .dispatch('assignTeam', { conversationId, teamId })
+          .dispatch('assignTeam', { conversationId, teamId, rethrow: true })
           .then(() => {
             useAlert(this.$t('CONVERSATION.CHANGE_TEAM'));
-            this.$router.push(
-              `/app/accounts/${this.$route.params.accountId}/dashboard`
-            );
+            this.leaveConversationIfAccessLost({
+              conversationId,
+              teamId: team ? team.id : null,
+              assigneeId: null,
+            });
+          })
+          .catch(() => {
+            this.$store.dispatch('setCurrentChatTeam', {
+              team: previousTeam,
+              conversationId,
+            });
+            useAlert(this.$t('CONVERSATION.CHANGE_TEAM_FAILED'));
           });
       },
     },
@@ -186,17 +199,42 @@ export default {
       this.agentTeamsForModal = [];
     },
 
+    leaveConversationIfAccessLost({ conversationId, teamId, assigneeId }) {
+      // The user may have switched conversations while the request was in
+      // flight — never navigate away from an unrelated conversation.
+      if (this.currentChat?.id !== conversationId) return;
+      // An empty teams store right after a team assignment means it has not
+      // loaded yet — fail open instead of ejecting a legitimate member.
+      if (!this.teams.length) return;
+      const lostAccess = losesConversationAccess({
+        isAdmin: this.currentRole === 'administrator',
+        userId: this.currentUser.id,
+        userTeamIds: this.myTeams.map(team => team.id),
+        teamId,
+        assigneeId,
+      });
+      if (lostAccess) {
+        useAlert(this.$t('CONVERSATION.ASSIGNMENT_ACCESS_LOST'));
+        this.$router.push(
+          `/app/accounts/${this.$route.params.accountId}/dashboard`
+        );
+      }
+    },
+
     async assignAgentDirect(agent = null) {
+      const conversationId = this.currentChat.id;
       try {
         await this.$store.dispatch('assignAgent', {
-          conversationId: this.currentChat.id,
+          conversationId,
           agentId: agent?.id || null,
           rethrow: true,
         });
         useAlert(this.$t('CONVERSATION.CHANGE_AGENT'));
-        this.$router.push(
-          `/app/accounts/${this.$route.params.accountId}/dashboard`
-        );
+        this.leaveConversationIfAccessLost({
+          conversationId,
+          teamId: this.currentChat?.meta?.team?.id || null,
+          assigneeId: agent?.id || null,
+        });
       } catch (error) {
         useAlert(this.$t('CONVERSATION.CHANGE_AGENT_FAILED'));
       }
@@ -208,23 +246,41 @@ export default {
         return;
       }
 
+      const conversationId = this.currentChat.id;
+      let teamApplied = false;
       try {
         await this.$store.dispatch('assignTeam', {
-          conversationId: this.currentChat.id,
+          conversationId,
           teamId,
           rethrow: true,
         });
+        teamApplied = true;
         await this.$store.dispatch('assignAgent', {
-          conversationId: this.currentChat.id,
+          conversationId,
           agentId: this.pendingTransferAgent.id,
           rethrow: true,
         });
         useAlert(this.$t('CONVERSATION.CHANGE_AGENT'));
-        this.$router.push(
-          `/app/accounts/${this.$route.params.accountId}/dashboard`
-        );
+        this.leaveConversationIfAccessLost({
+          conversationId,
+          teamId,
+          assigneeId: this.pendingTransferAgent.id,
+        });
       } catch (error) {
-        useAlert(this.$t('CONVERSATION.CHANGE_AGENT_FAILED'));
+        if (teamApplied) {
+          useAlert(this.$t('CONVERSATION.CHANGE_AGENT_FAILED'));
+        } else {
+          useAlert(this.$t('CONVERSATION.CHANGE_TEAM_FAILED'));
+        }
+        if (teamApplied) {
+          // The team change was committed before the failure; the backend may
+          // have cleared the assignee, so check access with the new team only.
+          this.leaveConversationIfAccessLost({
+            conversationId,
+            teamId,
+            assigneeId: null,
+          });
+        }
       } finally {
         this.closeTransferTeamModal();
       }

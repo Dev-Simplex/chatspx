@@ -88,6 +88,24 @@ RSpec.describe Inbox do
     end
   end
 
+  describe '#assignable_agents' do
+    let(:inbox) { FactoryBot.create(:inbox) }
+    let(:account) { inbox.account }
+
+    it 'never includes agent bots, only users' do
+      agent = create(:user, account: account, role: :agent)
+      inbox.add_members([agent.id])
+      create(:agent_bot_inbox, inbox: inbox, agent_bot: create(:agent_bot, account: account))
+      assistant = create(:captain_assistant, account: account)
+
+      assignable = inbox.reload.assignable_agents
+
+      expect(assignable).to all(be_a(User))
+      expect(assignable.map(&:id)).to include(agent.id)
+      expect(assignable).not_to include(assistant.reload.agent_bot)
+    end
+  end
+
   describe '#facebook?' do
     let(:inbox) do
       FactoryBot.build(:inbox, channel: channel_val)

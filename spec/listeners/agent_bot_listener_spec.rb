@@ -37,6 +37,22 @@ describe AgentBotListener do
         listener.message_created(event)
       end
 
+      context 'when conversation is assigned to a captain mirror bot' do
+        let!(:assistant) { create(:captain_assistant, account: account) }
+        let(:mirror_bot) { assistant.reload.agent_bot }
+
+        before do
+          # mesmo com URL forçada (bypass de validação), o espelho não dispara webhook
+          mirror_bot.update_column(:outgoing_url, 'https://example.com/forced') # rubocop:disable Rails/SkipsModelValidations
+          conversation.update!(assignee_agent_bot: mirror_bot, assignee: nil)
+        end
+
+        it 'does not enqueue webhook job for the captain mirror' do
+          expect(AgentBots::WebhookJob).not_to receive(:perform_later)
+          listener.message_created(event)
+        end
+      end
+
       context 'when conversation has a different assignee agent bot' do
         let!(:conversation_bot) { create(:agent_bot) }
 

@@ -4,9 +4,9 @@ module Enterprise::MessageTemplates::HookExecutionService # rubocop:disable Metr
   def trigger_templates
     super
     return unless should_process_captain_response?
-    return perform_handoff unless inbox.captain_active?
+    return perform_handoff unless captain_quota_available?
 
-    process_captain_behavior(inbox.captain_assistant)
+    process_captain_behavior(assigned_assistant)
   end
 
   def should_send_greeting?
@@ -76,7 +76,7 @@ module Enterprise::MessageTemplates::HookExecutionService # rubocop:disable Metr
     if debounce.positive?
       Captain::Behavior::DebounceService.new(assistant: assistant, conversation: conversation).schedule
     else
-      schedule_captain_response
+      schedule_captain_response(assistant)
     end
   end
 
@@ -106,8 +106,10 @@ module Enterprise::MessageTemplates::HookExecutionService # rubocop:disable Metr
     service.trigger
   end
 
-  def schedule_captain_response
-    job_args = [conversation, conversation.inbox.captain_assistant]
+  # O job recebe o assistant que o gate resolveu pela CONVERSA — fim do re-derive
+  # via inbox (o dono pode ser qualquer IA elegível, não "a IA da inbox").
+  def schedule_captain_response(assistant)
+    job_args = [conversation, assistant]
 
     if message.attachments.blank?
       Captain::Conversation::ResponseBuilderJob.perform_later(*job_args)
@@ -126,31 +128,47 @@ module Enterprise::MessageTemplates::HookExecutionService # rubocop:disable Metr
     base_wait + additional_wait
   end
 
+  # Gate por ATRIBUIÇÃO (D-6): a IA só processa conversa cujo dono é o espelho dela.
+  # pending aceito durante a transição (legado); open é o estado normal do modelo novo.
   def should_process_captain_response?
-    # Responde em pending E em open: depois do handoff/atribuição o bot continua
-    # atendendo até um humano de fato responder (skip_after_human_response no
-    # RouterService corta quando um atendente envia mensagem). Evita deixar o
-    # cliente sem resposta quando não há humano disponível na hora.
-    (conversation.pending? || conversation.open?) && message.incoming? && inbox.captain_assistant.present? && !human_takeover_locked?
+    (conversation.pending? || conversation.open?) && message.incoming? && assigned_assistant.present?
   end
 
-  # Checkbox "Atendimento humano" no painel lateral: trava o bot pra o atendente assumir.
-  def human_takeover_locked?
-    [true, 'true', 1, '1'].include?(conversation.custom_attributes&.dig('atendimento_humano'))
+  def assigned_assistant
+    return @assigned_assistant if defined?(@assigned_assistant)
+
+    mirror = conversation.assignee_agent_bot
+    @assigned_assistant = (mirror.captain_assistant if mirror&.captain?)
+  end
+
+  # Quota re-keyada: não depende mais de inbox.captain_active? (que morre keyado por inbox).
+  def captain_quota_available?
+    conversation.account.usage_limits[:captain][:responses][:current_available].positive?
   end
 
   def perform_handoff
-    return unless conversation.pending?
+    assistant = assigned_assistant
+    return if assistant.blank? # re-keyado: só age quando uma IA é dona da conversa
 
     Rails.logger.info("Captain limit exceeded, performing handoff mid-conversation for conversation: #{conversation.id}")
-    conversation.messages.create!(
-      message_type: :outgoing,
-      account_id: conversation.account.id,
-      inbox_id: conversation.inbox.id,
-      content: 'Transferring to another agent for further assistance.'
-    )
+    create_handoff_message(assistant)
+    # IA solta a conversa: o gate para de bater aqui (sem spam) e a conversa fica
+    # sem dono -> visível como órfã (vigia D-12 / tab condicional na Fase C).
+    conversation.update!(assignee_agent_bot_id: nil)
     conversation.bot_handoff!
     send_out_of_office_message_after_handoff
+  end
+
+  def create_handoff_message(assistant)
+    I18n.with_locale(conversation.account.locale) do
+      conversation.messages.create!(
+        message_type: :outgoing,
+        account_id: conversation.account.id,
+        inbox_id: conversation.inbox.id,
+        sender: assistant, # bolha com identidade da IA (antes saía sem sender)
+        content: assistant.config['handoff_message'].presence || I18n.t('conversations.captain.handoff')
+      )
+    end
   end
 
   def send_out_of_office_message_after_handoff
@@ -161,7 +179,13 @@ module Enterprise::MessageTemplates::HookExecutionService # rubocop:disable Metr
     ::MessageTemplates::Template::OutOfOffice.perform_if_applicable(conversation)
   end
 
+  # Supressão de greeting/OOO/email_collect por ELEGIBILIDADE (inbox tem IA) OU atribuição.
+  # Por quê: a triagem atribui DEPOIS da criação — se a supressão fosse só por atribuição,
+  # a conversa receberia greeting automático na janela entre criação e triagem (regressão
+  # visível). Elegibilidade preserva o comportamento atual.
   def captain_handling_conversation?
-    (conversation.pending? || conversation.open?) && inbox.respond_to?(:captain_assistant) && inbox.captain_assistant.present?
+    return false unless conversation.pending? || conversation.open?
+
+    assigned_assistant.present? || ::CaptainInbox.exists?(inbox_id: inbox.id)
   end
 end

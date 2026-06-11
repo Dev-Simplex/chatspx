@@ -13,7 +13,9 @@ module AssignmentHandler
   def ensure_assignee_is_from_team
     if team_id_changed?
       validate_current_assignee_team
-      self.assignee ||= find_assignee_from_team
+      # NÃO auto-atribuir humano do time quando o espelho captain é dono (A2b, triagem D-6:
+      # team + espelho na mesma automação — preserva a invariante de exclusividade).
+      self.assignee ||= find_assignee_from_team if assignee_agent_bot_id.blank?
     elsif will_save_change_to_assignee_id? && assignee_id.present?
       sync_team_from_assignee
     end

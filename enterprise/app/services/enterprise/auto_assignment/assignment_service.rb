@@ -57,7 +57,7 @@ module Enterprise::AutoAssignment::AssignmentService
 
   # Override to apply exclusion rules
   def unassigned_conversations(limit)
-    scope = inbox.conversations.unassigned.open
+    scope = inbox.conversations.unassigned.open.where(assignee_agent_bot_id: nil)
 
     # Apply exclusion rules from capacity policy or assignment policy
     scope = apply_exclusion_rules(scope)

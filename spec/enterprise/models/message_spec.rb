@@ -25,7 +25,8 @@ RSpec.describe Message do
   end
 
   describe '#mark_pending_conversation_as_open_for_human_response' do
-    let(:conversation) { create(:conversation, status: :pending) }
+    let(:inbox) { create(:inbox, pending_status_enabled: true) }
+    let(:conversation) { create(:conversation, inbox: inbox, account: inbox.account, status: :pending) }
     let(:captain_assistant) { create(:captain_assistant, account: conversation.account) }
     let(:auto_open_activity_content) { I18n.t('conversations.activity.captain.auto_opened_after_agent_reply', locale: conversation.account.locale) }
 
@@ -86,6 +87,85 @@ RSpec.describe Message do
       create(:message, message_type: :outgoing, conversation: conversation, sender: agent_bot)
 
       expect(conversation.reload.pending?).to be true
+    end
+  end
+
+  describe '#release_captain_mirror_after_human_reply (A2c)' do
+    let(:conversation) { create(:conversation) }
+    let(:captain_assistant) { create(:captain_assistant, account: conversation.account) }
+    let(:mirror) { captain_assistant.mirror_agent_bot }
+
+    before do
+      conversation.update!(assignee_agent_bot: mirror)
+    end
+
+    it 'releases the mirror when a human sends a public outgoing message without assigning themselves' do
+      create(:message, message_type: :outgoing, conversation: conversation)
+
+      expect(conversation.reload.assignee_agent_bot_id).to be_nil
+    end
+
+    it 'releases the mirror for native echo replies (external_echo)' do
+      message = build(
+        :message,
+        message_type: :outgoing,
+        conversation: conversation,
+        content_attributes: { external_echo: true }
+      )
+      message.sender = nil
+      message.save!
+
+      expect(conversation.reload.assignee_agent_bot_id).to be_nil
+    end
+
+    it 'does not release the mirror for automation messages' do
+      create(:message, message_type: :outgoing, conversation: conversation, content_attributes: { automation_rule_id: 1 })
+
+      expect(conversation.reload.assignee_agent_bot_id).to eq(mirror.id)
+    end
+
+    it 'does not release the mirror for campaign messages' do
+      create(:message, message_type: :outgoing, conversation: conversation, additional_attributes: { campaign_id: 1 })
+
+      expect(conversation.reload.assignee_agent_bot_id).to eq(mirror.id)
+    end
+
+    it 'does not release the mirror for private notes' do
+      create(:message, message_type: :outgoing, conversation: conversation, private: true)
+
+      expect(conversation.reload.assignee_agent_bot_id).to eq(mirror.id)
+    end
+
+    it 'does not release the mirror for template bootstrap messages' do
+      create(
+        :message,
+        message_type: :outgoing,
+        conversation: conversation,
+        additional_attributes: { template_params: { name: 'sample_template' } }
+      )
+
+      expect(conversation.reload.assignee_agent_bot_id).to eq(mirror.id)
+    end
+
+    it 'does not release the mirror when the assistant itself replies' do
+      create(:message, message_type: :outgoing, conversation: conversation, sender: captain_assistant)
+
+      expect(conversation.reload.assignee_agent_bot_id).to eq(mirror.id)
+    end
+
+    it 'does not release a webhook agent bot owner' do
+      webhook_bot = create(:agent_bot, account: conversation.account)
+      conversation.update!(assignee_agent_bot: webhook_bot)
+
+      create(:message, message_type: :outgoing, conversation: conversation)
+
+      expect(conversation.reload.assignee_agent_bot_id).to eq(webhook_bot.id)
+    end
+
+    it 'does not release the mirror for incoming messages' do
+      create(:message, message_type: :incoming, conversation: conversation)
+
+      expect(conversation.reload.assignee_agent_bot_id).to eq(mirror.id)
     end
   end
 end

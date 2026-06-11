@@ -32,6 +32,23 @@ RSpec.describe Inboxes::BulkAutoAssignmentJob do
         )
       end
 
+      it 'skips conversations owned by a captain mirror bot' do
+        assistant = create(:captain_assistant, account: account)
+        captain_conversation = create(:conversation, account: account, inbox: inbox, assignee: nil, status: :open)
+        captain_conversation.update!(assignee_agent_bot: assistant.mirror_agent_bot)
+
+        allow(AutoAssignment::AgentAssignmentService).to receive(:new).and_return(assignment_service)
+
+        described_class.perform_now
+
+        expect(AutoAssignment::AgentAssignmentService).not_to have_received(:new).with(
+          conversation: captain_conversation,
+          allowed_agent_ids: anything
+        )
+        expect(captain_conversation.reload.assignee).to be_nil
+        expect(captain_conversation.reload.assignee_agent_bot).to eq(assistant.mirror_agent_bot)
+      end
+
       it 'skips inboxes with auto assignment disabled' do
         inbox.update!(enable_auto_assignment: false)
         allow(AutoAssignment::AgentAssignmentService).to receive(:new)

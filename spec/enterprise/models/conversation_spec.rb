@@ -110,4 +110,219 @@ RSpec.describe Conversation, type: :model do
       end
     end
   end
+
+  # A2b — invariante de exclusividade: em NENHUM fluxo a conversa termina persistida com
+  # assignee humano E espelho captain (assignee_id + assignee_agent_bot_id) ao mesmo tempo.
+  describe 'captain mirror exclusivity invariant (A2b)' do
+    let(:account) { create(:account) }
+    let(:inbox) { create(:inbox, account: account, enable_auto_assignment: true) }
+    let(:agent) { create(:user, account: account, role: :agent, auto_offline: false) }
+    let(:assistant) { create(:captain_assistant, account: account) }
+    let(:mirror) { assistant.mirror_agent_bot }
+
+    before do
+      create(:inbox_member, inbox: inbox, user: agent)
+    end
+
+    context 'with direct save' do
+      it 'clears the mirror when a human assignee is set on a conversation owned by the AI' do
+        conversation = create(:conversation, account: account, inbox: inbox, assignee: nil, assignee_agent_bot: mirror)
+
+        conversation.update!(assignee: agent)
+
+        conversation.reload
+        expect(conversation.assignee).to eq(agent)
+        expect(conversation.assignee_agent_bot_id).to be_nil
+      end
+
+      it 'never persists human assignee and captain mirror together when both are set in one save' do
+        conversation = create(:conversation, account: account, inbox: inbox, assignee: nil)
+
+        conversation.update!(assignee: agent, assignee_agent_bot: mirror)
+
+        conversation.reload
+        expect(conversation.assignee_id.present? && conversation.assignee_agent_bot_id.present?).to be(false)
+      end
+    end
+
+    context 'with legacy round-robin auto-assignment (assignment_v2 off, default)' do
+      it 'does not steal a conversation owned by the captain mirror' do
+        conversation = create(:conversation, account: account, inbox: inbox, assignee: nil, assignee_agent_bot: mirror)
+
+        conversation.reload
+        expect(conversation.assignee_id).to be_nil
+        expect(conversation.assignee_agent_bot).to eq(mirror)
+      end
+
+      it 'still assigns conversations without a captain mirror (control)' do
+        conversation = create(:conversation, account: account, inbox: inbox, assignee: nil)
+
+        expect(conversation.reload.assignee).to eq(agent)
+      end
+    end
+
+    context 'with team change (triage: team + mirror in the same automation)' do
+      # Inbox sem round-robin: isola o caminho do team-change (ensure_assignee_is_from_team),
+      # que dispara independente de enable_auto_assignment.
+      let(:inbox) { create(:inbox, account: account, enable_auto_assignment: false) }
+      let(:team) { create(:team, account: account, allow_auto_assign: true) }
+
+      before do
+        create(:team_member, team: team, user: agent)
+      end
+
+      it 'does not auto-assign a human from the team when the mirror owns the conversation' do
+        conversation = create(:conversation, account: account, inbox: inbox, assignee: nil, assignee_agent_bot: mirror)
+
+        conversation.update!(team: team)
+
+        conversation.reload
+        expect(conversation.assignee_id).to be_nil
+        expect(conversation.assignee_agent_bot).to eq(mirror)
+      end
+
+      it 'preserves exclusivity when team and mirror are set in the same save' do
+        conversation = create(:conversation, account: account, inbox: inbox, assignee: nil)
+
+        conversation.update!(team: team, assignee_agent_bot: mirror)
+
+        conversation.reload
+        expect(conversation.assignee_id.present? && conversation.assignee_agent_bot_id.present?).to be(false)
+        expect(conversation.assignee_agent_bot).to eq(mirror)
+      end
+
+      it 'still auto-assigns a team member when there is no captain mirror (control)' do
+        conversation = create(:conversation, account: account, inbox: inbox, assignee: nil)
+
+        conversation.update!(team: team)
+
+        expect(conversation.reload.assignee).to eq(agent)
+      end
+    end
+
+    context 'with V2 bulk auto-assignment' do
+      before do
+        account.enable_features!('assignment_v2')
+      end
+
+      it 'does not steal a conversation owned by the captain mirror' do
+        conversation = create(:conversation, account: account, inbox: inbox, assignee: nil, assignee_agent_bot: mirror)
+
+        Inboxes::BulkAutoAssignmentJob.perform_now
+
+        conversation.reload
+        expect(conversation.assignee_id).to be_nil
+        expect(conversation.assignee_agent_bot).to eq(mirror)
+      end
+    end
+  end
+
+  # A2e — resolver a conversa limpa o dono-espelho captain (e SÓ ele): reopen nasce sem
+  # dono e a triagem re-atribui. Snooze mantém; bot webhook e assignee humano preservados.
+  describe 'release_captain_mirror_on_resolve (A2e)' do
+    let(:account) { create(:account) }
+    let(:inbox) { create(:inbox, account: account, enable_auto_assignment: false) }
+    let(:assistant) { create(:captain_assistant, account: account) }
+    let(:mirror) { assistant.mirror_agent_bot }
+    let(:conversation) { create(:conversation, account: account, inbox: inbox, assignee: nil, assignee_agent_bot: mirror) }
+
+    it 'clears the captain mirror when the conversation is resolved' do
+      conversation.update!(status: :resolved)
+
+      expect(conversation.reload.assignee_agent_bot_id).to be_nil
+    end
+
+    it 'reopens without an owner after resolve' do
+      conversation.update!(status: :resolved)
+      conversation.update!(status: :open)
+
+      expect(conversation.reload.assignee_agent_bot_id).to be_nil
+    end
+
+    it 'keeps the captain mirror on snooze' do
+      conversation.update!(status: :snoozed, snoozed_until: 1.day.from_now)
+
+      expect(conversation.reload.assignee_agent_bot).to eq(mirror)
+    end
+
+    it 'keeps a webhook bot assignment on resolve' do
+      webhook_bot = create(:agent_bot, account: account)
+      conversation.update!(assignee_agent_bot: webhook_bot)
+
+      conversation.update!(status: :resolved)
+
+      expect(conversation.reload.assignee_agent_bot).to eq(webhook_bot)
+    end
+
+    it 'does not touch the human assignee on resolve' do
+      agent = create(:user, account: account, role: :agent)
+      conversation.update!(assignee_agent_bot: nil, assignee: agent)
+
+      conversation.update!(status: :resolved)
+
+      expect(conversation.reload.assignee).to eq(agent)
+    end
+  end
+
+  # A2d — setar o espelho captain numa conversa com incoming pendente cutuca o pipeline
+  # (1º turno da triagem assíncrona + transferência IA->IA). Desatribuição/espelho->humano
+  # não disparam; a resposta da IA não muda o dono -> sem loop.
+  describe 'kick_captain_pipeline_after_mirror_assignment (A2d)' do
+    let(:account) { create(:account) }
+    let(:inbox) { create(:inbox, account: account, enable_auto_assignment: false) }
+    let(:assistant) { create(:captain_assistant, account: account) }
+    let(:mirror) { assistant.mirror_agent_bot }
+
+    it 'enqueues the kick job when a mirror is assigned (nil -> mirror)' do
+      conversation = create(:conversation, account: account, inbox: inbox, assignee: nil, assignee_agent_bot: nil)
+
+      expect do
+        conversation.update!(assignee_agent_bot: mirror)
+      end.to have_enqueued_job(Captain::Conversation::AssignmentKickJob).with(conversation)
+    end
+
+    it 'enqueues on human -> mirror (assignee cleared so the mirror wins exclusivity)' do
+      agent = create(:user, account: account, role: :agent)
+      conversation = create(:conversation, account: account, inbox: inbox, assignee: agent)
+
+      expect do
+        conversation.update!(assignee: nil, assignee_agent_bot: mirror)
+      end.to have_enqueued_job(Captain::Conversation::AssignmentKickJob)
+    end
+
+    it 'enqueues on mirror -> mirror (IA->IA transfer)' do
+      other = create(:captain_assistant, account: account)
+      conversation = create(:conversation, account: account, inbox: inbox, assignee: nil, assignee_agent_bot: mirror)
+
+      expect do
+        conversation.update!(assignee_agent_bot: other.mirror_agent_bot)
+      end.to have_enqueued_job(Captain::Conversation::AssignmentKickJob)
+    end
+
+    it 'does NOT enqueue on mirror -> human (release)' do
+      agent = create(:user, account: account, role: :agent)
+      conversation = create(:conversation, account: account, inbox: inbox, assignee: nil, assignee_agent_bot: mirror)
+
+      expect do
+        conversation.update!(assignee: agent)
+      end.not_to have_enqueued_job(Captain::Conversation::AssignmentKickJob)
+    end
+
+    it 'does NOT enqueue when the mirror is cleared (mirror -> nil)' do
+      conversation = create(:conversation, account: account, inbox: inbox, assignee: nil, assignee_agent_bot: mirror)
+
+      expect do
+        conversation.update!(assignee_agent_bot: nil)
+      end.not_to have_enqueued_job(Captain::Conversation::AssignmentKickJob)
+    end
+
+    it 'does NOT enqueue when a webhook bot is assigned (non-captain)' do
+      webhook_bot = create(:agent_bot, account: account)
+      conversation = create(:conversation, account: account, inbox: inbox, assignee: nil, assignee_agent_bot: nil)
+
+      expect do
+        conversation.update!(assignee_agent_bot: webhook_bot)
+      end.not_to have_enqueued_job(Captain::Conversation::AssignmentKickJob)
+    end
+  end
 end

@@ -8,9 +8,32 @@ module Enterprise::Concerns::Conversation
     has_many :captain_responses, class_name: 'Captain::AssistantResponse', dependent: :nullify, as: :documentable
     before_validation :validate_sla_policy, if: -> { sla_policy_id_changed? }
     around_save :ensure_applied_sla_is_created, if: -> { sla_policy_id_changed? }
+    # A2e: resolver a conversa LIMPA o dono-espelho captain (reopen nasce sem dono ->
+    # triagem re-atribui). Snooze NÃO limpa; bot webhook e assignee humano preservam
+    # a regra atual do Chatwoot.
+    before_save :release_captain_mirror_on_resolve, if: -> { status_changed? && resolved? }
+    # A2d: quando o espelho captain é SETADO (nil/humano/outro espelho -> este espelho),
+    # cutuca o pipeline para que a IA responda o incoming pendente já no 1º turno
+    # (triagem assíncrona) e na transferência IA->IA. Desatribuição não dispara
+    # (valor ausente); a resposta da IA não muda o dono -> sem loop.
+    after_commit :kick_captain_pipeline_after_mirror_assignment
   end
 
   private
+
+  def kick_captain_pipeline_after_mirror_assignment
+    return unless saved_change_to_assignee_agent_bot_id? && assignee_agent_bot_id.present?
+    return unless assignee_agent_bot&.captain? # espelho->humano/bot webhook não cutuca
+
+    Captain::Conversation::AssignmentKickJob.perform_later(self)
+  end
+
+  def release_captain_mirror_on_resolve
+    return if assignee_agent_bot_id.blank?
+    return unless assignee_agent_bot&.captain? # bot webhook preserva comportamento atual
+
+    self.assignee_agent_bot_id = nil
+  end
 
   def validate_sla_policy
     # TODO: remove these validations once we figure out how to deal with these cases

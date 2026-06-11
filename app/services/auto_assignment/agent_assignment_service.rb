@@ -9,6 +9,8 @@ class AutoAssignment::AgentAssignmentService
   end
 
   def perform
+    return if conversation.assignee_agent_bot_id.present? # nunca rouba conversa da IA (A2b)
+
     new_assignee = find_assignee
     conversation.update(assignee: new_assignee) if new_assignee
   end

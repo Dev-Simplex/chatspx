@@ -37,6 +37,94 @@ RSpec.describe Inbox do
     end
   end
 
+  # A5: flip has_one captain_assistant -> has_many captain_assistants (through captain_inboxes)
+  describe 'captain elegibilidade (has_many)' do
+    let(:account) { create(:account) }
+    let(:eligible_inbox) { create(:inbox, account: account) }
+    let(:assistant_one) { create(:captain_assistant, account: account) }
+    let(:assistant_two) { create(:captain_assistant, account: account) }
+
+    it 'retorna TODOS os assistants elegíveis da inbox' do
+      create(:captain_inbox, captain_assistant: assistant_one, inbox: eligible_inbox)
+      create(:captain_inbox, captain_assistant: assistant_two, inbox: eligible_inbox)
+
+      expect(eligible_inbox.captain_assistants).to contain_exactly(assistant_one, assistant_two)
+    end
+
+    it 'destruir o assistant remove a elegibilidade (dependent: :destroy no captain_inbox)' do
+      create(:captain_inbox, captain_assistant: assistant_one, inbox: eligible_inbox)
+      expect { assistant_one.destroy! }.to change { eligible_inbox.reload.captain_assistants.count }.from(1).to(0)
+    end
+
+    it 'destruir a inbox remove os captain_inboxes (dependent: :destroy)' do
+      create(:captain_inbox, captain_assistant: assistant_one, inbox: eligible_inbox)
+      create(:captain_inbox, captain_assistant: assistant_two, inbox: eligible_inbox)
+
+      expect { eligible_inbox.destroy! }.to change(CaptainInbox, :count).by(-2)
+    end
+  end
+
+  # A9.1: captain_active? re-keyado pra ELEGIBILIDADE + cota; active_bot? composto.
+  describe '#captain_active?' do
+    let(:account) { create(:account) }
+    let(:captain_inbox) { create(:inbox, account: account) }
+    let(:assistant_one) { create(:captain_assistant, account: account) }
+    let(:assistant_two) { create(:captain_assistant, account: account) }
+
+    def stub_quota(available)
+      allow(account).to receive(:usage_limits).and_return(captain: { responses: { current_available: available } })
+      allow(captain_inbox).to receive(:account).and_return(account)
+    end
+
+    it 'true quando há 2 assistants elegíveis e cota disponível' do
+      create(:captain_inbox, captain_assistant: assistant_one, inbox: captain_inbox)
+      create(:captain_inbox, captain_assistant: assistant_two, inbox: captain_inbox)
+      stub_quota(5)
+
+      expect(captain_inbox.captain_active?).to be(true)
+    end
+
+    it 'false quando NÃO há assistant elegível (mesmo com cota)' do
+      stub_quota(5)
+
+      expect(captain_inbox.captain_active?).to be(false)
+    end
+
+    it 'false quando há elegível mas a cota está zerada' do
+      create(:captain_inbox, captain_assistant: assistant_one, inbox: captain_inbox)
+      stub_quota(0)
+
+      expect(captain_inbox.captain_active?).to be(false)
+    end
+  end
+
+  describe '#active_bot? (composto super || captain_active?)' do
+    let(:account) { create(:account) }
+    let(:captain_inbox) { create(:inbox, account: account) }
+    let(:assistant_one) { create(:captain_assistant, account: account) }
+
+    it 'true quando a inbox é elegível para captain e há cota' do
+      create(:captain_inbox, captain_assistant: assistant_one, inbox: captain_inbox)
+      allow(account).to receive(:usage_limits).and_return(captain: { responses: { current_available: 1 } })
+      allow(captain_inbox).to receive(:account).and_return(account)
+
+      expect(captain_inbox.active_bot?).to be(true)
+    end
+
+    it 'cai no super (webhook agent bot) quando não há captain elegível' do
+      bot_inbox = create(:inbox, account: account)
+      create(:agent_bot_inbox, inbox: bot_inbox)
+
+      expect(bot_inbox.active_bot?).to be(true)
+    end
+
+    it 'false quando não há captain elegível nem agent bot' do
+      plain_inbox = create(:inbox, account: account)
+
+      expect(plain_inbox.active_bot?).to be(false)
+    end
+  end
+
   describe 'audit log' do
     context 'when inbox is created' do
       it 'has associated audit log created' do

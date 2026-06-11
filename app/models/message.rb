@@ -344,6 +344,7 @@ class Message < ApplicationRecord
     # rails issue with order of active record callbacks being executed https://github.com/rails/rails/issues/20911
     reopen_conversation
     mark_pending_conversation_as_open_for_human_response
+    release_captain_mirror_after_human_reply
     set_conversation_activity
     dispatch_create_events
     send_reply
@@ -464,6 +465,10 @@ class Message < ApplicationRecord
   def captain_pending_conversation?
     false
   end
+
+  # Implementado no Enterprise::Message (A2c): outgoing público de humano em
+  # conversa cujo dono é o espelho captain desatribui o espelho. No-op aqui.
+  def release_captain_mirror_after_human_reply; end
 
   def reopen_resolved_conversation
     # mark resolved bot conversation as pending to be reopened by bot processor service

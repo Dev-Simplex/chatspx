@@ -26,6 +26,21 @@ RSpec.describe AutoAssignment::AgentAssignmentService do
       described_class.new(conversation: conversation, allowed_agent_ids: inbox_members.map(&:user_id).map(&:to_s)).perform
       expect(conversation.reload.assignee).not_to be_nil
     end
+
+    context 'when the conversation is owned by a captain mirror bot' do
+      let(:assistant) { create(:captain_assistant, account: account) }
+
+      before do
+        conversation.update!(assignee_agent_bot: assistant.mirror_agent_bot)
+      end
+
+      it 'never steals the conversation from the AI' do
+        described_class.new(conversation: conversation, allowed_agent_ids: inbox_members.map(&:user_id).map(&:to_s)).perform
+
+        expect(conversation.reload.assignee).to be_nil
+        expect(conversation.reload.assignee_agent_bot).to eq(assistant.mirror_agent_bot)
+      end
+    end
   end
 
   describe '#find_assignee' do

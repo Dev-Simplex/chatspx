@@ -136,6 +136,90 @@ RSpec.describe 'Conversation Assignment API', type: :request do
       end
     end
 
+    context 'when assigning a captain mirror bot (admin-only, D-3)' do
+      let(:administrator) { create(:user, account: account, role: :administrator) }
+      let(:agent) { create(:user, account: account, role: :agent) }
+      let(:captain_assistant) { create(:captain_assistant, account: account) }
+      let(:captain_mirror) { captain_assistant.mirror_agent_bot }
+
+      before do
+        create(:inbox_member, inbox: conversation.inbox, user: agent)
+      end
+
+      it 'allows an administrator to assign the captain mirror' do
+        params = { assignee_id: captain_mirror.id, assignee_type: 'AgentBot' }
+
+        post api_v1_account_conversation_assignments_url(account_id: account.id, conversation_id: conversation.display_id),
+             params: params,
+             headers: administrator.create_new_auth_token,
+             as: :json
+
+        expect(response).to have_http_status(:success)
+        expect(response.parsed_body['name']).to eq(captain_mirror.name)
+        conversation.reload
+        expect(conversation.assignee_agent_bot).to eq(captain_mirror)
+        expect(conversation.assignee).to be_nil
+      end
+
+      it 'returns forbidden with the i18n error when an agent assigns the captain mirror' do
+        params = { assignee_id: captain_mirror.id, assignee_type: 'AgentBot' }
+
+        post api_v1_account_conversation_assignments_url(account_id: account.id, conversation_id: conversation.display_id),
+             params: params,
+             headers: agent.create_new_auth_token,
+             as: :json
+
+        expect(response).to have_http_status(:forbidden)
+        expect(response.parsed_body['error']).to eq(I18n.t('conversations.captain.assignment_forbidden'))
+        expect(conversation.reload.assignee_agent_bot).to be_nil
+      end
+
+      it 'returns forbidden (not 500) when an agent bot token assigns the captain mirror' do
+        webhook_bot = create(:agent_bot, account: account)
+        create(:agent_bot_inbox, inbox: conversation.inbox, agent_bot: webhook_bot)
+
+        post "/api/v1/accounts/#{account.id}/conversations/#{conversation.display_id}/assignments",
+             headers: { api_access_token: webhook_bot.access_token.token },
+             params: { assignee_id: captain_mirror.id, assignee_type: 'AgentBot' },
+             as: :json
+
+        expect(response).to have_http_status(:forbidden)
+        expect(conversation.reload.assignee_agent_bot).to be_nil
+      end
+
+      it 'allows an administrator to unassign a conversation owned by the captain mirror' do
+        conversation.update!(assignee_agent_bot: captain_mirror)
+
+        post api_v1_account_conversation_assignments_url(account_id: account.id, conversation_id: conversation.display_id),
+             params: { assignee_id: nil },
+             headers: administrator.create_new_auth_token,
+             as: :json
+
+        expect(response).to have_http_status(:success)
+        expect(conversation.reload.assignee_agent_bot).to be_nil
+      end
+
+      it 'assigns the captain mirror through the service without Current.user (automation/macro/tool path)' do
+        result = Conversations::AssignmentService.new(
+          conversation: conversation,
+          assignee_id: captain_mirror.id,
+          assignee_type: 'AgentBot'
+        ).perform
+
+        expect(result).to eq(captain_mirror)
+        expect(conversation.reload.assignee_agent_bot).to eq(captain_mirror)
+      end
+
+      it 'keeps i18n parity between en and pt_BR for the forbidden message' do
+        en_message = I18n.t('conversations.captain.assignment_forbidden', locale: :en)
+        pt_message = I18n.t('conversations.captain.assignment_forbidden', locale: :pt_BR)
+
+        expect(en_message).to be_present
+        expect(pt_message).to be_present
+        expect(pt_message).not_to eq(en_message)
+      end
+    end
+
     context 'when conversation already has an assignee' do
       let(:agent) { create(:user, account: account, role: :agent) }
 
@@ -155,8 +239,8 @@ RSpec.describe 'Conversation Assignment API', type: :request do
         expect(conversation.reload.assignee).to be_nil
         expect(Conversations::ActivityMessageJob)
           .to(have_been_enqueued.at_least(:once)
-        .with(conversation, { account_id: conversation.account_id, inbox_id: conversation.inbox_id, message_type: :activity,
-                              content: "Conversation unassigned by #{agent.name}" }))
+        .with(conversation.id, { account_id: conversation.account_id, inbox_id: conversation.inbox_id, message_type: :activity,
+                                 content: "Conversation unassigned by #{agent.name}" }))
       end
     end
 
