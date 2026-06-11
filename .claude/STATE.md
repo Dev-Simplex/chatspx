@@ -10,7 +10,17 @@
 
 ## 🚧 Em andamento
 
-### [2026-06-11] 🟢 EQUIPE DE AGENTES CRIADA NA SANDBOX (hmlchat, conta 1 SimplexIA)
+### [2026-06-11] 🚨 DESCOBERTA DE INFRA: 192.168.8.232 = chatspx.app (SaaS COM CLIENTES), não só "hmlchat"
+
+- `FRONTEND_URL` da VM 232 é `https://chatspx.app`; contas: 1 SimplexIA · 3 Simplex Tecnologia · 4 Colégio Alternativo · 5 Realizare Imobiliária. **Tratar como produção** (o restart/migrations de hoje passaram sem incidente, mas o risco era maior que o assumido). Auto-pull da homologacao SEM migrate vira risco crítico — corrigir urgente. Vault atualizado (`credenciais/infraestrutura.md`).
+
+### [2026-06-11] 🟢 CLARA LIVE NO NÚMERO SIMPLEXIA OFICIAL (chatspx.app, conta 3, inbox 44)
+
+- **Número Cloud API oficial funcionando: +55 66 2018-0686** (inbox 44 "SimplexIA", conta 3 Simplex Tecnologia). Equipe clonada da conta 1 → conta 3: **Clara #3 (CONECTADA à inbox 44)** · Júlia #10 · Bruna #11 · Letícia #12 · Marina #13 · Rafa #14. Modelo da conta 3: `claude-sonnet-4.5` (era gpt-4.1, sem uso). Custom tools clonadas (geocoding ON). Cota 99.965/100k. `audio_transcriptions=true` na conta 3. `pending_status_enabled=false` na inbox 44 (sem limbo). Sem whitelist — a Clara responde QUALQUER mensagem no número (é o teste).
+- **Para testar:** mandar WhatsApp pro +55 66 2018-0686 (texto/áudio). Trocar o agente conectado = `CaptainInbox.find_by(inbox_id: 44).destroy` + `create!(inbox_id: 44, captain_assistant_id: <id>)`.
+- Limitações conhecidas do teste: transferência IA→IA = handoff com destino no motivo (tool real = Fase C6) · knowledge vazia (curadoria pendente) · busca de imóvel usa o Vista da TOZI (chave no .env — ok pra teste).
+
+### [2026-06-11] 🟢 EQUIPE DE AGENTES CRIADA NA SANDBOX (chatspx.app, conta 1 SimplexIA)
 
 > Spec completa: [`docs/EQUIPE-AGENTES-IA.md`](../docs/EQUIPE-AGENTES-IA.md). Setup idempotente: `Temp/hml_setup_sandbox.rb` (local, não versionado).
 
