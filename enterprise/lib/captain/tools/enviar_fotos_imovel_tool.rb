@@ -36,9 +36,12 @@ class Captain::Tools::EnviarFotosImovelTool < Captain::Tools::BasePublicTool
 
     restantes = fotos.size - new_sent
     if restantes.positive?
-      "Enviei #{batch.size} fotos do imóvel #{codigo}. Ainda tenho mais #{restantes}; ofereça enviar se o cliente quiser."
+      # Nao oferecer mais fotos por conta propria (prende o lead num loop de midia):
+      # avancar a conversa pro proximo passo; se o cliente pedir mais, chamar de novo.
+      "Enviei #{batch.size} fotos do imóvel #{codigo}. NÃO ofereça mais fotos por conta própria — " \
+        'avance a conversa pro próximo passo (interesse, visita). Se o cliente pedir mais fotos, chame esta ferramenta de novo.'
     else
-      "Enviei as últimas #{batch.size} fotos do imóvel #{codigo}. Não há mais fotos."
+      "Enviei as últimas #{batch.size} fotos do imóvel #{codigo}. Não há mais fotos — avance a conversa."
     end
   rescue StandardError => e
     Rails.logger.warn("[EnviarFotosImovelTool] #{e.message}")
