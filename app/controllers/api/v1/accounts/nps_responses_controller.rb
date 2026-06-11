@@ -24,11 +24,8 @@ class Api::V1::Accounts::NpsResponsesController < Api::V1::Accounts::BaseControl
     @promoters_count = responded_responses.promoters.count
     @passives_count = responded_responses.passives.count
     @detractors_count = responded_responses.detractors.count
-    @blocked_count = @nps_responses.where(status: :dismissed).count
-    @blocked_by_label_count = @nps_responses.where(status: :dismissed)
-                                            .where.not(blocked_by_label: nil)
-                                            .group(:blocked_by_label)
-                                            .count
+    set_blocked_counts
+    @signals = Reports::SignalSet.new(entries: [{ metric: :nps, value: nps_score }]).build
   end
 
   def download
@@ -67,6 +64,24 @@ class Api::V1::Accounts::NpsResponsesController < Api::V1::Accounts::BaseControl
   end
 
   private
+
+  def set_blocked_counts
+    @blocked_count = @nps_responses.where(status: :dismissed).count
+    @blocked_by_label_count = @nps_responses.where(status: :dismissed)
+                                            .where.not(blocked_by_label: nil)
+                                            .group(:blocked_by_label)
+                                            .count
+  end
+
+  # NPS = %promotores - %detratores (mesma fórmula do jbuilder, p/ o sinal bater com o card).
+  def nps_score
+    total = @promoters_count + @passives_count + @detractors_count
+    return 0 if total.zero?
+
+    promoters_pct = (@promoters_count.to_f / total * 100).round(2)
+    detractors_pct = (@detractors_count.to_f / total * 100).round(2)
+    (promoters_pct - detractors_pct).round(2)
+  end
 
   def check_authorization
     authorize NpsResponse
