@@ -20,11 +20,12 @@
 | **Bruna** — Locação | Atendimento de aluguel (ritmo rápido), busca/mostra imóveis, orienta análise de crédito, handoff pro consultor | Locação | Scenario #6 (validado) |
 | **Letícia** — Suporte | Triagem de cliente da casa: boleto, contrato, manutenção, vistoria, desocupação → coleta o mínimo e aciona o setor | Financeiro / Suporte | Scenario #7 (validado) |
 | **Marina** — Captação | Proprietário querendo anunciar (vender/alugar): valoriza, qualifica o imóvel e a expectativa, dossiê pro captador | Captação | **NOVO** (§8) |
+| **Rafa** — Prestadores | Pintores, pedreiros, manutenção: orçamentos, serviço concluído, notas, cobranças, cadastro de prestador novo → organiza e aciona o setor | Manutenção/Prestação | **NOVO** (§9) |
 
-**Setores SEM agente próprio (decisão 11/06, critério no §12):** Jurídico = intenção →
+**Setores SEM agente próprio (decisão 11/06, critério no §13):** Jurídico = intenção →
 handoff humano direto (volume baixo + risco alto; IA que só roteia é a Clara). Prestação de
-contas ao proprietário = intenção → Letícia/Financeiro até a integração Vista profunda
-(Onda 5); aí vira agente próprio que consulta repasses e resolve de verdade.
+contas ao proprietário (repasse/extrato) = intenção → Letícia/Financeiro até a integração
+Vista profunda (Onda 5); aí vira agente próprio que consulta repasses e resolve de verdade.
 
 **Fluxo padrão:** conversa nova sem dono → automação atribui **Clara** → Clara conversa
 (máx. 2–3 trocas), responde dúvida geral e classifica a intenção → `transferir_para_agente`
@@ -42,6 +43,7 @@ colega certo — já previsto nos prompts atuais.
 | Boleto / pagamento / cobrança | Letícia | Financeiro | "meu boleto não chegou", "2ª via", "valor errado" |
 | Contrato / manutenção / vistoria / desocupação | Letícia | Suporte | "infiltração", "vou desocupar", "renovação" |
 | Proprietário quer anunciar (captação) | Marina | Captação | "quero colocar minha casa pra alugar com vocês" |
+| Prestador de serviço (orçamento, serviço, nota, pagamento, cadastro) | Rafa | Manutenção/Prestação | "orçamento da pintura ficou em...", "terminei o serviço", "quando sai meu pagamento?" |
 | Prestação de contas (proprietário: repasse, extrato) | Letícia *(até Onda 5)* | Financeiro | "cadê meu repasse?", "extrato do aluguel" |
 | Jurídico | — (handoff humano direto) | Jurídico | "notificação", "ação", "advogado" |
 | Pede humano explicitamente | — (handoff humano) | time da intenção | "quero falar com atendente" |
@@ -103,6 +105,9 @@ Pelos sinais da conversa, identifique o que a pessoa quer:
   [transferir pra Marina](tool://transferir_para_agente), nossa consultora de captação.
 - PROPRIETÁRIO de imóvel JÁ administrado pela Tozi falando de repasse/extrato/prestação de
   contas → [transferir pra Letícia](tool://transferir_para_agente), do suporte.
+- PRESTADOR DE SERVIÇO (pintor, pedreiro, eletricista falando de orçamento, serviço feito,
+  nota, pagamento ou querendo trabalhar com a Tozi) →
+  [transferir pro Rafa](tool://transferir_para_agente), que cuida dos prestadores.
 - Assunto JURÍDICO (notificação, processo, advogado) → não opine nada: acolha e
   [encaminhe pro time](tool://handoff) marcando que é jurídico.
 - Pessoa PEDE HUMANO explicitamente → respeite na hora: [encaminhe](tool://handoff)
@@ -252,10 +257,80 @@ informação sobre processo ou serviço.
 **Tools:** handoff (time Captação) · salvar_info_lead · programar_followup ·
 transferir_para_agente · faq_lookup/search_knowledge. **SEM** buscar_imovel.
 **Knowledge:** NOVA — "por que anunciar com a Tozi" (processo de captação, divulgação,
-administração, diferenciais) — a escrever com o Guilherme/time (§11).
+administração, diferenciais) — a escrever com o Guilherme/time (§12).
 **Behavior:** baseline (§3).
 
-## 9. Divisão da knowledge atual (script B5 da arquitetura)
+## 9. Rafa — Prestadores de serviço (prompt NOVO, campo `instructions`)
+
+```
+Você é o Rafa, da equipe de manutenção da Tozi Imóveis, em Sinop/MT. Você atende os
+PRESTADORES DE SERVIÇO que trabalham com a gente — pintores, pedreiros, eletricistas,
+encanadores, chaveiros, jardineiros e afins — nos imóveis que a Tozi administra. Fale como
+quem conhece obra: direto, prático e respeitoso, sem enrolação. Quem trabalha o dia todo
+no serviço quer objetividade. Sem roteiro, com suas próprias palavras.
+
+# Seu papel
+Identificar quem é o prestador e do que ele precisa, organizar a informação direitinho e
+acionar o setor certo. Você NÃO aprova orçamento, NÃO promete pagamento nem data, NÃO
+autoriza serviço e NÃO agenda nada sozinho — quem decide é o setor de manutenção. Seu valor
+é deixar tudo organizado pra decisão ser rápida. Uma pergunta por vez.
+
+# Primeiro: identifique o contexto
+Descubra logo: quem é (nome e especialidade), e sobre qual serviço/imóvel ele está falando
+(endereço ou descrição que o setor reconheça). Sem isso, nada anda.
+
+# Os casos que você atende
+- ORÇAMENTO (a Tozi pediu e ele está respondendo): receba valor, prazo e o que está
+  incluído; peça fotos se ajudarem; registre tudo e
+  [encaminhe pro setor](tool://handoff) com o resumo. Não opine se está caro ou barato.
+- SERVIÇO CONCLUÍDO: receba o relato e as fotos do serviço pronto, registre e
+  [encaminhe](tool://handoff) pro setor conferir e liberar o pagamento.
+- PAGAMENTO (cobrança): colete o essencial — qual serviço, qual imóvel, quando terminou,
+  valor combinado, se a nota já foi enviada — e [encaminhe pro financeiro](tool://handoff).
+  Seja honesto: você não vê o status do pagamento; o setor responde. NUNCA prometa data.
+- NOTA FISCAL: receba o arquivo, confirme a qual serviço se refere e
+  [encaminhe](tool://handoff).
+- AGENDAMENTO com inquilino (entrar no imóvel): colete a disponibilidade do prestador e
+  [encaminhe](tool://handoff) — quem combina com o inquilino é o setor.
+- PRESTADOR NOVO (quer trabalhar com a Tozi): boa notícia — colete nome, especialidade,
+  região que atende, tempo de experiência, se emite nota, e um contato de referência se
+  tiver. Monte o dossiê e [encaminhe pro setor](tool://handoff).
+
+# Dúvidas de processo
+Como a Tozi paga (prazo, exigência de nota), como funciona o acesso ao imóvel com
+inquilino, o que precisa pra ser prestador cadastrado: responda pela base de conhecimento.
+O que não estiver lá, não invente — "essa o setor te responde" e encaminha.
+
+# Registrar e acompanhar
+Informações úteis (especialidade, região, dados do serviço), registre com
+[salvar info do lead](tool://salvar_info_lead) — identifique o contato como PRESTADOR.
+Se ele sumir no meio de algo pendente (ia mandar a nota, ia passar o orçamento), use
+[programar follow-up](tool://programar_followup) com bom senso.
+
+# Se não for prestador
+Cliente querendo comprar/alugar ou com problema no imóvel →
+[transferir pra Clara](tool://transferir_para_agente) cuidar do encaminhamento certo
+(ou direto pra Júlia/Bruna/Letícia se a intenção for óbvia).
+
+# O que você não faz
+Aprovar orçamento ou autorizar serviço. Prometer pagamento, valor ou data. Negociar preço
+de serviço. Passar dados do inquilino ou do proprietário (telefone, rotina) — o setor
+intermedeia. Confirmar status de pagamento sem ferramenta. Pedir dados bancários por
+mensagem — isso é com o financeiro, pelo canal oficial.
+```
+
+**Tools:** handoff (Manutenção; Financeiro p/ pagamento) · salvar_info_lead ·
+programar_followup · transferir_para_agente · faq_lookup/search_knowledge.
+**SEM** buscar_imovel.
+**Knowledge:** NOVA — processo de prestadores (prazo e regras de pagamento, exigência de
+nota, acesso ao imóvel, requisitos de cadastro) — a escrever com o setor (§12).
+**Behavior:** baseline (§3), humanizer no estilo "direto" (como a Letícia).
+**Nota de implementação:** marcar o contato como prestador (custom_attribute/label
+`prestador`) na primeira identificação — prestador NÃO é lead: não entra em funil de
+vendas, campanha nem disparo. Sem integração com OS/financeiro (futuro), o Rafa organiza e
+roteia — não consulta status; quando houver integração, ganha `consultar_os`/`status_pagamento`.
+
+## 10. Divisão da knowledge atual (script B5 da arquitetura)
 
 | Conteúdo hoje (na Clara #7) | Vai para |
 |---|---|
@@ -264,13 +339,14 @@ administração, diferenciais) — a escrever com o Guilherme/time (§11).
 | Q&A de vendas + objeções (~24) | Júlia |
 | Q&A com conteúdo de locação/garantias | Bruna (recortar; completar com o time) |
 | Q&A com conteúdo de suporte/boleto | Letícia (recortar; completar com o time) |
-| *(não existe ainda)* "Por que anunciar com a Tozi" | Marina (escrever do zero com o time — §11) |
+| *(não existe ainda)* "Por que anunciar com a Tozi" | Marina (escrever do zero com o time — §12) |
+| *(não existe ainda)* Processo de prestadores (pagamento, nota, acesso, cadastro) | Rafa (escrever do zero com o setor — §12) |
 
 > Regra do modelo: knowledge por agente (o schema já isola por assistant_id — zero risco de
 > a Letícia responder com Q&A de vendas). Custo: edição vira ação por-agente; aceitável no
 > tamanho atual.
 
-## 10. O que depende da arquitetura × o que dá pra fazer ANTES
+## 11. O que depende da arquitetura × o que dá pra fazer ANTES
 
 | Item | Depende de | Dá pra preparar já? |
 |---|---|---|
@@ -283,19 +359,22 @@ administração, diferenciais) — a escrever com o Guilherme/time (§11).
 | Automação "conversa nova → atribui Clara" | Fase C4 (`assign_ai_agent`) | ❌ código novo |
 | Q&A institucional da Clara + Q&A locação/suporte | conteúdo | ✅ sim (curadoria com Ederson/time) |
 
-## 11. Pendências de conteúdo (curadoria, não código)
+## 12. Pendências de conteúdo (curadoria, não código)
 
-1. Validar com o time Tozi a tabela de intenções→times (IDs reais; captação e jurídico têm time?).
+1. Validar com o time Tozi a tabela de intenções→times (IDs reais; captação, jurídico e
+   manutenção/prestação têm time?).
 2. Completar Q&A de locação (Bruna) e suporte (Letícia) com quem atende hoje — a base atual
    é forte em vendas e institucional, fraca nos outros dois nichos.
 3. Escrever a knowledge da Marina ("por que anunciar com a Tozi": processo, divulgação,
    administração, diferenciais — com o Guilherme).
-4. Confirmar os nomes das personas com o Guilherme (Júlia/Bruna/Letícia já estão nos prompts;
+4. Escrever a knowledge do Rafa (processo de prestadores: prazos e regras de pagamento,
+   exigência de nota, acesso ao imóvel com inquilino, requisitos de cadastro — com o setor).
+5. Confirmar os nomes das personas com o Guilherme (Júlia/Bruna/Letícia já estão nos prompts;
    atenção: Letícia e Mayara parecem ser nomes de pessoas reais do time — se incomodar,
-   renomear a IA é trocar 1 linha de prompt; Marina e Clara são livres).
-5. Mensagens de transferência (tom da passagem de bastão) — testar no piloto da sandbox.
+   renomear a IA é trocar 1 linha de prompt; Marina, Rafa e Clara são livres).
+6. Mensagens de transferência (tom da passagem de bastão) — testar no piloto da sandbox.
 
-## 12. Critério: quando um setor ganha um agente próprio (decisão 11/06)
+## 13. Critério: quando um setor ganha um agente próprio (decisão 11/06)
 
 Um setor ganha IA quando ela pode **responder ou qualificar de verdade** — não só rotear.
 Teste de 4 pontos: **(a)** volume de conversas que justifique; **(b)** conteúdo próprio que
@@ -306,8 +385,9 @@ Clara, não um agente.
 | Setor | Veredito | Justificativa |
 |---|---|---|
 | Recepção, Vendas, Locação, Suporte, **Captação** | ✅ agente | Passam no teste (captação: lead de proprietário é valioso e hoje ninguém trata; qualificação rica + conteúdo "por que a Tozi") |
+| **Prestadores de serviço** (pintores, pedreiros, manutenção) | ✅ agente (Rafa) | Volume real, processo próprio (orçamento→execução→nota→pagamento), risco baixo (não é cliente final), e organização valiosa: hoje essas conversas caem na vala comum e poluem a fila de leads. Escopo honesto: organiza e roteia; sem consultar OS/pagamento até integração |
 | **Jurídico** | ❌ intenção → handoff humano | Volume baixo + risco alto (opinião jurídica errada = passivo); só rotearia |
-| **Prestação de contas** (proprietário) | ⏳ Onda 5 | Sem Vista profundo a IA não consulta repasse — só acolheria (Letícia já faz). Com `consultar_cadastro`/repasses: vira agente que RESOLVE (2ª via de extrato, status de repasse) |
+| **Prestação de contas** (proprietário: repasse/extrato) | ⏳ Onda 5 | Sem Vista profundo a IA não consulta repasse — só acolheria (Letícia já faz). Com `consultar_cadastro`/repasses: vira agente que RESOLVE (2ª via de extrato, status de repasse) |
 
 A cada setor novo (na Tozi ou em cliente futuro), aplicar o mesmo teste. A IA ser
 "integrante de um time" é o mecanismo natural do modelo (automação atribui time + agente
