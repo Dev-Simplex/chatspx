@@ -65,7 +65,7 @@ class Api::V1::Accounts::InboxCsatTemplatesController < Api::V1::Accounts::BaseC
   end
 
   def validate_captain_enabled
-    return if Current.account.feature_enabled?('captain_integration')
+    return if Current.account.feature_enabled?('captain_integration') || Current.account.feature_enabled?('captain_integration_v2')
 
     render json: { error: 'Captain is required for template analysis' }, status: :forbidden
   end
