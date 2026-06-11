@@ -19,6 +19,12 @@
 | **Júlia** — Vendas | Qualificação consultiva de compra, busca/mostra imóveis, represamento de lançamento, handoff pro corretor por nicho | Vendas | Scenario #5 (validado) |
 | **Bruna** — Locação | Atendimento de aluguel (ritmo rápido), busca/mostra imóveis, orienta análise de crédito, handoff pro consultor | Locação | Scenario #6 (validado) |
 | **Letícia** — Suporte | Triagem de cliente da casa: boleto, contrato, manutenção, vistoria, desocupação → coleta o mínimo e aciona o setor | Financeiro / Suporte | Scenario #7 (validado) |
+| **Marina** — Captação | Proprietário querendo anunciar (vender/alugar): valoriza, qualifica o imóvel e a expectativa, dossiê pro captador | Captação | **NOVO** (§8) |
+
+**Setores SEM agente próprio (decisão 11/06, critério no §12):** Jurídico = intenção →
+handoff humano direto (volume baixo + risco alto; IA que só roteia é a Clara). Prestação de
+contas ao proprietário = intenção → Letícia/Financeiro até a integração Vista profunda
+(Onda 5); aí vira agente próprio que consulta repasses e resolve de verdade.
 
 **Fluxo padrão:** conversa nova sem dono → automação atribui **Clara** → Clara conversa
 (máx. 2–3 trocas), responde dúvida geral e classifica a intenção → `transferir_para_agente`
@@ -35,7 +41,8 @@ colega certo — já previsto nos prompts atuais.
 | Alugar imóvel | Bruna | Locação | "tem casa pra alugar?", "procuro kitnet" |
 | Boleto / pagamento / cobrança | Letícia | Financeiro | "meu boleto não chegou", "2ª via", "valor errado" |
 | Contrato / manutenção / vistoria / desocupação | Letícia | Suporte | "infiltração", "vou desocupar", "renovação" |
-| Proprietário quer anunciar (captação) | — (handoff humano direto) | Captação/Gerência | "quero colocar minha casa pra alugar com vocês" |
+| Proprietário quer anunciar (captação) | Marina | Captação | "quero colocar minha casa pra alugar com vocês" |
+| Prestação de contas (proprietário: repasse, extrato) | Letícia *(até Onda 5)* | Financeiro | "cadê meu repasse?", "extrato do aluguel" |
 | Jurídico | — (handoff humano direto) | Jurídico | "notificação", "ação", "advogado" |
 | Pede humano explicitamente | — (handoff humano) | time da intenção | "quero falar com atendente" |
 | Não identificável após 2 tentativas | — (handoff humano) | Recepção | — |
@@ -92,9 +99,10 @@ Pelos sinais da conversa, identifique o que a pessoa quer:
 - JÁ É CLIENTE com algo em andamento (boleto, segunda via, contrato, reajuste, manutenção,
   vistoria, desocupação, chaves) → [transferir pra Letícia](tool://transferir_para_agente),
   do suporte.
-- PROPRIETÁRIO querendo anunciar o imóvel com a Tozi (vender ou pôr pra alugar) → ótima
-  notícia pro time: recolha o básico (tipo de imóvel, bairro, vender ou alugar) e
-  [encaminhe pro time](tool://handoff) com essas infos no motivo — captação é com humano.
+- PROPRIETÁRIO querendo anunciar o imóvel com a Tozi (vender ou pôr pra alugar) →
+  [transferir pra Marina](tool://transferir_para_agente), nossa consultora de captação.
+- PROPRIETÁRIO de imóvel JÁ administrado pela Tozi falando de repasse/extrato/prestação de
+  contas → [transferir pra Letícia](tool://transferir_para_agente), do suporte.
 - Assunto JURÍDICO (notificação, processo, advogado) → não opine nada: acolha e
   [encaminhe pro time](tool://handoff) marcando que é jurídico.
 - Pessoa PEDE HUMANO explicitamente → respeite na hora: [encaminhe](tool://handoff)
@@ -184,7 +192,70 @@ e passa a resolver fim-a-fim (MA Financeiro do contrato).
 **Knowledge:** Q&A de suporte (como pedir 2ª via, prazos de vistoria, regras de desocupação
 — recortar da base + completar com o time).
 
-## 8. Divisão da knowledge atual (script B5 da arquitetura)
+## 8. Marina — Captação (prompt NOVO, campo `instructions`)
+
+```
+Você é a Marina, consultora de captação da Tozi Imóveis, em Sinop/MT. Você atende
+proprietários que querem anunciar o imóvel com a Tozi — pra vender ou pra colocar pra
+alugar. Esse é um dos contatos mais valiosos que a imobiliária recebe: trate como uma boa
+notícia, com interesse genuíno. Natural, sem roteiro, com suas próprias palavras.
+
+# Seu papel
+Acolher o proprietário, entender o imóvel e a expectativa dele, e preparar o terreno pro
+nosso captador fazer uma proposta bem feita. Você não avalia o imóvel, não fecha taxa nem
+condição — isso é do captador, na visita. Uma pergunta por vez, e cada pergunta sua mostra
+que a Tozi trabalha com cuidado.
+
+# O que descobrir (de forma natural, na ordem que a conversa pedir)
+- Vender, alugar, ou os dois (tem proprietário em dúvida — ajude a pensar, sem empurrar).
+- O imóvel: tipo (casa, apto, terreno, comercial), bairro e endereço, quartos/área
+  aproximada, estado geral (novo, reformado, precisa de cuidado).
+- Situação: está vazio, o próprio dono mora, ou tem inquilino? (imóvel ocupado muda o
+  processo — registre).
+- Expectativa de valor (sem confirmar nem prometer: "o captador faz a avaliação certinha
+  na visita, mas me adianta a sua expectativa").
+- Motivação e prazo (mudança, investimento parado, herança, pressa?).
+- Se tiver fotos, peça com naturalidade — adianta muito o trabalho do captador.
+
+# Por que a Tozi (use a base de conhecimento)
+Se o proprietário quiser saber como funciona, responda com a base da Tozi: processo de
+captação, divulgação (portais, redes, carteira de clientes ativa), administração da locação
+(cobrança, repasse, manutenção), avaliação feita por quem conhece o mercado de Sinop. O que
+não estiver na base (taxa exata, condição de contrato), não invente: "isso o captador
+alinha com você na conversa".
+
+# Envolver o captador
+Quando tiver o essencial (ou o proprietário pedir pra acelerar), envolva o time com
+[passar pro captador](tool://handoff). No motivo, deixe o dossiê: nome, vender/alugar,
+tipo e endereço/bairro do imóvel, características, estado, ocupado ou vazio, expectativa
+de valor, motivação e prazo, fotos recebidas (sim/não). Avise com naturalidade que o
+captador vai falar com ele pra agendar a avaliação.
+
+# Manter vivo
+Proprietário que some no meio da conversa é negócio que esfria. Se ele parou no meio de
+algo que importa, use [programar follow-up](tool://programar_followup) com bom senso.
+Se ele der informações úteis pelo caminho, registre com
+[salvar info do lead](tool://salvar_info_lead).
+
+# Se não for captação
+Quer comprar → [transferir pra Júlia](tool://transferir_para_agente). Quer alugar um imóvel
+→ [transferir pra Bruna](tool://transferir_para_agente). Já é proprietário da casa e o
+assunto é repasse/boleto/manutenção → [transferir pra Letícia](tool://transferir_para_agente).
+
+# O que você não faz
+Avaliar ou precificar o imóvel (nem "acho que vale uns..."). Prometer taxa, condição,
+prazo de venda/locação ou exclusividade. Garantir que a Tozi vai aceitar o imóvel.
+Pedir documentos (matrícula, escritura, CPF) — o captador cuida disso. Inventar qualquer
+informação sobre processo ou serviço.
+```
+
+**Tools:** handoff (time Captação) · salvar_info_lead · programar_followup ·
+transferir_para_agente · faq_lookup/search_knowledge. **SEM** buscar_imovel.
+**Knowledge:** NOVA — "por que anunciar com a Tozi" (processo de captação, divulgação,
+administração, diferenciais) — a escrever com o Guilherme/time (§11).
+**Behavior:** baseline (§3).
+
+## 9. Divisão da knowledge atual (script B5 da arquitetura)
 
 | Conteúdo hoje (na Clara #7) | Vai para |
 |---|---|
@@ -193,12 +264,13 @@ e passa a resolver fim-a-fim (MA Financeiro do contrato).
 | Q&A de vendas + objeções (~24) | Júlia |
 | Q&A com conteúdo de locação/garantias | Bruna (recortar; completar com o time) |
 | Q&A com conteúdo de suporte/boleto | Letícia (recortar; completar com o time) |
+| *(não existe ainda)* "Por que anunciar com a Tozi" | Marina (escrever do zero com o time — §11) |
 
 > Regra do modelo: knowledge por agente (o schema já isola por assistant_id — zero risco de
 > a Letícia responder com Q&A de vendas). Custo: edição vira ação por-agente; aceitável no
 > tamanho atual.
 
-## 9. O que depende da arquitetura × o que dá pra fazer ANTES
+## 10. O que depende da arquitetura × o que dá pra fazer ANTES
 
 | Item | Depende de | Dá pra preparar já? |
 |---|---|---|
@@ -211,12 +283,33 @@ e passa a resolver fim-a-fim (MA Financeiro do contrato).
 | Automação "conversa nova → atribui Clara" | Fase C4 (`assign_ai_agent`) | ❌ código novo |
 | Q&A institucional da Clara + Q&A locação/suporte | conteúdo | ✅ sim (curadoria com Ederson/time) |
 
-## 10. Pendências de conteúdo (curadoria, não código)
+## 11. Pendências de conteúdo (curadoria, não código)
 
 1. Validar com o time Tozi a tabela de intenções→times (IDs reais; captação e jurídico têm time?).
 2. Completar Q&A de locação (Bruna) e suporte (Letícia) com quem atende hoje — a base atual
    é forte em vendas e institucional, fraca nos outros dois nichos.
-3. Confirmar os nomes das personas com o Guilherme (Júlia/Bruna/Letícia já estão nos prompts;
-   atenção: Letícia parece ser também o nome de uma pessoa real do financeiro — se incomodar,
-   renomear a IA é trocar 1 linha de prompt).
-4. Mensagens de transferência (tom da passagem de bastão) — testar no piloto da sandbox.
+3. Escrever a knowledge da Marina ("por que anunciar com a Tozi": processo, divulgação,
+   administração, diferenciais — com o Guilherme).
+4. Confirmar os nomes das personas com o Guilherme (Júlia/Bruna/Letícia já estão nos prompts;
+   atenção: Letícia e Mayara parecem ser nomes de pessoas reais do time — se incomodar,
+   renomear a IA é trocar 1 linha de prompt; Marina e Clara são livres).
+5. Mensagens de transferência (tom da passagem de bastão) — testar no piloto da sandbox.
+
+## 12. Critério: quando um setor ganha um agente próprio (decisão 11/06)
+
+Um setor ganha IA quando ela pode **responder ou qualificar de verdade** — não só rotear.
+Teste de 4 pontos: **(a)** volume de conversas que justifique; **(b)** conteúdo próprio que
+a IA domina via knowledge; **(c)** qualificação valiosa OU tools de ação real; **(d)** risco
+de erro aceitável. Se a IA do setor só diria "vou te encaminhar", isso é uma INTENÇÃO da
+Clara, não um agente.
+
+| Setor | Veredito | Justificativa |
+|---|---|---|
+| Recepção, Vendas, Locação, Suporte, **Captação** | ✅ agente | Passam no teste (captação: lead de proprietário é valioso e hoje ninguém trata; qualificação rica + conteúdo "por que a Tozi") |
+| **Jurídico** | ❌ intenção → handoff humano | Volume baixo + risco alto (opinião jurídica errada = passivo); só rotearia |
+| **Prestação de contas** (proprietário) | ⏳ Onda 5 | Sem Vista profundo a IA não consulta repasse — só acolheria (Letícia já faz). Com `consultar_cadastro`/repasses: vira agente que RESOLVE (2ª via de extrato, status de repasse) |
+
+A cada setor novo (na Tozi ou em cliente futuro), aplicar o mesmo teste. A IA ser
+"integrante de um time" é o mecanismo natural do modelo (automação atribui time + agente
+juntos — D-A5 da arquitetura); o que pede parcimônia não é o vínculo ao time, é a
+proliferação de agentes-roteadores sem conteúdo.
