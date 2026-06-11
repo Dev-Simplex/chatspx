@@ -1,0 +1,91 @@
+<%
+  k = @data[:kpis]
+  trends = @data[:trends] || {}
+  has_trends = trends.present? && trends[:conversations].present?
+
+  entities = k[:entities].to_i
+  conversations = k[:conversations].to_i
+  resolved = k[:resolved].to_i
+  # Em sumarios por entidade, resolvidas pode contar conversas criadas fora da janela
+  # (resolvidas no periodo) e superar o total — so exibimos a taxa quando ela faz sentido.
+  resolution_rate = conversations.positive? ? ((resolved.to_f / conversations) * 100).round : 0
+  show_rate = conversations.positive? && resolved <= conversations
+  resolved_hint = show_rate ? "#{resolution_rate}% das conversas" : 'no período'
+
+  is_label = @data[:report_type] == 'label'
+  entities_label = is_label ? 'Etiquetas ativas' : 'Itens com dados'
+
+  highlight_body =
+    "#{number_with_delimiter(entities)} itens com atividade · " \
+    "#{number_with_delimiter(conversations)} conversas · " \
+    "#{number_with_delimiter(resolved)} resolvidas#{" (#{resolution_rate}%)" if show_rate}."
+%>
+
+<%# ---------- Highlight (data-driven) ---------- %>
+<div class="section">
+  <%= render 'reports/pdf/callout', variant: 'info',
+        title: 'Resumo de desempenho do período',
+        body: highlight_body %>
+</div>
+
+<%# ---------- Veredito da média (destaque + atenção) ---------- %>
+<% if @data[:highlight] %>
+  <div class="section">
+    <div class="verdict-grid">
+      <%= render 'reports/pdf/verdict', v: @data[:highlight] %>
+      <% if @data[:attention] %>
+        <%= render 'reports/pdf/verdict', v: @data[:attention] %>
+      <% end %>
+    </div>
+  </div>
+<% end %>
+
+<%# ---------- KPIs ---------- %>
+<div class="section">
+  <%= render 'reports/pdf/kpi_band', cards: [
+    { label: 'Conversas', value: number_with_delimiter(conversations), hero: true },
+    { label: entities_label, value: number_with_delimiter(entities) },
+    { label: 'Resolvidas', value: number_with_delimiter(resolved), hint: resolved_hint },
+    { label: 'FRT médio', value: k[:avg_first_response], small: true },
+    { label: 'Resolução média', value: k[:avg_resolution], small: true },
+  ] %>
+</div>
+
+<%# ---------- Tendências (agent/inbox/team com range) ---------- %>
+<% if has_trends %>
+  <div class="section">
+    <div class="section-title"><span class="dot">1</span> Conversas por dia</div>
+    <div class="card">
+      <%= pdf_bar_chart(trends[:conversations]) %>
+      <%= render 'reports/pdf/chart_legend', items: [{ color: '#2dc46f', label: 'conversas iniciadas no dia' }] %>
+    </div>
+  </div>
+
+  <div class="section">
+    <div class="section-title"><span class="dot">2</span> Tempo de 1ª resposta</div>
+    <div class="card">
+      <%= pdf_line_chart(trends[:first_response], value_format: :seconds) %>
+      <%= render 'reports/pdf/chart_legend', items: [{ color: '#2dc46f', label: 'tempo médio de 1ª resposta — quanto mais baixo, melhor' }] %>
+    </div>
+  </div>
+
+  <div class="section">
+    <div class="section-title"><span class="dot">3</span> Tempo de resolução</div>
+    <div class="card">
+      <%= pdf_line_chart(trends[:resolution], value_format: :seconds) %>
+      <%= render 'reports/pdf/chart_legend', items: [{ color: '#2dc46f', label: 'tempo médio de resolução — quanto mais baixo, melhor' }] %>
+    </div>
+  </div>
+<% end %>
+
+<%# ---------- Detalhamento ---------- %>
+<% if @data[:table].present? && @data[:table][:rows].present? %>
+  <div class="section">
+    <div class="section-title"><span class="dot"><%= has_trends ? '4' : '1' %></span> Detalhamento</div>
+    <div class="card" style="padding:0;">
+      <%= render 'reports/pdf/data_table',
+            table: { columns: @data[:table][:columns],
+                     rows: @data[:table][:rows].first(18) } %>
+    </div>
+  </div>
+<% end %>

@@ -237,18 +237,31 @@ class Reports::PdfDataResolver # rubocop:disable Metrics/ClassLength
       overline: 'Automação · Confidencial',
       subtitle: "Taxa de resolução automática de #{metrics[:resolution_rate]}% em #{metrics[:conversation_count]} conversas atendidas pelo bot.",
       base_label: "#{metrics[:conversation_count]} conversas",
-      kpis: {
-        conversations: metrics[:conversation_count], messages: metrics[:message_count],
-        resolution_rate: metrics[:resolution_rate], handoff_rate: metrics[:handoff_rate],
-        resolutions: bot_event_count('conversation_bot_resolved'),
-        handoffs: bot_event_count('conversation_bot_handoff')
-      },
+      kpis: bot_kpis(metrics),
+      verdict: bot_verdict(metrics, :bot_resolution_rate, metrics[:resolution_rate], 'Resolução pelo bot'),
+      verdict_secondary: bot_verdict(metrics, :bot_handoff_rate, metrics[:handoff_rate], 'Transferência do bot'),
       timeseries: {
         resolutions: count_series('bot_resolutions_count'),
         handoffs: count_series('bot_handoffs_count')
       },
       inboxes: bot_by_inbox
     }
+  end
+
+  def bot_kpis(metrics)
+    {
+      conversations: metrics[:conversation_count], messages: metrics[:message_count],
+      resolution_rate: metrics[:resolution_rate], handoff_rate: metrics[:handoff_rate],
+      resolutions: bot_event_count('conversation_bot_resolved'),
+      handoffs: bot_event_count('conversation_bot_handoff')
+    }
+  end
+
+  # Card de veredito de uma taxa do bot. Sem conversas com bot → nil (sem card).
+  def bot_verdict(metrics, metric, value, label)
+    return nil if metrics[:conversation_count].to_i.zero?
+
+    metric_verdict(metric: metric, value: value, human: "#{value}%", label: label)
   end
 
   def bot_by_inbox
@@ -572,9 +585,18 @@ class Reports::PdfDataResolver # rubocop:disable Metrics/ClassLength
       base_label: "#{total} SLAs aplicados",
       kpis: { total: total, hit_rate: hit_rate, breaches: missed,
               compliance: pct(total - missed, total) },
+      verdict: sla_verdict(total, missed, hit_rate),
       by_policy: sla_by_policy(scope),
       breaches_table: sla_breaches_table(scope)
     }
+  end
+
+  # Card de veredito do hit rate. Sem SLAs aplicados → nil (sem card).
+  def sla_verdict(total, missed, hit_rate)
+    return nil if total.zero?
+
+    metric_verdict(metric: :sla_hit_rate, value: pct(total - missed, total),
+                   human: hit_rate, label: 'Cumprimento de SLA')
   end
 
   def sla_unavailable
@@ -631,6 +653,7 @@ class Reports::PdfDataResolver # rubocop:disable Metrics/ClassLength
   def summary_data(metric_type)
     rows = SUMMARY_BUILDERS[metric_type].constantize.new(account: @account, params: summary_params(metric_type)).build
     kpis = summary_kpis(rows)
+    signals = summary_verdict_signals(rows)
     noun = SUMMARY_TITLES[metric_type].sub('Relatório de ', '').downcase
     {
       report_type: metric_type, title: SUMMARY_TITLES[metric_type], period: period_meta,
@@ -638,9 +661,25 @@ class Reports::PdfDataResolver # rubocop:disable Metrics/ClassLength
       subtitle: "#{kpis[:entities]} #{noun} com atividade · #{kpis[:conversations]} conversas no período.",
       base_label: "#{kpis[:conversations]} conversas",
       kpis: kpis,
+      highlight: signals.any? ? conversations_highlight(signals) : nil,
+      attention: signals.any? ? conversations_attention(signals) : nil,
       trends: metric_type == 'label' ? {} : account_trends,
       table: summary_table(rows, metric_type)
     }
+  end
+
+  # Sinais do veredito da MÉDIA das entidades, reusando a lógica de Conversas
+  # (1ª resposta, resolução, taxa de resolução). Sem entidades ativas → vazio.
+  def summary_verdict_signals(rows)
+    with_data = rows.select { |row| row[:conversations_count].to_i.positive? }
+    return [] if with_data.empty?
+
+    conversations_signals(
+      avg_first_response_time: avg_metric(with_data, :avg_first_response_time),
+      avg_resolution_time: avg_metric(with_data, :avg_resolution_time),
+      conversations_count: rows.sum { |row| row[:conversations_count].to_i },
+      resolutions_count: rows.sum { |row| row[:resolved_conversations_count].to_i }
+    )
   end
 
   def summary_params(metric_type)
