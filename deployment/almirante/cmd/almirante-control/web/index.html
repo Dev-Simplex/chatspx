@@ -206,7 +206,16 @@
           return { icon:'hard-drives', text:'text-violet', chip:'bg-violet/10 text-violet' }; // Proxmox
         };
         const relTime = (s)=> s ? s.slice(0,16).replace('T',' ') : '—';
-        const titleOf = { frota:'Frota', aprovacoes:'Aprovações', historico:'Histórico', tokens:'Tokens & Dispositivos', usuarios:'Usuários', conectar:'Como conectar' };
+        const titleOf = { frota:'Frota', release:'Release', aprovacoes:'Aprovações', historico:'Histórico', tokens:'Tokens & Dispositivos', usuarios:'Usuários', conectar:'Como conectar' };
+        // ---- Release: rollout sequencial health-gated ----
+        const rel = reactive({ sel:{}, dry:[], running:null, busy:false, err:'' });
+        const relSelected = ()=> fleet.value.filter(v=>rel.sel[v.id]).map(v=>v.id);
+        const relToggle = (id)=>{ rel.sel[id] = !rel.sel[id]; };
+        const relGroup = (env)=>{ for(const v of fleet.value){ if(env==='all'||v.env===env) rel.sel[v.id]=true; } };
+        const relClear = ()=>{ rel.sel={}; rel.dry=[]; rel.running=null; };
+        const relDry = async ()=>{ const vms=relSelected(); if(!vms.length){ rel.err='selecione ao menos 1 máquina'; return; } rel.err=''; rel.busy=true; try{ rel.dry = (await api('/release/dryrun',{method:'POST',body:JSON.stringify({vms})}))||[]; }catch(e){ rel.err=e.message; } rel.busy=false; };
+        const relPoll = async (id)=>{ try{ const r=await api('/release/'+id); rel.running=r; if(r.status==='running') setTimeout(()=>relPoll(id),4000); }catch(e){} };
+        const relGo = async ()=>{ const vms=relSelected(); if(!vms.length){ rel.err='selecione ao menos 1 máquina'; return; } if(!confirm('Release SEQUENCIAL em '+vms.length+' máquina(s):\n'+vms.join(', ')+'\n\nDeploya uma de cada vez e PARA se alguma falhar. Confirmar?')) return; rel.busy=true; rel.err=''; try{ const r=await api('/release',{method:'POST',body:JSON.stringify({vms})}); rel.running=r; relPoll(r.id); }catch(e){ rel.err=e.message; } rel.busy=false; };
         const copied = ref('');
         const copy = (txt, id) => { try{ navigator.clipboard.writeText(txt); copied.value=id; setTimeout(()=>copied.value='',1600); }catch(e){} };
         // gerador de token na propria tela de conectar: gera e ja injeta no comando/prompt
@@ -250,7 +259,7 @@ Exemplos: "qual o status da tozi?" · "a frota tá saudável?" · "atualiza a ho
         });
 
         onMounted(()=>{ if(!setpwToken.value) checkMe(); });
-        return { token, saveToken, view, go, fleet, status, metrics, deploys, tokens, msg, refresh, pending, recent, byEnv, onlineCount, act, loadTokens, newToken, revokeToken, envStyle, relTime, titleOf, loadMetrics, restartVM, mstate, retryMetrics, addCmd, claudePrompt, copied, copy, gen, genConnectToken,
+        return { token, saveToken, view, go, fleet, status, metrics, deploys, tokens, msg, refresh, pending, recent, byEnv, onlineCount, act, loadTokens, newToken, revokeToken, envStyle, relTime, titleOf, loadMetrics, restartVM, mstate, retryMetrics, addCmd, claudePrompt, copied, copy, gen, genConnectToken, rel, relToggle, relGroup, relClear, relDry, relGo,
                  me, setpwToken, li, sp, usersList, doLogin, doSetPw, logout, tokenLogin, loadUsers, addUser, delUser };
       },
       template: `
@@ -301,6 +310,7 @@ Exemplos: "qual o status da tozi?" · "a frota tá saudável?" · "atualiza a ho
           </div>
           <nav class="px-3 mt-3 space-y-1 text-sm font-semibold">
             <button @click="go('frota')" :class="['navp w-full text-left rounded-xl px-3.5 py-2.5 flex items-center gap-3', view==='frota'?'on':'text-t2 hover:text-t1']"><ic n="anchor" cls="w-5 h-5"/><span class="flex-1">Frota</span><span class="text-xs font-mono opacity-70">{{ onlineCount }}/{{ fleet.length }}</span></button>
+            <button v-if="me && me.role==='admin'" @click="go('release')" :class="['navp w-full text-left rounded-xl px-3.5 py-2.5 flex items-center gap-3', view==='release'?'on':'text-t2 hover:text-t1']"><ic n="rocket-launch" cls="w-5 h-5"/><span>Release</span></button>
             <button @click="go('aprovacoes')" :class="['navp w-full text-left rounded-xl px-3.5 py-2.5 flex items-center gap-3', view==='aprovacoes'?'on':'text-t2 hover:text-t1']"><ic n="bell" cls="w-5 h-5"/><span class="flex-1">Aprovações</span><span v-if="pending.length" class="text-[11px] font-bold rounded-full px-1.5 py-0.5" style="background:#22D3EE;color:#080C14">{{ pending.length }}</span></button>
             <button @click="go('historico')" :class="['navp w-full text-left rounded-xl px-3.5 py-2.5 flex items-center gap-3', view==='historico'?'on':'text-t2 hover:text-t1']"><ic n="clock-counter-clockwise" cls="w-5 h-5"/><span>Histórico</span></button>
             <button @click="go('tokens')" :class="['navp w-full text-left rounded-xl px-3.5 py-2.5 flex items-center gap-3', view==='tokens'?'on':'text-t2 hover:text-t1']"><ic n="key" cls="w-5 h-5"/><span>Tokens</span></button>
@@ -467,6 +477,56 @@ Exemplos: "qual o status da tozi?" · "a frota tá saudável?" · "atualiza a ho
               </table>
             </div>
             <p class="text-t3 text-xs mt-3 px-1 font-medium">Ao convidar, a pessoa recebe um <b class="text-t1">email</b> pra definir a senha (link expira em 48h). Login é por <b class="text-t1">email + senha</b>.</p>
+          </div>
+
+          <div v-else-if="view==='release'" class="max-w-3xl space-y-4 rise">
+            <div class="glass rounded-2xl p-6 relative overflow-hidden">
+              <ic n="rocket-launch-d" cls="absolute right-2 -bottom-6 w-32 h-32 text-accent pointer-events-none" style="opacity:.08"/>
+              <h2 class="font-display font-extrabold text-2xl text-t1 flex items-center gap-2 relative"><ic n="rocket-launch" cls="w-6 h-6 text-accent"/>Release pra produção</h2>
+              <p class="text-t2 text-sm mt-2 max-w-lg relative">Escolha as máquinas → veja o preview → solte. O rollout é <b class="text-t1">sequencial com health-check</b>: deploya uma de cada vez e <b class="text-t1">para tudo</b> se alguma falhar (não contamina a frota).</p>
+            </div>
+
+            <div class="glass rounded-2xl p-6">
+              <div class="flex items-center justify-between mb-3">
+                <h3 class="font-display font-bold text-lg text-t1">Máquinas afetadas</h3>
+                <div class="flex gap-3 text-[12px] font-bold"><button @click="relGroup('all')" class="press text-accentsoft">todas</button><button @click="relClear()" class="press text-t3">limpar</button></div>
+              </div>
+              <div v-for="(vms,env) in byEnv" :key="env" class="mb-3">
+                <div class="text-[10px] uppercase tracking-wider text-t3 font-bold mb-1.5 flex items-center gap-2">{{ env }} <button @click="relGroup(env)" class="press text-accentsoft normal-case tracking-normal lowercase">+ grupo</button></div>
+                <div class="flex flex-wrap gap-2">
+                  <button v-for="vm in vms" :key="vm.id" @click="relToggle(vm.id)" :class="['press text-[13px] font-bold rounded-lg px-3 py-1.5 border']" :style="rel.sel[vm.id]?'background:#22D3EE;border-color:#22D3EE;color:#080C14':'background:#0b1018;border-color:rgba(148,163,184,.18);color:#cbd5e1'">{{ vm.name }}</button>
+                </div>
+              </div>
+              <div class="flex gap-2 mt-4">
+                <button @click="relDry()" :disabled="rel.busy" class="press border border-line text-t1 font-bold rounded-lg px-4 py-2 text-sm disabled:opacity-50">{{ rel.busy?'…':'Preview (dry-run)' }}</button>
+                <button @click="relGo()" :disabled="rel.busy" class="press text-void font-bold rounded-lg px-5 py-2 text-sm flex items-center gap-2 disabled:opacity-50" style="background:#4CC38A;box-shadow:0 6px 18px rgba(76,195,138,.25)"><ic n="rocket-launch" cls="w-4 h-4"/>Soltar Release</button>
+              </div>
+              <p v-if="rel.err" class="text-xs mt-2" style="color:#fb7185">⚠️ {{ rel.err }}</p>
+            </div>
+
+            <div v-if="rel.dry.length" class="glass rounded-2xl p-6">
+              <h3 class="font-display font-bold text-lg text-t1 mb-3">Preview (nada enfileirado)</h3>
+              <div class="space-y-1.5 text-[13px] font-mono">
+                <div v-for="d in rel.dry" :key="d.vm" class="flex flex-wrap items-center gap-2 text-t2">
+                  <span class="w-28 text-t1 font-bold">{{ d.vm }}</span>
+                  <span>{{ d.current_sha }} → {{ d.target_sha||'?' }}</span>
+                  <span v-if="!d.behind" class="text-ok">· em dia</span>
+                  <span v-if="d.migrations" :class="d.destructive?'text-bad':'text-t3'">· {{ d.migrations }} migr{{ d.destructive?' ⚠️ DESTRUTIVA':'' }}</span>
+                  <span v-if="d.frozen" class="text-bad">· 🧊 congelada (será pulada)</span>
+                </div>
+              </div>
+            </div>
+
+            <div v-if="rel.running" class="glass rounded-2xl p-6">
+              <h3 class="font-display font-bold text-lg text-t1 mb-1 flex items-center gap-2">Rollout {{ rel.running.id }} <span :class="rel.running.status==='success'?'text-ok':(rel.running.status==='failed'?'text-bad':'text-accent')">· {{ rel.running.status }}</span></h3>
+              <div class="space-y-1.5 mt-3 text-sm">
+                <div v-for="r in rel.running.results" :key="r.vm" class="flex items-center gap-2">
+                  <span class="w-5 text-center">{{ r.status==='success'?'✅':(r.status==='failed'?'❌':(r.status==='executing'?'⏳':(r.status==='skipped'?'⏭️':'·'))) }}</span>
+                  <span class="w-28 text-t1 font-bold">{{ r.vm }}</span>
+                  <span class="text-t3 text-[13px] truncate">{{ r.status }}{{ r.detail?' — '+r.detail.slice(0,70):'' }}</span>
+                </div>
+              </div>
+            </div>
           </div>
 
           <div v-else-if="view==='conectar'" class="max-w-3xl space-y-4 rise">

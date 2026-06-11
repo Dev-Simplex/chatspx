@@ -44,6 +44,7 @@ type Server struct {
 	store    *Store
 	freeze   *FreezeStore
 	merges   *mergeStore
+	releases *releaseStore
 	exec     Executor
 	audit    *audit.Logger
 	tokens     map[string]user
@@ -88,6 +89,7 @@ func NewServer(cfg Config, store *Store, aud *audit.Logger, tokensCSV string) *S
 		store:    store,
 		freeze:   NewFreezeStore(store.StateDir()),
 		merges:   newMergeStore(),
+		releases: newReleaseStore(),
 		exec:     Executor{Cfg: cfg},
 		audit:    aud,
 		tokens:   tokens,
@@ -127,6 +129,11 @@ func (s *Server) Handler() http.Handler {
 	mux.HandleFunc("GET /api/merges", s.auth(RoleViewer, s.listMerges))
 	mux.HandleFunc("POST /api/merges", s.auth(RoleOperator, s.proposeMerge))
 	mux.HandleFunc("POST /api/merges/{id}/approve", s.auth(RoleAdmin, s.approveMerge))
+	// Release: rollout sequencial health-gated (botao "Release pra producao")
+	mux.HandleFunc("POST /api/release/dryrun", s.auth(RoleOperator, s.releaseDryRun))
+	mux.HandleFunc("POST /api/release", s.auth(RoleAdmin, s.createRelease))
+	mux.HandleFunc("GET /api/releases", s.auth(RoleViewer, s.listReleases))
+	mux.HandleFunc("GET /api/release/{id}", s.auth(RoleViewer, s.getRelease))
 	mux.HandleFunc("GET /api/tokens", s.auth(RoleAdmin, s.listTokens))
 	mux.HandleFunc("POST /api/tokens", s.auth(RoleAdmin, s.issueToken))
 	mux.HandleFunc("DELETE /api/tokens/{id}", s.auth(RoleAdmin, s.revokeToken))
