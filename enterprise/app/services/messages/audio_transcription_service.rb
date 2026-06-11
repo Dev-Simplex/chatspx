@@ -27,7 +27,10 @@ class Messages::AudioTranscriptionService< Llm::LegacyBaseOpenAiService
   private
 
   def can_transcribe?
-    return false unless account.feature_enabled?('captain_integration')
+    # Captain v2 ("AI Agents") is the canonical flag; 'captain_integration' is the
+    # legacy one (hidden from the super-admin UI). Accounts migrated to v2 can end up
+    # with v2 on but legacy off — accept either so audio still transcribes.
+    return false unless account.feature_enabled?('captain_integration') || account.feature_enabled?('captain_integration_v2')
     return false if account.audio_transcriptions.blank?
 
     account.usage_limits[:captain][:responses][:current_available].positive?

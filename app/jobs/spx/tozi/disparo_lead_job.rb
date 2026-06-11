@@ -65,19 +65,12 @@ module Spx
             phone_number: phone,
             additional_attributes: { source: 'disparo_lancamento' }
           },
-          source_id: phone.delete('+') # inbox Cloud API exige source_id só-dígitos (wa_id)
+          # Reconcilia variantes 12d/13d (9o digito) e reusa a ficha que o WhatsApp ja
+          # usa pros replies -> nao cria ficha duplicada (causa do reply orfao).
+          source_id: resolved_source_id(inbox, phone)
         ).perform
 
-        conversation = Conversation.create!(
-          account_id: inbox.account_id,
-          inbox_id: inbox.id,
-          contact_id: contact_inbox.contact_id,
-          contact_inbox_id: contact_inbox.id,
-          status: 'open',
-          assignee_id: assignee_id,
-          campaign_id: campaign_id,
-          additional_attributes: { source: 'disparo_lancamento', template: template }
-        )
+        conversation = find_or_create_conversation(inbox, contact_inbox, assignee_id, campaign_id, template)
 
         send_hsm(conversation, template, first, agent_first_name(assignee_id))
       rescue StandardError => e
@@ -97,6 +90,42 @@ module Spx
         d = "55#{d}" if d.length.between?(10, 11)
         formatted = "+#{d}"
         Contacts::BrazilPhoneNormalizer.normalize(formatted) || formatted
+      end
+
+      # Reusa a ficha existente do contato reconciliando o 9o digito (variantes 12d/13d).
+      # Se o contato ja existe em qualquer forma, devolve o source_id daquela ficha;
+      # senao cai no nosso wa_id so-digitos (contato novo).
+      def resolved_source_id(inbox, phone)
+        waid = phone.delete('+')
+        Whatsapp::PhoneNumberNormalizationService.new(inbox)
+                                                 .normalize_and_find_contact_by_provider(waid, :cloud)
+      end
+
+      # Honra o lock_to_single da inbox 91: reusa a conversa unica do contato (em
+      # qualquer ficha), reabrindo se resolvida e atribuindo ao corretor do disparo.
+      # Cria conversa nova so quando o contato nunca teve uma.
+      def find_or_create_conversation(inbox, contact_inbox, assignee_id, campaign_id, template)
+        base = Conversation.where(inbox_id: inbox.id, contact_id: contact_inbox.contact_id)
+        conversation = base.where.not(status: :resolved).order(created_at: :desc).first ||
+                       base.order(created_at: :desc).first
+
+        if conversation
+          conversation.update!(assignee_id: assignee_id) unless conversation.assignee_id == assignee_id
+          conversation.update!(campaign_id: campaign_id) if campaign_id && conversation.campaign_id.nil?
+          conversation.open! unless conversation.open?
+          return conversation
+        end
+
+        Conversation.create!(
+          account_id: inbox.account_id,
+          inbox_id: inbox.id,
+          contact_id: contact_inbox.contact_id,
+          contact_inbox_id: contact_inbox.id,
+          status: 'open',
+          assignee_id: assignee_id,
+          campaign_id: campaign_id,
+          additional_attributes: { source: 'disparo_lancamento', template: template }
+        )
       end
 
       def agent_first_name(assignee_id)
