@@ -17,7 +17,9 @@ class Captain::Tools::TransferirParaAgenteTool < Captain::Tools::BasePublicTool
     return "Não encontrei o agente #{agente} na equipe." if alvo.nil?
     return 'A conversa já está com este agente.' if conversation.assignee_agent_bot&.captain_assistant_id == alvo.id
 
-    mirror = alvo.mirror_agent_bot
+    # Lookup direto do espelho (sem mirror_agent_bot/sync!): a transferência não deve
+    # criar espelho — se não existe, o agente não está operacional.
+    mirror = AgentBot.find_by(captain_assistant_id: alvo.id)
     return "O agente #{alvo.name} está indisponível no momento." if mirror.nil?
 
     conversation.update!(assignee_agent_bot_id: mirror.id)
