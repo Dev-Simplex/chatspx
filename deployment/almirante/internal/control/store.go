@@ -31,6 +31,16 @@ func NewStore(stateDir string) *Store {
 		if _, err := fmt.Sscanf(f, "req_%d.json", &n); err == nil && n > s.seq {
 			s.seq = n
 		}
+		// reconcile: pedido 'executing' no boot = órfão (a goroutine do deploy morreu
+		// num restart do control) -> marca failed p/ não ficar preso pra sempre.
+		if b, err := os.ReadFile(filepath.Join(s.dir, f)); err == nil {
+			var r types.DeployRequest
+			if json.Unmarshal(b, &r) == nil && r.Status == types.StatusExecuting {
+				r.Status = types.StatusFailed
+				r.ResultDetail = "órfão: control reiniciou durante a execução — confira o estado real da VM (o deploy pode ter concluído)"
+				s.write(r)
+			}
+		}
 	}
 	return s
 }

@@ -111,6 +111,28 @@ func RunAlmiranted(ctx context.Context, cfg Config, vm types.VM, args []string) 
 	}
 	defer client.Close()
 
+	// keepalive: deploys longos (precompile ~minutos) caíam silenciosamente — a conexão
+	// morria por idle/NAT e o sess.Run travava no socket morto até o timeout (30min),
+	// deixando o pedido 'executing' órfão mesmo com o deploy concluído na VM. Aqui mandamos
+	// um keepalive periódico (mantém viva) e, se falhar, fechamos o client p/ o Run retornar.
+	kaStop := make(chan struct{})
+	defer close(kaStop)
+	go func() {
+		t := time.NewTicker(15 * time.Second)
+		defer t.Stop()
+		for {
+			select {
+			case <-kaStop:
+				return
+			case <-t.C:
+				if _, _, err := client.SendRequest("keepalive@openssh.com", true, nil); err != nil {
+					client.Close() // conexão morta -> destrava o sess.Run
+					return
+				}
+			}
+		}
+	}()
+
 	sess, err := client.NewSession()
 	if err != nil {
 		return "", err
