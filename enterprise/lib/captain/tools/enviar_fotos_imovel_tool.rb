@@ -18,7 +18,13 @@ class Captain::Tools::EnviarFotosImovelTool < Captain::Tools::BasePublicTool
     key = "fotos_offset_#{codigo}"
     sent = conversation.custom_attributes[key].to_i
     batch = fotos[sent, BATCH] || []
-    return 'Já enviei todas as fotos que tenho desse imóvel.' if batch.empty?
+    if batch.empty?
+      # Cliente pediu fotos de novo e ja enviamos todas: recomeca do inicio (reenvio —
+      # cobre tambem o caso de as anteriores nao terem chegado).
+      sent = 0
+      batch = fotos[0, BATCH] || []
+    end
+    return 'Não encontrei fotos desse imóvel.' if batch.empty?
 
     # Envia uma por uma com intervalo: em rajada o bridge do WhatsApp entrega só a 1ª.
     batch.each_with_index do |url, i|
