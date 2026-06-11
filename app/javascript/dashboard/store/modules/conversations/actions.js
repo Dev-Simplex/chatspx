@@ -174,7 +174,15 @@ const actions = {
     }
   },
 
-  fetchAllAttachments: async ({ commit }, conversationId) => {
+  fetchAllAttachments: async ({ commit, state }, conversationId) => {
+    if (state.attachments[conversationId] !== undefined) {
+      return;
+    }
+    commit(types.SET_ALL_ATTACHMENTS, {
+      id: conversationId,
+      data: [],
+      meta: null,
+    });
     let attachments = [];
     let meta = {};
 
@@ -251,9 +259,10 @@ const actions = {
       const existingIds = new Set(messages.map(m => m.id));
       const missingMessages = payload.filter(m => !existingIds.has(m.id));
       selectedChat.messages.push(...missingMessages);
-      // Sort the messages by created_at
+      // Sort the messages by created_at, desempatando por id (created_at vem em segundos,
+      // rajadas colidem no mesmo segundo — id desempata pela ordem real de criacao)
       const sortedMessages = selectedChat.messages.sort((a, b) => {
-        return new Date(a.created_at) - new Date(b.created_at);
+        return new Date(a.created_at) - new Date(b.created_at) || a.id - b.id;
       });
       commit(types.SET_MISSING_MESSAGES, {
         id: conversationId,

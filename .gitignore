@@ -97,7 +97,6 @@ yarn-debug.log*
 .codex/
 .claude/*
 # STATE.md é versionado: single source of truth do in-flight do projeto (ver CLAUDE.md)
-!.claude/STATE.md
 CLAUDE.local.md
 .mcp.json
 
@@ -115,3 +114,9 @@ nps_checker.rb
 deployment/fix_sudoers.sh
 Procfile.worktree
 vault
+
+# off-git hygiene 2026-06-05
+.env.bak
+.env.bak.*
+*.bak-orion-*
+.claude/STATE.md

@@ -3,6 +3,7 @@ import { computed } from 'vue';
 import { formatBytes } from 'shared/helpers/FileHelper';
 
 import Button from 'dashboard/components-next/button/Button.vue';
+import Icon from 'next/icon/Icon.vue';
 
 const props = defineProps({
   attachments: {
@@ -40,6 +41,16 @@ const isTypeImage = file => {
   return type.includes('image');
 };
 
+const isTypeVideo = file => {
+  const type = file.content_type || file.type;
+  return type.includes('video');
+};
+
+const isTypeAudio = file => {
+  const type = file.content_type || file.type;
+  return type.includes('audio');
+};
+
 const fileName = file => {
   return file.filename || file.name;
 };
@@ -58,9 +69,25 @@ const fileName = file => {
           class="object-cover w-6 h-6 rounded-sm"
           :src="attachment.thumb"
         />
-        <span v-else class="relative w-6 h-6 text-lg text-left -top-px">
-          📄
-        </span>
+        <video
+          v-else-if="isTypeVideo(attachment.resource) && attachment.thumb"
+          class="object-cover w-6 h-6 rounded-sm bg-black"
+          :src="attachment.thumb"
+          muted
+          playsinline
+          preload="metadata"
+        />
+        <Icon
+          v-else-if="isTypeVideo(attachment.resource)"
+          icon="i-lucide-clapperboard"
+          class="size-5 text-n-slate-11"
+        />
+        <Icon
+          v-else-if="isTypeAudio(attachment.resource)"
+          icon="i-lucide-music"
+          class="size-5 text-n-slate-11"
+        />
+        <Icon v-else icon="i-lucide-file" class="size-5 text-n-slate-11" />
       </div>
       <div class="max-w-3/5 min-w-[50%] overflow-hidden text-ellipsis">
         <span

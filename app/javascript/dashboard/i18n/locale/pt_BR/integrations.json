@@ -688,7 +688,7 @@
           "ALLOW_CONVERSATION_FAQS": "Gerar perguntas frequentes a partir de conversas resolvidas",
           "ALLOW_MEMORIES": "Capture os principais detalhes como memórias de interações do cliente.",
           "ALLOW_CITATIONS": "Incluir fonte de citações nas respostas",
-          "ALLOW_CONTACT_ATTRIBUTES": "Allow access to contact information"
+          "ALLOW_CONTACT_ATTRIBUTES": "Permitir acesso às informações do contato"
         }
       },
       "EDIT": {
@@ -1255,7 +1255,7 @@
         "CONFIGURE_TITLE": "Configure seu Agente",
         "CONFIGURE_DESCRIPTION": "Este agente ainda não tem behavior configurado. Use a aba Comportamento para configurar o pipeline, ou copie o JSON template abaixo e configure via código.",
         "AGENT_CONFIG": "Configuração do Agente",
-        "BEHAVIORS": "Behaviors",
+        "BEHAVIORS": "Comportamentos",
         "NONE_CONFIGURED": "Nenhum configurado"
       },
       "KNOWLEDGE": {
@@ -1302,7 +1302,7 @@
         "NO_TOOLS": "Nenhuma ferramenta configurada.",
         "ACTIVE": "Ativo",
         "INACTIVE": "Inativo",
-        "COPILOT_TOOLS": "Copilot Tools",
+        "COPILOT_TOOLS": "Ferramentas do Copilot",
         "AVAILABLE": "disponíveis",
         "CUSTOM_TOOLS": "Ferramentas Customizadas",
         "MCP_SERVERS": "MCP Servers",
@@ -1358,9 +1358,9 @@
         "MODEL_CONFIG": "Configuração do Modelo",
         "LLM_MODEL": "Modelo LLM",
         "TEMPERATURE": "Temperatura",
-        "GUARDRAILS": "Guardrails",
+        "GUARDRAILS": "Limites",
         "NEW_RULE_PLACEHOLDER": "Nova regra...",
-        "RESPONSE_GUIDELINES": "Response Guidelines",
+        "RESPONSE_GUIDELINES": "Diretrizes de Resposta",
         "NEW_GUIDELINE_PLACEHOLDER": "Nova guideline...",
         "SAVE": "Salvar Configurações",
         "DANGER_ZONE": "Zona de Perigo",

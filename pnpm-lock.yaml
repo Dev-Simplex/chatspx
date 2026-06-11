@@ -136,6 +136,9 @@ importers:
       countries-and-timezones:
         specifier: ^3.6.0
         version: 3.6.0
+      cropperjs:
+        specifier: ^1.6
+        version: 1.6.2
       date-fns:
         specifier: 2.21.1
         version: 2.21.1
@@ -2065,6 +2068,9 @@ packages:
 
   crelt@1.0.5:
     resolution: {integrity: sha512-+BO9wPPi+DWTDcNYhr/W90myha8ptzftZT+LwcmUbbok0rcP/fequmFYCw8NMoH7pkAZQzU78b3kYrlua5a9eA==}
+
+  cropperjs@1.6.2:
+    resolution: {integrity: sha512-nhymn9GdnV3CqiEHJVai54TULFAE3VshJTXSqSJKa8yXAKyBKDWdhHarnlIPrshJ0WMFTGuFvG02YjLXfPiuOA==}
 
   cross-spawn@7.0.6:
     resolution: {integrity: sha512-uV2QOWP2nWzsy2aMp8aRibhi9dlzF5Hgh5SHaB9OiTGEyDTiJJyx0uy51QXdyWbtAHNua4XJzUKca3OzKUd3vA==}
@@ -6968,6 +6974,8 @@ snapshots:
   countries-and-timezones@3.6.0: {}
 
   crelt@1.0.5: {}
+
+  cropperjs@1.6.2: {}
 
   cross-spawn@7.0.6:
     dependencies:

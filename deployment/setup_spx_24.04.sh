@@ -16,7 +16,7 @@ if [[ ${PIPESTATUS[0]} -ne 4 ]]; then
 fi
 
 # Global variables
-LONGOPTS=console,debug,help,install,Install:,logs:,restart,ssl,upgrade,Upgrade:,webserver,version,web-only,worker-only,convert:
+LONGOPTS=console,debug,help,install,Install:,logs:,restart,ssl,upgrade,Upgrade:,webserver,version,web-only,worker-only,convert:,skip-account
 OPTIONS=cdhiI:l:rsuU:wvWK
 CWCTL_VERSION="4.0.0"
 pg_pass=$(head /dev/urandom | tr -dc A-Za-z0-9 | head -c 15 ; echo '')
@@ -39,7 +39,7 @@ if [[ ${PIPESTATUS[0]} -ne 0 ]]; then
 fi
 eval set -- "$PARSED"
 
-c=n d=n h=n i=n I=n l=n r=n s=n u=n U=n w=n v=n W=n K=n C=n BRANCH=$DEFAULT_BRANCH SERVICE=web DEPLOYMENT_TYPE=full CONVERT_TO=""
+c=n d=n h=n i=n I=n l=n r=n s=n u=n U=n w=n v=n W=n K=n C=n SKIP_ACCOUNT=n BRANCH=$DEFAULT_BRANCH SERVICE=web DEPLOYMENT_TYPE=full CONVERT_TO=""
 while true; do
     case "$1" in
         -c|--console) c=y; break ;;
@@ -65,6 +65,7 @@ while true; do
                 *) echo "Invalid conversion type. Use: web, worker, or full"; exit 3 ;;
             esac
             shift 2 ;;
+        --skip-account) SKIP_ACCOUNT=y; shift ;;
         --) shift; break ;;
         *) echo "Invalid option(s). Use --help."; exit 3 ;;
     esac
@@ -90,20 +91,27 @@ function exit_handler() {
 }
 
 ##############################################################################
-# Ensure swap exists (needed for asset compilation on small VMs)
+# Ensure swap exists + sysctl tuned (lessons from Tozi AWS — produção 27/05/2026)
 ##############################################################################
 function ensure_swap() {
+  # Swap: 4GB pra absorver picos do Vite build + WAHA media + restart bursts
+  # (2GB era insuficiente em VMs com 7.6GB RAM — observado em fabrica/catatau)
   if [ "$(swapon --show | wc -l)" -eq 0 ]; then
-    local mem_mb=$(free -m | awk '/^Mem:/{print $2}')
-    if [ "$mem_mb" -lt 4096 ]; then
-      echo "Creating 2GB swap file for build stability..."
-      fallocate -l 2G /swapfile
-      chmod 600 /swapfile
-      mkswap /swapfile
-      swapon /swapfile
-      echo '/swapfile none swap sw 0 0' >> /etc/fstab
-    fi
+    echo "Creating 4GB swap file..."
+    fallocate -l 4G /swapfile
+    chmod 600 /swapfile
+    mkswap /swapfile
+    swapon /swapfile
+    grep -q swapfile /etc/fstab || echo '/swapfile none swap sw 0 0' >> /etc/fstab
   fi
+
+  # Sysctl tuning persistente: prefere cache de página vs swap;
+  # libera cache de filesystem mais cedo. Diferença grande em VMs ~8GB.
+  cat > /etc/sysctl.d/99-chatspx-mem.conf <<'EOF'
+vm.swappiness = 10
+vm.vfs_cache_pressure = 50
+EOF
+  sysctl -p /etc/sysctl.d/99-chatspx-mem.conf >/dev/null 2>&1 || true
 }
 
 ##############################################################################
@@ -177,6 +185,18 @@ function install_databases() {
 ##############################################################################
 function install_webserver() {
   apt-get install -y nginx nginx-full certbot python3-certbot-nginx
+}
+
+##############################################################################
+# Install Chromium (Ferrum PDF export server-side — feat e3adc43a7)
+# config/initializers/ferrum_pdf.rb aponta para /snap/bin/chromium
+##############################################################################
+function install_chromium() {
+  if [ ! -x /snap/bin/chromium ]; then
+    echo "Installing chromium snap (required by Ferrum PDF export)..."
+    snap install chromium >/dev/null 2>&1 || \
+      echo "WARN: snap install chromium falhou — instale manualmente apos o setup"
+  fi
 }
 
 ##############################################################################
@@ -338,11 +358,11 @@ function collect_spx_config() {
 
   # SMTP (valores padrao SPX)
   configure_smtp="sim"
-  cfg_mailer_sender="SPX - CHAT <sup@simplexsolucoes.com.br>"
-  cfg_smtp_domain="simplexsolucoes.com.br"
+  cfg_mailer_sender="SPX - CHAT <contato@chatspx.app>"
+  cfg_smtp_domain="chatspx.app"
   cfg_smtp_address="cloud55.mailgrid.net.br"
   cfg_smtp_port="587"
-  cfg_smtp_user="chatspx@simplexsolucoes.com.br"
+  cfg_smtp_user="contato@chatspx.app"
   cfg_smtp_pass="Master@1239*"
   cfg_smtp_auth="login"
   echo ""
@@ -358,14 +378,26 @@ function collect_spx_config() {
     read -rp "  Sessao padrao WAHA (nome da sessao para validacao de numeros): " cfg_waha_session
   fi
 
-  # First account + Super Admin
-  echo ""
-  echo "--- Primeira Conta e Super Admin ---"
-  read -rp "Nome da conta (ex: Simplex Solucoes): " cfg_account_name
-  read -rp "Nome do administrador: " cfg_admin_name
-  read -rp "E-mail do administrador: " cfg_admin_email
-  read -rsp "Senha do administrador (minimo 6 caracteres): " cfg_admin_password
-  echo ""
+  # First account + Super Admin (skipped when --skip-account is used)
+  if [ "$SKIP_ACCOUNT" == "y" ]; then
+    echo ""
+    echo "--- Primeira Conta e Super Admin ---"
+    echo "  Pulando criacao de conta (--skip-account). O banco ficara vazio,"
+    echo "  esperando restore de dump externo. Pos-restore, acesse via os"
+    echo "  usuarios ja existentes no dump."
+    cfg_account_name=""
+    cfg_admin_name=""
+    cfg_admin_email=""
+    cfg_admin_password=""
+  else
+    echo ""
+    echo "--- Primeira Conta e Super Admin ---"
+    read -rp "Nome da conta (ex: Simplex Solucoes): " cfg_account_name
+    read -rp "Nome do administrador: " cfg_admin_name
+    read -rp "E-mail do administrador: " cfg_admin_email
+    read -rsp "Senha do administrador (minimo 6 caracteres): " cfg_admin_password
+    echo ""
+  fi
 
   echo ""
   echo "Configuracao coletada. Iniciando instalacao..."
@@ -797,6 +829,9 @@ EOF
     echo "=> 4/10 Pulando instalacao do servidor web."
   fi
 
+  echo "=> 4.5/10 Instalando Chromium (Ferrum PDF export)..."
+  install_chromium &>> "$LOG_FILE"
+
   echo "=> 5/10 Instalando Ruby ${RUBY_VERSION} via RVM..."
   configure_rvm &>> "$LOG_FILE"
 
@@ -814,8 +849,12 @@ EOF
     echo "=> 8/10 Executando migracoes do banco..."
     run_db_migrations &>> "$LOG_FILE"
 
-    echo "=> 9/10 Criando primeira conta e super admin..."
-    create_first_account &>> "$LOG_FILE"
+    if [ "$SKIP_ACCOUNT" == "y" ]; then
+      echo "=> 9/10 Pulando criacao de conta (--skip-account; aguardando restore externo)."
+    else
+      echo "=> 9/10 Criando primeira conta e super admin..."
+      create_first_account &>> "$LOG_FILE"
+    fi
   else
     echo "=> 8/10 Pulando migracoes do banco."
     echo "=> 9/10 Pulando criacao de conta (sem banco local)."
@@ -906,6 +945,7 @@ Instalacao/Atualizacao:
   -W, --web-only            Instalar apenas o servidor web
   -K, --worker-only         Instalar apenas o worker de background
       --convert TIPO        Converter deployment (TIPO: web, worker, full)
+      --skip-account        NAO criar primeira conta (use para receber restore externo)
 
 Gerenciamento:
   -c, --console             Abrir console Rails
