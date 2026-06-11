@@ -1,4 +1,4 @@
-module Enterprise::MessageTemplates::HookExecutionService
+module Enterprise::MessageTemplates::HookExecutionService # rubocop:disable Metrics/ModuleLength
   MAX_ATTACHMENT_WAIT_SECONDS = 4
 
   def trigger_templates
@@ -32,6 +32,12 @@ module Enterprise::MessageTemplates::HookExecutionService
   def process_captain_behavior(assistant)
     return trigger_copilot_if_applicable(assistant) if message.private?
     return log_and_skip(assistant, 'router_skip') unless router_allows?(assistant)
+
+    # Conversa que a IA vai atender fica VISÍVEL na fila (open), em vez de escondida
+    # em pending. Ruído (grupos/status/qualquer router_skip) não chega aqui e segue
+    # pending. O Captain responde em open normalmente (should_process_captain_response?).
+    ensure_conversation_open(assistant)
+
     return log_and_skip(assistant, 'business_hours_skip') if outside_hours_ignore?(assistant)
 
     schedule_or_debounce(assistant)
@@ -44,6 +50,24 @@ module Enterprise::MessageTemplates::HookExecutionService
   def outside_hours_ignore?(assistant)
     status = Captain::Behavior::BusinessHoursChecker.new(assistant: assistant).status
     status == :outside && assistant.behavior.dig('business_hours', 'outside_hours_action') == 'ignore'
+  end
+
+  # Tira a conversa do limbo "pending" assim que a IA assume (passou o router),
+  # deixando-a visível na fila de Abertas. Atribui a ação ao assistant via
+  # Current.executed_by pra a atividade sair como "<Clara>" (e não como o usuário
+  # do token da ponte WAHA). Best-effort: nunca derruba o fluxo de mensagem.
+  def ensure_conversation_open(assistant)
+    return unless conversation.pending?
+
+    previous_executed_by = Current.executed_by
+    Current.executed_by = assistant
+    begin
+      conversation.open!
+    rescue StandardError => e
+      Rails.logger.warn("[Captain] auto-open conv=#{conversation.id}: #{e.message}")
+    ensure
+      Current.executed_by = previous_executed_by
+    end
   end
 
   def schedule_or_debounce(assistant)

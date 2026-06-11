@@ -44,7 +44,21 @@ module Spx
         'tozi_venda_oportunidade' =>
           'Oi %<n>s, aqui é %<a>s da Tozi. Separei uma oportunidade boa pra você antes de abrir ao público — um imóvel que tende a valorizar rápido e que ainda dá pra alugar. Quer que eu te conte como funciona?',
         'tozi_venda_lembrei' =>
-          'Oi %<n>s, aqui é %<a>s da Tozi. Apareceu uma oportunidade que combina com quem já é cliente da casa e lembrei de você — algo que valoriza e gera renda. Vale 2 minutos seu pra eu explicar?'
+          'Oi %<n>s, aqui é %<a>s da Tozi. Apareceu uma oportunidade que combina com quem já é cliente da casa e lembrei de você — algo que valoriza e gera renda. Vale 2 minutos seu pra eu explicar?',
+        'tozi_inq_lancamento' =>
+          'Tá chegando o lançamento mais esperado de Sinop: apartamentos de até 3 suítes do lado da UNEMAT, com entrada parcelada na obra. Tô avisando os clientes da casa antes de abrir ao público — quem se antecipa garante as melhores condições. Quer saber mais?',
+        'tozi_inq_invest' =>
+          'Quis te mostrar uma oportunidade antes de abrir ao público: lançamento de apartamentos de até 3 suítes na região do Aquarela das Artes, do lado da UNEMAT — uma das que mais valorizam em Sinop. Entrada parcelada na obra, ótima pra morar ou investir. Faz sentido pra você?',
+        'tozi_inq_cliente' =>
+          'Como você foi cliente da Tozi, quis te avisar em primeira mão: tá chegando um lançamento de apartamentos de até 3 suítes na região do Aquarela das Artes, com entrada parcelada na obra. Posso te passar os detalhes e reservar sua prioridade antes de abrir ao público?'
+      }.freeze
+
+      INQ_IMAGE_URL = 'https://tozi.chatspx.app/inq-mapa.jpeg'.freeze
+      # templates de inquilinos: corpo SEM variavel; valor = :image (header de imagem) ou :text
+      NO_BODY_VAR = {
+        'tozi_inq_lancamento' => :image,
+        'tozi_inq_invest' => :image,
+        'tozi_inq_cliente' => :text
       }.freeze
 
       def perform(nome:, telefone:, assignee_id:, template:, campaign_id: nil, dry_run: false)
@@ -65,19 +79,12 @@ module Spx
             phone_number: phone,
             additional_attributes: { source: 'disparo_lancamento' }
           },
-          source_id: phone.delete('+') # inbox Cloud API exige source_id só-dígitos (wa_id)
+          # Reconcilia variantes 12d/13d (9o digito) e reusa a ficha que o WhatsApp ja
+          # usa pros replies -> nao cria ficha duplicada (causa do reply orfao).
+          source_id: resolved_source_id(inbox, phone)
         ).perform
 
-        conversation = Conversation.create!(
-          account_id: inbox.account_id,
-          inbox_id: inbox.id,
-          contact_id: contact_inbox.contact_id,
-          contact_inbox_id: contact_inbox.id,
-          status: 'open',
-          assignee_id: assignee_id,
-          campaign_id: campaign_id,
-          additional_attributes: { source: 'disparo_lancamento', template: template }
-        )
+        conversation = find_or_create_conversation(inbox, contact_inbox, assignee_id, campaign_id, template)
 
         send_hsm(conversation, template, first, agent_first_name(assignee_id))
       rescue StandardError => e
@@ -99,25 +106,72 @@ module Spx
         Contacts::BrazilPhoneNormalizer.normalize(formatted) || formatted
       end
 
+      # Reusa a ficha existente do contato reconciliando o 9o digito (variantes 12d/13d).
+      # Se o contato ja existe em qualquer forma, devolve o source_id daquela ficha;
+      # senao cai no nosso wa_id so-digitos (contato novo).
+      def resolved_source_id(inbox, phone)
+        waid = phone.delete('+')
+        Whatsapp::PhoneNumberNormalizationService.new(inbox)
+                                                 .normalize_and_find_contact_by_provider(waid, :cloud)
+      end
+
+      # Honra o lock_to_single da inbox 91: reusa a conversa unica do contato (em
+      # qualquer ficha), reabrindo se resolvida e atribuindo ao corretor do disparo.
+      # Cria conversa nova so quando o contato nunca teve uma.
+      def find_or_create_conversation(inbox, contact_inbox, assignee_id, campaign_id, template)
+        base = Conversation.where(inbox_id: inbox.id, contact_id: contact_inbox.contact_id)
+        conversation = base.where.not(status: :resolved).order(created_at: :desc).first ||
+                       base.order(created_at: :desc).first
+
+        if conversation
+          conversation.update!(assignee_id: assignee_id) unless conversation.assignee_id == assignee_id
+          conversation.update!(campaign_id: campaign_id) if campaign_id && conversation.campaign_id.nil?
+          conversation.open! unless conversation.open?
+          return conversation
+        end
+
+        Conversation.create!(
+          account_id: inbox.account_id,
+          inbox_id: inbox.id,
+          contact_id: contact_inbox.contact_id,
+          contact_inbox_id: contact_inbox.id,
+          status: 'open',
+          assignee_id: assignee_id,
+          campaign_id: campaign_id,
+          additional_attributes: { source: 'disparo_lancamento', template: template }
+        )
+      end
+
       def agent_first_name(assignee_id)
         User.find_by(id: assignee_id)&.name.to_s.strip.split.first.presence || 'Guilherme'
       end
 
       def send_hsm(conversation, template, first, agent)
-        # format ignora chaves nao-usadas, entao passar n+a serve pros templates de 1 ou 2 vars.
-        preview = format(PREVIEWS.fetch(template, 'Oi %<n>s!'), n: first, a: agent)
-        params = {
-          content: preview,
-          content_type: :text,
-          message_type: 'outgoing',
-          private: false,
-          template_params: {
-            'name' => template,
-            'language' => LANGUAGE,
-            'processed_params' => { 'body' => { '1' => first, '2' => agent } }
-          }
-        }
+        params = if NO_BODY_VAR.key?(template)
+                   no_var_params(template)
+                 else
+                   # format ignora chaves nao-usadas, entao n+a serve pros templates de 1 ou 2 vars.
+                   {
+                     content: format(PREVIEWS.fetch(template, 'Oi %<n>s!'), n: first, a: agent),
+                     content_type: :text, message_type: 'outgoing', private: false,
+                     template_params: {
+                       'name' => template, 'language' => LANGUAGE,
+                       'processed_params' => { 'body' => { '1' => first, '2' => agent } }
+                     }
+                   }
+                 end
         Messages::MessageBuilder.new(nil, conversation, params.with_indifferent_access).perform
+      end
+
+      # Templates de inquilinos: corpo sem variavel; header de imagem quando :image.
+      def no_var_params(template)
+        processed = {}
+        processed['header'] = { 'media_url' => INQ_IMAGE_URL, 'media_type' => 'image' } if NO_BODY_VAR[template] == :image
+        {
+          content: PREVIEWS.fetch(template, '(mensagem)'),
+          content_type: :text, message_type: 'outgoing', private: false,
+          template_params: { 'name' => template, 'language' => LANGUAGE, 'processed_params' => processed }
+        }
       end
     end
   end

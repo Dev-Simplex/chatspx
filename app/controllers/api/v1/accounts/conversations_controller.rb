@@ -232,6 +232,8 @@ class Api::V1::Accounts::ConversationsController < Api::V1::Accounts::BaseContro
     return if Current.user.is_a?(AgentBot)
     return if Current.user.administrator?
     return if @conversation.team_id.nil?
+    # Assignee always has access to their own conversation (assignment implies access)
+    return if @conversation.assignee_id == Current.user&.id
 
     validate_team_param_access if params[:team_id].present?
     return if performed?

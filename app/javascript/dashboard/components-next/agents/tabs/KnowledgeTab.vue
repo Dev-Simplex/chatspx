@@ -135,6 +135,66 @@ onMounted(() => {
 async function deleteDocument(id) {
   await store.dispatch('captainDocuments/delete', id);
 }
+
+// --- Edicao de FAQ (inline) ---
+const editingFaqId = ref(null);
+const editFaqForm = ref({ question: '', answer: '' });
+const savingFaqEdit = ref(false);
+
+function startEditFaq(faq) {
+  editingFaqId.value = faq.id;
+  editFaqForm.value = { question: faq.question, answer: faq.answer };
+}
+
+function cancelEditFaq() {
+  editingFaqId.value = null;
+  editFaqForm.value = { question: '', answer: '' };
+}
+
+async function saveFaqEdit(faq) {
+  if (
+    !editFaqForm.value.question.trim() ||
+    !editFaqForm.value.answer.trim() ||
+    savingFaqEdit.value
+  ) {
+    return;
+  }
+  savingFaqEdit.value = true;
+  try {
+    await store.dispatch('captainResponses/update', {
+      id: faq.id,
+      question: editFaqForm.value.question.trim(),
+      answer: editFaqForm.value.answer.trim(),
+      status: faq.status,
+    });
+    useAlert(t('CAPTAIN.AGENT_TABS.KNOWLEDGE.FAQ_UPDATED'));
+    cancelEditFaq();
+    store.dispatch('captainResponses/get', { assistantId: assistantId.value });
+  } catch {
+    useAlert(t('CAPTAIN.AGENT_TABS.KNOWLEDGE.FAQ_UPDATE_ERROR'));
+  } finally {
+    savingFaqEdit.value = false;
+  }
+}
+
+// --- Exclusao de FAQ (confirmacao inline) ---
+const confirmingDeleteFaqId = ref(null);
+const deletingFaq = ref(false);
+
+async function deleteFaq(faq) {
+  if (deletingFaq.value) return;
+  deletingFaq.value = true;
+  try {
+    await store.dispatch('captainResponses/delete', faq.id);
+    useAlert(t('CAPTAIN.AGENT_TABS.KNOWLEDGE.FAQ_DELETED'));
+    confirmingDeleteFaqId.value = null;
+    store.dispatch('captainResponses/get', { assistantId: assistantId.value });
+  } catch {
+    useAlert(t('CAPTAIN.AGENT_TABS.KNOWLEDGE.FAQ_DELETE_ERROR'));
+  } finally {
+    deletingFaq.value = false;
+  }
+}
 </script>
 
 <template>
@@ -378,34 +438,114 @@ async function deleteDocument(id) {
           :key="faq.id"
           class="rounded-xl border border-n-weak bg-white p-4 transition-shadow duration-200 hover:shadow-md dark:bg-n-solid-2"
         >
-          <div class="flex items-center justify-between">
-            <p class="text-sm font-medium text-n-slate-12">
-              {{ faq.question }}
-            </p>
-            <span
-              class="inline-flex items-center gap-1.5 rounded-full px-2 py-0.5 text-xs font-medium"
-              :class="
-                faq.status === 'approved'
-                  ? 'bg-green-50 text-green-700 dark:bg-green-400/10 dark:text-green-400'
-                  : 'bg-amber-50 text-amber-700 dark:bg-amber-400/10 dark:text-amber-400'
+          <!-- Modo edicao -->
+          <div v-if="editingFaqId === faq.id" class="space-y-2">
+            <input
+              v-model="editFaqForm.question"
+              type="text"
+              class="w-full rounded border border-n-weak bg-white px-2 py-1.5 text-sm dark:bg-n-solid-3 dark:text-n-slate-12"
+              :placeholder="
+                t('CAPTAIN.AGENT_TABS.KNOWLEDGE.FAQ_QUESTION_PLACEHOLDER')
               "
-            >
-              <span
-                class="size-1.5 rounded-full"
-                :class="
-                  faq.status === 'approved' ? 'bg-green-500' : 'bg-amber-500'
-                "
-              />
-              {{
-                faq.status === 'approved'
-                  ? t('CAPTAIN.AGENT_TABS.KNOWLEDGE.APPROVED')
-                  : t('CAPTAIN.AGENT_TABS.KNOWLEDGE.PENDING')
-              }}
-            </span>
+            />
+            <textarea
+              v-model="editFaqForm.answer"
+              rows="3"
+              class="w-full rounded border border-n-weak bg-white px-2 py-1.5 text-sm dark:bg-n-solid-3 dark:text-n-slate-12"
+              :placeholder="
+                t('CAPTAIN.AGENT_TABS.KNOWLEDGE.FAQ_ANSWER_PLACEHOLDER')
+              "
+            />
+            <div class="flex gap-2">
+              <button
+                type="button"
+                class="rounded-lg bg-n-brand px-3 py-1.5 text-sm font-medium text-white transition-colors hover:brightness-95 disabled:opacity-60"
+                :disabled="savingFaqEdit"
+                @click="saveFaqEdit(faq)"
+              >
+                {{ t('CAPTAIN.AGENT_TABS.KNOWLEDGE.SAVE') }}
+              </button>
+              <button
+                type="button"
+                class="rounded-lg bg-n-alpha-2 px-3 py-1.5 text-sm text-n-slate-12 transition-colors hover:bg-n-alpha-3"
+                @click="cancelEditFaq"
+              >
+                {{ t('CAPTAIN.AGENT_TABS.KNOWLEDGE.CANCEL') }}
+              </button>
+            </div>
           </div>
-          <p class="mt-1 line-clamp-2 text-sm text-n-slate-10">
-            {{ faq.answer }}
-          </p>
+
+          <!-- Modo leitura -->
+          <template v-else>
+            <div class="flex items-start justify-between gap-2">
+              <p class="text-sm font-medium text-n-slate-12">
+                {{ faq.question }}
+              </p>
+              <div class="flex shrink-0 items-center gap-1">
+                <span
+                  class="inline-flex items-center gap-1.5 rounded-full px-2 py-0.5 text-xs font-medium"
+                  :class="
+                    faq.status === 'approved'
+                      ? 'bg-green-50 text-green-700 dark:bg-green-400/10 dark:text-green-400'
+                      : 'bg-amber-50 text-amber-700 dark:bg-amber-400/10 dark:text-amber-400'
+                  "
+                >
+                  <span
+                    class="size-1.5 rounded-full"
+                    :class="
+                      faq.status === 'approved' ? 'bg-green-500' : 'bg-amber-500'
+                    "
+                  />
+                  {{
+                    faq.status === 'approved'
+                      ? t('CAPTAIN.AGENT_TABS.KNOWLEDGE.APPROVED')
+                      : t('CAPTAIN.AGENT_TABS.KNOWLEDGE.PENDING')
+                  }}
+                </span>
+
+                <!-- Confirmacao de exclusao inline -->
+                <template v-if="confirmingDeleteFaqId === faq.id">
+                  <button
+                    type="button"
+                    class="rounded-lg px-2 py-1 text-xs font-medium text-red-600 transition-colors hover:bg-red-50 disabled:opacity-60 dark:text-red-400 dark:hover:bg-red-900/20"
+                    :disabled="deletingFaq"
+                    @click="deleteFaq(faq)"
+                  >
+                    {{ t('CAPTAIN.AGENT_TABS.KNOWLEDGE.DELETE_CONFIRM') }}
+                  </button>
+                  <button
+                    type="button"
+                    class="rounded-lg px-2 py-1 text-xs text-n-slate-11 transition-colors hover:bg-n-alpha-2"
+                    @click="confirmingDeleteFaqId = null"
+                  >
+                    {{ t('CAPTAIN.AGENT_TABS.KNOWLEDGE.CANCEL') }}
+                  </button>
+                </template>
+                <!-- Acoes editar / excluir -->
+                <template v-else>
+                  <button
+                    type="button"
+                    class="rounded-lg p-1.5 text-n-slate-10 transition-colors hover:bg-n-alpha-2 hover:text-n-slate-12"
+                    :title="t('CAPTAIN.AGENT_TABS.KNOWLEDGE.EDIT')"
+                    @click="startEditFaq(faq)"
+                  >
+                    <i class="i-lucide-pencil size-3.5" />
+                  </button>
+                  <button
+                    type="button"
+                    class="rounded-lg p-1.5 text-n-slate-10 transition-colors hover:bg-red-50 hover:text-red-600 dark:hover:bg-red-900/20 dark:hover:text-red-400"
+                    :title="t('CAPTAIN.AGENT_TABS.KNOWLEDGE.DELETE')"
+                    @click="confirmingDeleteFaqId = faq.id"
+                  >
+                    <i class="i-lucide-trash-2 size-3.5" />
+                  </button>
+                </template>
+              </div>
+            </div>
+            <p class="mt-1 line-clamp-2 text-sm text-n-slate-10">
+              {{ faq.answer }}
+            </p>
+          </template>
         </div>
       </div>
     </div>
