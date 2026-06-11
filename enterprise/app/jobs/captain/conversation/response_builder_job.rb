@@ -67,8 +67,15 @@ class Captain::Conversation::ResponseBuilderJob < ApplicationJob
       .where(message_type: [:incoming, :outgoing])
       .where(private: false)
       .map do |message|
+      # Blocos de imagem so podem ir em turnos de USER (a API rejeita 'image' em
+      # assistant turns); outgoing com anexo vira placeholder textual.
+      content = if message.incoming?
+                  with_reply_context(message, prepare_multimodal_message_content(message))
+                else
+                  message.content.presence || (message.attachments.any? ? '[foto do imóvel enviada]' : '')
+                end
       message_hash = {
-        content: with_reply_context(message, prepare_multimodal_message_content(message)),
+        content: content,
         role: determine_role(message)
       }
 
