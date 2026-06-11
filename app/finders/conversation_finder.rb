@@ -33,8 +33,18 @@ class ConversationFinder # rubocop:disable Metrics/ClassLength
   def initialize(current_user, params)
     @current_user = current_user
     @current_account = current_user.account
-    @is_admin = Current.account_user&.administrator?
+    @is_admin = administrator?
     @params = params
+  end
+
+  # Single source of truth for the admin check. Prefer the already-loaded
+  # Current.account_user, but fall back to an explicit lookup when Current is
+  # not populated (e.g. non-request contexts) so admins are never wrongly
+  # treated as agents. Mirrors Conversations::PermissionFilterService.
+  def administrator?
+    account_user = Current.account_user
+    account_user ||= AccountUser.find_by(account_id: @current_account.id, user_id: @current_user.id)
+    account_user&.administrator? || false
   end
 
   def perform

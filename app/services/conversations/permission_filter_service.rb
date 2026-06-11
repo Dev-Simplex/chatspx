@@ -8,7 +8,7 @@ class Conversations::PermissionFilterService
   end
 
   def perform
-    return conversations if user_role == 'administrator'
+    return conversations if administrator?
 
     accessible_conversations
   end
@@ -32,6 +32,14 @@ class Conversations::PermissionFilterService
     @account_user ||= AccountUser.find_by(account_id: account.id, user_id: user.id)
   end
 
+  # Single source of truth for the admin check, shared in intent with
+  # ConversationFinder#administrator? (enum predicate over the AccountUser role).
+  def administrator?
+    account_user&.administrator? || false
+  end
+
+  # Kept for the Enterprise override (user_has_custom_role?), which still
+  # reasons about the raw role string.
   def user_role
     account_user&.role
   end

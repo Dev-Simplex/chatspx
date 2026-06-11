@@ -71,6 +71,10 @@ import {
 import { matchesFilters } from '../store/modules/conversations/helpers/filterHelpers';
 import { CONVERSATION_EVENTS } from '../helper/AnalyticsHelper/events';
 import { ASSIGNEE_TYPE_TAB_PERMISSIONS } from 'dashboard/constants/permissions.js';
+import {
+  UNREAD_ROUTES,
+  defaultAssigneeTab,
+} from 'dashboard/helper/unreadViewHelper';
 
 const props = defineProps({
   conversationInbox: { type: [String, Number], default: 0 },
@@ -96,17 +100,7 @@ const virtualListRef = ref(null);
 
 provide('contextMenuElementTarget', virtualListRef);
 
-const initialAssigneeTabFromRoute = () => {
-  if (route.name === 'conversation_unattended') {
-    if (route.query.assignee_type === 'unassigned')
-      return wootConstants.ASSIGNEE_TYPE.UNASSIGNED;
-    if (route.query.assignee_type === 'all')
-      return wootConstants.ASSIGNEE_TYPE.ALL;
-    return wootConstants.ASSIGNEE_TYPE.ME;
-  }
-  return wootConstants.ASSIGNEE_TYPE.ME;
-};
-const activeAssigneeTab = ref(initialAssigneeTabFromRoute());
+const activeAssigneeTab = ref(defaultAssigneeTab(route.name, route.query));
 const activeStatus = ref(wootConstants.STATUS_TYPE.OPEN);
 const activeSortBy = ref(wootConstants.SORT_BY_TYPE.LAST_ACTIVITY_AT_DESC);
 const showAdvancedFilters = ref(false);
@@ -284,26 +278,29 @@ const conversationCustomAttributes = useFunctionGetter(
 );
 
 const activeAssigneeTabCount = computed(() => {
-  const count = assigneeTabItems.value.find(
+  const activeTab = assigneeTabItems.value.find(
     item => item.key === activeAssigneeTab.value
-  ).count;
-  return count;
+  );
+  return activeTab?.count ?? 0;
 });
 
 const conversationListPagination = computed(() => {
   const conversationsPerPage = 25;
-  const hasChatsOnView =
-    chatsOnView.value &&
-    Array.isArray(chatsOnView.value) &&
-    !chatsOnView.value.length;
-  const isNoFiltersOrFoldersAndChatListNotEmpty =
-    !hasAppliedFiltersOrActiveFolders.value && hasChatsOnView;
-  const isUnderPerPage =
-    chatsOnView.value.length < conversationsPerPage &&
-    activeAssigneeTabCount.value < conversationsPerPage &&
-    activeAssigneeTabCount.value > chatsOnView.value.length;
+  const visibleChats = Array.isArray(chatsOnView.value)
+    ? chatsOnView.value
+    : [];
+  const visibleCount = visibleChats.length;
+  const tabCount = activeAssigneeTabCount.value;
 
-  if (isNoFiltersOrFoldersAndChatListNotEmpty && isUnderPerPage) {
+  const isChatListEmpty = visibleCount === 0;
+  const isDefaultView = !hasAppliedFiltersOrActiveFolders.value;
+  // The rendered list is empty (e.g. right after a tab switch/reset) but the
+  // tab's total count says there is still a partial page (1..24) left to load.
+  // Re-fetch from page 1 instead of advancing the cursor past the data.
+  const hasUnloadedPartialPage =
+    tabCount > visibleCount && tabCount < conversationsPerPage;
+
+  if (isDefaultView && isChatListEmpty && hasUnloadedPartialPage) {
     return 1;
   }
 
@@ -1049,18 +1046,15 @@ provide('assignPriority', assignPriority);
 provide('isConversationSelected', isConversationSelected);
 provide('deleteConversation', handleDelete);
 
-// Unattended route: sync assignee tab from query params
+// Unattended/Unread routes: sync assignee tab from query params (deep-link)
 watch(
   () => [route.name, route.query],
   () => {
-    if (route.name === 'conversation_unattended') {
-      const qt = route.query.assignee_type;
-      let newTab = wootConstants.ASSIGNEE_TYPE.ME;
-      if (qt === 'unassigned') {
-        newTab = wootConstants.ASSIGNEE_TYPE.UNASSIGNED;
-      } else if (qt === 'all') {
-        newTab = wootConstants.ASSIGNEE_TYPE.ALL;
-      }
+    if (
+      route.name === 'conversation_unattended' ||
+      UNREAD_ROUTES.includes(route.name)
+    ) {
+      const newTab = defaultAssigneeTab(route.name, route.query);
       const prevTab = activeAssigneeTab.value;
       activeAssigneeTab.value = newTab;
       if (prevTab !== newTab) {
@@ -1102,9 +1096,11 @@ watch(
       }
     }
 
-    // Side effect: reset assignee tab when leaving unattended view
+    // Side effect: reset assignee tab when the view type changes.
+    // Use the route-aware default so the Unread view keeps its "All" default
+    // instead of being forced back to "Mine".
     if (newType !== prevType && newType !== 'unattended') {
-      activeAssigneeTab.value = wootConstants.ASSIGNEE_TYPE.ME;
+      activeAssigneeTab.value = defaultAssigneeTab(route.name, route.query);
     }
 
     // Side effect: sync active folder in store
