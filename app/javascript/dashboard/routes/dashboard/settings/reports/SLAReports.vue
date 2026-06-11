@@ -7,14 +7,18 @@ import SLATable from './components/SLA/SLATable.vue';
 import SLAReportFilters from './components/SLA/SLAReportFilters.vue';
 import { generateFileName } from 'dashboard/helper/downloadHelper';
 import ReportHeader from './components/ReportHeader.vue';
+import DownloadPdfButton from 'dashboard/components/reports/DownloadPdfButton.vue';
+import ReportNarrativeSummary from './components/ReportNarrativeSummary.vue';
 export default {
   name: 'SLAReports',
   components: {
     V4Button,
     ReportHeader,
+    DownloadPdfButton,
     SLAMetrics,
     SLATable,
     SLAReportFilters,
+    ReportNarrativeSummary,
   },
   data() {
     return {
@@ -82,20 +86,25 @@ export default {
 
 <template>
   <ReportHeader :header-title="$t('SLA_REPORTS.HEADER')">
-    <V4Button
-      :label="$t('SLA_REPORTS.DOWNLOAD_SLA_REPORTS')"
-      icon="i-lucide-download"
-      size="sm"
-      @click="downloadReports"
-    />
+    <div class="flex items-center gap-2">
+      <DownloadPdfButton report-type="sla" :filters="activeFilter" />
+      <V4Button
+        :label="$t('SLA_REPORTS.DOWNLOAD_SLA_REPORTS')"
+        icon="i-lucide-download"
+        size="sm"
+        @click="downloadReports"
+      />
+    </div>
   </ReportHeader>
   <div class="flex flex-col flex-1 gap-6">
     <SLAReportFilters @filter-change="onFilterChange" />
+    <ReportNarrativeSummary :signals="slaMetrics.signals || []" />
     <SLAMetrics
       :hit-rate="slaMetrics.hitRate"
       :no-of-breaches="slaMetrics.numberOfSLAMisses"
       :no-of-conversations="slaMetrics.numberOfConversations"
       :is-loading="uiFlags.isFetchingMetrics"
+      :signals="slaMetrics.signals || []"
     />
     <SLATable
       :sla-reports="slaReports"

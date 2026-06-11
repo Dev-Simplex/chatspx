@@ -165,7 +165,10 @@
         "REPLY": "Tempo de espera do cliente",
         "RESOLUTION_RATE": "Taxa de resolução",
         "CSAT": "Satisfação",
-        "NPS": "NPS"
+        "NPS": "NPS",
+        "SLA_HIT_RATE": "Cumprimento de SLA",
+        "BOT_RESOLUTION_RATE": "Resolução pelo bot",
+        "BOT_HANDOFF_RATE": "Transferência do bot"
       }
     }
   },

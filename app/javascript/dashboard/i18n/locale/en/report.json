@@ -165,7 +165,10 @@
         "REPLY": "Customer waiting time",
         "RESOLUTION_RATE": "Resolution rate",
         "CSAT": "Satisfaction",
-        "NPS": "NPS"
+        "NPS": "NPS",
+        "SLA_HIT_RATE": "SLA hit rate",
+        "BOT_RESOLUTION_RATE": "Bot resolution rate",
+        "BOT_HANDOFF_RATE": "Bot handoff rate"
       }
     }
   },

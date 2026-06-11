@@ -8,6 +8,7 @@ export const state = {
     numberOfConversations: 0,
     numberOfSLAMisses: 0,
     hitRate: '0%',
+    signals: [],
   },
   uiFlags: {
     isFetching: false,
@@ -82,12 +83,14 @@ export const mutations = {
       number_of_sla_misses: numberOfSLAMisses,
       hit_rate: hitRate,
       total_applied_slas: numberOfConversations,
+      signals,
     }
   ) {
     _state.metrics = {
       numberOfSLAMisses,
       hitRate,
       numberOfConversations,
+      signals: signals || [],
     };
   },
   [types.SET_SLA_REPORTS_META](_state, { count, current_page: currentPage }) {
