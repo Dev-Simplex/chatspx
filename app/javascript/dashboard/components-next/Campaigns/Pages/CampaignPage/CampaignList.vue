@@ -10,12 +10,17 @@ defineProps({
     type: Boolean,
     default: false,
   },
+  showView: {
+    type: Boolean,
+    default: false,
+  },
 });
 
-const emit = defineEmits(['edit', 'delete']);
+const emit = defineEmits(['edit', 'delete', 'view']);
 
 const handleEdit = campaign => emit('edit', campaign);
 const handleDelete = campaign => emit('delete', campaign);
+const handleView = campaign => emit('view', campaign);
 </script>
 
 <template>
@@ -31,8 +36,10 @@ const handleDelete = campaign => emit('delete', campaign);
       :inbox="campaign.inbox"
       :scheduled-at="campaign.scheduled_at"
       :is-live-chat-type="isLiveChatType"
+      :show-view="showView"
       @edit="handleEdit(campaign)"
       @delete="handleDelete(campaign)"
+      @view="handleView(campaign)"
     />
   </div>
 </template>

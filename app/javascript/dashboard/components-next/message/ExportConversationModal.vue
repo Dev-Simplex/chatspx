@@ -1,118 +1,176 @@
 <script setup>
-import { ref, computed, watch } from 'vue';
+import { ref, computed, watch, onBeforeUnmount } from 'vue';
 import { useI18n } from 'vue-i18n';
-import { useStore } from 'dashboard/composables/store';
 import { useAlert } from 'dashboard/composables';
-import { generateConversationsPDF } from 'dashboard/helper/ConversationPDFExporter';
+import ConversationPdfExportApi from 'dashboard/api/conversationPdfExport';
 import Icon from 'next/icon/Icon.vue';
 
 const props = defineProps({
   show: { type: Boolean, default: false },
   conversations: { type: Array, default: () => [] },
-  contact: { type: Object, default: () => ({}) },
 });
 
 const emit = defineEmits(['close']);
 
 const { t } = useI18n();
-const store = useStore();
+
+const POLL_INTERVAL_MS = 3000;
+const POLL_MAX_TRIES = 80; // ~4 min de polling
 
 const dateFrom = ref('');
 const dateTo = ref('');
-const includePrivateNotes = ref(false);
-const isExporting = ref(false);
-const exportProgress = ref('');
+const includeIncoming = ref(true);
+const includeOutgoing = ref(true);
+const includePrivate = ref(false);
+const includeActivity = ref(false);
 
-const MAX_CONVERSATIONS = 5;
+const isExporting = ref(false);
+const status = ref(''); // pending | processing | completed | failed
+const exportId = ref(null);
+const downloadUrl = ref(null);
+const errorMessage = ref('');
+
+let pollTimer = null;
+let pollTries = 0;
 
 const conversationCount = computed(() => props.conversations.length);
-const exceedsLimit = computed(
-  () => conversationCount.value > MAX_CONVERSATIONS
-);
+const hasMultiple = computed(() => conversationCount.value > 1);
 
-const handleClose = () => {
-  if (isExporting.value) return;
+const targetConversation = computed(() => props.conversations[0] || null);
+
+const conversationLabel = computed(() => {
+  const c = targetConversation.value;
+  if (!c) return '';
+  return `#${c.display_id || c.id}`;
+});
+
+const canExport = computed(() => {
+  if (!targetConversation.value) return false;
+  if (isExporting.value) return false;
+  // pelo menos um tipo de mensagem precisa estar marcado
+  return (
+    includeIncoming.value ||
+    includeOutgoing.value ||
+    includePrivate.value ||
+    includeActivity.value
+  );
+});
+
+const resetState = () => {
   dateFrom.value = '';
   dateTo.value = '';
-  includePrivateNotes.value = false;
+  includeIncoming.value = true;
+  includeOutgoing.value = true;
+  includePrivate.value = false;
+  includeActivity.value = false;
   isExporting.value = false;
-  exportProgress.value = '';
+  status.value = '';
+  exportId.value = null;
+  downloadUrl.value = null;
+  errorMessage.value = '';
+  pollTries = 0;
+  if (pollTimer) {
+    clearTimeout(pollTimer);
+    pollTimer = null;
+  }
+};
+
+const handleClose = () => {
+  if (isExporting.value && !downloadUrl.value) return;
+  resetState();
   emit('close');
 };
 
-const dateToUnix = dateStr => {
-  if (!dateStr) return null;
-  return Math.floor(new Date(dateStr).getTime() / 1000);
+const filtersPayload = () => ({
+  include_incoming: includeIncoming.value,
+  include_outgoing: includeOutgoing.value,
+  include_private: includePrivate.value,
+  include_activity: includeActivity.value,
+  date_from: dateFrom.value || null,
+  date_to: dateTo.value || null,
+});
+
+const resetExportOnly = () => {
+  exportId.value = null;
+  downloadUrl.value = null;
+  errorMessage.value = '';
+  pollTries = 0;
+  if (pollTimer) {
+    clearTimeout(pollTimer);
+    pollTimer = null;
+  }
 };
 
-const dateToEndOfDayUnix = dateStr => {
-  if (!dateStr) return null;
-  const d = new Date(dateStr);
-  d.setHours(23, 59, 59, 999);
-  return Math.floor(d.getTime() / 1000);
+const pollStatus = async () => {
+  pollTries += 1;
+  if (pollTries > POLL_MAX_TRIES) {
+    status.value = 'failed';
+    errorMessage.value = t('EXPORT_CONVERSATION.TIMEOUT');
+    isExporting.value = false;
+    return;
+  }
+  try {
+    const { data } = await ConversationPdfExportApi.show(
+      targetConversation.value.id,
+      exportId.value
+    );
+    status.value = data.status;
+    if (data.status === 'completed') {
+      downloadUrl.value = data.download_url;
+      isExporting.value = false;
+    } else if (data.status === 'failed') {
+      errorMessage.value = data.error_message || t('EXPORT_CONVERSATION.ERROR');
+      isExporting.value = false;
+    } else {
+      pollTimer = setTimeout(pollStatus, POLL_INTERVAL_MS);
+    }
+  } catch (e) {
+    status.value = 'failed';
+    errorMessage.value =
+      e?.response?.data?.message || t('EXPORT_CONVERSATION.ERROR');
+    isExporting.value = false;
+  }
 };
-
-const currentAccount = computed(() => store.getters.getCurrentAccount || {});
 
 const handleExport = async () => {
-  if (props.conversations.length === 0 || exceedsLimit.value) return;
+  if (!canExport.value) return;
 
+  resetExportOnly();
   isExporting.value = true;
-  exportProgress.value = t('EXPORT_CONVERSATION.PROGRESS.FETCHING');
+  status.value = 'pending';
 
   try {
-    const inboxes = store.getters['inboxes/getInboxes'] || [];
-    const inboxesById = {};
-    inboxes.forEach(inbox => {
-      inboxesById[inbox.id] = inbox;
-    });
-    const accountLabels = store.getters['labels/getLabels'] || [];
-
-    await generateConversationsPDF({
-      conversations: props.conversations,
-      contact: props.contact,
-      inboxesById,
-      labelsById: {},
-      accountLabels,
-      user: store.getters.getCurrentUser,
-      account: currentAccount.value,
-      dateFrom: dateToUnix(dateFrom.value),
-      dateTo: dateToEndOfDayUnix(dateTo.value),
-      includePrivateNotes: includePrivateNotes.value,
-      onProgress: progress => {
-        if (progress.status === 'fetching') {
-          const loaded = progress.messagesLoaded || 0;
-          exportProgress.value = t(
-            'EXPORT_CONVERSATION.PROGRESS.LOADING_MESSAGES',
-            { count: loaded }
-          );
-        } else if (progress.status === 'generating') {
-          exportProgress.value = t('EXPORT_CONVERSATION.PROGRESS.GENERATING');
-        }
-      },
-    });
-
-    useAlert(t('EXPORT_CONVERSATION.SUCCESS'));
-    handleClose();
-  } catch {
-    useAlert(t('EXPORT_CONVERSATION.ERROR'));
-  } finally {
+    const { data } = await ConversationPdfExportApi.create(
+      targetConversation.value.id,
+      filtersPayload()
+    );
+    exportId.value = data.id;
+    status.value = data.status;
+    pollTimer = setTimeout(pollStatus, POLL_INTERVAL_MS);
+  } catch (e) {
     isExporting.value = false;
-    exportProgress.value = '';
+    status.value = 'failed';
+    errorMessage.value =
+      e?.response?.data?.message || t('EXPORT_CONVERSATION.ERROR');
+    useAlert(errorMessage.value);
   }
+};
+
+const handleDownload = () => {
+  if (!downloadUrl.value) return;
+  window.open(downloadUrl.value, '_blank');
 };
 
 watch(
   () => props.show,
   val => {
-    if (!val) {
-      dateFrom.value = '';
-      dateTo.value = '';
-      includePrivateNotes.value = false;
-      exportProgress.value = '';
-    }
+    if (!val) resetState();
   }
 );
+
+onBeforeUnmount(() => {
+  if (pollTimer) clearTimeout(pollTimer);
+});
 </script>
 
 <template>
@@ -134,7 +192,7 @@ watch(
 
         <div class="relative flex min-h-full items-center justify-center p-4">
           <div
-            class="relative w-full max-w-sm bg-n-background rounded-2xl shadow-2xl ring-1 ring-n-slate-12/5"
+            class="relative w-full max-w-md bg-n-background rounded-2xl shadow-2xl ring-1 ring-n-slate-12/5"
           >
             <!-- Header -->
             <div
@@ -150,17 +208,11 @@ watch(
                   {{ t('EXPORT_CONVERSATION.TITLE') }}
                 </h3>
                 <p class="text-xs text-n-slate-11 truncate">
-                  {{
-                    conversationCount === 1
-                      ? `#${conversations[0]?.display_id || conversations[0]?.id}`
-                      : t('EXPORT_CONVERSATION.CONVERSATIONS_COUNT', {
-                          count: conversationCount,
-                        })
-                  }}
+                  {{ conversationLabel }}
                 </p>
               </div>
               <button
-                :disabled="isExporting"
+                :disabled="isExporting && !downloadUrl"
                 class="p-1.5 rounded-full hover:bg-n-slate-3 transition-colors disabled:opacity-30"
                 @click="handleClose"
               >
@@ -168,15 +220,14 @@ watch(
               </button>
             </div>
 
-            <!-- Limit warning -->
+            <!-- Multi-conv warning -->
             <div
-              v-if="exceedsLimit"
+              v-if="hasMultiple"
               class="mx-5 mt-4 px-3 py-2 rounded-lg bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800"
             >
               <p class="text-xs text-amber-700 dark:text-amber-300">
                 {{
-                  t('EXPORT_CONVERSATION.LIMIT_WARNING', {
-                    max: MAX_CONVERSATIONS,
+                  t('EXPORT_CONVERSATION.MULTI_WARNING', {
                     count: conversationCount,
                   })
                 }}
@@ -184,7 +235,7 @@ watch(
             </div>
 
             <!-- Body -->
-            <div class="px-5 py-4 space-y-4">
+            <div v-if="!downloadUrl" class="px-5 py-4 space-y-4">
               <!-- Date range -->
               <div>
                 <label class="block text-xs font-medium text-n-slate-11 mb-2">
@@ -198,6 +249,7 @@ watch(
                     <input
                       v-model="dateFrom"
                       type="date"
+                      :disabled="isExporting"
                       class="w-full px-3 py-2 text-sm border border-n-weak rounded-lg bg-n-background text-n-slate-12 focus:ring-1 focus:ring-n-brand focus:border-n-brand"
                     />
                   </div>
@@ -208,33 +260,91 @@ watch(
                     <input
                       v-model="dateTo"
                       type="date"
+                      :disabled="isExporting"
                       class="w-full px-3 py-2 text-sm border border-n-weak rounded-lg bg-n-background text-n-slate-12 focus:ring-1 focus:ring-n-brand focus:border-n-brand"
                     />
                   </div>
                 </div>
-                <p class="mt-1.5 text-[10px] text-n-slate-10">
-                  {{ t('EXPORT_CONVERSATION.DATE_HINT') }}
-                </p>
               </div>
 
-              <!-- Private notes toggle -->
-              <label
-                class="flex items-center gap-3 px-3 py-3 rounded-lg border border-n-weak cursor-pointer hover:bg-n-slate-3 transition-colors"
-              >
-                <input
-                  v-model="includePrivateNotes"
-                  type="checkbox"
-                  class="size-4 text-n-brand rounded border-n-weak focus:ring-n-brand"
-                />
-                <div class="flex-1 min-w-0">
-                  <span class="text-sm text-n-slate-11">
-                    {{ t('EXPORT_CONVERSATION.INCLUDE_PRIVATE') }}
-                  </span>
+              <!-- Filter toggles -->
+              <div>
+                <label class="block text-xs font-medium text-n-slate-11 mb-2">
+                  {{ t('EXPORT_CONVERSATION.FILTERS_LABEL') }}
+                </label>
+                <div class="space-y-1.5">
+                  <label
+                    class="flex items-center gap-2.5 px-3 py-2 rounded-lg border border-n-weak cursor-pointer hover:bg-n-slate-3 transition-colors"
+                  >
+                    <input
+                      v-model="includeIncoming"
+                      type="checkbox"
+                      :disabled="isExporting"
+                      class="size-4 text-n-brand rounded border-n-weak focus:ring-n-brand"
+                    />
+                    <Icon
+                      icon="i-lucide-message-square"
+                      class="size-3.5 text-blue-500"
+                    />
+                    <span class="text-xs text-n-slate-11 flex-1">
+                      {{ t('EXPORT_CONVERSATION.INCLUDE_INCOMING') }}
+                    </span>
+                  </label>
+                  <label
+                    class="flex items-center gap-2.5 px-3 py-2 rounded-lg border border-n-weak cursor-pointer hover:bg-n-slate-3 transition-colors"
+                  >
+                    <input
+                      v-model="includeOutgoing"
+                      type="checkbox"
+                      :disabled="isExporting"
+                      class="size-4 text-n-brand rounded border-n-weak focus:ring-n-brand"
+                    />
+                    <Icon
+                      icon="i-lucide-send"
+                      class="size-3.5 text-emerald-600"
+                    />
+                    <span class="text-xs text-n-slate-11 flex-1">
+                      {{ t('EXPORT_CONVERSATION.INCLUDE_OUTGOING') }}
+                    </span>
+                  </label>
+                  <label
+                    class="flex items-center gap-2.5 px-3 py-2 rounded-lg border border-n-weak cursor-pointer hover:bg-n-slate-3 transition-colors"
+                  >
+                    <input
+                      v-model="includePrivate"
+                      type="checkbox"
+                      :disabled="isExporting"
+                      class="size-4 text-n-brand rounded border-n-weak focus:ring-n-brand"
+                    />
+                    <Icon
+                      icon="i-lucide-lock"
+                      class="size-3.5 text-amber-600"
+                    />
+                    <span class="text-xs text-n-slate-11 flex-1">
+                      {{ t('EXPORT_CONVERSATION.INCLUDE_PRIVATE') }}
+                    </span>
+                  </label>
+                  <label
+                    class="flex items-center gap-2.5 px-3 py-2 rounded-lg border border-n-weak cursor-pointer hover:bg-n-slate-3 transition-colors"
+                  >
+                    <input
+                      v-model="includeActivity"
+                      type="checkbox"
+                      :disabled="isExporting"
+                      class="size-4 text-n-brand rounded border-n-weak focus:ring-n-brand"
+                    />
+                    <Icon
+                      icon="i-lucide-info"
+                      class="size-3.5 text-n-slate-10"
+                    />
+                    <span class="text-xs text-n-slate-11 flex-1">
+                      {{ t('EXPORT_CONVERSATION.INCLUDE_ACTIVITY') }}
+                    </span>
+                  </label>
                 </div>
-                <Icon icon="i-lucide-lock" class="size-3.5 text-n-slate-10" />
-              </label>
+              </div>
 
-              <!-- Progress -->
+              <!-- Status -->
               <div
                 v-if="isExporting"
                 class="flex items-center gap-2.5 px-3 py-2.5 rounded-lg bg-n-teal-2 dark:bg-n-teal-3/30"
@@ -244,8 +354,41 @@ watch(
                   class="size-4 text-n-teal-11 animate-spin shrink-0"
                 />
                 <span class="text-xs text-n-teal-11">
-                  {{ exportProgress }}
+                  {{
+                    status === 'processing'
+                      ? t('EXPORT_CONVERSATION.PROGRESS.GENERATING')
+                      : t('EXPORT_CONVERSATION.PROGRESS.QUEUED')
+                  }}
                 </span>
+              </div>
+
+              <div
+                v-if="errorMessage"
+                class="flex items-start gap-2.5 px-3 py-2.5 rounded-lg bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800"
+              >
+                <Icon
+                  icon="i-lucide-alert-circle"
+                  class="size-4 text-red-600 shrink-0"
+                />
+                <span class="text-xs text-red-700 dark:text-red-300">{{
+                  errorMessage
+                }}</span>
+              </div>
+            </div>
+
+            <!-- Ready state -->
+            <div v-else class="px-5 py-6 text-center space-y-3">
+              <Icon
+                icon="i-lucide-check-circle-2"
+                class="size-10 text-emerald-500 mx-auto"
+              />
+              <div>
+                <p class="text-sm font-medium text-n-slate-12">
+                  {{ t('EXPORT_CONVERSATION.READY_TITLE') }}
+                </p>
+                <p class="text-xs text-n-slate-11 mt-1">
+                  {{ t('EXPORT_CONVERSATION.READY_HINT') }}
+                </p>
               </div>
             </div>
 
@@ -254,16 +397,19 @@ watch(
               class="flex items-center justify-end gap-2 px-5 py-3 border-t border-n-weak"
             >
               <button
-                :disabled="isExporting"
+                :disabled="isExporting && !downloadUrl"
                 class="px-4 py-2 text-sm font-medium text-n-slate-11 rounded-lg hover:bg-n-slate-3 transition-colors disabled:opacity-30"
                 @click="handleClose"
               >
-                {{ t('EXPORT_CONVERSATION.CANCEL') }}
+                {{
+                  downloadUrl
+                    ? t('EXPORT_CONVERSATION.CLOSE')
+                    : t('EXPORT_CONVERSATION.CANCEL')
+                }}
               </button>
               <button
-                :disabled="
-                  isExporting || exceedsLimit || conversationCount === 0
-                "
+                v-if="!downloadUrl"
+                :disabled="!canExport"
                 class="flex items-center gap-2 px-4 py-2 text-sm font-medium text-white bg-n-teal-9 rounded-lg hover:bg-n-teal-10 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
                 @click="handleExport"
               >
@@ -274,6 +420,14 @@ watch(
                 />
                 <Icon v-else icon="i-lucide-download" class="size-4" />
                 {{ t('EXPORT_CONVERSATION.EXPORT_PDF') }}
+              </button>
+              <button
+                v-else
+                class="flex items-center gap-2 px-4 py-2 text-sm font-medium text-white bg-emerald-600 rounded-lg hover:bg-emerald-700 transition-colors"
+                @click="handleDownload"
+              >
+                <Icon icon="i-lucide-download" class="size-4" />
+                {{ t('EXPORT_CONVERSATION.DOWNLOAD') }}
               </button>
             </div>
           </div>

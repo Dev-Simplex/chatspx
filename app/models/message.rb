@@ -64,6 +64,7 @@ class Message < ApplicationRecord
   }.to_json.freeze
 
   before_validation :ensure_content_type
+  before_validation :ensure_json_attributes
   before_validation :prevent_message_flooding
   before_save :ensure_processed_message_content
   before_save :ensure_in_reply_to
@@ -119,7 +120,7 @@ class Message < ApplicationRecord
 
   scope :created_since, ->(datetime) { where('created_at > ?', datetime) }
   scope :chat, -> { where.not(message_type: :activity).where(private: false) }
-  scope :non_activity_messages, -> { where.not(message_type: :activity).reorder('created_at desc') }
+  scope :non_activity_messages, -> { where.not(message_type: :activity).reorder('created_at desc, id desc') }
   scope :today, -> { where("date_trunc('day', created_at) = ?", Date.current) }
   scope :for_team, ->(team_id) { where(team_id: team_id) }
   scope :voice_calls, -> { where(content_type: :voice_call) }
@@ -129,7 +130,7 @@ class Message < ApplicationRecord
   # TODO: Get rid of default scope
   # https://stackoverflow.com/a/1834250/939299
   # if you want to change order, use `reorder`
-  default_scope { order(created_at: :asc) }
+  default_scope { order(created_at: :asc, id: :asc) }
 
   belongs_to :account
   belongs_to :inbox
@@ -230,7 +231,9 @@ class Message < ApplicationRecord
   def valid_first_reply?
     return false unless human_response? && !private?
     return false if conversation.first_reply_created_at.present?
-    return false if conversation.messages.outgoing
+    # Usa all_messages (sem filtro de team_message_isolation) — first_reply_created_at e
+    # contagem de respostas humanas previas sao globais por conversa, nao por team.
+    return false if conversation.all_messages.outgoing
                                 .where.not(sender_type: ['AgentBot', 'Captain::Assistant'])
                                 .where.not(private: true)
                                 .where("(additional_attributes->'campaign_id') is null").limit(2).count > 1
@@ -297,8 +300,9 @@ class Message < ApplicationRecord
     return if conversation.blank?
 
     # there are cases where automations can result in message loops, we need to prevent such cases.
+    # Usa all_messages para contar globalmente — rate-limit nao deve depender de team_message_isolation.
     flood_limit = Limits.conversation_message_per_minute_limit
-    if conversation.messages.where('created_at >= ?', 1.minute.ago).limit(flood_limit + 1).count >= flood_limit
+    if conversation.all_messages.where('created_at >= ?', 1.minute.ago).limit(flood_limit + 1).count >= flood_limit
       Rails.logger.error "Too many message: Account Id - #{account_id} : Conversation id - #{conversation_id}"
       errors.add(:base, 'Too many messages')
     end
@@ -326,6 +330,14 @@ class Message < ApplicationRecord
 
   def ensure_content_type
     self.content_type ||= Message.content_types[:text]
+  end
+
+  # Mensagens criadas via insert_all! ou SQL direto podem persistir JSON columns como NULL
+  # literal. Isso quebra acessos diretos (content_attributes['key']) em human_response? e
+  # callbacks correlatos com NoMethodError silencioso.
+  def ensure_json_attributes
+    self.content_attributes = {} if content_attributes.nil?
+    self.additional_attributes = {} if additional_attributes.nil?
   end
 
   def execute_after_create_commit_callbacks
@@ -361,9 +373,15 @@ class Message < ApplicationRecord
     conversation.update(waiting_since: nil) if bot_response? && !preserve_waiting_since
   end
 
+  # Guard contra repop em conversa resolved: NPS responses (via NpsSurveys::ReopenGuard)
+  # nao reabrem a conversa, entao incoming chega com status=resolved. Sem este guard,
+  # waiting_since seria populado em estado invalido. Ver Conversation#handle_resolved_status_change
+  # que mantem a invariante "resolved => waiting_since IS NULL".
   def set_waiting_since_on_incoming_message
-    # Set waiting_since when customer sends a message (if currently blank)
-    conversation.update(waiting_since: created_at) if incoming? && conversation.waiting_since.blank?
+    return unless incoming? && conversation.waiting_since.blank?
+    return if conversation.resolved?
+
+    conversation.update(waiting_since: created_at)
   end
 
   def human_response?
@@ -449,7 +467,7 @@ class Message < ApplicationRecord
 
   def reopen_resolved_conversation
     # mark resolved bot conversation as pending to be reopened by bot processor service
-    if conversation.inbox.active_bot?
+    if conversation.inbox.active_bot? && conversation.inbox.pending_status_enabled?
       conversation.pending!
     elsif conversation.inbox.api?
       Current.executed_by = sender if reopened_by_contact?

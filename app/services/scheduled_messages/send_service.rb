@@ -37,6 +37,10 @@ class ScheduledMessages::SendService
         private: false,
         content_attributes: scheduled_metadata.merge('skip_signature' => true)
       }
+      # HSM (WhatsApp Cloud API): se houver template_params, o MessageBuilder os repassa
+      # pra message.additional_attributes['template_params'] e o SendOnWhatsappService envia
+      # como template (obrigatorio fora da janela de 24h). WAHA ignora (sem HSM).
+      message_params[:template_params] = scheduled_message.template_params if scheduled_message.try(:template_params).present?
       message_params[:attachments] = scheduled_message.attachments.map { |a| a.blob.signed_id } if scheduled_message.attachments.attached?
 
       mb = Messages::MessageBuilder.new(user, conversation, message_params.with_indifferent_access)

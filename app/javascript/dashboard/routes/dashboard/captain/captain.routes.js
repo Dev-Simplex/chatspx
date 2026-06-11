@@ -11,6 +11,8 @@ import AssistantPlaygroundIndex from './assistants/playground/Index.vue';
 import AssistantGuardrailsIndex from './assistants/guardrails/Index.vue';
 import AssistantGuidelinesIndex from './assistants/guidelines/Index.vue';
 import AssistantScenariosIndex from './assistants/scenarios/Index.vue';
+import AssistantBehaviorIndex from './assistants/behavior/Index.vue';
+import AssistantLogsIndex from './assistants/logs/Index.vue';
 import DocumentsIndex from './documents/Index.vue';
 import ResponsesIndex from './responses/Index.vue';
 import ResponsesPendingIndex from './responses/Pending.vue';
@@ -91,6 +93,24 @@ const assistantRoutes = [
     component: AssistantGuidelinesIndex,
     name: 'captain_assistants_guidelines_index',
     meta: metaV2,
+  },
+  {
+    path: frontendURL('accounts/:accountId/captain/:assistantId/behavior'),
+    component: AssistantBehaviorIndex,
+    name: 'captain_assistants_behavior_index',
+    meta: {
+      permissions: ['administrator'],
+      featureFlag: FEATURE_FLAGS.CAPTAIN_V2,
+    },
+  },
+  {
+    path: frontendURL('accounts/:accountId/captain/:assistantId/logs'),
+    component: AssistantLogsIndex,
+    name: 'captain_assistants_logs_index',
+    meta: {
+      permissions: ['administrator'],
+      featureFlag: FEATURE_FLAGS.CAPTAIN_V2,
+    },
   },
   {
     path: frontendURL('accounts/:accountId/captain/assistants'),

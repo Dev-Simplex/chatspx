@@ -468,7 +468,7 @@ const handleDeleteStage = async stage => {
 .kanban-board {
   min-width: 100%;
   scrollbar-width: thin;
-  scrollbar-color: var(--n-weak) transparent;
+  scrollbar-color: rgb(var(--border-weak)) transparent;
 }
 
 .kanban-board::-webkit-scrollbar {
@@ -480,17 +480,17 @@ const handleDeleteStage = async stage => {
 }
 
 .kanban-board::-webkit-scrollbar-thumb {
-  background-color: var(--n-weak);
+  background-color: rgb(var(--border-weak));
   border-radius: 4px;
 }
 
 .kanban-board::-webkit-scrollbar-thumb:hover {
-  background-color: var(--n-strong);
+  background-color: rgb(var(--border-strong));
 }
 
 :deep(.kanban-stage-ghost) {
   opacity: 0.4;
-  border: 2px dashed var(--n-brand, #2dc46f);
+  border: 2px dashed #2dc46f;
   background: rgba(45, 196, 111, 0.05);
 }
 

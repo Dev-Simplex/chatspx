@@ -1,4 +1,5 @@
 json.account_id resource.account_id
+json.behavior resource.behavior
 json.config resource.config
 json.created_at resource.created_at.to_i
 json.description resource.description

@@ -16,7 +16,7 @@ if [[ ${PIPESTATUS[0]} -ne 4 ]]; then
 fi
 
 # Global variables
-LONGOPTS=console,debug,help,install,Install:,logs:,restart,ssl,upgrade,Upgrade:,webserver,version,web-only,worker-only,convert:
+LONGOPTS=console,debug,help,install,Install:,logs:,restart,ssl,upgrade,Upgrade:,webserver,version,web-only,worker-only,convert:,skip-account
 OPTIONS=cdhiI:l:rsuU:wvWK
 CWCTL_VERSION="4.0.0"
 pg_pass=$(head /dev/urandom | tr -dc A-Za-z0-9 | head -c 15 ; echo '')
@@ -39,7 +39,7 @@ if [[ ${PIPESTATUS[0]} -ne 0 ]]; then
 fi
 eval set -- "$PARSED"
 
-c=n d=n h=n i=n I=n l=n r=n s=n u=n U=n w=n v=n W=n K=n C=n BRANCH=$DEFAULT_BRANCH SERVICE=web DEPLOYMENT_TYPE=full CONVERT_TO=""
+c=n d=n h=n i=n I=n l=n r=n s=n u=n U=n w=n v=n W=n K=n C=n SKIP_ACCOUNT=n BRANCH=$DEFAULT_BRANCH SERVICE=web DEPLOYMENT_TYPE=full CONVERT_TO=""
 while true; do
     case "$1" in
         -c|--console) c=y; break ;;
@@ -65,6 +65,7 @@ while true; do
                 *) echo "Invalid conversion type. Use: web, worker, or full"; exit 3 ;;
             esac
             shift 2 ;;
+        --skip-account) SKIP_ACCOUNT=y; shift ;;
         --) shift; break ;;
         *) echo "Invalid option(s). Use --help."; exit 3 ;;
     esac
@@ -90,20 +91,27 @@ function exit_handler() {
 }
 
 ##############################################################################
-# Ensure swap exists (needed for asset compilation on small VMs)
+# Ensure swap exists + sysctl tuned (lessons from Tozi AWS — produção 27/05/2026)
 ##############################################################################
 function ensure_swap() {
+  # Swap: 4GB pra absorver picos do Vite build + WAHA media + restart bursts
+  # (2GB era insuficiente em VMs com 7.6GB RAM — observado em fabrica/catatau)
   if [ "$(swapon --show | wc -l)" -eq 0 ]; then
-    local mem_mb=$(free -m | awk '/^Mem:/{print $2}')
-    if [ "$mem_mb" -lt 4096 ]; then
-      echo "Creating 2GB swap file for build stability..."
-      fallocate -l 2G /swapfile
-      chmod 600 /swapfile
-      mkswap /swapfile
-      swapon /swapfile
-      echo '/swapfile none swap sw 0 0' >> /etc/fstab
-    fi
+    echo "Creating 4GB swap file..."
+    fallocate -l 4G /swapfile
+    chmod 600 /swapfile
+    mkswap /swapfile
+    swapon /swapfile
+    grep -q swapfile /etc/fstab || echo '/swapfile none swap sw 0 0' >> /etc/fstab
   fi
+
+  # Sysctl tuning persistente: prefere cache de página vs swap;
+  # libera cache de filesystem mais cedo. Diferença grande em VMs ~8GB.
+  cat > /etc/sysctl.d/99-chatspx-mem.conf <<'EOF'
+vm.swappiness = 10
+vm.vfs_cache_pressure = 50
+EOF
+  sysctl -p /etc/sysctl.d/99-chatspx-mem.conf >/dev/null 2>&1 || true
 }
 
 ##############################################################################
@@ -177,6 +185,18 @@ function install_databases() {
 ##############################################################################
 function install_webserver() {
   apt-get install -y nginx nginx-full certbot python3-certbot-nginx
+}
+
+##############################################################################
+# Install Chromium (Ferrum PDF export server-side — feat e3adc43a7)
+# config/initializers/ferrum_pdf.rb aponta para /snap/bin/chromium
+##############################################################################
+function install_chromium() {
+  if [ ! -x /snap/bin/chromium ]; then
+    echo "Installing chromium snap (required by Ferrum PDF export)..."
+    snap install chromium >/dev/null 2>&1 || \
+      echo "WARN: snap install chromium falhou — instale manualmente apos o setup"
+  fi
 }
 
 ##############################################################################
@@ -338,11 +358,11 @@ function collect_spx_config() {
 
   # SMTP (valores padrao SPX)
   configure_smtp="sim"
-  cfg_mailer_sender="SPX - CHAT <sup@simplexsolucoes.com.br>"
-  cfg_smtp_domain="simplexsolucoes.com.br"
+  cfg_mailer_sender="SPX - CHAT <contato@chatspx.app>"
+  cfg_smtp_domain="chatspx.app"
   cfg_smtp_address="cloud55.mailgrid.net.br"
   cfg_smtp_port="587"
-  cfg_smtp_user="chatspx@simplexsolucoes.com.br"
+  cfg_smtp_user="contato@chatspx.app"
   cfg_smtp_pass="Master@1239*"
   cfg_smtp_auth="login"
   echo ""
@@ -358,14 +378,26 @@ function collect_spx_config() {
     read -rp "  Sessao padrao WAHA (nome da sessao para validacao de numeros): " cfg_waha_session
   fi
 
-  # First account + Super Admin
-  echo ""
-  echo "--- Primeira Conta e Super Admin ---"
-  read -rp "Nome da conta (ex: Simplex Solucoes): " cfg_account_name
-  read -rp "Nome do administrador: " cfg_admin_name
-  read -rp "E-mail do administrador: " cfg_admin_email
-  read -rsp "Senha do administrador (minimo 6 caracteres): " cfg_admin_password
-  echo ""
+  # First account + Super Admin (skipped when --skip-account is used)
+  if [ "$SKIP_ACCOUNT" == "y" ]; then
+    echo ""
+    echo "--- Primeira Conta e Super Admin ---"
+    echo "  Pulando criacao de conta (--skip-account). O banco ficara vazio,"
+    echo "  esperando restore de dump externo. Pos-restore, acesse via os"
+    echo "  usuarios ja existentes no dump."
+    cfg_account_name=""
+    cfg_admin_name=""
+    cfg_admin_email=""
+    cfg_admin_password=""
+  else
+    echo ""
+    echo "--- Primeira Conta e Super Admin ---"
+    read -rp "Nome da conta (ex: Simplex Solucoes): " cfg_account_name
+    read -rp "Nome do administrador: " cfg_admin_name
+    read -rp "E-mail do administrador: " cfg_admin_email
+    read -rsp "Senha do administrador (minimo 6 caracteres): " cfg_admin_password
+    echo ""
+  fi
 
   echo ""
   echo "Configuracao coletada. Iniciando instalacao..."
@@ -462,6 +494,12 @@ CLONESCRIPT
     set -e
     cd ~/chatwoot
     RAILS_ENV=production NODE_OPTIONS='--max-old-space-size=4096' bundle exec rake assets:precompile
+    # Pre-compress assets so Nginx gzip_static serves *.gz directly (no runtime CPU)
+    if [ -d public/vite/assets ]; then
+      find public/vite/assets -maxdepth 1 -type f \
+        \( -name '*.js' -o -name '*.css' -o -name '*.svg' -o -name '*.json' \) ! -name '*.gz' \
+        -exec sh -c '[ -f "$1.gz" ] || gzip -k -9 "$1"' _ {} \;
+    fi
 BUILDSCRIPT
 }
 
@@ -586,12 +624,22 @@ function configure_systemd_services() {
 # Detectar se a VM tem IP publico (pode usar LetsEncrypt)
 ##############################################################################
 function has_public_ip() {
-  local public_ip=$(curl -s --max-time 5 http://checkip.amazonaws.com 2>/dev/null)
-  # Se o IP publico bate com algum IP local, tem IP publico direto
+  local public_ip
+  public_ip=$(curl -s --max-time 5 http://checkip.amazonaws.com 2>/dev/null)
+  [ -z "$public_ip" ] && return 1
+
+  # Cenario 1: IP publico direto na interface (bare-metal, sem NAT)
   if ip addr show 2>/dev/null | grep -q "$public_ip"; then
     return 0
   fi
-  # IP nao bate = VM atras de proxy/NAT
+
+  # Cenario 2: NAT 1:1 (AWS/GCP/Azure) — dominio resolve pro IP publico detectado
+  local resolved_ip
+  resolved_ip=$(getent hosts "$domain_name" 2>/dev/null | awk '{print $1}' | head -1)
+  if [ -n "$resolved_ip" ] && [ "$resolved_ip" = "$public_ip" ]; then
+    return 0
+  fi
+
   return 1
 }
 
@@ -617,7 +665,49 @@ function setup_selfsigned_ssl() {
   fi
   ln -sf /etc/nginx/sites-available/nginx_chatwoot.conf /etc/nginx/sites-enabled/nginx_chatwoot.conf
   rm -f /etc/nginx/sites-enabled/default
+  ensure_nginx_traverse
+  ensure_maintenance_page
+  ensure_nginx_gzip
   nginx -t && systemctl restart nginx
+}
+
+##############################################################################
+# Garantir que nginx (www-data) consegue atravessar /home/chatwoot
+# Sem isso, location /vite/ /packs/ /assets/ retorna 403 e Rails serve estatico
+##############################################################################
+function ensure_nginx_traverse() {
+  if [ -d /home/chatwoot ]; then
+    chmod o+x /home/chatwoot
+  fi
+}
+
+##############################################################################
+# Habilita gzip_types no /etc/nginx/nginx.conf (default Ubuntu so comprime HTML)
+# Sem isso, JS/CSS de 4MB sao servidos sem compressao
+##############################################################################
+function ensure_nginx_gzip() {
+  local ngx=/etc/nginx/nginx.conf
+  if ! grep -qE '^\s*gzip_types\s+' "$ngx"; then
+    sed -i '/^\s*gzip on;/a\
+\tgzip_vary on;\
+\tgzip_min_length 1024;\
+\tgzip_comp_level 6;\
+\tgzip_types text/plain text/css text/javascript application/javascript application/x-javascript application/json application/xml application/xml+rss image/svg+xml font/ttf font/otf;' "$ngx"
+  fi
+}
+
+##############################################################################
+# Pagina de manutencao usada por error_page 502 503 504 no nginx_chatwoot.conf
+##############################################################################
+function ensure_maintenance_page() {
+  if [ ! -f /var/www/custom_errors/manutencao.html ]; then
+    mkdir -p /var/www/custom_errors
+    cat > /var/www/custom_errors/manutencao.html <<'HTML'
+<!DOCTYPE html><html lang="pt-BR"><head><meta charset="UTF-8"><title>Manutencao - SPX CHAT</title>
+<style>body{font-family:system-ui,sans-serif;background:#0f172a;color:#e2e8f0;display:flex;align-items:center;justify-content:center;height:100vh;margin:0;text-align:center}h1{color:#2dc46f;font-size:2rem;margin:0 0 1rem}p{margin:.25rem 0}</style>
+</head><body><div><h1>Sistema em manutencao</h1><p>Voltamos em instantes.</p><p style="opacity:.6;margin-top:1rem">SPX - CHAT</p></div></body></html>
+HTML
+  fi
 }
 
 ##############################################################################
@@ -631,6 +721,9 @@ function setup_letsencrypt_ssl() {
   sed -i "s/chatwoot.domain.com/$domain_name/g" /etc/nginx/sites-available/nginx_chatwoot.conf
   ln -sf /etc/nginx/sites-available/nginx_chatwoot.conf /etc/nginx/sites-enabled/nginx_chatwoot.conf
   rm -f /etc/nginx/sites-enabled/default
+  ensure_nginx_traverse
+  ensure_maintenance_page
+  ensure_nginx_gzip
   nginx -t && systemctl restart nginx
 }
 
@@ -736,6 +829,9 @@ EOF
     echo "=> 4/10 Pulando instalacao do servidor web."
   fi
 
+  echo "=> 4.5/10 Instalando Chromium (Ferrum PDF export)..."
+  install_chromium &>> "$LOG_FILE"
+
   echo "=> 5/10 Instalando Ruby ${RUBY_VERSION} via RVM..."
   configure_rvm &>> "$LOG_FILE"
 
@@ -753,8 +849,12 @@ EOF
     echo "=> 8/10 Executando migracoes do banco..."
     run_db_migrations &>> "$LOG_FILE"
 
-    echo "=> 9/10 Criando primeira conta e super admin..."
-    create_first_account &>> "$LOG_FILE"
+    if [ "$SKIP_ACCOUNT" == "y" ]; then
+      echo "=> 9/10 Pulando criacao de conta (--skip-account; aguardando restore externo)."
+    else
+      echo "=> 9/10 Criando primeira conta e super admin..."
+      create_first_account &>> "$LOG_FILE"
+    fi
   else
     echo "=> 8/10 Pulando migracoes do banco."
     echo "=> 9/10 Pulando criacao de conta (sem banco local)."
@@ -845,6 +945,7 @@ Instalacao/Atualizacao:
   -W, --web-only            Instalar apenas o servidor web
   -K, --worker-only         Instalar apenas o worker de background
       --convert TIPO        Converter deployment (TIPO: web, worker, full)
+      --skip-account        NAO criar primeira conta (use para receber restore externo)
 
 Gerenciamento:
   -c, --console             Abrir console Rails

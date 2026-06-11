@@ -345,6 +345,33 @@ describe('#actions', () => {
     });
   });
 
+  describe('#updateMessage', () => {
+    it('commits ADD_MESSAGE when message already exists in chat', () => {
+      const state = {
+        allConversations: [{ id: 10, messages: [{ id: 99 }, { id: 100 }] }],
+      };
+      const message = { id: 100, conversation_id: 10, status: 'delivered' };
+      actions.updateMessage({ commit, rootGetters: {}, state }, message);
+      expect(commit.mock.calls).toEqual([[types.ADD_MESSAGE, message]]);
+    });
+
+    it('does NOT commit ADD_MESSAGE when message is not in the visible window', () => {
+      const state = {
+        allConversations: [{ id: 10, messages: [{ id: 99 }, { id: 100 }] }],
+      };
+      const message = { id: 5500, conversation_id: 10, status: 'delivered' };
+      actions.updateMessage({ commit, rootGetters: {}, state }, message);
+      expect(commit.mock.calls).toEqual([]);
+    });
+
+    it('does NOT commit ADD_MESSAGE when conversation is not loaded', () => {
+      const state = { allConversations: [] };
+      const message = { id: 100, conversation_id: 10, status: 'delivered' };
+      actions.updateMessage({ commit, rootGetters: {}, state }, message);
+      expect(commit.mock.calls).toEqual([]);
+    });
+  });
+
   describe('#markMessagesRead', () => {
     beforeEach(() => {
       vi.useFakeTimers();

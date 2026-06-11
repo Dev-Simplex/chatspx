@@ -12,7 +12,7 @@ import { useSidebarKeyboardShortcuts } from './useSidebarKeyboardShortcuts';
 import { vOnClickOutside } from '@vueuse/components';
 
 import { FEATURE_FLAGS } from 'dashboard/featureFlags';
-import { useWindowSize, useEventListener } from '@vueuse/core';
+import { useWindowSize } from '@vueuse/core';
 
 import SidebarGroup from './SidebarGroup.vue';
 import SidebarProfileMenu from './SidebarProfileMenu.vue';
@@ -58,7 +58,6 @@ const { uiSettings, updateUISettings } = useUISettings();
 const isACustomBrandedInstance = useMapGetter(
   'globalConfig/isACustomBrandedInstance'
 );
-const isRTL = useMapGetter('accounts/isRTL');
 
 const { width: windowWidth } = useWindowSize();
 const isMobile = computed(() => windowWidth.value < 768);
@@ -96,24 +95,13 @@ const setExpandedItem = name => {
   expandedItem.value = expandedItem.value === name ? null : name;
 };
 
-const {
-  sidebarWidth,
-  isCollapsed,
-  setSidebarWidth,
-  saveWidth,
-  snapToCollapsed,
-  snapToExpanded,
-  COLLAPSED_THRESHOLD,
-} = useSidebarResize();
+const { sidebarWidth } = useSidebarResize();
 
 // WhatsApp-fidelity: desktop rail is ALWAYS collapsed (ícones only).
 // Mobile keeps flyout (expanded) behavior untouched.
 const isEffectivelyCollapsed = computed(() => !isMobile.value);
 
-// Resize handle logic
 const isResizing = ref(false);
-const startX = ref(0);
-const startWidth = ref(0);
 
 provideSidebarContext({
   expandedItem,
@@ -122,56 +110,6 @@ provideSidebarContext({
   sidebarWidth,
   isResizing,
 });
-
-// Get clientX from mouse or touch event
-const getClientX = event =>
-  event.touches ? event.touches[0].clientX : event.clientX;
-
-const onResizeStart = event => {
-  isResizing.value = true;
-  startX.value = getClientX(event);
-  startWidth.value = sidebarWidth.value;
-  Object.assign(document.body.style, {
-    cursor: 'col-resize',
-    userSelect: 'none',
-  });
-  // Prevent default to avoid scrolling on touch
-  event.preventDefault();
-};
-
-const onResizeMove = event => {
-  if (!isResizing.value) return;
-
-  const delta = isRTL.value
-    ? startX.value - getClientX(event)
-    : getClientX(event) - startX.value;
-  setSidebarWidth(startWidth.value + delta);
-};
-
-const onResizeEnd = () => {
-  if (!isResizing.value) return;
-
-  isResizing.value = false;
-  Object.assign(document.body.style, { cursor: '', userSelect: '' });
-
-  // Snap to collapsed state if below threshold
-  if (sidebarWidth.value < COLLAPSED_THRESHOLD) {
-    snapToCollapsed();
-  } else {
-    saveWidth();
-  }
-};
-
-const onResizeHandleDoubleClick = () => {
-  if (isCollapsed.value) snapToExpanded();
-  else snapToCollapsed();
-};
-
-// Support both mouse and touch events
-useEventListener(document, 'mousemove', onResizeMove);
-useEventListener(document, 'mouseup', onResizeEnd);
-useEventListener(document, 'touchmove', onResizeMove, { passive: false });
-useEventListener(document, 'touchend', onResizeEnd);
 
 const inboxes = useMapGetter('inboxes/getInboxes');
 const labels = useMapGetter('labels/getLabelsOnSidebar');
@@ -260,6 +198,13 @@ const menuItems = computed(() => {
           label: t('SIDEBAR.MENTIONED_CONVERSATIONS'),
           activeOn: ['conversation_through_mentions'],
           to: accountScopedRoute('conversation_mentions'),
+        },
+        {
+          name: 'Unread',
+          label: t('SIDEBAR.UNREAD_CONVERSATIONS'),
+          icon: lordIcon('unattended', 'i-lucide-mail-warning'),
+          activeOn: ['conversation_through_unread'],
+          to: accountScopedRoute('conversation_unread'),
         },
         {
           name: 'UnattendedGroup',
@@ -421,79 +366,21 @@ const menuItems = computed(() => {
       activeOn: ['gallery_index'],
     },
     {
-      name: 'Captain',
+      name: 'AI Agents',
       icon: lordIcon('captain', 'i-woot-captain'),
       label: t('SIDEBAR.CAPTAIN'),
-      activeOn: ['captain_assistants_create_index'],
       children: [
         {
-          name: 'FAQs',
-          label: t('SIDEBAR.CAPTAIN_RESPONSES'),
-          activeOn: [
-            'captain_assistants_responses_index',
-            'captain_assistants_responses_pending',
-          ],
-          to: accountScopedRoute('captain_assistants_index', {
-            navigationPath: 'captain_assistants_responses_index',
-          }),
+          name: 'Dashboard',
+          label: t('SIDEBAR.CAPTAIN_ASSISTANTS'),
+          activeOn: ['agents_dashboard'],
+          to: accountScopedRoute('agents_dashboard'),
         },
         {
-          name: 'Documents',
-          label: t('SIDEBAR.CAPTAIN_DOCUMENTS'),
-          activeOn: ['captain_assistants_documents_index'],
-          to: accountScopedRoute('captain_assistants_index', {
-            navigationPath: 'captain_assistants_documents_index',
-          }),
-        },
-        {
-          name: 'Scenarios',
-          label: t('SIDEBAR.CAPTAIN_SCENARIOS'),
-          activeOn: ['captain_assistants_scenarios_index'],
-          to: accountScopedRoute('captain_assistants_index', {
-            navigationPath: 'captain_assistants_scenarios_index',
-          }),
-        },
-        {
-          name: 'Playground',
-          label: t('SIDEBAR.CAPTAIN_PLAYGROUND'),
-          activeOn: ['captain_assistants_playground_index'],
-          to: accountScopedRoute('captain_assistants_index', {
-            navigationPath: 'captain_assistants_playground_index',
-          }),
-        },
-        {
-          name: 'Inboxes',
-          label: t('SIDEBAR.CAPTAIN_INBOXES'),
-          activeOn: ['captain_assistants_inboxes_index'],
-          to: accountScopedRoute('captain_assistants_index', {
-            navigationPath: 'captain_assistants_inboxes_index',
-          }),
-        },
-        {
-          name: 'Tools',
-          label: t('SIDEBAR.CAPTAIN_TOOLS'),
-          activeOn: ['captain_tools_index'],
-          to: accountScopedRoute('captain_assistants_index', {
-            navigationPath: 'captain_tools_index',
-          }),
-        },
-        {
-          name: 'Settings',
-          label: t('SIDEBAR.CAPTAIN_SETTINGS'),
-          activeOn: [
-            'captain_assistants_settings_index',
-            'captain_assistants_guidelines_index',
-            'captain_assistants_guardrails_index',
-          ],
-          to: accountScopedRoute('captain_assistants_index', {
-            navigationPath: 'captain_assistants_settings_index',
-          }),
-        },
-        {
-          name: 'OpenAI Connection',
+          name: 'LLM Settings',
           label: t('SIDEBAR.CAPTAIN_OPENAI_CONNECTION'),
-          activeOn: ['captain_settings_index'],
-          to: accountScopedRoute('captain_settings_index'),
+          activeOn: ['agents_settings'],
+          to: accountScopedRoute('agents_settings'),
         },
       ],
     },
@@ -1038,17 +925,5 @@ const onSidebarReorder = () => {
         />
       </div>
     </section>
-    <!-- Resize Handle (desktop only) -->
-    <div
-      class="hidden md:block absolute top-0 h-full w-1 cursor-col-resize z-40 ltr:right-0 rtl:left-0 group"
-      @mousedown="onResizeStart"
-      @touchstart="onResizeStart"
-      @dblclick="onResizeHandleDoubleClick"
-    >
-      <div
-        class="absolute top-0 h-full w-px ltr:right-0 rtl:left-0 bg-transparent group-hover:bg-n-brand transition-colors"
-        :class="{ 'bg-n-brand': isResizing }"
-      />
-    </div>
   </aside>
 </template>

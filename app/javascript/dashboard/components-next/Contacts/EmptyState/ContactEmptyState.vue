@@ -30,6 +30,11 @@ const emit = defineEmits(['create']);
 
 const createNewContactDialogRef = ref(null);
 
+const expandedDemoId = ref(null);
+const toggleExpanded = id => {
+  expandedDemoId.value = expandedDemoId.value === id ? null : id;
+};
+
 const onClick = () => {
   createNewContactDialogRef.value?.dialogRef.open();
 };

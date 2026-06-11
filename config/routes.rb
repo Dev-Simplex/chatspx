@@ -70,6 +70,7 @@ Rails.application.routes.draw do
               resources :inboxes, only: [:index, :create, :destroy], param: :inbox_id
               resources :scenarios
             end
+            resources :assistant_logs, only: [:index]
             resources :assistant_responses
             resources :bulk_actions, only: [:create]
             resources :copilot_threads, only: [:index, :create] do
@@ -121,7 +122,11 @@ Rails.application.routes.draw do
               resources :inbox_limits, only: [:create, :update, :destroy]
             end
           end
-          resources :campaigns, only: [:index, :create, :show, :update, :destroy]
+          resources :campaigns, only: [:index, :create, :show, :update, :destroy] do
+            member do
+              get :stats
+            end
+          end
           resources :funnels, only: [:index, :show, :create, :update, :destroy] do
             member do
               post :reorder_stages
@@ -309,6 +314,8 @@ Rails.application.routes.draw do
             resource :csat_template, only: [:show, :create], controller: 'inbox_csat_templates' do
               post :analyze, on: :collection
             end
+
+            resources :message_templates, only: [:index, :create, :destroy], controller: 'inbox_message_templates'
           end
           resources :waha_connections, only: [:index, :show, :create, :destroy] do
             member do
@@ -558,6 +565,10 @@ Rails.application.routes.draw do
               get :in_service_conversations
             end
           end
+
+          resources :conversations, only: [] do
+            resources :pdf_exports, only: %i[create show], controller: 'conversations/pdf_exports'
+          end
         end
       end
     end
@@ -668,6 +679,8 @@ Rails.application.routes.draw do
   post 'webhooks/instagram', to: 'webhooks/instagram#events'
   post 'webhooks/tiktok', to: 'webhooks/tiktok#events'
   post 'webhooks/shopify', to: 'webhooks/shopify#events'
+  get 'webhooks/meta_lead_ads', to: 'webhooks/meta_lead_ads#verify'
+  post 'webhooks/meta_lead_ads', to: 'webhooks/meta_lead_ads#process_payload'
 
   namespace :twitter do
     resource :callback, only: [:show]

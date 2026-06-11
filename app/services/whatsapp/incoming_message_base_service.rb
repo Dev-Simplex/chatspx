@@ -175,9 +175,6 @@ class Whatsapp::IncomingMessageBaseService
   end
 
   def create_message(message, source_id: nil)
-    content_attrs = outgoing_echo ? { external_echo: true } : {}
-    content_attrs[:in_reply_to_external_id] = @in_reply_to_external_id if @in_reply_to_external_id.present?
-
     @message = @conversation.messages.build(
       content: message_content(message),
       account_id: @inbox.account_id,
@@ -187,8 +184,15 @@ class Whatsapp::IncomingMessageBaseService
       status: outgoing_echo ? :delivered : :sent,
       sender: outgoing_echo ? nil : @contact,
       source_id: (source_id || message[:id]).to_s,
-      content_attributes: content_attrs
+      content_attributes: build_content_attributes(message)
     )
+  end
+
+  def build_content_attributes(message)
+    attrs = outgoing_echo ? { external_echo: true } : {}
+    attrs[:in_reply_to_external_id] = @in_reply_to_external_id if @in_reply_to_external_id.present?
+    attrs[:referral] = message[:referral].to_h if message[:referral].present?
+    attrs
   end
 
   def attach_contact(contact)

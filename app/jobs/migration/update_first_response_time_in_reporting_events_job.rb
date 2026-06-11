@@ -24,10 +24,11 @@ class Migration::UpdateFirstResponseTimeInReportingEventsJob < ApplicationJob
   end
 
   def update_event_data(event, conversation)
-    last_bot_reply = conversation.messages.where(sender_type: 'AgentBot').order(created_at: :asc).last
+    # Usa all_messages — backfill historico ignora team_message_isolation.
+    last_bot_reply = conversation.all_messages.where(sender_type: 'AgentBot').order(created_at: :asc).last
     return if last_bot_reply.blank?
 
-    first_human_reply = conversation.messages.where(sender_type: 'User').order(created_at: :asc).first
+    first_human_reply = conversation.all_messages.where(sender_type: 'User').order(created_at: :asc).first
     return if first_human_reply.blank?
 
     # accomodate for campaign if required

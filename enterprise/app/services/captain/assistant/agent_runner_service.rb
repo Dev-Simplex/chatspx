@@ -97,8 +97,40 @@ class Captain::Assistant::AgentRunnerService
     Rails.logger.info "[Captain V2] Agent result: #{result.inspect}"
     output = result.output
     response = output.is_a?(Hash) ? output.with_indifferent_access : { 'response' => output.to_s, 'reasoning' => 'Processed by agent' }
+
+    # Quando o ultimo turno e um handoff (ou o agente nao produz output final),
+    # result.output volta vazio — mas o texto pro cliente ("vou te passar pra
+    # Bruna...") ficou na ultima mensagem do assistente, antes da tool_call de
+    # handoff. Sem este fallback, o ResponseBuilderJob trata como [IGNORAR] e a
+    # fala de handoff nunca chega no WhatsApp.
+    response['response'] = last_assistant_message_text(result) if response['response'].blank?
+
     response['agent_name'] = result.context&.dig(:current_agent)
     response
+  end
+
+  # Recupera o texto da ultima mensagem do assistente do resultado do runner.
+  # Cobre conteudo em texto puro e em JSON estruturado (response_schema).
+  def last_assistant_message_text(result)
+    messages = result.try(:messages)
+    return '' if messages.blank?
+
+    last = messages.reverse.find do |msg|
+      role = msg[:role] || msg['role']
+      content = msg[:content] || msg['content']
+      role.to_s == 'assistant' && content.present?
+    end
+    content = last && (last[:content] || last['content'])
+    return '' if content.blank?
+
+    parsed = begin
+      JSON.parse(content)
+    rescue StandardError
+      nil
+    end
+    return parsed['response'].to_s if parsed.is_a?(Hash) && parsed['response'].present?
+
+    content.to_s
   end
 
   def error_response(error_message)

@@ -636,12 +636,14 @@ onMounted(async () => {
         </div>
       </div>
 
-      <div class="rounded-xl border border-n-weak bg-n-solid-1 p-3 shadow-sm">
+      <div
+        class="relative z-40 rounded-xl border border-n-weak bg-n-solid-1 p-3 shadow-sm"
+      >
         <div
           class="kanban-filter-grid grid grid-cols-1 items-start gap-3 lg:grid-cols-[minmax(260px,1fr)_minmax(220px,280px)_auto_auto]"
         >
           <div class="kanban-filter-group">
-            <label class="kanban-filter-label">
+            <label class="kanban-filter-label text-n-slate-10">
               {{ t('KANBAN.FILTERS.SEARCH_LABEL') }}
             </label>
             <Input
@@ -663,7 +665,7 @@ onMounted(async () => {
           </div>
 
           <div class="kanban-filter-group kanban-funnel-filter-group">
-            <label class="kanban-filter-label">
+            <label class="kanban-filter-label text-n-slate-10">
               {{ t('KANBAN.FILTERS.FUNNEL') }}
             </label>
             <KanbanFilterSelect
@@ -732,7 +734,7 @@ onMounted(async () => {
 
           <div class="grid grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-4">
             <div class="kanban-filter-group">
-              <label class="kanban-filter-label">
+              <label class="kanban-filter-label text-n-slate-10">
                 {{ t('KANBAN.FILTERS.STATUS_LABEL') }}
               </label>
               <KanbanFilterSelect
@@ -743,7 +745,7 @@ onMounted(async () => {
             </div>
 
             <div class="kanban-filter-group">
-              <label class="kanban-filter-label">
+              <label class="kanban-filter-label text-n-slate-10">
                 {{ t('KANBAN.FILTERS.STAGE') }}
               </label>
               <KanbanFilterSelect
@@ -754,7 +756,7 @@ onMounted(async () => {
             </div>
 
             <div class="kanban-filter-group">
-              <label class="kanban-filter-label">
+              <label class="kanban-filter-label text-n-slate-10">
                 {{ t('KANBAN.FILTERS.LABEL') }}
               </label>
               <KanbanFilterSelect
@@ -765,7 +767,7 @@ onMounted(async () => {
             </div>
 
             <div class="kanban-filter-group">
-              <label class="kanban-filter-label">
+              <label class="kanban-filter-label text-n-slate-10">
                 {{ t('KANBAN.FILTERS.ASSIGNEE') }}
               </label>
               <KanbanFilterSelect
@@ -907,7 +909,6 @@ onMounted(async () => {
   font-size: 0.75rem;
   font-weight: 600;
   line-height: 1.2;
-  color: rgb(var(--slate-10));
 }
 
 .kanban-filter-action {

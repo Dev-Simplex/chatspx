@@ -190,7 +190,9 @@ class TestData::ContactBatchService
       private: false,
       status: 'sent',
       content_type: 'text',
-      source_id: SecureRandom.uuid
+      source_id: SecureRandom.uuid,
+      content_attributes: {},
+      additional_attributes: {}
     }
   end
 end

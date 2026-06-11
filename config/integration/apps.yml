@@ -208,6 +208,88 @@ shopify:
   hook_type: account
   allow_multiple_hooks: false
 
+meta_lead_ads:
+  id: meta_lead_ads
+  logo: meta_lead_ads.png
+  i18n_key: meta_lead_ads
+  hook_type: account
+  allow_multiple_hooks: true
+  settings_json_schema:
+    {
+      'type': 'object',
+      'properties':
+        {
+          'page_id': { 'type': 'string' },
+          'page_name': { 'type': 'string' },
+          'verify_token': { 'type': 'string' },
+          'app_secret': { 'type': 'string' },
+          'page_access_token': { 'type': 'string' },
+          'target_inbox_id': { 'type': ['integer', 'string'] },
+          'initial_message_template': { 'type': 'string' },
+          'skip_initial_message': { 'type': 'boolean' },
+          'enabled': { 'type': 'boolean' },
+        },
+      'required':
+        ['page_id', 'verify_token', 'app_secret', 'page_access_token', 'target_inbox_id'],
+      'additionalProperties': true,
+    }
+  settings_form_schema:
+    [
+      {
+        'label': 'Page ID',
+        'type': 'text',
+        'name': 'page_id',
+        'validation': 'required',
+        'help': 'ID numérico da página Facebook/Instagram que enviará leads.',
+      },
+      {
+        'label': 'Apelido da página',
+        'type': 'text',
+        'name': 'page_name',
+        'help': 'Identificador para você (ex: Tozi Imobiliária).',
+      },
+      {
+        'label': 'Verify Token',
+        'type': 'text',
+        'name': 'verify_token',
+        'validation': 'required',
+        'help': 'Use o MESMO valor aqui e no Meta Developers (Webhooks → Verify Token).',
+      },
+      {
+        'label': 'App Secret',
+        'type': 'text',
+        'name': 'app_secret',
+        'validation': 'required',
+        'help': 'App Secret do app Meta (Settings → Basic). Usado para validar a assinatura HMAC.',
+      },
+      {
+        'label': 'Page Access Token (preferível System User Token, não expira)',
+        'type': 'textarea',
+        'name': 'page_access_token',
+        'validation': 'required',
+        'help': 'Token com permissões: leads_retrieval, pages_show_list, pages_manage_metadata, pages_read_engagement.',
+      },
+      {
+        'label': 'ID da Inbox alvo',
+        'type': 'number',
+        'name': 'target_inbox_id',
+        'validation': 'required',
+        'help': 'Inbox onde criar conversas a cada novo lead (ex: ID da inbox WAHA da Tozi).',
+      },
+      {
+        'label': 'Mensagem inicial (Liquid template, opcional)',
+        'type': 'textarea',
+        'name': 'initial_message_template',
+        'help': "Variáveis: {{full_name}}, {{first_name}}, {{ad_name}}, {{campaign_name}}, {{city}}, {{email}}. Se vazio, usa default em PT-BR.",
+      },
+      {
+        'label': 'Modo teste — não enviar 1ª mensagem',
+        'type': 'checkbox',
+        'name': 'skip_initial_message',
+        'help': 'Marque enquanto está testando. SPX cria a conversa, mas NÃO envia a 1ª mensagem outgoing pro lead. Útil pra validar fluxo sem incomodar leads reais.',
+      },
+    ]
+  visible_properties: ['page_name', 'page_id', 'target_inbox_id', 'skip_initial_message']
 leadsquared:
   id: leadsquared
   feature_flag: crm_integration

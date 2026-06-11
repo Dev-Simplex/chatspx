@@ -30,6 +30,11 @@
   description: 'Search FAQ responses using semantic similarity'
   icon: 'search'
 
+- id: search_knowledge
+  title: 'Buscar na Base de Conhecimento'
+  description: 'Busca passagens em documentos (chunk-RAG) por busca híbrida semântica + termo exato'
+  icon: 'book'
+
 - id: resolve_conversation
   title: 'Resolve Conversation'
   description: 'Resolve a conversation when the issue has been addressed'
@@ -39,3 +44,23 @@
   title: 'Handoff to Human'
   description: 'Hand off the conversation to a human agent'
   icon: 'user-switch'
+
+- id: buscar_imovel
+  title: 'Buscar Imóveis (Vista)'
+  description: 'Busca imóveis no acervo da Tozi (Vista) e retorna opções com o link correto do site'
+  icon: 'home'
+
+- id: enviar_fotos_imovel
+  title: 'Enviar Fotos do Imóvel'
+  description: 'Envia ao cliente as fotos de um imóvel em lotes de 3'
+  icon: 'image'
+
+- id: salvar_info_lead
+  title: 'Salvar Info do Lead'
+  description: 'Salva status do lead e descrição curta do cliente na conversa, e marca follow-up'
+  icon: 'person'
+
+- id: programar_followup
+  title: 'Programar Follow-up'
+  description: 'Programa uma cutucada futura pra retomar a conversa se o cliente não responder'
+  icon: 'clock'

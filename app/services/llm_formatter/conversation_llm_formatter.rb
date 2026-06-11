@@ -1,16 +1,7 @@
 class LlmFormatter::ConversationLlmFormatter < LlmFormatter::DefaultLlmFormatter
   def format(config = {})
-    sections = []
-    sections << "Conversation ID: ##{@record.display_id}"
-    sections << "Channel: #{@record.inbox.channel.name}"
-    sections << 'Message History:'
-    sections << if @record.messages.any?
-                  build_messages(config)
-                else
-                  'No messages in this conversation'
-                end
-
-    sections << "Contact Details: #{@record.contact.to_llm_text}" if config[:include_contact_details]
+    sections = build_header_sections(config)
+    sections.concat(build_metadata_sections)
 
     attributes = build_attributes
     if attributes.present?
@@ -22,6 +13,31 @@ class LlmFormatter::ConversationLlmFormatter < LlmFormatter::DefaultLlmFormatter
   end
 
   private
+
+  def build_header_sections(config)
+    sections = []
+    sections << "Conversation ID: ##{@record.display_id}"
+    sections << "Channel: #{@record.inbox.channel.name}"
+    sections << 'Message History:'
+    sections << (@record.messages.any? ? build_messages(config) : 'No messages in this conversation')
+    sections << "Contact Details: #{@record.contact.to_llm_text}" if config[:include_contact_details]
+    sections
+  end
+
+  def build_metadata_sections
+    [
+      "Assignee: #{field_or_default(@record.assignee&.name, 'unassigned')}",
+      "Team: #{field_or_default(@record.team&.name)}",
+      "Labels: #{field_or_default(@record.label_list.join(', ').presence)}",
+      "Status: #{@record.status}",
+      "Priority: #{field_or_default(@record.priority)}",
+      "Created: #{@record.created_at.strftime('%Y-%m-%d %H:%M')}"
+    ]
+  end
+
+  def field_or_default(value, fallback = 'none')
+    value.presence || fallback
+  end
 
   def build_messages(config = {})
     return "No messages in this conversation\n" if @record.messages.empty?

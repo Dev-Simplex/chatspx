@@ -154,6 +154,33 @@
           "ON": "ativado"
         }
       },
+      "DETAIL": {
+        "BACK": "Campanhas",
+        "ERROR": "Não foi possível carregar as estatísticas.",
+        "KPI": {
+          "TOTAL": "Disparadas",
+          "REACHED": "Entregues",
+          "READ": "Lidas",
+          "REPLIED": "Responderam",
+          "FAILED": "Falhas"
+        },
+        "DELIVERY_RATE": "{rate}% entregues",
+        "READ_RATE": "{rate}% lidas",
+        "DISTRIBUTION": "Por corretor",
+        "FAILURES": "Falhas por motivo",
+        "CONVERSATIONS": "Conversas recentes",
+        "AGENT": "Corretor",
+        "COUNT": "Qtd",
+        "CODE": "Código Meta",
+        "REASON": "Motivo",
+        "NO_AGENT": "Sem dono",
+        "CODES": {
+          "131026": "Sem WhatsApp",
+          "130472": "Pacing Meta",
+          "131049": "Pacing Meta",
+          "outro": "Outro"
+        }
+      },
       "CREATE": {
         "TITLE": "Criar campanha do WhatsApp",
         "CANCEL_BUTTON_TEXT": "Cancelar",

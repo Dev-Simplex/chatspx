@@ -6,13 +6,25 @@ RSpec.describe LlmFormatter::ConversationLlmFormatter do
   let(:formatter) { described_class.new(conversation) }
 
   describe '#format' do
+    def metadata_lines(conv)
+      [
+        "Assignee: #{conv.assignee&.name || 'unassigned'}",
+        "Team: #{conv.team&.name || 'none'}",
+        "Labels: #{conv.label_list.join(', ').presence || 'none'}",
+        "Status: #{conv.status}",
+        "Priority: #{conv.priority || 'none'}",
+        "Created: #{conv.created_at.strftime('%Y-%m-%d %H:%M')}"
+      ]
+    end
+
     context 'when conversation has no messages' do
       it 'returns basic conversation info with no messages' do
         expected_output = [
           "Conversation ID: ##{conversation.display_id}",
           "Channel: #{conversation.inbox.channel.name}",
           'Message History:',
-          'No messages in this conversation'
+          'No messages in this conversation',
+          *metadata_lines(conversation)
         ].join("\n")
 
         expect(formatter.format).to eq(expected_output)
@@ -50,7 +62,8 @@ RSpec.describe LlmFormatter::ConversationLlmFormatter do
           'User: Hello, I need help',
           'Bot: Thanks for reaching out, an agent will reach out to you soon',
           'Support Agent: How can I assist you today?',
-          ''
+          '',
+          *metadata_lines(conversation)
         ].join("\n")
 
         expect(formatter.format).to eq(expected_output)
@@ -64,7 +77,8 @@ RSpec.describe LlmFormatter::ConversationLlmFormatter do
           "Channel: #{conversation.inbox.channel.name}",
           'Message History:',
           'No messages in this conversation',
-          "Contact Details: #{conversation.contact.to_llm_text}"
+          "Contact Details: #{conversation.contact.to_llm_text}",
+          *metadata_lines(conversation)
         ].join("\n")
 
         expect(formatter.format(include_contact_details: true)).to eq(expected_output)
@@ -88,6 +102,7 @@ RSpec.describe LlmFormatter::ConversationLlmFormatter do
           "Channel: #{conversation.inbox.channel.name}",
           'Message History:',
           'No messages in this conversation',
+          *metadata_lines(conversation),
           'Conversation Attributes:',
           'Order ID: 12345'
         ].join("\n")

@@ -154,6 +154,33 @@
           "ON": "on"
         }
       },
+      "DETAIL": {
+        "BACK": "Campaigns",
+        "ERROR": "Could not load campaign stats.",
+        "KPI": {
+          "TOTAL": "Targeted",
+          "REACHED": "Delivered",
+          "READ": "Read",
+          "REPLIED": "Replied",
+          "FAILED": "Failed"
+        },
+        "DELIVERY_RATE": "{rate}% delivered",
+        "READ_RATE": "{rate}% read",
+        "DISTRIBUTION": "By agent",
+        "FAILURES": "Failures by reason",
+        "CONVERSATIONS": "Recent conversations",
+        "AGENT": "Agent",
+        "COUNT": "Count",
+        "CODE": "Meta code",
+        "REASON": "Reason",
+        "NO_AGENT": "Unassigned",
+        "CODES": {
+          "131026": "No WhatsApp",
+          "130472": "Meta pacing",
+          "131049": "Meta pacing",
+          "outro": "Other"
+        }
+      },
       "CREATE": {
         "TITLE": "Create WhatsApp campaign",
         "CANCEL_BUTTON_TEXT": "Cancel",

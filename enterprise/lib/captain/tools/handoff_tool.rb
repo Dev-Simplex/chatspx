@@ -25,20 +25,42 @@ class Captain::Tools::HandoffTool < Captain::Tools::BasePublicTool
 
   def trigger_handoff(conversation, reason)
     # post the reason as a private note
-    conversation.messages.create!(
-      message_type: :outgoing,
-      private: true,
-      sender: @assistant,
-      account: conversation.account,
-      inbox: conversation.inbox,
-      content: reason
-    )
+    if reason.present?
+      conversation.messages.create!(
+        message_type: :outgoing,
+        private: true,
+        sender: @assistant,
+        account: conversation.account,
+        inbox: conversation.inbox,
+        content: reason
+      )
+    end
 
     # Trigger the bot handoff (sets status to open + dispatches events)
     conversation.bot_handoff!
 
+    # Atribui a um atendente humano disponível (online) do inbox via round-robin.
+    # bot_handoff! sozinho só muda o status pra open; sem isso a conversa fica
+    # sem dono. A roleta por nicho (Vista/Loft) virá depois; por ora, qualquer
+    # atendente online do inbox assume.
+    assign_to_available_agent(conversation)
+
     # Send out of office message if applicable (since template messages were suppressed while Captain was handling)
     send_out_of_office_message_if_applicable(conversation)
+  end
+
+  def assign_to_available_agent(conversation)
+    return if conversation.reload.assignee_id.present?
+
+    member_ids = conversation.inbox.inbox_members.pluck(:user_id)
+    return if member_ids.blank?
+
+    AutoAssignment::AgentAssignmentService.new(
+      conversation: conversation,
+      allowed_agent_ids: member_ids
+    ).perform
+  rescue StandardError => e
+    ChatwootExceptionTracker.new(e).capture_exception
   end
 
   def send_out_of_office_message_if_applicable(conversation)

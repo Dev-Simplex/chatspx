@@ -22,10 +22,24 @@ module Llm::Models
     def runtime_supported_model?(model_id)
       return false if model_id.blank?
 
-      RubyLLM.models.find(model_id.to_s)
+      RubyLLM.models.find(runtime_id_for(model_id))
       true
     rescue RubyLLM::ModelNotFoundError, StandardError
       false
+    end
+
+    # RubyLLM normaliza o ID das versoes Claude com hifen (ex.: 'claude-sonnet-4-5'),
+    # mas o llm.yml mantem o formato com ponto (ex.: 'claude-sonnet-4.5') pra refletir
+    # o branding comercial da Anthropic e a UI que o usuario ve. Esse metodo faz a
+    # traducao so no caminho do runtime — converte o ultimo \d+\.\d+ da string em
+    # \d+-\d+. Funciona pra claude-sonnet-4.5, claude-haiku-4.5, claude-opus-4.5;
+    # versoes antigas (ex.: claude-3.5-haiku) ficam intocadas porque o ponto nao
+    # esta no final.
+    def runtime_id_for(model_id)
+      return model_id if model_id.blank?
+      return model_id unless model_id.to_s.start_with?('claude-')
+
+      model_id.to_s.sub(/(\d+)\.(\d+)\z/, '\1-\2')
     end
 
     def first_runtime_supported(*model_ids)

@@ -9,7 +9,9 @@ class Waha::ApiService # rubocop:disable Metrics/ClassLength
   def initialize
     @base_url = ENV.fetch('WAHA_API_URL', 'http://localhost:3000')
     @api_key = ENV.fetch('WAHA_API_KEY', nil)
-    @timeout = 10
+    # Keep below Rack::Timeout (15s) so Net::ReadTimeout fires first and we
+    # surface a friendly error instead of a hard 500.
+    @timeout = 8
   end
 
   def list_sessions(all: true)
@@ -53,8 +55,15 @@ class Waha::ApiService # rubocop:disable Metrics/ClassLength
     )
   end
 
-  def get_messages(session_name, chat_id, limit: 20)
-    get("/api/#{session_name}/chats/#{encode_path_segment(chat_id)}/messages", limit: limit)
+  # Fetch chat messages. Optional server-side filters:
+  # - timestamp_gte: only messages with timestamp >= value (unix seconds) via filter.timestamp.gte
+  # - from_me: when false, only inbound messages via filter.fromMe=false
+  # WAHA docs: https://waha.devlike.pro/docs/how-to/messages/
+  def get_messages(session_name, chat_id, limit: 20, timestamp_gte: nil, from_me: nil)
+    params = { limit: limit }
+    params[:'filter.timestamp.gte'] = timestamp_gte.to_i if timestamp_gte.present?
+    params[:'filter.fromMe'] = from_me unless from_me.nil?
+    get("/api/#{session_name}/chats/#{encode_path_segment(chat_id)}/messages", params)
   end
 
   def get_qr_code(name, format: 'image')

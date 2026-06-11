@@ -25,7 +25,8 @@ class Api::V1::Accounts::Captain::PreferencesController < Api::V1::Accounts::Bas
       providers: Llm::Models.providers,
       models: Llm::Models.models,
       features: features_with_account_preferences,
-      llm_connection: openai_hook_service.connection_payload
+      llm_connection: openai_hook_service.connection_payload,
+      anthropic_connection: anthropic_hook_service.connection_payload
     }
   end
 
@@ -80,33 +81,50 @@ class Api::V1::Accounts::Captain::PreferencesController < Api::V1::Accounts::Bas
   end
 
   def update_llm_connection(llm_connection)
-    llm_connection = llm_connection.with_indifferent_access
+    connection = llm_connection.with_indifferent_access
+    return process_key_removal(connection) if key_removal_requested?(connection)
 
-    if ActiveModel::Type::Boolean.new.cast(llm_connection[:remove_api_key])
-      openai_hook_service.remove_api_key!
-      return
-    end
+    update_openai_key(connection[:openai_api_key]) if connection[:openai_api_key].present?
+    update_anthropic_key(connection[:anthropic_api_key]) if connection[:anthropic_api_key].present?
+  rescue Captain::OpenaiHookService::InvalidApiKeyError,
+         Captain::AnthropicHookService::InvalidApiKeyError => e
+    render_api_key_error('captain_api_key_invalid', e.message)
+  rescue Captain::OpenaiHookService::ApiConnectionError,
+         Captain::AnthropicHookService::ApiConnectionError => e
+    render_api_key_error('captain_api_key_validation_failed', e.message)
+  end
 
-    return if llm_connection[:openai_api_key].blank?
+  def key_removal_requested?(connection)
+    ActiveModel::Type::Boolean.new.cast(connection[:remove_api_key]) ||
+      ActiveModel::Type::Boolean.new.cast(connection[:remove_anthropic_key])
+  end
 
-    openai_hook_service.validate_and_upsert_api_key!(llm_connection[:openai_api_key])
-  rescue Captain::OpenaiHookService::InvalidApiKeyError => e
-    render json: {
-      code: 'captain_api_key_invalid',
-      message: e.message
-    }, status: :unprocessable_entity and return
-  rescue Captain::OpenaiHookService::ApiConnectionError => e
-    render json: {
-      code: 'captain_api_key_validation_failed',
-      message: e.message
-    }, status: :unprocessable_entity and return
+  def process_key_removal(connection)
+    openai_hook_service.remove_api_key! if ActiveModel::Type::Boolean.new.cast(connection[:remove_api_key])
+    anthropic_hook_service.remove_api_key! if ActiveModel::Type::Boolean.new.cast(connection[:remove_anthropic_key])
+  end
+
+  def render_api_key_error(code, message)
+    render json: { code: code, message: message }, status: :unprocessable_entity
+  end
+
+  def update_openai_key(api_key)
+    openai_hook_service.validate_and_upsert_api_key!(api_key)
+  end
+
+  def update_anthropic_key(api_key)
+    anthropic_hook_service.validate_and_upsert_api_key!(api_key)
   end
 
   def permitted_llm_connection
-    params.require(:llm_connection).permit(:openai_api_key, :remove_api_key).to_h.stringify_keys
+    params.require(:llm_connection).permit(:openai_api_key, :anthropic_api_key, :remove_api_key, :remove_anthropic_key).to_h.stringify_keys
   end
 
   def openai_hook_service
     @openai_hook_service ||= Captain::OpenaiHookService.new(account: @current_account)
+  end
+
+  def anthropic_hook_service
+    @anthropic_hook_service ||= Captain::AnthropicHookService.new(account: @current_account)
   end
 end

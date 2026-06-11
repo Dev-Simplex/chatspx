@@ -37,6 +37,7 @@ const handleButtonClick = () => {
             class="relative group/campaign-button"
           >
             <Button
+              v-if="buttonLabel"
               :label="buttonLabel"
               icon="i-lucide-plus"
               size="sm"

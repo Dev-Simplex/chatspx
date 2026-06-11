@@ -1,4 +1,4 @@
-module Enterprise::MessageTemplates::HookExecutionService
+module Enterprise::MessageTemplates::HookExecutionService # rubocop:disable Metrics/ModuleLength
   MAX_ATTACHMENT_WAIT_SECONDS = 4
 
   def trigger_templates
@@ -6,7 +6,7 @@ module Enterprise::MessageTemplates::HookExecutionService
     return unless should_process_captain_response?
     return perform_handoff unless inbox.captain_active?
 
-    schedule_captain_response
+    process_captain_behavior(inbox.captain_assistant)
   end
 
   def should_send_greeting?
@@ -29,6 +29,83 @@ module Enterprise::MessageTemplates::HookExecutionService
 
   private
 
+  def process_captain_behavior(assistant)
+    return trigger_copilot_if_applicable(assistant) if message.private?
+    return log_and_skip(assistant, 'router_skip') unless router_allows?(assistant)
+
+    # Conversa que a IA vai atender fica VISÍVEL na fila (open), em vez de escondida
+    # em pending. Ruído (grupos/status/qualquer router_skip) não chega aqui e segue
+    # pending. O Captain responde em open normalmente (should_process_captain_response?).
+    ensure_conversation_open(assistant)
+
+    return log_and_skip(assistant, 'business_hours_skip') if outside_hours_ignore?(assistant)
+
+    schedule_or_debounce(assistant)
+  end
+
+  def router_allows?(assistant)
+    Captain::Behavior::RouterService.new(assistant: assistant, conversation: conversation, message: message).should_respond?
+  end
+
+  def outside_hours_ignore?(assistant)
+    status = Captain::Behavior::BusinessHoursChecker.new(assistant: assistant).status
+    status == :outside && assistant.behavior.dig('business_hours', 'outside_hours_action') == 'ignore'
+  end
+
+  # Tira a conversa do limbo "pending" assim que a IA assume (passou o router),
+  # deixando-a visível na fila de Abertas. Atribui a ação ao assistant via
+  # Current.executed_by pra a atividade sair como "<Clara>" (e não como o usuário
+  # do token da ponte WAHA). Best-effort: nunca derruba o fluxo de mensagem.
+  def ensure_conversation_open(assistant)
+    return unless conversation.pending?
+
+    previous_executed_by = Current.executed_by
+    Current.executed_by = assistant
+    begin
+      conversation.open!
+    rescue StandardError => e
+      Rails.logger.warn("[Captain] auto-open conv=#{conversation.id}: #{e.message}")
+    ensure
+      Current.executed_by = previous_executed_by
+    end
+  end
+
+  def schedule_or_debounce(assistant)
+    mark_customer_message_read # tique azul (lido) na hora, SEM "digitando" continuo
+    debounce = assistant.behavior['debounce_seconds'].to_i
+    if debounce.positive?
+      Captain::Behavior::DebounceService.new(assistant: assistant, conversation: conversation).schedule
+    else
+      schedule_captain_response
+    end
+  end
+
+  # Marca a mensagem do cliente como lida assim que passa no router (best-effort,
+  # so WhatsApp Cloud). NAO mostra "digitando" continuo — isso fica pras rajadas
+  # curtas antes de cada resposta (mais natural).
+  def mark_customer_message_read
+    source_id = message.try(:source_id)
+    return if source_id.blank?
+
+    inbox.channel.try(:send_typing_indicator, source_id, false)
+  rescue StandardError => e
+    Rails.logger.warn("[Captain] read receipt falhou: #{e.message}")
+  end
+
+  def log_and_skip(assistant, event_type)
+    Captain::AssistantLog.create!(captain_assistant: assistant, conversation: conversation,
+                                  message_id: message.id, event_type: event_type)
+  end
+
+  def trigger_copilot_if_applicable(assistant)
+    service = Captain::Behavior::CopilotTriggerService.new(assistant: assistant, message: message, conversation: conversation)
+    return unless service.should_trigger?
+
+    Captain::AssistantLog.create!(captain_assistant: assistant, conversation: conversation,
+                                  message_id: message.id, event_type: 'copilot_trigger')
+    service.trigger
+  end
+
   def schedule_captain_response
     job_args = [conversation, conversation.inbox.captain_assistant]
 
@@ -50,7 +127,16 @@ module Enterprise::MessageTemplates::HookExecutionService
   end
 
   def should_process_captain_response?
-    conversation.pending? && message.incoming? && inbox.captain_assistant.present?
+    # Responde em pending E em open: depois do handoff/atribuição o bot continua
+    # atendendo até um humano de fato responder (skip_after_human_response no
+    # RouterService corta quando um atendente envia mensagem). Evita deixar o
+    # cliente sem resposta quando não há humano disponível na hora.
+    (conversation.pending? || conversation.open?) && message.incoming? && inbox.captain_assistant.present? && !human_takeover_locked?
+  end
+
+  # Checkbox "Atendimento humano" no painel lateral: trava o bot pra o atendente assumir.
+  def human_takeover_locked?
+    [true, 'true', 1, '1'].include?(conversation.custom_attributes&.dig('atendimento_humano'))
   end
 
   def perform_handoff
@@ -76,6 +162,6 @@ module Enterprise::MessageTemplates::HookExecutionService
   end
 
   def captain_handling_conversation?
-    conversation.pending? && inbox.respond_to?(:captain_assistant) && inbox.captain_assistant.present?
+    (conversation.pending? || conversation.open?) && inbox.respond_to?(:captain_assistant) && inbox.captain_assistant.present?
   end
 end

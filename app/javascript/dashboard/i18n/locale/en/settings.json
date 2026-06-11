@@ -1,4 +1,46 @@
 {
+  "AGENTS_PAGE": {
+    "TITLE": "AI Agents",
+    "NEW": "New",
+    "SEARCH_PLACEHOLDER": "Search agents...",
+    "LOADING": "Loading agents...",
+    "NO_AGENTS": "No agents found",
+    "ACTIVE": "Active",
+    "INACTIVE": "Inactive"
+  },
+  "AGENTS_DASHBOARD": {
+    "TITLE": "Dashboard",
+    "NEW_AGENT": "New Agent",
+    "TOTAL_AGENTS": "Total Agents",
+    "TOTAL_INBOXES": "Connected Inboxes",
+    "EMPTY_TITLE": "No agents yet",
+    "EMPTY_DESCRIPTION": "Create your first AI Agent to get started",
+    "CREATE_FIRST": "Create first agent",
+    "INBOXES_LABEL": "inboxes",
+    "CREATE_TITLE": "Create Agent",
+    "NAME_LABEL": "Name",
+    "NAME_PLACEHOLDER": "Agent name",
+    "DESCRIPTION_LABEL": "Description",
+    "DESCRIPTION_PLACEHOLDER": "What does this agent do?",
+    "CANCEL": "Cancel",
+    "CREATING": "Creating...",
+    "CREATE": "Create",
+    "CREATE_SUCCESS": "Agent created successfully",
+    "CREATE_ERROR": "Failed to create agent"
+  },
+  "AGENT_DETAIL": {
+    "LOADING": "Loading agent...",
+    "TABS": {
+      "OVERVIEW": "Overview",
+      "BEHAVIOR": "Behavior",
+      "KNOWLEDGE": "Knowledge",
+      "TOOLS": "Tools",
+      "SCENARIOS": "Scenarios",
+      "INBOXES": "Inboxes",
+      "LOGS": "Logs",
+      "SETTINGS": "Settings"
+    }
+  },
   "PROFILE_SETTINGS": {
     "LINK": "Profile Settings",
     "TITLE": "Profile Settings",
@@ -315,6 +357,7 @@
     "GALLERY": "Gallery",
     "ALL_CONVERSATIONS": "All Conversations",
     "MENTIONED_CONVERSATIONS": "Mentions",
+    "UNREAD_CONVERSATIONS": "Unread",
     "PARTICIPATING_CONVERSATIONS": "Participating",
     "UNATTENDED_CONVERSATIONS": "Unanswered",
     "UNATTENDED_MINE": "Mine",
@@ -333,16 +376,18 @@
     "ACTIVE": "Active",
     "COMPANIES": "Companies",
     "ALL_COMPANIES": "All Companies",
-    "CAPTAIN": "Captain",
-    "CAPTAIN_ASSISTANTS": "Assistants",
+    "CAPTAIN": "AI Agents",
+    "CAPTAIN_ASSISTANTS": "Dashboard",
     "CAPTAIN_DOCUMENTS": "Documents",
     "CAPTAIN_RESPONSES": "FAQs",
     "CAPTAIN_TOOLS": "Tools",
     "CAPTAIN_SCENARIOS": "Scenarios",
     "CAPTAIN_PLAYGROUND": "Playground",
     "CAPTAIN_INBOXES": "Inboxes",
+    "CAPTAIN_BEHAVIOR": "Behavior",
+    "CAPTAIN_LOGS": "Logs",
     "CAPTAIN_SETTINGS": "Settings",
-    "CAPTAIN_OPENAI_CONNECTION": "OpenAI Connection",
+    "CAPTAIN_OPENAI_CONNECTION": "LLM Connection",
     "HOME": "Home",
     "AGENTS": "Agents",
     "AGENT_BOTS": "Bots",
@@ -411,18 +456,18 @@
     "COLLAPSE": "Collapse sidebar",
     "NEW_CONVERSATION": "New conversation",
     "ADVANCED_SEARCH": "Advanced search",
-    "CAPTAIN_AI": "Captain",
+    "CAPTAIN_AI": "AI Agents",
     "CONVERSATION_WORKFLOW": "Conversation Workflow"
   },
   "CAPTAIN_SETTINGS": {
-    "TITLE": "Captain Settings",
-    "DESCRIPTION": "Configure your AI models and features for Captain. Captain follows a credit based billing, you will be charged credits for every action Captain takes based on the model selected.",
-    "LOADING": "Loading Captain configuration...",
-    "LINK_TEXT": "Learn more about Captain Credits",
-    "NOT_ENABLED": "Captain is not enabled for your account.",
+    "TITLE": "AI Agents Settings",
+    "DESCRIPTION": "Configure your AI models and features for AI Agents. Each action consumes credits based on the selected model.",
+    "LOADING": "Loading AI Agents configuration...",
+    "LINK_TEXT": "Learn more about AI Agents Credits",
+    "NOT_ENABLED": "AI Agents is not enabled for your account.",
     "OPENAI_CONNECTION": {
       "TITLE": "OpenAI Connection",
-      "DESCRIPTION": "Configure the OpenAI API key for this account. Captain will use this account-level key for AI requests.",
+      "DESCRIPTION": "Configure the OpenAI API key for this account. AI Agents will use this account-level key for AI requests.",
       "STATUS_CONFIGURED": "Configured",
       "STATUS_NOT_CONFIGURED": "Not configured",
       "CONFIGURED_KEY": "Configured key: {key}",
@@ -434,6 +479,21 @@
       "API": {
         "SUCCESS": "OpenAI connection updated successfully.",
         "ERROR": "Unable to update OpenAI connection. Please try again."
+      }
+    },
+    "ANTHROPIC_CONNECTION": {
+      "TITLE": "Anthropic Connection",
+      "DESCRIPTION": "Configure the Anthropic API key for this account to enable Claude models.",
+      "STATUS_CONFIGURED": "Configured",
+      "STATUS_NOT_CONFIGURED": "Not configured",
+      "CONFIGURED_KEY": "Configured key: {key}",
+      "API_KEY_PLACEHOLDER": "Enter an Anthropic API key",
+      "SAVE": "Save key",
+      "SAVING": "Saving...",
+      "REMOVE": "Remove key",
+      "API": {
+        "SUCCESS": "Anthropic connection updated successfully.",
+        "ERROR": "Unable to update Anthropic connection. Please try again."
       }
     },
     "MODEL_CONFIG": {
@@ -474,8 +534,8 @@
       }
     },
     "API": {
-      "SUCCESS": "Captain settings updated successfully.",
-      "ERROR": "Failed to update Captain settings. Please try again."
+      "SUCCESS": "AI Agents settings updated successfully.",
+      "ERROR": "Failed to update AI Agents settings. Please try again."
     }
   },
   "BILLING_SETTINGS": {
@@ -494,12 +554,12 @@
       "BUTTON_TXT": "Go to the billing portal"
     },
     "CAPTAIN": {
-      "TITLE": "Captain",
-      "DESCRIPTION": "Manage usage and credits for Captain AI.",
+      "TITLE": "AI Agents",
+      "DESCRIPTION": "Manage usage and credits for AI Agents.",
       "BUTTON_TXT": "Buy more credits",
       "DOCUMENTS": "Documents",
       "RESPONSES": "Credits",
-      "UPGRADE": "Captain is not available on the free plan, upgrade now to get access to assistants, copilot and more.",
+      "UPGRADE": "AI Agents is not available on the free plan, upgrade now to get access to assistants, copilot and more.",
       "REFRESH_CREDITS": "Refresh"
     },
     "CHAT_WITH_US": {
@@ -511,7 +571,7 @@
     "TOPUP": {
       "BUY_CREDITS": "Buy more credits",
       "MODAL_TITLE": "Buy AI Credits",
-      "MODAL_DESCRIPTION": "Purchase additional credits for Captain AI.",
+      "MODAL_DESCRIPTION": "Purchase additional credits for AI Agents.",
       "CREDITS": "CREDITS",
       "ONE_TIME": "one-time",
       "POPULAR": "Most Popular",
