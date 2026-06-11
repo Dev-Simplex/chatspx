@@ -1,15 +1,31 @@
-# Estado ChatSPX — atualizado 2026-06-10 (mapeamento completo IA orquestradora + auditoria read-only de prod)
+# Estado ChatSPX — atualizado 2026-06-11 (reconciliação de branches EXECUTADA + Bloco 1+2 do go-live em prod)
 
 > Single source of truth do que está **in-flight** no projeto.
 > Coisas estáveis vão pro [`MEMORY.md`](../../../.claude/projects/C--Users-paulo-Workspaces-chatspx/memory/MEMORY.md) (per-projeto) ou pro vault Obsidian.
 > Decisões com mais de 30 dias devem ser movidas pra `clientes/tozi-conversation-log.md` no vault.
 
-> 🔴 **HANDOFF DE FECHAMENTO 29/05 → ler [`docs/HANDOFF-2026-05-29.md`](../docs/HANDOFF-2026-05-29.md) PRIMEIRO.**
-> Próxima sessão foca em: reconciliar conflito de templates (2 sessões divergiram), corrigir deploy AWS (não-git + credencial), subir código paulao→prod Tozi, re-aplicar dados (funil/prompt Júlia #5/knowledge/hook), verificar quebras, implementar Bloco 3+4 cadência, e generalizar multi-cliente. Múltiplas sessões trabalharam no branch paulao em paralelo (5 commits de outras sessões — ver handoff §3).
+> ✅ O handoff de 29/05 foi SUPERADO em 11/06: reconciliação executada, deploy AWS virou git, código paulao→prod Tozi completo. Sessão de decisões pendente: **[`docs/DECISOES-CLARA.md`](../docs/DECISOES-CLARA.md)**.
 
 ---
 
 ## 🚧 Em andamento
+
+### [2026-06-11] ✅ RECONCILIAÇÃO DE BRANCHES EXECUTADA — `producao` é a canônica única
+
+> **O problema "cada redeploy re-dropa patches off-git" está MORTO.** Estado final dos ambientes:
+
+- **`producao` (29a32046f)** = canônica, superset de TODAS as linhas: paulao (22 commits, PR #21) + producao consolidada de 08/06 + único commit exclusivo da rollout (FK cascade, PR #22). Merge teve 1 conflito (disparo_lead_job add/add → versão paulao) + 18 .rb validados com ruby -c. Migration landmine agora é a versão SAFE em todas as branches.
+- **`paulao`** = sincronizada com producao. **`homologacao`** = producao + 10 PRs do redesign workspace-v2 (merge sem conflito) — **branch de trabalho do Paulo daqui pra frente**.
+- **AWS Tozi** = checkout LIMPO da `producao` (era rollout/release-20260605 + sujeira off-git). Bundle incremental via scp (VM sem credencial git), backup da sujeira em branch local `backup/pre-switch-20260611`, migration 20260609120000 aplicada via `db:migrate:up` específico, 0 down, precompile + restart → HTTP 200, tráfego real ok.
+- **hmlchat (192.168.8.232)** = homologacao completa: 6 migrations aplicadas, zeitwerk OK, HTTP 200. Credencial descoberta e salva no vault (`credenciais/infraestrutura.md` § HMLCHAT). ⚠️ Tem **auto-pull da homologacao que NÃO migra/precompila/restarta** — bomba-latente a cada push; corrigir o mecanismo.
+- **TODOs operacionais:** deploy key git na AWS (fetch falha; bundle foi o workaround) · git ident do user chatwoot na AWS · runbook oficial de deploy (decisão 1.3) · consertar auto-pull da hmlchat.
+
+### [2026-06-11] 🟡 GO-LIVE REORGANIZADO — Bloco 1+2 executados em prod; switch da Clara aguarda sandbox + decisões
+
+- **Executado em prod Tozi (11/06):** T1 áudio (gate código + `audio_transcriptions=true`) · T2 fix 403 (+ commit `e74b935b1`) · T3 anti-duplicata do disparo · T4 restart validado · T5 notificações dos 4 corretores (3 flags push + 3 email; falta cada corretor ACEITAR a permissão no navegador — Ederson) · T6 memberships Marcus/Bruno + 442 conversas re-sincronizadas (0 dessincronizadas no final) · T8 lista do mutirão (408 conversas em `Downloads/mutirao-tozi-12h.csv`; inclui Paloma 11, Gelson 4, Ivanete 1 além dos 4 corretores).
+- **Decisões batidas (11/06):** D1 SIM com sub-definições (ver doc) · D2 24/7 · D3 desligar memory/faq · homologacao = branch de trabalho · sandbox = número SimplexIA na Cloud API oficial.
+- **PENDENTE:** T7 (config Clara) · T9 (switch CaptainInbox) · T10 (roteiro 13 testes) · T12 (piloto leads reais) — aguardam Etapa 2 (sandbox SimplexIA) + sessão de decisões dos Grupos 2–8 de **[`docs/DECISOES-CLARA.md`](../docs/DECISOES-CLARA.md)** (~35 decisões consolidadas com recomendação cada).
+- **Ordem macro decidida:** Etapa 1 reconciliação ✅ → Etapa 2 sandbox SimplexIA Cloud API + quick wins (Langfuse/playground/golden set) → Etapa 3 go-live Clara organizado → Etapa 4 Ondas 1+2+4.1 em paralelo → Etapa 5 Onda 5 antecipada (Vista fundo; MA Financeiro 🔴 ~1 mês de atraso contratual).
 
 ### [2026-06-10] 🚀 PLANO DE GO-LIVE DA IA — 11/06 (Paulo + dev sênior + Ederson), abertura 12/06
 
