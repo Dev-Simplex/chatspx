@@ -29,3 +29,23 @@ export const defaultAssigneeTab = (routeName, query = {}) => {
   if (UNREAD_ROUTES.includes(routeName)) return wootConstants.ASSIGNEE_TYPE.ALL;
   return wootConstants.ASSIGNEE_TYPE.ME;
 };
+
+/**
+ * Like defaultAssigneeTab, but clamps the result to the set of tabs the user is
+ * actually allowed to see. The "all" tab is permission-gated, so an Enterprise
+ * custom-role agent (e.g. only conversation_unassigned_manage) can reach the
+ * unread route while the ALL tab is filtered out — initializing the tab to ALL
+ * would then leave no tab highlighted. When the resolved default is not among
+ * the rendered tabs, fall back to the first available tab (else ME).
+ *
+ * @param {string} routeName - Vue route name.
+ * @param {Object} [query] - Route query params.
+ * @param {string[]} [allowedKeys] - Keys of the currently rendered assignee tabs.
+ * @returns {string} One of wootConstants.ASSIGNEE_TYPE values.
+ */
+export const resolveAssigneeTab = (routeName, query = {}, allowedKeys = []) => {
+  const desired = defaultAssigneeTab(routeName, query);
+  if (!Array.isArray(allowedKeys) || allowedKeys.length === 0) return desired;
+  if (allowedKeys.includes(desired)) return desired;
+  return allowedKeys[0] ?? wootConstants.ASSIGNEE_TYPE.ME;
+};

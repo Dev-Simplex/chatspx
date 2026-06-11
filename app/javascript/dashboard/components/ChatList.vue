@@ -73,7 +73,7 @@ import { CONVERSATION_EVENTS } from '../helper/AnalyticsHelper/events';
 import { ASSIGNEE_TYPE_TAB_PERMISSIONS } from 'dashboard/constants/permissions.js';
 import {
   UNREAD_ROUTES,
-  defaultAssigneeTab,
+  resolveAssigneeTab,
 } from 'dashboard/helper/unreadViewHelper';
 
 const props = defineProps({
@@ -100,7 +100,8 @@ const virtualListRef = ref(null);
 
 provide('contextMenuElementTarget', virtualListRef);
 
-const activeAssigneeTab = ref(defaultAssigneeTab(route.name, route.query));
+// activeAssigneeTab is initialized after assigneeTabItems (below) so the default
+// can be clamped to the tabs the user is actually allowed to see.
 const activeStatus = ref(wootConstants.STATUS_TYPE.OPEN);
 const activeSortBy = ref(wootConstants.SORT_BY_TYPE.LAST_ACTIVITY_AT_DESC);
 const showAdvancedFilters = ref(false);
@@ -244,6 +245,16 @@ const assigneeTabItems = computed(() => {
   }));
   return items;
 });
+
+// Route-aware default tab, clamped to the tabs the user can actually see.
+// Defined here (not at the top of setup) so assigneeTabItems is available.
+const activeAssigneeTab = ref(
+  resolveAssigneeTab(
+    route.name,
+    route.query,
+    assigneeTabItems.value.map(item => item.key)
+  )
+);
 
 const showAssigneeInConversationCard = computed(() => {
   return (
@@ -1054,7 +1065,11 @@ watch(
       route.name === 'conversation_unattended' ||
       UNREAD_ROUTES.includes(route.name)
     ) {
-      const newTab = defaultAssigneeTab(route.name, route.query);
+      const newTab = resolveAssigneeTab(
+        route.name,
+        route.query,
+        assigneeTabItems.value.map(item => item.key)
+      );
       const prevTab = activeAssigneeTab.value;
       activeAssigneeTab.value = newTab;
       if (prevTab !== newTab) {
@@ -1100,7 +1115,11 @@ watch(
     // Use the route-aware default so the Unread view keeps its "All" default
     // instead of being forced back to "Mine".
     if (newType !== prevType && newType !== 'unattended') {
-      activeAssigneeTab.value = defaultAssigneeTab(route.name, route.query);
+      activeAssigneeTab.value = resolveAssigneeTab(
+        route.name,
+        route.query,
+        assigneeTabItems.value.map(item => item.key)
+      );
     }
 
     // Side effect: sync active folder in store

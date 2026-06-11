@@ -1,4 +1,8 @@
-import { UNREAD_ROUTES, defaultAssigneeTab } from '../unreadViewHelper';
+import {
+  UNREAD_ROUTES,
+  defaultAssigneeTab,
+  resolveAssigneeTab,
+} from '../unreadViewHelper';
 import wootConstants from 'dashboard/constants/globals';
 
 const { ME, UNASSIGNED, ALL } = wootConstants.ASSIGNEE_TYPE;
@@ -57,6 +61,39 @@ describe('unreadViewHelper', () => {
         defaultAssigneeTab('conversation_unattended', {
           assignee_type: 'bogus',
         })
+      ).toBe(ME);
+    });
+  });
+
+  describe('#resolveAssigneeTab', () => {
+    it('returns the route default when no allowedKeys are given', () => {
+      expect(resolveAssigneeTab('conversation_unread')).toBe(ALL);
+      expect(resolveAssigneeTab('conversation_unread', {}, [])).toBe(ALL);
+    });
+
+    it('keeps the default when it is among the allowed tabs', () => {
+      expect(
+        resolveAssigneeTab('conversation_unread', {}, [ME, UNASSIGNED, ALL])
+      ).toBe(ALL);
+    });
+
+    it('clamps to the first allowed tab when the default is not permitted', () => {
+      // Enterprise custom-role agent: only Mine/Unassigned tabs are rendered,
+      // so the unread ALL default must fall back instead of leaving no tab.
+      expect(
+        resolveAssigneeTab('conversation_unread', {}, [ME, UNASSIGNED])
+      ).toBe(ME);
+      expect(resolveAssigneeTab('conversation_unread', {}, [UNASSIGNED])).toBe(
+        UNASSIGNED
+      );
+    });
+
+    it('clamps a deep-link assignee_type the user is not allowed to use', () => {
+      expect(
+        resolveAssigneeTab('conversation_unread', { assignee_type: 'all' }, [
+          ME,
+          UNASSIGNED,
+        ])
       ).toBe(ME);
     });
   });

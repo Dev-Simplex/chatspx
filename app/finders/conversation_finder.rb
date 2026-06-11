@@ -38,12 +38,12 @@ class ConversationFinder # rubocop:disable Metrics/ClassLength
   end
 
   # Single source of truth for the admin check. Prefer the already-loaded
-  # Current.account_user, but fall back to an explicit lookup when Current is
-  # not populated (e.g. non-request contexts) so admins are never wrongly
-  # treated as agents. Mirrors Conversations::PermissionFilterService.
+  # Current.account_user; fall back to an explicit lookup only when the account
+  # is known but Current is not populated, so admins are never wrongly treated
+  # as agents. Mirrors Conversations::PermissionFilterService.
   def administrator?
     account_user = Current.account_user
-    account_user ||= AccountUser.find_by(account_id: @current_account.id, user_id: @current_user.id)
+    account_user ||= @current_account && AccountUser.find_by(account_id: @current_account.id, user_id: @current_user.id)
     account_user&.administrator? || false
   end
 
