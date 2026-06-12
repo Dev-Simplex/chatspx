@@ -22,8 +22,9 @@ class Captain::Tools::TransferirParaAgenteTool < Captain::Tools::BasePublicTool
     mirror = AgentBot.find_by(captain_assistant_id: alvo.id)
     return "O agente #{alvo.name} está indisponível no momento." if mirror.nil?
 
-    conversation.update!(assignee_agent_bot_id: mirror.id)
-    log_tool_usage('transfer', conversation_id: conversation.id, to: alvo.name)
+    attrs = transfer_attributes(conversation, alvo, mirror)
+    conversation.update!(attrs)
+    log_tool_usage('transfer', conversation_id: conversation.id, to: alvo.name, team_id: attrs[:team_id])
     "Conversa transferida para #{alvo.name}, que assume a partir daqui. NÃO envie mais nenhuma resposta nesta conversa."
   rescue StandardError => e
     Rails.logger.warn("[TransferirParaAgenteTool] conv=#{conversation&.id}: #{e.message}")
@@ -31,6 +32,15 @@ class Captain::Tools::TransferirParaAgenteTool < Captain::Tools::BasePublicTool
   end
 
   private
+
+  # O time do setor acompanha a especialista (config['team_id'] do agente alvo),
+  # então a conversa já chega organizada pro humano que assumir depois.
+  def transfer_attributes(conversation, alvo, mirror)
+    attrs = { assignee_agent_bot_id: mirror.id }
+    team = conversation.account.teams.find_by(id: alvo.config['team_id']) if alvo.config['team_id'].present?
+    attrs[:team_id] = team.id if team
+    attrs
+  end
 
   def resolve_target(account_id, nome)
     candidatos = Captain::Assistant.where(account_id: account_id)
