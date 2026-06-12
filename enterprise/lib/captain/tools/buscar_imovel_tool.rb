@@ -1,7 +1,7 @@
 class Captain::Tools::BuscarImovelTool < Captain::Tools::BasePublicTool
   description 'Busca imóveis no acervo da Tozi (sistema Vista) e retorna até 5 opções com o link correto do site. ' \
               "Use status_tipo='venda' para comprar e status_tipo='locacao' para alugar. " \
-              'Para proximidade geográfica, passe lat_min/lat_max/lng_min/lng_max vindos do buscar_localizacao.'
+              'Para proximidade geográfica, passe lat/lng (do buscar_localizacao): retorna os mais próximos com a distância em km.'
 
   param :status_tipo, type: 'string', desc: "'venda' para comprar, 'locacao' para alugar", required: true
   param :categoria, type: 'string', desc: 'Casa, Apartamento, Terreno, Sala Comercial, Kitnet. Vazio se não especificou.', required: false
@@ -9,16 +9,16 @@ class Captain::Tools::BuscarImovelTool < Captain::Tools::BasePublicTool
   param :endereco, type: 'string', desc: 'Rua, avenida ou logradouro, quando o cliente especificar (ex: "Mário Lago"). Estreita a busca dentro do bairro.', required: false
   param :valor_max, type: 'number', desc: 'Valor máximo: aluguel mensal pra locação, valor total pra venda.', required: false
   param :dormitorios, type: 'number', desc: 'Quantidade de dormitórios.', required: false
-  param :lat_min, type: 'string', desc: 'Latitude mínima do bbox (do buscar_localizacao).', required: false
-  param :lat_max, type: 'string', desc: 'Latitude máxima do bbox.', required: false
-  param :lng_min, type: 'string', desc: 'Longitude mínima do bbox.', required: false
-  param :lng_max, type: 'string', desc: 'Longitude máxima do bbox.', required: false
+  param :lat, type: 'string', desc: 'Latitude do ponto de referência (do buscar_localizacao).', required: false
+  param :lng, type: 'string', desc: 'Longitude do ponto de referência (do buscar_localizacao).', required: false
+  param :raio_km, type: 'number', desc: 'Raio de busca em km ao redor do ponto (padrão 3).', required: false
 
-  VISTA_FIELDS = %w[Codigo ImoCodigo Categoria Status Dormitorios Cidade Bairro BairroComercial ValorLocacao ValorVenda TituloSite].freeze
+  VISTA_FIELDS = %w[Codigo ImoCodigo Categoria Status Dormitorios Cidade Bairro BairroComercial ValorLocacao ValorVenda TituloSite
+                    Latitude Longitude].freeze
   META_KEYS = %w[total paginas pagina quantidade].freeze
 
   def perform(_tool_context, status_tipo:, categoria: nil, bairro: nil, endereco: nil, valor_max: nil,
-              dormitorios: nil, lat_min: nil, lat_max: nil, lng_min: nil, lng_max: nil)
+              dormitorios: nil, lat: nil, lng: nil, raio_km: nil)
     venda = status_tipo.to_s == 'venda'
     filter = { 'Cidade' => 'Sinop' }
     filter['Status'] = venda ? ['like', '%vend%'] : ['like', '%alug%']
@@ -30,13 +30,15 @@ class Captain::Tools::BuscarImovelTool < Captain::Tools::BasePublicTool
     filter['Bairro'] = ['like', "%#{bairro}%"] if bairro.present?
     filter['Endereco'] = ['like', "%#{endereco}%"] if endereco.present?
     filter['Dormitorios'] = dormitorios if dormitorios.present?
-    filter['Latitude'] = [lat_min, lat_max] if lat_min.present? && lat_max.present?
-    filter['Longitude'] = [lng_min, lng_max] if lng_min.present? && lng_max.present?
 
-    imoveis = fetch_vista(filter)
+    geo = lat.present? && lng.present?
+    # O Vista compara Latitude/Longitude como STRING (lexicográfico) — com coordenadas
+    # negativas o range nunca casa. Proximidade é calculada AQUI (Haversine), não lá.
+    imoveis = fetch_vista(filter, quantidade: geo ? 50 : 5)
     return 'Nenhum imóvel encontrado com esses critérios.' if imoveis.blank?
+    return format_listings(imoveis, venda) unless geo
 
-    format_listings(imoveis, venda)
+    format_by_distance(imoveis, venda, lat.to_f, lng.to_f, (raio_km.presence || 3).to_f)
   rescue StandardError => e
     Rails.logger.warn("[BuscarImoveisTool] #{e.message}")
     'Não consegui buscar os imóveis agora.'
@@ -44,13 +46,13 @@ class Captain::Tools::BuscarImovelTool < Captain::Tools::BasePublicTool
 
   private
 
-  def fetch_vista(filter)
+  def fetch_vista(filter, quantidade: 5)
     base = ENV.fetch('TOZI_VISTA_BASE_URL', 'https://toz19328-rest.vistahost.com.br')
     pesquisa = {
       fields: VISTA_FIELDS,
       filter: filter,
       order: { 'Codigo' => 'desc' },
-      paginacao: { pagina: 1, quantidade: 5 }
+      paginacao: { pagina: 1, quantidade: quantidade }
     }
     resp = HTTParty.get(
       "#{base}/imoveis/listar",
@@ -67,13 +69,40 @@ class Captain::Tools::BuscarImovelTool < Captain::Tools::BasePublicTool
     data.reject { |k, _| META_KEYS.include?(k) }.values.select { |v| v.is_a?(Hash) }
   end
 
-  def format_listings(imoveis, venda)
+  def format_by_distance(imoveis, venda, lat, lng, raio)
+    com_geo = imoveis.filter_map do |im|
+      ilat = im['Latitude'].to_f
+      ilng = im['Longitude'].to_f
+      next if ilat.zero? && ilng.zero?
+
+      im.merge('dist_km' => haversine_km(lat, lng, ilat, ilng))
+    end
+    return 'Os imóveis encontrados não têm localização cadastrada — refaça a busca por bairro.' if com_geo.empty?
+
+    com_geo.sort_by! { |im| im['dist_km'] }
+    no_raio = com_geo.select { |im| im['dist_km'] <= raio }
+    return format_listings(no_raio, venda) if no_raio.any?
+
+    format_listings(com_geo.first(3), venda,
+                    header: "Nenhum imóvel a até #{raio.round} km da referência. Os mais próximos são:")
+  end
+
+  def haversine_km(lat1, lng1, lat2, lng2)
+    rad = Math::PI / 180
+    dlat = (lat2 - lat1) * rad
+    dlng = (lng2 - lng1) * rad
+    a = (Math.sin(dlat / 2)**2) + (Math.cos(lat1 * rad) * Math.cos(lat2 * rad) * (Math.sin(dlng / 2)**2))
+    2 * 6371 * Math.asin(Math.sqrt(a))
+  end
+
+  def format_listings(imoveis, venda, header: nil)
     linhas = imoveis.first(5).map do |im|
       valor = venda ? "R$ #{im['ValorVenda']}" : "R$ #{im['ValorLocacao']}/mês"
       dorm = im['Dormitorios'].to_i.positive? ? "#{im['Dormitorios']} quartos, " : ''
-      "(cód #{im['Codigo']}) #{im['Categoria']} #{dorm}no #{im['Bairro']}, #{valor}. #{build_url(im, venda)}"
+      dist = im['dist_km'] ? " — a #{format('%.1f', im['dist_km'])} km da referência" : ''
+      "(cód #{im['Codigo']}) #{im['Categoria']} #{dorm}no #{im['Bairro']}, #{valor}#{dist}. #{build_url(im, venda)}"
     end
-    "Encontrei #{linhas.size} opção(ões):\n#{linhas.join("\n")}"
+    "#{header || "Encontrei #{linhas.size} opção(ões):"}\n#{linhas.join("\n")}"
   end
 
   # O site da Tozi acha o imóvel pelo ImoCodigo (não pelo Codigo do Vista); o slug
