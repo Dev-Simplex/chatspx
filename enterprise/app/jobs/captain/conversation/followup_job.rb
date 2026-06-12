@@ -36,6 +36,7 @@ class Captain::Conversation::FollowupJob < ApplicationJob
     attrs = conversation.custom_attributes || {}
     return false unless attrs['followup_token'] == token           # substituído por outro follow-up
     return false if conversation.resolved?
+    return false if attrs['aguardando_humano_desde'].present?      # esperando atendente (Modelo A): não cutucar
     return false if lead_replied?(conversation)                    # cliente respondeu -> não cutuca
     return false if reschedule_if_quiet_hours(conversation, token) # madrugada -> remarca pra manhã
 
