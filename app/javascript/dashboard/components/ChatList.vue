@@ -763,6 +763,23 @@ function updateAssigneeTab(selectedTab) {
     });
     return;
   }
+  // Unread: keep the active tab reflected in the URL (?assignee_type=...) for
+  // all three tabs, so the address bar always matches the highlighted tab and
+  // the view is deep-linkable. The deep-link watcher then syncs the tab state
+  // and refetches. Always explicit (unlike unattended, whose default is "me").
+  if (props.conversationType === 'unread') {
+    const queryByTab = {
+      [wootConstants.ASSIGNEE_TYPE.ME]: 'me',
+      [wootConstants.ASSIGNEE_TYPE.UNASSIGNED]: 'unassigned',
+      [wootConstants.ASSIGNEE_TYPE.ALL]: 'all',
+    };
+    router.push({
+      name: 'conversation_unread',
+      params: { accountId: currentAccountId.value },
+      query: { assignee_type: queryByTab[selectedTab] ?? 'all' },
+    });
+    return;
+  }
   if (activeAssigneeTab.value !== selectedTab) {
     resetBulkActions();
     emitter.emit('clearSearchInput');
