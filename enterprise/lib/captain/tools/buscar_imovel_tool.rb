@@ -1,7 +1,8 @@
 class Captain::Tools::BuscarImovelTool < Captain::Tools::BasePublicTool
   description 'Busca imóveis no acervo da Tozi (sistema Vista) e retorna até 5 opções com o link correto do site. ' \
               "Use status_tipo='venda' para comprar e status_tipo='locacao' para alugar. " \
-              'Para proximidade geográfica, passe lat/lng (do buscar_localizacao): retorna os mais próximos com a distância em km.'
+              'Para proximidade geográfica, passe lat/lng (do buscar_localizacao OU da localização que o cliente enviou): ' \
+              'retorna os mais próximos, ordenados pela distância em km.'
 
   param :status_tipo, type: 'string', desc: "'venda' para comprar, 'locacao' para alugar", required: true
   param :categoria, type: 'string', desc: 'Casa, Apartamento, Terreno, Sala Comercial, Kitnet. Vazio se não especificou.', required: false
@@ -9,9 +10,9 @@ class Captain::Tools::BuscarImovelTool < Captain::Tools::BasePublicTool
   param :endereco, type: 'string', desc: 'Rua, avenida ou logradouro, quando o cliente especificar (ex: "Mário Lago"). Estreita a busca dentro do bairro.', required: false
   param :valor_max, type: 'number', desc: 'Valor máximo: aluguel mensal pra locação, valor total pra venda.', required: false
   param :dormitorios, type: 'number', desc: 'Quantidade de dormitórios.', required: false
-  param :lat, type: 'string', desc: 'Latitude do ponto de referência (do buscar_localizacao).', required: false
-  param :lng, type: 'string', desc: 'Longitude do ponto de referência (do buscar_localizacao).', required: false
-  param :raio_km, type: 'number', desc: 'Raio de busca em km ao redor do ponto (padrão 3).', required: false
+  param :lat, type: 'string', desc: 'Latitude do ponto de referência (do buscar_localizacao ou da localização enviada pelo cliente).', required: false
+  param :lng, type: 'string', desc: 'Longitude do ponto de referência.', required: false
+  param :raio_km, type: 'number', desc: 'Só quando o cliente limitar a distância (ex: "até 2 km"). Sem isso, lista os mais próximos.', required: false
 
   VISTA_FIELDS = %w[Codigo ImoCodigo Categoria Status Dormitorios Cidade Bairro BairroComercial ValorLocacao ValorVenda TituloSite
                     Latitude Longitude].freeze
@@ -38,7 +39,7 @@ class Captain::Tools::BuscarImovelTool < Captain::Tools::BasePublicTool
     return 'Nenhum imóvel encontrado com esses critérios.' if imoveis.blank?
     return format_listings(imoveis, venda) unless geo
 
-    format_by_distance(imoveis, venda, lat.to_f, lng.to_f, (raio_km.presence || 3).to_f)
+    format_by_distance(imoveis, venda, lat.to_f, lng.to_f, raio_km.presence&.to_f)
   rescue StandardError => e
     Rails.logger.warn("[BuscarImoveisTool] #{e.message}")
     'Não consegui buscar os imóveis agora.'
@@ -70,21 +71,28 @@ class Captain::Tools::BuscarImovelTool < Captain::Tools::BasePublicTool
   end
 
   def format_by_distance(imoveis, venda, lat, lng, raio)
-    com_geo = imoveis.filter_map do |im|
+    com_geo = with_distances(imoveis, lat, lng)
+    return 'Os imóveis encontrados não têm localização cadastrada — refaça a busca por bairro.' if com_geo.empty?
+
+    com_geo.sort_by! { |im| im['dist_km'] }
+    return format_listings(com_geo, venda, header: 'Mais próximos da referência:') if raio.blank?
+
+    no_raio = com_geo.select { |im| im['dist_km'] <= raio }
+    return format_listings(no_raio, venda) if no_raio.any?
+
+    format_listings(com_geo.first(3), venda,
+                    header: "Nenhum imóvel a até #{raio.round} km da referência. Os mais próximos são:")
+  end
+
+  # Imóvel sem lat/lng cadastrado (ou "0.0") fica fora do cálculo de proximidade.
+  def with_distances(imoveis, lat, lng)
+    imoveis.filter_map do |im|
       ilat = im['Latitude'].to_f
       ilng = im['Longitude'].to_f
       next if ilat.zero? && ilng.zero?
 
       im.merge('dist_km' => haversine_km(lat, lng, ilat, ilng))
     end
-    return 'Os imóveis encontrados não têm localização cadastrada — refaça a busca por bairro.' if com_geo.empty?
-
-    com_geo.sort_by! { |im| im['dist_km'] }
-    no_raio = com_geo.select { |im| im['dist_km'] <= raio }
-    return format_listings(no_raio, venda) if no_raio.any?
-
-    format_listings(com_geo.first(3), venda,
-                    header: "Nenhum imóvel a até #{raio.round} km da referência. Os mais próximos são:")
   end
 
   def haversine_km(lat1, lng1, lat2, lng2)
