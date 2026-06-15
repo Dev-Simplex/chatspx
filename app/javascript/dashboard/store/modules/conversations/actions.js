@@ -365,7 +365,13 @@ const actions = {
 
   toggleStatus: async (
     { commit },
-    { conversationId, status, snoozedUntil = null, customAttributes = null }
+    {
+      conversationId,
+      status,
+      snoozedUntil = null,
+      customAttributes = null,
+      rethrow = false,
+    }
   ) => {
     try {
       // Update custom attributes first if provided
@@ -398,7 +404,11 @@ const actions = {
         snoozedUntil: updatedSnoozedUntil,
       });
     } catch (error) {
-      // Handle error
+      // Opt-in propagation so callers (e.g. the resolve assignment gate) can react
+      // to a 422; default stays silent to preserve existing behaviour.
+      if (rethrow) {
+        throw error;
+      }
     }
   },
 

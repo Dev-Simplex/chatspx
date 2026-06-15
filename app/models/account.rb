@@ -41,6 +41,7 @@ class Account < ApplicationRecord # rubocop:disable Metrics/ClassLength
         'audio_transcriptions': { 'type': %w[boolean null] },
         'auto_resolve_label': { 'type': %w[string null] },
         'keep_pending_on_bot_failure': { 'type': %w[boolean null] },
+        'resolve_assignment_gate': { 'type': %w[boolean null] },
         'captain_auto_resolve_mode': { 'type': %w[string null], 'enum': ['evaluated', 'legacy', 'disabled', nil] },
         'conversation_required_attributes': {
           'type': %w[array null],
@@ -97,6 +98,7 @@ class Account < ApplicationRecord # rubocop:disable Metrics/ClassLength
   store_accessor :settings, :reporting_timezone
   store_accessor :settings, :keep_pending_on_bot_failure
   store_accessor :settings, :captain_auto_resolve_mode
+  store_accessor :settings, :resolve_assignment_gate
   include AccountCaptainAutoResolve
 
   has_many :account_users, dependent: :destroy_async
@@ -201,6 +203,12 @@ class Account < ApplicationRecord # rubocop:disable Metrics/ClassLength
     # we need to extract the language code from the locale
     account_locale = locale&.split('_')&.first
     ISO_639.find(account_locale)&.english_name&.downcase || 'english'
+  end
+
+  # "Atribuição obrigatória" mode: when enabled, only the assignee can resolve a
+  # conversation manually. Stored as a JSONB setting flag.
+  def resolve_assignment_gate_enabled?
+    ActiveModel::Type::Boolean.new.cast(resolve_assignment_gate)
   end
 
   private

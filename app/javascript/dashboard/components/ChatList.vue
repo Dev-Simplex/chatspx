@@ -32,6 +32,8 @@ import Spinner from 'dashboard/components-next/spinner/Spinner.vue';
 import IntersectionObserver from 'dashboard/components/IntersectionObserver.vue';
 import ConversationSearchModal from './widgets/conversation/ConversationSearchModal.vue';
 import ConversationResolveAttributesModal from 'dashboard/components-next/ConversationWorkflow/ConversationResolveAttributesModal.vue';
+import AssignAndResolveDialog from 'dashboard/components-next/Conversation/AssignAndResolveDialog.vue';
+import { useResolveAssignmentGate } from 'dashboard/composables/useResolveAssignmentGate';
 
 import { useUISettings } from 'dashboard/composables/useUISettings';
 import { useAlert } from 'dashboard/composables';
@@ -164,6 +166,11 @@ const {
   teams,
   onConfirmAgentTransferTeam,
   cancelAgentTransferTeamSelection,
+  showBulkAssignResolveDialog,
+  bulkAssignResolveRequiresTeam,
+  bulkAssignResolveCount,
+  onConfirmBulkAssignResolve,
+  onCancelBulkAssignResolve,
 } = useBulkActions();
 
 const {
@@ -175,6 +182,57 @@ const {
 });
 
 const { checkMissingAttributes } = useConversationRequiredAttributes();
+
+const {
+  requiresAssignmentToResolve,
+  getResolveVariant,
+  getAssignee,
+  hasTeam,
+  assignSelfAndResolve,
+} = useResolveAssignmentGate();
+
+// "Atribuição obrigatória" — assign-and-resolve dialog state for the context menu.
+const showAssignResolveDialog = ref(false);
+const assignResolveContext = ref({
+  conversationId: null,
+  snoozedUntil: null,
+  variant: 'unassigned',
+  assigneeName: '',
+  requiresTeam: false,
+});
+const myTeams = useMapGetter('teams/getMyTeams');
+
+function openAssignResolveDialog(conversation, snoozedUntil) {
+  const variant = getResolveVariant(conversation);
+  const assignee = getAssignee(conversation);
+  assignResolveContext.value = {
+    conversationId: conversation.id,
+    snoozedUntil,
+    variant,
+    assigneeName:
+      variant === 'ai'
+        ? assignee?.name ||
+          t('CONVERSATION.RESOLVE_ASSIGNMENT_GATE.AI_FALLBACK')
+        : assignee?.name || '',
+    requiresTeam: !hasTeam(conversation),
+  };
+  showAssignResolveDialog.value = true;
+}
+
+function closeAssignResolveDialog() {
+  showAssignResolveDialog.value = false;
+}
+
+async function handleAssignAndResolve({ teamId }) {
+  const { conversationId, snoozedUntil } = assignResolveContext.value;
+  closeAssignResolveDialog();
+  try {
+    await assignSelfAndResolve(conversationId, { teamId, snoozedUntil });
+    useAlert(t('CONVERSATION.RESOLVE_ASSIGNMENT_GATE.SUCCESS'));
+  } catch (error) {
+    useAlert(t('CONVERSATION.CHANGE_STATUS_FAILED'));
+  }
+}
 
 // computed
 
@@ -929,6 +987,13 @@ function handleResolveConversation(conversationId, status, snoozedUntil) {
 
   // Check for required attributes before resolving
   const conversation = getConversationById.value(conversationId);
+
+  // "Atribuição obrigatória": intercept non-assignee resolves with the dialog.
+  if (requiresAssignmentToResolve(conversation)) {
+    openAssignResolveDialog(conversation, snoozedUntil);
+    return;
+  }
+
   const currentCustomAttributes = conversation?.custom_attributes || {};
   const { hasMissing, missing } = checkMissingAttributes(
     currentCustomAttributes
@@ -1270,6 +1335,15 @@ watch(conversationFilters, newVal => {
       @confirm="onConfirmAgentTransferTeam"
       @close="cancelAgentTransferTeamSelection"
     />
+    <AssignAndResolveDialog
+      :show="showBulkAssignResolveDialog"
+      is-bulk
+      :bulk-count="bulkAssignResolveCount"
+      :requires-team="bulkAssignResolveRequiresTeam"
+      :teams="myTeams"
+      @confirm="onConfirmBulkAssignResolve"
+      @close="onCancelBulkAssignResolve"
+    />
     <div
       ref="conversationListRef"
       class="flex-1 min-h-0 overflow-y-auto conversations-list"
@@ -1351,6 +1425,15 @@ watch(conversationFilters, newVal => {
     <ConversationResolveAttributesModal
       ref="resolveAttributesModalRef"
       @submit="handleResolveWithAttributes"
+    />
+    <AssignAndResolveDialog
+      :show="showAssignResolveDialog"
+      :variant="assignResolveContext.variant"
+      :assignee-name="assignResolveContext.assigneeName"
+      :requires-team="assignResolveContext.requiresTeam"
+      :teams="myTeams"
+      @confirm="handleAssignAndResolve"
+      @close="closeAssignResolveDialog"
     />
   </div>
 </template>

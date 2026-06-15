@@ -227,6 +227,7 @@ pt_BR:
   conversations:
     errors:
       team_required_for_resolution: 'Um time deve ser atribuído antes de resolver esta conversa'
+      resolve_assignment_required: 'Apenas o agente atribuído pode encerrar esta conversa'
     captain:
       handoff: 'Transferindo para que outro agente dê assistência.'
     messages:

@@ -33,7 +33,8 @@ export function useResolveValidation() {
   const validateAndResolve = async (
     conversationId,
     status,
-    snoozedUntil = null
+    snoozedUntil = null,
+    { rethrow = false } = {}
   ) => {
     // Get conversation from store
     const getConversationById =
@@ -59,6 +60,7 @@ export function useResolveValidation() {
       conversationId,
       status,
       snoozedUntil,
+      rethrow,
     });
   };
 

@@ -509,6 +509,56 @@ RSpec.describe 'Conversations API', type: :request do
       end
     end
 
+    context 'when the resolve assignment gate is enabled' do
+      let(:agent) { create(:user, account: account, role: :agent) }
+      let(:owner) { create(:user, account: account, role: :agent) }
+      let(:team) { create(:team, account: account) }
+      let(:gated_conversation) { create(:conversation, account: account, inbox: inbox, team: team, assignee: owner, status: 'open') }
+
+      before do
+        account.update!(settings: { resolve_assignment_gate: true })
+        create(:inbox_member, user: agent, inbox: inbox)
+        create(:inbox_member, user: owner, inbox: inbox)
+        # Both need team access to reach the conversation (authorize_team_access);
+        # the assignee must also be in the team or the model clears it on save.
+        create(:team_member, user: agent, team: team)
+        create(:team_member, user: owner, team: team)
+      end
+
+      it 'blocks a non-assignee with 422 and a resolve_assignment_required error_code' do
+        post "/api/v1/accounts/#{account.id}/conversations/#{gated_conversation.display_id}/toggle_status",
+             headers: agent.create_new_auth_token,
+             params: { status: 'resolved' },
+             as: :json
+
+        expect(response).to have_http_status(:unprocessable_entity)
+        body = response.parsed_body
+        expect(body['error_code']).to eq('resolve_assignment_required')
+        expect(body['meta']).to include('current_assignee_id' => owner.id, 'team_id' => team.id)
+        expect(gated_conversation.reload.status).to eq('open')
+      end
+
+      it 'allows the assignee to resolve' do
+        post "/api/v1/accounts/#{account.id}/conversations/#{gated_conversation.display_id}/toggle_status",
+             headers: owner.create_new_auth_token,
+             params: { status: 'resolved' },
+             as: :json
+
+        expect(response).to have_http_status(:success)
+        expect(gated_conversation.reload.status).to eq('resolved')
+      end
+
+      it 'cannot be bypassed by a non-assignee via the param-less toggle' do
+        post "/api/v1/accounts/#{account.id}/conversations/#{gated_conversation.display_id}/toggle_status",
+             headers: agent.create_new_auth_token,
+             as: :json
+
+        expect(response).to have_http_status(:unprocessable_entity)
+        expect(response.parsed_body['error_code']).to eq('resolve_assignment_required')
+        expect(gated_conversation.reload.status).to eq('open')
+      end
+    end
+
     context 'when it is an authenticated bot' do
       # this test will basically ensure that the status actually changes
       # regardless of the value to be done

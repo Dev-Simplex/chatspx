@@ -416,6 +416,28 @@
     "RESOLVE_WITH_TEAM_SUCCESS": "Conversation resolved successfully",
     "BULK_RESOLVE_REQUIRES_TEAM": "All conversations must have a team assigned before resolving",
     "NO_TEAMS_AVAILABLE": "No teams available. Please create a team first.",
+    "RESOLVE_ASSIGNMENT_GATE": {
+      "CONFIRM": "Assign to me and resolve",
+      "SELECT_TEAM": "Select a team to resolve this conversation",
+      "SUCCESS": "Conversation assigned to you and resolved",
+      "AI_FALLBACK": "AI",
+      "UNASSIGNED": {
+        "TITLE": "Assign to you and resolve?",
+        "DESCRIPTION": "This conversation isn't assigned to anyone. It will be assigned to you and resolved."
+      },
+      "COLLEAGUE": {
+        "TITLE": "Take over from {name} and resolve?",
+        "DESCRIPTION": "This conversation is assigned to {name}. It will be reassigned to you and resolved. {name} will be notified."
+      },
+      "AI": {
+        "TITLE": "Take over from {name} and resolve?",
+        "DESCRIPTION": "This conversation is handled by {name}. It will be assigned to you and resolved."
+      },
+      "BULK": {
+        "TITLE": "Assign to you and resolve?",
+        "DESCRIPTION": "{count} conversations will be assigned to you and resolved."
+      }
+    },
     "SUCCESS_DELETE_CONVERSATION": "Conversation deleted successfully",
     "FAIL_DELETE_CONVERSATION": "Couldn't delete conversation! Try again",
     "FILE_SIZE_LIMIT": "File exceeds the {MAXIMUM_SUPPORTED_FILE_UPLOAD_SIZE} MB attachment limit",

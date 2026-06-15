@@ -17,6 +17,7 @@ import AccountDelete from './components/AccountDelete.vue';
 import AudioTranscription from './components/AudioTranscription.vue';
 import ChatWallpaper from './components/ChatWallpaper.vue';
 import DashboardKpiStrip from './components/DashboardKpiStrip.vue';
+import AttendanceModeToggle from './components/AttendanceModeToggle.vue';
 import DensityToggle from './components/DensityToggle.vue';
 import SectionLayout from './components/SectionLayout.vue';
 
@@ -30,6 +31,7 @@ export default {
     AudioTranscription,
     ChatWallpaper,
     DashboardKpiStrip,
+    AttendanceModeToggle,
     DensityToggle,
     SectionLayout,
     WithLabel,
@@ -245,6 +247,7 @@ export default {
     <AudioTranscription v-if="showAudioTranscriptionConfig" />
     <ChatWallpaper />
     <DashboardKpiStrip />
+    <AttendanceModeToggle />
     <DensityToggle />
     <AccountId />
     <div v-if="!uiFlags.isFetchingItem && isOnChatwootCloud">

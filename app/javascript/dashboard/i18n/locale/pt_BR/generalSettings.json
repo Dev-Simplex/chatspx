@@ -143,6 +143,14 @@
           "ERROR": "Falha ao atualizar configuração da faixa de KPIs"
         }
       },
+      "ATTENDANCE_MODE": {
+        "TITLE": "Atribuição obrigatória para encerrar",
+        "NOTE": "Somente o agente atribuído pode encerrar uma conversa. Qualquer outra pessoa precisa atribuí-la a si antes de encerrar.",
+        "API": {
+          "SUCCESS": "Modo de atribuição obrigatória atualizado",
+          "ERROR": "Falha ao atualizar o modo de atribuição obrigatória"
+        }
+      },
       "AUDIO_TRANSCRIPTION": {
         "TITLE": "Transcrever Mensagens de Áudio",
         "NOTE": "Transcreve automaticamente mensagens de áudio nas conversas. Gera uma transcrição de texto sempre que uma mensagem de áudio é enviada ou recebida, e a exibe junto da mensagem.",

@@ -394,6 +394,28 @@
     "RESOLVE_WITH_TEAM_SUCCESS": "Conversa resolvida com sucesso",
     "BULK_RESOLVE_REQUIRES_TEAM": "Todas as conversas devem ter um time atribuído antes de resolver",
     "NO_TEAMS_AVAILABLE": "Nenhum time disponível. Por favor, crie um time primeiro.",
+    "RESOLVE_ASSIGNMENT_GATE": {
+      "CONFIRM": "Atribuir a mim e encerrar",
+      "SELECT_TEAM": "Selecione um time para encerrar esta conversa",
+      "SUCCESS": "Conversa atribuída a você e encerrada",
+      "AI_FALLBACK": "IA",
+      "UNASSIGNED": {
+        "TITLE": "Atribuir a você e encerrar?",
+        "DESCRIPTION": "Esta conversa não está atribuída a ninguém. Ela será atribuída a você e encerrada."
+      },
+      "COLLEAGUE": {
+        "TITLE": "Assumir de {name} e encerrar?",
+        "DESCRIPTION": "Esta conversa está atribuída a {name}. Ela será reatribuída a você e encerrada. {name} será notificado(a)."
+      },
+      "AI": {
+        "TITLE": "Assumir da {name} e encerrar?",
+        "DESCRIPTION": "Esta conversa está sendo atendida por {name}. Ela será atribuída a você e encerrada."
+      },
+      "BULK": {
+        "TITLE": "Atribuir a você e encerrar?",
+        "DESCRIPTION": "{count} conversas serão atribuídas a você e encerradas."
+      }
+    },
     "SUCCESS_DELETE_CONVERSATION": "Conversa excluída com sucesso",
     "FAIL_DELETE_CONVERSATION": "Não foi possível excluir a conversa! Tente novamente",
     "FILE_SIZE_LIMIT": "O arquivo excede os {MAXIMUM_SUPPORTED_FILE_UPLOAD_SIZE} MB do limite para anexos",
