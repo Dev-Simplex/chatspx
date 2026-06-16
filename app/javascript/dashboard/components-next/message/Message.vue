@@ -418,6 +418,18 @@ const componentToRender = computed(() => {
     return InstagramStoryBubble;
   }
 
+  // One or more shared contacts render as rich contact cards. Content may hold
+  // the contact name, so this is intentionally not gated on `!props.content`.
+  if (
+    Array.isArray(props.attachments) &&
+    props.attachments.length >= 1 &&
+    props.attachments.every(
+      attachment => attachment.fileType === ATTACHMENT_TYPES.CONTACT
+    )
+  ) {
+    return ContactBubble;
+  }
+
   if (Array.isArray(props.attachments) && props.attachments.length === 1) {
     const fileType = props.attachments[0].fileType;
 
@@ -430,8 +442,6 @@ const componentToRender = computed(() => {
       if (fileType === ATTACHMENT_TYPES.EMBED) return EmbedBubble;
       if (fileType === ATTACHMENT_TYPES.LOCATION) return LocationBubble;
     }
-    // Attachment content is the name of the contact
-    if (fileType === ATTACHMENT_TYPES.CONTACT) return ContactBubble;
   }
 
   return TextBubble;

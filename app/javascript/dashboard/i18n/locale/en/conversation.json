@@ -70,6 +70,10 @@
     "DOWNLOAD": "Download",
     "UNKNOWN_FILE_TYPE": "Unknown File",
     "SAVE_CONTACT": "Save Contact",
+    "VIEW_CONTACT": "View contact",
+    "START_CONVERSATION": "Start conversation",
+    "SHARED_CONTACT_LABEL": "Shared contact",
+    "NO_INBOX_FOR_CONTACT": "No inbox available to start a conversation with this contact.",
     "NO_CONTENT": "No content to display",
     "SHARED_ATTACHMENT": {
       "CONTACT": "{sender} has shared a contact",
@@ -620,6 +624,15 @@
     },
     "MEDIA_EMPTY": "No media or files in this conversation",
     "SHOW_MORE": "Show {count} more",
+    "BULK": {
+      "DOWNLOAD_ALL": "Download all ({count})",
+      "SELECT": "Select",
+      "SELECTED_COUNT": "{count} selected",
+      "DOWNLOAD_SELECTED": "Download selected (.zip)",
+      "CANCEL": "Cancel",
+      "PREPARING": "Preparing… ({processed}/{total})",
+      "PREPARING_INDEFINITE": "Preparing…"
+    },
     "SHOPIFY": {
       "ORDER_ID": "Order #{id}",
       "ERROR": "Error loading orders",

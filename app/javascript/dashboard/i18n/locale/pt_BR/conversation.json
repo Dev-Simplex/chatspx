@@ -61,6 +61,10 @@
     "DOWNLOAD": "Baixar",
     "UNKNOWN_FILE_TYPE": "Arquivo desconhecido",
     "SAVE_CONTACT": "Salvar contato",
+    "VIEW_CONTACT": "Ver contato",
+    "START_CONVERSATION": "Conversar",
+    "SHARED_CONTACT_LABEL": "Contato compartilhado",
+    "NO_INBOX_FOR_CONTACT": "Nenhuma caixa de entrada disponível para iniciar conversa com este contato.",
     "NO_CONTENT": "Nenhum conteúdo a ser exibido",
     "SHARED_ATTACHMENT": {
       "CONTACT": "{sender} compartilhou um contato",
@@ -611,6 +615,15 @@
     },
     "MEDIA_EMPTY": "Nenhuma mídia ou arquivo nesta conversa",
     "SHOW_MORE": "Ver mais {count}",
+    "BULK": {
+      "DOWNLOAD_ALL": "Baixar todas ({count})",
+      "SELECT": "Selecionar",
+      "SELECTED_COUNT": "{count} selecionada(s)",
+      "DOWNLOAD_SELECTED": "Baixar selecionadas (.zip)",
+      "CANCEL": "Cancelar",
+      "PREPARING": "Preparando… ({processed}/{total})",
+      "PREPARING_INDEFINITE": "Preparando…"
+    },
     "SHOPIFY": {
       "ORDER_ID": "Pedido #{id}",
       "ERROR": "Erro ao carregar pedidos",
