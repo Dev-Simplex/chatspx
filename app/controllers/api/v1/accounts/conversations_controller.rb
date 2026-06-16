@@ -32,7 +32,7 @@ class Api::V1::Accounts::ConversationsController < Api::V1::Accounts::BaseContro
 
   def attachments
     base_scope = @conversation.attachments
-                              .where(file_type: [:image, :video, :ig_reel])
+                              .where(file_type: [:image, :video, :ig_reel, :audio, :file])
                               .includes(
                                 { file_attachment: [:blob] },
                                 { message: { sender: { avatar_attachment: [:blob] } } }

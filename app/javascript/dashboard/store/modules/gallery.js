@@ -253,6 +253,7 @@ const mutations = {
 };
 
 export const GALLERY_TAB = TAB;
+export const GALLERY_TAB_TYPES = TAB_TYPES;
 
 export default {
   namespaced: true,
