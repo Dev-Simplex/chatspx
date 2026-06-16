@@ -116,6 +116,8 @@ class Account < ApplicationRecord # rubocop:disable Metrics/ClassLength
   has_many :conversations, dependent: :destroy_async
   has_many :csat_survey_responses, dependent: :destroy_async
   has_many :nps_responses, dependent: :destroy_async
+  has_many :report_pdf_exports, dependent: :destroy_async
+  has_many :attachment_bulk_downloads, dependent: :destroy_async
   has_many :custom_attribute_definitions, dependent: :destroy_async
   has_many :custom_filters, dependent: :destroy_async
   has_many :dashboard_apps, dependent: :destroy_async

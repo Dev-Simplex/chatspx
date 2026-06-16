@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[7.1].define(version: 2026_05_19_210000) do
+ActiveRecord::Schema[7.1].define(version: 2026_06_12_120000) do
   # These extensions should be enabled to support this database
   enable_extension "pg_stat_statements"
   enable_extension "pg_trgm"
@@ -210,6 +210,31 @@ ActiveRecord::Schema[7.1].define(version: 2026_05_19_210000) do
     t.index ["account_id", "name"], name: "index_assignment_policies_on_account_id_and_name", unique: true
     t.index ["account_id"], name: "index_assignment_policies_on_account_id"
     t.index ["enabled"], name: "index_assignment_policies_on_enabled"
+  end
+
+  create_table "attachment_bulk_downloads", force: :cascade do |t|
+    t.bigint "account_id", null: false
+    t.bigint "requester_user_id"
+    t.bigint "conversation_id"
+    t.integer "status", default: 0, null: false
+    t.jsonb "params", default: {}, null: false
+    t.jsonb "audit_meta", default: {}, null: false
+    t.integer "total_count", default: 0
+    t.integer "processed_count", default: 0
+    t.integer "skipped_count", default: 0
+    t.bigint "total_bytes", default: 0
+    t.bigint "file_size"
+    t.text "error_message"
+    t.datetime "started_at"
+    t.datetime "completed_at"
+    t.datetime "expires_at"
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["account_id", "requester_user_id", "status"], name: "idx_bulk_downloads_on_account_requester_status"
+    t.index ["account_id"], name: "index_attachment_bulk_downloads_on_account_id"
+    t.index ["conversation_id"], name: "index_attachment_bulk_downloads_on_conversation_id"
+    t.index ["expires_at"], name: "index_attachment_bulk_downloads_on_expires_at"
+    t.index ["requester_user_id"], name: "index_attachment_bulk_downloads_on_requester_user_id"
   end
 
   create_table "attachments", id: :serial, force: :cascade do |t|
@@ -1269,6 +1294,28 @@ ActiveRecord::Schema[7.1].define(version: 2026_05_19_210000) do
     t.index ["related_category_id", "category_id"], name: "index_related_categories_on_related_category_id_and_category_id", unique: true
   end
 
+  create_table "report_pdf_exports", force: :cascade do |t|
+    t.bigint "account_id", null: false
+    t.bigint "requester_user_id"
+    t.string "report_type", null: false
+    t.integer "status", default: 0, null: false
+    t.jsonb "filters", default: {}, null: false
+    t.jsonb "audit_meta", default: {}, null: false
+    t.string "sha256", limit: 64
+    t.bigint "file_size"
+    t.datetime "started_at"
+    t.datetime "completed_at"
+    t.datetime "expires_at"
+    t.text "error_message"
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["account_id", "created_at"], name: "idx_report_pdf_exports_on_account_and_created", order: { created_at: :desc }
+    t.index ["account_id", "report_type"], name: "index_report_pdf_exports_on_account_id_and_report_type"
+    t.index ["account_id"], name: "index_report_pdf_exports_on_account_id"
+    t.index ["requester_user_id"], name: "index_report_pdf_exports_on_requester_user_id"
+    t.index ["status"], name: "index_report_pdf_exports_on_status"
+  end
+
   create_table "reporting_events", force: :cascade do |t|
     t.string "name"
     t.float "value"
@@ -1510,6 +1557,8 @@ ActiveRecord::Schema[7.1].define(version: 2026_05_19_210000) do
   add_foreign_key "notifications", "accounts", on_delete: :cascade
   add_foreign_key "notifications", "users", on_delete: :cascade
   add_foreign_key "nps_responses", "conversations", on_delete: :cascade
+  add_foreign_key "report_pdf_exports", "accounts", on_delete: :cascade
+  add_foreign_key "report_pdf_exports", "users", column: "requester_user_id", on_delete: :nullify
   add_foreign_key "reporting_events", "conversations", on_delete: :cascade
   add_foreign_key "scheduled_messages", "conversations", on_delete: :cascade
   add_foreign_key "scheduled_messages", "inboxes"

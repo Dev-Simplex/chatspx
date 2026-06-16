@@ -215,6 +215,8 @@ Rails.application.routes.draw do
             end
           end
 
+          resources :attachment_bulk_downloads, only: [:create, :show]
+
           resources :companies, only: [:index, :show, :create, :update, :destroy] do
             collection do
               get :search
@@ -286,6 +288,7 @@ Rails.application.routes.draw do
               get :download
             end
           end
+          resources :report_pdf_exports, only: %i[create show]
           resources :reporting_events, only: [:index] if ChatwootApp.enterprise?
           resources :custom_attribute_definitions, only: [:index, :show, :create, :update, :destroy]
           resources :custom_filters, only: [:index, :show, :create, :update, :destroy]
