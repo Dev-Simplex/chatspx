@@ -1,0 +1,12 @@
+<%# Grid de cards numerados. locals: items => [{title:, body:}] %>
+<div class="recommendations">
+  <% items.each_with_index do |item, i| %>
+    <div class="reco-card">
+      <span class="reco-num"><%= i + 1 %></span>
+      <div class="reco-text">
+        <div class="reco-title"><%= item[:title] %></div>
+        <% if item[:body].present? %><div class="reco-body"><%= item[:body] %></div><% end %>
+      </div>
+    </div>
+  <% end %>
+</div>
