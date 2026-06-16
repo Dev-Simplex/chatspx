@@ -1,0 +1,63 @@
+From adef782364d6fac36f427d9ef03c91d3327bf695 Mon Sep 17 00:00:00 2001
+From: "Nicolas (ChatSPX)" <ederson.ricieri@gmail.com>
+Date: Fri, 12 Jun 2026 12:43:22 +0000
+Subject: [PATCH 4/4] =?UTF-8?q?fix(conversations):=20N=C3=A3o=20Lidas=20?=
+ =?UTF-8?q?=E2=80=94=20refletir=20aba=20ativa=20na=20URL=20(=3Fassignee=5F?=
+ =?UTF-8?q?type)?=
+MIME-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+
+Na view Não Lidas, clicar nas abas Minhas/Não atribuídas/Todos mudava só o
+estado interno (activeAssigneeTab) sem atualizar a URL → a barra de endereço
+ficava "presa" (ex.: ?assignee_type=all com a aba "Minhas" destacada).
+
+updateAssigneeTab só tratava conversationType==='unattended' via router.push;
+'unread' caía no else que apenas setava o estado. Adicionado branch 'unread'
+espelhando o unattended: router.push para conversation_unread com
+?assignee_type=me|unassigned|all explícito nas 3 abas (sempre explícito, pois
+o default do unread é ALL, não ME). O watcher de deep-link sincroniza a aba e
+refaz o fetch — sem loop (o watcher nunca chama router) e sem
+NavigationDuplicated (vue-router 4 retorna NavigationFailure; onTabChange já
+guarda key!==activeTab).
+
+Verificado por review adversarial multi-agente: sem bypass de entry-points
+(Alt+N/ChatTypeTabs passam por updateAssigneeTab), paridade com unattended,
+init resolve ?assignee_type=all -> aba "Todos" corretamente.
+
+Co-Authored-By: Claude Opus 4.8 (1M context) <noreply@anthropic.com>
+---
+ .../dashboard/components/ChatList.vue           | 17 +++++++++++++++++
+ 1 file changed, 17 insertions(+)
+
+diff --git a/app/javascript/dashboard/components/ChatList.vue b/app/javascript/dashboard/components/ChatList.vue
+index 4d20d5acd..7fe6e2345 100644
+--- a/app/javascript/dashboard/components/ChatList.vue
++++ b/app/javascript/dashboard/components/ChatList.vue
+@@ -763,6 +763,23 @@ function updateAssigneeTab(selectedTab) {
+     });
+     return;
+   }
++  // Unread: keep the active tab reflected in the URL (?assignee_type=...) for
++  // all three tabs, so the address bar always matches the highlighted tab and
++  // the view is deep-linkable. The deep-link watcher then syncs the tab state
++  // and refetches. Always explicit (unlike unattended, whose default is "me").
++  if (props.conversationType === 'unread') {
++    const queryByTab = {
++      [wootConstants.ASSIGNEE_TYPE.ME]: 'me',
++      [wootConstants.ASSIGNEE_TYPE.UNASSIGNED]: 'unassigned',
++      [wootConstants.ASSIGNEE_TYPE.ALL]: 'all',
++    };
++    router.push({
++      name: 'conversation_unread',
++      params: { accountId: currentAccountId.value },
++      query: { assignee_type: queryByTab[selectedTab] ?? 'all' },
++    });
++    return;
++  }
+   if (activeAssigneeTab.value !== selectedTab) {
+     resetBulkActions();
+     emitter.emit('clearSearchInput');
+-- 
+2.43.0
+
