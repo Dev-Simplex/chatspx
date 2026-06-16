@@ -219,7 +219,7 @@ class Messages::MessageBuilder # rubocop:disable Metrics/ClassLength
     return unless @message.outgoing?
     return unless waha_session_inbox?
 
-    [5.seconds, 30.seconds, 2.minutes, 10.minutes].each do |delay|
+    [30.seconds + rand(8).seconds, 2.minutes + rand(8).seconds].each do |delay|
       Waha::MessageStatusSyncJob.set(wait: delay).perform_later(@conversation.id)
     end
   end

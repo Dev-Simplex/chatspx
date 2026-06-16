@@ -7,6 +7,26 @@ class Waha::MessageStatusSyncService
   # delayed) — safe to surface as 'failed' without false positives.
   WAHA_ACK_ERROR = -1
 
+  # WAHA (engine GOWS) serializes get_messages per session and stalls past ~8
+  # simultaneous reads on a single session. We cap inflight reads per session and
+  # short-circuit failing sessions to protect the WAHA process under load.
+  MAX_INFLIGHT_READS = 8
+  INFLIGHT_TTL = 30 # seconds — staleness window; in-flight slots older than this are pruned (crash-safe)
+  CIRCUIT_TTL = 60 # seconds — cool-off window after a WAHA timeout/conn error
+  MESSAGES_LIMIT = 8 # small payload: limit=25 stalls on heavy chats, limit<=8 is instant
+  MESSAGES_LOOKBACK = 2.hours # only recent messages — kills the heavy-history stall
+
+  # Atomic per-session admission: prune stale slots, reject if full, else claim a
+  # slot — all in one round-trip so the <=MAX_INFLIGHT_READS bound holds under races.
+  # KEYS[1]=zset; ARGV: now, ttl, max, member. Returns 1 (claimed) or 0 (full).
+  INFLIGHT_ACQUIRE = <<~LUA
+    redis.call('ZREMRANGEBYSCORE', KEYS[1], 0, tonumber(ARGV[1]) - tonumber(ARGV[2]))
+    if redis.call('ZCARD', KEYS[1]) >= tonumber(ARGV[3]) then return 0 end
+    redis.call('ZADD', KEYS[1], ARGV[1], ARGV[4])
+    redis.call('EXPIRE', KEYS[1], tonumber(ARGV[2]) + 5)
+    return 1
+  LUA
+
   def initialize(conversation)
     @conversation = conversation
     @inbox = conversation.inbox
@@ -14,11 +34,14 @@ class Waha::MessageStatusSyncService
 
   def perform
     return unless waha_inbox?
+    return if circuit_open?
 
-    waha_messages = fetch_waha_messages
-    return if waha_messages.blank?
+    with_inflight_slot do
+      waha_messages = fetch_waha_messages
+      return if waha_messages.blank?
 
-    sync_statuses(waha_messages)
+      sync_statuses(waha_messages)
+    end
   end
 
   private
@@ -27,12 +50,67 @@ class Waha::MessageStatusSyncService
     @inbox.channel_type == 'Channel::Api' && @inbox.waha_session_name.present?
   end
 
+  # Per-session inflight gate backed by a Redis sorted set (one member per in-flight
+  # read, scored by start time). Admission is atomic (INFLIGHT_ACQUIRE), and stale
+  # members from crashed workers are pruned by score on every acquire — so there is
+  # no counter to underflow and no leaked slot to wedge the session. Over the cap we
+  # re-enqueue with jittered backoff instead of blocking a Sidekiq thread.
+  def with_inflight_slot
+    now = Time.now.to_f
+    member = "#{now}:#{SecureRandom.hex(6)}"
+    acquired = $alfred.with do |r| # rubocop:disable Style/GlobalVars
+      r.eval(INFLIGHT_ACQUIRE, keys: [inflight_key], argv: [now, INFLIGHT_TTL, MAX_INFLIGHT_READS, member])
+    end
+
+    if acquired != 1
+      requeue_for_backpressure
+      return
+    end
+
+    begin
+      yield
+    ensure
+      $alfred.with { |r| r.zrem(inflight_key, member) } # rubocop:disable Style/GlobalVars
+    end
+  end
+
+  def requeue_for_backpressure
+    Rails.logger.info("[WAHA] status sync backpressure for session #{@inbox.waha_session_name}; re-enqueuing")
+    Waha::MessageStatusSyncJob.set(wait: rand(5..14).seconds).perform_later(@conversation.id)
+  end
+
   def fetch_waha_messages
     api = Waha::ApiService.new
-    api.get_messages(@inbox.waha_session_name, chat_id, limit: 20)
+    messages = api.get_messages(@inbox.waha_session_name, chat_id, limit: MESSAGES_LIMIT, timestamp_gte: MESSAGES_LOOKBACK.ago.to_i)
+    close_circuit
+    messages
+  rescue Waha::ApiService::ConnectionError => e
+    open_circuit
+    Rails.logger.warn("[WAHA] status sync timeout/conn error for session #{@inbox.waha_session_name}; circuit open #{CIRCUIT_TTL}s: #{e.message}")
+    nil
   rescue StandardError => e
     Rails.logger.warn("[WAHA] Failed to fetch messages for status sync: #{e.message}")
     nil
+  end
+
+  def circuit_open?
+    Redis::Alfred.get(circuit_key).present?
+  end
+
+  def open_circuit
+    Redis::Alfred.setex(circuit_key, '1', CIRCUIT_TTL)
+  end
+
+  def close_circuit
+    Redis::Alfred.delete(circuit_key)
+  end
+
+  def circuit_key
+    "waha:status_sync:circuit:#{@inbox.waha_session_name}"
+  end
+
+  def inflight_key
+    "waha:read:inflight:#{@inbox.waha_session_name}"
   end
 
   def sync_statuses(waha_messages)
