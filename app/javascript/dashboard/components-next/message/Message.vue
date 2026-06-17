@@ -692,7 +692,15 @@ async function handleUnstar() {
   }
 }
 
+// Guards against double-firing the retry: rapid clicks (or a click while the
+// previous retry is still in flight) would otherwise POST /retry twice and
+// duplicate the outgoing message. The flag also drives the disabled state +
+// spinner on the retry button.
+const isRetrying = ref(false);
+
 async function handleRetry() {
+  if (isRetrying.value) return;
+  isRetrying.value = true;
   try {
     await MessageAPI.retry(props.conversationId, props.id);
     // A mensagem será atualizada automaticamente via websocket
@@ -701,6 +709,8 @@ async function handleRetry() {
     useAlert(
       t('CONVERSATION.RETRY_ERROR') || 'Erro ao tentar reenviar mensagem'
     );
+  } finally {
+    isRetrying.value = false;
   }
 }
 
@@ -846,6 +856,7 @@ provideMessageContext({
           'ltr:ml-8 rtl:mr-8 justify-end': orientation === ORIENTATION.RIGHT,
           'ltr:mr-8 rtl:ml-8': orientation === ORIENTATION.LEFT,
           'min-w-0': variant === MESSAGE_VARIANTS.EMAIL,
+          'message-failed-shake': status === MESSAGE_STATUS.FAILED,
         }"
         @contextmenu="openContextMenu($event)"
       >
@@ -963,6 +974,7 @@ provideMessageContext({
         class="[grid-area:meta] relative z-10"
         :class="flexOrientationClass"
         :error="contentAttributes.externalError"
+        :is-retrying="isRetrying"
         @retry="handleRetry"
       />
     </div>
@@ -994,6 +1006,42 @@ provideMessageContext({
 
   .right-bubble {
     @apply ltr:rounded-tr-sm rtl:rounded-tl-sm;
+  }
+}
+
+// Failed send: a short horizontal shake (transform-only, GPU-friendly) draws
+// the eye to the bubble that didn't make it. Runs once when the bubble mounts
+// in the failed state; the red "Falha ao enviar" text + retry button carry the
+// meaning, so the animation is purely supplementary.
+.message-failed-shake {
+  animation: message-shake var(--motion-slow, 360ms)
+    var(--ease-in-out-quart, ease) both;
+}
+
+@keyframes message-shake {
+  0% {
+    transform: translateX(0);
+  }
+  20% {
+    transform: translateX(-8px);
+  }
+  40% {
+    transform: translateX(6px);
+  }
+  60% {
+    transform: translateX(-4px);
+  }
+  80% {
+    transform: translateX(2px);
+  }
+  100% {
+    transform: translateX(0);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .message-failed-shake {
+    animation: none;
   }
 }
 

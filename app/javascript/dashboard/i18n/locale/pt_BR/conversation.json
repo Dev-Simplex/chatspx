@@ -425,6 +425,7 @@
     "FILE_SIZE_LIMIT": "O arquivo excede os {MAXIMUM_SUPPORTED_FILE_UPLOAD_SIZE} MB do limite para anexos",
     "FILE_SIZE_LIMIT_HARD": "O arquivo {fileSize} excede o limite de {MAXIMUM_SUPPORTED_FILE_UPLOAD_SIZE} MB para anexos e não será enviado",
     "FILE_TYPE_NOT_SUPPORTED": "O tipo de arquivo {fileName} não é suportado nesta conversa",
+    "AUDIO_CONVERT_ERROR": "Não foi possível processar o áudio gravado. Tente novamente.",
     "MESSAGE_ERROR": "Não foi possível enviar esta mensagem, por favor, tente novamente mais tarde",
     "SENT_BY": "Enviado por:",
     "BOT": "Robôs",

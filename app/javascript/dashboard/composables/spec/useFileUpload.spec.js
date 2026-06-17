@@ -3,8 +3,10 @@ import { useMapGetter } from 'dashboard/composables/store';
 import { useAlert } from 'dashboard/composables';
 import { useI18n } from 'vue-i18n';
 import { DirectUpload } from 'activestorage';
-import { checkFileSizeLimit } from 'shared/helpers/FileHelper';
-import { getMaxUploadSizeByChannel } from '@chatwoot/utils';
+import {
+  checkFileSizeLimit,
+  getMaxUploadSizeByChannel,
+} from 'shared/helpers/FileHelper';
 
 vi.mock('dashboard/composables/store');
 vi.mock('dashboard/composables', () => ({
@@ -14,6 +16,7 @@ vi.mock('vue-i18n');
 vi.mock('activestorage');
 vi.mock('shared/helpers/FileHelper', () => ({
   checkFileSizeLimit: vi.fn(),
+  getMaxUploadSizeByChannel: vi.fn(),
   resolveMaximumFileUploadSize: vi.fn(value => Number(value) || 40),
   DEFAULT_MAXIMUM_FILE_UPLOAD_SIZE: 40,
   HARD_MAXIMUM_FILE_UPLOAD_SIZE: 100,
@@ -24,7 +27,6 @@ vi.mock('shared/helpers/FileHelper', () => ({
   }),
   formatBytes: vi.fn(bytes => `${bytes} Bytes`),
 }));
-vi.mock('@chatwoot/utils');
 
 describe('useFileUpload', () => {
   const mockAttachFile = vi.fn();

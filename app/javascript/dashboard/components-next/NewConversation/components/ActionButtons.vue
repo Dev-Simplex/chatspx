@@ -18,10 +18,11 @@ const props = defineProps({
   attachedFiles: { type: Array, default: () => [] },
   isWhatsappInbox: { type: Boolean, default: false },
   isEmailOrWebWidgetInbox: { type: Boolean, default: false },
-  isTwilioSmsInbox: { type: Boolean, default: false },
+  isApiInbox: { type: Boolean, default: false },
   isTwilioWhatsAppInbox: { type: Boolean, default: false },
   messageTemplates: { type: Array, default: () => [] },
   channelType: { type: String, default: '' },
+  medium: { type: String, default: '' },
   isLoading: { type: Boolean, default: false },
   disableSendButton: { type: Boolean, default: false },
   hasSelectedInbox: { type: Boolean, default: false },
@@ -120,8 +121,28 @@ const onClickInsertEmoji = emoji => {
   emit('insertEmoji', emoji);
 };
 
+// Email/WebWidget always allow attachments; WAHA (Channel::Api) supports
+// free-form media too (unlike official WhatsApp, which is template-gated for a
+// brand-new conversation), so it gets the attach/paste affordance as well.
+const canAttachFiles = computed(
+  () => props.isEmailOrWebWidgetInbox || props.isApiInbox
+);
+
+// Plain object with getters so useFileUpload reads the CURRENT channel on each
+// upload (the composable captures `inbox` once, but the target inbox only
+// becomes known after the user picks it). Without this the per-channel size
+// rules never applied — uploads fell back to the installation default.
+const composerInbox = {
+  get channel_type() {
+    return props.channelType;
+  },
+  get medium() {
+    return props.medium;
+  },
+};
+
 const { onFileUpload } = useFileUpload({
-  isATwilioSMSChannel: props.isTwilioSmsInbox,
+  inbox: composerInbox,
   attachFile: ({ blob, file }) => {
     if (!file) return;
     const reader = new FileReader();
@@ -172,7 +193,7 @@ const keyboardEvents = {
 useKeyboardEvents(keyboardEvents);
 
 const onPaste = e => {
-  if (!props.isEmailOrWebWidgetInbox) return;
+  if (!canAttachFiles.value) return;
 
   const files = e.clipboardData?.files;
   if (!files?.length) return;
@@ -225,7 +246,7 @@ useEventListener(document, 'paste', onPaste);
         />
       </div>
       <FileUpload
-        v-if="isEmailOrWebWidgetInbox"
+        v-if="canAttachFiles"
         ref="uploadAttachment"
         input-id="composeNewConversationAttachment"
         :size="4096 * 4096"

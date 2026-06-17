@@ -2258,6 +2258,12 @@ export default {
         file => !file?.isRecordedAudio
       );
     },
+    onRecordError() {
+      // convertAudio failed inside the recorder (it already showed the toast +
+      // logged to Sentry). Tear down the recording UI so we don't leave a stuck
+      // "processing" state behind.
+      this.resetAudioRecorderInput();
+    },
     togglePopout() {
       this.$emit('update:popOutReplyBox', !this.popOutReplyBox);
     },
@@ -2387,6 +2393,7 @@ export default {
             :audio-record-format="audioRecordFormat"
             @recorder-progress-changed="onRecordProgressChanged"
             @finish-record="onFinishRecorder"
+            @record-error="onRecordError"
             @play="recordingAudioState = 'playing'"
             @pause="recordingAudioState = 'paused'"
           />
@@ -2517,6 +2524,7 @@ export default {
               :audio-record-format="audioRecordFormat"
               @recorder-progress-changed="onRecordProgressChanged"
               @finish-record="onFinishRecorder"
+              @record-error="onRecordError"
               @play="recordingAudioState = 'playing'"
               @pause="recordingAudioState = 'paused'"
             />

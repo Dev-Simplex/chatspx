@@ -1,4 +1,7 @@
-import { getAllowedFileTypesByChannel } from '@chatwoot/utils';
+import {
+  getAllowedFileTypesByChannel,
+  getMaxUploadSizeByChannel as getMaxUploadSizeByChannelBase,
+} from '@chatwoot/utils';
 import { INBOX_TYPES } from 'dashboard/helper/inbox';
 import { ALLOWED_FILE_TYPES } from 'shared/constants/messages';
 
@@ -57,6 +60,58 @@ export const effectiveMaxUploadSize = channelLimit => {
   }
 
   return Math.min(limit, HARD_MAXIMUM_FILE_UPLOAD_SIZE);
+};
+
+// WAHA (Channel::Api) per-category upload limits, in MB.
+//
+// The upstream @chatwoot/utils has NO rule node for Channel::Api, so its
+// getMaxUploadSizeByChannel falls back to the 40MB default. That means
+// oversized media slips past the client check and the WhatsApp engine rejects
+// it later — a silent late failure. We mirror the WhatsApp Cloud limits here,
+// with video capped at 16MB (the value the WAHA engine reliably accepts;
+// raise WAHA_VIDEO once the engine owner confirms a higher ceiling).
+const WAHA_VIDEO = 16;
+const WAHA_MAX_SIZE_BY_CATEGORY = {
+  image: 16,
+  video: WAHA_VIDEO,
+  audio: 16,
+  document: 100,
+};
+
+const DOCUMENT_MIME_HEADS = new Set(['application', 'text']);
+
+const categoryFromMime = mime => {
+  const head = mime?.split('/')?.[0] ?? '';
+  if (DOCUMENT_MIME_HEADS.has(head)) return 'document';
+  return head;
+};
+
+/**
+ * Resolves the maximum upload size (in MB) for a channel/medium/mime.
+ *
+ * Thin wrapper over @chatwoot/utils' getMaxUploadSizeByChannel that adds the
+ * WAHA (Channel::Api) rules the upstream package is missing. Every non-API
+ * channel is delegated unchanged, so this stays a drop-in replacement for the
+ * package import across all call sites.
+ * @param {Object} params
+ * @param {string} [params.channelType] - Channel type (from INBOX_TYPES).
+ * @param {string} [params.medium] - Medium under the channel.
+ * @param {string} [params.mime] - MIME type string (for category lookup).
+ * @returns {number} Maximum file size in MB.
+ */
+export const getMaxUploadSizeByChannel = ({
+  channelType,
+  medium,
+  mime,
+} = {}) => {
+  if (channelType === INBOX_TYPES.API) {
+    const category = categoryFromMime(mime);
+    return (
+      WAHA_MAX_SIZE_BY_CATEGORY[category] ?? DEFAULT_MAXIMUM_FILE_UPLOAD_SIZE
+    );
+  }
+
+  return getMaxUploadSizeByChannelBase({ channelType, medium, mime });
 };
 
 /**

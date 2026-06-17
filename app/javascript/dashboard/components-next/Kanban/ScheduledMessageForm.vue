@@ -2,7 +2,7 @@
 import { computed, nextTick, onMounted, ref, watch } from 'vue';
 import { useStore } from 'vuex';
 import { useI18n } from 'vue-i18n';
-import { debounce, getMaxUploadSizeByChannel } from '@chatwoot/utils';
+import { debounce } from '@chatwoot/utils';
 import { DirectUpload } from 'activestorage';
 import Dialog from 'dashboard/components-next/dialog/Dialog.vue';
 import Button from 'dashboard/components-next/button/Button.vue';
@@ -14,6 +14,7 @@ import ScheduleDateTimePicker from './ScheduleDateTimePicker.vue';
 import {
   checkFileSizeLimit,
   DEFAULT_MAXIMUM_FILE_UPLOAD_SIZE,
+  getMaxUploadSizeByChannel,
   resolveMaximumFileUploadSize,
   effectiveMaxUploadSize,
   formatBytes,

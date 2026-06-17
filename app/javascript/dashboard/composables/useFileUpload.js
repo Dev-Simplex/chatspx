@@ -2,9 +2,9 @@ import { useMapGetter } from 'dashboard/composables/store';
 import { useAlert } from 'dashboard/composables';
 import { useI18n } from 'vue-i18n';
 import { DirectUpload } from 'activestorage';
-import { getMaxUploadSizeByChannel } from '@chatwoot/utils';
 import {
   DEFAULT_MAXIMUM_FILE_UPLOAD_SIZE,
+  getMaxUploadSizeByChannel,
   resolveMaximumFileUploadSize,
   effectiveMaxUploadSize,
   checkFileSizeLimit,

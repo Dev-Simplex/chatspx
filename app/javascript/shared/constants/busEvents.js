@@ -9,6 +9,10 @@ export const BUS_EVENTS = {
   WEBSOCKET_RECONNECT: 'WEBSOCKET_RECONNECT',
   WEBSOCKET_RECONNECT_COMPLETED: 'WEBSOCKET_RECONNECT_COMPLETED',
   TOGGLE_REPLY_TO_MESSAGE: 'TOGGLE_REPLY_TO_MESSAGE',
+  // Emitted by MessageApi.create while a message WITH attachments is uploading.
+  // Payload: { echoId, loaded, total, percent }. Lets the composer/preview show
+  // a real upload-progress ring without threading callbacks through Vuex.
+  MESSAGE_UPLOAD_PROGRESS: 'MESSAGE_UPLOAD_PROGRESS',
   SHOW_TOAST: 'newToastMessage',
   NEW_CONVERSATION_MODAL: 'newConversationModal',
   INSERT_INTO_RICH_EDITOR: 'insertIntoRichEditor',

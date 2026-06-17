@@ -3,6 +3,9 @@ import { ref, computed, watch, onMounted, onBeforeUnmount } from 'vue';
 import { useI18n } from 'vue-i18n';
 import draggable from 'vuedraggable';
 import Icon from 'next/icon/Icon.vue';
+import ProgressRing from 'dashboard/components-next/upload/ProgressRing.vue';
+import { emitter } from 'shared/helpers/mitt';
+import { BUS_EVENTS } from 'shared/constants/busEvents';
 
 const props = defineProps({
   show: { type: Boolean, default: false },
@@ -24,6 +27,15 @@ const { t } = useI18n();
 
 const activeIndex = ref(0);
 const captionLocal = ref(props.caption);
+
+// Real upload percentage for the message-with-attachments POST, surfaced by
+// MessageApi.create over the bus. null = indeterminate (length not computable
+// or upload not started yet) → the ring spins instead of filling.
+const uploadPercent = ref(null);
+
+const onUploadProgress = ({ percent } = {}) => {
+  uploadPercent.value = percent ?? null;
+};
 
 const active = computed(() => props.files[activeIndex.value] || null);
 
@@ -112,6 +124,14 @@ watch(
   }
 );
 
+// Reset the ring each time a send starts so a previous run's % never lingers.
+watch(
+  () => props.sending,
+  value => {
+    if (value) uploadPercent.value = null;
+  }
+);
+
 watch(
   () => props.files.length,
   length => {
@@ -123,10 +143,12 @@ watch(
 
 onMounted(() => {
   window.addEventListener('keydown', onKeyDown);
+  emitter.on(BUS_EVENTS.MESSAGE_UPLOAD_PROGRESS, onUploadProgress);
 });
 
 onBeforeUnmount(() => {
   window.removeEventListener('keydown', onKeyDown);
+  emitter.off(BUS_EVENTS.MESSAGE_UPLOAD_PROGRESS, onUploadProgress);
 });
 </script>
 
@@ -163,6 +185,25 @@ onBeforeUnmount(() => {
         </header>
 
         <div class="flex-1 flex items-center justify-center relative px-6 py-4">
+          <!--
+            Sending overlay: while the message+attachments POST is in flight we
+            dim the preview and show the upload ring (real % when the length is
+            computable, otherwise an indeterminate spin). The disabled send
+            button + dim already convey "sending", so this is supplementary.
+          -->
+          <Transition
+            enter-active-class="transition-opacity duration-200 ease-out"
+            enter-from-class="opacity-0"
+            leave-active-class="transition-opacity duration-150 ease-in"
+            leave-to-class="opacity-0"
+          >
+            <div
+              v-if="sending"
+              class="absolute inset-0 z-10 flex items-center justify-center bg-black/40 backdrop-blur-[1px]"
+            >
+              <ProgressRing :value="uploadPercent" :size="64" :stroke="4" />
+            </div>
+          </Transition>
           <div
             v-if="active"
             class="flex items-center justify-center w-full h-full relative"
@@ -274,7 +315,8 @@ onBeforeUnmount(() => {
           >
             <template #item="{ element, index }">
               <div
-                class="relative shrink-0 size-14 rounded-md overflow-hidden cursor-pointer"
+                class="attachment-thumb relative shrink-0 size-14 rounded-md overflow-hidden cursor-pointer"
+                :style="{ '--thumb-index': index }"
                 :class="index === activeIndex ? 'ring-2 ring-wa-teal' : ''"
                 @click="setActive(index)"
               >
@@ -332,10 +374,55 @@ onBeforeUnmount(() => {
             class="ml-2 mr-6 grid place-content-center size-12 rounded-full bg-wa-teal hover:bg-wa-teal-dark text-white transition-transform active:scale-95 disabled:opacity-60 disabled:cursor-not-allowed"
             @click="onSend"
           >
-            <Icon icon="i-lucide-send" class="size-5" />
+            <Icon
+              :icon="sending ? 'i-lucide-loader-circle' : 'i-lucide-send'"
+              class="size-5"
+              :class="{ 'attachment-send-spin': sending }"
+            />
           </button>
         </div>
       </div>
     </Transition>
   </Teleport>
 </template>
+
+<style scoped lang="scss">
+// Multi-file attach: each thumbnail eases in with a small upward pop, staggered
+// by its index so a batch cascades in rather than snapping all at once.
+.attachment-thumb {
+  animation: attachment-thumb-in var(--motion-base, 240ms)
+    var(--ease-out-back, ease-out) both;
+  animation-delay: calc(var(--thumb-index, 0) * 40ms);
+}
+
+@keyframes attachment-thumb-in {
+  from {
+    opacity: 0;
+    transform: translateY(12px) scale(0.82);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+.attachment-send-spin {
+  animation: attachment-send-spin var(--motion-drama, 520ms) linear infinite;
+}
+
+@keyframes attachment-send-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .attachment-thumb {
+    animation-duration: var(--motion-fast, 80ms);
+    animation-delay: 0ms;
+  }
+  .attachment-send-spin {
+    animation-duration: 1.4s;
+  }
+}
+</style>
