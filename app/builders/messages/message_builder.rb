@@ -219,7 +219,12 @@ class Messages::MessageBuilder # rubocop:disable Metrics/ClassLength
     return unless @message.outgoing?
     return unless waha_session_inbox?
 
-    [30.seconds + rand(8).seconds, 2.minutes + rand(8).seconds].each do |delay|
+    # Tail coverage: WhatsApp read-receipts arrive unpredictably (often minutes
+    # later). The per-session inflight cap + circuit breaker protect WAHA from the
+    # concurrency, so we can keep a longer poll tail safely. Late reads (>30min)
+    # need the WAHA ACK webhook (push) — tracked separately.
+    [30.seconds + rand(8).seconds, 2.minutes + rand(8).seconds,
+     10.minutes + rand(30).seconds, 30.minutes + rand(60).seconds].each do |delay|
       Waha::MessageStatusSyncJob.set(wait: delay).perform_later(@conversation.id)
     end
   end
