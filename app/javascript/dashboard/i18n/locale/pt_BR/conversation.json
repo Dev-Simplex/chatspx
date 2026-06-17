@@ -537,6 +537,10 @@
     "TEAM_ISOLATION": {
       "RESTRICTED_TITLE": "Time: {team}",
       "RESTRICTED_SUBTITLE": "Conteúdo restrito"
+    },
+    "AGENT_ISOLATION": {
+      "RESTRICTED_TITLE": "Agente: {agent}",
+      "RESTRICTED_SUBTITLE": "Conteúdo restrito"
     }
   },
   "EMAIL_TRANSCRIPT": {

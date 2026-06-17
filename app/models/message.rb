@@ -22,6 +22,7 @@
 #  sender_id                 :bigint
 #  source_id                 :text
 #  team_id                   :integer
+#  agent_id                  :bigint
 #
 # Indexes
 #
@@ -30,6 +31,7 @@
 #  index_messages_on_account_id                         (account_id)
 #  index_messages_on_account_id_and_inbox_id            (account_id,inbox_id)
 #  index_messages_on_additional_attributes_campaign_id  (((additional_attributes -> 'campaign_id'::text))) USING gin
+#  index_messages_on_agent_id                           (agent_id)
 #  index_messages_on_content                            (content) USING gin
 #  index_messages_on_conversation_account_type_created  (conversation_id,account_id,message_type,created_at)
 #  index_messages_on_conversation_id                    (conversation_id)
@@ -69,6 +71,7 @@ class Message < ApplicationRecord
   before_save :ensure_processed_message_content
   before_save :ensure_in_reply_to
   before_create :set_team_id_from_conversation
+  before_create :set_agent_id_from_sender
 
   validates :account_id, presence: true
   validates :inbox_id, presence: true
@@ -497,6 +500,16 @@ class Message < ApplicationRecord
     return if conversation.blank?
 
     self.team_id = Conversation.where(id: conversation_id).pick(:team_id)
+  end
+
+  # Espelho do team isolation, mas carimbado pelo REMETENTE (nao pela conversa):
+  # so mensagens outgoing enviadas por um User (agente) recebem agent_id. Cliente,
+  # bot (AgentBot/Captain), atividade, template e automacao (sender nil) ficam com
+  # agent_id NULL = publicas (todos veem). Diferente de team_id, agent_id e fixado
+  # uma unica vez no envio e nunca re-sincronizado (sem UpdateMessagesAgentIdJob),
+  # por isso a mesma conversa pode ter mensagens de varios agentes.
+  def set_agent_id_from_sender
+    self.agent_id = sender_id if outgoing? && sender_type == 'User'
   end
 
   # Delegates to the NPS service: prevents reopening when the message is a response to an active NPS survey.

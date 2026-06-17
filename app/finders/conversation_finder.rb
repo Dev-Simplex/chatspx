@@ -205,11 +205,22 @@ class ConversationFinder # rubocop:disable Metrics/ClassLength
     return unless params[:q]
 
     allowed_message_types = [Message.message_types[:incoming], Message.message_types[:outgoing]]
+    # Isolamento por agente: não descobrir conversas só pelo conteúdo de mensagem de outro
+    # agente em inbox com a flag ON (admin/sem restrição → cláusula vazia).
+    agent_id = AgentMessageIsolation.viewer_restriction_id(@current_user, @current_account)
+    agent_clause = if agent_id
+                     'AND (messages.agent_id IS NULL OR messages.agent_id = :agent_id ' \
+                       'OR NOT EXISTS (SELECT 1 FROM inboxes WHERE inboxes.id = conversations.inbox_id ' \
+                       'AND inboxes.agent_message_isolation = true))'
+                   else
+                     ''
+                   end
     @conversations = @conversations.where(
       'EXISTS (SELECT 1 FROM messages WHERE messages.conversation_id = conversations.id ' \
-      'AND messages.content ILIKE :search AND messages.message_type IN (:types))',
+      "AND messages.content ILIKE :search AND messages.message_type IN (:types) #{agent_clause})",
       search: "%#{ActiveRecord::Base.sanitize_sql_like(params[:q])}%",
-      types: allowed_message_types
+      types: allowed_message_types,
+      agent_id: agent_id
     )
   end
 

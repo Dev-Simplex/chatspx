@@ -341,6 +341,45 @@ RSpec.describe Message do
     end
   end
 
+  describe 'agent_id stamping (set_agent_id_from_sender)' do
+    let(:account) { create(:account) }
+    let(:inbox) { create(:inbox, account: account) }
+    let(:user) { create(:user, account: account) }
+    let(:conversation) { create(:conversation, account: account, inbox: inbox) }
+
+    it 'stamps agent_id with sender_id for outgoing messages sent by a User' do
+      message = create(:message, message_type: :outgoing, sender: user, conversation: conversation, account: account, inbox: inbox)
+      expect(message.agent_id).to eq(user.id)
+    end
+
+    it 'leaves agent_id nil for incoming messages' do
+      message = create(:message, message_type: :incoming, conversation: conversation, account: account, inbox: inbox)
+      expect(message.agent_id).to be_nil
+    end
+
+    it 'leaves agent_id nil for activity messages' do
+      message = create(:message, message_type: :activity, conversation: conversation, account: account, inbox: inbox)
+      expect(message.agent_id).to be_nil
+    end
+
+    it 'leaves agent_id nil for template messages' do
+      message = create(:message, message_type: :template, conversation: conversation, account: account, inbox: inbox)
+      expect(message.agent_id).to be_nil
+    end
+
+    it 'leaves agent_id nil for outgoing messages sent by a bot' do
+      message = create(:message, message_type: :outgoing, sender: create(:agent_bot), conversation: conversation, account: account, inbox: inbox)
+      expect(message.agent_id).to be_nil
+    end
+
+    it 'leaves agent_id nil for outgoing messages with no sender (automation)' do
+      message = build(:message, message_type: :outgoing, conversation: conversation, account: account, inbox: inbox)
+      message.sender = nil
+      message.save!
+      expect(message.agent_id).to be_nil
+    end
+  end
+
   describe '#reopen_conversation' do
     let(:conversation) { create(:conversation) }
     let(:message) { build(:message, message_type: :incoming, conversation: conversation) }

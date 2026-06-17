@@ -1,0 +1,1121 @@
+# Patch: Isolamento de mensagens por agente (agent_message_isolation)
+# Gerado em 2026-06-17 na branch nicolas. Aplicar: git apply --3way agent-message-isolation.patch
+# Ver runbook RUNBOOK-isolamento-msg-por-agente.md
+diff --git a/app/controllers/api/v1/accounts/inboxes_controller.rb b/app/controllers/api/v1/accounts/inboxes_controller.rb
+index e5278c518..c5b70449e 100644
+--- a/app/controllers/api/v1/accounts/inboxes_controller.rb
++++ b/app/controllers/api/v1/accounts/inboxes_controller.rb
+@@ -193,7 +193,7 @@ class Api::V1::Accounts::InboxesController < Api::V1::Accounts::BaseController #
+     [:name, :avatar, :greeting_enabled, :greeting_message, :enable_email_collect, :csat_survey_enabled, :nps_survey_enabled,
+      :enable_auto_assignment, :working_hours_enabled, :out_of_office_message, :timezone, :allow_messages_after_resolved,
+      :lock_to_single_conversation, :portal_id, :sender_name_type, :business_name, :team_message_isolation,
+-     :pending_status_enabled,
++     :agent_message_isolation, :pending_status_enabled,
+      { additional_attributes: [:pin_mode, { pinned_conversation_ids: [] }] },
+      { csat_config: [:display_type, :message, :button_text, :language,
+                      { survey_rules: [:operator, { values: [] }],
+diff --git a/app/finders/conversation_finder.rb b/app/finders/conversation_finder.rb
+index a626d04e2..ba91f5a9a 100644
+--- a/app/finders/conversation_finder.rb
++++ b/app/finders/conversation_finder.rb
+@@ -205,11 +205,22 @@ class ConversationFinder # rubocop:disable Metrics/ClassLength
+     return unless params[:q]
+ 
+     allowed_message_types = [Message.message_types[:incoming], Message.message_types[:outgoing]]
++    # Isolamento por agente: não descobrir conversas só pelo conteúdo de mensagem de outro
++    # agente em inbox com a flag ON (admin/sem restrição → cláusula vazia).
++    agent_id = AgentMessageIsolation.viewer_restriction_id(@current_user, @current_account)
++    agent_clause = if agent_id
++                     'AND (messages.agent_id IS NULL OR messages.agent_id = :agent_id ' \
++                       'OR NOT EXISTS (SELECT 1 FROM inboxes WHERE inboxes.id = conversations.inbox_id ' \
++                       'AND inboxes.agent_message_isolation = true))'
++                   else
++                     ''
++                   end
+     @conversations = @conversations.where(
+       'EXISTS (SELECT 1 FROM messages WHERE messages.conversation_id = conversations.id ' \
+-      'AND messages.content ILIKE :search AND messages.message_type IN (:types))',
++      "AND messages.content ILIKE :search AND messages.message_type IN (:types) #{agent_clause})",
+       search: "%#{ActiveRecord::Base.sanitize_sql_like(params[:q])}%",
+-      types: allowed_message_types
++      types: allowed_message_types,
++      agent_id: agent_id
+     )
+   end
+ 
+diff --git a/app/finders/message_finder.rb b/app/finders/message_finder.rb
+index 2e097d582..2e667b0af 100644
+--- a/app/finders/message_finder.rb
++++ b/app/finders/message_finder.rb
+@@ -20,13 +20,25 @@ class MessageFinder
+   private
+ 
+   def conversation_messages
+-    @conversation.messages
+-                 .where(inbox_id: @conversation.inbox_id)
+-                 .includes(
+-                   { attachments: [{ file_attachment: [:blob] }] },
+-                   :sender,
+-                   sender: { avatar_attachment: [:blob] }
+-                 )
++    scope = @conversation.messages
++                         .where(inbox_id: @conversation.inbox_id)
++                         .includes(
++                           { attachments: [{ file_attachment: [:blob] }] },
++                           :sender,
++                           sender: { avatar_attachment: [:blob] }
++                         )
++    apply_agent_isolation(scope)
++  end
++
++  # Isolamento POR AGENTE depende de QUEM olha — por isso (diferente do team isolation,
++  # que vive na association conversation.messages) o filtro mora aqui, onde Current.user
++  # e conhecido. Mesmo acoplamento a Current.user ja usado em Message#reopened_by_contact?.
++  # Listagens do widget/public API nao tem Current.user -> o filtro vira no-op (seguro).
++  def apply_agent_isolation(scope)
++    restriction_id = AgentMessageIsolation.restriction_id_for_inbox(
++      @conversation.inbox, Current.user, @conversation.account_id
++    )
++    AgentMessageIsolation.filter_messages(scope, restriction_id)
+   end
+ 
+   def messages
+diff --git a/app/javascript/dashboard/components-next/Conversation/ConversationCard/CardMessagePreview.vue b/app/javascript/dashboard/components-next/Conversation/ConversationCard/CardMessagePreview.vue
+index c86df713f..28f8fa69f 100644
+--- a/app/javascript/dashboard/components-next/Conversation/ConversationCard/CardMessagePreview.vue
++++ b/app/javascript/dashboard/components-next/Conversation/ConversationCard/CardMessagePreview.vue
+@@ -4,6 +4,7 @@ import { useI18n } from 'vue-i18n';
+ import { useMessageFormatter } from 'shared/composables/useMessageFormatter';
+ import { useMapGetter } from 'dashboard/composables/store';
+ import { useTeamIsolation } from 'dashboard/composables/useTeamIsolation';
++import { useAgentIsolation } from 'dashboard/composables/useAgentIsolation';
+ 
+ import Avatar from 'dashboard/components-next/avatar/Avatar.vue';
+ import { CONTENT_TYPES } from 'dashboard/components-next/message/constants.js';
+@@ -19,6 +20,7 @@ const { t } = useI18n();
+ 
+ const { getPlainText } = useMessageFormatter();
+ const { isMessageRestricted } = useTeamIsolation();
++const { isMessageRestricted: isAgentMessageRestricted } = useAgentIsolation();
+ const inboxById = useMapGetter('inboxes/getInboxById');
+ 
+ const lastNonActivityMessageContent = computed(() => {
+@@ -28,7 +30,11 @@ const lastNonActivityMessageContent = computed(() => {
+   const inbox = inboxById.value(
+     props.conversation.inboxId || props.conversation.inbox_id
+   );
+-  if (isMessageRestricted(lastNonActivityMessage, inbox)) return '🔒';
++  if (
++    isMessageRestricted(lastNonActivityMessage, inbox) ||
++    isAgentMessageRestricted(lastNonActivityMessage, inbox)
++  )
++    return '🔒';
+   const { email: { subject } = {} } = customAttributes;
+   if (subject) return getPlainText(subject);
+   if (lastNonActivityMessage?.content)
+diff --git a/app/javascript/dashboard/components-next/Conversation/ConversationCard/CardMessagePreviewWithMeta.vue b/app/javascript/dashboard/components-next/Conversation/ConversationCard/CardMessagePreviewWithMeta.vue
+index 18379bc14..234afd019 100644
+--- a/app/javascript/dashboard/components-next/Conversation/ConversationCard/CardMessagePreviewWithMeta.vue
++++ b/app/javascript/dashboard/components-next/Conversation/ConversationCard/CardMessagePreviewWithMeta.vue
+@@ -4,6 +4,7 @@ import { useI18n } from 'vue-i18n';
+ import { useMessageFormatter } from 'shared/composables/useMessageFormatter';
+ import { useMapGetter } from 'dashboard/composables/store';
+ import { useTeamIsolation } from 'dashboard/composables/useTeamIsolation';
++import { useAgentIsolation } from 'dashboard/composables/useAgentIsolation';
+ 
+ import Avatar from 'dashboard/components-next/avatar/Avatar.vue';
+ import CardLabels from 'dashboard/components-next/Conversation/ConversationCard/CardLabels.vue';
+@@ -27,6 +28,7 @@ const slaCardLabelRef = ref(null);
+ 
+ const { getPlainText } = useMessageFormatter();
+ const { isMessageRestricted } = useTeamIsolation();
++const { isMessageRestricted: isAgentMessageRestricted } = useAgentIsolation();
+ const inboxById = useMapGetter('inboxes/getInboxById');
+ 
+ const lastNonActivityMessageContent = computed(() => {
+@@ -36,7 +38,11 @@ const lastNonActivityMessageContent = computed(() => {
+   const inbox = inboxById.value(
+     props.conversation.inboxId || props.conversation.inbox_id
+   );
+-  if (isMessageRestricted(lastNonActivityMessage, inbox)) return '🔒';
++  if (
++    isMessageRestricted(lastNonActivityMessage, inbox) ||
++    isAgentMessageRestricted(lastNonActivityMessage, inbox)
++  )
++    return '🔒';
+   const { email: { subject } = {} } = customAttributes;
+   if (subject) return getPlainText(subject);
+   if (lastNonActivityMessage?.content)
+diff --git a/app/javascript/dashboard/components-next/Kanban/KanbanCard.vue b/app/javascript/dashboard/components-next/Kanban/KanbanCard.vue
+index 35699047b..d9b815fd1 100644
+--- a/app/javascript/dashboard/components-next/Kanban/KanbanCard.vue
++++ b/app/javascript/dashboard/components-next/Kanban/KanbanCard.vue
+@@ -4,6 +4,7 @@ import { useRouter } from 'vue-router';
+ import { useI18n } from 'vue-i18n';
+ import { useMapGetter } from 'dashboard/composables/store';
+ import { useTeamIsolation } from 'dashboard/composables/useTeamIsolation';
++import { useAgentIsolation } from 'dashboard/composables/useAgentIsolation';
+ import Button from 'dashboard/components-next/button/Button.vue';
+ import Icon from 'dashboard/components-next/icon/Icon.vue';
+ import Avatar from 'dashboard/components-next/avatar/Avatar.vue';
+@@ -31,6 +32,7 @@ const { t } = useI18n();
+ const getContactById = useMapGetter('contacts/getContactById');
+ const inboxById = useMapGetter('inboxes/getInboxById');
+ const { isMessageRestricted } = useTeamIsolation();
++const { isMessageRestricted: isAgentMessageRestricted } = useAgentIsolation();
+ 
+ const contactId = computed(() => {
+   return (
+@@ -89,7 +91,11 @@ const lastMessage = computed(() => {
+   const inbox = inboxById.value(
+     props.conversation?.inboxId || props.conversation?.inbox_id
+   );
+-  if (isMessageRestricted(message, inbox)) return '🔒';
++  if (
++    isMessageRestricted(message, inbox) ||
++    isAgentMessageRestricted(message, inbox)
++  )
++    return '🔒';
+ 
+   return message?.content || message?.processed_message_content || '';
+ });
+diff --git a/app/javascript/dashboard/components-next/message/MessageList.vue b/app/javascript/dashboard/components-next/message/MessageList.vue
+index 7162d676c..614feab9e 100644
+--- a/app/javascript/dashboard/components-next/message/MessageList.vue
++++ b/app/javascript/dashboard/components-next/message/MessageList.vue
+@@ -5,6 +5,8 @@ import Message from './Message.vue';
+ import DateSeparator from 'shared/components/DateSeparator.vue';
+ import { MESSAGE_TYPES, ATTACHMENT_TYPES } from './constants.js';
+ import { useCamelCase } from 'dashboard/composables/useTransformKeys';
++import { useStore } from 'dashboard/composables/store';
++import { useAgentIsolation } from 'dashboard/composables/useAgentIsolation';
+ 
+ /**
+  * Props definition for the component
+@@ -109,9 +111,22 @@ const allMessages = computed(() => {
+   return props.messages.map(toCamelizedMessage);
+ });
+ 
++const store = useStore();
++const { isMessageRestricted } = useAgentIsolation();
++const currentChat = computed(() => store.getters.getSelectedChat || {});
++const currentInbox = computed(() => {
++  const inboxId = currentChat.value?.inbox_id;
++  return inboxId ? store.getters['inboxes/getInbox'](inboxId) : {};
++});
++
++// Isolamento por agente: não expor no preview de reply/quote uma mensagem de outro agente
++// (que possa ter entrado no store via websocket). Restrita → fica de fora do mapa, o
++// getInReplyToMessage devolve null e o quote não é renderizado.
+ const replyMessagesById = computed(() => {
+   return allMessages.value.reduce((messageMap, message) => {
+-    messageMap.set(message.id, message);
++    if (!isMessageRestricted(message, currentInbox.value)) {
++      messageMap.set(message.id, message);
++    }
+     return messageMap;
+   }, new Map());
+ });
+diff --git a/app/javascript/dashboard/components-next/message/RestrictedMessage.vue b/app/javascript/dashboard/components-next/message/RestrictedMessage.vue
+index 44a7c2c95..fecec5c8f 100644
+--- a/app/javascript/dashboard/components-next/message/RestrictedMessage.vue
++++ b/app/javascript/dashboard/components-next/message/RestrictedMessage.vue
+@@ -1,16 +1,30 @@
+ <script setup>
+ import { computed } from 'vue';
+ import { useI18n } from 'vue-i18n';
+-import { dynamicTime } from 'shared/helpers/timeHelper';
+ 
+ const props = defineProps({
+-  teamName: { type: String, required: true },
++  // teamName: caminho legado do team isolation (fallback). Novos chamadores devem
++  // passar title/subtitle já resolvidos (suporta tanto team quanto agente).
++  teamName: { type: String, default: '' },
++  title: { type: String, default: '' },
++  subtitle: { type: String, default: '' },
+   messageType: { type: Number, default: 0 },
+-  createdAt: { type: Number, default: 0 },
++  // createdAt: recebido do Message.vue mas NÃO exibido — mensagens restritas não mostram
++  // horário (decisão de produto). Declarado p/ não vazar como atributo no DOM via $attrs.
++  createdAt: { type: Number, default: 0 }, // eslint-disable-line vue/no-unused-properties
+ });
+ 
+ const { t } = useI18n();
+ 
++const restrictedTitle = computed(
++  () =>
++    props.title ||
++    t('CONVERSATION.TEAM_ISOLATION.RESTRICTED_TITLE', { team: props.teamName })
++);
++const restrictedSubtitle = computed(
++  () => props.subtitle || t('CONVERSATION.TEAM_ISOLATION.RESTRICTED_SUBTITLE')
++);
++
+ const isOutgoing = computed(() => props.messageType === 1);
+ 
+ const alignmentClass = computed(() =>
+@@ -22,8 +36,6 @@ const bubbleRoundingClass = computed(() =>
+     ? 'rounded-2xl ltr:rounded-br-md rtl:rounded-bl-md'
+     : 'rounded-2xl ltr:rounded-bl-md rtl:rounded-br-md'
+ );
+-
+-const formattedTime = computed(() => dynamicTime(props.createdAt));
+ </script>
+ 
+ <template>
+@@ -56,22 +68,13 @@ const formattedTime = computed(() => dynamicTime(props.createdAt));
+         </div>
+         <div class="min-w-0">
+           <p class="text-xs font-medium text-n-slate-12 truncate">
+-            {{
+-              t('CONVERSATION.TEAM_ISOLATION.RESTRICTED_TITLE', {
+-                team: teamName,
+-              })
+-            }}
++            {{ restrictedTitle }}
+           </p>
+           <p class="text-[10px] text-n-slate-10 leading-tight">
+-            {{ t('CONVERSATION.TEAM_ISOLATION.RESTRICTED_SUBTITLE') }}
++            {{ restrictedSubtitle }}
+           </p>
+         </div>
+       </div>
+-
+-      <!-- Timestamp -->
+-      <div class="mt-1.5 flex items-center justify-end">
+-        <span class="text-[10px] text-n-slate-9">{{ formattedTime }}</span>
+-      </div>
+     </div>
+   </div>
+ </template>
+diff --git a/app/javascript/dashboard/components/widgets/conversation/ConversationCard.vue b/app/javascript/dashboard/components/widgets/conversation/ConversationCard.vue
+index c4e081a7f..fb8bed953 100644
+--- a/app/javascript/dashboard/components/widgets/conversation/ConversationCard.vue
++++ b/app/javascript/dashboard/components/widgets/conversation/ConversationCard.vue
+@@ -1,6 +1,7 @@
+ <script>
+ import { mapGetters } from 'vuex';
+ import { getLastMessage } from 'dashboard/helper/conversationHelper';
++import { useAgentIsolation } from 'dashboard/composables/useAgentIsolation';
+ import Thumbnail from '../Thumbnail.vue';
+ import MessagePreview from './MessagePreview.vue';
+ import router from '../../../routes';
+@@ -108,6 +109,12 @@ export default {
+     'selectConversation', // eslint-disable-line vue/no-unused-emit-declarations -- used dynamically in onSelectConversation
+     'deSelectConversation', // eslint-disable-line vue/no-unused-emit-declarations -- used dynamically in onSelectConversation
+   ],
++  setup() {
++    // Isolamento por agente: mesma regra do thread (Message.vue), reusada p/ mascarar o
++    // preview da lista quando a última msg é de outro agente (pode ter entrado via realtime).
++    const { isMessageRestricted } = useAgentIsolation();
++    return { isAgentMessageRestricted: isMessageRestricted };
++  },
+   data() {
+     return {
+       hovered: false,
+@@ -268,6 +275,24 @@ export default {
+       return stateInbox;
+     },
+ 
++    isLastMessageRestrictedByAgent() {
++      return this.isAgentMessageRestricted(this.lastMessageInChat, this.inbox);
++    },
++
++    // Mensagem a exibir no preview. Se restrita por agente, troca o conteúdo por 🔒 +
++    // "Conteúdo restrito" e remove anexos/atributos, mantendo só quem enviou poder ver.
++    previewMessage() {
++      const msg = this.lastMessageInChat;
++      if (!msg || !this.isLastMessageRestrictedByAgent) return msg;
++      return {
++        ...msg,
++        content: `🔒 ${this.$t('CONVERSATION.AGENT_ISOLATION.RESTRICTED_SUBTITLE')}`,
++        attachments: [],
++        content_attributes: {},
++        content_type: 'text',
++      };
++    },
++
+     showInboxName() {
+       return (
+         !this.hideInboxName &&
+@@ -489,7 +514,7 @@ export default {
+       />
+       <MessagePreview
+         v-if="lastMessageInChat"
+-        :message="lastMessageInChat"
++        :message="previewMessage"
+         default-empty-message=""
+         class="conversation--message text-n-slate-11 my-0 mx-2 leading-6 h-6 text-sm overflow-hidden text-ellipsis whitespace-nowrap group-hover:ltr:pr-8 group-hover:rtl:pl-8 transition-all duration-200 max-w-[96%] w-[16.875rem]"
+         :class="hasUnread ? 'conversation--message-unread font-medium' : ''"
+diff --git a/app/javascript/dashboard/routes/dashboard/settings/inbox/Settings.vue b/app/javascript/dashboard/routes/dashboard/settings/inbox/Settings.vue
+index e0a0d5d4d..71d2bb2a8 100644
+--- a/app/javascript/dashboard/routes/dashboard/settings/inbox/Settings.vue
++++ b/app/javascript/dashboard/routes/dashboard/settings/inbox/Settings.vue
+@@ -90,6 +90,7 @@ export default {
+       businessName: '',
+       locktoSingleConversation: false,
+       teamMessageIsolation: false,
++      agentMessageIsolation: false,
+       pendingStatusEnabled: false,
+       allowMessagesAfterResolved: true,
+       continuityViaEmail: true,
+@@ -404,6 +405,8 @@ export default {
+       this.selectedFeatureFlags = this.inbox.selected_feature_flags || [];
+       this.replyTime = this.inbox.reply_time;
+       this.locktoSingleConversation = this.inbox.lock_to_single_conversation;
++      this.teamMessageIsolation = this.inbox.team_message_isolation || false;
++      this.agentMessageIsolation = this.inbox.agent_message_isolation || false;
+       this.pendingStatusEnabled = this.inbox.pending_status_enabled || false;
+       this.selectedPortalSlug = this.inbox.help_center
+         ? this.inbox.help_center.slug
+@@ -523,6 +526,7 @@ export default {
+             : null,
+           lock_to_single_conversation: this.locktoSingleConversation,
+           team_message_isolation: this.teamMessageIsolation,
++          agent_message_isolation: this.agentMessageIsolation,
+           pending_status_enabled: this.pendingStatusEnabled,
+           sender_name_type: this.senderNameType,
+           business_name: this.businessName || null,
+@@ -804,6 +808,15 @@ export default {
+               class="mb-4"
+             />
+ 
++            <SettingsToggleSection
++              v-model="agentMessageIsolation"
++              :header="$t('INBOX_MGMT.SETTINGS_POPUP.AGENT_MESSAGE_ISOLATION')"
++              :description="
++                $t('INBOX_MGMT.SETTINGS_POPUP.AGENT_MESSAGE_ISOLATION_SUB_TEXT')
++              "
++              class="mb-4"
++            />
++
+             <SettingsToggleSection
+               v-model="pendingStatusEnabled"
+               :header="$t('INBOX_MGMT.SETTINGS_POPUP.PENDING_STATUS.TITLE')"
+diff --git a/app/models/message.rb b/app/models/message.rb
+index 29da8d014..210fa067b 100644
+--- a/app/models/message.rb
++++ b/app/models/message.rb
+@@ -22,6 +22,7 @@
+ #  sender_id                 :bigint
+ #  source_id                 :text
+ #  team_id                   :integer
++#  agent_id                  :bigint
+ #
+ # Indexes
+ #
+@@ -30,6 +31,7 @@
+ #  index_messages_on_account_id                         (account_id)
+ #  index_messages_on_account_id_and_inbox_id            (account_id,inbox_id)
+ #  index_messages_on_additional_attributes_campaign_id  (((additional_attributes -> 'campaign_id'::text))) USING gin
++#  index_messages_on_agent_id                           (agent_id)
+ #  index_messages_on_content                            (content) USING gin
+ #  index_messages_on_conversation_account_type_created  (conversation_id,account_id,message_type,created_at)
+ #  index_messages_on_conversation_id                    (conversation_id)
+@@ -69,6 +71,7 @@ class Message < ApplicationRecord
+   before_save :ensure_processed_message_content
+   before_save :ensure_in_reply_to
+   before_create :set_team_id_from_conversation
++  before_create :set_agent_id_from_sender
+ 
+   validates :account_id, presence: true
+   validates :inbox_id, presence: true
+@@ -499,6 +502,16 @@ class Message < ApplicationRecord
+     self.team_id = Conversation.where(id: conversation_id).pick(:team_id)
+   end
+ 
++  # Espelho do team isolation, mas carimbado pelo REMETENTE (nao pela conversa):
++  # so mensagens outgoing enviadas por um User (agente) recebem agent_id. Cliente,
++  # bot (AgentBot/Captain), atividade, template e automacao (sender nil) ficam com
++  # agent_id NULL = publicas (todos veem). Diferente de team_id, agent_id e fixado
++  # uma unica vez no envio e nunca re-sincronizado (sem UpdateMessagesAgentIdJob),
++  # por isso a mesma conversa pode ter mensagens de varios agentes.
++  def set_agent_id_from_sender
++    self.agent_id = sender_id if outgoing? && sender_type == 'User'
++  end
++
+   # Delegates to the NPS service: prevents reopening when the message is a response to an active NPS survey.
+   # Rules and nps_config (expiration_hours etc.) are applied in NpsSurveys::ReopenGuard.
+   def response_to_active_nps_survey?
+diff --git a/app/services/conversations/list_preloader.rb b/app/services/conversations/list_preloader.rb
+index ca7391716..af91ee586 100644
+--- a/app/services/conversations/list_preloader.rb
++++ b/app/services/conversations/list_preloader.rb
+@@ -3,13 +3,14 @@
+ class Conversations::ListPreloader
+   Result = Struct.new(:unread_counts, :last_messages, :last_non_activity_messages, keyword_init: true)
+ 
+-  def self.call(conversations)
+-    new(conversations).call
++  def self.call(conversations, user: Current.user)
++    new(conversations, user).call
+   end
+ 
+-  def initialize(conversations)
++  def initialize(conversations, user = Current.user)
+     @conversations = conversations.to_a
+     @conversation_ids = @conversations.map(&:id)
++    @user = user
+   end
+ 
+   def call
+@@ -55,25 +56,41 @@ class Conversations::ListPreloader
+     build_message_maps(rows)
+   end
+ 
++  # ID do agente p/ isolamento (nil = admin/sem User → sem filtro). Memoizado.
++  def agent_filter_id
++    return @agent_filter_id if defined?(@agent_filter_id)
++
++    @agent_filter_id = AgentMessageIsolation.viewer_restriction_id(@user, @conversations.first&.account_id)
++  end
++
+   def fetch_combined_last_message_rows # rubocop:disable Metrics/MethodLength
++    uid = agent_filter_id
++    # Filtra a última mensagem por agente SÓ nos inboxes com a flag ON (a lista mistura inboxes).
++    inbox_join  = uid ? 'INNER JOIN inboxes i ON i.id = c.inbox_id' : ''
++    agent_where = uid ? 'AND (i.agent_message_isolation IS NOT TRUE OR m.agent_id IS NULL OR m.agent_id = :uid)' : ''
++
+     sql = <<~SQL.squish
+       WITH last_all AS (
+         SELECT DISTINCT ON (m.conversation_id) m.id, m.conversation_id
+         FROM messages m
+         INNER JOIN conversations c ON c.id = m.conversation_id
+-        WHERE m.conversation_id IN (?)
++        #{inbox_join}
++        WHERE m.conversation_id IN (:ids)
+           AND m.account_id = c.account_id
+           AND (c.team_id IS NULL OR m.team_id IS NULL OR m.team_id = c.team_id)
++          #{agent_where}
+         ORDER BY m.conversation_id, m.created_at DESC, m.id DESC
+       ),
+       last_non_activity AS (
+         SELECT DISTINCT ON (m.conversation_id) m.id, m.conversation_id
+         FROM messages m
+         INNER JOIN conversations c ON c.id = m.conversation_id
+-        WHERE m.conversation_id IN (?)
++        #{inbox_join}
++        WHERE m.conversation_id IN (:ids)
+           AND m.account_id = c.account_id
+           AND m.message_type != 2
+           AND (c.team_id IS NULL OR m.team_id IS NULL OR m.team_id = c.team_id)
++          #{agent_where}
+         ORDER BY m.conversation_id, m.id DESC
+       )
+       SELECT 'all' AS kind, id, conversation_id FROM last_all
+@@ -81,8 +98,10 @@ class Conversations::ListPreloader
+       SELECT 'non_activity' AS kind, id, conversation_id FROM last_non_activity
+     SQL
+ 
++    binds = { ids: @conversation_ids }
++    binds[:uid] = uid if uid
+     Conversation.connection.select_all(
+-      Conversation.sanitize_sql_array([sql, @conversation_ids, @conversation_ids])
++      Conversation.sanitize_sql_array([sql, binds])
+     ).to_a
+   end
+ 
+diff --git a/app/services/search_service.rb b/app/services/search_service.rb
+index 869efc540..89807db02 100644
+--- a/app/services/search_service.rb
++++ b/app/services/search_service.rb
+@@ -113,7 +113,23 @@ class SearchService
+               end
+     end
+ 
+-    query
++    apply_agent_isolation(query)
++  end
++
++  # Isolamento por agente: na busca de mensagens, um agente não-admin não acha conteúdo de
++  # outro agente em inbox com a flag ON. Admin/sem restrição/nenhum inbox isolado → no-op.
++  # Usa subquery de inbox_id (sem JOIN) para não tornar `created_at` ambíguo no resto da query.
++  def apply_agent_isolation(query)
++    agent_id = AgentMessageIsolation.viewer_restriction_id(current_user, current_account)
++    return query if agent_id.nil?
++
++    isolated_inbox_ids = current_account.inboxes.where(agent_message_isolation: true).pluck(:id)
++    return query if isolated_inbox_ids.empty?
++
++    query.where(
++      'messages.agent_id IS NULL OR messages.agent_id = :uid OR messages.inbox_id NOT IN (:isolated)',
++      uid: agent_id, isolated: isolated_inbox_ids
++    )
+   end
+ 
+   def apply_message_filters(query)
+diff --git a/app/views/api/v1/conversations/partials/_conversation.json.jbuilder b/app/views/api/v1/conversations/partials/_conversation.json.jbuilder
+index 20ea16d6b..8859b06d4 100644
+--- a/app/views/api/v1/conversations/partials/_conversation.json.jbuilder
++++ b/app/views/api/v1/conversations/partials/_conversation.json.jbuilder
+@@ -85,12 +85,12 @@ if preloaded
+   else
+     json.messages [last_message.try(:push_event_data)]
+   end
+-elsif conversation.messages.where(account_id: conversation.account_id).last.blank?
+-  json.messages []
+ else
+-  last_message = conversation.messages.where(account_id: conversation.account_id)
+-                             .includes([{ attachments: [{ file_attachment: [:blob] }] }])
+-  json.messages [last_message.last.try(:push_event_data)]
++  fallback_rid = AgentMessageIsolation.restriction_id_for_inbox(conversation.inbox, Current.user, conversation.account_id)
++  fallback_scope = conversation.messages.where(account_id: conversation.account_id)
++                               .includes([{ attachments: [{ file_attachment: [:blob] }] }])
++  fallback_last = AgentMessageIsolation.filter_messages(fallback_scope, fallback_rid).last
++  json.messages fallback_last.blank? ? [] : [fallback_last.try(:push_event_data)]
+ end
+ 
+ json.account_id conversation.account_id
+@@ -114,7 +114,9 @@ json.unread_count preloaded ? preloaded.unread_counts[conversation.id].to_i : co
+ last_non_activity_msg = if preloaded
+                           preloaded.last_non_activity_messages[conversation.id]
+                         else
+-                          conversation.messages.where(account_id: conversation.account_id).non_activity_messages.first
++                          na_rid = AgentMessageIsolation.restriction_id_for_inbox(conversation.inbox, Current.user, conversation.account_id)
++                          na_scope = conversation.messages.where(account_id: conversation.account_id).non_activity_messages
++                          AgentMessageIsolation.filter_messages(na_scope, na_rid).first
+                         end
+ json.last_non_activity_message last_non_activity_msg.try(:push_event_data)
+ json.last_activity_at conversation.last_activity_at.to_i
+diff --git a/app/views/api/v1/models/_inbox.json.jbuilder b/app/views/api/v1/models/_inbox.json.jbuilder
+index 57b8e0289..90187f4c7 100644
+--- a/app/views/api/v1/models/_inbox.json.jbuilder
++++ b/app/views/api/v1/models/_inbox.json.jbuilder
+@@ -21,6 +21,7 @@ json.allow_messages_after_resolved resource.allow_messages_after_resolved
+ json.lock_to_single_conversation resource.lock_to_single_conversation
+ json.pending_status_enabled resource.pending_status_enabled
+ json.team_message_isolation resource.team_message_isolation
++json.agent_message_isolation resource.agent_message_isolation
+ json.sender_name_type resource.sender_name_type
+ json.business_name resource.business_name
+ json.additional_attributes resource.additional_attributes
+diff --git a/app/views/api/v1/models/_message.json.jbuilder b/app/views/api/v1/models/_message.json.jbuilder
+index 876b981d6..9e491a1fe 100644
+--- a/app/views/api/v1/models/_message.json.jbuilder
++++ b/app/views/api/v1/models/_message.json.jbuilder
+@@ -11,6 +11,7 @@ json.created_at message.created_at.to_i
+ json.private message.private
+ json.source_id message.source_id
+ json.team_id message.team_id
++json.agent_id message.agent_id
+ json.sender message.sender.push_event_data if message.sender
+ json.attachments message.attachments.map(&:push_event_data) if message.attachments.present?
+ json.additional_attributes message.additional_attributes
+diff --git a/spec/controllers/api/v1/accounts/inboxes_controller_spec.rb b/spec/controllers/api/v1/accounts/inboxes_controller_spec.rb
+index 2c15e9c53..79b32296d 100644
+--- a/spec/controllers/api/v1/accounts/inboxes_controller_spec.rb
++++ b/spec/controllers/api/v1/accounts/inboxes_controller_spec.rb
+@@ -487,6 +487,17 @@ RSpec.describe 'Inboxes API', type: :request do
+         expect(response.parsed_body['name']).to eq 'new test inbox'
+       end
+ 
++      it 'updates agent_message_isolation when administrator' do
++        patch "/api/v1/accounts/#{account.id}/inboxes/#{inbox.id}",
++              headers: admin.create_new_auth_token,
++              params: { agent_message_isolation: true },
++              as: :json
++
++        expect(response).to have_http_status(:success)
++        expect(inbox.reload.agent_message_isolation).to be(true)
++        expect(response.parsed_body['agent_message_isolation']).to be(true)
++      end
++
+       it 'updates api inbox when administrator' do
+         api_channel = create(:channel_api, account: account)
+         api_inbox = create(:inbox, channel: api_channel, account: account)
+diff --git a/spec/finders/message_finder_spec.rb b/spec/finders/message_finder_spec.rb
+index f4b2754cd..22c10f290 100644
+--- a/spec/finders/message_finder_spec.rb
++++ b/spec/finders/message_finder_spec.rb
+@@ -113,4 +113,56 @@ describe MessageFinder do
+       end
+     end
+   end
++
++  describe '#perform with agent_message_isolation' do
++    subject(:finder) { described_class.new(iso_conversation, { filter_internal_messages: false }) }
++
++    let!(:account) { create(:account) }
++    let!(:agent_a) { create(:user, account: account, role: :agent) }
++    let!(:agent_b) { create(:user, account: account, role: :agent) }
++    let!(:admin) { create(:user, account: account, role: :administrator) }
++    let!(:inbox) { create(:inbox, account: account) }
++    let!(:iso_conversation) { create(:conversation, account: account, inbox: inbox) }
++
++    let!(:incoming) { create(:message, message_type: :incoming, conversation: iso_conversation, account: account, inbox: inbox) }
++    let!(:from_a) do
++      create(:message, message_type: :outgoing, sender: agent_a, conversation: iso_conversation, account: account, inbox: inbox)
++    end
++    let!(:from_b) do
++      create(:message, message_type: :outgoing, sender: agent_b, conversation: iso_conversation, account: account, inbox: inbox)
++    end
++
++    after { Current.user = nil }
++
++    context 'when isolation is enabled' do
++      before { inbox.update!(agent_message_isolation: true) }
++
++      it 'shows an agent their own and public messages but hides other agents messages' do
++        Current.user = agent_a
++        ids = finder.perform.map(&:id)
++        expect(ids).to include(incoming.id, from_a.id)
++        expect(ids).not_to include(from_b.id)
++      end
++
++      it 'lets an account administrator see every message' do
++        Current.user = admin
++        ids = finder.perform.map(&:id)
++        expect(ids).to include(incoming.id, from_a.id, from_b.id)
++      end
++
++      it 'applies no filter when there is no Current.user (widget/public listing)' do
++        Current.user = nil
++        ids = finder.perform.map(&:id)
++        expect(ids).to include(incoming.id, from_a.id, from_b.id)
++      end
++    end
++
++    context 'when isolation is disabled' do
++      it 'shows all messages even to a non-admin agent' do
++        Current.user = agent_a
++        ids = finder.perform.map(&:id)
++        expect(ids).to include(incoming.id, from_a.id, from_b.id)
++      end
++    end
++  end
+ end
+diff --git a/spec/services/search_service_spec.rb b/spec/services/search_service_spec.rb
+index cdfaa069b..83e7f1508 100644
+--- a/spec/services/search_service_spec.rb
++++ b/spec/services/search_service_spec.rb
+@@ -756,4 +756,43 @@ describe SearchService do
+       end
+     end
+   end
++
++  describe 'message search with agent_message_isolation' do # rubocop:disable RSpec/MultipleMemoizedHelpers
++    let!(:iso_account) { create(:account) }
++    let!(:agent_a) { create(:user, account: iso_account, role: :agent) }
++    let!(:agent_b) { create(:user, account: iso_account, role: :agent) }
++    let!(:iso_admin) { create(:user, account: iso_account, role: :administrator) }
++    let!(:iso_inbox) { create(:inbox, account: iso_account, enable_auto_assignment: false) }
++    let!(:iso_conversation) { create(:conversation, inbox: iso_inbox, account: iso_account) }
++    let!(:secret) do
++      create(:message, account: iso_account, inbox: iso_inbox, conversation: iso_conversation,
++                       message_type: :outgoing, sender: agent_a, content: 'classified wizardry secret')
++    end
++
++    before do
++      iso_inbox.update!(agent_message_isolation: true)
++      [agent_a, agent_b, iso_admin].each { |u| create(:inbox_member, user: u, inbox: iso_inbox) }
++    end
++
++    def message_ids_for(viewer)
++      Current.account = iso_account
++      Current.user = viewer
++      described_class.new(current_user: viewer, current_account: iso_account,
++                          params: { q: 'classified wizardry' }, search_type: 'Message').perform[:messages].map(&:id)
++    ensure
++      Current.user = nil
++    end
++
++    it 'finds the message for the agent who sent it' do
++      expect(message_ids_for(agent_a)).to include(secret.id)
++    end
++
++    it 'does not surface another agent message content to a different agent' do
++      expect(message_ids_for(agent_b)).not_to include(secret.id)
++    end
++
++    it 'lets an administrator find any message' do
++      expect(message_ids_for(iso_admin)).to include(secret.id)
++    end
++  end
+ end
+diff --git a/app/services/agent_message_isolation.rb b/app/services/agent_message_isolation.rb
+new file mode 100644
+index 000000000..6a4ebeeb6
+--- /dev/null
++++ b/app/services/agent_message_isolation.rb
+@@ -0,0 +1,39 @@
++# frozen_string_literal: true
++
++# Centraliza a regra de ISOLAMENTO DE MENSAGENS POR AGENTE (flag agent_message_isolation
++# por inbox). Diferente do team isolation — que vive na association conversation.messages
++# porque depende só da conversa — este isolamento depende de QUEM olha (Current.user),
++# então precisa ser reaplicado em CADA ponto de leitura de mensagens fora do MessageFinder
++# (preview da lista, histórico do contato, busca). Regra: com a flag ON num inbox, um
++# agente NÃO-admin só vê mensagens com agent_id NULL (públicas) ou agent_id == ele mesmo.
++# Admin e contextos sem User (jobs/widget/public API) veem tudo.
++module AgentMessageIsolation
++  module_function
++
++  # ID do agente para restringir, ou nil quando NÃO se aplica restrição (sem User, admin,
++  # ou conta inexistente). NÃO checa a flag do inbox — o caller decide por-inbox, pois uma
++  # listagem pode misturar inboxes com e sem isolamento (filtro vai no SQL/scope por linha).
++  def viewer_restriction_id(user, account)
++    return nil unless user.is_a?(User)
++
++    account_id = account.is_a?(Account) ? account.id : account
++    return nil if account_id.blank?
++    return nil if user.account_users.find_by(account_id: account_id)&.administrator?
++
++    user.id
++  end
++
++  # Restrição para um único inbox (MessageFinder / conversa única): só quando a flag está ON.
++  def restriction_id_for_inbox(inbox, user, account)
++    return nil unless inbox&.agent_message_isolation
++
++    viewer_restriction_id(user, account)
++  end
++
++  # Aplica o filtro a um scope de Message já restrito a um único inbox isolado.
++  def filter_messages(scope, restriction_id)
++    return scope if restriction_id.nil?
++
++    scope.where('messages.agent_id IS NULL OR messages.agent_id = ?', restriction_id)
++  end
++end
+diff --git a/app/javascript/dashboard/composables/useAgentIsolation.js b/app/javascript/dashboard/composables/useAgentIsolation.js
+new file mode 100644
+index 000000000..fd27c19be
+--- /dev/null
++++ b/app/javascript/dashboard/composables/useAgentIsolation.js
+@@ -0,0 +1,41 @@
++import { computed } from 'vue';
++import { useStore } from 'dashboard/composables/store';
++
++// Espelho de useTeamIsolation, mas por AGENTE: cada agente só vê as mensagens que
++// ele mesmo enviou (agent_id === eu) + as públicas (agent_id NULL: cliente, bot,
++// atividade, template). Admin vê tudo. Usado nos previews (lista/kanban) p/ mascarar
++// com 🔒 — a bolha em si é tratada no Message.vue (isRestrictedByAgent).
++export function useAgentIsolation() {
++  const store = useStore();
++
++  const currentUserId = computed(() => store.getters.getCurrentUser?.id);
++
++  const currentAccount = computed(() => store.getters.getCurrentAccount || {});
++
++  const isAdmin = computed(() => {
++    const user = store.getters.getCurrentUser || {};
++    const accountId = currentAccount.value?.id;
++    const accountUser = user.accounts?.find(a => a.id === accountId);
++    return accountUser?.role === 'administrator';
++  });
++
++  const isMessageRestricted = (message, inbox) => {
++    if (!inbox?.agent_message_isolation && !inbox?.agentMessageIsolation) {
++      return false;
++    }
++    const agentId = message?.agent_id ?? message?.agentId;
++    if (!agentId) return false;
++    if (message?.message_type === 2 || message?.messageType === 2) return false;
++    if (isAdmin.value) return false;
++    return agentId !== currentUserId.value;
++  };
++
++  const getRestrictedPreview = () => '🔒';
++
++  return {
++    currentUserId,
++    isAdmin,
++    isMessageRestricted,
++    getRestrictedPreview,
++  };
++}
+diff --git a/app/javascript/dashboard/composables/spec/useAgentIsolation.spec.js b/app/javascript/dashboard/composables/spec/useAgentIsolation.spec.js
+new file mode 100644
+index 000000000..f5d702424
+--- /dev/null
++++ b/app/javascript/dashboard/composables/spec/useAgentIsolation.spec.js
+@@ -0,0 +1,66 @@
++import { useAgentIsolation } from '../useAgentIsolation';
++import { useStore } from 'dashboard/composables/store';
++
++vi.mock('dashboard/composables/store');
++
++const buildStore = ({ userId = 1, role = 'agent', accountId = 100 } = {}) => ({
++  getters: {
++    getCurrentUser: { id: userId, accounts: [{ id: accountId, role }] },
++    getCurrentAccount: { id: accountId },
++  },
++});
++
++describe('useAgentIsolation', () => {
++  const inboxOn = { agent_message_isolation: true };
++  const inboxOff = { agent_message_isolation: false };
++
++  beforeEach(() => {
++    vi.clearAllMocks();
++  });
++
++  it('returns false when isolation is disabled on the inbox', () => {
++    useStore.mockReturnValue(buildStore());
++    const { isMessageRestricted } = useAgentIsolation();
++    expect(isMessageRestricted({ agent_id: 2 }, inboxOff)).toBe(false);
++  });
++
++  it('returns false for the current agent own message', () => {
++    useStore.mockReturnValue(buildStore({ userId: 1 }));
++    const { isMessageRestricted } = useAgentIsolation();
++    expect(isMessageRestricted({ agent_id: 1 }, inboxOn)).toBe(false);
++  });
++
++  it('returns true for a message owned by another agent', () => {
++    useStore.mockReturnValue(buildStore({ userId: 1 }));
++    const { isMessageRestricted } = useAgentIsolation();
++    expect(isMessageRestricted({ agent_id: 2 }, inboxOn)).toBe(true);
++  });
++
++  it('returns false for public messages (agent_id null)', () => {
++    useStore.mockReturnValue(buildStore({ userId: 1 }));
++    const { isMessageRestricted } = useAgentIsolation();
++    expect(isMessageRestricted({ agent_id: null }, inboxOn)).toBe(false);
++  });
++
++  it('returns false for activity messages even from another agent', () => {
++    useStore.mockReturnValue(buildStore({ userId: 1 }));
++    const { isMessageRestricted } = useAgentIsolation();
++    expect(isMessageRestricted({ agent_id: 2, message_type: 2 }, inboxOn)).toBe(
++      false
++    );
++  });
++
++  it('returns false for admins (they see everything)', () => {
++    useStore.mockReturnValue(buildStore({ userId: 1, role: 'administrator' }));
++    const { isMessageRestricted } = useAgentIsolation();
++    expect(isMessageRestricted({ agent_id: 2 }, inboxOn)).toBe(false);
++  });
++
++  it('supports camelCase fields (agentId / agentMessageIsolation)', () => {
++    useStore.mockReturnValue(buildStore({ userId: 1 }));
++    const { isMessageRestricted } = useAgentIsolation();
++    expect(
++      isMessageRestricted({ agentId: 2 }, { agentMessageIsolation: true })
++    ).toBe(true);
++  });
++});
+diff --git a/db/migrate/20260616120000_add_agent_id_to_messages.rb b/db/migrate/20260616120000_add_agent_id_to_messages.rb
+new file mode 100644
+index 000000000..a4d73d71d
+--- /dev/null
++++ b/db/migrate/20260616120000_add_agent_id_to_messages.rb
+@@ -0,0 +1,25 @@
++# Adiciona messages.agent_id (espelho de messages.team_id) para o isolamento de
++# mensagens POR AGENTE. Carimbado no envio (Message#set_agent_id_from_sender).
++# Padrao nao-bloqueante p/ tabela grande: coluna nullable (instantanea no PG) +
++# indice CONCURRENTLY + FK validate:false depois validada (mesmo padrao de
++# 20260330120000_add_foreign_key_constraints). FK com ON DELETE NULLIFY: ao
++# deletar um agente, suas mensagens viram publicas (agent_id NULL) — NUNCA :restrict.
++class AddAgentIdToMessages < ActiveRecord::Migration[7.1]
++  disable_ddl_transaction!
++
++  def up
++    add_column :messages, :agent_id, :bigint, null: true unless column_exists?(:messages, :agent_id)
++    add_index :messages, :agent_id, algorithm: :concurrently unless index_exists?(:messages, :agent_id)
++
++    unless foreign_key_exists?(:messages, :users, column: :agent_id)
++      add_foreign_key :messages, :users, column: :agent_id, on_delete: :nullify, validate: false
++    end
++    validate_foreign_key :messages, :users, column: :agent_id
++  end
++
++  def down
++    remove_foreign_key :messages, :users, column: :agent_id if foreign_key_exists?(:messages, :users, column: :agent_id)
++    remove_index :messages, :agent_id, algorithm: :concurrently if index_exists?(:messages, :agent_id)
++    remove_column :messages, :agent_id if column_exists?(:messages, :agent_id)
++  end
++end
+diff --git a/db/migrate/20260616120100_add_agent_message_isolation_to_inboxes.rb b/db/migrate/20260616120100_add_agent_message_isolation_to_inboxes.rb
+new file mode 100644
+index 000000000..a82758b16
+--- /dev/null
++++ b/db/migrate/20260616120100_add_agent_message_isolation_to_inboxes.rb
+@@ -0,0 +1,5 @@
++class AddAgentMessageIsolationToInboxes < ActiveRecord::Migration[7.1]
++  def change
++    add_column :inboxes, :agent_message_isolation, :boolean, default: false, null: false
++  end
++end
+diff --git a/lib/tasks/messages_backfill_agent_id.rake b/lib/tasks/messages_backfill_agent_id.rake
+new file mode 100644
+index 000000000..a1e4e1b1f
+--- /dev/null
++++ b/lib/tasks/messages_backfill_agent_id.rake
+@@ -0,0 +1,33 @@
++# frozen_string_literal: true
++
++# rake messages:backfill_agent_id                # roda em todas as contas
++# rake messages:backfill_agent_id[6]             # roda apenas na account 6
++#
++# Carimba messages.agent_id = sender_id nas mensagens OUTGOING enviadas por User
++# (agentes), preenchendo o historico anterior ao deploy do isolamento por agente.
++# Idempotente: so toca em linhas com agent_id NULL -> pode rodar varias vezes.
++# Diferente do team_id, agent_id NAO e re-sincronizado (sem job): e fixado no envio.
++#
++# IMPORTANTE: rodar ANTES de ligar o toggle agent_message_isolation num inbox; senao
++# as mensagens antigas ficam publicas (agent_id NULL) ate o backfill terminar (fail-open).
++namespace :messages do
++  desc 'Backfill messages.agent_id a partir do sender_id (outgoing de User)'
++  task :backfill_agent_id, %i[account_id] => :environment do |_t, args|
++    account_id = args[:account_id]&.to_i
++
++    scope = Message.where(sender_type: 'User', message_type: :outgoing, agent_id: nil)
++    scope = scope.where(account_id: account_id) if account_id
++
++    total = scope.count
++    puts "[messages:backfill_agent_id] Mensagens a preencher: #{total} (account_id=#{account_id || 'ALL'})"
++    next if total.zero?
++
++    updated = 0
++    scope.in_batches(of: 10_000) do |batch|
++      updated += batch.update_all('agent_id = sender_id') # rubocop:disable Rails/SkipsModelValidations
++      puts "[messages:backfill_agent_id] #{updated}/#{total} atualizadas..."
++    end
++
++    puts "[messages:backfill_agent_id] Concluido. #{updated} mensagens carimbadas."
++  end
++end
+diff --git a/spec/services/agent_message_isolation_spec.rb b/spec/services/agent_message_isolation_spec.rb
+new file mode 100644
+index 000000000..0137763c8
+--- /dev/null
++++ b/spec/services/agent_message_isolation_spec.rb
+@@ -0,0 +1,73 @@
++# frozen_string_literal: true
++
++require 'rails_helper'
++
++RSpec.describe AgentMessageIsolation do
++  let!(:account) { create(:account) }
++  let!(:agent) { create(:user, account: account, role: :agent) }
++  let!(:admin) { create(:user, account: account, role: :administrator) }
++  let!(:inbox) { create(:inbox, account: account) }
++
++  describe '.viewer_restriction_id' do
++    it 'returns the user id for a non-admin agent' do
++      expect(described_class.viewer_restriction_id(agent, account)).to eq(agent.id)
++    end
++
++    it 'returns nil for an administrator' do
++      expect(described_class.viewer_restriction_id(admin, account)).to be_nil
++    end
++
++    it 'returns nil when there is no user (widget/public/job context)' do
++      expect(described_class.viewer_restriction_id(nil, account)).to be_nil
++    end
++
++    it 'accepts an account id instead of an account object' do
++      expect(described_class.viewer_restriction_id(agent, account.id)).to eq(agent.id)
++    end
++
++    it 'returns nil when the account is blank' do
++      expect(described_class.viewer_restriction_id(agent, nil)).to be_nil
++    end
++  end
++
++  describe '.restriction_id_for_inbox' do
++    it 'returns nil when the inbox does not have isolation enabled' do
++      expect(described_class.restriction_id_for_inbox(inbox, agent, account)).to be_nil
++    end
++
++    it 'returns the agent id when isolation is enabled' do
++      inbox.update!(agent_message_isolation: true)
++      expect(described_class.restriction_id_for_inbox(inbox, agent, account)).to eq(agent.id)
++    end
++
++    it 'returns nil for an admin even with isolation enabled' do
++      inbox.update!(agent_message_isolation: true)
++      expect(described_class.restriction_id_for_inbox(inbox, admin, account)).to be_nil
++    end
++  end
++
++  describe '.filter_messages' do
++    let!(:conversation) { create(:conversation, account: account, inbox: inbox) }
++    let!(:public_msg) do
++      create(:message, conversation: conversation, account: account, inbox: inbox, message_type: :incoming)
++    end
++    let!(:mine) do
++      create(:message, conversation: conversation, account: account, inbox: inbox, message_type: :outgoing, sender: agent)
++    end
++    let!(:other) do
++      create(:message, conversation: conversation, account: account, inbox: inbox, message_type: :outgoing,
++                       sender: create(:user, account: account, role: :agent))
++    end
++
++    it 'returns the same scope untouched when restriction id is nil' do
++      scope = conversation.messages
++      expect(described_class.filter_messages(scope, nil)).to be(scope)
++    end
++
++    it 'keeps public (agent_id NULL) and own messages, drops other agents messages' do
++      ids = described_class.filter_messages(conversation.messages, agent.id).map(&:id)
++      expect(ids).to include(public_msg.id, mine.id)
++      expect(ids).not_to include(other.id)
++    end
++  end
++end
+diff --git a/spec/services/conversations/list_preloader_spec.rb b/spec/services/conversations/list_preloader_spec.rb
+new file mode 100644
+index 000000000..3a31e615c
+--- /dev/null
++++ b/spec/services/conversations/list_preloader_spec.rb
+@@ -0,0 +1,57 @@
++# frozen_string_literal: true
++
++require 'rails_helper'
++
++RSpec.describe Conversations::ListPreloader do
++  let!(:account) { create(:account) }
++  let!(:agent_a) { create(:user, account: account, role: :agent) }
++  let!(:agent_b) { create(:user, account: account, role: :agent) }
++  let!(:admin) { create(:user, account: account, role: :administrator) }
++  let!(:inbox) { create(:inbox, account: account) }
++  let!(:conversation) { create(:conversation, account: account, inbox: inbox) }
++
++  # presença de uma msg pública no meio garante que o filtro não a descarta nem quebra a ordenação
++  let!(:public_msg) do # rubocop:disable RSpec/LetSetup
++    create(:message, conversation: conversation, account: account, inbox: inbox, message_type: :incoming, content: 'public hi')
++  end
++  let!(:from_a) do
++    create(:message, conversation: conversation, account: account, inbox: inbox, message_type: :outgoing, sender: agent_a,
++                     content: 'from A')
++  end
++  let!(:from_b) do
++    create(:message, conversation: conversation, account: account, inbox: inbox, message_type: :outgoing, sender: agent_b,
++                     content: 'from B')
++  end
++
++  after { Current.user = nil }
++
++  describe 'last message preview with agent_message_isolation' do
++    context 'when isolation is enabled' do
++      before { inbox.update!(agent_message_isolation: true) }
++
++      it 'previews the last message visible to the viewing agent (hides other agents)' do
++        result = described_class.call([conversation], user: agent_a)
++        preview = result.last_non_activity_messages[conversation.id]
++        # from_b is the real latest, but it belongs to agent_b -> hidden for agent_a
++        expect(preview.id).to eq(from_a.id)
++      end
++
++      it 'previews the real last message for an administrator' do
++        result = described_class.call([conversation], user: admin)
++        expect(result.last_non_activity_messages[conversation.id].id).to eq(from_b.id)
++      end
++
++      it 'previews the real last message when there is no viewer (default Current.user nil)' do
++        result = described_class.call([conversation], user: nil)
++        expect(result.last_non_activity_messages[conversation.id].id).to eq(from_b.id)
++      end
++    end
++
++    context 'when isolation is disabled' do
++      it 'previews the real last message even for a non-admin agent' do
++        result = described_class.call([conversation], user: agent_a)
++        expect(result.last_non_activity_messages[conversation.id].id).to eq(from_b.id)
++      end
++    end
++  end
++end

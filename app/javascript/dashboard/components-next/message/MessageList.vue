@@ -5,6 +5,8 @@ import Message from './Message.vue';
 import DateSeparator from 'shared/components/DateSeparator.vue';
 import { MESSAGE_TYPES, ATTACHMENT_TYPES } from './constants.js';
 import { useCamelCase } from 'dashboard/composables/useTransformKeys';
+import { useStore } from 'dashboard/composables/store';
+import { useAgentIsolation } from 'dashboard/composables/useAgentIsolation';
 
 /**
  * Props definition for the component
@@ -109,9 +111,22 @@ const allMessages = computed(() => {
   return props.messages.map(toCamelizedMessage);
 });
 
+const store = useStore();
+const { isMessageRestricted } = useAgentIsolation();
+const currentChat = computed(() => store.getters.getSelectedChat || {});
+const currentInbox = computed(() => {
+  const inboxId = currentChat.value?.inbox_id;
+  return inboxId ? store.getters['inboxes/getInbox'](inboxId) : {};
+});
+
+// Isolamento por agente: não expor no preview de reply/quote uma mensagem de outro agente
+// (que possa ter entrado no store via websocket). Restrita → fica de fora do mapa, o
+// getInReplyToMessage devolve null e o quote não é renderizado.
 const replyMessagesById = computed(() => {
   return allMessages.value.reduce((messageMap, message) => {
-    messageMap.set(message.id, message);
+    if (!isMessageRestricted(message, currentInbox.value)) {
+      messageMap.set(message.id, message);
+    }
     return messageMap;
   }, new Map());
 });

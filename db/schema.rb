@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[7.1].define(version: 2026_06_12_120000) do
+ActiveRecord::Schema[7.1].define(version: 2026_06_16_120100) do
   # These extensions should be enabled to support this database
   enable_extension "pg_stat_statements"
   enable_extension "pg_trgm"
@@ -1006,6 +1006,7 @@ ActiveRecord::Schema[7.1].define(version: 2026_06_12_120000) do
     t.boolean "team_message_isolation", default: false
     t.boolean "pending_status_enabled", default: false, null: false
     t.jsonb "additional_attributes", default: {}, null: false
+    t.boolean "agent_message_isolation", default: false, null: false
     t.index ["account_id"], name: "index_inboxes_on_account_id"
     t.index ["channel_id", "channel_type"], name: "index_inboxes_on_channel_id_and_channel_type"
     t.index ["portal_id"], name: "index_inboxes_on_portal_id"
@@ -1129,11 +1130,13 @@ ActiveRecord::Schema[7.1].define(version: 2026_06_12_120000) do
     t.boolean "forwarded", default: false, null: false
     t.bigint "forwarded_from_message_id"
     t.boolean "starred", default: false, null: false
+    t.bigint "agent_id"
     t.index "((additional_attributes -> 'campaign_id'::text))", name: "index_messages_on_additional_attributes_campaign_id", using: :gin
     t.index ["account_id", "content_type", "created_at"], name: "idx_messages_account_content_created"
     t.index ["account_id", "created_at", "message_type"], name: "index_messages_on_account_created_type"
     t.index ["account_id", "inbox_id"], name: "index_messages_on_account_id_and_inbox_id"
     t.index ["account_id"], name: "index_messages_on_account_id"
+    t.index ["agent_id"], name: "index_messages_on_agent_id"
     t.index ["content"], name: "index_messages_on_content", opclass: :gin_trgm_ops, using: :gin
     t.index ["content"], name: "index_messages_on_content_trgm", opclass: :gin_trgm_ops, using: :gin
     t.index ["conversation_id", "account_id", "message_type", "created_at"], name: "index_messages_on_conversation_account_type_created"
@@ -1554,6 +1557,7 @@ ActiveRecord::Schema[7.1].define(version: 2026_06_12_120000) do
   add_foreign_key "messages", "accounts", on_delete: :cascade
   add_foreign_key "messages", "conversations", on_delete: :cascade
   add_foreign_key "messages", "inboxes", on_delete: :cascade
+  add_foreign_key "messages", "users", column: "agent_id", on_delete: :nullify
   add_foreign_key "notifications", "accounts", on_delete: :cascade
   add_foreign_key "notifications", "users", on_delete: :cascade
   add_foreign_key "nps_responses", "conversations", on_delete: :cascade

@@ -1,6 +1,7 @@
 <script>
 import { mapGetters } from 'vuex';
 import { getLastMessage } from 'dashboard/helper/conversationHelper';
+import { useAgentIsolation } from 'dashboard/composables/useAgentIsolation';
 import Thumbnail from '../Thumbnail.vue';
 import MessagePreview from './MessagePreview.vue';
 import router from '../../../routes';
@@ -108,6 +109,12 @@ export default {
     'selectConversation', // eslint-disable-line vue/no-unused-emit-declarations -- used dynamically in onSelectConversation
     'deSelectConversation', // eslint-disable-line vue/no-unused-emit-declarations -- used dynamically in onSelectConversation
   ],
+  setup() {
+    // Isolamento por agente: mesma regra do thread (Message.vue), reusada p/ mascarar o
+    // preview da lista quando a última msg é de outro agente (pode ter entrado via realtime).
+    const { isMessageRestricted } = useAgentIsolation();
+    return { isAgentMessageRestricted: isMessageRestricted };
+  },
   data() {
     return {
       hovered: false,
@@ -266,6 +273,24 @@ export default {
       const { inbox_id: inboxId } = this.chat;
       const stateInbox = this.$store.getters['inboxes/getInbox'](inboxId);
       return stateInbox;
+    },
+
+    isLastMessageRestrictedByAgent() {
+      return this.isAgentMessageRestricted(this.lastMessageInChat, this.inbox);
+    },
+
+    // Mensagem a exibir no preview. Se restrita por agente, troca o conteúdo por 🔒 +
+    // "Conteúdo restrito" e remove anexos/atributos, mantendo só quem enviou poder ver.
+    previewMessage() {
+      const msg = this.lastMessageInChat;
+      if (!msg || !this.isLastMessageRestrictedByAgent) return msg;
+      return {
+        ...msg,
+        content: `🔒 ${this.$t('CONVERSATION.AGENT_ISOLATION.RESTRICTED_SUBTITLE')}`,
+        attachments: [],
+        content_attributes: {},
+        content_type: 'text',
+      };
     },
 
     showInboxName() {
@@ -489,7 +514,7 @@ export default {
       />
       <MessagePreview
         v-if="lastMessageInChat"
-        :message="lastMessageInChat"
+        :message="previewMessage"
         default-empty-message=""
         class="conversation--message text-n-slate-11 my-0 mx-2 leading-6 h-6 text-sm overflow-hidden text-ellipsis whitespace-nowrap group-hover:ltr:pr-8 group-hover:rtl:pl-8 transition-all duration-200 max-w-[96%] w-[16.875rem]"
         :class="hasUnread ? 'conversation--message-unread font-medium' : ''"

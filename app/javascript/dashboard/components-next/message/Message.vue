@@ -159,6 +159,7 @@ const props = defineProps({
   isForwardSelected: { type: Boolean, default: false },
   isNew: { type: Boolean, default: false },
   teamId: { type: Number, default: null }, // eslint-disable-line vue/no-unused-properties
+  agentId: { type: Number, default: null }, // eslint-disable-line vue/no-unused-properties
 });
 
 const emit = defineEmits(['forward', 'toggle-forward-selection']);
@@ -210,6 +211,44 @@ const isRestrictedByTeam = computed(() => {
   if (isAdmin.value) return false;
   return !myTeams.value.includes(props.teamId);
 });
+
+// Agent isolation: depende de QUEM olha — restrito se a msg pertence a OUTRO agente.
+const agentIsolationEnabled = computed(
+  () => currentInbox.value?.agent_message_isolation === true
+);
+const allAgents = computed(() => store.getters['agents/getAgents'] || []);
+const restrictedAgentName = computed(() => {
+  if (!props.agentId) return '';
+  const agent = allAgents.value.find(a => a.id === props.agentId);
+  return agent?.name || `#${props.agentId}`;
+});
+const isRestrictedByAgent = computed(() => {
+  if (!agentIsolationEnabled.value) return false;
+  if (!props.agentId) return false;
+  if (props.messageType === MESSAGE_TYPES.ACTIVITY) return false;
+  if (isAdmin.value) return false;
+  return props.agentId !== props.currentUserId;
+});
+
+// Bolha 🔒 unificada (team OU agente). Team tem precedência no rótulo quando ambos
+// disparam — em qualquer caso o conteúdo fica oculto do mesmo jeito.
+const isRestricted = computed(
+  () => isRestrictedByTeam.value || isRestrictedByAgent.value
+);
+const restrictedTitle = computed(() =>
+  isRestrictedByTeam.value
+    ? t('CONVERSATION.TEAM_ISOLATION.RESTRICTED_TITLE', {
+        team: restrictedTeamName.value,
+      })
+    : t('CONVERSATION.AGENT_ISOLATION.RESTRICTED_TITLE', {
+        agent: restrictedAgentName.value,
+      })
+);
+const restrictedSubtitle = computed(() =>
+  isRestrictedByTeam.value
+    ? t('CONVERSATION.TEAM_ISOLATION.RESTRICTED_SUBTITLE')
+    : t('CONVERSATION.AGENT_ISOLATION.RESTRICTED_SUBTITLE')
+);
 
 const EDIT_WINDOW_SECONDS = 900;
 
@@ -771,8 +810,9 @@ provideMessageContext({
       <ActivityBubble :content="content" />
     </div>
     <RestrictedMessage
-      v-else-if="isRestrictedByTeam"
-      :team-name="restrictedTeamName"
+      v-else-if="isRestricted"
+      :title="restrictedTitle"
+      :subtitle="restrictedSubtitle"
       :message-type="messageType"
       :created-at="createdAt"
     />

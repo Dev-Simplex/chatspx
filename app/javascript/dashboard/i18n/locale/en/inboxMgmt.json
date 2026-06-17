@@ -758,6 +758,8 @@
       "LOCK_TO_SINGLE_CONVERSATION_SUB_TEXT": "Configure conversation creation for existing contacts",
       "TEAM_MESSAGE_ISOLATION": "Team message isolation",
       "TEAM_MESSAGE_ISOLATION_SUB_TEXT": "When enabled, agents can only see messages from their own team. Messages from other teams appear blurred with restricted access.",
+      "AGENT_MESSAGE_ISOLATION": "Agent message isolation",
+      "AGENT_MESSAGE_ISOLATION_SUB_TEXT": "When enabled, each agent can only see the messages they sent themselves. Messages from other agents appear blurred with restricted access.",
       "PENDING_STATUS": {
         "TITLE": "Allow Pending status",
         "SUB_TEXT": "When enabled, agents can mark conversations as Pending in this inbox. Conversations already pending remain visible even if disabled."
