@@ -165,3 +165,141 @@ export const isFileTypeAllowedForChannel = (file, options = {}) => {
     return allowedType === file.type;
   });
 };
+
+// Raster images we may downscale. GIF (animation breaks on a 2D canvas) and SVG
+// (vector) are deliberately excluded.
+const COMPRESSIBLE_IMAGE_MIME = /^image\/(jpe?g|png|webp)$/;
+
+const isCompressibleImage = type => COMPRESSIBLE_IMAGE_MIME.test(type || '');
+
+/**
+ * Builds a lightweight preview URL for an attachment thumbnail.
+ *
+ * Only image/video attachments render a visual preview (as <img>/<video> src);
+ * documents, audio, etc. show a static icon, so we skip the work entirely.
+ * URL.createObjectURL is synchronous and only creates a reference to the file —
+ * unlike FileReader.readAsDataURL it does NOT read the whole file into a base64
+ * string on the main thread, so attaching a large file never blocks the UI nor
+ * duplicates the file in memory. Callers must revoke the URL (see
+ * revokeAttachmentThumbUrl) when the attachment is dropped.
+ * @param {Object|File} file - upload wrapper ({ file: File }) or a raw File/Blob
+ * @returns {string|undefined}
+ */
+export const buildAttachmentThumbUrl = file => {
+  const blob = file?.file || file;
+  if (!(blob instanceof Blob)) return undefined;
+  const type = blob.type || '';
+  if (type.startsWith('image/') || type.startsWith('video/')) {
+    return URL.createObjectURL(blob);
+  }
+  return undefined;
+};
+
+/**
+ * Releases an object URL previously created by buildAttachmentThumbUrl. No-op
+ * for data URLs / remote URLs so it is safe to call on any thumb value.
+ * @param {string} thumb
+ */
+export const revokeAttachmentThumbUrl = thumb => {
+  if (typeof thumb === 'string' && thumb.startsWith('blob:')) {
+    URL.revokeObjectURL(thumb);
+  }
+};
+
+/**
+ * Downscales an oversized raster image on the client before upload.
+ *
+ * Only images whose longest side exceeds `maxDimension` are touched, so normal
+ * screenshots and already-small images are returned untouched (preserving
+ * fidelity — important for a support tool). PNGs are re-encoded as PNG to keep
+ * transparency and crisp text; JPEG/WebP are re-encoded as JPEG at `quality`.
+ * If the result is not smaller than the original (or anything fails) the
+ * ORIGINAL file is returned unchanged.
+ * @param {File} file
+ * @param {Object} [opts]
+ * @param {number} [opts.maxDimension=1920]
+ * @param {number} [opts.quality=0.82]
+ * @returns {Promise<File>}
+ */
+export const compressImage = (
+  file,
+  { maxDimension = 1920, quality = 0.82 } = {}
+) =>
+  new Promise(resolve => {
+    if (!file || !isCompressibleImage(file.type)) {
+      resolve(file);
+      return;
+    }
+
+    const objectUrl = URL.createObjectURL(file);
+    const img = new Image();
+
+    img.onload = () => {
+      const { width, height } = img;
+      const scale = Math.min(1, maxDimension / Math.max(width, height));
+
+      // Within bounds already: not worth re-encoding (and re-encoding could
+      // even grow the file or soften text). Leave it alone.
+      if (scale >= 1) {
+        URL.revokeObjectURL(objectUrl);
+        resolve(file);
+        return;
+      }
+
+      const canvas = document.createElement('canvas');
+      canvas.width = Math.round(width * scale);
+      canvas.height = Math.round(height * scale);
+      const ctx = canvas.getContext('2d');
+      if (!ctx) {
+        URL.revokeObjectURL(objectUrl);
+        resolve(file);
+        return;
+      }
+      ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+
+      const outType = file.type === 'image/png' ? 'image/png' : 'image/jpeg';
+      canvas.toBlob(
+        blob => {
+          URL.revokeObjectURL(objectUrl);
+          if (!blob || blob.size >= file.size) {
+            resolve(file);
+            return;
+          }
+          resolve(new File([blob], file.name, { type: outType }));
+        },
+        outType,
+        outType === 'image/jpeg' ? quality : undefined
+      );
+    };
+
+    img.onerror = () => {
+      URL.revokeObjectURL(objectUrl);
+      resolve(file);
+    };
+
+    img.src = objectUrl;
+  });
+
+/**
+ * Compresses the File inside an upload wrapper ({ file, name, type, size, ... })
+ * when it is an oversized image, returning a new wrapper with the downscaled
+ * file and refreshed metadata. Returns the input untouched when nothing was
+ * compressed, so it is safe to await on every attachment regardless of type.
+ * @param {Object} fileObj
+ * @returns {Promise<Object>}
+ */
+export const compressAttachmentInPlace = async fileObj => {
+  const original = fileObj?.file;
+  if (!(original instanceof Blob)) return fileObj;
+
+  const compressed = await compressImage(original);
+  if (compressed === original) return fileObj;
+
+  return {
+    ...fileObj,
+    file: compressed,
+    name: compressed.name || fileObj.name,
+    type: compressed.type || fileObj.type,
+    size: compressed.size,
+  };
+};

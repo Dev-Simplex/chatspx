@@ -18,6 +18,7 @@ import {
   resolveMaximumFileUploadSize,
   effectiveMaxUploadSize,
   formatBytes,
+  buildAttachmentThumbUrl,
 } from 'shared/helpers/FileHelper';
 import { INBOX_TYPES } from 'dashboard/helper/inbox';
 
@@ -231,17 +232,15 @@ const attachFile = ({ blob, file }) => {
   const fileToRead = file?.file || file;
   if (!(fileToRead instanceof Blob)) return;
 
-  const reader = new FileReader();
-  reader.readAsDataURL(fileToRead);
-  reader.onloadend = () => {
-    const newFile = {
-      resource: blob || fileToRead,
-      isPrivate: false,
-      thumb: reader.result,
-      blobSignedId: blob?.signed_id,
-    };
-    attachedFiles.value = [...attachedFiles.value, newFile];
+  // Synchronous object URL preview (image/video only) instead of reading the
+  // whole file into a base64 string — no main-thread block, no memory spike.
+  const newFile = {
+    resource: blob || fileToRead,
+    isPrivate: false,
+    thumb: buildAttachmentThumbUrl(fileToRead),
+    blobSignedId: blob?.signed_id,
   };
+  attachedFiles.value = [...attachedFiles.value, newFile];
 };
 
 const mapExistingAttachment = attachment => {

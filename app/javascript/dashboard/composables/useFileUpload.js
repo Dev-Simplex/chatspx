@@ -8,6 +8,7 @@ import {
   resolveMaximumFileUploadSize,
   effectiveMaxUploadSize,
   checkFileSizeLimit,
+  compressAttachmentInPlace,
   formatBytes,
 } from 'shared/helpers/FileHelper';
 import { INBOX_TYPES } from 'dashboard/helper/inbox';
@@ -70,8 +71,12 @@ export const useFileUpload = ({ inbox, attachFile, isPrivateNote = false }) => {
     );
   };
 
-  const handleDirectFileUpload = file => {
+  const handleDirectFileUpload = async file => {
     if (!file) return;
+
+    // Downscale oversized images first so both the size check and the transfer
+    // operate on the smaller file.
+    file = await compressAttachmentInPlace(file);
 
     const mime = file.file?.type || file.type;
     const maxSizeMB = maxSizeFor(mime);
@@ -103,8 +108,13 @@ export const useFileUpload = ({ inbox, attachFile, isPrivateNote = false }) => {
     });
   };
 
-  const handleIndirectFileUpload = file => {
+  const handleIndirectFileUpload = async file => {
     if (!file) return;
+
+    // Downscale oversized images before they ride the multipart message POST,
+    // cutting both the bytes on the wire and the time a Puma worker stays busy
+    // receiving them.
+    file = await compressAttachmentInPlace(file);
 
     const mime = file.file?.type || file.type;
     const maxSizeMB = maxSizeFor(mime);
@@ -119,10 +129,9 @@ export const useFileUpload = ({ inbox, attachFile, isPrivateNote = false }) => {
 
   const onFileUpload = file => {
     if (globalConfig.value.directUploadsEnabled) {
-      handleDirectFileUpload(file);
-    } else {
-      handleIndirectFileUpload(file);
+      return handleDirectFileUpload(file);
     }
+    return handleIndirectFileUpload(file);
   };
 
   return { onFileUpload };

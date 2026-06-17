@@ -6,6 +6,7 @@ import { useFileUpload } from 'dashboard/composables/useFileUpload';
 import { vOnClickOutside } from '@vueuse/components';
 import { useEventListener } from '@vueuse/core';
 import { ALLOWED_FILE_TYPES } from 'shared/constants/messages';
+import { buildAttachmentThumbUrl } from 'shared/helpers/FileHelper';
 import { useKeyboardEvents } from 'dashboard/composables/useKeyboardEvents';
 import FileUpload from 'vue-upload-component';
 import { INBOX_TYPES } from 'dashboard/helper/inbox';
@@ -145,17 +146,15 @@ const { onFileUpload } = useFileUpload({
   inbox: composerInbox,
   attachFile: ({ blob, file }) => {
     if (!file) return;
-    const reader = new FileReader();
-    reader.readAsDataURL(file.file);
-    reader.onloadend = () => {
-      const newFile = {
-        resource: blob || file,
-        isPrivate: false,
-        thumb: reader.result,
-        blobSignedId: blob?.signed_id,
-      };
-      emit('attachFile', [...props.attachedFiles, newFile]);
+    // Synchronous object URL preview (image/video only) — no base64 read of the
+    // whole file blocking the main thread, no memory spike.
+    const newFile = {
+      resource: blob || file,
+      isPrivate: false,
+      thumb: buildAttachmentThumbUrl(file),
+      blobSignedId: blob?.signed_id,
     };
+    emit('attachFile', [...props.attachedFiles, newFile]);
   },
 });
 

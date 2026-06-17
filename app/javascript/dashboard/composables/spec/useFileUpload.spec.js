@@ -25,6 +25,8 @@ vi.mock('shared/helpers/FileHelper', () => ({
     if (!Number.isFinite(n) || n <= 0) return 100;
     return Math.min(n, 100);
   }),
+  // Pass-through: image compression is exercised in FileHelper's own specs.
+  compressAttachmentInPlace: vi.fn(file => Promise.resolve(file)),
   formatBytes: vi.fn(bytes => `${bytes} Bytes`),
 }));
 
@@ -61,7 +63,7 @@ describe('useFileUpload', () => {
     getMaxUploadSizeByChannel.mockReturnValue(25); // default max size MB for tests
   });
 
-  it('handles direct file upload when direct uploads enabled', () => {
+  it('handles direct file upload when direct uploads enabled', async () => {
     const { onFileUpload } = useFileUpload({
       inbox,
       attachFile: mockAttachFile,
@@ -72,7 +74,7 @@ describe('useFileUpload', () => {
       create: callback => callback(null, mockBlob),
     }));
 
-    onFileUpload(mockFile);
+    await onFileUpload(mockFile);
 
     // size rules called with inbox + mime
     expect(getMaxUploadSizeByChannel).toHaveBeenCalledWith({
@@ -95,7 +97,7 @@ describe('useFileUpload', () => {
     });
   });
 
-  it('handles indirect file upload when direct upload disabled', () => {
+  it('handles indirect file upload when direct upload disabled', async () => {
     useMapGetter.mockImplementation(getter => {
       const getterMap = {
         getCurrentAccountId: { value: '123' },
@@ -113,7 +115,7 @@ describe('useFileUpload', () => {
       attachFile: mockAttachFile,
     });
 
-    onFileUpload(mockFile);
+    await onFileUpload(mockFile);
 
     expect(DirectUpload).not.toHaveBeenCalled();
     expect(getMaxUploadSizeByChannel).toHaveBeenCalled();
@@ -121,7 +123,7 @@ describe('useFileUpload', () => {
     expect(mockAttachFile).toHaveBeenCalledWith({ file: mockFile });
   });
 
-  it('shows alert when file size exceeds limit', () => {
+  it('shows alert when file size exceeds limit', async () => {
     checkFileSizeLimit.mockReturnValue(false);
     mockTranslate.mockReturnValue('File size exceeds limit');
 
@@ -130,7 +132,7 @@ describe('useFileUpload', () => {
       attachFile: mockAttachFile,
     });
 
-    onFileUpload(mockFile);
+    await onFileUpload(mockFile);
 
     expect(useAlert).toHaveBeenCalledWith(
       'File size exceeds limit',
@@ -139,7 +141,7 @@ describe('useFileUpload', () => {
     expect(mockAttachFile).not.toHaveBeenCalled();
   });
 
-  it('uses per-mime limits from helper', () => {
+  it('uses per-mime limits from helper', async () => {
     getMaxUploadSizeByChannel.mockImplementation(({ mime }) =>
       mime.startsWith('image/') ? 10 : 50
     );
@@ -152,7 +154,7 @@ describe('useFileUpload', () => {
       create: cb => cb(null, { signed_id: 'blob' }),
     }));
 
-    onFileUpload(mockFile);
+    await onFileUpload(mockFile);
 
     expect(getMaxUploadSizeByChannel).toHaveBeenCalledWith({
       channelType: inbox.channel_type,
@@ -162,7 +164,7 @@ describe('useFileUpload', () => {
     expect(checkFileSizeLimit).toHaveBeenCalledWith(mockFile, 10);
   });
 
-  it('handles direct upload errors', () => {
+  it('handles direct upload errors', async () => {
     const mockError = 'Upload failed';
     DirectUpload.mockImplementation(() => ({
       create: callback => callback(mockError, null),
@@ -173,13 +175,13 @@ describe('useFileUpload', () => {
       attachFile: mockAttachFile,
     });
 
-    onFileUpload(mockFile);
+    await onFileUpload(mockFile);
 
     expect(useAlert).toHaveBeenCalledWith(mockError);
     expect(mockAttachFile).not.toHaveBeenCalled();
   });
 
-  it('caps the effective limit at 100MB even when installation limit is higher', () => {
+  it('caps the effective limit at 100MB even when installation limit is higher', async () => {
     useMapGetter.mockImplementation(getter => {
       const getterMap = {
         getCurrentAccountId: { value: '123' },
@@ -203,19 +205,19 @@ describe('useFileUpload', () => {
       attachFile: mockAttachFile,
     });
 
-    onFileUpload(mockFile);
+    await onFileUpload(mockFile);
 
     // min(channel 300, installation 500) = 300, then hard-capped to 100.
     expect(checkFileSizeLimit).toHaveBeenCalledWith(mockFile, 100);
   });
 
-  it('does nothing when file is null', () => {
+  it('does nothing when file is null', async () => {
     const { onFileUpload } = useFileUpload({
       inbox,
       attachFile: mockAttachFile,
     });
 
-    onFileUpload(null);
+    await onFileUpload(null);
 
     expect(checkFileSizeLimit).not.toHaveBeenCalled();
     expect(getMaxUploadSizeByChannel).not.toHaveBeenCalled();

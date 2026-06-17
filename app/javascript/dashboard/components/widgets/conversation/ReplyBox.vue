@@ -78,7 +78,11 @@ import { useAITour } from 'dashboard/components-next/ai-assistant/composables/us
 import AIOnboardingCoachmark from './AIOnboardingCoachmark.vue';
 import AISuggestionChip from 'dashboard/components-next/ai-assistant/AISuggestionChip.vue';
 import { CAPTAIN_ERROR_TYPES } from 'dashboard/composables/captain/constants';
-import { isFileTypeAllowedForChannel } from 'shared/helpers/FileHelper';
+import {
+  isFileTypeAllowedForChannel,
+  buildAttachmentThumbUrl,
+  revokeAttachmentThumbUrl,
+} from 'shared/helpers/FileHelper';
 import {
   DropdownContainer,
   DropdownBody,
@@ -885,6 +889,8 @@ export default {
       this.whatsappNoticeTimeoutId = null;
     }
     emitter.off(CMD_AI_ASSIST, this.executeCopilotAction);
+    // Release any pending attachment preview object URLs.
+    this.attachedFiles.forEach(att => revokeAttachmentThumbUrl(att.thumb));
   },
   methods: {
     // Fase 3 — pipeline drag-drop WhatsApp-fiel
@@ -920,7 +926,7 @@ export default {
       }
     },
     onAttachmentModalClose() {
-      this.attachedFiles = [];
+      this.clearAttachedFiles();
       this.showAttachmentModal = false;
     },
     onAttachmentModalAddMore() {
@@ -940,23 +946,22 @@ export default {
     onImageEditorApply(blob) {
       const idx = this.imageEditorTargetIndex;
       if (idx >= 0 && blob) {
-        const reader = new FileReader();
-        reader.readAsDataURL(blob);
-        reader.onloadend = () => {
-          const current = this.attachedFiles[idx];
-          if (!current) return;
+        const current = this.attachedFiles[idx];
+        if (current) {
           const editedFile = new File(
             [blob],
             current.resource?.name || `edited_${Date.now()}.jpg`,
             { type: 'image/jpeg' }
           );
+          // Drop the previous preview URL before replacing it.
+          revokeAttachmentThumbUrl(current.thumb);
           this.attachedFiles.splice(idx, 1, {
             ...current,
             resource: editedFile,
-            thumb: reader.result,
+            thumb: URL.createObjectURL(editedFile),
             blobSignedId: undefined,
           });
-        };
+        }
       }
       this.closeImageEditor();
     },
@@ -1095,7 +1100,7 @@ export default {
       // Reset audio recorder UI state
       this.resetAudioRecorderInput();
       // Reset attached files
-      this.attachedFiles = [];
+      this.clearAttachedFiles();
     },
     saveDraft(conversationId, replyType) {
       if (this.message || this.message === '') {
@@ -1597,7 +1602,7 @@ export default {
     setReplyMode(mode = REPLY_EDITOR_MODES.REPLY) {
       // Clear attachments when switching between private note and reply modes
       // This is to prevent from breaking the upload rules
-      if (this.attachedFiles.length > 0) this.attachedFiles = [];
+      if (this.attachedFiles.length > 0) this.clearAttachedFiles();
 
       const { can_reply: canReply } = this.currentChat;
       this.$store.dispatch('draftMessages/setReplyEditorMode', {
@@ -1858,7 +1863,7 @@ export default {
           effectiveChannelType
         );
       }
-      this.attachedFiles = [];
+      this.clearAttachedFiles();
       this.isRecordingAudio = false;
       this.resetReplyToMessage();
       this.resetAudioRecorderInput();
@@ -2050,36 +2055,47 @@ export default {
       });
     },
     attachFile({ blob, file }) {
-      const reader = new FileReader();
-      reader.readAsDataURL(file.file);
-      reader.onloadend = () => {
-        const capturedChatId = file?.isRecordedAudio
-          ? this.pendingAudioConversationId || this.currentChat.id
-          : this.currentChat.id;
+      // Build the preview synchronously via createObjectURL instead of reading
+      // the whole file into a base64 string with FileReader: no main-thread
+      // block and no memory spike when attaching large files (only image/video
+      // get a thumb; everything else renders a static icon).
+      const capturedChatId = file?.isRecordedAudio
+        ? this.pendingAudioConversationId || this.currentChat.id
+        : this.currentChat.id;
 
-        this.attachedFiles.push({
-          currentChatId: capturedChatId,
-          resource: blob || file,
-          isPrivate: this.isPrivate,
-          thumb: reader.result,
-          blobSignedId: blob ? blob.signed_id : undefined,
-          isRecordedAudio: file?.isRecordedAudio || false,
-        });
+      this.attachedFiles.push({
+        currentChatId: capturedChatId,
+        resource: blob || file,
+        isPrivate: this.isPrivate,
+        thumb: buildAttachmentThumbUrl(file),
+        blobSignedId: blob ? blob.signed_id : undefined,
+        isRecordedAudio: file?.isRecordedAudio || false,
+      });
 
-        if (file?.isRecordedAudio) {
-          this.isUploadingAudio = false;
-          if (this.pendingAudioAutoSend) {
-            this.pendingAudioAutoSend = false;
-            const savedConversationId = capturedChatId;
-            this.$nextTick(() => {
-              this.sendToConversation(savedConversationId);
-            });
-          }
+      if (file?.isRecordedAudio) {
+        this.isUploadingAudio = false;
+        if (this.pendingAudioAutoSend) {
+          this.pendingAudioAutoSend = false;
+          const savedConversationId = capturedChatId;
+          this.$nextTick(() => {
+            this.sendToConversation(savedConversationId);
+          });
         }
-      };
+      }
     },
     removeAttachment(attachments) {
+      // Revoke object URLs of the attachments that were dropped so they don't
+      // leak (the new array is what AttachmentsPreview kept after removal).
+      const remaining = new Set(attachments);
+      this.attachedFiles.forEach(att => {
+        if (!remaining.has(att)) revokeAttachmentThumbUrl(att.thumb);
+      });
       this.attachedFiles = attachments;
+    },
+    // Clears all pending attachments, revoking their preview object URLs first.
+    clearAttachedFiles() {
+      this.attachedFiles.forEach(att => revokeAttachmentThumbUrl(att.thumb));
+      this.attachedFiles = [];
     },
     setReplyToInPayload(payload) {
       if (this.inReplyTo?.id) {
@@ -2884,7 +2900,7 @@ export default {
       :caption="message"
       :sending="isSendingAttachment"
       @update:caption="message = $event"
-      @update:files="attachedFiles = $event"
+      @update:files="removeAttachment"
       @send="onAttachmentModalSend"
       @close="onAttachmentModalClose"
       @add-more="onAttachmentModalAddMore"
