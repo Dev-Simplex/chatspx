@@ -41,6 +41,29 @@ describe Messages::StatusUpdateService do
         expect(service.perform).to be false
         expect(message.reload.status).to eq('read')
       end
+
+      it 'prevents a delivered message from being flipped to failed' do
+        message.update!(status: 'delivered')
+        service = described_class.new(message, 'failed', 'late failure report')
+        expect(service.perform).to be false
+        expect(message.reload.status).to eq('delivered')
+        expect(message.reload.external_error).to be_nil
+      end
+
+      it 'prevents a read message from being flipped to failed' do
+        message.update!(status: 'read')
+        service = described_class.new(message, 'failed', 'late failure report')
+        expect(service.perform).to be false
+        expect(message.reload.status).to eq('read')
+      end
+
+      it 'still allows a sent message to be marked failed' do
+        message.update!(status: 'sent')
+        service = described_class.new(message, 'failed', 'real send error')
+        service.perform
+        expect(message.reload.status).to eq('failed')
+        expect(message.reload.external_error).to eq('real send error')
+      end
     end
   end
 end

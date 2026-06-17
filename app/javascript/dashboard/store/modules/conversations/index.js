@@ -317,6 +317,18 @@ export const mutations = {
     }
   },
 
+  // Drops a still-optimistic message (id === echo_id) from the window. Used by
+  // reconcilePendingMessages when the server copy of the same message (matched
+  // by persisted echo_id) is already present — removes the duplicate left
+  // behind by a refetch that ran while the realtime echo was missed.
+  [types.REMOVE_PENDING_MESSAGE](_state, { conversationId, echoId }) {
+    const chat = findConversation(_state, conversationId);
+    if (!chat?.messages) return;
+    chat.messages = chat.messages.filter(
+      m => !(m.echo_id === echoId && String(m.id) === String(m.echo_id))
+    );
+  },
+
   [types.ADD_CONVERSATION](_state, conversation) {
     const exists = findConversation(_state, conversation.id);
     if (!exists) {

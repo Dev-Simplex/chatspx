@@ -22,6 +22,33 @@ describe Messages::MessageBuilder do
     end
   end
 
+  describe '#perform with echo_id (reconciliation idempotency)' do
+    let(:echo_id) { 'fixed-echo-uuid-123' }
+    let(:params) do
+      ActionController::Parameters.new({ content: 'hello', echo_id: echo_id })
+    end
+
+    it 'persists echo_id into additional_attributes' do
+      message = described_class.new(user, conversation, params).perform
+      expect(message.additional_attributes['echo_id']).to eq(echo_id)
+    end
+
+    it 'is idempotent: a retry with the same echo_id returns the existing message, not a duplicate' do
+      first = described_class.new(user, conversation, params).perform
+      expect do
+        second = described_class.new(user, conversation, params).perform
+        expect(second.id).to eq(first.id)
+      end.not_to change(conversation.messages, :count)
+    end
+
+    it 'creates distinct messages for distinct echo_ids' do
+      first = described_class.new(user, conversation, params).perform
+      other_params = ActionController::Parameters.new({ content: 'hello', echo_id: 'another-uuid-456' })
+      second = described_class.new(user, conversation, other_params).perform
+      expect(second.id).not_to eq(first.id)
+    end
+  end
+
   describe '#content_attributes' do
     context 'when content_attributes is a JSON string' do
       let(:params) do
