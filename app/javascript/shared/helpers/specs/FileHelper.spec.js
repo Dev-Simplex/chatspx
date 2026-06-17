@@ -1,9 +1,11 @@
 import {
   DEFAULT_MAXIMUM_FILE_UPLOAD_SIZE,
+  HARD_MAXIMUM_FILE_UPLOAD_SIZE,
   formatBytes,
   fileSizeInMegaBytes,
   checkFileSizeLimit,
   resolveMaximumFileUploadSize,
+  effectiveMaxUploadSize,
   isFileTypeAllowedForChannel,
 } from '../FileHelper';
 
@@ -60,6 +62,26 @@ describe('#File Helpers', () => {
     it('should parse numeric strings and numbers', () => {
       expect(resolveMaximumFileUploadSize('50')).toBe(50);
       expect(resolveMaximumFileUploadSize(75)).toBe(75);
+    });
+  });
+
+  describe('effectiveMaxUploadSize', () => {
+    it('caps any limit at the hard 100MB ceiling', () => {
+      expect(effectiveMaxUploadSize(200)).toBe(HARD_MAXIMUM_FILE_UPLOAD_SIZE);
+      expect(effectiveMaxUploadSize(100)).toBe(100);
+      expect(HARD_MAXIMUM_FILE_UPLOAD_SIZE).toBe(100);
+    });
+
+    it('respects smaller channel/installation limits', () => {
+      expect(effectiveMaxUploadSize(40)).toBe(40);
+      expect(effectiveMaxUploadSize(5)).toBe(5);
+    });
+
+    it('falls back to the hard ceiling for invalid values', () => {
+      expect(effectiveMaxUploadSize(undefined)).toBe(100);
+      expect(effectiveMaxUploadSize('not-a-number')).toBe(100);
+      expect(effectiveMaxUploadSize(-10)).toBe(100);
+      expect(effectiveMaxUploadSize(0)).toBe(100);
     });
   });
 

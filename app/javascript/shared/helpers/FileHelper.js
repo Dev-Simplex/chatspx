@@ -4,6 +4,11 @@ import { ALLOWED_FILE_TYPES } from 'shared/constants/messages';
 
 export const DEFAULT_MAXIMUM_FILE_UPLOAD_SIZE = 40;
 
+// Absolute ceiling for any attachment upload, in MB. Enforced regardless of the
+// channel rules or the configured `maximumFileUploadSize` so that files larger
+// than this never reach the backend (where the send would fail silently).
+export const HARD_MAXIMUM_FILE_UPLOAD_SIZE = 100;
+
 export const formatBytes = (bytes, decimals = 2) => {
   if (bytes === 0) return '0 Bytes';
 
@@ -34,6 +39,24 @@ export const resolveMaximumFileUploadSize = value => {
   }
 
   return parsedValue;
+};
+
+/**
+ * Resolves the effective maximum upload size (in MB) for a given channel /
+ * installation limit, enforcing the hard 100MB ceiling. Returns
+ * min(channelLimit, HARD_MAXIMUM_FILE_UPLOAD_SIZE) so smaller channel limits
+ * (e.g. SMS) are still respected while large/unset limits are capped at 100MB.
+ * @param {number} channelLimit - the channel/installation limit in MB
+ * @returns {number}
+ */
+export const effectiveMaxUploadSize = channelLimit => {
+  const limit = Number(channelLimit);
+
+  if (!Number.isFinite(limit) || limit <= 0) {
+    return HARD_MAXIMUM_FILE_UPLOAD_SIZE;
+  }
+
+  return Math.min(limit, HARD_MAXIMUM_FILE_UPLOAD_SIZE);
 };
 
 /**

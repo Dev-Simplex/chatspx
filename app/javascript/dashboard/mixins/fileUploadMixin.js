@@ -1,11 +1,13 @@
 import { mapGetters } from 'vuex';
 import { useAlert } from 'dashboard/composables';
-import { checkFileSizeLimit } from 'shared/helpers/FileHelper';
 import { getMaxUploadSizeByChannel } from '@chatwoot/utils';
 import { DirectUpload } from 'activestorage';
 import {
   DEFAULT_MAXIMUM_FILE_UPLOAD_SIZE,
   resolveMaximumFileUploadSize,
+  effectiveMaxUploadSize,
+  checkFileSizeLimit,
+  formatBytes,
 } from 'shared/helpers/FileHelper';
 import { INBOX_TYPES } from 'dashboard/helper/inbox';
 
@@ -23,34 +25,44 @@ export default {
 
   methods: {
     maxSizeFor(mime) {
-      // Use default/installation limit for private notes
-      if (this.isOnPrivateNote) {
-        return this.installationLimit;
-      }
+      // The hard 100MB ceiling is always applied on top of the
+      // channel/installation limit (see effectiveMaxUploadSize).
+      let rawLimit = this.installationLimit;
 
       const channelType = this.inbox?.channel_type;
 
-      if (!channelType || channelType === INBOX_TYPES.WEB) {
-        return this.installationLimit;
+      if (
+        !this.isOnPrivateNote &&
+        channelType &&
+        channelType !== INBOX_TYPES.WEB
+      ) {
+        const channelLimit = getMaxUploadSizeByChannel({
+          channelType,
+          medium: this.inbox?.medium, // e.g. 'sms' | 'whatsapp'
+          mime, // e.g. 'image/png'
+        });
+
+        if (channelLimit !== DEFAULT_MAXIMUM_FILE_UPLOAD_SIZE) {
+          rawLimit = Math.min(channelLimit, this.installationLimit);
+        }
       }
 
-      const channelLimit = getMaxUploadSizeByChannel({
-        channelType,
-        medium: this.inbox?.medium, // e.g. 'sms' | 'whatsapp'
-        mime, // e.g. 'image/png'
-      });
-
-      if (channelLimit === DEFAULT_MAXIMUM_FILE_UPLOAD_SIZE) {
-        return this.installationLimit;
-      }
-
-      return Math.min(channelLimit, this.installationLimit);
+      return effectiveMaxUploadSize(rawLimit);
     },
-    alertOverLimit(maxSizeMB) {
+    alertOverLimit(maxSizeMB, file) {
+      const fileSize = file?.file?.size || file?.size;
       useAlert(
-        this.$t('CONVERSATION.FILE_SIZE_LIMIT', {
+        this.$t('CONVERSATION.FILE_SIZE_LIMIT_HARD', {
           MAXIMUM_SUPPORTED_FILE_UPLOAD_SIZE: maxSizeMB,
-        })
+          fileSize: fileSize ? formatBytes(fileSize) : '',
+        }),
+        // Centered + error styling so the limit warning is hard to miss.
+        {
+          position: 'center',
+          variant: 'error',
+          icon: 'i-lucide-alert-triangle',
+          duration: 4000,
+        }
       );
     },
     onFileUpload(file) {

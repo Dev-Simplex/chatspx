@@ -166,6 +166,11 @@ class Attachment < ApplicationRecord
     }
   end
 
+  # Hard ceiling (in MB) for any attachment upload, mirroring the frontend
+  # HARD_MAXIMUM_FILE_UPLOAD_SIZE. Files above this never go through, no matter
+  # the channel or the configured MAXIMUM_FILE_UPLOAD_SIZE.
+  HARD_MAXIMUM_FILE_UPLOAD_SIZE_MB = 100
+
   def should_validate_file?
     return unless file.attached?
     # we are only limiting attachment types in case of website widget
@@ -175,10 +180,13 @@ class Attachment < ApplicationRecord
   end
 
   def acceptable_file
-    return unless should_validate_file?
+    return unless file.attached?
 
+    # Size is validated for every channel (defense in depth: keeps oversized
+    # files from being saved and then failing silently at send time).
     validate_file_size(file.byte_size)
-    validate_file_content_type(file.content_type)
+    # Type stays restricted to the website widget, as before.
+    validate_file_content_type(file.content_type) if should_validate_file?
   end
 
   def validate_file_content_type(file_content_type)
@@ -186,10 +194,16 @@ class Attachment < ApplicationRecord
   end
 
   def validate_file_size(byte_size)
+    errors.add(:file, "size exceeds the #{max_upload_size_mb}MB limit") if byte_size > max_upload_size_mb.megabytes
+  end
+
+  # min(configured limit, hard 100MB ceiling). A smaller configured limit
+  # (e.g. SMS-tuned installs) is still respected; larger/unset is capped at 100.
+  def max_upload_size_mb
     limit_mb = GlobalConfigService.load('MAXIMUM_FILE_UPLOAD_SIZE', 40).to_i
     limit_mb = 40 if limit_mb <= 0
 
-    errors.add(:file, 'size is too big') if byte_size > limit_mb.megabytes
+    [limit_mb, HARD_MAXIMUM_FILE_UPLOAD_SIZE_MB].min
   end
 
   def media_file?(file_content_type)

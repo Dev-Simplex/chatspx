@@ -16,6 +16,13 @@ vi.mock('shared/helpers/FileHelper', () => ({
   checkFileSizeLimit: vi.fn(),
   resolveMaximumFileUploadSize: vi.fn(value => Number(value) || 40),
   DEFAULT_MAXIMUM_FILE_UPLOAD_SIZE: 40,
+  HARD_MAXIMUM_FILE_UPLOAD_SIZE: 100,
+  effectiveMaxUploadSize: vi.fn(limit => {
+    const n = Number(limit);
+    if (!Number.isFinite(n) || n <= 0) return 100;
+    return Math.min(n, 100);
+  }),
+  formatBytes: vi.fn(bytes => `${bytes} Bytes`),
 }));
 vi.mock('@chatwoot/utils');
 
@@ -123,7 +130,10 @@ describe('useFileUpload', () => {
 
     onFileUpload(mockFile);
 
-    expect(useAlert).toHaveBeenCalledWith('File size exceeds limit');
+    expect(useAlert).toHaveBeenCalledWith(
+      'File size exceeds limit',
+      expect.objectContaining({ position: 'center' })
+    );
     expect(mockAttachFile).not.toHaveBeenCalled();
   });
 
@@ -165,6 +175,36 @@ describe('useFileUpload', () => {
 
     expect(useAlert).toHaveBeenCalledWith(mockError);
     expect(mockAttachFile).not.toHaveBeenCalled();
+  });
+
+  it('caps the effective limit at 100MB even when installation limit is higher', () => {
+    useMapGetter.mockImplementation(getter => {
+      const getterMap = {
+        getCurrentAccountId: { value: '123' },
+        getCurrentUser: { value: { access_token: 'test-token' } },
+        getSelectedChat: { value: { id: '456' } },
+        'globalConfig/get': {
+          value: { directUploadsEnabled: true, maximumFileUploadSize: 500 },
+        },
+      };
+      return getterMap[getter];
+    });
+    // Channel reports a large limit; the hard ceiling must still win.
+    getMaxUploadSizeByChannel.mockReturnValue(300);
+
+    DirectUpload.mockImplementation(() => ({
+      create: cb => cb(null, { signed_id: 'blob' }),
+    }));
+
+    const { onFileUpload } = useFileUpload({
+      inbox,
+      attachFile: mockAttachFile,
+    });
+
+    onFileUpload(mockFile);
+
+    // min(channel 300, installation 500) = 300, then hard-capped to 100.
+    expect(checkFileSizeLimit).toHaveBeenCalledWith(mockFile, 100);
   });
 
   it('does nothing when file is null', () => {

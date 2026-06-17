@@ -2,11 +2,13 @@ import { useMapGetter } from 'dashboard/composables/store';
 import { useAlert } from 'dashboard/composables';
 import { useI18n } from 'vue-i18n';
 import { DirectUpload } from 'activestorage';
-import { checkFileSizeLimit } from 'shared/helpers/FileHelper';
 import { getMaxUploadSizeByChannel } from '@chatwoot/utils';
 import {
   DEFAULT_MAXIMUM_FILE_UPLOAD_SIZE,
   resolveMaximumFileUploadSize,
+  effectiveMaxUploadSize,
+  checkFileSizeLimit,
+  formatBytes,
 } from 'shared/helpers/FileHelper';
 import { INBOX_TYPES } from 'dashboard/helper/inbox';
 
@@ -29,38 +31,44 @@ export const useFileUpload = ({ inbox, attachFile, isPrivateNote = false }) => {
     globalConfig.value?.maximumFileUploadSize
   );
 
-  // helper: compute max upload size for a given file's mime
+  // helper: compute max upload size for a given file's mime. The hard 100MB
+  // ceiling is always applied on top of the channel/installation limit.
   const maxSizeFor = mime => {
-    // Use default/installation limit for private notes
-    if (isPrivateNote) {
-      return installationLimit;
-    }
+    let rawLimit = installationLimit;
 
     const channelType = inbox?.channel_type;
 
-    if (!channelType || channelType === INBOX_TYPES.WEB) {
-      return installationLimit;
+    if (!isPrivateNote && channelType && channelType !== INBOX_TYPES.WEB) {
+      const channelLimit = getMaxUploadSizeByChannel({
+        channelType,
+        medium: inbox?.medium, // e.g. 'sms' | 'whatsapp' | etc.
+        mime, // e.g. 'image/png'
+      });
+
+      if (channelLimit !== DEFAULT_MAXIMUM_FILE_UPLOAD_SIZE) {
+        rawLimit = Math.min(channelLimit, installationLimit);
+      }
     }
 
-    const channelLimit = getMaxUploadSizeByChannel({
-      channelType,
-      medium: inbox?.medium, // e.g. 'sms' | 'whatsapp' | etc.
-      mime, // e.g. 'image/png'
-    });
-
-    if (channelLimit === DEFAULT_MAXIMUM_FILE_UPLOAD_SIZE) {
-      return installationLimit;
-    }
-
-    return Math.min(channelLimit, installationLimit);
+    return effectiveMaxUploadSize(rawLimit);
   };
 
-  const alertOverLimit = maxSizeMB =>
+  const alertOverLimit = (maxSizeMB, file) => {
+    const fileSize = file?.file?.size || file?.size;
     useAlert(
-      t('CONVERSATION.FILE_SIZE_LIMIT', {
+      t('CONVERSATION.FILE_SIZE_LIMIT_HARD', {
         MAXIMUM_SUPPORTED_FILE_UPLOAD_SIZE: maxSizeMB,
-      })
+        fileSize: fileSize ? formatBytes(fileSize) : '',
+      }),
+      // Centered + error styling so the limit warning is hard to miss.
+      {
+        position: 'center',
+        variant: 'error',
+        icon: 'i-lucide-alert-triangle',
+        duration: 4000,
+      }
     );
+  };
 
   const handleDirectFileUpload = file => {
     if (!file) return;
@@ -69,7 +77,7 @@ export const useFileUpload = ({ inbox, attachFile, isPrivateNote = false }) => {
     const maxSizeMB = maxSizeFor(mime);
 
     if (!checkFileSizeLimit(file, maxSizeMB)) {
-      alertOverLimit(maxSizeMB);
+      alertOverLimit(maxSizeMB, file);
       return;
     }
 
@@ -102,7 +110,7 @@ export const useFileUpload = ({ inbox, attachFile, isPrivateNote = false }) => {
     const maxSizeMB = maxSizeFor(mime);
 
     if (!checkFileSizeLimit(file, maxSizeMB)) {
-      alertOverLimit(maxSizeMB);
+      alertOverLimit(maxSizeMB, file);
       return;
     }
 

@@ -15,6 +15,8 @@ import {
   checkFileSizeLimit,
   DEFAULT_MAXIMUM_FILE_UPLOAD_SIZE,
   resolveMaximumFileUploadSize,
+  effectiveMaxUploadSize,
+  formatBytes,
 } from 'shared/helpers/FileHelper';
 import { INBOX_TYPES } from 'dashboard/helper/inbox';
 
@@ -184,31 +186,43 @@ const utcToLocal = utcDateString => {
   return dateToLocalInput(utcDate);
 };
 
-const alertOverLimit = maxSizeMB =>
+const alertOverLimit = (maxSizeMB, file) => {
+  const fileSize = file?.file?.size || file?.size;
   useAlert(
-    t('CONVERSATION.FILE_SIZE_LIMIT', {
+    t('CONVERSATION.FILE_SIZE_LIMIT_HARD', {
       MAXIMUM_SUPPORTED_FILE_UPLOAD_SIZE: maxSizeMB,
-    })
+      fileSize: fileSize ? formatBytes(fileSize) : '',
+    }),
+    // Centered + error styling so the limit warning is hard to miss.
+    {
+      position: 'center',
+      variant: 'error',
+      icon: 'i-lucide-alert-triangle',
+      duration: 4000,
+    }
   );
+};
 
+// The hard 100MB ceiling is always applied on top of the
+// channel/installation limit (see effectiveMaxUploadSize).
 const maxSizeFor = mime => {
+  let rawLimit = installationLimit.value;
+
   const channelType = activeInbox.value?.channel_type;
 
-  if (!channelType || channelType === INBOX_TYPES.WEB) {
-    return installationLimit.value;
+  if (channelType && channelType !== INBOX_TYPES.WEB) {
+    const channelLimit = getMaxUploadSizeByChannel({
+      channelType,
+      medium: activeInbox.value?.medium,
+      mime,
+    });
+
+    if (channelLimit !== DEFAULT_MAXIMUM_FILE_UPLOAD_SIZE) {
+      rawLimit = Math.min(channelLimit, installationLimit.value);
+    }
   }
 
-  const channelLimit = getMaxUploadSizeByChannel({
-    channelType,
-    medium: activeInbox.value?.medium,
-    mime,
-  });
-
-  if (channelLimit === DEFAULT_MAXIMUM_FILE_UPLOAD_SIZE) {
-    return installationLimit.value;
-  }
-
-  return Math.min(channelLimit, installationLimit.value);
+  return effectiveMaxUploadSize(rawLimit);
 };
 
 const attachFile = ({ blob, file }) => {
@@ -261,7 +275,7 @@ const handleFileUpload = (file, oldFile) => {
   const maxSizeMB = maxSizeFor(mime);
 
   if (!checkFileSizeLimit(file, maxSizeMB)) {
-    alertOverLimit(maxSizeMB);
+    alertOverLimit(maxSizeMB, file);
     return;
   }
 

@@ -8,6 +8,13 @@ vi.mock('shared/helpers/FileHelper', () => ({
   checkFileSizeLimit: vi.fn(),
   resolveMaximumFileUploadSize: vi.fn(value => Number(value) || 40),
   DEFAULT_MAXIMUM_FILE_UPLOAD_SIZE: 40,
+  HARD_MAXIMUM_FILE_UPLOAD_SIZE: 100,
+  effectiveMaxUploadSize: vi.fn(limit => {
+    const n = Number(limit);
+    if (!Number.isFinite(n) || n <= 0) return 100;
+    return Math.min(n, 100);
+  }),
+  formatBytes: vi.fn(bytes => `${bytes} Bytes`),
 }));
 
 vi.mock('activestorage', () => ({
@@ -72,6 +79,13 @@ describe('FileUploadMixin', () => {
     expect(wrapper.vm.onIndirectFileUpload).toHaveBeenCalledWith({});
   });
 
+  describe('maxSizeFor', () => {
+    it('caps the effective limit at 100MB even when installation limit is higher', () => {
+      wrapper.vm.globalConfig.maximumFileUploadSize = 500;
+      expect(wrapper.vm.maxSizeFor('image/png')).toBe(100);
+    });
+  });
+
   describe('onDirectFileUpload', () => {
     it('returns early if no file is provided', () => {
       const returnValue = wrapper.vm.onDirectFileUpload(null);
@@ -82,7 +96,10 @@ describe('FileUploadMixin', () => {
       const fakeFile = { size: 999999999 };
       checkFileSizeLimit.mockReturnValue(false); // Mock exceeding file size
       wrapper.vm.onDirectFileUpload(fakeFile);
-      expect(useAlert).toHaveBeenCalledWith(expect.any(String));
+      expect(useAlert).toHaveBeenCalledWith(
+        expect.any(String),
+        expect.objectContaining({ position: 'center' })
+      );
     });
   });
 
@@ -96,7 +113,10 @@ describe('FileUploadMixin', () => {
       const fakeFile = { size: 999999999 };
       checkFileSizeLimit.mockReturnValue(false); // Mock exceeding file size
       wrapper.vm.onIndirectFileUpload(fakeFile);
-      expect(useAlert).toHaveBeenCalledWith(expect.any(String));
+      expect(useAlert).toHaveBeenCalledWith(
+        expect.any(String),
+        expect.objectContaining({ position: 'center' })
+      );
     });
   });
 });
