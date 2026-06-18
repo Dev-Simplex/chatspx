@@ -927,7 +927,7 @@
     "ADD_TEXT": "Adicionar texto",
     "REMOVE": "Remover",
     "COUNTER": "{current} de {total}",
-    "UPLOADING": "Enviando…",
+    "UPLOADING": "Carregando…",
     "RETRY": "Tentar novamente"
   },
   "IMAGE_EDITOR": {
