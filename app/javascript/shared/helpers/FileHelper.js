@@ -221,64 +221,109 @@ export const revokeAttachmentThumbUrl = thumb => {
  * @param {number} [opts.quality=0.82]
  * @returns {Promise<File>}
  */
-export const compressImage = (
+// Shared resize+encode step. `source` is anything drawImage accepts (an
+// ImageBitmap or an <img>). Uses OffscreenCanvas.convertToBlob when available so
+// the JPEG/PNG ENCODE also runs off the main thread; otherwise a normal canvas.
+const resizeAndEncodeImage = async (
+  source,
+  width,
+  height,
   file,
-  { maxDimension = 1920, quality = 0.82 } = {}
-) =>
-  new Promise(resolve => {
-    if (!file || !isCompressibleImage(file.type)) {
-      resolve(file);
-      return;
-    }
+  maxDimension,
+  quality
+) => {
+  const scale = Math.min(1, maxDimension / Math.max(width, height));
+  // Within bounds already: not worth re-encoding (could grow the file or
+  // soften text). Leave it alone.
+  if (scale >= 1) return file;
 
+  const w = Math.round(width * scale);
+  const h = Math.round(height * scale);
+
+  let canvas;
+  if (typeof OffscreenCanvas !== 'undefined') {
+    canvas = new OffscreenCanvas(w, h);
+  } else {
+    canvas = document.createElement('canvas');
+    canvas.width = w;
+    canvas.height = h;
+  }
+  const ctx = canvas.getContext('2d');
+  if (!ctx) return file;
+  ctx.drawImage(source, 0, 0, w, h);
+
+  const outType = file.type === 'image/png' ? 'image/png' : 'image/jpeg';
+  const q = outType === 'image/jpeg' ? quality : undefined;
+  const blob = canvas.convertToBlob
+    ? await canvas.convertToBlob({ type: outType, quality: q })
+    : await new Promise(res => {
+        canvas.toBlob(res, outType, q);
+      });
+
+  if (!blob || blob.size >= file.size) return file;
+  return new File([blob], file.name, { type: outType });
+};
+
+// Fallback path: decode with an <img> element (main-thread decode). Used only
+// when createImageBitmap is unavailable.
+const compressImageWithImageElement = (file, maxDimension, quality) =>
+  new Promise(resolve => {
     const objectUrl = URL.createObjectURL(file);
     const img = new Image();
-
-    img.onload = () => {
-      const { width, height } = img;
-      const scale = Math.min(1, maxDimension / Math.max(width, height));
-
-      // Within bounds already: not worth re-encoding (and re-encoding could
-      // even grow the file or soften text). Leave it alone.
-      if (scale >= 1) {
-        URL.revokeObjectURL(objectUrl);
+    img.onload = async () => {
+      try {
+        const out = await resizeAndEncodeImage(
+          img,
+          img.width,
+          img.height,
+          file,
+          maxDimension,
+          quality
+        );
+        resolve(out);
+      } catch {
         resolve(file);
-        return;
-      }
-
-      const canvas = document.createElement('canvas');
-      canvas.width = Math.round(width * scale);
-      canvas.height = Math.round(height * scale);
-      const ctx = canvas.getContext('2d');
-      if (!ctx) {
+      } finally {
         URL.revokeObjectURL(objectUrl);
-        resolve(file);
-        return;
       }
-      ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
-
-      const outType = file.type === 'image/png' ? 'image/png' : 'image/jpeg';
-      canvas.toBlob(
-        blob => {
-          URL.revokeObjectURL(objectUrl);
-          if (!blob || blob.size >= file.size) {
-            resolve(file);
-            return;
-          }
-          resolve(new File([blob], file.name, { type: outType }));
-        },
-        outType,
-        outType === 'image/jpeg' ? quality : undefined
-      );
     };
-
     img.onerror = () => {
       URL.revokeObjectURL(objectUrl);
       resolve(file);
     };
-
     img.src = objectUrl;
   });
+
+export const compressImage = async (
+  file,
+  { maxDimension = 1920, quality = 0.82 } = {}
+) => {
+  if (!file || !isCompressibleImage(file.type)) return file;
+
+  // Prefer createImageBitmap: it decodes the image OFF the main thread, unlike
+  // `new Image()` which decodes synchronously and janks the UI for large
+  // photos. Combined with OffscreenCanvas above, the whole resize+encode stays
+  // off the main thread so attaching never freezes the composer.
+  if (typeof createImageBitmap === 'function') {
+    try {
+      const bitmap = await createImageBitmap(file);
+      const out = await resizeAndEncodeImage(
+        bitmap,
+        bitmap.width,
+        bitmap.height,
+        file,
+        maxDimension,
+        quality
+      );
+      bitmap.close?.();
+      return out;
+    } catch {
+      // Fall through to the <img> path on any failure (e.g. EXIF/codec quirks).
+    }
+  }
+
+  return compressImageWithImageElement(file, maxDimension, quality);
+};
 
 /**
  * Compresses the File inside an upload wrapper ({ file, name, type, size, ... })
