@@ -4,6 +4,7 @@ import { useI18n } from 'vue-i18n';
 import draggable from 'vuedraggable';
 import Icon from 'next/icon/Icon.vue';
 import ProgressRing from 'dashboard/components-next/upload/ProgressRing.vue';
+import WormLoader from 'dashboard/components-next/upload/WormLoader.vue';
 import { emitter } from 'shared/helpers/mitt';
 import { BUS_EVENTS } from 'shared/constants/busEvents';
 
@@ -221,11 +222,13 @@ onBeforeUnmount(() => {
               v-if="uploadStatusOf(active) === 'uploading'"
               class="absolute inset-0 z-10 flex flex-col items-center justify-center gap-3 bg-black/40 backdrop-blur-[1px]"
             >
-              <ProgressRing
-                :value="uploadProgressOf(active)"
-                :size="64"
-                :stroke="4"
-              />
+              <WormLoader :size="96" />
+              <span
+                v-if="uploadProgressOf(active) !== null"
+                class="text-base font-semibold text-white tabular-nums"
+              >
+                {{ `${uploadProgressOf(active)}%` }}
+              </span>
               <span class="text-sm text-white/90">
                 {{ t('ATTACHMENT_PREVIEW.UPLOADING') }}
               </span>
@@ -249,9 +252,15 @@ onBeforeUnmount(() => {
             </div>
             <div
               v-else-if="sending"
-              class="absolute inset-0 z-10 flex items-center justify-center bg-black/40 backdrop-blur-[1px]"
+              class="absolute inset-0 z-10 flex flex-col items-center justify-center gap-3 bg-black/40 backdrop-blur-[1px]"
             >
-              <ProgressRing :value="uploadPercent" :size="64" :stroke="4" />
+              <WormLoader :size="96" />
+              <span
+                v-if="uploadPercent !== null"
+                class="text-base font-semibold text-white tabular-nums"
+              >
+                {{ `${uploadPercent}%` }}
+              </span>
             </div>
           </Transition>
           <div
