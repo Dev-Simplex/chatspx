@@ -386,14 +386,10 @@ export default {
       if (this.shouldBlockWhatsappSend) return true;
       if (this.isEditorDisabled) return true;
       if (this.isATwitterInbox) return true;
-      // Enviar fica BLOQUEADO enquanto algum anexo ainda está subindo (ou
-      // falhou): o botão só libera quando todos os uploads terminam — assim a
-      // atenção fica no loader e ninguém dispara um envio com anexo pela metade.
-      // No caminho indirect (directUploads off) não existe a fase 'uploading',
-      // então hasPendingAttachmentUpload é false e o envio sai como antes.
-      if (this.hasAttachments || this.hasRecordedAudio) {
-        return this.hasPendingAttachmentUpload;
-      }
+      // Enviar NUNCA bloqueia quando há anexos: se algum ainda está subindo,
+      // confirmOnSendReply ARMA o envio e dispara sozinho ao concluir o upload.
+      // Assim a atendente manda o arquivo e segue conversando enquanto carrega.
+      if (this.hasAttachments || this.hasRecordedAudio) return false;
       if (this.isRecordingAudio) {
         return this.recordingAudioState === 'processing';
       }
@@ -1387,11 +1383,11 @@ export default {
 
       this.pendingAudioAutoSend = false;
 
-      // DORMENTE: desde que o envio passou a ser BLOQUEADO durante o upload
-      // (isReplyButtonDisabled retorna true com hasPendingAttachmentUpload), o
-      // guard no topo deste método já retornou e este ramo de "envio armado"
-      // não é mais alcançado. Mantido inerte para um eventual rollback do
-      // bloqueio; remover numa limpeza dedicada.
+      // Enviar nunca bloqueia: se algum anexo ainda está subindo (DirectUpload),
+      // ARMAMOS o envio — liberamos o campo de texto na hora e disparamos o
+      // envio sozinho quando o último upload terminar. Para imagens (já subidas
+      // no momento do clique) ou no caminho indirect (flag off), isto é falso e
+      // o envio sai imediatamente, como antes.
       if (
         this.globalConfig.directUploadsEnabled &&
         this.hasPendingAttachmentUpload
@@ -1479,9 +1475,6 @@ export default {
     },
     sendToConversation(conversationId) {
       if (this.isReplyButtonDisabled && !this.attachedFiles.length) return;
-      // Não envia com anexo pela metade: espera todos os uploads terminarem
-      // (mesmo gate do envio normal).
-      if (this.hasPendingAttachmentUpload) return;
       const isOnWhatsApp =
         this.isATwilioWhatsAppChannel ||
         this.isAWhatsAppCloudChannel ||
