@@ -280,4 +280,61 @@ RSpec.describe Attachment do
       expect(attachment.valid?).to be true
     end
   end
+
+  describe 'WAHA per-category size validation (Channel::Api)' do
+    let(:api_message) do
+      api_inbox = create(:inbox, account: message.account, channel: create(:channel_api, account: message.account))
+      create(:message, account: message.account, inbox: api_inbox)
+    end
+
+    before do
+      allow(GlobalConfigService).to receive(:load).and_call_original
+      # Keep the global cap high so we isolate the per-category net.
+      allow(GlobalConfigService).to receive(:load).with('MAXIMUM_FILE_UPLOAD_SIZE', 40).and_return('500')
+    end
+
+    def api_attachment
+      api_message.attachments.new(account_id: api_message.account_id, file_type: :image)
+    end
+
+    it 'rejects an image over the 16MB WAHA limit' do
+      attachment = api_attachment
+      attachment.send(:validate_waha_category_size, 17.megabytes, 'image/png')
+      expect(attachment.errors[:file]).to include('size exceeds the 16MB limit for image')
+    end
+
+    it 'rejects a video over the 16MB WAHA limit' do
+      attachment = api_attachment
+      attachment.send(:validate_waha_category_size, 20.megabytes, 'video/mp4')
+      expect(attachment.errors[:file]).to include('size exceeds the 16MB limit for video')
+    end
+
+    it 'allows an image within the 16MB WAHA limit' do
+      attachment = api_attachment
+      attachment.send(:validate_waha_category_size, 15.megabytes, 'image/png')
+      expect(attachment.errors[:file]).to be_empty
+    end
+
+    it 'allows a document up to the 100MB WAHA limit' do
+      attachment = api_attachment
+      attachment.send(:validate_waha_category_size, 80.megabytes, 'application/pdf')
+      expect(attachment.errors[:file]).to be_empty
+    end
+
+    it 'does not apply the per-category net on non-API channels' do
+      # WebWidget message: a 50MB image must NOT trip the 16MB WAHA image limit.
+      attachment = message.attachments.new(account_id: message.account_id, file_type: :image)
+      attachment.send(:validate_waha_category_size, 50.megabytes, 'image/png')
+      expect(attachment.errors[:file]).to be_empty
+    end
+
+    it 'maps mime to the WAHA category like the frontend' do
+      attachment = api_attachment
+      expect(attachment.send(:waha_category_from_mime, 'application/pdf')).to eq('document')
+      expect(attachment.send(:waha_category_from_mime, 'text/csv')).to eq('document')
+      expect(attachment.send(:waha_category_from_mime, 'image/png')).to eq('image')
+      expect(attachment.send(:waha_category_from_mime, 'video/mp4')).to eq('video')
+      expect(attachment.send(:waha_category_from_mime, nil)).to be_nil
+    end
+  end
 end

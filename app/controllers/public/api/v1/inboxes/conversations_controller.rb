@@ -75,11 +75,15 @@ class Public::Api::V1::Inboxes::ConversationsController < Public::Api::V1::Inbox
     message = @conversation.messages.find_by(source_id: waha_message_id)
     return unless message
 
-    Messages::StatusUpdateService.new(message, status).perform
+    # ack = -1 is WAHA's own send-error signal (positive evidence of failure);
+    # surface it as 'failed'. The StatusUpdateService guard blocks
+    # delivered/read → failed, so a late error ack never overrides a delivery.
+    external_error = status == 'failed' ? 'WhatsApp (WAHA) reported a send error' : nil
+    Messages::StatusUpdateService.new(message, status, external_error).perform
   end
 
   def waha_ack_to_chatwoot_status(ack)
-    { 1 => 'sent', 2 => 'delivered', 3 => 'read', 4 => 'read' }[ack]
+    { -1 => 'failed', 1 => 'sent', 2 => 'delivered', 3 => 'read', 4 => 'read' }[ack]
   end
 
   def set_conversation
