@@ -22,4 +22,16 @@ class CampaignPolicy < ApplicationPolicy
   def stats?
     @account_user.administrator?
   end
+
+  def recipients?
+    @account_user.administrator?
+  end
+
+  def start?
+    @account_user.administrator?
+  end
+
+  def pause?
+    @account_user.administrator?
+  end
 end

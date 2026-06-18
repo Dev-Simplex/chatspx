@@ -23,6 +23,15 @@ module Campaigns
 
         inbox = campaign.inbox
         contact_inbox = build_contact_inbox(inbox)
+
+        # Decisao do Paulo: o disparo NAO atropela atendimento ativo. Contato com
+        # conversa nao-resolvida (aberta/pending/snoozed) e PULADO (marca skipped).
+        if active_conversation?(inbox, contact_inbox.contact_id)
+          recipient.update!(status: :skipped, contact_id: contact_inbox.contact_id,
+                            external_error: 'contato em atendimento ativo')
+          return false
+        end
+
         conversation = find_or_create_conversation(inbox, contact_inbox)
         send_hsm(conversation, inbox.channel)
         close_with_team(conversation)
@@ -60,6 +69,12 @@ module Campaigns
         waid = recipient.phone_number.delete('+')
         ::Whatsapp::PhoneNumberNormalizationService.new(inbox)
                                                    .normalize_and_find_contact_by_provider(waid, :cloud)
+      end
+
+      # Atendimento ativo = qualquer conversa nao-resolvida do contato nesta inbox.
+      def active_conversation?(inbox, contact_id)
+        Conversation.where(inbox_id: inbox.id, contact_id: contact_id)
+                    .where.not(status: :resolved).exists?
       end
 
       # Honra lock_to_single: reusa a conversa do contato (qualquer ficha); cria
