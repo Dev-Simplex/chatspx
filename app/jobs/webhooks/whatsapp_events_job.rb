@@ -1,8 +1,13 @@
-class Webhooks::WhatsappEventsJob < ApplicationJob
+class Webhooks::WhatsappEventsJob < MutexApplicationJob
   # :high (nao :low): inbound do WhatsApp e tao time-sensitive quanto o send_reply (tambem :high).
   # Em :low, sob backlog das filas superiores (ex.: jobs do Captain/Agentes IA), o inbound ficava
   # preso na ordenacao estrita do Sidekiq -> mensagem so aparecia apos F5. Broadcasts seguem em :critical.
   queue_as :high
+
+  # Orcamento de retry (20 x 2s = 40s) precisa exceder o TTL de 30s do lock em `perform`, senao um
+  # webhook que chega logo apos o lock ser adquirido esgota os retries antes do holder terminar e
+  # descarta silenciosamente sua mensagem. Ver issue #14058 / PR #14060 (upstream chatwoot).
+  retry_on LockAcquisitionError, wait: 2.seconds, attempts: 20
 
   def perform(params = {})
     channel = find_channel_from_whatsapp_business_payload(params)
@@ -12,6 +17,20 @@ class Webhooks::WhatsappEventsJob < ApplicationJob
       return
     end
 
+    sender_id = contact_sender_id(params)
+    return process_events(channel, params) if sender_id.blank?
+
+    # Uploads em album / mensagens em rajada chegam como webhooks concorrentes. Serializa por
+    # (inbox, contato) para que o primeiro webhook crie a conversa e os demais sejam anexados a ela.
+    # TTL de 30s cobre o download do anexo + a transacao -- o padrao de 1s expira no meio do
+    # processamento e deixa um webhook concorrente readquirir o lock antes do primeiro commit.
+    key = format(::Redis::Alfred::WHATSAPP_MESSAGE_MUTEX, inbox_id: channel.inbox.id, sender_id: sender_id)
+    with_lock(key, 30.seconds) do
+      process_events(channel, params)
+    end
+  end
+
+  def process_events(channel, params)
     if message_echo_event?(params)
       handle_message_echo(channel, params)
     else
@@ -71,6 +90,16 @@ class Webhooks::WhatsappEventsJob < ApplicationJob
   end
 
   private
+
+  # Payloads de echo invertem os campos -- `from` e o numero do negocio e `to` e o contato.
+  # Retorna nil para webhooks que sao so status (statuses), para que eles ignorem o lock.
+  def contact_sender_id(params)
+    value = params.dig(:entry, 0, :changes, 0, :value) || params
+    message = (value[:messages] || value[:message_echoes])&.first
+    return if message.blank?
+
+    message[:to] || message[:from]
+  end
 
   def channel_is_inactive?(channel)
     return true if channel.blank?
