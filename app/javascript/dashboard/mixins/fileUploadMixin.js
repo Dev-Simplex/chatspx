@@ -73,6 +73,34 @@ export default {
       return this.onIndirectFileUpload(file);
     },
 
+    // Creates an ActiveStorage DirectUpload, authenticating the blob-create
+    // request and (optionally) reporting real byte-transfer progress so the UI
+    // can show a per-attachment ring.
+    directUploadCreate(file, callback, onProgress) {
+      const upload = new DirectUpload(
+        file.file,
+        `/api/v1/accounts/${this.accountId}/conversations/${this.currentChat.id}/direct_uploads`,
+        {
+          directUploadWillCreateBlobWithXHR: xhr => {
+            xhr.setRequestHeader(
+              'api_access_token',
+              this.currentUser.access_token
+            );
+          },
+          directUploadWillStoreFileWithXHR: xhr => {
+            if (!onProgress) return;
+            xhr.upload.addEventListener('progress', event => {
+              if (!event.lengthComputable) return;
+              onProgress(
+                Math.min(100, Math.round((event.loaded * 100) / event.total))
+              );
+            });
+          },
+        }
+      );
+      upload.create(callback);
+    },
+
     async onDirectFileUpload(file) {
       if (!file) return;
 
@@ -88,26 +116,36 @@ export default {
         return;
       }
 
-      const upload = new DirectUpload(
-        file.file,
-        `/api/v1/accounts/${this.accountId}/conversations/${this.currentChat.id}/direct_uploads`,
-        {
-          directUploadWillCreateBlobWithXHR: xhr => {
-            xhr.setRequestHeader(
-              'api_access_token',
-              this.currentUser.access_token
-            );
-          },
-        }
-      );
+      // Recorded audio keeps the legacy flow (attach only once the blob is
+      // ready) because its auto-send depends on the attachment being
+      // immediately sendable.
+      if (file.isRecordedAudio) {
+        this.directUploadCreate(file, (error, blob) => {
+          if (error) useAlert(error);
+          else this.attachFile({ file, blob });
+        });
+        return;
+      }
 
-      upload.create((error, blob) => {
-        if (error) {
-          useAlert(error);
-        } else {
-          this.attachFile({ file, blob });
-        }
+      // Otherwise start the transfer right away and show the attachment
+      // immediately with an 'uploading' status + live progress. The agent sees
+      // feedback while it uploads, and by the time Send is clicked the blob is
+      // already stored — the message POST carries only the signed id (instant).
+      const uploadId = `up-${Date.now()}-${Math.round(Math.random() * 1e6)}`;
+      this.attachFile({
+        file,
+        uploadId,
+        uploadStatus: 'uploading',
+        uploadProgress: null,
       });
+      this.directUploadCreate(
+        file,
+        (error, blob) => {
+          if (error) this.onAttachmentUploadFailed?.(uploadId);
+          else this.onAttachmentUploaded?.(uploadId, blob);
+        },
+        percent => this.onAttachmentUploadProgress?.(uploadId, percent)
+      );
     },
 
     async onIndirectFileUpload(file) {

@@ -383,7 +383,12 @@ export default {
       if (this.shouldBlockWhatsappSend) return true;
       if (this.isEditorDisabled) return true;
       if (this.isATwitterInbox) return true;
-      if (this.hasAttachments || this.hasRecordedAudio) return false;
+      if (this.hasAttachments || this.hasRecordedAudio) {
+        // With DirectUpload, the message POST carries only the blob signed ids,
+        // so block Send until every attachment finished uploading (an
+        // in-flight or failed upload has no signed id yet → would send empty).
+        return this.hasPendingAttachmentUpload;
+      }
       if (this.isRecordingAudio) {
         return this.recordingAudioState === 'processing';
       }
@@ -511,6 +516,13 @@ export default {
     },
     hasAttachments() {
       return this.attachedFiles.length;
+    },
+    // True while any attachment is still transferring (DirectUpload) or failed —
+    // used to gate Send so we never post a message with a missing signed id.
+    hasPendingAttachmentUpload() {
+      return this.attachedFiles.some(
+        a => a.uploadStatus === 'uploading' || a.uploadStatus === 'failed'
+      );
     },
     showAudioRecorder() {
       return !this.isOnPrivateNote && this.showFileUpload;
@@ -2054,7 +2066,7 @@ export default {
         isPrivate,
       });
     },
-    attachFile({ blob, file }) {
+    attachFile({ blob, file, uploadId, uploadStatus, uploadProgress = null }) {
       // Build the preview synchronously via createObjectURL instead of reading
       // the whole file into a base64 string with FileReader: no main-thread
       // block and no memory spike when attaching large files (only image/video
@@ -2064,11 +2076,21 @@ export default {
         : this.currentChat.id;
 
       this.attachedFiles.push({
+        // Stable id used both as the v-for key and to match async DirectUpload
+        // lifecycle callbacks (progress/complete/fail) back to this entry.
+        id: uploadId || file?.id || `att-${Date.now()}`,
+        uploadId,
         currentChatId: capturedChatId,
         resource: blob || file,
+        // Keep the original upload wrapper so a failed upload can be retried.
+        rawFile: file,
         isPrivate: this.isPrivate,
         thumb: buildAttachmentThumbUrl(file),
         blobSignedId: blob ? blob.signed_id : undefined,
+        // 'uploading' → DirectUpload in flight (Send is gated); 'uploaded'/
+        // undefined → ready to send; 'failed' → offer retry.
+        uploadStatus: uploadStatus || (blob ? 'uploaded' : undefined),
+        uploadProgress,
         isRecordedAudio: file?.isRecordedAudio || false,
       });
 
@@ -2082,6 +2104,46 @@ export default {
           });
         }
       }
+    },
+    // Finds a pending attachment by its DirectUpload id and applies a patch.
+    patchAttachmentByUploadId(uploadId, patch) {
+      const idx = this.attachedFiles.findIndex(a => a.uploadId === uploadId);
+      if (idx < 0) return;
+      this.attachedFiles.splice(idx, 1, {
+        ...this.attachedFiles[idx],
+        ...patch,
+      });
+    },
+    onAttachmentUploadProgress(uploadId, percent) {
+      this.patchAttachmentByUploadId(uploadId, { uploadProgress: percent });
+    },
+    onAttachmentUploaded(uploadId, blob) {
+      this.patchAttachmentByUploadId(uploadId, {
+        blobSignedId: blob.signed_id,
+        uploadStatus: 'uploaded',
+        uploadProgress: 100,
+      });
+    },
+    onAttachmentUploadFailed(uploadId) {
+      this.patchAttachmentByUploadId(uploadId, { uploadStatus: 'failed' });
+    },
+    // Re-runs the DirectUpload for a previously-failed attachment using the
+    // original file kept on the entry.
+    retryAttachmentUpload(attachment) {
+      const entry = this.attachedFiles.find(a => a === attachment);
+      if (!entry?.rawFile || !entry.uploadId) return;
+      this.patchAttachmentByUploadId(entry.uploadId, {
+        uploadStatus: 'uploading',
+        uploadProgress: null,
+      });
+      this.directUploadCreate(
+        entry.rawFile,
+        (error, blob) => {
+          if (error) this.onAttachmentUploadFailed(entry.uploadId);
+          else this.onAttachmentUploaded(entry.uploadId, blob);
+        },
+        percent => this.onAttachmentUploadProgress(entry.uploadId, percent)
+      );
     },
     removeAttachment(attachments) {
       // Revoke object URLs of the attachments that were dropped so they don't
@@ -2494,6 +2556,7 @@ export default {
               class="mt-2"
               :attachments="attachedFiles"
               @remove-attachment="removeAttachment"
+              @retry-upload="retryAttachmentUpload"
             />
           </div>
         </template>
@@ -2905,6 +2968,7 @@ export default {
       @close="onAttachmentModalClose"
       @add-more="onAttachmentModalAddMore"
       @edit-image="onEditImage"
+      @retry-upload="retryAttachmentUpload"
     />
     <ImageEditor
       :show="showImageEditor"

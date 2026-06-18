@@ -935,7 +935,9 @@
     "DRAW": "Draw",
     "ADD_TEXT": "Add text",
     "REMOVE": "Remove",
-    "COUNTER": "{current} of {total}"
+    "COUNTER": "{current} of {total}",
+    "UPLOADING": "Uploading…",
+    "RETRY": "Retry"
   },
   "IMAGE_EDITOR": {
     "TITLE": "Edit image",

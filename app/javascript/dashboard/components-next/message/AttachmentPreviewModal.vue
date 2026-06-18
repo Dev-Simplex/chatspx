@@ -21,9 +21,23 @@ const emit = defineEmits([
   'add-more',
   'close',
   'edit-image',
+  'retry-upload',
 ]);
 
 const { t } = useI18n();
+
+// Per-attachment DirectUpload state (set while a file uploads on attach).
+const uploadStatusOf = att => att?.uploadStatus;
+const uploadProgressOf = att =>
+  typeof att?.uploadProgress === 'number' ? att.uploadProgress : null;
+
+// Send must wait until every attachment finished its DirectUpload (and none
+// failed) — the message POST only carries the blob signed ids.
+const hasPendingUpload = computed(() =>
+  props.files.some(
+    f => f.uploadStatus === 'uploading' || f.uploadStatus === 'failed'
+  )
+);
 
 const activeIndex = ref(0);
 const captionLocal = ref(props.caption);
@@ -84,8 +98,13 @@ const removeAt = index => {
 };
 
 const onSend = () => {
-  if (props.sending) return;
+  if (props.sending || hasPendingUpload.value) return;
   emit('send');
+};
+
+const onRetry = att => {
+  // eslint-disable-next-line vue/custom-event-name-casing
+  emit('retry-upload', att);
 };
 
 const onClose = () => emit('close');
@@ -197,8 +216,45 @@ onBeforeUnmount(() => {
             leave-active-class="transition-opacity duration-150 ease-in"
             leave-to-class="opacity-0"
           >
+            <!--
+              Two overlays share this spot:
+              - while the ACTIVE attachment is still uploading (DirectUpload on
+                attach), show its real per-file progress ring;
+              - while the message POST is in flight (`sending`), show the send
+                ring. They never co-occur (Send is gated on uploads finishing).
+            -->
             <div
-              v-if="sending"
+              v-if="uploadStatusOf(active) === 'uploading'"
+              class="absolute inset-0 z-10 flex flex-col items-center justify-center gap-3 bg-black/40 backdrop-blur-[1px]"
+            >
+              <ProgressRing
+                :value="uploadProgressOf(active)"
+                :size="64"
+                :stroke="4"
+              />
+              <span class="text-sm text-white/90">
+                {{ t('ATTACHMENT_PREVIEW.UPLOADING') }}
+              </span>
+            </div>
+            <div
+              v-else-if="uploadStatusOf(active) === 'failed'"
+              class="absolute inset-0 z-10 flex flex-col items-center justify-center gap-3 bg-black/50 backdrop-blur-[1px]"
+            >
+              <Icon
+                icon="i-lucide-alert-triangle"
+                class="size-10 text-n-ruby-9"
+              />
+              <button
+                type="button"
+                class="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-white/90 text-sm text-n-slate-12 hover:bg-white"
+                @click="onRetry(active)"
+              >
+                <Icon icon="i-lucide-rotate-cw" class="size-4" />
+                {{ t('ATTACHMENT_PREVIEW.RETRY') }}
+              </button>
+            </div>
+            <div
+              v-else-if="sending"
               class="absolute inset-0 z-10 flex items-center justify-center bg-black/40 backdrop-blur-[1px]"
             >
               <ProgressRing :value="uploadPercent" :size="64" :stroke="4" />
@@ -346,6 +402,32 @@ onBeforeUnmount(() => {
                     class="size-6 text-n-slate-11"
                   />
                 </div>
+                <!-- Per-attachment upload status badge -->
+                <div
+                  v-if="uploadStatusOf(element) === 'uploading'"
+                  class="absolute inset-0 grid place-content-center bg-black/45"
+                >
+                  <ProgressRing
+                    :value="uploadProgressOf(element)"
+                    :size="28"
+                    :stroke="3"
+                  />
+                </div>
+                <div
+                  v-else-if="uploadStatusOf(element) === 'uploaded'"
+                  class="absolute bottom-0.5 left-0.5 grid place-content-center size-4 rounded-full bg-wa-teal text-white"
+                >
+                  <Icon icon="i-lucide-check" class="size-3" />
+                </div>
+                <button
+                  v-else-if="uploadStatusOf(element) === 'failed'"
+                  type="button"
+                  :aria-label="t('ATTACHMENT_PREVIEW.RETRY')"
+                  class="absolute inset-0 grid place-content-center bg-black/55 text-n-ruby-9"
+                  @click.stop="onRetry(element)"
+                >
+                  <Icon icon="i-lucide-rotate-cw" class="size-5" />
+                </button>
                 <button
                   type="button"
                   :aria-label="t('ATTACHMENT_PREVIEW.REMOVE')"
@@ -370,14 +452,19 @@ onBeforeUnmount(() => {
           <button
             type="button"
             :aria-label="t('ATTACHMENT_PREVIEW.SEND')"
-            :disabled="sending"
+            :title="hasPendingUpload ? t('ATTACHMENT_PREVIEW.UPLOADING') : ''"
+            :disabled="sending || hasPendingUpload"
             class="ml-2 mr-6 grid place-content-center size-12 rounded-full bg-wa-teal hover:bg-wa-teal-dark text-white transition-transform active:scale-95 disabled:opacity-60 disabled:cursor-not-allowed"
             @click="onSend"
           >
             <Icon
-              :icon="sending ? 'i-lucide-loader-circle' : 'i-lucide-send'"
+              :icon="
+                sending || hasPendingUpload
+                  ? 'i-lucide-loader-circle'
+                  : 'i-lucide-send'
+              "
               class="size-5"
-              :class="{ 'attachment-send-spin': sending }"
+              :class="{ 'attachment-send-spin': sending || hasPendingUpload }"
             />
           </button>
         </div>
