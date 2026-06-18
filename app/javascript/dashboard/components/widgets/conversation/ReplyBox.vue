@@ -386,10 +386,15 @@ export default {
       if (this.shouldBlockWhatsappSend) return true;
       if (this.isEditorDisabled) return true;
       if (this.isATwitterInbox) return true;
-      // Enviar NUNCA bloqueia quando há anexos: se algum ainda está subindo,
-      // confirmOnSendReply ARMA o envio e dispara sozinho ao concluir o upload.
-      // Assim a atendente manda o arquivo e segue conversando enquanto carrega.
-      if (this.hasAttachments || this.hasRecordedAudio) return false;
+      // Com anexos: o envio NÃO bloqueia quando algo está subindo (arma e segue
+      // em 2º plano, e a conversa continua). Bloqueia só se há anexo FALHO ainda
+      // NÃO committed (no modal, antes de mandar) — aí força retry/remover. Uma
+      // falha em 2º plano (committed) não interrompe a conversa.
+      if (this.hasAttachments || this.hasRecordedAudio) {
+        return this.attachedFiles.some(
+          a => a.uploadStatus === 'failed' && !a.committed
+        );
+      }
       if (this.isRecordingAudio) {
         return this.recordingAudioState === 'processing';
       }
@@ -523,6 +528,14 @@ export default {
     hasPendingAttachmentUpload() {
       return this.attachedFiles.some(
         a => a.uploadStatus === 'uploading' || a.uploadStatus === 'failed'
+      );
+    },
+    // Anexo ainda subindo que AINDA NÃO foi "enviado" (committed): o primeiro
+    // clique em Enviar arma o envio dele. Depois de committed, ele sobe em 2º
+    // plano e não interfere mais nos envios de texto.
+    hasUncommittedPendingUpload() {
+      return this.attachedFiles.some(
+        a => a.uploadStatus === 'uploading' && !a.committed
       );
     },
     showAudioRecorder() {
@@ -1383,17 +1396,23 @@ export default {
 
       this.pendingAudioAutoSend = false;
 
-      // Enviar nunca bloqueia: se algum anexo ainda está subindo (DirectUpload),
-      // ARMAMOS o envio — liberamos o campo de texto na hora e disparamos o
-      // envio sozinho quando o último upload terminar. Para imagens (já subidas
-      // no momento do clique) ou no caminho indirect (flag off), isto é falso e
-      // o envio sai imediatamente, como antes.
+      // (1) PRIMEIRO envio com anexo ainda subindo: ARMA o envio do arquivo
+      // (dispara sozinho ao concluir o upload), marca o anexo como "committed" e
+      // libera o composer na hora. O arquivo passa a subir em 2º plano. Para
+      // imagens já prontas ou caminho indirect (flag off) isto é falso e o envio
+      // sai imediatamente, como antes.
       if (
         this.globalConfig.directUploadsEnabled &&
-        this.hasPendingAttachmentUpload
+        this.hasUncommittedPendingUpload
       ) {
         const message = this.message;
         const copilotAcceptedMessage = this.getCopilotAcceptedMessage();
+        // Marca os anexos em trânsito como committed (reativo via splice).
+        this.attachedFiles
+          .filter(a => a.uploadStatus === 'uploading')
+          .forEach(a =>
+            this.patchAttachmentByUploadId(a.uploadId, { committed: true })
+          );
         this.armedSend = () =>
           this.performConfirmedSend(message, copilotAcceptedMessage);
         // Libera SÓ o texto imediatamente; os anexos seguem visíveis com o anel
@@ -1404,7 +1423,41 @@ export default {
         return;
       }
 
+      // (2) Já existe anexo pendente em 2º plano (committed, subindo ou falho):
+      // o texto digitado agora vai como mensagem INDEPENDENTE na hora (texto
+      // puro, sem o anexo), preservando o anexo, para a atendente seguir a
+      // conversa enquanto o arquivo carrega. Anexos pendentes não-committed já
+      // foram tratados acima (path 1) ou bloqueiam o envio (falha no modal).
+      if (this.hasPendingAttachmentUpload) {
+        const message = this.message;
+        if (message && message.trim()) {
+          this.sendStandaloneText(message, this.getCopilotAcceptedMessage());
+          this.clearComposerTextOnly();
+          // Consome o reply-to (senão a barra fica e as próximas mensagens
+          // re-encadeiam) e limpa os campos de e-mail, como no envio normal.
+          this.resetReplyToMessage();
+          if (!this.isPrivate) this.clearEmailField();
+          this.hideEmojiPicker();
+          this.$emit('update:popOutReplyBox', false);
+          // Mantém o foco no editor para a próxima mensagem sair direto.
+          this.$nextTick(() => {
+            this.messageEditor?.focusEditorInputField?.('end');
+            this.isFocused = true;
+          });
+        }
+        return;
+      }
+
       this.performConfirmedSend(this.message, this.getCopilotAcceptedMessage());
+    },
+    // Envia SÓ texto agora, ignorando anexos em 2º plano (committed). Usado
+    // enquanto um arquivo ainda sobe, para não bloquear a conversa. Texto puro
+    // é uma única mensagem em qualquer canal (sem split de mídia).
+    sendStandaloneText(message, copilotAcceptedMessage = '') {
+      const payload = this.getMessagePayload(message, this.currentChat.id, {
+        excludeAttachments: true,
+      });
+      this.sendMessage(payload, message, copilotAcceptedMessage);
     },
     // Executa o envio de fato (texto + anexos já prontos). Extraído para ser
     // reutilizado tanto no envio imediato quanto no envio armado (pós-upload).
@@ -2264,6 +2317,9 @@ export default {
           const attachedFile = this.globalConfig.directUploadsEnabled
             ? attachment.blobSignedId
             : attachment.resource.file;
+          // Pula anexos cujo upload não concluiu (sem signed id) — nunca manda
+          // files:[undefined]. Anexos 'uploading'/'failed' ficam de fora.
+          if (!attachedFile) return;
           let attachmentPayload = {
             conversationId: attachment.currentChatId || conversationId,
             files: [attachedFile],
@@ -2284,8 +2340,7 @@ export default {
       // For Instagram and TikTok, text must always be sent as a separate message (no captions on attachments).
       // For WhatsApp, we only need a text message if there are no attachments.
       if (
-        ((this.isAnInstagramChannel || this.isATiktokChannel) &&
-          this.message) ||
+        ((this.isAnInstagramChannel || this.isATiktokChannel) && message) ||
         (!(this.isAnInstagramChannel || this.isATiktokChannel) &&
           hasNoAttachments)
       ) {
@@ -2303,7 +2358,7 @@ export default {
 
       return multipleMessagePayload;
     },
-    getMessagePayload(message, overrideConversationId) {
+    getMessagePayload(message, overrideConversationId, opts = {}) {
       const messageWithQuote = this.getMessageWithQuotedEmailText(message);
       const conversationId =
         overrideConversationId ||
@@ -2318,15 +2373,26 @@ export default {
       };
       messagePayload = this.setReplyToInPayload(messagePayload);
 
-      if (this.attachedFiles && this.attachedFiles.length) {
+      // excludeAttachments: usado no envio de texto independente enquanto um
+      // arquivo sobe em 2º plano (o anexo committed não entra nessa mensagem).
+      if (
+        !opts.excludeAttachments &&
+        this.attachedFiles &&
+        this.attachedFiles.length
+      ) {
         messagePayload.files = [];
         this.attachedFiles.forEach(attachment => {
           if (this.globalConfig.directUploadsEnabled) {
-            messagePayload.files.push(attachment.blobSignedId);
+            // Só anexos com upload concluído (signed id presente); evita
+            // mandar files:[undefined] de um anexo ainda subindo/falho.
+            if (attachment.blobSignedId) {
+              messagePayload.files.push(attachment.blobSignedId);
+            }
           } else {
             messagePayload.files.push(attachment.resource.file);
           }
         });
+        if (!messagePayload.files.length) delete messagePayload.files;
       }
 
       if (this.ccEmails && !this.isOnPrivateNote) {
