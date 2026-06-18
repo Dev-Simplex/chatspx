@@ -32,6 +32,27 @@ const uploadStatusOf = att => att?.uploadStatus;
 const uploadProgressOf = att =>
   typeof att?.uploadProgress === 'number' ? att.uploadProgress : null;
 
+// Any attachment still transferring → Send stays blocked until every file is
+// ready (mirrors ReplyBox.isReplyButtonDisabled). 'failed' also blocks: the
+// agent must retry that file first.
+const isUploading = computed(() =>
+  props.files.some(
+    f => f?.uploadStatus === 'uploading' || f?.uploadStatus === 'failed'
+  )
+);
+
+// A failed file also blocks Send, but it needs a different hint than a file
+// that is still transferring.
+const hasFailedUpload = computed(() =>
+  props.files.some(f => f?.uploadStatus === 'failed')
+);
+
+const sendButtonTitle = computed(() => {
+  if (hasFailedUpload.value) return t('ATTACHMENT_PREVIEW.RETRY');
+  if (isUploading.value) return t('ATTACHMENT_PREVIEW.UPLOADING');
+  return t('ATTACHMENT_PREVIEW.SEND');
+});
+
 const activeIndex = ref(0);
 const captionLocal = ref(props.caption);
 
@@ -91,9 +112,9 @@ const removeAt = index => {
 };
 
 const onSend = () => {
-  // Não bloqueia em uploads pendentes: o ReplyBox "arma" o envio e dispara
-  // sozinho quando o upload termina (Enviar nunca bloqueia).
-  if (props.sending) return;
+  // Bloqueia enquanto há upload em curso (ou já enviando): o botão só age
+  // quando todos os anexos terminaram de subir.
+  if (props.sending || isUploading.value) return;
   emit('send');
 };
 
@@ -220,7 +241,7 @@ onBeforeUnmount(() => {
             -->
             <div
               v-if="uploadStatusOf(active) === 'uploading'"
-              class="absolute inset-0 z-10 flex flex-col items-center justify-center gap-3 bg-black/40 backdrop-blur-[1px]"
+              class="absolute inset-0 z-10 flex flex-col items-center justify-center gap-3 bg-black/65 backdrop-blur-md"
             >
               <WormLoader :size="96" />
               <span
@@ -235,7 +256,7 @@ onBeforeUnmount(() => {
             </div>
             <div
               v-else-if="uploadStatusOf(active) === 'failed'"
-              class="absolute inset-0 z-10 flex flex-col items-center justify-center gap-3 bg-black/50 backdrop-blur-[1px]"
+              class="absolute inset-0 z-10 flex flex-col items-center justify-center gap-3 bg-black/70 backdrop-blur-md"
             >
               <Icon
                 icon="i-lucide-alert-triangle"
@@ -252,7 +273,7 @@ onBeforeUnmount(() => {
             </div>
             <div
               v-else-if="sending"
-              class="absolute inset-0 z-10 flex flex-col items-center justify-center gap-3 bg-black/40 backdrop-blur-[1px]"
+              class="absolute inset-0 z-10 flex flex-col items-center justify-center gap-3 bg-black/65 backdrop-blur-md"
             >
               <WormLoader :size="96" />
               <span
@@ -455,7 +476,8 @@ onBeforeUnmount(() => {
           <button
             type="button"
             :aria-label="t('ATTACHMENT_PREVIEW.SEND')"
-            :disabled="sending"
+            :title="sendButtonTitle"
+            :disabled="sending || isUploading"
             class="ml-2 mr-6 grid place-content-center size-12 rounded-full bg-wa-teal hover:bg-wa-teal-dark text-white transition-transform active:scale-95 disabled:opacity-60 disabled:cursor-not-allowed"
             @click="onSend"
           >

@@ -386,10 +386,14 @@ export default {
       if (this.shouldBlockWhatsappSend) return true;
       if (this.isEditorDisabled) return true;
       if (this.isATwitterInbox) return true;
-      // Enviar nunca bloqueia quando há anexos: se algum ainda está subindo,
-      // confirmOnSendReply ARMA o envio e dispara sozinho ao concluir (o POST só
-      // carrega o signed id quando pronto), então o botão fica sempre ativo.
-      if (this.hasAttachments || this.hasRecordedAudio) return false;
+      // Enviar fica BLOQUEADO enquanto algum anexo ainda está subindo (ou
+      // falhou): o botão só libera quando todos os uploads terminam — assim a
+      // atenção fica no loader e ninguém dispara um envio com anexo pela metade.
+      // No caminho indirect (directUploads off) não existe a fase 'uploading',
+      // então hasPendingAttachmentUpload é false e o envio sai como antes.
+      if (this.hasAttachments || this.hasRecordedAudio) {
+        return this.hasPendingAttachmentUpload;
+      }
       if (this.isRecordingAudio) {
         return this.recordingAudioState === 'processing';
       }
@@ -1383,11 +1387,11 @@ export default {
 
       this.pendingAudioAutoSend = false;
 
-      // Enviar nunca bloqueia: se algum anexo ainda está subindo (DirectUpload),
-      // ARMAMOS o envio — liberamos o campo de texto na hora e disparamos o
-      // envio sozinho quando o último upload terminar. Para imagens (já subidas
-      // no momento do clique) ou no caminho indirect (flag off), isto é falso e
-      // o envio sai imediatamente, como antes.
+      // DORMENTE: desde que o envio passou a ser BLOQUEADO durante o upload
+      // (isReplyButtonDisabled retorna true com hasPendingAttachmentUpload), o
+      // guard no topo deste método já retornou e este ramo de "envio armado"
+      // não é mais alcançado. Mantido inerte para um eventual rollback do
+      // bloqueio; remover numa limpeza dedicada.
       if (
         this.globalConfig.directUploadsEnabled &&
         this.hasPendingAttachmentUpload
@@ -1419,6 +1423,10 @@ export default {
       // To handle both cases, text and attachments are always sent as separate messages.
       const isOnInstagram = this.isAnInstagramChannel;
       const isOnTiktok = this.isATiktokChannel;
+      // Captura antes do clearMessage: WhatsApp/Instagram/TikTok quebram em
+      // vários payloads (um por anexo), então o aviso precisa sair UMA vez aqui,
+      // no nível da ação de envio, e não dentro de sendMessage (por payload).
+      const hadAttachments = this.hasAttachments;
       if ((isOnWhatsApp || isOnInstagram || isOnTiktok) && !this.isPrivate) {
         this.sendMessageAsMultipleMessages(message, copilotAcceptedMessage);
       } else {
@@ -1428,6 +1436,14 @@ export default {
 
       if (!this.isPrivate) {
         this.clearEmailField();
+      }
+
+      // Confirmação clara de que a mensagem COM ANEXO entrou na conversa.
+      // Limitada ao envio com anexo (ação deliberada, menos frequente) para não
+      // virar ruído em cada mensagem de texto; dispara 1x por envio, em qualquer
+      // canal (a mensagem otimista já aparece na conversa neste instante).
+      if (hadAttachments) {
+        useAlert(this.$t('CONVERSATION.MESSAGE_SENT_TO_CONVERSATION'));
       }
 
       this.clearMessage();
@@ -1463,6 +1479,9 @@ export default {
     },
     sendToConversation(conversationId) {
       if (this.isReplyButtonDisabled && !this.attachedFiles.length) return;
+      // Não envia com anexo pela metade: espera todos os uploads terminarem
+      // (mesmo gate do envio normal).
+      if (this.hasPendingAttachmentUpload) return;
       const isOnWhatsApp =
         this.isATwilioWhatsAppChannel ||
         this.isAWhatsAppCloudChannel ||

@@ -427,6 +427,7 @@
     "FILE_TYPE_NOT_SUPPORTED": "O tipo de arquivo {fileName} não é suportado nesta conversa",
     "AUDIO_CONVERT_ERROR": "Não foi possível processar o áudio gravado. Tente novamente.",
     "MESSAGE_ERROR": "Não foi possível enviar esta mensagem, por favor, tente novamente mais tarde",
+    "MESSAGE_SENT_TO_CONVERSATION": "Mensagem enviada na conversa",
     "SENT_BY": "Enviado por:",
     "BOT": "Robôs",
     "NATIVE_APP": "Aplicativo nativo",

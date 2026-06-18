@@ -449,6 +449,7 @@
     "FILE_TYPE_NOT_SUPPORTED": "This {fileName} file type is not supported in this conversation",
     "AUDIO_CONVERT_ERROR": "Couldn't process the recorded audio. Please try again.",
     "MESSAGE_ERROR": "Unable to send this message, please try again later",
+    "MESSAGE_SENT_TO_CONVERSATION": "Message sent to the conversation",
     "SENT_BY": "Sent by:",
     "BOT": "Bot",
     "NATIVE_APP": "Native app",

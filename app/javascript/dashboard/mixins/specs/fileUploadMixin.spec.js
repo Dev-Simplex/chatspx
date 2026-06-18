@@ -6,6 +6,9 @@ import { reactive } from 'vue';
 
 vi.mock('shared/helpers/FileHelper', () => ({
   checkFileSizeLimit: vi.fn(),
+  // Off-thread image compression runs before the size check; in the mock it is
+  // a no-op that resolves to the same file.
+  compressAttachmentInPlace: vi.fn(file => Promise.resolve(file)),
   resolveMaximumFileUploadSize: vi.fn(value => Number(value) || 40),
   DEFAULT_MAXIMUM_FILE_UPLOAD_SIZE: 40,
   HARD_MAXIMUM_FILE_UPLOAD_SIZE: 100,
@@ -87,15 +90,15 @@ describe('FileUploadMixin', () => {
   });
 
   describe('onDirectFileUpload', () => {
-    it('returns early if no file is provided', () => {
-      const returnValue = wrapper.vm.onDirectFileUpload(null);
+    it('returns early if no file is provided', async () => {
+      const returnValue = await wrapper.vm.onDirectFileUpload(null);
       expect(returnValue).toBeUndefined();
     });
 
-    it('shows an alert if the file size exceeds the maximum limit', () => {
+    it('shows an alert if the file size exceeds the maximum limit', async () => {
       const fakeFile = { size: 999999999 };
       checkFileSizeLimit.mockReturnValue(false); // Mock exceeding file size
-      wrapper.vm.onDirectFileUpload(fakeFile);
+      await wrapper.vm.onDirectFileUpload(fakeFile);
       expect(useAlert).toHaveBeenCalledWith(
         expect.any(String),
         expect.objectContaining({ position: 'center' })
@@ -104,15 +107,15 @@ describe('FileUploadMixin', () => {
   });
 
   describe('onIndirectFileUpload', () => {
-    it('returns early if no file is provided', () => {
-      const returnValue = wrapper.vm.onIndirectFileUpload(null);
+    it('returns early if no file is provided', async () => {
+      const returnValue = await wrapper.vm.onIndirectFileUpload(null);
       expect(returnValue).toBeUndefined();
     });
 
-    it('shows an alert if the file size exceeds the maximum limit', () => {
+    it('shows an alert if the file size exceeds the maximum limit', async () => {
       const fakeFile = { size: 999999999 };
       checkFileSizeLimit.mockReturnValue(false); // Mock exceeding file size
-      wrapper.vm.onIndirectFileUpload(fakeFile);
+      await wrapper.vm.onIndirectFileUpload(fakeFile);
       expect(useAlert).toHaveBeenCalledWith(
         expect.any(String),
         expect.objectContaining({ position: 'center' })
