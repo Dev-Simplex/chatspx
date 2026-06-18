@@ -31,14 +31,6 @@ const uploadStatusOf = att => att?.uploadStatus;
 const uploadProgressOf = att =>
   typeof att?.uploadProgress === 'number' ? att.uploadProgress : null;
 
-// Send must wait until every attachment finished its DirectUpload (and none
-// failed) — the message POST only carries the blob signed ids.
-const hasPendingUpload = computed(() =>
-  props.files.some(
-    f => f.uploadStatus === 'uploading' || f.uploadStatus === 'failed'
-  )
-);
-
 const activeIndex = ref(0);
 const captionLocal = ref(props.caption);
 
@@ -98,7 +90,9 @@ const removeAt = index => {
 };
 
 const onSend = () => {
-  if (props.sending || hasPendingUpload.value) return;
+  // Não bloqueia em uploads pendentes: o ReplyBox "arma" o envio e dispara
+  // sozinho quando o upload termina (Enviar nunca bloqueia).
+  if (props.sending) return;
   emit('send');
 };
 
@@ -452,19 +446,14 @@ onBeforeUnmount(() => {
           <button
             type="button"
             :aria-label="t('ATTACHMENT_PREVIEW.SEND')"
-            :title="hasPendingUpload ? t('ATTACHMENT_PREVIEW.UPLOADING') : ''"
-            :disabled="sending || hasPendingUpload"
+            :disabled="sending"
             class="ml-2 mr-6 grid place-content-center size-12 rounded-full bg-wa-teal hover:bg-wa-teal-dark text-white transition-transform active:scale-95 disabled:opacity-60 disabled:cursor-not-allowed"
             @click="onSend"
           >
             <Icon
-              :icon="
-                sending || hasPendingUpload
-                  ? 'i-lucide-loader-circle'
-                  : 'i-lucide-send'
-              "
+              :icon="sending ? 'i-lucide-loader-circle' : 'i-lucide-send'"
               class="size-5"
-              :class="{ 'attachment-send-spin': sending || hasPendingUpload }"
+              :class="{ 'attachment-send-spin': sending }"
             />
           </button>
         </div>

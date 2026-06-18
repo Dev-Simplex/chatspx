@@ -246,6 +246,9 @@ export default {
       pendingAudioAutoSend: false,
       pendingAudioConversationId: null,
       isUploadingAudio: false,
+      // Envio "armado": fn de envio aguardando o término dos uploads em curso
+      // (Enviar nunca bloqueia). Disparada por maybeFireArmedSend.
+      armedSend: null,
       whatsappInvalidNotice: '',
       whatsappNoticeTimeoutId: null,
       isRevalidatingWhatsapp: false,
@@ -383,12 +386,10 @@ export default {
       if (this.shouldBlockWhatsappSend) return true;
       if (this.isEditorDisabled) return true;
       if (this.isATwitterInbox) return true;
-      if (this.hasAttachments || this.hasRecordedAudio) {
-        // With DirectUpload, the message POST carries only the blob signed ids,
-        // so block Send until every attachment finished uploading (an
-        // in-flight or failed upload has no signed id yet → would send empty).
-        return this.hasPendingAttachmentUpload;
-      }
+      // Enviar nunca bloqueia quando há anexos: se algum ainda está subindo,
+      // confirmOnSendReply ARMA o envio e dispara sozinho ao concluir (o POST só
+      // carrega o signed id quando pronto), então o botão fica sempre ativo.
+      if (this.hasAttachments || this.hasRecordedAudio) return false;
       if (this.isRecordingAudio) {
         return this.recordingAudioState === 'processing';
       }
@@ -934,6 +935,12 @@ export default {
       } finally {
         this.$nextTick(() => {
           this.isSendingAttachment = false;
+          // Envio armado (anexos ainda subindo): fecha o modal para liberar o
+          // usuário — os chips inline seguem mostrando o progresso e o envio
+          // dispara sozinho ao concluir.
+          if (this.armedSend) {
+            this.showAttachmentModal = false;
+          }
         });
       }
     },
@@ -1372,47 +1379,78 @@ export default {
       if (this.isReplyButtonDisabled) {
         return;
       }
-      if (!this.showMentions) {
-        this.pendingAudioAutoSend = false;
+      if (this.showMentions) return;
+
+      this.pendingAudioAutoSend = false;
+
+      // Enviar nunca bloqueia: se algum anexo ainda está subindo (DirectUpload),
+      // ARMAMOS o envio — liberamos o campo de texto na hora e disparamos o
+      // envio sozinho quando o último upload terminar. Para imagens (já subidas
+      // no momento do clique) ou no caminho indirect (flag off), isto é falso e
+      // o envio sai imediatamente, como antes.
+      if (
+        this.globalConfig.directUploadsEnabled &&
+        this.hasPendingAttachmentUpload
+      ) {
+        const message = this.message;
         const copilotAcceptedMessage = this.getCopilotAcceptedMessage();
-        const isOnWhatsApp =
-          this.isATwilioWhatsAppChannel ||
-          this.isAWhatsAppCloudChannel ||
-          this.is360DialogWhatsAppChannel;
-        // Instagram and TikTok do not support sending text and attachments in the same message.
-        // For Instagram, combining them causes duplicate messages due to separate echo events per component.
-        // For TikTok, the API rejects messages that mix text and media.
-        // To handle both cases, text and attachments are always sent as separate messages.
-        const isOnInstagram = this.isAnInstagramChannel;
-        const isOnTiktok = this.isATiktokChannel;
-        if ((isOnWhatsApp || isOnInstagram || isOnTiktok) && !this.isPrivate) {
-          this.sendMessageAsMultipleMessages(
-            this.message,
-            copilotAcceptedMessage
-          );
-        } else {
-          const messagePayload = this.getMessagePayload(this.message);
-          this.sendMessage(
-            messagePayload,
-            this.message,
-            copilotAcceptedMessage
-          );
-        }
-
-        if (!this.isPrivate) {
-          this.clearEmailField();
-        }
-
-        this.clearMessage();
+        this.armedSend = () =>
+          this.performConfirmedSend(message, copilotAcceptedMessage);
+        // Libera SÓ o texto imediatamente; os anexos seguem visíveis com o anel
+        // de progresso até concluírem (clearMessage limparia os anexos também).
+        this.clearComposerTextOnly();
         this.hideEmojiPicker();
         this.$emit('update:popOutReplyBox', false);
-        // Manter foco no editor depois de enviar (igual WhatsApp Web) — agente
-        // consegue digitar a próxima mensagem direto sem novo clique.
-        this.$nextTick(() => {
-          this.messageEditor?.focusEditorInputField?.('end');
-          this.isFocused = true;
-        });
+        return;
       }
+
+      this.performConfirmedSend(this.message, this.getCopilotAcceptedMessage());
+    },
+    // Executa o envio de fato (texto + anexos já prontos). Extraído para ser
+    // reutilizado tanto no envio imediato quanto no envio armado (pós-upload).
+    performConfirmedSend(message, copilotAcceptedMessage = '') {
+      const isOnWhatsApp =
+        this.isATwilioWhatsAppChannel ||
+        this.isAWhatsAppCloudChannel ||
+        this.is360DialogWhatsAppChannel;
+      // Instagram and TikTok do not support sending text and attachments in the same message.
+      // For Instagram, combining them causes duplicate messages due to separate echo events per component.
+      // For TikTok, the API rejects messages that mix text and media.
+      // To handle both cases, text and attachments are always sent as separate messages.
+      const isOnInstagram = this.isAnInstagramChannel;
+      const isOnTiktok = this.isATiktokChannel;
+      if ((isOnWhatsApp || isOnInstagram || isOnTiktok) && !this.isPrivate) {
+        this.sendMessageAsMultipleMessages(message, copilotAcceptedMessage);
+      } else {
+        const messagePayload = this.getMessagePayload(message);
+        this.sendMessage(messagePayload, message, copilotAcceptedMessage);
+      }
+
+      if (!this.isPrivate) {
+        this.clearEmailField();
+      }
+
+      this.clearMessage();
+      this.hideEmojiPicker();
+      this.$emit('update:popOutReplyBox', false);
+      // Manter foco no editor depois de enviar (igual WhatsApp Web) — agente
+      // consegue digitar a próxima mensagem direto sem novo clique.
+      this.$nextTick(() => {
+        this.messageEditor?.focusEditorInputField?.('end');
+        this.isFocused = true;
+      });
+    },
+    // Dispara o envio armado quando todos os anexos terminaram de subir.
+    maybeFireArmedSend() {
+      if (!this.armedSend || this.hasPendingAttachmentUpload) return;
+      // Nada para enviar (anexos removidos e sem texto): apenas desarma.
+      if (!this.attachedFiles.length && !this.message) {
+        this.armedSend = null;
+        return;
+      }
+      const fire = this.armedSend;
+      this.armedSend = null;
+      fire();
     },
     focusReplyEditor() {
       // Foca o editor ao abrir/trocar de conversa. Nos inboxes Channel::Api/WhatsApp
@@ -1857,6 +1895,23 @@ export default {
         };
       }
     },
+    // Limpa apenas o texto do composer (e re-aplica assinatura), preservando os
+    // anexos. Usado no envio "armado", onde os anexos ainda estão subindo.
+    clearComposerTextOnly() {
+      this.message = '';
+      this.clearCopilotAcceptedMessage();
+      if (this.sendWithSignature && !this.isPrivate) {
+        const effectiveChannelType = getEffectiveChannelType(
+          this.channelType,
+          this.inbox?.medium || ''
+        );
+        this.message = appendSignature(
+          this.message,
+          this.messageSignature,
+          effectiveChannelType
+        );
+      }
+    },
     clearMessage() {
       this.message = '';
       this.pendingAudioAutoSend = false;
@@ -2123,9 +2178,17 @@ export default {
         uploadStatus: 'uploaded',
         uploadProgress: 100,
       });
+      // Se o envio estava armado aguardando este upload, dispara agora.
+      this.maybeFireArmedSend();
     },
     onAttachmentUploadFailed(uploadId) {
       this.patchAttachmentByUploadId(uploadId, { uploadStatus: 'failed' });
+      // Uma falha cancela o envio armado — o anexo mostra o retry e o usuário
+      // reenvia manualmente (evita disparar um envio sem o anexo).
+      if (this.armedSend) {
+        this.armedSend = null;
+        useAlert(this.$t('CONVERSATION.MESSAGE_ERROR'));
+      }
     },
     // Re-runs the DirectUpload for a previously-failed attachment using the
     // original file kept on the entry.
@@ -2153,11 +2216,17 @@ export default {
         if (!remaining.has(att)) revokeAttachmentThumbUrl(att.thumb);
       });
       this.attachedFiles = attachments;
+      // Remover o anexo que faltava concluir pode destravar (ou esvaziar) um
+      // envio armado — reavalia.
+      this.maybeFireArmedSend();
     },
     // Clears all pending attachments, revoking their preview object URLs first.
     clearAttachedFiles() {
       this.attachedFiles.forEach(att => revokeAttachmentThumbUrl(att.thumb));
       this.attachedFiles = [];
+      // Limpeza de anexos (troca de conversa, reset, modo nota) cancela qualquer
+      // envio armado para não disparar no contexto errado.
+      this.armedSend = null;
     },
     setReplyToInPayload(payload) {
       if (this.inReplyTo?.id) {
