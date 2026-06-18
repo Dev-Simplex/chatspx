@@ -21,6 +21,15 @@ trigger_imap_email_inboxes_job:
   class: 'Inboxes::FetchImapEmailInboxesJob'
   queue: scheduled_jobs
 
+# executed every minute
+# engine de disparo de campanhas WhatsApp (HSM): despacha o proximo lote de
+# campaign_recipients pendentes respeitando pacing/quiet-hours/health-gate.
+# NO-OP quando nao ha campanha em dispatch_status=running.
+campaigns_whatsapp_dispatch_job:
+  cron: '*/1 * * * *'
+  class: 'Campaigns::Whatsapp::DispatchSchedulerJob'
+  queue: scheduled_jobs
+
 # executed daily at 2230 UTC
 # which is our lowest traffic time
 remove_stale_contact_inboxes_job.rb:
