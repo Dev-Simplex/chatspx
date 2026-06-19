@@ -53,6 +53,7 @@ import FormBubble from './bubbles/Form.vue';
 import MessageError from './MessageError.vue';
 import MessageEditInput from './MessageEditInput.vue';
 import MessageEditHistory from './MessageEditHistory.vue';
+import MessageDeleteHistory from './MessageDeleteHistory.vue';
 import ReferralCard from './ReferralCard.vue';
 import ContextMenu from 'dashboard/modules/conversations/components/MessageContextMenu.vue';
 import MessageAPI from 'dashboard/api/inbox/message';
@@ -170,6 +171,8 @@ const showContextMenu = ref(false);
 const isEditing = ref(false);
 const isHistoryOpen = ref(false);
 const historyTriggerRect = ref(null);
+const isDeleteHistoryOpen = ref(false);
+const deleteHistoryTriggerRect = ref(null);
 const dropdownButtonRef = useTemplateRef('dropdownButtonRef');
 const { t } = useI18n();
 const route = useRoute();
@@ -899,6 +902,9 @@ provideMessageContext({
             :initial-content="content"
             @close="isEditing = false"
           />
+          <div v-else-if="isMessageDeleted" class="italic opacity-60">
+            <Component :is="componentToRender" />
+          </div>
           <Component :is="componentToRender" v-else />
 
           <!-- Indicador "Editado" -->
@@ -925,6 +931,35 @@ provideMessageContext({
               :edited-at="contentAttributes.editedAt"
               :trigger-rect="historyTriggerRect"
               @close="isHistoryOpen = false"
+            />
+          </div>
+
+          <!-- Indicador "Apagada" (só para deleções feitas por agente, que
+               carregam a metadata; deleções pelo contato apenas marcam `deleted`). -->
+          <div
+            v-if="isMessageDeleted && contentAttributes.deletedAt"
+            class="inline-flex"
+          >
+            <button
+              class="inline-flex items-center gap-1 text-xs text-n-slate-10 hover:text-n-slate-12 transition-colors mt-0.5 select-none"
+              @click.stop="
+                e => {
+                  deleteHistoryTriggerRect =
+                    e.currentTarget.getBoundingClientRect();
+                  isDeleteHistoryOpen = !isDeleteHistoryOpen;
+                }
+              "
+            >
+              <Icon icon="i-lucide-trash-2" class="size-3" />
+              <span>{{ t('CONVERSATION.DELETE_HISTORY.BADGE') }}</span>
+            </button>
+            <MessageDeleteHistory
+              v-if="isDeleteHistoryOpen"
+              :previous-content="contentAttributes.previousContent"
+              :deleted-by="contentAttributes.deletedBy"
+              :deleted-at="contentAttributes.deletedAt"
+              :trigger-rect="deleteHistoryTriggerRect"
+              @close="isDeleteHistoryOpen = false"
             />
           </div>
 

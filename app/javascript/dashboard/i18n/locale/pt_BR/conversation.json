@@ -473,6 +473,12 @@
       "NO_CONTENT": "(sem conteúdo)",
       "EDITED_BY": "Editado por {name}"
     },
+    "DELETE_HISTORY": {
+      "BADGE": "Apagada",
+      "TITLE": "Mensagem original",
+      "NO_CONTENT": "(sem conteúdo)",
+      "DELETED_BY": "Apagada por {name}"
+    },
     "REACTIONS": {
       "PICKER_TOOLTIP": "Adicionar reação"
     },

@@ -102,6 +102,12 @@
       "NO_CONTENT": "(no content)",
       "EDITED_BY": "Edited by {name}"
     },
+    "DELETE_HISTORY": {
+      "BADGE": "Deleted",
+      "TITLE": "Original message",
+      "NO_CONTENT": "(no content)",
+      "DELETED_BY": "Deleted by {name}"
+    },
     "NO_RESPONSE": "No response",
     "RESPONSE": "Response",
     "RATING_TITLE": "Rating",

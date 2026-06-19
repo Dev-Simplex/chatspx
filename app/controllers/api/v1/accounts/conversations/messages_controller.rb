@@ -75,10 +75,14 @@ class Api::V1::Accounts::Conversations::MessagesController < Api::V1::Accounts::
       return render json: { error: I18n.t('conversations.messages.undeletable') }, status: :unprocessable_entity
     end
 
-    ActiveRecord::Base.transaction do
-      message.update!(content: I18n.t('conversations.messages.deleted'), content_type: :text, content_attributes: { deleted: true })
-      message.attachments.destroy_all
-    end
+    Messages::DeleteContentService.new(message).perform
+    @message = message
+  rescue ActiveRecord::RecordInvalid, ArgumentError => e
+    render_could_not_create_error(e.message)
+  rescue Rack::Timeout::RequestTimeoutException
+    # Synchronous WAHA delete-for-everyone (and its message lookup) blew the 15s
+    # rack-timeout budget. Surface a friendly toast instead of a generic 500.
+    render_could_not_create_error(I18n.t('errors.messages.update.timeout'))
   end
 
   def retry
