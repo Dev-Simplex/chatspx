@@ -145,6 +145,9 @@ const isMediaOnlyMessage = message => {
 
   if (attachments.length !== 1) return false;
   if (message.status === 'failed') return false;
+  // Bolha otimista em upload renderiza pela bolha dedicada (com anel de
+  // progresso + clique bloqueado); não agrupar, senão cai no MediaGrid sem isso.
+  if (attachments.some(a => a.uploadStatus === 'uploading')) return false;
   if (message.contentAttributes?.deleted) return false;
   if (message.contentAttributes?.isUnsupported) return false;
 

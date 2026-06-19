@@ -249,6 +249,10 @@ export default {
       // Envio "armado": fn de envio aguardando o término dos uploads em curso
       // (Enviar nunca bloqueia). Disparada por maybeFireArmedSend.
       armedSend: null,
+      // Mapa uploadId → { echoId, pendingMessage, conversationId } das bolhas
+      // "carregando" injetadas na conversa, para finalizar o POST ao concluir o
+      // upload (mesmo echo_id) e atualizar progresso/falha na bolha certa.
+      uploadBubbles: {},
       whatsappInvalidNotice: '',
       whatsappNoticeTimeoutId: null,
       isRevalidatingWhatsapp: false,
@@ -523,6 +527,15 @@ export default {
     hasAttachments() {
       return this.attachedFiles.length;
     },
+    // Anexos que ainda estão SENDO COMPOSTOS (não committed). Os committed já
+    // viraram bolha "carregando" na conversa e sobem em 2º plano — somem do
+    // composer/modal e nunca entram num envio normal (evita duplicar).
+    composerAttachedFiles() {
+      return this.attachedFiles.filter(a => !a.committed);
+    },
+    hasComposerAttachments() {
+      return this.composerAttachedFiles.length > 0;
+    },
     // True while any attachment is still transferring (DirectUpload) or failed —
     // used to gate Send so we never post a message with a missing signed id.
     hasPendingAttachmentUpload() {
@@ -774,8 +787,12 @@ export default {
       // Limpa o ref pra permitir novo drop sequencial
       this.globalDropFiles = [];
     },
-    // Abre/fecha modal premium conforme attachedFiles muda
-    'attachedFiles.length': function watchAttachedFilesLength(newLen) {
+    // Abre/fecha o modal conforme os anexos EM COMPOSIÇÃO (não-committed). Ao
+    // enviar, os anexos viram bolha "carregando" na conversa (committed) e somem
+    // do composer → o modal fecha sozinho e o usuário vê a bolha no chat.
+    'composerAttachedFiles.length': function watchComposerAttachedFilesLength(
+      newLen
+    ) {
       if (newLen > 0 && !this.showAttachmentModal) {
         this.showAttachmentModal = true;
       } else if (newLen === 0) {
@@ -948,12 +965,9 @@ export default {
       } finally {
         this.$nextTick(() => {
           this.isSendingAttachment = false;
-          // Envio armado (anexos ainda subindo): fecha o modal para liberar o
-          // usuário — os chips inline seguem mostrando o progresso e o envio
-          // dispara sozinho ao concluir.
-          if (this.armedSend) {
-            this.showAttachmentModal = false;
-          }
+          // Ao enviar com anexo subindo, a mídia vira bolha "carregando" na
+          // conversa (committed) e some do composer → o watcher de
+          // composerAttachedFiles fecha o modal sozinho. Nada a fazer aqui.
         });
       }
     },
@@ -1396,30 +1410,36 @@ export default {
 
       this.pendingAudioAutoSend = false;
 
-      // (1) PRIMEIRO envio com anexo ainda subindo: ARMA o envio do arquivo
-      // (dispara sozinho ao concluir o upload), marca o anexo como "committed" e
-      // libera o composer na hora. O arquivo passa a subir em 2º plano. Para
-      // imagens já prontas ou caminho indirect (flag off) isto é falso e o envio
-      // sai imediatamente, como antes.
+      // (1) PRIMEIRO envio com anexo(s) ainda subindo: a mídia entra JÁ na
+      // conversa como uma bolha "carregando" (preview local + progresso) e o
+      // composer é liberado. O POST real dispara sozinho quando o blob conclui,
+      // reusando o MESMO echo_id da bolha (sem duplicar). A legenda, se houver,
+      // sai como mensagem de texto própria na hora.
       if (
         this.globalConfig.directUploadsEnabled &&
         this.hasUncommittedPendingUpload
       ) {
-        const message = this.message;
-        const copilotAcceptedMessage = this.getCopilotAcceptedMessage();
-        // Marca os anexos em trânsito como committed (reativo via splice).
+        const caption = this.message;
+        if (caption && caption.trim()) {
+          this.sendStandaloneText(caption, this.getCopilotAcceptedMessage());
+        }
         this.attachedFiles
-          .filter(a => a.uploadStatus === 'uploading')
-          .forEach(a =>
-            this.patchAttachmentByUploadId(a.uploadId, { committed: true })
-          );
-        this.armedSend = () =>
-          this.performConfirmedSend(message, copilotAcceptedMessage);
-        // Libera SÓ o texto imediatamente; os anexos seguem visíveis com o anel
-        // de progresso até concluírem (clearMessage limparia os anexos também).
+          .filter(
+            a =>
+              (a.uploadStatus === 'uploading' ||
+                a.uploadStatus === 'uploaded') &&
+              !a.committed
+          )
+          .forEach(a => this.createUploadingBubble(a));
         this.clearComposerTextOnly();
+        this.resetReplyToMessage();
+        if (!this.isPrivate) this.clearEmailField();
         this.hideEmojiPicker();
         this.$emit('update:popOutReplyBox', false);
+        this.$nextTick(() => {
+          this.messageEditor?.focusEditorInputField?.('end');
+          this.isFocused = true;
+        });
         return;
       }
 
@@ -1458,6 +1478,69 @@ export default {
         excludeAttachments: true,
       });
       this.sendMessage(payload, message, copilotAcceptedMessage);
+    },
+    // file_type otimista a partir do mime — casa com ATTACHMENT_TYPES usados em
+    // componentToRender (image/video/audio/file).
+    optimisticFileType(resource) {
+      const type = (
+        resource?.content_type ||
+        resource?.type ||
+        ''
+      ).toLowerCase();
+      if (type.startsWith('image/')) return 'image';
+      if (type.startsWith('video/')) return 'video';
+      if (type.startsWith('audio/')) return 'audio';
+      return 'file';
+    },
+    // Injeta a bolha "carregando" na conversa para um anexo em upload e guarda o
+    // mapeamento uploadId → echo_id, para finalizar o POST quando o blob chegar.
+    createUploadingBubble(attachment) {
+      const conversationId = attachment.currentChatId || this.currentChat.id;
+      const rawName =
+        attachment.resource?.name ||
+        attachment.rawFile?.name ||
+        attachment.resource?.filename ||
+        '';
+      const data = {
+        conversationId,
+        message: '',
+        private: this.isPrivate,
+        sender: this.sender,
+        pendingAttachments: [
+          {
+            fileType: this.optimisticFileType(attachment.resource),
+            dataUrl: attachment.thumb || undefined,
+            thumbUrl: attachment.thumb || undefined,
+            fileName: rawName,
+            fileSize: attachment.resource?.size,
+            uploadId: attachment.uploadId,
+            uploadProgress: attachment.uploadProgress,
+          },
+        ],
+      };
+      // Esconde do composer já (committed); o blob ainda sobe em 2º plano.
+      this.patchAttachmentByUploadId(attachment.uploadId, { committed: true });
+      this.$store
+        .dispatch('addPendingAttachmentMessage', data)
+        .then(pendingMessage => {
+          if (!pendingMessage) return;
+          this.patchAttachmentByUploadId(attachment.uploadId, {
+            echoId: pendingMessage.echo_id,
+          });
+          this.uploadBubbles[attachment.uploadId] = {
+            echoId: pendingMessage.echo_id,
+            pendingMessage,
+            conversationId,
+          };
+          // Anexo que já tinha concluído o upload antes de virar bolha (ex.:
+          // irmão de outro ainda subindo): finaliza o POST agora.
+          if (attachment.blobSignedId) {
+            this.finalizeUploadBubble(
+              attachment.uploadId,
+              attachment.blobSignedId
+            );
+          }
+        });
     },
     // Executa o envio de fato (texto + anexos já prontos). Extraído para ser
     // reutilizado tanto no envio imediato quanto no envio armado (pós-upload).
@@ -2236,6 +2319,20 @@ export default {
     },
     onAttachmentUploadProgress(uploadId, percent) {
       this.patchAttachmentByUploadId(uploadId, { uploadProgress: percent });
+      // Reflete o progresso na bolha "carregando" da conversa (se já criada).
+      // Throttle: cada update recommita a mensagem + re-cameliza tudo; só
+      // despacha quando a % inteira de fato avança (evita trabalho redundante).
+      const bubble = this.uploadBubbles[uploadId];
+      if (!bubble) return;
+      const rounded = typeof percent === 'number' ? Math.round(percent) : null;
+      if (rounded !== null && bubble.lastPercent === rounded) return;
+      bubble.lastPercent = rounded;
+      this.$store.dispatch('updatePendingAttachmentProgress', {
+        conversationId: bubble.conversationId,
+        echoId: bubble.echoId,
+        uploadId,
+        percent,
+      });
     },
     onAttachmentUploaded(uploadId, blob) {
       this.patchAttachmentByUploadId(uploadId, {
@@ -2243,17 +2340,64 @@ export default {
         uploadStatus: 'uploaded',
         uploadProgress: 100,
       });
-      // Se o envio estava armado aguardando este upload, dispara agora.
+      // Se já existe bolha para este upload, finaliza o POST. Se a bolha ainda
+      // está sendo criada (.then de createUploadingBubble), ela finaliza sozinha
+      // ao detectar blobSignedId — então aqui só agimos quando a bolha existe.
+      if (this.uploadBubbles[uploadId]) {
+        this.finalizeUploadBubble(uploadId, blob.signed_id);
+        return;
+      }
+      // Sem bolha (fluxo legado/armado): mantém compatibilidade.
       this.maybeFireArmedSend();
+    },
+    // POST real da bolha "carregando" (mesmo echo_id). No sucesso a cópia do
+    // servidor substitui a bolha → pode revogar o preview local. Na falha a
+    // bolha fica FAILED mostrando o preview LOCAL — NÃO revoga (senão quebra).
+    finalizeUploadBubble(uploadId, blobSignedId) {
+      const bubble = this.uploadBubbles[uploadId];
+      if (!bubble) return;
+      this.$store
+        .dispatch('finalizePendingAttachmentMessage', {
+          pendingMessage: bubble.pendingMessage,
+          blobSignedId,
+        })
+        .then(() => {
+          delete this.uploadBubbles[uploadId];
+          this.discardCommittedAttachment(uploadId);
+        })
+        .catch(() => {
+          delete this.uploadBubbles[uploadId];
+          this.attachedFiles = this.attachedFiles.filter(
+            a => a.uploadId !== uploadId
+          );
+        });
     },
     onAttachmentUploadFailed(uploadId) {
       this.patchAttachmentByUploadId(uploadId, { uploadStatus: 'failed' });
-      // Uma falha cancela o envio armado — o anexo mostra o retry e o usuário
-      // reenvia manualmente (evita disparar um envio sem o anexo).
+      const bubble = this.uploadBubbles[uploadId];
+      if (bubble) {
+        // Falha do upload: a própria bolha vira FAILED (com retry na bolha).
+        this.$store.dispatch('markPendingAttachmentFailed', {
+          conversationId: bubble.conversationId,
+          echoId: bubble.echoId,
+          error: this.$t('CONVERSATION.MESSAGE_ERROR'),
+        });
+        return;
+      }
       if (this.armedSend) {
         this.armedSend = null;
         useAlert(this.$t('CONVERSATION.MESSAGE_ERROR'));
       }
+    },
+    // Remove um anexo já enviado (committed) de attachedFiles e revoga o preview
+    // local — chamado após o POST concluir; a bolha já mostra o asset do servidor.
+    discardCommittedAttachment(uploadId) {
+      const entry = this.attachedFiles.find(a => a.uploadId === uploadId);
+      if (!entry) return;
+      revokeAttachmentThumbUrl(entry.thumb);
+      this.attachedFiles = this.attachedFiles.filter(
+        a => a.uploadId !== uploadId
+      );
     },
     // Re-runs the DirectUpload for a previously-failed attachment using the
     // original file kept on the entry.
@@ -2274,21 +2418,28 @@ export default {
       );
     },
     removeAttachment(attachments) {
-      // Revoke object URLs of the attachments that were dropped so they don't
-      // leak (the new array is what AttachmentsPreview kept after removal).
-      const remaining = new Set(attachments);
+      // `attachments` é o que sobrou no preview/modal (apenas anexos em
+      // composição, não-committed). Preserva os committed (bolhas "carregando"
+      // na conversa, que não aparecem ali) e revoga só o que saiu de verdade.
+      const committed = this.attachedFiles.filter(a => a.committed);
+      const next = [...attachments, ...committed];
+      const remaining = new Set(next);
       this.attachedFiles.forEach(att => {
         if (!remaining.has(att)) revokeAttachmentThumbUrl(att.thumb);
       });
-      this.attachedFiles = attachments;
+      this.attachedFiles = next;
       // Remover o anexo que faltava concluir pode destravar (ou esvaziar) um
       // envio armado — reavalia.
       this.maybeFireArmedSend();
     },
-    // Clears all pending attachments, revoking their preview object URLs first.
+    // Limpa os anexos EM COMPOSIÇÃO (não-committed), revogando os previews. Os
+    // committed (bolhas "carregando" subindo em 2º plano) são preservados —
+    // seguem até o POST concluir (discardCommittedAttachment os remove depois).
     clearAttachedFiles() {
-      this.attachedFiles.forEach(att => revokeAttachmentThumbUrl(att.thumb));
-      this.attachedFiles = [];
+      this.attachedFiles
+        .filter(a => !a.committed)
+        .forEach(att => revokeAttachmentThumbUrl(att.thumb));
+      this.attachedFiles = this.attachedFiles.filter(a => a.committed);
       // Limpeza de anexos (troca de conversa, reset, modo nota) cancela qualquer
       // envio armado para não disparar no contexto errado.
       this.armedSend = null;
@@ -2310,10 +2461,10 @@ export default {
       const multipleMessagePayload = [];
       const conversationId = overrideConversationId || this.currentChat.id;
 
-      if (this.attachedFiles && this.attachedFiles.length) {
+      if (this.composerAttachedFiles && this.composerAttachedFiles.length) {
         let caption =
           this.isAnInstagramChannel || this.isATiktokChannel ? '' : message;
-        this.attachedFiles.forEach(attachment => {
+        this.composerAttachedFiles.forEach(attachment => {
           const attachedFile = this.globalConfig.directUploadsEnabled
             ? attachment.blobSignedId
             : attachment.resource.file;
@@ -2336,7 +2487,7 @@ export default {
       }
 
       const hasNoAttachments =
-        !this.attachedFiles || !this.attachedFiles.length;
+        !this.composerAttachedFiles || !this.composerAttachedFiles.length;
       // For Instagram and TikTok, text must always be sent as a separate message (no captions on attachments).
       // For WhatsApp, we only need a text message if there are no attachments.
       if (
@@ -2377,11 +2528,11 @@ export default {
       // arquivo sobe em 2º plano (o anexo committed não entra nessa mensagem).
       if (
         !opts.excludeAttachments &&
-        this.attachedFiles &&
-        this.attachedFiles.length
+        this.composerAttachedFiles &&
+        this.composerAttachedFiles.length
       ) {
         messagePayload.files = [];
-        this.attachedFiles.forEach(attachment => {
+        this.composerAttachedFiles.forEach(attachment => {
           if (this.globalConfig.directUploadsEnabled) {
             // Só anexos com upload concluído (signed id presente); evita
             // mandar files:[undefined] de um anexo ainda subindo/falho.
@@ -2695,13 +2846,13 @@ export default {
           />
 
           <div
-            v-if="hasAttachments && isDefaultEditorMode"
+            v-if="hasComposerAttachments && isDefaultEditorMode"
             class="bg-transparent py-0 mb-2"
             @paste="onPaste"
           >
             <AttachmentPreview
               class="mt-2"
-              :attachments="attachedFiles"
+              :attachments="composerAttachedFiles"
               @remove-attachment="removeAttachment"
               @retry-upload="retryAttachmentUpload"
             />
@@ -3106,7 +3257,7 @@ export default {
     <GlobalDropOverlay :show="isGlobalDragActive" />
     <AttachmentPreviewModal
       :show="showAttachmentModal"
-      :files="attachedFiles"
+      :files="composerAttachedFiles"
       :caption="message"
       :sending="isSendingAttachment"
       @update:caption="message = $event"

@@ -41,6 +41,19 @@ const MAX_RECONCILE_RETRIES = 3;
 const isUnreconciledOptimistic = message =>
   !!message.echo_id && String(message.id) === String(message.echo_id);
 
+// An optimistic attachment message whose DirectUpload is still in flight: the
+// real POST hasn't happened yet, so a reconnect must NOT resend it (no blob) nor
+// mark it failed — leave it until the upload finishes (or fails on its own).
+const isUploadingOptimistic = message =>
+  Array.isArray(message.attachments) &&
+  message.attachments.some(a => a.upload_status === 'uploading');
+
+// Find an optimistic (still id===echo_id) message by its echo_id in a chat.
+const findOptimisticByEchoId = (chat, echoId) =>
+  chat?.messages?.find(
+    m => isUnreconciledOptimistic(m) && m.echo_id === echoId
+  );
+
 // actions
 const actions = {
   getConversation: async ({ commit }, conversationId) => {
@@ -462,6 +475,80 @@ const actions = {
     }
   },
 
+  // ── In-conversation "uploading" bubble (WhatsApp-style) ───────────────────
+  // Inject an optimistic OUTGOING message that shows its attachment WHILE the
+  // DirectUpload is still in flight. No POST yet — the real send fires from
+  // finalizePendingAttachmentMessage once the blob is stored, reusing the SAME
+  // echo_id so the server copy reconciles onto this very bubble (no duplicate).
+  // Returns the pending message so the caller can map uploadId → echo_id.
+  addPendingAttachmentMessage: ({ commit }, data) => {
+    const pendingMessage = createPendingMessage(data);
+    commit(types.ADD_MESSAGE, {
+      ...pendingMessage,
+      status: MESSAGE_STATUS.PROGRESS,
+    });
+    return pendingMessage;
+  },
+
+  // Refresh the % on the uploading attachment bubble. Re-commits a NEW message
+  // object on purpose: the message-list camelize cache is keyed by reference, so
+  // mutating in place would not update the UI.
+  updatePendingAttachmentProgress: (
+    { commit, state },
+    { conversationId, echoId, uploadId, percent }
+  ) => {
+    const chat = state.allConversations.find(c => c.id === conversationId);
+    const message = findOptimisticByEchoId(chat, echoId);
+    if (!message?.attachments?.length) return;
+    const attachments = message.attachments.map(att =>
+      att.upload_id === uploadId ? { ...att, upload_progress: percent } : att
+    );
+    commit(types.ADD_MESSAGE, { ...message, attachments });
+  },
+
+  // DirectUpload finished → fire the real POST reusing the SAME echo_id and the
+  // freshly-stored blob signed id. sendMessageWithData re-commits PROGRESS then
+  // swaps to the server copy (SENT) by echo_id.
+  finalizePendingAttachmentMessage: (
+    { dispatch },
+    { pendingMessage, blobSignedId }
+  ) => {
+    // O blob já está armazenado: marca o anexo otimista como 'uploaded' (some o
+    // anel) antes do POST. Se o POST falhar, a bolha cai no estado FAILED normal
+    // (sem ficar com o anel "carregando" travado).
+    const attachments = (pendingMessage.attachments || []).map(a => ({
+      ...a,
+      upload_status: 'uploaded',
+      upload_progress: 100,
+    }));
+    return dispatch('sendMessageWithData', {
+      ...pendingMessage,
+      attachments,
+      files: [blobSignedId],
+    });
+  },
+
+  // DirectUpload failed before the POST → flip the bubble to FAILED so the agent
+  // can retry. Também marca o anexo como 'failed' para o overlay "carregando"
+  // sumir (senão a bolha mostra o anel + o erro ao mesmo tempo).
+  markPendingAttachmentFailed: (
+    { commit, state },
+    { conversationId, echoId, error }
+  ) => {
+    const chat = state.allConversations.find(c => c.id === conversationId);
+    const message = findOptimisticByEchoId(chat, echoId);
+    if (!message) return;
+    const attachments = (message.attachments || []).map(a =>
+      a.upload_status === 'uploading' ? { ...a, upload_status: 'failed' } : a
+    );
+    commit(types.ADD_MESSAGE, {
+      ...message,
+      attachments,
+      status: MESSAGE_STATUS.FAILED,
+      meta: { ...(message.meta || {}), error },
+    });
+  },
+
   // Resolve optimistic messages stuck in 'progress'/'failed' after a dropped
   // socket — WITHOUT a page reload. Runs after the post-reconnect refetch has
   // pulled fresh server state into the window. For each stuck message:
@@ -482,6 +569,8 @@ const actions = {
     const pendings = chat.messages.filter(
       m =>
         isUnreconciledOptimistic(m) &&
+        // Upload em andamento: ainda não há POST/blob — não reenviar nem falhar.
+        !isUploadingOptimistic(m) &&
         (m.status === MESSAGE_STATUS.PROGRESS ||
           m.status === MESSAGE_STATUS.FAILED)
     );
