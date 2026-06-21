@@ -200,11 +200,47 @@ const menuItems = computed(() => {
           to: accountScopedRoute('conversation_mentions'),
         },
         {
-          name: 'Unread',
+          name: 'UnreadGroup',
           label: t('SIDEBAR.UNREAD_CONVERSATIONS'),
           icon: lordIcon('unattended', 'i-lucide-mail-warning'),
-          activeOn: ['conversation_through_unread'],
-          to: accountScopedRoute('conversation_unread'),
+          children: [
+            {
+              name: 'UnreadMine',
+              label: t('SIDEBAR.UNATTENDED_MINE'),
+              activeOn: ['conversation_through_unread'],
+              to: accountScopedRoute(
+                'conversation_unread',
+                {},
+                {
+                  assignee_type: 'me',
+                }
+              ),
+            },
+            {
+              name: 'UnreadUnassigned',
+              label: t('SIDEBAR.UNASSIGNED_CONVERSATIONS'),
+              activeOn: ['conversation_through_unread'],
+              to: accountScopedRoute(
+                'conversation_unread',
+                {},
+                {
+                  assignee_type: 'unassigned',
+                }
+              ),
+            },
+            {
+              name: 'UnreadAll',
+              label: t('SIDEBAR.UNATTENDED_ALL'),
+              activeOn: ['conversation_through_unread'],
+              to: accountScopedRoute(
+                'conversation_unread',
+                {},
+                {
+                  assignee_type: 'all',
+                }
+              ),
+            },
+          ],
         },
         {
           name: 'UnattendedGroup',

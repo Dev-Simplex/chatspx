@@ -1,6 +1,7 @@
 import { computed } from 'vue';
 import { useMapGetter } from 'dashboard/composables/store';
 import { useI18n } from 'vue-i18n';
+import { useReplyAssignmentGate } from 'dashboard/composables/useReplyAssignmentGate';
 import {
   getAgentsByUpdatedPresence,
   getSortedAgentsByAvailability,
@@ -18,6 +19,7 @@ export function useAgentsList(includeNoneAgent = true) {
   const currentChat = useMapGetter('getSelectedChat');
   const currentAccountId = useMapGetter('getCurrentAccountId');
   const assignable = useMapGetter('inboxAssignableAgents/getAssignableAgents');
+  const { isAssignmentGateEnabled } = useReplyAssignmentGate();
 
   const inboxId = computed(() => currentChat.value?.inbox_id);
   const isAgentSelected = computed(() => currentChat.value?.meta?.assignee);
@@ -73,8 +75,14 @@ export function useAgentsList(includeNoneAgent = true) {
       agentsByUpdatedPresence
     );
 
+    // Modo "Atribuição obrigatória" (D-11): sem opção "None" na atribuição manual
+    const showNone =
+      includeNoneAgent &&
+      isAgentSelected.value &&
+      !isAssignmentGateEnabled.value;
+
     return [
-      ...(includeNoneAgent && isAgentSelected.value ? [createNoneAgent()] : []),
+      ...(showNone ? [createNoneAgent()] : []),
       ...filteredAgentsByAvailability,
     ];
   });

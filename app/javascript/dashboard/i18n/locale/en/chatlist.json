@@ -22,8 +22,11 @@
     "ASSIGNEE_TYPE_TABS": {
       "me": "Mine",
       "unassigned": "Unassigned",
+      "unassigned_awaiting": "Awaiting assignment",
+      "ai": "AI",
       "all": "All"
     },
+    "AI_BADGE": "AI",
     "CHAT_STATUS_FILTER_ITEMS": {
       "open": {
         "TEXT": "Open"

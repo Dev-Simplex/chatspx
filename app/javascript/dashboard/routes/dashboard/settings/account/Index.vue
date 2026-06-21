@@ -14,9 +14,11 @@ import NextButton from 'dashboard/components-next/button/Button.vue';
 import AccountId from './components/AccountId.vue';
 import BuildInfo from './components/BuildInfo.vue';
 import AccountDelete from './components/AccountDelete.vue';
+import AttendanceModeToggle from './components/AttendanceModeToggle.vue';
 import AudioTranscription from './components/AudioTranscription.vue';
 import ChatWallpaper from './components/ChatWallpaper.vue';
 import DashboardKpiStrip from './components/DashboardKpiStrip.vue';
+import ResolveGateToggle from './components/ResolveGateToggle.vue';
 import DensityToggle from './components/DensityToggle.vue';
 import SectionLayout from './components/SectionLayout.vue';
 
@@ -27,9 +29,11 @@ export default {
     AccountId,
     BuildInfo,
     AccountDelete,
+    AttendanceModeToggle,
     AudioTranscription,
     ChatWallpaper,
     DashboardKpiStrip,
+    ResolveGateToggle,
     DensityToggle,
     SectionLayout,
     WithLabel,
@@ -245,6 +249,8 @@ export default {
     <AudioTranscription v-if="showAudioTranscriptionConfig" />
     <ChatWallpaper />
     <DashboardKpiStrip />
+    <AttendanceModeToggle />
+    <ResolveGateToggle />
     <DensityToggle />
     <AccountId />
     <div v-if="!uiFlags.isFetchingItem && isOnChatwootCloud">

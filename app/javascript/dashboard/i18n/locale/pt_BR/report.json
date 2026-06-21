@@ -5,6 +5,8 @@
     "LOADING_CHART": "Carregando dados do gráfico...",
     "NO_ENOUGH_DATA": "Não existem dados suficientes para gerar o relatório. Tente novamente mais tarde.",
     "DOWNLOAD_CONVERSATION_REPORTS": "Baixar relatórios de conversas",
+    "DOWNLOAD_PDF": "Baixar PDF",
+    "DOWNLOAD_PDF_FAILED": "Erro ao gerar o PDF do relatório, tente novamente mais tarde.",
     "DATA_FETCHING_FAILED": "Falha ao buscar dados, tente novamente mais tarde.",
     "SUMMARY_FETCHING_FAILED": "Não foi possível obter o resumo. Tente novamente mais tarde.",
     "METRICS": {
@@ -23,19 +25,19 @@
       "FIRST_RESPONSE_TIME": {
         "NAME": "Tempo de Primeira Resposta",
         "DESC": "(Média)",
-        "INFO_TEXT": "Número total de conversas utilizadas para computação:",
+        "INFO_TEXT": "Tempo médio até a primeira resposta humana ao cliente. Quanto menor, melhor.",
         "TOOLTIP_TEXT": "O Tempo de Primeira Resposta é de {metricValue} (com base em {conversationCount} conversas)"
       },
       "FIRST_RESPONSE_TIME_AFTER_ASSIGNMENT": {
         "NAME": "Primeira Resposta Após Transferência",
         "DESC": "(Média)",
-        "INFO_TEXT": "Número total de conversas utilizadas para computação:",
+        "INFO_TEXT": "Tempo médio até a primeira resposta depois que a conversa é transferida para um agente. Quanto menor, melhor.",
         "TOOLTIP_TEXT": "A Primeira Resposta Após Transferência é de {metricValue} (com base em {conversationCount} conversas)"
       },
       "RESOLUTION_TIME": {
         "NAME": "Tempo de Resolução",
         "DESC": "(Média)",
-        "INFO_TEXT": "Número total de conversas utilizadas para computação:",
+        "INFO_TEXT": "Tempo médio entre a abertura da conversa e a sua resolução. Quanto menor, melhor.",
         "TOOLTIP_TEXT": "O Tempo de Resolução é de {metricValue} (com base em {conversationCount} conversas)"
       },
       "RESOLUTION_COUNT": {
@@ -143,6 +145,31 @@
       "AVG_FIRST_RESPONSE_TIME_AFTER_ASSIGNMENT": "Média pós-transferência",
       "P50_FIRST_RESPONSE_TIME_AFTER_ASSIGNMENT": "Pós-transferência p50",
       "P90_FIRST_RESPONSE_TIME_AFTER_ASSIGNMENT": "Pós-transferência p90"
+    },
+    "NARRATIVE": {
+      "EYEBROW": "Auto-insights",
+      "LEVEL": {
+        "GOOD": "dentro da meta",
+        "WARN": "atenção",
+        "BAD": "precisa melhorar"
+      },
+      "HIGHLIGHT_TITLE": "Destaque",
+      "ATTENTION_TITLE": "Ponto de atenção",
+      "ALL_GOOD": "Todos os indicadores estão dentro da meta — mantenha o ritmo.",
+      "INSIGHT_BETTER": "{pct}% melhor que o período anterior",
+      "INSIGHT_WORSE": "{pct}% pior que o período anterior",
+      "VS_GOAL": "meta {goal}",
+      "METRIC": {
+        "FIRST_RESPONSE": "Tempo de primeira resposta",
+        "RESOLUTION": "Tempo de resolução",
+        "REPLY": "Tempo de espera do cliente",
+        "RESOLUTION_RATE": "Taxa de resolução",
+        "CSAT": "Satisfação",
+        "NPS": "NPS",
+        "SLA_HIT_RATE": "Cumprimento de SLA",
+        "BOT_RESOLUTION_RATE": "Resolução pelo bot",
+        "BOT_HANDOFF_RATE": "Transferência do bot"
+      }
     }
   },
   "AGENT_REPORTS": {

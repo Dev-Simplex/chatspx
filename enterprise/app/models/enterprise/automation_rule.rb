@@ -4,6 +4,6 @@ module Enterprise::AutomationRule
   end
 
   def actions_attributes
-    super + %w[add_sla]
+    super + %w[add_sla assign_ai_agent]
   end
 end

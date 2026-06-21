@@ -113,7 +113,23 @@ class SearchService
               end
     end
 
-    query
+    apply_agent_isolation(query)
+  end
+
+  # Isolamento por agente: na busca de mensagens, um agente não-admin não acha conteúdo de
+  # outro agente em inbox com a flag ON. Admin/sem restrição/nenhum inbox isolado → no-op.
+  # Usa subquery de inbox_id (sem JOIN) para não tornar `created_at` ambíguo no resto da query.
+  def apply_agent_isolation(query)
+    agent_id = AgentMessageIsolation.viewer_restriction_id(current_user, current_account)
+    return query if agent_id.nil?
+
+    isolated_inbox_ids = current_account.inboxes.where(agent_message_isolation: true).pluck(:id)
+    return query if isolated_inbox_ids.empty?
+
+    query.where(
+      'messages.agent_id IS NULL OR messages.agent_id = :uid OR messages.inbox_id NOT IN (:isolated)',
+      uid: agent_id, isolated: isolated_inbox_ids
+    )
   end
 
   def apply_message_filters(query)

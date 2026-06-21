@@ -96,6 +96,7 @@ export const generateConditionOptions = (options, key = 'id') => {
 
 export const getActionOptions = ({
   agents,
+  aiAgents,
   teams,
   labels,
   slaPolicies,
@@ -105,6 +106,7 @@ export const getActionOptions = ({
 }) => {
   const actionsMap = {
     assign_agent: addNoneToListFn ? addNoneToListFn(agents) : agents,
+    assign_ai_agent: aiAgents,
     assign_team: addNoneToListFn ? addNoneToListFn(teams) : teams,
     send_email_to_team: teams,
     add_label: generateConditionOptions(labels, 'title'),
@@ -336,6 +338,6 @@ export const getCustomAttributeType = (automationTypes, automation, key) => {
 export const showActionInput = (automationActionTypes, action) => {
   if (action === 'send_email_to_team' || action === 'send_message')
     return false;
-  const type = automationActionTypes.find(i => i.key === action).inputType;
+  const type = automationActionTypes.find(i => i.key === action)?.inputType;
   return !!type;
 };

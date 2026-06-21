@@ -1,6 +1,7 @@
 <script>
 import { mapGetters } from 'vuex';
 import { useReportMetrics } from 'dashboard/composables/useReportMetrics';
+import { useReportNarrative } from 'dashboard/composables/useReportNarrative';
 import { GROUP_BY_FILTER, METRIC_CHART } from './constants';
 import fromUnixTime from 'date-fns/fromUnixTime';
 import format from 'date-fns/format';
@@ -42,12 +43,24 @@ export default {
     const { calculateTrend, isAverageMetricType } = useReportMetrics(
       props.accountSummaryKey
     );
-    return { calculateTrend, isAverageMetricType };
+    const { signalForReportKey, phraseFor } = useReportNarrative();
+    return {
+      calculateTrend,
+      isAverageMetricType,
+      signalForReportKey,
+      phraseFor,
+    };
   },
   computed: {
     ...mapGetters({
       accountReport: 'getAccountReports',
     }),
+    accountSummary() {
+      return this.$store.getters[this.accountSummaryKey] || {};
+    },
+    signals() {
+      return this.accountSummary.signals || [];
+    },
     metrics() {
       const reportKeys = Object.keys(this.reportKeys);
       const infoText = {
@@ -66,6 +79,7 @@ export default {
         INFO_TEXT: infoText[key],
         TOOLTIP_TEXT: `REPORT.METRICS.${key}.TOOLTIP_TEXT`,
         trend: this.calculateTrend(this.reportKeys[key]),
+        signal: this.signalForReportKey(this.signals, this.reportKeys[key]),
       }));
     },
   },
@@ -191,6 +205,7 @@ export default {
         <div class="flex flex-col gap-2">
           <ChartStats
             :metric="metric"
+            :signal="metric.signal"
             :account-summary-key="accountSummaryKey"
             :summary-fetching-key="summaryFetchingKey"
           />
@@ -216,6 +231,9 @@ export default {
           </span>
         </div>
       </div>
+      <p v-if="metric.signal" class="text-xs text-n-slate-11 -mt-2 px-1">
+        {{ phraseFor(metric.signal) }}
+      </p>
     </div>
   </div>
 </template>

@@ -193,7 +193,7 @@ RSpec.describe 'Agent Bot API', type: :request do
               params: valid_params.merge(avatar_url: 'http://example.com/avatar.png'),
               as: :json
         expect(response).to have_http_status(:success)
-        expect(Avatar::AvatarFromUrlJob).to have_been_enqueued.with(agent_bot, 'http://example.com/avatar.png')
+        expect(Avatar::AvatarFromUrlJob).to have_been_enqueued.with('AgentBot', agent_bot.id, 'http://example.com/avatar.png')
       end
     end
   end
@@ -235,6 +235,83 @@ RSpec.describe 'Agent Bot API', type: :request do
         expect(response).to have_http_status(:not_found)
         expect(account.agent_bots.size).not_to eq(0)
       end
+    end
+  end
+
+  describe 'captain mirror bot protection' do
+    let!(:assistant) { create(:captain_assistant, account: account) }
+    let(:mirror_bot) { assistant.reload.agent_bot }
+
+    it 'does not update a captain mirror bot' do
+      patch "/api/v1/accounts/#{account.id}/agent_bots/#{mirror_bot.id}",
+            headers: admin.create_new_auth_token,
+            params: { name: 'hacked' },
+            as: :json
+
+      expect(response).to have_http_status(:unprocessable_entity)
+      expect(response.parsed_body['error']).to eq(I18n.t('agent_bots.captain_mirror_immutable', locale: I18n.default_locale))
+      expect(mirror_bot.reload.name).to eq(assistant.name)
+    end
+
+    it 'does not delete a captain mirror bot' do
+      expect do
+        delete "/api/v1/accounts/#{account.id}/agent_bots/#{mirror_bot.id}",
+               headers: admin.create_new_auth_token,
+               as: :json
+      end.not_to change(AgentBot, :count)
+
+      expect(response).to have_http_status(:unprocessable_entity)
+    end
+
+    it 'does not purge the avatar of a captain mirror bot' do
+      delete "/api/v1/accounts/#{account.id}/agent_bots/#{mirror_bot.id}/avatar",
+             headers: admin.create_new_auth_token,
+             as: :json
+
+      expect(response).to have_http_status(:unprocessable_entity)
+    end
+
+    it 'does not reset the access token of a captain mirror bot' do
+      old_token = mirror_bot.access_token.token
+
+      post "/api/v1/accounts/#{account.id}/agent_bots/#{mirror_bot.id}/reset_access_token",
+           headers: admin.create_new_auth_token,
+           as: :json
+
+      expect(response).to have_http_status(:unprocessable_entity)
+      expect(mirror_bot.reload.access_token.token).to eq(old_token)
+    end
+
+    it 'does not create a bot with bot_type captain' do
+      expect do
+        post "/api/v1/accounts/#{account.id}/agent_bots",
+             headers: admin.create_new_auth_token,
+             params: { name: 'fake mirror', bot_type: 'captain' },
+             as: :json
+      end.not_to change(AgentBot, :count)
+
+      expect(response).to have_http_status(:unprocessable_entity)
+    end
+
+    it 'does not create a bot with the captain enum integer value' do
+      expect do
+        post "/api/v1/accounts/#{account.id}/agent_bots",
+             headers: admin.create_new_auth_token,
+             params: { name: 'fake mirror', bot_type: 1 },
+             as: :json
+      end.not_to change(AgentBot, :count)
+
+      expect(response).to have_http_status(:unprocessable_entity)
+    end
+
+    it 'does not convert a webhook bot to captain via update' do
+      patch "/api/v1/accounts/#{account.id}/agent_bots/#{agent_bot.id}",
+            headers: admin.create_new_auth_token,
+            params: { bot_type: 'captain' },
+            as: :json
+
+      expect(response).to have_http_status(:unprocessable_entity)
+      expect(agent_bot.reload).to be_webhook
     end
   end
 

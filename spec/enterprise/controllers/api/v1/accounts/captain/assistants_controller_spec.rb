@@ -31,6 +31,40 @@ RSpec.describe 'Api::V1::Accounts::Captain::Assistants', type: :request do
           { total_count: 3, page: 1 }
         )
       end
+
+      it 'includes avatar_url, agent_bot_id (mirror) and inbox_ids in the payload' do
+        assistant = create(:captain_assistant, account: account)
+        inbox = create(:inbox, account: account)
+        create(:captain_inbox, captain_assistant: assistant, inbox: inbox)
+        mirror = assistant.mirror_agent_bot
+
+        get "/api/v1/accounts/#{account.id}/captain/assistants",
+            headers: agent.create_new_auth_token,
+            as: :json
+
+        expect(response).to have_http_status(:success)
+        payload = json_response[:payload].find { |item| item[:id] == assistant.id }
+        expect(payload).to have_key(:avatar_url)
+        expect(payload[:avatar_url]).to eq(assistant.avatar_url)
+        expect(payload[:agent_bot_id]).to eq(mirror.id)
+        expect(payload[:inbox_ids]).to eq([inbox.id])
+      end
+
+      it 'returns nil agent_bot_id without creating a mirror when it is missing' do
+        assistant = create(:captain_assistant, account: account)
+        assistant.agent_bot&.destroy!
+
+        expect do
+          get "/api/v1/accounts/#{account.id}/captain/assistants",
+              headers: agent.create_new_auth_token,
+              as: :json
+        end.not_to change(AgentBot, :count)
+
+        expect(response).to have_http_status(:success)
+        payload = json_response[:payload].find { |item| item[:id] == assistant.id }
+        expect(payload[:agent_bot_id]).to be_nil
+        expect(payload[:inbox_ids]).to eq([])
+      end
     end
   end
 

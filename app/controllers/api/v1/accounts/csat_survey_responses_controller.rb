@@ -17,6 +17,7 @@ class Api::V1::Accounts::CsatSurveyResponsesController < Api::V1::Accounts::Base
   def metrics
     @total_count = @csat_survey_responses.count
     @ratings_count = @csat_survey_responses.group(:rating).count
+    @signals = Reports::SignalSet.new(entries: [{ metric: :csat, value: csat_satisfaction_score }]).build
   end
 
   def download
@@ -26,6 +27,14 @@ class Api::V1::Accounts::CsatSurveyResponsesController < Api::V1::Accounts::Base
   end
 
   private
+
+  # Satisfação = % de respostas com nota 4 ou 5 (mesma definição do PDF e do frontend).
+  def csat_satisfaction_score
+    return 0 if @total_count.zero?
+
+    satisfied = @ratings_count.values_at(4, 5).compact.sum
+    ((satisfied.to_f / @total_count) * 100).round
+  end
 
   def set_total_sent_messages_count
     @csat_messages = Current.account.messages.input_csat

@@ -82,6 +82,85 @@ RSpec.describe 'Conversation Messages API', type: :request do
         expect(conversation.messages.last.attachments.first.file_type).to eq('image')
       end
 
+      # D1 (D-4): guard "só o assignee responde" atrás da flag reply_assignment_gate.
+      context 'when the reply assignment gate is enabled' do
+        let(:assignee) { create(:user, account: account, role: :agent) }
+        let(:gate_url) do
+          api_v1_account_conversation_messages_url(account_id: account.id, conversation_id: conversation.display_id)
+        end
+
+        before do
+          create(:inbox_member, inbox: conversation.inbox, user: assignee)
+          conversation.update!(assignee: assignee)
+          account.update!(reply_assignment_gate: true)
+        end
+
+        it 'blocks a non-assignee reply with 422 assignment_required and assignee meta' do
+          post gate_url, params: { content: 'oi' }, headers: agent.create_new_auth_token, as: :json
+
+          expect(response).to have_http_status(:unprocessable_entity)
+          json = response.parsed_body
+          expect(json['error_code']).to eq('assignment_required')
+          expect(json['meta']['current_assignee']['id']).to eq(assignee.id)
+          expect(json['meta']['current_assignee']['type']).to eq('User')
+          expect(conversation.reload.messages.where(message_type: :outgoing).count).to eq(0)
+        end
+
+        it 'allows the assignee to reply' do
+          post gate_url, params: { content: 'oi' }, headers: assignee.create_new_auth_token, as: :json
+
+          expect(response).to have_http_status(:success)
+        end
+
+        it 'allows a non-assignee private note (bypass)' do
+          post gate_url, params: { content: 'nota', private: true }, headers: agent.create_new_auth_token, as: :json
+
+          expect(response).to have_http_status(:success)
+        end
+
+        it 'allows a payload carrying source_id (external WAHA echo bypass)' do
+          post gate_url, params: { content: 'echo', source_id: 'WAID-123' }, headers: agent.create_new_auth_token, as: :json
+
+          expect(response).not_to have_http_status(:unprocessable_entity)
+        end
+
+        it 'does not gate an incoming message_type via API (bypass)' do
+          # Agent-posted incoming 500s downstream regardless of the gate (pre-existing
+          # fork behavior); here we only assert the gate itself did not block it (no 422).
+          post gate_url, params: { content: 'in', message_type: 'incoming' }, headers: agent.create_new_auth_token, as: :json
+
+          expect(response).not_to have_http_status(:unprocessable_entity)
+        end
+
+        context 'when the conversation is owned by an AI mirror' do
+          let(:assistant) { create(:captain_assistant, account: account, name: 'Júlia') }
+
+          before { conversation.update!(assignee: nil, assignee_agent_bot: assistant.mirror_agent_bot) }
+
+          it 'reports the AI as current_assignee in the 422 meta' do
+            post gate_url, params: { content: 'oi' }, headers: agent.create_new_auth_token, as: :json
+
+            expect(response).to have_http_status(:unprocessable_entity)
+            json = response.parsed_body
+            expect(json['meta']['current_assignee']['type']).to eq('AgentBot')
+            expect(json['meta']['current_assignee']['name']).to eq('Júlia')
+          end
+        end
+      end
+
+      context 'when the reply assignment gate is disabled (classic mode, default)' do
+        let(:assignee) { create(:user, account: account, role: :agent) }
+
+        before { conversation.update!(assignee: assignee) }
+
+        it 'lets a non-assignee reply (gate inert)' do
+          post api_v1_account_conversation_messages_url(account_id: account.id, conversation_id: conversation.display_id),
+               params: { content: 'oi' }, headers: agent.create_new_auth_token, as: :json
+
+          expect(response).to have_http_status(:success)
+        end
+      end
+
       context 'when api inbox' do
         let(:api_channel) { create(:channel_api, account: account) }
         let(:api_inbox) { create(:inbox, channel: api_channel, account: account) }
@@ -396,6 +475,60 @@ RSpec.describe 'Conversation Messages API', type: :request do
         expect(JSON.parse(response.body, symbolize_names: true)[:meta][:contact][:id]).to eq(conversation.contact_id)
       end
 
+      # PR 0.1 — hardening: garante que os campos `starred`, `forwarded`,
+      # `forwarded_from_message_id` e `additional_attributes` chegam ao
+      # cliente REST. Eles já eram enviados via ActionCable
+      # (Message#push_event_data), mas o jbuilder não os expunha — o que
+      # quebrava o cold-start de clientes mobile que dependem do GET.
+      context 'when serializing message payload (PR 0.1 hardening)' do
+        let!(:plain_message) do
+          create(:message, account: account, inbox: conversation.inbox, conversation: conversation)
+        end
+
+        let!(:starred_forwarded_message) do
+          source = create(:message, account: account, inbox: conversation.inbox, conversation: conversation)
+          create(
+            :message,
+            account: account,
+            inbox: conversation.inbox,
+            conversation: conversation,
+            starred: true,
+            forwarded: true,
+            forwarded_from_message_id: source.id,
+            additional_attributes: { 'location' => { 'address' => 'Av. Brasil, 1000' } }
+          )
+        end
+
+        def fetch_message(id)
+          get "/api/v1/accounts/#{account.id}/conversations/#{conversation.display_id}/messages",
+              headers: agent.create_new_auth_token,
+              as: :json
+          response.parsed_body['payload'].find { |m| m['id'] == id }
+        end
+
+        it 'serializes defaults (starred=false, forwarded=false, forwarded_from=nil) on a plain message' do
+          payload = fetch_message(plain_message.id)
+
+          expect(payload).to include(
+            'starred' => false,
+            'forwarded' => false,
+            'forwarded_from_message_id' => nil
+          )
+          expect(payload).to have_key('additional_attributes')
+        end
+
+        it 'serializes truthy starred/forwarded plus forwarded_from_message_id and additional_attributes' do
+          payload = fetch_message(starred_forwarded_message.id)
+
+          expect(payload['starred']).to be(true)
+          expect(payload['forwarded']).to be(true)
+          expect(payload['forwarded_from_message_id']).to eq(starred_forwarded_message.forwarded_from_message_id)
+          expect(payload['additional_attributes']).to eq(
+            'location' => { 'address' => 'Av. Brasil, 1000' }
+          )
+        end
+      end
+
       context 'with cursor pagination params' do
         before do
           create_list(
@@ -489,15 +622,47 @@ RSpec.describe 'Conversation Messages API', type: :request do
         create(:inbox_member, inbox: conversation.inbox, user: agent)
       end
 
-      it 'deletes the message' do
+      it 'deletes the message and preserves the original content for the history card' do
+        original_content = message.content
+
         delete "/api/v1/accounts/#{account.id}/conversations/#{conversation.display_id}/messages/#{message.id}",
                headers: agent.create_new_auth_token,
                as: :json
 
         expect(response).to have_http_status(:success)
-        expect(message.reload.content).to eq 'This message was deleted'
-        expect(message.reload.deleted).to be true
-        expect(message.reload.content_attributes['bcc_emails']).to be_nil
+        message.reload
+        expect(message.content).to eq 'This message was deleted'
+        expect(message.deleted).to be true
+        expect(message.content_attributes['previous_content']).to eq original_content
+        expect(message.content_attributes['deleted_at']).to be_present
+        expect(message.content_attributes['deleted_by']).to include('id' => agent.id, 'name' => agent.name)
+        # Unrelated attributes are merged/preserved (no longer zeroed out)
+        expect(message.content_attributes['bcc_emails']).to eq ['hello@chatwoot.com']
+      end
+
+      it 'surfaces a friendly error when the WAHA call times out' do
+        service = instance_double(Messages::DeleteContentService)
+        allow(Messages::DeleteContentService).to receive(:new).and_return(service)
+        allow(service).to receive(:perform).and_raise(Rack::Timeout::RequestTimeoutException.new({}))
+
+        delete "/api/v1/accounts/#{account.id}/conversations/#{conversation.display_id}/messages/#{message.id}",
+               headers: agent.create_new_auth_token,
+               as: :json
+
+        expect(response).to have_http_status(:unprocessable_entity)
+        expect(response.parsed_body['error']).to eq I18n.t('errors.messages.update.timeout')
+      end
+
+      it 'returns 422 for NPS/CSAT messages' do
+        nps_message = create(:message, message_type: :outgoing, content: 'rate us',
+                                       content_type: 'input_csat', conversation: conversation)
+
+        delete "/api/v1/accounts/#{account.id}/conversations/#{conversation.display_id}/messages/#{nps_message.id}",
+               headers: agent.create_new_auth_token,
+               as: :json
+
+        expect(response).to have_http_status(:unprocessable_entity)
+        expect(nps_message.reload.deleted).to be_falsey
       end
 
       it 'deletes interactive messages' do

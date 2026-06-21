@@ -12,11 +12,22 @@ class V2::Reports::BotMetricsBuilder
       conversation_count: bot_conversations.count,
       message_count: bot_messages.count,
       resolution_rate: bot_resolution_rate.to_i,
-      handoff_rate: bot_handoff_rate.to_i
+      handoff_rate: bot_handoff_rate.to_i,
+      signals: signals
     }
   end
 
   private
+
+  # Semáforo das taxas do bot. Sem conversas com bot no período → sem sinais.
+  def signals
+    return [] if bot_conversations.count.zero?
+
+    Reports::SignalSet.new(entries: [
+                             { metric: :bot_resolution_rate, value: bot_resolution_rate.to_i },
+                             { metric: :bot_handoff_rate, value: bot_handoff_rate.to_i }
+                           ]).build
+  end
 
   def bot_activated_inbox_ids
     @bot_activated_inbox_ids ||= account.inboxes.filter(&:active_bot?).map(&:id)

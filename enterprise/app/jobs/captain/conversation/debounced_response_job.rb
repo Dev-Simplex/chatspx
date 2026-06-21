@@ -11,6 +11,10 @@ class Captain::Conversation::DebouncedResponseJob < ApplicationJob
 
     Redis::Alfred.delete(key)
 
+    # Token Redis NÃO protege contra troca de dono (chave por conversa+assistant). O
+    # re-check do ResponseBuilderJob é a autoridade; aqui só evitamos log 'debounce_fire' falso.
+    return unless conversation.assignee_agent_bot&.captain_assistant_id == assistant.id
+
     Captain::AssistantLog.create!(
       captain_assistant: assistant,
       conversation: conversation,

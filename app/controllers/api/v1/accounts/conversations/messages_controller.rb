@@ -1,5 +1,6 @@
 class Api::V1::Accounts::Conversations::MessagesController < Api::V1::Accounts::Conversations::BaseController # rubocop:disable Metrics/ClassLength
   before_action :ensure_api_inbox, only: :update, unless: :content_update?
+  before_action :enforce_reply_assignment_gate, only: [:create, :share_location, :share_contact]
 
   WAHA_ECHO_MARKER_API = 'Enviado via API'.freeze
   WAHA_ECHO_MARKER_EDITED = 'Editado no WhatsApp'.freeze
@@ -75,10 +76,14 @@ class Api::V1::Accounts::Conversations::MessagesController < Api::V1::Accounts::
       return render json: { error: I18n.t('conversations.messages.undeletable') }, status: :unprocessable_entity
     end
 
-    ActiveRecord::Base.transaction do
-      message.update!(content: I18n.t('conversations.messages.deleted'), content_type: :text, content_attributes: { deleted: true })
-      message.attachments.destroy_all
-    end
+    Messages::DeleteContentService.new(message).perform
+    @message = message
+  rescue ActiveRecord::RecordInvalid, ArgumentError => e
+    render_could_not_create_error(e.message)
+  rescue Rack::Timeout::RequestTimeoutException
+    # Synchronous WAHA delete-for-everyone (and its message lookup) blew the 15s
+    # rack-timeout budget. Surface a friendly toast instead of a generic 500.
+    render_could_not_create_error(I18n.t('errors.messages.update.timeout'))
   end
 
   def retry
@@ -101,17 +106,6 @@ class Api::V1::Accounts::Conversations::MessagesController < Api::V1::Accounts::
     return head :ok if translated_content.nil?
 
     render json: { content: translated_content }
-  end
-
-  def star
-    message.update!(starred: !message.starred?)
-    Rails.configuration.dispatcher.dispatch(
-      ::Events::Types::MESSAGE_UPDATED,
-      Time.zone.now,
-      message: message,
-      performed_by: Current.user
-    )
-    render json: { starred: message.starred }
   end
 
   def share_location # rubocop:disable Metrics/AbcSize, Metrics/MethodLength
@@ -214,6 +208,38 @@ class Api::V1::Accounts::Conversations::MessagesController < Api::V1::Accounts::
 
   def message_finder
     @message_finder ||= MessageFinder.new(@conversation, params)
+  end
+
+  # D1 (D-4): com o "Modo atribuição obrigatória" ligado, só o assignee responde.
+  # Controller-level de propósito: macros/campanhas/scheduled/IA criam Message via
+  # jobs e nunca passam aqui; private_chat tem controller próprio (fora do gate).
+  def enforce_reply_assignment_gate
+    return unless Current.account.reply_assignment_gate_enabled? # helper da Fase C (C-F0)
+
+    user = Current.user || @resource
+    return unless user.is_a?(User)                       # bot-token (AgentBot) e nil ficam fora
+    return if params[:private].to_s == 'true'            # nota privada — padrão do fork (:264)
+    return if params[:source_id].present?                # echo do app WAHA externo (User real id=1)
+    return if params[:message_type].to_s == 'incoming'   # incoming via API não é resposta de agente
+    return if @conversation.assignee_id == user.id
+
+    render_assignment_required
+  end
+
+  def render_assignment_required
+    assignee = @conversation.assigned_entity              # assignee_agent_bot || assignee (Fase A)
+    render json: {
+      error: I18n.t('conversations.reply_assignment_gate.assignment_required'),
+      error_code: 'assignment_required',
+      meta: {
+        current_assignee: assignee && {
+          id: assignee.id,
+          name: assignee.try(:available_name) || assignee.name,
+          type: @conversation.assignee_type               # 'AgentBot' | 'User' | nil
+        },
+        team: @conversation.team && { id: @conversation.team.id, name: @conversation.team.name }
+      }
+    }, status: :unprocessable_entity
   end
 
   def permitted_params

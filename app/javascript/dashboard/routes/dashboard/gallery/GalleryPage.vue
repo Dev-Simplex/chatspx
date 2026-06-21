@@ -14,6 +14,7 @@ import MediaLightbox from './components/MediaLightbox.vue';
 import MediaGridSkeleton from './components/MediaGridSkeleton.vue';
 import DocumentListSkeleton from './components/DocumentListSkeleton.vue';
 import LinkListSkeleton from './components/LinkListSkeleton.vue';
+import { GALLERY_TAB_TYPES } from 'dashboard/store/modules/gallery';
 
 const store = useStore();
 const router = useRouter();
@@ -28,12 +29,16 @@ const hasMore = computed(() => store.getters['gallery/hasMore'](tab.value));
 
 const searchInput = ref(filters.value.q || '');
 const selection = ref(new Set());
+// Modo "todos do filtro": baixa o conjunto inteiro que o filtro retorna no
+// servidor (não só os registros carregados na tela). Reseta a cada mudança.
+const selectAllFilter = ref(false);
 const lightboxItem = ref(null);
 
 let searchTimer = null;
 
 const updateSearch = value => {
   searchInput.value = value;
+  selectAllFilter.value = false;
   if (searchTimer) clearTimeout(searchTimer);
   searchTimer = setTimeout(() => {
     store.dispatch('gallery/setFilter', { q: value });
@@ -42,12 +47,28 @@ const updateSearch = value => {
 
 const setTab = newTab => {
   selection.value = new Set();
+  selectAllFilter.value = false;
   store.dispatch('gallery/setTab', newTab);
 };
 
 const setFilter = partial => {
+  selectAllFilter.value = false;
   store.dispatch('gallery/setFilter', partial);
 };
+
+// Filtros atuais em snake_case para o backend (modo "todos do filtro").
+const currentFilters = computed(() => {
+  const f = filters.value;
+  const types = GALLERY_TAB_TYPES[f.tab];
+  return {
+    type: types ? types.join(',') : undefined,
+    inbox_id: f.inboxId || undefined,
+    contact_id: f.contactId || undefined,
+    before: f.before || undefined,
+    after: f.after || undefined,
+    q: f.q || undefined,
+  };
+});
 
 const fetchMore = () => {
   if (hasMore.value && !uiFlags.value.isFetchingMore) {
@@ -64,10 +85,19 @@ const toggleSelect = id => {
 
 const clearSelection = () => {
   selection.value = new Set();
+  selectAllFilter.value = false;
 };
 
 const selectAll = () => {
   selection.value = new Set(records.value.map(r => r.id));
+  selectAllFilter.value = false;
+};
+
+// "Selecionar todos os N do filtro": mantém a seleção visível (toolbar segue
+// montada) e marca o modo para o download enviar filtros em vez de IDs.
+const enableSelectAllFilter = () => {
+  selection.value = new Set(records.value.map(r => r.id));
+  selectAllFilter.value = true;
 };
 
 const openLightbox = item => {
@@ -94,12 +124,19 @@ watch(
   () => tab.value,
   () => {
     selection.value = new Set();
+    selectAllFilter.value = false;
   }
 );
 
 const selectedItems = computed(() =>
   records.value.filter(r => selection.value.has(r.id))
 );
+
+// Nota: NÃO há botão global "Baixar todas (.zip)" no header. O download em massa
+// na galeria é acionado exclusivamente pela seleção de cards (duplo-clique nas
+// imagens / clique nos documentos) -> GallerySelectToolbar, que oferece tanto o
+// ZIP da seleção quanto o "selecionar todos do filtro". A lógica de bulk download
+// vive no GallerySelectToolbar (useBulkDownload), não aqui.
 
 const emptyMeta = computed(() => {
   if (tab.value === 'documents') {
@@ -176,8 +213,12 @@ const emptyMeta = computed(() => {
       v-if="selection.size"
       :count="selection.size"
       :items="selectedItems"
+      :total-count="meta.totalCount"
+      :select-all-filter-active="selectAllFilter"
+      :filters="currentFilters"
       @clear="clearSelection"
       @select-all="selectAll"
+      @select-all-filter="enableSelectAllFilter"
     />
 
     <main
@@ -217,6 +258,7 @@ const emptyMeta = computed(() => {
         v-else-if="tab === 'media'"
         :items="records"
         :selected-ids="selection"
+        :selection-active="selection.size > 0"
         :is-loading-more="uiFlags.isFetchingMore"
         :has-more="hasMore"
         @toggle-select="toggleSelect"
@@ -229,6 +271,7 @@ const emptyMeta = computed(() => {
         v-else-if="tab === 'documents'"
         :items="records"
         :selected-ids="selection"
+        :selection-active="selection.size > 0"
         :is-loading-more="uiFlags.isFetchingMore"
         :has-more="hasMore"
         @toggle-select="toggleSelect"
@@ -239,10 +282,8 @@ const emptyMeta = computed(() => {
       <LinkList
         v-else
         :items="records"
-        :selected-ids="selection"
         :is-loading-more="uiFlags.isFetchingMore"
         :has-more="hasMore"
-        @toggle-select="toggleSelect"
         @open-conversation="openConversation"
         @load-more="fetchMore"
       />

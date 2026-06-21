@@ -1,9 +1,11 @@
 <script setup>
 import { computed } from 'vue';
+import { useI18n } from 'vue-i18n';
 import { formatBytes } from 'shared/helpers/FileHelper';
 
 import Button from 'dashboard/components-next/button/Button.vue';
 import Icon from 'next/icon/Icon.vue';
+import ProgressRing from 'dashboard/components-next/upload/ProgressRing.vue';
 
 const props = defineProps({
   attachments: {
@@ -12,7 +14,9 @@ const props = defineProps({
   },
 });
 
-const emit = defineEmits(['removeAttachment']);
+const emit = defineEmits(['removeAttachment', 'retryUpload']);
+
+const { t } = useI18n();
 
 const nonRecordedAudioAttachments = computed(() => {
   return props.attachments.filter(attachment => !attachment?.isRecordedAudio);
@@ -54,6 +58,18 @@ const isTypeAudio = file => {
 const fileName = file => {
   return file.filename || file.name;
 };
+
+// DirectUpload lifecycle of the attachment (set while it transfers on attach).
+const uploadStatusOf = attachment => attachment?.uploadStatus;
+const uploadProgressOf = attachment =>
+  typeof attachment?.uploadProgress === 'number'
+    ? attachment.uploadProgress
+    : null;
+
+const onRetry = attachment => {
+  // eslint-disable-next-line vue/custom-event-name-casing
+  emit('retryUpload', attachment);
+};
 </script>
 
 <template>
@@ -64,8 +80,25 @@ const fileName = file => {
       class="flex items-center p-1 bg-n-slate-3 gap-1 rounded-md w-[15rem]"
     >
       <div class="max-w-[4rem] flex-shrink-0 w-6 flex items-center">
+        <!-- Upload in flight: show the per-attachment progress ring instead
+             of the thumb so the agent gets feedback while it transfers. -->
+        <ProgressRing
+          v-if="uploadStatusOf(attachment) === 'uploading'"
+          :value="uploadProgressOf(attachment)"
+          :size="22"
+          :stroke="3"
+        />
+        <button
+          v-else-if="uploadStatusOf(attachment) === 'failed'"
+          type="button"
+          class="grid place-content-center w-6 h-6 text-n-ruby-9"
+          :title="t('ATTACHMENT_PREVIEW.RETRY')"
+          @click="onRetry(attachment)"
+        >
+          <Icon icon="i-lucide-rotate-cw" class="size-4" />
+        </button>
         <img
-          v-if="isTypeImage(attachment.resource)"
+          v-else-if="isTypeImage(attachment.resource)"
           class="object-cover w-6 h-6 rounded-sm"
           :src="attachment.thumb"
         />

@@ -21,8 +21,16 @@ class Messages::MessageBuilder # rubocop:disable Metrics/ClassLength
   end
 
   def perform
+    # Idempotency for client reconciliation retries (see F4): the dashboard
+    # re-POSTs a stuck optimistic message with the SAME echo_id after a dropped
+    # socket. Returning the existing record (before re-validating/sending) keeps
+    # us from double-sending to the customer.
+    existing = existing_message_by_echo_id
+    return existing if existing
+
     validate_whatsapp_contact!
     @message = @conversation.messages.build(message_params)
+    persist_echo_id
     process_attachments
     process_emails
     # When the message has no quoted content, it will just be rendered as a regular message
@@ -34,6 +42,32 @@ class Messages::MessageBuilder # rubocop:disable Metrics/ClassLength
   end
 
   private
+
+  # echo_id is a client-generated UUID, unique per optimistic message, so a
+  # second create carrying the same echo_id is by definition a retry of the
+  # same logical message — not a distinct send. Scoped to the conversation and
+  # a 1-day window to keep the lookup cheap.
+  def existing_message_by_echo_id
+    echo_id = @params[:echo_id]
+    return if echo_id.blank?
+
+    @conversation.messages
+                 .where(created_at: 1.day.ago..)
+                 .where("additional_attributes ->> 'echo_id' = ?", echo_id.to_s)
+                 .order(created_at: :desc)
+                 .first
+  end
+
+  # Persist echo_id alongside the message (it is otherwise a transient
+  # attr_accessor used only for the realtime echo). This lets the client match
+  # an optimistic message to its server copy on REFETCH after a missed socket
+  # event — the root-cause fix for reconnect duplicates.
+  def persist_echo_id
+    echo_id = @params[:echo_id]
+    return if echo_id.blank?
+
+    @message.additional_attributes = (@message.additional_attributes || {}).merge('echo_id' => echo_id.to_s)
+  end
 
   # Extracts content attributes from the given params.
   # - Converts ActionController::Parameters to a regular hash if needed.

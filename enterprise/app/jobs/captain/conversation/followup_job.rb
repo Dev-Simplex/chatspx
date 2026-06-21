@@ -6,42 +6,67 @@ class Captain::Conversation::FollowupJob < ApplicationJob
   QUIET_END = 8    # 8h
 
   # Cutucada decidida pelo agente (via ProgramarFollowupTool). Dispara só se ainda
-  # fizer sentido: token atual, sem trava humana, cliente não respondeu, dentro de
-  # horário civilizado. A própria cutucada é gerada pelo agente no contexto.
+  # fizer sentido: token atual, dono da conversa ainda é a IA, cliente não respondeu,
+  # dentro de horário civilizado. A própria cutucada é gerada pelo agente no contexto.
   def perform(conversation, token)
-    return unless conversation
+    return unless followup_due?(conversation, token)
 
-    conversation.reload
+    # Dono resolvido ANTES de consumir token/followup_count (gate por atribuição, D-6):
+    # se a cutucada não vai sair, não se gasta tentativa nem se invalida o token (token
+    # órfão é inofensivo — o próximo ProgramarFollowupTool o substitui). A cutucada sai
+    # do dono ATUAL da conversa (não da inbox) — transferência IA→IA mid-followup faz a
+    # cutucada sair com a voz da IA nova.
+    assistant = owner_assistant(conversation)
+    return unless assistant # dono não é IA -> cutucada morre SEM consumir token/count
+
     attrs = conversation.custom_attributes || {}
-    return unless attrs['followup_token'] == token            # substituído por outro follow-up
-    return if truthy?(attrs['atendimento_humano'])            # humano travou o bot
-    return if conversation.resolved?
-    return if lead_replied?(conversation)                     # cliente respondeu -> não cutuca
-
-    return if reschedule_if_quiet_hours(conversation, token)  # madrugada -> remarca pra manhã
-
     count = attrs['followup_count'].to_i
-    if count >= MAX_FOLLOWUPS
-      conversation.update!(custom_attributes: attrs.merge(
-        'tozi_status_lead' => 'esfriado',
-        'followup_status' => 'esfriado (sem resposta após cutucadas)',
-        'followup_token' => nil
-      ))
-      # Bloco 3+4 (funil Tozi): esgotou as cutucadas in-window -> card "Frio" e, em
-      # inbox Cloud API, agenda a cadência de reativação por HSM (fora da janela 24h).
-      Spx::Tozi::FunnelPlacementService.move(conversation: conversation, to: 'frio')
-      Spx::Tozi::ReactivationCadenceService.new(conversation: conversation).perform
-      return
-    end
+    return cool_down_lead(conversation, attrs) if count >= MAX_FOLLOWUPS
 
     conversation.update!(custom_attributes: attrs.merge('followup_count' => count + 1, 'followup_token' => nil))
-    assistant = conversation.inbox.captain_assistant
-    return unless assistant
-
     Captain::Conversation::ResponseBuilderJob.perform_now(conversation, assistant, directive: directive(attrs['followup_motivo']))
   end
 
   private
+
+  def followup_due?(conversation, token)
+    return false unless conversation
+
+    conversation.reload
+    attrs = conversation.custom_attributes || {}
+    return false unless attrs['followup_token'] == token           # substituído por outro follow-up
+    return false if followup_pointless?(conversation, attrs)
+    return false if lead_replied?(conversation)                    # cliente respondeu -> não cutuca
+    return false if reschedule_if_quiet_hours(conversation, token) # madrugada -> remarca pra manhã
+
+    true
+  end
+
+  # Resolvida, ou esperando atendente humano (Modelo A): cutucar só atrapalha.
+  def followup_pointless?(conversation, attrs)
+    conversation.resolved? || attrs['aguardando_humano_desde'].present?
+  end
+
+  # Espelho captain dono da conversa -> assistant; humano/webhook-bot/sem dono -> nil.
+  def owner_assistant(conversation)
+    mirror = conversation.assignee_agent_bot
+    return unless mirror&.captain?
+
+    mirror.captain_assistant
+  end
+
+  # Esgotou as cutucadas in-window (e o dono ainda é a IA) -> card "Frio" e, em inbox
+  # Cloud API, agenda a cadência de reativação por HSM (fora da janela 24h). Bloco 3+4
+  # do funil Tozi.
+  def cool_down_lead(conversation, attrs)
+    conversation.update!(custom_attributes: attrs.merge(
+      'tozi_status_lead' => 'esfriado',
+      'followup_status' => 'esfriado (sem resposta após cutucadas)',
+      'followup_token' => nil
+    ))
+    Spx::Tozi::FunnelPlacementService.move(conversation: conversation, to: 'frio')
+    Spx::Tozi::ReactivationCadenceService.new(conversation: conversation).perform
+  end
 
   def directive(motivo)
     base = '[NOTA INTERNA — não é mensagem do cliente] O cliente está sem responder há um tempo. ' \
@@ -63,9 +88,5 @@ class Captain::Conversation::FollowupJob < ApplicationJob
     next_morning = now.hour >= QUIET_START ? now.tomorrow.change(hour: QUIET_END) : now.change(hour: QUIET_END)
     self.class.set(wait: next_morning - now).perform_later(conversation, token)
     true
-  end
-
-  def truthy?(value)
-    [true, 'true', 1, '1'].include?(value)
   end
 end

@@ -18,5 +18,7 @@ class CaptainInbox < ApplicationRecord
   belongs_to :captain_assistant, class_name: 'Captain::Assistant'
   belongs_to :inbox
 
-  validates :inbox_id, uniqueness: true
+  # Elegibilidade do PAR (A5): espelha o índice único DB (captain_assistant_id, inbox_id).
+  # Permite N assistants elegíveis na mesma inbox; bloqueia o mesmo assistant 2× na inbox.
+  validates :inbox_id, uniqueness: { scope: :captain_assistant_id }
 end

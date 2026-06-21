@@ -38,6 +38,29 @@ RSpec.describe AgentNotifications::ConversationNotificationsMailer do
     end
   end
 
+  describe 'conversation_unassignment' do
+    let(:taker) { create(:user, name: 'Robin Hood', email: 'taker@example.com', account: account) }
+    let(:unassignment_conversation) { create(:conversation, assignee: taker, account: account) }
+    let(:mail) do
+      described_class.with(account: account).conversation_unassignment(unassignment_conversation, agent, taker).deliver_now
+    end
+
+    it 'renders the subject interpolating the taker name' do
+      expect(mail.subject).to eq(
+        I18n.t('notifications.notification_title.conversation_unassignment',
+               display_id: unassignment_conversation.display_id, taker: taker.available_name)
+      )
+    end
+
+    it 'renders the receiver email' do
+      expect(mail.to).to eq([agent.email])
+    end
+
+    it 'renders the taker name in the body' do
+      expect(mail.body.encoded).to include(taker.available_name)
+    end
+  end
+
   describe 'conversation_mention' do
     let(:contact) { create(:contact, name: nil, account: account) }
     let(:another_agent) { create(:user, email: 'agent2@example.com', account: account) }

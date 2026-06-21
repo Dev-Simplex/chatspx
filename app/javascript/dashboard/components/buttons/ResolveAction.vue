@@ -7,6 +7,7 @@ import { useStore, useStoreGetters } from 'dashboard/composables/store';
 import { useEmitter } from 'dashboard/composables/emitter';
 import { useKeyboardEvents } from 'dashboard/composables/useKeyboardEvents';
 import { useResolveValidation } from 'dashboard/composables/useResolveValidation';
+import { useResolveAssignmentGate } from 'dashboard/composables/useResolveAssignmentGate';
 import { useConversationRequiredAttributes } from 'dashboard/composables/useConversationRequiredAttributes';
 
 import WootDropdownItem from 'shared/components/ui/dropdown/DropdownItem.vue';
@@ -20,6 +21,7 @@ import {
 import ButtonGroup from 'dashboard/components-next/buttonGroup/ButtonGroup.vue';
 import Button from 'dashboard/components-next/button/Button.vue';
 import TeamSelectionModal from 'dashboard/components/widgets/conversation/TeamSelectionModal.vue';
+import AssignAndResolveDialog from 'dashboard/components-next/Conversation/AssignAndResolveDialog.vue';
 import ConversationResolveAttributesModal from 'dashboard/components-next/ConversationWorkflow/ConversationResolveAttributesModal.vue';
 
 const store = useStore();
@@ -35,15 +37,66 @@ const {
   cancelTeamSelection,
 } = useResolveValidation();
 
+const {
+  requiresAssignmentToResolve,
+  getResolveVariant,
+  getAssignee,
+  hasTeam,
+  assignSelfAndResolve,
+} = useResolveAssignmentGate();
+
 const arrowDownButtonRef = ref(null);
 const isLoading = ref(false);
 const resolveAttributesModalRef = ref(null);
 
+const currentChat = computed(() => getters.getSelectedChat.value);
+
+// "Atribuição obrigatória" — assign-and-resolve dialog state.
+const showAssignResolveDialog = ref(false);
+const assignResolveContext = ref({
+  variant: 'unassigned',
+  assigneeName: '',
+  requiresTeam: false,
+});
+
+const myTeams = computed(() => store.getters['teams/getMyTeams'] || []);
+
+const openAssignResolveDialog = (conversation, overrides = {}) => {
+  const variant = getResolveVariant(conversation);
+  const assignee = getAssignee(conversation);
+  assignResolveContext.value = {
+    variant,
+    assigneeName:
+      variant === 'ai'
+        ? assignee?.name ||
+          t('CONVERSATION.RESOLVE_ASSIGNMENT_GATE.AI_FALLBACK')
+        : assignee?.name || '',
+    requiresTeam: !hasTeam(conversation),
+    ...overrides,
+  };
+  showAssignResolveDialog.value = true;
+};
+
+const closeAssignResolveDialog = () => {
+  showAssignResolveDialog.value = false;
+};
+
+const handleAssignAndResolve = async ({ teamId }) => {
+  closeAssignResolveDialog();
+  isLoading.value = true;
+  try {
+    await assignSelfAndResolve(currentChat.value.id, { teamId });
+    useAlert(t('CONVERSATION.RESOLVE_ASSIGNMENT_GATE.SUCCESS'));
+  } catch (error) {
+    useAlert(t('CONVERSATION.CHANGE_STATUS_FAILED'));
+  } finally {
+    isLoading.value = false;
+  }
+};
+
 const [showActionsDropdown, toggleDropdown] = useToggle();
 const closeDropdown = () => toggleDropdown(false);
 const openDropdown = () => toggleDropdown(true);
-
-const currentChat = computed(() => getters.getSelectedChat.value);
 
 const isOpen = computed(
   () => currentChat.value.status === wootConstants.STATUS_TYPE.OPEN
@@ -107,13 +160,21 @@ const toggleStatus = async (status, snoozedUntil, customAttributes = null) => {
 
     // Use team validation for resolve
     if (status === wootConstants.STATUS_TYPE.RESOLVED && !customAttributes) {
-      await validateAndResolve(currentChat.value.id, status, snoozedUntil);
+      await validateAndResolve(currentChat.value.id, status, snoozedUntil, {
+        rethrow: true,
+      });
     } else {
       await store.dispatch('toggleStatus', payload);
     }
     useAlert(t('CONVERSATION.CHANGE_STATUS'));
   } catch (error) {
-    if (error.message !== 'TEAM_REQUIRED') {
+    // Race: someone else took the conversation between read and resolve. The
+    // backend returns 422 with this code — re-open the dialog with fresh data.
+    if (error?.response?.data?.error_code === 'resolve_assignment_required') {
+      openAssignResolveDialog(currentChat.value, {
+        assigneeName: error.response.data.meta?.current_assignee_name || '',
+      });
+    } else if (error.message !== 'TEAM_REQUIRED') {
       useAlert(t('CONVERSATION.CHANGE_STATUS_FAILED'));
     }
   } finally {
@@ -138,6 +199,13 @@ const onCmdOpenConversation = () => {
 };
 
 const onCmdResolveConversation = () => {
+  // "Atribuição obrigatória": only the assignee can resolve directly. Anyone else
+  // is intercepted with the assign-and-resolve dialog.
+  if (requiresAssignmentToResolve(currentChat.value)) {
+    openAssignResolveDialog(currentChat.value);
+    return;
+  }
+
   const currentCustomAttributes = currentChat.value.custom_attributes || {};
   const { hasMissing, missing } = checkMissingAttributes(
     currentCustomAttributes
@@ -291,6 +359,15 @@ useEmitter(CMD_RESOLVE_CONVERSATION, onCmdResolveConversation);
     <ConversationResolveAttributesModal
       ref="resolveAttributesModalRef"
       @submit="handleResolveWithAttributes"
+    />
+    <AssignAndResolveDialog
+      :show="showAssignResolveDialog"
+      :variant="assignResolveContext.variant"
+      :assignee-name="assignResolveContext.assigneeName"
+      :requires-team="assignResolveContext.requiresTeam"
+      :teams="myTeams"
+      @confirm="handleAssignAndResolve"
+      @close="closeAssignResolveDialog"
     />
   </div>
 </template>

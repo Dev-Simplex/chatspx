@@ -107,11 +107,29 @@ describe('useMacros', () => {
     },
   ];
 
+  const mockAIAgents = [
+    {
+      id: 7,
+      name: 'Assistant Sales',
+      description: 'Handles sales conversations',
+      agent_bot_id: 70,
+      inbox_ids: [1],
+    },
+    {
+      id: 9,
+      name: 'Assistant Support',
+      description: 'Handles support conversations',
+      agent_bot_id: 90,
+      inbox_ids: [2],
+    },
+  ];
+
   beforeEach(() => {
     useStoreGetters.mockReturnValue({
       'labels/getLabels': { value: mockLabels },
       'teams/getTeams': { value: mockTeams },
       'agents/getVerifiedAgents': { value: mockAgents },
+      'captainAssistants/getRecords': { value: mockAIAgents },
     });
   });
 
@@ -163,11 +181,20 @@ describe('useMacros', () => {
     expect(getMacroDropdownValues('unknown_type')).toEqual([]);
   });
 
+  it('returns assistants as {id, name} for assign_ai_agent type', () => {
+    const { getMacroDropdownValues } = useMacros();
+    expect(getMacroDropdownValues('assign_ai_agent')).toEqual([
+      { id: 7, name: 'Assistant Sales' },
+      { id: 9, name: 'Assistant Support' },
+    ]);
+  });
+
   it('handles empty data correctly', () => {
     useStoreGetters.mockReturnValue({
       'labels/getLabels': { value: [] },
       'teams/getTeams': { value: [] },
       'agents/getVerifiedAgents': { value: [] },
+      'captainAssistants/getRecords': { value: [] },
     });
 
     const { getMacroDropdownValues } = useMacros();
@@ -176,5 +203,6 @@ describe('useMacros', () => {
     expect(getMacroDropdownValues('assign_agent')).toEqual([
       { id: 'self', name: 'Self' },
     ]);
+    expect(getMacroDropdownValues('assign_ai_agent')).toEqual([]);
   });
 });

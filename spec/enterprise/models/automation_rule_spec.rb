@@ -31,6 +31,16 @@ RSpec.describe AutomationRule do
         expect(automation_rule.conditions_attributes).to include('sla_policy_id')
         expect(automation_rule.actions_attributes).to include('add_sla')
       end
+
+      it 'whitelists assign_ai_agent in the actions (C5)' do
+        expect(automation_rule.actions_attributes).to include('assign_ai_agent')
+      end
+
+      it 'accepts a rule with the assign_ai_agent action' do
+        rule = FactoryBot.build(:automation_rule, account: automation_rule.account,
+                                                  actions: [{ 'action_name' => 'assign_ai_agent', 'action_params' => [1] }])
+        expect(rule).to be_valid
+      end
     end
   end
 end

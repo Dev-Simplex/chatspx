@@ -1,7 +1,7 @@
 require 'rails_helper'
 
 RSpec.describe Captain::InboxPendingConversationsResolutionJob, type: :job do
-  let!(:inbox) { create(:inbox) }
+  let!(:inbox) { create(:inbox, pending_status_enabled: true) }
   let!(:resolvable_pending_conversation) { create(:conversation, inbox: inbox, last_activity_at: 2.hours.ago, status: :pending) }
   let!(:recent_pending_conversation) { create(:conversation, inbox: inbox, last_activity_at: 1.minute.ago, status: :pending) }
   let!(:open_conversation) { create(:conversation, inbox: inbox, last_activity_at: 1.hour.ago, status: :open) }
@@ -11,6 +11,9 @@ RSpec.describe Captain::InboxPendingConversationsResolutionJob, type: :job do
     create(:captain_inbox, inbox: inbox, captain_assistant: captain_assistant)
     stub_const('Limits::BULK_ACTIONS_LIMIT', 3)
     inbox.reload
+    # A4: o assistant é resolvido pela CONVERSA (dono-espelho). No modelo novo a
+    # conversa pertence ao AgentBot-espelho do assistant; o job lê esse dono.
+    resolvable_pending_conversation.update!(assignee_agent_bot: captain_assistant.mirror_agent_bot)
   end
 
   it 'queues the job' do

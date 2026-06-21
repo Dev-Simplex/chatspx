@@ -4,6 +4,9 @@ import { ref, onMounted, onUnmounted, defineEmits, defineExpose } from 'vue';
 import WaveSurfer from 'wavesurfer.js';
 import RecordPlugin from 'wavesurfer.js/dist/plugins/record.js';
 import { format, intervalToDuration } from 'date-fns';
+import * as Sentry from '@sentry/vue';
+import { useI18n } from 'vue-i18n';
+import { useAlert } from 'dashboard/composables';
 import { convertAudio } from './utils/mp3ConversionUtils';
 
 const props = defineProps({
@@ -22,7 +25,10 @@ const emit = defineEmits([
   'recordPause',
   'recordResume',
   'recordProcessing',
+  'recordError',
 ]);
+
+const { t } = useI18n();
 
 const waveformContainer = ref(null);
 const wavesurfer = ref(null);
@@ -111,6 +117,15 @@ const initWaveSurfer = () => {
         file,
       });
       hasRecording.value = true;
+    } catch (error) {
+      // convertAudio (mp3/wav encoding) can throw on unsupported formats or a
+      // decode failure. Previously this rejected silently inside the async
+      // handler, leaving the agent staring at a stuck "processing" spinner.
+      // Surface it: reset state, tell the user, notify the parent, log to Sentry.
+      hasRecording.value = false;
+      Sentry.captureException(error);
+      useAlert(t('CONVERSATION.AUDIO_CONVERT_ERROR'));
+      emit('recordError', error);
     } finally {
       isProcessing.value = false;
     }

@@ -3,13 +3,14 @@
 class Conversations::ListPreloader
   Result = Struct.new(:unread_counts, :last_messages, :last_non_activity_messages, keyword_init: true)
 
-  def self.call(conversations)
-    new(conversations).call
+  def self.call(conversations, user: Current.user)
+    new(conversations, user).call
   end
 
-  def initialize(conversations)
+  def initialize(conversations, user = Current.user)
     @conversations = conversations.to_a
     @conversation_ids = @conversations.map(&:id)
+    @user = user
   end
 
   def call
@@ -55,25 +56,41 @@ class Conversations::ListPreloader
     build_message_maps(rows)
   end
 
+  # ID do agente p/ isolamento (nil = admin/sem User → sem filtro). Memoizado.
+  def agent_filter_id
+    return @agent_filter_id if defined?(@agent_filter_id)
+
+    @agent_filter_id = AgentMessageIsolation.viewer_restriction_id(@user, @conversations.first&.account_id)
+  end
+
   def fetch_combined_last_message_rows # rubocop:disable Metrics/MethodLength
+    uid = agent_filter_id
+    # Filtra a última mensagem por agente SÓ nos inboxes com a flag ON (a lista mistura inboxes).
+    inbox_join  = uid ? 'INNER JOIN inboxes i ON i.id = c.inbox_id' : ''
+    agent_where = uid ? 'AND (i.agent_message_isolation IS NOT TRUE OR m.agent_id IS NULL OR m.agent_id = :uid)' : ''
+
     sql = <<~SQL.squish
       WITH last_all AS (
         SELECT DISTINCT ON (m.conversation_id) m.id, m.conversation_id
         FROM messages m
         INNER JOIN conversations c ON c.id = m.conversation_id
-        WHERE m.conversation_id IN (?)
+        #{inbox_join}
+        WHERE m.conversation_id IN (:ids)
           AND m.account_id = c.account_id
           AND (c.team_id IS NULL OR m.team_id IS NULL OR m.team_id = c.team_id)
+          #{agent_where}
         ORDER BY m.conversation_id, m.created_at DESC, m.id DESC
       ),
       last_non_activity AS (
         SELECT DISTINCT ON (m.conversation_id) m.id, m.conversation_id
         FROM messages m
         INNER JOIN conversations c ON c.id = m.conversation_id
-        WHERE m.conversation_id IN (?)
+        #{inbox_join}
+        WHERE m.conversation_id IN (:ids)
           AND m.account_id = c.account_id
           AND m.message_type != 2
           AND (c.team_id IS NULL OR m.team_id IS NULL OR m.team_id = c.team_id)
+          #{agent_where}
         ORDER BY m.conversation_id, m.id DESC
       )
       SELECT 'all' AS kind, id, conversation_id FROM last_all
@@ -81,8 +98,10 @@ class Conversations::ListPreloader
       SELECT 'non_activity' AS kind, id, conversation_id FROM last_non_activity
     SQL
 
+    binds = { ids: @conversation_ids }
+    binds[:uid] = uid if uid
     Conversation.connection.select_all(
-      Conversation.sanitize_sql_array([sql, @conversation_ids, @conversation_ids])
+      Conversation.sanitize_sql_array([sql, binds])
     ).to_a
   end
 

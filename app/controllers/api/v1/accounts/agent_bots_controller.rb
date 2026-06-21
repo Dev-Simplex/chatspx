@@ -2,6 +2,8 @@ class Api::V1::Accounts::AgentBotsController < Api::V1::Accounts::BaseController
   before_action :current_account
   before_action :check_authorization
   before_action :agent_bot, except: [:index, :create]
+  before_action :ensure_mutable_bot, only: [:update, :destroy, :avatar, :reset_access_token]
+  before_action :reject_captain_bot_type, only: [:create, :update]
 
   def index
     @agent_bots = AgentBot.accessible_to(Current.account)
@@ -39,6 +41,20 @@ class Api::V1::Accounts::AgentBotsController < Api::V1::Accounts::BaseController
   def agent_bot
     @agent_bot = AgentBot.accessible_to(Current.account).find(params[:id]) if params[:action] == 'show'
     @agent_bot ||= Current.account.agent_bots.find(params[:id])
+  end
+
+  # Espelhos captain são gerenciados pelo sync do assistant — imutáveis via API.
+  def ensure_mutable_bot
+    return unless @agent_bot.captain?
+
+    render json: { error: I18n.t('agent_bots.captain_mirror_immutable') }, status: :unprocessable_entity
+  end
+
+  # Espelho só nasce pelo Captain::AssistantMirrorService, nunca via params.
+  def reject_captain_bot_type
+    return unless params[:bot_type].to_s.in?(['captain', AgentBot.bot_types[:captain].to_s])
+
+    render json: { error: I18n.t('agent_bots.captain_mirror_immutable') }, status: :unprocessable_entity
   end
 
   def permitted_params

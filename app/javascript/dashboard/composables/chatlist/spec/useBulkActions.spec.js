@@ -3,6 +3,8 @@ import { useBulkActions } from '../useBulkActions';
 import { useStore } from 'vuex';
 import { useMapGetter } from 'dashboard/composables/store.js';
 import { useResolveValidation } from 'dashboard/composables/useResolveValidation';
+import { useResolveAssignmentGate } from 'dashboard/composables/useResolveAssignmentGate';
+import { useConversationRequiredAttributes } from 'dashboard/composables/useConversationRequiredAttributes';
 import { useI18n } from 'vue-i18n';
 
 vi.mock('vuex', () => ({
@@ -16,6 +18,12 @@ vi.mock('dashboard/composables', () => ({
 }));
 vi.mock('dashboard/composables/useResolveValidation', () => ({
   useResolveValidation: vi.fn(),
+}));
+vi.mock('dashboard/composables/useResolveAssignmentGate', () => ({
+  useResolveAssignmentGate: vi.fn(),
+}));
+vi.mock('dashboard/composables/useConversationRequiredAttributes', () => ({
+  useConversationRequiredAttributes: vi.fn(),
 }));
 vi.mock('vue-i18n', () => ({
   useI18n: vi.fn(),
@@ -53,6 +61,14 @@ describe('useBulkActions', () => {
       validateAndResolveBulk: vi.fn(),
       assignTeamAndResolve: vi.fn(),
       cancelTeamSelection: vi.fn(),
+    });
+    useResolveAssignmentGate.mockReturnValue({
+      isResolveGateEnabled: ref(false),
+      isAssignedToMe: vi.fn(() => true),
+      currentUserId: ref(7),
+    });
+    useConversationRequiredAttributes.mockReturnValue({
+      checkMissingAttributes: vi.fn(() => ({ hasMissing: false, missing: [] })),
     });
   });
 

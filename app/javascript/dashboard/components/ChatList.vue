@@ -32,9 +32,12 @@ import Spinner from 'dashboard/components-next/spinner/Spinner.vue';
 import IntersectionObserver from 'dashboard/components/IntersectionObserver.vue';
 import ConversationSearchModal from './widgets/conversation/ConversationSearchModal.vue';
 import ConversationResolveAttributesModal from 'dashboard/components-next/ConversationWorkflow/ConversationResolveAttributesModal.vue';
+import AssignAndResolveDialog from 'dashboard/components-next/Conversation/AssignAndResolveDialog.vue';
+import { useResolveAssignmentGate } from 'dashboard/composables/useResolveAssignmentGate';
 
 import { useUISettings } from 'dashboard/composables/useUISettings';
 import { useAlert } from 'dashboard/composables';
+import { useReplyAssignmentGate } from 'dashboard/composables/useReplyAssignmentGate';
 import { useChatListKeyboardEvents } from 'dashboard/composables/chatlist/useChatListKeyboardEvents';
 import { useBulkActions } from 'dashboard/composables/chatlist/useBulkActions';
 import { useFilter } from 'shared/composables/useFilter';
@@ -55,6 +58,7 @@ import filterQueryGenerator from '../helper/filterQueryGenerator.js';
 import languages from 'dashboard/components/widgets/conversation/advancedFilterItems/languages';
 import countries from 'shared/constants/countries';
 import { generateValuesForEditCustomViews } from 'dashboard/helper/customViewsHelper';
+import { losesConversationAccess } from 'dashboard/helper/conversationAccessHelper';
 import {
   conversationListPageURL,
   conversationUrl,
@@ -63,6 +67,7 @@ import {
 import {
   isOnMentionsView,
   isOnUnattendedView,
+  isOnUnreadView,
 } from '../store/modules/conversations/helpers/actionHelpers';
 import {
   getUserPermissions,
@@ -71,6 +76,10 @@ import {
 import { matchesFilters } from '../store/modules/conversations/helpers/filterHelpers';
 import { CONVERSATION_EVENTS } from '../helper/AnalyticsHelper/events';
 import { ASSIGNEE_TYPE_TAB_PERMISSIONS } from 'dashboard/constants/permissions.js';
+import {
+  UNREAD_ROUTES,
+  resolveAssigneeTab,
+} from 'dashboard/helper/unreadViewHelper';
 
 const props = defineProps({
   conversationInbox: { type: [String, Number], default: 0 },
@@ -96,17 +105,8 @@ const virtualListRef = ref(null);
 
 provide('contextMenuElementTarget', virtualListRef);
 
-const initialAssigneeTabFromRoute = () => {
-  if (route.name === 'conversation_unattended') {
-    if (route.query.assignee_type === 'unassigned')
-      return wootConstants.ASSIGNEE_TYPE.UNASSIGNED;
-    if (route.query.assignee_type === 'all')
-      return wootConstants.ASSIGNEE_TYPE.ALL;
-    return wootConstants.ASSIGNEE_TYPE.ME;
-  }
-  return wootConstants.ASSIGNEE_TYPE.ME;
-};
-const activeAssigneeTab = ref(initialAssigneeTabFromRoute());
+// activeAssigneeTab is initialized after assigneeTabItems (below) so the default
+// can be clamped to the tabs the user is actually allowed to see.
 const activeStatus = ref(wootConstants.STATUS_TYPE.OPEN);
 const activeSortBy = ref(wootConstants.SORT_BY_TYPE.LAST_ACTIVITY_AT_DESC);
 const showAdvancedFilters = ref(false);
@@ -135,6 +135,7 @@ const chatLists = useMapGetter('getFilteredConversations');
 const mineChatsList = useMapGetter('getMineChats');
 const allChatList = useMapGetter('getAllStatusChats');
 const unAssignedChatsList = useMapGetter('getUnAssignedChats');
+const aiChatsList = useMapGetter('getAIChats');
 const chatListLoading = useMapGetter('getChatListLoadingStatus');
 const activeInbox = useMapGetter('getSelectedInbox');
 const conversationStats = useMapGetter('conversationStats/getStats');
@@ -146,9 +147,16 @@ const inboxesList = useMapGetter('inboxes/getInboxes');
 const campaigns = useMapGetter('campaigns/getAllCampaigns');
 const labels = useMapGetter('labels/getLabels');
 const currentAccountId = useMapGetter('getCurrentAccountId');
+const currentRole = useMapGetter('getCurrentRole');
+const myTeams = useMapGetter('teams/getMyTeams');
 // We can't useFunctionGetter here since it needs to be called on setup?
 const getTeamFn = useMapGetter('teams/getTeam');
 const getConversationById = useMapGetter('getConversationById');
+
+// AI tabs (Fase C — C4): gated by the reply_assignment_gate account setting
+const { isAssignmentGateEnabled } = useReplyAssignmentGate();
+const captainAssistants = useMapGetter('captainAssistants/getRecords');
+const hasCaptainAgents = computed(() => captainAssistants.value.length > 0);
 
 useChatListKeyboardEvents(conversationListRef);
 const {
@@ -168,6 +176,11 @@ const {
   teams,
   onConfirmAgentTransferTeam,
   cancelAgentTransferTeamSelection,
+  showBulkAssignResolveDialog,
+  bulkAssignResolveRequiresTeam,
+  bulkAssignResolveCount,
+  onConfirmBulkAssignResolve,
+  onCancelBulkAssignResolve,
 } = useBulkActions();
 
 const {
@@ -179,6 +192,56 @@ const {
 });
 
 const { checkMissingAttributes } = useConversationRequiredAttributes();
+
+const {
+  requiresAssignmentToResolve,
+  getResolveVariant,
+  getAssignee,
+  hasTeam,
+  assignSelfAndResolve,
+} = useResolveAssignmentGate();
+
+// "Atribuição obrigatória" — assign-and-resolve dialog state for the context menu.
+const showAssignResolveDialog = ref(false);
+const assignResolveContext = ref({
+  conversationId: null,
+  snoozedUntil: null,
+  variant: 'unassigned',
+  assigneeName: '',
+  requiresTeam: false,
+});
+
+function openAssignResolveDialog(conversation, snoozedUntil) {
+  const variant = getResolveVariant(conversation);
+  const assignee = getAssignee(conversation);
+  assignResolveContext.value = {
+    conversationId: conversation.id,
+    snoozedUntil,
+    variant,
+    assigneeName:
+      variant === 'ai'
+        ? assignee?.name ||
+          t('CONVERSATION.RESOLVE_ASSIGNMENT_GATE.AI_FALLBACK')
+        : assignee?.name || '',
+    requiresTeam: !hasTeam(conversation),
+  };
+  showAssignResolveDialog.value = true;
+}
+
+function closeAssignResolveDialog() {
+  showAssignResolveDialog.value = false;
+}
+
+async function handleAssignAndResolve({ teamId }) {
+  const { conversationId, snoozedUntil } = assignResolveContext.value;
+  closeAssignResolveDialog();
+  try {
+    await assignSelfAndResolve(conversationId, { teamId, snoozedUntil });
+    useAlert(t('CONVERSATION.RESOLVE_ASSIGNMENT_GATE.SUCCESS'));
+  } catch (error) {
+    useAlert(t('CONVERSATION.CHANGE_STATUS_FAILED'));
+  }
+}
 
 // computed
 
@@ -235,6 +298,7 @@ const assigneeTabItems = computed(() => {
     if (key === wootConstants.ASSIGNEE_TYPE.ME) return 'i-lucide-user';
     if (key === wootConstants.ASSIGNEE_TYPE.UNASSIGNED)
       return 'i-lucide-user-round-x';
+    if (key === wootConstants.ASSIGNEE_TYPE.AI) return 'i-lucide-sparkles';
     if (key === wootConstants.ASSIGNEE_TYPE.ALL) return 'i-lucide-users';
     return null;
   };
@@ -242,19 +306,62 @@ const assigneeTabItems = computed(() => {
     ASSIGNEE_TYPE_TAB_PERMISSIONS,
     userPermissions.value,
     item => item.permissions
-  ).map(({ key }) => ({
-    key,
-    name: t(`CHAT_LIST.ASSIGNEE_TYPE_TABS.${key}`),
-    count: stats[countKeyForTab(key)] ?? 0,
-    icon: iconForKey(key),
-  }));
+  )
+    .filter(({ key }) => {
+      // AI tab: only with the gate ON, at least one assistant on the account
+      // and outside the unattended view (no unattended-per-AI counts — OQ-2)
+      if (key === wootConstants.ASSIGNEE_TYPE.AI)
+        return (
+          isAssignmentGateEnabled.value &&
+          hasCaptainAgents.value &&
+          !useUnattendedCounts
+        );
+      // Gate ON: "Unassigned" becomes a conditional alert tab (D-5),
+      // rendered only while there are unassigned conversations
+      if (
+        key === wootConstants.ASSIGNEE_TYPE.UNASSIGNED &&
+        isAssignmentGateEnabled.value &&
+        !useUnattendedCounts
+      )
+        return (stats.unAssignedCount ?? 0) > 0;
+      return true;
+    })
+    .map(({ key }) => {
+      // Gate ON: a tab "Não atribuídas" é reapresentada como "Aguardando
+      // atendimento" (fila do modo atribuição obrigatória). No modo Clássico
+      // mantém "Não atribuídas".
+      const isAwaitingTab =
+        key === wootConstants.ASSIGNEE_TYPE.UNASSIGNED &&
+        isAssignmentGateEnabled.value &&
+        !useUnattendedCounts;
+      return {
+        key,
+        name: isAwaitingTab
+          ? t('CHAT_LIST.ASSIGNEE_TYPE_TABS.unassigned_awaiting')
+          : t(`CHAT_LIST.ASSIGNEE_TYPE_TABS.${key}`),
+        count: stats[countKeyForTab(key)] ?? 0,
+        icon: iconForKey(key),
+        variant: isAwaitingTab ? 'alert' : undefined,
+      };
+    });
   return items;
 });
+
+// Route-aware default tab, clamped to the tabs the user can actually see.
+// Defined here (not at the top of setup) so assigneeTabItems is available.
+const activeAssigneeTab = ref(
+  resolveAssigneeTab(
+    route.name,
+    route.query,
+    assigneeTabItems.value.map(item => item.key)
+  )
+);
 
 const showAssigneeInConversationCard = computed(() => {
   return (
     hasAppliedFiltersOrActiveFolders.value ||
-    activeAssigneeTab.value === wootConstants.ASSIGNEE_TYPE.ALL
+    activeAssigneeTab.value === wootConstants.ASSIGNEE_TYPE.ALL ||
+    activeAssigneeTab.value === wootConstants.ASSIGNEE_TYPE.AI
   );
 });
 
@@ -284,26 +391,31 @@ const conversationCustomAttributes = useFunctionGetter(
 );
 
 const activeAssigneeTabCount = computed(() => {
+  // Optional chaining: the conditional "Unassigned" tab can vanish while
+  // still active for one tick before the fallback watcher kicks in.
   const count = assigneeTabItems.value.find(
     item => item.key === activeAssigneeTab.value
-  ).count;
-  return count;
+  )?.count;
+  return count ?? 0;
 });
 
 const conversationListPagination = computed(() => {
   const conversationsPerPage = 25;
-  const hasChatsOnView =
-    chatsOnView.value &&
-    Array.isArray(chatsOnView.value) &&
-    !chatsOnView.value.length;
-  const isNoFiltersOrFoldersAndChatListNotEmpty =
-    !hasAppliedFiltersOrActiveFolders.value && hasChatsOnView;
-  const isUnderPerPage =
-    chatsOnView.value.length < conversationsPerPage &&
-    activeAssigneeTabCount.value < conversationsPerPage &&
-    activeAssigneeTabCount.value > chatsOnView.value.length;
+  const visibleChats = Array.isArray(chatsOnView.value)
+    ? chatsOnView.value
+    : [];
+  const visibleCount = visibleChats.length;
+  const tabCount = activeAssigneeTabCount.value;
 
-  if (isNoFiltersOrFoldersAndChatListNotEmpty && isUnderPerPage) {
+  const isChatListEmpty = visibleCount === 0;
+  const isDefaultView = !hasAppliedFiltersOrActiveFolders.value;
+  // The rendered list is empty (e.g. right after a tab switch/reset) but the
+  // tab's total count says there is still a partial page (1..24) left to load.
+  // Re-fetch from page 1 instead of advancing the cursor past the data.
+  const hasUnloadedPartialPage =
+    tabCount > visibleCount && tabCount < conversationsPerPage;
+
+  if (isDefaultView && isChatListEmpty && hasUnloadedPartialPage) {
     return 1;
   }
 
@@ -454,6 +566,8 @@ const conversationList = computed(() => {
       localConversationList = mineChatsList.value;
     } else if (activeAssigneeTab.value === 'unassigned') {
       localConversationList = unAssignedChatsList.value;
+    } else if (activeAssigneeTab.value === 'ai') {
+      localConversationList = aiChatsList.value;
     } else {
       localConversationList = allChatList.value;
     }
@@ -754,6 +868,23 @@ function updateAssigneeTab(selectedTab) {
     });
     return;
   }
+  // Unread: keep the active tab reflected in the URL (?assignee_type=...) for
+  // all three tabs, so the address bar always matches the highlighted tab and
+  // the view is deep-linkable. The deep-link watcher then syncs the tab state
+  // and refetches. Always explicit (unlike unattended, whose default is "me").
+  if (props.conversationType === 'unread') {
+    const queryByTab = {
+      [wootConstants.ASSIGNEE_TYPE.ME]: 'me',
+      [wootConstants.ASSIGNEE_TYPE.UNASSIGNED]: 'unassigned',
+      [wootConstants.ASSIGNEE_TYPE.ALL]: 'all',
+    };
+    router.push({
+      name: 'conversation_unread',
+      params: { accountId: currentAccountId.value },
+      query: { assignee_type: queryByTab[selectedTab] ?? 'all' },
+    });
+    return;
+  }
   if (activeAssigneeTab.value !== selectedTab) {
     resetBulkActions();
     emitter.emit('clearSearchInput');
@@ -802,6 +933,8 @@ function redirectToConversationList() {
     conversationType = 'mention';
   } else if (isOnUnattendedView({ route: { name } })) {
     conversationType = 'unattended';
+  } else if (isOnUnreadView({ route: { name } })) {
+    conversationType = 'unread';
   }
   router.push(
     conversationListPageURL({
@@ -854,11 +987,39 @@ async function markAsRead(conversationId) {
   }
 }
 
+function leaveConversationIfAccessLost(team, conversationId) {
+  // Conversation routes use either :conversation_id or :conversationId
+  // depending on the view (conversation.routes.js).
+  const openConversationId = Number(
+    route.params.conversation_id ?? route.params.conversationId
+  );
+  if (!openConversationId || openConversationId !== Number(conversationId)) {
+    return;
+  }
+  // An empty teams store right after a team assignment means it has not
+  // loaded yet — fail open instead of ejecting a legitimate member.
+  if (!teamsList.value.length) return;
+  // assigneeId stays null: on a team change the backend clears or reassigns
+  // a non-member assignee (ensure_assignee_is_from_team).
+  const lostAccess = losesConversationAccess({
+    isAdmin: currentRole.value === 'administrator',
+    userId: currentUser.value.id,
+    userTeamIds: myTeams.value.map(memberTeam => memberTeam.id),
+    teamId: team.id,
+    assigneeId: null,
+  });
+  if (lostAccess) {
+    useAlert(t('CONVERSATION.ASSIGNMENT_ACCESS_LOST'));
+    router.push(`/app/accounts/${currentAccountId.value}/dashboard`);
+  }
+}
+
 async function onAssignTeam(team, conversationId = null) {
   try {
     await store.dispatch('assignTeam', {
       conversationId,
       teamId: team.id,
+      rethrow: true,
     });
     useAlert(
       t('CONVERSATION.CARD_CONTEXT_MENU.API.TEAM_ASSIGNMENT.SUCCESFUL', {
@@ -866,7 +1027,7 @@ async function onAssignTeam(team, conversationId = null) {
         conversationId,
       })
     );
-    router.push(`/app/accounts/${currentAccountId.value}/dashboard`);
+    leaveConversationIfAccessLost(team, conversationId);
   } catch (error) {
     useAlert(t('CONVERSATION.CARD_CONTEXT_MENU.API.TEAM_ASSIGNMENT.FAILED'));
   }
@@ -901,6 +1062,13 @@ function handleResolveConversation(conversationId, status, snoozedUntil) {
 
   // Check for required attributes before resolving
   const conversation = getConversationById.value(conversationId);
+
+  // "Atribuição obrigatória": intercept non-assignee resolves with the dialog.
+  if (requiresAssignmentToResolve(conversation)) {
+    openAssignResolveDialog(conversation, snoozedUntil);
+    return;
+  }
+
   const currentCustomAttributes = conversation?.custom_attributes || {};
   const { hasMissing, missing } = checkMissingAttributes(
     currentCustomAttributes
@@ -1013,6 +1181,11 @@ onMounted(() => {
   if (hasActiveFolders.value) {
     store.dispatch('campaigns/get');
   }
+  // AI tab eligibility: failure is tolerated (empty records ⇒ no AI tab;
+  // an account without Captain must not break the chat list)
+  if (isAssignmentGateEnabled.value) {
+    store.dispatch('captainAssistants/get').catch(() => {});
+  }
 });
 
 const deleteConversationDialogRef = ref(null);
@@ -1049,18 +1222,19 @@ provide('assignPriority', assignPriority);
 provide('isConversationSelected', isConversationSelected);
 provide('deleteConversation', handleDelete);
 
-// Unattended route: sync assignee tab from query params
+// Unattended/Unread routes: sync assignee tab from query params (deep-link)
 watch(
   () => [route.name, route.query],
   () => {
-    if (route.name === 'conversation_unattended') {
-      const qt = route.query.assignee_type;
-      let newTab = wootConstants.ASSIGNEE_TYPE.ME;
-      if (qt === 'unassigned') {
-        newTab = wootConstants.ASSIGNEE_TYPE.UNASSIGNED;
-      } else if (qt === 'all') {
-        newTab = wootConstants.ASSIGNEE_TYPE.ALL;
-      }
+    if (
+      route.name === 'conversation_unattended' ||
+      UNREAD_ROUTES.includes(route.name)
+    ) {
+      const newTab = resolveAssigneeTab(
+        route.name,
+        route.query,
+        assigneeTabItems.value.map(item => item.key)
+      );
       const prevTab = activeAssigneeTab.value;
       activeAssigneeTab.value = newTab;
       if (prevTab !== newTab) {
@@ -1102,9 +1276,15 @@ watch(
       }
     }
 
-    // Side effect: reset assignee tab when leaving unattended view
+    // Side effect: reset assignee tab when the view type changes.
+    // Use the route-aware default so the Unread view keeps its "All" default
+    // instead of being forced back to "Mine".
     if (newType !== prevType && newType !== 'unattended') {
-      activeAssigneeTab.value = wootConstants.ASSIGNEE_TYPE.ME;
+      activeAssigneeTab.value = resolveAssigneeTab(
+        route.name,
+        route.query,
+        assigneeTabItems.value.map(item => item.key)
+      );
     }
 
     // Side effect: sync active folder in store
@@ -1116,6 +1296,24 @@ watch(
     }
 
     resetAndFetchData();
+  }
+);
+
+// The conditional "Unassigned" tab can disappear while active (count drops to
+// zero with the gate ON) which would leave activeTabIndex at -1 — fall back to
+// "Mine". Not applicable to the unattended view (tab is unconditional there).
+watch(
+  [() => conversationStats.value.unAssignedCount, isAssignmentGateEnabled],
+  ([count]) => {
+    if (
+      props.conversationType !== 'unattended' &&
+      isAssignmentGateEnabled.value &&
+      activeAssigneeTab.value === wootConstants.ASSIGNEE_TYPE.UNASSIGNED &&
+      conversationStats.value.updatedOn &&
+      count === 0
+    ) {
+      updateAssigneeTab(wootConstants.ASSIGNEE_TYPE.ME);
+    }
   }
 );
 
@@ -1235,6 +1433,15 @@ watch(conversationFilters, newVal => {
       @confirm="onConfirmAgentTransferTeam"
       @close="cancelAgentTransferTeamSelection"
     />
+    <AssignAndResolveDialog
+      :show="showBulkAssignResolveDialog"
+      is-bulk
+      :bulk-count="bulkAssignResolveCount"
+      :requires-team="bulkAssignResolveRequiresTeam"
+      :teams="myTeams"
+      @confirm="onConfirmBulkAssignResolve"
+      @close="onCancelBulkAssignResolve"
+    />
     <div
       ref="conversationListRef"
       class="flex-1 min-h-0 overflow-y-auto conversations-list"
@@ -1316,6 +1523,15 @@ watch(conversationFilters, newVal => {
     <ConversationResolveAttributesModal
       ref="resolveAttributesModalRef"
       @submit="handleResolveWithAttributes"
+    />
+    <AssignAndResolveDialog
+      :show="showAssignResolveDialog"
+      :variant="assignResolveContext.variant"
+      :assignee-name="assignResolveContext.assigneeName"
+      :requires-team="assignResolveContext.requiresTeam"
+      :teams="myTeams"
+      @confirm="handleAssignAndResolve"
+      @close="closeAssignResolveDialog"
     />
   </div>
 </template>

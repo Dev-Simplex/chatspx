@@ -20,19 +20,41 @@ class MessageFinder
   private
 
   def conversation_messages
-    @conversation.messages
-                 .where(inbox_id: @conversation.inbox_id)
-                 .includes(
-                   { attachments: [{ file_attachment: [:blob] }] },
-                   :sender,
-                   sender: { avatar_attachment: [:blob] }
-                 )
+    scope = @conversation.messages
+                         .where(inbox_id: @conversation.inbox_id)
+                         .includes(
+                           { attachments: [{ file_attachment: [:blob] }] },
+                           :sender,
+                           :reactions,
+                           sender: { avatar_attachment: [:blob] }
+                         )
+    apply_agent_isolation(scope)
+  end
+
+  # Isolamento POR AGENTE depende de QUEM olha — por isso (diferente do team isolation,
+  # que vive na association conversation.messages) o filtro mora aqui, onde Current.user
+  # e conhecido. Mesmo acoplamento a Current.user ja usado em Message#reopened_by_contact?.
+  # Listagens do widget/public API nao tem Current.user -> o filtro vira no-op (seguro).
+  def apply_agent_isolation(scope)
+    restriction_id = AgentMessageIsolation.restriction_id_for_inbox(
+      @conversation.inbox, Current.user, @conversation.account_id
+    )
+    AgentMessageIsolation.filter_messages(scope, restriction_id)
   end
 
   def messages
-    return conversation_messages if @params[:filter_internal_messages].blank?
+    scope = conversation_messages
+    scope = scope.where.not('private = ? OR message_type = ?', true, 2) if @params[:filter_internal_messages].present?
+    scope = scope.where(starred: true) if starred_filter?
+    scope
+  end
 
-    conversation_messages.where.not('private = ? OR message_type = ?', true, 2)
+  # Accepts boolean-ish values: true / "true" / "1". Anything else is ignored
+  # (the filter is opt-in; absence means "return everything").
+  def starred_filter?
+    return false if @params[:starred].nil?
+
+    ActiveModel::Type::Boolean.new.cast(@params[:starred])
   end
 
   def current_messages

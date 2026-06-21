@@ -10,6 +10,9 @@ import {
 const props = defineProps({
   items: { type: Array, required: true },
   selectedIds: { type: Set, required: true },
+  // Checkbox oculto até o modo seleção ficar ativo (≥1 selecionado) — coerência
+  // com a grade de imagens. O clique na linha continua alternando a seleção.
+  selectionActive: { type: Boolean, default: false },
   isLoadingMore: { type: Boolean, default: false },
   hasMore: { type: Boolean, default: false },
 });
@@ -102,7 +105,7 @@ const cleanFilename = name => {
   <div class="max-w-4xl mx-auto">
     <section v-for="group in groups" :key="group.key" class="mb-8 last:mb-0">
       <h3
-        class="sticky -top-px z-20 -mx-6 sm:-mx-8 lg:-mx-10 px-6 sm:px-8 lg:px-10 py-3 mb-3 text-[13px] uppercase tracking-wider font-semibold text-n-slate-11 bg-n-background/95 dark:bg-n-solid-1/95 backdrop-blur"
+        class="mb-3 text-[13px] uppercase tracking-wider font-semibold text-n-slate-11"
       >
         {{ group.label }}
       </h3>
@@ -119,15 +122,23 @@ const cleanFilename = name => {
           "
           @click="$emit('toggleSelect', item.id)"
         >
-          <!-- Checkbox -->
+          <!-- Checkbox — item selecionado ou modo seleção ativo → sempre visível;
+               caso contrário oculto e REVELADO no hover/foco da linha (group-hover).
+               pointer-events-none enquanto oculto p/ não capturar o clique fora do
+               hover (a linha inteira já alterna a seleção no clique). -->
           <button
             type="button"
-            class="size-5 rounded-md flex items-center justify-center flex-shrink-0 transition-colors border-2"
-            :class="
+            :aria-label="t('GALLERY.ACTIONS.SELECT')"
+            :aria-pressed="selectedIds.has(item.id)"
+            class="size-5 rounded-md flex items-center justify-center flex-shrink-0 transition-all border-2"
+            :class="[
               selectedIds.has(item.id)
                 ? 'bg-n-brand border-n-brand'
-                : 'border-n-slate-7 dark:border-n-slate-9 group-hover:border-n-slate-9 dark:group-hover:border-n-slate-7'
-            "
+                : 'border-n-slate-7 dark:border-n-slate-9 group-hover:border-n-slate-9 dark:group-hover:border-n-slate-7',
+              selectionActive || selectedIds.has(item.id)
+                ? 'opacity-100'
+                : 'opacity-0 pointer-events-none group-hover:opacity-100 group-hover:pointer-events-auto focus-visible:opacity-100 focus-visible:pointer-events-auto',
+            ]"
             @click.stop="$emit('toggleSelect', item.id)"
           >
             <span

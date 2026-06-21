@@ -2,12 +2,14 @@ require 'rails_helper'
 
 RSpec.describe Captain::Conversation::ResponseBuilderJob, type: :job do
   let(:account) { create(:account, custom_attributes: { plan_name: 'startups' }) }
-  let(:inbox) { create(:inbox, account: account) }
+  let(:inbox) { create(:inbox, account: account, pending_status_enabled: true) }
   let(:assistant) { create(:captain_assistant, account: account) }
   let(:captain_inbox_association) { create(:captain_inbox, captain_assistant: assistant, inbox: inbox) }
 
   describe '#perform' do
-    let(:conversation) { create(:conversation, inbox: inbox, account: account, status: :pending) }
+    let(:conversation) do
+      create(:conversation, inbox: inbox, account: account, status: :pending, assignee_agent_bot: assistant.mirror_agent_bot)
+    end
     let(:mock_llm_chat_service) { instance_double(Captain::Llm::AssistantChatService) }
     let(:mock_agent_runner_service) { instance_double(Captain::Assistant::AgentRunnerService) }
 
@@ -48,13 +50,104 @@ RSpec.describe Captain::Conversation::ResponseBuilderJob, type: :job do
         expect(account.usage_limits[:captain][:responses][:consumed]).to eq(1)
       end
 
-      it 'does not send a response when the conversation is no longer pending' do
-        conversation.open!
+      it 'does not send a response when the conversation is no longer pending/open' do
+        conversation.snoozed!
 
         expect(mock_llm_chat_service).not_to receive(:generate_response)
         expect do
           described_class.perform_now(conversation, assistant)
         end.not_to(change { conversation.messages.outgoing.count })
+      end
+    end
+
+    # A3: re-check de atribuição DENTRO do job — a IA só responde conversa cujo dono
+    # ainda é o espelho DESTE assistant (gate por atribuição, D-6).
+    context 'with assignment re-check (A3)' do
+      let(:agent) { create(:user, account: account, role: :agent) }
+
+      before do
+        allow(account).to receive(:feature_enabled?).and_return(false)
+        allow(account).to receive(:feature_enabled?).with('captain_integration_v2').and_return(false)
+      end
+
+      it 'stays silent when the conversation was reassigned to another assistant before perform' do
+        other_assistant = create(:captain_assistant, account: account)
+        conversation.update!(assignee_agent_bot: other_assistant.mirror_agent_bot)
+
+        expect(mock_llm_chat_service).not_to receive(:generate_response)
+        expect do
+          described_class.perform_now(conversation, assistant)
+        end.not_to(change { conversation.messages.outgoing.count })
+        expect(account.reload.usage_limits[:captain][:responses][:consumed]).to eq(0)
+      end
+
+      it 'stays silent when a human took over before perform' do
+        conversation.update!(assignee: agent)
+
+        expect(mock_llm_chat_service).not_to receive(:generate_response)
+        expect do
+          described_class.perform_now(conversation, assistant)
+        end.not_to(change { conversation.messages.outgoing.count })
+      end
+
+      it 'stays silent when the conversation has no owner' do
+        conversation.update!(assignee_agent_bot: nil)
+
+        expect(mock_llm_chat_service).not_to receive(:generate_response)
+        expect do
+          described_class.perform_now(conversation, assistant)
+        end.not_to(change { conversation.messages.outgoing.count })
+      end
+
+      it 'does not send the response when the owner changes between the LLM call and the send' do
+        allow(mock_llm_chat_service).to receive(:generate_response) do
+          conversation.update!(assignee: agent)
+          { 'response' => 'resposta atrasada' }
+        end
+
+        expect do
+          described_class.perform_now(conversation, assistant)
+        end.not_to(change { conversation.messages.outgoing.count })
+        expect(account.reload.usage_limits[:captain][:responses][:consumed]).to eq(0)
+      end
+
+      context 'when the humanizer splits the response into chunks' do
+        let(:assistant) do
+          create(:captain_assistant, account: account, behavior: { 'humanizer' => { 'enabled' => true } })
+        end
+
+        before do
+          allow(mock_llm_chat_service).to receive(:generate_response).and_return(
+            { 'response' => "Oi!\n\nTudo bem?\n\nSegue a informação combinada.\n\nQualquer coisa me chama." }
+          )
+        end
+
+        it 'sends every chunk while the assistant still owns the conversation' do
+          job = described_class.new(conversation, assistant)
+          allow(job).to receive(:sleep)
+
+          job.perform_now
+
+          expect(conversation.messages.outgoing.count).to eq(4)
+          log = Captain::AssistantLog.where(event_type: 'humanizer_split').last
+          expect(log.payload).to eq('chunks' => 4, 'sent' => 4)
+        end
+
+        it 'stops the burst mid-way when the owner changes after the 2nd chunk' do
+          job = described_class.new(conversation, assistant)
+          sleeps = 0
+          allow(job).to receive(:sleep) do
+            sleeps += 1
+            # Humano assume durante o "digitando..." do 3º chunk -> rajada para ali.
+            conversation.update!(assignee: agent) if sleeps == 3
+          end
+
+          job.perform_now
+
+          expect(conversation.messages.outgoing.count).to eq(2)
+          log = Captain::AssistantLog.where(event_type: 'humanizer_split').last
+          expect(log.payload).to eq('chunks' => 4, 'sent' => 2)
+        end
       end
     end
 
@@ -99,6 +192,51 @@ RSpec.describe Captain::Conversation::ResponseBuilderJob, type: :job do
         account.reload
         expect(account.usage_limits[:captain][:responses][:consumed]).to eq(1)
       end
+
+      # C7.4 (gap AD-11/B4): agent_name que não pertence ao assistant ATUAL não pode
+      # rotear persona — mensagem de OUTRA IA (transferência C7) ou de cenário legado
+      # entra no histórico sem agent_name (cairia no agente default da gem).
+      context 'with the agent_name forwarding guard (C7.4)' do
+        def history_entry(content)
+          history = nil
+          allow(mock_agent_runner_service).to receive(:generate_response) do |message_history:|
+            history = message_history
+            { 'response' => 'ok' }
+          end
+          described_class.perform_now(conversation, assistant)
+          history.find { |entry| entry[:content] == content }
+        end
+
+        it 'does not forward agent_name from another AI' do
+          create(:message, conversation: conversation, message_type: :outgoing, sender: assistant,
+                           content: 'fala da outra IA', additional_attributes: { 'agent_name' => 'outra_ia_qualquer' })
+
+          expect(history_entry('fala da outra IA')).not_to have_key(:agent_name)
+        end
+
+        it 'does not forward agent_name from a legacy/disabled scenario' do
+          create(:message, conversation: conversation, message_type: :outgoing, sender: assistant,
+                           content: 'cenario antigo', additional_attributes: { 'agent_name' => 'scenario_999_legado_agent' })
+
+          expect(history_entry('cenario antigo')).not_to have_key(:agent_name)
+        end
+
+        it 'forwards the own agent_name of the current assistant' do
+          own_name = assistant.name.parameterize(separator: '_')
+          create(:message, conversation: conversation, message_type: :outgoing, sender: assistant,
+                           content: 'fala minha', additional_attributes: { 'agent_name' => own_name })
+
+          expect(history_entry('fala minha')[:agent_name]).to eq(own_name)
+        end
+
+        it 'forwards the handoff_key of an enabled scenario of the current assistant' do
+          scenario = create(:captain_scenario, assistant: assistant, account: account)
+          create(:message, conversation: conversation, message_type: :outgoing, sender: assistant,
+                           content: 'fala do cenario', additional_attributes: { 'agent_name' => scenario.handoff_key })
+
+          expect(history_entry('fala do cenario')[:agent_name]).to eq(scenario.handoff_key)
+        end
+      end
     end
 
     # Regression (PR #13417): wrapping create_handoff_message and bot_handoff! in the
@@ -106,7 +244,9 @@ RSpec.describe Captain::Conversation::ResponseBuilderJob, type: :job do
     # point it clears waiting_since (bot_response). The handoff path must stay outside
     # the transaction so the callback fires before bot_handoff! sets waiting_since.
     context 'when handoff is requested' do
-      let(:conversation) { create(:conversation, inbox: inbox, account: account, status: :pending) }
+      let(:conversation) do
+        create(:conversation, inbox: inbox, account: account, status: :pending, assignee_agent_bot: assistant.mirror_agent_bot)
+      end
       let(:agent) { create(:user, account: account, role: :agent) }
 
       before do
@@ -166,7 +306,9 @@ RSpec.describe Captain::Conversation::ResponseBuilderJob, type: :job do
   end
 
   describe 'retry mechanisms for image processing' do
-    let(:conversation) { create(:conversation, inbox: inbox, account: account, status: :pending) }
+    let(:conversation) do
+      create(:conversation, inbox: inbox, account: account, status: :pending, assignee_agent_bot: assistant.mirror_agent_bot)
+    end
     let(:mock_llm_chat_service) { instance_double(Captain::Llm::AssistantChatService) }
     let(:mock_message_builder) { instance_double(Captain::OpenAiMessageBuilderService) }
 
@@ -278,7 +420,9 @@ RSpec.describe Captain::Conversation::ResponseBuilderJob, type: :job do
   end
 
   describe 'out of office message after handoff' do
-    let(:conversation) { create(:conversation, inbox: inbox, account: account, status: :pending) }
+    let(:conversation) do
+      create(:conversation, inbox: inbox, account: account, status: :pending, assignee_agent_bot: assistant.mirror_agent_bot)
+    end
     let(:mock_llm_chat_service) { instance_double(Captain::Llm::AssistantChatService) }
 
     before do

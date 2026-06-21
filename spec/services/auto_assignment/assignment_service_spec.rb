@@ -80,6 +80,26 @@ RSpec.describe AutoAssignment::AssignmentService do
         expect(resolved_conversation.reload.assignee).to be_nil
       end
 
+      it 'does not assign conversations owned by a captain mirror bot' do
+        assistant = create(:captain_assistant, account: account)
+        captain_conversation = create(:conversation, inbox: inbox, status: 'open', assignee: nil)
+        captain_conversation.update!(assignee_agent_bot: assistant.mirror_agent_bot)
+
+        assigned_count = service.perform_bulk_assignment(limit: 10)
+
+        expect(assigned_count).to eq(0)
+        expect(captain_conversation.reload.assignee).to be_nil
+        expect(captain_conversation.reload.assignee_agent_bot).to eq(assistant.mirror_agent_bot)
+      end
+
+      it 'does not consider conversations owned by a captain mirror bot assignable' do
+        assistant = create(:captain_assistant, account: account)
+        captain_conversation = create(:conversation, inbox: inbox, status: 'open', assignee: nil)
+        captain_conversation.update!(assignee_agent_bot: assistant.mirror_agent_bot)
+
+        expect(service.send(:assignable?, captain_conversation)).to be(false)
+      end
+
       it 'does not reassign already assigned conversations' do
         conversation # ensure it exists
         conversation.update!(assignee_id: nil)

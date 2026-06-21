@@ -91,6 +91,7 @@ Metrics/ModuleLength:
   Exclude:
     - lib/seeders/message_seeder.rb
     - spec/support/slack_stubs.rb
+    - 'app/helpers/reports/pdf_chart_helper.rb'
 
 Rails/HelperInstanceVariable:
   Exclude:
@@ -181,6 +182,12 @@ Metrics/AbcSize:
     - 'app/models/integrations/hook.rb'
     - 'app/models/canned_response.rb'
     - 'app/models/telegram_bot.rb'
+    - 'app/helpers/reports/pdf_chart_helper.rb'
+
+Metrics/ParameterLists:
+  CountKeywordArgs: true
+  Exclude:
+    - 'app/helpers/reports/pdf_chart_helper.rb'
 
 Rails/RenderInline:
   Exclude:

@@ -38,9 +38,22 @@ class Captain::OpenAiMessageBuilderService
     transcription = extract_audio_transcriptions(attachments)
     transcription_part = text_part(transcription) if transcription.present?
 
-    attachment_part = text_part('User has shared an attachment') if attachments.where.not(file_type: %i[image audio]).exists?
+    locations = extract_locations(attachments)
+    location_part = text_part(locations) if locations.present?
 
-    [image_content, transcription_part, attachment_part].flatten.compact
+    attachment_part = text_part('User has shared an attachment') if attachments.where.not(file_type: %i[image audio location]).exists?
+
+    [image_content, transcription_part, location_part, attachment_part].flatten.compact
+  end
+
+  # Localização (pin do WhatsApp) vira texto com as coordenadas — é assim que o
+  # agente recebe lat/lng pra busca por proximidade.
+  def extract_locations(attachments)
+    attachments.where(file_type: :location).map do |att|
+      rotulo = att.fallback_title.to_s.strip.presence
+      coords = "lat #{att.coordinates_lat}, lng #{att.coordinates_long}"
+      rotulo ? "[Cliente enviou localização: #{rotulo} — #{coords}]" : "[Cliente enviou localização: #{coords}]"
+    end.join(' ')
   end
 
   def image_parts(image_attachments)

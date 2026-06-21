@@ -22,8 +22,21 @@ const { getMacroDropdownValues } = useMacros();
 const macro = ref(null);
 const mode = ref('CREATE');
 
+const aiAgents = computed(() => getters['captainAssistants/getRecords'].value);
+
 const macroActionTypes = computed(() => {
-  return MACRO_ACTION_TYPES.map(type => ({
+  // Conta sem agente IA não oferece a action (mesmo padrão do C5.4).
+  // Macro existente que já usa a action mantém o type — MacroNode resolve
+  // inputType na lista injetada e quebraria enquanto o fetch não resolve.
+  const macroUsesAIAgent = (macro.value?.actions || []).some(
+    action => action.action_name === 'assign_ai_agent'
+  );
+  const actionTypes =
+    aiAgents.value.length || macroUsesAIAgent
+      ? MACRO_ACTION_TYPES
+      : MACRO_ACTION_TYPES.filter(({ key }) => key !== 'assign_ai_agent');
+
+  return actionTypes.map(type => ({
     ...type,
     label: t(`MACROS.ACTIONS.${type.label}`),
   }));
@@ -38,15 +51,18 @@ const fetchDropdownData = () => {
   store.dispatch('agents/get');
   store.dispatch('teams/get');
   store.dispatch('labels/get');
+  store.dispatch('captainAssistants/get');
 };
 
 const formatMacro = macroData => {
   const formattedActions = macroData.actions.map(action => {
     let actionParams = [];
     if (action.action_params.length) {
-      const inputType = macroActionTypes.value.find(
+      // Lookup no constant cru: macroActionTypes (filtrado) pode não conter
+      // assign_ai_agent enquanto captainAssistants/get não resolveu.
+      const inputType = MACRO_ACTION_TYPES.find(
         item => item.key === action.action_name
-      ).inputType;
+      )?.inputType;
       if (inputType === 'multi_select' || inputType === 'search_select') {
         actionParams = getMacroDropdownValues(action.action_name).filter(item =>
           [...action.action_params].includes(item.id)

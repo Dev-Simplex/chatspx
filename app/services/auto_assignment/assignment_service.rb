@@ -27,11 +27,12 @@ class AutoAssignment::AssignmentService
 
   def assignable?(conversation)
     conversation.status == 'open' &&
-      conversation.assignee_id.nil?
+      conversation.assignee_id.nil? &&
+      conversation.assignee_agent_bot_id.nil?
   end
 
   def unassigned_conversations(limit)
-    scope = inbox.conversations.unassigned.open
+    scope = inbox.conversations.unassigned.open.where(assignee_agent_bot_id: nil)
 
     # Apply conversation priority using assignment policy if available
     policy = inbox.assignment_policy

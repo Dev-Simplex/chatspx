@@ -11,7 +11,9 @@ class Api::V2::Accounts::ReportsController < Api::V1::Accounts::BaseController
   end
 
   def summary
-    render json: build_summary(:summary)
+    data = build_summary(:summary)
+    signals = Reports::MetricSignalsBuilder.new(summary: data, previous: data[:previous]).build
+    render json: data.merge(signals: signals)
   end
 
   def bot_summary

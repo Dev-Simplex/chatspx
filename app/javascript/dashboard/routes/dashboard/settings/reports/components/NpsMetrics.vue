@@ -1,5 +1,6 @@
 <script>
 import { mapGetters } from 'vuex';
+import { useReportNarrative } from 'dashboard/composables/useReportNarrative';
 import ReportMetricCard from './ReportMetricCard.vue';
 import BarChart from 'shared/components/charts/BarChart.vue';
 
@@ -24,6 +25,10 @@ export default {
       required: true,
     },
   },
+  setup() {
+    const { signalByMetric } = useReportNarrative();
+    return { signalByMetric };
+  },
   data() {
     return {
       npsScores: NPS_SCORES,
@@ -33,6 +38,9 @@ export default {
     ...mapGetters({
       metrics: 'npsResponses/getMetrics',
     }),
+    npsSignal() {
+      return this.signalByMetric(this.metrics.signals, 'nps');
+    },
     totalCount() {
       return this.metrics.total_count
         ? this.metrics.total_count.toLocaleString()
@@ -184,6 +192,7 @@ export default {
         })
       "
       :value="npsScore"
+      :signal="npsSignal"
       class="xs:w-full sm:max-w-[50%] lg:w-1/6 lg:max-w-[16%]"
     />
     <ReportMetricCard

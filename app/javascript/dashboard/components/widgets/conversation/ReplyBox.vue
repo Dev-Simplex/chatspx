@@ -23,6 +23,7 @@ import CopilotEditorSection from './CopilotEditorSection.vue';
 import CopilotMenuBar from 'dashboard/components/widgets/WootWriter/CopilotMenuBar.vue';
 import { vOnClickOutside } from '@vueuse/components';
 import ReplyBoxBanner from './ReplyBoxBanner.vue';
+import AssignToReplyDialog from 'dashboard/components-next/Conversation/AssignToReplyDialog.vue';
 import QuotedEmailPreview from './QuotedEmailPreview.vue';
 import { REPLY_EDITOR_MODES } from 'dashboard/components/widgets/WootWriter/constants';
 import WootMessageEditor from 'dashboard/components/widgets/WootWriter/Editor.vue';
@@ -73,12 +74,17 @@ import { useCaptain } from 'dashboard/composables/useCaptain';
 import { useKbd } from 'dashboard/composables/utils/useKbd';
 import { useAIOnboarding } from 'dashboard/composables/useAIOnboarding';
 import { useReducedMotion } from 'dashboard/composables/useReducedMotion';
+import { useReplyAssignmentGate } from 'dashboard/composables/useReplyAssignmentGate';
 import { useAIAssistantFlag } from 'dashboard/components-next/ai-assistant/composables/useAIAssistantFlag';
 import { useAITour } from 'dashboard/components-next/ai-assistant/composables/useAITour';
 import AIOnboardingCoachmark from './AIOnboardingCoachmark.vue';
 import AISuggestionChip from 'dashboard/components-next/ai-assistant/AISuggestionChip.vue';
 import { CAPTAIN_ERROR_TYPES } from 'dashboard/composables/captain/constants';
-import { isFileTypeAllowedForChannel } from 'shared/helpers/FileHelper';
+import {
+  isFileTypeAllowedForChannel,
+  buildAttachmentThumbUrl,
+  revokeAttachmentThumbUrl,
+} from 'shared/helpers/FileHelper';
 import {
   DropdownContainer,
   DropdownBody,
@@ -113,6 +119,7 @@ export default {
     GlobalDropOverlay,
     ImageEditor,
     ReplyBoxBanner,
+    AssignToReplyDialog,
     EmojiInput,
     ReplyBottomPanel,
     ReplyEmailHead,
@@ -179,6 +186,7 @@ export default {
     const { prefersReducedMotion } = useReducedMotion();
     const aiAssistantFlag = useAIAssistantFlag();
     const aiTour = useAITour();
+    const { isAssignmentGateEnabled } = useReplyAssignmentGate();
 
     return {
       uiSettings,
@@ -197,6 +205,7 @@ export default {
       prefersReducedMotion,
       aiAssistantFlag,
       aiTour,
+      isAssignmentGateEnabled,
       globalDropFiles,
       globalDropEnabled,
       isGlobalDragActive,
@@ -242,6 +251,13 @@ export default {
       pendingAudioAutoSend: false,
       pendingAudioConversationId: null,
       isUploadingAudio: false,
+      // Envio "armado": fn de envio aguardando o término dos uploads em curso
+      // (Enviar nunca bloqueia). Disparada por maybeFireArmedSend.
+      armedSend: null,
+      // Mapa uploadId → { echoId, pendingMessage, conversationId } das bolhas
+      // "carregando" injetadas na conversa, para finalizar o POST ao concluir o
+      // upload (mesmo echo_id) e atualizar progresso/falha na bolha certa.
+      uploadBubbles: {},
       whatsappInvalidNotice: '',
       whatsappNoticeTimeoutId: null,
       isRevalidatingWhatsapp: false,
@@ -254,6 +270,11 @@ export default {
       aiSuggestionChip: null,
       aiSuggestionChipStartedAt: null,
       aiSuggestionChipAbortController: null,
+      // D2/D6 — gate universal de resposta. `pendingGatePayloads` enfileira os
+      // payloads que tomaram 422 `assignment_required` (multi-part empilha na
+      // ordem); `gateConfirmedOnce` é o one-shot anti-loop do caminho proativo.
+      pendingGatePayloads: [],
+      gateConfirmedOnce: false,
     };
   },
   computed: {
@@ -336,6 +357,19 @@ export default {
       }
       return true;
     },
+    // D2: o gate de assunção é exigido quando o modo "atribuição obrigatória"
+    // está ligado e a resposta NÃO é privada (DD-4: `isPrivate` cobre nota
+    // explícita E nota forçada de canal sem `can_reply`). Variantes:
+    //   (a) sem dono · (b) dono humano colega · (c) dona IA (agent_bot).
+    // Variante (d) "fora do time" é resolvida dentro do dialog (myTeams).
+    shouldShowAssignmentGate() {
+      if (!this.isAssignmentGateEnabled) return false;
+      if (this.isPrivate) return false;
+      const assignee = this.currentChat?.meta?.assignee;
+      if (!assignee) return true; // (a) sem dono
+      if (assignee.type === 'agent_bot') return true; // (c) dona IA
+      return assignee.id !== this.currentUser.id; // (b)/(d) colega/fora do time
+    },
     isReplyRestricted() {
       return (
         !this.currentChat?.can_reply &&
@@ -379,7 +413,15 @@ export default {
       if (this.shouldBlockWhatsappSend) return true;
       if (this.isEditorDisabled) return true;
       if (this.isATwitterInbox) return true;
-      if (this.hasAttachments || this.hasRecordedAudio) return false;
+      // Com anexos: o envio NÃO bloqueia quando algo está subindo (arma e segue
+      // em 2º plano, e a conversa continua). Bloqueia só se há anexo FALHO ainda
+      // NÃO committed (no modal, antes de mandar) — aí força retry/remover. Uma
+      // falha em 2º plano (committed) não interrompe a conversa.
+      if (this.hasAttachments || this.hasRecordedAudio) {
+        return this.attachedFiles.some(
+          a => a.uploadStatus === 'failed' && !a.committed
+        );
+      }
       if (this.isRecordingAudio) {
         return this.recordingAudioState === 'processing';
       }
@@ -507,6 +549,30 @@ export default {
     },
     hasAttachments() {
       return this.attachedFiles.length;
+    },
+    // Anexos que ainda estão SENDO COMPOSTOS (não committed). Os committed já
+    // viraram bolha "carregando" na conversa e sobem em 2º plano — somem do
+    // composer/modal e nunca entram num envio normal (evita duplicar).
+    composerAttachedFiles() {
+      return this.attachedFiles.filter(a => !a.committed);
+    },
+    hasComposerAttachments() {
+      return this.composerAttachedFiles.length > 0;
+    },
+    // True while any attachment is still transferring (DirectUpload) or failed —
+    // used to gate Send so we never post a message with a missing signed id.
+    hasPendingAttachmentUpload() {
+      return this.attachedFiles.some(
+        a => a.uploadStatus === 'uploading' || a.uploadStatus === 'failed'
+      );
+    },
+    // Anexo ainda subindo que AINDA NÃO foi "enviado" (committed): o primeiro
+    // clique em Enviar arma o envio dele. Depois de committed, ele sobe em 2º
+    // plano e não interfere mais nos envios de texto.
+    hasUncommittedPendingUpload() {
+      return this.attachedFiles.some(
+        a => a.uploadStatus === 'uploading' && !a.committed
+      );
     },
     showAudioRecorder() {
       return !this.isOnPrivateNote && this.showFileUpload;
@@ -744,8 +810,12 @@ export default {
       // Limpa o ref pra permitir novo drop sequencial
       this.globalDropFiles = [];
     },
-    // Abre/fecha modal premium conforme attachedFiles muda
-    'attachedFiles.length': function watchAttachedFilesLength(newLen) {
+    // Abre/fecha o modal conforme os anexos EM COMPOSIÇÃO (não-committed). Ao
+    // enviar, os anexos viram bolha "carregando" na conversa (committed) e somem
+    // do composer → o modal fecha sozinho e o usuário vê a bolha no chat.
+    'composerAttachedFiles.length': function watchComposerAttachedFilesLength(
+      newLen
+    ) {
       if (newLen > 0 && !this.showAttachmentModal) {
         this.showAttachmentModal = true;
       } else if (newLen === 0) {
@@ -885,6 +955,8 @@ export default {
       this.whatsappNoticeTimeoutId = null;
     }
     emitter.off(CMD_AI_ASSIST, this.executeCopilotAction);
+    // Release any pending attachment preview object URLs.
+    this.attachedFiles.forEach(att => revokeAttachmentThumbUrl(att.thumb));
   },
   methods: {
     // Fase 3 — pipeline drag-drop WhatsApp-fiel
@@ -916,11 +988,14 @@ export default {
       } finally {
         this.$nextTick(() => {
           this.isSendingAttachment = false;
+          // Ao enviar com anexo subindo, a mídia vira bolha "carregando" na
+          // conversa (committed) e some do composer → o watcher de
+          // composerAttachedFiles fecha o modal sozinho. Nada a fazer aqui.
         });
       }
     },
     onAttachmentModalClose() {
-      this.attachedFiles = [];
+      this.clearAttachedFiles();
       this.showAttachmentModal = false;
     },
     onAttachmentModalAddMore() {
@@ -940,23 +1015,22 @@ export default {
     onImageEditorApply(blob) {
       const idx = this.imageEditorTargetIndex;
       if (idx >= 0 && blob) {
-        const reader = new FileReader();
-        reader.readAsDataURL(blob);
-        reader.onloadend = () => {
-          const current = this.attachedFiles[idx];
-          if (!current) return;
+        const current = this.attachedFiles[idx];
+        if (current) {
           const editedFile = new File(
             [blob],
             current.resource?.name || `edited_${Date.now()}.jpg`,
             { type: 'image/jpeg' }
           );
+          // Drop the previous preview URL before replacing it.
+          revokeAttachmentThumbUrl(current.thumb);
           this.attachedFiles.splice(idx, 1, {
             ...current,
             resource: editedFile,
-            thumb: reader.result,
+            thumb: URL.createObjectURL(editedFile),
             blobSignedId: undefined,
           });
-        };
+        }
       }
       this.closeImageEditor();
     },
@@ -1095,7 +1169,7 @@ export default {
       // Reset audio recorder UI state
       this.resetAudioRecorderInput();
       // Reset attached files
-      this.attachedFiles = [];
+      this.clearAttachedFiles();
     },
     saveDraft(conversationId, replyType) {
       if (this.message || this.message === '') {
@@ -1355,47 +1429,199 @@ export default {
       if (this.isReplyButtonDisabled) {
         return;
       }
-      if (!this.showMentions) {
-        this.pendingAudioAutoSend = false;
-        const copilotAcceptedMessage = this.getCopilotAcceptedMessage();
-        const isOnWhatsApp =
-          this.isATwilioWhatsAppChannel ||
-          this.isAWhatsAppCloudChannel ||
-          this.is360DialogWhatsAppChannel;
-        // Instagram and TikTok do not support sending text and attachments in the same message.
-        // For Instagram, combining them causes duplicate messages due to separate echo events per component.
-        // For TikTok, the API rejects messages that mix text and media.
-        // To handle both cases, text and attachments are always sent as separate messages.
-        const isOnInstagram = this.isAnInstagramChannel;
-        const isOnTiktok = this.isATiktokChannel;
-        if ((isOnWhatsApp || isOnInstagram || isOnTiktok) && !this.isPrivate) {
-          this.sendMessageAsMultipleMessages(
-            this.message,
-            copilotAcceptedMessage
-          );
-        } else {
-          const messagePayload = this.getMessagePayload(this.message);
-          this.sendMessage(
-            messagePayload,
-            this.message,
-            copilotAcceptedMessage
-          );
-        }
+      if (this.showMentions) return;
 
-        if (!this.isPrivate) {
-          this.clearEmailField();
-        }
+      this.pendingAudioAutoSend = false;
 
-        this.clearMessage();
+      // (1) PRIMEIRO envio com anexo(s) ainda subindo: a mídia entra JÁ na
+      // conversa como uma bolha "carregando" (preview local + progresso) e o
+      // composer é liberado. O POST real dispara sozinho quando o blob conclui,
+      // reusando o MESMO echo_id da bolha (sem duplicar). A legenda, se houver,
+      // sai como mensagem de texto própria na hora.
+      if (
+        this.globalConfig.directUploadsEnabled &&
+        this.hasUncommittedPendingUpload
+      ) {
+        const caption = this.message;
+        if (caption && caption.trim()) {
+          this.sendStandaloneText(caption, this.getCopilotAcceptedMessage());
+        }
+        this.attachedFiles
+          .filter(
+            a =>
+              (a.uploadStatus === 'uploading' ||
+                a.uploadStatus === 'uploaded') &&
+              !a.committed
+          )
+          .forEach(a => this.createUploadingBubble(a));
+        this.clearComposerTextOnly();
+        this.resetReplyToMessage();
+        if (!this.isPrivate) this.clearEmailField();
         this.hideEmojiPicker();
         this.$emit('update:popOutReplyBox', false);
-        // Manter foco no editor depois de enviar (igual WhatsApp Web) — agente
-        // consegue digitar a próxima mensagem direto sem novo clique.
         this.$nextTick(() => {
           this.messageEditor?.focusEditorInputField?.('end');
           this.isFocused = true;
         });
+        return;
       }
+
+      // (2) Já existe anexo pendente em 2º plano (committed, subindo ou falho):
+      // o texto digitado agora vai como mensagem INDEPENDENTE na hora (texto
+      // puro, sem o anexo), preservando o anexo, para a atendente seguir a
+      // conversa enquanto o arquivo carrega. Anexos pendentes não-committed já
+      // foram tratados acima (path 1) ou bloqueiam o envio (falha no modal).
+      if (this.hasPendingAttachmentUpload) {
+        const message = this.message;
+        if (message && message.trim()) {
+          this.sendStandaloneText(message, this.getCopilotAcceptedMessage());
+          this.clearComposerTextOnly();
+          // Consome o reply-to (senão a barra fica e as próximas mensagens
+          // re-encadeiam) e limpa os campos de e-mail, como no envio normal.
+          this.resetReplyToMessage();
+          if (!this.isPrivate) this.clearEmailField();
+          this.hideEmojiPicker();
+          this.$emit('update:popOutReplyBox', false);
+          // Mantém o foco no editor para a próxima mensagem sair direto.
+          this.$nextTick(() => {
+            this.messageEditor?.focusEditorInputField?.('end');
+            this.isFocused = true;
+          });
+        }
+        return;
+      }
+
+      this.performConfirmedSend(this.message, this.getCopilotAcceptedMessage());
+    },
+    // Envia SÓ texto agora, ignorando anexos em 2º plano (committed). Usado
+    // enquanto um arquivo ainda sobe, para não bloquear a conversa. Texto puro
+    // é uma única mensagem em qualquer canal (sem split de mídia).
+    sendStandaloneText(message, copilotAcceptedMessage = '') {
+      const payload = this.getMessagePayload(message, this.currentChat.id, {
+        excludeAttachments: true,
+      });
+      this.sendMessage(payload, message, copilotAcceptedMessage);
+    },
+    // file_type otimista a partir do mime — casa com ATTACHMENT_TYPES usados em
+    // componentToRender (image/video/audio/file).
+    optimisticFileType(resource) {
+      const type = (
+        resource?.content_type ||
+        resource?.type ||
+        ''
+      ).toLowerCase();
+      if (type.startsWith('image/')) return 'image';
+      if (type.startsWith('video/')) return 'video';
+      if (type.startsWith('audio/')) return 'audio';
+      return 'file';
+    },
+    // Injeta a bolha "carregando" na conversa para um anexo em upload e guarda o
+    // mapeamento uploadId → echo_id, para finalizar o POST quando o blob chegar.
+    createUploadingBubble(attachment) {
+      const conversationId = attachment.currentChatId || this.currentChat.id;
+      const rawName =
+        attachment.resource?.name ||
+        attachment.rawFile?.name ||
+        attachment.resource?.filename ||
+        '';
+      const data = {
+        conversationId,
+        message: '',
+        private: this.isPrivate,
+        sender: this.sender,
+        pendingAttachments: [
+          {
+            fileType: this.optimisticFileType(attachment.resource),
+            dataUrl: attachment.thumb || undefined,
+            thumbUrl: attachment.thumb || undefined,
+            fileName: rawName,
+            fileSize: attachment.resource?.size,
+            uploadId: attachment.uploadId,
+            uploadProgress: attachment.uploadProgress,
+          },
+        ],
+      };
+      // Esconde do composer já (committed); o blob ainda sobe em 2º plano.
+      this.patchAttachmentByUploadId(attachment.uploadId, { committed: true });
+      this.$store
+        .dispatch('addPendingAttachmentMessage', data)
+        .then(pendingMessage => {
+          if (!pendingMessage) return;
+          this.patchAttachmentByUploadId(attachment.uploadId, {
+            echoId: pendingMessage.echo_id,
+          });
+          this.uploadBubbles[attachment.uploadId] = {
+            echoId: pendingMessage.echo_id,
+            pendingMessage,
+            conversationId,
+          };
+          // Anexo que já tinha concluído o upload antes de virar bolha (ex.:
+          // irmão de outro ainda subindo): finaliza o POST agora.
+          if (attachment.blobSignedId) {
+            this.finalizeUploadBubble(
+              attachment.uploadId,
+              attachment.blobSignedId
+            );
+          }
+        });
+    },
+    // Executa o envio de fato (texto + anexos já prontos). Extraído para ser
+    // reutilizado tanto no envio imediato quanto no envio armado (pós-upload).
+    performConfirmedSend(message, copilotAcceptedMessage = '') {
+      const isOnWhatsApp =
+        this.isATwilioWhatsAppChannel ||
+        this.isAWhatsAppCloudChannel ||
+        this.is360DialogWhatsAppChannel;
+      // Instagram and TikTok do not support sending text and attachments in the same message.
+      // For Instagram, combining them causes duplicate messages due to separate echo events per component.
+      // For TikTok, the API rejects messages that mix text and media.
+      // To handle both cases, text and attachments are always sent as separate messages.
+      const isOnInstagram = this.isAnInstagramChannel;
+      const isOnTiktok = this.isATiktokChannel;
+      // Captura antes do clearMessage: WhatsApp/Instagram/TikTok quebram em
+      // vários payloads (um por anexo), então o aviso precisa sair UMA vez aqui,
+      // no nível da ação de envio, e não dentro de sendMessage (por payload).
+      const hadAttachments = this.hasAttachments;
+      if ((isOnWhatsApp || isOnInstagram || isOnTiktok) && !this.isPrivate) {
+        this.sendMessageAsMultipleMessages(message, copilotAcceptedMessage);
+      } else {
+        const messagePayload = this.getMessagePayload(message);
+        this.sendMessage(messagePayload, message, copilotAcceptedMessage);
+      }
+
+      if (!this.isPrivate) {
+        this.clearEmailField();
+      }
+
+      // Confirmação clara de que a mensagem COM ANEXO entrou na conversa.
+      // Limitada ao envio com anexo (ação deliberada, menos frequente) para não
+      // virar ruído em cada mensagem de texto; dispara 1x por envio, em qualquer
+      // canal (a mensagem otimista já aparece na conversa neste instante).
+      if (hadAttachments) {
+        useAlert(this.$t('CONVERSATION.MESSAGE_SENT_TO_CONVERSATION'));
+      }
+
+      this.clearMessage();
+      this.hideEmojiPicker();
+      this.$emit('update:popOutReplyBox', false);
+      // Manter foco no editor depois de enviar (igual WhatsApp Web) — agente
+      // consegue digitar a próxima mensagem direto sem novo clique.
+      this.$nextTick(() => {
+        this.messageEditor?.focusEditorInputField?.('end');
+        this.isFocused = true;
+      });
+    },
+    // Dispara o envio armado quando todos os anexos terminaram de subir.
+    maybeFireArmedSend() {
+      if (!this.armedSend || this.hasPendingAttachmentUpload) return;
+      // Nada para enviar (anexos removidos e sem texto): apenas desarma.
+      if (!this.attachedFiles.length && !this.message) {
+        this.armedSend = null;
+        return;
+      }
+      const fire = this.armedSend;
+      this.armedSend = null;
+      fire();
     },
     focusReplyEditor() {
       // Foca o editor ao abrir/trocar de conversa. Nos inboxes Channel::Api/WhatsApp
@@ -1497,6 +1723,16 @@ export default {
         return;
       }
 
+      // D2: gate de assunção ANTES de confirmar o envio. O draft permanece
+      // intacto (clearMessage só roda dentro de confirmOnSendReply) — após
+      // confirmar, o dialog emite `confirm` e re-invoca onSendReply com o
+      // one-shot `gateConfirmedOnce` (o assignee já sou eu → gate passa).
+      if (this.shouldShowAssignmentGate && !this.gateConfirmedOnce) {
+        this.$refs.assignToReplyDialog.show();
+        return;
+      }
+      this.gateConfirmedOnce = false;
+
       const undefinedVariables = getUndefinedVariablesInMessage({
         message: this.message,
         variables: this.messageVariables,
@@ -1519,6 +1755,26 @@ export default {
       } else {
         this.confirmOnSendReply();
       }
+    },
+    async onAssignmentGateConfirmed() {
+      // Caminho REATIVO (D6): a mensagem já saiu do draft e tomou 422 —
+      // reenvia os payloads enfileirados na ORDEM (multi-part WA/IG/TikTok).
+      if (this.pendingGatePayloads.length) {
+        const payloads = [...this.pendingGatePayloads];
+        this.pendingGatePayloads = [];
+        // sequencial de propósito: preserva a ordem das partes.
+        // eslint-disable-next-line no-restricted-syntax
+        for (const payload of payloads) {
+          // eslint-disable-next-line no-await-in-loop
+          await this.sendMessage(payload);
+        }
+        return;
+      }
+      // Caminho PROATIVO: o draft ainda está intacto — o assignee agora sou eu,
+      // então o gate passa e o envio segue automático (one-shot anti-loop pra
+      // cobrir o atraso de 1 tick do store).
+      this.gateConfirmedOnce = true;
+      this.onSendReply();
     },
     async sendMessage(
       messagePayload,
@@ -1546,6 +1802,17 @@ export default {
           copilotAcceptedMessage,
         });
       } catch (error) {
+        // D6: 422 `assignment_required` (gate) NÃO é erro de envio — empilha o
+        // payload e reabre o dialog com o dono ATUALIZADO do meta (corrida P16).
+        // Multi-part: N catches empilham na ordem; o dialog é idempotente.
+        if (
+          error?.response?.status === 422 &&
+          error.response.data?.error_code === 'assignment_required'
+        ) {
+          this.pendingGatePayloads.push(messagePayload);
+          this.$refs.assignToReplyDialog.show(error.response.data.meta);
+          return;
+        }
         const errorMessage =
           error?.response?.data?.error || this.$t('CONVERSATION.MESSAGE_ERROR');
         if (isWhatsAppValidationMessage(errorMessage)) {
@@ -1597,7 +1864,7 @@ export default {
     setReplyMode(mode = REPLY_EDITOR_MODES.REPLY) {
       // Clear attachments when switching between private note and reply modes
       // This is to prevent from breaking the upload rules
-      if (this.attachedFiles.length > 0) this.attachedFiles = [];
+      if (this.attachedFiles.length > 0) this.clearAttachedFiles();
 
       const { can_reply: canReply } = this.currentChat;
       this.$store.dispatch('draftMessages/setReplyEditorMode', {
@@ -1840,6 +2107,23 @@ export default {
         };
       }
     },
+    // Limpa apenas o texto do composer (e re-aplica assinatura), preservando os
+    // anexos. Usado no envio "armado", onde os anexos ainda estão subindo.
+    clearComposerTextOnly() {
+      this.message = '';
+      this.clearCopilotAcceptedMessage();
+      if (this.sendWithSignature && !this.isPrivate) {
+        const effectiveChannelType = getEffectiveChannelType(
+          this.channelType,
+          this.inbox?.medium || ''
+        );
+        this.message = appendSignature(
+          this.message,
+          this.messageSignature,
+          effectiveChannelType
+        );
+      }
+    },
     clearMessage() {
       this.message = '';
       this.pendingAudioAutoSend = false;
@@ -1858,7 +2142,7 @@ export default {
           effectiveChannelType
         );
       }
-      this.attachedFiles = [];
+      this.clearAttachedFiles();
       this.isRecordingAudio = false;
       this.resetReplyToMessage();
       this.resetAudioRecorderInput();
@@ -2049,37 +2333,180 @@ export default {
         isPrivate,
       });
     },
-    attachFile({ blob, file }) {
-      const reader = new FileReader();
-      reader.readAsDataURL(file.file);
-      reader.onloadend = () => {
-        const capturedChatId = file?.isRecordedAudio
-          ? this.pendingAudioConversationId || this.currentChat.id
-          : this.currentChat.id;
+    attachFile({ blob, file, uploadId, uploadStatus, uploadProgress = null }) {
+      // Build the preview synchronously via createObjectURL instead of reading
+      // the whole file into a base64 string with FileReader: no main-thread
+      // block and no memory spike when attaching large files (only image/video
+      // get a thumb; everything else renders a static icon).
+      const capturedChatId = file?.isRecordedAudio
+        ? this.pendingAudioConversationId || this.currentChat.id
+        : this.currentChat.id;
 
-        this.attachedFiles.push({
-          currentChatId: capturedChatId,
-          resource: blob || file,
-          isPrivate: this.isPrivate,
-          thumb: reader.result,
-          blobSignedId: blob ? blob.signed_id : undefined,
-          isRecordedAudio: file?.isRecordedAudio || false,
-        });
+      this.attachedFiles.push({
+        // Stable id used both as the v-for key and to match async DirectUpload
+        // lifecycle callbacks (progress/complete/fail) back to this entry.
+        id: uploadId || file?.id || `att-${Date.now()}`,
+        uploadId,
+        currentChatId: capturedChatId,
+        resource: blob || file,
+        // Keep the original upload wrapper so a failed upload can be retried.
+        rawFile: file,
+        isPrivate: this.isPrivate,
+        thumb: buildAttachmentThumbUrl(file),
+        blobSignedId: blob ? blob.signed_id : undefined,
+        // 'uploading' → DirectUpload in flight (Send is gated); 'uploaded'/
+        // undefined → ready to send; 'failed' → offer retry.
+        uploadStatus: uploadStatus || (blob ? 'uploaded' : undefined),
+        uploadProgress,
+        isRecordedAudio: file?.isRecordedAudio || false,
+      });
 
-        if (file?.isRecordedAudio) {
-          this.isUploadingAudio = false;
-          if (this.pendingAudioAutoSend) {
-            this.pendingAudioAutoSend = false;
-            const savedConversationId = capturedChatId;
-            this.$nextTick(() => {
-              this.sendToConversation(savedConversationId);
-            });
-          }
+      if (file?.isRecordedAudio) {
+        this.isUploadingAudio = false;
+        if (this.pendingAudioAutoSend) {
+          this.pendingAudioAutoSend = false;
+          const savedConversationId = capturedChatId;
+          this.$nextTick(() => {
+            this.sendToConversation(savedConversationId);
+          });
         }
-      };
+      }
+    },
+    // Finds a pending attachment by its DirectUpload id and applies a patch.
+    patchAttachmentByUploadId(uploadId, patch) {
+      const idx = this.attachedFiles.findIndex(a => a.uploadId === uploadId);
+      if (idx < 0) return;
+      this.attachedFiles.splice(idx, 1, {
+        ...this.attachedFiles[idx],
+        ...patch,
+      });
+    },
+    onAttachmentUploadProgress(uploadId, percent) {
+      this.patchAttachmentByUploadId(uploadId, { uploadProgress: percent });
+      // Reflete o progresso na bolha "carregando" da conversa (se já criada).
+      // Throttle: cada update recommita a mensagem + re-cameliza tudo; só
+      // despacha quando a % inteira de fato avança (evita trabalho redundante).
+      const bubble = this.uploadBubbles[uploadId];
+      if (!bubble) return;
+      const rounded = typeof percent === 'number' ? Math.round(percent) : null;
+      if (rounded !== null && bubble.lastPercent === rounded) return;
+      bubble.lastPercent = rounded;
+      this.$store.dispatch('updatePendingAttachmentProgress', {
+        conversationId: bubble.conversationId,
+        echoId: bubble.echoId,
+        uploadId,
+        percent,
+      });
+    },
+    onAttachmentUploaded(uploadId, blob) {
+      this.patchAttachmentByUploadId(uploadId, {
+        blobSignedId: blob.signed_id,
+        uploadStatus: 'uploaded',
+        uploadProgress: 100,
+      });
+      // Se já existe bolha para este upload, finaliza o POST. Se a bolha ainda
+      // está sendo criada (.then de createUploadingBubble), ela finaliza sozinha
+      // ao detectar blobSignedId — então aqui só agimos quando a bolha existe.
+      if (this.uploadBubbles[uploadId]) {
+        this.finalizeUploadBubble(uploadId, blob.signed_id);
+        return;
+      }
+      // Sem bolha (fluxo legado/armado): mantém compatibilidade.
+      this.maybeFireArmedSend();
+    },
+    // POST real da bolha "carregando" (mesmo echo_id). No sucesso a cópia do
+    // servidor substitui a bolha → pode revogar o preview local. Na falha a
+    // bolha fica FAILED mostrando o preview LOCAL — NÃO revoga (senão quebra).
+    finalizeUploadBubble(uploadId, blobSignedId) {
+      const bubble = this.uploadBubbles[uploadId];
+      if (!bubble) return;
+      this.$store
+        .dispatch('finalizePendingAttachmentMessage', {
+          pendingMessage: bubble.pendingMessage,
+          blobSignedId,
+        })
+        .then(() => {
+          delete this.uploadBubbles[uploadId];
+          this.discardCommittedAttachment(uploadId);
+        })
+        .catch(() => {
+          delete this.uploadBubbles[uploadId];
+          this.attachedFiles = this.attachedFiles.filter(
+            a => a.uploadId !== uploadId
+          );
+        });
+    },
+    onAttachmentUploadFailed(uploadId) {
+      this.patchAttachmentByUploadId(uploadId, { uploadStatus: 'failed' });
+      const bubble = this.uploadBubbles[uploadId];
+      if (bubble) {
+        // Falha do upload: a própria bolha vira FAILED (com retry na bolha).
+        this.$store.dispatch('markPendingAttachmentFailed', {
+          conversationId: bubble.conversationId,
+          echoId: bubble.echoId,
+          error: this.$t('CONVERSATION.MESSAGE_ERROR'),
+        });
+        return;
+      }
+      if (this.armedSend) {
+        this.armedSend = null;
+        useAlert(this.$t('CONVERSATION.MESSAGE_ERROR'));
+      }
+    },
+    // Remove um anexo já enviado (committed) de attachedFiles e revoga o preview
+    // local — chamado após o POST concluir; a bolha já mostra o asset do servidor.
+    discardCommittedAttachment(uploadId) {
+      const entry = this.attachedFiles.find(a => a.uploadId === uploadId);
+      if (!entry) return;
+      revokeAttachmentThumbUrl(entry.thumb);
+      this.attachedFiles = this.attachedFiles.filter(
+        a => a.uploadId !== uploadId
+      );
+    },
+    // Re-runs the DirectUpload for a previously-failed attachment using the
+    // original file kept on the entry.
+    retryAttachmentUpload(attachment) {
+      const entry = this.attachedFiles.find(a => a === attachment);
+      if (!entry?.rawFile || !entry.uploadId) return;
+      this.patchAttachmentByUploadId(entry.uploadId, {
+        uploadStatus: 'uploading',
+        uploadProgress: null,
+      });
+      this.directUploadCreate(
+        entry.rawFile,
+        (error, blob) => {
+          if (error) this.onAttachmentUploadFailed(entry.uploadId);
+          else this.onAttachmentUploaded(entry.uploadId, blob);
+        },
+        percent => this.onAttachmentUploadProgress(entry.uploadId, percent)
+      );
     },
     removeAttachment(attachments) {
-      this.attachedFiles = attachments;
+      // `attachments` é o que sobrou no preview/modal (apenas anexos em
+      // composição, não-committed). Preserva os committed (bolhas "carregando"
+      // na conversa, que não aparecem ali) e revoga só o que saiu de verdade.
+      const committed = this.attachedFiles.filter(a => a.committed);
+      const next = [...attachments, ...committed];
+      const remaining = new Set(next);
+      this.attachedFiles.forEach(att => {
+        if (!remaining.has(att)) revokeAttachmentThumbUrl(att.thumb);
+      });
+      this.attachedFiles = next;
+      // Remover o anexo que faltava concluir pode destravar (ou esvaziar) um
+      // envio armado — reavalia.
+      this.maybeFireArmedSend();
+    },
+    // Limpa os anexos EM COMPOSIÇÃO (não-committed), revogando os previews. Os
+    // committed (bolhas "carregando" subindo em 2º plano) são preservados —
+    // seguem até o POST concluir (discardCommittedAttachment os remove depois).
+    clearAttachedFiles() {
+      this.attachedFiles
+        .filter(a => !a.committed)
+        .forEach(att => revokeAttachmentThumbUrl(att.thumb));
+      this.attachedFiles = this.attachedFiles.filter(a => a.committed);
+      // Limpeza de anexos (troca de conversa, reset, modo nota) cancela qualquer
+      // envio armado para não disparar no contexto errado.
+      this.armedSend = null;
     },
     setReplyToInPayload(payload) {
       if (this.inReplyTo?.id) {
@@ -2098,13 +2525,16 @@ export default {
       const multipleMessagePayload = [];
       const conversationId = overrideConversationId || this.currentChat.id;
 
-      if (this.attachedFiles && this.attachedFiles.length) {
+      if (this.composerAttachedFiles && this.composerAttachedFiles.length) {
         let caption =
           this.isAnInstagramChannel || this.isATiktokChannel ? '' : message;
-        this.attachedFiles.forEach(attachment => {
+        this.composerAttachedFiles.forEach(attachment => {
           const attachedFile = this.globalConfig.directUploadsEnabled
             ? attachment.blobSignedId
             : attachment.resource.file;
+          // Pula anexos cujo upload não concluiu (sem signed id) — nunca manda
+          // files:[undefined]. Anexos 'uploading'/'failed' ficam de fora.
+          if (!attachedFile) return;
           let attachmentPayload = {
             conversationId: attachment.currentChatId || conversationId,
             files: [attachedFile],
@@ -2121,12 +2551,11 @@ export default {
       }
 
       const hasNoAttachments =
-        !this.attachedFiles || !this.attachedFiles.length;
+        !this.composerAttachedFiles || !this.composerAttachedFiles.length;
       // For Instagram and TikTok, text must always be sent as a separate message (no captions on attachments).
       // For WhatsApp, we only need a text message if there are no attachments.
       if (
-        ((this.isAnInstagramChannel || this.isATiktokChannel) &&
-          this.message) ||
+        ((this.isAnInstagramChannel || this.isATiktokChannel) && message) ||
         (!(this.isAnInstagramChannel || this.isATiktokChannel) &&
           hasNoAttachments)
       ) {
@@ -2144,7 +2573,7 @@ export default {
 
       return multipleMessagePayload;
     },
-    getMessagePayload(message, overrideConversationId) {
+    getMessagePayload(message, overrideConversationId, opts = {}) {
       const messageWithQuote = this.getMessageWithQuotedEmailText(message);
       const conversationId =
         overrideConversationId ||
@@ -2159,15 +2588,26 @@ export default {
       };
       messagePayload = this.setReplyToInPayload(messagePayload);
 
-      if (this.attachedFiles && this.attachedFiles.length) {
+      // excludeAttachments: usado no envio de texto independente enquanto um
+      // arquivo sobe em 2º plano (o anexo committed não entra nessa mensagem).
+      if (
+        !opts.excludeAttachments &&
+        this.composerAttachedFiles &&
+        this.composerAttachedFiles.length
+      ) {
         messagePayload.files = [];
-        this.attachedFiles.forEach(attachment => {
+        this.composerAttachedFiles.forEach(attachment => {
           if (this.globalConfig.directUploadsEnabled) {
-            messagePayload.files.push(attachment.blobSignedId);
+            // Só anexos com upload concluído (signed id presente); evita
+            // mandar files:[undefined] de um anexo ainda subindo/falho.
+            if (attachment.blobSignedId) {
+              messagePayload.files.push(attachment.blobSignedId);
+            }
           } else {
             messagePayload.files.push(attachment.resource.file);
           }
         });
+        if (!messagePayload.files.length) delete messagePayload.files;
       }
 
       if (this.ccEmails && !this.isOnPrivateNote) {
@@ -2258,6 +2698,12 @@ export default {
         file => !file?.isRecordedAudio
       );
     },
+    onRecordError() {
+      // convertAudio failed inside the recorder (it already showed the toast +
+      // logged to Sentry). Tear down the recording UI so we don't leave a stuck
+      // "processing" state behind.
+      this.resetAudioRecorderInput();
+    },
     togglePopout() {
       this.$emit('update:popOutReplyBox', !this.popOutReplyBox);
     },
@@ -2271,7 +2717,15 @@ export default {
 </script>
 
 <template>
-  <ReplyBoxBanner :message="message" :is-on-private-note="isOnPrivateNote" />
+  <ReplyBoxBanner
+    :message="message"
+    :is-on-private-note="isOnPrivateNote"
+    @open-assign-dialog="$refs.assignToReplyDialog.show()"
+  />
+  <AssignToReplyDialog
+    ref="assignToReplyDialog"
+    @confirm="onAssignmentGateConfirmed"
+  />
   <div
     ref="replyEditor"
     class="reply-box"
@@ -2387,6 +2841,7 @@ export default {
             :audio-record-format="audioRecordFormat"
             @recorder-progress-changed="onRecordProgressChanged"
             @finish-record="onFinishRecorder"
+            @record-error="onRecordError"
             @play="recordingAudioState = 'playing'"
             @pause="recordingAudioState = 'paused'"
           />
@@ -2463,14 +2918,15 @@ export default {
           />
 
           <div
-            v-if="hasAttachments && isDefaultEditorMode"
+            v-if="hasComposerAttachments && isDefaultEditorMode"
             class="bg-transparent py-0 mb-2"
             @paste="onPaste"
           >
             <AttachmentPreview
               class="mt-2"
-              :attachments="attachedFiles"
+              :attachments="composerAttachedFiles"
               @remove-attachment="removeAttachment"
+              @retry-upload="retryAttachmentUpload"
             />
           </div>
         </template>
@@ -2517,6 +2973,7 @@ export default {
               :audio-record-format="audioRecordFormat"
               @recorder-progress-changed="onRecordProgressChanged"
               @finish-record="onFinishRecorder"
+              @record-error="onRecordError"
               @play="recordingAudioState = 'playing'"
               @pause="recordingAudioState = 'paused'"
             />
@@ -2872,15 +3329,16 @@ export default {
     <GlobalDropOverlay :show="isGlobalDragActive" />
     <AttachmentPreviewModal
       :show="showAttachmentModal"
-      :files="attachedFiles"
+      :files="composerAttachedFiles"
       :caption="message"
       :sending="isSendingAttachment"
       @update:caption="message = $event"
-      @update:files="attachedFiles = $event"
+      @update:files="removeAttachment"
       @send="onAttachmentModalSend"
       @close="onAttachmentModalClose"
       @add-more="onAttachmentModalAddMore"
       @edit-image="onEditImage"
+      @retry-upload="retryAttachmentUpload"
     />
     <ImageEditor
       :show="showImageEditor"

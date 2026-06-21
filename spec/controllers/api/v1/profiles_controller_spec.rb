@@ -313,6 +313,69 @@ RSpec.describe 'Profile API', type: :request do
     end
   end
 
+  describe 'PATCH /api/v1/profile/ui_settings' do
+    context 'when it is an unauthenticated user' do
+      it 'returns unauthorized' do
+        patch '/api/v1/profile/ui_settings'
+
+        expect(response).to have_http_status(:unauthorized)
+      end
+    end
+
+    context 'when it is an authenticated user' do
+      let(:agent) { create(:user, account: account, role: :agent) }
+
+      it 'merges the mobile-only ui_settings while preserving Vue dashboard keys' do
+        agent.update!(ui_settings: { 'conversations_filter_by' => 'open', 'display_rich_content_editor' => true })
+
+        patch '/api/v1/profile/ui_settings',
+              params: { profile: { wallpaper_key: 'forest_dawn', theme_preference: 'dark', font_scale: 1.15 } },
+              headers: agent.create_new_auth_token,
+              as: :json
+
+        expect(response).to have_http_status(:success)
+        json_response = response.parsed_body
+        expect(json_response['ui_settings']['conversations_filter_by']).to eq('open')
+        expect(json_response['ui_settings']['display_rich_content_editor']).to be true
+        expect(json_response['ui_settings']['wallpaper_key']).to eq('forest_dawn')
+        expect(json_response['ui_settings']['theme_preference']).to eq('dark')
+        expect(json_response['ui_settings']['font_scale']).to eq(1.15)
+      end
+
+      it 'returns 422 when theme_preference is invalid' do
+        patch '/api/v1/profile/ui_settings',
+              params: { profile: { theme_preference: 'neon' } },
+              headers: agent.create_new_auth_token,
+              as: :json
+
+        expect(response).to have_http_status(:unprocessable_entity)
+        expect(response.parsed_body['message']).to match(/theme_preference must be one of/)
+      end
+
+      it 'returns 422 when font_scale is out of range' do
+        patch '/api/v1/profile/ui_settings',
+              params: { profile: { font_scale: 2.5 } },
+              headers: agent.create_new_auth_token,
+              as: :json
+
+        expect(response).to have_http_status(:unprocessable_entity)
+        expect(response.parsed_body['message']).to match(/font_scale must be between/)
+      end
+
+      it 'silently drops unknown keys, applying only allowed ones' do
+        patch '/api/v1/profile/ui_settings',
+              params: { profile: { theme_preference: 'system', display_rich_content_editor: false } },
+              headers: agent.create_new_auth_token,
+              as: :json
+
+        expect(response).to have_http_status(:success)
+        agent.reload
+        expect(agent.ui_settings['theme_preference']).to eq('system')
+        expect(agent.ui_settings).not_to have_key('display_rich_content_editor')
+      end
+    end
+  end
+
   describe 'POST /api/v1/profile/reset_access_token' do
     context 'when it is an unauthenticated user' do
       it 'returns unauthorized' do

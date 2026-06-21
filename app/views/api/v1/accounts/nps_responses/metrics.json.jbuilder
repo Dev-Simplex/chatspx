@@ -23,3 +23,4 @@ json.response_rate(
 json.blocked_count @blocked_count
 json.blocked_by_label_count @blocked_by_label_count
 json.scores_count @scores_count
+json.signals @signals

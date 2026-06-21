@@ -151,6 +151,11 @@ describe('isAConversationRoute', () => {
     expect(isAConversationRoute('dashboard')).toBe(false);
   });
 
+  it('returns true for the unread routes', () => {
+    expect(isAConversationRoute('conversation_through_unread')).toBe(true);
+    expect(isAConversationRoute('conversation_unread', true)).toBe(true);
+  });
+
   it('returns true if base conversation route name is provided and includeBase is true', () => {
     expect(isAConversationRoute('home', true)).toBe(true);
     expect(isAConversationRoute('conversation_mentions', true)).toBe(true);
@@ -206,6 +211,9 @@ describe('getConversationDashboardRoute', () => {
     expect(
       getConversationDashboardRoute('conversation_through_unattended')
     ).toEqual('conversation_unattended');
+    expect(
+      getConversationDashboardRoute('conversation_through_unread')
+    ).toEqual('conversation_unread');
     expect(
       getConversationDashboardRoute('conversations_through_label')
     ).toEqual('label_conversations');

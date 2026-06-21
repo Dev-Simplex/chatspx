@@ -92,6 +92,13 @@ class ReconnectService {
       await this.store.dispatch('syncActiveConversationMessages', {
         conversationId: Number(conversationId),
       });
+      // After fresh server state is in the window, resolve any optimistic
+      // messages that got stuck in 'progress'/'failed' while the socket was
+      // down — dropping refetch duplicates and re-sending genuinely-unsent
+      // ones. This is what removes the "precisa recarregar" step.
+      await this.store.dispatch('reconcilePendingMessages', {
+        conversationId: Number(conversationId),
+      });
     }
   };
 

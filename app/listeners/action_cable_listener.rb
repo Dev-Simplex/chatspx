@@ -177,7 +177,92 @@ class ActionCableListener < BaseListener # rubocop:disable Metrics/ClassLength
     broadcast(account, [user.pubsub_token], CONVERSATION_MENTIONED, conversation.push_event_data)
   end
 
+  # PR B1 — emoji reaction lifecycle. Broadcasts to the same audience as
+  # `message_updated` (inbox members + admins + participants + contact),
+  # so the panel and mobile clients converge on the same recipient set.
+  def message_reaction_added(event)
+    message, account = extract_message_and_account(event)
+    reaction = event.data[:reaction]
+    conversation = message.conversation
+    tokens = user_tokens(account, conversation.inbox.members) +
+             participant_tokens(conversation) +
+             contact_tokens(conversation.contact_inbox, message)
+
+    broadcast(account, tokens, MESSAGE_REACTION_ADDED, {
+                message_id: message.id,
+                conversation_id: conversation.display_id,
+                reaction: reaction.push_event_data
+              })
+  end
+
+  def message_reaction_removed(event)
+    message, account = extract_message_and_account(event)
+    reaction = event.data[:reaction]
+    conversation = message.conversation
+    tokens = user_tokens(account, conversation.inbox.members) +
+             participant_tokens(conversation) +
+             contact_tokens(conversation.contact_inbox, message)
+
+    broadcast(account, tokens, MESSAGE_REACTION_REMOVED, {
+                message_id: message.id,
+                conversation_id: conversation.display_id,
+                reaction_id: reaction.id,
+                emoji: reaction.emoji,
+                user_id: reaction.user_id,
+                user_type: reaction.user_type
+              })
+  end
+
+  # PR B4 — broadcasts the updated user_settings node only to the owning user's tokens.
+  # Other agents do NOT receive this event (per-user privacy: pinned/archived/muted/theme).
+  def conversation_user_setting_changed(event)
+    conversation = event.data[:conversation]
+    user_id = event.data[:user_id]
+    return if conversation.blank? || user_id.blank?
+
+    user = User.find_by(id: user_id)
+    return if user.blank?
+
+    account = conversation.account
+    tokens = [user.pubsub_token].compact
+
+    payload = {
+      conversation: { id: conversation.display_id },
+      user_id: user.id,
+      user_settings: conversation.user_setting_for(user_id)
+    }
+
+    broadcast(account, tokens, CONVERSATION_USER_SETTING_CHANGED, payload)
+  end
+
+  # PR G1 — broadcasts the pinned_message_ids array to ALL agents/admins of the inbox.
+  # Pin é coletivo: todos os agents do account compartilham a lista (diferente do pin per-user de B4).
+  def conversation_pin_added(event)
+    broadcast_conversation_pin(event, CONVERSATION_PIN_ADDED)
+  end
+
+  def conversation_pin_removed(event)
+    broadcast_conversation_pin(event, CONVERSATION_PIN_REMOVED)
+  end
+
   private
+
+  # PR G1 — shared payload for both pin_added and pin_removed.
+  def broadcast_conversation_pin(event, event_name)
+    conversation = event.data[:conversation]
+    return if conversation.blank?
+
+    account = conversation.account
+    tokens = user_tokens(account, conversation.inbox.members)
+
+    payload = {
+      conversation: { id: conversation.display_id },
+      message_id: event.data[:message_id],
+      pinned_message_ids: event.data[:pinned_message_ids] || Messages::PinService.pinned_ids(conversation)
+    }
+
+    broadcast(account, tokens, event_name, payload)
+  end
 
   def account_token(account)
     "account_#{account.id}"

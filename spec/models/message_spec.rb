@@ -341,6 +341,45 @@ RSpec.describe Message do
     end
   end
 
+  describe 'agent_id stamping (set_agent_id_from_sender)' do
+    let(:account) { create(:account) }
+    let(:inbox) { create(:inbox, account: account) }
+    let(:user) { create(:user, account: account) }
+    let(:conversation) { create(:conversation, account: account, inbox: inbox) }
+
+    it 'stamps agent_id with sender_id for outgoing messages sent by a User' do
+      message = create(:message, message_type: :outgoing, sender: user, conversation: conversation, account: account, inbox: inbox)
+      expect(message.agent_id).to eq(user.id)
+    end
+
+    it 'leaves agent_id nil for incoming messages' do
+      message = create(:message, message_type: :incoming, conversation: conversation, account: account, inbox: inbox)
+      expect(message.agent_id).to be_nil
+    end
+
+    it 'leaves agent_id nil for activity messages' do
+      message = create(:message, message_type: :activity, conversation: conversation, account: account, inbox: inbox)
+      expect(message.agent_id).to be_nil
+    end
+
+    it 'leaves agent_id nil for template messages' do
+      message = create(:message, message_type: :template, conversation: conversation, account: account, inbox: inbox)
+      expect(message.agent_id).to be_nil
+    end
+
+    it 'leaves agent_id nil for outgoing messages sent by a bot' do
+      message = create(:message, message_type: :outgoing, sender: create(:agent_bot), conversation: conversation, account: account, inbox: inbox)
+      expect(message.agent_id).to be_nil
+    end
+
+    it 'leaves agent_id nil for outgoing messages with no sender (automation)' do
+      message = build(:message, message_type: :outgoing, conversation: conversation, account: account, inbox: inbox)
+      message.sender = nil
+      message.save!
+      expect(message.agent_id).to be_nil
+    end
+  end
+
   describe '#reopen_conversation' do
     let(:conversation) { create(:conversation) }
     let(:message) { build(:message, message_type: :incoming, conversation: conversation) }
@@ -368,6 +407,7 @@ RSpec.describe Message do
       agent_bot = create(:agent_bot)
       inbox = conversation.inbox
       inbox.agent_bot = agent_bot
+      inbox.pending_status_enabled = true
       inbox.save!
       conversation.resolved!
       message.save!
@@ -377,7 +417,8 @@ RSpec.describe Message do
   end
 
   describe '#mark_pending_conversation_as_open_for_human_response' do
-    let(:conversation) { create(:conversation, status: :pending) }
+    let(:inbox) { create(:inbox, pending_status_enabled: true) }
+    let(:conversation) { create(:conversation, inbox: inbox, account: inbox.account, status: :pending) }
 
     it 'does not mark the conversation open when pending is used without captain' do
       create(:message, message_type: :outgoing, conversation: conversation)

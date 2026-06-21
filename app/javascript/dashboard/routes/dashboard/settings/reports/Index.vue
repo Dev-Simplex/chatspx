@@ -7,7 +7,10 @@ import { REPORTS_EVENTS } from '../../../../helper/AnalyticsHelper/events';
 import { generateFileName } from 'dashboard/helper/downloadHelper';
 import ReportContainer from './ReportContainer.vue';
 import ReportHeader from './components/ReportHeader.vue';
+import DownloadPdfButton from 'dashboard/components/reports/DownloadPdfButton.vue';
 import SpeedInsightsPanel from './components/SpeedInsightsPanel.vue';
+import ReportNarrativeSummary from './components/ReportNarrativeSummary.vue';
+import { mapGetters } from 'vuex';
 
 const REPORTS_KEYS = {
   CONVERSATIONS: 'conversations_count',
@@ -28,7 +31,9 @@ export default {
     ReportFilters,
     ReportContainer,
     V4Button,
+    DownloadPdfButton,
     SpeedInsightsPanel,
+    ReportNarrativeSummary,
   },
   data() {
     return {
@@ -37,6 +42,11 @@ export default {
       groupBy: GROUP_BY_FILTER[1],
       businessHours: false,
     };
+  },
+  computed: {
+    ...mapGetters({
+      accountSummary: 'getAccountSummary',
+    }),
   },
   methods: {
     fetchAllData() {
@@ -116,12 +126,18 @@ export default {
     :header-title="$t('REPORT.HEADER')"
     :header-description="$t('REPORT.DESCRIPTION')"
   >
-    <V4Button
-      :label="$t('REPORT.DOWNLOAD_CONVERSATION_REPORTS')"
-      icon="i-lucide-download"
-      size="sm"
-      @click="downloadConversationReports"
-    />
+    <div class="flex items-center gap-2">
+      <DownloadPdfButton
+        report-type="conversations"
+        :filters="{ from, to, business_hours: businessHours }"
+      />
+      <V4Button
+        :label="$t('REPORT.DOWNLOAD_CONVERSATION_REPORTS')"
+        icon="i-lucide-download"
+        size="sm"
+        @click="downloadConversationReports"
+      />
+    </div>
   </ReportHeader>
   <div class="flex flex-col">
     <ReportFilters
@@ -129,6 +145,7 @@ export default {
       show-group-by
       @filter-change="onFilterChange"
     />
+    <ReportNarrativeSummary :signals="accountSummary.signals || []" />
     <SpeedInsightsPanel />
     <ReportContainer :group-by="groupBy" />
   </div>

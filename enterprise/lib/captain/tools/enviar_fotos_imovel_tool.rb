@@ -18,7 +18,13 @@ class Captain::Tools::EnviarFotosImovelTool < Captain::Tools::BasePublicTool
     key = "fotos_offset_#{codigo}"
     sent = conversation.custom_attributes[key].to_i
     batch = fotos[sent, BATCH] || []
-    return 'Já enviei todas as fotos que tenho desse imóvel.' if batch.empty?
+    if batch.empty?
+      # Cliente pediu fotos de novo e ja enviamos todas: recomeca do inicio (reenvio —
+      # cobre tambem o caso de as anteriores nao terem chegado).
+      sent = 0
+      batch = fotos[0, BATCH] || []
+    end
+    return 'Não encontrei fotos desse imóvel.' if batch.empty?
 
     # Envia uma por uma com intervalo: em rajada o bridge do WhatsApp entrega só a 1ª.
     batch.each_with_index do |url, i|
@@ -30,9 +36,12 @@ class Captain::Tools::EnviarFotosImovelTool < Captain::Tools::BasePublicTool
 
     restantes = fotos.size - new_sent
     if restantes.positive?
-      "Enviei #{batch.size} fotos do imóvel #{codigo}. Ainda tenho mais #{restantes}; ofereça enviar se o cliente quiser."
+      # Nao oferecer mais fotos por conta propria (prende o lead num loop de midia):
+      # avancar a conversa pro proximo passo; se o cliente pedir mais, chamar de novo.
+      "Enviei #{batch.size} fotos do imóvel #{codigo}. NÃO ofereça mais fotos por conta própria — " \
+        'avance a conversa pro próximo passo (interesse, visita). Se o cliente pedir mais fotos, chame esta ferramenta de novo.'
     else
-      "Enviei as últimas #{batch.size} fotos do imóvel #{codigo}. Não há mais fotos."
+      "Enviei as últimas #{batch.size} fotos do imóvel #{codigo}. Não há mais fotos — avance a conversa."
     end
   rescue StandardError => e
     Rails.logger.warn("[EnviarFotosImovelTool] #{e.message}")
@@ -65,16 +74,20 @@ class Captain::Tools::EnviarFotosImovelTool < Captain::Tools::BasePublicTool
 
   def send_photo(conversation, url)
     io = Down.download(url, max_size: 15 * 1024 * 1024)
-    msg = conversation.messages.create!(
+    # Anexo construido ANTES do save: o envio dispara no after_create_commit da mensagem,
+    # entao criar o attachment depois (create! + create!) e corrida — o WhatsApp Cloud
+    # recebia payload de texto com body vazio e recusava (text.body expected string).
+    msg = conversation.messages.build(
       message_type: :outgoing,
       account_id: conversation.account_id,
       inbox_id: conversation.inbox_id,
       sender: @assistant
     )
-    msg.attachments.create!(
+    msg.attachments.build(
       account_id: conversation.account_id,
       file_type: :image,
       file: { io: io, filename: File.basename(URI.parse(url).path), content_type: 'image/jpeg' }
     )
+    msg.save!
   end
 end

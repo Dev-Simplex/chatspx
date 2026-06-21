@@ -9,6 +9,8 @@ import { REPORTS_EVENTS } from '../../../../helper/AnalyticsHelper/events';
 import { FEATURE_FLAGS } from '../../../../featureFlags';
 import V4Button from 'dashboard/components-next/button/Button.vue';
 import ReportHeader from './components/ReportHeader.vue';
+import DownloadPdfButton from 'dashboard/components/reports/DownloadPdfButton.vue';
+import ReportNarrativeSummary from './components/ReportNarrativeSummary.vue';
 
 export default {
   name: 'CsatResponses',
@@ -18,6 +20,8 @@ export default {
     CsatFilters,
     ReportHeader,
     V4Button,
+    DownloadPdfButton,
+    ReportNarrativeSummary,
   },
   data() {
     return {
@@ -34,7 +38,11 @@ export default {
     ...mapGetters({
       accountId: 'getCurrentAccountId',
       isFeatureEnabledOnAccount: 'accounts/isFeatureEnabledonAccount',
+      csatMetrics: 'csat/getMetrics',
     }),
+    csatSignals() {
+      return this.csatMetrics.signals || [];
+    },
     requestPayload() {
       return {
         from: this.from,
@@ -116,12 +124,15 @@ export default {
 
 <template>
   <ReportHeader :header-title="$t('CSAT_REPORTS.HEADER')">
-    <V4Button
-      :label="$t('CSAT_REPORTS.DOWNLOAD')"
-      icon="i-lucide-download"
-      size="sm"
-      @click="downloadReports"
-    />
+    <div class="flex items-center gap-2">
+      <DownloadPdfButton report-type="csat" :filters="requestPayload" />
+      <V4Button
+        :label="$t('CSAT_REPORTS.DOWNLOAD')"
+        icon="i-lucide-download"
+        size="sm"
+        @click="downloadReports"
+      />
+    </div>
   </ReportHeader>
 
   <div class="flex flex-col gap-6">
@@ -129,6 +140,7 @@ export default {
       :show-team-filter="isTeamsEnabled"
       @filter-change="onFilterChange"
     />
+    <ReportNarrativeSummary :signals="csatSignals" />
     <CsatMetrics :filters="requestPayload" />
     <CsatTable :page-index="pageIndex" @page-change="onPageNumberChange" />
   </div>

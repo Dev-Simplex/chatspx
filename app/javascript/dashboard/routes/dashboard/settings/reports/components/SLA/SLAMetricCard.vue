@@ -1,4 +1,6 @@
 <script>
+import { useReportNarrative } from 'dashboard/composables/useReportNarrative';
+
 export default {
   props: {
     label: {
@@ -16,6 +18,19 @@ export default {
     isLoading: {
       type: Boolean,
       default: false,
+    },
+    signal: {
+      type: Object,
+      default: null,
+    },
+  },
+  setup() {
+    const { pillFor } = useReportNarrative();
+    return { pillFor };
+  },
+  computed: {
+    pill() {
+      return this.pillFor(this.signal);
     },
   },
 };
@@ -47,6 +62,14 @@ export default {
       class="text-2xl font-semibold text-n-slate-12 tabular-nums mt-1"
     >
       {{ value }}
+    </span>
+    <span
+      v-if="pill && !isLoading"
+      class="text-xs inline-flex items-center gap-1 px-2 py-1 rounded-full border font-medium"
+      :class="pill.colorClass"
+    >
+      <span>{{ pill.icon }}</span>
+      <span>{{ pill.label }}</span>
     </span>
   </div>
 </template>

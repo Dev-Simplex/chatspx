@@ -39,7 +39,7 @@
     "ACTIONS": {
       "DOWNLOAD": "Baixar",
       "DOWNLOAD_EMPTY": "Nenhum arquivo selecionado para baixar.",
-      "DOWNLOAD_LIMIT": "Limite de 5 arquivos por vez. Selecione menos itens.",
+      "DOWNLOAD_LIMIT": "Limite de 10 arquivos por vez. Selecione menos itens.",
       "FORWARD": "Encaminhar",
       "SHARE": "Compartilhar",
       "SHARE_UNSUPPORTED": "Compartilhamento não suportado neste navegador.",
@@ -49,6 +49,21 @@
       "DESELECT": "Limpar seleção",
       "SELECTED": "{count} selecionado(s)",
       "CLOSE": "Fechar"
+    },
+    "BULK": {
+      "DOWNLOAD_ZIP": "Baixar .zip ({count})",
+      "PREPARING": "Preparando arquivo… ({processed}/{total})",
+      "PREPARING_INDEFINITE": "Preparando arquivo…",
+      "READY": "Download iniciado.",
+      "SELECT_ALL_FILTER": "Selecionar todos os {total} do filtro",
+      "SELECTED_ALL_FILTER": "Todos os {total} do filtro selecionados",
+      "ERROR_TOO_MANY": "Máximo de {limit} arquivos por download. Refine o filtro.",
+      "ERROR_TOO_LARGE": "Seleção excede {limit}. Divida em lotes menores.",
+      "ERROR_ACTIVE": "Você já tem um download em preparação. Aguarde concluir.",
+      "ERROR_EMPTY": "Nenhum arquivo disponível para baixar.",
+      "ERROR_TIMEOUT": "O preparo está demorando. O arquivo continua sendo gerado — tente baixar novamente em instantes.",
+      "ERROR_FAILED": "Não foi possível gerar o arquivo. Tente novamente.",
+      "DOWNLOAD_ALL": "Baixar todas (.zip)"
     }
   }
 }

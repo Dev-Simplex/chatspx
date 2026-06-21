@@ -6,6 +6,7 @@ import { useMessageContext } from '../provider.js';
 import BaseAttachmentBubble from './BaseAttachment.vue';
 import BaseBubble from './Base.vue';
 import FileIcon from 'next/icon/FileIcon.vue';
+import ProgressRing from 'dashboard/components-next/upload/ProgressRing.vue';
 
 const { attachments } = useMessageContext();
 
@@ -15,7 +16,21 @@ const url = computed(() => {
   return attachments.value[0].dataUrl;
 });
 
+// Optimistic "uploading" bubble: a document has no local preview, so show the
+// real file name (carried on the optimistic attachment) + a progress ring while
+// the DirectUpload runs. The server copy replaces it on completion.
+const isUploading = computed(
+  () => attachments.value[0]?.uploadStatus === 'uploading'
+);
+const uploadProgress = computed(() =>
+  typeof attachments.value[0]?.uploadProgress === 'number'
+    ? attachments.value[0].uploadProgress
+    : null
+);
+
 const fileName = computed(() => {
+  const localName = attachments.value[0]?.fileName;
+  if (localName) return localName;
   if (url.value) {
     const filename = url.value.substring(url.value.lastIndexOf('/') + 1);
     return filename || t('CONVERSATION.UNKNOWN_FILE_TYPE');
@@ -35,8 +50,22 @@ const isPdf = computed(
 </script>
 
 <template>
+  <!-- Upload em andamento: cartão com nome do arquivo + anel de progresso. -->
+  <BaseBubble v-if="isUploading" class="p-3" data-bubble-name="file-uploading">
+    <div class="flex items-center gap-3 min-w-56">
+      <ProgressRing :value="uploadProgress" :size="32" :stroke="3" />
+      <div class="flex flex-col overflow-hidden">
+        <span class="text-sm font-medium truncate">
+          {{ fileName }}
+        </span>
+        <span class="text-xs text-n-slate-11">
+          {{ $t('ATTACHMENT_PREVIEW.UPLOADING') }}
+        </span>
+      </div>
+    </div>
+  </BaseBubble>
   <BaseBubble
-    v-if="isPdf"
+    v-else-if="isPdf"
     class="overflow-hidden p-2"
     data-bubble-name="pdf-preview"
   >

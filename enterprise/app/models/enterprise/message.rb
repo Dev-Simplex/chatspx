@@ -29,6 +29,24 @@ module Enterprise::Message
     ::CaptainInbox.exists?(inbox_id: conversation.inbox_id)
   end
 
+  # A2c — sucessor estrutural TRANSITÓRIO do skip_after_human_response (revisar na
+  # Fase D): humano que responde SEM se atribuir cala a IA soltando o espelho.
+  # human_response? reusado de propósito: cobre echo nativo (atendente pelo app
+  # WhatsApp Business) e exclui automação/campanha. Mensagem do próprio assistant
+  # (sender Captain::Assistant) não passa em human_response? — a IA continua
+  # podendo mandar várias em sequência.
+  def release_captain_mirror_after_human_reply
+    return unless human_response?
+    return if private?
+    return if template_bootstrap_message?
+
+    mirror = conversation.assignee_agent_bot
+    return unless mirror&.captain?
+
+    conversation.captain_release_reason = 'human_reply' # E4: motivo para o watcher de auditoria
+    conversation.update!(assignee_agent_bot_id: nil) # IA solta a conversa
+  end
+
   def template_bootstrap_message?
     additional_attributes['template_params'].present? &&
       !conversation.messages.incoming.exists?

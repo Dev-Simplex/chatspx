@@ -22,9 +22,13 @@ const toggle = async () => {
   const previous = localStarred.value;
   localStarred.value = !previous;
   try {
+    // PR B3 — pass the previous (pre-optimistic) starred state so the
+    // API client picks POST (star) vs DELETE (unstar). Without this, the
+    // new explicit-verb backend can never unstar from the Vue UI.
     const { data } = await MessageApi.toggleStar(
       props.conversationId,
-      props.messageId
+      props.messageId,
+      previous
     );
     localStarred.value = !!data.starred;
     const conversationId = Number(props.conversationId);

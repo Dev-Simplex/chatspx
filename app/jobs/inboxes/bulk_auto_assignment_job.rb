@@ -29,7 +29,9 @@ class Inboxes::BulkAutoAssignmentJob < ApplicationJob
   end
 
   def assign_conversations(inbox, allowed_agent_ids)
-    unassigned_conversations = inbox.conversations.unassigned.open.limit(Limits::AUTO_ASSIGNMENT_BULK_LIMIT)
+    unassigned_conversations = inbox.conversations.unassigned.open
+                                    .where(assignee_agent_bot_id: nil)
+                                    .limit(Limits::AUTO_ASSIGNMENT_BULK_LIMIT)
     unassigned_conversations.find_each do |conversation|
       ::AutoAssignment::AgentAssignmentService.new(
         conversation: conversation,

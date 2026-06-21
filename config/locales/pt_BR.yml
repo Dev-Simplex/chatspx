@@ -222,19 +222,26 @@ pt_BR:
       sla_missed_first_response: 'Meta de SLA de Primeira Resposta não alcançada para a conversa (#%{display_id})'
       sla_missed_next_response: 'Meta de SLA de Próxima Resposta não alcançada para a conversa (#%{display_id})'
       sla_missed_resolution: 'Meta de SLA de Resolução não alcançada para a conversa (#%{display_id})'
+      conversation_orphaned: '[Sem dono] A conversa [ID - %{display_id}] está sem responsável e precisa de triagem'
+      conversation_unassignment: 'A conversa (#%{display_id}) foi assumida por %{taker}'
     attachment: 'Anexo'
     no_content: 'Sem conteúdo'
   conversations:
+    reply_assignment_gate:
+      assignment_required: 'Você precisa assumir a conversa antes de responder'
     errors:
       team_required_for_resolution: 'Um time deve ser atribuído antes de resolver esta conversa'
+      resolve_assignment_required: 'Apenas o agente atribuído pode encerrar esta conversa'
     captain:
+      assignment_forbidden: 'Somente administradores podem atribuir agentes IA a conversas.'
+      assignment_not_eligible: 'Este agente IA não é elegível para a caixa de entrada desta conversa'
       handoff: 'Transferindo para que outro agente dê assistência.'
     messages:
       instagram_story_content: '%{story_sender} mencionou você na conversa: '
       instagram_deleted_story_content: Este Story não está mais disponível.
       instagram_shared_story_content: 'Story compartilhado'
       instagram_shared_post_content: 'Post compartilhado'
-      deleted: Esta mensagem foi excluída
+      deleted: Mensagem apagada
       undeletable: Esta mensagem não pode ser excluída
       whatsapp:
         list_button_label: 'Escolha um item'
@@ -506,6 +513,8 @@ pt_BR:
 
       Transcrição:
       %{format_messages}
+  agent_bots:
+    captain_mirror_immutable: 'Bots-espelho de agentes IA são gerenciados automaticamente e não podem ser alterados.'
   agent_capacity_policy:
     inbox_already_assigned: 'A caixa de entrada já foi atribuída a esta política'
   portals:

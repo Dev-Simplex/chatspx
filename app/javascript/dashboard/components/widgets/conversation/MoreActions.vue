@@ -30,14 +30,16 @@ const actionMenuItems = computed(() => {
 
   if (!currentChat.value.muted) {
     items.push({
-      icon: 'i-lucide-volume-off',
+      // PR D4 — Backend "mute" action blocks the contact (contact.blocked=true).
+      // Icon now reflects "block" semantics instead of audio mute.
+      icon: 'i-lucide-ban',
       label: t('CONTACT_PANEL.MUTE_CONTACT'),
       action: 'mute',
       value: 'mute',
     });
   } else {
     items.push({
-      icon: 'i-lucide-volume-1',
+      icon: 'i-lucide-check-circle',
       label: t('CONTACT_PANEL.UNMUTE_CONTACT'),
       action: 'unmute',
       value: 'unmute',

@@ -26,6 +26,39 @@ RSpec.describe AutoAssignment::AgentAssignmentService do
       described_class.new(conversation: conversation, allowed_agent_ids: inbox_members.map(&:user_id).map(&:to_s)).perform
       expect(conversation.reload.assignee).not_to be_nil
     end
+
+    context 'when the conversation is owned by a captain mirror bot' do
+      let(:assistant) { create(:captain_assistant, account: account) }
+
+      before do
+        conversation.update!(assignee_agent_bot: assistant.mirror_agent_bot)
+      end
+
+      it 'never steals the conversation from the AI' do
+        described_class.new(conversation: conversation, allowed_agent_ids: inbox_members.map(&:user_id).map(&:to_s)).perform
+
+        expect(conversation.reload.assignee).to be_nil
+        expect(conversation.reload.assignee_agent_bot).to eq(assistant.mirror_agent_bot)
+      end
+    end
+
+    # Trava estrutural C8: o round-robin só resolve ids para inbox_members (Users) —
+    # um espelho captain "infiltrado" em allowed_agent_ids nunca pode ser atribuído.
+    context 'when a captain mirror id is infiltrated in the allowed agent ids' do
+      let(:assistant) { create(:captain_assistant, account: account) }
+      let(:mirror) { assistant.mirror_agent_bot }
+
+      it 'does not assign the mirror bot' do
+        allow(OnlineStatusTracker).to receive(:get_available_users)
+          .and_return(online_users.merge(mirror.id.to_s => 'online'))
+
+        described_class.new(conversation: conversation, allowed_agent_ids: [mirror.id.to_s]).perform
+
+        conversation.reload
+        expect(conversation.assignee).to be_nil
+        expect(conversation.assignee_agent_bot).to be_nil
+      end
+    end
   end
 
   describe '#find_assignee' do

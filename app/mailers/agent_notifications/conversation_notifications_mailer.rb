@@ -22,6 +22,19 @@ class AgentNotifications::ConversationNotificationsMailer < ApplicationMailer
     send_mail_with_liquid(to: @agent.email, subject: subject) and return
   end
 
+  def conversation_unassignment(conversation, agent, user)
+    return noop_mail_if_disabled if ENV['DISABLE_AGENT_EMAIL_NOTIFICATIONS'] == 'true'
+    return unless smtp_config_set_or_development?
+
+    @agent = agent
+    @conversation = conversation
+    @taker = @conversation.assignee || user
+    subject = I18n.t('notifications.notification_title.conversation_unassignment',
+                     display_id: @conversation.display_id, taker: @taker&.available_name)
+    @action_url = app_account_conversation_url(account_id: @conversation.account_id, id: @conversation.display_id)
+    send_mail_with_liquid(to: @agent.email, subject: subject) and return
+  end
+
   def conversation_mention(conversation, agent, message)
     return noop_mail_if_disabled if ENV['DISABLE_AGENT_EMAIL_NOTIFICATIONS'] == 'true'
     return unless smtp_config_set_or_development?
@@ -73,7 +86,8 @@ class AgentNotifications::ConversationNotificationsMailer < ApplicationMailer
                   user: @agent,
                   conversation: @conversation,
                   inbox: @conversation.inbox,
-                  message: @message
+                  message: @message,
+                  taker: @taker
                 })
   end
 end

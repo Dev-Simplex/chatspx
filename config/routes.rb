@@ -158,14 +158,19 @@ Rails.application.routes.draw do
                 member do
                   post :translate
                   post :retry
-                  post :star
+                  # PR G1 — coletivo pin (cap 3) em conversations.additional_attributes.pinned_message_ids
+                  post :pin, to: 'messages/pin#create'
+                  delete :pin, to: 'messages/pin#destroy'
                 end
                 collection do
                   post :share_location
                   post :share_contact
                 end
                 scope module: :messages do
-                  resource :reactions, only: [:create]
+                  # PR B1 — persisted reactions (index/create/destroy). Plural `resources`
+                  # so each reaction has its own id for destroy.
+                  resources :reactions, only: [:index, :create, :destroy]
+                  resource :star, only: [:create, :destroy]
                 end
               end
               resources :assignments, only: [:create]
@@ -175,6 +180,8 @@ Rails.application.routes.draw do
               resource :draft_messages, only: [:show, :update, :destroy]
               resource :ghost_suggestion, only: [:create]
               resource :copilot_chat, only: [:create, :show, :destroy]
+              # PR B4 — per-user jsonb settings (pinned, archived_at, muted_until, theme_key)
+              resource :user_setting, only: [:update, :destroy], controller: 'user_settings'
             end
             member do
               post :mute
@@ -214,6 +221,8 @@ Rails.application.routes.draw do
               get :links
             end
           end
+
+          resources :attachment_bulk_downloads, only: [:create, :show]
 
           resources :companies, only: [:index, :show, :create, :update, :destroy] do
             collection do
@@ -286,6 +295,7 @@ Rails.application.routes.draw do
               get :download
             end
           end
+          resources :report_pdf_exports, only: %i[create show]
           resources :reporting_events, only: [:index] if ChatwootApp.enterprise?
           resources :custom_attribute_definitions, only: [:index, :show, :create, :update, :destroy]
           resources :custom_filters, only: [:index, :show, :create, :update, :destroy]
@@ -472,6 +482,7 @@ Rails.application.routes.draw do
           put :set_active_account
           post :resend_confirmation
           post :reset_access_token
+          patch :ui_settings, action: :update_ui_settings
         end
 
         # MFA routes

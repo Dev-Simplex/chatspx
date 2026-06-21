@@ -21,15 +21,17 @@
 
 ---
 
-## Grupo 1 — Reconciliação & deploy (bloqueia todo o resto)
+## Grupo 1 — Reconciliação & deploy ✅ EXECUTADO em 11/06 ("Faça" do Paulo)
 
-| # | Decisão | Contexto | REC |
-|---|---|---|---|
-| 1.1 🔴 | Autorizar `git push origin paulao` | 22 commits locais (incl. fix 403 de hoje) só no notebook | **Sim, hoje** — primeiro passo da reconciliação |
-| 1.2 🔴 | Branch canônica: `producao` ou `rollout/release-*`? | `producao` == `rollout/release-20260605` desde 08/06 (frota alinhada) | **`producao` como canônica**; `rollout/release-*` vira tag de release |
-| 1.3 🔴 | Processo oficial de deploy | AWS já é checkout git da rollout; hoje deploy via tar re-dropa patches | **Runbook git-pull**: `fetch → migrate:status (0 down) → checkout/pull → precompile → restart`. Nunca mais tar |
-| 1.4 🔴 | Destino dos 10 PRs do redesign (workspace-v2) na homologação | Eles não existem na paulao nem na producao | **Rebase/merge da homologação sobre a canônica preservando os PRs** — homologação vira branch de integração |
-| 1.5 🔴 | Sujeira não-commitada na AWS (frontend .vue/.js + patches de hoje) | Working tree sujo na rollout em prod | **Auditar diff → commitar o que é real → descartar ruído**, dentro da reconciliação |
+| # | Decisão | Resultado |
+|---|---|---|
+| 1.1 ✅ | Push da `paulao` | Pushada (22 commits) |
+| 1.2 ✅ | Canônica = `producao` | Merge via PR #21 (paulao→producao) + PR #22 (FK cascade, único commit exclusivo da rollout). `producao` final `29a32046f` é superset de todas as linhas; `rollout/release-*` aposentada |
+| 1.3 ✅ | Deploy = git-pull | AWS Tozi agora é checkout limpo da `producao` (bundle incremental via scp porque a VM não tem credencial git — TODO: configurar credencial/deploy key). Runbook: `migrate:status` → `db:migrate:up` específico → precompile → restart |
+| 1.4 ✅ | Homologação preservou os 10 PRs | `homologacao` = `producao` + 10 PRs do redesign (merge sem conflitos), validada na hmlchat: 6 migrations aplicadas, zeitwerk OK, HTTP 200 |
+| 1.5 ✅ | Sujeira da AWS auditada | Tudo era conteúdo já presente na `producao` nova (patches 11/06 + followup job + FK SAFE); falsos-M de CRLF do tar. Backup em branch local `backup/pre-switch-20260611` na AWS |
+
+> ⚠️ Achados operacionais da reconciliação: (a) hmlchat tem **auto-pull da homologacao que NÃO migra/precompila/restarta** — bomba-latente a cada push; investigar e corrigir o mecanismo (credencial: vault `credenciais/infraestrutura.md`); (b) AWS sem credencial git (fetch falha) — configurar deploy key; (c) git da AWS sem `user.name/email` pro user chatwoot.
 
 ## Grupo 2 — Go-live da Clara (D1 e companhia)
 

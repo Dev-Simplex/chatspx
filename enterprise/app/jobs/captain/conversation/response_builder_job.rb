@@ -67,15 +67,14 @@ class Captain::Conversation::ResponseBuilderJob < ApplicationJob
       .where(message_type: [:incoming, :outgoing])
       .where(private: false)
       .map do |message|
-      message_hash = {
-        content: with_reply_context(message, prepare_multimodal_message_content(message)),
-        role: determine_role(message)
-      }
-
-      # Include agent_name if present in additional_attributes
-      message_hash[:agent_name] = message.additional_attributes['agent_name'] if message.additional_attributes&.dig('agent_name').present?
-
-      message_hash
+      # Blocos de imagem so podem ir em turnos de USER (a API rejeita 'image' em
+      # assistant turns); outgoing com anexo vira placeholder textual.
+      content = if message.incoming?
+                  with_reply_context(message, prepare_multimodal_message_content(message))
+                else
+                  message.content.presence || (message.attachments.any? ? '[foto do imóvel enviada]' : '')
+                end
+      with_forwardable_agent_name({ content: content, role: determine_role(message) }, message)
     end.tap do |history|
       # Diretiva interna de follow-up (cutucada): entra como último turno pro agente decidir.
       history << { content: @directive, role: 'user' } if @directive.present?
@@ -95,6 +94,25 @@ class Captain::Conversation::ResponseBuilderJob < ApplicationJob
 
   def determine_role(message)
     message.message_type == 'incoming' ? 'user' : 'assistant'
+  end
+
+  # Forward do agent_name das additional_attributes para o histórico da gem.
+  # C7.4 (gap AD-11/B4): agent_name de OUTRA IA (transferência C7) ou de cenário
+  # legado não pode rotear persona — a gem cairia no agente default silenciosamente.
+  # Mensagem com nome alheio entra no histórico sem agent_name.
+  def with_forwardable_agent_name(message_hash, message)
+    agent_name = message.additional_attributes&.dig('agent_name')
+    message_hash[:agent_name] = agent_name if agent_name.present? && own_agent_name?(agent_name)
+    message_hash
+  end
+
+  # Nomes que pertencem ao assistant ATUAL: o agent_name dele (espelha o privado
+  # Captain::Assistant#agent_name — name.parameterize('_')) e os handoff_keys dos
+  # cenários habilitados (personas legítimas deste assistant no runner).
+  def own_agent_name?(agent_name)
+    @own_agent_names ||= ([@assistant.name.parameterize(separator: '_')] +
+                          @assistant.scenarios.enabled.map(&:handoff_key)).to_set
+    @own_agent_names.include?(agent_name)
   end
 
   # Quando o cliente responde (reply) a uma mensagem específica do WhatsApp,
@@ -196,7 +214,7 @@ class Captain::Conversation::ResponseBuilderJob < ApplicationJob
            .gsub(/^\s{0,3}#+\s+/, '')        # ## títulos -> texto
            .gsub(/^\s{0,3}[-*]\s+/, '')      # - bullets -> texto
            .gsub(/\s*[—―]\s*/, ', ')         # travessão/barra (pausa) -> vírgula (humano no WhatsApp não usa —)
-           .gsub('–', '-')                   # en-dash -> hífen comum (preserva intervalos: 7-11, R$3.200-5.000)
+           .tr('–', '-')                   # en-dash -> hífen comum (preserva intervalos: 7-11, R$3.200-5.000)
            .gsub(/ +,/, ',')                 # " ," -> ","
            .gsub(/,\s*([.!?;:])/, '\1')      # ", ." -> "."
            .gsub(/,(\s*,)+/, ',')            # ",," -> ","
@@ -205,15 +223,22 @@ class Captain::Conversation::ResponseBuilderJob < ApplicationJob
   def send_humanized_response(content)
     chunks = Captain::Behavior::HumanizerService.new(config: @assistant.behavior['humanizer']).split(content)
 
-    chunks.each_with_index do |chunk, _i|
+    sent = 0
+    chunks.each do |chunk|
       # "digitando..." em rajada curta antes de CADA mensagem (proporcional ao
       # tamanho do texto), com pausa entre elas — em vez de typing continuo desde a
       # chegada. Tambem espaca o envio, impedindo as mensagens de chegarem fora de ordem.
       trigger_typing_indicator
       sleep(humanizer_typing_delay(chunk))
+      # Re-check POR CHUNK, depois do sleep e imediatamente antes do envio: humano (ou
+      # outra IA) assumiu no meio da rajada -> para AQUI. TOCTOU residual de ms (entre o
+      # pick e o create!) aceito — lock pessimista por mensagem seria desproporcional.
+      break unless captain_can_respond?
+
       create_outgoing_message(chunk, agent_name: @response['agent_name'])
+      sent += 1
     end
-    log_behavior_event('humanizer_split', { chunks: chunks.size }) if chunks.size > 1
+    log_behavior_event('humanizer_split', { chunks: chunks.size, sent: sent }) if chunks.size > 1
   end
 
   # "Digitando..." pro cliente (best-effort; so WhatsApp Cloud responde de fato).
@@ -237,7 +262,7 @@ class Captain::Conversation::ResponseBuilderJob < ApplicationJob
     base = (cfg['delay_ms'].presence&.to_f || 600) / 1000.0
     min_s = cfg['min_delay_s'].presence&.to_f || 1.5
     max_s = cfg['max_delay_s'].presence&.to_f || 7.0
-    [[base + chunk.to_s.length * per_char, min_s].max, max_s].min
+    [[base + (chunk.to_s.length * per_char), min_s].max, max_s].min
   end
 
   def validate_message_content!(content)
@@ -294,10 +319,19 @@ class Captain::Conversation::ResponseBuilderJob < ApplicationJob
     status == 'pending' || status == Conversation.statuses[:pending]
   end
 
-  # Captain responde em pending E em open (continua atendendo após handoff/atribuição
-  # até um humano responder; skip_after_human_response corta quando o atendente fala).
+  # Captain responde em pending E em open (fork), e SOMENTE se a conversa ainda está
+  # atribuída ao espelho DESTE assistant (gate por atribuição, D-6). Compara com o
+  # assistant do ARGUMENTO (serializado via GlobalID) — job em voo de IA antiga cala.
   def captain_can_respond?
-    status = Conversation.uncached { Conversation.where(id: @conversation.id).pick(:status) }
-    [Conversation.statuses[:pending], Conversation.statuses[:open], 'pending', 'open'].include?(status)
+    status, mirror_id = Conversation.uncached do
+      Conversation.where(id: @conversation.id).pick(:status, :assignee_agent_bot_id)
+    end
+    return false unless [Conversation.statuses[:pending], Conversation.statuses[:open], 'pending', 'open'].include?(status)
+
+    mirror_id.present? && mirror_id == assistant_mirror_id
+  end
+
+  def assistant_mirror_id
+    @assistant_mirror_id ||= AgentBot.captain.where(captain_assistant_id: @assistant.id).pick(:id)
   end
 end

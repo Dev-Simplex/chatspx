@@ -1,10 +1,15 @@
 <script setup>
 import { computed } from 'vue';
 import { useMapGetter } from 'dashboard/composables/store';
+import { useReportNarrative } from 'dashboard/composables/useReportNarrative';
 import CsatMetricCard from './CsatMetricCard.vue';
 import CsatRatingDistribution from './CsatRatingDistribution.vue';
 
 const metrics = useMapGetter('csat/getMetrics');
+const { signalByMetric } = useReportNarrative();
+const csatSignal = computed(() =>
+  signalByMetric(metrics.value.signals, 'csat')
+);
 const ratingPercentage = useMapGetter('csat/getRatingPercentage');
 const ratingCount = useMapGetter('csat/getRatingCount');
 const satisfactionScore = useMapGetter('csat/getSatisfactionScore');
@@ -41,6 +46,7 @@ const formatPercent = value => (value ? `${value}%` : '0%');
         :tooltip="$t('CSAT_REPORTS.METRIC.SATISFACTION_SCORE.TOOLTIP')"
         :value="formatPercent(satisfactionScore)"
         :is-loading="isLoading"
+        :signal="csatSignal"
       />
 
       <div class="w-full sm:w-px bg-n-container/60" />

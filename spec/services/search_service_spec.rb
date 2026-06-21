@@ -756,4 +756,43 @@ describe SearchService do
       end
     end
   end
+
+  describe 'message search with agent_message_isolation' do # rubocop:disable RSpec/MultipleMemoizedHelpers
+    let!(:iso_account) { create(:account) }
+    let!(:agent_a) { create(:user, account: iso_account, role: :agent) }
+    let!(:agent_b) { create(:user, account: iso_account, role: :agent) }
+    let!(:iso_admin) { create(:user, account: iso_account, role: :administrator) }
+    let!(:iso_inbox) { create(:inbox, account: iso_account, enable_auto_assignment: false) }
+    let!(:iso_conversation) { create(:conversation, inbox: iso_inbox, account: iso_account) }
+    let!(:secret) do
+      create(:message, account: iso_account, inbox: iso_inbox, conversation: iso_conversation,
+                       message_type: :outgoing, sender: agent_a, content: 'classified wizardry secret')
+    end
+
+    before do
+      iso_inbox.update!(agent_message_isolation: true)
+      [agent_a, agent_b, iso_admin].each { |u| create(:inbox_member, user: u, inbox: iso_inbox) }
+    end
+
+    def message_ids_for(viewer)
+      Current.account = iso_account
+      Current.user = viewer
+      described_class.new(current_user: viewer, current_account: iso_account,
+                          params: { q: 'classified wizardry' }, search_type: 'Message').perform[:messages].map(&:id)
+    ensure
+      Current.user = nil
+    end
+
+    it 'finds the message for the agent who sent it' do
+      expect(message_ids_for(agent_a)).to include(secret.id)
+    end
+
+    it 'does not surface another agent message content to a different agent' do
+      expect(message_ids_for(agent_b)).not_to include(secret.id)
+    end
+
+    it 'lets an administrator find any message' do
+      expect(message_ids_for(iso_admin)).to include(secret.id)
+    end
+  end
 end

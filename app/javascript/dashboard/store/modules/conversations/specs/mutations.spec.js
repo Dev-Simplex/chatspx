@@ -327,4 +327,49 @@ describe('#mutations', () => {
       expect(state.allConversations[0].messages).toEqual([]);
     });
   });
+
+  describe('#REMOVE_PENDING_MESSAGE', () => {
+    it('removes only the still-optimistic message (id === echo_id)', () => {
+      const chat = {
+        id: 1,
+        messages: [
+          // optimistic placeholder still keyed by echo_id
+          { id: 'uuid-abc', echo_id: 'uuid-abc', content: 'hi' },
+          // server copy of the same message (numeric id, echo_id persisted)
+          {
+            id: 999,
+            content: 'hi',
+            additional_attributes: { echo_id: 'uuid-abc' },
+          },
+        ],
+      };
+      const state = buildStateWithChat(chat);
+
+      mutations[types.REMOVE_PENDING_MESSAGE](state, {
+        conversationId: 1,
+        echoId: 'uuid-abc',
+      });
+
+      const { messages } = state.allConversations[0];
+      expect(messages).toHaveLength(1);
+      expect(messages[0].id).toBe(999);
+    });
+
+    it('does not touch a reconciled message that shares the echo_id', () => {
+      const chat = {
+        id: 1,
+        messages: [
+          { id: 999, echo_id: 'uuid-abc', content: 'already reconciled' },
+        ],
+      };
+      const state = buildStateWithChat(chat);
+
+      mutations[types.REMOVE_PENDING_MESSAGE](state, {
+        conversationId: 1,
+        echoId: 'uuid-abc',
+      });
+
+      expect(state.allConversations[0].messages).toHaveLength(1);
+    });
+  });
 });

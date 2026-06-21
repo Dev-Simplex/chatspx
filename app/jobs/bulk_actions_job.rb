@@ -34,14 +34,39 @@ class BulkActionsJob < ApplicationJob
       bulk_add_labels(conversation)
       bulk_snoozed_until(conversation)
 
-      # Validate team requirement when resolving
-      if params && params[:status] == 'resolved' && conversation.team_id.blank?
-        Rails.logger.warn("Skipping resolution of conversation #{conversation.id} - team required")
-        next
-      end
+      next if resolution_blocked?(conversation, params)
 
       conversation.update(params) if params
     end
+  end
+
+  # Guards that prevent a resolve from being applied during a bulk update.
+  def resolution_blocked?(conversation, params)
+    return false unless params && params[:status] == 'resolved'
+
+    # A team is required before a conversation can be resolved.
+    if conversation.team_id.blank?
+      Rails.logger.warn("Skipping resolution of conversation #{conversation.id} - team required")
+      return true
+    end
+
+    # "Atribuição obrigatória" mode: only the assignee may resolve. The frontend
+    # self-assigns before this runs; we enforce it here too so the API can't be bypassed.
+    if resolve_assignment_blocked?(conversation, params)
+      Rails.logger.warn("Skipping resolution of conversation #{conversation.id} - assignment required")
+      return true
+    end
+
+    false
+  end
+
+  def resolve_assignment_blocked?(conversation, params)
+    return false unless @account.resolve_assignment_gate_enabled?
+
+    # Allow when the same payload reassigns the conversation to the acting user.
+    return false if params[:assignee_id].present? && params[:assignee_id].to_i == Current.user&.id
+
+    conversation.assignee_id != Current.user&.id
   end
 
   def bulk_remove_labels

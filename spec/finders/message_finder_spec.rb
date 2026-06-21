@@ -113,4 +113,56 @@ describe MessageFinder do
       end
     end
   end
+
+  describe '#perform with agent_message_isolation' do
+    subject(:finder) { described_class.new(iso_conversation, { filter_internal_messages: false }) }
+
+    let!(:account) { create(:account) }
+    let!(:agent_a) { create(:user, account: account, role: :agent) }
+    let!(:agent_b) { create(:user, account: account, role: :agent) }
+    let!(:admin) { create(:user, account: account, role: :administrator) }
+    let!(:inbox) { create(:inbox, account: account) }
+    let!(:iso_conversation) { create(:conversation, account: account, inbox: inbox) }
+
+    let!(:incoming) { create(:message, message_type: :incoming, conversation: iso_conversation, account: account, inbox: inbox) }
+    let!(:from_a) do
+      create(:message, message_type: :outgoing, sender: agent_a, conversation: iso_conversation, account: account, inbox: inbox)
+    end
+    let!(:from_b) do
+      create(:message, message_type: :outgoing, sender: agent_b, conversation: iso_conversation, account: account, inbox: inbox)
+    end
+
+    after { Current.user = nil }
+
+    context 'when isolation is enabled' do
+      before { inbox.update!(agent_message_isolation: true) }
+
+      it 'shows an agent their own and public messages but hides other agents messages' do
+        Current.user = agent_a
+        ids = finder.perform.map(&:id)
+        expect(ids).to include(incoming.id, from_a.id)
+        expect(ids).not_to include(from_b.id)
+      end
+
+      it 'lets an account administrator see every message' do
+        Current.user = admin
+        ids = finder.perform.map(&:id)
+        expect(ids).to include(incoming.id, from_a.id, from_b.id)
+      end
+
+      it 'applies no filter when there is no Current.user (widget/public listing)' do
+        Current.user = nil
+        ids = finder.perform.map(&:id)
+        expect(ids).to include(incoming.id, from_a.id, from_b.id)
+      end
+    end
+
+    context 'when isolation is disabled' do
+      it 'shows all messages even to a non-admin agent' do
+        Current.user = agent_a
+        ids = finder.perform.map(&:id)
+        expect(ids).to include(incoming.id, from_a.id, from_b.id)
+      end
+    end
+  end
 end

@@ -1,15 +1,74 @@
-# Estado ChatSPX — atualizado 2026-06-10 (mapeamento completo IA orquestradora + auditoria read-only de prod)
+# Estado ChatSPX — atualizado 2026-06-11 (reconciliação de branches EXECUTADA + Bloco 1+2 do go-live em prod)
 
 > Single source of truth do que está **in-flight** no projeto.
 > Coisas estáveis vão pro [`MEMORY.md`](../../../.claude/projects/C--Users-paulo-Workspaces-chatspx/memory/MEMORY.md) (per-projeto) ou pro vault Obsidian.
 > Decisões com mais de 30 dias devem ser movidas pra `clientes/tozi-conversation-log.md` no vault.
 
-> 🔴 **HANDOFF DE FECHAMENTO 29/05 → ler [`docs/HANDOFF-2026-05-29.md`](../docs/HANDOFF-2026-05-29.md) PRIMEIRO.**
-> Próxima sessão foca em: reconciliar conflito de templates (2 sessões divergiram), corrigir deploy AWS (não-git + credencial), subir código paulao→prod Tozi, re-aplicar dados (funil/prompt Júlia #5/knowledge/hook), verificar quebras, implementar Bloco 3+4 cadência, e generalizar multi-cliente. Múltiplas sessões trabalharam no branch paulao em paralelo (5 commits de outras sessões — ver handoff §3).
+> ✅ O handoff de 29/05 foi SUPERADO em 11/06: reconciliação executada, deploy AWS virou git, código paulao→prod Tozi completo. Sessão de decisões pendente: **[`docs/DECISOES-CLARA.md`](../docs/DECISOES-CLARA.md)**.
 
 ---
 
 ## 🚧 Em andamento
+
+### [2026-06-11] ✅ DECISÃO 2.7 EXECUTADA em prod Tozi — higiene das abertas só-HSM (4.013 resolvidas, 0 falhas)
+
+- **Critério estrito do Paulo:** conversa com APENAS template(s) outgoing, zero resposta do lead, zero texto humano, atribuída. Universo: 4.606 (nenhum corretor tinha escrito nada). Resolvidas as paradas 3d+: **4.013 em 369s, 0 falhas** (lotes de 50 + pacing; teams setados nas sem-team via MAP corretor→time de disparo; Gelson/Adrian via skip flag). Dry-run prévio: CSAT/NPS OFF (zero pesquisa pro lead), 0 webhooks de conta, resolve+rollback de teste OK.
+- **Resultado: inbox 91 caiu de 6.508 → 2.487 abertas** (resolved 11.077). Residual: 593 (<3 dias — ficam com os corretores). Cards dos funis moveram pra "Resolvidos" via callback. Reply futuro reabre zerada (#53) → triagem por intenção (decisão 3.5, batida hoje: labels `intencao:*` + automation `assign_team`). Detalhes: `docs/DECISOES-CLARA.md` §2.7 e §3.5 · script `Temp/executa_27.rb` · log `/tmp/resolve27.log` na AWS.
+
+### [2026-06-11] 🚨 DESCOBERTA DE INFRA: 192.168.8.232 = chatspx.app (SaaS COM CLIENTES), não só "hmlchat"
+
+- `FRONTEND_URL` da VM 232 é `https://chatspx.app`; contas: 1 SimplexIA · 3 Simplex Tecnologia · 4 Colégio Alternativo · 5 Realizare Imobiliária. **Tratar como produção** (o restart/migrations de hoje passaram sem incidente, mas o risco era maior que o assumido). Auto-pull da homologacao SEM migrate vira risco crítico — corrigir urgente. Vault atualizado (`credenciais/infraestrutura.md`).
+
+### [2026-06-11] 🟢 CLARA LIVE NO NÚMERO SIMPLEXIA OFICIAL (chatspx.app, conta 3, inbox 44)
+
+- **Número Cloud API oficial funcionando: +55 66 2018-0686** (inbox 44 "SimplexIA", conta 3 Simplex Tecnologia). Equipe clonada da conta 1 → conta 3: **Clara #3 (CONECTADA à inbox 44)** · Júlia #10 · Bruna #11 · Letícia #12 · Marina #13 · Rafa #14. Modelo da conta 3: `claude-sonnet-4.5` (era gpt-4.1, sem uso). Custom tools clonadas (geocoding ON). Cota 99.965/100k. `audio_transcriptions=true` na conta 3. `pending_status_enabled=false` na inbox 44 (sem limbo). Sem whitelist — a Clara responde QUALQUER mensagem no número (é o teste).
+- **Para testar:** mandar WhatsApp pro +55 66 2018-0686 (texto/áudio). Trocar o agente conectado = `CaptainInbox.find_by(inbox_id: 44).destroy` + `create!(inbox_id: 44, captain_assistant_id: <id>)`.
+- Limitações conhecidas do teste: transferência IA→IA = handoff com destino no motivo (tool real = Fase C6) · busca de imóvel usa o Vista da TOZI (chave no .env — ok pra teste).
+- **Knowledge da AWS importada (11/06):** Playbook de Vendas (doc, 19 chunks com embedding, available) → Júlia #10 · 40 Q&A divididas conforme a spec: 4 institucionais → Clara #3, 36 vendas/objeções → Júlia #10, todas com embedding. Bruna/Letícia/Marina/Rafa seguem sem knowledge (curadoria §12 do EQUIPE doc — a base de prod não tem conteúdo de locação/suporte/captação/prestadores). `knowledge_mode=hybrid` (retrieval ON; `feature_faq=false` só desliga a GERAÇÃO automática de FAQ no resolve, não a consulta).
+- **🔄 AJUSTE pós-teste do Paulo (11/06 tarde): Clara #3 virou ORQUESTRADORA** (padrão validado da Tozi prod, já que o runtime atual só permite 1 assistant por inbox). Os 5 especialistas viraram CENÁRIOS dela (Vendas #13 c/ buscar_imovel+geocoding+fotos · Locação #14 idem · Suporte #15 · Captação #16 · Prestadores #17), com frases de transferência ajustadas pro mecanismo de cenários (devolver à assistente principal). Cenário recepcionista standalone desabilitado (volta no modelo IA-como-agente). Knowledge CONSOLIDADA na #3: 40/40 Q&A + Playbook (19/19 chunks) com embeddings. Motivo do teste falho: a Clara recepcionista não tinha buscar_imovel por design e não tinha pra quem transferir. Os assistants #10–14 ficam como fonte pro modelo novo (não conectados).
+
+### [2026-06-11] 🟢 EQUIPE DE AGENTES CRIADA NA SANDBOX (chatspx.app, conta 1 SimplexIA)
+
+> Spec completa: [`docs/EQUIPE-AGENTES-IA.md`](../docs/EQUIPE-AGENTES-IA.md). Setup idempotente: `Temp/hml_setup_sandbox.rb` (local, não versionado).
+
+- **6 agentes criados** (assistant ids 4–9): Clara (recepção/triagem por intenção) · Júlia (vendas, prompt = prod) · Bruna (locação, = prod) · Letícia (suporte, = prod) · Marina (captação, NOVO) · Rafa (prestadores de serviço, NOVO). Cada um: 1 cenário "Comportamento" com o prompt, config baseline (guardrails+guidelines da Clara prod + anti-senha; memory/faq OFF), behavior baseline (debounce 15s, humanizer 280, business_hours Sinop, sem whitelist), modelo `claude-sonnet-4.5`.
+- **Infra da sandbox**: chaves LLM (InstallationConfig) copiadas da AWS · custom tools geocoding (enabled) + vista (disabled, como prod) na conta 1 · `TOZI_VISTA_API_KEY` no .env · web+worker reiniciados (migrate 0 down) · HTTP 200. **Nenhum agente conectado a inbox** — não respondem nada até plugar (seguro).
+- **Critério de agente por setor** (DECISÕES §13 do EQUIPE doc): jurídico SEM agente (handoff humano); prestação de contas do proprietário → Letícia até Onda 5. Transferência IA→IA por enquanto = handoff com destino no motivo (tool real é Fase C6 da arquitetura).
+- **Próximo:** Paulo valida os agentes na UI (hmlchat → conta SimplexIA → Agentes IA) · plugar inbox de teste OU aguardar número SimplexIA Cloud API pro teste E2E · curadoria de knowledge (institucional/locação/suporte/captação/prestadores).
+
+### [2026-06-11 noite] 🟢 ORQUESTRAÇÃO IA FUNCIONANDO E2E no chatspx.app (conta 3, inbox 44)
+
+> **Fluxo provado em teste sintético:** conversa órfã → triagem automática atribui Clara (automation `assign_ai_agent`, rule #31) → Clara identifica intenção e **transfere via tool `transferir_para_agente`** → Bruna assume com contexto e atende. Transferência invisível, sem eco.
+
+- **Implementado por mim (commits na homologacao até `5fb885a2e`):** tool `transferir_para_agente` (C6, lookup direto do espelho) · action `assign_ai_agent` (C4) · entry tools.yml · B3 `configured_agent_tools` · B1 instructions no v2 · fix image-blocks no histórico (foto da IA quebrava turnos seguintes) · fixes de fotos (transação/reenvio/sem oferta) · gates aceitam `captain_integration_v2` (gotcha "não habilitado" morto na raiz, useCaptain+CSAT+áudio).
+- **Equipe conta 3:** Clara #3 recepcionista (transfere) · Júlia #10 · Bruna #11 · Letícia #12 · Marina #13 · Rafa #14 — agentes únicos standalone (cenários OFF, B1+B3), todos ELEGÍVEIS na inbox 44 (CaptainInbox; a Fase C endureceu: espelho não-elegível é recusado).
+- **Frente paralela (.41):** 2 sessões Claude Code NO SERVIDOR (loop autônomo `plano/ia-consolidado.md`; F0+A aceitas — commitei tudo em `2bee0f724`; Fase C/UI em andamento). ⚠️ Precompile SEGURADO até a Fase C fechar (SCSS em progresso quebra build + não servir UI parcial pros clientes do SaaS). Bugs da noite (todos mortos): multi-agente da gem (eco), worker dessincronizado, image-blocks, elegibilidade sem dados.
+- **Próximo:** teste do Paulo via WhatsApp (conversa 515 com a Clara) · Fase C fechar → precompile (UI de agentes + fix da tela) · curadoria de knowledge dos especialistas · espelhar a receita pro go-live Tozi.
+
+### [2026-06-11] 📐 ARQUITETURA "IA COMO AGENTE ATRIBUÍVEL" — planejada de manhã; Fases A (loop .41) + B1/B3/C4/C6 (eu) JÁ IMPLEMENTADAS — ver entrada acima
+
+> **Plano completo: [`docs/ARQUITETURA-IA-COMO-AGENTE.md`](../docs/ARQUITETURA-IA-COMO-AGENTE.md)** (fases A–D, ~2 semanas, aceites e roteiro E2E novo de 14 testes).
+
+- **Decisão do Paulo:** fim da "Clara com cenários". Cada IA = um agente independente, atribuível como atendente; **a IA só responde conversa atribuída a ela** (sem router/whitelist/labels). Cenário sobrevive só como SUBPROMPT de comportamento. Conversa da IA fica com composer BLOQUEADO pro humano — botão "Assumir conversa" rouba a atribuição explicitamente.
+- **Viabilidade verificada no código (6 agentes, 11/06): ~70% do trilho já existe** — `conversations.assignee_agent_bot_id` + AssignmentService com assignee_type + endpoint + callback `reset_agent_bot_when_assignee_present` (atribuir humano limpa o bot = "transferiu → cala" de graça). Trilho escolhido: **AgentBot-espelho por Captain::Assistant** (`bot_type :captain`). O gate atual é 100% por inbox (`inbox.captain_assistant`) — vira por conversa.
+- **Implicações:** whitelist/label atendimento/skip-pós-humano/pending-limbo MORREM; regra #53 TEM que morrer na virada; go-live da Clara deve acontecer JÁ neste modelo (não religar no modelo velho); substitui parte da Onda 2 do roadmap.
+
+### [2026-06-11] ✅ RECONCILIAÇÃO DE BRANCHES EXECUTADA — `producao` é a canônica única
+
+> **O problema "cada redeploy re-dropa patches off-git" está MORTO.** Estado final dos ambientes:
+
+- **`producao` (29a32046f)** = canônica, superset de TODAS as linhas: paulao (22 commits, PR #21) + producao consolidada de 08/06 + único commit exclusivo da rollout (FK cascade, PR #22). Merge teve 1 conflito (disparo_lead_job add/add → versão paulao) + 18 .rb validados com ruby -c. Migration landmine agora é a versão SAFE em todas as branches.
+- **`paulao`** = sincronizada com producao. **`homologacao`** = producao + 10 PRs do redesign workspace-v2 (merge sem conflito) — **branch de trabalho do Paulo daqui pra frente**.
+- **AWS Tozi** = checkout LIMPO da `producao` (era rollout/release-20260605 + sujeira off-git). Bundle incremental via scp (VM sem credencial git), backup da sujeira em branch local `backup/pre-switch-20260611`, migration 20260609120000 aplicada via `db:migrate:up` específico, 0 down, precompile + restart → HTTP 200, tráfego real ok.
+- **hmlchat (192.168.8.232)** = homologacao completa: 6 migrations aplicadas, zeitwerk OK, HTTP 200. Credencial descoberta e salva no vault (`credenciais/infraestrutura.md` § HMLCHAT). ⚠️ Tem **auto-pull da homologacao que NÃO migra/precompila/restarta** — bomba-latente a cada push; corrigir o mecanismo.
+- **TODOs operacionais:** deploy key git na AWS (fetch falha; bundle foi o workaround) · git ident do user chatwoot na AWS · runbook oficial de deploy (decisão 1.3) · consertar auto-pull da hmlchat.
+
+### [2026-06-11] 🟡 GO-LIVE REORGANIZADO — Bloco 1+2 executados em prod; switch da Clara aguarda sandbox + decisões
+
+- **Executado em prod Tozi (11/06):** T1 áudio (gate código + `audio_transcriptions=true`) · T2 fix 403 (+ commit `e74b935b1`) · T3 anti-duplicata do disparo · T4 restart validado · T5 notificações dos 4 corretores (3 flags push + 3 email; falta cada corretor ACEITAR a permissão no navegador — Ederson) · T6 memberships Marcus/Bruno + 442 conversas re-sincronizadas (0 dessincronizadas no final) · T8 lista do mutirão (408 conversas em `Downloads/mutirao-tozi-12h.csv`; inclui Paloma 11, Gelson 4, Ivanete 1 além dos 4 corretores).
+- **Decisões batidas (11/06):** D1 SIM com sub-definições (ver doc) · D2 24/7 · D3 desligar memory/faq · homologacao = branch de trabalho · sandbox = número SimplexIA na Cloud API oficial.
+- **PENDENTE:** T7 (config Clara) · T9 (switch CaptainInbox) · T10 (roteiro 13 testes) · T12 (piloto leads reais) — aguardam Etapa 2 (sandbox SimplexIA) + sessão de decisões dos Grupos 2–8 de **[`docs/DECISOES-CLARA.md`](../docs/DECISOES-CLARA.md)** (~35 decisões consolidadas com recomendação cada).
+- **Ordem macro decidida:** Etapa 1 reconciliação ✅ → Etapa 2 sandbox SimplexIA Cloud API + quick wins (Langfuse/playground/golden set) → Etapa 3 go-live Clara organizado → Etapa 4 Ondas 1+2+4.1 em paralelo → Etapa 5 Onda 5 antecipada (Vista fundo; MA Financeiro 🔴 ~1 mês de atraso contratual).
 
 ### [2026-06-10] 🚀 PLANO DE GO-LIVE DA IA — 11/06 (Paulo + dev sênior + Ederson), abertura 12/06
 

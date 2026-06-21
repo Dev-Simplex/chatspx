@@ -46,6 +46,69 @@ RSpec.describe 'Conversations API', type: :request do
         expect(body[:data][:payload].first[:messages]).to eq([])
       end
 
+      context 'with captain (AI) assignee serialization' do
+        let(:assistant) { create(:captain_assistant, account: account) }
+        let(:mirror) { assistant.mirror_agent_bot }
+
+        it 'serializes the captain mirror as assignee with agent_bot type' do
+          conversation.update!(assignee_agent_bot: mirror)
+
+          get "/api/v1/accounts/#{account.id}/conversations",
+              headers: agent.create_new_auth_token,
+              as: :json
+
+          expect(response).to have_http_status(:success)
+          body = JSON.parse(response.body, symbolize_names: true)
+          assignee = body[:data][:payload].first[:meta][:assignee]
+          expect(assignee).to include(
+            id: mirror.id,
+            type: 'agent_bot',
+            name: mirror.name,
+            available_name: mirror.name,
+            thumbnail: mirror.avatar_url,
+            bot_type: 'captain',
+            is_captain: true,
+            captain_assistant_id: assistant.id
+          )
+        end
+
+        it 'does not add the agent_bot type discriminator to human assignees' do
+          conversation.update!(assignee: agent)
+
+          get "/api/v1/accounts/#{account.id}/conversations",
+              headers: agent.create_new_auth_token,
+              as: :json
+
+          body = JSON.parse(response.body, symbolize_names: true)
+          assignee = body[:data][:payload].first[:meta][:assignee]
+          expect(assignee[:id]).to eq(agent.id)
+          expect(assignee).not_to have_key(:type)
+        end
+
+        it 'does not serialize a webhook bot assigned via column as assignee' do
+          webhook_bot = create(:agent_bot, account: account)
+          conversation.update!(assignee_agent_bot: webhook_bot)
+
+          get "/api/v1/accounts/#{account.id}/conversations",
+              headers: agent.create_new_auth_token,
+              as: :json
+
+          body = JSON.parse(response.body, symbolize_names: true)
+          expect(body[:data][:payload].first[:meta]).not_to have_key(:assignee)
+        end
+
+        it 'includes ai_count in the list meta' do
+          conversation.update!(assignee_agent_bot: mirror)
+
+          get "/api/v1/accounts/#{account.id}/conversations",
+              headers: agent.create_new_auth_token,
+              as: :json
+
+          body = JSON.parse(response.body, symbolize_names: true)
+          expect(body[:data][:meta][:ai_count]).to eq(1)
+        end
+      end
+
       it 'returns unattended conversations' do
         attended_conversation = create(:conversation, account: account, first_reply_created_at: Time.now.utc)
         # to ensure that waiting since value is populated
@@ -95,8 +158,22 @@ RSpec.describe 'Conversations API', type: :request do
 
         expect(response).to have_http_status(:success)
         body = JSON.parse(response.body, symbolize_names: true)
-        expect(body[:meta].keys).to include(:all_count, :mine_count, :assigned_count, :unassigned_count)
+        expect(body[:meta].keys).to include(:all_count, :mine_count, :assigned_count, :unassigned_count, :ai_count)
         expect(body[:meta][:all_count]).to eq(1)
+      end
+
+      it 'returns ai_count for captain-owned conversations' do
+        assistant = create(:captain_assistant, account: account)
+        ai_conversation = create(:conversation, account: account, assignee_agent_bot: assistant.mirror_agent_bot)
+        create(:inbox_member, user: agent, inbox: ai_conversation.inbox)
+
+        get "/api/v1/accounts/#{account.id}/conversations/meta",
+            headers: agent.create_new_auth_token,
+            as: :json
+
+        expect(response).to have_http_status(:success)
+        body = JSON.parse(response.body, symbolize_names: true)
+        expect(body[:meta][:ai_count]).to eq(1)
       end
     end
   end
@@ -506,6 +583,56 @@ RSpec.describe 'Conversations API', type: :request do
         expect(response).to have_http_status(:success)
         expect(conversation.reload.status).to eq('snoozed')
         expect(conversation.reload.snoozed_until.to_i).to eq(snoozed_until)
+      end
+    end
+
+    context 'when the resolve assignment gate is enabled' do
+      let(:agent) { create(:user, account: account, role: :agent) }
+      let(:owner) { create(:user, account: account, role: :agent) }
+      let(:team) { create(:team, account: account) }
+      let(:gated_conversation) { create(:conversation, account: account, inbox: inbox, team: team, assignee: owner, status: 'open') }
+
+      before do
+        account.update!(settings: { resolve_assignment_gate: true })
+        create(:inbox_member, user: agent, inbox: inbox)
+        create(:inbox_member, user: owner, inbox: inbox)
+        # Both need team access to reach the conversation (authorize_team_access);
+        # the assignee must also be in the team or the model clears it on save.
+        create(:team_member, user: agent, team: team)
+        create(:team_member, user: owner, team: team)
+      end
+
+      it 'blocks a non-assignee with 422 and a resolve_assignment_required error_code' do
+        post "/api/v1/accounts/#{account.id}/conversations/#{gated_conversation.display_id}/toggle_status",
+             headers: agent.create_new_auth_token,
+             params: { status: 'resolved' },
+             as: :json
+
+        expect(response).to have_http_status(:unprocessable_entity)
+        body = response.parsed_body
+        expect(body['error_code']).to eq('resolve_assignment_required')
+        expect(body['meta']).to include('current_assignee_id' => owner.id, 'team_id' => team.id)
+        expect(gated_conversation.reload.status).to eq('open')
+      end
+
+      it 'allows the assignee to resolve' do
+        post "/api/v1/accounts/#{account.id}/conversations/#{gated_conversation.display_id}/toggle_status",
+             headers: owner.create_new_auth_token,
+             params: { status: 'resolved' },
+             as: :json
+
+        expect(response).to have_http_status(:success)
+        expect(gated_conversation.reload.status).to eq('resolved')
+      end
+
+      it 'cannot be bypassed by a non-assignee via the param-less toggle' do
+        post "/api/v1/accounts/#{account.id}/conversations/#{gated_conversation.display_id}/toggle_status",
+             headers: agent.create_new_auth_token,
+             as: :json
+
+        expect(response).to have_http_status(:unprocessable_entity)
+        expect(response.parsed_body['error_code']).to eq('resolve_assignment_required')
+        expect(gated_conversation.reload.status).to eq('open')
       end
     end
 

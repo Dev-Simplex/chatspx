@@ -309,6 +309,19 @@ const tailwindConfig = {
         '0%': { backgroundPosition: '-100% 0' },
         '100%': { backgroundPosition: '100% 0' },
       },
+      // D8/D-L5: keyframes próprios do gate de resposta — top-level (NUNCA extend),
+      // padrão do fork. `head-shake`/`glow-pulse` não colidem com o tailwindcss-animated.
+      'head-shake': {
+        '0%, 100%': { transform: 'translateX(0)' },
+        '12.5%': { transform: 'translateX(-6px) rotateY(-9deg)' },
+        '37.5%': { transform: 'translateX(5px) rotateY(7deg)' },
+        '62.5%': { transform: 'translateX(-3px) rotateY(-5deg)' },
+        '87.5%': { transform: 'translateX(2px) rotateY(3deg)' },
+      },
+      'glow-pulse': {
+        '0%, 100%': { boxShadow: '0 0 0 0 rgb(var(--ruby-9) / 0.35)' },
+        '50%': { boxShadow: '0 0 8px 2px rgb(var(--ruby-9) / 0.15)' },
+      },
     },
     animation: {
       ...defaultTheme.animation,
@@ -327,11 +340,21 @@ const tailwindConfig = {
       'copilot-item-in':
         'copilot-item-in 180ms cubic-bezier(0.16, 1, 0.3, 1) both',
       shimmer: 'shimmer 1.5s linear infinite',
+      // D8/D-L5: animações do gate de resposta (head-shake na tab de alerta, glow no badge).
+      'head-shake': 'head-shake 0.8s ease-in-out 1',
+      'glow-pulse': 'glow-pulse 2s ease-in-out infinite',
     },
   },
   plugins: [
     // eslint-disable-next-line
     require('@tailwindcss/typography'),
+    // D8/D-L5: utilitários de animação prontos (animate-jump-in, animate-fade-up, etc.).
+    // COLISÃO documentada: os keyframes `shake` e `wiggle` definidos top-level acima em
+    // `theme.keyframes` mascaram as classes homônimas deste plugin (a definição do user vence
+    // — Tailwind sobrescreve o plugin). Para efeitos NOVOS, usar classes sem colisão
+    // (`animate-jump-in`/`animate-fade-up`) ou os keyframes custom `head-shake`/`glow-pulse`.
+    // eslint-disable-next-line
+    require('tailwindcss-animated'),
     iconsPlugin({
       collections: {
         woot: { icons },

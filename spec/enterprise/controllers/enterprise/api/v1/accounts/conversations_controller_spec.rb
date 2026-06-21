@@ -38,4 +38,32 @@ RSpec.describe 'Enterprise Conversations API', type: :request do
       end
     end
   end
+
+  describe 'GET /api/v1/accounts/{account.id}/conversations/:id/inbox_assistant' do
+    let(:inbox) { create(:inbox, account: account) }
+    let(:conversation) { create(:conversation, account: account, inbox: inbox) }
+    let(:assistant) { create(:captain_assistant, account: account) }
+
+    before do
+      create(:inbox_member, user: admin, inbox: inbox)
+    end
+
+    context 'when the conversation is owned by a captain mirror' do
+      before do
+        create(:captain_inbox, captain_assistant: assistant, inbox: inbox)
+        conversation.update!(assignee_agent_bot: assistant.mirror_agent_bot)
+      end
+
+      it 'returns the assistant resolved from the conversation owner' do
+        get "/api/v1/accounts/#{account.id}/conversations/#{conversation.display_id}/inbox_assistant",
+            headers: admin.create_new_auth_token,
+            as: :json
+
+        expect(response).to have_http_status(:success)
+        body = JSON.parse(response.body, symbolize_names: true)
+        expect(body[:assistant][:id]).to eq(assistant.id)
+        expect(body[:assistant][:name]).to eq(assistant.name)
+      end
+    end
+  end
 end

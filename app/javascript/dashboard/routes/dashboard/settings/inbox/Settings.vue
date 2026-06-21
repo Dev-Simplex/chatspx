@@ -90,6 +90,7 @@ export default {
       businessName: '',
       locktoSingleConversation: false,
       teamMessageIsolation: false,
+      agentMessageIsolation: false,
       pendingStatusEnabled: false,
       allowMessagesAfterResolved: true,
       continuityViaEmail: true,
@@ -404,6 +405,8 @@ export default {
       this.selectedFeatureFlags = this.inbox.selected_feature_flags || [];
       this.replyTime = this.inbox.reply_time;
       this.locktoSingleConversation = this.inbox.lock_to_single_conversation;
+      this.teamMessageIsolation = this.inbox.team_message_isolation || false;
+      this.agentMessageIsolation = this.inbox.agent_message_isolation || false;
       this.pendingStatusEnabled = this.inbox.pending_status_enabled || false;
       this.selectedPortalSlug = this.inbox.help_center
         ? this.inbox.help_center.slug
@@ -523,6 +526,7 @@ export default {
             : null,
           lock_to_single_conversation: this.locktoSingleConversation,
           team_message_isolation: this.teamMessageIsolation,
+          agent_message_isolation: this.agentMessageIsolation,
           pending_status_enabled: this.pendingStatusEnabled,
           sender_name_type: this.senderNameType,
           business_name: this.businessName || null,
@@ -800,6 +804,15 @@ export default {
               :header="$t('INBOX_MGMT.SETTINGS_POPUP.TEAM_MESSAGE_ISOLATION')"
               :description="
                 $t('INBOX_MGMT.SETTINGS_POPUP.TEAM_MESSAGE_ISOLATION_SUB_TEXT')
+              "
+              class="mb-4"
+            />
+
+            <SettingsToggleSection
+              v-model="agentMessageIsolation"
+              :header="$t('INBOX_MGMT.SETTINGS_POPUP.AGENT_MESSAGE_ISOLATION')"
+              :description="
+                $t('INBOX_MGMT.SETTINGS_POPUP.AGENT_MESSAGE_ISOLATION_SUB_TEXT')
               "
               class="mb-4"
             />
@@ -1234,7 +1247,10 @@ export default {
             @register-webhook="registerWebhook"
           />
         </div>
-        <div v-if="selectedTabKey === 'message-templates'" class="mx-6 max-w-5xl">
+        <div
+          v-if="selectedTabKey === 'message-templates'"
+          class="mx-6 max-w-5xl"
+        >
           <MessageTemplatesPage :inbox="inbox" />
         </div>
       </div>

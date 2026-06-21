@@ -2,6 +2,8 @@
 import { computed, ref, onMounted, watch } from 'vue';
 import { useI18n } from 'vue-i18n';
 import { useStore, useStoreGetters } from 'dashboard/composables/store';
+import { useAlert } from 'dashboard/composables';
+import { useBulkDownload } from 'dashboard/composables/useBulkDownload';
 import Icon from 'dashboard/components-next/icon/Icon.vue';
 import GalleryView from 'dashboard/components/widgets/conversation/components/GalleryView.vue';
 
@@ -47,20 +49,6 @@ const fetchAttachments = () => {
 };
 
 onMounted(fetchAttachments);
-
-watch(
-  () => props.conversationId,
-  () => {
-    visibleCounts.value = {
-      image: PAGE_SIZE,
-      video: PAGE_SIZE,
-      audio: PAGE_SIZE,
-      file: PAGE_SIZE,
-      embed: PAGE_SIZE,
-    };
-    fetchAttachments();
-  }
-);
 
 const grouped = computed(() => {
   const raw = attachmentsRaw.value;
@@ -211,10 +199,174 @@ const getFileName = att => {
 };
 
 const getLinkUrl = att => att?.data_url || att?.external_url || '#';
+
+// --- Download em massa (zip assíncrono) + modo seleção -----------------------
+const { status, processed, total, errorMeta, isPreparing, isStarting, start } =
+  useBulkDownload();
+
+const selectionMode = ref(false);
+const selectedIds = ref(new Set());
+
+// "Baixar todas" cobre os tipos com arquivo (imagens, vídeos, áudios, docs) —
+// links/embeds não entram no zip.
+const downloadableCount = computed(
+  () =>
+    grouped.value.image.length +
+    grouped.value.video.length +
+    grouped.value.audio.length +
+    grouped.value.file.length
+);
+
+const selectedCount = computed(() => selectedIds.value.size);
+const isItemSelected = att => att?.id != null && selectedIds.value.has(att.id);
+
+const toggleItem = att => {
+  if (att?.id == null) return;
+  const next = new Set(selectedIds.value);
+  if (next.has(att.id)) next.delete(att.id);
+  else next.add(att.id);
+  selectedIds.value = next;
+};
+
+const enterSelection = () => {
+  selectionMode.value = true;
+};
+
+function exitSelection() {
+  selectionMode.value = false;
+  selectedIds.value = new Set();
+}
+
+// Em modo seleção o clique alterna o item; fora dele, abre o lightbox.
+const onItemClick = (att, fullList) => {
+  if (selectionMode.value) {
+    toggleItem(att);
+    return;
+  }
+  openGallery(att, fullList);
+};
+
+// Documentos são <a> — em modo seleção interceptamos o clique para alternar.
+const onFileClick = (event, att) => {
+  if (selectionMode.value) {
+    event.preventDefault();
+    toggleItem(att);
+  }
+};
+
+const downloadAll = () => start({ conversationId: props.conversationId });
+
+const downloadSelected = () => {
+  if (!selectedIds.value.size) return;
+  start({
+    attachmentIds: [...selectedIds.value],
+    conversationId: props.conversationId,
+  });
+};
+
+watch(status, value => {
+  if (value === 'ready') {
+    useAlert(t('GALLERY.BULK.READY'));
+  } else if (value === 'error' && errorMeta.value) {
+    useAlert(t(errorMeta.value.key, errorMeta.value.params));
+  }
+});
+
+// Troca de conversa: reseta paginação/seleção e recarrega.
+watch(
+  () => props.conversationId,
+  () => {
+    visibleCounts.value = {
+      image: PAGE_SIZE,
+      video: PAGE_SIZE,
+      audio: PAGE_SIZE,
+      file: PAGE_SIZE,
+      embed: PAGE_SIZE,
+    };
+    exitSelection();
+    fetchAttachments();
+  }
+);
 </script>
 
 <template>
   <div class="max-h-[50vh] overflow-y-auto px-4 pb-3 text-sm">
+    <!-- Barra de ações de download em massa — CTA primário de largura total.
+         Só aparece quando há ao menos 1 arquivo baixável (§T8): conversa só com
+         links não mostra "Baixar todas (0)". -->
+    <div
+      v-if="downloadableCount > 0"
+      class="flex flex-col gap-2 mb-3 sticky top-0 z-20 bg-n-solid-1 dark:bg-n-solid-2 pt-1 pb-2"
+    >
+      <!-- Preparando o zip -->
+      <div
+        v-if="isPreparing"
+        class="flex items-center justify-center gap-2 w-full h-9 rounded-lg bg-n-brand/10 text-n-brand text-sm font-medium"
+      >
+        <Icon icon="i-lucide-loader-2" class="size-4 animate-spin" />
+        {{
+          total > 0
+            ? t('CONVERSATION_SIDEBAR.BULK.PREPARING', { processed, total })
+            : t('CONVERSATION_SIDEBAR.BULK.PREPARING_INDEFINITE')
+        }}
+      </div>
+
+      <!-- Ações padrão -->
+      <template v-else-if="!selectionMode">
+        <button
+          type="button"
+          :disabled="isStarting"
+          class="flex items-center justify-center gap-2 w-full h-9 rounded-lg text-sm font-semibold text-white bg-n-brand hover:bg-n-brand/90 shadow-sm transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+          @click="downloadAll"
+        >
+          <Icon icon="i-lucide-download" class="size-4" />
+          {{
+            t('CONVERSATION_SIDEBAR.BULK.DOWNLOAD_ALL', {
+              count: downloadableCount,
+            })
+          }}
+        </button>
+        <button
+          v-if="downloadableCount > 0"
+          type="button"
+          class="flex items-center justify-center gap-1.5 w-full h-8 rounded-lg text-xs font-medium text-n-slate-11 border border-n-weak hover:bg-n-alpha-2 hover:text-n-slate-12 transition-colors"
+          @click="enterSelection"
+        >
+          <Icon icon="i-lucide-check-square" class="size-3.5" />
+          {{ t('CONVERSATION_SIDEBAR.BULK.SELECT') }}
+        </button>
+      </template>
+
+      <!-- Modo seleção -->
+      <template v-else>
+        <div class="flex items-center justify-between">
+          <span class="text-xs font-medium text-n-slate-12">
+            {{
+              t('CONVERSATION_SIDEBAR.BULK.SELECTED_COUNT', {
+                count: selectedCount,
+              })
+            }}
+          </span>
+          <button
+            type="button"
+            class="text-xs text-n-slate-11 hover:text-n-slate-12"
+            @click="exitSelection"
+          >
+            {{ t('CONVERSATION_SIDEBAR.BULK.CANCEL') }}
+          </button>
+        </div>
+        <button
+          type="button"
+          :disabled="!selectedCount || isStarting"
+          class="flex items-center justify-center gap-2 w-full h-9 rounded-lg text-sm font-semibold text-white bg-n-brand hover:bg-n-brand/90 shadow-sm disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+          @click="downloadSelected"
+        >
+          <Icon icon="i-lucide-download" class="size-4" />
+          {{ t('CONVERSATION_SIDEBAR.BULK.DOWNLOAD_SELECTED') }}
+        </button>
+      </template>
+    </div>
+
     <template v-if="!hasAnyMedia">
       <p class="text-n-slate-11 text-center py-2">
         {{ t('CONVERSATION_SIDEBAR.MEDIA_EMPTY') }}
@@ -233,9 +385,25 @@ const getLinkUrl = att => att?.data_url || att?.external_url || '#';
             v-for="(att, idx) in visibleImages"
             :key="att.id ?? att.message_id ?? idx"
             type="button"
-            class="aspect-square rounded-lg overflow-hidden bg-n-slate-2 cursor-pointer hover:opacity-80 transition-opacity focus:outline-none focus:ring-2 focus:ring-n-blue"
-            @click="openGallery(att, grouped.image)"
+            class="relative aspect-square rounded-lg overflow-hidden bg-n-slate-2 cursor-pointer hover:opacity-80 transition-opacity focus:outline-none focus:ring-2 focus:ring-n-blue"
+            :class="{ 'ring-2 ring-n-brand': isItemSelected(att) }"
+            @click="onItemClick(att, grouped.image)"
           >
+            <span
+              v-if="selectionMode"
+              class="absolute top-1 ltr:left-1 rtl:right-1 z-10 size-5 rounded-md border-2 flex items-center justify-center"
+              :class="
+                isItemSelected(att)
+                  ? 'bg-n-brand border-n-brand text-white'
+                  : 'bg-black/30 border-white/70'
+              "
+            >
+              <Icon
+                v-if="isItemSelected(att)"
+                icon="i-lucide-check"
+                class="size-3.5"
+              />
+            </span>
             <img
               v-if="getThumbSrc(att)"
               :src="getThumbSrc(att)"
@@ -276,13 +444,29 @@ const getLinkUrl = att => att?.data_url || att?.external_url || '#';
             v-for="(att, idx) in visibleVideos"
             :key="att.id ?? att.message_id ?? idx"
             type="button"
-            class="aspect-square rounded-lg overflow-hidden bg-n-slate-2 cursor-pointer hover:opacity-80 transition-opacity focus:outline-none focus:ring-2 focus:ring-n-blue"
+            class="relative aspect-square rounded-lg overflow-hidden bg-n-slate-2 cursor-pointer hover:opacity-80 transition-opacity focus:outline-none focus:ring-2 focus:ring-n-blue"
+            :class="{ 'ring-2 ring-n-brand': isItemSelected(att) }"
             @pointerenter="prewarmVideoPreview(att, idx)"
             @pointerdown="prewarmVideoPreview(att, idx)"
             @touchstart.passive="prewarmVideoPreview(att, idx)"
             @focus="prewarmVideoPreview(att, idx)"
-            @click="openGallery(att, grouped.video)"
+            @click="onItemClick(att, grouped.video)"
           >
+            <span
+              v-if="selectionMode"
+              class="absolute top-1 ltr:left-1 rtl:right-1 z-10 size-5 rounded-md border-2 flex items-center justify-center"
+              :class="
+                isItemSelected(att)
+                  ? 'bg-n-brand border-n-brand text-white'
+                  : 'bg-black/30 border-white/70'
+              "
+            >
+              <Icon
+                v-if="isItemSelected(att)"
+                icon="i-lucide-check"
+                class="size-3.5"
+              />
+            </span>
             <img
               v-if="att.thumb_url"
               :src="att.thumb_url"
@@ -339,10 +523,26 @@ const getLinkUrl = att => att?.data_url || att?.external_url || '#';
             v-for="(att, idx) in visibleAudios"
             :key="att.id ?? att.message_id ?? idx"
             type="button"
-            class="flex items-center gap-2 rounded-md border border-n-weak bg-n-slate-2 px-3 py-2 text-left hover:bg-n-slate-3 focus:outline-none focus:ring-2 focus:ring-n-blue"
-            @click="openGallery(att, grouped.audio)"
+            class="flex items-center gap-2 rounded-md border bg-n-slate-2 px-3 py-2 text-left hover:bg-n-slate-3 focus:outline-none focus:ring-2 focus:ring-n-blue"
+            :class="
+              isItemSelected(att)
+                ? 'border-n-brand ring-1 ring-n-brand'
+                : 'border-n-weak'
+            "
+            @click="onItemClick(att, grouped.audio)"
           >
             <Icon
+              v-if="selectionMode"
+              :icon="
+                isItemSelected(att)
+                  ? 'i-lucide-check-square'
+                  : 'i-lucide-square'
+              "
+              class="size-4 shrink-0"
+              :class="isItemSelected(att) ? 'text-n-brand' : 'text-n-slate-10'"
+            />
+            <Icon
+              v-else
               icon="i-lucide-volume-2"
               class="size-4 text-n-slate-11 shrink-0"
             />
@@ -381,9 +581,28 @@ const getLinkUrl = att => att?.data_url || att?.external_url || '#';
               :href="att.data_url"
               target="_blank"
               rel="noopener noreferrer"
-              class="flex items-center gap-2 rounded-md border border-n-weak bg-n-slate-2 px-3 py-2 text-n-slate-12 hover:bg-n-slate-3 truncate"
+              class="flex items-center gap-2 rounded-md border bg-n-slate-2 px-3 py-2 text-n-slate-12 hover:bg-n-slate-3 truncate"
+              :class="
+                isItemSelected(att)
+                  ? 'border-n-brand ring-1 ring-n-brand'
+                  : 'border-n-weak'
+              "
+              @click="onFileClick($event, att)"
             >
               <Icon
+                v-if="selectionMode"
+                :icon="
+                  isItemSelected(att)
+                    ? 'i-lucide-check-square'
+                    : 'i-lucide-square'
+                "
+                class="size-4 shrink-0"
+                :class="
+                  isItemSelected(att) ? 'text-n-brand' : 'text-n-slate-10'
+                "
+              />
+              <Icon
+                v-else
                 icon="i-lucide-file-down"
                 class="size-4 text-n-slate-11 shrink-0"
               />

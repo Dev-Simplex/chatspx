@@ -12,6 +12,7 @@ import {
 
 import AddAgent from './AddAgent.vue';
 import EditAgent from './EditAgent.vue';
+import AIAgentsSection from './AIAgentsSection.vue';
 import BaseSettingsHeader from '../components/BaseSettingsHeader.vue';
 import SettingsLayout from '../SettingsLayout.vue';
 import Button from 'dashboard/components-next/button/Button.vue';
@@ -275,6 +276,7 @@ const confirmDeletion = () => {
           </div>
         </div>
       </div>
+      <AIAgentsSection />
     </template>
 
     <woot-modal v-model:show="showAddPopup" :on-close="hideAddPopup">

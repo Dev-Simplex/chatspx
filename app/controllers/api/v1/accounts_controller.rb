@@ -141,8 +141,9 @@ class Api::V1::AccountsController < Api::BaseController
 
   def permitted_settings_attributes
     [:auto_resolve_after, :auto_resolve_message, :auto_resolve_ignore_waiting, :audio_transcriptions, :auto_resolve_label,
-     :chat_wallpaper_url, :show_dashboard_kpi_strip, :onboarding_dismissed,
+     :chat_wallpaper_url, :show_dashboard_kpi_strip, :onboarding_dismissed, :resolve_assignment_gate,
      :openai_api_key, :openai_model_default, :openai_model_advanced,
+     :reply_assignment_gate, :orphan_retriage_after,
      { onboarding_completed_steps: [] }]
   end
 

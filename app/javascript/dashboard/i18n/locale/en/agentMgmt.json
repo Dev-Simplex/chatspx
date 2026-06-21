@@ -9,6 +9,13 @@
       "ADMINISTRATOR": "Administrator",
       "AGENT": "Agent"
     },
+    "AI_AGENTS": {
+      "TITLE": "AI Agents",
+      "DESCRIPTION": "AI assistants that handle conversations in this account. Management (prompts, knowledge, behavior) stays in the AI Agents area.",
+      "BADGE": "AI Agent",
+      "INBOXES_LABEL": "Eligible inboxes:",
+      "NO_INBOXES": "No eligible inboxes"
+    },
     "COUNT": "{n} agent | {n} agents",
     "LIST": {
       "404": "There are no agents associated to this account",

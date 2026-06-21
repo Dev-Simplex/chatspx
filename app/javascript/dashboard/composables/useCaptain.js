@@ -114,8 +114,13 @@ export function useCaptain() {
   const draftMessage = useFunctionGetter('draftMessages/get', draftKey);
 
   // === Feature Flags ===
+  // Contas migradas pro Captain v2 podem ter só a flag v2 (a legada fica off) —
+  // qualquer uma habilita o módulo, igual ao gate do backend.
   const captainEnabled = computed(() => {
-    return isCloudFeatureEnabled(FEATURE_FLAGS.CAPTAIN);
+    return (
+      isCloudFeatureEnabled(FEATURE_FLAGS.CAPTAIN) ||
+      isCloudFeatureEnabled(FEATURE_FLAGS.CAPTAIN_V2)
+    );
   });
 
   const captainTasksEnabled = computed(() => {

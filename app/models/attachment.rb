@@ -43,6 +43,7 @@ class Attachment < ApplicationRecord
                     :contact => 8, :ig_reel => 9, :ig_post => 10, :ig_story => 11, :embed => 12 }
 
   after_create_commit :schedule_audio_transcription
+  after_create_commit :schedule_waveform_generation
 
   def push_event_data
     return unless file_type
@@ -103,11 +104,12 @@ class Attachment < ApplicationRecord
 
   def audio_metadata
     audio_file_data = base_data.merge(file_metadata)
-    audio_file_data.merge(
-      {
-        transcribed_text: meta&.[]('transcribed_text') || ''
-      }
-    )
+    audio_file_data.merge!(transcribed_text: meta&.[]('transcribed_text') || '')
+
+    peaks = meta&.[]('waveform_peaks')
+    audio_file_data[:waveform_peaks] = peaks if peaks.is_a?(Array) && peaks.any?
+
+    audio_file_data
   end
 
   def file_metadata
@@ -166,6 +168,17 @@ class Attachment < ApplicationRecord
     }
   end
 
+  # Hard ceiling (in MB) for any attachment upload, mirroring the frontend
+  # HARD_MAXIMUM_FILE_UPLOAD_SIZE. Files above this never go through, no matter
+  # the channel or the configured MAXIMUM_FILE_UPLOAD_SIZE.
+  HARD_MAXIMUM_FILE_UPLOAD_SIZE_MB = 100
+
+  # Per-category WAHA (Channel::Api) limits, in MB — mirrors the frontend
+  # WAHA_MAX_SIZE_BY_CATEGORY (shared/helpers/FileHelper.js). Server-side net so
+  # oversized media for the channel never gets saved and then rejected by the
+  # WhatsApp engine at send time. Only applied to Channel::Api.
+  WAHA_MAX_SIZE_BY_CATEGORY_MB = { 'image' => 16, 'video' => 16, 'audio' => 16, 'document' => 100 }.freeze
+
   def should_validate_file?
     return unless file.attached?
     # we are only limiting attachment types in case of website widget
@@ -175,10 +188,15 @@ class Attachment < ApplicationRecord
   end
 
   def acceptable_file
-    return unless should_validate_file?
+    return unless file.attached?
 
+    # Size is validated for every channel (defense in depth: keeps oversized
+    # files from being saved and then failing silently at send time).
     validate_file_size(file.byte_size)
-    validate_file_content_type(file.content_type)
+    # Stricter per-category net for WAHA (e.g. video > 16 MB), mirroring the front.
+    validate_waha_category_size(file.byte_size, file.content_type)
+    # Type stays restricted to the website widget, as before.
+    validate_file_content_type(file.content_type) if should_validate_file?
   end
 
   def validate_file_content_type(file_content_type)
@@ -186,10 +204,37 @@ class Attachment < ApplicationRecord
   end
 
   def validate_file_size(byte_size)
+    errors.add(:file, "size exceeds the #{max_upload_size_mb}MB limit") if byte_size > max_upload_size_mb.megabytes
+  end
+
+  # WAHA per-category size net. No-op for every other channel (do-no-harm) and
+  # for mimes without a known category.
+  def validate_waha_category_size(byte_size, content_type)
+    return unless message&.inbox&.channel_type == 'Channel::Api'
+
+    category = waha_category_from_mime(content_type)
+    limit_mb = WAHA_MAX_SIZE_BY_CATEGORY_MB[category]
+    return if limit_mb.nil?
+
+    errors.add(:file, "size exceeds the #{limit_mb}MB limit for #{category}") if byte_size > limit_mb.megabytes
+  end
+
+  # Mirrors categoryFromMime in FileHelper.js: application/* and text/* →
+  # document; otherwise the mime head (image / video / audio).
+  def waha_category_from_mime(content_type)
+    head = content_type.to_s.split('/').first
+    return 'document' if %w[application text].include?(head)
+
+    head.presence
+  end
+
+  # min(configured limit, hard 100MB ceiling). A smaller configured limit
+  # (e.g. SMS-tuned installs) is still respected; larger/unset is capped at 100.
+  def max_upload_size_mb
     limit_mb = GlobalConfigService.load('MAXIMUM_FILE_UPLOAD_SIZE', 40).to_i
     limit_mb = 40 if limit_mb <= 0
 
-    errors.add(:file, 'size is too big') if byte_size > limit_mb.megabytes
+    [limit_mb, HARD_MAXIMUM_FILE_UPLOAD_SIZE_MB].min
   end
 
   def media_file?(file_content_type)
@@ -204,6 +249,14 @@ class Attachment < ApplicationRecord
     AudioTranscriptionJob.perform_later(id)
   rescue StandardError => e
     Rails.logger.warn("[Attachment#schedule_audio_transcription] #{e.class}: #{e.message}")
+  end
+
+  def schedule_waveform_generation
+    return unless file_type.to_s == 'audio'
+
+    Audio::WaveformGenerationJob.perform_later(id)
+  rescue StandardError => e
+    Rails.logger.warn("[Attachment#schedule_waveform_generation] #{e.class}: #{e.message}")
   end
 end
 

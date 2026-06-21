@@ -1,5 +1,35 @@
 {
   "CONVERSATION": {
+    "REPLY_GATE_DIALOG": {
+      "TITLE": {
+        "A": "No one owns this conversation",
+        "B": "{name}'s conversation",
+        "C": "Handled by AI {name}",
+        "D": "You're not part of this team"
+      },
+      "DESC": {
+        "A": "Assign this conversation to yourself to send the message.",
+        "B": "This conversation is being handled by {name}. Take over and send? {name} will be notified.",
+        "C": "This conversation is being handled by {name}. When you take over, the AI stops replying.",
+        "D": "This conversation belongs to team {team}. Pick one of your teams to take over and send."
+      },
+      "CONFIRM": {
+        "A": "Assign to me and send",
+        "B": "Take over from {name} and send",
+        "C": "Take over from {name} and send",
+        "D": "Assign and send"
+      },
+      "CANCEL": "Cancel",
+      "TEAM_LABEL": "Assign to team",
+      "NO_TEAMS": "You're not part of any team — the conversation will be assigned to you keeping the current team.",
+      "AI_BADGE": "AI Agent",
+      "ERROR": "Couldn't assign the conversation, please try again"
+    },
+    "REPLY_GATE_BANNER": {
+      "UNASSIGNED": "This conversation has no owner — take over to reply",
+      "TAKEN": "Handled by {name} — take over to reply",
+      "CTA": "Take over"
+    },
     "SELECT_A_CONVERSATION": "Please select a conversation from left pane",
     "CSAT_REPLY_MESSAGE": "Please rate the conversation",
     "404": "Sorry, we cannot find the conversation. Please try again",
@@ -39,6 +69,8 @@
     },
     "UNREAD_MESSAGES": "Unread Messages",
     "UNREAD_MESSAGE": "Unread Message",
+    "AI_HANDLING_HINT": "{name} is handling this conversation",
+    "AI_HANDLING_SUBHINT": "Take over to reply yourself",
     "NEWEST_MESSAGE": "Latest messages",
     "CLICK_HERE": "Click here",
     "LOADING_INBOXES": "Loading inboxes",
@@ -70,6 +102,10 @@
     "DOWNLOAD": "Download",
     "UNKNOWN_FILE_TYPE": "Unknown File",
     "SAVE_CONTACT": "Save Contact",
+    "VIEW_CONTACT": "View contact",
+    "START_CONVERSATION": "Start conversation",
+    "SHARED_CONTACT_LABEL": "Shared contact",
+    "NO_INBOX_FOR_CONTACT": "No inbox available to start a conversation with this contact.",
     "NO_CONTENT": "No content to display",
     "SHARED_ATTACHMENT": {
       "CONTACT": "{sender} has shared a contact",
@@ -97,6 +133,12 @@
       "TITLE": "Original message",
       "NO_CONTENT": "(no content)",
       "EDITED_BY": "Edited by {name}"
+    },
+    "DELETE_HISTORY": {
+      "BADGE": "Deleted",
+      "TITLE": "Original message",
+      "NO_CONTENT": "(no content)",
+      "DELETED_BY": "Deleted by {name}"
     },
     "NO_RESPONSE": "No response",
     "RESPONSE": "Response",
@@ -408,6 +450,10 @@
     "ASSIGN_LABEL_SUCCESFUL": "Label assigned successfully",
     "ASSIGN_LABEL_FAILED": "Label assignment failed",
     "CHANGE_TEAM": "Conversation team changed",
+    "CHANGE_TEAM_FAILED": "Couldn't change the conversation team, please try again",
+    "CHANGE_AI_AGENT": "AI agent assigned to the conversation",
+    "CHANGE_AI_AGENT_FAILED": "Couldn't assign the AI agent, please try again",
+    "ASSIGNMENT_ACCESS_LOST": "You no longer have access to this conversation",
     "RESOLVE_REQUIRES_TEAM": "A team must be assigned before resolving this conversation",
     "SELECT_TEAM_TO_RESOLVE": "Select a team to resolve this conversation",
     "SELECT_TEAM_TITLE": "Select Team",
@@ -416,11 +462,36 @@
     "RESOLVE_WITH_TEAM_SUCCESS": "Conversation resolved successfully",
     "BULK_RESOLVE_REQUIRES_TEAM": "All conversations must have a team assigned before resolving",
     "NO_TEAMS_AVAILABLE": "No teams available. Please create a team first.",
+    "RESOLVE_ASSIGNMENT_GATE": {
+      "CONFIRM": "Assign to me and resolve",
+      "SELECT_TEAM": "Select a team to resolve this conversation",
+      "SUCCESS": "Conversation assigned to you and resolved",
+      "AI_FALLBACK": "AI",
+      "UNASSIGNED": {
+        "TITLE": "Assign to you and resolve?",
+        "DESCRIPTION": "This conversation isn't assigned to anyone. It will be assigned to you and resolved."
+      },
+      "COLLEAGUE": {
+        "TITLE": "Take over from {name} and resolve?",
+        "DESCRIPTION": "This conversation is assigned to {name}. It will be reassigned to you and resolved. {name} will be notified."
+      },
+      "AI": {
+        "TITLE": "Take over from {name} and resolve?",
+        "DESCRIPTION": "This conversation is handled by {name}. It will be assigned to you and resolved."
+      },
+      "BULK": {
+        "TITLE": "Assign to you and resolve?",
+        "DESCRIPTION": "{count} conversations will be assigned to you and resolved."
+      }
+    },
     "SUCCESS_DELETE_CONVERSATION": "Conversation deleted successfully",
     "FAIL_DELETE_CONVERSATION": "Couldn't delete conversation! Try again",
     "FILE_SIZE_LIMIT": "File exceeds the {MAXIMUM_SUPPORTED_FILE_UPLOAD_SIZE} MB attachment limit",
+    "FILE_SIZE_LIMIT_HARD": "File {fileSize} exceeds the {MAXIMUM_SUPPORTED_FILE_UPLOAD_SIZE} MB attachment limit and won't be sent",
     "FILE_TYPE_NOT_SUPPORTED": "This {fileName} file type is not supported in this conversation",
+    "AUDIO_CONVERT_ERROR": "Couldn't process the recorded audio. Please try again.",
     "MESSAGE_ERROR": "Unable to send this message, please try again later",
+    "MESSAGE_SENT_TO_CONVERSATION": "Message sent to the conversation",
     "SENT_BY": "Sent by:",
     "BOT": "Bot",
     "NATIVE_APP": "Native app",
@@ -519,6 +590,10 @@
     "TEAM_ISOLATION": {
       "RESTRICTED_TITLE": "Team: {team}",
       "RESTRICTED_SUBTITLE": "Restricted content"
+    },
+    "AGENT_ISOLATION": {
+      "RESTRICTED_TITLE": "Agent: {agent}",
+      "RESTRICTED_SUBTITLE": "Restricted content"
     }
   },
   "EMAIL_TRANSCRIPT": {
@@ -571,6 +646,17 @@
     "ASSIGNEE_LABEL": "Assigned Agent",
     "SELF_ASSIGN": "Assign to me",
     "TEAM_LABEL": "Assigned Team",
+    "ASSIGNEE_GROUP": {
+      "AI": "AI Agents",
+      "HUMAN": "Agents"
+    },
+    "AI_AGENT": {
+      "LABEL": "AI Agent",
+      "TITLE": "Assign AI agent",
+      "PLACEHOLDER": "Select AI agent",
+      "NO_RESULTS": "No AI agents found",
+      "SEARCH_PLACEHOLDER": "Search AI agents"
+    },
     "SELECT": {
       "PLACEHOLDER": "None"
     },
@@ -598,6 +684,15 @@
     },
     "MEDIA_EMPTY": "No media or files in this conversation",
     "SHOW_MORE": "Show {count} more",
+    "BULK": {
+      "DOWNLOAD_ALL": "Download all ({count})",
+      "SELECT": "Select",
+      "SELECTED_COUNT": "{count} selected",
+      "DOWNLOAD_SELECTED": "Download selected (.zip)",
+      "CANCEL": "Cancel",
+      "PREPARING": "Preparing… ({processed}/{total})",
+      "PREPARING_INDEFINITE": "Preparing…"
+    },
     "SHOPIFY": {
       "ORDER_ID": "Order #{id}",
       "ERROR": "Error loading orders",
@@ -894,7 +989,9 @@
     "DRAW": "Draw",
     "ADD_TEXT": "Add text",
     "REMOVE": "Remove",
-    "COUNTER": "{current} of {total}"
+    "COUNTER": "{current} of {total}",
+    "UPLOADING": "Uploading…",
+    "RETRY": "Retry"
   },
   "IMAGE_EDITOR": {
     "TITLE": "Edit image",

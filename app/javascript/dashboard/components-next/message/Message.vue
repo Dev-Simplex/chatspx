@@ -53,6 +53,7 @@ import FormBubble from './bubbles/Form.vue';
 import MessageError from './MessageError.vue';
 import MessageEditInput from './MessageEditInput.vue';
 import MessageEditHistory from './MessageEditHistory.vue';
+import MessageDeleteHistory from './MessageDeleteHistory.vue';
 import ReferralCard from './ReferralCard.vue';
 import ContextMenu from 'dashboard/modules/conversations/components/MessageContextMenu.vue';
 import MessageAPI from 'dashboard/api/inbox/message';
@@ -159,6 +160,7 @@ const props = defineProps({
   isForwardSelected: { type: Boolean, default: false },
   isNew: { type: Boolean, default: false },
   teamId: { type: Number, default: null }, // eslint-disable-line vue/no-unused-properties
+  agentId: { type: Number, default: null }, // eslint-disable-line vue/no-unused-properties
 });
 
 const emit = defineEmits(['forward', 'toggle-forward-selection']);
@@ -169,6 +171,8 @@ const showContextMenu = ref(false);
 const isEditing = ref(false);
 const isHistoryOpen = ref(false);
 const historyTriggerRect = ref(null);
+const isDeleteHistoryOpen = ref(false);
+const deleteHistoryTriggerRect = ref(null);
 const dropdownButtonRef = useTemplateRef('dropdownButtonRef');
 const { t } = useI18n();
 const route = useRoute();
@@ -210,6 +214,44 @@ const isRestrictedByTeam = computed(() => {
   if (isAdmin.value) return false;
   return !myTeams.value.includes(props.teamId);
 });
+
+// Agent isolation: depende de QUEM olha — restrito se a msg pertence a OUTRO agente.
+const agentIsolationEnabled = computed(
+  () => currentInbox.value?.agent_message_isolation === true
+);
+const allAgents = computed(() => store.getters['agents/getAgents'] || []);
+const restrictedAgentName = computed(() => {
+  if (!props.agentId) return '';
+  const agent = allAgents.value.find(a => a.id === props.agentId);
+  return agent?.name || `#${props.agentId}`;
+});
+const isRestrictedByAgent = computed(() => {
+  if (!agentIsolationEnabled.value) return false;
+  if (!props.agentId) return false;
+  if (props.messageType === MESSAGE_TYPES.ACTIVITY) return false;
+  if (isAdmin.value) return false;
+  return props.agentId !== props.currentUserId;
+});
+
+// Bolha 🔒 unificada (team OU agente). Team tem precedência no rótulo quando ambos
+// disparam — em qualquer caso o conteúdo fica oculto do mesmo jeito.
+const isRestricted = computed(
+  () => isRestrictedByTeam.value || isRestrictedByAgent.value
+);
+const restrictedTitle = computed(() =>
+  isRestrictedByTeam.value
+    ? t('CONVERSATION.TEAM_ISOLATION.RESTRICTED_TITLE', {
+        team: restrictedTeamName.value,
+      })
+    : t('CONVERSATION.AGENT_ISOLATION.RESTRICTED_TITLE', {
+        agent: restrictedAgentName.value,
+      })
+);
+const restrictedSubtitle = computed(() =>
+  isRestrictedByTeam.value
+    ? t('CONVERSATION.TEAM_ISOLATION.RESTRICTED_SUBTITLE')
+    : t('CONVERSATION.AGENT_ISOLATION.RESTRICTED_SUBTITLE')
+);
 
 const EDIT_WINDOW_SECONDS = 900;
 
@@ -418,6 +460,18 @@ const componentToRender = computed(() => {
     return InstagramStoryBubble;
   }
 
+  // One or more shared contacts render as rich contact cards. Content may hold
+  // the contact name, so this is intentionally not gated on `!props.content`.
+  if (
+    Array.isArray(props.attachments) &&
+    props.attachments.length >= 1 &&
+    props.attachments.every(
+      attachment => attachment.fileType === ATTACHMENT_TYPES.CONTACT
+    )
+  ) {
+    return ContactBubble;
+  }
+
   if (Array.isArray(props.attachments) && props.attachments.length === 1) {
     const fileType = props.attachments[0].fileType;
 
@@ -430,8 +484,6 @@ const componentToRender = computed(() => {
       if (fileType === ATTACHMENT_TYPES.EMBED) return EmbedBubble;
       if (fileType === ATTACHMENT_TYPES.LOCATION) return LocationBubble;
     }
-    // Attachment content is the name of the contact
-    if (fileType === ATTACHMENT_TYPES.CONTACT) return ContactBubble;
   }
 
   return TextBubble;
@@ -643,7 +695,15 @@ async function handleUnstar() {
   }
 }
 
+// Guards against double-firing the retry: rapid clicks (or a click while the
+// previous retry is still in flight) would otherwise POST /retry twice and
+// duplicate the outgoing message. The flag also drives the disabled state +
+// spinner on the retry button.
+const isRetrying = ref(false);
+
 async function handleRetry() {
+  if (isRetrying.value) return;
+  isRetrying.value = true;
   try {
     await MessageAPI.retry(props.conversationId, props.id);
     // A mensagem será atualizada automaticamente via websocket
@@ -652,6 +712,8 @@ async function handleRetry() {
     useAlert(
       t('CONVERSATION.RETRY_ERROR') || 'Erro ao tentar reenviar mensagem'
     );
+  } finally {
+    isRetrying.value = false;
   }
 }
 
@@ -761,8 +823,9 @@ provideMessageContext({
       <ActivityBubble :content="content" />
     </div>
     <RestrictedMessage
-      v-else-if="isRestrictedByTeam"
-      :team-name="restrictedTeamName"
+      v-else-if="isRestricted"
+      :title="restrictedTitle"
+      :subtitle="restrictedSubtitle"
       :message-type="messageType"
       :created-at="createdAt"
     />
@@ -796,6 +859,7 @@ provideMessageContext({
           'ltr:ml-8 rtl:mr-8 justify-end': orientation === ORIENTATION.RIGHT,
           'ltr:mr-8 rtl:ml-8': orientation === ORIENTATION.LEFT,
           'min-w-0': variant === MESSAGE_VARIANTS.EMAIL,
+          'message-failed-shake': status === MESSAGE_STATUS.FAILED,
         }"
         @contextmenu="openContextMenu($event)"
       >
@@ -838,6 +902,9 @@ provideMessageContext({
             :initial-content="content"
             @close="isEditing = false"
           />
+          <div v-else-if="isMessageDeleted" class="italic opacity-60">
+            <Component :is="componentToRender" />
+          </div>
           <Component :is="componentToRender" v-else />
 
           <!-- Indicador "Editado" -->
@@ -864,6 +931,35 @@ provideMessageContext({
               :edited-at="contentAttributes.editedAt"
               :trigger-rect="historyTriggerRect"
               @close="isHistoryOpen = false"
+            />
+          </div>
+
+          <!-- Indicador "Apagada" (só para deleções feitas por agente, que
+               carregam a metadata; deleções pelo contato apenas marcam `deleted`). -->
+          <div
+            v-if="isMessageDeleted && contentAttributes.deletedAt"
+            class="inline-flex"
+          >
+            <button
+              class="inline-flex items-center gap-1 text-xs text-n-slate-10 hover:text-n-slate-12 transition-colors mt-0.5 select-none"
+              @click.stop="
+                e => {
+                  deleteHistoryTriggerRect =
+                    e.currentTarget.getBoundingClientRect();
+                  isDeleteHistoryOpen = !isDeleteHistoryOpen;
+                }
+              "
+            >
+              <Icon icon="i-lucide-trash-2" class="size-3" />
+              <span>{{ t('CONVERSATION.DELETE_HISTORY.BADGE') }}</span>
+            </button>
+            <MessageDeleteHistory
+              v-if="isDeleteHistoryOpen"
+              :previous-content="contentAttributes.previousContent"
+              :deleted-by="contentAttributes.deletedBy"
+              :deleted-at="contentAttributes.deletedAt"
+              :trigger-rect="deleteHistoryTriggerRect"
+              @close="isDeleteHistoryOpen = false"
             />
           </div>
 
@@ -913,6 +1009,7 @@ provideMessageContext({
         class="[grid-area:meta] relative z-10"
         :class="flexOrientationClass"
         :error="contentAttributes.externalError"
+        :is-retrying="isRetrying"
         @retry="handleRetry"
       />
     </div>
@@ -944,6 +1041,42 @@ provideMessageContext({
 
   .right-bubble {
     @apply ltr:rounded-tr-sm rtl:rounded-tl-sm;
+  }
+}
+
+// Failed send: a short horizontal shake (transform-only, GPU-friendly) draws
+// the eye to the bubble that didn't make it. Runs once when the bubble mounts
+// in the failed state; the red "Falha ao enviar" text + retry button carry the
+// meaning, so the animation is purely supplementary.
+.message-failed-shake {
+  animation: message-shake var(--motion-slow, 360ms)
+    var(--ease-in-out-quart, ease) both;
+}
+
+@keyframes message-shake {
+  0% {
+    transform: translateX(0);
+  }
+  20% {
+    transform: translateX(-8px);
+  }
+  40% {
+    transform: translateX(6px);
+  }
+  60% {
+    transform: translateX(-4px);
+  }
+  80% {
+    transform: translateX(2px);
+  }
+  100% {
+    transform: translateX(0);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .message-failed-shake {
+    animation: none;
   }
 }
 

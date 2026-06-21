@@ -110,6 +110,19 @@ RSpec.describe 'CSAT Survey Responses API', type: :request do
         expect(response_data['ratings_count']).to eq({ '1' => 1 })
       end
 
+      it 'includes an additive csat signal for the semáforo' do
+        get "/api/v1/accounts/#{account.id}/csat_survey_responses/metrics",
+            headers: administrator.create_new_auth_token,
+            as: :json
+
+        signals = response.parsed_body['signals']
+        expect(signals).to be_an(Array)
+        csat = signals.find { |s| s['metric'] == 'csat' }
+        # única resposta é rating 1 => satisfação 0% => bad, e é highlight e attention
+        expect(csat).to include('metric' => 'csat', 'value' => 0, 'goal' => 85, 'level' => 'bad',
+                                'is_highlight' => true, 'is_attention' => true)
+      end
+
       it 'filters csat metrics based on a date range' do
         # clearing any existing csat responses
         CsatSurveyResponse.destroy_all

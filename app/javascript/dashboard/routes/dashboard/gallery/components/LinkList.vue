@@ -9,12 +9,13 @@ import {
 
 const props = defineProps({
   items: { type: Array, required: true },
-  selectedIds: { type: Set, required: true },
   isLoadingMore: { type: Boolean, default: false },
   hasMore: { type: Boolean, default: false },
 });
 
-const emit = defineEmits(['toggleSelect', 'openConversation', 'loadMore']);
+// Links abrem, não se baixam em zip (downloadable filtra type === 'attachment'),
+// então a tab Links NÃO tem seleção/checkbox — evita uma toolbar de download inútil.
+const emit = defineEmits(['openConversation', 'loadMore']);
 
 const { t } = useI18n();
 const groups = useGroupedByDate(toRef(props, 'items'), t);
@@ -71,7 +72,7 @@ const faviconUrl = url => {
   <div class="max-w-4xl mx-auto">
     <section v-for="group in groups" :key="group.key" class="mb-8 last:mb-0">
       <h3
-        class="sticky -top-px z-20 -mx-6 sm:-mx-8 lg:-mx-10 px-6 sm:px-8 lg:px-10 py-3 mb-3 text-[13px] uppercase tracking-wider font-semibold text-n-slate-11 bg-n-background/95 dark:bg-n-solid-1/95 backdrop-blur"
+        class="mb-3 text-[13px] uppercase tracking-wider font-semibold text-n-slate-11"
       >
         {{ group.label }}
       </h3>
@@ -80,30 +81,8 @@ const faviconUrl = url => {
         <li
           v-for="item in group.items"
           :key="item.id"
-          class="group flex items-start gap-3 py-4 px-4 rounded-2xl transition-all border border-transparent [content-visibility:auto] [contain-intrinsic-size:0_120px]"
-          :class="
-            selectedIds.has(item.id)
-              ? 'bg-n-brand/10 !border-n-brand/40'
-              : 'hover:bg-n-alpha-1 dark:hover:bg-n-slate-9/30 hover:border-n-weak/60'
-          "
+          class="group flex items-start gap-3 py-4 px-4 rounded-2xl transition-all border border-transparent hover:bg-n-alpha-1 dark:hover:bg-n-slate-9/30 hover:border-n-weak/60 [content-visibility:auto] [contain-intrinsic-size:0_120px]"
         >
-          <!-- Checkbox -->
-          <button
-            type="button"
-            class="size-5 rounded-md flex items-center justify-center flex-shrink-0 transition-colors border-2 mt-1"
-            :class="
-              selectedIds.has(item.id)
-                ? 'bg-n-brand border-n-brand'
-                : 'border-n-slate-7 dark:border-n-slate-9 group-hover:border-n-slate-9 dark:group-hover:border-n-slate-7'
-            "
-            @click="$emit('toggleSelect', item.id)"
-          >
-            <span
-              v-if="selectedIds.has(item.id)"
-              class="i-lucide-check size-3.5 text-white"
-            />
-          </button>
-
           <!-- Favicon -->
           <div
             class="size-12 rounded-2xl bg-n-solid-2 dark:bg-n-solid-3 flex items-center justify-center flex-shrink-0 overflow-hidden"

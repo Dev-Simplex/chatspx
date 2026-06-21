@@ -5,6 +5,8 @@
     "LOADING_CHART": "Loading chart data...",
     "NO_ENOUGH_DATA": "We've not received enough data points to generate report, Please try again later.",
     "DOWNLOAD_CONVERSATION_REPORTS": "Download conversation reports",
+    "DOWNLOAD_PDF": "Download PDF",
+    "DOWNLOAD_PDF_FAILED": "Failed to generate the report PDF, please try again later.",
     "DATA_FETCHING_FAILED": "Failed to fetch data, please try again later.",
     "SUMMARY_FETCHING_FAILED": "Failed to fetch summary, please try again later.",
     "METRICS": {
@@ -23,19 +25,19 @@
       "FIRST_RESPONSE_TIME": {
         "NAME": "First Response Time",
         "DESC": "( Avg )",
-        "INFO_TEXT": "Total number of conversations used for computation:",
+        "INFO_TEXT": "Average time until the first human reply to the customer. Lower is better.",
         "TOOLTIP_TEXT": "First Response Time is {metricValue} (based on {conversationCount} conversations)"
       },
       "FIRST_RESPONSE_TIME_AFTER_ASSIGNMENT": {
         "NAME": "First Response After Transfer",
         "DESC": "( Avg )",
-        "INFO_TEXT": "Total number of conversations used for computation:",
+        "INFO_TEXT": "Average time until the first reply after a conversation is transferred to an agent. Lower is better.",
         "TOOLTIP_TEXT": "First Response After Transfer is {metricValue} (based on {conversationCount} conversations)"
       },
       "RESOLUTION_TIME": {
         "NAME": "Resolution Time",
         "DESC": "( Avg )",
-        "INFO_TEXT": "Total number of conversations used for computation:",
+        "INFO_TEXT": "Average time from when a conversation opens until it is resolved. Lower is better.",
         "TOOLTIP_TEXT": "Resolution Time is {metricValue} (based on {conversationCount} conversations)"
       },
       "RESOLUTION_COUNT": {
@@ -143,6 +145,31 @@
       "AVG_FIRST_RESPONSE_TIME_AFTER_ASSIGNMENT": "Avg. after transfer",
       "P50_FIRST_RESPONSE_TIME_AFTER_ASSIGNMENT": "After transfer p50",
       "P90_FIRST_RESPONSE_TIME_AFTER_ASSIGNMENT": "After transfer p90"
+    },
+    "NARRATIVE": {
+      "EYEBROW": "Auto-insights",
+      "LEVEL": {
+        "GOOD": "on target",
+        "WARN": "needs attention",
+        "BAD": "needs improvement"
+      },
+      "HIGHLIGHT_TITLE": "Highlight",
+      "ATTENTION_TITLE": "Point of attention",
+      "ALL_GOOD": "All indicators are on target — keep up the pace.",
+      "INSIGHT_BETTER": "{pct}% better than the previous period",
+      "INSIGHT_WORSE": "{pct}% worse than the previous period",
+      "VS_GOAL": "goal {goal}",
+      "METRIC": {
+        "FIRST_RESPONSE": "First response time",
+        "RESOLUTION": "Resolution time",
+        "REPLY": "Customer waiting time",
+        "RESOLUTION_RATE": "Resolution rate",
+        "CSAT": "Satisfaction",
+        "NPS": "NPS",
+        "SLA_HIT_RATE": "SLA hit rate",
+        "BOT_RESOLUTION_RATE": "Bot resolution rate",
+        "BOT_HANDOFF_RATE": "Bot handoff rate"
+      }
     }
   },
   "AGENT_REPORTS": {

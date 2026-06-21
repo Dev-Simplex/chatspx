@@ -231,4 +231,160 @@ describe ActionCableListener do
       listener.conversation_updated(event)
     end
   end
+
+  # PR B4 — broadcast restricted to the owning user (per-user settings privacy).
+  describe '#conversation_user_setting_changed' do
+    let(:event_name) { :'conversation.user_setting_changed' }
+    let!(:other_agent) { create(:user, account: account, role: :agent) }
+    let!(:event) do
+      Events::Base.new(event_name, Time.zone.now, conversation: conversation, user_id: agent.id)
+    end
+
+    before do
+      create(:inbox_member, inbox: inbox, user: other_agent)
+      conversation.update!(
+        additional_attributes: { 'user_settings' => { agent.id.to_s => { 'pinned' => true } } }
+      )
+    end
+
+    it 'broadcasts only to the owning user, not to other agents or admins' do
+      expect(ActionCableBroadcastJob).to receive(:perform_later) do |tokens, name, payload|
+        expect(tokens).to eq([agent.pubsub_token])
+        expect(tokens).not_to include(other_agent.pubsub_token, admin.pubsub_token)
+        expect(name).to eq('conversation.user_setting_changed')
+        expect(payload[:user_id]).to eq(agent.id)
+        expect(payload[:user_settings]).to eq('pinned' => true)
+        expect(payload[:conversation][:id]).to eq(conversation.display_id)
+        expect(payload[:account_id]).to eq(account.id)
+      end
+
+      listener.conversation_user_setting_changed(event)
+    end
+
+    it 'does nothing when user_id is blank' do
+      blank_event = Events::Base.new(event_name, Time.zone.now, conversation: conversation, user_id: nil)
+      expect(ActionCableBroadcastJob).not_to receive(:perform_later)
+      listener.conversation_user_setting_changed(blank_event)
+    end
+
+    it 'does nothing when user no longer exists' do
+      missing_event = Events::Base.new(event_name, Time.zone.now, conversation: conversation, user_id: -1)
+      expect(ActionCableBroadcastJob).not_to receive(:perform_later)
+      listener.conversation_user_setting_changed(missing_event)
+    end
+  end
+
+  # PR B1 — emoji reactions are broadcast to the same audience as message.updated
+  # (inbox members, account admins and the contact for non-private messages).
+  describe '#message_reaction_added' do
+    let(:event_name) { :'message.reaction_added' }
+    let!(:message) { create(:message, account: account, inbox: inbox, conversation: conversation, message_type: 'outgoing') }
+    let!(:reaction) { create(:message_reaction, message: message, account: account, reactor: agent, emoji: '👍') }
+    let!(:event) { Events::Base.new(event_name, Time.zone.now, message: message, reaction: reaction) }
+
+    it 'broadcasts MESSAGE_REACTION_ADDED to inbox members, admins and the contact' do
+      expect(conversation.inbox.reload.inbox_members.count).to eq(1)
+
+      expect(ActionCableBroadcastJob).to receive(:perform_later).with(
+        a_collection_containing_exactly(
+          agent.pubsub_token, admin.pubsub_token, conversation.contact_inbox.pubsub_token
+        ),
+        'message.reaction_added',
+        hash_including(
+          message_id: message.id,
+          conversation_id: conversation.display_id,
+          reaction: reaction.push_event_data,
+          account_id: account.id
+        )
+      )
+      listener.message_reaction_added(event)
+    end
+  end
+
+  describe '#message_reaction_removed' do
+    let(:event_name) { :'message.reaction_removed' }
+    let!(:message) { create(:message, account: account, inbox: inbox, conversation: conversation, message_type: 'outgoing') }
+    let!(:reaction) { create(:message_reaction, message: message, account: account, reactor: agent, emoji: '👍') }
+    let!(:event) { Events::Base.new(event_name, Time.zone.now, message: message, reaction: reaction) }
+
+    it 'broadcasts MESSAGE_REACTION_REMOVED with reaction_id and emoji' do
+      expect(conversation.inbox.reload.inbox_members.count).to eq(1)
+
+      expect(ActionCableBroadcastJob).to receive(:perform_later).with(
+        a_collection_containing_exactly(
+          agent.pubsub_token, admin.pubsub_token, conversation.contact_inbox.pubsub_token
+        ),
+        'message.reaction_removed',
+        hash_including(
+          message_id: message.id,
+          conversation_id: conversation.display_id,
+          reaction_id: reaction.id,
+          emoji: '👍',
+          user_id: agent.id,
+          user_type: 'User',
+          account_id: account.id
+        )
+      )
+      listener.message_reaction_removed(event)
+    end
+  end
+
+  # PR G1 — pin é coletivo: broadcast para todos os agents/admins do inbox.
+  describe '#conversation_pin_added' do
+    let(:event_name) { :'conversation.pin_added' }
+    let(:message) { create(:message, conversation: conversation, account: account, inbox: inbox) }
+    let!(:event) do
+      Events::Base.new(
+        event_name,
+        Time.zone.now,
+        conversation: conversation,
+        message_id: message.id,
+        pinned_message_ids: [message.id]
+      )
+    end
+
+    it 'broadcasts to all inbox members and admins' do
+      expect(ActionCableBroadcastJob).to receive(:perform_later) do |tokens, name, payload|
+        expect(tokens).to include(agent.pubsub_token, admin.pubsub_token)
+        expect(name).to eq('conversation.pin_added')
+        expect(payload[:conversation][:id]).to eq(conversation.display_id)
+        expect(payload[:message_id]).to eq(message.id)
+        expect(payload[:pinned_message_ids]).to eq([message.id])
+        expect(payload[:account_id]).to eq(account.id)
+      end
+
+      listener.conversation_pin_added(event)
+    end
+
+    it 'does nothing when conversation is missing' do
+      blank_event = Events::Base.new(event_name, Time.zone.now, conversation: nil, message_id: message.id)
+      expect(ActionCableBroadcastJob).not_to receive(:perform_later)
+      listener.conversation_pin_added(blank_event)
+    end
+  end
+
+  describe '#conversation_pin_removed' do
+    let(:event_name) { :'conversation.pin_removed' }
+    let(:message) { create(:message, conversation: conversation, account: account, inbox: inbox) }
+    let!(:event) do
+      Events::Base.new(
+        event_name,
+        Time.zone.now,
+        conversation: conversation,
+        message_id: message.id,
+        pinned_message_ids: []
+      )
+    end
+
+    it 'broadcasts to all inbox members and admins' do
+      expect(ActionCableBroadcastJob).to receive(:perform_later) do |tokens, name, payload|
+        expect(tokens).to include(agent.pubsub_token, admin.pubsub_token)
+        expect(name).to eq('conversation.pin_removed')
+        expect(payload[:pinned_message_ids]).to eq([])
+        expect(payload[:message_id]).to eq(message.id)
+      end
+
+      listener.conversation_pin_removed(event)
+    end
+  end
 end

@@ -8,9 +8,9 @@ module Enterprise::Account::ConversationsResolutionSchedulerJob
   private
 
   def resolve_captain_conversations
-    CaptainInbox.all.find_each(batch_size: 100) do |captain_inbox|
-      inbox = captain_inbox.inbox
-
+    # Dedupe por inbox: com has_many (A5) duas IAs elegíveis na mesma inbox enfileirariam
+    # o mesmo job N× — distinct por inbox_id garante 1 job por inbox.
+    Inbox.where(id: CaptainInbox.distinct.select(:inbox_id)).find_each(batch_size: 100) do |inbox|
       next if inbox.email?
       next if inbox.account.captain_auto_resolve_disabled?
 

@@ -45,6 +45,7 @@ describe('useAutomation', () => {
         'labels/getLabels': labels,
         'teams/getTeams': teams,
         'sla/getSLA': slaPolicies,
+        'captainAssistants/getRecords': [],
       };
       return { value: getterMap[getter] };
     });

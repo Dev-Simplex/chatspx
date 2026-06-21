@@ -102,5 +102,33 @@ RSpec.describe Captain::ReplySuggestionService do
         end
       end
     end
+
+    context 'when the search tool is enabled' do
+      # A4: o assistant da search tool é resolvido pela CONVERSA (dono-espelho captain),
+      # não mais pela inbox.
+      let(:assistant) { create(:captain_assistant, account: account) }
+
+      before do
+        # use_search_tool? = cloud OU self-hosted enterprise; ligamos via ambiente.
+        allow(ChatwootApp).to receive(:self_hosted_enterprise?).and_return(true)
+        # O before global cria um stub estrito de feature_enabled?(:captain_tasks); o
+        # caminho de auto-assignment disparado pela atribuição do dono chama
+        # feature_enabled?(:assignment_v2). Libera os demais argumentos.
+        allow(account).to receive(:feature_enabled?).and_call_original
+        allow(account).to receive(:feature_enabled?).with('captain_tasks').and_return(true)
+      end
+
+      it 'builds the search tool with the assistant resolved from the conversation owner' do
+        create(:captain_inbox, captain_assistant: assistant, inbox: inbox)
+        conversation.update!(assignee_agent_bot: assistant.mirror_agent_bot, assignee: nil)
+
+        expect(Captain::Tools::SearchReplyDocumentationService)
+          .to receive(:new)
+          .with(account: account, assistant: assistant)
+          .and_call_original
+
+        service.perform
+      end
+    end
   end
 end

@@ -7,6 +7,7 @@ const META_FRESH_THRESHOLD_MS = 5000;
 const state = {
   mineCount: 0,
   unAssignedCount: 0,
+  aiCount: 0,
   allCount: 0,
   unattendedAssignedCount: 0,
   unattendedUnassignedCount: 0,
@@ -92,6 +93,7 @@ export const mutations = {
     const {
       mine_count: mineCount,
       unassigned_count: unAssignedCount,
+      ai_count: aiCount,
       all_count: allCount,
       unattended_assigned_to_me_count: unattendedAssignedCount,
       unattended_unassigned_count: unattendedUnassignedCount,
@@ -100,6 +102,12 @@ export const mutations = {
     $state.mineCount = mineCount;
     $state.allCount = allCount;
     $state.unAssignedCount = unAssignedCount;
+    // Meta arrives from two sources (/meta endpoint and conversation list
+    // payloads) — only update when the field is present to avoid zeroing
+    // the count with a partial payload.
+    if ('ai_count' in payload) {
+      $state.aiCount = aiCount ?? 0;
+    }
     if ('unattended_assigned_to_me_count' in payload) {
       $state.unattendedAssignedCount = unattendedAssignedCount ?? 0;
     }

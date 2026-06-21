@@ -1,6 +1,7 @@
 <script setup>
-import { ref, computed, h, useTemplateRef, watch } from 'vue';
+import { ref, computed, h, onMounted, useTemplateRef, watch } from 'vue';
 import { useI18n } from 'vue-i18n';
+import { useStore, useMapGetter } from 'dashboard/composables/store';
 import { useAccount } from 'dashboard/composables/useAccount';
 import { useOperators } from 'dashboard/components-next/filter/operators';
 import ConditionRow from 'dashboard/components-next/filter/ConditionRow.vue';
@@ -74,6 +75,13 @@ const INPUT_TYPE_MAP = {
 const { t } = useI18n();
 const { isCloudFeatureEnabled } = useAccount();
 const { operators } = useOperators();
+
+const store = useStore();
+const aiAgents = useMapGetter('captainAssistants/getRecords');
+
+// O dropdown da action `assign_ai_agent` nasceria vazio sem o fetch — a página
+// de automação não busca assistants em nenhum outro lugar (C5.4).
+onMounted(() => store.dispatch('captainAssistants/get'));
 
 const dialogRef = ref(null);
 const conditionsRef = useTemplateRef('conditionsRef');
@@ -166,9 +174,19 @@ const hasAutomationMutated = computed(() => {
 });
 
 const automationActionTypes = computed(() => {
-  const actionTypes = isCloudFeatureEnabled('sla')
+  let actionTypes = isCloudFeatureEnabled('sla')
     ? AUTOMATION_ACTION_TYPES
     : AUTOMATION_ACTION_TYPES.filter(({ key }) => key !== 'add_sla');
+
+  // Conta sem agente IA não oferece a action (C5.4). Regra existente que já
+  // usa a action mantém o type — AutomationActionInput resolve inputType via
+  // find na lista e quebraria enquanto captainAssistants/get não resolve.
+  const ruleUsesAIAgent = (automation.value?.actions || []).some(
+    action => action.action_name === 'assign_ai_agent'
+  );
+  if (!aiAgents.value.length && !ruleUsesAIAgent) {
+    actionTypes = actionTypes.filter(({ key }) => key !== 'assign_ai_agent');
+  }
 
   return actionTypes.map(action => ({
     ...action,

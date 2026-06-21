@@ -51,6 +51,25 @@ json.meta do # rubocop:disable Metrics/BlockLength
       json.team_ids assignee.teams.select { |t| t.account_id == Current.account&.id }.map(&:id)
       json.custom_role_id assignee.current_account_user&.custom_role_id if ChatwootApp.enterprise?
     end
+  elsif conversation.assignee_agent_bot&.captain?
+    # Assignee-IA (espelho captain) — mesmo shape do push_event_data + discriminador type (DC-3).
+    # Bot webhook atribuído via coluna NÃO entra (comportamento atual preservado).
+    bot = conversation.assignee_agent_bot
+    json.assignee do
+      json.id bot.id
+      json.account_id Current.account&.id
+      json.name bot.name
+      json.available_name bot.name
+      json.avatar_url bot.avatar_url
+      json.thumbnail bot.avatar_url
+      json.type 'agent_bot'
+      json.bot_type bot.bot_type
+      # Discriminador único que o front usa nas abas IA / Não Atribuídas
+      # (casa com o is_captain do push_event_data via websocket). Aqui é sempre
+      # true pois só espelhos captain entram neste branch.
+      json.is_captain bot.captain?
+      json.captain_assistant_id bot.captain_assistant_id
+    end
   elsif conversation.assignee_id.present?
     json.assignee do
       json.id(conversation.assignee_id)
@@ -85,12 +104,12 @@ if preloaded
   else
     json.messages [last_message.try(:push_event_data)]
   end
-elsif conversation.messages.where(account_id: conversation.account_id).last.blank?
-  json.messages []
 else
-  last_message = conversation.messages.where(account_id: conversation.account_id)
-                             .includes([{ attachments: [{ file_attachment: [:blob] }] }])
-  json.messages [last_message.last.try(:push_event_data)]
+  fallback_rid = AgentMessageIsolation.restriction_id_for_inbox(conversation.inbox, Current.user, conversation.account_id)
+  fallback_scope = conversation.messages.where(account_id: conversation.account_id)
+                               .includes([{ attachments: [{ file_attachment: [:blob] }] }])
+  fallback_last = AgentMessageIsolation.filter_messages(fallback_scope, fallback_rid).last
+  json.messages fallback_last.blank? ? [] : [fallback_last.try(:push_event_data)]
 end
 
 json.account_id conversation.account_id
@@ -114,7 +133,9 @@ json.unread_count preloaded ? preloaded.unread_counts[conversation.id].to_i : co
 last_non_activity_msg = if preloaded
                           preloaded.last_non_activity_messages[conversation.id]
                         else
-                          conversation.messages.where(account_id: conversation.account_id).non_activity_messages.first
+                          na_rid = AgentMessageIsolation.restriction_id_for_inbox(conversation.inbox, Current.user, conversation.account_id)
+                          na_scope = conversation.messages.where(account_id: conversation.account_id).non_activity_messages
+                          AgentMessageIsolation.filter_messages(na_scope, na_rid).first
                         end
 json.last_non_activity_message last_non_activity_msg.try(:push_event_data)
 json.last_activity_at conversation.last_activity_at.to_i

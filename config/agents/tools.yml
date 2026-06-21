@@ -45,6 +45,11 @@
   description: 'Hand off the conversation to a human agent'
   icon: 'user-switch'
 
+- id: transferir_para_agente
+  title: 'Transferir para outro Agente IA'
+  description: 'Transfere a conversa para outro agente IA da conta (especialidade diferente)'
+  icon: 'arrow-swap'
+
 - id: buscar_imovel
   title: 'Buscar Imóveis (Vista)'
   description: 'Busca imóveis no acervo da Tozi (Vista) e retorna opções com o link correto do site'
@@ -64,3 +69,8 @@
   title: 'Programar Follow-up'
   description: 'Programa uma cutucada futura pra retomar a conversa se o cliente não responder'
   icon: 'clock'
+
+- id: transferir_para_agente
+  title: 'Transferir para outro Agente IA'
+  description: 'Transfere a conversa para outro agente de IA da equipe (o novo agente assume e continua)'
+  icon: 'arrow-swap'
