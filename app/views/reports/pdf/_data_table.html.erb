@@ -1,0 +1,19 @@
+<%# Tabela generica. local: table => { columns: [{label, align}], rows: [[cell, ...], ...] } %>
+<table>
+  <thead>
+    <tr>
+      <% table[:columns].each do |col| %>
+        <th class="<%= 'num' if col[:align] == 'right' %>"><%= col[:label] %></th>
+      <% end %>
+    </tr>
+  </thead>
+  <tbody>
+    <% table[:rows].each do |row| %>
+      <tr>
+        <% row.each_with_index do |cell, i| %>
+          <td class="<%= 'num' if table[:columns][i] && table[:columns][i][:align] == 'right' %>"><%= cell %></td>
+        <% end %>
+      </tr>
+    <% end %>
+  </tbody>
+</table>

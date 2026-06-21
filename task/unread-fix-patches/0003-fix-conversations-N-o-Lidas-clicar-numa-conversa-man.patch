@@ -1,0 +1,239 @@
+From 2df2763ce644de7aca957d80a35bae959403bff2 Mon Sep 17 00:00:00 2001
+From: "Nicolas (ChatSPX)" <ederson.ricieri@gmail.com>
+Date: Thu, 11 Jun 2026 20:58:59 +0000
+Subject: [PATCH 3/4] =?UTF-8?q?fix(conversations):=20N=C3=A3o=20Lidas=20?=
+ =?UTF-8?q?=E2=80=94=20clicar=20numa=20conversa=20mant=C3=A9m=20o=20contex?=
+ =?UTF-8?q?to/aba=20unread?=
+MIME-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+
+Na view Não Lidas (?assignee_type=all), clicar numa conversa abria
+/accounts/:id/conversations/:id (rota padrão, aba "Minhas") em vez de
+/accounts/:id/unread/conversations/:id — a conversa selecionada não aparecia
+na lista por não pertencer à aba "Minhas".
+
+Causa raiz: várias funções ramificavam por conversationType tratando
+mention/participating/unattended mas NUNCA 'unread', fazendo o tipo unread
+cair na rota padrão. Adicionado o paralelo 'unread' em todos os pontos:
+
+- URLHelper#conversationUrl: gera /unread/conversations/:id no clique do card
+  (root cause do bug reportado).
+- URLHelper#conversationListPageURL: urlMap ganha unread (back-button/redirect
+  não viram mais .../undefined).
+- ConversationHeader: conversationTypeMap mapeia conversation_through_unread
+  -> 'unread' (back-button volta para a lista unread).
+- routeHelpers#isAConversationRoute: inclui conversation_unread (base) e
+  conversation_through_unread (extended) — corrige banner offline, hotkeys,
+  snooze e demais consumidores na view unread.
+- routeHelpers#getConversationDashboardRoute: case unread (redirect pós-deleção
+  de contato volta para a lista unread).
+- ChatList#redirectToConversationList: trata isOnUnreadView (markAsUnread/
+  deleteConversation não jogam mais para a dashboard/aba ME).
+- CopilotLauncher: conversation_through_unread em CONVERSATION_ROUTES (launcher
+  não sobrepõe a conversa).
+- SidebarGroup#activeChild: resolve o sub-item ativo do grupo Unread por
+  ?assignee_type, com default 'all' (oposto do unattended, que é 'me').
+
+Testes: +unread em URLHelper.spec e routeHelpers.spec. 72 specs JS passando;
+ESLint limpo. Achados via review adversarial multi-agente (3 pontos diretos +
+5 gaps relacionados da mesma omissão).
+
+Co-Authored-By: Claude Opus 4.8 (1M context) <noreply@anthropic.com>
+---
+ .../components-next/copilot/CopilotLauncher.vue |  1 +
+ .../components-next/sidebar/SidebarGroup.vue    | 17 +++++++++++++++++
+ .../dashboard/components/ChatList.vue           |  3 +++
+ .../widgets/conversation/ConversationHeader.vue |  1 +
+ app/javascript/dashboard/helper/URLHelper.js    |  3 +++
+ app/javascript/dashboard/helper/routeHelpers.js |  4 ++++
+ .../dashboard/helper/specs/URLHelper.spec.js    | 16 ++++++++++++++++
+ .../dashboard/helper/specs/routeHelpers.spec.js |  8 ++++++++
+ 8 files changed, 53 insertions(+)
+
+diff --git a/app/javascript/dashboard/components-next/copilot/CopilotLauncher.vue b/app/javascript/dashboard/components-next/copilot/CopilotLauncher.vue
+index 2fb92e7f4..4d7e5e3a3 100644
+--- a/app/javascript/dashboard/components-next/copilot/CopilotLauncher.vue
++++ b/app/javascript/dashboard/components-next/copilot/CopilotLauncher.vue
+@@ -19,6 +19,7 @@ const isConversationRoute = computed(() => {
+     'conversations_through_folders',
+     'conversation_through_mentions',
+     'conversation_through_unattended',
++    'conversation_through_unread',
+     'conversation_through_participating',
+     'inbox_view_conversation',
+   ];
+diff --git a/app/javascript/dashboard/components-next/sidebar/SidebarGroup.vue b/app/javascript/dashboard/components-next/sidebar/SidebarGroup.vue
+index 3335acf46..969ae8649 100644
+--- a/app/javascript/dashboard/components-next/sidebar/SidebarGroup.vue
++++ b/app/javascript/dashboard/components-next/sidebar/SidebarGroup.vue
+@@ -152,6 +152,23 @@ const activeChild = computed(() => {
+     if (queryMatch) return queryMatch;
+   }
+ 
++  // Unread children are also distinguished only by ?assignee_type, but unlike
++  // unattended their default (no query) is "All", not "Mine" (see
++  // unreadViewHelper.defaultAssigneeTab). Each child has an explicit
++  // assignee_type, so default an empty query to 'all' before matching.
++  if (
++    route.name === 'conversation_unread' ||
++    route.name === 'conversation_through_unread'
++  ) {
++    const qt = route.query.assignee_type || 'all';
++    const unreadMatch = navigableChildren.value.find(
++      child =>
++        child.to?.name === 'conversation_unread' &&
++        child.to?.query?.assignee_type === qt
++    );
++    if (unreadMatch) return unreadMatch;
++  }
++
+   const pathSame = navigableChildren.value.find(
+     child => child.to && route.path === resolvePath(child.to)
+   );
+diff --git a/app/javascript/dashboard/components/ChatList.vue b/app/javascript/dashboard/components/ChatList.vue
+index 1c78d9f2e..4d20d5acd 100644
+--- a/app/javascript/dashboard/components/ChatList.vue
++++ b/app/javascript/dashboard/components/ChatList.vue
+@@ -63,6 +63,7 @@ import {
+ import {
+   isOnMentionsView,
+   isOnUnattendedView,
++  isOnUnreadView,
+ } from '../store/modules/conversations/helpers/actionHelpers';
+ import {
+   getUserPermissions,
+@@ -810,6 +811,8 @@ function redirectToConversationList() {
+     conversationType = 'mention';
+   } else if (isOnUnattendedView({ route: { name } })) {
+     conversationType = 'unattended';
++  } else if (isOnUnreadView({ route: { name } })) {
++    conversationType = 'unread';
+   }
+   router.push(
+     conversationListPageURL({
+diff --git a/app/javascript/dashboard/components/widgets/conversation/ConversationHeader.vue b/app/javascript/dashboard/components/widgets/conversation/ConversationHeader.vue
+index cbab19da2..6dc87be85 100644
+--- a/app/javascript/dashboard/components/widgets/conversation/ConversationHeader.vue
++++ b/app/javascript/dashboard/components/widgets/conversation/ConversationHeader.vue
+@@ -69,6 +69,7 @@ const backButtonUrl = computed(() => {
+   const conversationTypeMap = {
+     conversation_through_mentions: 'mention',
+     conversation_through_unattended: 'unattended',
++    conversation_through_unread: 'unread',
+   };
+   return conversationListPageURL({
+     accountId: accountId.value,
+diff --git a/app/javascript/dashboard/helper/URLHelper.js b/app/javascript/dashboard/helper/URLHelper.js
+index 44cd35ac1..690e53c9b 100644
+--- a/app/javascript/dashboard/helper/URLHelper.js
++++ b/app/javascript/dashboard/helper/URLHelper.js
+@@ -28,6 +28,8 @@ export const conversationUrl = ({
+     url = `accounts/${accountId}/participating/conversations/${id}`;
+   } else if (conversationType === 'unattended') {
+     url = `accounts/${accountId}/unattended/conversations/${id}`;
++  } else if (conversationType === 'unread') {
++    url = `accounts/${accountId}/unread/conversations/${id}`;
+   } else if (conversationStatus) {
+     url = `accounts/${accountId}/status/${conversationStatus}/conversations/${id}`;
+   }
+@@ -55,6 +57,7 @@ export const conversationListPageURL = ({
+     const urlMap = {
+       mention: 'mentions/conversations',
+       unattended: 'unattended/conversations',
++      unread: 'unread/conversations',
+     };
+     url = `accounts/${accountId}/${urlMap[conversationType]}`;
+   }
+diff --git a/app/javascript/dashboard/helper/routeHelpers.js b/app/javascript/dashboard/helper/routeHelpers.js
+index 292e5e6e1..c1492243e 100644
+--- a/app/javascript/dashboard/helper/routeHelpers.js
++++ b/app/javascript/dashboard/helper/routeHelpers.js
+@@ -85,6 +85,7 @@ export const isAConversationRoute = (
+     'home',
+     'conversation_mentions',
+     'conversation_unattended',
++    'conversation_unread',
+     'inbox_dashboard',
+     'label_conversations',
+     'team_conversations',
+@@ -95,6 +96,7 @@ export const isAConversationRoute = (
+     'inbox_conversation',
+     'conversation_through_mentions',
+     'conversation_through_unattended',
++    'conversation_through_unread',
+     'conversation_through_inbox',
+     'conversations_through_label',
+     'conversations_through_team',
+@@ -118,6 +120,8 @@ export const getConversationDashboardRoute = routeName => {
+       return 'conversation_mentions';
+     case 'conversation_through_unattended':
+       return 'conversation_unattended';
++    case 'conversation_through_unread':
++      return 'conversation_unread';
+     case 'conversations_through_label':
+       return 'label_conversations';
+     case 'conversations_through_team':
+diff --git a/app/javascript/dashboard/helper/specs/URLHelper.spec.js b/app/javascript/dashboard/helper/specs/URLHelper.spec.js
+index 224a1df8b..d76bcee6f 100644
+--- a/app/javascript/dashboard/helper/specs/URLHelper.spec.js
++++ b/app/javascript/dashboard/helper/specs/URLHelper.spec.js
+@@ -40,6 +40,12 @@ describe('#URL Helpers', () => {
+         '/app/accounts/1/custom_view/1'
+       );
+     });
++
++    it('should return url to unread list for unread type', () => {
++      expect(
++        conversationListPageURL({ accountId: 1, conversationType: 'unread' })
++      ).toBe('/app/accounts/1/unread/conversations');
++    });
+   });
+   describe('conversationUrl', () => {
+     it('should return direct conversation URL if activeInbox is nil', () => {
+@@ -62,6 +68,16 @@ describe('#URL Helpers', () => {
+         'accounts/1/team/1/conversations/1'
+       );
+     });
++    it('should return unattended conversation URL for unattended type', () => {
++      expect(
++        conversationUrl({ accountId: 1, id: 1, conversationType: 'unattended' })
++      ).toBe('accounts/1/unattended/conversations/1');
++    });
++    it('should return unread conversation URL for unread type', () => {
++      expect(
++        conversationUrl({ accountId: 1, id: 1, conversationType: 'unread' })
++      ).toBe('accounts/1/unread/conversations/1');
++    });
+   });
+ 
+   describe('frontendURL', () => {
+diff --git a/app/javascript/dashboard/helper/specs/routeHelpers.spec.js b/app/javascript/dashboard/helper/specs/routeHelpers.spec.js
+index 30cd51ae8..49fec3d49 100644
+--- a/app/javascript/dashboard/helper/specs/routeHelpers.spec.js
++++ b/app/javascript/dashboard/helper/specs/routeHelpers.spec.js
+@@ -151,6 +151,11 @@ describe('isAConversationRoute', () => {
+     expect(isAConversationRoute('dashboard')).toBe(false);
+   });
+ 
++  it('returns true for the unread routes', () => {
++    expect(isAConversationRoute('conversation_through_unread')).toBe(true);
++    expect(isAConversationRoute('conversation_unread', true)).toBe(true);
++  });
++
+   it('returns true if base conversation route name is provided and includeBase is true', () => {
+     expect(isAConversationRoute('home', true)).toBe(true);
+     expect(isAConversationRoute('conversation_mentions', true)).toBe(true);
+@@ -206,6 +211,9 @@ describe('getConversationDashboardRoute', () => {
+     expect(
+       getConversationDashboardRoute('conversation_through_unattended')
+     ).toEqual('conversation_unattended');
++    expect(
++      getConversationDashboardRoute('conversation_through_unread')
++    ).toEqual('conversation_unread');
+     expect(
+       getConversationDashboardRoute('conversations_through_label')
+     ).toEqual('label_conversations');
+-- 
+2.43.0
+

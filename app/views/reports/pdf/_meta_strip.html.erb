@@ -1,0 +1,9 @@
+<%# Faixa de metadados (CLIENTE · PERÍODO · BASE · EMISSÃO). local: items => [{label:, value:}] %>
+<div class="meta-strip">
+  <% items.each do |item| %>
+    <div class="meta-cell">
+      <div class="meta-label"><%= item[:label] %></div>
+      <div class="meta-value"><%= item[:value] %></div>
+    </div>
+  <% end %>
+</div>

@@ -1,0 +1,587 @@
+diff --git a/app/finders/conversation_finder.rb b/app/finders/conversation_finder.rb
+index f26e3b15d..a626d04e2 100644
+--- a/app/finders/conversation_finder.rb
++++ b/app/finders/conversation_finder.rb
+@@ -33,10 +33,20 @@ class ConversationFinder # rubocop:disable Metrics/ClassLength
+   def initialize(current_user, params)
+     @current_user = current_user
+     @current_account = current_user.account
+-    @is_admin = Current.account_user&.administrator?
++    @is_admin = administrator?
+     @params = params
+   end
+ 
++  # Single source of truth for the admin check. Prefer the already-loaded
++  # Current.account_user; fall back to an explicit lookup only when the account
++  # is known but Current is not populated, so admins are never wrongly treated
++  # as agents. Mirrors Conversations::PermissionFilterService.
++  def administrator?
++    account_user = Current.account_user
++    account_user ||= @current_account && AccountUser.find_by(account_id: @current_account.id, user_id: @current_user.id)
++    account_user&.administrator? || false
++  end
++
+   def perform
+     set_up
+ 
+diff --git a/app/javascript/dashboard/components-next/copilot/CopilotLauncher.vue b/app/javascript/dashboard/components-next/copilot/CopilotLauncher.vue
+index 2fb92e7f4..4d7e5e3a3 100644
+--- a/app/javascript/dashboard/components-next/copilot/CopilotLauncher.vue
++++ b/app/javascript/dashboard/components-next/copilot/CopilotLauncher.vue
+@@ -19,6 +19,7 @@ const isConversationRoute = computed(() => {
+     'conversations_through_folders',
+     'conversation_through_mentions',
+     'conversation_through_unattended',
++    'conversation_through_unread',
+     'conversation_through_participating',
+     'inbox_view_conversation',
+   ];
+diff --git a/app/javascript/dashboard/components-next/sidebar/SidebarGroup.vue b/app/javascript/dashboard/components-next/sidebar/SidebarGroup.vue
+index 3335acf46..969ae8649 100644
+--- a/app/javascript/dashboard/components-next/sidebar/SidebarGroup.vue
++++ b/app/javascript/dashboard/components-next/sidebar/SidebarGroup.vue
+@@ -152,6 +152,23 @@ const activeChild = computed(() => {
+     if (queryMatch) return queryMatch;
+   }
+ 
++  // Unread children are also distinguished only by ?assignee_type, but unlike
++  // unattended their default (no query) is "All", not "Mine" (see
++  // unreadViewHelper.defaultAssigneeTab). Each child has an explicit
++  // assignee_type, so default an empty query to 'all' before matching.
++  if (
++    route.name === 'conversation_unread' ||
++    route.name === 'conversation_through_unread'
++  ) {
++    const qt = route.query.assignee_type || 'all';
++    const unreadMatch = navigableChildren.value.find(
++      child =>
++        child.to?.name === 'conversation_unread' &&
++        child.to?.query?.assignee_type === qt
++    );
++    if (unreadMatch) return unreadMatch;
++  }
++
+   const pathSame = navigableChildren.value.find(
+     child => child.to && route.path === resolvePath(child.to)
+   );
+diff --git a/app/javascript/dashboard/components/ChatList.vue b/app/javascript/dashboard/components/ChatList.vue
+index 31193e1ec..7fe6e2345 100644
+--- a/app/javascript/dashboard/components/ChatList.vue
++++ b/app/javascript/dashboard/components/ChatList.vue
+@@ -63,6 +63,7 @@ import {
+ import {
+   isOnMentionsView,
+   isOnUnattendedView,
++  isOnUnreadView,
+ } from '../store/modules/conversations/helpers/actionHelpers';
+ import {
+   getUserPermissions,
+@@ -71,6 +72,10 @@ import {
+ import { matchesFilters } from '../store/modules/conversations/helpers/filterHelpers';
+ import { CONVERSATION_EVENTS } from '../helper/AnalyticsHelper/events';
+ import { ASSIGNEE_TYPE_TAB_PERMISSIONS } from 'dashboard/constants/permissions.js';
++import {
++  UNREAD_ROUTES,
++  resolveAssigneeTab,
++} from 'dashboard/helper/unreadViewHelper';
+ 
+ const props = defineProps({
+   conversationInbox: { type: [String, Number], default: 0 },
+@@ -96,17 +101,8 @@ const virtualListRef = ref(null);
+ 
+ provide('contextMenuElementTarget', virtualListRef);
+ 
+-const initialAssigneeTabFromRoute = () => {
+-  if (route.name === 'conversation_unattended') {
+-    if (route.query.assignee_type === 'unassigned')
+-      return wootConstants.ASSIGNEE_TYPE.UNASSIGNED;
+-    if (route.query.assignee_type === 'all')
+-      return wootConstants.ASSIGNEE_TYPE.ALL;
+-    return wootConstants.ASSIGNEE_TYPE.ME;
+-  }
+-  return wootConstants.ASSIGNEE_TYPE.ME;
+-};
+-const activeAssigneeTab = ref(initialAssigneeTabFromRoute());
++// activeAssigneeTab is initialized after assigneeTabItems (below) so the default
++// can be clamped to the tabs the user is actually allowed to see.
+ const activeStatus = ref(wootConstants.STATUS_TYPE.OPEN);
+ const activeSortBy = ref(wootConstants.SORT_BY_TYPE.LAST_ACTIVITY_AT_DESC);
+ const showAdvancedFilters = ref(false);
+@@ -251,6 +247,16 @@ const assigneeTabItems = computed(() => {
+   return items;
+ });
+ 
++// Route-aware default tab, clamped to the tabs the user can actually see.
++// Defined here (not at the top of setup) so assigneeTabItems is available.
++const activeAssigneeTab = ref(
++  resolveAssigneeTab(
++    route.name,
++    route.query,
++    assigneeTabItems.value.map(item => item.key)
++  )
++);
++
+ const showAssigneeInConversationCard = computed(() => {
+   return (
+     hasAppliedFiltersOrActiveFolders.value ||
+@@ -284,26 +290,29 @@ const conversationCustomAttributes = useFunctionGetter(
+ );
+ 
+ const activeAssigneeTabCount = computed(() => {
+-  const count = assigneeTabItems.value.find(
++  const activeTab = assigneeTabItems.value.find(
+     item => item.key === activeAssigneeTab.value
+-  ).count;
+-  return count;
++  );
++  return activeTab?.count ?? 0;
+ });
+ 
+ const conversationListPagination = computed(() => {
+   const conversationsPerPage = 25;
+-  const hasChatsOnView =
+-    chatsOnView.value &&
+-    Array.isArray(chatsOnView.value) &&
+-    !chatsOnView.value.length;
+-  const isNoFiltersOrFoldersAndChatListNotEmpty =
+-    !hasAppliedFiltersOrActiveFolders.value && hasChatsOnView;
+-  const isUnderPerPage =
+-    chatsOnView.value.length < conversationsPerPage &&
+-    activeAssigneeTabCount.value < conversationsPerPage &&
+-    activeAssigneeTabCount.value > chatsOnView.value.length;
+-
+-  if (isNoFiltersOrFoldersAndChatListNotEmpty && isUnderPerPage) {
++  const visibleChats = Array.isArray(chatsOnView.value)
++    ? chatsOnView.value
++    : [];
++  const visibleCount = visibleChats.length;
++  const tabCount = activeAssigneeTabCount.value;
++
++  const isChatListEmpty = visibleCount === 0;
++  const isDefaultView = !hasAppliedFiltersOrActiveFolders.value;
++  // The rendered list is empty (e.g. right after a tab switch/reset) but the
++  // tab's total count says there is still a partial page (1..24) left to load.
++  // Re-fetch from page 1 instead of advancing the cursor past the data.
++  const hasUnloadedPartialPage =
++    tabCount > visibleCount && tabCount < conversationsPerPage;
++
++  if (isDefaultView && isChatListEmpty && hasUnloadedPartialPage) {
+     return 1;
+   }
+ 
+@@ -754,6 +763,23 @@ function updateAssigneeTab(selectedTab) {
+     });
+     return;
+   }
++  // Unread: keep the active tab reflected in the URL (?assignee_type=...) for
++  // all three tabs, so the address bar always matches the highlighted tab and
++  // the view is deep-linkable. The deep-link watcher then syncs the tab state
++  // and refetches. Always explicit (unlike unattended, whose default is "me").
++  if (props.conversationType === 'unread') {
++    const queryByTab = {
++      [wootConstants.ASSIGNEE_TYPE.ME]: 'me',
++      [wootConstants.ASSIGNEE_TYPE.UNASSIGNED]: 'unassigned',
++      [wootConstants.ASSIGNEE_TYPE.ALL]: 'all',
++    };
++    router.push({
++      name: 'conversation_unread',
++      params: { accountId: currentAccountId.value },
++      query: { assignee_type: queryByTab[selectedTab] ?? 'all' },
++    });
++    return;
++  }
+   if (activeAssigneeTab.value !== selectedTab) {
+     resetBulkActions();
+     emitter.emit('clearSearchInput');
+@@ -802,6 +828,8 @@ function redirectToConversationList() {
+     conversationType = 'mention';
+   } else if (isOnUnattendedView({ route: { name } })) {
+     conversationType = 'unattended';
++  } else if (isOnUnreadView({ route: { name } })) {
++    conversationType = 'unread';
+   }
+   router.push(
+     conversationListPageURL({
+@@ -1049,18 +1077,19 @@ provide('assignPriority', assignPriority);
+ provide('isConversationSelected', isConversationSelected);
+ provide('deleteConversation', handleDelete);
+ 
+-// Unattended route: sync assignee tab from query params
++// Unattended/Unread routes: sync assignee tab from query params (deep-link)
+ watch(
+   () => [route.name, route.query],
+   () => {
+-    if (route.name === 'conversation_unattended') {
+-      const qt = route.query.assignee_type;
+-      let newTab = wootConstants.ASSIGNEE_TYPE.ME;
+-      if (qt === 'unassigned') {
+-        newTab = wootConstants.ASSIGNEE_TYPE.UNASSIGNED;
+-      } else if (qt === 'all') {
+-        newTab = wootConstants.ASSIGNEE_TYPE.ALL;
+-      }
++    if (
++      route.name === 'conversation_unattended' ||
++      UNREAD_ROUTES.includes(route.name)
++    ) {
++      const newTab = resolveAssigneeTab(
++        route.name,
++        route.query,
++        assigneeTabItems.value.map(item => item.key)
++      );
+       const prevTab = activeAssigneeTab.value;
+       activeAssigneeTab.value = newTab;
+       if (prevTab !== newTab) {
+@@ -1102,9 +1131,15 @@ watch(
+       }
+     }
+ 
+-    // Side effect: reset assignee tab when leaving unattended view
++    // Side effect: reset assignee tab when the view type changes.
++    // Use the route-aware default so the Unread view keeps its "All" default
++    // instead of being forced back to "Mine".
+     if (newType !== prevType && newType !== 'unattended') {
+-      activeAssigneeTab.value = wootConstants.ASSIGNEE_TYPE.ME;
++      activeAssigneeTab.value = resolveAssigneeTab(
++        route.name,
++        route.query,
++        assigneeTabItems.value.map(item => item.key)
++      );
+     }
+ 
+     // Side effect: sync active folder in store
+diff --git a/app/javascript/dashboard/components/widgets/conversation/ConversationHeader.vue b/app/javascript/dashboard/components/widgets/conversation/ConversationHeader.vue
+index cbab19da2..6dc87be85 100644
+--- a/app/javascript/dashboard/components/widgets/conversation/ConversationHeader.vue
++++ b/app/javascript/dashboard/components/widgets/conversation/ConversationHeader.vue
+@@ -69,6 +69,7 @@ const backButtonUrl = computed(() => {
+   const conversationTypeMap = {
+     conversation_through_mentions: 'mention',
+     conversation_through_unattended: 'unattended',
++    conversation_through_unread: 'unread',
+   };
+   return conversationListPageURL({
+     accountId: accountId.value,
+diff --git a/app/javascript/dashboard/helper/URLHelper.js b/app/javascript/dashboard/helper/URLHelper.js
+index 44cd35ac1..690e53c9b 100644
+--- a/app/javascript/dashboard/helper/URLHelper.js
++++ b/app/javascript/dashboard/helper/URLHelper.js
+@@ -28,6 +28,8 @@ export const conversationUrl = ({
+     url = `accounts/${accountId}/participating/conversations/${id}`;
+   } else if (conversationType === 'unattended') {
+     url = `accounts/${accountId}/unattended/conversations/${id}`;
++  } else if (conversationType === 'unread') {
++    url = `accounts/${accountId}/unread/conversations/${id}`;
+   } else if (conversationStatus) {
+     url = `accounts/${accountId}/status/${conversationStatus}/conversations/${id}`;
+   }
+@@ -55,6 +57,7 @@ export const conversationListPageURL = ({
+     const urlMap = {
+       mention: 'mentions/conversations',
+       unattended: 'unattended/conversations',
++      unread: 'unread/conversations',
+     };
+     url = `accounts/${accountId}/${urlMap[conversationType]}`;
+   }
+diff --git a/app/javascript/dashboard/helper/routeHelpers.js b/app/javascript/dashboard/helper/routeHelpers.js
+index 292e5e6e1..c1492243e 100644
+--- a/app/javascript/dashboard/helper/routeHelpers.js
++++ b/app/javascript/dashboard/helper/routeHelpers.js
+@@ -85,6 +85,7 @@ export const isAConversationRoute = (
+     'home',
+     'conversation_mentions',
+     'conversation_unattended',
++    'conversation_unread',
+     'inbox_dashboard',
+     'label_conversations',
+     'team_conversations',
+@@ -95,6 +96,7 @@ export const isAConversationRoute = (
+     'inbox_conversation',
+     'conversation_through_mentions',
+     'conversation_through_unattended',
++    'conversation_through_unread',
+     'conversation_through_inbox',
+     'conversations_through_label',
+     'conversations_through_team',
+@@ -118,6 +120,8 @@ export const getConversationDashboardRoute = routeName => {
+       return 'conversation_mentions';
+     case 'conversation_through_unattended':
+       return 'conversation_unattended';
++    case 'conversation_through_unread':
++      return 'conversation_unread';
+     case 'conversations_through_label':
+       return 'label_conversations';
+     case 'conversations_through_team':
+diff --git a/app/javascript/dashboard/helper/specs/URLHelper.spec.js b/app/javascript/dashboard/helper/specs/URLHelper.spec.js
+index 224a1df8b..d76bcee6f 100644
+--- a/app/javascript/dashboard/helper/specs/URLHelper.spec.js
++++ b/app/javascript/dashboard/helper/specs/URLHelper.spec.js
+@@ -40,6 +40,12 @@ describe('#URL Helpers', () => {
+         '/app/accounts/1/custom_view/1'
+       );
+     });
++
++    it('should return url to unread list for unread type', () => {
++      expect(
++        conversationListPageURL({ accountId: 1, conversationType: 'unread' })
++      ).toBe('/app/accounts/1/unread/conversations');
++    });
+   });
+   describe('conversationUrl', () => {
+     it('should return direct conversation URL if activeInbox is nil', () => {
+@@ -62,6 +68,16 @@ describe('#URL Helpers', () => {
+         'accounts/1/team/1/conversations/1'
+       );
+     });
++    it('should return unattended conversation URL for unattended type', () => {
++      expect(
++        conversationUrl({ accountId: 1, id: 1, conversationType: 'unattended' })
++      ).toBe('accounts/1/unattended/conversations/1');
++    });
++    it('should return unread conversation URL for unread type', () => {
++      expect(
++        conversationUrl({ accountId: 1, id: 1, conversationType: 'unread' })
++      ).toBe('accounts/1/unread/conversations/1');
++    });
+   });
+ 
+   describe('frontendURL', () => {
+diff --git a/app/javascript/dashboard/helper/specs/routeHelpers.spec.js b/app/javascript/dashboard/helper/specs/routeHelpers.spec.js
+index 30cd51ae8..49fec3d49 100644
+--- a/app/javascript/dashboard/helper/specs/routeHelpers.spec.js
++++ b/app/javascript/dashboard/helper/specs/routeHelpers.spec.js
+@@ -151,6 +151,11 @@ describe('isAConversationRoute', () => {
+     expect(isAConversationRoute('dashboard')).toBe(false);
+   });
+ 
++  it('returns true for the unread routes', () => {
++    expect(isAConversationRoute('conversation_through_unread')).toBe(true);
++    expect(isAConversationRoute('conversation_unread', true)).toBe(true);
++  });
++
+   it('returns true if base conversation route name is provided and includeBase is true', () => {
+     expect(isAConversationRoute('home', true)).toBe(true);
+     expect(isAConversationRoute('conversation_mentions', true)).toBe(true);
+@@ -206,6 +211,9 @@ describe('getConversationDashboardRoute', () => {
+     expect(
+       getConversationDashboardRoute('conversation_through_unattended')
+     ).toEqual('conversation_unattended');
++    expect(
++      getConversationDashboardRoute('conversation_through_unread')
++    ).toEqual('conversation_unread');
+     expect(
+       getConversationDashboardRoute('conversations_through_label')
+     ).toEqual('label_conversations');
+diff --git a/app/javascript/dashboard/helper/specs/unreadViewHelper.spec.js b/app/javascript/dashboard/helper/specs/unreadViewHelper.spec.js
+new file mode 100644
+index 000000000..b9f5c50c2
+--- /dev/null
++++ b/app/javascript/dashboard/helper/specs/unreadViewHelper.spec.js
+@@ -0,0 +1,100 @@
++import {
++  UNREAD_ROUTES,
++  defaultAssigneeTab,
++  resolveAssigneeTab,
++} from '../unreadViewHelper';
++import wootConstants from 'dashboard/constants/globals';
++
++const { ME, UNASSIGNED, ALL } = wootConstants.ASSIGNEE_TYPE;
++
++describe('unreadViewHelper', () => {
++  describe('UNREAD_ROUTES', () => {
++    it('lists both unread route names', () => {
++      expect(UNREAD_ROUTES).toEqual([
++        'conversation_unread',
++        'conversation_through_unread',
++      ]);
++    });
++  });
++
++  describe('#defaultAssigneeTab', () => {
++    it('defaults unread routes to ALL', () => {
++      expect(defaultAssigneeTab('conversation_unread')).toBe(ALL);
++      expect(defaultAssigneeTab('conversation_through_unread')).toBe(ALL);
++    });
++
++    it('defaults unattended route to ME', () => {
++      expect(defaultAssigneeTab('conversation_unattended')).toBe(ME);
++    });
++
++    it('defaults other routes to ME', () => {
++      expect(defaultAssigneeTab('home')).toBe(ME);
++      expect(defaultAssigneeTab(undefined)).toBe(ME);
++    });
++
++    it('respects ?assignee_type=all over the route default', () => {
++      expect(
++        defaultAssigneeTab('conversation_unattended', { assignee_type: 'all' })
++      ).toBe(ALL);
++      expect(defaultAssigneeTab('home', { assignee_type: 'all' })).toBe(ALL);
++    });
++
++    it('respects ?assignee_type=unassigned', () => {
++      expect(
++        defaultAssigneeTab('conversation_unread', {
++          assignee_type: 'unassigned',
++        })
++      ).toBe(UNASSIGNED);
++    });
++
++    it('respects ?assignee_type=me even on unread routes', () => {
++      expect(
++        defaultAssigneeTab('conversation_unread', { assignee_type: 'me' })
++      ).toBe(ME);
++    });
++
++    it('ignores unknown assignee_type and falls back to the route default', () => {
++      expect(
++        defaultAssigneeTab('conversation_unread', { assignee_type: 'bogus' })
++      ).toBe(ALL);
++      expect(
++        defaultAssigneeTab('conversation_unattended', {
++          assignee_type: 'bogus',
++        })
++      ).toBe(ME);
++    });
++  });
++
++  describe('#resolveAssigneeTab', () => {
++    it('returns the route default when no allowedKeys are given', () => {
++      expect(resolveAssigneeTab('conversation_unread')).toBe(ALL);
++      expect(resolveAssigneeTab('conversation_unread', {}, [])).toBe(ALL);
++    });
++
++    it('keeps the default when it is among the allowed tabs', () => {
++      expect(
++        resolveAssigneeTab('conversation_unread', {}, [ME, UNASSIGNED, ALL])
++      ).toBe(ALL);
++    });
++
++    it('clamps to the first allowed tab when the default is not permitted', () => {
++      // Enterprise custom-role agent: only Mine/Unassigned tabs are rendered,
++      // so the unread ALL default must fall back instead of leaving no tab.
++      expect(
++        resolveAssigneeTab('conversation_unread', {}, [ME, UNASSIGNED])
++      ).toBe(ME);
++      expect(resolveAssigneeTab('conversation_unread', {}, [UNASSIGNED])).toBe(
++        UNASSIGNED
++      );
++    });
++
++    it('clamps a deep-link assignee_type the user is not allowed to use', () => {
++      expect(
++        resolveAssigneeTab('conversation_unread', { assignee_type: 'all' }, [
++          ME,
++          UNASSIGNED,
++        ])
++      ).toBe(ME);
++    });
++  });
++});
+diff --git a/app/javascript/dashboard/helper/unreadViewHelper.js b/app/javascript/dashboard/helper/unreadViewHelper.js
+new file mode 100644
+index 000000000..283464f25
+--- /dev/null
++++ b/app/javascript/dashboard/helper/unreadViewHelper.js
+@@ -0,0 +1,51 @@
++import wootConstants from 'dashboard/constants/globals';
++
++// Route names for the custom "Unread" view. They reuse the standard
++// ConversationView/ChatList, but should default to the "All" assignee tab so
++// admins/agents see every accessible unread conversation. The backend
++// PermissionFilterService still scopes the result set per role.
++export const UNREAD_ROUTES = [
++  'conversation_unread',
++  'conversation_through_unread',
++];
++
++/**
++ * Resolve the initial/active assignee tab for a given route.
++ *
++ * Priority:
++ *   1. Explicit `?assignee_type` query param (deep-link) wins.
++ *   2. Unread routes default to ALL (admin/agent see everything accessible).
++ *   3. Everything else (incl. unattended) defaults to ME.
++ *
++ * @param {string} routeName - Vue route name.
++ * @param {Object} [query] - Route query params.
++ * @returns {string} One of wootConstants.ASSIGNEE_TYPE values.
++ */
++export const defaultAssigneeTab = (routeName, query = {}) => {
++  if (query.assignee_type === 'me') return wootConstants.ASSIGNEE_TYPE.ME;
++  if (query.assignee_type === 'unassigned')
++    return wootConstants.ASSIGNEE_TYPE.UNASSIGNED;
++  if (query.assignee_type === 'all') return wootConstants.ASSIGNEE_TYPE.ALL;
++  if (UNREAD_ROUTES.includes(routeName)) return wootConstants.ASSIGNEE_TYPE.ALL;
++  return wootConstants.ASSIGNEE_TYPE.ME;
++};
++
++/**
++ * Like defaultAssigneeTab, but clamps the result to the set of tabs the user is
++ * actually allowed to see. The "all" tab is permission-gated, so an Enterprise
++ * custom-role agent (e.g. only conversation_unassigned_manage) can reach the
++ * unread route while the ALL tab is filtered out — initializing the tab to ALL
++ * would then leave no tab highlighted. When the resolved default is not among
++ * the rendered tabs, fall back to the first available tab (else ME).
++ *
++ * @param {string} routeName - Vue route name.
++ * @param {Object} [query] - Route query params.
++ * @param {string[]} [allowedKeys] - Keys of the currently rendered assignee tabs.
++ * @returns {string} One of wootConstants.ASSIGNEE_TYPE values.
++ */
++export const resolveAssigneeTab = (routeName, query = {}, allowedKeys = []) => {
++  const desired = defaultAssigneeTab(routeName, query);
++  if (!Array.isArray(allowedKeys) || allowedKeys.length === 0) return desired;
++  if (allowedKeys.includes(desired)) return desired;
++  return allowedKeys[0] ?? wootConstants.ASSIGNEE_TYPE.ME;
++};
+diff --git a/app/javascript/dashboard/store/modules/conversations/helpers/actionHelpers.js b/app/javascript/dashboard/store/modules/conversations/helpers/actionHelpers.js
+index 6798fd36e..08bcca438 100644
+--- a/app/javascript/dashboard/store/modules/conversations/helpers/actionHelpers.js
++++ b/app/javascript/dashboard/store/modules/conversations/helpers/actionHelpers.js
+@@ -1,4 +1,5 @@
+ import types from '../../../mutation-types';
++import { UNREAD_ROUTES } from 'dashboard/helper/unreadViewHelper';
+ 
+ export const setPageFilter = ({
+   dispatch,
+@@ -45,10 +46,8 @@ export const isOnUnattendedView = ({ route: { name: routeName } }) => {
+   return UNATTENDED_ROUTES.includes(routeName);
+ };
+ 
+-export const isOnUnreadView = ({ route: { name: routeName } }) => {
+-  const UNREAD_ROUTES = ['conversation_unread', 'conversation_through_unread'];
+-  return UNREAD_ROUTES.includes(routeName);
+-};
++export const isOnUnreadView = ({ route: { name: routeName } }) =>
++  UNREAD_ROUTES.includes(routeName);
+ 
+ export const isOnFoldersView = ({ route: { name: routeName } }) => {
+   const FOLDER_ROUTES = [
+diff --git a/app/services/conversations/permission_filter_service.rb b/app/services/conversations/permission_filter_service.rb
+index 8df1df83d..c8dbc6b34 100644
+--- a/app/services/conversations/permission_filter_service.rb
++++ b/app/services/conversations/permission_filter_service.rb
+@@ -8,7 +8,7 @@ class Conversations::PermissionFilterService
+   end
+ 
+   def perform
+-    return conversations if user_role == 'administrator'
++    return conversations if administrator?
+ 
+     accessible_conversations
+   end
+@@ -32,6 +32,14 @@ class Conversations::PermissionFilterService
+     @account_user ||= AccountUser.find_by(account_id: account.id, user_id: user.id)
+   end
+ 
++  # Single source of truth for the admin check, shared in intent with
++  # ConversationFinder#administrator? (enum predicate over the AccountUser role).
++  def administrator?
++    account_user&.administrator? || false
++  end
++
++  # Kept for the Enterprise override (user_has_custom_role?), which still
++  # reasons about the raw role string.
+   def user_role
+     account_user&.role
+   end

@@ -1,0 +1,11 @@
+<%# Duas tabelas lado a lado. locals: left => {title:, table:}, right => {title:, table:} %>
+<div class="split-tables">
+  <% [left, right].each do |side| %>
+    <div class="split-col">
+      <div class="split-title"><%= side[:title] %></div>
+      <div class="card" style="padding:0;">
+        <%= render 'reports/pdf/data_table', table: side[:table] %>
+      </div>
+    </div>
+  <% end %>
+</div>
