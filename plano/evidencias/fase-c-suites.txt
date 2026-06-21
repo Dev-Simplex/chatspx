@@ -1,0 +1,22 @@
+# Fase C + onda D-1 — Suítes integradas (2026-06-11)
+
+## Boot
+BOOT_OK com toda a onda carregada; flag reply_assignment_gate default OFF (Clássico preservado);
+ConversationFinder filter ai, TransferirParaAgenteTool, OrphanConversationsWatchJob, AssistantLog
+EVENT_TYPES(mirror_assigned) todos presentes.
+
+## Backend (clone chatwoot_test_2): 238 examples, 3 failures
+As 3 falhas = contexto `perform_meta_only` do conversation_finder_spec (NameError
+set_count_for_all_conversations) — CÓDIGO MORTO já quebrado no HEAD; B1 não tocou esses métodos.
+Lição já registrada no vault.
+
+## Frontend (vitest): 131/132 passed
+A única falha = #getAllAttachments em conversation.spec.js — PRÉ-EXISTENTE (spec stale: método
+ganhou {params:{page}} e o teste não inclui o 2º arg). PROVA: com conversation.js do HEAD o spec
+tem 3 falhas; com o diff F1 só 1 — F1 reduziu falhas, não introduziu.
+
+## i18n
+Paridade pt_BR↔en das chaves NOVAS da fase OK; gaps EN-only restantes são pré-existentes
+(WhatsApp window / maintenance / NPS), não da Fase C.
+
+## Veredito: Fase C implementação VERDE. Pendente: review adversarial + Playwright P3-P6/P5b/P5c/P12.
