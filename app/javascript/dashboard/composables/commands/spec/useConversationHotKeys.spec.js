@@ -167,6 +167,39 @@ describe('useConversationHotKeys', () => {
     );
   });
 
+  it('should omit the unassign (None) command when agentsList has no None option', () => {
+    // Modo "Atribuição obrigatória" (D-11): useAgentsList não injeta o None
+    useAgentsList.mockReturnValue({
+      agentsList: { value: mockAssignableAgents },
+      assignableAgents: { value: mockAssignableAgents },
+    });
+
+    const { conversationHotKeys } = useConversationHotKeys();
+    const unassignAction = conversationHotKeys.value.find(
+      action => action.id === 'assign-agent-none'
+    );
+    expect(unassignAction).toBeUndefined();
+
+    const assignAgentAction = conversationHotKeys.value.find(
+      action => action.id === 'assign_an_agent'
+    );
+    expect(assignAgentAction).toBeDefined();
+    expect(assignAgentAction.children).not.toContain('assign-agent-none');
+  });
+
+  it('should include the unassign (None) command when agentsList has the None option', () => {
+    const { conversationHotKeys } = useConversationHotKeys();
+    const unassignAction = conversationHotKeys.value.find(
+      action => action.id === 'assign-agent-none'
+    );
+    expect(unassignAction).toBeDefined();
+
+    const assignAgentAction = conversationHotKeys.value.find(
+      action => action.id === 'assign_an_agent'
+    );
+    expect(assignAgentAction.children).toContain('assign-agent-none');
+  });
+
   it('should return snooze actions when in snooze context', () => {
     store.getters.getContextMenuChatId = 1;
     useMapGetter.mockImplementation(key => ({

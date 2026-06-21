@@ -19,6 +19,12 @@ RSpec.describe Macro do
       expect(macro).not_to be_valid
       expect(macro.errors.full_messages).to eq(['Actions Macro execution actions update_last_seen not supported.'])
     end
+
+    it 'whitelists assign_ai_agent (C5 — agente comum devolve pra IA via macro)' do
+      macro = FactoryBot.build(:macro, account: account, created_by: admin, updated_by: admin,
+                                       actions: [{ action_name: :assign_ai_agent, action_params: [1] }])
+      expect(macro).to be_valid
+    end
   end
 
   describe '#set_visibility' do

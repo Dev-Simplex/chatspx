@@ -144,6 +144,8 @@ RSpec.describe 'Conversation Assignment API', type: :request do
 
       before do
         create(:inbox_member, inbox: conversation.inbox, user: agent)
+        # C8: a atribuição de espelho captain exige assistant elegível à inbox
+        create(:captain_inbox, captain_assistant: captain_assistant, inbox: conversation.inbox)
       end
 
       it 'allows an administrator to assign the captain mirror' do
@@ -213,6 +215,58 @@ RSpec.describe 'Conversation Assignment API', type: :request do
       it 'keeps i18n parity between en and pt_BR for the forbidden message' do
         en_message = I18n.t('conversations.captain.assignment_forbidden', locale: :en)
         pt_message = I18n.t('conversations.captain.assignment_forbidden', locale: :pt_BR)
+
+        expect(en_message).to be_present
+        expect(pt_message).to be_present
+        expect(pt_message).not_to eq(en_message)
+      end
+    end
+
+    # C8: elegibilidade endurecida — espelho captain só entra em inbox onde o assistant
+    # está registrado. 422 explícito p/ UI; no-op silencioso no caminho in-process.
+    context 'when assigning a captain mirror bot not eligible for the inbox (C8)' do
+      let(:administrator) { create(:user, account: account, role: :administrator) }
+      let(:captain_assistant) { create(:captain_assistant, account: account) }
+      let(:captain_mirror) { captain_assistant.mirror_agent_bot }
+
+      it 'returns 422 with the i18n error for an admin' do
+        post api_v1_account_conversation_assignments_url(account_id: account.id, conversation_id: conversation.display_id),
+             params: { assignee_id: captain_mirror.id, assignee_type: 'AgentBot' },
+             headers: administrator.create_new_auth_token,
+             as: :json
+
+        expect(response).to have_http_status(:unprocessable_entity)
+        expect(response.parsed_body['error']).to eq(I18n.t('conversations.captain.assignment_not_eligible'))
+        expect(conversation.reload.assignee_agent_bot).to be_nil
+      end
+
+      it 'no-ops silently through the service (in-process: automação/macro/tool)' do
+        result = Conversations::AssignmentService.new(
+          conversation: conversation,
+          assignee_id: captain_mirror.id,
+          assignee_type: 'AgentBot'
+        ).perform
+
+        expect(result).to be_nil
+        expect(conversation.reload.assignee_agent_bot).to be_nil
+      end
+
+      it 'still assigns a webhook agent bot without captain eligibility (comportamento atual preservado)' do
+        webhook_bot = create(:agent_bot, account: account)
+
+        result = Conversations::AssignmentService.new(
+          conversation: conversation,
+          assignee_id: webhook_bot.id,
+          assignee_type: 'AgentBot'
+        ).perform
+
+        expect(result).to eq(webhook_bot)
+        expect(conversation.reload.assignee_agent_bot).to eq(webhook_bot)
+      end
+
+      it 'keeps i18n parity between en and pt_BR for the not eligible message' do
+        en_message = I18n.t('conversations.captain.assignment_not_eligible', locale: :en)
+        pt_message = I18n.t('conversations.captain.assignment_not_eligible', locale: :pt_BR)
 
         expect(en_message).to be_present
         expect(pt_message).to be_present

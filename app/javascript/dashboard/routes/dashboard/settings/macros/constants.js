@@ -10,6 +10,11 @@ export const MACRO_ACTION_TYPES = [
     inputType: 'search_select',
   },
   {
+    key: 'assign_ai_agent',
+    label: 'ASSIGN_AI_AGENT',
+    inputType: 'search_select',
+  },
+  {
     key: 'add_label',
     label: 'ADD_LABEL',
     inputType: 'multi_select',

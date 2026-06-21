@@ -3,6 +3,8 @@
 import { mapGetters } from 'vuex';
 import { useAlert } from 'dashboard/composables';
 import { useAgentsList } from 'dashboard/composables/useAgentsList';
+import { useReplyAssignmentGate } from 'dashboard/composables/useReplyAssignmentGate';
+import { useMapGetter } from 'dashboard/composables/store';
 import MultiselectDropdown from 'shared/components/ui/MultiselectDropdown.vue';
 import ConversationLabels from './labels/LabelBox.vue';
 import { CONVERSATION_PRIORITY } from '../../../../shared/constants/messages';
@@ -27,8 +29,12 @@ export default {
   },
   setup() {
     const { agentsList } = useAgentsList();
+    const { isAssignmentGateEnabled } = useReplyAssignmentGate();
+    const captainAssistants = useMapGetter('captainAssistants/getRecords');
     return {
       agentsList,
+      isAssignmentGateEnabled,
+      captainAssistants,
     };
   },
   data() {
@@ -86,7 +92,57 @@ export default {
       return this.teams;
     },
     assignedAgent() {
-      return this.currentChat?.meta?.assignee || null;
+      const assignee = this.currentChat?.meta?.assignee;
+      // IA (espelho captain) não aparece no dropdown humano — DC-3
+      return assignee && assignee.type !== 'agent_bot' ? assignee : null;
+    },
+    isAdminUser() {
+      return this.currentRole === 'administrator';
+    },
+    aiAgentsList() {
+      const inboxId = this.currentChat?.inbox_id;
+      return (this.captainAssistants || [])
+        .filter(
+          assistant =>
+            assistant.agent_bot_id &&
+            (assistant.inbox_ids || []).includes(inboxId)
+        )
+        .map(assistant => ({
+          id: assistant.agent_bot_id,
+          name: assistant.name,
+          thumbnail: assistant.avatar_url,
+          assistantId: assistant.id,
+        }));
+    },
+    assignedAIAgent() {
+      const assignee = this.currentChat?.meta?.assignee;
+      return assignee?.type === 'agent_bot' ? assignee : null;
+    },
+    // F4: um único campo de "agente atribuído" — bloco "Agentes IA" no topo
+    // (admin-only, D-3) + agentes humanos. Selecionar uma IA limpa o humano e
+    // vice-versa (exclusividade garantida no backend).
+    assigneeOptions() {
+      const humans = this.agentsList.map(agent => ({
+        ...agent,
+        group: 'human',
+        groupLabel: this.$t('CONVERSATION_SIDEBAR.ASSIGNEE_GROUP.HUMAN'),
+      }));
+      if (this.isAdminUser && this.aiAgentsList.length) {
+        const ais = this.aiAgentsList.map(ai => ({
+          ...ai,
+          type: 'agent_bot',
+          group: 'ai',
+          groupLabel: this.$t('CONVERSATION_SIDEBAR.ASSIGNEE_GROUP.AI'),
+        }));
+        return [...ais, ...humans];
+      }
+      return humans;
+    },
+    showAssigneeGroups() {
+      return this.isAdminUser && this.aiAgentsList.length > 0;
+    },
+    selectedAssignee() {
+      return this.assignedAIAgent || this.assignedAgent;
     },
     assignedTeam: {
       get() {
@@ -165,7 +221,31 @@ export default {
       return false;
     },
   },
+  mounted() {
+    if (this.isAdminUser) {
+      // A action re-lança o erro; uma conta sem Captain não pode quebrar a
+      // sidebar (mesmo padrão defensivo do ChatList.vue).
+      this.$store.dispatch('captainAssistants/get').catch(() => {});
+    }
+  },
   methods: {
+    async onClickAssignAIAgent(item) {
+      // sem "None" aqui (D-11); re-selecionar o mesmo agente é no-op
+      if (!item?.id || this.assignedAIAgent?.id === item.id) return;
+      try {
+        // NUNCA reusar onConfirmTransferTeam: saves separados quebram a
+        // invariante humano×IA (achado Fase A) — o backend troca num save só.
+        await this.$store.dispatch('assignAIAgent', {
+          conversationId: this.currentChat.id,
+          agentBotId: item.id,
+          rethrow: true,
+        });
+        useAlert(this.$t('CONVERSATION.CHANGE_AI_AGENT'));
+      } catch (error) {
+        useAlert(this.$t('CONVERSATION.CHANGE_AI_AGENT_FAILED'));
+      }
+    },
+
     onSelfAssign() {
       const {
         account_id,
@@ -322,6 +402,15 @@ export default {
       this.showTransferTeamModal = true;
     },
 
+    // F4: roteia a seleção do campo unificado de agente para IA ou humano.
+    onClickAssignAssignee(selectedItem) {
+      if (selectedItem?.type === 'agent_bot') {
+        this.onClickAssignAIAgent(selectedItem);
+        return;
+      }
+      this.onClickAssignAgent(selectedItem);
+    },
+
     onClickAssignAgent(selectedItem) {
       const selectedAgentId = selectedItem?.id;
       const isSameAgent =
@@ -372,8 +461,9 @@ export default {
     </div>
     <div class="wa-assign-value-wrap">
       <MultiselectDropdown
-        :options="agentsList"
-        :selected-item="assignedAgent"
+        :options="assigneeOptions"
+        :selected-item="selectedAssignee"
+        :grouped="showAssigneeGroups"
         :multiselector-title="$t('AGENT_MGMT.MULTI_SELECTOR.TITLE.AGENT')"
         :multiselector-placeholder="$t('AGENT_MGMT.MULTI_SELECTOR.PLACEHOLDER')"
         :no-search-result="
@@ -382,7 +472,7 @@ export default {
         :input-placeholder="
           $t('AGENT_MGMT.MULTI_SELECTOR.SEARCH.PLACEHOLDER.AGENT')
         "
-        @select="onClickAssignAgent"
+        @select="onClickAssignAssignee"
       />
     </div>
     <div class="wa-assign-row">

@@ -317,6 +317,16 @@ export const mutations = {
     }
   },
 
+  // D6 — remove a bolha PROGRESS de uma mensagem pendente que falhou com o
+  // gate `assignment_required`, sem deixar bolha FAILED no thread. NÃO é um
+  // delete persistido (DELETE_MESSAGE fica reservado para isso): só limpa o
+  // pendente local antes do dialog de assunção reabrir.
+  [types.REMOVE_PENDING_MESSAGE](_state, message) {
+    const chat = findConversation(_state, message.conversation_id);
+    if (!chat) return;
+    chat.messages = chat.messages.filter(m => m.id !== message.id);
+  },
+
   [types.ADD_CONVERSATION](_state, conversation) {
     const exists = findConversation(_state, conversation.id);
     if (!exists) {

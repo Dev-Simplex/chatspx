@@ -23,6 +23,7 @@ import CopilotEditorSection from './CopilotEditorSection.vue';
 import CopilotMenuBar from 'dashboard/components/widgets/WootWriter/CopilotMenuBar.vue';
 import { vOnClickOutside } from '@vueuse/components';
 import ReplyBoxBanner from './ReplyBoxBanner.vue';
+import AssignToReplyDialog from 'dashboard/components-next/Conversation/AssignToReplyDialog.vue';
 import QuotedEmailPreview from './QuotedEmailPreview.vue';
 import { REPLY_EDITOR_MODES } from 'dashboard/components/widgets/WootWriter/constants';
 import WootMessageEditor from 'dashboard/components/widgets/WootWriter/Editor.vue';
@@ -73,6 +74,7 @@ import { useCaptain } from 'dashboard/composables/useCaptain';
 import { useKbd } from 'dashboard/composables/utils/useKbd';
 import { useAIOnboarding } from 'dashboard/composables/useAIOnboarding';
 import { useReducedMotion } from 'dashboard/composables/useReducedMotion';
+import { useReplyAssignmentGate } from 'dashboard/composables/useReplyAssignmentGate';
 import { useAIAssistantFlag } from 'dashboard/components-next/ai-assistant/composables/useAIAssistantFlag';
 import { useAITour } from 'dashboard/components-next/ai-assistant/composables/useAITour';
 import AIOnboardingCoachmark from './AIOnboardingCoachmark.vue';
@@ -113,6 +115,7 @@ export default {
     GlobalDropOverlay,
     ImageEditor,
     ReplyBoxBanner,
+    AssignToReplyDialog,
     EmojiInput,
     ReplyBottomPanel,
     ReplyEmailHead,
@@ -179,6 +182,7 @@ export default {
     const { prefersReducedMotion } = useReducedMotion();
     const aiAssistantFlag = useAIAssistantFlag();
     const aiTour = useAITour();
+    const { isAssignmentGateEnabled } = useReplyAssignmentGate();
 
     return {
       uiSettings,
@@ -197,6 +201,7 @@ export default {
       prefersReducedMotion,
       aiAssistantFlag,
       aiTour,
+      isAssignmentGateEnabled,
       globalDropFiles,
       globalDropEnabled,
       isGlobalDragActive,
@@ -254,6 +259,11 @@ export default {
       aiSuggestionChip: null,
       aiSuggestionChipStartedAt: null,
       aiSuggestionChipAbortController: null,
+      // D2/D6 — gate universal de resposta. `pendingGatePayloads` enfileira os
+      // payloads que tomaram 422 `assignment_required` (multi-part empilha na
+      // ordem); `gateConfirmedOnce` é o one-shot anti-loop do caminho proativo.
+      pendingGatePayloads: [],
+      gateConfirmedOnce: false,
     };
   },
   computed: {
@@ -335,6 +345,19 @@ export default {
         return this.isOnPrivateNote;
       }
       return true;
+    },
+    // D2: o gate de assunção é exigido quando o modo "atribuição obrigatória"
+    // está ligado e a resposta NÃO é privada (DD-4: `isPrivate` cobre nota
+    // explícita E nota forçada de canal sem `can_reply`). Variantes:
+    //   (a) sem dono · (b) dono humano colega · (c) dona IA (agent_bot).
+    // Variante (d) "fora do time" é resolvida dentro do dialog (myTeams).
+    shouldShowAssignmentGate() {
+      if (!this.isAssignmentGateEnabled) return false;
+      if (this.isPrivate) return false;
+      const assignee = this.currentChat?.meta?.assignee;
+      if (!assignee) return true; // (a) sem dono
+      if (assignee.type === 'agent_bot') return true; // (c) dona IA
+      return assignee.id !== this.currentUser.id; // (b)/(d) colega/fora do time
     },
     isReplyRestricted() {
       return (
@@ -1497,6 +1520,16 @@ export default {
         return;
       }
 
+      // D2: gate de assunção ANTES de confirmar o envio. O draft permanece
+      // intacto (clearMessage só roda dentro de confirmOnSendReply) — após
+      // confirmar, o dialog emite `confirm` e re-invoca onSendReply com o
+      // one-shot `gateConfirmedOnce` (o assignee já sou eu → gate passa).
+      if (this.shouldShowAssignmentGate && !this.gateConfirmedOnce) {
+        this.$refs.assignToReplyDialog.show();
+        return;
+      }
+      this.gateConfirmedOnce = false;
+
       const undefinedVariables = getUndefinedVariablesInMessage({
         message: this.message,
         variables: this.messageVariables,
@@ -1519,6 +1552,26 @@ export default {
       } else {
         this.confirmOnSendReply();
       }
+    },
+    async onAssignmentGateConfirmed() {
+      // Caminho REATIVO (D6): a mensagem já saiu do draft e tomou 422 —
+      // reenvia os payloads enfileirados na ORDEM (multi-part WA/IG/TikTok).
+      if (this.pendingGatePayloads.length) {
+        const payloads = [...this.pendingGatePayloads];
+        this.pendingGatePayloads = [];
+        // sequencial de propósito: preserva a ordem das partes.
+        // eslint-disable-next-line no-restricted-syntax
+        for (const payload of payloads) {
+          // eslint-disable-next-line no-await-in-loop
+          await this.sendMessage(payload);
+        }
+        return;
+      }
+      // Caminho PROATIVO: o draft ainda está intacto — o assignee agora sou eu,
+      // então o gate passa e o envio segue automático (one-shot anti-loop pra
+      // cobrir o atraso de 1 tick do store).
+      this.gateConfirmedOnce = true;
+      this.onSendReply();
     },
     async sendMessage(
       messagePayload,
@@ -1546,6 +1599,17 @@ export default {
           copilotAcceptedMessage,
         });
       } catch (error) {
+        // D6: 422 `assignment_required` (gate) NÃO é erro de envio — empilha o
+        // payload e reabre o dialog com o dono ATUALIZADO do meta (corrida P16).
+        // Multi-part: N catches empilham na ordem; o dialog é idempotente.
+        if (
+          error?.response?.status === 422 &&
+          error.response.data?.error_code === 'assignment_required'
+        ) {
+          this.pendingGatePayloads.push(messagePayload);
+          this.$refs.assignToReplyDialog.show(error.response.data.meta);
+          return;
+        }
         const errorMessage =
           error?.response?.data?.error || this.$t('CONVERSATION.MESSAGE_ERROR');
         if (isWhatsAppValidationMessage(errorMessage)) {
@@ -2271,7 +2335,15 @@ export default {
 </script>
 
 <template>
-  <ReplyBoxBanner :message="message" :is-on-private-note="isOnPrivateNote" />
+  <ReplyBoxBanner
+    :message="message"
+    :is-on-private-note="isOnPrivateNote"
+    @open-assign-dialog="$refs.assignToReplyDialog.show()"
+  />
+  <AssignToReplyDialog
+    ref="assignToReplyDialog"
+    @confirm="onAssignmentGateConfirmed"
+  />
   <div
     ref="replyEditor"
     class="reply-box"

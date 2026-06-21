@@ -338,6 +338,28 @@ const actions = {
     }
   },
 
+  assignAIAgent: async (
+    { dispatch },
+    { conversationId, agentBotId, rethrow = false }
+  ) => {
+    try {
+      const response = await ConversationApi.assignAIAgent({
+        conversationId,
+        agentBotId,
+      });
+      // response.data = _agent_bot_slim (id, name, thumbnail, bot_type, type)
+      // → vira meta.assignee via mutation ASSIGN_AGENT existente
+      dispatch('setCurrentChatAssignee', {
+        conversationId,
+        assignee: response.data,
+      });
+    } catch (error) {
+      if (rethrow) {
+        throw error;
+      }
+    }
+  },
+
   setCurrentChatAssignee({ commit }, { conversationId, assignee }) {
     commit(types.ASSIGN_AGENT, { conversationId, assignee });
   },
@@ -404,7 +426,11 @@ const actions = {
 
   createPendingMessageAndSend: async ({ dispatch }, data) => {
     const pendingMessage = createPendingMessage(data);
-    dispatch('sendMessageWithData', pendingMessage);
+    // D6: propagar a rejeição (era fire-and-forget → o 422 do gate nunca
+    // chegava ao catch do ReplyBox e virava unhandled rejection). Com o
+    // `return`, qualquer falha de envio chega ao ReplyBox e pode reabrir o
+    // dialog de assunção (assignment_required).
+    return dispatch('sendMessageWithData', pendingMessage);
   },
 
   sendMessageWithData: async ({ commit }, pendingMessage) => {
@@ -429,13 +455,19 @@ const actions = {
       const errorMessage = error.response
         ? error.response.data.error
         : undefined;
-      commit(types.ADD_MESSAGE, {
-        ...pendingMessage,
-        meta: {
-          error: errorMessage,
-        },
-        status: MESSAGE_STATUS.FAILED,
-      });
+      // D6: gate `assignment_required` não vira bolha FAILED — remove o
+      // pendente PROGRESS e deixa o ReplyBox reabrir o dialog de assunção.
+      if (error.response?.data?.error_code === 'assignment_required') {
+        commit(types.REMOVE_PENDING_MESSAGE, pendingMessage);
+      } else {
+        commit(types.ADD_MESSAGE, {
+          ...pendingMessage,
+          meta: {
+            error: errorMessage,
+          },
+          status: MESSAGE_STATUS.FAILED,
+        });
+      }
       throw error;
     }
   },

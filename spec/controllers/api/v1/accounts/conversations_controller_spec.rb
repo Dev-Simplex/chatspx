@@ -46,6 +46,69 @@ RSpec.describe 'Conversations API', type: :request do
         expect(body[:data][:payload].first[:messages]).to eq([])
       end
 
+      context 'with captain (AI) assignee serialization' do
+        let(:assistant) { create(:captain_assistant, account: account) }
+        let(:mirror) { assistant.mirror_agent_bot }
+
+        it 'serializes the captain mirror as assignee with agent_bot type' do
+          conversation.update!(assignee_agent_bot: mirror)
+
+          get "/api/v1/accounts/#{account.id}/conversations",
+              headers: agent.create_new_auth_token,
+              as: :json
+
+          expect(response).to have_http_status(:success)
+          body = JSON.parse(response.body, symbolize_names: true)
+          assignee = body[:data][:payload].first[:meta][:assignee]
+          expect(assignee).to include(
+            id: mirror.id,
+            type: 'agent_bot',
+            name: mirror.name,
+            available_name: mirror.name,
+            thumbnail: mirror.avatar_url,
+            bot_type: 'captain',
+            is_captain: true,
+            captain_assistant_id: assistant.id
+          )
+        end
+
+        it 'does not add the agent_bot type discriminator to human assignees' do
+          conversation.update!(assignee: agent)
+
+          get "/api/v1/accounts/#{account.id}/conversations",
+              headers: agent.create_new_auth_token,
+              as: :json
+
+          body = JSON.parse(response.body, symbolize_names: true)
+          assignee = body[:data][:payload].first[:meta][:assignee]
+          expect(assignee[:id]).to eq(agent.id)
+          expect(assignee).not_to have_key(:type)
+        end
+
+        it 'does not serialize a webhook bot assigned via column as assignee' do
+          webhook_bot = create(:agent_bot, account: account)
+          conversation.update!(assignee_agent_bot: webhook_bot)
+
+          get "/api/v1/accounts/#{account.id}/conversations",
+              headers: agent.create_new_auth_token,
+              as: :json
+
+          body = JSON.parse(response.body, symbolize_names: true)
+          expect(body[:data][:payload].first[:meta]).not_to have_key(:assignee)
+        end
+
+        it 'includes ai_count in the list meta' do
+          conversation.update!(assignee_agent_bot: mirror)
+
+          get "/api/v1/accounts/#{account.id}/conversations",
+              headers: agent.create_new_auth_token,
+              as: :json
+
+          body = JSON.parse(response.body, symbolize_names: true)
+          expect(body[:data][:meta][:ai_count]).to eq(1)
+        end
+      end
+
       it 'returns unattended conversations' do
         attended_conversation = create(:conversation, account: account, first_reply_created_at: Time.now.utc)
         # to ensure that waiting since value is populated
@@ -95,8 +158,22 @@ RSpec.describe 'Conversations API', type: :request do
 
         expect(response).to have_http_status(:success)
         body = JSON.parse(response.body, symbolize_names: true)
-        expect(body[:meta].keys).to include(:all_count, :mine_count, :assigned_count, :unassigned_count)
+        expect(body[:meta].keys).to include(:all_count, :mine_count, :assigned_count, :unassigned_count, :ai_count)
         expect(body[:meta][:all_count]).to eq(1)
+      end
+
+      it 'returns ai_count for captain-owned conversations' do
+        assistant = create(:captain_assistant, account: account)
+        ai_conversation = create(:conversation, account: account, assignee_agent_bot: assistant.mirror_agent_bot)
+        create(:inbox_member, user: agent, inbox: ai_conversation.inbox)
+
+        get "/api/v1/accounts/#{account.id}/conversations/meta",
+            headers: agent.create_new_auth_token,
+            as: :json
+
+        expect(response).to have_http_status(:success)
+        body = JSON.parse(response.body, symbolize_names: true)
+        expect(body[:meta][:ai_count]).to eq(1)
       end
     end
   end

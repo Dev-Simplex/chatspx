@@ -52,6 +52,7 @@ class ConversationFinder # rubocop:disable Metrics/ClassLength
         mine_count: counts[:mine_count],
         assigned_count: assigned_count,
         unassigned_count: counts[:unassigned_count],
+        ai_count: counts[:ai_count],
         all_count: counts[:all_count],
         unattended_assigned_to_me_count: counts[:unattended_mine_count],
         unattended_unassigned_count: counts[:unattended_unassigned_count],
@@ -72,6 +73,7 @@ class ConversationFinder # rubocop:disable Metrics/ClassLength
         mine_count: counts[:mine_count],
         assigned_count: assigned_count,
         unassigned_count: counts[:unassigned_count],
+        ai_count: counts[:ai_count],
         all_count: counts[:all_count],
         unattended_assigned_to_me_count: counts[:unattended_mine_count],
         unattended_unassigned_count: counts[:unattended_unassigned_count],
@@ -126,6 +128,18 @@ class ConversationFinder # rubocop:disable Metrics/ClassLength
   end
 
   def set_team
+    # F2: no modo fila (reply_assignment_gate ON), a aba "Aguardando atendimento"
+    # (unassigned) é escopada por time para agente não-admin: ele só vê a fila dos
+    # seus próprios times, ignorando qualquer team_id vindo nos params (não dá pra
+    # espiar a fila de outro time). Admin vê tudo. Agente sem nenhum time mantém o
+    # comportamento atual (@team_ids vazio → sem filtro de time, via short-circuit
+    # de filter_by_team) — não fica trancado fora da única fila que poderia atender.
+    if force_team_queue_scope?
+      @team = nil
+      @team_ids = current_user.teams.pluck(:id)
+      return
+    end
+
     parsed_team_id = Integer(params[:team_id], exception: false)
 
     if parsed_team_id.present? && parsed_team_id.positive?
@@ -138,6 +152,12 @@ class ConversationFinder # rubocop:disable Metrics/ClassLength
       @team = nil
       @team_ids = []
     end
+  end
+
+  # Força o escopo por time na fila (aba unassigned) somente quando:
+  # flag reply_assignment_gate ON + tab unassigned + usuário não-admin.
+  def force_team_queue_scope?
+    ai_tabs_enabled? && !@is_admin && params[:assignee_type] == 'unassigned'
   end
 
   def find_conversation_by_inbox
@@ -170,11 +190,17 @@ class ConversationFinder # rubocop:disable Metrics/ClassLength
     when 'me'
       @conversations = @conversations.assigned_to(current_user)
     when 'unassigned'
-      @conversations = @conversations.unassigned
+      @conversations = ai_tabs_enabled? ? @conversations.unassigned.without_captain_assignee : @conversations.unassigned
+    when 'ai'
+      @conversations = @conversations.assigned_to_captain
     when 'assigned'
       @conversations = @conversations.assigned
     end
     @conversations
+  end
+
+  def ai_tabs_enabled?
+    current_account.reply_assignment_gate_enabled?
   end
 
   def filter_by_conversation_type
@@ -245,21 +271,26 @@ class ConversationFinder # rubocop:disable Metrics/ClassLength
   def compute_all_counts # rubocop:disable Metrics/MethodLength
     subquery = @conversations.reselect(
       'conversations.id', 'conversations.assignee_id', 'conversations.status',
-      'conversations.first_reply_created_at', 'conversations.waiting_since'
+      'conversations.first_reply_created_at', 'conversations.waiting_since',
+      'conversations.assignee_agent_bot_id'
     ).distinct
 
     uid = sanitized_user_id
     unattended = 'sub.status = 0 AND (sub.first_reply_created_at IS NULL OR sub.waiting_since IS NOT NULL)'
 
+    # unassigned_count exclui conversas da IA somente com a flag ligada (DC-4);
+    # ai_count é sempre computado (espelho captain via LEFT JOIN restrito a bot_type=1).
     sql = <<~SQL.squish
       SELECT
         COUNT(*)::int AS all_count,
         COUNT(*) FILTER (WHERE sub.assignee_id = #{uid})::int AS mine_count,
-        COUNT(*) FILTER (WHERE sub.assignee_id IS NULL)::int AS unassigned_count,
+        COUNT(*) FILTER (WHERE sub.assignee_id IS NULL#{' AND ab.id IS NULL' if ai_tabs_enabled?})::int AS unassigned_count,
+        COUNT(*) FILTER (WHERE ab.id IS NOT NULL)::int AS ai_count,
         COUNT(*) FILTER (WHERE #{unattended})::int AS unattended_all_count,
         COUNT(*) FILTER (WHERE #{unattended} AND sub.assignee_id = #{uid})::int AS unattended_mine_count,
         COUNT(*) FILTER (WHERE #{unattended} AND sub.assignee_id IS NULL)::int AS unattended_unassigned_count
       FROM (#{subquery.to_sql}) sub
+      LEFT JOIN agent_bots ab ON ab.id = sub.assignee_agent_bot_id AND ab.bot_type = 1
     SQL
 
     result = Conversation.connection.select_one(sql)
@@ -267,6 +298,7 @@ class ConversationFinder # rubocop:disable Metrics/ClassLength
       all_count: result['all_count'].to_i,
       mine_count: result['mine_count'].to_i,
       unassigned_count: result['unassigned_count'].to_i,
+      ai_count: result['ai_count'].to_i,
       unattended_all_count: result['unattended_all_count'].to_i,
       unattended_mine_count: result['unattended_mine_count'].to_i,
       unattended_unassigned_count: result['unattended_unassigned_count'].to_i
@@ -288,7 +320,8 @@ class ConversationFinder # rubocop:disable Metrics/ClassLength
 
   def conversations_base_query
     @conversations.includes(
-      :taggings, :inbox, { assignee: [:avatar_attachment, :teams] }, { contact: :avatar_attachment }, :team, :contact_inbox
+      :taggings, :inbox, { assignee: [:avatar_attachment, :teams] }, { contact: :avatar_attachment }, :team, :contact_inbox,
+      :assignee_agent_bot
     )
   end
 

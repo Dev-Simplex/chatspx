@@ -8,6 +8,10 @@ export const NOTIFICATION_TYPES = [
     value: 'conversation_assignment',
   },
   {
+    label: 'PROFILE_SETTINGS.FORM.NOTIFICATIONS.TYPES.CONVERSATION_UNASSIGNED',
+    value: 'conversation_unassignment',
+  },
+  {
     label: 'PROFILE_SETTINGS.FORM.NOTIFICATIONS.TYPES.CONVERSATION_MENTION',
     value: 'conversation_mention',
   },

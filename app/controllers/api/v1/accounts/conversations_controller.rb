@@ -47,6 +47,7 @@ class Api::V1::Accounts::ConversationsController < Api::V1::Accounts::BaseContro
   def create
     ActiveRecord::Base.transaction do
       @conversation = ConversationBuilder.new(params: params, contact_inbox: @contact_inbox).perform
+      self_assign_creator_for_reply_gate if params[:message].present?
       Messages::MessageBuilder.new(Current.user, @conversation, params[:message]).perform if params[:message].present?
     end
   end
@@ -177,6 +178,18 @@ class Api::V1::Accounts::ConversationsController < Api::V1::Accounts::BaseContro
   def assign_conversation
     @conversation.assignee = current_user
     @conversation.save!
+  end
+
+  # D1/DD-2 (OQ-D1 sancionada): gate ON + conversa nova criada já com mensagem do criador
+  # e sem dono explícito → self-assign automático do criador (1 ação, SEM escolha de time;
+  # exigência de time fica na resolução). 422 aqui quebraria o modal de nova conversa e
+  # bypass puro abriria furo no "só o assignee responde".
+  def self_assign_creator_for_reply_gate
+    return unless Current.account.reply_assignment_gate_enabled?
+    return unless Current.user.is_a?(User)
+    return if @conversation.assignee_id.present?
+
+    @conversation.update!(assignee_id: Current.user.id) # callbacks rodam; self-assign não notifica
   end
 
   def conversation

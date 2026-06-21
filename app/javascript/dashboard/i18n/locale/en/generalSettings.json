@@ -151,6 +151,34 @@
           "ERROR": "Failed to update KPI strip setting"
         }
       },
+      "ATTENDANCE_MODE": {
+        "TITLE": "Attendance mode",
+        "NOTE": "Defines how your team replies to conversations in this account.",
+        "ACTIVE": "Active",
+        "CLASSIC": {
+          "TITLE": "Classic",
+          "DESCRIPTION": "As today: My/Unassigned/All tabs, any agent can reply, \"None\" option available."
+        },
+        "GATED": {
+          "TITLE": "Required assignment",
+          "DESCRIPTION": "Only the owner replies. Non-owners take over in 1 click on send; My/AI/All tabs; no \"None\" option; watchdog re-triages orphaned conversations."
+        },
+        "CONFIRM": {
+          "ACTION": "Switch mode",
+          "GATED": {
+            "TITLE": "Enable required assignment?",
+            "DESCRIPTION": "From now on only the owner replies to each conversation; tabs become My/AI/All and the \"None\" option disappears. Takes effect immediately."
+          },
+          "CLASSIC": {
+            "TITLE": "Back to classic mode?",
+            "DESCRIPTION": "The reply gate, the takeover dialog and the new tabs are turned off. Everything goes back to current behavior immediately."
+          }
+        },
+        "API": {
+          "SUCCESS": "Attendance mode updated",
+          "ERROR": "Couldn't update, please try again"
+        }
+      },
       "AUTO_RESOLVE_DURATION": {
         "LABEL": "Inactivity duration for resolution",
         "HELP": "Duration after a conversation should auto resolve if there is no activity",
@@ -214,7 +242,8 @@
       "conversation_mention": "Mention",
       "sla_missed_first_response": "SLA Missed",
       "sla_missed_next_response": "SLA Missed",
-      "sla_missed_resolution": "SLA Missed"
+      "sla_missed_resolution": "SLA Missed",
+      "conversation_unassignment": "Conversation taken over"
     }
   },
   "NETWORK": {

@@ -35,6 +35,7 @@ import ConversationResolveAttributesModal from 'dashboard/components-next/Conver
 
 import { useUISettings } from 'dashboard/composables/useUISettings';
 import { useAlert } from 'dashboard/composables';
+import { useReplyAssignmentGate } from 'dashboard/composables/useReplyAssignmentGate';
 import { useChatListKeyboardEvents } from 'dashboard/composables/chatlist/useChatListKeyboardEvents';
 import { useBulkActions } from 'dashboard/composables/chatlist/useBulkActions';
 import { useFilter } from 'shared/composables/useFilter';
@@ -136,6 +137,7 @@ const chatLists = useMapGetter('getFilteredConversations');
 const mineChatsList = useMapGetter('getMineChats');
 const allChatList = useMapGetter('getAllStatusChats');
 const unAssignedChatsList = useMapGetter('getUnAssignedChats');
+const aiChatsList = useMapGetter('getAIChats');
 const chatListLoading = useMapGetter('getChatListLoadingStatus');
 const activeInbox = useMapGetter('getSelectedInbox');
 const conversationStats = useMapGetter('conversationStats/getStats');
@@ -152,6 +154,11 @@ const myTeams = useMapGetter('teams/getMyTeams');
 // We can't useFunctionGetter here since it needs to be called on setup?
 const getTeamFn = useMapGetter('teams/getTeam');
 const getConversationById = useMapGetter('getConversationById');
+
+// AI tabs (Fase C — C4): gated by the reply_assignment_gate account setting
+const { isAssignmentGateEnabled } = useReplyAssignmentGate();
+const captainAssistants = useMapGetter('captainAssistants/getRecords');
+const hasCaptainAgents = computed(() => captainAssistants.value.length > 0);
 
 useChatListKeyboardEvents(conversationListRef);
 const {
@@ -238,6 +245,7 @@ const assigneeTabItems = computed(() => {
     if (key === wootConstants.ASSIGNEE_TYPE.ME) return 'i-lucide-user';
     if (key === wootConstants.ASSIGNEE_TYPE.UNASSIGNED)
       return 'i-lucide-user-round-x';
+    if (key === wootConstants.ASSIGNEE_TYPE.AI) return 'i-lucide-sparkles';
     if (key === wootConstants.ASSIGNEE_TYPE.ALL) return 'i-lucide-users';
     return null;
   };
@@ -245,19 +253,52 @@ const assigneeTabItems = computed(() => {
     ASSIGNEE_TYPE_TAB_PERMISSIONS,
     userPermissions.value,
     item => item.permissions
-  ).map(({ key }) => ({
-    key,
-    name: t(`CHAT_LIST.ASSIGNEE_TYPE_TABS.${key}`),
-    count: stats[countKeyForTab(key)] ?? 0,
-    icon: iconForKey(key),
-  }));
+  )
+    .filter(({ key }) => {
+      // AI tab: only with the gate ON, at least one assistant on the account
+      // and outside the unattended view (no unattended-per-AI counts — OQ-2)
+      if (key === wootConstants.ASSIGNEE_TYPE.AI)
+        return (
+          isAssignmentGateEnabled.value &&
+          hasCaptainAgents.value &&
+          !useUnattendedCounts
+        );
+      // Gate ON: "Unassigned" becomes a conditional alert tab (D-5),
+      // rendered only while there are unassigned conversations
+      if (
+        key === wootConstants.ASSIGNEE_TYPE.UNASSIGNED &&
+        isAssignmentGateEnabled.value &&
+        !useUnattendedCounts
+      )
+        return (stats.unAssignedCount ?? 0) > 0;
+      return true;
+    })
+    .map(({ key }) => {
+      // Gate ON: a tab "Não atribuídas" é reapresentada como "Aguardando
+      // atendimento" (fila do modo atribuição obrigatória). No modo Clássico
+      // mantém "Não atribuídas".
+      const isAwaitingTab =
+        key === wootConstants.ASSIGNEE_TYPE.UNASSIGNED &&
+        isAssignmentGateEnabled.value &&
+        !useUnattendedCounts;
+      return {
+        key,
+        name: isAwaitingTab
+          ? t('CHAT_LIST.ASSIGNEE_TYPE_TABS.unassigned_awaiting')
+          : t(`CHAT_LIST.ASSIGNEE_TYPE_TABS.${key}`),
+        count: stats[countKeyForTab(key)] ?? 0,
+        icon: iconForKey(key),
+        variant: isAwaitingTab ? 'alert' : undefined,
+      };
+    });
   return items;
 });
 
 const showAssigneeInConversationCard = computed(() => {
   return (
     hasAppliedFiltersOrActiveFolders.value ||
-    activeAssigneeTab.value === wootConstants.ASSIGNEE_TYPE.ALL
+    activeAssigneeTab.value === wootConstants.ASSIGNEE_TYPE.ALL ||
+    activeAssigneeTab.value === wootConstants.ASSIGNEE_TYPE.AI
   );
 });
 
@@ -287,10 +328,12 @@ const conversationCustomAttributes = useFunctionGetter(
 );
 
 const activeAssigneeTabCount = computed(() => {
+  // Optional chaining: the conditional "Unassigned" tab can vanish while
+  // still active for one tick before the fallback watcher kicks in.
   const count = assigneeTabItems.value.find(
     item => item.key === activeAssigneeTab.value
-  ).count;
-  return count;
+  )?.count;
+  return count ?? 0;
 });
 
 const conversationListPagination = computed(() => {
@@ -457,6 +500,8 @@ const conversationList = computed(() => {
       localConversationList = mineChatsList.value;
     } else if (activeAssigneeTab.value === 'unassigned') {
       localConversationList = unAssignedChatsList.value;
+    } else if (activeAssigneeTab.value === 'ai') {
+      localConversationList = aiChatsList.value;
     } else {
       localConversationList = allChatList.value;
     }
@@ -1044,6 +1089,11 @@ onMounted(() => {
   if (hasActiveFolders.value) {
     store.dispatch('campaigns/get');
   }
+  // AI tab eligibility: failure is tolerated (empty records ⇒ no AI tab;
+  // an account without Captain must not break the chat list)
+  if (isAssignmentGateEnabled.value) {
+    store.dispatch('captainAssistants/get').catch(() => {});
+  }
 });
 
 const deleteConversationDialogRef = ref(null);
@@ -1147,6 +1197,24 @@ watch(
     }
 
     resetAndFetchData();
+  }
+);
+
+// The conditional "Unassigned" tab can disappear while active (count drops to
+// zero with the gate ON) which would leave activeTabIndex at -1 — fall back to
+// "Mine". Not applicable to the unattended view (tab is unconditional there).
+watch(
+  [() => conversationStats.value.unAssignedCount, isAssignmentGateEnabled],
+  ([count]) => {
+    if (
+      props.conversationType !== 'unattended' &&
+      isAssignmentGateEnabled.value &&
+      activeAssigneeTab.value === wootConstants.ASSIGNEE_TYPE.UNASSIGNED &&
+      conversationStats.value.updatedOn &&
+      count === 0
+    ) {
+      updateAssigneeTab(wootConstants.ASSIGNEE_TYPE.ME);
+    }
   }
 );
 

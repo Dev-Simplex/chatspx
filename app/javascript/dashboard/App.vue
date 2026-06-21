@@ -30,6 +30,10 @@ import PushPermissionPrompt from './components-next/PushPermissionPrompt/PushPer
 import MigrationBanner from './components-next/MigrationBanner/MigrationBanner.vue';
 import { Toaster } from 'vue-sonner';
 import 'vue-sonner/style.css';
+// D8/D-L5: MotionConfig renderless do motion-v — reduced-motion="user" respeita a
+// preferência do SO em TODO efeito motion-v descendente (DD-10). É componente, convive
+// com Options API (não é plugin).
+import { MotionConfig } from 'motion-v';
 
 export default {
   name: 'App',
@@ -49,6 +53,7 @@ export default {
     PushPermissionPrompt,
     MigrationBanner,
     Toaster,
+    MotionConfig,
   },
   setup() {
     const router = useRouter();
@@ -178,29 +183,34 @@ export default {
     class="flex flex-col w-full h-screen min-h-0 bg-n-background"
     :dir="isRTL ? 'rtl' : 'ltr'"
   >
-    <AppVersionBanner />
-    <UpdateBanner
-      :latest-chatwoot-version="latestChatwootVersion"
-      :maintenance-banner="maintenanceBanner"
-      :update-banner="updateBanner"
-    />
-    <template v-if="currentAccountId">
-      <WahaConnectionsBanner />
-      <PendingEmailVerificationBanner v-if="hideOnOnboardingView" />
-      <PaymentPendingBanner v-if="hideOnOnboardingView" />
-    </template>
-    <router-view v-slot="{ Component }">
-      <transition name="fade" mode="out-in">
-        <component :is="Component" />
-      </transition>
-    </router-view>
-    <WootSnackbarBox />
-    <NetworkNotification />
-    <MessageToast />
-    <OnboardingChecklist v-if="currentAccountId" />
-    <PwaInstallPrompt v-if="currentAccountId" />
-    <PushPermissionPrompt v-if="currentAccountId" />
-    <MigrationBanner />
+    <!-- D8/D-L5: MotionConfig é renderless (renderiza só o slot, sem elemento DOM) —
+         os filhos continuam diretos do div#app, o layout flex fica intacto; só propaga
+         reduced-motion="user" para os efeitos motion-v descendentes. -->
+    <MotionConfig reduced-motion="user">
+      <AppVersionBanner />
+      <UpdateBanner
+        :latest-chatwoot-version="latestChatwootVersion"
+        :maintenance-banner="maintenanceBanner"
+        :update-banner="updateBanner"
+      />
+      <template v-if="currentAccountId">
+        <WahaConnectionsBanner />
+        <PendingEmailVerificationBanner v-if="hideOnOnboardingView" />
+        <PaymentPendingBanner v-if="hideOnOnboardingView" />
+      </template>
+      <router-view v-slot="{ Component }">
+        <transition name="fade" mode="out-in">
+          <component :is="Component" />
+        </transition>
+      </router-view>
+      <WootSnackbarBox />
+      <NetworkNotification />
+      <MessageToast />
+      <OnboardingChecklist v-if="currentAccountId" />
+      <PwaInstallPrompt v-if="currentAccountId" />
+      <PushPermissionPrompt v-if="currentAccountId" />
+      <MigrationBanner />
+    </MotionConfig>
   </div>
   <LoadingState v-else />
   <Toaster

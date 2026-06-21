@@ -1,10 +1,13 @@
 json.account_id resource.account_id
+json.agent_bot_id resource.agent_bot&.id
+json.avatar_url resource.avatar_url
 json.behavior resource.behavior
 json.config resource.config
 json.created_at resource.created_at.to_i
 json.description resource.description
 json.guardrails resource.guardrails
 json.id resource.id
+json.inbox_ids resource.captain_inboxes.map(&:inbox_id)
 json.name resource.name
 json.response_guidelines resource.response_guidelines
 json.updated_at resource.updated_at.to_i

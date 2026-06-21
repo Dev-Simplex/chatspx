@@ -10,20 +10,34 @@ module Enterprise::ActionService
     @conversation.update!(sla_policy_id: sla_policy.id)
   end
 
-  # C4 do modelo IA-como-agente: atribui um agente de IA (Captain::Assistant) à conversa
-  # via espelho AgentBot. Usado pela triagem (ex.: conversation_created -> recepcionista).
-  # Não rouba conversa que já tem dono (humano ou IA) — triagem só pega órfãs.
+  # C5: triagem/macro atribuem a conversa ao espelho captain do assistant.
+  # No-op silencioso em tudo inválido (padrão add_sla). Ordem segura: assign_ai_agent
+  # ANTES de assign_team (guard A2b); a ordem inversa com team allow_auto_assign cria
+  # um humano intermediário que a IA limpa em seguida — documentado, sem reordenação no v1.
   def assign_ai_agent(assistant_ids)
     return if assistant_ids.blank?
-    return if @conversation.assignee_id.present? || @conversation.assignee_agent_bot_id.present?
+    # F1.4 (modo FILA): a re-triagem de órfãs não reanexa a IA (senão a fila some). A triagem
+    # inicial nunca seta esta flag — só o OrphanRetriageJob no modo fila.
+    return if Current.skip_ai_agent_assignment
 
-    assistant = Captain::Assistant.where(account_id: @account.id).find_by(id: assistant_ids.first)
+    assistant = @account.captain_assistants.find_by(id: assistant_ids.first) # params chegam como ARRAY
     return if assistant.nil?
+    # Elegibilidade (C8 no caminho in-process): IA só atua em inbox onde está registrada
+    return unless @conversation.inbox.captain_assistants.exists?(assistant.id)
 
-    mirror = assistant.mirror_agent_bot
+    mirror = assistant.mirror_agent_bot # cria o espelho se faltar (Fase A)
     return if mirror.nil?
 
-    Rails.logger.info "Captain:: Assigning AI agent #{assistant.name} to conversation: #{@conversation.id}"
-    @conversation.update!(assignee_agent_bot_id: mirror.id)
+    # MESMO save: limpa humano + seta espelho (invariante; saves separados quebram com
+    # allow_auto_assign). O after_commit da Fase A enfileira AssignmentKickJob.
+    Conversations::AssignmentService.new(
+      conversation: @conversation, assignee_id: mirror.id, assignee_type: 'AgentBot'
+    ).perform
+
+    # A partir daqui a IA é a "dona" da triagem: as ações seguintes da MESMA regra
+    # (ex.: assign_team → "Atribuído a recepção por Clara") são atribuídas a ela, não
+    # ao genérico "Sistema de Automação". O ActionService não reseta Current.executed_by
+    # entre ações, e assign_ai_agent roda ANTES de assign_team (ordem segura A2b).
+    Current.executed_by = assistant
   end
 end

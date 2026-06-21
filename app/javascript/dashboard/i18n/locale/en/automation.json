@@ -139,6 +139,7 @@
     },
     "ACTIONS": {
       "ASSIGN_AGENT": "Assign to Agent",
+      "ASSIGN_AI_AGENT": "Assign AI agent",
       "ASSIGN_TEAM": "Assign a Team",
       "ADD_LABEL": "Add a Label",
       "REMOVE_LABEL": "Remove a Label",

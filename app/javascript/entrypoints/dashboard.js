@@ -31,6 +31,8 @@ import { domPurifyConfig } from 'shared/helpers/HTMLSanitizer.js';
 
 import { vResizeObserver } from '@vueuse/components';
 import { directive as onClickaway } from 'vue3-click-away';
+// D8/D-L5: diretiva global v-auto-animate (3,2KB, zero deps) para list/enter transitions.
+import { autoAnimatePlugin } from '@formkit/auto-animate/vue';
 
 import 'floating-vue/dist/style.css';
 
@@ -49,6 +51,7 @@ app.use(i18n);
 app.use(store);
 app.use(pinia);
 app.use(router);
+app.use(autoAnimatePlugin); // D8/D-L5: habilita a diretiva global v-auto-animate
 
 // [VITE] Disabled this, need to renable later
 if (window.errorLoggingConfig) {

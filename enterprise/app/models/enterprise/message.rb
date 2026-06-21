@@ -43,6 +43,7 @@ module Enterprise::Message
     mirror = conversation.assignee_agent_bot
     return unless mirror&.captain?
 
+    conversation.captain_release_reason = 'human_reply' # E4: motivo para o watcher de auditoria
     conversation.update!(assignee_agent_bot_id: nil) # IA solta a conversa
   end
 

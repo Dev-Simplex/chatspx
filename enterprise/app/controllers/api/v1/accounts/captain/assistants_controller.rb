@@ -8,7 +8,7 @@ class Api::V1::Accounts::Captain::AssistantsController < Api::V1::Accounts::Base
   before_action :ensure_captain_api_key!, only: :playground
 
   def index
-    @assistants = account_assistants.ordered
+    @assistants = account_assistants.includes(:agent_bot, :captain_inboxes).ordered
   end
 
   def show; end

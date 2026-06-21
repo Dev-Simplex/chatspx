@@ -51,6 +51,25 @@ json.meta do # rubocop:disable Metrics/BlockLength
       json.team_ids assignee.teams.select { |t| t.account_id == Current.account&.id }.map(&:id)
       json.custom_role_id assignee.current_account_user&.custom_role_id if ChatwootApp.enterprise?
     end
+  elsif conversation.assignee_agent_bot&.captain?
+    # Assignee-IA (espelho captain) — mesmo shape do push_event_data + discriminador type (DC-3).
+    # Bot webhook atribuído via coluna NÃO entra (comportamento atual preservado).
+    bot = conversation.assignee_agent_bot
+    json.assignee do
+      json.id bot.id
+      json.account_id Current.account&.id
+      json.name bot.name
+      json.available_name bot.name
+      json.avatar_url bot.avatar_url
+      json.thumbnail bot.avatar_url
+      json.type 'agent_bot'
+      json.bot_type bot.bot_type
+      # Discriminador único que o front usa nas abas IA / Não Atribuídas
+      # (casa com o is_captain do push_event_data via websocket). Aqui é sempre
+      # true pois só espelhos captain entram neste branch.
+      json.is_captain bot.captain?
+      json.captain_assistant_id bot.captain_assistant_id
+    end
   elsif conversation.assignee_id.present?
     json.assignee do
       json.id(conversation.assignee_id)

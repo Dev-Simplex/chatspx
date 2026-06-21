@@ -111,6 +111,15 @@ export default {
     isOpen() {
       return this.currentChat?.status === wootConstants.STATUS_TYPE.OPEN;
     },
+    // F5: conversa sendo atendida pela IA (espelho captain como dono) — a área de
+    // resposta fica "esmaecida" (IA no controle); enviar abre o modal de assunção.
+    aiHandlingAssignee() {
+      const assignee = this.currentChat?.meta?.assignee;
+      return assignee?.type === 'agent_bot' ? assignee : null;
+    },
+    isAIHandling() {
+      return Boolean(this.aiHandlingAssignee);
+    },
     shouldShowLabelSuggestions() {
       return (
         this.isOpen &&
@@ -673,8 +682,11 @@ export default {
       :class="{
         'modal-mask': isPopOutReplyBox,
         'bg-n-surface-1': !isPopOutReplyBox,
+        'ai-handling-composer': isAIHandling,
       }"
     >
+      <!-- F5: a barra de IA "está atendendo" + CTA "Assumir" agora vive no
+           ReplyBoxBanner (acima do composer); aqui mantemos só o esmaecido. -->
       <div
         v-if="isPopOutReplyBox"
         class="absolute inset-0 z-[5] bg-black/20"
@@ -767,6 +779,21 @@ export default {
 </template>
 
 <style scoped lang="scss">
+// F5: composer "esmaecido" quando a IA atende (sinal de "IA no controle").
+// O reply box fica de-emphasizado e clareia ao focar/passar o mouse — enviar
+// dispara o modal de assunção (D2). prefers-reduced-motion desliga o glow.
+.ai-handling-composer {
+  :deep(.reply-box) {
+    opacity: 0.6;
+    transition: opacity 0.2s ease;
+  }
+
+  &:focus-within :deep(.reply-box),
+  :deep(.reply-box):hover {
+    opacity: 0.9;
+  }
+}
+
 .conversation-panel {
   position: relative;
   // Background colors/images are owned by the WA skin (_wa-skin.scss).

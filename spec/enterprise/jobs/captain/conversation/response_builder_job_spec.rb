@@ -192,6 +192,51 @@ RSpec.describe Captain::Conversation::ResponseBuilderJob, type: :job do
         account.reload
         expect(account.usage_limits[:captain][:responses][:consumed]).to eq(1)
       end
+
+      # C7.4 (gap AD-11/B4): agent_name que não pertence ao assistant ATUAL não pode
+      # rotear persona — mensagem de OUTRA IA (transferência C7) ou de cenário legado
+      # entra no histórico sem agent_name (cairia no agente default da gem).
+      context 'with the agent_name forwarding guard (C7.4)' do
+        def history_entry(content)
+          history = nil
+          allow(mock_agent_runner_service).to receive(:generate_response) do |message_history:|
+            history = message_history
+            { 'response' => 'ok' }
+          end
+          described_class.perform_now(conversation, assistant)
+          history.find { |entry| entry[:content] == content }
+        end
+
+        it 'does not forward agent_name from another AI' do
+          create(:message, conversation: conversation, message_type: :outgoing, sender: assistant,
+                           content: 'fala da outra IA', additional_attributes: { 'agent_name' => 'outra_ia_qualquer' })
+
+          expect(history_entry('fala da outra IA')).not_to have_key(:agent_name)
+        end
+
+        it 'does not forward agent_name from a legacy/disabled scenario' do
+          create(:message, conversation: conversation, message_type: :outgoing, sender: assistant,
+                           content: 'cenario antigo', additional_attributes: { 'agent_name' => 'scenario_999_legado_agent' })
+
+          expect(history_entry('cenario antigo')).not_to have_key(:agent_name)
+        end
+
+        it 'forwards the own agent_name of the current assistant' do
+          own_name = assistant.name.parameterize(separator: '_')
+          create(:message, conversation: conversation, message_type: :outgoing, sender: assistant,
+                           content: 'fala minha', additional_attributes: { 'agent_name' => own_name })
+
+          expect(history_entry('fala minha')[:agent_name]).to eq(own_name)
+        end
+
+        it 'forwards the handoff_key of an enabled scenario of the current assistant' do
+          scenario = create(:captain_scenario, assistant: assistant, account: account)
+          create(:message, conversation: conversation, message_type: :outgoing, sender: assistant,
+                           content: 'fala do cenario', additional_attributes: { 'agent_name' => scenario.handoff_key })
+
+          expect(history_entry('fala do cenario')[:agent_name]).to eq(scenario.handoff_key)
+        end
+      end
     end
 
     # Regression (PR #13417): wrapping create_handoff_message and bot_handoff! in the

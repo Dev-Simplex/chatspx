@@ -42,6 +42,15 @@ export const ASSIGNEE_TYPE_TAB_PERMISSIONS = {
       CONVERSATION_UNASSIGNED_PERMISSIONS,
     ],
   },
+  // Order of the keys dictates the tab order (Mine / [Unassigned] / AI / All)
+  ai: {
+    count: 'aiCount',
+    permissions: [
+      ...ROLES,
+      MANAGE_ALL_CONVERSATION_PERMISSIONS,
+      CONVERSATION_PARTICIPATING_PERMISSIONS,
+    ],
+  },
   all: {
     count: 'allCount',
     permissions: [

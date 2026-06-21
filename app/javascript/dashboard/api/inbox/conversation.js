@@ -97,6 +97,14 @@ class ConversationApi extends ApiClient {
     });
   }
 
+  assignAIAgent({ conversationId, agentBotId }) {
+    return axios.post(`${this.url}/${conversationId}/assignments`, {
+      // id do ESPELHO (assistant.agent_bot_id) — nunca o id do assistant (DC-2)
+      assignee_id: agentBotId,
+      assignee_type: 'AgentBot',
+    });
+  }
+
   assignTeam({ conversationId, teamId }) {
     const params = { team_id: teamId };
     return axios.post(`${this.url}/${conversationId}/assignments`, params);

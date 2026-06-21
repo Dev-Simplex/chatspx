@@ -269,7 +269,15 @@ a flag desligada → comportamento atual intacto.
   inteira é homolog). Restart: `sudo systemctl restart chatwoot.target`.
 - **Execução via AIOX (SDC):** @sm draft → @po valida → @dev implementa → @qa gate por
   fase; @architect revisa a Fase A antes de codar (mexe no coração do pipeline Captain).
-- **MODO ULTRACODE OBRIGATÓRIO (orquestração multi-agente via Workflow):** toda sessão de
+- **⚠️ FINALIZAÇÃO EM MODO ECONÔMICO (override a partir de 2026-06-12):** Fases A e B foram
+  feitas em Fable + ultracode e isso **esgotou o plano Max 20x duas vezes**. Para fechar a
+  **Fase C + Fases D e E**, mudar para **Opus 4.8 + esforço `xhigh`, SEM ultracode e SEM
+  workflows** — agente único, trabalho inline. O ultracode (fan-out de 10-20 subagentes por
+  tarefa) é o que drena a cota; o trabalho restante é implementação de design já pronto
+  (dossiês de C/D/E já existem em `/tmp/fase-*-exploracao.json` e nos commits do progresso),
+  então não precisa do leque. **NÃO reabrir workflows.** Ponto a revisar manualmente depois:
+  o guard de segurança **D1** (backend 422). A seção ultracode abaixo vale só para A/B (já feitas).
+- **MODO ULTRACODE (histórico — usado em A/B, NÃO usar na finalização):** toda sessão de
   implementação deve ativar ultracode (`/effort` → ultracode, ou incluir a palavra
   "ultracode" no prompt — sessão nova NÃO herda o modo). Padrão por fase:
   1. **Explorar** — agentes paralelos releem os arquivos-alvo da fase ANTES de editar
@@ -281,9 +289,9 @@ a flag desligada → comportamento atual intacto.
      pronto; só passa o que sobreviver;
   4. **Validar** — Playwright light+dark dos cenários da fase (§5.2) + specs, com
      evidências (screenshots), antes de declarar o aceite.
-- **Modelo:** sessão e subagentes rodam em **Fable** (sem override de modelo nos
-  workflows — herdar o modelo da sessão). Se a cota bater no limite, o loop pausa e
-  retoma quando renovar — o estado está em `plano/ia-progresso.md`, nada se perde.
+- **Modelo:** A/B rodaram em Fable. **Finalização (C/D/E) roda em Opus 4.8 + xhigh, sem
+  workflows** (ver override acima). Se a cota bater no limite, o loop pausa e retoma quando
+  renovar — o estado está em `plano/ia-progresso.md`, nada se perde.
 - **Git:** working tree only; commit único (ou por fase, a decidir com Walisson) somente
   após TUDO validado; push apenas via @devops.
 - **Execução autônoma (/loop):** o estado vive em `plano/ia-progresso.md` — checklist de

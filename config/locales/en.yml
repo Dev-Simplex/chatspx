@@ -236,13 +236,18 @@ en:
       sla_missed_first_response: 'SLA target first response missed for conversation (#%{display_id})'
       sla_missed_next_response: 'SLA target next response missed for conversation (#%{display_id})'
       sla_missed_resolution: 'SLA target resolution missed for conversation (#%{display_id})'
+      conversation_orphaned: '[Unassigned] Conversation [ID - %{display_id}] has no owner and needs triage'
+      conversation_unassignment: 'Conversation (#%{display_id}) was taken over by %{taker}'
     attachment: 'Attachment'
     no_content: 'No content'
   conversations:
+    reply_assignment_gate:
+      assignment_required: 'You must take over this conversation before replying'
     errors:
       team_required_for_resolution: 'A team must be assigned before resolving this conversation'
     captain:
       assignment_forbidden: 'Only administrators can assign AI agents to conversations.'
+      assignment_not_eligible: "This AI agent is not eligible for this conversation's inbox"
       handoff: 'Transferring to another agent for further assistance.'
     messages:
       instagram_story_content: '%{story_sender} mentioned you in the story: '

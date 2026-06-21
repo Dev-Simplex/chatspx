@@ -27,7 +27,7 @@
 #  uniq_secondary_actor_per_account_notifications  (secondary_actor_type,secondary_actor_id)
 #
 
-class Notification < ApplicationRecord
+class Notification < ApplicationRecord # rubocop:disable Metrics/ClassLength
   include MessageFormatHelper
   belongs_to :account
   belongs_to :user
@@ -43,7 +43,12 @@ class Notification < ApplicationRecord
     participating_conversation_new_message: 5,
     sla_missed_first_response: 6,
     sla_missed_next_response: 7,
-    sla_missed_resolution: 8
+    sla_missed_resolution: 8,
+    conversation_orphaned: 9,
+    # D4 (D-9): notifica quem PERDEU a conversa quando outro agente assume (takeover).
+    # 9 é reservado para conversation_orphaned (Fase C/C10). NUNCA renumerar: NotificationSetting
+    # deriva os bits FlagShihTzu do valor (notification_setting.rb:30-34). Sem migration (coluna integer).
+    conversation_unassignment: 10
   }.freeze
 
   enum notification_type: NOTIFICATION_TYPES
@@ -137,7 +142,9 @@ class Notification < ApplicationRecord
       'conversation_mention' => 'notifications.notification_title.conversation_mention',
       'sla_missed_first_response' => 'notifications.notification_title.sla_missed_first_response',
       'sla_missed_next_response' => 'notifications.notification_title.sla_missed_next_response',
-      'sla_missed_resolution' => 'notifications.notification_title.sla_missed_resolution'
+      'sla_missed_resolution' => 'notifications.notification_title.sla_missed_resolution',
+      'conversation_orphaned' => 'notifications.notification_title.conversation_orphaned',
+      'conversation_unassignment' => 'notifications.notification_title.conversation_unassignment'
     }
 
     i18n_key = notification_title_map[notification_type]
@@ -145,6 +152,8 @@ class Notification < ApplicationRecord
 
     if notification_type == 'conversation_creation'
       I18n.t(i18n_key, display_id: conversation.display_id, inbox_name: primary_actor.inbox.name)
+    elsif notification_type == 'conversation_unassignment'
+      I18n.t(i18n_key, display_id: conversation.display_id, taker: takeover_actor_name)
     elsif %w[conversation_assignment assigned_conversation_new_message participating_conversation_new_message
              conversation_mention].include?(notification_type)
       I18n.t(i18n_key, display_id: conversation.display_id)
@@ -154,6 +163,11 @@ class Notification < ApplicationRecord
   end
   # rubocop:enable Metrics/MethodLength
 
+  # D4: nome de quem assumiu a conversa (assignee atual; fallback p/ o secondary_actor = executor).
+  def takeover_actor_name
+    conversation.assignee&.available_name || secondary_actor&.available_name || ''
+  end
+
   def push_message_body
     return '' if conversation.blank?
 
@@ -162,7 +176,7 @@ class Notification < ApplicationRecord
       message_body(conversation.messages.reorder(created_at: :asc).limit(1).first)
     when 'assigned_conversation_new_message', 'participating_conversation_new_message', 'conversation_mention'
       message_body(secondary_actor)
-    when 'conversation_assignment', 'sla_missed_next_response', 'sla_missed_resolution'
+    when 'conversation_assignment', 'conversation_unassignment', 'sla_missed_next_response', 'sla_missed_resolution'
       msg = conversation.messages.incoming.reorder(created_at: :desc).limit(1).first ||
             conversation.messages.outgoing.reorder(created_at: :desc).limit(1).first
       message_body(msg)

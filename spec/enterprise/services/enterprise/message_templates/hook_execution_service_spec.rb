@@ -368,6 +368,59 @@ RSpec.describe MessageTemplates::HookExecutionService do
     end
   end
 
+  # F1.2 🔴 — gate da re-captura automática (orphan_captain_reentry?).
+  # Cenário comum aos dois modos: conversa SOLTA (open + team + sem dono + sem espelho)
+  # com a IA do setor elegível, e chega uma mensagem do cliente.
+  describe 'orphan captain reentry gate (F1.2)' do
+    let(:team) { create(:team, account: account) }
+    let(:orphan_conversation) do
+      create(:conversation, inbox: inbox, account: account, contact: contact,
+                            status: :open, team: team, assignee: nil)
+    end
+
+    before do
+      # A IA do setor: assistant cujo config['team_id'] aponta pro time da conversa, elegível na inbox.
+      assistant.update!(config: { 'team_id' => team.id })
+      orphan_conversation # materializa antes de mexer no espelho
+    end
+
+    context 'when in classic mode (reply_assignment_gate OFF)' do
+      it 'reattaches the sector assistant (D-12 — IA do setor reentra)' do
+        expect do
+          create(:message, conversation: orphan_conversation, message_type: :incoming, account: account)
+        end.to change { orphan_conversation.reload.assignee_agent_bot_id }.from(nil).to(assistant.mirror_agent_bot.id)
+      end
+    end
+
+    context 'when in fila mode (reply_assignment_gate ON)' do
+      before { account.update!(settings: { reply_assignment_gate: true }) }
+
+      it 'does NOT reattach the sector assistant — conversation stays awaiting human' do
+        expect do
+          create(:message, conversation: orphan_conversation, message_type: :incoming, account: account)
+        end.not_to(change { orphan_conversation.reload.assignee_agent_bot_id })
+
+        expect(orphan_conversation.reload.assignee_agent_bot_id).to be_nil
+      end
+
+      it 'leaves the conversation open + team + no owner + no mirror (estável, F1.3)' do
+        create(:message, conversation: orphan_conversation, message_type: :incoming, account: account)
+
+        orphan_conversation.reload
+        expect(orphan_conversation.status).to eq('open')
+        expect(orphan_conversation.team_id).to eq(team.id)
+        expect(orphan_conversation.assignee_id).to be_nil
+        expect(orphan_conversation.assignee_agent_bot_id).to be_nil
+      end
+
+      it 'does not schedule a captain response (no owner to process)' do
+        expect(Captain::Conversation::ResponseBuilderJob).not_to receive(:perform_later)
+
+        create(:message, conversation: orphan_conversation, message_type: :incoming, account: account)
+      end
+    end
+  end
+
   describe 'integração A2c × gate (sucessor do skip_after_human_response)' do
     it 'stays silent after a human replies without assigning themselves (mirror released by A2c)' do
       conversation.update!(assignee_agent_bot: mirror)

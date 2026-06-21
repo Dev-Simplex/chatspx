@@ -15,7 +15,9 @@ module AssignmentHandler
       validate_current_assignee_team
       # NÃO auto-atribuir humano do time quando o espelho captain é dono (A2b, triagem D-6:
       # team + espelho na mesma automação — preserva a invariante de exclusividade).
-      self.assignee ||= find_assignee_from_team if assignee_agent_bot_id.blank?
+      # F1 (modo FILA): handoff "pull" da IA solta a conversa na fila do time — não pode
+      # auto-atribuir humano nesta troca de time (skip_auto_assignment setado pelo HandoffTool).
+      self.assignee ||= find_assignee_from_team if assignee_agent_bot_id.blank? && !skip_auto_assignment
     elsif will_save_change_to_assignee_id? && assignee_id.present?
       sync_team_from_assignee
     end
@@ -59,8 +61,20 @@ module AssignmentHandler
       ASSIGNEE_CHANGED => -> { saved_change_to_assignee_id? },
       TEAM_CHANGED => -> { saved_change_to_team_id? }
     }.each do |event, condition|
-      condition.call && dispatcher_dispatch(event, previous_changes)
+      condition.call && dispatcher_dispatch(event, previous_changes, assignment_change_event_data(event))
     end
+  end
+
+  # D4 (D-9): NotificationListener roda no async dispatcher (EventDispatcherJob/Sidekiq), onde
+  # Current.user é NIL — não há server_middleware que rehidrate Current. A identidade do ator que
+  # executou a (re)atribuição precisa ser CAPTURADA aqui, no contexto sync (Current.user presente),
+  # e propagada pelo event data. Sem isso o guard "auto-desatribuição não notifica" morre no worker.
+  # Gated pela flag (AD-15/OQ-D2): contas Clássico não pagam o custo nem mudam de comportamento.
+  def assignment_change_event_data(event)
+    return {} unless event == ASSIGNEE_CHANGED
+    return {} unless account.reply_assignment_gate_enabled?
+
+    { assignee_changed_by: Current.user }
   end
 
   def process_assignment_changes

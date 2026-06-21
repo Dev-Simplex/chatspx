@@ -256,6 +256,92 @@ RSpec.describe Account do
       end
     end
 
+    context 'when reply_assignment_gate' do
+      it 'allows boolean values' do
+        account.settings = { reply_assignment_gate: true }
+        expect(account).to be_valid
+
+        account.settings = { reply_assignment_gate: false }
+        expect(account).to be_valid
+      end
+
+      it 'allows null values' do
+        account.settings = { reply_assignment_gate: nil }
+        expect(account).to be_valid
+      end
+
+      it 'rejects non-boolean values' do
+        account.settings = { reply_assignment_gate: 'yes' }
+        expect(account).to be_invalid
+        expect(account.errors.messages.keys).to include(:reply_assignment_gate)
+      end
+    end
+
+    context 'when orphan_retriage_after' do
+      it 'validates minimum value' do
+        account.settings = { orphan_retriage_after: 4 }
+        expect(account).to be_invalid
+        expect(account.errors.messages).to eq({ orphan_retriage_after: ['must be greater than or equal to 5'] })
+      end
+
+      it 'validates maximum value' do
+        account.settings = { orphan_retriage_after: 10_081 }
+        expect(account).to be_invalid
+        expect(account.errors.messages).to eq({ orphan_retriage_after: ['must be less than or equal to 10080'] })
+      end
+
+      it 'allows valid values and null' do
+        account.settings = { orphan_retriage_after: 5 }
+        expect(account).to be_valid
+
+        account.settings = { orphan_retriage_after: 10_080 }
+        expect(account).to be_valid
+
+        account.settings = { orphan_retriage_after: nil }
+        expect(account).to be_valid
+      end
+
+      it 'rejects non-integer values' do
+        account.settings = { orphan_retriage_after: 'fifteen' }
+        expect(account).to be_invalid
+        expect(account.errors.messages.keys).to include(:orphan_retriage_after)
+      end
+    end
+
+    describe '#reply_assignment_gate_enabled?' do
+      it 'defaults to false when the setting is absent' do
+        expect(account.reply_assignment_gate_enabled?).to be false
+      end
+
+      it 'returns true when the setting is true' do
+        account.update!(reply_assignment_gate: true)
+        expect(account.reply_assignment_gate_enabled?).to be true
+      end
+
+      it 'returns false when the setting is false or nil' do
+        account.update!(reply_assignment_gate: false)
+        expect(account.reply_assignment_gate_enabled?).to be false
+
+        account.update!(reply_assignment_gate: nil)
+        expect(account.reply_assignment_gate_enabled?).to be false
+      end
+    end
+
+    context 'when using with_reply_assignment_gate scope' do
+      it 'finds accounts with reply_assignment_gate enabled' do
+        account.update!(reply_assignment_gate: true)
+        expect(described_class.with_reply_assignment_gate.pluck(:id)).to include(account.id)
+      end
+
+      it 'does not find accounts with the gate disabled or unset' do
+        account.update!(reply_assignment_gate: false)
+        expect(described_class.with_reply_assignment_gate.pluck(:id)).not_to include(account.id)
+
+        account.update!(reply_assignment_gate: nil)
+        expect(described_class.with_reply_assignment_gate.pluck(:id)).not_to include(account.id)
+      end
+    end
+
     context 'when reporting_timezone is set' do
       it 'allows valid timezone names' do
         account.reporting_timezone = 'America/New_York'

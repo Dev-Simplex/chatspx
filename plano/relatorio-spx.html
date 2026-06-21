@@ -1,0 +1,185 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<title>ChatSPX — Agentes IA: Homologação & Produção</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap');
+  :root{
+    --brand:#2dc46f; --brand-hover:#008c70; --brand-soft:#d9fdd3; --brand-ink:#004d3a;
+    --s1:#ffffff; --s2:#f9fafb; --s3:#f0f2f5; --weak:#e9edef; --strong:#d1d7db;
+    --t12:#111b21; --t11:#667781; --t9:#8696a0;
+    --warn:#ab6400; --warn-soft:#fff7c2;
+  }
+  *{box-sizing:border-box; margin:0; padding:0;}
+  html{ -webkit-print-color-adjust:exact; print-color-adjust:exact; }
+  body{ font-family:'Inter',-apple-system,system-ui,'Segoe UI',Roboto,sans-serif; color:var(--t12); font-size:13px; line-height:1.5; background:var(--s2);}
+  @page{ size:A4; margin:0; }
+  .page{ width:210mm; min-height:297mm; padding:16mm 17mm 18mm; background:var(--s2); position:relative; page-break-after:always; overflow:hidden;}
+  .page:last-child{ page-break-after:auto; }
+
+  /* cover */
+  .cover{ background:var(--s1); padding:0; display:flex; flex-direction:column;}
+  .cover-top{ background:linear-gradient(135deg,#25d366 0%,#2dc46f 45%,#008c70 100%); color:#fff; padding:26mm 17mm 20mm; position:relative;}
+  .cover-top::after{ content:""; position:absolute; right:-40mm; top:-45mm; width:120mm; height:120mm; background:rgba(255,255,255,.08); border-radius:50%;}
+  .cover-logo{ height:30px; position:relative; z-index:1; filter:drop-shadow(0 2px 6px rgba(0,0,0,.15));}
+  .cover-kicker{ margin-top:26mm; font-weight:600; letter-spacing:2px; text-transform:uppercase; font-size:10.5px; opacity:.9; position:relative; z-index:1;}
+  .cover-title{ font-size:33px; font-weight:800; line-height:1.12; margin-top:8px; max-width:150mm; position:relative; z-index:1;}
+  .cover-sub{ margin-top:12px; font-size:14px; opacity:.92; max-width:150mm; position:relative; z-index:1;}
+  .cover-bottom{ padding:14mm 17mm; flex:1; display:flex; flex-direction:column; justify-content:flex-end;}
+  .cover-rule{ height:4px; width:60px; background:var(--brand); border-radius:4px; margin-bottom:14mm;}
+  .meta-grid{ display:grid; grid-template-columns:1fr 1fr; gap:14px 28px;}
+  .meta-item .l{ font-size:9.5px; font-weight:600; letter-spacing:1px; text-transform:uppercase; color:var(--t9);}
+  .meta-item .v{ font-size:14px; font-weight:600; margin-top:2px;}
+  .confidential{ margin-top:12mm; font-size:10.5px; color:var(--t11); border-top:1px solid var(--weak); padding-top:9px;}
+
+  /* content */
+  .runhead{ display:flex; align-items:center; justify-content:space-between; font-size:9.5px; color:var(--t9); border-bottom:1px solid var(--weak); padding-bottom:7px; margin-bottom:14px;}
+  .runhead .rh-brand{ display:flex; align-items:center; gap:6px; font-weight:600; color:var(--t11);}
+  .runhead .rh-brand svg{ width:13px; height:13px;}
+  h2.sec{ font-size:18px; font-weight:800; letter-spacing:-.3px; display:flex; align-items:center; gap:9px; margin-bottom:3px;}
+  h2.sec .num{ background:var(--brand); color:#fff; font-size:12px; font-weight:700; width:23px; height:23px; border-radius:6px; display:inline-flex; align-items:center; justify-content:center;}
+  .sec-desc{ color:var(--t11); font-size:12px; margin:5px 0 12px 32px;}
+  .lead{ font-size:12.5px; color:var(--t11); margin-bottom:13px; line-height:1.55;}
+  .lead b{ color:var(--t12); font-weight:600;}
+
+  .kpis{ display:grid; grid-template-columns:repeat(3,1fr); gap:10px; margin:2px 0 14px;}
+  .kpi{ background:var(--s1); border:1px solid var(--weak); border-radius:10px; padding:11px 13px;}
+  .kpi .big{ font-size:23px; font-weight:800; color:var(--brand); line-height:1; letter-spacing:-1px;}
+  .kpi .lab{ font-size:10px; color:var(--t11); margin-top:5px;}
+
+  .chip{ display:inline-flex; align-items:center; gap:4px; font-size:9.5px; font-weight:600; padding:2px 8px; border-radius:20px;}
+  .chip.done{ background:var(--brand-soft); color:var(--brand-ink);}
+  .chip.prog{ background:var(--warn-soft); color:var(--warn);}
+  .chip.todo{ background:var(--s3); color:var(--t11);}
+  .dot{ width:5px; height:5px; border-radius:50%;}
+
+  ul.feat{ list-style:none;}
+  ul.feat li{ display:flex; gap:9px; align-items:flex-start; padding:7px 0; border-bottom:1px dashed var(--weak); font-size:12.3px;}
+  ul.feat li:last-child{ border-bottom:none;}
+  ul.feat li .ic{ color:var(--brand); font-weight:800; margin-top:1px;}
+  ul.feat li b{ font-weight:600; color:var(--t12);}
+  ul.feat li span{ color:var(--t11);}
+  ul.feat li .tail{ margin-left:auto; padding-left:8px;}
+
+  .callout{ border-radius:11px; padding:13px 15px; margin:11px 0; border:1px solid;}
+  .callout.brand{ background:var(--brand-soft); border-color:#9fe7bd;}
+  .callout.warn{ background:var(--warn-soft); border-color:#ffe08a;}
+  .callout .ct{ font-weight:700; font-size:12.5px; display:flex; align-items:center; gap:7px; margin-bottom:5px; color:var(--t12);}
+  .callout p{ font-size:12px; color:#3a4a42;}
+  .callout.warn p{ color:#5c4a14;}
+  code{ font-family:ui-monospace,Menlo,Consolas,monospace; font-size:11px; background:rgba(0,0,0,.05); padding:1px 4px; border-radius:4px;}
+
+  .steps{ counter-reset:step; margin-top:4px;}
+  .step{ display:flex; gap:11px; padding:8px 0; border-bottom:1px solid var(--weak); align-items:flex-start;}
+  .step:last-child{ border-bottom:none;}
+  .step .n{ counter-increment:step; background:var(--brand); color:#fff; width:21px; height:21px; border-radius:50%; display:flex; align-items:center; justify-content:center; font-weight:700; font-size:11px; flex:0 0 auto;}
+  .step .n::before{ content:counter(step);}
+  .step .b{ font-weight:600; font-size:12.3px;}
+  .step .d{ color:var(--t11); font-size:11.8px; margin-top:1px;}
+
+  .foot{ position:absolute; bottom:11mm; left:17mm; right:17mm; display:flex; justify-content:space-between; font-size:9.5px; color:var(--t9); border-top:1px solid var(--weak); padding-top:7px;}
+</style>
+</head>
+<body>
+
+<!-- CAPA -->
+<div class="page cover">
+  <div class="cover-top">
+    <img class="cover-logo" src="__LOGO_DATA__" alt="ChatSPX">
+    <div class="cover-kicker">Relatório técnico · Projeto Agentes IA</div>
+    <div class="cover-title">Agentes IA: o que entregamos em homologação e o caminho para produção</div>
+    <div class="cover-sub">IA como atendente atribuível, gate de atendimento e a rota de virada para o cliente Tozi.</div>
+  </div>
+  <div class="cover-bottom">
+    <div class="cover-rule"></div>
+    <div class="meta-grid">
+      <div class="meta-item"><div class="l">Autor</div><div class="v">Walisson Vinícius da Silva</div></div>
+      <div class="meta-item"><div class="l">Data</div><div class="v">12 de junho de 2026</div></div>
+      <div class="meta-item"><div class="l">Ambiente</div><div class="v">Homologação · ChatSPX</div></div>
+      <div class="meta-item"><div class="l">Produto</div><div class="v">Plataforma de atendimento</div></div>
+    </div>
+    <div class="confidential">Documento interno e confidencial — Simplex Soluções.</div>
+  </div>
+</div>
+
+<!-- PÁGINA 1 -->
+<div class="page">
+  <div class="runhead">
+    <span class="rh-brand"><svg viewBox="0 0 16 16"><path d="M8 16C12.4183 16 16 12.4183 16 8C16 3.58172 12.4183 0 8 0C3.58172 0 0 3.58172 0 8C0 12.4183 3.58172 16 8 16Z" fill="#2dc46f"/><path d="M11.4172 11.4172H7.70831C5.66383 11.4172 4 9.75328 4 7.70828C4 5.66394 5.66383 4 7.70835 4C9.75339 4 11.4172 5.66394 11.4172 7.70828V11.4172Z" fill="#fff"/></svg> ChatSPX · Agentes IA</span>
+    <span>Homologação &amp; Produção</span>
+  </div>
+
+  <p class="lead">Resumo do que foi <b>construído e validado em homologação</b> para transformar os Agentes IA em atendentes de verdade no ChatSPX, e <b>o que falta para subir com segurança para produção</b> — incluindo a migração necessária para ligar o cliente <b>Tozi</b>.</p>
+
+  <div class="kpis">
+    <div class="kpi"><div class="big">5</div><div class="lab">fases entregues (0, A, B, C, D)</div></div>
+    <div class="kpi"><div class="big">12</div><div class="lab">agentes IA já espelhados</div></div>
+    <div class="kpi"><div class="big">1</div><div class="lab">fase em andamento (fila por time)</div></div>
+  </div>
+
+  <h2 class="sec"><span class="num">1</span> Entregue em homologação</h2>
+  <p class="sec-desc">Implementado e validado (testes automatizados + validação visual em tema claro e escuro).</p>
+
+  <ul class="feat">
+    <li><span class="ic">✓</span><span><b>IA como atendente atribuível.</b> A conversa é atribuída à IA; ela só responde quando atribuída; quando um humano assume, a IA silencia. Ninguém "rouba" a conversa da IA por engano.</span><span class="tail"><span class="chip done"><span class="dot" style="background:var(--brand)"></span>Concluído</span></span></li>
+    <li><span class="ic">✓</span><span><b>Fim do "recarregar a tela" ao atribuir.</b> Trocar agente/time não recarrega mais; corrigiu de brinde um bug de acesso (403) que ficava mascarado.</span><span class="tail"><span class="chip done"><span class="dot" style="background:var(--brand)"></span>Concluído</span></span></li>
+    <li><span class="ic">✓</span><span><b>Gate de atendimento por atribuição.</b> Só o responsável responde; ao tentar responder o que não é seu, diálogo "Quer atribuir a você?" (4 variantes) atribui e envia em 1 clique. Notas privadas livres.</span><span class="tail"><span class="chip done"><span class="dot" style="background:var(--brand)"></span>Concluído</span></span></li>
+    <li><span class="ic">✓</span><span><b>Modo de atendimento por conta.</b> Toggle Clássico × Atribuição obrigatória; padrão seguro = Clássico; virada sem deploy, rollback imediato.</span><span class="tail"><span class="chip done"><span class="dot" style="background:var(--brand)"></span>Concluído</span></span></li>
+    <li><span class="ic">✓</span><span><b>Identidade visual da IA.</b> Seção "Agentes IA" nos usuários, aba "IA", badge, ícone ✨, cor própria por IA e barra "{IA} está atendendo" com botão Assumir.</span><span class="tail"><span class="chip done"><span class="dot" style="background:var(--brand)"></span>Concluído</span></span></li>
+    <li><span class="ic">✓</span><span><b>Aba "Aguardando atendimento".</b> No modo obrigatório, a fila de quem espera um humano (no Clássico segue "Não atribuídas").</span><span class="tail"><span class="chip done"><span class="dot" style="background:var(--brand)"></span>Concluído</span></span></li>
+    <li><span class="ic">✓</span><span><b>Agentes independentes (prompt + ferramentas).</b> Cada IA com seu prompt e tools de negócio (imóvel, fotos, lead, follow-up). Auditado e validado.</span><span class="tail"><span class="chip done"><span class="dot" style="background:var(--brand)"></span>Validado</span></span></li>
+    <li><span class="ic">●</span><span><b>Fila por time + handoff da IA.</b> A IA solta a conversa na fila do time (não empurra a uma pessoa); um humano puxa. Núcleo pronto e testado; finalização em curso.</span><span class="tail"><span class="chip prog"><span class="dot" style="background:var(--warn)"></span>Em andamento</span></span></li>
+  </ul>
+
+  <div class="callout brand">
+    <div class="ct">✨ Resumo</div>
+    <p>A base do produto está <b>de pé e validada em homologação</b>. O que falta é, sobretudo, <b>preparação para produção e migração para o cliente</b> — a seguir.</p>
+  </div>
+
+  <div class="foot"><span>Simplex Soluções · ChatSPX</span><span>1</span></div>
+</div>
+
+<!-- PÁGINA 2 -->
+<div class="page">
+  <div class="runhead">
+    <span class="rh-brand"><svg viewBox="0 0 16 16"><path d="M8 16C12.4183 16 16 12.4183 16 8C16 3.58172 12.4183 0 8 0C3.58172 0 0 3.58172 0 8C0 12.4183 3.58172 16 8 16Z" fill="#2dc46f"/><path d="M11.4172 11.4172H7.70831C5.66383 11.4172 4 9.75328 4 7.70828C4 5.66394 5.66383 4 7.70835 4C9.75339 4 11.4172 5.66394 11.4172 7.70828V11.4172Z" fill="#fff"/></svg> ChatSPX · Agentes IA</span>
+    <span>Homologação &amp; Produção</span>
+  </div>
+
+  <h2 class="sec"><span class="num">2</span> Para subir para produção</h2>
+  <p class="sec-desc">Itens necessários antes do go-live.</p>
+  <ul class="feat">
+    <li><span class="ic">▸</span><span><b>Revisão do código e commit</b> (~90 arquivos no working tree, ainda não versionados).</span><span class="tail"><span class="chip todo">Pendente</span></span></li>
+    <li><span class="ic">▸</span><span><b>Teste ponta a ponta com IA real</b> (chaves de API) — valida a resposta gerada pelo modelo.</span><span class="tail"><span class="chip todo">Pendente</span></span></li>
+    <li><span class="ic">▸</span><span><b>Concluir a fila por time</b> (escopo + vigia de escalonamento + validação visual).</span><span class="tail"><span class="chip prog">Em andamento</span></span></li>
+    <li><span class="ic">▸</span><span><b>Endurecer o gate de segurança</b> (fechar um vetor de bypass via <code>source_id</code>) + decisão de produto do gate no modo Clássico.</span><span class="tail"><span class="chip todo">Pendente</span></span></li>
+    <li><span class="ic">▸</span><span><b>Virada controlada</b>: elegibilidade das IAs + automação de triagem + ligar a flag da conta, com rollback pronto.</span><span class="tail"><span class="chip todo">Pendente</span></span></li>
+  </ul>
+
+  <div class="callout warn">
+    <div class="ct">⚠️ Tozi: tirar do <code>.env</code> e colocar no banco</div>
+    <p>Hoje a integração da Tozi com o sistema Vista usa variáveis de ambiente <b>globais</b> (<code>TOZI_VISTA_API_KEY</code>, <code>TOZI_VISTA_BASE_URL</code>) fixas no servidor. Para produção/multi-cliente, precisam <b>sair do <code>.env</code> e virar configuração por conta, no banco de dados</b>. Sem isso, a chave é única e global e qualquer troca exige mexer no servidor.</p>
+  </div>
+
+  <h2 class="sec" style="margin-top:6px"><span class="num">3</span> Migração para a Tozi</h2>
+  <p class="sec-desc">Não basta subir o código — é preciso <b>levar os dados do banco</b>.</p>
+
+  <div class="callout brand">
+    <div class="ct">🗄️ Os dados do banco vão junto</div>
+    <p>Os Agentes IA, seus espelhos, a <b>base de conhecimento</b> e a automação de triagem foram criados em homologação e vivem no <b>banco de dados</b> (não no código). Para a Tozi funcionar em produção, esses dados precisam ser <b>migrados do banco de homologação para o de produção</b>.</p>
+  </div>
+
+  <div class="steps">
+    <div class="step"><div class="n"></div><div><div class="b">Revisar e commitar o código</div><div class="d">Validar o diff e versionar.</div></div></div>
+    <div class="step"><div class="n"></div><div><div class="b">Mover a config da Tozi para o banco</div><div class="d">Tirar <code>TOZI_VISTA_API_KEY</code>/<code>TOZI_VISTA_BASE_URL</code> do <code>.env</code> → config por conta no DB.</div></div></div>
+    <div class="step"><div class="n"></div><div><div class="b">Migrar os dados do banco</div><div class="d">Agentes IA, espelhos, base de conhecimento (docs, Q&amp;A, embeddings) e automação de triagem.</div></div></div>
+    <div class="step"><div class="n"></div><div><div class="b">Validar com IA real na sandbox</div><div class="d">Roteiro ponta a ponta com chaves reais antes de tocar no cliente. Nunca apagar as IAs atuais antes de copiar.</div></div></div>
+    <div class="step"><div class="n"></div><div><div class="b">Virada com flag + rollback</div><div class="d">Ligar elegibilidade, triagem e flag. Rollback = desligar triagem + flag.</div></div></div>
+  </div>
+
+  <div class="foot"><span>Simplex Soluções · ChatSPX</span><span>2</span></div>
+</div>
+
+</body>
+</html>
