@@ -81,5 +81,44 @@ RSpec.describe BulkActionsJob do
       expect(Conversation.second.snoozed_until).to be_present
       expect(Conversation.third.snoozed_until).to be_present
     end
+
+    context 'when the resolve assignment gate is enabled' do
+      let(:team) { create(:team, account: account) }
+
+      before do
+        account.update!(settings: { resolve_assignment_gate: true })
+        create(:team_member, user: agent, team: team)
+        [conversation_1, conversation_2, conversation_3].each { |c| c.update!(team: team) }
+      end
+
+      it 'resolves only the conversations assigned to the acting user' do
+        conversation_1.update!(assignee: agent)
+        params = {
+          type: 'Conversation',
+          fields: { status: 'resolved' },
+          ids: [conversation_1, conversation_2, conversation_3].map(&:display_id)
+        }
+
+        described_class.perform_now(account_id: account.id, params: params, user_id: agent.id)
+
+        expect(conversation_1.reload.status).to eq('resolved')
+        expect(conversation_2.reload.status).to eq('open')
+        expect(conversation_3.reload.status).to eq('open')
+      end
+
+      it 'resolves all when the acting user is self-assigned in the same payload' do
+        params = {
+          type: 'Conversation',
+          fields: { status: 'resolved', assignee_id: agent.id },
+          ids: [conversation_1, conversation_2, conversation_3].map(&:display_id)
+        }
+
+        described_class.perform_now(account_id: account.id, params: params, user_id: agent.id)
+
+        expect(conversation_1.reload.status).to eq('resolved')
+        expect(conversation_2.reload.status).to eq('resolved')
+        expect(conversation_3.reload.status).to eq('resolved')
+      end
+    end
   end
 end

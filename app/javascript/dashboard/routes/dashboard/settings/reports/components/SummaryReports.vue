@@ -4,6 +4,8 @@ import Spinner from 'dashboard/components-next/spinner/Spinner.vue';
 import { formatTime } from '@chatwoot/utils';
 import { useStore, useMapGetter } from 'dashboard/composables/store';
 import { useAlert } from 'dashboard/composables';
+import { useReportNarrative } from 'dashboard/composables/useReportNarrative';
+import ReportNarrativeSummary from './ReportNarrativeSummary.vue';
 import Table from 'dashboard/components/table/Table.vue';
 import { generateFileName } from 'dashboard/helper/downloadHelper';
 import {
@@ -36,6 +38,8 @@ const props = defineProps({
   },
 });
 
+const emit = defineEmits(['filterChange']);
+
 const store = useStore();
 
 const from = ref(0);
@@ -62,6 +66,13 @@ const getMetrics = id =>
 const columnHelper = createColumnHelper();
 const { t } = useI18n();
 
+const { signalByMetric, dotClassFor, aggregateSignals } = useReportNarrative();
+
+// TL;DR da média: agrega os signals de todas as entidades por métrica.
+const aggregatedSignals = computed(() =>
+  aggregateSignals((reportMetrics.value || []).map(row => row.signals || []))
+);
+
 const defaulSpanRender = cellProps =>
   h(
     'span',
@@ -70,6 +81,17 @@ const defaulSpanRender = cellProps =>
     },
     cellProps.getValue()
   );
+
+// Célula de métrica com pontinho de semáforo (cor do nível) antes do valor.
+const metricCell = metricKey => cellProps => {
+  const value = cellProps.getValue();
+  const signal = cellProps.row.original.signalsByMetric?.[metricKey] || null;
+  const dot = dotClassFor(signal);
+  return h('span', { class: 'inline-flex items-center gap-1.5' }, [
+    dot && h('span', { class: `inline-block w-2 h-2 rounded-full ${dot}` }),
+    h('span', { class: value ? '' : 'text-n-slate-12' }, value),
+  ]);
+};
 
 const columns = computed(() => [
   columnHelper.accessor('name', {
@@ -85,7 +107,7 @@ const columns = computed(() => [
   columnHelper.accessor('avgFirstResponseTime', {
     header: t('SUMMARY_REPORTS.AVG_FIRST_RESPONSE_TIME'),
     width: 200,
-    cell: defaulSpanRender,
+    cell: metricCell('first_response'),
   }),
   ...(props.type !== 'label'
     ? [
@@ -99,17 +121,17 @@ const columns = computed(() => [
   columnHelper.accessor('avgResolutionTime', {
     header: t('SUMMARY_REPORTS.AVG_RESOLUTION_TIME'),
     width: 200,
-    cell: defaulSpanRender,
+    cell: metricCell('resolution'),
   }),
   columnHelper.accessor('avgReplyTime', {
     header: t('SUMMARY_REPORTS.AVG_REPLY_TIME'),
     width: 200,
-    cell: defaulSpanRender,
+    cell: metricCell('reply'),
   }),
   columnHelper.accessor('resolutionsCount', {
     header: t('SUMMARY_REPORTS.RESOLUTION_COUNT'),
     width: 200,
-    cell: defaulSpanRender,
+    cell: metricCell('resolution_rate'),
   }),
 ]);
 
@@ -127,6 +149,7 @@ const tableData = computed(() =>
       avgResolutionTime,
       avgReplyTime,
       resolvedConversationsCount,
+      signals,
     } = rowMetrics;
     return {
       id: row.id,
@@ -141,6 +164,12 @@ const tableData = computed(() =>
       avgReplyTime: renderAvgTime(avgReplyTime),
       avgResolutionTime: renderAvgTime(avgResolutionTime),
       resolutionsCount: renderCount(resolvedConversationsCount),
+      signalsByMetric: {
+        first_response: signalByMetric(signals, 'first_response'),
+        resolution: signalByMetric(signals, 'resolution'),
+        reply: signalByMetric(signals, 'reply'),
+        resolution_rate: signalByMetric(signals, 'resolution_rate'),
+      },
     };
   })
 );
@@ -173,6 +202,11 @@ const onFilterChange = updatedFilter => {
   from.value = updatedFilter.from;
   to.value = updatedFilter.to;
   businessHours.value = updatedFilter.businessHours;
+  emit('filterChange', {
+    from: from.value,
+    to: to.value,
+    businessHours: businessHours.value,
+  });
   fetchAllData();
 };
 
@@ -220,6 +254,7 @@ defineExpose({ downloadReports });
     :disabled="isLoading"
     @filter-change="onFilterChange"
   />
+  <ReportNarrativeSummary :signals="aggregatedSignals" />
   <div
     class="relative flex-1 overflow-auto px-2 py-2 mt-5 shadow outline-1 outline outline-n-container rounded-xl bg-n-solid-2"
   >

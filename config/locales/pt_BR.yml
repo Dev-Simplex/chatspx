@@ -231,6 +231,7 @@ pt_BR:
       assignment_required: 'Você precisa assumir a conversa antes de responder'
     errors:
       team_required_for_resolution: 'Um time deve ser atribuído antes de resolver esta conversa'
+      resolve_assignment_required: 'Apenas o agente atribuído pode encerrar esta conversa'
     captain:
       assignment_forbidden: 'Somente administradores podem atribuir agentes IA a conversas.'
       assignment_not_eligible: 'Este agente IA não é elegível para a caixa de entrada desta conversa'
@@ -240,7 +241,7 @@ pt_BR:
       instagram_deleted_story_content: Este Story não está mais disponível.
       instagram_shared_story_content: 'Story compartilhado'
       instagram_shared_post_content: 'Post compartilhado'
-      deleted: Esta mensagem foi excluída
+      deleted: Mensagem apagada
       undeletable: Esta mensagem não pode ser excluída
       whatsapp:
         list_button_label: 'Escolha um item'

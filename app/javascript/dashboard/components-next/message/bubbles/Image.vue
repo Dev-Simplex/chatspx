@@ -6,6 +6,7 @@ import { useLoadWithRetry } from 'dashboard/composables/loadWithRetry';
 import BaseBubble from './Base.vue';
 import Button from 'next/button/Button.vue';
 import Icon from 'next/icon/Icon.vue';
+import ProgressRing from 'dashboard/components-next/upload/ProgressRing.vue';
 import { useSnakeCase } from 'dashboard/composables/useTransformKeys';
 import { useMessageContext } from '../provider.js';
 import { downloadFile } from '@chatwoot/utils';
@@ -24,6 +25,18 @@ const {
 const attachment = computed(() => {
   return attachments.value[0];
 });
+
+// Optimistic "uploading" bubble: a local objectURL preview shows while the
+// DirectUpload runs; a progress ring overlays it. On completion the server copy
+// (same echo_id) replaces this message.
+const isUploading = computed(
+  () => attachment.value?.uploadStatus === 'uploading'
+);
+const uploadProgress = computed(() =>
+  typeof attachment.value?.uploadProgress === 'number'
+    ? attachment.value.uploadProgress
+    : null
+);
 
 const { isLoaded, hasError, loadWithRetry } = useLoadWithRetry();
 
@@ -57,13 +70,21 @@ const handleImageError = () => {
   <BaseBubble
     class="overflow-hidden p-3"
     data-bubble-name="image"
-    @click="showGallery = true"
+    @click="!isUploading && (showGallery = true)"
   >
     <div v-if="hasError" class="flex items-center gap-1 text-center rounded-lg">
       <Icon icon="i-lucide-circle-off" class="text-n-slate-11" />
       <p class="mb-0 text-n-slate-11">
         {{ $t('COMPONENTS.MEDIA.IMAGE_UNAVAILABLE') }}
       </p>
+    </div>
+    <!-- Em upload mas o preview local ainda não carregou: anel sobre placeholder
+         (não fica vazio). Quando carrega, cai no branch isLoaded abaixo. -->
+    <div
+      v-else-if="isUploading && !isLoaded"
+      class="grid place-items-center rounded-lg bg-n-slate-3 min-w-[12rem] min-h-[8rem]"
+    >
+      <ProgressRing :value="uploadProgress" :size="48" :stroke="4" />
     </div>
     <div v-else-if="isLoaded" class="relative group rounded-lg overflow-hidden">
       <img
@@ -73,10 +94,20 @@ const handleImageError = () => {
         :height="attachment.height"
         loading="lazy"
       />
+      <!-- Upload em andamento: anel de progresso sobre o preview local. -->
+      <div
+        v-if="isUploading"
+        class="absolute inset-0 z-10 flex items-center justify-center bg-black/40 backdrop-blur-[1px]"
+      >
+        <ProgressRing :value="uploadProgress" :size="48" :stroke="4" />
+      </div>
       <div
         class="inset-0 p-2 pointer-events-none absolute bg-gradient-to-tl from-n-slate-12/30 dark:from-n-slate-1/50 via-transparent to-transparent hidden group-hover:flex"
       />
-      <div class="absolute right-2 bottom-2 hidden group-hover:flex gap-2">
+      <div
+        v-if="!isUploading"
+        class="absolute right-2 bottom-2 hidden group-hover:flex gap-2"
+      >
         <Button xs solid slate icon="i-lucide-expand" class="opacity-60" />
         <Button
           xs

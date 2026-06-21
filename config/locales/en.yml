@@ -245,6 +245,7 @@ en:
       assignment_required: 'You must take over this conversation before replying'
     errors:
       team_required_for_resolution: 'A team must be assigned before resolving this conversation'
+      resolve_assignment_required: 'Only the assigned agent can resolve this conversation'
     captain:
       assignment_forbidden: 'Only administrators can assign AI agents to conversations.'
       assignment_not_eligible: "This AI agent is not eligible for this conversation's inbox"

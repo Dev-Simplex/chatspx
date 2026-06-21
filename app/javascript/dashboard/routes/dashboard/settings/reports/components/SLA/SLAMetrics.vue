@@ -1,6 +1,9 @@
 <script setup>
+import { computed } from 'vue';
 import SLAMetricCard from './SLAMetricCard.vue';
-defineProps({
+import { useReportNarrative } from 'dashboard/composables/useReportNarrative';
+
+const props = defineProps({
   hitRate: {
     type: String,
     required: true,
@@ -17,7 +20,16 @@ defineProps({
     type: Boolean,
     default: false,
   },
+  signals: {
+    type: Array,
+    default: () => [],
+  },
 });
+
+const { signalByMetric } = useReportNarrative();
+const hitRateSignal = computed(() =>
+  signalByMetric(props.signals, 'sla_hit_rate')
+);
 </script>
 
 <template>
@@ -29,6 +41,7 @@ defineProps({
       :value="hitRate"
       :tool-tip="$t('SLA_REPORTS.METRICS.HIT_RATE.TOOLTIP')"
       :is-loading="isLoading"
+      :signal="hitRateSignal"
     />
 
     <div class="w-full sm:w-px bg-n-container/60" />

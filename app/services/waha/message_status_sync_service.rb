@@ -2,6 +2,10 @@
 
 class Waha::MessageStatusSyncService
   ACK_TO_STATUS = { 1 => 'sent', 2 => 'delivered', 3 => 'read', 4 => 'read' }.freeze
+  # WhatsApp/WAHA error ack: the engine itself reports the send failed. This is
+  # POSITIVE evidence of failure (unlike absence of ack, which is just pending/
+  # delayed) — safe to surface as 'failed' without false positives.
+  WAHA_ACK_ERROR = -1
 
   def initialize(conversation)
     @conversation = conversation
@@ -41,7 +45,9 @@ class Waha::MessageStatusSyncService
   end
 
   def sync_single_message(waha_msg)
-    status = ACK_TO_STATUS[waha_msg['ack'].to_i]
+    ack = waha_msg['ack'].to_i
+    is_error = ack == WAHA_ACK_ERROR
+    status = is_error ? 'failed' : ACK_TO_STATUS[ack]
     waha_id = extract_message_id(waha_msg)
     return if status.blank? || waha_id.blank?
 
@@ -49,7 +55,11 @@ class Waha::MessageStatusSyncService
     return unless message
 
     backfill_source_id(message, waha_id)
-    Messages::StatusUpdateService.new(message, status).perform
+    # On error, surface a friendly reason. The StatusUpdateService guard still
+    # blocks delivered/read → failed, so a late/racing error ack can never
+    # override a delivery that demonstrably happened.
+    external_error = is_error ? 'WhatsApp (WAHA) reported a send error' : nil
+    Messages::StatusUpdateService.new(message, status, external_error).perform
   end
 
   def backfill_source_id(message, waha_id)

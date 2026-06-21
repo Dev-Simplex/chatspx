@@ -1,0 +1,8 @@
+BEGIN:VCARD
+VERSION:3.0
+N:Doe;John;;;
+FN:John Doe
+ORG:Acme Inc.;Sales
+TEL;TYPE=CELL:+15551234567
+EMAIL:john@acme.test
+END:VCARD

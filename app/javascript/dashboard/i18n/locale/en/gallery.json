@@ -39,7 +39,7 @@
     "ACTIONS": {
       "DOWNLOAD": "Download",
       "DOWNLOAD_EMPTY": "No downloadable files selected.",
-      "DOWNLOAD_LIMIT": "Limit of 5 files per batch. Please select fewer items.",
+      "DOWNLOAD_LIMIT": "Limit of 10 files per batch. Please select fewer items.",
       "FORWARD": "Forward",
       "SHARE": "Share",
       "SHARE_UNSUPPORTED": "Sharing is not supported in this browser.",
@@ -49,6 +49,21 @@
       "DESELECT": "Clear selection",
       "SELECTED": "{count} selected",
       "CLOSE": "Close"
+    },
+    "BULK": {
+      "DOWNLOAD_ZIP": "Download .zip ({count})",
+      "PREPARING": "Preparing file… ({processed}/{total})",
+      "PREPARING_INDEFINITE": "Preparing file…",
+      "READY": "Download started.",
+      "SELECT_ALL_FILTER": "Select all {total} in this filter",
+      "SELECTED_ALL_FILTER": "All {total} in this filter selected",
+      "ERROR_TOO_MANY": "Maximum of {limit} files per download. Refine the filter.",
+      "ERROR_TOO_LARGE": "Selection exceeds {limit}. Split into smaller batches.",
+      "ERROR_ACTIVE": "You already have a download being prepared. Please wait.",
+      "ERROR_EMPTY": "No files available to download.",
+      "ERROR_TIMEOUT": "Preparation is taking a while. The file is still being generated — try downloading again shortly.",
+      "ERROR_FAILED": "Could not generate the file. Please try again.",
+      "DOWNLOAD_ALL": "Download all (.zip)"
     }
   }
 }

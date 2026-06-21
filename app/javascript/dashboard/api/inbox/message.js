@@ -1,6 +1,8 @@
 /* eslint no-console: 0 */
 /* global axios */
 import ApiClient from '../ApiClient';
+import { emitter } from 'shared/helpers/mitt';
+import { BUS_EVENTS } from 'shared/constants/busEvents';
 
 export const buildCreatePayload = ({
   message,
@@ -65,6 +67,8 @@ class MessageApi extends ApiClient {
     toEmails = '',
     templateParams,
   }) {
+    const hasFiles = files && files.length !== 0;
+
     return axios({
       method: 'post',
       url: `${this.url}/${conversationId}/messages`,
@@ -79,6 +83,32 @@ class MessageApi extends ApiClient {
         toEmails,
         templateParams,
       }),
+      // Only meaningful when attachments ride inside the request body (indirect
+      // upload). For DirectUpload the blob is already on the server and this
+      // sweeps to 100% quickly — still a valid "it's going" signal. Keyed by
+      // echoId so the composer can match it to the optimistic message.
+      ...(hasFiles
+        ? {
+            onUploadProgress: progressEvent => {
+              // progressEvent.total is only populated when the length is
+              // computable; fall back to an indeterminate ring (percent: null).
+              const total = progressEvent.total || 0;
+              const percent =
+                total > 0
+                  ? Math.min(
+                      100,
+                      Math.round((progressEvent.loaded * 100) / total)
+                    )
+                  : null;
+              emitter.emit(BUS_EVENTS.MESSAGE_UPLOAD_PROGRESS, {
+                echoId,
+                loaded: progressEvent.loaded,
+                total,
+                percent,
+              });
+            },
+          }
+        : {}),
     });
   }
 

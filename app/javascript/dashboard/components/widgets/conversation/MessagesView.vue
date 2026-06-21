@@ -381,7 +381,9 @@ export default {
         this.isProgrammaticScroll = true;
         el.scrollIntoView({ behavior: 'smooth' });
         el.classList.add('highlight-message');
-        setTimeout(() => el.classList.remove('highlight-message'), 2000);
+        // Casado com a duração da animação .highlight-message (2.4s) para o
+        // realce terminar suave em vez de ser cortado no meio do fade.
+        setTimeout(() => el.classList.remove('highlight-message'), 2400);
         return true;
       };
 
@@ -855,18 +857,26 @@ export default {
 }
 
 :deep(.highlight-message) {
-  animation: message-highlight 2s ease-out;
+  animation: message-highlight 2.4s ease-out;
 }
 
 @keyframes message-highlight {
   0%,
   30% {
-    background-color: rgb(250 204 21 / 0.25);
+    background-color: rgb(250 204 21 / 0.35);
     border-radius: 0.5rem;
+    box-shadow: 0 0 0 2px rgb(250 204 21 / 0.5);
   }
 
   100% {
     background-color: transparent;
+    box-shadow: 0 0 0 2px transparent;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  :deep(.highlight-message) {
+    animation-duration: 1.2s;
   }
 }
 </style>

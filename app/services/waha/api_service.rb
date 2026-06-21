@@ -55,6 +55,12 @@ class Waha::ApiService # rubocop:disable Metrics/ClassLength
     )
   end
 
+  # Revokes a message for everyone (delete-for-everyone).
+  # WAHA: DELETE /api/{session}/chats/{chatId}/messages/{messageId}
+  def delete_message(session_name, chat_id, message_id)
+    delete("/api/#{session_name}/chats/#{encode_path_segment(chat_id)}/messages/#{encode_path_segment(message_id)}")
+  end
+
   # Fetch chat messages. Optional server-side filters:
   # - timestamp_gte: only messages with timestamp >= value (unix seconds) via filter.timestamp.gte
   # - from_me: when false, only inbound messages via filter.fromMe=false

@@ -113,6 +113,12 @@ export default camelcaseKeys(
           file_size: 287949,
           width: null,
           height: null,
+          meta: {
+            firstName: 'Anthony',
+            lastName: 'Edward',
+            fullName: 'Anthony Edward',
+            organization: 'Stark Industries',
+          },
         },
       ],
     },

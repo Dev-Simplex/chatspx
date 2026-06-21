@@ -37,11 +37,18 @@ const props = defineProps({
 });
 
 const {
+  uiSettings,
   updateUISettings,
   isContactSidebarItemOpen,
   conversationSidebarItemsOrder,
   toggleSidebarUIState,
 } = useUISettings();
+
+// "Mídias e Arquivos" abre por padrão (deixa o "Baixar todas" à vista de quem
+// está no chat). Só fica recolhido se o usuário o tiver fechado de propósito.
+const isMediaSectionOpen = computed(
+  () => uiSettings.value?.is_conv_media_open !== false
+);
 
 const dragging = ref(false);
 const conversationSidebarItems = ref([]);
@@ -156,7 +163,7 @@ onMounted(() => {
           >
             <AccordionItem
               :title="$t('CONVERSATION_SIDEBAR.ACCORDION.MEDIA_AND_FILES')"
-              :is-open="isContactSidebarItemOpen('is_conv_media_open')"
+              :is-open="isMediaSectionOpen"
               compact
               @toggle="
                 value => toggleSidebarUIState('is_conv_media_open', value)

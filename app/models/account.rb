@@ -41,6 +41,7 @@ class Account < ApplicationRecord # rubocop:disable Metrics/ClassLength
         'audio_transcriptions': { 'type': %w[boolean null] },
         'auto_resolve_label': { 'type': %w[string null] },
         'keep_pending_on_bot_failure': { 'type': %w[boolean null] },
+        'resolve_assignment_gate': { 'type': %w[boolean null] },
         'captain_auto_resolve_mode': { 'type': %w[string null], 'enum': ['evaluated', 'legacy', 'disabled', nil] },
         'reply_assignment_gate': { 'type': %w[boolean null] },
         'orphan_retriage_after': { 'type': %w[integer null], 'minimum': 5, 'maximum': 10_080 },
@@ -101,6 +102,7 @@ class Account < ApplicationRecord # rubocop:disable Metrics/ClassLength
   store_accessor :settings, :keep_pending_on_bot_failure
   store_accessor :settings, :captain_auto_resolve_mode
   store_accessor :settings, :reply_assignment_gate, :orphan_retriage_after, :queue_escalation_after
+  store_accessor :settings, :resolve_assignment_gate
   include AccountCaptainAutoResolve
 
   has_many :account_users, dependent: :destroy_async
@@ -118,6 +120,8 @@ class Account < ApplicationRecord # rubocop:disable Metrics/ClassLength
   has_many :conversations, dependent: :destroy_async
   has_many :csat_survey_responses, dependent: :destroy_async
   has_many :nps_responses, dependent: :destroy_async
+  has_many :report_pdf_exports, dependent: :destroy_async
+  has_many :attachment_bulk_downloads, dependent: :destroy_async
   has_many :custom_attribute_definitions, dependent: :destroy_async
   has_many :custom_filters, dependent: :destroy_async
   has_many :dashboard_apps, dependent: :destroy_async
@@ -210,6 +214,12 @@ class Account < ApplicationRecord # rubocop:disable Metrics/ClassLength
     # we need to extract the language code from the locale
     account_locale = locale&.split('_')&.first
     ISO_639.find(account_locale)&.english_name&.downcase || 'english'
+  end
+
+  # "Atribuição obrigatória" mode: when enabled, only the assignee can resolve a
+  # conversation manually. Stored as a JSONB setting flag.
+  def resolve_assignment_gate_enabled?
+    ActiveModel::Type::Boolean.new.cast(resolve_assignment_gate)
   end
 
   private

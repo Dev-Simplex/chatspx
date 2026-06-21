@@ -11,6 +11,9 @@ import {
 const props = defineProps({
   items: { type: Array, required: true },
   selectedIds: { type: Set, required: true },
+  // "Modo seleção" derivado: há ≥1 item selecionado. Quando ativo, os checkboxes
+  // aparecem em todos os cards; quando 0, somem e o clique simples abre o lightbox.
+  selectionActive: { type: Boolean, default: false },
   isLoadingMore: { type: Boolean, default: false },
   hasMore: { type: Boolean, default: false },
 });
@@ -23,6 +26,32 @@ const emit = defineEmits([
 ]);
 
 const EAGER_LCP_COUNT = 6;
+
+// Conflito clique × duplo-clique: o @dblclick dispara DEPOIS de dois @click. Sem
+// debounce, o lightbox abriria no meio do duplo-clique. Agendamos o "open" e, se
+// um dblclick chegar antes, cancelamos o timer e alternamos a seleção.
+const CLICK_DELAY_MS = 220;
+let clickTimer = null;
+
+const clearClickTimer = () => {
+  if (clickTimer) {
+    clearTimeout(clickTimer);
+    clickTimer = null;
+  }
+};
+
+const onCardClick = item => {
+  clearClickTimer();
+  clickTimer = setTimeout(() => {
+    clickTimer = null;
+    emit('open', item);
+  }, CLICK_DELAY_MS);
+};
+
+const onCardDblClick = item => {
+  clearClickTimer();
+  emit('toggleSelect', item.id);
+};
 
 const { t } = useI18n();
 const groups = useGroupedByDate(toRef(props, 'items'), t);
@@ -59,6 +88,7 @@ onMounted(() => {
 
 onBeforeUnmount(() => {
   if (observer) observer.disconnect();
+  clearClickTimer();
 });
 </script>
 
@@ -70,7 +100,7 @@ onBeforeUnmount(() => {
       class="mb-10 last:mb-0"
     >
       <h3
-        class="sticky -top-px z-20 -mx-6 sm:-mx-8 lg:-mx-10 px-6 sm:px-8 lg:px-10 py-3 mb-4 text-[13px] uppercase tracking-wider font-semibold text-n-slate-11 bg-n-background/95 dark:bg-n-solid-1/95 backdrop-blur"
+        class="mb-4 text-[13px] uppercase tracking-wider font-semibold text-n-slate-11"
       >
         {{ group.label }}
       </h3>
@@ -84,7 +114,8 @@ onBeforeUnmount(() => {
             '!ring-n-brand !ring-offset-2 !ring-offset-n-background dark:!ring-offset-n-solid-1':
               selectedIds.has(item.id),
           }"
-          @click="$emit('open', item)"
+          @click="onCardClick(item)"
+          @dblclick="onCardDblClick(item)"
         >
           <!-- Thumbnail -->
           <MediaThumb
@@ -141,16 +172,25 @@ onBeforeUnmount(() => {
             </div>
           </div>
 
-          <!-- Selection checkbox (top-left) -->
+          <!-- Selection checkbox (top-left) — círculo branco sólido.
+               Visibilidade:
+                 • item selecionado OU modo seleção ativo → sempre visível;
+                 • caso contrário → oculto, REVELADO no hover/foco do card
+                   (group-hover). pointer-events-none enquanto oculto p/ o clique
+                   atravessar e abrir o lightbox (não interceptar a área 28px). -->
           <button
             type="button"
             :aria-label="t('GALLERY.ACTIONS.SELECT')"
-            class="absolute top-2 ltr:left-2 rtl:right-2 size-7 rounded-full backdrop-blur-md flex items-center justify-center transition-all border-2"
-            :class="
+            :aria-pressed="selectedIds.has(item.id)"
+            class="absolute top-2.5 ltr:left-2.5 rtl:right-2.5 z-10 size-7 rounded-full flex items-center justify-center border-2 border-white shadow-md transition-opacity"
+            :class="[
               selectedIds.has(item.id)
-                ? 'bg-n-brand border-n-brand opacity-100'
-                : 'bg-black/40 border-white/70 opacity-0 group-hover:opacity-100'
-            "
+                ? 'bg-n-brand'
+                : 'bg-white hover:bg-n-brand',
+              selectionActive || selectedIds.has(item.id)
+                ? 'opacity-100'
+                : 'opacity-0 pointer-events-none group-hover:opacity-100 group-hover:pointer-events-auto focus-visible:opacity-100 focus-visible:pointer-events-auto',
+            ]"
             @click.stop="$emit('toggleSelect', item.id)"
           >
             <span

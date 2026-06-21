@@ -29,6 +29,31 @@ export const hasMessageFailedWithExternalError = pendingMessage => {
   return status === MESSAGE_STATUS.FAILED && externalError !== '';
 };
 
+// Tracks reconnect-driven resend attempts per optimistic message (keyed by
+// echo_id) so a persistently-unsendable message gives up after a few tries
+// instead of re-POSTing on every reconnect.
+const reconcileAttempts = new Map();
+const MAX_RECONCILE_RETRIES = 3;
+
+// A still-optimistic message keeps id === echo_id; the server swaps id for a
+// numeric one the moment it reconciles. So this equality is the reliable
+// "never confirmed by the server" signal.
+const isUnreconciledOptimistic = message =>
+  !!message.echo_id && String(message.id) === String(message.echo_id);
+
+// An optimistic attachment message whose DirectUpload is still in flight: the
+// real POST hasn't happened yet, so a reconnect must NOT resend it (no blob) nor
+// mark it failed — leave it until the upload finishes (or fails on its own).
+const isUploadingOptimistic = message =>
+  Array.isArray(message.attachments) &&
+  message.attachments.some(a => a.upload_status === 'uploading');
+
+// Find an optimistic (still id===echo_id) message by its echo_id in a chat.
+const findOptimisticByEchoId = (chat, echoId) =>
+  chat?.messages?.find(
+    m => isUnreconciledOptimistic(m) && m.echo_id === echoId
+  );
+
 // actions
 const actions = {
   getConversation: async ({ commit }, conversationId) => {
@@ -387,7 +412,13 @@ const actions = {
 
   toggleStatus: async (
     { commit },
-    { conversationId, status, snoozedUntil = null, customAttributes = null }
+    {
+      conversationId,
+      status,
+      snoozedUntil = null,
+      customAttributes = null,
+      rethrow = false,
+    }
   ) => {
     try {
       // Update custom attributes first if provided
@@ -420,7 +451,11 @@ const actions = {
         snoozedUntil: updatedSnoozedUntil,
       });
     } catch (error) {
-      // Handle error
+      // Opt-in propagation so callers (e.g. the resolve assignment gate) can react
+      // to a 422; default stays silent to preserve existing behaviour.
+      if (rethrow) {
+        throw error;
+      }
     }
   },
 
@@ -469,6 +504,170 @@ const actions = {
         });
       }
       throw error;
+    }
+  },
+
+  // ── In-conversation "uploading" bubble (WhatsApp-style) ───────────────────
+  // Inject an optimistic OUTGOING message that shows its attachment WHILE the
+  // DirectUpload is still in flight. No POST yet — the real send fires from
+  // finalizePendingAttachmentMessage once the blob is stored, reusing the SAME
+  // echo_id so the server copy reconciles onto this very bubble (no duplicate).
+  // Returns the pending message so the caller can map uploadId → echo_id.
+  addPendingAttachmentMessage: ({ commit }, data) => {
+    const pendingMessage = createPendingMessage(data);
+    commit(types.ADD_MESSAGE, {
+      ...pendingMessage,
+      status: MESSAGE_STATUS.PROGRESS,
+    });
+    return pendingMessage;
+  },
+
+  // Refresh the % on the uploading attachment bubble. Re-commits a NEW message
+  // object on purpose: the message-list camelize cache is keyed by reference, so
+  // mutating in place would not update the UI.
+  updatePendingAttachmentProgress: (
+    { commit, state },
+    { conversationId, echoId, uploadId, percent }
+  ) => {
+    const chat = state.allConversations.find(c => c.id === conversationId);
+    const message = findOptimisticByEchoId(chat, echoId);
+    if (!message?.attachments?.length) return;
+    const attachments = message.attachments.map(att =>
+      att.upload_id === uploadId ? { ...att, upload_progress: percent } : att
+    );
+    commit(types.ADD_MESSAGE, { ...message, attachments });
+  },
+
+  // DirectUpload finished → fire the real POST reusing the SAME echo_id and the
+  // freshly-stored blob signed id. sendMessageWithData re-commits PROGRESS then
+  // swaps to the server copy (SENT) by echo_id.
+  finalizePendingAttachmentMessage: (
+    { dispatch },
+    { pendingMessage, blobSignedId }
+  ) => {
+    // O blob já está armazenado: marca o anexo otimista como 'uploaded' (some o
+    // anel) antes do POST. Se o POST falhar, a bolha cai no estado FAILED normal
+    // (sem ficar com o anel "carregando" travado).
+    const attachments = (pendingMessage.attachments || []).map(a => ({
+      ...a,
+      upload_status: 'uploaded',
+      upload_progress: 100,
+    }));
+    return dispatch('sendMessageWithData', {
+      ...pendingMessage,
+      attachments,
+      files: [blobSignedId],
+    });
+  },
+
+  // DirectUpload failed before the POST → flip the bubble to FAILED so the agent
+  // can retry. Também marca o anexo como 'failed' para o overlay "carregando"
+  // sumir (senão a bolha mostra o anel + o erro ao mesmo tempo).
+  markPendingAttachmentFailed: (
+    { commit, state },
+    { conversationId, echoId, error }
+  ) => {
+    const chat = state.allConversations.find(c => c.id === conversationId);
+    const message = findOptimisticByEchoId(chat, echoId);
+    if (!message) return;
+    const attachments = (message.attachments || []).map(a =>
+      a.upload_status === 'uploading' ? { ...a, upload_status: 'failed' } : a
+    );
+    commit(types.ADD_MESSAGE, {
+      ...message,
+      attachments,
+      status: MESSAGE_STATUS.FAILED,
+      meta: { ...(message.meta || {}), error },
+    });
+  },
+
+  // Resolve optimistic messages stuck in 'progress'/'failed' after a dropped
+  // socket — WITHOUT a page reload. Runs after the post-reconnect refetch has
+  // pulled fresh server state into the window. For each stuck message:
+  //   1. If the server already has it (matched by the now-persisted echo_id),
+  //      drop the optimistic duplicate the refetch left behind.
+  //   2. Otherwise, if it's a genuinely-unsent 'progress' message we can fully
+  //      reconstruct, re-send it (backend dedupes by echo_id, so this can never
+  //      double-send). Give up after MAX_RECONCILE_RETRIES → mark failed.
+  // 'failed' messages with no server copy are left as-is (already visible; the
+  // user retries manually). See docs + F4 spec.
+  reconcilePendingMessages: async (
+    { commit, state, dispatch },
+    { conversationId } = {}
+  ) => {
+    const chat = state.allConversations.find(c => c.id === conversationId);
+    if (!chat?.messages?.length) return;
+
+    const pendings = chat.messages.filter(
+      m =>
+        isUnreconciledOptimistic(m) &&
+        // Upload em andamento: ainda não há POST/blob — não reenviar nem falhar.
+        !isUploadingOptimistic(m) &&
+        (m.status === MESSAGE_STATUS.PROGRESS ||
+          m.status === MESSAGE_STATUS.FAILED)
+    );
+
+    // Sequential on purpose: keeps resends ordered and avoids hammering the API.
+    // eslint-disable-next-line no-restricted-syntax
+    for (const pending of pendings) {
+      const serverCopy = chat.messages.find(
+        m =>
+          m !== pending &&
+          !isUnreconciledOptimistic(m) &&
+          m.additional_attributes?.echo_id === pending.echo_id
+      );
+
+      if (serverCopy) {
+        reconcileAttempts.delete(pending.echo_id);
+        commit(types.REMOVE_OPTIMISTIC_MESSAGE, {
+          conversationId,
+          echoId: pending.echo_id,
+        });
+        // eslint-disable-next-line no-continue
+        continue;
+      }
+
+      if (pending.status !== MESSAGE_STATUS.PROGRESS) {
+        // Already-failed with no server copy: visible; leave for manual retry.
+        // eslint-disable-next-line no-continue
+        continue;
+      }
+
+      // Only resend what we can fully reconstruct. An attachment message whose
+      // File objects are gone (e.g. after a reload) would otherwise be sent
+      // without its media — surface it as failed instead.
+      const hasPlaceholderAttachment = pending.attachments?.length > 0;
+      const hasResendableFiles = pending.files?.length > 0;
+      if (hasPlaceholderAttachment && !hasResendableFiles) {
+        commit(types.ADD_MESSAGE, {
+          ...pending,
+          status: MESSAGE_STATUS.FAILED,
+        });
+        // eslint-disable-next-line no-continue
+        continue;
+      }
+
+      const attempts = reconcileAttempts.get(pending.echo_id) || 0;
+      if (attempts >= MAX_RECONCILE_RETRIES) {
+        reconcileAttempts.delete(pending.echo_id);
+        commit(types.ADD_MESSAGE, {
+          ...pending,
+          status: MESSAGE_STATUS.FAILED,
+        });
+        // eslint-disable-next-line no-continue
+        continue;
+      }
+
+      reconcileAttempts.set(pending.echo_id, attempts + 1);
+      try {
+        // eslint-disable-next-line no-await-in-loop
+        await dispatch('sendMessageWithData', pending);
+        reconcileAttempts.delete(pending.echo_id);
+      } catch (error) {
+        // sendMessageWithData already flips the message to 'failed' on a hard
+        // error; keep the attempt count so a later reconnect can retry up to
+        // the cap.
+      }
     }
   },
 

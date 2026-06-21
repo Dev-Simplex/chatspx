@@ -7,11 +7,13 @@ import { GROUP_BY_FILTER } from '../constants';
 import { generateFileName } from '../../../../../helper/downloadHelper';
 import ReportHeader from './ReportHeader.vue';
 import SpeedInsightsPanel from './SpeedInsightsPanel.vue';
+import DownloadPdfButton from 'dashboard/components/reports/DownloadPdfButton.vue';
 
 export default {
   components: {
     ReportHeader,
     V4Button,
+    DownloadPdfButton,
     ReportFilters,
     ReportContainer,
     SpeedInsightsPanel,
@@ -185,12 +187,18 @@ export default {
     :header-description="headerDescription"
     :has-back-button="hasBackButton"
   >
-    <V4Button
-      :label="downloadButtonLabel"
-      icon="i-lucide-download"
-      size="sm"
-      @click="downloadReports"
-    />
+    <div class="flex items-center gap-2">
+      <DownloadPdfButton
+        :report-type="type"
+        :filters="{ from, to, business_hours: businessHours }"
+      />
+      <V4Button
+        :label="downloadButtonLabel"
+        icon="i-lucide-download"
+        size="sm"
+        @click="downloadReports"
+      />
+    </div>
   </ReportHeader>
 
   <ReportFilters

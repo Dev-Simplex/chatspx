@@ -52,6 +52,31 @@ RSpec.describe 'Public Inbox Contact Conversation Messages API', type: :request 
       expect(conversation.messages.last.attachments.first.file.present?).to be(true)
       expect(conversation.messages.last.attachments.first.file_type).to eq('image')
     end
+
+    it 'creates a contact attachment from a vCard sent as text/vcard' do
+      file = fixture_file_upload(Rails.root.join('spec/assets/sample_contact.vcf'), 'text/vcard')
+      post "/public/api/v1/inboxes/#{api_channel.identifier}/contacts/#{contact_inbox.source_id}/conversations/#{conversation.display_id}/messages",
+           params: { attachments: [file] }
+
+      expect(response).to have_http_status(:success)
+      attachment = conversation.messages.last.attachments.first
+      expect(attachment.file_type).to eq('contact')
+      expect(attachment.fallback_title).to eq('+15551234567')
+      expect(attachment.meta['fullName']).to eq('John Doe')
+      expect(attachment.meta['organization']).to eq('Acme Inc.')
+    end
+
+    it 'creates a contact attachment from a .vcf sent as application/octet-stream' do
+      file = fixture_file_upload(Rails.root.join('spec/assets/sample_contact.vcf'), 'application/octet-stream')
+      post "/public/api/v1/inboxes/#{api_channel.identifier}/contacts/#{contact_inbox.source_id}/conversations/#{conversation.display_id}/messages",
+           params: { attachments: [file] }
+
+      expect(response).to have_http_status(:success)
+      attachment = conversation.messages.last.attachments.first
+      expect(attachment.file_type).to eq('contact')
+      expect(attachment.meta['firstName']).to eq('John')
+      expect(attachment.meta['lastName']).to eq('Doe')
+    end
   end
 
   describe 'PATCH /public/api/v1/inboxes/{identifier}/contact/{source_id}/conversations/{conversation_id}/messages/{id}' do

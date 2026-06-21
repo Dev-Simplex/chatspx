@@ -179,6 +179,14 @@
           "ERROR": "Couldn't update, please try again"
         }
       },
+      "RESOLVE_GATE": {
+        "TITLE": "Mandatory assignment to resolve",
+        "NOTE": "Only the assigned agent can resolve a conversation. Anyone else is asked to assign it to themselves before resolving.",
+        "API": {
+          "SUCCESS": "Mandatory assignment mode updated successfully",
+          "ERROR": "Failed to update mandatory assignment mode"
+        }
+      },
       "AUTO_RESOLVE_DURATION": {
         "LABEL": "Inactivity duration for resolution",
         "HELP": "Duration after a conversation should auto resolve if there is no activity",

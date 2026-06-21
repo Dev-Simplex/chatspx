@@ -4,6 +4,7 @@ import { useAlert } from 'dashboard/composables';
 import { useI18n } from 'vue-i18n';
 import { useMapGetter } from 'dashboard/composables/store.js';
 import { useResolveValidation } from 'dashboard/composables/useResolveValidation';
+import { useResolveAssignmentGate } from 'dashboard/composables/useResolveAssignmentGate';
 import { useConversationRequiredAttributes } from 'dashboard/composables/useConversationRequiredAttributes';
 import wootConstants from 'dashboard/constants/globals';
 
@@ -303,66 +304,61 @@ export function useBulkActions() {
     cancelTeamSelection,
   } = useResolveValidation();
 
-  async function onUpdateConversations(status, snoozedUntil) {
-    let conversationIds = selectedConversations.value;
-    let skippedCount = 0;
+  const { isResolveGateEnabled, isAssignedToMe, currentUserId } =
+    useResolveAssignmentGate();
 
-    // If resolving, validate teams first (our custom feature)
-    if (status === wootConstants.STATUS_TYPE.RESOLVED) {
-      try {
-        await validateAndResolveBulk(
-          selectedConversations.value,
-          status,
-          snoozedUntil
-        );
-      } catch (error) {
-        if (error.message === 'TEAM_REQUIRED') {
-          // Modal will be shown by composable
-          return;
+  // "Atribuição obrigatória" — bulk assign-and-resolve confirmation state.
+  const showBulkAssignResolveDialog = ref(false);
+  const bulkAssignResolveRequiresTeam = ref(false);
+  const bulkAssignResolveCount = ref(0);
+  const pendingBulkResolve = ref(null);
+
+  // Apply the attributes filter, then dispatch the bulk resolve. When `selfAssign`
+  // is set, the acting user is assigned in the same payload so the backend gate
+  // (BulkActionsJob) lets the resolve through.
+  async function finalizeBulkResolve(
+    status,
+    snoozedUntil,
+    { selfAssign } = {}
+  ) {
+    const { validIds, skippedIds } = selectedConversations.value.reduce(
+      (acc, id) => {
+        const conversation = store.getters.getConversationById(id);
+        const currentCustomAttributes = conversation?.custom_attributes || {};
+        const { hasMissing } = checkMissingAttributes(currentCustomAttributes);
+
+        if (!hasMissing) {
+          acc.validIds.push(id);
+        } else {
+          acc.skippedIds.push(id);
         }
-        throw error;
-      }
+        return acc;
+      },
+      { validIds: [], skippedIds: [] }
+    );
 
-      // Also check for required attributes (upstream feature)
-      const { validIds, skippedIds } = selectedConversations.value.reduce(
-        (acc, id) => {
-          const conversation = store.getters.getConversationById(id);
-          const currentCustomAttributes = conversation?.custom_attributes || {};
-          const { hasMissing } = checkMissingAttributes(
-            currentCustomAttributes
-          );
+    const conversationIds = validIds;
+    const skippedCount = skippedIds.length;
 
-          if (!hasMissing) {
-            acc.validIds.push(id);
-          } else {
-            acc.skippedIds.push(id);
-          }
-          return acc;
-        },
-        { validIds: [], skippedIds: [] }
+    if (skippedCount > 0 && validIds.length === 0) {
+      // All conversations have missing attributes
+      useAlert(
+        t('BULK_ACTION.RESOLVE.ALL_MISSING_ATTRIBUTES') ||
+          'Cannot resolve conversations due to missing required attributes'
       );
-
-      conversationIds = validIds;
-      skippedCount = skippedIds.length;
-
-      if (skippedCount > 0 && validIds.length === 0) {
-        // All conversations have missing attributes
-        useAlert(
-          t('BULK_ACTION.RESOLVE.ALL_MISSING_ATTRIBUTES') ||
-            'Cannot resolve conversations due to missing required attributes'
-        );
-        return;
-      }
+      return;
     }
 
     try {
       if (conversationIds.length > 0) {
+        const fields = { status };
+        if (selfAssign) {
+          fields.assignee_id = currentUserId.value;
+        }
         await store.dispatch('bulkActions/process', {
           type: 'Conversation',
           ids: conversationIds,
-          fields: {
-            status,
-          },
+          fields,
           snoozed_until: snoozedUntil,
         });
       }
@@ -378,6 +374,91 @@ export function useBulkActions() {
       useAlert(t('BULK_ACTION.UPDATE.UPDATE_FAILED'));
     }
   }
+
+  async function onUpdateConversations(status, snoozedUntil) {
+    // If resolving, validate teams first (our custom feature)
+    if (status === wootConstants.STATUS_TYPE.RESOLVED) {
+      // "Atribuição obrigatória": if any selected conversation isn't mine, confirm
+      // a single assign-and-resolve before touching anything.
+      if (isResolveGateEnabled.value) {
+        const hasNonOwned = selectedConversations.value.some(id => {
+          const conversation = store.getters.getConversationById(id);
+          return !isAssignedToMe(conversation);
+        });
+        if (hasNonOwned) {
+          pendingBulkResolve.value = { status, snoozedUntil };
+          bulkAssignResolveRequiresTeam.value =
+            getConversationsWithoutTeam(selectedConversations.value).length > 0;
+          bulkAssignResolveCount.value = selectedConversations.value.length;
+          showBulkAssignResolveDialog.value = true;
+          return;
+        }
+      }
+
+      try {
+        await validateAndResolveBulk(
+          selectedConversations.value,
+          status,
+          snoozedUntil
+        );
+      } catch (error) {
+        if (error.message === 'TEAM_REQUIRED') {
+          // Modal will be shown by composable
+          return;
+        }
+        throw error;
+      }
+
+      await finalizeBulkResolve(status, snoozedUntil);
+      return;
+    }
+
+    // Non-resolve bulk status changes go straight through.
+    try {
+      if (selectedConversations.value.length > 0) {
+        await store.dispatch('bulkActions/process', {
+          type: 'Conversation',
+          ids: selectedConversations.value,
+          fields: { status },
+          snoozed_until: snoozedUntil,
+        });
+      }
+      store.dispatch('bulkActions/clearSelectedConversationIds');
+      useAlert(t('BULK_ACTION.UPDATE.UPDATE_SUCCESFUL'));
+    } catch (err) {
+      useAlert(t('BULK_ACTION.UPDATE.UPDATE_FAILED'));
+    }
+  }
+
+  const onConfirmBulkAssignResolve = async ({ teamId } = {}) => {
+    const pending = pendingBulkResolve.value;
+    showBulkAssignResolveDialog.value = false;
+    if (!pending) return;
+
+    // Assign the chosen team to conversations that don't have one yet.
+    if (teamId) {
+      const idsWithoutTeam = getConversationsWithoutTeam(
+        selectedConversations.value
+      );
+      if (idsWithoutTeam.length) {
+        await store.dispatch('bulkActions/process', {
+          type: 'Conversation',
+          ids: idsWithoutTeam,
+          fields: { team_id: teamId },
+        });
+      }
+    }
+
+    await finalizeBulkResolve(pending.status, pending.snoozedUntil, {
+      selfAssign: true,
+    });
+    pendingBulkResolve.value = null;
+  };
+
+  const onCancelBulkAssignResolve = () => {
+    showBulkAssignResolveDialog.value = false;
+    pendingBulkResolve.value = null;
+  };
 
   const handleTeamSelected = async teamId => {
     try {
@@ -408,5 +489,10 @@ export function useBulkActions() {
     teams,
     handleTeamSelected,
     cancelTeamSelection,
+    showBulkAssignResolveDialog,
+    bulkAssignResolveRequiresTeam,
+    bulkAssignResolveCount,
+    onConfirmBulkAssignResolve,
+    onCancelBulkAssignResolve,
   };
 }

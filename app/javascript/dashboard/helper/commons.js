@@ -46,8 +46,32 @@ export const getTypingUsersText = (users = []) => {
 export const createPendingMessage = data => {
   const timestamp = Math.floor(new Date().getTime() / 1000);
   const tempMessageId = getUuid();
-  const { message, file } = data;
-  const tempAttachments = [{ id: tempMessageId }];
+  const { message, file, pendingAttachments } = data;
+
+  // Rich optimistic attachments (in-conversation "uploading" bubble): each
+  // carries a LOCAL preview (objectURL) + upload state so the message bubble
+  // renders the media WHILE it transfers. On completion the server copy (same
+  // echo_id) replaces it. Snake_case to match server shape — useCamelCase in the
+  // message list turns these into fileType/dataUrl/uploadStatus/etc.
+  let attachments = null;
+  if (pendingAttachments?.length) {
+    attachments = pendingAttachments.map((att, index) => ({
+      id: `${tempMessageId}-${index}`,
+      message_id: tempMessageId,
+      file_type: att.fileType,
+      data_url: att.dataUrl,
+      thumb_url: att.thumbUrl || att.dataUrl,
+      file_size: att.fileSize,
+      extension: att.extension,
+      file_name: att.fileName,
+      upload_status: 'uploading',
+      upload_progress: att.uploadProgress ?? null,
+      upload_id: att.uploadId,
+    }));
+  } else if (file) {
+    attachments = [{ id: tempMessageId }];
+  }
+
   const pendingMessage = {
     ...data,
     content: message || null,
@@ -57,7 +81,7 @@ export const createPendingMessage = data => {
     created_at: timestamp,
     message_type: MESSAGE_TYPE.OUTGOING,
     conversation_id: data.conversationId,
-    attachments: file ? tempAttachments : null,
+    attachments,
   };
 
   return pendingMessage;

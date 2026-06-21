@@ -33,8 +33,18 @@ class ConversationFinder # rubocop:disable Metrics/ClassLength
   def initialize(current_user, params)
     @current_user = current_user
     @current_account = current_user.account
-    @is_admin = Current.account_user&.administrator?
+    @is_admin = administrator?
     @params = params
+  end
+
+  # Single source of truth for the admin check. Prefer the already-loaded
+  # Current.account_user; fall back to an explicit lookup only when the account
+  # is known but Current is not populated, so admins are never wrongly treated
+  # as agents. Mirrors Conversations::PermissionFilterService.
+  def administrator?
+    account_user = Current.account_user
+    account_user ||= @current_account && AccountUser.find_by(account_id: @current_account.id, user_id: @current_user.id)
+    account_user&.administrator? || false
   end
 
   def perform
@@ -221,11 +231,22 @@ class ConversationFinder # rubocop:disable Metrics/ClassLength
     return unless params[:q]
 
     allowed_message_types = [Message.message_types[:incoming], Message.message_types[:outgoing]]
+    # Isolamento por agente: não descobrir conversas só pelo conteúdo de mensagem de outro
+    # agente em inbox com a flag ON (admin/sem restrição → cláusula vazia).
+    agent_id = AgentMessageIsolation.viewer_restriction_id(@current_user, @current_account)
+    agent_clause = if agent_id
+                     'AND (messages.agent_id IS NULL OR messages.agent_id = :agent_id ' \
+                       'OR NOT EXISTS (SELECT 1 FROM inboxes WHERE inboxes.id = conversations.inbox_id ' \
+                       'AND inboxes.agent_message_isolation = true))'
+                   else
+                     ''
+                   end
     @conversations = @conversations.where(
       'EXISTS (SELECT 1 FROM messages WHERE messages.conversation_id = conversations.id ' \
-      'AND messages.content ILIKE :search AND messages.message_type IN (:types))',
+      "AND messages.content ILIKE :search AND messages.message_type IN (:types) #{agent_clause})",
       search: "%#{ActiveRecord::Base.sanitize_sql_like(params[:q])}%",
-      types: allowed_message_types
+      types: allowed_message_types,
+      agent_id: agent_id
     )
   end
 

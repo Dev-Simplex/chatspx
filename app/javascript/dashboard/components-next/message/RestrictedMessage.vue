@@ -1,15 +1,29 @@
 <script setup>
 import { computed } from 'vue';
 import { useI18n } from 'vue-i18n';
-import { dynamicTime } from 'shared/helpers/timeHelper';
 
 const props = defineProps({
-  teamName: { type: String, required: true },
+  // teamName: caminho legado do team isolation (fallback). Novos chamadores devem
+  // passar title/subtitle já resolvidos (suporta tanto team quanto agente).
+  teamName: { type: String, default: '' },
+  title: { type: String, default: '' },
+  subtitle: { type: String, default: '' },
   messageType: { type: Number, default: 0 },
-  createdAt: { type: Number, default: 0 },
+  // createdAt: recebido do Message.vue mas NÃO exibido — mensagens restritas não mostram
+  // horário (decisão de produto). Declarado p/ não vazar como atributo no DOM via $attrs.
+  createdAt: { type: Number, default: 0 }, // eslint-disable-line vue/no-unused-properties
 });
 
 const { t } = useI18n();
+
+const restrictedTitle = computed(
+  () =>
+    props.title ||
+    t('CONVERSATION.TEAM_ISOLATION.RESTRICTED_TITLE', { team: props.teamName })
+);
+const restrictedSubtitle = computed(
+  () => props.subtitle || t('CONVERSATION.TEAM_ISOLATION.RESTRICTED_SUBTITLE')
+);
 
 const isOutgoing = computed(() => props.messageType === 1);
 
@@ -22,8 +36,6 @@ const bubbleRoundingClass = computed(() =>
     ? 'rounded-2xl ltr:rounded-br-md rtl:rounded-bl-md'
     : 'rounded-2xl ltr:rounded-bl-md rtl:rounded-br-md'
 );
-
-const formattedTime = computed(() => dynamicTime(props.createdAt));
 </script>
 
 <template>
@@ -56,21 +68,12 @@ const formattedTime = computed(() => dynamicTime(props.createdAt));
         </div>
         <div class="min-w-0">
           <p class="text-xs font-medium text-n-slate-12 truncate">
-            {{
-              t('CONVERSATION.TEAM_ISOLATION.RESTRICTED_TITLE', {
-                team: teamName,
-              })
-            }}
+            {{ restrictedTitle }}
           </p>
           <p class="text-[10px] text-n-slate-10 leading-tight">
-            {{ t('CONVERSATION.TEAM_ISOLATION.RESTRICTED_SUBTITLE') }}
+            {{ restrictedSubtitle }}
           </p>
         </div>
-      </div>
-
-      <!-- Timestamp -->
-      <div class="mt-1.5 flex items-center justify-end">
-        <span class="text-[10px] text-n-slate-9">{{ formattedTime }}</span>
       </div>
     </div>
   </div>

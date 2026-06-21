@@ -32,7 +32,7 @@ class Api::V1::Accounts::ConversationsController < Api::V1::Accounts::BaseContro
 
   def attachments
     base_scope = @conversation.attachments
-                              .where(file_type: [:image, :video, :ig_reel])
+                              .where(file_type: [:image, :video, :ig_reel, :audio, :file])
                               .includes(
                                 { file_attachment: [:blob] },
                                 { message: { sender: { avatar_attachment: [:blob] } } }
@@ -90,6 +90,8 @@ class Api::V1::Accounts::ConversationsController < Api::V1::Accounts::BaseContro
 
   def toggle_status
     @status = Conversations::ToggleStatusService.new(conversation: @conversation, params: params, user: Current.user).perform.present?
+  rescue Conversations::ToggleStatusService::ResolveAssignmentRequiredError => e
+    render json: { error: e.message, error_code: 'resolve_assignment_required', meta: e.meta }, status: :unprocessable_entity
   rescue Conversations::ToggleStatusService::TeamRequiredError => e
     render json: { error: e.message }, status: :unprocessable_entity
   end

@@ -5,10 +5,13 @@ import ResolutionHeatmapContainer from './components/heatmaps/ResolutionHeatmapC
 import AgentLiveReportContainer from './components/AgentLiveReportContainer.vue';
 import TeamLiveReportContainer from './components/TeamLiveReportContainer.vue';
 import StatsLiveReportsContainer from './components/StatsLiveReportsContainer.vue';
+import DownloadPdfButton from 'dashboard/components/reports/DownloadPdfButton.vue';
 </script>
 
 <template>
-  <ReportHeader :header-title="$t('OVERVIEW_REPORTS.HEADER')" />
+  <ReportHeader :header-title="$t('OVERVIEW_REPORTS.HEADER')">
+    <DownloadPdfButton report-type="overview" :filters="{}" />
+  </ReportHeader>
   <div class="flex flex-col gap-6 pb-6">
     <StatsLiveReportsContainer />
     <ConversationHeatmapContainer />

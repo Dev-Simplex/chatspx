@@ -18,6 +18,7 @@ import AttendanceModeToggle from './components/AttendanceModeToggle.vue';
 import AudioTranscription from './components/AudioTranscription.vue';
 import ChatWallpaper from './components/ChatWallpaper.vue';
 import DashboardKpiStrip from './components/DashboardKpiStrip.vue';
+import ResolveGateToggle from './components/ResolveGateToggle.vue';
 import DensityToggle from './components/DensityToggle.vue';
 import SectionLayout from './components/SectionLayout.vue';
 
@@ -32,6 +33,7 @@ export default {
     AudioTranscription,
     ChatWallpaper,
     DashboardKpiStrip,
+    ResolveGateToggle,
     DensityToggle,
     SectionLayout,
     WithLabel,
@@ -248,6 +250,7 @@ export default {
     <ChatWallpaper />
     <DashboardKpiStrip />
     <AttendanceModeToggle />
+    <ResolveGateToggle />
     <DensityToggle />
     <AccountId />
     <div v-if="!uiFlags.isFetchingItem && isOnChatwootCloud">

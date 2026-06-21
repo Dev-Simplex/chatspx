@@ -3,8 +3,10 @@ import { useMapGetter } from 'dashboard/composables/store';
 import { useAlert } from 'dashboard/composables';
 import { useI18n } from 'vue-i18n';
 import { DirectUpload } from 'activestorage';
-import { checkFileSizeLimit } from 'shared/helpers/FileHelper';
-import { getMaxUploadSizeByChannel } from '@chatwoot/utils';
+import {
+  checkFileSizeLimit,
+  getMaxUploadSizeByChannel,
+} from 'shared/helpers/FileHelper';
 
 vi.mock('dashboard/composables/store');
 vi.mock('dashboard/composables', () => ({
@@ -14,10 +16,19 @@ vi.mock('vue-i18n');
 vi.mock('activestorage');
 vi.mock('shared/helpers/FileHelper', () => ({
   checkFileSizeLimit: vi.fn(),
+  getMaxUploadSizeByChannel: vi.fn(),
   resolveMaximumFileUploadSize: vi.fn(value => Number(value) || 40),
   DEFAULT_MAXIMUM_FILE_UPLOAD_SIZE: 40,
+  HARD_MAXIMUM_FILE_UPLOAD_SIZE: 100,
+  effectiveMaxUploadSize: vi.fn(limit => {
+    const n = Number(limit);
+    if (!Number.isFinite(n) || n <= 0) return 100;
+    return Math.min(n, 100);
+  }),
+  // Pass-through: image compression is exercised in FileHelper's own specs.
+  compressAttachmentInPlace: vi.fn(file => Promise.resolve(file)),
+  formatBytes: vi.fn(bytes => `${bytes} Bytes`),
 }));
-vi.mock('@chatwoot/utils');
 
 describe('useFileUpload', () => {
   const mockAttachFile = vi.fn();
@@ -52,7 +63,7 @@ describe('useFileUpload', () => {
     getMaxUploadSizeByChannel.mockReturnValue(25); // default max size MB for tests
   });
 
-  it('handles direct file upload when direct uploads enabled', () => {
+  it('handles direct file upload when direct uploads enabled', async () => {
     const { onFileUpload } = useFileUpload({
       inbox,
       attachFile: mockAttachFile,
@@ -63,7 +74,7 @@ describe('useFileUpload', () => {
       create: callback => callback(null, mockBlob),
     }));
 
-    onFileUpload(mockFile);
+    await onFileUpload(mockFile);
 
     // size rules called with inbox + mime
     expect(getMaxUploadSizeByChannel).toHaveBeenCalledWith({
@@ -86,7 +97,7 @@ describe('useFileUpload', () => {
     });
   });
 
-  it('handles indirect file upload when direct upload disabled', () => {
+  it('handles indirect file upload when direct upload disabled', async () => {
     useMapGetter.mockImplementation(getter => {
       const getterMap = {
         getCurrentAccountId: { value: '123' },
@@ -104,7 +115,7 @@ describe('useFileUpload', () => {
       attachFile: mockAttachFile,
     });
 
-    onFileUpload(mockFile);
+    await onFileUpload(mockFile);
 
     expect(DirectUpload).not.toHaveBeenCalled();
     expect(getMaxUploadSizeByChannel).toHaveBeenCalled();
@@ -112,7 +123,7 @@ describe('useFileUpload', () => {
     expect(mockAttachFile).toHaveBeenCalledWith({ file: mockFile });
   });
 
-  it('shows alert when file size exceeds limit', () => {
+  it('shows alert when file size exceeds limit', async () => {
     checkFileSizeLimit.mockReturnValue(false);
     mockTranslate.mockReturnValue('File size exceeds limit');
 
@@ -121,13 +132,16 @@ describe('useFileUpload', () => {
       attachFile: mockAttachFile,
     });
 
-    onFileUpload(mockFile);
+    await onFileUpload(mockFile);
 
-    expect(useAlert).toHaveBeenCalledWith('File size exceeds limit');
+    expect(useAlert).toHaveBeenCalledWith(
+      'File size exceeds limit',
+      expect.objectContaining({ position: 'center' })
+    );
     expect(mockAttachFile).not.toHaveBeenCalled();
   });
 
-  it('uses per-mime limits from helper', () => {
+  it('uses per-mime limits from helper', async () => {
     getMaxUploadSizeByChannel.mockImplementation(({ mime }) =>
       mime.startsWith('image/') ? 10 : 50
     );
@@ -140,7 +154,7 @@ describe('useFileUpload', () => {
       create: cb => cb(null, { signed_id: 'blob' }),
     }));
 
-    onFileUpload(mockFile);
+    await onFileUpload(mockFile);
 
     expect(getMaxUploadSizeByChannel).toHaveBeenCalledWith({
       channelType: inbox.channel_type,
@@ -150,7 +164,7 @@ describe('useFileUpload', () => {
     expect(checkFileSizeLimit).toHaveBeenCalledWith(mockFile, 10);
   });
 
-  it('handles direct upload errors', () => {
+  it('handles direct upload errors', async () => {
     const mockError = 'Upload failed';
     DirectUpload.mockImplementation(() => ({
       create: callback => callback(mockError, null),
@@ -161,19 +175,49 @@ describe('useFileUpload', () => {
       attachFile: mockAttachFile,
     });
 
-    onFileUpload(mockFile);
+    await onFileUpload(mockFile);
 
     expect(useAlert).toHaveBeenCalledWith(mockError);
     expect(mockAttachFile).not.toHaveBeenCalled();
   });
 
-  it('does nothing when file is null', () => {
+  it('caps the effective limit at 100MB even when installation limit is higher', async () => {
+    useMapGetter.mockImplementation(getter => {
+      const getterMap = {
+        getCurrentAccountId: { value: '123' },
+        getCurrentUser: { value: { access_token: 'test-token' } },
+        getSelectedChat: { value: { id: '456' } },
+        'globalConfig/get': {
+          value: { directUploadsEnabled: true, maximumFileUploadSize: 500 },
+        },
+      };
+      return getterMap[getter];
+    });
+    // Channel reports a large limit; the hard ceiling must still win.
+    getMaxUploadSizeByChannel.mockReturnValue(300);
+
+    DirectUpload.mockImplementation(() => ({
+      create: cb => cb(null, { signed_id: 'blob' }),
+    }));
+
     const { onFileUpload } = useFileUpload({
       inbox,
       attachFile: mockAttachFile,
     });
 
-    onFileUpload(null);
+    await onFileUpload(mockFile);
+
+    // min(channel 300, installation 500) = 300, then hard-capped to 100.
+    expect(checkFileSizeLimit).toHaveBeenCalledWith(mockFile, 100);
+  });
+
+  it('does nothing when file is null', async () => {
+    const { onFileUpload } = useFileUpload({
+      inbox,
+      attachFile: mockAttachFile,
+    });
+
+    await onFileUpload(null);
 
     expect(checkFileSizeLimit).not.toHaveBeenCalled();
     expect(getMaxUploadSizeByChannel).not.toHaveBeenCalled();

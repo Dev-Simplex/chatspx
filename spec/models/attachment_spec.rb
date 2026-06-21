@@ -295,7 +295,7 @@ RSpec.describe Attachment do
       attachment.errors.clear
       attachment.send(:validate_file_size, 6.megabytes)
 
-      expect(attachment.errors[:file]).to include('size is too big')
+      expect(attachment.errors[:file]).to include('size exceeds the 5MB limit')
     end
 
     it 'falls back to default when configured limit is invalid' do
@@ -306,7 +306,123 @@ RSpec.describe Attachment do
       attachment.errors.clear
       attachment.send(:validate_file_size, 41.megabytes)
 
-      expect(attachment.errors[:file]).to include('size is too big')
+      expect(attachment.errors[:file]).to include('size exceeds the 40MB limit')
+    end
+
+    it 'caps the limit at the hard 100MB ceiling even when configured higher' do
+      allow(GlobalConfigService).to receive(:load)
+        .with('MAXIMUM_FILE_UPLOAD_SIZE', 40)
+        .and_return('500')
+
+      expect(attachment.send(:max_upload_size_mb)).to eq(100)
+
+      attachment.errors.clear
+      attachment.send(:validate_file_size, 99.megabytes)
+      expect(attachment.errors[:file]).to be_empty
+
+      attachment.errors.clear
+      attachment.send(:validate_file_size, 101.megabytes)
+      expect(attachment.errors[:file]).to include('size exceeds the 100MB limit')
+    end
+  end
+
+  describe 'file size validation across channels' do
+    # Size must be validated on every channel, not only the website widget,
+    # otherwise oversized files are saved and fail silently at send time.
+    def oversized_image_for(message)
+      attachment = message.attachments.new(account_id: message.account_id, file_type: :image)
+      attachment.file.attach(io: Rails.root.join('spec/assets/avatar.png').open, filename: 'avatar.png', content_type: 'image/png')
+      allow(attachment.file).to receive(:byte_size).and_return(101.megabytes)
+      attachment
+    end
+
+    before do
+      allow(GlobalConfigService).to receive(:load).and_call_original
+      allow(GlobalConfigService).to receive(:load).with('MAXIMUM_FILE_UPLOAD_SIZE', 40).and_return('500')
+    end
+
+    it 'rejects files over the hard limit on a non-WebWidget channel (API/WhatsApp)' do
+      api_inbox = create(:inbox, account: message.account, channel: create(:channel_api, account: message.account))
+      api_message = create(:message, account: message.account, inbox: api_inbox)
+
+      attachment = oversized_image_for(api_message)
+
+      expect(attachment.valid?).to be false
+      expect(attachment.errors[:file]).to include('size exceeds the 100MB limit')
+    end
+
+    it 'rejects files over the hard limit on the WebWidget channel' do
+      attachment = oversized_image_for(message)
+
+      expect(attachment.valid?).to be false
+      expect(attachment.errors[:file]).to include('size exceeds the 100MB limit')
+    end
+
+    it 'still saves a valid file under the limit on a non-WebWidget channel' do
+      api_inbox = create(:inbox, account: message.account, channel: create(:channel_api, account: message.account))
+      api_message = create(:message, account: message.account, inbox: api_inbox)
+
+      attachment = api_message.attachments.new(account_id: api_message.account_id, file_type: :image)
+      attachment.file.attach(io: Rails.root.join('spec/assets/avatar.png').open, filename: 'avatar.png', content_type: 'image/png')
+
+      expect(attachment.valid?).to be true
+    end
+  end
+
+  describe 'WAHA per-category size validation (Channel::Api)' do
+    let(:api_message) do
+      api_inbox = create(:inbox, account: message.account, channel: create(:channel_api, account: message.account))
+      create(:message, account: message.account, inbox: api_inbox)
+    end
+
+    before do
+      allow(GlobalConfigService).to receive(:load).and_call_original
+      # Keep the global cap high so we isolate the per-category net.
+      allow(GlobalConfigService).to receive(:load).with('MAXIMUM_FILE_UPLOAD_SIZE', 40).and_return('500')
+    end
+
+    def api_attachment
+      api_message.attachments.new(account_id: api_message.account_id, file_type: :image)
+    end
+
+    it 'rejects an image over the 16MB WAHA limit' do
+      attachment = api_attachment
+      attachment.send(:validate_waha_category_size, 17.megabytes, 'image/png')
+      expect(attachment.errors[:file]).to include('size exceeds the 16MB limit for image')
+    end
+
+    it 'rejects a video over the 16MB WAHA limit' do
+      attachment = api_attachment
+      attachment.send(:validate_waha_category_size, 20.megabytes, 'video/mp4')
+      expect(attachment.errors[:file]).to include('size exceeds the 16MB limit for video')
+    end
+
+    it 'allows an image within the 16MB WAHA limit' do
+      attachment = api_attachment
+      attachment.send(:validate_waha_category_size, 15.megabytes, 'image/png')
+      expect(attachment.errors[:file]).to be_empty
+    end
+
+    it 'allows a document up to the 100MB WAHA limit' do
+      attachment = api_attachment
+      attachment.send(:validate_waha_category_size, 80.megabytes, 'application/pdf')
+      expect(attachment.errors[:file]).to be_empty
+    end
+
+    it 'does not apply the per-category net on non-API channels' do
+      # WebWidget message: a 50MB image must NOT trip the 16MB WAHA image limit.
+      attachment = message.attachments.new(account_id: message.account_id, file_type: :image)
+      attachment.send(:validate_waha_category_size, 50.megabytes, 'image/png')
+      expect(attachment.errors[:file]).to be_empty
+    end
+
+    it 'maps mime to the WAHA category like the frontend' do
+      attachment = api_attachment
+      expect(attachment.send(:waha_category_from_mime, 'application/pdf')).to eq('document')
+      expect(attachment.send(:waha_category_from_mime, 'text/csv')).to eq('document')
+      expect(attachment.send(:waha_category_from_mime, 'image/png')).to eq('image')
+      expect(attachment.send(:waha_category_from_mime, 'video/mp4')).to eq('video')
+      expect(attachment.send(:waha_category_from_mime, nil)).to be_nil
     end
   end
 end

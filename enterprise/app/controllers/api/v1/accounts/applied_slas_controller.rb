@@ -19,6 +19,7 @@ class Api::V1::Accounts::AppliedSlasController < Api::V1::Accounts::EnterpriseAc
     @total_applied_slas = total_applied_slas
     @number_of_sla_misses = number_of_sla_misses
     @hit_rate = hit_rate
+    @signals = sla_signals
   end
 
   def download
@@ -44,6 +45,14 @@ class Api::V1::Accounts::AppliedSlasController < Api::V1::Accounts::EnterpriseAc
 
   def hit_rate_percentage
     ((total_applied_slas - number_of_sla_misses) / total_applied_slas.to_f * 100).round(2)
+  end
+
+  # Semáforo do hit rate (% de SLAs no prazo). Sem SLAs aplicados → sem sinal.
+  def sla_signals
+    return [] if total_applied_slas.zero?
+
+    value = number_of_sla_misses.zero? ? 100 : hit_rate_percentage
+    Reports::SignalSet.new(entries: [{ metric: :sla_hit_rate, value: value }]).build
   end
 
   def set_applied_slas

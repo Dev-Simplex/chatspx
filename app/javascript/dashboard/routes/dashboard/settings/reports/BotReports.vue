@@ -6,12 +6,14 @@ import { GROUP_BY_FILTER } from './constants';
 import ReportContainer from './ReportContainer.vue';
 import { REPORTS_EVENTS } from '../../../../helper/AnalyticsHelper/events';
 import ReportHeader from './components/ReportHeader.vue';
+import DownloadPdfButton from 'dashboard/components/reports/DownloadPdfButton.vue';
 
 export default {
   name: 'BotReports',
   components: {
     BotMetrics,
     ReportHeader,
+    DownloadPdfButton,
     ReportFilters,
     ReportContainer,
   },
@@ -86,7 +88,9 @@ export default {
 </script>
 
 <template>
-  <ReportHeader :header-title="$t('BOT_REPORTS.HEADER')" />
+  <ReportHeader :header-title="$t('BOT_REPORTS.HEADER')">
+    <DownloadPdfButton report-type="bot" :filters="requestPayload" />
+  </ReportHeader>
   <div class="flex flex-col gap-4">
     <ReportFilters
       :show-entity-filter="false"

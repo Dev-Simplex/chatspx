@@ -1,0 +1,5 @@
+<%# Barra empilhada com legenda. locals: segments => [{label:, value:, color:}], title %>
+<div class="comp-block">
+  <% if local_assigns[:title].present? %><div class="comp-title"><%= title %></div><% end %>
+  <%= pdf_composition_bar(segments) %>
+</div>

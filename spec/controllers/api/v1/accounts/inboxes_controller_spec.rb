@@ -487,6 +487,17 @@ RSpec.describe 'Inboxes API', type: :request do
         expect(response.parsed_body['name']).to eq 'new test inbox'
       end
 
+      it 'updates agent_message_isolation when administrator' do
+        patch "/api/v1/accounts/#{account.id}/inboxes/#{inbox.id}",
+              headers: admin.create_new_auth_token,
+              params: { agent_message_isolation: true },
+              as: :json
+
+        expect(response).to have_http_status(:success)
+        expect(inbox.reload.agent_message_isolation).to be(true)
+        expect(response.parsed_body['agent_message_isolation']).to be(true)
+      end
+
       it 'updates api inbox when administrator' do
         api_channel = create(:channel_api, account: account)
         api_inbox = create(:inbox, channel: api_channel, account: account)

@@ -622,15 +622,47 @@ RSpec.describe 'Conversation Messages API', type: :request do
         create(:inbox_member, inbox: conversation.inbox, user: agent)
       end
 
-      it 'deletes the message' do
+      it 'deletes the message and preserves the original content for the history card' do
+        original_content = message.content
+
         delete "/api/v1/accounts/#{account.id}/conversations/#{conversation.display_id}/messages/#{message.id}",
                headers: agent.create_new_auth_token,
                as: :json
 
         expect(response).to have_http_status(:success)
-        expect(message.reload.content).to eq 'This message was deleted'
-        expect(message.reload.deleted).to be true
-        expect(message.reload.content_attributes['bcc_emails']).to be_nil
+        message.reload
+        expect(message.content).to eq 'This message was deleted'
+        expect(message.deleted).to be true
+        expect(message.content_attributes['previous_content']).to eq original_content
+        expect(message.content_attributes['deleted_at']).to be_present
+        expect(message.content_attributes['deleted_by']).to include('id' => agent.id, 'name' => agent.name)
+        # Unrelated attributes are merged/preserved (no longer zeroed out)
+        expect(message.content_attributes['bcc_emails']).to eq ['hello@chatwoot.com']
+      end
+
+      it 'surfaces a friendly error when the WAHA call times out' do
+        service = instance_double(Messages::DeleteContentService)
+        allow(Messages::DeleteContentService).to receive(:new).and_return(service)
+        allow(service).to receive(:perform).and_raise(Rack::Timeout::RequestTimeoutException.new({}))
+
+        delete "/api/v1/accounts/#{account.id}/conversations/#{conversation.display_id}/messages/#{message.id}",
+               headers: agent.create_new_auth_token,
+               as: :json
+
+        expect(response).to have_http_status(:unprocessable_entity)
+        expect(response.parsed_body['error']).to eq I18n.t('errors.messages.update.timeout')
+      end
+
+      it 'returns 422 for NPS/CSAT messages' do
+        nps_message = create(:message, message_type: :outgoing, content: 'rate us',
+                                       content_type: 'input_csat', conversation: conversation)
+
+        delete "/api/v1/accounts/#{account.id}/conversations/#{conversation.display_id}/messages/#{nps_message.id}",
+               headers: agent.create_new_auth_token,
+               as: :json
+
+        expect(response).to have_http_status(:unprocessable_entity)
+        expect(nps_message.reload.deleted).to be_falsey
       end
 
       it 'deletes interactive messages' do

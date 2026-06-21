@@ -197,6 +197,60 @@ RSpec.describe Api::V2::Accounts::ReportsController, type: :request do
     end
   end
 
+  describe 'GET /api/v2/accounts/{account.id}/reports/summary signals' do
+    let(:summary_params) do
+      {
+        type: 'account',
+        since: 1.day.ago.to_i.to_s,
+        until: Time.current.to_i.to_s
+      }
+    end
+
+    context 'when authenticated and authorized' do
+      before do
+        get "/api/v2/accounts/#{account.id}/reports/summary",
+            params: summary_params,
+            headers: admin.create_new_auth_token, as: :json
+      end
+
+      it 'includes an additive signals array without dropping pre-existing fields' do
+        body = response.parsed_body
+
+        expect(response).to have_http_status(:success)
+        # Campos pré-existentes seguem presentes (sem regressão de API).
+        expect(body).to include('conversations_count', 'avg_first_response_time', 'avg_resolution_time',
+                                'resolutions_count', 'reply_time', 'previous')
+        expect(body['signals']).to be_an(Array)
+      end
+
+      it 'returns each signal in the contract shape with valid levels' do
+        signals = response.parsed_body['signals']
+
+        expect(signals.map { |s| s['metric'] }).to match_array(%w[first_response resolution reply resolution_rate])
+        signals.each do |signal|
+          expect(signal.keys).to include('metric', 'value', 'goal', 'level', 'ratio', 'delta_pct', 'is_highlight', 'is_attention')
+          expect(signal['level']).to be_in(%w[good warn bad])
+        end
+      end
+
+      it 'marks exactly one highlight' do
+        signals = response.parsed_body['signals']
+
+        expect(signals.count { |s| s['is_highlight'] }).to eq(1)
+      end
+
+      it 'derives each level from PdfBenchmarks (same source as the PDF)' do
+        signals = response.parsed_body['signals']
+
+        signals.each do |signal|
+          bench = Reports::PdfBenchmarks::BENCHMARKS[signal['metric'].to_sym]
+          expected = Reports::PdfBenchmarks.level_for(signal['value'].to_f, bench).to_s
+          expect(signal['level']).to eq(expected)
+        end
+      end
+    end
+  end
+
   describe 'GET /api/v2/accounts/{account.id}/reports/inbox_label_matrix' do
     let!(:inbox_one) { create(:inbox, account: account, name: 'Email Support') }
     let!(:label_one) { create(:label, account: account, title: 'bug') }

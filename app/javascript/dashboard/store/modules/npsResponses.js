@@ -19,6 +19,7 @@ export const state = {
     blocked_count: 0,
     blocked_by_label_count: {},
     scores_count: {},
+    signals: [],
   },
   uiFlags: {
     isFetching: false,
@@ -175,6 +176,7 @@ export const mutations = {
       blocked_count,
       blocked_by_label_count,
       scores_count,
+      signals,
     }
   ) {
     _state.metrics.total_count = total_count || 0;
@@ -186,6 +188,7 @@ export const mutations = {
     _state.metrics.blocked_count = blocked_count || 0;
     _state.metrics.blocked_by_label_count = blocked_by_label_count || {};
     _state.metrics.scores_count = scores_count || {};
+    _state.metrics.signals = signals || [];
   },
 };
 

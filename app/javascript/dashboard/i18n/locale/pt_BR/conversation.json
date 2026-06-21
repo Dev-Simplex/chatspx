@@ -93,6 +93,10 @@
     "DOWNLOAD": "Baixar",
     "UNKNOWN_FILE_TYPE": "Arquivo desconhecido",
     "SAVE_CONTACT": "Salvar contato",
+    "VIEW_CONTACT": "Ver contato",
+    "START_CONVERSATION": "Conversar",
+    "SHARED_CONTACT_LABEL": "Contato compartilhado",
+    "NO_INBOX_FOR_CONTACT": "Nenhuma caixa de entrada disponível para iniciar conversa com este contato.",
     "NO_CONTENT": "Nenhum conteúdo a ser exibido",
     "SHARED_ATTACHMENT": {
       "CONTACT": "{sender} compartilhou um contato",
@@ -430,11 +434,36 @@
     "RESOLVE_WITH_TEAM_SUCCESS": "Conversa resolvida com sucesso",
     "BULK_RESOLVE_REQUIRES_TEAM": "Todas as conversas devem ter um time atribuído antes de resolver",
     "NO_TEAMS_AVAILABLE": "Nenhum time disponível. Por favor, crie um time primeiro.",
+    "RESOLVE_ASSIGNMENT_GATE": {
+      "CONFIRM": "Atribuir a mim e encerrar",
+      "SELECT_TEAM": "Selecione um time para encerrar esta conversa",
+      "SUCCESS": "Conversa atribuída a você e encerrada",
+      "AI_FALLBACK": "IA",
+      "UNASSIGNED": {
+        "TITLE": "Atribuir a você e encerrar?",
+        "DESCRIPTION": "Esta conversa não está atribuída a ninguém. Ela será atribuída a você e encerrada."
+      },
+      "COLLEAGUE": {
+        "TITLE": "Assumir de {name} e encerrar?",
+        "DESCRIPTION": "Esta conversa está atribuída a {name}. Ela será reatribuída a você e encerrada. {name} será notificado(a)."
+      },
+      "AI": {
+        "TITLE": "Assumir da {name} e encerrar?",
+        "DESCRIPTION": "Esta conversa está sendo atendida por {name}. Ela será atribuída a você e encerrada."
+      },
+      "BULK": {
+        "TITLE": "Atribuir a você e encerrar?",
+        "DESCRIPTION": "{count} conversas serão atribuídas a você e encerradas."
+      }
+    },
     "SUCCESS_DELETE_CONVERSATION": "Conversa excluída com sucesso",
     "FAIL_DELETE_CONVERSATION": "Não foi possível excluir a conversa! Tente novamente",
     "FILE_SIZE_LIMIT": "O arquivo excede os {MAXIMUM_SUPPORTED_FILE_UPLOAD_SIZE} MB do limite para anexos",
+    "FILE_SIZE_LIMIT_HARD": "O arquivo {fileSize} excede o limite de {MAXIMUM_SUPPORTED_FILE_UPLOAD_SIZE} MB para anexos e não será enviado",
     "FILE_TYPE_NOT_SUPPORTED": "O tipo de arquivo {fileName} não é suportado nesta conversa",
+    "AUDIO_CONVERT_ERROR": "Não foi possível processar o áudio gravado. Tente novamente.",
     "MESSAGE_ERROR": "Não foi possível enviar esta mensagem, por favor, tente novamente mais tarde",
+    "MESSAGE_SENT_TO_CONVERSATION": "Mensagem enviada na conversa",
     "SENT_BY": "Enviado por:",
     "BOT": "Robôs",
     "NATIVE_APP": "Aplicativo nativo",
@@ -479,6 +508,12 @@
       "TITLE": "Mensagem original",
       "NO_CONTENT": "(sem conteúdo)",
       "EDITED_BY": "Editado por {name}"
+    },
+    "DELETE_HISTORY": {
+      "BADGE": "Apagada",
+      "TITLE": "Mensagem original",
+      "NO_CONTENT": "(sem conteúdo)",
+      "DELETED_BY": "Apagada por {name}"
     },
     "REACTIONS": {
       "PICKER_TOOLTIP": "Adicionar reação"
@@ -545,6 +580,10 @@
     },
     "TEAM_ISOLATION": {
       "RESTRICTED_TITLE": "Time: {team}",
+      "RESTRICTED_SUBTITLE": "Conteúdo restrito"
+    },
+    "AGENT_ISOLATION": {
+      "RESTRICTED_TITLE": "Agente: {agent}",
       "RESTRICTED_SUBTITLE": "Conteúdo restrito"
     }
   },
@@ -636,6 +675,15 @@
     },
     "MEDIA_EMPTY": "Nenhuma mídia ou arquivo nesta conversa",
     "SHOW_MORE": "Ver mais {count}",
+    "BULK": {
+      "DOWNLOAD_ALL": "Baixar todas ({count})",
+      "SELECT": "Selecionar",
+      "SELECTED_COUNT": "{count} selecionada(s)",
+      "DOWNLOAD_SELECTED": "Baixar selecionadas (.zip)",
+      "CANCEL": "Cancelar",
+      "PREPARING": "Preparando… ({processed}/{total})",
+      "PREPARING_INDEFINITE": "Preparando…"
+    },
     "SHOPIFY": {
       "ORDER_ID": "Pedido #{id}",
       "ERROR": "Erro ao carregar pedidos",
@@ -932,7 +980,9 @@
     "DRAW": "Desenhar",
     "ADD_TEXT": "Adicionar texto",
     "REMOVE": "Remover",
-    "COUNTER": "{current} de {total}"
+    "COUNTER": "{current} de {total}",
+    "UPLOADING": "Carregando…",
+    "RETRY": "Tentar novamente"
   },
   "IMAGE_EDITOR": {
     "TITLE": "Editar imagem",

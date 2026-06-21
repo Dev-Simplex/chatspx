@@ -102,6 +102,10 @@
     "DOWNLOAD": "Download",
     "UNKNOWN_FILE_TYPE": "Unknown File",
     "SAVE_CONTACT": "Save Contact",
+    "VIEW_CONTACT": "View contact",
+    "START_CONVERSATION": "Start conversation",
+    "SHARED_CONTACT_LABEL": "Shared contact",
+    "NO_INBOX_FOR_CONTACT": "No inbox available to start a conversation with this contact.",
     "NO_CONTENT": "No content to display",
     "SHARED_ATTACHMENT": {
       "CONTACT": "{sender} has shared a contact",
@@ -129,6 +133,12 @@
       "TITLE": "Original message",
       "NO_CONTENT": "(no content)",
       "EDITED_BY": "Edited by {name}"
+    },
+    "DELETE_HISTORY": {
+      "BADGE": "Deleted",
+      "TITLE": "Original message",
+      "NO_CONTENT": "(no content)",
+      "DELETED_BY": "Deleted by {name}"
     },
     "NO_RESPONSE": "No response",
     "RESPONSE": "Response",
@@ -452,11 +462,36 @@
     "RESOLVE_WITH_TEAM_SUCCESS": "Conversation resolved successfully",
     "BULK_RESOLVE_REQUIRES_TEAM": "All conversations must have a team assigned before resolving",
     "NO_TEAMS_AVAILABLE": "No teams available. Please create a team first.",
+    "RESOLVE_ASSIGNMENT_GATE": {
+      "CONFIRM": "Assign to me and resolve",
+      "SELECT_TEAM": "Select a team to resolve this conversation",
+      "SUCCESS": "Conversation assigned to you and resolved",
+      "AI_FALLBACK": "AI",
+      "UNASSIGNED": {
+        "TITLE": "Assign to you and resolve?",
+        "DESCRIPTION": "This conversation isn't assigned to anyone. It will be assigned to you and resolved."
+      },
+      "COLLEAGUE": {
+        "TITLE": "Take over from {name} and resolve?",
+        "DESCRIPTION": "This conversation is assigned to {name}. It will be reassigned to you and resolved. {name} will be notified."
+      },
+      "AI": {
+        "TITLE": "Take over from {name} and resolve?",
+        "DESCRIPTION": "This conversation is handled by {name}. It will be assigned to you and resolved."
+      },
+      "BULK": {
+        "TITLE": "Assign to you and resolve?",
+        "DESCRIPTION": "{count} conversations will be assigned to you and resolved."
+      }
+    },
     "SUCCESS_DELETE_CONVERSATION": "Conversation deleted successfully",
     "FAIL_DELETE_CONVERSATION": "Couldn't delete conversation! Try again",
     "FILE_SIZE_LIMIT": "File exceeds the {MAXIMUM_SUPPORTED_FILE_UPLOAD_SIZE} MB attachment limit",
+    "FILE_SIZE_LIMIT_HARD": "File {fileSize} exceeds the {MAXIMUM_SUPPORTED_FILE_UPLOAD_SIZE} MB attachment limit and won't be sent",
     "FILE_TYPE_NOT_SUPPORTED": "This {fileName} file type is not supported in this conversation",
+    "AUDIO_CONVERT_ERROR": "Couldn't process the recorded audio. Please try again.",
     "MESSAGE_ERROR": "Unable to send this message, please try again later",
+    "MESSAGE_SENT_TO_CONVERSATION": "Message sent to the conversation",
     "SENT_BY": "Sent by:",
     "BOT": "Bot",
     "NATIVE_APP": "Native app",
@@ -555,6 +590,10 @@
     "TEAM_ISOLATION": {
       "RESTRICTED_TITLE": "Team: {team}",
       "RESTRICTED_SUBTITLE": "Restricted content"
+    },
+    "AGENT_ISOLATION": {
+      "RESTRICTED_TITLE": "Agent: {agent}",
+      "RESTRICTED_SUBTITLE": "Restricted content"
     }
   },
   "EMAIL_TRANSCRIPT": {
@@ -645,6 +684,15 @@
     },
     "MEDIA_EMPTY": "No media or files in this conversation",
     "SHOW_MORE": "Show {count} more",
+    "BULK": {
+      "DOWNLOAD_ALL": "Download all ({count})",
+      "SELECT": "Select",
+      "SELECTED_COUNT": "{count} selected",
+      "DOWNLOAD_SELECTED": "Download selected (.zip)",
+      "CANCEL": "Cancel",
+      "PREPARING": "Preparing… ({processed}/{total})",
+      "PREPARING_INDEFINITE": "Preparing…"
+    },
     "SHOPIFY": {
       "ORDER_ID": "Order #{id}",
       "ERROR": "Error loading orders",
@@ -941,7 +989,9 @@
     "DRAW": "Draw",
     "ADD_TEXT": "Add text",
     "REMOVE": "Remove",
-    "COUNTER": "{current} of {total}"
+    "COUNTER": "{current} of {total}",
+    "UPLOADING": "Uploading…",
+    "RETRY": "Retry"
   },
   "IMAGE_EDITOR": {
     "TITLE": "Edit image",

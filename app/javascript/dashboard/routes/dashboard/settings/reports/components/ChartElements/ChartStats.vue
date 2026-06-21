@@ -1,5 +1,7 @@
 <script setup>
+import { computed } from 'vue';
 import { useReportMetrics } from 'dashboard/composables/useReportMetrics';
+import { useReportNarrative } from 'dashboard/composables/useReportNarrative';
 import Spinner from 'dashboard/components-next/spinner/Spinner.vue';
 import { STATUS } from 'dashboard/store/constants';
 import { useI18n } from 'vue-i18n';
@@ -8,6 +10,10 @@ const props = defineProps({
   metric: {
     type: Object,
     default: () => ({}),
+  },
+  signal: {
+    type: Object,
+    default: null,
   },
   accountSummaryKey: {
     type: String,
@@ -23,6 +29,9 @@ const { t } = useI18n();
 
 const { calculateTrend, displayMetric, isAverageMetricType, fetchingStatus } =
   useReportMetrics(props.accountSummaryKey, props.summaryFetchingKey);
+
+const { pillFor } = useReportNarrative();
+const pill = computed(() => pillFor(props.signal));
 
 const trendColor = (value, key) => {
   if (isAverageMetricType(key)) {
@@ -73,6 +82,14 @@ const trendColor = (value, key) => {
           :class="trendColor(metric.trend, metric.KEY)"
         />
         <span class="font-medium"> {{ calculateTrend(metric.KEY) }}% </span>
+      </div>
+      <div
+        v-if="pill && fetchingStatus === STATUS.FINISHED"
+        class="text-xs flex items-center gap-1 px-2 py-1 rounded-full border font-medium"
+        :class="pill.colorClass"
+      >
+        <span>{{ pill.icon }}</span>
+        <span>{{ pill.label }}</span>
       </div>
     </div>
   </div>

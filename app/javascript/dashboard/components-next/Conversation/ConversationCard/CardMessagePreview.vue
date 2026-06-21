@@ -4,6 +4,7 @@ import { useI18n } from 'vue-i18n';
 import { useMessageFormatter } from 'shared/composables/useMessageFormatter';
 import { useMapGetter } from 'dashboard/composables/store';
 import { useTeamIsolation } from 'dashboard/composables/useTeamIsolation';
+import { useAgentIsolation } from 'dashboard/composables/useAgentIsolation';
 
 import Avatar from 'dashboard/components-next/avatar/Avatar.vue';
 import { CONTENT_TYPES } from 'dashboard/components-next/message/constants.js';
@@ -19,6 +20,7 @@ const { t } = useI18n();
 
 const { getPlainText } = useMessageFormatter();
 const { isMessageRestricted } = useTeamIsolation();
+const { isMessageRestricted: isAgentMessageRestricted } = useAgentIsolation();
 const inboxById = useMapGetter('inboxes/getInboxById');
 
 const lastNonActivityMessageContent = computed(() => {
@@ -28,7 +30,11 @@ const lastNonActivityMessageContent = computed(() => {
   const inbox = inboxById.value(
     props.conversation.inboxId || props.conversation.inbox_id
   );
-  if (isMessageRestricted(lastNonActivityMessage, inbox)) return '🔒';
+  if (
+    isMessageRestricted(lastNonActivityMessage, inbox) ||
+    isAgentMessageRestricted(lastNonActivityMessage, inbox)
+  )
+    return '🔒';
   const { email: { subject } = {} } = customAttributes;
   if (subject) return getPlainText(subject);
   if (lastNonActivityMessage?.content)
