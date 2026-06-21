@@ -210,7 +210,6 @@ const assignResolveContext = ref({
   assigneeName: '',
   requiresTeam: false,
 });
-const myTeams = useMapGetter('teams/getMyTeams');
 
 function openAssignResolveDialog(conversation, snoozedUntil) {
   const variant = getResolveVariant(conversation);
