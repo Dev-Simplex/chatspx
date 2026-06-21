@@ -25,6 +25,79 @@ RSpec.describe Conversation do
     it_behaves_like 'auto_assignment_handler'
   end
 
+  describe '.assigned_to_captain / .without_captain_assignee' do
+    let(:account) { create(:account) }
+    let(:inbox) { create(:inbox, account: account) }
+    let(:agent) { create(:user, account: account, role: :agent) }
+    let(:assistant) { create(:captain_assistant, account: account) }
+    let(:mirror) { assistant.mirror_agent_bot }
+    let(:webhook_bot) { create(:agent_bot, account: account) }
+
+    let!(:ai_conversation) { create(:conversation, account: account, inbox: inbox, assignee_agent_bot: mirror) }
+    let!(:webhook_bot_conversation) { create(:conversation, account: account, inbox: inbox, assignee_agent_bot: webhook_bot) }
+    let!(:human_conversation) { create(:conversation, account: account, inbox: inbox, assignee: agent) }
+    let!(:unassigned_conversation) { create(:conversation, account: account, inbox: inbox) }
+
+    it 'assigned_to_captain returns only conversations owned by a captain mirror' do
+      expect(described_class.assigned_to_captain).to contain_exactly(ai_conversation)
+    end
+
+    it 'without_captain_assignee returns human, webhook-bot and unowned conversations' do
+      expect(described_class.without_captain_assignee)
+        .to contain_exactly(webhook_bot_conversation, human_conversation, unassigned_conversation)
+    end
+
+    it 'keeps the global :unassigned scope intact (AI and webhook-bot conversations still count)' do
+      expect(described_class.unassigned)
+        .to contain_exactly(ai_conversation, webhook_bot_conversation, unassigned_conversation)
+    end
+  end
+
+  # F1.3 — estado "open + team + sem dono + sem espelho" é ESTÁVEL: os callbacks de
+  # exclusividade não revertem a liberação (reset_agent_bot_when_assignee_present só age
+  # quando há assignee humano; release_captain_mirror_on_resolve só age no resolve).
+  describe 'fila released state stability (F1.3)' do
+    let(:account) { create(:account) }
+    let(:inbox) { create(:inbox, account: account) }
+    let(:team) { create(:team, account: account) }
+    let(:released_conversation) do
+      create(:conversation, account: account, inbox: inbox, team: team,
+                            status: :open, assignee: nil, assignee_agent_bot: nil)
+    end
+
+    it 'keeps assignee_agent_bot_id nil through an unrelated update' do
+      released_conversation.update!(custom_attributes: { 'aguardando_humano_desde' => Time.current.iso8601 })
+
+      released_conversation.reload
+      expect(released_conversation.assignee_agent_bot_id).to be_nil
+      expect(released_conversation.assignee_id).to be_nil
+    end
+
+    it 'keeps the team and stays open through an unrelated update' do
+      released_conversation.update!(priority: :high)
+
+      released_conversation.reload
+      expect(released_conversation.status).to eq('open')
+      expect(released_conversation.team_id).to eq(team.id)
+    end
+
+    it 'reports no assignee_type (queue conversation has no owner)' do
+      expect(released_conversation.assignee_type).to be_nil
+    end
+
+    it 'is counted by without_captain_assignee + unassigned (visível na fila)' do
+      expect(described_class.without_captain_assignee).to include(released_conversation)
+      expect(described_class.unassigned).to include(released_conversation)
+    end
+
+    it 'reset_agent_bot_when_assignee_present is a no-op without a human assignee' do
+      released_conversation.assignee_agent_bot_id = nil
+      released_conversation.send(:reset_agent_bot_when_assignee_present)
+
+      expect(released_conversation.assignee_agent_bot_id).to be_nil
+    end
+  end
+
   describe '.before_create' do
     let(:conversation) { build(:conversation, display_id: nil) }
 

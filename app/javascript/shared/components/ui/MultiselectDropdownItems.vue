@@ -33,6 +33,12 @@ export default {
       type: String,
       default: 'No results found',
     },
+    // Opt-in: renderiza cabeçalho de grupo (option.group / option.groupLabel) e
+    // estiliza itens de IA (option.type === 'agent_bot') em roxo com ícone de bot.
+    grouped: {
+      type: Boolean,
+      default: false,
+    },
   },
   emits: ['select'],
 
@@ -67,6 +73,14 @@ export default {
     isActive(option) {
       return this.selectedItems.some(item => item && option.id === item.id);
     },
+    isAIOption(option) {
+      return option?.type === 'agent_bot';
+    },
+    showGroupHeader(option, index) {
+      if (!this.grouped) return false;
+      const prev = this.filteredOptions[index - 1];
+      return index === 0 || prev?.group !== option.group;
+    },
   },
 };
 </script>
@@ -86,36 +100,52 @@ export default {
     <div class="flex items-start justify-start flex-auto overflow-auto mt-2">
       <div class="w-full max-h-[10rem]">
         <WootDropdownMenu>
-          <WootDropdownItem v-for="option in filteredOptions" :key="option.id">
-            <NextButton
-              slate
-              :variant="isActive(option) ? 'faded' : 'ghost'"
-              trailing-icon
-              :icon="isActive(option) ? 'i-lucide-check' : ''"
-              class="w-full !px-2.5"
-              @click="() => onclick(option)"
+          <template v-for="(option, idx) in filteredOptions" :key="option.id">
+            <li
+              v-if="showGroupHeader(option, idx)"
+              class="px-2.5 pt-2 pb-1 text-[11px] font-semibold uppercase tracking-wide select-none"
+              :class="
+                isAIOption(option) ? 'text-n-violet-11' : 'text-n-slate-10'
+              "
             >
-              <div
-                class="flex items-center justify-between w-full min-w-0 gap-2"
+              {{ option.groupLabel }}
+            </li>
+            <WootDropdownItem>
+              <NextButton
+                slate
+                :variant="isActive(option) ? 'faded' : 'ghost'"
+                trailing-icon
+                :icon="isActive(option) ? 'i-lucide-check' : ''"
+                class="w-full !px-2.5"
+                :class="isAIOption(option) ? 'text-n-violet-11' : ''"
+                @click="() => onclick(option)"
               >
-                <span
-                  class="my-0 overflow-hidden text-sm leading-4 whitespace-nowrap text-ellipsis"
-                  :title="option.name"
+                <div
+                  class="flex items-center justify-between w-full min-w-0 gap-2"
                 >
-                  {{ option.name }}
-                </span>
-              </div>
-              <Avatar
-                v-if="hasThumbnail"
-                :src="option.thumbnail"
-                :name="option.name"
-                :status="option.availability_status"
-                :size="24"
-                hide-offline-status
-                rounded-full
-              />
-            </NextButton>
-          </WootDropdownItem>
+                  <span
+                    class="my-0 overflow-hidden text-sm leading-4 whitespace-nowrap text-ellipsis inline-flex items-center gap-1.5"
+                    :title="option.name"
+                  >
+                    <span
+                      v-if="isAIOption(option)"
+                      class="i-lucide-sparkles size-3.5 flex-shrink-0"
+                    />
+                    {{ option.name }}
+                  </span>
+                </div>
+                <Avatar
+                  v-if="hasThumbnail"
+                  :src="option.thumbnail"
+                  :name="option.name"
+                  :status="option.availability_status"
+                  :size="24"
+                  hide-offline-status
+                  rounded-full
+                />
+              </NextButton>
+            </WootDropdownItem>
+          </template>
         </WootDropdownMenu>
         <h4
           v-if="noResult"

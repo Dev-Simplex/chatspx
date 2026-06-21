@@ -1,6 +1,7 @@
 <script setup>
 import { computed, inject, useTemplateRef } from 'vue';
 import { useReducedMotion } from 'dashboard/composables/useReducedMotion';
+import NumberFlow from '@number-flow/vue';
 
 const props = defineProps({
   index: {
@@ -31,6 +32,12 @@ const props = defineProps({
   icon: {
     type: String,
     default: '',
+  },
+  // Opt-in odometer animation on the badge count (D8). Off by default so every
+  // other tab in the app keeps the plain number.
+  animatedCount: {
+    type: Boolean,
+    default: false,
   },
 });
 
@@ -88,7 +95,11 @@ const onTabFocus = () => {
         v-if="showBadge"
         class="wa-tab-item__badge rounded-full px-1.5 text-xs min-w-[18px] h-5 inline-flex items-center justify-center ml-1.5"
       >
-        <span>
+        <NumberFlow
+          v-if="animatedCount && !prefersReducedMotion"
+          :value="getItemCount"
+        />
+        <span v-else>
           {{ getItemCount }}
         </span>
       </div>

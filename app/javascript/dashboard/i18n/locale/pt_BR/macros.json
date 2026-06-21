@@ -91,6 +91,7 @@
     "ACTIONS": {
       "ASSIGN_TEAM": "Atribuir um Time",
       "ASSIGN_AGENT": "Atribuir um Agente",
+      "ASSIGN_AI_AGENT": "Atribuir agente IA",
       "ADD_LABEL": "Adicionar uma Etiqueta",
       "REMOVE_LABEL": "Remover uma Etiqueta",
       "REMOVE_ASSIGNED_TEAM": "Remover Time Atribuído",

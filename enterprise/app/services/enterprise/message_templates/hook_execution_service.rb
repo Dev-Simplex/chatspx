@@ -3,6 +3,12 @@ module Enterprise::MessageTemplates::HookExecutionService # rubocop:disable Metr
 
   def trigger_templates
     super
+    # D-12: pós-handoff sem humano disponível (fora do horário / ninguém online), o cliente
+    # continua falando numa conversa órfã. A IA do TIME volta a atender via kick (A2d) —
+    # silêncio é pior que a especialista segurar o cliente. Humano que assumir cala ela.
+    # Cobre também conversa resolvida que reabre quando o contato volta (A2e solta o dono).
+    return reattach_sector_assistant if orphan_captain_reentry?
+
     return unless should_process_captain_response?
     return perform_handoff unless captain_quota_available?
 
@@ -139,6 +145,49 @@ module Enterprise::MessageTemplates::HookExecutionService # rubocop:disable Metr
 
     mirror = conversation.assignee_agent_bot
     @assigned_assistant = (mirror.captain_assistant if mirror&.captain?)
+  end
+
+  # D-12: reentrada da IA do setor em conversa órfã (sem humano E sem IA).
+  #
+  # F1.2 🔴 (modo FILA, reply_assignment_gate ON): a re-captura automática está DESLIGADA.
+  # No modo fila, a IA solta a conversa numa fila por time no handoff (F1.1) e ela deve
+  # PERMANECER aguardando humano — a próxima mensagem do cliente NÃO pode fazer a IA do
+  # setor pegar a conversa de volta (senão a fila nunca existe). Modo Clássico (flag OFF):
+  # comportamento D-12 intacto (a IA do setor reentra pra não deixar o cliente no silêncio).
+  def orphan_captain_reentry?
+    return false if conversation.account.reply_assignment_gate_enabled?
+
+    message.incoming? && !message.private? && conversation.open? &&
+      conversation.assignee_id.nil? && conversation.assignee_agent_bot_id.nil? &&
+      sector_assistant.present?
+  end
+
+  def reattach_sector_assistant
+    mirror = AgentBot.captain.find_by(captain_assistant_id: sector_assistant.id)
+    return if mirror.nil?
+
+    conversation.update!(assignee_agent_bot_id: mirror.id) # dispara o kick (A2d), que responde
+  rescue StandardError => e
+    Rails.logger.warn("[Captain] reentrada conv=#{conversation.id}: #{e.message}")
+  end
+
+  # A especialista do time da conversa (config['team_id']), desde que ELEGÍVEL na inbox.
+  # Time sem IA (ex: jurídico) -> nil -> conversa segue com o time humano.
+  def sector_assistant
+    return @sector_assistant if defined?(@sector_assistant)
+
+    @sector_assistant = resolve_sector_assistant
+  end
+
+  def resolve_sector_assistant
+    return nil if conversation.team_id.blank?
+
+    assistant = Captain::Assistant.where(account_id: conversation.account_id)
+                                  .detect { |a| a.config['team_id'].to_i == conversation.team_id }
+    return nil if assistant.nil?
+    return nil unless ::CaptainInbox.exists?(inbox_id: inbox.id, captain_assistant_id: assistant.id)
+
+    assistant
   end
 
   # Quota re-keyada: não depende mais de inbox.captain_active? (que morre keyado por inbox).

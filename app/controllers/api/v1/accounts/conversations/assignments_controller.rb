@@ -14,6 +14,7 @@ class Api::V1::Accounts::Conversations::AssignmentsController < Api::V1::Account
 
   def set_agent
     return render_captain_assignment_forbidden if forbidden_captain_assignment?
+    return render_captain_assignment_not_eligible if ineligible_captain_assignment?
 
     resource = Conversations::AssignmentService.new(
       conversation: @conversation,
@@ -45,6 +46,18 @@ class Api::V1::Accounts::Conversations::AssignmentsController < Api::V1::Account
 
   def render_captain_assignment_forbidden
     render json: { error: I18n.t('conversations.captain.assignment_forbidden') }, status: :forbidden
+  end
+
+  # C8: erro EXPLÍCITO p/ UI — o dropdown C2 já filtra por inbox_ids, então o 422 é
+  # cinto de segurança para API direta/corrida de elegibilidade.
+  def ineligible_captain_assignment?
+    return false unless agent_bot_assignment? && requested_agent_bot&.captain?
+
+    !@conversation.inbox.captain_assistants.exists?(id: requested_agent_bot.captain_assistant_id)
+  end
+
+  def render_captain_assignment_not_eligible
+    render json: { error: I18n.t('conversations.captain.assignment_not_eligible') }, status: :unprocessable_entity
   end
 
   def render_agent(resource)

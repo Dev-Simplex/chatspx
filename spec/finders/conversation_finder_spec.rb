@@ -225,6 +225,88 @@ describe ConversationFinder do
       end
     end
 
+    context 'with captain (AI) assignee' do
+      let(:assistant) { create(:captain_assistant, account: account) }
+      let(:mirror) { assistant.mirror_agent_bot }
+      let(:webhook_bot) { create(:agent_bot, account: account) }
+      # baseline do before externo (open): 2 do user_1, 1 do user_2, 1 sem dono = 4
+      let!(:ai_conversation) { create(:conversation, account: account, inbox: inbox, assignee_agent_bot: mirror) }
+      let!(:webhook_bot_conversation) { create(:conversation, account: account, inbox: inbox, assignee_agent_bot: webhook_bot) }
+
+      context 'with assignee_type ai and reply_assignment_gate enabled' do
+        before { account.update!(reply_assignment_gate: true) }
+
+        let(:params) { { assignee_type: 'ai' } }
+
+        it 'returns only conversations assigned to a captain mirror (webhook bot does not count)' do
+          result = conversation_finder.perform
+          expect(result[:conversations].map(&:id)).to contain_exactly(ai_conversation.id)
+        end
+
+        it 'computes ai_count and excludes AI from unassigned_count' do
+          result = conversation_finder.perform
+          expect(result[:count]).to include(
+            ai_count: 1,
+            unassigned_count: 2, # sem dono do setup + bot webhook (não é IA)
+            all_count: 6
+          )
+        end
+
+        it 'derives assigned_count including the AI conversation (DC-4, frozen semantics)' do
+          result = conversation_finder.perform
+          expect(result[:count][:assigned_count]).to eq(4)
+        end
+      end
+
+      context 'with assignee_type unassigned and reply_assignment_gate enabled' do
+        before { account.update!(reply_assignment_gate: true) }
+
+        let(:params) { { assignee_type: 'unassigned' } }
+
+        it 'excludes AI conversations but keeps webhook-bot conversations' do
+          result = conversation_finder.perform
+          conversation_ids = result[:conversations].map(&:id)
+          expect(conversation_ids).not_to include(ai_conversation.id)
+          expect(conversation_ids).to include(webhook_bot_conversation.id)
+          expect(result[:conversations].length).to be 2
+        end
+      end
+
+      context 'with assignee_type unassigned and reply_assignment_gate disabled' do
+        let(:params) { { assignee_type: 'unassigned' } }
+
+        it 'keeps current behavior: AI conversation still counts as unassigned' do
+          result = conversation_finder.perform
+          expect(result[:conversations].map(&:id)).to include(ai_conversation.id, webhook_bot_conversation.id)
+          expect(result[:conversations].length).to be 3
+          expect(result[:count]).to include(unassigned_count: 3, assigned_count: 3)
+        end
+
+        it 'still computes and exposes ai_count' do
+          result = conversation_finder.perform
+          expect(result[:count]).to include(ai_count: 1)
+        end
+      end
+
+      context 'with assignee_type ai and reply_assignment_gate disabled' do
+        let(:params) { { assignee_type: 'ai' } }
+
+        it 'still filters by captain mirror (filter is not gated, only the tab is)' do
+          result = conversation_finder.perform
+          expect(result[:conversations].map(&:id)).to contain_exactly(ai_conversation.id)
+        end
+      end
+
+      context 'with perform_counts_only and reply_assignment_gate disabled' do
+        let(:params) { {} }
+
+        it 'includes ai_count in the counts hash' do
+          result = conversation_finder.perform_counts_only
+          expect(result[:count]).to include(ai_count: 1, unassigned_count: 3, all_count: 6)
+        end
+      end
+    end
+
     context 'with unattended' do
       let(:params) { { status: 'open', assignee_type: 'me', conversation_type: 'unattended' } }
 
@@ -236,6 +318,118 @@ describe ConversationFinder do
 
         result = conversation_finder.perform
         expect(result[:conversations].length).to be 2
+      end
+    end
+
+    # F2 — Escopo por time na aba "Aguardando atendimento" (fila) no modo reply_assignment_gate.
+    # Agente não-admin só vê a fila dos seus times; admin vê tudo; modo clássico inalterado;
+    # outras abas (all/me/ai) não são afetadas pelo escopo forçado.
+    context 'with team-scoped queue (F2 fila por time)' do
+      let!(:team_a) { create(:team, account: account) }
+      let!(:team_b) { create(:team, account: account) }
+      # 3 conversas sem dono (unassigned) em times distintos.
+      let!(:queue_team_a) { create(:conversation, account: account, inbox: inbox, team: team_a) }
+      let!(:queue_team_b) { create(:conversation, account: account, inbox: inbox, team: team_b) }
+      let!(:queue_no_team) { create(:conversation, account: account, inbox: inbox, team: nil) }
+
+      # user_1 é membro só do team_a; user_2 não pertence a nenhum time.
+      before { create(:team_member, user: user_1, team: team_a) }
+
+      # @is_admin lê Current.account_user; setá-lo para o admin nos cenários de admin.
+      def as_admin
+        Current.account_user = admin.account_users.find_by(account: account)
+        yield
+      ensure
+        Current.account_user = nil
+      end
+
+      context 'when gate ON and a non-admin agent is on the unassigned tab' do
+        let(:params) { { assignee_type: 'unassigned' } }
+
+        before { account.update!(reply_assignment_gate: true) }
+
+        it 'lists only unassigned conversations from the user teams' do
+          result = conversation_finder.perform
+          ids = result[:conversations].map(&:id)
+          expect(ids).to include(queue_team_a.id)
+          expect(ids).not_to include(queue_team_b.id)
+          expect(ids).not_to include(queue_no_team.id)
+        end
+
+        it 'scopes the unassigned_count to the user teams' do
+          result = conversation_finder.perform
+          expect(result[:count][:unassigned_count]).to eq(1)
+        end
+
+        it 'ignores a team_id param pointing to a team the user does not belong to' do
+          result = described_class.new(user_1, { assignee_type: 'unassigned', team_id: team_b.id }).perform
+          expect(result[:conversations].map(&:id)).to contain_exactly(queue_team_a.id)
+          expect(result[:count][:unassigned_count]).to eq(1)
+        end
+
+        it 'keeps the account-wide queue when the agent has no team' do
+          # Decisão F2: agente sem nenhum time não fica trancado fora da fila; mantém o
+          # comportamento atual (@team_ids vazio → short-circuit de filter_by_team).
+          result = described_class.new(user_2, { assignee_type: 'unassigned' }).perform
+          ids = result[:conversations].map(&:id)
+          expect(ids).to include(queue_team_a.id, queue_team_b.id, queue_no_team.id)
+        end
+      end
+
+      context 'when gate ON and an admin is on the unassigned tab' do
+        before { account.update!(reply_assignment_gate: true) }
+
+        it 'lists every unassigned conversation account-wide' do
+          as_admin do
+            result = described_class.new(admin, { assignee_type: 'unassigned' }).perform
+            ids = result[:conversations].map(&:id)
+            expect(ids).to include(queue_team_a.id, queue_team_b.id, queue_no_team.id)
+          end
+        end
+
+        it 'counts unassigned account-wide' do
+          as_admin do
+            result = described_class.new(admin, { assignee_type: 'unassigned' }).perform
+            # setup externo cria 1 unassigned sem time + as 3 desta fixture = 4
+            expect(result[:count][:unassigned_count]).to eq(4)
+          end
+        end
+      end
+
+      context 'when gate ON and a non-admin agent is on another tab' do
+        before { account.update!(reply_assignment_gate: true) }
+
+        it 'does not force the queue scope on the "all" tab (keeps existing team auto-scope)' do
+          # user_1 é membro do team_a → auto-escopo já existente do fork limita ao team_a.
+          # O escopo forçado da fila não deve alterar essa semântica.
+          result = described_class.new(user_1, { assignee_type: 'all', status: 'all' }).perform
+          ids = result[:conversations].map(&:id)
+          expect(ids).to include(queue_team_a.id)
+          expect(ids).not_to include(queue_team_b.id)
+        end
+      end
+
+      context 'when gate OFF (classic mode) and a non-admin agent is on the unassigned tab' do
+        let(:params) { { assignee_type: 'unassigned' } }
+
+        it 'keeps the existing fork team auto-scope (no forced queue scope)' do
+          # Sem a flag, force_team_queue_scope? é false. user_1 (membro do team_a) cai no
+          # auto-escopo existente do fork (@team_ids = teams do user), que já limita ao team_a.
+          result = conversation_finder.perform
+          ids = result[:conversations].map(&:id)
+          expect(ids).to include(queue_team_a.id)
+          expect(ids).not_to include(queue_team_b.id)
+        end
+      end
+
+      context 'when gate OFF (classic mode) and an admin passes a team_id' do
+        it 'honors the explicit team_id param (no forced override without the flag)' do
+          as_admin do
+            result = described_class.new(admin, { assignee_type: 'unassigned', team_id: team_b.id }).perform
+            # Sem a flag, o param team_id é respeitado → filtra pelo team_b.
+            expect(result[:conversations].map(&:id)).to contain_exactly(queue_team_b.id)
+          end
+        end
       end
     end
   end

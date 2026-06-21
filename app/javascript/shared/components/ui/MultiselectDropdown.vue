@@ -36,6 +36,10 @@ const props = defineProps({
     type: String,
     default: 'Search',
   },
+  grouped: {
+    type: Boolean,
+    default: false,
+  },
 });
 
 const emit = defineEmits(['select']);
@@ -112,6 +116,7 @@ const hasValue = computed(() => {
           :options="options"
           :selected-items="[selectedItem]"
           :has-thumbnail="hasThumbnail"
+          :grouped="grouped"
           :input-placeholder="inputPlaceholder"
           :no-search-result="noSearchResult"
           @select="onClickSelectItem"

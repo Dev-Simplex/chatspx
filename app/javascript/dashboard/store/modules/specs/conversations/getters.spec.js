@@ -128,7 +128,83 @@ describe('#getters', () => {
       ]);
     });
   });
+  describe('#getMineChats', () => {
+    const buildRootGetters = () => ({
+      getCurrentUser: { id: 1 },
+      getCurrentAccountId: 1,
+      'accounts/getAccount': () => ({ id: 1, settings: {} }),
+    });
+
+    it('returns only chats assigned to the current user', () => {
+      const conversationList = [
+        {
+          id: 1,
+          inbox_id: 2,
+          status: 1,
+          meta: { assignee: { id: 1 } },
+          labels: [],
+        },
+        {
+          id: 2,
+          inbox_id: 2,
+          status: 1,
+          meta: { assignee: { id: 5 } },
+          labels: [],
+        },
+        { id: 3, inbox_id: 2, status: 1, meta: {}, labels: [] },
+      ];
+
+      const result = getters.getMineChats(
+        {
+          allConversations: conversationList,
+          conversationFilters: { status: 1 },
+        },
+        {},
+        {},
+        buildRootGetters()
+      );
+      expect(result.map(c => c.id)).toEqual([1]);
+    });
+
+    it('does not include an AI conversation whose mirror bot id collides with the user id', () => {
+      const conversationList = [
+        {
+          id: 1,
+          inbox_id: 2,
+          status: 1,
+          meta: { assignee: { id: 1, type: 'agent_bot' } },
+          labels: [],
+        },
+        {
+          id: 2,
+          inbox_id: 2,
+          status: 1,
+          meta: { assignee: { id: 1 } },
+          labels: [],
+        },
+      ];
+
+      const result = getters.getMineChats(
+        {
+          allConversations: conversationList,
+          conversationFilters: { status: 1 },
+        },
+        {},
+        {},
+        buildRootGetters()
+      );
+      expect(result.map(c => c.id)).toEqual([2]);
+    });
+  });
   describe('#getUnAssignedChats', () => {
+    const buildRootGetters = (gateEnabled = false) => ({
+      getCurrentAccountId: 1,
+      'accounts/getAccount': () => ({
+        id: 1,
+        settings: { reply_assignment_gate: gateEnabled },
+      }),
+    });
+
     it('order returns only chats assigned to user', () => {
       const conversationList = [
         {
@@ -162,10 +238,15 @@ describe('#getters', () => {
       ];
 
       expect(
-        getters.getUnAssignedChats({
-          allConversations: conversationList,
-          conversationFilters: { status: 1 },
-        })
+        getters.getUnAssignedChats(
+          {
+            allConversations: conversationList,
+            conversationFilters: { status: 1 },
+          },
+          {},
+          {},
+          buildRootGetters()
+        )
       ).toEqual([
         {
           id: 2,
@@ -182,6 +263,182 @@ describe('#getters', () => {
           labels: ['sales'],
         },
       ]);
+    });
+
+    it('keeps AI-assigned conversations when the assignment gate is OFF', () => {
+      const conversationList = [
+        {
+          id: 1,
+          inbox_id: 2,
+          status: 1,
+          meta: { assignee: { id: 9, type: 'agent_bot', is_captain: true } },
+          labels: [],
+        },
+        { id: 2, inbox_id: 2, status: 1, meta: {}, labels: [] },
+        {
+          id: 3,
+          inbox_id: 2,
+          status: 1,
+          meta: { assignee: { id: 4 } },
+          labels: [],
+        },
+      ];
+
+      const result = getters.getUnAssignedChats(
+        {
+          allConversations: conversationList,
+          conversationFilters: { status: 1 },
+        },
+        {},
+        {},
+        buildRootGetters(false)
+      );
+      expect(result.map(c => c.id).sort()).toEqual([1, 2]);
+    });
+
+    it('excludes AI-assigned conversations when the assignment gate is ON', () => {
+      const conversationList = [
+        {
+          id: 1,
+          inbox_id: 2,
+          status: 1,
+          meta: { assignee: { id: 9, type: 'agent_bot', is_captain: true } },
+          labels: [],
+        },
+        { id: 2, inbox_id: 2, status: 1, meta: {}, labels: [] },
+      ];
+
+      const result = getters.getUnAssignedChats(
+        {
+          allConversations: conversationList,
+          conversationFilters: { status: 1 },
+        },
+        {},
+        {},
+        buildRootGetters(true)
+      );
+      expect(result.map(c => c.id)).toEqual([2]);
+    });
+
+    it('treats a non-captain (webhook) agent_bot as unassigned even with the gate ON', () => {
+      // Backend parity: a webhook bot assigned via column is NOT AI
+      // (without_captain_assignee) and still counts as unassigned. It must not
+      // be dropped by the gate like a captain mirror is.
+      const conversationList = [
+        {
+          id: 1,
+          inbox_id: 2,
+          status: 1,
+          meta: { assignee: { id: 9, type: 'agent_bot', is_captain: false } },
+          labels: [],
+        },
+        {
+          id: 2,
+          inbox_id: 2,
+          status: 1,
+          meta: { assignee: { id: 9, type: 'agent_bot', is_captain: true } },
+          labels: [],
+        },
+        { id: 3, inbox_id: 2, status: 1, meta: {}, labels: [] },
+      ];
+
+      const result = getters.getUnAssignedChats(
+        {
+          allConversations: conversationList,
+          conversationFilters: { status: 1 },
+        },
+        {},
+        {},
+        buildRootGetters(true)
+      );
+      // Webhook bot (1) stays unassigned; captain mirror (2) is dropped.
+      expect(result.map(c => c.id).sort()).toEqual([1, 3]);
+    });
+  });
+  describe('#getAIChats', () => {
+    it('returns only conversations assigned to an AI agent (mirror bot)', () => {
+      const conversationList = [
+        {
+          id: 1,
+          inbox_id: 2,
+          status: 1,
+          meta: { assignee: { id: 9, type: 'agent_bot', is_captain: true } },
+          labels: [],
+        },
+        {
+          id: 2,
+          inbox_id: 2,
+          status: 1,
+          meta: { assignee: { id: 4 } },
+          labels: [],
+        },
+        { id: 3, inbox_id: 2, status: 1, meta: {}, labels: [] },
+      ];
+
+      const result = getters.getAIChats({
+        allConversations: conversationList,
+        conversationFilters: { status: 1 },
+      });
+      expect(result.map(c => c.id)).toEqual([1]);
+    });
+
+    it('excludes a non-captain (webhook) agent_bot from the AI tab', () => {
+      // Backend parity: only captain mirrors (bot_type = 1) are AI. A webhook
+      // bot emits type 'agent_bot' too, but must not surface in the AI tab.
+      const conversationList = [
+        {
+          id: 1,
+          inbox_id: 2,
+          status: 1,
+          meta: { assignee: { id: 9, type: 'agent_bot', is_captain: true } },
+          labels: [],
+        },
+        {
+          id: 2,
+          inbox_id: 2,
+          status: 1,
+          meta: { assignee: { id: 8, type: 'agent_bot', is_captain: false } },
+          labels: [],
+        },
+        {
+          id: 3,
+          inbox_id: 2,
+          status: 1,
+          meta: { assignee: { id: 7, type: 'agent_bot' } },
+          labels: [],
+        },
+      ];
+
+      const result = getters.getAIChats({
+        allConversations: conversationList,
+        conversationFilters: { status: 1 },
+      });
+      expect(result.map(c => c.id)).toEqual([1]);
+    });
+
+    it('applies page filters', () => {
+      const conversationList = [
+        {
+          id: 1,
+          inbox_id: 2,
+          status: 1,
+          meta: { assignee: { id: 9, type: 'agent_bot', is_captain: true } },
+          labels: [],
+        },
+        {
+          id: 2,
+          inbox_id: 3,
+          status: 1,
+          meta: { assignee: { id: 9, type: 'agent_bot', is_captain: true } },
+          labels: [],
+        },
+      ];
+
+      const result = getters.getAIChats({
+        allConversations: conversationList,
+        conversationFilters: { inboxId: 2, status: 1 },
+      });
+      expect(result.map(c => c.id)).toEqual([1]);
     });
   });
   describe('#getConversationById', () => {

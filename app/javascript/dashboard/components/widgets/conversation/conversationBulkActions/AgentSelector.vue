@@ -3,6 +3,7 @@ import { mapGetters } from 'vuex';
 import Avatar from 'next/avatar/Avatar.vue';
 import Spinner from 'shared/components/Spinner.vue';
 import NextButton from 'dashboard/components-next/button/Button.vue';
+import { useReplyAssignmentGate } from 'dashboard/composables/useReplyAssignmentGate';
 
 export default {
   components: {
@@ -21,6 +22,12 @@ export default {
     },
   },
   emits: ['select', 'close'],
+  setup() {
+    const { isAssignmentGateEnabled } = useReplyAssignmentGate();
+    return {
+      isAssignmentGateEnabled,
+    };
+  },
   data() {
     return {
       query: '',
@@ -39,17 +46,20 @@ export default {
           agent.name.toLowerCase().includes(this.query.toLowerCase())
         );
       }
-      return [
-        {
-          confirmed: true,
-          name: 'None',
-          id: null,
-          role: 'agent',
-          account_id: 0,
-          email: 'None',
-        },
-        ...this.assignableAgents,
-      ];
+      // Modo "Atribuição obrigatória" (D-11): sem opção "None" na atribuição manual
+      const noneOption = this.isAssignmentGateEnabled
+        ? []
+        : [
+            {
+              confirmed: true,
+              name: this.$t('AGENT_MGMT.MULTI_SELECTOR.LIST.NONE'),
+              id: null,
+              role: 'agent',
+              account_id: 0,
+              email: 'None',
+            },
+          ];
+      return [...noneOption, ...this.assignableAgents];
     },
     assignableAgents() {
       return this.$store.getters['inboxAssignableAgents/getAssignableAgents'](

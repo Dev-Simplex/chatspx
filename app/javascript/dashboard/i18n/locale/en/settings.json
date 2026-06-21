@@ -196,6 +196,7 @@
         "TYPES": {
           "CONVERSATION_CREATED": "A new conversation is created",
           "CONVERSATION_ASSIGNED": "A conversation is assigned to you",
+          "CONVERSATION_UNASSIGNED": "A conversation assigned to you is taken over by someone else",
           "CONVERSATION_MENTION": "You are mentioned in a conversation",
           "ASSIGNED_CONVERSATION_NEW_MESSAGE": "A new message is created in an assigned conversation",
           "PARTICIPATING_CONVERSATION_NEW_MESSAGE": "A new message is created in a participating conversation",

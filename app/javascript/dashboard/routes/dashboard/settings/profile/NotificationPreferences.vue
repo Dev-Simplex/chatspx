@@ -9,6 +9,7 @@ import {
   verifyServiceWorkerExistence,
 } from 'dashboard/helper/pushHelper.js';
 import { FEATURE_FLAGS } from 'dashboard/featureFlags';
+import { useReplyAssignmentGate } from 'dashboard/composables/useReplyAssignmentGate';
 import ToggleSwitch from 'dashboard/components-next/switch/Switch.vue';
 import { NOTIFICATION_TYPES } from './constants';
 
@@ -17,6 +18,11 @@ export default {
     TableHeaderCell,
     ToggleSwitch,
     CheckBox,
+  },
+  setup() {
+    // D4: a preferência conversation_unassignment só existe quando o gate da conta está ON.
+    const { isAssignmentGateEnabled } = useReplyAssignmentGate();
+    return { isAssignmentGateEnabled };
   },
   data() {
     return {
@@ -41,15 +47,22 @@ export default {
       return this.isFeatureEnabledonAccount(this.accountId, FEATURE_FLAGS.SLA);
     },
     filteredNotificationTypes() {
-      return this.notificationTypes.filter(notification =>
-        this.isSLAEnabled
-          ? true
-          : ![
-              'sla_missed_first_response',
-              'sla_missed_next_response',
-              'sla_missed_resolution',
-            ].includes(notification.value)
-      );
+      return this.notificationTypes
+        .filter(notification =>
+          this.isSLAEnabled
+            ? true
+            : ![
+                'sla_missed_first_response',
+                'sla_missed_next_response',
+                'sla_missed_resolution',
+              ].includes(notification.value)
+        )
+        .filter(
+          notification =>
+            // D4: takeover (conversation_unassignment) só aparece com o gate ON — sem vazamento Fase D no Clássico.
+            this.isAssignmentGateEnabled ||
+            notification.value !== 'conversation_unassignment'
+        );
     },
   },
   watch: {

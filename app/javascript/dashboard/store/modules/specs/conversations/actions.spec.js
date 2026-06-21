@@ -459,6 +459,116 @@ describe('#actions', () => {
     });
   });
 
+  describe('#assignAIAgent', () => {
+    it('dispatches setCurrentChatAssignee with the bot payload on success', async () => {
+      const botAssignee = {
+        id: 7,
+        name: 'Vendedora IA',
+        thumbnail: 'https://example.com/bot.png',
+        bot_type: 'captain',
+        type: 'agent_bot',
+      };
+      axios.post.mockResolvedValue({ data: botAssignee });
+      await actions.assignAIAgent(
+        { dispatch },
+        { conversationId: 1, agentBotId: 7 }
+      );
+      expect(dispatch).toHaveBeenCalledWith('setCurrentChatAssignee', {
+        conversationId: 1,
+        assignee: botAssignee,
+      });
+    });
+
+    it('swallows the error when rethrow is false', async () => {
+      axios.post.mockRejectedValue(new Error('AI assignment failed'));
+
+      await expect(
+        actions.assignAIAgent(
+          { dispatch },
+          { conversationId: 1, agentBotId: 7 }
+        )
+      ).resolves.toBeUndefined();
+    });
+
+    it('throws when assignment fails and rethrow is true', async () => {
+      axios.post.mockRejectedValue(new Error('AI assignment failed'));
+
+      await expect(
+        actions.assignAIAgent(
+          { dispatch },
+          { conversationId: 1, agentBotId: 7, rethrow: true }
+        )
+      ).rejects.toThrow('AI assignment failed');
+    });
+  });
+
+  describe('#sendMessageWithData (D6 gate)', () => {
+    // MessageApi.create() delegates to the bare axios() call (mocked at the top
+    // of this file) — driving it via axios keeps every other MessageApi method
+    // real for the rest of the suite.
+    const pendingMessage = { id: 'p1', conversation_id: 1, content: 'oi' };
+
+    it('suppresses the FAILED bubble and removes the pending on assignment_required', async () => {
+      const commitFn = vi.fn();
+      const error = {
+        response: {
+          status: 422,
+          data: { error_code: 'assignment_required', error: 'take over' },
+        },
+      };
+      axios.mockRejectedValueOnce(error);
+
+      await expect(
+        actions.sendMessageWithData({ commit: commitFn }, pendingMessage)
+      ).rejects.toBe(error);
+
+      const committed = commitFn.mock.calls.map(c => c[0]);
+      expect(committed).toContain(types.REMOVE_PENDING_MESSAGE);
+      // never adds a FAILED bubble for the gate error
+      const addMessageCalls = commitFn.mock.calls.filter(
+        c => c[0] === types.ADD_MESSAGE
+      );
+      expect(addMessageCalls.some(c => c[1].status === 'failed')).toBe(false);
+    });
+
+    it('keeps the classic FAILED bubble for a non-gate error', async () => {
+      const commitFn = vi.fn();
+      const error = {
+        response: { status: 500, data: { error: 'boom' } },
+      };
+      axios.mockRejectedValueOnce(error);
+
+      await expect(
+        actions.sendMessageWithData({ commit: commitFn }, pendingMessage)
+      ).rejects.toBe(error);
+
+      const committed = commitFn.mock.calls.map(c => c[0]);
+      expect(committed).not.toContain(types.REMOVE_PENDING_MESSAGE);
+      const addMessageCalls = commitFn.mock.calls.filter(
+        c => c[0] === types.ADD_MESSAGE
+      );
+      expect(addMessageCalls.some(c => c[1].status === 'failed')).toBe(true);
+    });
+  });
+
+  describe('#createPendingMessageAndSend (D6)', () => {
+    it('propagates the rejection from sendMessageWithData', async () => {
+      const error = new Error('rejected');
+      const dispatchFn = vi.fn().mockRejectedValueOnce(error);
+
+      await expect(
+        actions.createPendingMessageAndSend(
+          { dispatch: dispatchFn },
+          { conversationId: 1, message: 'oi' }
+        )
+      ).rejects.toBe(error);
+      expect(dispatchFn).toHaveBeenCalledWith(
+        'sendMessageWithData',
+        expect.any(Object)
+      );
+    });
+  });
+
   describe('#setCurrentChatAssignee', () => {
     it('sends correct mutations if assignment is successful', async () => {
       const payload = {

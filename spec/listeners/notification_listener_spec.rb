@@ -240,4 +240,157 @@ describe NotificationListener do
       end
     end
   end
+
+  # D4 (D-9): notifica quem PERDEU a conversa quando outro agente assume (takeover).
+  describe 'assignee_changed - conversation_unassignment (D4)' do
+    let(:event_name) { :'conversation.assignee_changed' }
+    let!(:old_assignee) { create(:user, account: account) }
+    let!(:new_assignee) { create(:user, account: account) }
+
+    # O ator REAL chega pelo event data (capturado no dispatch sync). No worker async Current.user é
+    # NIL — por isso TODOS os exemplos rodam com Current.user = nil, exercitando o caminho de produção.
+    before { Current.user = nil }
+    after { Current.user = nil }
+
+    def assignee_changed_event(conversation, old_id:, new_id:, actor: nil, notifiable: false)
+      Events::Base.new(
+        event_name,
+        Time.zone.now,
+        conversation: conversation,
+        notifiable_assignee_change: notifiable,
+        changed_attributes: { 'assignee_id' => [old_id, new_id] },
+        assignee_changed_by: actor
+      )
+    end
+
+    context 'when the reply assignment gate is enabled' do
+      before { account.update!(settings: account.settings.merge('reply_assignment_gate' => true)) }
+
+      it 'notifies the previous assignee on a self-assign takeover (D-9 robbery)' do
+        # B robs the conversation from A: notifiable_assignee_change is false (self-assign)
+        conversation.update!(assignee: new_assignee)
+        event = assignee_changed_event(conversation, old_id: old_assignee.id, new_id: new_assignee.id,
+                                                     actor: new_assignee, notifiable: false)
+
+        listener.assignee_changed(event)
+
+        expect(old_assignee.notifications.where(notification_type: 'conversation_unassignment').count).to eq(1)
+        notification = old_assignee.notifications.last
+        expect(notification.primary_actor).to eq(conversation)
+        # secondary_actor vem do event data (Current.user é nil no worker) — não cai mais para nil
+        expect(notification.secondary_actor).to eq(new_assignee)
+        # the robber (the actor) is NOT notified of an assignment (self-assign guard upstream)
+        expect(new_assignee.notifications.where(notification_type: 'conversation_assignment').count).to eq(0)
+      end
+
+      it 'notifies the previous assignee AND the new assignee on an admin reassignment' do
+        admin = create(:user, account: account, role: :administrator)
+        conversation.update!(assignee: new_assignee)
+        event = assignee_changed_event(conversation, old_id: old_assignee.id, new_id: new_assignee.id,
+                                                     actor: admin, notifiable: true)
+
+        listener.assignee_changed(event)
+
+        expect(old_assignee.notifications.where(notification_type: 'conversation_unassignment').count).to eq(1)
+        expect(new_assignee.notifications.where(notification_type: 'conversation_assignment').count).to eq(1)
+      end
+
+      it 'does not notify when old assignee equals new assignee' do
+        event = assignee_changed_event(conversation, old_id: old_assignee.id, new_id: old_assignee.id, actor: new_assignee)
+
+        listener.assignee_changed(event)
+
+        expect(old_assignee.notifications.where(notification_type: 'conversation_unassignment')).to be_empty
+      end
+
+      it 'does not notify when the conversation was previously orphaned (old id nil)' do
+        event = assignee_changed_event(conversation, old_id: nil, new_id: new_assignee.id, actor: new_assignee)
+
+        listener.assignee_changed(event)
+
+        expect(Notification.where(notification_type: 'conversation_unassignment')).to be_empty
+      end
+
+      it 'does not notify when the conversation became orphaned (new id nil)' do
+        event = assignee_changed_event(conversation, old_id: old_assignee.id, new_id: nil, actor: old_assignee)
+
+        listener.assignee_changed(event)
+
+        expect(old_assignee.notifications.where(notification_type: 'conversation_unassignment')).to be_empty
+      end
+
+      it 'does not notify when the previous assignee released the conversation themselves' do
+        # A solta a própria conversa: o ator (event data) é A == old_id -> auto-desatribuição, no-op
+        event = assignee_changed_event(conversation, old_id: old_assignee.id, new_id: new_assignee.id, actor: old_assignee)
+
+        listener.assignee_changed(event)
+
+        expect(old_assignee.notifications.where(notification_type: 'conversation_unassignment')).to be_empty
+      end
+
+      it 'does not notify when the previous assignee is no longer in the account' do
+        event = assignee_changed_event(conversation, old_id: 0, new_id: new_assignee.id, actor: new_assignee)
+
+        listener.assignee_changed(event)
+
+        expect(Notification.where(notification_type: 'conversation_unassignment')).to be_empty
+      end
+
+      it 'does not notify when the conversation is pending' do
+        conversation.update_columns(status: :pending) # rubocop:disable Rails/SkipsModelValidations
+        event = assignee_changed_event(conversation.reload, old_id: old_assignee.id, new_id: new_assignee.id, actor: new_assignee)
+
+        listener.assignee_changed(event)
+
+        expect(old_assignee.notifications.where(notification_type: 'conversation_unassignment')).to be_empty
+      end
+
+      # Caminho async REAL (vigia-telemetria-e): driva o callback chain e o EventDispatcherJob com
+      # Current.user LIMPO dentro do worker — onde o guard antigo (Current.user) estava morto.
+      # perform_enqueued_jobs envolve SÓ o update (não o setup das factories, que dispara avatar jobs).
+      context 'when dispatched through the async worker (Current.user nil in the worker)' do
+        # Captura o ator no dispatch sync (Current.user = by), depois LIMPA Current.user e só então
+        # roda o EventDispatcherJob — reproduzindo o worker async, onde Current.user é NIL. O guard e o
+        # secondary_actor precisam funcionar a partir do event data, não de Current.user.
+        def reassign_through_worker(to:, by:)
+          Current.user = by
+          conversation.update!(assignee: to) # after_commit enfileira o EventDispatcherJob (captura o ator)
+          Current.user = nil
+          perform_enqueued_jobs(only: EventDispatcherJob) # worker roda aqui, com Current.user já limpo
+        end
+
+        before do
+          conversation.update!(assignee: old_assignee)
+          old_assignee.notifications.where(notification_type: 'conversation_unassignment').delete_all
+          clear_enqueued_jobs # descarta jobs do setup; o teste só performa o EventDispatcherJob do reassign
+        end
+
+        it 'does NOT notify when an agent reassigns their OWN conversation (no spurious notification)' do
+          # A é o dono e reatribui a própria conversa para B; o ator real (A) == old_id -> no-op.
+          reassign_through_worker(to: new_assignee, by: old_assignee)
+
+          expect(old_assignee.notifications.where(notification_type: 'conversation_unassignment')).to be_empty
+        end
+
+        it 'notifies the previous assignee when a colleague takes the conversation over' do
+          # A é o dono; B (colega) assume. O ator real (B) != old_id (A) -> A é notificado.
+          reassign_through_worker(to: new_assignee, by: new_assignee)
+
+          notification = old_assignee.notifications.where(notification_type: 'conversation_unassignment').last
+          expect(notification).to be_present
+          expect(notification.secondary_actor).to eq(new_assignee)
+        end
+      end
+    end
+
+    context 'when the reply assignment gate is disabled (Classic)' do
+      it 'does not notify the previous assignee' do
+        event = assignee_changed_event(conversation, old_id: old_assignee.id, new_id: new_assignee.id, actor: new_assignee)
+
+        listener.assignee_changed(event)
+
+        expect(old_assignee.notifications.where(notification_type: 'conversation_unassignment')).to be_empty
+      end
+    end
+  end
 end

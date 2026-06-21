@@ -2,6 +2,7 @@
 import { mapGetters } from 'vuex';
 import { useAdmin } from 'dashboard/composables/useAdmin';
 import { useAlert } from 'dashboard/composables';
+import { useReplyAssignmentGate } from 'dashboard/composables/useReplyAssignmentGate';
 import { copyTextToClipboard } from 'shared/helpers/clipboard';
 import {
   getSortedAgentsByAvailability,
@@ -80,8 +81,10 @@ export default {
   ],
   setup() {
     const { isAdmin } = useAdmin();
+    const { isAssignmentGateEnabled } = useReplyAssignmentGate();
     return {
       isAdmin,
+      isAssignmentGateEnabled,
     };
   },
   data() {
@@ -183,17 +186,20 @@ export default {
       return filteredAgents;
     },
     assignableAgents() {
-      return [
-        {
-          confirmed: true,
-          name: 'None',
-          id: null,
-          role: 'agent',
-          account_id: 0,
-          email: 'None',
-        },
-        ...this.filteredAgentOnAvailability,
-      ];
+      // Modo "Atribuição obrigatória" (D-11): sem opção "None" na atribuição manual
+      const noneOption = this.isAssignmentGateEnabled
+        ? []
+        : [
+            {
+              confirmed: true,
+              name: this.$t('AGENT_MGMT.MULTI_SELECTOR.LIST.NONE'),
+              id: null,
+              role: 'agent',
+              account_id: 0,
+              email: 'None',
+            },
+          ];
+      return [...noneOption, ...this.filteredAgentOnAvailability];
     },
     showSnooze() {
       // Don't show snooze if the conversation is already snoozed/resolved/pending

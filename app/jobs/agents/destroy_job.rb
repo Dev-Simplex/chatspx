@@ -37,6 +37,8 @@ class Agents::DestroyJob < ApplicationJob
   end
 
   def unassign_conversations(account, user)
+    # NOTA (Fase E/D-12): bulk update_all não dispara CONVERSATION_UPDATED — as conversas
+    # viram órfãs silenciosas. Mitigação estrutural: vigia de órfãs (C10) re-triagem + notifica.
     # rubocop:disable Rails/SkipsModelValidations
     user.assigned_conversations.where(account: account).in_batches.update_all(assignee_id: nil)
     # rubocop:enable Rails/SkipsModelValidations

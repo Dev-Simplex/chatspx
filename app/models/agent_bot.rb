@@ -57,7 +57,12 @@ class AgentBot < ApplicationRecord
       id: id,
       name: name,
       avatar_url: avatar_url.presence || captain_assistant&.push_event_data&.dig(:avatar_url) || inbox&.avatar_url,
-      type: 'agent_bot'
+      type: 'agent_bot',
+      # Discrimina espelho captain (IA) de bot webhook. O front filtra abas IA /
+      # Não Atribuídas por este flag para casar com o backend (bot_type = 1),
+      # já que `type` é 'agent_bot' para QUALQUER bot. Campo aditivo: não quebra
+      # consumidores que leem id/name/type/avatar_url.
+      is_captain: captain?
     }
   end
 

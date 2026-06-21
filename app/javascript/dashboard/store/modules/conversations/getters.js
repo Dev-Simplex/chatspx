@@ -101,7 +101,12 @@ const getters = {
     return _state.allConversations
       .filter(conversation => {
         const { assignee } = conversation.meta;
-        const isAssignedToMe = assignee && assignee.id === currentUserID;
+        // `assignee.type !== 'agent_bot'` fixes the User×AgentBot id collision
+        // (a captain mirror bot sharing the user's id is NOT "mine")
+        const isAssignedToMe =
+          assignee &&
+          assignee.type !== 'agent_bot' &&
+          assignee.id === currentUserID;
         const shouldFilter = applyPageFilters(conversation, filters);
         return isAssignedToMe && shouldFilter;
       })
@@ -118,14 +123,48 @@ const getters = {
     const hasAppliedFilters = _state.appliedFilters.length !== 0;
     return hasAppliedFilters ? filterQueryGenerator(_state.appliedFilters) : [];
   },
-  getUnAssignedChats: _state => {
+  getUnAssignedChats: (_state, _getters, _rootState, rootGetters) => {
+    const filters = _state.conversationFilters;
+    const accountId = rootGetters.getCurrentAccountId;
+    const gateEnabled = Boolean(
+      rootGetters['accounts/getAccount'](accountId)?.settings
+        ?.reply_assignment_gate
+    );
+
+    return _state.allConversations
+      .filter(conversation => {
+        const { assignee } = conversation.meta;
+        // Critério exato do backend (conversation_finder unassigned_count):
+        // `assignee_id IS NULL [AND ab.id IS NULL]` onde `ab` é restrito a
+        // bot_type captain. Em termos do front: qualquer bot (captain OU webhook)
+        // tem assignee_id null, logo NÃO é atendente humano. Um bot WEBHOOK
+        // atribuído por coluna conta como não atribuído mesmo com a flag ON
+        // (o LEFT JOIN só casa captain). Só o espelho captain sai da lista com
+        // a flag ligada. Filtrar por `type === 'agent_bot'` cru faria count
+        // (REST) e lista (websocket) divergirem nas abas IA e Não Atribuídas.
+        const isBotAssignee = assignee?.type === 'agent_bot';
+        const isCaptainMirror = isBotAssignee && Boolean(assignee.is_captain);
+        const hasNoHumanAssignee = !assignee || isBotAssignee;
+        // Gate ON: o espelho captain deixa de contar como não atribuído.
+        const isUnAssigned =
+          hasNoHumanAssignee && !(isCaptainMirror && gateEnabled);
+        const shouldFilter = applyPageFilters(conversation, filters);
+        return isUnAssigned && shouldFilter;
+      })
+      .sort((a, b) => sortComparator(a, b, _state.chatSortFilter));
+  },
+  getAIChats: _state => {
     const filters = _state.conversationFilters;
 
     return _state.allConversations
       .filter(conversation => {
-        const isUnAssigned = !conversation.meta.assignee;
+        const { assignee } = conversation.meta;
+        // Casa com o backend (bot_type captain): apenas espelhos captain contam
+        // como IA. Bots webhook emitem type 'agent_bot' mas não são atendentes IA.
+        const isAIAssigned =
+          assignee?.type === 'agent_bot' && Boolean(assignee.is_captain);
         const shouldFilter = applyPageFilters(conversation, filters);
-        return isUnAssigned && shouldFilter;
+        return isAIAssigned && shouldFilter;
       })
       .sort((a, b) => sortComparator(a, b, _state.chatSortFilter));
   },

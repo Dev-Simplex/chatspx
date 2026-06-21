@@ -9,6 +9,13 @@
       "ADMINISTRATOR": "Administrador",
       "AGENT": "Agente"
     },
+    "AI_AGENTS": {
+      "TITLE": "Agentes IA",
+      "DESCRIPTION": "Assistentes de IA que atendem conversas nesta conta. A gestão (prompts, knowledge, comportamento) continua na área Agentes IA.",
+      "BADGE": "Agente IA",
+      "INBOXES_LABEL": "Caixas de entrada elegíveis:",
+      "NO_INBOXES": "Nenhuma caixa de entrada elegível"
+    },
     "COUNT": "{n} agente | {n} agentes",
     "LIST": {
       "404": "Não existem agentes associados a esta conta",

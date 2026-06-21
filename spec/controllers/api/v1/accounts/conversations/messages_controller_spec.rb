@@ -82,6 +82,85 @@ RSpec.describe 'Conversation Messages API', type: :request do
         expect(conversation.messages.last.attachments.first.file_type).to eq('image')
       end
 
+      # D1 (D-4): guard "só o assignee responde" atrás da flag reply_assignment_gate.
+      context 'when the reply assignment gate is enabled' do
+        let(:assignee) { create(:user, account: account, role: :agent) }
+        let(:gate_url) do
+          api_v1_account_conversation_messages_url(account_id: account.id, conversation_id: conversation.display_id)
+        end
+
+        before do
+          create(:inbox_member, inbox: conversation.inbox, user: assignee)
+          conversation.update!(assignee: assignee)
+          account.update!(reply_assignment_gate: true)
+        end
+
+        it 'blocks a non-assignee reply with 422 assignment_required and assignee meta' do
+          post gate_url, params: { content: 'oi' }, headers: agent.create_new_auth_token, as: :json
+
+          expect(response).to have_http_status(:unprocessable_entity)
+          json = response.parsed_body
+          expect(json['error_code']).to eq('assignment_required')
+          expect(json['meta']['current_assignee']['id']).to eq(assignee.id)
+          expect(json['meta']['current_assignee']['type']).to eq('User')
+          expect(conversation.reload.messages.where(message_type: :outgoing).count).to eq(0)
+        end
+
+        it 'allows the assignee to reply' do
+          post gate_url, params: { content: 'oi' }, headers: assignee.create_new_auth_token, as: :json
+
+          expect(response).to have_http_status(:success)
+        end
+
+        it 'allows a non-assignee private note (bypass)' do
+          post gate_url, params: { content: 'nota', private: true }, headers: agent.create_new_auth_token, as: :json
+
+          expect(response).to have_http_status(:success)
+        end
+
+        it 'allows a payload carrying source_id (external WAHA echo bypass)' do
+          post gate_url, params: { content: 'echo', source_id: 'WAID-123' }, headers: agent.create_new_auth_token, as: :json
+
+          expect(response).not_to have_http_status(:unprocessable_entity)
+        end
+
+        it 'does not gate an incoming message_type via API (bypass)' do
+          # Agent-posted incoming 500s downstream regardless of the gate (pre-existing
+          # fork behavior); here we only assert the gate itself did not block it (no 422).
+          post gate_url, params: { content: 'in', message_type: 'incoming' }, headers: agent.create_new_auth_token, as: :json
+
+          expect(response).not_to have_http_status(:unprocessable_entity)
+        end
+
+        context 'when the conversation is owned by an AI mirror' do
+          let(:assistant) { create(:captain_assistant, account: account, name: 'Júlia') }
+
+          before { conversation.update!(assignee: nil, assignee_agent_bot: assistant.mirror_agent_bot) }
+
+          it 'reports the AI as current_assignee in the 422 meta' do
+            post gate_url, params: { content: 'oi' }, headers: agent.create_new_auth_token, as: :json
+
+            expect(response).to have_http_status(:unprocessable_entity)
+            json = response.parsed_body
+            expect(json['meta']['current_assignee']['type']).to eq('AgentBot')
+            expect(json['meta']['current_assignee']['name']).to eq('Júlia')
+          end
+        end
+      end
+
+      context 'when the reply assignment gate is disabled (classic mode, default)' do
+        let(:assignee) { create(:user, account: account, role: :agent) }
+
+        before { conversation.update!(assignee: assignee) }
+
+        it 'lets a non-assignee reply (gate inert)' do
+          post api_v1_account_conversation_messages_url(account_id: account.id, conversation_id: conversation.display_id),
+               params: { content: 'oi' }, headers: agent.create_new_auth_token, as: :json
+
+          expect(response).to have_http_status(:success)
+        end
+      end
+
       context 'when api inbox' do
         let(:api_channel) { create(:channel_api, account: account) }
         let(:api_inbox) { create(:inbox, channel: api_channel, account: account) }

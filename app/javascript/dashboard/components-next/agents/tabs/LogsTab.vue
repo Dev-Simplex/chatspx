@@ -19,24 +19,27 @@ const filterType = ref('');
 const currentPage = ref(1);
 let refreshInterval = null;
 
+// Espelha Captain::AssistantLog::EVENT_TYPES (drift de 'debounce'/'copilot'/'inbox'
+// corrigido na Fase E/E4 — esses valores nunca existiram no backend).
 const eventTypeConfig = {
   response: { color: 'bg-green-500', icon: 'i-lucide-check-circle' },
-  error: { color: 'bg-red-500', icon: 'i-lucide-alert-circle' },
+  debounce_skip: { color: 'bg-cyan-500', icon: 'i-lucide-timer-off' },
+  debounce_fire: { color: 'bg-cyan-500', icon: 'i-lucide-timer' },
   router_skip: { color: 'bg-amber-500', icon: 'i-lucide-skip-forward' },
-  debounce: { color: 'bg-cyan-500', icon: 'i-lucide-timer' },
-  copilot: { color: 'bg-purple-500', icon: 'i-lucide-sparkles' },
-  inbox: { color: 'bg-blue-500', icon: 'i-lucide-inbox' },
+  business_hours_skip: { color: 'bg-purple-500', icon: 'i-lucide-clock' },
+  handoff: { color: 'bg-red-500', icon: 'i-lucide-user-check' },
+  media_process: { color: 'bg-indigo-500', icon: 'i-lucide-image' },
+  humanizer_split: { color: 'bg-pink-500', icon: 'i-lucide-split' },
+  dedup_skip: { color: 'bg-orange-500', icon: 'i-lucide-copy-x' },
+  error: { color: 'bg-red-500', icon: 'i-lucide-alert-circle' },
+  copilot_trigger: { color: 'bg-violet-500', icon: 'i-lucide-sparkles' },
+  // E4: auditoria da atribuição do espelho captain
+  mirror_assigned: { color: 'bg-blue-500', icon: 'i-lucide-bot' },
+  mirror_released: { color: 'bg-slate-500', icon: 'i-lucide-bot-off' },
+  human_takeover: { color: 'bg-amber-500', icon: 'i-lucide-user-round-check' },
 };
 
-const eventTypes = [
-  '',
-  'response',
-  'error',
-  'router_skip',
-  'debounce',
-  'copilot',
-  'inbox',
-];
+const eventTypes = ['', ...Object.keys(eventTypeConfig)];
 
 function fetchLogs() {
   store.dispatch('captainAssistantLogs/fetch', {

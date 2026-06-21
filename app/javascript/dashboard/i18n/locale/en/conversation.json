@@ -1,5 +1,35 @@
 {
   "CONVERSATION": {
+    "REPLY_GATE_DIALOG": {
+      "TITLE": {
+        "A": "No one owns this conversation",
+        "B": "{name}'s conversation",
+        "C": "Handled by AI {name}",
+        "D": "You're not part of this team"
+      },
+      "DESC": {
+        "A": "Assign this conversation to yourself to send the message.",
+        "B": "This conversation is being handled by {name}. Take over and send? {name} will be notified.",
+        "C": "This conversation is being handled by {name}. When you take over, the AI stops replying.",
+        "D": "This conversation belongs to team {team}. Pick one of your teams to take over and send."
+      },
+      "CONFIRM": {
+        "A": "Assign to me and send",
+        "B": "Take over from {name} and send",
+        "C": "Take over from {name} and send",
+        "D": "Assign and send"
+      },
+      "CANCEL": "Cancel",
+      "TEAM_LABEL": "Assign to team",
+      "NO_TEAMS": "You're not part of any team — the conversation will be assigned to you keeping the current team.",
+      "AI_BADGE": "AI Agent",
+      "ERROR": "Couldn't assign the conversation, please try again"
+    },
+    "REPLY_GATE_BANNER": {
+      "UNASSIGNED": "This conversation has no owner — take over to reply",
+      "TAKEN": "Handled by {name} — take over to reply",
+      "CTA": "Take over"
+    },
     "SELECT_A_CONVERSATION": "Please select a conversation from left pane",
     "CSAT_REPLY_MESSAGE": "Please rate the conversation",
     "404": "Sorry, we cannot find the conversation. Please try again",
@@ -39,6 +69,8 @@
     },
     "UNREAD_MESSAGES": "Unread Messages",
     "UNREAD_MESSAGE": "Unread Message",
+    "AI_HANDLING_HINT": "{name} is handling this conversation",
+    "AI_HANDLING_SUBHINT": "Take over to reply yourself",
     "NEWEST_MESSAGE": "Latest messages",
     "CLICK_HERE": "Click here",
     "LOADING_INBOXES": "Loading inboxes",
@@ -409,6 +441,8 @@
     "ASSIGN_LABEL_FAILED": "Label assignment failed",
     "CHANGE_TEAM": "Conversation team changed",
     "CHANGE_TEAM_FAILED": "Couldn't change the conversation team, please try again",
+    "CHANGE_AI_AGENT": "AI agent assigned to the conversation",
+    "CHANGE_AI_AGENT_FAILED": "Couldn't assign the AI agent, please try again",
     "ASSIGNMENT_ACCESS_LOST": "You no longer have access to this conversation",
     "RESOLVE_REQUIRES_TEAM": "A team must be assigned before resolving this conversation",
     "SELECT_TEAM_TO_RESOLVE": "Select a team to resolve this conversation",
@@ -573,6 +607,17 @@
     "ASSIGNEE_LABEL": "Assigned Agent",
     "SELF_ASSIGN": "Assign to me",
     "TEAM_LABEL": "Assigned Team",
+    "ASSIGNEE_GROUP": {
+      "AI": "AI Agents",
+      "HUMAN": "Agents"
+    },
+    "AI_AGENT": {
+      "LABEL": "AI Agent",
+      "TITLE": "Assign AI agent",
+      "PLACEHOLDER": "Select AI agent",
+      "NO_RESULTS": "No AI agents found",
+      "SEARCH_PLACEHOLDER": "Search AI agents"
+    },
     "SELECT": {
       "PLACEHOLDER": "None"
     },

@@ -158,6 +158,36 @@ describe('getActionOptions', () => {
       })
     ).toEqual(agents);
   });
+
+  it('maps assign_ai_agent to the list of AI agents', () => {
+    const aiAgents = [
+      { id: 7, name: 'Assistant Sales' },
+      { id: 9, name: 'Assistant Support' },
+    ];
+
+    expect(
+      helpers.getActionOptions({
+        aiAgents,
+        type: 'assign_ai_agent',
+      })
+    ).toEqual(aiAgents);
+  });
+
+  it('does not add None option to assign_ai_agent even when addNoneToListFn is provided', () => {
+    const mockAddNoneToListFn = list => [
+      { id: 'nil', name: 'None' },
+      ...(list || []),
+    ];
+    const aiAgents = [{ id: 7, name: 'Assistant Sales' }];
+
+    expect(
+      helpers.getActionOptions({
+        aiAgents,
+        type: 'assign_ai_agent',
+        addNoneToListFn: mockAddNoneToListFn,
+      })
+    ).toEqual(aiAgents);
+  });
 });
 
 describe('getConditionOptions', () => {
@@ -451,5 +481,12 @@ describe('showActionInput', () => {
   it('returns false if the action does not have an input type', () => {
     const mockActionTypes = [{ key: 'some_action', inputType: null }];
     expect(helpers.showActionInput(mockActionTypes, 'some_action')).toBe(false);
+  });
+
+  it('returns false if the action is not present in the action types', () => {
+    const mockActionTypes = [{ key: 'add_label', inputType: 'select' }];
+    expect(helpers.showActionInput(mockActionTypes, 'assign_ai_agent')).toBe(
+      false
+    );
   });
 });

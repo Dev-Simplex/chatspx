@@ -66,6 +66,46 @@ has been assigned to you"
 
       expect(notification.push_message_title).to eq "You have been mentioned in conversation (##{notification.primary_actor.display_id})"
     end
+
+    # D4 (D-9): título da notificação de takeover interpola display_id + nome de quem assumiu.
+    it 'returns appropriate title suited for the notification type conversation_unassignment interpolating the taker' do
+      taker = create(:user, name: 'Robin Hood')
+      conversation = create(:conversation, assignee: taker)
+      notification = create(:notification, notification_type: 'conversation_unassignment', primary_actor: conversation, secondary_actor: taker)
+
+      expect(notification.push_message_title).to eq(
+        I18n.t('notifications.notification_title.conversation_unassignment',
+               display_id: conversation.display_id, taker: taker.available_name)
+      )
+    end
+
+    it 'falls back to the secondary actor name when the conversation has no assignee for conversation_unassignment' do
+      actor = create(:user, name: 'Little John')
+      conversation = create(:conversation, assignee: nil)
+      notification = create(:notification, notification_type: 'conversation_unassignment', primary_actor: conversation, secondary_actor: actor)
+
+      expect(notification.push_message_title).to eq(
+        I18n.t('notifications.notification_title.conversation_unassignment',
+               display_id: conversation.display_id, taker: actor.available_name)
+      )
+    end
+
+    it 'interpolates the taker name into the localized title for both locales for conversation_unassignment' do
+      taker = create(:user, name: 'Robin Hood')
+      conversation = create(:conversation, assignee: taker)
+      notification = create(:notification, notification_type: 'conversation_unassignment', primary_actor: conversation, secondary_actor: taker)
+
+      # The localized copy is owned/written by D-L1 (config/locales/*.yml — DD-13). This asserts the
+      # D-L3 interpolation wiring once the key exists; stays green if D-L1 has not landed it yet.
+      %i[en pt-BR].each do |locale|
+        I18n.with_locale(locale) do
+          next unless I18n.exists?('notifications.notification_title.conversation_unassignment', locale)
+
+          expect(notification.push_message_title).to include(taker.available_name)
+          expect(notification.push_message_title).to include(conversation.display_id.to_s)
+        end
+      end
+    end
   end
 
   context 'when push_message_body is called' do
@@ -88,6 +128,14 @@ has been assigned to you"
       message = create(:message, sender: create(:user), content: Faker::Lorem.paragraphs(number: 2), message_type: :outgoing,
                                  conversation: conversation)
       notification = create(:notification, notification_type: 'conversation_assignment', primary_actor: conversation, secondary_actor: message)
+      expect(notification.push_message_body).to eq "#{message.sender.name}: #{message.content.truncate_words(10)}"
+    end
+
+    # D4: a notificação de takeover usa a mesma última mensagem in/outgoing do conversation_assignment.
+    it 'returns appropriate body suited for the notification type conversation_unassignment' do
+      conversation = create(:conversation)
+      message = create(:message, sender: create(:user), content: Faker::Lorem.paragraphs(number: 2), conversation: conversation)
+      notification = create(:notification, notification_type: 'conversation_unassignment', primary_actor: conversation, secondary_actor: message)
       expect(notification.push_message_body).to eq "#{message.sender.name}: #{message.content.truncate_words(10)}"
     end
 

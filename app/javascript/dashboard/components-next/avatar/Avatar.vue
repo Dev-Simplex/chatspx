@@ -20,6 +20,12 @@ const props = defineProps({
     type: Number,
     default: 32,
   },
+  // Override opcional das cores do avatar de iniciais (ex.: cor própria por IA).
+  // Formato: { bg, text, darkBg, darkText } com strings de cor CSS.
+  accent: {
+    type: Object,
+    default: null,
+  },
   allowUpload: {
     type: Boolean,
     default: false,
@@ -96,6 +102,7 @@ const initials = computed(() => {
 });
 
 const getColorsByNameLength = computed(() => {
+  if (props.accent) return props.accent;
   if (!props.name) return AVATAR_COLORS.default;
 
   const index = props.name.length % AVATAR_COLORS.light.length;

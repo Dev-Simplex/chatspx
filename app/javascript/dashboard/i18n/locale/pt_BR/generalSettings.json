@@ -143,6 +143,34 @@
           "ERROR": "Falha ao atualizar configuração da faixa de KPIs"
         }
       },
+      "ATTENDANCE_MODE": {
+        "TITLE": "Modo de atendimento",
+        "NOTE": "Define como sua equipe responde conversas nesta conta.",
+        "ACTIVE": "Ativo",
+        "CLASSIC": {
+          "TITLE": "Clássico",
+          "DESCRIPTION": "Como hoje: tabs Minhas/Não atribuídas/Todas, qualquer agente responde, opção \"Nenhum\" disponível."
+        },
+        "GATED": {
+          "TITLE": "Atribuição obrigatória",
+          "DESCRIPTION": "Só o responsável responde. Quem não é dono assume com 1 clique no envio; tabs Minhas/IA/Todas; sem opção \"Nenhum\"; vigia re-triagem conversas órfãs."
+        },
+        "CONFIRM": {
+          "ACTION": "Trocar modo",
+          "GATED": {
+            "TITLE": "Ativar atribuição obrigatória?",
+            "DESCRIPTION": "A partir de agora só o responsável responde cada conversa; as tabs mudam para Minhas/IA/Todas e a opção \"Nenhum\" some. Vale na hora, sem deploy."
+          },
+          "CLASSIC": {
+            "TITLE": "Voltar ao modo clássico?",
+            "DESCRIPTION": "O gate de resposta, o dialog de assunção e as tabs novas são desligados. Tudo volta a funcionar como hoje, na hora."
+          }
+        },
+        "API": {
+          "SUCCESS": "Modo de atendimento atualizado",
+          "ERROR": "Não foi possível atualizar, tente novamente"
+        }
+      },
       "AUDIO_TRANSCRIPTION": {
         "TITLE": "Transcrever Mensagens de Áudio",
         "NOTE": "Transcreve automaticamente mensagens de áudio nas conversas. Gera uma transcrição de texto sempre que uma mensagem de áudio é enviada ou recebida, e a exibe junto da mensagem.",
@@ -217,7 +245,8 @@
       "conversation_mention": "Menção",
       "sla_missed_first_response": "SLA não alcançado",
       "sla_missed_next_response": "SLA não alcançado",
-      "sla_missed_resolution": "SLA não alcançado"
+      "sla_missed_resolution": "SLA não alcançado",
+      "conversation_unassignment": "Conversa assumida por colega"
     }
   },
   "NETWORK": {

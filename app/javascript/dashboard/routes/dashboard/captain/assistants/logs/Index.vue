@@ -16,6 +16,10 @@ const EVENT_TYPES = [
   { value: 'dedup_skip', label: 'Dedup Skip' },
   { value: 'error', label: 'Error' },
   { value: 'copilot_trigger', label: 'Copilot Trigger' },
+  // E4: auditoria da atribuição do espelho captain (Fase E)
+  { value: 'mirror_assigned', label: 'Mirror Assigned' },
+  { value: 'mirror_released', label: 'Mirror Released' },
+  { value: 'human_takeover', label: 'Human Takeover' },
 ];
 
 const EVENT_TYPE_COLORS = {
@@ -30,6 +34,9 @@ const EVENT_TYPE_COLORS = {
   dedup_skip: 'bg-orange-100 text-orange-800',
   error: 'bg-red-100 text-red-800',
   copilot_trigger: 'bg-violet-100 text-violet-800',
+  mirror_assigned: 'bg-blue-100 text-blue-800',
+  mirror_released: 'bg-slate-100 text-slate-800',
+  human_takeover: 'bg-amber-100 text-amber-800',
 };
 
 const store = useStore();

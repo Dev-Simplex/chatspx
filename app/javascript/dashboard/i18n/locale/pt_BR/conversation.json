@@ -1,5 +1,35 @@
 {
   "CONVERSATION": {
+    "REPLY_GATE_DIALOG": {
+      "TITLE": {
+        "A": "Conversa sem responsável",
+        "B": "Conversa de {name}",
+        "C": "Atendida pela IA {name}",
+        "D": "Você não faz parte deste time"
+      },
+      "DESC": {
+        "A": "Atribua a conversa a você para enviar a mensagem.",
+        "B": "Essa conversa está sendo atendida por {name}. Assumir e enviar? {name} será notificado.",
+        "C": "Essa conversa está sendo atendida pela {name}. Ao assumir, a IA para de responder.",
+        "D": "A conversa pertence ao time {team}. Escolha um dos seus times para assumir e enviar."
+      },
+      "CONFIRM": {
+        "A": "Atribuir a mim e enviar",
+        "B": "Assumir de {name} e enviar",
+        "C": "Assumir da {name} e enviar",
+        "D": "Atribuir e enviar"
+      },
+      "CANCEL": "Cancelar",
+      "TEAM_LABEL": "Atribuir ao time",
+      "NO_TEAMS": "Você não participa de nenhum time — a conversa será atribuída a você mantendo o time atual.",
+      "AI_BADGE": "Agente IA",
+      "ERROR": "Não foi possível atribuir a conversa, tente novamente"
+    },
+    "REPLY_GATE_BANNER": {
+      "UNASSIGNED": "Esta conversa não tem responsável — assuma para responder",
+      "TAKEN": "Atendida por {name} — assuma para responder",
+      "CTA": "Assumir conversa"
+    },
     "SELECT_A_CONVERSATION": "Por favor, selecione uma conversa no painel da esquerda",
     "CSAT_REPLY_MESSAGE": "Por favor, classifique a conversa",
     "404": "Desculpe, não conseguimos encontrar a conversa. Por favor, tente novamente",
@@ -39,6 +69,8 @@
     },
     "UNREAD_MESSAGES": "Mensagens não lidas",
     "UNREAD_MESSAGE": "Mensagem não lida",
+    "AI_HANDLING_HINT": "{name} está atendendo esta conversa",
+    "AI_HANDLING_SUBHINT": "Assuma para responder você mesmo",
     "CLICK_HERE": "Clique aqui",
     "LOADING_INBOXES": "Carregando caixas de entrada",
     "LOADING_CONVERSATIONS": "Carregando conversas",
@@ -387,6 +419,8 @@
     "ASSIGN_LABEL_FAILED": "Falha ao atribuir etiqueta",
     "CHANGE_TEAM": "Time da conversa alterado",
     "CHANGE_TEAM_FAILED": "Não foi possível alterar o time da conversa, tente novamente",
+    "CHANGE_AI_AGENT": "Agente IA atribuído à conversa",
+    "CHANGE_AI_AGENT_FAILED": "Não foi possível atribuir o agente IA, tente novamente",
     "ASSIGNMENT_ACCESS_LOST": "Você não tem mais acesso a esta conversa",
     "RESOLVE_REQUIRES_TEAM": "Um time deve ser atribuído antes de resolver esta conversa",
     "SELECT_TEAM_TO_RESOLVE": "Selecione um time para resolver esta conversa",
@@ -564,6 +598,17 @@
     "ASSIGNEE_LABEL": "Agente atribuído",
     "SELF_ASSIGN": "Atribuir a mim",
     "TEAM_LABEL": "Time atribuído",
+    "ASSIGNEE_GROUP": {
+      "AI": "Agentes IA",
+      "HUMAN": "Agentes"
+    },
+    "AI_AGENT": {
+      "LABEL": "Agente IA",
+      "TITLE": "Atribuir agente IA",
+      "PLACEHOLDER": "Selecionar agente IA",
+      "NO_RESULTS": "Nenhum agente IA encontrado",
+      "SEARCH_PLACEHOLDER": "Buscar agentes IA"
+    },
     "SELECT": {
       "PLACEHOLDER": "Nenhuma"
     },

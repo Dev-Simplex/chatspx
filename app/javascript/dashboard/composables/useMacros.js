@@ -14,6 +14,9 @@ export const useMacros = () => {
   const labels = computed(() => getters['labels/getLabels'].value);
   const teams = computed(() => getters['teams/getTeams'].value);
   const agents = computed(() => getters['agents/getVerifiedAgents'].value);
+  const aiAgents = computed(
+    () => getters['captainAssistants/getRecords'].value
+  );
 
   /**
    * Get dropdown values based on the specified type
@@ -27,6 +30,13 @@ export const useMacros = () => {
         return teams.value;
       case 'assign_agent':
         return [{ id: 'self', name: 'Self' }, ...agents.value];
+      case 'assign_ai_agent':
+        // id do ASSISTANT (não do espelho) — o backend resolve o espelho
+        // via mirror_agent_bot (C5.2/C5.3).
+        return aiAgents.value.map(assistant => ({
+          id: assistant.id,
+          name: assistant.name,
+        }));
       case 'add_label':
       case 'remove_label':
         return labels.value.map(i => ({

@@ -22,8 +22,11 @@
     "ASSIGNEE_TYPE_TABS": {
       "me": "Minhas",
       "unassigned": "Não atribuídas",
-      "all": "Todos"
+      "unassigned_awaiting": "Aguardando atendimento",
+      "ai": "IA",
+      "all": "Todas"
     },
+    "AI_BADGE": "IA",
     "CHAT_STATUS_FILTER_ITEMS": {
       "open": {
         "TEXT": "Aberta"

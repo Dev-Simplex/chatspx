@@ -42,6 +42,9 @@ class Account < ApplicationRecord # rubocop:disable Metrics/ClassLength
         'auto_resolve_label': { 'type': %w[string null] },
         'keep_pending_on_bot_failure': { 'type': %w[boolean null] },
         'captain_auto_resolve_mode': { 'type': %w[string null], 'enum': ['evaluated', 'legacy', 'disabled', nil] },
+        'reply_assignment_gate': { 'type': %w[boolean null] },
+        'orphan_retriage_after': { 'type': %w[integer null], 'minimum': 5, 'maximum': 10_080 },
+        'queue_escalation_after': { 'type': %w[integer null], 'minimum': 1, 'maximum': 10_080 },
         'conversation_required_attributes': {
           'type': %w[array null],
           'items': { 'type': 'string' }
@@ -97,6 +100,7 @@ class Account < ApplicationRecord # rubocop:disable Metrics/ClassLength
   store_accessor :settings, :reporting_timezone
   store_accessor :settings, :keep_pending_on_bot_failure
   store_accessor :settings, :captain_auto_resolve_mode
+  store_accessor :settings, :reply_assignment_gate, :orphan_retriage_after, :queue_escalation_after
   include AccountCaptainAutoResolve
 
   has_many :account_users, dependent: :destroy_async
@@ -151,6 +155,7 @@ class Account < ApplicationRecord # rubocop:disable Metrics/ClassLength
   enum :status, { active: 0, suspended: 1 }
 
   scope :with_auto_resolve, -> { where("(settings ->> 'auto_resolve_after')::int IS NOT NULL") }
+  scope :with_reply_assignment_gate, -> { where("(settings ->> 'reply_assignment_gate')::boolean IS TRUE") }
 
   before_validation :validate_limit_keys
   after_create_commit :notify_creation
@@ -163,6 +168,10 @@ class Account < ApplicationRecord # rubocop:disable Metrics/ClassLength
 
   def administrators
     users.where(account_users: { role: :administrator })
+  end
+
+  def reply_assignment_gate_enabled?
+    ActiveModel::Type::Boolean.new.cast(reply_assignment_gate) || false
   end
 
   def all_conversation_tags

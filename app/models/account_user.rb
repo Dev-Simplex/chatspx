@@ -46,8 +46,17 @@ class AccountUser < ApplicationRecord
   def create_notification_setting
     setting = user.notification_settings.new(account_id: account.id)
     setting.selected_email_flags = [:email_conversation_assignment]
-    setting.selected_push_flags = [:push_conversation_assignment]
+    setting.selected_push_flags = default_push_flags
     setting.save!
+  end
+
+  # D4: novos usuários nascem com push do takeover (conversation_unassignment) ligado SOMENTE quando
+  # o gate da conta está ON. Em contas Clássico (flag OFF) o default permanece o histórico
+  # ([:push_conversation_assignment]) — o novo default não vaza para fora da Fase D (AD-15/OQ-D2).
+  def default_push_flags
+    flags = [:push_conversation_assignment]
+    flags << :push_conversation_unassignment if account.reply_assignment_gate_enabled?
+    flags
   end
 
   def remove_user_from_account

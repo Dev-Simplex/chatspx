@@ -74,15 +74,7 @@ class Captain::Conversation::ResponseBuilderJob < ApplicationJob
                 else
                   message.content.presence || (message.attachments.any? ? '[foto do imóvel enviada]' : '')
                 end
-      message_hash = {
-        content: content,
-        role: determine_role(message)
-      }
-
-      # Include agent_name if present in additional_attributes
-      message_hash[:agent_name] = message.additional_attributes['agent_name'] if message.additional_attributes&.dig('agent_name').present?
-
-      message_hash
+      with_forwardable_agent_name({ content: content, role: determine_role(message) }, message)
     end.tap do |history|
       # Diretiva interna de follow-up (cutucada): entra como último turno pro agente decidir.
       history << { content: @directive, role: 'user' } if @directive.present?
@@ -102,6 +94,25 @@ class Captain::Conversation::ResponseBuilderJob < ApplicationJob
 
   def determine_role(message)
     message.message_type == 'incoming' ? 'user' : 'assistant'
+  end
+
+  # Forward do agent_name das additional_attributes para o histórico da gem.
+  # C7.4 (gap AD-11/B4): agent_name de OUTRA IA (transferência C7) ou de cenário
+  # legado não pode rotear persona — a gem cairia no agente default silenciosamente.
+  # Mensagem com nome alheio entra no histórico sem agent_name.
+  def with_forwardable_agent_name(message_hash, message)
+    agent_name = message.additional_attributes&.dig('agent_name')
+    message_hash[:agent_name] = agent_name if agent_name.present? && own_agent_name?(agent_name)
+    message_hash
+  end
+
+  # Nomes que pertencem ao assistant ATUAL: o agent_name dele (espelha o privado
+  # Captain::Assistant#agent_name — name.parameterize('_')) e os handoff_keys dos
+  # cenários habilitados (personas legítimas deste assistant no runner).
+  def own_agent_name?(agent_name)
+    @own_agent_names ||= ([@assistant.name.parameterize(separator: '_')] +
+                          @assistant.scenarios.enabled.map(&:handoff_key)).to_set
+    @own_agent_names.include?(agent_name)
   end
 
   # Quando o cliente responde (reply) a uma mensagem específica do WhatsApp,

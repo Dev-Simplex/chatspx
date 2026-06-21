@@ -15,6 +15,7 @@ import SLACardLabel from './components/SLACardLabel.vue';
 import ContextMenu from 'dashboard/components/ui/ContextMenu.vue';
 import NextButton from 'dashboard/components-next/button/Button.vue';
 import VoiceCallStatus from './VoiceCallStatus.vue';
+import { aiAccentVars } from 'dashboard/helper/aiAccent';
 
 const hasValidContent = msg => {
   if (!msg) return false;
@@ -134,6 +135,16 @@ export default {
       return this.chatMetadata.assignee || {};
     },
 
+    isAIAssignee() {
+      return this.assignee?.type === 'agent_bot';
+    },
+    // Cor própria da IA (determinística por id do espelho) para o chip do card.
+    aiChipStyle() {
+      return this.isAIAssignee && this.assignee?.id
+        ? aiAccentVars(this.assignee.id)
+        : {};
+    },
+
     isUnattendedAndMine() {
       const waitingSince =
         this.chat.waiting_since ?? this.chatMetadata.waiting_since ?? 0;
@@ -142,6 +153,9 @@ export default {
       const isMine =
         this.currentUser?.id &&
         assigneeId &&
+        // Mesma proteção do getMineChats: um espelho captain com id colidindo
+        // com o do usuário NÃO é "minha" — IA nunca conta como atribuída a mim.
+        !this.isAIAssignee &&
         Number(assigneeId) === Number(this.currentUser.id);
       return Boolean(isUnattended && isMine);
     },
@@ -416,6 +430,8 @@ export default {
       'px-3': !compact,
       'ltr:border-l-2 rtl:border-r-2 border-n-amber-7 bg-n-amber-5/25 ring-1 ring-n-amber-6/50 ring-inset animate-sidebar-attention motion-reduce:animate-none':
         isUnattendedAndMine && !isActiveChat && !selected,
+      'ltr:border-l-2 rtl:border-r-2 border-n-violet-7 bg-n-violet-3/40':
+        isAIAssignee && !isActiveChat && !selected && !isUnattendedAndMine,
     }"
     @click="onCardClick"
     @contextmenu="openContextMenu($event)"
@@ -464,8 +480,18 @@ export default {
       >
         <InboxName v-if="showInboxName" :inbox="inbox" />
         <div class="flex gap-2 ml-2 rtl:mr-2 rtl:ml-0">
+          <!-- IA: chip único com a cor própria da IA + shimmer (a entidade já diz
+               que é IA pelo ícone; sem badge "IA" redundante ao lado). -->
           <span
-            v-if="showAssignee && assignee.name"
+            v-if="isAIAssignee && assignee.name"
+            class="ai-chip inline-flex items-center gap-1 rounded-full px-1.5 py-0.5 text-[10px] font-semibold leading-3 whitespace-nowrap bg-[var(--ai-bg)] text-[var(--ai-text)] dark:bg-[var(--ai-dark-bg)] dark:text-[var(--ai-dark-text)]"
+            :style="aiChipStyle"
+          >
+            <span class="i-lucide-sparkles size-3 flex-shrink-0" />
+            {{ assignee.name }}
+          </span>
+          <span
+            v-else-if="showAssignee && assignee.name"
             class="conversation--assignee text-xs font-medium leading-3 py-0.5 px-0 inline-flex text-ellipsis overflow-hidden whitespace-nowrap"
           >
             <span class="i-lucide-user size-3" />
@@ -560,6 +586,41 @@ export default {
 </template>
 
 <style lang="scss" scoped>
+// Badge "IA": shimmer sutil de luz iris passando — sinal de "IA ativa".
+// Tokens only (light+dark via --iris-*). Respeita prefers-reduced-motion.
+.ai-chip {
+  position: relative;
+  overflow: hidden;
+}
+.ai-chip::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(
+    100deg,
+    transparent 30%,
+    rgb(var(--violet-11) / 0.18) 50%,
+    transparent 70%
+  );
+  transform: translateX(-100%);
+  animation: ai-badge-shimmer 2.8s ease-in-out infinite;
+}
+@keyframes ai-badge-shimmer {
+  0% {
+    transform: translateX(-100%);
+  }
+  60%,
+  100% {
+    transform: translateX(100%);
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .ai-chip::after {
+    animation: none;
+    display: none;
+  }
+}
+
 .conversation {
   &.unread-chat {
     .unread {

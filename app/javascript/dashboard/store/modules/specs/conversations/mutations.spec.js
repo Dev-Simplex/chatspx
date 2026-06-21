@@ -1061,4 +1061,37 @@ describe('#mutations', () => {
       expect(state.syncConversationsMessages[1]).toBe(100);
     });
   });
+
+  describe('#REMOVE_PENDING_MESSAGE', () => {
+    it('removes only the matching pending message from the thread', () => {
+      const state = {
+        allConversations: [
+          {
+            id: 1,
+            messages: [{ id: 'pending-1' }, { id: 'pending-2' }, { id: 10 }],
+          },
+        ],
+      };
+
+      mutations[types.REMOVE_PENDING_MESSAGE](state, {
+        id: 'pending-1',
+        conversation_id: 1,
+      });
+
+      expect(state.allConversations[0].messages.map(m => m.id)).toEqual([
+        'pending-2',
+        10,
+      ]);
+    });
+
+    it('is a no-op when the conversation is not loaded', () => {
+      const state = { allConversations: [] };
+      expect(() =>
+        mutations[types.REMOVE_PENDING_MESSAGE](state, {
+          id: 'pending-1',
+          conversation_id: 99,
+        })
+      ).not.toThrow();
+    });
+  });
 });

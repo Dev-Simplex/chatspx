@@ -64,6 +64,11 @@ class Conversation < ApplicationRecord
 
   attr_accessor :skip_team_required_for_resolution_validation
 
+  # F1 (modo FILA): no handoff "pull" da IA, a conversa é SOLTA na fila do time (sem dono),
+  # então o round-robin NÃO pode empurrá-la pra um agente. Setado pelo HandoffTool quando
+  # reply_assignment_gate está ON; modo Clássico nunca seta (auto-assign segue normal).
+  attr_accessor :skip_auto_assignment
+
   validates :account_id, presence: true
   validates :inbox_id, presence: true
   validates :contact_id, presence: true
@@ -82,6 +87,16 @@ class Conversation < ApplicationRecord
   scope :unassigned, -> { where(assignee_id: nil) }
   scope :assigned, -> { where.not(assignee_id: nil) }
   scope :assigned_to, ->(agent) { where(assignee_id: agent.id) }
+  # Conversas atendidas por IA (espelho captain). EXISTS compõe com qualquer join/distinct do finder
+  # e ignora bot webhook atribuído via coluna (não é "atendente").
+  scope :assigned_to_captain, lambda {
+    where('EXISTS (SELECT 1 FROM agent_bots WHERE agent_bots.id = conversations.assignee_agent_bot_id ' \
+          'AND agent_bots.bot_type = 1)')
+  }
+  scope :without_captain_assignee, lambda {
+    where('NOT EXISTS (SELECT 1 FROM agent_bots WHERE agent_bots.id = conversations.assignee_agent_bot_id ' \
+          'AND agent_bots.bot_type = 1)')
+  }
   scope :unattended, -> { where(first_reply_created_at: nil).or(where.not(waiting_since: nil)) }
   # Conversas com mensagem recebida (incoming) ainda nao vista pelo agente:
   # existe incoming criada depois do agent_last_seen_at (ou nunca aberta). Espelha
@@ -397,10 +412,13 @@ class Conversation < ApplicationRecord
     end
   end
 
-  def dispatcher_dispatch(event_name, changed_attributes = nil)
-    Rails.configuration.dispatcher.dispatch(event_name, Time.zone.now, conversation: self, notifiable_assignee_change: notifiable_assignee_change?,
-                                                                       changed_attributes: changed_attributes,
-                                                                       performed_by: Current.executed_by)
+  def dispatcher_dispatch(event_name, changed_attributes = nil, extra_data = {})
+    Rails.configuration.dispatcher.dispatch(event_name, Time.zone.now, {
+      conversation: self,
+      notifiable_assignee_change: notifiable_assignee_change?,
+      changed_attributes: changed_attributes,
+      performed_by: Current.executed_by
+    }.merge(extra_data))
   end
 
   def conversation_status_changed_to_open?
