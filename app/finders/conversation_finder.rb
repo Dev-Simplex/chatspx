@@ -232,7 +232,9 @@ class ConversationFinder # rubocop:disable Metrics/ClassLength
   end
 
   def filter_by_query
-    return unless params[:q]
+    # robustez: só busca com q String não-vazia. Clientes/FE antigos que mandam q como
+    # objeto (ActionController::Parameters) caíam em sanitize_sql_like -> NoMethodError (gsub) -> 500.
+    return unless params[:q].is_a?(String) && params[:q].present?
 
     allowed_message_types = [Message.message_types[:incoming], Message.message_types[:outgoing]]
     # Isolamento por agente: não descobrir conversas só pelo conteúdo de mensagem de outro
