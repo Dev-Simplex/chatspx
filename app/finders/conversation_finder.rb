@@ -95,15 +95,19 @@ class ConversationFinder # rubocop:disable Metrics/ClassLength
   def perform_meta_only
     set_up
 
-    mine_count, unassigned_count, all_count, = set_count_for_all_conversations
-    assigned_count = all_count - unassigned_count
+    counts = compute_all_counts
+    assigned_count = counts[:all_count] - counts[:unassigned_count]
 
     {
       count: {
-        mine_count: mine_count,
+        mine_count: counts[:mine_count],
         assigned_count: assigned_count,
-        unassigned_count: unassigned_count,
-        all_count: all_count
+        unassigned_count: counts[:unassigned_count],
+        ai_count: counts[:ai_count],
+        all_count: counts[:all_count],
+        unattended_assigned_to_me_count: counts[:unattended_mine_count],
+        unattended_unassigned_count: counts[:unattended_unassigned_count],
+        unattended_all_count: counts[:unattended_all_count]
       }
     }
   end
