@@ -34,7 +34,7 @@ const emit = defineEmits(['move', 'schedule-message', 'remove']);
 const router = useRouter();
 const store = useStore();
 const { t, locale } = useI18n();
-const { softBg, contrastText } = useStageColor();
+const { softBg, contrastText, heatLevel } = useStageColor();
 
 const getContactById = useMapGetter('contacts/getContactById');
 const inboxById = useMapGetter('inboxes/getInboxById');
@@ -214,20 +214,70 @@ const channelIcon = computed(() => {
   return 'i-lucide-message-square';
 });
 
-const relativeTime = computed(() => {
-  const raw =
+const lastActivityRaw = computed(
+  () =>
     props.conversation?.lastActivityAt ||
     props.conversation?.last_activity_at ||
     props.conversation?.lastMessage?.created_at ||
-    props.conversation?.last_message?.created_at;
-  if (!raw) return '';
+    props.conversation?.last_message?.created_at ||
+    null
+);
+
+const lastActivityDate = computed(() => {
+  const raw = lastActivityRaw.value;
+  if (!raw) return null;
   const value = typeof raw === 'number' ? raw * 1000 : raw;
   const date = new Date(value);
-  if (Number.isNaN(date.getTime())) return '';
-  return formatDistanceToNowStrict(date, {
+  return Number.isNaN(date.getTime()) ? null : date;
+});
+
+const relativeTime = computed(() => {
+  if (!lastActivityDate.value) return '';
+  return formatDistanceToNowStrict(lastActivityDate.value, {
     addSuffix: true,
     locale: dateLocale.value,
   });
+});
+
+// Time idle without the "ago"/suffix — used inside aging tooltips/pills.
+const idleTime = computed(() => {
+  if (!lastActivityDate.value) return '';
+  return formatDistanceToNowStrict(lastActivityDate.value, {
+    addSuffix: false,
+    locale: dateLocale.value,
+  });
+});
+
+// ── Card aging (heat) — 'fresh' | 'warm' | 'cold' ────────────────────
+const heat = computed(() => heatLevel(lastActivityRaw.value));
+const isAging = computed(() => heat.value !== 'fresh');
+const heatTitle = computed(() => {
+  if (heat.value === 'cold')
+    return t('KANBAN.CARD.AGING.COLD', { time: idleTime.value });
+  if (heat.value === 'warm')
+    return t('KANBAN.CARD.AGING.WARM', { time: idleTime.value });
+  return '';
+});
+const heatIcon = computed(() =>
+  heat.value === 'cold' ? 'i-lucide-snowflake' : 'i-lucide-alarm-clock'
+);
+const heatVar = computed(() =>
+  heat.value === 'cold' ? 'var(--kanban-heat-cold)' : 'var(--kanban-heat-warm)'
+);
+const heatPillClass = computed(() =>
+  heat.value === 'cold'
+    ? 'bg-n-ruby-3 text-n-ruby-11'
+    : 'bg-n-amber-3 text-n-amber-11'
+);
+
+// ── Cover mode (Trello-style) — paints the top with the primary label ─
+const primaryLabel = computed(() => cardLabels.value[0] || null);
+const coverStyle = computed(() => {
+  if (!primaryLabel.value) return {};
+  return {
+    backgroundColor: primaryLabel.value.color,
+    color: contrastText(primaryLabel.value.color),
+  };
 });
 
 const pendingScheduledCount = computed(() => {
@@ -340,10 +390,29 @@ const handleCardClick = event => {
 <template>
   <div
     class="kanban-card group relative flex w-full min-w-0 flex-shrink-0 cursor-pointer flex-col overflow-hidden bg-n-solid-1"
+    :class="{ 'has-cover': primaryLabel }"
     :style="cardStyleVars"
     @click="handleCardClick"
     @mousedown="handleMouseDown"
   >
+    <!-- Aging heat rail (warm/cold) — left edge -->
+    <div
+      v-if="isAging"
+      class="kanban-card__heat"
+      :style="{ background: `rgb(${heatVar})` }"
+      :title="heatTitle"
+    />
+
+    <!-- Cover (Trello-style) — only visible in cover mode, primary label color -->
+    <div
+      v-if="primaryLabel"
+      class="kanban-card__cover"
+      :style="coverStyle"
+      :title="primaryLabel.title"
+    >
+      <span class="truncate">{{ primaryLabel.title }}</span>
+    </div>
+
     <!-- Top color strip (stage accent) -->
     <div class="kanban-card__strip" :style="{ background: stripGradient }" />
 
@@ -430,11 +499,20 @@ const handleCardClick = event => {
       >
         <div class="flex min-w-0 items-center gap-2.5 text-n-slate-10">
           <span
-            v-if="relativeTime"
+            v-if="relativeTime && !isAging"
             class="flex shrink-0 items-center gap-1 text-[11px]"
             :title="relativeTime"
           >
             <Icon icon="i-lucide-clock-3" class="size-3" />
+            {{ relativeTime }}
+          </span>
+          <span
+            v-else-if="isAging"
+            class="flex shrink-0 items-center gap-1 rounded-full px-1.5 py-0.5 text-[11px] font-medium"
+            :class="heatPillClass"
+            :title="heatTitle"
+          >
+            <Icon :icon="heatIcon" class="size-3" />
             {{ relativeTime }}
           </span>
           <span
@@ -568,17 +646,43 @@ const handleCardClick = event => {
   border-radius: var(--kanban-card-radius);
   box-shadow: var(--kanban-card-shadow);
   transition:
-    box-shadow 0.18s ease,
-    transform 0.18s ease,
-    border-color 0.18s ease;
+    box-shadow 0.2s ease,
+    transform 0.22s var(--kanban-spring, ease),
+    border-color 0.2s ease;
 }
 
 .kanban-card:hover {
-  transform: translateY(-2px);
+  transform: translateY(-3px);
   border-color: var(--card-accent, rgb(var(--border-weak)));
   box-shadow:
-    0 10px 22px -10px var(--card-glow, transparent),
+    0 12px 24px -12px var(--card-glow, transparent),
     var(--kanban-card-shadow-hover);
+}
+
+.kanban-card:active {
+  transform: translateY(-1px) scale(0.997);
+}
+
+/* Aging heat rail — thin colored bar on the leading edge */
+.kanban-card__heat {
+  position: absolute;
+  inset-block: 0;
+  inset-inline-start: 0;
+  width: 3px;
+  z-index: 2;
+  pointer-events: none;
+}
+
+/* Cover (Trello-style) — hidden unless the board is in cover mode */
+.kanban-card__cover {
+  display: none;
+  align-items: center;
+  min-height: 1.75rem;
+  padding: 0.25rem 0.625rem;
+  font-size: 12px;
+  font-weight: 700;
+  line-height: 1;
+  flex-shrink: 0;
 }
 
 /* Faint stage-tinted wash that blooms in on hover */

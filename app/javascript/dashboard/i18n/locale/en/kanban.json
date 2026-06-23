@@ -105,11 +105,28 @@
       "LABELS_MORE": "more labels",
       "ASSIGNED_TO": "Assigned to {name}",
       "UNASSIGNED_DONE": "Conversation unassigned",
-      "ASSIGN_ERROR": "Could not change the assignee"
+      "ASSIGN_ERROR": "Could not change the assignee",
+      "AGING": {
+        "WARM": "Idle for {time}",
+        "COLD": "Stale — no activity for {time}"
+      }
     },
     "DENSITY": {
       "COMPACT": "Compact view",
       "COMFORTABLE": "Comfortable view"
+    },
+    "COVER": {
+      "ON": "Show label covers",
+      "OFF": "Hide label covers"
+    },
+    "WIP": {
+      "SET": "Set WIP limit",
+      "PROMPT": "Maximum cards for this stage (leave blank to clear):",
+      "AT_LIMIT": "At WIP limit ({count}/{limit})",
+      "OVER": "Over WIP limit ({count}/{limit})"
+    },
+    "FUNNEL_BAR": {
+      "SEGMENT": "{name}: {count} ({pct}%)"
     },
     "FOOTER": {
       "CARDS": "{count} cards",

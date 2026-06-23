@@ -53,6 +53,81 @@ const stripGradient = computed(
   () =>
     `linear-gradient(90deg, ${accent(props.stage?.color)}, ${softBg(props.stage?.color, 0.45)})`
 );
+// Very subtle stage-tinted lane wash behind the cards.
+const columnWash = computed(() => softBg(props.stage?.color, 0.05));
+
+const cardCount = computed(() => props.items.length);
+
+// ── WIP soft limit (per-stage, persisted in localStorage) ────────────
+const WIP_KEY = 'kanban:wip';
+const readWipMap = () => {
+  try {
+    return JSON.parse(localStorage.getItem(WIP_KEY) || '{}');
+  } catch (_) {
+    return {};
+  }
+};
+const wipLimit = ref(readWipMap()[String(props.stage?.id)] ?? null);
+const setWipLimit = () => {
+  showStageMenu.value = false;
+  const input = window.prompt(
+    t('KANBAN.WIP.PROMPT'),
+    wipLimit.value ? String(wipLimit.value) : ''
+  );
+  if (input === null) return; // cancelled
+  const map = readWipMap();
+  const key = String(props.stage?.id);
+  const trimmed = input.trim();
+  if (trimmed === '') {
+    delete map[key];
+    wipLimit.value = null;
+  } else {
+    const n = Math.max(1, Math.floor(Number(trimmed)));
+    if (!Number.isFinite(n) || n < 1) return;
+    map[key] = n;
+    wipLimit.value = n;
+  }
+  try {
+    localStorage.setItem(WIP_KEY, JSON.stringify(map));
+  } catch (_) {
+    // best effort
+  }
+};
+const wipState = computed(() => {
+  const limit = wipLimit.value;
+  if (!limit) return 'none';
+  if (cardCount.value > limit) return 'over';
+  if (cardCount.value >= limit) return 'at';
+  return 'under';
+});
+const wipBadgeClass = computed(() => {
+  if (wipState.value === 'over') return 'bg-n-ruby-3 text-n-ruby-11';
+  if (wipState.value === 'at') return 'bg-n-amber-3 text-n-amber-11';
+  return 'bg-n-slate-3 text-n-slate-11';
+});
+const wipBarPct = computed(() =>
+  wipLimit.value
+    ? Math.min(100, Math.round((cardCount.value / wipLimit.value) * 100))
+    : 0
+);
+const wipBarColor = computed(() => {
+  if (wipState.value === 'over') return 'rgb(var(--kanban-heat-cold))';
+  if (wipState.value === 'at') return 'rgb(var(--kanban-heat-warm))';
+  return accent(props.stage?.color);
+});
+const wipTitle = computed(() => {
+  if (wipState.value === 'over')
+    return t('KANBAN.WIP.OVER', {
+      count: cardCount.value,
+      limit: wipLimit.value,
+    });
+  if (wipState.value === 'at')
+    return t('KANBAN.WIP.AT_LIMIT', {
+      count: cardCount.value,
+      limit: wipLimit.value,
+    });
+  return '';
+});
 
 const COLLAPSE_KEY = 'kanban:collapsed-stages';
 const readCollapsedSet = () => {
@@ -227,9 +302,13 @@ const handleColumnObserved = async () => {
 
 <template>
   <div
-    class="kanban-column flex h-full flex-shrink-0 flex-col overflow-hidden rounded-xl bg-n-slate-2/50 dark:bg-n-solid-2"
+    class="kanban-column relative flex h-full flex-shrink-0 flex-col overflow-hidden rounded-xl bg-n-slate-2/50 dark:bg-n-solid-2"
     :class="collapsed ? 'kanban-column--collapsed' : 'kanban-column--expanded'"
+    :style="{ '--col-wash': columnWash }"
   >
+    <!-- Subtle stage-tinted lane wash (behind cards) -->
+    <div class="kanban-column__wash" aria-hidden="true" />
+
     <!-- Top accent bar -->
     <div class="h-1 w-full shrink-0" :style="{ background: stripGradient }" />
 
@@ -258,8 +337,8 @@ const handleColumnObserved = async () => {
 
     <template v-else>
       <div
-        class="sticky top-0 z-10 px-3 py-2.5 backdrop-blur-sm"
-        :style="{ background: headerGradient }"
+        class="kanban-column__header sticky top-0 z-10 px-3 py-2.5"
+        :style="{ backgroundImage: headerGradient }"
       >
         <div class="group flex items-center justify-between gap-2">
           <div class="flex min-w-0 items-center gap-1.5">
@@ -277,9 +356,11 @@ const handleColumnObserved = async () => {
             </h3>
 
             <span
-              class="rounded-full bg-n-slate-3 px-2 py-0.5 text-xs font-semibold text-n-slate-11"
+              class="rounded-full px-2 py-0.5 text-xs font-semibold transition-colors"
+              :class="wipBadgeClass"
+              :title="wipTitle"
             >
-              {{ items.length }}
+              {{ cardCount }}{{ wipLimit ? `/${wipLimit}` : '' }}
             </span>
           </div>
 
@@ -308,6 +389,13 @@ const handleColumnObserved = async () => {
               >
                 <button
                   class="flex w-full items-center gap-2 px-4 py-2 text-left text-sm text-n-slate-11 transition-colors hover:bg-n-solid-3"
+                  @click="setWipLimit"
+                >
+                  <Icon icon="i-lucide-gauge" class="size-4" />
+                  {{ t('KANBAN.WIP.SET') }}
+                </button>
+                <button
+                  class="flex w-full items-center gap-2 px-4 py-2 text-left text-sm text-n-slate-11 transition-colors hover:bg-n-solid-3"
                   @click="handleEditStage"
                 >
                   <Icon icon="i-lucide-edit" class="size-4" />
@@ -326,6 +414,14 @@ const handleColumnObserved = async () => {
         </div>
       </div>
 
+      <!-- WIP load bar -->
+      <div v-if="wipLimit" class="h-0.5 w-full shrink-0 bg-n-slate-3/60">
+        <div
+          class="h-full transition-all duration-300"
+          :style="{ width: `${wipBarPct}%`, background: wipBarColor }"
+        />
+      </div>
+
       <IntersectionObserver
         v-if="!isStageLoaded || canLoadMore"
         class="h-1 w-full shrink-0"
@@ -334,11 +430,12 @@ const handleColumnObserved = async () => {
 
       <div
         v-if="isLoadingStage && !isStageLoaded"
-        class="flex justify-center py-4"
+        class="flex flex-1 flex-col gap-2 px-2 py-2"
       >
-        <Icon
-          icon="i-lucide-loader-2"
-          class="size-5 animate-spin text-n-slate-9"
+        <div
+          v-for="n in 3"
+          :key="`sk-${n}`"
+          class="kanban-skeleton h-[92px] w-full"
         />
       </div>
 
@@ -382,12 +479,18 @@ const handleColumnObserved = async () => {
 
           <div
             v-else-if="itemsWithConversations.length === 0"
-            class="rounded-lg border border-dashed border-n-weak bg-n-solid-3 px-3 py-8 text-center"
+            class="rounded-lg border border-dashed border-n-weak bg-n-solid-3/60 px-3 py-8 text-center"
           >
-            <Icon
-              icon="i-lucide-inbox"
-              class="mx-auto mb-2 size-8 text-n-slate-8"
-            />
+            <div
+              class="mx-auto mb-2.5 flex size-11 items-center justify-center rounded-full"
+              :style="{ backgroundColor: softBg(stage.color, 0.12) }"
+            >
+              <Icon
+                icon="i-lucide-inbox"
+                class="size-5"
+                :style="{ color: accent(stage.color) }"
+              />
+            </div>
             <p class="text-sm text-n-slate-10">
               {{ t('KANBAN.ITEMS.NO_ITEMS') }}
             </p>
@@ -449,6 +552,25 @@ const handleColumnObserved = async () => {
 <style scoped>
 .kanban-column {
   min-height: 0;
+  /* Own stacking context so the -1 wash stays above this column's
+     background but below its cards (and never bleeds to siblings). */
+  isolation: isolate;
+}
+
+/* Lane wash — painted above the column background, below the cards. */
+.kanban-column__wash {
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  background: var(--col-wash, transparent);
+  pointer-events: none;
+}
+
+/* Frosted-glass column header over the stage-tinted gradient. */
+.kanban-column__header {
+  background-color: var(--kanban-glass-bg);
+  backdrop-filter: blur(var(--kanban-glass-blur, 10px));
+  -webkit-backdrop-filter: blur(var(--kanban-glass-blur, 10px));
 }
 
 .kanban-column--expanded {

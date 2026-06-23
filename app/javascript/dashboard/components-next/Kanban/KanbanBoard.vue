@@ -9,6 +9,7 @@ import Dialog from 'dashboard/components-next/dialog/Dialog.vue';
 import StageForm from './StageForm.vue';
 import AddConversationModal from './AddConversationModal.vue';
 import { useAlert } from 'dashboard/composables';
+import { useStageColor } from './composables/useStageColor';
 
 const props = defineProps({
   funnelId: {
@@ -21,6 +22,7 @@ const emit = defineEmits(['itemMoved', 'scheduleMessage', 'removeItem']);
 
 const store = useStore();
 const { t } = useI18n();
+const { funnelSegments } = useStageColor();
 
 const stages = computed(() =>
   store.getters['kanban/getFunnelStages'](props.funnelId)
@@ -234,6 +236,30 @@ const isItemVisible = (item, stageId) => {
 const getFilteredItemsForStage = stageId => {
   const stageItems = getItemsForStage(stageId);
   return stageItems.filter(item => isItemVisible(item, stageId));
+};
+
+// ── Funnel distribution bar (board-level) ────────────────────────────
+const stageCounts = computed(() => {
+  const map = {};
+  (stages.value || []).forEach(stage => {
+    map[stage.id] = getFilteredItemsForStage(stage.id).length;
+  });
+  return map;
+});
+const funnelBar = computed(() =>
+  funnelSegments(stages.value || [], stageCounts.value)
+);
+const totalFunnelCards = computed(() =>
+  funnelBar.value.reduce((sum, seg) => sum + seg.count, 0)
+);
+const scrollToStage = stageId => {
+  const el = document.getElementById(`kanban-col-${stageId}`);
+  if (el)
+    el.scrollIntoView({
+      behavior: 'smooth',
+      inline: 'center',
+      block: 'nearest',
+    });
 };
 
 const handleMoveItem = async ({ item, stageId }) => {
@@ -465,61 +491,87 @@ const handleDeleteStage = stage => {
       </div>
     </div>
 
-    <div
-      v-else
-      class="kanban-board flex h-full gap-4 overflow-x-auto overflow-y-hidden bg-n-background px-5 py-4"
-    >
-      <draggable
-        v-model="localStages"
-        :group="{ name: 'kanban-stages', pull: false, put: false }"
-        item-key="id"
-        handle=".kanban-column-drag-handle"
-        class="flex h-full gap-4"
-        :animation="200"
-        ghost-class="kanban-stage-ghost"
-        drag-class="kanban-stage-drag"
-        @end="handleStageReorder"
+    <div v-else class="flex h-full min-h-0 flex-col">
+      <!-- Funnel distribution bar -->
+      <div
+        v-if="stages.length >= 2 && totalFunnelCards"
+        class="kanban-funnel mx-5 mt-3 flex shrink-0 gap-px overflow-hidden rounded-full bg-n-alpha-1 px-px"
       >
-        <template #item="{ element: stage }">
-          <KanbanColumn
-            :key="`stage-${stage.id}`"
-            :funnel-id="funnelId"
-            :stage="stage"
-            :items="getFilteredItemsForStage(stage.id)"
-            :conversations="conversations"
-            @move-item="handleMoveItem"
-            @schedule-message="handleScheduleMessage"
-            @remove-item="handleRemoveItem"
-            @edit-stage="handleEditStage"
-            @delete-stage="handleDeleteStage"
-            @add-card="handleAddCard"
-          />
-        </template>
-      </draggable>
-
-      <button
-        v-if="stages.length > 0"
-        class="kanban-add-stage group flex h-full shrink-0 flex-col items-center justify-center gap-2 rounded-xl border-2 border-dashed border-n-weak bg-n-slate-2/30 px-4 text-n-slate-10 transition hover:border-n-slate-6 hover:bg-n-slate-2/60 hover:text-n-slate-12 dark:bg-n-solid-2/40"
-        @click="handleCreateStage"
-      >
-        <Icon icon="i-lucide-plus" class="size-5" />
-        <span class="text-sm font-medium">{{ t('KANBAN.STAGES.CREATE') }}</span>
-      </button>
+        <button
+          v-for="seg in funnelBar"
+          :key="`funnel-${seg.id}`"
+          type="button"
+          class="kanban-funnel__seg h-2 transition-all duration-300 hover:opacity-80"
+          :style="{ width: `${seg.pct}%`, background: seg.color }"
+          :title="
+            t('KANBAN.FUNNEL_BAR.SEGMENT', {
+              name: seg.name,
+              count: seg.count,
+              pct: seg.pct,
+            })
+          "
+          @click="scrollToStage(seg.id)"
+        />
+      </div>
 
       <div
-        v-if="stages.length === 0"
-        class="flex w-full flex-col items-center justify-center rounded-xl border-2 border-dashed border-n-weak bg-n-slate-2/50 dark:bg-n-solid-2 p-8 text-center"
+        class="kanban-board flex min-h-0 flex-1 gap-4 overflow-x-auto overflow-y-hidden bg-n-background px-5 py-4"
       >
-        <Icon icon="i-lucide-columns-3" class="mb-3 size-9 text-n-slate-10" />
-        <h3 class="text-lg font-semibold text-n-slate-12">
-          {{ t('KANBAN.STAGES.NO_STAGES') }}
-        </h3>
-        <p class="mt-1 text-sm text-n-slate-10">
-          {{ t('KANBAN.STAGES.NO_STAGES_DESCRIPTION') }}
-        </p>
-        <p class="mt-1 text-xs text-n-slate-9">
-          {{ t('KANBAN.STAGES.EDIT_FUNNEL_HINT') }}
-        </p>
+        <draggable
+          v-model="localStages"
+          :group="{ name: 'kanban-stages', pull: false, put: false }"
+          item-key="id"
+          handle=".kanban-column-drag-handle"
+          class="flex h-full gap-4"
+          :animation="200"
+          ghost-class="kanban-stage-ghost"
+          drag-class="kanban-stage-drag"
+          @end="handleStageReorder"
+        >
+          <template #item="{ element: stage }">
+            <KanbanColumn
+              :id="`kanban-col-${stage.id}`"
+              :key="`stage-${stage.id}`"
+              :funnel-id="funnelId"
+              :stage="stage"
+              :items="getFilteredItemsForStage(stage.id)"
+              :conversations="conversations"
+              @move-item="handleMoveItem"
+              @schedule-message="handleScheduleMessage"
+              @remove-item="handleRemoveItem"
+              @edit-stage="handleEditStage"
+              @delete-stage="handleDeleteStage"
+              @add-card="handleAddCard"
+            />
+          </template>
+        </draggable>
+
+        <button
+          v-if="stages.length > 0"
+          class="kanban-add-stage group flex h-full shrink-0 flex-col items-center justify-center gap-2 rounded-xl border-2 border-dashed border-n-weak bg-n-slate-2/30 px-4 text-n-slate-10 transition hover:border-n-slate-6 hover:bg-n-slate-2/60 hover:text-n-slate-12 dark:bg-n-solid-2/40"
+          @click="handleCreateStage"
+        >
+          <Icon icon="i-lucide-plus" class="size-5" />
+          <span class="text-sm font-medium">{{
+            t('KANBAN.STAGES.CREATE')
+          }}</span>
+        </button>
+
+        <div
+          v-if="stages.length === 0"
+          class="flex w-full flex-col items-center justify-center rounded-xl border-2 border-dashed border-n-weak bg-n-slate-2/50 dark:bg-n-solid-2 p-8 text-center"
+        >
+          <Icon icon="i-lucide-columns-3" class="mb-3 size-9 text-n-slate-10" />
+          <h3 class="text-lg font-semibold text-n-slate-12">
+            {{ t('KANBAN.STAGES.NO_STAGES') }}
+          </h3>
+          <p class="mt-1 text-sm text-n-slate-10">
+            {{ t('KANBAN.STAGES.NO_STAGES_DESCRIPTION') }}
+          </p>
+          <p class="mt-1 text-xs text-n-slate-9">
+            {{ t('KANBAN.STAGES.EDIT_FUNNEL_HINT') }}
+          </p>
+        </div>
       </div>
     </div>
 
@@ -565,15 +617,25 @@ const handleDeleteStage = stage => {
   min-width: 100%;
   scrollbar-width: thin;
   scrollbar-color: rgb(var(--border-weak)) transparent;
+  /* Premium-discreet ambience: a barely-there cool wash + faint dot grid. */
   background-image: radial-gradient(
-      120% 80% at 50% -10%,
-      rgba(99, 102, 241, 0.05),
+      130% 90% at 50% -20%,
+      rgba(100, 116, 139, 0.045),
       transparent 60%
     ),
-    radial-gradient(rgba(148, 163, 184, 0.07) 1px, transparent 1px);
+    radial-gradient(rgba(148, 163, 184, 0.04) 1px, transparent 1px);
   background-size:
     100% 100%,
-    24px 24px;
+    26px 26px;
+}
+
+.dark .kanban-board {
+  background-image: radial-gradient(
+      130% 90% at 50% -20%,
+      rgba(148, 163, 184, 0.05),
+      transparent 60%
+    ),
+    radial-gradient(rgba(148, 163, 184, 0.05) 1px, transparent 1px);
 }
 
 .kanban-add-stage {

@@ -48,6 +48,22 @@ const toggleDensity = () => {
   }
 };
 
+const KANBAN_COVER_KEY = 'kanban:card-cover';
+const isCover = ref(false);
+try {
+  isCover.value = localStorage.getItem(KANBAN_COVER_KEY) === '1';
+} catch (_) {
+  // best effort
+}
+const toggleCover = () => {
+  isCover.value = !isCover.value;
+  try {
+    localStorage.setItem(KANBAN_COVER_KEY, isCover.value ? '1' : '0');
+  } catch (_) {
+    // best effort
+  }
+};
+
 const viewMode = computed(
   () => store.getters['kanban/getViewMode'] || 'kanban'
 );
@@ -631,6 +647,15 @@ onMounted(async () => {
           />
 
           <Button
+            v-if="viewMode === 'kanban'"
+            :variant="isCover ? 'solid' : 'ghost'"
+            size="sm"
+            icon="i-lucide-paintbrush"
+            :title="isCover ? t('KANBAN.COVER.OFF') : t('KANBAN.COVER.ON')"
+            @click="toggleCover"
+          />
+
+          <Button
             variant="ghost"
             size="sm"
             icon="i-lucide-clock-3"
@@ -813,7 +838,10 @@ onMounted(async () => {
 
     <div
       class="kanban-content flex-1 min-h-0 overflow-hidden bg-n-background"
-      :class="{ 'kanban-compact': isCompact && viewMode === 'kanban' }"
+      :class="{
+        'kanban-compact': isCompact && viewMode === 'kanban',
+        'kanban-cover': isCover && viewMode === 'kanban',
+      }"
     >
       <div
         v-if="!activeFunnelId && funnels.length === 0"

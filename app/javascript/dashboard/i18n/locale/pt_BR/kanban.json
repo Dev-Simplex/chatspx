@@ -105,11 +105,28 @@
       "LABELS_MORE": "mais etiquetas",
       "ASSIGNED_TO": "Atribuído a {name}",
       "UNASSIGNED_DONE": "Conversa desatribuída",
-      "ASSIGN_ERROR": "Não foi possível alterar o responsável"
+      "ASSIGN_ERROR": "Não foi possível alterar o responsável",
+      "AGING": {
+        "WARM": "Parada há {time}",
+        "COLD": "Esfriando — sem atividade há {time}"
+      }
     },
     "DENSITY": {
       "COMPACT": "Visão compacta",
       "COMFORTABLE": "Visão confortável"
+    },
+    "COVER": {
+      "ON": "Mostrar capas de etiqueta",
+      "OFF": "Ocultar capas de etiqueta"
+    },
+    "WIP": {
+      "SET": "Definir limite WIP",
+      "PROMPT": "Máximo de cards neste estágio (deixe vazio para remover):",
+      "AT_LIMIT": "No limite WIP ({count}/{limit})",
+      "OVER": "Acima do limite WIP ({count}/{limit})"
+    },
+    "FUNNEL_BAR": {
+      "SEGMENT": "{name}: {count} ({pct}%)"
     },
     "FOOTER": {
       "CARDS": "{count} cards",
