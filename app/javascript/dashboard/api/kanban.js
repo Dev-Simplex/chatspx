@@ -10,6 +10,14 @@ class KanbanAPI extends ApiClient {
     return axios.get(this.url);
   }
 
+  // Funnel placements (funnel + stage) of a single conversation, for the
+  // conversation sidebar. Lives under /conversations, not /funnels.
+  getConversationFunnelItems(conversationId) {
+    return axios.get(
+      `${this.baseUrl()}/conversations/${conversationId}/funnel_items`
+    );
+  }
+
   getFunnel(funnelId) {
     return axios.get(`${this.url}/${funnelId}`);
   }

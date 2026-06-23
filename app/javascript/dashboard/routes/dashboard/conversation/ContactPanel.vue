@@ -17,6 +17,7 @@ import ConversationParticipant from './ConversationParticipant.vue';
 import ContactInfo from './contact/ContactInfo.vue';
 import ContactNotes from './contact/ContactNotes.vue';
 import ConversationInfo from './ConversationInfo.vue';
+import KanbanStatus from './KanbanStatus.vue';
 import CustomAttributes from './customAttributes/CustomAttributes.vue';
 import Draggable from 'vuedraggable';
 import MacrosList from './Macros/List.vue';
@@ -318,6 +319,18 @@ onMounted(() => {
               "
             >
               <ContactNotes :contact-id="contactId" />
+            </AccordionItem>
+          </div>
+          <div v-else-if="element.name === 'kanban_status'">
+            <AccordionItem
+              :title="$t('CONVERSATION_SIDEBAR.ACCORDION.KANBAN_STATUS')"
+              :is-open="isContactSidebarItemOpen('is_kanban_status_open')"
+              compact
+              @toggle="
+                value => toggleSidebarUIState('is_kanban_status_open', value)
+              "
+            >
+              <KanbanStatus :conversation-id="conversationId" />
             </AccordionItem>
           </div>
         </template>

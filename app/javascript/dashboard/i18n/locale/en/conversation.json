@@ -671,7 +671,12 @@
       "PREVIOUS_CONVERSATION": "Previous Conversations",
       "MACROS": "Macros",
       "LINEAR_ISSUES": "Linked Linear Issues",
-      "SHOPIFY_ORDERS": "Shopify Orders"
+      "SHOPIFY_ORDERS": "Shopify Orders",
+      "KANBAN_STATUS": "Kanban Status"
+    },
+    "KANBAN_STATUS": {
+      "EMPTY": "Not in any funnel",
+      "OPEN_BOARD": "Open in Kanban"
     },
     "MEDIA_SECTIONS": {
       "IMAGES": "Images",

@@ -662,7 +662,12 @@
       "PREVIOUS_CONVERSATION": "Conversas anteriores",
       "MACROS": "Macros",
       "LINEAR_ISSUES": "Problemas do Linear vinculados",
-      "SHOPIFY_ORDERS": "Pedidos do Shopify"
+      "SHOPIFY_ORDERS": "Pedidos do Shopify",
+      "KANBAN_STATUS": "Situação no Kanban"
+    },
+    "KANBAN_STATUS": {
+      "EMPTY": "Não está em nenhum funil",
+      "OPEN_BOARD": "Abrir no Kanban"
     },
     "MEDIA_SECTIONS": {
       "IMAGES": "Imagens",
