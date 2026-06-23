@@ -143,10 +143,11 @@
 - name: chatwoot_v4
   display_name: Chatwoot V4
   enabled: true
-- name: report_v4
-  display_name: Report V4
+- name: ai_assistant_v2
+  display_name: AI Assistant v2 (Copilot redesign)
   enabled: false
-  deprecated: true
+  premium: false
+  chatwoot_internal: false
 - name: contact_chatwoot_support_team
   display_name: Contact Chatwoot Support Team
   enabled: true
@@ -247,8 +248,3 @@
   display_name: Advanced Assignment
   enabled: false
   premium: true
-- name: ai_assistant_v2
-  display_name: AI Assistant v2 (Copilot redesign)
-  enabled: false
-  premium: false
-  chatwoot_internal: false
