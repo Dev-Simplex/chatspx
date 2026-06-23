@@ -18,7 +18,7 @@ const props = defineProps({
 
 const router = useRouter();
 const { t, locale } = useI18n();
-const { softBg, contrastText } = useStageColor();
+const { accent, softBg, contrastText } = useStageColor();
 const accountId = useMapGetter('getCurrentAccountId');
 
 const items = ref([]);
@@ -85,43 +85,63 @@ const goToFunnel = funnelId => {
       </p>
     </div>
 
-    <ul v-else class="flex flex-col gap-2">
+    <ul v-else class="flex flex-col gap-2.5">
       <li
         v-for="item in items"
         :key="item.id"
-        class="kanban-status-row group flex cursor-pointer items-center justify-between gap-2 rounded-lg border border-n-weak bg-n-solid-1 px-2.5 py-2 transition hover:border-n-slate-6 hover:bg-n-solid-2"
+        class="kanban-status-card group relative flex cursor-pointer flex-col gap-2.5 overflow-hidden rounded-xl border border-n-weak bg-n-solid-1 py-2.5 pl-3.5 pr-2.5 transition hover:border-n-slate-6 hover:bg-n-solid-2 hover:shadow-sm"
         :title="t('CONVERSATION_SIDEBAR.KANBAN_STATUS.OPEN_BOARD')"
         @click="goToFunnel(item.funnel_id)"
       >
-        <div class="flex min-w-0 flex-col gap-1">
-          <span class="flex items-center gap-1.5 text-xs text-n-slate-10">
-            <span
-              class="size-2 shrink-0 rounded-full"
-              :style="{ backgroundColor: item.funnel_color || '#94a3b8' }"
-            />
-            <span class="truncate">{{ item.funnel_name }}</span>
-          </span>
+        <!-- Faixa de cor do funil, identidade visual instantânea -->
+        <span
+          class="absolute inset-y-0 left-0 w-1.5"
+          :style="{ backgroundColor: accent(item.funnel_color) }"
+        />
+
+        <!-- Funil -->
+        <div class="flex items-center gap-2">
           <span
-            class="inline-flex max-w-max items-center rounded-md px-1.5 py-0.5 text-[11px] font-semibold leading-none"
+            class="flex size-6 shrink-0 items-center justify-center rounded-md"
+            :style="{ backgroundColor: softBg(item.funnel_color, 0.16) }"
+          >
+            <Icon
+              icon="i-lucide-filter"
+              class="size-3.5"
+              :style="{ color: accent(item.funnel_color) }"
+            />
+          </span>
+          <span class="truncate text-sm font-medium text-n-slate-12">
+            {{ item.funnel_name }}
+          </span>
+        </div>
+
+        <!-- Estágio (status em destaque) + quando mudou -->
+        <div class="flex items-center justify-between gap-2">
+          <span
+            class="inline-flex max-w-max items-center rounded-full px-2.5 py-1 text-xs font-semibold leading-none shadow-sm"
             :style="{
-              backgroundColor: softBg(item.stage_color, 0.16),
-              color: contrastText(softBg(item.stage_color, 1)),
+              backgroundColor: accent(item.stage_color),
+              color: contrastText(item.stage_color),
             }"
           >
             {{ item.stage_name }}
           </span>
-        </div>
-        <div class="flex shrink-0 items-center gap-1.5">
           <span
             v-if="movedLabel(item.moved_at)"
-            class="text-[11px] text-n-slate-9"
+            class="flex shrink-0 items-center gap-1 text-[11px] text-n-slate-10"
           >
+            <Icon icon="i-lucide-clock-3" class="size-3" />
             {{ movedLabel(item.moved_at) }}
           </span>
-          <Icon
-            icon="i-lucide-arrow-up-right"
-            class="size-3.5 text-n-slate-9 opacity-0 transition-opacity group-hover:opacity-100"
-          />
+        </div>
+
+        <!-- Ação: abrir no board -->
+        <div
+          class="flex items-center gap-1 border-t border-n-weak pt-2 text-[11px] font-medium text-n-slate-11 transition-colors group-hover:text-n-brand"
+        >
+          <Icon icon="i-lucide-external-link" class="size-3" />
+          {{ t('CONVERSATION_SIDEBAR.KANBAN_STATUS.OPEN_BOARD') }}
         </div>
       </li>
     </ul>
