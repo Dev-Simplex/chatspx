@@ -2,6 +2,8 @@
 # o report_type seleciona o resolver de dados e o template; o shell
 # (layout + css SPX) e compartilhado. Espelha Conversations::PdfExportService.
 class Reports::PdfExportService
+  include Reports::PdfAssetHelper # pdf_public_image_data_uri p/ logo no header impresso
+
   Result = Struct.new(:bytes, :sha256, keyword_init: true)
 
   def initialize(export:)
@@ -55,18 +57,25 @@ class Reports::PdfExportService
     )
   end
 
-  # Faixa verde full-bleed (logo SPX branco + ChatSPX + titulo) repetida no topo de
-  # toda pagina. print-color-adjust:exact garante o verde no print.
+  # Faixa verde full-bleed (badge ChatSPX + titulo) repetida no topo de toda pagina.
+  # print-color-adjust:exact garante o verde no print.
+  # O Chromium reserva ~0.4cm de margem branca acima do header impresso; o
+  # margin-top negativo (folgado) + altura extra fazem o verde sangrar ate a borda
+  # da pagina (elimina QUALQUER "linha branca" no topo — o excedente e cortado na
+  # borda fisica). O padding-top recoloca o conteudo no centro da faixa visivel.
   def header_template(title)
+    icon = pdf_public_image_data_uri('android-icon-36x36.png')
+    # Icone ChatSPX (verde) recolorido p/ branco via filtro — fundo 100% verde, sem badge.
+    icon_style = 'width:14px;height:14px;display:block;flex:none;' \
+                 'filter:brightness(0) invert(1);-webkit-filter:brightness(0) invert(1);'
+    icon_html = icon ? %(<img src="#{icon}" style="#{icon_style}">) : ''
     <<~HTML
-      <div style="width:100%;height:100%;margin:0;box-sizing:border-box;
+      <div style="width:100%;height:calc(100% + 0.8cm);margin-top:-0.7cm;
+                  padding:0.7cm 14mm 0;box-sizing:border-box;
                   background:#1ea65b;-webkit-print-color-adjust:exact;print-color-adjust:exact;
                   color:#ffffff;font-family:Arial,sans-serif;display:flex;align-items:center;
-                  gap:7px;padding:0 14mm;font-size:10px;">
-        <svg width="13" height="13" viewBox="0 0 16 16" xmlns="http://www.w3.org/2000/svg">
-          <path d="M8 16C12.4183 16 16 12.4183 16 8C16 3.58172 12.4183 0 8 0C3.58172 0 0 3.58172 0 8C0 12.4183 3.58172 16 8 16Z" fill="#ffffff"/>
-          <path d="M11.4172 11.4172H7.70831C5.66383 11.4172 4 9.75328 4 7.70828C4 5.66394 5.66383 4 7.70835 4C9.75339 4 11.4172 5.66394 11.4172 7.70828V11.4172Z" fill="#1ea65b"/>
-        </svg>
+                  gap:7px;font-size:10px;">
+        #{icon_html}
         <span style="font-weight:bold;font-size:11px;">ChatSPX</span>
         <span style="opacity:0.55;">·</span>
         <span style="opacity:0.95;">#{ERB::Util.h(title)}</span>

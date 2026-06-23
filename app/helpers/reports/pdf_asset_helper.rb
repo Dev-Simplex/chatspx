@@ -16,6 +16,19 @@ module Reports::PdfAssetHelper
 
   VITE_ASSETS = Rails.public_path.join('vite/assets')
 
+  # Embute uma imagem de /public como data URI base64. O Chromium do ferrum_pdf
+  # (snap, confinado) nao le assets por caminho — inline e o unico jeito confiavel,
+  # inclusive dentro do header_template impresso. Retorna nil se ausente.
+  def pdf_public_image_data_uri(filename, mime: 'image/png')
+    path = Rails.public_path.join(filename)
+    return nil unless File.exist?(path)
+
+    "data:#{mime};base64,#{Base64.strict_encode64(File.binread(path))}"
+  rescue StandardError => e
+    Rails.logger.warn("[report_pdf] imagem #{filename} indisponivel: #{e.message}")
+    nil
+  end
+
   def pdf_font_face_css
     FONTS.filter_map do |font|
       data = font_data_uri(font[:prefix])
