@@ -17,6 +17,14 @@ if resource.conversation.present?
     json.account_id resource.conversation.account_id
     json.assignee_id resource.conversation.assignee_id
     json.last_activity_at resource.conversation.last_activity_at
+    label_titles = resource.conversation.cached_label_list_array
+    if label_titles.present?
+      labels_lookup = @labels_by_title || {}
+      json.labels label_titles.map { |title|
+        label = labels_lookup[title.to_s.downcase]
+        { title: title, color: label&.color || '#94a3b8' }
+      }
+    end
     if resource.conversation.contact.present?
       json.contact do
         json.id resource.conversation.contact.id

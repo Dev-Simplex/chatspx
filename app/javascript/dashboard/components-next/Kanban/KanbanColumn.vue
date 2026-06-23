@@ -7,6 +7,7 @@ import KanbanCard from './KanbanCard.vue';
 import Icon from 'dashboard/components-next/icon/Icon.vue';
 import Button from 'dashboard/components-next/button/Button.vue';
 import IntersectionObserver from 'dashboard/components/IntersectionObserver.vue';
+import { useStageColor } from './composables/useStageColor';
 
 const props = defineProps({
   funnelId: {
@@ -37,10 +38,42 @@ const emit = defineEmits([
 
 const store = useStore();
 const { t } = useI18n();
+const { accent, softBg } = useStageColor();
 
 const showStageMenu = ref(false);
 const observerLocked = ref(false);
 const lastObservedAt = ref(0);
+
+const headerGradient = computed(
+  () =>
+    `linear-gradient(180deg, ${softBg(props.stage?.color, 0.16)}, transparent)`
+);
+const stripGradient = computed(
+  () =>
+    `linear-gradient(90deg, ${accent(props.stage?.color)}, ${softBg(props.stage?.color, 0.45)})`
+);
+
+const COLLAPSE_KEY = 'kanban:collapsed-stages';
+const readCollapsedSet = () => {
+  try {
+    return new Set(JSON.parse(localStorage.getItem(COLLAPSE_KEY) || '[]'));
+  } catch (_) {
+    return new Set();
+  }
+};
+const collapsed = ref(readCollapsedSet().has(Number(props.stage?.id)));
+const toggleCollapsed = () => {
+  collapsed.value = !collapsed.value;
+  const set = readCollapsedSet();
+  const id = Number(props.stage?.id);
+  if (collapsed.value) set.add(id);
+  else set.delete(id);
+  try {
+    localStorage.setItem(COLLAPSE_KEY, JSON.stringify([...set]));
+  } catch (_) {
+    // best effort
+  }
+};
 
 const isResolvedStage = computed(() => {
   const type = props.stage?.automationType ?? props.stage?.automation_type;
@@ -81,6 +114,24 @@ const itemsWithConversations = computed(() => {
         },
     };
   });
+});
+
+const pendingScheduledTotal = computed(() => {
+  const getter = store.getters['kanban/getScheduledMessagesByConversation'];
+  if (typeof getter !== 'function') return 0;
+  return itemsWithConversations.value.reduce((sum, item) => {
+    const conversationId =
+      item.conversation?.id ||
+      item.conversation?.displayId ||
+      item.conversation?.display_id;
+    const messages = conversationId ? getter(conversationId) : [];
+    if (!Array.isArray(messages)) return sum;
+    return (
+      sum +
+      messages.filter(message => (message?.status || 'pending') === 'pending')
+        .length
+    );
+  }, 0);
 });
 
 const handleEditStage = () => {
@@ -175,167 +226,238 @@ const handleColumnObserved = async () => {
 
 <template>
   <div
-    class="kanban-column flex h-full w-[300px] flex-shrink-0 flex-col rounded-xl bg-n-slate-2/50 dark:bg-n-solid-2"
+    class="kanban-column flex h-full flex-shrink-0 flex-col overflow-hidden rounded-xl bg-n-slate-2/50 dark:bg-n-solid-2"
+    :class="collapsed ? 'kanban-column--collapsed' : 'kanban-column--expanded'"
   >
-    <div class="sticky top-0 z-10 px-4 py-3">
-      <div class="group flex items-center justify-between gap-2">
-        <div class="flex min-w-0 items-center gap-2">
-          <div
-            class="kanban-column-drag-handle -ml-1 cursor-grab rounded-lg p-1 opacity-60 transition hover:bg-n-slate-3/50 hover:opacity-100 active:cursor-grabbing"
-          >
-            <Icon icon="i-lucide-grip-vertical" class="size-4 text-n-slate-9" />
+    <!-- Top accent bar -->
+    <div class="h-1 w-full shrink-0" :style="{ background: stripGradient }" />
+
+    <!-- Collapsed: thin vertical rail -->
+    <button
+      v-if="collapsed"
+      class="group flex h-full w-full flex-col items-center gap-3 px-2 py-3"
+      :title="stage.name"
+      @click="toggleCollapsed"
+    >
+      <Icon
+        icon="i-lucide-chevrons-right"
+        class="size-4 text-n-slate-10 transition group-hover:text-n-slate-12"
+      />
+      <span
+        class="rounded-full bg-n-slate-3 px-1.5 py-0.5 text-[11px] font-semibold text-n-slate-11"
+      >
+        {{ items.length }}
+      </span>
+      <span
+        class="kanban-column__vertical-label text-sm font-semibold text-n-slate-12"
+      >
+        {{ stage.name }}
+      </span>
+    </button>
+
+    <template v-else>
+      <div
+        class="sticky top-0 z-10 px-3 py-2.5 backdrop-blur-sm"
+        :style="{ background: headerGradient }"
+      >
+        <div class="group flex items-center justify-between gap-2">
+          <div class="flex min-w-0 items-center gap-1.5">
+            <div
+              class="kanban-column-drag-handle -ml-1 cursor-grab rounded-lg p-1 opacity-60 transition hover:bg-n-slate-3/50 hover:opacity-100 active:cursor-grabbing"
+            >
+              <Icon
+                icon="i-lucide-grip-vertical"
+                class="size-4 text-n-slate-9"
+              />
+            </div>
+
+            <h3 class="truncate text-sm font-semibold text-n-slate-12">
+              {{ stage.name }}
+            </h3>
+
+            <span
+              class="rounded-full bg-n-slate-3 px-2 py-0.5 text-xs font-semibold text-n-slate-11"
+            >
+              {{ items.length }}
+            </span>
           </div>
 
-          <div
-            v-if="stage.color"
-            class="h-2.5 w-2.5 shrink-0 rounded-full"
-            :style="{ backgroundColor: stage.color }"
-          />
+          <div class="flex items-center gap-0.5">
+            <Button
+              size="xs"
+              variant="ghost"
+              icon="i-lucide-chevrons-left"
+              :title="t('KANBAN.STAGES.COLLAPSE')"
+              class="!size-7 !p-0 rounded-lg text-n-slate-10 opacity-0 transition-opacity hover:bg-n-slate-3/50 group-hover:opacity-100"
+              @click.stop="toggleCollapsed"
+            />
+            <div class="relative">
+              <Button
+                size="xs"
+                variant="ghost"
+                icon="i-lucide-more-vertical"
+                class="!size-7 !p-0 rounded-lg text-n-slate-10 opacity-0 transition-opacity hover:bg-n-slate-3/50 group-hover:opacity-100"
+                @click.stop="showStageMenu = !showStageMenu"
+              />
 
-          <h3 class="truncate text-sm font-semibold text-n-slate-12">
-            {{ stage.name }}
-          </h3>
-
-          <span
-            class="rounded-full bg-n-slate-3 px-2 py-0.5 text-xs text-n-slate-10"
-          >
-            {{ items.length }}
-          </span>
-        </div>
-
-        <div class="relative">
-          <Button
-            size="xs"
-            variant="ghost"
-            icon="i-lucide-more-vertical"
-            class="!size-7 !p-0 rounded-lg hover:bg-n-slate-3/50 text-n-slate-10 opacity-0 transition-opacity group-hover:opacity-100"
-            @click.stop="showStageMenu = !showStageMenu"
-          />
-
-          <div
-            v-if="showStageMenu"
-            class="absolute right-0 top-8 z-20 w-48 rounded-xl border border-n-weak bg-n-solid-1 py-1 shadow-lg"
-            @click.stop
-          >
-            <button
-              class="flex w-full items-center gap-2 px-4 py-2 text-left text-sm text-n-slate-11 transition-colors hover:bg-n-solid-3"
-              @click="handleEditStage"
-            >
-              <Icon icon="i-lucide-edit" class="size-4" />
-              {{ t('KANBAN.STAGES.EDIT') }}
-            </button>
-            <button
-              class="flex w-full items-center gap-2 px-4 py-2 text-left text-sm text-ruby-11 transition-colors hover:bg-n-ruby-3"
-              @click="handleDeleteStage"
-            >
-              <Icon icon="i-lucide-trash" class="size-4" />
-              {{ t('KANBAN.STAGES.DELETE') }}
-            </button>
+              <div
+                v-if="showStageMenu"
+                class="absolute right-0 top-8 z-20 w-48 rounded-xl border border-n-weak bg-n-solid-1 py-1 shadow-lg"
+                @click.stop
+              >
+                <button
+                  class="flex w-full items-center gap-2 px-4 py-2 text-left text-sm text-n-slate-11 transition-colors hover:bg-n-solid-3"
+                  @click="handleEditStage"
+                >
+                  <Icon icon="i-lucide-edit" class="size-4" />
+                  {{ t('KANBAN.STAGES.EDIT') }}
+                </button>
+                <button
+                  class="flex w-full items-center gap-2 px-4 py-2 text-left text-sm text-ruby-11 transition-colors hover:bg-n-ruby-3"
+                  @click="handleDeleteStage"
+                >
+                  <Icon icon="i-lucide-trash" class="size-4" />
+                  {{ t('KANBAN.STAGES.DELETE') }}
+                </button>
+              </div>
+            </div>
           </div>
         </div>
       </div>
-    </div>
 
-    <IntersectionObserver
-      v-if="!isStageLoaded || canLoadMore"
-      class="h-1 w-full shrink-0"
-      @observed="handleColumnObserved"
-    />
-
-    <div
-      v-if="isLoadingStage && !isStageLoaded"
-      class="flex justify-center py-4"
-    >
-      <Icon
-        icon="i-lucide-loader-2"
-        class="size-5 animate-spin text-n-slate-9"
+      <IntersectionObserver
+        v-if="!isStageLoaded || canLoadMore"
+        class="h-1 w-full shrink-0"
+        @observed="handleColumnObserved"
       />
-    </div>
 
-    <draggable
-      v-else
-      :model-value="itemsWithConversations"
-      :group="{ name: 'kanban-items', pull: true, put: true }"
-      item-key="id"
-      class="kanban-column-content flex min-h-0 flex-1 flex-col gap-2 overflow-y-auto px-2 py-2"
-      :animation="180"
-      ghost-class="kanban-ghost"
-      drag-class="kanban-drag"
-      @change="handleDropChange"
-    >
-      <template #item="{ element: item }">
-        <KanbanCard
-          :item="item"
-          :conversation="item.conversation || {}"
-          @move="emit('moveItem', { item })"
-          @schedule-message="emit('scheduleMessage', $event)"
-          @remove="emit('removeItem', item)"
+      <div
+        v-if="isLoadingStage && !isStageLoaded"
+        class="flex justify-center py-4"
+      >
+        <Icon
+          icon="i-lucide-loader-2"
+          class="size-5 animate-spin text-n-slate-9"
         />
-      </template>
+      </div>
 
-      <template #footer>
-        <div
-          v-if="!isStageLoaded && !isLoadingStage"
-          class="rounded-lg border border-dashed border-n-weak bg-n-solid-3 px-3 py-5 text-center"
-        >
-          <p class="mb-3 text-sm text-n-slate-10">
-            {{
-              isResolvedStage
-                ? t('KANBAN.ITEMS.LOAD_RESOLVED')
-                : t('KANBAN.ITEMS.LOAD_STAGE')
-            }}
-          </p>
-          <Button size="sm" variant="ghost" class="w-full" @click="loadMore">
+      <draggable
+        v-else
+        :model-value="itemsWithConversations"
+        :group="{ name: 'kanban-items', pull: true, put: true }"
+        item-key="id"
+        class="kanban-column-content flex min-h-0 flex-1 flex-col gap-2 overflow-y-auto px-2 py-2"
+        :animation="180"
+        ghost-class="kanban-ghost"
+        drag-class="kanban-drag"
+        @change="handleDropChange"
+      >
+        <template #item="{ element: item }">
+          <KanbanCard
+            :item="item"
+            :conversation="item.conversation || {}"
+            @move="emit('moveItem', { item })"
+            @schedule-message="emit('scheduleMessage', $event)"
+            @remove="emit('removeItem', item)"
+          />
+        </template>
+
+        <template #footer>
+          <div
+            v-if="!isStageLoaded && !isLoadingStage"
+            class="rounded-lg border border-dashed border-n-weak bg-n-solid-3 px-3 py-5 text-center"
+          >
+            <p class="mb-3 text-sm text-n-slate-10">
+              {{
+                isResolvedStage
+                  ? t('KANBAN.ITEMS.LOAD_RESOLVED')
+                  : t('KANBAN.ITEMS.LOAD_STAGE')
+              }}
+            </p>
+            <Button size="sm" variant="ghost" class="w-full" @click="loadMore">
+              {{ t('COMMON.LOAD_MORE') }}
+            </Button>
+          </div>
+
+          <div
+            v-else-if="itemsWithConversations.length === 0"
+            class="rounded-lg border border-dashed border-n-weak bg-n-solid-3 px-3 py-8 text-center"
+          >
+            <Icon
+              icon="i-lucide-inbox"
+              class="mx-auto mb-2 size-8 text-n-slate-8"
+            />
+            <p class="text-sm text-n-slate-10">
+              {{ t('KANBAN.ITEMS.NO_ITEMS') }}
+            </p>
+          </div>
+
+          <IntersectionObserver
+            v-if="canLoadMore"
+            class="h-1 w-full"
+            @observed="handleColumnObserved"
+          />
+
+          <div
+            v-if="isLoadingStage && isStageLoaded"
+            class="flex justify-center py-1"
+          >
+            <Icon
+              icon="i-lucide-loader-2"
+              class="size-4 animate-spin text-n-slate-9"
+            />
+          </div>
+
+          <Button
+            v-if="canLoadMore"
+            size="sm"
+            variant="ghost"
+            class="w-full"
+            @click="loadMore"
+          >
             {{ t('COMMON.LOAD_MORE') }}
           </Button>
-        </div>
+        </template>
+      </draggable>
 
-        <div
-          v-else-if="itemsWithConversations.length === 0"
-          class="rounded-lg border border-dashed border-n-weak bg-n-solid-3 px-3 py-8 text-center"
+      <div
+        v-if="isStageLoaded && itemsWithConversations.length"
+        class="flex shrink-0 items-center gap-2 border-t border-n-weak px-3 py-1.5 text-[11px] font-medium text-n-slate-10"
+      >
+        <span>{{ t('KANBAN.FOOTER.CARDS', { count: items.length }) }}</span>
+        <span
+          v-if="pendingScheduledTotal"
+          class="flex items-center gap-1 text-n-teal-11"
         >
-          <Icon
-            icon="i-lucide-inbox"
-            class="mx-auto mb-2 size-8 text-n-slate-8"
-          />
-          <p class="text-sm text-n-slate-10">
-            {{ t('KANBAN.ITEMS.NO_ITEMS') }}
-          </p>
-        </div>
-
-        <IntersectionObserver
-          v-if="canLoadMore"
-          class="h-1 w-full"
-          @observed="handleColumnObserved"
-        />
-
-        <div
-          v-if="isLoadingStage && isStageLoaded"
-          class="flex justify-center py-1"
-        >
-          <Icon
-            icon="i-lucide-loader-2"
-            class="size-4 animate-spin text-n-slate-9"
-          />
-        </div>
-
-        <Button
-          v-if="canLoadMore"
-          size="sm"
-          variant="ghost"
-          class="w-full"
-          @click="loadMore"
-        >
-          {{ t('COMMON.LOAD_MORE') }}
-        </Button>
-      </template>
-    </draggable>
+          <Icon icon="i-lucide-send" class="size-3" />
+          {{ t('KANBAN.FOOTER.SCHEDULED', { count: pendingScheduledTotal }) }}
+        </span>
+      </div>
+    </template>
   </div>
 </template>
 
 <style scoped>
 .kanban-column {
   min-height: 0;
+}
+
+.kanban-column--expanded {
+  width: var(--kanban-col-width, 304px);
+}
+
+.kanban-column--collapsed {
+  width: 52px;
+  cursor: pointer;
+}
+
+.kanban-column__vertical-label {
+  writing-mode: vertical-rl;
+  text-orientation: mixed;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-height: 60%;
 }
 
 .kanban-column-content {
@@ -358,20 +480,5 @@ const handleColumnObserved = async () => {
 
 .kanban-column-content::-webkit-scrollbar-thumb:hover {
   background-color: rgb(var(--border-strong));
-}
-
-:deep(.kanban-ghost) {
-  opacity: 0.3;
-  border: 2px dashed #2dc46f;
-  border-radius: 0.75rem;
-  background: rgba(45, 196, 111, 0.05);
-}
-
-:deep(.kanban-drag) {
-  opacity: 0.95;
-  box-shadow:
-    0 20px 25px -5px rgba(0, 0, 0, 0.15),
-    0 8px 10px -6px rgba(0, 0, 0, 0.1);
-  transform: rotate(1deg);
 }
 </style>

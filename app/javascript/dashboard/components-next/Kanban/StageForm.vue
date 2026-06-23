@@ -86,16 +86,40 @@ const close = () => {
 };
 
 const save = async () => {
-  if (!props.stage?.id || !props.funnelId) {
+  if (!props.funnelId) {
     close();
     return;
   }
 
   const stage = props.stage;
   const isDefault = isDefaultStage(stage);
+  const isCreate = !stage?.id;
 
-  if (!isDefault && !formData.value.name?.trim()) {
+  if ((!isDefault || isCreate) && !formData.value.name?.trim()) {
     alert(t('KANBAN.STAGES.NAME_REQUIRED') || 'Nome da etapa é obrigatório');
+    return;
+  }
+
+  if (isCreate) {
+    isLoading.value = true;
+    try {
+      await store.dispatch('kanban/createStage', {
+        funnelId: props.funnelId,
+        data: {
+          name: formData.value.name.trim(),
+          color: formData.value.color || '#94a3b8',
+          automation_type: formData.value.automation_type || null,
+        },
+      });
+      emit('saved');
+      close();
+    } catch (error) {
+      // eslint-disable-next-line no-console
+      console.error('StageForm: Erro ao criar etapa', error);
+      alert(t('KANBAN.STAGES.SAVE_ERROR') || 'Erro ao salvar etapa');
+    } finally {
+      isLoading.value = false;
+    }
     return;
   }
 
@@ -136,7 +160,9 @@ const save = async () => {
   <Dialog
     v-if="show && stage"
     ref="dialogRef"
-    :title="t('KANBAN.STAGES.EDIT')"
+    :title="
+      stage && stage.id ? t('KANBAN.STAGES.EDIT') : t('KANBAN.STAGES.CREATE')
+    "
     :show-cancel-button="false"
     :show-confirm-button="false"
     overflow-y-auto

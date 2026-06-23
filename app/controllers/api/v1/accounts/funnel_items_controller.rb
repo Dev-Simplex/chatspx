@@ -27,6 +27,7 @@ class Api::V1::Accounts::FunnelItemsController < Api::V1::Accounts::BaseControll
     end
 
     load_last_messages
+    load_account_labels
     render 'api/v1/accounts/funnels/funnel_items/index', formats: [:json]
   end
 
@@ -119,6 +120,12 @@ class Api::V1::Accounts::FunnelItemsController < Api::V1::Accounts::BaseControll
                            .select('DISTINCT ON (conversation_id) conversation_id, content, processed_message_content, created_at')
                            .reorder('conversation_id, id desc')
     @last_messages_by_conversation_id = last_messages.index_by(&:conversation_id)
+  end
+
+  # Account labels are few; one cheap query lets the serializer turn a
+  # conversation's denormalized cached_label_list into colored chips with no N+1.
+  def load_account_labels
+    @labels_by_title = Current.account.labels.index_by { |label| label.title.to_s.downcase }
   end
 
   def legacy_scope(scope) # rubocop:disable Metrics/AbcSize, Metrics/CyclomaticComplexity, Metrics/PerceivedComplexity

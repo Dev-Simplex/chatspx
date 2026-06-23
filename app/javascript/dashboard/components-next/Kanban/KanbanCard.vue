@@ -2,9 +2,12 @@
 import { computed } from 'vue';
 import { useRouter } from 'vue-router';
 import { useI18n } from 'vue-i18n';
+import { formatDistanceToNowStrict } from 'date-fns';
+import { enUS, ptBR } from 'date-fns/locale';
 import { useMapGetter } from 'dashboard/composables/store';
 import { useTeamIsolation } from 'dashboard/composables/useTeamIsolation';
 import { useAgentIsolation } from 'dashboard/composables/useAgentIsolation';
+import { useStageColor } from './composables/useStageColor';
 import Button from 'dashboard/components-next/button/Button.vue';
 import Icon from 'dashboard/components-next/icon/Icon.vue';
 import Avatar from 'dashboard/components-next/avatar/Avatar.vue';
@@ -27,12 +30,21 @@ const props = defineProps({
 const emit = defineEmits(['move', 'schedule-message', 'remove']);
 
 const router = useRouter();
-const { t } = useI18n();
+const { t, locale } = useI18n();
+const { softBg, contrastText } = useStageColor();
 
 const getContactById = useMapGetter('contacts/getContactById');
 const inboxById = useMapGetter('inboxes/getInboxById');
+const agentsList = useMapGetter('agents/getAgents');
+const scheduledByConversation = useMapGetter(
+  'kanban/getScheduledMessagesByConversation'
+);
 const { isMessageRestricted } = useTeamIsolation();
 const { isMessageRestricted: isAgentMessageRestricted } = useAgentIsolation();
+
+const dateLocale = computed(() =>
+  String(locale.value || '').startsWith('pt') ? ptBR : enUS
+);
 
 const contactId = computed(() => {
   return (
@@ -81,6 +93,10 @@ const contactPhone = computed(
   () => contact.value?.phoneNumber || contact.value?.phone_number || ''
 );
 
+const inbox = computed(() =>
+  inboxById.value(props.conversation?.inboxId || props.conversation?.inbox_id)
+);
+
 const lastMessage = computed(() => {
   const message =
     props.conversation?.lastMessage ||
@@ -88,16 +104,90 @@ const lastMessage = computed(() => {
     props.conversation?.lastNonActivityMessage ||
     props.conversation?.last_non_activity_message;
 
-  const inbox = inboxById.value(
-    props.conversation?.inboxId || props.conversation?.inbox_id
-  );
   if (
-    isMessageRestricted(message, inbox) ||
-    isAgentMessageRestricted(message, inbox)
+    isMessageRestricted(message, inbox.value) ||
+    isAgentMessageRestricted(message, inbox.value)
   )
     return '🔒';
 
   return message?.content || message?.processed_message_content || '';
+});
+
+// Labels come straight from the serializer (conversation.labels: [{title,color}]).
+const cardLabels = computed(() => {
+  const labels = props.conversation?.labels;
+  if (!Array.isArray(labels)) return [];
+  return labels
+    .filter(label => label && (label.title || label.name))
+    .map(label => ({
+      title: label.title || label.name,
+      color: label.color || '#94a3b8',
+    }));
+});
+const visibleLabels = computed(() => cardLabels.value.slice(0, 3));
+const extraLabelCount = computed(() =>
+  Math.max(0, cardLabels.value.length - visibleLabels.value.length)
+);
+
+const assigneeId = computed(
+  () =>
+    props.conversation?.assigneeId ||
+    props.conversation?.assignee_id ||
+    props.conversation?.meta?.assignee?.id ||
+    null
+);
+const assignee = computed(() => {
+  if (!assigneeId.value) return null;
+  const list = agentsList.value;
+  if (!Array.isArray(list)) return null;
+  return list.find(agent => Number(agent.id) === Number(assigneeId.value));
+});
+
+const channelIcon = computed(() => {
+  const type = String(
+    inbox.value?.channelType || inbox.value?.channel_type || ''
+  ).toLowerCase();
+  if (type.includes('whatsapp')) return 'i-ri-whatsapp-line';
+  if (type.includes('telegram')) return 'i-ri-telegram-fill';
+  if (type.includes('facebook') || type.includes('messenger'))
+    return 'i-ri-messenger-fill';
+  if (type.includes('instagram')) return 'i-ri-instagram-line';
+  if (type.includes('email')) return 'i-lucide-mail';
+  if (type.includes('sms') || type.includes('twilio')) return 'i-lucide-phone';
+  if (type.includes('webwidget') || type.includes('web'))
+    return 'i-lucide-globe';
+  if (type.includes('api')) return 'i-lucide-webhook';
+  return 'i-lucide-message-square';
+});
+
+const relativeTime = computed(() => {
+  const raw =
+    props.conversation?.lastActivityAt ||
+    props.conversation?.last_activity_at ||
+    props.conversation?.lastMessage?.created_at ||
+    props.conversation?.last_message?.created_at;
+  if (!raw) return '';
+  const value = typeof raw === 'number' ? raw * 1000 : raw;
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return '';
+  return formatDistanceToNowStrict(date, {
+    addSuffix: true,
+    locale: dateLocale.value,
+  });
+});
+
+const pendingScheduledCount = computed(() => {
+  const conversationId =
+    props.conversation?.id ||
+    props.conversation?.displayId ||
+    props.conversation?.display_id;
+  if (!conversationId || typeof scheduledByConversation.value !== 'function')
+    return 0;
+  const messages = scheduledByConversation.value(conversationId);
+  if (!Array.isArray(messages)) return 0;
+  return messages.filter(
+    message => (message?.status || 'pending') === 'pending'
+  ).length;
 });
 
 const statusColor = computed(() => {
@@ -109,17 +199,6 @@ const statusColor = computed(() => {
     snoozed: 'bg-blue-500',
   };
   return statusMap[status] || 'bg-n-slate-9';
-});
-
-const statusIcon = computed(() => {
-  const status = props.conversation?.status || 'open';
-  const iconMap = {
-    open: 'i-lucide-circle',
-    pending: 'i-lucide-clock',
-    resolved: 'i-lucide-check-circle',
-    snoozed: 'i-lucide-moon',
-  };
-  return iconMap[status] || 'i-lucide-circle';
 });
 
 const statusTitle = computed(() => {
@@ -136,6 +215,16 @@ const statusTitle = computed(() => {
 const accentColor = computed(() => {
   return props.item?.stageColor || props.item?.stage_color || props.stageColor;
 });
+
+const stripGradient = computed(
+  () =>
+    `linear-gradient(90deg, ${accentColor.value}, ${softBg(accentColor.value, 0.5)})`
+);
+const cardStyleVars = computed(() => ({
+  '--card-accent': accentColor.value,
+  '--card-glow': softBg(accentColor.value, 0.45),
+  '--card-wash': softBg(accentColor.value, 0.05),
+}));
 
 const openConversation = () => {
   const conversationId =
@@ -196,97 +285,169 @@ const handleCardClick = event => {
 
 <template>
   <div
-    class="kanban-card group relative flex w-full min-w-0 flex-shrink-0 cursor-pointer flex-col gap-3 rounded-xl border border-n-weak bg-n-solid-1 p-3 transition-shadow duration-150 hover:shadow-md"
-    :style="{ borderLeftColor: accentColor }"
+    class="kanban-card group relative flex w-full min-w-0 flex-shrink-0 cursor-pointer flex-col overflow-hidden bg-n-solid-1"
+    :style="cardStyleVars"
     @click="handleCardClick"
     @mousedown="handleMouseDown"
   >
-    <!-- Header -->
-    <div class="flex items-start justify-between gap-3">
-      <div class="flex-1 min-w-0">
-        <div class="flex items-center gap-2.5 mb-2">
-          <Avatar
-            :name="contactName"
-            :src="contactThumbnail"
-            :size="24"
-            rounded-full
-            class="flex-shrink-0"
+    <!-- Top color strip (stage accent) -->
+    <div class="kanban-card__strip" :style="{ background: stripGradient }" />
+
+    <div class="kanban-card__body flex flex-col gap-2 p-3">
+      <!-- Labels -->
+      <div v-if="cardLabels.length" class="flex flex-wrap items-center gap-1">
+        <span
+          v-for="label in visibleLabels"
+          :key="label.title"
+          class="kanban-label inline-flex max-w-[124px] items-center gap-1 truncate rounded-md px-1.5 py-0.5 text-[11px] font-semibold leading-none"
+          :style="{
+            backgroundColor: softBg(label.color, 0.16),
+            color: contrastText(softBg(label.color, 1)),
+          }"
+          :title="label.title"
+        >
+          <span
+            class="size-1.5 shrink-0 rounded-full"
+            :style="{ backgroundColor: label.color }"
           />
-          <div class="flex-1 min-w-0">
+          <span class="truncate">{{ label.title }}</span>
+        </span>
+        <span
+          v-if="extraLabelCount"
+          class="inline-flex items-center rounded-md bg-n-slate-3 px-1.5 py-0.5 text-[11px] font-semibold leading-none text-n-slate-11"
+        >
+          {{ `+${extraLabelCount}` }}
+        </span>
+      </div>
+
+      <!-- Header: contact + channel + status -->
+      <div class="flex items-start justify-between gap-2">
+        <div class="flex min-w-0 flex-1 items-center gap-2.5">
+          <div class="relative shrink-0">
+            <Avatar
+              :name="contactName"
+              :src="contactThumbnail"
+              :size="32"
+              rounded-full
+            />
+            <span
+              class="kanban-card__presence absolute -bottom-0.5 -right-0.5 size-3 rounded-full ring-2 ring-n-solid-1"
+              :class="statusColor"
+              :title="statusTitle"
+            />
+          </div>
+          <div class="min-w-0 flex-1">
             <h4
-              class="font-medium text-sm text-n-slate-12 truncate leading-tight"
+              class="truncate text-sm font-semibold leading-tight text-n-slate-12"
             >
               {{ contactName }}
             </h4>
+            <div
+              v-if="inbox"
+              class="mt-0.5 flex items-center gap-1 text-n-slate-10"
+            >
+              <Icon :icon="channelIcon" class="size-3 shrink-0" />
+              <span class="truncate text-[11px] leading-none">
+                {{ inbox.name }}
+              </span>
+            </div>
           </div>
         </div>
-        <div class="pl-0.5">
-          <p
-            v-if="lastMessage"
-            class="text-xs text-n-slate-10 line-clamp-2 leading-relaxed break-words mt-1"
-          >
-            {{ lastMessage }}
-          </p>
-          <p v-else class="text-xs text-n-slate-9 italic">
-            {{ t('KANBAN.ITEMS.NO_MESSAGE') }}
-          </p>
-        </div>
-      </div>
-      <div class="flex items-start gap-1.5 flex-shrink-0">
-        <div
-          class="flex items-center justify-center size-6 rounded-full border border-n-weak"
-          :class="statusColor"
-          :title="statusTitle"
-        >
-          <Icon :icon="statusIcon" class="size-3 text-white" />
-        </div>
-      </div>
-    </div>
-
-    <!-- Footer -->
-    <div
-      class="flex items-center justify-between gap-3 pt-2 border-t border-n-weak mt-1"
-    >
-      <div v-if="contactPhone" class="flex items-center gap-1.5 min-w-0">
         <Icon
-          icon="i-lucide-phone"
-          class="size-3 text-n-slate-10 flex-shrink-0"
+          icon="i-lucide-arrow-up-right"
+          class="kanban-card__open size-4 shrink-0 text-n-slate-9 opacity-0 transition-opacity group-hover:opacity-100"
         />
-        <span
-          class="text-xs text-n-slate-11 font-mono truncate font-medium"
-          :title="contactPhone"
-        >
-          {{ contactPhone }}
-        </span>
       </div>
-      <div
-        class="flex items-center gap-1 shrink-0 opacity-100 md:opacity-0 md:group-hover:opacity-100 transition-all duration-200"
-        @click.stop
+
+      <!-- Last message -->
+      <p
+        v-if="lastMessage"
+        class="kanban-card__message line-clamp-2 break-words text-xs leading-relaxed text-n-slate-10"
       >
-        <Button
-          size="xs"
-          variant="ghost"
-          icon="i-lucide-clock"
-          :title="t('KANBAN.SCHEDULED_MESSAGES.CREATE')"
-          class="!h-7 !w-7 !p-0 hover:bg-n-blue-3 hover:text-n-blue-11"
-          @click="emit('schedule-message', conversation)"
-        />
-        <Button
-          size="xs"
-          variant="ghost"
-          icon="i-lucide-move"
-          :title="t('KANBAN.ITEMS.MOVE')"
-          class="!h-7 !w-7 !p-0 hover:bg-n-teal-3 hover:text-n-teal-11"
-          @click="emit('move', item)"
-        />
-        <Button
-          size="xs"
-          variant="ghost"
-          icon="i-lucide-x"
-          :title="t('KANBAN.ITEMS.REMOVE')"
-          class="!h-7 !w-7 !p-0 hover:bg-n-ruby-3 hover:text-n-ruby-11"
-          @click="emit('remove', item)"
-        />
+        {{ lastMessage }}
+      </p>
+      <p v-else class="kanban-card__message text-xs italic text-n-slate-9">
+        {{ t('KANBAN.ITEMS.NO_MESSAGE') }}
+      </p>
+
+      <!-- Footer: meta + actions -->
+      <div
+        class="mt-1 flex items-center justify-between gap-2 border-t border-n-weak pt-2"
+      >
+        <div class="flex min-w-0 items-center gap-2.5 text-n-slate-10">
+          <span
+            v-if="relativeTime"
+            class="flex shrink-0 items-center gap-1 text-[11px]"
+            :title="relativeTime"
+          >
+            <Icon icon="i-lucide-clock-3" class="size-3" />
+            {{ relativeTime }}
+          </span>
+          <span
+            v-if="pendingScheduledCount"
+            class="flex shrink-0 items-center gap-1 rounded-full bg-n-teal-3 px-1.5 py-0.5 text-[11px] font-medium text-n-teal-11"
+            :title="t('KANBAN.SCHEDULED_MESSAGES.TITLE')"
+          >
+            <Icon icon="i-lucide-send" class="size-3" />
+            {{ pendingScheduledCount }}
+          </span>
+          <span
+            v-if="contactPhone"
+            class="min-w-0 truncate font-mono text-[11px] text-n-slate-11"
+            :title="contactPhone"
+          >
+            {{ contactPhone }}
+          </span>
+        </div>
+
+        <div class="flex shrink-0 items-center gap-1.5">
+          <Avatar
+            v-if="assignee"
+            :name="assignee.name || assignee.available_name"
+            :src="assignee.thumbnail || assignee.avatar_url"
+            :size="20"
+            rounded-full
+            :title="assignee.name || assignee.available_name"
+            class="ring-1 ring-n-weak"
+          />
+          <span
+            v-else
+            class="flex size-5 items-center justify-center rounded-full bg-n-slate-3 text-n-slate-9"
+            :title="t('KANBAN.CARD.UNASSIGNED')"
+          >
+            <Icon icon="i-lucide-user" class="size-3" />
+          </span>
+
+          <div
+            class="flex items-center gap-1 opacity-100 transition-opacity duration-200 md:opacity-0 md:group-hover:opacity-100"
+            @click.stop
+          >
+            <Button
+              size="xs"
+              variant="ghost"
+              icon="i-lucide-clock"
+              :title="t('KANBAN.SCHEDULED_MESSAGES.CREATE')"
+              class="!h-6 !w-6 !p-0 hover:bg-n-blue-3 hover:text-n-blue-11"
+              @click="emit('schedule-message', conversation)"
+            />
+            <Button
+              size="xs"
+              variant="ghost"
+              icon="i-lucide-move"
+              :title="t('KANBAN.ITEMS.MOVE')"
+              class="!h-6 !w-6 !p-0 hover:bg-n-teal-3 hover:text-n-teal-11"
+              @click="emit('move', item)"
+            />
+            <Button
+              size="xs"
+              variant="ghost"
+              icon="i-lucide-x"
+              :title="t('KANBAN.ITEMS.REMOVE')"
+              class="!h-6 !w-6 !p-0 hover:bg-n-ruby-3 hover:text-n-ruby-11"
+              @click="emit('remove', item)"
+            />
+          </div>
+        </div>
       </div>
     </div>
   </div>
@@ -294,7 +455,54 @@ const handleCardClick = event => {
 
 <style scoped>
 .kanban-card {
-  border-left-style: solid;
-  border-left-width: 3px;
+  border: 1px solid rgb(var(--border-weak));
+  border-radius: var(--kanban-card-radius);
+  box-shadow: var(--kanban-card-shadow);
+  transition:
+    box-shadow 0.18s ease,
+    transform 0.18s ease,
+    border-color 0.18s ease;
+}
+
+.kanban-card:hover {
+  transform: translateY(-2px);
+  border-color: var(--card-accent, rgb(var(--border-weak)));
+  box-shadow:
+    0 10px 22px -10px var(--card-glow, transparent),
+    var(--kanban-card-shadow-hover);
+}
+
+/* Faint stage-tinted wash that blooms in on hover */
+.kanban-card::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background: linear-gradient(
+    180deg,
+    var(--card-wash, transparent),
+    transparent 60%
+  );
+  opacity: 0;
+  transition: opacity 0.18s ease;
+}
+
+.kanban-card:hover::after {
+  opacity: 1;
+}
+
+.kanban-card__strip {
+  height: 5px;
+  width: 100%;
+  flex-shrink: 0;
+}
+
+.kanban-card__body {
+  position: relative;
+  z-index: 1;
+}
+
+.kanban-card__presence {
+  box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.04);
 }
 </style>

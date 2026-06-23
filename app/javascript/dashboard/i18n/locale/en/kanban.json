@@ -71,6 +71,7 @@
       "DEFAULT_STAGE_TOOLTIP": "Default stage cannot be edited or deleted",
       "CANNOT_DELETE_DEFAULT": "Cannot delete default stages (Open, In Progress, Resolved)",
       "REORDER": "Reorder Stages",
+      "COLLAPSE": "Collapse stage",
       "NO_STAGES": "No stages created yet",
       "NO_STAGES_DESCRIPTION": "Add stages to the funnel to start organizing your conversations",
       "EDIT_FUNNEL_HINT": "Edit the funnel to add your first stage.",
@@ -91,6 +92,19 @@
       "MOVE_ERROR": "Error moving conversation",
       "LOAD_STAGE": "Load stage",
       "LOAD_RESOLVED": "Load resolved stage"
+    },
+    "CARD": {
+      "UNASSIGNED": "Unassigned",
+      "ADD": "Add card",
+      "LABELS_MORE": "more labels"
+    },
+    "DENSITY": {
+      "COMPACT": "Compact view",
+      "COMFORTABLE": "Comfortable view"
+    },
+    "FOOTER": {
+      "CARDS": "{count} cards",
+      "SCHEDULED": "{count} scheduled"
     },
     "SCHEDULED_MESSAGES": {
       "TITLE": "Scheduled Messages",

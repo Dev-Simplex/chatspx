@@ -71,6 +71,7 @@
       "DEFAULT_STAGE_TOOLTIP": "Etapa padrão não pode ser editada ou excluída",
       "CANNOT_DELETE_DEFAULT": "Não é possível excluir etapas padrão (Abertos, Em Andamento, Resolvidos)",
       "REORDER": "Reordenar Etapas",
+      "COLLAPSE": "Recolher etapa",
       "NO_STAGES": "Nenhuma etapa criada ainda",
       "NO_STAGES_DESCRIPTION": "Adicione etapas ao funil para começar a organizar suas conversas",
       "EDIT_FUNNEL_HINT": "Edite o funil para adicionar a primeira etapa.",
@@ -91,6 +92,19 @@
       "MOVE_ERROR": "Erro ao mover conversa",
       "LOAD_STAGE": "Carregar etapa",
       "LOAD_RESOLVED": "Carregar etapa resolvida"
+    },
+    "CARD": {
+      "UNASSIGNED": "Não atribuído",
+      "ADD": "Adicionar card",
+      "LABELS_MORE": "mais etiquetas"
+    },
+    "DENSITY": {
+      "COMPACT": "Visão compacta",
+      "COMFORTABLE": "Visão confortável"
+    },
+    "FOOTER": {
+      "CARDS": "{count} cards",
+      "SCHEDULED": "{count} agendadas"
     },
     "SCHEDULED_MESSAGES": {
       "TITLE": "Mensagens Agendadas",

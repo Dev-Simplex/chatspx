@@ -7,6 +7,7 @@ import { format } from 'date-fns';
 import Button from 'dashboard/components-next/button/Button.vue';
 import Icon from 'dashboard/components-next/icon/Icon.vue';
 import Avatar from 'dashboard/components-next/avatar/Avatar.vue';
+import { useStageColor } from './composables/useStageColor';
 
 const props = defineProps({
   funnelId: {
@@ -20,6 +21,12 @@ const emit = defineEmits(['scheduleMessage', 'removeItem', 'manageScheduled']);
 const store = useStore();
 const router = useRouter();
 const { t } = useI18n();
+const { accent, contrastText } = useStageColor();
+
+const stageBadgeStyle = color => {
+  const bg = accent(color);
+  return { backgroundColor: bg, color: contrastText(bg) };
+};
 
 const isLoadingMore = ref(false);
 
@@ -527,10 +534,10 @@ const loadMoreResults = async () => {
 
               <div class="min-w-0">
                 <span
-                  class="inline-flex items-center gap-2 rounded-full px-2.5 py-1 text-xs font-semibold text-white"
-                  :style="{ backgroundColor: item.stageColor || '#94a3b8' }"
+                  class="inline-flex items-center gap-2 rounded-full px-2.5 py-1 text-xs font-semibold"
+                  :style="stageBadgeStyle(item.stageColor)"
                 >
-                  <span class="size-1.5 rounded-full bg-white/60" />
+                  <span class="size-1.5 rounded-full bg-current opacity-60" />
                   <span class="truncate">{{ item.stageName }}</span>
                 </span>
               </div>
@@ -651,10 +658,10 @@ const loadMoreResults = async () => {
 
             <div class="mt-3 flex items-center gap-2">
               <span
-                class="inline-flex items-center gap-2 rounded-full px-2.5 py-1 text-xs font-semibold text-white"
-                :style="{ backgroundColor: item.stageColor || '#94a3b8' }"
+                class="inline-flex items-center gap-2 rounded-full px-2.5 py-1 text-xs font-semibold"
+                :style="stageBadgeStyle(item.stageColor)"
               >
-                <span class="size-1.5 rounded-full bg-white/60" />
+                <span class="size-1.5 rounded-full bg-current opacity-60" />
                 {{ item.stageName }}
               </span>
               <span

@@ -315,6 +315,12 @@ const handleEditStage = stage => {
   showStageForm.value = true;
 };
 
+const handleCreateStage = () => {
+  // Blank object (no id) puts StageForm into create mode.
+  selectedStage.value = { name: '', color: '#94a3b8', automation_type: null };
+  showStageForm.value = true;
+};
+
 const handleStageSaved = async () => {
   await store.dispatch('kanban/fetchFunnelStages', props.funnelId);
   await store.dispatch('kanban/bootstrapView', {
@@ -432,6 +438,15 @@ const handleDeleteStage = async stage => {
         </template>
       </draggable>
 
+      <button
+        v-if="stages.length > 0"
+        class="kanban-add-stage group flex h-full shrink-0 flex-col items-center justify-center gap-2 rounded-xl border-2 border-dashed border-n-weak bg-n-slate-2/30 px-4 text-n-slate-10 transition hover:border-n-slate-6 hover:bg-n-slate-2/60 hover:text-n-slate-12 dark:bg-n-solid-2/40"
+        @click="handleCreateStage"
+      >
+        <Icon icon="i-lucide-plus" class="size-5" />
+        <span class="text-sm font-medium">{{ t('KANBAN.STAGES.CREATE') }}</span>
+      </button>
+
       <div
         v-if="stages.length === 0"
         class="flex w-full flex-col items-center justify-center rounded-xl border-2 border-dashed border-n-weak bg-n-slate-2/50 dark:bg-n-solid-2 p-8 text-center"
@@ -469,6 +484,19 @@ const handleDeleteStage = async stage => {
   min-width: 100%;
   scrollbar-width: thin;
   scrollbar-color: rgb(var(--border-weak)) transparent;
+  background-image: radial-gradient(
+      120% 80% at 50% -10%,
+      rgba(99, 102, 241, 0.05),
+      transparent 60%
+    ),
+    radial-gradient(rgba(148, 163, 184, 0.07) 1px, transparent 1px);
+  background-size:
+    100% 100%,
+    24px 24px;
+}
+
+.kanban-add-stage {
+  width: var(--kanban-col-width, 304px);
 }
 
 .kanban-board::-webkit-scrollbar {
@@ -486,19 +514,5 @@ const handleDeleteStage = async stage => {
 
 .kanban-board::-webkit-scrollbar-thumb:hover {
   background-color: rgb(var(--border-strong));
-}
-
-:deep(.kanban-stage-ghost) {
-  opacity: 0.4;
-  border: 2px dashed #2dc46f;
-  background: rgba(45, 196, 111, 0.05);
-}
-
-:deep(.kanban-stage-drag) {
-  opacity: 0.95;
-  box-shadow:
-    0 20px 25px -5px rgba(0, 0, 0, 0.15),
-    0 8px 10px -6px rgba(0, 0, 0, 0.1);
-  transform: rotate(1deg);
 }
 </style>

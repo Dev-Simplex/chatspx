@@ -15,6 +15,7 @@ import Input from 'dashboard/components-next/input/Input.vue';
 import Icon from 'dashboard/components-next/icon/Icon.vue';
 import Dialog from 'dashboard/components-next/dialog/Dialog.vue';
 import { useAlert } from 'dashboard/composables';
+import 'dashboard/components-next/Kanban/kanban-theme.css';
 
 const route = useRoute();
 const router = useRouter();
@@ -31,6 +32,22 @@ const activeFunnel = computed(() => {
     funnels.value.find(funnel => funnel.id === activeFunnelId.value) || null
   );
 });
+const KANBAN_DENSITY_KEY = 'kanban:compact';
+const isCompact = ref(false);
+try {
+  isCompact.value = localStorage.getItem(KANBAN_DENSITY_KEY) === '1';
+} catch (_) {
+  // best effort
+}
+const toggleDensity = () => {
+  isCompact.value = !isCompact.value;
+  try {
+    localStorage.setItem(KANBAN_DENSITY_KEY, isCompact.value ? '1' : '0');
+  } catch (_) {
+    // best effort
+  }
+};
+
 const viewMode = computed(
   () => store.getters['kanban/getViewMode'] || 'kanban'
 );
@@ -601,6 +618,19 @@ onMounted(async () => {
           </div>
 
           <Button
+            v-if="viewMode === 'kanban'"
+            :variant="isCompact ? 'solid' : 'ghost'"
+            size="sm"
+            :icon="isCompact ? 'i-lucide-rows-3' : 'i-lucide-rows-2'"
+            :title="
+              isCompact
+                ? t('KANBAN.DENSITY.COMFORTABLE')
+                : t('KANBAN.DENSITY.COMPACT')
+            "
+            @click="toggleDensity"
+          />
+
+          <Button
             variant="ghost"
             size="sm"
             icon="i-lucide-clock-3"
@@ -781,7 +811,10 @@ onMounted(async () => {
       </div>
     </div>
 
-    <div class="kanban-content flex-1 min-h-0 overflow-hidden bg-n-background">
+    <div
+      class="kanban-content flex-1 min-h-0 overflow-hidden bg-n-background"
+      :class="{ 'kanban-compact': isCompact && viewMode === 'kanban' }"
+    >
       <div
         v-if="!activeFunnelId && funnels.length === 0"
         class="flex h-full flex-col items-center justify-center px-6 text-center"
