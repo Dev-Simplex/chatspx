@@ -149,8 +149,16 @@ class WebhookListener < BaseListener
     return false unless inbox&.channel_type == 'Channel::Api'
     return false if inbox.waha_session_name.blank?
 
+    # Free-form interactive buttons/list go via WAHA REST (the external WAHA
+    # Chatwoot App would otherwise send them as plain text).
+    return true if waha_interactive_message?(message)
+
     file_type = message.attachments.first&.file_type.to_s
     %w[location contact].include?(file_type)
+  end
+
+  def waha_interactive_message?(message)
+    message.content_type == 'input_select' && message.content_attributes&.dig('items').present?
   end
 
   def deliver_webhook_payloads(payload, inbox)

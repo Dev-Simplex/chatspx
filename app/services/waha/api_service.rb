@@ -146,6 +146,12 @@ class Waha::ApiService # rubocop:disable Metrics/ClassLength
     post('/api/sendText', payload)
   end
 
+  # Plain text message via WAHA REST. Used as the fallback path when an
+  # interactive menu can't be expressed as a poll (fewer than 2 options).
+  def send_text(session:, chat_id:, text:)
+    post('/api/sendText', { session: session, chatId: chat_id, text: text.to_s })
+  end
+
   # Builds a minimal vCard 3.0 (FN + TEL CELL). Strips CR/LF from name and
   # normalizes phone to E.164-ish. Public so callers (and specs) can verify the
   # exact wire format without going through HTTP.
@@ -160,6 +166,53 @@ class Waha::ApiService # rubocop:disable Metrics/ClassLength
       "TEL;TYPE=CELL:#{digits}",
       'END:VCARD'
     ].join("\n")
+  end
+
+  # Sends a free-form interactive LIST message. Confirmed working on the WAHA
+  # GOWS PLUS engine (sendButtons is 501/not-implemented on GOWS, but sendList
+  # is). Renders as a "button" the customer taps to open a list of options; the
+  # tap comes back as an `interactive.list_reply`.
+  #
+  # WAHA GOWS payload (validated live):
+  #   { session, chatId, message: { title, description?, button,
+  #       sections: [{ title, rows: [{ rowId, title, description? }] }] } }
+  # `title` and `button` are REQUIRED.
+  def send_list(session:, chat_id:, body:, button_text:, sections:, title: nil)
+    message = {
+      title: (title.presence || body.to_s).to_s,
+      button: button_text.to_s,
+      sections: Array(sections).map { |section| build_list_section(section) }
+    }
+    message[:description] = body.to_s if title.present? && body.present?
+    post('/api/sendList', { session: session, chatId: chat_id, message: message })
+  end
+
+  def build_list_section(section)
+    {
+      title: section[:title].to_s,
+      rows: Array(section[:rows]).map do |row|
+        r = { rowId: row[:rowId].to_s, title: row[:title].to_s }
+        r[:description] = row[:description].to_s if row[:description].present?
+        r
+      end
+    }
+  end
+
+  # Sends a native WhatsApp POLL. This is the reliable interactive format on the
+  # GOWS PLUS engine: unlike list/button messages (which WhatsApp deprecated for
+  # non-official senders and renders inconsistently), polls render natively on
+  # every modern WhatsApp client and the recipient taps an option to vote.
+  #
+  # WAHA GOWS payload (validated live, HTTP 201):
+  #   { session, chatId, poll: { name, options: [String], multipleAnswers } }
+  # WhatsApp requires 2..12 unique, non-empty options.
+  def send_poll(session:, chat_id:, name:, options:, multiple_answers: false)
+    poll = {
+      name: name.to_s,
+      options: Array(options).map(&:to_s),
+      multipleAnswers: multiple_answers ? true : false
+    }
+    post('/api/sendPoll', { session: session, chatId: chat_id, poll: poll })
   end
 
   def create_chatwoot_app(session_name:, config:)
