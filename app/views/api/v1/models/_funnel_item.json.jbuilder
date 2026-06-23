@@ -12,6 +12,7 @@ if resource.conversation.present?
     json.id resource.conversation.id
     json.display_id resource.conversation.display_id
     json.status resource.conversation.status
+    json.priority resource.conversation.priority
     json.contact_id resource.conversation.contact_id
     json.inbox_id resource.conversation.inbox_id
     json.account_id resource.conversation.account_id

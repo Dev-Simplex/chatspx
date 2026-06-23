@@ -13,6 +13,7 @@ import { useStageColor } from './composables/useStageColor';
 import Button from 'dashboard/components-next/button/Button.vue';
 import Icon from 'dashboard/components-next/icon/Icon.vue';
 import Avatar from 'dashboard/components-next/avatar/Avatar.vue';
+import CardPriorityIcon from 'dashboard/components-next/Conversation/ConversationCard/CardPriorityIcon.vue';
 
 const props = defineProps({
   item: {
@@ -39,6 +40,8 @@ const { softBg, contrastText, heatLevel } = useStageColor();
 const getContactById = useMapGetter('contacts/getContactById');
 const inboxById = useMapGetter('inboxes/getInboxById');
 const agentsList = useMapGetter('agents/getAgents');
+const labelsGetter = useMapGetter('labels/getLabels');
+const kanbanViewFilters = useMapGetter('kanban/getViewFilters');
 const scheduledByConversation = useMapGetter(
   'kanban/getScheduledMessagesByConversation'
 );
@@ -131,6 +134,34 @@ const visibleLabels = computed(() => cardLabels.value.slice(0, 3));
 const extraLabelCount = computed(() =>
   Math.max(0, cardLabels.value.length - visibleLabels.value.length)
 );
+
+// Conversation priority (urgent/high/medium/low) — native Chatwoot field.
+const priority = computed(() => props.conversation?.priority || null);
+
+// Click a label chip to filter the board by that label (Trello/Monday-style).
+const resolveLabelId = title => {
+  const list = labelsGetter.value;
+  if (!Array.isArray(list)) return null;
+  const normalized = String(title).toLowerCase();
+  const found = list.find(
+    label => String(label.title).toLowerCase() === normalized
+  );
+  return found ? Number(found.id) : null;
+};
+const activeLabelIds = computed(() =>
+  (kanbanViewFilters.value?.labelIds || []).map(Number)
+);
+const isLabelActive = label => {
+  const id = resolveLabelId(label.title);
+  return id ? activeLabelIds.value.includes(id) : false;
+};
+const filterByLabel = label => {
+  const id = resolveLabelId(label.title);
+  if (!id) return;
+  const isActive = activeLabelIds.value.includes(id);
+  // Toggle: clicking the active label again clears the label filter.
+  store.dispatch('kanban/setViewFilters', { labelIds: isActive ? [] : [id] });
+};
 
 const assigneeId = computed(
   () =>
@@ -417,24 +448,30 @@ const handleCardClick = event => {
     <div class="kanban-card__strip" :style="{ background: stripGradient }" />
 
     <div class="kanban-card__body flex flex-col gap-2 p-3">
-      <!-- Labels -->
+      <!-- Labels (click to filter the board) -->
       <div v-if="cardLabels.length" class="flex flex-wrap items-center gap-1">
-        <span
+        <button
           v-for="label in visibleLabels"
           :key="label.title"
-          class="kanban-label inline-flex max-w-[124px] items-center gap-1 truncate rounded-md px-1.5 py-0.5 text-[11px] font-semibold leading-none"
+          type="button"
+          class="kanban-label inline-flex max-w-[124px] items-center gap-1 truncate rounded-md px-1.5 py-0.5 text-[11px] font-semibold leading-none transition hover:brightness-105"
+          :class="{
+            'ring-1 ring-offset-1 ring-offset-n-solid-1': isLabelActive(label),
+          }"
           :style="{
             backgroundColor: softBg(label.color, 0.16),
             color: contrastText(softBg(label.color, 1)),
+            '--tw-ring-color': label.color,
           }"
           :title="label.title"
+          @click.stop="filterByLabel(label)"
         >
           <span
             class="size-1.5 shrink-0 rounded-full"
             :style="{ backgroundColor: label.color }"
           />
           <span class="truncate">{{ label.title }}</span>
-        </span>
+        </button>
         <span
           v-if="extraLabelCount"
           class="inline-flex items-center rounded-md bg-n-slate-3 px-1.5 py-0.5 text-[11px] font-semibold leading-none text-n-slate-11"
@@ -476,10 +513,17 @@ const handleCardClick = event => {
             </div>
           </div>
         </div>
-        <Icon
-          icon="i-lucide-arrow-up-right"
-          class="kanban-card__open size-4 shrink-0 text-n-slate-9 opacity-0 transition-opacity group-hover:opacity-100"
-        />
+        <div class="flex shrink-0 items-center gap-1">
+          <CardPriorityIcon
+            v-if="priority"
+            :priority="priority"
+            class="kanban-card__priority"
+          />
+          <Icon
+            icon="i-lucide-arrow-up-right"
+            class="kanban-card__open size-4 text-n-slate-9 opacity-0 transition-opacity group-hover:opacity-100"
+          />
+        </div>
       </div>
 
       <!-- Last message -->
@@ -717,5 +761,11 @@ const handleCardClick = event => {
 
 .kanban-card__presence {
   box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.04);
+}
+
+/* Reuse the conversation-list priority icon, sized down for the card. */
+.kanban-card__priority :deep(svg) {
+  width: 16px;
+  height: 16px;
 }
 </style>
