@@ -91,12 +91,21 @@
       "STAGE_REQUIRED": "Selecione uma etapa",
       "MOVE_ERROR": "Erro ao mover conversa",
       "LOAD_STAGE": "Carregar etapa",
-      "LOAD_RESOLVED": "Carregar etapa resolvida"
+      "LOAD_RESOLVED": "Carregar etapa resolvida",
+      "ADD_SEARCH_PLACEHOLDER": "Buscar conversa por contato, telefone ou mensagem",
+      "ADD_NO_RESULTS": "Nenhuma conversa encontrada",
+      "ADD_HINT": "Digite para buscar uma conversa e adicioná-la a esta etapa",
+      "ADD_SUCCESS": "Conversa adicionada à etapa",
+      "ADD_DUPLICATE": "Esta conversa já está no funil",
+      "ADD_ERROR": "Não foi possível adicionar a conversa"
     },
     "CARD": {
       "UNASSIGNED": "Não atribuído",
       "ADD": "Adicionar card",
-      "LABELS_MORE": "mais etiquetas"
+      "LABELS_MORE": "mais etiquetas",
+      "ASSIGNED_TO": "Atribuído a {name}",
+      "UNASSIGNED_DONE": "Conversa desatribuída",
+      "ASSIGN_ERROR": "Não foi possível alterar o responsável"
     },
     "DENSITY": {
       "COMPACT": "Visão compacta",

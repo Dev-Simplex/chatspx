@@ -5,6 +5,7 @@ import { useI18n } from 'vue-i18n';
 import Dialog from 'dashboard/components-next/dialog/Dialog.vue';
 import Button from 'dashboard/components-next/button/Button.vue';
 import Icon from 'dashboard/components-next/icon/Icon.vue';
+import { useAlert } from 'dashboard/composables';
 
 const props = defineProps({
   show: {
@@ -96,7 +97,7 @@ const save = async () => {
   const isCreate = !stage?.id;
 
   if ((!isDefault || isCreate) && !formData.value.name?.trim()) {
-    alert(t('KANBAN.STAGES.NAME_REQUIRED') || 'Nome da etapa é obrigatório');
+    useAlert(t('KANBAN.STAGES.NAME_REQUIRED') || 'Nome da etapa é obrigatório');
     return;
   }
 
@@ -116,7 +117,7 @@ const save = async () => {
     } catch (error) {
       // eslint-disable-next-line no-console
       console.error('StageForm: Erro ao criar etapa', error);
-      alert(t('KANBAN.STAGES.SAVE_ERROR') || 'Erro ao salvar etapa');
+      useAlert(t('KANBAN.STAGES.SAVE_ERROR') || 'Erro ao salvar etapa');
     } finally {
       isLoading.value = false;
     }
@@ -149,7 +150,7 @@ const save = async () => {
   } catch (error) {
     // eslint-disable-next-line no-console
     console.error('StageForm: Erro ao atualizar etapa', error);
-    alert(t('KANBAN.STAGES.SAVE_ERROR') || 'Erro ao salvar etapa');
+    useAlert(t('KANBAN.STAGES.SAVE_ERROR') || 'Erro ao salvar etapa');
   } finally {
     isLoading.value = false;
   }

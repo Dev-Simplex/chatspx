@@ -2,6 +2,7 @@
 import { ref, computed, watch, nextTick } from 'vue';
 import { useStore } from 'vuex';
 import { useI18n } from 'vue-i18n';
+import { useAlert } from 'dashboard/composables';
 import Dialog from 'dashboard/components-next/dialog/Dialog.vue';
 import Button from 'dashboard/components-next/button/Button.vue';
 import Icon from 'dashboard/components-next/icon/Icon.vue';
@@ -55,7 +56,7 @@ watch(
 
 const move = async () => {
   if (!selectedStageId.value) {
-    alert(t('KANBAN.ITEMS.STAGE_REQUIRED'));
+    useAlert(t('KANBAN.ITEMS.STAGE_REQUIRED'));
     return;
   }
 
@@ -73,7 +74,7 @@ const move = async () => {
   } catch (error) {
     // eslint-disable-next-line no-console
     console.error('Erro ao mover item:', error);
-    alert(t('KANBAN.ITEMS.MOVE_ERROR'));
+    useAlert(t('KANBAN.ITEMS.MOVE_ERROR'));
   }
 };
 

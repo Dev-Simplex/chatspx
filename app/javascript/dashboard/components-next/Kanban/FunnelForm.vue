@@ -6,6 +6,7 @@ import { useI18n } from 'vue-i18n';
 import Dialog from 'dashboard/components-next/dialog/Dialog.vue';
 import Button from 'dashboard/components-next/button/Button.vue';
 import Icon from 'dashboard/components-next/icon/Icon.vue';
+import { useAlert } from 'dashboard/composables';
 
 const props = defineProps({
   show: {
@@ -185,21 +186,43 @@ const isDefaultStage = stage => {
   return isDefaultByName || isDefaultByAutomation;
 };
 
+// Promise-based confirmation so we keep the inline `await` flow while using
+// the Dialog component instead of the native confirm().
+const confirmDialogRef = ref(null);
+const confirmConfig = ref({ title: '', message: '', confirmLabel: '' });
+const confirmResolver = ref(null);
+
+const askConfirm = ({ title, message, confirmLabel }) =>
+  new Promise(resolve => {
+    confirmConfig.value = { title, message, confirmLabel };
+    confirmResolver.value = resolve;
+    nextTick(() => confirmDialogRef.value?.open?.());
+  });
+
+const resolveConfirm = value => {
+  const resolver = confirmResolver.value;
+  confirmResolver.value = null;
+  confirmDialogRef.value?.close?.();
+  if (resolver) resolver(value);
+};
+
 const removeStage = async index => {
   const stage = stages.value[index];
 
   // Não permitir deletar etapas padrão
   if (isDefaultStage(stage)) {
-    alert(t('KANBAN.STAGES.CANNOT_DELETE_DEFAULT'));
+    useAlert(t('KANBAN.STAGES.CANNOT_DELETE_DEFAULT'));
     return;
   }
 
   // Se é uma etapa existente (tem ID numérico), deletar do servidor
   if (stage.id && !stage.id.toString().startsWith('temp-') && isEditing.value) {
-    // eslint-disable-next-line no-restricted-globals, no-alert
-    if (!confirm(t('KANBAN.STAGES.CONFIRM_DELETE'))) {
-      return;
-    }
+    const confirmed = await askConfirm({
+      title: t('KANBAN.STAGES.DELETE'),
+      message: t('KANBAN.STAGES.CONFIRM_DELETE'),
+      confirmLabel: t('KANBAN.STAGES.DELETE'),
+    });
+    if (!confirmed) return;
 
     try {
       await store.dispatch('kanban/deleteStage', {
@@ -209,7 +232,7 @@ const removeStage = async index => {
     } catch (error) {
       // eslint-disable-next-line no-console
       console.error('Erro ao deletar etapa:', error);
-      alert(t('KANBAN.STAGES.DELETE_ERROR'));
+      useAlert(t('KANBAN.STAGES.DELETE_ERROR'));
       return;
     }
   }
@@ -223,7 +246,7 @@ const removeStage = async index => {
 
 const save = async () => {
   if (!formData.value.name.trim()) {
-    alert(t('KANBAN.FUNNELS.NAME_REQUIRED'));
+    useAlert(t('KANBAN.FUNNELS.NAME_REQUIRED'));
     return;
   }
 
@@ -307,7 +330,7 @@ const save = async () => {
           } catch (error) {
             // eslint-disable-next-line no-console
             console.error('Erro ao criar etapa:', error);
-            alert(
+            useAlert(
               `Erro ao criar etapa "${stage.name}": ${error.message || error}`
             );
           }
@@ -352,7 +375,7 @@ const save = async () => {
         } catch (error) {
           // eslint-disable-next-line no-console
           console.error('Erro ao criar etapa:', error);
-          alert(
+          useAlert(
             `Erro ao criar etapa "${stage.name}": ${error.message || error}`
           );
         }
@@ -370,7 +393,7 @@ const save = async () => {
   } catch (error) {
     // eslint-disable-next-line no-console
     console.error('Erro ao salvar funil:', error);
-    alert(t('KANBAN.FUNNELS.SAVE_ERROR'));
+    useAlert(t('KANBAN.FUNNELS.SAVE_ERROR'));
   }
 };
 
@@ -381,11 +404,12 @@ const close = () => {
 const handleDeleteFunnel = async () => {
   if (!isEditing.value || !props.funnel) return;
 
-  // eslint-disable-next-line no-restricted-globals, no-alert
-
-  if (!confirm(t('KANBAN.FUNNELS.CONFIRM_DELETE'))) {
-    return;
-  }
+  const confirmed = await askConfirm({
+    title: t('KANBAN.FUNNELS.DELETE'),
+    message: t('KANBAN.FUNNELS.CONFIRM_DELETE'),
+    confirmLabel: t('KANBAN.FUNNELS.DELETE'),
+  });
+  if (!confirmed) return;
 
   try {
     await store.dispatch('kanban/deleteFunnel', props.funnel.id);
@@ -394,7 +418,7 @@ const handleDeleteFunnel = async () => {
   } catch (error) {
     // eslint-disable-next-line no-console
     console.error('Erro ao deletar funil:', error);
-    alert(t('KANBAN.FUNNELS.DELETE_ERROR'));
+    useAlert(t('KANBAN.FUNNELS.DELETE_ERROR'));
   }
 };
 </script>
@@ -680,4 +704,14 @@ const handleDeleteFunnel = async () => {
       </div>
     </template>
   </Dialog>
+
+  <Dialog
+    ref="confirmDialogRef"
+    type="alert"
+    :title="confirmConfig.title"
+    :description="confirmConfig.message"
+    :confirm-button-label="confirmConfig.confirmLabel"
+    @confirm="resolveConfirm(true)"
+    @close="resolveConfirm(false)"
+  />
 </template>

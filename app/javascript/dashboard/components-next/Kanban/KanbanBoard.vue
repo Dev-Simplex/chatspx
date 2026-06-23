@@ -1,11 +1,13 @@
 <script setup>
-import { computed, ref, watch } from 'vue';
+import { computed, ref, watch, nextTick } from 'vue';
 import { useStore } from 'vuex';
 import { useI18n } from 'vue-i18n';
 import draggable from 'vuedraggable';
 import KanbanColumn from './KanbanColumn.vue';
 import Icon from 'dashboard/components-next/icon/Icon.vue';
+import Dialog from 'dashboard/components-next/dialog/Dialog.vue';
 import StageForm from './StageForm.vue';
+import AddConversationModal from './AddConversationModal.vue';
 import { useAlert } from 'dashboard/composables';
 
 const props = defineProps({
@@ -295,9 +297,26 @@ const handleScheduleMessage = conversation => {
   emit('scheduleMessage', conversation);
 };
 
-const handleRemoveItem = async item => {
-  if (!window.confirm(t('KANBAN.ITEMS.CONFIRM_REMOVE'))) return;
+const confirmDialogRef = ref(null);
+const confirmState = ref({
+  title: '',
+  message: '',
+  confirmLabel: '',
+  action: null,
+});
 
+const openConfirm = ({ title, message, confirmLabel, action }) => {
+  confirmState.value = { title, message, confirmLabel, action };
+  nextTick(() => confirmDialogRef.value?.open?.());
+};
+
+const runConfirm = async () => {
+  const { action } = confirmState.value;
+  confirmDialogRef.value?.close?.();
+  if (typeof action === 'function') await action();
+};
+
+const performRemoveItem = async item => {
   try {
     await store.dispatch('kanban/deleteItem', {
       funnelId: props.funnelId,
@@ -305,8 +324,17 @@ const handleRemoveItem = async item => {
     });
     emit('removeItem', item);
   } catch (_) {
-    // noop
+    useAlert(t('KANBAN.ITEMS.MOVE_ERROR'));
   }
+};
+
+const handleRemoveItem = item => {
+  openConfirm({
+    title: t('KANBAN.ITEMS.REMOVE'),
+    message: t('KANBAN.ITEMS.CONFIRM_REMOVE'),
+    confirmLabel: t('KANBAN.ITEMS.REMOVE'),
+    action: () => performRemoveItem(item),
+  });
 };
 
 const handleEditStage = stage => {
@@ -319,6 +347,28 @@ const handleCreateStage = () => {
   // Blank object (no id) puts StageForm into create mode.
   selectedStage.value = { name: '', color: '#94a3b8', automation_type: null };
   showStageForm.value = true;
+};
+
+const showAddModal = ref(false);
+const addStage = ref(null);
+
+const handleAddCard = stage => {
+  addStage.value = stage;
+  showAddModal.value = true;
+};
+
+const handleConversationAdded = async () => {
+  showAddModal.value = false;
+  const stageId = addStage.value?.id;
+  if (stageId) {
+    await store.dispatch('kanban/fetchFunnelItemsPage', {
+      funnelId: props.funnelId,
+      stageId: Number(stageId),
+      limit: 30,
+      append: false,
+    });
+  }
+  addStage.value = null;
 };
 
 const handleStageSaved = async () => {
@@ -361,16 +411,14 @@ const handleStageReorder = async evt => {
 
     await store.dispatch('kanban/fetchFunnelStages', props.funnelId);
   } catch (error) {
-    alert(error?.response?.data?.error || t('KANBAN.STAGES.SAVE_ERROR'));
+    useAlert(error?.response?.data?.error || t('KANBAN.STAGES.SAVE_ERROR'));
     await store.dispatch('kanban/fetchFunnelStages', props.funnelId);
   } finally {
     isReordering = false;
   }
 };
 
-const handleDeleteStage = async stage => {
-  if (!window.confirm(t('KANBAN.STAGES.CONFIRM_DELETE'))) return;
-
+const performDeleteStage = async stage => {
   try {
     await store.dispatch('kanban/deleteStage', {
       funnelId: props.funnelId,
@@ -378,8 +426,18 @@ const handleDeleteStage = async stage => {
     });
     await store.dispatch('kanban/fetchFunnelStages', props.funnelId);
   } catch (_) {
-    alert(t('KANBAN.STAGES.DELETE_ERROR'));
+    useAlert(t('KANBAN.STAGES.DELETE_ERROR'));
   }
+};
+
+const handleDeleteStage = stage => {
+  if (!stage) return;
+  openConfirm({
+    title: t('KANBAN.STAGES.DELETE'),
+    message: t('KANBAN.STAGES.CONFIRM_DELETE'),
+    confirmLabel: t('KANBAN.STAGES.DELETE'),
+    action: () => performDeleteStage(stage),
+  });
 };
 </script>
 
@@ -434,6 +492,7 @@ const handleDeleteStage = async stage => {
             @remove-item="handleRemoveItem"
             @edit-stage="handleEditStage"
             @delete-stage="handleDeleteStage"
+            @add-card="handleAddCard"
           />
         </template>
       </draggable>
@@ -475,6 +534,28 @@ const handleDeleteStage = async stage => {
         }
       "
       @saved="handleStageSaved"
+    />
+
+    <AddConversationModal
+      :show="showAddModal"
+      :stage="addStage"
+      :funnel-id="funnelId"
+      @close="
+        () => {
+          showAddModal = false;
+          addStage = null;
+        }
+      "
+      @added="handleConversationAdded"
+    />
+
+    <Dialog
+      ref="confirmDialogRef"
+      type="alert"
+      :title="confirmState.title"
+      :description="confirmState.message"
+      :confirm-button-label="confirmState.confirmLabel"
+      @confirm="runConfirm"
     />
   </div>
 </template>

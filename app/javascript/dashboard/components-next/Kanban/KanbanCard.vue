@@ -1,7 +1,9 @@
 <script setup>
-import { computed } from 'vue';
+import { computed, ref } from 'vue';
 import { useRouter } from 'vue-router';
 import { useI18n } from 'vue-i18n';
+import { useStore } from 'vuex';
+import { useAlert } from 'dashboard/composables';
 import { formatDistanceToNowStrict } from 'date-fns';
 import { enUS, ptBR } from 'date-fns/locale';
 import { useMapGetter } from 'dashboard/composables/store';
@@ -30,6 +32,7 @@ const props = defineProps({
 const emit = defineEmits(['move', 'schedule-message', 'remove']);
 
 const router = useRouter();
+const store = useStore();
 const { t, locale } = useI18n();
 const { softBg, contrastText } = useStageColor();
 
@@ -136,12 +139,63 @@ const assigneeId = computed(
     props.conversation?.meta?.assignee?.id ||
     null
 );
+// Optimistic override after the user reassigns from the card (0 = unassigned).
+const localAssigneeId = ref(null);
+const effectiveAssigneeId = computed(() =>
+  localAssigneeId.value === null ? assigneeId.value : localAssigneeId.value
+);
 const assignee = computed(() => {
-  if (!assigneeId.value) return null;
+  if (!effectiveAssigneeId.value) return null;
   const list = agentsList.value;
   if (!Array.isArray(list)) return null;
-  return list.find(agent => Number(agent.id) === Number(assigneeId.value));
+  return list.find(
+    agent => Number(agent.id) === Number(effectiveAssigneeId.value)
+  );
 });
+
+const assignMenuOpen = ref(false);
+const isAssigning = ref(false);
+const agentOptions = computed(() =>
+  Array.isArray(agentsList.value) ? agentsList.value : []
+);
+const isCurrentAssignee = agent =>
+  Number(agent?.id) === Number(effectiveAssigneeId.value);
+
+const assignTo = async agent => {
+  const conversationId =
+    props.conversation?.displayId ||
+    props.conversation?.display_id ||
+    props.conversation?.id;
+  if (!conversationId || isAssigning.value) return;
+
+  const agentId = agent?.id ?? null;
+  if (Number(agentId || 0) === Number(effectiveAssigneeId.value || 0)) {
+    assignMenuOpen.value = false;
+    return;
+  }
+
+  isAssigning.value = true;
+  try {
+    await store.dispatch('assignAgent', {
+      conversationId,
+      agentId,
+      rethrow: true,
+    });
+    localAssigneeId.value = agentId ? Number(agentId) : 0;
+    assignMenuOpen.value = false;
+    useAlert(
+      agent
+        ? t('KANBAN.CARD.ASSIGNED_TO', {
+            name: agent.name || agent.available_name,
+          })
+        : t('KANBAN.CARD.UNASSIGNED_DONE')
+    );
+  } catch (_) {
+    useAlert(t('KANBAN.CARD.ASSIGN_ERROR'));
+  } finally {
+    isAssigning.value = false;
+  }
+};
 
 const channelIcon = computed(() => {
   const type = String(
@@ -401,22 +455,77 @@ const handleCardClick = event => {
         </div>
 
         <div class="flex shrink-0 items-center gap-1.5">
-          <Avatar
-            v-if="assignee"
-            :name="assignee.name || assignee.available_name"
-            :src="assignee.thumbnail || assignee.avatar_url"
-            :size="20"
-            rounded-full
-            :title="assignee.name || assignee.available_name"
-            class="ring-1 ring-n-weak"
-          />
-          <span
-            v-else
-            class="flex size-5 items-center justify-center rounded-full bg-n-slate-3 text-n-slate-9"
-            :title="t('KANBAN.CARD.UNASSIGNED')"
-          >
-            <Icon icon="i-lucide-user" class="size-3" />
-          </span>
+          <!-- Assignee picker -->
+          <div class="relative" @click.stop>
+            <button
+              type="button"
+              class="flex items-center rounded-full transition hover:opacity-80"
+              :title="
+                assignee
+                  ? assignee.name || assignee.available_name
+                  : t('KANBAN.CARD.UNASSIGNED')
+              "
+              :disabled="isAssigning"
+              @click="assignMenuOpen = !assignMenuOpen"
+            >
+              <Avatar
+                v-if="assignee"
+                :name="assignee.name || assignee.available_name"
+                :src="assignee.thumbnail || assignee.avatar_url"
+                :size="20"
+                rounded-full
+                class="ring-1 ring-n-weak"
+              />
+              <span
+                v-else
+                class="flex size-5 items-center justify-center rounded-full border border-dashed border-n-slate-6 bg-n-slate-2 text-n-slate-9"
+              >
+                <Icon icon="i-lucide-user" class="size-3" />
+              </span>
+            </button>
+
+            <template v-if="assignMenuOpen">
+              <div class="fixed inset-0 z-20" @click="assignMenuOpen = false" />
+              <div
+                class="absolute bottom-7 right-0 z-30 max-h-56 w-52 overflow-y-auto rounded-xl border border-n-weak bg-n-solid-1 py-1 shadow-lg"
+              >
+                <button
+                  type="button"
+                  class="flex w-full items-center gap-2 px-3 py-1.5 text-left text-xs text-n-slate-11 transition-colors hover:bg-n-alpha-1"
+                  @click="assignTo(null)"
+                >
+                  <span
+                    class="flex size-5 items-center justify-center rounded-full bg-n-slate-3 text-n-slate-9"
+                  >
+                    <Icon icon="i-lucide-user-x" class="size-3" />
+                  </span>
+                  {{ t('KANBAN.CARD.UNASSIGNED') }}
+                </button>
+                <button
+                  v-for="agent in agentOptions"
+                  :key="agent.id"
+                  type="button"
+                  class="flex w-full items-center gap-2 px-3 py-1.5 text-left text-xs text-n-slate-12 transition-colors hover:bg-n-alpha-1"
+                  @click="assignTo(agent)"
+                >
+                  <Avatar
+                    :name="agent.name || agent.available_name"
+                    :src="agent.thumbnail || agent.avatar_url"
+                    :size="20"
+                    rounded-full
+                  />
+                  <span class="truncate">
+                    {{ agent.name || agent.available_name }}
+                  </span>
+                  <Icon
+                    v-if="isCurrentAssignee(agent)"
+                    icon="i-lucide-check"
+                    class="ml-auto size-3.5 text-n-teal-11"
+                  />
+                </button>
+              </div>
+            </template>
+          </div>
 
           <div
             class="flex items-center gap-1 opacity-100 transition-opacity duration-200 md:opacity-0 md:group-hover:opacity-100"

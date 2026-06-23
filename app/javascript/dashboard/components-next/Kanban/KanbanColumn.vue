@@ -34,6 +34,7 @@ const emit = defineEmits([
   'removeItem',
   'editStage',
   'deleteStage',
+  'addCard',
 ]);
 
 const store = useStore();
@@ -433,6 +434,14 @@ const handleColumnObserved = async () => {
           {{ t('KANBAN.FOOTER.SCHEDULED', { count: pendingScheduledTotal }) }}
         </span>
       </div>
+
+      <button
+        class="flex shrink-0 items-center gap-1.5 border-t border-n-weak px-3 py-2 text-left text-xs font-medium text-n-slate-10 transition hover:bg-n-alpha-1 hover:text-n-slate-12"
+        @click="emit('addCard', stage)"
+      >
+        <Icon icon="i-lucide-plus" class="size-3.5" />
+        {{ t('KANBAN.CARD.ADD') }}
+      </button>
     </template>
   </div>
 </template>

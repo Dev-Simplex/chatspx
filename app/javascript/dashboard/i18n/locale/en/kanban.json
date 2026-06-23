@@ -91,12 +91,21 @@
       "STAGE_REQUIRED": "Select a stage",
       "MOVE_ERROR": "Error moving conversation",
       "LOAD_STAGE": "Load stage",
-      "LOAD_RESOLVED": "Load resolved stage"
+      "LOAD_RESOLVED": "Load resolved stage",
+      "ADD_SEARCH_PLACEHOLDER": "Search conversation by contact, phone or message",
+      "ADD_NO_RESULTS": "No conversations found",
+      "ADD_HINT": "Type to search a conversation to add to this stage",
+      "ADD_SUCCESS": "Conversation added to the stage",
+      "ADD_DUPLICATE": "This conversation is already in the funnel",
+      "ADD_ERROR": "Could not add the conversation"
     },
     "CARD": {
       "UNASSIGNED": "Unassigned",
       "ADD": "Add card",
-      "LABELS_MORE": "more labels"
+      "LABELS_MORE": "more labels",
+      "ASSIGNED_TO": "Assigned to {name}",
+      "UNASSIGNED_DONE": "Conversation unassigned",
+      "ASSIGN_ERROR": "Could not change the assignee"
     },
     "DENSITY": {
       "COMPACT": "Compact view",
