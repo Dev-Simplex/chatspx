@@ -77,11 +77,15 @@ class Captain::Tools::HandoffTool < Captain::Tools::BasePublicTool
     )
   end
 
-  # LLM pode alucinar id — validar SEMPRE na conta.
+  # LLM pode alucinar id — validar SEMPRE na conta. Se o LLM não passar um time válido,
+  # cai no time do PRÓPRIO agente (config['team_id']) — assim a conversa nunca fica sem
+  # fila/setor (ex.: handoff de pedido vago "falar com humano", sem time explícito).
   def resolve_team(conversation, team_id)
-    return nil if team_id.blank?
+    explicit = team_id.present? ? conversation.account.teams.find_by(id: team_id) : nil
+    return explicit if explicit
 
-    conversation.account.teams.find_by(id: team_id)
+    default_id = (@assistant.config || {})['team_id']
+    default_id.present? ? conversation.account.teams.find_by(id: default_id) : nil
   end
 
   def send_out_of_office_message_if_applicable(conversation)
