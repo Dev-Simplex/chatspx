@@ -574,7 +574,7 @@ onMounted(async () => {
 <template>
   <div class="kanban-container flex flex-col overflow-hidden">
     <div
-      class="kanban-header flex flex-col border-b border-n-weak bg-n-solid-2 px-5 py-4 gap-4"
+      class="kanban-header flex flex-col border-b border-n-weak bg-n-solid-2 px-5 py-3 gap-4"
     >
       <div class="flex flex-wrap items-center gap-3 justify-between">
         <div class="flex items-center gap-3 min-w-0">
@@ -592,13 +592,13 @@ onMounted(async () => {
             class="hidden md:flex items-center gap-2 ml-2"
           >
             <span
-              class="inline-flex items-center gap-1.5 rounded-md border border-n-weak bg-n-solid-1 px-2.5 py-1 text-xs text-n-slate-11"
+              class="inline-flex items-center gap-1 rounded-md border border-n-weak bg-n-solid-1 px-2.5 py-1 text-[11px] font-medium text-n-slate-11"
             >
               <Icon icon="i-lucide-columns-3" class="size-3.5" />
               {{ activeFunnelStagesCount }} {{ t('KANBAN.STAGES.TITLE') }}
             </span>
             <span
-              class="inline-flex items-center gap-1.5 rounded-md border border-n-weak bg-n-solid-1 px-2.5 py-1 text-xs text-n-slate-11"
+              class="inline-flex items-center gap-1 rounded-md border border-n-weak bg-n-solid-1 px-2.5 py-1 text-[11px] font-medium text-n-slate-11"
             >
               <Icon icon="i-lucide-message-square" class="size-3.5" />
               {{ activeFunnelTotalItems }} {{ t('KANBAN.FILTERS.ITEMS') }}
@@ -773,7 +773,7 @@ onMounted(async () => {
         >
           <div class="mb-2 flex items-center justify-between">
             <h2
-              class="text-xs font-semibold uppercase tracking-wide text-n-slate-10"
+              class="text-[11px] font-semibold uppercase tracking-wide text-n-slate-10"
             >
               {{ t('KANBAN.FILTERS.ADVANCED') }}
             </h2>
@@ -967,8 +967,8 @@ onMounted(async () => {
 .kanban-filter-label {
   margin-bottom: 0.375rem;
   display: block;
-  font-size: 0.75rem;
-  font-weight: 600;
+  font-size: 0.6875rem;
+  font-weight: 500;
   line-height: 1.2;
 }
 

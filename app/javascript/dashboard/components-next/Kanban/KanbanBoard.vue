@@ -501,9 +501,16 @@ const handleDeleteStage = stage => {
           v-for="seg in funnelBar"
           :key="`funnel-${seg.id}`"
           type="button"
-          class="kanban-funnel__seg h-2 transition-all duration-300 hover:opacity-80"
+          class="kanban-funnel__seg kanban-focusable h-2 transition-all duration-300 hover:opacity-80"
           :style="{ width: `${seg.pct}%`, background: seg.color }"
           :title="
+            t('KANBAN.FUNNEL_BAR.SEGMENT', {
+              name: seg.name,
+              count: seg.count,
+              pct: seg.pct,
+            })
+          "
+          :aria-label="
             t('KANBAN.FUNNEL_BAR.SEGMENT', {
               name: seg.name,
               count: seg.count,
@@ -515,14 +522,14 @@ const handleDeleteStage = stage => {
       </div>
 
       <div
-        class="kanban-board flex min-h-0 flex-1 gap-4 overflow-x-auto overflow-y-hidden bg-n-background px-5 py-4"
+        class="kanban-board flex min-h-0 flex-1 gap-2 sm:gap-4 overflow-x-auto overflow-y-hidden bg-n-background px-2 sm:px-5 py-4"
       >
         <draggable
           v-model="localStages"
           :group="{ name: 'kanban-stages', pull: false, put: false }"
           item-key="id"
           handle=".kanban-column-drag-handle"
-          class="flex h-full gap-4"
+          class="flex h-full gap-2 sm:gap-4"
           :animation="200"
           ghost-class="kanban-stage-ghost"
           drag-class="kanban-stage-drag"
@@ -548,7 +555,7 @@ const handleDeleteStage = stage => {
 
         <button
           v-if="stages.length > 0"
-          class="kanban-add-stage group flex h-full shrink-0 flex-col items-center justify-center gap-2 rounded-xl border-2 border-dashed border-n-weak bg-n-slate-2/30 px-4 text-n-slate-10 transition hover:border-n-slate-6 hover:bg-n-slate-2/60 hover:text-n-slate-12 dark:bg-n-solid-2/40"
+          class="kanban-add-stage kanban-focusable group flex h-full shrink-0 flex-col items-center justify-center gap-2 rounded-xl border-2 border-dashed border-n-weak bg-n-slate-2/30 px-4 text-n-slate-10 transition hover:border-n-slate-6 hover:bg-n-slate-2/60 hover:text-n-slate-12 dark:bg-n-solid-2/40"
           @click="handleCreateStage"
         >
           <Icon icon="i-lucide-plus" class="size-5" />

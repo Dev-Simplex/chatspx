@@ -72,6 +72,8 @@
       "CANNOT_DELETE_DEFAULT": "Não é possível excluir etapas padrão (Abertos, Em Andamento, Resolvidos)",
       "REORDER": "Reordenar Etapas",
       "COLLAPSE": "Recolher etapa",
+      "EXPAND": "Expandir etapa",
+      "REORDER_COLUMN": "Reordenar coluna",
       "NO_STAGES": "Nenhuma etapa criada ainda",
       "NO_STAGES_DESCRIPTION": "Adicione etapas ao funil para começar a organizar suas conversas",
       "EDIT_FUNNEL_HINT": "Edite o funil para adicionar a primeira etapa.",

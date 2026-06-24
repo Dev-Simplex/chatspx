@@ -315,8 +315,11 @@ const handleColumnObserved = async () => {
     <!-- Collapsed: thin vertical rail -->
     <button
       v-if="collapsed"
-      class="group flex h-full w-full flex-col items-center gap-3 px-2 py-3"
+      type="button"
+      class="kanban-focusable group flex h-full w-full flex-col items-center gap-3 px-2 py-3"
       :title="stage.name"
+      :aria-label="t('KANBAN.STAGES.EXPAND')"
+      :aria-expanded="false"
       @click="toggleCollapsed"
     >
       <Icon
@@ -341,22 +344,26 @@ const handleColumnObserved = async () => {
         :style="{ backgroundImage: headerGradient }"
       >
         <div class="group flex items-center justify-between gap-2">
-          <div class="flex min-w-0 items-center gap-1.5">
-            <div
-              class="kanban-column-drag-handle -ml-1 cursor-grab rounded-lg p-1 opacity-60 transition hover:bg-n-slate-3/50 hover:opacity-100 active:cursor-grabbing"
+          <div class="flex min-w-0 items-center gap-1">
+            <button
+              type="button"
+              :aria-label="t('KANBAN.STAGES.REORDER_COLUMN')"
+              class="kanban-column-drag-handle kanban-focusable -ml-1 cursor-grab rounded-[var(--kanban-radius-md)] p-1 opacity-60 transition hover:bg-n-slate-3/50 hover:opacity-100 active:cursor-grabbing"
             >
               <Icon
                 icon="i-lucide-grip-vertical"
-                class="size-4 text-n-slate-9"
+                class="size-4 text-n-slate-10"
               />
-            </div>
+            </button>
 
-            <h3 class="truncate text-sm font-semibold text-n-slate-12">
+            <h3
+              class="truncate text-sm font-semibold leading-tight text-n-slate-12"
+            >
               {{ stage.name }}
             </h3>
 
             <span
-              class="rounded-full px-2 py-0.5 text-xs font-semibold transition-colors"
+              class="rounded-[var(--kanban-radius-sm)] px-2 py-0.5 text-[11px] font-medium transition-colors"
               :class="wipBadgeClass"
               :title="wipTitle"
             >
@@ -370,7 +377,9 @@ const handleColumnObserved = async () => {
               variant="ghost"
               icon="i-lucide-chevrons-left"
               :title="t('KANBAN.STAGES.COLLAPSE')"
-              class="!size-7 !p-0 rounded-lg text-n-slate-10 opacity-0 transition-opacity hover:bg-n-slate-3/50 group-hover:opacity-100"
+              :aria-label="t('KANBAN.STAGES.COLLAPSE')"
+              :aria-expanded="!collapsed"
+              class="kanban-focusable !size-7 !p-0 rounded-[var(--kanban-radius-md)] text-n-slate-10 opacity-0 transition-opacity hover:bg-n-slate-3/50 group-hover:opacity-100"
               @click.stop="toggleCollapsed"
             />
             <div class="relative">
@@ -378,7 +387,8 @@ const handleColumnObserved = async () => {
                 size="xs"
                 variant="ghost"
                 icon="i-lucide-more-vertical"
-                class="!size-7 !p-0 rounded-lg text-n-slate-10 opacity-0 transition-opacity hover:bg-n-slate-3/50 group-hover:opacity-100"
+                :aria-label="t('KANBAN.STAGES.TITLE')"
+                class="kanban-focusable !size-7 !p-0 rounded-[var(--kanban-radius-md)] text-n-slate-10 opacity-0 transition-opacity hover:bg-n-slate-3/50 group-hover:opacity-100"
                 @click.stop="showStageMenu = !showStageMenu"
               />
 
@@ -430,6 +440,9 @@ const handleColumnObserved = async () => {
 
       <div
         v-if="isLoadingStage && !isStageLoaded"
+        role="status"
+        aria-busy="true"
+        :aria-label="t('KANBAN.LOADING')"
         class="flex flex-1 flex-col gap-2 px-2 py-2"
       >
         <div
@@ -508,7 +521,7 @@ const handleColumnObserved = async () => {
           >
             <Icon
               icon="i-lucide-loader-2"
-              class="size-4 animate-spin text-n-slate-9"
+              class="size-4 animate-spin text-n-slate-10"
             />
           </div>
 
@@ -539,7 +552,9 @@ const handleColumnObserved = async () => {
       </div>
 
       <button
-        class="flex shrink-0 items-center gap-1.5 border-t border-n-weak px-3 py-2 text-left text-xs font-medium text-n-slate-10 transition hover:bg-n-alpha-1 hover:text-n-slate-12"
+        type="button"
+        :aria-label="t('KANBAN.CARD.ADD')"
+        class="kanban-focusable flex shrink-0 items-center gap-1 border-t border-n-weak px-3 py-2 text-left text-[11px] font-medium text-n-slate-10 transition hover:bg-n-alpha-1 hover:text-n-slate-12"
         @click="emit('addCard', stage)"
       >
         <Icon icon="i-lucide-plus" class="size-3.5" />

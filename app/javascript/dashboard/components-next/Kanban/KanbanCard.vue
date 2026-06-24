@@ -420,7 +420,7 @@ const handleCardClick = event => {
 
 <template>
   <div
-    class="kanban-card group relative flex w-full min-w-0 flex-shrink-0 cursor-pointer flex-col overflow-hidden bg-n-solid-1"
+    class="kanban-card kanban-focusable group relative flex w-full min-w-0 flex-shrink-0 cursor-pointer flex-col overflow-hidden bg-n-solid-1"
     :class="{ 'has-cover': primaryLabel }"
     :style="cardStyleVars"
     @click="handleCardClick"
@@ -454,13 +454,12 @@ const handleCardClick = event => {
           v-for="label in visibleLabels"
           :key="label.title"
           type="button"
-          class="kanban-label inline-flex max-w-[124px] items-center gap-1 truncate rounded-md px-1.5 py-0.5 text-[11px] font-semibold leading-none transition hover:brightness-105"
+          class="kanban-label kanban-focusable inline-flex max-w-[124px] items-center gap-1 truncate rounded-[6px] px-1.5 py-0.5 text-[11px] font-medium leading-none text-n-slate-12 transition hover:brightness-105"
           :class="{
             'ring-1 ring-offset-1 ring-offset-n-solid-1': isLabelActive(label),
           }"
           :style="{
             backgroundColor: softBg(label.color, 0.16),
-            color: contrastText(softBg(label.color, 1)),
             '--tw-ring-color': label.color,
           }"
           :title="label.title"
@@ -474,7 +473,7 @@ const handleCardClick = event => {
         </button>
         <span
           v-if="extraLabelCount"
-          class="inline-flex items-center rounded-md bg-n-slate-3 px-1.5 py-0.5 text-[11px] font-semibold leading-none text-n-slate-11"
+          class="inline-flex items-center rounded-[6px] bg-n-slate-3 px-1.5 py-0.5 text-[11px] font-medium leading-none text-n-slate-11"
         >
           {{ `+${extraLabelCount}` }}
         </span>
@@ -482,7 +481,7 @@ const handleCardClick = event => {
 
       <!-- Header: contact + channel + status -->
       <div class="flex items-start justify-between gap-2">
-        <div class="flex min-w-0 flex-1 items-center gap-2.5">
+        <div class="flex min-w-0 flex-1 items-center gap-2">
           <div class="relative shrink-0">
             <Avatar
               :name="contactName"
@@ -521,7 +520,7 @@ const handleCardClick = event => {
           />
           <Icon
             icon="i-lucide-arrow-up-right"
-            class="kanban-card__open size-4 text-n-slate-9 opacity-0 transition-opacity group-hover:opacity-100"
+            class="kanban-card__open size-4 text-n-slate-10 opacity-0 transition-opacity group-hover:opacity-100"
           />
         </div>
       </div>
@@ -529,19 +528,22 @@ const handleCardClick = event => {
       <!-- Last message -->
       <p
         v-if="lastMessage"
-        class="kanban-card__message line-clamp-2 break-words text-xs leading-relaxed text-n-slate-10"
+        class="kanban-card__message line-clamp-2 break-words text-[13px] leading-snug text-n-slate-11"
       >
         {{ lastMessage }}
       </p>
-      <p v-else class="kanban-card__message text-xs italic text-n-slate-9">
+      <p
+        v-else
+        class="kanban-card__message text-[13px] italic leading-snug text-n-slate-10"
+      >
         {{ t('KANBAN.ITEMS.NO_MESSAGE') }}
       </p>
 
       <!-- Footer: meta + actions -->
       <div
-        class="mt-1 flex items-center justify-between gap-2 border-t border-n-weak pt-2"
+        class="flex items-center justify-between gap-2 border-t border-n-weak pt-2"
       >
-        <div class="flex min-w-0 items-center gap-2.5 text-n-slate-10">
+        <div class="flex min-w-0 items-center gap-2 text-n-slate-10">
           <span
             v-if="relativeTime && !isAging"
             class="flex shrink-0 items-center gap-1 text-[11px]"
@@ -576,17 +578,24 @@ const handleCardClick = event => {
           </span>
         </div>
 
-        <div class="flex shrink-0 items-center gap-1.5">
+        <div class="flex shrink-0 items-center gap-2">
           <!-- Assignee picker -->
           <div class="relative" @click.stop>
             <button
               type="button"
-              class="flex items-center rounded-full transition hover:opacity-80"
+              class="kanban-focusable flex items-center rounded-full transition hover:opacity-80"
               :title="
                 assignee
                   ? assignee.name || assignee.available_name
                   : t('KANBAN.CARD.UNASSIGNED')
               "
+              :aria-label="
+                assignee
+                  ? assignee.name || assignee.available_name
+                  : t('KANBAN.CARD.UNASSIGNED')
+              "
+              aria-haspopup="listbox"
+              :aria-expanded="assignMenuOpen"
               :disabled="isAssigning"
               @click="assignMenuOpen = !assignMenuOpen"
             >
@@ -609,11 +618,15 @@ const handleCardClick = event => {
             <template v-if="assignMenuOpen">
               <div class="fixed inset-0 z-20" @click="assignMenuOpen = false" />
               <div
+                role="listbox"
+                :aria-label="t('KANBAN.CARD.UNASSIGNED')"
                 class="absolute bottom-7 right-0 z-30 max-h-56 w-52 overflow-y-auto rounded-xl border border-n-weak bg-n-solid-1 py-1 shadow-lg"
               >
                 <button
                   type="button"
-                  class="flex w-full items-center gap-2 px-3 py-1.5 text-left text-xs text-n-slate-11 transition-colors hover:bg-n-alpha-1"
+                  role="option"
+                  :aria-selected="!effectiveAssigneeId"
+                  class="kanban-focusable flex w-full items-center gap-2 px-3 py-1.5 text-left text-xs text-n-slate-11 transition-colors hover:bg-n-alpha-1"
                   @click="assignTo(null)"
                 >
                   <span
@@ -627,7 +640,9 @@ const handleCardClick = event => {
                   v-for="agent in agentOptions"
                   :key="agent.id"
                   type="button"
-                  class="flex w-full items-center gap-2 px-3 py-1.5 text-left text-xs text-n-slate-12 transition-colors hover:bg-n-alpha-1"
+                  role="option"
+                  :aria-selected="isCurrentAssignee(agent)"
+                  class="kanban-focusable flex w-full items-center gap-2 px-3 py-1.5 text-left text-xs text-n-slate-12 transition-colors hover:bg-n-alpha-1"
                   @click="assignTo(agent)"
                 >
                   <Avatar
@@ -658,7 +673,8 @@ const handleCardClick = event => {
               variant="ghost"
               icon="i-lucide-clock"
               :title="t('KANBAN.SCHEDULED_MESSAGES.CREATE')"
-              class="!h-6 !w-6 !p-0 hover:bg-n-blue-3 hover:text-n-blue-11"
+              :aria-label="t('KANBAN.SCHEDULED_MESSAGES.CREATE')"
+              class="kanban-focusable !h-6 !w-6 !p-0 hover:bg-n-blue-3 hover:text-n-blue-11"
               @click="emit('schedule-message', conversation)"
             />
             <Button
@@ -666,7 +682,8 @@ const handleCardClick = event => {
               variant="ghost"
               icon="i-lucide-move"
               :title="t('KANBAN.ITEMS.MOVE')"
-              class="!h-6 !w-6 !p-0 hover:bg-n-teal-3 hover:text-n-teal-11"
+              :aria-label="t('KANBAN.ITEMS.MOVE')"
+              class="kanban-focusable !h-6 !w-6 !p-0 hover:bg-n-teal-3 hover:text-n-teal-11"
               @click="emit('move', item)"
             />
             <Button
@@ -674,7 +691,8 @@ const handleCardClick = event => {
               variant="ghost"
               icon="i-lucide-x"
               :title="t('KANBAN.ITEMS.REMOVE')"
-              class="!h-6 !w-6 !p-0 hover:bg-n-ruby-3 hover:text-n-ruby-11"
+              :aria-label="t('KANBAN.ITEMS.REMOVE')"
+              class="kanban-focusable !h-6 !w-6 !p-0 hover:bg-n-ruby-3 hover:text-n-ruby-11"
               @click="emit('remove', item)"
             />
           </div>
@@ -690,9 +708,9 @@ const handleCardClick = event => {
   border-radius: var(--kanban-card-radius);
   box-shadow: var(--kanban-card-shadow);
   transition:
-    box-shadow 0.2s ease,
-    transform 0.22s var(--kanban-spring, ease),
-    border-color 0.2s ease;
+    box-shadow 0.18s ease,
+    transform 0.18s var(--kanban-spring, ease),
+    border-color 0.18s ease;
 }
 
 .kanban-card:hover {

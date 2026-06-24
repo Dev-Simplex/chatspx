@@ -72,6 +72,8 @@
       "CANNOT_DELETE_DEFAULT": "Cannot delete default stages (Open, In Progress, Resolved)",
       "REORDER": "Reorder Stages",
       "COLLAPSE": "Collapse stage",
+      "EXPAND": "Expand stage",
+      "REORDER_COLUMN": "Reorder column",
       "NO_STAGES": "No stages created yet",
       "NO_STAGES_DESCRIPTION": "Add stages to the funnel to start organizing your conversations",
       "EDIT_FUNNEL_HINT": "Edit the funnel to add your first stage.",

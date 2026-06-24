@@ -2,11 +2,16 @@
    Imported once from KanbanIndex.vue so the variables are global. */
 :root {
   --kanban-card-radius: 0.625rem; /* 10px */
+  /* Phase 6 — radius scale tokens (single source of truth) */
+  --kanban-radius-sm: 6px; /* pills */
+  --kanban-radius-md: 8px; /* buttons, labels */
+  --kanban-radius-lg: 0.625rem; /* 10px — cards */
+  --kanban-radius-xl: 12px; /* columns */
   --kanban-card-shadow:
     0 1px 2px rgba(16, 24, 40, 0.06), 0 1px 3px rgba(16, 24, 40, 0.1);
   --kanban-card-shadow-hover:
     0 6px 16px -4px rgba(16, 24, 40, 0.14),
-    0 2px 6px -2px rgba(16, 24, 40, 0.08);
+    0 2px 6px -2px rgba(16, 24, 40, 0.064);
   --kanban-card-shadow-drag: 0 18px 30px -10px rgba(16, 24, 40, 0.28);
   --kanban-col-width: 304px;
   --kanban-col-gap: 0.75rem;
@@ -31,6 +36,18 @@
   --kanban-heat-cold: 248, 113, 113; /* red-400 */
 }
 
+/* Phase 6 — accessible focus ring for every interactive Kanban element.
+   Keyboard focus only (focus-visible); mouse/touch focus stays clean. */
+.kanban-focusable:focus-visible {
+  outline: 2px solid rgb(var(--n-brand, 29 155 240));
+  outline-offset: 2px;
+  border-radius: inherit;
+}
+
+.kanban-focusable:focus:not(:focus-visible) {
+  outline: none;
+}
+
 /* Drag & drop feedback — global (the dragged clone is appended outside the
    component tree, so scoped styles would not reach it). Single source of truth
    replacing the previously duplicated #2dc46f rules. */
@@ -40,13 +57,19 @@
   border: 2px dashed rgb(var(--kanban-accent));
   border-radius: var(--kanban-card-radius);
   background: rgba(var(--kanban-accent), 0.06);
+  transition:
+    box-shadow 0.15s ease,
+    transform 0.15s var(--kanban-spring, ease);
 }
 
 .kanban-drag,
 .kanban-stage-drag {
   opacity: 0.96;
   box-shadow: var(--kanban-card-shadow-drag);
-  transform: rotate(1.5deg);
+  transform: rotate(0.75deg);
+  transition:
+    box-shadow 0.15s ease,
+    transform 0.15s var(--kanban-spring, ease);
 }
 
 /* Column depth — a soft lift so columns read as surfaces over the board. */
@@ -57,6 +80,13 @@
 
 .dark .kanban-column {
   box-shadow: 0 4px 14px -8px rgba(0, 0, 0, 0.5);
+}
+
+/* Phase 6 — drop-zone highlight: tint the column body while a card hovers. */
+.kanban-column-content:has(.kanban-ghost) {
+  background: rgba(var(--kanban-accent), 0.06);
+  border-radius: var(--kanban-radius-lg);
+  transition: background 0.15s ease;
 }
 
 /* Compact density — hides the message preview and tightens spacing. */
@@ -110,10 +140,18 @@
   animation: kanban-shimmer 1.4s infinite;
 }
 
-@media (prefers-reduced-motion: reduce) {
-  .kanban-skeleton::after {
-    animation: none;
-  }
+/* Phase 6 — dark skeleton: lift base + shimmer so it reads on dark surfaces. */
+.dark .kanban-skeleton {
+  background: rgba(255, 255, 255, 0.04);
+}
+
+.dark .kanban-skeleton::after {
+  background: linear-gradient(
+    90deg,
+    transparent,
+    rgba(255, 255, 255, 0.06),
+    transparent
+  );
 }
 
 /* ── Phase 5: card entry animation ─────────────────────────────────── */
@@ -142,8 +180,23 @@
   animation: none;
 }
 
+/* Phase 6 — single consolidated reduced-motion guard for the whole board. */
 @media (prefers-reduced-motion: reduce) {
   .kanban-card {
     animation: none;
+  }
+
+  .kanban-card:hover,
+  .kanban-card:active {
+    transform: none;
+  }
+
+  .kanban-skeleton::after {
+    animation: none;
+  }
+
+  .kanban-column .transition-all,
+  .kanban-drag {
+    transition: none;
   }
 }

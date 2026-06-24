@@ -16,7 +16,25 @@ const normalizeHex = color => {
   return /^#([0-9a-f]{3}|[0-9a-f]{6})$/i.test(hex) ? hex : FALLBACK;
 };
 
+// Parse "rgb(r,g,b)" / "rgba(r,g,b,a)" into channels, or null if not that form.
+const rgbStringToChannels = value => {
+  if (typeof value !== 'string') return null;
+  const match = value
+    .trim()
+    .match(/^rgba?\(\s*([\d.]+)\s*,\s*([\d.]+)\s*,\s*([\d.]+)/i);
+  if (!match) return null;
+  const clamp = n => Math.min(255, Math.max(0, Math.round(Number(n))));
+  return {
+    r: clamp(match[1]),
+    g: clamp(match[2]),
+    b: clamp(match[3]),
+  };
+};
+
 const hexToRgb = hex => {
+  // Accept rgb()/rgba() strings as-is instead of falling back to the default.
+  const fromRgb = rgbStringToChannels(hex);
+  if (fromRgb) return fromRgb;
   let normalized = normalizeHex(hex).slice(1);
   if (normalized.length === 3) {
     normalized = normalized
