@@ -39,7 +39,7 @@ const emit = defineEmits([
 
 const store = useStore();
 const { t } = useI18n();
-const { accent, softBg } = useStageColor();
+const { accent, softBg, heatLevel } = useStageColor();
 
 const showStageMenu = ref(false);
 const observerLocked = ref(false);
@@ -209,6 +209,27 @@ const pendingScheduledTotal = computed(() => {
     );
   }, 0);
 });
+
+// ── Column summary (aggregations per lane) ───────────────────────────
+const unassignedCount = computed(
+  () =>
+    itemsWithConversations.value.filter(item => {
+      const c = item.conversation || {};
+      return !(c.assigneeId || c.assignee_id || c.meta?.assignee?.id);
+    }).length
+);
+const coldCount = computed(
+  () =>
+    itemsWithConversations.value.filter(item => {
+      const c = item.conversation || {};
+      const lastActivity =
+        c.lastActivityAt ||
+        c.last_activity_at ||
+        c.lastMessage?.created_at ||
+        c.last_message?.created_at;
+      return heatLevel(lastActivity) === 'cold';
+    }).length
+);
 
 const handleEditStage = () => {
   showStageMenu.value = false;
@@ -542,6 +563,22 @@ const handleColumnObserved = async () => {
         class="flex shrink-0 items-center gap-2 border-t border-n-weak px-3 py-1.5 text-[11px] font-medium text-n-slate-10"
       >
         <span>{{ t('KANBAN.FOOTER.CARDS', { count: items.length }) }}</span>
+        <span
+          v-if="unassignedCount"
+          class="flex items-center gap-1 text-n-slate-11"
+          :title="t('KANBAN.FOOTER.UNASSIGNED', { count: unassignedCount })"
+        >
+          <Icon icon="i-lucide-user-x" class="size-3" />
+          {{ unassignedCount }}
+        </span>
+        <span
+          v-if="coldCount"
+          class="flex items-center gap-1 text-n-ruby-11"
+          :title="t('KANBAN.FOOTER.COLD', { count: coldCount })"
+        >
+          <Icon icon="i-lucide-snowflake" class="size-3" />
+          {{ coldCount }}
+        </span>
         <span
           v-if="pendingScheduledTotal"
           class="flex items-center gap-1 text-n-teal-11"

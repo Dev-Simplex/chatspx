@@ -35,7 +35,7 @@ const emit = defineEmits(['move', 'schedule-message', 'remove']);
 const router = useRouter();
 const store = useStore();
 const { t, locale } = useI18n();
-const { softBg, contrastText, heatLevel } = useStageColor();
+const { softBg, contrastText, heatLevel, stageAgeLevel } = useStageColor();
 
 const getContactById = useMapGetter('contacts/getContactById');
 const inboxById = useMapGetter('inboxes/getInboxById');
@@ -301,6 +301,37 @@ const heatPillClass = computed(() =>
     : 'bg-n-amber-3 text-n-amber-11'
 );
 
+// ── Time-in-stage (pipeline signal) — distinct from the idle thermometer ─
+const movedAtRaw = computed(
+  () => props.item?.movedAt || props.item?.moved_at || null
+);
+const movedAtDate = computed(() => {
+  if (!movedAtRaw.value) return null;
+  const value =
+    typeof movedAtRaw.value === 'number'
+      ? movedAtRaw.value * 1000
+      : movedAtRaw.value;
+  const date = new Date(value);
+  return Number.isNaN(date.getTime()) ? null : date;
+});
+const stageTime = computed(() => {
+  if (!movedAtDate.value) return '';
+  return formatDistanceToNowStrict(movedAtDate.value, {
+    addSuffix: false,
+    locale: dateLocale.value,
+  });
+});
+const stageAge = computed(() => stageAgeLevel(movedAtRaw.value));
+const isStuckInStage = computed(() => stageAge.value !== 'fresh');
+const stageAgePillClass = computed(() =>
+  stageAge.value === 'cold'
+    ? 'bg-n-ruby-3 text-n-ruby-11'
+    : 'bg-n-amber-3 text-n-amber-11'
+);
+const stageAgeTitle = computed(() =>
+  t('KANBAN.CARD.STAGE_AGE.LABEL', { time: stageTime.value })
+);
+
 // ── Cover mode (Trello-style) — paints the top with the primary label ─
 const primaryLabel = computed(() => cardLabels.value[0] || null);
 const coverStyle = computed(() => {
@@ -560,6 +591,15 @@ const handleCardClick = event => {
           >
             <Icon :icon="heatIcon" class="size-3" />
             {{ relativeTime }}
+          </span>
+          <span
+            v-if="isStuckInStage"
+            class="flex shrink-0 items-center gap-1 rounded-full px-1.5 py-0.5 text-[11px] font-medium"
+            :class="stageAgePillClass"
+            :title="stageAgeTitle"
+          >
+            <Icon icon="i-lucide-hourglass" class="size-3" />
+            {{ stageTime }}
           </span>
           <span
             v-if="pendingScheduledCount"

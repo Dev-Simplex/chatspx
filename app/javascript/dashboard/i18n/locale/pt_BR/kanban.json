@@ -111,6 +111,9 @@
       "AGING": {
         "WARM": "Parada há {time}",
         "COLD": "Esfriando — sem atividade há {time}"
+      },
+      "STAGE_AGE": {
+        "LABEL": "Neste estágio há {time}"
       }
     },
     "DENSITY": {
@@ -132,7 +135,9 @@
     },
     "FOOTER": {
       "CARDS": "{count} cards",
-      "SCHEDULED": "{count} agendadas"
+      "SCHEDULED": "{count} agendadas",
+      "UNASSIGNED": "{count} sem responsável",
+      "COLD": "{count} parados"
     },
     "SCHEDULED_MESSAGES": {
       "TITLE": "Mensagens Agendadas",

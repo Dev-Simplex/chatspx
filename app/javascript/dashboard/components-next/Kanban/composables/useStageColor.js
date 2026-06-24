@@ -4,6 +4,11 @@ const FALLBACK = '#94a3b8';
 const HEAT_WARM_AFTER_H = 24; // >= 24h idle → warm
 const HEAT_COLD_AFTER_H = 72; // >= 72h idle → cold
 
+// Time-in-stage thresholds (hours since the card entered the current stage).
+// Longer than the idle ones: sitting a couple of days in a stage is normal.
+const STAGE_WARM_AFTER_H = 120; // >= 5 days in stage → warm
+const STAGE_COLD_AFTER_H = 240; // >= 10 days in stage → cold
+
 const toMillis = value => {
   if (value === null || value === undefined || value === '') return null;
   const ms = typeof value === 'number' ? value * 1000 : Date.parse(value);
@@ -69,16 +74,24 @@ export function useStageColor() {
     return luminance > 0.62 ? '#1f2933' : '#ffffff';
   };
 
-  // Card aging level from the last activity timestamp.
+  // Generic age level from a timestamp against warm/cold hour thresholds.
   // Returns 'fresh' | 'warm' | 'cold' (fresh shows no decoration).
-  const heatLevel = lastActivityAt => {
-    const ms = toMillis(lastActivityAt);
+  const ageLevel = (timestamp, warmAfterH, coldAfterH) => {
+    const ms = toMillis(timestamp);
     if (ms === null) return 'fresh';
-    const idleHours = (Date.now() - ms) / 3600000;
-    if (idleHours >= HEAT_COLD_AFTER_H) return 'cold';
-    if (idleHours >= HEAT_WARM_AFTER_H) return 'warm';
+    const hours = (Date.now() - ms) / 3600000;
+    if (hours >= coldAfterH) return 'cold';
+    if (hours >= warmAfterH) return 'warm';
     return 'fresh';
   };
+
+  // Idle signal — time since the conversation's last activity.
+  const heatLevel = lastActivityAt =>
+    ageLevel(lastActivityAt, HEAT_WARM_AFTER_H, HEAT_COLD_AFTER_H);
+
+  // Pipeline signal — time the card has been sitting in its current stage.
+  const stageAgeLevel = movedAt =>
+    ageLevel(movedAt, STAGE_WARM_AFTER_H, STAGE_COLD_AFTER_H);
 
   // Proportional segments for the board-level funnel bar.
   // stages: [{ id, color, name }], countsByStage: { [id]: number }
@@ -105,6 +118,7 @@ export function useStageColor() {
     contrastText,
     normalizeHex,
     heatLevel,
+    stageAgeLevel,
     funnelSegments,
   };
 }

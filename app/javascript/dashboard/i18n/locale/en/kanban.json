@@ -111,6 +111,9 @@
       "AGING": {
         "WARM": "Idle for {time}",
         "COLD": "Stale — no activity for {time}"
+      },
+      "STAGE_AGE": {
+        "LABEL": "In this stage for {time}"
       }
     },
     "DENSITY": {
@@ -132,7 +135,9 @@
     },
     "FOOTER": {
       "CARDS": "{count} cards",
-      "SCHEDULED": "{count} scheduled"
+      "SCHEDULED": "{count} scheduled",
+      "UNASSIGNED": "{count} unassigned",
+      "COLD": "{count} stalled"
     },
     "SCHEDULED_MESSAGES": {
       "TITLE": "Scheduled Messages",
