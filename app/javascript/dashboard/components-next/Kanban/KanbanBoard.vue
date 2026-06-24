@@ -9,6 +9,7 @@ import Dialog from 'dashboard/components-next/dialog/Dialog.vue';
 import StageForm from './StageForm.vue';
 import AddConversationModal from './AddConversationModal.vue';
 import MoveItemModal from './MoveItemModal.vue';
+import ConversationPreviewModal from './ConversationPreviewModal.vue';
 import { useAlert } from 'dashboard/composables';
 import { useStageColor } from './composables/useStageColor';
 
@@ -43,6 +44,13 @@ const selectedStage = ref(null);
 const movingItems = ref(new Set());
 const showMoveModal = ref(false);
 const moveModalItem = ref(null);
+const showPreview = ref(false);
+const previewConversation = ref(null);
+
+const openPreview = conversation => {
+  previewConversation.value = conversation;
+  showPreview.value = true;
+};
 
 watch(
   () => stages.value,
@@ -560,6 +568,7 @@ const handleDeleteStage = stage => {
               @edit-stage="handleEditStage"
               @delete-stage="handleDeleteStage"
               @add-card="handleAddCard"
+              @preview-conversation="openPreview"
             />
           </template>
         </draggable>
@@ -633,6 +642,17 @@ const handleDeleteStage = stage => {
         () => {
           showMoveModal = false;
           moveModalItem = null;
+        }
+      "
+    />
+
+    <ConversationPreviewModal
+      :show="showPreview"
+      :conversation="previewConversation"
+      @close="
+        () => {
+          showPreview = false;
+          previewConversation = null;
         }
       "
     />

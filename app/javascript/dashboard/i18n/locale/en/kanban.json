@@ -105,6 +105,7 @@
     "CARD": {
       "UNASSIGNED": "Unassigned",
       "ADD": "Add card",
+      "PREVIEW": "Preview conversation",
       "LABELS_MORE": "more labels",
       "ASSIGNED_TO": "Assigned to {name}",
       "UNASSIGNED_DONE": "Conversation unassigned",
@@ -116,6 +117,14 @@
       "STAGE_AGE": {
         "LABEL": "In this stage for {time}"
       }
+    },
+    "PREVIEW": {
+      "TITLE": "Conversation preview",
+      "OPEN": "Open conversation",
+      "EMPTY": "No messages to show",
+      "ERROR": "Could not load the conversation",
+      "LOADING": "Loading messages…",
+      "ATTACHMENT": "Attachment"
     },
     "DENSITY": {
       "COMPACT": "Compact view",

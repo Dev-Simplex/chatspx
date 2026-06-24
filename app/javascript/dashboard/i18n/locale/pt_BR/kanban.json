@@ -105,6 +105,7 @@
     "CARD": {
       "UNASSIGNED": "Não atribuído",
       "ADD": "Adicionar card",
+      "PREVIEW": "Pré-visualizar conversa",
       "LABELS_MORE": "mais etiquetas",
       "ASSIGNED_TO": "Atribuído a {name}",
       "UNASSIGNED_DONE": "Conversa desatribuída",
@@ -116,6 +117,14 @@
       "STAGE_AGE": {
         "LABEL": "Neste estágio há {time}"
       }
+    },
+    "PREVIEW": {
+      "TITLE": "Pré-visualização da conversa",
+      "OPEN": "Abrir conversa",
+      "EMPTY": "Sem mensagens para mostrar",
+      "ERROR": "Não foi possível carregar a conversa",
+      "LOADING": "Carregando mensagens…",
+      "ATTACHMENT": "Anexo"
     },
     "DENSITY": {
       "COMPACT": "Visão compacta",

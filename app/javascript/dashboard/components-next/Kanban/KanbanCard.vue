@@ -30,7 +30,7 @@ const props = defineProps({
   },
 });
 
-const emit = defineEmits(['move', 'schedule-message', 'remove']);
+const emit = defineEmits(['move', 'schedule-message', 'remove', 'preview']);
 
 const router = useRouter();
 const store = useStore();
@@ -708,6 +708,15 @@ const handleCardClick = event => {
             class="flex items-center gap-1 opacity-100 transition-opacity duration-200 md:opacity-0 md:group-hover:opacity-100"
             @click.stop
           >
+            <Button
+              size="xs"
+              variant="ghost"
+              icon="i-lucide-eye"
+              :title="t('KANBAN.CARD.PREVIEW')"
+              :aria-label="t('KANBAN.CARD.PREVIEW')"
+              class="kanban-focusable !h-6 !w-6 !p-0 hover:bg-n-slate-3 hover:text-n-slate-12"
+              @click="emit('preview', conversation)"
+            />
             <Button
               size="xs"
               variant="ghost"
