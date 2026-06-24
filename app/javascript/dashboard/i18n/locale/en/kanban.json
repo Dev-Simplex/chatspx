@@ -124,7 +124,12 @@
       "EMPTY": "No messages to show",
       "ERROR": "Could not load the conversation",
       "LOADING": "Loading messages…",
-      "ATTACHMENT": "Attachment"
+      "ATTACHMENT": "Attachment",
+      "REPLY_PLACEHOLDER": "Type a reply…",
+      "SEND": "Send",
+      "SENT": "Message sent",
+      "SEND_ERROR": "Could not send the message",
+      "REPLY_DISABLED": "Replies are not available for this conversation"
     },
     "DENSITY": {
       "COMPACT": "Compact view",

@@ -6,6 +6,7 @@ import { format, isToday } from 'date-fns';
 import { enUS, ptBR } from 'date-fns/locale';
 
 import MessageApi from 'dashboard/api/inbox/message';
+import { useAlert } from 'dashboard/composables';
 import { useMapGetter } from 'dashboard/composables/store';
 import { useTeamIsolation } from 'dashboard/composables/useTeamIsolation';
 import { useAgentIsolation } from 'dashboard/composables/useAgentIsolation';
@@ -43,6 +44,8 @@ const scrollRef = ref(null);
 const messages = ref([]);
 const isLoading = ref(false);
 const hasError = ref(false);
+const replyText = ref('');
+const isSending = ref(false);
 // Token of the in-flight request — lets us discard stale responses when the
 // user jumps from one card to another before the fetch resolves.
 let activeRequestId = null;
@@ -110,6 +113,10 @@ const inbox = computed(() => {
 
 const inboxName = computed(() => inbox.value?.name || '');
 
+// The kanban conversation object usually omits `can_reply`; only disable when
+// the backend explicitly says false (default: replying is enabled).
+const canReply = computed(() => props.conversation?.can_reply !== false);
+
 // ── Message processing ──────────────────────────────────────────────────
 const messageTimestamp = message => {
   const raw = message?.created_at ?? message?.createdAt ?? null;
@@ -148,6 +155,30 @@ const scrollToBottom = () => {
     const el = scrollRef.value;
     if (el) el.scrollTop = el.scrollHeight;
   });
+};
+
+const sendReply = async () => {
+  const content = replyText.value.trim();
+  if (!content || !displayId.value || isSending.value) return;
+
+  isSending.value = true;
+  try {
+    const { data } = await MessageApi.create({
+      conversationId: displayId.value,
+      message: content,
+      private: false,
+    });
+    // Append to the local list so the new message shows on the right
+    // (OUTGOING) at the bottom, matching the fetch render contract.
+    messages.value.push(data);
+    replyText.value = '';
+    scrollToBottom();
+    useAlert(t('KANBAN.PREVIEW.SENT'));
+  } catch (error) {
+    useAlert(error?.response?.data?.error || t('KANBAN.PREVIEW.SEND_ERROR'));
+  } finally {
+    isSending.value = false;
+  }
 };
 
 const fetchMessages = async () => {
@@ -204,6 +235,8 @@ const resetState = () => {
   messages.value = [];
   isLoading.value = false;
   hasError.value = false;
+  replyText.value = '';
+  isSending.value = false;
 };
 
 const close = () => {
@@ -339,6 +372,37 @@ watch(
           </div>
         </div>
       </template>
+    </div>
+
+    <!-- Reply composer -->
+    <div class="kanban-preview__composer mt-3 flex flex-col gap-2">
+      <p
+        v-if="!canReply"
+        class="m-0 flex items-center gap-1 text-xs text-n-slate-10"
+      >
+        <Icon icon="i-lucide-info" class="size-3 shrink-0" />
+        {{ t('KANBAN.PREVIEW.REPLY_DISABLED') }}
+      </p>
+      <div class="flex items-end gap-2">
+        <textarea
+          v-model="replyText"
+          :disabled="!canReply || isSending"
+          :placeholder="t('KANBAN.PREVIEW.REPLY_PLACEHOLDER')"
+          rows="2"
+          class="kanban-preview__textarea min-w-0 flex-1 resize-none rounded-lg border border-n-weak bg-n-alpha-1 px-3 py-2 text-[13px] leading-snug text-n-slate-12 outline-none focus:border-n-brand disabled:opacity-60"
+          @keydown.enter.ctrl.exact.prevent="sendReply"
+          @keydown.enter.meta.exact.prevent="sendReply"
+        />
+        <Button
+          color="blue"
+          type="button"
+          icon="i-lucide-send"
+          :label="t('KANBAN.PREVIEW.SEND')"
+          :is-loading="isSending"
+          :disabled="!canReply || !replyText.trim() || isSending"
+          @click="sendReply"
+        />
+      </div>
     </div>
 
     <template #footer>

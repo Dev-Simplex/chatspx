@@ -96,6 +96,7 @@ class ActionCableConnector extends BaseActionCableConnector {
       this.app.$store.dispatch('updateConversation', payload);
     }
     this.fetchConversationStats();
+    this.app.$store.dispatch('kanban/syncConversationFromRealtime', payload);
   };
 
   onConversationCreated = data => {
@@ -123,6 +124,7 @@ class ActionCableConnector extends BaseActionCableConnector {
       lastActivityAt,
       conversationId,
     });
+    this.app.$store.dispatch('kanban/syncConversationFromRealtime', data);
   };
 
   // eslint-disable-next-line class-methods-use-this
@@ -131,11 +133,13 @@ class ActionCableConnector extends BaseActionCableConnector {
   onStatusChange = data => {
     this.app.$store.dispatch('updateConversation', data);
     this.fetchConversationStats();
+    this.app.$store.dispatch('kanban/syncConversationFromRealtime', data);
   };
 
   onConversationUpdated = data => {
     this.app.$store.dispatch('updateConversation', data);
     this.fetchConversationStats();
+    this.app.$store.dispatch('kanban/syncConversationFromRealtime', data);
   };
 
   onTypingOn = ({ conversation, user }) => {

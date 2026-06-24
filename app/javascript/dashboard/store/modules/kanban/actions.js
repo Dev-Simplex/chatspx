@@ -488,6 +488,87 @@ export const actions = {
     commit(types.DELETE_FUNNEL_ITEM, itemId);
   },
 
+  // Bridges the central websocket events to the kanban store so cards reflect
+  // status/assignee/priority/labels/new-message changes in real time without a
+  // full reload. Self-protecting: bails out cheaply when the board is inactive
+  // or the payload is unusable, and never touches stage placement (the realtime
+  // conversation payload carries no funnel_stage_id).
+  syncConversationFromRealtime({ state, commit }, data) {
+    try {
+      if (!state?.activeFunnelId) return;
+      if (!data || typeof data !== 'object') return;
+
+      const displayId = data?.conversation_id ?? data?.id;
+      if (displayId == null || displayId === '') return;
+
+      const patch = {};
+
+      // message.created carries the message itself, not a conversation object.
+      const isMessageCreated =
+        data?.message_type !== undefined &&
+        (data?.content !== undefined || data?.created_at !== undefined);
+
+      if (data?.status !== undefined) {
+        patch.status = data.status;
+      }
+
+      const hasAssignee =
+        data?.assignee_id !== undefined ||
+        data?.meta?.assignee !== undefined ||
+        data?.meta?.assignee?.id !== undefined;
+      if (hasAssignee) {
+        patch.assigneeId =
+          data?.assignee_id ?? data?.meta?.assignee?.id ?? null;
+        if (data?.meta?.assignee !== undefined) {
+          patch.meta = {
+            ...(data?.meta || {}),
+            assignee: data?.meta?.assignee ?? null,
+          };
+        }
+      }
+
+      if (data?.priority !== undefined) {
+        patch.priority = data.priority;
+      }
+
+      if (data?.labels !== undefined) {
+        patch.labels = data.labels;
+      }
+
+      let bumpRecency = false;
+
+      if (isMessageCreated) {
+        const lastActivityAt =
+          data?.conversation?.last_activity_at ?? data?.created_at;
+        if (lastActivityAt !== undefined && lastActivityAt !== null) {
+          patch.lastActivityAt = lastActivityAt;
+        }
+        if (data?.content !== undefined || data?.created_at !== undefined) {
+          patch.lastMessage = {
+            content: data?.content,
+            created_at: data?.created_at,
+          };
+        }
+        bumpRecency = true;
+      } else if (data?.last_activity_at !== undefined) {
+        patch.lastActivityAt = data.last_activity_at;
+      }
+
+      if (Object.keys(patch).length === 0) return;
+
+      commit(types.UPDATE_ITEM_CONVERSATION, {
+        displayId,
+        // For message.created, data.id is the MESSAGE id (not a conversation
+        // id) — don't let the numeric fallback match an unrelated card.
+        id: isMessageCreated ? null : data?.id,
+        patch,
+        bumpRecency,
+      });
+    } catch (error) {
+      // Realtime sync is best-effort; never let it break websocket handling.
+    }
+  },
+
   async bulkMoveItems({ dispatch }, { funnelId, conversationIds, stageId }) {
     await KanbanAPI.bulkMoveItems(funnelId, conversationIds, stageId);
     await dispatch('bootstrapFunnel', {

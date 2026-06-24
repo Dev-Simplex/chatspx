@@ -417,6 +417,78 @@ export const mutations = {
     assignItemToStage($state, item);
   },
 
+  [types.UPDATE_ITEM_CONVERSATION](
+    $state,
+    { displayId, id, patch, bumpRecency }
+  ) {
+    if (!patch || typeof patch !== 'object') return;
+
+    const targetDisplay = displayId != null ? String(displayId) : null;
+    const targetId = id != null ? String(id) : null;
+
+    let matchedItemId = null;
+    const itemMatches = item => {
+      const conv = item?.conversation;
+      if (!conv) return false;
+      const convDisplay = String(
+        conv?.displayId ??
+          conv?.display_id ??
+          item?.conversationId ??
+          conv?.id ??
+          ''
+      );
+      if (targetDisplay && convDisplay === targetDisplay) return true;
+      // Fallback by numeric conversation id when displayId did not match.
+      if (targetId) {
+        const convId = String(conv?.id ?? item?.conversationId ?? '');
+        if (convId && convId === targetId) return true;
+      }
+      return false;
+    };
+
+    const funnelItems = $state.funnelItems || {};
+    const itemIds = Object.keys(funnelItems);
+    for (let i = 0; i < itemIds.length; i += 1) {
+      const itemId = itemIds[i];
+      if (itemMatches(funnelItems[itemId])) {
+        matchedItemId = itemId;
+        break;
+      }
+    }
+
+    if (matchedItemId == null) return;
+
+    const targetItem = $state.funnelItems[matchedItemId];
+    if (!targetItem || !targetItem.conversation) return;
+
+    // Merge the patch in place, preserving the rest of the conversation.
+    targetItem.conversation = {
+      ...targetItem.conversation,
+      ...patch,
+    };
+
+    if (!bumpRecency) return;
+
+    // Re-sort only the stage(s) that hold this item by recency.
+    Object.keys($state.stageItems || {}).forEach(stageKey => {
+      if (($state.stageItems[stageKey] || []).includes(matchedItemId)) {
+        if (typeof sortStageByRecency === 'function') {
+          sortStageByRecency($state, stageKey);
+        } else {
+          $state.stageItems[stageKey].sort((itemIdA, itemIdB) => {
+            const a = new Date(
+              $state.funnelItems[itemIdA]?.conversation?.lastActivityAt || 0
+            ).getTime();
+            const b = new Date(
+              $state.funnelItems[itemIdB]?.conversation?.lastActivityAt || 0
+            ).getTime();
+            return b - a;
+          });
+        }
+      }
+    });
+  },
+
   [types.DELETE_FUNNEL_ITEM]($state, itemId) {
     removeItemFromAllStageIndexes($state, itemId);
     delete $state.funnelItems[itemId];
