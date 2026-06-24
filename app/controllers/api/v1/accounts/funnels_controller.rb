@@ -41,7 +41,7 @@ class Api::V1::Accounts::FunnelsController < Api::V1::Accounts::BaseController
   end
 
   def funnel_params
-    params.require(:funnel).permit(:name, :position, :color, :team_id, inbox_ids: [])
+    params.require(:funnel).permit(:name, :position, :color, :team_id, inbox_ids: [], settings: [:deadline_mode, :default_view])
   end
 
   def check_authorization

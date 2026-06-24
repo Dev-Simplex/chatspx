@@ -20,6 +20,10 @@ class Funnel < ApplicationRecord
   has_many :funnel_stages, dependent: :destroy
   has_many :funnel_items, dependent: :destroy
 
+  # Kanban v2 (Fase 1): funnel-level config persisted in the `settings` jsonb
+  # (e.g. default view, deadline_mode toggle). JSONB default {} — additive.
+  store_accessor :settings, :deadline_mode, :default_view, :card_field_visibility
+
   validates :name, presence: true
   validates :name, length: { minimum: 1 }, allow_blank: false
   validates :account_id, presence: true

@@ -116,6 +116,12 @@
       },
       "STAGE_AGE": {
         "LABEL": "Neste estágio há {time}"
+      },
+      "SLA": {
+        "RISK": "SLA em risco",
+        "BREACH": "SLA estourado",
+        "RISK_TITLE": "Perto de estourar o SLA de {hours}h do estágio",
+        "BREACH_TITLE": "SLA de {hours}h do estágio estourado"
       }
     },
     "PREVIEW": {
@@ -152,7 +158,8 @@
       "CARDS": "{count} cards",
       "SCHEDULED": "{count} agendadas",
       "UNASSIGNED": "{count} sem responsável",
-      "COLD": "{count} parados"
+      "COLD": "{count} parados",
+      "OVERDUE": "SLA estourado em {count} card | SLA estourado em {count} cards"
     },
     "SCHEDULED_MESSAGES": {
       "TITLE": "Mensagens Agendadas",
@@ -288,6 +295,10 @@
       "PENDING": "Pendente",
       "RESOLVED": "Resolvido",
       "SNOOZED": "Adiado"
+    },
+    "SLA": {
+      "SET": "Definir SLA do estágio (horas)",
+      "PROMPT": "Horas que um card pode ficar neste estágio antes de atrasar (deixe vazio para remover):"
     }
   }
 }

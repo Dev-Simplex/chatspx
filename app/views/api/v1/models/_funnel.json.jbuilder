@@ -5,5 +5,6 @@ json.team_id resource.team_id
 json.position resource.position
 json.color resource.color
 json.inbox_ids resource.inbox_ids || []
+json.settings resource.settings || {}
 json.created_at resource.created_at
 json.updated_at resource.updated_at

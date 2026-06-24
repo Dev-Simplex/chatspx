@@ -93,6 +93,30 @@ export function useStageColor() {
   const stageAgeLevel = movedAt =>
     ageLevel(movedAt, STAGE_WARM_AFTER_H, STAGE_COLD_AFTER_H);
 
+  // SLA signal — time-in-stage measured against a per-stage budget (hours).
+  // Returns 'none' (no SLA configured) | 'ok' | 'risk' (>=80% of budget) |
+  // 'breach' (budget exceeded). Drives conditional card coloring.
+  const SLA_RISK_RATIO = 0.8;
+  const slaLevel = (movedAt, slaHours) => {
+    const budget = Number(slaHours);
+    if (!Number.isFinite(budget) || budget <= 0) return 'none';
+    const ms = toMillis(movedAt);
+    if (ms === null) return 'none';
+    const elapsedH = (Date.now() - ms) / 3600000;
+    if (elapsedH >= budget) return 'breach';
+    if (elapsedH >= budget * SLA_RISK_RATIO) return 'risk';
+    return 'ok';
+  };
+
+  // Fraction of the SLA budget consumed (0..>1), for progress bars/tooltips.
+  const slaProgress = (movedAt, slaHours) => {
+    const budget = Number(slaHours);
+    const ms = toMillis(movedAt);
+    if (!Number.isFinite(budget) || budget <= 0 || ms === null) return 0;
+    const elapsedH = (Date.now() - ms) / 3600000;
+    return elapsedH / budget;
+  };
+
   // Proportional segments for the board-level funnel bar.
   // stages: [{ id, color, name }], countsByStage: { [id]: number }
   // Returns [{ id, name, color, count, pct }] (pct sums to ~100).
@@ -119,6 +143,8 @@ export function useStageColor() {
     normalizeHex,
     heatLevel,
     stageAgeLevel,
+    slaLevel,
+    slaProgress,
     funnelSegments,
   };
 }

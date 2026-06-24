@@ -116,6 +116,12 @@
       },
       "STAGE_AGE": {
         "LABEL": "In this stage for {time}"
+      },
+      "SLA": {
+        "RISK": "SLA at risk",
+        "BREACH": "SLA breached",
+        "RISK_TITLE": "Approaching the {hours}h stage SLA",
+        "BREACH_TITLE": "Past the {hours}h stage SLA"
       }
     },
     "PREVIEW": {
@@ -152,7 +158,8 @@
       "CARDS": "{count} cards",
       "SCHEDULED": "{count} scheduled",
       "UNASSIGNED": "{count} unassigned",
-      "COLD": "{count} stalled"
+      "COLD": "{count} stalled",
+      "OVERDUE": "SLA breached for {count} card | SLA breached for {count} cards"
     },
     "SCHEDULED_MESSAGES": {
       "TITLE": "Scheduled Messages",
@@ -288,6 +295,10 @@
       "PENDING": "Pending",
       "RESOLVED": "Resolved",
       "SNOOZED": "Snoozed"
+    },
+    "SLA": {
+      "SET": "Set stage SLA (hours)",
+      "PROMPT": "Hours a card may sit in this stage before it's late (leave blank to clear):"
     }
   }
 }

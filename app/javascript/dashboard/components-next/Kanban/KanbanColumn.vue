@@ -1,5 +1,5 @@
 <script setup>
-import { computed, ref } from 'vue';
+import { computed, ref, watch } from 'vue';
 import { useStore } from 'vuex';
 import { useI18n } from 'vue-i18n';
 import draggable from 'vuedraggable';
@@ -40,7 +40,7 @@ const emit = defineEmits([
 
 const store = useStore();
 const { t } = useI18n();
-const { accent, softBg, heatLevel } = useStageColor();
+const { accent, softBg, heatLevel, slaLevel } = useStageColor();
 
 const showStageMenu = ref(false);
 const observerLocked = ref(false);
@@ -59,7 +59,10 @@ const columnWash = computed(() => softBg(props.stage?.color, 0.05));
 
 const cardCount = computed(() => props.items.length);
 
-// ── WIP soft limit (per-stage, persisted in localStorage) ────────────
+// ── WIP limit (per-stage, persisted in funnel_stage.settings) ─────────
+// Source of truth is the backend `settings.wip_limit`. The old localStorage
+// map is kept only as a soft-migration fallback: stages configured before
+// persistence keep their limit and get pushed to the DB on the next edit.
 const WIP_KEY = 'kanban:wip';
 const readWipMap = () => {
   try {
@@ -68,30 +71,91 @@ const readWipMap = () => {
     return {};
   }
 };
-const wipLimit = ref(readWipMap()[String(props.stage?.id)] ?? null);
-const setWipLimit = () => {
+const coerceWip = raw => {
+  const n = Number(raw);
+  return Number.isFinite(n) && n >= 1 ? Math.floor(n) : null;
+};
+const persistedWip = computed(() =>
+  coerceWip(props.stage?.settings?.wip_limit)
+);
+
+// Per-stage SLA budget (hours-in-stage) → drives conditional card coloring.
+const stageSlaHours = computed(() => {
+  const n = Number(props.stage?.settings?.sla_hours);
+  return Number.isFinite(n) && n > 0 ? n : null;
+});
+const wipLimit = ref(
+  persistedWip.value ?? readWipMap()[String(props.stage?.id)] ?? null
+);
+// Reflect server-side changes (save, reload, real-time) into the local view.
+watch(persistedWip, val => {
+  if (val !== null) wipLimit.value = val;
+});
+
+const dropLegacyWip = () => {
+  const map = readWipMap();
+  if (map[String(props.stage?.id)] === undefined) return;
+  delete map[String(props.stage?.id)];
+  try {
+    localStorage.setItem(WIP_KEY, JSON.stringify(map));
+  } catch (_) {
+    // best effort
+  }
+};
+
+const setWipLimit = async () => {
   showStageMenu.value = false;
   const input = window.prompt(
     t('KANBAN.WIP.PROMPT'),
     wipLimit.value ? String(wipLimit.value) : ''
   );
   if (input === null) return; // cancelled
-  const map = readWipMap();
-  const key = String(props.stage?.id);
   const trimmed = input.trim();
-  if (trimmed === '') {
-    delete map[key];
-    wipLimit.value = null;
-  } else {
+  let next = null;
+  if (trimmed !== '') {
     const n = Math.max(1, Math.floor(Number(trimmed)));
     if (!Number.isFinite(n) || n < 1) return;
-    map[key] = n;
-    wipLimit.value = n;
+    next = n;
+  }
+  const previous = wipLimit.value;
+  wipLimit.value = next; // optimistic
+  try {
+    await store.dispatch('kanban/updateStage', {
+      funnelId: props.funnelId,
+      stageId: props.stage?.id,
+      // Send the full settings object so we don't clobber sibling keys (sla_hours).
+      data: { settings: { ...(props.stage?.settings || {}), wip_limit: next } },
+    });
+    dropLegacyWip();
+  } catch (_) {
+    wipLimit.value = previous; // revert on failure
+  }
+};
+
+// Per-stage SLA budget (hours-in-stage) — persisted in settings.sla_hours.
+const setSlaHours = async () => {
+  showStageMenu.value = false;
+  const current = stageSlaHours.value;
+  const input = window.prompt(
+    t('KANBAN.SLA.PROMPT'),
+    current ? String(current) : ''
+  );
+  if (input === null) return; // cancelled
+  const trimmed = input.trim();
+  let next = null;
+  if (trimmed !== '') {
+    const n = Math.max(1, Math.floor(Number(trimmed)));
+    if (!Number.isFinite(n) || n < 1) return;
+    next = n;
   }
   try {
-    localStorage.setItem(WIP_KEY, JSON.stringify(map));
+    await store.dispatch('kanban/updateStage', {
+      funnelId: props.funnelId,
+      stageId: props.stage?.id,
+      data: { settings: { ...(props.stage?.settings || {}), sla_hours: next } },
+    });
   } catch (_) {
-    // best effort
+    // best effort; the stage prop stays the source of truth
   }
 };
 const wipState = computed(() => {
@@ -231,6 +295,15 @@ const coldCount = computed(
       return heatLevel(lastActivity) === 'cold';
     }).length
 );
+
+// Deadline Mode: cards past the stage SLA budget (only when an SLA is set).
+const overdueCount = computed(() => {
+  if (!stageSlaHours.value) return 0;
+  return itemsWithConversations.value.filter(
+    item =>
+      slaLevel(item.movedAt || item.moved_at, stageSlaHours.value) === 'breach'
+  ).length;
+});
 
 const handleEditStage = () => {
   showStageMenu.value = false;
@@ -428,6 +501,13 @@ const handleColumnObserved = async () => {
                 </button>
                 <button
                   class="flex w-full items-center gap-2 px-4 py-2 text-left text-sm text-n-slate-11 transition-colors hover:bg-n-solid-3"
+                  @click="setSlaHours"
+                >
+                  <Icon icon="i-lucide-timer" class="size-4" />
+                  {{ t('KANBAN.SLA.SET') }}
+                </button>
+                <button
+                  class="flex w-full items-center gap-2 px-4 py-2 text-left text-sm text-n-slate-11 transition-colors hover:bg-n-solid-3"
                   @click="handleEditStage"
                 >
                   <Icon icon="i-lucide-edit" class="size-4" />
@@ -489,6 +569,8 @@ const handleColumnObserved = async () => {
           <KanbanCard
             :item="item"
             :conversation="item.conversation || {}"
+            :stage-color="stage.color"
+            :sla-hours="stageSlaHours"
             @move="emit('moveItem', { item })"
             @schedule-message="emit('scheduleMessage', $event)"
             @remove="emit('removeItem', item)"
@@ -580,6 +662,14 @@ const handleColumnObserved = async () => {
         >
           <Icon icon="i-lucide-snowflake" class="size-3" />
           {{ coldCount }}
+        </span>
+        <span
+          v-if="overdueCount"
+          class="flex items-center gap-1 font-semibold text-n-ruby-11"
+          :title="t('KANBAN.FOOTER.OVERDUE', { count: overdueCount })"
+        >
+          <Icon icon="i-lucide-gauge" class="size-3" />
+          {{ overdueCount }}
         </span>
         <span
           v-if="pendingScheduledTotal"

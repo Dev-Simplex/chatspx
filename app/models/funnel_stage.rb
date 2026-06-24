@@ -17,6 +17,13 @@ class FunnelStage < ApplicationRecord
   belongs_to :funnel
   has_many :funnel_items, dependent: :destroy
 
+  # Kanban v2 (Fase 1): per-stage config persisted in the `settings` jsonb.
+  #   wip_limit        -> integer cap of cards shown in the column (nil = no limit)
+  #   sla_hours        -> hours-in-stage budget; drives conditional card coloring
+  #   color_rules      -> reserved for richer conditional coloring rules
+  #   stage_permissions-> reserved for Fase 4 per-stage permissions
+  store_accessor :settings, :wip_limit, :sla_hours, :color_rules, :stage_permissions
+
   validates :name, presence: true
   validates :name, length: { minimum: 1 }, allow_blank: false
   validates :funnel_id, presence: true

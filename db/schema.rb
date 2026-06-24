@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[7.1].define(version: 2026_06_16_120100) do
+ActiveRecord::Schema[7.1].define(version: 2026_06_24_120000) do
   # These extensions should be enabled to support this database
   enable_extension "pg_stat_statements"
   enable_extension "pg_trgm"
@@ -976,6 +976,7 @@ ActiveRecord::Schema[7.1].define(version: 2026_06_16_120100) do
     t.datetime "created_at", null: false
     t.datetime "updated_at", null: false
     t.string "automation_type"
+    t.jsonb "settings", default: {}, null: false
     t.index ["automation_type"], name: "index_funnel_stages_on_automation_type"
     t.index ["funnel_id"], name: "index_funnel_stages_on_funnel_id"
   end
@@ -989,6 +990,7 @@ ActiveRecord::Schema[7.1].define(version: 2026_06_16_120100) do
     t.datetime "updated_at", null: false
     t.bigint "team_id"
     t.jsonb "inbox_ids", default: [], null: false
+    t.jsonb "settings", default: {}, null: false
     t.index ["account_id"], name: "index_funnels_on_account_id"
     t.index ["inbox_ids"], name: "index_funnels_on_inbox_ids", using: :gin
     t.index ["team_id"], name: "index_funnels_on_team_id"

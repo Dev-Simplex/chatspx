@@ -28,6 +28,11 @@ const props = defineProps({
     type: String,
     default: '#94a3b8',
   },
+  // Per-stage SLA budget in hours-in-stage (null = no SLA on this stage).
+  slaHours: {
+    type: Number,
+    default: null,
+  },
 });
 
 const emit = defineEmits(['move', 'schedule-message', 'remove', 'preview']);
@@ -35,7 +40,8 @@ const emit = defineEmits(['move', 'schedule-message', 'remove', 'preview']);
 const router = useRouter();
 const store = useStore();
 const { t, locale } = useI18n();
-const { softBg, contrastText, heatLevel, stageAgeLevel } = useStageColor();
+const { softBg, contrastText, heatLevel, stageAgeLevel, slaLevel } =
+  useStageColor();
 
 const getContactById = useMapGetter('contacts/getContactById');
 const inboxById = useMapGetter('inboxes/getInboxById');
@@ -332,6 +338,34 @@ const stageAgeTitle = computed(() =>
   t('KANBAN.CARD.STAGE_AGE.LABEL', { time: stageTime.value })
 );
 
+// ── SLA (conditional coloring) — green/amber/red by time-in-stage budget ─
+// 'none' (no SLA on the stage) | 'ok' | 'risk' (>=80%) | 'breach' (over).
+const sla = computed(() => slaLevel(movedAtRaw.value, props.slaHours));
+const hasSlaSignal = computed(
+  () => sla.value === 'risk' || sla.value === 'breach'
+);
+const slaPillClass = computed(() =>
+  sla.value === 'breach'
+    ? 'bg-n-ruby-3 text-n-ruby-11'
+    : 'bg-n-amber-3 text-n-amber-11'
+);
+const slaPillLabel = computed(() =>
+  sla.value === 'breach'
+    ? t('KANBAN.CARD.SLA.BREACH')
+    : t('KANBAN.CARD.SLA.RISK')
+);
+const slaTitle = computed(() =>
+  sla.value === 'breach'
+    ? t('KANBAN.CARD.SLA.BREACH_TITLE', { hours: props.slaHours })
+    : t('KANBAN.CARD.SLA.RISK_TITLE', { hours: props.slaHours })
+);
+// Left rail that paints the card edge by SLA state (the board "shouts" lateness).
+const slaRailColor = computed(() => {
+  if (sla.value === 'breach') return 'rgb(var(--kanban-heat-cold))';
+  if (sla.value === 'risk') return 'rgb(var(--kanban-heat-warm))';
+  return '';
+});
+
 // ── Cover mode (Trello-style) — paints the top with the primary label ─
 const primaryLabel = computed(() => cardLabels.value[0] || null);
 const coverStyle = computed(() => {
@@ -457,9 +491,16 @@ const handleCardClick = event => {
     @click="handleCardClick"
     @mousedown="handleMouseDown"
   >
+    <!-- SLA rail (risk/breach) — takes precedence over the idle heat rail -->
+    <div
+      v-if="hasSlaSignal"
+      class="kanban-card__heat kanban-card__sla-rail"
+      :style="{ background: slaRailColor }"
+      :title="slaTitle"
+    />
     <!-- Aging heat rail (warm/cold) — left edge -->
     <div
-      v-if="isAging"
+      v-else-if="isAging"
       class="kanban-card__heat"
       :style="{ background: `rgb(${heatVar})` }"
       :title="heatTitle"
@@ -600,6 +641,15 @@ const handleCardClick = event => {
           >
             <Icon icon="i-lucide-hourglass" class="size-3" />
             {{ stageTime }}
+          </span>
+          <span
+            v-if="hasSlaSignal"
+            class="flex shrink-0 items-center gap-1 rounded-full px-1.5 py-0.5 text-[11px] font-medium"
+            :class="slaPillClass"
+            :title="slaTitle"
+          >
+            <Icon icon="i-lucide-gauge" class="size-3" />
+            {{ slaPillLabel }}
           </span>
           <span
             v-if="pendingScheduledCount"
@@ -782,6 +832,11 @@ const handleCardClick = event => {
   width: 3px;
   z-index: 2;
   pointer-events: none;
+}
+
+/* SLA rail is a touch bolder than the idle heat rail — it's an action signal */
+.kanban-card__sla-rail {
+  width: 4px;
 }
 
 /* Cover (Trello-style) — hidden unless the board is in cover mode */
