@@ -8,6 +8,7 @@ import Icon from 'dashboard/components-next/icon/Icon.vue';
 import Dialog from 'dashboard/components-next/dialog/Dialog.vue';
 import StageForm from './StageForm.vue';
 import AddConversationModal from './AddConversationModal.vue';
+import MoveItemModal from './MoveItemModal.vue';
 import { useAlert } from 'dashboard/composables';
 import { useStageColor } from './composables/useStageColor';
 
@@ -40,6 +41,8 @@ const localStages = ref([]);
 const showStageForm = ref(false);
 const selectedStage = ref(null);
 const movingItems = ref(new Set());
+const showMoveModal = ref(false);
+const moveModalItem = ref(null);
 
 watch(
   () => stages.value,
@@ -263,6 +266,14 @@ const scrollToStage = stageId => {
 };
 
 const handleMoveItem = async ({ item, stageId }) => {
+  // The card "move" button emits without a target stage → open the stage
+  // picker modal (the drag&drop path always provides stageId and moves directly).
+  if (!stageId) {
+    moveModalItem.value = item;
+    showMoveModal.value = true;
+    return;
+  }
+
   const itemId = Number(item?.id);
   const currentStageId = Number(item.funnelStageId || item.funnel_stage_id);
   const newStageId = Number(stageId);
@@ -350,7 +361,7 @@ const performRemoveItem = async item => {
     });
     emit('removeItem', item);
   } catch (_) {
-    useAlert(t('KANBAN.ITEMS.MOVE_ERROR'));
+    useAlert(t('KANBAN.ITEMS.REMOVE_ERROR'));
   }
 };
 
@@ -606,6 +617,24 @@ const handleDeleteStage = stage => {
         }
       "
       @added="handleConversationAdded"
+    />
+
+    <MoveItemModal
+      :show="showMoveModal"
+      :item="moveModalItem"
+      :funnel-id="funnelId"
+      @close="
+        () => {
+          showMoveModal = false;
+          moveModalItem = null;
+        }
+      "
+      @moved="
+        () => {
+          showMoveModal = false;
+          moveModalItem = null;
+        }
+      "
     />
 
     <Dialog

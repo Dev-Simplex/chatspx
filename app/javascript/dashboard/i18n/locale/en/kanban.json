@@ -92,6 +92,7 @@
       "CONFIRM_REMOVE": "Are you sure you want to remove this conversation from the funnel?",
       "STAGE_REQUIRED": "Select a stage",
       "MOVE_ERROR": "Error moving conversation",
+      "REMOVE_ERROR": "Error removing conversation from funnel",
       "LOAD_STAGE": "Load stage",
       "LOAD_RESOLVED": "Load resolved stage",
       "ADD_SEARCH_PLACEHOLDER": "Search conversation by contact, phone or message",

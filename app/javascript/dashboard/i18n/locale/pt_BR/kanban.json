@@ -92,6 +92,7 @@
       "CONFIRM_REMOVE": "Tem certeza que deseja remover esta conversa do funil?",
       "STAGE_REQUIRED": "Selecione uma etapa",
       "MOVE_ERROR": "Erro ao mover conversa",
+      "REMOVE_ERROR": "Erro ao remover conversa do funil",
       "LOAD_STAGE": "Carregar etapa",
       "LOAD_RESOLVED": "Carregar etapa resolvida",
       "ADD_SEARCH_PLACEHOLDER": "Buscar conversa por contato, telefone ou mensagem",
