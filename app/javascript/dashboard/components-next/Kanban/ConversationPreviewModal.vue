@@ -7,6 +7,7 @@ import { enUS, ptBR } from 'date-fns/locale';
 
 import { useStore } from 'vuex';
 import MessageApi from 'dashboard/api/inbox/message';
+import KanbanAPI from 'dashboard/api/kanban';
 import { useAlert } from 'dashboard/composables';
 import { useMapGetter } from 'dashboard/composables/store';
 import {
@@ -187,6 +188,73 @@ const commitField = async field => {
   } finally {
     savingFieldKey.value = null;
   }
+};
+
+// ── Internal notes (Fase 4): the card's memory / shift handoff ──────────
+const currentUserId = useMapGetter('getCurrentUserID');
+const notes = ref([]);
+const noteDraft = ref('');
+const notesLoading = ref(false);
+const noteSaving = ref(false);
+
+const loadNotes = async () => {
+  notes.value = [];
+  if (!funnelItemId.value || !activeFunnelId.value) return;
+  notesLoading.value = true;
+  try {
+    const { data } = await KanbanAPI.getItemNotes(
+      activeFunnelId.value,
+      funnelItemId.value
+    );
+    notes.value = Array.isArray(data) ? data : [];
+  } catch (_) {
+    // best effort
+  } finally {
+    notesLoading.value = false;
+  }
+};
+watch([() => props.conversation, funnelItemId], loadNotes, { immediate: true });
+
+const addNote = async () => {
+  const content = noteDraft.value.trim();
+  if (!content || !funnelItemId.value || noteSaving.value) return;
+  noteSaving.value = true;
+  try {
+    const { data } = await KanbanAPI.createItemNote(
+      activeFunnelId.value,
+      funnelItemId.value,
+      content
+    );
+    notes.value = [data, ...notes.value];
+    noteDraft.value = '';
+  } catch (_) {
+    useAlert(t('KANBAN.NOTES.SAVE_ERROR'));
+  } finally {
+    noteSaving.value = false;
+  }
+};
+
+const removeNote = async note => {
+  try {
+    await KanbanAPI.deleteItemNote(
+      activeFunnelId.value,
+      funnelItemId.value,
+      note.id
+    );
+    notes.value = notes.value.filter(n => n.id !== note.id);
+  } catch (_) {
+    useAlert(t('KANBAN.NOTES.SAVE_ERROR'));
+  }
+};
+
+const canDeleteNote = note =>
+  Number(note.user_id) === Number(currentUserId.value);
+
+const noteTime = note => {
+  const date = new Date(note.created_at);
+  if (Number.isNaN(date.getTime())) return '';
+  const pattern = isToday(date) ? 'HH:mm' : 'dd MMM HH:mm';
+  return format(date, pattern, { locale: dateLocale.value });
 };
 
 // ── Message processing ──────────────────────────────────────────────────
@@ -449,6 +517,68 @@ watch(
           @keyup.enter="commitField(field)"
         />
       </div>
+    </div>
+
+    <!-- Internal notes (Fase 4): card memory / shift handoff -->
+    <div v-if="funnelItemId" class="mt-3">
+      <div class="mb-1 flex items-center gap-1.5">
+        <Icon icon="i-lucide-sticky-note" class="size-3.5 text-n-slate-10" />
+        <span
+          class="text-[11px] font-semibold uppercase tracking-wide text-n-slate-10"
+        >
+          {{ t('KANBAN.NOTES.TITLE') }}
+        </span>
+      </div>
+      <div class="flex items-center gap-2">
+        <input
+          v-model="noteDraft"
+          type="text"
+          class="kanban-cf-input flex-1"
+          :placeholder="t('KANBAN.NOTES.PLACEHOLDER')"
+          :disabled="noteSaving"
+          @keyup.enter="addNote"
+        />
+        <Button
+          size="sm"
+          variant="ghost"
+          :is-loading="noteSaving"
+          :disabled="!noteDraft.trim()"
+          @click="addNote"
+        >
+          {{ t('KANBAN.NOTES.ADD') }}
+        </Button>
+      </div>
+      <ul
+        v-if="notes.length"
+        class="mt-2 flex max-h-28 flex-col gap-1.5 overflow-y-auto"
+      >
+        <li
+          v-for="note in notes"
+          :key="note.id"
+          class="group flex items-start gap-2 rounded-lg bg-n-alpha-1 px-2.5 py-1.5"
+        >
+          <div class="min-w-0 flex-1">
+            <p
+              class="whitespace-pre-wrap break-words text-[13px] text-n-slate-12"
+            >
+              {{ note.content }}
+            </p>
+            <p class="mt-0.5 text-[10px] text-n-slate-10">
+              {{ note.user?.name || t('KANBAN.NOTES.UNKNOWN_AUTHOR') }} ·
+              {{ noteTime(note) }}
+            </p>
+          </div>
+          <button
+            v-if="canDeleteNote(note)"
+            type="button"
+            class="shrink-0 rounded p-1 text-n-slate-10 opacity-0 transition hover:bg-n-ruby-3 hover:text-n-ruby-11 group-hover:opacity-100"
+            :title="t('KANBAN.NOTES.DELETE')"
+            @click="removeNote(note)"
+          >
+            <Icon icon="i-lucide-trash-2" class="size-3" />
+          </button>
+        </li>
+      </ul>
     </div>
 
     <!-- Body -->

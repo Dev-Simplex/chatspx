@@ -175,6 +175,23 @@ class KanbanAPI extends ApiClient {
     return axios.delete(`${this.baseUrl()}/funnel_views/${viewId}`);
   }
 
+  // ── Internal card notes (Fase 4) ───────────────────────────────────
+  getItemNotes(funnelId, itemId) {
+    return axios.get(`${this.url}/${funnelId}/funnel_items/${itemId}/notes`);
+  }
+
+  createItemNote(funnelId, itemId, content) {
+    return axios.post(`${this.url}/${funnelId}/funnel_items/${itemId}/notes`, {
+      content,
+    });
+  }
+
+  deleteItemNote(funnelId, itemId, noteId) {
+    return axios.delete(
+      `${this.url}/${funnelId}/funnel_items/${itemId}/notes/${noteId}`
+    );
+  }
+
   // ── Bulk actions (Fase 3): reassign / tag / archive selected cards ──
   bulkUpdateItems(funnelId, payload) {
     return axios.post(

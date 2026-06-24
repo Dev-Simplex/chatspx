@@ -22,14 +22,33 @@ class FunnelItems::MoveService
       moved_at: Time.current
     )
 
+    # Capture before persisting: true for a brand-new placement or a real move,
+    # false for a no-op "move" to the same stage (so we don't broadcast noise).
+    stage_changed = funnel_item.will_save_change_to_funnel_stage_id?
+
     funnel_item.save!
 
     update_conversation_status
+
+    broadcast_move(funnel_item) if stage_changed
 
     funnel_item
   end
 
   private
+
+  # Real-time (Fase 4): tell other open boards to relocate this card. Best-effort
+  # — a broadcast failure must never break the move itself.
+  def broadcast_move(funnel_item)
+    Rails.configuration.dispatcher.dispatch(
+      Events::Types::FUNNEL_ITEM_MOVED,
+      Time.zone.now,
+      funnel_item: funnel_item,
+      moved_by: moved_by
+    )
+  rescue StandardError => e
+    Rails.logger.warn("FunnelItems::MoveService broadcast failed: #{e.message}")
+  end
 
   def update_conversation_status
     return if funnel_stage.automation_type.blank?

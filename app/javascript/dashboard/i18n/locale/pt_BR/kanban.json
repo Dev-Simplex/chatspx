@@ -358,6 +358,14 @@
       "ARCHIVE_CONFIRM": "Arquivar (encerrar) {count} conversa(s)?",
       "RESULT": "{processed} feitas, {failed} ignoradas",
       "ERROR": "Ação em massa falhou."
+    },
+    "NOTES": {
+      "TITLE": "Notas internas",
+      "PLACEHOLDER": "Adicione uma nota para a equipe…",
+      "ADD": "Adicionar",
+      "DELETE": "Excluir nota",
+      "SAVE_ERROR": "Não foi possível salvar a nota.",
+      "UNKNOWN_AUTHOR": "Alguém"
     }
   }
 }

@@ -133,6 +133,17 @@ class ActionCableListener < BaseListener # rubocop:disable Metrics/ClassLength
     broadcast(account, tokens, ASSIGNEE_CHANGED, conversation.push_event_data)
   end
 
+  # Kanban v2 (Fase 4): broadcast a card's stage move so other open boards
+  # relocate it live. Goes to every user of the account (board is account-wide).
+  def funnel_item_moved(event)
+    funnel_item = event.data[:funnel_item]
+    account = funnel_item&.funnel&.account
+    return if account.blank?
+
+    tokens = account.users.pluck(:pubsub_token)
+    broadcast(account, tokens, FUNNEL_ITEM_MOVED, funnel_item.push_event_data)
+  end
+
   def team_changed(event)
     conversation, account = extract_conversation_and_account(event)
     tokens = user_tokens(account, conversation.inbox.members)

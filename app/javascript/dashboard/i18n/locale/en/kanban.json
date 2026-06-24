@@ -358,6 +358,14 @@
       "ARCHIVE_CONFIRM": "Archive (resolve) {count} conversation(s)?",
       "RESULT": "{processed} done, {failed} skipped",
       "ERROR": "Bulk action failed."
+    },
+    "NOTES": {
+      "TITLE": "Internal notes",
+      "PLACEHOLDER": "Add a note for the team…",
+      "ADD": "Add",
+      "DELETE": "Delete note",
+      "SAVE_ERROR": "Could not save the note.",
+      "UNKNOWN_AUTHOR": "Someone"
     }
   }
 }

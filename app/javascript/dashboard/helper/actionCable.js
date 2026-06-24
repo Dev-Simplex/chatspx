@@ -41,8 +41,15 @@ class ActionCableConnector extends BaseActionCableConnector {
       'conversation.updated': this.onConversationUpdated,
       'account.cache_invalidated': this.onCacheInvalidate,
       'copilot.message.created': this.onCopilotMessageCreated,
+      'funnel_item.moved': this.onFunnelItemMoved,
     };
   }
+
+  // Kanban v2 (Fase 4): another user moved a card to a different stage — relocate
+  // it live. Best-effort; the store action no-ops if the item isn't loaded.
+  onFunnelItemMoved = data => {
+    this.app.$store.dispatch('kanban/applyRemoteMove', data);
+  };
 
   // eslint-disable-next-line class-methods-use-this
   onReconnect = async () => {

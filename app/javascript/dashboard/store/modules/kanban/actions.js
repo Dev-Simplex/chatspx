@@ -678,6 +678,55 @@ export const actions = {
     if (view.view_mode) commit(types.SET_VIEW_MODE, view.view_mode);
   },
 
+  // Real-time (Fase 4): another user moved a card. Relocate our local copy.
+  // Best-effort and defensive — must never break websocket handling or the board.
+  applyRemoteMove({ state, commit, rootGetters }, data) {
+    try {
+      if (!data || typeof data !== 'object') return;
+      // Only react when this board is showing the affected funnel.
+      if (Number(data.funnel_id) !== Number(state.activeFunnelId)) return;
+
+      // Skip our own move — it was already applied optimistically.
+      const currentUserId = rootGetters.getCurrentUserID;
+      if (
+        data.performer?.id &&
+        Number(data.performer.id) === Number(currentUserId)
+      ) {
+        return;
+      }
+
+      // We can only relocate an item we already hold; otherwise it shows on next load.
+      const existing = state.funnelItems[data.id];
+      if (!existing) return;
+
+      const targetStage = Number(data.funnel_stage_id);
+      const currentStage = Number(
+        existing.funnelStageId ?? existing.funnel_stage_id
+      );
+      if (!targetStage || targetStage === currentStage) return;
+
+      // Last-write-wins: ignore an out-of-order older move.
+      const localMovedAt = existing.movedAt ?? existing.moved_at;
+      if (
+        localMovedAt &&
+        data.moved_at &&
+        new Date(localMovedAt) > new Date(data.moved_at)
+      ) {
+        return;
+      }
+
+      commit(types.UPDATE_FUNNEL_ITEM, {
+        ...existing,
+        funnel_stage_id: targetStage,
+        funnelStageId: targetStage,
+        moved_at: data.moved_at,
+        movedAt: data.moved_at,
+      });
+    } catch (_) {
+      // Real-time is best-effort; never throw out of a websocket handler.
+    }
+  },
+
   setViewFilters({ commit }, filters = {}) {
     commit(types.SET_VIEW_FILTERS, filters);
   },
