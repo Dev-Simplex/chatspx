@@ -18,6 +18,11 @@ if resource.conversation.present?
     json.account_id resource.conversation.account_id
     json.assignee_id resource.conversation.assignee_id
     json.last_activity_at resource.conversation.last_activity_at
+    # Kanban v2 (Fase 2): only this funnel's namespaced custom field values.
+    funnel_attrs = (resource.conversation.custom_attributes || {}).select do |key, _|
+      key.to_s.start_with?("funnel_#{resource.funnel_id}_")
+    end
+    json.custom_attributes funnel_attrs
     label_titles = resource.conversation.cached_label_list_array
     if label_titles.present?
       labels_lookup = @labels_by_title || {}

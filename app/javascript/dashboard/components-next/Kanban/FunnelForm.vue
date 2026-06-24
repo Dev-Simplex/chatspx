@@ -7,6 +7,7 @@ import Dialog from 'dashboard/components-next/dialog/Dialog.vue';
 import Button from 'dashboard/components-next/button/Button.vue';
 import Icon from 'dashboard/components-next/icon/Icon.vue';
 import { useAlert } from 'dashboard/composables';
+import KanbanCustomFieldEditor from './KanbanCustomFieldEditor.vue';
 
 const props = defineProps({
   show: {
@@ -544,6 +545,23 @@ const handleDeleteFunnel = async () => {
             {{ t('KANBAN.FUNNELS.CLEAR_ALL') }}
           </button>
         </div>
+      </div>
+
+      <!-- Custom fields (Fase 2) — only when the funnel exists -->
+      <div>
+        <label class="block text-sm font-semibold text-n-slate-12">
+          <div class="flex items-center gap-2">
+            <Icon icon="i-lucide-sliders-horizontal" class="size-4" />
+            {{ t('KANBAN.CUSTOM_FIELDS.TITLE') }}
+          </div>
+        </label>
+        <p class="mb-3 mt-1 text-xs text-n-slate-10">
+          {{ t('KANBAN.CUSTOM_FIELDS.DESCRIPTION') }}
+        </p>
+        <KanbanCustomFieldEditor v-if="isEditing" :funnel-id="funnel.id" />
+        <p v-else class="text-xs italic text-n-slate-10">
+          {{ t('KANBAN.CUSTOM_FIELDS.SAVE_FIRST') }}
+        </p>
       </div>
 
       <!-- Stages (always show, can add when editing) -->

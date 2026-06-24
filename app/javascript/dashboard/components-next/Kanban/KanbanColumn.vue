@@ -84,6 +84,12 @@ const stageSlaHours = computed(() => {
   const n = Number(props.stage?.settings?.sla_hours);
   return Number.isFinite(n) && n > 0 ? n : null;
 });
+
+// Custom field definitions (Fase 2): pass show_on_card fields down to cards.
+const cardCustomFields = computed(() => {
+  const fields = store.getters['kanban/getFunnelCustomFields'](props.funnelId);
+  return Array.isArray(fields) ? fields.filter(f => f.showOnCard) : [];
+});
 const wipLimit = ref(
   persistedWip.value ?? readWipMap()[String(props.stage?.id)] ?? null
 );
@@ -232,6 +238,17 @@ const isStageLoaded = computed(() => Boolean(stageMeta.value?.loaded));
 const canLoadMore = computed(
   () => Boolean(stageMeta.value?.hasMore) && !isLoadingStage.value
 );
+
+// Numeric custom field aggregates for this stage (sum across all cards).
+const stageAggregates = computed(() => {
+  const aggregates = stageMeta.value?.aggregates;
+  if (!aggregates || typeof aggregates !== 'object') return [];
+  return Object.entries(aggregates).map(([key, summary]) => ({
+    key,
+    label: summary?.label || key,
+    sum: Number(summary?.sum ?? 0).toLocaleString(),
+  }));
+});
 
 const itemsWithConversations = computed(() => {
   const source = props.items || [];
@@ -571,6 +588,7 @@ const handleColumnObserved = async () => {
             :conversation="item.conversation || {}"
             :stage-color="stage.color"
             :sla-hours="stageSlaHours"
+            :custom-fields="cardCustomFields"
             @move="emit('moveItem', { item })"
             @schedule-message="emit('scheduleMessage', $event)"
             @remove="emit('removeItem', item)"
@@ -677,6 +695,23 @@ const handleColumnObserved = async () => {
         >
           <Icon icon="i-lucide-send" class="size-3" />
           {{ t('KANBAN.FOOTER.SCHEDULED', { count: pendingScheduledTotal }) }}
+        </span>
+      </div>
+
+      <!-- Numeric custom field totals (Fase 2) -->
+      <div
+        v-if="stageAggregates.length && isStageLoaded"
+        class="flex shrink-0 flex-wrap items-center gap-x-3 gap-y-0.5 border-t border-n-weak px-3 py-1.5 text-[11px] text-n-slate-11"
+      >
+        <span
+          v-for="agg in stageAggregates"
+          :key="agg.key"
+          class="flex items-center gap-1"
+          :title="`${agg.label}: ${agg.sum}`"
+        >
+          <Icon icon="i-lucide-sigma" class="size-3 text-n-slate-10" />
+          <span class="truncate">{{ agg.label }}:</span>
+          <span class="font-semibold text-n-slate-12">{{ agg.sum }}</span>
         </span>
       </div>
 

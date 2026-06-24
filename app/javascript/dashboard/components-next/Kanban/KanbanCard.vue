@@ -10,6 +10,12 @@ import { useMapGetter } from 'dashboard/composables/store';
 import { useTeamIsolation } from 'dashboard/composables/useTeamIsolation';
 import { useAgentIsolation } from 'dashboard/composables/useAgentIsolation';
 import { useStageColor } from './composables/useStageColor';
+import {
+  FIELD_TYPES,
+  rawFieldValue,
+  formatFieldValue,
+  hasFieldValue,
+} from './composables/useCustomFields';
 import Button from 'dashboard/components-next/button/Button.vue';
 import Icon from 'dashboard/components-next/icon/Icon.vue';
 import Avatar from 'dashboard/components-next/avatar/Avatar.vue';
@@ -32,6 +38,11 @@ const props = defineProps({
   slaHours: {
     type: Number,
     default: null,
+  },
+  // Custom field definitions flagged show_on_card (camelCased defs).
+  customFields: {
+    type: Array,
+    default: () => [],
   },
 });
 
@@ -366,6 +377,30 @@ const slaRailColor = computed(() => {
   return '';
 });
 
+// ── Custom field chips (Fase 2) — show_on_card fields that have a value ─
+const customAttributes = computed(
+  () =>
+    props.conversation?.custom_attributes ||
+    props.conversation?.customAttributes ||
+    {}
+);
+const iconForType = type =>
+  FIELD_TYPES.find(ft => ft.value === type)?.icon || 'i-lucide-tag';
+const customFieldChips = computed(() =>
+  (props.customFields || [])
+    .map(field => {
+      const raw = rawFieldValue(field, customAttributes.value);
+      if (!hasFieldValue(field, raw)) return null;
+      return {
+        key: field.key,
+        label: field.label,
+        value: formatFieldValue(field, raw),
+        icon: iconForType(field.fieldType),
+      };
+    })
+    .filter(Boolean)
+);
+
 // ── Cover mode (Trello-style) — paints the top with the primary label ─
 const primaryLabel = computed(() => cardLabels.value[0] || null);
 const coverStyle = computed(() => {
@@ -610,6 +645,22 @@ const handleCardClick = event => {
       >
         {{ t('KANBAN.ITEMS.NO_MESSAGE') }}
       </p>
+
+      <!-- Custom field chips (show_on_card fields with a value) -->
+      <div
+        v-if="customFieldChips.length"
+        class="flex flex-wrap items-center gap-1"
+      >
+        <span
+          v-for="chip in customFieldChips"
+          :key="chip.key"
+          class="inline-flex max-w-[150px] items-center gap-1 truncate rounded-[6px] bg-n-slate-3 px-1.5 py-0.5 text-[11px] font-medium leading-none text-n-slate-11"
+          :title="`${chip.label}: ${chip.value}`"
+        >
+          <Icon :icon="chip.icon" class="size-2.5 shrink-0 text-n-slate-10" />
+          <span class="truncate">{{ chip.value }}</span>
+        </span>
+      </div>
 
       <!-- Footer: meta + actions -->
       <div

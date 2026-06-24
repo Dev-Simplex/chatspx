@@ -17,6 +17,11 @@ class FunnelItemPolicy < ApplicationPolicy
     create? && record.funnel.account_id == account.id
   end
 
+  # Kanban v2 (Fase 2): editing custom field values is a card update.
+  def custom_attributes?
+    update?
+  end
+
   def destroy?
     create? && record.funnel.account_id == account.id
   end

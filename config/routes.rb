@@ -132,7 +132,11 @@ Rails.application.routes.draw do
               post :reorder_stages
             end
             resources :funnel_stages, only: [:index, :show, :create, :update, :destroy]
+            resources :custom_fields, only: [:index, :show, :create, :update, :destroy], module: :funnels
             resources :funnel_items, only: [:index, :create, :update, :destroy] do
+              member do
+                patch :custom_attributes
+              end
               collection do
                 post :bulk_move
               end

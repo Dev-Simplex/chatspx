@@ -115,6 +115,7 @@ const parseCursorResponse = (response, fallbackLimit) => {
       nextCursor: data?.meta?.next_cursor || null,
       limit: Number(data?.meta?.limit || fallbackLimit),
       stageId: data?.meta?.stage_id,
+      aggregates: data?.meta?.aggregates || {},
     },
   };
 };
@@ -233,6 +234,51 @@ export const actions = {
     });
   },
 
+  // ── Custom field definitions (Kanban v2 / Fase 2) ──────────────────
+  async fetchCustomFields({ commit }, funnelId) {
+    if (!funnelId) return [];
+    const response = await KanbanAPI.getCustomFields(funnelId);
+    const fields = Array.isArray(response.data) ? response.data : [];
+    commit(types.SET_FUNNEL_CUSTOM_FIELDS, { funnelId, fields });
+    return fields;
+  },
+
+  async createCustomField({ dispatch }, { funnelId, data }) {
+    const response = await KanbanAPI.createCustomField(funnelId, data);
+    await dispatch('fetchCustomFields', funnelId);
+    return response.data;
+  },
+
+  async updateCustomField({ dispatch }, { funnelId, fieldId, data }) {
+    const response = await KanbanAPI.updateCustomField(funnelId, fieldId, data);
+    await dispatch('fetchCustomFields', funnelId);
+    return response.data;
+  },
+
+  async deleteCustomField({ dispatch }, { funnelId, fieldId }) {
+    await KanbanAPI.deleteCustomField(funnelId, fieldId);
+    await dispatch('fetchCustomFields', funnelId);
+  },
+
+  // Update a card's custom field VALUES (merged server-side into the
+  // conversation's custom_attributes; only this funnel's namespaced keys).
+  async updateItemCustomAttributes(
+    { commit },
+    { funnelId, itemId, conversationId, attributes }
+  ) {
+    const response = await KanbanAPI.updateItemCustomAttributes(
+      funnelId,
+      itemId,
+      attributes
+    );
+    const nextAttributes = response.data?.custom_attributes || {};
+    commit(types.UPDATE_ITEM_CONVERSATION, {
+      id: conversationId,
+      patch: { custom_attributes: nextAttributes },
+    });
+    return nextAttributes;
+  },
+
   async fetchFunnelStages({ commit }, funnelId) {
     if (!funnelId) return { data: [] };
 
@@ -323,6 +369,9 @@ export const actions = {
             loaded: true,
             isLoading: false,
             error: false,
+            // Aggregates only arrive on the first page (cursor null); don't let
+            // a "load more" response blank them out.
+            ...(append ? {} : { aggregates: parsed.meta.aggregates || {} }),
           },
         });
 

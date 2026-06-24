@@ -57,6 +57,21 @@ class Api::V1::Accounts::FunnelItemsController < Api::V1::Accounts::BaseControll
     head :ok
   end
 
+  # Kanban v2 (Fase 2): merge custom field VALUES into the conversation's
+  # custom_attributes. Only this funnel's namespaced keys (funnel_<id>_*) are
+  # touched, so unrelated attributes (other integrations) are never clobbered.
+  # Blank values clear the key.
+  def custom_attributes
+    conversation = @funnel_item.conversation
+    conversation.update!(custom_attributes: merged_custom_attributes(conversation))
+
+    render json: {
+      id: @funnel_item.id,
+      conversation_id: conversation.id,
+      custom_attributes: funnel_scoped_attributes(conversation.custom_attributes)
+    }
+  end
+
   def bulk_move
     conversation_ids = params[:conversation_ids] || []
     stage_id = params[:stage_id]
@@ -101,6 +116,21 @@ class Api::V1::Accounts::FunnelItemsController < Api::V1::Accounts::BaseControll
 
   def funnel_item
     @funnel_item ||= funnel.funnel_items.find(params[:id])
+  end
+
+  def funnel_attribute_prefix
+    "funnel_#{funnel.id}_"
+  end
+
+  def funnel_scoped_attributes(attributes)
+    (attributes || {}).select { |key, _| key.to_s.start_with?(funnel_attribute_prefix) }
+  end
+
+  def merged_custom_attributes(conversation)
+    incoming = params.permit(custom_attributes: {}).fetch(:custom_attributes, {}).to_h
+    allowed = funnel_scoped_attributes(incoming)
+    merged = (conversation.custom_attributes || {}).merge(allowed)
+    merged.reject { |key, value| key.to_s.start_with?(funnel_attribute_prefix) && value.to_s.strip.empty? }
   end
 
   def check_authorization

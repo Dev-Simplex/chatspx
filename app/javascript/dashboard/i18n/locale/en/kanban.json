@@ -299,6 +299,33 @@
     "SLA": {
       "SET": "Set stage SLA (hours)",
       "PROMPT": "Hours a card may sit in this stage before it's late (leave blank to clear):"
+    },
+    "CUSTOM_FIELDS": {
+      "TITLE": "Custom fields",
+      "DESCRIPTION": "Fields shown on cards and editable in the conversation preview.",
+      "SAVE_FIRST": "Save the funnel first to add custom fields.",
+      "EMPTY": "No custom fields yet.",
+      "ADD": "Add",
+      "LABEL_PLACEHOLDER": "Field name (e.g. Deal value)",
+      "CHOICES_PLACEHOLDER": "Options separated by comma (e.g. Small, Medium, Large)",
+      "SHOW_ON_CARD": "Show on card",
+      "ON_CARD_SHORT": "On card",
+      "DELETE": "Delete field",
+      "DELETE_CONFIRM": "Delete the field \"{label}\"? Stored values are kept but no longer shown.",
+      "SAVE_ERROR": "Could not save. Please try again.",
+      "SAVED": "Saved",
+      "TYPES": {
+        "TEXT": "Text",
+        "LONG_TEXT": "Long text",
+        "NUMBER": "Number",
+        "DATE": "Date",
+        "DROPDOWN": "Dropdown",
+        "CHECKBOX": "Checkbox",
+        "RATING": "Rating",
+        "PHONE": "Phone",
+        "EMAIL": "Email",
+        "LINK": "Link"
+      }
     }
   }
 }

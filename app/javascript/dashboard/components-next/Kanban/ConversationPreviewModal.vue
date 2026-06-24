@@ -5,9 +5,15 @@ import { useI18n } from 'vue-i18n';
 import { format, isToday } from 'date-fns';
 import { enUS, ptBR } from 'date-fns/locale';
 
+import { useStore } from 'vuex';
 import MessageApi from 'dashboard/api/inbox/message';
 import { useAlert } from 'dashboard/composables';
 import { useMapGetter } from 'dashboard/composables/store';
+import {
+  rawFieldValue,
+  dropdownChoices,
+  serializeFieldValue,
+} from './composables/useCustomFields';
 import { useTeamIsolation } from 'dashboard/composables/useTeamIsolation';
 import { useAgentIsolation } from 'dashboard/composables/useAgentIsolation';
 import { MESSAGE_TYPE } from 'shared/constants/messages';
@@ -34,8 +40,10 @@ const emit = defineEmits(['close']);
 const router = useRouter();
 const { t, locale } = useI18n();
 
+const store = useStore();
 const getContactById = useMapGetter('contacts/getContactById');
 const inboxById = useMapGetter('inboxes/getInboxById');
+const activeFunnelId = useMapGetter('kanban/getActiveFunnelId');
 const { isMessageRestricted } = useTeamIsolation();
 const { isMessageRestricted: isAgentMessageRestricted } = useAgentIsolation();
 
@@ -116,6 +124,70 @@ const inboxName = computed(() => inbox.value?.name || '');
 // The kanban conversation object usually omits `can_reply`; only disable when
 // the backend explicitly says false (default: replying is enabled).
 const canReply = computed(() => props.conversation?.can_reply !== false);
+
+// ── Custom fields (Fase 2): inline edit of values for the active funnel ──
+const customFieldDefs = computed(() =>
+  store.getters['kanban/getFunnelCustomFields'](activeFunnelId.value)
+);
+const conversationNumericId = computed(() => props.conversation?.id ?? null);
+const funnelItemId = computed(() =>
+  store.getters['kanban/getItemIdByConversation'](
+    activeFunnelId.value,
+    conversationNumericId.value
+  )
+);
+const customAttributes = computed(
+  () =>
+    props.conversation?.custom_attributes ||
+    props.conversation?.customAttributes ||
+    {}
+);
+const fieldValues = ref({});
+const savingFieldKey = ref(null);
+
+const resetFieldValues = () => {
+  const next = {};
+  customFieldDefs.value.forEach(field => {
+    const raw = rawFieldValue(field, customAttributes.value);
+    if (field.fieldType === 'checkbox') {
+      next[field.key] = raw === true || raw === 'true' || raw === '1';
+    } else {
+      next[field.key] = raw == null ? '' : String(raw);
+    }
+  });
+  fieldValues.value = next;
+};
+watch([() => props.conversation, customFieldDefs], resetFieldValues, {
+  immediate: true,
+});
+
+const choicesFor = field => dropdownChoices(field);
+
+// Persist a single field on commit (blur / change / toggle).
+const commitField = async field => {
+  if (!funnelItemId.value || !activeFunnelId.value) return;
+  const attrKey =
+    field.attributeKey || `funnel_${activeFunnelId.value}_${field.key}`;
+  const value = serializeFieldValue(field, fieldValues.value[field.key]);
+  // Skip if unchanged from what's stored.
+  const current = rawFieldValue(field, customAttributes.value);
+  if (String(current ?? '') === value) return;
+
+  savingFieldKey.value = field.key;
+  try {
+    await store.dispatch('kanban/updateItemCustomAttributes', {
+      funnelId: activeFunnelId.value,
+      itemId: funnelItemId.value,
+      conversationId: conversationNumericId.value,
+      attributes: { [attrKey]: value },
+    });
+  } catch (_) {
+    useAlert(t('KANBAN.CUSTOM_FIELDS.SAVE_ERROR'));
+    resetFieldValues();
+  } finally {
+    savingFieldKey.value = null;
+  }
+};
 
 // ── Message processing ──────────────────────────────────────────────────
 const messageTimestamp = message => {
@@ -303,6 +375,82 @@ watch(
       </div>
     </div>
 
+    <!-- Custom fields (Fase 2): inline edit of the active funnel's fields -->
+    <div
+      v-if="customFieldDefs.length"
+      class="mt-3 grid grid-cols-2 gap-x-3 gap-y-2 rounded-lg border border-n-weak bg-n-alpha-1 p-3"
+    >
+      <div
+        v-for="field in customFieldDefs"
+        :key="field.key"
+        class="flex min-w-0 flex-col gap-1"
+        :class="{ 'col-span-2': field.fieldType === 'long_text' }"
+      >
+        <label
+          class="flex items-center gap-1 truncate text-[11px] font-medium text-n-slate-11"
+        >
+          {{ field.label }}
+          <Icon
+            v-if="savingFieldKey === field.key"
+            icon="i-lucide-loader-2"
+            class="size-3 animate-spin text-n-slate-10"
+          />
+        </label>
+
+        <textarea
+          v-if="field.fieldType === 'long_text'"
+          v-model="fieldValues[field.key]"
+          rows="2"
+          class="kanban-cf-input resize-y"
+          @blur="commitField(field)"
+        />
+        <select
+          v-else-if="field.fieldType === 'dropdown'"
+          v-model="fieldValues[field.key]"
+          class="kanban-cf-input"
+          @change="commitField(field)"
+        >
+          <option value="">—</option>
+          <option
+            v-for="choice in choicesFor(field)"
+            :key="choice"
+            :value="choice"
+          >
+            {{ choice }}
+          </option>
+        </select>
+        <label
+          v-else-if="field.fieldType === 'checkbox'"
+          class="flex h-[30px] items-center"
+        >
+          <input
+            v-model="fieldValues[field.key]"
+            type="checkbox"
+            class="size-4 accent-n-brand"
+            @change="commitField(field)"
+          />
+        </label>
+        <input
+          v-else
+          v-model="fieldValues[field.key]"
+          :type="
+            field.fieldType === 'number' || field.fieldType === 'rating'
+              ? 'number'
+              : field.fieldType === 'date'
+                ? 'date'
+                : field.fieldType === 'email'
+                  ? 'email'
+                  : 'text'
+          "
+          :min="field.fieldType === 'rating' ? 0 : undefined"
+          :max="field.fieldType === 'rating' ? 5 : undefined"
+          class="kanban-cf-input"
+          @blur="commitField(field)"
+          @keyup.enter="commitField(field)"
+        />
+      </div>
+    </div>
+
     <!-- Body -->
     <div
       ref="scrollRef"
@@ -433,5 +581,21 @@ watch(
      The dialog itself is overflow-y-auto as a safety net on short screens. */
   max-height: 42vh;
   min-height: 6rem;
+}
+
+/* Compact inputs for the inline custom-fields panel */
+.kanban-cf-input {
+  width: 100%;
+  border-radius: 0.5rem;
+  border: 1px solid var(--color-border-weak, rgba(0, 0, 0, 0.1));
+  background-color: var(--color-background, #fff);
+  padding: 0.3rem 0.5rem;
+  font-size: 12px;
+  line-height: 1.2;
+  color: inherit;
+}
+.kanban-cf-input:focus {
+  outline: none;
+  border-color: var(--color-woot, #1f93ff);
 }
 </style>

@@ -7,7 +7,7 @@ class Api::V1::Accounts::FunnelsController < Api::V1::Accounts::BaseController
   def index
     authorize(Funnel.new(account: Current.account), :index?)
     Kanban::EnsureDefaultFunnelsService.new(account: Current.account).perform
-    @funnels = policy_scope(Funnel).order(:position, :created_at)
+    @funnels = policy_scope(Funnel).includes(:funnel_custom_fields).order(:position, :created_at)
   end
 
   def show; end

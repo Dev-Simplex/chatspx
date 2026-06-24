@@ -67,6 +67,37 @@ class KanbanAPI extends ApiClient {
     return axios.delete(`${this.url}/${funnelId}/funnel_stages/${stageId}`);
   }
 
+  // ── Custom field DEFINITIONS (Kanban v2 / Fase 2) ──────────────────
+  getCustomFields(funnelId) {
+    return axios.get(`${this.url}/${funnelId}/custom_fields`);
+  }
+
+  createCustomField(funnelId, data) {
+    return axios.post(`${this.url}/${funnelId}/custom_fields`, {
+      custom_field: data,
+    });
+  }
+
+  updateCustomField(funnelId, fieldId, data) {
+    return axios.patch(`${this.url}/${funnelId}/custom_fields/${fieldId}`, {
+      custom_field: data,
+    });
+  }
+
+  deleteCustomField(funnelId, fieldId) {
+    return axios.delete(`${this.url}/${funnelId}/custom_fields/${fieldId}`);
+  }
+
+  // Custom field VALUES live in conversations.custom_attributes (namespaced
+  // funnel_<id>_<key>). The backend merges only this funnel's keys, so other
+  // attributes are never clobbered. `itemId` is the funnel_item id.
+  updateItemCustomAttributes(funnelId, itemId, customAttributes) {
+    return axios.patch(
+      `${this.url}/${funnelId}/funnel_items/${itemId}/custom_attributes`,
+      { custom_attributes: customAttributes }
+    );
+  }
+
   getFunnelItems(funnelId, options = {}) {
     let url = `${this.url}/${funnelId}/funnel_items`;
     const params = new URLSearchParams();

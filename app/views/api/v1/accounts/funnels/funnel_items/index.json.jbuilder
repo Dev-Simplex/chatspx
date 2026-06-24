@@ -10,6 +10,7 @@ if @meta.present?
     json.has_more @meta[:has_more]
     json.next_cursor @meta[:next_cursor]
     json.limit @meta[:limit]
+    json.aggregates @meta[:aggregates] || {}
   end
 else
   json.array! @funnel_items do |item|

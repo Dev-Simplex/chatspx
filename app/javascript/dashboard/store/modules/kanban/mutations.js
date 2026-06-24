@@ -304,6 +304,14 @@ export const mutations = {
     });
   },
 
+  [types.SET_FUNNEL_CUSTOM_FIELDS]($state, { funnelId, fields }) {
+    const funnel = $state.funnels[funnelId];
+    if (!funnel) return;
+    funnel.customFields = Array.isArray(fields)
+      ? fields.map(field => camelcaseKeys(field, { deep: true }))
+      : [];
+  },
+
   [types.SET_FUNNEL_STAGES]($state, { funnelId, stages }) {
     if (!funnelId) return;
     $state.funnelStages[funnelId] = {};

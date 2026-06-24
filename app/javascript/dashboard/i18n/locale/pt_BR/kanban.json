@@ -299,6 +299,33 @@
     "SLA": {
       "SET": "Definir SLA do estágio (horas)",
       "PROMPT": "Horas que um card pode ficar neste estágio antes de atrasar (deixe vazio para remover):"
+    },
+    "CUSTOM_FIELDS": {
+      "TITLE": "Campos personalizados",
+      "DESCRIPTION": "Campos exibidos nos cards e editáveis na pré-visualização da conversa.",
+      "SAVE_FIRST": "Salve o funil primeiro para adicionar campos personalizados.",
+      "EMPTY": "Nenhum campo personalizado ainda.",
+      "ADD": "Adicionar",
+      "LABEL_PLACEHOLDER": "Nome do campo (ex.: Valor da venda)",
+      "CHOICES_PLACEHOLDER": "Opções separadas por vírgula (ex.: Pequeno, Médio, Grande)",
+      "SHOW_ON_CARD": "Mostrar no card",
+      "ON_CARD_SHORT": "No card",
+      "DELETE": "Excluir campo",
+      "DELETE_CONFIRM": "Excluir o campo \"{label}\"? Os valores salvos são mantidos, mas deixam de aparecer.",
+      "SAVE_ERROR": "Não foi possível salvar. Tente novamente.",
+      "SAVED": "Salvo",
+      "TYPES": {
+        "TEXT": "Texto",
+        "LONG_TEXT": "Texto longo",
+        "NUMBER": "Número",
+        "DATE": "Data",
+        "DROPDOWN": "Lista",
+        "CHECKBOX": "Caixa de seleção",
+        "RATING": "Avaliação",
+        "PHONE": "Telefone",
+        "EMAIL": "E-mail",
+        "LINK": "Link"
+      }
     }
   }
 }
