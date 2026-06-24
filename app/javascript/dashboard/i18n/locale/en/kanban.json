@@ -366,6 +366,55 @@
       "DELETE": "Delete note",
       "SAVE_ERROR": "Could not save the note.",
       "UNKNOWN_AUTHOR": "Someone"
+    },
+    "AUTOMATIONS": {
+      "TITLE": "Automations",
+      "DESCRIPTION": "Create \"when → if → then\" rules. Rules run automatically; only admins can edit them.",
+      "EMPTY": "No automations yet.",
+      "NAME_PLACEHOLDER": "Rule name (e.g. Escalate stalled high-priority)",
+      "WHEN": "When",
+      "IF": "If",
+      "THEN": "Then",
+      "HOURS": "hours",
+      "ANY_STAGE": "Any stage",
+      "EV_ENTER": "a card enters the stage",
+      "EV_TIME": "a card sits in the stage for",
+      "ADD_CONDITION": "Add condition",
+      "ADD_ACTION": "Add action",
+      "VALUE": "value",
+      "PICK_STAGE": "Pick a stage…",
+      "PICK_AGENT": "Pick an agent…",
+      "LABELS_PLACEHOLDER": "labels, comma-separated",
+      "SAVE": "Save automation",
+      "SAVE_ERROR": "Could not save the automation.",
+      "DELETE": "Delete",
+      "DELETE_CONFIRM": "Delete the automation \"{name}\"?",
+      "WHEN_ENTER": "When a card enters the stage",
+      "WHEN_TIME": "After {hours}h in the stage",
+      "DO_MOVE": "move to {stage}",
+      "DO_ASSIGN": "assign {agent}",
+      "DO_TAG": "tag {labels}",
+      "DO_WEBHOOK": "call webhook",
+      "FIELD": {
+        "PRIORITY": "Priority",
+        "STATUS": "Status",
+        "ASSIGNEE_ID": "Assignee",
+        "INBOX_ID": "Inbox",
+        "LABELS": "Labels"
+      },
+      "OP": {
+        "EQ": "is",
+        "NEQ": "is not",
+        "PRESENT": "is present",
+        "BLANK": "is blank",
+        "INCLUDES": "includes"
+      },
+      "ACT": {
+        "MOVE": "Move to stage",
+        "ASSIGN": "Assign agent",
+        "TAG": "Add labels",
+        "WEBHOOK": "Call webhook"
+      }
     }
   }
 }

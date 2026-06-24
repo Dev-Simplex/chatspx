@@ -366,6 +366,55 @@
       "DELETE": "Excluir nota",
       "SAVE_ERROR": "Não foi possível salvar a nota.",
       "UNKNOWN_AUTHOR": "Alguém"
+    },
+    "AUTOMATIONS": {
+      "TITLE": "Automações",
+      "DESCRIPTION": "Crie regras \"quando → se → então\". Elas rodam sozinhas; só admins editam.",
+      "EMPTY": "Nenhuma automação ainda.",
+      "NAME_PLACEHOLDER": "Nome da regra (ex.: Escalar alta prioridade parada)",
+      "WHEN": "Quando",
+      "IF": "Se",
+      "THEN": "Então",
+      "HOURS": "horas",
+      "ANY_STAGE": "Qualquer coluna",
+      "EV_ENTER": "um card entra na coluna",
+      "EV_TIME": "um card fica na coluna por",
+      "ADD_CONDITION": "Adicionar condição",
+      "ADD_ACTION": "Adicionar ação",
+      "VALUE": "valor",
+      "PICK_STAGE": "Escolha uma coluna…",
+      "PICK_AGENT": "Escolha um agente…",
+      "LABELS_PLACEHOLDER": "etiquetas, separadas por vírgula",
+      "SAVE": "Salvar automação",
+      "SAVE_ERROR": "Não foi possível salvar a automação.",
+      "DELETE": "Excluir",
+      "DELETE_CONFIRM": "Excluir a automação \"{name}\"?",
+      "WHEN_ENTER": "Quando o card entra na coluna",
+      "WHEN_TIME": "Após {hours}h na coluna",
+      "DO_MOVE": "mover para {stage}",
+      "DO_ASSIGN": "atribuir {agent}",
+      "DO_TAG": "etiquetar {labels}",
+      "DO_WEBHOOK": "chamar webhook",
+      "FIELD": {
+        "PRIORITY": "Prioridade",
+        "STATUS": "Status",
+        "ASSIGNEE_ID": "Responsável",
+        "INBOX_ID": "Caixa",
+        "LABELS": "Etiquetas"
+      },
+      "OP": {
+        "EQ": "é",
+        "NEQ": "não é",
+        "PRESENT": "está preenchido",
+        "BLANK": "está vazio",
+        "INCLUDES": "contém"
+      },
+      "ACT": {
+        "MOVE": "Mover para coluna",
+        "ASSIGN": "Atribuir agente",
+        "TAG": "Adicionar etiquetas",
+        "WEBHOOK": "Chamar webhook"
+      }
     }
   }
 }

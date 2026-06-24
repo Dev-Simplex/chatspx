@@ -30,12 +30,30 @@ class FunnelItems::MoveService
 
     update_conversation_status
 
-    broadcast_move(funnel_item) if stage_changed
+    if stage_changed
+      broadcast_move(funnel_item)
+      run_automations(funnel_item)
+    end
 
     funnel_item
   end
 
   private
+
+  # Fase 5: fire declarative automations for a card entering a stage. Best-effort
+  # — the engine has its own per-rule rescue + reentrancy guard, but we wrap here
+  # too so a move never breaks on automation trouble. Legacy open/resolved status
+  # automation above is untouched.
+  def run_automations(funnel_item)
+    Kanban::AutomationEngineService.new(
+      funnel: funnel,
+      conversation: conversation,
+      funnel_item: funnel_item,
+      moved_by: moved_by
+    ).run(event: 'item_entered_stage')
+  rescue StandardError => e
+    Rails.logger.warn("FunnelItems::MoveService automations failed: #{e.message}")
+  end
 
   # Real-time (Fase 4): tell other open boards to relocate this card. Best-effort
   # — a broadcast failure must never break the move itself.

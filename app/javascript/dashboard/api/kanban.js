@@ -175,6 +175,27 @@ class KanbanAPI extends ApiClient {
     return axios.delete(`${this.baseUrl()}/funnel_views/${viewId}`);
   }
 
+  // ── Automations (Fase 5) ───────────────────────────────────────────
+  getAutomations(funnelId) {
+    return axios.get(`${this.url}/${funnelId}/automations`);
+  }
+
+  createAutomation(funnelId, data) {
+    return axios.post(`${this.url}/${funnelId}/automations`, {
+      funnel_automation: data,
+    });
+  }
+
+  updateAutomation(funnelId, automationId, data) {
+    return axios.patch(`${this.url}/${funnelId}/automations/${automationId}`, {
+      funnel_automation: data,
+    });
+  }
+
+  deleteAutomation(funnelId, automationId) {
+    return axios.delete(`${this.url}/${funnelId}/automations/${automationId}`);
+  }
+
   // ── Internal card notes (Fase 4) ───────────────────────────────────
   getItemNotes(funnelId, itemId) {
     return axios.get(`${this.url}/${funnelId}/funnel_items/${itemId}/notes`);

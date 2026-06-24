@@ -21,6 +21,7 @@ class Funnel < ApplicationRecord
   has_many :funnel_items, dependent: :destroy
   has_many :funnel_custom_fields, dependent: :destroy
   has_many :funnel_views, dependent: :destroy
+  has_many :funnel_automations, dependent: :destroy
 
   # Kanban v2 (Fase 1): funnel-level config persisted in the `settings` jsonb
   # (e.g. default view, deadline_mode toggle). JSONB default {} — additive.

@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[7.1].define(version: 2026_06_24_150000) do
+ActiveRecord::Schema[7.1].define(version: 2026_06_24_160000) do
   # These extensions should be enabled to support this database
   enable_extension "pg_stat_statements"
   enable_extension "pg_trgm"
@@ -952,6 +952,21 @@ ActiveRecord::Schema[7.1].define(version: 2026_06_24_150000) do
     t.index ["category_id"], name: "idx_folders_category_id"
   end
 
+  create_table "funnel_automations", force: :cascade do |t|
+    t.bigint "funnel_id", null: false
+    t.bigint "funnel_stage_id"
+    t.string "name", null: false
+    t.jsonb "trigger", default: {}, null: false
+    t.jsonb "conditions", default: [], null: false
+    t.jsonb "actions", default: [], null: false
+    t.boolean "active", default: true, null: false
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["funnel_id", "active"], name: "index_funnel_automations_on_funnel_id_and_active"
+    t.index ["funnel_id"], name: "index_funnel_automations_on_funnel_id"
+    t.index ["funnel_stage_id"], name: "index_funnel_automations_on_funnel_stage_id"
+  end
+
   create_table "funnel_custom_fields", force: :cascade do |t|
     t.bigint "funnel_id", null: false
     t.string "key", null: false
@@ -1751,6 +1766,8 @@ ActiveRecord::Schema[7.1].define(version: 2026_06_24_150000) do
   add_foreign_key "conversations", "teams", on_delete: :nullify
   add_foreign_key "conversations", "users", column: "assignee_id", on_delete: :nullify
   add_foreign_key "csat_survey_responses", "conversations", on_delete: :cascade
+  add_foreign_key "funnel_automations", "funnel_stages"
+  add_foreign_key "funnel_automations", "funnels"
   add_foreign_key "funnel_custom_fields", "funnels"
   add_foreign_key "funnel_item_notes", "funnel_items"
   add_foreign_key "funnel_item_notes", "users"

@@ -10,6 +10,7 @@ import KanbanFilterSelect from 'dashboard/components-next/Kanban/KanbanFilterSel
 import KanbanSavedViews from 'dashboard/components-next/Kanban/KanbanSavedViews.vue';
 import FunnelForm from 'dashboard/components-next/Kanban/FunnelForm.vue';
 import ScheduledMessageForm from 'dashboard/components-next/Kanban/ScheduledMessageForm.vue';
+import KanbanAutomationBuilder from 'dashboard/components-next/Kanban/KanbanAutomationBuilder.vue';
 import ScheduledMessagesDrawer from 'dashboard/components-next/Kanban/ScheduledMessagesDrawer.vue';
 import Button from 'dashboard/components-next/button/Button.vue';
 import Input from 'dashboard/components-next/input/Input.vue';
@@ -75,6 +76,7 @@ const scheduledMessages = computed(
 
 const showFunnelForm = ref(false);
 const showScheduledMessageForm = ref(false);
+const showAutomationBuilder = ref(false);
 const selectedFunnel = ref(null);
 const selectedConversation = ref(null);
 const selectedScheduledMessage = ref(null);
@@ -702,6 +704,14 @@ onMounted(async () => {
             v-if="activeFunnel"
             variant="ghost"
             size="sm"
+            icon="i-lucide-zap"
+            :title="t('KANBAN.AUTOMATIONS.TITLE')"
+            @click="showAutomationBuilder = true"
+          />
+          <Button
+            v-if="activeFunnel"
+            variant="ghost"
+            size="sm"
             icon="i-lucide-edit"
             :title="t('KANBAN.FUNNELS.EDIT')"
             @click="handleEditFunnel(activeFunnel)"
@@ -946,6 +956,12 @@ onMounted(async () => {
       :funnel="selectedFunnel"
       @close="showFunnelForm = false"
       @saved="handleFunnelSaved"
+    />
+
+    <KanbanAutomationBuilder
+      :show="showAutomationBuilder"
+      :funnel-id="activeFunnel?.id"
+      @close="showAutomationBuilder = false"
     />
 
     <ScheduledMessageForm
