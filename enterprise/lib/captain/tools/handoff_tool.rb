@@ -16,6 +16,14 @@ class Captain::Tools::HandoffTool < Captain::Tools::BasePublicTool
     conversation = find_conversation(tool_context.state)
     return 'Conversation not found' unless conversation
 
+    # Idempotência: se a conversa JÁ está aguardando humano, não refaz o handoff (senão gera
+    # uma 2ª nota privada/dossiê duplicado e reseta o marcador a cada mensagem do cliente na espera).
+    if conversation.custom_attributes&.dig('aguardando_humano_desde').present?
+      return 'Esta conversa JÁ está aguardando atendimento humano — o handoff já foi feito. ' \
+             'NÃO chame o handoff de novo nem registre outro dossiê. Responda dúvidas NOVAS ' \
+             'normalmente; se for só cobrança de pressa/ansiedade sem pergunta nova, responda [IGNORAR].'
+    end
+
     # Log the handoff with reason
     log_tool_usage('tool_handoff', {
                      conversation_id: conversation.id,
