@@ -168,8 +168,13 @@ export const getters = {
         labelIds: [],
         assigneeId: null,
         status: 'all',
+        priority: [],
       }
     );
+  },
+
+  getSavedViews($state) {
+    return Array.isArray($state.savedViews) ? $state.savedViews : [];
   },
 
   getViewBootstrap($state) {

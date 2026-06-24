@@ -186,6 +186,7 @@ const defaultViewFilters = () => ({
   labelIds: [],
   assigneeId: null,
   status: 'all',
+  priority: [],
 });
 
 const defaultViewBootstrap = () => ({
@@ -575,6 +576,29 @@ export const mutations = {
     $state.viewMode = mode;
   },
 
+  [types.SET_SAVED_VIEWS]($state, views) {
+    $state.savedViews = Array.isArray(views) ? views : [];
+  },
+
+  [types.ADD_SAVED_VIEW]($state, view) {
+    if (!view?.id) return;
+    $state.savedViews = [
+      ...$state.savedViews.filter(v => v.id !== view.id),
+      view,
+    ];
+  },
+
+  [types.UPDATE_SAVED_VIEW]($state, view) {
+    if (!view?.id) return;
+    $state.savedViews = $state.savedViews.map(v =>
+      v.id === view.id ? view : v
+    );
+  },
+
+  [types.DELETE_SAVED_VIEW]($state, viewId) {
+    $state.savedViews = $state.savedViews.filter(v => v.id !== viewId);
+  },
+
   [types.SET_VIEW_FILTERS]($state, filters = {}) {
     $state.viewFilters = {
       ...defaultViewFilters(),
@@ -590,6 +614,9 @@ export const mutations = {
         filters.labelIds ?? $state.viewFilters?.labelIds
       ),
       status: filters.status || $state.viewFilters?.status || 'all',
+      priority: Array.isArray(filters.priority)
+        ? [...filters.priority]
+        : $state.viewFilters?.priority || [],
     };
   },
 

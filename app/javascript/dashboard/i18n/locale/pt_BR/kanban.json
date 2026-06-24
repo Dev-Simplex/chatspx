@@ -30,6 +30,15 @@
       "ITEMS": "itens",
       "STATUS": {
         "ALL": "Todos os status"
+      },
+      "PRIORITY": {
+        "LABEL": "Prioridade",
+        "ALL": "Qualquer prioridade",
+        "URGENT": "Urgente",
+        "HIGH": "Alta",
+        "MEDIUM": "Média",
+        "LOW": "Baixa",
+        "NONE": "Sem prioridade"
       }
     },
     "FUNNELS": {
@@ -326,6 +335,29 @@
         "EMAIL": "E-mail",
         "LINK": "Link"
       }
+    },
+    "SAVED_VIEWS": {
+      "TITLE": "Visões",
+      "EMPTY": "Nenhuma visão salva para este funil ainda.",
+      "SAVE_CURRENT": "Salvar visão atual",
+      "NAME_PROMPT": "Nomeie esta visão:",
+      "SAVE_ERROR": "Não foi possível salvar a visão.",
+      "DELETE": "Excluir visão",
+      "DELETE_CONFIRM": "Excluir a visão \"{name}\"?"
+    },
+    "BULK": {
+      "SELECT_MODE": "Selecionar",
+      "DONE": "Concluir",
+      "SELECTED": "{count} selecionada(s)",
+      "CLEAR": "Limpar",
+      "REASSIGN": "Atribuir a…",
+      "MOVE": "Mover para…",
+      "TAG": "Adicionar etiqueta",
+      "TAG_PLACEHOLDER": "etiqueta",
+      "ARCHIVE": "Arquivar",
+      "ARCHIVE_CONFIRM": "Arquivar (encerrar) {count} conversa(s)?",
+      "RESULT": "{processed} feitas, {failed} ignoradas",
+      "ERROR": "Ação em massa falhou."
     }
   }
 }

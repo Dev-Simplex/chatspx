@@ -4,6 +4,7 @@ import { useStore } from 'vuex';
 import { useRouter } from 'vue-router';
 import { useI18n } from 'vue-i18n';
 import { format } from 'date-fns';
+import { useAlert } from 'dashboard/composables';
 import Button from 'dashboard/components-next/button/Button.vue';
 import Icon from 'dashboard/components-next/icon/Icon.vue';
 import Avatar from 'dashboard/components-next/avatar/Avatar.vue';
@@ -345,6 +346,16 @@ const matchesStatusFilter = item => {
   return getConversationStatus(item) === selectedStatus;
 };
 
+const matchesPriorityFilter = item => {
+  const priorities = viewFilters.value?.priority || [];
+  if (!priorities.length) return true;
+  const conversation = getConversationFromItem(item);
+  const priority =
+    conversation?.priority || item?.conversation?.priority || null;
+  if (priority == null) return priorities.includes('none');
+  return priorities.includes(priority);
+};
+
 const filteredItems = computed(() => {
   return allItems.value
     .filter(item => {
@@ -353,7 +364,8 @@ const filteredItems = computed(() => {
         matchesStageFilter(item) &&
         matchesLabelFilter(item) &&
         matchesAssigneeFilter(item) &&
-        matchesStatusFilter(item)
+        matchesStatusFilter(item) &&
+        matchesPriorityFilter(item)
       );
     })
     .sort((a, b) => {
@@ -415,6 +427,108 @@ const loadMoreResults = async () => {
     isLoadingMore.value = false;
   }
 };
+
+// ── Bulk actions (Fase 3) — select rows, then reassign/tag/archive/move ─
+const agentsList = computed(() => store.getters['agents/getAgents'] || []);
+const selectMode = ref(false);
+const selectedIds = ref([]);
+const bulkBusy = ref(false);
+const tagDraft = ref('');
+
+const selectableIds = computed(() =>
+  filteredItems.value.map(conversationIdFromItem).filter(Boolean)
+);
+const selectedCount = computed(() => selectedIds.value.length);
+const allSelected = computed(
+  () =>
+    selectableIds.value.length > 0 &&
+    selectableIds.value.every(id => selectedIds.value.includes(id))
+);
+
+const isSelected = item =>
+  selectedIds.value.includes(conversationIdFromItem(item));
+const toggleSelect = item => {
+  const id = conversationIdFromItem(item);
+  if (!id) return;
+  selectedIds.value = selectedIds.value.includes(id)
+    ? selectedIds.value.filter(x => x !== id)
+    : [...selectedIds.value, id];
+};
+const toggleSelectAll = () => {
+  selectedIds.value = allSelected.value ? [] : [...selectableIds.value];
+};
+const clearSelection = () => {
+  selectedIds.value = [];
+};
+const toggleSelectMode = () => {
+  selectMode.value = !selectMode.value;
+  if (!selectMode.value) clearSelection();
+};
+
+const runBulk = async payload => {
+  if (!selectedCount.value || bulkBusy.value) return;
+  bulkBusy.value = true;
+  try {
+    const result = await store.dispatch('kanban/bulkUpdateItems', {
+      funnelId: props.funnelId,
+      conversationIds: [...selectedIds.value],
+      ...payload,
+    });
+    if (result) {
+      useAlert(
+        t('KANBAN.BULK.RESULT', {
+          processed: result.processed ?? 0,
+          failed: result.failed ?? 0,
+        })
+      );
+    }
+    clearSelection();
+  } catch (_) {
+    useAlert(t('KANBAN.BULK.ERROR'));
+  } finally {
+    bulkBusy.value = false;
+  }
+};
+
+const bulkReassign = event => {
+  const value = event.target.value;
+  event.target.value = '';
+  if (value) runBulk({ operation: 'reassign', assigneeId: Number(value) });
+};
+const bulkTag = () => {
+  const label = tagDraft.value.trim();
+  if (!label) return;
+  tagDraft.value = '';
+  runBulk({ operation: 'tag', labels: [label] });
+};
+const bulkArchive = () => {
+  // eslint-disable-next-line no-alert
+  if (
+    !window.confirm(
+      t('KANBAN.BULK.ARCHIVE_CONFIRM', { count: selectedCount.value })
+    )
+  )
+    return;
+  runBulk({ operation: 'archive' });
+};
+const bulkMove = async event => {
+  const stageId = event.target.value;
+  event.target.value = '';
+  if (!stageId || !selectedCount.value || bulkBusy.value) return;
+  bulkBusy.value = true;
+  try {
+    await store.dispatch('kanban/bulkMoveItems', {
+      funnelId: props.funnelId,
+      conversationIds: [...selectedIds.value],
+      stageId: Number(stageId),
+    });
+    clearSelection();
+  } catch (_) {
+    useAlert(t('KANBAN.BULK.ERROR'));
+  } finally {
+    bulkBusy.value = false;
+  }
+};
 </script>
 
 <template>
@@ -465,14 +579,95 @@ const loadMoreResults = async () => {
           </span>
         </div>
 
+        <div class="flex items-center gap-2">
+          <Button
+            v-if="hasActiveFilters"
+            size="sm"
+            variant="ghost"
+            icon="i-lucide-filter-x"
+            @click="clearFilters"
+          >
+            <span class="ml-2">{{ t('KANBAN.FILTERS.CLEAR') }}</span>
+          </Button>
+          <Button
+            size="sm"
+            :variant="selectMode ? 'primary' : 'ghost'"
+            icon="i-lucide-check-square"
+            @click="toggleSelectMode"
+          >
+            <span class="ml-2">
+              {{
+                selectMode
+                  ? t('KANBAN.BULK.DONE')
+                  : t('KANBAN.BULK.SELECT_MODE')
+              }}
+            </span>
+          </Button>
+        </div>
+      </div>
+
+      <!-- Bulk action bar -->
+      <div
+        v-if="selectMode && selectedCount"
+        class="flex flex-wrap items-center gap-2 border-b border-n-weak bg-n-solid-2 px-5 py-2"
+      >
+        <span class="text-sm font-semibold text-n-slate-12">
+          {{ t('KANBAN.BULK.SELECTED', { count: selectedCount }) }}
+        </span>
+        <select
+          class="kanban-bulk-input"
+          :disabled="bulkBusy"
+          @change="bulkMove"
+        >
+          <option value="">{{ t('KANBAN.BULK.MOVE') }}</option>
+          <option v-for="stage in stages" :key="stage.id" :value="stage.id">
+            {{ stage.name }}
+          </option>
+        </select>
+        <select
+          class="kanban-bulk-input"
+          :disabled="bulkBusy"
+          @change="bulkReassign"
+        >
+          <option value="">{{ t('KANBAN.BULK.REASSIGN') }}</option>
+          <option v-for="agent in agentsList" :key="agent.id" :value="agent.id">
+            {{ agent.name || agent.available_name }}
+          </option>
+        </select>
+        <span class="flex items-center gap-1">
+          <input
+            v-model="tagDraft"
+            type="text"
+            class="kanban-bulk-input w-28"
+            :placeholder="t('KANBAN.BULK.TAG_PLACEHOLDER')"
+            :disabled="bulkBusy"
+            @keyup.enter="bulkTag"
+          />
+          <Button
+            size="sm"
+            variant="ghost"
+            :disabled="bulkBusy || !tagDraft.trim()"
+            @click="bulkTag"
+          >
+            {{ t('KANBAN.BULK.TAG') }}
+          </Button>
+        </span>
         <Button
-          v-if="hasActiveFilters"
           size="sm"
           variant="ghost"
-          icon="i-lucide-filter-x"
-          @click="clearFilters"
+          icon="i-lucide-archive"
+          :disabled="bulkBusy"
+          @click="bulkArchive"
         >
-          <span class="ml-2">{{ t('KANBAN.FILTERS.CLEAR') }}</span>
+          <span class="ml-1">{{ t('KANBAN.BULK.ARCHIVE') }}</span>
+        </Button>
+        <Button
+          size="sm"
+          variant="ghost"
+          :disabled="bulkBusy"
+          @click="clearSelection"
+        >
+          {{ t('KANBAN.BULK.CLEAR') }}
         </Button>
       </div>
 
@@ -494,7 +689,16 @@ const loadMoreResults = async () => {
           <div
             class="grid grid-cols-[2.1fr_1.1fr_0.9fr_1.6fr_1fr_0.8fr] items-center gap-3 border-b border-n-weak bg-n-solid-1 px-5 py-3 text-xs font-semibold uppercase tracking-wide text-n-slate-10"
           >
-            <span>{{ t('KANBAN.LIST.CONTACT') }}</span>
+            <span class="flex items-center gap-2">
+              <input
+                v-if="selectMode"
+                type="checkbox"
+                class="size-4 shrink-0 accent-n-brand"
+                :checked="allSelected"
+                @change="toggleSelectAll"
+              />
+              {{ t('KANBAN.LIST.CONTACT') }}
+            </span>
             <span>{{ t('KANBAN.LIST.STAGE') }}</span>
             <span>{{ t('KANBAN.LIST.STATUS') }}</span>
             <span>{{ t('KANBAN.LIST.LAST_MESSAGE') }}</span>
@@ -507,30 +711,40 @@ const loadMoreResults = async () => {
               v-for="item in filteredItems"
               :key="item.id"
               class="grid grid-cols-[2.1fr_1.1fr_0.9fr_1.6fr_1fr_0.8fr] items-center gap-3 px-5 py-3 hover:bg-n-slate-3/50 transition-colors"
+              :class="{ 'bg-n-brand/5': selectMode && isSelected(item) }"
             >
-              <button
-                type="button"
-                class="flex min-w-0 items-center gap-3 text-left"
-                @click="openConversation(item)"
-              >
-                <Avatar
-                  :name="getContactName(item)"
-                  :src="getContactAvatar(item)"
-                  :size="38"
-                  rounded-full
+              <div class="flex min-w-0 items-center gap-2">
+                <input
+                  v-if="selectMode"
+                  type="checkbox"
+                  class="size-4 shrink-0 accent-n-brand"
+                  :checked="isSelected(item)"
+                  @click.stop="toggleSelect(item)"
                 />
-                <div class="min-w-0">
-                  <p class="truncate text-sm font-semibold text-n-slate-12">
-                    {{ getContactName(item) }}
-                  </p>
-                  <p
-                    v-if="getContactPhone(item)"
-                    class="truncate text-xs font-mono text-n-slate-10"
-                  >
-                    {{ getContactPhone(item) }}
-                  </p>
-                </div>
-              </button>
+                <button
+                  type="button"
+                  class="flex min-w-0 items-center gap-3 text-left"
+                  @click="openConversation(item)"
+                >
+                  <Avatar
+                    :name="getContactName(item)"
+                    :src="getContactAvatar(item)"
+                    :size="38"
+                    rounded-full
+                  />
+                  <div class="min-w-0">
+                    <p class="truncate text-sm font-semibold text-n-slate-12">
+                      {{ getContactName(item) }}
+                    </p>
+                    <p
+                      v-if="getContactPhone(item)"
+                      class="truncate text-xs font-mono text-n-slate-10"
+                    >
+                      {{ getContactPhone(item) }}
+                    </p>
+                  </div>
+                </button>
+              </div>
 
               <div class="min-w-0">
                 <span
@@ -726,5 +940,20 @@ const loadMoreResults = async () => {
 <style scoped>
 .list-view-container {
   min-height: 0;
+}
+
+/* Compact controls for the bulk action bar */
+.kanban-bulk-input {
+  border-radius: 0.5rem;
+  border: 1px solid var(--color-border-weak, rgba(0, 0, 0, 0.1));
+  background-color: var(--color-background, #fff);
+  padding: 0.25rem 0.5rem;
+  font-size: 12px;
+  line-height: 1.2;
+  color: inherit;
+}
+.kanban-bulk-input:focus {
+  outline: none;
+  border-color: var(--color-woot, #1f93ff);
 }
 </style>

@@ -1,10 +1,13 @@
 # frozen_string_literal: true
 
 class Api::V1::Accounts::FunnelItemsController < Api::V1::Accounts::BaseController
+  include Kanban::FunnelItemsBulkActions
+
   BACKFILL_THROTTLE = 10.minutes
 
   before_action :funnel
-  before_action :funnel_item, except: [:index, :create, :bulk_move]
+  # bulk_move / bulk_update live in Kanban::FunnelItemsBulkActions (concern).
+  before_action :funnel_item, except: [:index, :create, :bulk_move, :bulk_update] # rubocop:disable Rails/LexicallyScopedActionFilter
   before_action :check_authorization
 
   def index
@@ -70,27 +73,6 @@ class Api::V1::Accounts::FunnelItemsController < Api::V1::Accounts::BaseControll
       conversation_id: conversation.id,
       custom_attributes: funnel_scoped_attributes(conversation.custom_attributes)
     }
-  end
-
-  def bulk_move
-    conversation_ids = params[:conversation_ids] || []
-    stage_id = params[:stage_id]
-
-    return render json: { error: 'stage_id is required' }, status: :unprocessable_entity if stage_id.blank?
-
-    stage = funnel.funnel_stages.find(stage_id)
-    conversations = Current.account.conversations.where(id: conversation_ids)
-
-    conversations.each do |conv|
-      FunnelItems::MoveService.new(
-        conversation: conv,
-        funnel: funnel,
-        funnel_stage: stage,
-        moved_by: Current.user
-      ).perform
-    end
-
-    head :ok
   end
 
   private

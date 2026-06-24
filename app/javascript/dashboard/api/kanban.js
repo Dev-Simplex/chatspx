@@ -155,6 +155,34 @@ class KanbanAPI extends ApiClient {
     return axios.delete(`${this.url}/${funnelId}/funnel_items/${itemId}`);
   }
 
+  // ── Saved views (Fase 3) — account-scoped, filtered by funnel ───────
+  getFunnelViews(funnelId) {
+    const url = `${this.baseUrl()}/funnel_views`;
+    return axios.get(funnelId ? `${url}?funnel_id=${funnelId}` : url);
+  }
+
+  createFunnelView(data) {
+    return axios.post(`${this.baseUrl()}/funnel_views`, { funnel_view: data });
+  }
+
+  updateFunnelView(viewId, data) {
+    return axios.patch(`${this.baseUrl()}/funnel_views/${viewId}`, {
+      funnel_view: data,
+    });
+  }
+
+  deleteFunnelView(viewId) {
+    return axios.delete(`${this.baseUrl()}/funnel_views/${viewId}`);
+  }
+
+  // ── Bulk actions (Fase 3): reassign / tag / archive selected cards ──
+  bulkUpdateItems(funnelId, payload) {
+    return axios.post(
+      `${this.url}/${funnelId}/funnel_items/bulk_update`,
+      payload
+    );
+  }
+
   bulkMoveItems(funnelId, conversationIds, stageId) {
     return axios.post(`${this.url}/${funnelId}/funnel_items/bulk_move`, {
       conversation_ids: conversationIds,

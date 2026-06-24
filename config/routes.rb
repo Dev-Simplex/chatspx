@@ -139,9 +139,11 @@ Rails.application.routes.draw do
               end
               collection do
                 post :bulk_move
+                post :bulk_update
               end
             end
           end
+          resources :funnel_views, only: [:index, :show, :create, :update, :destroy]
           resources :scheduled_messages, only: [:index, :show, :create, :update, :destroy] do
             collection do
               get :inboxes

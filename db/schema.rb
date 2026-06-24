@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[7.1].define(version: 2026_06_24_130000) do
+ActiveRecord::Schema[7.1].define(version: 2026_06_24_140000) do
   # These extensions should be enabled to support this database
   enable_extension "pg_stat_statements"
   enable_extension "pg_trgm"
@@ -995,6 +995,23 @@ ActiveRecord::Schema[7.1].define(version: 2026_06_24_130000) do
     t.index ["funnel_id"], name: "index_funnel_stages_on_funnel_id"
   end
 
+  create_table "funnel_views", force: :cascade do |t|
+    t.bigint "account_id", null: false
+    t.bigint "funnel_id", null: false
+    t.bigint "user_id"
+    t.string "name", null: false
+    t.jsonb "filters", default: {}, null: false
+    t.string "view_mode", default: "kanban", null: false
+    t.boolean "is_shared", default: false, null: false
+    t.integer "position", default: 0
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["account_id", "funnel_id"], name: "index_funnel_views_on_account_id_and_funnel_id"
+    t.index ["account_id"], name: "index_funnel_views_on_account_id"
+    t.index ["funnel_id"], name: "index_funnel_views_on_funnel_id"
+    t.index ["user_id"], name: "index_funnel_views_on_user_id"
+  end
+
   create_table "funnels", force: :cascade do |t|
     t.string "name", null: false
     t.bigint "account_id", null: false
@@ -1724,6 +1741,9 @@ ActiveRecord::Schema[7.1].define(version: 2026_06_24_130000) do
   add_foreign_key "conversations", "users", column: "assignee_id", on_delete: :nullify
   add_foreign_key "csat_survey_responses", "conversations", on_delete: :cascade
   add_foreign_key "funnel_custom_fields", "funnels"
+  add_foreign_key "funnel_views", "accounts"
+  add_foreign_key "funnel_views", "funnels"
+  add_foreign_key "funnel_views", "users"
   add_foreign_key "funnel_items", "conversations", on_delete: :cascade
   add_foreign_key "funnel_items", "funnel_stages"
   add_foreign_key "funnel_items", "funnels"

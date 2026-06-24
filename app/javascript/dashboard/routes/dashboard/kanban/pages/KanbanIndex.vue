@@ -7,6 +7,7 @@ import KanbanBoard from 'dashboard/components-next/Kanban/KanbanBoard.vue';
 import ListView from 'dashboard/components-next/Kanban/ListView.vue';
 import CalendarView from 'dashboard/components-next/Kanban/CalendarView.vue';
 import KanbanFilterSelect from 'dashboard/components-next/Kanban/KanbanFilterSelect.vue';
+import KanbanSavedViews from 'dashboard/components-next/Kanban/KanbanSavedViews.vue';
 import FunnelForm from 'dashboard/components-next/Kanban/FunnelForm.vue';
 import ScheduledMessageForm from 'dashboard/components-next/Kanban/ScheduledMessageForm.vue';
 import ScheduledMessagesDrawer from 'dashboard/components-next/Kanban/ScheduledMessagesDrawer.vue';
@@ -165,6 +166,15 @@ const statusFilterOptions = computed(() => [
   },
 ]);
 
+const priorityFilterOptions = computed(() => [
+  { value: 'all', label: t('KANBAN.FILTERS.PRIORITY.ALL') },
+  { value: 'urgent', label: t('KANBAN.FILTERS.PRIORITY.URGENT') },
+  { value: 'high', label: t('KANBAN.FILTERS.PRIORITY.HIGH') },
+  { value: 'medium', label: t('KANBAN.FILTERS.PRIORITY.MEDIUM') },
+  { value: 'low', label: t('KANBAN.FILTERS.PRIORITY.LOW') },
+  { value: 'none', label: t('KANBAN.FILTERS.PRIORITY.NONE') },
+]);
+
 const funnelOptions = computed(() => [
   {
     value: '',
@@ -264,6 +274,18 @@ const statusFilter = computed({
   },
 });
 
+// Single-select UI mapped onto the priority array (one priority at a time).
+const priorityFilter = computed({
+  get() {
+    return viewFilters.value?.priority?.[0] || 'all';
+  },
+  set(value) {
+    store.dispatch('kanban/setViewFilters', {
+      priority: !value || value === 'all' ? [] : [value],
+    });
+  },
+});
+
 const hasActiveFilters = computed(() => {
   const filters = viewFilters.value || {};
   return Boolean(
@@ -271,6 +293,7 @@ const hasActiveFilters = computed(() => {
       (filters.stageIds || []).length ||
       (filters.labelIds || []).length ||
       filters.assigneeId ||
+      (filters.priority || []).length ||
       (filters.status || 'all') !== 'all'
   );
 });
@@ -282,6 +305,7 @@ const activeFiltersCount = computed(() => {
   if ((filters.stageIds || []).length) count += 1;
   if ((filters.labelIds || []).length) count += 1;
   if (filters.assigneeId) count += 1;
+  if ((filters.priority || []).length) count += 1;
   if ((filters.status || 'all') !== 'all') count += 1;
   return count;
 });
@@ -292,6 +316,7 @@ const advancedFiltersCount = computed(() => {
   if ((filters.stageIds || []).length) count += 1;
   if ((filters.labelIds || []).length) count += 1;
   if (filters.assigneeId) count += 1;
+  if ((filters.priority || []).length) count += 1;
   if ((filters.status || 'all') !== 'all') count += 1;
   return count;
 });
@@ -730,6 +755,8 @@ onMounted(async () => {
             />
           </div>
 
+          <KanbanSavedViews />
+
           <Button
             data-testid="kanban-advanced-filters-toggle"
             variant="ghost"
@@ -829,6 +856,17 @@ onMounted(async () => {
                 v-model="assigneeFilter"
                 :options="assigneeFilterOptions"
                 :placeholder="t('KANBAN.FILTERS.ALL_AGENTS')"
+              />
+            </div>
+
+            <div class="kanban-filter-group">
+              <label class="kanban-filter-label text-n-slate-10">
+                {{ t('KANBAN.FILTERS.PRIORITY.LABEL') }}
+              </label>
+              <KanbanFilterSelect
+                v-model="priorityFilter"
+                :options="priorityFilterOptions"
+                :placeholder="t('KANBAN.FILTERS.PRIORITY.ALL')"
               />
             </div>
           </div>

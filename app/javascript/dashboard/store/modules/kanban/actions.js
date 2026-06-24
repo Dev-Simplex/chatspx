@@ -627,6 +627,57 @@ export const actions = {
     });
   },
 
+  // Bulk reassign / tag / archive (Fase 3) — refresh the funnel afterwards.
+  async bulkUpdateItems(
+    { dispatch },
+    { funnelId, conversationIds, operation, assigneeId, labels }
+  ) {
+    const response = await KanbanAPI.bulkUpdateItems(funnelId, {
+      operation,
+      conversation_ids: conversationIds,
+      assignee_id: assigneeId,
+      labels,
+    });
+    await dispatch('bootstrapFunnel', {
+      funnelId,
+      excludeAutomationType: 'resolved',
+      limit: DEFAULT_STAGE_PAGE_LIMIT,
+    });
+    return response.data;
+  },
+
+  // ── Saved views (Fase 3) ───────────────────────────────────────────
+  async fetchSavedViews({ commit }, funnelId) {
+    const response = await KanbanAPI.getFunnelViews(funnelId);
+    const views = Array.isArray(response.data) ? response.data : [];
+    commit(types.SET_SAVED_VIEWS, views);
+    return views;
+  },
+
+  async createSavedView({ commit }, data) {
+    const response = await KanbanAPI.createFunnelView(data);
+    commit(types.ADD_SAVED_VIEW, response.data);
+    return response.data;
+  },
+
+  async updateSavedView({ commit }, { viewId, data }) {
+    const response = await KanbanAPI.updateFunnelView(viewId, data);
+    commit(types.UPDATE_SAVED_VIEW, response.data);
+    return response.data;
+  },
+
+  async deleteSavedView({ commit }, viewId) {
+    await KanbanAPI.deleteFunnelView(viewId);
+    commit(types.DELETE_SAVED_VIEW, viewId);
+  },
+
+  // Apply a saved view: restore its filters and view mode.
+  applySavedView({ commit }, view) {
+    if (!view) return;
+    commit(types.SET_VIEW_FILTERS, view.filters || {});
+    if (view.view_mode) commit(types.SET_VIEW_MODE, view.view_mode);
+  },
+
   setViewFilters({ commit }, filters = {}) {
     commit(types.SET_VIEW_FILTERS, filters);
   },

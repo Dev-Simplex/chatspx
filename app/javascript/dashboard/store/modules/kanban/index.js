@@ -36,7 +36,9 @@ const state = {
     labelIds: [],
     assigneeId: null,
     status: 'all',
+    priority: [],
   },
+  savedViews: [],
   viewBootstrap: {
     kanbanLoaded: false,
     listLoaded: false,

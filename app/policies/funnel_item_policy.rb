@@ -22,6 +22,15 @@ class FunnelItemPolicy < ApplicationPolicy
     update?
   end
 
+  # Bulk operations on the board are agent/admin actions (Fase 3).
+  def bulk_move?
+    create?
+  end
+
+  def bulk_update?
+    create?
+  end
+
   def destroy?
     create? && record.funnel.account_id == account.id
   end

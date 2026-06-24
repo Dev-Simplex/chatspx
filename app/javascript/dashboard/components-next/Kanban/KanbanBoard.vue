@@ -226,6 +226,18 @@ const matchesStatusFilter = item => {
   return (conversation?.status || 'open') === selectedStatus;
 };
 
+const matchesPriorityFilter = item => {
+  const priorities = viewFilters.value?.priority || [];
+  if (!priorities.length) return true;
+
+  const conversation = getItemConversation(item);
+  const priority =
+    conversation?.priority || item?.conversation?.priority || null;
+  // 'none' matches conversations with no priority set.
+  if (priority == null) return priorities.includes('none');
+  return priorities.includes(priority);
+};
+
 const matchesStageFilter = stageId => {
   const stageIds = viewFilters.value?.stageIds || [];
   if (!stageIds.length) return true;
@@ -240,7 +252,8 @@ const isItemVisible = (item, stageId) => {
     matchesQueryFilter(item, query) &&
     matchesLabelFilter(item) &&
     matchesAssigneeFilter(item) &&
-    matchesStatusFilter(item)
+    matchesStatusFilter(item) &&
+    matchesPriorityFilter(item)
   );
 };
 

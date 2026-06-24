@@ -30,6 +30,15 @@
       "ITEMS": "items",
       "STATUS": {
         "ALL": "All statuses"
+      },
+      "PRIORITY": {
+        "LABEL": "Priority",
+        "ALL": "Any priority",
+        "URGENT": "Urgent",
+        "HIGH": "High",
+        "MEDIUM": "Medium",
+        "LOW": "Low",
+        "NONE": "No priority"
       }
     },
     "FUNNELS": {
@@ -326,6 +335,29 @@
         "EMAIL": "Email",
         "LINK": "Link"
       }
+    },
+    "SAVED_VIEWS": {
+      "TITLE": "Views",
+      "EMPTY": "No saved views for this funnel yet.",
+      "SAVE_CURRENT": "Save current view",
+      "NAME_PROMPT": "Name this view:",
+      "SAVE_ERROR": "Could not save the view.",
+      "DELETE": "Delete view",
+      "DELETE_CONFIRM": "Delete the view \"{name}\"?"
+    },
+    "BULK": {
+      "SELECT_MODE": "Select",
+      "DONE": "Done",
+      "SELECTED": "{count} selected",
+      "CLEAR": "Clear",
+      "REASSIGN": "Assign to…",
+      "MOVE": "Move to…",
+      "TAG": "Add label",
+      "TAG_PLACEHOLDER": "label",
+      "ARCHIVE": "Archive",
+      "ARCHIVE_CONFIRM": "Archive (resolve) {count} conversation(s)?",
+      "RESULT": "{processed} done, {failed} skipped",
+      "ERROR": "Bulk action failed."
     }
   }
 }
