@@ -274,6 +274,7 @@ watch(
     ref="dialogRef"
     width="xl"
     position="center"
+    overflow-y-auto
     :title="t('KANBAN.PREVIEW.TITLE')"
     :show-cancel-button="false"
     :show-confirm-button="false"
@@ -428,7 +429,9 @@ watch(
 
 <style scoped>
 .kanban-preview__body {
-  max-height: 60vh;
-  min-height: 8rem;
+  /* Capped so the composer + footer buttons stay visible on the screen.
+     The dialog itself is overflow-y-auto as a safety net on short screens. */
+  max-height: 42vh;
+  min-height: 6rem;
 }
 </style>
