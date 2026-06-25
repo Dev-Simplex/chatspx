@@ -59,7 +59,7 @@ class Captain::Tools::BuscarImovelTool < Captain::Tools::BasePublicTool
   private
 
   def fetch_vista(filter, quantidade: 5)
-    base = ENV.fetch('TOZI_VISTA_BASE_URL', 'https://toz19328-rest.vistahost.com.br')
+    base = vista_base_url
     pesquisa = {
       fields: VISTA_FIELDS,
       filter: filter,
@@ -68,7 +68,7 @@ class Captain::Tools::BuscarImovelTool < Captain::Tools::BasePublicTool
     }
     resp = HTTParty.get(
       "#{base}/imoveis/listar",
-      query: { key: ENV['TOZI_VISTA_API_KEY'].to_s, showtotal: 1, pesquisa: pesquisa.to_json },
+      query: { key: vista_api_key, showtotal: 1, pesquisa: pesquisa.to_json },
       headers: { 'Accept' => 'application/json' },
       timeout: 15
     )
@@ -79,6 +79,19 @@ class Captain::Tools::BuscarImovelTool < Captain::Tools::BasePublicTool
     return [] unless data.is_a?(Hash)
 
     data.reject { |k, _| META_KEYS.include?(k) }.values.select { |v| v.is_a?(Hash) }
+  end
+
+  # Credenciais Vista por CONTA (multi-tenant): lê do Account; fallback p/ ENV (Tozi legado).
+  def vista_api_key
+    account_setting('vista_api_key') || ENV['TOZI_VISTA_API_KEY'].to_s
+  end
+
+  def vista_base_url
+    account_setting('vista_base_url') || ENV.fetch('TOZI_VISTA_BASE_URL', 'https://toz19328-rest.vistahost.com.br')
+  end
+
+  def account_setting(key)
+    (@assistant&.account&.custom_attributes || {})[key].presence
   end
 
   def format_by_distance(imoveis, venda, lat, lng, raio)
