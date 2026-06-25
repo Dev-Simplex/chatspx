@@ -4,6 +4,7 @@ export const state = {
   channels: [],
   agents: [],
   messagesByChannel: {},
+  pendingMention: null,
   uiFlags: {
     isFetchingChannels: false,
     isFetchingMessages: false,
@@ -18,6 +19,7 @@ export const getters = {
   getUIFlags: $state => $state.uiFlags,
   getTotalUnread: $state =>
     $state.channels.reduce((sum, c) => sum + (c.unread_count || 0), 0),
+  getPendingMention: $state => $state.pendingMention,
 };
 
 export const actions = {
@@ -43,6 +45,20 @@ export const actions = {
     return data;
   },
 
+  createGroup: async ({ commit, dispatch }, { name, memberIds }) => {
+    const { data } = await InternalChatAPI.createGroup(name, memberIds);
+    commit('UPSERT_CHANNEL', data);
+    await dispatch('fetchChannels');
+    return data;
+  },
+
+  createTeamChannel: async ({ commit, dispatch }, teamId) => {
+    const { data } = await InternalChatAPI.createTeamChannel(teamId);
+    commit('UPSERT_CHANNEL', data);
+    await dispatch('fetchChannels');
+    return data;
+  },
+
   fetchMessages: async ({ commit }, channelId) => {
     commit('SET_UI_FLAG', { isFetchingMessages: true });
     try {
@@ -55,10 +71,17 @@ export const actions = {
     }
   },
 
-  sendMessage: async ({ commit }, { channelId, content }) => {
+  sendMessage: async (
+    { commit },
+    { channelId, content, attachments = [], mentionedUserIds = [] }
+  ) => {
     commit('SET_UI_FLAG', { isSending: true });
     try {
-      const { data } = await InternalChatAPI.sendMessage(channelId, content);
+      const { data } = await InternalChatAPI.sendMessage(channelId, {
+        content,
+        attachments,
+        mentionedUserIds,
+      });
       commit('APPEND_MESSAGE', { channelId, message: data });
       return data;
     } finally {
@@ -74,6 +97,17 @@ export const actions = {
       commit('APPEND_MESSAGE', { channelId, message });
     }
     commit('BUMP_UNREAD', channelId);
+  },
+
+  // Real-time: I was @mentioned. A fresh object (with `at`) guarantees the
+  // always-mounted Sidebar watcher fires even for repeated mentions.
+  applyIncomingMention: ({ commit }, data) => {
+    commit('SET_PENDING_MENTION', {
+      from: data.from,
+      channel: data.channel_title,
+      channelId: data.internal_channel_id,
+      at: Date.now(),
+    });
   },
 };
 
@@ -113,6 +147,9 @@ export const mutations = {
   BUMP_UNREAD($state, channelId) {
     const channel = $state.channels.find(c => c.id === channelId);
     if (channel) channel.unread_count = (channel.unread_count || 0) + 1;
+  },
+  SET_PENDING_MENTION($state, mention) {
+    $state.pendingMention = mention;
   },
 };
 

@@ -268,7 +268,10 @@ Sugestão: fechar **A** inteiro (entrega de negócio completa) antes de abrir **
 
 **DoD:** dois agentes trocam DMs em tempo real no staging. **Commit** `feat(internal-chat): B1 — fundação + DM 1:1 em tempo real`.
 
-### Fase B2 — Canais de grupo/equipe + não-lidas + @menções
+### Fase B2 — Canais de grupo/equipe + não-lidas + @menções ✅ FEITA (2026-06-25)
+> **Status:** implementada, verde e DEPLOYADA no staging. Não-lidas já vieram na B1. Backend: `InternalChannels::CreateService` (grupo com membros escolhidos; canal de equipe **find-or-create** com auto-inclusão de `team.members`); `InternalMessage.mentioned_user_ids` (jsonb, migration `20260625160000`); `CreateService` de mensagem aceita `mentioned_user_ids` (filtra p/ membros, exclui autor) + persiste + broadcast `internal.mention.created`; anexos no payload; controller de canais ramifica DM/grupo/equipe. **39 specs verdes.** Frontend: menu "+" (DM/Grupo/Equipe), form de grupo, seletor de equipe (reusa store `teams`), composer com emoji (`EmojiInput`), anexo (FormData), @menção (picker de membros + destaque das msgs que me citam) e **toast de menção em tempo real disparado pela Sidebar**. **Decisão de segurança:** @menção NÃO usa o sino global (hardwired a Conversation — enum fechado + navegação `/conversations`); entrega em tempo real via o mesmo ActionCable. Build vite OK; RuboCop limpo.
+
+### Fase B2 (referência original) — Canais de grupo/equipe + não-lidas + @menções
 - `channel_type` group/team; canal `team` auto-inclui membros do `Team`.
 - `last_read_at` → contador de não-lidas no menu (badge).
 - @menção dispara notificação/sino (reusar sistema de notificações existente).

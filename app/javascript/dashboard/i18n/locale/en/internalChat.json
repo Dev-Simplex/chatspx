@@ -2,11 +2,22 @@
   "INTERNAL_CHAT": {
     "TITLE": "Internal Chat",
     "NEW_DM": "New direct message",
+    "NEW_GROUP": "New group",
+    "NEW_TEAM_CHANNEL": "Team channel",
     "START_WITH": "Start a chat with",
     "NO_AGENTS": "No other teammates available.",
     "EMPTY": "No conversations yet. Start one with the + button.",
     "SELECT_PROMPT": "Select a conversation to start chatting.",
     "PLACEHOLDER": "Write a message…",
-    "SEND": "Send"
+    "SEND": "Send",
+    "GROUP_NAME": "Group name",
+    "GROUP_NAME_PLACEHOLDER": "e.g. Weekend shift",
+    "MEMBERS": "Members",
+    "SELECT_TEAM": "Pick a team",
+    "NO_TEAMS": "You are not part of any team.",
+    "CREATE": "Create",
+    "CANCEL": "Cancel",
+    "ATTACH": "Attach file",
+    "MENTION_TOAST": "{from} mentioned you in {channel}"
   }
 }

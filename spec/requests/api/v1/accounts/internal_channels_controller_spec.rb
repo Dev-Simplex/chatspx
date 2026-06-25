@@ -42,6 +42,23 @@ RSpec.describe 'Api::V1::Accounts::InternalChannelsController', type: :request d
            params: { user_id: alice.id }, headers: alice.create_new_auth_token
       expect(response).to have_http_status(:unprocessable_entity)
     end
+
+    it 'creates a group channel with chosen members' do
+      post "/api/v1/accounts/#{account.id}/internal_channels",
+           params: { name: 'Plantão', member_ids: [bob.id] }, headers: alice.create_new_auth_token
+      expect(response).to have_http_status(:created)
+      expect(response.parsed_body['channel_type']).to eq('group_chat')
+      expect(response.parsed_body['title']).to eq('Plantão')
+    end
+
+    it 'creates a team channel including the team members' do
+      team = create(:team, account: account)
+      team.add_members([bob.id])
+      post "/api/v1/accounts/#{account.id}/internal_channels",
+           params: { team_id: team.id }, headers: alice.create_new_auth_token
+      expect(response).to have_http_status(:created)
+      expect(response.parsed_body['channel_type']).to eq('team')
+    end
   end
 
   describe 'GET /internal_channels/:id' do

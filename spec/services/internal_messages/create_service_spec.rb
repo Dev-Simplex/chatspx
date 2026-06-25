@@ -26,4 +26,28 @@ RSpec.describe InternalMessages::CreateService do
     end.to have_enqueued_job(ActionCableBroadcastJob)
       .with(array_including(alice.pubsub_token, bob.pubsub_token), 'internal.message.created', anything)
   end
+
+  describe '@mentions' do
+    it 'persists only mentioned members and never the author' do
+      message = described_class.new(
+        channel: channel, user: alice, content: 'oi @bob', mentioned_user_ids: [bob.id, alice.id]
+      ).perform
+      expect(message.mentioned_user_ids).to contain_exactly(bob.id)
+    end
+
+    it 'drops mentions of non-members' do
+      outsider = create(:user, account: account, role: :agent)
+      message = described_class.new(
+        channel: channel, user: alice, content: 'oi', mentioned_user_ids: [outsider.id]
+      ).perform
+      expect(message.mentioned_user_ids).to be_empty
+    end
+
+    it 'broadcasts a mention event to the mentioned member' do
+      expect do
+        described_class.new(channel: channel, user: alice, content: 'oi @bob', mentioned_user_ids: [bob.id]).perform
+      end.to have_enqueued_job(ActionCableBroadcastJob)
+        .with([bob.pubsub_token], 'internal.mention.created', anything)
+    end
+  end
 end

@@ -43,6 +43,7 @@ class ActionCableConnector extends BaseActionCableConnector {
       'copilot.message.created': this.onCopilotMessageCreated,
       'funnel_item.moved': this.onFunnelItemMoved,
       'internal.message.created': this.onInternalMessageCreated,
+      'internal.mention.created': this.onInternalMentionCreated,
     };
   }
 
@@ -55,6 +56,13 @@ class ActionCableConnector extends BaseActionCableConnector {
   // Chat interno (Módulo B): a peer posted into one of my internal channels.
   onInternalMessageCreated = data => {
     this.app.$store.dispatch('internalChat/applyIncomingMessage', data);
+  };
+
+  // Chat interno (B2): I was @mentioned. The toast (localized) is fired by the
+  // always-mounted Sidebar watching this store state — keeps i18n out of the
+  // connector and avoids touching the global notification bell.
+  onInternalMentionCreated = data => {
+    this.app.$store.dispatch('internalChat/applyIncomingMention', data);
   };
 
   // eslint-disable-next-line class-methods-use-this

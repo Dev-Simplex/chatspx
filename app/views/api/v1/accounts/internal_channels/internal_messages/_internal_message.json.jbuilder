@@ -4,6 +4,7 @@ json.id message.id
 json.internal_channel_id message.internal_channel_id
 json.content message.content
 json.created_at message.created_at.to_i
+json.mentioned_user_ids message.mentioned_user_ids
 json.user do
   json.id message.user_id
   json.name message.user&.name

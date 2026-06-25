@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[7.1].define(version: 2026_06_25_140200) do
+ActiveRecord::Schema[7.1].define(version: 2026_06_25_160000) do
   # These extensions should be enabled to support this database
   enable_extension "pg_stat_statements"
   enable_extension "pg_trgm"
@@ -1165,6 +1165,41 @@ ActiveRecord::Schema[7.1].define(version: 2026_06_25_140200) do
     t.index ["inbox_id"], name: "idx_integrations_hooks_inbox_id"
   end
 
+  create_table "internal_channel_members", force: :cascade do |t|
+    t.bigint "internal_channel_id", null: false
+    t.bigint "user_id", null: false
+    t.datetime "last_read_at"
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["internal_channel_id", "user_id"], name: "idx_on_internal_channel_id_user_id_30257ceaa6", unique: true
+    t.index ["internal_channel_id"], name: "index_internal_channel_members_on_internal_channel_id"
+    t.index ["user_id"], name: "index_internal_channel_members_on_user_id"
+  end
+
+  create_table "internal_channels", force: :cascade do |t|
+    t.bigint "account_id", null: false
+    t.string "name"
+    t.integer "channel_type", default: 0, null: false
+    t.bigint "team_id"
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["account_id", "channel_type"], name: "index_internal_channels_on_account_id_and_channel_type"
+    t.index ["account_id"], name: "index_internal_channels_on_account_id"
+    t.index ["team_id"], name: "index_internal_channels_on_team_id"
+  end
+
+  create_table "internal_messages", force: :cascade do |t|
+    t.bigint "internal_channel_id", null: false
+    t.bigint "user_id", null: false
+    t.text "content", null: false
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.jsonb "mentioned_user_ids", default: [], null: false
+    t.index ["internal_channel_id", "created_at"], name: "index_internal_messages_on_internal_channel_id_and_created_at"
+    t.index ["internal_channel_id"], name: "index_internal_messages_on_internal_channel_id"
+    t.index ["user_id"], name: "index_internal_messages_on_user_id"
+  end
+
   create_table "kanban_automations", force: :cascade do |t|
     t.string "name", null: false
     t.bigint "kanban_id", null: false
@@ -1843,6 +1878,12 @@ ActiveRecord::Schema[7.1].define(version: 2026_06_25_140200) do
   add_foreign_key "funnels", "accounts"
   add_foreign_key "funnels", "teams"
   add_foreign_key "inboxes", "portals"
+  add_foreign_key "internal_channel_members", "internal_channels"
+  add_foreign_key "internal_channel_members", "users"
+  add_foreign_key "internal_channels", "accounts"
+  add_foreign_key "internal_channels", "teams"
+  add_foreign_key "internal_messages", "internal_channels"
+  add_foreign_key "internal_messages", "users"
   add_foreign_key "kanban_automations", "kanban_stages", on_delete: :cascade
   add_foreign_key "kanban_automations", "kanbans", on_delete: :cascade
   add_foreign_key "kanban_items", "conversations", on_delete: :cascade

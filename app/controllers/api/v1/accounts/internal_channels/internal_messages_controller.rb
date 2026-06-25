@@ -14,7 +14,8 @@ class Api::V1::Accounts::InternalChannels::InternalMessagesController < Api::V1:
   def create
     @message = InternalMessages::CreateService.new(
       channel: @channel, user: Current.user,
-      content: params[:content], attachments: params[:attachments]
+      content: params[:content], attachments: params[:attachments],
+      mentioned_user_ids: params[:mentioned_user_ids]
     ).perform
     render :show, status: :created
   rescue ActiveRecord::RecordInvalid => e

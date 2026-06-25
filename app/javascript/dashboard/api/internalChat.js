@@ -14,6 +14,14 @@ class InternalChatAPI extends ApiClient {
     return axios.post(this.url, { user_id: userId });
   }
 
+  createGroup(name, memberIds) {
+    return axios.post(this.url, { name, member_ids: memberIds });
+  }
+
+  createTeamChannel(teamId) {
+    return axios.post(this.url, { team_id: teamId });
+  }
+
   markRead(channelId) {
     return axios.post(`${this.url}/${channelId}/read`);
   }
@@ -22,10 +30,12 @@ class InternalChatAPI extends ApiClient {
     return axios.get(`${this.url}/${channelId}/internal_messages`);
   }
 
-  sendMessage(channelId, content) {
-    return axios.post(`${this.url}/${channelId}/internal_messages`, {
-      content,
-    });
+  sendMessage(channelId, { content, attachments = [], mentionedUserIds = [] }) {
+    const formData = new FormData();
+    formData.append('content', content || '');
+    attachments.forEach(file => formData.append('attachments[]', file));
+    mentionedUserIds.forEach(id => formData.append('mentioned_user_ids[]', id));
+    return axios.post(`${this.url}/${channelId}/internal_messages`, formData);
   }
 
   getAgents() {

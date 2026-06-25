@@ -2,11 +2,22 @@
   "INTERNAL_CHAT": {
     "TITLE": "Chat Interno",
     "NEW_DM": "Nova mensagem direta",
+    "NEW_GROUP": "Novo grupo",
+    "NEW_TEAM_CHANNEL": "Canal de equipe",
     "START_WITH": "Iniciar conversa com",
     "NO_AGENTS": "Nenhum colega disponível.",
     "EMPTY": "Nenhuma conversa ainda. Comece uma no botão +.",
     "SELECT_PROMPT": "Selecione uma conversa para começar.",
     "PLACEHOLDER": "Escreva uma mensagem…",
-    "SEND": "Enviar"
+    "SEND": "Enviar",
+    "GROUP_NAME": "Nome do grupo",
+    "GROUP_NAME_PLACEHOLDER": "ex.: Plantão do fim de semana",
+    "MEMBERS": "Membros",
+    "SELECT_TEAM": "Escolha uma equipe",
+    "NO_TEAMS": "Você não faz parte de nenhuma equipe.",
+    "CREATE": "Criar",
+    "CANCEL": "Cancelar",
+    "ATTACH": "Anexar arquivo",
+    "MENTION_TOAST": "{from} mencionou você em {channel}"
   }
 }

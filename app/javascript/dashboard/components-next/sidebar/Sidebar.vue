@@ -5,6 +5,7 @@ import { useAccount } from 'dashboard/composables/useAccount';
 import { useKbd } from 'dashboard/composables/utils/useKbd';
 import { useMapGetter } from 'dashboard/composables/store';
 import { useUISettings } from 'dashboard/composables/useUISettings';
+import { useAlert } from 'dashboard/composables';
 import draggable from 'vuedraggable';
 import { useStore } from 'vuex';
 import { useI18n } from 'vue-i18n';
@@ -89,6 +90,19 @@ const hasInternalChat = computed(() => {
 });
 
 const totalInternalChatUnread = useMapGetter('internalChat/getTotalUnread');
+
+// Real-time @mention toast for internal chat (localized here — the Sidebar is
+// always mounted and has i18n; keeps the ActionCable connector i18n-free).
+const pendingInternalMention = useMapGetter('internalChat/getPendingMention');
+watch(pendingInternalMention, mention => {
+  if (!mention) return;
+  useAlert(
+    t('INTERNAL_CHAT.MENTION_TOAST', {
+      from: mention.from,
+      channel: mention.channel,
+    })
+  );
+});
 
 const toggleShortcutModalFn = show => {
   if (show) {
