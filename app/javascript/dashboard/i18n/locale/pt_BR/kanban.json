@@ -270,7 +270,8 @@
     "VIEWS": {
       "KANBAN": "Kanban",
       "LIST": "Lista",
-      "CALENDAR": "Agenda"
+      "CALENDAR": "Agenda",
+      "DASHBOARD": "Painel"
     },
     "LIST": {
       "CONVERSATION": "Conversa",
@@ -415,6 +416,25 @@
         "TAG": "Adicionar etiquetas",
         "WEBHOOK": "Chamar webhook"
       }
+    },
+    "DASHBOARD": {
+      "TITLE": "Painel do funil",
+      "EXPORT": "Exportar CSV",
+      "REFRESH": "Atualizar",
+      "CARDS": "Cards",
+      "OPEN": "Abertas",
+      "RESOLVED_TODAY": "Resolvidas hoje",
+      "CREATED_TODAY": "Novas hoje",
+      "UNASSIGNED": "Sem responsável",
+      "OVERDUE": "Atrasadas",
+      "VS_YESTERDAY": "vs ontem",
+      "BY_STAGE": "Cards por coluna",
+      "WORKLOAD": "Carga por agente",
+      "NO_WORKLOAD": "Nenhum card atribuído ainda.",
+      "AGING": "Envelhecimento & SLA por coluna",
+      "STAGE": "Coluna",
+      "AVG_AGE": "Média na coluna",
+      "EMPTY": "Sem dados para este funil ainda."
     }
   }
 }

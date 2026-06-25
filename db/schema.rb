@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[7.1].define(version: 2026_06_24_160000) do
+ActiveRecord::Schema[7.1].define(version: 2026_06_25_120000) do
   # These extensions should be enabled to support this database
   enable_extension "pg_stat_statements"
   enable_extension "pg_trgm"
@@ -1008,6 +1008,16 @@ ActiveRecord::Schema[7.1].define(version: 2026_06_24_160000) do
     t.index ["moved_by_id"], name: "index_funnel_items_on_moved_by_id"
   end
 
+  create_table "funnel_metric_snapshots", force: :cascade do |t|
+    t.bigint "funnel_id", null: false
+    t.date "captured_on", null: false
+    t.jsonb "metrics", default: {}, null: false
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["funnel_id", "captured_on"], name: "index_funnel_metric_snapshots_on_funnel_id_and_captured_on", unique: true
+    t.index ["funnel_id"], name: "index_funnel_metric_snapshots_on_funnel_id"
+  end
+
   create_table "funnel_stages", force: :cascade do |t|
     t.string "name", null: false
     t.bigint "funnel_id", null: false
@@ -1771,6 +1781,7 @@ ActiveRecord::Schema[7.1].define(version: 2026_06_24_160000) do
   add_foreign_key "funnel_custom_fields", "funnels"
   add_foreign_key "funnel_item_notes", "funnel_items"
   add_foreign_key "funnel_item_notes", "users"
+  add_foreign_key "funnel_metric_snapshots", "funnels"
   add_foreign_key "funnel_views", "accounts"
   add_foreign_key "funnel_views", "funnels"
   add_foreign_key "funnel_views", "users"

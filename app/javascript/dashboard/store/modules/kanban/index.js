@@ -39,6 +39,7 @@ const state = {
     priority: [],
   },
   savedViews: [],
+  funnelStats: {},
   viewBootstrap: {
     kanbanLoaded: false,
     listLoaded: false,

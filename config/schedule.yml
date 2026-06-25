@@ -27,6 +27,12 @@ kanban_sla_monitor_job:
   class: 'Kanban::SlaMonitorJob'
   queue: scheduled_jobs
 
+# Kanban v2 (Fase 6): daily per-funnel metric snapshot (baselines)
+kanban_daily_snapshot_job:
+  cron: '5 0 * * *'
+  class: 'Kanban::DailySnapshotJob'
+  queue: scheduled_jobs
+
 # executed daily at 2230 UTC
 # which is our lowest traffic time
 remove_stale_contact_inboxes_job.rb:

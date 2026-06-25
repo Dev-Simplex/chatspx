@@ -130,6 +130,7 @@ Rails.application.routes.draw do
           resources :funnels, only: [:index, :show, :create, :update, :destroy] do
             member do
               post :reorder_stages
+              get :stats
             end
             resources :funnel_stages, only: [:index, :show, :create, :update, :destroy]
             resources :custom_fields, only: [:index, :show, :create, :update, :destroy], module: :funnels

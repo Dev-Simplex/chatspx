@@ -34,6 +34,11 @@ class FunnelPolicy < ApplicationPolicy
     update?
   end
 
+  # Kanban v2 (Fase 6): reading the dashboard is a read on the funnel.
+  def stats?
+    show?
+  end
+
   private
 
   def user_team_ids

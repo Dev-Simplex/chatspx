@@ -175,6 +175,11 @@ class KanbanAPI extends ApiClient {
     return axios.delete(`${this.baseUrl()}/funnel_views/${viewId}`);
   }
 
+  // ── Dashboard stats (Fase 6) ───────────────────────────────────────
+  getFunnelStats(funnelId) {
+    return axios.get(`${this.url}/${funnelId}/stats`);
+  }
+
   // ── Automations (Fase 5) ───────────────────────────────────────────
   getAutomations(funnelId) {
     return axios.get(`${this.url}/${funnelId}/automations`);

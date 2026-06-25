@@ -34,7 +34,18 @@ class Api::V1::Accounts::FunnelsController < Api::V1::Accounts::BaseController
     render json: { error: 'Error reordering stages', details: (Rails.env.development? ? e.message : nil) }, status: :internal_server_error
   end
 
+  # Kanban v2 (Fase 6): live operational stats for the in-board dashboard.
+  def stats
+    render json: Kanban::FunnelReportService.new(funnel: @funnel).perform.merge(baseline: baseline)
+  end
+
   private
+
+  # Most recent snapshot before today (yesterday's totals) for "vs" deltas.
+  def baseline
+    snapshot = @funnel.funnel_metric_snapshots.where(captured_on: ...Date.current).recent_first.first
+    snapshot&.metrics&.dig('totals')
+  end
 
   def funnel
     @funnel ||= policy_scope(Funnel).find(params[:id])

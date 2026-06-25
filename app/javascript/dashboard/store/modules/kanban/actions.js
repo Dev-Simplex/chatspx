@@ -851,7 +851,21 @@ export const actions = {
         status: 'all',
       });
       commit(types.SET_VIEW_BOOTSTRAP, { calendarLoaded: true });
+      return;
     }
+
+    if (viewName === 'dashboard') {
+      // Stats are cheap and should be fresh — always re-fetch on entry.
+      await dispatch('fetchFunnelStats', { funnelId });
+    }
+  },
+
+  // Dashboard live stats (Fase 6).
+  async fetchFunnelStats({ commit }, { funnelId } = {}) {
+    if (!funnelId) return null;
+    const response = await KanbanAPI.getFunnelStats(funnelId);
+    commit(types.SET_FUNNEL_STATS, { funnelId, stats: response.data });
+    return response.data;
   },
 
   async fetchScheduledMessagesPage(

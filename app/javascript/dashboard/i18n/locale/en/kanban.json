@@ -270,7 +270,8 @@
     "VIEWS": {
       "KANBAN": "Kanban",
       "LIST": "List",
-      "CALENDAR": "Calendar"
+      "CALENDAR": "Calendar",
+      "DASHBOARD": "Dashboard"
     },
     "LIST": {
       "CONVERSATION": "Conversation",
@@ -415,6 +416,25 @@
         "TAG": "Add labels",
         "WEBHOOK": "Call webhook"
       }
+    },
+    "DASHBOARD": {
+      "TITLE": "Funnel dashboard",
+      "EXPORT": "Export CSV",
+      "REFRESH": "Refresh",
+      "CARDS": "Cards",
+      "OPEN": "Open",
+      "RESOLVED_TODAY": "Resolved today",
+      "CREATED_TODAY": "New today",
+      "UNASSIGNED": "Unassigned",
+      "OVERDUE": "Overdue",
+      "VS_YESTERDAY": "vs yesterday",
+      "BY_STAGE": "Cards by stage",
+      "WORKLOAD": "Workload by agent",
+      "NO_WORKLOAD": "No assigned cards yet.",
+      "AGING": "Aging & SLA by stage",
+      "STAGE": "Stage",
+      "AVG_AGE": "Avg. in stage",
+      "EMPTY": "No data for this funnel yet."
     }
   }
 }

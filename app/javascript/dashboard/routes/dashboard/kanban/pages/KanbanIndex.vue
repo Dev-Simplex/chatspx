@@ -6,6 +6,7 @@ import { useI18n } from 'vue-i18n';
 import KanbanBoard from 'dashboard/components-next/Kanban/KanbanBoard.vue';
 import ListView from 'dashboard/components-next/Kanban/ListView.vue';
 import CalendarView from 'dashboard/components-next/Kanban/CalendarView.vue';
+import DashboardView from 'dashboard/components-next/Kanban/DashboardView.vue';
 import KanbanFilterSelect from 'dashboard/components-next/Kanban/KanbanFilterSelect.vue';
 import KanbanSavedViews from 'dashboard/components-next/Kanban/KanbanSavedViews.vue';
 import FunnelForm from 'dashboard/components-next/Kanban/FunnelForm.vue';
@@ -658,6 +659,13 @@ onMounted(async () => {
               :title="t('KANBAN.VIEWS.CALENDAR')"
               @click="setViewMode('calendar')"
             />
+            <Button
+              :variant="viewMode === 'dashboard' ? 'solid' : 'ghost'"
+              size="sm"
+              icon="i-lucide-bar-chart-3"
+              :title="t('KANBAN.VIEWS.DASHBOARD')"
+              @click="setViewMode('dashboard')"
+            />
           </div>
 
           <Button
@@ -947,6 +955,12 @@ onMounted(async () => {
           @create-scheduled-message="handleCreateScheduledMessageFromCalendar"
           @edit-scheduled-message="handleEditScheduledMessage"
           @cancel-scheduled-message="handleCancelScheduledMessage"
+        />
+
+        <DashboardView
+          v-else-if="viewMode === 'dashboard'"
+          :key="`dashboard-${activeFunnelId}-${viewMode}`"
+          :funnel-id="activeFunnelId"
         />
       </template>
     </div>

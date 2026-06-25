@@ -580,6 +580,10 @@ export const mutations = {
     $state.savedViews = Array.isArray(views) ? views : [];
   },
 
+  [types.SET_FUNNEL_STATS]($state, { funnelId, stats }) {
+    $state.funnelStats = { ...$state.funnelStats, [funnelId]: stats };
+  },
+
   [types.ADD_SAVED_VIEW]($state, view) {
     if (!view?.id) return;
     $state.savedViews = [

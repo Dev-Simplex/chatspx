@@ -177,6 +177,8 @@ export const getters = {
     return Array.isArray($state.savedViews) ? $state.savedViews : [];
   },
 
+  getFunnelStats: $state => funnelId => $state.funnelStats?.[funnelId] || null,
+
   getViewBootstrap($state) {
     return (
       $state.viewBootstrap || {
