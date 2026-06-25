@@ -396,6 +396,43 @@ describe ConversationFinder do
         end
       end
 
+      # Badge do sidebar "Aguardando atendimento": o contador vem do endpoint
+      # /conversations/meta (perform_counts_only), chamado SEM assignee_type.
+      # Para o badge bater com a fila que o agente acessa, o unassigned_count do
+      # /meta precisa ficar escopado aos times do agente não-admin (via auto-escopo
+      # nativo do fork em set_team) e conta inteira para admin.
+      context 'with perform_counts_only (sidebar badge / endpoint meta)' do
+        before { account.update!(reply_assignment_gate: true) }
+
+        it 'scopes unassigned_count to the user teams for a non-admin agent' do
+          result = described_class.new(user_1, {}).perform_counts_only
+          # user_1 pertence só ao team_a → conta apenas a fila do team_a.
+          expect(result[:count][:unassigned_count]).to eq(1)
+        end
+
+        it 'matches the count the agent gets when opening the queue (list vs badge)' do
+          badge = described_class.new(user_1, {}).perform_counts_only[:count][:unassigned_count]
+          queue = described_class.new(user_1, { assignee_type: 'unassigned' }).perform[:count][:unassigned_count]
+          expect(badge).to eq(queue)
+        end
+
+        it 'counts unassigned account-wide for an admin' do
+          as_admin do
+            result = described_class.new(admin, {}).perform_counts_only
+            # setup externo cria 1 unassigned sem time + as 3 desta fixture = 4
+            expect(result[:count][:unassigned_count]).to eq(4)
+          end
+        end
+
+        it 'keeps the account-wide badge when the agent has no team' do
+          result = described_class.new(user_2, {}).perform_counts_only
+          # user_2 não pertence a nenhum time → sem escopo (espelha a fila que ele vê).
+          badge = result[:count][:unassigned_count]
+          queue = described_class.new(user_2, { assignee_type: 'unassigned' }).perform[:count][:unassigned_count]
+          expect(badge).to eq(queue)
+        end
+      end
+
       context 'when gate ON and a non-admin agent is on another tab' do
         before { account.update!(reply_assignment_gate: true) }
 

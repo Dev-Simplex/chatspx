@@ -34,6 +34,14 @@ export const ASSIGNEE_TYPE_TAB_PERMISSIONS = {
     count: 'mineCount',
     permissions: [...ROLES, ...CONVERSATION_PERMISSIONS],
   },
+  // "Aguardando atendimento" (modelo B / IA mode): conversas que a IA entregou
+  // e seguem dela até um humano assumir. Aba dinâmica — só aparece com o gate ON
+  // e awaiting_count > 0 (filtragem em ChatList.vue). A posição aqui dita a ordem
+  // (Minhas / Aguardando atendimento / IA / Todas no modo IA).
+  awaiting: {
+    count: 'awaitingCount',
+    permissions: [...ROLES, ...CONVERSATION_PERMISSIONS],
+  },
   unassigned: {
     count: 'unAssignedCount',
     permissions: [
@@ -42,7 +50,7 @@ export const ASSIGNEE_TYPE_TAB_PERMISSIONS = {
       CONVERSATION_UNASSIGNED_PERMISSIONS,
     ],
   },
-  // Order of the keys dictates the tab order (Mine / [Unassigned] / AI / All)
+  // Order of the keys dictates the tab order (Mine / [Awaiting] / [Unassigned] / AI / All)
   ai: {
     count: 'aiCount',
     permissions: [

@@ -5,7 +5,7 @@ import {
 } from '../unreadViewHelper';
 import wootConstants from 'dashboard/constants/globals';
 
-const { ME, UNASSIGNED, ALL } = wootConstants.ASSIGNEE_TYPE;
+const { ME, UNASSIGNED, AWAITING, ALL } = wootConstants.ASSIGNEE_TYPE;
 
 describe('unreadViewHelper', () => {
   describe('UNREAD_ROUTES', () => {
@@ -45,6 +45,14 @@ describe('unreadViewHelper', () => {
           assignee_type: 'unassigned',
         })
       ).toBe(UNASSIGNED);
+    });
+
+    it('respects ?assignee_type=awaiting', () => {
+      expect(
+        defaultAssigneeTab('home', {
+          assignee_type: 'awaiting',
+        })
+      ).toBe(AWAITING);
     });
 
     it('respects ?assignee_type=me even on unread routes', () => {
@@ -94,6 +102,25 @@ describe('unreadViewHelper', () => {
           ME,
           UNASSIGNED,
         ])
+      ).toBe(ME);
+    });
+
+    it('keeps a deep-link ?assignee_type=awaiting when it is an allowed tab', () => {
+      // "Aguardando atendimento" voltou a ser uma aba (chip) da tab-bar, então
+      // segue o clamp normal: mantida quando permitida...
+      expect(
+        resolveAssigneeTab('home', { assignee_type: 'awaiting' }, [
+          ME,
+          AWAITING,
+          ALL,
+        ])
+      ).toBe(AWAITING);
+    });
+
+    it('clamps a deep-link ?assignee_type=awaiting the user cannot use', () => {
+      // ...e rebaixada para a primeira aba permitida quando não está disponível.
+      expect(
+        resolveAssigneeTab('home', { assignee_type: 'awaiting' }, [ME, ALL])
       ).toBe(ME);
     });
   });

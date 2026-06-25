@@ -4,6 +4,11 @@ export default {
     ME: 'me',
     UNASSIGNED: 'unassigned',
     AI: 'ai',
+    // "Aguardando atendimento" (modelo B): a IA fez handoff
+    // (custom_attributes.aguardando_humano_desde presente) e segue dona da
+    // conversa até um humano assumir. Mapeia para o scope awaiting_human no
+    // backend (ConversationFinder assignee_type='awaiting').
+    AWAITING: 'awaiting',
     ALL: 'all',
   },
   STATUS_TYPE: {

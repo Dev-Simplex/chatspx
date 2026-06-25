@@ -75,6 +75,7 @@ export const buildConversationList = (
   const hasAssigneeFilter =
     requestPayload.assigneeType === 'me' ||
     requestPayload.assigneeType === 'unassigned' ||
+    requestPayload.assigneeType === 'awaiting' ||
     requestPayload.assigneeType === 'assigned';
   if (!hasAssigneeFilter) {
     context.dispatch('conversationStats/set', metaData);

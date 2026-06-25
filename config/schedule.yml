@@ -101,8 +101,8 @@ remove_orphan_conversations_job:
   queue: housekeeping
 
 # executed every 5 minutes
-# vigia de órfãs (D-12) + vigia da fila por time (F3/F-5): contas com modo
-# "Atribuição obrigatória" (reply_assignment_gate). Fan-out p/ OrphanRetriageJob + QueueEscalationJob.
+# vigia de órfãs (D-12): contas com modo "Atribuição obrigatória"
+# (reply_assignment_gate). Fan-out p/ OrphanRetriageJob.
 conversations_orphan_watch_job:
   cron: '*/5 * * * *'
   class: 'Account::OrphanConversationsWatchJob'

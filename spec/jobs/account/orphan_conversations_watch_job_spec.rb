@@ -13,19 +13,9 @@ RSpec.describe Account::OrphanConversationsWatchJob do
   end
 
   it 'fans out Conversations::OrphanRetriageJob only for accounts with reply_assignment_gate ON' do
-    allow(Conversations::QueueEscalationJob).to receive(:perform_later)
     expect(Conversations::OrphanRetriageJob).to receive(:perform_later).with(account_with_gate).once
     expect(Conversations::OrphanRetriageJob).not_to receive(:perform_later).with(account_without_gate)
     expect(Conversations::OrphanRetriageJob).not_to receive(:perform_later).with(account_with_gate_off)
-
-    described_class.perform_now
-  end
-
-  it 'fans out Conversations::QueueEscalationJob only for accounts with reply_assignment_gate ON' do
-    allow(Conversations::OrphanRetriageJob).to receive(:perform_later)
-    expect(Conversations::QueueEscalationJob).to receive(:perform_later).with(account_with_gate).once
-    expect(Conversations::QueueEscalationJob).not_to receive(:perform_later).with(account_without_gate)
-    expect(Conversations::QueueEscalationJob).not_to receive(:perform_later).with(account_with_gate_off)
 
     described_class.perform_now
   end

@@ -163,8 +163,33 @@ const getters = {
         // como IA. Bots webhook emitem type 'agent_bot' mas não são atendentes IA.
         const isAIAssigned =
           assignee?.type === 'agent_bot' && Boolean(assignee.is_captain);
+        // Conversa aguardando humano (handoff feito, IA segue dona) sai da aba "IA"
+        // e fica só em "Aguardando atendimento" — espelha o backend (ai_count exige
+        // marcador ausente). Sem isto, a mesma conversa aparecia nas duas abas.
+        const isAwaiting = Boolean(
+          conversation.custom_attributes?.aguardando_humano_desde
+        );
         const shouldFilter = applyPageFilters(conversation, filters);
-        return isAIAssigned && shouldFilter;
+        return isAIAssigned && !isAwaiting && shouldFilter;
+      })
+      .sort((a, b) => sortComparator(a, b, _state.chatSortFilter));
+  },
+  getAwaitingChats: _state => {
+    // "Aguardando atendimento" (modelo B): a IA fez handoff e segue dona, mas
+    // marcou que é hora de um humano assumir. Espelha o critério do backend
+    // (Conversation.awaiting_human / assignee_type='awaiting'): basta o marcador
+    // custom_attributes.aguardando_humano_desde estar presente — independente de
+    // quem é o assignee (a IA continua dona). Mantém count (REST) e lista
+    // (websocket) coerentes para a fila do sidebar.
+    const filters = _state.conversationFilters;
+
+    return _state.allConversations
+      .filter(conversation => {
+        const isAwaiting = Boolean(
+          conversation.custom_attributes?.aguardando_humano_desde
+        );
+        const shouldFilter = applyPageFilters(conversation, filters);
+        return isAwaiting && shouldFilter;
       })
       .sort((a, b) => sortComparator(a, b, _state.chatSortFilter));
   },

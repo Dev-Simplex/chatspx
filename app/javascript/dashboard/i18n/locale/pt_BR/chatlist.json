@@ -21,8 +21,8 @@
     "FILTER_ALL": "Todos",
     "ASSIGNEE_TYPE_TABS": {
       "me": "Minhas",
+      "awaiting": "Aguardando atendimento",
       "unassigned": "Não atribuídas",
-      "unassigned_awaiting": "Aguardando atendimento",
       "ai": "IA",
       "all": "Todas"
     },

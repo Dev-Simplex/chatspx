@@ -21,8 +21,8 @@
     "FILTER_ALL": "All",
     "ASSIGNEE_TYPE_TABS": {
       "me": "Mine",
+      "awaiting": "Awaiting assignment",
       "unassigned": "Unassigned",
-      "unassigned_awaiting": "Awaiting assignment",
       "ai": "AI",
       "all": "All"
     },

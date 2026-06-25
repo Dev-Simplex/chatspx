@@ -259,10 +259,7 @@ const menuItems = computed(() => {
             {
               name: 'Unassigned',
               label: t('SIDEBAR.UNASSIGNED_CONVERSATIONS'),
-              activeOn: [
-                'conversation_unassigned',
-                'conversation_through_unassigned',
-              ],
+              activeOn: ['conversation_through_unattended'],
               to: accountScopedRoute(
                 'conversation_unattended',
                 {},

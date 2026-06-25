@@ -8,6 +8,7 @@ const state = {
   mineCount: 0,
   unAssignedCount: 0,
   aiCount: 0,
+  awaitingCount: 0,
   allCount: 0,
   unattendedAssignedCount: 0,
   unattendedUnassignedCount: 0,
@@ -17,6 +18,14 @@ const state = {
 
 export const getters = {
   getStats: $state => $state,
+  // Numeric getter for the sidebar badge. getStats returns the whole state
+  // object, which renders as NaN when used as a count — this exposes just the
+  // unassigned number.
+  getUnAssignedCount: $state => $state.unAssignedCount || 0,
+  // "Aguardando atendimento" (modelo B) sidebar badge: count of conversations
+  // the AI handed off (custom_attributes.aguardando_humano_desde present) and is
+  // still attending until a human takes over. Backed by awaiting_count from /meta.
+  getAwaitingCount: $state => $state.awaitingCount || 0,
 };
 
 // Fetch metadata with single retry on transient failure
@@ -94,6 +103,7 @@ export const mutations = {
       mine_count: mineCount,
       unassigned_count: unAssignedCount,
       ai_count: aiCount,
+      awaiting_count: awaitingCount,
       all_count: allCount,
       unattended_assigned_to_me_count: unattendedAssignedCount,
       unattended_unassigned_count: unattendedUnassignedCount,
@@ -107,6 +117,9 @@ export const mutations = {
     // the count with a partial payload.
     if ('ai_count' in payload) {
       $state.aiCount = aiCount ?? 0;
+    }
+    if ('awaiting_count' in payload) {
+      $state.awaitingCount = awaitingCount ?? 0;
     }
     if ('unattended_assigned_to_me_count' in payload) {
       $state.unattendedAssignedCount = unattendedAssignedCount ?? 0;
