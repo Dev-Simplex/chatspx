@@ -435,6 +435,15 @@
       "STAGE": "Stage",
       "AVG_AGE": "Avg. in stage",
       "EMPTY": "No data for this funnel yet."
+    },
+    "AI": {
+      "TITLE": "AI",
+      "SUMMARIZE": "Summarize",
+      "REPLY": "Suggest reply",
+      "SENTIMENT": "Sentiment",
+      "LABELS": "Suggest labels",
+      "REPLY_FILLED": "Draft added to the composer",
+      "ERROR": "AI request failed."
     }
   }
 }

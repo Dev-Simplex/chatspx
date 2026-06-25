@@ -180,6 +180,11 @@ class KanbanAPI extends ApiClient {
     return axios.get(`${this.url}/${funnelId}/stats`);
   }
 
+  // ── AI availability (Fase 7) — gates the card's AI actions ──────────
+  getAiStatus() {
+    return axios.get(`${this.baseUrl()}/kanban_ai/status`);
+  }
+
   // ── Automations (Fase 5) ───────────────────────────────────────────
   getAutomations(funnelId) {
     return axios.get(`${this.url}/${funnelId}/automations`);

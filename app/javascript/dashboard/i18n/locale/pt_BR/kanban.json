@@ -435,6 +435,15 @@
       "STAGE": "Coluna",
       "AVG_AGE": "Média na coluna",
       "EMPTY": "Sem dados para este funil ainda."
+    },
+    "AI": {
+      "TITLE": "IA",
+      "SUMMARIZE": "Resumir",
+      "REPLY": "Sugerir resposta",
+      "SENTIMENT": "Sentimento",
+      "LABELS": "Sugerir etiquetas",
+      "REPLY_FILLED": "Rascunho adicionado ao campo de resposta",
+      "ERROR": "A solicitação de IA falhou."
     }
   }
 }

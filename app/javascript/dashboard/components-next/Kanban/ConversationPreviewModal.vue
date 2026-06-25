@@ -8,6 +8,7 @@ import { enUS, ptBR } from 'date-fns/locale';
 import { useStore } from 'vuex';
 import MessageApi from 'dashboard/api/inbox/message';
 import KanbanAPI from 'dashboard/api/kanban';
+import TasksAPI from 'dashboard/api/captain/tasks';
 import { useAlert } from 'dashboard/composables';
 import { useMapGetter } from 'dashboard/composables/store';
 import {
@@ -256,6 +257,84 @@ const noteTime = note => {
   const pattern = isToday(date) ? 'HH:mm' : 'dd MMM HH:mm';
   return format(date, pattern, { locale: dateLocale.value });
 };
+
+// ── AI actions (Fase 7) — reuse Chatwoot's Captain tasks, gated by config ─
+const aiAvailable = ref(false);
+const aiBusy = ref(null); // 'summary' | 'reply' | 'sentiment' | 'labels'
+const aiResult = ref('');
+
+const checkAiAvailability = async () => {
+  aiAvailable.value = false;
+  aiResult.value = '';
+  try {
+    const { data } = await KanbanAPI.getAiStatus();
+    aiAvailable.value = Boolean(data?.available);
+  } catch (_) {
+    aiAvailable.value = false;
+  }
+};
+watch(
+  () => props.show,
+  value => value && checkAiAvailability(),
+  {
+    immediate: true,
+  }
+);
+
+const runAiTask = async (key, request, onSuccess) => {
+  if (!displayId.value || aiBusy.value) return;
+  aiBusy.value = key;
+  aiResult.value = '';
+  try {
+    const { data } = await request();
+    if (data?.error) {
+      useAlert(data.error);
+    } else {
+      onSuccess(data?.message || '');
+    }
+  } catch (_) {
+    useAlert(t('KANBAN.AI.ERROR'));
+  } finally {
+    aiBusy.value = null;
+  }
+};
+
+const runSummarize = () =>
+  runAiTask(
+    'summary',
+    () => TasksAPI.summarize(displayId.value),
+    msg => {
+      aiResult.value = msg;
+    }
+  );
+const runSentiment = () =>
+  runAiTask(
+    'sentiment',
+    () => TasksAPI.sentimentAnalysis(displayId.value),
+    msg => {
+      aiResult.value = msg;
+    }
+  );
+const runLabels = () =>
+  runAiTask(
+    'labels',
+    () => TasksAPI.labelSuggestion(displayId.value),
+    msg => {
+      aiResult.value = msg;
+    }
+  );
+// Reply suggestion drops the draft straight into the composer to edit + send.
+const runReply = () =>
+  runAiTask(
+    'reply',
+    () => TasksAPI.replySuggestion(displayId.value),
+    msg => {
+      if (msg) {
+        replyText.value = msg;
+        useAlert(t('KANBAN.AI.REPLY_FILLED'));
+      }
+    }
+  );
 
 // ── Message processing ──────────────────────────────────────────────────
 const messageTimestamp = message => {
@@ -579,6 +658,59 @@ watch(
           </button>
         </li>
       </ul>
+    </div>
+
+    <!-- AI actions (Fase 7) — only when AI is configured for the account -->
+    <div
+      v-if="aiAvailable"
+      class="mt-3 rounded-lg border border-n-weak bg-n-alpha-1 p-2"
+    >
+      <div class="flex flex-wrap items-center gap-1.5">
+        <span
+          class="mr-1 flex items-center gap-1 text-[11px] font-semibold uppercase tracking-wide text-n-slate-10"
+        >
+          <Icon icon="i-lucide-sparkles" class="size-3.5" />
+          {{ t('KANBAN.AI.TITLE') }}
+        </span>
+        <Button
+          size="sm"
+          variant="ghost"
+          :is-loading="aiBusy === 'summary'"
+          @click="runSummarize"
+        >
+          {{ t('KANBAN.AI.SUMMARIZE') }}
+        </Button>
+        <Button
+          size="sm"
+          variant="ghost"
+          :is-loading="aiBusy === 'reply'"
+          @click="runReply"
+        >
+          {{ t('KANBAN.AI.REPLY') }}
+        </Button>
+        <Button
+          size="sm"
+          variant="ghost"
+          :is-loading="aiBusy === 'sentiment'"
+          @click="runSentiment"
+        >
+          {{ t('KANBAN.AI.SENTIMENT') }}
+        </Button>
+        <Button
+          size="sm"
+          variant="ghost"
+          :is-loading="aiBusy === 'labels'"
+          @click="runLabels"
+        >
+          {{ t('KANBAN.AI.LABELS') }}
+        </Button>
+      </div>
+      <p
+        v-if="aiResult"
+        class="mt-2 whitespace-pre-wrap rounded-lg bg-n-solid-1 p-2 text-[13px] leading-snug text-n-slate-12"
+      >
+        {{ aiResult }}
+      </p>
     </div>
 
     <!-- Body -->

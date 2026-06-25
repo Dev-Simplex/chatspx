@@ -147,6 +147,7 @@ Rails.application.routes.draw do
             end
           end
           resources :funnel_views, only: [:index, :show, :create, :update, :destroy]
+          get 'kanban_ai/status', to: 'kanban_ai#status'
           resources :scheduled_messages, only: [:index, :show, :create, :update, :destroy] do
             collection do
               get :inboxes
