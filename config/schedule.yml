@@ -33,6 +33,12 @@ kanban_daily_snapshot_job:
   class: 'Kanban::DailySnapshotJob'
   queue: scheduled_jobs
 
+# Follow-up drip (Módulo A): advance due message-sequence enrollments every minute
+message_sequences_advance_job:
+  cron: '*/1 * * * *'
+  class: 'MessageSequences::AdvanceJob'
+  queue: scheduled_jobs
+
 # executed daily at 2230 UTC
 # which is our lowest traffic time
 remove_stale_contact_inboxes_job.rb:

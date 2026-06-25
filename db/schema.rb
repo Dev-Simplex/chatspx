@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[7.1].define(version: 2026_06_25_130000) do
+ActiveRecord::Schema[7.1].define(version: 2026_06_25_140200) do
   # These extensions should be enabled to support this database
   enable_extension "pg_stat_statements"
   enable_extension "pg_trgm"
@@ -1357,6 +1357,45 @@ ActiveRecord::Schema[7.1].define(version: 2026_06_25_130000) do
     t.index ["user_type", "user_id"], name: "index_message_reactions_on_user_type_and_user_id"
   end
 
+  create_table "message_sequence_enrollments", force: :cascade do |t|
+    t.bigint "message_sequence_id", null: false
+    t.bigint "conversation_id", null: false
+    t.integer "status", default: 0, null: false
+    t.integer "current_step_position"
+    t.datetime "next_run_at"
+    t.bigint "enrolled_by_id"
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["conversation_id"], name: "index_message_sequence_enrollments_on_conversation_id"
+    t.index ["message_sequence_id", "conversation_id"], name: "index_active_enrollment_per_sequence_conversation", unique: true, where: "(status = 0)"
+    t.index ["message_sequence_id"], name: "index_message_sequence_enrollments_on_message_sequence_id"
+    t.index ["status", "next_run_at"], name: "index_message_sequence_enrollments_on_status_and_next_run_at"
+  end
+
+  create_table "message_sequence_steps", force: :cascade do |t|
+    t.bigint "message_sequence_id", null: false
+    t.integer "position", null: false
+    t.integer "delay_minutes", default: 0, null: false
+    t.text "content"
+    t.jsonb "template_params"
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["message_sequence_id", "position"], name: "idx_on_message_sequence_id_position_692ef9ca2b"
+    t.index ["message_sequence_id"], name: "index_message_sequence_steps_on_message_sequence_id"
+  end
+
+  create_table "message_sequences", force: :cascade do |t|
+    t.bigint "account_id", null: false
+    t.string "name", null: false
+    t.boolean "active", default: true, null: false
+    t.jsonb "exit_conditions", default: {}, null: false
+    t.bigint "created_by_id"
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["account_id", "active"], name: "index_message_sequences_on_account_id_and_active"
+    t.index ["account_id"], name: "index_message_sequences_on_account_id"
+  end
+
   create_table "messages", id: :serial, force: :cascade do |t|
     t.text "content"
     t.integer "account_id", null: false
@@ -1792,15 +1831,15 @@ ActiveRecord::Schema[7.1].define(version: 2026_06_25_130000) do
   add_foreign_key "funnel_custom_fields", "funnels"
   add_foreign_key "funnel_item_notes", "funnel_items"
   add_foreign_key "funnel_item_notes", "users"
-  add_foreign_key "funnel_metric_snapshots", "funnels"
-  add_foreign_key "funnel_views", "accounts"
-  add_foreign_key "funnel_views", "funnels"
-  add_foreign_key "funnel_views", "users"
   add_foreign_key "funnel_items", "conversations", on_delete: :cascade
   add_foreign_key "funnel_items", "funnel_stages"
   add_foreign_key "funnel_items", "funnels"
   add_foreign_key "funnel_items", "users", column: "moved_by_id"
+  add_foreign_key "funnel_metric_snapshots", "funnels"
   add_foreign_key "funnel_stages", "funnels"
+  add_foreign_key "funnel_views", "accounts"
+  add_foreign_key "funnel_views", "funnels"
+  add_foreign_key "funnel_views", "users"
   add_foreign_key "funnels", "accounts"
   add_foreign_key "funnels", "teams"
   add_foreign_key "inboxes", "portals"
@@ -1820,6 +1859,10 @@ ActiveRecord::Schema[7.1].define(version: 2026_06_25_130000) do
   add_foreign_key "kanbans", "users", column: "created_by_id", on_delete: :nullify
   add_foreign_key "mentions", "conversations", on_delete: :cascade
   add_foreign_key "message_reactions", "messages"
+  add_foreign_key "message_sequence_enrollments", "conversations"
+  add_foreign_key "message_sequence_enrollments", "message_sequences"
+  add_foreign_key "message_sequence_steps", "message_sequences"
+  add_foreign_key "message_sequences", "accounts"
   add_foreign_key "messages", "conversations", on_delete: :cascade
   add_foreign_key "messages", "inboxes", on_delete: :cascade
   add_foreign_key "messages", "users", column: "agent_id", on_delete: :nullify
