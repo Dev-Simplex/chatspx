@@ -42,6 +42,7 @@ class ActionCableConnector extends BaseActionCableConnector {
       'account.cache_invalidated': this.onCacheInvalidate,
       'copilot.message.created': this.onCopilotMessageCreated,
       'funnel_item.moved': this.onFunnelItemMoved,
+      'internal.message.created': this.onInternalMessageCreated,
     };
   }
 
@@ -49,6 +50,11 @@ class ActionCableConnector extends BaseActionCableConnector {
   // it live. Best-effort; the store action no-ops if the item isn't loaded.
   onFunnelItemMoved = data => {
     this.app.$store.dispatch('kanban/applyRemoteMove', data);
+  };
+
+  // Chat interno (Módulo B): a peer posted into one of my internal channels.
+  onInternalMessageCreated = data => {
+    this.app.$store.dispatch('internalChat/applyIncomingMessage', data);
   };
 
   // eslint-disable-next-line class-methods-use-this

@@ -1,0 +1,12 @@
+{
+  "INTERNAL_CHAT": {
+    "TITLE": "Chat Interno",
+    "NEW_DM": "Nova mensagem direta",
+    "START_WITH": "Iniciar conversa com",
+    "NO_AGENTS": "Nenhum colega disponível.",
+    "EMPTY": "Nenhuma conversa ainda. Comece uma no botão +.",
+    "SELECT_PROMPT": "Selecione uma conversa para começar.",
+    "PLACEHOLDER": "Escreva uma mensagem…",
+    "SEND": "Enviar"
+  }
+}

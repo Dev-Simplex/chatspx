@@ -1,0 +1,12 @@
+{
+  "INTERNAL_CHAT": {
+    "TITLE": "Internal Chat",
+    "NEW_DM": "New direct message",
+    "START_WITH": "Start a chat with",
+    "NO_AGENTS": "No other teammates available.",
+    "EMPTY": "No conversations yet. Start one with the + button.",
+    "SELECT_PROMPT": "Select a conversation to start chatting.",
+    "PLACEHOLDER": "Write a message…",
+    "SEND": "Send"
+  }
+}

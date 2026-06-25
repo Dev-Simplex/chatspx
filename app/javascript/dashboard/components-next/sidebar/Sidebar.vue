@@ -81,6 +81,15 @@ const hasMessageSequences = computed(() => {
   );
 });
 
+const hasInternalChat = computed(() => {
+  return isFeatureEnabledonAccount.value(
+    accountId.value,
+    FEATURE_FLAGS.INTERNAL_CHAT
+  );
+});
+
+const totalInternalChatUnread = useMapGetter('internalChat/getTotalUnread');
+
 const toggleShortcutModalFn = show => {
   if (show) {
     emit('openKeyShortcutModal');
@@ -401,6 +410,18 @@ const menuItems = computed(() => {
       to: accountScopedRoute('kanban_index'),
       activeOn: ['kanban_index', 'kanban_funnel'],
     },
+    ...(hasInternalChat.value
+      ? [
+          {
+            name: 'Internal Chat',
+            label: t('SIDEBAR.INTERNAL_CHAT'),
+            icon: lordIcon('internalChat', 'i-lucide-messages-square'),
+            to: accountScopedRoute('internal_chat_index'),
+            activeOn: ['internal_chat_index'],
+            count: totalInternalChatUnread.value || undefined,
+          },
+        ]
+      : []),
     {
       name: 'Gallery',
       label: t('SIDEBAR.GALLERY'),

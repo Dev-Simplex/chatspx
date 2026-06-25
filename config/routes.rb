@@ -160,6 +160,13 @@ Rails.application.routes.draw do
           end
           resources :message_sequences, only: [:index, :show, :create, :update, :destroy]
           resources :message_sequence_enrollments, only: [:index, :create, :destroy]
+          resources :internal_channels, only: [:index, :show, :create] do
+            member do
+              post :read
+            end
+            resources :internal_messages, only: [:index, :create], module: :internal_channels
+          end
+          resources :agents_for_internal_chat, only: [:index], controller: :internal_chat_agents
           resources :dashboard_apps, only: [:index, :show, :create, :update, :destroy]
           namespace :channels do
             resource :twilio_channel, only: [:create]

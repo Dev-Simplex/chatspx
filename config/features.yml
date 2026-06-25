@@ -107,10 +107,9 @@
 - name: message_sequences
   display_name: Message Sequences
   enabled: false
-- name: message_reply_to
-  display_name: Message Reply To
+- name: internal_chat
+  display_name: Internal Chat
   enabled: false
-  deprecated: true
 - name: insert_article_in_reply
   display_name: Insert Article in Reply
   enabled: false

@@ -356,6 +356,7 @@
     "INBOX": "Notifications",
     "KANBAN": "Kanban",
     "GALLERY": "Gallery",
+    "INTERNAL_CHAT": "Internal Chat",
     "ALL_CONVERSATIONS": "All Conversations",
     "MENTIONED_CONVERSATIONS": "Mentions",
     "UNREAD_CONVERSATIONS": "Unread",

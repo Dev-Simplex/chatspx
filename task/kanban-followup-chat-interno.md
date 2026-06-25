@@ -249,7 +249,9 @@ Sugestão: fechar **A** inteiro (entrega de negócio completa) antes de abrir **
 ### Passo 0 — Flag
 - `config/features.yml`: `internal_chat` (mesma checagem de orçamento de bits do A).
 
-### Fase B1 — Fundação + DM 1:1
+### Fase B1 — Fundação + DM 1:1 ✅ FEITA (2026-06-25)
+> **Status:** implementada, verde e DEPLOYADA no staging. Flag `internal_chat` reclamou o **bit 30** (slot deprecado `message_reply_to`, sem refs em app/). Decisão-chave: **reusa o `RoomChannel` existente** (cada user já faz `stream_from pubsub_token`) + `ActionCableBroadcastJob` para empurrar `internal.message.created` aos tokens dos membros, e um handler novo no `ActionCableConnector` — sem channel/conector novo. Backend: 3 migrations + 3 models (`InternalChannel`/`Member`/`Message`; enum `group_chat` p/ não colidir com `.group`), `FindOrCreateDmService` (idempotente), `InternalMessages::CreateService` (cria+broadcast+marca lido), 3 controllers + policy membro-only + views jbuilder; **31 specs verdes**. Frontend: área primária na sidebar (gated, com badge de não-lidas), rota `internal-chat`, store module, `InternalChatIndex.vue` (lista de DMs + thread + composer + novo DM), API client, i18n en+pt_BR. Migration aplicada no staging, `chatwoot.target` reiniciado, flag ligada na conta #1. Build vite OK; RuboCop limpo.
+
 **Backend:**
 - Migrations: `internal_channels` (`account_id`, `name`, `channel_type` int, `team_id` opcional), `internal_channel_members` (`internal_channel_id`, `user_id`, `last_read_at`; único `[channel,user]`), `internal_messages` (`internal_channel_id`, `user_id`, `content`); anexos via `has_many_attached :attachments`.
 - Models `InternalChannel` / `InternalChannelMember` / `InternalMessage`.

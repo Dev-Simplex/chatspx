@@ -46,6 +46,7 @@ export const FEATURE_FLAGS = {
   CONVERSATION_REQUIRED_ATTRIBUTES: 'conversation_required_attributes',
   AI_ASSISTANT_V2: 'ai_assistant_v2',
   MESSAGE_SEQUENCES: 'message_sequences',
+  INTERNAL_CHAT: 'internal_chat',
 };
 
 export const PREMIUM_FEATURES = [
