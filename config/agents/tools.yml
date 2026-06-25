@@ -84,3 +84,8 @@
   title: 'Enviar Localização do Imóvel'
   description: 'Envia ao cliente o pin de localização de um imóvel no mapa (por código)'
   icon: 'location'
+
+- id: buscar_lugar
+  title: 'Buscar lugares (Places)'
+  description: 'Lista lugares/comércios por nome em Sinop (nome + endereço + coords) para referência de proximidade'
+  icon: 'location'

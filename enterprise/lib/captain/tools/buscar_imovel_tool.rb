@@ -5,9 +5,12 @@ class Captain::Tools::BuscarImovelTool < Captain::Tools::BasePublicTool
               'retorna os mais próximos, ordenados pela distância em km.'
 
   param :status_tipo, type: 'string', desc: "'venda' para comprar, 'locacao' para alugar", required: true
+  param :codigo, type: 'string',
+                 desc: 'Código do imóvel que o cliente informar (do anúncio, da placa do imóvel, ou do site). Quando presente, busca o imóvel EXATO por esse código — ignore os outros filtros.', required: false
   param :categoria, type: 'string', desc: 'Casa, Apartamento, Terreno, Sala Comercial, Kitnet. Vazio se não especificou.', required: false
   param :bairro, type: 'string', desc: 'Bairro/condomínio em Sinop. Vazio se não especificou.', required: false
-  param :endereco, type: 'string', desc: 'Rua, avenida ou logradouro, quando o cliente especificar (ex: "Mário Lago"). Estreita a busca dentro do bairro.', required: false
+  param :endereco, type: 'string',
+                   desc: 'Rua, avenida ou logradouro, quando o cliente especificar (ex: "Mário Lago"). Estreita a busca dentro do bairro.', required: false
   param :valor_max, type: 'number', desc: 'Valor máximo: aluguel mensal pra locação, valor total pra venda.', required: false
   param :dormitorios, type: 'number', desc: 'Quantidade de dormitórios.', required: false
   param :lat, type: 'string', desc: 'Latitude do ponto de referência (do buscar_localizacao ou da localização enviada pelo cliente).', required: false
@@ -19,7 +22,15 @@ class Captain::Tools::BuscarImovelTool < Captain::Tools::BasePublicTool
   META_KEYS = %w[total paginas pagina quantidade].freeze
 
   def perform(_tool_context, status_tipo:, categoria: nil, bairro: nil, endereco: nil, valor_max: nil,
-              dormitorios: nil, lat: nil, lng: nil, raio_km: nil)
+              dormitorios: nil, lat: nil, lng: nil, raio_km: nil, codigo: nil)
+    # Busca direta por CÓDIGO (placa/anúncio/site) — independe de venda/locação.
+    if codigo.present?
+      cod = codigo.to_s.gsub(/\D/, '')
+      achados = fetch_vista({ 'Codigo' => cod }, quantidade: 1)
+      return "Não achei nenhum imóvel com o código #{cod} no nosso sistema." if achados.blank?
+
+      return format_listings(achados, achados.first['Status'].to_s.match?(/vend/i))
+    end
     venda = status_tipo.to_s == 'venda'
     filter = { 'Cidade' => 'Sinop' }
     filter['Status'] = venda ? ['like', '%vend%'] : ['like', '%alug%']
