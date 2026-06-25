@@ -128,9 +128,14 @@ Rails.application.routes.draw do
             end
           end
           resources :funnels, only: [:index, :show, :create, :update, :destroy] do
+            collection do
+              get :templates
+              post :create_from_template
+            end
             member do
               post :reorder_stages
               get :stats
+              post :form
             end
             resources :funnel_stages, only: [:index, :show, :create, :update, :destroy]
             resources :custom_fields, only: [:index, :show, :create, :update, :destroy], module: :funnels
@@ -657,6 +662,10 @@ Rails.application.routes.draw do
         end
 
         resources :csat_survey, only: [:show, :update]
+
+        # Kanban v2 (Fase 8): public WorkForm intake (token-identified, rate-limited)
+        get 'funnel_forms/:token', to: 'funnel_forms#show'
+        post 'funnel_forms/:token', to: 'funnel_forms#create'
       end
     end
   end

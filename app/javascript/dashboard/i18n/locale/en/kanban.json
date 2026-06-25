@@ -444,6 +444,24 @@
       "LABELS": "Suggest labels",
       "REPLY_FILLED": "Draft added to the composer",
       "ERROR": "AI request failed."
+    },
+    "TEMPLATES": {
+      "TITLE": "Start from a template",
+      "OR_MANUAL": "…or fill the form below to start from scratch.",
+      "CREATED": "Funnel \"{name}\" created from template",
+      "ERROR": "Could not create from template."
+    },
+    "WORKFORM": {
+      "TITLE": "Public form",
+      "DESCRIPTION": "A public link where leads submit and become a card in the first stage.",
+      "ENABLE": "Enable public form",
+      "TITLE_PLACEHOLDER": "Form title (e.g. Talk to us)",
+      "AUTO_INBOX": "Auto (first API inbox)",
+      "SAVE": "Save form",
+      "COPY_URL": "Copy URL",
+      "SAVED": "Form settings saved",
+      "COPIED": "URL copied",
+      "ERROR": "Could not save the form."
     }
   }
 }

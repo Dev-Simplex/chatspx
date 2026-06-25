@@ -185,6 +185,19 @@ class KanbanAPI extends ApiClient {
     return axios.get(`${this.baseUrl()}/kanban_ai/status`);
   }
 
+  // ── Templates + public WorkForm (Fase 8) ───────────────────────────
+  getFunnelTemplates() {
+    return axios.get(`${this.url}/templates`);
+  }
+
+  createFunnelFromTemplate(data) {
+    return axios.post(`${this.url}/create_from_template`, data);
+  }
+
+  updateFunnelForm(funnelId, data) {
+    return axios.post(`${this.url}/${funnelId}/form`, data);
+  }
+
   // ── Automations (Fase 5) ───────────────────────────────────────────
   getAutomations(funnelId) {
     return axios.get(`${this.url}/${funnelId}/automations`);

@@ -7,6 +7,7 @@ import Dialog from 'dashboard/components-next/dialog/Dialog.vue';
 import Button from 'dashboard/components-next/button/Button.vue';
 import Icon from 'dashboard/components-next/icon/Icon.vue';
 import { useAlert } from 'dashboard/composables';
+import KanbanAPI from 'dashboard/api/kanban';
 import KanbanCustomFieldEditor from './KanbanCustomFieldEditor.vue';
 
 const props = defineProps({
@@ -92,6 +93,90 @@ watch(
   },
   { immediate: true }
 );
+
+// ── Fase 8: templates (create mode) + public WorkForm config (edit mode) ──
+const templates = ref([]);
+const formConfig = ref({
+  enabled: false,
+  title: '',
+  inbox_id: '',
+  url: '',
+  token: '',
+});
+const isFormSaving = ref(false);
+
+const loadTemplates = async () => {
+  try {
+    const { data } = await KanbanAPI.getFunnelTemplates();
+    templates.value = Array.isArray(data) ? data : [];
+  } catch (_) {
+    templates.value = [];
+  }
+};
+
+const loadFormConfig = () => {
+  const settings = props.funnel?.settings || {};
+  formConfig.value = {
+    enabled: Boolean(settings.form_enabled),
+    title: settings.form_title || '',
+    inbox_id: settings.form_inbox_id || '',
+    token: settings.form_token || '',
+    url: settings.form_token
+      ? `${window.location.origin}/public/api/v1/funnel_forms/${settings.form_token}`
+      : '',
+  };
+};
+
+watch(
+  () => props.show,
+  shown => {
+    if (!shown) return;
+    if (isEditing.value) loadFormConfig();
+    else loadTemplates();
+  },
+  { immediate: true }
+);
+
+const useTemplate = async template => {
+  try {
+    const funnel = await store.dispatch('kanban/createFunnelFromTemplate', {
+      template_id: template.id,
+    });
+    useAlert(t('KANBAN.TEMPLATES.CREATED', { name: funnel.name }));
+    emit('saved', funnel);
+    emit('close');
+  } catch (_) {
+    useAlert(t('KANBAN.TEMPLATES.ERROR'));
+  }
+};
+
+const saveFormConfig = async () => {
+  if (!props.funnel?.id || isFormSaving.value) return;
+  isFormSaving.value = true;
+  try {
+    const { data } = await KanbanAPI.updateFunnelForm(props.funnel.id, {
+      enabled: formConfig.value.enabled,
+      title: formConfig.value.title,
+      inbox_id: formConfig.value.inbox_id || null,
+    });
+    formConfig.value.enabled = Boolean(data.form_enabled);
+    formConfig.value.token = data.form_token || '';
+    formConfig.value.url = data.form_token
+      ? `${window.location.origin}/public/api/v1/funnel_forms/${data.form_token}`
+      : '';
+    useAlert(t('KANBAN.WORKFORM.SAVED'));
+  } catch (_) {
+    useAlert(t('KANBAN.WORKFORM.ERROR'));
+  } finally {
+    isFormSaving.value = false;
+  }
+};
+
+const copyFormUrl = () => {
+  if (!formConfig.value.url) return;
+  navigator.clipboard?.writeText(formConfig.value.url);
+  useAlert(t('KANBAN.WORKFORM.COPIED'));
+};
 
 // Usar watchEffect para garantir que o Dialog abra quando show mudar
 watch(
@@ -436,6 +521,38 @@ const handleDeleteFunnel = async () => {
     @close="() => emit('close')"
   >
     <div class="space-y-6" @submit.prevent.stop>
+      <!-- Fase 8: start from a template (create mode only) -->
+      <div v-if="!isEditing && templates.length">
+        <label class="mb-2 block text-sm font-semibold text-n-slate-12">
+          <div class="flex items-center gap-2">
+            <Icon icon="i-lucide-layout-template" class="size-4" />
+            {{ t('KANBAN.TEMPLATES.TITLE') }}
+          </div>
+        </label>
+        <div class="flex flex-wrap gap-2">
+          <button
+            v-for="template in templates"
+            :key="template.id"
+            type="button"
+            class="flex min-w-[150px] flex-1 flex-col items-start gap-0.5 rounded-xl border border-n-weak bg-n-solid-1 p-3 text-left transition hover:border-n-brand hover:bg-n-solid-2"
+            @click="useTemplate(template)"
+          >
+            <span class="text-sm font-semibold text-n-slate-12">{{
+              template.name
+            }}</span>
+            <span class="text-[11px] text-n-slate-10">{{
+              template.description
+            }}</span>
+            <span class="mt-1 text-[10px] text-n-slate-9">{{
+              (template.stages || []).join(' → ')
+            }}</span>
+          </button>
+        </div>
+        <p class="mt-2 text-[11px] text-n-slate-10">
+          {{ t('KANBAN.TEMPLATES.OR_MANUAL') }}
+        </p>
+      </div>
+
       <!-- Funnel Name -->
       <div>
         <label
@@ -562,6 +679,76 @@ const handleDeleteFunnel = async () => {
         <p v-else class="text-xs italic text-n-slate-10">
           {{ t('KANBAN.CUSTOM_FIELDS.SAVE_FIRST') }}
         </p>
+      </div>
+
+      <!-- Fase 8: public WorkForm (edit mode) -->
+      <div v-if="isEditing">
+        <label class="block text-sm font-semibold text-n-slate-12">
+          <div class="flex items-center gap-2">
+            <Icon icon="i-lucide-clipboard-list" class="size-4" />
+            {{ t('KANBAN.WORKFORM.TITLE') }}
+          </div>
+        </label>
+        <p class="mb-3 mt-1 text-xs text-n-slate-10">
+          {{ t('KANBAN.WORKFORM.DESCRIPTION') }}
+        </p>
+        <div class="rounded-lg border border-n-weak p-3">
+          <label class="flex items-center gap-2 text-sm text-n-slate-12">
+            <input
+              v-model="formConfig.enabled"
+              type="checkbox"
+              class="size-4"
+            />
+            {{ t('KANBAN.WORKFORM.ENABLE') }}
+          </label>
+          <div v-if="formConfig.enabled" class="mt-3 space-y-2">
+            <input
+              v-model="formConfig.title"
+              type="text"
+              class="w-full rounded-lg border border-n-weak bg-n-solid-1 px-3 py-2 text-sm"
+              :placeholder="t('KANBAN.WORKFORM.TITLE_PLACEHOLDER')"
+            />
+            <select
+              v-model="formConfig.inbox_id"
+              class="w-full rounded-lg border border-n-weak bg-n-solid-1 px-3 py-2 text-sm"
+            >
+              <option value="">{{ t('KANBAN.WORKFORM.AUTO_INBOX') }}</option>
+              <option
+                v-for="ib in availableInboxes"
+                :key="ib.id"
+                :value="ib.id"
+              >
+                {{ ib.name }}
+              </option>
+            </select>
+          </div>
+          <div class="mt-3 flex items-center gap-2">
+            <Button
+              size="sm"
+              variant="primary"
+              :is-loading="isFormSaving"
+              @click="saveFormConfig"
+            >
+              {{ t('KANBAN.WORKFORM.SAVE') }}
+            </Button>
+            <Button
+              v-if="formConfig.url"
+              size="sm"
+              variant="ghost"
+              icon="i-lucide-copy"
+              @click="copyFormUrl"
+            >
+              {{ t('KANBAN.WORKFORM.COPY_URL') }}
+            </Button>
+          </div>
+          <p
+            v-if="formConfig.url"
+            class="mt-2 truncate rounded bg-n-alpha-1 px-2 py-1 font-mono text-[11px] text-n-slate-11"
+            :title="formConfig.url"
+          >
+            {{ formConfig.url }}
+          </p>
+        </div>
       </div>
 
       <!-- Stages (always show, can add when editing) -->

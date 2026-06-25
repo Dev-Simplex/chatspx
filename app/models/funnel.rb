@@ -26,7 +26,11 @@ class Funnel < ApplicationRecord
 
   # Kanban v2 (Fase 1): funnel-level config persisted in the `settings` jsonb
   # (e.g. default view, deadline_mode toggle). JSONB default {} — additive.
-  store_accessor :settings, :deadline_mode, :default_view, :card_field_visibility
+  # Fase 8 adds public WorkForm config: form_enabled, form_token (public,
+  # unguessable), form_inbox_id (Channel::Api inbox to create the conversation in),
+  # form_title.
+  store_accessor :settings, :deadline_mode, :default_view, :card_field_visibility,
+                 :form_enabled, :form_token, :form_inbox_id, :form_title
 
   validates :name, presence: true
   validates :name, length: { minimum: 1 }, allow_blank: false
@@ -35,6 +39,25 @@ class Funnel < ApplicationRecord
   before_save :normalize_inbox_ids
 
   scope :ordered, -> { order(:position, :created_at) }
+
+  # Fase 8: locate a funnel by its public form token (constant-ish lookup).
+  def self.for_form_token(token)
+    return if token.blank?
+
+    where("settings ->> 'form_token' = ?", token.to_s).first
+  end
+
+  # Generate the public form token on first enable; idempotent thereafter.
+  def ensure_form_token!
+    return form_token if form_token.present?
+
+    update!(form_token: SecureRandom.hex(24))
+    form_token
+  end
+
+  def public_form_enabled?
+    ActiveModel::Type::Boolean.new.cast(form_enabled) && form_token.present?
+  end
   scope :for_inbox, ->(inbox_id) { where("inbox_ids = '[]' OR inbox_ids @> ?", [inbox_id].to_json) }
 
   def stages_ordered

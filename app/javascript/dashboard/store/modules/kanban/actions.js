@@ -215,6 +215,18 @@ export const actions = {
     }
   },
 
+  // Fase 8: create a funnel from a template (returns the new funnel).
+  async createFunnelFromTemplate({ commit }, data) {
+    commit(types.SET_KANBAN_UI_FLAG, { isCreating: true });
+    try {
+      const response = await KanbanAPI.createFunnelFromTemplate(data);
+      commit(types.ADD_FUNNEL, response.data);
+      return response.data;
+    } finally {
+      commit(types.SET_KANBAN_UI_FLAG, { isCreating: false });
+    }
+  },
+
   async deleteFunnel({ commit }, funnelId) {
     commit(types.SET_KANBAN_UI_FLAG, { isDeleting: true });
     try {

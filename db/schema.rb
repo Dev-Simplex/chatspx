@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[7.1].define(version: 2026_06_25_120000) do
+ActiveRecord::Schema[7.1].define(version: 2026_06_25_130000) do
   # These extensions should be enabled to support this database
   enable_extension "pg_stat_statements"
   enable_extension "pg_trgm"
@@ -1029,6 +1029,17 @@ ActiveRecord::Schema[7.1].define(version: 2026_06_25_120000) do
     t.jsonb "settings", default: {}, null: false
     t.index ["automation_type"], name: "index_funnel_stages_on_automation_type"
     t.index ["funnel_id"], name: "index_funnel_stages_on_funnel_id"
+  end
+
+  create_table "funnel_templates", force: :cascade do |t|
+    t.string "name", null: false
+    t.string "description"
+    t.string "slug", null: false
+    t.jsonb "definition", default: {}, null: false
+    t.integer "position", default: 0
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["slug"], name: "index_funnel_templates_on_slug", unique: true
   end
 
   create_table "funnel_views", force: :cascade do |t|

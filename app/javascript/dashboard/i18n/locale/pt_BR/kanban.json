@@ -444,6 +444,24 @@
       "LABELS": "Sugerir etiquetas",
       "REPLY_FILLED": "Rascunho adicionado ao campo de resposta",
       "ERROR": "A solicitação de IA falhou."
+    },
+    "TEMPLATES": {
+      "TITLE": "Começar de um template",
+      "OR_MANUAL": "…ou preencha o formulário abaixo para começar do zero.",
+      "CREATED": "Funil \"{name}\" criado a partir do template",
+      "ERROR": "Não foi possível criar a partir do template."
+    },
+    "WORKFORM": {
+      "TITLE": "Formulário público",
+      "DESCRIPTION": "Um link público onde leads enviam e viram um card na primeira coluna.",
+      "ENABLE": "Ativar formulário público",
+      "TITLE_PLACEHOLDER": "Título do formulário (ex.: Fale conosco)",
+      "AUTO_INBOX": "Automático (1ª caixa de API)",
+      "SAVE": "Salvar formulário",
+      "COPY_URL": "Copiar URL",
+      "SAVED": "Configurações do formulário salvas",
+      "COPIED": "URL copiada",
+      "ERROR": "Não foi possível salvar o formulário."
     }
   }
 }
