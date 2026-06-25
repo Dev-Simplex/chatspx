@@ -1,5 +1,5 @@
 <script setup>
-import { ref, watch, nextTick } from 'vue';
+import { ref, computed, watch, nextTick } from 'vue';
 import { useStore } from 'vuex';
 import { useI18n } from 'vue-i18n';
 import Dialog from 'dashboard/components-next/dialog/Dialog.vue';
@@ -27,11 +27,16 @@ const emit = defineEmits(['close', 'saved']);
 const store = useStore();
 const { t } = useI18n();
 
+const DEFAULT_SLA_HOURS = 24;
+
 const formData = ref({
   name: '',
   color: '#94a3b8',
   automation_type: null,
+  slaHours: '',
 });
+
+const slaEnabled = ref(false);
 
 const dialogRef = ref(null);
 const isLoading = ref(false);
@@ -47,10 +52,46 @@ const isDefaultStage = stage => {
   return isDefaultByName || isDefaultByAutomation;
 };
 
+const isResolvedStage = stage => {
+  if (!stage) return false;
+  if (stage.automation_type === 'resolved') return true;
+  const name = (stage.name || '').toLowerCase();
+  return name === 'resolvido' || name === 'resolvidos' || name === 'resolved';
+};
+
+// Reactive to the live dropdown too, so picking "Resolvido" hides SLA at once.
+const stageIsResolved = computed(
+  () =>
+    formData.value.automation_type === 'resolved' ||
+    isResolvedStage(props.stage)
+);
+
+// Default a sensible value the first time SLA is enabled.
+watch(slaEnabled, enabled => {
+  if (enabled && !String(formData.value.slaHours).trim()) {
+    formData.value.slaHours = DEFAULT_SLA_HOURS;
+  }
+});
+
+// Merge SLA into the stage settings without clobbering other keys (e.g. wip_limit).
+// Resolved stages never carry an SLA.
+const buildSettings = () => {
+  const base = { ...(props.stage?.settings || {}) };
+  if (stageIsResolved.value || !slaEnabled.value) {
+    base.sla_hours = null;
+    return base;
+  }
+  const n = Math.floor(Number(formData.value.slaHours));
+  base.sla_hours = Number.isFinite(n) && n >= 1 ? n : null;
+  return base;
+};
+
 watch(
   () => props.stage,
   newStage => {
     if (newStage) {
+      const slaHours = Number(newStage.settings?.sla_hours);
+      const hasSla = Number.isFinite(slaHours) && slaHours > 0;
       formData.value = {
         name: newStage.name || '',
         color: newStage.color || '#94a3b8',
@@ -58,7 +99,9 @@ watch(
           newStage.automation_type !== undefined
             ? newStage.automation_type
             : null,
+        slaHours: hasSla ? slaHours : '',
       };
+      slaEnabled.value = hasSla;
     }
   },
   { immediate: true }
@@ -110,6 +153,7 @@ const save = async () => {
           name: formData.value.name.trim(),
           color: formData.value.color || '#94a3b8',
           automation_type: formData.value.automation_type || null,
+          settings: buildSettings(),
         },
       });
       emit('saved');
@@ -132,6 +176,7 @@ const save = async () => {
         stageId: stage.id,
         data: {
           color: formData.value.color || '#94a3b8',
+          settings: buildSettings(),
         },
       });
     } else {
@@ -142,6 +187,7 @@ const save = async () => {
           name: formData.value.name.trim(),
           color: formData.value.color || '#94a3b8',
           automation_type: formData.value.automation_type || null,
+          settings: buildSettings(),
         },
       });
     }
@@ -240,6 +286,36 @@ const save = async () => {
             {{ t('KANBAN.STAGES.AUTOMATION_RESOLVED') }}
           </option>
         </select>
+      </div>
+
+      <!-- SLA da etapa (em toda etapa, menos nas de resolvidas) -->
+      <div v-if="!stageIsResolved">
+        <label
+          class="flex items-center gap-2 text-sm font-semibold text-n-slate-12 cursor-pointer select-none"
+        >
+          <input
+            v-model="slaEnabled"
+            type="checkbox"
+            class="size-4 rounded border-n-weak text-n-teal-9 focus:ring-n-teal-9 cursor-pointer"
+          />
+          <Icon icon="i-lucide-clock" class="size-4" />
+          {{ t('KANBAN.STAGES.SLA_ENABLE') }}
+        </label>
+        <div v-if="slaEnabled" class="mt-2 pl-6">
+          <input
+            id="stage-form-sla"
+            v-model="formData.slaHours"
+            type="number"
+            min="1"
+            step="1"
+            class="w-full px-4 !py-3 !h-12 border border-n-weak rounded-xl bg-n-solid-1 text-n-slate-12 text-sm leading-5 focus:outline-none focus:ring-2 focus:ring-n-teal-9"
+            :placeholder="t('KANBAN.STAGES.SLA_HOURS_PLACEHOLDER')"
+            @keydown.enter.prevent="save"
+          />
+          <p class="text-xs text-n-slate-10 mt-1">
+            {{ t('KANBAN.STAGES.SLA_HINT') }}
+          </p>
+        </div>
       </div>
 
       <div
