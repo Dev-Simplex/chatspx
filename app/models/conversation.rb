@@ -97,6 +97,13 @@ class Conversation < ApplicationRecord
     where('NOT EXISTS (SELECT 1 FROM agent_bots WHERE agent_bots.id = conversations.assignee_agent_bot_id ' \
           'AND agent_bots.bot_type = 1)')
   }
+  # "Aguardando atendimento": a IA fez handoff e segue dona, mas marcou que já é hora de
+  # um humano assumir (custom attribute setado pelo HandoffTool). Continua atribuída à IA
+  # (responde), porém aparece nesta fila e some do filtro IA. O concern limpa o marcador
+  # quando um humano assume/responde ou a conversa resolve.
+  scope :awaiting_human, lambda {
+    where("conversations.custom_attributes->>'aguardando_humano_desde' IS NOT NULL")
+  }
   scope :unattended, -> { where(first_reply_created_at: nil).or(where.not(waiting_since: nil)) }
   # Conversas com mensagem recebida (incoming) ainda nao vista pelo agente:
   # existe incoming criada depois do agent_last_seen_at (ou nunca aberta). Espelha

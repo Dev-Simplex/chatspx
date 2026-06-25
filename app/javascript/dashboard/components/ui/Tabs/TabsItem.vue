@@ -73,6 +73,7 @@ const onTabFocus = () => {
     <button
       ref="tabButton"
       role="tab"
+      :title="name"
       :aria-selected="active ? 'true' : 'false'"
       :tabindex="active ? 0 : -1"
       class="wa-tab-item flex items-center h-7 px-3 rounded-full text-sm font-medium select-none cursor-pointer transition-all duration-200 border border-transparent whitespace-nowrap focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-n-brand/60"
@@ -87,10 +88,10 @@ const onTabFocus = () => {
       <span
         v-if="icon"
         :class="icon"
-        class="size-3.5 mr-1.5 shrink-0"
+        class="wa-tab-item__icon size-3.5 mr-1.5 shrink-0"
         aria-hidden="true"
       />
-      {{ name }}
+      <span class="wa-tab-item__label">{{ name }}</span>
       <div
         v-if="showBadge"
         class="wa-tab-item__badge rounded-full px-1.5 text-xs min-w-[18px] h-5 inline-flex items-center justify-center ml-1.5"

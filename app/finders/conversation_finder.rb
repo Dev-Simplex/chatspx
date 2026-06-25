@@ -63,6 +63,7 @@ class ConversationFinder # rubocop:disable Metrics/ClassLength
         assigned_count: assigned_count,
         unassigned_count: counts[:unassigned_count],
         ai_count: counts[:ai_count],
+        awaiting_count: counts[:awaiting_count],
         all_count: counts[:all_count],
         unattended_assigned_to_me_count: counts[:unattended_mine_count],
         unattended_unassigned_count: counts[:unattended_unassigned_count],
@@ -84,6 +85,7 @@ class ConversationFinder # rubocop:disable Metrics/ClassLength
         assigned_count: assigned_count,
         unassigned_count: counts[:unassigned_count],
         ai_count: counts[:ai_count],
+        awaiting_count: counts[:awaiting_count],
         all_count: counts[:all_count],
         unattended_assigned_to_me_count: counts[:unattended_mine_count],
         unattended_unassigned_count: counts[:unattended_unassigned_count],
@@ -104,6 +106,7 @@ class ConversationFinder # rubocop:disable Metrics/ClassLength
         assigned_count: assigned_count,
         unassigned_count: counts[:unassigned_count],
         ai_count: counts[:ai_count],
+        awaiting_count: counts[:awaiting_count],
         all_count: counts[:all_count],
         unattended_assigned_to_me_count: counts[:unattended_mine_count],
         unattended_unassigned_count: counts[:unattended_unassigned_count],
@@ -206,7 +209,14 @@ class ConversationFinder # rubocop:disable Metrics/ClassLength
     when 'unassigned'
       @conversations = ai_tabs_enabled? ? @conversations.unassigned.without_captain_assignee : @conversations.unassigned
     when 'ai'
+      # IA = atribuída à IA E ainda SEM o marcador "aguardando humano" (as que já
+      # aguardam atendente saem daqui e vão pro tab 'awaiting').
       @conversations = @conversations.assigned_to_captain
+                                     .where("conversations.custom_attributes->>'aguardando_humano_desde' IS NULL")
+    when 'awaiting'
+      # Aguardando atendimento = a IA fez handoff e segue dona, mas marcou que é hora de
+      # um humano assumir. TEM dono (IA) — por isso NÃO é "não atribuída".
+      @conversations = @conversations.awaiting_human
     when 'assigned'
       @conversations = @conversations.assigned
     end
@@ -232,7 +242,9 @@ class ConversationFinder # rubocop:disable Metrics/ClassLength
   end
 
   def filter_by_query
-    return unless params[:q]
+    # robustez: só busca com q String não-vazia. Clientes/FE antigos que mandam q como
+    # objeto (ActionController::Parameters) caíam em sanitize_sql_like -> NoMethodError (gsub) -> 500.
+    return unless params[:q].is_a?(String) && params[:q].present?
 
     allowed_message_types = [Message.message_types[:incoming], Message.message_types[:outgoing]]
     # Isolamento por agente: não descobrir conversas só pelo conteúdo de mensagem de outro
@@ -297,20 +309,23 @@ class ConversationFinder # rubocop:disable Metrics/ClassLength
     subquery = @conversations.reselect(
       'conversations.id', 'conversations.assignee_id', 'conversations.status',
       'conversations.first_reply_created_at', 'conversations.waiting_since',
-      'conversations.assignee_agent_bot_id'
+      'conversations.assignee_agent_bot_id', 'conversations.custom_attributes'
     ).distinct
 
     uid = sanitized_user_id
     unattended = 'sub.status = 0 AND (sub.first_reply_created_at IS NULL OR sub.waiting_since IS NOT NULL)'
 
     # unassigned_count exclui conversas da IA somente com a flag ligada (DC-4);
-    # ai_count é sempre computado (espelho captain via LEFT JOIN restrito a bot_type=1).
+    # ai_count = espelho captain SEM o marcador "aguardando humano" (as que aguardam
+    # vão pro awaiting_count). awaiting_count = marcador presente (IA fez handoff, segue
+    # dona, esperando humano assumir).
     sql = <<~SQL.squish
       SELECT
         COUNT(*)::int AS all_count,
         COUNT(*) FILTER (WHERE sub.assignee_id = #{uid})::int AS mine_count,
         COUNT(*) FILTER (WHERE sub.assignee_id IS NULL#{' AND ab.id IS NULL' if ai_tabs_enabled?})::int AS unassigned_count,
-        COUNT(*) FILTER (WHERE ab.id IS NOT NULL)::int AS ai_count,
+        COUNT(*) FILTER (WHERE ab.id IS NOT NULL AND (sub.custom_attributes->>'aguardando_humano_desde') IS NULL)::int AS ai_count,
+        COUNT(*) FILTER (WHERE (sub.custom_attributes->>'aguardando_humano_desde') IS NOT NULL)::int AS awaiting_count,
         COUNT(*) FILTER (WHERE #{unattended})::int AS unattended_all_count,
         COUNT(*) FILTER (WHERE #{unattended} AND sub.assignee_id = #{uid})::int AS unattended_mine_count,
         COUNT(*) FILTER (WHERE #{unattended} AND sub.assignee_id IS NULL)::int AS unattended_unassigned_count
@@ -324,6 +339,7 @@ class ConversationFinder # rubocop:disable Metrics/ClassLength
       mine_count: result['mine_count'].to_i,
       unassigned_count: result['unassigned_count'].to_i,
       ai_count: result['ai_count'].to_i,
+      awaiting_count: result['awaiting_count'].to_i,
       unattended_all_count: result['unattended_all_count'].to_i,
       unattended_mine_count: result['unattended_mine_count'].to_i,
       unattended_unassigned_count: result['unattended_unassigned_count'].to_i

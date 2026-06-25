@@ -136,6 +136,7 @@ const mineChatsList = useMapGetter('getMineChats');
 const allChatList = useMapGetter('getAllStatusChats');
 const unAssignedChatsList = useMapGetter('getUnAssignedChats');
 const aiChatsList = useMapGetter('getAIChats');
+const awaitingChatsList = useMapGetter('getAwaitingChats');
 const chatListLoading = useMapGetter('getChatListLoadingStatus');
 const activeInbox = useMapGetter('getSelectedInbox');
 const conversationStats = useMapGetter('conversationStats/getStats');
@@ -153,10 +154,10 @@ const myTeams = useMapGetter('teams/getMyTeams');
 const getTeamFn = useMapGetter('teams/getTeam');
 const getConversationById = useMapGetter('getConversationById');
 
-// AI tabs (Fase C — C4): gated by the reply_assignment_gate account setting
+// AI tabs (Fase C — C4): gated by the reply_assignment_gate account setting.
+// As abas dinâmicas (Aguardando atendimento / IA) dependem dos contadores do
+// /meta (awaitingCount / aiCount), não da existência de assistentes Captain.
 const { isAssignmentGateEnabled } = useReplyAssignmentGate();
-const captainAssistants = useMapGetter('captainAssistants/getRecords');
-const hasCaptainAgents = computed(() => captainAssistants.value.length > 0);
 
 useChatListKeyboardEvents(conversationListRef);
 const {
@@ -281,6 +282,21 @@ const userPermissions = computed(() => {
   return getUserPermissions(currentUser.value, currentAccountId.value);
 });
 
+// Keys the user is allowed to use by *permission* (role/custom-role), before
+// any UI-level filtering of the tab-bar. The gate ON hides the "unassigned"
+// chip from the tab-bar (it lives in the sidebar instead), but the user may
+// still legitimately land on the unassigned queue via that sidebar item /
+// deep-link. Clamping must respect permission, not tab-bar visibility — so
+// resolveAssigneeTab uses these keys, keeping the security clamp intact for
+// roles that genuinely lack the permission.
+const permittedAssigneeTabKeys = computed(() =>
+  filterItemsByPermission(
+    ASSIGNEE_TYPE_TAB_PERMISSIONS,
+    userPermissions.value,
+    item => item.permissions
+  ).map(({ key }) => key)
+);
+
 const assigneeTabItems = computed(() => {
   const useUnattendedCounts = props.conversationType === 'unattended';
   const countKeyForTab = key => {
@@ -296,6 +312,7 @@ const assigneeTabItems = computed(() => {
   const stats = conversationStats.value;
   const iconForKey = key => {
     if (key === wootConstants.ASSIGNEE_TYPE.ME) return 'i-lucide-user';
+    if (key === wootConstants.ASSIGNEE_TYPE.AWAITING) return 'i-lucide-clock';
     if (key === wootConstants.ASSIGNEE_TYPE.UNASSIGNED)
       return 'i-lucide-user-round-x';
     if (key === wootConstants.ASSIGNEE_TYPE.AI) return 'i-lucide-sparkles';
@@ -308,53 +325,52 @@ const assigneeTabItems = computed(() => {
     item => item.permissions
   )
     .filter(({ key }) => {
-      // AI tab: only with the gate ON, at least one assistant on the account
-      // and outside the unattended view (no unattended-per-AI counts — OQ-2)
+      // Dynamic tabs (modo IA / gate ON): só aparecem quando têm conteúdo.
+      // "Aguardando atendimento": gate ON + awaiting_count > 0, fora da visão
+      // de não-respondidas (sem contadores per-awaiting nessa visão).
+      if (key === wootConstants.ASSIGNEE_TYPE.AWAITING)
+        return (
+          isAssignmentGateEnabled.value &&
+          !useUnattendedCounts &&
+          (stats.awaitingCount ?? 0) > 0
+        );
+      // "IA": gate ON + ai_count > 0 (antes dependia de hasCaptainAgents — agora
+      // a aba só aparece quando de fato há conversas com a IA), fora da visão de
+      // não-respondidas (sem contadores per-AI — OQ-2).
       if (key === wootConstants.ASSIGNEE_TYPE.AI)
         return (
           isAssignmentGateEnabled.value &&
-          hasCaptainAgents.value &&
-          !useUnattendedCounts
+          !useUnattendedCounts &&
+          (stats.aiCount ?? 0) > 0
         );
-      // Gate ON: "Unassigned" becomes a conditional alert tab (D-5),
-      // rendered only while there are unassigned conversations
+      // Gate ON: "Não atribuídas" deixa de ser chip da tab-bar no modo IA
+      // (a fila vira "Aguardando atendimento"). Modo clássico mantém
+      // "Não atribuídas" como aba normal (return true abaixo).
       if (
         key === wootConstants.ASSIGNEE_TYPE.UNASSIGNED &&
         isAssignmentGateEnabled.value &&
         !useUnattendedCounts
       )
-        return (stats.unAssignedCount ?? 0) > 0;
+        return false;
       return true;
     })
     .map(({ key }) => {
-      // Gate ON: a tab "Não atribuídas" é reapresentada como "Aguardando
-      // atendimento" (fila do modo atribuição obrigatória). No modo Clássico
-      // mantém "Não atribuídas".
-      const isAwaitingTab =
-        key === wootConstants.ASSIGNEE_TYPE.UNASSIGNED &&
-        isAssignmentGateEnabled.value &&
-        !useUnattendedCounts;
       return {
         key,
-        name: isAwaitingTab
-          ? t('CHAT_LIST.ASSIGNEE_TYPE_TABS.unassigned_awaiting')
-          : t(`CHAT_LIST.ASSIGNEE_TYPE_TABS.${key}`),
+        name: t(`CHAT_LIST.ASSIGNEE_TYPE_TABS.${key}`),
         count: stats[countKeyForTab(key)] ?? 0,
         icon: iconForKey(key),
-        variant: isAwaitingTab ? 'alert' : undefined,
       };
     });
   return items;
 });
 
-// Route-aware default tab, clamped to the tabs the user can actually see.
-// Defined here (not at the top of setup) so assigneeTabItems is available.
+// Route-aware default tab, clamped to the tabs the user is allowed to use by
+// permission (not just the ones rendered in the tab-bar) so the dedicated
+// "Aguardando atendimento" route / sidebar deep-link can select the unassigned
+// tab even though the gate hides its chip from the tab-bar.
 const activeAssigneeTab = ref(
-  resolveAssigneeTab(
-    route.name,
-    route.query,
-    assigneeTabItems.value.map(item => item.key)
-  )
+  resolveAssigneeTab(route.name, route.query, permittedAssigneeTabKeys.value)
 );
 
 const showAssigneeInConversationCard = computed(() => {
@@ -566,6 +582,8 @@ const conversationList = computed(() => {
       localConversationList = mineChatsList.value;
     } else if (activeAssigneeTab.value === 'unassigned') {
       localConversationList = unAssignedChatsList.value;
+    } else if (activeAssigneeTab.value === 'awaiting') {
+      localConversationList = awaitingChatsList.value;
     } else if (activeAssigneeTab.value === 'ai') {
       localConversationList = aiChatsList.value;
     } else {
@@ -1222,7 +1240,7 @@ provide('assignPriority', assignPriority);
 provide('isConversationSelected', isConversationSelected);
 provide('deleteConversation', handleDelete);
 
-// Unattended/Unread routes: sync assignee tab from query params (deep-link)
+// Unattended/Unread routes: sync assignee tab from route (deep-link).
 watch(
   () => [route.name, route.query],
   () => {
@@ -1233,7 +1251,7 @@ watch(
       const newTab = resolveAssigneeTab(
         route.name,
         route.query,
-        assigneeTabItems.value.map(item => item.key)
+        permittedAssigneeTabKeys.value
       );
       const prevTab = activeAssigneeTab.value;
       activeAssigneeTab.value = newTab;
@@ -1278,12 +1296,13 @@ watch(
 
     // Side effect: reset assignee tab when the view type changes.
     // Use the route-aware default so the Unread view keeps its "All" default
-    // instead of being forced back to "Mine".
+    // and the dedicated unassigned queue locks to "Unassigned" instead of being
+    // forced back to "Mine". Clamp by permission, not tab-bar visibility.
     if (newType !== prevType && newType !== 'unattended') {
       activeAssigneeTab.value = resolveAssigneeTab(
         route.name,
         route.query,
-        assigneeTabItems.value.map(item => item.key)
+        permittedAssigneeTabKeys.value
       );
     }
 
@@ -1299,19 +1318,31 @@ watch(
   }
 );
 
-// The conditional "Unassigned" tab can disappear while active (count drops to
-// zero with the gate ON) which would leave activeTabIndex at -1 — fall back to
-// "Mine". Not applicable to the unattended view (tab is unconditional there).
+// Dynamic tabs (gate ON) can disappear while active when their count drops to
+// zero — "Aguardando atendimento", "IA" e (legado) "Não atribuídas". Isso
+// deixaria activeTabIndex em -1, então voltamos para "Minhas". Não se aplica à
+// visão de não-respondidas (abas incondicionais lá).
 watch(
-  [() => conversationStats.value.unAssignedCount, isAssignmentGateEnabled],
-  ([count]) => {
-    if (
-      props.conversationType !== 'unattended' &&
-      isAssignmentGateEnabled.value &&
-      activeAssigneeTab.value === wootConstants.ASSIGNEE_TYPE.UNASSIGNED &&
-      conversationStats.value.updatedOn &&
-      count === 0
-    ) {
+  [
+    () => conversationStats.value.unAssignedCount,
+    () => conversationStats.value.awaitingCount,
+    () => conversationStats.value.aiCount,
+    isAssignmentGateEnabled,
+  ],
+  () => {
+    if (props.conversationType === 'unattended') return;
+    if (!isAssignmentGateEnabled.value) return;
+    if (!conversationStats.value.updatedOn) return;
+
+    const active = activeAssigneeTab.value;
+    const countByTab = {
+      [wootConstants.ASSIGNEE_TYPE.UNASSIGNED]:
+        conversationStats.value.unAssignedCount,
+      [wootConstants.ASSIGNEE_TYPE.AWAITING]:
+        conversationStats.value.awaitingCount,
+      [wootConstants.ASSIGNEE_TYPE.AI]: conversationStats.value.aiCount,
+    };
+    if (active in countByTab && (countByTab[active] ?? 0) === 0) {
       updateAssigneeTab(wootConstants.ASSIGNEE_TYPE.ME);
     }
   }

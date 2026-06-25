@@ -1,4 +1,4 @@
-import { shallowMount, flushPromises } from '@vue/test-utils';
+import { shallowMount } from '@vue/test-utils';
 import { createStore } from 'vuex';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { useRoute, useRouter } from 'vue-router';
@@ -64,6 +64,7 @@ const buildStore = ({
       getAllStatusChats: () => [],
       getUnAssignedChats: () => [],
       getAIChats: () => [],
+      getAwaitingChats: () => [],
       getChatListLoadingStatus: () => false,
       getSelectedInbox: () => 0,
       getAppliedConversationFiltersV2: () => [],
@@ -225,22 +226,34 @@ describe('ChatList — assignee tabs (Fase C)', () => {
   });
 
   describe('with the assignment gate ON', () => {
-    it('shows Mine/Unassigned(alert)/AI/All when there are assistants and unassigned chats', () => {
+    it('shows Mine/Awaiting/AI/All as dynamic tabs (counts > 0), never the unassigned chip', () => {
+      // Abas dinâmicas: "Aguardando atendimento" (awaiting_count > 0) e "IA"
+      // (ai_count > 0) só aparecem quando têm conteúdo. A ordem é
+      // Minhas / Aguardando atendimento / IA / Todas. "Não atribuídas" deixa de
+      // ser chip no modo IA.
       const { wrapper } = mountChatList({
         gateEnabled: true,
         assistants: [{ id: 1, name: 'Aria' }],
-        stats: { mineCount: 1, unAssignedCount: 2, aiCount: 4, allCount: 7 },
+        stats: {
+          mineCount: 1,
+          unAssignedCount: 2,
+          awaitingCount: 3,
+          aiCount: 4,
+          allCount: 7,
+        },
       });
       const items = wrapper.findComponent(ChatTypeTabs).props('items');
       expect(items.map(item => item.key)).toEqual([
         'me',
-        'unassigned',
+        'awaiting',
         'ai',
         'all',
       ]);
+      expect(items.find(item => item.key === 'unassigned')).toBeUndefined();
 
-      const unassignedTab = items.find(item => item.key === 'unassigned');
-      expect(unassignedTab.variant).toBe('alert');
+      const awaitingTab = items.find(item => item.key === 'awaiting');
+      expect(awaitingTab.icon).toBe('i-lucide-clock');
+      expect(awaitingTab.count).toBe(3);
 
       const aiTab = items.find(item => item.key === 'ai');
       expect(aiTab.variant).toBeUndefined();
@@ -248,22 +261,36 @@ describe('ChatList — assignee tabs (Fase C)', () => {
       expect(aiTab.count).toBe(4);
     });
 
-    it('hides the conditional Unassigned tab when the count is zero', () => {
+    it('hides the Awaiting tab when awaiting_count is zero', () => {
       const { wrapper } = mountChatList({
         gateEnabled: true,
         assistants: [{ id: 1, name: 'Aria' }],
-        stats: { unAssignedCount: 0, aiCount: 1, allCount: 1 },
+        stats: { awaitingCount: 0, aiCount: 1, allCount: 1 },
       });
       expect(tabKeys(wrapper)).toEqual(['me', 'ai', 'all']);
     });
 
-    it('hides the AI tab when the account has no assistants', () => {
+    it('hides the AI tab when ai_count is zero (regardless of assistants)', () => {
+      const { wrapper } = mountChatList({
+        gateEnabled: true,
+        assistants: [{ id: 1, name: 'Aria' }],
+        stats: {
+          awaitingCount: 0,
+          aiCount: 0,
+          unAssignedCount: 2,
+          allCount: 5,
+        },
+      });
+      expect(tabKeys(wrapper)).toEqual(['me', 'all']);
+    });
+
+    it('shows the AI tab on count even when the account has no assistants', () => {
       const { wrapper } = mountChatList({
         gateEnabled: true,
         assistants: [],
-        stats: { unAssignedCount: 2 },
+        stats: { aiCount: 2, allCount: 4 },
       });
-      expect(tabKeys(wrapper)).toEqual(['me', 'unassigned', 'all']);
+      expect(tabKeys(wrapper)).toEqual(['me', 'ai', 'all']);
     });
 
     it('fetches captain assistants on mount', () => {
@@ -283,6 +310,8 @@ describe('ChatList — assignee tabs (Fase C)', () => {
           assistants: [{ id: 1, name: 'Aria' }],
           stats: {
             unAssignedCount: 0,
+            awaitingCount: 5,
+            aiCount: 5,
             unattendedAssignedCount: 1,
             unattendedUnassignedCount: 2,
             allCount: 3,
@@ -291,33 +320,11 @@ describe('ChatList — assignee tabs (Fase C)', () => {
         { conversationType: 'unattended' }
       );
       const items = wrapper.findComponent(ChatTypeTabs).props('items');
+      // Awaiting/AI nunca aparecem na visão de não-respondidas (sem contadores
+      // per-awaiting/per-AI lá).
       expect(items.map(item => item.key)).toEqual(['me', 'unassigned', 'all']);
       expect(items.find(item => item.key === 'me').count).toBe(1);
       expect(items.find(item => item.key === 'unassigned').count).toBe(2);
-    });
-
-    it('falls back to Mine when the active Unassigned tab empties out', async () => {
-      const { wrapper, store } = mountChatList({
-        gateEnabled: true,
-        assistants: [{ id: 1, name: 'Aria' }],
-        stats: {
-          unAssignedCount: 2,
-          aiCount: 1,
-          allCount: 3,
-          updatedOn: new Date(),
-        },
-      });
-      const tabs = wrapper.findComponent(ChatTypeTabs);
-      tabs.vm.$emit('chatTabChange', 'unassigned');
-      await flushPromises();
-      expect(tabs.props('activeTab')).toBe('unassigned');
-
-      store.commit('conversationStats/setStats', {
-        unAssignedCount: 0,
-        updatedOn: new Date(),
-      });
-      await flushPromises();
-      expect(wrapper.findComponent(ChatTypeTabs).props('activeTab')).toBe('me');
     });
   });
 });

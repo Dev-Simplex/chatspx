@@ -74,3 +74,13 @@
   title: 'Transferir para outro Agente IA'
   description: 'Transfere a conversa para outro agente de IA da equipe (o novo agente assume e continua)'
   icon: 'arrow-swap'
+
+- id: enviar_localizacao
+  title: 'Enviar Localização do Escritório'
+  description: 'Envia ao cliente o pin de localização do escritório da Tozi no mapa'
+  icon: 'location'
+
+- id: enviar_localizacao_imovel
+  title: 'Enviar Localização do Imóvel'
+  description: 'Envia ao cliente o pin de localização de um imóvel no mapa (por código)'
+  icon: 'location'

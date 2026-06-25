@@ -2097,18 +2097,29 @@ button.wa-btn--primary:hover {
   gap: 4px;
 }
 
-/* Tabs do chat list (Minhas / Não atribuídas / Todos) — permitem scroll
-   horizontal com fade + chevron quando há overflow real. O componente
-   Tabs.vue renderiza chevrons com classe específica `.wa-tabs-chevron`
-   posicionados absolutamente, então o legado `> button:first-child` deixou
-   de aplicar (fica para retro-compat caso alguém reuse a classe antiga). */
-.conversation-list-tabs,
-[class*='chat-list-tabs'] {
-  ul {
-    overflow-x: auto;
-    flex-wrap: nowrap;
-  }
+/* Tabs do chat list (Minhas / Aguardando atendimento / IA / Todas) — abas
+   dinâmicas em estilo pílula que QUEBRAM para a 2ª linha quando não cabem
+   (sem scroll horizontal). Os chevrons do Tabs.vue ficam ocultos porque, com
+   wrap, nunca há overflow horizontal (hasOverflowRight permanece false). */
+/* Especificidade (0,2,1) + !important para VENCER o `.wa-tabs ul`
+   global (overflow-x:auto + flex-wrap:nowrap !important, mais abaixo neste
+   arquivo). Sem isso o nowrap global ganha e as abas vazam pro lado/somem.
+   O `min-width:0` deixa o ul encolher até a largura do pai (~380px) para o
+   wrap ter onde quebrar; só afeta o chat-list (não as outras tab-bars). */
+.wa-tabs.conversation-list-tabs ul,
+.wa-tabs[class*='chat-list-tabs'] ul {
+  overflow-x: visible !important;
+  flex-wrap: wrap !important;
+  row-gap: 6px;
+  min-width: 0;
+  flex: 1 1 auto;
 }
+
+/* Rótulos SEMPRE visíveis: as abas do chat-list mostram ícone + rótulo
+   completo + contador, ativas ou não (decisão de UX — o "segmented expand"
+   icone-só foi removido por confundir usuários leigos). O layout em 2 linhas
+   agrupadas (Minhas/Todas · Aguardando atendimento/IA) é forçado no
+   ChatTypeTabs.vue via quebra-linha flex. */
 
 .conversation-list-tabs button,
 .conversation-list-tabs a,
