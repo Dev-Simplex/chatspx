@@ -33,6 +33,7 @@ const formData = ref({
   name: '',
   color: '#94a3b8',
   automation_type: null,
+  wipLimit: '',
   slaHours: '',
 });
 
@@ -73,16 +74,21 @@ watch(slaEnabled, enabled => {
   }
 });
 
-// Merge SLA into the stage settings without clobbering other keys (e.g. wip_limit).
+const toLimit = value => {
+  if (String(value).trim() === '') return null;
+  const n = Math.floor(Number(value));
+  return Number.isFinite(n) && n >= 1 ? n : null;
+};
+
+// Merge WIP + SLA into the stage settings without clobbering other keys.
 // Resolved stages never carry an SLA.
 const buildSettings = () => {
   const base = { ...(props.stage?.settings || {}) };
-  if (stageIsResolved.value || !slaEnabled.value) {
-    base.sla_hours = null;
-    return base;
-  }
-  const n = Math.floor(Number(formData.value.slaHours));
-  base.sla_hours = Number.isFinite(n) && n >= 1 ? n : null;
+  base.wip_limit = toLimit(formData.value.wipLimit);
+  base.sla_hours =
+    stageIsResolved.value || !slaEnabled.value
+      ? null
+      : toLimit(formData.value.slaHours);
   return base;
 };
 
@@ -92,6 +98,8 @@ watch(
     if (newStage) {
       const slaHours = Number(newStage.settings?.sla_hours);
       const hasSla = Number.isFinite(slaHours) && slaHours > 0;
+      const wip = Number(newStage.settings?.wip_limit);
+      const hasWip = Number.isFinite(wip) && wip > 0;
       formData.value = {
         name: newStage.name || '',
         color: newStage.color || '#94a3b8',
@@ -99,6 +107,7 @@ watch(
           newStage.automation_type !== undefined
             ? newStage.automation_type
             : null,
+        wipLimit: hasWip ? wip : '',
         slaHours: hasSla ? slaHours : '',
       };
       slaEnabled.value = hasSla;
@@ -286,6 +295,29 @@ const save = async () => {
             {{ t('KANBAN.STAGES.AUTOMATION_RESOLVED') }}
           </option>
         </select>
+      </div>
+
+      <!-- Limite de cards (WIP) -->
+      <div>
+        <label
+          for="stage-form-wip"
+          class="block text-sm font-semibold mb-2 text-n-slate-12"
+        >
+          <div class="flex items-center gap-2">
+            <Icon icon="i-lucide-gauge" class="size-4" />
+            {{ t('KANBAN.STAGES.WIP_LABEL') }}
+          </div>
+        </label>
+        <input
+          id="stage-form-wip"
+          v-model="formData.wipLimit"
+          type="number"
+          min="1"
+          step="1"
+          class="w-full px-4 !py-3 !h-12 border border-n-weak rounded-xl bg-n-solid-1 text-n-slate-12 text-sm leading-5 focus:outline-none focus:ring-2 focus:ring-n-teal-9"
+          :placeholder="t('KANBAN.STAGES.WIP_PLACEHOLDER')"
+          @keydown.enter.prevent="save"
+        />
       </div>
 
       <!-- SLA da etapa (em toda etapa, menos nas de resolvidas) -->

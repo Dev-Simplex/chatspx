@@ -76,6 +76,8 @@
       "NO_AUTOMATION": "Sem automação",
       "AUTOMATION_OPEN": "Mensagem Aberta",
       "AUTOMATION_RESOLVED": "Mensagem Resolvida",
+      "WIP_LABEL": "Limite de cards (WIP)",
+      "WIP_PLACEHOLDER": "Máximo de cards nesta etapa (vazio = sem limite)",
       "SLA_ENABLE": "Definir SLA nesta etapa",
       "SLA_HOURS_PLACEHOLDER": "Horas até o card atrasar (ex.: 24)",
       "SLA_HINT": "O card fica âmbar perto do limite e vermelho quando estoura.",

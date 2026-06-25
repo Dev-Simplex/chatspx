@@ -76,6 +76,8 @@
       "NO_AUTOMATION": "No automation",
       "AUTOMATION_OPEN": "Open Message",
       "AUTOMATION_RESOLVED": "Resolved Message",
+      "WIP_LABEL": "Card limit (WIP)",
+      "WIP_PLACEHOLDER": "Max cards in this stage (blank = no limit)",
       "SLA_ENABLE": "Track SLA on this stage",
       "SLA_HOURS_PLACEHOLDER": "Hours before a card is late (e.g. 24)",
       "SLA_HINT": "The card turns amber near the limit and red once overdue.",

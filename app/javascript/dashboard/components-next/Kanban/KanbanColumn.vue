@@ -98,72 +98,8 @@ watch(persistedWip, val => {
   if (val !== null) wipLimit.value = val;
 });
 
-const dropLegacyWip = () => {
-  const map = readWipMap();
-  if (map[String(props.stage?.id)] === undefined) return;
-  delete map[String(props.stage?.id)];
-  try {
-    localStorage.setItem(WIP_KEY, JSON.stringify(map));
-  } catch (_) {
-    // best effort
-  }
-};
-
-const setWipLimit = async () => {
-  showStageMenu.value = false;
-  const input = window.prompt(
-    t('KANBAN.WIP.PROMPT'),
-    wipLimit.value ? String(wipLimit.value) : ''
-  );
-  if (input === null) return; // cancelled
-  const trimmed = input.trim();
-  let next = null;
-  if (trimmed !== '') {
-    const n = Math.max(1, Math.floor(Number(trimmed)));
-    if (!Number.isFinite(n) || n < 1) return;
-    next = n;
-  }
-  const previous = wipLimit.value;
-  wipLimit.value = next; // optimistic
-  try {
-    await store.dispatch('kanban/updateStage', {
-      funnelId: props.funnelId,
-      stageId: props.stage?.id,
-      // Send the full settings object so we don't clobber sibling keys (sla_hours).
-      data: { settings: { ...(props.stage?.settings || {}), wip_limit: next } },
-    });
-    dropLegacyWip();
-  } catch (_) {
-    wipLimit.value = previous; // revert on failure
-  }
-};
-
-// Per-stage SLA budget (hours-in-stage) — persisted in settings.sla_hours.
-const setSlaHours = async () => {
-  showStageMenu.value = false;
-  const current = stageSlaHours.value;
-  const input = window.prompt(
-    t('KANBAN.SLA.PROMPT'),
-    current ? String(current) : ''
-  );
-  if (input === null) return; // cancelled
-  const trimmed = input.trim();
-  let next = null;
-  if (trimmed !== '') {
-    const n = Math.max(1, Math.floor(Number(trimmed)));
-    if (!Number.isFinite(n) || n < 1) return;
-    next = n;
-  }
-  try {
-    await store.dispatch('kanban/updateStage', {
-      funnelId: props.funnelId,
-      stageId: props.stage?.id,
-      data: { settings: { ...(props.stage?.settings || {}), sla_hours: next } },
-    });
-  } catch (_) {
-    // best effort; the stage prop stays the source of truth
-  }
-};
+// WIP limit and stage SLA are configured in the stage editor (StageForm) — a
+// polished modal — instead of native window.prompt dialogs.
 const wipState = computed(() => {
   const limit = wipLimit.value;
   if (!limit) return 'none';
@@ -509,20 +445,6 @@ const handleColumnObserved = async () => {
                 class="absolute right-0 top-8 z-20 w-48 rounded-xl border border-n-weak bg-n-solid-1 py-1 shadow-lg"
                 @click.stop
               >
-                <button
-                  class="flex w-full items-center gap-2 px-4 py-2 text-left text-sm text-n-slate-11 transition-colors hover:bg-n-solid-3"
-                  @click="setWipLimit"
-                >
-                  <Icon icon="i-lucide-gauge" class="size-4" />
-                  {{ t('KANBAN.WIP.SET') }}
-                </button>
-                <button
-                  class="flex w-full items-center gap-2 px-4 py-2 text-left text-sm text-n-slate-11 transition-colors hover:bg-n-solid-3"
-                  @click="setSlaHours"
-                >
-                  <Icon icon="i-lucide-timer" class="size-4" />
-                  {{ t('KANBAN.SLA.SET') }}
-                </button>
                 <button
                   class="flex w-full items-center gap-2 px-4 py-2 text-left text-sm text-n-slate-11 transition-colors hover:bg-n-solid-3"
                   @click="handleEditStage"
