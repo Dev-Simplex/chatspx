@@ -395,6 +395,7 @@
     "AUDIT_LOGS": "Auditoria",
     "INBOXES": "Caixas de Entrada",
     "WAHA_CONNECTIONS": "Conexões WhatsApp",
+    "MESSAGE_SEQUENCES": "Sequências de Follow-up",
     "NOTIFICATIONS": "Notificações",
     "CANNED_RESPONSES": "Respostas Prontas",
     "INTEGRATIONS": "Integrações",
@@ -1026,6 +1027,49 @@
       "DESCRIPTION": "Tem certeza de que deseja excluir esta política? Essa ação não pode ser desfeita.",
       "CONFIRM_BUTTON_LABEL": "Excluir",
       "CANCEL_BUTTON_LABEL": "Cancelar"
+    }
+  },
+  "MESSAGE_SEQUENCES": {
+    "TITLE": "Sequências de Follow-up",
+    "DESCRIPTION": "Crie sequências automáticas de mensagens disparadas em intervalos ao inscrever uma conversa.",
+    "NEW": "Nova sequência",
+    "EMPTY": "Nenhuma sequência ainda. Crie sua primeira sequência de follow-up.",
+    "LOADING": "Carregando sequências…",
+    "ACTIVE": "Ativa",
+    "INACTIVE": "Inativa",
+    "STEPS_COUNT": "{count} passo | {count} passos",
+    "EDIT": "Editar",
+    "DELETE": "Excluir",
+    "DELETE_CONFIRM": "Excluir esta sequência? As inscrições ativas serão interrompidas.",
+    "FORM": {
+      "NAME_LABEL": "Nome da sequência",
+      "NAME_PLACEHOLDER": "ex.: Follow-up de proposta",
+      "ACTIVE_LABEL": "Ativa",
+      "EXIT_REPLY_LABEL": "Parar quando o cliente responder",
+      "EXIT_STATUS_LABEL": "Parar quando o status da conversa for",
+      "EXIT_STATUS_NONE": "Nunca (ignorar status)",
+      "STATUS_RESOLVED": "Resolvida",
+      "STEPS_TITLE": "Passos",
+      "STEP": "Passo {index}",
+      "ADD_STEP": "Adicionar passo",
+      "REMOVE_STEP": "Remover",
+      "DELAY_LABEL": "Aguardar antes de enviar",
+      "DELAY_HELP": "Tempo após o passo anterior (ou após a inscrição, no primeiro passo).",
+      "UNIT_MINUTES": "minutos",
+      "UNIT_HOURS": "horas",
+      "UNIT_DAYS": "dias",
+      "CONTENT_LABEL": "Mensagem",
+      "CONTENT_PLACEHOLDER": "Oi {{contact.first_name}}, …",
+      "CONTENT_HELP": "Use {{contact.name}} ou {{contact.first_name}} para personalizar.",
+      "SAVE": "Salvar sequência",
+      "CANCEL": "Cancelar",
+      "NEED_STEP": "Adicione pelo menos um passo com mensagem."
+    },
+    "MESSAGES": {
+      "CREATED": "Sequência criada",
+      "UPDATED": "Sequência atualizada",
+      "DELETED": "Sequência excluída",
+      "ERROR": "Algo deu errado. Tente novamente."
     }
   },
   "WAHA_CONNECTIONS": {

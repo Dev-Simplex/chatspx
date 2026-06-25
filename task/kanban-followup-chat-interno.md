@@ -211,7 +211,9 @@ Sugestão: fechar **A** inteiro (entrega de negócio completa) antes de abrir **
 
 **DoD:** migrations rodam, `rspec` verde, no console: criar sequência de 2 passos → `EnrollService` → rodar `AdvanceJob` 2x simula envios na ordem. **Commit** `feat(kanban): Follow-up A1 — fundação de sequências (models+services+job)`.
 
-### Fase A2 — Builder + inscrição manual
+### Fase A2 — Builder + inscrição manual ✅ FEITA (2026-06-25)
+> **Status:** implementada e verde. Flag `message_sequences` reclamou o **bit 29** (slot deprecado `response_bot`, que era default-OFF e sem referências — `channel_twitter`/bit 4 foi descartado por ser default-ON). Backend: rotas + 2 controllers + 2 policies + 6 views jbuilder + `accepts_nested_attributes_for :steps`; **10 request specs verdes**. Frontend: `featureFlags.js`, 2 API clients, página de Settings "Sequências de Follow-up" (lista + editor de passos delay min/h/dia + exit conditions), entrada no menu lateral (gated), widget `MessageSequenceWidget` no ContactPanel (inscrever + badge passo X/Y + parar, via `woot-feature-toggle`), i18n en+pt_BR. **Build vite OK (exit 0), ESLint+RuboCop limpos.** Ainda NÃO deployado no staging.
+
 **Backend:**
 - `config/routes.rb` (bloco accounts): `resources :message_sequences` (+ nested `message_sequence_steps`) e `resources :message_sequence_enrollments, only: [:index, :create, :destroy]`.
 - `app/controllers/api/v1/accounts/message_sequences_controller.rb` + `.../message_sequence_enrollments_controller.rb` (padrão `BaseController`+`check_authorization`).

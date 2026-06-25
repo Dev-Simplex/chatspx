@@ -634,6 +634,17 @@
     }
   },
   "CONVERSATION_SIDEBAR": {
+    "MESSAGE_SEQUENCES": {
+      "TITLE": "Sequências de Follow-up",
+      "SELECT": "Escolha uma sequência…",
+      "ENROLL": "Inscrever",
+      "CANCEL": "Parar",
+      "EMPTY": "Nenhuma sequência ativa. Crie uma em Configurações.",
+      "STEP_PROGRESS": "Passo {current} de {total}",
+      "ENROLLED": "Conversa inscrita na sequência",
+      "CANCELLED": "Sequência interrompida para esta conversa",
+      "ERROR": "Algo deu errado. Tente novamente."
+    },
     "ASSIGNEE_LABEL": "Agente atribuído",
     "SELF_ASSIGN": "Atribuir a mim",
     "TEAM_LABEL": "Time atribuído",

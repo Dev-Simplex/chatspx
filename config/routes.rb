@@ -158,6 +158,8 @@ Rails.application.routes.draw do
               get :inboxes
             end
           end
+          resources :message_sequences, only: [:index, :show, :create, :update, :destroy]
+          resources :message_sequence_enrollments, only: [:index, :create, :destroy]
           resources :dashboard_apps, only: [:index, :show, :create, :update, :destroy]
           namespace :channels do
             resource :twilio_channel, only: [:create]

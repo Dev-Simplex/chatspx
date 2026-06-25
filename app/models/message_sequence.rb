@@ -22,6 +22,7 @@ class MessageSequence < ApplicationRecord
            class_name: 'MessageSequenceStep', dependent: :destroy, inverse_of: :message_sequence
   has_many :enrollments,
            class_name: 'MessageSequenceEnrollment', dependent: :destroy, inverse_of: :message_sequence
+  accepts_nested_attributes_for :steps, allow_destroy: true
 
   validates :name, presence: true
 

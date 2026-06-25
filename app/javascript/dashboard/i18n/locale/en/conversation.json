@@ -643,6 +643,17 @@
     }
   },
   "CONVERSATION_SIDEBAR": {
+    "MESSAGE_SEQUENCES": {
+      "TITLE": "Follow-up Sequences",
+      "SELECT": "Choose a sequence…",
+      "ENROLL": "Enroll",
+      "CANCEL": "Stop",
+      "EMPTY": "No active sequences. Create one in Settings.",
+      "STEP_PROGRESS": "Step {current} of {total}",
+      "ENROLLED": "Conversation enrolled in the sequence",
+      "CANCELLED": "Sequence stopped for this conversation",
+      "ERROR": "Something went wrong. Please try again."
+    },
     "ASSIGNEE_LABEL": "Assigned Agent",
     "SELF_ASSIGN": "Assign to me",
     "TEAM_LABEL": "Assigned Team",

@@ -74,6 +74,13 @@ const hasAdvancedAssignment = computed(() => {
   );
 });
 
+const hasMessageSequences = computed(() => {
+  return isFeatureEnabledonAccount.value(
+    accountId.value,
+    FEATURE_FLAGS.MESSAGE_SEQUENCES
+  );
+});
+
 const toggleShortcutModalFn = show => {
   if (show) {
     emit('openKeyShortcutModal');
@@ -697,6 +704,17 @@ const menuItems = computed(() => {
           icon: lordIcon('waha'),
           to: accountScopedRoute('waha_connections_list'),
         },
+        ...(hasMessageSequences.value
+          ? [
+              {
+                name: 'Settings Message Sequences',
+                label: t('SIDEBAR.MESSAGE_SEQUENCES'),
+                icon: lordIcon('automation', 'i-lucide-mails'),
+                activeOn: ['message_sequences_index'],
+                to: accountScopedRoute('message_sequences_index'),
+              },
+            ]
+          : []),
         {
           name: 'Settings Labels',
           label: t('SIDEBAR.LABELS'),
