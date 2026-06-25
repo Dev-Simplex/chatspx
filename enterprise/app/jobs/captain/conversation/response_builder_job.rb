@@ -171,7 +171,14 @@ class Captain::Conversation::ResponseBuilderJob < ApplicationJob
   def create_messages
     content = @response['response']
     return if no_reply?(content)
-    return if skip_duplicate?(content)
+
+    if skip_duplicate?(content)
+      return unless regenerate_to_avoid_repeat
+
+      content = @response['response']
+      return if no_reply?(content)
+      return if skip_duplicate?(content)
+    end
 
     send_response(content)
   end
@@ -182,6 +189,27 @@ class Captain::Conversation::ResponseBuilderJob < ApplicationJob
     return true if content.blank?
 
     content.to_s.strip.match?(/\A\[?\s*(ignorar|sem[\s_-]?resposta|no[\s_-]?reply)\s*\]?\z/i)
+  end
+
+  # Backstop anti-repeticao: se a resposta saiu identica a uma recente (dedup),
+  # re-roda o agente UMA vez pedindo pra variar/avancar, em vez de silenciar.
+  def regenerate_to_avoid_repeat
+    return false if @repeat_regenerated
+
+    @repeat_regenerated = true
+    @directive = 'IMPORTANTE: voce acabou de enviar exatamente essa mesma resposta nesta conversa. NAO repita. Responda de outro jeito, mais direto, ou avance a conversa pro proximo passo. Se a pergunta for sobre presenca (tem alguem? quem atende?), diga que voce esta aqui pra ajudar agora.'
+    log_behavior_event('dedup_regenerate', {})
+    @response = if captain_v2_enabled?
+                  Captain::Assistant::AgentRunnerService.new(assistant: @assistant,
+                                                             conversation: @conversation).generate_response(message_history: collect_previous_messages)
+                else
+                  Captain::Llm::AssistantChatService.new(assistant: @assistant,
+                                                         conversation: @conversation).generate_response(message_history: collect_previous_messages)
+                end
+    @response.present?
+  rescue StandardError => e
+    Rails.logger.warn('[Captain][regenerate_to_avoid_repeat] ' + e.message)
+    false
   end
 
   def skip_duplicate?(content)

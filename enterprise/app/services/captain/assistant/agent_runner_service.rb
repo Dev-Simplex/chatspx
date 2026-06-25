@@ -104,6 +104,11 @@ class Captain::Assistant::AgentRunnerService
     # handoff. Sem este fallback, o ResponseBuilderJob trata como [IGNORAR] e a
     # fala de handoff nunca chega no WhatsApp.
     response['response'] = last_assistant_message_text(result) if response['response'].blank?
+    # Anti-papagaio: o fallback acima pode pegar a ULTIMA fala do assistente vinda do
+    # HISTORICO quando o turno atual nao produziu texto novo, re-emitindo identica.
+    # So vale pra texto NOVO deste turno (ex: ponte de handoff); se bater com uma
+    # mensagem de saida recente da conversa, descarta (vira [IGNORAR], sem replay).
+    response['response'] = '' if response['response'].present? && fallback_replays_history?(response['response'])
 
     response['agent_name'] = result.context&.dig(:current_agent)
     response
@@ -111,6 +116,18 @@ class Captain::Assistant::AgentRunnerService
 
   # Recupera o texto da ultima mensagem do assistente do resultado do runner.
   # Cobre conteudo em texto puro e em JSON estruturado (response_schema).
+  # True se o texto bate com uma das ultimas saidas da conversa (= replay do historico,
+  # nao texto novo deste turno). A resposta nova deste turno ainda nao foi persistida,
+  # entao nunca casa aqui — so casa quando o fallback pegou uma fala antiga.
+  def fallback_replays_history?(text)
+    return false if @conversation.blank?
+
+    norm = text.to_s.strip
+    @conversation.messages.where(message_type: :outgoing, private: false)
+                 .order(created_at: :desc).limit(5).pluck(:content).compact
+                 .any? { |c| c.to_s.strip == norm }
+  end
+
   def last_assistant_message_text(result)
     messages = result.try(:messages)
     return '' if messages.blank?
