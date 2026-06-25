@@ -12,3 +12,11 @@ json.steps message_sequence.steps do |step|
   json.content step.content
   json.has_template_params step.template_params.present?
 end
+
+# Simple in-list report: enrollment counts by status.
+counts = message_sequence.enrollments.group(:status).count
+json.enrollment_stats do
+  json.active counts['active'] || counts[0] || 0
+  json.completed counts['completed'] || counts[1] || 0
+  json.cancelled counts['cancelled'] || counts[2] || 0
+end

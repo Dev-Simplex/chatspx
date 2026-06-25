@@ -12,6 +12,7 @@ class AsyncDispatcher < BaseDispatcher
     [
       AutomationRuleListener.instance,
       Spx::Tozi::FunnelAutomationListener.instance,
+      MessageSequences::ExitListener.instance,
       CampaignListener.instance,
       CsatSurveyListener.instance,
       NpsSurveyListener.instance,

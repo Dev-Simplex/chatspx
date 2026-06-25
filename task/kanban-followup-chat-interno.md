@@ -229,7 +229,9 @@ Sugestão: fechar **A** inteiro (entrega de negócio completa) antes de abrir **
 
 **DoD:** criar sequência pela UI, inscrever a partir de uma conversa, ver badge, cancelar. Build vite OK. **Commit** `feat(kanban): Follow-up A2 — builder de sequências + inscrição no card`.
 
-### Fase A3 — Ponte automação + exit conditions + relatório
+### Fase A3 — Ponte automação + exit conditions + relatório ✅ FEITA (2026-06-25)
+> **Status:** implementada e verde. Ação `enroll_in_sequence` no motor (`ACTION_TYPES` + `action_enroll_in_sequence`), listener `MessageSequences::ExitListener` (registrado no `async_dispatcher`) que cancela por-enrollment ao cliente responder (`on_customer_reply`) ou ao status casar (`on_status`), e relatório simples (contadores active/completed/cancelled no payload + na lista de Settings). 7 specs A3 + 6 do motor existente (sem regressão) = parte dos 52 verdes do módulo. RuboCop limpo.
+
 - `app/models/funnel_automation.rb`: adicionar `'enroll_in_sequence'` a `ACTION_TYPES`.
 - `app/services/kanban/automation_engine_service.rb`: `when 'enroll_in_sequence' then action_enroll_in_sequence(action)` → `MessageSequences::EnrollService.new(sequence: find(action['sequence_id']), conversation:, enrolled_by: moved_by).perform` (best-effort, dentro do rescue existente).
 - UI de automação do funil: opção de ação "Inscrever em sequência" com seletor de sequência.

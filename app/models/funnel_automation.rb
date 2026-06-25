@@ -18,7 +18,7 @@
 # Kanban v2 (Fase 5): a declarative "when → conditions → then" rule on a funnel.
 class FunnelAutomation < ApplicationRecord
   EVENTS = %w[item_entered_stage time_in_stage].freeze
-  ACTION_TYPES = %w[move assign tag webhook].freeze
+  ACTION_TYPES = %w[move assign tag webhook enroll_in_sequence].freeze
   CONDITION_OPS = %w[eq neq present blank includes].freeze
 
   belongs_to :funnel

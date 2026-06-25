@@ -1037,6 +1037,7 @@
     "ACTIVE": "Active",
     "INACTIVE": "Inactive",
     "STEPS_COUNT": "{count} step | {count} steps",
+    "STATS": "{active} active · {completed} completed",
     "EDIT": "Edit",
     "DELETE": "Delete",
     "DELETE_CONFIRM": "Delete this sequence? Active enrollments will stop.",

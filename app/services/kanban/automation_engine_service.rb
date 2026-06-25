@@ -86,6 +86,7 @@ class Kanban::AutomationEngineService
     when 'assign' then action_assign(action)
     when 'tag' then action_tag(action)
     when 'webhook' then action_webhook(action)
+    when 'enroll_in_sequence' then action_enroll_in_sequence(action)
     end
   rescue StandardError => e
     Rails.logger.warn("AutomationEngine action #{action['type']} failed: #{e.message}")
@@ -118,6 +119,17 @@ class Kanban::AutomationEngineService
     return if url.blank?
 
     WebhookJob.perform_later(url, webhook_payload, :account_webhook)
+  end
+
+  # Follow-up drip (Módulo A, A3): enrolling a card's conversation into a sequence
+  # when it enters a stage / sits too long. EnrollService is idempotent.
+  def action_enroll_in_sequence(action)
+    sequence = conversation.account.message_sequences.find_by(id: action['sequence_id'])
+    return if sequence.blank?
+
+    MessageSequences::EnrollService.new(
+      sequence: sequence, conversation: conversation, enrolled_by: moved_by
+    ).perform
   end
 
   def webhook_payload

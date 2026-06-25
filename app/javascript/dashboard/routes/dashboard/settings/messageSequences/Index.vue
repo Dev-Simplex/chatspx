@@ -354,6 +354,15 @@ onMounted(loadSequences);
                     count: (sequence.steps || []).length,
                   })
                 }}
+                <span v-if="sequence.enrollment_stats" class="ml-1">
+                  ·
+                  {{
+                    $t('MESSAGE_SEQUENCES.STATS', {
+                      active: sequence.enrollment_stats.active,
+                      completed: sequence.enrollment_stats.completed,
+                    })
+                  }}
+                </span>
               </p>
             </div>
             <div class="flex items-center gap-2 flex-shrink-0">

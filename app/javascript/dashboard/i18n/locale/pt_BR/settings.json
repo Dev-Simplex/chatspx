@@ -1038,6 +1038,7 @@
     "ACTIVE": "Ativa",
     "INACTIVE": "Inativa",
     "STEPS_COUNT": "{count} passo | {count} passos",
+    "STATS": "{active} ativas · {completed} concluídas",
     "EDIT": "Editar",
     "DELETE": "Excluir",
     "DELETE_CONFIRM": "Excluir esta sequência? As inscrições ativas serão interrompidas.",
