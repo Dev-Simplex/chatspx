@@ -11,19 +11,21 @@
 # primary actors (closed enum + /conversations navigation), so reusing it would
 # mean invasive, broad-impact changes to core. Real-time delivery covers the need.
 class InternalMessages::CreateService
-  def initialize(channel:, user:, content:, attachments: [], mentioned_user_ids: [], reply_to_id: nil) # rubocop:disable Metrics/ParameterLists
+  def initialize(channel:, user:, content:, attachments: [], mentioned_user_ids: [], reply_to_id: nil, shared_conversation_display_id: nil) # rubocop:disable Metrics/ParameterLists
     @channel = channel
     @user = user
     @content = content
     @attachments = attachments
     @mentioned_user_ids = Array(mentioned_user_ids).map(&:to_i)
     @reply_to_id = reply_to_id
+    @shared_conversation_display_id = shared_conversation_display_id
   end
 
   def perform
     message = @channel.messages.new(
       user: @user, content: @content.to_s,
-      mentioned_user_ids: valid_mentions, reply_to_id: valid_reply_to_id
+      mentioned_user_ids: valid_mentions, reply_to_id: valid_reply_to_id,
+      shared_conversation_id: shared_conversation&.id
     )
     attach!(message)
     message.save!
@@ -34,6 +36,14 @@ class InternalMessages::CreateService
   end
 
   private
+
+  # Resolve a shared conversation by display_id within the channel's account.
+  def shared_conversation
+    return @shared_conversation if defined?(@shared_conversation)
+
+    @shared_conversation =
+      (@channel.account.conversations.find_by(display_id: @shared_conversation_display_id) if @shared_conversation_display_id.present?)
+  end
 
   # A reply may only quote a message from the same channel.
   def valid_reply_to_id

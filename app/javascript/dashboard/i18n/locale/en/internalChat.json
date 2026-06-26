@@ -35,6 +35,17 @@
     "TYPING_ONE": "{name} is typing…",
     "TYPING_MANY": "{count} people are typing…",
     "SEEN": "Seen",
-    "SEEN_BY": "Seen by {count}"
+    "SEEN_BY": "Seen by {count}",
+    "SHARE": {
+      "MENU_ITEM": "Share to internal chat",
+      "TITLE": "Share conversation to internal chat",
+      "SUBTITLE": "Sharing conversation #{id} ({name}) with the team.",
+      "NOTE_PLACEHOLDER": "Add a note (optional)…",
+      "CHANNELS": "Channels",
+      "PEOPLE": "People",
+      "CONFIRM": "Share",
+      "DONE": "Shared to internal chat",
+      "ERROR": "Could not share the conversation"
+    }
   }
 }

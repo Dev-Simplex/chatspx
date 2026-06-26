@@ -100,6 +100,7 @@ export const actions = {
       attachments = [],
       mentionedUserIds = [],
       replyToId = null,
+      sharedConversationId = null,
     }
   ) => {
     commit('SET_UI_FLAG', { isSending: true });
@@ -109,12 +110,32 @@ export const actions = {
         attachments,
         mentionedUserIds,
         replyToId,
+        sharedConversationId,
       });
       commit('APPEND_MESSAGE', { channelId, message: data });
       return data;
     } finally {
       commit('SET_UI_FLAG', { isSending: false });
     }
+  },
+
+  // Fase 3: share a customer conversation into a channel or a colleague's DM.
+  shareConversation: async (
+    { dispatch },
+    { channelId, userId, conversationDisplayId, note }
+  ) => {
+    let targetId = channelId;
+    if (!targetId && userId) {
+      const channel = await dispatch('createDm', userId);
+      targetId = channel?.id;
+    }
+    if (!targetId) return null;
+    await dispatch('sendMessage', {
+      channelId: targetId,
+      content: note || '',
+      sharedConversationId: conversationDisplayId,
+    });
+    return targetId;
   },
 
   // Real-time: a message pushed over ActionCable (RoomChannel).

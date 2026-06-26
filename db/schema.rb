@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[7.1].define(version: 2026_06_26_130000) do
+ActiveRecord::Schema[7.1].define(version: 2026_06_26_140000) do
   # These extensions should be enabled to support this database
   enable_extension "pg_stat_statements"
   enable_extension "pg_trgm"
@@ -1199,9 +1199,11 @@ ActiveRecord::Schema[7.1].define(version: 2026_06_26_130000) do
     t.datetime "deleted_at"
     t.jsonb "reactions", default: {}, null: false
     t.bigint "reply_to_id"
+    t.bigint "shared_conversation_id"
     t.index ["internal_channel_id", "created_at"], name: "index_internal_messages_on_internal_channel_id_and_created_at"
     t.index ["internal_channel_id"], name: "index_internal_messages_on_internal_channel_id"
     t.index ["reply_to_id"], name: "index_internal_messages_on_reply_to_id"
+    t.index ["shared_conversation_id"], name: "index_internal_messages_on_shared_conversation_id"
     t.index ["user_id"], name: "index_internal_messages_on_user_id"
   end
 
@@ -1887,6 +1889,7 @@ ActiveRecord::Schema[7.1].define(version: 2026_06_26_130000) do
   add_foreign_key "internal_channel_members", "users"
   add_foreign_key "internal_channels", "accounts"
   add_foreign_key "internal_channels", "teams"
+  add_foreign_key "internal_messages", "conversations", column: "shared_conversation_id", on_delete: :nullify
   add_foreign_key "internal_messages", "internal_channels"
   add_foreign_key "internal_messages", "internal_messages", column: "reply_to_id", on_delete: :nullify
   add_foreign_key "internal_messages", "users"

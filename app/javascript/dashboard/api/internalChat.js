@@ -38,13 +38,21 @@ class InternalChatAPI extends ApiClient {
 
   sendMessage(
     channelId,
-    { content, attachments = [], mentionedUserIds = [], replyToId = null }
+    {
+      content,
+      attachments = [],
+      mentionedUserIds = [],
+      replyToId = null,
+      sharedConversationId = null,
+    }
   ) {
     const formData = new FormData();
     formData.append('content', content || '');
     attachments.forEach(file => formData.append('attachments[]', file));
     mentionedUserIds.forEach(id => formData.append('mentioned_user_ids[]', id));
     if (replyToId) formData.append('reply_to_id', replyToId);
+    if (sharedConversationId)
+      formData.append('shared_conversation_id', sharedConversationId);
     return axios.post(`${this.url}/${channelId}/internal_messages`, formData);
   }
 

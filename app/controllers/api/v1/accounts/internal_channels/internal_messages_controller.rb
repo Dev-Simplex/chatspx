@@ -12,7 +12,9 @@ class Api::V1::Accounts::InternalChannels::InternalMessagesController < Api::V1:
 
   # Newest page by default; pass `before` (a message id) to load older history.
   def index
-    scope = @channel.messages.includes(:user, { reply_to: :user }, attachments_attachments: :blob)
+    scope = @channel.messages.includes(
+      :user, { reply_to: :user }, { shared_conversation: [:contact, :inbox] }, attachments_attachments: :blob
+    )
     scope = scope.where('internal_messages.id < ?', params[:before]) if params[:before].present?
     # reorder (not order): the messages association defaults to created_at ASC,
     # which would otherwise dominate and make limit() take the OLDEST rows.
@@ -27,7 +29,8 @@ class Api::V1::Accounts::InternalChannels::InternalMessagesController < Api::V1:
     @message = InternalMessages::CreateService.new(
       channel: @channel, user: Current.user,
       content: params[:content], attachments: params[:attachments],
-      mentioned_user_ids: params[:mentioned_user_ids], reply_to_id: params[:reply_to_id]
+      mentioned_user_ids: params[:mentioned_user_ids], reply_to_id: params[:reply_to_id],
+      shared_conversation_display_id: params[:shared_conversation_id]
     ).perform
     render :show, status: :created
   rescue ActiveRecord::RecordInvalid => e

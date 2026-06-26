@@ -9,6 +9,7 @@ import {
 } from 'vue';
 import { useStore, useMapGetter } from 'dashboard/composables/store';
 import { useI18n } from 'vue-i18n';
+import { useRouter } from 'vue-router';
 import Avatar from 'dashboard/components-next/avatar/Avatar.vue';
 import { messageStamp } from 'shared/helpers/timeHelper';
 
@@ -18,6 +19,16 @@ const EmojiInput = defineAsyncComponent(
 
 const store = useStore();
 const { t } = useI18n();
+const router = useRouter();
+
+// Open a customer conversation (shared card / #123 link).
+const openConversation = displayId => {
+  if (!displayId) return;
+  router.push({
+    name: 'inbox_conversation',
+    params: { conversation_id: displayId },
+  });
+};
 
 const channels = useMapGetter('internalChat/getChannels');
 const agents = useMapGetter('internalChat/getAgents');
@@ -119,14 +130,16 @@ const groupedItems = computed(() => {
 const IMAGE_RE = /\.(png|jpe?g|gif|webp|bmp|svg|avif)$/i;
 const isImage = att => IMAGE_RE.test(att?.filename || '');
 
-const URL_RE = /(https?:\/\/[^\s]+)/g;
+// URLs and #123 conversation references.
+const TOKEN_RE = /(https?:\/\/[^\s]+|#\d+)/g;
 const textParts = content => {
   const s = String(content || '');
   const out = [];
   let last = 0;
-  s.replace(URL_RE, (match, _g, idx) => {
+  s.replace(TOKEN_RE, (match, _g, idx) => {
     if (idx > last) out.push({ t: 'text', v: s.slice(last, idx) });
-    out.push({ t: 'link', v: match });
+    if (match[0] === '#') out.push({ t: 'conv', v: match, id: match.slice(1) });
+    else out.push({ t: 'link', v: match });
     last = idx + match.length;
     return match;
   });
@@ -898,6 +911,13 @@ onMounted(() => {
                           class="underline break-all"
                           >{{ part.v }}</a
                         >
+                        <button
+                          v-else-if="part.t === 'conv'"
+                          class="font-semibold underline"
+                          @click.stop="openConversation(part.id)"
+                        >
+                          {{ part.v }}
+                        </button>
                         <template v-else>{{ part.v }}</template>
                       </template>
                       <span
@@ -942,6 +962,35 @@ onMounted(() => {
                         </a>
                       </template>
                     </div>
+
+                    <!-- shared conversation card -->
+                    <button
+                      v-if="item.msg.shared_conversation"
+                      class="flex flex-col items-start gap-0.5 w-full mt-1.5 px-2.5 py-2 rounded-lg text-left bg-n-solid-1 border border-n-weak text-n-slate-12 hover:bg-n-alpha-1"
+                      @click.stop="
+                        openConversation(
+                          item.msg.shared_conversation.display_id
+                        )
+                      "
+                    >
+                      <span
+                        class="flex items-center gap-1.5 text-xs font-semibold"
+                      >
+                        <span
+                          class="i-lucide-message-square-text text-n-slate-10"
+                        />
+                        #{{ item.msg.shared_conversation.display_id }}
+                        <span v-if="item.msg.shared_conversation.contact_name">
+                          · {{ item.msg.shared_conversation.contact_name }}
+                        </span>
+                      </span>
+                      <span class="text-[11px] text-n-slate-10">
+                        {{ item.msg.shared_conversation.inbox_name }}
+                        <span v-if="item.msg.shared_conversation.status">
+                          · {{ item.msg.shared_conversation.status }}
+                        </span>
+                      </span>
+                    </button>
                   </div>
 
                   <!-- reaction chips -->

@@ -35,7 +35,10 @@ Redesenho do `InternalChatIndex.vue` para parecer um chat de verdade (referênci
 - **Recibo de leitura** ("visto") — exibir a partir do `last_read_at` dos membros.
 - **Paginação do histórico** (cursor por created_at; carregar antigas ao rolar pro topo).
 
-## Fase 3 — Integração com o atendimento (o diferencial)
+## Fase 3 — Integração com o atendimento (o diferencial) — ✅ FEITA (2026-06-26)
+> Compartilhar conversa de cliente no chat interno como **card rico** + menção **#123** como link. Backend: coluna `shared_conversation_id` (migration `20260626140000`, FK conversations nullify); CreateService resolve por `display_id` na conta; `shared_conversation_preview` (display_id, status, contact_name, inbox_name) na serialização (jbuilder + BroadcastService). Frontend: ação **"Compartilhar no chat interno"** no `MoreActions` da conversa (gated pela flag) → modal `ShareToInternalChat` (escolhe canal OU colega p/ DM = "pedir ajuda" + nota) → `shareConversation` no store; card clicável na bolha que abre `/conversations/:display_id`; `#123` no texto vira link (rota `inbox_conversation`). 56 specs verdes; build/lint OK. "Pedir ajuda" coberto pelo mesmo modal (compartilhar p/ um colega).
+
+### Itens originais da Fase 3
 - **Compartilhar conversa de cliente** no chat: action "encaminhar conversa #N" → mensagem com card clicável que abre `/conversations/N`.
 - **"Pedir ajuda"** a partir da conversa do cliente: botão que abre/cria DM (ou posta em canal) com o link da conversa anexado.
 - **Menção `#123`** vira link para a conversa; (opcional) menção a contato.

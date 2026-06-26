@@ -35,6 +35,17 @@
     "TYPING_ONE": "{name} está digitando…",
     "TYPING_MANY": "{count} pessoas digitando…",
     "SEEN": "Visto",
-    "SEEN_BY": "Visto por {count}"
+    "SEEN_BY": "Visto por {count}",
+    "SHARE": {
+      "MENU_ITEM": "Compartilhar no chat interno",
+      "TITLE": "Compartilhar conversa no chat interno",
+      "SUBTITLE": "Compartilhando a conversa #{id} ({name}) com a equipe.",
+      "NOTE_PLACEHOLDER": "Adicione um comentário (opcional)…",
+      "CHANNELS": "Canais",
+      "PEOPLE": "Pessoas",
+      "CONFIRM": "Compartilhar",
+      "DONE": "Conversa compartilhada no chat interno",
+      "ERROR": "Não foi possível compartilhar a conversa"
+    }
   }
 }

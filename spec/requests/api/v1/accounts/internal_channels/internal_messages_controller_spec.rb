@@ -66,6 +66,29 @@ RSpec.describe 'Api::V1::Accounts::InternalChannels::InternalMessagesController'
     end
   end
 
+  describe 'sharing a conversation' do
+    let(:conversation) { create(:conversation, account: account) }
+
+    it 'attaches a shared conversation preview by display_id' do
+      post "/api/v1/accounts/#{account.id}/internal_channels/#{channel.id}/internal_messages",
+           params: { content: 'me ajuda nessa', shared_conversation_id: conversation.display_id },
+           headers: alice.create_new_auth_token
+      expect(response).to have_http_status(:created)
+      shared = response.parsed_body['shared_conversation']
+      expect(shared['display_id']).to eq(conversation.display_id)
+      expect(shared['contact_name']).to eq(conversation.contact.name)
+    end
+
+    it 'ignores a conversation from another account' do
+      foreign = create(:conversation)
+      post "/api/v1/accounts/#{account.id}/internal_channels/#{channel.id}/internal_messages",
+           params: { content: 'oi', shared_conversation_id: foreign.display_id },
+           headers: alice.create_new_auth_token
+      expect(response).to have_http_status(:created)
+      expect(response.parsed_body['shared_conversation']).to be_nil
+    end
+  end
+
   describe 'POST /internal_channels/:id/internal_messages' do
     it 'posts a message authored by the current user' do
       expect do

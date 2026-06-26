@@ -19,7 +19,20 @@ class InternalMessage < ApplicationRecord
   belongs_to :internal_channel, inverse_of: :messages
   belongs_to :user
   belongs_to :reply_to, class_name: 'InternalMessage', optional: true
+  belongs_to :shared_conversation, class_name: 'Conversation', optional: true
   has_many_attached :attachments
+
+  # Rich card preview of a shared customer conversation, or nil.
+  def shared_conversation_preview
+    return if shared_conversation.blank?
+
+    {
+      display_id: shared_conversation.display_id,
+      status: shared_conversation.status,
+      contact_name: shared_conversation.contact&.name,
+      inbox_name: shared_conversation.inbox&.name
+    }
+  end
 
   # Compact preview of the quoted message (for reply bubbles), or nil.
   def reply_preview

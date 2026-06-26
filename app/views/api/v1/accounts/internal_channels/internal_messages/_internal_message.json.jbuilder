@@ -8,6 +8,7 @@ json.edited message.edited?
 json.deleted message.deleted?
 json.reactions message.reactions
 json.reply_to message.reply_preview
+json.shared_conversation message.shared_conversation_preview
 json.mentioned_user_ids message.mentioned_user_ids
 json.user do
   json.id message.user_id
