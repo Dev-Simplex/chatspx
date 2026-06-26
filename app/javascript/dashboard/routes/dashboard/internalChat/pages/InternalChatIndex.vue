@@ -37,6 +37,7 @@ const attachedFiles = ref([]);
 const mentionedUserIds = ref([]);
 const showEmoji = ref(false);
 const showMentionPicker = ref(false);
+const replyingTo = ref(null);
 
 // New-channel panel: null | 'menu' | 'dm' | 'group' | 'team'
 const newPanel = ref(null);
@@ -146,8 +147,27 @@ const distanceFromBottom = () => {
   return el.scrollHeight - el.scrollTop - el.clientHeight;
 };
 
+// --- pagination (Fase 2C): load older history at the top --------------------
+const hasMore = computed(() =>
+  store.getters['internalChat/getHasMore'](activeChannelId.value)
+);
+const loadOlder = async () => {
+  const el = threadRef.value;
+  if (!el || uiFlags.value.isFetchingMessages || !hasMore.value) return;
+  const prevHeight = el.scrollHeight;
+  const prevTop = el.scrollTop;
+  await store.dispatch(
+    'internalChat/fetchOlderMessages',
+    activeChannelId.value
+  );
+  await nextTick();
+  // Keep the viewport anchored where the user was after prepending older rows.
+  el.scrollTop = prevTop + (el.scrollHeight - prevHeight);
+};
+
 const onThreadScroll = () => {
   showScrollDown.value = distanceFromBottom() > 240;
+  if (threadRef.value && threadRef.value.scrollTop < 80) loadOlder();
 };
 
 // --- composer ---------------------------------------------------------------
@@ -168,6 +188,7 @@ const resetComposer = () => {
   mentionedUserIds.value = [];
   showEmoji.value = false;
   showMentionPicker.value = false;
+  replyingTo.value = null;
   nextTick(autoResize);
 };
 
@@ -284,6 +305,7 @@ const send = async () => {
     content,
     attachments: attachedFiles.value,
     mentionedUserIds: mentionedUserIds.value,
+    replyToId: replyingTo.value?.id || null,
   };
   stopTyping();
   resetComposer();
@@ -350,6 +372,31 @@ const toggleReaction = async (msg, emoji) => {
 const reactionEntries = msg => Object.entries(msg.reactions || {});
 const iReacted = (msg, emoji) =>
   (msg.reactions?.[emoji] || []).map(Number).includes(currentUserId.value);
+
+// --- reply / quote (Fase 2C) ------------------------------------------------
+const startReply = msg => {
+  reactionPickerId.value = null;
+  confirmDeleteId.value = null;
+  replyingTo.value = msg;
+  focusComposer();
+};
+const cancelReply = () => {
+  replyingTo.value = null;
+};
+const replyText = msg => {
+  if (msg?.deleted) return t('INTERNAL_CHAT.DELETED');
+  return msg?.content || '';
+};
+const scrollToMessage = id => {
+  const el = threadRef.value?.querySelector(`[data-msg-id="${id}"]`);
+  if (!el) return;
+  el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+  el.classList.add('ring-2', 'ring-n-brand/60', 'rounded-2xl');
+  setTimeout(
+    () => el.classList.remove('ring-2', 'ring-n-brand/60', 'rounded-2xl'),
+    1400
+  );
+};
 
 // --- typing label / read receipts (helpers defined above) -------------------
 const typingNames = computed(() =>
@@ -668,6 +715,7 @@ onMounted(() => {
               <!-- Message row -->
               <div
                 v-else
+                :data-msg-id="item.msg.id"
                 class="flex items-end gap-2"
                 :class="[
                   isMine(item.msg) ? 'flex-row-reverse' : 'flex-row',
@@ -748,6 +796,13 @@ onMounted(() => {
                     >
                       <button
                         class="inline-flex items-center justify-center w-6 h-6 rounded-full text-n-slate-11 hover:bg-n-alpha-2"
+                        :title="t('INTERNAL_CHAT.REPLY')"
+                        @click="startReply(item.msg)"
+                      >
+                        <span class="i-lucide-reply text-sm" />
+                      </button>
+                      <button
+                        class="inline-flex items-center justify-center w-6 h-6 rounded-full text-n-slate-11 hover:bg-n-alpha-2"
                         :title="t('INTERNAL_CHAT.REACT')"
                         @click="toggleReactionPicker(item.msg)"
                       >
@@ -809,6 +864,23 @@ onMounted(() => {
                         {{ t('INTERNAL_CHAT.CANCEL') }}
                       </button>
                     </div>
+
+                    <!-- quoted message -->
+                    <button
+                      v-if="item.msg.reply_to"
+                      class="block w-full text-left mb-1 pl-2 border-l-2 rounded-sm opacity-90"
+                      :class="
+                        isMine(item.msg) ? 'border-white/60' : 'border-n-brand'
+                      "
+                      @click="scrollToMessage(item.msg.reply_to.id)"
+                    >
+                      <span class="block text-[11px] font-semibold">{{
+                        item.msg.reply_to.user_name
+                      }}</span>
+                      <span class="block text-[11px] opacity-75 truncate">{{
+                        replyText(item.msg.reply_to)
+                      }}</span>
+                    </button>
 
                     <p
                       v-if="item.msg.content"
@@ -927,6 +999,27 @@ onMounted(() => {
           >
             {{ typingLabel }}
           </div>
+
+          <!-- replying-to bar -->
+          <div
+            v-if="replyingTo"
+            class="flex items-center gap-2 mb-2 px-2 py-1.5 bg-n-alpha-1 border-l-2 border-n-brand rounded-r-lg"
+          >
+            <span class="i-lucide-reply text-n-slate-10 flex-shrink-0" />
+            <span class="flex-1 min-w-0">
+              <span class="block text-xs font-medium text-n-slate-12">{{
+                replyingTo.user?.name
+              }}</span>
+              <span class="block text-xs text-n-slate-10 truncate">{{
+                replyText(replyingTo)
+              }}</span>
+            </span>
+            <button
+              class="i-lucide-x text-n-slate-10 hover:text-n-slate-12 flex-shrink-0"
+              @click="cancelReply"
+            />
+          </div>
+
           <div v-if="attachedFiles.length" class="flex flex-wrap gap-2 mb-2">
             <span
               v-for="(file, index) in attachedFiles"

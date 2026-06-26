@@ -40,6 +40,7 @@ class InternalMessages::BroadcastService
       edited: @message.edited?,
       deleted: @message.deleted?,
       reactions: @message.reactions,
+      reply_to: @message.reply_preview,
       mentioned_user_ids: @message.mentioned_user_ids,
       attachments: @message.deleted? ? [] : @message.attachments.map { |a| serialize_attachment(a) },
       user: {

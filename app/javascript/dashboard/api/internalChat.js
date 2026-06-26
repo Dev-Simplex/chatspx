@@ -30,15 +30,21 @@ class InternalChatAPI extends ApiClient {
     return axios.post(`${this.url}/${channelId}/typing`, { typing: isTyping });
   }
 
-  getMessages(channelId) {
-    return axios.get(`${this.url}/${channelId}/internal_messages`);
+  getMessages(channelId, before) {
+    return axios.get(`${this.url}/${channelId}/internal_messages`, {
+      params: before ? { before } : {},
+    });
   }
 
-  sendMessage(channelId, { content, attachments = [], mentionedUserIds = [] }) {
+  sendMessage(
+    channelId,
+    { content, attachments = [], mentionedUserIds = [], replyToId = null }
+  ) {
     const formData = new FormData();
     formData.append('content', content || '');
     attachments.forEach(file => formData.append('attachments[]', file));
     mentionedUserIds.forEach(id => formData.append('mentioned_user_ids[]', id));
+    if (replyToId) formData.append('reply_to_id', replyToId);
     return axios.post(`${this.url}/${channelId}/internal_messages`, formData);
   }
 

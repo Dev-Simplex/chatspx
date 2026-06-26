@@ -17,7 +17,8 @@ RSpec.describe 'Api::V1::Accounts::InternalChannels::InternalMessagesController'
           headers: alice.create_new_auth_token
 
       expect(response).to have_http_status(:success)
-      expect(response.parsed_body.first['content']).to eq('oi alice')
+      expect(response.parsed_body['messages'].first['content']).to eq('oi alice')
+      expect(response.parsed_body['has_more']).to be(false)
       expect(channel.members.find_by(user: alice).last_read_at).to be_present
     end
 
@@ -25,6 +26,43 @@ RSpec.describe 'Api::V1::Accounts::InternalChannels::InternalMessagesController'
       get "/api/v1/accounts/#{account.id}/internal_channels/#{channel.id}/internal_messages",
           headers: outsider.create_new_auth_token
       expect(response).to have_http_status(:not_found)
+    end
+
+    it 'paginates: newest page + has_more, and older via before' do
+      create_list(:internal_message, 35, internal_channel: channel, user: bob)
+      get "/api/v1/accounts/#{account.id}/internal_channels/#{channel.id}/internal_messages",
+          headers: alice.create_new_auth_token
+      body = response.parsed_body
+      expect(body['messages'].size).to eq(30)
+      expect(body['has_more']).to be(true)
+
+      oldest = body['messages'].first['id']
+      get "/api/v1/accounts/#{account.id}/internal_channels/#{channel.id}/internal_messages",
+          params: { before: oldest }, headers: alice.create_new_auth_token
+      older = response.parsed_body['messages']
+      expect(older.size).to eq(5)
+      expect(older.last['id']).to be < oldest
+    end
+  end
+
+  describe 'reply / quote' do
+    let(:original) { create(:internal_message, internal_channel: channel, user: bob, content: 'pergunta') }
+
+    it 'creates a reply that quotes the original' do
+      post "/api/v1/accounts/#{account.id}/internal_channels/#{channel.id}/internal_messages",
+           params: { content: 'resposta', reply_to_id: original.id }, headers: alice.create_new_auth_token
+      expect(response).to have_http_status(:created)
+      expect(response.parsed_body['reply_to']['id']).to eq(original.id)
+      expect(response.parsed_body['reply_to']['content']).to eq('pergunta')
+    end
+
+    it 'ignores a reply_to from another channel' do
+      other = create(:internal_channel, :with_two_members, account: account)
+      foreign = create(:internal_message, internal_channel: other, user: other.users.first)
+      post "/api/v1/accounts/#{account.id}/internal_channels/#{channel.id}/internal_messages",
+           params: { content: 'oi', reply_to_id: foreign.id }, headers: alice.create_new_auth_token
+      expect(response).to have_http_status(:created)
+      expect(response.parsed_body['reply_to']).to be_nil
     end
   end
 

@@ -11,16 +11,20 @@
 # primary actors (closed enum + /conversations navigation), so reusing it would
 # mean invasive, broad-impact changes to core. Real-time delivery covers the need.
 class InternalMessages::CreateService
-  def initialize(channel:, user:, content:, attachments: [], mentioned_user_ids: [])
+  def initialize(channel:, user:, content:, attachments: [], mentioned_user_ids: [], reply_to_id: nil) # rubocop:disable Metrics/ParameterLists
     @channel = channel
     @user = user
     @content = content
     @attachments = attachments
     @mentioned_user_ids = Array(mentioned_user_ids).map(&:to_i)
+    @reply_to_id = reply_to_id
   end
 
   def perform
-    message = @channel.messages.new(user: @user, content: @content.to_s, mentioned_user_ids: valid_mentions)
+    message = @channel.messages.new(
+      user: @user, content: @content.to_s,
+      mentioned_user_ids: valid_mentions, reply_to_id: valid_reply_to_id
+    )
     attach!(message)
     message.save!
     mark_read!
@@ -30,6 +34,13 @@ class InternalMessages::CreateService
   end
 
   private
+
+  # A reply may only quote a message from the same channel.
+  def valid_reply_to_id
+    return if @reply_to_id.blank?
+
+    @channel.messages.exists?(id: @reply_to_id) ? @reply_to_id : nil
+  end
 
   # Only members of this channel can be mentioned, and never the author.
   def valid_mentions

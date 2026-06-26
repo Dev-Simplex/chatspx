@@ -29,6 +29,7 @@
     "EDIT": "Edit",
     "DELETE": "Delete",
     "REACT": "React",
+    "REPLY": "Reply",
     "DELETE_Q": "Delete message?",
     "SAVE_EDIT": "Save",
     "TYPING_ONE": "{name} is typing…",

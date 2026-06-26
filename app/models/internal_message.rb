@@ -18,7 +18,20 @@
 class InternalMessage < ApplicationRecord
   belongs_to :internal_channel, inverse_of: :messages
   belongs_to :user
+  belongs_to :reply_to, class_name: 'InternalMessage', optional: true
   has_many_attached :attachments
+
+  # Compact preview of the quoted message (for reply bubbles), or nil.
+  def reply_preview
+    return if reply_to.blank?
+
+    {
+      id: reply_to.id,
+      user_name: reply_to.user&.name,
+      content: reply_to.deleted? ? nil : reply_to.content.to_s.truncate(120),
+      deleted: reply_to.deleted?
+    }
+  end
 
   validates :content, presence: true, unless: -> { attachments.attached? || deleted? }
 

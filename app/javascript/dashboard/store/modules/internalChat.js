@@ -4,6 +4,7 @@ export const state = {
   channels: [],
   agents: [],
   messagesByChannel: {},
+  hasMoreByChannel: {},
   typingByChannel: {},
   pendingMention: null,
   uiFlags: {
@@ -23,6 +24,8 @@ export const getters = {
   getPendingMention: $state => $state.pendingMention,
   getTypingNames: $state => channelId =>
     Object.values($state.typingByChannel[channelId] || {}).map(u => u.name),
+  getHasMore: $state => channelId =>
+    Boolean($state.hasMoreByChannel[channelId]),
 };
 
 export const actions = {
@@ -66,7 +69,8 @@ export const actions = {
     commit('SET_UI_FLAG', { isFetchingMessages: true });
     try {
       const { data } = await InternalChatAPI.getMessages(channelId);
-      commit('SET_MESSAGES', { channelId, messages: data });
+      commit('SET_MESSAGES', { channelId, messages: data.messages });
+      commit('SET_HAS_MORE', { channelId, hasMore: data.has_more });
       await InternalChatAPI.markRead(channelId);
       commit('CLEAR_UNREAD', channelId);
     } finally {
@@ -74,9 +78,29 @@ export const actions = {
     }
   },
 
+  // Load older history (pagination) before the oldest loaded message.
+  fetchOlderMessages: async ({ commit, state: $state }, channelId) => {
+    const list = $state.messagesByChannel[channelId] || [];
+    if (!list.length) return;
+    commit('SET_UI_FLAG', { isFetchingMessages: true });
+    try {
+      const { data } = await InternalChatAPI.getMessages(channelId, list[0].id);
+      commit('PREPEND_MESSAGES', { channelId, messages: data.messages });
+      commit('SET_HAS_MORE', { channelId, hasMore: data.has_more });
+    } finally {
+      commit('SET_UI_FLAG', { isFetchingMessages: false });
+    }
+  },
+
   sendMessage: async (
     { commit },
-    { channelId, content, attachments = [], mentionedUserIds = [] }
+    {
+      channelId,
+      content,
+      attachments = [],
+      mentionedUserIds = [],
+      replyToId = null,
+    }
   ) => {
     commit('SET_UI_FLAG', { isSending: true });
     try {
@@ -84,6 +108,7 @@ export const actions = {
         content,
         attachments,
         mentionedUserIds,
+        replyToId,
       });
       commit('APPEND_MESSAGE', { channelId, message: data });
       return data;
@@ -205,6 +230,21 @@ export const mutations = {
     $state.messagesByChannel = {
       ...$state.messagesByChannel,
       [channelId]: messages,
+    };
+  },
+  SET_HAS_MORE($state, { channelId, hasMore }) {
+    $state.hasMoreByChannel = {
+      ...$state.hasMoreByChannel,
+      [channelId]: hasMore,
+    };
+  },
+  PREPEND_MESSAGES($state, { channelId, messages }) {
+    const existing = $state.messagesByChannel[channelId] || [];
+    const ids = new Set(existing.map(m => m.id));
+    const fresh = messages.filter(m => !ids.has(m.id));
+    $state.messagesByChannel = {
+      ...$state.messagesByChannel,
+      [channelId]: [...fresh, ...existing],
     };
   },
   APPEND_MESSAGE($state, { channelId, message }) {

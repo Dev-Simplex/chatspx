@@ -8,16 +8,26 @@ class Api::V1::Accounts::InternalChannels::InternalMessagesController < Api::V1:
   before_action :authorize_channel
   before_action :fetch_message, only: [:update, :destroy, :react]
 
+  PAGE_SIZE = 30
+
+  # Newest page by default; pass `before` (a message id) to load older history.
   def index
-    @messages = @channel.messages.includes(:user, attachments_attachments: :blob).order(:created_at)
-    InternalChannels::MarkReadService.new(channel: @channel, user: Current.user).perform
+    scope = @channel.messages.includes(:user, { reply_to: :user }, attachments_attachments: :blob)
+    scope = scope.where('internal_messages.id < ?', params[:before]) if params[:before].present?
+    # reorder (not order): the messages association defaults to created_at ASC,
+    # which would otherwise dominate and make limit() take the OLDEST rows.
+    page = scope.reorder(id: :desc).limit(PAGE_SIZE).to_a
+    @has_more = page.size == PAGE_SIZE
+    @messages = page.reverse
+    # Only the latest page (an actual "open") marks the channel read.
+    InternalChannels::MarkReadService.new(channel: @channel, user: Current.user).perform if params[:before].blank?
   end
 
   def create
     @message = InternalMessages::CreateService.new(
       channel: @channel, user: Current.user,
       content: params[:content], attachments: params[:attachments],
-      mentioned_user_ids: params[:mentioned_user_ids]
+      mentioned_user_ids: params[:mentioned_user_ids], reply_to_id: params[:reply_to_id]
     ).perform
     render :show, status: :created
   rescue ActiveRecord::RecordInvalid => e
