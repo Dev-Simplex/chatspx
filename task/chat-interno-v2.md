@@ -43,7 +43,8 @@ Redesenho do `InternalChatIndex.vue` para parecer um chat de verdade (referênci
 - **"Pedir ajuda"** a partir da conversa do cliente: botão que abre/cria DM (ou posta em canal) com o link da conversa anexado.
 - **Menção `#123`** vira link para a conversa; (opcional) menção a contato.
 
-## Fase 4 — Notificações & presença
+## Fase 4 — Notificações & presença — ✅ FEITA (2026-06-26)
+> Sem backend/migration. **Notificações:** helper `internalChatNotify` (som `/audio/dashboard/ping.mp3` + Notification API desktop best-effort, pede permissão se 'default') disparado em @menção (Sidebar, junto do toast) e em nova DM de outro quando `document.hidden` (store applyIncomingMessage, via rootGetters.getCurrentUserID + channel_type direct). **Presença:** `presenceOf(userId)` lê `agents/getAgentById().availability_status`; passado como `:status` ao Avatar (badge online/busy/offline) na lista de canais, header e seletor de DM; `agents/get` no mount. Build/lint OK.
 - **Som + notificação desktop** para @menção e nova DM (reusar Notification API / AudioAlerts do dashboard) — sem tocar no sino global.
 - **Presença online/offline** (bolinha) — reusar `OnlinePresenceTracker`/presença do Chatwoot.
 - **Badges** refinados: por canal na lista + total na sidebar (total já existe).

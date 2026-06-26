@@ -85,6 +85,14 @@ const channelSubtitle = channel => {
   });
 };
 
+// Presence (Fase 4): availability_status from the agents store (online/busy/offline).
+const presenceOf = userId =>
+  store.getters['agents/getAgentById'](userId)?.availability_status || null;
+const channelStatus = channel => {
+  if (channel?.channel_type !== 'direct') return null;
+  return presenceOf(counterpart(channel)?.id);
+};
+
 // --- date / grouping helpers ------------------------------------------------
 const timeLabel = ts => messageStamp(ts, 'HH:mm');
 
@@ -463,6 +471,7 @@ onMounted(() => {
   store.dispatch('internalChat/fetchChannels');
   store.dispatch('internalChat/fetchAgents');
   store.dispatch('teams/get');
+  store.dispatch('agents/get'); // presence (availability_status)
 });
 </script>
 
@@ -530,6 +539,7 @@ onMounted(() => {
               :src="agent.avatar_url"
               :name="agent.name"
               :size="24"
+              :status="presenceOf(agent.id)"
               rounded-full
             />
             {{ agent.name }}
@@ -622,6 +632,7 @@ onMounted(() => {
             :src="channelAvatar(channel).src"
             :name="channelAvatar(channel).name"
             :size="38"
+            :status="channelStatus(channel)"
             rounded-full
           />
           <span class="flex-1 min-w-0">
@@ -684,6 +695,7 @@ onMounted(() => {
             :src="channelAvatar(activeChannel).src"
             :name="channelAvatar(activeChannel).name"
             :size="34"
+            :status="channelStatus(activeChannel)"
             rounded-full
           />
           <div class="min-w-0">

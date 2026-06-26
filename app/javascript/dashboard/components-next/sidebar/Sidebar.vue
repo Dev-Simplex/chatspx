@@ -6,6 +6,7 @@ import { useKbd } from 'dashboard/composables/utils/useKbd';
 import { useMapGetter } from 'dashboard/composables/store';
 import { useUISettings } from 'dashboard/composables/useUISettings';
 import { useAlert } from 'dashboard/composables';
+import { internalChatNotify } from 'dashboard/helper/internalChatNotify';
 import draggable from 'vuedraggable';
 import { useStore } from 'vuex';
 import { useI18n } from 'vue-i18n';
@@ -96,12 +97,12 @@ const totalInternalChatUnread = useMapGetter('internalChat/getTotalUnread');
 const pendingInternalMention = useMapGetter('internalChat/getPendingMention');
 watch(pendingInternalMention, mention => {
   if (!mention) return;
-  useAlert(
-    t('INTERNAL_CHAT.MENTION_TOAST', {
-      from: mention.from,
-      channel: mention.channel,
-    })
-  );
+  const message = t('INTERNAL_CHAT.MENTION_TOAST', {
+    from: mention.from,
+    channel: mention.channel,
+  });
+  useAlert(message);
+  internalChatNotify({ title: mention.from, body: message });
 });
 
 const toggleShortcutModalFn = show => {

@@ -1,4 +1,5 @@
 import InternalChatAPI from '../../api/internalChat';
+import { internalChatNotify } from '../../helper/internalChatNotify';
 
 export const state = {
   channels: [],
@@ -139,13 +140,28 @@ export const actions = {
   },
 
   // Real-time: a message pushed over ActionCable (RoomChannel).
-  applyIncomingMessage: ({ commit, state: $state }, payload) => {
+  applyIncomingMessage: ({ commit, state: $state, rootGetters }, payload) => {
     const channelId = payload.internal_channel_id;
     const message = payload.message;
     if ($state.messagesByChannel[channelId]) {
       commit('APPEND_MESSAGE', { channelId, message });
     }
     commit('BUMP_UNREAD', channelId);
+
+    // Notify on a DM from someone else while the tab is in the background.
+    const channel = $state.channels.find(c => c.id === channelId);
+    const fromMe = message.user?.id === rootGetters.getCurrentUserID;
+    if (
+      !fromMe &&
+      channel?.channel_type === 'direct' &&
+      typeof document !== 'undefined' &&
+      document.hidden
+    ) {
+      internalChatNotify({
+        title: message.user?.name,
+        body: message.content || '📎',
+      });
+    }
   },
 
   // Real-time: a message was edited / deleted / reacted-to.
