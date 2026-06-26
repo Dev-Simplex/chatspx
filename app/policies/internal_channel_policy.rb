@@ -19,6 +19,10 @@ class InternalChannelPolicy < ApplicationPolicy
     member?
   end
 
+  def typing?
+    member?
+  end
+
   def member?
     return false unless record.is_a?(InternalChannel)
 

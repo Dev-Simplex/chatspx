@@ -4,10 +4,11 @@ json.id channel.id
 json.channel_type channel.channel_type
 json.title channel.direct? ? channel.counterpart_for(Current.user)&.name : channel.name
 
-json.members channel.users do |member|
-  json.id member.id
-  json.name member.name
-  json.avatar_url member.try(:avatar_url)
+json.members channel.members do |m|
+  json.id m.user_id
+  json.name m.user&.name
+  json.avatar_url m.user.try(:avatar_url)
+  json.last_read_at m.last_read_at&.to_i
 end
 
 current_member = channel.members.detect { |m| m.user_id == Current.user.id }

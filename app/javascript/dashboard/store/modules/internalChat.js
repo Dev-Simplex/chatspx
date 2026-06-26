@@ -4,6 +4,7 @@ export const state = {
   channels: [],
   agents: [],
   messagesByChannel: {},
+  typingByChannel: {},
   pendingMention: null,
   uiFlags: {
     isFetchingChannels: false,
@@ -20,6 +21,8 @@ export const getters = {
   getTotalUnread: $state =>
     $state.channels.reduce((sum, c) => sum + (c.unread_count || 0), 0),
   getPendingMention: $state => $state.pendingMention,
+  getTypingNames: $state => channelId =>
+    Object.values($state.typingByChannel[channelId] || {}).map(u => u.name),
 };
 
 export const actions = {
@@ -130,6 +133,47 @@ export const actions = {
     commit('UPDATE_MESSAGE', { channelId, message: data });
   },
 
+  // "Digitando…" — best-effort; failures are silent (cosmetic feature).
+  sendTyping: async (_ctx, { channelId, typing }) => {
+    try {
+      await InternalChatAPI.sendTyping(channelId, typing);
+    } catch (e) {
+      // ignore
+    }
+  },
+
+  applyTyping: (
+    { commit },
+    { internal_channel_id: channelId, user, typing }
+  ) => {
+    commit('SET_TYPING', {
+      channelId,
+      userId: user.id,
+      name: user.name,
+      typing,
+    });
+    if (typing) {
+      // Safety net: auto-clear if the "stopped typing" event is ever lost.
+      setTimeout(
+        () =>
+          commit('SET_TYPING', { channelId, userId: user.id, typing: false }),
+        5000
+      );
+    }
+  },
+
+  // Real-time read receipt: another member read up to last_read_at.
+  applyRead: (
+    { commit },
+    { internal_channel_id: channelId, user_id, last_read_at }
+  ) => {
+    commit('SET_MEMBER_READ', {
+      channelId,
+      userId: user_id,
+      lastReadAt: last_read_at,
+    });
+  },
+
   // Real-time: I was @mentioned. A fresh object (with `at`) guarantees the
   // always-mounted Sidebar watcher fires even for repeated mentions.
   applyIncomingMention: ({ commit }, data) => {
@@ -193,6 +237,21 @@ export const mutations = {
   },
   SET_PENDING_MENTION($state, mention) {
     $state.pendingMention = mention;
+  },
+  SET_TYPING($state, { channelId, userId, name, typing }) {
+    const current = { ...($state.typingByChannel[channelId] || {}) };
+    if (typing) current[userId] = { name };
+    else delete current[userId];
+    $state.typingByChannel = {
+      ...$state.typingByChannel,
+      [channelId]: current,
+    };
+  },
+  SET_MEMBER_READ($state, { channelId, userId, lastReadAt }) {
+    const channel = $state.channels.find(c => c.id === channelId);
+    if (!channel?.members) return;
+    const member = channel.members.find(m => m.id === userId);
+    if (member) member.last_read_at = lastReadAt;
   },
 };
 

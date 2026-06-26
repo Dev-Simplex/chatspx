@@ -163,6 +163,7 @@ Rails.application.routes.draw do
           resources :internal_channels, only: [:index, :show, :create] do
             member do
               post :read
+              post :typing
             end
             resources :internal_messages, only: [:index, :create, :update, :destroy], module: :internal_channels do
               member { post :react }

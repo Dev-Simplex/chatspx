@@ -10,7 +10,7 @@ class Api::V1::Accounts::InternalChannels::InternalMessagesController < Api::V1:
 
   def index
     @messages = @channel.messages.includes(:user, attachments_attachments: :blob).order(:created_at)
-    @channel.members.find_by(user_id: Current.user.id)&.update(last_read_at: Time.current)
+    InternalChannels::MarkReadService.new(channel: @channel, user: Current.user).perform
   end
 
   def create

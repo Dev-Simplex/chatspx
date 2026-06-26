@@ -83,5 +83,31 @@ RSpec.describe 'Api::V1::Accounts::InternalChannelsController', type: :request d
       expect(response).to have_http_status(:success)
       expect(channel.members.find_by(user: alice).last_read_at).to be_present
     end
+
+    it 'broadcasts a read receipt to the other member' do
+      expect do
+        post "/api/v1/accounts/#{account.id}/internal_channels/#{channel.id}/read", headers: alice.create_new_auth_token
+      end.to have_enqueued_job(ActionCableBroadcastJob)
+        .with([bob.pubsub_token], 'internal.read', hash_including(user_id: alice.id))
+    end
+  end
+
+  describe 'POST /internal_channels/:id/typing' do
+    let(:channel) { create(:internal_channel, :with_two_members, account: account, user_a: alice, user_b: bob) }
+
+    it 'broadcasts a typing event to the other member only' do
+      expect do
+        post "/api/v1/accounts/#{account.id}/internal_channels/#{channel.id}/typing",
+             params: { typing: true }, headers: alice.create_new_auth_token
+      end.to have_enqueued_job(ActionCableBroadcastJob)
+        .with([bob.pubsub_token], 'internal.typing', hash_including(typing: true))
+      expect(response).to have_http_status(:success)
+    end
+
+    it 'forbids a non-member' do
+      post "/api/v1/accounts/#{account.id}/internal_channels/#{channel.id}/typing",
+           params: { typing: true }, headers: outsider.create_new_auth_token
+      expect(response).to have_http_status(:not_found)
+    end
   end
 end

@@ -22,6 +22,8 @@ Redesenho do `InternalChatIndex.vue` para parecer um chat de verdade (referênci
 - **Dinâmica**: auto-scroll suave ao chegar/enviar, "▼ novas mensagens" quando rolado pra cima, transição de entrada das bolhas.
 
 ## Fase 2 — Básico de mensageria
+> **2B FEITA (2026-06-26):** "digitando…" (endpoint typing + broadcast `internal.typing` aos outros membros; composer com throttle 2.5s/stop 3.5s; linha "Fulano está digitando…") e recibo de leitura "Visto/Visto por N" (`InternalChannels::MarkReadService` faz broadcast `internal.read`; membros no jbuilder ganham `last_read_at`; computa visto a partir do last_read_at vs created_at da minha última msg). Sem migration. 51 specs verdes; build/lint OK. **Pendente 2C:** responder/citar + paginação do histórico.
+>
 > **2A FEITA (2026-06-26):** editar (autor; label "editada"), apagar (autor/admin; soft-delete → "mensagem apagada") e reações com emoji (jsonb `reactions` no internal_messages; toggle; chips com contagem; picker rápido). Migration `20260626120000` (edited_at/deleted_at/reactions). Endpoints update/destroy/react + broadcast `internal.message.updated` (novo `BroadcastService` reusado pelo create). UI: toolbar de hover (reagir/editar/apagar), edição inline, confirm de apagar inline (sem prompt nativo), label "editada". 48 specs verdes; build/lint OK. **Pendentes 2B/2C:** digitando…, recibo de leitura, responder/citar, paginação do histórico.
 
 ### Itens originais da Fase 2

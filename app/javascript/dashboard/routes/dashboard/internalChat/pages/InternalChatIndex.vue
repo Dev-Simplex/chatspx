@@ -171,7 +171,43 @@ const resetComposer = () => {
   nextTick(autoResize);
 };
 
+// --- typing indicator (Fase 2B) — defined before openChannel/send (used there)
+let typingThrottle = 0;
+let typingStopTimer = null;
+
+const stopTyping = () => {
+  clearTimeout(typingStopTimer);
+  if (!typingThrottle) return;
+  typingThrottle = 0;
+  if (activeChannelId.value) {
+    store.dispatch('internalChat/sendTyping', {
+      channelId: activeChannelId.value,
+      typing: false,
+    });
+  }
+};
+
+const signalTyping = () => {
+  if (!activeChannelId.value) return;
+  const now = Date.now();
+  if (now - typingThrottle > 2500) {
+    typingThrottle = now;
+    store.dispatch('internalChat/sendTyping', {
+      channelId: activeChannelId.value,
+      typing: true,
+    });
+  }
+  clearTimeout(typingStopTimer);
+  typingStopTimer = setTimeout(stopTyping, 3500);
+};
+
+const onComposerInput = () => {
+  autoResize();
+  signalTyping();
+};
+
 const openChannel = async channel => {
+  stopTyping();
   activeChannelId.value = channel.id;
   resetComposer();
   await store.dispatch('internalChat/fetchMessages', channel.id);
@@ -249,6 +285,7 @@ const send = async () => {
     attachments: attachedFiles.value,
     mentionedUserIds: mentionedUserIds.value,
   };
+  stopTyping();
   resetComposer();
   await store.dispatch('internalChat/sendMessage', payload);
   scrollToBottom();
@@ -313,6 +350,43 @@ const toggleReaction = async (msg, emoji) => {
 const reactionEntries = msg => Object.entries(msg.reactions || {});
 const iReacted = (msg, emoji) =>
   (msg.reactions?.[emoji] || []).map(Number).includes(currentUserId.value);
+
+// --- typing label / read receipts (helpers defined above) -------------------
+const typingNames = computed(() =>
+  store.getters['internalChat/getTypingNames'](activeChannelId.value)
+);
+const typingLabel = computed(() => {
+  const names = typingNames.value;
+  if (!names.length) return '';
+  if (names.length === 1)
+    return t('INTERNAL_CHAT.TYPING_ONE', { name: names[0] });
+  return t('INTERNAL_CHAT.TYPING_MANY', { count: names.length });
+});
+
+// --- read receipts (Fase 2B) ------------------------------------------------
+const activeMembers = computed(() => activeChannel.value?.members || []);
+const myLastMessageId = computed(() => {
+  for (let i = messages.value.length - 1; i >= 0; i -= 1) {
+    const m = messages.value[i];
+    if (isMine(m) && !m.deleted) return m.id;
+  }
+  return null;
+});
+const seenByCount = computed(() => {
+  const id = myLastMessageId.value;
+  if (!id) return 0;
+  const msg = messages.value.find(m => m.id === id);
+  if (!msg) return 0;
+  return activeMembers.value.filter(
+    m => m.id !== currentUserId.value && (m.last_read_at || 0) >= msg.created_at
+  ).length;
+});
+const seenLabel = computed(() => {
+  if (!seenByCount.value) return '';
+  if (activeChannel.value?.channel_type === 'direct')
+    return t('INTERNAL_CHAT.SEEN');
+  return t('INTERNAL_CHAT.SEEN_BY', { count: seenByCount.value });
+});
 
 // Auto-scroll on new messages only when the reader is already near the bottom.
 watch(
@@ -828,6 +902,11 @@ onMounted(() => {
                 </div>
               </div>
             </template>
+
+            <!-- read receipt under my last message -->
+            <div v-if="seenLabel" class="flex justify-end px-1 pt-0.5">
+              <span class="text-[10px] text-n-slate-9">{{ seenLabel }}</span>
+            </div>
           </div>
 
           <!-- scroll-to-bottom -->
@@ -842,6 +921,12 @@ onMounted(() => {
 
         <!-- Composer -->
         <footer class="px-4 py-3 border-t border-n-weak relative flex-shrink-0">
+          <div
+            v-if="typingLabel"
+            class="absolute -top-5 left-5 text-xs italic text-n-slate-10"
+          >
+            {{ typingLabel }}
+          </div>
           <div v-if="attachedFiles.length" class="flex flex-wrap gap-2 mb-2">
             <span
               v-for="(file, index) in attachedFiles"
@@ -916,7 +1001,7 @@ onMounted(() => {
               rows="1"
               class="flex-1 resize-none bg-transparent px-2 py-1.5 text-sm text-n-slate-12 focus:outline-none max-h-[140px] leading-relaxed"
               :placeholder="t('INTERNAL_CHAT.PLACEHOLDER')"
-              @input="autoResize"
+              @input="onComposerInput"
               @keydown.enter.exact.prevent="send"
             />
             <button

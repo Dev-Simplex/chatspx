@@ -45,6 +45,8 @@ class ActionCableConnector extends BaseActionCableConnector {
       'internal.message.created': this.onInternalMessageCreated,
       'internal.message.updated': this.onInternalMessageUpdated,
       'internal.mention.created': this.onInternalMentionCreated,
+      'internal.typing': this.onInternalTyping,
+      'internal.read': this.onInternalRead,
     };
   }
 
@@ -62,6 +64,15 @@ class ActionCableConnector extends BaseActionCableConnector {
   // Chat interno (v2 Fase 2): a message was edited / deleted / reacted-to.
   onInternalMessageUpdated = data => {
     this.app.$store.dispatch('internalChat/applyUpdatedMessage', data);
+  };
+
+  // Chat interno (v2 Fase 2B): peer is typing / read up to a point.
+  onInternalTyping = data => {
+    this.app.$store.dispatch('internalChat/applyTyping', data);
+  };
+
+  onInternalRead = data => {
+    this.app.$store.dispatch('internalChat/applyRead', data);
   };
 
   // Chat interno (B2): I was @mentioned. The toast (localized) is fired by the

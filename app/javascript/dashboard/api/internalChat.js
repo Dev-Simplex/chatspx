@@ -26,6 +26,10 @@ class InternalChatAPI extends ApiClient {
     return axios.post(`${this.url}/${channelId}/read`);
   }
 
+  sendTyping(channelId, isTyping) {
+    return axios.post(`${this.url}/${channelId}/typing`, { typing: isTyping });
+  }
+
   getMessages(channelId) {
     return axios.get(`${this.url}/${channelId}/internal_messages`);
   }

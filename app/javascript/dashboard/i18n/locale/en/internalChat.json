@@ -30,6 +30,10 @@
     "DELETE": "Delete",
     "REACT": "React",
     "DELETE_Q": "Delete message?",
-    "SAVE_EDIT": "Save"
+    "SAVE_EDIT": "Save",
+    "TYPING_ONE": "{name} is typing…",
+    "TYPING_MANY": "{count} people are typing…",
+    "SEEN": "Seen",
+    "SEEN_BY": "Seen by {count}"
   }
 }

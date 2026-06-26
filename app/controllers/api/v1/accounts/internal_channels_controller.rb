@@ -3,14 +3,14 @@
 # Chat interno (Módulo B, B1) — the agent's channels (DMs for now). `read` stamps
 # last_read_at so the unread badge clears. Membership is enforced by the policy.
 class Api::V1::Accounts::InternalChannelsController < Api::V1::Accounts::BaseController
-  before_action :fetch_channel, only: [:show, :read]
+  before_action :fetch_channel, only: [:show, :read, :typing]
   before_action :check_authorization
 
   def index
     # for_user already yields one row per channel (a user has a single membership
     # per channel), so no .distinct is needed — and .distinct would choke on the
     # json columns of joined tables ("no equality operator for type json").
-    @channels = policy_scope(InternalChannel).includes(:members, :users, :messages)
+    @channels = policy_scope(InternalChannel).includes(:users, :messages, members: :user)
   end
 
   def show; end
@@ -23,7 +23,20 @@ class Api::V1::Accounts::InternalChannelsController < Api::V1::Accounts::BaseCon
   end
 
   def read
-    @channel.members.find_by(user_id: Current.user.id)&.update(last_read_at: Time.current)
+    InternalChannels::MarkReadService.new(channel: @channel, user: Current.user).perform
+    head :ok
+  end
+
+  # Real-time "digitando…" — broadcast to the other members only.
+  def typing
+    tokens = @channel.users.where.not(id: Current.user.id).pluck(:pubsub_token).compact
+    if tokens.present?
+      ActionCableBroadcastJob.perform_later(tokens, 'internal.typing', {
+                                              internal_channel_id: @channel.id,
+                                              user: { id: Current.user.id, name: Current.user.name },
+                                              typing: ActiveModel::Type::Boolean.new.cast(params[:typing])
+                                            })
+    end
     head :ok
   end
 

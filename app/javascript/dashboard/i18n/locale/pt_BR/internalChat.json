@@ -30,6 +30,10 @@
     "DELETE": "Apagar",
     "REACT": "Reagir",
     "DELETE_Q": "Apagar mensagem?",
-    "SAVE_EDIT": "Salvar"
+    "SAVE_EDIT": "Salvar",
+    "TYPING_ONE": "{name} está digitando…",
+    "TYPING_MANY": "{count} pessoas digitando…",
+    "SEEN": "Visto",
+    "SEEN_BY": "Visto por {count}"
   }
 }
