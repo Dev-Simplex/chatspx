@@ -1,5 +1,5 @@
 <script setup>
-import { ref, computed, watch } from 'vue';
+import { ref, computed, watch, nextTick } from 'vue';
 import { useStore } from 'vuex';
 import { useI18n } from 'vue-i18n';
 import { useAlert } from 'dashboard/composables';
@@ -22,6 +22,7 @@ const stages = computed(() =>
 );
 const agents = computed(() => store.getters['agents/getAgents'] || []);
 
+const dialogRef = ref(null);
 const automations = ref([]);
 const isLoading = ref(false);
 const isSaving = ref(false);
@@ -51,12 +52,17 @@ const load = async () => {
     isLoading.value = false;
   }
 };
+// O Dialog é um <dialog> nativo: precisa de .open()/.close() — montar não basta.
 watch(
   () => [props.show, props.funnelId],
-  () => {
+  async () => {
     if (props.show) {
       load();
       draft.value = blankDraft();
+      await nextTick();
+      dialogRef.value?.open?.();
+    } else {
+      dialogRef.value?.close?.();
     }
   },
   { immediate: true }
@@ -198,7 +204,7 @@ const close = () => emit('close');
 
 <template>
   <Dialog
-    v-if="show"
+    ref="dialogRef"
     width="2xl"
     position="center"
     overflow-y-auto
