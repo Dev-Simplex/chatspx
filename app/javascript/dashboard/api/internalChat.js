@@ -79,6 +79,26 @@ class InternalChatAPI extends ApiClient {
   getAgents() {
     return axios.get(`${this.baseUrl()}/agents_for_internal_chat`);
   }
+
+  renameChannel(channelId, name) {
+    return axios.patch(`${this.url}/${channelId}`, { name });
+  }
+
+  addMember(channelId, userId) {
+    return axios.post(`${this.url}/${channelId}/add_member`, {
+      user_id: userId,
+    });
+  }
+
+  removeMember(channelId, userId) {
+    return axios.delete(`${this.url}/${channelId}/remove_member`, {
+      params: { user_id: userId },
+    });
+  }
+
+  leaveChannel(channelId) {
+    return axios.post(`${this.url}/${channelId}/leave`);
+  }
 }
 
 export default new InternalChatAPI();

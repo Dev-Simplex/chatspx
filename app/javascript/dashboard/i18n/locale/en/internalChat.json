@@ -36,6 +36,16 @@
     "TYPING_MANY": "{count} people are typing…",
     "SEEN": "Seen",
     "SEEN_BY": "Seen by {count}",
+    "MANAGE": {
+      "TITLE": "Manage group",
+      "NAME": "Group name",
+      "SAVE": "Save",
+      "RENAMED": "Group renamed",
+      "MEMBERS": "Members ({count})",
+      "REMOVE": "Remove",
+      "ADD": "Add members",
+      "LEAVE": "Leave group"
+    },
     "SHARE": {
       "MENU_ITEM": "Share to internal chat",
       "TITLE": "Share conversation to internal chat",

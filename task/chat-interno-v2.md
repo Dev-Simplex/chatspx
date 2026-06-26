@@ -49,7 +49,8 @@ Redesenho do `InternalChatIndex.vue` para parecer um chat de verdade (referênci
 - **Presença online/offline** (bolinha) — reusar `OnlinePresenceTracker`/presença do Chatwoot.
 - **Badges** refinados: por canal na lista + total na sidebar (total já existe).
 
-## Fase 5 — Gestão de canais & permissões
+## Fase 5 — Gestão de canais & permissões — ✅ FEITA (2026-06-26) → CHAT INTERNO v2 COMPLETO
+> Sem migration. Backend: endpoints `update` (renomear, só group_chat), `add_member`/`remove_member` (group_chat), `leave` (não-DM) no InternalChannelsController; criação de **canal de equipe agora admin-only**; policy (update?/add_member?/remove_member?/leave? = membro); broadcast `internal.channel.updated` aos membros → refetch. 62 specs verdes. Frontend: `ManageChannelDialog` (renomear + lista de membros c/ remover + adicionar agentes + sair), aberto por engrenagem no header dos grupos; store (renameChannel/addMember/removeMember/leaveChannel + REMOVE_CHANNEL + applyChannelUpdated); handler actionCable. i18n MANAGE.*. **Canal "Geral"/Anúncios: deferido (opcional).** Build/lint OK.
 - **Gerenciar grupo** após criado: renomear, adicionar/remover membros, sair, arquivar.
 - **Permissões**: quem pode criar grupos / canais de equipe (admin vs agente).
 - **Canal "Geral"/Anúncios** por conta (opcional).

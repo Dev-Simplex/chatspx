@@ -51,13 +51,66 @@ RSpec.describe 'Api::V1::Accounts::InternalChannelsController', type: :request d
       expect(response.parsed_body['title']).to eq('Plantão')
     end
 
-    it 'creates a team channel including the team members' do
+    it 'creates a team channel (admin) including the team members' do
+      admin = create(:user, account: account, role: :administrator)
       team = create(:team, account: account)
       team.add_members([bob.id])
       post "/api/v1/accounts/#{account.id}/internal_channels",
-           params: { team_id: team.id }, headers: alice.create_new_auth_token
+           params: { team_id: team.id }, headers: admin.create_new_auth_token
       expect(response).to have_http_status(:created)
       expect(response.parsed_body['channel_type']).to eq('team')
+    end
+
+    it 'forbids a non-admin from creating a team channel' do
+      team = create(:team, account: account)
+      post "/api/v1/accounts/#{account.id}/internal_channels",
+           params: { team_id: team.id }, headers: alice.create_new_auth_token
+      expect(response).to have_http_status(:forbidden)
+    end
+  end
+
+  describe 'group management (Fase 5)' do
+    let(:group) do
+      g = create(:internal_channel, :group_chat, account: account)
+      g.members.create!(user: alice)
+      g.members.create!(user: bob)
+      g
+    end
+
+    it 'renames a group for a member' do
+      patch "/api/v1/accounts/#{account.id}/internal_channels/#{group.id}",
+            params: { name: 'Plantão noturno' }, headers: alice.create_new_auth_token
+      expect(response).to have_http_status(:success)
+      expect(group.reload.name).to eq('Plantão noturno')
+    end
+
+    it 'adds a member' do
+      carol = create(:user, account: account, role: :agent)
+      post "/api/v1/accounts/#{account.id}/internal_channels/#{group.id}/add_member",
+           params: { user_id: carol.id }, headers: alice.create_new_auth_token
+      expect(response).to have_http_status(:success)
+      expect(group.reload.users).to include(carol)
+    end
+
+    it 'removes a member' do
+      delete "/api/v1/accounts/#{account.id}/internal_channels/#{group.id}/remove_member",
+             params: { user_id: bob.id }, headers: alice.create_new_auth_token
+      expect(response).to have_http_status(:success)
+      expect(group.reload.users).not_to include(bob)
+    end
+
+    it 'lets a member leave' do
+      post "/api/v1/accounts/#{account.id}/internal_channels/#{group.id}/leave",
+           headers: alice.create_new_auth_token
+      expect(response).to have_http_status(:success)
+      expect(group.reload.users).not_to include(alice)
+    end
+
+    it 'forbids managing a DM (rename)' do
+      dm = create(:internal_channel, :with_two_members, account: account, user_a: alice, user_b: bob)
+      patch "/api/v1/accounts/#{account.id}/internal_channels/#{dm.id}",
+            params: { name: 'x' }, headers: alice.create_new_auth_token
+      expect(response).to have_http_status(:forbidden)
     end
   end
 

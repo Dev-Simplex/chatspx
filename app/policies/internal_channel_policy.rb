@@ -23,6 +23,22 @@ class InternalChannelPolicy < ApplicationPolicy
     member?
   end
 
+  def update?
+    member?
+  end
+
+  def add_member?
+    member?
+  end
+
+  def remove_member?
+    member?
+  end
+
+  def leave?
+    member?
+  end
+
   def member?
     return false unless record.is_a?(InternalChannel)
 

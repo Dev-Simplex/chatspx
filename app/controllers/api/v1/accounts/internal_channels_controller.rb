@@ -3,7 +3,7 @@
 # Chat interno (Módulo B, B1) — the agent's channels (DMs for now). `read` stamps
 # last_read_at so the unread badge clears. Membership is enforced by the policy.
 class Api::V1::Accounts::InternalChannelsController < Api::V1::Accounts::BaseController
-  before_action :fetch_channel, only: [:show, :read, :typing]
+  before_action :fetch_channel, only: [:show, :read, :typing, :update, :add_member, :remove_member, :leave]
   before_action :check_authorization
 
   def index
@@ -16,10 +16,49 @@ class Api::V1::Accounts::InternalChannelsController < Api::V1::Accounts::BaseCon
   def show; end
 
   def create
+    return render_forbidden if params[:team_id].present? && !Current.account_user&.administrator?
+
     @channel = build_channel
     return render json: { error: 'Invalid channel' }, status: :unprocessable_entity if @channel.nil?
 
     render :show, status: :created
+  end
+
+  # Group management (Fase 5). Rename / add / remove only apply to group channels;
+  # leave works on any non-DM channel. Any member may manage (collaborative).
+  def update
+    return render_forbidden unless @channel.group_chat?
+
+    @channel.update!(name: params[:name]) if params[:name].present?
+    broadcast_channel_update
+    render :show
+  end
+
+  def add_member
+    return render_forbidden unless @channel.group_chat?
+
+    user = Current.account.users.find_by(id: params[:user_id])
+    return head(:unprocessable_entity) if user.nil?
+
+    @channel.members.find_or_create_by(user_id: user.id)
+    broadcast_channel_update
+    render :show
+  end
+
+  def remove_member
+    return render_forbidden unless @channel.group_chat?
+
+    @channel.members.where(user_id: params[:user_id]).destroy_all
+    broadcast_channel_update
+    render :show
+  end
+
+  def leave
+    return render_forbidden if @channel.direct?
+
+    @channel.members.where(user_id: Current.user.id).destroy_all
+    broadcast_channel_update
+    head :ok
   end
 
   def read
@@ -75,5 +114,17 @@ class Api::V1::Accounts::InternalChannelsController < Api::V1::Accounts::BaseCon
 
   def check_authorization
     authorize(@channel || InternalChannel)
+  end
+
+  # Tell members to refresh their channel list after a name/membership change.
+  def broadcast_channel_update
+    tokens = @channel.users.pluck(:pubsub_token).compact
+    return if tokens.blank?
+
+    ActionCableBroadcastJob.perform_later(tokens, 'internal.channel.updated', { internal_channel_id: @channel.id })
+  end
+
+  def render_forbidden
+    render json: { error: 'Not allowed' }, status: :forbidden
   end
 end

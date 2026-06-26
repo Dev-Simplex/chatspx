@@ -160,10 +160,13 @@ Rails.application.routes.draw do
           end
           resources :message_sequences, only: [:index, :show, :create, :update, :destroy]
           resources :message_sequence_enrollments, only: [:index, :create, :destroy]
-          resources :internal_channels, only: [:index, :show, :create] do
+          resources :internal_channels, only: [:index, :show, :create, :update] do
             member do
               post :read
               post :typing
+              post :add_member
+              delete :remove_member
+              post :leave
             end
             resources :internal_messages, only: [:index, :create, :update, :destroy], module: :internal_channels do
               member { post :react }

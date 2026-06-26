@@ -12,6 +12,7 @@ import { useI18n } from 'vue-i18n';
 import { useRouter } from 'vue-router';
 import Avatar from 'dashboard/components-next/avatar/Avatar.vue';
 import { messageStamp } from 'shared/helpers/timeHelper';
+import ManageChannelDialog from '../components/ManageChannelDialog.vue';
 
 const EmojiInput = defineAsyncComponent(
   () => import('shared/components/emoji/EmojiInput.vue')
@@ -54,6 +55,11 @@ const replyingTo = ref(null);
 const newPanel = ref(null);
 const groupName = ref('');
 const groupMemberIds = ref([]);
+const showManage = ref(false);
+
+const onChannelLeft = channelId => {
+  if (activeChannelId.value === channelId) activeChannelId.value = null;
+};
 
 const activeChannel = computed(() =>
   channels.value.find(c => c.id === activeChannelId.value)
@@ -698,7 +704,7 @@ onMounted(() => {
             :status="channelStatus(activeChannel)"
             rounded-full
           />
-          <div class="min-w-0">
+          <div class="min-w-0 flex-1">
             <h2
               class="text-sm font-semibold text-n-slate-12 truncate leading-tight"
             >
@@ -708,6 +714,14 @@ onMounted(() => {
               {{ channelSubtitle(activeChannel) }}
             </p>
           </div>
+          <button
+            v-if="activeChannel.channel_type === 'group_chat'"
+            class="inline-flex items-center justify-center w-8 h-8 rounded-lg text-n-slate-11 hover:bg-n-alpha-2 flex-shrink-0"
+            :title="t('INTERNAL_CHAT.MANAGE.TITLE')"
+            @click="showManage = true"
+          >
+            <span class="i-lucide-settings-2 text-lg" />
+          </button>
         </header>
 
         <!-- Messages -->
@@ -1182,5 +1196,13 @@ onMounted(() => {
         </p>
       </div>
     </section>
+
+    <ManageChannelDialog
+      v-if="showManage"
+      :show="showManage"
+      :channel="activeChannel"
+      @close="showManage = false"
+      @left="onChannelLeft"
+    />
   </div>
 </template>

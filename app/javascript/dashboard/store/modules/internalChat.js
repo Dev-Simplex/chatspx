@@ -120,6 +120,29 @@ export const actions = {
     }
   },
 
+  // Fase 5: group management.
+  renameChannel: async ({ commit }, { channelId, name }) => {
+    const { data } = await InternalChatAPI.renameChannel(channelId, name);
+    commit('UPSERT_CHANNEL', data);
+    return data;
+  },
+  addMember: async ({ commit }, { channelId, userId }) => {
+    const { data } = await InternalChatAPI.addMember(channelId, userId);
+    commit('UPSERT_CHANNEL', data);
+    return data;
+  },
+  removeMember: async ({ commit }, { channelId, userId }) => {
+    const { data } = await InternalChatAPI.removeMember(channelId, userId);
+    commit('UPSERT_CHANNEL', data);
+    return data;
+  },
+  leaveChannel: async ({ commit }, channelId) => {
+    await InternalChatAPI.leaveChannel(channelId);
+    commit('REMOVE_CHANNEL', channelId);
+  },
+  // Real-time: a channel's name/membership changed elsewhere.
+  applyChannelUpdated: ({ dispatch }) => dispatch('fetchChannels'),
+
   // Fase 3: share a customer conversation into a channel or a colleague's DM.
   shareConversation: async (
     { dispatch },
@@ -262,6 +285,9 @@ export const mutations = {
     const idx = $state.channels.findIndex(c => c.id === channel.id);
     if (idx === -1) $state.channels.unshift(channel);
     else $state.channels.splice(idx, 1, channel);
+  },
+  REMOVE_CHANNEL($state, channelId) {
+    $state.channels = $state.channels.filter(c => c.id !== channelId);
   },
   SET_MESSAGES($state, { channelId, messages }) {
     $state.messagesByChannel = {
