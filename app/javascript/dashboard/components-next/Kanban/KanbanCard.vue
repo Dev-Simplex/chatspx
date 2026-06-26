@@ -657,31 +657,31 @@ const handleCardClick = event => {
     <!-- Wait rail — strongest signal, takes precedence over SLA/heat rails -->
     <div
       v-if="waitInfo.kind === 'awaiting'"
+      v-tooltip="waitTitle"
       class="kanban-card__heat kanban-card__wait-rail"
       :class="[
         `kanban-card__wait-rail--l${waitInfo.level}`,
         { 'is-critical': waitInfo.level === 4 },
       ]"
-      :title="waitTitle"
     />
     <div
       v-else-if="waitInfo.kind === 'stalled'"
+      v-tooltip="waitTitle"
       class="kanban-card__heat kanban-card__wait-rail kanban-card__wait-rail--stalled"
-      :title="waitTitle"
     />
     <!-- SLA rail (risk/breach) — takes precedence over the idle heat rail -->
     <div
       v-else-if="hasSlaSignal"
+      v-tooltip="slaTitle"
       class="kanban-card__heat kanban-card__sla-rail"
       :style="{ background: slaRailColor }"
-      :title="slaTitle"
     />
     <!-- Aging heat rail (warm/cold) — left edge -->
     <div
       v-else-if="isAging"
+      v-tooltip="heatTitle"
       class="kanban-card__heat"
       :style="{ background: `rgb(${heatVar})` }"
-      :title="heatTitle"
     />
 
     <!-- Cover (Trello-style) — only visible in cover mode, primary label color -->
@@ -797,8 +797,8 @@ const handleCardClick = event => {
         <span
           v-for="chip in customFieldChips"
           :key="chip.key"
+          v-tooltip="`${chip.label}: ${chip.value}`"
           class="inline-flex max-w-[150px] items-center gap-1 truncate rounded-[var(--kanban-radius-sm)] bg-n-slate-3 px-1.5 py-0.5 text-[11px] font-medium leading-none text-n-slate-11"
-          :title="`${chip.label}: ${chip.value}`"
         >
           <Icon :icon="chip.icon" class="size-2.5 shrink-0 text-n-slate-10" />
           <span class="truncate">{{ chip.value }}</span>
@@ -824,17 +824,17 @@ const handleCardClick = event => {
           <span
             v-for="pill in visibleSignalPills"
             :key="pill.key"
+            v-tooltip="pill.title"
             class="flex shrink-0 items-center gap-1 rounded-full px-1.5 py-0.5 text-[11px] font-medium"
             :class="pill.class"
-            :title="pill.title"
           >
             <Icon :icon="pill.icon" class="size-3" />
             {{ pill.text }}
           </span>
           <span
             v-if="hiddenSignalPills.length"
+            v-tooltip="overflowTitle"
             class="flex shrink-0 items-center rounded-full bg-n-slate-3 px-1.5 py-0.5 text-[11px] font-medium text-n-slate-11"
-            :title="overflowTitle"
           >
             {{ `+${hiddenSignalPills.length}` }}
           </span>
@@ -852,13 +852,13 @@ const handleCardClick = event => {
           <!-- Assignee picker -->
           <div class="relative" @click.stop>
             <button
-              type="button"
-              class="kanban-focusable flex items-center rounded-full transition hover:opacity-80"
-              :title="
+              v-tooltip="
                 assignee
                   ? assignee.name || assignee.available_name
                   : t('KANBAN.CARD.UNASSIGNED')
               "
+              type="button"
+              class="kanban-focusable flex items-center rounded-full transition hover:opacity-80"
               :aria-label="
                 assignee
                   ? assignee.name || assignee.available_name
@@ -939,37 +939,37 @@ const handleCardClick = event => {
             @click.stop
           >
             <Button
+              v-tooltip="t('KANBAN.CARD.PREVIEW')"
               size="xs"
               variant="ghost"
               icon="i-lucide-eye"
-              :title="t('KANBAN.CARD.PREVIEW')"
               :aria-label="t('KANBAN.CARD.PREVIEW')"
               class="kanban-focusable !h-6 !w-6 !p-0 hover:bg-n-slate-3 hover:text-n-slate-12"
               @click="emit('preview', conversation)"
             />
             <Button
+              v-tooltip="t('KANBAN.SCHEDULED_MESSAGES.CREATE')"
               size="xs"
               variant="ghost"
               icon="i-lucide-clock"
-              :title="t('KANBAN.SCHEDULED_MESSAGES.CREATE')"
               :aria-label="t('KANBAN.SCHEDULED_MESSAGES.CREATE')"
               class="kanban-focusable !h-6 !w-6 !p-0 hover:bg-n-blue-3 hover:text-n-blue-11"
               @click="emit('schedule-message', conversation)"
             />
             <Button
+              v-tooltip="t('KANBAN.ITEMS.MOVE')"
               size="xs"
               variant="ghost"
               icon="i-lucide-move"
-              :title="t('KANBAN.ITEMS.MOVE')"
               :aria-label="t('KANBAN.ITEMS.MOVE')"
               class="kanban-focusable !h-6 !w-6 !p-0 hover:bg-n-teal-3 hover:text-n-teal-11"
               @click="emit('move', item)"
             />
             <Button
+              v-tooltip="t('KANBAN.ITEMS.REMOVE')"
               size="xs"
               variant="ghost"
               icon="i-lucide-x"
-              :title="t('KANBAN.ITEMS.REMOVE')"
               :aria-label="t('KANBAN.ITEMS.REMOVE')"
               class="kanban-focusable !h-6 !w-6 !p-0 hover:bg-n-ruby-3 hover:text-n-ruby-11"
               @click="emit('remove', item)"

@@ -404,9 +404,9 @@ const handleColumnObserved = async () => {
     <!-- Collapsed: thin vertical rail -->
     <button
       v-if="collapsed"
+      v-tooltip="stage.name"
       type="button"
       class="kanban-focusable group flex h-full w-full flex-col items-center gap-3 px-2 py-3"
-      :title="stage.name"
       :aria-label="t('KANBAN.STAGES.EXPAND')"
       :aria-expanded="false"
       @click="toggleCollapsed"
@@ -452,9 +452,9 @@ const handleColumnObserved = async () => {
             </h3>
 
             <span
+              v-tooltip="wipTitle"
               class="rounded-[var(--kanban-radius-sm)] px-2 py-0.5 text-[11px] font-medium transition-colors"
               :class="wipBadgeClass"
-              :title="wipTitle"
             >
               {{ cardCount }}{{ wipLimit ? `/${wipLimit}` : '' }}
             </span>
@@ -462,10 +462,10 @@ const handleColumnObserved = async () => {
 
           <div class="flex items-center gap-0.5">
             <Button
+              v-tooltip="t('KANBAN.STAGES.COLLAPSE')"
               size="xs"
               variant="ghost"
               icon="i-lucide-chevrons-left"
-              :title="t('KANBAN.STAGES.COLLAPSE')"
               :aria-label="t('KANBAN.STAGES.COLLAPSE')"
               :aria-expanded="!collapsed"
               class="kanban-focusable !size-7 !p-0 rounded-[var(--kanban-radius-md)] text-n-slate-10 transition-opacity hover:bg-n-slate-3/50 md:opacity-0 md:group-hover:opacity-100"
@@ -635,32 +635,32 @@ const handleColumnObserved = async () => {
         <span>{{ t('KANBAN.FOOTER.CARDS', { count: items.length }) }}</span>
         <span
           v-if="awaitingCount"
+          v-tooltip="t('KANBAN.FOOTER.AWAITING', { count: awaitingCount })"
           class="flex items-center gap-1 font-semibold text-n-ruby-11"
-          :title="t('KANBAN.FOOTER.AWAITING', { count: awaitingCount })"
         >
           <Icon icon="i-lucide-bell-ring" class="size-3" />
           {{ awaitingCount }}
         </span>
         <span
           v-if="unassignedCount"
+          v-tooltip="t('KANBAN.FOOTER.UNASSIGNED', { count: unassignedCount })"
           class="flex items-center gap-1 text-n-slate-11"
-          :title="t('KANBAN.FOOTER.UNASSIGNED', { count: unassignedCount })"
         >
           <Icon icon="i-lucide-user-x" class="size-3" />
           {{ unassignedCount }}
         </span>
         <span
           v-if="coldCount"
+          v-tooltip="t('KANBAN.FOOTER.COLD', { count: coldCount })"
           class="flex items-center gap-1 text-n-ruby-11"
-          :title="t('KANBAN.FOOTER.COLD', { count: coldCount })"
         >
           <Icon icon="i-lucide-snowflake" class="size-3" />
           {{ coldCount }}
         </span>
         <span
           v-if="overdueCount"
+          v-tooltip="t('KANBAN.FOOTER.OVERDUE', { count: overdueCount })"
           class="flex items-center gap-1 font-semibold text-n-ruby-11"
-          :title="t('KANBAN.FOOTER.OVERDUE', { count: overdueCount })"
         >
           <Icon icon="i-lucide-gauge" class="size-3" />
           {{ overdueCount }}
@@ -682,8 +682,8 @@ const handleColumnObserved = async () => {
         <span
           v-for="agg in stageAggregates"
           :key="agg.key"
+          v-tooltip="`${agg.label}: ${agg.sum}`"
           class="flex items-center gap-1"
-          :title="`${agg.label}: ${agg.sum}`"
         >
           <Icon icon="i-lucide-sigma" class="size-3 text-n-slate-10" />
           <span class="truncate">{{ agg.label }}:</span>

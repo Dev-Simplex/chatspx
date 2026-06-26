@@ -424,19 +424,11 @@ const menuItems = computed(() => {
       icon: lordIcon('kanban', 'i-lucide-layout-grid'),
       to: accountScopedRoute('kanban_index'),
       activeOn: ['kanban_index', 'kanban_funnel'],
+      // Internal chat is now a sub-tool inside Kanban; surface its unread badge here.
+      count: hasInternalChat.value
+        ? totalInternalChatUnread.value || undefined
+        : undefined,
     },
-    ...(hasInternalChat.value
-      ? [
-          {
-            name: 'Internal Chat',
-            label: t('SIDEBAR.INTERNAL_CHAT'),
-            icon: lordIcon('internalChat', 'i-lucide-messages-square'),
-            to: accountScopedRoute('internal_chat_index'),
-            activeOn: ['internal_chat_index'],
-            count: totalInternalChatUnread.value || undefined,
-          },
-        ]
-      : []),
     {
       name: 'Gallery',
       label: t('SIDEBAR.GALLERY'),

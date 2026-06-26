@@ -1,6 +1,143 @@
 {
   "KANBAN": {
     "TITLE": "Kanban",
+    "TABS": {
+      "BOARD": "Board",
+      "INTERNAL_CHAT": "Internal chat"
+    },
+    "GLOSSARY": {
+      "OPEN": "Legend & help",
+      "TITLE": "Legend & help",
+      "SUBTITLE": "What every color, icon and number on the board means.",
+      "ADVICE_LABEL": "What to do",
+      "REPLAY_TOUR": "Replay the quick tour",
+      "GROUPS": {
+        "CARD_SIGNALS": "Card signals",
+        "STATUS": "Conversation status",
+        "PRIORITY": "Priority",
+        "COLUMN": "Column (stage)",
+        "FUNNEL_BAR": "Funnel bar",
+        "ACTIONS": "Card actions"
+      },
+      "TERMS": {
+        "AWAITING": {
+          "LABEL": "Awaiting reply",
+          "DESC": "The contact sent the last message and is waiting for you. The card shows a red edge and rises to the top.",
+          "ADVICE": "Reply as soon as you can — this is the loudest signal on the board."
+        },
+        "STALLED": {
+          "LABEL": "Stalled",
+          "DESC": "You sent the last message but got no answer for a while. Blue edge.",
+          "ADVICE": "Consider a follow-up or move the card to a waiting stage."
+        },
+        "AGING_WARM": {
+          "LABEL": "Idle (warm)",
+          "DESC": "No activity for a while. Amber edge and clock icon.",
+          "ADVICE": "Check whether the card still needs attention."
+        },
+        "AGING_COLD": {
+          "LABEL": "Stale (cold)",
+          "DESC": "No activity for a long time. Red edge and snowflake icon.",
+          "ADVICE": "Reactivate the conversation or close/move the card."
+        },
+        "SLA_RISK": {
+          "LABEL": "SLA at risk",
+          "DESC": "The card is approaching the stage's time limit. Amber gauge.",
+          "ADVICE": "Act before the limit so it doesn't breach."
+        },
+        "SLA_BREACH": {
+          "LABEL": "SLA breached",
+          "DESC": "The card passed the stage's time limit. Red gauge.",
+          "ADVICE": "Prioritize — this card is already late."
+        },
+        "STAGE_AGE": {
+          "LABEL": "Long in this stage",
+          "DESC": "The card has been sitting in the same stage for too long. Hourglass icon.",
+          "ADVICE": "Advance it to the next stage or take an action."
+        },
+        "SCHEDULED": {
+          "LABEL": "Scheduled messages",
+          "DESC": "There are messages scheduled to be sent from this conversation. Teal send icon.",
+          "ADVICE": "Open the card to review or edit the scheduled sends."
+        },
+        "STATUS_OPEN": {
+          "LABEL": "Open",
+          "DESC": "Active conversation, still being handled."
+        },
+        "STATUS_PENDING": {
+          "LABEL": "Pending",
+          "DESC": "Waiting on something before it can proceed."
+        },
+        "STATUS_RESOLVED": {
+          "LABEL": "Resolved",
+          "DESC": "Conversation closed/finished."
+        },
+        "STATUS_SNOOZED": {
+          "LABEL": "Snoozed",
+          "DESC": "Temporarily paused; it will come back later."
+        },
+        "PRIORITY": {
+          "LABEL": "Priority flag",
+          "DESC": "Mirrors the conversation priority (urgent, high, medium, low). Higher priority shows a bolder flag.",
+          "ADVICE": "Set priority from the conversation to make it stand out here."
+        },
+        "WIP": {
+          "LABEL": "WIP limit",
+          "DESC": "Work-in-progress cap for the stage. The counter turns amber at the limit and red when over it.",
+          "ADVICE": "Keep the stage at or under its limit to avoid overload."
+        },
+        "FOOTER_AWAITING": {
+          "LABEL": "Awaiting reply (count)",
+          "DESC": "How many cards in this stage are waiting for your reply."
+        },
+        "FOOTER_UNASSIGNED": {
+          "LABEL": "Unassigned (count)",
+          "DESC": "How many cards in this stage have no agent assigned."
+        },
+        "FOOTER_COLD": {
+          "LABEL": "Stalled (count)",
+          "DESC": "How many cards in this stage have gone stale."
+        },
+        "FOOTER_OVERDUE": {
+          "LABEL": "SLA breached (count)",
+          "DESC": "How many cards in this stage are past their SLA."
+        },
+        "FOOTER_SCHEDULED": {
+          "LABEL": "Scheduled (count)",
+          "DESC": "How many cards in this stage have scheduled messages."
+        },
+        "FUNNEL_SEGMENT": {
+          "LABEL": "Funnel segment",
+          "DESC": "Each colored slice is a stage's share of the total cards. Width = how many cards are there.",
+          "ADVICE": "Click a slice to scroll straight to that stage."
+        },
+        "ASSIGNEE": {
+          "LABEL": "Assignee",
+          "DESC": "The agent responsible for this card. Click to reassign.",
+          "ADVICE": "Assign someone so it's clear who owns the conversation."
+        },
+        "PREVIEW": {
+          "LABEL": "Preview",
+          "DESC": "Open a read-only preview of the conversation without leaving the board."
+        },
+        "SCHEDULE_ACTION": {
+          "LABEL": "Schedule a message",
+          "DESC": "Set up a message to be sent from this conversation at a chosen time."
+        },
+        "MOVE_ACTION": {
+          "LABEL": "Move card",
+          "DESC": "Move the card to another stage or funnel (alternative to drag-and-drop)."
+        },
+        "REMOVE_ACTION": {
+          "LABEL": "Remove from board",
+          "DESC": "Take the card off this funnel. The conversation itself is not deleted."
+        },
+        "ADD_ACTION": {
+          "LABEL": "Add card",
+          "DESC": "Search a conversation and add it to this stage."
+        }
+      }
+    },
     "COMING_SOON": "Coming soon...",
     "SELECT_FUNNEL": "Select a funnel",
     "FILTER_BY_FUNNEL": "Filter by Funnel",

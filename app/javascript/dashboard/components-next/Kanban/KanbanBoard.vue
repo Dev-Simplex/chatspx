@@ -537,16 +537,16 @@ const handleDeleteStage = stage => {
         <button
           v-for="seg in funnelBar"
           :key="`funnel-${seg.id}`"
-          type="button"
-          class="kanban-funnel__seg kanban-focusable h-2 transition-all duration-300 hover:opacity-80"
-          :style="{ width: `${seg.pct}%`, background: seg.color }"
-          :title="
+          v-tooltip="
             t('KANBAN.FUNNEL_BAR.SEGMENT', {
               name: seg.name,
               count: seg.count,
               pct: seg.pct,
             })
           "
+          type="button"
+          class="kanban-funnel__seg kanban-focusable h-2 transition-all duration-300 hover:opacity-80"
+          :style="{ width: `${seg.pct}%`, background: seg.color }"
           :aria-label="
             t('KANBAN.FUNNEL_BAR.SEGMENT', {
               name: seg.name,

@@ -1,8 +1,18 @@
 <script setup>
-import { onMounted, computed, ref, watch, nextTick } from 'vue';
+import {
+  onMounted,
+  computed,
+  ref,
+  watch,
+  nextTick,
+  defineAsyncComponent,
+} from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import { useStore } from 'vuex';
 import { useI18n } from 'vue-i18n';
+import { useMapGetter } from 'dashboard/composables/store';
+import { useAccount } from 'dashboard/composables/useAccount';
+import { FEATURE_FLAGS } from 'dashboard/featureFlags';
 import KanbanBoard from 'dashboard/components-next/Kanban/KanbanBoard.vue';
 import ListView from 'dashboard/components-next/Kanban/ListView.vue';
 import CalendarView from 'dashboard/components-next/Kanban/CalendarView.vue';
@@ -13,12 +23,21 @@ import FunnelForm from 'dashboard/components-next/Kanban/FunnelForm.vue';
 import ScheduledMessageForm from 'dashboard/components-next/Kanban/ScheduledMessageForm.vue';
 import KanbanAutomationBuilder from 'dashboard/components-next/Kanban/KanbanAutomationBuilder.vue';
 import ScheduledMessagesDrawer from 'dashboard/components-next/Kanban/ScheduledMessagesDrawer.vue';
+import KanbanLegend from 'dashboard/components-next/Kanban/KanbanLegend.vue';
 import Button from 'dashboard/components-next/button/Button.vue';
 import Input from 'dashboard/components-next/input/Input.vue';
 import Icon from 'dashboard/components-next/icon/Icon.vue';
 import Dialog from 'dashboard/components-next/dialog/Dialog.vue';
 import { useAlert } from 'dashboard/composables';
 import 'dashboard/components-next/Kanban/kanban-theme.css';
+
+// Internal chat lives as a sub-tool inside Kanban (lazy: only loads when opened).
+const InternalChatIndex = defineAsyncComponent(
+  () =>
+    import(
+      'dashboard/routes/dashboard/internalChat/pages/InternalChatIndex.vue'
+    )
+);
 
 const route = useRoute();
 const router = useRouter();
@@ -88,6 +107,23 @@ const togglePrioritizeWaiting = () => {
   }
 };
 
+// Primary tab: the board (funnels/views) vs the embedded internal chat.
+const { isCloudFeatureEnabled } = useAccount();
+const hasInternalChat = computed(() =>
+  isCloudFeatureEnabled(FEATURE_FLAGS.INTERNAL_CHAT)
+);
+const internalChatUnread = useMapGetter('internalChat/getTotalUnread');
+
+const activeTab = ref('board');
+// Mount the chat panel only after it is first opened, then keep it alive (v-show)
+// so channels/scroll state survive tab switches.
+const chatActivated = ref(false);
+const setActiveTab = tab => {
+  if (tab === 'chat' && !hasInternalChat.value) return;
+  if (tab === 'chat') chatActivated.value = true;
+  activeTab.value = tab;
+};
+
 const viewMode = computed(
   () => store.getters['kanban/getViewMode'] || 'kanban'
 );
@@ -105,6 +141,7 @@ const selectedScheduledMessage = ref(null);
 const selectedDate = ref(null);
 const requireConversationForModal = ref(true);
 const showScheduledMessagesDrawer = ref(false);
+const showLegend = ref(false);
 const showAdvancedFilters = ref(false);
 const scheduledMessagesConversationFilter = ref(null);
 const scheduledMessagesRefreshToken = ref(0);
@@ -637,7 +674,39 @@ onMounted(async () => {
           </h1>
 
           <div
-            v-if="activeFunnel"
+            v-if="hasInternalChat"
+            class="flex gap-1 rounded-lg border border-n-weak bg-n-solid-3 p-1 ml-2"
+          >
+            <Button
+              :variant="activeTab === 'board' ? 'solid' : 'ghost'"
+              size="sm"
+              icon="i-lucide-layout-grid"
+              @click="setActiveTab('board')"
+            >
+              <span class="ml-2 hidden sm:inline">{{
+                t('KANBAN.TABS.BOARD')
+              }}</span>
+            </Button>
+            <Button
+              :variant="activeTab === 'chat' ? 'solid' : 'ghost'"
+              size="sm"
+              icon="i-lucide-messages-square"
+              @click="setActiveTab('chat')"
+            >
+              <span class="ml-2 hidden sm:inline">{{
+                t('KANBAN.TABS.INTERNAL_CHAT')
+              }}</span>
+              <span
+                v-if="internalChatUnread > 0"
+                class="ml-2 inline-flex items-center justify-center min-w-5 h-5 px-1.5 rounded-full bg-n-blue-9 text-white text-[11px] font-semibold"
+              >
+                {{ internalChatUnread }}
+              </span>
+            </Button>
+          </div>
+
+          <div
+            v-if="activeFunnel && activeTab === 'board'"
             class="hidden md:flex items-center gap-2 ml-2"
           >
             <span
@@ -655,7 +724,7 @@ onMounted(async () => {
           </div>
         </div>
 
-        <div class="flex items-center gap-2">
+        <div v-show="activeTab === 'board'" class="flex items-center gap-2">
           <div
             class="flex gap-1 rounded-lg border border-n-weak bg-n-solid-3 p-1"
           >
@@ -765,10 +834,22 @@ onMounted(async () => {
             :title="t('KANBAN.FUNNELS.CREATE')"
             @click="handleCreateFunnel"
           />
+
+          <div class="mx-0.5 h-6 w-px shrink-0 bg-n-weak" aria-hidden="true" />
+
+          <Button
+            variant="ghost"
+            size="sm"
+            icon="i-lucide-help-circle"
+            :title="t('KANBAN.GLOSSARY.OPEN')"
+            :aria-label="t('KANBAN.GLOSSARY.OPEN')"
+            @click="showLegend = true"
+          />
         </div>
       </div>
 
       <div
+        v-show="activeTab === 'board'"
         class="relative z-40 rounded-xl border border-n-weak bg-n-solid-1 p-3 shadow-sm"
       >
         <div
@@ -927,6 +1008,7 @@ onMounted(async () => {
     </div>
 
     <div
+      v-show="activeTab === 'board'"
       class="kanban-content flex-1 min-h-0 overflow-hidden bg-n-background"
       :class="{
         'kanban-compact': isCompact && viewMode === 'kanban',
@@ -1000,6 +1082,14 @@ onMounted(async () => {
       </template>
     </div>
 
+    <div
+      v-if="hasInternalChat && chatActivated"
+      v-show="activeTab === 'chat'"
+      class="flex-1 min-h-0 overflow-hidden bg-n-background"
+    >
+      <InternalChatIndex />
+    </div>
+
     <FunnelForm
       :show="showFunnelForm"
       :funnel="selectedFunnel"
@@ -1031,6 +1121,12 @@ onMounted(async () => {
       @close="showScheduledMessagesDrawer = false"
       @edit-scheduled-message="handleEditScheduledMessage"
       @cancelled="refreshScheduledMessages"
+    />
+
+    <KanbanLegend
+      :show="showLegend"
+      @close="showLegend = false"
+      @replay-tour="showLegend = false"
     />
 
     <Dialog

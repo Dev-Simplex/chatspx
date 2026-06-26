@@ -1,6 +1,143 @@
 {
   "KANBAN": {
     "TITLE": "Kanban",
+    "TABS": {
+      "BOARD": "Quadro",
+      "INTERNAL_CHAT": "Chat interno"
+    },
+    "GLOSSARY": {
+      "OPEN": "Legenda e ajuda",
+      "TITLE": "Legenda e ajuda",
+      "SUBTITLE": "O que cada cor, ícone e número do quadro significa.",
+      "ADVICE_LABEL": "O que fazer",
+      "REPLAY_TOUR": "Rever o tour rápido",
+      "GROUPS": {
+        "CARD_SIGNALS": "Sinais do cartão",
+        "STATUS": "Status da conversa",
+        "PRIORITY": "Prioridade",
+        "COLUMN": "Coluna (etapa)",
+        "FUNNEL_BAR": "Barra do funil",
+        "ACTIONS": "Ações do cartão"
+      },
+      "TERMS": {
+        "AWAITING": {
+          "LABEL": "Aguardando resposta",
+          "DESC": "O contato mandou a última mensagem e está esperando você. O cartão fica com borda vermelha e sobe para o topo.",
+          "ADVICE": "Responda o quanto antes — é o sinal mais forte do quadro."
+        },
+        "STALLED": {
+          "LABEL": "Estagnado",
+          "DESC": "Você mandou a última mensagem e não houve resposta há um tempo. Borda azul.",
+          "ADVICE": "Considere um follow-up ou mova o cartão para uma etapa de espera."
+        },
+        "AGING_WARM": {
+          "LABEL": "Ocioso (morno)",
+          "DESC": "Sem atividade há um tempo. Borda âmbar e ícone de relógio.",
+          "ADVICE": "Verifique se o cartão ainda precisa de atenção."
+        },
+        "AGING_COLD": {
+          "LABEL": "Parado (frio)",
+          "DESC": "Sem atividade há muito tempo. Borda vermelha e ícone de floco de neve.",
+          "ADVICE": "Reative a conversa ou feche/mova o cartão."
+        },
+        "SLA_RISK": {
+          "LABEL": "SLA em risco",
+          "DESC": "O cartão está se aproximando do limite de tempo da etapa. Medidor âmbar.",
+          "ADVICE": "Aja antes do limite para não estourar."
+        },
+        "SLA_BREACH": {
+          "LABEL": "SLA estourado",
+          "DESC": "O cartão passou do limite de tempo da etapa. Medidor vermelho.",
+          "ADVICE": "Priorize — este cartão já está atrasado."
+        },
+        "STAGE_AGE": {
+          "LABEL": "Há muito tempo na etapa",
+          "DESC": "O cartão está parado na mesma etapa tempo demais. Ícone de ampulheta.",
+          "ADVICE": "Avance para a próxima etapa ou tome uma ação."
+        },
+        "SCHEDULED": {
+          "LABEL": "Mensagens agendadas",
+          "DESC": "Há mensagens agendadas para enviar a partir desta conversa. Ícone de envio em verde-água.",
+          "ADVICE": "Abra o cartão para revisar ou editar os envios agendados."
+        },
+        "STATUS_OPEN": {
+          "LABEL": "Aberto",
+          "DESC": "Conversa ativa, ainda em atendimento."
+        },
+        "STATUS_PENDING": {
+          "LABEL": "Pendente",
+          "DESC": "Esperando algo antes de prosseguir."
+        },
+        "STATUS_RESOLVED": {
+          "LABEL": "Resolvido",
+          "DESC": "Conversa encerrada/finalizada."
+        },
+        "STATUS_SNOOZED": {
+          "LABEL": "Adiado",
+          "DESC": "Pausado temporariamente; volta mais tarde."
+        },
+        "PRIORITY": {
+          "LABEL": "Bandeira de prioridade",
+          "DESC": "Reflete a prioridade da conversa (urgente, alta, média, baixa). Prioridade maior mostra uma bandeira mais destacada.",
+          "ADVICE": "Defina a prioridade na conversa para destacá-la aqui."
+        },
+        "WIP": {
+          "LABEL": "Limite WIP",
+          "DESC": "Teto de cartões em andamento na etapa. O contador fica âmbar no limite e vermelho ao ultrapassar.",
+          "ADVICE": "Mantenha a etapa no limite ou abaixo para evitar sobrecarga."
+        },
+        "FOOTER_AWAITING": {
+          "LABEL": "Aguardando resposta (contagem)",
+          "DESC": "Quantos cartões desta etapa estão esperando sua resposta."
+        },
+        "FOOTER_UNASSIGNED": {
+          "LABEL": "Sem responsável (contagem)",
+          "DESC": "Quantos cartões desta etapa estão sem agente atribuído."
+        },
+        "FOOTER_COLD": {
+          "LABEL": "Parados (contagem)",
+          "DESC": "Quantos cartões desta etapa ficaram parados."
+        },
+        "FOOTER_OVERDUE": {
+          "LABEL": "SLA estourado (contagem)",
+          "DESC": "Quantos cartões desta etapa passaram do SLA."
+        },
+        "FOOTER_SCHEDULED": {
+          "LABEL": "Agendados (contagem)",
+          "DESC": "Quantos cartões desta etapa têm mensagens agendadas."
+        },
+        "FUNNEL_SEGMENT": {
+          "LABEL": "Segmento do funil",
+          "DESC": "Cada fatia colorida é a parcela de cartões de uma etapa. A largura mostra quantos cartões há.",
+          "ADVICE": "Clique numa fatia para ir direto àquela etapa."
+        },
+        "ASSIGNEE": {
+          "LABEL": "Responsável",
+          "DESC": "O agente responsável pelo cartão. Clique para reatribuir.",
+          "ADVICE": "Atribua alguém para deixar claro quem cuida da conversa."
+        },
+        "PREVIEW": {
+          "LABEL": "Prévia",
+          "DESC": "Abre uma prévia só-leitura da conversa sem sair do quadro."
+        },
+        "SCHEDULE_ACTION": {
+          "LABEL": "Agendar mensagem",
+          "DESC": "Programa uma mensagem para ser enviada da conversa em um horário escolhido."
+        },
+        "MOVE_ACTION": {
+          "LABEL": "Mover cartão",
+          "DESC": "Move o cartão para outra etapa ou funil (alternativa ao arrastar e soltar)."
+        },
+        "REMOVE_ACTION": {
+          "LABEL": "Remover do quadro",
+          "DESC": "Tira o cartão deste funil. A conversa em si não é excluída."
+        },
+        "ADD_ACTION": {
+          "LABEL": "Adicionar cartão",
+          "DESC": "Busca uma conversa e adiciona à etapa."
+        }
+      }
+    },
     "COMING_SOON": "Em breve...",
     "SELECT_FUNNEL": "Selecione um funil",
     "FILTER_BY_FUNNEL": "Filtrar por Funil",
