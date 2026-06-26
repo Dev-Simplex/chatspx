@@ -122,10 +122,26 @@ class Captain::Assistant::AgentRunnerService
   def fallback_replays_history?(text)
     return false if @conversation.blank?
 
+    recent = @conversation.messages.where(message_type: :outgoing, private: false)
+                          .order(created_at: :desc).limit(12).pluck(:content).compact
+                          .map { |c| c.to_s.strip }
+    return false if recent.empty?
+
     norm = text.to_s.strip
-    @conversation.messages.where(message_type: :outgoing, private: false)
-                 .order(created_at: :desc).limit(5).pluck(:content).compact
-                 .any? { |c| c.to_s.strip == norm }
+    return true if recent.include?(norm)
+
+    # O humanizer quebra a resposta em bolhas, salvas como mensagens separadas — então o
+    # texto INTEIRO do fallback nunca casa com uma bolha isolada. Quebra do mesmo jeito e
+    # só marca replay se TODAS as bolhas já foram enviadas (texto NOVO deste turno passa).
+    chunks = humanizer_chunks(text)
+    chunks.present? && chunks.all? { |chunk| recent.include?(chunk) }
+  end
+
+  def humanizer_chunks(text)
+    Captain::Behavior::HumanizerService.new(config: @assistant.behavior['humanizer'])
+                                       .split(text).map { |c| c.to_s.strip }.reject(&:blank?)
+  rescue StandardError
+    []
   end
 
   def last_assistant_message_text(result)
