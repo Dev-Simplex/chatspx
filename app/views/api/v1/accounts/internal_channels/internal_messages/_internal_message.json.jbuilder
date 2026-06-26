@@ -2,15 +2,18 @@
 
 json.id message.id
 json.internal_channel_id message.internal_channel_id
-json.content message.content
+json.content message.deleted? ? nil : message.content
 json.created_at message.created_at.to_i
+json.edited message.edited?
+json.deleted message.deleted?
+json.reactions message.reactions
 json.mentioned_user_ids message.mentioned_user_ids
 json.user do
   json.id message.user_id
   json.name message.user&.name
   json.avatar_url message.user.try(:avatar_url)
 end
-json.attachments(message.attachments.map do |attachment|
+json.attachments(message.deleted? ? [] : message.attachments.map do |attachment|
   blob = attachment.blob
   {
     id: attachment.id,

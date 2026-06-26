@@ -258,6 +258,62 @@ const isMine = message => message.user?.id === currentUserId.value;
 const mentionsMe = message =>
   (message.mentioned_user_ids || []).map(Number).includes(currentUserId.value);
 
+// --- message actions (Fase 2A): edit / delete / reactions -------------------
+const QUICK_EMOJIS = ['👍', '❤️', '😂', '🎉', '✅', '🙏'];
+const editingId = ref(null);
+const editDraft = ref('');
+const reactionPickerId = ref(null);
+const confirmDeleteId = ref(null);
+
+const startEdit = msg => {
+  reactionPickerId.value = null;
+  confirmDeleteId.value = null;
+  editingId.value = msg.id;
+  editDraft.value = msg.content || '';
+};
+const cancelEdit = () => {
+  editingId.value = null;
+  editDraft.value = '';
+};
+const saveEdit = async msg => {
+  const content = editDraft.value.trim();
+  if (!content) return;
+  cancelEdit();
+  await store.dispatch('internalChat/editMessage', {
+    channelId: activeChannelId.value,
+    messageId: msg.id,
+    content,
+  });
+};
+
+const askDelete = msg => {
+  reactionPickerId.value = null;
+  confirmDeleteId.value = confirmDeleteId.value === msg.id ? null : msg.id;
+};
+const doDelete = async msg => {
+  confirmDeleteId.value = null;
+  await store.dispatch('internalChat/deleteMessage', {
+    channelId: activeChannelId.value,
+    messageId: msg.id,
+  });
+};
+
+const toggleReactionPicker = msg => {
+  confirmDeleteId.value = null;
+  reactionPickerId.value = reactionPickerId.value === msg.id ? null : msg.id;
+};
+const toggleReaction = async (msg, emoji) => {
+  reactionPickerId.value = null;
+  await store.dispatch('internalChat/reactToMessage', {
+    channelId: activeChannelId.value,
+    messageId: msg.id,
+    emoji,
+  });
+};
+const reactionEntries = msg => Object.entries(msg.reactions || {});
+const iReacted = (msg, emoji) =>
+  (msg.reactions?.[emoji] || []).map(Number).includes(currentUserId.value);
+
 // Auto-scroll on new messages only when the reader is already near the bottom.
 watch(
   () => messages.value.length,
@@ -556,7 +612,7 @@ onMounted(() => {
                 </div>
 
                 <div
-                  class="group max-w-[68%] flex flex-col"
+                  class="group relative max-w-[68%] flex flex-col"
                   :class="isMine(item.msg) ? 'items-end' : 'items-start'"
                 >
                   <span
@@ -565,8 +621,45 @@ onMounted(() => {
                   >
                     {{ item.msg.user?.name }}
                   </span>
+
+                  <!-- deleted -->
                   <div
-                    class="px-3 py-2 rounded-2xl text-sm break-words"
+                    v-if="item.msg.deleted"
+                    class="flex items-center gap-1.5 px-3 py-2 rounded-2xl text-sm italic text-n-slate-10 bg-n-alpha-1"
+                  >
+                    <span class="i-lucide-ban text-sm" />
+                    {{ t('INTERNAL_CHAT.DELETED') }}
+                  </div>
+
+                  <!-- editing -->
+                  <div
+                    v-else-if="editingId === item.msg.id"
+                    class="flex flex-col gap-1.5 w-[260px]"
+                  >
+                    <textarea
+                      v-model="editDraft"
+                      rows="2"
+                      class="w-full px-3 py-2 text-sm bg-n-alpha-1 border border-n-weak rounded-xl text-n-slate-12 focus:outline-none focus:border-n-brand resize-none"
+                      @keydown.enter.exact.prevent="saveEdit(item.msg)"
+                      @keydown.esc="cancelEdit"
+                    />
+                    <div class="flex gap-3 text-xs px-1">
+                      <button
+                        class="font-medium text-n-brand"
+                        @click="saveEdit(item.msg)"
+                      >
+                        {{ t('INTERNAL_CHAT.SAVE_EDIT') }}
+                      </button>
+                      <button class="text-n-slate-10" @click="cancelEdit">
+                        {{ t('INTERNAL_CHAT.CANCEL') }}
+                      </button>
+                    </div>
+                  </div>
+
+                  <!-- normal -->
+                  <div
+                    v-else
+                    class="relative px-3 py-2 rounded-2xl text-sm break-words"
                     :class="[
                       isMine(item.msg)
                         ? 'bg-n-brand text-white rounded-br-sm'
@@ -574,6 +667,75 @@ onMounted(() => {
                       mentionsMe(item.msg) ? 'ring-2 ring-n-brand/60' : '',
                     ]"
                   >
+                    <!-- hover toolbar -->
+                    <div
+                      class="absolute -top-3 z-10 hidden group-hover:flex items-center gap-0.5 bg-n-solid-1 border border-n-weak rounded-full shadow px-1 py-0.5"
+                      :class="isMine(item.msg) ? 'right-1' : 'left-1'"
+                    >
+                      <button
+                        class="inline-flex items-center justify-center w-6 h-6 rounded-full text-n-slate-11 hover:bg-n-alpha-2"
+                        :title="t('INTERNAL_CHAT.REACT')"
+                        @click="toggleReactionPicker(item.msg)"
+                      >
+                        <span class="i-lucide-smile-plus text-sm" />
+                      </button>
+                      <button
+                        v-if="isMine(item.msg)"
+                        class="inline-flex items-center justify-center w-6 h-6 rounded-full text-n-slate-11 hover:bg-n-alpha-2"
+                        :title="t('INTERNAL_CHAT.EDIT')"
+                        @click="startEdit(item.msg)"
+                      >
+                        <span class="i-lucide-pencil text-sm" />
+                      </button>
+                      <button
+                        v-if="isMine(item.msg)"
+                        class="inline-flex items-center justify-center w-6 h-6 rounded-full text-n-slate-11 hover:bg-n-alpha-2"
+                        :title="t('INTERNAL_CHAT.DELETE')"
+                        @click="askDelete(item.msg)"
+                      >
+                        <span class="i-lucide-trash-2 text-sm" />
+                      </button>
+                    </div>
+
+                    <!-- reaction picker -->
+                    <div
+                      v-if="reactionPickerId === item.msg.id"
+                      class="absolute -top-9 z-20 flex gap-1 bg-n-solid-1 border border-n-weak rounded-full shadow px-2 py-1"
+                      :class="isMine(item.msg) ? 'right-1' : 'left-1'"
+                    >
+                      <button
+                        v-for="e in QUICK_EMOJIS"
+                        :key="e"
+                        class="text-base leading-none hover:scale-125 transition-transform"
+                        @click="toggleReaction(item.msg, e)"
+                      >
+                        {{ e }}
+                      </button>
+                    </div>
+
+                    <!-- delete confirm -->
+                    <div
+                      v-if="confirmDeleteId === item.msg.id"
+                      class="absolute -top-9 z-20 flex items-center gap-2 bg-n-solid-1 border border-n-weak rounded-lg shadow px-2 py-1 text-xs"
+                      :class="isMine(item.msg) ? 'right-1' : 'left-1'"
+                    >
+                      <span class="text-n-slate-11 whitespace-nowrap">{{
+                        t('INTERNAL_CHAT.DELETE_Q')
+                      }}</span>
+                      <button
+                        class="font-medium text-n-ruby-11"
+                        @click="doDelete(item.msg)"
+                      >
+                        {{ t('INTERNAL_CHAT.DELETE') }}
+                      </button>
+                      <button
+                        class="text-n-slate-10"
+                        @click="confirmDeleteId = null"
+                      >
+                        {{ t('INTERNAL_CHAT.CANCEL') }}
+                      </button>
+                    </div>
+
                     <p
                       v-if="item.msg.content"
                       class="whitespace-pre-wrap leading-relaxed"
@@ -592,6 +754,11 @@ onMounted(() => {
                         >
                         <template v-else>{{ part.v }}</template>
                       </template>
+                      <span
+                        v-if="item.msg.edited"
+                        class="text-[10px] opacity-60 ml-1 align-baseline"
+                        >{{ t('INTERNAL_CHAT.EDITED') }}</span
+                      >
                     </p>
 
                     <!-- attachments -->
@@ -630,6 +797,29 @@ onMounted(() => {
                       </template>
                     </div>
                   </div>
+
+                  <!-- reaction chips -->
+                  <div
+                    v-if="!item.msg.deleted && reactionEntries(item.msg).length"
+                    class="flex flex-wrap gap-1 mt-1"
+                    :class="isMine(item.msg) ? 'justify-end' : 'justify-start'"
+                  >
+                    <button
+                      v-for="[emoji, users] in reactionEntries(item.msg)"
+                      :key="emoji"
+                      class="inline-flex items-center gap-1 px-1.5 h-5 text-xs rounded-full border transition-colors"
+                      :class="
+                        iReacted(item.msg, emoji)
+                          ? 'border-n-brand bg-n-brand/10 text-n-slate-12'
+                          : 'border-n-weak text-n-slate-11 hover:bg-n-alpha-1'
+                      "
+                      @click="toggleReaction(item.msg, emoji)"
+                    >
+                      <span>{{ emoji }}</span>
+                      <span>{{ users.length }}</span>
+                    </button>
+                  </div>
+
                   <span
                     class="text-[10px] text-n-slate-9 mt-0.5 px-1 opacity-0 group-hover:opacity-100 transition-opacity"
                   >

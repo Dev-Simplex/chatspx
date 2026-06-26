@@ -164,7 +164,9 @@ Rails.application.routes.draw do
             member do
               post :read
             end
-            resources :internal_messages, only: [:index, :create], module: :internal_channels
+            resources :internal_messages, only: [:index, :create, :update, :destroy], module: :internal_channels do
+              member { post :react }
+            end
           end
           resources :agents_for_internal_chat, only: [:index], controller: :internal_chat_agents
           resources :dashboard_apps, only: [:index, :show, :create, :update, :destroy]

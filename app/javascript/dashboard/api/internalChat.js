@@ -38,6 +38,26 @@ class InternalChatAPI extends ApiClient {
     return axios.post(`${this.url}/${channelId}/internal_messages`, formData);
   }
 
+  editMessage(channelId, messageId, content) {
+    return axios.patch(
+      `${this.url}/${channelId}/internal_messages/${messageId}`,
+      { content }
+    );
+  }
+
+  deleteMessage(channelId, messageId) {
+    return axios.delete(
+      `${this.url}/${channelId}/internal_messages/${messageId}`
+    );
+  }
+
+  reactToMessage(channelId, messageId, emoji) {
+    return axios.post(
+      `${this.url}/${channelId}/internal_messages/${messageId}/react`,
+      { emoji }
+    );
+  }
+
   getAgents() {
     return axios.get(`${this.baseUrl()}/agents_for_internal_chat`);
   }

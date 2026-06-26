@@ -22,6 +22,9 @@ Redesenho do `InternalChatIndex.vue` para parecer um chat de verdade (referênci
 - **Dinâmica**: auto-scroll suave ao chegar/enviar, "▼ novas mensagens" quando rolado pra cima, transição de entrada das bolhas.
 
 ## Fase 2 — Básico de mensageria
+> **2A FEITA (2026-06-26):** editar (autor; label "editada"), apagar (autor/admin; soft-delete → "mensagem apagada") e reações com emoji (jsonb `reactions` no internal_messages; toggle; chips com contagem; picker rápido). Migration `20260626120000` (edited_at/deleted_at/reactions). Endpoints update/destroy/react + broadcast `internal.message.updated` (novo `BroadcastService` reusado pelo create). UI: toolbar de hover (reagir/editar/apagar), edição inline, confirm de apagar inline (sem prompt nativo), label "editada". 48 specs verdes; build/lint OK. **Pendentes 2B/2C:** digitando…, recibo de leitura, responder/citar, paginação do histórico.
+
+### Itens originais da Fase 2
 - **Digitando…** em tempo real (broadcast `internal.typing` por pubsub_token; debounce).
 - **Editar / apagar** mensagem (soft-delete: badge "editada"/"apagada"); broadcast de update.
 - **Reações** com emoji (👍❤️✅) — nova tabela `internal_message_reactions` ou jsonb; toggle + contagem.

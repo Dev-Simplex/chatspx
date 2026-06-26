@@ -43,6 +43,7 @@ class ActionCableConnector extends BaseActionCableConnector {
       'copilot.message.created': this.onCopilotMessageCreated,
       'funnel_item.moved': this.onFunnelItemMoved,
       'internal.message.created': this.onInternalMessageCreated,
+      'internal.message.updated': this.onInternalMessageUpdated,
       'internal.mention.created': this.onInternalMentionCreated,
     };
   }
@@ -56,6 +57,11 @@ class ActionCableConnector extends BaseActionCableConnector {
   // Chat interno (Módulo B): a peer posted into one of my internal channels.
   onInternalMessageCreated = data => {
     this.app.$store.dispatch('internalChat/applyIncomingMessage', data);
+  };
+
+  // Chat interno (v2 Fase 2): a message was edited / deleted / reacted-to.
+  onInternalMessageUpdated = data => {
+    this.app.$store.dispatch('internalChat/applyUpdatedMessage', data);
   };
 
   // Chat interno (B2): I was @mentioned. The toast (localized) is fired by the

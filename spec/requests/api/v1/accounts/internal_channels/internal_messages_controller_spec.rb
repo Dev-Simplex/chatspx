@@ -46,4 +46,51 @@ RSpec.describe 'Api::V1::Accounts::InternalChannels::InternalMessagesController'
       expect(response).to have_http_status(:unprocessable_entity)
     end
   end
+
+  describe 'PATCH /internal_messages/:id (edit)' do
+    let(:message) { create(:internal_message, internal_channel: channel, user: alice, content: 'oi') }
+
+    it 'lets the author edit and marks it edited' do
+      patch "/api/v1/accounts/#{account.id}/internal_channels/#{channel.id}/internal_messages/#{message.id}",
+            params: { content: 'oi corrigido' }, headers: alice.create_new_auth_token
+      expect(response).to have_http_status(:success)
+      expect(response.parsed_body['content']).to eq('oi corrigido')
+      expect(response.parsed_body['edited']).to be(true)
+    end
+
+    it 'forbids a non-author from editing' do
+      patch "/api/v1/accounts/#{account.id}/internal_channels/#{channel.id}/internal_messages/#{message.id}",
+            params: { content: 'hack' }, headers: bob.create_new_auth_token
+      expect(response).to have_http_status(:forbidden)
+    end
+  end
+
+  describe 'DELETE /internal_messages/:id' do
+    let(:message) { create(:internal_message, internal_channel: channel, user: alice, content: 'oi') }
+
+    it 'soft-deletes for the author' do
+      delete "/api/v1/accounts/#{account.id}/internal_channels/#{channel.id}/internal_messages/#{message.id}",
+             headers: alice.create_new_auth_token
+      expect(response).to have_http_status(:success)
+      expect(response.parsed_body['deleted']).to be(true)
+      expect(response.parsed_body['content']).to be_nil
+    end
+
+    it 'forbids a non-author non-admin' do
+      delete "/api/v1/accounts/#{account.id}/internal_channels/#{channel.id}/internal_messages/#{message.id}",
+             headers: bob.create_new_auth_token
+      expect(response).to have_http_status(:forbidden)
+    end
+  end
+
+  describe 'POST /internal_messages/:id/react' do
+    let(:message) { create(:internal_message, internal_channel: channel, user: alice, content: 'oi') }
+
+    it 'toggles a reaction for any member' do
+      post "/api/v1/accounts/#{account.id}/internal_channels/#{channel.id}/internal_messages/#{message.id}/react",
+           params: { emoji: '👍' }, headers: bob.create_new_auth_token
+      expect(response).to have_http_status(:success)
+      expect(response.parsed_body['reactions']).to eq('👍' => [bob.id])
+    end
+  end
 end

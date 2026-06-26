@@ -24,7 +24,7 @@ class InternalMessages::CreateService
     attach!(message)
     message.save!
     mark_read!
-    broadcast(message)
+    InternalMessages::BroadcastService.created(message)
     broadcast_mentions(message)
     message
   end
@@ -49,13 +49,6 @@ class InternalMessages::CreateService
     @channel.members.find_by(user_id: @user.id)&.update(last_read_at: Time.current)
   end
 
-  def broadcast(message)
-    tokens = @channel.users.pluck(:pubsub_token).compact
-    return if tokens.blank?
-
-    ActionCableBroadcastJob.perform_later(tokens, 'internal.message.created', payload(message))
-  end
-
   def broadcast_mentions(message)
     return if message.mentioned_user_ids.blank?
 
@@ -67,27 +60,5 @@ class InternalMessages::CreateService
                                             channel_title: @channel.direct? ? @user.name : @channel.name,
                                             from: @user.name
                                           })
-  end
-
-  def payload(message)
-    {
-      internal_channel_id: @channel.id,
-      message: {
-        id: message.id,
-        content: message.content,
-        created_at: message.created_at.to_i,
-        mentioned_user_ids: message.mentioned_user_ids,
-        attachments: message.attachments.map { |a| serialize_attachment(a) },
-        user: { id: @user.id, name: @user.name, avatar_url: @user.try(:avatar_url) }
-      }
-    }
-  end
-
-  def serialize_attachment(attachment)
-    {
-      id: attachment.id,
-      filename: attachment.blob.filename.to_s,
-      url: Rails.application.routes.url_helpers.rails_blob_path(attachment.blob, only_path: true)
-    }
   end
 end

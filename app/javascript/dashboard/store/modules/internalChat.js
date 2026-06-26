@@ -99,6 +99,37 @@ export const actions = {
     commit('BUMP_UNREAD', channelId);
   },
 
+  // Real-time: a message was edited / deleted / reacted-to.
+  applyUpdatedMessage: ({ commit }, payload) => {
+    commit('UPDATE_MESSAGE', {
+      channelId: payload.internal_channel_id,
+      message: payload.message,
+    });
+  },
+
+  editMessage: async ({ commit }, { channelId, messageId, content }) => {
+    const { data } = await InternalChatAPI.editMessage(
+      channelId,
+      messageId,
+      content
+    );
+    commit('UPDATE_MESSAGE', { channelId, message: data });
+  },
+
+  deleteMessage: async ({ commit }, { channelId, messageId }) => {
+    const { data } = await InternalChatAPI.deleteMessage(channelId, messageId);
+    commit('UPDATE_MESSAGE', { channelId, message: data });
+  },
+
+  reactToMessage: async ({ commit }, { channelId, messageId, emoji }) => {
+    const { data } = await InternalChatAPI.reactToMessage(
+      channelId,
+      messageId,
+      emoji
+    );
+    commit('UPDATE_MESSAGE', { channelId, message: data });
+  },
+
   // Real-time: I was @mentioned. A fresh object (with `at`) guarantees the
   // always-mounted Sidebar watcher fires even for repeated mentions.
   applyIncomingMention: ({ commit }, data) => {
@@ -138,6 +169,18 @@ export const mutations = {
     $state.messagesByChannel = {
       ...$state.messagesByChannel,
       [channelId]: [...existing, message],
+    };
+  },
+  UPDATE_MESSAGE($state, { channelId, message }) {
+    const existing = $state.messagesByChannel[channelId];
+    if (!existing) return;
+    const idx = existing.findIndex(m => m.id === message.id);
+    if (idx === -1) return;
+    const next = existing.slice();
+    next.splice(idx, 1, message);
+    $state.messagesByChannel = {
+      ...$state.messagesByChannel,
+      [channelId]: next,
     };
   },
   CLEAR_UNREAD($state, channelId) {

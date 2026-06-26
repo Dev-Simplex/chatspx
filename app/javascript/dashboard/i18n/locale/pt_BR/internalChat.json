@@ -23,6 +23,13 @@
     "YESTERDAY": "Ontem",
     "DIRECT": "Mensagem direta",
     "MEMBERS_COUNT": "{count} membros",
-    "LOADING": "Carregando…"
+    "LOADING": "Carregando…",
+    "DELETED": "Mensagem apagada",
+    "EDITED": "(editada)",
+    "EDIT": "Editar",
+    "DELETE": "Apagar",
+    "REACT": "Reagir",
+    "DELETE_Q": "Apagar mensagem?",
+    "SAVE_EDIT": "Salvar"
   }
 }

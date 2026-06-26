@@ -23,6 +23,13 @@
     "YESTERDAY": "Yesterday",
     "DIRECT": "Direct message",
     "MEMBERS_COUNT": "{count} members",
-    "LOADING": "Loading…"
+    "LOADING": "Loading…",
+    "DELETED": "Message deleted",
+    "EDITED": "(edited)",
+    "EDIT": "Edit",
+    "DELETE": "Delete",
+    "REACT": "React",
+    "DELETE_Q": "Delete message?",
+    "SAVE_EDIT": "Save"
   }
 }
