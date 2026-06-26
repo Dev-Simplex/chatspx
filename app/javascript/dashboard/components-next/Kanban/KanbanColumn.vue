@@ -26,6 +26,11 @@ const props = defineProps({
     type: Object,
     default: () => ({}),
   },
+  // When true, cards waiting the longest float to the top of the column.
+  prioritizeWaiting: {
+    type: Boolean,
+    default: true,
+  },
 });
 
 const emit = defineEmits([
@@ -40,7 +45,8 @@ const emit = defineEmits([
 
 const store = useStore();
 const { t } = useI18n();
-const { accent, softBg, heatLevel, slaLevel } = useStageColor();
+const { accent, softBg, heatLevel, slaLevel, waitSignal, waitSortKey } =
+  useStageColor();
 
 const showStageMenu = ref(false);
 const observerLocked = ref(false);
@@ -186,9 +192,23 @@ const stageAggregates = computed(() => {
   }));
 });
 
+// Pull the two timestamps the wait signal needs from a (resolved) conversation.
+const waitInputs = conversation => {
+  const c = conversation || {};
+  return {
+    waitingSince: c.waitingSince || c.waiting_since || null,
+    lastActivity:
+      c.lastActivityAt ||
+      c.last_activity_at ||
+      c.lastMessage?.created_at ||
+      c.last_message?.created_at ||
+      null,
+  };
+};
+
 const itemsWithConversations = computed(() => {
   const source = props.items || [];
-  return source.map(item => {
+  const mapped = source.map(item => {
     const conversationKey = String(
       item.conversation?.displayId ||
         item.conversation?.display_id ||
@@ -208,6 +228,18 @@ const itemsWithConversations = computed(() => {
         },
     };
   });
+
+  if (!props.prioritizeWaiting) return mapped;
+
+  // Stable sort by wait priority (DESC), preserving the keyset order from the
+  // backend between cards with equal keys (idx ASC tiebreaker).
+  return mapped
+    .map((item, idx) => {
+      const { waitingSince, lastActivity } = waitInputs(item.conversation);
+      return { item, idx, key: waitSortKey(waitingSince, lastActivity) };
+    })
+    .sort((a, b) => b.key - a.key || a.idx - b.idx)
+    .map(entry => entry.item);
 });
 
 const pendingScheduledTotal = computed(() => {
@@ -246,6 +278,15 @@ const coldCount = computed(
         c.lastMessage?.created_at ||
         c.last_message?.created_at;
       return heatLevel(lastActivity) === 'cold';
+    }).length
+);
+
+// Cards where the customer is waiting on a reply (the urgent backlog).
+const awaitingCount = computed(
+  () =>
+    itemsWithConversations.value.filter(item => {
+      const { waitingSince, lastActivity } = waitInputs(item.conversation);
+      return waitSignal(waitingSince, lastActivity).kind === 'awaiting';
     }).length
 );
 
@@ -350,7 +391,7 @@ const handleColumnObserved = async () => {
 
 <template>
   <div
-    class="kanban-column relative flex h-full flex-shrink-0 flex-col overflow-hidden rounded-xl bg-n-slate-2/50 dark:bg-n-solid-2"
+    class="kanban-column relative flex h-full flex-shrink-0 flex-col overflow-hidden rounded-[var(--kanban-radius-xl)] bg-n-slate-2/50 dark:bg-n-solid-2"
     :class="collapsed ? 'kanban-column--collapsed' : 'kanban-column--expanded'"
     :style="{ '--col-wash': columnWash }"
   >
@@ -427,7 +468,7 @@ const handleColumnObserved = async () => {
               :title="t('KANBAN.STAGES.COLLAPSE')"
               :aria-label="t('KANBAN.STAGES.COLLAPSE')"
               :aria-expanded="!collapsed"
-              class="kanban-focusable !size-7 !p-0 rounded-[var(--kanban-radius-md)] text-n-slate-10 opacity-0 transition-opacity hover:bg-n-slate-3/50 group-hover:opacity-100"
+              class="kanban-focusable !size-7 !p-0 rounded-[var(--kanban-radius-md)] text-n-slate-10 transition-opacity hover:bg-n-slate-3/50 md:opacity-0 md:group-hover:opacity-100"
               @click.stop="toggleCollapsed"
             />
             <div class="relative">
@@ -436,30 +477,35 @@ const handleColumnObserved = async () => {
                 variant="ghost"
                 icon="i-lucide-more-vertical"
                 :aria-label="t('KANBAN.STAGES.TITLE')"
-                class="kanban-focusable !size-7 !p-0 rounded-[var(--kanban-radius-md)] text-n-slate-10 opacity-0 transition-opacity hover:bg-n-slate-3/50 group-hover:opacity-100"
+                class="kanban-focusable !size-7 !p-0 rounded-[var(--kanban-radius-md)] text-n-slate-10 transition-opacity hover:bg-n-slate-3/50 md:opacity-0 md:group-hover:opacity-100"
                 @click.stop="showStageMenu = !showStageMenu"
               />
 
-              <div
-                v-if="showStageMenu"
-                class="absolute right-0 top-8 z-20 w-48 rounded-xl border border-n-weak bg-n-solid-1 py-1 shadow-lg"
-                @click.stop
-              >
-                <button
-                  class="flex w-full items-center gap-2 px-4 py-2 text-left text-sm text-n-slate-11 transition-colors hover:bg-n-solid-3"
-                  @click="handleEditStage"
+              <template v-if="showStageMenu">
+                <div
+                  class="fixed inset-0 z-20"
+                  @click="showStageMenu = false"
+                />
+                <div
+                  class="absolute right-0 top-8 z-30 w-48 rounded-[var(--kanban-radius-xl)] border border-n-weak bg-n-solid-1 py-1 shadow-lg"
+                  @click.stop
                 >
-                  <Icon icon="i-lucide-edit" class="size-4" />
-                  {{ t('KANBAN.STAGES.EDIT') }}
-                </button>
-                <button
-                  class="flex w-full items-center gap-2 px-4 py-2 text-left text-sm text-ruby-11 transition-colors hover:bg-n-ruby-3"
-                  @click="handleDeleteStage"
-                >
-                  <Icon icon="i-lucide-trash" class="size-4" />
-                  {{ t('KANBAN.STAGES.DELETE') }}
-                </button>
-              </div>
+                  <button
+                    class="flex w-full items-center gap-2 px-4 py-2 text-left text-sm text-n-slate-11 transition-colors hover:bg-n-solid-3"
+                    @click="handleEditStage"
+                  >
+                    <Icon icon="i-lucide-edit" class="size-4" />
+                    {{ t('KANBAN.STAGES.EDIT') }}
+                  </button>
+                  <button
+                    class="flex w-full items-center gap-2 px-4 py-2 text-left text-sm text-n-ruby-11 transition-colors hover:bg-n-ruby-3"
+                    @click="handleDeleteStage"
+                  >
+                    <Icon icon="i-lucide-trash" class="size-4" />
+                    {{ t('KANBAN.STAGES.DELETE') }}
+                  </button>
+                </div>
+              </template>
             </div>
           </div>
         </div>
@@ -521,7 +567,7 @@ const handleColumnObserved = async () => {
         <template #footer>
           <div
             v-if="!isStageLoaded && !isLoadingStage"
-            class="rounded-lg border border-dashed border-n-weak bg-n-solid-3 px-3 py-5 text-center"
+            class="rounded-[var(--kanban-radius-lg)] border border-dashed border-n-weak bg-n-solid-3 px-3 py-5 text-center"
           >
             <p class="mb-3 text-sm text-n-slate-10">
               {{
@@ -537,7 +583,7 @@ const handleColumnObserved = async () => {
 
           <div
             v-else-if="itemsWithConversations.length === 0"
-            class="rounded-lg border border-dashed border-n-weak bg-n-solid-3/60 px-3 py-8 text-center"
+            class="rounded-[var(--kanban-radius-lg)] border border-dashed border-n-weak bg-n-solid-3/60 px-3 py-8 text-center"
           >
             <div
               class="mx-auto mb-2.5 flex size-11 items-center justify-center rounded-full"
@@ -587,6 +633,14 @@ const handleColumnObserved = async () => {
         class="flex shrink-0 items-center gap-2 border-t border-n-weak px-3 py-1.5 text-[11px] font-medium text-n-slate-10"
       >
         <span>{{ t('KANBAN.FOOTER.CARDS', { count: items.length }) }}</span>
+        <span
+          v-if="awaitingCount"
+          class="flex items-center gap-1 font-semibold text-n-ruby-11"
+          :title="t('KANBAN.FOOTER.AWAITING', { count: awaitingCount })"
+        >
+          <Icon icon="i-lucide-bell-ring" class="size-3" />
+          {{ awaitingCount }}
+        </span>
         <span
           v-if="unassignedCount"
           class="flex items-center gap-1 text-n-slate-11"

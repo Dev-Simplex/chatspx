@@ -310,7 +310,7 @@ onBeforeUnmount(() => {
               v-model="searchQuery"
               type="text"
               :placeholder="t('KANBAN.SCHEDULED_MESSAGES.SEARCH_PLACEHOLDER')"
-              class="w-full rounded-xl border border-n-weak bg-n-solid-1 py-2.5 pl-9 pr-3 text-sm text-n-slate-12 focus:outline-none focus:ring-2 focus:ring-n-teal-9"
+              class="w-full rounded-xl border border-n-weak bg-n-solid-1 py-2.5 pl-9 pr-3 text-sm text-n-slate-12 focus:outline-none focus:ring-2 focus:ring-n-brand"
             />
           </div>
 

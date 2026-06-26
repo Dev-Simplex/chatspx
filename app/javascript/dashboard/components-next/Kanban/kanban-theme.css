@@ -24,6 +24,14 @@
   /* Card aging (heat) — warm = amber, cold = ruby */
   --kanban-heat-warm: 245, 158, 11; /* amber-500 rgb */
   --kanban-heat-cold: 239, 68, 68; /* red-500 rgb */
+
+  /* Wait priority — amber→orange→red→deep-red ramp by escalation level,
+     plus a calm blue for the secondary "stalled" signal. */
+  --kanban-wait-l1: #f59e0b; /* amber-500  — just started waiting */
+  --kanban-wait-l2: #f97316; /* orange-500 — >=30min */
+  --kanban-wait-l3: #ef4444; /* red-500    — >=2h */
+  --kanban-wait-l4: #b91c1c; /* red-700    — >=8h (critical) */
+  --kanban-wait-stalled: #3b82f6; /* blue-500 — quiet, agent spoke last */
 }
 
 .dark {
@@ -34,6 +42,35 @@
   --kanban-glass-bg: rgba(20, 22, 28, 0.55);
   --kanban-heat-warm: 251, 191, 36; /* amber-400 — brighter on dark */
   --kanban-heat-cold: 248, 113, 113; /* red-400 */
+
+  /* Wait ramp — brightened a notch so the edge rails read on dark surfaces. */
+  --kanban-wait-l1: #fbbf24; /* amber-400 */
+  --kanban-wait-l2: #fb923c; /* orange-400 */
+  --kanban-wait-l3: #f87171; /* red-400 */
+  --kanban-wait-l4: #ef4444; /* red-500 */
+  --kanban-wait-stalled: #60a5fa; /* blue-400 */
+}
+
+/* Color picker — the native <input type="color"> draws a square swatch with
+   its own border/padding, which clashes with the rounded wrapper. Strip the
+   chrome and round the inner swatch so the color fills the rounded frame. */
+.kanban-color-input {
+  padding: 0;
+  background: none;
+  cursor: pointer;
+  border-radius: var(--kanban-radius-md);
+  overflow: hidden;
+}
+.kanban-color-input::-webkit-color-swatch-wrapper {
+  padding: 0;
+}
+.kanban-color-input::-webkit-color-swatch {
+  border: none;
+  border-radius: var(--kanban-radius-md);
+}
+.kanban-color-input::-moz-color-swatch {
+  border: none;
+  border-radius: var(--kanban-radius-md);
 }
 
 /* Phase 6 — accessible focus ring for every interactive Kanban element.
@@ -180,6 +217,19 @@
   animation: none;
 }
 
+/* Critical wait rail (level 4) — a subtle breathing pulse to pull the eye. */
+@keyframes kanban-wait-pulse {
+  0%,
+  100% {
+    opacity: 1;
+    transform: scaleX(1);
+  }
+  50% {
+    opacity: 0.55;
+    transform: scaleX(1.6);
+  }
+}
+
 /* Phase 6 — single consolidated reduced-motion guard for the whole board. */
 @media (prefers-reduced-motion: reduce) {
   .kanban-card {
@@ -189,6 +239,10 @@
   .kanban-card:hover,
   .kanban-card:active {
     transform: none;
+  }
+
+  .kanban-card__wait-rail.is-critical {
+    animation: none;
   }
 
   .kanban-skeleton::after {

@@ -18,6 +18,7 @@ if resource.conversation.present?
     json.account_id resource.conversation.account_id
     json.assignee_id resource.conversation.assignee_id
     json.last_activity_at resource.conversation.last_activity_at
+    json.waiting_since resource.conversation.waiting_since
     # Kanban v2 (Fase 2): only this funnel's namespaced custom field values.
     funnel_attrs = (resource.conversation.custom_attributes || {}).select do |key, _|
       key.to_s.start_with?("funnel_#{resource.funnel_id}_")

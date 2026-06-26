@@ -568,7 +568,7 @@ const handleDeleteFunnel = async () => {
           id="funnel-name"
           v-model="formData.name"
           type="text"
-          class="w-full px-4 !py-3 !h-12 border border-n-weak rounded-xl bg-n-solid-1 text-n-slate-12 text-sm leading-5 focus:outline-none focus:ring-2 focus:ring-n-teal-9"
+          class="w-full px-4 !py-3 !h-12 border border-n-weak rounded-xl bg-n-solid-1 text-n-slate-12 text-sm leading-5 focus:outline-none focus:ring-2 focus:ring-n-brand"
           :placeholder="t('KANBAN.FUNNELS.NAME_PLACEHOLDER')"
           @keydown.enter.prevent="save"
         />
@@ -590,7 +590,7 @@ const handleDeleteFunnel = async () => {
             id="funnel-color"
             v-model="formData.color"
             type="color"
-            class="w-16 h-16 border border-n-weak rounded-xl cursor-pointer"
+            class="kanban-color-input w-12 h-12 border border-n-weak"
           />
           <div
             class="flex-1 px-4 py-3 border border-n-weak rounded-xl bg-n-solid-1 text-n-slate-12 font-mono"
@@ -631,7 +631,7 @@ const handleDeleteFunnel = async () => {
                 type="checkbox"
                 :value="inbox.id"
                 :checked="formData.inbox_ids.includes(inbox.id)"
-                class="w-4 h-4 text-n-teal-9 border-n-weak rounded focus:ring-2 focus:ring-n-teal-9 cursor-pointer"
+                class="w-4 h-4 text-n-teal-9 border-n-weak rounded focus:ring-2 focus:ring-n-brand cursor-pointer"
                 @click.stop
                 @change="toggleInbox(inbox.id)"
               />
@@ -789,7 +789,7 @@ const handleDeleteFunnel = async () => {
                   :id="`stage-name-${index}`"
                   v-model="stage.name"
                   type="text"
-                  class="w-full px-3 py-2 border border-n-weak rounded-xl bg-n-solid-1 text-n-slate-12 focus:outline-none focus:ring-2 focus:ring-n-teal-9 text-sm"
+                  class="w-full px-3 py-2 border border-n-weak rounded-xl bg-n-solid-1 text-n-slate-12 focus:outline-none focus:ring-2 focus:ring-n-brand text-sm"
                   :placeholder="t('KANBAN.STAGES.NAME_PLACEHOLDER')"
                   :disabled="isDefaultStage(stage)"
                 />
@@ -807,7 +807,7 @@ const handleDeleteFunnel = async () => {
                       :id="`stage-color-${index}`"
                       v-model="stage.color"
                       type="color"
-                      class="w-10 h-10 border border-n-weak rounded-xl cursor-pointer"
+                      class="kanban-color-input w-10 h-10 border border-n-weak"
                       :disabled="isDefaultStage(stage)"
                     />
                     <span class="text-xs text-n-slate-10 font-mono">{{
@@ -826,7 +826,7 @@ const handleDeleteFunnel = async () => {
                 <select
                   :id="`stage-automation-${index}`"
                   v-model="stage.automation_type"
-                  class="w-full px-3 py-2 border border-n-weak rounded-xl bg-n-solid-1 text-n-slate-12 focus:outline-none focus:ring-2 focus:ring-n-teal-9 text-sm disabled:opacity-75 disabled:cursor-not-allowed"
+                  class="w-full px-3 py-2 border border-n-weak rounded-xl bg-n-solid-1 text-n-slate-12 focus:outline-none focus:ring-2 focus:ring-n-brand text-sm disabled:opacity-75 disabled:cursor-not-allowed"
                   :disabled="isDefaultStage(stage)"
                 >
                   <option :value="null">

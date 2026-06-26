@@ -136,6 +136,10 @@
         "BREACH": "SLA estourado",
         "RISK_TITLE": "Perto de estourar o SLA de {hours}h do estágio",
         "BREACH_TITLE": "SLA de {hours}h do estágio estourado"
+      },
+      "WAIT": {
+        "AWAITING": "Aguardando resposta há {time}",
+        "STALLED": "Parada há {time}"
       }
     },
     "PREVIEW": {
@@ -159,6 +163,9 @@
       "ON": "Mostrar capas de etiqueta",
       "OFF": "Ocultar capas de etiqueta"
     },
+    "TOOLBAR": {
+      "PRIORITIZE_WAITING": "Priorizar por tempo de espera"
+    },
     "WIP": {
       "SET": "Definir limite WIP",
       "PROMPT": "Máximo de cards neste estágio (deixe vazio para remover):",
@@ -173,6 +180,7 @@
       "SCHEDULED": "{count} agendadas",
       "UNASSIGNED": "{count} sem responsável",
       "COLD": "{count} parados",
+      "AWAITING": "{count} aguardando resposta",
       "OVERDUE": "SLA estourado em {count} card | SLA estourado em {count} cards"
     },
     "SCHEDULED_MESSAGES": {

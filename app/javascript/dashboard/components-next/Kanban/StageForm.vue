@@ -6,6 +6,7 @@ import Dialog from 'dashboard/components-next/dialog/Dialog.vue';
 import Button from 'dashboard/components-next/button/Button.vue';
 import Icon from 'dashboard/components-next/icon/Icon.vue';
 import { useAlert } from 'dashboard/composables';
+import { useStageColor } from './composables/useStageColor';
 
 const props = defineProps({
   show: {
@@ -26,6 +27,7 @@ const emit = defineEmits(['close', 'saved']);
 
 const store = useStore();
 const { t } = useI18n();
+const { normalizeHex } = useStageColor();
 
 const DEFAULT_SLA_HOURS = 24;
 
@@ -38,6 +40,11 @@ const formData = ref({
 });
 
 const slaEnabled = ref(false);
+
+// Snap a hand-typed hex back to a valid value when the field loses focus.
+const sanitizeColor = () => {
+  formData.value.color = normalizeHex(formData.value.color);
+};
 
 const dialogRef = ref(null);
 const isLoading = ref(false);
@@ -241,7 +248,7 @@ const save = async () => {
           id="stage-form-name"
           v-model="formData.name"
           type="text"
-          class="w-full px-4 !py-3 !h-12 border border-n-weak rounded-xl bg-n-solid-1 text-n-slate-12 text-sm leading-5 focus:outline-none focus:ring-2 focus:ring-n-teal-9"
+          class="w-full px-4 !py-3 !h-12 border border-n-weak rounded-xl bg-n-solid-1 text-n-slate-12 text-sm leading-5 focus:outline-none focus:ring-2 focus:ring-n-brand"
           :placeholder="t('KANBAN.STAGES.NAME_PLACEHOLDER')"
           @keydown.enter.prevent="save"
         />
@@ -263,13 +270,18 @@ const save = async () => {
             id="stage-form-color"
             v-model="formData.color"
             type="color"
-            class="w-12 h-12 border border-n-weak rounded-xl cursor-pointer"
+            class="kanban-color-input w-12 h-12 border border-n-weak"
           />
-          <span
-            class="px-4 py-3 border border-n-weak rounded-xl bg-n-solid-1 text-n-slate-12 font-mono text-sm"
-          >
-            {{ formData.color }}
-          </span>
+          <input
+            v-model="formData.color"
+            type="text"
+            maxlength="7"
+            spellcheck="false"
+            :aria-label="t('KANBAN.STAGES.COLOR')"
+            class="w-28 px-4 py-3 border border-n-weak rounded-xl bg-n-solid-1 text-n-slate-12 font-mono text-sm uppercase focus:outline-none focus:ring-2 focus:ring-n-brand"
+            @blur="sanitizeColor"
+            @keydown.enter.prevent="save"
+          />
         </div>
       </div>
 
@@ -287,7 +299,7 @@ const save = async () => {
         <select
           id="stage-form-automation"
           v-model="formData.automation_type"
-          class="w-full px-4 py-3 border border-n-weak rounded-xl bg-n-solid-1 text-n-slate-12 focus:outline-none focus:ring-2 focus:ring-n-teal-9 text-sm"
+          class="w-full px-4 py-3 border border-n-weak rounded-xl bg-n-solid-1 text-n-slate-12 focus:outline-none focus:ring-2 focus:ring-n-brand text-sm"
         >
           <option :value="null">{{ t('KANBAN.STAGES.NO_AUTOMATION') }}</option>
           <option value="open">{{ t('KANBAN.STAGES.AUTOMATION_OPEN') }}</option>
@@ -314,7 +326,7 @@ const save = async () => {
           type="number"
           min="1"
           step="1"
-          class="w-full px-4 !py-3 !h-12 border border-n-weak rounded-xl bg-n-solid-1 text-n-slate-12 text-sm leading-5 focus:outline-none focus:ring-2 focus:ring-n-teal-9"
+          class="w-full px-4 !py-3 !h-12 border border-n-weak rounded-xl bg-n-solid-1 text-n-slate-12 text-sm leading-5 focus:outline-none focus:ring-2 focus:ring-n-brand"
           :placeholder="t('KANBAN.STAGES.WIP_PLACEHOLDER')"
           @keydown.enter.prevent="save"
         />
@@ -328,7 +340,7 @@ const save = async () => {
           <input
             v-model="slaEnabled"
             type="checkbox"
-            class="size-4 rounded border-n-weak text-n-teal-9 focus:ring-n-teal-9 cursor-pointer"
+            class="size-4 rounded border-n-weak text-n-teal-9 focus:ring-n-brand cursor-pointer"
           />
           <Icon icon="i-lucide-clock" class="size-4" />
           {{ t('KANBAN.STAGES.SLA_ENABLE') }}
@@ -340,7 +352,7 @@ const save = async () => {
             type="number"
             min="1"
             step="1"
-            class="w-full px-4 !py-3 !h-12 border border-n-weak rounded-xl bg-n-solid-1 text-n-slate-12 text-sm leading-5 focus:outline-none focus:ring-2 focus:ring-n-teal-9"
+            class="w-full px-4 !py-3 !h-12 border border-n-weak rounded-xl bg-n-solid-1 text-n-slate-12 text-sm leading-5 focus:outline-none focus:ring-2 focus:ring-n-brand"
             :placeholder="t('KANBAN.STAGES.SLA_HOURS_PLACEHOLDER')"
             @keydown.enter.prevent="save"
           />

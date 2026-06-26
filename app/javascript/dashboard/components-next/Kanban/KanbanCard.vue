@@ -51,7 +51,7 @@ const emit = defineEmits(['move', 'schedule-message', 'remove', 'preview']);
 const router = useRouter();
 const store = useStore();
 const { t, locale } = useI18n();
-const { softBg, contrastText, heatLevel, stageAgeLevel, slaLevel } =
+const { softBg, contrastText, heatLevel, stageAgeLevel, slaLevel, waitSignal } =
   useStageColor();
 
 const getContactById = useMapGetter('contacts/getContactById');
@@ -318,6 +318,45 @@ const heatPillClass = computed(() =>
     : 'bg-n-amber-3 text-n-amber-11'
 );
 
+// ── Wait priority — the loudest signal: someone is waiting (or it stalled) ─
+// 'awaiting' (customer waiting on a reply, escalates by level) | 'stalled'
+// (agent spoke last, then silence) | 'none'. Outranks heat/SLA visually.
+const waitingSinceRaw = computed(
+  () =>
+    props.conversation?.waitingSince ||
+    props.conversation?.waiting_since ||
+    null
+);
+const waitInfo = computed(() =>
+  waitSignal(waitingSinceRaw.value, lastActivityRaw.value)
+);
+// Relative date that the pill/tooltip describe: the awaiting clock starts at
+// waiting_since; a stalled card is measured from its last activity.
+const waitDate = computed(() => {
+  const raw =
+    waitInfo.value.kind === 'awaiting'
+      ? waitingSinceRaw.value
+      : lastActivityRaw.value;
+  if (!raw) return null;
+  const value = typeof raw === 'number' ? raw * 1000 : raw;
+  const date = new Date(value);
+  return Number.isNaN(date.getTime()) ? null : date;
+});
+const waitTime = computed(() => {
+  if (!waitDate.value) return '';
+  return formatDistanceToNowStrict(waitDate.value, {
+    addSuffix: false,
+    locale: dateLocale.value,
+  });
+});
+const waitTitle = computed(() => {
+  if (waitInfo.value.kind === 'awaiting')
+    return t('KANBAN.CARD.WAIT.AWAITING', { time: waitTime.value });
+  if (waitInfo.value.kind === 'stalled')
+    return t('KANBAN.CARD.WAIT.STALLED', { time: waitTime.value });
+  return '';
+});
+
 // ── Time-in-stage (pipeline signal) — distinct from the idle thermometer ─
 const movedAtRaw = computed(
   () => props.item?.movedAt || props.item?.moved_at || null
@@ -425,13 +464,102 @@ const pendingScheduledCount = computed(() => {
   ).length;
 });
 
+// ── Footer signal pills — one prioritized, capped list instead of a row of
+// competing badges. Order = most actionable first; the cap hides the least
+// urgent into a "+N" chip so only the loudest signals fight for attention.
+const MAX_FOOTER_SIGNALS = 3;
+
+// Plain (neutral) relative timestamp only when no "hot" temporal signal applies.
+const showPlainTime = computed(
+  () =>
+    Boolean(relativeTime.value) &&
+    waitInfo.value.kind === 'none' &&
+    !isAging.value
+);
+
+const signalPills = computed(() => {
+  const pills = [];
+
+  // 1. Temporal signal — awaiting > stalled > aging (mutually exclusive).
+  if (waitInfo.value.kind === 'awaiting') {
+    pills.push({
+      key: 'wait',
+      icon: 'i-lucide-bell-ring',
+      text: t('KANBAN.CARD.WAIT.AWAITING', { time: waitTime.value }),
+      class: 'bg-n-ruby-3 text-n-ruby-11 font-semibold',
+      title: waitTitle.value,
+    });
+  } else if (waitInfo.value.kind === 'stalled') {
+    pills.push({
+      key: 'stalled',
+      icon: 'i-lucide-moon',
+      text: t('KANBAN.CARD.WAIT.STALLED', { time: waitTime.value }),
+      class: 'bg-n-blue-3 text-n-blue-11',
+      title: waitTitle.value,
+    });
+  } else if (isAging.value) {
+    pills.push({
+      key: 'aging',
+      icon: heatIcon.value,
+      text: relativeTime.value,
+      class: heatPillClass.value,
+      title: heatTitle.value,
+    });
+  }
+
+  // 2. SLA risk/breach.
+  if (hasSlaSignal.value) {
+    pills.push({
+      key: 'sla',
+      icon: 'i-lucide-gauge',
+      text: slaPillLabel.value,
+      class: slaPillClass.value,
+      title: slaTitle.value,
+    });
+  }
+
+  // 3. Stuck in stage too long.
+  if (isStuckInStage.value) {
+    pills.push({
+      key: 'stage',
+      icon: 'i-lucide-hourglass',
+      text: stageTime.value,
+      class: stageAgePillClass.value,
+      title: stageAgeTitle.value,
+    });
+  }
+
+  // 4. Pending scheduled messages (least urgent → first to collapse).
+  if (pendingScheduledCount.value) {
+    pills.push({
+      key: 'scheduled',
+      icon: 'i-lucide-send',
+      text: String(pendingScheduledCount.value),
+      class: 'bg-n-teal-3 text-n-teal-11',
+      title: t('KANBAN.SCHEDULED_MESSAGES.TITLE'),
+    });
+  }
+
+  return pills;
+});
+
+const visibleSignalPills = computed(() =>
+  signalPills.value.slice(0, MAX_FOOTER_SIGNALS)
+);
+const hiddenSignalPills = computed(() =>
+  signalPills.value.slice(MAX_FOOTER_SIGNALS)
+);
+const overflowTitle = computed(() =>
+  hiddenSignalPills.value.map(pill => `${pill.text}`).join(' · ')
+);
+
 const statusColor = computed(() => {
   const status = props.conversation?.status || 'open';
   const statusMap = {
-    open: 'bg-green-600',
-    pending: 'bg-yellow-500',
+    open: 'bg-n-teal-9',
+    pending: 'bg-n-amber-9',
     resolved: 'bg-n-slate-9',
-    snoozed: 'bg-blue-500',
+    snoozed: 'bg-n-blue-9',
   };
   return statusMap[status] || 'bg-n-slate-9';
 });
@@ -526,9 +654,24 @@ const handleCardClick = event => {
     @click="handleCardClick"
     @mousedown="handleMouseDown"
   >
+    <!-- Wait rail — strongest signal, takes precedence over SLA/heat rails -->
+    <div
+      v-if="waitInfo.kind === 'awaiting'"
+      class="kanban-card__heat kanban-card__wait-rail"
+      :class="[
+        `kanban-card__wait-rail--l${waitInfo.level}`,
+        { 'is-critical': waitInfo.level === 4 },
+      ]"
+      :title="waitTitle"
+    />
+    <div
+      v-else-if="waitInfo.kind === 'stalled'"
+      class="kanban-card__heat kanban-card__wait-rail kanban-card__wait-rail--stalled"
+      :title="waitTitle"
+    />
     <!-- SLA rail (risk/breach) — takes precedence over the idle heat rail -->
     <div
-      v-if="hasSlaSignal"
+      v-else-if="hasSlaSignal"
       class="kanban-card__heat kanban-card__sla-rail"
       :style="{ background: slaRailColor }"
       :title="slaTitle"
@@ -561,7 +704,7 @@ const handleCardClick = event => {
           v-for="label in visibleLabels"
           :key="label.title"
           type="button"
-          class="kanban-label kanban-focusable inline-flex max-w-[124px] items-center gap-1 truncate rounded-[6px] px-1.5 py-0.5 text-[11px] font-medium leading-none text-n-slate-12 transition hover:brightness-105"
+          class="kanban-label kanban-focusable inline-flex max-w-[124px] items-center gap-1 truncate rounded-[var(--kanban-radius-sm)] px-1.5 py-0.5 text-[11px] font-medium leading-none text-n-slate-12 transition hover:brightness-105"
           :class="{
             'ring-1 ring-offset-1 ring-offset-n-solid-1': isLabelActive(label),
           }"
@@ -580,7 +723,7 @@ const handleCardClick = event => {
         </button>
         <span
           v-if="extraLabelCount"
-          class="inline-flex items-center rounded-[6px] bg-n-slate-3 px-1.5 py-0.5 text-[11px] font-medium leading-none text-n-slate-11"
+          class="inline-flex items-center rounded-[var(--kanban-radius-sm)] bg-n-slate-3 px-1.5 py-0.5 text-[11px] font-medium leading-none text-n-slate-11"
         >
           {{ `+${extraLabelCount}` }}
         </span>
@@ -654,7 +797,7 @@ const handleCardClick = event => {
         <span
           v-for="chip in customFieldChips"
           :key="chip.key"
-          class="inline-flex max-w-[150px] items-center gap-1 truncate rounded-[6px] bg-n-slate-3 px-1.5 py-0.5 text-[11px] font-medium leading-none text-n-slate-11"
+          class="inline-flex max-w-[150px] items-center gap-1 truncate rounded-[var(--kanban-radius-sm)] bg-n-slate-3 px-1.5 py-0.5 text-[11px] font-medium leading-none text-n-slate-11"
           :title="`${chip.label}: ${chip.value}`"
         >
           <Icon :icon="chip.icon" class="size-2.5 shrink-0 text-n-slate-10" />
@@ -667,49 +810,35 @@ const handleCardClick = event => {
         class="flex items-center justify-between gap-2 border-t border-n-weak pt-2"
       >
         <div class="flex min-w-0 items-center gap-2 text-n-slate-10">
+          <!-- Neutral timestamp — only when no hot temporal signal applies -->
           <span
-            v-if="relativeTime && !isAging"
+            v-if="showPlainTime"
             class="flex shrink-0 items-center gap-1 text-[11px]"
             :title="relativeTime"
           >
             <Icon icon="i-lucide-clock-3" class="size-3" />
             {{ relativeTime }}
           </span>
+
+          <!-- Prioritized signal pills (capped) — loudest signals win the row -->
           <span
-            v-else-if="isAging"
+            v-for="pill in visibleSignalPills"
+            :key="pill.key"
             class="flex shrink-0 items-center gap-1 rounded-full px-1.5 py-0.5 text-[11px] font-medium"
-            :class="heatPillClass"
-            :title="heatTitle"
+            :class="pill.class"
+            :title="pill.title"
           >
-            <Icon :icon="heatIcon" class="size-3" />
-            {{ relativeTime }}
+            <Icon :icon="pill.icon" class="size-3" />
+            {{ pill.text }}
           </span>
           <span
-            v-if="isStuckInStage"
-            class="flex shrink-0 items-center gap-1 rounded-full px-1.5 py-0.5 text-[11px] font-medium"
-            :class="stageAgePillClass"
-            :title="stageAgeTitle"
+            v-if="hiddenSignalPills.length"
+            class="flex shrink-0 items-center rounded-full bg-n-slate-3 px-1.5 py-0.5 text-[11px] font-medium text-n-slate-11"
+            :title="overflowTitle"
           >
-            <Icon icon="i-lucide-hourglass" class="size-3" />
-            {{ stageTime }}
+            {{ `+${hiddenSignalPills.length}` }}
           </span>
-          <span
-            v-if="hasSlaSignal"
-            class="flex shrink-0 items-center gap-1 rounded-full px-1.5 py-0.5 text-[11px] font-medium"
-            :class="slaPillClass"
-            :title="slaTitle"
-          >
-            <Icon icon="i-lucide-gauge" class="size-3" />
-            {{ slaPillLabel }}
-          </span>
-          <span
-            v-if="pendingScheduledCount"
-            class="flex shrink-0 items-center gap-1 rounded-full bg-n-teal-3 px-1.5 py-0.5 text-[11px] font-medium text-n-teal-11"
-            :title="t('KANBAN.SCHEDULED_MESSAGES.TITLE')"
-          >
-            <Icon icon="i-lucide-send" class="size-3" />
-            {{ pendingScheduledCount }}
-          </span>
+
           <span
             v-if="contactPhone"
             class="min-w-0 truncate font-mono text-[11px] text-n-slate-11"
@@ -761,7 +890,7 @@ const handleCardClick = event => {
               <div
                 role="listbox"
                 :aria-label="t('KANBAN.CARD.UNASSIGNED')"
-                class="absolute bottom-7 right-0 z-30 max-h-56 w-52 overflow-y-auto rounded-xl border border-n-weak bg-n-solid-1 py-1 shadow-lg"
+                class="absolute bottom-7 right-0 z-30 max-h-56 w-52 overflow-y-auto rounded-[var(--kanban-radius-xl)] border border-n-weak bg-n-solid-1 py-1 shadow-lg"
               >
                 <button
                   type="button"
@@ -888,6 +1017,34 @@ const handleCardClick = event => {
 /* SLA rail is a touch bolder than the idle heat rail — it's an action signal */
 .kanban-card__sla-rail {
   width: 4px;
+}
+
+/* Wait rail is the loudest edge cue — bolder still than the SLA rail. */
+.kanban-card__wait-rail {
+  width: 4px;
+}
+
+.kanban-card__wait-rail--l1 {
+  background: var(--kanban-wait-l1);
+}
+.kanban-card__wait-rail--l2 {
+  background: var(--kanban-wait-l2);
+}
+.kanban-card__wait-rail--l3 {
+  background: var(--kanban-wait-l3);
+}
+.kanban-card__wait-rail--l4 {
+  background: var(--kanban-wait-l4);
+}
+.kanban-card__wait-rail--stalled {
+  background: var(--kanban-wait-stalled);
+}
+
+/* Critical wait (level 4, >=8h) gently pulses to draw the eye. The keyframe
+   lives (and is reduced-motion guarded) in kanban-theme.css. */
+.kanban-card__wait-rail.is-critical {
+  transform-origin: left center;
+  animation: kanban-wait-pulse 1.8s ease-in-out infinite;
 }
 
 /* Cover (Trello-style) — hidden unless the board is in cover mode */

@@ -142,7 +142,7 @@ const addConversation = async conversation => {
           type="search"
           autofocus
           :placeholder="t('KANBAN.ITEMS.ADD_SEARCH_PLACEHOLDER')"
-          class="h-11 w-full rounded-xl border border-n-weak bg-n-solid-1 pl-10 pr-3 text-sm text-n-slate-12 focus:outline-none focus:ring-2 focus:ring-n-teal-9"
+          class="h-11 w-full rounded-xl border border-n-weak bg-n-solid-1 pl-10 pr-3 text-sm text-n-slate-12 focus:outline-none focus:ring-2 focus:ring-n-brand"
         />
       </div>
 

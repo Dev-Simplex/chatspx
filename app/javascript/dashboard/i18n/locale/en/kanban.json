@@ -136,6 +136,10 @@
         "BREACH": "SLA breached",
         "RISK_TITLE": "Approaching the {hours}h stage SLA",
         "BREACH_TITLE": "Past the {hours}h stage SLA"
+      },
+      "WAIT": {
+        "AWAITING": "Awaiting reply for {time}",
+        "STALLED": "Stalled for {time}"
       }
     },
     "PREVIEW": {
@@ -159,6 +163,9 @@
       "ON": "Show label covers",
       "OFF": "Hide label covers"
     },
+    "TOOLBAR": {
+      "PRIORITIZE_WAITING": "Prioritize by wait time"
+    },
     "WIP": {
       "SET": "Set WIP limit",
       "PROMPT": "Maximum cards for this stage (leave blank to clear):",
@@ -173,6 +180,7 @@
       "SCHEDULED": "{count} scheduled",
       "UNASSIGNED": "{count} unassigned",
       "COLD": "{count} stalled",
+      "AWAITING": "{count} awaiting reply",
       "OVERDUE": "SLA breached for {count} card | SLA breached for {count} cards"
     },
     "SCHEDULED_MESSAGES": {

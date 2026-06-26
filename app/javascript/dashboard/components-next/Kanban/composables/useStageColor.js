@@ -11,7 +11,10 @@ const STAGE_COLD_AFTER_H = 240; // >= 10 days in stage → cold
 
 const toMillis = value => {
   if (value === null || value === undefined || value === '') return null;
-  const ms = typeof value === 'number' ? value * 1000 : Date.parse(value);
+  // A numeric 0 (or negative) is the serialized "no timestamp" sentinel
+  // (e.g. waiting_since.to_i => 0 when nil) — treat it as absent, not 1970.
+  if (typeof value === 'number') return value > 0 ? value * 1000 : null;
+  const ms = Date.parse(value);
   return Number.isNaN(ms) ? null : ms;
 };
 
@@ -117,6 +120,47 @@ export function useStageColor() {
     return elapsedH / budget;
   };
 
+  // Wait signal — the strongest "act on me" cue on the board.
+  //  - 'awaiting': the customer is waiting on a reply (waiting_since set).
+  //    Level escalates with the wait: >=8h→4, >=2h→3, >=30min→2, else 1.
+  //  - 'stalled': nobody is waiting (waiting_since null) but the card has gone
+  //    quiet — the agent/system spoke last and silence followed.
+  //  - 'none': fresh enough, no decoration.
+  // Returns { kind, level, seconds }. Pure — safe to call in render.
+  const waitSignal = (waitingSince, lastActivityAt) => {
+    const waitMs = toMillis(waitingSince);
+    if (waitMs !== null) {
+      const seconds = Math.max(0, (Date.now() - waitMs) / 1000);
+      const hours = seconds / 3600;
+      let level = 1;
+      if (hours >= 8) level = 4;
+      else if (hours >= 2) level = 3;
+      else if (hours >= 0.5) level = 2;
+      return { kind: 'awaiting', level, seconds };
+    }
+    const idleMs = toMillis(lastActivityAt);
+    if (idleMs !== null) {
+      const seconds = Math.max(0, (Date.now() - idleMs) / 1000);
+      const hours = seconds / 3600;
+      if (hours >= 72) return { kind: 'stalled', level: 3, seconds };
+      if (hours >= 24) return { kind: 'stalled', level: 2, seconds };
+      if (hours >= 8) return { kind: 'stalled', level: 1, seconds };
+    }
+    return { kind: 'none', level: 0, seconds: 0 };
+  };
+
+  // Sort key (DESC) for prioritizing waiting cards to the top of a column.
+  // Banded so awaiting always outranks stalled, and stalled outranks none,
+  // with the in-band wait length as the tiebreaker. seconds (~1e8 max) stays
+  // far below the 1e12 band gap, so bands never collide.
+  const waitSortKey = (waitingSince, lastActivityAt) => {
+    const { kind, seconds } = waitSignal(waitingSince, lastActivityAt);
+    const secs = Number.isFinite(seconds) ? seconds : 0;
+    if (kind === 'awaiting') return 2e12 + secs;
+    if (kind === 'stalled') return 1e12 + secs;
+    return 0;
+  };
+
   // Proportional segments for the board-level funnel bar.
   // stages: [{ id, color, name }], countsByStage: { [id]: number }
   // Returns [{ id, name, color, count, pct }] (pct sums to ~100).
@@ -145,6 +189,8 @@ export function useStageColor() {
     stageAgeLevel,
     slaLevel,
     slaProgress,
+    waitSignal,
+    waitSortKey,
     funnelSegments,
   };
 }

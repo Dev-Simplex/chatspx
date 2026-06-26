@@ -18,6 +18,11 @@ const props = defineProps({
     type: Number,
     required: true,
   },
+  // Float the longest-waiting cards to the top of each column.
+  prioritizeWaiting: {
+    type: Boolean,
+    default: true,
+  },
 });
 
 const emit = defineEmits(['itemMoved', 'scheduleMessage', 'removeItem']);
@@ -575,6 +580,7 @@ const handleDeleteStage = stage => {
               :stage="stage"
               :items="getFilteredItemsForStage(stage.id)"
               :conversations="conversations"
+              :prioritize-waiting="prioritizeWaiting"
               @move-item="handleMoveItem"
               @schedule-message="handleScheduleMessage"
               @remove-item="handleRemoveItem"
@@ -588,7 +594,7 @@ const handleDeleteStage = stage => {
 
         <button
           v-if="stages.length > 0"
-          class="kanban-add-stage kanban-focusable group flex h-full shrink-0 flex-col items-center justify-center gap-2 rounded-xl border-2 border-dashed border-n-weak bg-n-slate-2/30 px-4 text-n-slate-10 transition hover:border-n-slate-6 hover:bg-n-slate-2/60 hover:text-n-slate-12 dark:bg-n-solid-2/40"
+          class="kanban-add-stage kanban-focusable group flex h-full shrink-0 flex-col items-center justify-center gap-2 rounded-[var(--kanban-radius-xl)] border-2 border-dashed border-n-weak bg-n-slate-2/30 px-4 text-n-slate-10 transition hover:border-n-slate-6 hover:bg-n-slate-2/60 hover:text-n-slate-12 dark:bg-n-solid-2/40"
           @click="handleCreateStage"
         >
           <Icon icon="i-lucide-plus" class="size-5" />
@@ -599,7 +605,7 @@ const handleDeleteStage = stage => {
 
         <div
           v-if="stages.length === 0"
-          class="flex w-full flex-col items-center justify-center rounded-xl border-2 border-dashed border-n-weak bg-n-slate-2/50 dark:bg-n-solid-2 p-8 text-center"
+          class="flex w-full flex-col items-center justify-center rounded-[var(--kanban-radius-xl)] border-2 border-dashed border-n-weak bg-n-slate-2/50 dark:bg-n-solid-2 p-8 text-center"
         >
           <Icon icon="i-lucide-columns-3" class="mb-3 size-9 text-n-slate-10" />
           <h3 class="text-lg font-semibold text-n-slate-12">
@@ -709,6 +715,11 @@ const handleDeleteStage = stage => {
 
 .kanban-add-stage {
   width: var(--kanban-col-width, 304px);
+}
+
+/* Keep tiny funnel segments clickable even at ~1% width. */
+.kanban-funnel__seg {
+  min-width: 8px;
 }
 
 .kanban-board::-webkit-scrollbar {

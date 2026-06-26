@@ -67,6 +67,27 @@ const toggleCover = () => {
   }
 };
 
+const KANBAN_PRIORITIZE_WAITING_KEY = 'kanban:prioritize-waiting';
+// Default ON: the wait-driven ordering is the headline behaviour.
+const prioritizeWaiting = ref(true);
+try {
+  prioritizeWaiting.value =
+    localStorage.getItem(KANBAN_PRIORITIZE_WAITING_KEY) !== '0';
+} catch (_) {
+  // best effort
+}
+const togglePrioritizeWaiting = () => {
+  prioritizeWaiting.value = !prioritizeWaiting.value;
+  try {
+    localStorage.setItem(
+      KANBAN_PRIORITIZE_WAITING_KEY,
+      prioritizeWaiting.value ? '1' : '0'
+    );
+  } catch (_) {
+    // best effort
+  }
+};
+
 const viewMode = computed(
   () => store.getters['kanban/getViewMode'] || 'kanban'
 );
@@ -668,27 +689,40 @@ onMounted(async () => {
             />
           </div>
 
-          <Button
+          <div
             v-if="viewMode === 'kanban'"
-            :variant="isCompact ? 'solid' : 'ghost'"
-            size="sm"
-            :icon="isCompact ? 'i-lucide-rows-3' : 'i-lucide-rows-2'"
-            :title="
-              isCompact
-                ? t('KANBAN.DENSITY.COMFORTABLE')
-                : t('KANBAN.DENSITY.COMPACT')
-            "
-            @click="toggleDensity"
-          />
+            class="flex gap-1 rounded-lg border border-n-weak bg-n-solid-3 p-1"
+          >
+            <Button
+              :variant="isCompact ? 'solid' : 'ghost'"
+              size="sm"
+              :icon="isCompact ? 'i-lucide-rows-3' : 'i-lucide-rows-2'"
+              :title="
+                isCompact
+                  ? t('KANBAN.DENSITY.COMFORTABLE')
+                  : t('KANBAN.DENSITY.COMPACT')
+              "
+              @click="toggleDensity"
+            />
+            <Button
+              :variant="isCover ? 'solid' : 'ghost'"
+              size="sm"
+              icon="i-lucide-paintbrush"
+              :title="isCover ? t('KANBAN.COVER.OFF') : t('KANBAN.COVER.ON')"
+              @click="toggleCover"
+            />
+            <Button
+              :variant="prioritizeWaiting ? 'solid' : 'ghost'"
+              size="sm"
+              icon="i-lucide-arrow-up-narrow-wide"
+              :title="t('KANBAN.TOOLBAR.PRIORITIZE_WAITING')"
+              :aria-label="t('KANBAN.TOOLBAR.PRIORITIZE_WAITING')"
+              :aria-pressed="prioritizeWaiting"
+              @click="togglePrioritizeWaiting"
+            />
+          </div>
 
-          <Button
-            v-if="viewMode === 'kanban'"
-            :variant="isCover ? 'solid' : 'ghost'"
-            size="sm"
-            icon="i-lucide-paintbrush"
-            :title="isCover ? t('KANBAN.COVER.OFF') : t('KANBAN.COVER.ON')"
-            @click="toggleCover"
-          />
+          <div class="mx-0.5 h-6 w-px shrink-0 bg-n-weak" aria-hidden="true" />
 
           <Button
             variant="ghost"
@@ -936,6 +970,7 @@ onMounted(async () => {
           v-if="viewMode === 'kanban'"
           :key="`kanban-${activeFunnelId}-${viewMode}`"
           :funnel-id="activeFunnelId"
+          :prioritize-waiting="prioritizeWaiting"
           @schedule-message="handleScheduleMessage"
         />
 
