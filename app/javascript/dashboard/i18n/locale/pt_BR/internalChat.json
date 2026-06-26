@@ -18,6 +18,11 @@
     "CREATE": "Criar",
     "CANCEL": "Cancelar",
     "ATTACH": "Anexar arquivo",
-    "MENTION_TOAST": "{from} mencionou você em {channel}"
+    "MENTION_TOAST": "{from} mencionou você em {channel}",
+    "TODAY": "Hoje",
+    "YESTERDAY": "Ontem",
+    "DIRECT": "Mensagem direta",
+    "MEMBERS_COUNT": "{count} membros",
+    "LOADING": "Carregando…"
   }
 }

@@ -18,6 +18,11 @@
     "CREATE": "Create",
     "CANCEL": "Cancel",
     "ATTACH": "Attach file",
-    "MENTION_TOAST": "{from} mentioned you in {channel}"
+    "MENTION_TOAST": "{from} mentioned you in {channel}",
+    "TODAY": "Today",
+    "YESTERDAY": "Yesterday",
+    "DIRECT": "Direct message",
+    "MEMBERS_COUNT": "{count} members",
+    "LOADING": "Loading…"
   }
 }
