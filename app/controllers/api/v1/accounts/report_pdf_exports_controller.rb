@@ -26,7 +26,7 @@ class Api::V1::Accounts::ReportPdfExportsController < Api::V1::Accounts::BaseCon
 
   def filter_params
     params.permit(:since, :until, :inbox_id, :team_id, :status, :business_hours, :rating,
-                  :assigned_agent_id, :sla_policy_id, :label_list, user_ids: [])
+                  :assigned_agent_id, :sla_policy_id, :label_list, :funnel_id, user_ids: [])
   end
 
   def audit_metadata

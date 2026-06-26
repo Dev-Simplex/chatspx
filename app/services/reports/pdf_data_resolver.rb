@@ -45,6 +45,7 @@ class Reports::PdfDataResolver # rubocop:disable Metrics/ClassLength
     when 'conversations' then conversations_data
     when 'overview' then overview_data
     when 'sla' then sla_data
+    when 'funnel' then funnel_data
     when 'agent', 'inbox', 'team', 'label' then summary_data(@report_type)
     else
       raise ArgumentError, "report_type desconhecido: #{@report_type}"
@@ -647,6 +648,63 @@ class Reports::PdfDataResolver # rubocop:disable Metrics/ClassLength
 
   def sla_status_label(status)
     { 'missed' => 'Descumprido', 'active_with_misses' => 'Ativo c/ falhas' }[status.to_s] || status.to_s
+  end
+
+  # ======================= FUNIL (Kanban) =======================
+  # Snapshot operacional do funil — espelha o "Painel do funil" da board.
+  # Reusa Kanban::FunnelReportService (mesma fonte da view live), nao recria metrica.
+  def funnel_data
+    funnel = @account.funnels.find(@filters[:funnel_id])
+    report = Kanban::FunnelReportService.new(funnel: funnel).perform
+    funnel_payload(funnel.name, report)
+  end
+
+  def funnel_payload(name, report)
+    totals = report[:totals]
+    cards = totals[:cards].to_i
+    open_count = totals[:by_status].to_h['open'].to_i
+    {
+      report_type: 'funnel', title: "Relatório do Kanban · #{name}", period: snapshot_period,
+      overline: 'Kanban · Gestão de Funil · Confidencial',
+      subtitle: "Funil \"#{name}\" do Kanban · #{cards} cards · #{open_count} em aberto · #{totals[:overdue]} atrasados.",
+      base_label: "#{cards} cards", funnel_name: name,
+      kpis: totals.merge(open: open_count),
+      stage_chart: funnel_stage_series(report[:stages]),
+      workload_chart: funnel_workload_series(report[:workload]),
+      stages_table: funnel_stages_table(report[:stages]),
+      workload_table: funnel_workload_table(report[:workload])
+    }
+  end
+
+  def funnel_stage_series(stages)
+    stages.map { |stage| { label: stage[:name], value: stage[:count] } }
+  end
+
+  def funnel_workload_series(workload)
+    workload.map { |row| { label: funnel_workload_label(row), value: row[:count] } }
+  end
+
+  def funnel_workload_label(row)
+    row[:name].presence || "##{row[:assignee_id]}"
+  end
+
+  def funnel_stages_table(stages)
+    rows = stages.map do |stage|
+      [stage[:name], stage[:count].to_s, funnel_age_label(stage[:avg_age_seconds]),
+       stage[:unassigned].to_i.to_s, stage[:overdue].to_i.to_s]
+    end
+    { columns: [{ label: 'Coluna' }, { label: 'Cards', align: 'right' }, { label: 'Tempo médio', align: 'right' },
+                { label: 'Sem responsável', align: 'right' }, { label: 'Atrasados', align: 'right' }],
+      rows: rows }
+  end
+
+  def funnel_workload_table(workload)
+    rows = workload.map { |row| [funnel_workload_label(row), row[:count].to_s] }
+    { columns: [{ label: 'Atendente' }, { label: 'Cards', align: 'right' }], rows: rows }
+  end
+
+  def funnel_age_label(seconds)
+    seconds.to_i.positive? ? format_seconds(seconds) : '—'
   end
 
   # ======================= SUMMARY (agent/inbox/team/label) =======================

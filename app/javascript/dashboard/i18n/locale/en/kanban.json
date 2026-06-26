@@ -569,7 +569,7 @@
     },
     "DASHBOARD": {
       "TITLE": "Funnel dashboard",
-      "EXPORT": "Export CSV",
+      "EXPORT": "Export PDF",
       "REFRESH": "Refresh",
       "CARDS": "Cards",
       "OPEN": "Open",

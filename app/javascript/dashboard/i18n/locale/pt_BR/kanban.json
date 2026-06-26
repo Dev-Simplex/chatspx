@@ -569,7 +569,7 @@
     },
     "DASHBOARD": {
       "TITLE": "Painel do funil",
-      "EXPORT": "Exportar CSV",
+      "EXPORT": "Exportar PDF",
       "REFRESH": "Atualizar",
       "CARDS": "Cards",
       "OPEN": "Abertas",

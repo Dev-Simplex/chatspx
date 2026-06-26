@@ -5,6 +5,7 @@ import { useI18n } from 'vue-i18n';
 import Button from 'dashboard/components-next/button/Button.vue';
 import Icon from 'dashboard/components-next/icon/Icon.vue';
 import BarChart from 'shared/components/charts/BarChart.vue';
+import DownloadPdfButton from 'dashboard/components/reports/DownloadPdfButton.vue';
 import { useStageColor } from './composables/useStageColor';
 
 const props = defineProps({
@@ -113,36 +114,6 @@ const formatAge = seconds => {
   if (h >= 1) return `${h}h`;
   return `${Math.max(1, Math.floor(seconds / 60))}min`;
 };
-
-// Export the per-stage table as CSV (client-side).
-const exportCsv = () => {
-  const header = [
-    'stage',
-    'cards',
-    'avg_age_seconds',
-    'unassigned',
-    'overdue',
-    'sla_hours',
-  ];
-  const rows = stages.value.map(s => [
-    s.name,
-    s.count,
-    s.avg_age_seconds ?? '',
-    s.unassigned,
-    s.overdue,
-    s.sla_hours ?? '',
-  ]);
-  const csv = [header, ...rows]
-    .map(r => r.map(v => `"${String(v).replace(/"/g, '""')}"`).join(','))
-    .join('\n');
-  const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
-  const url = URL.createObjectURL(blob);
-  const link = document.createElement('a');
-  link.href = url;
-  link.download = `funnel-${props.funnelId}-stats.csv`;
-  link.click();
-  URL.revokeObjectURL(url);
-};
 </script>
 
 <template>
@@ -154,14 +125,10 @@ const exportCsv = () => {
         {{ t('KANBAN.DASHBOARD.TITLE') }}
       </h2>
       <div class="flex items-center gap-2">
-        <Button
-          size="sm"
-          variant="ghost"
-          icon="i-lucide-download"
-          @click="exportCsv"
-        >
-          <span class="ml-1">{{ t('KANBAN.DASHBOARD.EXPORT') }}</span>
-        </Button>
+        <DownloadPdfButton
+          report-type="funnel"
+          :filters="{ funnel_id: funnelId }"
+        />
         <Button
           size="sm"
           variant="ghost"

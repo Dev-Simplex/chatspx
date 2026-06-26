@@ -6,8 +6,16 @@ class ReportPdfExportsAPI extends ApiClient {
     super('report_pdf_exports', { accountScoped: true });
   }
 
-  // reportType: 'nps' | ... ; filters: { from, to, user_ids, inbox_id, team_id }
-  create({ reportType, from, to, user_ids, inbox_id, team_id } = {}) {
+  // reportType: 'nps' | ... ; filters: { from, to, user_ids, inbox_id, team_id, funnel_id }
+  create({
+    reportType,
+    from,
+    to,
+    user_ids,
+    inbox_id,
+    team_id,
+    funnel_id,
+  } = {}) {
     return axios.post(this.url, {
       report_type: reportType,
       since: from,
@@ -15,6 +23,7 @@ class ReportPdfExportsAPI extends ApiClient {
       user_ids,
       inbox_id,
       team_id,
+      funnel_id,
     });
   }
 
