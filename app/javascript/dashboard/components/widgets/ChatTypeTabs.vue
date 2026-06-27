@@ -40,12 +40,6 @@ const orderedItems = computed(() => {
   return [...primary, ...queue];
 });
 
-// Índice do primeiro item de fila no array reordenado — usado para inserir o
-// "quebra-linha" flex logo antes dele. -1 quando não há filas (1 linha só).
-const queueStartIndex = computed(() =>
-  orderedItems.value.findIndex(item => isQueueKey(item.key))
-);
-
 const activeTabIndex = computed(() => {
   return orderedItems.value.findIndex(item => item.key === props.activeTab);
 });
@@ -82,47 +76,25 @@ useKeyboardEvents(keyboardEvents);
     class="w-full py-0 conversation-list-tabs chat-list-tabs [&_ul]:flex-wrap [&_ul]:items-center [&_ul]:gap-2 [&_ul]:py-1.5 [&_ul]:overflow-x-visible"
     @change="onTabChange"
   >
-    <template v-for="(item, index) in orderedItems" :key="item.key">
-      <!-- Quebra-linha flex: força o grupo de filas (Aguardando atendimento,
-           IA) para a 2ª linha, deixando o grupo primário (Minhas, Todas) na 1ª.
-           Renderizado só quando há filas; não é uma tab (sem :index, sem
-           button) então não interfere no active nem na navegação por teclado. -->
-      <li
-        v-if="index === queueStartIndex && queueStartIndex > 0"
-        class="wa-tab-row-break"
-        aria-hidden="true"
-        role="presentation"
-      />
-      <woot-tabs-item
-        class="text-sm [&_a]:font-medium"
-        :class="{ 'tab-alert animate-jump-in': item.variant === 'alert' }"
-        :index="index"
-        :name="item.name"
-        :count="item.count"
-        :icon="item.icon"
-        animated-count
-        is-compact
-      />
-    </template>
+    <!-- Quebra natural (flex-wrap): com a ordem reordenada (primário antes das
+         filas), o "Aguardando atendimento" (rótulo longo) só desce para a 2ª
+         linha quando não cabe; com abas curtas (sem ele), tudo fica em 1 linha. -->
+    <woot-tabs-item
+      v-for="(item, index) in orderedItems"
+      :key="item.key"
+      class="text-sm [&_a]:font-medium"
+      :class="{ 'tab-alert animate-jump-in': item.variant === 'alert' }"
+      :index="index"
+      :name="item.name"
+      :count="item.count"
+      :icon="item.icon"
+      animated-count
+      is-compact
+    />
   </woot-tabs>
 </template>
 
 <style lang="scss" scoped>
-// Quebra-linha flex do layout em 2 grupos (chat-list). Ocupa 100% da largura
-// disponível dentro do ul (flex-wrap:wrap), empurrando o grupo de filas para a
-// linha de baixo. height:0 + margin:0 evita criar uma "linha fantasma" alta.
-.wa-tab-row-break {
-  flex-basis: 100%;
-  width: 100%;
-  height: 0;
-  margin: 0;
-  padding: 0;
-  // Garante left-pack de ambos os grupos: o ul mantém os items à esquerda; o
-  // break apenas reseta a linha. (basis 100% > basis dos chips ⇒ ele "ganha" a
-  // linha sozinho e os próximos quebram.)
-  pointer-events: none;
-}
-
 // Alert variant (conditional "Unassigned" tab — DC-6). Tokens only, so dark
 // mode comes for free. `!important` is required to win over the global
 // `.wa-tab-item` skin rules (_wa-skin.scss). Written as plain declarations
