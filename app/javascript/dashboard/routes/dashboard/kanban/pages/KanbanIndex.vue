@@ -1,18 +1,8 @@
 <script setup>
-import {
-  onMounted,
-  computed,
-  ref,
-  watch,
-  nextTick,
-  defineAsyncComponent,
-} from 'vue';
+import { onMounted, computed, ref, watch, nextTick } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import { useStore } from 'vuex';
 import { useI18n } from 'vue-i18n';
-import { useMapGetter } from 'dashboard/composables/store';
-import { useAccount } from 'dashboard/composables/useAccount';
-import { FEATURE_FLAGS } from 'dashboard/featureFlags';
 import KanbanBoard from 'dashboard/components-next/Kanban/KanbanBoard.vue';
 import ListView from 'dashboard/components-next/Kanban/ListView.vue';
 import CalendarView from 'dashboard/components-next/Kanban/CalendarView.vue';
@@ -30,14 +20,6 @@ import Icon from 'dashboard/components-next/icon/Icon.vue';
 import Dialog from 'dashboard/components-next/dialog/Dialog.vue';
 import { useAlert } from 'dashboard/composables';
 import 'dashboard/components-next/Kanban/kanban-theme.css';
-
-// Internal chat lives as a sub-tool inside Kanban (lazy: only loads when opened).
-const InternalChatIndex = defineAsyncComponent(
-  () =>
-    import(
-      'dashboard/routes/dashboard/internalChat/pages/InternalChatIndex.vue'
-    )
-);
 
 const route = useRoute();
 const router = useRouter();
@@ -105,23 +87,6 @@ const togglePrioritizeWaiting = () => {
   } catch (_) {
     // best effort
   }
-};
-
-// Primary tab: the board (funnels/views) vs the embedded internal chat.
-const { isCloudFeatureEnabled } = useAccount();
-const hasInternalChat = computed(() =>
-  isCloudFeatureEnabled(FEATURE_FLAGS.INTERNAL_CHAT)
-);
-const internalChatUnread = useMapGetter('internalChat/getTotalUnread');
-
-const activeTab = ref('board');
-// Mount the chat panel only after it is first opened, then keep it alive (v-show)
-// so channels/scroll state survive tab switches.
-const chatActivated = ref(false);
-const setActiveTab = tab => {
-  if (tab === 'chat' && !hasInternalChat.value) return;
-  if (tab === 'chat') chatActivated.value = true;
-  activeTab.value = tab;
 };
 
 const viewMode = computed(
@@ -477,6 +442,49 @@ const handleEditFunnel = funnel => {
   showFunnelForm.value = true;
 };
 
+// Confirmação reutilizável via Dialog tipo "alert" (mesmo padrão do FunnelForm).
+const confirmDialogRef = ref(null);
+const confirmConfig = ref({ title: '', message: '', confirmLabel: '' });
+const confirmResolver = ref(null);
+const askConfirm = ({ title, message, confirmLabel }) =>
+  new Promise(resolve => {
+    confirmConfig.value = { title, message, confirmLabel };
+    confirmResolver.value = resolve;
+    nextTick(() => confirmDialogRef.value?.open?.());
+  });
+const resolveConfirm = value => {
+  const resolver = confirmResolver.value;
+  confirmResolver.value = null;
+  confirmDialogRef.value?.close?.();
+  if (resolver) resolver(value);
+};
+
+// Apagar o funil ativo direto da barra (sem precisar abrir o modal de edição).
+const handleDeleteActiveFunnel = async () => {
+  const funnel = activeFunnel.value;
+  if (!funnel) return;
+
+  const confirmed = await askConfirm({
+    title: t('KANBAN.FUNNELS.DELETE'),
+    message: t('KANBAN.FUNNELS.CONFIRM_DELETE'),
+    confirmLabel: t('KANBAN.FUNNELS.DELETE'),
+  });
+  if (!confirmed) return;
+
+  try {
+    await store.dispatch('kanban/deleteFunnel', funnel.id);
+    const remaining = funnels.value;
+    if (remaining.length) {
+      await handleFunnelSelect(remaining[0].id);
+    } else {
+      await store.dispatch('kanban/setActiveFunnelId', null);
+      await router.replace({ name: 'kanban_index' });
+    }
+  } catch (error) {
+    useAlert(t('KANBAN.FUNNELS.DELETE_ERROR'));
+  }
+};
+
 const handleFunnelSaved = async () => {
   await store.dispatch('kanban/fetchFunnels');
   const updatedFunnels = store.getters['kanban/getFunnels'];
@@ -674,39 +682,7 @@ onMounted(async () => {
           </h1>
 
           <div
-            v-if="hasInternalChat"
-            class="flex gap-1 rounded-lg border border-n-weak bg-n-solid-3 p-1 ml-2"
-          >
-            <Button
-              :variant="activeTab === 'board' ? 'solid' : 'ghost'"
-              size="sm"
-              icon="i-lucide-layout-grid"
-              @click="setActiveTab('board')"
-            >
-              <span class="ml-2 hidden sm:inline">{{
-                t('KANBAN.TABS.BOARD')
-              }}</span>
-            </Button>
-            <Button
-              :variant="activeTab === 'chat' ? 'solid' : 'ghost'"
-              size="sm"
-              icon="i-lucide-messages-square"
-              @click="setActiveTab('chat')"
-            >
-              <span class="ml-2 hidden sm:inline">{{
-                t('KANBAN.TABS.INTERNAL_CHAT')
-              }}</span>
-              <span
-                v-if="internalChatUnread > 0"
-                class="ml-2 inline-flex items-center justify-center min-w-5 h-5 px-1.5 rounded-full bg-n-blue-9 text-white text-[11px] font-semibold"
-              >
-                {{ internalChatUnread }}
-              </span>
-            </Button>
-          </div>
-
-          <div
-            v-if="activeFunnel && activeTab === 'board'"
+            v-if="activeFunnel"
             class="hidden md:flex items-center gap-2 ml-2"
           >
             <span
@@ -724,7 +700,7 @@ onMounted(async () => {
           </div>
         </div>
 
-        <div v-show="activeTab === 'board'" class="flex items-center gap-2">
+        <div class="flex items-center gap-2">
           <div
             class="flex gap-1 rounded-lg border border-n-weak bg-n-solid-3 p-1"
           >
@@ -828,6 +804,15 @@ onMounted(async () => {
             @click="handleEditFunnel(activeFunnel)"
           />
           <Button
+            v-if="activeFunnel"
+            variant="ghost"
+            size="sm"
+            color="ruby"
+            icon="i-lucide-trash-2"
+            :title="t('KANBAN.FUNNELS.DELETE')"
+            @click="handleDeleteActiveFunnel"
+          />
+          <Button
             color="blue"
             size="sm"
             icon="i-lucide-plus"
@@ -849,7 +834,6 @@ onMounted(async () => {
       </div>
 
       <div
-        v-show="activeTab === 'board'"
         class="relative z-40 rounded-xl border border-n-weak bg-n-solid-1 p-3 shadow-sm"
       >
         <div
@@ -1008,7 +992,6 @@ onMounted(async () => {
     </div>
 
     <div
-      v-show="activeTab === 'board'"
       class="kanban-content flex-1 min-h-0 overflow-hidden bg-n-background"
       :class="{
         'kanban-compact': isCompact && viewMode === 'kanban',
@@ -1082,14 +1065,6 @@ onMounted(async () => {
       </template>
     </div>
 
-    <div
-      v-if="hasInternalChat && chatActivated"
-      v-show="activeTab === 'chat'"
-      class="flex-1 min-h-0 overflow-hidden bg-n-background"
-    >
-      <InternalChatIndex />
-    </div>
-
     <FunnelForm
       :show="showFunnelForm"
       :funnel="selectedFunnel"
@@ -1138,6 +1113,16 @@ onMounted(async () => {
       type="alert"
       @close="closeCancelDialog"
       @confirm="confirmCancelScheduledMessage"
+    />
+
+    <Dialog
+      ref="confirmDialogRef"
+      type="alert"
+      :title="confirmConfig.title"
+      :description="confirmConfig.message"
+      :confirm-button-label="confirmConfig.confirmLabel"
+      @confirm="resolveConfirm(true)"
+      @close="resolveConfirm(false)"
     />
   </div>
 </template>
