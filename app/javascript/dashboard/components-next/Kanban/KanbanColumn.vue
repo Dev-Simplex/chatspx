@@ -54,7 +54,9 @@ const lastObservedAt = ref(0);
 
 const headerGradient = computed(
   () =>
-    `linear-gradient(180deg, ${softBg(props.stage?.color, 0.16)}, transparent)`
+    // Softer, shorter tint so dark hues (e.g. violet) don't read heavier than
+    // light ones — keeps every stage header balanced in light mode.
+    `linear-gradient(180deg, ${softBg(props.stage?.color, 0.1)}, transparent 70%)`
 );
 const stripGradient = computed(
   () =>
@@ -62,6 +64,8 @@ const stripGradient = computed(
 );
 // Very subtle stage-tinted lane wash behind the cards.
 const columnWash = computed(() => softBg(props.stage?.color, 0.05));
+// Neon glow color for the top HUD accent bar (stage hue, saturated halo).
+const columnGlow = computed(() => softBg(props.stage?.color, 0.85));
 
 const cardCount = computed(() => props.items.length);
 
@@ -391,15 +395,18 @@ const handleColumnObserved = async () => {
 
 <template>
   <div
-    class="kanban-column relative flex h-full flex-shrink-0 flex-col overflow-hidden rounded-[var(--kanban-radius-xl)] bg-n-slate-2/50 dark:bg-n-solid-2"
+    class="kanban-column relative flex h-full flex-shrink-0 flex-col overflow-hidden rounded-[var(--kanban-radius-xl)] bg-n-slate-1/45 dark:bg-n-solid-2"
     :class="collapsed ? 'kanban-column--collapsed' : 'kanban-column--expanded'"
-    :style="{ '--col-wash': columnWash }"
+    :style="{ '--col-wash': columnWash, '--hud-glow': columnGlow }"
   >
     <!-- Subtle stage-tinted lane wash (behind cards) -->
     <div class="kanban-column__wash" aria-hidden="true" />
 
-    <!-- Top accent bar -->
-    <div class="h-1 w-full shrink-0" :style="{ background: stripGradient }" />
+    <!-- Top accent bar — neon HUD glow in the stage hue -->
+    <div
+      class="kanban-column__accent h-1 w-full shrink-0"
+      :style="{ background: stripGradient }"
+    />
 
     <!-- Collapsed: thin vertical rail -->
     <button
@@ -712,6 +719,18 @@ const handleColumnObserved = async () => {
   isolation: isolate;
 }
 
+/* Neon HUD accent — the top bar emits a saturated colored halo downward into
+   the header (clipped upward by the column's overflow, so it reads as emitted
+   light), and breathes via a subtle glow pulse. */
+.kanban-column__accent {
+  position: relative;
+  z-index: 1;
+  box-shadow:
+    0 1px 7px 0 var(--hud-glow, transparent),
+    0 0 16px 0 var(--hud-glow, transparent);
+  animation: kanban-neon-pulse 2.6s ease-in-out infinite;
+}
+
 /* Lane wash — painted above the column background, below the cards. */
 .kanban-column__wash {
   position: absolute;
@@ -726,6 +745,9 @@ const handleColumnObserved = async () => {
   background-color: var(--kanban-glass-bg);
   backdrop-filter: blur(var(--kanban-glass-blur, 10px));
   -webkit-backdrop-filter: blur(var(--kanban-glass-blur, 10px));
+  /* Hairline under the sticky header so it stays defined while cards scroll
+     beneath it (box-shadow, not border, to avoid any layout shift). */
+  box-shadow: 0 1px 0 0 var(--kanban-column-border, transparent);
 }
 
 .kanban-column--expanded {

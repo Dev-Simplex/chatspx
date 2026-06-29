@@ -587,6 +587,8 @@ const cardStyleVars = computed(() => ({
   '--card-accent': accentColor.value,
   '--card-glow': softBg(accentColor.value, 0.45),
   '--card-wash': softBg(accentColor.value, 0.05),
+  // Saturated stage hue for the neon HUD strip glow.
+  '--hud-glow': softBg(accentColor.value, 0.85),
 }));
 
 const openConversation = () => {
@@ -1082,6 +1084,15 @@ const handleCardClick = event => {
   height: 5px;
   width: 100%;
   flex-shrink: 0;
+  position: relative;
+  z-index: 1;
+  /* Neon HUD glow — the stage-hued strip emits a saturated halo down into the
+     card (the card's overflow clips it upward, so it reads as emitted light)
+     and breathes via a subtle glow pulse. */
+  box-shadow:
+    0 1px 7px 0 var(--hud-glow, transparent),
+    0 0 14px 0 var(--hud-glow, transparent);
+  animation: kanban-neon-pulse 2.6s ease-in-out infinite;
 }
 
 .kanban-card__body {

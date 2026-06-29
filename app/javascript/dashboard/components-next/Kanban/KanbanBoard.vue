@@ -692,19 +692,33 @@ const handleDeleteStage = stage => {
   min-width: 100%;
   scrollbar-width: thin;
   scrollbar-color: rgb(var(--border-weak)) transparent;
-  /* Premium-discreet ambience: a barely-there cool wash + faint dot grid. */
+  /* Futuristic light canvas (overrides the white bg-n-background utility) so
+     the glass lanes and white cards read as luminous floating layers.
+     Layered HUD ambience: an indigo top glow, a deep vignette to seat the
+     lanes, and a faint blueprint line grid for a technical, futuristic feel. */
+  background-color: var(--kanban-board-bg, #d6dbe7);
   background-image: radial-gradient(
-      130% 90% at 50% -20%,
-      rgba(100, 116, 139, 0.045),
+      120% 80% at 50% -8%,
+      rgba(99, 102, 241, 0.1),
+      transparent 55%
+    ),
+    radial-gradient(
+      110% 70% at 50% 125%,
+      rgba(15, 23, 42, 0.09),
       transparent 60%
     ),
-    radial-gradient(rgba(148, 163, 184, 0.04) 1px, transparent 1px);
+    linear-gradient(rgba(79, 102, 241, 0.05) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(79, 102, 241, 0.05) 1px, transparent 1px);
   background-size:
     100% 100%,
-    26px 26px;
+    100% 100%,
+    30px 30px,
+    30px 30px;
 }
 
 .dark .kanban-board {
+  /* Restore the dark canvas (the shared rule above sets a light gray). */
+  background-color: rgb(var(--background-color));
   background-image: radial-gradient(
       130% 90% at 50% -20%,
       rgba(148, 163, 184, 0.05),
