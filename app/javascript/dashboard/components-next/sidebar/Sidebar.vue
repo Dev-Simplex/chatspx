@@ -158,6 +158,23 @@ watch(pendingInternalMention, mention => {
   internalChatNotify({ title: mention.from, body: message });
 });
 
+// Real-time toast + som para QUALQUER nova mensagem de canais que participo
+// (DM/grupo/time) quando não estou olhando aquele canal. Som sempre; toast só
+// com a aba visível; notificação desktop só com a aba em segundo plano.
+const pendingInternalNotification = useMapGetter(
+  'internalChat/getPendingNotification'
+);
+watch(pendingInternalNotification, notification => {
+  if (!notification) return;
+  const hidden = typeof document !== 'undefined' && document.hidden;
+  if (!hidden) useAlert(`${notification.title}: ${notification.body}`);
+  internalChatNotify({
+    title: hidden ? notification.title : undefined,
+    body: notification.body,
+    sound: true,
+  });
+});
+
 const toggleShortcutModalFn = show => {
   if (show) {
     emit('openKeyShortcutModal');

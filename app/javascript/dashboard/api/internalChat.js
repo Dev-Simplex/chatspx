@@ -10,6 +10,11 @@ class InternalChatAPI extends ApiClient {
     return axios.get(this.url);
   }
 
+  // Admin: lista TODOS os canais da conta (modo auditoria).
+  getAllChannels() {
+    return axios.get(this.url, { params: { scope: 'all' } });
+  }
+
   createDm(userId) {
     return axios.post(this.url, { user_id: userId });
   }

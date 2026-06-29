@@ -3,6 +3,7 @@ import {
   ref,
   computed,
   onMounted,
+  onBeforeUnmount,
   nextTick,
   watch,
   defineAsyncComponent,
@@ -32,10 +33,24 @@ const openConversation = displayId => {
 };
 
 const channels = useMapGetter('internalChat/getChannels');
+const auditChannels = useMapGetter('internalChat/getAuditChannels');
 const agents = useMapGetter('internalChat/getAgents');
 const uiFlags = useMapGetter('internalChat/getUIFlags');
 const currentUserId = useMapGetter('getCurrentUserID');
+const currentRole = useMapGetter('getCurrentRole');
 const teams = useMapGetter('teams/getMyTeams');
+
+// Auditoria (admin): alterna a lista para TODOS os canais da conta (somente
+// leitura nos canais em que o admin não participa).
+const isAdmin = computed(() => currentRole.value === 'administrator');
+const auditMode = ref(false);
+const channelList = computed(() =>
+  auditMode.value ? auditChannels.value : channels.value
+);
+const toggleAudit = async () => {
+  auditMode.value = !auditMode.value;
+  if (auditMode.value) await store.dispatch('internalChat/fetchAuditChannels');
+};
 
 const activeChannelId = ref(null);
 const draft = ref('');
@@ -61,9 +76,17 @@ const onChannelLeft = channelId => {
   if (activeChannelId.value === channelId) activeChannelId.value = null;
 };
 
-const activeChannel = computed(() =>
-  channels.value.find(c => c.id === activeChannelId.value)
+const activeChannel = computed(
+  () =>
+    channels.value.find(c => c.id === activeChannelId.value) ||
+    auditChannels.value.find(c => c.id === activeChannelId.value)
 );
+// Em auditoria, o admin pode abrir um canal do qual não é membro → somente leitura.
+const isMemberOfActiveChannel = computed(() => {
+  const channel = activeChannel.value;
+  if (!channel) return true;
+  return (channel.members || []).some(m => m.id === currentUserId.value);
+});
 const messages = computed(() =>
   store.getters['internalChat/getMessages'](activeChannelId.value)
 );
@@ -479,6 +502,12 @@ onMounted(() => {
   store.dispatch('teams/get');
   store.dispatch('agents/get'); // presence (availability_status)
 });
+
+// Ao sair da tela do chat, nenhum canal está "aberto" → todas as mensagens
+// voltam a notificar (som/toast) mesmo trabalhando em outra parte do sistema.
+onBeforeUnmount(() => {
+  store.dispatch('internalChat/clearActiveChannel');
+});
 </script>
 
 <template>
@@ -493,13 +522,32 @@ onMounted(() => {
         <h1 class="text-base font-semibold text-n-slate-12">
           {{ t('INTERNAL_CHAT.TITLE') }}
         </h1>
-        <button
-          class="inline-flex items-center justify-center w-8 h-8 rounded-lg text-n-slate-11 hover:bg-n-alpha-2 transition-colors"
-          :title="t('INTERNAL_CHAT.NEW_DM')"
-          @click="newPanel = newPanel ? null : 'menu'"
-        >
-          <span class="i-lucide-plus text-lg" />
-        </button>
+        <div class="flex items-center gap-1">
+          <button
+            v-if="isAdmin"
+            class="inline-flex items-center justify-center w-8 h-8 rounded-lg transition-colors"
+            :class="
+              auditMode
+                ? 'bg-n-brand/15 text-n-brand'
+                : 'text-n-slate-11 hover:bg-n-alpha-2'
+            "
+            :title="
+              auditMode
+                ? t('INTERNAL_CHAT.AUDIT.ON')
+                : t('INTERNAL_CHAT.AUDIT.OFF')
+            "
+            @click="toggleAudit"
+          >
+            <span class="i-lucide-shield-check text-lg" />
+          </button>
+          <button
+            class="inline-flex items-center justify-center w-8 h-8 rounded-lg text-n-slate-11 hover:bg-n-alpha-2 transition-colors"
+            :title="t('INTERNAL_CHAT.NEW_DM')"
+            @click="newPanel = newPanel ? null : 'menu'"
+          >
+            <span class="i-lucide-plus text-lg" />
+          </button>
+        </div>
       </header>
 
       <!-- New-channel panel -->
@@ -624,7 +672,7 @@ onMounted(() => {
       <!-- Channels -->
       <div class="flex-1 overflow-y-auto py-1">
         <button
-          v-for="channel in channels"
+          v-for="channel in channelList"
           :key="channel.id"
           class="flex items-center gap-3 w-full px-3 py-2.5 text-left rounded-lg mx-1 transition-colors"
           :class="
@@ -682,7 +730,7 @@ onMounted(() => {
         </button>
 
         <div
-          v-if="!channels.length && !uiFlags.isFetchingChannels"
+          v-if="!channelList.length && !uiFlags.isFetchingChannels"
           class="flex flex-col items-center justify-center text-center px-6 py-12 text-n-slate-10"
         >
           <span class="i-lucide-messages-square text-3xl mb-2 opacity-70" />
@@ -1066,8 +1114,20 @@ onMounted(() => {
           </button>
         </div>
 
+        <!-- Auditoria (admin não-membro): somente leitura, sem composer -->
+        <div
+          v-if="!isMemberOfActiveChannel"
+          class="px-4 py-3 border-t border-n-weak flex items-center justify-center gap-2 text-xs text-n-slate-10 flex-shrink-0"
+        >
+          <span class="i-lucide-shield-check" />
+          {{ t('INTERNAL_CHAT.AUDIT.READONLY') }}
+        </div>
+
         <!-- Composer -->
-        <footer class="px-4 py-3 border-t border-n-weak relative flex-shrink-0">
+        <footer
+          v-else
+          class="px-4 py-3 border-t border-n-weak relative flex-shrink-0"
+        >
           <div
             v-if="typingLabel"
             class="absolute -top-5 left-5 text-xs italic text-n-slate-10"

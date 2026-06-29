@@ -1,6 +1,11 @@
 {
   "INTERNAL_CHAT": {
     "TITLE": "Chat Interno",
+    "AUDIT": {
+      "ON": "Auditoria ativa — mostrando todos os canais (admin). Clique para sair.",
+      "OFF": "Auditar todos os canais (admin)",
+      "READONLY": "Modo auditoria (admin) — somente leitura"
+    },
     "NEW_DM": "Nova mensagem direta",
     "NEW_GROUP": "Novo grupo",
     "NEW_TEAM_CHANNEL": "Canal de equipe",

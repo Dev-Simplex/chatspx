@@ -1,13 +1,19 @@
 import InternalChatAPI from '../../api/internalChat';
-import { internalChatNotify } from '../../helper/internalChatNotify';
 
 export const state = {
   channels: [],
+  // Modo auditoria (admin): TODOS os canais da conta, lista separada da do usuário.
+  auditChannels: [],
   agents: [],
   messagesByChannel: {},
   hasMoreByChannel: {},
   typingByChannel: {},
   pendingMention: null,
+  // Canal aberto no momento (para não notificar mensagens do canal que estou
+  // olhando) e a última notificação pendente de nova mensagem (a Sidebar, sempre
+  // montada, observa isso e dispara o toast + som + notificação desktop).
+  activeChannelId: null,
+  pendingNotification: null,
   uiFlags: {
     isFetchingChannels: false,
     isFetchingMessages: false,
@@ -17,12 +23,15 @@ export const state = {
 
 export const getters = {
   getChannels: $state => $state.channels,
+  getAuditChannels: $state => $state.auditChannels,
   getAgents: $state => $state.agents,
   getMessages: $state => channelId => $state.messagesByChannel[channelId] || [],
   getUIFlags: $state => $state.uiFlags,
   getTotalUnread: $state =>
     $state.channels.reduce((sum, c) => sum + (c.unread_count || 0), 0),
   getPendingMention: $state => $state.pendingMention,
+  getPendingNotification: $state => $state.pendingNotification,
+  getActiveChannelId: $state => $state.activeChannelId,
   getTypingNames: $state => channelId =>
     Object.values($state.typingByChannel[channelId] || {}).map(u => u.name),
   getHasMore: $state => channelId =>
@@ -43,6 +52,12 @@ export const actions = {
   fetchAgents: async ({ commit }) => {
     const { data } = await InternalChatAPI.getAgents();
     commit('SET_AGENTS', data);
+  },
+
+  // Admin: carrega TODOS os canais da conta para auditoria (somente leitura).
+  fetchAuditChannels: async ({ commit }) => {
+    const { data } = await InternalChatAPI.getAllChannels();
+    commit('SET_AUDIT_CHANNELS', data);
   },
 
   createDm: async ({ commit, dispatch }, userId) => {
@@ -68,16 +83,27 @@ export const actions = {
 
   fetchMessages: async ({ commit }, channelId) => {
     commit('SET_UI_FLAG', { isFetchingMessages: true });
+    // Abrir um canal = ele vira o ativo (não notifica msgs deste enquanto aberto).
+    commit('SET_ACTIVE_CHANNEL', channelId);
     try {
       const { data } = await InternalChatAPI.getMessages(channelId);
       commit('SET_MESSAGES', { channelId, messages: data.messages });
       commit('SET_HAS_MORE', { channelId, hasMore: data.has_more });
-      await InternalChatAPI.markRead(channelId);
-      commit('CLEAR_UNREAD', channelId);
+      // Best-effort: em auditoria (admin não-membro) o markRead retorna 403 —
+      // ignorar, pois auditoria é somente leitura e não deve marcar como lido.
+      try {
+        await InternalChatAPI.markRead(channelId);
+        commit('CLEAR_UNREAD', channelId);
+      } catch (e) {
+        // não-membro/auditoria: silencioso
+      }
     } finally {
       commit('SET_UI_FLAG', { isFetchingMessages: false });
     }
   },
+
+  // Sair da tela do chat (ou desmarcar canal) — qualquer mensagem volta a notificar.
+  clearActiveChannel: ({ commit }) => commit('SET_ACTIVE_CHANNEL', null),
 
   // Load older history (pagination) before the oldest loaded message.
   fetchOlderMessages: async ({ commit, state: $state }, channelId) => {
@@ -171,18 +197,33 @@ export const actions = {
     }
     commit('BUMP_UNREAD', channelId);
 
-    // Notify on a DM from someone else while the tab is in the background.
+    // Notifica qualquer mensagem nova de canais de que sou membro (DM, grupo ou
+    // time), exceto: minhas próprias, @menções (a notificação de menção já cobre,
+    // evita som duplo) e o canal que estou olhando agora (aba visível). A Sidebar
+    // observa pendingNotification e dispara toast + som + notificação desktop.
     const channel = $state.channels.find(c => c.id === channelId);
-    const fromMe = message.user?.id === rootGetters.getCurrentUserID;
-    if (
-      !fromMe &&
-      channel?.channel_type === 'direct' &&
+    const currentUserId = rootGetters.getCurrentUserID;
+    const fromMe = message.user?.id === currentUserId;
+    const mentionsMe =
+      Array.isArray(message.mentioned_user_ids) &&
+      message.mentioned_user_ids.includes(currentUserId);
+    const viewingThis =
+      $state.activeChannelId === channelId &&
       typeof document !== 'undefined' &&
-      document.hidden
-    ) {
-      internalChatNotify({
-        title: message.user?.name,
+      !document.hidden;
+
+    if (!fromMe && !mentionsMe && !viewingThis) {
+      const sender = message.user?.name || '';
+      const isDm = channel?.channel_type === 'direct';
+      const title = isDm
+        ? sender || 'Nova mensagem'
+        : [sender, channel?.name].filter(Boolean).join(' · ') ||
+          'Nova mensagem';
+      commit('SET_PENDING_NOTIFICATION', {
+        title,
         body: message.content || '📎',
+        channelId,
+        at: Date.now(),
       });
     }
   },
@@ -278,6 +319,9 @@ export const mutations = {
   SET_CHANNELS($state, channels) {
     $state.channels = channels;
   },
+  SET_AUDIT_CHANNELS($state, channels) {
+    $state.auditChannels = channels;
+  },
   SET_AGENTS($state, agents) {
     $state.agents = agents;
   },
@@ -340,6 +384,12 @@ export const mutations = {
   },
   SET_PENDING_MENTION($state, mention) {
     $state.pendingMention = mention;
+  },
+  SET_PENDING_NOTIFICATION($state, notification) {
+    $state.pendingNotification = notification;
+  },
+  SET_ACTIVE_CHANNEL($state, channelId) {
+    $state.activeChannelId = channelId;
   },
   SET_TYPING($state, { channelId, userId, name, typing }) {
     const current = { ...($state.typingByChannel[channelId] || {}) };
