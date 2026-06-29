@@ -23,6 +23,14 @@
     "CREATE": "Criar",
     "CANCEL": "Cancelar",
     "ATTACH": "Anexar arquivo",
+    "EMOJI": "Emoji",
+    "MENTION": "Mencionar",
+    "NOTIFICATIONS": {
+      "TITLE": "Notificações",
+      "DESKTOP": "Notificação no desktop",
+      "SOUND": "Som",
+      "BLOCKED": "As notificações estão bloqueadas no navegador. Habilite-as nas configurações do site para receber alertas no desktop."
+    },
     "MENTION_TOAST": "{from} mencionou você em {channel}",
     "TODAY": "Hoje",
     "YESTERDAY": "Ontem",

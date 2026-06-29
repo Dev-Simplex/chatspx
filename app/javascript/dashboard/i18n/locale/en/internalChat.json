@@ -23,6 +23,14 @@
     "CREATE": "Create",
     "CANCEL": "Cancel",
     "ATTACH": "Attach file",
+    "EMOJI": "Emoji",
+    "MENTION": "Mention",
+    "NOTIFICATIONS": {
+      "TITLE": "Notifications",
+      "DESKTOP": "Desktop notification",
+      "SOUND": "Sound",
+      "BLOCKED": "Notifications are blocked in your browser. Enable them in the site settings to get desktop alerts."
+    },
     "MENTION_TOAST": "{from} mentioned you in {channel}",
     "TODAY": "Today",
     "YESTERDAY": "Yesterday",

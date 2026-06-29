@@ -147,6 +147,13 @@ const totalInternalChatUnread = useMapGetter('internalChat/getTotalUnread');
 
 // Real-time @mention toast for internal chat (localized here — the Sidebar is
 // always mounted and has i18n; keeps the ActionCable connector i18n-free).
+// User notification preferences for internal chat (set in the chat's header).
+// Default ON when unset, so existing users keep the prior behavior.
+const internalChatSoundEnabled = () =>
+  uiSettings.value?.internal_chat_sound_notifications !== false;
+const internalChatDesktopEnabled = () =>
+  uiSettings.value?.internal_chat_desktop_notifications !== false;
+
 const pendingInternalMention = useMapGetter('internalChat/getPendingMention');
 watch(pendingInternalMention, mention => {
   if (!mention) return;
@@ -155,7 +162,11 @@ watch(pendingInternalMention, mention => {
     channel: mention.channel,
   });
   useAlert(message);
-  internalChatNotify({ title: mention.from, body: message });
+  internalChatNotify({
+    title: internalChatDesktopEnabled() ? mention.from : undefined,
+    body: message,
+    sound: internalChatSoundEnabled(),
+  });
 });
 
 // Real-time toast + som para QUALQUER nova mensagem de canais que participo
@@ -169,9 +180,10 @@ watch(pendingInternalNotification, notification => {
   const hidden = typeof document !== 'undefined' && document.hidden;
   if (!hidden) useAlert(`${notification.title}: ${notification.body}`);
   internalChatNotify({
-    title: hidden ? notification.title : undefined,
+    title:
+      internalChatDesktopEnabled() && hidden ? notification.title : undefined,
     body: notification.body,
-    sound: true,
+    sound: internalChatSoundEnabled(),
   });
 });
 

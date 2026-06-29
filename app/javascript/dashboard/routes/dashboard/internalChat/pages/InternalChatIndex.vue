@@ -9,6 +9,7 @@ import {
   defineAsyncComponent,
 } from 'vue';
 import { useStore, useMapGetter } from 'dashboard/composables/store';
+import { useUISettings } from 'dashboard/composables/useUISettings';
 import { useI18n } from 'vue-i18n';
 import { useRouter } from 'vue-router';
 import Avatar from 'dashboard/components-next/avatar/Avatar.vue';
@@ -39,6 +40,48 @@ const uiFlags = useMapGetter('internalChat/getUIFlags');
 const currentUserId = useMapGetter('getCurrentUserID');
 const currentRole = useMapGetter('getCurrentRole');
 const teams = useMapGetter('teams/getMyTeams');
+
+// ── Notification preferences (desktop + sound) ────────────────────────────
+// Persisted in the user's UI settings and honored by Sidebar.vue when a new
+// internal message arrives. Defaults: both ON (preserves prior behavior).
+const { uiSettings, updateUISettings } = useUISettings();
+const showNotifSettings = ref(false);
+const desktopPermissionBlocked = ref(false);
+const desktopNotifications = computed(
+  () => uiSettings.value?.internal_chat_desktop_notifications !== false
+);
+const soundNotifications = computed(
+  () => uiSettings.value?.internal_chat_sound_notifications !== false
+);
+const toggleSoundNotifications = () => {
+  updateUISettings({
+    internal_chat_sound_notifications: !soundNotifications.value,
+  });
+};
+const toggleDesktopNotifications = () => {
+  const next = !desktopNotifications.value;
+  // Turning desktop notifications ON needs browser permission.
+  if (next && 'Notification' in window) {
+    if (Notification.permission === 'denied') {
+      desktopPermissionBlocked.value = true;
+      updateUISettings({ internal_chat_desktop_notifications: true });
+      return;
+    }
+    if (Notification.permission === 'default') {
+      Notification.requestPermission()
+        .then(p => {
+          desktopPermissionBlocked.value = p === 'denied';
+          updateUISettings({
+            internal_chat_desktop_notifications: p !== 'denied',
+          });
+        })
+        .catch(() => {});
+      return;
+    }
+  }
+  desktopPermissionBlocked.value = false;
+  updateUISettings({ internal_chat_desktop_notifications: next });
+};
 
 // Auditoria (admin): alterna a lista para TODOS os canais da conta (somente
 // leitura nos canais em que o admin não participa).
@@ -540,6 +583,89 @@ onBeforeUnmount(() => {
           >
             <span class="i-lucide-shield-check text-lg" />
           </button>
+          <div class="relative">
+            <button
+              class="inline-flex items-center justify-center w-8 h-8 rounded-lg transition-colors"
+              :class="
+                showNotifSettings
+                  ? 'bg-n-brand/15 text-n-brand'
+                  : 'text-n-slate-11 hover:bg-n-alpha-2'
+              "
+              :title="t('INTERNAL_CHAT.NOTIFICATIONS.TITLE')"
+              @click="showNotifSettings = !showNotifSettings"
+            >
+              <span class="i-lucide-bell text-lg" />
+            </button>
+            <template v-if="showNotifSettings">
+              <div
+                class="fixed inset-0 z-10"
+                @click="showNotifSettings = false"
+              />
+              <div
+                class="absolute ltr:right-0 rtl:left-0 top-10 z-20 w-64 p-3 bg-n-solid-1 border border-n-weak rounded-xl shadow-lg flex flex-col gap-3"
+              >
+                <h3
+                  class="text-xs font-semibold uppercase tracking-wide text-n-slate-10"
+                >
+                  {{ t('INTERNAL_CHAT.NOTIFICATIONS.TITLE') }}
+                </h3>
+                <div class="flex items-center justify-between gap-3">
+                  <span class="flex items-center gap-2 text-sm text-n-slate-12">
+                    <span class="i-lucide-monitor text-base text-n-slate-10" />
+                    {{ t('INTERNAL_CHAT.NOTIFICATIONS.DESKTOP') }}
+                  </span>
+                  <button
+                    type="button"
+                    role="switch"
+                    :aria-checked="desktopNotifications"
+                    :aria-label="t('INTERNAL_CHAT.NOTIFICATIONS.DESKTOP')"
+                    class="relative inline-flex h-5 w-9 items-center rounded-full transition-colors flex-shrink-0"
+                    :class="
+                      desktopNotifications ? 'bg-n-brand' : 'bg-n-slate-4'
+                    "
+                    @click="toggleDesktopNotifications"
+                  >
+                    <span
+                      class="inline-block h-4 w-4 rounded-full bg-white shadow transition-transform"
+                      :class="
+                        desktopNotifications
+                          ? 'translate-x-4'
+                          : 'translate-x-0.5'
+                      "
+                    />
+                  </button>
+                </div>
+                <div class="flex items-center justify-between gap-3">
+                  <span class="flex items-center gap-2 text-sm text-n-slate-12">
+                    <span class="i-lucide-volume-2 text-base text-n-slate-10" />
+                    {{ t('INTERNAL_CHAT.NOTIFICATIONS.SOUND') }}
+                  </span>
+                  <button
+                    type="button"
+                    role="switch"
+                    :aria-checked="soundNotifications"
+                    :aria-label="t('INTERNAL_CHAT.NOTIFICATIONS.SOUND')"
+                    class="relative inline-flex h-5 w-9 items-center rounded-full transition-colors flex-shrink-0"
+                    :class="soundNotifications ? 'bg-n-brand' : 'bg-n-slate-4'"
+                    @click="toggleSoundNotifications"
+                  >
+                    <span
+                      class="inline-block h-4 w-4 rounded-full bg-white shadow transition-transform"
+                      :class="
+                        soundNotifications ? 'translate-x-4' : 'translate-x-0.5'
+                      "
+                    />
+                  </button>
+                </div>
+                <p
+                  v-if="desktopPermissionBlocked"
+                  class="text-[11px] leading-snug text-n-ruby-11"
+                >
+                  {{ t('INTERNAL_CHAT.NOTIFICATIONS.BLOCKED') }}
+                </p>
+              </div>
+            </template>
+          </div>
           <button
             class="inline-flex items-center justify-center w-8 h-8 rounded-lg text-n-slate-11 hover:bg-n-alpha-2 transition-colors"
             :title="t('INTERNAL_CHAT.NEW_DM')"
@@ -1189,57 +1315,64 @@ onBeforeUnmount(() => {
 
           <EmojiInput
             v-if="showEmoji"
-            class="absolute bottom-16 right-4 z-10"
+            class="absolute bottom-16 left-4 z-10"
             :on-click="onEmojiSelect"
           />
 
-          <div
-            class="flex items-end gap-1 bg-n-alpha-1 border border-n-weak rounded-2xl px-2 py-1.5 focus-within:border-n-brand transition-colors"
-          >
-            <button
-              class="inline-flex items-center justify-center h-8 w-8 rounded-lg text-n-slate-11 hover:bg-n-alpha-2 flex-shrink-0"
-              :title="t('INTERNAL_CHAT.ATTACH')"
-              @click="onPickFile"
+          <!-- WhatsApp-style composer: tool cluster + input live inside one
+               rounded pill, the round send button sits outside on the right. -->
+          <div class="flex items-end gap-2">
+            <div
+              class="flex flex-1 items-end gap-0.5 bg-n-alpha-1 border border-n-weak rounded-2xl px-1.5 py-1 focus-within:border-n-brand focus-within:bg-n-background transition-colors"
             >
-              <span class="i-lucide-paperclip text-lg" />
-            </button>
+              <button
+                class="inline-flex items-center justify-center h-9 w-9 rounded-full text-n-slate-11 hover:bg-n-alpha-2 hover:text-n-slate-12 transition-colors flex-shrink-0"
+                :title="t('INTERNAL_CHAT.EMOJI')"
+                @click="showEmoji = !showEmoji"
+              >
+                <span class="i-lucide-smile text-lg" />
+              </button>
+              <button
+                class="inline-flex items-center justify-center h-9 w-9 rounded-full text-n-slate-11 hover:bg-n-alpha-2 hover:text-n-slate-12 transition-colors flex-shrink-0"
+                :title="t('INTERNAL_CHAT.ATTACH')"
+                @click="onPickFile"
+              >
+                <span class="i-lucide-paperclip text-lg" />
+              </button>
+              <button
+                v-if="channelMembers.length"
+                class="inline-flex items-center justify-center h-9 w-9 rounded-full text-n-slate-11 hover:bg-n-alpha-2 hover:text-n-slate-12 transition-colors flex-shrink-0"
+                :title="t('INTERNAL_CHAT.MENTION')"
+                @click="showMentionPicker = !showMentionPicker"
+              >
+                <span class="i-lucide-at-sign text-lg" />
+              </button>
+              <input
+                ref="fileInput"
+                type="file"
+                multiple
+                class="hidden"
+                @change="onFilesSelected"
+              />
+              <textarea
+                ref="composerRef"
+                v-model="draft"
+                rows="1"
+                class="flex-1 resize-none bg-transparent px-2 py-2 text-sm text-n-slate-12 placeholder:text-n-slate-10 focus:outline-none max-h-[140px] leading-relaxed"
+                :placeholder="t('INTERNAL_CHAT.PLACEHOLDER')"
+                @input="onComposerInput"
+                @keydown.enter.exact.prevent="send"
+              />
+            </div>
             <button
-              class="inline-flex items-center justify-center h-8 w-8 rounded-lg text-n-slate-11 hover:bg-n-alpha-2 flex-shrink-0"
-              @click="showEmoji = !showEmoji"
-            >
-              <span class="i-lucide-smile text-lg" />
-            </button>
-            <button
-              v-if="channelMembers.length"
-              class="inline-flex items-center justify-center h-8 w-8 rounded-lg text-n-slate-11 hover:bg-n-alpha-2 flex-shrink-0"
-              @click="showMentionPicker = !showMentionPicker"
-            >
-              <span class="i-lucide-at-sign text-lg" />
-            </button>
-            <input
-              ref="fileInput"
-              type="file"
-              multiple
-              class="hidden"
-              @change="onFilesSelected"
-            />
-            <textarea
-              ref="composerRef"
-              v-model="draft"
-              rows="1"
-              class="flex-1 resize-none bg-transparent px-2 py-1.5 text-sm text-n-slate-12 focus:outline-none max-h-[140px] leading-relaxed"
-              :placeholder="t('INTERNAL_CHAT.PLACEHOLDER')"
-              @input="onComposerInput"
-              @keydown.enter.exact.prevent="send"
-            />
-            <button
-              class="inline-flex items-center justify-center h-8 w-8 rounded-lg text-white bg-n-brand hover:opacity-90 disabled:opacity-40 flex-shrink-0 self-end"
+              class="inline-flex items-center justify-center h-10 w-10 rounded-full text-white bg-n-brand shadow-sm hover:bg-n-brand-hover disabled:opacity-40 disabled:cursor-not-allowed disabled:shadow-none transition-all flex-shrink-0"
+              :title="t('INTERNAL_CHAT.SEND')"
               :disabled="
                 (!draft.trim() && !attachedFiles.length) || uiFlags.isSending
               "
               @click="send"
             >
-              <span class="i-lucide-send-horizontal text-base" />
+              <span class="i-lucide-send-horizontal text-lg" />
             </button>
           </div>
         </footer>
