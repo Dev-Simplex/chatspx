@@ -15,6 +15,10 @@ class SwaggerController < ApplicationController
     expected_pass = ENV.fetch('SWAGGER_DOCS_PASSWORD', nil)
     return head(:not_found) if expected_pass.blank?
 
+    # O spec JSON (machine-readable) e liberado SEM auth para consumo por IA/ferramentas.
+    # Apenas a UI HTML (e demais arquivos) continua protegida por HTTP Basic Auth.
+    return if request.path.to_s.end_with?('.json')
+
     expected_user = ENV.fetch('SWAGGER_DOCS_USER', 'spxdocs')
     authenticate_or_request_with_http_basic('ChatSPX API Docs') do |user, pass|
       next false if user.blank? || pass.blank?
