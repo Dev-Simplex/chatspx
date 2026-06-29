@@ -4,10 +4,10 @@ module Enterprise::MessageTemplates::HookExecutionService # rubocop:disable Metr
   def trigger_templates
     super
     # D-12: pós-handoff sem humano disponível (fora do horário / ninguém online), o cliente
-    # continua falando numa conversa órfã. A IA do TIME volta a atender via kick (A2d) —
+    # continua falando numa conversa órfã. A IA de TRIAGEM (Clara) reentra via kick (A2d) —
     # silêncio é pior que a especialista segurar o cliente. Humano que assumir cala ela.
     # Cobre também conversa resolvida que reabre quando o contato volta (A2e solta o dono).
-    return reattach_sector_assistant if orphan_captain_reentry?
+    return reattach_triage_assistant if orphan_captain_reentry?
 
     return unless should_process_captain_response?
     return perform_handoff unless captain_quota_available?
@@ -159,31 +159,32 @@ module Enterprise::MessageTemplates::HookExecutionService # rubocop:disable Metr
 
     message.incoming? && !message.private? && conversation.open? &&
       conversation.assignee_id.nil? && conversation.assignee_agent_bot_id.nil? &&
-      sector_assistant.present?
+      triage_assistant.present?
   end
 
-  def reattach_sector_assistant
-    mirror = AgentBot.captain.find_by(captain_assistant_id: sector_assistant.id)
+  def reattach_triage_assistant
+    mirror = AgentBot.captain.find_by(captain_assistant_id: triage_assistant.id)
     return if mirror.nil?
 
-    conversation.update!(assignee_agent_bot_id: mirror.id) # dispara o kick (A2d), que responde
+    # Reaberta volta pra TRIAGEM (Clara), com o time LIMPO: ela lê o histórico + a mensagem
+    # nova e decide se continua o assunto anterior ou abre um novo, e roteia. Dispara o kick (A2d).
+    conversation.update!(assignee_agent_bot_id: mirror.id, team_id: nil)
   rescue StandardError => e
     Rails.logger.warn("[Captain] reentrada conv=#{conversation.id}: #{e.message}")
   end
 
-  # A especialista do time da conversa (config['team_id']), desde que ELEGÍVEL na inbox.
-  # Time sem IA (ex: jurídico) -> nil -> conversa segue com o time humano.
-  def sector_assistant
-    return @sector_assistant if defined?(@sector_assistant)
+  # O agente de TRIAGEM da conta (config['triage']=true, ex: Clara/recepção), se ELEGÍVEL na
+  # inbox. É pra ele que a reentrada manda — não pro especialista do último time, porque o
+  # cliente pode ter voltado por OUTRO assunto; a triagem reavalia.
+  def triage_assistant
+    return @triage_assistant if defined?(@triage_assistant)
 
-    @sector_assistant = resolve_sector_assistant
+    @triage_assistant = resolve_triage_assistant
   end
 
-  def resolve_sector_assistant
-    return nil if conversation.team_id.blank?
-
+  def resolve_triage_assistant
     assistant = Captain::Assistant.where(account_id: conversation.account_id)
-                                  .detect { |a| a.config['team_id'].to_i == conversation.team_id }
+                                  .detect { |a| a.config['triage'] == true }
     return nil if assistant.nil?
     return nil unless ::CaptainInbox.exists?(inbox_id: inbox.id, captain_assistant_id: assistant.id)
 
