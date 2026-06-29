@@ -26,6 +26,8 @@ class Api::V1::Accounts::InternalChannels::InternalMessagesController < Api::V1:
   end
 
   def create
+    return render_forbidden unless channel_member?
+
     @message = InternalMessages::CreateService.new(
       channel: @channel, user: Current.user,
       content: params[:content], attachments: params[:attachments],
@@ -57,6 +59,8 @@ class Api::V1::Accounts::InternalChannels::InternalMessagesController < Api::V1:
   end
 
   def react
+    return render_forbidden unless channel_member?
+
     emoji = params[:emoji].to_s
     return head(:unprocessable_entity) if emoji.blank? || @message.deleted?
 
@@ -67,8 +71,15 @@ class Api::V1::Accounts::InternalChannels::InternalMessagesController < Api::V1:
 
   private
 
+  # Admin alcança qualquer canal (para ler em auditoria); a policy (show?) libera
+  # admin para leitura, e channel_member? barra escrita em canais que ele não participa.
   def fetch_channel
-    @channel = policy_scope(InternalChannel).find(params[:internal_channel_id])
+    base = Current.account_user&.administrator? ? Current.account.internal_channels : policy_scope(InternalChannel)
+    @channel = base.find(params[:internal_channel_id])
+  end
+
+  def channel_member?
+    @channel.members.exists?(user_id: Current.user.id)
   end
 
   def fetch_message

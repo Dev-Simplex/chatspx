@@ -11,8 +11,11 @@ class InternalChannelPolicy < ApplicationPolicy
     true
   end
 
+  # Admin pode VER/auditar qualquer canal da conta (supervisão/compliance), mesmo
+  # sem ser membro. Agir (postar, reagir, gerenciar, marcar lido) continua exigindo
+  # ser membro — auditoria é somente leitura.
   def show?
-    member?
+    member? || admin?
   end
 
   def read?
@@ -43,6 +46,10 @@ class InternalChannelPolicy < ApplicationPolicy
     return false unless record.is_a?(InternalChannel)
 
     record.members.exists?(user_id: user.id)
+  end
+
+  def admin?
+    account_user&.administrator?
   end
 
   class Scope < ApplicationPolicy::Scope

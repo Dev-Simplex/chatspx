@@ -10,7 +10,9 @@ class Api::V1::Accounts::InternalChannelsController < Api::V1::Accounts::BaseCon
     # for_user already yields one row per channel (a user has a single membership
     # per channel), so no .distinct is needed — and .distinct would choke on the
     # json columns of joined tables ("no equality operator for type json").
-    @channels = policy_scope(InternalChannel).includes(:users, :messages, members: :user)
+    # Admin em modo auditoria (?scope=all) vê TODOS os canais da conta.
+    base = audit_all? ? Current.account.internal_channels : policy_scope(InternalChannel)
+    @channels = base.includes(:users, :messages, members: :user)
   end
 
   def show; end
@@ -108,8 +110,15 @@ class Api::V1::Accounts::InternalChannelsController < Api::V1::Accounts::BaseCon
     InternalChannels::FindOrCreateDmService.new(account: Current.account, user: Current.user, other_user: other_user).perform
   end
 
+  # Admin pode alcançar qualquer canal da conta (auditoria); a policy decide o que
+  # ele pode fazer (show? permite admin; ações de escrita continuam member-only).
   def fetch_channel
-    @channel = policy_scope(InternalChannel).find(params[:id])
+    base = Current.account_user&.administrator? ? Current.account.internal_channels : policy_scope(InternalChannel)
+    @channel = base.find(params[:id])
+  end
+
+  def audit_all?
+    params[:scope] == 'all' && Current.account_user&.administrator?
   end
 
   def check_authorization
