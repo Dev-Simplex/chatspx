@@ -51,6 +51,59 @@ const lordIcon = (srcKey, fallback = '') => {
   });
 };
 
+// Ícone "Agentes IA": chip/processador (como o original) escrito "IA". A
+// animação (pinos piscando em sequência + borda pulsando) roda SÓ no hover da
+// linha — controlada por CSS em [data-hover-host]:hover (ver bloco <style> no
+// fim do arquivo). Sem CDN/licença; recoloriza por currentColor. O texto "IA"
+// fica sempre sólido para legibilidade. viewBox preenchido para ficar maior.
+const captainIaIcon = () => {
+  const pinCoords = [];
+  [9, 12, 15].forEach(p => {
+    pinCoords.push([p, 2, p, 5], [p, 19, p, 22], [2, p, 5, p], [19, p, 22, p]);
+  });
+  const total = pinCoords.length;
+  const pins = pinCoords.map(([x1, y1, x2, y2], i) =>
+    h('line', {
+      x1,
+      y1,
+      x2,
+      y2,
+      class: 'cia-pin',
+      stroke: 'currentColor',
+      'stroke-width': 1.6,
+      'stroke-linecap': 'round',
+      style: { animationDelay: `${(i * (1.4 / total)).toFixed(2)}s` },
+    })
+  );
+  return h('svg', { viewBox: '0 0 24 24', fill: 'none', class: 'cia' }, [
+    h('rect', {
+      x: 5,
+      y: 5,
+      width: 14,
+      height: 14,
+      rx: 3,
+      class: 'cia-chip',
+      stroke: 'currentColor',
+      'stroke-width': 1.6,
+    }),
+    ...pins,
+    h(
+      'text',
+      {
+        x: 12,
+        y: 12.9,
+        'text-anchor': 'middle',
+        'dominant-baseline': 'middle',
+        fill: 'currentColor',
+        'font-size': 8.5,
+        'font-weight': 700,
+        'font-family': 'ui-sans-serif, system-ui, sans-serif',
+      },
+      'IA'
+    ),
+  ]);
+};
+
 const { accountScopedRoute, isOnChatwootCloud } = useAccount();
 const store = useStore();
 const searchShortcut = useKbd([`$mod`, 'k']);
@@ -424,10 +477,6 @@ const menuItems = computed(() => {
       icon: lordIcon('kanban', 'i-lucide-layout-grid'),
       to: accountScopedRoute('kanban_index'),
       activeOn: ['kanban_index', 'kanban_funnel'],
-      // Internal chat is now a sub-tool inside Kanban; surface its unread badge here.
-      count: hasInternalChat.value
-        ? totalInternalChatUnread.value || undefined
-        : undefined,
     },
     {
       name: 'Gallery',
@@ -438,7 +487,7 @@ const menuItems = computed(() => {
     },
     {
       name: 'AI Agents',
-      icon: lordIcon('captain', 'i-woot-captain'),
+      icon: captainIaIcon(),
       label: t('SIDEBAR.CAPTAIN'),
       children: [
         {
@@ -455,6 +504,18 @@ const menuItems = computed(() => {
         },
       ],
     },
+    ...(hasInternalChat.value
+      ? [
+          {
+            name: 'Internal Chat',
+            label: t('SIDEBAR.INTERNAL_CHAT'),
+            icon: lordIcon('internalChat', 'i-lucide-messages-square'),
+            to: accountScopedRoute('internal_chat_index'),
+            activeOn: ['internal_chat_index'],
+            count: totalInternalChatUnread.value || undefined,
+          },
+        ]
+      : []),
     {
       name: 'Contacts',
       label: t('SIDEBAR.CONTACTS'),
@@ -1009,3 +1070,32 @@ const onSidebarReorder = () => {
     </section>
   </aside>
 </template>
+
+<style>
+/* Ícone "Agentes IA" (chip): anima só quando o mouse passa na linha do item.
+   Em repouso fica estático e sólido (chip normal escrito IA). */
+@keyframes cia-blink {
+  0%,
+  100% {
+    opacity: 0.3;
+  }
+  50% {
+    opacity: 1;
+  }
+}
+@keyframes cia-pulse {
+  0%,
+  100% {
+    stroke-width: 1.6;
+  }
+  50% {
+    stroke-width: 2.1;
+  }
+}
+[data-hover-host]:hover .cia-pin {
+  animation: cia-blink 1.6s linear infinite;
+}
+[data-hover-host]:hover .cia-chip {
+  animation: cia-pulse 2.4s ease-in-out infinite;
+}
+</style>
