@@ -187,6 +187,10 @@ class Captain::Assistant::AgentRunnerService
 
   def build_conversation_state(state)
     state[:conversation] = slice_attrs(@conversation, CONVERSATION_STATE_ATTRIBUTES)
+    # O marcador de espera por humano NÃO entra no contexto do agente: a presença dele empurra
+    # o LLM pro silêncio ([IGNORAR]) mesmo quando o cliente traz pergunta nova. Ele segue no
+    # banco pros outros usos (guard do follow-up + filtro "Aguardando atendimento").
+    state[:conversation][:custom_attributes] = (state[:conversation][:custom_attributes] || {}).except('aguardando_humano_desde')
     state[:channel_type] = @conversation.inbox&.channel_type
     state[:contact] = slice_attrs(@conversation.contact, CONTACT_STATE_ATTRIBUTES) if @conversation.contact
     state[:campaign] = slice_attrs(@conversation.campaign, CAMPAIGN_STATE_ATTRIBUTES) if @conversation.campaign
