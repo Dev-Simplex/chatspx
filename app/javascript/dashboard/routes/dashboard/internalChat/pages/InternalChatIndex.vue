@@ -417,7 +417,16 @@ const editDraft = ref('');
 const reactionPickerId = ref(null);
 const confirmDeleteId = ref(null);
 
+// Per-message action toolbar, opened by right-click (context menu).
+const actionMenuId = ref(null);
+const openMessageMenu = msg => {
+  reactionPickerId.value = null;
+  confirmDeleteId.value = null;
+  actionMenuId.value = actionMenuId.value === msg.id ? null : msg.id;
+};
+
 const startEdit = msg => {
+  actionMenuId.value = null;
   reactionPickerId.value = null;
   confirmDeleteId.value = null;
   editingId.value = msg.id;
@@ -439,6 +448,7 @@ const saveEdit = async msg => {
 };
 
 const askDelete = msg => {
+  actionMenuId.value = null;
   reactionPickerId.value = null;
   confirmDeleteId.value = confirmDeleteId.value === msg.id ? null : msg.id;
 };
@@ -451,6 +461,7 @@ const doDelete = async msg => {
 };
 
 const toggleReactionPicker = msg => {
+  actionMenuId.value = null;
   confirmDeleteId.value = null;
   reactionPickerId.value = reactionPickerId.value === msg.id ? null : msg.id;
 };
@@ -468,6 +479,7 @@ const iReacted = (msg, emoji) =>
 
 // --- reply / quote (Fase 2C) ------------------------------------------------
 const startReply = msg => {
+  actionMenuId.value = null;
   reactionPickerId.value = null;
   confirmDeleteId.value = null;
   replyingTo.value = msg;
@@ -1030,45 +1042,51 @@ onBeforeUnmount(() => {
                         : 'bg-n-alpha-2 text-n-slate-12 rounded-bl-sm',
                       mentionsMe(item.msg) ? 'ring-2 ring-n-brand/60' : '',
                     ]"
+                    @contextmenu.prevent="openMessageMenu(item.msg)"
                   >
-                    <!-- hover toolbar — floats fully above the bubble so it
-                         never overlaps the message text -->
+                    <!-- click-outside backdrop for the action menu -->
                     <div
-                      class="absolute bottom-full mb-1.5 z-10 hidden group-hover:flex items-center gap-0.5 bg-n-solid-1 border border-n-weak rounded-full shadow-md px-1 py-1"
-                      :class="[
-                        isMine(item.msg) ? 'right-0' : 'left-0',
-                        reactionPickerId === item.msg.id ? '!hidden' : '',
-                      ]"
+                      v-if="actionMenuId === item.msg.id"
+                      class="fixed inset-0 z-10"
+                      @click="actionMenuId = null"
+                      @contextmenu.prevent="actionMenuId = null"
+                    />
+                    <!-- action toolbar — opened by right-click, floats fully
+                         above the bubble so it never overlaps the text -->
+                    <div
+                      v-if="actionMenuId === item.msg.id"
+                      class="absolute bottom-full mb-1.5 z-20 flex items-center gap-1 bg-n-solid-1 border border-n-weak rounded-full shadow-lg px-1.5 py-1.5"
+                      :class="isMine(item.msg) ? 'right-0' : 'left-0'"
                     >
                       <button
-                        class="inline-flex items-center justify-center w-6 h-6 rounded-full text-n-slate-11 hover:bg-n-alpha-2"
+                        class="inline-flex items-center justify-center w-9 h-9 rounded-full text-n-slate-12 hover:bg-n-alpha-2 transition-colors"
                         :title="t('INTERNAL_CHAT.REPLY')"
                         @click="startReply(item.msg)"
                       >
-                        <span class="i-lucide-reply text-sm" />
+                        <span class="i-lucide-reply text-xl" />
                       </button>
                       <button
-                        class="inline-flex items-center justify-center w-6 h-6 rounded-full text-n-slate-11 hover:bg-n-alpha-2"
+                        class="inline-flex items-center justify-center w-9 h-9 rounded-full text-n-slate-12 hover:bg-n-alpha-2 transition-colors"
                         :title="t('INTERNAL_CHAT.REACT')"
                         @click="toggleReactionPicker(item.msg)"
                       >
-                        <span class="i-lucide-smile-plus text-sm" />
+                        <span class="i-lucide-smile-plus text-xl" />
                       </button>
                       <button
                         v-if="isMine(item.msg)"
-                        class="inline-flex items-center justify-center w-6 h-6 rounded-full text-n-slate-11 hover:bg-n-alpha-2"
+                        class="inline-flex items-center justify-center w-9 h-9 rounded-full text-n-slate-12 hover:bg-n-alpha-2 transition-colors"
                         :title="t('INTERNAL_CHAT.EDIT')"
                         @click="startEdit(item.msg)"
                       >
-                        <span class="i-lucide-pencil text-sm" />
+                        <span class="i-lucide-pencil text-xl" />
                       </button>
                       <button
                         v-if="isMine(item.msg)"
-                        class="inline-flex items-center justify-center w-6 h-6 rounded-full text-n-slate-11 hover:bg-n-alpha-2"
+                        class="inline-flex items-center justify-center w-9 h-9 rounded-full text-n-slate-12 hover:bg-n-ruby-3 hover:text-n-ruby-11 transition-colors"
                         :title="t('INTERNAL_CHAT.DELETE')"
                         @click="askDelete(item.msg)"
                       >
-                        <span class="i-lucide-trash-2 text-sm" />
+                        <span class="i-lucide-trash-2 text-xl" />
                       </button>
                     </div>
 
