@@ -43,6 +43,10 @@ const aiBarStyle = computed(() =>
     ? aiAccentVars(assignedAgent.value.id)
     : {}
 );
+// Resumo vivo da IA (atributo) — aparece curto na barra, pra o humano decidir se assume.
+const aiSummary = computed(
+  () => currentChat.value?.custom_attributes?.resumo_atendimento_ia || ''
+);
 const showTransferTeamModal = ref(false);
 const pendingTransferAgent = ref(null);
 const isPendingBotHandoff = ref(false);
@@ -251,8 +255,11 @@ const onClickBotHandoff = async () => {
           })
         }}
       </span>
-      <span class="truncate text-xs text-n-violet-11">
+      <span v-if="!aiSummary" class="truncate text-xs text-n-violet-11">
         {{ $t('CONVERSATION.AI_HANDLING_SUBHINT') }}
+      </span>
+      <span v-else class="line-clamp-2 text-xs text-n-violet-11">
+        {{ aiSummary }}
       </span>
     </div>
     <button
