@@ -410,6 +410,19 @@ const actions = {
     commit(types.ASSIGN_TEAM, { team, conversationId });
   },
 
+  // "Devolver para a IA": re-tria a conversa (Clara) no backend e re-busca a
+  // conversa pra refletir o novo assignee (IA) + time limpo na hora.
+  retriage: async ({ dispatch }, { conversationId, rethrow = false }) => {
+    try {
+      await ConversationApi.retriage({ conversationId });
+      dispatch('getConversation', conversationId);
+    } catch (error) {
+      if (rethrow) {
+        throw error;
+      }
+    }
+  },
+
   toggleStatus: async (
     { commit },
     {

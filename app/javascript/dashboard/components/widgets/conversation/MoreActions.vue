@@ -25,8 +25,27 @@ const [showActionsDropdown, toggleDropdown] = useToggle(false);
 
 const currentChat = computed(() => store.getters.getSelectedChat);
 
+// "Devolver para a IA" no header: só aparece quando há IA atribuível nesta inbox
+// (logo, triagem possível). O backend valida se há triagem de fato.
+const canRetriage = computed(() =>
+  (store.getters['captainAssistants/getRecords'] || []).some(
+    assistant =>
+      assistant.agent_bot_id &&
+      (assistant.inbox_ids || []).includes(currentChat.value?.inbox_id)
+  )
+);
+
 const actionMenuItems = computed(() => {
   const items = [];
+
+  if (canRetriage.value) {
+    items.push({
+      icon: 'i-lucide-sparkles',
+      label: t('CONVERSATION_SIDEBAR.RETRIAGE'),
+      action: 'retriage',
+      value: 'retriage',
+    });
+  }
 
   if (!currentChat.value.muted) {
     items.push({
@@ -56,6 +75,24 @@ const actionMenuItems = computed(() => {
   return items;
 });
 
+const onRetriage = async () => {
+  // eslint-disable-next-line no-alert
+  if (!window.confirm(t('CONVERSATION_SIDEBAR.RETRIAGE_CONFIRM'))) {
+    return;
+  }
+  try {
+    await store.dispatch('retriage', {
+      conversationId: currentChat.value.id,
+      rethrow: true,
+    });
+    useAlert(t('CONVERSATION_SIDEBAR.RETRIAGE_SUCCESS'));
+  } catch (error) {
+    useAlert(
+      error?.response?.data?.error || t('CONVERSATION_SIDEBAR.RETRIAGE_ERROR')
+    );
+  }
+};
+
 const handleActionClick = ({ action }) => {
   toggleDropdown(false);
 
@@ -67,6 +104,8 @@ const handleActionClick = ({ action }) => {
     useAlert(t('CONTACT_PANEL.UNMUTED_SUCCESS'));
   } else if (action === 'send_transcript') {
     toggleEmailModal();
+  } else if (action === 'retriage') {
+    onRetriage();
   }
 };
 

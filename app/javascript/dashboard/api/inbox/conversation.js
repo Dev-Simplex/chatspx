@@ -110,6 +110,12 @@ class ConversationApi extends ApiClient {
     return axios.post(`${this.url}/${conversationId}/assignments`, params);
   }
 
+  // "Devolver para a IA": re-tria a conversa (Clara, time limpo). O backend
+  // resolve qual é o assistente de triagem da conta/inbox.
+  retriage({ conversationId }) {
+    return axios.post(`${this.url}/${conversationId}/retriage`);
+  }
+
   markMessageRead({ id }) {
     return axios.post(`${this.url}/${id}/update_last_seen`);
   }

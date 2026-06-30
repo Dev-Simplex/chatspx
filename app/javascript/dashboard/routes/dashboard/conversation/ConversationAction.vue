@@ -121,25 +121,20 @@ export default {
     // F4: um único campo de "agente atribuído" — bloco "Agentes IA" no topo
     // (admin-only, D-3) + agentes humanos. Selecionar uma IA limpa o humano e
     // vice-versa (exclusividade garantida no backend).
+    // As IAs (espelhos) saíram do dropdown de atribuição — o humano não escolhe
+    // "qual IA" na mão. A devolução virou o botão "Devolver para a IA" (re-triagem
+    // via Clara). Aqui só agentes HUMANOS. A IA atribuída ainda APARECE como
+    // selecionada (selectedAssignee), só não é uma opção escolhível.
     assigneeOptions() {
-      const humans = this.agentsList.map(agent => ({
-        ...agent,
-        group: 'human',
-        groupLabel: this.$t('CONVERSATION_SIDEBAR.ASSIGNEE_GROUP.HUMAN'),
-      }));
-      if (this.isAdminUser && this.aiAgentsList.length) {
-        const ais = this.aiAgentsList.map(ai => ({
-          ...ai,
-          type: 'agent_bot',
-          group: 'ai',
-          groupLabel: this.$t('CONVERSATION_SIDEBAR.ASSIGNEE_GROUP.AI'),
-        }));
-        return [...ais, ...humans];
-      }
-      return humans;
+      return this.agentsList.map(agent => ({ ...agent }));
     },
     showAssigneeGroups() {
-      return this.isAdminUser && this.aiAgentsList.length > 0;
+      return false;
+    },
+    // Botão "Devolver para a IA" aparece quando há IA atribuível nesta inbox
+    // (logo, triagem possível). O backend valida se há triagem de fato.
+    canRetriage() {
+      return this.aiAgentsList.length > 0;
     },
     selectedAssignee() {
       return this.assignedAIAgent || this.assignedAgent;
@@ -439,6 +434,29 @@ export default {
 
       this.assignedPriority = isSamePriority ? null : selectedPriorityItem;
     },
+
+    // "Devolver para a IA": re-tria a conversa (Clara, time limpo). Confirma antes
+    // pra evitar clique acidental que tira a conversa do humano.
+    async onRetriage() {
+      const conversationId = this.currentChat?.id;
+      if (!conversationId) return;
+      // eslint-disable-next-line no-alert
+      if (!window.confirm(this.$t('CONVERSATION_SIDEBAR.RETRIAGE_CONFIRM'))) {
+        return;
+      }
+      try {
+        await this.$store.dispatch('retriage', {
+          conversationId,
+          rethrow: true,
+        });
+        useAlert(this.$t('CONVERSATION_SIDEBAR.RETRIAGE_SUCCESS'));
+      } catch (error) {
+        useAlert(
+          error?.response?.data?.error ||
+            this.$t('CONVERSATION_SIDEBAR.RETRIAGE_ERROR')
+        );
+      }
+    },
   },
 };
 </script>
@@ -473,6 +491,16 @@ export default {
           $t('AGENT_MGMT.MULTI_SELECTOR.SEARCH.PLACEHOLDER.AGENT')
         "
         @select="onClickAssignAssignee"
+      />
+    </div>
+    <div v-if="canRetriage" class="wa-assign-value-wrap">
+      <NextButton
+        link
+        sm
+        icon="i-lucide-sparkles"
+        class="!gap-1"
+        :label="$t('CONVERSATION_SIDEBAR.RETRIAGE')"
+        @click="onRetriage"
       />
     </div>
     <div class="wa-assign-row">
