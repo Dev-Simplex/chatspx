@@ -63,6 +63,7 @@ Rails.application.routes.draw do
             resources :assistants do
               member do
                 post :playground
+                get :stats
               end
               collection do
                 get :tools
@@ -76,7 +77,11 @@ Rails.application.routes.draw do
             resources :copilot_threads, only: [:index, :create] do
               resources :copilot_messages, only: [:index, :create]
             end
-            resources :custom_tools
+            resources :custom_tools do
+              member do
+                post :test
+              end
+            end
             resources :documents, only: [:index, :show, :create, :destroy]
             resource :tasks, only: [], controller: 'tasks' do
               post :rewrite
@@ -442,6 +447,15 @@ Rails.application.routes.draw do
               collection do
                 post :test_key
               end
+            end
+          end
+
+          # Account-level provider integrations (Vista / Google) — editable, masked credentials.
+          # Declared AFTER `namespace :integrations` so its nested routes (apps/hooks/slack/...)
+          # keep route precedence; :id here is the provider slug (vista|google).
+          resources :integrations, only: [:index, :show, :update] do
+            member do
+              post :test_connection
             end
           end
           resources :working_hours, only: [:update]

@@ -1,0 +1,41 @@
+{
+  "name": "chatspx-tools-mcp",
+  "version": "1.0.0",
+  "description": "MCP (stdio) server that wraps the ChatSPX Captain Custom Tools REST API, so admins can create/edit/delete/test custom tools without touching source code. Created tools are born DISABLED and must be activated by an admin in the UI.",
+  "type": "module",
+  "main": "dist/index.js",
+  "bin": {
+    "chatspx-tools-mcp": "dist/index.js"
+  },
+  "files": [
+    "dist",
+    "README.md"
+  ],
+  "scripts": {
+    "build": "tsc",
+    "start": "node dist/index.js",
+    "dev": "tsx watch src/index.ts",
+    "clean": "rm -rf dist"
+  },
+  "engines": {
+    "node": ">=18"
+  },
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "^1.12.0",
+    "zod": "^3.23.8"
+  },
+  "devDependencies": {
+    "@types/node": "^22.10.0",
+    "tsx": "^4.19.2",
+    "typescript": "^5.7.2"
+  },
+  "keywords": [
+    "mcp",
+    "model-context-protocol",
+    "chatspx",
+    "chatwoot",
+    "captain",
+    "custom-tools"
+  ],
+  "license": "MIT"
+}

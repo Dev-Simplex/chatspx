@@ -34,13 +34,13 @@ module Concerns::Toolable
   def build_request_url(params)
     return endpoint_url if endpoint_url.blank? || endpoint_url.exclude?('{{')
 
-    render_template(endpoint_url, params)
+    render_template(endpoint_url, render_context(params))
   end
 
   def build_request_body(params)
     return nil if request_template.blank?
 
-    render_template(request_template, params)
+    render_template(request_template, render_context(params))
   end
 
   def build_auth_headers
@@ -105,6 +105,30 @@ module Concerns::Toolable
   end
 
   private
+
+  # Render context for endpoint_url / request_template. Exposes the LLM-provided
+  # params PLUS `secrets.*` — the account's integration credentials (Vista/Google)
+  # from AccountIntegration. Lets a custom tool reference e.g.
+  # `{{ secrets.google_maps_key }}` in its URL instead of hardcoding the API key,
+  # so secrets live in account_integrations (one place, per account) and never sit
+  # in the tool's endpoint_url. `secrets` wins on a key collision with a tool param.
+  def render_context(params)
+    (params || {}).merge('secrets' => integration_secrets)
+  end
+
+  # Account integration credentials as a flat Hash (Vista + Google merged), string
+  # keys — empty Hash when the account has none. Never raises: a credential lookup
+  # failure must not take down the tool call.
+  def integration_secrets
+    acc = account
+    return {} unless acc
+
+    AccountIntegration.settings_for(acc, 'vista')
+                      .merge(AccountIntegration.settings_for(acc, 'google'))
+  rescue StandardError => e
+    Rails.logger.error("[Toolable] integration_secrets failed: #{e.message}")
+    {}
+  end
 
   def render_template(template, context)
     liquid_template = Liquid::Template.parse(template, error_mode: :strict)

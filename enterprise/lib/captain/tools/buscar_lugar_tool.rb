@@ -31,14 +31,15 @@ class Captain::Tools::BuscarLugarTool < Captain::Tools::BasePublicTool
 
   private
 
-  # Chave Google por CONTA (multi-tenant): Account.custom_attributes -> ENV ->
-  # reusa a chave do geocoding DA PRÓPRIA conta. Nunca pega a de outra conta.
+  # Chave Google por CONTA: o concern IntegrationCredentials#google_maps_key cobre
+  # AccountIntegration (google) -> custom_attributes -> ENV. Último recurso (só desta
+  # conta): reusa a chave embutida no endpoint do geocoding. Nunca pega a de outra conta.
   def google_key
-    acc = @assistant&.account
-    per_conta = (acc&.custom_attributes || {})['google_maps_key'].presence
-    return per_conta if per_conta
-    return ENV['GOOGLE_MAPS_API_KEY'] if ENV['GOOGLE_MAPS_API_KEY'].present?
+    google_maps_key || geocoding_endpoint_key
+  end
 
+  def geocoding_endpoint_key
+    acc = tool_account
     row = ActiveRecord::Base.connection.exec_query(
       "SELECT endpoint_url FROM captain_custom_tools WHERE slug = 'custom_buscar_localizacao_geocoding' AND account_id = #{acc&.id.to_i} LIMIT 1"
     ).first
