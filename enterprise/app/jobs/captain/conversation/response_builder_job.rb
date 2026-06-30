@@ -53,11 +53,13 @@ class Captain::Conversation::ResponseBuilderJob < ApplicationJob
     if handoff_requested?
       process_action('handoff')
     else
-      ActiveRecord::Base.transaction do
-        create_messages
-        Rails.logger.info("[CAPTAIN][ResponseBuilderJob] Incrementing response usage for #{account.id}")
-        account.increment_response_usage
-      end
+      # Sem transacao envolvendo a rajada: cada bolha precisa COMMITAR pra disparar o
+      # SendReplyJob (after_create_commit). Dentro de uma transacao os sends so disparariam
+      # no commit final, TODOS juntos -> corriam soltos e chegavam fora de ordem. Commitando
+      # uma a uma, o wait_for_dispatch (espera o source_id) serializa o envio.
+      create_messages
+      Rails.logger.info("[CAPTAIN][ResponseBuilderJob] Incrementing response usage for #{account.id}")
+      account.increment_response_usage
     end
   end
 
