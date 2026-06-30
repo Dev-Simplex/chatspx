@@ -21,6 +21,7 @@ import CustomAttributes from './customAttributes/CustomAttributes.vue';
 import Draggable from 'vuedraggable';
 import ConversationSummary from './ConversationSummary.vue';
 import ConversationChecklist from './ConversationChecklist.vue';
+import MacrosList from './Macros/List.vue';
 import ShopifyOrdersList from 'dashboard/components/widgets/conversation/ShopifyOrdersList.vue';
 import SidebarActionsHeader from 'dashboard/components-next/SidebarActionsHeader.vue';
 import LinearIssuesList from 'dashboard/components/widgets/conversation/linear/IssuesList.vue';
@@ -84,6 +85,8 @@ const isLinearConnected = computed(
 
 const store = useStore();
 const currentChat = useMapGetter('getSelectedChat');
+const macros = useMapGetter('macros/getMacros');
+const hasMacros = computed(() => (macros.value || []).length > 0);
 const conversationId = computed(() => props.conversationId);
 const conversationMetadataGetter = useMapGetter(
   'conversationMetadata/getConversationMetadata'
@@ -134,6 +137,7 @@ onMounted(() => {
   conversationSidebarItems.value = conversationSidebarItemsOrder.value;
   getContactDetails();
   store.dispatch('attributes/get', 0);
+  store.dispatch('macros/get');
   // Load integrations to ensure linear integration state is available
   store.dispatch('integrations/get', 'linear');
 });
@@ -147,6 +151,7 @@ onMounted(() => {
     />
     <ContactInfo :contact="contact" :channel-type="channelType" />
     <ConversationSummary />
+    <ConversationChecklist />
     <div class="pb-8">
       <Draggable
         :list="conversationSidebarItems"
@@ -262,18 +267,19 @@ onMounted(() => {
               />
             </AccordionItem>
           </div>
-          <div v-else-if="element.name === 'conversation_checklist'">
+          <woot-feature-toggle
+            v-else-if="element.name === 'macros' && hasMacros"
+            feature-key="macros"
+          >
             <AccordionItem
-              :title="$t('CONVERSATION_SIDEBAR.CHECKLIST.TITLE')"
-              :is-open="isContactSidebarItemOpen('is_checklist_open')"
+              :title="$t('CONVERSATION_SIDEBAR.ACCORDION.MACROS')"
+              :is-open="isContactSidebarItemOpen('is_macro_open')"
               compact
-              @toggle="
-                value => toggleSidebarUIState('is_checklist_open', value)
-              "
+              @toggle="value => toggleSidebarUIState('is_macro_open', value)"
             >
-              <ConversationChecklist />
+              <MacrosList :conversation-id="conversationId" />
             </AccordionItem>
-          </div>
+          </woot-feature-toggle>
           <div
             v-else-if="
               element.name === 'linear_issues' &&

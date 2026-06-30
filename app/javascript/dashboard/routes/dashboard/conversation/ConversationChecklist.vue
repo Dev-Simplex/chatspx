@@ -60,7 +60,13 @@ const removeItem = item => {
 </script>
 
 <template>
-  <div class="flex flex-col px-4 pt-1 pb-3">
+  <div class="flex flex-col px-3 py-3 border-b border-n-weak/50">
+    <div class="flex items-center gap-1.5 mb-2">
+      <span class="i-lucide-list-checks size-3.5 text-n-slate-11" />
+      <span class="text-xs font-semibold text-n-slate-12">
+        {{ $t('CONVERSATION_SIDEBAR.CHECKLIST.TITLE') }}
+      </span>
+    </div>
     <ul v-if="items.length" class="flex flex-col gap-1 mb-2">
       <li
         v-for="item in items"
