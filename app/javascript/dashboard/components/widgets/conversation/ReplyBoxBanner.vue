@@ -255,11 +255,8 @@ const onClickBotHandoff = async () => {
           })
         }}
       </span>
-      <span v-if="!aiSummary" class="truncate text-xs text-n-violet-11">
+      <span class="truncate text-xs text-n-violet-11">
         {{ $t('CONVERSATION.AI_HANDLING_SUBHINT') }}
-      </span>
-      <span v-else class="line-clamp-2 text-xs text-n-violet-11">
-        {{ aiSummary }}
       </span>
     </div>
     <button
@@ -269,6 +266,24 @@ const onClickBotHandoff = async () => {
     >
       {{ $t('CONVERSATION.REPLY_GATE_BANNER.CTA') }}
     </button>
+  </div>
+  <!-- Resumo vivo da IA: card realçado (identidade violeta de IA do SPX) com o quadro
+       completo do atendimento, pra o humano ler antes de assumir a conversa. -->
+  <div
+    v-if="isAIAssignee && aiSummary"
+    class="mx-2 mb-2 rounded-xl border border-n-violet-5 bg-gradient-to-br from-n-violet-2 to-n-violet-1 px-3.5 py-3 dark:border-n-violet-6 dark:from-n-violet-3 dark:to-n-violet-2"
+  >
+    <div class="mb-1.5 flex items-center gap-1.5">
+      <span class="i-lucide-sparkles size-3.5 text-n-violet-11" />
+      <span
+        class="text-[11px] font-semibold uppercase tracking-wide text-n-violet-11"
+      >
+        {{ $t('CONVERSATION.AI_SUMMARY_TITLE') }}
+      </span>
+    </div>
+    <p class="text-sm leading-relaxed text-n-violet-12 whitespace-pre-line">
+      {{ aiSummary }}
+    </p>
   </div>
   <Banner
     v-if="showSelfAssignBanner && !showBotHandoffBanner"

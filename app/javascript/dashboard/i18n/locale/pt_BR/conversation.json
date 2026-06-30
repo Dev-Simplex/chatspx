@@ -71,6 +71,7 @@
     "UNREAD_MESSAGE": "Mensagem não lida",
     "AI_HANDLING_HINT": "{name} está atendendo esta conversa",
     "AI_HANDLING_SUBHINT": "Assuma para responder você mesmo",
+    "AI_SUMMARY_TITLE": "Resumo da IA",
     "CLICK_HERE": "Clique aqui",
     "LOADING_INBOXES": "Carregando caixas de entrada",
     "LOADING_CONVERSATIONS": "Carregando conversas",

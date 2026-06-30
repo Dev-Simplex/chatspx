@@ -71,6 +71,7 @@
     "UNREAD_MESSAGE": "Unread Message",
     "AI_HANDLING_HINT": "{name} is handling this conversation",
     "AI_HANDLING_SUBHINT": "Take over to reply yourself",
+    "AI_SUMMARY_TITLE": "AI summary",
     "NEWEST_MESSAGE": "Latest messages",
     "CLICK_HERE": "Click here",
     "LOADING_INBOXES": "Loading inboxes",
