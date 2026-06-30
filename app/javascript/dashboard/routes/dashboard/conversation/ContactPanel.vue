@@ -19,7 +19,8 @@ import ContactNotes from './contact/ContactNotes.vue';
 import ConversationInfo from './ConversationInfo.vue';
 import CustomAttributes from './customAttributes/CustomAttributes.vue';
 import Draggable from 'vuedraggable';
-import MacrosList from './Macros/List.vue';
+import ConversationSummary from './ConversationSummary.vue';
+import ConversationChecklist from './ConversationChecklist.vue';
 import ShopifyOrdersList from 'dashboard/components/widgets/conversation/ShopifyOrdersList.vue';
 import SidebarActionsHeader from 'dashboard/components-next/SidebarActionsHeader.vue';
 import LinearIssuesList from 'dashboard/components/widgets/conversation/linear/IssuesList.vue';
@@ -145,6 +146,7 @@ onMounted(() => {
       @close="closeContactPanel"
     />
     <ContactInfo :contact="contact" :channel-type="channelType" />
+    <ConversationSummary />
     <div class="pb-8">
       <Draggable
         :list="conversationSidebarItems"
@@ -260,19 +262,18 @@ onMounted(() => {
               />
             </AccordionItem>
           </div>
-          <woot-feature-toggle
-            v-else-if="element.name === 'macros'"
-            feature-key="macros"
-          >
+          <div v-else-if="element.name === 'conversation_checklist'">
             <AccordionItem
-              :title="$t('CONVERSATION_SIDEBAR.ACCORDION.MACROS')"
-              :is-open="isContactSidebarItemOpen('is_macro_open')"
+              :title="$t('CONVERSATION_SIDEBAR.CHECKLIST.TITLE')"
+              :is-open="isContactSidebarItemOpen('is_checklist_open')"
               compact
-              @toggle="value => toggleSidebarUIState('is_macro_open', value)"
+              @toggle="
+                value => toggleSidebarUIState('is_checklist_open', value)
+              "
             >
-              <MacrosList :conversation-id="conversationId" />
+              <ConversationChecklist />
             </AccordionItem>
-          </woot-feature-toggle>
+          </div>
           <div
             v-else-if="
               element.name === 'linear_issues' &&

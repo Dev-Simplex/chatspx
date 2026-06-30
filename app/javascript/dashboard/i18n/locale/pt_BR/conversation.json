@@ -664,6 +664,25 @@
       "LINEAR_ISSUES": "Problemas do Linear vinculados",
       "SHOPIFY_ORDERS": "Pedidos do Shopify"
     },
+    "SUMMARY": {
+      "AI_TITLE": "Resumo da IA",
+      "AI_EMPTY": "A IA ainda não resumiu este atendimento.",
+      "HUMAN_TITLE": "Resumo do humano",
+      "HUMAN_EMPTY": "Adicione um resumo do atendimento humano.",
+      "EDIT": "Editar",
+      "SAVE": "Salvar",
+      "CANCEL": "Cancelar",
+      "SAVE_ERROR": "Não foi possível salvar o resumo."
+    },
+    "CHECKLIST": {
+      "TITLE": "Assuntos / Tarefas",
+      "EMPTY": "Nenhum assunto identificado ainda.",
+      "ADD_PLACEHOLDER": "Adicionar assunto ou tarefa",
+      "ADD": "Adicionar",
+      "REMOVE": "Remover",
+      "SOURCE_IA": "IA",
+      "SAVE_ERROR": "Não foi possível salvar o checklist."
+    },
     "MEDIA_SECTIONS": {
       "IMAGES": "Imagens",
       "VIDEOS": "Vídeos",

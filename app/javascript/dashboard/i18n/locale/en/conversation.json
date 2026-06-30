@@ -673,6 +673,25 @@
       "LINEAR_ISSUES": "Linked Linear Issues",
       "SHOPIFY_ORDERS": "Shopify Orders"
     },
+    "SUMMARY": {
+      "AI_TITLE": "AI summary",
+      "AI_EMPTY": "The AI hasn't summarized this conversation yet.",
+      "HUMAN_TITLE": "Human summary",
+      "HUMAN_EMPTY": "Add a summary of the human attendance.",
+      "EDIT": "Edit",
+      "SAVE": "Save",
+      "CANCEL": "Cancel",
+      "SAVE_ERROR": "Couldn't save the summary."
+    },
+    "CHECKLIST": {
+      "TITLE": "Subjects / Tasks",
+      "EMPTY": "No subjects identified yet.",
+      "ADD_PLACEHOLDER": "Add a subject or task",
+      "ADD": "Add",
+      "REMOVE": "Remove",
+      "SOURCE_IA": "AI",
+      "SAVE_ERROR": "Couldn't save the checklist."
+    },
     "MEDIA_SECTIONS": {
       "IMAGES": "Images",
       "VIDEOS": "Videos",

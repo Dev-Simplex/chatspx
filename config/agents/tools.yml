@@ -99,3 +99,8 @@
   title: 'Registrar Observação'
   description: 'Registra uma observação como nota privada, pro humano notar ao ler o histórico'
   icon: 'note'
+
+- id: registrar_assunto
+  title: 'Registrar Assunto'
+  description: 'Registra um assunto/tarefa identificado na conversa, que vira item de checklist pra equipe'
+  icon: 'task'
