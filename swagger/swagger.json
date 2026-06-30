@@ -20714,88 +20714,6 @@
         }
       }
     },
-    "/api/v1/accounts/{account_id}/portals/{portal_id}/articles/{id}/edit": {
-      "parameters": [
-        {
-          "$ref": "#/components/parameters/account_id"
-        },
-        {
-          "in": "path",
-          "name": "portal_id",
-          "required": true,
-          "description": "Slug do portal que possui o artigo.",
-          "schema": {
-            "type": "string",
-            "example": "handbook"
-          }
-        },
-        {
-          "in": "path",
-          "name": "id",
-          "required": true,
-          "description": "Id numérico do artigo a ser editado.",
-          "schema": {
-            "type": "integer",
-            "example": 12
-          }
-        }
-      ],
-      "get": {
-        "tags": [
-          "Central de Ajuda & Portais"
-        ],
-        "operationId": "help-center-edit-article",
-        "summary": "Obter um artigo para edição",
-        "description": "Retorna o payload completo do artigo preparado para o editor. O formato da resposta é idêntico ao endpoint padrão de obter artigo e destina-se a preencher um formulário de edição.",
-        "security": [
-          {
-            "userApiKey": []
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": "O artigo (visualização de edição).",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/help-center_article_response"
-                }
-              }
-            }
-          },
-          "401": {
-            "description": "Falha na autenticação.",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/bad_request_error"
-                }
-              }
-            }
-          },
-          "403": {
-            "description": "Acesso negado: privilégios de administrador necessários.",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/bad_request_error"
-                }
-              }
-            }
-          },
-          "404": {
-            "description": "Portal ou artigo não encontrado.",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/bad_request_error"
-                }
-              }
-            }
-          }
-        }
-      }
-    },
     "/api/v1/accounts/{account_id}/nps_responses": {
       "parameters": [
         {
@@ -26690,51 +26608,6 @@
         }
       }
     },
-    "/api/v1/accounts/{account_id}/integrations/linear/destroy": {
-      "parameters": [
-        {
-          "$ref": "#/components/parameters/account_id"
-        }
-      ],
-      "delete": {
-        "tags": [
-          "Integrações & Webhooks"
-        ],
-        "operationId": "integrations-webhooks-disconnect-linear",
-        "summary": "Desconectar o Linear",
-        "description": "Revoga o token OAuth do Linear armazenado e exclui o hook do Linear da conta.",
-        "security": [
-          {
-            "userApiKey": []
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": "Linear desconectado"
-          },
-          "401": {
-            "description": "Não autorizado — api_access_token ausente ou inválido.",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/bad_request_error"
-                }
-              }
-            }
-          },
-          "404": {
-            "description": "Hook do Linear não encontrado na conta.",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/bad_request_error"
-                }
-              }
-            }
-          }
-        }
-      }
-    },
     "/api/v1/accounts/{account_id}/integrations/linear/teams": {
       "parameters": [
         {
@@ -27625,51 +27498,6 @@
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/integrations-webhooks_openai_test_response"
-                }
-              }
-            }
-          }
-        }
-      }
-    },
-    "/api/v1/accounts/{account_id}/integrations/notion/destroy": {
-      "parameters": [
-        {
-          "$ref": "#/components/parameters/account_id"
-        }
-      ],
-      "delete": {
-        "tags": [
-          "Integrações & Webhooks"
-        ],
-        "operationId": "integrations-webhooks-disconnect-notion",
-        "summary": "Desconectar o Notion",
-        "description": "Remove o hook do Notion da conta.",
-        "security": [
-          {
-            "userApiKey": []
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": "Notion desconectado"
-          },
-          "401": {
-            "description": "Não autorizado — api_access_token ausente ou inválido.",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/bad_request_error"
-                }
-              }
-            }
-          },
-          "404": {
-            "description": "Hook do Notion não encontrado na conta.",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/bad_request_error"
                 }
               }
             }
@@ -35239,6 +35067,96 @@
           },
           "422": {
             "description": "A mensagem referenciada não é uma mensagem do Dyte (`integrations`), ou o participante não pôde ser adicionado.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/bad_request_error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/accounts/{account_id}/integrations/linear": {
+      "parameters": [
+        {
+          "$ref": "#/components/parameters/account_id"
+        }
+      ],
+      "delete": {
+        "tags": [
+          "Integrações & Webhooks"
+        ],
+        "operationId": "integrations-webhooks-disconnect-linear",
+        "summary": "Desconectar o Linear",
+        "description": "Revoga o token OAuth do Linear armazenado e exclui o hook do Linear da conta.",
+        "security": [
+          {
+            "userApiKey": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Linear desconectado"
+          },
+          "401": {
+            "description": "Não autorizado — api_access_token ausente ou inválido.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/bad_request_error"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Hook do Linear não encontrado na conta.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/bad_request_error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/accounts/{account_id}/integrations/notion": {
+      "parameters": [
+        {
+          "$ref": "#/components/parameters/account_id"
+        }
+      ],
+      "delete": {
+        "tags": [
+          "Integrações & Webhooks"
+        ],
+        "operationId": "integrations-webhooks-disconnect-notion",
+        "summary": "Desconectar o Notion",
+        "description": "Remove o hook do Notion da conta.",
+        "security": [
+          {
+            "userApiKey": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Notion desconectado"
+          },
+          "401": {
+            "description": "Não autorizado — api_access_token ausente ou inválido.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/bad_request_error"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Hook do Notion não encontrado na conta.",
             "content": {
               "application/json": {
                 "schema": {
