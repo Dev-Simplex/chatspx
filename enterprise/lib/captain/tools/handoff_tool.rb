@@ -55,9 +55,7 @@ class Captain::Tools::HandoffTool < Captain::Tools::BasePublicTool
   #
   # Sem round-robin / auto-assign de humano: com o espelho captain presente, o A2b já
   # bloqueia o auto-assign de time, então a conversa não é empurrada pra um humano ausente.
-  def trigger_handoff(conversation, reason, team_id = nil)
-    create_handoff_note(conversation, reason) if reason.present?
-
+  def trigger_handoff(conversation, _reason, team_id = nil)
     # Abre a conversa + dispara eventos. NÃO solta o espelho — a IA continua dona/respondendo.
     conversation.bot_handoff!
 
@@ -71,18 +69,6 @@ class Captain::Tools::HandoffTool < Captain::Tools::BasePublicTool
 
     # Send out of office message if applicable (since template messages were suppressed while Captain was handling)
     send_out_of_office_message_if_applicable(conversation)
-  end
-
-  # post the reason as a private note (dossiê pro humano que assumir)
-  def create_handoff_note(conversation, reason)
-    conversation.messages.create!(
-      message_type: :outgoing,
-      private: true,
-      sender: @assistant,
-      account: conversation.account,
-      inbox: conversation.inbox,
-      content: reason
-    )
   end
 
   # LLM pode alucinar id — validar SEMPRE na conta. Se o LLM não passar um time válido,
