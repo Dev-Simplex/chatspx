@@ -27,8 +27,11 @@
     "MENTION": "Mention",
     "NOTIFICATIONS": {
       "TITLE": "Notifications",
+      "SUBTITLE": "How you're alerted when a teammate messages you.",
       "DESKTOP": "Desktop notification",
+      "DESKTOP_HINT": "System alert even when the tab is in the background.",
       "SOUND": "Sound",
+      "SOUND_HINT": "Play a sound on new messages.",
       "BLOCKED": "Notifications are blocked in your browser. Enable them in the site settings to get desktop alerts."
     },
     "MENTION_TOAST": "{from} mentioned you in {channel}",

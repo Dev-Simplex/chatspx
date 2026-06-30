@@ -27,8 +27,11 @@
     "MENTION": "Mencionar",
     "NOTIFICATIONS": {
       "TITLE": "Notificações",
+      "SUBTITLE": "Como avisar quando um colega te enviar mensagem.",
       "DESKTOP": "Notificação no desktop",
+      "DESKTOP_HINT": "Aviso do sistema mesmo com a aba em segundo plano.",
       "SOUND": "Som",
+      "SOUND_HINT": "Toca um som ao receber mensagem.",
       "BLOCKED": "As notificações estão bloqueadas no navegador. Habilite-as nas configurações do site para receber alertas no desktop."
     },
     "MENTION_TOAST": "{from} mencionou você em {channel}",
