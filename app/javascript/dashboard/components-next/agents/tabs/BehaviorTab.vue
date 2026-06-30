@@ -22,7 +22,5 @@ async function onSave(behavior) {
 </script>
 
 <template>
-  <div class="p-6">
-    <BehaviorTabComponent v-if="agent" :assistant="agent" @save="onSave" />
-  </div>
+  <BehaviorTabComponent v-if="agent" :assistant="agent" @save="onSave" />
 </template>

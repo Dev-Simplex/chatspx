@@ -933,8 +933,19 @@
       },
 
       "OPTIONS": {
+        "VIEW_DOCUMENT": "View document",
         "VIEW_RELATED_RESPONSES": "View Related Responses",
         "DELETE_DOCUMENT": "Delete Document"
+      },
+      "VIEWER": {
+        "DOWNLOAD": "Download",
+        "OPEN_LINK": "Open link",
+        "NO_PREVIEW": "No preview available for this document."
+      },
+      "STATUS": {
+        "TRAINED": "Trained",
+        "PROCESSING": "Processing",
+        "FAILED": "Failed"
       },
       "EMPTY_STATE": {
         "TITLE": "No documents available",
@@ -1196,7 +1207,9 @@
         "DESCRIPTION": "Define when the agent is active.",
         "OUTSIDE_ACTION": "Outside hours action",
         "ACTION_IGNORE": "Ignore messages",
-        "ACTION_QUALIFY": "Qualify more"
+        "ACTION_QUALIFY": "Qualify more",
+        "TIMEZONE_LABEL": "Timezone",
+        "SCHEDULE_LABEL": "Hours per day"
       },
       "MEDIA_PIPELINE": {
         "TITLE": "Media Pipeline",

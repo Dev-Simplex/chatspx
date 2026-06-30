@@ -6,6 +6,16 @@ import { useI18n } from 'vue-i18n';
 import { useAlert } from 'dashboard/composables';
 import CaptainDocumentAPI from 'dashboard/api/captain/document';
 
+import AiSegmented from 'dashboard/components-next/agents-ui/AiSegmented.vue';
+import AiButton from 'dashboard/components-next/agents-ui/AiButton.vue';
+import AiCard from 'dashboard/components-next/agents-ui/AiCard.vue';
+import AiField from 'dashboard/components-next/agents-ui/AiField.vue';
+import AiTextarea from 'dashboard/components-next/agents-ui/AiTextarea.vue';
+import AiUploader from 'dashboard/components-next/agents-ui/AiUploader.vue';
+import AiEmptyState from 'dashboard/components-next/agents-ui/AiEmptyState.vue';
+import AiBadge from 'dashboard/components-next/agents-ui/AiBadge.vue';
+import AiDropdown from 'dashboard/components-next/agents-ui/AiDropdown.vue';
+
 const { t } = useI18n();
 const route = useRoute();
 const store = useStore();
@@ -22,34 +32,60 @@ const isFetchingResponses = computed(
   () => store.getters['captainResponses/getUIFlags'].fetchingList
 );
 
-const DOC_TYPE_ICONS = {
-  pdf: 'i-lucide-file-text',
-  url: 'i-lucide-link',
-  text: 'i-lucide-file-edit',
+const SUBTABS = computed(() => [
+  { value: 'documents', label: t('CAPTAIN.AGENT_TABS.KNOWLEDGE.DOCUMENTS') },
+  { value: 'faqs', label: t('CAPTAIN.AGENT_TABS.KNOWLEDGE.FAQS') },
+]);
+const DOC_MODES = computed(() => [
+  { value: 'url', label: t('CAPTAIN.AGENT_TABS.KNOWLEDGE.MODE_URL') },
+  { value: 'file', label: t('CAPTAIN.AGENT_TABS.KNOWLEDGE.MODE_FILE') },
+]);
+
+const DOC_STYLE = {
+  pdf: { icon: 'i-lucide-file-text', tint: '#1faa59' },
+  url: { icon: 'i-lucide-link', tint: '#30b0c7' },
+  text: { icon: 'i-lucide-file-edit', tint: '#af52de' },
 };
+const docStyle = type =>
+  DOC_STYLE[type] || { icon: 'i-lucide-file', tint: '#8e8e93' };
 
-function docTypeIcon(docType) {
-  return DOC_TYPE_ICONS[docType] || 'i-lucide-file';
-}
+const DOC_ACTIONS = computed(() => [
+  {
+    value: 'delete',
+    label: t('CAPTAIN.AGENT_TABS.KNOWLEDGE.DELETE'),
+    icon: 'i-lucide-trash-2',
+    danger: true,
+  },
+]);
+const FAQ_ACTIONS = computed(() => [
+  {
+    value: 'edit',
+    label: t('CAPTAIN.AGENT_TABS.KNOWLEDGE.EDIT'),
+    icon: 'i-lucide-pencil',
+  },
+  {
+    value: 'delete',
+    label: t('CAPTAIN.AGENT_TABS.KNOWLEDGE.DELETE'),
+    icon: 'i-lucide-trash-2',
+    danger: true,
+  },
+]);
 
-// --- Criacao de documento (URL ou PDF) ---
+// --- Criação de documento (URL ou PDF) ---
 const showDocForm = ref(false);
-const docMode = ref('url'); // 'url' | 'file'
+const docMode = ref('url');
 const docForm = ref({ name: '', externalLink: '' });
 const docFile = ref(null);
 const savingDoc = ref(false);
 
-function handleFileChange(event) {
-  const file = event.target.files?.[0] || null;
+function onDocFile(file) {
   if (file && file.type !== 'application/pdf') {
     useAlert(t('CAPTAIN.AGENT_TABS.KNOWLEDGE.PDF_ONLY'));
-    event.target.value = '';
     docFile.value = null;
     return;
   }
   if (file && file.size > 10 * 1024 * 1024) {
     useAlert(t('CAPTAIN.AGENT_TABS.KNOWLEDGE.PDF_TOO_BIG'));
-    event.target.value = '';
     docFile.value = null;
     return;
   }
@@ -94,7 +130,14 @@ async function createDocument() {
   }
 }
 
-// --- Criacao de FAQ ---
+async function deleteDocument(id) {
+  await store.dispatch('captainDocuments/delete', id);
+}
+function onDocAction(action, doc) {
+  if (action === 'delete') deleteDocument(doc.id);
+}
+
+// --- Criação de FAQ ---
 const showFaqForm = ref(false);
 const faqForm = ref({ question: '', answer: '' });
 const savingFaq = ref(false);
@@ -132,11 +175,7 @@ onMounted(() => {
   store.dispatch('captainResponses/get', params);
 });
 
-async function deleteDocument(id) {
-  await store.dispatch('captainDocuments/delete', id);
-}
-
-// --- Edicao de FAQ (inline) ---
+// --- Edição de FAQ (inline) ---
 const editingFaqId = ref(null);
 const editFaqForm = ref({ question: '', answer: '' });
 const savingFaqEdit = ref(false);
@@ -145,12 +184,10 @@ function startEditFaq(faq) {
   editingFaqId.value = faq.id;
   editFaqForm.value = { question: faq.question, answer: faq.answer };
 }
-
 function cancelEditFaq() {
   editingFaqId.value = null;
   editFaqForm.value = { question: '', answer: '' };
 }
-
 async function saveFaqEdit(faq) {
   if (
     !editFaqForm.value.question.trim() ||
@@ -177,10 +214,14 @@ async function saveFaqEdit(faq) {
   }
 }
 
-// --- Exclusao de FAQ (confirmacao inline) ---
+// --- Exclusão de FAQ (confirmação inline) ---
 const confirmingDeleteFaqId = ref(null);
 const deletingFaq = ref(false);
 
+function onFaqAction(action, faq) {
+  if (action === 'edit') startEditFaq(faq);
+  if (action === 'delete') confirmingDeleteFaqId.value = faq.id;
+}
 async function deleteFaq(faq) {
   if (deletingFaq.value) return;
   deletingFaq.value = true;
@@ -198,355 +239,199 @@ async function deleteFaq(faq) {
 </script>
 
 <template>
-  <div class="p-6">
-    <!-- Sub-tab toggle -->
-    <div class="mb-4 flex gap-1 border-b border-n-weak">
-      <button
-        type="button"
-        class="border-b-2 px-3 py-2 text-sm transition-colors"
-        :class="
-          activeSubTab === 'documents'
-            ? 'border-n-brand font-semibold text-n-brand'
-            : 'border-transparent text-n-slate-10 hover:text-n-slate-12'
-        "
-        @click="activeSubTab = 'documents'"
+  <div class="px-6 pt-4 pb-10 mx-auto max-w-3xl">
+    <div class="flex justify-between items-center mb-4">
+      <AiSegmented v-model="activeSubTab" :options="SUBTABS" />
+      <AiButton
+        v-if="activeSubTab === 'documents'"
+        @click="showDocForm = !showDocForm"
       >
-        <i
-          class="i-lucide-file-text mr-1.5 inline-block size-3.5 align-text-bottom"
-        />
-        {{ t('CAPTAIN.AGENT_TABS.KNOWLEDGE.DOCUMENTS') }}
-      </button>
-      <button
-        type="button"
-        class="border-b-2 px-3 py-2 text-sm transition-colors"
-        :class="
-          activeSubTab === 'faqs'
-            ? 'border-n-brand font-semibold text-n-brand'
-            : 'border-transparent text-n-slate-10 hover:text-n-slate-12'
-        "
-        @click="activeSubTab = 'faqs'"
-      >
-        <i
-          class="i-lucide-help-circle mr-1.5 inline-block size-3.5 align-text-bottom"
-        />
-        {{ t('CAPTAIN.AGENT_TABS.KNOWLEDGE.FAQS') }}
-      </button>
+        <span class="i-lucide-plus size-4" />
+        {{ t('CAPTAIN.AGENT_TABS.KNOWLEDGE.ADD_DOCUMENT') }}
+      </AiButton>
+      <AiButton v-else @click="showFaqForm = !showFaqForm">
+        <span class="i-lucide-plus size-4" />
+        {{ t('CAPTAIN.AGENT_TABS.KNOWLEDGE.ADD_FAQ') }}
+      </AiButton>
     </div>
 
-    <!-- Documents -->
+    <!-- Documentos -->
     <div v-if="activeSubTab === 'documents'">
-      <div class="mb-3 flex justify-end">
-        <button
-          type="button"
-          class="inline-flex items-center gap-1.5 rounded-lg bg-n-brand px-3 py-1.5 text-sm font-medium text-white transition-colors hover:brightness-95"
-          @click="showDocForm = !showDocForm"
-        >
-          <i class="i-lucide-plus size-3.5" />
-          {{ t('CAPTAIN.AGENT_TABS.KNOWLEDGE.ADD_DOCUMENT') }}
-        </button>
-      </div>
-
-      <div
-        v-if="showDocForm"
-        class="mb-4 space-y-2 rounded-xl border border-n-weak bg-n-alpha-1 p-4"
-      >
-        <!-- Toggle URL / Arquivo -->
-        <div class="flex gap-1 rounded-lg bg-n-alpha-2 p-0.5 text-sm">
-          <button
-            type="button"
-            class="flex-1 rounded-md px-3 py-1 transition-colors"
-            :class="
-              docMode === 'url'
-                ? 'bg-white font-medium text-n-slate-12 dark:bg-n-solid-3'
-                : 'text-n-slate-10'
+      <AiCard v-if="showDocForm" class="mb-4">
+        <div class="space-y-3">
+          <AiSegmented v-model="docMode" :options="DOC_MODES" />
+          <AiField
+            v-model="docForm.name"
+            :placeholder="
+              t('CAPTAIN.AGENT_TABS.KNOWLEDGE.DOC_NAME_PLACEHOLDER')
             "
-            @click="docMode = 'url'"
-          >
-            {{ t('CAPTAIN.AGENT_TABS.KNOWLEDGE.MODE_URL') }}
-          </button>
-          <button
-            type="button"
-            class="flex-1 rounded-md px-3 py-1 transition-colors"
-            :class="
-              docMode === 'file'
-                ? 'bg-white font-medium text-n-slate-12 dark:bg-n-solid-3'
-                : 'text-n-slate-10'
-            "
-            @click="docMode = 'file'"
-          >
-            {{ t('CAPTAIN.AGENT_TABS.KNOWLEDGE.MODE_FILE') }}
-          </button>
-        </div>
-
-        <input
-          v-model="docForm.name"
-          type="text"
-          class="w-full rounded border border-n-weak bg-white px-2 py-1.5 text-sm dark:bg-n-solid-3 dark:text-n-slate-12"
-          :placeholder="t('CAPTAIN.AGENT_TABS.KNOWLEDGE.DOC_NAME_PLACEHOLDER')"
-        />
-        <input
-          v-if="docMode === 'url'"
-          v-model="docForm.externalLink"
-          type="url"
-          class="w-full rounded border border-n-weak bg-white px-2 py-1.5 text-sm dark:bg-n-solid-3 dark:text-n-slate-12"
-          :placeholder="t('CAPTAIN.AGENT_TABS.KNOWLEDGE.DOC_URL_PLACEHOLDER')"
-        />
-        <div v-else>
-          <input
-            type="file"
-            accept="application/pdf,.pdf"
-            class="w-full rounded border border-n-weak bg-white px-2 py-1.5 text-sm text-n-slate-11 file:mr-3 file:rounded file:border-0 file:bg-n-alpha-2 file:px-3 file:py-1 file:text-n-slate-12 dark:bg-n-solid-3"
-            @change="handleFileChange"
           />
-          <p class="mt-1 text-xs text-n-slate-9">
-            {{ t('CAPTAIN.AGENT_TABS.KNOWLEDGE.PDF_HINT') }}
-          </p>
+          <AiField
+            v-if="docMode === 'url'"
+            v-model="docForm.externalLink"
+            :placeholder="t('CAPTAIN.AGENT_TABS.KNOWLEDGE.DOC_URL_PLACEHOLDER')"
+          />
+          <AiUploader
+            v-else
+            accept="application/pdf,.pdf"
+            :hint="t('CAPTAIN.AGENT_TABS.KNOWLEDGE.PDF_HINT')"
+            @select="onDocFile"
+          />
+          <div class="flex gap-2">
+            <AiButton :disabled="savingDoc" @click="createDocument">
+              {{ t('CAPTAIN.AGENT_TABS.KNOWLEDGE.SAVE') }}
+            </AiButton>
+            <AiButton variant="ghost" @click="resetDocForm">
+              {{ t('CAPTAIN.AGENT_TABS.KNOWLEDGE.CANCEL') }}
+            </AiButton>
+          </div>
         </div>
-        <div class="flex gap-2">
-          <button
-            type="button"
-            class="rounded-lg bg-n-brand px-3 py-1.5 text-sm font-medium text-white transition-colors hover:brightness-95 disabled:opacity-60"
-            :disabled="savingDoc"
-            @click="createDocument"
-          >
-            {{ t('CAPTAIN.AGENT_TABS.KNOWLEDGE.SAVE') }}
-          </button>
-          <button
-            type="button"
-            class="rounded-lg bg-n-alpha-2 px-3 py-1.5 text-sm text-n-slate-12 transition-colors hover:bg-n-alpha-3"
-            @click="resetDocForm"
-          >
-            {{ t('CAPTAIN.AGENT_TABS.KNOWLEDGE.CANCEL') }}
-          </button>
-        </div>
-      </div>
+      </AiCard>
 
       <div
         v-if="isFetchingDocs"
-        class="flex items-center gap-2 text-sm text-n-slate-10"
+        class="flex gap-2 items-center text-sm text-n-slate-10"
       >
-        <i class="i-lucide-loader-2 size-3.5 animate-spin" />
+        <span class="i-lucide-loader-2 size-3.5 animate-spin" />
         {{ t('CAPTAIN.AGENT_TABS.KNOWLEDGE.LOADING') }}
       </div>
-      <div v-else-if="!documents.length" class="py-16 text-center">
-        <i class="i-lucide-file-text mx-auto mb-4 size-12 text-n-slate-9" />
-        <p class="text-base font-medium text-n-slate-12">
-          {{ t('CAPTAIN.AGENT_TABS.KNOWLEDGE.NO_DOCUMENTS') }}
-        </p>
-      </div>
-      <div v-else class="space-y-3">
+      <AiEmptyState
+        v-else-if="!documents.length"
+        icon="i-lucide-file-text"
+        :title="t('CAPTAIN.AGENT_TABS.KNOWLEDGE.NO_DOCUMENTS')"
+      />
+      <div v-else class="space-y-2.5">
         <div
           v-for="doc in documents"
           :key="doc.id"
-          class="flex items-center justify-between rounded-xl border border-n-weak bg-white p-4 transition-shadow duration-200 hover:shadow-md dark:bg-n-solid-2"
+          class="flex gap-3 items-center p-3.5 rounded-2xl border shadow-sm transition-shadow border-n-weak bg-n-solid-1 hover:shadow-md"
         >
-          <div class="flex items-center gap-3">
-            <div
-              class="flex size-8 items-center justify-center rounded-lg bg-n-alpha-2"
-            >
-              <i
-                class="size-4 text-n-slate-11"
-                :class="docTypeIcon(doc.document_type)"
-              />
-            </div>
-            <div>
-              <p class="text-sm font-medium text-n-slate-12">
-                {{ doc.name || doc.title }}
-              </p>
-              <p class="text-xs text-n-slate-10">
-                {{ doc.document_type }}
-              </p>
-            </div>
-          </div>
-          <button
-            type="button"
-            class="rounded-lg p-2 text-n-slate-10 transition-colors hover:bg-red-50 hover:text-red-600 dark:hover:bg-red-900/20 dark:hover:text-red-400"
-            @click="deleteDocument(doc.id)"
+          <span
+            class="grid flex-none text-white rounded-xl place-items-center size-9"
+            :style="{ background: docStyle(doc.document_type).tint }"
           >
-            <i class="i-lucide-trash-2 size-3.5" />
-          </button>
+            <span :class="docStyle(doc.document_type).icon" class="size-4" />
+          </span>
+          <div class="flex-1 min-w-0">
+            <p class="text-[14px] font-bold truncate text-n-slate-12">
+              {{ doc.name || doc.title }}
+            </p>
+            <p class="text-[12px] text-n-slate-10">{{ doc.document_type }}</p>
+          </div>
+          <AiDropdown :items="DOC_ACTIONS" @select="onDocAction($event, doc)" />
         </div>
       </div>
     </div>
 
     <!-- FAQs -->
-    <div v-if="activeSubTab === 'faqs'">
-      <div class="mb-3 flex justify-end">
-        <button
-          type="button"
-          class="inline-flex items-center gap-1.5 rounded-lg bg-n-brand px-3 py-1.5 text-sm font-medium text-white transition-colors hover:brightness-95"
-          @click="showFaqForm = !showFaqForm"
-        >
-          <i class="i-lucide-plus size-3.5" />
-          {{ t('CAPTAIN.AGENT_TABS.KNOWLEDGE.ADD_FAQ') }}
-        </button>
-      </div>
-
-      <div
-        v-if="showFaqForm"
-        class="mb-4 space-y-2 rounded-xl border border-n-weak bg-n-alpha-1 p-4"
-      >
-        <input
-          v-model="faqForm.question"
-          type="text"
-          class="w-full rounded border border-n-weak bg-white px-2 py-1.5 text-sm dark:bg-n-solid-3 dark:text-n-slate-12"
-          :placeholder="
-            t('CAPTAIN.AGENT_TABS.KNOWLEDGE.FAQ_QUESTION_PLACEHOLDER')
-          "
-        />
-        <textarea
-          v-model="faqForm.answer"
-          rows="3"
-          class="w-full rounded border border-n-weak bg-white px-2 py-1.5 text-sm dark:bg-n-solid-3 dark:text-n-slate-12"
-          :placeholder="t('CAPTAIN.AGENT_TABS.KNOWLEDGE.FAQ_ANSWER_PLACEHOLDER')"
-        />
-        <div class="flex gap-2">
-          <button
-            type="button"
-            class="rounded-lg bg-n-brand px-3 py-1.5 text-sm font-medium text-white transition-colors hover:brightness-95 disabled:opacity-60"
-            :disabled="savingFaq"
-            @click="createFaq"
-          >
-            {{ t('CAPTAIN.AGENT_TABS.KNOWLEDGE.SAVE') }}
-          </button>
-          <button
-            type="button"
-            class="rounded-lg bg-n-alpha-2 px-3 py-1.5 text-sm text-n-slate-12 transition-colors hover:bg-n-alpha-3"
-            @click="showFaqForm = false"
-          >
-            {{ t('CAPTAIN.AGENT_TABS.KNOWLEDGE.CANCEL') }}
-          </button>
+    <div v-else>
+      <AiCard v-if="showFaqForm" class="mb-4">
+        <div class="space-y-3">
+          <AiField
+            v-model="faqForm.question"
+            :placeholder="
+              t('CAPTAIN.AGENT_TABS.KNOWLEDGE.FAQ_QUESTION_PLACEHOLDER')
+            "
+          />
+          <AiTextarea
+            v-model="faqForm.answer"
+            :rows="3"
+            :placeholder="
+              t('CAPTAIN.AGENT_TABS.KNOWLEDGE.FAQ_ANSWER_PLACEHOLDER')
+            "
+          />
+          <div class="flex gap-2">
+            <AiButton :disabled="savingFaq" @click="createFaq">
+              {{ t('CAPTAIN.AGENT_TABS.KNOWLEDGE.SAVE') }}
+            </AiButton>
+            <AiButton variant="ghost" @click="showFaqForm = false">
+              {{ t('CAPTAIN.AGENT_TABS.KNOWLEDGE.CANCEL') }}
+            </AiButton>
+          </div>
         </div>
-      </div>
+      </AiCard>
 
       <div
         v-if="isFetchingResponses"
-        class="flex items-center gap-2 text-sm text-n-slate-10"
+        class="flex gap-2 items-center text-sm text-n-slate-10"
       >
-        <i class="i-lucide-loader-2 size-3.5 animate-spin" />
+        <span class="i-lucide-loader-2 size-3.5 animate-spin" />
         {{ t('CAPTAIN.AGENT_TABS.KNOWLEDGE.LOADING') }}
       </div>
-      <div v-else-if="!responses.length" class="py-16 text-center">
-        <i class="i-lucide-help-circle mx-auto mb-4 size-12 text-n-slate-9" />
-        <p class="text-base font-medium text-n-slate-12">
-          {{ t('CAPTAIN.AGENT_TABS.KNOWLEDGE.NO_FAQS') }}
-        </p>
-      </div>
-      <div v-else class="space-y-3">
-        <div
-          v-for="faq in responses"
-          :key="faq.id"
-          class="rounded-xl border border-n-weak bg-white p-4 transition-shadow duration-200 hover:shadow-md dark:bg-n-solid-2"
-        >
-          <!-- Modo edicao -->
-          <div v-if="editingFaqId === faq.id" class="space-y-2">
-            <input
+      <AiEmptyState
+        v-else-if="!responses.length"
+        icon="i-lucide-help-circle"
+        :title="t('CAPTAIN.AGENT_TABS.KNOWLEDGE.NO_FAQS')"
+      />
+      <div v-else class="space-y-2.5">
+        <AiCard v-for="faq in responses" :key="faq.id">
+          <!-- Edição -->
+          <div v-if="editingFaqId === faq.id" class="space-y-2.5">
+            <AiField
               v-model="editFaqForm.question"
-              type="text"
-              class="w-full rounded border border-n-weak bg-white px-2 py-1.5 text-sm dark:bg-n-solid-3 dark:text-n-slate-12"
               :placeholder="
                 t('CAPTAIN.AGENT_TABS.KNOWLEDGE.FAQ_QUESTION_PLACEHOLDER')
               "
             />
-            <textarea
+            <AiTextarea
               v-model="editFaqForm.answer"
-              rows="3"
-              class="w-full rounded border border-n-weak bg-white px-2 py-1.5 text-sm dark:bg-n-solid-3 dark:text-n-slate-12"
+              :rows="3"
               :placeholder="
                 t('CAPTAIN.AGENT_TABS.KNOWLEDGE.FAQ_ANSWER_PLACEHOLDER')
               "
             />
             <div class="flex gap-2">
-              <button
-                type="button"
-                class="rounded-lg bg-n-brand px-3 py-1.5 text-sm font-medium text-white transition-colors hover:brightness-95 disabled:opacity-60"
-                :disabled="savingFaqEdit"
-                @click="saveFaqEdit(faq)"
-              >
+              <AiButton :disabled="savingFaqEdit" @click="saveFaqEdit(faq)">
                 {{ t('CAPTAIN.AGENT_TABS.KNOWLEDGE.SAVE') }}
-              </button>
-              <button
-                type="button"
-                class="rounded-lg bg-n-alpha-2 px-3 py-1.5 text-sm text-n-slate-12 transition-colors hover:bg-n-alpha-3"
-                @click="cancelEditFaq"
-              >
+              </AiButton>
+              <AiButton variant="ghost" @click="cancelEditFaq">
                 {{ t('CAPTAIN.AGENT_TABS.KNOWLEDGE.CANCEL') }}
-              </button>
+              </AiButton>
             </div>
           </div>
 
-          <!-- Modo leitura -->
+          <!-- Leitura -->
           <template v-else>
-            <div class="flex items-start justify-between gap-2">
-              <p class="text-sm font-medium text-n-slate-12">
+            <div class="flex gap-2 justify-between items-start">
+              <p class="text-[14px] font-bold text-n-slate-12">
                 {{ faq.question }}
               </p>
-              <div class="flex shrink-0 items-center gap-1">
-                <span
-                  class="inline-flex items-center gap-1.5 rounded-full px-2 py-0.5 text-xs font-medium"
-                  :class="
-                    faq.status === 'approved'
-                      ? 'bg-green-50 text-green-700 dark:bg-green-400/10 dark:text-green-400'
-                      : 'bg-amber-50 text-amber-700 dark:bg-amber-400/10 dark:text-amber-400'
-                  "
-                >
-                  <span
-                    class="size-1.5 rounded-full"
-                    :class="
-                      faq.status === 'approved' ? 'bg-green-500' : 'bg-amber-500'
-                    "
-                  />
-                  {{
+              <div class="flex flex-none gap-1.5 items-center">
+                <AiBadge
+                  :variant="faq.status === 'approved' ? 'on' : 'warn'"
+                  :label="
                     faq.status === 'approved'
                       ? t('CAPTAIN.AGENT_TABS.KNOWLEDGE.APPROVED')
                       : t('CAPTAIN.AGENT_TABS.KNOWLEDGE.PENDING')
-                  }}
-                </span>
-
-                <!-- Confirmacao de exclusao inline -->
+                  "
+                />
                 <template v-if="confirmingDeleteFaqId === faq.id">
-                  <button
-                    type="button"
-                    class="rounded-lg px-2 py-1 text-xs font-medium text-red-600 transition-colors hover:bg-red-50 disabled:opacity-60 dark:text-red-400 dark:hover:bg-red-900/20"
+                  <AiButton
+                    variant="danger"
                     :disabled="deletingFaq"
                     @click="deleteFaq(faq)"
                   >
                     {{ t('CAPTAIN.AGENT_TABS.KNOWLEDGE.DELETE_CONFIRM') }}
-                  </button>
-                  <button
-                    type="button"
-                    class="rounded-lg px-2 py-1 text-xs text-n-slate-11 transition-colors hover:bg-n-alpha-2"
+                  </AiButton>
+                  <AiButton
+                    variant="ghost"
                     @click="confirmingDeleteFaqId = null"
                   >
                     {{ t('CAPTAIN.AGENT_TABS.KNOWLEDGE.CANCEL') }}
-                  </button>
+                  </AiButton>
                 </template>
-                <!-- Acoes editar / excluir -->
-                <template v-else>
-                  <button
-                    type="button"
-                    class="rounded-lg p-1.5 text-n-slate-10 transition-colors hover:bg-n-alpha-2 hover:text-n-slate-12"
-                    :title="t('CAPTAIN.AGENT_TABS.KNOWLEDGE.EDIT')"
-                    @click="startEditFaq(faq)"
-                  >
-                    <i class="i-lucide-pencil size-3.5" />
-                  </button>
-                  <button
-                    type="button"
-                    class="rounded-lg p-1.5 text-n-slate-10 transition-colors hover:bg-red-50 hover:text-red-600 dark:hover:bg-red-900/20 dark:hover:text-red-400"
-                    :title="t('CAPTAIN.AGENT_TABS.KNOWLEDGE.DELETE')"
-                    @click="confirmingDeleteFaqId = faq.id"
-                  >
-                    <i class="i-lucide-trash-2 size-3.5" />
-                  </button>
-                </template>
+                <AiDropdown
+                  v-else
+                  :items="FAQ_ACTIONS"
+                  @select="onFaqAction($event, faq)"
+                />
               </div>
             </div>
-            <p class="mt-1 line-clamp-2 text-sm text-n-slate-10">
+            <p class="mt-1 text-[13px] line-clamp-2 text-n-slate-11">
               {{ faq.answer }}
             </p>
           </template>
-        </div>
+        </AiCard>
       </div>
     </div>
   </div>

@@ -7,11 +7,13 @@ import { useAccount } from 'dashboard/composables/useAccount';
 
 import DeleteDialog from 'dashboard/components-next/captain/pageComponents/DeleteDialog.vue';
 import DocumentCard from 'dashboard/components-next/captain/assistant/DocumentCard.vue';
+import DocumentViewerModal from 'dashboard/components-next/captain/assistant/DocumentViewerModal.vue';
 import PageLayout from 'dashboard/components-next/captain/PageLayout.vue';
 import CaptainPaywall from 'dashboard/components-next/captain/pageComponents/Paywall.vue';
 import RelatedResponses from 'dashboard/components-next/captain/pageComponents/document/RelatedResponses.vue';
 import CreateDocumentDialog from 'dashboard/components-next/captain/pageComponents/document/CreateDocumentDialog.vue';
 import DocumentPageEmptyState from 'dashboard/components-next/captain/pageComponents/emptyStates/DocumentPageEmptyState.vue';
+import FeatureSpotlightPopover from 'dashboard/components-next/feature-spotlight/FeatureSpotlightPopover.vue';
 
 const route = useRoute();
 const store = useStore();
@@ -35,6 +37,12 @@ const showRelatedResponses = ref(false);
 const showCreateDialog = ref(false);
 const createDocumentDialog = ref(null);
 const relationQuestionDialog = ref(null);
+
+const showViewer = ref(false);
+
+const handleViewDocument = () => {
+  showViewer.value = true;
+};
 
 const handleShowRelatedDocument = () => {
   showRelatedResponses.value = true;
@@ -63,6 +71,8 @@ const handleAction = ({ action, id }) => {
       handleDelete();
     } else if (action === 'viewRelatedQuestions') {
       handleShowRelatedDocument();
+    } else if (action === 'view') {
+      handleViewDocument();
     }
   });
 };
@@ -125,7 +135,7 @@ onMounted(() => {
     </template>
 
     <template #body>
-      <div class="flex flex-col gap-4">
+      <div class="flex flex-col gap-2.5">
         <DocumentCard
           v-for="doc in documents"
           :id="doc.id"
@@ -134,11 +144,16 @@ onMounted(() => {
           :external-link="doc.external_link"
           :assistant="doc.assistant"
           :created-at="doc.created_at"
+          :status="doc.status"
           @action="handleAction"
         />
       </div>
     </template>
 
+    <DocumentViewerModal
+      v-model="showViewer"
+      :captain-document="selectedDocument"
+    />
     <RelatedResponses
       v-if="showRelatedResponses"
       ref="relationQuestionDialog"

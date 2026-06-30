@@ -4,6 +4,10 @@ import { useRoute } from 'vue-router';
 import { useStore } from 'vuex';
 import { useI18n } from 'vue-i18n';
 
+import AiSelect from 'dashboard/components-next/agents-ui/AiSelect.vue';
+import AiEmptyState from 'dashboard/components-next/agents-ui/AiEmptyState.vue';
+import AiPagination from 'dashboard/components-next/agents-ui/AiPagination.vue';
+
 const { t } = useI18n();
 const route = useRoute();
 const store = useStore();
@@ -19,8 +23,6 @@ const filterType = ref('');
 const currentPage = ref(1);
 let refreshInterval = null;
 
-// Espelha Captain::AssistantLog::EVENT_TYPES (drift de 'debounce'/'copilot'/'inbox'
-// corrigido na Fase E/E4 — esses valores nunca existiram no backend).
 const eventTypeConfig = {
   response: { color: 'bg-green-500', icon: 'i-lucide-check-circle' },
   debounce_skip: { color: 'bg-cyan-500', icon: 'i-lucide-timer-off' },
@@ -33,13 +35,15 @@ const eventTypeConfig = {
   dedup_skip: { color: 'bg-orange-500', icon: 'i-lucide-copy-x' },
   error: { color: 'bg-red-500', icon: 'i-lucide-alert-circle' },
   copilot_trigger: { color: 'bg-violet-500', icon: 'i-lucide-sparkles' },
-  // E4: auditoria da atribuição do espelho captain
   mirror_assigned: { color: 'bg-blue-500', icon: 'i-lucide-bot' },
   mirror_released: { color: 'bg-slate-500', icon: 'i-lucide-bot-off' },
   human_takeover: { color: 'bg-amber-500', icon: 'i-lucide-user-round-check' },
 };
 
-const eventTypes = ['', ...Object.keys(eventTypeConfig)];
+const filterOptions = computed(() => [
+  { value: '', label: t('CAPTAIN.AGENT_TABS.LOGS.ALL') },
+  ...Object.keys(eventTypeConfig).map(et => ({ value: et, label: et })),
+]);
 
 function fetchLogs() {
   store.dispatch('captainAssistantLogs/fetch', {
@@ -48,13 +52,11 @@ function fetchLogs() {
     event_type: filterType.value || undefined,
   });
 }
-
 function changeFilter(type) {
   filterType.value = type;
   currentPage.value = 1;
   fetchLogs();
 }
-
 function changePage(page) {
   currentPage.value = page;
   fetchLogs();
@@ -64,7 +66,6 @@ onMounted(() => {
   fetchLogs();
   refreshInterval = setInterval(fetchLogs, 10000);
 });
-
 onUnmounted(() => {
   if (refreshInterval) clearInterval(refreshInterval);
 });
@@ -73,102 +74,78 @@ function formatTimestamp(ts) {
   if (!ts) return '';
   return new Date(ts).toLocaleString('pt-BR');
 }
-
 function summarizePayload(payload) {
   if (!payload) return '';
   if (typeof payload === 'string') return payload;
   return JSON.stringify(payload).slice(0, 120);
 }
+const logStyle = type =>
+  eventTypeConfig[type] || { color: 'bg-n-slate-8', icon: 'i-lucide-circle' };
 </script>
 
 <template>
-  <div class="p-6">
-    <div class="mb-4 flex items-center justify-between">
-      <h3 class="text-sm font-semibold text-n-slate-12">
+  <div class="px-6 pt-4 pb-10 mx-auto max-w-3xl">
+    <div class="flex justify-between items-center mb-4">
+      <h3 class="text-[15px] font-bold text-n-slate-12">
         {{ t('AGENT_DETAIL.TABS.LOGS') }}
       </h3>
-      <select
-        :value="filterType"
-        class="rounded-lg border border-n-weak bg-n-solid-2 px-3 py-2 text-sm text-n-slate-12 outline-none transition-colors focus:border-n-brand focus:ring-1 focus:ring-n-brand dark:bg-n-solid-3"
-        @change="changeFilter($event.target.value)"
-      >
-        <option value="">
-          {{ t('CAPTAIN.AGENT_TABS.LOGS.ALL') }}
-        </option>
-        <option v-for="et in eventTypes.slice(1)" :key="et" :value="et">
-          {{ et }}
-        </option>
-      </select>
+      <div class="w-52">
+        <AiSelect
+          :model-value="filterType"
+          :options="filterOptions"
+          @update:model-value="changeFilter"
+        />
+      </div>
     </div>
 
     <div
       v-if="isFetching && !logs.length"
-      class="flex items-center gap-2 text-sm text-n-slate-10"
+      class="flex gap-2 items-center text-sm text-n-slate-10"
     >
-      <i class="i-lucide-loader-2 size-3.5 animate-spin" />
+      <span class="i-lucide-loader-2 size-3.5 animate-spin" />
       {{ t('CAPTAIN.AGENT_TABS.LOGS.LOADING') }}
     </div>
-    <div v-else-if="!logs.length" class="py-16 text-center">
-      <i class="i-lucide-scroll-text mx-auto mb-4 size-12 text-n-slate-9" />
-      <p class="text-base font-medium text-n-slate-12">
-        {{ t('CAPTAIN.AGENT_TABS.LOGS.NO_LOGS') }}
-      </p>
-    </div>
+    <AiEmptyState
+      v-else-if="!logs.length"
+      icon="i-lucide-scroll-text"
+      :title="t('CAPTAIN.AGENT_TABS.LOGS.NO_LOGS')"
+    />
 
     <div v-else class="space-y-2">
       <div
         v-for="log in logs"
         :key="log.id"
-        class="flex items-start gap-3 rounded-xl border border-n-weak bg-white p-3 transition-colors duration-100 hover:bg-n-alpha-1 dark:bg-n-solid-2"
+        class="flex gap-3 items-start p-3 rounded-2xl border transition-colors border-n-weak bg-n-solid-1 hover:bg-n-alpha-1"
       >
-        <div
-          class="mt-0.5 flex size-6 items-center justify-center rounded-full"
-          :class="
-            (eventTypeConfig[log.event_type] || {}).color || 'bg-n-slate-8'
-          "
+        <span
+          class="grid place-items-center mt-0.5 rounded-full size-6"
+          :class="logStyle(log.event_type).color"
         >
-          <i
-            class="size-3 text-white"
-            :class="[
-              (eventTypeConfig[log.event_type] || {}).icon || 'i-lucide-circle',
-            ]"
+          <span
+            class="text-white size-3"
+            :class="logStyle(log.event_type).icon"
           />
-        </div>
-        <div class="min-w-0 flex-1">
-          <div class="flex items-center gap-2">
-            <span class="text-xs font-medium text-n-slate-12">
+        </span>
+        <div class="flex-1 min-w-0">
+          <div class="flex gap-2 items-center">
+            <span class="font-mono text-[12.5px] font-bold text-n-slate-12">
               {{ log.event_type }}
             </span>
-            <span class="text-xs text-n-slate-10">
+            <span class="text-[11.5px] text-n-slate-10">
               {{ formatTimestamp(log.created_at) }}
             </span>
           </div>
-          <p class="mt-0.5 truncate text-xs text-n-slate-10">
+          <p class="mt-0.5 font-mono text-[11.5px] truncate text-n-slate-10">
             {{ summarizePayload(log.payload) }}
           </p>
         </div>
       </div>
     </div>
 
-    <!-- Pagination -->
-    <div
-      v-if="meta.total_pages > 1"
-      class="mt-4 flex items-center justify-center gap-2"
-    >
-      <button
-        v-for="page in meta.total_pages"
-        :key="page"
-        type="button"
-        class="rounded-lg px-2.5 py-1 text-xs transition-colors"
-        :class="
-          page === currentPage
-            ? 'bg-n-brand text-white'
-            : 'text-n-slate-10 hover:bg-n-alpha-1 hover:text-n-slate-12'
-        "
-        @click="changePage(page)"
-      >
-        {{ page }}
-      </button>
-    </div>
+    <AiPagination
+      :page="currentPage"
+      :total-pages="meta.total_pages || 1"
+      @update:page="changePage"
+    />
   </div>
 </template>

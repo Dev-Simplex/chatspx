@@ -947,8 +947,19 @@
         "ERROR_MESSAGE": "Ocorreu um erro ao excluir o documento, por favor, tente novamente."
       },
       "OPTIONS": {
+        "VIEW_DOCUMENT": "Ver documento",
         "VIEW_RELATED_RESPONSES": "Visualizar Respostas relacionadas",
         "DELETE_DOCUMENT": "Excluir Documento"
+      },
+      "VIEWER": {
+        "DOWNLOAD": "Baixar",
+        "OPEN_LINK": "Abrir link",
+        "NO_PREVIEW": "Sem pré-visualização disponível para este documento."
+      },
+      "STATUS": {
+        "TRAINED": "Treinado",
+        "PROCESSING": "Processando",
+        "FAILED": "Falhou"
       },
       "EMPTY_STATE": {
         "TITLE": "Nenhum documento disponível",
@@ -1210,7 +1221,9 @@
         "DESCRIPTION": "Definir quando o agente está ativo.",
         "OUTSIDE_ACTION": "Ação fora do horário",
         "ACTION_IGNORE": "Ignorar mensagens",
-        "ACTION_QUALIFY": "Qualificar mais"
+        "ACTION_QUALIFY": "Qualificar mais",
+        "TIMEZONE_LABEL": "Fuso horário",
+        "SCHEDULE_LABEL": "Horários por dia"
       },
       "MEDIA_PIPELINE": {
         "TITLE": "Pipeline de Mídia",
