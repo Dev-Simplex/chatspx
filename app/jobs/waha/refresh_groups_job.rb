@@ -1,7 +1,11 @@
 # frozen_string_literal: true
 
 class Waha::RefreshGroupsJob < ApplicationJob
-  queue_as :low
+  # Era :low (7a fila sob prioridade estrita no sidekiq.yml -> faminta: so roda quando
+  # critical/high/medium/default/mailers/action_mailbox estao vazias). Em producao
+  # carregada, o aquecimento do cache LID->PN praticamente nunca executava. Movido para
+  # :scheduled_jobs (logo abaixo de :low, mas e a fila dos crons e drena de forma confiavel).
+  queue_as :scheduled_jobs
 
   # Refresh all WAHA groups to populate LID→PN mappings
   # WAHA populates LID mappings when groups are fetched

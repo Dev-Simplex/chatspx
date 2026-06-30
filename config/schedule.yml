@@ -63,12 +63,23 @@ periodic_assignment_job:
   class: 'AutoAssignment::PeriodicAssignmentJob'
   queue: scheduled_jobs
 
-# executed every 30 minutes
+# executed every 30 minutes (em :00 e :30)
 # refresh WAHA groups to populate LID to phone number mappings
+# queue movida de :low (faminta) para :scheduled_jobs — em producao carregada a :low
+# quase nunca drenava e o cache LID->PN nao era aquecido.
 waha_refresh_groups_job:
   cron: '*/30 * * * *'
   class: 'Waha::RefreshGroupsJob'
-  queue: low
+  queue: scheduled_jobs
+
+# executed every hour at :15 (logo apos o refresh de grupos das :00 aquecer o cache)
+# rede de seguranca: reenfileira a resolucao dos @lid presos (dead-letter). Conserta o
+# caso da migracao de servidor WAHA, em que o cache LID->PN zera e os ResolveLidJob
+# morrem sem reagendamento. Idempotente; enfileira em :scheduled_jobs (nao :high).
+waha_resolve_lid_sweep_job:
+  cron: '15 * * * *'
+  class: 'Contacts::ResolveLidSweepJob'
+  queue: scheduled_jobs
 
 # executed every 5 minutes
 # safety net for WAHA freeze #1482: re-inject inbound messages that never
