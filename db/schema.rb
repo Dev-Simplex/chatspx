@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[7.1].define(version: 2026_06_16_120100) do
+ActiveRecord::Schema[7.1].define(version: 2026_06_30_000000) do
   # These extensions should be enabled to support this database
   enable_extension "pg_stat_statements"
   enable_extension "pg_trgm"
@@ -26,6 +26,17 @@ ActiveRecord::Schema[7.1].define(version: 2026_06_16_120100) do
     t.datetime "updated_at", precision: nil, null: false
     t.index ["owner_type", "owner_id"], name: "index_access_tokens_on_owner_type_and_owner_id"
     t.index ["token"], name: "index_access_tokens_on_token", unique: true
+  end
+
+  create_table "account_integrations", force: :cascade do |t|
+    t.bigint "account_id", null: false
+    t.string "provider", null: false
+    t.boolean "enabled", default: false, null: false
+    t.text "settings"
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["account_id", "provider"], name: "index_account_integrations_on_account_id_and_provider", unique: true
+    t.index ["account_id"], name: "index_account_integrations_on_account_id"
   end
 
   create_table "account_saml_settings", force: :cascade do |t|
@@ -147,6 +158,28 @@ ActiveRecord::Schema[7.1].define(version: 2026_06_16_120100) do
     t.datetime "created_at", null: false
     t.datetime "updated_at", null: false
     t.index ["account_id"], name: "index_agent_capacity_policies_on_account_id"
+  end
+
+  create_table "ai_config_changes", force: :cascade do |t|
+    t.string "change_set_id", null: false
+    t.bigint "account_id", null: false
+    t.bigint "assistant_id"
+    t.string "author"
+    t.string "approved_by"
+    t.integer "status", default: 0, null: false
+    t.jsonb "operations", default: [], null: false
+    t.jsonb "snapshot_before", default: {}, null: false
+    t.jsonb "result", default: {}, null: false
+    t.datetime "applied_at"
+    t.datetime "reverted_at"
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.text "error_message"
+    t.string "baseline_hash"
+    t.index ["account_id", "created_at"], name: "index_ai_config_changes_on_account_id_and_created_at"
+    t.index ["account_id"], name: "index_ai_config_changes_on_account_id"
+    t.index ["change_set_id"], name: "index_ai_config_changes_on_change_set_id", unique: true
+    t.index ["status"], name: "index_ai_config_changes_on_status"
   end
 
   create_table "applied_slas", force: :cascade do |t|
