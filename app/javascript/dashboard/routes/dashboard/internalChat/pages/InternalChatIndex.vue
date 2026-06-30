@@ -1031,10 +1031,14 @@ onBeforeUnmount(() => {
                       mentionsMe(item.msg) ? 'ring-2 ring-n-brand/60' : '',
                     ]"
                   >
-                    <!-- hover toolbar -->
+                    <!-- hover toolbar — floats fully above the bubble so it
+                         never overlaps the message text -->
                     <div
-                      class="absolute -top-3 z-10 hidden group-hover:flex items-center gap-0.5 bg-n-solid-1 border border-n-weak rounded-full shadow px-1 py-0.5"
-                      :class="isMine(item.msg) ? 'right-1' : 'left-1'"
+                      class="absolute bottom-full mb-1.5 z-10 hidden group-hover:flex items-center gap-0.5 bg-n-solid-1 border border-n-weak rounded-full shadow-md px-1 py-1"
+                      :class="[
+                        isMine(item.msg) ? 'right-0' : 'left-0',
+                        reactionPickerId === item.msg.id ? '!hidden' : '',
+                      ]"
                     >
                       <button
                         class="inline-flex items-center justify-center w-6 h-6 rounded-full text-n-slate-11 hover:bg-n-alpha-2"
@@ -1074,11 +1078,12 @@ onBeforeUnmount(() => {
                       class="fixed inset-0 z-10"
                       @click="reactionPickerId = null"
                     />
-                    <!-- reaction picker -->
+                    <!-- reaction picker — floats above the bubble like the
+                         action toolbar (which is hidden while this is open) -->
                     <div
                       v-if="reactionPickerId === item.msg.id"
-                      class="absolute -top-9 z-20 flex gap-1 bg-n-solid-1 border border-n-weak rounded-full shadow px-2 py-1"
-                      :class="isMine(item.msg) ? 'right-1' : 'left-1'"
+                      class="absolute bottom-full mb-1.5 z-20 flex gap-1 bg-n-solid-1 border border-n-weak rounded-full shadow-md px-2 py-1"
+                      :class="isMine(item.msg) ? 'right-0' : 'left-0'"
                     >
                       <button
                         v-for="e in QUICK_EMOJIS"
