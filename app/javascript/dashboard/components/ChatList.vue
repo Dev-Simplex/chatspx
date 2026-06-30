@@ -360,6 +360,10 @@ const assigneeTabItems = computed(() => {
         name: t(`CHAT_LIST.ASSIGNEE_TYPE_TABS.${key}`),
         count: stats[countKeyForTab(key)] ?? 0,
         icon: iconForKey(key),
+        // "Aguardando atendimento" recebe o efeito de atenção em vermelho
+        // (.tab-alert: ruby + jump-in), no mesmo espírito da fila de IA.
+        variant:
+          key === wootConstants.ASSIGNEE_TYPE.AWAITING ? 'alert' : undefined,
       };
     });
   return items;

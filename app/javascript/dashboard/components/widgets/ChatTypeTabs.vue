@@ -35,8 +35,15 @@ const isQueueKey = key => QUEUE_KEYS.includes(key);
 // cada grupo. O active/teclado seguem ESTE array reordenado (mesma fonte do
 // findIndex e do :index), então a seleção continua correta.
 const orderedItems = computed(() => {
-  const primary = props.items.filter(item => !isQueueKey(item.key));
   const queue = props.items.filter(item => isQueueKey(item.key));
+  // Dinâmico: só agrupa as filas ao final (linha 2) quando há 2+ filas
+  // (Aguardando atendimento + IA). Com UMA fila só (ex.: Aguardando sem IA),
+  // mantém a ordem natural — assim ela "sobe" para a linha de cima quando há
+  // espaço, em vez de ficar presa sozinha na 2ª linha.
+  if (queue.length < 2) {
+    return [...props.items];
+  }
+  const primary = props.items.filter(item => !isQueueKey(item.key));
   return [...primary, ...queue];
 });
 
