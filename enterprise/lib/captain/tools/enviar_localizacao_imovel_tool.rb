@@ -41,11 +41,12 @@ class Captain::Tools::EnviarLocalizacaoImovelTool < Captain::Tools::BasePublicTo
   private
 
   def fetch_coordinates(codigo)
-    base = ENV.fetch('TOZI_VISTA_BASE_URL', 'https://toz19328-rest.vistahost.com.br')
+    # Credenciais Vista por CONTA via concern (AccountIntegration -> custom_attributes -> ENV).
+    base = vista_base_url
     pesquisa = { fields: %w[Codigo Categoria Bairro BairroComercial Latitude Longitude] }
     resp = HTTParty.get(
       "#{base}/imoveis/detalhes",
-      query: { key: ENV['TOZI_VISTA_API_KEY'].to_s, imovel: codigo, pesquisa: pesquisa.to_json },
+      query: { key: vista_api_key, imovel: codigo, pesquisa: pesquisa.to_json },
       headers: { 'Accept' => 'application/json' },
       timeout: 15
     )

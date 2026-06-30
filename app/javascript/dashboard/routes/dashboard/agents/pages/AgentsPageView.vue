@@ -5,6 +5,11 @@ import { useStore } from 'vuex';
 import { useI18n } from 'vue-i18n';
 import { useAccount } from 'dashboard/composables/useAccount';
 
+import AiSearch from 'dashboard/components-next/agents-ui/AiSearch.vue';
+import AiButton from 'dashboard/components-next/agents-ui/AiButton.vue';
+import AiAvatar from 'dashboard/components-next/agents-ui/AiAvatar.vue';
+import AiBackdrop from 'dashboard/components-next/agents-ui/AiBackdrop.vue';
+
 const { t } = useI18n();
 const route = useRoute();
 const router = useRouter();
@@ -19,13 +24,11 @@ const agents = computed(
 const isFetching = computed(
   () => store.getters['captainAssistants/getUIFlags']?.isFetching || false
 );
-
 const filteredAgents = computed(() => {
   if (!searchQuery.value) return agents.value;
   const q = searchQuery.value.toLowerCase();
   return agents.value.filter(a => a.name?.toLowerCase().includes(q));
 });
-
 const selectedAssistantId = computed(() => {
   const id = route.params.assistantId;
   return id ? Number(id) : null;
@@ -37,7 +40,6 @@ function navigateToAgent(agent) {
     params: { accountId: accountId.value, assistantId: agent.id },
   });
 }
-
 function navigateToCreate() {
   router.push({
     name: 'agents_dashboard',
@@ -45,61 +47,58 @@ function navigateToCreate() {
     query: { create: true },
   });
 }
-
-onMounted(() => {
-  store.dispatch('captainAssistants/get');
-});
+function goToConnection() {
+  router.push({
+    name: 'agents_settings',
+    params: { accountId: accountId.value },
+  });
+}
+function goToTools() {
+  router.push({
+    name: 'agents_tools',
+    params: { accountId: accountId.value },
+  });
+}
+const connectionActive = computed(() => route.name === 'agents_settings');
+const toolsActive = computed(() => route.name === 'agents_tools');
+onMounted(() => store.dispatch('captainAssistants/get'));
 </script>
 
 <template>
-  <div class="flex h-full w-full">
+  <div class="flex w-full h-full">
     <!-- Sidebar -->
     <div
-      class="flex w-64 shrink-0 flex-col border-r border-n-weak bg-white dark:bg-n-solid-1"
+      class="flex flex-col w-64 border-r shrink-0 border-n-weak bg-n-solid-1"
     >
-      <!-- Header -->
       <div
-        class="flex items-center justify-between border-b border-n-weak px-4 py-3"
+        class="flex justify-between items-center px-4 py-3 border-b border-n-weak"
       >
-        <h2 class="text-sm font-semibold text-n-slate-12">
+        <h2 class="text-[15px] font-bold tracking-tight text-n-slate-12">
           {{ t('AGENTS_PAGE.TITLE') }}
         </h2>
-        <button
-          type="button"
-          class="inline-flex items-center gap-1 rounded-lg bg-n-brand px-2.5 py-1.5 text-xs font-medium text-white transition-colors hover:brightness-95"
-          @click="navigateToCreate"
-        >
-          <i class="i-lucide-plus size-3" />
+        <AiButton variant="subtle" @click="navigateToCreate">
+          <span class="i-lucide-plus size-3.5" />
           {{ t('AGENTS_PAGE.NEW') }}
-        </button>
+        </AiButton>
       </div>
 
-      <!-- Search -->
-      <div class="px-3 py-2">
-        <div class="relative">
-          <i
-            class="i-lucide-search absolute left-2.5 top-1/2 size-3.5 -translate-y-1/2 text-n-slate-9"
-          />
-          <input
-            v-model="searchQuery"
-            type="text"
-            :placeholder="t('AGENTS_PAGE.SEARCH_PLACEHOLDER')"
-            class="w-full rounded-lg border border-n-weak bg-n-solid-2 py-1.5 pl-8 pr-3 text-sm text-n-slate-12 outline-none placeholder:text-n-slate-9 transition-colors focus:border-n-brand focus:ring-1 focus:ring-n-brand dark:bg-n-solid-3"
-          />
-        </div>
+      <div class="px-3 py-2.5">
+        <AiSearch
+          v-model="searchQuery"
+          :placeholder="t('AGENTS_PAGE.SEARCH_PLACEHOLDER')"
+        />
       </div>
 
-      <!-- Agent List -->
-      <div class="flex-1 overflow-y-auto px-2 py-1">
+      <div class="overflow-y-auto flex-1 px-2 py-1 space-y-0.5">
         <div
           v-if="isFetching"
-          class="px-3 py-8 text-center text-sm text-n-slate-10"
+          class="px-3 py-8 text-sm text-center text-n-slate-10"
         >
           {{ t('AGENTS_PAGE.LOADING') }}
         </div>
         <div
           v-else-if="filteredAgents.length === 0"
-          class="px-3 py-8 text-center text-sm text-n-slate-10"
+          class="px-3 py-8 text-sm text-center text-n-slate-10"
         >
           {{ t('AGENTS_PAGE.NO_AGENTS') }}
         </div>
@@ -108,40 +107,76 @@ onMounted(() => {
             v-for="agent in filteredAgents"
             :key="agent.id"
             type="button"
-            class="flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-left transition-colors duration-150"
+            class="flex gap-3 items-center px-2.5 py-2 w-full text-left rounded-xl transition-colors duration-150"
             :class="
               selectedAssistantId === agent.id
-                ? 'bg-n-alpha-2 font-medium'
+                ? 'bg-n-alpha-2'
                 : 'hover:bg-n-alpha-1'
             "
             @click="navigateToAgent(agent)"
           >
-            <div
-              class="flex size-8 shrink-0 items-center justify-center rounded-lg bg-gradient-to-br from-primary-500 to-blue-500 text-xs font-semibold text-white"
-            >
-              {{ (agent.name || '?')[0].toUpperCase() }}
-            </div>
-            <div class="min-w-0 flex-1">
-              <p class="truncate text-sm text-n-slate-12">
-                {{ agent.name }}
-              </p>
-            </div>
+            <AiAvatar :name="agent.name" :size="30" />
             <span
-              class="inline-flex items-center gap-1 text-xs text-n-slate-10"
+              class="flex-1 text-[13.5px] truncate text-n-slate-12"
+              :class="selectedAssistantId === agent.id ? 'font-bold' : ''"
             >
-              <span
-                class="size-1.5 shrink-0 rounded-full"
-                :class="agent.active ? 'bg-green-500' : 'bg-n-slate-8'"
-              />
+              {{ agent.name }}
             </span>
+            <span
+              class="flex-none rounded-full size-2"
+              :class="agent.active === false ? 'bg-n-slate-7' : 'bg-g-500'"
+            />
           </button>
         </template>
       </div>
+
+      <!-- Ferramentas / Conexão -->
+      <div class="p-2 space-y-0.5 border-t border-n-weak">
+        <button
+          type="button"
+          class="flex gap-2.5 items-center px-2.5 py-2 w-full text-left rounded-xl transition-colors"
+          :class="toolsActive ? 'bg-n-alpha-2' : 'hover:bg-n-alpha-1'"
+          @click="goToTools"
+        >
+          <span
+            class="grid flex-none place-items-center text-white rounded-lg bg-n-brand size-7"
+          >
+            <span class="i-lucide-wrench size-4" />
+          </span>
+          <span
+            class="text-[13px] font-semibold text-n-slate-12"
+            :class="toolsActive ? 'font-bold' : ''"
+          >
+            {{ t('AGENTS_PAGE.TOOLS') }}
+          </span>
+        </button>
+        <button
+          type="button"
+          class="flex gap-2.5 items-center px-2.5 py-2 w-full text-left rounded-xl transition-colors"
+          :class="connectionActive ? 'bg-n-alpha-2' : 'hover:bg-n-alpha-1'"
+          @click="goToConnection"
+        >
+          <span
+            class="grid flex-none place-items-center text-white rounded-lg bg-n-brand size-7"
+          >
+            <span class="i-lucide-plug-zap size-4" />
+          </span>
+          <span
+            class="text-[13px] font-semibold text-n-slate-12"
+            :class="connectionActive ? 'font-bold' : ''"
+          >
+            {{ t('AGENTS_DASHBOARD.CONNECTION') }}
+          </span>
+        </button>
+      </div>
     </div>
 
-    <!-- Main Content -->
-    <div class="flex-1 overflow-y-auto bg-n-background">
-      <router-view />
+    <!-- Conteúdo -->
+    <div class="overflow-y-auto isolate relative flex-1 bg-n-background">
+      <AiBackdrop />
+      <div class="relative">
+        <router-view />
+      </div>
     </div>
   </div>
 </template>

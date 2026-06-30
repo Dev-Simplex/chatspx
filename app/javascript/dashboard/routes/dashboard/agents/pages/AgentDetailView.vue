@@ -4,14 +4,8 @@ import { useRoute, useRouter } from 'vue-router';
 import { useStore } from 'vuex';
 import { useI18n } from 'vue-i18n';
 import { useAccount } from 'dashboard/composables/useAccount';
-import LottieIcon from 'dashboard/components-next/agents/LottieIcon.vue';
-import homeAnim from 'dashboard/assets/lottie/useanimations/home.json';
-import settingsAnim from 'dashboard/assets/lottie/useanimations/settings.json';
-import bookmarkAnim from 'dashboard/assets/lottie/useanimations/bookmark.json';
-import settings2Anim from 'dashboard/assets/lottie/useanimations/settings2.json';
-import exploreAnim from 'dashboard/assets/lottie/useanimations/explore.json';
-import downloadAnim from 'dashboard/assets/lottie/useanimations/download.json';
-import activityAnim from 'dashboard/assets/lottie/useanimations/activity.json';
+
+import AiAvatar from 'dashboard/components-next/agents-ui/AiAvatar.vue';
 
 const { t } = useI18n();
 const route = useRoute();
@@ -29,50 +23,42 @@ const tabs = computed(() => [
   {
     name: 'agents_assistant_overview',
     label: t('AGENT_DETAIL.TABS.OVERVIEW'),
-    animation: homeAnim,
-    mode: 'hover',
+    icon: 'i-lucide-home',
+  },
+  {
+    name: 'agents_assistant_flow',
+    label: t('AGENT_DETAIL.TABS.FLOW'),
+    icon: 'i-lucide-workflow',
   },
   {
     name: 'agents_assistant_behavior',
     label: t('AGENT_DETAIL.TABS.BEHAVIOR'),
-    animation: settingsAnim,
-    mode: 'hover',
+    icon: 'i-lucide-sliders-horizontal',
   },
   {
     name: 'agents_assistant_knowledge',
     label: t('AGENT_DETAIL.TABS.KNOWLEDGE'),
-    animation: bookmarkAnim,
-    mode: 'hover',
-  },
-  {
-    name: 'agents_assistant_tools',
-    label: t('AGENT_DETAIL.TABS.TOOLS'),
-    animation: settings2Anim,
-    mode: 'hover',
+    icon: 'i-lucide-book-open',
   },
   {
     name: 'agents_assistant_scenarios',
     label: t('AGENT_DETAIL.TABS.SCENARIOS'),
-    animation: exploreAnim,
-    mode: 'hover',
+    icon: 'i-lucide-git-branch',
   },
   {
     name: 'agents_assistant_inboxes',
     label: t('AGENT_DETAIL.TABS.INBOXES'),
-    animation: downloadAnim,
-    mode: 'hover',
+    icon: 'i-lucide-inbox',
   },
   {
     name: 'agents_assistant_logs',
     label: t('AGENT_DETAIL.TABS.LOGS'),
-    animation: activityAnim,
-    mode: 'hover',
+    icon: 'i-lucide-activity',
   },
   {
     name: 'agents_assistant_settings',
     label: t('AGENT_DETAIL.TABS.SETTINGS'),
-    animation: settingsAnim,
-    mode: 'hover',
+    icon: 'i-lucide-settings',
   },
 ]);
 
@@ -89,18 +75,16 @@ function isActiveTab(tab) {
 </script>
 
 <template>
-  <div class="flex h-full flex-col">
+  <div class="flex flex-col h-full">
     <!-- Header -->
-    <div class="border-b border-n-weak bg-white px-6 py-4 dark:bg-n-solid-1">
-      <div class="mb-3 flex items-center justify-between">
-        <div class="flex items-center gap-3">
-          <div
-            class="flex size-10 items-center justify-center rounded-lg bg-gradient-to-br from-primary-500 to-blue-500 text-base font-semibold text-white shadow-sm"
-          >
-            {{ (agent?.name || '?')[0].toUpperCase() }}
-          </div>
+    <div
+      class="px-6 pt-4 border-b backdrop-blur-xl bg-n-background/80 border-n-weak"
+    >
+      <div class="flex justify-between items-center mb-3">
+        <div class="flex gap-3 items-center">
+          <AiAvatar :name="agent?.name || '?'" :size="40" />
           <div>
-            <h1 class="text-base font-semibold text-n-slate-12">
+            <h1 class="text-base font-bold text-n-slate-12">
               {{ agent?.name || t('AGENT_DETAIL.LOADING') }}
             </h1>
             <p v-if="agent?.description" class="text-xs text-n-slate-10">
@@ -110,42 +94,38 @@ function isActiveTab(tab) {
         </div>
         <span
           v-if="agent?.config?.model"
-          class="rounded-md bg-n-alpha-2 px-2 py-0.5 font-mono text-xs text-n-slate-10"
+          class="px-2 py-0.5 font-mono text-xs rounded-md bg-n-alpha-2 text-n-slate-10"
         >
           {{ agent.config.model }}
         </span>
       </div>
 
-      <!-- Tab Navigation -->
-      <nav class="flex">
+      <!-- Tabs -->
+      <nav class="flex overflow-x-auto no-scrollbar">
         <button
           v-for="tab in tabs"
           :key="tab.name"
           type="button"
-          class="relative inline-flex items-center gap-1.5 px-3 py-2 text-xs font-medium transition-colors duration-150"
+          class="inline-flex relative gap-1.5 items-center px-3 py-2.5 text-[13px] font-medium whitespace-nowrap transition-colors duration-150"
           :class="
             isActiveTab(tab)
               ? 'font-semibold text-n-brand'
-              : 'text-n-slate-10 hover:text-n-slate-12'
+              : 'text-n-slate-11 hover:text-n-slate-12'
           "
           @click="navigateToTab(tab)"
         >
-          <LottieIcon
-            :animation-data="tab.animation"
-            :size="14"
-            :mode="tab.mode"
-          />
+          <span :class="tab.icon" class="size-4" />
           {{ tab.label }}
           <span
             v-if="isActiveTab(tab)"
-            class="absolute inset-x-0 bottom-0 h-0.5 rounded-full bg-n-brand"
+            class="absolute inset-x-2 bottom-0 h-0.5 rounded-full bg-n-brand"
           />
         </button>
       </nav>
     </div>
 
-    <!-- Tab Content -->
-    <div class="flex-1 overflow-y-auto">
+    <!-- Content -->
+    <div class="overflow-y-auto flex-1 bg-n-background">
       <router-view />
     </div>
   </div>

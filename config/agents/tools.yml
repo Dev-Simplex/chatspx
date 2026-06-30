@@ -70,11 +70,6 @@
   description: 'Programa uma cutucada futura pra retomar a conversa se o cliente não responder'
   icon: 'clock'
 
-- id: transferir_para_agente
-  title: 'Transferir para outro Agente IA'
-  description: 'Transfere a conversa para outro agente de IA da equipe (o novo agente assume e continua)'
-  icon: 'arrow-swap'
-
 - id: enviar_localizacao
   title: 'Enviar Localização do Escritório'
   description: 'Envia ao cliente o pin de localização do escritório da Tozi no mapa'
@@ -88,4 +83,9 @@
 - id: buscar_lugar
   title: 'Buscar lugares (Places)'
   description: 'Lista lugares/comércios por nome em Sinop (nome + endereço + coords) para referência de proximidade'
+  icon: 'location'
+
+- id: buscar_localizacao
+  title: 'Buscar Localização (Geocoding)'
+  description: 'Geocodifica um endereço/bairro/ponto em Sinop-MT e retorna as coordenadas (lat/lng) e o endereço formatado'
   icon: 'location'

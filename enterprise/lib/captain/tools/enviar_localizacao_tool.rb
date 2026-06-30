@@ -4,14 +4,13 @@ class Captain::Tools::EnviarLocalizacaoTool < Captain::Tools::BasePublicTool
   description 'Envia ao cliente a localização (pin no mapa) do escritório da Tozi Imóveis pelo WhatsApp. ' \
               'Chame quando o cliente perguntar onde fica a empresa, pedir o endereço, a localização ou como chegar.'
 
-  OFFICE_LAT = -11.8519937
-  OFFICE_LNG = -55.5093314
-  OFFICE_NAME = 'Tozi Imóveis - Av. das Figueiras, 1646, Sala 01, Centro, Sinop/MT'
-
   def perform(tool_context)
     conversation = find_conversation(tool_context&.state)
     return 'Não consegui identificar a conversa pra enviar a localização.' unless conversation
 
+    # Coordenadas do escritório por CONTA via concern (AccountIntegration vista office_*
+    # -> constantes legadas da Tozi).
+    office = office_coords
     # Anexo construido ANTES do save (o envio dispara no after_create_commit; create
     # em duas etapas seria corrida — mesmo cuidado da EnviarFotosImovelTool).
     msg = conversation.messages.build(
@@ -23,9 +22,9 @@ class Captain::Tools::EnviarLocalizacaoTool < Captain::Tools::BasePublicTool
     msg.attachments.build(
       account_id: conversation.account_id,
       file_type: :location,
-      coordinates_lat: OFFICE_LAT,
-      coordinates_long: OFFICE_LNG,
-      fallback_title: OFFICE_NAME
+      coordinates_lat: office[:lat],
+      coordinates_long: office[:lng],
+      fallback_title: office[:name]
     )
     msg.save!
     log_tool_usage('enviar_localizacao', conversation_id: conversation.id)

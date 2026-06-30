@@ -22,6 +22,20 @@ class Captain::Tools::HttpTool < Agents::Tool
     'An error occurred while executing the request'
   end
 
+  # Additive helper for the custom-tool "test" endpoint (admin smoke test). Reuses the
+  # same SSRF guard and request/auth building as #perform, but returns the raw HTTP
+  # status/body instead of the LLM-formatted string. Does NOT alter #perform (the
+  # LLM-facing entrypoint) — purely additive.
+  def perform_test(**params)
+    url = @custom_tool.build_request_url(params)
+    body = @custom_tool.build_request_body(params)
+
+    response = execute_http_request(url, body, nil)
+    { ok: true, status: response.code.to_i, body: truncate_test_body(response.body) }
+  rescue StandardError => e
+    { ok: false, error: e.message }
+  end
+
   private
 
   PRIVATE_IP_RANGES = [
@@ -108,5 +122,9 @@ class Captain::Tools::HttpTool < Agents::Tool
     state = tool_context&.state || {}
     metadata_headers = @custom_tool.build_metadata_headers(state)
     metadata_headers.each { |key, value| request[key] = value }
+  end
+
+  def truncate_test_body(raw)
+    raw.to_s.dup.force_encoding(Encoding::UTF_8).scrub('?')[0, 5000]
   end
 end

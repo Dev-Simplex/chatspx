@@ -81,18 +81,8 @@ class Captain::Tools::BuscarImovelTool < Captain::Tools::BasePublicTool
     data.reject { |k, _| META_KEYS.include?(k) }.values.select { |v| v.is_a?(Hash) }
   end
 
-  # Credenciais Vista por CONTA (multi-tenant): lê do Account; fallback p/ ENV (Tozi legado).
-  def vista_api_key
-    account_setting('vista_api_key') || ENV['TOZI_VISTA_API_KEY'].to_s
-  end
-
-  def vista_base_url
-    account_setting('vista_base_url') || ENV.fetch('TOZI_VISTA_BASE_URL', 'https://toz19328-rest.vistahost.com.br')
-  end
-
-  def account_setting(key)
-    (@assistant&.account&.custom_attributes || {})[key].presence
-  end
+  # Credenciais Vista por CONTA: vista_api_key / vista_base_url vêm do concern
+  # IntegrationCredentials (AccountIntegration -> custom_attributes -> ENV).
 
   def format_by_distance(imoveis, venda, lat, lng, raio)
     com_geo = with_distances(imoveis, lat, lng)
@@ -145,7 +135,7 @@ class Captain::Tools::BuscarImovelTool < Captain::Tools::BasePublicTool
     parts << "#{im['Dormitorios']}-dormitorios" if im['Dormitorios'].to_i.positive?
     parts << slugify(bairro) << slugify(im['Cidade'])
     id = im['ImoCodigo'].presence || im['Codigo']
-    "https://www.toziimoveis.com.br/#{parts.reject(&:blank?).join('-')},#{id}"
+    "https://www.#{site_domain}/#{parts.reject(&:blank?).join('-')},#{id}"
   end
 
   def slugify(str)

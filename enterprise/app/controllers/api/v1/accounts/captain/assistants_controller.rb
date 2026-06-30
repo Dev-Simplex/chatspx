@@ -4,7 +4,7 @@ class Api::V1::Accounts::Captain::AssistantsController < Api::V1::Accounts::Base
   before_action :current_account
   before_action -> { check_authorization(Captain::Assistant) }
 
-  before_action :set_assistant, only: [:show, :update, :destroy, :playground]
+  before_action :set_assistant, only: [:show, :update, :destroy, :playground, :stats]
   before_action :ensure_captain_api_key!, only: :playground
 
   def index
@@ -46,7 +46,54 @@ class Api::V1::Accounts::Captain::AssistantsController < Api::V1::Accounts::Base
     @tools = assistant.available_agent_tools
   end
 
+  # Métricas REAIS do assistant (aditivo). Tudo defensivo: nunca 500.
+  def stats
+    bot = @assistant.agent_bot
+    base = if bot
+             Conversation.where(account_id: Current.account.id, assignee_agent_bot_id: bot.id)
+           else
+             Conversation.none
+           end
+    handled = base.count
+    resolved = base.where(status: :resolved).count
+    @stats = {
+      handled: handled,
+      resolved: resolved,
+      resolution_rate: handled.zero? ? 0 : (resolved * 100.0 / handled).round,
+      csat: assistant_csat(bot),
+      handoffs: assistant_handoffs(base),
+      series: assistant_series(base)
+    }
+  end
+
   private
+
+  def assistant_csat(bot)
+    return 0.0 unless bot
+
+    CsatSurveyResponse.joins(:conversation)
+                      .where(conversations: { account_id: Current.account.id, assignee_agent_bot_id: bot.id })
+                      .average(:rating).to_f.round(1)
+  rescue StandardError
+    0.0
+  end
+
+  def assistant_handoffs(base)
+    base.where("conversations.custom_attributes ->> 'aguardando_humano_desde' IS NOT NULL").count
+  rescue StandardError
+    0
+  end
+
+  def assistant_series(base)
+    by_day = base.where(created_at: 6.days.ago.beginning_of_day..Time.current.end_of_day)
+                 .group(Arel.sql('DATE(created_at)')).count
+    (0..6).map do |i|
+      d = i.days.ago.to_date
+      { date: d.to_s, count: (by_day[d] || by_day[d.to_s] || 0).to_i }
+    end.reverse
+  rescue StandardError
+    []
+  end
 
   def set_assistant
     @assistant = account_assistants.find(params[:id])
@@ -62,7 +109,9 @@ class Api::V1::Accounts::Captain::AssistantsController < Api::V1::Accounts::Base
                                                     :product_name, :feature_faq, :feature_memory, :feature_citation,
                                                     :feature_contact_attributes,
                                                     :welcome_message, :handoff_message, :resolution_message,
-                                                    :instructions, :temperature
+                                                    :instructions, :temperature,
+                                                    :knowledge_mode, :contextual_chunks,
+                                                    { tools: [] }
                                                   ],
                                                   behavior: {})
 

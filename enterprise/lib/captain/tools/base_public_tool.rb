@@ -1,6 +1,9 @@
 require 'agents'
 
 class Captain::Tools::BasePublicTool < Agents::Tool
+  # Per-account credential resolution (Vista/Google/office/site) with ENV fallback.
+  include Captain::Tools::IntegrationCredentials
+
   def initialize(assistant)
     @assistant = assistant
     super()

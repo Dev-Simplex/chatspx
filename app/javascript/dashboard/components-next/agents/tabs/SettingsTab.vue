@@ -1,12 +1,20 @@
 <script setup>
-import { ref, computed, watch } from 'vue';
+import { ref, reactive, computed, watch, onMounted } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import { useStore } from 'vuex';
-import { useI18n } from 'vue-i18n';
 import { useClipboard } from '@vueuse/core';
 import { useAlert } from 'dashboard/composables';
 
-const { t } = useI18n();
+import AiCard from 'dashboard/components-next/agents-ui/AiCard.vue';
+import AiField from 'dashboard/components-next/agents-ui/AiField.vue';
+import AiTextarea from 'dashboard/components-next/agents-ui/AiTextarea.vue';
+import AiNumberField from 'dashboard/components-next/agents-ui/AiNumberField.vue';
+import AiToggle from 'dashboard/components-next/agents-ui/AiToggle.vue';
+import AiButton from 'dashboard/components-next/agents-ui/AiButton.vue';
+import AiListGroup from 'dashboard/components-next/agents-ui/AiListGroup.vue';
+import AiListRow from 'dashboard/components-next/agents-ui/AiListRow.vue';
+import AgentSettingField from 'dashboard/components-next/agents/AgentSettingField.vue';
+
 const route = useRoute();
 const router = useRouter();
 const store = useStore();
@@ -17,61 +25,174 @@ const agent = computed(() =>
   store.getters['captainAssistants/getRecord'](assistantId.value)
 );
 
-const showDeleteConfirm = ref(false);
+// --- Formulário (hidratado de agent + agent.config) ---
+const DEFAULT_TEMPERATURE = 0.7;
 
-// --- Editor de prompt (description + guidelines + guardrails) ---
-const isEditing = ref(false);
-const savingPrompt = ref(false);
-const promptForm = ref({
+const form = reactive({
   description: '',
-  responseGuidelines: '',
-  guardrails: '',
+  responseGuidelines: '', // textarea, uma por linha
+  guardrails: '', // textarea, uma por linha
+  productName: '',
+  temperature: DEFAULT_TEMPERATURE,
+  instructions: '',
+  welcomeMessage: '',
+  handoffMessage: '',
+  resolutionMessage: '',
+  featureFaq: false,
+  featureMemory: false,
+  featureCitation: false,
+  featureContactAttributes: false,
+  tools: [],
 });
 
-function startEditPrompt() {
-  promptForm.value = {
-    description: agent.value?.description || '',
-    responseGuidelines: (agent.value?.response_guidelines || []).join('\n'),
-    guardrails: (agent.value?.guardrails || []).join('\n'),
-  };
-  isEditing.value = true;
+// Toggles de recursos (feature_*) renderizados como lista.
+const FEATURE_ROWS = [
+  {
+    key: 'featureFaq',
+    title: 'Base de FAQ',
+    subtitle: 'Consulta perguntas e respostas cadastradas para responder.',
+    icon: 'i-lucide-book-open',
+    tint: '#0a84ff',
+  },
+  {
+    key: 'featureMemory',
+    title: 'Memória do contato',
+    subtitle: 'Lembra de informações do cliente entre conversas.',
+    icon: 'i-lucide-brain',
+    tint: '#5e5ce6',
+  },
+  {
+    key: 'featureCitation',
+    title: 'Citar fontes',
+    subtitle: 'Mostra de onde a resposta veio (FAQ ou documento).',
+    icon: 'i-lucide-quote',
+    tint: '#1faa59',
+  },
+  {
+    key: 'featureContactAttributes',
+    title: 'Atributos do contato',
+    subtitle: 'Usa os dados cadastrados do contato no atendimento.',
+    icon: 'i-lucide-id-card',
+    tint: '#ff9500',
+  },
+];
+
+function snapshotOf() {
+  return JSON.stringify({ ...form, tools: [...form.tools].sort() });
+}
+const savedSnapshot = ref('');
+
+function hydrate(record) {
+  const c = record?.config || {};
+  form.description = record?.description || '';
+  form.responseGuidelines = (record?.response_guidelines || []).join('\n');
+  form.guardrails = (record?.guardrails || []).join('\n');
+  form.productName = c.product_name || '';
+  form.temperature =
+    c.temperature != null ? Number(c.temperature) : DEFAULT_TEMPERATURE;
+  form.instructions = c.instructions || '';
+  form.welcomeMessage = c.welcome_message || '';
+  form.handoffMessage = c.handoff_message || '';
+  form.resolutionMessage = c.resolution_message || '';
+  form.featureFaq = Boolean(c.feature_faq);
+  form.featureMemory = Boolean(c.feature_memory);
+  form.featureCitation = Boolean(c.feature_citation);
+  form.featureContactAttributes = Boolean(c.feature_contact_attributes);
+  form.tools = Array.isArray(c.tools) ? c.tools.map(String) : [];
+  savedSnapshot.value = snapshotOf();
 }
 
-const descriptionTooLong = computed(
-  () => promptForm.value.description.length > 255
+// Re-hidrata quando o agente carrega ou troca (não durante edição do mesmo id).
+watch(
+  () => agent.value?.id,
+  () => hydrate(agent.value),
+  { immediate: true }
 );
 
-async function savePrompt() {
-  if (savingPrompt.value || descriptionTooLong.value) return;
-  savingPrompt.value = true;
-  try {
-    await store.dispatch('captainAssistants/update', {
-      id: assistantId.value,
-      description: promptForm.value.description.trim(),
-      response_guidelines: promptForm.value.responseGuidelines
-        .split('\n')
-        .map(l => l.trim())
-        .filter(Boolean),
-      guardrails: promptForm.value.guardrails
-        .split('\n')
-        .map(l => l.trim())
-        .filter(Boolean),
-    });
-    useAlert(t('CAPTAIN.AGENT_TABS.SETTINGS.PROMPT_SAVED'));
-    isEditing.value = false;
-  } catch {
-    useAlert(t('CAPTAIN.AGENT_TABS.SETTINGS.PROMPT_SAVE_ERROR'));
-  } finally {
-    savingPrompt.value = false;
+const isDirty = computed(() => snapshotOf() !== savedSnapshot.value);
+const descriptionTooLong = computed(() => form.description.length > 255);
+
+// --- Catálogo de ferramentas (real, via backend) ---
+const toolsCatalog = computed(() => {
+  const seen = new Set();
+  return (store.getters['captainTools/getRecords'] || []).filter(tool => {
+    if (!tool?.id || seen.has(tool.id)) return false;
+    seen.add(tool.id);
+    return true;
+  });
+});
+const toolsLoading = computed(
+  () => store.getters['captainTools/getUIFlags'].fetchingList
+);
+const armedToolsCount = computed(
+  () => toolsCatalog.value.filter(tool => form.tools.includes(tool.id)).length
+);
+
+function isToolArmed(id) {
+  return form.tools.includes(id);
+}
+function toggleTool(id) {
+  if (form.tools.includes(id)) {
+    form.tools = form.tools.filter(t => t !== id);
+  } else {
+    form.tools = [...form.tools, id];
   }
 }
 
-watch(assistantId, () => {
-  isEditing.value = false;
+onMounted(() => {
+  store.dispatch('captainTools/getTools');
 });
 
+// --- Salvar (description/guidelines/guardrails + config completo) ---
+const saving = ref(false);
+
+const splitLines = value =>
+  value
+    .split('\n')
+    .map(line => line.trim())
+    .filter(Boolean);
+
+async function save() {
+  if (saving.value || descriptionTooLong.value || !isDirty.value) return;
+  saving.value = true;
+  try {
+    const config = {
+      ...(agent.value?.config || {}),
+      product_name: form.productName.trim(),
+      temperature: Number(form.temperature),
+      instructions: form.instructions,
+      welcome_message: form.welcomeMessage,
+      handoff_message: form.handoffMessage,
+      resolution_message: form.resolutionMessage,
+      feature_faq: form.featureFaq,
+      feature_memory: form.featureMemory,
+      feature_citation: form.featureCitation,
+      feature_contact_attributes: form.featureContactAttributes,
+      tools: [...form.tools],
+    };
+    await store.dispatch('captainAssistants/update', {
+      id: assistantId.value,
+      description: form.description.trim(),
+      response_guidelines: splitLines(form.responseGuidelines),
+      guardrails: splitLines(form.guardrails),
+      config,
+    });
+    savedSnapshot.value = snapshotOf();
+    useAlert('Configuração salva com sucesso.');
+  } catch {
+    useAlert('Não foi possível salvar. Tente novamente.');
+  } finally {
+    saving.value = false;
+  }
+}
+
+function revert() {
+  hydrate(agent.value);
+}
+
+// --- JSON / cópia ---
 const fullConfig = computed(() => {
-  if (!agent.value) return '';
+  if (!agent.value?.id) return '';
   return JSON.stringify(
     {
       name: agent.value.name,
@@ -85,318 +206,333 @@ const fullConfig = computed(() => {
     2
   );
 });
-
 function copyConfig() {
   copy(fullConfig.value);
 }
 
+// --- Exclusão ---
+const showDeleteConfirm = ref(false);
 async function deleteAgent() {
   await store.dispatch('captainAssistants/delete', assistantId.value);
-  useAlert(t('CAPTAIN.AGENT_TABS.SETTINGS.DELETE_SUCCESS'));
+  useAlert('Agente excluído.');
   router.push({ name: 'agents_dashboard' });
 }
 </script>
 
 <!-- eslint-disable vue/no-bare-strings-in-template, @intlify/vue-i18n/no-raw-text -->
 <template>
-  <div class="max-w-3xl space-y-6 p-6">
-    <!-- Prompt Editor -->
+  <div class="px-6 pt-4 pb-16 mx-auto space-y-6 max-w-3xl">
+    <!-- Barra de ações -->
     <div
-      class="overflow-hidden rounded-xl border border-n-weak bg-white dark:bg-n-solid-2"
+      class="flex sticky top-0 z-10 gap-3 justify-between items-center py-3 -mx-6 px-6 border-b border-n-weak bg-n-solid-1"
     >
-      <div
-        class="flex items-center justify-between border-b border-n-weak px-5 py-4"
-      >
-        <h3
-          class="flex items-center gap-2 text-sm font-semibold text-n-slate-12"
-        >
-          <i class="i-lucide-message-square-text size-4" />
-          {{ t('CAPTAIN.AGENT_TABS.SETTINGS.PROMPT_TITLE') }}
-        </h3>
-        <button
-          v-if="!isEditing"
-          type="button"
-          class="flex items-center gap-1.5 rounded-md bg-n-brand px-3 py-1.5 text-xs font-medium text-white transition-colors hover:brightness-95"
-          @click="startEditPrompt"
-        >
-          <i class="i-lucide-pencil size-3" />
-          {{ t('CAPTAIN.AGENT_TABS.SETTINGS.PROMPT_EDIT') }}
-        </button>
+      <div class="min-w-0">
+        <h2 class="text-[15px] font-bold text-n-slate-12">
+          Configurações do agente
+        </h2>
+        <p class="text-[12px] text-n-slate-10">
+          Tudo que define como o agente atende. Edite e salve.
+        </p>
       </div>
-
-      <!-- Read mode -->
-      <dl v-if="!isEditing" class="divide-y divide-n-weak">
-        <div v-if="agent?.description" class="px-5 py-3">
-          <dt class="mb-1 text-xs text-n-slate-10">
-            {{ t('CAPTAIN.AGENT_TABS.SETTINGS.PROMPT_DESCRIPTION') }}
-          </dt>
-          <dd class="text-sm whitespace-pre-wrap text-n-slate-12">
-            {{ agent.description }}
-          </dd>
-        </div>
-        <div v-if="agent?.response_guidelines?.length" class="px-5 py-3">
-          <dt class="mb-1 text-xs text-n-slate-10">
-            {{ t('CAPTAIN.AGENT_TABS.SETTINGS.PROMPT_GUIDELINES') }}
-          </dt>
-          <dd>
-            <ul class="list-disc space-y-0.5 pl-4 text-sm text-n-slate-12">
-              <li v-for="(g, idx) in agent.response_guidelines" :key="idx">
-                {{ g }}
-              </li>
-            </ul>
-          </dd>
-        </div>
-        <div v-if="agent?.guardrails?.length" class="px-5 py-3">
-          <dt class="mb-1 text-xs text-n-slate-10">
-            {{ t('CAPTAIN.AGENT_TABS.SETTINGS.PROMPT_GUARDRAILS') }}
-          </dt>
-          <dd class="flex flex-wrap gap-1.5">
-            <span
-              v-for="(rule, idx) in agent.guardrails"
-              :key="idx"
-              class="rounded-md bg-n-alpha-2 px-2 py-0.5 text-xs text-n-slate-11"
-            >
-              {{ rule }}
-            </span>
-          </dd>
-        </div>
-      </dl>
-
-      <!-- Edit mode -->
-      <div v-else class="space-y-4 p-5">
-        <div>
-          <label class="mb-1 flex items-center justify-between text-xs text-n-slate-10">
-            <span>{{ t('CAPTAIN.AGENT_TABS.SETTINGS.PROMPT_DESCRIPTION') }}</span>
-            <span :class="descriptionTooLong ? 'text-red-600' : 'text-n-slate-9'">
-              {{ promptForm.description.length }}/255
-            </span>
-          </label>
-          <textarea
-            v-model="promptForm.description"
-            rows="3"
-            class="w-full rounded border px-2 py-1.5 text-sm dark:bg-n-solid-3 dark:text-n-slate-12"
-            :class="
-              descriptionTooLong
-                ? 'border-red-400'
-                : 'border-n-weak bg-white'
-            "
-          />
-        </div>
-        <div>
-          <label class="mb-1 block text-xs text-n-slate-10">
-            {{ t('CAPTAIN.AGENT_TABS.SETTINGS.PROMPT_GUIDELINES') }}
-            <span class="text-n-slate-9">{{
-              t('CAPTAIN.AGENT_TABS.SETTINGS.ONE_PER_LINE')
-            }}</span>
-          </label>
-          <textarea
-            v-model="promptForm.responseGuidelines"
-            rows="8"
-            class="w-full rounded border border-n-weak bg-white px-2 py-1.5 text-sm dark:bg-n-solid-3 dark:text-n-slate-12"
-          />
-        </div>
-        <div>
-          <label class="mb-1 block text-xs text-n-slate-10">
-            {{ t('CAPTAIN.AGENT_TABS.SETTINGS.PROMPT_GUARDRAILS') }}
-            <span class="text-n-slate-9">{{
-              t('CAPTAIN.AGENT_TABS.SETTINGS.ONE_PER_LINE')
-            }}</span>
-          </label>
-          <textarea
-            v-model="promptForm.guardrails"
-            rows="6"
-            class="w-full rounded border border-n-weak bg-white px-2 py-1.5 text-sm dark:bg-n-solid-3 dark:text-n-slate-12"
-          />
-        </div>
-        <div class="flex gap-2">
-          <button
-            type="button"
-            class="rounded-lg bg-n-brand px-3 py-1.5 text-sm font-medium text-white transition-colors hover:brightness-95 disabled:opacity-60"
-            :disabled="savingPrompt || descriptionTooLong"
-            @click="savePrompt"
-          >
-            {{ t('CAPTAIN.AGENT_TABS.SETTINGS.PROMPT_SAVE') }}
-          </button>
-          <button
-            type="button"
-            class="rounded-lg bg-n-alpha-2 px-3 py-1.5 text-sm text-n-slate-12 transition-colors hover:bg-n-alpha-3"
-            @click="isEditing = false"
-          >
-            {{ t('CAPTAIN.AGENT_TABS.SETTINGS.PROMPT_CANCEL') }}
-          </button>
-        </div>
-      </div>
-    </div>
-
-    <!-- Agent Info Card (read-only) -->
-    <div
-      class="overflow-hidden rounded-xl border border-n-weak bg-white dark:bg-n-solid-2"
-    >
-      <div
-        class="flex items-center justify-between border-b border-n-weak px-5 py-4"
-      >
-        <h3
-          class="flex items-center gap-2 text-sm font-semibold text-n-slate-12"
-        >
-          <i class="i-lucide-info size-4" />
-          {{ t('CAPTAIN.AGENT_TABS.SETTINGS.INFO_TITLE') }}
-        </h3>
-        <button
-          type="button"
-          class="flex items-center gap-1.5 rounded-md px-2 py-1 text-xs text-n-slate-10 transition-colors hover:bg-n-alpha-2 hover:text-n-slate-12"
-          @click="copyConfig"
-        >
-          <i
-            :class="
-              copied
-                ? 'i-lucide-check size-3 text-green-600'
-                : 'i-lucide-clipboard size-3'
-            "
-          />
-          {{ copied ? 'Copiado!' : 'Copiar tudo' }}
-        </button>
-      </div>
-      <dl class="divide-y divide-n-weak">
-        <div v-if="agent?.name" class="flex items-start gap-4 px-5 py-3">
-          <dt class="w-32 shrink-0 text-xs text-n-slate-10">Nome</dt>
-          <dd class="text-sm font-medium text-n-slate-12">
-            {{ agent.name }}
-          </dd>
-        </div>
-        <div v-if="agent?.description" class="flex items-start gap-4 px-5 py-3">
-          <dt class="w-32 shrink-0 text-xs text-n-slate-10">Descricao</dt>
-          <dd class="text-sm text-n-slate-12">
-            {{ agent.description }}
-          </dd>
-        </div>
-        <div
-          v-if="agent?.config?.model"
-          class="flex items-start gap-4 px-5 py-3"
-        >
-          <dt class="w-32 shrink-0 text-xs text-n-slate-10">Modelo</dt>
-          <dd class="text-sm font-mono text-n-slate-12">
-            {{ agent.config.model }}
-          </dd>
-        </div>
-        <div
-          v-if="agent?.config?.temperature != null"
-          class="flex items-start gap-4 px-5 py-3"
-        >
-          <dt class="w-32 shrink-0 text-xs text-n-slate-10">Temperatura</dt>
-          <dd class="text-sm font-mono text-n-slate-12">
-            {{ agent.config.temperature }}
-          </dd>
-        </div>
-        <div
-          v-if="agent?.config?.product_name"
-          class="flex items-start gap-4 px-5 py-3"
-        >
-          <dt class="w-32 shrink-0 text-xs text-n-slate-10">Produto</dt>
-          <dd class="text-sm text-n-slate-12">
-            {{ agent.config.product_name }}
-          </dd>
-        </div>
-        <div
-          v-if="agent?.guardrails?.length"
-          class="flex items-start gap-4 px-5 py-3"
-        >
-          <dt class="w-32 shrink-0 text-xs text-n-slate-10">Guardrails</dt>
-          <dd class="flex flex-wrap gap-1.5">
-            <span
-              v-for="(rule, idx) in agent.guardrails"
-              :key="idx"
-              class="rounded-md bg-n-alpha-2 px-2 py-0.5 text-xs text-n-slate-11"
-            >
-              {{ rule }}
-            </span>
-          </dd>
-        </div>
-      </dl>
-    </div>
-
-    <!-- Full JSON (expandible) -->
-    <div class="overflow-hidden rounded-xl border border-n-weak">
-      <div
-        class="flex items-center justify-between border-b border-n-weak bg-n-alpha-1 px-4 py-2"
-      >
-        <span class="flex items-center gap-2 font-mono text-xs text-n-slate-10">
-          <i class="i-lucide-file-json size-3.5" />
-          assistant.json
+      <div class="flex flex-none gap-2 items-center">
+        <span v-if="isDirty" class="text-[12px] text-n-slate-10">
+          Alterações não salvas
         </span>
-        <button
-          class="flex items-center gap-1 text-xs text-n-slate-10 transition-colors hover:text-n-slate-12"
-          @click="copyConfig"
+        <AiButton
+          variant="ghost"
+          :disabled="!isDirty || saving"
+          @click="revert"
         >
-          <i
+          Reverter
+        </AiButton>
+        <AiButton
+          :disabled="!isDirty || saving || descriptionTooLong"
+          @click="save"
+        >
+          <span v-if="saving" class="i-lucide-loader-2 size-4 animate-spin" />
+          <span v-else class="i-lucide-check size-4" />
+          Salvar alterações
+        </AiButton>
+      </div>
+    </div>
+
+    <!-- Identidade & prompt base -->
+    <AiCard
+      title="Identidade e prompt"
+      description="Quem é o agente e como ele deve se comportar."
+    >
+      <div class="space-y-5">
+        <AgentSettingField
+          label="Descrição"
+          hint="Resumo curto do papel do agente (usado no prompt)."
+        >
+          <template #aside>
+            <span
+              class="text-[11px]"
+              :class="descriptionTooLong ? 'text-r-500' : 'text-n-slate-9'"
+            >
+              {{ form.description.length }}/255
+            </span>
+          </template>
+          <AiTextarea v-model="form.description" :rows="3" />
+        </AgentSettingField>
+
+        <AgentSettingField
+          label="Diretrizes de resposta"
+          hint="Uma por linha. Como o agente deve responder (tom, formato)."
+        >
+          <AiTextarea v-model="form.responseGuidelines" :rows="6" />
+        </AgentSettingField>
+
+        <AgentSettingField
+          label="Guardrails"
+          hint="Uma por linha. Limites e regras que o agente nunca deve quebrar."
+        >
+          <AiTextarea v-model="form.guardrails" :rows="5" />
+        </AgentSettingField>
+      </div>
+    </AiCard>
+
+    <!-- Comportamento geral -->
+    <AiCard
+      title="Comportamento"
+      description="Ajustes gerais de geração de resposta."
+    >
+      <div class="space-y-5">
+        <AgentSettingField
+          label="Nome do produto / serviço"
+          hint="Como o agente se refere ao que está vendendo ou atendendo."
+        >
+          <AiField
+            v-model="form.productName"
+            placeholder="Ex.: Imobiliária Tozi"
+          />
+        </AgentSettingField>
+
+        <AgentSettingField
+          label="Temperatura"
+          hint="0 = objetivo e previsível, 2 = criativo e variado. Padrão 0.7."
+        >
+          <AiNumberField
+            v-model="form.temperature"
+            :min="0"
+            :max="2"
+            :step="0.1"
+          />
+        </AgentSettingField>
+      </div>
+    </AiCard>
+
+    <!-- Recursos (feature flags) -->
+    <div>
+      <p
+        class="px-1 pb-2 text-[12.5px] font-bold tracking-wide uppercase text-n-slate-10"
+      >
+        Recursos
+      </p>
+      <AiListGroup>
+        <AiListRow
+          v-for="row in FEATURE_ROWS"
+          :key="row.key"
+          :title="row.title"
+          :subtitle="row.subtitle"
+        >
+          <template #leading>
+            <span
+              class="grid place-items-center text-white rounded-lg size-[30px]"
+              :style="{ background: row.tint }"
+            >
+              <span :class="row.icon" class="size-4" />
+            </span>
+          </template>
+          <template #trailing>
+            <AiToggle v-model="form[row.key]" />
+          </template>
+        </AiListRow>
+      </AiListGroup>
+    </div>
+
+    <!-- Mensagens automáticas -->
+    <AiCard
+      title="Mensagens automáticas"
+      description="Textos que o agente usa em momentos-chave do atendimento."
+    >
+      <div class="space-y-5">
+        <AgentSettingField
+          label="Boas-vindas"
+          hint="Primeira mensagem ao iniciar uma conversa."
+        >
+          <AiTextarea
+            v-model="form.welcomeMessage"
+            :rows="2"
+            placeholder="Olá! Como posso ajudar?"
+          />
+        </AgentSettingField>
+
+        <AgentSettingField
+          label="Transferência para humano"
+          hint="Enviada quando o agente passa a conversa para um atendente."
+        >
+          <AiTextarea
+            v-model="form.handoffMessage"
+            :rows="2"
+            placeholder="Vou te transferir para um atendente, um momento."
+          />
+        </AgentSettingField>
+
+        <AgentSettingField
+          label="Encerramento"
+          hint="Enviada quando a conversa é resolvida."
+        >
+          <AiTextarea
+            v-model="form.resolutionMessage"
+            :rows="2"
+            placeholder="Posso ajudar em algo mais?"
+          />
+        </AgentSettingField>
+      </div>
+    </AiCard>
+
+    <!-- Instruções (prompt principal) -->
+    <AiCard
+      title="Instruções"
+      description="Prompt principal: passo a passo de como o agente deve agir."
+    >
+      <AiTextarea
+        v-model="form.instructions"
+        :rows="12"
+        placeholder="Descreva em detalhes como o agente deve atender, o que perguntar, quando transferir..."
+      />
+    </AiCard>
+
+    <!-- Ferramentas do agente -->
+    <div>
+      <div class="flex justify-between items-end px-1 pb-2">
+        <div class="min-w-0">
+          <p
+            class="text-[12.5px] font-bold tracking-wide uppercase text-n-slate-10"
+          >
+            Ferramentas do agente
+          </p>
+          <p class="text-[12px] text-n-slate-10">
+            Ações que o agente pode executar durante o atendimento.
+          </p>
+        </div>
+        <span class="flex-none text-[12px] font-semibold text-n-slate-11">
+          {{ armedToolsCount }}/{{ toolsCatalog.length }} ativas
+        </span>
+      </div>
+
+      <div
+        v-if="toolsLoading && !toolsCatalog.length"
+        class="flex gap-2 items-center px-1 py-3 text-sm text-n-slate-10"
+      >
+        <span class="i-lucide-loader-2 size-3.5 animate-spin" />
+        Carregando ferramentas...
+      </div>
+
+      <div
+        v-else-if="!toolsCatalog.length"
+        class="py-10 text-center rounded-2xl border border-dashed border-n-weak bg-n-alpha-1"
+      >
+        <span class="mx-auto mb-2 i-lucide-wrench size-8 text-n-slate-9" />
+        <p class="text-sm text-n-slate-11">Nenhuma ferramenta disponível.</p>
+      </div>
+
+      <AiListGroup v-else>
+        <AiListRow
+          v-for="tool in toolsCatalog"
+          :key="tool.id"
+          :title="tool.title || tool.id"
+          :subtitle="tool.description"
+        >
+          <template #leading>
+            <span
+              class="grid place-items-center rounded-lg size-[30px]"
+              :class="
+                isToolArmed(tool.id)
+                  ? 'bg-n-brand text-white'
+                  : 'bg-n-alpha-2 text-n-slate-10'
+              "
+            >
+              <span class="i-lucide-wrench size-4" />
+            </span>
+          </template>
+          <template #trailing>
+            <AiToggle
+              :model-value="isToolArmed(tool.id)"
+              @update:model-value="toggleTool(tool.id)"
+            />
+          </template>
+        </AiListRow>
+      </AiListGroup>
+    </div>
+
+    <!-- Avançado / JSON -->
+    <AiCard title="Avançado" description="Estado bruto da configuração.">
+      <template #actions>
+        <AiButton variant="subtle" @click="copyConfig">
+          <span
             :class="
-              copied
-                ? 'i-lucide-check size-3 text-green-600'
-                : 'i-lucide-clipboard size-3'
+              copied ? 'i-lucide-check size-3.5' : 'i-lucide-copy size-3.5'
             "
           />
           {{ copied ? 'Copiado!' : 'Copiar' }}
-        </button>
-      </div>
-      <pre
-        class="max-h-96 overflow-auto bg-slate-950 p-4 font-mono text-xs text-slate-300 whitespace-pre-wrap"
-        >{{ fullConfig }}</pre
+        </AiButton>
+      </template>
+      <AiListGroup>
+        <AiListRow title="Modelo">
+          <template #leading>
+            <span
+              class="grid place-items-center text-white bg-green-500 rounded-lg size-[30px]"
+            >
+              <span class="i-lucide-cpu size-4" />
+            </span>
+          </template>
+          <template #trailing>
+            <span class="font-mono text-sm text-n-slate-12">
+              {{ agent?.config?.model || '—' }}
+            </span>
+          </template>
+        </AiListRow>
+      </AiListGroup>
+      <div
+        class="overflow-auto p-4 mt-3 max-h-80 font-mono text-xs whitespace-pre-wrap rounded-xl bg-n-alpha-1 text-n-slate-11"
       >
-    </div>
-
-    <!-- API Endpoint Info -->
-    <div class="flex items-start gap-2 rounded-xl bg-n-alpha-1 p-4">
-      <i class="i-lucide-terminal mt-0.5 size-4 shrink-0 text-n-slate-10" />
-      <div class="text-xs text-n-slate-10">
-        <p class="mb-1 font-medium text-n-slate-11">Editar via API</p>
-        <pre class="mt-2 rounded bg-slate-950 p-2 font-mono text-slate-400">
-PUT /api/v1/accounts/:account_id/captain/assistants/{{ assistantId }}</pre
-        >
+        {{ fullConfig }}
       </div>
-    </div>
+    </AiCard>
 
-    <!-- Danger Zone -->
-    <div
-      class="rounded-xl border border-red-200 bg-red-50 p-5 dark:border-red-800 dark:bg-red-900/20"
-    >
-      <h3
-        class="flex items-center gap-2 text-sm font-semibold text-red-700 dark:text-red-400"
-      >
-        <i class="i-lucide-alert-triangle size-4" />
-        {{ t('CAPTAIN.AGENT_TABS.SETTINGS.DANGER_ZONE') }}
-      </h3>
-      <p class="mt-1 text-sm text-red-600 dark:text-red-400/80">
-        {{ t('CAPTAIN.AGENT_TABS.SETTINGS.DANGER_DESCRIPTION') }}
-      </p>
-      <div class="mt-4">
-        <button
-          v-if="!showDeleteConfirm"
-          type="button"
-          class="rounded-lg border border-red-200 bg-transparent px-3 py-1.5 text-sm font-medium text-red-600 transition-colors hover:bg-red-100 dark:border-red-800 dark:text-red-400 dark:hover:bg-red-900/30"
-          @click="showDeleteConfirm = true"
-        >
-          {{ t('CAPTAIN.AGENT_TABS.SETTINGS.DELETE_AGENT') }}
-        </button>
-        <div v-else class="flex items-center gap-2">
-          <span class="text-sm text-red-700 dark:text-red-400">
-            {{ t('CAPTAIN.AGENT_TABS.SETTINGS.CONFIRM_DELETE') }}
-          </span>
-          <button
-            type="button"
-            class="rounded-lg bg-red-600 px-3 py-1.5 text-sm font-medium text-white transition-colors hover:bg-red-700"
-            @click="deleteAgent"
-          >
-            {{ t('CAPTAIN.AGENT_TABS.SETTINGS.YES_DELETE') }}
-          </button>
-          <button
-            type="button"
-            class="rounded-lg bg-n-alpha-2 px-3 py-1.5 text-sm text-n-slate-12 transition-colors hover:bg-n-alpha-3"
-            @click="showDeleteConfirm = false"
-          >
-            {{ t('CAPTAIN.AGENT_TABS.SETTINGS.CANCEL') }}
-          </button>
+    <!-- Zona de perigo -->
+    <AiCard>
+      <div class="flex flex-wrap gap-3 justify-between items-center">
+        <div class="min-w-0">
+          <p class="flex gap-2 items-center text-sm font-bold text-r-500">
+            <span class="i-lucide-alert-triangle size-4" />
+            Excluir agente
+          </p>
+          <p class="mt-0.5 text-[12.5px] text-n-slate-11">
+            Esta ação é permanente e não pode ser desfeita.
+          </p>
+        </div>
+        <div class="flex flex-none gap-2 items-center">
+          <template v-if="!showDeleteConfirm">
+            <AiButton variant="danger" @click="showDeleteConfirm = true">
+              Excluir
+            </AiButton>
+          </template>
+          <template v-else>
+            <span class="text-[12.5px] text-n-slate-11">Tem certeza?</span>
+            <AiButton variant="ghost" @click="showDeleteConfirm = false">
+              Cancelar
+            </AiButton>
+            <AiButton variant="danger" @click="deleteAgent">
+              Sim, excluir
+            </AiButton>
+          </template>
         </div>
       </div>
-    </div>
+    </AiCard>
   </div>
 </template>
 <!-- eslint-enable vue/no-bare-strings-in-template, @intlify/vue-i18n/no-raw-text -->

@@ -1,6 +1,5 @@
 <script setup>
 import { computed } from 'vue';
-import { useToggle } from '@vueuse/core';
 import { useI18n } from 'vue-i18n';
 import { dynamicTime } from 'shared/helpers/timeHelper';
 import { usePolicy } from 'dashboard/composables/usePolicy';
@@ -9,118 +8,109 @@ import {
   formatDocumentLink,
 } from 'shared/helpers/documentHelper';
 
-import CardLayout from 'dashboard/components-next/CardLayout.vue';
-import DropdownMenu from 'dashboard/components-next/dropdown-menu/DropdownMenu.vue';
-import Button from 'dashboard/components-next/button/Button.vue';
+import AiBadge from 'dashboard/components-next/agents-ui/AiBadge.vue';
+import AiDropdown from 'dashboard/components-next/agents-ui/AiDropdown.vue';
 
 const props = defineProps({
-  id: {
-    type: Number,
-    required: true,
-  },
-  name: {
-    type: String,
-    default: '',
-  },
-  assistant: {
-    type: Object,
-    default: () => ({}),
-  },
-  externalLink: {
-    type: String,
-    required: true,
-  },
-  createdAt: {
-    type: Number,
-    required: true,
-  },
+  id: { type: Number, required: true },
+  name: { type: String, default: '' },
+  assistant: { type: Object, default: () => ({}) },
+  externalLink: { type: String, required: true },
+  createdAt: { type: Number, required: true },
+  status: { type: String, default: '' },
 });
 
 const emit = defineEmits(['action']);
 const { checkPermissions } = usePolicy();
-
 const { t } = useI18n();
-
-const [showActionsDropdown, toggleDropdown] = useToggle();
 
 const menuItems = computed(() => {
   const allOptions = [
     {
+      label: t('CAPTAIN.DOCUMENTS.OPTIONS.VIEW_DOCUMENT'),
+      value: 'view',
+      icon: 'i-lucide-eye',
+    },
+    {
       label: t('CAPTAIN.DOCUMENTS.OPTIONS.VIEW_RELATED_RESPONSES'),
       value: 'viewRelatedQuestions',
-      action: 'viewRelatedQuestions',
       icon: 'i-lucide-git-branch',
     },
   ];
-
   if (checkPermissions(['administrator'])) {
     allOptions.push({
       label: t('CAPTAIN.DOCUMENTS.OPTIONS.DELETE_DOCUMENT'),
       value: 'delete',
-      action: 'delete',
-      icon: 'i-lucide-trash',
+      icon: 'i-lucide-trash-2',
+      danger: true,
     });
   }
-
   return allOptions;
 });
 
 const createdAt = computed(() => dynamicTime(props.createdAt));
-
 const displayLink = computed(() => formatDocumentLink(props.externalLink));
-const linkIcon = computed(() =>
-  isPdfDocument(props.externalLink) ? 'i-lucide-file-text' : 'i-lucide-link'
+const isPdf = computed(() => isPdfDocument(props.externalLink));
+const iconTint = computed(() => (isPdf.value ? '#1faa59' : '#30b0c7'));
+const iconClass = computed(() =>
+  isPdf.value ? 'i-lucide-file-text' : 'i-lucide-globe'
 );
 
-const handleAction = ({ action, value }) => {
-  toggleDropdown(false);
-  emit('action', { action, value, id: props.id });
-};
+const statusInfo = computed(() => {
+  if (props.status === 'available')
+    return { variant: 'on', label: t('CAPTAIN.DOCUMENTS.STATUS.TRAINED') };
+  if (props.status === 'in_progress')
+    return { variant: 'warn', label: t('CAPTAIN.DOCUMENTS.STATUS.PROCESSING') };
+  if (props.status === 'failed')
+    return { variant: 'err', label: t('CAPTAIN.DOCUMENTS.STATUS.FAILED') };
+  return null;
+});
+
+const MID = '·';
+const onView = () =>
+  emit('action', { action: 'view', value: 'view', id: props.id });
+const handleAction = value =>
+  emit('action', { action: value, value, id: props.id });
 </script>
 
 <template>
-  <CardLayout>
-    <div class="flex gap-1 justify-between w-full">
-      <span class="text-base text-n-slate-12 line-clamp-1">
-        {{ name }}
-      </span>
-      <div class="flex gap-2 items-center">
-        <div
-          v-on-clickaway="() => toggleDropdown(false)"
-          class="flex relative items-center group"
-        >
-          <Button
-            icon="i-lucide-ellipsis-vertical"
-            color="slate"
-            size="xs"
-            class="rounded-md group-hover:bg-n-alpha-2"
-            @click="toggleDropdown()"
-          />
-          <DropdownMenu
-            v-if="showActionsDropdown"
-            :menu-items="menuItems"
-            class="top-full mt-1 ltr:right-0 rtl:left-0 xl:ltr:right-0 xl:rtl:left-0"
-            @action="handleAction($event)"
-          />
-        </div>
-      </div>
-    </div>
-    <div class="flex gap-4 justify-between items-center w-full">
-      <span
-        class="flex gap-1 items-center text-sm truncate shrink-0 text-n-slate-11"
-      >
-        <i class="i-woot-captain" />
-        {{ assistant?.name || '' }}
+  <div
+    class="flex relative gap-3 items-center p-3.5 rounded-2xl border shadow-sm transition-all border-n-weak bg-n-solid-1 hover:border-n-slate-6"
+  >
+    <button
+      type="button"
+      class="grid flex-none place-items-center text-white rounded-[10px] size-10"
+      :style="{ background: iconTint }"
+      @click="onView"
+    >
+      <span :class="iconClass" class="size-5" />
+    </button>
+    <button type="button" class="flex-1 min-w-0 text-left" @click="onView">
+      <span class="flex gap-2 items-center">
+        <span class="text-[15px] font-semibold truncate text-n-slate-12">{{
+          name
+        }}</span>
+        <AiBadge
+          v-if="statusInfo"
+          :variant="statusInfo.variant"
+          :label="statusInfo.label"
+        />
       </span>
       <span
-        class="flex flex-1 gap-1 justify-start items-center text-sm truncate text-n-slate-11"
+        class="flex gap-1.5 items-center mt-0.5 text-[12.5px] truncate text-n-slate-11"
       >
-        <i :class="linkIcon" class="shrink-0" />
+        <i class="shrink-0 i-woot-captain" />
+        <span class="truncate">{{ assistant?.name || '' }}</span>
+        <span aria-hidden="true">{{ MID }}</span>
         <span class="truncate">{{ displayLink }}</span>
+        <span aria-hidden="true">{{ MID }}</span>
+        <span class="shrink-0">{{ createdAt }}</span>
       </span>
-      <div class="text-sm shrink-0 text-n-slate-11 line-clamp-1">
-        {{ createdAt }}
-      </div>
-    </div>
-  </CardLayout>
+    </button>
+    <AiDropdown :items="menuItems" @select="handleAction">
+      <template #trigger>
+        <span class="i-lucide-ellipsis-vertical size-4" />
+      </template>
+    </AiDropdown>
+  </div>
 </template>

@@ -48,6 +48,11 @@ module Chatwoot
     # rubocop:disable Rails/FilePath
     config.eager_load_paths += Dir["#{Rails.root}/enterprise/app/**"]
     # rubocop:enable Rails/FilePath
+
+    # Files under enterprise/lib/captain/tools/concerns keep the Captain::Tools::*
+    # namespace (no ::Concerns:: segment), mirroring how Rails collapses app/**/concerns.
+    Rails.autoloaders.main.collapse(Rails.root.join('enterprise/lib/captain/tools/concerns'))
+
     # Add enterprise views to the view paths
     config.paths['app/views'].unshift('enterprise/app/views')
 

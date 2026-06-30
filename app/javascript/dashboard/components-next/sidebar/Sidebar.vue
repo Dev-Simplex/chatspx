@@ -399,23 +399,15 @@ const menuItems = computed(() => {
       activeOn: ['gallery_index'],
     },
     {
+      // Item único (sem submenu): "Conexão LLM" saiu do menu lateral — a
+      // config de provedor/modelo passa a viver em "Opções avançadas" do
+      // agente. A rota agents_settings segue existindo (acessível direto),
+      // por isso fica no activeOn para manter o item destacado.
       name: 'AI Agents',
       icon: lordIcon('captain', 'i-woot-captain'),
       label: t('SIDEBAR.CAPTAIN'),
-      children: [
-        {
-          name: 'Dashboard',
-          label: t('SIDEBAR.CAPTAIN_ASSISTANTS'),
-          activeOn: ['agents_dashboard'],
-          to: accountScopedRoute('agents_dashboard'),
-        },
-        {
-          name: 'LLM Settings',
-          label: t('SIDEBAR.CAPTAIN_OPENAI_CONNECTION'),
-          activeOn: ['agents_settings'],
-          to: accountScopedRoute('agents_settings'),
-        },
-      ],
+      to: accountScopedRoute('agents_dashboard'),
+      activeOn: ['agents_dashboard', 'agents_settings', 'agents_tools'],
     },
     {
       name: 'Contacts',

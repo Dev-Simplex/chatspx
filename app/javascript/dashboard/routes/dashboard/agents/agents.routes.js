@@ -4,16 +4,17 @@ import { frontendURL } from '../../../helper/URLHelper';
 const AgentsPageView = () => import('./pages/AgentsPageView.vue');
 const AgentsDashboard = () => import('./pages/AgentsDashboard.vue');
 const LLMSettingsPage = () => import('./pages/LLMSettingsPage.vue');
+const ToolsView = () => import('./pages/ToolsView.vue');
 const AgentDetailView = () => import('./pages/AgentDetailView.vue');
 
 const OverviewTab = () =>
   import('dashboard/components-next/agents/tabs/OverviewTab.vue');
+const FlowTab = () =>
+  import('dashboard/components-next/agents/tabs/FlowTab.vue');
 const BehaviorTab = () =>
   import('dashboard/components-next/agents/tabs/BehaviorTab.vue');
 const KnowledgeTab = () =>
   import('dashboard/components-next/agents/tabs/KnowledgeTab.vue');
-const ToolsTab = () =>
-  import('dashboard/components-next/agents/tabs/ToolsTab.vue');
 const ScenariosTab = () =>
   import('dashboard/components-next/agents/tabs/ScenariosTab.vue');
 const InboxesTab = () =>
@@ -36,6 +37,12 @@ const agentDetailChildren = [
     meta,
   },
   {
+    path: 'flow',
+    component: FlowTab,
+    name: 'agents_assistant_flow',
+    meta,
+  },
+  {
     path: 'behavior',
     component: BehaviorTab,
     name: 'agents_assistant_behavior',
@@ -45,12 +52,6 @@ const agentDetailChildren = [
     path: 'knowledge',
     component: KnowledgeTab,
     name: 'agents_assistant_knowledge',
-    meta,
-  },
-  {
-    path: 'tools',
-    component: ToolsTab,
-    name: 'agents_assistant_tools',
     meta,
   },
   {
@@ -101,6 +102,12 @@ export const routes = [
         path: 'settings',
         component: LLMSettingsPage,
         name: 'agents_settings',
+        meta,
+      },
+      {
+        path: 'tools',
+        component: ToolsView,
+        name: 'agents_tools',
         meta,
       },
       {
