@@ -32,6 +32,20 @@ class Captain::Assistant::AgentRunnerService
 
     process_agent_result(result)
   rescue StandardError => e
+    handle_run_error(e)
+  end
+
+  # Additive: roda o engine real e devolve o RunResult cru (output + messages + usage),
+  # pra callers de eval/test-gate (Spx::AiConfig) inspecionarem tool_calls/handoffs por
+  # mensagem. NAO altera #generate_response (caminho de producao). Mesma chamada do runner.
+  def run_raw(message_history: [])
+    message_to_process, context = run_payload(message_history)
+    runner.run(message_to_process, context: context, max_turns: 100)
+  end
+
+  private
+
+  def handle_run_error(e)
     # In rake/local runs, conversation may not be present, so account is optional here.
     ChatwootExceptionTracker.new(e, account: @conversation&.account).capture_exception
     Rails.logger.error "[Captain V2] AgentRunnerService error: #{e.message}"
@@ -39,8 +53,6 @@ class Captain::Assistant::AgentRunnerService
 
     error_response(e.message)
   end
-
-  private
 
   def build_context(message_history)
     conversation_history = message_history.map do |msg|
@@ -187,6 +199,10 @@ class Captain::Assistant::AgentRunnerService
 
   def build_conversation_state(state)
     state[:conversation] = slice_attrs(@conversation, CONVERSATION_STATE_ATTRIBUTES)
+    # O marcador de espera por humano NÃO entra no contexto do agente: a presença dele empurra
+    # o LLM pro silêncio ([IGNORAR]) mesmo quando o cliente traz pergunta nova. Ele segue no
+    # banco pros outros usos (guard do follow-up + filtro "Aguardando atendimento").
+    state[:conversation][:custom_attributes] = (state[:conversation][:custom_attributes] || {}).except('aguardando_humano_desde')
     state[:channel_type] = @conversation.inbox&.channel_type
     state[:contact] = slice_attrs(@conversation.contact, CONTACT_STATE_ATTRIBUTES) if @conversation.contact
     state[:campaign] = slice_attrs(@conversation.campaign, CAMPAIGN_STATE_ATTRIBUTES) if @conversation.campaign

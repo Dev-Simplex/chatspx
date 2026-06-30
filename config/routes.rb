@@ -783,6 +783,21 @@ Rails.application.routes.draw do
     post 'onboarding', to: 'onboarding#create'
   end
 
+  # Receptor de change-sets de IA (control plane Almirante). Auth maquina-a-maquina
+  # via header api_access_token (owner PlatformApp) — ver Spx::AiConfig::BaseController.
+  namespace :spx, defaults: { format: 'json' } do
+    namespace :ai_config do
+      get  'accounts/:account_id/assistants/:assistant_id/baseline', to: 'config#baseline'
+      post 'change_sets/dry_run',               to: 'change_sets#dry_run'
+      post 'change_sets',                       to: 'change_sets#apply'
+      post 'change_sets/:change_set_id/revert', to: 'change_sets#revert'
+      get  'change_sets/:change_set_id',        to: 'change_sets#show'
+      post 'test_credential',                   to: 'change_sets#test_credential'
+      post 'perform_test',                      to: 'change_sets#perform_test'
+      post 'eval_prompt',                       to: 'change_sets#eval_prompt'
+    end
+  end
+
   # ---------------------------------------------------------------------
   # Routes for swagger docs
   get '/swagger/*path', to: 'swagger#respond'
