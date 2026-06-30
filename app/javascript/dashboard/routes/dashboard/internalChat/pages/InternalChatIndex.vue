@@ -1068,6 +1068,12 @@ onBeforeUnmount(() => {
                       </button>
                     </div>
 
+                    <!-- click-outside backdrop: close the reaction picker -->
+                    <div
+                      v-if="reactionPickerId === item.msg.id"
+                      class="fixed inset-0 z-10"
+                      @click="reactionPickerId = null"
+                    />
                     <!-- reaction picker -->
                     <div
                       v-if="reactionPickerId === item.msg.id"
@@ -1322,31 +1328,40 @@ onBeforeUnmount(() => {
             </span>
           </div>
 
-          <div
-            v-if="showMentionPicker && channelMembers.length"
-            class="absolute bottom-16 left-4 w-56 max-h-48 overflow-y-auto bg-n-solid-1 border border-n-weak rounded-lg shadow-lg z-10"
-          >
-            <button
-              v-for="member in channelMembers"
-              :key="member.id"
-              class="flex items-center gap-2 w-full px-3 py-2 text-sm text-n-slate-12 hover:bg-n-alpha-1"
-              @click="mentionMember(member)"
+          <template v-if="showMentionPicker && channelMembers.length">
+            <!-- click-outside backdrop: dismiss the picker without choosing -->
+            <div
+              class="fixed inset-0 z-10"
+              @click="showMentionPicker = false"
+            />
+            <div
+              class="absolute bottom-16 left-4 w-56 max-h-48 overflow-y-auto bg-n-solid-1 border border-n-weak rounded-lg shadow-lg z-20"
             >
-              <Avatar
-                :src="member.avatar_url"
-                :name="member.name"
-                :size="22"
-                rounded-full
-              />
-              {{ member.name }}
-            </button>
-          </div>
+              <button
+                v-for="member in channelMembers"
+                :key="member.id"
+                class="flex items-center gap-2 w-full px-3 py-2 text-sm text-n-slate-12 hover:bg-n-alpha-1"
+                @click="mentionMember(member)"
+              >
+                <Avatar
+                  :src="member.avatar_url"
+                  :name="member.name"
+                  :size="22"
+                  rounded-full
+                />
+                {{ member.name }}
+              </button>
+            </div>
+          </template>
 
-          <EmojiInput
-            v-if="showEmoji"
-            class="absolute bottom-16 left-4 z-10"
-            :on-click="onEmojiSelect"
-          />
+          <template v-if="showEmoji">
+            <!-- click-outside backdrop: close the emoji picker without picking -->
+            <div class="fixed inset-0 z-10" @click="showEmoji = false" />
+            <EmojiInput
+              class="absolute bottom-16 left-4 z-20"
+              :on-click="onEmojiSelect"
+            />
+          </template>
 
           <!-- WhatsApp-style composer: tool cluster + input live inside one
                rounded pill, the round send button sits outside on the right. -->
