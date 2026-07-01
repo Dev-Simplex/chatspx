@@ -788,7 +788,7 @@ onMounted(async () => {
             </span>
             <span
               v-if="scheduledMessagesPendingCount > 0"
-              class="ml-2 inline-flex items-center justify-center min-w-5 h-5 px-1.5 rounded-full bg-n-blue-9 text-white text-[11px] font-semibold"
+              class="ml-2 inline-flex items-center justify-center min-w-5 h-5 px-1.5 rounded-full bg-n-blue-9 text-n-blue-12 dark:text-white text-[11px] font-semibold"
             >
               {{ scheduledMessagesPendingCount }}
             </span>
@@ -802,23 +802,28 @@ onMounted(async () => {
             :title="t('KANBAN.AUTOMATIONS.TITLE')"
             @click="showAutomationBuilder = true"
           />
-          <Button
+          <!-- Ações do funil ativo (editar/excluir) agrupadas — a ação
+               destrutiva fica contida no cluster, separada do "+ criar". -->
+          <div
             v-if="activeFunnel"
-            variant="ghost"
-            size="sm"
-            icon="i-lucide-edit"
-            :title="t('KANBAN.FUNNELS.EDIT')"
-            @click="handleEditFunnel(activeFunnel)"
-          />
-          <Button
-            v-if="activeFunnel"
-            variant="ghost"
-            size="sm"
-            color="ruby"
-            icon="i-lucide-trash-2"
-            :title="t('KANBAN.FUNNELS.DELETE')"
-            @click="handleDeleteActiveFunnel"
-          />
+            class="flex gap-1 rounded-lg border border-n-weak bg-n-solid-3 p-1"
+          >
+            <Button
+              variant="ghost"
+              size="sm"
+              icon="i-lucide-edit"
+              :title="t('KANBAN.FUNNELS.EDIT')"
+              @click="handleEditFunnel(activeFunnel)"
+            />
+            <Button
+              variant="ghost"
+              size="sm"
+              color="ruby"
+              icon="i-lucide-trash-2"
+              :title="t('KANBAN.FUNNELS.DELETE')"
+              @click="handleDeleteActiveFunnel"
+            />
+          </div>
           <Button
             color="blue"
             size="sm"
@@ -896,7 +901,7 @@ onMounted(async () => {
             <span
               v-if="advancedFiltersCount > 0"
               data-testid="kanban-advanced-filters-count"
-              class="ml-2 inline-flex min-w-5 items-center justify-center rounded-full bg-n-blue-9 px-1.5 text-[11px] font-semibold text-white"
+              class="ml-2 inline-flex min-w-5 items-center justify-center rounded-full bg-n-blue-9 px-1.5 text-[11px] font-semibold text-n-blue-12 dark:text-white"
             >
               {{ advancedFiltersCount }}
             </span>
@@ -1030,9 +1035,18 @@ onMounted(async () => {
 
       <div
         v-else-if="!activeFunnelId"
-        class="flex h-full items-center justify-center text-sm text-n-slate-10"
+        class="flex h-full flex-col items-center justify-center px-6 text-center"
       >
-        {{ t('KANBAN.SELECT_FUNNEL') }}
+        <Icon
+          icon="i-lucide-layout-grid"
+          class="mb-3 size-10 text-n-slate-9 dark:text-n-slate-10"
+        />
+        <p class="text-sm font-medium text-n-slate-11">
+          {{ t('KANBAN.SELECT_FUNNEL') }}
+        </p>
+        <p class="mt-1 text-xs text-n-slate-10">
+          {{ t('KANBAN.SELECT_FUNNEL_HINT') }}
+        </p>
       </div>
 
       <template v-else>
