@@ -1390,7 +1390,7 @@ onBeforeUnmount(() => {
                rounded pill, the round send button sits outside on the right. -->
           <div class="flex items-end gap-2">
             <div
-              class="flex flex-1 items-end gap-0.5 bg-n-alpha-1 border border-n-weak rounded-2xl px-1.5 py-1 focus-within:border-n-brand focus-within:bg-n-background transition-colors"
+              class="flex flex-1 items-center gap-0.5 bg-n-alpha-1 border border-n-weak rounded-2xl px-1.5 py-1 focus-within:border-n-brand focus-within:bg-n-background transition-colors"
             >
               <button
                 class="inline-flex items-center justify-center h-9 w-9 rounded-full text-n-slate-11 hover:bg-n-alpha-2 hover:text-n-slate-12 transition-colors flex-shrink-0"
