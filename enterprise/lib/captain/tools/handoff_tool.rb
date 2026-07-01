@@ -67,6 +67,13 @@ class Captain::Tools::HandoffTool < Captain::Tools::BasePublicTool
     update_attrs[:team] = team if team
     conversation.update!(update_attrs)
 
+    # Motor de Distribuição (F1): se o time tem política modo=rodizio, EMPURRA a conversa
+    # pro consultor certo (continuidade/rodízio) em vez de deixá-la na fila "Aguardando
+    # atendimento". Sem política / modo off/online => no-op (segue o pull atual). A
+    # atribuição solta o espelho e limpa o marcador que acabamos de setar — o "aguardando"
+    # é transitório no modo push (ver docs/MOTOR-DISTRIBUICAO.md §10.4/§10.7).
+    Spx::Distribuicao::DistribuirService.new(conversation).call
+
     # Send out of office message if applicable (since template messages were suppressed while Captain was handling)
     send_out_of_office_message_if_applicable(conversation)
   end
