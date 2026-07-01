@@ -291,7 +291,7 @@
     "REPORTS": "Reports",
     "CAMPAIGNS": "Campaigns",
     "HELP_CENTER": "Help Center",
-    "KANBAN": "Kanban",
+    "KANBAN": "CRM KANBAN",
     "CONTACTS": "Contacts",
     "LIVE": "Live"
   },
@@ -354,7 +354,7 @@
     "INBOX_VIEW": "Inbox View",
     "CONVERSATIONS": "Conversations",
     "INBOX": "Notifications",
-    "KANBAN": "Kanban",
+    "KANBAN": "CRM KANBAN",
     "GALLERY": "Gallery",
     "INTERNAL_CHAT": "Internal Chat",
     "ALL_CONVERSATIONS": "All Conversations",

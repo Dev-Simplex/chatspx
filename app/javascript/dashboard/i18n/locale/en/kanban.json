@@ -1,6 +1,6 @@
 {
   "KANBAN": {
-    "TITLE": "Kanban",
+    "TITLE": "CRM KANBAN",
     "TABS": {
       "BOARD": "Board",
       "INTERNAL_CHAT": "Internal chat"
@@ -590,7 +590,7 @@
       }
     },
     "DASHBOARD": {
-      "TITLE": "Funnel dashboard",
+      "TITLE": "CRM KANBAN",
       "EXPORT": "Export PDF",
       "REFRESH": "Refresh",
       "CARDS": "Cards",

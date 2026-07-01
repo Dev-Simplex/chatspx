@@ -1,6 +1,6 @@
 {
   "KANBAN": {
-    "TITLE": "Kanban",
+    "TITLE": "CRM KANBAN",
     "TABS": {
       "BOARD": "Quadro",
       "INTERNAL_CHAT": "Chat interno"
@@ -590,7 +590,7 @@
       }
     },
     "DASHBOARD": {
-      "TITLE": "Painel do funil",
+      "TITLE": "CRM KANBAN",
       "EXPORT": "Exportar PDF",
       "REFRESH": "Atualizar",
       "CARDS": "Cartões",

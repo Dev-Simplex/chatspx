@@ -664,8 +664,8 @@ class Reports::PdfDataResolver # rubocop:disable Metrics/ClassLength
     cards = totals[:cards].to_i
     open_count = totals[:by_status].to_h['open'].to_i
     {
-      report_type: 'funnel', title: "Relatório do Kanban · #{name}", period: snapshot_period,
-      overline: 'Kanban · Gestão de Funil · Confidencial',
+      report_type: 'funnel', title: "CRM KANBAN · #{name}", period: snapshot_period,
+      overline: 'CRM KANBAN · Gestão de Funil · Confidencial',
       subtitle: "Funil \"#{name}\" do Kanban · #{cards} cards · #{open_count} em aberto · #{totals[:overdue]} atrasados.",
       base_label: "#{cards} cards", funnel_name: name,
       kpis: totals.merge(open: open_count),
