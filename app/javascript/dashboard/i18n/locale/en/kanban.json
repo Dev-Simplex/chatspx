@@ -140,6 +140,7 @@
     },
     "COMING_SOON": "Coming soon...",
     "SELECT_FUNNEL": "Select a funnel",
+    "SELECT_FUNNEL_HINT": "Pick a funnel in the selector above to see the board.",
     "FILTER_BY_FUNNEL": "Filter by Funnel",
     "CANCEL": "Cancel",
     "SAVE": "Save",
