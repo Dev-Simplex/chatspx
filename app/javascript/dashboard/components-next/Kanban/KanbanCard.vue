@@ -585,6 +585,9 @@ const stripGradient = computed(
 );
 const cardStyleVars = computed(() => ({
   '--card-accent': accentColor.value,
+  // Contorno suave (tom pastel da etapa) p/ o modo claro; o escuro usa a cor
+  // cheia via :global(.dark). Mantém "a cor da etapa", mas gentil no branco.
+  '--card-border': softBg(accentColor.value, 0.55),
   '--card-glow': softBg(accentColor.value, 0.45),
   '--card-wash': softBg(accentColor.value, 0.05),
   // Saturated stage hue for the neon HUD strip glow.
@@ -985,7 +988,9 @@ const handleCardClick = event => {
 
 <style scoped>
 .kanban-card {
-  border: 1px solid rgb(var(--border-weak));
+  /* Contorno na cor da etapa. Claro: tom pastel (--card-border) p/ não pesar no
+     branco; escuro: cor cheia (--card-accent) via :global(.dark) abaixo. */
+  border: 1px solid var(--card-border, rgb(var(--border-weak)));
   border-radius: var(--kanban-card-radius);
   box-shadow: var(--kanban-card-shadow);
   transition:
@@ -996,10 +1001,16 @@ const handleCardClick = event => {
 
 .kanban-card:hover {
   transform: translateY(-3px);
+  /* Hover acende o contorno na cor cheia da etapa (em ambos os modos). */
   border-color: var(--card-accent, rgb(var(--border-weak)));
   box-shadow:
     0 12px 24px -12px var(--card-glow, transparent),
     var(--kanban-card-shadow-hover);
+}
+
+/* Escuro: borda em cor cheia (o pastel é só p/ o fundo claro). */
+:global(.dark) .kanban-card {
+  border-color: var(--card-accent, rgb(var(--border-weak)));
 }
 
 .kanban-card:active {
@@ -1040,6 +1051,14 @@ const handleCardClick = event => {
 }
 .kanban-card__wait-rail--stalled {
   background: var(--kanban-wait-stalled);
+}
+
+/* Contorno padronizado: o trilho lateral (espera/SLA/heat) usa a COR DA ETAPA,
+   igual à borda e ao strip do topo — assim toda a moldura do card é da mesma cor.
+   (!important vence as cores de sinal das variantes acima e os estilos inline do
+   SLA/heat.) O status de espera/SLA segue visível nos badges do card. */
+.kanban-card__heat {
+  background: var(--card-accent, rgb(var(--border-weak))) !important;
 }
 
 /* Critical wait (level 4, >=8h) gently pulses to draw the eye. The keyframe
@@ -1086,9 +1105,12 @@ const handleCardClick = event => {
   flex-shrink: 0;
   position: relative;
   z-index: 1;
-  /* Neon HUD glow — the stage-hued strip emits a saturated halo down into the
-     card (the card's overflow clips it upward, so it reads as emitted light)
-     and breathes via a subtle glow pulse. */
+  /* Light: a tight, soft colored edge (the saturated pulsing halo reads garish
+     on light surfaces). Dark keeps the full breathing neon (see :global(.dark)). */
+  box-shadow: 0 1px 4px 0 var(--hud-glow, transparent);
+}
+
+:global(.dark) .kanban-card__strip {
   box-shadow:
     0 1px 7px 0 var(--hud-glow, transparent),
     0 0 14px 0 var(--hud-glow, transparent);

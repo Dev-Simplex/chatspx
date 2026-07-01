@@ -395,7 +395,7 @@ const handleColumnObserved = async () => {
 
 <template>
   <div
-    class="kanban-column relative flex h-full flex-shrink-0 flex-col overflow-hidden rounded-[var(--kanban-radius-xl)] bg-n-slate-1/45 dark:bg-n-solid-2"
+    class="kanban-column relative flex h-full flex-shrink-0 flex-col overflow-hidden rounded-[var(--kanban-radius-xl)] bg-n-slate-2/80 dark:bg-n-solid-2"
     :class="collapsed ? 'kanban-column--collapsed' : 'kanban-column--expanded'"
     :style="{ '--col-wash': columnWash, '--hud-glow': columnGlow }"
   >
@@ -590,11 +590,11 @@ const handleColumnObserved = async () => {
 
           <div
             v-else-if="itemsWithConversations.length === 0"
-            class="rounded-[var(--kanban-radius-lg)] border border-dashed border-n-weak bg-n-solid-3/60 px-3 py-8 text-center"
+            class="rounded-[var(--kanban-radius-lg)] border border-dashed border-n-slate-5 bg-n-slate-2 dark:border-n-weak dark:bg-n-solid-3/60 px-3 py-8 text-center"
           >
             <div
               class="mx-auto mb-2.5 flex size-11 items-center justify-center rounded-full"
-              :style="{ backgroundColor: softBg(stage.color, 0.12) }"
+              :style="{ backgroundColor: softBg(stage.color, 0.18) }"
             >
               <Icon
                 icon="i-lucide-inbox"
@@ -725,6 +725,11 @@ const handleColumnObserved = async () => {
 .kanban-column__accent {
   position: relative;
   z-index: 1;
+  /* Light: soft colored edge; dark keeps the full breathing neon below. */
+  box-shadow: 0 1px 4px 0 var(--hud-glow, transparent);
+}
+
+:global(.dark) .kanban-column__accent {
   box-shadow:
     0 1px 7px 0 var(--hud-glow, transparent),
     0 0 16px 0 var(--hud-glow, transparent);

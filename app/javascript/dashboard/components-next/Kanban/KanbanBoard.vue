@@ -594,7 +594,7 @@ const handleDeleteStage = stage => {
 
         <button
           v-if="stages.length > 0"
-          class="kanban-add-stage kanban-focusable group flex h-full shrink-0 flex-col items-center justify-center gap-2 rounded-[var(--kanban-radius-xl)] border-2 border-dashed border-n-weak bg-n-slate-2/30 px-4 text-n-slate-10 transition hover:border-n-slate-6 hover:bg-n-slate-2/60 hover:text-n-slate-12 dark:bg-n-solid-2/40"
+          class="kanban-add-stage kanban-focusable group flex h-full shrink-0 flex-col items-center justify-center gap-2 rounded-[var(--kanban-radius-xl)] border-2 border-dashed border-n-slate-5 bg-n-slate-3 px-4 text-n-slate-11 transition hover:border-n-slate-7 hover:bg-n-slate-4 hover:text-n-slate-12 dark:border-n-weak dark:bg-n-solid-2/40 dark:text-n-slate-10"
           @click="handleCreateStage"
         >
           <Icon icon="i-lucide-plus" class="size-5" />
@@ -605,9 +605,12 @@ const handleDeleteStage = stage => {
 
         <div
           v-if="stages.length === 0"
-          class="flex w-full flex-col items-center justify-center rounded-[var(--kanban-radius-xl)] border-2 border-dashed border-n-weak bg-n-slate-2/50 dark:bg-n-solid-2 p-8 text-center"
+          class="flex w-full flex-col items-center justify-center rounded-[var(--kanban-radius-xl)] border-2 border-dashed border-n-slate-5 bg-n-slate-2 dark:border-n-weak dark:bg-n-solid-2 p-8 text-center"
         >
-          <Icon icon="i-lucide-columns-3" class="mb-3 size-9 text-n-slate-10" />
+          <Icon
+            icon="i-lucide-columns-3"
+            class="mb-3 size-9 text-n-slate-11 dark:text-n-slate-10"
+          />
           <h3 class="text-lg font-semibold text-n-slate-12">
             {{ t('KANBAN.STAGES.NO_STAGES') }}
           </h3>
@@ -696,24 +699,20 @@ const handleDeleteStage = stage => {
      the glass lanes and white cards read as luminous floating layers.
      Layered HUD ambience: an indigo top glow, a deep vignette to seat the
      lanes, and a faint blueprint line grid for a technical, futuristic feel. */
-  background-color: var(--kanban-board-bg, #d6dbe7);
+  background-color: var(--kanban-board-bg, #eef1f6);
+  /* Light: a calm, clean canvas — one very soft top glow + a barely-there
+     blueprint grid (the heavy indigo/navy HUD wash is dark-mode only, below). */
   background-image: radial-gradient(
-      120% 80% at 50% -8%,
-      rgba(99, 102, 241, 0.1),
-      transparent 55%
-    ),
-    radial-gradient(
-      110% 70% at 50% 125%,
-      rgba(15, 23, 42, 0.09),
+      120% 90% at 50% -10%,
+      rgba(99, 102, 241, 0.05),
       transparent 60%
     ),
-    linear-gradient(rgba(79, 102, 241, 0.05) 1px, transparent 1px),
-    linear-gradient(90deg, rgba(79, 102, 241, 0.05) 1px, transparent 1px);
+    linear-gradient(rgba(100, 116, 139, 0.035) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(100, 116, 139, 0.035) 1px, transparent 1px);
   background-size:
     100% 100%,
-    100% 100%,
-    30px 30px,
-    30px 30px;
+    32px 32px,
+    32px 32px;
 }
 
 .dark .kanban-board {
