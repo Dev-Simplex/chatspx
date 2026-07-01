@@ -239,7 +239,8 @@ class Captain::Conversation::ResponseBuilderJob < ApplicationJob
   def sanitize_for_whatsapp(content)
     return content if content.blank?
 
-    content.gsub(/\*\*(.*?)\*\*/m, '\1')   # **negrito** -> negrito
+    content.gsub(/\[\s*fotos?[^\]]*enviad[ao]s?\s*\]/i, '') # placeholder de foto do histórico que o LLM às vezes ecoa -> remove
+           .gsub(/\*\*(.*?)\*\*/m, '\1')   # **negrito** -> negrito
            .gsub(/__(.*?)__/m, '\1')        # __negrito__ -> negrito
            .gsub(/^\s{0,3}#+\s+/, '')        # ## títulos -> texto
            .gsub(/^\s{0,3}[-*]\s+/, '')      # - bullets -> texto

@@ -47,6 +47,9 @@ class Captain::Tools::BuscarImovelTool < Captain::Tools::BasePublicTool
     # O Vista compara Latitude/Longitude como STRING (lexicográfico) — com coordenadas
     # negativas o range nunca casa. Proximidade é calculada AQUI (Haversine), não lá.
     imoveis = fetch_vista(filter, quantidade: geo ? 50 : 5)
+    Rails.logger.info("[BuscarImovel] status=#{status_tipo} categoria=#{categoria.inspect} bairro=#{bairro.inspect} " \
+                      "endereco=#{endereco.inspect} valor_max=#{valor_max.inspect} dorm=#{dormitorios.inspect} " \
+                      "geo=#{geo} => #{imoveis.size} imoveis #{imoveis.first(5).map { |i| i['Codigo'] }.inspect}")
     return 'Nenhum imóvel encontrado com esses critérios.' if imoveis.blank?
     return format_listings(imoveis, venda) unless geo
 
