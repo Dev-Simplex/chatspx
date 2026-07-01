@@ -322,7 +322,7 @@ onBeforeUnmount(() => {
               class="rounded-full px-3 py-1 text-xs font-semibold transition"
               :class="
                 statusFilter === option.key
-                  ? 'bg-n-teal-9 text-white'
+                  ? 'bg-n-teal-9 text-n-teal-12 dark:text-white'
                   : 'bg-n-slate-3/50 text-n-slate-11 hover:bg-n-slate-3'
               "
               @click="statusFilter = option.key"
