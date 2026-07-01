@@ -579,19 +579,36 @@ const accentColor = computed(() => {
   return props.item?.stageColor || props.item?.stage_color || props.stageColor;
 });
 
+// Cor de alerta para cartões que precisam de atenção urgente.
+const URGENT_COLOR = '#ef4444'; // red-500
+
+// Um cartão é "urgente" quando: prioridade urgente/alta, OU SLA estourado, OU
+// o contato está esperando resposta há bastante tempo (nível de espera >= 3).
+const isUrgent = computed(() => {
+  const p = (priority.value || '').toString().toLowerCase();
+  if (p === 'urgent' || p === 'high') return true;
+  if (sla.value === 'breach') return true;
+  return (
+    waitInfo.value?.kind === 'awaiting' && (waitInfo.value?.level || 0) >= 3
+  );
+});
+
+// A faixa do topo (única parte colorida do cartão) segue a cor da ETAPA quando
+// normal, e troca para o vermelho de alerta quando o cartão é urgente.
+const stripColor = computed(() =>
+  isUrgent.value ? URGENT_COLOR : accentColor.value
+);
+
 const stripGradient = computed(
   () =>
-    `linear-gradient(90deg, ${accentColor.value}, ${softBg(accentColor.value, 0.5)})`
+    `linear-gradient(90deg, ${stripColor.value}, ${softBg(stripColor.value, 0.5)})`
 );
 const cardStyleVars = computed(() => ({
   '--card-accent': accentColor.value,
-  // Contorno suave (tom pastel da etapa) p/ o modo claro; o escuro usa a cor
-  // cheia via :global(.dark). Mantém "a cor da etapa", mas gentil no branco.
-  '--card-border': softBg(accentColor.value, 0.55),
-  '--card-glow': softBg(accentColor.value, 0.45),
+  '--card-glow': softBg(stripColor.value, 0.45),
   '--card-wash': softBg(accentColor.value, 0.05),
-  // Saturated stage hue for the neon HUD strip glow.
-  '--hud-glow': softBg(accentColor.value, 0.85),
+  // Cor do halo neon da faixa do topo (segue a cor da faixa: etapa ou alerta).
+  '--hud-glow': softBg(stripColor.value, 0.85),
 }));
 
 const openConversation = () => {
@@ -654,7 +671,7 @@ const handleCardClick = event => {
 <template>
   <div
     class="kanban-card kanban-focusable group relative flex w-full min-w-0 flex-shrink-0 cursor-pointer flex-col overflow-hidden bg-n-solid-1"
-    :class="{ 'has-cover': primaryLabel }"
+    :class="{ 'has-cover': primaryLabel, 'kanban-card--urgent': isUrgent }"
     :style="cardStyleVars"
     @click="handleCardClick"
     @mousedown="handleMouseDown"
@@ -988,9 +1005,8 @@ const handleCardClick = event => {
 
 <style scoped>
 .kanban-card {
-  /* Contorno na cor da etapa. Claro: tom pastel (--card-border) p/ não pesar no
-     branco; escuro: cor cheia (--card-accent) via :global(.dark) abaixo. */
-  border: 1px solid var(--card-border, rgb(var(--border-weak)));
+  /* Borda neutra: a cor do cartão vive só na faixa do topo (--card-strip). */
+  border: 1px solid rgb(var(--border-weak));
   border-radius: var(--kanban-card-radius);
   box-shadow: var(--kanban-card-shadow);
   transition:
@@ -1001,16 +1017,10 @@ const handleCardClick = event => {
 
 .kanban-card:hover {
   transform: translateY(-3px);
-  /* Hover acende o contorno na cor cheia da etapa (em ambos os modos). */
-  border-color: var(--card-accent, rgb(var(--border-weak)));
+  border-color: rgb(var(--slate-7));
   box-shadow:
     0 12px 24px -12px var(--card-glow, transparent),
     var(--kanban-card-shadow-hover);
-}
-
-/* Escuro: borda em cor cheia (o pastel é só p/ o fundo claro). */
-:global(.dark) .kanban-card {
-  border-color: var(--card-accent, rgb(var(--border-weak)));
 }
 
 .kanban-card:active {
@@ -1053,12 +1063,11 @@ const handleCardClick = event => {
   background: var(--kanban-wait-stalled);
 }
 
-/* Contorno padronizado: o trilho lateral (espera/SLA/heat) usa a COR DA ETAPA,
-   igual à borda e ao strip do topo — assim toda a moldura do card é da mesma cor.
-   (!important vence as cores de sinal das variantes acima e os estilos inline do
-   SLA/heat.) O status de espera/SLA segue visível nos badges do card. */
+/* Sem cor na lateral: os trilhos de borda (espera/SLA/heat) ficam ocultos — a
+   cor do cartão vive só na faixa do topo. O status de espera/SLA segue visível
+   nos badges do card, e a urgência é sinalizada pela cor da faixa (ver abaixo). */
 .kanban-card__heat {
-  background: var(--card-accent, rgb(var(--border-weak))) !important;
+  display: none !important;
 }
 
 /* Critical wait (level 4, >=8h) gently pulses to draw the eye. The keyframe
@@ -1115,6 +1124,16 @@ const handleCardClick = event => {
     0 1px 7px 0 var(--hud-glow, transparent),
     0 0 14px 0 var(--hud-glow, transparent);
   animation: kanban-neon-pulse 2.6s ease-in-out infinite;
+}
+
+/* Cartão urgente: a faixa do topo fica mais alta, com halo vermelho pulsante
+   (em claro e escuro) para chamar a atenção. */
+.kanban-card--urgent .kanban-card__strip {
+  height: 6px;
+  box-shadow:
+    0 1px 8px 0 var(--hud-glow, transparent),
+    0 0 16px 1px var(--hud-glow, transparent);
+  animation: kanban-neon-pulse 1.4s ease-in-out infinite;
 }
 
 .kanban-card__body {
