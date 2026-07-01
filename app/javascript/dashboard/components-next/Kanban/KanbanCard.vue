@@ -1,5 +1,5 @@
 <script setup>
-import { computed, ref } from 'vue';
+import { computed, ref, watch, nextTick } from 'vue';
 import { useI18n } from 'vue-i18n';
 import { useStore } from 'vuex';
 import { useAlert } from 'dashboard/composables';
@@ -212,6 +212,30 @@ const assignee = computed(() => {
 
 const assignMenuOpen = ref(false);
 const isAssigning = ref(false);
+
+// O menu de responsável é teleportado para o <body> (o card tem overflow-hidden,
+// que o cortava). Posicionado como fixed, centralizado no avatar e preso à tela.
+const assignBtnRef = ref(null);
+const assignMenuStyle = ref({});
+const positionAssignMenu = () => {
+  const el = assignBtnRef.value;
+  if (!el) return;
+  const rect = el.getBoundingClientRect();
+  const width = 208; // w-52
+  const left = Math.min(
+    Math.max(8, rect.left + rect.width / 2 - width / 2),
+    window.innerWidth - width - 8
+  );
+  assignMenuStyle.value = {
+    position: 'fixed',
+    width: `${width}px`,
+    left: `${left}px`,
+    bottom: `${window.innerHeight - rect.top + 6}px`,
+  };
+};
+watch(assignMenuOpen, open => {
+  if (open) nextTick(positionAssignMenu);
+});
 const agentOptions = computed(() =>
   Array.isArray(agentsList.value) ? agentsList.value : []
 );
@@ -494,7 +518,9 @@ const signalPills = computed(() => {
     pills.push({
       key: 'wait',
       icon: 'i-lucide-bell-ring',
-      text: t('KANBAN.CARD.WAIT.AWAITING', { time: waitTime.value }),
+      // Texto compacto (só o tempo) p/ não apinhar o rodapé; o significado vem do
+      // ícone + tooltip (title = frase completa "Aguardando resposta há …").
+      text: waitTime.value,
       class: 'bg-n-ruby-3 text-n-ruby-11 font-semibold',
       title: waitTitle.value,
     });
@@ -502,7 +528,7 @@ const signalPills = computed(() => {
     pills.push({
       key: 'stalled',
       icon: 'i-lucide-moon',
-      text: t('KANBAN.CARD.WAIT.STALLED', { time: waitTime.value }),
+      text: waitTime.value,
       class: 'bg-n-blue-3 text-n-blue-11',
       title: waitTitle.value,
     });
@@ -884,11 +910,11 @@ const handleCardClick = event => {
             v-for="pill in visibleSignalPills"
             :key="pill.key"
             v-tooltip="pill.title"
-            class="flex shrink-0 items-center gap-1 rounded-full px-1.5 py-0.5 text-[11px] font-medium"
+            class="flex min-w-0 max-w-[120px] items-center gap-1 rounded-full px-1.5 py-0.5 text-[11px] font-medium"
             :class="pill.class"
           >
-            <Icon :icon="pill.icon" class="size-3" />
-            {{ pill.text }}
+            <Icon :icon="pill.icon" class="size-3 shrink-0" />
+            <span class="truncate">{{ pill.text }}</span>
           </span>
           <span
             v-if="hiddenSignalPills.length"
@@ -911,13 +937,14 @@ const handleCardClick = event => {
           <!-- Assignee picker -->
           <div class="relative" @click.stop>
             <button
+              ref="assignBtnRef"
               v-tooltip="
                 assignee
                   ? assignee.name || assignee.available_name
                   : t('KANBAN.CARD.UNASSIGNED')
               "
               type="button"
-              class="kanban-focusable flex items-center rounded-full transition hover:opacity-80"
+              class="kanban-focusable flex items-center overflow-hidden rounded-full transition hover:opacity-80"
               :aria-label="
                 assignee
                   ? assignee.name || assignee.available_name
@@ -934,7 +961,6 @@ const handleCardClick = event => {
                 :src="assignee.thumbnail || assignee.avatar_url"
                 :size="20"
                 rounded-full
-                class="ring-1 ring-n-weak"
               />
               <span
                 v-else
@@ -944,53 +970,60 @@ const handleCardClick = event => {
               </span>
             </button>
 
-            <template v-if="assignMenuOpen">
-              <div class="fixed inset-0 z-20" @click="assignMenuOpen = false" />
-              <div
-                role="listbox"
-                :aria-label="t('KANBAN.CARD.UNASSIGNED')"
-                class="absolute bottom-7 right-0 z-30 max-h-56 w-52 overflow-y-auto rounded-[var(--kanban-radius-xl)] border border-n-weak bg-n-solid-1 py-1 shadow-lg"
-              >
-                <button
-                  type="button"
-                  role="option"
-                  :aria-selected="!effectiveAssigneeId"
-                  class="kanban-focusable flex w-full items-center gap-2 px-3 py-1.5 text-left text-xs text-n-slate-11 transition-colors hover:bg-n-alpha-1"
-                  @click="assignTo(null)"
+            <Teleport to="body">
+              <template v-if="assignMenuOpen">
+                <div
+                  class="fixed inset-0 z-40"
+                  @click="assignMenuOpen = false"
+                />
+                <div
+                  role="listbox"
+                  :aria-label="t('KANBAN.CARD.UNASSIGNED')"
+                  :style="assignMenuStyle"
+                  class="z-50 max-h-56 overflow-y-auto rounded-[var(--kanban-radius-xl)] border border-n-weak bg-n-solid-1 py-1 shadow-lg"
+                  @click.stop
                 >
-                  <span
-                    class="flex size-5 items-center justify-center rounded-full bg-n-slate-3 text-n-slate-9"
+                  <button
+                    type="button"
+                    role="option"
+                    :aria-selected="!effectiveAssigneeId"
+                    class="kanban-focusable flex w-full items-center gap-2 px-3 py-1.5 text-left text-xs text-n-slate-11 transition-colors hover:bg-n-alpha-1"
+                    @click="assignTo(null)"
                   >
-                    <Icon icon="i-lucide-user-x" class="size-3" />
-                  </span>
-                  {{ t('KANBAN.CARD.UNASSIGNED') }}
-                </button>
-                <button
-                  v-for="agent in agentOptions"
-                  :key="agent.id"
-                  type="button"
-                  role="option"
-                  :aria-selected="isCurrentAssignee(agent)"
-                  class="kanban-focusable flex w-full items-center gap-2 px-3 py-1.5 text-left text-xs text-n-slate-12 transition-colors hover:bg-n-alpha-1"
-                  @click="assignTo(agent)"
-                >
-                  <Avatar
-                    :name="agent.name || agent.available_name"
-                    :src="agent.thumbnail || agent.avatar_url"
-                    :size="20"
-                    rounded-full
-                  />
-                  <span class="truncate">
-                    {{ agent.name || agent.available_name }}
-                  </span>
-                  <Icon
-                    v-if="isCurrentAssignee(agent)"
-                    icon="i-lucide-check"
-                    class="ml-auto size-3.5 text-n-teal-11"
-                  />
-                </button>
-              </div>
-            </template>
+                    <span
+                      class="flex size-5 items-center justify-center rounded-full bg-n-slate-3 text-n-slate-9"
+                    >
+                      <Icon icon="i-lucide-user-x" class="size-3" />
+                    </span>
+                    {{ t('KANBAN.CARD.UNASSIGNED') }}
+                  </button>
+                  <button
+                    v-for="agent in agentOptions"
+                    :key="agent.id"
+                    type="button"
+                    role="option"
+                    :aria-selected="isCurrentAssignee(agent)"
+                    class="kanban-focusable flex w-full items-center gap-2 px-3 py-1.5 text-left text-xs text-n-slate-12 transition-colors hover:bg-n-alpha-1"
+                    @click="assignTo(agent)"
+                  >
+                    <Avatar
+                      :name="agent.name || agent.available_name"
+                      :src="agent.thumbnail || agent.avatar_url"
+                      :size="20"
+                      rounded-full
+                    />
+                    <span class="truncate">
+                      {{ agent.name || agent.available_name }}
+                    </span>
+                    <Icon
+                      v-if="isCurrentAssignee(agent)"
+                      icon="i-lucide-check"
+                      class="ml-auto size-3.5 text-n-teal-11"
+                    />
+                  </button>
+                </div>
+              </template>
+            </Teleport>
           </div>
 
           <div
