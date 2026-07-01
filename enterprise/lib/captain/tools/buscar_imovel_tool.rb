@@ -18,7 +18,7 @@ class Captain::Tools::BuscarImovelTool < Captain::Tools::BasePublicTool
   param :raio_km, type: 'number', desc: 'Só quando o cliente limitar a distância (ex: "até 2 km"). Sem isso, lista os mais próximos.', required: false
 
   VISTA_FIELDS = %w[Codigo ImoCodigo Categoria Status Dormitorios Cidade Bairro BairroComercial ValorLocacao ValorVenda TituloSite
-                    Latitude Longitude].freeze
+                    ValorCondominio ValorIptu Latitude Longitude].freeze
   META_KEYS = %w[total paginas pagina quantidade].freeze
 
   def perform(_tool_context, status_tipo:, categoria: nil, bairro: nil, endereco: nil, valor_max: nil,
@@ -125,9 +125,17 @@ class Captain::Tools::BuscarImovelTool < Captain::Tools::BasePublicTool
       valor = venda ? "R$ #{im['ValorVenda']}" : "R$ #{im['ValorLocacao']}/mês"
       dorm = im['Dormitorios'].to_i.positive? ? "#{im['Dormitorios']} quartos, " : ''
       dist = im['dist_km'] ? " — a #{format('%.1f', im['dist_km'])} km da referência" : ''
-      "(cód #{im['Codigo']}) #{im['Categoria']} #{dorm}no #{im['Bairro']}, #{valor}#{dist}. #{build_url(im, venda)}"
+      "(cód #{im['Codigo']}) #{im['Categoria']} #{dorm}no #{im['Bairro']}, #{valor}#{format_taxas(im)}#{dist}. #{build_url(im, venda)}"
     end
     "#{header || "Encontrei #{linhas.size} opção(ões):"}\n#{linhas.join("\n")}"
+  end
+
+  # Condomínio/IPTU só quando o Vista traz o valor (>0); nunca inventa. Taxa de lixo o Vista não tem.
+  def format_taxas(im)
+    parts = []
+    parts << "condomínio R$ #{im['ValorCondominio']}" if im['ValorCondominio'].to_f.positive?
+    parts << "IPTU R$ #{im['ValorIptu']}" if im['ValorIptu'].to_f.positive?
+    parts.any? ? " (#{parts.join(', ')})" : ''
   end
 
   # O site da Tozi acha o imóvel pelo ImoCodigo (não pelo Codigo do Vista); o slug
