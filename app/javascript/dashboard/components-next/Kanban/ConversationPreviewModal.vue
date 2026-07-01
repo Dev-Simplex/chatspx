@@ -491,7 +491,7 @@ watch(
   <Dialog
     v-if="show"
     ref="dialogRef"
-    width="xl"
+    width="3xl"
     position="center"
     overflow-y-auto
     :title="t('KANBAN.PREVIEW.TITLE')"
@@ -817,7 +817,7 @@ watch(
     </div>
 
     <template #footer>
-      <div class="flex items-center justify-between gap-3">
+      <div class="flex items-center justify-end gap-2">
         <Button
           variant="faded"
           color="slate"
