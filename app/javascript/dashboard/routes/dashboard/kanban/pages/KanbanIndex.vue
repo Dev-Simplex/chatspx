@@ -8,7 +8,6 @@ import ListView from 'dashboard/components-next/Kanban/ListView.vue';
 import CalendarView from 'dashboard/components-next/Kanban/CalendarView.vue';
 import DashboardView from 'dashboard/components-next/Kanban/DashboardView.vue';
 import KanbanFilterSelect from 'dashboard/components-next/Kanban/KanbanFilterSelect.vue';
-import KanbanSavedViews from 'dashboard/components-next/Kanban/KanbanSavedViews.vue';
 import FunnelForm from 'dashboard/components-next/Kanban/FunnelForm.vue';
 import ScheduledMessageForm from 'dashboard/components-next/Kanban/ScheduledMessageForm.vue';
 import KanbanAutomationBuilder from 'dashboard/components-next/Kanban/KanbanAutomationBuilder.vue';
@@ -668,35 +667,43 @@ onMounted(async () => {
 <template>
   <div class="kanban-container flex flex-col overflow-hidden">
     <div
-      class="kanban-header flex flex-col border-b border-n-weak bg-n-solid-2 px-5 py-3 gap-4"
+      class="kanban-header relative flex flex-col gap-4 border-b border-n-weak bg-gradient-to-b from-n-solid-2 to-n-background px-5 py-4"
     >
+      <!-- faixa de acento da marca no topo do cabeçalho -->
+      <span
+        class="pointer-events-none absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-n-brand/60 to-transparent"
+        aria-hidden="true"
+      />
       <div class="flex flex-wrap items-center gap-3 justify-between">
         <div class="flex items-center gap-3 min-w-0">
           <div
-            class="flex items-center justify-center size-9 rounded-lg bg-n-solid-3 border border-n-weak"
+            class="flex items-center justify-center size-10 rounded-xl bg-n-brand text-white shadow-[0_6px_18px_-4px_rgba(45,196,111,0.5)]"
           >
-            <Icon icon="i-lucide-layout-grid" class="size-4 text-n-slate-11" />
+            <Icon icon="i-lucide-layout-grid" class="size-5" />
           </div>
-          <h1 class="text-xl font-semibold text-n-slate-12">
-            {{ t('KANBAN.TITLE') }}
-          </h1>
-
-          <div
-            v-if="activeFunnel"
-            class="hidden md:flex items-center gap-2 ml-2"
-          >
-            <span
-              class="inline-flex items-center gap-1 rounded-md border border-n-weak bg-n-solid-1 px-2.5 py-1 text-[11px] font-medium text-n-slate-11"
+          <div class="flex flex-col min-w-0">
+            <h1
+              class="text-xl font-bold leading-tight tracking-tight text-n-slate-12"
             >
-              <Icon icon="i-lucide-columns-3" class="size-3.5" />
-              {{ activeFunnelStagesCount }} {{ t('KANBAN.STAGES.TITLE') }}
-            </span>
-            <span
-              class="inline-flex items-center gap-1 rounded-md border border-n-weak bg-n-solid-1 px-2.5 py-1 text-[11px] font-medium text-n-slate-11"
-            >
-              <Icon icon="i-lucide-message-square" class="size-3.5" />
-              {{ activeFunnelTotalItems }} {{ t('KANBAN.FILTERS.ITEMS') }}
-            </span>
+              {{ t('KANBAN.TITLE') }}
+            </h1>
+            <div v-if="activeFunnel" class="hidden md:flex items-center gap-2">
+              <span
+                class="inline-flex items-center gap-1.5 rounded-full bg-n-alpha-2 px-2.5 py-0.5 text-[11px] font-medium text-n-slate-11"
+              >
+                <Icon icon="i-lucide-columns-3" class="size-3.5 text-n-brand" />
+                {{ activeFunnelStagesCount }} {{ t('KANBAN.STAGES.TITLE') }}
+              </span>
+              <span
+                class="inline-flex items-center gap-1.5 rounded-full bg-n-alpha-2 px-2.5 py-0.5 text-[11px] font-medium text-n-slate-11"
+              >
+                <Icon
+                  icon="i-lucide-message-square"
+                  class="size-3.5 text-n-brand"
+                />
+                {{ activeFunnelTotalItems }} {{ t('KANBAN.FILTERS.ITEMS') }}
+              </span>
+            </div>
           </div>
         </div>
 
@@ -834,7 +841,7 @@ onMounted(async () => {
       </div>
 
       <div
-        class="relative z-40 rounded-xl border border-n-weak bg-n-solid-1 p-3 shadow-sm"
+        class="relative z-40 rounded-2xl border border-n-weak bg-n-solid-1/90 p-3.5 shadow-sm backdrop-blur-sm"
       >
         <div
           class="kanban-filter-grid grid grid-cols-1 items-start gap-3 lg:grid-cols-[minmax(260px,1fr)_minmax(220px,280px)_auto_auto]"
@@ -871,8 +878,6 @@ onMounted(async () => {
               :placeholder="t('KANBAN.SELECT_FUNNEL')"
             />
           </div>
-
-          <KanbanSavedViews />
 
           <Button
             data-testid="kanban-advanced-filters-toggle"
