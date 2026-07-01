@@ -7,6 +7,19 @@ json.moved_by_id resource.moved_by_id
 json.created_at resource.created_at
 json.updated_at resource.updated_at
 
+# Cartão de tarefa/lembrete (avulso, sem conversa): título/descrição/responsável.
+json.is_task resource.task?
+json.title resource.title
+json.description resource.description
+json.assignee_id resource.assignee_id
+if resource.assignee.present?
+  json.assignee do
+    json.id resource.assignee.id
+    json.name resource.assignee.name
+    json.thumbnail resource.assignee.avatar_url
+  end
+end
+
 if resource.conversation.present?
   json.conversation do
     json.id resource.conversation.id

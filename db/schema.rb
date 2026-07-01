@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[7.1].define(version: 2026_06_26_140000) do
+ActiveRecord::Schema[7.1].define(version: 2026_07_01_120000) do
   # These extensions should be enabled to support this database
   enable_extension "pg_stat_statements"
   enable_extension "pg_trgm"
@@ -993,13 +993,17 @@ ActiveRecord::Schema[7.1].define(version: 2026_06_26_140000) do
   end
 
   create_table "funnel_items", force: :cascade do |t|
-    t.bigint "conversation_id", null: false
+    t.bigint "conversation_id"
     t.bigint "funnel_id", null: false
     t.bigint "funnel_stage_id", null: false
     t.datetime "moved_at", precision: nil
     t.bigint "moved_by_id"
     t.datetime "created_at", null: false
     t.datetime "updated_at", null: false
+    t.string "title"
+    t.text "description"
+    t.bigint "assignee_id"
+    t.index ["assignee_id"], name: "index_funnel_items_on_assignee_id"
     t.index ["conversation_id", "funnel_id"], name: "index_funnel_items_unique", unique: true
     t.index ["conversation_id"], name: "index_funnel_items_on_conversation_id"
     t.index ["funnel_id", "funnel_stage_id", "conversation_id"], name: "idx_funnel_items_funnel_stage_conversation"

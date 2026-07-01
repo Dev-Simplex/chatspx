@@ -2,6 +2,7 @@
 
 class Api::V1::Accounts::FunnelItemsController < Api::V1::Accounts::BaseController
   include Kanban::FunnelItemsBulkActions
+  include Kanban::FunnelItemTaskCards
 
   BACKFILL_THROTTLE = 10.minutes
 
@@ -29,30 +30,46 @@ class Api::V1::Accounts::FunnelItemsController < Api::V1::Accounts::BaseControll
       @funnel_items = deduplicate_by_contact_phone(legacy_scope(scope))
     end
 
+    # Cartões de tarefa (sem conversa) não passam pelos joins de conversation,
+    # então são carregados à parte e anexados.
+    @funnel_items = merge_task_items(@funnel_items)
+
     load_last_messages
     load_account_labels
     render 'api/v1/accounts/funnels/funnel_items/index', formats: [:json]
   end
 
   def create
-    @funnel_item = FunnelItems::MoveService.new(
-      conversation: conversation,
-      funnel: funnel,
-      funnel_stage: funnel_stage,
-      moved_by: Current.user
-    ).perform
+    @funnel_item = if task_card_params?
+                     create_task_card
+                   else
+                     FunnelItems::MoveService.new(
+                       conversation: conversation,
+                       funnel: funnel,
+                       funnel_stage: funnel_stage,
+                       moved_by: Current.user
+                     ).perform
+                   end
     render 'api/v1/accounts/funnels/funnel_items/create', formats: [:json]
+  rescue ActiveRecord::RecordInvalid => e
+    render json: { errors: e.record.errors.full_messages }, status: :unprocessable_entity
   end
 
   def update
-    FunnelItems::MoveService.new(
-      conversation: @funnel_item.conversation,
-      funnel: funnel,
-      funnel_stage: funnel_stage,
-      moved_by: Current.user
-    ).perform
-    @funnel_item.reload
+    if @funnel_item.task?
+      @funnel_item.update!(task_update_attributes)
+    else
+      FunnelItems::MoveService.new(
+        conversation: @funnel_item.conversation,
+        funnel: funnel,
+        funnel_stage: funnel_stage,
+        moved_by: Current.user
+      ).perform
+      @funnel_item.reload
+    end
     render 'api/v1/accounts/funnels/funnel_items/update', formats: [:json]
+  rescue ActiveRecord::RecordInvalid => e
+    render json: { errors: e.record.errors.full_messages }, status: :unprocessable_entity
   end
 
   def destroy
@@ -182,7 +199,9 @@ class Api::V1::Accounts::FunnelItemsController < Api::V1::Accounts::BaseControll
       contact = item.conversation&.contact
       phone = contact&.phone_number
       normalized = normalize_brazilian_phone(phone)
-      key = if normalized.present?
+      key = if item.conversation.nil?
+              "item:#{item.id}" # cartão de tarefa: nunca deduplica
+            elsif normalized.present?
               "phone:#{normalized}"
             elsif item.conversation&.contact_id.present?
               "contact:#{item.conversation.contact_id}"
