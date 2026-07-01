@@ -1,6 +1,5 @@
 <script setup>
 import { computed, ref } from 'vue';
-import { useRouter } from 'vue-router';
 import { useI18n } from 'vue-i18n';
 import { useStore } from 'vuex';
 import { useAlert } from 'dashboard/composables';
@@ -48,7 +47,6 @@ const props = defineProps({
 
 const emit = defineEmits(['move', 'schedule-message', 'remove', 'preview']);
 
-const router = useRouter();
 const store = useStore();
 const { t, locale } = useI18n();
 const { softBg, contrastText, heatLevel, stageAgeLevel, slaLevel, waitSignal } =
@@ -611,20 +609,6 @@ const cardStyleVars = computed(() => ({
   '--hud-glow': softBg(stripColor.value, 0.85),
 }));
 
-const openConversation = () => {
-  const conversationId =
-    props.conversation?.displayId ||
-    props.conversation?.display_id ||
-    props.conversation?.id ||
-    props.conversationId;
-  if (conversationId) {
-    router.push({
-      name: 'inbox_conversation',
-      params: { conversation_id: conversationId },
-    });
-  }
-};
-
 let isDragging = false;
 let mouseDownTime = 0;
 let mouseDownX = 0;
@@ -651,19 +635,20 @@ const handleMouseDown = event => {
 };
 
 const handleCardClick = event => {
-  // Se foi um drag, não abrir a conversa
+  // Se foi um drag, não abrir nada
   if (isDragging) {
     isDragging = false;
     return;
   }
 
-  // Verificar se foi um clique simples (não um drag)
+  // Clique simples (não drag) → abre o painel de detalhes do cartão (não navega
+  // direto para a conversa; o painel tem o botão "Abrir conversa").
   const timeDiff = Date.now() - mouseDownTime;
   const xDiff = Math.abs(event.clientX - mouseDownX);
   const yDiff = Math.abs(event.clientY - mouseDownY);
 
   if (timeDiff < 200 && xDiff < 5 && yDiff < 5) {
-    openConversation();
+    emit('preview', props.conversation);
   }
 };
 </script>
