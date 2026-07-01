@@ -30,6 +30,18 @@ type Source interface {
 	Frozen() (string, error)
 	Cancel(id string) error
 	ProposeMerge(from, to string) (string, error)
+	// Governanca de IA (editar prompt/tools/credencial/FAQ dos agentes por VM).
+	AIListAgents() (any, error)
+	AIBaseline(vm string, id int) (any, error)
+	AICustomTools(vm string) (any, error)
+	AIHistory(vm string) (any, error)
+	AIPrompt(vm string, id int, instructions, targetEnv string) (any, error)
+	AITool(vm string, id int, toolID string, armed bool) (any, error)
+	AICredential(vm, provider string, settings map[string]any, enabled bool) (any, error)
+	AIBehavior(vm string, id int, behavior map[string]any) (any, error)
+	AIFaq(vm string, id int, question, answer string) (any, error)
+	AIEligibility(vm string, id int, inboxIDs []int) (any, error)
+	AIRollback(vm, changeSetID string) (any, error)
 }
 
 // ---------- ControlSource (REST real) ----------
@@ -174,4 +186,51 @@ func (c *ControlSource) ProposeMerge(from, to string) (string, error) {
 		return "", err
 	}
 	return fmt.Sprintf("merge %s -> %s enfileirado (%s, %s) — aprovacao humana (admin) no painel.", v.From, v.To, v.ID, v.Status), nil
+}
+
+// ---------- Governanca de IA (REST /api/ai/*) ----------
+
+func (c *ControlSource) AIListAgents() (any, error) {
+	var v any
+	return v, c.get("/api/ai/agents", &v)
+}
+func (c *ControlSource) AIBaseline(vm string, id int) (any, error) {
+	var v any
+	return v, c.get(fmt.Sprintf("/api/ai/agents/%s/%d", vm, id), &v)
+}
+func (c *ControlSource) AICustomTools(vm string) (any, error) {
+	var v any
+	return v, c.get("/api/ai/custom-tools/"+vm, &v)
+}
+func (c *ControlSource) AIHistory(vm string) (any, error) {
+	var v any
+	return v, c.get("/api/ai/history?vm="+vm, &v)
+}
+func (c *ControlSource) AIPrompt(vm string, id int, instructions, targetEnv string) (any, error) {
+	var v any
+	return v, c.post("/api/ai/prompt", map[string]any{"vm": vm, "assistant_id": id, "instructions": instructions, "target_env": targetEnv}, &v)
+}
+func (c *ControlSource) AITool(vm string, id int, toolID string, armed bool) (any, error) {
+	var v any
+	return v, c.post("/api/ai/tool", map[string]any{"vm": vm, "assistant_id": id, "tool_id": toolID, "armed": armed}, &v)
+}
+func (c *ControlSource) AICredential(vm, provider string, settings map[string]any, enabled bool) (any, error) {
+	var v any
+	return v, c.post("/api/ai/credential", map[string]any{"vm": vm, "provider": provider, "settings": settings, "enabled": enabled}, &v)
+}
+func (c *ControlSource) AIBehavior(vm string, id int, behavior map[string]any) (any, error) {
+	var v any
+	return v, c.post("/api/ai/behavior", map[string]any{"vm": vm, "assistant_id": id, "behavior": behavior}, &v)
+}
+func (c *ControlSource) AIFaq(vm string, id int, question, answer string) (any, error) {
+	var v any
+	return v, c.post("/api/ai/faq", map[string]any{"vm": vm, "assistant_id": id, "question": question, "answer": answer}, &v)
+}
+func (c *ControlSource) AIEligibility(vm string, id int, inboxIDs []int) (any, error) {
+	var v any
+	return v, c.post("/api/ai/eligibility", map[string]any{"vm": vm, "assistant_id": id, "inbox_ids": inboxIDs}, &v)
+}
+func (c *ControlSource) AIRollback(vm, changeSetID string) (any, error) {
+	var v any
+	return v, c.post("/api/ai/rollback", map[string]any{"vm": vm, "change_set_id": changeSetID}, &v)
 }

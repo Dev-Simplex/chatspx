@@ -9,6 +9,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/Dev-Simplex/almirante/internal/aiconfig"
 	"github.com/Dev-Simplex/almirante/internal/audit"
 	"github.com/Dev-Simplex/almirante/internal/mcptools"
 	"github.com/Dev-Simplex/almirante/internal/types"
@@ -58,6 +59,10 @@ type Server struct {
 	now        func() time.Time
 	mergeDir   string
 	repoURL    string
+	// governanca de IA (nil se feature off)
+	aidriver *aiconfig.Driver
+	aigate   *aiconfig.TestGate
+	aistore  *AIStore
 }
 
 // tokensCSV: "token:name:role,token2:name2:role2"
@@ -103,6 +108,9 @@ func NewServer(cfg Config, store *Store, aud *audit.Logger, tokensCSV string) *S
 		now:      time.Now,
 		mergeDir: cfg.MergeCloneDir,
 		repoURL:  cfg.RepoURL,
+		aidriver: cfg.AIDriver,
+		aigate:   cfg.AIGate,
+		aistore:  NewAIStore(store.StateDir()),
 	}
 }
 
@@ -145,6 +153,19 @@ func (s *Server) Handler() http.Handler {
 	mux.HandleFunc("GET /api/users", s.auth(RoleAdmin, s.listUsers))
 	mux.HandleFunc("POST /api/users", s.auth(RoleAdmin, s.inviteUser))
 	mux.HandleFunc("DELETE /api/users/{id}", s.auth(RoleAdmin, s.revokeUser))
+	// Governanca de IA (editar prompt/tools/credencial/FAQ dos agentes por VM).
+	// Leitura=Viewer; escrita=Admin (escreve direto, com test-gate + audit + rollback).
+	mux.HandleFunc("GET /api/ai/agents", s.auth(RoleViewer, s.aiListAgents))
+	mux.HandleFunc("GET /api/ai/agents/{vm}/{id}", s.auth(RoleViewer, s.aiBaseline))
+	mux.HandleFunc("GET /api/ai/custom-tools/{vm}", s.auth(RoleViewer, s.aiCustomTools))
+	mux.HandleFunc("GET /api/ai/history", s.auth(RoleViewer, s.aiHistory))
+	mux.HandleFunc("POST /api/ai/prompt", s.auth(RoleAdmin, s.aiPrompt))
+	mux.HandleFunc("POST /api/ai/tool", s.auth(RoleAdmin, s.aiTool))
+	mux.HandleFunc("POST /api/ai/credential", s.auth(RoleAdmin, s.aiCredential))
+	mux.HandleFunc("POST /api/ai/behavior", s.auth(RoleAdmin, s.aiBehavior))
+	mux.HandleFunc("POST /api/ai/faq", s.auth(RoleAdmin, s.aiFaq))
+	mux.HandleFunc("POST /api/ai/eligibility", s.auth(RoleAdmin, s.aiEligibility))
+	mux.HandleFunc("POST /api/ai/rollback", s.auth(RoleAdmin, s.aiRollback))
 	return mux
 }
 

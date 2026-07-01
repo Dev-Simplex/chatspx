@@ -11,12 +11,15 @@ import (
 	"net/http"
 	"os"
 	"path/filepath"
+	"strings"
 	"time"
 
+	"github.com/Dev-Simplex/almirante/internal/aiconfig"
 	"github.com/Dev-Simplex/almirante/internal/audit"
 	"github.com/Dev-Simplex/almirante/internal/control"
 	"github.com/Dev-Simplex/almirante/internal/fleet"
 	sshx "github.com/Dev-Simplex/almirante/internal/ssh"
+	"github.com/Dev-Simplex/almirante/internal/types"
 )
 
 //go:embed web
@@ -97,6 +100,10 @@ func main() {
 			fmt.Fprintln(os.Stderr, "aviso: ALMIRANTE_TRANSPORT_KEY_B64 invalido")
 		}
 	}
+	// Governanca de IA (opcional): monta o driver se ALGUMA VM tem aiconfig_url.
+	// Resolve baseURL/account_id da fleet; o token vem de AICONFIG_TOKEN_<SLUG> (secret).
+	aiDriver, aiGate := buildAIGovernance(f)
+
 	cfg := control.Config{
 		Mock:          env("ALMIRANTE_MOCK", "1") == "1",
 		Fleet:         f,
@@ -109,6 +116,8 @@ func main() {
 			KnownHostsPath: khPath,
 			PerVM:          perVM,
 		},
+		AIDriver: aiDriver,
+		AIGate:   aiGate,
 	}
 	store := control.NewStore(env("ALMIRANTE_STATE_DIR", "./state"))
 	aud := audit.New(env("ALMIRANTE_AUDIT_FILE", "./audit-log.jsonl"))
@@ -131,4 +140,60 @@ func main() {
 		fmt.Fprintln(os.Stderr, "control falhou:", err)
 		os.Exit(1)
 	}
+}
+
+// buildAIGovernance monta o driver + test-gate de governanca de IA se ao menos
+// uma VM da fleet tiver aiconfig_url. Retorna (nil, nil) se nenhuma tiver — a
+// feature fica OFF e as rotas /api/ai/* respondem 503.
+func buildAIGovernance(f *types.Fleet) (*aiconfig.Driver, *aiconfig.TestGate) {
+	has := false
+	for _, v := range f.VMs {
+		if v.AIConfigURL != "" {
+			has = true
+			break
+		}
+	}
+	if !has {
+		fmt.Fprintln(os.Stderr, "governanca de IA: inativa (nenhuma VM com aiconfig_url na fleet)")
+		return nil, nil
+	}
+	resolve := func(slug string) (aiconfig.VMConn, error) {
+		for _, v := range f.VMs {
+			if v.ID != slug {
+				continue
+			}
+			if v.AIConfigURL == "" {
+				return aiconfig.VMConn{}, fmt.Errorf("VM %q sem aiconfig_url", slug)
+			}
+			envKey := "AICONFIG_TOKEN_" + strings.ToUpper(strings.ReplaceAll(slug, "-", "_"))
+			tok := os.Getenv(envKey)
+			if tok == "" {
+				return aiconfig.VMConn{}, fmt.Errorf("%s ausente (secret do token do receptor)", envKey)
+			}
+			return aiconfig.VMConn{
+				BaseURL:   strings.TrimRight(v.AIConfigURL, "/"),
+				Token:     tok,
+				AccountID: v.AIConfigAccountID,
+			}, nil
+		}
+		return aiconfig.VMConn{}, fmt.Errorf("VM %q nao existe na fleet", slug)
+	}
+	driver := aiconfig.NewDriver(resolve, 20*time.Second)
+	gate := aiconfig.NewTestGate(driver, aiconfig.GateConfig{
+		JudgeAPIKey:  firstEnv("OPENAI_JUDGE_KEY", "OPENAI_API_KEY", "OPENAI_KEY_SIMPLEX"),
+		JudgeModel:   os.Getenv("OPENAI_JUDGE_MODEL"),
+		JudgeBaseURL: os.Getenv("OPENAI_JUDGE_BASE_URL"),
+		Logf:         func(format string, args ...interface{}) { fmt.Fprintf(os.Stderr, "[aigate] "+format+"\n", args...) },
+	})
+	fmt.Fprintln(os.Stderr, "governanca de IA: ATIVA (driver aiconfig montado)")
+	return driver, gate
+}
+
+func firstEnv(keys ...string) string {
+	for _, k := range keys {
+		if v := os.Getenv(k); v != "" {
+			return v
+		}
+	}
+	return ""
 }

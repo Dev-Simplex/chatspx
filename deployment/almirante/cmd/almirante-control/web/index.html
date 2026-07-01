@@ -4,7 +4,7 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Almirante — Comando da Frota</title>
-  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Ccircle cx='12' cy='12' r='11' fill='%2322D3EE'/%3E%3C/svg%3E" />
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Crect width='24' height='24' rx='7' fill='%236366F1'/%3E%3C/svg%3E" />
   <link rel="stylesheet" href="./vendor/fonts/fonts.css" />
   <script src="./vendor/tailwind.js"></script>
   <script>
@@ -12,116 +12,102 @@
       darkMode: 'class',
       theme: { extend: {
         colors: {
-          void:'#080C14', voidalt:'#0B1220', s1:'#0F172A', s2:'#16203A', s3:'#1E293B', overlay:'#243049',
-          t1:'#E6EDF6', t2:'#94A3B8', t3:'#64748B', line:'#1E2A44',
-          accent:'#22D3EE', accentstrong:'#06B6D4', accentdeep:'#0E7490', accentsoft:'#67E8F9',
-          violet:'#818CF8', violetdeep:'#4F46E5',
-          ok:'#4CC38A', warn:'#E8C76A', bad:'#F2A0A8', idle:'#64748B', info:'#38BDF8',
+          brand:'#6366F1', brandsoft:'#818CF8', branddeep:'#4F46E5',
+          ok:'#10B981', warn:'#F59E0B', bad:'#EF4444', info:'#0EA5E9', violet:'#8B5CF6',
         },
-        fontFamily: { display:['"Bricolage Grotesque"','sans-serif'], sans:['"Hanken Grotesk"','system-ui','sans-serif'], mono:['"JetBrains Mono"','ui-monospace','monospace'] },
+        fontFamily: { display:['"Bricolage Grotesque"','-apple-system','sans-serif'], sans:['"Hanken Grotesk"','-apple-system','system-ui','sans-serif'], mono:['"JetBrains Mono"','ui-monospace','monospace'] },
       } },
     }
   </script>
   <script src="./vendor/vue.global.prod.js"></script>
   <style>
-    body{ background:#080C14; color:#E6EDF6; }
-    /* ── atmosfera cinematográfica (1 pilha fixed, decorativa) ── */
-    .atmos{ position:fixed; inset:0; z-index:-3; overflow:hidden; pointer-events:none; }
-    .atmos-mesh{ position:absolute; inset:-15%;
-      background:
-        radial-gradient(60% 80% at 50% -10%, rgba(34,211,238,.16), transparent 60%),
-        radial-gradient(45% 60% at 82% 16%, rgba(129,140,248,.15), transparent 55%),
-        radial-gradient(52% 62% at 16% 82%, rgba(14,116,144,.13), transparent 60%),
-        linear-gradient(180deg,#0B1220 0%,#080C14 72%); }
-    .orb{ position:absolute; border-radius:50%; filter:blur(80px); opacity:.45; }
-    .orb-a{ width:540px; height:540px; left:-130px; top:-150px; background:radial-gradient(circle,#22D3EE,transparent 70%); animation:drift 28s ease-in-out infinite; }
-    .orb-b{ width:480px; height:480px; right:-130px; bottom:-170px; background:radial-gradient(circle,#4F46E5,transparent 70%); animation:drift 34s ease-in-out infinite reverse; }
-    @keyframes drift{ 0%,100%{transform:translate(0,0)} 50%{transform:translate(46px,34px)} }
-    .atmos-grid{ position:absolute; inset:0; opacity:.6;
-      background-image:linear-gradient(rgba(148,163,184,.05) 1px,transparent 1px),linear-gradient(90deg,rgba(148,163,184,.05) 1px,transparent 1px);
-      background-size:50px 50px;
-      -webkit-mask-image:radial-gradient(ellipse 85% 70% at 50% 28%,#000,transparent 86%); mask-image:radial-gradient(ellipse 85% 70% at 50% 28%,#000,transparent 86%); }
-    .grain{ position:fixed; inset:0; z-index:-2; pointer-events:none; opacity:.045; mix-blend-mode:overlay;
-      background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='160' height='160'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E"); }
-    .vignette{ position:fixed; inset:0; z-index:-2; pointer-events:none; box-shadow:inset 0 0 260px 60px rgba(0,0,0,.65); }
+    /* ── tokens (iOS/glass, light + dark) ── */
+    :root{
+      --bg:#F4F5FA; --bg2:#ECEEF6;
+      --surface:255 255 255; --hair:15 23 42; --hairA:.08;
+      --tx1:17 24 39; --tx2:71 85 105; --tx3:148 163 184;
+      --brand:99 102 241; --shadow:2 6 23;
+    }
+    .dark{
+      --bg:#08090E; --bg2:#0C0E15;
+      --surface:22 24 33; --hair:255 255 255; --hairA:.09;
+      --tx1:237 240 246; --tx2:160 170 190; --tx3:110 120 140;
+      --brand:129 140 248; --shadow:0 0 0;
+    }
+    body{ background:var(--bg); color:rgb(var(--tx1)); }
+    /* ── aurora (blobs desfocados; pai já é fixed/isolate) ── */
+    .aurora{ position:fixed; inset:0; z-index:-10; overflow:hidden; pointer-events:none; }
+    .aurora i{ position:absolute; border-radius:9999px; filter:blur(90px); opacity:.5; }
+    .b1{ width:38rem;height:38rem; left:-10rem;top:-12rem; background:radial-gradient(circle,#6366F1,transparent 70%); animation:float 30s ease-in-out infinite; }
+    .b2{ width:32rem;height:32rem; right:-9rem;top:8%; background:radial-gradient(circle,#8B5CF6,transparent 70%); animation:float 38s ease-in-out infinite reverse; }
+    .b3{ width:30rem;height:30rem; left:28%;bottom:-12rem; background:radial-gradient(circle,#0EA5E9,transparent 70%); animation:float 34s ease-in-out infinite; }
+    .dark .aurora i{ opacity:.32; }
+    @keyframes float{ 0%,100%{transform:translate(0,0)} 50%{transform:translate(40px,30px)} }
     /* ── superfícies / vidro ── */
-    .glass{ background:linear-gradient(180deg, rgba(22,32,58,.55), rgba(15,23,42,.5)); border:1px solid rgba(148,163,184,.12); backdrop-filter:blur(12px); }
-    .glass:hover{ border-color:rgba(56,189,248,.32); }
-    .navp{ transition:all .16s; }
-    .navp.on{ background:linear-gradient(90deg, rgba(34,211,238,.16), rgba(34,211,238,0)); color:#67E8F9; box-shadow:inset 2px 0 0 #22D3EE; }
-    .card{ transition:transform .2s cubic-bezier(.2,.7,.2,1), border-color .2s, box-shadow .2s; }
-    .card:hover{ transform:translateY(-3px); box-shadow:0 18px 40px rgba(2,6,18,.5), 0 0 0 1px rgba(56,189,248,.25), 0 8px 28px rgba(34,211,238,.10); }
-    /* expansão estilo Apple (hover revela métricas + restart) */
-    .expand{ max-height:0; opacity:0; overflow:hidden; transition:max-height .5s cubic-bezier(.2,.8,.2,1), opacity .4s ease, margin-top .35s ease; }
-    .card:hover .expand{ max-height:360px; opacity:1; margin-top:14px; }
-    .mbar{ height:6px; border-radius:9999px; background:rgba(8,12,20,.6); overflow:hidden; }
-    .mbar>span{ display:block; height:100%; border-radius:9999px; background:#22D3EE; transition:width .6s cubic-bezier(.2,.8,.2,1); }
-    @keyframes shimmer{ 0%{opacity:.35} 50%{opacity:.7} 100%{opacity:.35} }
-    .skel{ background:rgba(148,163,184,.10); border-radius:8px; animation:shimmer 1.4s ease-in-out infinite; }
+    .glass{ background:rgb(var(--surface)/.72); backdrop-filter:blur(20px) saturate(1.5); -webkit-backdrop-filter:blur(20px) saturate(1.5); border:1px solid rgb(var(--hair)/var(--hairA)); }
+    .soft{ background:rgb(var(--surface)/.5); border:1px solid rgb(var(--hair)/var(--hairA)); }
+    .tx1{color:rgb(var(--tx1))} .tx2{color:rgb(var(--tx2))} .tx3{color:rgb(var(--tx3))}
+    .bg1{background:var(--bg)} .hair{border-color:rgb(var(--hair)/var(--hairA))}
+    .field{ background:rgb(var(--surface)/.6); border:1px solid rgb(var(--hair)/.12); color:rgb(var(--tx1)); border-radius:.7rem; }
+    .field:focus{ outline:none; border-color:rgb(var(--brand)/.7); box-shadow:0 0 0 3px rgb(var(--brand)/.14); }
+    .navp{ transition:.15s; color:rgb(var(--tx2)); }
+    .navp:hover{ color:rgb(var(--tx1)); background:rgb(var(--hair)/.05); }
+    .navp.on{ background:rgb(var(--brand)/.12); color:rgb(var(--brand)); font-weight:700; }
+    .btn-brand{ background:linear-gradient(180deg,#6366F1,#4F46E5); color:#fff; box-shadow:0 6px 16px rgb(79 70 229/.3); }
+    .btn-ghost{ background:rgb(var(--surface)/.6); border:1px solid rgb(var(--hair)/.12); color:rgb(var(--tx1)); }
+    .card{ transition:transform .22s cubic-bezier(.2,.7,.2,1), box-shadow .22s, border-color .2s; }
+    .card:hover{ transform:translateY(-3px); box-shadow:0 16px 40px rgb(var(--shadow)/.12); border-color:rgb(var(--brand)/.3); }
+    .expand{ max-height:0; opacity:0; overflow:hidden; transition:max-height .5s cubic-bezier(.2,.8,.2,1), opacity .4s, margin-top .35s; }
+    .card:hover .expand{ max-height:380px; opacity:1; margin-top:14px; }
+    .mbar{ height:6px; border-radius:9999px; background:rgb(var(--hair)/.1); overflow:hidden; }
+    .mbar>span{ display:block; height:100%; border-radius:9999px; background:linear-gradient(90deg,#6366F1,#8B5CF6); transition:width .6s cubic-bezier(.2,.8,.2,1); }
+    @keyframes shimmer{ 0%,100%{opacity:.4} 50%{opacity:.75} }
+    .skel{ background:rgb(var(--hair)/.08); border-radius:8px; animation:shimmer 1.4s ease-in-out infinite; }
     .press:active{ transform:scale(.96); }
-    .chip{ font-size:12px; font-weight:500; padding:5px 10px; border-radius:8px; background:rgba(34,211,238,.07); color:#94A3B8; border:1px solid rgba(34,211,238,.16); }
-    @keyframes pulse{ 0%{box-shadow:0 0 0 0 rgba(76,195,138,.55)} 70%{box-shadow:0 0 0 6px rgba(76,195,138,0)} 100%{box-shadow:0 0 0 0 rgba(76,195,138,0)} }
+    .chip{ font-size:12px; font-weight:600; padding:5px 10px; border-radius:8px; background:rgb(var(--brand)/.09); color:rgb(var(--tx2)); border:1px solid rgb(var(--brand)/.16); }
+    @keyframes pulse{ 0%{box-shadow:0 0 0 0 rgb(16 185 129/.5)} 70%{box-shadow:0 0 0 6px rgb(16 185 129/0)} 100%{box-shadow:0 0 0 0 rgb(16 185 129/0)} }
     .live{ animation:pulse 2.6s ease-out infinite; }
-    @keyframes rise{ from{opacity:0;transform:translateY(14px)} to{opacity:1;transform:none} }
-    .rise{ animation:rise .55s cubic-bezier(.2,.7,.2,1) both; }
-    .gtext{ background:linear-gradient(120deg,#E6EDF6 0%,#818CF8 44%,#22D3EE 100%); -webkit-background-clip:text; background-clip:text; color:transparent; }
-    ::-webkit-scrollbar{width:10px;height:10px} ::-webkit-scrollbar-thumb{background:#1E2A44;border-radius:6px;border:3px solid #080C14} ::-webkit-scrollbar-track{background:transparent}
+    @keyframes rise{ from{opacity:0;transform:translateY(12px)} to{opacity:1;transform:none} }
+    .rise{ animation:rise .5s cubic-bezier(.2,.7,.2,1) both; }
+    .gtext{ background:linear-gradient(120deg,rgb(var(--tx1)),#6366F1 55%,#8B5CF6); -webkit-background-clip:text; background-clip:text; color:transparent; }
+    ::-webkit-scrollbar{width:10px;height:10px} ::-webkit-scrollbar-thumb{background:rgb(var(--hair)/.18);border-radius:6px;border:3px solid transparent;background-clip:padding-box} ::-webkit-scrollbar-track{background:transparent}
     pre{font-family:'JetBrains Mono',monospace}
     [v-cloak]{display:none}
-    .hero-video{ z-index:0; }
-    @media (prefers-reduced-motion: reduce){ .orb,.live,.rise,.card{ animation:none!important; transition:none!important } .hero-video{ display:none } }
+    @media (prefers-reduced-motion: reduce){ .aurora i,.live,.rise,.card{ animation:none!important; transition:none!important } }
   </style>
 </head>
-<body class="font-sans antialiased text-t1">
-  <div class="atmos"><div class="atmos-mesh"></div><div class="orb orb-a"></div><div class="orb orb-b"></div><div class="atmos-grid"></div></div>
-  <div class="grain"></div><div class="vignette"></div>
+<body class="font-sans antialiased tx1" style="isolate:isolate">
+  <div class="aurora"><i class="b1"></i><i class="b2"></i><i class="b3"></i></div>
   <svg width="0" height="0" style="position:absolute" aria-hidden="true">
 <symbol id="i-anchor" viewBox="0 0 256 256"><path d="M216,132a12,12,0,0,0-12,12c0,21.86-11.41,25.95-35.16,32.42-9.12,2.49-19.61,5.36-28.84,10.69V132h28a12,12,0,0,0,0-24H140V89.94a36,36,0,1,0-24,0V108H88a12,12,0,0,0,0,24h28v55.11c-9.23-5.33-19.72-8.2-28.84-10.69C63.41,170,52,165.86,52,144a12,12,0,0,0-24,0c0,41.17,30.54,49.5,52.84,55.58C104.59,206.05,116,210.14,116,232a12,12,0,0,0,24,0c0-21.86,11.41-25.95,35.16-32.42C197.46,193.5,228,185.17,228,144A12,12,0,0,0,216,132ZM128,44a12,12,0,1,1-12,12A12,12,0,0,1,128,44Z"/></symbol>
 <symbol id="i-hard-drives" viewBox="0 0 256 256"><path d="M208,36H48A20,20,0,0,0,28,56V200a20,20,0,0,0,20,20H208a20,20,0,0,0,20-20V56A20,20,0,0,0,208,36Zm-4,24v56H52V60ZM52,196V140H204v56ZM160,88a16,16,0,1,1,16,16A16,16,0,0,1,160,88Zm32,80a16,16,0,1,1-16-16A16,16,0,0,1,192,168Z"/></symbol>
 <symbol id="i-cloud" viewBox="0 0 256 256"><path d="M160,36A92.09,92.09,0,0,0,79,84.36,68,68,0,1,0,72,220h88a92,92,0,0,0,0-184Zm0,160H72a44,44,0,0,1-1.82-88A91.86,91.86,0,0,0,68,128a12,12,0,0,0,24,0,68,68,0,1,1,68,68Z"/></symbol>
 <symbol id="i-cpu" viewBox="0 0 256 256"><path d="M156,88H100a12,12,0,0,0-12,12v56a12,12,0,0,0,12,12h56a12,12,0,0,0,12-12V100A12,12,0,0,0,156,88Zm-12,56H112V112h32Zm88-4H220V116h12a12,12,0,0,0,0-24H220V56a20,20,0,0,0-20-20H164V24a12,12,0,0,0-24,0V36H116V24a12,12,0,0,0-24,0V36H56A20,20,0,0,0,36,56V92H24a12,12,0,0,0,0,24H36v24H24a12,12,0,0,0,0,24H36v36a20,20,0,0,0,20,20H92v12a12,12,0,0,0,24,0V220h24v12a12,12,0,0,0,24,0V220h36a20,20,0,0,0,20-20V164h12a12,12,0,0,0,0-24Zm-36,56H60V60H196Z"/></symbol>
 <symbol id="i-gauge" viewBox="0 0 256 256"><path d="M209.88,69.83A115.19,115.19,0,0,0,128,36h-.41C63.85,36.22,12,88.76,12,153.13V176a20,20,0,0,0,20,20H224a20,20,0,0,0,20-20V152A115.25,115.25,0,0,0,209.88,69.83ZM220,172H127.32l46.44-65A12,12,0,1,0,154.24,93L97.82,172H36V153.13c0-1.72,0-3.43.14-5.13H56a12,12,0,0,0,0-24H40.62c10.91-33.39,40-58.52,75.38-63.21V80a12,12,0,0,0,24,0V60.8A92,92,0,0,1,215.66,124H200a12,12,0,0,0,0,24h19.9c.06,1.33.1,2.66.1,4Z"/></symbol>
-<symbol id="i-pulse" viewBox="0 0 256 256"><path d="M244,128a12,12,0,0,1-12,12H207.42l-36.69,73.37A12,12,0,0,1,160,220h-.6a12,12,0,0,1-10.61-7.72L95,71.15,66.92,133A12,12,0,0,1,56,140H24a12,12,0,0,1,0-24H48.27L85.08,35a12,12,0,0,1,22.13.7l54.28,142.46,27.78-55.56A12,12,0,0,1,200,116h32A12,12,0,0,1,244,128Z"/></symbol>
 <symbol id="i-heartbeat" viewBox="0 0 256 256"><path d="M71.76,148H31.7a12,12,0,1,1,0-24H65.33l12.45-18.66a12,12,0,0,1,20,0l22,33,6-9a12,12,0,0,1,10-5.34h24a12,12,0,1,1,0,24h-17.6l-12.46,18.66a12,12,0,0,1-20,0l-22-33-6,9A12,12,0,0,1,71.76,148ZM177.91,36c-20.12,0-38,7.93-50.07,21.56C115.74,43.93,97.89,36,77.76,36A66,66,0,0,0,12.07,94.68,12,12,0,0,0,36,97.32,42,42,0,0,1,77.76,60c17.83,0,32.75,9.4,38.95,24.54a12,12,0,0,0,22.25,0C145.16,69.4,160.08,60,177.91,60A42.08,42.08,0,0,1,220,102c0,29.42-25.86,57.77-47.56,76.36a329,329,0,0,1-44.58,31.81c-10.87-6.45-35.37-22-56.51-42.73a12,12,0,1,0-16.84,17.12c30.39,29.81,66.15,49.2,67.66,50a12.06,12.06,0,0,0,11.39,0C138,232.14,244,174.34,244,102A66.12,66.12,0,0,0,177.91,36Z"/></symbol>
-<symbol id="i-lightning" viewBox="0 0 256 256"><path d="M219.71,117.38a12,12,0,0,0-7.25-8.52L161.28,88.39l10.59-70.61a12,12,0,0,0-20.64-10l-112,120a12,12,0,0,0,4.31,19.33l51.18,20.47L84.13,238.22a12,12,0,0,0,20.64,10l112-120A12,12,0,0,0,219.71,117.38ZM113.6,203.55l6.27-41.77a12,12,0,0,0-7.41-12.92L68.74,131.37,142.4,52.45l-6.27,41.77a12,12,0,0,0,7.41,12.92l43.72,17.49Z"/></symbol>
 <symbol id="i-rocket-launch" viewBox="0 0 256 256"><path d="M227.85,46.89a20,20,0,0,0-18.74-18.74c-13.13-.77-46.65.42-74.48,28.24L131,60H74.36a19.83,19.83,0,0,0-14.14,5.86L25.87,100.19a20,20,0,0,0,11.35,33.95l37.14,5.18,42.32,42.32,5.19,37.18A19.88,19.88,0,0,0,135.34,235a20.13,20.13,0,0,0,6.37,1,19.9,19.9,0,0,0,14.1-5.87l34.34-34.35A19.85,19.85,0,0,0,196,181.64V125l3.6-3.59C227.43,93.54,228.62,60,227.85,46.89ZM76,84h31L75.75,115.28l-27.23-3.8ZM151.6,73.37A72.27,72.27,0,0,1,204,52a72.17,72.17,0,0,1-21.38,52.41L128,159,97,128ZM172,180l-27.49,27.49-3.8-27.23L172,149Zm-72,22c-8.71,11.85-26.19,26-60,26a12,12,0,0,1-12-12c0-33.84,14.12-51.32,26-60A12,12,0,1,1,68.18,175.3C62.3,179.63,55.51,187.8,53,203c15.21-2.51,23.37-9.3,27.7-15.18A12,12,0,1,1,100,202Z"/></symbol>
-<symbol id="i-git-merge" viewBox="0 0 256 256"><path d="M208,108a36.05,36.05,0,0,0-33.38,22.54l-39-5.57a4,4,0,0,1-2.47-1.35L100.55,85.53A36,36,0,1,0,68,89.94v76.12a36,36,0,1,0,24,0V112.44l23,26.8a28,28,0,0,0,17.3,9.49l41.34,5.91A36,36,0,1,0,208,108ZM80,44A12,12,0,1,1,68,56,12,12,0,0,1,80,44Zm0,168a12,12,0,1,1,12-12A12,12,0,0,1,80,212Zm128-56a12,12,0,1,1,12-12A12,12,0,0,1,208,156Z"/></symbol>
 <symbol id="i-key" viewBox="0 0 256 256"><path d="M196,76a16,16,0,1,1-16-16A16,16,0,0,1,196,76Zm48,22.74A84.3,84.3,0,0,1,160.11,180H160a83.52,83.52,0,0,1-23.65-3.38l-7.86,7.87A12,12,0,0,1,120,188H108v12a12,12,0,0,1-12,12H84v12a12,12,0,0,1-12,12H40a20,20,0,0,1-20-20V187.31a19.86,19.86,0,0,1,5.86-14.14l53.52-53.52A84,84,0,1,1,244,98.74ZM202.43,53.57A59.48,59.48,0,0,0,158,36c-32,1-58,27.89-58,59.89a59.69,59.69,0,0,0,4.2,22.19,12,12,0,0,1-2.55,13.21L44,189v23H60V200a12,12,0,0,1,12-12H84V176a12,12,0,0,1,12-12h19l9.65-9.65a12,12,0,0,1,13.22-2.55A59.58,59.58,0,0,0,160,156h.08c32,0,58.87-26.07,59.89-58A59.55,59.55,0,0,0,202.43,53.57Z"/></symbol>
-<symbol id="i-plugs-connected" viewBox="0 0 256 256"><path d="M240.49,15.51a12,12,0,0,0-17,0L173.94,65.09l-2.54-2.55a36.05,36.05,0,0,0-50.91,0L100,83l-3.51-3.52a12,12,0,0,0-17,17L83,100,62.54,120.49a36,36,0,0,0,0,50.91l2.55,2.54L15.51,223.51a12,12,0,0,0,17,17l49.57-49.58,2.54,2.55a36.06,36.06,0,0,0,50.91,0L156,173l3.51,3.52a12,12,0,0,0,17-17L173,156l20.49-20.49a36,36,0,0,0,0-50.91l-2.55-2.54,49.58-49.57A12,12,0,0,0,240.49,15.51Zm-121.95,161a12,12,0,0,1-17,0L79.51,154.43a12,12,0,0,1,0-17L100,117l39,39Zm58-57.95h0L156,139l-39-39,20.49-20.49a12,12,0,0,1,17,0l22.06,22.06a12,12,0,0,1,0,17ZM85.27,33.37a12,12,0,0,1,21.46-10.74l8,16A12,12,0,1,1,93.27,49.37Zm-68,57.26a12,12,0,0,1,16.1-5.36l16,8a12,12,0,1,1-10.74,21.46l-16-8A12,12,0,0,1,17.27,90.63Zm221.46,74.74a12,12,0,0,1-16.1,5.36l-16-8a12,12,0,0,1,10.74-21.46l16,8A12,12,0,0,1,238.73,165.37Zm-68,57.26a12,12,0,1,1-21.46,10.74l-8-16a12,12,0,0,1,21.46-10.74Z"/></symbol>
+<symbol id="i-plugs-connected" viewBox="0 0 256 256"><path d="M240.49,15.51a12,12,0,0,0-17,0L173.94,65.09l-2.54-2.55a36.05,36.05,0,0,0-50.91,0L100,83l-3.51-3.52a12,12,0,0,0-17,17L83,100,62.54,120.49a36,36,0,0,0,0,50.91l2.55,2.54L15.51,223.51a12,12,0,0,0,17,17l49.57-49.58,2.54,2.55a36.06,36.06,0,0,0,50.91,0L156,173l3.51,3.52a12,12,0,0,0,17-17L173,156l20.49-20.49a36,36,0,0,0,0-50.91l-2.55-2.54,49.58-49.57A12,12,0,0,0,240.49,15.51ZM118.54,176.49a12,12,0,0,1-17,0L79.51,154.43a12,12,0,0,1,0-17L100,117l39,39Zm58-57.95h0L156,139l-39-39,20.49-20.49a12,12,0,0,1,17,0l22.06,22.06a12,12,0,0,1,0,17Z"/></symbol>
 <symbol id="i-bell" viewBox="0 0 256 256"><path d="M225.29,165.93C216.61,151,212,129.57,212,104a84,84,0,0,0-168,0c0,25.58-4.59,47-13.27,61.93A20.08,20.08,0,0,0,30.66,186,19.77,19.77,0,0,0,48,196H84.18a44,44,0,0,0,87.64,0H208a19.77,19.77,0,0,0,17.31-10A20.08,20.08,0,0,0,225.29,165.93ZM128,212a20,20,0,0,1-19.6-16h39.2A20,20,0,0,1,128,212ZM54.66,172C63.51,154,68,131.14,68,104a60,60,0,0,1,120,0c0,27.13,4.48,50,13.33,68Z"/></symbol>
 <symbol id="i-clock-counter-clockwise" viewBox="0 0 256 256"><path d="M140,80v41.21l34.17,20.5a12,12,0,1,1-12.34,20.58l-40-24A12,12,0,0,1,116,128V80a12,12,0,0,1,24,0ZM128,28A99.38,99.38,0,0,0,57.24,57.34c-4.69,4.74-9,9.37-13.24,14V64a12,12,0,0,0-24,0v40a12,12,0,0,0,12,12H72a12,12,0,0,0,0-24H57.77C63,86,68.37,80.22,74.26,74.26a76,76,0,1,1,1.58,109,12,12,0,0,0-16.48,17.46A100,100,0,1,0,128,28Z"/></symbol>
 <symbol id="i-terminal-window" viewBox="0 0 256 256"><path d="M72.5,150.63,100.79,128,72.5,105.37a12,12,0,1,1,15-18.74l40,32a12,12,0,0,1,0,18.74l-40,32a12,12,0,0,1-15-18.74ZM144,172h32a12,12,0,0,0,0-24H144a12,12,0,0,0,0,24ZM236,56V200a20,20,0,0,1-20,20H40a20,20,0,0,1-20-20V56A20,20,0,0,1,40,36H216A20,20,0,0,1,236,56Zm-24,4H44V196H212Z"/></symbol>
 <symbol id="i-check-circle" viewBox="0 0 256 256"><path d="M176.49,95.51a12,12,0,0,1,0,17l-56,56a12,12,0,0,1-17,0l-24-24a12,12,0,1,1,17-17L112,143l47.51-47.52A12,12,0,0,1,176.49,95.51ZM236,128A108,108,0,1,1,128,20,108.12,108.12,0,0,1,236,128Zm-24,0a84,84,0,1,0-84,84A84.09,84.09,0,0,0,212,128Z"/></symbol>
 <symbol id="i-x-circle" viewBox="0 0 256 256"><path d="M168.49,104.49,145,128l23.52,23.51a12,12,0,0,1-17,17L128,145l-23.51,23.52a12,12,0,0,1-17-17L111,128,87.51,104.49a12,12,0,0,1,17-17L128,111l23.51-23.52a12,12,0,0,1,17,17ZM236,128A108,108,0,1,1,128,20,108.12,108.12,0,0,1,236,128Zm-24,0a84,84,0,1,0-84,84A84.09,84.09,0,0,0,212,128Z"/></symbol>
 <symbol id="i-warning-octagon" viewBox="0 0 256 256"><path d="M116,132V80a12,12,0,0,1,24,0v52a12,12,0,0,1-24,0ZM236,91.55v72.9a19.86,19.86,0,0,1-5.86,14.14l-51.55,51.55A19.85,19.85,0,0,1,164.45,236H91.55a19.85,19.85,0,0,1-14.14-5.86L25.86,178.59A19.86,19.86,0,0,1,20,164.45V91.55a19.86,19.86,0,0,1,5.86-14.14L77.41,25.86A19.85,19.85,0,0,1,91.55,20h72.9a19.85,19.85,0,0,1,14.14,5.86l51.55,51.55A19.86,19.86,0,0,1,236,91.55Zm-24,1.66L162.79,44H93.21L44,93.21v69.58L93.21,212h69.58L212,162.79ZM128,156a16,16,0,1,0,16,16A16,16,0,0,0,128,156Z"/></symbol>
-<symbol id="i-arrow-up" viewBox="0 0 256 256"><path d="M208.49,120.49a12,12,0,0,1-17,0L140,69V216a12,12,0,0,1-24,0V69L64.49,120.49a12,12,0,0,1-17-17l72-72a12,12,0,0,1,17,0l72,72A12,12,0,0,1,208.49,120.49Z"/></symbol>
 <symbol id="i-arrows-clockwise" viewBox="0 0 256 256"><path d="M228,48V96a12,12,0,0,1-12,12H168a12,12,0,0,1,0-24h19l-7.8-7.8a75.55,75.55,0,0,0-53.32-22.26h-.43A75.49,75.49,0,0,0,72.39,75.57,12,12,0,1,1,55.61,58.41a99.38,99.38,0,0,1,69.87-28.47H126A99.42,99.42,0,0,1,196.2,59.23L204,67V48a12,12,0,0,1,24,0ZM183.61,180.43a75.49,75.49,0,0,1-53.09,21.63h-.43A75.55,75.55,0,0,1,76.77,179.8L69,172H88a12,12,0,0,0,0-24H40a12,12,0,0,0-12,12v48a12,12,0,0,0,24,0V189l7.8,7.8A99.42,99.42,0,0,0,130,226.06h.56a99.38,99.38,0,0,0,69.87-28.47,12,12,0,0,0-16.78-17.16Z"/></symbol>
 <symbol id="i-prohibit" viewBox="0 0 256 256"><path d="M128,20A108,108,0,1,0,236,128,108.12,108.12,0,0,0,128,20Zm84,108a83.6,83.6,0,0,1-16.75,50.28L77.72,60.75A84,84,0,0,1,212,128ZM44,128A83.6,83.6,0,0,1,60.75,77.72L178.28,195.25A84,84,0,0,1,44,128Z"/></symbol>
-<symbol id="i-caret-right" viewBox="0 0 256 256"><path d="M184.49,136.49l-80,80a12,12,0,0,1-17-17L159,128,87.51,56.49a12,12,0,1,1,17-17l80,80A12,12,0,0,1,184.49,136.49Z"/></symbol>
 <symbol id="i-list" viewBox="0 0 256 256"><path d="M228,128a12,12,0,0,1-12,12H40a12,12,0,0,1,0-24H216A12,12,0,0,1,228,128ZM40,76H216a12,12,0,0,0,0-24H40a12,12,0,0,0,0,24ZM216,180H40a12,12,0,0,0,0,24H216a12,12,0,0,0,0-24Z"/></symbol>
 <symbol id="i-shield-check" viewBox="0 0 256 256"><path d="M208,36H48A20,20,0,0,0,28,56v56c0,54.29,26.32,87.22,48.4,105.29,23.71,19.39,47.44,26,48.44,26.29a12.1,12.1,0,0,0,6.32,0c1-.28,24.73-6.9,48.44-26.29,22.08-18.07,48.4-51,48.4-105.29V56A20,20,0,0,0,208,36Zm-4,76c0,35.71-13.09,64.69-38.91,86.15A126.28,126.28,0,0,1,128,219.38a126.14,126.14,0,0,1-37.09-21.23C65.09,176.69,52,147.71,52,112V60H204ZM79.51,144.49a12,12,0,1,1,17-17L112,143l47.51-47.52a12,12,0,0,1,17,17l-56,56a12,12,0,0,1-17,0Z"/></symbol>
 <symbol id="i-broadcast" viewBox="0 0 256 256"><path d="M128,84a44,44,0,1,0,44,44A44.05,44.05,0,0,0,128,84Zm0,64a20,20,0,1,1,20-20A20,20,0,0,1,128,148Zm77.39,12.7A83.94,83.94,0,0,1,190.61,184a12,12,0,0,1-17.89-16,59.92,59.92,0,0,0,0-80,12,12,0,0,1,17.89-16,84.07,84.07,0,0,1,14.78,88.7ZM83.28,168a12,12,0,0,1-17.89,16,83.94,83.94,0,0,1,0-112A12,12,0,0,1,83.28,88a59.92,59.92,0,0,0,0,80ZM252,128a123.63,123.63,0,0,1-35.43,86.78A12,12,0,1,1,199.43,198a99.88,99.88,0,0,0,0-140,12,12,0,0,1,17.14-16.8A123.63,123.63,0,0,1,252,128ZM56.57,198a12,12,0,0,1-17.14,16.8,123.89,123.89,0,0,1,0-173.56A12,12,0,0,1,56.57,58a99.88,99.88,0,0,0,0,140Z"/></symbol>
 <symbol id="i-plus" viewBox="0 0 256 256"><path d="M228,128a12,12,0,0,1-12,12H140v76a12,12,0,0,1-24,0V140H40a12,12,0,0,1,0-24h76V40a12,12,0,0,1,24,0v76h76A12,12,0,0,1,228,128Z"/></symbol>
-<symbol id="i-circle" viewBox="0 0 256 256"><path d="M128,20A108,108,0,1,0,236,128,108.12,108.12,0,0,0,128,20Zm0,192a84,84,0,1,1,84-84A84.09,84.09,0,0,1,128,212Z"/></symbol>
-<symbol id="i-anchor-d" viewBox="0 0 256 256"><path d="M152,56a24,24,0,1,1-24-24A24,24,0,0,1,152,56Z" opacity="0.2"/>
-<path d="M216,136a8,8,0,0,0-8,8c0,24.69-13.77,29.64-38.1,36.28-11.36,3.1-24.12,6.6-33.9,14.34V128h32a8,8,0,0,0,0-16H136V87a32,32,0,1,0-16,0v25H88a8,8,0,0,0,0,16h32v66.62c-9.78-7.74-22.54-11.24-33.9-14.34C61.77,173.64,48,168.69,48,144a8,8,0,0,0-16,0c0,38.11,27.67,45.66,49.9,51.72C106.23,202.36,120,207.31,120,232a8,8,0,0,0,16,0c0-24.69,13.77-29.64,38.1-36.28C196.33,189.66,224,182.11,224,144A8,8,0,0,0,216,136ZM112,56a16,16,0,1,1,16,16A16,16,0,0,1,112,56Z"/></symbol>
-<symbol id="i-rocket-launch-d" viewBox="0 0 256 256"><path d="M184,120v61.65a8,8,0,0,1-2.34,5.65l-34.35,34.35a8,8,0,0,1-13.57-4.53L128,176ZM136,72H74.35a8,8,0,0,0-5.65,2.34L34.35,108.69a8,8,0,0,0,4.53,13.57L80,128ZM40,216c37.65,0,50.69-19.69,54.56-28.18L68.18,161.44C59.69,165.31,40,178.35,40,216Z" opacity="0.2"/>
-<path d="M223.85,47.12a16,16,0,0,0-15-15c-12.58-.75-44.73.4-71.41,27.07L132.69,64H74.36A15.91,15.91,0,0,0,63,68.68L28.7,103a16,16,0,0,0,9.07,27.16l38.47,5.37,44.21,44.21,5.37,38.49a15.94,15.94,0,0,0,10.78,12.92,16.11,16.11,0,0,0,5.1.83A15.91,15.91,0,0,0,153,227.3L187.32,193A15.91,15.91,0,0,0,192,181.64V123.31l4.77-4.77C223.45,91.86,224.6,59.71,223.85,47.12ZM74.36,80h42.33L77.16,119.52,40,114.34Zm74.41-9.45a76.65,76.65,0,0,1,59.11-22.47,76.46,76.46,0,0,1-22.42,59.16L128,164.68,91.32,128ZM176,181.64,141.67,216l-5.19-37.17L176,139.31Zm-74.16,9.5C97.34,201,82.29,224,40,224a8,8,0,0,1-8-8c0-42.29,23-57.34,32.86-61.85a8,8,0,0,1,6.64,14.56c-6.43,2.93-20.62,12.36-23.12,38.91,26.55-2.5,36-16.69,38.91-23.12a8,8,0,1,1,14.56,6.64Z"/></symbol>
-<symbol id="i-key-d" viewBox="0 0 256 256"><path d="M232,98.36C230.73,136.92,198.67,168,160.09,168a71.68,71.68,0,0,1-26.92-5.17h0L120,176H96v24H72v24H40a8,8,0,0,1-8-8V187.31a8,8,0,0,1,2.34-5.65l58.83-58.83h0A71.68,71.68,0,0,1,88,95.91c0-38.58,31.08-70.64,69.64-71.87A72,72,0,0,1,232,98.36Z" opacity="0.2"/>
-<path d="M216.57,39.43A80,80,0,0,0,83.91,120.78L28.69,176A15.86,15.86,0,0,0,24,187.31V216a16,16,0,0,0,16,16H72a8,8,0,0,0,8-8V208H96a8,8,0,0,0,8-8V184h16a8,8,0,0,0,5.66-2.34l9.56-9.57A79.73,79.73,0,0,0,160,176h.1A80,80,0,0,0,216.57,39.43ZM224,98.1c-1.09,34.09-29.75,61.86-63.89,61.9H160a63.7,63.7,0,0,1-23.65-4.51,8,8,0,0,0-8.84,1.68L116.69,168H96a8,8,0,0,0-8,8v16H72a8,8,0,0,0-8,8v16H40V187.31l58.83-58.82a8,8,0,0,0,1.68-8.84A63.72,63.72,0,0,1,96,95.92c0-34.14,27.81-62.8,61.9-63.89A64,64,0,0,1,224,98.1ZM192,76a12,12,0,1,1-12-12A12,12,0,0,1,192,76Z"/></symbol>
-<symbol id="i-plugs-connected-d" viewBox="0 0 256 256"><path d="M185,127,127,185a24,24,0,0,1-33.94,0L71,162.91A24,24,0,0,1,71,129L129,71a24,24,0,0,1,33.94,0L185,93.09A24,24,0,0,1,185,127Z" opacity="0.2"/>
-<path d="M237.66,18.34a8,8,0,0,0-11.32,0l-52.4,52.41-5.37-5.38a32.05,32.05,0,0,0-45.26,0L100,88.69l-6.34-6.35A8,8,0,0,0,82.34,93.66L88.69,100,65.37,123.31a32,32,0,0,0,0,45.26l5.38,5.37-52.41,52.4a8,8,0,0,0,11.32,11.32l52.4-52.41,5.37,5.38a32.06,32.06,0,0,0,45.26,0L156,167.31l6.34,6.35a8,8,0,0,0,11.32-11.32L167.31,156l23.32-23.31a32,32,0,0,0,0-45.26l-5.38-5.37,52.41-52.4A8,8,0,0,0,237.66,18.34Zm-116.29,161a16,16,0,0,1-22.62,0L76.69,157.25a16,16,0,0,1,0-22.62L100,111.31,144.69,156Zm57.94-57.94h0L156,144.69,111.31,100l23.32-23.31a16,16,0,0,1,22.62,0l22.06,22a16,16,0,0,1,0,22.63ZM88.57,35A8,8,0,0,1,103.43,29l8,20A8,8,0,0,1,96.57,55ZM24.57,93A8,8,0,0,1,35,88.57l20,8A8,8,0,0,1,49,111.43l-20-8A8,8,0,0,1,24.57,93ZM231.43,163a8,8,0,0,1-10.4,4.46l-20-8A8,8,0,1,1,207,144.57l20,8A8,8,0,0,1,231.43,163Zm-64,58.06A8,8,0,0,1,152.57,227l-8-20A8,8,0,0,1,159.43,201Z"/></symbol>
-<symbol id="i-shield-check-d" viewBox="0 0 256 256"><path d="M216,56v56c0,96-88,120-88,120S40,208,40,112V56a8,8,0,0,1,8-8H208A8,8,0,0,1,216,56Z" opacity="0.2"/>
-<path d="M208,40H48A16,16,0,0,0,32,56v56c0,52.72,25.52,84.67,46.93,102.19,23.06,18.86,46,25.26,47,25.53a8,8,0,0,0,4.2,0c1-.27,23.91-6.67,47-25.53C198.48,196.67,224,164.72,224,112V56A16,16,0,0,0,208,40Zm0,72c0,37.07-13.66,67.16-40.6,89.42A129.3,129.3,0,0,1,128,223.62a128.25,128.25,0,0,1-38.92-21.81C61.82,179.51,48,149.3,48,112l0-56,160,0ZM82.34,141.66a8,8,0,0,1,11.32-11.32L112,148.69l50.34-50.35a8,8,0,0,1,11.32,11.32l-56,56a8,8,0,0,1-11.32,0Z"/></symbol>
-<symbol id="i-cloud-d" viewBox="0 0 256 256"><path d="M240,128a80,80,0,0,1-80,80H72A56,56,0,1,1,85.92,97.74l0,.1A80,80,0,0,1,240,128Z" opacity="0.2"/>
-<path d="M160,40A88.09,88.09,0,0,0,81.29,88.67,64,64,0,1,0,72,216h88a88,88,0,0,0,0-176Zm0,160H72a48,48,0,0,1,0-96c1.1,0,2.2,0,3.29.11A88,88,0,0,0,72,128a8,8,0,0,0,16,0,72,72,0,1,1,72,72Z"/></symbol>
-<symbol id="i-hard-drives-d" viewBox="0 0 256 256"><path d="M216,152v48a8,8,0,0,1-8,8H48a8,8,0,0,1-8-8V152a8,8,0,0,1,8-8H208A8,8,0,0,1,216,152ZM208,48H48a8,8,0,0,0-8,8v48a8,8,0,0,0,8,8H208a8,8,0,0,0,8-8V56A8,8,0,0,0,208,48Z" opacity="0.2"/>
-<path d="M208,136H48a16,16,0,0,0-16,16v48a16,16,0,0,0,16,16H208a16,16,0,0,0,16-16V152A16,16,0,0,0,208,136Zm0,64H48V152H208v48Zm0-160H48A16,16,0,0,0,32,56v48a16,16,0,0,0,16,16H208a16,16,0,0,0,16-16V56A16,16,0,0,0,208,40Zm0,64H48V56H208v48ZM192,80a12,12,0,1,1-12-12A12,12,0,0,1,192,80Zm0,96a12,12,0,1,1-12-12A12,12,0,0,1,192,176Z"/></symbol>
-<symbol id="i-cpu-d" viewBox="0 0 256 256"><path d="M200,48H56a8,8,0,0,0-8,8V200a8,8,0,0,0,8,8H200a8,8,0,0,0,8-8V56A8,8,0,0,0,200,48ZM152,152H104V104h48Z" opacity="0.2"/>
-<path d="M152,96H104a8,8,0,0,0-8,8v48a8,8,0,0,0,8,8h48a8,8,0,0,0,8-8V104A8,8,0,0,0,152,96Zm-8,48H112V112h32Zm88,0H216V112h16a8,8,0,0,0,0-16H216V56a16,16,0,0,0-16-16H160V24a8,8,0,0,0-16,0V40H112V24a8,8,0,0,0-16,0V40H56A16,16,0,0,0,40,56V96H24a8,8,0,0,0,0,16H40v32H24a8,8,0,0,0,0,16H40v40a16,16,0,0,0,16,16H96v16a8,8,0,0,0,16,0V216h32v16a8,8,0,0,0,16,0V216h40a16,16,0,0,0,16-16V160h16a8,8,0,0,0,0-16Zm-32,56H56V56H200v95.87s0,.09,0,.13,0,.09,0,.13V200Z"/></symbol>
-<symbol id="i-terminal-window-d" viewBox="0 0 256 256"><path d="M224,56V200a8,8,0,0,1-8,8H40a8,8,0,0,1-8-8V56a8,8,0,0,1,8-8H216A8,8,0,0,1,224,56Z" opacity="0.2"/>
-<path d="M128,128a8,8,0,0,1-3,6.25l-40,32a8,8,0,1,1-10-12.5L107.19,128,75,102.25a8,8,0,1,1,10-12.5l40,32A8,8,0,0,1,128,128Zm48,24H136a8,8,0,0,0,0,16h40a8,8,0,0,0,0-16Zm56-96V200a16,16,0,0,1-16,16H40a16,16,0,0,1-16-16V56A16,16,0,0,1,40,40H216A16,16,0,0,1,232,56ZM216,200V56H40V200H216Z"/></symbol>
-</svg>
+<symbol id="i-robot" viewBox="0 0 256 256"><path d="M200,48H136V16a8,8,0,0,0-16,0V48H56A32,32,0,0,0,24,80V192a32,32,0,0,0,32,32H200a32,32,0,0,0,32-32V80A32,32,0,0,0,200,48Zm8,144a8,8,0,0,1-8,8H56a8,8,0,0,1-8-8V80a8,8,0,0,1,8-8H200a8,8,0,0,1,8,8ZM48,128a8,8,0,0,1,8-8H72a8,8,0,0,1,0,16H56A8,8,0,0,1,48,128Zm144,0a8,8,0,0,1-8,8H168a8,8,0,0,1,0-16h16A8,8,0,0,1,192,128Zm-84,28a12,12,0,1,1-12-12A12,12,0,0,1,108,156Zm52,0a12,12,0,1,1-12-12A12,12,0,0,1,160,156Z"/></symbol>
+<symbol id="i-sparkle" viewBox="0 0 256 256"><path d="M208,144a15.78,15.78,0,0,1-10.42,14.94l-51.65,19-19,51.61a15.92,15.92,0,0,1-29.88,0L78,178l-51.62-19a15.92,15.92,0,0,1,0-29.88L78,110l19-51.63a15.92,15.92,0,0,1,29.88,0l19,51.65,51.61,19A15.78,15.78,0,0,1,208,144ZM152,48h16V64a8,8,0,0,0,16,0V48h16a8,8,0,0,0,0-16H184V16a8,8,0,0,0-16,0V32H152a8,8,0,0,0,0,16Zm88,32h-8V72a8,8,0,0,0-16,0v8h-8a8,8,0,0,0,0,16h8v8a8,8,0,0,0,16,0V96h8a8,8,0,0,0,0-16Z"/></symbol>
+<symbol id="i-wrench" viewBox="0 0 256 256"><path d="M226.76,69a8,8,0,0,0-12.84-2.88l-40.3,37.19-17.23-3.7-3.7-17.23,37.19-40.3A8,8,0,0,0,184,29.24,72,72,0,0,0,88.26,124.05L23.42,180.53a8,8,0,0,0-.53,11.87l40.71,40.71a8,8,0,0,0,11.87-.53l56.48-64.84A72,72,0,0,0,226.76,69ZM160.4,155.55a8,8,0,0,0-2.14,1.66L100.1,224,32,155.9l66.79-58.16a8,8,0,0,0,1.66-2.14A56,56,0,0,1,168.24,54.44l-30.2,32.72a8,8,0,0,0-1.94,7.1l6,28a8,8,0,0,0,6.14,6.14l28,6a8,8,0,0,0,7.1-1.94l32.72-30.2A56,56,0,0,1,160.4,155.55Z"/></symbol>
+<symbol id="i-chat" viewBox="0 0 256 256"><path d="M216,48H40A16,16,0,0,0,24,64V224a15.85,15.85,0,0,0,9.24,14.5A16.13,16.13,0,0,0,40,240a15.89,15.89,0,0,0,10.25-3.78.69.69,0,0,0,.13-.11L82.5,208H216a16,16,0,0,0,16-16V64A16,16,0,0,0,216,48Zm0,144H82.5a16,16,0,0,0-10.3,3.75l-.12.11L40,224V64H216ZM88,112a12,12,0,1,1,12,12A12,12,0,0,1,88,112Zm56,0a12,12,0,1,1,12,12A12,12,0,0,1,144,112Z"/></symbol>
+<symbol id="i-sun" viewBox="0 0 256 256"><path d="M116,36V16a12,12,0,0,1,24,0V36a12,12,0,0,1-24,0Zm64,92a52,52,0,1,1-52-52A52.06,52.06,0,0,1,180,128Zm-24,0a28,28,0,1,0-28,28A28,28,0,0,0,156,128ZM48.51,65.49a12,12,0,0,0,17,17l-14-14a12,12,0,0,0-17,17ZM48.51,190.51l-14,14a12,12,0,0,0,17,17l14-14a12,12,0,0,0-17-17ZM204,116H224a12,12,0,0,0,0-24H204a12,12,0,0,0,0,24Zm-14.49,74.51a12,12,0,0,0-17,17l14,14a12,12,0,0,0,17-17ZM32,128a12,12,0,0,0-12-12H16a12,12,0,0,0,0,24H20A12,12,0,0,0,32,128Zm96,88a12,12,0,0,0-12,12v20a12,12,0,0,0,24,0V228A12,12,0,0,0,128,216Zm79.49-150.51a12,12,0,0,0,8.49-3.52l14-14a12,12,0,0,0-17-17l-14,14a12,12,0,0,0,8.49,20.49Z"/></symbol>
+<symbol id="i-moon" viewBox="0 0 256 256"><path d="M240.42,146.9a12,12,0,0,0-13.36-3.29A88.1,88.1,0,0,1,112.39,28.94a12,12,0,0,0-15.65-15.65A112,112,0,1,0,244,163.63,12,12,0,0,0,240.42,146.9ZM128,212A88,88,0,0,1,73.2,55.68,112.11,112.11,0,0,0,200.32,182.8,88.29,88.29,0,0,1,128,212Z"/></symbol>
+<symbol id="i-arrow-counter" viewBox="0 0 256 256"><path d="M240,128a112,112,0,0,1-112,112c-25.6,0-49.55-8.71-69.24-24.86a12,12,0,1,1,15.24-18.55A87.61,87.61,0,0,0,128,216a88,88,0,1,0-84.09-113.6l14.06-11.42a12,12,0,0,1,15.12,18.62l-40,32.49a12,12,0,0,1-16.72-1.68L4.4,116.79A12,12,0,1,1,22.6,101.15l4.86,5.66A112,112,0,0,1,240,128Z"/></symbol>
+  </svg>
   <div id="app" v-cloak></div>
 
   <script>
@@ -139,6 +125,12 @@
         const usersList = ref([]);
         const view = ref('frota');
         const fleet = ref([]); const status = reactive({}); const metrics = reactive({}); const deploys = ref([]); const tokens = ref([]); const msg = ref('');
+
+        // ── tema (iOS light/dark) ──
+        const theme = ref(localStorage.getItem('alm_theme') || (window.matchMedia && window.matchMedia('(prefers-color-scheme: light)').matches ? 'light' : 'dark'));
+        const applyTheme = () => { document.documentElement.classList.toggle('dark', theme.value !== 'light'); };
+        const toggleTheme = () => { theme.value = theme.value === 'light' ? 'dark' : 'light'; localStorage.setItem('alm_theme', theme.value); applyTheme(); };
+        applyTheme();
 
         const api = async (path, opts={}) => {
           const r = await fetch('/api'+path, { ...opts, headers:{ 'Content-Type':'application/json', 'Authorization':'Bearer '+token.value } });
@@ -169,7 +161,7 @@
           catch(e){ msg.value=e.message; }
         };
         const revokeToken = async (id) => { if(!confirm('Revogar o token '+id+'?')) return; try{ await api('/tokens/'+id,{method:'DELETE'}); loadTokens(); }catch(e){ msg.value=e.message; } };
-        const go = (v)=>{ view.value=v; if(v==='tokens') loadTokens(); if(v==='usuarios') loadUsers(); };
+        const go = (v)=>{ view.value=v; if(v==='tokens') loadTokens(); if(v==='usuarios') loadUsers(); if(v==='ia') aiLoadVms(); };
         // ---- auth de humano ----
         const checkMe = async () => { try{ me.value = await api('/me'); refresh(); }catch(e){ me.value=null; } };
         const doLogin = async () => { li.err=''; li.busy=true; try{ me.value = await api('/login',{method:'POST',body:JSON.stringify({email:li.email,password:li.pass})}); li.pass=''; refresh(); }catch(e){ li.err='Email ou senha inválidos'; } li.busy=false; };
@@ -180,9 +172,9 @@
         const addUser = async () => { const email=prompt('Email do novo usuário:'); if(!email) return; const name=prompt('Nome:')||''; const role=prompt('Papel (viewer / operator / admin):','operator')||'operator'; try{ const r=await api('/users',{method:'POST',body:JSON.stringify({email,name,role})}); if(r.email_error){ window.prompt('Usuário criado, mas o email falhou. Envie este link manualmente:', r.link); } else { msg.value='✓ Convite enviado para '+email; } loadUsers(); }catch(e){ msg.value='⚠️ '+e.message; } };
         const delUser = async (id) => { if(!confirm('Remover usuário '+id+'?')) return; try{ await api('/users/'+id,{method:'DELETE'}); loadUsers(); }catch(e){ msg.value=e.message; } };
         // lazy-fetch das métricas ao passar o mouse (card expande estilo Apple)
-        const mstate = reactive({}); // id -> 'loading' | 'ok' | 'unavail' | 'error'
+        const mstate = reactive({});
         const loadMetrics = async (id) => {
-          if(mstate[id]) return; // busca 1x por VM; re-tentativa é manual (retry)
+          if(mstate[id]) return;
           mstate[id]='loading';
           const t=setTimeout(()=>{ if(mstate[id]==='loading') mstate[id]='error'; }, 10000);
           try{
@@ -199,15 +191,15 @@
           catch(e){ msg.value='⚠️ '+e.message; }
         };
 
-        // icone + acento por ambiente (chip + watermark de fundo)
         const envStyle = (env)=>{
-          if(/AWS/i.test(env)) return { icon:'cloud', text:'text-accent', chip:'bg-accent/10 text-accent' };
+          if(/AWS/i.test(env)) return { icon:'cloud', text:'text-info', chip:'bg-info/10 text-info' };
           if(/Dev/i.test(env)) return { icon:'cpu', text:'text-violet', chip:'bg-violet/10 text-violet' };
-          return { icon:'hard-drives', text:'text-violet', chip:'bg-violet/10 text-violet' }; // Proxmox
+          return { icon:'hard-drives', text:'text-brand', chip:'bg-brand/10 text-brand' };
         };
         const relTime = (s)=> s ? s.slice(0,16).replace('T',' ') : '—';
-        const titleOf = { frota:'Frota', release:'Release', aprovacoes:'Aprovações', historico:'Histórico', tokens:'Tokens & Dispositivos', usuarios:'Usuários', conectar:'Como conectar' };
-        // ---- Release: rollout sequencial health-gated ----
+        const titleOf = { frota:'Frota', ia:'IA · Agentes', release:'Release', aprovacoes:'Aprovações', historico:'Histórico', tokens:'Tokens & Dispositivos', usuarios:'Usuários', conectar:'Como conectar' };
+
+        // ---- Release ----
         const rel = reactive({ sel:{}, dry:[], running:null, busy:false, err:'' });
         const relSelected = ()=> fleet.value.filter(v=>rel.sel[v.id]).map(v=>v.id);
         const relToggle = (id)=>{ rel.sel[id] = !rel.sel[id]; };
@@ -216,9 +208,9 @@
         const relDry = async ()=>{ const vms=relSelected(); if(!vms.length){ rel.err='selecione ao menos 1 máquina'; return; } rel.err=''; rel.busy=true; try{ rel.dry = (await api('/release/dryrun',{method:'POST',body:JSON.stringify({vms})}))||[]; }catch(e){ rel.err=e.message; } rel.busy=false; };
         const relPoll = async (id)=>{ try{ const r=await api('/release/'+id); rel.running=r; if(r.status==='running') setTimeout(()=>relPoll(id),4000); }catch(e){} };
         const relGo = async ()=>{ const vms=relSelected(); if(!vms.length){ rel.err='selecione ao menos 1 máquina'; return; } if(!confirm('Release SEQUENCIAL em '+vms.length+' máquina(s):\n'+vms.join(', ')+'\n\nDeploya uma de cada vez e PARA se alguma falhar. Confirmar?')) return; rel.busy=true; rel.err=''; try{ const r=await api('/release',{method:'POST',body:JSON.stringify({vms})}); rel.running=r; relPoll(r.id); }catch(e){ rel.err=e.message; } rel.busy=false; };
+
         const copied = ref('');
         const copy = (txt, id) => { try{ navigator.clipboard.writeText(txt); copied.value=id; setTimeout(()=>copied.value='',1600); }catch(e){} };
-        // gerador de token na propria tela de conectar: gera e ja injeta no comando/prompt
         const gen = reactive({ name:'', tok:'', id:'', busy:false, err:'' });
         const genConnectToken = async () => {
           gen.err=''; gen.busy=true;
@@ -239,195 +231,288 @@ claude mcp add --transport http almirante https://painel.chatspx.app/mcp --heade
 
 ${troca} Depois rode \`claude mcp list\` pra confirmar (deve aparecer "almirante: connected") e me avise.
 
-A partir daí, o almirante é o painel de comando de deploy da frota ChatSPX. Regra de ouro: você PROPÕE, um humano APROVA no painel (https://painel.chatspx.app). Nunca presuma que executou.
-
-Frota (8 VMs): producao e homologacao (Proxmox); paulao e nicolas (dev); catatau, sentinela, tozi, fabrica (AWS).
-
-O que você pode fazer pelas tools do almirante:
-- OBSERVAR (livre): status, saúde, métricas (cpu/ram/disco/uptime), migrations pendentes, git diff, histórico, drift entre VMs, sidekiq, disco.
-- PROPOR (vira pedido pendente de aprovação): deploy de 1 VM / grupo / frota toda, merge-promote entre branches (ex: homologacao→producao), migrate, precompile, rollback.
-- OPERAR: restart de serviço (web/worker), freeze/unfreeze de deploys, cancelar pedido.
-
-Como agir:
-1. Entenda meu pedido em linguagem natural e use a tool certa do almirante.
-2. Tudo que MUDA algo (deploy/migrate/merge/restart) é uma PROPOSTA: me devolva o ID do pedido e diga que está PENDENTE de aprovação humana no painel. Não afirme que "fez/atualizou".
-3. Migrations destrutivas são sinalizadas — destaque o risco antes de propor.
-4. Para leitura (status/saúde/logs), responda direto com os dados.
-5. Fale comigo em português, objetivo.
-
-Exemplos: "qual o status da tozi?" · "a frota tá saudável?" · "atualiza a homologação" · "promove a homologação pra produção" · "reinicia o worker da fábrica" · "rollback da tozi".`;
+O almirante comanda a frota ChatSPX — deploy E governança de IA (prompt/tools/credencial dos agentes). Regra de ouro: você PROPÕE, um humano APROVA no painel (https://painel.chatspx.app). Nunca presuma que executou.`;
         });
+
+        // ── IA / Agentes ──
+        const ai = reactive({ vms:[], vm:'', aid:'', base:null, prompt:'', busy:false, res:null, hist:[], tab:'prompt', faq:{q:'',a:''}, cred:{provider:'',settings:'',enabled:true} });
+        const aiLoadVms = async () => { try{ ai.vms = ((await api('/ai/agents')).vms)||[]; if(!ai.vm && ai.vms[0]) ai.vm = ai.vms[0].id; }catch(e){ msg.value=e.message; } };
+        const aiPromptText = (b)=> (b && (b.instructions || (b.config && b.config.instructions) || b.prompt)) || '';
+        const aiTools = computed(()=> { const b=ai.base||{}; return b.tools || (b.config&&b.config.tools) || []; });
+        const aiLoadAgent = async () => {
+          if(!ai.vm || !ai.aid){ msg.value='escolha a VM e o ID do agente'; return; }
+          ai.busy=true; ai.res=null; ai.base=null;
+          try{ ai.base = await api('/ai/agents/'+ai.vm+'/'+ai.aid); ai.prompt = aiPromptText(ai.base); aiLoadHist(); }
+          catch(e){ msg.value=e.message; }
+          ai.busy=false;
+        };
+        const aiWrite = async (path, body, okMsg) => {
+          ai.busy=true; ai.res=null;
+          try{ const r = await api('/ai/'+path,{method:'POST',body:JSON.stringify(body)}); ai.res = { ok:r.status==='applied', ...r, _msg:okMsg }; aiLoadHist(); }
+          catch(e){ ai.res = { ok:false, error:e.message }; }
+          ai.busy=false;
+        };
+        const aiSavePrompt = () => { if(!ai.prompt.trim()){ msg.value='prompt vazio'; return; } if(!confirm('Aplicar o novo prompt do agente '+ai.aid+' na '+ai.vm+'?\\n\\nPassa pelo test-gate antes; é auditado e reversível.')) return; aiWrite('prompt',{vm:ai.vm,assistant_id:+ai.aid,instructions:ai.prompt},'Prompt aplicado'); };
+        const aiSetTool = (toolId, armed) => aiWrite('tool',{vm:ai.vm,assistant_id:+ai.aid,tool_id:toolId,armed},(armed?'Tool armada':'Tool desarmada'));
+        const aiAddFaq = () => { if(!ai.faq.q||!ai.faq.a){ msg.value='pergunta e resposta obrigatórias'; return; } aiWrite('faq',{vm:ai.vm,assistant_id:+ai.aid,question:ai.faq.q,answer:ai.faq.a},'FAQ adicionada').then(()=>{ai.faq={q:'',a:''};}); };
+        const aiSetCred = () => { let s={}; try{ s=ai.cred.settings?JSON.parse(ai.cred.settings):{}; }catch(e){ msg.value='settings deve ser JSON válido'; return; } aiWrite('credential',{vm:ai.vm,provider:ai.cred.provider,settings:s,enabled:ai.cred.enabled},'Credencial testada e salva'); };
+        const aiLoadHist = async () => { try{ ai.hist = ((await api('/ai/history?vm='+ai.vm)).change_sets)||[]; }catch(e){} };
+        const aiRollback = async (csid) => { if(!confirm('Reverter o change-set '+csid+'? Restaura o estado anterior na VM.')) return; try{ await api('/ai/rollback',{method:'POST',body:JSON.stringify({vm:ai.vm,change_set_id:csid})}); aiLoadHist(); if(ai.aid) aiLoadAgent(); }catch(e){ msg.value=e.message; } };
 
         onMounted(()=>{ if(!setpwToken.value) checkMe(); });
         return { token, saveToken, view, go, fleet, status, metrics, deploys, tokens, msg, refresh, pending, recent, byEnv, onlineCount, act, loadTokens, newToken, revokeToken, envStyle, relTime, titleOf, loadMetrics, restartVM, mstate, retryMetrics, addCmd, claudePrompt, copied, copy, gen, genConnectToken, rel, relToggle, relGroup, relClear, relDry, relGo,
-                 me, setpwToken, li, sp, usersList, doLogin, doSetPw, logout, tokenLogin, loadUsers, addUser, delUser };
+                 me, setpwToken, li, sp, usersList, doLogin, doSetPw, logout, tokenLogin, loadUsers, addUser, delUser, theme, toggleTheme,
+                 ai, aiLoadVms, aiLoadAgent, aiTools, aiSavePrompt, aiSetTool, aiAddFaq, aiSetCred, aiRollback };
       },
       template: `
       <div>
-        <!-- DEFINIR SENHA (convite) -->
-        <div v-if="setpwToken" class="min-h-screen grid place-items-center relative px-4" style="z-index:1">
-          <div class="w-full max-w-sm glass rounded-3xl p-8 rise" style="border:1px solid rgba(56,189,248,.18);box-shadow:0 24px 60px rgba(2,6,18,.6)">
+        <!-- DEFINIR SENHA -->
+        <div v-if="setpwToken" class="min-h-screen grid place-items-center px-4">
+          <div class="w-full max-w-sm glass rounded-3xl p-8 rise" style="box-shadow:0 24px 60px rgb(2 6 23/.14)">
             <div class="flex flex-col items-center text-center mb-6">
-              <div class="w-14 h-14 rounded-2xl grid place-items-center mb-3" style="background:linear-gradient(120deg,#22D3EE,#4F46E5);box-shadow:0 8px 24px rgba(34,211,238,.35)"><ic n="key" cls="w-7 h-7 text-void"/></div>
-              <div class="font-display font-extrabold text-2xl text-t1">Defina sua senha</div>
-              <div class="text-xs text-t2 mt-1">Bem-vindo ao Almirante ⚓</div>
+              <div class="w-14 h-14 rounded-2xl grid place-items-center mb-3 btn-brand"><ic n="key" cls="w-7 h-7"/></div>
+              <div class="font-display font-extrabold text-2xl tx1">Defina sua senha</div>
+              <div class="text-xs tx3 mt-1">Bem-vindo ao Almirante ⚓</div>
             </div>
-            <label class="text-[11px] uppercase tracking-wider text-t3 font-bold">Nova senha</label>
-            <input v-model="sp.pass" type="password" class="w-full mt-1 mb-3 bg-void/70 border border-line rounded-xl px-3 py-2.5 text-sm text-t1 focus:border-accent outline-none" placeholder="mínimo 8 caracteres" />
-            <label class="text-[11px] uppercase tracking-wider text-t3 font-bold">Confirmar senha</label>
-            <input v-model="sp.pass2" @keyup.enter="doSetPw" type="password" class="w-full mt-1 bg-void/70 border border-line rounded-xl px-3 py-2.5 text-sm text-t1 focus:border-accent outline-none" placeholder="repita a senha" />
+            <label class="text-[11px] uppercase tracking-wider tx3 font-bold">Nova senha</label>
+            <input v-model="sp.pass" type="password" class="field w-full mt-1 mb-3 px-3 py-2.5 text-sm" placeholder="mínimo 8 caracteres" />
+            <label class="text-[11px] uppercase tracking-wider tx3 font-bold">Confirmar senha</label>
+            <input v-model="sp.pass2" @keyup.enter="doSetPw" type="password" class="field w-full mt-1 px-3 py-2.5 text-sm" placeholder="repita a senha" />
             <p v-if="sp.err" class="text-bad text-xs mt-3">{{ sp.err }}</p>
-            <button @click="doSetPw" :disabled="sp.busy" class="press w-full mt-5 text-void font-bold rounded-full py-3 text-sm disabled:opacity-60" style="background:#22D3EE;box-shadow:0 6px 18px rgba(34,211,238,.25)">{{ sp.busy?'Salvando…':'Definir senha e entrar' }}</button>
+            <button @click="doSetPw" :disabled="sp.busy" class="press btn-brand w-full mt-5 font-bold rounded-full py-3 text-sm disabled:opacity-60">{{ sp.busy?'Salvando…':'Definir senha e entrar' }}</button>
           </div>
         </div>
 
         <!-- LOGIN -->
-        <div v-else-if="!me" class="min-h-screen grid place-items-center relative px-4" style="z-index:1">
-          <div class="w-full max-w-sm glass rounded-3xl p-8 rise" style="border:1px solid rgba(56,189,248,.18);box-shadow:0 24px 60px rgba(2,6,18,.6)">
+        <div v-else-if="!me" class="min-h-screen grid place-items-center px-4">
+          <div class="w-full max-w-sm glass rounded-3xl p-8 rise" style="box-shadow:0 24px 60px rgb(2 6 23/.14)">
             <div class="flex flex-col items-center text-center mb-6">
-              <div class="w-14 h-14 rounded-2xl grid place-items-center mb-3" style="background:linear-gradient(120deg,#22D3EE,#4F46E5);box-shadow:0 8px 24px rgba(34,211,238,.35)"><ic n="anchor" cls="w-7 h-7 text-void"/></div>
-              <div class="font-display font-extrabold text-2xl text-t1">Almirante</div>
-              <div class="text-[11px] uppercase tracking-[.2em] text-t3 mt-1">Comando da Frota</div>
+              <div class="w-14 h-14 rounded-2xl grid place-items-center mb-3 btn-brand"><ic n="anchor" cls="w-7 h-7"/></div>
+              <div class="font-display font-extrabold text-2xl gtext">Almirante</div>
+              <div class="text-[11px] uppercase tracking-[.2em] tx3 mt-1">Comando da Frota</div>
             </div>
-            <label class="text-[11px] uppercase tracking-wider text-t3 font-bold">Email</label>
-            <input v-model="li.email" @keyup.enter="doLogin" type="email" class="w-full mt-1 mb-3 bg-void/70 border border-line rounded-xl px-3 py-2.5 text-sm text-t1 focus:border-accent outline-none" placeholder="voce@empresa.com" />
-            <label class="text-[11px] uppercase tracking-wider text-t3 font-bold">Senha</label>
-            <input v-model="li.pass" @keyup.enter="doLogin" type="password" class="w-full mt-1 bg-void/70 border border-line rounded-xl px-3 py-2.5 text-sm text-t1 focus:border-accent outline-none" placeholder="••••••••" />
+            <label class="text-[11px] uppercase tracking-wider tx3 font-bold">Email</label>
+            <input v-model="li.email" @keyup.enter="doLogin" type="email" class="field w-full mt-1 mb-3 px-3 py-2.5 text-sm" placeholder="voce@empresa.com" />
+            <label class="text-[11px] uppercase tracking-wider tx3 font-bold">Senha</label>
+            <input v-model="li.pass" @keyup.enter="doLogin" type="password" class="field w-full mt-1 px-3 py-2.5 text-sm" placeholder="••••••••" />
             <p v-if="li.err" class="text-bad text-xs mt-3">{{ li.err }}</p>
-            <button @click="doLogin" :disabled="li.busy" class="press w-full mt-5 text-void font-bold rounded-full py-3 text-sm disabled:opacity-60" style="background:#22D3EE;box-shadow:0 6px 18px rgba(34,211,238,.25)">{{ li.busy?'Entrando…':'Entrar' }}</button>
-            <p class="text-t3 text-[11px] text-center mt-4">Acesso por convite. Sem conta? Fale com um admin.</p>
-            <button @click="tokenLogin" class="w-full text-t3 text-[11px] text-center mt-2 hover:text-accentsoft underline">Acesso por token (MCP / emergência)</button>
+            <button @click="doLogin" :disabled="li.busy" class="press btn-brand w-full mt-5 font-bold rounded-full py-3 text-sm disabled:opacity-60">{{ li.busy?'Entrando…':'Entrar' }}</button>
+            <p class="tx3 text-[11px] text-center mt-4">Acesso por convite. Sem conta? Fale com um admin.</p>
+            <button @click="tokenLogin" class="w-full tx3 text-[11px] text-center mt-2 hover:tx1 underline">Acesso por token (MCP / emergência)</button>
           </div>
         </div>
 
-        <!-- PAINEL (autenticado) -->
-        <div v-else class="flex min-h-screen relative" style="z-index:1">
-        <!-- Sidebar -->
-        <aside class="w-60 shrink-0 glass border-r flex flex-col fixed h-screen" style="border-color:rgba(148,163,184,.1)">
+        <!-- PAINEL -->
+        <div v-else class="flex min-h-screen">
+        <aside class="w-60 shrink-0 glass border-r hair flex flex-col fixed h-screen">
           <div class="px-5 py-5 flex items-center gap-3">
-            <div class="w-11 h-11 rounded-2xl grid place-items-center" style="background:#22D3EE; box-shadow:0 6px 18px rgba(34,211,238,.25)"><ic n="anchor" cls="w-6 h-6 text-void"/></div>
-            <div><div class="font-display font-extrabold text-[19px] leading-none text-t1">Almirante</div><div class="text-[11px] text-t3 mt-1 font-medium tracking-wide uppercase">Comando da Frota</div></div>
+            <div class="w-11 h-11 rounded-2xl grid place-items-center btn-brand"><ic n="anchor" cls="w-6 h-6"/></div>
+            <div><div class="font-display font-extrabold text-[19px] leading-none tx1">Almirante</div><div class="text-[11px] tx3 mt-1 font-medium tracking-wide uppercase">Comando da Frota</div></div>
           </div>
-          <nav class="px-3 mt-3 space-y-1 text-sm font-semibold">
-            <button @click="go('frota')" :class="['navp w-full text-left rounded-xl px-3.5 py-2.5 flex items-center gap-3', view==='frota'?'on':'text-t2 hover:text-t1']"><ic n="anchor" cls="w-5 h-5"/><span class="flex-1">Frota</span><span class="text-xs font-mono opacity-70">{{ onlineCount }}/{{ fleet.length }}</span></button>
-            <button v-if="me && me.role==='admin'" @click="go('release')" :class="['navp w-full text-left rounded-xl px-3.5 py-2.5 flex items-center gap-3', view==='release'?'on':'text-t2 hover:text-t1']"><ic n="rocket-launch" cls="w-5 h-5"/><span>Release</span></button>
-            <button @click="go('aprovacoes')" :class="['navp w-full text-left rounded-xl px-3.5 py-2.5 flex items-center gap-3', view==='aprovacoes'?'on':'text-t2 hover:text-t1']"><ic n="bell" cls="w-5 h-5"/><span class="flex-1">Aprovações</span><span v-if="pending.length" class="text-[11px] font-bold rounded-full px-1.5 py-0.5" style="background:#22D3EE;color:#080C14">{{ pending.length }}</span></button>
-            <button @click="go('historico')" :class="['navp w-full text-left rounded-xl px-3.5 py-2.5 flex items-center gap-3', view==='historico'?'on':'text-t2 hover:text-t1']"><ic n="clock-counter-clockwise" cls="w-5 h-5"/><span>Histórico</span></button>
-            <button @click="go('tokens')" :class="['navp w-full text-left rounded-xl px-3.5 py-2.5 flex items-center gap-3', view==='tokens'?'on':'text-t2 hover:text-t1']"><ic n="key" cls="w-5 h-5"/><span>Tokens</span></button>
-            <button v-if="me && me.role==='admin'" @click="go('usuarios')" :class="['navp w-full text-left rounded-xl px-3.5 py-2.5 flex items-center gap-3', view==='usuarios'?'on':'text-t2 hover:text-t1']"><ic n="shield-check" cls="w-5 h-5"/><span>Usuários</span></button>
-            <button @click="go('conectar')" :class="['navp w-full text-left rounded-xl px-3.5 py-2.5 flex items-center gap-3', view==='conectar'?'on':'text-t2 hover:text-t1']"><ic n="plugs-connected" cls="w-5 h-5"/><span>Como conectar</span></button>
+          <nav class="px-3 mt-3 space-y-1 text-sm font-semibold overflow-y-auto">
+            <button @click="go('frota')" :class="['navp w-full text-left rounded-xl px-3.5 py-2.5 flex items-center gap-3', view==='frota'&&'on']"><ic n="anchor" cls="w-5 h-5"/><span class="flex-1">Frota</span><span class="text-xs font-mono opacity-70">{{ onlineCount }}/{{ fleet.length }}</span></button>
+            <button @click="go('ia')" :class="['navp w-full text-left rounded-xl px-3.5 py-2.5 flex items-center gap-3', view==='ia'&&'on']"><ic n="robot" cls="w-5 h-5"/><span class="flex-1">IA · Agentes</span><ic n="sparkle" cls="w-3.5 h-3.5 text-violet"/></button>
+            <button v-if="me && me.role==='admin'" @click="go('release')" :class="['navp w-full text-left rounded-xl px-3.5 py-2.5 flex items-center gap-3', view==='release'&&'on']"><ic n="rocket-launch" cls="w-5 h-5"/><span>Release</span></button>
+            <button @click="go('aprovacoes')" :class="['navp w-full text-left rounded-xl px-3.5 py-2.5 flex items-center gap-3', view==='aprovacoes'&&'on']"><ic n="bell" cls="w-5 h-5"/><span class="flex-1">Aprovações</span><span v-if="pending.length" class="text-[11px] font-bold rounded-full px-1.5 py-0.5 btn-brand">{{ pending.length }}</span></button>
+            <button @click="go('historico')" :class="['navp w-full text-left rounded-xl px-3.5 py-2.5 flex items-center gap-3', view==='historico'&&'on']"><ic n="clock-counter-clockwise" cls="w-5 h-5"/><span>Histórico</span></button>
+            <button @click="go('tokens')" :class="['navp w-full text-left rounded-xl px-3.5 py-2.5 flex items-center gap-3', view==='tokens'&&'on']"><ic n="key" cls="w-5 h-5"/><span>Tokens</span></button>
+            <button v-if="me && me.role==='admin'" @click="go('usuarios')" :class="['navp w-full text-left rounded-xl px-3.5 py-2.5 flex items-center gap-3', view==='usuarios'&&'on']"><ic n="shield-check" cls="w-5 h-5"/><span>Usuários</span></button>
+            <button @click="go('conectar')" :class="['navp w-full text-left rounded-xl px-3.5 py-2.5 flex items-center gap-3', view==='conectar'&&'on']"><ic n="plugs-connected" cls="w-5 h-5"/><span>Como conectar</span></button>
           </nav>
-          <div class="mt-auto p-4">
-            <div class="rounded-2xl p-3" style="background:rgba(8,12,20,.5);border:1px solid rgba(148,163,184,.1)">
-              <label class="text-[10px] uppercase tracking-wider text-t3 font-bold">Seu token</label>
+          <div class="mt-auto p-4 space-y-2">
+            <button @click="toggleTheme" class="press soft w-full flex items-center justify-center gap-2 text-xs tx2 font-semibold rounded-xl py-2"><ic :n="theme==='light'?'moon':'sun'" cls="w-4 h-4"/>{{ theme==='light'?'Modo escuro':'Modo claro' }}</button>
+            <div class="soft rounded-2xl p-3">
+              <label class="text-[10px] uppercase tracking-wider tx3 font-bold">Seu token</label>
               <div class="flex gap-1.5 mt-1.5">
-                <input v-model="token" @keyup.enter="saveToken" class="flex-1 w-0 bg-void/70 border border-line rounded-lg px-2.5 py-1.5 text-xs font-mono text-t1 focus:border-accent outline-none" />
-                <button @click="saveToken" class="press text-xs font-bold rounded-lg px-3 text-void" style="background:#22D3EE">ok</button>
+                <input v-model="token" @keyup.enter="saveToken" class="field flex-1 w-0 px-2.5 py-1.5 text-xs font-mono" />
+                <button @click="saveToken" class="press btn-brand text-xs font-bold rounded-lg px-3">ok</button>
               </div>
-              <button @click="refresh" class="press mt-2 w-full flex items-center justify-center gap-1.5 text-xs text-t3 hover:text-accentsoft font-semibold"><ic n="arrows-clockwise" cls="w-3.5 h-3.5"/>atualizar</button>
+              <button @click="refresh" class="press mt-2 w-full flex items-center justify-center gap-1.5 text-xs tx3 hover:tx1 font-semibold"><ic n="arrows-clockwise" cls="w-3.5 h-3.5"/>atualizar</button>
             </div>
-            <button v-if="me" @click="logout" class="press mt-2 w-full flex items-center justify-center gap-1.5 text-xs text-t3 hover:text-bad font-semibold"><ic n="x-circle" cls="w-3.5 h-3.5"/>Sair{{ me && me.email ? ' · '+me.email : '' }}</button>
+            <button v-if="me" @click="logout" class="press w-full flex items-center justify-center gap-1.5 text-xs tx3 hover:text-bad font-semibold"><ic n="x-circle" cls="w-3.5 h-3.5"/>Sair{{ me && me.email ? ' · '+me.email : '' }}</button>
           </div>
         </aside>
 
         <main class="flex-1 ml-60 px-8 py-7 max-w-[1320px]">
           <div class="flex items-center justify-between mb-6">
             <h1 class="font-display font-extrabold text-[28px] tracking-tight">{{ titleOf[view] }}</h1>
-            <div class="flex items-center gap-2 glass rounded-full pl-2.5 pr-3.5 py-1.5 text-sm font-semibold text-t2"><span class="w-2.5 h-2.5 rounded-full bg-ok live"></span>{{ onlineCount }}/{{ fleet.length }} no ar</div>
+            <div class="flex items-center gap-2 glass rounded-full pl-2.5 pr-3.5 py-1.5 text-sm font-semibold tx2"><span class="w-2.5 h-2.5 rounded-full bg-ok live"></span>{{ onlineCount }}/{{ fleet.length }} no ar</div>
           </div>
-          <p v-if="msg" class="mb-5 text-bad text-sm rounded-2xl px-4 py-2.5 flex items-center gap-2 font-medium" style="background:rgba(242,160,168,.08);border:1px solid rgba(242,160,168,.25)"><ic n="warning-octagon" cls="w-4 h-4"/>{{ msg }}</p>
+          <p v-if="msg" class="mb-5 text-bad text-sm rounded-2xl px-4 py-2.5 flex items-center gap-2 font-medium" style="background:rgb(239 68 68/.08);border:1px solid rgb(239 68 68/.25)"><ic n="warning-octagon" cls="w-4 h-4"/>{{ msg }}</p>
 
-          <!-- FROTA -->
-          <div v-if="view==='frota'">
-            <!-- HERO cinematográfico -->
-            <div class="relative overflow-hidden rounded-3xl p-8 mb-8 rise" style="border:1px solid rgba(56,189,248,.18); box-shadow:0 24px 60px rgba(2,6,18,.6), inset 0 1px 0 rgba(148,163,184,.12)">
-              <div class="absolute inset-0" style="background:radial-gradient(120% 140% at 78% -20%, rgba(34,211,238,.22), transparent 55%), radial-gradient(90% 120% at 12% 120%, rgba(79,70,229,.28), transparent 55%), linear-gradient(180deg,#0E1730,#0A1120)"></div>
-              <video class="hero-video absolute inset-0 w-full h-full object-cover" autoplay muted loop playsinline preload="auto"><source src="./hero.mp4" type="video/mp4"></video>
-              <div class="absolute inset-0" style="background:linear-gradient(90deg, rgba(8,12,20,.9) 0%, rgba(8,12,20,.6) 45%, rgba(8,12,20,.35) 100%)"></div>
+          <!-- ============ IA / AGENTES ============ -->
+          <div v-else-if="view==='ia'" class="rise space-y-4">
+            <!-- hero -->
+            <div class="glass rounded-3xl p-7 relative overflow-hidden">
+              <ic n="robot" cls="absolute -right-6 -bottom-8 w-44 h-44 text-brand pointer-events-none" style="opacity:.07"/>
               <div class="relative">
-                <div class="text-[11px] font-bold uppercase tracking-[.25em] text-accentsoft flex items-center gap-2"><ic n="gauge" cls="w-4 h-4"/>Mission Control · ChatSPX</div>
-                <h2 class="font-display font-extrabold text-[40px] leading-[1.05] mt-3 text-t1">{{ onlineCount }} de {{ fleet.length }}<br/>embarcações no ar</h2>
-                <p class="text-t2 text-sm mt-3 max-w-md">Inspecione, promova e autorize operações da frota — tudo sob o gate humano.</p>
-                <div class="flex gap-3 mt-6">
-                  <div class="rounded-2xl px-4 py-2.5" style="background:rgba(8,12,20,.4);border:1px solid rgba(148,163,184,.12)"><div class="font-display font-extrabold text-2xl text-ok">{{ onlineCount }}</div><div class="text-[11px] text-t3 font-semibold uppercase tracking-wide">no ar</div></div>
-                  <div class="rounded-2xl px-4 py-2.5" style="background:rgba(8,12,20,.4);border:1px solid rgba(148,163,184,.12)"><div class="font-display font-extrabold text-2xl text-accent">{{ pending.length }}</div><div class="text-[11px] text-t3 font-semibold uppercase tracking-wide">aguardando</div></div>
-                  <div class="rounded-2xl px-4 py-2.5" style="background:rgba(8,12,20,.4);border:1px solid rgba(148,163,184,.12)"><div class="font-display font-extrabold text-2xl text-violet">{{ fleet.length }}</div><div class="text-[11px] text-t3 font-semibold uppercase tracking-wide">VMs</div></div>
+                <div class="text-[11px] font-bold uppercase tracking-[.2em] text-brand flex items-center gap-2"><ic n="sparkle" cls="w-4 h-4"/>Governança de IA</div>
+                <h2 class="font-display font-extrabold text-[26px] leading-tight mt-2 tx1">Edite os agentes da frota</h2>
+                <p class="tx2 text-sm mt-2 max-w-xl">Prompt, tools, credenciais e FAQ dos agentes Captain de cada VM — com <b class="tx1">test-gate</b> antes de aplicar, <b class="tx1">auditoria</b> e <b class="tx1">rollback</b>. A IA nunca é tocada sem rede de segurança.</p>
+              </div>
+            </div>
+
+            <!-- seletor -->
+            <div class="glass rounded-2xl p-5">
+              <div class="grid md:grid-cols-[1fr_140px_auto] gap-3 items-end">
+                <div>
+                  <label class="text-[10px] uppercase tracking-wider tx3 font-bold">Máquina</label>
+                  <select v-model="ai.vm" @change="ai.base=null;aiLoadHist()" class="field w-full mt-1 px-3 py-2.5 text-sm">
+                    <option v-for="v in ai.vms" :key="v.id" :value="v.id">{{ v.name }} · conta {{ v.account_id }}</option>
+                    <option v-if="!ai.vms.length" value="">nenhuma VM com IA habilitada</option>
+                  </select>
+                </div>
+                <div>
+                  <label class="text-[10px] uppercase tracking-wider tx3 font-bold">ID do agente</label>
+                  <input v-model="ai.aid" @keyup.enter="aiLoadAgent" type="number" class="field w-full mt-1 px-3 py-2.5 text-sm font-mono" placeholder="ex: 3" />
+                </div>
+                <button @click="aiLoadAgent" :disabled="ai.busy" class="press btn-brand font-bold rounded-xl px-5 py-2.5 text-sm flex items-center gap-2 disabled:opacity-60"><ic n="robot" cls="w-4 h-4"/>{{ ai.busy?'…':'Carregar' }}</button>
+              </div>
+            </div>
+
+            <!-- resultado da última escrita -->
+            <div v-if="ai.res" class="rounded-2xl p-4 flex items-start gap-3" :style="ai.res.ok?'background:rgb(16 185 129/.1);border:1px solid rgb(16 185 129/.3)':'background:rgb(239 68 68/.09);border:1px solid rgb(239 68 68/.28)'">
+              <ic :n="ai.res.ok?'check-circle':'x-circle'" :cls="'w-5 h-5 shrink-0 mt-0.5 '+(ai.res.ok?'text-ok':'text-bad')"/>
+              <div class="text-sm min-w-0">
+                <b :class="ai.res.ok?'text-ok':'text-bad'">{{ ai.res.ok ? (ai.res._msg||'Aplicado') : (ai.res.status==='test_failed'?'Test-gate reprovou':'Falhou') }}</b>
+                <span v-if="ai.res.change_set_id" class="tx3 font-mono text-xs ml-2">{{ ai.res.change_set_id }}</span>
+                <div v-if="ai.res.error" class="tx2 mt-1">{{ ai.res.error }}</div>
+                <pre v-if="ai.res.test_report" class="mt-2 text-[11px] tx2 whitespace-pre-wrap soft rounded-lg p-2 max-h-40 overflow-auto">{{ JSON.stringify(ai.res.test_report,null,1) }}</pre>
+              </div>
+            </div>
+
+            <!-- editor do agente -->
+            <div v-if="ai.base" class="glass rounded-2xl overflow-hidden">
+              <div class="flex border-b hair text-sm font-semibold">
+                <button v-for="t in [['prompt','Prompt'],['tools','Tools'],['faq','FAQ'],['cred','Credencial'],['hist','Histórico']]" :key="t[0]" @click="ai.tab=t[0]" :class="['px-5 py-3 transition', ai.tab===t[0]?'text-brand border-b-2 border-brand':'tx3 hover:tx1']">{{ t[1] }}</button>
+              </div>
+              <div class="p-5">
+                <!-- PROMPT -->
+                <div v-if="ai.tab==='prompt'">
+                  <div class="flex items-center justify-between mb-2"><label class="text-[11px] uppercase tracking-wider tx3 font-bold">Instruções do agente</label><span class="tx3 text-xs font-mono">{{ ai.prompt.length }} chars</span></div>
+                  <textarea v-model="ai.prompt" rows="16" class="field w-full px-4 py-3 text-sm leading-relaxed font-mono" placeholder="prompt do agente…"></textarea>
+                  <div class="flex justify-end mt-3">
+                    <button v-if="me.role==='admin'" @click="aiSavePrompt" :disabled="ai.busy" class="press btn-brand font-bold rounded-xl px-5 py-2.5 text-sm flex items-center gap-2 disabled:opacity-60"><ic n="check-circle" cls="w-4 h-4"/>Testar e aplicar</button>
+                    <span v-else class="tx3 text-xs self-center">só admin edita</span>
+                  </div>
+                </div>
+                <!-- TOOLS -->
+                <div v-else-if="ai.tab==='tools'">
+                  <div v-if="!aiTools.length" class="tx3 text-sm py-6 text-center">Nenhuma tool listada no baseline deste agente.</div>
+                  <div v-for="(t,i) in aiTools" :key="i" class="flex items-center justify-between soft rounded-xl px-4 py-3 mb-2">
+                    <div class="flex items-center gap-3 min-w-0"><ic n="wrench" cls="w-4 h-4 text-brand shrink-0"/><div class="min-w-0"><div class="font-semibold text-sm tx1 truncate">{{ t.title||t.id||t.name||('tool '+i) }}</div><div class="tx3 text-xs truncate">{{ t.id||t.slug||'' }}</div></div></div>
+                    <div v-if="me.role==='admin'" class="flex gap-1.5 shrink-0">
+                      <button @click="aiSetTool(t.id||t.slug||t.name, true)" class="press text-[11px] font-bold rounded-lg px-3 py-1.5" style="background:rgb(16 185 129/.12);color:#10B981">armar</button>
+                      <button @click="aiSetTool(t.id||t.slug||t.name, false)" class="press text-[11px] font-bold rounded-lg px-3 py-1.5" style="background:rgb(239 68 68/.1);color:#EF4444">desarmar</button>
+                    </div>
+                  </div>
+                </div>
+                <!-- FAQ -->
+                <div v-else-if="ai.tab==='faq'">
+                  <label class="text-[11px] uppercase tracking-wider tx3 font-bold">Pergunta</label>
+                  <input v-model="ai.faq.q" class="field w-full mt-1 mb-3 px-3 py-2.5 text-sm" placeholder="ex: Qual o horário de atendimento?" />
+                  <label class="text-[11px] uppercase tracking-wider tx3 font-bold">Resposta</label>
+                  <textarea v-model="ai.faq.a" rows="4" class="field w-full mt-1 px-3 py-2.5 text-sm" placeholder="resposta que o agente deve dar"></textarea>
+                  <div class="flex justify-end mt-3"><button v-if="me.role==='admin'" @click="aiAddFaq" :disabled="ai.busy" class="press btn-brand font-bold rounded-xl px-5 py-2.5 text-sm flex items-center gap-2 disabled:opacity-60"><ic n="plus" cls="w-4 h-4"/>Adicionar FAQ</button></div>
+                </div>
+                <!-- CREDENCIAL -->
+                <div v-else-if="ai.tab==='cred'">
+                  <p class="tx2 text-sm mb-3">A credencial é <b class="tx1">testada contra o provider real</b> antes de salvar (test-gate). Nunca é gravada em claro no histórico.</p>
+                  <label class="text-[11px] uppercase tracking-wider tx3 font-bold">Provider</label>
+                  <input v-model="ai.cred.provider" class="field w-full mt-1 mb-3 px-3 py-2.5 text-sm" placeholder="ex: vista, google" />
+                  <label class="text-[11px] uppercase tracking-wider tx3 font-bold">Settings (JSON)</label>
+                  <textarea v-model="ai.cred.settings" rows="5" class="field w-full mt-1 px-3 py-2.5 text-sm font-mono" placeholder='{"api_key":"..."}'></textarea>
+                  <label class="flex items-center gap-2 mt-3 text-sm tx2"><input type="checkbox" v-model="ai.cred.enabled" class="accent-brand"/>habilitada</label>
+                  <div class="flex justify-end mt-3"><button v-if="me.role==='admin'" @click="aiSetCred" :disabled="ai.busy" class="press btn-brand font-bold rounded-xl px-5 py-2.5 text-sm flex items-center gap-2 disabled:opacity-60"><ic n="key" cls="w-4 h-4"/>Testar e salvar</button></div>
+                </div>
+                <!-- HISTÓRICO -->
+                <div v-else-if="ai.tab==='hist'">
+                  <div v-if="!ai.hist.length" class="tx3 text-sm py-6 text-center">Nenhuma mudança de IA registrada nesta VM.</div>
+                  <div v-for="c in ai.hist" :key="c.change_set_id||c.id" class="flex items-center justify-between soft rounded-xl px-4 py-3 mb-2">
+                    <div class="min-w-0">
+                      <div class="flex items-center gap-2 flex-wrap"><span class="font-semibold text-sm tx1">{{ c.op_type||c.op||'—' }}</span><span class="text-[10px] font-bold px-2 py-0.5 rounded-full uppercase" :style="c.status==='applied'?'background:rgb(16 185 129/.12);color:#10B981':(c.status==='reverted'?'background:rgb(148 163 184/.15);color:#94A3B8':'background:rgb(239 68 68/.1);color:#EF4444')">{{ c.status }}</span></div>
+                      <div class="tx3 text-xs font-mono mt-0.5">{{ c.change_set_id }} · {{ relTime(c.applied_at||c.created_at) }}</div>
+                    </div>
+                    <button v-if="me.role==='admin' && c.status==='applied'" @click="aiRollback(c.change_set_id)" class="press text-[11px] font-bold rounded-lg px-3 py-1.5 flex items-center gap-1 shrink-0" style="background:rgb(245 158 11/.12);color:#F59E0B"><ic n="arrow-counter" cls="w-3.5 h-3.5"/>reverter</button>
+                  </div>
                 </div>
               </div>
             </div>
-            <!-- cards por ambiente -->
+          </div>
+
+          <!-- ============ FROTA ============ -->
+          <div v-else-if="view==='frota'">
+            <div class="glass rounded-3xl p-8 mb-8 rise relative overflow-hidden">
+              <div class="absolute inset-0" style="background:radial-gradient(120% 140% at 82% -20%, rgb(99 102 241/.14), transparent 55%), radial-gradient(90% 120% at 8% 120%, rgb(139 92 246/.14), transparent 55%)"></div>
+              <div class="relative">
+                <div class="text-[11px] font-bold uppercase tracking-[.25em] text-brand flex items-center gap-2"><ic n="gauge" cls="w-4 h-4"/>Mission Control · ChatSPX</div>
+                <h2 class="font-display font-extrabold text-[40px] leading-[1.05] mt-3 gtext">{{ onlineCount }} de {{ fleet.length }}<br/>embarcações no ar</h2>
+                <p class="tx2 text-sm mt-3 max-w-md">Inspecione, promova e autorize operações da frota — tudo sob o gate humano.</p>
+                <div class="flex gap-3 mt-6">
+                  <div class="soft rounded-2xl px-4 py-2.5"><div class="font-display font-extrabold text-2xl text-ok">{{ onlineCount }}</div><div class="text-[11px] tx3 font-semibold uppercase tracking-wide">no ar</div></div>
+                  <div class="soft rounded-2xl px-4 py-2.5"><div class="font-display font-extrabold text-2xl text-brand">{{ pending.length }}</div><div class="text-[11px] tx3 font-semibold uppercase tracking-wide">aguardando</div></div>
+                  <div class="soft rounded-2xl px-4 py-2.5"><div class="font-display font-extrabold text-2xl text-violet">{{ fleet.length }}</div><div class="text-[11px] tx3 font-semibold uppercase tracking-wide">VMs</div></div>
+                </div>
+              </div>
+            </div>
             <div v-for="(vms, env, gi) in byEnv" :key="env" class="mb-8">
-              <div class="flex items-center gap-2 mb-3 px-1"><ic :n="envStyle(env).icon" cls="w-4 h-4 text-t3"/><h3 class="text-[12px] uppercase tracking-[.16em] text-t3 font-bold">{{ env }}</h3><div class="flex-1 h-px" style="background:linear-gradient(90deg,rgba(148,163,184,.18),transparent)"></div></div>
+              <div class="flex items-center gap-2 mb-3 px-1"><ic :n="envStyle(env).icon" cls="w-4 h-4 tx3"/><h3 class="text-[12px] uppercase tracking-[.16em] tx3 font-bold">{{ env }}</h3><div class="flex-1 h-px hair" style="border-top-width:1px"></div></div>
               <div class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4 items-start">
                 <div v-for="(vm,i) in vms" :key="vm.id" @mouseenter="loadMetrics(vm.id)" class="card glass rounded-2xl p-5 relative overflow-hidden rise" :style="{ animationDelay:(gi*50+i*40)+'ms' }">
-                  <ic :n="envStyle(vm.env).icon+'-d'" :class="['absolute -right-4 -bottom-5 w-32 h-32 pointer-events-none select-none', envStyle(vm.env).text]" style="opacity:.10"/>
+                  <ic :n="envStyle(vm.env).icon" :class="['absolute -right-4 -bottom-5 w-32 h-32 pointer-events-none select-none', envStyle(vm.env).text]" style="opacity:.08"/>
                   <div class="relative">
                     <div class="flex items-start gap-3">
                       <div :class="['w-11 h-11 rounded-xl grid place-items-center shrink-0', envStyle(vm.env).chip]"><ic :n="envStyle(vm.env).icon" cls="w-5 h-5"/></div>
                       <div class="min-w-0 flex-1">
-                        <div class="flex items-center gap-2"><span class="font-display font-bold text-[17px] text-t1 truncate">{{ vm.name }}</span><span v-if="vm.critical" class="text-[9px] font-bold rounded-full px-1.5 py-0.5 uppercase" style="background:rgba(242,160,168,.12);color:#F2A0A8">crítica</span></div>
-                        <div class="text-xs text-t3 font-medium mt-0.5">{{ vm.env }} · {{ vm.branch }}</div>
+                        <div class="flex items-center gap-2"><span class="font-display font-bold text-[17px] tx1 truncate">{{ vm.name }}</span><span v-if="vm.critical" class="text-[9px] font-bold rounded-full px-1.5 py-0.5 uppercase" style="background:rgb(239 68 68/.12);color:#EF4444">crítica</span></div>
+                        <div class="text-xs tx3 font-medium mt-0.5">{{ vm.env }} · {{ vm.branch }}</div>
                       </div>
-                      <span class="w-2.5 h-2.5 rounded-full mt-1 shrink-0" :class="(status[vm.id]&&status[vm.id].online)?'bg-ok live':'bg-idle'"></span>
+                      <span class="w-2.5 h-2.5 rounded-full mt-1 shrink-0" :class="(status[vm.id]&&status[vm.id].online)?'bg-ok live':'bg-brand/30'"></span>
                     </div>
                     <div class="mt-4 flex items-center justify-between">
-                      <span class="font-mono text-xs rounded-lg px-2 py-1 text-t2" style="background:rgba(8,12,20,.5)">{{ (status[vm.id]&&status[vm.id].commit)||'·······' }}</span>
-                      <span class="text-[11px] font-bold flex items-center gap-1" :class="(status[vm.id]&&status[vm.id].online)?'text-ok':'text-t3'"><ic n="broadcast" cls="w-3.5 h-3.5"/>{{ (status[vm.id]&&status[vm.id].online)?'online':'—' }}</span>
+                      <span class="font-mono text-xs rounded-lg px-2 py-1 tx2 soft">{{ (status[vm.id]&&status[vm.id].commit)||'·······' }}</span>
+                      <span class="text-[11px] font-bold flex items-center gap-1" :class="(status[vm.id]&&status[vm.id].online)?'text-ok':'tx3'"><ic n="broadcast" cls="w-3.5 h-3.5"/>{{ (status[vm.id]&&status[vm.id].online)?'online':'—' }}</span>
                     </div>
-                    <!-- expansível (hover) — métricas + restart -->
                     <div class="expand">
-                      <div class="h-px my-1" style="background:linear-gradient(90deg,transparent,rgba(148,163,184,.18),transparent)"></div>
-                      <!-- loading: skeleton (sem spinner) -->
-                      <div v-if="!mstate[vm.id] || mstate[vm.id]==='loading'" class="grid grid-cols-3 gap-2.5 mt-2">
-                        <div v-for="i in 3" :key="i" class="skel h-9"></div>
-                      </div>
-                      <!-- sem dado / indisponível -->
-                      <div v-else-if="mstate[vm.id]!=='ok'" class="mt-2 flex items-center gap-2 text-[11px] text-t3">
-                        <ic n="warning-octagon" cls="w-3.5 h-3.5"/>
-                        <span>{{ mstate[vm.id]==='error' ? 'métricas indisponíveis' : 'sem métricas nesta VM' }}</span>
-                        <button v-if="mstate[vm.id]==='error'" @click.stop="retryMetrics(vm.id)" class="text-accentsoft hover:underline font-semibold">tentar de novo</button>
-                      </div>
-                      <!-- ok: barras + uptime -->
+                      <div class="h-px my-1 hair" style="border-top-width:1px"></div>
+                      <div v-if="!mstate[vm.id] || mstate[vm.id]==='loading'" class="grid grid-cols-3 gap-2.5 mt-2"><div v-for="i in 3" :key="i" class="skel h-9"></div></div>
+                      <div v-else-if="mstate[vm.id]!=='ok'" class="mt-2 flex items-center gap-2 text-[11px] tx3"><ic n="warning-octagon" cls="w-3.5 h-3.5"/><span>{{ mstate[vm.id]==='error' ? 'métricas indisponíveis' : 'sem métricas nesta VM' }}</span><button v-if="mstate[vm.id]==='error'" @click.stop="retryMetrics(vm.id)" class="text-brand hover:underline font-semibold">tentar de novo</button></div>
                       <template v-else>
                         <div class="grid grid-cols-3 gap-2.5 mt-2">
                           <div v-for="m in [{k:'cpu',l:'CPU'},{k:'ram',l:'RAM'},{k:'disk',l:'Disco'}]" :key="m.k">
-                            <div class="flex justify-between items-baseline"><span class="text-[10px] uppercase tracking-wider text-t3 font-bold">{{ m.l }}</span><span class="font-mono text-[11px] text-t2">{{ metrics[vm.id][m.k]!=null ? metrics[vm.id][m.k]+'%' : '—' }}</span></div>
+                            <div class="flex justify-between items-baseline"><span class="text-[10px] uppercase tracking-wider tx3 font-bold">{{ m.l }}</span><span class="font-mono text-[11px] tx2">{{ metrics[vm.id][m.k]!=null ? metrics[vm.id][m.k]+'%' : '—' }}</span></div>
                             <div class="mbar mt-1"><span :style="{ width: (metrics[vm.id][m.k]||0)+'%' }"></span></div>
                           </div>
                         </div>
-                        <div class="flex items-center gap-4 mt-3 text-[11px] text-t2 font-medium">
-                          <span class="flex items-center gap-1.5"><ic n="clock-counter-clockwise" cls="w-3.5 h-3.5 text-accent"/>{{ metrics[vm.id].uptime }}</span>
-                          <span class="flex items-center gap-1.5"><span class="w-1.5 h-1.5 rounded-full" :class="metrics[vm.id].service_active?'bg-ok':'bg-idle'"></span>serviço</span>
-                        </div>
+                        <div class="flex items-center gap-4 mt-3 text-[11px] tx2 font-medium"><span class="flex items-center gap-1.5"><ic n="clock-counter-clockwise" cls="w-3.5 h-3.5 text-brand"/>{{ metrics[vm.id].uptime }}</span><span class="flex items-center gap-1.5"><span class="w-1.5 h-1.5 rounded-full" :class="metrics[vm.id].service_active?'bg-ok':'bg-brand/30'"></span>serviço</span></div>
                       </template>
                       <div class="flex gap-2 mt-3">
-                        <button @click.stop="restartVM(vm.id,'chatwoot-web.1.service','web · '+vm.name)" class="press flex-1 text-[11px] font-bold rounded-lg py-2 flex items-center justify-center gap-1 text-accentsoft" style="background:rgba(34,211,238,.1);border:1px solid rgba(34,211,238,.25)"><ic n="arrows-clockwise" cls="w-3.5 h-3.5"/>web</button>
-                        <button @click.stop="restartVM(vm.id,'chatwoot-worker.1.service','worker · '+vm.name)" class="press flex-1 text-[11px] font-bold rounded-lg py-2 flex items-center justify-center gap-1 text-violet" style="background:rgba(129,140,248,.1);border:1px solid rgba(129,140,248,.25)"><ic n="arrows-clockwise" cls="w-3.5 h-3.5"/>worker</button>
-                        <button @click.stop="restartVM(vm.id,'chatwoot.target','tudo · '+vm.name)" class="press flex-1 text-[11px] font-bold rounded-lg py-2 flex items-center justify-center gap-1 text-t2" style="background:rgba(148,163,184,.08);border:1px solid rgba(148,163,184,.18)"><ic n="arrows-clockwise" cls="w-3.5 h-3.5"/>tudo</button>
+                        <button @click.stop="restartVM(vm.id,'chatwoot-web.1.service','web · '+vm.name)" class="press flex-1 text-[11px] font-bold rounded-lg py-2 flex items-center justify-center gap-1 text-brand" style="background:rgb(99 102 241/.1);border:1px solid rgb(99 102 241/.22)"><ic n="arrows-clockwise" cls="w-3.5 h-3.5"/>web</button>
+                        <button @click.stop="restartVM(vm.id,'chatwoot-worker.1.service','worker · '+vm.name)" class="press flex-1 text-[11px] font-bold rounded-lg py-2 flex items-center justify-center gap-1 text-violet" style="background:rgb(139 92 246/.1);border:1px solid rgb(139 92 246/.22)"><ic n="arrows-clockwise" cls="w-3.5 h-3.5"/>worker</button>
+                        <button @click.stop="restartVM(vm.id,'chatwoot.target','tudo · '+vm.name)" class="press flex-1 text-[11px] font-bold rounded-lg py-2 flex items-center justify-center gap-1 tx2 soft"><ic n="arrows-clockwise" cls="w-3.5 h-3.5"/>tudo</button>
                       </div>
                     </div>
                   </div>
                 </div>
               </div>
             </div>
-            <p v-if="!fleet.length" class="text-t3 text-sm">Carregando frota… (confira seu token na barra lateral)</p>
+            <p v-if="!fleet.length" class="tx3 text-sm">Carregando frota… (confira seu token na barra lateral)</p>
           </div>
 
           <!-- APROVAÇÕES -->
           <div v-else-if="view==='aprovacoes'">
-            <div v-if="!pending.length" class="glass rounded-3xl p-12 text-center"><div class="w-16 h-16 rounded-3xl grid place-items-center mx-auto mb-3" style="background:rgba(76,195,138,.12)"><ic n="shield-check-d" cls="w-9 h-9 text-ok"/></div><p class="text-t2 font-medium">Nenhuma operação aguardando autorização.</p></div>
-            <div v-for="(d,i) in pending" :key="d.id" class="card glass rounded-2xl p-5 mb-4 relative overflow-hidden rise flex flex-col md:flex-row md:items-center justify-between gap-4" :style="{ animationDelay:(i*50)+'ms' }">
-              <ic n="rocket-launch-d" cls="absolute right-2 -bottom-6 w-32 h-32 text-accent pointer-events-none" style="opacity:.08"/>
-              <div class="flex items-start gap-3 relative">
-                <div class="w-11 h-11 rounded-xl grid place-items-center shrink-0" style="background:rgba(34,211,238,.12);color:#22D3EE"><ic n="rocket-launch" cls="w-5 h-5"/></div>
+            <div v-if="!pending.length" class="glass rounded-3xl p-12 text-center"><div class="w-16 h-16 rounded-3xl grid place-items-center mx-auto mb-3" style="background:rgb(16 185 129/.12)"><ic n="shield-check" cls="w-9 h-9 text-ok"/></div><p class="tx2 font-medium">Nenhuma operação aguardando autorização.</p></div>
+            <div v-for="(d,i) in pending" :key="d.id" class="card glass rounded-2xl p-5 mb-4 rise flex flex-col md:flex-row md:items-center justify-between gap-4" :style="{ animationDelay:(i*50)+'ms' }">
+              <div class="flex items-start gap-3">
+                <div class="w-11 h-11 rounded-xl grid place-items-center shrink-0" style="background:rgb(99 102 241/.12);color:#6366F1"><ic n="rocket-launch" cls="w-5 h-5"/></div>
                 <div>
-                  <div class="font-display font-bold text-lg flex items-center gap-2 flex-wrap text-t1">{{ d.vm }}<span class="font-mono text-xs text-t3 font-normal">{{ d.current_sha }} → {{ d.target_sha }}</span></div>
-                  <div class="text-xs text-t3 mt-1 flex items-center gap-2 flex-wrap font-medium">por <b class="text-t1">{{ d.requested_by }}</b> · {{ (d.migrations||[]).length }} migration(s)<span v-if="d.has_destructive" class="rounded-full px-2 py-0.5 flex items-center gap-1 font-bold" style="background:rgba(242,160,168,.14);color:#F2A0A8"><ic n="warning-octagon" cls="w-3.5 h-3.5"/>DESTRUTIVA</span></div>
+                  <div class="font-display font-bold text-lg flex items-center gap-2 flex-wrap tx1">{{ d.vm }}<span class="font-mono text-xs tx3 font-normal">{{ d.current_sha }} → {{ d.target_sha }}</span></div>
+                  <div class="text-xs tx3 mt-1 flex items-center gap-2 flex-wrap font-medium">por <b class="tx1">{{ d.requested_by }}</b> · {{ (d.migrations||[]).length }} migration(s)<span v-if="d.has_destructive" class="rounded-full px-2 py-0.5 flex items-center gap-1 font-bold" style="background:rgb(239 68 68/.12);color:#EF4444"><ic n="warning-octagon" cls="w-3.5 h-3.5"/>DESTRUTIVA</span></div>
                 </div>
               </div>
-              <div class="flex gap-2 shrink-0 relative">
-                <button @click="act(d.id,'approve')" class="press text-void font-bold rounded-full px-6 py-3 text-sm flex items-center gap-2" style="background:#4CC38A;box-shadow:0 8px 22px rgba(76,195,138,.3)"><ic n="check-circle" cls="w-5 h-5"/>Aprovar</button>
-                <button @click="act(d.id,'reject')" class="press border border-line hover:text-bad text-t2 font-bold rounded-full px-5 py-3 text-sm flex items-center gap-2" style="background:rgba(8,12,20,.4)"><ic n="x-circle" cls="w-5 h-5"/>Rejeitar</button>
+              <div class="flex gap-2 shrink-0">
+                <button @click="act(d.id,'approve')" class="press font-bold rounded-full px-6 py-3 text-sm flex items-center gap-2 text-white" style="background:#10B981;box-shadow:0 8px 22px rgb(16 185 129/.3)"><ic n="check-circle" cls="w-5 h-5"/>Aprovar</button>
+                <button @click="act(d.id,'reject')" class="press btn-ghost hover:text-bad font-bold rounded-full px-5 py-3 text-sm flex items-center gap-2"><ic n="x-circle" cls="w-5 h-5"/>Rejeitar</button>
               </div>
             </div>
           </div>
@@ -435,183 +520,154 @@ Exemplos: "qual o status da tozi?" · "a frota tá saudável?" · "atualiza a ho
           <!-- HISTÓRICO -->
           <div v-else-if="view==='historico'" class="glass rounded-2xl overflow-hidden rise">
             <table class="w-full text-sm">
-              <thead class="text-t3 text-[11px] uppercase tracking-wider font-bold" style="background:rgba(8,12,20,.4)"><tr class="text-left"><th class="px-5 py-3.5">VM</th><th>Mudança</th><th>Autor / Aprovou</th><th>Status</th></tr></thead>
+              <thead class="tx3 text-[11px] uppercase tracking-wider font-bold soft"><tr class="text-left"><th class="px-5 py-3.5">VM</th><th>Mudança</th><th>Autor / Aprovou</th><th>Status</th></tr></thead>
               <tbody>
-                <tr v-for="d in recent" :key="d.id" class="border-t hover:bg-white/5" style="border-color:rgba(148,163,184,.08)"><td class="px-5 py-3 font-bold text-t1">{{ d.vm }}</td><td class="font-mono text-xs text-t2">{{ d.current_sha }}→{{ d.target_sha }}</td><td class="text-xs text-t3 font-medium">{{ d.requested_by }} / {{ d.approved_by||'—' }}</td><td><span class="text-[11px] font-bold px-2.5 py-1 rounded-full" :class="d.status==='success'?'text-ok':'text-t3'" :style="d.status==='success'?'background:rgba(76,195,138,.12)':'background:rgba(100,116,139,.12)'">{{ d.status }}</span></td></tr>
-                <tr v-if="!recent.length"><td colspan="4" class="px-5 py-8 text-t3 text-sm text-center">Sem histórico ainda.</td></tr>
+                <tr v-for="d in recent" :key="d.id" class="border-t hair"><td class="px-5 py-3 font-bold tx1">{{ d.vm }}</td><td class="font-mono text-xs tx2">{{ d.current_sha }}→{{ d.target_sha }}</td><td class="text-xs tx3 font-medium">{{ d.requested_by }} / {{ d.approved_by||'—' }}</td><td><span class="text-[11px] font-bold px-2.5 py-1 rounded-full" :class="d.status==='success'?'text-ok':'tx3'" :style="d.status==='success'?'background:rgb(16 185 129/.12)':'background:rgb(148 163 184/.12)'">{{ d.status }}</span></td></tr>
+                <tr v-if="!recent.length"><td colspan="4" class="px-5 py-8 tx3 text-sm text-center">Sem histórico ainda.</td></tr>
               </tbody>
             </table>
           </div>
 
           <!-- TOKENS -->
           <div v-else-if="view==='tokens'">
-            <div class="flex justify-end mb-4"><button @click="newToken" class="press text-void font-bold rounded-full px-5 py-2.5 text-sm flex items-center gap-2" style="background:#22D3EE;box-shadow:0 6px 18px rgba(34,211,238,.25)"><ic n="plus" cls="w-4 h-4"/>Novo token</button></div>
+            <div class="flex justify-end mb-4"><button @click="newToken" class="press btn-brand font-bold rounded-full px-5 py-2.5 text-sm flex items-center gap-2"><ic n="plus" cls="w-4 h-4"/>Novo token</button></div>
             <div class="glass rounded-2xl overflow-hidden rise">
               <table class="w-full text-sm">
-                <thead class="text-t3 text-[11px] uppercase tracking-wider font-bold" style="background:rgba(8,12,20,.4)"><tr class="text-left"><th class="px-5 py-3.5">Dev</th><th>Papel</th><th>Dispositivo (PC)</th><th>Último acesso</th><th></th></tr></thead>
+                <thead class="tx3 text-[11px] uppercase tracking-wider font-bold soft"><tr class="text-left"><th class="px-5 py-3.5">Dev</th><th>Papel</th><th>Dispositivo (PC)</th><th>Último acesso</th><th></th></tr></thead>
                 <tbody>
-                  <tr v-for="t in tokens" :key="t.id" class="border-t" style="border-color:rgba(148,163,184,.08)" :class="{'opacity-40':t.revoked}"><td class="px-5 py-3 font-bold text-t1">{{ t.name }} <span class="text-t3 font-mono text-xs font-normal">{{ t.secret }}</span></td><td><span class="text-[11px] font-bold px-2.5 py-1 rounded-full uppercase text-t2" style="background:rgba(100,116,139,.15)">{{ t.role }}</span></td><td class="font-mono text-xs text-t2 flex items-center gap-1.5 py-3"><ic n="hard-drives" cls="w-4 h-4 text-t3"/>{{ t.last_host||'—' }} <span class="text-t3">{{ t.last_ip }}</span></td><td class="text-xs text-t3 font-medium">{{ t.last_seen?relTime(t.last_seen):'nunca usou' }}</td><td class="text-right pr-5"><button v-if="!t.revoked" @click="revokeToken(t.id)" class="press text-bad hover:opacity-80 text-xs font-bold flex items-center gap-1 ml-auto"><ic n="prohibit" cls="w-3.5 h-3.5"/>Revogar</button><span v-else class="text-t3 text-xs">revogado</span></td></tr>
-                  <tr v-if="!tokens.length"><td colspan="5" class="px-5 py-8 text-t3 text-sm text-center">Nenhum token emitido. Clique "Novo token".</td></tr>
+                  <tr v-for="t in tokens" :key="t.id" class="border-t hair" :class="{'opacity-40':t.revoked}"><td class="px-5 py-3 font-bold tx1">{{ t.name }} <span class="tx3 font-mono text-xs font-normal">{{ t.secret }}</span></td><td><span class="text-[11px] font-bold px-2.5 py-1 rounded-full uppercase tx2 soft">{{ t.role }}</span></td><td class="font-mono text-xs tx2 flex items-center gap-1.5 py-3"><ic n="hard-drives" cls="w-4 h-4 tx3"/>{{ t.last_host||'—' }} <span class="tx3">{{ t.last_ip }}</span></td><td class="text-xs tx3 font-medium">{{ t.last_seen?relTime(t.last_seen):'nunca usou' }}</td><td class="text-right pr-5"><button v-if="!t.revoked" @click="revokeToken(t.id)" class="press text-bad hover:opacity-80 text-xs font-bold flex items-center gap-1 ml-auto"><ic n="prohibit" cls="w-3.5 h-3.5"/>Revogar</button><span v-else class="tx3 text-xs">revogado</span></td></tr>
+                  <tr v-if="!tokens.length"><td colspan="5" class="px-5 py-8 tx3 text-sm text-center">Nenhum token emitido. Clique "Novo token".</td></tr>
                 </tbody>
               </table>
             </div>
-            <p class="text-t3 text-xs mt-3 px-1 font-medium">O dev cola o token no <code class="text-accentsoft font-bold">.mcp.json</code>; na 1ª chamada o painel registra o <b class="text-t1">PC</b> (hostname/IP). Revogar corta o acesso na hora.</p>
+            <p class="tx3 text-xs mt-3 px-1 font-medium">O dev cola o token no <code class="text-brand font-bold">.mcp.json</code>; na 1ª chamada o painel registra o <b class="tx1">PC</b> (hostname/IP). Revogar corta o acesso na hora.</p>
           </div>
 
-          <!-- CONECTAR -->
+          <!-- USUÁRIOS -->
           <div v-else-if="view==='usuarios'">
-            <div class="flex justify-end mb-4"><button @click="addUser" class="press text-void font-bold rounded-full px-5 py-2.5 text-sm flex items-center gap-2" style="background:#22D3EE;box-shadow:0 6px 18px rgba(34,211,238,.25)"><ic n="plus" cls="w-4 h-4"/>Convidar usuário</button></div>
+            <div class="flex justify-end mb-4"><button @click="addUser" class="press btn-brand font-bold rounded-full px-5 py-2.5 text-sm flex items-center gap-2"><ic n="plus" cls="w-4 h-4"/>Convidar usuário</button></div>
             <div class="glass rounded-2xl overflow-hidden rise">
               <table class="w-full text-sm">
-                <thead class="text-t3 text-[11px] uppercase tracking-wider font-bold" style="background:rgba(8,12,20,.4)"><tr class="text-left"><th class="px-5 py-3.5">Usuário</th><th>Papel</th><th>Status</th><th>Último login</th><th></th></tr></thead>
+                <thead class="tx3 text-[11px] uppercase tracking-wider font-bold soft"><tr class="text-left"><th class="px-5 py-3.5">Usuário</th><th>Papel</th><th>Status</th><th>Último login</th><th></th></tr></thead>
                 <tbody>
-                  <tr v-for="u in usersList" :key="u.id" class="border-t" style="border-color:rgba(148,163,184,.08)">
-                    <td class="px-5 py-3"><div class="font-bold text-t1">{{ u.name||u.email }}</div><div class="text-xs text-t3 font-mono">{{ u.email }}</div></td>
-                    <td><span class="text-[11px] font-bold px-2.5 py-1 rounded-full uppercase text-t2" style="background:rgba(100,116,139,.15)">{{ u.role }}</span></td>
-                    <td><span class="text-[11px] font-bold px-2.5 py-1 rounded-full" :class="u.status==='active'?'text-ok':'text-warn'" :style="u.status==='active'?'background:rgba(76,195,138,.12)':'background:rgba(232,199,106,.12)'">{{ u.status==='active'?'ativo':'convidado' }}</span></td>
-                    <td class="text-xs text-t3 font-medium">{{ u.last_login?relTime(u.last_login):'—' }}</td>
+                  <tr v-for="u in usersList" :key="u.id" class="border-t hair">
+                    <td class="px-5 py-3"><div class="font-bold tx1">{{ u.name||u.email }}</div><div class="text-xs tx3 font-mono">{{ u.email }}</div></td>
+                    <td><span class="text-[11px] font-bold px-2.5 py-1 rounded-full uppercase tx2 soft">{{ u.role }}</span></td>
+                    <td><span class="text-[11px] font-bold px-2.5 py-1 rounded-full" :class="u.status==='active'?'text-ok':'text-warn'" :style="u.status==='active'?'background:rgb(16 185 129/.12)':'background:rgb(245 158 11/.12)'">{{ u.status==='active'?'ativo':'convidado' }}</span></td>
+                    <td class="text-xs tx3 font-medium">{{ u.last_login?relTime(u.last_login):'—' }}</td>
                     <td class="text-right pr-5"><button @click="delUser(u.id)" class="press text-bad hover:opacity-80 text-xs font-bold flex items-center gap-1 ml-auto"><ic n="prohibit" cls="w-3.5 h-3.5"/>Remover</button></td>
                   </tr>
-                  <tr v-if="!usersList.length"><td colspan="5" class="px-5 py-8 text-t3 text-sm text-center">Nenhum usuário. Clique "Convidar usuário".</td></tr>
+                  <tr v-if="!usersList.length"><td colspan="5" class="px-5 py-8 tx3 text-sm text-center">Nenhum usuário. Clique "Convidar usuário".</td></tr>
                 </tbody>
               </table>
             </div>
-            <p class="text-t3 text-xs mt-3 px-1 font-medium">Ao convidar, a pessoa recebe um <b class="text-t1">email</b> pra definir a senha (link expira em 48h). Login é por <b class="text-t1">email + senha</b>.</p>
+            <p class="tx3 text-xs mt-3 px-1 font-medium">Ao convidar, a pessoa recebe um <b class="tx1">email</b> pra definir a senha (link expira em 48h). Login é por <b class="tx1">email + senha</b>.</p>
           </div>
 
+          <!-- RELEASE -->
           <div v-else-if="view==='release'" class="max-w-3xl space-y-4 rise">
             <div class="glass rounded-2xl p-6 relative overflow-hidden">
-              <ic n="rocket-launch-d" cls="absolute right-2 -bottom-6 w-32 h-32 text-accent pointer-events-none" style="opacity:.08"/>
-              <h2 class="font-display font-extrabold text-2xl text-t1 flex items-center gap-2 relative"><ic n="rocket-launch" cls="w-6 h-6 text-accent"/>Release pra produção</h2>
-              <p class="text-t2 text-sm mt-2 max-w-lg relative">Escolha as máquinas → veja o preview → solte. O rollout é <b class="text-t1">sequencial com health-check</b>: deploya uma de cada vez e <b class="text-t1">para tudo</b> se alguma falhar (não contamina a frota).</p>
+              <ic n="rocket-launch" cls="absolute right-2 -bottom-6 w-32 h-32 text-brand pointer-events-none" style="opacity:.07"/>
+              <h2 class="font-display font-extrabold text-2xl tx1 flex items-center gap-2 relative"><ic n="rocket-launch" cls="w-6 h-6 text-brand"/>Release pra produção</h2>
+              <p class="tx2 text-sm mt-2 max-w-lg relative">Escolha as máquinas → veja o preview → solte. O rollout é <b class="tx1">sequencial com health-check</b>: deploya uma de cada vez e <b class="tx1">para tudo</b> se alguma falhar.</p>
             </div>
-
             <div class="glass rounded-2xl p-6">
               <div class="flex items-center justify-between mb-3">
-                <h3 class="font-display font-bold text-lg text-t1">Máquinas afetadas</h3>
-                <div class="flex gap-3 text-[12px] font-bold"><button @click="relGroup('all')" class="press text-accentsoft">todas</button><button @click="relClear()" class="press text-t3">limpar</button></div>
+                <h3 class="font-display font-bold text-lg tx1">Máquinas afetadas</h3>
+                <div class="flex gap-3 text-[12px] font-bold"><button @click="relGroup('all')" class="press text-brand">todas</button><button @click="relClear()" class="press tx3">limpar</button></div>
               </div>
               <div v-for="(vms,env) in byEnv" :key="env" class="mb-3">
-                <div class="text-[10px] uppercase tracking-wider text-t3 font-bold mb-1.5 flex items-center gap-2">{{ env }} <button @click="relGroup(env)" class="press text-accentsoft normal-case tracking-normal lowercase">+ grupo</button></div>
+                <div class="text-[10px] uppercase tracking-wider tx3 font-bold mb-1.5 flex items-center gap-2">{{ env }} <button @click="relGroup(env)" class="press text-brand normal-case tracking-normal lowercase">+ grupo</button></div>
                 <div class="flex flex-wrap gap-2">
-                  <button v-for="vm in vms" :key="vm.id" @click="relToggle(vm.id)" :class="['press text-[13px] font-bold rounded-lg px-3 py-1.5 border']" :style="rel.sel[vm.id]?'background:#22D3EE;border-color:#22D3EE;color:#080C14':'background:#0b1018;border-color:rgba(148,163,184,.18);color:#cbd5e1'">{{ vm.name }}</button>
+                  <button v-for="vm in vms" :key="vm.id" @click="relToggle(vm.id)" class="press text-[13px] font-bold rounded-lg px-3 py-1.5 border transition" :style="rel.sel[vm.id]?'background:#6366F1;border-color:#6366F1;color:#fff':'background:rgb(var(--surface)/.5);border-color:rgb(var(--hair)/.14)'" :class="!rel.sel[vm.id]&&'tx1'">{{ vm.name }}</button>
                 </div>
               </div>
               <div class="flex gap-2 mt-4">
-                <button @click="relDry()" :disabled="rel.busy" class="press border border-line text-t1 font-bold rounded-lg px-4 py-2 text-sm disabled:opacity-50">{{ rel.busy?'…':'Preview (dry-run)' }}</button>
-                <button @click="relGo()" :disabled="rel.busy" class="press text-void font-bold rounded-lg px-5 py-2 text-sm flex items-center gap-2 disabled:opacity-50" style="background:#4CC38A;box-shadow:0 6px 18px rgba(76,195,138,.25)"><ic n="rocket-launch" cls="w-4 h-4"/>Soltar Release</button>
+                <button @click="relDry()" :disabled="rel.busy" class="press btn-ghost font-bold rounded-lg px-4 py-2 text-sm disabled:opacity-50">{{ rel.busy?'…':'Preview (dry-run)' }}</button>
+                <button @click="relGo()" :disabled="rel.busy" class="press font-bold rounded-lg px-5 py-2 text-sm flex items-center gap-2 disabled:opacity-50 text-white" style="background:#10B981;box-shadow:0 6px 18px rgb(16 185 129/.25)"><ic n="rocket-launch" cls="w-4 h-4"/>Soltar Release</button>
               </div>
-              <p v-if="rel.err" class="text-xs mt-2" style="color:#fb7185">⚠️ {{ rel.err }}</p>
+              <p v-if="rel.err" class="text-xs mt-2 text-bad">⚠️ {{ rel.err }}</p>
             </div>
-
             <div v-if="rel.dry.length" class="glass rounded-2xl p-6">
-              <h3 class="font-display font-bold text-lg text-t1 mb-3">Preview (nada enfileirado)</h3>
+              <h3 class="font-display font-bold text-lg tx1 mb-3">Preview (nada enfileirado)</h3>
               <div class="space-y-1.5 text-[13px] font-mono">
-                <div v-for="d in rel.dry" :key="d.vm" class="flex flex-wrap items-center gap-2 text-t2">
-                  <span class="w-28 text-t1 font-bold">{{ d.vm }}</span>
-                  <span>{{ d.current_sha }} → {{ d.target_sha||'?' }}</span>
+                <div v-for="d in rel.dry" :key="d.vm" class="flex flex-wrap items-center gap-2 tx2">
+                  <span class="w-28 tx1 font-bold">{{ d.vm }}</span><span>{{ d.current_sha }} → {{ d.target_sha||'?' }}</span>
                   <span v-if="!d.behind" class="text-ok">· em dia</span>
-                  <span v-if="d.migrations" :class="d.destructive?'text-bad':'text-t3'">· {{ d.migrations }} migr{{ d.destructive?' ⚠️ DESTRUTIVA':'' }}</span>
-                  <span v-if="d.frozen" class="text-bad">· 🧊 congelada (será pulada)</span>
+                  <span v-if="d.migrations" :class="d.destructive?'text-bad':'tx3'">· {{ d.migrations }} migr{{ d.destructive?' ⚠️ DESTRUTIVA':'' }}</span>
+                  <span v-if="d.frozen" class="text-bad">· 🧊 congelada</span>
                 </div>
               </div>
             </div>
-
             <div v-if="rel.running" class="glass rounded-2xl p-6">
-              <h3 class="font-display font-bold text-lg text-t1 mb-1 flex items-center gap-2">Rollout {{ rel.running.id }} <span :class="rel.running.status==='success'?'text-ok':(rel.running.status==='failed'?'text-bad':'text-accent')">· {{ rel.running.status }}</span></h3>
+              <h3 class="font-display font-bold text-lg tx1 mb-1 flex items-center gap-2">Rollout {{ rel.running.id }} <span :class="rel.running.status==='success'?'text-ok':(rel.running.status==='failed'?'text-bad':'text-brand')">· {{ rel.running.status }}</span></h3>
               <div class="space-y-1.5 mt-3 text-sm">
-                <div v-for="r in rel.running.results" :key="r.vm" class="flex items-center gap-2">
-                  <span class="w-5 text-center">{{ r.status==='success'?'✅':(r.status==='failed'?'❌':(r.status==='executing'?'⏳':(r.status==='skipped'?'⏭️':'·'))) }}</span>
-                  <span class="w-28 text-t1 font-bold">{{ r.vm }}</span>
-                  <span class="text-t3 text-[13px] truncate">{{ r.status }}{{ r.detail?' — '+r.detail.slice(0,70):'' }}</span>
-                </div>
+                <div v-for="r in rel.running.results" :key="r.vm" class="flex items-center gap-2"><span class="w-5 text-center">{{ r.status==='success'?'✅':(r.status==='failed'?'❌':(r.status==='executing'?'⏳':(r.status==='skipped'?'⏭️':'·'))) }}</span><span class="w-28 tx1 font-bold">{{ r.vm }}</span><span class="tx3 text-[13px] truncate">{{ r.status }}{{ r.detail?' — '+r.detail.slice(0,70):'' }}</span></div>
               </div>
             </div>
           </div>
 
+          <!-- CONECTAR -->
           <div v-else-if="view==='conectar'" class="max-w-3xl space-y-4 rise">
-            <!-- intro -->
             <div class="glass rounded-2xl p-6 relative overflow-hidden">
-              <ic n="plugs-connected-d" cls="absolute right-2 -bottom-6 w-32 h-32 text-violet pointer-events-none" style="opacity:.08"/>
+              <ic n="plugs-connected" cls="absolute right-2 -bottom-6 w-32 h-32 text-violet pointer-events-none" style="opacity:.07"/>
               <div class="relative">
-                <div class="text-[11px] font-bold uppercase tracking-[.18em] text-accentsoft flex items-center gap-1.5"><ic n="plugs-connected" cls="w-4 h-4"/>Onboarding</div>
-                <h2 class="font-display font-extrabold text-2xl text-t1 mt-2">Conecte o Almirante ao Claude Code</h2>
-                <p class="text-t2 text-sm mt-2 max-w-lg">3 passos e o dev comanda a frota falando natural — a IA <b class="text-t1">propõe</b>, um humano <b class="text-t1">aprova</b> aqui. Funciona em qualquer máquina com o Claude Code.</p>
+                <div class="text-[11px] font-bold uppercase tracking-[.18em] text-brand flex items-center gap-1.5"><ic n="plugs-connected" cls="w-4 h-4"/>Onboarding</div>
+                <h2 class="font-display font-extrabold text-2xl tx1 mt-2">Conecte o Almirante ao Claude Code</h2>
+                <p class="tx2 text-sm mt-2 max-w-lg">3 passos e você comanda a frota (deploy + IA) falando natural — a IA <b class="tx1">propõe</b>, um humano <b class="tx1">aprova</b> aqui.</p>
               </div>
             </div>
-
-            <!-- passo 1 -->
             <div class="glass rounded-2xl p-6 flex gap-4">
-              <div class="w-8 h-8 rounded-full grid place-items-center font-display font-extrabold text-sm shrink-0 text-void" style="background:#22D3EE">1</div>
+              <div class="w-8 h-8 rounded-full grid place-items-center font-display font-extrabold text-sm shrink-0 btn-brand">1</div>
               <div class="flex-1 min-w-0">
-                <h3 class="font-display font-bold text-lg text-t1">Gere seu token</h3>
+                <h3 class="font-display font-bold text-lg tx1">Gere seu token</h3>
                 <template v-if="me && me.role==='admin'">
-                  <p class="text-t2 text-sm mt-1 mb-3">Crie aqui mesmo — ele já entra no comando do passo 2. Nome é opcional (só pra identificar o dev na aba Tokens).</p>
+                  <p class="tx2 text-sm mt-1 mb-3">Crie aqui mesmo — ele já entra no comando do passo 2.</p>
                   <div v-if="!gen.tok" class="flex flex-wrap items-center gap-2">
-                    <input v-model="gen.name" @keyup.enter="genConnectToken" placeholder="nome do dev (opcional)" class="rounded-lg px-3 py-2 text-sm text-t1 outline-none flex-1 min-w-[180px]" style="background:#0b1018;border:1px solid rgba(148,163,184,.18)"/>
-                    <button @click="genConnectToken" :disabled="gen.busy" class="press text-void font-bold rounded-lg px-4 py-2 text-sm flex items-center gap-1.5 disabled:opacity-60" style="background:#22D3EE"><ic n="key" cls="w-4 h-4"/>{{ gen.busy ? 'gerando…' : 'Gerar token' }}</button>
+                    <input v-model="gen.name" @keyup.enter="genConnectToken" placeholder="nome do dev (opcional)" class="field px-3 py-2 text-sm flex-1 min-w-[180px]"/>
+                    <button @click="genConnectToken" :disabled="gen.busy" class="press btn-brand font-bold rounded-lg px-4 py-2 text-sm flex items-center gap-1.5 disabled:opacity-60"><ic n="key" cls="w-4 h-4"/>{{ gen.busy ? 'gerando…' : 'Gerar token' }}</button>
                   </div>
-                  <div v-else class="rounded-xl p-3 flex flex-wrap items-center gap-x-2 gap-y-1" style="background:rgba(34,197,94,.1);border:1px solid rgba(34,197,94,.25)">
-                    <ic n="shield-check" cls="w-4 h-4 text-ok shrink-0"/>
-                    <span class="text-sm text-t1">Token de <b>{{ gen.name }}</b> gerado e <b>já injetado</b> no comando abaixo.</span>
-                    <button @click="copy(gen.tok,'tok')" class="press ml-auto text-[12px] font-bold text-accentsoft flex items-center gap-1">{{ copied==='tok' ? 'copiado ✓' : 'copiar só o token' }}</button>
-                    <button @click="gen.tok='';gen.name=''" class="press text-[12px] font-bold text-t3">gerar outro</button>
+                  <div v-else class="rounded-xl p-3 flex flex-wrap items-center gap-x-2 gap-y-1" style="background:rgb(16 185 129/.1);border:1px solid rgb(16 185 129/.25)">
+                    <ic n="shield-check" cls="w-4 h-4 text-ok shrink-0"/><span class="text-sm tx1">Token de <b>{{ gen.name }}</b> <b>já injetado</b> no comando abaixo.</span>
+                    <button @click="copy(gen.tok,'tok')" class="press ml-auto text-[12px] font-bold text-brand flex items-center gap-1">{{ copied==='tok' ? 'copiado ✓' : 'copiar só o token' }}</button>
+                    <button @click="gen.tok='';gen.name=''" class="press text-[12px] font-bold tx3">gerar outro</button>
                   </div>
-                  <p v-if="gen.err" class="text-xs mt-2" style="color:#fb7185">⚠️ {{ gen.err }}</p>
-                  <p class="text-t3 text-xs mt-2">O token aparece uma vez. Sai da tela, some — é só gerar de novo. Revogável na aba <b class="text-t2">Tokens</b>.</p>
+                  <p v-if="gen.err" class="text-xs mt-2 text-bad">⚠️ {{ gen.err }}</p>
                 </template>
-                <template v-else>
-                  <p class="text-t2 text-sm mt-1">Peça um token a um <b class="text-t1">admin</b> (ele gera na aba Tokens) e use no lugar de <b class="text-accentsoft">SEU_TOKEN</b> no comando abaixo.</p>
-                </template>
+                <template v-else><p class="tx2 text-sm mt-1">Peça um token a um <b class="tx1">admin</b> e use no lugar de <b class="text-brand">SEU_TOKEN</b> abaixo.</p></template>
               </div>
             </div>
-
-            <!-- passo 2 -->
             <div class="glass rounded-2xl p-6 flex gap-4">
-              <div class="w-8 h-8 rounded-full grid place-items-center font-display font-extrabold text-sm shrink-0 text-void" style="background:#22D3EE">2</div>
+              <div class="w-8 h-8 rounded-full grid place-items-center font-display font-extrabold text-sm shrink-0 btn-brand">2</div>
               <div class="flex-1 min-w-0">
-                <div class="flex items-center justify-between gap-2">
-                  <h3 class="font-display font-bold text-lg text-t1">Conecte com <span class="text-accentsoft">1 comando</span></h3>
-                  <button @click="copy(addCmd,'cmd')" class="press text-[12px] font-bold rounded-lg px-3 py-1.5 flex items-center gap-1.5 shrink-0" style="background:rgba(34,211,238,.12);color:#67E8F9;border:1px solid rgba(34,211,238,.25)"><ic n="terminal-window" cls="w-3.5 h-3.5"/>{{ copied==='cmd' ? 'copiado ✓' : 'copiar' }}</button>
-                </div>
-                <p class="text-t2 text-sm mt-1 mb-3"><template v-if="gen.tok"><b class="text-ok">Seu token já está no comando</b> — é só copiar e rodar. </template><template v-else>Rode no terminal e troque <b class="text-accentsoft">SEU_TOKEN</b> pela sua chave. </template><b class="text-t1">Sem binário, sem editar arquivo</b>, em qualquer SO.</p>
-                <pre class="rounded-xl p-4 text-xs overflow-x-auto leading-relaxed" style="background:#05070D;border:1px solid rgba(148,163,184,.1);color:#94A3B8">{{ addCmd }}</pre>
+                <div class="flex items-center justify-between gap-2"><h3 class="font-display font-bold text-lg tx1">Conecte com <span class="text-brand">1 comando</span></h3><button @click="copy(addCmd,'cmd')" class="press text-[12px] font-bold rounded-lg px-3 py-1.5 flex items-center gap-1.5 shrink-0" style="background:rgb(99 102 241/.12);color:#6366F1;border:1px solid rgb(99 102 241/.25)"><ic n="terminal-window" cls="w-3.5 h-3.5"/>{{ copied==='cmd' ? 'copiado ✓' : 'copiar' }}</button></div>
+                <p class="tx2 text-sm mt-1 mb-3">Rode no terminal — <b class="tx1">sem binário, sem editar arquivo</b>, em qualquer SO.</p>
+                <pre class="rounded-xl p-4 text-xs overflow-x-auto leading-relaxed soft tx2">{{ addCmd }}</pre>
               </div>
             </div>
-
-            <!-- passo 3 -->
             <div class="glass rounded-2xl p-6 flex gap-4">
-              <div class="w-8 h-8 rounded-full grid place-items-center font-display font-extrabold text-sm shrink-0 text-void" style="background:#22D3EE">3</div>
+              <div class="w-8 h-8 rounded-full grid place-items-center font-display font-extrabold text-sm shrink-0 btn-brand">3</div>
               <div class="flex-1">
-                <h3 class="font-display font-bold text-lg text-t1">Fale natural</h3>
-                <p class="text-t2 text-sm mt-1 mb-3">Sem decorar comando — é só pedir:</p>
+                <h3 class="font-display font-bold text-lg tx1">Fale natural</h3>
+                <p class="tx2 text-sm mt-1 mb-3">Sem decorar comando:</p>
                 <div class="space-y-3">
-                  <div><div class="text-[10px] uppercase tracking-wider text-t3 font-bold mb-1.5">Consultar</div><div class="flex flex-wrap gap-1.5"><span class="chip">"status da tozi?"</span><span class="chip">"a frota tá saudável?"</span><span class="chip">"quem precisa de deploy?"</span></div></div>
-                  <div><div class="text-[10px] uppercase tracking-wider text-t3 font-bold mb-1.5">Operar</div><div class="flex flex-wrap gap-1.5"><span class="chip">"atualiza a homologação"</span><span class="chip">"reinicia a fábrica"</span><span class="chip">"promove homolog pra produção"</span><span class="chip">"rollback da tozi"</span></div></div>
+                  <div><div class="text-[10px] uppercase tracking-wider tx3 font-bold mb-1.5">Deploy</div><div class="flex flex-wrap gap-1.5"><span class="chip">"status da tozi?"</span><span class="chip">"atualiza a homologação"</span><span class="chip">"rollback da tozi"</span></div></div>
+                  <div><div class="text-[10px] uppercase tracking-wider tx3 font-bold mb-1.5">IA</div><div class="flex flex-wrap gap-1.5"><span class="chip">"mostra o prompt da Clara"</span><span class="chip">"arma a tool de agendamento"</span><span class="chip">"histórico de mudanças da IA"</span></div></div>
                 </div>
-                <p class="text-t3 text-xs mt-4 flex items-center gap-1.5"><ic n="shield-check" cls="w-3.5 h-3.5 text-ok"/>Tudo que muda algo vira um <b class="text-t1">pedido</b> que um humano aprova aqui. A IA nunca executa sozinha.</p>
+                <p class="tx3 text-xs mt-4 flex items-center gap-1.5"><ic n="shield-check" cls="w-3.5 h-3.5 text-ok"/>Tudo que muda algo passa por test-gate/aprovação. A IA nunca executa sozinha.</p>
               </div>
             </div>
-
-            <!-- prompt pro Claude -->
             <div class="glass rounded-2xl p-6">
-              <div class="flex items-center justify-between gap-2 mb-1">
-                <h3 class="font-display font-bold text-lg text-t1 flex items-center gap-2"><div class="w-8 h-8 rounded-xl grid place-items-center" style="background:rgba(129,140,248,.14);color:#818CF8"><ic n="terminal-window" cls="w-4 h-4"/></div>Prefere pedir pro Claude? Cole isto</h3>
-                <button @click="copy(claudePrompt,'prompt')" class="press text-[12px] font-bold rounded-lg px-3 py-1.5 flex items-center gap-1.5 shrink-0" style="background:rgba(129,140,248,.14);color:#a5b4fc;border:1px solid rgba(129,140,248,.3)"><ic n="terminal-window" cls="w-3.5 h-3.5"/>{{ copied==='prompt' ? 'copiado ✓' : 'copiar prompt' }}</button>
-              </div>
-              <p class="text-t2 text-sm mt-1 mb-3">Em vez do terminal: cole no <b class="text-t1">Claude Code</b> (com sua chave no lugar de SEU_TOKEN) — ele <b class="text-t1">roda o comando, conecta sozinho</b> e já fica sabendo comandar a frota com o gate humano.</p>
-              <pre class="rounded-xl p-4 text-[11px] overflow-x-auto leading-relaxed whitespace-pre-wrap" style="background:#05070D;border:1px solid rgba(148,163,184,.1);color:#94A3B8">{{ claudePrompt }}</pre>
+              <div class="flex items-center justify-between gap-2 mb-1"><h3 class="font-display font-bold text-lg tx1 flex items-center gap-2"><div class="w-8 h-8 rounded-xl grid place-items-center" style="background:rgb(139 92 246/.14);color:#8B5CF6"><ic n="sparkle" cls="w-4 h-4"/></div>Prefere pedir pro Claude? Cole isto</h3><button @click="copy(claudePrompt,'prompt')" class="press text-[12px] font-bold rounded-lg px-3 py-1.5 flex items-center gap-1.5 shrink-0" style="background:rgb(139 92 246/.14);color:#8B5CF6;border:1px solid rgb(139 92 246/.3)"><ic n="terminal-window" cls="w-3.5 h-3.5"/>{{ copied==='prompt' ? 'copiado ✓' : 'copiar prompt' }}</button></div>
+              <pre class="rounded-xl p-4 text-[11px] overflow-x-auto leading-relaxed whitespace-pre-wrap soft tx2">{{ claudePrompt }}</pre>
             </div>
-
-            <!-- tools -->
             <div class="glass rounded-2xl p-6 relative overflow-hidden">
-              <ic n="terminal-window-d" cls="absolute right-2 -bottom-6 w-32 h-32 text-accent pointer-events-none" style="opacity:.06"/>
-              <h3 class="font-display font-bold text-lg mb-3 flex items-center gap-2 relative text-t1"><ic n="terminal-window" cls="w-5 h-5 text-accent"/>Tools disponíveis</h3>
-              <div class="grid md:grid-cols-2 gap-4 text-xs text-t3 font-medium relative">
-                <div><b class="text-t1">Observabilidade</b><br/>fleet_status · vm_status · vm_health · migration_status · git_diff · deploy_history · version_matrix · drift_check · disk_usage · service_status · list_pending · whoami</div>
-                <div><b class="text-t1">Deploy &amp; Merge</b><br/>propose_deploy_vm · propose_deploy_all · propose_deploy_group · dry_run · <b class="text-accentsoft">propose_merge</b></div>
-                <div><b class="text-t1">Ciclo-de-vida</b><br/>propose_restart_vm · propose_restart_service · propose_migrate · propose_precompile · propose_rollback</div>
-                <div><b class="text-t1">Manutenção</b><br/>freeze_deploys · unfreeze_deploys · freeze_status · cancel_request · deploy_logs · service_logs</div>
+              <h3 class="font-display font-bold text-lg mb-3 flex items-center gap-2 tx1"><ic n="terminal-window" cls="w-5 h-5 text-brand"/>Tools disponíveis</h3>
+              <div class="grid md:grid-cols-2 gap-4 text-xs tx3 font-medium">
+                <div><b class="tx1">Observabilidade</b><br/>fleet_status · vm_status · vm_health · migration_status · git_diff · deploy_history · version_matrix · drift_check</div>
+                <div><b class="tx1">Deploy &amp; Merge</b><br/>propose_deploy_vm · propose_deploy_all · propose_deploy_group · dry_run · <b class="text-brand">propose_merge</b></div>
+                <div><b class="tx1">Ciclo-de-vida</b><br/>propose_restart · propose_migrate · propose_precompile · propose_rollback · freeze/unfreeze</div>
+                <div><b class="text-brand">IA · Agentes</b><br/>ai_list_agents · ai_get_agent · ai_update_prompt · ai_set_tool · ai_set_credential · ai_add_faq · ai_history · ai_rollback</div>
               </div>
             </div>
           </div>

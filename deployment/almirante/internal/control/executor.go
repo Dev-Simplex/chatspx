@@ -9,6 +9,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/Dev-Simplex/almirante/internal/aiconfig"
 	"github.com/Dev-Simplex/almirante/internal/mock"
 	"github.com/Dev-Simplex/almirante/internal/safety"
 	sshx "github.com/Dev-Simplex/almirante/internal/ssh"
@@ -22,6 +23,9 @@ type Config struct {
 	ApprovalTTL   time.Duration
 	MergeCloneDir string // clone dedicado p/ merges (NUNCA o working tree de prod)
 	RepoURL       string // origin p/ o clone de merge
+	// Governanca de IA (opcional): nil = feature off (VMs sem receptor spx/ai_config).
+	AIDriver *aiconfig.Driver
+	AIGate   *aiconfig.TestGate
 }
 
 // Executor faz a ponte control -> almiranted (real via SSH, ou mock local).

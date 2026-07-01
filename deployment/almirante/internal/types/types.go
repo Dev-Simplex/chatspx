@@ -19,6 +19,10 @@ type VM struct {
 	Branch        string `json:"branch"`
 	Critical      bool   `json:"critical"`
 	AutoApprove   bool   `json:"auto_approve"`
+	// Governanca de IA (receptor spx/ai_config). Vazio = VM sem IA governavel.
+	// O api_access_token NAO fica aqui (secret): vem de AICONFIG_TOKEN_<slug>.
+	AIConfigURL       string `json:"aiconfig_url,omitempty"`
+	AIConfigAccountID int    `json:"aiconfig_account_id,omitempty"`
 }
 
 // Fleet e o inventario carregado de fleet.json.

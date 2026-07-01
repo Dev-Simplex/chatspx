@@ -126,3 +126,38 @@ func (m *mockSource) ProposeMerge(from, to string) (string, error) {
 	}
 	return fmt.Sprintf("[mock] merge %s -> %s enfileirado, aguardando aprovacao humana.", from, to), nil
 }
+
+// ---- Governanca de IA (mock — respostas deterministicas p/ demo) ----
+func (m *mockSource) AIListAgents() (any, error) {
+	return map[string]any{"vms": []map[string]any{{"id": "tozi", "name": "Clara Tozi", "env": "producao", "account_id": 6}}}, nil
+}
+func (m *mockSource) AIBaseline(vm string, id int) (any, error) {
+	return map[string]any{"vm": vm, "assistant_id": id, "config": map[string]any{"instructions": "[mock] prompt do agente", "tools": []string{}}, "faqs": []any{}}, nil
+}
+func (m *mockSource) AICustomTools(vm string) (any, error) {
+	return map[string]any{"custom_tools": []any{}}, nil
+}
+func (m *mockSource) AIHistory(vm string) (any, error) {
+	return map[string]any{"change_sets": []any{}}, nil
+}
+func (m *mockSource) AIPrompt(vm string, id int, instructions, targetEnv string) (any, error) {
+	return map[string]any{"status": "applied", "change_set_id": "cs_mock", "op": "update_instructions", "vm": vm, "assistant_id": id}, nil
+}
+func (m *mockSource) AITool(vm string, id int, toolID string, armed bool) (any, error) {
+	return map[string]any{"status": "applied", "change_set_id": "cs_mock", "tool_id": toolID, "armed": armed}, nil
+}
+func (m *mockSource) AICredential(vm, provider string, settings map[string]any, enabled bool) (any, error) {
+	return map[string]any{"status": "applied", "change_set_id": "cs_mock", "provider": provider}, nil
+}
+func (m *mockSource) AIBehavior(vm string, id int, behavior map[string]any) (any, error) {
+	return map[string]any{"status": "applied", "change_set_id": "cs_mock"}, nil
+}
+func (m *mockSource) AIFaq(vm string, id int, question, answer string) (any, error) {
+	return map[string]any{"status": "applied", "change_set_id": "cs_mock"}, nil
+}
+func (m *mockSource) AIEligibility(vm string, id int, inboxIDs []int) (any, error) {
+	return map[string]any{"status": "applied", "change_set_id": "cs_mock"}, nil
+}
+func (m *mockSource) AIRollback(vm, changeSetID string) (any, error) {
+	return map[string]any{"status": "reverted", "change_set_id": changeSetID}, nil
+}

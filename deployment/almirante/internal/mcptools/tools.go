@@ -2,6 +2,7 @@ package mcptools
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"strings"
 
@@ -46,7 +47,58 @@ type mergeInput struct {
 }
 type empty struct{}
 
+// --- inputs das tools de governanca de IA ---
+type aiVMInput struct {
+	VM string `json:"vm"`
+}
+type aiAgentInput struct {
+	VM          string `json:"vm"`
+	AssistantID int    `json:"assistant_id"`
+}
+type aiPromptInput struct {
+	VM           string `json:"vm"`
+	AssistantID  int    `json:"assistant_id"`
+	Instructions string `json:"instructions"`
+	TargetEnv    string `json:"target_env,omitempty"`
+}
+type aiToolInput struct {
+	VM          string `json:"vm"`
+	AssistantID int    `json:"assistant_id"`
+	ToolID      string `json:"tool_id"`
+	Armed       bool   `json:"armed"`
+}
+type aiCredInput struct {
+	VM       string         `json:"vm"`
+	Provider string         `json:"provider"`
+	Settings map[string]any `json:"settings"`
+	Enabled  bool           `json:"enabled"`
+}
+type aiBehaviorInput struct {
+	VM          string         `json:"vm"`
+	AssistantID int            `json:"assistant_id"`
+	Behavior    map[string]any `json:"behavior"`
+}
+type aiFaqInput struct {
+	VM          string `json:"vm"`
+	AssistantID int    `json:"assistant_id"`
+	Question    string `json:"question"`
+	Answer      string `json:"answer"`
+}
+type aiRollbackInput struct {
+	VM          string `json:"vm"`
+	ChangeSetID string `json:"change_set_id"`
+}
+
 func bp(v bool) *bool { return &v }
+
+// jsonTxt formata a resposta JSON do control como texto pro Claude Code.
+func jsonTxt(v any) *mcp.CallToolResult {
+	b, err := json.MarshalIndent(v, "", "  ")
+	if err != nil {
+		return errtxt("erro ao formatar resposta: " + err.Error())
+	}
+	return txt(string(b))
+}
 func txt(s string) *mcp.CallToolResult {
 	return &mcp.CallToolResult{Content: []mcp.Content{&mcp.TextContent{Text: s}}}
 }
@@ -473,5 +525,80 @@ func Register(s *mcp.Server, fl *types.Fleet, src Source) {
 				return errtxt("service deve ser 'web' ou 'worker'"), nil, nil
 			}
 			return txt(fmt.Sprintf("[%s/%s] logs recentes disponiveis via painel/journalctl no modo real (agente: journalctl -u chatwoot-%s.1.service).", vm.Name, in.Service, in.Service)), nil, nil
+		})
+
+	// ===== Toolset F — Governanca de IA (editar os agentes por VM) =====
+	// Leitura (ro) + escrita (gated: test-gate + audit + rollback no control).
+	mcp.AddTool(s, &mcp.Tool{Name: "almirante_ai_list_agents", Description: "Lista as VMs com governanca de IA (onde da pra editar prompt/tools/credencial dos agentes).", Annotations: ro},
+		func(_ context.Context, _ *mcp.CallToolRequest, _ empty) (*mcp.CallToolResult, any, error) {
+			v, err := src.AIListAgents()
+			if err != nil {
+				return errtxt(err.Error()), nil, nil
+			}
+			return jsonTxt(v), nil, nil
+		})
+	mcp.AddTool(s, &mcp.Tool{Name: "almirante_ai_get_agent", Description: "Baseline de um agente (instructions, faqs, tools, behavior) por vm + assistant_id.", Annotations: ro},
+		func(_ context.Context, _ *mcp.CallToolRequest, in aiAgentInput) (*mcp.CallToolResult, any, error) {
+			v, err := src.AIBaseline(in.VM, in.AssistantID)
+			if err != nil {
+				return errtxt(err.Error()), nil, nil
+			}
+			return jsonTxt(v), nil, nil
+		})
+	mcp.AddTool(s, &mcp.Tool{Name: "almirante_ai_history", Description: "Historico de mudancas de IA de uma VM (change-sets aplicados/revertidos, com change_set_id p/ rollback).", Annotations: ro},
+		func(_ context.Context, _ *mcp.CallToolRequest, in aiVMInput) (*mcp.CallToolResult, any, error) {
+			v, err := src.AIHistory(in.VM)
+			if err != nil {
+				return errtxt(err.Error()), nil, nil
+			}
+			return jsonTxt(v), nil, nil
+		})
+	mcp.AddTool(s, &mcp.Tool{Name: "almirante_ai_update_prompt", Description: "Reescreve as instructions de um agente. Passa por test-gate (dry-run+smoke+juiz) ANTES de aplicar; auditado; reversivel. Requer admin.", Annotations: gated},
+		func(_ context.Context, _ *mcp.CallToolRequest, in aiPromptInput) (*mcp.CallToolResult, any, error) {
+			v, err := src.AIPrompt(in.VM, in.AssistantID, in.Instructions, in.TargetEnv)
+			if err != nil {
+				return errtxt(err.Error()), nil, nil
+			}
+			return jsonTxt(v), nil, nil
+		})
+	mcp.AddTool(s, &mcp.Tool{Name: "almirante_ai_set_tool", Description: "Arma/desarma uma tool built-in de um agente (armed=true arma e testa via perform_test; false desarma).", Annotations: gated},
+		func(_ context.Context, _ *mcp.CallToolRequest, in aiToolInput) (*mcp.CallToolResult, any, error) {
+			v, err := src.AITool(in.VM, in.AssistantID, in.ToolID, in.Armed)
+			if err != nil {
+				return errtxt(err.Error()), nil, nil
+			}
+			return jsonTxt(v), nil, nil
+		})
+	mcp.AddTool(s, &mcp.Tool{Name: "almirante_ai_set_credential", Description: "Define credencial de integracao da conta (provider vista|google) — testa a conexao real ANTES de salvar.", Annotations: gated},
+		func(_ context.Context, _ *mcp.CallToolRequest, in aiCredInput) (*mcp.CallToolResult, any, error) {
+			v, err := src.AICredential(in.VM, in.Provider, in.Settings, in.Enabled)
+			if err != nil {
+				return errtxt(err.Error()), nil, nil
+			}
+			return jsonTxt(v), nil, nil
+		})
+	mcp.AddTool(s, &mcp.Tool{Name: "almirante_ai_update_behavior", Description: "Ajusta o behavior do agente (debounce/humanizer/router/etc.) via merge de chaves.", Annotations: gated},
+		func(_ context.Context, _ *mcp.CallToolRequest, in aiBehaviorInput) (*mcp.CallToolResult, any, error) {
+			v, err := src.AIBehavior(in.VM, in.AssistantID, in.Behavior)
+			if err != nil {
+				return errtxt(err.Error()), nil, nil
+			}
+			return jsonTxt(v), nil, nil
+		})
+	mcp.AddTool(s, &mcp.Tool{Name: "almirante_ai_add_faq", Description: "Adiciona um FAQ (pergunta+resposta) a um agente.", Annotations: gated},
+		func(_ context.Context, _ *mcp.CallToolRequest, in aiFaqInput) (*mcp.CallToolResult, any, error) {
+			v, err := src.AIFaq(in.VM, in.AssistantID, in.Question, in.Answer)
+			if err != nil {
+				return errtxt(err.Error()), nil, nil
+			}
+			return jsonTxt(v), nil, nil
+		})
+	mcp.AddTool(s, &mcp.Tool{Name: "almirante_ai_rollback", Description: "Reverte um change-set de IA aplicado (restaura o snapshot na VM) pelo change_set_id (veja em almirante_ai_history).", Annotations: gated},
+		func(_ context.Context, _ *mcp.CallToolRequest, in aiRollbackInput) (*mcp.CallToolResult, any, error) {
+			v, err := src.AIRollback(in.VM, in.ChangeSetID)
+			if err != nil {
+				return errtxt(err.Error()), nil, nil
+			}
+			return jsonTxt(v), nil, nil
 		})
 }
