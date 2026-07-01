@@ -41,6 +41,7 @@ const emit = defineEmits([
   'deleteStage',
   'addCard',
   'previewConversation',
+  'editTask',
 ]);
 
 const store = useStore();
@@ -568,6 +569,7 @@ const handleColumnObserved = async () => {
             @schedule-message="emit('scheduleMessage', $event)"
             @remove="emit('removeItem', item)"
             @preview="emit('previewConversation', $event)"
+            @edit-task="emit('editTask', $event)"
           />
         </template>
 

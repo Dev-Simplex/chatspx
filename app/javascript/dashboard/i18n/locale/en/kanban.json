@@ -232,6 +232,27 @@
       "CONFIRM_DELETE": "Are you sure you want to delete this stage? All items will be removed.",
       "DELETE_ERROR": "Error deleting stage"
     },
+    "TASK": {
+      "BADGE": "Task",
+      "TAB_SEARCH": "Find conversation",
+      "TAB_CREATE": "Create task",
+      "CREATE_TITLE": "New task",
+      "EDIT_TITLE": "Edit task",
+      "TITLE_LABEL": "Title",
+      "TITLE_PLACEHOLDER": "e.g. Call the customer",
+      "DESC_LABEL": "Description",
+      "DESC_PLACEHOLDER": "Reminder details (optional)…",
+      "ASSIGNEE_LABEL": "Assignee",
+      "ASSIGNEE_NONE": "Unassigned",
+      "CREATE": "Create task",
+      "SAVE": "Save",
+      "DELETE": "Delete",
+      "DELETE_CONFIRM": "Delete this task?",
+      "CREATE_SUCCESS": "Task created.",
+      "SAVE_SUCCESS": "Task updated.",
+      "DELETE_SUCCESS": "Task deleted.",
+      "ERROR": "Could not save the task."
+    },
     "ITEMS": {
       "ADD": "Add Conversation",
       "MOVE": "Move Conversation",

@@ -415,8 +415,19 @@ const handleCreateStage = () => {
 const showAddModal = ref(false);
 const addStage = ref(null);
 
+// Editar um cartão de tarefa (clique no card) — reaproveita o modal de adicionar.
+const editTaskItem = ref(null);
+
 const handleAddCard = stage => {
+  editTaskItem.value = null;
   addStage.value = stage;
+  showAddModal.value = true;
+};
+
+const handleEditTask = item => {
+  editTaskItem.value = item;
+  addStage.value =
+    stages.value.find(s => s.id === item.funnel_stage_id) || null;
   showAddModal.value = true;
 };
 
@@ -432,6 +443,7 @@ const handleConversationAdded = async () => {
     });
   }
   addStage.value = null;
+  editTaskItem.value = null;
 };
 
 const handleStageSaved = async () => {
@@ -588,6 +600,7 @@ const handleDeleteStage = stage => {
               @delete-stage="handleDeleteStage"
               @add-card="handleAddCard"
               @preview-conversation="openPreview"
+              @edit-task="handleEditTask"
             />
           </template>
         </draggable>
@@ -641,10 +654,12 @@ const handleDeleteStage = stage => {
       :show="showAddModal"
       :stage="addStage"
       :funnel-id="funnelId"
+      :edit-item="editTaskItem"
       @close="
         () => {
           showAddModal = false;
           addStage = null;
+          editTaskItem = null;
         }
       "
       @added="handleConversationAdded"

@@ -232,6 +232,27 @@
       "CONFIRM_DELETE": "Tem certeza que deseja excluir esta etapa? Todos os itens serão removidos.",
       "DELETE_ERROR": "Erro ao excluir etapa"
     },
+    "TASK": {
+      "BADGE": "Tarefa",
+      "TAB_SEARCH": "Buscar conversa",
+      "TAB_CREATE": "Criar tarefa",
+      "CREATE_TITLE": "Nova tarefa",
+      "EDIT_TITLE": "Editar tarefa",
+      "TITLE_LABEL": "Título",
+      "TITLE_PLACEHOLDER": "Ex.: Ligar para o cliente",
+      "DESC_LABEL": "Descrição",
+      "DESC_PLACEHOLDER": "Detalhes do lembrete (opcional)…",
+      "ASSIGNEE_LABEL": "Responsável",
+      "ASSIGNEE_NONE": "Sem responsável",
+      "CREATE": "Criar tarefa",
+      "SAVE": "Salvar",
+      "DELETE": "Excluir",
+      "DELETE_CONFIRM": "Excluir esta tarefa?",
+      "CREATE_SUCCESS": "Tarefa criada.",
+      "SAVE_SUCCESS": "Tarefa atualizada.",
+      "DELETE_SUCCESS": "Tarefa excluída.",
+      "ERROR": "Não foi possível salvar a tarefa."
+    },
     "ITEMS": {
       "ADD": "Adicionar Conversa",
       "MOVE": "Mover Conversa",

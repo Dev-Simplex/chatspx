@@ -45,7 +45,18 @@ const props = defineProps({
   },
 });
 
-const emit = defineEmits(['move', 'schedule-message', 'remove', 'preview']);
+const emit = defineEmits([
+  'move',
+  'schedule-message',
+  'remove',
+  'preview',
+  'editTask',
+]);
+
+// Cartão de tarefa/lembrete (avulso, sem conversa vinculada).
+const isTask = computed(
+  () => props.item?.is_task === true || !props.conversation?.id
+);
 
 const store = useStore();
 const { t, locale } = useI18n();
@@ -648,7 +659,12 @@ const handleCardClick = event => {
   const yDiff = Math.abs(event.clientY - mouseDownY);
 
   if (timeDiff < 200 && xDiff < 5 && yDiff < 5) {
-    emit('preview', props.conversation);
+    // Tarefa → abre o editor do cartão; conversa → abre o painel de detalhes.
+    if (isTask.value) {
+      emit('editTask', props.item);
+    } else {
+      emit('preview', props.conversation);
+    }
   }
 };
 </script>
@@ -704,7 +720,43 @@ const handleCardClick = event => {
     <!-- Top color strip (stage accent) -->
     <div class="kanban-card__strip" :style="{ background: stripGradient }" />
 
-    <div class="kanban-card__body flex flex-col gap-2 p-3">
+    <!-- Cartão de TAREFA/LEMBRETE (avulso, sem conversa) -->
+    <div v-if="isTask" class="kanban-card__body flex flex-col gap-2 p-3">
+      <p class="break-words text-sm font-semibold text-n-slate-12">
+        {{ item.title }}
+      </p>
+      <p
+        v-if="item.description"
+        class="line-clamp-3 break-words text-[13px] leading-snug text-n-slate-11"
+      >
+        {{ item.description }}
+      </p>
+      <div class="flex items-center justify-between gap-2 pt-1">
+        <span
+          class="inline-flex items-center gap-1 rounded-[var(--kanban-radius-sm)] bg-n-slate-3 px-1.5 py-0.5 text-[10px] font-medium text-n-slate-11"
+        >
+          <Icon icon="i-lucide-square-check-big" class="size-3" />
+          {{ t('KANBAN.TASK.BADGE') }}
+        </span>
+        <span
+          v-if="item.assignee"
+          class="flex min-w-0 items-center gap-1.5"
+          :title="item.assignee.name"
+        >
+          <Avatar
+            :name="item.assignee.name || ''"
+            :src="item.assignee.thumbnail"
+            :size="20"
+            rounded-full
+          />
+          <span class="truncate text-[11px] text-n-slate-11">
+            {{ item.assignee.name }}
+          </span>
+        </span>
+      </div>
+    </div>
+
+    <div v-else class="kanban-card__body flex flex-col gap-2 p-3">
       <!-- Labels (click to filter the board) -->
       <div v-if="cardLabels.length" class="flex flex-wrap items-center gap-1">
         <button
