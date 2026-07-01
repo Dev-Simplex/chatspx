@@ -131,18 +131,18 @@ const addConversation = async conversation => {
     width="md"
     @close="close"
   >
-    <div class="space-y-3">
+    <div class="space-y-4">
       <div class="relative">
         <Icon
           icon="i-lucide-search"
-          class="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-n-slate-10"
+          class="pointer-events-none absolute left-3 top-1/2 z-10 size-4 -translate-y-1/2 text-n-slate-10"
         />
         <input
           v-model="searchQuery"
           type="search"
           autofocus
           :placeholder="t('KANBAN.ITEMS.ADD_SEARCH_PLACEHOLDER')"
-          class="h-11 w-full rounded-xl border border-n-weak bg-n-solid-1 pl-10 pr-3 text-sm text-n-slate-12 focus:outline-none focus:ring-2 focus:ring-n-brand"
+          class="h-11 w-full rounded-xl border border-n-weak bg-n-solid-1 !pl-11 pr-3 text-sm text-n-slate-12 focus:outline-none focus:ring-2 focus:ring-n-brand"
         />
       </div>
 
@@ -165,7 +165,7 @@ const addConversation = async conversation => {
         <ul v-else class="flex flex-col gap-1">
           <li v-for="conversation in results" :key="conversation.id">
             <button
-              class="flex w-full items-center gap-3 rounded-xl border border-transparent p-2 text-left transition hover:border-n-weak hover:bg-n-alpha-1 disabled:opacity-50"
+              class="flex w-full items-center gap-3 rounded-xl border border-transparent p-2.5 text-left transition hover:border-n-weak hover:bg-n-alpha-1 disabled:opacity-50"
               :disabled="isAdding"
               @click="addConversation(conversation)"
             >
