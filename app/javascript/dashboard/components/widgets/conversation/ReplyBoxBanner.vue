@@ -43,6 +43,10 @@ const aiBarStyle = computed(() =>
     ? aiAccentVars(assignedAgent.value.id)
     : {}
 );
+// Resumo vivo da IA (atributo) — aparece curto na barra, pra o humano decidir se assume.
+const aiSummary = computed(
+  () => currentChat.value?.custom_attributes?.resumo_atendimento_ia || ''
+);
 const showTransferTeamModal = ref(false);
 const pendingTransferAgent = ref(null);
 const isPendingBotHandoff = ref(false);
@@ -262,6 +266,24 @@ const onClickBotHandoff = async () => {
     >
       {{ $t('CONVERSATION.REPLY_GATE_BANNER.CTA') }}
     </button>
+  </div>
+  <!-- Resumo vivo da IA: card realçado (identidade violeta de IA do SPX) com o quadro
+       completo do atendimento, pra o humano ler antes de assumir a conversa. -->
+  <div
+    v-if="isAIAssignee && aiSummary"
+    class="mx-2 mb-2 rounded-xl border border-n-violet-5 bg-gradient-to-br from-n-violet-2 to-n-violet-1 px-3.5 py-3 dark:border-n-violet-6 dark:from-n-violet-3 dark:to-n-violet-2"
+  >
+    <div class="mb-1.5 flex items-center gap-1.5">
+      <span class="i-lucide-sparkles size-3.5 text-n-violet-11" />
+      <span
+        class="text-[11px] font-semibold uppercase tracking-wide text-n-violet-11"
+      >
+        {{ $t('CONVERSATION.AI_SUMMARY_TITLE') }}
+      </span>
+    </div>
+    <p class="text-sm leading-relaxed text-n-violet-12 whitespace-pre-line">
+      {{ aiSummary }}
+    </p>
   </div>
   <Banner
     v-if="showSelfAssignBanner && !showBotHandoffBanner"

@@ -89,3 +89,18 @@
   title: 'Buscar Localização (Geocoding)'
   description: 'Geocodifica um endereço/bairro/ponto em Sinop-MT e retorna as coordenadas (lat/lng) e o endereço formatado'
   icon: 'location'
+
+- id: atualizar_resumo
+  title: 'Atualizar Resumo do Atendimento'
+  description: 'Cria ou atualiza o resumo vivo do atendimento da IA na conversa (atributo Resumo Atendimento IA)'
+  icon: 'document'
+
+- id: registrar_observacao
+  title: 'Registrar Observação'
+  description: 'Registra uma observação como nota privada, pro humano notar ao ler o histórico'
+  icon: 'note'
+
+- id: registrar_assunto
+  title: 'Registrar Assunto'
+  description: 'Registra um assunto/tarefa identificado na conversa, que vira item de checklist pra equipe'
+  icon: 'task'

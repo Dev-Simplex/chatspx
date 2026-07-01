@@ -53,11 +53,13 @@ class Captain::Conversation::ResponseBuilderJob < ApplicationJob
     if handoff_requested?
       process_action('handoff')
     else
-      ActiveRecord::Base.transaction do
-        create_messages
-        Rails.logger.info("[CAPTAIN][ResponseBuilderJob] Incrementing response usage for #{account.id}")
-        account.increment_response_usage
-      end
+      # Sem transacao envolvendo a rajada: cada bolha precisa COMMITAR pra disparar o
+      # SendReplyJob (after_create_commit). Dentro de uma transacao os sends so disparariam
+      # no commit final, TODOS juntos -> corriam soltos e chegavam fora de ordem. Commitando
+      # uma a uma, o wait_for_dispatch (espera o source_id) serializa o envio.
+      create_messages
+      Rails.logger.info("[CAPTAIN][ResponseBuilderJob] Incrementing response usage for #{account.id}")
+      account.increment_response_usage
     end
   end
 
@@ -263,10 +265,28 @@ class Captain::Conversation::ResponseBuilderJob < ApplicationJob
       # pick e o create!) aceito — lock pessimista por mensagem seria desproporcional.
       break unless captain_can_respond?
 
-      create_outgoing_message(chunk, agent_name: @response['agent_name'])
+      message = create_outgoing_message(chunk, agent_name: @response['agent_name'])
+      wait_for_dispatch(message)
       sent += 1
     end
     log_behavior_event('humanizer_split', { chunks: chunks.size, sent: sent }) if chunks.size > 1
+  end
+
+  # Espera a bolha ser despachada pro WhatsApp (ganhar source_id) antes de criar a proxima,
+  # pra garantir a ORDEM de chegada. O envio real e um job async; sem isso as bolhas correm
+  # soltas no Sidekiq e chegam fora de ordem pro cliente. So WhatsApp Cloud (onde o source_id
+  # e setado no envio); timeout curto pra nao segurar o worker se o envio demorar/falhar.
+  def wait_for_dispatch(message, timeout: 6.0, interval: 0.2)
+    return if message.nil?
+    return unless @inbox.channel.is_a?(Channel::Whatsapp)
+
+    waited = 0.0
+    while waited < timeout
+      return if Message.where(id: message.id).pick(:source_id).present?
+
+      sleep(interval)
+      waited += interval
+    end
   end
 
   # "Digitando..." pro cliente (best-effort; so WhatsApp Cloud responde de fato).
