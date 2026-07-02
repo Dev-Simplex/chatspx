@@ -11,6 +11,15 @@ class InternalChannelPolicy < ApplicationPolicy
     true
   end
 
+  # Cross-channel reads scoped to the user's own channels (query uses policy_scope).
+  def mentions?
+    true
+  end
+
+  def search?
+    true
+  end
+
   # Admin pode VER/auditar qualquer canal da conta (supervisão/compliance), mesmo
   # sem ser membro. Agir (postar, reagir, gerenciar, marcar lido) continua exigindo
   # ser membro — auditoria é somente leitura.

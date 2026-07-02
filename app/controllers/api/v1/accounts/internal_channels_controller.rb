@@ -6,6 +6,9 @@ class Api::V1::Accounts::InternalChannelsController < Api::V1::Accounts::BaseCon
   before_action :fetch_channel, only: [:show, :read, :typing, :update, :add_member, :remove_member, :leave]
   before_action :check_authorization
 
+  RESULTS_LIMIT = 50
+  MIN_QUERY_LENGTH = 2
+
   def index
     # for_user already yields one row per channel (a user has a single membership
     # per channel), so no .distinct is needed — and .distinct would choke on the
@@ -19,6 +22,26 @@ class Api::V1::Accounts::InternalChannelsController < Api::V1::Accounts::BaseCon
     channel_ids = @channels.map(&:id)
     @last_messages = last_message_previews(channel_ids)
     @unread_counts = unread_counts(channel_ids)
+  end
+
+  # Fase 3: cross-channel "@ me mentioned" inbox (GIN on mentioned_user_ids).
+  def mentions
+    @messages = accessible_messages
+                .where('internal_messages.mentioned_user_ids @> ?', [Current.user.id].to_json)
+                .order(created_at: :desc).limit(RESULTS_LIMIT)
+    render :search
+  end
+
+  # Fase 3: full-text-ish message search across the user's channels.
+  def search
+    query = params[:q].to_s.strip
+    @messages = if query.length >= MIN_QUERY_LENGTH
+                  accessible_messages
+                    .where('internal_messages.content ILIKE ?', "%#{ActiveRecord::Base.sanitize_sql_like(query)}%")
+                    .order(created_at: :desc).limit(RESULTS_LIMIT)
+                else
+                  InternalMessage.none
+                end
   end
 
   def show; end
@@ -152,6 +175,13 @@ class Api::V1::Accounts::InternalChannelsController < Api::V1::Accounts::BaseCon
       .where('internal_channel_members.last_read_at IS NULL OR im.created_at > internal_channel_members.last_read_at')
       .group('internal_channel_members.internal_channel_id')
       .count('im.id')
+  end
+
+  # Non-deleted messages in the user's own channels (preloaded for the results view).
+  def accessible_messages
+    InternalMessage
+      .where(internal_channel_id: policy_scope(InternalChannel).select(:id), deleted_at: nil)
+      .includes(:user, internal_channel: :users)
   end
 
   def check_authorization

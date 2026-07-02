@@ -49,6 +49,47 @@ RSpec.describe 'Api::V1::Accounts::InternalChannelsController', type: :request d
     end
   end
 
+  describe 'GET /internal_channels/mentions (Fase 3)' do
+    it 'lists messages that mention the current user across their channels' do
+      channel = create(:internal_channel, :with_two_members, account: account, user_a: alice, user_b: bob)
+      create(:internal_message, internal_channel: channel, user: bob, content: 'oi @alice', mentioned_user_ids: [alice.id])
+      create(:internal_message, internal_channel: channel, user: bob, content: 'sem menção')
+
+      get "/api/v1/accounts/#{account.id}/internal_channels/mentions", headers: alice.create_new_auth_token
+
+      expect(response).to have_http_status(:success)
+      expect(response.parsed_body.map { |m| m['content'] }).to eq(['oi @alice'])
+      expect(response.parsed_body.first['channel_title']).to be_present
+    end
+
+    it 'does not leak mentions from channels the user is not in' do
+      other = create(:internal_channel, :with_two_members, account: account)
+      create(:internal_message, internal_channel: other, user: other.users.first, content: 'x', mentioned_user_ids: [alice.id])
+
+      get "/api/v1/accounts/#{account.id}/internal_channels/mentions", headers: alice.create_new_auth_token
+      expect(response.parsed_body).to eq([])
+    end
+  end
+
+  describe 'GET /internal_channels/search (Fase 3)' do
+    let(:channel) { create(:internal_channel, :with_two_members, account: account, user_a: alice, user_b: bob) }
+
+    it 'finds messages by content within the user channels' do
+      create(:internal_message, internal_channel: channel, user: bob, content: 'orçamento de soja')
+      create(:internal_message, internal_channel: channel, user: bob, content: 'outro assunto')
+
+      get "/api/v1/accounts/#{account.id}/internal_channels/search", params: { q: 'soja' }, headers: alice.create_new_auth_token
+
+      expect(response).to have_http_status(:success)
+      expect(response.parsed_body.map { |m| m['content'] }).to eq(['orçamento de soja'])
+    end
+
+    it 'returns empty for a too-short query' do
+      get "/api/v1/accounts/#{account.id}/internal_channels/search", params: { q: 'a' }, headers: alice.create_new_auth_token
+      expect(response.parsed_body).to eq([])
+    end
+  end
+
   describe 'POST /internal_channels' do
     it 'finds-or-creates a DM with another user' do
       expect do

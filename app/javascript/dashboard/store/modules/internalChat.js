@@ -14,10 +14,15 @@ export const state = {
   // montada, observa isso e dispara o toast + som + notificação desktop).
   activeChannelId: null,
   pendingNotification: null,
+  // Fase 3: cross-channel mentions inbox + message search results.
+  mentions: [],
+  searchResults: [],
   uiFlags: {
     isFetchingChannels: false,
     isFetchingMessages: false,
     isSending: false,
+    isFetchingMentions: false,
+    isSearching: false,
     // True when the last channel-list fetch failed (so the list can show a
     // real error + retry instead of the misleading "no conversations" state).
     channelsLoadError: false,
@@ -39,6 +44,8 @@ export const getters = {
     Object.values($state.typingByChannel[channelId] || {}).map(u => u.name),
   getHasMore: $state => channelId =>
     Boolean($state.hasMoreByChannel[channelId]),
+  getMentions: $state => $state.mentions,
+  getSearchResults: $state => $state.searchResults,
 };
 
 export const actions = {
@@ -121,6 +128,36 @@ export const actions = {
       commit('CLEAR_UNREAD', channelId);
     } catch (e) {
       // non-member / audit — read is not applicable
+    }
+  },
+
+  // Fase 3: cross-channel mentions inbox.
+  fetchMentions: async ({ commit }) => {
+    commit('SET_UI_FLAG', { isFetchingMentions: true });
+    try {
+      const { data } = await InternalChatAPI.getMentions();
+      commit('SET_MENTIONS', data);
+    } catch (e) {
+      commit('SET_MENTIONS', []);
+    } finally {
+      commit('SET_UI_FLAG', { isFetchingMentions: false });
+    }
+  },
+
+  // Fase 3: message search across the user's channels.
+  searchMessages: async ({ commit }, q) => {
+    if (!q || q.trim().length < 2) {
+      commit('SET_SEARCH_RESULTS', []);
+      return;
+    }
+    commit('SET_UI_FLAG', { isSearching: true });
+    try {
+      const { data } = await InternalChatAPI.searchMessages(q.trim());
+      commit('SET_SEARCH_RESULTS', data);
+    } catch (e) {
+      commit('SET_SEARCH_RESULTS', []);
+    } finally {
+      commit('SET_UI_FLAG', { isSearching: false });
     }
   },
 
@@ -467,6 +504,12 @@ export const mutations = {
   },
   SET_PENDING_NOTIFICATION($state, notification) {
     $state.pendingNotification = notification;
+  },
+  SET_MENTIONS($state, mentions) {
+    $state.mentions = mentions;
+  },
+  SET_SEARCH_RESULTS($state, results) {
+    $state.searchResults = results;
   },
   SET_ACTIVE_CHANNEL($state, channelId) {
     $state.activeChannelId = channelId;

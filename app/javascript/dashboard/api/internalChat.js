@@ -41,6 +41,16 @@ class InternalChatAPI extends ApiClient {
     });
   }
 
+  // Fase 3: cross-channel "@ me mentioned" inbox.
+  getMentions() {
+    return axios.get(`${this.url}/mentions`);
+  }
+
+  // Fase 3: message search across the user's channels.
+  searchMessages(q) {
+    return axios.get(`${this.url}/search`, { params: { q } });
+  }
+
   sendMessage(
     channelId,
     {

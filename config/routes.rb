@@ -161,6 +161,10 @@ Rails.application.routes.draw do
           resources :message_sequences, only: [:index, :show, :create, :update, :destroy]
           resources :message_sequence_enrollments, only: [:index, :create, :destroy]
           resources :internal_channels, only: [:index, :show, :create, :update] do
+            collection do
+              get :mentions
+              get :search
+            end
             member do
               post :read
               post :typing

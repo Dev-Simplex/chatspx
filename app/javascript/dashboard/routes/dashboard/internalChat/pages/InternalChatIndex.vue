@@ -119,6 +119,12 @@ const retryFetchChannels = () => {
   else store.dispatch('internalChat/fetchChannels');
 };
 
+// Fase 3: aside views — 'channels' (default) | 'mentions' | 'search'.
+const asideView = ref('channels');
+const messageSearch = ref('');
+const mentions = useMapGetter('internalChat/getMentions');
+const searchResults = useMapGetter('internalChat/getSearchResults');
+
 const activeChannelId = ref(null);
 const draft = ref('');
 const threadRef = ref(null);
@@ -476,6 +482,36 @@ const backToList = () => {
   saveDraft(activeChannelId.value);
   activeChannelId.value = null;
   store.dispatch('internalChat/clearActiveChannel');
+};
+
+// --- Fase 3: mentions inbox + message search (aside views) ------------------
+let messageSearchTimer = null;
+const openMentions = () => {
+  asideView.value = 'mentions';
+  store.dispatch('internalChat/fetchMentions');
+};
+const openMessageSearch = () => {
+  asideView.value = 'search';
+};
+const backToChannels = () => {
+  asideView.value = 'channels';
+  messageSearch.value = '';
+  store.dispatch('internalChat/searchMessages', '');
+};
+const onMessageSearchInput = () => {
+  clearTimeout(messageSearchTimer);
+  const q = messageSearch.value;
+  messageSearchTimer = setTimeout(() => {
+    store.dispatch('internalChat/searchMessages', q);
+  }, 300);
+};
+// Open the channel a result belongs to (best-effort jump to the conversation).
+const openResult = result => {
+  const target =
+    channels.value.find(c => c.id === result.internal_channel_id) ||
+    auditChannels.value.find(c => c.id === result.internal_channel_id);
+  asideView.value = 'channels';
+  if (target) openChannel(target);
 };
 
 const closeNewPanel = () => {
@@ -857,6 +893,34 @@ onBeforeUnmount(() => {
         </h1>
         <div class="flex items-center gap-1">
           <button
+            class="inline-flex items-center justify-center w-8 h-8 rounded-lg transition-colors"
+            :class="
+              asideView === 'search'
+                ? 'bg-[rgb(45_196_111_/_0.14)] text-n-brand'
+                : 'text-n-slate-11 hover:bg-n-alpha-2'
+            "
+            :title="t('INTERNAL_CHAT.SEARCH_MESSAGES')"
+            @click="
+              asideView === 'search' ? backToChannels() : openMessageSearch()
+            "
+          >
+            <span class="i-lucide-search text-lg" />
+          </button>
+          <button
+            class="inline-flex items-center justify-center w-8 h-8 rounded-lg transition-colors"
+            :class="
+              asideView === 'mentions'
+                ? 'bg-[rgb(45_196_111_/_0.14)] text-n-brand'
+                : 'text-n-slate-11 hover:bg-n-alpha-2'
+            "
+            :title="t('INTERNAL_CHAT.MENTIONS')"
+            @click="
+              asideView === 'mentions' ? backToChannels() : openMentions()
+            "
+          >
+            <span class="i-lucide-at-sign text-lg" />
+          </button>
+          <button
             v-if="isAdmin"
             class="inline-flex items-center justify-center w-8 h-8 rounded-lg transition-colors"
             :class="
@@ -997,7 +1061,7 @@ onBeforeUnmount(() => {
 
       <!-- New-channel panel -->
       <div
-        v-if="newPanel"
+        v-if="asideView === 'channels' && newPanel"
         class="border-b border-n-weak max-h-80 overflow-y-auto flex-shrink-0"
       >
         <template v-if="newPanel === 'menu'">
@@ -1117,7 +1181,9 @@ onBeforeUnmount(() => {
       <!-- Search (Fase 0.4) -->
       <div
         v-if="
-          !uiFlags.channelsLoadError && (channelList.length || channelSearch)
+          asideView === 'channels' &&
+          !uiFlags.channelsLoadError &&
+          (channelList.length || channelSearch)
         "
         class="px-3 pt-2 pb-1 flex-shrink-0"
       >
@@ -1137,7 +1203,7 @@ onBeforeUnmount(() => {
       </div>
 
       <!-- Channels -->
-      <div class="flex-1 overflow-y-auto py-1">
+      <div v-if="asideView === 'channels'" class="flex-1 overflow-y-auto py-1">
         <button
           v-for="channel in filteredChannelList"
           :key="channel.id"
@@ -1258,6 +1324,93 @@ onBeforeUnmount(() => {
         >
           <span class="i-lucide-messages-square text-3xl mb-2 opacity-70" />
           <p class="text-sm">{{ t('INTERNAL_CHAT.EMPTY') }}</p>
+        </div>
+      </div>
+
+      <!-- Fase 3: mentions inbox / message search -->
+      <div v-if="asideView !== 'channels'" class="flex flex-col flex-1 min-h-0">
+        <div class="flex items-center gap-2 px-3 pt-2 pb-1 flex-shrink-0">
+          <button
+            class="inline-flex items-center justify-center w-7 h-7 rounded-lg text-n-slate-11 hover:bg-n-alpha-2 flex-shrink-0"
+            :aria-label="t('INTERNAL_CHAT.BACK')"
+            @click="backToChannels"
+          >
+            <span class="i-lucide-arrow-left text-base rtl:rotate-180" />
+          </button>
+          <span class="text-sm font-medium text-n-slate-12">
+            {{
+              asideView === 'mentions'
+                ? t('INTERNAL_CHAT.MENTIONS')
+                : t('INTERNAL_CHAT.SEARCH_MESSAGES')
+            }}
+          </span>
+        </div>
+
+        <div v-if="asideView === 'search'" class="px-3 pb-1 flex-shrink-0">
+          <div class="relative">
+            <span
+              class="i-lucide-search absolute left-3 top-1/2 -translate-y-1/2 text-sm text-n-slate-10 pointer-events-none"
+            />
+            <input
+              v-model="messageSearch"
+              type="text"
+              :placeholder="t('INTERNAL_CHAT.SEARCH_MESSAGES_PLACEHOLDER')"
+              class="reset-base w-full h-8 pl-9 pr-3 text-sm rounded-lg bg-n-alpha-1 border border-transparent focus:border-n-weak focus:bg-n-solid-1 text-n-slate-12 placeholder:text-n-slate-10 outline-none transition-colors"
+              @input="onMessageSearchInput"
+            />
+          </div>
+        </div>
+
+        <div class="flex-1 overflow-y-auto py-1">
+          <button
+            v-for="r in asideView === 'mentions' ? mentions : searchResults"
+            :key="r.id"
+            class="flex flex-col w-full px-3 py-2 text-left rounded-lg mx-1 hover:bg-n-alpha-1 transition-colors"
+            @click="openResult(r)"
+          >
+            <span class="flex items-center justify-between gap-2">
+              <span class="text-sm font-medium text-n-slate-12 truncate">{{
+                r.channel_title
+              }}</span>
+              <span class="text-[11px] text-n-slate-10 flex-shrink-0">{{
+                timeLabel(r.created_at)
+              }}</span>
+            </span>
+            <span class="block text-xs text-n-slate-10 truncate mt-0.5">
+              <span class="text-n-slate-11">{{ r.user?.name }}:</span>
+              {{ r.content || t('INTERNAL_CHAT.ATTACHMENT') }}
+            </span>
+          </button>
+
+          <div
+            v-if="uiFlags.isFetchingMentions || uiFlags.isSearching"
+            class="px-4 py-6 text-center text-sm text-n-slate-10"
+          >
+            {{ t('INTERNAL_CHAT.LOADING') }}
+          </div>
+          <div
+            v-else-if="asideView === 'mentions' && !mentions.length"
+            class="flex flex-col items-center justify-center text-center px-6 py-12 text-n-slate-10"
+          >
+            <span class="i-lucide-at-sign text-3xl mb-2 opacity-70" />
+            <p class="text-sm">{{ t('INTERNAL_CHAT.NO_MENTIONS') }}</p>
+          </div>
+          <div
+            v-else-if="
+              asideView === 'search' && messageSearch.trim().length < 2
+            "
+            class="flex flex-col items-center justify-center text-center px-6 py-12 text-n-slate-10"
+          >
+            <span class="i-lucide-search text-3xl mb-2 opacity-70" />
+            <p class="text-sm">{{ t('INTERNAL_CHAT.SEARCH_MIN_HINT') }}</p>
+          </div>
+          <div
+            v-else-if="asideView === 'search' && !searchResults.length"
+            class="flex flex-col items-center justify-center text-center px-6 py-12 text-n-slate-10"
+          >
+            <span class="i-lucide-search-x text-3xl mb-2 opacity-70" />
+            <p class="text-sm">{{ t('INTERNAL_CHAT.NO_RESULTS') }}</p>
+          </div>
         </div>
       </div>
     </aside>
