@@ -1123,13 +1123,15 @@ onBeforeUnmount(() => {
       >
         <div class="relative">
           <span
-            class="i-lucide-search absolute ltr:left-2.5 rtl:right-2.5 top-1/2 -translate-y-1/2 text-sm text-n-slate-10 pointer-events-none"
+            class="i-lucide-search absolute left-3 top-1/2 -translate-y-1/2 text-sm text-n-slate-10 pointer-events-none"
           />
+          <!-- reset-base opts out of the global input padding rule (which would
+               otherwise beat pl-9 on specificity and hide the icon). -->
           <input
             v-model="channelSearch"
             type="text"
             :placeholder="t('INTERNAL_CHAT.SEARCH_PLACEHOLDER')"
-            class="w-full h-8 ltr:pl-8 rtl:pr-8 ltr:pr-2 rtl:pl-2 text-sm rounded-lg bg-n-alpha-1 border border-transparent focus:border-n-weak focus:bg-n-solid-1 text-n-slate-12 placeholder:text-n-slate-10 outline-none transition-colors"
+            class="reset-base w-full h-8 pl-9 pr-3 text-sm rounded-lg bg-n-alpha-1 border border-transparent focus:border-n-weak focus:bg-n-solid-1 text-n-slate-12 placeholder:text-n-slate-10 outline-none transition-colors"
           />
         </div>
       </div>
