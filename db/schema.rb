@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[7.1].define(version: 2026_06_30_000000) do
+ActiveRecord::Schema[7.1].define(version: 2026_07_01_150000) do
   # These extensions should be enabled to support this database
   enable_extension "pg_stat_statements"
   enable_extension "pg_trgm"
@@ -962,6 +962,38 @@ ActiveRecord::Schema[7.1].define(version: 2026_06_30_000000) do
     t.datetime "created_at", precision: nil, null: false
     t.datetime "updated_at", precision: nil, null: false
     t.index ["account_id"], name: "index_data_imports_on_account_id"
+  end
+
+  create_table "distribuicao_logs", force: :cascade do |t|
+    t.bigint "account_id", null: false
+    t.bigint "conversation_id", null: false
+    t.bigint "chosen_user_id"
+    t.string "motivo", null: false
+    t.jsonb "candidatos", default: [], null: false
+    t.datetime "created_at", null: false
+    t.index ["conversation_id"], name: "index_distribuicao_logs_on_conversation_id"
+  end
+
+  create_table "distribuicao_policies", force: :cascade do |t|
+    t.bigint "account_id", null: false
+    t.bigint "team_id", null: false
+    t.boolean "ativo", default: true, null: false
+    t.string "modo", default: "rodizio", null: false
+    t.boolean "so_online", default: false, null: false
+    t.boolean "continuidade_ativa", default: true, null: false
+    t.integer "continuidade_dias", default: 30, null: false
+    t.jsonb "pool", default: [], null: false
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["account_id", "team_id"], name: "index_distribuicao_policies_on_account_id_and_team_id", unique: true
+  end
+
+  create_table "distribuicao_states", force: :cascade do |t|
+    t.bigint "team_id", null: false
+    t.bigint "last_user_id"
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["team_id"], name: "index_distribuicao_states_on_team_id", unique: true
   end
 
   create_table "email_templates", force: :cascade do |t|
