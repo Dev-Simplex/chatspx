@@ -173,6 +173,7 @@ func (s *Server) Handler() http.Handler {
 	mux.HandleFunc("POST /api/ai/rollback", s.auth(RoleAdmin, s.aiRollback))
 
 	// ===== Toolset G — GitHub de verdade (leitura=Viewer; escrita=Operator; merge=Admin) =====
+	mux.HandleFunc("GET /api/gh/repos", s.auth(RoleViewer, s.ghListRepos))
 	mux.HandleFunc("GET /api/gh/prs", s.auth(RoleViewer, s.ghListPRs))
 	mux.HandleFunc("GET /api/gh/pr", s.auth(RoleViewer, s.ghGetPR))
 	mux.HandleFunc("GET /api/gh/issues", s.auth(RoleViewer, s.ghListIssues))

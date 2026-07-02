@@ -28,6 +28,15 @@ func ghNum(r *http.Request) int { n, _ := strconv.Atoi(r.URL.Query().Get("number
 
 // ---------- LEITURA (RoleViewer) ----------
 
+// ghListRepos: allowlist de repos (pro seletor do painel). 200 sempre (lista vazia se off).
+func (s *Server) ghListRepos(w http.ResponseWriter, _ *http.Request, _ user) {
+	if s.ghclient == nil || !s.ghclient.Available() {
+		writeJSON(w, 200, map[string]any{"repos": []string{}})
+		return
+	}
+	writeJSON(w, 200, map[string]any{"repos": s.ghclient.Repos()})
+}
+
 func (s *Server) ghListPRs(w http.ResponseWriter, r *http.Request, _ user) {
 	repo, ok := s.ghReady(w, r)
 	if !ok {

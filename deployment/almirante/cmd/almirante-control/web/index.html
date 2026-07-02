@@ -161,7 +161,7 @@
           catch(e){ msg.value=e.message; }
         };
         const revokeToken = async (id) => { if(!confirm('Revogar o token '+id+'?')) return; try{ await api('/tokens/'+id,{method:'DELETE'}); loadTokens(); }catch(e){ msg.value=e.message; } };
-        const go = (v)=>{ view.value=v; if(v==='tokens') loadTokens(); if(v==='usuarios') loadUsers(); if(v==='ia') aiLoadVms(); };
+        const go = (v)=>{ view.value=v; if(v==='tokens') loadTokens(); if(v==='usuarios') loadUsers(); if(v==='ia') aiLoadVms(); if(v==='github') ghLoad(); };
         // ---- auth de humano ----
         const checkMe = async () => { try{ me.value = await api('/me'); refresh(); }catch(e){ me.value=null; } };
         const doLogin = async () => { li.err=''; li.busy=true; try{ me.value = await api('/login',{method:'POST',body:JSON.stringify({email:li.email,password:li.pass})}); li.pass=''; refresh(); }catch(e){ li.err='Email ou senha inválidos'; } li.busy=false; };
@@ -197,7 +197,7 @@
           return { icon:'hard-drives', text:'text-brand', chip:'bg-brand/10 text-brand' };
         };
         const relTime = (s)=> s ? s.slice(0,16).replace('T',' ') : '—';
-        const titleOf = { frota:'Frota', ia:'IA · Agentes', release:'Release', aprovacoes:'Aprovações', historico:'Histórico', tokens:'Tokens & Dispositivos', usuarios:'Usuários', conectar:'Como conectar' };
+        const titleOf = { frota:'Frota', ia:'IA · Agentes', github:'GitHub', release:'Release', aprovacoes:'Aprovações', historico:'Histórico', tokens:'Tokens & Dispositivos', usuarios:'Usuários', conectar:'Como conectar' };
 
         // ---- Release ----
         const rel = reactive({ sel:{}, dry:[], running:null, busy:false, err:'' });
@@ -260,10 +260,26 @@ O almirante comanda a frota ChatSPX — deploy E governança de IA (prompt/tools
         const aiLoadHist = async () => { try{ ai.hist = ((await api('/ai/history?vm='+ai.vm)).change_sets)||[]; }catch(e){} };
         const aiRollback = async (csid) => { if(!confirm('Reverter o change-set '+csid+'? Restaura o estado anterior na VM.')) return; try{ await api('/ai/rollback',{method:'POST',body:JSON.stringify({vm:ai.vm,change_set_id:csid})}); aiLoadHist(); if(ai.aid) aiLoadAgent(); }catch(e){ msg.value=e.message; } };
 
+        // ── GitHub ──
+        const gh = reactive({ repos:[], repo:'', tab:'prs', state:'open', prs:[], issues:[], branches:[], sel:null, busy:false, res:null, form:{ title:'', body:'', head:'', base:'producao' }, comment:'' });
+        const ghRefresh = async () => { if(!gh.repo || gh.tab==='new') return; gh.busy=true; gh.sel=null; try{
+            if(gh.tab==='prs') gh.prs = (await api('/gh/prs?repo='+gh.repo+'&state='+gh.state))||[];
+            else if(gh.tab==='issues') gh.issues = (await api('/gh/issues?repo='+gh.repo+'&state='+gh.state))||[];
+            else if(gh.tab==='branches') gh.branches = (await api('/gh/branches?repo='+gh.repo))||[];
+          }catch(e){ msg.value=e.message; } gh.busy=false; };
+        const ghLoad = async () => { try{ gh.repos = ((await api('/gh/repos')).repos)||[]; if(!gh.repo && gh.repos[0]) gh.repo = gh.repos[0]; ghRefresh(); }catch(e){ msg.value=e.message; } };
+        const ghOpen = async (kind, number) => { gh.busy=true; try{ const d = await api('/gh/'+(kind==='pr'?'pr':'issue')+'?repo='+gh.repo+'&number='+number); gh.sel = Object.assign({kind}, d); }catch(e){ msg.value=e.message; } gh.busy=false; };
+        const ghWrite = async (path, body, okMsg) => { gh.busy=true; gh.res=null; try{ const r = await api('/gh/'+path,{method:'POST',body:JSON.stringify(Object.assign({repo:gh.repo}, body))}); gh.res=Object.assign({ok:true,_msg:okMsg}, r); ghRefresh(); return r; }catch(e){ gh.res={ok:false,error:e.message}; } finally { gh.busy=false; } };
+        const ghNewIssue = () => { if(!gh.form.title){ msg.value='título obrigatório'; return; } if(!confirm('Abrir issue "'+gh.form.title+'" em '+gh.repo+'?')) return; ghWrite('issue',{title:gh.form.title,body:gh.form.body},'Issue aberta').then(()=>{gh.form.title='';gh.form.body='';}); };
+        const ghNewPR = () => { if(!gh.form.title||!gh.form.head||!gh.form.base){ msg.value='título, head e base obrigatórios'; return; } if(!confirm('Abrir PR '+gh.form.head+' → '+gh.form.base+' em '+gh.repo+'?')) return; ghWrite('pr',{head:gh.form.head,base:gh.form.base,title:gh.form.title,body:gh.form.body},'PR aberto').then(()=>{gh.form.title='';gh.form.body='';gh.form.head='';}); };
+        const ghComment = () => { if(!gh.comment.trim()||!gh.sel) return; ghWrite('comment',{number:gh.sel.number,body:gh.comment},'Comentário enviado').then(()=>{gh.comment='';}); };
+        const ghMerge = () => { if(!gh.sel) return; if(!confirm('MERGE do PR #'+gh.sel.number+' em '+gh.repo+'?\n\nAuditado. Requer admin.')) return; ghWrite('merge',{number:gh.sel.number,method:'squash'},'PR mergeado'); };
+
         onMounted(()=>{ if(!setpwToken.value) checkMe(); });
         return { token, saveToken, view, go, fleet, status, metrics, deploys, tokens, msg, refresh, pending, recent, byEnv, onlineCount, act, loadTokens, newToken, revokeToken, envStyle, relTime, titleOf, loadMetrics, restartVM, mstate, retryMetrics, addCmd, claudePrompt, copied, copy, gen, genConnectToken, rel, relToggle, relGroup, relClear, relDry, relGo,
                  me, setpwToken, li, sp, usersList, doLogin, doSetPw, logout, tokenLogin, loadUsers, addUser, delUser, theme, toggleTheme,
-                 ai, aiLoadVms, aiLoadAssistants, aiLoadAgent, aiTools, aiSavePrompt, aiSetTool, aiAddFaq, aiSetCred, aiRollback };
+                 ai, aiLoadVms, aiLoadAssistants, aiLoadAgent, aiTools, aiSavePrompt, aiSetTool, aiAddFaq, aiSetCred, aiRollback,
+                 gh, ghLoad, ghRefresh, ghOpen, ghNewIssue, ghNewPR, ghComment, ghMerge };
       },
       template: `
       <div>
@@ -313,6 +329,7 @@ O almirante comanda a frota ChatSPX — deploy E governança de IA (prompt/tools
           <nav class="px-3 mt-3 space-y-1 text-sm font-semibold overflow-y-auto">
             <button @click="go('frota')" :class="['navp w-full text-left rounded-xl px-3.5 py-2.5 flex items-center gap-3', view==='frota'&&'on']"><ic n="anchor" cls="w-5 h-5"/><span class="flex-1">Frota</span><span class="text-xs font-mono opacity-70">{{ onlineCount }}/{{ fleet.length }}</span></button>
             <button @click="go('ia')" :class="['navp w-full text-left rounded-xl px-3.5 py-2.5 flex items-center gap-3', view==='ia'&&'on']"><ic n="robot" cls="w-5 h-5"/><span class="flex-1">IA · Agentes</span><ic n="sparkle" cls="w-3.5 h-3.5 text-violet"/></button>
+            <button @click="go('github')" :class="['navp w-full text-left rounded-xl px-3.5 py-2.5 flex items-center gap-3', view==='github'&&'on']"><ic n="terminal-window" cls="w-5 h-5"/><span class="flex-1">GitHub</span><ic n="sparkle" cls="w-3.5 h-3.5 text-violet"/></button>
             <button v-if="me && me.role==='admin'" @click="go('release')" :class="['navp w-full text-left rounded-xl px-3.5 py-2.5 flex items-center gap-3', view==='release'&&'on']"><ic n="rocket-launch" cls="w-5 h-5"/><span>Release</span></button>
             <button @click="go('aprovacoes')" :class="['navp w-full text-left rounded-xl px-3.5 py-2.5 flex items-center gap-3', view==='aprovacoes'&&'on']"><ic n="bell" cls="w-5 h-5"/><span class="flex-1">Aprovações</span><span v-if="pending.length" class="text-[11px] font-bold rounded-full px-1.5 py-0.5 btn-brand">{{ pending.length }}</span></button>
             <button @click="go('historico')" :class="['navp w-full text-left rounded-xl px-3.5 py-2.5 flex items-center gap-3', view==='historico'&&'on']"><ic n="clock-counter-clockwise" cls="w-5 h-5"/><span>Histórico</span></button>
@@ -440,6 +457,97 @@ O almirante comanda a frota ChatSPX — deploy E governança de IA (prompt/tools
                     <button v-if="me.role==='admin' && c.status==='applied'" @click="aiRollback(c.change_set_id)" class="press text-[11px] font-bold rounded-lg px-3 py-1.5 flex items-center gap-1 shrink-0" style="background:rgb(245 158 11/.12);color:#F59E0B"><ic n="arrow-counter" cls="w-3.5 h-3.5"/>reverter</button>
                   </div>
                 </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- ============ GITHUB ============ -->
+          <div v-else-if="view==='github'" class="rise space-y-4">
+            <div class="glass rounded-3xl p-7 relative overflow-hidden">
+              <ic n="terminal-window" cls="absolute -right-6 -bottom-8 w-44 h-44 text-brand pointer-events-none" style="opacity:.07"/>
+              <div class="relative">
+                <div class="text-[11px] font-bold uppercase tracking-[.2em] text-brand flex items-center gap-2"><ic n="terminal-window" cls="w-4 h-4"/>Governança de GitHub</div>
+                <h2 class="font-display font-extrabold text-[26px] leading-tight mt-2 tx1">Controle o código da frota</h2>
+                <p class="tx2 text-sm mt-2 max-w-xl">PRs, issues, branches e arquivos — ler, comentar, <b class="tx1">abrir PR/issue</b> e <b class="tx1">mergear</b>, tudo <b class="tx1">auditado</b> e só nos repos da allowlist.</p>
+              </div>
+            </div>
+
+            <div class="glass rounded-2xl p-5">
+              <div class="grid md:grid-cols-[1fr_auto_auto] gap-3 items-end">
+                <div>
+                  <label class="text-[10px] uppercase tracking-wider tx3 font-bold">Repositório</label>
+                  <select v-model="gh.repo" @change="gh.sel=null;ghRefresh()" class="field w-full mt-1 px-3 py-2.5 text-sm font-mono">
+                    <option v-for="r in gh.repos" :key="r" :value="r">{{ r }}</option>
+                    <option v-if="!gh.repos.length" value="">nenhum repo na allowlist</option>
+                  </select>
+                </div>
+                <div>
+                  <label class="text-[10px] uppercase tracking-wider tx3 font-bold">Estado</label>
+                  <select v-model="gh.state" @change="ghRefresh()" class="field mt-1 px-3 py-2.5 text-sm"><option value="open">abertos</option><option value="closed">fechados</option><option value="all">todos</option></select>
+                </div>
+                <button @click="ghRefresh" :disabled="gh.busy" class="press btn-brand font-bold rounded-xl px-5 py-2.5 text-sm flex items-center gap-2 disabled:opacity-60"><ic n="arrows-clockwise" cls="w-4 h-4"/>{{ gh.busy?'…':'Atualizar' }}</button>
+              </div>
+              <div class="flex gap-1.5 mt-4 text-sm font-semibold flex-wrap">
+                <button v-for="t in [['prs','PRs'],['issues','Issues'],['branches','Branches'],['new','Novo ✦']]" :key="t[0]" @click="gh.tab=t[0];gh.sel=null;if(t[0]!=='new')ghRefresh()" :class="['px-4 py-2 rounded-lg transition', gh.tab===t[0]?'btn-brand':'soft tx2 hover:tx1']">{{ t[1] }}</button>
+              </div>
+            </div>
+
+            <div v-if="gh.res" class="rounded-2xl p-4 flex items-start gap-3" :style="gh.res.ok?'background:rgb(16 185 129/.1);border:1px solid rgb(16 185 129/.3)':'background:rgb(239 68 68/.09);border:1px solid rgb(239 68 68/.28)'">
+              <ic :n="gh.res.ok?'check-circle':'x-circle'" :cls="'w-5 h-5 shrink-0 mt-0.5 '+(gh.res.ok?'text-ok':'text-bad')"/>
+              <div class="text-sm min-w-0"><b :class="gh.res.ok?'text-ok':'text-bad'">{{ gh.res.ok?(gh.res._msg||'OK'):'Falhou' }}</b><a v-if="gh.res.html_url" :href="gh.res.html_url" target="_blank" class="text-brand ml-2 underline text-xs">abrir no GitHub ↗</a><div v-if="gh.res.error" class="tx2 mt-1">{{ gh.res.error }}</div></div>
+            </div>
+
+            <div v-if="gh.sel" class="glass rounded-2xl p-5">
+              <div class="flex items-start justify-between gap-3">
+                <div class="min-w-0"><div class="flex items-center gap-2 flex-wrap"><span class="text-[10px] font-bold px-2 py-0.5 rounded-full uppercase" :style="gh.sel.state==='open'?'background:rgb(16 185 129/.12);color:#10B981':'background:rgb(148 163 184/.15);color:#94A3B8'">{{ gh.sel.state }}</span><span class="tx3 font-mono text-xs">#{{ gh.sel.number }}</span><span class="tx3 text-xs">{{ gh.sel.user&&gh.sel.user.login }}</span></div><h3 class="font-display font-bold text-lg tx1 mt-1">{{ gh.sel.title }}</h3></div>
+                <button @click="gh.sel=null" class="press soft tx3 rounded-lg px-2.5 py-1 text-xs shrink-0">✕ voltar</button>
+              </div>
+              <pre v-if="gh.sel.body" class="mt-3 text-[13px] tx2 whitespace-pre-wrap soft rounded-lg p-3 max-h-52 overflow-auto">{{ gh.sel.body }}</pre>
+              <div class="mt-3 flex gap-2 flex-wrap">
+                <input v-model="gh.comment" @keyup.enter="ghComment" class="field flex-1 min-w-[200px] px-3 py-2 text-sm" placeholder="comentar…" />
+                <button @click="ghComment" :disabled="gh.busy" class="press soft tx1 font-bold rounded-xl px-4 py-2 text-sm">Comentar</button>
+                <button v-if="gh.sel.kind==='pr' && me.role==='admin'" @click="ghMerge" :disabled="gh.busy" class="press font-bold rounded-xl px-4 py-2 text-sm flex items-center gap-1.5" style="background:rgb(16 185 129/.14);color:#10B981"><ic n="check-circle" cls="w-4 h-4"/>Merge</button>
+                <a v-if="gh.sel.html_url" :href="gh.sel.html_url" target="_blank" class="press soft tx2 rounded-xl px-4 py-2 text-sm self-center">GitHub ↗</a>
+              </div>
+            </div>
+
+            <div v-if="gh.tab==='prs' && !gh.sel" class="glass rounded-2xl overflow-hidden">
+              <div v-if="gh.busy" class="tx3 text-sm py-8 text-center">carregando…</div>
+              <div v-else-if="!gh.prs.length" class="tx3 text-sm py-8 text-center">Nenhum PR {{ gh.state==='all'?'':gh.state }}.</div>
+              <button v-for="p in gh.prs" :key="p.number" @click="ghOpen('pr',p.number)" class="w-full text-left flex items-center justify-between px-5 py-3.5 hover:soft border-b hair transition">
+                <div class="min-w-0 flex items-center gap-3"><ic n="arrows-clockwise" cls="w-4 h-4 text-brand shrink-0"/><div class="min-w-0"><div class="font-semibold text-sm tx1 truncate">{{ p.title }}</div><div class="tx3 text-xs truncate">#{{ p.number }} · {{ p.user&&p.user.login }} · {{ p.head&&p.head.ref }} → {{ p.base&&p.base.ref }}</div></div></div>
+                <span class="text-[10px] font-bold px-2 py-0.5 rounded-full uppercase shrink-0" :style="p.state==='open'?'background:rgb(16 185 129/.12);color:#10B981':'background:rgb(148 163 184/.15);color:#94A3B8'">{{ p.state }}</span>
+              </button>
+            </div>
+
+            <div v-if="gh.tab==='issues' && !gh.sel" class="glass rounded-2xl overflow-hidden">
+              <div v-if="gh.busy" class="tx3 text-sm py-8 text-center">carregando…</div>
+              <div v-else-if="!gh.issues.length" class="tx3 text-sm py-8 text-center">Nenhuma issue.</div>
+              <button v-for="it in gh.issues" :key="it.number" @click="ghOpen('issue',it.number)" class="w-full text-left flex items-center justify-between px-5 py-3.5 hover:soft border-b hair transition">
+                <div class="min-w-0 flex items-center gap-3"><ic n="warning-octagon" cls="w-4 h-4 text-brand shrink-0"/><div class="min-w-0"><div class="font-semibold text-sm tx1 truncate">{{ it.title }}</div><div class="tx3 text-xs truncate">#{{ it.number }} · {{ it.user&&it.user.login }}</div></div></div>
+                <span class="text-[10px] font-bold px-2 py-0.5 rounded-full uppercase shrink-0" :style="it.state==='open'?'background:rgb(16 185 129/.12);color:#10B981':'background:rgb(148 163 184/.15);color:#94A3B8'">{{ it.state }}</span>
+              </button>
+            </div>
+
+            <div v-if="gh.tab==='branches' && !gh.sel" class="glass rounded-2xl p-3">
+              <div v-if="gh.busy" class="tx3 text-sm py-6 text-center">carregando…</div>
+              <div v-else-if="!gh.branches.length" class="tx3 text-sm py-6 text-center">Nenhuma branch.</div>
+              <div v-for="b in gh.branches" :key="b.name" class="flex items-center gap-3 px-4 py-2.5 soft rounded-xl mb-1.5"><ic n="broadcast" cls="w-4 h-4 text-brand shrink-0"/><span class="font-mono text-sm tx1 truncate">{{ b.name }}</span><span v-if="b.protected" class="text-[9px] font-bold px-1.5 py-0.5 rounded-full uppercase tx3 soft ml-auto">protegida</span></div>
+            </div>
+
+            <div v-if="gh.tab==='new'" class="glass rounded-2xl p-5 grid md:grid-cols-2 gap-6">
+              <div>
+                <div class="text-[11px] uppercase tracking-wider text-brand font-bold mb-2 flex items-center gap-1.5"><ic n="warning-octagon" cls="w-4 h-4"/>Nova issue</div>
+                <input v-model="gh.form.title" class="field w-full mb-2 px-3 py-2.5 text-sm" placeholder="título" />
+                <textarea v-model="gh.form.body" rows="4" class="field w-full px-3 py-2.5 text-sm" placeholder="descrição (opcional)"></textarea>
+                <div class="flex justify-end mt-3"><button @click="ghNewIssue" :disabled="gh.busy" class="press btn-brand font-bold rounded-xl px-5 py-2.5 text-sm flex items-center gap-2 disabled:opacity-60"><ic n="plus" cls="w-4 h-4"/>Abrir issue</button></div>
+              </div>
+              <div class="md:border-l hair md:pl-6">
+                <div class="text-[11px] uppercase tracking-wider text-brand font-bold mb-2 flex items-center gap-1.5"><ic n="arrows-clockwise" cls="w-4 h-4"/>Novo PR</div>
+                <input v-model="gh.form.title" class="field w-full mb-2 px-3 py-2.5 text-sm" placeholder="título do PR" />
+                <div class="grid grid-cols-2 gap-2 mb-2"><input v-model="gh.form.head" class="field px-3 py-2.5 text-sm font-mono" placeholder="head (branch)" /><input v-model="gh.form.base" class="field px-3 py-2.5 text-sm font-mono" placeholder="base" /></div>
+                <textarea v-model="gh.form.body" rows="3" class="field w-full px-3 py-2.5 text-sm" placeholder="descrição"></textarea>
+                <div class="flex justify-end mt-3"><button @click="ghNewPR" :disabled="gh.busy" class="press btn-brand font-bold rounded-xl px-5 py-2.5 text-sm flex items-center gap-2 disabled:opacity-60"><ic n="arrows-clockwise" cls="w-4 h-4"/>Abrir PR</button></div>
               </div>
             </div>
           </div>

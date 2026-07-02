@@ -14,6 +14,7 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"sort"
 	"strings"
 	"time"
 )
@@ -42,6 +43,16 @@ func New(token string, allowRepos []string, timeout time.Duration) *Client {
 
 // Available indica se ha token configurado (governanca GitHub ligada).
 func (c *Client) Available() bool { return c != nil && c.token != "" }
+
+// Repos devolve a allowlist ordenada (pro seletor de repo do painel).
+func (c *Client) Repos() []string {
+	out := make([]string, 0, len(c.allow))
+	for r := range c.allow {
+		out = append(out, r)
+	}
+	sort.Strings(out)
+	return out
+}
 
 // checkRepo valida o repo contra a allowlist (fail-closed).
 func (c *Client) checkRepo(repo string) error {
