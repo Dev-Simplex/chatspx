@@ -82,7 +82,11 @@ const mapChannel = ch => {
       preview: previewOf(ch),
       fromMe: ch.last_message?.user?.id === currentUserId.value,
     },
-    members: ch.members || [],
+    // cada membro carrega sua presença (online/busy/offline) do store de agentes
+    members: (ch.members || []).map(m => ({
+      ...m,
+      presence: presenceOf(m.id),
+    })),
     // Em auditoria, canais dos quais o admin não participa são somente-leitura.
     readOnly: auditMode.value && !isMember,
   };
@@ -148,6 +152,22 @@ const visibleMessages = computed(() => {
     m => m.type === 'message' && (m.content || '').toLowerCase().includes(q)
   );
 });
+
+// ── Mídia e documentos da conversa (anexos das mensagens carregadas) ─────────
+const IMAGE_RE = /\.(png|jpe?g|gif|webp|bmp|svg|avif)$/i;
+const threadAttachments = computed(() => {
+  const out = [];
+  rawMessages.value.forEach(m =>
+    (m.attachments || []).forEach(a => out.push(a))
+  );
+  return out;
+});
+const mediaItems = computed(() =>
+  threadAttachments.value.filter(a => IMAGE_RE.test(a.filename || ''))
+);
+const docItems = computed(() =>
+  threadAttachments.value.filter(a => !IMAGE_RE.test(a.filename || ''))
+);
 
 // ── Handlers ─────────────────────────────────────────────────────────────
 const onSelect = async id => {
@@ -318,6 +338,8 @@ onBeforeUnmount(() => {
             <ChatInfoPanel
               :conversation="activeConversation"
               :current-user-id="currentUserId"
+              :media="mediaItems"
+              :docs="docItems"
               @close="showInfo = false"
             />
           </div>
