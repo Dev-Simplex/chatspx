@@ -22,6 +22,10 @@ class InternalMessage < ApplicationRecord
   belongs_to :shared_conversation, class_name: 'Conversation', optional: true
   has_many_attached :attachments
 
+  # Hard cap for a single internal-chat attachment (defense in depth — the
+  # composer also checks this client-side before uploading).
+  MAX_ATTACHMENT_SIZE = 100.megabytes
+
   # Rich card preview of a shared customer conversation, or nil.
   def shared_conversation_preview
     return if shared_conversation.blank?
@@ -47,6 +51,7 @@ class InternalMessage < ApplicationRecord
   end
 
   validates :content, presence: true, unless: -> { attachments.attached? || deleted? }
+  validate :attachments_within_size_limit
 
   scope :recent_first, -> { order(created_at: :desc) }
 
@@ -80,5 +85,23 @@ class InternalMessage < ApplicationRecord
     end
     list.empty? ? data.delete(emoji) : data[emoji] = list
     update!(reactions: data)
+  end
+
+  private
+
+  # Reject oversized attachments before they are persisted (the controller maps
+  # ActiveRecord::RecordInvalid to a 422). Inspects the pending upload directly,
+  # since a new record's blob byte_size isn't available until after save.
+  def attachments_within_size_limit
+    changes = attachment_changes['attachments']
+    return if changes.blank?
+
+    oversized = Array(changes.attachables).any? do |attachable|
+      size = attachable.try(:size) || attachable.try(:byte_size)
+      size.to_i > MAX_ATTACHMENT_SIZE
+    end
+    return unless oversized
+
+    errors.add(:attachments, "must be smaller than #{MAX_ATTACHMENT_SIZE / 1.megabyte} MB")
   end
 end

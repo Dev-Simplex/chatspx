@@ -141,7 +141,7 @@ RSpec.describe 'Api::V1::Accounts::InternalChannelsController', type: :request d
       expect do
         post "/api/v1/accounts/#{account.id}/internal_channels/#{channel.id}/read", headers: alice.create_new_auth_token
       end.to have_enqueued_job(ActionCableBroadcastJob)
-        .with([bob.pubsub_token], 'internal.read', hash_including(user_id: alice.id))
+        .with([bob.pubsub_token], 'internal.read', hash_including(account_id: account.id, user_id: alice.id))
     end
   end
 
@@ -153,7 +153,7 @@ RSpec.describe 'Api::V1::Accounts::InternalChannelsController', type: :request d
         post "/api/v1/accounts/#{account.id}/internal_channels/#{channel.id}/typing",
              params: { typing: true }, headers: alice.create_new_auth_token
       end.to have_enqueued_job(ActionCableBroadcastJob)
-        .with([bob.pubsub_token], 'internal.typing', hash_including(typing: true))
+        .with([bob.pubsub_token], 'internal.typing', hash_including(account_id: account.id, typing: true))
       expect(response).to have_http_status(:success)
     end
 

@@ -77,6 +77,7 @@ class InternalMessages::CreateService
     return if tokens.blank?
 
     ActionCableBroadcastJob.perform_later(tokens, 'internal.mention.created', {
+                                            account_id: @channel.account_id,
                                             internal_channel_id: @channel.id,
                                             channel_title: @channel.direct? ? @user.name : @channel.name,
                                             from: @user.name

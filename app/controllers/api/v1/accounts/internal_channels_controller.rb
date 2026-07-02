@@ -73,6 +73,7 @@ class Api::V1::Accounts::InternalChannelsController < Api::V1::Accounts::BaseCon
     tokens = @channel.users.where.not(id: Current.user.id).pluck(:pubsub_token).compact
     if tokens.present?
       ActionCableBroadcastJob.perform_later(tokens, 'internal.typing', {
+                                              account_id: @channel.account_id,
                                               internal_channel_id: @channel.id,
                                               user: { id: Current.user.id, name: Current.user.name },
                                               typing: ActiveModel::Type::Boolean.new.cast(params[:typing])
@@ -130,7 +131,8 @@ class Api::V1::Accounts::InternalChannelsController < Api::V1::Accounts::BaseCon
     tokens = @channel.users.pluck(:pubsub_token).compact
     return if tokens.blank?
 
-    ActionCableBroadcastJob.perform_later(tokens, 'internal.channel.updated', { internal_channel_id: @channel.id })
+    ActionCableBroadcastJob.perform_later(tokens, 'internal.channel.updated',
+                                          { account_id: @channel.account_id, internal_channel_id: @channel.id })
   end
 
   def render_forbidden

@@ -9,11 +9,16 @@ import {
   defineAsyncComponent,
 } from 'vue';
 import { useStore, useMapGetter } from 'dashboard/composables/store';
+import { useAlert } from 'dashboard/composables';
 import { useUISettings } from 'dashboard/composables/useUISettings';
 import { useI18n } from 'vue-i18n';
 import { useRouter } from 'vue-router';
 import Avatar from 'dashboard/components-next/avatar/Avatar.vue';
 import { messageStamp } from 'shared/helpers/timeHelper';
+import {
+  checkFileSizeLimit,
+  HARD_MAXIMUM_FILE_UPLOAD_SIZE,
+} from 'shared/helpers/FileHelper';
 import ManageChannelDialog from '../components/ManageChannelDialog.vue';
 
 const EmojiInput = defineAsyncComponent(
@@ -95,6 +100,22 @@ const toggleAudit = async () => {
   if (auditMode.value) await store.dispatch('internalChat/fetchAuditChannels');
 };
 
+// Fase 0.4: client-side search over the channel list (matches the title).
+const channelSearch = ref('');
+const filteredChannelList = computed(() => {
+  const q = channelSearch.value.trim().toLowerCase();
+  if (!q) return channelList.value;
+  return channelList.value.filter(c =>
+    (c.title || '').toLowerCase().includes(q)
+  );
+});
+
+// Fase 0.3: retry a failed channel-list load (honors audit mode).
+const retryFetchChannels = () => {
+  if (auditMode.value) store.dispatch('internalChat/fetchAuditChannels');
+  else store.dispatch('internalChat/fetchChannels');
+};
+
 const activeChannelId = ref(null);
 const draft = ref('');
 const threadRef = ref(null);
@@ -108,6 +129,9 @@ const mentionedUserIds = ref([]);
 const showEmoji = ref(false);
 const showMentionPicker = ref(false);
 const replyingTo = ref(null);
+// Fase 0.7: unsent composer state (text + attachments + reply) kept per channel,
+// so switching conversations no longer discards what you were typing.
+const draftsByChannel = ref({});
 
 // New-channel panel: null | 'menu' | 'dm' | 'group' | 'team'
 const newPanel = ref(null);
@@ -155,6 +179,14 @@ const channelSubtitle = channel => {
   return t('INTERNAL_CHAT.MEMBERS_COUNT', {
     count: (channel.members || []).length,
   });
+};
+
+// Fase 0.5: last-message preview honoring soft-delete and attachment-only rows.
+const channelPreview = channel => {
+  const lastMessage = channel?.last_message;
+  if (!lastMessage) return channelSubtitle(channel);
+  if (lastMessage.deleted) return t('INTERNAL_CHAT.DELETED');
+  return lastMessage.content || t('INTERNAL_CHAT.ATTACHMENT');
 };
 
 // Presence (Fase 4): availability_status from the agents store (online/busy/offline).
@@ -285,6 +317,46 @@ const resetComposer = () => {
   nextTick(autoResize);
 };
 
+// Fase 0.7: persist the current composer under a channel id (or clear it when
+// empty), and restore it when the channel is reopened.
+const saveDraft = channelId => {
+  if (!channelId) return;
+  const hasContent =
+    Boolean(draft.value.trim()) ||
+    attachedFiles.value.length > 0 ||
+    Boolean(replyingTo.value);
+  const next = { ...draftsByChannel.value };
+  if (hasContent) {
+    next[channelId] = {
+      draft: draft.value,
+      attachedFiles: attachedFiles.value,
+      mentionedUserIds: mentionedUserIds.value,
+      replyingTo: replyingTo.value,
+    };
+  } else {
+    delete next[channelId];
+  }
+  draftsByChannel.value = next;
+};
+
+const restoreDraft = channelId => {
+  const saved = draftsByChannel.value[channelId];
+  draft.value = saved?.draft || '';
+  attachedFiles.value = saved?.attachedFiles || [];
+  mentionedUserIds.value = saved?.mentionedUserIds || [];
+  replyingTo.value = saved?.replyingTo || null;
+  showEmoji.value = false;
+  showMentionPicker.value = false;
+  nextTick(autoResize);
+};
+
+const clearDraft = channelId => {
+  if (!channelId || !draftsByChannel.value[channelId]) return;
+  const next = { ...draftsByChannel.value };
+  delete next[channelId];
+  draftsByChannel.value = next;
+};
+
 // --- typing indicator (Fase 2B) — defined before openChannel/send (used there)
 let typingThrottle = 0;
 let typingStopTimer = null;
@@ -321,9 +393,11 @@ const onComposerInput = () => {
 };
 
 const openChannel = async channel => {
+  if (channel.id === activeChannelId.value) return;
   stopTyping();
+  saveDraft(activeChannelId.value);
   activeChannelId.value = channel.id;
-  resetComposer();
+  restoreDraft(channel.id);
   await store.dispatch('internalChat/fetchMessages', channel.id);
   scrollToBottom();
   focusComposer();
@@ -375,7 +449,20 @@ const onEmojiSelect = emoji => {
 
 const onPickFile = () => fileInput.value?.click();
 const onFilesSelected = event => {
-  attachedFiles.value.push(...Array.from(event.target.files || []));
+  // Fase 0.6: reject files above the hard upload cap with a clear message,
+  // instead of letting the backend fail the whole send.
+  Array.from(event.target.files || []).forEach(file => {
+    if (checkFileSizeLimit(file, HARD_MAXIMUM_FILE_UPLOAD_SIZE)) {
+      attachedFiles.value.push(file);
+    } else {
+      useAlert(
+        t('INTERNAL_CHAT.ATTACHMENT_TOO_LARGE', {
+          name: file.name,
+          size: HARD_MAXIMUM_FILE_UPLOAD_SIZE,
+        })
+      );
+    }
+  });
   event.target.value = '';
 };
 const removeFile = index => attachedFiles.value.splice(index, 1);
@@ -393,6 +480,7 @@ const send = async () => {
   const content = draft.value.trim();
   if ((!content && !attachedFiles.value.length) || !activeChannelId.value)
     return;
+  if (uiFlags.value.isSending) return;
   const payload = {
     channelId: activeChannelId.value,
     content,
@@ -401,9 +489,20 @@ const send = async () => {
     replyToId: replyingTo.value?.id || null,
   };
   stopTyping();
-  resetComposer();
-  await store.dispatch('internalChat/sendMessage', payload);
-  scrollToBottom();
+  try {
+    await store.dispatch('internalChat/sendMessage', payload);
+    // Clear only after the message is safely persisted, so a network failure
+    // never silently swallows what the user typed.
+    clearDraft(payload.channelId);
+    // Only wipe the live composer if we're still on the channel we sent to —
+    // the user may have switched channels while the send was in flight.
+    if (activeChannelId.value === payload.channelId) {
+      resetComposer();
+      scrollToBottom();
+    }
+  } catch (error) {
+    useAlert(t('INTERNAL_CHAT.SEND_ERROR'));
+  }
 };
 
 const isMine = message => message.user?.id === currentUserId.value;
@@ -440,11 +539,15 @@ const saveEdit = async msg => {
   const content = editDraft.value.trim();
   if (!content) return;
   cancelEdit();
-  await store.dispatch('internalChat/editMessage', {
-    channelId: activeChannelId.value,
-    messageId: msg.id,
-    content,
-  });
+  try {
+    await store.dispatch('internalChat/editMessage', {
+      channelId: activeChannelId.value,
+      messageId: msg.id,
+      content,
+    });
+  } catch (error) {
+    useAlert(t('INTERNAL_CHAT.ACTION_ERROR'));
+  }
 };
 
 const askDelete = msg => {
@@ -454,10 +557,14 @@ const askDelete = msg => {
 };
 const doDelete = async msg => {
   confirmDeleteId.value = null;
-  await store.dispatch('internalChat/deleteMessage', {
-    channelId: activeChannelId.value,
-    messageId: msg.id,
-  });
+  try {
+    await store.dispatch('internalChat/deleteMessage', {
+      channelId: activeChannelId.value,
+      messageId: msg.id,
+    });
+  } catch (error) {
+    useAlert(t('INTERNAL_CHAT.ACTION_ERROR'));
+  }
 };
 
 const toggleReactionPicker = msg => {
@@ -467,11 +574,15 @@ const toggleReactionPicker = msg => {
 };
 const toggleReaction = async (msg, emoji) => {
   reactionPickerId.value = null;
-  await store.dispatch('internalChat/reactToMessage', {
-    channelId: activeChannelId.value,
-    messageId: msg.id,
-    emoji,
-  });
+  try {
+    await store.dispatch('internalChat/reactToMessage', {
+      channelId: activeChannelId.value,
+      messageId: msg.id,
+      emoji,
+    });
+  } catch (error) {
+    useAlert(t('INTERNAL_CHAT.ACTION_ERROR'));
+  }
 };
 const reactionEntries = msg => Object.entries(msg.reactions || {});
 const iReacted = (msg, emoji) =>
@@ -836,10 +947,30 @@ onBeforeUnmount(() => {
         </template>
       </div>
 
+      <!-- Search (Fase 0.4) -->
+      <div
+        v-if="
+          !uiFlags.channelsLoadError && (channelList.length || channelSearch)
+        "
+        class="px-3 pt-2 pb-1 flex-shrink-0"
+      >
+        <div class="relative">
+          <span
+            class="i-lucide-search absolute ltr:left-2.5 rtl:right-2.5 top-1/2 -translate-y-1/2 text-sm text-n-slate-10 pointer-events-none"
+          />
+          <input
+            v-model="channelSearch"
+            type="text"
+            :placeholder="t('INTERNAL_CHAT.SEARCH_PLACEHOLDER')"
+            class="w-full h-8 ltr:pl-8 rtl:pr-8 ltr:pr-2 rtl:pl-2 text-sm rounded-lg bg-n-alpha-1 border border-transparent focus:border-n-weak focus:bg-n-solid-1 text-n-slate-12 placeholder:text-n-slate-10 outline-none transition-colors"
+          />
+        </div>
+      </div>
+
       <!-- Channels -->
       <div class="flex-1 overflow-y-auto py-1">
         <button
-          v-for="channel in channelList"
+          v-for="channel in filteredChannelList"
           :key="channel.id"
           class="flex items-center gap-3 w-full px-3 py-2.5 text-left rounded-lg mx-1 transition-colors"
           :class="
@@ -880,11 +1011,7 @@ onBeforeUnmount(() => {
                     : 'text-n-slate-10'
                 "
               >
-                {{
-                  channel.last_message
-                    ? channel.last_message.content
-                    : channelSubtitle(channel)
-                }}
+                {{ channelPreview(channel) }}
               </span>
               <span
                 v-if="channel.unread_count"
@@ -896,8 +1023,68 @@ onBeforeUnmount(() => {
           </span>
         </button>
 
+        <!-- Skeleton while the first load is in flight (Fase 0.3) -->
         <div
-          v-if="!channelList.length && !uiFlags.isFetchingChannels"
+          v-if="uiFlags.isFetchingChannels && !channelList.length"
+          class="px-2 py-1 space-y-1"
+        >
+          <div
+            v-for="n in 6"
+            :key="n"
+            class="flex items-center gap-3 px-1 py-2.5"
+          >
+            <span
+              class="w-[38px] h-[38px] rounded-full bg-n-alpha-2 animate-pulse flex-shrink-0"
+            />
+            <span class="flex-1 min-w-0 space-y-1.5">
+              <span
+                class="block h-3 w-1/2 rounded bg-n-alpha-2 animate-pulse"
+              />
+              <span
+                class="block h-2.5 w-3/4 rounded bg-n-alpha-1 animate-pulse"
+              />
+            </span>
+          </div>
+        </div>
+
+        <!-- Load error with retry (Fase 0.3) -->
+        <div
+          v-if="uiFlags.channelsLoadError && !uiFlags.isFetchingChannels"
+          class="flex flex-col items-center justify-center text-center px-6 py-12 text-n-slate-10"
+        >
+          <span class="i-lucide-cloud-off text-3xl mb-2 opacity-70" />
+          <p class="text-sm">{{ t('INTERNAL_CHAT.LOAD_ERROR') }}</p>
+          <button
+            class="mt-3 inline-flex items-center gap-1.5 px-3 h-8 rounded-lg text-sm font-medium text-n-brand hover:bg-n-alpha-2 transition-colors"
+            @click="retryFetchChannels"
+          >
+            <span class="i-lucide-refresh-cw text-sm" />
+            {{ t('INTERNAL_CHAT.RETRY') }}
+          </button>
+        </div>
+
+        <!-- No search matches (Fase 0.4) -->
+        <div
+          v-if="
+            !filteredChannelList.length &&
+            channelSearch &&
+            !uiFlags.isFetchingChannels &&
+            !uiFlags.channelsLoadError
+          "
+          class="flex flex-col items-center justify-center text-center px-6 py-12 text-n-slate-10"
+        >
+          <span class="i-lucide-search-x text-3xl mb-2 opacity-70" />
+          <p class="text-sm">{{ t('INTERNAL_CHAT.NO_SEARCH_RESULTS') }}</p>
+        </div>
+
+        <!-- Nothing yet -->
+        <div
+          v-if="
+            !channelList.length &&
+            !channelSearch &&
+            !uiFlags.isFetchingChannels &&
+            !uiFlags.channelsLoadError
+          "
           class="flex flex-col items-center justify-center text-center px-6 py-12 text-n-slate-10"
         >
           <span class="i-lucide-messages-square text-3xl mb-2 opacity-70" />

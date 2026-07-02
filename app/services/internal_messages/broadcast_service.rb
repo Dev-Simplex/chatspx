@@ -25,6 +25,10 @@ class InternalMessages::BroadcastService
 
   def payload
     {
+      # account_id is required by the dashboard connector's isAValidEvent filter
+      # (getCurrentAccountId === data.account_id); without it every internal.*
+      # event is dropped client-side and real-time never reaches the recipient.
+      account_id: @message.internal_channel.account_id,
       internal_channel_id: @message.internal_channel_id,
       message: serialize
     }

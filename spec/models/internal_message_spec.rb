@@ -40,4 +40,24 @@ RSpec.describe InternalMessage, type: :model do
       expect(message.reload.reactions['❤️']).to contain_exactly(author.id, other.id)
     end
   end
+
+  describe 'attachment size validation' do
+    let(:upload) do
+      Rack::Test::UploadedFile.new(Rails.root.join('spec/assets/avatar.png'), 'image/png')
+    end
+
+    it 'rejects an attachment above the size cap' do
+      stub_const('InternalMessage::MAX_ATTACHMENT_SIZE', 1)
+      msg = channel.messages.new(user: author, content: 'arquivo')
+      msg.attachments.attach(upload)
+      expect(msg).not_to be_valid
+      expect(msg.errors[:attachments]).to be_present
+    end
+
+    it 'accepts an attachment within the size cap' do
+      msg = channel.messages.new(user: author, content: 'arquivo')
+      msg.attachments.attach(upload)
+      expect(msg).to be_valid
+    end
+  end
 end

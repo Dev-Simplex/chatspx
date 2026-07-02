@@ -37,5 +37,11 @@ RSpec.describe InternalChannelMember, type: :model do
       create(:internal_message, internal_channel: channel, user: bob, content: 'nova')
       expect(alice_member.unread_count).to eq(1)
     end
+
+    it 'ignores soft-deleted messages' do
+      create(:internal_message, internal_channel: channel, user: bob, content: 'visível')
+      create(:internal_message, internal_channel: channel, user: bob, content: 'apagada').soft_delete!
+      expect(alice_member.unread_count).to eq(1)
+    end
   end
 end

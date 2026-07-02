@@ -18,6 +18,9 @@ export const state = {
     isFetchingChannels: false,
     isFetchingMessages: false,
     isSending: false,
+    // True when the last channel-list fetch failed (so the list can show a
+    // real error + retry instead of the misleading "no conversations" state).
+    channelsLoadError: false,
   },
 };
 
@@ -40,10 +43,15 @@ export const getters = {
 
 export const actions = {
   fetchChannels: async ({ commit }) => {
-    commit('SET_UI_FLAG', { isFetchingChannels: true });
+    commit('SET_UI_FLAG', {
+      isFetchingChannels: true,
+      channelsLoadError: false,
+    });
     try {
       const { data } = await InternalChatAPI.getChannels();
       commit('SET_CHANNELS', data);
+    } catch (error) {
+      commit('SET_UI_FLAG', { channelsLoadError: true });
     } finally {
       commit('SET_UI_FLAG', { isFetchingChannels: false });
     }

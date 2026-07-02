@@ -24,7 +24,8 @@ RSpec.describe InternalMessages::CreateService do
     expect do
       described_class.new(channel: channel, user: alice, content: 'oi').perform
     end.to have_enqueued_job(ActionCableBroadcastJob)
-      .with(array_including(alice.pubsub_token, bob.pubsub_token), 'internal.message.created', anything)
+      .with(array_including(alice.pubsub_token, bob.pubsub_token), 'internal.message.created',
+            hash_including(account_id: account.id))
   end
 
   describe '@mentions' do
@@ -47,7 +48,7 @@ RSpec.describe InternalMessages::CreateService do
       expect do
         described_class.new(channel: channel, user: alice, content: 'oi @bob', mentioned_user_ids: [bob.id]).perform
       end.to have_enqueued_job(ActionCableBroadcastJob)
-        .with([bob.pubsub_token], 'internal.mention.created', anything)
+        .with([bob.pubsub_token], 'internal.mention.created', hash_including(account_id: account.id))
     end
   end
 end

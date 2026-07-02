@@ -23,6 +23,7 @@ class InternalChannels::MarkReadService
     return if tokens.blank?
 
     ActionCableBroadcastJob.perform_later(tokens, 'internal.read', {
+                                            account_id: @channel.account_id,
                                             internal_channel_id: @channel.id,
                                             user_id: @user.id,
                                             last_read_at: member.last_read_at.to_i
