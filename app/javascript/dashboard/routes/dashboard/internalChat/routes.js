@@ -1,6 +1,8 @@
 import { frontendURL } from '../../../helper/URLHelper';
 import { FEATURE_FLAGS } from '../../../featureFlags';
-import InternalChatIndex from './pages/InternalChatIndex.vue';
+// Redesign visual (protótipo, dados fictícios). A página funcional antiga
+// (InternalChatIndex.vue) segue no disco para revert rápido quando quisermos.
+import InternalChatRedesign from './pages/InternalChatRedesign.vue';
 
 const commonMeta = {
   permissions: ['administrator', 'agent'],
@@ -10,13 +12,13 @@ const commonMeta = {
 export const routes = [
   {
     path: frontendURL('accounts/:accountId/internal-chat'),
-    component: InternalChatIndex,
+    component: InternalChatRedesign,
     meta: commonMeta,
     children: [
       {
         path: '',
         name: 'internal_chat_index',
-        component: InternalChatIndex,
+        component: InternalChatRedesign,
         meta: commonMeta,
       },
     ],
