@@ -164,3 +164,35 @@ func (m *mockSource) AIEligibility(vm string, id int, inboxIDs []int) (any, erro
 func (m *mockSource) AIRollback(vm, changeSetID string) (any, error) {
 	return map[string]any{"status": "reverted", "change_set_id": changeSetID}, nil
 }
+
+// ---- GitHub de verdade (mock) ----
+func (m *mockSource) GHListPRs(repo, state string) (any, error) {
+	return []map[string]any{{"number": 42, "title": "[mock] fix: exemplo", "state": "open", "user": map[string]any{"login": "dev"}}}, nil
+}
+func (m *mockSource) GHGetPR(repo string, number int) (any, error) {
+	return map[string]any{"number": number, "title": "[mock] PR", "state": "open", "mergeable": true}, nil
+}
+func (m *mockSource) GHListIssues(repo, state string) (any, error) {
+	return []map[string]any{{"number": 7, "title": "[mock] issue", "state": "open"}}, nil
+}
+func (m *mockSource) GHGetIssue(repo string, number int) (any, error) {
+	return map[string]any{"number": number, "title": "[mock] issue", "state": "open"}, nil
+}
+func (m *mockSource) GHListBranches(repo string) (any, error) {
+	return []map[string]any{{"name": "producao"}, {"name": "feat/almirante"}}, nil
+}
+func (m *mockSource) GHReadFile(repo, path, ref string) (any, error) {
+	return map[string]any{"path": path, "content": "W21vY2td", "encoding": "base64"}, nil
+}
+func (m *mockSource) GHCreateIssue(repo, title, body string) (any, error) {
+	return map[string]any{"number": 99, "title": title, "html_url": "https://github.com/" + repo + "/issues/99"}, nil
+}
+func (m *mockSource) GHComment(repo string, number int, body string) (any, error) {
+	return map[string]any{"id": 1, "body": body}, nil
+}
+func (m *mockSource) GHCreatePR(repo, head, base, title, body string) (any, error) {
+	return map[string]any{"number": 100, "title": title, "html_url": "https://github.com/" + repo + "/pull/100"}, nil
+}
+func (m *mockSource) GHMergePR(repo string, number int, method string) (any, error) {
+	return map[string]any{"merged": true, "number": number, "method": method}, nil
+}

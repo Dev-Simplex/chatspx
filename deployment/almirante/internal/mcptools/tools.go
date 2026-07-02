@@ -89,6 +89,43 @@ type aiRollbackInput struct {
 	ChangeSetID string `json:"change_set_id"`
 }
 
+// ---- GitHub de verdade (Toolset G) ----
+type ghRepoInput struct {
+	Repo  string `json:"repo"`
+	State string `json:"state,omitempty"`
+}
+type ghNumInput struct {
+	Repo   string `json:"repo"`
+	Number int    `json:"number"`
+}
+type ghFileInput struct {
+	Repo string `json:"repo"`
+	Path string `json:"path"`
+	Ref  string `json:"ref,omitempty"`
+}
+type ghIssueInput struct {
+	Repo  string `json:"repo"`
+	Title string `json:"title"`
+	Body  string `json:"body,omitempty"`
+}
+type ghCommentInput struct {
+	Repo   string `json:"repo"`
+	Number int    `json:"number"`
+	Body   string `json:"body"`
+}
+type ghPRInput struct {
+	Repo  string `json:"repo"`
+	Head  string `json:"head"`
+	Base  string `json:"base"`
+	Title string `json:"title"`
+	Body  string `json:"body,omitempty"`
+}
+type ghMergeInput struct {
+	Repo   string `json:"repo"`
+	Number int    `json:"number"`
+	Method string `json:"method,omitempty"`
+}
+
 func bp(v bool) *bool { return &v }
 
 // jsonTxt formata a resposta JSON do control como texto pro Claude Code.
@@ -604,6 +641,88 @@ func Register(s *mcp.Server, fl *types.Fleet, src Source) {
 	mcp.AddTool(s, &mcp.Tool{Name: "almirante_ai_rollback", Description: "Reverte um change-set de IA aplicado (restaura o snapshot na VM) pelo change_set_id (veja em almirante_ai_history).", Annotations: gated},
 		func(_ context.Context, _ *mcp.CallToolRequest, in aiRollbackInput) (*mcp.CallToolResult, any, error) {
 			v, err := src.AIRollback(in.VM, in.ChangeSetID)
+			if err != nil {
+				return errtxt(err.Error()), nil, nil
+			}
+			return jsonTxt(v), nil, nil
+		})
+
+	// ===== Toolset G — GitHub de verdade (ler/abrir PR, issue, arquivo, branch) =====
+	mcp.AddTool(s, &mcp.Tool{Name: "almirante_gh_list_prs", Description: "Lista PRs de um repo. repo=owner/repo; state=open|closed|all. So repos na allowlist.", Annotations: ro},
+		func(_ context.Context, _ *mcp.CallToolRequest, in ghRepoInput) (*mcp.CallToolResult, any, error) {
+			v, err := src.GHListPRs(in.Repo, in.State)
+			if err != nil {
+				return errtxt(err.Error()), nil, nil
+			}
+			return jsonTxt(v), nil, nil
+		})
+	mcp.AddTool(s, &mcp.Tool{Name: "almirante_gh_get_pr", Description: "Detalhes de um PR. repo=owner/repo, number=N.", Annotations: ro},
+		func(_ context.Context, _ *mcp.CallToolRequest, in ghNumInput) (*mcp.CallToolResult, any, error) {
+			v, err := src.GHGetPR(in.Repo, in.Number)
+			if err != nil {
+				return errtxt(err.Error()), nil, nil
+			}
+			return jsonTxt(v), nil, nil
+		})
+	mcp.AddTool(s, &mcp.Tool{Name: "almirante_gh_list_issues", Description: "Lista issues de um repo. state=open|closed|all.", Annotations: ro},
+		func(_ context.Context, _ *mcp.CallToolRequest, in ghRepoInput) (*mcp.CallToolResult, any, error) {
+			v, err := src.GHListIssues(in.Repo, in.State)
+			if err != nil {
+				return errtxt(err.Error()), nil, nil
+			}
+			return jsonTxt(v), nil, nil
+		})
+	mcp.AddTool(s, &mcp.Tool{Name: "almirante_gh_get_issue", Description: "Detalhes de uma issue. repo, number.", Annotations: ro},
+		func(_ context.Context, _ *mcp.CallToolRequest, in ghNumInput) (*mcp.CallToolResult, any, error) {
+			v, err := src.GHGetIssue(in.Repo, in.Number)
+			if err != nil {
+				return errtxt(err.Error()), nil, nil
+			}
+			return jsonTxt(v), nil, nil
+		})
+	mcp.AddTool(s, &mcp.Tool{Name: "almirante_gh_list_branches", Description: "Lista branches de um repo. repo=owner/repo.", Annotations: ro},
+		func(_ context.Context, _ *mcp.CallToolRequest, in ghRepoInput) (*mcp.CallToolResult, any, error) {
+			v, err := src.GHListBranches(in.Repo)
+			if err != nil {
+				return errtxt(err.Error()), nil, nil
+			}
+			return jsonTxt(v), nil, nil
+		})
+	mcp.AddTool(s, &mcp.Tool{Name: "almirante_gh_read_file", Description: "Le um arquivo do repo (conteudo base64). repo, path, ref opcional (branch/sha).", Annotations: ro},
+		func(_ context.Context, _ *mcp.CallToolRequest, in ghFileInput) (*mcp.CallToolResult, any, error) {
+			v, err := src.GHReadFile(in.Repo, in.Path, in.Ref)
+			if err != nil {
+				return errtxt(err.Error()), nil, nil
+			}
+			return jsonTxt(v), nil, nil
+		})
+	mcp.AddTool(s, &mcp.Tool{Name: "almirante_gh_create_issue", Description: "Abre uma issue. repo, title, body. Auditado. Requer operator.", Annotations: gated},
+		func(_ context.Context, _ *mcp.CallToolRequest, in ghIssueInput) (*mcp.CallToolResult, any, error) {
+			v, err := src.GHCreateIssue(in.Repo, in.Title, in.Body)
+			if err != nil {
+				return errtxt(err.Error()), nil, nil
+			}
+			return jsonTxt(v), nil, nil
+		})
+	mcp.AddTool(s, &mcp.Tool{Name: "almirante_gh_comment", Description: "Comenta numa issue/PR. repo, number, body. Auditado. Requer operator.", Annotations: gated},
+		func(_ context.Context, _ *mcp.CallToolRequest, in ghCommentInput) (*mcp.CallToolResult, any, error) {
+			v, err := src.GHComment(in.Repo, in.Number, in.Body)
+			if err != nil {
+				return errtxt(err.Error()), nil, nil
+			}
+			return jsonTxt(v), nil, nil
+		})
+	mcp.AddTool(s, &mcp.Tool{Name: "almirante_gh_create_pr", Description: "Abre um PR. repo, head, base, title, body. Auditado. Requer operator.", Annotations: gated},
+		func(_ context.Context, _ *mcp.CallToolRequest, in ghPRInput) (*mcp.CallToolResult, any, error) {
+			v, err := src.GHCreatePR(in.Repo, in.Head, in.Base, in.Title, in.Body)
+			if err != nil {
+				return errtxt(err.Error()), nil, nil
+			}
+			return jsonTxt(v), nil, nil
+		})
+	mcp.AddTool(s, &mcp.Tool{Name: "almirante_gh_merge_pr", Description: "Faz merge de um PR. repo, number, method=merge|squash|rebase. Auditado. Requer ADMIN.", Annotations: gated},
+		func(_ context.Context, _ *mcp.CallToolRequest, in ghMergeInput) (*mcp.CallToolResult, any, error) {
+			v, err := src.GHMergePR(in.Repo, in.Number, in.Method)
 			if err != nil {
 				return errtxt(err.Error()), nil, nil
 			}

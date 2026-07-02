@@ -43,6 +43,17 @@ type Source interface {
 	AIFaq(vm string, id int, question, answer string) (any, error)
 	AIEligibility(vm string, id int, inboxIDs []int) (any, error)
 	AIRollback(vm, changeSetID string) (any, error)
+	// GitHub de verdade (Toolset G)
+	GHListPRs(repo, state string) (any, error)
+	GHGetPR(repo string, number int) (any, error)
+	GHListIssues(repo, state string) (any, error)
+	GHGetIssue(repo string, number int) (any, error)
+	GHListBranches(repo string) (any, error)
+	GHReadFile(repo, path, ref string) (any, error)
+	GHCreateIssue(repo, title, body string) (any, error)
+	GHComment(repo string, number int, body string) (any, error)
+	GHCreatePR(repo, head, base, title, body string) (any, error)
+	GHMergePR(repo string, number int, method string) (any, error)
 }
 
 // ---------- ControlSource (REST real) ----------
@@ -238,4 +249,47 @@ func (c *ControlSource) AIEligibility(vm string, id int, inboxIDs []int) (any, e
 func (c *ControlSource) AIRollback(vm, changeSetID string) (any, error) {
 	var v any
 	return v, c.post("/api/ai/rollback", map[string]any{"vm": vm, "change_set_id": changeSetID}, &v)
+}
+
+// ---------- GitHub de verdade (REST /api/gh/*) ----------
+
+func (c *ControlSource) GHListPRs(repo, state string) (any, error) {
+	var v any
+	return v, c.get(fmt.Sprintf("/api/gh/prs?repo=%s&state=%s", repo, state), &v)
+}
+func (c *ControlSource) GHGetPR(repo string, number int) (any, error) {
+	var v any
+	return v, c.get(fmt.Sprintf("/api/gh/pr?repo=%s&number=%d", repo, number), &v)
+}
+func (c *ControlSource) GHListIssues(repo, state string) (any, error) {
+	var v any
+	return v, c.get(fmt.Sprintf("/api/gh/issues?repo=%s&state=%s", repo, state), &v)
+}
+func (c *ControlSource) GHGetIssue(repo string, number int) (any, error) {
+	var v any
+	return v, c.get(fmt.Sprintf("/api/gh/issue?repo=%s&number=%d", repo, number), &v)
+}
+func (c *ControlSource) GHListBranches(repo string) (any, error) {
+	var v any
+	return v, c.get(fmt.Sprintf("/api/gh/branches?repo=%s", repo), &v)
+}
+func (c *ControlSource) GHReadFile(repo, path, ref string) (any, error) {
+	var v any
+	return v, c.get(fmt.Sprintf("/api/gh/file?repo=%s&path=%s&ref=%s", repo, path, ref), &v)
+}
+func (c *ControlSource) GHCreateIssue(repo, title, body string) (any, error) {
+	var v any
+	return v, c.post("/api/gh/issue", map[string]any{"repo": repo, "title": title, "body": body}, &v)
+}
+func (c *ControlSource) GHComment(repo string, number int, body string) (any, error) {
+	var v any
+	return v, c.post("/api/gh/comment", map[string]any{"repo": repo, "number": number, "body": body}, &v)
+}
+func (c *ControlSource) GHCreatePR(repo, head, base, title, body string) (any, error) {
+	var v any
+	return v, c.post("/api/gh/pr", map[string]any{"repo": repo, "head": head, "base": base, "title": title, "body": body}, &v)
+}
+func (c *ControlSource) GHMergePR(repo string, number int, method string) (any, error) {
+	var v any
+	return v, c.post("/api/gh/merge", map[string]any{"repo": repo, "number": number, "method": method}, &v)
 }

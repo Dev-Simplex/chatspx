@@ -11,6 +11,7 @@ import (
 
 	"github.com/Dev-Simplex/almirante/internal/aiconfig"
 	"github.com/Dev-Simplex/almirante/internal/audit"
+	"github.com/Dev-Simplex/almirante/internal/github"
 	"github.com/Dev-Simplex/almirante/internal/mcptools"
 	"github.com/Dev-Simplex/almirante/internal/types"
 	"github.com/modelcontextprotocol/go-sdk/mcp"
@@ -63,6 +64,8 @@ type Server struct {
 	aidriver *aiconfig.Driver
 	aigate   *aiconfig.TestGate
 	aistore  *AIStore
+	// governanca de GitHub (nil se feature off)
+	ghclient *github.Client
 }
 
 // tokensCSV: "token:name:role,token2:name2:role2"
@@ -111,6 +114,7 @@ func NewServer(cfg Config, store *Store, aud *audit.Logger, tokensCSV string) *S
 		aidriver: cfg.AIDriver,
 		aigate:   cfg.AIGate,
 		aistore:  NewAIStore(store.StateDir()),
+		ghclient: cfg.GHClient,
 	}
 }
 
@@ -167,6 +171,18 @@ func (s *Server) Handler() http.Handler {
 	mux.HandleFunc("POST /api/ai/faq", s.auth(RoleAdmin, s.aiFaq))
 	mux.HandleFunc("POST /api/ai/eligibility", s.auth(RoleAdmin, s.aiEligibility))
 	mux.HandleFunc("POST /api/ai/rollback", s.auth(RoleAdmin, s.aiRollback))
+
+	// ===== Toolset G — GitHub de verdade (leitura=Viewer; escrita=Operator; merge=Admin) =====
+	mux.HandleFunc("GET /api/gh/prs", s.auth(RoleViewer, s.ghListPRs))
+	mux.HandleFunc("GET /api/gh/pr", s.auth(RoleViewer, s.ghGetPR))
+	mux.HandleFunc("GET /api/gh/issues", s.auth(RoleViewer, s.ghListIssues))
+	mux.HandleFunc("GET /api/gh/issue", s.auth(RoleViewer, s.ghGetIssue))
+	mux.HandleFunc("GET /api/gh/branches", s.auth(RoleViewer, s.ghListBranches))
+	mux.HandleFunc("GET /api/gh/file", s.auth(RoleViewer, s.ghReadFile))
+	mux.HandleFunc("POST /api/gh/issue", s.auth(RoleOperator, s.ghCreateIssue))
+	mux.HandleFunc("POST /api/gh/comment", s.auth(RoleOperator, s.ghComment))
+	mux.HandleFunc("POST /api/gh/pr", s.auth(RoleOperator, s.ghCreatePR))
+	mux.HandleFunc("POST /api/gh/merge", s.auth(RoleAdmin, s.ghMergePR))
 	return mux
 }
 

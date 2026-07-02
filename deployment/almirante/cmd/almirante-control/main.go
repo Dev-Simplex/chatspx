@@ -18,6 +18,7 @@ import (
 	"github.com/Dev-Simplex/almirante/internal/audit"
 	"github.com/Dev-Simplex/almirante/internal/control"
 	"github.com/Dev-Simplex/almirante/internal/fleet"
+	"github.com/Dev-Simplex/almirante/internal/github"
 	sshx "github.com/Dev-Simplex/almirante/internal/ssh"
 	"github.com/Dev-Simplex/almirante/internal/types"
 )
@@ -103,6 +104,8 @@ func main() {
 	// Governanca de IA (opcional): monta o driver se ALGUMA VM tem aiconfig_url.
 	// Resolve baseURL/account_id da fleet; o token vem de AICONFIG_TOKEN_<SLUG> (secret).
 	aiDriver, aiGate := buildAIGovernance(f)
+	// Governanca de GitHub (opcional): so liga com GITHUB_TOKEN setado. GITHUB_REPOS = allowlist.
+	ghClient := github.New(os.Getenv("GITHUB_TOKEN"), strings.Split(env("GITHUB_REPOS", "Dev-Simplex/chatspx"), ","), 20*time.Second)
 
 	cfg := control.Config{
 		Mock:          env("ALMIRANTE_MOCK", "1") == "1",
@@ -118,6 +121,7 @@ func main() {
 		},
 		AIDriver: aiDriver,
 		AIGate:   aiGate,
+		GHClient: ghClient,
 	}
 	store := control.NewStore(env("ALMIRANTE_STATE_DIR", "./state"))
 	aud := audit.New(env("ALMIRANTE_AUDIT_FILE", "./audit-log.jsonl"))

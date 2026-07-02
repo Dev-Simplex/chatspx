@@ -10,6 +10,7 @@ import (
 	"time"
 
 	"github.com/Dev-Simplex/almirante/internal/aiconfig"
+	"github.com/Dev-Simplex/almirante/internal/github"
 	"github.com/Dev-Simplex/almirante/internal/mock"
 	"github.com/Dev-Simplex/almirante/internal/safety"
 	sshx "github.com/Dev-Simplex/almirante/internal/ssh"
@@ -26,6 +27,8 @@ type Config struct {
 	// Governanca de IA (opcional): nil = feature off (VMs sem receptor spx/ai_config).
 	AIDriver *aiconfig.Driver
 	AIGate   *aiconfig.TestGate
+	// Governanca de GitHub (opcional): nil/sem token = feature off.
+	GHClient *github.Client
 }
 
 // Executor faz a ponte control -> almiranted (real via SSH, ou mock local).
