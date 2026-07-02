@@ -1,5 +1,13 @@
 class Captain::Tools::HandoffTool < Captain::Tools::BasePublicTool
-  description 'Hand off the conversation to a human agent when unable to assist further'
+  # Gatilho POSITIVO: o handoff não é só pra "quando você não consegue" — é o passo normal
+  # de passar um lead qualificado pra uma pessoa fechar. A descrição antiga ("when unable to
+  # assist further") fazia a IA quase nunca chamar o tool (uma IA que está atendendo bem nunca
+  # se considera "unable to assist"), então nenhum lead chegava ao humano.
+  description 'Passa a conversa para um ATENDENTE HUMANO do time assumir. Use quando já ' \
+              'qualificou o cliente e é hora de uma pessoa continuar: ele quer visitar, ' \
+              'agendar ou fechar; pediu falar com um humano; o assunto exige uma pessoa ' \
+              '(jurídico, uma ação que você não executa); ou você não conseguiu resolver. ' \
+              'A IA continua respondendo normalmente até um humano assumir.'
   param :reason, type: 'string', desc: 'The reason why handoff is needed (optional)', required: false
   param :team_id, type: 'string', desc: 'ID of the team to route the conversation to (optional)', required: false
 
@@ -81,12 +89,26 @@ class Captain::Tools::HandoffTool < Captain::Tools::BasePublicTool
   # LLM pode alucinar id — validar SEMPRE na conta. Se o LLM não passar um time válido,
   # cai no time do PRÓPRIO agente (config['team_id']) — assim a conversa nunca fica sem
   # fila/setor (ex.: handoff de pedido vago "falar com humano", sem time explícito).
+  #
+  # Override por conta (PRECEDÊNCIA): enquanto o rodízio (Motor de Distribuição) não está
+  # ligado, TODO handoff cai num time ÚNICO de recepção — a recepção humana (ex.: Maria/Tozi)
+  # vê tudo em "Aguardando atendimento" e distribui na mão. Setado em
+  # account.custom_attributes['handoff_team_id']. Quando o Motor entrar, remove-se o override
+  # e o handoff volta a rotear por setor (team_id/config) pro Motor distribuir automaticamente.
   def resolve_team(conversation, team_id)
+    override = handoff_team_override(conversation.account)
+    return override if override
+
     explicit = team_id.present? ? conversation.account.teams.find_by(id: team_id) : nil
     return explicit if explicit
 
     default_id = (@assistant.config || {})['team_id']
     default_id.present? ? conversation.account.teams.find_by(id: default_id) : nil
+  end
+
+  def handoff_team_override(account)
+    tid = account.custom_attributes&.dig('handoff_team_id')
+    tid.present? ? account.teams.find_by(id: tid) : nil
   end
 
   def send_out_of_office_message_if_applicable(conversation)
