@@ -10,6 +10,13 @@ module Spx
         )
         render json: export
       end
+
+      # Lista os agentes (Captain::Assistant) de uma conta — o Almirante usa pra
+      # montar o seletor de agente (em vez de digitar o assistant_id na mão).
+      def assistants
+        list = Account.find(params[:account_id]).captain_assistants.order(:id)
+        render json: { assistants: list.map { |a| { id: a.id, name: a.name } } }
+      end
     end
   end
 end

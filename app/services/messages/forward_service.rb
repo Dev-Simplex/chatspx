@@ -68,21 +68,53 @@ class Messages::ForwardService
     { success: false, error: msg }
   end
 
+  # Reuse the contact's existing conversation on this inbox instead of creating a new one for every
+  # forward. The dashboard forwards by firing one request per message in parallel, so without this
+  # several messages sent to the same contact each spawned their own conversation; forwarding to a
+  # contact whose previous conversation was already resolved also created a fresh one each time.
+  #
+  # We take the same Redis lock key ConversationBuilder uses (so a forward and a regular incoming
+  # message for the same contact can't race each other) and reuse the contact's most recent
+  # conversation on the inbox, reopening it when needed.
   def find_or_create_conversation_for_contact(contact)
     inbox = message.inbox
-    contact_inbox = ContactInbox.find_by(contact_id: contact.id, inbox_id: inbox.id)
-    existing = find_existing_conversation(contact_inbox)
-    return existing if existing
+    contact_inbox = ContactInbox.find_by(contact_id: contact.id, inbox_id: inbox.id) ||
+                    ContactInbox.create!(contact: contact, inbox: inbox, source_id: SecureRandom.uuid)
 
-    contact_inbox ||= ContactInbox.create!(contact: contact, inbox: inbox, source_id: SecureRandom.uuid)
-    Conversation.create!(account: message.account, inbox: inbox, contact: contact, contact_inbox: contact_inbox,
-                         assignee: user, status: :open)
+    with_conversation_lock(inbox, contact) do
+      reusable_conversation(inbox, contact) || create_conversation(inbox, contact, contact_inbox)
+    end
   end
 
-  def find_existing_conversation(contact_inbox)
-    return unless contact_inbox
+  def with_conversation_lock(inbox, contact)
+    lock_key = "conv_builder:#{inbox.id}:#{contact.id}"
+    # Short TTL (below the rack-timeout) so a request killed mid-flight can't hold the lock for long.
+    acquired = Redis::Alfred.set(lock_key, '1', nx: true, ex: 10)
+    # Another create for this contact is already in flight; reuse what it produces instead of racing.
+    return reusable_conversation(inbox, contact) unless acquired
 
-    contact_inbox.conversations.where.not(status: :resolved).order(created_at: :desc).first
+    begin
+      yield
+    ensure
+      Redis::Alfred.delete(lock_key)
+    end
+  end
+
+  # Most recent conversation for the contact on this inbox (across contact_inboxes), preferring a
+  # non-resolved one and falling back to the latest of any status, reopened so the forward shows up.
+  def reusable_conversation(inbox, contact)
+    base = inbox.conversations.where(contact_id: contact.id)
+    conversation = base.where.not(status: :resolved).order(created_at: :desc).first ||
+                   base.order(created_at: :desc).first
+    return unless conversation
+
+    conversation.update!(status: :open) if conversation.resolved?
+    conversation
+  end
+
+  def create_conversation(inbox, contact, contact_inbox)
+    Conversation.create!(account: message.account, inbox: inbox, contact: contact,
+                         contact_inbox: contact_inbox, assignee: user, status: :open)
   end
 
   def find_conversation(conversation_id)

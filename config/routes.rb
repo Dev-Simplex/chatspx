@@ -787,6 +787,7 @@ Rails.application.routes.draw do
   # via header api_access_token (owner PlatformApp) — ver Spx::AiConfig::BaseController.
   namespace :spx, defaults: { format: 'json' } do
     namespace :ai_config do
+      get  'accounts/:account_id/assistants',                        to: 'config#assistants'
       get  'accounts/:account_id/assistants/:assistant_id/baseline', to: 'config#baseline'
       post 'change_sets/dry_run',               to: 'change_sets#dry_run'
       post 'change_sets',                       to: 'change_sets#apply'
