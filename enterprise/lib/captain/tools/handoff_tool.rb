@@ -11,13 +11,24 @@ class Captain::Tools::HandoffTool < Captain::Tools::BasePublicTool
   param :reason, type: 'string', desc: 'The reason why handoff is needed (optional)', required: false
   param :team_id, type: 'string', desc: 'ID of the team to route the conversation to (optional)', required: false
 
-  # RubyLLM::Tool delega description da instância para a classe — override de instância
-  # enumera os times da conta (tools são instanciadas a cada run: assistant.agent →
-  # agent_tools → .new(self)), então a lista chega sempre fresca no LLM.
+  # RubyLLM::Tool delega description da instância para a classe — override de instância,
+  # DINÂMICO por conta (tools são instanciadas a cada run: assistant.agent → agent_tools →
+  # .new(self), então chega sempre fresco no LLM):
+  #  - modo "time fixo" (account.custom_attributes['handoff_team_id'] setado, ex.: Tozi →
+  #    recepção): a IA NÃO escolhe o time — todo handoff cai no time configurado. Não enumera
+  #    times (senão a IA tentaria escolher à toa).
+  #  - modo "IA decide" (sem config, DEFAULT): enumera os times pra IA rotear pelo assunto
+  #    (param team_id) — comportamento pra clientes que querem a IA definindo o setor.
   def description
-    teams = @assistant.account.teams.order(:id).map { |t| "#{t.id}: #{t.name}" }.join('; ')
     base = self.class.description
-    teams.present? ? "#{base}. Available teams (id: name) — #{teams}" : base.to_s
+    return base.to_s if fixed_handoff_team?
+
+    teams = @assistant.account.teams.order(:id).map { |t| "#{t.id}: #{t.name}" }.join('; ')
+    teams.present? ? "#{base} Times disponíveis (id: nome) — #{teams}. Roteie pelo assunto passando o team_id." : base.to_s
+  end
+
+  def fixed_handoff_team?
+    @assistant.account.custom_attributes&.dig('handoff_team_id').present?
   end
 
   def perform(tool_context, reason: nil, team_id: nil)
