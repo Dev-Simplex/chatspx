@@ -263,6 +263,11 @@ const newReportRoutes = () => [
     activeOn: ['agent_reports_show'],
   },
   {
+    name: 'Reports Agent Assignment',
+    label: t('SIDEBAR.REPORTS_AGENT_ASSIGNMENT'),
+    to: accountScopedRoute('agent_assignment_reports'),
+  },
+  {
     name: 'Reports Label',
     label: t('SIDEBAR.REPORTS_LABEL'),
     to: accountScopedRoute('label_reports_index'),

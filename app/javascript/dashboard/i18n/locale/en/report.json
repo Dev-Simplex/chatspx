@@ -245,6 +245,19 @@
       "PLACEHOLDER": "Select date range"
     }
   },
+  "ASSIGNMENT_REPORTS": {
+    "HEADER": "Assignments",
+    "DESCRIPTION": "See how conversation assignments are distributed per agent — how many each person received (manually, via round-robin, or self-assigned) and how many they assigned to others.",
+    "DOWNLOAD": "Download assignment report",
+    "TABLE": {
+      "AGENT": "Agent",
+      "RECEIVED_TOTAL": "Received (total)",
+      "RECEIVED_MANUAL": "Manual",
+      "RECEIVED_AUTO": "Automatic",
+      "SELF_ASSIGNED": "Self-assigned",
+      "ASSIGNED_TO_OTHERS": "Assigned to others"
+    }
+  },
   "LABEL_REPORTS": {
     "HEADER": "Labels Overview",
     "DESCRIPTION": "Track label performance with key metrics including conversations, response times, resolution times, and resolved cases. Click a label name for detailed insights.",

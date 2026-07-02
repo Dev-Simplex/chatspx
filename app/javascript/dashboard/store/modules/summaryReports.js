@@ -12,6 +12,11 @@ const typeMap = {
     apiMethod: 'getAgentReports',
     mutationKey: 'setAgentSummaryReport',
   },
+  assignment: {
+    flagKey: 'isFetchingAgentAssignmentReports',
+    apiMethod: 'getAgentAssignmentReports',
+    mutationKey: 'setAgentAssignmentReport',
+  },
   team: {
     flagKey: 'isFetchingTeamSummaryReports',
     apiMethod: 'getTeamReports',
@@ -44,11 +49,13 @@ async function fetchSummaryReports(type, params, { commit }) {
 export const initialState = {
   inboxSummaryReports: [],
   agentSummaryReports: [],
+  agentAssignmentReports: [],
   teamSummaryReports: [],
   labelSummaryReports: [],
   uiFlags: {
     isFetchingInboxSummaryReports: false,
     isFetchingAgentSummaryReports: false,
+    isFetchingAgentAssignmentReports: false,
     isFetchingTeamSummaryReports: false,
     isFetchingLabelSummaryReports: false,
   },
@@ -60,6 +67,9 @@ export const getters = {
   },
   getAgentSummaryReports(state) {
     return state.agentSummaryReports;
+  },
+  getAgentAssignmentReports(state) {
+    return state.agentAssignmentReports;
   },
   getTeamSummaryReports(state) {
     return state.teamSummaryReports;
@@ -81,6 +91,10 @@ export const actions = {
     return fetchSummaryReports('agent', params, { commit });
   },
 
+  fetchAgentAssignmentReports({ commit }, params) {
+    return fetchSummaryReports('assignment', params, { commit });
+  },
+
   fetchTeamSummaryReports({ commit }, params) {
     return fetchSummaryReports('team', params, { commit });
   },
@@ -96,6 +110,9 @@ export const mutations = {
   },
   setAgentSummaryReport(state, data) {
     state.agentSummaryReports = data;
+  },
+  setAgentAssignmentReport(state, data) {
+    state.agentAssignmentReports = data;
   },
   setTeamSummaryReport(state, data) {
     state.teamSummaryReports = data;

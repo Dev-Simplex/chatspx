@@ -428,6 +428,7 @@
     "REPORTS_SLA": "SLA",
     "REPORTS_BOT": "Robôs",
     "REPORTS_AGENT": "Agentes",
+    "REPORTS_AGENT_ASSIGNMENT": "Atribuições",
     "REPORTS_LABEL": "Etiquetas",
     "REPORTS_INBOX": "Caixa de Entrada",
     "REPORTS_TEAM": "Time",

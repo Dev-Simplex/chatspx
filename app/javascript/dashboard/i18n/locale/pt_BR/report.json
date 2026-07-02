@@ -245,6 +245,19 @@
       "PLACEHOLDER": "Selecionar intervalo de datas"
     }
   },
+  "ASSIGNMENT_REPORTS": {
+    "HEADER": "Atribuições",
+    "DESCRIPTION": "Veja como as atribuições de conversas se distribuem por agente — quantas cada pessoa recebeu (manualmente, por rodízio ou auto-atribuídas) e quantas ela atribuiu para outros.",
+    "DOWNLOAD": "Baixar relatório de atribuições",
+    "TABLE": {
+      "AGENT": "Agente",
+      "RECEIVED_TOTAL": "Recebidas (total)",
+      "RECEIVED_MANUAL": "Manuais",
+      "RECEIVED_AUTO": "Automáticas",
+      "SELF_ASSIGNED": "Auto-assumidas",
+      "ASSIGNED_TO_OTHERS": "Feitas para outros"
+    }
+  },
   "LABEL_REPORTS": {
     "HEADER": "Visão Geral das Etiquetas",
     "DESCRIPTION": "Acompanhe o desempenho da sua etiqueta com métricas-chave incluindo conversas, tempo de resposta, tempos de resolução e casos resolvidos. Clique no nome da etiqueta para obter detalhes.",
