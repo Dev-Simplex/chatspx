@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[7.1].define(version: 2026_07_01_120000) do
+ActiveRecord::Schema[7.1].define(version: 2026_07_02_150000) do
   # These extensions should be enabled to support this database
   enable_extension "pg_stat_statements"
   enable_extension "pg_trgm"
@@ -1187,7 +1187,9 @@ ActiveRecord::Schema[7.1].define(version: 2026_07_01_120000) do
     t.bigint "team_id"
     t.datetime "created_at", null: false
     t.datetime "updated_at", null: false
+    t.string "dm_key"
     t.index ["account_id", "channel_type"], name: "index_internal_channels_on_account_id_and_channel_type"
+    t.index ["account_id", "dm_key"], name: "idx_internal_channels_on_account_and_dm_key", unique: true, where: "((channel_type = 0) AND (dm_key IS NOT NULL))"
     t.index ["account_id"], name: "index_internal_channels_on_account_id"
     t.index ["team_id"], name: "index_internal_channels_on_team_id"
   end
@@ -1205,7 +1207,10 @@ ActiveRecord::Schema[7.1].define(version: 2026_07_01_120000) do
     t.bigint "reply_to_id"
     t.bigint "shared_conversation_id"
     t.index ["internal_channel_id", "created_at"], name: "index_internal_messages_on_internal_channel_id_and_created_at"
+    t.index ["internal_channel_id", "id"], name: "idx_internal_messages_on_channel_and_id"
     t.index ["internal_channel_id"], name: "index_internal_messages_on_internal_channel_id"
+    t.index ["mentioned_user_ids"], name: "idx_internal_messages_on_mentioned_user_ids", using: :gin
+    t.index ["reactions"], name: "idx_internal_messages_on_reactions", using: :gin
     t.index ["reply_to_id"], name: "index_internal_messages_on_reply_to_id"
     t.index ["shared_conversation_id"], name: "index_internal_messages_on_shared_conversation_id"
     t.index ["user_id"], name: "index_internal_messages_on_user_id"

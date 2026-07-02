@@ -11,10 +11,17 @@ json.members channel.members do |m|
   json.last_read_at m.last_read_at&.to_i
 end
 
-current_member = channel.members.detect { |m| m.user_id == Current.user.id }
-json.unread_count current_member&.unread_count || 0
+# On the list (index) the controller precomputes these in 2 grouped queries; on
+# show (single channel) the ivars are absent, so fall back to per-channel lookups.
+if defined?(@unread_counts) && @unread_counts
+  json.unread_count @unread_counts[channel.id] || 0
+else
+  current_member = channel.members.detect { |m| m.user_id == Current.user.id }
+  json.unread_count current_member&.unread_count || 0
+end
 
-last_message = channel.messages.last
+last_message =
+  defined?(@last_messages) && @last_messages ? @last_messages[channel.id] : channel.messages.last
 if last_message.present?
   json.last_message do
     json.content last_message.content

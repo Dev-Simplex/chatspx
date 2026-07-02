@@ -12,7 +12,13 @@ class Api::V1::Accounts::InternalChannelsController < Api::V1::Accounts::BaseCon
     # json columns of joined tables ("no equality operator for type json").
     # Admin em modo auditoria (?scope=all) vê TODOS os canais da conta.
     base = audit_all? ? Current.account.internal_channels : policy_scope(InternalChannel)
-    @channels = base.includes(:users, :messages, members: :user)
+    @channels = base.includes(:users, members: :user).to_a
+    # Fase 2: compute the preview + unread badge in 2 grouped queries instead of
+    # the per-channel N+1 (includes(:messages) loaded EVERY message of EVERY
+    # channel, and unread_count fired one COUNT per channel).
+    channel_ids = @channels.map(&:id)
+    @last_messages = last_message_previews(channel_ids)
+    @unread_counts = unread_counts(channel_ids)
   end
 
   def show; end
@@ -120,6 +126,32 @@ class Api::V1::Accounts::InternalChannelsController < Api::V1::Accounts::BaseCon
 
   def audit_all?
     params[:scope] == 'all' && Current.account_user&.administrator?
+  end
+
+  # Last message per channel in ONE query (DISTINCT ON) — replaces includes(:messages).
+  def last_message_previews(channel_ids)
+    return {} if channel_ids.blank?
+
+    InternalMessage
+      .where(internal_channel_id: channel_ids)
+      .select('DISTINCT ON (internal_channel_id) internal_messages.*')
+      .order('internal_channel_id, created_at DESC, id DESC')
+      .preload(:user)
+      .index_by(&:internal_channel_id)
+  end
+
+  # Unread (non-deleted, from others, after my last_read_at) per channel for the
+  # current user in ONE grouped query — replaces the per-channel COUNT.
+  def unread_counts(channel_ids)
+    return {} if channel_ids.blank?
+
+    InternalChannelMember
+      .where(user_id: Current.user.id, internal_channel_id: channel_ids)
+      .joins('JOIN internal_messages im ON im.internal_channel_id = internal_channel_members.internal_channel_id')
+      .where('im.user_id <> internal_channel_members.user_id AND im.deleted_at IS NULL')
+      .where('internal_channel_members.last_read_at IS NULL OR im.created_at > internal_channel_members.last_read_at')
+      .group('internal_channel_members.internal_channel_id')
+      .count('im.id')
   end
 
   def check_authorization

@@ -27,11 +27,19 @@ class InternalChannels::FindOrCreateDmService
   end
 
   def create_dm
-    @account.internal_channels.create!(channel_type: :direct).tap do |channel|
+    @account.internal_channels.create!(channel_type: :direct, dm_key: dm_key).tap do |channel|
       channel.members.create!(user: @user)
       channel.members.create!(user: @other_user)
     end
   rescue ActiveRecord::RecordNotUnique
-    find_existing_dm # lost a race — return the channel the other request created
+    # Lost a race — the unique index on (account_id, dm_key) rejected the insert.
+    # The other request's channel row already exists (even if its members are a
+    # beat behind), so find by dm_key, falling back to the membership lookup.
+    @account.internal_channels.direct.find_by(dm_key: dm_key) || find_existing_dm
+  end
+
+  # Canonical key for the participant pair, so the DB can enforce one DM per pair.
+  def dm_key
+    [@user.id, @other_user.id].sort.join('-')
   end
 end

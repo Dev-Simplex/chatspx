@@ -29,6 +29,11 @@ RSpec.describe InternalChannels::FindOrCreateDmService do
     expect(second).to eq(first)
   end
 
+  it 'sets a canonical dm_key from the sorted participant ids (Fase 2)' do
+    channel = perform(bob)
+    expect(channel.dm_key).to eq([alice.id, bob.id].sort.join('-'))
+  end
+
   it 'returns nil when starting a DM with yourself' do
     expect(perform(alice)).to be_nil
   end

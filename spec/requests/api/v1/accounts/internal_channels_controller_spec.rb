@@ -24,6 +24,29 @@ RSpec.describe 'Api::V1::Accounts::InternalChannelsController', type: :request d
       ids = response.parsed_body.map { |c| c['id'] }
       expect(ids).to eq([mine.id])
     end
+
+    it 'computes unread_count and the last-message preview via grouped queries (Fase 2)' do
+      channel = create(:internal_channel, :with_two_members, account: account, user_a: alice, user_b: bob)
+      create(:internal_message, internal_channel: channel, user: bob, content: 'primeira')
+      create(:internal_message, internal_channel: channel, user: bob, content: 'última')
+
+      get "/api/v1/accounts/#{account.id}/internal_channels", headers: alice.create_new_auth_token
+
+      row = response.parsed_body.find { |c| c['id'] == channel.id }
+      expect(row['unread_count']).to eq(2)
+      expect(row['last_message']['content']).to eq('última')
+    end
+
+    it 'excludes soft-deleted messages from the unread badge (Fase 2)' do
+      channel = create(:internal_channel, :with_two_members, account: account, user_a: alice, user_b: bob)
+      create(:internal_message, internal_channel: channel, user: bob, content: 'visível')
+      create(:internal_message, internal_channel: channel, user: bob, content: 'apagada').soft_delete!
+
+      get "/api/v1/accounts/#{account.id}/internal_channels", headers: alice.create_new_auth_token
+
+      row = response.parsed_body.find { |c| c['id'] == channel.id }
+      expect(row['unread_count']).to eq(1)
+    end
   end
 
   describe 'POST /internal_channels' do

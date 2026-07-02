@@ -346,6 +346,15 @@ const focusComposer = () => {
   nextTick(() => composerRef.value?.focus());
 };
 
+// autoResize can mis-measure before web fonts finish loading (FOUT), leaving the
+// empty textarea stuck a row too tall. Run it now and again once fonts settle.
+const resizeComposerSoon = () => {
+  nextTick(autoResize);
+  if (typeof document !== 'undefined' && document.fonts?.ready) {
+    document.fonts.ready.then(() => nextTick(autoResize)).catch(() => {});
+  }
+};
+
 const resetComposer = () => {
   draft.value = '';
   attachedFiles.value = [];
@@ -353,7 +362,7 @@ const resetComposer = () => {
   showEmoji.value = false;
   showMentionPicker.value = false;
   replyingTo.value = null;
-  nextTick(autoResize);
+  resizeComposerSoon();
 };
 
 // Fase 0.7: persist the current composer under a channel id (or clear it when
@@ -386,7 +395,7 @@ const restoreDraft = channelId => {
   replyingTo.value = saved?.replyingTo || null;
   showEmoji.value = false;
   showMentionPicker.value = false;
-  nextTick(autoResize);
+  resizeComposerSoon();
 };
 
 const clearDraft = channelId => {
@@ -1784,8 +1793,9 @@ onBeforeUnmount(() => {
           </template>
 
           <!-- WhatsApp-style composer: tool cluster + input live inside one
-               rounded pill, the round send button sits outside on the right. -->
-          <div class="flex items-end gap-2">
+               rounded pill, the round send button sits outside on the right,
+               vertically centered with the input pill. -->
+          <div class="flex items-center gap-2">
             <div
               class="flex flex-1 items-center gap-0.5 bg-n-alpha-1 border border-n-weak rounded-2xl px-1.5 py-1 focus-within:border-n-brand focus-within:bg-n-background transition-colors"
             >

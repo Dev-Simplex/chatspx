@@ -40,5 +40,16 @@ RSpec.describe InternalChannels::CreateService do
       end.not_to change(InternalChannel, :count)
       expect(described_class.new(account: account, creator: alice, team: team).perform).to eq(first)
     end
+
+    it 'mirrors team membership changes into the channel (Fase 2 sync)' do
+      channel = described_class.new(account: account, creator: creator, team: team).perform
+      carol = create(:user, account: account, role: :agent)
+
+      team.add_members([carol.id])
+      expect(channel.reload.users).to include(carol)
+
+      TeamMember.find_by(team: team, user: carol).destroy
+      expect(channel.reload.users).not_to include(carol)
+    end
   end
 end
