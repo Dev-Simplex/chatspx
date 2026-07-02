@@ -12,6 +12,7 @@ class Captain::OpenAiMessageBuilderService
 
   def generate_content
     parts = []
+    parts << text_part(referral_note) if referral_note.present?
     parts << text_part(@message.content) if @message.content.present?
     parts.concat(attachment_parts(@message.attachments)) if @message.attachments.any?
 
@@ -54,6 +55,25 @@ class Captain::OpenAiMessageBuilderService
       coords = "lat #{att.coordinates_lat}, lng #{att.coordinates_long}"
       rotulo ? "[Cliente enviou localização: #{rotulo} — #{coords}]" : "[Cliente enviou localização: #{coords}]"
     end.join(' ')
+  end
+
+  # Anúncio clique-para-WhatsApp: o Meta manda o criativo no `referral` do incoming de
+  # entrada (content_attributes['referral'] = {source_type:'ad', body, headline, media_type,...}).
+  # Injeta como texto pra IA saber DE QUE imóvel/assunto o cliente veio — senão ela fica
+  # perguntando "qual imóvel?" com a resposta na mão. Descritivo (fatos), igual ao pin.
+  def referral_note
+    ref = (@message.content_attributes || {})['referral']
+    return if ref.blank?
+
+    titulo = ref['headline'].to_s.strip
+    corpo = ref['body'].to_s.strip
+    return if titulo.blank? && corpo.blank?
+
+    partes = ['[Cliente chegou por um anúncio (clique-para-WhatsApp)']
+    partes << "título: #{titulo}" if titulo.present?
+    partes << "conteúdo do anúncio: #{corpo}" if corpo.present?
+    partes << "mídia: #{ref['media_type']}" if ref['media_type'].present?
+    "#{partes.join(' — ')}]"
   end
 
   def image_parts(image_attachments)
