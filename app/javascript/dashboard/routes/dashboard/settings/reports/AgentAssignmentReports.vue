@@ -2,12 +2,12 @@
 import { ref } from 'vue';
 import ReportHeader from './components/ReportHeader.vue';
 import AssignmentReports from './components/AssignmentReports.vue';
-import V4Button from 'dashboard/components-next/button/Button.vue';
+import DownloadPdfButton from 'dashboard/components/reports/DownloadPdfButton.vue';
 
-const assignmentReportsRef = ref(null);
+const pdfFilters = ref({ from: 0, to: 0, business_hours: false });
 
-const onDownloadClick = () => {
-  assignmentReportsRef.value.downloadReports();
+const onFilterChange = ({ from, to, businessHours }) => {
+  pdfFilters.value = { from, to, business_hours: businessHours };
 };
 </script>
 
@@ -16,13 +16,8 @@ const onDownloadClick = () => {
     :header-title="$t('ASSIGNMENT_REPORTS.HEADER')"
     :header-description="$t('ASSIGNMENT_REPORTS.DESCRIPTION')"
   >
-    <V4Button
-      :label="$t('ASSIGNMENT_REPORTS.DOWNLOAD')"
-      icon="i-lucide-download"
-      size="sm"
-      @click="onDownloadClick"
-    />
+    <DownloadPdfButton report-type="agent_assignment" :filters="pdfFilters" />
   </ReportHeader>
 
-  <AssignmentReports ref="assignmentReportsRef" />
+  <AssignmentReports @filter-change="onFilterChange" />
 </template>

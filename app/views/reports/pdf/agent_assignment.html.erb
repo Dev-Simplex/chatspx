@@ -1,0 +1,60 @@
+<%
+  k = @data[:kpis]
+  total = k[:received_total].to_i
+  empty = total.zero?
+%>
+
+<%# ---------- Resumo (data-driven) ---------- %>
+<div class="section">
+  <%= render 'reports/pdf/callout', variant: empty ? 'neutral' : 'info',
+        title: "#{number_with_delimiter(total)} atribuições · #{number_with_delimiter(k[:agents].to_i)} atendentes",
+        body: empty ?
+          'Nenhuma atribuição foi registrada no período selecionado. O histórico é contado a partir do momento em que o recurso foi ativado — não há dados retroativos.' :
+          "No período, #{number_with_delimiter(total)} atribuições de conversa foram distribuídas entre #{number_with_delimiter(k[:agents].to_i)} atendentes: " \
+          "#{number_with_delimiter(k[:received_manual].to_i)} manuais, #{number_with_delimiter(k[:received_auto].to_i)} automáticas (rodízio) e " \
+          "#{number_with_delimiter(k[:self_assigned].to_i)} auto-assumidas." %>
+</div>
+
+<%# ---------- KPIs ---------- %>
+<div class="section">
+  <%= render 'reports/pdf/kpi_band', cards: [
+    { label: 'Atribuições', value: number_with_delimiter(total), hero: true, hint: 'no período' },
+    { label: 'Manuais', value: number_with_delimiter(k[:received_manual].to_i), hint: 'feitas por alguém' },
+    { label: 'Automáticas', value: number_with_delimiter(k[:received_auto].to_i), hint: 'rodízio' },
+    { label: 'Auto-assumidas', value: number_with_delimiter(k[:self_assigned].to_i), hint: 'pegou pra si' },
+    { label: 'Atendentes', value: number_with_delimiter(k[:agents].to_i), hint: 'com atividade' },
+  ] %>
+</div>
+
+<%# ---------- De onde vieram (composição por origem) ---------- %>
+<% unless empty %>
+  <div class="section">
+    <div class="section-title"><span class="dot">1</span> De onde vieram as atribuições</div>
+    <div class="card">
+      <%= render 'reports/pdf/composition_bar', segments: @data[:source_segments] %>
+    </div>
+  </div>
+<% end %>
+
+<%# ---------- Recebidas por atendente ---------- %>
+<% if @data[:received_chart].present? %>
+  <div class="section">
+    <div class="section-title"><span class="dot">2</span> Recebidas por atendente</div>
+    <div class="card">
+      <%= pdf_bar_chart(@data[:received_chart]) %>
+      <%= render 'reports/pdf/chart_caption', emoji: '🟩',
+            text: 'Total de atribuições recebidas por cada atendente no período (top 10).' %>
+    </div>
+  </div>
+<% end %>
+
+<%# ---------- Detalhamento por atendente ---------- %>
+<% if @data[:table].present? && @data[:table][:rows].present? %>
+  <div class="section">
+    <div class="section-title"><span class="dot">3</span> Detalhamento por atendente</div>
+    <div class="card" style="padding:0;">
+      <%= render 'reports/pdf/data_table',
+            table: { columns: @data[:table][:columns], rows: @data[:table][:rows].first(18) } %>
+    </div>
+  </div>
+<% end %>

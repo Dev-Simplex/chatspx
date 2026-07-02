@@ -9,13 +9,11 @@ import {
 } from '@tanstack/vue-table';
 import { useStore, useMapGetter } from 'dashboard/composables/store';
 import { useAlert } from 'dashboard/composables';
-import {
-  downloadCsvFile,
-  generateFileName,
-} from 'dashboard/helper/downloadHelper';
 import Table from 'dashboard/components/table/Table.vue';
 import Spinner from 'dashboard/components-next/spinner/Spinner.vue';
 import OverviewReportFilters from './OverviewReportFilters.vue';
+
+const emit = defineEmits(['filterChange']);
 
 const store = useStore();
 const { t } = useI18n();
@@ -121,44 +119,12 @@ const onFilterChange = ({
   from.value = fromValue;
   to.value = toValue;
   businessHours.value = bh;
+  // Propaga pro pai (index) montar os filtros do PDF brandeado.
+  emit('filterChange', { from: fromValue, to: toValue, businessHours: bh });
   fetchReports();
 };
 
 onMounted(() => fetchReports());
-
-// CSV a partir do JSON já carregado (números brutos, sem formatação de exibição).
-const csvEscape = value => `"${String(value ?? '').replace(/"/g, '""')}"`;
-
-const downloadReports = () => {
-  const rows = reportData.value || [];
-  const header = [
-    t('ASSIGNMENT_REPORTS.TABLE.AGENT'),
-    t('ASSIGNMENT_REPORTS.TABLE.RECEIVED_TOTAL'),
-    t('ASSIGNMENT_REPORTS.TABLE.RECEIVED_MANUAL'),
-    t('ASSIGNMENT_REPORTS.TABLE.RECEIVED_AUTO'),
-    t('ASSIGNMENT_REPORTS.TABLE.SELF_ASSIGNED'),
-    t('ASSIGNMENT_REPORTS.TABLE.ASSIGNED_TO_OTHERS'),
-  ];
-  const body = rows.map(row => [
-    row.name,
-    row.receivedTotal ?? 0,
-    row.receivedManual ?? 0,
-    row.receivedAuto ?? 0,
-    row.selfAssigned ?? 0,
-    row.assignedToOthers ?? 0,
-  ]);
-  const csv = [header, ...body]
-    .map(line => line.map(csvEscape).join(','))
-    .join('\n');
-  const fileName = generateFileName({
-    type: 'agent-assignment',
-    to: to.value,
-    businessHours: businessHours.value,
-  });
-  downloadCsvFile(fileName, csv);
-};
-
-defineExpose({ downloadReports });
 </script>
 
 <template>
