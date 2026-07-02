@@ -108,6 +108,11 @@ func (e Executor) Health(ctx context.Context, id string) (types.HealthReport, er
 	var h types.HealthReport
 	_ = json.Unmarshal([]byte(out), &h)
 	h.VM = id
+	// Migrations: usa a fonte confiavel (migrate-status recomputado no control) p/ nao
+	// divergir do migration_status — evita "PENDENTES" no health e "em dia" no migration.
+	if mig, err := e.Migrations(ctx, id); err == nil {
+		h.MigrationsUpToDate = mig.UpToDate
+	}
 	return h, nil
 }
 

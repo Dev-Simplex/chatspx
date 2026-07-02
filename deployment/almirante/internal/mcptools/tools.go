@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"strings"
+	"sync"
 
 	"github.com/Dev-Simplex/almirante/internal/fleet"
 	"github.com/Dev-Simplex/almirante/internal/safety"
@@ -176,22 +177,27 @@ func Register(s *mcp.Server, fl *types.Fleet, src Source) {
 		return types.VM{}, fmt.Sprintf("VM %q nao existe. Disponiveis: %s", id, strings.Join(ids, ", "))
 	}
 	proposeMany := func(ids []string, branch string) string {
-		var b strings.Builder
-		b.WriteString("Enfileirados — 1 pedido por VM, cada um aguardando aprovacao humana:\n")
-		for _, id := range ids {
-			vm, _ := fleet.FindVM(fl, id)
-			r, err := src.Propose(id, branch)
-			if err != nil {
-				fmt.Fprintf(&b, "• %s — ERRO: %v\n", vm.Name, err)
-				continue
-			}
-			flag := "✅"
-			if r.HasDestructive {
-				flag = "⚠️ destrutiva"
-			}
-			fmt.Fprintf(&b, "• %s %s → %s (%s) [%s]\n", vm.Name, r.CurrentSHA, r.TargetSHA, flag, r.ID)
+		lines := make([]string, len(ids))
+		var wg sync.WaitGroup
+		for i, id := range ids {
+			wg.Add(1)
+			go func(i int, id string) {
+				defer wg.Done()
+				vm, _ := fleet.FindVM(fl, id)
+				r, err := src.Propose(id, branch)
+				if err != nil {
+					lines[i] = fmt.Sprintf("• %s — ERRO: %v", vm.Name, err)
+					return
+				}
+				flag := "✅"
+				if r.HasDestructive {
+					flag = "⚠️ destrutiva"
+				}
+				lines[i] = fmt.Sprintf("• %s %s → %s (%s) [%s]", vm.Name, r.CurrentSHA, r.TargetSHA, flag, r.ID)
+			}(i, id)
 		}
-		return b.String()
+		wg.Wait()
+		return "Enfileirados — 1 pedido por VM, cada um aguardando aprovacao humana:\n" + strings.Join(lines, "\n") + "\n"
 	}
 
 	// ===== Toolset A — Observabilidade =====
@@ -215,7 +221,7 @@ func Register(s *mcp.Server, fl *types.Fleet, src Source) {
 			if e != "" {
 				return errtxt(e), nil, nil
 			}
-			st, err := src.Status(vm.ID)
+			st, err := src.Metrics(vm.ID)
 			if err != nil {
 				return errtxt("erro: " + err.Error()), nil, nil
 			}
@@ -288,7 +294,7 @@ func Register(s *mcp.Server, fl *types.Fleet, src Source) {
 			if e != "" {
 				return errtxt(e), nil, nil
 			}
-			st, _ := src.Status(vm.ID)
+			st, _ := src.Metrics(vm.ID)
 			return txt(fmt.Sprintf("%s %s — sidekiq: %d processo(s) %s", dot(st.Sidekiq > 0), vm.Name, st.Sidekiq, map[bool]string{true: "ativo", false: "PARADO"}[st.Sidekiq > 0])), nil, nil
 		})
 
@@ -298,7 +304,7 @@ func Register(s *mcp.Server, fl *types.Fleet, src Source) {
 			if e != "" {
 				return errtxt(e), nil, nil
 			}
-			st, _ := src.Status(vm.ID)
+			st, _ := src.Metrics(vm.ID)
 			warn := ""
 			if st.Disk != nil && *st.Disk >= 85 {
 				warn = " ⚠️ ALTO"
@@ -312,7 +318,7 @@ func Register(s *mcp.Server, fl *types.Fleet, src Source) {
 			if e != "" {
 				return errtxt(e), nil, nil
 			}
-			st, _ := src.Status(vm.ID)
+			st, _ := src.Metrics(vm.ID)
 			return txt(fmt.Sprintf("%s %s — chatwoot.target %s · %d puma / %d sidekiq", dot(st.ServiceActive), vm.Name, map[bool]string{true: "ativo", false: "INATIVO"}[st.ServiceActive], st.Puma, st.Sidekiq)), nil, nil
 		})
 
@@ -333,19 +339,31 @@ func Register(s *mcp.Server, fl *types.Fleet, src Source) {
 
 	mcp.AddTool(s, &mcp.Tool{Name: "almirante_drift_check", Description: "Quem precisa de deploy? Lista as VMs atras do origin/branch e se ha destrutiva no caminho.", Annotations: ro},
 		func(_ context.Context, _ *mcp.CallToolRequest, _ empty) (*mcp.CallToolResult, any, error) {
+			lines := make([]string, len(fl.VMs))
+			var wg sync.WaitGroup
+			for i, v := range fl.VMs {
+				wg.Add(1)
+				go func(i int, v types.VM) {
+					defer wg.Done()
+					d, _ := src.Diff(v.ID)
+					if d.BehindCount > 0 {
+						m, _ := src.Migrations(v.ID)
+						flag := ""
+						if m.HasDestructive {
+							flag = " ⚠️ destrutiva no caminho"
+						}
+						lines[i] = fmt.Sprintf("• %s: %d commits atras (%s→%s)%s", v.Name, d.BehindCount, d.CurrentSHA, d.TargetSHA, flag)
+					}
+				}(i, v)
+			}
+			wg.Wait()
 			var b strings.Builder
 			b.WriteString("Drift (VMs defasadas):\n")
 			any := false
-			for _, v := range fl.VMs {
-				d, _ := src.Diff(v.ID)
-				if d.BehindCount > 0 {
+			for _, l := range lines {
+				if l != "" {
 					any = true
-					m, _ := src.Migrations(v.ID)
-					flag := ""
-					if m.HasDestructive {
-						flag = " ⚠️ destrutiva no caminho"
-					}
-					fmt.Fprintf(&b, "• %s: %d commits atras (%s→%s)%s\n", v.Name, d.BehindCount, d.CurrentSHA, d.TargetSHA, flag)
+					b.WriteString(l + "\n")
 				}
 			}
 			if !any {

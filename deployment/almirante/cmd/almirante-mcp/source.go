@@ -29,6 +29,9 @@ func newMockSource(repo string) *mockSource {
 func (m *mockSource) Status(vm string) (types.HostStatus, error) {
 	return mock.HostStatus(vm, vmBranch(vm)), nil
 }
+func (m *mockSource) Metrics(vm string) (types.HostStatus, error) {
+	return mock.HostStatus(vm, vmBranch(vm)), nil
+}
 func (m *mockSource) Health(vm string) (types.HealthReport, error)        { return mock.Health(vm), nil }
 func (m *mockSource) Migrations(vm string) (types.MigrationStatus, error) { return mock.MigrationStatus(vm), nil }
 func (m *mockSource) Diff(vm string) (types.GitDiff, error)               { return mock.GitDiff(vm, m.repo), nil }

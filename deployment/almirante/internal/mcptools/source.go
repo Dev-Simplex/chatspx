@@ -18,6 +18,7 @@ import (
 // Source: de onde o MCP le/propoe/gerencia. So le e so propoe — nao existe approve.
 type Source interface {
 	Status(vm string) (types.HostStatus, error)
+	Metrics(vm string) (types.HostStatus, error)
 	Health(vm string) (types.HealthReport, error)
 	Migrations(vm string) (types.MigrationStatus, error)
 	Diff(vm string) (types.GitDiff, error)
@@ -128,6 +129,10 @@ func (c *ControlSource) do(req *http.Request, out any) error {
 func (c *ControlSource) Status(vm string) (types.HostStatus, error) {
 	var v types.HostStatus
 	return v, c.get("/api/vms/"+vm+"/status", &v)
+}
+func (c *ControlSource) Metrics(vm string) (types.HostStatus, error) {
+	var v types.HostStatus
+	return v, c.get("/api/vms/"+vm+"/metrics", &v)
 }
 func (c *ControlSource) Health(vm string) (types.HealthReport, error) {
 	var v types.HealthReport

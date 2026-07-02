@@ -202,8 +202,9 @@ func (o LocalOps) SysInfo(ctx context.Context) types.HostStatus {
 		}
 	}
 	s.ServiceActive = strings.TrimSpace(cmdOut(ctx, "systemctl", "is-active", "chatwoot-web.1.service")) == "active"
-	s.Puma = atoiSafe(cmdOut(ctx, "pgrep", "-c", "puma"))
-	s.Sidekiq = atoiSafe(cmdOut(ctx, "pgrep", "-c", "sidekiq"))
+	// -fc: casa o cmdline completo (o comm dos processos Ruby e "ruby", nao "puma"/"sidekiq").
+	s.Puma = atoiSafe(cmdOut(ctx, "pgrep", "-fc", "puma"))
+	s.Sidekiq = atoiSafe(cmdOut(ctx, "pgrep", "-fc", "sidekiq"))
 	return s
 }
 
