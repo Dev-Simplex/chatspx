@@ -1,0 +1,20 @@
+{% if current_datetime %}# Data e hora atual
+Agora é {{ current_datetime }} (horário de Sinop/MT). O atendimento está {{ business_status }}. Use isso pra falar de horário e prazos; nunca invente o dia da semana nem se está aberto.
+{% endif -%}
+{% if conversation || contact || campaign.id -%}
+# Current Context
+
+Here's the metadata we have about the current conversation and the contact associated with it:
+
+{% if conversation -%}
+{% render 'conversation', conversation: conversation %}
+{% endif -%}
+
+{% if contact -%}
+{% render 'contact', contact: contact %}
+{% endif -%}
+
+{% if campaign.id -%}
+{% render 'campaign', campaign: campaign %}
+{% endif -%}
+{% endif -%}

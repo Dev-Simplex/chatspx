@@ -25,6 +25,8 @@ module Concerns::Agentable
       )
     end
 
+    return split_instructions_for_cache(enhanced_context) if prompt_cache_system_enabled?
+
     Captain::PromptRenderer.render(template_name, enhanced_context.with_indifferent_access)
   end
 
@@ -62,6 +64,43 @@ module Concerns::Agentable
     }
   rescue StandardError
     {}
+  end
+
+  # Chaves de contexto que MUDAM durante a conversa (data/hora com resolucao de
+  # minuto + estado da conversa/contato/campanha, incluindo custom_attributes que
+  # as tools escrevem mid-conversa). Precisam ficar FORA do bloco cacheado.
+  VOLATILE_PROMPT_KEYS = %w[current_datetime business_status conversation contact campaign].freeze
+
+  # Prompt caching (Fase 2): separa o prefixo ESTAVEL do prompt (identidade,
+  # persona, regras, guardrails, cenarios) do VOLATIL (data/hora + contexto da
+  # conversa) e devolve dois blocos de system, com cache_control so no estavel.
+  # Assim o pedaco grande e constante entra no cache da Anthropic e os turnos
+  # seguintes pagam 0.1x nele. So roda com SPX_PROMPT_CACHE_SYSTEM=1.
+  #
+  # Fail-safe: se qualquer coisa falhar (ex: Content::Raw ausente em outra versao
+  # do ruby_llm), cai no render inteiro de sempre — nunca quebra a resposta.
+  def split_instructions_for_cache(enhanced_context)
+    ctx = enhanced_context.with_indifferent_access
+    stable_text = Captain::PromptRenderer.render(template_name, ctx.except(*VOLATILE_PROMPT_KEYS))
+    volatile_text = Captain::PromptRenderer.render('runtime_context', ctx.slice(*VOLATILE_PROMPT_KEYS)).strip
+
+    blocks = [{ type: 'text', text: stable_text, cache_control: { type: 'ephemeral' } }]
+    blocks << { type: 'text', text: volatile_text } if volatile_text.present?
+    RubyLLM::Content::Raw.new(blocks)
+  rescue StandardError => e
+    Rails.logger.warn("[prompt-cache] split de system falhou, usando prompt inteiro: #{e.class}: #{e.message}")
+    Captain::PromptRenderer.render(template_name, enhanced_context.with_indifferent_access)
+  end
+
+  # Opt-in por CONTA (multi-tenant): liga a Fase 2 do caching so nas contas que
+  # setarem custom_attributes['prompt_cache_system']=true. Fallback global via ENV
+  # SPX_PROMPT_CACHE_SYSTEM pra teste. Default (nenhum dos dois) = OFF.
+  def prompt_cache_system_enabled?
+    asst = is_a?(Captain::Assistant) ? self : assistant
+    per_account = asst&.account&.custom_attributes&.dig('prompt_cache_system')
+    return ActiveModel::Type::Boolean.new.cast(per_account) unless per_account.nil?
+
+    ActiveModel::Type::Boolean.new.cast(ENV.fetch('SPX_PROMPT_CACHE_SYSTEM', nil))
   end
 
   def agent_response_schema
