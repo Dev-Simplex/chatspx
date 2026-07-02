@@ -637,6 +637,10 @@
   "CONVERSATION_SIDEBAR": {
     "ASSIGNEE_LABEL": "Agente atribuído",
     "SELF_ASSIGN": "Atribuir a mim",
+    "RETRIAGE": "Devolver para a IA",
+    "RETRIAGE_CONFIRM": "Devolver esta conversa para a IA? Ela vai retriar o assunto.",
+    "RETRIAGE_SUCCESS": "Conversa devolvida para a IA (triagem).",
+    "RETRIAGE_ERROR": "Não foi possível devolver para a IA.",
     "TEAM_LABEL": "Time atribuído",
     "ASSIGNEE_GROUP": {
       "AI": "Agentes IA",

@@ -6,7 +6,7 @@ class Api::V1::Accounts::ConversationsController < Api::V1::Accounts::BaseContro
   before_action :inbox, :contact, :contact_inbox, only: [:create]
   before_action :authorize_team_access,
                 only: [:show, :update, :destroy, :attachments, :mute, :unmute, :transcript, :toggle_status, :toggle_priority, :toggle_typing_status,
-                       :update_last_seen, :unread, :custom_attributes]
+                       :update_last_seen, :unread, :custom_attributes, :retriage]
 
   ATTACHMENT_RESULTS_PER_PAGE = 40
 
@@ -99,6 +99,16 @@ class Api::V1::Accounts::ConversationsController < Api::V1::Accounts::BaseContro
   def toggle_priority
     @conversation.toggle_priority(params[:priority])
     head :ok
+  end
+
+  # "Devolver para a IA": re-atribui a conversa à triagem (Clara) com time limpo,
+  # para a IA reavaliar o assunto e re-rotear. Ação manual do agente.
+  def retriage
+    result = Captain::RetriageService.new(@conversation).call
+    return render json: { error: result.error }, status: :unprocessable_entity unless result.success
+
+    @conversation.reload
+    render 'api/v1/accounts/conversations/show', formats: [:json]
   end
 
   def toggle_typing_status

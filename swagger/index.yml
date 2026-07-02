@@ -1,16 +1,19 @@
+# NOTA (Chat SPX): o swagger.json servido em /swagger e gerado de forma ABRANGENTE
+# pelo pipeline SPX (cobre os 141 controllers da API). Este index.yml (fonte upstream
+# fragmentada) cobre apenas um subconjunto; `rake swagger:build` sozinho NAO reproduz o
+# spec completo. Ver scratchpad/assemble.rb + specs.json para regenerar.
 openapi: '3.1.0'
 info:
-  title: Chatwoot
-  description: This is the API documentation for Chatwoot server.
-  version: 1.1.0
-  termsOfService: https://www.chatwoot.com/terms-of-service/
+  title: Chat SPX API
+  description: Referencia da API do Chat SPX.
+  version: 1.0.0
   contact:
-    email: hello@chatwoot.com
+    name: Simplex Solucoes
+    url: https://chatspx.app
   license:
-    name: MIT License
-    url: https://opensource.org/licenses/MIT
+    name: Proprietaria
 servers:
-  - url: https://app.chatwoot.com/
+  - url: /
 paths:
   $ref: ./paths/index.yml
 components:

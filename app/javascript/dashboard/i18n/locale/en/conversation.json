@@ -646,6 +646,10 @@
   "CONVERSATION_SIDEBAR": {
     "ASSIGNEE_LABEL": "Assigned Agent",
     "SELF_ASSIGN": "Assign to me",
+    "RETRIAGE": "Return to AI",
+    "RETRIAGE_CONFIRM": "Return this conversation to the AI? It will re-triage the topic.",
+    "RETRIAGE_SUCCESS": "Conversation returned to the AI for re-triage.",
+    "RETRIAGE_ERROR": "Could not return to the AI.",
     "TEAM_LABEL": "Assigned Team",
     "ASSIGNEE_GROUP": {
       "AI": "AI Agents",

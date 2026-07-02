@@ -86,44 +86,101 @@ class Contacts::ResolveLidJob < ApplicationJob
     Contacts::BrazilPhoneNormalizer.normalize(phone_number)
   end
 
-  def merge_or_update(inbox, contact_inbox_by_lid, pn, normalized_phone) # rubocop:disable Metrics/AbcSize, Metrics/CyclomaticComplexity, Metrics/MethodLength, Metrics/PerceivedComplexity, Naming/MethodParameterName
+  def merge_or_update(inbox, contact_inbox_by_lid, pn, normalized_phone) # rubocop:disable Naming/MethodParameterName
     contact_inbox_by_pn = inbox.contact_inboxes.find_by(source_id: pn)
 
     ActiveRecord::Base.transaction do
       if contact_inbox_by_pn.present? && contact_inbox_by_pn.id != contact_inbox_by_lid.id
-        base_contact = contact_inbox_by_pn.contact
-        mergee_contact = contact_inbox_by_lid.contact
-        unless base_contact.id == mergee_contact.id
-          ContactMergeAction.new(
-            account: inbox.account,
-            base_contact: base_contact,
-            mergee_contact: mergee_contact
-          ).perform
-        end
-        contact_inbox_by_lid.reload
-        contact_inbox_by_lid.destroy! if contact_inbox_by_lid.persisted?
-
-        Rails.logger.info("[ResolveLidJob] Merged LID contact #{mergee_contact.id} into PN contact #{base_contact.id}")
+        # Caso A: ja existe um contact_inbox com source_id == pn (JID do WhatsApp).
+        # Mescla o contato @lid no contato dono desse contact_inbox.
+        merge_lid_into_pn_contact(inbox, contact_inbox_by_lid, contact_inbox_by_pn, normalized_phone, pn)
+      elsif (existing_contact = conflicting_phone_contact(inbox, contact_inbox_by_lid, normalized_phone))
+        # Caso B: NAO ha contact_inbox==pn, mas o telefone resolvido ja pertence a
+        # OUTRO contato do mesmo account (phone_number e unico por account). Sem este
+        # branch, o update! do caminho inline estouraria
+        # "ActiveRecord::RecordInvalid: Phone number has already been taken".
+        # Mescla o contato @lid no contato real ja existente.
+        merge_lid_into_existing_contact(inbox, contact_inbox_by_lid, existing_contact, normalized_phone, pn)
       else
-        contact_inbox_by_lid.update!(source_id: pn) if contact_inbox_by_lid.source_id.to_s.end_with?('@lid')
-        contact = contact_inbox_by_lid.contact
-        contact_updates = {}
-        contact_updates[:phone_number] = normalized_phone if normalized_phone.present? && contact.phone_number.blank?
-        # Limpa identifier residual com @lid (campo nao deve carregar LID pos-resolucao)
-        contact_updates[:identifier] = nil if contact.identifier.to_s.end_with?('@lid')
-        # Atualiza nome quando e o proprio LID ou placeholder de widget
-        contact_updates[:name] = normalized_phone || pn if contact.name.to_s.end_with?('@lid') || contact.name.to_s.match?(/\A[a-z]+-[a-z]+-\d+\z/)
-        contact.update!(contact_updates) if contact_updates.any?
-
-        Rails.logger.info("[ResolveLidJob] Resolved LID (contact_inbox=#{contact_inbox_by_lid.id}) to PN #{pn}")
+        # Caso C (caminho feliz, sem conflito): normaliza o contact_inbox e o contato.
+        update_resolved_contact_inline(contact_inbox_by_lid, pn, normalized_phone)
       end
     end
+  rescue ActiveRecord::RecordNotUnique => e
+    # Defesa contra corrida: outro worker pode ter resolvido o mesmo LID/telefone em
+    # paralelo (ex.: re-sweep + webhook simultaneos). Loga e deixa o retry/re-sweep
+    # reconciliar — nao estoura um 500 nem mata o job.
+    Rails.logger.warn("[ResolveLidJob] RecordNotUnique ao resolver contact_inbox=#{contact_inbox_by_lid.id}: #{e.message}")
   end
 
-  def update_contact_name_from_phone(contact, phone)
-    return if phone.blank?
+  # Caso A: mantem o contato dono do contact_inbox cujo source_id ja e o pn (JID real).
+  def merge_lid_into_pn_contact(inbox, contact_inbox_by_lid, contact_inbox_by_pn, normalized_phone, pn) # rubocop:disable Naming/MethodParameterName
+    base_contact = contact_inbox_by_pn.contact
+    mergee_contact = contact_inbox_by_lid.contact
 
-    contact.update!(name: phone)
+    unless base_contact.id == mergee_contact.id
+      ContactMergeAction.new(account: inbox.account, base_contact: base_contact, mergee_contact: mergee_contact).perform
+    end
+
+    # Ja existe o contact_inbox com o JID; o contact_inbox @lid e redundante.
+    contact_inbox_by_lid.reload
+    contact_inbox_by_lid.destroy! if contact_inbox_by_lid.persisted?
+    clear_residual_lid(base_contact, normalized_phone, pn)
+
+    Rails.logger.info("[ResolveLidJob] Merged LID contact #{mergee_contact.id} into PN contact #{base_contact.id}")
+  end
+
+  # Caso B: mescla o contato @lid no contato real que ja possui este telefone.
+  def merge_lid_into_existing_contact(inbox, contact_inbox_by_lid, existing_contact, normalized_phone, pn) # rubocop:disable Naming/MethodParameterName
+    mergee_contact = contact_inbox_by_lid.contact
+
+    ContactMergeAction.new(account: inbox.account, base_contact: existing_contact, mergee_contact: mergee_contact).perform
+
+    # O ContactMergeAction reatribuiu o contact_inbox @lid ao contato base. Como nao ha
+    # contact_inbox==pn neste inbox, normaliza o source_id para o JID (sem colisao).
+    contact_inbox_by_lid.reload
+    contact_inbox_by_lid.update!(source_id: pn) if contact_inbox_by_lid.persisted? && contact_inbox_by_lid.source_id.to_s.end_with?('@lid')
+    clear_residual_lid(existing_contact, normalized_phone, pn)
+
+    Rails.logger.info("[ResolveLidJob] Merged LID contact #{mergee_contact.id} into existing phone contact #{existing_contact.id}")
+  end
+
+  # Caminho feliz: sem conflito, atualiza source_id/phone/identifier/name inline.
+  def update_resolved_contact_inline(contact_inbox_by_lid, pn, normalized_phone) # rubocop:disable Metrics/AbcSize, Metrics/CyclomaticComplexity, Metrics/PerceivedComplexity, Naming/MethodParameterName
+    contact_inbox_by_lid.update!(source_id: pn) if contact_inbox_by_lid.source_id.to_s.end_with?('@lid')
+    contact = contact_inbox_by_lid.contact
+    contact_updates = {}
+    contact_updates[:phone_number] = normalized_phone if normalized_phone.present? && contact.phone_number.blank?
+    # Limpa identifier residual com @lid (campo nao deve carregar LID pos-resolucao)
+    contact_updates[:identifier] = nil if contact.identifier.to_s.end_with?('@lid')
+    # Atualiza nome quando e o proprio LID ou placeholder de widget
+    contact_updates[:name] = normalized_phone || pn if contact.name.to_s.end_with?('@lid') || contact.name.to_s.match?(/\A[a-z]+-[a-z]+-\d+\z/)
+    contact.update!(contact_updates) if contact_updates.any?
+
+    Rails.logger.info("[ResolveLidJob] Resolved LID (contact_inbox=#{contact_inbox_by_lid.id}) to PN #{pn}")
+  end
+
+  # Outro contato do mesmo account que ja possui este telefone (phone_number e unico
+  # por account). Detecta o conflito ANTES do update! estourar RecordInvalid.
+  def conflicting_phone_contact(inbox, contact_inbox_by_lid, normalized_phone)
+    return if normalized_phone.blank?
+
+    inbox.account.contacts
+         .where(phone_number: normalized_phone)
+         .where.not(id: contact_inbox_by_lid.contact_id)
+         .order(last_activity_at: :desc, updated_at: :desc)
+         .first
+  end
+
+  # Apos um merge, o ContactMergeAction faz deep_merge dos atributos: se o contato base
+  # tinha identifier/name vazios, ele HERDA o lixo @lid do mergee. Limpa esse residuo
+  # para o contato nao "parecer" um LID nem voltar a ser varrido pelo re-sweep.
+  def clear_residual_lid(base_contact, normalized_phone, pn) # rubocop:disable Naming/MethodParameterName
+    base_contact.reload
+    updates = {}
+    updates[:identifier] = nil if base_contact.identifier.to_s.end_with?('@lid')
+    updates[:name] = normalized_phone || pn if base_contact.name.to_s.end_with?('@lid')
+    base_contact.update!(updates) if updates.any?
   end
 
   def broadcast_contact_update(contact_inbox, inbox)
