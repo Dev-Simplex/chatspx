@@ -49,6 +49,11 @@ class Api::V1::Accounts::InboxesController < Api::V1::Accounts::BaseController #
     inbox_params = permitted_params.except(:channel, :csat_config, :nps_config)
     inbox_params[:csat_config] = format_csat_config(permitted_params[:csat_config]) if permitted_params[:csat_config].present?
     inbox_params[:nps_config] = format_nps_config(permitted_params[:nps_config]) if permitted_params[:nps_config].present?
+    # Merge (nao substitui) additional_attributes para preservar chaves de outras features (ex: pin_mode)
+    if inbox_params[:additional_attributes].present?
+      inbox_params[:additional_attributes] =
+        (@inbox.additional_attributes || {}).merge(inbox_params[:additional_attributes].to_h)
+    end
     @inbox.update!(inbox_params)
     update_inbox_working_hours
     update_channel if channel_update_required?
@@ -194,7 +199,7 @@ class Api::V1::Accounts::InboxesController < Api::V1::Accounts::BaseController #
      :enable_auto_assignment, :working_hours_enabled, :out_of_office_message, :timezone, :allow_messages_after_resolved,
      :lock_to_single_conversation, :portal_id, :sender_name_type, :business_name, :team_message_isolation,
      :agent_message_isolation, :pending_status_enabled,
-     { additional_attributes: [:pin_mode, { pinned_conversation_ids: [] }] },
+     { additional_attributes: [:pin_mode, { pinned_conversation_ids: [], allowed_template_names: [] }] },
      { csat_config: [:display_type, :message, :button_text, :language,
                      { survey_rules: [:operator, { values: [] }],
                        template: [:name, :template_id, :friendly_name, :content_sid, :approval_sid, :created_at, :language, :status] }] },

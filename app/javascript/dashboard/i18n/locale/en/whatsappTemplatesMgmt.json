@@ -74,6 +74,13 @@
       "VIDEO": "Video",
       "DOCUMENT": "Document",
       "BODY_PLACEHOLDER": "Your message will appear here..."
+    },
+    "VISIBILITY": {
+      "COL": "Visible in replies",
+      "HINT": "Choose which templates appear to agents when replying in conversations. If none are selected, all approved templates are shown.",
+      "SAVE": "Save visibility",
+      "SAVE_SUCCESS": "Template visibility updated.",
+      "SAVE_ERROR": "Could not update template visibility."
     }
   }
 }
