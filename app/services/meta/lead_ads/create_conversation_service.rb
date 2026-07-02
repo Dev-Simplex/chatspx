@@ -126,7 +126,13 @@ module Meta
         @inbox.pending_status_enabled? ? 'pending' : 'open'
       end
 
+      # Cloud API (WhatsApp oficial) fora da janela 24h só aceita HSM aprovado — texto
+      # livre é BLOQUEADO pela Meta. Como o lead de formulário nunca abriu conversa antes,
+      # a 1ª mensagem cai fora da janela → tem que ser template. WAHA (Channel::Api) não
+      # tem essa restrição → segue texto livre.
       def create_initial_message(conversation)
+        return create_initial_template_message(conversation) if cloud_whatsapp_inbox?
+
         rendered = render_template
         return if rendered.blank?
 
@@ -140,10 +146,68 @@ module Meta
         ).perform
       end
 
+      def cloud_whatsapp_inbox?
+        @inbox.channel_type == 'Channel::Whatsapp'
+      end
+
+      # Envia o HSM configurado no hook (whatsapp_template_name). Sem template configurado,
+      # NÃO envia nada — melhor o lead entrar sem abertura (e o time trabalhar) do que a
+      # mensagem morrer no bloqueio da Meta sem ninguém saber.
+      def create_initial_template_message(conversation)
+        name = @hook.settings['whatsapp_template_name'].to_s.strip
+        if name.blank?
+          Rails.logger.warn(
+            "Meta Lead Ads: inbox #{@inbox.id} é Cloud API mas hook=#{@hook.id} sem whatsapp_template_name — " \
+            '1ª mensagem NÃO enviada (texto livre seria bloqueado na janela 24h). Configure um HSM aprovado.'
+          )
+          return
+        end
+
+        locale = @hook.settings['whatsapp_template_locale'].presence || 'pt_BR'
+        body = template_body_params
+
+        Messages::MessageBuilder.new(
+          nil,
+          conversation,
+          {
+            content: initial_template_preview,
+            content_type: :text,
+            message_type: 'outgoing',
+            private: false,
+            content_attributes: { meta_lead_ads_initial: true },
+            template_params: {
+              'name' => name, 'language' => locale,
+              'processed_params' => (body.present? ? { 'body' => body } : {})
+            }
+          }.with_indifferent_access
+        ).perform
+      end
+
+      # {{1}}, {{2}}, ... vêm de whatsapp_template_body_fields (campos do lead, em ordem;
+      # default first_name). Vazio → template sem variáveis de corpo.
+      def template_body_params
+        fields = (@hook.settings['whatsapp_template_body_fields'].presence || 'first_name')
+                 .to_s.split(',').map(&:strip).reject(&:blank?)
+        return {} if fields.empty?
+
+        ctx = template_render_context
+        fields.each_with_index.each_with_object({}) do |(field, i), acc|
+          acc[(i + 1).to_s] = ctx[field].to_s
+        end
+      end
+
+      # Espelho na transcrição (o que o time vê). O LEAD recebe o HSM aprovado, não este texto.
+      def initial_template_preview
+        render_template.presence || "Olá #{template_render_context['first_name']}!"
+      end
+
       def render_template
         template = @hook.settings['initial_message_template'].presence || DEFAULT_TEMPLATE
+        Liquid::Template.parse(template).render(template_render_context)
+      end
 
-        Liquid::Template.parse(template).render(
+      def template_render_context
+        {
           'full_name' => @lead[:full_name].to_s,
           'first_name' => @lead[:full_name].to_s.split.first.to_s,
           'ad_name' => @lead[:ad_name].to_s,
@@ -151,7 +215,7 @@ module Meta
           'city' => @lead[:city].to_s,
           'email' => @lead[:email].to_s,
           'phone' => @lead[:phone_number].to_s
-        )
+        }
       end
     end
   end
