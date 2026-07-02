@@ -13,29 +13,29 @@ const emit = defineEmits([
   'toggleSearch',
   'toggleInfo',
   'favorite',
-  'markUnread',
-  'clear',
+  'leave',
 ]);
 
 const showMenu = ref(false);
 
 const online = computed(() => props.conversation.presence === 'online');
 const statusText = computed(() => {
+  if (props.conversation.isTeam) return 'Grupo de time';
   if (props.conversation.isGroup) return 'Grupo';
   return online.value ? 'Online' : 'Offline';
 });
+// Só dá para "sair" de grupos ad-hoc; grupos de time são dirigidos pela equipe.
+const canLeave = computed(
+  () => props.conversation.isGroup && !props.conversation.isTeam
+);
 
 const emitFavorite = () => {
   showMenu.value = false;
   emit('favorite');
 };
-const emitMarkUnread = () => {
+const emitLeave = () => {
   showMenu.value = false;
-  emit('markUnread');
-};
-const emitClear = () => {
-  showMenu.value = false;
-  emit('clear');
+  emit('leave');
 };
 </script>
 
@@ -128,20 +128,13 @@ const emitClear = () => {
               }}
             </button>
             <button
-              type="button"
-              class="flex items-center w-full gap-2.5 px-3 py-2 text-sm text-left text-n-slate-12 hover:bg-n-alpha-1"
-              @click="emitMarkUnread"
-            >
-              <span class="text-base i-lucide-mail" />
-              Marcar como não lida
-            </button>
-            <button
+              v-if="canLeave"
               type="button"
               class="flex items-center w-full gap-2.5 px-3 py-2 text-sm text-left text-n-ruby-11 hover:bg-n-ruby-3"
-              @click="emitClear"
+              @click="emitLeave"
             >
-              <span class="text-base i-lucide-trash-2" />
-              Limpar conversa
+              <span class="text-base i-lucide-log-out" />
+              Sair do grupo
             </button>
           </div>
         </template>

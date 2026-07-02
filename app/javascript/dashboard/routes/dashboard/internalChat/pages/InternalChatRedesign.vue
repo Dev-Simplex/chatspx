@@ -1,130 +1,232 @@
 <script setup>
-// Chat interno — REDESIGN visual (protótipo, dados fictícios). Toda a lógica é
-// mock (client-side); os componentes são reutilizáveis para plugar o backend
-// real depois. NÃO usa o store.
-import { ref, computed } from 'vue';
+// Chat interno — REDESIGN visual ligado ao BACKEND real (store internalChat).
+// Mostra DMs, grupos e "grupos de time" (auto-criados a partir dos Teams da
+// conta). Admin pode alternar "Ver todos" para auditar todos os canais.
+// Envio de texto + emoji nesta versão; anexos/reações/respostas são próximos passos.
+import { ref, computed, onMounted, onBeforeUnmount } from 'vue';
+import { useStore, useMapGetter } from 'dashboard/composables/store';
+import { messageStamp } from 'shared/helpers/timeHelper';
+import { emitter } from 'shared/helpers/mitt';
+import { BUS_EVENTS } from 'shared/constants/busEvents';
+import getUuid from 'widget/helpers/uuid';
 import ChatSidebar from '../components/redesign/ChatSidebar.vue';
 import ChatHeader from '../components/redesign/ChatHeader.vue';
 import MessageThread from '../components/redesign/MessageThread.vue';
 import ChatComposer from '../components/redesign/ChatComposer.vue';
 import ChatInfoPanel from '../components/redesign/ChatInfoPanel.vue';
-import { conversations, getThread } from '../components/redesign/mockData.js';
 
-const conversationList = ref(conversations.map(c => ({ ...c })));
-const activeId = ref(conversationList.value[0]?.id ?? null);
-// Cada conversa tem sua própria thread (limpar/enviar afetam só a conversa atual).
-const threadsById = ref({});
-const ensureThread = id => {
-  if (id != null && !threadsById.value[id]) {
-    threadsById.value[id] = [...getThread(id)];
-  }
-};
-ensureThread(activeId.value);
+const store = useStore();
+const channels = useMapGetter('internalChat/getChannels');
+const auditChannels = useMapGetter('internalChat/getAuditChannels');
+const agents = useMapGetter('internalChat/getAgents');
+const uiFlags = useMapGetter('internalChat/getUIFlags');
+const currentUserId = useMapGetter('getCurrentUserID');
+const currentRole = useMapGetter('getCurrentRole');
 
+const isAdmin = computed(() => currentRole.value === 'administrator');
+// Auditoria (admin): a lista passa a mostrar TODOS os canais da conta.
+const auditMode = ref(false);
+const rawChannelList = computed(() =>
+  auditMode.value ? auditChannels.value : channels.value
+);
+
+const activeId = ref(null);
 const mobileView = ref('list'); // 'list' | 'thread' (só no mobile)
 const searchOpen = ref(false);
 const searchQuery = ref('');
 const showInfo = ref(false);
-let localSeq = 0;
-let newConvSeq = 0;
+// Favoritos: só do lado do cliente (o backend ainda não persiste favoritos).
+const favorites = ref(new Set());
 
+const presenceOf = userId =>
+  store.getters['agents/getAgentById'](userId)?.availability_status || null;
+const counterpart = ch =>
+  (ch?.members || []).find(m => m.id !== currentUserId.value);
+
+const rowTime = ts => {
+  if (!ts) return '';
+  const d = new Date(ts * 1000);
+  const now = new Date();
+  const yesterday = new Date();
+  yesterday.setDate(now.getDate() - 1);
+  if (d.toDateString() === now.toDateString()) return messageStamp(ts, 'HH:mm');
+  if (d.toDateString() === yesterday.toDateString()) return 'Ontem';
+  return d.toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' });
+};
+
+const previewOf = ch => {
+  const lm = ch?.last_message;
+  if (!lm) return '';
+  if (lm.deleted) return 'Mensagem apagada';
+  return lm.content || '📎 Anexo';
+};
+
+// Traduz o canal do store para a forma que os componentes do redesign esperam.
+const mapChannel = ch => {
+  const isDm = ch.channel_type === 'direct';
+  const other = isDm ? counterpart(ch) : null;
+  const isMember = (ch.members || []).some(m => m.id === currentUserId.value);
+  return {
+    id: ch.id,
+    channelType: ch.channel_type,
+    name: isDm ? other?.name || ch.title || 'Conversa' : ch.title || 'Grupo',
+    isGroup: !isDm,
+    isTeam: ch.channel_type === 'team',
+    avatarSrc: isDm ? other?.avatar_url || '' : '',
+    iconName: isDm ? null : 'i-lucide-users',
+    presence: isDm ? presenceOf(other?.id) : null,
+    time: rowTime(ch.last_message?.created_at),
+    unreadCount: ch.unread_count || 0,
+    favorited: favorites.value.has(ch.id),
+    lastMessage: {
+      preview: previewOf(ch),
+      fromMe: ch.last_message?.user?.id === currentUserId.value,
+    },
+    members: ch.members || [],
+    // Em auditoria, canais dos quais o admin não participa são somente-leitura.
+    readOnly: auditMode.value && !isMember,
+  };
+};
+
+const conversationList = computed(() => rawChannelList.value.map(mapChannel));
+
+const activeRaw = computed(
+  () =>
+    channels.value.find(c => c.id === activeId.value) ||
+    auditChannels.value.find(c => c.id === activeId.value)
+);
 const activeConversation = computed(() =>
-  conversationList.value.find(c => c.id === activeId.value)
+  activeRaw.value ? mapChannel(activeRaw.value) : null
 );
 
-const messages = computed(() => threadsById.value[activeId.value] || []);
-
+// ── Mensagens ──────────────────────────────────────────────────────────────
+const rawMessages = computed(() =>
+  activeId.value
+    ? store.getters['internalChat/getMessages'](activeId.value)
+    : []
+);
+const dayKey = ts => new Date(ts * 1000).toDateString();
+const dayLabelFor = ts => {
+  const d = new Date(ts * 1000);
+  const now = new Date();
+  const yesterday = new Date();
+  yesterday.setDate(now.getDate() - 1);
+  if (d.toDateString() === now.toDateString()) return 'Hoje';
+  if (d.toDateString() === yesterday.toDateString()) return 'Ontem';
+  return d.toLocaleDateString('pt-BR');
+};
+const threadItems = computed(() => {
+  const out = [];
+  let lastDay = null;
+  rawMessages.value.forEach(m => {
+    const key = dayKey(m.created_at);
+    if (key !== lastDay) {
+      out.push({
+        type: 'day',
+        id: `day-${key}`,
+        label: dayLabelFor(m.created_at),
+      });
+      lastDay = key;
+    }
+    out.push({
+      type: 'message',
+      id: m.id ?? m.echo_id,
+      mine: m.user?.id === currentUserId.value,
+      senderName: m.user?.name,
+      avatarSrc: m.user?.avatar_url,
+      content: m.deleted ? 'Mensagem apagada' : m.content,
+      time: messageStamp(m.created_at, 'HH:mm'),
+      read: m.status !== 'progress',
+    });
+  });
+  return out;
+});
 const visibleMessages = computed(() => {
   const q = searchQuery.value.trim().toLowerCase();
-  if (!searchOpen.value || !q) return messages.value;
-  return messages.value.filter(
+  if (!searchOpen.value || !q) return threadItems.value;
+  return threadItems.value.filter(
     m => m.type === 'message' && (m.content || '').toLowerCase().includes(q)
   );
 });
 
-const onSelect = id => {
-  ensureThread(id);
+// ── Handlers ─────────────────────────────────────────────────────────────
+const onSelect = async id => {
   activeId.value = id;
   mobileView.value = 'thread';
   searchOpen.value = false;
   searchQuery.value = '';
   showInfo.value = false;
-  // Abrir uma conversa "zera" o contador de não lidas.
-  const conv = conversationList.value.find(c => c.id === id);
-  if (conv) conv.unreadCount = 0;
+  await store.dispatch('internalChat/fetchMessages', id);
 };
 
 const onSend = content => {
-  localSeq += 1;
-  const id = activeId.value;
-  ensureThread(id);
-  threadsById.value[id].push({
-    type: 'message',
-    id: `local-${localSeq}`,
-    mine: true,
-    content,
-    time: 'agora',
-    read: false,
+  const text = (content || '').trim();
+  if (!text || !activeId.value) return;
+  store.dispatch('internalChat/sendMessage', {
+    channelId: activeId.value,
+    content: text,
+    echoId: getUuid(),
   });
-  const conv = activeConversation.value;
-  if (conv) {
-    conv.lastMessage = { preview: content, fromMe: true };
-    conv.time = 'agora';
-  }
 };
 
-const onCreate = contact => {
-  // Se já existe uma DM com essa pessoa, apenas abre; senão cria e abre.
-  const existing = conversationList.value.find(
-    c => !c.isGroup && c.name === contact.name
-  );
-  if (existing) {
-    onSelect(existing.id);
-    return;
-  }
-  newConvSeq += 1;
-  const id = `new-${newConvSeq}`;
-  conversationList.value.unshift({
-    id,
-    name: contact.name,
-    isGroup: false,
-    avatarSrc: null,
-    presence: contact.presence,
-    time: 'agora',
-    unreadCount: 0,
-    favorited: false,
-    lastMessage: { preview: 'Diga olá 👋', fromMe: false },
+const onCreateDm = async agentId => {
+  const channel = await store.dispatch('internalChat/createDm', agentId);
+  if (channel?.id) onSelect(channel.id);
+};
+
+const onCreateGroup = async ({ name, memberIds }) => {
+  const channel = await store.dispatch('internalChat/createGroup', {
+    name,
+    memberIds,
   });
-  onSelect(id);
+  if (channel?.id) onSelect(channel.id);
 };
 
 const onFavorite = () => {
-  const conv = activeConversation.value;
-  if (conv) conv.favorited = !conv.favorited;
+  const id = activeId.value;
+  if (id == null) return;
+  const next = new Set(favorites.value);
+  if (next.has(id)) next.delete(id);
+  else next.add(id);
+  favorites.value = next;
 };
 
-const onMarkUnread = () => {
-  const conv = activeConversation.value;
-  if (conv) conv.unreadCount = Math.max(conv.unreadCount, 1);
-};
-
-const onClear = () => {
-  // Limpa APENAS a conversa aberta (as demais threads ficam intactas).
-  threadsById.value[activeId.value] = [
-    { type: 'day', id: 'd0', label: 'Hoje' },
-  ];
-  const conv = activeConversation.value;
-  if (conv) conv.lastMessage = { preview: 'Conversa limpa', fromMe: false };
+const onLeave = async () => {
+  const id = activeId.value;
+  if (id == null) return;
+  await store.dispatch('internalChat/leaveChannel', id);
+  activeId.value = null;
+  mobileView.value = 'list';
 };
 
 const toggleSearch = () => {
   searchOpen.value = !searchOpen.value;
   if (!searchOpen.value) searchQuery.value = '';
 };
+
+const toggleAudit = async () => {
+  auditMode.value = !auditMode.value;
+  if (auditMode.value) await store.dispatch('internalChat/fetchAuditChannels');
+};
+
+// ── Ciclo de vida + tempo real ─────────────────────────────────────────────
+const resync = () => {
+  store.dispatch('internalChat/fetchChannels');
+  if (auditMode.value) store.dispatch('internalChat/fetchAuditChannels');
+};
+onMounted(() => {
+  store.dispatch('internalChat/fetchChannels');
+  store.dispatch('internalChat/fetchAgents');
+  store.dispatch('agents/get');
+  emitter.on(BUS_EVENTS.WEBSOCKET_RECONNECT, resync);
+});
+onBeforeUnmount(() => {
+  emitter.off(BUS_EVENTS.WEBSOCKET_RECONNECT, resync);
+  store.dispatch('internalChat/clearActiveChannel');
+});
 </script>
 
 <template>
-  <!-- Protótipo visual (dados fictícios); i18n entra na versão final. -->
   <!-- eslint-disable vue/no-bare-strings-in-template -->
   <div class="flex w-full h-full bg-n-background">
     <!-- Sidebar -->
@@ -135,8 +237,14 @@ const toggleSearch = () => {
       <ChatSidebar
         :conversations="conversationList"
         :active-id="activeId"
+        :agents="agents"
+        :is-admin="isAdmin"
+        :audit-mode="auditMode"
+        :loading="uiFlags.isFetchingChannels"
         @select="onSelect"
-        @create="onCreate"
+        @create-dm="onCreateDm"
+        @create-group="onCreateGroup"
+        @toggle-audit="toggleAudit"
       />
     </div>
 
@@ -154,8 +262,7 @@ const toggleSearch = () => {
           @toggle-search="toggleSearch"
           @toggle-info="showInfo = !showInfo"
           @favorite="onFavorite"
-          @mark-unread="onMarkUnread"
-          @clear="onClear"
+          @leave="onLeave"
         />
 
         <!-- In-conversation search bar -->
@@ -186,8 +293,18 @@ const toggleSearch = () => {
 
         <!-- key por conversa: remonta → fade da thread + rola pro fim ao abrir -->
         <MessageThread :key="activeId" :items="visibleMessages" />
-        <!-- key por conversa: rascunho/anexos não vazam ao trocar de conversa -->
-        <ChatComposer :key="activeId" @send="onSend" />
+
+        <ChatComposer
+          v-if="!activeConversation.readOnly"
+          :key="`composer-${activeId}`"
+          @send="onSend"
+        />
+        <div
+          v-else
+          class="px-4 py-3 text-xs text-center md:px-6 flex-shrink-0 text-n-slate-10 bg-n-alpha-1 border-t border-n-weak"
+        >
+          Modo auditoria — somente leitura (você não participa deste canal).
+        </div>
 
         <!-- Info drawer -->
         <template v-if="showInfo">
@@ -200,6 +317,7 @@ const toggleSearch = () => {
           >
             <ChatInfoPanel
               :conversation="activeConversation"
+              :current-user-id="currentUserId"
               @close="showInfo = false"
             />
           </div>

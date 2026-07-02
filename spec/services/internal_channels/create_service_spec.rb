@@ -25,12 +25,13 @@ RSpec.describe InternalChannels::CreateService do
 
     before { team.add_members([alice.id, bob.id]) }
 
-    it 'creates a team channel including the team members and creator' do
+    it 'creates a team channel whose members mirror the team roster exactly (no creator injection)' do
       channel = described_class.new(account: account, creator: creator, team: team).perform
 
       expect(channel).to be_team
       expect(channel.team_id).to eq(team.id)
-      expect(channel.users).to include(alice, bob, creator)
+      expect(channel.users).to contain_exactly(alice, bob)
+      expect(channel.users).not_to include(creator)
     end
 
     it 'is find-or-create — does not duplicate the team channel' do

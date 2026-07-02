@@ -1,12 +1,14 @@
 # frozen_string_literal: true
 
-# Chat interno (Módulo B, B2) — creates a group or team channel. The creator is
-# always a member. A team channel is find-or-create (one per team) and auto-includes
-# the team's members. DMs keep their own FindOrCreateDmService.
+# Chat interno (Módulo B, B2) — creates a group or team channel. For a GROUP the
+# creator is always a member. A TEAM channel is find-or-create (one per team) and
+# its membership mirrors the team roster EXACTLY (no creator injection) — see
+# SyncTeamChannelsService. DMs keep their own FindOrCreateDmService.
 class InternalChannels::CreateService
   # The channel kind is inferred: a team is given for team channels, otherwise it
-  # is a group. (DMs have their own FindOrCreateDmService.)
-  def initialize(account:, creator:, name: nil, member_ids: [], team: nil)
+  # is a group. (DMs have their own FindOrCreateDmService.) `creator` is required
+  # for groups and ignored for team channels.
+  def initialize(account:, creator: nil, name: nil, member_ids: [], team: nil)
     @account = account
     @creator = creator
     @name = name
@@ -34,7 +36,8 @@ class InternalChannels::CreateService
     existing = @account.internal_channels.team.find_by(team_id: @team.id)
     return existing if existing
 
-    ids = (@team.members.pluck(:id) + [@creator.id]).uniq
+    # Membership mirrors the team roster exactly (não injeta o criador).
+    ids = @team.members.pluck(:id).uniq
     @account.internal_channels.create!(channel_type: :team, team_id: @team.id, name: @team.name).tap do |channel|
       @account.users.where(id: ids).find_each { |user| channel.members.create!(user: user) }
     end
