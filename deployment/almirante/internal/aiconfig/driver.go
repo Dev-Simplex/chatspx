@@ -128,6 +128,22 @@ func (d *Driver) GetBaseline(ctx context.Context, vmSlug string, assistantID int
 	return out, nil
 }
 
+// ListAssistants lista os agentes (id+name) da conta da VM — pro seletor de
+// agente do painel (evita digitar o assistant_id na mao). Receptor devolve
+// { assistants: [{id,name}] }.
+func (d *Driver) ListAssistants(ctx context.Context, vmSlug string) (JSONMap, error) {
+	conn, err := d.resolve(vmSlug)
+	if err != nil {
+		return nil, err
+	}
+	path := fmt.Sprintf("/spx/ai_config/accounts/%d/assistants", conn.AccountID)
+	var out JSONMap
+	if err := d.doMethod(ctx, conn, http.MethodGet, path, nil, &out); err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
 // DryRun envia o change-set para preview/diff sem escrita.
 func (d *Driver) DryRun(ctx context.Context, vmSlug string, changeSet JSONMap) (JSONMap, error) {
 	conn, err := d.resolve(vmSlug)

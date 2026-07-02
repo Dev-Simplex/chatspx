@@ -235,8 +235,9 @@ O almirante comanda a frota ChatSPX — deploy E governança de IA (prompt/tools
         });
 
         // ── IA / Agentes ──
-        const ai = reactive({ vms:[], vm:'', aid:'', base:null, prompt:'', busy:false, res:null, hist:[], tab:'prompt', faq:{q:'',a:''}, cred:{provider:'',settings:'',enabled:true} });
-        const aiLoadVms = async () => { try{ ai.vms = ((await api('/ai/agents')).vms)||[]; if(!ai.vm && ai.vms[0]) ai.vm = ai.vms[0].id; }catch(e){ msg.value=e.message; } };
+        const ai = reactive({ vms:[], assistants:[], vm:'', aid:'', base:null, prompt:'', busy:false, res:null, hist:[], tab:'prompt', faq:{q:'',a:''}, cred:{provider:'',settings:'',enabled:true} });
+        const aiLoadVms = async () => { try{ ai.vms = ((await api('/ai/agents')).vms)||[]; if(!ai.vm && ai.vms[0]) ai.vm = ai.vms[0].id; aiLoadAssistants(); }catch(e){ msg.value=e.message; } };
+        const aiLoadAssistants = async () => { ai.assistants=[]; if(!ai.vm) return; try{ ai.assistants = ((await api('/ai/assistants?vm='+ai.vm)).assistants)||[]; if(ai.assistants.length && !ai.assistants.find(a=>String(a.id)===String(ai.aid))) ai.aid = ai.assistants[0].id; }catch(e){} };
         const aiPromptText = (b)=> (b && (b.instructions || (b.config && b.config.instructions) || b.prompt)) || '';
         const aiTools = computed(()=> { const b=ai.base||{}; return b.tools || (b.config&&b.config.tools) || []; });
         const aiLoadAgent = async () => {
@@ -262,7 +263,7 @@ O almirante comanda a frota ChatSPX — deploy E governança de IA (prompt/tools
         onMounted(()=>{ if(!setpwToken.value) checkMe(); });
         return { token, saveToken, view, go, fleet, status, metrics, deploys, tokens, msg, refresh, pending, recent, byEnv, onlineCount, act, loadTokens, newToken, revokeToken, envStyle, relTime, titleOf, loadMetrics, restartVM, mstate, retryMetrics, addCmd, claudePrompt, copied, copy, gen, genConnectToken, rel, relToggle, relGroup, relClear, relDry, relGo,
                  me, setpwToken, li, sp, usersList, doLogin, doSetPw, logout, tokenLogin, loadUsers, addUser, delUser, theme, toggleTheme,
-                 ai, aiLoadVms, aiLoadAgent, aiTools, aiSavePrompt, aiSetTool, aiAddFaq, aiSetCred, aiRollback };
+                 ai, aiLoadVms, aiLoadAssistants, aiLoadAgent, aiTools, aiSavePrompt, aiSetTool, aiAddFaq, aiSetCred, aiRollback };
       },
       template: `
       <div>
@@ -354,17 +355,20 @@ O almirante comanda a frota ChatSPX — deploy E governança de IA (prompt/tools
 
             <!-- seletor -->
             <div class="glass rounded-2xl p-5">
-              <div class="grid md:grid-cols-[1fr_140px_auto] gap-3 items-end">
+              <div class="grid md:grid-cols-[1fr_1fr_auto] gap-3 items-end">
                 <div>
                   <label class="text-[10px] uppercase tracking-wider tx3 font-bold">Máquina</label>
-                  <select v-model="ai.vm" @change="ai.base=null;aiLoadHist()" class="field w-full mt-1 px-3 py-2.5 text-sm">
+                  <select v-model="ai.vm" @change="ai.base=null;aiLoadHist();aiLoadAssistants()" class="field w-full mt-1 px-3 py-2.5 text-sm">
                     <option v-for="v in ai.vms" :key="v.id" :value="v.id">{{ v.name }} · conta {{ v.account_id }}</option>
                     <option v-if="!ai.vms.length" value="">nenhuma VM com IA habilitada</option>
                   </select>
                 </div>
                 <div>
-                  <label class="text-[10px] uppercase tracking-wider tx3 font-bold">ID do agente</label>
-                  <input v-model="ai.aid" @keyup.enter="aiLoadAgent" type="number" class="field w-full mt-1 px-3 py-2.5 text-sm font-mono" placeholder="ex: 3" />
+                  <label class="text-[10px] uppercase tracking-wider tx3 font-bold">Agente</label>
+                  <select v-if="ai.assistants.length" v-model="ai.aid" @change="aiLoadAgent" class="field w-full mt-1 px-3 py-2.5 text-sm">
+                    <option v-for="a in ai.assistants" :key="a.id" :value="a.id">{{ a.name }} · #{{ a.id }}</option>
+                  </select>
+                  <input v-else v-model="ai.aid" @keyup.enter="aiLoadAgent" type="number" class="field w-full mt-1 px-3 py-2.5 text-sm font-mono" placeholder="ex: 3 (lista indisponível)" />
                 </div>
                 <button @click="aiLoadAgent" :disabled="ai.busy" class="press btn-brand font-bold rounded-xl px-5 py-2.5 text-sm flex items-center gap-2 disabled:opacity-60"><ic n="robot" cls="w-4 h-4"/>{{ ai.busy?'…':'Carregar' }}</button>
               </div>

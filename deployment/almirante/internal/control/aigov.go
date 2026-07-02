@@ -69,6 +69,26 @@ func (s *Server) aiCustomTools(w http.ResponseWriter, r *http.Request, _ user) {
 	writeJSON(w, 200, map[string]any{"custom_tools": tools})
 }
 
+// aiListAssistants: agentes (id+name) de uma VM p/ o seletor de agente do
+// painel (GET /api/ai/assistants?vm=). Devolve { assistants: [{id,name}] }.
+func (s *Server) aiListAssistants(w http.ResponseWriter, r *http.Request, _ user) {
+	if s.aidriver == nil || !s.aidriver.Available() {
+		writeErr(w, 503, "governanca de IA nao configurada")
+		return
+	}
+	vm := r.URL.Query().Get("vm")
+	if vm == "" {
+		writeErr(w, 400, "parametro vm obrigatorio")
+		return
+	}
+	out, err := s.aidriver.ListAssistants(r.Context(), vm)
+	if err != nil {
+		writeErr(w, 502, "assistants: "+err.Error())
+		return
+	}
+	writeJSON(w, 200, out)
+}
+
 // aiHistory: change-sets de IA da VM (GET /api/ai/history?vm=).
 func (s *Server) aiHistory(w http.ResponseWriter, r *http.Request, _ user) {
 	vm := r.URL.Query().Get("vm")

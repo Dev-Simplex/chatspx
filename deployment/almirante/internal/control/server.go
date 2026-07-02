@@ -156,6 +156,7 @@ func (s *Server) Handler() http.Handler {
 	// Governanca de IA (editar prompt/tools/credencial/FAQ dos agentes por VM).
 	// Leitura=Viewer; escrita=Admin (escreve direto, com test-gate + audit + rollback).
 	mux.HandleFunc("GET /api/ai/agents", s.auth(RoleViewer, s.aiListAgents))
+	mux.HandleFunc("GET /api/ai/assistants", s.auth(RoleViewer, s.aiListAssistants))
 	mux.HandleFunc("GET /api/ai/agents/{vm}/{id}", s.auth(RoleViewer, s.aiBaseline))
 	mux.HandleFunc("GET /api/ai/custom-tools/{vm}", s.auth(RoleViewer, s.aiCustomTools))
 	mux.HandleFunc("GET /api/ai/history", s.auth(RoleViewer, s.aiHistory))

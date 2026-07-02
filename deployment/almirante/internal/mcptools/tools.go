@@ -537,6 +537,14 @@ func Register(s *mcp.Server, fl *types.Fleet, src Source) {
 			}
 			return jsonTxt(v), nil, nil
 		})
+	mcp.AddTool(s, &mcp.Tool{Name: "almirante_ai_list_assistants", Description: "Lista os agentes (id+name) de uma VM — pro seletor de agente, evita adivinhar o assistant_id.", Annotations: ro},
+		func(_ context.Context, _ *mcp.CallToolRequest, in aiVMInput) (*mcp.CallToolResult, any, error) {
+			v, err := src.AIListAssistants(in.VM)
+			if err != nil {
+				return errtxt(err.Error()), nil, nil
+			}
+			return jsonTxt(v), nil, nil
+		})
 	mcp.AddTool(s, &mcp.Tool{Name: "almirante_ai_get_agent", Description: "Baseline de um agente (instructions, faqs, tools, behavior) por vm + assistant_id.", Annotations: ro},
 		func(_ context.Context, _ *mcp.CallToolRequest, in aiAgentInput) (*mcp.CallToolResult, any, error) {
 			v, err := src.AIBaseline(in.VM, in.AssistantID)

@@ -131,6 +131,9 @@ func (m *mockSource) ProposeMerge(from, to string) (string, error) {
 func (m *mockSource) AIListAgents() (any, error) {
 	return map[string]any{"vms": []map[string]any{{"id": "tozi", "name": "Clara Tozi", "env": "producao", "account_id": 6}}}, nil
 }
+func (m *mockSource) AIListAssistants(vm string) (any, error) {
+	return map[string]any{"assistants": []map[string]any{{"id": 3, "name": "Clara"}, {"id": 4, "name": "Bruna"}}}, nil
+}
 func (m *mockSource) AIBaseline(vm string, id int) (any, error) {
 	return map[string]any{"vm": vm, "assistant_id": id, "config": map[string]any{"instructions": "[mock] prompt do agente", "tools": []string{}}, "faqs": []any{}}, nil
 }

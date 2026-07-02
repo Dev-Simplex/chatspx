@@ -32,6 +32,7 @@ type Source interface {
 	ProposeMerge(from, to string) (string, error)
 	// Governanca de IA (editar prompt/tools/credencial/FAQ dos agentes por VM).
 	AIListAgents() (any, error)
+	AIListAssistants(vm string) (any, error)
 	AIBaseline(vm string, id int) (any, error)
 	AICustomTools(vm string) (any, error)
 	AIHistory(vm string) (any, error)
@@ -193,6 +194,10 @@ func (c *ControlSource) ProposeMerge(from, to string) (string, error) {
 func (c *ControlSource) AIListAgents() (any, error) {
 	var v any
 	return v, c.get("/api/ai/agents", &v)
+}
+func (c *ControlSource) AIListAssistants(vm string) (any, error) {
+	var v any
+	return v, c.get("/api/ai/assistants?vm="+vm, &v)
 }
 func (c *ControlSource) AIBaseline(vm string, id int) (any, error) {
 	var v any
