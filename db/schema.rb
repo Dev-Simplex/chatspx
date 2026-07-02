@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[7.1].define(version: 2026_07_02_150000) do
+ActiveRecord::Schema[7.1].define(version: 2026_07_02_160000) do
   # These extensions should be enabled to support this database
   enable_extension "pg_stat_statements"
   enable_extension "pg_trgm"
@@ -722,10 +722,13 @@ ActiveRecord::Schema[7.1].define(version: 2026_07_02_150000) do
     t.datetime "unassigned_at"
     t.datetime "created_at", null: false
     t.datetime "updated_at", null: false
+    t.bigint "assigned_by_id"
+    t.integer "source", default: 6, null: false
     t.index ["account_id", "assigned_at"], name: "idx_conv_assign_hist_account_assigned_at"
     t.index ["account_id", "assignee_id"], name: "idx_conv_assign_hist_account_assignee"
     t.index ["account_id", "team_id"], name: "idx_conv_assign_hist_account_team"
     t.index ["account_id"], name: "index_conversation_assignment_histories_on_account_id"
+    t.index ["assigned_by_id"], name: "index_conversation_assignment_histories_on_assigned_by_id"
     t.index ["assignee_id"], name: "index_conversation_assignment_histories_on_assignee_id"
     t.index ["conversation_id"], name: "index_conversation_assignment_histories_on_conversation_id"
     t.index ["team_id"], name: "index_conversation_assignment_histories_on_team_id"
@@ -1175,6 +1178,7 @@ ActiveRecord::Schema[7.1].define(version: 2026_07_02_150000) do
     t.datetime "last_read_at"
     t.datetime "created_at", null: false
     t.datetime "updated_at", null: false
+    t.datetime "favorited_at"
     t.index ["internal_channel_id", "user_id"], name: "idx_on_internal_channel_id_user_id_30257ceaa6", unique: true
     t.index ["internal_channel_id"], name: "index_internal_channel_members_on_internal_channel_id"
     t.index ["user_id"], name: "index_internal_channel_members_on_user_id"
