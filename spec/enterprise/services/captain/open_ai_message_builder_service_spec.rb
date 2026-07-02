@@ -34,7 +34,7 @@ RSpec.describe Captain::OpenAiMessageBuilderService do
       end
     end
 
-    context 'when message has only non-text attachments' do
+    context 'when message has only an image (no caption)' do
       let(:message) { create(:message, content: nil) }
 
       before do
@@ -42,11 +42,11 @@ RSpec.describe Captain::OpenAiMessageBuilderService do
         attachment.save!
       end
 
-      it 'returns an array of content parts without text' do
+      it 'includes the image plus a non-empty text placeholder (Anthropic recusa bloco de texto vazio)' do
         result = service.generate_content
         expect(result).to be_an(Array)
         expect(result).to include({ type: 'image_url', image_url: { url: 'https://example.com/image.jpg' } })
-        expect(result).not_to include(hash_including(type: 'text', text: 'Hello world'))
+        expect(result).to include({ type: 'text', text: '[imagem]' })
       end
     end
   end

@@ -5,6 +5,9 @@ class Captain::OpenAiMessageBuilderService
   # roda em background (ver #extract_audio_transcriptions), nunca síncrona neste caminho.
   AUDIO_PLACEHOLDER = '[áudio]'.freeze
 
+  # Placeholder de texto pra mensagem só-imagem (sem legenda) — ver #ensure_text_part.
+  IMAGE_PLACEHOLDER = '[imagem]'.freeze
+
   # Extracts text and image URLs from multimodal content array (reverse of generate_content)
   def self.extract_text_and_attachments(content)
     return [content, []] unless content.is_a?(Array)
@@ -23,10 +26,22 @@ class Captain::OpenAiMessageBuilderService
     return 'Message without content' if parts.blank?
     return parts.first[:text] if parts.one? && parts.first[:type] == 'text'
 
-    parts
+    ensure_text_part(parts)
   end
 
   private
+
+  # A Anthropic recusa um turno multimodal cujo bloco de texto seja vazio
+  # ("text content blocks must be non-empty"). Uma mensagem só-imagem (sem legenda,
+  # sem referral, sem transcrição) geraria conteúdo só com bloco de imagem — no
+  # histórico dos turnos seguintes isso vira bloco de texto vazio e derruba a resposta
+  # inteira (IA responde 1× e cala). Garante um bloco de texto placeholder quando há
+  # mídia sem nenhum texto. A imagem segue indo como image_url (o LLM continua vendo).
+  def ensure_text_part(parts)
+    return parts if parts.any? { |part| part[:type] == 'text' }
+
+    [text_part(IMAGE_PLACEHOLDER)] + parts
+  end
 
   def text_part(text)
     { type: 'text', text: text }
