@@ -22,6 +22,13 @@ class Messages::AudioTranscriptionService< Llm::LegacyBaseOpenAiService
   rescue Faraday::UnauthorizedError
     Rails.logger.warn('Skipping audio transcription: OpenAI configuration is invalid or disabled (401 Unauthorized).')
     { error: 'OpenAI configuration is invalid or disabled (401)' }
+  rescue Faraday::Error => e
+    # Transcrição é best-effort: rate limit (429), 5xx, timeout ou falha de conexão da
+    # OpenAI NÃO podem abortar o atendimento. Sem este rescue, o erro sobe pelo builder
+    # de histórico e derruba a resposta inteira (IA fica muda). Degrada para "sem
+    # transcrição" — o chamador já trata `{ error: ... }` como texto vazio.
+    Rails.logger.warn("Skipping audio transcription: OpenAI request failed (#{e.class}).")
+    { error: "OpenAI request failed (#{e.class})" }
   end
 
   private

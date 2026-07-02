@@ -1,6 +1,10 @@
 class Captain::OpenAiMessageBuilderService
   pattr_initialize [:message!]
 
+  # Placeholder usado quando um áudio ainda não tem transcrição em cache — a transcrição
+  # roda em background (ver #extract_audio_transcriptions), nunca síncrona neste caminho.
+  AUDIO_PLACEHOLDER = '[áudio]'.freeze
+
   # Extracts text and image URLs from multimodal content array (reverse of generate_content)
   def self.extract_text_and_attachments(content)
     return [content, []] unless content.is_a?(Array)
@@ -94,9 +98,22 @@ class Captain::OpenAiMessageBuilderService
     audio_attachments = attachments.where(file_type: :audio)
     return '' if audio_attachments.blank?
 
-    audio_attachments.map do |attachment|
-      result = Messages::AudioTranscriptionService.new(attachment).perform
-      result[:success] ? result[:transcriptions] : ''
-    end.join
+    audio_attachments.map { |attachment| transcription_or_placeholder(attachment) }.join
+  end
+
+  # NÃO transcreve áudio síncrono aqui. Este builder monta o histórico de TODAS as
+  # mensagens da conversa a cada turno; transcrever inline via OpenAI fazia um cliente
+  # que volta com dezenas de áudios antigos disparar dezenas de chamadas Whisper —
+  # um 429/timeout no meio abortava a resposta inteira (IA muda) e ainda pressionava o
+  # rate limit. Agora: usa o cache (`meta['transcribed_text']`) quando existe; senão,
+  # enfileira a transcrição em background (preenche o cache pro próximo turno) e usa um
+  # placeholder neste turno. O áudio da mensagem atual raramente cai aqui — o job async
+  # disparado no upload (after_create_commit) já costuma ter preenchido o cache.
+  def transcription_or_placeholder(attachment)
+    cached = attachment.meta&.[]('transcribed_text').to_s
+    return cached if cached.present?
+
+    Messages::AudioTranscriptionJob.perform_later(attachment.id)
+    AUDIO_PLACEHOLDER
   end
 end
