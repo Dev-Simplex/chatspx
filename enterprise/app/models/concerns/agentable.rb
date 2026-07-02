@@ -92,7 +92,14 @@ module Concerns::Agentable
     Captain::PromptRenderer.render(template_name, enhanced_context.with_indifferent_access)
   end
 
+  # Opt-in por CONTA (multi-tenant): liga a Fase 2 do caching so nas contas que
+  # setarem custom_attributes['prompt_cache_system']=true. Fallback global via ENV
+  # SPX_PROMPT_CACHE_SYSTEM pra teste. Default (nenhum dos dois) = OFF.
   def prompt_cache_system_enabled?
+    asst = is_a?(Captain::Assistant) ? self : assistant
+    per_account = asst&.account&.custom_attributes&.dig('prompt_cache_system')
+    return ActiveModel::Type::Boolean.new.cast(per_account) unless per_account.nil?
+
     ActiveModel::Type::Boolean.new.cast(ENV.fetch('SPX_PROMPT_CACHE_SYSTEM', nil))
   end
 
