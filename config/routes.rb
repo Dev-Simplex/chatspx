@@ -571,6 +571,7 @@ Rails.application.routes.draw do
           resources :summary_reports, only: [] do
             collection do
               get :agent
+              get :agent_assignment
               get :team
               get :inbox
               get :label

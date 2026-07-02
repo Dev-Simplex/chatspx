@@ -1,9 +1,15 @@
 class Api::V2::Accounts::SummaryReportsController < Api::V1::Accounts::BaseController
   before_action :check_authorization
-  before_action :prepare_builder_params, only: [:agent, :team, :inbox, :label, :channel]
+  before_action :prepare_builder_params, only: [:agent, :agent_assignment, :team, :inbox, :label, :channel]
 
   def agent
     render_report_with(V2::Reports::AgentSummaryBuilder)
+  end
+
+  # Relatório de Atribuições por Agente (quem atribuiu pra quem). Renderiza o builder direto
+  # (contagens, não métricas de tempo) — não passa pelo enriquecimento de signals do #agent.
+  def agent_assignment
+    render json: V2::Reports::AgentAssignmentBuilder.new(account: Current.account, params: @builder_params).build
   end
 
   def team
