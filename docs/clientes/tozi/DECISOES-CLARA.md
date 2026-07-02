@@ -43,6 +43,7 @@
 | 2.4 🔴 | Cadência da abertura | Whitelist → geral | **Piloto interno (Paulo+dev+Ederson) → 5–10 leads reais → geral**; cada etapa só avança com AssistantLog limpo |
 | 2.5 🔴 | Auto-resolve do Captain | `captain_auto_resolve_mode='disabled'` desde o incidente | **Manter disabled no go-live**; revisitar depois com mensagem PT + gates |
 | 2.6 ⚪ | Política do router_skip | Conversa pulada pela whitelist fica aberta esperando humano (pending está OFF na inbox 91 — limbo não recorre) | Aceitar durante o piloto curto; morre quando abrir geral. **Nunca ligar "status pendente" da inbox 91** |
+| 2.7 ✅ | Higiene das abertas só-HSM — **EXECUTADA 11/06 ~19h UTC** | **Critério ESTRITO do Paulo: a conversa contém APENAS template(s) outgoing — zero resposta do lead, zero texto humano, atribuída.** Universo medido: 4.606 (nenhum corretor tinha escrito nada — template no vácuo) | **Resolvidas 4.013 / 0 falhas / 369s** (paradas 3d+; lotes de 50 + pacing; teams setados nas sem-team via MAP corretor→time de disparo; Gelson/Adrian via skip flag). Dry-run prévio validou: CSAT/NPS OFF (nenhuma pesquisa disparada), 0 webhooks, resolve+rollback de teste OK. **Pós: inbox 91 caiu de 6.508 → 2.487 abertas**; residual do critério = 593 (todas <3d, ficam com os corretores); 0 retries no Sidekiq. Cards dos funis moveram pra "Resolvidos" via callback. Reply futuro → reabre zerada (#53) → triagem por intenção (3.5). Script: `Temp/executa_27.rb` · log: `/tmp/resolve27.log` na VM. Nota: atividade interna saiu com texto "resolvida pelo sistema por inatividade" (template default — cosmético) |
 
 ## Grupo 3 — Orquestração & triagem
 
@@ -52,6 +53,7 @@
 | 3.2 🔴 | Destino da regra #53 ("iniciar zerado") | Zera assignee+team em TODO `conversation_opened` — desfaz atribuição do disparo, manual e da IA; mutuamente exclusiva com a triagem orquestrada | **Substituir e matar** na F1.4 (regra nova: devolver pra triagem SÓ órfãs reais); conviver até lá |
 | 3.3 🔴 | Taxonomia `nicho:*`: label de conversa ou de contato? | Tool de label existente valida contra labels da conta; label de contato exigiria tool nova | **Conversa agora** (rápido); contato (perfil duradouro) na Onda 3 via custom_attributes |
 | 3.4 ⚪ | Guardrails das agent tools | Tools rodam sem checagem de permissão | Validação na própria tool (inbox/time permitidos) — padrão pra toda tool nova |
+| 3.5 ✅ | **DECIDIDA (Paulo, 11/06): a IA determina o TIME pela INTENÇÃO** | Na reabertura, a #53 zera dono/time e a Clara assume (router passando); ela classifica a intenção e atribui o time correspondente | Implementação sem código (D+1/D+2 do go-live): labels `intencao:locacao\|venda\|financeiro\|manutencao\|desocupacao\|juridico` no catálogo + instrução nos cenários pra etiquetar (tool `add_label_to_conversation`) + 1 automation rule por intenção (condição label + **team vazio** → `assign_team`; times funcionais já existem; card move pro funil do time sozinho). A #53 não interfere (só roda na reabertura, antes da classificação). Evolução F1: tool nativa `atribuir(team)` + HandoffTool com team_id → aí a 3.2 mata a #53 |
 
 ## Grupo 4 — SLA & notificações (a falha das 432)
 

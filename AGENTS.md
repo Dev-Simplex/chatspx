@@ -19,6 +19,19 @@ Voce tem um cerebro persistente com TUDO sobre este projeto.
 - Homologacao: https://hmlchat.simplexsolucoes.com.br (192.168.8.232)
 - SaaS: https://chatspx.app (Proxmox)
 
+## Ambientes por cliente (⚠️ leia ANTES de deployar)
+
+O SPX serve **varios clientes** (contas/tenants) na mesma base. "Homologacao"/"producao" sao
+**por cliente** — cada um tem sua VM. **A palavra "homologacao" sozinha e ambigua**: diga sempre
+de qual cliente. Mapa canonico + helpers de deploy por cliente: **`scripts/ops/AMBIENTES.md`**.
+
+- **Tozi** — HML: `192.168.8.232` (conta 3) → `scripts/ops/tozi-hml.sh` · 🔴 PROD: `3.82.215.109` (conta 6) → `scripts/ops/tozi-prod.sh`
+- **Fabrica/Atacadao** — box unico `3.87.182.184` (fabrica.chatspx.app, contas 1/2) → `scripts/ops/fabrica.sh`
+
+Cada helper imprime um banner CLIENTE · AMBIENTE · HOST — confira antes de rodar. Codigo por
+cliente = namespace `Spx::Tozi::*` / `Spx::FabricaOculos::*` + config no banco da conta. Docs por
+cliente em `docs/clientes/<cliente>/`; scripts operacionais em `scripts/spx/<cliente>/`.
+
 ## Stack Tecnica
 
 | Camada | Tecnologia | Versao |

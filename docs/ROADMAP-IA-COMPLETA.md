@@ -1,7 +1,7 @@
 # Roadmap — IA completa no SPX ("faz o que um humano faria")
 
 > **Data:** 2026-06-10 · **Visão do Paulo:** uma IA que atende como um humano completo — entende qualquer coisa que o cliente mande, age dentro da ferramenta, lembra, antecipa e melhora sozinha. Construída por partes.
-> **Base:** `docs/MAPEAMENTO-SPX-ORQUESTRACAO-IA-2026-06-10.md` (o que existe) + `docs/PLANO-GOLIVE-IA-2026-06-11.md` (Onda 0).
+> **Base:** `docs/MAPEAMENTO-SPX-ORQUESTRACAO-IA-2026-06-10.md` (o que existe) + `docs/clientes/tozi/PLANO-GOLIVE-IA-2026-06-11.md` (Onda 0).
 > Cada item marca a **alavanca** (o que o fork já tem pronto pra apoiar) e o **esforço** (P = horas, M = dias, G = semana+).
 
 ```

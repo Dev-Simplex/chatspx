@@ -1,7 +1,7 @@
 # Mapeamento — Estado operacional e dívidas documentadas (área: docs-operacao)
 
 > Data: 2026-06-10 · Branch local: `paulao` · Análise documental + verificação pontual em código (read-only).
-> Fontes lidas integralmente: `.claude/STATE.md`, `docs/RECONCILIACAO-BRANCHES-2026-06-08.md`, `docs/RELATORIO-DISPAROS-TOZI-2026-06-08.md`, `docs/TEMPLATES-DISPARO-TOZI.md`, `docs/AUDITORIA-SPX-2026-06-04.md`, `docs/HANDOFF-2026-05-29.md`, `docs/backlog/reconciliador-incoming-9-digito.md`, `ONBOARDING.md`.
+> Fontes lidas integralmente: `.claude/STATE.md`, `docs/RECONCILIACAO-BRANCHES-2026-06-08.md`, `docs/clientes/tozi/RELATORIO-DISPAROS-TOZI-2026-06-08.md`, `docs/clientes/tozi/TEMPLATES-DISPARO-TOZI.md`, `docs/AUDITORIA-SPX-2026-06-04.md`, `docs/clientes/tozi/HANDOFF-2026-05-29.md`, `docs/backlog/reconciliador-incoming-9-digito.md`, `ONBOARDING.md`.
 > Código verificado para ancorar referências: `app/jobs/spx/tozi/disparo_lead_job.rb` (178 linhas), `app/jobs/spx/tozi/followup_hsm_job.rb` (40 linhas), `db/migrate/20260330120000_add_foreign_key_constraints.rb` (99 linhas), `app/services/whatsapp/phone_number_normalization_service.rb` (70 linhas), `scripts/spx/tozi/` (18+ scripts), `app/services/spx/tozi/`, `app/listeners/spx/tozi/`, `enterprise/lib/captain/tools/`.
 
 ---
@@ -57,11 +57,11 @@
 ### 🟠 P1 — Gap Meta Lead Ads → Cloud API (lead de formulário "morre")
 **Fontes:** `.claude/STATE.md` [2026-05-29] §"Falta"; `docs/AUDITORIA-SPX-2026-06-04.md` §3.4 item 7.
 
-- `create_initial_message` (`app/services/meta/lead_ads/create_conversation_service.rb:129`) manda **texto livre**. Na inbox 91 (Cloud API), a 1ª mensagem a um lead de formulário (sem sessão aberta) é **bloqueada pela Meta** — fora da janela de 24h só HSM passa. **Construir: 1ª-mensagem-como-HSM** (`tozi_lead_abertura`, id 2078242513112579, já APPROVED — `docs/TEMPLATES-DISPARO-TOZI.md` §Lead) via `template_params` quando `inbox.whatsapp?`. Sem isso, ativar o hook = leads entram no funil mas não recebem abertura.
+- `create_initial_message` (`app/services/meta/lead_ads/create_conversation_service.rb:129`) manda **texto livre**. Na inbox 91 (Cloud API), a 1ª mensagem a um lead de formulário (sem sessão aberta) é **bloqueada pela Meta** — fora da janela de 24h só HSM passa. **Construir: 1ª-mensagem-como-HSM** (`tozi_lead_abertura`, id 2078242513112579, já APPROVED — `docs/clientes/tozi/TEMPLATES-DISPARO-TOZI.md` §Lead) via `template_params` quando `inbox.whatsapp?`. Sem isso, ativar o hook = leads entram no funil mas não recebem abertura.
 - Meta-side (Paulo): trocar o callback do app Meta pra `https://tozi.chatspx.app/webhooks/meta_lead_ads` (hoje aponta pra PAULAO).
 
 ### 🟠 P2 — Cadência Bloco 3+4 — implementada, falta TUNING
-**Fontes:** `.claude/STATE.md` [2026-05-29] "Bloco 3+4 DEPLOYADO"; `docs/HANDOFF-2026-05-29.md` §5.4 (escrito ANTES da implementação — superado pela entrada do STATE do mesmo dia).
+**Fontes:** `.claude/STATE.md` [2026-05-29] "Bloco 3+4 DEPLOYADO"; `docs/clientes/tozi/HANDOFF-2026-05-29.md` §5.4 (escrito ANTES da implementação — superado pela entrada do STATE do mesmo dia).
 
 - **Já em prod (29/05):** Bloco 3 = `Spx::Tozi::FunnelAutomationListener` (Wisper/AsyncDispatcher, rescue-wrapped) + `FunnelPlacementService.move` — transições incoming→em_conversa (+cancela cadência), handoff→qualificado, programar_followup→em_silencio, followup MAX→frio, salvar_info_lead→qualificado/frio. Hooks em `enterprise/lib/captain/tools/{programar_followup,salvar_info_lead}_tool.rb` + `followup_job.rb`. Bloco 4 = `ScheduledMessages` com `template_params` (jsonb) + `Spx::Tozi::ReactivationCadenceService` (HSM 1d/3d/7d, só Cloud API, idempotente, cancel-on-reply). Regra: **dentro da janela 24h = follow-up do agente; fora = HSM determinístico; o estágio do funil arbitra.**
 - **Pendências (STATE 29/05 §Falta):** tuning de produto — "cadência até 4 cutucadas in-window + 3 HSM; `agendado`/`aguardando_1a` sem trigger automático"; reconciliar corpos exatos dos templates v2 com o WABA; teste E2E em prod (dependia do hook Meta ou teste manual). Funil "Pré-Venda Tozi" id=41 (stages 127-133) criado em prod; backfill = 0 leads (hook Meta nunca rodou em prod).
@@ -80,8 +80,8 @@
 
 ### 🟡 P2/P3 — Pendências operacionais menores
 - **Follow-up 2ª leva inquilinos:** pool restante pós-09/06 ≈ Venda 2.206 + Inquilinos 1.015 (follow-up) e Inquilinos 2.470 (disparo novo); o de locação (670) já saiu em 09/06. Disparo com template de imagem **travado** pela imagem 404 + `FollowupHsmJob` só suporta texto hoje (`followup_hsm_job.rb:23-33` — sem branch de header). Paulo mandou "segurar". Alternativa zero-deploy: texto `tozi_followup_lanc` (STATE 06-08).
-- **A/B qualificado sem medição:** taxa de resposta QUALIFICADA (cliques "Quero saber" + interesse real) dos templates `tozi_venda_oportunidade` vs `tozi_venda_lembrei` nunca foi cruzada — "esse é o payoff do teste" (STATE 06-04; `docs/RELATORIO-DISPAROS-TOZI-2026-06-08.md` §A/B: "Não medida aqui — pendente cruzar os cliques de botão").
-- **Conflito de templates v1 (rake) vs v2 (WABA):** `rake spx:tozi:create_templates` ainda tem conteúdo v1 rejeitado; se alguém rodar, cria 2 nomes novos + 2 colidindo (`docs/HANDOFF-2026-05-29.md` §5.1). A rake foi feita idempotente (list-then-skip) com nomes v2 em 29/05 (STATE), mas o STATE de 29/05 ainda lista "reconciliar corpos exatos dos templates v2 com o WABA" como pendente.
+- **A/B qualificado sem medição:** taxa de resposta QUALIFICADA (cliques "Quero saber" + interesse real) dos templates `tozi_venda_oportunidade` vs `tozi_venda_lembrei` nunca foi cruzada — "esse é o payoff do teste" (STATE 06-04; `docs/clientes/tozi/RELATORIO-DISPAROS-TOZI-2026-06-08.md` §A/B: "Não medida aqui — pendente cruzar os cliques de botão").
+- **Conflito de templates v1 (rake) vs v2 (WABA):** `rake spx:tozi:create_templates` ainda tem conteúdo v1 rejeitado; se alguém rodar, cria 2 nomes novos + 2 colidindo (`docs/clientes/tozi/HANDOFF-2026-05-29.md` §5.1). A rake foi feita idempotente (list-then-skip) com nomes v2 em 29/05 (STATE), mas o STATE de 29/05 ainda lista "reconciliar corpos exatos dos templates v2 com o WABA" como pendente.
 - **`tozi_followup_horario_combinado` reclassificado UTILITY→MARKETING** pela Meta — decisão de produto pendente (HANDOFF §5.2).
 - **Deploy PAULAO (dev):** git sem credencial no user `chatwoot` + precompile manual não-automatizado (HANDOFF §5.3).
 - **Limpeza PAULAO:** apagar 1 Playbook duplicado + doc FAQ na UI (STATE 06-01 Knowledge).
@@ -92,7 +92,7 @@
 
 ## 2. Histórico dos disparos — números pra dimensionar a orquestração
 
-**Fonte primária:** `docs/RELATORIO-DISPAROS-TOZI-2026-06-08.md` (extraído da base de prod em 08/06, por mensagem HSM). Período: **02–08/jun/2026**, inbox 91.
+**Fonte primária:** `docs/clientes/tozi/RELATORIO-DISPAROS-TOZI-2026-06-08.md` (extraído da base de prod em 08/06, por mensagem HSM). Período: **02–08/jun/2026**, inbox 91.
 
 | Métrica | Valor |
 |---|---|
@@ -106,7 +106,7 @@
 
 **Por segmento:** Lançamento/Locação (camp. 1) 1.612 · Venda (camp. 2) 3.426 · Inquilinos (header imagem) 1.178 (17% falha — lista com nº morto) · Follow-up (re-bate) 1.027 (**3,3% falha — a menor, porque mandou na conversa que já existia**) · Lead orgânico/cadência 6.
 
-**23 templates, todos APPROVED/MARKETING/pt_BR** (inventário completo com IDs, corpos e botões em `docs/TEMPLATES-DISPARO-TOZI.md`): 6 lançamento/locação, 9 venda, 3 inquilinos (2 com header IMAGE em `https://tozi.chatspx.app/inq-mapa.jpeg` — **hoje 404**), 2 follow-up, 3 lead/cadência (`tozi_lead_abertura/followup/reativacao`).
+**23 templates, todos APPROVED/MARKETING/pt_BR** (inventário completo com IDs, corpos e botões em `docs/clientes/tozi/TEMPLATES-DISPARO-TOZI.md`): 6 lançamento/locação, 9 venda, 3 inquilinos (2 com header IMAGE em `https://tozi.chatspx.app/inq-mapa.jpeg` — **hoje 404**), 2 follow-up, 3 lead/cadência (`tozi_lead_abertura/followup/reativacao`).
 
 **Aprendizados operacionais documentados:**
 - **Falhas dominantes:** `131026` (sem WhatsApp) e `130472`/`131049` (pacing Meta em número degradado). Venda concentrou 57% das falhas (base mais fria) (RELATORIO §Análise de falhas).
