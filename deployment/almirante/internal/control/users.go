@@ -16,10 +16,11 @@ import (
 // (auth de maquina p/ o MCP). Convite por email -> set-password -> ativo.
 type AppUser struct {
 	ID        string `json:"id"`
-	Email     string `json:"email"`
-	Name      string `json:"name"`
-	Role      string `json:"role"`
-	PassHash  string `json:"pass_hash,omitempty"`
+	Email     string   `json:"email"`
+	Name      string   `json:"name"`
+	Role      string   `json:"role"`
+	VMs       []string `json:"vms,omitempty"` // VMs que o user pode gerenciar IA; vazio = por role (admin=todas)
+	PassHash  string   `json:"pass_hash,omitempty"`
 	Status    string `json:"status"` // invited | active
 	SetToken  string `json:"set_token,omitempty"`
 	SetExp    string `json:"set_exp,omitempty"`
@@ -164,4 +165,29 @@ func (us *UserStore) Delete(id string) bool {
 		}
 	}
 	return false
+}
+
+// SetVMs define quais VMs o usuario (por id) pode gerenciar IA (vazio = por role).
+func (us *UserStore) SetVMs(id string, vms []string) bool {
+	us.mu.Lock()
+	defer us.mu.Unlock()
+	for _, u := range us.byEmail {
+		if u.ID == id {
+			u.VMs = vms
+			us.save()
+			return true
+		}
+	}
+	return false
+}
+
+// VMsOf devolve as VMs permitidas de um usuario humano (por email); ok=false se nao existe.
+func (us *UserStore) VMsOf(email string) ([]string, bool) {
+	us.mu.Lock()
+	defer us.mu.Unlock()
+	u := us.byEmail[norm(email)]
+	if u == nil {
+		return nil, false
+	}
+	return append([]string(nil), u.VMs...), true
 }

@@ -116,7 +116,7 @@ func (s *Server) aiPrompt(w http.ResponseWriter, r *http.Request, u user) {
 		return
 	}
 	ops := []map[string]interface{}{aiconfig.OpUpdateInstructions(b.AssistantID, b.Instructions)}
-	code, res := s.applyAIWrite(r.Context(), u.name, b.VM, "update_instructions", "prompt", b.TargetEnv, b.AssistantID, ops)
+	code, res := s.applyAIWrite(r.Context(), u, b.VM, "update_instructions", "prompt", b.TargetEnv, b.AssistantID, ops)
 	writeJSON(w, code, res)
 }
 
@@ -133,7 +133,7 @@ func (s *Server) aiTool(w http.ResponseWriter, r *http.Request, u user) {
 		return
 	}
 	op, opType := aiconfig.OpToolArming(b.AssistantID, b.ToolID, b.Armed)
-	code, res := s.applyAIWrite(r.Context(), u.name, b.VM, opType, "tool", "prod", b.AssistantID, []map[string]interface{}{op})
+	code, res := s.applyAIWrite(r.Context(), u, b.VM, opType, "tool", "prod", b.AssistantID, []map[string]interface{}{op})
 	writeJSON(w, code, res)
 }
 
@@ -154,7 +154,7 @@ func (s *Server) aiCredential(w http.ResponseWriter, r *http.Request, u user) {
 		enabled = *b.Enabled
 	}
 	ops := []map[string]interface{}{aiconfig.OpSetCredential(b.Provider, b.Settings, enabled)}
-	code, res := s.applyAIWrite(r.Context(), u.name, b.VM, "set_credential", "credential", "prod", 0, ops)
+	code, res := s.applyAIWrite(r.Context(), u, b.VM, "set_credential", "credential", "prod", 0, ops)
 	writeJSON(w, code, res)
 }
 
@@ -170,7 +170,7 @@ func (s *Server) aiBehavior(w http.ResponseWriter, r *http.Request, u user) {
 		return
 	}
 	ops := []map[string]interface{}{aiconfig.OpUpdateBehavior(b.AssistantID, b.Behavior)}
-	code, res := s.applyAIWrite(r.Context(), u.name, b.VM, "update_behavior", "prompt", "prod", b.AssistantID, ops)
+	code, res := s.applyAIWrite(r.Context(), u, b.VM, "update_behavior", "prompt", "prod", b.AssistantID, ops)
 	writeJSON(w, code, res)
 }
 
@@ -187,7 +187,7 @@ func (s *Server) aiFaq(w http.ResponseWriter, r *http.Request, u user) {
 		return
 	}
 	ops := []map[string]interface{}{aiconfig.OpAddFAQ(b.AssistantID, b.Question, b.Answer)}
-	code, res := s.applyAIWrite(r.Context(), u.name, b.VM, "add_faq", "prompt", "prod", b.AssistantID, ops)
+	code, res := s.applyAIWrite(r.Context(), u, b.VM, "add_faq", "prompt", "prod", b.AssistantID, ops)
 	writeJSON(w, code, res)
 }
 
@@ -203,7 +203,7 @@ func (s *Server) aiEligibility(w http.ResponseWriter, r *http.Request, u user) {
 		return
 	}
 	ops := []map[string]interface{}{aiconfig.OpSetEligibility(b.AssistantID, b.InboxIDs)}
-	code, res := s.applyAIWrite(r.Context(), u.name, b.VM, "set_eligibility", "eligibility", "prod", b.AssistantID, ops)
+	code, res := s.applyAIWrite(r.Context(), u, b.VM, "set_eligibility", "eligibility", "prod", b.AssistantID, ops)
 	writeJSON(w, code, res)
 }
 
@@ -222,6 +222,11 @@ func (s *Server) aiRollback(w http.ResponseWriter, r *http.Request, u user) {
 		writeErr(w, 400, "vm e change_set_id obrigatorios")
 		return
 	}
+	if !s.canEditVM(u, b.VM) {
+		s.audit.Append("ai_denied_vm_access", u.name, b.VM, map[string]any{"op": "rollback"})
+		writeErr(w, 403, "você não tem permissão para editar a IA da VM "+b.VM)
+		return
+	}
 	resp, err := s.aidriver.Revert(r.Context(), b.VM, b.ChangeSetID)
 	if err != nil {
 		s.audit.Append("ai_rollback_failed", u.name, b.VM, map[string]any{"change_set_id": b.ChangeSetID, "error": err.Error()})
@@ -238,9 +243,35 @@ func (s *Server) aiRollback(w http.ResponseWriter, r *http.Request, u user) {
 	writeJSON(w, 200, map[string]any{"change_set_id": b.ChangeSetID, "status": "reverted", "receptor": resp})
 }
 
+// canEditVM: o usuario pode editar a IA desta VM?
+//   - humano COM lista de VMs => só as da lista (curinga "*" = todas);
+//   - humano SEM lista => admin edita todas, operator nenhuma (precisa de grant);
+//   - token/MCP (nao-humano) => todas (maquina confiavel).
+func (s *Server) canEditVM(u user, vm string) bool {
+	vms, human := s.users.VMsOf(u.name)
+	if !human {
+		return true
+	}
+	if len(vms) > 0 {
+		for _, v := range vms {
+			if v == vm || v == "*" {
+				return true
+			}
+		}
+		return false
+	}
+	return u.role >= RoleAdmin
+}
+
 // ---- ciclo canonico de escrita (§1): op -> test-gate -> apply -> audit ----
 
-func (s *Server) applyAIWrite(ctx context.Context, actor, vm, opType, gateKind, targetEnv string, assistantID int, ops []map[string]interface{}) (int, map[string]any) {
+func (s *Server) applyAIWrite(ctx context.Context, u user, vm, opType, gateKind, targetEnv string, assistantID int, ops []map[string]interface{}) (int, map[string]any) {
+	actor := u.name
+	// vm_access: o usuario tem permissao de editar IA nesta VM?
+	if !s.canEditVM(u, vm) {
+		s.audit.Append("ai_denied_vm_access", actor, vm, map[string]any{"op": opType, "assistant_id": assistantID})
+		return 403, map[string]any{"status": "forbidden", "error": "você não tem permissão para editar a IA da VM " + vm}
+	}
 	if s.aidriver == nil || !s.aidriver.Available() {
 		return 503, map[string]any{"error": "governanca de IA nao configurada"}
 	}

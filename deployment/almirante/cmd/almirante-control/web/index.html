@@ -168,7 +168,10 @@
         const doSetPw = async () => { sp.err=''; if(sp.pass.length<8){sp.err='Mínimo 8 caracteres';return;} if(sp.pass!==sp.pass2){sp.err='As senhas não conferem';return;} sp.busy=true; try{ me.value = await api('/set-password',{method:'POST',body:JSON.stringify({token:setpwToken.value,password:sp.pass})}); setpwToken.value=''; history.replaceState({},'',location.pathname); refresh(); }catch(e){ sp.err=e.message; } sp.busy=false; };
         const logout = async () => { try{ await api('/logout',{method:'POST'}); }catch(e){} me.value=null; token.value=''; localStorage.removeItem('alm_token'); };
         const tokenLogin = () => { const t=prompt('Cole seu token (MCP / emergência):'); if(!t) return; token.value=t.trim(); localStorage.setItem('alm_token',token.value); checkMe(); };
-        const loadUsers = async () => { try{ usersList.value = (await api('/users'))||[]; }catch(e){ msg.value=e.message; } };
+        const loadUsers = async () => { try{ usersList.value = (await api('/users'))||[]; if(!ai.vms.length) aiLoadVms(); }catch(e){ msg.value=e.message; } };
+        const uedit = reactive({ id:'', vms:[] });
+        const startEditVMs = (u) => { if(uedit.id===u.id){ uedit.id=''; return; } uedit.id=u.id; uedit.vms=[...(u.vms||[])]; };
+        const saveUserVMs = async () => { try{ await api('/users/'+uedit.id+'/vms',{method:'PUT',body:JSON.stringify({vms:uedit.vms})}); uedit.id=''; loadUsers(); }catch(e){ msg.value=e.message; } };
         const addUser = async () => { const email=prompt('Email do novo usuário:'); if(!email) return; const name=prompt('Nome:')||''; const role=prompt('Papel (viewer / operator / admin):','operator')||'operator'; try{ const r=await api('/users',{method:'POST',body:JSON.stringify({email,name,role})}); if(r.email_error){ window.prompt('Usuário criado, mas o email falhou. Envie este link manualmente:', r.link); } else { msg.value='✓ Convite enviado para '+email; } loadUsers(); }catch(e){ msg.value='⚠️ '+e.message; } };
         const delUser = async (id) => { if(!confirm('Remover usuário '+id+'?')) return; try{ await api('/users/'+id,{method:'DELETE'}); loadUsers(); }catch(e){ msg.value=e.message; } };
         // lazy-fetch das métricas ao passar o mouse (card expande estilo Apple)
@@ -239,7 +242,10 @@ O almirante comanda a frota ChatSPX — deploy E governança de IA (prompt/tools
         const aiLoadVms = async () => { try{ ai.vms = ((await api('/ai/agents')).vms)||[]; if(!ai.vm && ai.vms[0]) ai.vm = ai.vms[0].id; aiLoadAssistants(); }catch(e){ msg.value=e.message; } };
         const aiLoadAssistants = async () => { ai.assistants=[]; if(!ai.vm) return; try{ ai.assistants = ((await api('/ai/assistants?vm='+ai.vm)).assistants)||[]; if(ai.assistants.length && !ai.assistants.find(a=>String(a.id)===String(ai.aid))) ai.aid = ai.assistants[0].id; }catch(e){} };
         const aiPromptText = (b)=> (b && (b.instructions || (b.config && b.config.instructions) || b.prompt)) || '';
-        const aiTools = computed(()=> { const b=ai.base||{}; return b.tools || (b.config&&b.config.tools) || []; });
+        const aiTools = computed(()=> { const b=ai.base||{}; const avail = b.available_tool_ids || (b.config&&b.config.tools) || []; const armedSet = new Set(b.armed_tool_ids || (b.config&&b.config.tools) || []); return avail.map(id=>({ id, name:String(id).replace(/_/g,' '), armed:armedSet.has(id) })); });
+        const aiFaqs = computed(()=> { const b=ai.base||{}; return b.faqs || (b.config&&b.config.faqs) || []; });
+        // vm_access: o usuario logado pode editar a IA da VM selecionada? (espelha o backend canEditVM)
+        const aiCanEdit = computed(()=> { const m=me.value; if(!m||!ai.vm) return false; const vms=m.vms||[]; if(vms.length) return vms.includes(ai.vm); return m.role==='admin'; });
         const aiLoadAgent = async () => {
           if(!ai.vm || !ai.aid){ msg.value='escolha a VM e o ID do agente'; return; }
           ai.busy=true; ai.res=null; ai.base=null;
@@ -277,8 +283,8 @@ O almirante comanda a frota ChatSPX — deploy E governança de IA (prompt/tools
 
         onMounted(()=>{ if(!setpwToken.value) checkMe(); });
         return { token, saveToken, view, go, fleet, status, metrics, deploys, tokens, msg, refresh, pending, recent, byEnv, onlineCount, act, loadTokens, newToken, revokeToken, envStyle, relTime, titleOf, loadMetrics, restartVM, mstate, retryMetrics, addCmd, claudePrompt, copied, copy, gen, genConnectToken, rel, relToggle, relGroup, relClear, relDry, relGo,
-                 me, setpwToken, li, sp, usersList, doLogin, doSetPw, logout, tokenLogin, loadUsers, addUser, delUser, theme, toggleTheme,
-                 ai, aiLoadVms, aiLoadAssistants, aiLoadAgent, aiTools, aiSavePrompt, aiSetTool, aiAddFaq, aiSetCred, aiRollback,
+                 me, setpwToken, li, sp, usersList, doLogin, doSetPw, logout, tokenLogin, loadUsers, addUser, delUser, uedit, startEditVMs, saveUserVMs, theme, toggleTheme,
+                 ai, aiLoadVms, aiLoadAssistants, aiLoadAgent, aiTools, aiFaqs, aiCanEdit, aiSavePrompt, aiSetTool, aiAddFaq, aiSetCred, aiRollback,
                  gh, ghLoad, ghRefresh, ghOpen, ghNewIssue, ghNewPR, ghComment, ghMerge };
       },
       template: `
@@ -413,28 +419,40 @@ O almirante comanda a frota ChatSPX — deploy E governança de IA (prompt/tools
                   <div class="flex items-center justify-between mb-2"><label class="text-[11px] uppercase tracking-wider tx3 font-bold">Instruções do agente</label><span class="tx3 text-xs font-mono">{{ ai.prompt.length }} chars</span></div>
                   <textarea v-model="ai.prompt" rows="16" class="field w-full px-4 py-3 text-sm leading-relaxed font-mono" placeholder="prompt do agente…"></textarea>
                   <div class="flex justify-end mt-3">
-                    <button v-if="me.role==='admin'" @click="aiSavePrompt" :disabled="ai.busy" class="press btn-brand font-bold rounded-xl px-5 py-2.5 text-sm flex items-center gap-2 disabled:opacity-60"><ic n="check-circle" cls="w-4 h-4"/>Testar e aplicar</button>
-                    <span v-else class="tx3 text-xs self-center">só admin edita</span>
+                    <button v-if="aiCanEdit" @click="aiSavePrompt" :disabled="ai.busy" class="press btn-brand font-bold rounded-xl px-5 py-2.5 text-sm flex items-center gap-2 disabled:opacity-60"><ic n="check-circle" cls="w-4 h-4"/>Testar e aplicar</button>
+                    <span v-else class="tx3 text-xs self-center">sem permissão nesta VM</span>
                   </div>
                 </div>
                 <!-- TOOLS -->
                 <div v-else-if="ai.tab==='tools'">
-                  <div v-if="!aiTools.length" class="tx3 text-sm py-6 text-center">Nenhuma tool listada no baseline deste agente.</div>
-                  <div v-for="(t,i) in aiTools" :key="i" class="flex items-center justify-between soft rounded-xl px-4 py-3 mb-2">
-                    <div class="flex items-center gap-3 min-w-0"><ic n="wrench" cls="w-4 h-4 text-brand shrink-0"/><div class="min-w-0"><div class="font-semibold text-sm tx1 truncate">{{ t.title||t.id||t.name||('tool '+i) }}</div><div class="tx3 text-xs truncate">{{ t.id||t.slug||'' }}</div></div></div>
-                    <div v-if="me.role==='admin'" class="flex gap-1.5 shrink-0">
-                      <button @click="aiSetTool(t.id||t.slug||t.name, true)" class="press text-[11px] font-bold rounded-lg px-3 py-1.5" style="background:rgb(16 185 129/.12);color:#10B981">armar</button>
-                      <button @click="aiSetTool(t.id||t.slug||t.name, false)" class="press text-[11px] font-bold rounded-lg px-3 py-1.5" style="background:rgb(239 68 68/.1);color:#EF4444">desarmar</button>
+                  <div class="flex items-center justify-between mb-3"><label class="text-[11px] uppercase tracking-wider tx3 font-bold">Ferramentas do agente</label><span class="tx3 text-xs font-mono">{{ aiTools.filter(t=>t.armed).length }} armadas · {{ aiTools.length }} disponíveis</span></div>
+                  <div v-if="!aiTools.length" class="tx3 text-sm py-6 text-center">Nenhuma tool no baseline deste agente.</div>
+                  <div v-for="t in aiTools" :key="t.id" class="flex items-center justify-between soft rounded-xl px-4 py-2.5 mb-1.5" :style="t.armed?'border-left:3px solid #10B981':'border-left:3px solid transparent'">
+                    <div class="flex items-center gap-3 min-w-0"><ic n="wrench" :cls="'w-4 h-4 shrink-0 '+(t.armed?'text-ok':'tx3')"/><div class="min-w-0"><div class="font-semibold text-sm tx1 truncate capitalize">{{ t.name }}</div><div class="tx3 text-[11px] font-mono truncate">{{ t.id }}</div></div></div>
+                    <div class="flex items-center gap-2 shrink-0">
+                      <span class="text-[10px] font-bold px-2 py-0.5 rounded-full uppercase" :style="t.armed?'background:rgb(16 185 129/.12);color:#10B981':'background:rgb(148 163 184/.14);color:#94A3B8'">{{ t.armed?'armada':'off' }}</span>
+                      <button v-if="aiCanEdit" @click="aiSetTool(t.id, !t.armed)" :disabled="ai.busy" class="press text-[11px] font-bold rounded-lg px-3 py-1.5" :style="t.armed?'background:rgb(239 68 68/.1);color:#EF4444':'background:rgb(16 185 129/.12);color:#10B981'">{{ t.armed?'desarmar':'armar' }}</button>
                     </div>
                   </div>
                 </div>
                 <!-- FAQ -->
                 <div v-else-if="ai.tab==='faq'">
-                  <label class="text-[11px] uppercase tracking-wider tx3 font-bold">Pergunta</label>
-                  <input v-model="ai.faq.q" class="field w-full mt-1 mb-3 px-3 py-2.5 text-sm" placeholder="ex: Qual o horário de atendimento?" />
-                  <label class="text-[11px] uppercase tracking-wider tx3 font-bold">Resposta</label>
-                  <textarea v-model="ai.faq.a" rows="4" class="field w-full mt-1 px-3 py-2.5 text-sm" placeholder="resposta que o agente deve dar"></textarea>
-                  <div class="flex justify-end mt-3"><button v-if="me.role==='admin'" @click="aiAddFaq" :disabled="ai.busy" class="press btn-brand font-bold rounded-xl px-5 py-2.5 text-sm flex items-center gap-2 disabled:opacity-60"><ic n="plus" cls="w-4 h-4"/>Adicionar FAQ</button></div>
+                  <div class="flex items-center justify-between mb-2"><label class="text-[11px] uppercase tracking-wider tx3 font-bold">FAQs do agente</label><span class="tx3 text-xs font-mono">{{ aiFaqs.length }} cadastradas</span></div>
+                  <div v-if="aiFaqs.length" class="space-y-1.5 mb-4 max-h-72 overflow-auto pr-1">
+                    <details v-for="f in aiFaqs" :key="f.id||f.question" class="soft rounded-xl px-4 py-2.5">
+                      <summary class="font-semibold text-sm tx1 cursor-pointer">{{ f.question }}</summary>
+                      <div class="tx2 text-[13px] mt-2 whitespace-pre-wrap">{{ f.answer }}</div>
+                    </details>
+                  </div>
+                  <div v-else class="tx3 text-sm py-4 text-center">Nenhuma FAQ cadastrada ainda.</div>
+                  <div class="hair border-t pt-4">
+                    <div class="text-[11px] uppercase tracking-wider text-brand font-bold mb-2">Adicionar FAQ</div>
+                    <label class="text-[11px] uppercase tracking-wider tx3 font-bold">Pergunta</label>
+                    <input v-model="ai.faq.q" class="field w-full mt-1 mb-3 px-3 py-2.5 text-sm" placeholder="ex: Qual o horário de atendimento?" />
+                    <label class="text-[11px] uppercase tracking-wider tx3 font-bold">Resposta</label>
+                    <textarea v-model="ai.faq.a" rows="4" class="field w-full mt-1 px-3 py-2.5 text-sm" placeholder="resposta que o agente deve dar"></textarea>
+                    <div class="flex justify-end mt-3"><button v-if="aiCanEdit" @click="aiAddFaq" :disabled="ai.busy" class="press btn-brand font-bold rounded-xl px-5 py-2.5 text-sm flex items-center gap-2 disabled:opacity-60"><ic n="plus" cls="w-4 h-4"/>Adicionar FAQ</button></div>
+                  </div>
                 </div>
                 <!-- CREDENCIAL -->
                 <div v-else-if="ai.tab==='cred'">
@@ -444,7 +462,7 @@ O almirante comanda a frota ChatSPX — deploy E governança de IA (prompt/tools
                   <label class="text-[11px] uppercase tracking-wider tx3 font-bold">Settings (JSON)</label>
                   <textarea v-model="ai.cred.settings" rows="5" class="field w-full mt-1 px-3 py-2.5 text-sm font-mono" placeholder='{"api_key":"..."}'></textarea>
                   <label class="flex items-center gap-2 mt-3 text-sm tx2"><input type="checkbox" v-model="ai.cred.enabled" class="accent-brand"/>habilitada</label>
-                  <div class="flex justify-end mt-3"><button v-if="me.role==='admin'" @click="aiSetCred" :disabled="ai.busy" class="press btn-brand font-bold rounded-xl px-5 py-2.5 text-sm flex items-center gap-2 disabled:opacity-60"><ic n="key" cls="w-4 h-4"/>Testar e salvar</button></div>
+                  <div class="flex justify-end mt-3"><button v-if="aiCanEdit" @click="aiSetCred" :disabled="ai.busy" class="press btn-brand font-bold rounded-xl px-5 py-2.5 text-sm flex items-center gap-2 disabled:opacity-60"><ic n="key" cls="w-4 h-4"/>Testar e salvar</button></div>
                 </div>
                 <!-- HISTÓRICO -->
                 <div v-else-if="ai.tab==='hist'">
@@ -454,7 +472,7 @@ O almirante comanda a frota ChatSPX — deploy E governança de IA (prompt/tools
                       <div class="flex items-center gap-2 flex-wrap"><span class="font-semibold text-sm tx1">{{ c.op_type||c.op||'—' }}</span><span class="text-[10px] font-bold px-2 py-0.5 rounded-full uppercase" :style="c.status==='applied'?'background:rgb(16 185 129/.12);color:#10B981':(c.status==='reverted'?'background:rgb(148 163 184/.15);color:#94A3B8':'background:rgb(239 68 68/.1);color:#EF4444')">{{ c.status }}</span></div>
                       <div class="tx3 text-xs font-mono mt-0.5">{{ c.change_set_id }} · {{ relTime(c.applied_at||c.created_at) }}</div>
                     </div>
-                    <button v-if="me.role==='admin' && c.status==='applied'" @click="aiRollback(c.change_set_id)" class="press text-[11px] font-bold rounded-lg px-3 py-1.5 flex items-center gap-1 shrink-0" style="background:rgb(245 158 11/.12);color:#F59E0B"><ic n="arrow-counter" cls="w-3.5 h-3.5"/>reverter</button>
+                    <button v-if="aiCanEdit && c.status==='applied'" @click="aiRollback(c.change_set_id)" class="press text-[11px] font-bold rounded-lg px-3 py-1.5 flex items-center gap-1 shrink-0" style="background:rgb(245 158 11/.12);color:#F59E0B"><ic n="arrow-counter" cls="w-3.5 h-3.5"/>reverter</button>
                   </div>
                 </div>
               </div>
@@ -660,16 +678,36 @@ O almirante comanda a frota ChatSPX — deploy E governança de IA (prompt/tools
             <div class="flex justify-end mb-4"><button @click="addUser" class="press btn-brand font-bold rounded-full px-5 py-2.5 text-sm flex items-center gap-2"><ic n="plus" cls="w-4 h-4"/>Convidar usuário</button></div>
             <div class="glass rounded-2xl overflow-hidden rise">
               <table class="w-full text-sm">
-                <thead class="tx3 text-[11px] uppercase tracking-wider font-bold soft"><tr class="text-left"><th class="px-5 py-3.5">Usuário</th><th>Papel</th><th>Status</th><th>Último login</th><th></th></tr></thead>
+                <thead class="tx3 text-[11px] uppercase tracking-wider font-bold soft"><tr class="text-left"><th class="px-5 py-3.5">Usuário</th><th>Papel</th><th>Acesso IA (VMs)</th><th>Status</th><th>Último login</th><th></th></tr></thead>
                 <tbody>
-                  <tr v-for="u in usersList" :key="u.id" class="border-t hair">
+                  <template v-for="u in usersList" :key="u.id">
+                  <tr class="border-t hair">
                     <td class="px-5 py-3"><div class="font-bold tx1">{{ u.name||u.email }}</div><div class="text-xs tx3 font-mono">{{ u.email }}</div></td>
                     <td><span class="text-[11px] font-bold px-2.5 py-1 rounded-full uppercase tx2 soft">{{ u.role }}</span></td>
+                    <td>
+                      <div v-if="u.vms&&u.vms.length" class="flex flex-wrap gap-1 max-w-[220px]"><span v-for="v in u.vms" :key="v" class="text-[10px] font-bold px-2 py-0.5 rounded-full text-brand" style="background:rgb(99 102 241/.12)">{{ v }}</span></div>
+                      <span v-else class="text-[11px] tx3">{{ u.role==='admin'?'todas (admin)':'nenhuma' }}</span>
+                    </td>
                     <td><span class="text-[11px] font-bold px-2.5 py-1 rounded-full" :class="u.status==='active'?'text-ok':'text-warn'" :style="u.status==='active'?'background:rgb(16 185 129/.12)':'background:rgb(245 158 11/.12)'">{{ u.status==='active'?'ativo':'convidado' }}</span></td>
                     <td class="text-xs tx3 font-medium">{{ u.last_login?relTime(u.last_login):'—' }}</td>
-                    <td class="text-right pr-5"><button @click="delUser(u.id)" class="press text-bad hover:opacity-80 text-xs font-bold flex items-center gap-1 ml-auto"><ic n="prohibit" cls="w-3.5 h-3.5"/>Remover</button></td>
+                    <td class="text-right pr-5 whitespace-nowrap"><button @click="startEditVMs(u)" class="press text-brand hover:opacity-80 text-xs font-bold mr-3">Acesso IA</button><button @click="delUser(u.id)" class="press text-bad hover:opacity-80 text-xs font-bold">Remover</button></td>
                   </tr>
-                  <tr v-if="!usersList.length"><td colspan="5" class="px-5 py-8 tx3 text-sm text-center">Nenhum usuário. Clique "Convidar usuário".</td></tr>
+                  <tr v-if="uedit.id===u.id" class="border-t hair">
+                    <td colspan="6" class="px-5 py-4 soft">
+                      <div class="text-[11px] uppercase tracking-wider text-brand font-bold mb-2">Quais VMs {{ u.name||u.email }} pode gerenciar IA</div>
+                      <div class="flex flex-wrap gap-2 mb-3">
+                        <label v-for="v in ai.vms" :key="v.id" class="flex items-center gap-1.5 text-sm tx2 soft rounded-lg px-3 py-1.5 cursor-pointer"><input type="checkbox" :value="v.id" v-model="uedit.vms" class="accent-brand"/>{{ v.name }}</label>
+                        <span v-if="!ai.vms.length" class="tx3 text-xs">nenhuma VM com IA habilitada</span>
+                      </div>
+                      <div class="flex items-center gap-2 flex-wrap">
+                        <button @click="saveUserVMs" class="press btn-brand font-bold rounded-xl px-4 py-2 text-sm">Salvar acesso</button>
+                        <button @click="uedit.id=''" class="press soft tx2 rounded-xl px-4 py-2 text-sm">Cancelar</button>
+                        <span class="tx3 text-xs ml-1">vazio = {{ u.role==='admin'?'todas (admin herda tudo)':'nenhuma (operator precisa de grant)' }}</span>
+                      </div>
+                    </td>
+                  </tr>
+                  </template>
+                  <tr v-if="!usersList.length"><td colspan="6" class="px-5 py-8 tx3 text-sm text-center">Nenhum usuário. Clique "Convidar usuário".</td></tr>
                 </tbody>
               </table>
             </div>

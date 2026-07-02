@@ -157,20 +157,22 @@ func (s *Server) Handler() http.Handler {
 	mux.HandleFunc("GET /api/users", s.auth(RoleAdmin, s.listUsers))
 	mux.HandleFunc("POST /api/users", s.auth(RoleAdmin, s.inviteUser))
 	mux.HandleFunc("DELETE /api/users/{id}", s.auth(RoleAdmin, s.revokeUser))
+	mux.HandleFunc("PUT /api/users/{id}/vms", s.auth(RoleAdmin, s.setUserVMs))
 	// Governanca de IA (editar prompt/tools/credencial/FAQ dos agentes por VM).
-	// Leitura=Viewer; escrita=Admin (escreve direto, com test-gate + audit + rollback).
+	// Leitura=Viewer; escrita=Operator + vm_access (canEditVM: admin=todas, operator só
+	// as VMs concedidas) — sempre com test-gate + audit + rollback.
 	mux.HandleFunc("GET /api/ai/agents", s.auth(RoleViewer, s.aiListAgents))
 	mux.HandleFunc("GET /api/ai/assistants", s.auth(RoleViewer, s.aiListAssistants))
 	mux.HandleFunc("GET /api/ai/agents/{vm}/{id}", s.auth(RoleViewer, s.aiBaseline))
 	mux.HandleFunc("GET /api/ai/custom-tools/{vm}", s.auth(RoleViewer, s.aiCustomTools))
 	mux.HandleFunc("GET /api/ai/history", s.auth(RoleViewer, s.aiHistory))
-	mux.HandleFunc("POST /api/ai/prompt", s.auth(RoleAdmin, s.aiPrompt))
-	mux.HandleFunc("POST /api/ai/tool", s.auth(RoleAdmin, s.aiTool))
-	mux.HandleFunc("POST /api/ai/credential", s.auth(RoleAdmin, s.aiCredential))
-	mux.HandleFunc("POST /api/ai/behavior", s.auth(RoleAdmin, s.aiBehavior))
-	mux.HandleFunc("POST /api/ai/faq", s.auth(RoleAdmin, s.aiFaq))
-	mux.HandleFunc("POST /api/ai/eligibility", s.auth(RoleAdmin, s.aiEligibility))
-	mux.HandleFunc("POST /api/ai/rollback", s.auth(RoleAdmin, s.aiRollback))
+	mux.HandleFunc("POST /api/ai/prompt", s.auth(RoleOperator, s.aiPrompt))
+	mux.HandleFunc("POST /api/ai/tool", s.auth(RoleOperator, s.aiTool))
+	mux.HandleFunc("POST /api/ai/credential", s.auth(RoleOperator, s.aiCredential))
+	mux.HandleFunc("POST /api/ai/behavior", s.auth(RoleOperator, s.aiBehavior))
+	mux.HandleFunc("POST /api/ai/faq", s.auth(RoleOperator, s.aiFaq))
+	mux.HandleFunc("POST /api/ai/eligibility", s.auth(RoleOperator, s.aiEligibility))
+	mux.HandleFunc("POST /api/ai/rollback", s.auth(RoleOperator, s.aiRollback))
 
 	// ===== Toolset G — GitHub de verdade (leitura=Viewer; escrita=Operator; merge=Admin) =====
 	mux.HandleFunc("GET /api/gh/repos", s.auth(RoleViewer, s.ghListRepos))
@@ -533,17 +535,20 @@ func (s *Server) setPassword(w http.ResponseWriter, r *http.Request) {
 func (s *Server) me(w http.ResponseWriter, r *http.Request) {
 	if c, e := r.Cookie("alm_session"); e == nil {
 		if su, ok := s.verifySession(c.Value); ok {
-			writeJSON(w, 200, map[string]string{"name": su.name, "role": roleName(su.role), "auth": "session"})
+			vms, _ := s.users.VMsOf(su.name)
+			writeJSON(w, 200, map[string]any{"name": su.name, "role": roleName(su.role), "auth": "session", "vms": vms})
 			return
 		}
 	}
 	tok := strings.TrimPrefix(r.Header.Get("Authorization"), "Bearer ")
 	if u, ok := s.tokens[tok]; ok {
-		writeJSON(w, 200, map[string]string{"name": u.name, "role": roleName(u.role), "auth": "token"})
+		vms, _ := s.users.VMsOf(u.name)
+		writeJSON(w, 200, map[string]any{"name": u.name, "role": roleName(u.role), "auth": "token", "vms": vms})
 		return
 	}
 	if t, ok := s.tstore.Lookup(tok); ok {
-		writeJSON(w, 200, map[string]string{"name": t.Name, "role": t.Role, "auth": "token"})
+		vms, _ := s.users.VMsOf(t.Name)
+		writeJSON(w, 200, map[string]any{"name": t.Name, "role": t.Role, "auth": "token", "vms": vms})
 		return
 	}
 	writeErr(w, 401, "nao autenticado")
@@ -579,6 +584,22 @@ func (s *Server) revokeUser(w http.ResponseWriter, r *http.Request, u user) {
 		return
 	}
 	writeErr(w, 404, "usuario nao encontrado")
+}
+
+// setUserVMs define quais VMs um usuario pode gerenciar IA (vm_access). Vazio =
+// por role (admin=todas, operator=nenhuma). So admin concede.
+func (s *Server) setUserVMs(w http.ResponseWriter, r *http.Request, u user) {
+	var b struct {
+		VMs []string `json:"vms"`
+	}
+	_ = json.NewDecoder(r.Body).Decode(&b)
+	id := r.PathValue("id")
+	if !s.users.SetVMs(id, b.VMs) {
+		writeErr(w, 404, "usuario nao encontrado")
+		return
+	}
+	s.audit.Append("user_vms_set", u.name, id, map[string]any{"vms": b.VMs})
+	writeJSON(w, 200, map[string]any{"id": id, "vms": b.VMs})
 }
 
 // UsersCount/BootstrapAdmin: usados pelo main p/ semear o 1o admin no boot.
