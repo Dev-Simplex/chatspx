@@ -5,7 +5,9 @@ class Captain::Tools::EnviarLocalizacaoImovelTool < Captain::Tools::BasePublicTo
               'Chame SOMENTE quando o cliente PEDIR explicitamente onde fica o imóvel / a localização dele — ' \
               'NUNCA por conta própria nem antecipe o ponto sem ele pedir. Informe o código (vem do resultado da busca).'
 
-  param :codigo, type: 'string', desc: 'Código do imóvel (ex: 6573), tirado do resultado da busca.', required: true
+  param :codigo, type: 'string',
+        desc: 'Código do imóvel que o cliente quer, exatamente como veio no resultado da busca DAQUELE imóvel. ' \
+              'Nunca reutilize o código de outro imóvel, nunca invente.', required: true
 
   def perform(tool_context, codigo:)
     conversation = find_conversation(tool_context&.state)
