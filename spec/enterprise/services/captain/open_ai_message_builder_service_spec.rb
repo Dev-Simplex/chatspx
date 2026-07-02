@@ -34,7 +34,7 @@ RSpec.describe Captain::OpenAiMessageBuilderService do
       end
     end
 
-    context 'when message has only non-text attachments' do
+    context 'when message has only an image (no caption)' do
       let(:message) { create(:message, content: nil) }
 
       before do
@@ -42,11 +42,11 @@ RSpec.describe Captain::OpenAiMessageBuilderService do
         attachment.save!
       end
 
-      it 'returns an array of content parts without text' do
+      it 'includes the image plus a non-empty text placeholder (Anthropic recusa bloco de texto vazio)' do
         result = service.generate_content
         expect(result).to be_an(Array)
         expect(result).to include({ type: 'image_url', image_url: { url: 'https://example.com/image.jpg' } })
-        expect(result).not_to include(hash_including(type: 'text', text: 'Hello world'))
+        expect(result).to include({ type: 'text', text: '[imagem]' })
       end
     end
   end
@@ -67,20 +67,15 @@ RSpec.describe Captain::OpenAiMessageBuilderService do
       end
     end
 
-    context 'with audio attachments' do
+    context 'with audio attachments (already transcribed)' do
       let(:audio_attachment) do
         attachment = message.attachments.build(account_id: message.account_id, file_type: :audio)
         attachment.save!
+        attachment.update!(meta: { transcribed_text: 'Audio transcription text' })
         attachment
       end
 
-      before do
-        allow(Messages::AudioTranscriptionService).to receive(:new).with(audio_attachment).and_return(
-          instance_double(Messages::AudioTranscriptionService, perform: { success: true, transcriptions: 'Audio transcription text' })
-        )
-      end
-
-      it 'includes transcription text part' do
+      it 'includes the cached transcription text part' do
         audio_attachment # trigger creation
         result = service.send(:attachment_parts, attachments)
         expect(result).to include({ type: 'text', text: 'Audio transcription text' })
@@ -109,6 +104,7 @@ RSpec.describe Captain::OpenAiMessageBuilderService do
       let(:audio_attachment) do
         attachment = message.attachments.build(account_id: message.account_id, file_type: :audio)
         attachment.save!
+        attachment.update!(meta: { transcribed_text: 'Audio text' })
         attachment
       end
 
@@ -116,12 +112,6 @@ RSpec.describe Captain::OpenAiMessageBuilderService do
         attachment = message.attachments.build(account_id: message.account_id, file_type: :file)
         attachment.save!
         attachment
-      end
-
-      before do
-        allow(Messages::AudioTranscriptionService).to receive(:new).with(audio_attachment).and_return(
-          instance_double(Messages::AudioTranscriptionService, perform: { success: true, transcriptions: 'Audio text' })
-        )
       end
 
       it 'includes all relevant parts' do
@@ -237,39 +227,35 @@ RSpec.describe Captain::OpenAiMessageBuilderService do
       end
     end
 
-    context 'with successful audio transcriptions' do
+    context 'with audio already transcribed (cached)' do
       let(:audio1) do
         attachment = message.attachments.build(account_id: message.account_id, file_type: :audio)
         attachment.save!
+        attachment.update!(meta: { transcribed_text: 'First audio text. ' })
         attachment
       end
 
       let(:audio2) do
         attachment = message.attachments.build(account_id: message.account_id, file_type: :audio)
         attachment.save!
+        attachment.update!(meta: { transcribed_text: 'Second audio text.' })
         attachment
       end
 
-      before do
-        allow(Messages::AudioTranscriptionService).to receive(:new).with(audio1).and_return(
-          instance_double(Messages::AudioTranscriptionService, perform: { success: true, transcriptions: 'First audio text. ' })
-        )
-        allow(Messages::AudioTranscriptionService).to receive(:new).with(audio2).and_return(
-          instance_double(Messages::AudioTranscriptionService, perform: { success: true, transcriptions: 'Second audio text.' })
-        )
-      end
+      before { allow(Messages::AudioTranscriptionService).to receive(:new) }
 
-      it 'concatenates all successful transcriptions' do
+      it 'concatenates all cached transcriptions without hitting the API' do
         audio1 # trigger creation
         audio2 # trigger creation
 
         attachments = message.attachments
         result = service.send(:extract_audio_transcriptions, attachments)
         expect(result).to eq('First audio text. Second audio text.')
+        expect(Messages::AudioTranscriptionService).not_to have_received(:new)
       end
     end
 
-    context 'with failed audio transcriptions' do
+    context 'with audio that has no transcription yet' do
       let(:audio_attachment) do
         attachment = message.attachments.build(account_id: message.account_id, file_type: :audio)
         attachment.save!
@@ -277,17 +263,19 @@ RSpec.describe Captain::OpenAiMessageBuilderService do
       end
 
       before do
-        allow(Messages::AudioTranscriptionService).to receive(:new).with(audio_attachment).and_return(
-          instance_double(Messages::AudioTranscriptionService, perform: { success: false, transcriptions: nil })
-        )
+        allow(Messages::AudioTranscriptionJob).to receive(:perform_later)
+        allow(Messages::AudioTranscriptionService).to receive(:new)
       end
 
-      it 'returns empty string for failed transcriptions' do
+      it 'returns a placeholder and enqueues async transcription (never blocks the response)' do
         audio_attachment # trigger creation
 
         attachments = message.attachments
         result = service.send(:extract_audio_transcriptions, attachments)
-        expect(result).to eq('')
+
+        expect(result).to eq('[áudio]')
+        expect(Messages::AudioTranscriptionJob).to have_received(:perform_later).with(audio_attachment.id).at_least(:once)
+        expect(Messages::AudioTranscriptionService).not_to have_received(:new)
       end
     end
   end

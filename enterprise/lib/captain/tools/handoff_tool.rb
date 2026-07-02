@@ -1,15 +1,34 @@
 class Captain::Tools::HandoffTool < Captain::Tools::BasePublicTool
-  description 'Hand off the conversation to a human agent when unable to assist further'
+  # Gatilho POSITIVO: o handoff não é só pra "quando você não consegue" — é o passo normal
+  # de passar um lead qualificado pra uma pessoa fechar. A descrição antiga ("when unable to
+  # assist further") fazia a IA quase nunca chamar o tool (uma IA que está atendendo bem nunca
+  # se considera "unable to assist"), então nenhum lead chegava ao humano.
+  description 'Passa a conversa para um ATENDENTE HUMANO do time assumir. Use quando já ' \
+              'qualificou o cliente e é hora de uma pessoa continuar: ele quer visitar, ' \
+              'agendar ou fechar; pediu falar com um humano; o assunto exige uma pessoa ' \
+              '(jurídico, uma ação que você não executa); ou você não conseguiu resolver. ' \
+              'A IA continua respondendo normalmente até um humano assumir.'
   param :reason, type: 'string', desc: 'The reason why handoff is needed (optional)', required: false
   param :team_id, type: 'string', desc: 'ID of the team to route the conversation to (optional)', required: false
 
-  # RubyLLM::Tool delega description da instância para a classe — override de instância
-  # enumera os times da conta (tools são instanciadas a cada run: assistant.agent →
-  # agent_tools → .new(self)), então a lista chega sempre fresca no LLM.
+  # RubyLLM::Tool delega description da instância para a classe — override de instância,
+  # DINÂMICO por conta (tools são instanciadas a cada run: assistant.agent → agent_tools →
+  # .new(self), então chega sempre fresco no LLM):
+  #  - modo "time fixo" (account.custom_attributes['handoff_team_id'] setado, ex.: Tozi →
+  #    recepção): a IA NÃO escolhe o time — todo handoff cai no time configurado. Não enumera
+  #    times (senão a IA tentaria escolher à toa).
+  #  - modo "IA decide" (sem config, DEFAULT): enumera os times pra IA rotear pelo assunto
+  #    (param team_id) — comportamento pra clientes que querem a IA definindo o setor.
   def description
-    teams = @assistant.account.teams.order(:id).map { |t| "#{t.id}: #{t.name}" }.join('; ')
     base = self.class.description
-    teams.present? ? "#{base}. Available teams (id: name) — #{teams}" : base.to_s
+    return base.to_s if fixed_handoff_team?
+
+    teams = @assistant.account.teams.order(:id).map { |t| "#{t.id}: #{t.name}" }.join('; ')
+    teams.present? ? "#{base} Times disponíveis (id: nome) — #{teams}. Roteie pelo assunto passando o team_id." : base.to_s
+  end
+
+  def fixed_handoff_team?
+    @assistant.account.custom_attributes&.dig('handoff_team_id').present?
   end
 
   def perform(tool_context, reason: nil, team_id: nil)
@@ -81,12 +100,26 @@ class Captain::Tools::HandoffTool < Captain::Tools::BasePublicTool
   # LLM pode alucinar id — validar SEMPRE na conta. Se o LLM não passar um time válido,
   # cai no time do PRÓPRIO agente (config['team_id']) — assim a conversa nunca fica sem
   # fila/setor (ex.: handoff de pedido vago "falar com humano", sem time explícito).
+  #
+  # Override por conta (PRECEDÊNCIA): enquanto o rodízio (Motor de Distribuição) não está
+  # ligado, TODO handoff cai num time ÚNICO de recepção — a recepção humana (ex.: Maria/Tozi)
+  # vê tudo em "Aguardando atendimento" e distribui na mão. Setado em
+  # account.custom_attributes['handoff_team_id']. Quando o Motor entrar, remove-se o override
+  # e o handoff volta a rotear por setor (team_id/config) pro Motor distribuir automaticamente.
   def resolve_team(conversation, team_id)
+    override = handoff_team_override(conversation.account)
+    return override if override
+
     explicit = team_id.present? ? conversation.account.teams.find_by(id: team_id) : nil
     return explicit if explicit
 
     default_id = (@assistant.config || {})['team_id']
     default_id.present? ? conversation.account.teams.find_by(id: default_id) : nil
+  end
+
+  def handoff_team_override(account)
+    tid = account.custom_attributes&.dig('handoff_team_id')
+    tid.present? ? account.teams.find_by(id: tid) : nil
   end
 
   def send_out_of_office_message_if_applicable(conversation)

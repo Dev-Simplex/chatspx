@@ -68,6 +68,7 @@ class Captain::Conversation::ResponseBuilderJob < ApplicationJob
       .messages
       .where(message_type: [:incoming, :outgoing])
       .where(private: false)
+      .reject { |message| survey_message?(message) }
       .map do |message|
       # Blocos de imagem so podem ir em turnos de USER (a API rejeita 'image' em
       # assistant turns); outgoing com anexo vira placeholder textual.
@@ -81,6 +82,18 @@ class Captain::Conversation::ResponseBuilderJob < ApplicationJob
       # Diretiva interna de follow-up (cutucada): entra como último turno pro agente decidir.
       history << { content: @directive, role: 'user' } if @directive.present?
     end
+  end
+
+  # Mensagens de pesquisa (NPS/CSAT) NÃO são conversa real — são artefato do sistema. No
+  # WhatsApp o NPS vai como content_type=text MARCADO com content_attributes.nps_survey
+  # (ver MessageTemplates::Template::NpsSurvey), então filtrar só por content_type não pega
+  # o caso do WhatsApp. Se entra no histórico, o LLM enxerga como turno "assistant" e
+  # MIMETIZA — passa a responder "De 0 a 10..." em vez de atender (ex.: conv 3040). A
+  # pesquisa real segue intacta no fluxo de NPS/CSAT; só não vai pro contexto do LLM.
+  def survey_message?(message)
+    return true if %w[input_csat input_nps].include?(message.content_type)
+
+    message.content_attributes&.dig('nps_survey').present?
   end
 
   # Quando o cliente volta a responder (resposta normal, sem diretiva), a cadência

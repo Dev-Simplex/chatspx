@@ -180,6 +180,24 @@ RSpec.describe Captain::Conversation::ResponseBuilderJob, type: :job do
         described_class.perform_now(conversation, assistant)
       end
 
+      # BUG C: a pesquisa NPS (no WhatsApp = content_type text marcado com nps_survey) entrava
+      # no historico como turno "assistant" e o LLM mimetizava, respondendo "De 0 a 10..." em
+      # vez de atender. Ela nao pode ir pro contexto do LLM.
+      it 'excludes NPS/CSAT survey messages from the message history' do
+        create(:message, :bot_message, conversation: conversation,
+                                       content_type: :text, content: 'De 0 a 10, qual a nota que voce da?',
+                                       content_attributes: { nps_survey: true })
+
+        expect(mock_agent_runner_service).to receive(:generate_response) do |**kwargs|
+          contents = kwargs[:message_history].pluck(:content)
+          expect(contents).to include('Hello')
+          expect(contents).not_to include('De 0 a 10, qual a nota que voce da?')
+          { 'response' => 'Hey, welcome to Captain V2' }
+        end
+
+        described_class.perform_now(conversation, assistant)
+      end
+
       it 'generates and processes response' do
         described_class.perform_now(conversation, assistant)
         expect(conversation.messages.count).to eq(2)
