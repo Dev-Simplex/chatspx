@@ -49,6 +49,7 @@ class InternalChatAPI extends ApiClient {
       mentionedUserIds = [],
       replyToId = null,
       sharedConversationId = null,
+      echoId = null,
     }
   ) {
     const formData = new FormData();
@@ -58,6 +59,7 @@ class InternalChatAPI extends ApiClient {
     if (replyToId) formData.append('reply_to_id', replyToId);
     if (sharedConversationId)
       formData.append('shared_conversation_id', sharedConversationId);
+    if (echoId) formData.append('echo_id', echoId);
     return axios.post(`${this.url}/${channelId}/internal_messages`, formData);
   }
 

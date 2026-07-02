@@ -113,6 +113,17 @@ export const actions = {
   // Sair da tela do chat (ou desmarcar canal) — qualquer mensagem volta a notificar.
   clearActiveChannel: ({ commit }) => commit('SET_ACTIVE_CHANNEL', null),
 
+  // Advance the read cursor for a channel (clears the badge + fires the read
+  // receipt to other members). Best-effort: audit/non-members get 403.
+  markRead: async ({ commit }, channelId) => {
+    try {
+      await InternalChatAPI.markRead(channelId);
+      commit('CLEAR_UNREAD', channelId);
+    } catch (e) {
+      // non-member / audit — read is not applicable
+    }
+  },
+
   // Load older history (pagination) before the oldest loaded message.
   fetchOlderMessages: async ({ commit, state: $state }, channelId) => {
     const list = $state.messagesByChannel[channelId] || [];
@@ -128,7 +139,7 @@ export const actions = {
   },
 
   sendMessage: async (
-    { commit },
+    { commit, rootGetters },
     {
       channelId,
       content,
@@ -136,8 +147,29 @@ export const actions = {
       mentionedUserIds = [],
       replyToId = null,
       sharedConversationId = null,
+      echoId = null,
     }
   ) => {
+    // Optimistic bubble: render the message immediately (status 'progress') so a
+    // slow network doesn't leave the sender staring at nothing. The server copy
+    // (same echo_id) reconciles it; a failure flips it to 'failed' (with retry).
+    if (echoId) {
+      const me = rootGetters.getCurrentUser || {};
+      commit('APPEND_MESSAGE', {
+        channelId,
+        message: {
+          id: echoId,
+          echo_id: echoId,
+          content,
+          created_at: Math.floor(Date.now() / 1000),
+          status: 'progress',
+          reactions: {},
+          mentioned_user_ids: mentionedUserIds,
+          attachments: [],
+          user: { id: me.id, name: me.name, avatar_url: me.avatar_url },
+        },
+      });
+    }
     commit('SET_UI_FLAG', { isSending: true });
     try {
       const { data } = await InternalChatAPI.sendMessage(channelId, {
@@ -146,9 +178,13 @@ export const actions = {
         mentionedUserIds,
         replyToId,
         sharedConversationId,
+        echoId,
       });
       commit('APPEND_MESSAGE', { channelId, message: data });
       return data;
+    } catch (error) {
+      if (echoId) commit('MARK_MESSAGE_FAILED', { channelId, echoId });
+      throw error;
     } finally {
       commit('SET_UI_FLAG', { isSending: false });
     }
@@ -197,13 +233,15 @@ export const actions = {
   },
 
   // Real-time: a message pushed over ActionCable (RoomChannel).
-  applyIncomingMessage: ({ commit, state: $state, rootGetters }, payload) => {
+  applyIncomingMessage: (
+    { commit, state: $state, rootGetters, dispatch },
+    payload
+  ) => {
     const channelId = payload.internal_channel_id;
     const message = payload.message;
     if ($state.messagesByChannel[channelId]) {
       commit('APPEND_MESSAGE', { channelId, message });
     }
-    commit('BUMP_UNREAD', channelId);
 
     // Notifica qualquer mensagem nova de canais de que sou membro (DM, grupo ou
     // time), exceto: minhas próprias, @menções (a notificação de menção já cobre,
@@ -219,6 +257,14 @@ export const actions = {
       $state.activeChannelId === channelId &&
       typeof document !== 'undefined' &&
       !document.hidden;
+
+    // Unread bookkeeping: my own echoed message never counts; and while I'm
+    // actively viewing the channel, keep it read (advances the server cursor +
+    // the sender's read receipt) instead of inflating the badge.
+    if (!fromMe) {
+      if (viewingThis) dispatch('markRead', channelId);
+      else commit('BUMP_UNREAD', channelId);
+    }
 
     if (!fromMe && !mentionsMe && !viewingThis) {
       const sender = message.user?.name || '';
@@ -364,10 +410,36 @@ export const mutations = {
   },
   APPEND_MESSAGE($state, { channelId, message }) {
     const existing = $state.messagesByChannel[channelId] || [];
+    // Reconcile an optimistic bubble (temp id === echo_id) with its server copy,
+    // whichever arrives first (HTTP response or the socket echo).
+    if (message.echo_id) {
+      const tempIdx = existing.findIndex(m => m.id === message.echo_id);
+      if (tempIdx !== -1) {
+        const next = existing.slice();
+        next.splice(tempIdx, 1, message);
+        $state.messagesByChannel = {
+          ...$state.messagesByChannel,
+          [channelId]: next,
+        };
+        return;
+      }
+    }
     if (existing.some(m => m.id === message.id)) return;
     $state.messagesByChannel = {
       ...$state.messagesByChannel,
       [channelId]: [...existing, message],
+    };
+  },
+  MARK_MESSAGE_FAILED($state, { channelId, echoId }) {
+    const existing = $state.messagesByChannel[channelId];
+    if (!existing) return;
+    const idx = existing.findIndex(m => m.id === echoId);
+    if (idx === -1) return;
+    const next = existing.slice();
+    next.splice(idx, 1, { ...next[idx], status: 'failed' });
+    $state.messagesByChannel = {
+      ...$state.messagesByChannel,
+      [channelId]: next,
     };
   },
   UPDATE_MESSAGE($state, { channelId, message }) {

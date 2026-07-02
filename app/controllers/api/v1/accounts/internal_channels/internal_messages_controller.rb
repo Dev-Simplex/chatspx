@@ -32,7 +32,7 @@ class Api::V1::Accounts::InternalChannels::InternalMessagesController < Api::V1:
       channel: @channel, user: Current.user,
       content: params[:content], attachments: params[:attachments],
       mentioned_user_ids: params[:mentioned_user_ids], reply_to_id: params[:reply_to_id],
-      shared_conversation_display_id: params[:shared_conversation_id]
+      shared_conversation_display_id: params[:shared_conversation_id], echo_id: params[:echo_id]
     ).perform
     render :show, status: :created
   rescue ActiveRecord::RecordInvalid => e

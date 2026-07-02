@@ -26,6 +26,10 @@ class InternalMessage < ApplicationRecord
   # composer also checks this client-side before uploading).
   MAX_ATTACHMENT_SIZE = 100.megabytes
 
+  # Transient client-generated id echoed back so the sender can reconcile its
+  # optimistic bubble with the persisted message (never stored — mirrors Message).
+  attr_accessor :echo_id
+
   # Rich card preview of a shared customer conversation, or nil.
   def shared_conversation_preview
     return if shared_conversation.blank?

@@ -11,7 +11,8 @@
 # primary actors (closed enum + /conversations navigation), so reusing it would
 # mean invasive, broad-impact changes to core. Real-time delivery covers the need.
 class InternalMessages::CreateService
-  def initialize(channel:, user:, content:, attachments: [], mentioned_user_ids: [], reply_to_id: nil, shared_conversation_display_id: nil) # rubocop:disable Metrics/ParameterLists
+  def initialize(channel:, user:, content:, attachments: [], mentioned_user_ids: [], # rubocop:disable Metrics/ParameterLists
+                 reply_to_id: nil, shared_conversation_display_id: nil, echo_id: nil)
     @channel = channel
     @user = user
     @content = content
@@ -19,6 +20,7 @@ class InternalMessages::CreateService
     @mentioned_user_ids = Array(mentioned_user_ids).map(&:to_i)
     @reply_to_id = reply_to_id
     @shared_conversation_display_id = shared_conversation_display_id
+    @echo_id = echo_id
   end
 
   def perform
@@ -27,6 +29,7 @@ class InternalMessages::CreateService
       mentioned_user_ids: valid_mentions, reply_to_id: valid_reply_to_id,
       shared_conversation_id: shared_conversation&.id
     )
+    message.echo_id = @echo_id
     attach!(message)
     message.save!
     mark_read!

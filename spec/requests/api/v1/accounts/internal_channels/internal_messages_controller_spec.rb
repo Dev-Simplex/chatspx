@@ -106,6 +106,13 @@ RSpec.describe 'Api::V1::Accounts::InternalChannels::InternalMessagesController'
            params: { content: '' }, headers: alice.create_new_auth_token
       expect(response).to have_http_status(:unprocessable_entity)
     end
+
+    it 'echoes back the client echo_id so the sender can reconcile (Fase 1.5)' do
+      post "/api/v1/accounts/#{account.id}/internal_channels/#{channel.id}/internal_messages",
+           params: { content: 'oi', echo_id: 'abc-123' }, headers: alice.create_new_auth_token
+      expect(response).to have_http_status(:created)
+      expect(response.parsed_body['echo_id']).to eq('abc-123')
+    end
   end
 
   describe 'PATCH /internal_messages/:id (edit)' do

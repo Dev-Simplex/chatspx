@@ -39,6 +39,7 @@ class InternalMessages::BroadcastService
   def serialize
     {
       id: @message.id,
+      echo_id: @message.echo_id,
       content: @message.deleted? ? nil : @message.content,
       created_at: @message.created_at.to_i,
       edited: @message.edited?,

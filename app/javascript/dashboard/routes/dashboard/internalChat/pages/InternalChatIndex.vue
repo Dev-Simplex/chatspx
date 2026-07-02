@@ -15,6 +15,9 @@ import { useI18n } from 'vue-i18n';
 import { useRouter } from 'vue-router';
 import Avatar from 'dashboard/components-next/avatar/Avatar.vue';
 import { messageStamp } from 'shared/helpers/timeHelper';
+import { emitter } from 'shared/helpers/mitt';
+import { BUS_EVENTS } from 'shared/constants/busEvents';
+import getUuid from 'widget/helpers/uuid';
 import {
   checkFileSizeLimit,
   HARD_MAXIMUM_FILE_UPLOAD_SIZE,
@@ -128,6 +131,8 @@ const attachedFiles = ref([]);
 const mentionedUserIds = ref([]);
 const showEmoji = ref(false);
 const showMentionPicker = ref(false);
+// Fase 1.3: the "@" prefix currently being typed, used to filter the picker.
+const mentionQuery = ref('');
 const replyingTo = ref(null);
 // Fase 0.7: unsent composer state (text + attachments + reply) kept per channel,
 // so switching conversations no longer discards what you were typing.
@@ -244,18 +249,52 @@ const isImage = att => IMAGE_RE.test(att?.filename || '');
 
 // URLs and #123 conversation references.
 const TOKEN_RE = /(https?:\/\/[^\s]+|#\d+)/g;
+
+// Fase 1.3: a regex that matches "@<known agent name>" (longest name first so
+// multi-word names win), used to highlight mentions in rendered text.
+const mentionNamesRe = computed(() => {
+  const names = (agents.value || [])
+    .map(a => a.name)
+    .filter(Boolean)
+    .sort((a, b) => b.length - a.length)
+    .map(n => n.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'));
+  return names.length ? new RegExp(`@(?:${names.join('|')})`, 'g') : null;
+});
+
 const textParts = content => {
   const s = String(content || '');
-  const out = [];
+  const base = [];
   let last = 0;
   s.replace(TOKEN_RE, (match, _g, idx) => {
-    if (idx > last) out.push({ t: 'text', v: s.slice(last, idx) });
-    if (match[0] === '#') out.push({ t: 'conv', v: match, id: match.slice(1) });
-    else out.push({ t: 'link', v: match });
+    if (idx > last) base.push({ t: 'text', v: s.slice(last, idx) });
+    if (match[0] === '#')
+      base.push({ t: 'conv', v: match, id: match.slice(1) });
+    else base.push({ t: 'link', v: match });
     last = idx + match.length;
     return match;
   });
-  if (last < s.length) out.push({ t: 'text', v: s.slice(last) });
+  if (last < s.length) base.push({ t: 'text', v: s.slice(last) });
+
+  // Second pass: highlight @mentions inside the plain-text segments.
+  const re = mentionNamesRe.value;
+  if (!re) return base;
+  const out = [];
+  base.forEach(part => {
+    if (part.t !== 'text') {
+      out.push(part);
+      return;
+    }
+    const seg = part.v;
+    let l = 0;
+    re.lastIndex = 0;
+    seg.replace(re, (m, idx) => {
+      if (idx > l) out.push({ t: 'text', v: seg.slice(l, idx) });
+      out.push({ t: 'mention', v: m });
+      l = idx + m.length;
+      return m;
+    });
+    if (l < seg.length) out.push({ t: 'text', v: seg.slice(l) });
+  });
   return out;
 };
 
@@ -387,9 +426,28 @@ const signalTyping = () => {
   typingStopTimer = setTimeout(stopTyping, 3500);
 };
 
+// Fase 1.3: inline @mentions — regexes + the trigger that opens/filters the
+// picker while typing (defined before onComposerInput, which calls it).
+const MENTION_TOKEN = /@([\p{L}\d._-]*)$/u;
+const MENTION_TRIGGER = /(?:^|\s)@([\p{L}\d._-]*)$/u;
+
+const detectMentionTrigger = () => {
+  const el = composerRef.value;
+  if (!el) return;
+  const match = draft.value.slice(0, el.selectionStart).match(MENTION_TRIGGER);
+  if (match) {
+    mentionQuery.value = match[1];
+    showMentionPicker.value = true;
+  } else if (showMentionPicker.value) {
+    showMentionPicker.value = false;
+    mentionQuery.value = '';
+  }
+};
+
 const onComposerInput = () => {
   autoResize();
   signalTyping();
+  detectMentionTrigger();
 };
 
 const openChannel = async channel => {
@@ -401,6 +459,14 @@ const openChannel = async channel => {
   await store.dispatch('internalChat/fetchMessages', channel.id);
   scrollToBottom();
   focusComposer();
+};
+
+// Fase 1.4 (mobile): return from the open thread to the channel list. Keeps the
+// draft and stops treating the channel as "active" (so it notifies again).
+const backToList = () => {
+  saveDraft(activeChannelId.value);
+  activeChannelId.value = null;
+  store.dispatch('internalChat/clearActiveChannel');
 };
 
 const closeNewPanel = () => {
@@ -467,42 +533,105 @@ const onFilesSelected = event => {
 };
 const removeFile = index => attachedFiles.value.splice(index, 1);
 
-const mentionMember = member => {
-  draft.value = `${draft.value}@${member.name} `.replace(/\s{2,}/g, ' ');
+// Picker filtered by the "@" prefix; choosing a member replaces the token and
+// records the id (re-validated against the text on send — see validMentionIds).
+const filteredMentionMembers = computed(() => {
+  const q = mentionQuery.value.toLowerCase();
+  const list = channelMembers.value;
+  if (!q) return list;
+  return list.filter(m => (m.name || '').toLowerCase().includes(q));
+});
+
+// Open the picker by inserting an "@" at the caret; typing then filters it.
+const openMentionPicker = () => {
+  const el = composerRef.value;
+  const caret = el ? el.selectionStart : draft.value.length;
+  const before = draft.value.slice(0, caret);
+  const after = draft.value.slice(caret);
+  const needsSpace = before && !before.endsWith(' ');
+  draft.value = `${before}${needsSpace ? ' ' : ''}@${after}`;
+  mentionQuery.value = '';
+  showMentionPicker.value = true;
+  nextTick(() => {
+    const pos = before.length + (needsSpace ? 1 : 0) + 1;
+    if (el) {
+      el.focus();
+      el.selectionStart = pos;
+      el.selectionEnd = pos;
+    }
+  });
+};
+
+const applyMention = member => {
+  const el = composerRef.value;
+  const text = draft.value;
+  const caret = el ? el.selectionStart : text.length;
+  const before = text.slice(0, caret);
+  const after = text.slice(caret);
+  const newBefore = MENTION_TOKEN.test(before)
+    ? before.replace(MENTION_TOKEN, `@${member.name} `)
+    : `${before}${before && !before.endsWith(' ') ? ' ' : ''}@${member.name} `;
+  draft.value = newBefore + after;
   if (!mentionedUserIds.value.includes(member.id)) {
     mentionedUserIds.value.push(member.id);
   }
   showMentionPicker.value = false;
-  focusComposer();
+  mentionQuery.value = '';
+  nextTick(() => {
+    if (el) {
+      el.focus();
+      el.selectionStart = newBefore.length;
+      el.selectionEnd = newBefore.length;
+    }
+  });
 };
+
+// Keep only mentions whose "@Name" still appears in the text (no phantoms).
+const validMentionIds = content =>
+  mentionedUserIds.value.filter(id => {
+    const member = channelMembers.value.find(m => m.id === id);
+    return member && content.includes(`@${member.name}`);
+  });
 
 const send = async () => {
   const content = draft.value.trim();
   if ((!content && !attachedFiles.value.length) || !activeChannelId.value)
     return;
   if (uiFlags.value.isSending) return;
+  const channelId = activeChannelId.value;
   const payload = {
-    channelId: activeChannelId.value,
+    channelId,
     content,
     attachments: attachedFiles.value,
-    mentionedUserIds: mentionedUserIds.value,
+    mentionedUserIds: validMentionIds(content),
     replyToId: replyingTo.value?.id || null,
+    echoId: getUuid(),
   };
   stopTyping();
+  // Fase 1.5: optimistic — the store inserts the bubble synchronously, so we
+  // clear the composer right away. A failure flips the bubble to "failed" with
+  // a retry affordance (no data is lost), so no alert is needed here.
+  const promise = store.dispatch('internalChat/sendMessage', payload);
+  clearDraft(channelId);
+  resetComposer();
+  scrollToBottom();
   try {
-    await store.dispatch('internalChat/sendMessage', payload);
-    // Clear only after the message is safely persisted, so a network failure
-    // never silently swallows what the user typed.
-    clearDraft(payload.channelId);
-    // Only wipe the live composer if we're still on the channel we sent to —
-    // the user may have switched channels while the send was in flight.
-    if (activeChannelId.value === payload.channelId) {
-      resetComposer();
-      scrollToBottom();
-    }
+    await promise;
   } catch (error) {
-    useAlert(t('INTERNAL_CHAT.SEND_ERROR'));
+    // Handled on the message bubble (status: 'failed').
   }
+};
+
+// Re-send a message that failed (text + mentions; reuses the echo id so the
+// failed bubble reconciles in place). Attachments are not carried on retry.
+const retryMessage = message => {
+  if (!activeChannelId.value) return;
+  store.dispatch('internalChat/sendMessage', {
+    channelId: activeChannelId.value,
+    content: message.content,
+    mentionedUserIds: message.mentioned_user_ids || [],
+    echoId: message.echo_id || message.id,
+  });
 };
 
 const isMine = message => message.user?.id === currentUserId.value;
@@ -516,13 +645,22 @@ const editDraft = ref('');
 const reactionPickerId = ref(null);
 const confirmDeleteId = ref(null);
 
-// Per-message action toolbar, opened by right-click (context menu).
+// Per-message action toolbar. Opened by the hover "⋯" button (also keyboard
+// focusable), right-click, or a long-press on touch devices.
 const actionMenuId = ref(null);
 const openMessageMenu = msg => {
   reactionPickerId.value = null;
   confirmDeleteId.value = null;
   actionMenuId.value = actionMenuId.value === msg.id ? null : msg.id;
 };
+
+// Fase 1.2: long-press opens the action menu on touch (no right-click there).
+let longPressTimer = null;
+const startLongPress = msg => {
+  clearTimeout(longPressTimer);
+  longPressTimer = setTimeout(() => openMessageMenu(msg), 450);
+};
+const cancelLongPress = () => clearTimeout(longPressTimer);
 
 const startEdit = msg => {
   actionMenuId.value = null;
@@ -662,25 +800,45 @@ watch(
   }
 );
 
+// Fase 1.1: after a websocket recovery (or when the tab regains focus), any
+// message/read that happened while the socket was down was never delivered.
+// Re-fetch the channel list, and refresh the open thread only when the user is
+// following the bottom (so we don't yank them out of history they scrolled to).
+const resyncInternalChat = () => {
+  store.dispatch('internalChat/fetchChannels');
+  if (activeChannelId.value && distanceFromBottom() < 240) {
+    store.dispatch('internalChat/fetchMessages', activeChannelId.value);
+  }
+};
+const onVisibilityChange = () => {
+  if (typeof document !== 'undefined' && !document.hidden) resyncInternalChat();
+};
+
 onMounted(() => {
   store.dispatch('internalChat/fetchChannels');
   store.dispatch('internalChat/fetchAgents');
   store.dispatch('teams/get');
   store.dispatch('agents/get'); // presence (availability_status)
+  emitter.on(BUS_EVENTS.WEBSOCKET_RECONNECT, resyncInternalChat);
+  document.addEventListener('visibilitychange', onVisibilityChange);
 });
 
 // Ao sair da tela do chat, nenhum canal está "aberto" → todas as mensagens
 // voltam a notificar (som/toast) mesmo trabalhando em outra parte do sistema.
 onBeforeUnmount(() => {
   store.dispatch('internalChat/clearActiveChannel');
+  emitter.off(BUS_EVENTS.WEBSOCKET_RECONNECT, resyncInternalChat);
+  document.removeEventListener('visibilitychange', onVisibilityChange);
 });
 </script>
 
 <template>
   <div class="flex w-full h-full bg-n-background">
     <!-- ============ Channel list ============ -->
+    <!-- On mobile: list and thread swap full-screen; both show side-by-side ≥md -->
     <aside
-      class="flex flex-col w-80 h-full border-r border-n-weak flex-shrink-0 bg-n-solid-1"
+      class="flex-col w-full md:w-80 h-full border-r border-n-weak flex-shrink-0 bg-n-solid-1"
+      :class="activeChannelId ? 'hidden md:flex' : 'flex'"
     >
       <header
         class="flex items-center justify-between px-4 h-14 border-b border-n-weak flex-shrink-0"
@@ -1094,11 +1252,21 @@ onBeforeUnmount(() => {
     </aside>
 
     <!-- ============ Thread ============ -->
-    <section class="flex flex-col flex-1 h-full min-w-0">
+    <section
+      class="flex-col flex-1 h-full min-w-0"
+      :class="activeChannelId ? 'flex' : 'hidden md:flex'"
+    >
       <template v-if="activeChannel">
         <header
           class="flex items-center gap-3 px-5 h-14 border-b border-n-weak flex-shrink-0"
         >
+          <button
+            class="md:hidden inline-flex items-center justify-center w-8 h-8 -ml-2 rounded-lg text-n-slate-11 hover:bg-n-alpha-2 flex-shrink-0"
+            :aria-label="t('INTERNAL_CHAT.BACK')"
+            @click="backToList"
+          >
+            <span class="i-lucide-arrow-left text-lg rtl:rotate-180" />
+          </button>
           <Avatar
             :src="channelAvatar(activeChannel).src"
             :name="channelAvatar(activeChannel).name"
@@ -1230,7 +1398,21 @@ onBeforeUnmount(() => {
                       mentionsMe(item.msg) ? 'ring-2 ring-n-brand/60' : '',
                     ]"
                     @contextmenu.prevent="openMessageMenu(item.msg)"
+                    @touchstart.passive="startLongPress(item.msg)"
+                    @touchend="cancelLongPress"
+                    @touchmove.passive="cancelLongPress"
                   >
+                    <!-- hover / keyboard-focusable trigger (touch uses
+                         long-press; desktop also keeps right-click) -->
+                    <button
+                      type="button"
+                      class="absolute top-1/2 -translate-y-1/2 z-20 inline-flex items-center justify-center w-7 h-7 rounded-full bg-n-solid-1 border border-n-weak text-n-slate-11 shadow-sm opacity-0 transition-opacity group-hover:opacity-100 focus:opacity-100 focus-visible:opacity-100"
+                      :class="isMine(item.msg) ? '-left-9' : '-right-9'"
+                      :aria-label="t('INTERNAL_CHAT.MESSAGE_ACTIONS')"
+                      @click.stop="openMessageMenu(item.msg)"
+                    >
+                      <span class="i-lucide-ellipsis text-base" />
+                    </button>
                     <!-- click-outside backdrop for the action menu -->
                     <div
                       v-if="actionMenuId === item.msg.id"
@@ -1363,6 +1545,16 @@ onBeforeUnmount(() => {
                         >
                           {{ part.v }}
                         </button>
+                        <span
+                          v-else-if="part.t === 'mention'"
+                          class="font-semibold rounded px-0.5"
+                          :class="
+                            isMine(item.msg)
+                              ? 'bg-white/25'
+                              : 'bg-n-brand/15 text-n-brand'
+                          "
+                          >{{ part.v }}</span
+                        >
                         <template v-else>{{ part.v }}</template>
                       </template>
                       <span
@@ -1460,11 +1652,29 @@ onBeforeUnmount(() => {
                     </button>
                   </div>
 
-                  <span
-                    class="text-[10px] text-n-slate-9 mt-0.5 px-1 opacity-0 group-hover:opacity-100 transition-opacity"
+                  <div
+                    class="flex items-center gap-1 mt-0.5 px-1 text-[10px] text-n-slate-9"
+                    :class="isMine(item.msg) ? 'justify-end' : 'justify-start'"
                   >
-                    {{ timeLabel(item.msg.created_at) }}
-                  </span>
+                    <span
+                      class="opacity-0 group-hover:opacity-100 transition-opacity"
+                      >{{ timeLabel(item.msg.created_at) }}</span
+                    >
+                    <span
+                      v-if="isMine(item.msg) && item.msg.status === 'progress'"
+                      class="i-lucide-clock"
+                      :title="t('INTERNAL_CHAT.SENDING')"
+                    />
+                    <button
+                      v-else-if="
+                        isMine(item.msg) && item.msg.status === 'failed'
+                      "
+                      class="font-medium text-n-ruby-11 hover:underline"
+                      @click="retryMessage(item.msg)"
+                    >
+                      {{ t('INTERNAL_CHAT.SEND_FAILED_RETRY') }}
+                    </button>
+                  </div>
                 </div>
               </div>
             </template>
@@ -1538,7 +1748,7 @@ onBeforeUnmount(() => {
             </span>
           </div>
 
-          <template v-if="showMentionPicker && channelMembers.length">
+          <template v-if="showMentionPicker && filteredMentionMembers.length">
             <!-- click-outside backdrop: dismiss the picker without choosing -->
             <div
               class="fixed inset-0 z-10"
@@ -1548,10 +1758,10 @@ onBeforeUnmount(() => {
               class="absolute bottom-16 left-4 w-56 max-h-48 overflow-y-auto bg-n-solid-1 border border-n-weak rounded-lg shadow-lg z-20"
             >
               <button
-                v-for="member in channelMembers"
+                v-for="member in filteredMentionMembers"
                 :key="member.id"
                 class="flex items-center gap-2 w-full px-3 py-2 text-sm text-n-slate-12 hover:bg-n-alpha-1"
-                @click="mentionMember(member)"
+                @click="applyMention(member)"
               >
                 <Avatar
                   :src="member.avatar_url"
@@ -1597,7 +1807,7 @@ onBeforeUnmount(() => {
                 v-if="channelMembers.length"
                 class="inline-flex items-center justify-center h-9 w-9 rounded-full text-n-slate-11 hover:bg-n-alpha-2 hover:text-n-slate-12 transition-colors flex-shrink-0"
                 :title="t('INTERNAL_CHAT.MENTION')"
-                @click="showMentionPicker = !showMentionPicker"
+                @click="openMentionPicker"
               >
                 <span class="i-lucide-at-sign text-lg" />
               </button>

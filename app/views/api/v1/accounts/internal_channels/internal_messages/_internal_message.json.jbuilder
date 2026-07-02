@@ -1,6 +1,7 @@
 # frozen_string_literal: true
 
 json.id message.id
+json.echo_id message.echo_id
 json.internal_channel_id message.internal_channel_id
 json.content message.deleted? ? nil : message.content
 json.created_at message.created_at.to_i
