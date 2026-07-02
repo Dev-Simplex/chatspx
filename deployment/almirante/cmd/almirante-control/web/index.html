@@ -803,6 +803,7 @@ O almirante comanda a frota ChatSPX — deploy E governança de IA (prompt/tools
                 <div class="space-y-3">
                   <div><div class="text-[10px] uppercase tracking-wider tx3 font-bold mb-1.5">Deploy</div><div class="flex flex-wrap gap-1.5"><span class="chip">"status da tozi?"</span><span class="chip">"atualiza a homologação"</span><span class="chip">"rollback da tozi"</span></div></div>
                   <div><div class="text-[10px] uppercase tracking-wider tx3 font-bold mb-1.5">IA</div><div class="flex flex-wrap gap-1.5"><span class="chip">"mostra o prompt da Clara"</span><span class="chip">"arma a tool de agendamento"</span><span class="chip">"histórico de mudanças da IA"</span></div></div>
+                  <div><div class="text-[10px] uppercase tracking-wider tx3 font-bold mb-1.5">GitHub</div><div class="flex flex-wrap gap-1.5"><span class="chip">"PRs abertos do chatspx"</span><span class="chip">"abre uma issue no chatspx"</span><span class="chip">"lê o package.json do chatspx"</span></div></div>
                 </div>
                 <p class="tx3 text-xs mt-4 flex items-center gap-1.5"><ic n="shield-check" cls="w-3.5 h-3.5 text-ok"/>Tudo que muda algo passa por test-gate/aprovação. A IA nunca executa sozinha.</p>
               </div>
@@ -817,7 +818,8 @@ O almirante comanda a frota ChatSPX — deploy E governança de IA (prompt/tools
                 <div><b class="tx1">Observabilidade</b><br/>fleet_status · vm_status · vm_health · migration_status · git_diff · deploy_history · version_matrix · drift_check</div>
                 <div><b class="tx1">Deploy &amp; Merge</b><br/>propose_deploy_vm · propose_deploy_all · propose_deploy_group · dry_run · <b class="text-brand">propose_merge</b></div>
                 <div><b class="tx1">Ciclo-de-vida</b><br/>propose_restart · propose_migrate · propose_precompile · propose_rollback · freeze/unfreeze</div>
-                <div><b class="text-brand">IA · Agentes</b><br/>ai_list_agents · ai_get_agent · ai_update_prompt · ai_set_tool · ai_set_credential · ai_add_faq · ai_history · ai_rollback</div>
+                <div><b class="text-brand">IA · Agentes</b><br/>ai_list_agents · ai_list_assistants · ai_get_agent · ai_update_prompt · ai_set_tool · ai_set_credential · ai_add_faq · ai_update_behavior · ai_history · ai_rollback</div>
+                <div><b class="text-brand">GitHub</b><br/>gh_list_prs · gh_get_pr · gh_list_issues · gh_get_issue · gh_list_branches · gh_read_file · <b class="text-brand">gh_create_issue · gh_comment · gh_create_pr · gh_merge_pr</b></div>
               </div>
             </div>
           </div>
