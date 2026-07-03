@@ -69,6 +69,9 @@ class FunnelPolicy < ApplicationPolicy
       team_ids = user_team_ids(target_account)
 
       base_scope = scope.where(account_id: target_account.id)
+      # Admin enxerga todos os funis da conta (inclusive de times que não participa)
+      return base_scope if @account_user.administrator?
+
       arel_table = base_scope.arel_table
       conditions = []
 

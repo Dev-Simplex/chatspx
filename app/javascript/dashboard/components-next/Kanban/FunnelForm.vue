@@ -201,7 +201,7 @@ watch(
 onMounted(() => {
   // Carregar inboxes se ainda não foram carregadas
   if (availableInboxes.value.length === 0) {
-    store.dispatch('inboxes/fetch');
+    store.dispatch('inboxes/get');
   }
 
   if (props.show) {
