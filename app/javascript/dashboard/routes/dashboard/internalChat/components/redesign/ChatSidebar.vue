@@ -39,6 +39,13 @@ const filtered = computed(() => {
   return list;
 });
 
+// Quantidade por aba (mostrada ao lado do rótulo).
+const counts = computed(() => ({
+  all: props.conversations.length,
+  unread: props.conversations.filter(c => c.unreadCount > 0).length,
+  favorites: props.conversations.filter(c => c.favorited).length,
+}));
+
 const openCompose = () => {
   showCompose.value = true;
   composeMode.value = 'dm';
@@ -248,7 +255,7 @@ const createGroup = () => {
         v-for="f in FILTERS"
         :key="f.key"
         type="button"
-        class="relative px-2 pb-2.5 pt-1 text-sm font-medium transition-colors"
+        class="relative inline-flex items-center gap-1.5 px-2 pb-2.5 pt-1 text-sm font-medium transition-colors"
         :class="
           activeFilter === f.key
             ? 'text-n-brand'
@@ -257,6 +264,16 @@ const createGroup = () => {
         @click="activeFilter = f.key"
       >
         {{ f.label }}
+        <span
+          class="inline-flex items-center justify-center min-w-[18px] h-[18px] px-1 rounded-full text-[10px] font-semibold"
+          :class="
+            activeFilter === f.key
+              ? 'bg-n-brand text-white'
+              : 'bg-n-alpha-2 text-n-slate-11'
+          "
+        >
+          {{ counts[f.key] }}
+        </span>
         <span
           v-if="activeFilter === f.key"
           class="absolute inset-x-2 -bottom-px h-0.5 rounded-full bg-n-brand"

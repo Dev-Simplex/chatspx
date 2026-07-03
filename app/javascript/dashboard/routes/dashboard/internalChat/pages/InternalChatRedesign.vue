@@ -224,8 +224,15 @@ const onLeave = async () => {
   mobileView.value = 'list';
 };
 
+// "Limpar conversa" pede confirmação antes de esconder as mensagens.
+const showClearConfirm = ref(false);
 const onClear = () => {
+  if (activeId.value == null) return;
+  showClearConfirm.value = true;
+};
+const confirmClear = () => {
   const id = activeId.value;
+  showClearConfirm.value = false;
   if (id == null) return;
   clearedAt.value = { ...clearedAt.value, [id]: Math.floor(Date.now() / 1000) };
 };
@@ -364,6 +371,39 @@ onBeforeUnmount(() => {
       >
         <span class="text-4xl opacity-60 i-lucide-messages-square" />
         <p class="text-sm">Selecione uma conversa para começar.</p>
+      </div>
+    </div>
+
+    <!-- Confirmação: limpar conversa -->
+    <div
+      v-if="showClearConfirm"
+      class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-n-alpha-black2"
+      @click.self="showClearConfirm = false"
+    >
+      <div
+        class="w-full max-w-xs p-5 border shadow-xl rounded-2xl bg-n-solid-1 border-n-weak"
+      >
+        <h3 class="text-sm font-semibold text-n-slate-12">Limpar conversa?</h3>
+        <p class="mt-1.5 text-xs leading-relaxed text-n-slate-11">
+          Tem certeza que deseja limpar esta conversa? As mensagens somem da sua
+          visão — nada é apagado para os outros participantes.
+        </p>
+        <div class="flex justify-end gap-2 mt-4">
+          <button
+            type="button"
+            class="px-3 py-1.5 text-xs font-medium rounded-lg text-n-slate-11 hover:bg-n-alpha-2"
+            @click="showClearConfirm = false"
+          >
+            Cancelar
+          </button>
+          <button
+            type="button"
+            class="px-3 py-1.5 text-xs font-semibold text-white rounded-lg bg-n-ruby-9 hover:bg-n-ruby-10"
+            @click="confirmClear"
+          >
+            Limpar
+          </button>
+        </div>
       </div>
     </div>
   </div>
