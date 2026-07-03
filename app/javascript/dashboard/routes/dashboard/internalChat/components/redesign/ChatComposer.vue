@@ -44,27 +44,28 @@ const send = () => {
 <template>
   <!-- eslint-disable vue/no-bare-strings-in-template -->
   <div class="relative px-4 pb-3 md:px-6 flex-shrink-0 bg-n-background">
-    <!-- Emoji picker — centralizado sobre o composer -->
-    <template v-if="showEmoji">
-      <div class="fixed inset-0 z-10" @click="showEmoji = false" />
-      <div class="absolute z-20 -translate-x-1/2 bottom-full mb-2 left-1/2">
-        <EmojiInput :on-click="onEmojiSelect" />
-      </div>
-    </template>
-
     <!-- Single-row composer pill -->
     <div
       class="relative z-20 flex items-center gap-1 px-2 py-1 transition-colors border shadow-sm rounded-2xl bg-n-solid-1 border-n-weak focus-within:border-n-brand"
     >
-      <button
-        type="button"
-        class="inline-flex items-center justify-center flex-shrink-0 transition-colors rounded-full w-9 h-9 text-n-slate-11 hover:bg-n-alpha-2 hover:text-n-slate-12"
-        :class="showEmoji ? 'text-n-brand bg-n-alpha-2' : ''"
-        title="Emoji"
-        @click="toggleEmoji"
-      >
-        <span class="text-lg i-lucide-smile" />
-      </button>
+      <!-- Emoji: o picker abre ACIMA do ícone (ancorado ao botão, à esquerda) -->
+      <div class="relative flex-shrink-0">
+        <button
+          type="button"
+          class="inline-flex items-center justify-center transition-colors rounded-full w-9 h-9 text-n-slate-11 hover:bg-n-alpha-2 hover:text-n-slate-12"
+          :class="showEmoji ? 'text-n-brand bg-n-alpha-2' : ''"
+          title="Emoji"
+          @click="toggleEmoji"
+        >
+          <span class="text-lg i-lucide-smile" />
+        </button>
+        <template v-if="showEmoji">
+          <div class="fixed inset-0 z-10" @click="showEmoji = false" />
+          <div class="absolute z-20 bottom-full mb-2 left-0">
+            <EmojiInput :on-click="onEmojiSelect" />
+          </div>
+        </template>
+      </div>
       <textarea
         ref="textareaRef"
         v-model="draft"
