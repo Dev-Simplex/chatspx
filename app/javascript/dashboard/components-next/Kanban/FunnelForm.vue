@@ -6,6 +6,9 @@ import { useI18n } from 'vue-i18n';
 import Dialog from 'dashboard/components-next/dialog/Dialog.vue';
 import Button from 'dashboard/components-next/button/Button.vue';
 import Icon from 'dashboard/components-next/icon/Icon.vue';
+import { useAlert } from 'dashboard/composables';
+import KanbanAPI from 'dashboard/api/kanban';
+import KanbanCustomFieldEditor from './KanbanCustomFieldEditor.vue';
 
 const props = defineProps({
   show: {
@@ -90,6 +93,90 @@ watch(
   },
   { immediate: true }
 );
+
+// ── Fase 8: templates (create mode) + public WorkForm config (edit mode) ──
+const templates = ref([]);
+const formConfig = ref({
+  enabled: false,
+  title: '',
+  inbox_id: '',
+  url: '',
+  token: '',
+});
+const isFormSaving = ref(false);
+
+const loadTemplates = async () => {
+  try {
+    const { data } = await KanbanAPI.getFunnelTemplates();
+    templates.value = Array.isArray(data) ? data : [];
+  } catch (_) {
+    templates.value = [];
+  }
+};
+
+const loadFormConfig = () => {
+  const settings = props.funnel?.settings || {};
+  formConfig.value = {
+    enabled: Boolean(settings.form_enabled),
+    title: settings.form_title || '',
+    inbox_id: settings.form_inbox_id || '',
+    token: settings.form_token || '',
+    url: settings.form_token
+      ? `${window.location.origin}/public/api/v1/funnel_forms/${settings.form_token}`
+      : '',
+  };
+};
+
+watch(
+  () => props.show,
+  shown => {
+    if (!shown) return;
+    if (isEditing.value) loadFormConfig();
+    else loadTemplates();
+  },
+  { immediate: true }
+);
+
+const useTemplate = async template => {
+  try {
+    const funnel = await store.dispatch('kanban/createFunnelFromTemplate', {
+      template_id: template.id,
+    });
+    useAlert(t('KANBAN.TEMPLATES.CREATED', { name: funnel.name }));
+    emit('saved', funnel);
+    emit('close');
+  } catch (_) {
+    useAlert(t('KANBAN.TEMPLATES.ERROR'));
+  }
+};
+
+const saveFormConfig = async () => {
+  if (!props.funnel?.id || isFormSaving.value) return;
+  isFormSaving.value = true;
+  try {
+    const { data } = await KanbanAPI.updateFunnelForm(props.funnel.id, {
+      enabled: formConfig.value.enabled,
+      title: formConfig.value.title,
+      inbox_id: formConfig.value.inbox_id || null,
+    });
+    formConfig.value.enabled = Boolean(data.form_enabled);
+    formConfig.value.token = data.form_token || '';
+    formConfig.value.url = data.form_token
+      ? `${window.location.origin}/public/api/v1/funnel_forms/${data.form_token}`
+      : '';
+    useAlert(t('KANBAN.WORKFORM.SAVED'));
+  } catch (_) {
+    useAlert(t('KANBAN.WORKFORM.ERROR'));
+  } finally {
+    isFormSaving.value = false;
+  }
+};
+
+const copyFormUrl = () => {
+  if (!formConfig.value.url) return;
+  navigator.clipboard?.writeText(formConfig.value.url);
+  useAlert(t('KANBAN.WORKFORM.COPIED'));
+};
 
 // Usar watchEffect para garantir que o Dialog abra quando show mudar
 watch(
@@ -185,21 +272,43 @@ const isDefaultStage = stage => {
   return isDefaultByName || isDefaultByAutomation;
 };
 
+// Promise-based confirmation so we keep the inline `await` flow while using
+// the Dialog component instead of the native confirm().
+const confirmDialogRef = ref(null);
+const confirmConfig = ref({ title: '', message: '', confirmLabel: '' });
+const confirmResolver = ref(null);
+
+const askConfirm = ({ title, message, confirmLabel }) =>
+  new Promise(resolve => {
+    confirmConfig.value = { title, message, confirmLabel };
+    confirmResolver.value = resolve;
+    nextTick(() => confirmDialogRef.value?.open?.());
+  });
+
+const resolveConfirm = value => {
+  const resolver = confirmResolver.value;
+  confirmResolver.value = null;
+  confirmDialogRef.value?.close?.();
+  if (resolver) resolver(value);
+};
+
 const removeStage = async index => {
   const stage = stages.value[index];
 
   // Não permitir deletar etapas padrão
   if (isDefaultStage(stage)) {
-    alert(t('KANBAN.STAGES.CANNOT_DELETE_DEFAULT'));
+    useAlert(t('KANBAN.STAGES.CANNOT_DELETE_DEFAULT'));
     return;
   }
 
   // Se é uma etapa existente (tem ID numérico), deletar do servidor
   if (stage.id && !stage.id.toString().startsWith('temp-') && isEditing.value) {
-    // eslint-disable-next-line no-restricted-globals, no-alert
-    if (!confirm(t('KANBAN.STAGES.CONFIRM_DELETE'))) {
-      return;
-    }
+    const confirmed = await askConfirm({
+      title: t('KANBAN.STAGES.DELETE'),
+      message: t('KANBAN.STAGES.CONFIRM_DELETE'),
+      confirmLabel: t('KANBAN.STAGES.DELETE'),
+    });
+    if (!confirmed) return;
 
     try {
       await store.dispatch('kanban/deleteStage', {
@@ -209,7 +318,7 @@ const removeStage = async index => {
     } catch (error) {
       // eslint-disable-next-line no-console
       console.error('Erro ao deletar etapa:', error);
-      alert(t('KANBAN.STAGES.DELETE_ERROR'));
+      useAlert(t('KANBAN.STAGES.DELETE_ERROR'));
       return;
     }
   }
@@ -223,7 +332,7 @@ const removeStage = async index => {
 
 const save = async () => {
   if (!formData.value.name.trim()) {
-    alert(t('KANBAN.FUNNELS.NAME_REQUIRED'));
+    useAlert(t('KANBAN.FUNNELS.NAME_REQUIRED'));
     return;
   }
 
@@ -307,7 +416,7 @@ const save = async () => {
           } catch (error) {
             // eslint-disable-next-line no-console
             console.error('Erro ao criar etapa:', error);
-            alert(
+            useAlert(
               `Erro ao criar etapa "${stage.name}": ${error.message || error}`
             );
           }
@@ -352,7 +461,7 @@ const save = async () => {
         } catch (error) {
           // eslint-disable-next-line no-console
           console.error('Erro ao criar etapa:', error);
-          alert(
+          useAlert(
             `Erro ao criar etapa "${stage.name}": ${error.message || error}`
           );
         }
@@ -370,7 +479,7 @@ const save = async () => {
   } catch (error) {
     // eslint-disable-next-line no-console
     console.error('Erro ao salvar funil:', error);
-    alert(t('KANBAN.FUNNELS.SAVE_ERROR'));
+    useAlert(t('KANBAN.FUNNELS.SAVE_ERROR'));
   }
 };
 
@@ -381,11 +490,12 @@ const close = () => {
 const handleDeleteFunnel = async () => {
   if (!isEditing.value || !props.funnel) return;
 
-  // eslint-disable-next-line no-restricted-globals, no-alert
-
-  if (!confirm(t('KANBAN.FUNNELS.CONFIRM_DELETE'))) {
-    return;
-  }
+  const confirmed = await askConfirm({
+    title: t('KANBAN.FUNNELS.DELETE'),
+    message: t('KANBAN.FUNNELS.CONFIRM_DELETE'),
+    confirmLabel: t('KANBAN.FUNNELS.DELETE'),
+  });
+  if (!confirmed) return;
 
   try {
     await store.dispatch('kanban/deleteFunnel', props.funnel.id);
@@ -394,7 +504,7 @@ const handleDeleteFunnel = async () => {
   } catch (error) {
     // eslint-disable-next-line no-console
     console.error('Erro ao deletar funil:', error);
-    alert(t('KANBAN.FUNNELS.DELETE_ERROR'));
+    useAlert(t('KANBAN.FUNNELS.DELETE_ERROR'));
   }
 };
 </script>
@@ -411,6 +521,38 @@ const handleDeleteFunnel = async () => {
     @close="() => emit('close')"
   >
     <div class="space-y-6" @submit.prevent.stop>
+      <!-- Fase 8: start from a template (create mode only) -->
+      <div v-if="!isEditing && templates.length">
+        <label class="mb-2 block text-sm font-semibold text-n-slate-12">
+          <div class="flex items-center gap-2">
+            <Icon icon="i-lucide-layout-template" class="size-4" />
+            {{ t('KANBAN.TEMPLATES.TITLE') }}
+          </div>
+        </label>
+        <div class="flex flex-wrap gap-2">
+          <button
+            v-for="template in templates"
+            :key="template.id"
+            type="button"
+            class="flex min-w-[150px] flex-1 flex-col items-start gap-0.5 rounded-xl border border-n-weak bg-n-solid-1 p-3 text-left transition hover:border-n-brand hover:bg-n-solid-2"
+            @click="useTemplate(template)"
+          >
+            <span class="text-sm font-semibold text-n-slate-12">{{
+              template.name
+            }}</span>
+            <span class="text-[11px] text-n-slate-10">{{
+              template.description
+            }}</span>
+            <span class="mt-1 text-[10px] text-n-slate-9">{{
+              (template.stages || []).join(' → ')
+            }}</span>
+          </button>
+        </div>
+        <p class="mt-2 text-[11px] text-n-slate-10">
+          {{ t('KANBAN.TEMPLATES.OR_MANUAL') }}
+        </p>
+      </div>
+
       <!-- Funnel Name -->
       <div>
         <label
@@ -426,7 +568,7 @@ const handleDeleteFunnel = async () => {
           id="funnel-name"
           v-model="formData.name"
           type="text"
-          class="w-full px-4 !py-3 !h-12 border border-n-weak rounded-xl bg-n-solid-1 text-n-slate-12 text-sm leading-5 focus:outline-none focus:ring-2 focus:ring-n-teal-9"
+          class="w-full px-4 !py-3 !h-12 border border-n-weak rounded-xl bg-n-solid-1 text-n-slate-12 text-sm leading-5 focus:outline-none focus:ring-2 focus:ring-n-brand"
           :placeholder="t('KANBAN.FUNNELS.NAME_PLACEHOLDER')"
           @keydown.enter.prevent="save"
         />
@@ -448,7 +590,7 @@ const handleDeleteFunnel = async () => {
             id="funnel-color"
             v-model="formData.color"
             type="color"
-            class="w-16 h-16 border border-n-weak rounded-xl cursor-pointer"
+            class="kanban-color-input w-12 h-12 border border-n-weak"
           />
           <div
             class="flex-1 px-4 py-3 border border-n-weak rounded-xl bg-n-solid-1 text-n-slate-12 font-mono"
@@ -489,7 +631,7 @@ const handleDeleteFunnel = async () => {
                 type="checkbox"
                 :value="inbox.id"
                 :checked="formData.inbox_ids.includes(inbox.id)"
-                class="w-4 h-4 text-n-teal-9 border-n-weak rounded focus:ring-2 focus:ring-n-teal-9 cursor-pointer"
+                class="w-4 h-4 text-n-teal-9 border-n-weak rounded focus:ring-2 focus:ring-n-brand cursor-pointer"
                 @click.stop
                 @change="toggleInbox(inbox.id)"
               />
@@ -519,6 +661,93 @@ const handleDeleteFunnel = async () => {
           >
             {{ t('KANBAN.FUNNELS.CLEAR_ALL') }}
           </button>
+        </div>
+      </div>
+
+      <!-- Custom fields (Fase 2) — only when the funnel exists -->
+      <div>
+        <label class="block text-sm font-semibold text-n-slate-12">
+          <div class="flex items-center gap-2">
+            <Icon icon="i-lucide-sliders-horizontal" class="size-4" />
+            {{ t('KANBAN.CUSTOM_FIELDS.TITLE') }}
+          </div>
+        </label>
+        <p class="mb-3 mt-1 text-xs text-n-slate-10">
+          {{ t('KANBAN.CUSTOM_FIELDS.DESCRIPTION') }}
+        </p>
+        <KanbanCustomFieldEditor v-if="isEditing" :funnel-id="funnel.id" />
+        <p v-else class="text-xs italic text-n-slate-10">
+          {{ t('KANBAN.CUSTOM_FIELDS.SAVE_FIRST') }}
+        </p>
+      </div>
+
+      <!-- Fase 8: public WorkForm (edit mode) -->
+      <div v-if="isEditing">
+        <label class="block text-sm font-semibold text-n-slate-12">
+          <div class="flex items-center gap-2">
+            <Icon icon="i-lucide-clipboard-list" class="size-4" />
+            {{ t('KANBAN.WORKFORM.TITLE') }}
+          </div>
+        </label>
+        <p class="mb-3 mt-1 text-xs text-n-slate-10">
+          {{ t('KANBAN.WORKFORM.DESCRIPTION') }}
+        </p>
+        <div class="rounded-lg border border-n-weak p-3">
+          <label class="flex items-center gap-2 text-sm text-n-slate-12">
+            <input
+              v-model="formConfig.enabled"
+              type="checkbox"
+              class="size-4"
+            />
+            {{ t('KANBAN.WORKFORM.ENABLE') }}
+          </label>
+          <div v-if="formConfig.enabled" class="mt-3 space-y-2">
+            <input
+              v-model="formConfig.title"
+              type="text"
+              class="w-full rounded-lg border border-n-weak bg-n-solid-1 px-3 py-2 text-sm"
+              :placeholder="t('KANBAN.WORKFORM.TITLE_PLACEHOLDER')"
+            />
+            <select
+              v-model="formConfig.inbox_id"
+              class="w-full rounded-lg border border-n-weak bg-n-solid-1 px-3 py-2 text-sm"
+            >
+              <option value="">{{ t('KANBAN.WORKFORM.AUTO_INBOX') }}</option>
+              <option
+                v-for="ib in availableInboxes"
+                :key="ib.id"
+                :value="ib.id"
+              >
+                {{ ib.name }}
+              </option>
+            </select>
+          </div>
+          <div class="mt-3 flex items-center gap-2">
+            <Button
+              size="sm"
+              variant="primary"
+              :is-loading="isFormSaving"
+              @click="saveFormConfig"
+            >
+              {{ t('KANBAN.WORKFORM.SAVE') }}
+            </Button>
+            <Button
+              v-if="formConfig.url"
+              size="sm"
+              variant="ghost"
+              icon="i-lucide-copy"
+              @click="copyFormUrl"
+            >
+              {{ t('KANBAN.WORKFORM.COPY_URL') }}
+            </Button>
+          </div>
+          <p
+            v-if="formConfig.url"
+            class="mt-2 truncate rounded bg-n-alpha-1 px-2 py-1 font-mono text-[11px] text-n-slate-11"
+            :title="formConfig.url"
+          >
+            {{ formConfig.url }}
+          </p>
         </div>
       </div>
 
@@ -560,7 +789,7 @@ const handleDeleteFunnel = async () => {
                   :id="`stage-name-${index}`"
                   v-model="stage.name"
                   type="text"
-                  class="w-full px-3 py-2 border border-n-weak rounded-xl bg-n-solid-1 text-n-slate-12 focus:outline-none focus:ring-2 focus:ring-n-teal-9 text-sm"
+                  class="w-full px-3 py-2 border border-n-weak rounded-xl bg-n-solid-1 text-n-slate-12 focus:outline-none focus:ring-2 focus:ring-n-brand text-sm"
                   :placeholder="t('KANBAN.STAGES.NAME_PLACEHOLDER')"
                   :disabled="isDefaultStage(stage)"
                 />
@@ -578,7 +807,7 @@ const handleDeleteFunnel = async () => {
                       :id="`stage-color-${index}`"
                       v-model="stage.color"
                       type="color"
-                      class="w-10 h-10 border border-n-weak rounded-xl cursor-pointer"
+                      class="kanban-color-input w-10 h-10 border border-n-weak"
                       :disabled="isDefaultStage(stage)"
                     />
                     <span class="text-xs text-n-slate-10 font-mono">{{
@@ -597,7 +826,7 @@ const handleDeleteFunnel = async () => {
                 <select
                   :id="`stage-automation-${index}`"
                   v-model="stage.automation_type"
-                  class="w-full px-3 py-2 border border-n-weak rounded-xl bg-n-solid-1 text-n-slate-12 focus:outline-none focus:ring-2 focus:ring-n-teal-9 text-sm disabled:opacity-75 disabled:cursor-not-allowed"
+                  class="w-full px-3 py-2 border border-n-weak rounded-xl bg-n-solid-1 text-n-slate-12 focus:outline-none focus:ring-2 focus:ring-n-brand text-sm disabled:opacity-75 disabled:cursor-not-allowed"
                   :disabled="isDefaultStage(stage)"
                 >
                   <option :value="null">
@@ -680,4 +909,14 @@ const handleDeleteFunnel = async () => {
       </div>
     </template>
   </Dialog>
+
+  <Dialog
+    ref="confirmDialogRef"
+    type="alert"
+    :title="confirmConfig.title"
+    :description="confirmConfig.message"
+    :confirm-button-label="confirmConfig.confirmLabel"
+    @confirm="resolveConfirm(true)"
+    @close="resolveConfirm(false)"
+  />
 </template>

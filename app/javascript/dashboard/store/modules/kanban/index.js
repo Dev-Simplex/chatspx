@@ -36,7 +36,10 @@ const state = {
     labelIds: [],
     assigneeId: null,
     status: 'all',
+    priority: [],
   },
+  savedViews: [],
+  funnelStats: {},
   viewBootstrap: {
     kanbanLoaded: false,
     listLoaded: false,

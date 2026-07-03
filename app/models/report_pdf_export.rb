@@ -21,7 +21,7 @@
 class ReportPdfExport < ApplicationRecord
   # Relatorios exportaveis como PDF brandeado ChatSPX. Espelha ConversationPdfExport,
   # mas generico: o report_type seleciona o template/resolver de dados.
-  SUPPORTED_REPORT_TYPES = %w[nps csat bot conversations overview agent inbox team label sla].freeze
+  SUPPORTED_REPORT_TYPES = %w[nps csat bot conversations overview agent inbox team label sla funnel].freeze
 
   belongs_to :account
   belongs_to :requester_user, class_name: 'User', optional: true

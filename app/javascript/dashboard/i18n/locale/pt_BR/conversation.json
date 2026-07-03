@@ -635,6 +635,17 @@
     }
   },
   "CONVERSATION_SIDEBAR": {
+    "MESSAGE_SEQUENCES": {
+      "TITLE": "Sequências de Follow-up",
+      "SELECT": "Escolha uma sequência…",
+      "ENROLL": "Inscrever",
+      "CANCEL": "Parar",
+      "EMPTY": "Nenhuma sequência ativa. Crie uma em Configurações.",
+      "STEP_PROGRESS": "Passo {current} de {total}",
+      "ENROLLED": "Conversa inscrita na sequência",
+      "CANCELLED": "Sequência interrompida para esta conversa",
+      "ERROR": "Algo deu errado. Tente novamente."
+    },
     "ASSIGNEE_LABEL": "Agente atribuído",
     "SELF_ASSIGN": "Atribuir a mim",
     "RETRIAGE": "Devolver para a IA",
@@ -667,7 +678,12 @@
       "PREVIOUS_CONVERSATION": "Conversas anteriores",
       "MACROS": "Macros",
       "LINEAR_ISSUES": "Problemas do Linear vinculados",
-      "SHOPIFY_ORDERS": "Pedidos do Shopify"
+      "SHOPIFY_ORDERS": "Pedidos do Shopify",
+      "KANBAN_STATUS": "Situação no Kanban"
+    },
+    "KANBAN_STATUS": {
+      "EMPTY": "Não está em nenhum funil",
+      "OPEN_BOARD": "Abrir no Kanban"
     },
     "SUMMARY": {
       "AI_TITLE": "Resumo da IA",

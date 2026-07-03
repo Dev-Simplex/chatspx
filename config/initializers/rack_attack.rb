@@ -125,6 +125,11 @@ class Rack::Attack
     req.ip if req.path_without_extentions == '/api/v1/profile/resend_confirmation' && req.post?
   end
 
+  ## Kanban v2 (Fase 8): public WorkForm submissions — anti-spam per IP
+  throttle('public/funnel_forms', limit: ENV.fetch('RATE_LIMIT_FUNNEL_FORMS', 10).to_i, period: 1.hour) do |req|
+    req.ip if req.path_without_extentions.match?(%r{\A/public/api/v1/funnel_forms/[^/]+\z}) && req.post?
+  end
+
   ## MFA throttling - prevent brute force attacks
   throttle('mfa_verification/ip', limit: 5, period: 1.minute) do |req|
     if req.path_without_extentions == '/api/v1/profile/mfa'

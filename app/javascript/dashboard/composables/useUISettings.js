@@ -4,6 +4,7 @@ import { useStore, useStoreGetters } from 'dashboard/composables/store';
 export const DEFAULT_CONVERSATION_SIDEBAR_ITEMS_ORDER = Object.freeze([
   { name: 'conversation_media' },
   { name: 'conversation_actions' },
+  { name: 'kanban_status' },
   { name: 'macros' },
   { name: 'conversation_info' },
   { name: 'contact_attributes' },

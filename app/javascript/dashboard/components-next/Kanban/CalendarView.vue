@@ -354,7 +354,9 @@ onBeforeUnmount(() => {
               <span
                 class="inline-flex size-6 items-center justify-center rounded-full text-xs font-semibold"
                 :class="
-                  isToday(day) ? 'bg-n-teal-9 text-white' : 'text-n-slate-11'
+                  isToday(day)
+                    ? 'bg-n-teal-9 text-n-teal-12 dark:text-white'
+                    : 'text-n-slate-11'
                 "
               >
                 {{ format(day, 'd') }}

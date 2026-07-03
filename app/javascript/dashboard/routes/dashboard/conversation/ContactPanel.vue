@@ -17,6 +17,8 @@ import ConversationParticipant from './ConversationParticipant.vue';
 import ContactInfo from './contact/ContactInfo.vue';
 import ContactNotes from './contact/ContactNotes.vue';
 import ConversationInfo from './ConversationInfo.vue';
+import KanbanStatus from './KanbanStatus.vue';
+import MessageSequenceWidget from './MessageSequenceWidget.vue';
 import CustomAttributes from './customAttributes/CustomAttributes.vue';
 import Draggable from 'vuedraggable';
 import ConversationSummary from './ConversationSummary.vue';
@@ -88,6 +90,7 @@ const currentChat = useMapGetter('getSelectedChat');
 const macros = useMapGetter('macros/getMacros');
 const hasMacros = computed(() => (macros.value || []).length > 0);
 const conversationId = computed(() => props.conversationId);
+const isSequencesOpen = ref(true);
 const conversationMetadataGetter = useMapGetter(
   'conversationMetadata/getConversationMetadata'
 );
@@ -327,8 +330,30 @@ onMounted(() => {
               <ContactNotes :contact-id="contactId" />
             </AccordionItem>
           </div>
+          <div v-else-if="element.name === 'kanban_status'">
+            <AccordionItem
+              :title="$t('CONVERSATION_SIDEBAR.ACCORDION.KANBAN_STATUS')"
+              :is-open="isContactSidebarItemOpen('is_kanban_status_open')"
+              compact
+              @toggle="
+                value => toggleSidebarUIState('is_kanban_status_open', value)
+              "
+            >
+              <KanbanStatus :conversation-id="conversationId" />
+            </AccordionItem>
+          </div>
         </template>
       </Draggable>
+      <woot-feature-toggle feature-key="message_sequences">
+        <AccordionItem
+          :title="$t('CONVERSATION_SIDEBAR.MESSAGE_SEQUENCES.TITLE')"
+          :is-open="isSequencesOpen"
+          compact
+          @toggle="value => (isSequencesOpen = value)"
+        >
+          <MessageSequenceWidget :conversation-id="conversationId" />
+        </AccordionItem>
+      </woot-feature-toggle>
     </div>
   </div>
 </template>

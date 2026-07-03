@@ -1,0 +1,494 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Treinamento ChatSPX — Kanban (novas ferramentas)</title>
+  <link rel="stylesheet" href="assets/reset.css?v=9">
+  <link rel="stylesheet" href="assets/reveal.css?v=9">
+  <link rel="stylesheet" href="assets/spx-theme.css?v=9">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
+  <style>
+    /* ===== extensões locais (sem alterar o tema base) ===== */
+    .cards.g4{ grid-template-columns:repeat(4,1fr); gap:1rem; }
+    .cards.g4 .card{ padding:1.45rem 1.4rem; gap:.35rem; }
+    .cards.g4 .card h3{ font-size:1.02rem; }
+    .cards.g4 .card p{ font-size:.8rem; line-height:1.4; }
+    .cards.g4 .card .ico .ic{ width:1.7rem; height:1.7rem; }
+    .statecard.ok .nm::before{ background:#34c759; }
+    .statecard.risk .nm::before{ background:#ff9f0a; }
+    .statecard.breach .nm::before{ background:#ff3b30; }
+
+    /* ===== SIMULAÇÕES DE UI (telas falsas, dentro do browser frame) ===== */
+    .sim{ background:#eef1f4; padding:14px; font-family:var(--ft); color:#1d1d1f; line-height:1.32; }
+    .sim *{ box-sizing:border-box; line-height:1.32; }
+    .simtoolbar{ display:flex; align-items:center; gap:8px; margin-bottom:12px; }
+    .ipt{ background:#fff; border:1px solid #e2e5ea; border-radius:9px; padding:6px 10px; font-size:11.5px; color:#6e6e73; }
+    .btn{ background:#fff; border:1px solid #e2e5ea; border-radius:9px; padding:6px 11px; font-size:11.5px; font-weight:600; color:#1d1d1f; display:inline-flex; align-items:center; gap:6px; }
+    .btn.green{ background:#2dc46f; border-color:#2dc46f; color:#fff; }
+    .btn.badge::after{ content:attr(data-c); background:#1f93ff; color:#fff; border-radius:20px; font-size:9px; padding:0 5px; margin-left:4px; }
+    .board{ display:grid; grid-template-columns:repeat(3,1fr); gap:10px; align-items:start; }
+    .col{ background:#f6f7f9; border:1px solid #e6e8ec; border-radius:12px; padding:8px; }
+    .col > .h{ display:flex; justify-content:space-between; align-items:center; font-weight:600; font-size:12px; margin-bottom:8px; }
+    .col > .h .cnt{ font-size:10.5px; color:#86868b; background:#ececf0; border-radius:20px; padding:1px 8px; }
+    .col .foot{ margin-top:8px; font-size:11px; font-weight:600; color:#ff3b30; display:flex; align-items:center; gap:5px; }
+    .col .foot.sum{ color:#1a8f55; }
+    .kc{ position:relative; display:flex; flex-direction:column; gap:3px; background:#fff;
+      border:1px solid #e9ebef; border-radius:10px;
+      padding:9px 11px 9px 16px; margin-bottom:8px; box-shadow:0 1px 2px rgba(0,0,0,.05); }
+    .kc:last-child{ margin-bottom:0; }
+    .kc::before{ content:""; position:absolute; left:0; top:7px; bottom:7px; width:4px; border-radius:4px; background:#cdd3db; }
+    .kc.ok::before{ background:#34c759; } .kc.risk::before{ background:#ff9f0a; } .kc.breach::before{ background:#ff3b30; }
+    .kc .nm{ font-weight:600; font-size:12.5px; }
+    .kc .ms{ font-size:10.5px; color:#86868b; }
+    .kc .row{ display:flex; gap:5px; flex-wrap:wrap; margin-top:3px; }
+    .pill{ display:inline-block; font-size:9.5px; font-weight:700; padding:1.5px 7px; border-radius:20px; }
+    .pill.ok{ background:rgba(52,199,89,.15); color:#1a8f55; }
+    .pill.risk{ background:rgba(255,159,10,.18); color:#b45309; }
+    .pill.breach{ background:rgba(255,59,48,.15); color:#c81e1e; }
+    .pill.tag{ background:#eef1f4; color:#3a3a3c; }
+    .chk{ width:15px; height:15px; border-radius:4px; border:1.5px solid #c5cad2; flex:0 0 auto; }
+    .chk.on{ background:#2dc46f; border-color:#2dc46f; position:relative; }
+    .chk.on::after{ content:"✓"; color:#fff; font-size:11px; position:absolute; inset:0; display:grid; place-items:center; }
+    /* list rows */
+    .lrow{ display:flex; align-items:center; gap:10px; background:#fff; border:1px solid #e9ebef; border-radius:10px; padding:8px 11px; margin-bottom:7px; }
+    .lrow.sel{ background:rgba(45,196,111,.07); border-color:rgba(45,196,111,.4); }
+    .lrow .av{ width:24px; height:24px; border-radius:50%; background:#cdd3db; flex:0 0 auto; }
+    .lrow .nm{ font-weight:600; font-size:12px; }
+    .lrow .stg{ margin-left:auto; font-size:10px; font-weight:600; color:#fff; background:#0891b2; border-radius:20px; padding:1.5px 8px; }
+    .bulkbar{ display:flex; align-items:center; gap:8px; background:#1d1d1f; color:#fff; border-radius:10px; padding:8px 12px; margin-bottom:10px; font-size:11.5px; }
+    .bulkbar b{ margin-right:auto; }
+    .bchip{ background:rgba(255,255,255,.12); border-radius:7px; padding:4px 9px; font-weight:600; }
+    /* automation builder */
+    .autobox{ background:#fff; border:1px solid #e9ebef; border-radius:12px; padding:14px; }
+    .arow{ display:flex; align-items:center; gap:8px; margin:8px 0; font-size:12px; }
+    .arow .k{ font-weight:700; font-size:10px; width:64px; flex:0 0 auto; }
+    .arow .v{ background:#f3f4f6; border:1px solid #e6e8ec; border-radius:8px; padding:5px 9px; font-weight:600; }
+    /* dashboard */
+    .tiles{ display:grid; grid-template-columns:repeat(4,1fr); gap:9px; margin-bottom:12px; }
+    .tile{ background:#fff; border:1px solid #e9ebef; border-radius:11px; padding:9px 11px; }
+    .tile .n{ font-family:var(--fd); font-weight:700; font-size:22px; line-height:1; }
+    .tile .l{ font-size:10px; color:#6e6e73; margin-top:3px; }
+    .barwrap{ background:#fff; border:1px solid #e9ebef; border-radius:11px; padding:12px; }
+    .bars{ display:flex; align-items:flex-end; gap:16px; height:96px; }
+    .bars .bcol{ flex:1; display:flex; flex-direction:column; align-items:center; justify-content:flex-end; gap:4px; }
+    .bars .bar{ width:100%; max-width:46px; background:#28aaeb; border-radius:6px 6px 0 0; }
+    .bars .v{ font-size:11px; font-weight:700; } .bars .k{ font-size:9.5px; color:#86868b; }
+    /* IA panel */
+    .ia{ background:#fff; border:1px solid #e9ebef; border-radius:12px; padding:12px; }
+    .ia .hd{ font-weight:600; font-size:12px; display:flex; align-items:center; gap:6px; margin-bottom:9px; }
+    .ia .acts{ display:flex; flex-wrap:wrap; gap:7px; }
+    .ia .act{ background:rgba(124,98,236,.1); color:#5b3fd6; border-radius:8px; padding:6px 10px; font-size:11px; font-weight:600; }
+    .ia .draft{ background:#f6f7f9; border:1px dashed #cdd3db; border-radius:8px; padding:8px; font-size:11px; color:#6e6e73; margin-top:9px; font-style:italic; }
+    /* form */
+    .toggle{ width:34px; height:20px; border-radius:20px; background:#2dc46f; position:relative; flex:0 0 auto; }
+    .toggle::after{ content:""; position:absolute; width:16px; height:16px; border-radius:50%; background:#fff; top:2px; right:2px; }
+    .urlrow{ display:flex; align-items:center; gap:8px; background:#f6f7f9; border:1px solid #e6e8ec; border-radius:9px; padding:7px 10px; font-size:11px; color:#3a3a3c; margin-top:8px; }
+    .tpls{ display:flex; gap:7px; flex-wrap:wrap; margin-top:10px; }
+    .liveflag{ background:#34c759; color:#fff; font-size:10px; font-weight:700; border-radius:20px; padding:2px 9px; }
+    .ghost{ opacity:.45; border-style:dashed !important; }
+  </style>
+</head>
+<body>
+<svg width="0" height="0" style="position:absolute" aria-hidden="true"><defs>
+  <symbol id="i-clock" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></symbol>
+  <symbol id="i-sliders" viewBox="0 0 24 24"><path d="M4 7h10M18 7h2M4 17h2M10 17h10"/><circle cx="16" cy="7" r="2.3"/><circle cx="8" cy="17" r="2.3"/></symbol>
+  <symbol id="i-bookmark" viewBox="0 0 24 24"><path d="M6 3h12a1 1 0 0 1 1 1v17l-7-4-7 4V4a1 1 0 0 1 1-1z"/></symbol>
+  <symbol id="i-layers" viewBox="0 0 24 24"><path d="M12 3 3 8l9 5 9-5z"/><path d="M3 13l9 5 9-5"/></symbol>
+  <symbol id="i-zap" viewBox="0 0 24 24"><path d="M13 2 3 14h9l-1 8 10-12h-9z"/></symbol>
+  <symbol id="i-note" viewBox="0 0 24 24"><path d="M5 3h9l5 5v13a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1z"/><path d="M14 3v5h5"/><path d="M8 13h7M8 17h5"/></symbol>
+  <symbol id="i-robot" viewBox="0 0 24 24"><rect x="4" y="8" width="16" height="11" rx="2.4"/><path d="M12 8V4.5M9.5 4.5h5"/><path d="M9 13h.01M15 13h.01"/><path d="M9.5 16h5"/></symbol>
+  <symbol id="i-chart" viewBox="0 0 24 24"><path d="M3 20h18M6 20v-6M12 20V5M18 20v-9"/></symbol>
+  <symbol id="i-spark" viewBox="0 0 24 24"><path d="M12 3l1.9 5.1L19 10l-5.1 1.9L12 17l-1.9-5.1L5 10l5.1-1.9z"/></symbol>
+  <symbol id="i-form" viewBox="0 0 24 24"><rect x="4" y="3" width="16" height="18" rx="2.2"/><path d="M8 8h8M8 12h8M8 16h5"/></symbol>
+  <symbol id="i-grid" viewBox="0 0 24 24"><rect x="4" y="4" width="7" height="7" rx="1.6"/><rect x="13" y="4" width="7" height="7" rx="1.6"/><rect x="4" y="13" width="7" height="7" rx="1.6"/><rect x="13" y="13" width="7" height="7" rx="1.6"/></symbol>
+  <symbol id="i-filter" viewBox="0 0 24 24"><path d="M3 5h18l-7 8v6l-4-2v-4z"/></symbol>
+  <symbol id="i-bulb" viewBox="0 0 24 24"><path d="M15 14c.2-1 .7-1.7 1.5-2.5C17.7 10.2 18 9 18 8a6 6 0 0 0-12 0c0 1 .3 2.2 1.5 3.5.8.8 1.3 1.5 1.5 2.5"/><path d="M9 18h6M10 22h4"/></symbol>
+  <symbol id="i-tag" viewBox="0 0 24 24"><path d="M3 12V4a1 1 0 0 1 1-1h8l9 9-9 9z"/><circle cx="7.5" cy="7.5" r="1.4"/></symbol>
+  <symbol id="i-chat" viewBox="0 0 24 24"><path d="M21 11.5a8.5 8.5 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.5 8.5 0 0 1-3.8-.9L3 21l1.9-5.7a8.5 8.5 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.5 8.5 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8z"/></symbol>
+  <symbol id="i-target" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9.5"/><circle cx="12" cy="12" r="5.5"/><circle cx="12" cy="12" r="1.8"/></symbol>
+</defs></svg>
+
+<div class="reveal"><div class="slides">
+
+<!-- CAPA -->
+<section class="slide cover"><div class="wrap">
+  <img class="brandmark" src="assets/brand/logo.svg?v=9" alt="ChatSPX">
+  <h1>Kanban — novas ferramentas</h1>
+  <p class="hero">O board de atendimento virou um centro de operação: SLA, campos, automações, dashboard, IA, follow-up automático e chat interno.</p>
+  <p class="tagline">Guia para <strong>Atendentes</strong> e <strong>Gestores</strong></p>
+</div></section>
+
+<!-- VISÃO GERAL -->
+<section class="slide"><div class="wrap">
+  <div class="head"><span class="eyebrow"><span class="dot"></span>O que mudou</span>
+    <h2 class="s-title">10 novidades, num só board</h2></div>
+  <div class="body">
+    <div class="cards g4">
+      <div class="card"><div class="ico"><svg class="ic"><use href="#i-clock"/></svg></div><h3>SLA &amp; prazos</h3><p>O card muda de cor sozinho: <em>verde, âmbar, vermelho</em>.</p></div>
+      <div class="card"><div class="ico"><svg class="ic"><use href="#i-sliders"/></svg></div><h3>Campos do card</h3><p>Valor, motivo, prazo — definidos por funil.</p></div>
+      <div class="card"><div class="ico"><svg class="ic"><use href="#i-bookmark"/></svg></div><h3>Views &amp; filtros</h3><p>“Minhas urgentes” salvas + prioridade.</p></div>
+      <div class="card"><div class="ico"><svg class="ic"><use href="#i-layers"/></svg></div><h3>Ações em massa</h3><p>Mover, atribuir, etiquetar, arquivar em lote.</p></div>
+      <div class="card"><div class="ico"><svg class="ic"><use href="#i-zap"/></svg></div><h3>Tempo real + notas</h3><p>Board ao vivo e memória interna no card.</p></div>
+      <div class="card"><div class="ico"><svg class="ic"><use href="#i-robot"/></svg></div><h3>Automações</h3><p>Regras “quando → se → então”.</p></div>
+      <div class="card"><div class="ico"><svg class="ic"><use href="#i-chart"/></svg></div><h3>Dashboard</h3><p>Números, gráficos e aging ao vivo.</p></div>
+      <div class="card"><div class="ico"><svg class="ic"><use href="#i-spark"/></svg></div><h3>IA no card</h3><p>Resumir, sugerir resposta, sentimento.</p></div>
+      <div class="card"><div class="ico"><svg class="ic"><use href="#i-target"/></svg></div><h3>Follow-up automático <span class="pill ok">novo</span></h3><p>Sequências que cutucam o lead sozinhas até ele responder.</p></div>
+      <div class="card"><div class="ico"><svg class="ic"><use href="#i-chat"/></svg></div><h3>Chat interno <span class="pill ok">novo</span></h3><p>Converse com a equipe sem sair do sistema.</p></div>
+    </div>
+    <div class="tip"><svg class="ic"><use href="#i-bulb"/></svg><span>Cada card continua sendo uma <strong>conversa real</strong> de WhatsApp/e-mail/site — viva e respondível.</span></div>
+  </div>
+</div></section>
+
+<!-- DIVISOR -->
+<section class="slide divider"><div class="wrap">
+  <img class="brandmark" src="assets/brand/logo.svg?v=9" alt="ChatSPX">
+  <img class="bubble" src="assets/brand/logo_thumbnail2.svg?v=9" alt="">
+  <div class="num">Guia do Kanban</div>
+  <h1>As 10 ferramentas, na prática</h1>
+  <p>Veja a tela de cada recurso e o que fazer em cada uma.</p>
+  <div class="meta">~10 min · simulações das telas reais</div>
+</div></section>
+
+<!-- F1 SLA -->
+<section class="slide"><div class="wrap">
+  <div class="head"><span class="eyebrow"><span class="dot"></span>Ferramenta 1 · Prazos</span>
+    <h2 class="s-title">SLA, WIP e Deadline Mode</h2></div>
+  <div class="stage">
+    <div class="shot lg"><div class="browser"><div class="bar"><i class="r"></i><i class="y"></i><i class="g"></i><span class="u">app.<b>chatspx.app</b>/kanban</span></div>
+      <div class="frame"><div class="sim"><div class="board">
+        <div class="col"><div class="h">Aguardando <span class="cnt">3 / 5</span></div>
+          <div class="kc ok"><div class="nm">Maria Souza</div><div class="ms">WhatsApp · há 20 min</div><div class="row"><span class="pill ok">no prazo</span></div></div>
+          <div class="kc risk"><div class="nm">João Lima</div><div class="ms">WhatsApp · há 3 h</div><div class="row"><span class="pill risk">em risco</span></div></div>
+          <div class="kc breach"><div class="nm">Ana Dias</div><div class="ms">E-mail · há 2 dias</div><div class="row"><span class="pill breach">estourado</span></div></div>
+          <div class="foot">⚠ 1 atrasado</div>
+        </div>
+        <div class="col" style="opacity:.55"><div class="h">Em atendimento <span class="cnt">2</span></div><div class="kc ok"><div class="nm">Carlos M.</div><div class="ms">Site · há 5 min</div></div></div>
+        <div class="col" style="opacity:.4"><div class="h">Resolvido <span class="cnt">7</span></div><div class="kc"><div class="nm">Bruna R.</div><div class="ms">há 1 h</div></div></div>
+      </div></div></div></div>
+    <div class="legend">
+      <div class="li"><span class="n">1</span><b>A cor do card</b> mostra o prazo: <b>verde</b> (no prazo), <b>âmbar</b> (em risco) e <b>vermelho</b> (estourado).</div>
+      <div class="li g"><span class="n">2</span>No <b>menu ⋮ da coluna</b>: <b>Definir SLA</b> (horas) e <b>limite WIP</b> (o “3 / 5” do topo).</div>
+      <div class="li g"><span class="n">✓</span>O rodapé conta os <b>atrasados</b> — é o <b>Deadline Mode</b>.</div>
+    </div>
+  </div>
+</div></section>
+
+<!-- F2 CAMPOS -->
+<section class="slide"><div class="wrap">
+  <div class="head"><span class="eyebrow"><span class="dot"></span>Ferramenta 2 · Dados do card</span>
+    <h2 class="s-title">Campos personalizados</h2></div>
+  <div class="stage">
+    <div class="shot lg"><div class="browser"><div class="bar"><i class="r"></i><i class="y"></i><i class="g"></i><span class="u">app.<b>chatspx.app</b>/kanban</span></div>
+      <div class="frame"><div class="sim"><div class="board" style="grid-template-columns:1fr 1fr">
+        <div class="col"><div class="h">Em negociação <span class="cnt">3</span></div>
+          <div class="kc ok"><div class="nm">Maria Souza</div><div class="ms">WhatsApp · Aberto</div>
+            <div class="row"><span class="pill tag">💰 Valor: R$ 1.500</span><span class="pill tag">Motivo: Proposta</span></div></div>
+          <div class="kc ok"><div class="nm">João Lima</div><div class="ms">WhatsApp · Aberto</div>
+            <div class="row"><span class="pill tag">💰 Valor: R$ 4.200</span></div></div>
+          <div class="kc ok"><div class="nm">Ana Dias</div><div class="ms">E-mail · Aberto</div>
+            <div class="row"><span class="pill tag">💰 Valor: R$ 6.700</span></div></div>
+          <div class="foot sum">Σ Valor da venda: R$ 12.400</div>
+        </div>
+        <div class="col" style="opacity:.5"><div class="h">Fechado <span class="cnt">5</span></div><div class="kc ok"><div class="nm">Bruna R.</div><div class="row"><span class="pill tag">💰 R$ 3.000</span></div></div></div>
+      </div></div></div></div></div>
+    <div class="legend">
+      <div class="li"><span class="n">1</span><b>Editar funil → Campos personalizados.</b> Tipos: número, texto, data, lista, telefone…</div>
+      <div class="li g"><span class="n">2</span>Marque <b>“No card”</b> e o campo vira <b>chip</b> visível no cartão.</div>
+      <div class="li g"><span class="n">3</span>Preencha abrindo o card (preview).</div>
+      <div class="li g"><span class="n">✓</span>Campos <b>numéricos somam</b> no rodapé da coluna (o <b>Σ</b>).</div>
+    </div>
+  </div>
+</div></section>
+
+<!-- F3 VIEWS -->
+<section class="slide"><div class="wrap">
+  <div class="head"><span class="eyebrow"><span class="dot"></span>Ferramenta 3 · Organização</span>
+    <h2 class="s-title">Views salvas e filtros</h2></div>
+  <div class="stage">
+    <div class="shot lg"><div class="browser"><div class="bar"><i class="r"></i><i class="y"></i><i class="g"></i><span class="u">app.<b>chatspx.app</b>/kanban</span></div>
+      <div class="frame"><div class="sim">
+        <div class="simtoolbar">
+          <span class="ipt">🔎 Buscar…</span>
+          <span class="btn green">🔖 Views</span>
+          <span class="btn badge" data-c="2">⚙ Filtros avançados</span>
+        </div>
+        <div class="board" style="grid-template-columns:1.1fr 1.6fr">
+          <div class="col" style="background:#fff"><div class="h" style="color:#2dc46f">Minhas views</div>
+            <div class="kc ok"><div class="nm">⭐ Minhas urgentes</div></div>
+            <div class="kc breach"><div class="nm">SLA estourando</div></div>
+            <div class="kc"><div class="nm">Sem resposta 24h</div></div>
+            <div class="foot sum" style="color:#2dc46f">+ Salvar visão atual</div>
+          </div>
+          <div class="col"><div class="h">Filtros ativos</div>
+            <div class="row" style="display:flex;gap:6px;flex-wrap:wrap"><span class="pill risk">Prioridade: Alta</span><span class="pill tag">Status: Aberto</span><span class="pill tag">Canal: WhatsApp</span></div>
+            <div class="kc ok" style="margin-top:8px"><div class="nm">3 cards correspondem</div><div class="ms">filtro composto (E)</div></div>
+          </div>
+        </div>
+      </div></div></div></div>
+    <div class="legend">
+      <div class="li"><span class="n">1</span><b>Filtros avançados</b> → escolha <b>Prioridade</b> e combine com canal, status e agente (tudo em <b>E</b>).</div>
+      <div class="li g"><span class="n">2</span>Botão <b>Views → Salvar visão atual</b> guarda o recorte com nome.</div>
+      <div class="li g"><span class="n">✓</span>Abra a view num clique; a lixeira remove (só as suas).</div>
+    </div>
+  </div>
+</div></section>
+
+<!-- F3 MASSA -->
+<section class="slide"><div class="wrap">
+  <div class="head"><span class="eyebrow"><span class="dot"></span>Ferramenta 3 · Em lote</span>
+    <h2 class="s-title">Ações em massa (na Lista)</h2></div>
+  <div class="stage">
+    <div class="shot lg"><div class="browser"><div class="bar"><i class="r"></i><i class="y"></i><i class="g"></i><span class="u">app.<b>chatspx.app</b>/kanban · Lista</span></div>
+      <div class="frame"><div class="sim">
+        <div class="bulkbar"><b>2 selecionadas</b><span class="bchip">Mover ▾</span><span class="bchip">Atribuir ▾</span><span class="bchip">Etiquetar</span><span class="bchip">Arquivar</span></div>
+        <div class="lrow sel"><span class="chk on"></span><span class="av"></span><span class="nm">Maria Souza</span><span class="stg">Aguardando</span></div>
+        <div class="lrow sel"><span class="chk on"></span><span class="av"></span><span class="nm">João Lima</span><span class="stg" style="background:#ff9f0a">Em risco</span></div>
+        <div class="lrow"><span class="chk"></span><span class="av"></span><span class="nm">Ana Dias</span><span class="stg" style="background:#8e8e93">Resolvido</span></div>
+        <div class="lrow"><span class="chk"></span><span class="av"></span><span class="nm">Carlos M.</span><span class="stg">Aguardando</span></div>
+      </div></div></div></div>
+    <div class="legend">
+      <div class="li"><span class="n">1</span>Troque para a visão <b>Lista</b> e clique em <b>Selecionar</b>.</div>
+      <div class="li g"><span class="n">2</span>Marque os cards → aparece a <b>barra preta</b> de ações.</div>
+      <div class="li g"><span class="n">✓</span><b>Mover · Atribuir · Etiquetar · Arquivar</b> em todos de uma vez.</div>
+      <div class="li"><span class="n">!</span><b>Arquivar = encerrar.</b> Conversas sem time são puladas (“X feitas, Y ignoradas”).</div>
+    </div>
+  </div>
+</div></section>
+
+<!-- F4 TEMPO REAL -->
+<section class="slide"><div class="wrap">
+  <div class="head"><span class="eyebrow"><span class="dot"></span>Ferramenta 4 · Ao vivo</span>
+    <h2 class="s-title">Tempo real + notas internas</h2></div>
+  <div class="stage">
+    <div class="shot lg"><div class="browser"><div class="bar"><i class="r"></i><i class="y"></i><i class="g"></i><span class="u">app.<b>chatspx.app</b>/kanban</span> <span class="liveflag" style="margin-left:auto">● AO VIVO</span></div>
+      <div class="frame"><div class="sim"><div class="board">
+        <div class="col"><div class="h">Aguardando <span class="cnt">1</span></div>
+          <div class="kc ghost"><div class="nm" style="color:#9aa0a6">Maria Souza</div><div class="ms">movendo…</div></div></div>
+        <div class="col" style="border-color:#2dc46f"><div class="h">Em atendimento <span class="cnt">2</span></div>
+          <div class="kc ok"><div class="nm">Maria Souza</div><div class="ms">chegou agora · por João</div>
+            <div class="row"><span class="pill ok">📝 2 notas</span></div></div></div>
+        <div class="col" style="opacity:.5"><div class="h">Resolvido <span class="cnt">7</span></div></div>
+      </div>
+      <div class="ia" style="margin-top:10px"><div class="hd">📝 Notas internas — não vão para o cliente</div>
+        <div class="draft" style="font-style:normal">“Cliente pediu retorno amanhã.” — João · 14:20</div></div>
+      </div></div></div></div>
+    <div class="legend">
+      <div class="li g"><span class="n">1</span>Um agente arrasta o card e ele <b>se move sozinho</b> na tela dos outros (~1–2 s).</div>
+      <div class="li"><span class="n">2</span>Para ver: abra o mesmo funil em <b>2 navegadores</b>.</div>
+      <div class="li g"><span class="n">✓</span><b>Notas internas</b> no card = memória do atendimento, ideal no <b>handoff de turno</b>.</div>
+    </div>
+  </div>
+</div></section>
+
+<!-- F5 AUTOMAÇÕES -->
+<section class="slide"><div class="wrap">
+  <div class="head"><span class="eyebrow"><span class="dot"></span>Ferramenta 5 · Sem código</span>
+    <h2 class="s-title">Automações: quando → se → então</h2></div>
+  <div class="stage">
+    <div class="shot lg"><div class="browser"><div class="bar"><i class="r"></i><i class="y"></i><i class="g"></i><span class="u">app.<b>chatspx.app</b>/kanban · Automações</span></div>
+      <div class="frame"><div class="sim"><div class="autobox">
+        <div style="font-weight:600;font-size:13px;margin-bottom:6px">Nova automação · <span style="color:#2dc46f">Escalar urgentes</span></div>
+        <div class="arow"><span class="k" style="color:#b45309">QUANDO</span><span class="v">card entra na coluna “Aguardando”</span></div>
+        <div class="arow"><span class="k" style="color:#1f6fa8">SE</span><span class="v">prioridade = Alta</span></div>
+        <div class="arow"><span class="k" style="color:#1a8f55">ENTÃO</span><span class="v">mover → “Urgente”</span><span class="v">atribuir → Supervisor</span></div>
+        <div class="arow"><span class="k"></span><span class="v">etiquetar → “sla”</span></div>
+        <div style="margin-top:8px"><span class="btn green">Salvar automação</span></div>
+      </div></div></div></div></div>
+    <div class="legend">
+      <div class="li"><span class="n">1</span>Monte a regra: <b>gatilho</b> → <b>condições</b> → <b>ações</b>.</div>
+      <div class="li g"><span class="n">✓</span>Gatilhos: entrar na coluna ou <b>ficar X horas</b> nela (SLA).</div>
+      <div class="li g"><span class="n">✓</span>Ações: <b>mover, atribuir, etiquetar, webhook</b>.</div>
+      <div class="li"><span class="n">!</span>Roda sozinha. <b>Só admin cria</b> (trava de segurança contra loops).</div>
+    </div>
+  </div>
+</div></section>
+
+<!-- F6 DASHBOARD -->
+<section class="slide"><div class="wrap">
+  <div class="head"><span class="eyebrow"><span class="dot"></span>Ferramenta 6 · Visão</span>
+    <h2 class="s-title">Dashboard ao vivo</h2></div>
+  <div class="stage">
+    <div class="shot lg"><div class="browser"><div class="bar"><i class="r"></i><i class="y"></i><i class="g"></i><span class="u">app.<b>chatspx.app</b>/kanban · Dashboard</span></div>
+      <div class="frame"><div class="sim">
+        <div class="tiles">
+          <div class="tile"><div class="n" style="color:#1a8f55">18</div><div class="l">Abertas</div></div>
+          <div class="tile"><div class="n" style="color:#34c759">7</div><div class="l">Resolvidas hoje</div></div>
+          <div class="tile"><div class="n" style="color:#ff9f0a">3</div><div class="l">Sem responsável</div></div>
+          <div class="tile"><div class="n" style="color:#ff3b30">2</div><div class="l">Atrasadas</div></div>
+        </div>
+        <div class="barwrap"><div style="font-size:11px;font-weight:600;margin-bottom:8px;display:flex;justify-content:space-between">Cards por estágio <span class="btn" style="padding:3px 8px">⬇ CSV</span></div>
+          <div class="bars">
+            <div class="bcol"><span class="v">8</span><div class="bar" style="height:100%"></div><span class="k">Novo</span></div>
+            <div class="bcol"><span class="v">6</span><div class="bar" style="height:74%"></div><span class="k">Atend.</span></div>
+            <div class="bcol"><span class="v">4</span><div class="bar" style="height:50%"></div><span class="k">Aguard.</span></div>
+            <div class="bcol"><span class="v">7</span><div class="bar" style="height:88%"></div><span class="k">Resolv.</span></div>
+          </div>
+        </div>
+      </div></div></div></div>
+    <div class="legend">
+      <div class="li"><span class="n">1</span><b>Números-chave</b> no topo: abertas, resolvidas hoje, sem dono, atrasadas.</div>
+      <div class="li g"><span class="n">2</span><b>Gráficos</b>: cards por estágio e carga por agente.</div>
+      <div class="li g"><span class="n">✓</span>É o <b>4º modo de visão</b> (📊) — atualiza em tempo real e <b>exporta CSV</b>.</div>
+    </div>
+  </div>
+</div></section>
+
+<!-- F7 IA -->
+<section class="slide"><div class="wrap">
+  <div class="head"><span class="eyebrow"><span class="dot"></span>Ferramenta 7 · Assistência</span>
+    <h2 class="s-title">IA de atendimento no card</h2></div>
+  <div class="stage">
+    <div class="shot lg"><div class="browser"><div class="bar"><i class="r"></i><i class="y"></i><i class="g"></i><span class="u">app.<b>chatspx.app</b>/conversas/3</span></div>
+      <div class="frame"><div class="sim"><div class="ia">
+        <div class="hd">✨ Assistente de IA — Maria Souza · <span style="color:#1a8f55">😊 sentimento: calmo</span></div>
+        <div class="acts"><span class="act">Resumir conversa</span><span class="act">Sugerir resposta</span><span class="act">Detectar sentimento</span><span class="act">Sugerir etiquetas</span></div>
+        <div class="draft">Rascunho: “Olá, Maria! Já localizei seu pedido nº 4821 e ele sai para entrega hoje. Posso ajudar em algo mais?”</div>
+      </div></div></div></div></div>
+    <div class="legend">
+      <div class="li"><span class="n">1</span><b>Resumir</b>: assuma a conversa sem ler tudo.</div>
+      <div class="li g"><span class="n">2</span><b>Sugerir resposta</b>: o rascunho cai no campo de resposta.</div>
+      <div class="li g"><span class="n">✓</span><b>Sentimento</b> e <b>etiquetas</b> sugeridas pela IA.</div>
+      <div class="li"><span class="n">!</span>Só aparece se a <b>IA estiver configurada</b> na conta.</div>
+    </div>
+  </div>
+</div></section>
+
+<!-- F8 FORMS -->
+<section class="slide"><div class="wrap">
+  <div class="head"><span class="eyebrow"><span class="dot"></span>Ferramenta 8 · Entrada</span>
+    <h2 class="s-title">Formulário público &amp; templates</h2></div>
+  <div class="stage">
+    <div class="shot lg"><div class="browser"><div class="bar"><i class="r"></i><i class="y"></i><i class="g"></i><span class="u">app.<b>chatspx.app</b>/funil · Configurar</span></div>
+      <div class="frame"><div class="sim">
+        <div class="autobox">
+          <div style="display:flex;align-items:center;gap:8px;font-weight:600;font-size:12px">Formulário público <span class="toggle"></span><span style="color:#1a8f55;font-size:11px">ativado</span></div>
+          <div class="urlrow">🔗 chatspx.app/f/vendas-2024 <span class="btn" style="margin-left:auto;padding:3px 8px">Copiar</span></div>
+        </div>
+        <div style="font-weight:600;font-size:12px;margin:12px 0 0">Começar de um template</div>
+        <div class="tpls"><span class="pill tag">🧩 Suporte</span><span class="pill tag">🧩 Vendas</span><span class="pill tag">🧩 Cobrança</span><span class="pill tag">🧩 Pós-venda</span></div>
+        <div class="kc ok" style="margin-top:12px"><div class="nm">Novo lead — formulário</div><div class="ms">criado agora · 1ª coluna · já preenchido</div></div>
+      </div></div></div></div>
+    <div class="legend">
+      <div class="li"><span class="n">1</span><b>Templates</b>: crie um funil pronto (Suporte, Vendas…) em 1 clique.</div>
+      <div class="li g"><span class="n">2</span>Ative o <b>Formulário público</b> e copie a URL.</div>
+      <div class="li g"><span class="n">✓</span>O lead envia → vira <b>contato + conversa</b> → entra como <b>card na 1ª coluna</b>, já preenchido.</div>
+    </div>
+  </div>
+</div></section>
+
+<!-- DIVISOR NOVIDADES -->
+<section class="slide divider"><div class="wrap">
+  <img class="brandmark" src="assets/brand/logo.svg?v=9" alt="ChatSPX">
+  <img class="bubble" src="assets/brand/logo_thumbnail2.svg?v=9" alt="">
+  <div class="num">Recém-chegadas</div>
+  <h1>2 novidades no board</h1>
+  <p>Follow-up automático e chat interno entre agentes.</p>
+  <div class="meta">Atualização de Junho/2026 · já disponível</div>
+</div></section>
+
+<!-- F9 FOLLOW-UP -->
+<section class="slide"><div class="wrap">
+  <div class="head"><span class="eyebrow"><span class="dot"></span>Ferramenta 9 · Conversão <span class="pill ok">novo</span></span>
+    <h2 class="s-title">Follow-up automático (sequências)</h2></div>
+  <div class="stage">
+    <div class="shot lg"><div class="browser"><div class="bar"><i class="r"></i><i class="y"></i><i class="g"></i><span class="u">app.<b>chatspx.app</b>/kanban</span></div>
+      <div class="frame"><div class="sim"><div class="board" style="grid-template-columns:1.2fr 1.5fr">
+        <div class="col"><div class="h">Conversa</div>
+          <div class="kc ok"><div class="nm">Carla Mendes</div><div class="ms">WhatsApp · proposta enviada</div>
+            <div class="row"><span class="pill tag">⏱ Em sequência: passo 2 de 4</span></div></div>
+          <div class="foot">Para sozinho se o cliente responder</div>
+        </div>
+        <div class="col"><div class="h">Sequência “Pós-proposta”</div>
+          <div class="kc"><div class="nm">1 · Agora</div><div class="ms">“Oi Carla, te enviei a proposta…”</div></div>
+          <div class="kc"><div class="nm">2 · +1 dia</div><div class="ms">“Conseguiu ver? Qualquer dúvida me chama.”</div></div>
+          <div class="kc"><div class="nm">3 · +3 dias</div><div class="ms">“Ainda dá tempo de garantir as condições.”</div></div>
+          <div class="foot sum" style="color:#2dc46f">+ Novo passo (min · horas · dias)</div>
+        </div>
+      </div></div></div></div></div>
+    <div class="legend">
+      <div class="li"><span class="n">1</span><b>Configurações → Sequências de Follow-up.</b> Crie passos com o intervalo (min/horas/dias) e a mensagem.</div>
+      <div class="li g"><span class="n">2</span>Na conversa, painel <b>“Sequências de Follow-up” → Inscrever</b>. O card mostra <b>“passo X de Y”</b>.</div>
+      <div class="li g"><span class="n">3</span>Dá pra inscrever sozinho por <b>automação</b> (“entrou no estágio → inscreve na sequência”).</div>
+      <div class="li g"><span class="n">✓</span><b>Para sozinha</b> quando o cliente responde (ou quando a conversa é resolvida).</div>
+    </div>
+  </div>
+</div></section>
+
+<!-- F10 CHAT INTERNO -->
+<section class="slide"><div class="wrap">
+  <div class="head"><span class="eyebrow"><span class="dot"></span>Ferramenta 10 · Equipe <span class="pill ok">novo</span></span>
+    <h2 class="s-title">Chat interno entre agentes</h2></div>
+  <div class="stage">
+    <div class="shot lg"><div class="browser"><div class="bar"><i class="r"></i><i class="y"></i><i class="g"></i><span class="u">app.<b>chatspx.app</b>/internal-chat</span></div>
+      <div class="frame"><div class="sim"><div class="board" style="grid-template-columns:1fr 1.7fr">
+        <div class="col"><div class="h">Conversas <span class="cnt">3</span></div>
+          <div class="kc ok"><div class="nm">Ana Dias</div><div class="ms">você: combinado! 👍</div></div>
+          <div class="kc"><div class="nm">👥 Equipe Vendas</div><div class="ms">Bruno: alguém pode…</div></div>
+          <div class="foot sum" style="color:#2dc46f">+ Nova conversa (DM · grupo · equipe)</div>
+        </div>
+        <div class="col"><div class="h">Equipe Vendas</div>
+          <div class="kc"><div class="nm">Bruno</div><div class="ms">Fechei o cliente X 🎉</div></div>
+          <div class="kc risk"><div class="nm">Bruno</div><div class="ms"><b>@você</b> confere o pedido, por favor?</div></div>
+          <div class="row" style="margin-top:8px"><span class="ipt">Mensagem…&nbsp;&nbsp;😊&nbsp;&nbsp;📎&nbsp;&nbsp;@</span></div>
+        </div>
+      </div></div></div></div></div>
+    <div class="legend">
+      <div class="li"><span class="n">1</span>Barra lateral → <b>“Chat Interno”</b>. Botão <b>+</b>: conversa <b>1:1</b>, <b>grupo</b> ou <b>por equipe</b>.</div>
+      <div class="li g"><span class="n">2</span>Tudo em <b>tempo real</b>; o menu mostra um <b>badge de não-lidas</b>.</div>
+      <div class="li g"><span class="n">3</span>Use <b>@menção</b> (a pessoa recebe um aviso na hora), <b>emoji</b> e <b>anexo</b> no campo de mensagem.</div>
+      <div class="li g"><span class="n">✓</span>É <b>separado do cliente</b> — ninguém de fora enxerga.</div>
+    </div>
+  </div>
+</div></section>
+
+<!-- BOAS PRÁTICAS -->
+<section class="slide"><div class="wrap">
+  <div class="head"><span class="eyebrow"><span class="dot"></span>Para o dia a dia</span>
+    <h2 class="s-title">Boas práticas</h2></div>
+  <div class="body"><div class="cards g3">
+    <div class="card"><h3>Configure o SLA</h3><p>É o que faz o board <em>gritar</em> sozinho. Sem SLA, sem cor.</p></div>
+    <div class="card"><h3>Poucos campos, úteis</h3><p>Valor, motivo e prazo já destravam relatórios e automações.</p></div>
+    <div class="card"><h3>Salve suas views</h3><p>Comece o dia em “Minhas urgentes” em vez de refiltrar tudo.</p></div>
+    <div class="card"><h3>Notas no handoff</h3><p>Quem assume lê 1 parágrafo em vez de reler tudo.</p></div>
+    <div class="card"><h3>Automação simples</h3><p>1 gatilho + 1 ação. Cresça depois. (Só admin.)</p></div>
+    <div class="card"><h3>Dashboard diário</h3><p>Atrasadas e carga por agente mostram onde agir.</p></div>
+    <div class="card"><h3>Follow-up sem sumiço</h3><p>Mandou proposta? Inscreva o lead numa sequência — ela cutuca por você.</p></div>
+    <div class="card"><h3>Fale no chat interno</h3><p>Dúvida rápida com o colega? @menção no chat interno em vez de parar o cliente.</p></div>
+  </div></div>
+</div></section>
+
+<!-- QUIZ -->
+<section class="slide"><div class="wrap">
+  <div class="head"><span class="eyebrow"><span class="dot"></span>Teste rápido</span>
+    <h2 class="s-title">Fixando o aprendizado</h2></div>
+  <div class="body"><div class="quiz">
+    <div class="q">Um card de prioridade alta ficou tempo demais em “Aguardando” e precisa subir para “Urgente” sozinho. Onde se configura?</div>
+    <label class="opt" onclick="this.classList.add('no')"><span>Mudando a cor do card à mão</span><span class="mk">✕</span></label>
+    <label class="opt" onclick="this.classList.add('ok')"><span>Numa <b>Automação</b> (quando → se → então)</span><span class="mk">✓</span></label>
+    <label class="opt" onclick="this.classList.add('no')"><span>Criando um campo personalizado</span><span class="mk">✕</span></label>
+    <label class="opt" onclick="this.classList.add('no')"><span>Exportando o CSV do dashboard</span><span class="mk">✕</span></label>
+  </div></div>
+</div></section>
+
+<!-- ENCERRAMENTO -->
+<section class="slide cover"><div class="wrap">
+  <img class="brandmark" src="assets/brand/logo.svg?v=9" alt="ChatSPX">
+  <h1>Mãos à obra</h1>
+  <p class="hero">10 ferramentas para responder o cliente mais rápido, vender mais e trabalhar junto. Agora é praticar.</p>
+  <p class="tagline">Dica: o <strong>tempo real</strong> precisa de 2 navegadores abertos no mesmo funil.</p>
+</div></section>
+
+</div></div>
+
+<script src="assets/reveal.js?v=9"></script>
+<script>
+  Reveal.initialize({
+    width: 1280, height: 720, margin: 0, minScale: 0.2, maxScale: 2.0,
+    center: false, hash: true, slideNumber: 'c/t',
+    controls: true, progress: true, transition: 'fade', backgroundTransition: 'fade',
+  });
+</script>
+</body>
+</html>

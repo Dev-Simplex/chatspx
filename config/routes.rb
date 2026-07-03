@@ -137,17 +137,28 @@ Rails.application.routes.draw do
               post :reorder_stages
             end
             resources :funnel_stages, only: [:index, :show, :create, :update, :destroy]
+            resources :custom_fields, only: [:index, :show, :create, :update, :destroy], module: :funnels
+            resources :automations, only: [:index, :show, :create, :update, :destroy], module: :funnels
             resources :funnel_items, only: [:index, :create, :update, :destroy] do
+              member do
+                patch :custom_attributes
+              end
               collection do
                 post :bulk_move
+                post :bulk_update
               end
+              resources :funnel_item_notes, only: [:index, :create, :destroy], path: 'notes', module: :funnels
             end
           end
+          resources :funnel_views, only: [:index, :show, :create, :update, :destroy]
+          get 'kanban_ai/status', to: 'kanban_ai#status'
           resources :scheduled_messages, only: [:index, :show, :create, :update, :destroy] do
             collection do
               get :inboxes
             end
           end
+          resources :message_sequences, only: [:index, :show, :create, :update, :destroy]
+          resources :message_sequence_enrollments, only: [:index, :create, :destroy]
           resources :dashboard_apps, only: [:index, :show, :create, :update, :destroy]
           namespace :channels do
             resource :twilio_channel, only: [:create]
@@ -179,6 +190,7 @@ Rails.application.routes.draw do
                 end
               end
               resources :assignments, only: [:create]
+              resources :funnel_items, only: [:index]
               resources :labels, only: [:create, :index]
               resource :participants, only: [:show, :create, :update, :destroy]
               resource :direct_uploads, only: [:create]
@@ -661,6 +673,10 @@ Rails.application.routes.draw do
         end
 
         resources :csat_survey, only: [:show, :update]
+
+        # Kanban v2 (Fase 8): public WorkForm intake (token-identified, rate-limited)
+        get 'funnel_forms/:token', to: 'funnel_forms#show'
+        post 'funnel_forms/:token', to: 'funnel_forms#create'
       end
     end
   end

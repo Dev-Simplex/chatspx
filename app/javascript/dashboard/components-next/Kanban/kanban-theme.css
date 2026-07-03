@@ -1,0 +1,295 @@
+/* Kanban design tokens — shared across board, columns and cards.
+   Imported once from KanbanIndex.vue so the variables are global. */
+:root {
+  --kanban-card-radius: 0.625rem; /* 10px */
+  /* Phase 6 — radius scale tokens (single source of truth) */
+  --kanban-radius-sm: 6px; /* pills */
+  --kanban-radius-md: 8px; /* buttons, labels */
+  --kanban-radius-lg: 0.625rem; /* 10px — cards */
+  --kanban-radius-xl: 12px; /* columns */
+  /* Light mode: crisper, layered elevation so white cards lift off the
+     cool-gray board instead of melting into it. */
+  --kanban-card-shadow:
+    0 1px 2px rgba(16, 24, 40, 0.05), 0 5px 14px -4px rgba(16, 24, 40, 0.12);
+  --kanban-card-shadow-hover:
+    0 6px 16px -4px rgba(16, 24, 40, 0.14),
+    0 2px 6px -2px rgba(16, 24, 40, 0.064);
+  --kanban-card-shadow-drag: 0 18px 30px -10px rgba(16, 24, 40, 0.28);
+  --kanban-col-width: 304px;
+  --kanban-col-gap: 0.75rem;
+  --kanban-accent: 45, 196, 111; /* rgb channels for the drag accent */
+  /* Hairline column edge — light: faint ink; dark: faint light (set below). */
+  --kanban-column-border: rgba(16, 24, 40, 0.12);
+  /* Light canvas — a calm, clean light gray so white lanes/cards lift via their
+     shadows (Trello-like), without the muddy cool tint. */
+  --kanban-board-bg: #eef1f6;
+
+  /* Phase 5 — premium polish tokens */
+  --kanban-spring: cubic-bezier(0.34, 1.56, 0.64, 1); /* soft overshoot */
+  /* Near-opaque in light so lanes/cards read as solid panels (text legible). */
+  --kanban-glass-bg: rgba(255, 255, 255, 0.92);
+  --kanban-glass-blur: 10px;
+  /* Card aging (heat) — warm = amber, cold = ruby */
+  --kanban-heat-warm: 245, 158, 11; /* amber-500 rgb */
+  --kanban-heat-cold: 239, 68, 68; /* red-500 rgb */
+
+  /* Wait priority — amber→orange→red→deep-red ramp by escalation level,
+     plus a calm blue for the secondary "stalled" signal. */
+  --kanban-wait-l1: #f59e0b; /* amber-500  — just started waiting */
+  --kanban-wait-l2: #f97316; /* orange-500 — >=30min */
+  --kanban-wait-l3: #ef4444; /* red-500    — >=2h */
+  --kanban-wait-l4: #b91c1c; /* red-700    — >=8h (critical) */
+  --kanban-wait-stalled: #3b82f6; /* blue-500 — quiet, agent spoke last */
+}
+
+.dark {
+  --kanban-card-shadow:
+    0 1px 2px rgba(0, 0, 0, 0.4), 0 1px 3px rgba(0, 0, 0, 0.3);
+  --kanban-card-shadow-hover: 0 6px 16px -4px rgba(0, 0, 0, 0.5);
+  --kanban-card-shadow-drag: 0 18px 30px -10px rgba(0, 0, 0, 0.6);
+  --kanban-glass-bg: rgba(20, 22, 28, 0.55);
+  --kanban-column-border: rgba(255, 255, 255, 0.06);
+  --kanban-heat-warm: 251, 191, 36; /* amber-400 — brighter on dark */
+  --kanban-heat-cold: 248, 113, 113; /* red-400 */
+
+  /* Wait ramp — brightened a notch so the edge rails read on dark surfaces. */
+  --kanban-wait-l1: #fbbf24; /* amber-400 */
+  --kanban-wait-l2: #fb923c; /* orange-400 */
+  --kanban-wait-l3: #f87171; /* red-400 */
+  --kanban-wait-l4: #ef4444; /* red-500 */
+  --kanban-wait-stalled: #60a5fa; /* blue-400 */
+}
+
+/* Color picker — the native <input type="color"> draws a square swatch with
+   its own border/padding, which clashes with the rounded wrapper. Strip the
+   chrome and round the inner swatch so the color fills the rounded frame. */
+.kanban-color-input {
+  padding: 0;
+  background: none;
+  cursor: pointer;
+  border-radius: var(--kanban-radius-md);
+  overflow: hidden;
+}
+.kanban-color-input::-webkit-color-swatch-wrapper {
+  padding: 0;
+}
+.kanban-color-input::-webkit-color-swatch {
+  border: none;
+  border-radius: var(--kanban-radius-md);
+}
+.kanban-color-input::-moz-color-swatch {
+  border: none;
+  border-radius: var(--kanban-radius-md);
+}
+
+/* Phase 6 — accessible focus ring for every interactive Kanban element.
+   Keyboard focus only (focus-visible); mouse/touch focus stays clean. */
+.kanban-focusable:focus-visible {
+  outline: 2px solid rgb(var(--n-brand, 29 155 240));
+  outline-offset: 2px;
+  border-radius: inherit;
+}
+
+.kanban-focusable:focus:not(:focus-visible) {
+  outline: none;
+}
+
+/* Drag & drop feedback — global (the dragged clone is appended outside the
+   component tree, so scoped styles would not reach it). Single source of truth
+   replacing the previously duplicated #2dc46f rules. */
+.kanban-ghost,
+.kanban-stage-ghost {
+  opacity: 0.35;
+  border: 2px dashed rgb(var(--kanban-accent));
+  border-radius: var(--kanban-card-radius);
+  background: rgba(var(--kanban-accent), 0.06);
+  transition:
+    box-shadow 0.15s ease,
+    transform 0.15s var(--kanban-spring, ease);
+}
+
+.kanban-drag,
+.kanban-stage-drag {
+  opacity: 0.96;
+  box-shadow: var(--kanban-card-shadow-drag);
+  transform: rotate(0.75deg);
+  transition:
+    box-shadow 0.15s ease,
+    transform 0.15s var(--kanban-spring, ease);
+}
+
+/* Glassmorphic lanes — a frosted, translucent panel that lets the HUD grid
+   bleed through, with a bright top rim + soft lift so each lane reads as a
+   pane of glass floating over the deep canvas. */
+.kanban-column {
+  border: 1px solid var(--kanban-column-border, transparent);
+  backdrop-filter: blur(9px) saturate(120%);
+  -webkit-backdrop-filter: blur(9px) saturate(120%);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.35),
+    0 1px 2px rgba(16, 24, 40, 0.1),
+    0 14px 32px -18px rgba(30, 41, 80, 0.32);
+}
+
+.dark .kanban-column {
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.05), 0 4px 14px -8px rgba(0, 0, 0, 0.5);
+}
+
+/* Phase 6 — drop-zone highlight: tint the column body while a card hovers. */
+.kanban-column-content:has(.kanban-ghost) {
+  background: rgba(var(--kanban-accent), 0.06);
+  border-radius: var(--kanban-radius-lg);
+  transition: background 0.15s ease;
+}
+
+/* Compact density — hides the message preview and tightens spacing. */
+.kanban-compact .kanban-card__message {
+  display: none;
+}
+
+.kanban-compact .kanban-card__body {
+  gap: 0.375rem;
+  padding: 0.5rem 0.625rem;
+}
+
+/* Cover mode — paints the card top with the primary label color.
+   Only cards that actually have a primary label (.has-cover) swap the thin
+   stage strip for the full cover block. Higher specificity (3 classes) wins
+   over the card's scoped `display:none` default regardless of source order. */
+.kanban-cover .kanban-card.has-cover .kanban-card__cover {
+  display: flex;
+}
+
+.kanban-cover .kanban-card.has-cover .kanban-card__strip {
+  display: none;
+}
+
+/* ── Phase 5: skeleton shimmer (stage loading) ─────────────────────── */
+@keyframes kanban-shimmer {
+  100% {
+    transform: translateX(100%);
+  }
+}
+
+.kanban-skeleton {
+  position: relative;
+  overflow: hidden;
+  border: 1px solid rgb(var(--border-weak));
+  border-radius: var(--kanban-card-radius);
+  background: rgb(var(--solid-2, var(--border-weak)));
+}
+
+.kanban-skeleton::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  transform: translateX(-100%);
+  background: linear-gradient(
+    90deg,
+    transparent,
+    rgba(148, 163, 184, 0.22),
+    transparent
+  );
+  animation: kanban-shimmer 1.4s infinite;
+}
+
+/* Phase 6 — dark skeleton: lift base + shimmer so it reads on dark surfaces. */
+.dark .kanban-skeleton {
+  background: rgba(255, 255, 255, 0.04);
+}
+
+.dark .kanban-skeleton::after {
+  background: linear-gradient(
+    90deg,
+    transparent,
+    rgba(255, 255, 255, 0.06),
+    transparent
+  );
+}
+
+/* ── Phase 5: card entry animation ─────────────────────────────────── */
+@keyframes kanban-card-in {
+  from {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.kanban-card {
+  /* No fill-mode: once the entry finishes the card reverts to base styles so
+     :hover / :active transforms keep working (a filled transform would lock). */
+  animation: kanban-card-in 0.24s var(--kanban-spring, ease);
+}
+
+/* Never animate the drag clone/placeholder — it fights the sortable. */
+.kanban-ghost,
+.kanban-drag,
+.sortable-chosen .kanban-card,
+.sortable-drag .kanban-card {
+  animation: none;
+}
+
+/* Neon HUD accents (column + card top bars) — a slow glow "breathing" pulse.
+   Only the blur/spread animate; the color comes from the per-element
+   --hud-glow var so each accent breathes in its own stage hue. */
+@keyframes kanban-neon-pulse {
+  0%,
+  100% {
+    box-shadow:
+      0 1px 7px 0 var(--hud-glow, transparent),
+      0 0 14px 0 var(--hud-glow, transparent);
+  }
+  50% {
+    box-shadow:
+      0 1px 12px 0 var(--hud-glow, transparent),
+      0 0 28px 3px var(--hud-glow, transparent);
+  }
+}
+
+/* Critical wait rail (level 4) — a subtle breathing pulse to pull the eye. */
+@keyframes kanban-wait-pulse {
+  0%,
+  100% {
+    opacity: 1;
+    transform: scaleX(1);
+  }
+  50% {
+    opacity: 0.55;
+    transform: scaleX(1.6);
+  }
+}
+
+/* Phase 6 — single consolidated reduced-motion guard for the whole board. */
+@media (prefers-reduced-motion: reduce) {
+  .kanban-card {
+    animation: none;
+  }
+
+  .kanban-card:hover,
+  .kanban-card:active {
+    transform: none;
+  }
+
+  .kanban-card__wait-rail.is-critical {
+    animation: none;
+  }
+
+  .kanban-column__accent,
+  .kanban-card__strip {
+    animation: none;
+  }
+
+  .kanban-skeleton::after {
+    animation: none;
+  }
+
+  .kanban-column .transition-all,
+  .kanban-drag {
+    transition: none;
+  }
+}
