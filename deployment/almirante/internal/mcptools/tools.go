@@ -401,7 +401,7 @@ func Register(s *mcp.Server, fl *types.Fleet, src Source) {
 
 	mcp.AddTool(s, &mcp.Tool{Name: "almirante_whoami", Description: "Mostra seu papel e limites: voce propoe, NAO aprova (gate fora do LLM).", Annotations: ro},
 		func(_ context.Context, _ *mcp.CallToolRequest, _ empty) (*mcp.CallToolResult, any, error) {
-			return txt("Voce e OPERATOR: propoe e le. NAO aprova nem executa — aprovar exige um humano admin no painel (anti self-review). A tool 'approve' nem existe aqui."), nil, nil
+			return txt("Voce e OPERATOR. DEPLOY: voce PROPOE; um humano admin APROVA no painel (a tool 'approve' nem existe aqui) — anti-self-review. GITHUB: voce LE tudo e escreve REVERSIVEL (abrir issue/PR, comentar — auditado); MERGE de PR NAO (irreversivel, so no painel por um humano). IA: escrita passa por TEST-GATE fail-closed + audit + rollback. Resumo: voce propoe e faz acoes reversiveis; nada irreversivel/critico executa sem humano."), nil, nil
 		})
 
 	// ===== Toolset C — Deploy (propor) =====
@@ -738,12 +738,8 @@ func Register(s *mcp.Server, fl *types.Fleet, src Source) {
 			}
 			return jsonTxt(v), nil, nil
 		})
-	mcp.AddTool(s, &mcp.Tool{Name: "almirante_gh_merge_pr", Description: "Faz merge de um PR. repo, number, method=merge|squash|rebase. Auditado. Requer ADMIN.", Annotations: gated},
+	mcp.AddTool(s, &mcp.Tool{Name: "almirante_gh_merge_pr", Description: "MERGE de PR é IRREVERSÍVEL e NÃO é executável pelo MCP (anti-self-review). Esta tool só APONTA pro painel/GitHub — o merge é feito por um humano admin no painel.", Annotations: ro},
 		func(_ context.Context, _ *mcp.CallToolRequest, in ghMergeInput) (*mcp.CallToolResult, any, error) {
-			v, err := src.GHMergePR(in.Repo, in.Number, in.Method)
-			if err != nil {
-				return errtxt(err.Error()), nil, nil
-			}
-			return jsonTxt(v), nil, nil
+			return txt(fmt.Sprintf("Merge de PR é IRREVERSÍVEL e o MCP NÃO executa (anti-self-review). Abra o PR #%d de %s no painel (aba GitHub) e clique Merge como admin — ou em https://github.com/%s/pull/%d", in.Number, in.Repo, in.Repo, in.Number)), nil, nil
 		})
 }

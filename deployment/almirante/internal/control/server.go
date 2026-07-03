@@ -411,6 +411,11 @@ func (s *Server) cancel(w http.ResponseWriter, r *http.Request, u user) {
 		writeErr(w, 409, "so cancela pendente; pedido ja esta "+string(req.Status))
 		return
 	}
+	// separação de deveres: só o solicitante (ou um admin) cancela o pedido.
+	if req.RequestedBy != u.name && u.role < RoleAdmin {
+		writeErr(w, 403, "só o solicitante do pedido (ou um admin) pode cancelá-lo")
+		return
+	}
 	updated, _ := s.store.Update(req.ID, func(rq *types.DeployRequest) {
 		rq.Status = types.StatusRejected
 		rq.FinishedAt = s.now().UTC().Format(time.RFC3339)

@@ -140,10 +140,24 @@ func main() {
 
 	port := env("ALMIRANTE_CONTROL_PORT", "4100")
 	fmt.Fprintf(os.Stderr, "almirante-control %s %s %s em :%s (mock=%v) — painel em /\n", version, commit, date, port, cfg.Mock)
-	if err := http.ListenAndServe(":"+port, mux); err != nil {
+	if err := http.ListenAndServe(":"+port, securityHeaders(mux)); err != nil {
 		fmt.Fprintln(os.Stderr, "control falhou:", err)
 		os.Exit(1)
 	}
+}
+
+// securityHeaders envelopa o mux com headers de segurança padrão (o front é
+// self-contained; frame-ancestors 'none' bloqueia clickjacking sem quebrar recursos).
+func securityHeaders(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		h := w.Header()
+		h.Set("Strict-Transport-Security", "max-age=31536000; includeSubDomains")
+		h.Set("X-Content-Type-Options", "nosniff")
+		h.Set("X-Frame-Options", "DENY")
+		h.Set("Referrer-Policy", "strict-origin-when-cross-origin")
+		h.Set("Content-Security-Policy", "frame-ancestors 'none'")
+		next.ServeHTTP(w, r)
+	})
 }
 
 // buildAIGovernance monta o driver + test-gate de governanca de IA se ao menos

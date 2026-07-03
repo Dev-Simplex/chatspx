@@ -33,7 +33,11 @@ type Logger struct {
 func New(path string) *Logger { return &Logger{path: path, now: time.Now} }
 
 func hashEntry(e Entry) string {
-	h := sha256.Sum256([]byte(e.PrevHash + e.TS + e.Action + e.Actor + e.VM))
+	// Detail entra no hash (json.Marshal ordena chaves = determinístico). Sem isto,
+	// os dados forenses mais sensíveis (branch, PR, método de merge) ficavam FORA da
+	// tamper-evidence e podiam ser adulterados sem quebrar a cadeia.
+	det, _ := json.Marshal(e.Detail)
+	h := sha256.Sum256([]byte(e.PrevHash + e.TS + e.Action + e.Actor + e.VM + string(det)))
 	return hex.EncodeToString(h[:])
 }
 

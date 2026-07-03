@@ -149,7 +149,12 @@ func (ts *TokenStore) Revoke(id string) bool {
 // POST /api/tokens {name,role} -> emite e devolve o segredo UMA vez.
 func (s *Server) issueToken(w http.ResponseWriter, r *http.Request, u user) {
 	var body struct{ Name, Role string }
-	_ = json.NewDecoder(r.Body).Decode(&body)
+	dec := json.NewDecoder(r.Body)
+	dec.DisallowUnknownFields() // strict: tokens NÃO aceitam escopo por VM em silêncio (foot-gun)
+	if err := dec.Decode(&body); err != nil {
+		writeErr(w, 400, "corpo inválido — tokens de máquina não têm escopo por VM (são all-VM); pra restringir por VM, crie um USUÁRIO humano e use vm_access: "+err.Error())
+		return
+	}
 	if body.Name == "" {
 		writeErr(w, 400, "informe 'name' (nome do dev)")
 		return

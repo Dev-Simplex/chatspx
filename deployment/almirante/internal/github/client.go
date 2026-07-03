@@ -14,6 +14,7 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"net/url"
 	"sort"
 	"strings"
 	"time"
@@ -150,9 +151,18 @@ func (c *Client) ReadFile(ctx context.Context, repo, path, ref string) (any, err
 	if err := c.checkRepo(repo); err != nil {
 		return nil, err
 	}
+	// FAIL-CLOSED: sem isto, um path com '../' fura a allowlist (o cliente HTTP
+	// normaliza os '..' e reconstroi /repos/OUTRO/OUTRO/contents/... fora do escopo).
+	path = strings.TrimLeft(path, "/")
+	if path == "" || strings.Contains(path, "..") || strings.ContainsAny(path, "?#") {
+		return nil, fmt.Errorf("github: path invalido %q (sem '..' nem query)", path)
+	}
 	q := ""
 	if ref != "" {
-		q = "?ref=" + ref
+		if strings.ContainsAny(ref, "/?#&") {
+			return nil, fmt.Errorf("github: ref invalido %q", ref)
+		}
+		q = "?ref=" + url.QueryEscape(ref)
 	}
 	var v any
 	return v, c.do(ctx, http.MethodGet, fmt.Sprintf("/repos/%s/contents/%s%s", repo, path, q), nil, &v)
