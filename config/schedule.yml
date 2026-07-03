@@ -124,3 +124,11 @@ purge_expired_bulk_downloads_job:
   cron: '0 4 * * *'
   class: 'Attachments::PurgeBulkDownloadsJob'
   queue: housekeeping
+
+# executed hourly (minuto 7 p/ evitar o topo da hora)
+# eval LLM-as-a-Judge: avalia atendimentos (IA e humanos) das contas com
+# custom_attributes['eval_enabled']. NO-OP nas contas sem a flag.
+captain_conversation_eval_scheduler_job:
+  cron: '7 * * * *'
+  class: 'Captain::ConversationEvalSchedulerJob'
+  queue: scheduled_jobs
