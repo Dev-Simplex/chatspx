@@ -143,8 +143,6 @@ const hasInternalChat = computed(() => {
   );
 });
 
-const totalInternalChatUnread = useMapGetter('internalChat/getTotalUnread');
-
 // Real-time @mention toast for internal chat (localized here — the Sidebar is
 // always mounted and has i18n; keeps the ActionCable connector i18n-free).
 // User notification preferences for internal chat (set in the chat's header).
@@ -241,6 +239,9 @@ onMounted(() => {
   store.dispatch('attributes/get');
   store.dispatch('customViews/get', 'conversation');
   store.dispatch('customViews/get', 'contact');
+  // Carrega os canais do chat interno para o badge de não lidas aparecer (e o
+  // tempo-real incrementar) mesmo sem abrir a página do chat.
+  if (hasInternalChat.value) store.dispatch('internalChat/fetchChannels');
   setTimeout(() => {
     store.dispatch('conversationStats/get', {});
   }, 2000);
@@ -546,7 +547,9 @@ const menuItems = computed(() => {
             icon: lordIcon('internalChat', 'i-lucide-messages-square'),
             to: accountScopedRoute('internal_chat_index'),
             activeOn: ['internal_chat_index'],
-            count: totalInternalChatUnread.value || undefined,
+            getterKeys: {
+              count: 'internalChat/getTotalUnread',
+            },
           },
         ]
       : []),
