@@ -104,11 +104,16 @@ const activeConversation = computed(() =>
 );
 
 // ── Mensagens ──────────────────────────────────────────────────────────────
-const rawMessages = computed(() =>
-  activeId.value
-    ? store.getters['internalChat/getMessages'](activeId.value)
-    : []
-);
+// "Limpar conversa": esconde as mensagens anteriores ao clique (só na MINHA
+// visão; nada é apagado no servidor, recarregar restaura). channelId -> unix ts.
+const clearedAt = ref({});
+const rawMessages = computed(() => {
+  const id = activeId.value;
+  if (!id) return [];
+  const msgs = store.getters['internalChat/getMessages'](id) || [];
+  const cut = clearedAt.value[id];
+  return cut ? msgs.filter(m => (m.created_at || 0) > cut) : msgs;
+});
 const dayKey = ts => new Date(ts * 1000).toDateString();
 const dayLabelFor = ts => {
   const d = new Date(ts * 1000);
@@ -219,6 +224,12 @@ const onLeave = async () => {
   mobileView.value = 'list';
 };
 
+const onClear = () => {
+  const id = activeId.value;
+  if (id == null) return;
+  clearedAt.value = { ...clearedAt.value, [id]: Math.floor(Date.now() / 1000) };
+};
+
 const toggleSearch = () => {
   searchOpen.value = !searchOpen.value;
   if (!searchOpen.value) searchQuery.value = '';
@@ -283,6 +294,7 @@ onBeforeUnmount(() => {
           @toggle-info="showInfo = !showInfo"
           @favorite="onFavorite"
           @leave="onLeave"
+          @clear="onClear"
         />
 
         <!-- In-conversation search bar -->

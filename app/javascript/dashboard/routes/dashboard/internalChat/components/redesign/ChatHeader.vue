@@ -14,6 +14,7 @@ const emit = defineEmits([
   'toggleInfo',
   'favorite',
   'leave',
+  'clear',
 ]);
 
 const showMenu = ref(false);
@@ -36,6 +37,10 @@ const emitFavorite = () => {
 const emitLeave = () => {
   showMenu.value = false;
   emit('leave');
+};
+const emitClear = () => {
+  showMenu.value = false;
+  emit('clear');
 };
 </script>
 
@@ -126,6 +131,14 @@ const emitLeave = () => {
                   ? 'Remover dos favoritos'
                   : 'Favoritar conversa'
               }}
+            </button>
+            <button
+              type="button"
+              class="flex items-center w-full gap-2.5 px-3 py-2 text-sm text-left text-n-slate-12 hover:bg-n-alpha-1"
+              @click="emitClear"
+            >
+              <span class="text-base i-lucide-eraser" />
+              Limpar conversa
             </button>
             <button
               v-if="canLeave"

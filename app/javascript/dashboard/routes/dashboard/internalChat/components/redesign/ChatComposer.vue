@@ -61,7 +61,7 @@ const send = () => {
         </button>
         <template v-if="showEmoji">
           <div class="fixed inset-0 z-10" @click="showEmoji = false" />
-          <div class="absolute z-20 bottom-full mb-2 left-0">
+          <div class="absolute z-30 emoji-anchor bottom-full mb-2 left-0">
             <EmojiInput :on-click="onEmojiSelect" />
           </div>
         </template>
@@ -87,3 +87,13 @@ const send = () => {
     </div>
   </div>
 </template>
+
+<style scoped>
+/* O EmojiInput já vem com posição própria (absolute right-0 -top-[95px]).
+   Neutralizamos para o nosso wrapper (.emoji-anchor) mandar: o quadro abre
+   ACIMA do ícone de emoji, alinhado à esquerda, dentro da conversa. */
+.emoji-anchor :deep(.emoji-dialog) {
+  position: static;
+  inset: auto;
+}
+</style>
