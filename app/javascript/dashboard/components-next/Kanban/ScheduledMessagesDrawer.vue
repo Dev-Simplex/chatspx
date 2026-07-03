@@ -304,13 +304,13 @@ onBeforeUnmount(() => {
           <div class="relative">
             <Icon
               icon="i-lucide-search"
-              class="absolute left-3 top-1/2 size-4 -translate-y-1/2 text-n-slate-10"
+              class="pointer-events-none absolute left-3 top-1/2 z-10 size-4 -translate-y-1/2 text-n-slate-10"
             />
             <input
               v-model="searchQuery"
               type="text"
               :placeholder="t('KANBAN.SCHEDULED_MESSAGES.SEARCH_PLACEHOLDER')"
-              class="w-full rounded-xl border border-n-weak bg-n-solid-1 py-2.5 pl-9 pr-3 text-sm text-n-slate-12 focus:outline-none focus:ring-2 focus:ring-n-teal-9"
+              class="w-full rounded-xl border border-n-weak bg-n-solid-1 py-2.5 !pl-10 pr-3 text-sm text-n-slate-12 focus:outline-none focus:ring-2 focus:ring-n-brand"
             />
           </div>
 
@@ -322,7 +322,7 @@ onBeforeUnmount(() => {
               class="rounded-full px-3 py-1 text-xs font-semibold transition"
               :class="
                 statusFilter === option.key
-                  ? 'bg-n-teal-9 text-white'
+                  ? 'bg-n-teal-9 text-n-teal-12 dark:text-white'
                   : 'bg-n-slate-3/50 text-n-slate-11 hover:bg-n-slate-3'
               "
               @click="statusFilter = option.key"

@@ -8,6 +8,10 @@ module Current
   # re-triagem de órfãs (OrphanRetriageJob) no modo fila pra NÃO reanexar a IA e quebrar
   # a fila — a triagem inicial NUNCA seta isto (a IA atende normalmente na 1ª passada).
   thread_mattr_accessor :skip_ai_agent_assignment
+  # Kanban v2 (Fase 5): reentrancy guard for the funnel automation engine. A
+  # 'move' action re-triggers MoveService → the engine again; this depth counter
+  # caps the chain so a misconfigured rule can never loop forever.
+  thread_mattr_accessor :funnel_automation_depth
 
   def self.reset
     Current.user = nil
@@ -16,5 +20,6 @@ module Current
     Current.executed_by = nil
     Current.contact = nil
     Current.skip_ai_agent_assignment = nil
+    Current.funnel_automation_depth = nil
   end
 end

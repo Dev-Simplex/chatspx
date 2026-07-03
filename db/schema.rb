@@ -1017,20 +1017,75 @@ ActiveRecord::Schema[7.1].define(version: 2026_07_01_150000) do
     t.index ["category_id"], name: "idx_folders_category_id"
   end
 
+  create_table "funnel_automations", force: :cascade do |t|
+    t.bigint "funnel_id", null: false
+    t.bigint "funnel_stage_id"
+    t.string "name", null: false
+    t.jsonb "trigger", default: {}, null: false
+    t.jsonb "conditions", default: [], null: false
+    t.jsonb "actions", default: [], null: false
+    t.boolean "active", default: true, null: false
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["funnel_id", "active"], name: "index_funnel_automations_on_funnel_id_and_active"
+    t.index ["funnel_id"], name: "index_funnel_automations_on_funnel_id"
+    t.index ["funnel_stage_id"], name: "index_funnel_automations_on_funnel_stage_id"
+  end
+
+  create_table "funnel_custom_fields", force: :cascade do |t|
+    t.bigint "funnel_id", null: false
+    t.string "key", null: false
+    t.string "label", null: false
+    t.string "field_type", null: false
+    t.jsonb "options", default: {}, null: false
+    t.integer "position", default: 0
+    t.boolean "show_on_card", default: false, null: false
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["funnel_id", "key"], name: "index_funnel_custom_fields_on_funnel_id_and_key", unique: true
+    t.index ["funnel_id", "position"], name: "index_funnel_custom_fields_on_funnel_id_and_position"
+    t.index ["funnel_id"], name: "index_funnel_custom_fields_on_funnel_id"
+  end
+
+  create_table "funnel_item_notes", force: :cascade do |t|
+    t.bigint "funnel_item_id", null: false
+    t.bigint "user_id"
+    t.text "content", null: false
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["funnel_item_id", "created_at"], name: "index_funnel_item_notes_on_funnel_item_id_and_created_at"
+    t.index ["funnel_item_id"], name: "index_funnel_item_notes_on_funnel_item_id"
+    t.index ["user_id"], name: "index_funnel_item_notes_on_user_id"
+  end
+
   create_table "funnel_items", force: :cascade do |t|
-    t.bigint "conversation_id", null: false
+    t.bigint "conversation_id"
     t.bigint "funnel_id", null: false
     t.bigint "funnel_stage_id", null: false
     t.datetime "moved_at", precision: nil
     t.bigint "moved_by_id"
     t.datetime "created_at", null: false
     t.datetime "updated_at", null: false
+    t.string "title"
+    t.text "description"
+    t.bigint "assignee_id"
+    t.index ["assignee_id"], name: "index_funnel_items_on_assignee_id"
     t.index ["conversation_id", "funnel_id"], name: "index_funnel_items_unique", unique: true
     t.index ["conversation_id"], name: "index_funnel_items_on_conversation_id"
     t.index ["funnel_id", "funnel_stage_id", "conversation_id"], name: "idx_funnel_items_funnel_stage_conversation"
     t.index ["funnel_id"], name: "index_funnel_items_on_funnel_id"
     t.index ["funnel_stage_id"], name: "index_funnel_items_on_funnel_stage_id"
     t.index ["moved_by_id"], name: "index_funnel_items_on_moved_by_id"
+  end
+
+  create_table "funnel_metric_snapshots", force: :cascade do |t|
+    t.bigint "funnel_id", null: false
+    t.date "captured_on", null: false
+    t.jsonb "metrics", default: {}, null: false
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["funnel_id", "captured_on"], name: "index_funnel_metric_snapshots_on_funnel_id_and_captured_on", unique: true
+    t.index ["funnel_id"], name: "index_funnel_metric_snapshots_on_funnel_id"
   end
 
   create_table "funnel_stages", force: :cascade do |t|
@@ -1041,8 +1096,37 @@ ActiveRecord::Schema[7.1].define(version: 2026_07_01_150000) do
     t.datetime "created_at", null: false
     t.datetime "updated_at", null: false
     t.string "automation_type"
+    t.jsonb "settings", default: {}, null: false
     t.index ["automation_type"], name: "index_funnel_stages_on_automation_type"
     t.index ["funnel_id"], name: "index_funnel_stages_on_funnel_id"
+  end
+
+  create_table "funnel_templates", force: :cascade do |t|
+    t.string "name", null: false
+    t.string "description"
+    t.string "slug", null: false
+    t.jsonb "definition", default: {}, null: false
+    t.integer "position", default: 0
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["slug"], name: "index_funnel_templates_on_slug", unique: true
+  end
+
+  create_table "funnel_views", force: :cascade do |t|
+    t.bigint "account_id", null: false
+    t.bigint "funnel_id", null: false
+    t.bigint "user_id"
+    t.string "name", null: false
+    t.jsonb "filters", default: {}, null: false
+    t.string "view_mode", default: "kanban", null: false
+    t.boolean "is_shared", default: false, null: false
+    t.integer "position", default: 0
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["account_id", "funnel_id"], name: "index_funnel_views_on_account_id_and_funnel_id"
+    t.index ["account_id"], name: "index_funnel_views_on_account_id"
+    t.index ["funnel_id"], name: "index_funnel_views_on_funnel_id"
+    t.index ["user_id"], name: "index_funnel_views_on_user_id"
   end
 
   create_table "funnels", force: :cascade do |t|
@@ -1054,6 +1138,7 @@ ActiveRecord::Schema[7.1].define(version: 2026_07_01_150000) do
     t.datetime "updated_at", null: false
     t.bigint "team_id"
     t.jsonb "inbox_ids", default: [], null: false
+    t.jsonb "settings", default: {}, null: false
     t.index ["account_id"], name: "index_funnels_on_account_id"
     t.index ["inbox_ids"], name: "index_funnels_on_inbox_ids", using: :gin
     t.index ["team_id"], name: "index_funnels_on_team_id"
@@ -1340,6 +1425,45 @@ ActiveRecord::Schema[7.1].define(version: 2026_07_01_150000) do
     t.index ["message_id", "user_type", "user_id"], name: "index_message_reactions_unique", unique: true
     t.index ["message_id"], name: "index_message_reactions_on_message_id"
     t.index ["user_type", "user_id"], name: "index_message_reactions_on_user_type_and_user_id"
+  end
+
+  create_table "message_sequence_enrollments", force: :cascade do |t|
+    t.bigint "message_sequence_id", null: false
+    t.bigint "conversation_id", null: false
+    t.integer "status", default: 0, null: false
+    t.integer "current_step_position"
+    t.datetime "next_run_at"
+    t.bigint "enrolled_by_id"
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["conversation_id"], name: "index_message_sequence_enrollments_on_conversation_id"
+    t.index ["message_sequence_id", "conversation_id"], name: "index_active_enrollment_per_sequence_conversation", unique: true, where: "(status = 0)"
+    t.index ["message_sequence_id"], name: "index_message_sequence_enrollments_on_message_sequence_id"
+    t.index ["status", "next_run_at"], name: "index_message_sequence_enrollments_on_status_and_next_run_at"
+  end
+
+  create_table "message_sequence_steps", force: :cascade do |t|
+    t.bigint "message_sequence_id", null: false
+    t.integer "position", null: false
+    t.integer "delay_minutes", default: 0, null: false
+    t.text "content"
+    t.jsonb "template_params"
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["message_sequence_id", "position"], name: "idx_on_message_sequence_id_position_692ef9ca2b"
+    t.index ["message_sequence_id"], name: "index_message_sequence_steps_on_message_sequence_id"
+  end
+
+  create_table "message_sequences", force: :cascade do |t|
+    t.bigint "account_id", null: false
+    t.string "name", null: false
+    t.boolean "active", default: true, null: false
+    t.jsonb "exit_conditions", default: {}, null: false
+    t.bigint "created_by_id"
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["account_id", "active"], name: "index_message_sequences_on_account_id_and_active"
+    t.index ["account_id"], name: "index_message_sequences_on_account_id"
   end
 
   create_table "messages", id: :serial, force: :cascade do |t|
@@ -1772,11 +1896,20 @@ ActiveRecord::Schema[7.1].define(version: 2026_07_01_150000) do
   add_foreign_key "conversations", "teams", on_delete: :nullify
   add_foreign_key "conversations", "users", column: "assignee_id", on_delete: :nullify
   add_foreign_key "csat_survey_responses", "conversations", on_delete: :cascade
+  add_foreign_key "funnel_automations", "funnel_stages"
+  add_foreign_key "funnel_automations", "funnels"
+  add_foreign_key "funnel_custom_fields", "funnels"
+  add_foreign_key "funnel_item_notes", "funnel_items"
+  add_foreign_key "funnel_item_notes", "users"
   add_foreign_key "funnel_items", "conversations", on_delete: :cascade
   add_foreign_key "funnel_items", "funnel_stages"
   add_foreign_key "funnel_items", "funnels"
   add_foreign_key "funnel_items", "users", column: "moved_by_id"
+  add_foreign_key "funnel_metric_snapshots", "funnels"
   add_foreign_key "funnel_stages", "funnels"
+  add_foreign_key "funnel_views", "accounts"
+  add_foreign_key "funnel_views", "funnels"
+  add_foreign_key "funnel_views", "users"
   add_foreign_key "funnels", "accounts"
   add_foreign_key "funnels", "teams"
   add_foreign_key "inboxes", "portals"
@@ -1796,6 +1929,10 @@ ActiveRecord::Schema[7.1].define(version: 2026_07_01_150000) do
   add_foreign_key "kanbans", "users", column: "created_by_id", on_delete: :nullify
   add_foreign_key "mentions", "conversations", on_delete: :cascade
   add_foreign_key "message_reactions", "messages"
+  add_foreign_key "message_sequence_enrollments", "conversations"
+  add_foreign_key "message_sequence_enrollments", "message_sequences"
+  add_foreign_key "message_sequence_steps", "message_sequences"
+  add_foreign_key "message_sequences", "accounts"
   add_foreign_key "messages", "conversations", on_delete: :cascade
   add_foreign_key "messages", "inboxes", on_delete: :cascade
   add_foreign_key "messages", "users", column: "agent_id", on_delete: :nullify

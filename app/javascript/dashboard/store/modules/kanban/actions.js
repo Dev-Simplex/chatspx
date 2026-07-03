@@ -115,6 +115,7 @@ const parseCursorResponse = (response, fallbackLimit) => {
       nextCursor: data?.meta?.next_cursor || null,
       limit: Number(data?.meta?.limit || fallbackLimit),
       stageId: data?.meta?.stage_id,
+      aggregates: data?.meta?.aggregates || {},
     },
   };
 };
@@ -214,6 +215,18 @@ export const actions = {
     }
   },
 
+  // Fase 8: create a funnel from a template (returns the new funnel).
+  async createFunnelFromTemplate({ commit }, data) {
+    commit(types.SET_KANBAN_UI_FLAG, { isCreating: true });
+    try {
+      const response = await KanbanAPI.createFunnelFromTemplate(data);
+      commit(types.ADD_FUNNEL, response.data);
+      return response.data;
+    } finally {
+      commit(types.SET_KANBAN_UI_FLAG, { isCreating: false });
+    }
+  },
+
   async deleteFunnel({ commit }, funnelId) {
     commit(types.SET_KANBAN_UI_FLAG, { isDeleting: true });
     try {
@@ -231,6 +244,51 @@ export const actions = {
       funnelId,
       stages: parseStagePayload(response),
     });
+  },
+
+  // ── Custom field definitions (Kanban v2 / Fase 2) ──────────────────
+  async fetchCustomFields({ commit }, funnelId) {
+    if (!funnelId) return [];
+    const response = await KanbanAPI.getCustomFields(funnelId);
+    const fields = Array.isArray(response.data) ? response.data : [];
+    commit(types.SET_FUNNEL_CUSTOM_FIELDS, { funnelId, fields });
+    return fields;
+  },
+
+  async createCustomField({ dispatch }, { funnelId, data }) {
+    const response = await KanbanAPI.createCustomField(funnelId, data);
+    await dispatch('fetchCustomFields', funnelId);
+    return response.data;
+  },
+
+  async updateCustomField({ dispatch }, { funnelId, fieldId, data }) {
+    const response = await KanbanAPI.updateCustomField(funnelId, fieldId, data);
+    await dispatch('fetchCustomFields', funnelId);
+    return response.data;
+  },
+
+  async deleteCustomField({ dispatch }, { funnelId, fieldId }) {
+    await KanbanAPI.deleteCustomField(funnelId, fieldId);
+    await dispatch('fetchCustomFields', funnelId);
+  },
+
+  // Update a card's custom field VALUES (merged server-side into the
+  // conversation's custom_attributes; only this funnel's namespaced keys).
+  async updateItemCustomAttributes(
+    { commit },
+    { funnelId, itemId, conversationId, attributes }
+  ) {
+    const response = await KanbanAPI.updateItemCustomAttributes(
+      funnelId,
+      itemId,
+      attributes
+    );
+    const nextAttributes = response.data?.custom_attributes || {};
+    commit(types.UPDATE_ITEM_CONVERSATION, {
+      id: conversationId,
+      patch: { custom_attributes: nextAttributes },
+    });
+    return nextAttributes;
   },
 
   async fetchFunnelStages({ commit }, funnelId) {
@@ -323,6 +381,9 @@ export const actions = {
             loaded: true,
             isLoading: false,
             error: false,
+            // Aggregates only arrive on the first page (cursor null); don't let
+            // a "load more" response blank them out.
+            ...(append ? {} : { aggregates: parsed.meta.aggregates || {} }),
           },
         });
 
@@ -488,6 +549,87 @@ export const actions = {
     commit(types.DELETE_FUNNEL_ITEM, itemId);
   },
 
+  // Bridges the central websocket events to the kanban store so cards reflect
+  // status/assignee/priority/labels/new-message changes in real time without a
+  // full reload. Self-protecting: bails out cheaply when the board is inactive
+  // or the payload is unusable, and never touches stage placement (the realtime
+  // conversation payload carries no funnel_stage_id).
+  syncConversationFromRealtime({ state, commit }, data) {
+    try {
+      if (!state?.activeFunnelId) return;
+      if (!data || typeof data !== 'object') return;
+
+      const displayId = data?.conversation_id ?? data?.id;
+      if (displayId == null || displayId === '') return;
+
+      const patch = {};
+
+      // message.created carries the message itself, not a conversation object.
+      const isMessageCreated =
+        data?.message_type !== undefined &&
+        (data?.content !== undefined || data?.created_at !== undefined);
+
+      if (data?.status !== undefined) {
+        patch.status = data.status;
+      }
+
+      const hasAssignee =
+        data?.assignee_id !== undefined ||
+        data?.meta?.assignee !== undefined ||
+        data?.meta?.assignee?.id !== undefined;
+      if (hasAssignee) {
+        patch.assigneeId =
+          data?.assignee_id ?? data?.meta?.assignee?.id ?? null;
+        if (data?.meta?.assignee !== undefined) {
+          patch.meta = {
+            ...(data?.meta || {}),
+            assignee: data?.meta?.assignee ?? null,
+          };
+        }
+      }
+
+      if (data?.priority !== undefined) {
+        patch.priority = data.priority;
+      }
+
+      if (data?.labels !== undefined) {
+        patch.labels = data.labels;
+      }
+
+      let bumpRecency = false;
+
+      if (isMessageCreated) {
+        const lastActivityAt =
+          data?.conversation?.last_activity_at ?? data?.created_at;
+        if (lastActivityAt !== undefined && lastActivityAt !== null) {
+          patch.lastActivityAt = lastActivityAt;
+        }
+        if (data?.content !== undefined || data?.created_at !== undefined) {
+          patch.lastMessage = {
+            content: data?.content,
+            created_at: data?.created_at,
+          };
+        }
+        bumpRecency = true;
+      } else if (data?.last_activity_at !== undefined) {
+        patch.lastActivityAt = data.last_activity_at;
+      }
+
+      if (Object.keys(patch).length === 0) return;
+
+      commit(types.UPDATE_ITEM_CONVERSATION, {
+        displayId,
+        // For message.created, data.id is the MESSAGE id (not a conversation
+        // id) — don't let the numeric fallback match an unrelated card.
+        id: isMessageCreated ? null : data?.id,
+        patch,
+        bumpRecency,
+      });
+    } catch (error) {
+      // Realtime sync is best-effort; never let it break websocket handling.
+    }
+  },
+
   async bulkMoveItems({ dispatch }, { funnelId, conversationIds, stageId }) {
     await KanbanAPI.bulkMoveItems(funnelId, conversationIds, stageId);
     await dispatch('bootstrapFunnel', {
@@ -495,6 +637,106 @@ export const actions = {
       excludeAutomationType: 'resolved',
       limit: DEFAULT_STAGE_PAGE_LIMIT,
     });
+  },
+
+  // Bulk reassign / tag / archive (Fase 3) — refresh the funnel afterwards.
+  async bulkUpdateItems(
+    { dispatch },
+    { funnelId, conversationIds, operation, assigneeId, labels }
+  ) {
+    const response = await KanbanAPI.bulkUpdateItems(funnelId, {
+      operation,
+      conversation_ids: conversationIds,
+      assignee_id: assigneeId,
+      labels,
+    });
+    await dispatch('bootstrapFunnel', {
+      funnelId,
+      excludeAutomationType: 'resolved',
+      limit: DEFAULT_STAGE_PAGE_LIMIT,
+    });
+    return response.data;
+  },
+
+  // ── Saved views (Fase 3) ───────────────────────────────────────────
+  async fetchSavedViews({ commit }, funnelId) {
+    const response = await KanbanAPI.getFunnelViews(funnelId);
+    const views = Array.isArray(response.data) ? response.data : [];
+    commit(types.SET_SAVED_VIEWS, views);
+    return views;
+  },
+
+  async createSavedView({ commit }, data) {
+    const response = await KanbanAPI.createFunnelView(data);
+    commit(types.ADD_SAVED_VIEW, response.data);
+    return response.data;
+  },
+
+  async updateSavedView({ commit }, { viewId, data }) {
+    const response = await KanbanAPI.updateFunnelView(viewId, data);
+    commit(types.UPDATE_SAVED_VIEW, response.data);
+    return response.data;
+  },
+
+  async deleteSavedView({ commit }, viewId) {
+    await KanbanAPI.deleteFunnelView(viewId);
+    commit(types.DELETE_SAVED_VIEW, viewId);
+  },
+
+  // Apply a saved view: restore its filters and view mode.
+  applySavedView({ commit }, view) {
+    if (!view) return;
+    commit(types.SET_VIEW_FILTERS, view.filters || {});
+    if (view.view_mode) commit(types.SET_VIEW_MODE, view.view_mode);
+  },
+
+  // Real-time (Fase 4): another user moved a card. Relocate our local copy.
+  // Best-effort and defensive — must never break websocket handling or the board.
+  applyRemoteMove({ state, commit, rootGetters }, data) {
+    try {
+      if (!data || typeof data !== 'object') return;
+      // Only react when this board is showing the affected funnel.
+      if (Number(data.funnel_id) !== Number(state.activeFunnelId)) return;
+
+      // Skip our own move — it was already applied optimistically.
+      const currentUserId = rootGetters.getCurrentUserID;
+      if (
+        data.performer?.id &&
+        Number(data.performer.id) === Number(currentUserId)
+      ) {
+        return;
+      }
+
+      // We can only relocate an item we already hold; otherwise it shows on next load.
+      const existing = state.funnelItems[data.id];
+      if (!existing) return;
+
+      const targetStage = Number(data.funnel_stage_id);
+      const currentStage = Number(
+        existing.funnelStageId ?? existing.funnel_stage_id
+      );
+      if (!targetStage || targetStage === currentStage) return;
+
+      // Last-write-wins: ignore an out-of-order older move.
+      const localMovedAt = existing.movedAt ?? existing.moved_at;
+      if (
+        localMovedAt &&
+        data.moved_at &&
+        new Date(localMovedAt) > new Date(data.moved_at)
+      ) {
+        return;
+      }
+
+      commit(types.UPDATE_FUNNEL_ITEM, {
+        ...existing,
+        funnel_stage_id: targetStage,
+        funnelStageId: targetStage,
+        moved_at: data.moved_at,
+        movedAt: data.moved_at,
+      });
+    } catch (_) {
+      // Real-time is best-effort; never throw out of a websocket handler.
+    }
   },
 
   setViewFilters({ commit }, filters = {}) {
@@ -621,7 +863,21 @@ export const actions = {
         status: 'all',
       });
       commit(types.SET_VIEW_BOOTSTRAP, { calendarLoaded: true });
+      return;
     }
+
+    if (viewName === 'dashboard') {
+      // Stats are cheap and should be fresh — always re-fetch on entry.
+      await dispatch('fetchFunnelStats', { funnelId });
+    }
+  },
+
+  // Dashboard live stats (Fase 6).
+  async fetchFunnelStats({ commit }, { funnelId } = {}) {
+    if (!funnelId) return null;
+    const response = await KanbanAPI.getFunnelStats(funnelId);
+    commit(types.SET_FUNNEL_STATS, { funnelId, stats: response.data });
+    return response.data;
   },
 
   async fetchScheduledMessagesPage(

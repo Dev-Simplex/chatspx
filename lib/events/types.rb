@@ -67,4 +67,7 @@ module Events::Types
 
   # copilot events
   COPILOT_MESSAGE_CREATED = 'copilot.message.created'
+
+  # kanban (funnel) events
+  FUNNEL_ITEM_MOVED = 'funnel_item.moved'
 end

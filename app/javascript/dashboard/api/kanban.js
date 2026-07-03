@@ -10,6 +10,14 @@ class KanbanAPI extends ApiClient {
     return axios.get(this.url);
   }
 
+  // Funnel placements (funnel + stage) of a single conversation, for the
+  // conversation sidebar. Lives under /conversations, not /funnels.
+  getConversationFunnelItems(conversationId) {
+    return axios.get(
+      `${this.baseUrl()}/conversations/${conversationId}/funnel_items`
+    );
+  }
+
   getFunnel(funnelId) {
     return axios.get(`${this.url}/${funnelId}`);
   }
@@ -57,6 +65,37 @@ class KanbanAPI extends ApiClient {
 
   deleteStage(funnelId, stageId) {
     return axios.delete(`${this.url}/${funnelId}/funnel_stages/${stageId}`);
+  }
+
+  // ── Custom field DEFINITIONS (Kanban v2 / Fase 2) ──────────────────
+  getCustomFields(funnelId) {
+    return axios.get(`${this.url}/${funnelId}/custom_fields`);
+  }
+
+  createCustomField(funnelId, data) {
+    return axios.post(`${this.url}/${funnelId}/custom_fields`, {
+      custom_field: data,
+    });
+  }
+
+  updateCustomField(funnelId, fieldId, data) {
+    return axios.patch(`${this.url}/${funnelId}/custom_fields/${fieldId}`, {
+      custom_field: data,
+    });
+  }
+
+  deleteCustomField(funnelId, fieldId) {
+    return axios.delete(`${this.url}/${funnelId}/custom_fields/${fieldId}`);
+  }
+
+  // Custom field VALUES live in conversations.custom_attributes (namespaced
+  // funnel_<id>_<key>). The backend merges only this funnel's keys, so other
+  // attributes are never clobbered. `itemId` is the funnel_item id.
+  updateItemCustomAttributes(funnelId, itemId, customAttributes) {
+    return axios.patch(
+      `${this.url}/${funnelId}/funnel_items/${itemId}/custom_attributes`,
+      { custom_attributes: customAttributes }
+    );
   }
 
   getFunnelItems(funnelId, options = {}) {
@@ -114,6 +153,95 @@ class KanbanAPI extends ApiClient {
 
   deleteItem(funnelId, itemId) {
     return axios.delete(`${this.url}/${funnelId}/funnel_items/${itemId}`);
+  }
+
+  // ── Saved views (Fase 3) — account-scoped, filtered by funnel ───────
+  getFunnelViews(funnelId) {
+    const url = `${this.baseUrl()}/funnel_views`;
+    return axios.get(funnelId ? `${url}?funnel_id=${funnelId}` : url);
+  }
+
+  createFunnelView(data) {
+    return axios.post(`${this.baseUrl()}/funnel_views`, { funnel_view: data });
+  }
+
+  updateFunnelView(viewId, data) {
+    return axios.patch(`${this.baseUrl()}/funnel_views/${viewId}`, {
+      funnel_view: data,
+    });
+  }
+
+  deleteFunnelView(viewId) {
+    return axios.delete(`${this.baseUrl()}/funnel_views/${viewId}`);
+  }
+
+  // ── Dashboard stats (Fase 6) ───────────────────────────────────────
+  getFunnelStats(funnelId) {
+    return axios.get(`${this.url}/${funnelId}/stats`);
+  }
+
+  // ── AI availability (Fase 7) — gates the card's AI actions ──────────
+  getAiStatus() {
+    return axios.get(`${this.baseUrl()}/kanban_ai/status`);
+  }
+
+  // ── Templates + public WorkForm (Fase 8) ───────────────────────────
+  getFunnelTemplates() {
+    return axios.get(`${this.url}/templates`);
+  }
+
+  createFunnelFromTemplate(data) {
+    return axios.post(`${this.url}/create_from_template`, data);
+  }
+
+  updateFunnelForm(funnelId, data) {
+    return axios.post(`${this.url}/${funnelId}/form`, data);
+  }
+
+  // ── Automations (Fase 5) ───────────────────────────────────────────
+  getAutomations(funnelId) {
+    return axios.get(`${this.url}/${funnelId}/automations`);
+  }
+
+  createAutomation(funnelId, data) {
+    return axios.post(`${this.url}/${funnelId}/automations`, {
+      funnel_automation: data,
+    });
+  }
+
+  updateAutomation(funnelId, automationId, data) {
+    return axios.patch(`${this.url}/${funnelId}/automations/${automationId}`, {
+      funnel_automation: data,
+    });
+  }
+
+  deleteAutomation(funnelId, automationId) {
+    return axios.delete(`${this.url}/${funnelId}/automations/${automationId}`);
+  }
+
+  // ── Internal card notes (Fase 4) ───────────────────────────────────
+  getItemNotes(funnelId, itemId) {
+    return axios.get(`${this.url}/${funnelId}/funnel_items/${itemId}/notes`);
+  }
+
+  createItemNote(funnelId, itemId, content) {
+    return axios.post(`${this.url}/${funnelId}/funnel_items/${itemId}/notes`, {
+      content,
+    });
+  }
+
+  deleteItemNote(funnelId, itemId, noteId) {
+    return axios.delete(
+      `${this.url}/${funnelId}/funnel_items/${itemId}/notes/${noteId}`
+    );
+  }
+
+  // ── Bulk actions (Fase 3): reassign / tag / archive selected cards ──
+  bulkUpdateItems(funnelId, payload) {
+    return axios.post(
+      `${this.url}/${funnelId}/funnel_items/bulk_update`,
+      payload
+    );
   }
 
   bulkMoveItems(funnelId, conversationIds, stageId) {

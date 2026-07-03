@@ -18,7 +18,7 @@ class Captain::Tools::BuscarImovelTool < Captain::Tools::BasePublicTool
   param :raio_km, type: 'number', desc: 'Só quando o cliente limitar a distância (ex: "até 2 km"). Sem isso, lista os mais próximos.', required: false
 
   VISTA_FIELDS = %w[Codigo ImoCodigo Categoria Status Dormitorios Cidade Bairro BairroComercial ValorLocacao ValorVenda TituloSite
-                    ValorCondominio ValorIptu Latitude Longitude].freeze
+                    ValorCondominio ValorIptu AreaTotal AreaConstruida Latitude Longitude].freeze
   META_KEYS = %w[total paginas pagina quantidade].freeze
 
   def perform(_tool_context, status_tipo:, categoria: nil, bairro: nil, endereco: nil, valor_max: nil,
@@ -125,7 +125,7 @@ class Captain::Tools::BuscarImovelTool < Captain::Tools::BasePublicTool
       valor = venda ? "R$ #{im['ValorVenda']}" : "R$ #{im['ValorLocacao']}/mês"
       dorm = im['Dormitorios'].to_i.positive? ? "#{im['Dormitorios']} quartos, " : ''
       dist = im['dist_km'] ? " — a #{format('%.1f', im['dist_km'])} km da referência" : ''
-      "(cód #{im['Codigo']}) #{im['Categoria']} #{dorm}no #{im['Bairro']}, #{valor}#{format_taxas(im)}#{dist}. #{build_url(im, venda)}"
+      "(cód #{im['Codigo']}) #{im['Categoria']} #{dorm}no #{im['Bairro']}, #{valor}#{format_area(im)}#{format_taxas(im)}#{dist}. #{build_url(im, venda)}"
     end
     "#{header || "Encontrei #{linhas.size} opção(ões):"}\n#{linhas.join("\n")}"
   end
@@ -136,6 +136,16 @@ class Captain::Tools::BuscarImovelTool < Captain::Tools::BasePublicTool
     parts << "condomínio R$ #{im['ValorCondominio']}" if im['ValorCondominio'].to_f.positive?
     parts << "IPTU R$ #{im['ValorIptu']}" if im['ValorIptu'].to_f.positive?
     parts.any? ? " (#{parts.join(', ')})" : ''
+  end
+
+  # Área/metragem em m²: AreaTotal é a metragem do terreno/lote (essencial pra terreno);
+  # AreaConstruida quando houver (imóvel já construído). Só mostra o que o Vista traz
+  # (>0) — nunca inventa.
+  def format_area(im)
+    bits = []
+    bits << "#{im['AreaTotal']} m²" if im['AreaTotal'].to_f.positive?
+    bits << "#{im['AreaConstruida']} m² construídos" if im['AreaConstruida'].to_f.positive? && im['AreaConstruida'] != im['AreaTotal']
+    bits.any? ? ", #{bits.join(', ')}" : ''
   end
 
   # O site da Tozi acha o imóvel pelo ImoCodigo (não pelo Codigo do Vista); o slug

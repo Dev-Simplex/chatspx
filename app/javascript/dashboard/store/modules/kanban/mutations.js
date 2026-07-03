@@ -186,6 +186,7 @@ const defaultViewFilters = () => ({
   labelIds: [],
   assigneeId: null,
   status: 'all',
+  priority: [],
 });
 
 const defaultViewBootstrap = () => ({
@@ -304,6 +305,14 @@ export const mutations = {
     });
   },
 
+  [types.SET_FUNNEL_CUSTOM_FIELDS]($state, { funnelId, fields }) {
+    const funnel = $state.funnels[funnelId];
+    if (!funnel) return;
+    funnel.customFields = Array.isArray(fields)
+      ? fields.map(field => camelcaseKeys(field, { deep: true }))
+      : [];
+  },
+
   [types.SET_FUNNEL_STAGES]($state, { funnelId, stages }) {
     if (!funnelId) return;
     $state.funnelStages[funnelId] = {};
@@ -417,6 +426,78 @@ export const mutations = {
     assignItemToStage($state, item);
   },
 
+  [types.UPDATE_ITEM_CONVERSATION](
+    $state,
+    { displayId, id, patch, bumpRecency }
+  ) {
+    if (!patch || typeof patch !== 'object') return;
+
+    const targetDisplay = displayId != null ? String(displayId) : null;
+    const targetId = id != null ? String(id) : null;
+
+    let matchedItemId = null;
+    const itemMatches = item => {
+      const conv = item?.conversation;
+      if (!conv) return false;
+      const convDisplay = String(
+        conv?.displayId ??
+          conv?.display_id ??
+          item?.conversationId ??
+          conv?.id ??
+          ''
+      );
+      if (targetDisplay && convDisplay === targetDisplay) return true;
+      // Fallback by numeric conversation id when displayId did not match.
+      if (targetId) {
+        const convId = String(conv?.id ?? item?.conversationId ?? '');
+        if (convId && convId === targetId) return true;
+      }
+      return false;
+    };
+
+    const funnelItems = $state.funnelItems || {};
+    const itemIds = Object.keys(funnelItems);
+    for (let i = 0; i < itemIds.length; i += 1) {
+      const itemId = itemIds[i];
+      if (itemMatches(funnelItems[itemId])) {
+        matchedItemId = itemId;
+        break;
+      }
+    }
+
+    if (matchedItemId == null) return;
+
+    const targetItem = $state.funnelItems[matchedItemId];
+    if (!targetItem || !targetItem.conversation) return;
+
+    // Merge the patch in place, preserving the rest of the conversation.
+    targetItem.conversation = {
+      ...targetItem.conversation,
+      ...patch,
+    };
+
+    if (!bumpRecency) return;
+
+    // Re-sort only the stage(s) that hold this item by recency.
+    Object.keys($state.stageItems || {}).forEach(stageKey => {
+      if (($state.stageItems[stageKey] || []).includes(matchedItemId)) {
+        if (typeof sortStageByRecency === 'function') {
+          sortStageByRecency($state, stageKey);
+        } else {
+          $state.stageItems[stageKey].sort((itemIdA, itemIdB) => {
+            const a = new Date(
+              $state.funnelItems[itemIdA]?.conversation?.lastActivityAt || 0
+            ).getTime();
+            const b = new Date(
+              $state.funnelItems[itemIdB]?.conversation?.lastActivityAt || 0
+            ).getTime();
+            return b - a;
+          });
+        }
+      }
+    });
+  },
+
   [types.DELETE_FUNNEL_ITEM]($state, itemId) {
     removeItemFromAllStageIndexes($state, itemId);
     delete $state.funnelItems[itemId];
@@ -495,6 +576,33 @@ export const mutations = {
     $state.viewMode = mode;
   },
 
+  [types.SET_SAVED_VIEWS]($state, views) {
+    $state.savedViews = Array.isArray(views) ? views : [];
+  },
+
+  [types.SET_FUNNEL_STATS]($state, { funnelId, stats }) {
+    $state.funnelStats = { ...$state.funnelStats, [funnelId]: stats };
+  },
+
+  [types.ADD_SAVED_VIEW]($state, view) {
+    if (!view?.id) return;
+    $state.savedViews = [
+      ...$state.savedViews.filter(v => v.id !== view.id),
+      view,
+    ];
+  },
+
+  [types.UPDATE_SAVED_VIEW]($state, view) {
+    if (!view?.id) return;
+    $state.savedViews = $state.savedViews.map(v =>
+      v.id === view.id ? view : v
+    );
+  },
+
+  [types.DELETE_SAVED_VIEW]($state, viewId) {
+    $state.savedViews = $state.savedViews.filter(v => v.id !== viewId);
+  },
+
   [types.SET_VIEW_FILTERS]($state, filters = {}) {
     $state.viewFilters = {
       ...defaultViewFilters(),
@@ -510,6 +618,9 @@ export const mutations = {
         filters.labelIds ?? $state.viewFilters?.labelIds
       ),
       status: filters.status || $state.viewFilters?.status || 'all',
+      priority: Array.isArray(filters.priority)
+        ? [...filters.priority]
+        : $state.viewFilters?.priority || [],
     };
   },
 

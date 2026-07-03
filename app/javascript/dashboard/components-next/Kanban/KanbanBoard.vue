@@ -1,17 +1,27 @@
 <script setup>
-import { computed, ref, watch } from 'vue';
+import { computed, ref, watch, nextTick } from 'vue';
 import { useStore } from 'vuex';
 import { useI18n } from 'vue-i18n';
 import draggable from 'vuedraggable';
 import KanbanColumn from './KanbanColumn.vue';
 import Icon from 'dashboard/components-next/icon/Icon.vue';
+import Dialog from 'dashboard/components-next/dialog/Dialog.vue';
 import StageForm from './StageForm.vue';
+import AddConversationModal from './AddConversationModal.vue';
+import MoveItemModal from './MoveItemModal.vue';
+import ConversationPreviewModal from './ConversationPreviewModal.vue';
 import { useAlert } from 'dashboard/composables';
+import { useStageColor } from './composables/useStageColor';
 
 const props = defineProps({
   funnelId: {
     type: Number,
     required: true,
+  },
+  // Float the longest-waiting cards to the top of each column.
+  prioritizeWaiting: {
+    type: Boolean,
+    default: true,
   },
 });
 
@@ -19,6 +29,7 @@ const emit = defineEmits(['itemMoved', 'scheduleMessage', 'removeItem']);
 
 const store = useStore();
 const { t } = useI18n();
+const { funnelSegments } = useStageColor();
 
 const stages = computed(() =>
   store.getters['kanban/getFunnelStages'](props.funnelId)
@@ -36,6 +47,15 @@ const localStages = ref([]);
 const showStageForm = ref(false);
 const selectedStage = ref(null);
 const movingItems = ref(new Set());
+const showMoveModal = ref(false);
+const moveModalItem = ref(null);
+const showPreview = ref(false);
+const previewConversation = ref(null);
+
+const openPreview = conversation => {
+  previewConversation.value = conversation;
+  showPreview.value = true;
+};
 
 watch(
   () => stages.value,
@@ -211,6 +231,18 @@ const matchesStatusFilter = item => {
   return (conversation?.status || 'open') === selectedStatus;
 };
 
+const matchesPriorityFilter = item => {
+  const priorities = viewFilters.value?.priority || [];
+  if (!priorities.length) return true;
+
+  const conversation = getItemConversation(item);
+  const priority =
+    conversation?.priority || item?.conversation?.priority || null;
+  // 'none' matches conversations with no priority set.
+  if (priority == null) return priorities.includes('none');
+  return priorities.includes(priority);
+};
+
 const matchesStageFilter = stageId => {
   const stageIds = viewFilters.value?.stageIds || [];
   if (!stageIds.length) return true;
@@ -225,7 +257,8 @@ const isItemVisible = (item, stageId) => {
     matchesQueryFilter(item, query) &&
     matchesLabelFilter(item) &&
     matchesAssigneeFilter(item) &&
-    matchesStatusFilter(item)
+    matchesStatusFilter(item) &&
+    matchesPriorityFilter(item)
   );
 };
 
@@ -234,7 +267,39 @@ const getFilteredItemsForStage = stageId => {
   return stageItems.filter(item => isItemVisible(item, stageId));
 };
 
+// ── Funnel distribution bar (board-level) ────────────────────────────
+const stageCounts = computed(() => {
+  const map = {};
+  (stages.value || []).forEach(stage => {
+    map[stage.id] = getFilteredItemsForStage(stage.id).length;
+  });
+  return map;
+});
+const funnelBar = computed(() =>
+  funnelSegments(stages.value || [], stageCounts.value)
+);
+const totalFunnelCards = computed(() =>
+  funnelBar.value.reduce((sum, seg) => sum + seg.count, 0)
+);
+const scrollToStage = stageId => {
+  const el = document.getElementById(`kanban-col-${stageId}`);
+  if (el)
+    el.scrollIntoView({
+      behavior: 'smooth',
+      inline: 'center',
+      block: 'nearest',
+    });
+};
+
 const handleMoveItem = async ({ item, stageId }) => {
+  // The card "move" button emits without a target stage → open the stage
+  // picker modal (the drag&drop path always provides stageId and moves directly).
+  if (!stageId) {
+    moveModalItem.value = item;
+    showMoveModal.value = true;
+    return;
+  }
+
   const itemId = Number(item?.id);
   const currentStageId = Number(item.funnelStageId || item.funnel_stage_id);
   const newStageId = Number(stageId);
@@ -295,9 +360,26 @@ const handleScheduleMessage = conversation => {
   emit('scheduleMessage', conversation);
 };
 
-const handleRemoveItem = async item => {
-  if (!window.confirm(t('KANBAN.ITEMS.CONFIRM_REMOVE'))) return;
+const confirmDialogRef = ref(null);
+const confirmState = ref({
+  title: '',
+  message: '',
+  confirmLabel: '',
+  action: null,
+});
 
+const openConfirm = ({ title, message, confirmLabel, action }) => {
+  confirmState.value = { title, message, confirmLabel, action };
+  nextTick(() => confirmDialogRef.value?.open?.());
+};
+
+const runConfirm = async () => {
+  const { action } = confirmState.value;
+  confirmDialogRef.value?.close?.();
+  if (typeof action === 'function') await action();
+};
+
+const performRemoveItem = async item => {
   try {
     await store.dispatch('kanban/deleteItem', {
       funnelId: props.funnelId,
@@ -305,14 +387,63 @@ const handleRemoveItem = async item => {
     });
     emit('removeItem', item);
   } catch (_) {
-    // noop
+    useAlert(t('KANBAN.ITEMS.REMOVE_ERROR'));
   }
+};
+
+const handleRemoveItem = item => {
+  openConfirm({
+    title: t('KANBAN.ITEMS.REMOVE'),
+    message: t('KANBAN.ITEMS.CONFIRM_REMOVE'),
+    confirmLabel: t('KANBAN.ITEMS.REMOVE'),
+    action: () => performRemoveItem(item),
+  });
 };
 
 const handleEditStage = stage => {
   if (!stage) return;
   selectedStage.value = { ...stage };
   showStageForm.value = true;
+};
+
+const handleCreateStage = () => {
+  // Blank object (no id) puts StageForm into create mode.
+  selectedStage.value = { name: '', color: '#94a3b8', automation_type: null };
+  showStageForm.value = true;
+};
+
+const showAddModal = ref(false);
+const addStage = ref(null);
+
+// Editar um cartão de tarefa (clique no card) — reaproveita o modal de adicionar.
+const editTaskItem = ref(null);
+
+const handleAddCard = stage => {
+  editTaskItem.value = null;
+  addStage.value = stage;
+  showAddModal.value = true;
+};
+
+const handleEditTask = item => {
+  editTaskItem.value = item;
+  addStage.value =
+    stages.value.find(s => s.id === item.funnel_stage_id) || null;
+  showAddModal.value = true;
+};
+
+const handleConversationAdded = async () => {
+  showAddModal.value = false;
+  const stageId = addStage.value?.id;
+  if (stageId) {
+    await store.dispatch('kanban/fetchFunnelItemsPage', {
+      funnelId: props.funnelId,
+      stageId: Number(stageId),
+      limit: 30,
+      append: false,
+    });
+  }
+  addStage.value = null;
+  editTaskItem.value = null;
 };
 
 const handleStageSaved = async () => {
@@ -355,16 +486,14 @@ const handleStageReorder = async evt => {
 
     await store.dispatch('kanban/fetchFunnelStages', props.funnelId);
   } catch (error) {
-    alert(error?.response?.data?.error || t('KANBAN.STAGES.SAVE_ERROR'));
+    useAlert(error?.response?.data?.error || t('KANBAN.STAGES.SAVE_ERROR'));
     await store.dispatch('kanban/fetchFunnelStages', props.funnelId);
   } finally {
     isReordering = false;
   }
 };
 
-const handleDeleteStage = async stage => {
-  if (!window.confirm(t('KANBAN.STAGES.CONFIRM_DELETE'))) return;
-
+const performDeleteStage = async stage => {
   try {
     await store.dispatch('kanban/deleteStage', {
       funnelId: props.funnelId,
@@ -372,8 +501,18 @@ const handleDeleteStage = async stage => {
     });
     await store.dispatch('kanban/fetchFunnelStages', props.funnelId);
   } catch (_) {
-    alert(t('KANBAN.STAGES.DELETE_ERROR'));
+    useAlert(t('KANBAN.STAGES.DELETE_ERROR'));
   }
+};
+
+const handleDeleteStage = stage => {
+  if (!stage) return;
+  openConfirm({
+    title: t('KANBAN.STAGES.DELETE'),
+    message: t('KANBAN.STAGES.CONFIRM_DELETE'),
+    confirmLabel: t('KANBAN.STAGES.DELETE'),
+    action: () => performDeleteStage(stage),
+  });
 };
 </script>
 
@@ -401,51 +540,100 @@ const handleDeleteStage = async stage => {
       </div>
     </div>
 
-    <div
-      v-else
-      class="kanban-board flex h-full gap-4 overflow-x-auto overflow-y-hidden bg-n-background px-5 py-4"
-    >
-      <draggable
-        v-model="localStages"
-        :group="{ name: 'kanban-stages', pull: false, put: false }"
-        item-key="id"
-        handle=".kanban-column-drag-handle"
-        class="flex h-full gap-4"
-        :animation="200"
-        ghost-class="kanban-stage-ghost"
-        drag-class="kanban-stage-drag"
-        @end="handleStageReorder"
+    <div v-else class="flex h-full min-h-0 flex-col">
+      <!-- Funnel distribution bar -->
+      <div
+        v-if="stages.length >= 2 && totalFunnelCards"
+        class="kanban-funnel mx-5 mt-3 flex shrink-0 gap-px overflow-hidden rounded-full bg-n-alpha-1 px-px"
       >
-        <template #item="{ element: stage }">
-          <KanbanColumn
-            :key="`stage-${stage.id}`"
-            :funnel-id="funnelId"
-            :stage="stage"
-            :items="getFilteredItemsForStage(stage.id)"
-            :conversations="conversations"
-            @move-item="handleMoveItem"
-            @schedule-message="handleScheduleMessage"
-            @remove-item="handleRemoveItem"
-            @edit-stage="handleEditStage"
-            @delete-stage="handleDeleteStage"
-          />
-        </template>
-      </draggable>
+        <button
+          v-for="seg in funnelBar"
+          :key="`funnel-${seg.id}`"
+          v-tooltip="
+            t('KANBAN.FUNNEL_BAR.SEGMENT', {
+              name: seg.name,
+              count: seg.count,
+              pct: seg.pct,
+            })
+          "
+          type="button"
+          class="kanban-funnel__seg kanban-focusable h-2 transition-all duration-300 hover:opacity-80"
+          :style="{ width: `${seg.pct}%`, background: seg.color }"
+          :aria-label="
+            t('KANBAN.FUNNEL_BAR.SEGMENT', {
+              name: seg.name,
+              count: seg.count,
+              pct: seg.pct,
+            })
+          "
+          @click="scrollToStage(seg.id)"
+        />
+      </div>
 
       <div
-        v-if="stages.length === 0"
-        class="flex w-full flex-col items-center justify-center rounded-xl border-2 border-dashed border-n-weak bg-n-slate-2/50 dark:bg-n-solid-2 p-8 text-center"
+        class="kanban-board flex min-h-0 flex-1 gap-2 sm:gap-4 overflow-x-auto overflow-y-hidden bg-n-background px-2 sm:px-5 py-4"
       >
-        <Icon icon="i-lucide-columns-3" class="mb-3 size-9 text-n-slate-10" />
-        <h3 class="text-lg font-semibold text-n-slate-12">
-          {{ t('KANBAN.STAGES.NO_STAGES') }}
-        </h3>
-        <p class="mt-1 text-sm text-n-slate-10">
-          {{ t('KANBAN.STAGES.NO_STAGES_DESCRIPTION') }}
-        </p>
-        <p class="mt-1 text-xs text-n-slate-9">
-          {{ t('KANBAN.STAGES.EDIT_FUNNEL_HINT') }}
-        </p>
+        <draggable
+          v-model="localStages"
+          :group="{ name: 'kanban-stages', pull: false, put: false }"
+          item-key="id"
+          handle=".kanban-column-drag-handle"
+          class="flex h-full gap-2 sm:gap-4"
+          :animation="200"
+          ghost-class="kanban-stage-ghost"
+          drag-class="kanban-stage-drag"
+          @end="handleStageReorder"
+        >
+          <template #item="{ element: stage }">
+            <KanbanColumn
+              :id="`kanban-col-${stage.id}`"
+              :key="`stage-${stage.id}`"
+              :funnel-id="funnelId"
+              :stage="stage"
+              :items="getFilteredItemsForStage(stage.id)"
+              :conversations="conversations"
+              :prioritize-waiting="prioritizeWaiting"
+              @move-item="handleMoveItem"
+              @schedule-message="handleScheduleMessage"
+              @remove-item="handleRemoveItem"
+              @edit-stage="handleEditStage"
+              @delete-stage="handleDeleteStage"
+              @add-card="handleAddCard"
+              @preview-conversation="openPreview"
+              @edit-task="handleEditTask"
+            />
+          </template>
+        </draggable>
+
+        <button
+          v-if="stages.length > 0"
+          class="kanban-add-stage kanban-focusable group flex h-full shrink-0 flex-col items-center justify-center gap-2 rounded-[var(--kanban-radius-xl)] border-2 border-dashed border-n-slate-5 bg-n-slate-3 px-4 text-n-slate-11 transition hover:border-n-slate-7 hover:bg-n-slate-4 hover:text-n-slate-12 dark:border-n-weak dark:bg-n-solid-2/40 dark:text-n-slate-10"
+          @click="handleCreateStage"
+        >
+          <Icon icon="i-lucide-plus" class="size-5" />
+          <span class="text-sm font-medium">{{
+            t('KANBAN.STAGES.CREATE')
+          }}</span>
+        </button>
+
+        <div
+          v-if="stages.length === 0"
+          class="flex w-full flex-col items-center justify-center rounded-[var(--kanban-radius-xl)] border-2 border-dashed border-n-slate-5 bg-n-slate-2 dark:border-n-weak dark:bg-n-solid-2 p-8 text-center"
+        >
+          <Icon
+            icon="i-lucide-columns-3"
+            class="mb-3 size-9 text-n-slate-11 dark:text-n-slate-10"
+          />
+          <h3 class="text-lg font-semibold text-n-slate-12">
+            {{ t('KANBAN.STAGES.NO_STAGES') }}
+          </h3>
+          <p class="mt-1 text-sm text-n-slate-10">
+            {{ t('KANBAN.STAGES.NO_STAGES_DESCRIPTION') }}
+          </p>
+          <p class="mt-1 text-xs text-n-slate-9">
+            {{ t('KANBAN.STAGES.EDIT_FUNNEL_HINT') }}
+          </p>
+        </div>
       </div>
     </div>
 
@@ -461,6 +649,59 @@ const handleDeleteStage = async stage => {
       "
       @saved="handleStageSaved"
     />
+
+    <AddConversationModal
+      :show="showAddModal"
+      :stage="addStage"
+      :funnel-id="funnelId"
+      :edit-item="editTaskItem"
+      @close="
+        () => {
+          showAddModal = false;
+          addStage = null;
+          editTaskItem = null;
+        }
+      "
+      @added="handleConversationAdded"
+    />
+
+    <MoveItemModal
+      :show="showMoveModal"
+      :item="moveModalItem"
+      :funnel-id="funnelId"
+      @close="
+        () => {
+          showMoveModal = false;
+          moveModalItem = null;
+        }
+      "
+      @moved="
+        () => {
+          showMoveModal = false;
+          moveModalItem = null;
+        }
+      "
+    />
+
+    <ConversationPreviewModal
+      :show="showPreview"
+      :conversation="previewConversation"
+      @close="
+        () => {
+          showPreview = false;
+          previewConversation = null;
+        }
+      "
+    />
+
+    <Dialog
+      ref="confirmDialogRef"
+      type="alert"
+      :title="confirmState.title"
+      :description="confirmState.message"
+      :confirm-button-label="confirmState.confirmLabel"
+      @confirm="runConfirm"
+    />
   </div>
 </template>
 
@@ -469,6 +710,44 @@ const handleDeleteStage = async stage => {
   min-width: 100%;
   scrollbar-width: thin;
   scrollbar-color: rgb(var(--border-weak)) transparent;
+  /* Futuristic light canvas (overrides the white bg-n-background utility) so
+     the glass lanes and white cards read as luminous floating layers.
+     Layered HUD ambience: an indigo top glow, a deep vignette to seat the
+     lanes, and a faint blueprint line grid for a technical, futuristic feel. */
+  background-color: var(--kanban-board-bg, #eef1f6);
+  /* Light: a calm, clean canvas — one very soft top glow + a barely-there
+     blueprint grid (the heavy indigo/navy HUD wash is dark-mode only, below). */
+  background-image: radial-gradient(
+      120% 90% at 50% -10%,
+      rgba(99, 102, 241, 0.05),
+      transparent 60%
+    ),
+    linear-gradient(rgba(100, 116, 139, 0.035) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(100, 116, 139, 0.035) 1px, transparent 1px);
+  background-size:
+    100% 100%,
+    32px 32px,
+    32px 32px;
+}
+
+.dark .kanban-board {
+  /* Restore the dark canvas (the shared rule above sets a light gray). */
+  background-color: rgb(var(--background-color));
+  background-image: radial-gradient(
+      130% 90% at 50% -20%,
+      rgba(148, 163, 184, 0.05),
+      transparent 60%
+    ),
+    radial-gradient(rgba(148, 163, 184, 0.05) 1px, transparent 1px);
+}
+
+.kanban-add-stage {
+  width: var(--kanban-col-width, 304px);
+}
+
+/* Keep tiny funnel segments clickable even at ~1% width. */
+.kanban-funnel__seg {
+  min-width: 8px;
 }
 
 .kanban-board::-webkit-scrollbar {
@@ -486,19 +765,5 @@ const handleDeleteStage = async stage => {
 
 .kanban-board::-webkit-scrollbar-thumb:hover {
   background-color: rgb(var(--border-strong));
-}
-
-:deep(.kanban-stage-ghost) {
-  opacity: 0.4;
-  border: 2px dashed #2dc46f;
-  background: rgba(45, 196, 111, 0.05);
-}
-
-:deep(.kanban-stage-drag) {
-  opacity: 0.95;
-  box-shadow:
-    0 20px 25px -5px rgba(0, 0, 0, 0.15),
-    0 8px 10px -6px rgba(0, 0, 0, 0.1);
-  transform: rotate(1deg);
 }
 </style>

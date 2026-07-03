@@ -34,6 +34,25 @@ class FunnelPolicy < ApplicationPolicy
     update?
   end
 
+  # Kanban v2 (Fase 6): reading the dashboard is a read on the funnel.
+  def stats?
+    show?
+  end
+
+  # Kanban v2 (Fase 8): configuring the public form is a funnel update.
+  def form?
+    update?
+  end
+
+  # Kanban v2 (Fase 8): templates catalog + instantiation.
+  def templates?
+    index?
+  end
+
+  def create_from_template?
+    create?
+  end
+
   private
 
   def user_team_ids
@@ -50,6 +69,9 @@ class FunnelPolicy < ApplicationPolicy
       team_ids = user_team_ids(target_account)
 
       base_scope = scope.where(account_id: target_account.id)
+      # Admin enxerga todos os funis da conta (inclusive de times que não participa)
+      return base_scope if @account_user.administrator?
+
       arel_table = base_scope.arel_table
       conditions = []
 

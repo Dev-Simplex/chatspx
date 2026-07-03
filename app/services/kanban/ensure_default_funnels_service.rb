@@ -17,7 +17,7 @@ class Kanban::EnsureDefaultFunnelsService
   def ensure_default_account_funnel
     return if Funnel.exists?(account_id: @account.id, team_id: nil)
 
-    CreateDefaultFunnelService.new(account: @account).perform
+    Kanban::CreateDefaultFunnelService.new(account: @account).perform
   rescue StandardError => e
     Rails.logger.error "EnsureDefaultFunnelsService: error ensuring default funnel for account #{@account.id}: #{e.message}"
     Rails.logger.error e.backtrace.first(5).join("\n")
@@ -27,7 +27,7 @@ class Kanban::EnsureDefaultFunnelsService
     @account.teams.find_each do |team|
       next if Funnel.exists?(team_id: team.id, account_id: @account.id)
 
-      CreateFunnelForTeamService.new(team: team).perform
+      Kanban::CreateFunnelForTeamService.new(team: team).perform
     rescue StandardError => e
       Rails.logger.error "EnsureDefaultFunnelsService: error ensuring funnel for team #{team.id}: #{e.message}"
       Rails.logger.error e.backtrace.first(5).join("\n")

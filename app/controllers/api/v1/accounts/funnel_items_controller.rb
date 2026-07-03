@@ -1,10 +1,14 @@
 # frozen_string_literal: true
 
 class Api::V1::Accounts::FunnelItemsController < Api::V1::Accounts::BaseController
+  include Kanban::FunnelItemsBulkActions
+  include Kanban::FunnelItemTaskCards
+
   BACKFILL_THROTTLE = 10.minutes
 
   before_action :funnel
-  before_action :funnel_item, except: [:index, :create, :bulk_move]
+  # bulk_move / bulk_update live in Kanban::FunnelItemsBulkActions (concern).
+  before_action :funnel_item, except: [:index, :create, :bulk_move, :bulk_update] # rubocop:disable Rails/LexicallyScopedActionFilter
   before_action :check_authorization
 
   def index
@@ -26,29 +30,46 @@ class Api::V1::Accounts::FunnelItemsController < Api::V1::Accounts::BaseControll
       @funnel_items = deduplicate_by_contact_phone(legacy_scope(scope))
     end
 
+    # Cartões de tarefa (sem conversa) não passam pelos joins de conversation,
+    # então são carregados à parte e anexados.
+    @funnel_items = merge_task_items(@funnel_items)
+
     load_last_messages
+    load_account_labels
     render 'api/v1/accounts/funnels/funnel_items/index', formats: [:json]
   end
 
   def create
-    @funnel_item = FunnelItems::MoveService.new(
-      conversation: conversation,
-      funnel: funnel,
-      funnel_stage: funnel_stage,
-      moved_by: Current.user
-    ).perform
+    @funnel_item = if task_card_params?
+                     create_task_card
+                   else
+                     FunnelItems::MoveService.new(
+                       conversation: conversation,
+                       funnel: funnel,
+                       funnel_stage: funnel_stage,
+                       moved_by: Current.user
+                     ).perform
+                   end
     render 'api/v1/accounts/funnels/funnel_items/create', formats: [:json]
+  rescue ActiveRecord::RecordInvalid => e
+    render json: { errors: e.record.errors.full_messages }, status: :unprocessable_entity
   end
 
   def update
-    FunnelItems::MoveService.new(
-      conversation: @funnel_item.conversation,
-      funnel: funnel,
-      funnel_stage: funnel_stage,
-      moved_by: Current.user
-    ).perform
-    @funnel_item.reload
+    if @funnel_item.task?
+      @funnel_item.update!(task_update_attributes)
+    else
+      FunnelItems::MoveService.new(
+        conversation: @funnel_item.conversation,
+        funnel: funnel,
+        funnel_stage: funnel_stage,
+        moved_by: Current.user
+      ).perform
+      @funnel_item.reload
+    end
     render 'api/v1/accounts/funnels/funnel_items/update', formats: [:json]
+  rescue ActiveRecord::RecordInvalid => e
+    render json: { errors: e.record.errors.full_messages }, status: :unprocessable_entity
   end
 
   def destroy
@@ -56,25 +77,19 @@ class Api::V1::Accounts::FunnelItemsController < Api::V1::Accounts::BaseControll
     head :ok
   end
 
-  def bulk_move
-    conversation_ids = params[:conversation_ids] || []
-    stage_id = params[:stage_id]
+  # Kanban v2 (Fase 2): merge custom field VALUES into the conversation's
+  # custom_attributes. Only this funnel's namespaced keys (funnel_<id>_*) are
+  # touched, so unrelated attributes (other integrations) are never clobbered.
+  # Blank values clear the key.
+  def custom_attributes
+    conversation = @funnel_item.conversation
+    conversation.update!(custom_attributes: merged_custom_attributes(conversation))
 
-    return render json: { error: 'stage_id is required' }, status: :unprocessable_entity if stage_id.blank?
-
-    stage = funnel.funnel_stages.find(stage_id)
-    conversations = Current.account.conversations.where(id: conversation_ids)
-
-    conversations.each do |conv|
-      FunnelItems::MoveService.new(
-        conversation: conv,
-        funnel: funnel,
-        funnel_stage: stage,
-        moved_by: Current.user
-      ).perform
-    end
-
-    head :ok
+    render json: {
+      id: @funnel_item.id,
+      conversation_id: conversation.id,
+      custom_attributes: funnel_scoped_attributes(conversation.custom_attributes)
+    }
   end
 
   private
@@ -102,6 +117,21 @@ class Api::V1::Accounts::FunnelItemsController < Api::V1::Accounts::BaseControll
     @funnel_item ||= funnel.funnel_items.find(params[:id])
   end
 
+  def funnel_attribute_prefix
+    "funnel_#{funnel.id}_"
+  end
+
+  def funnel_scoped_attributes(attributes)
+    (attributes || {}).select { |key, _| key.to_s.start_with?(funnel_attribute_prefix) }
+  end
+
+  def merged_custom_attributes(conversation)
+    incoming = params.permit(custom_attributes: {}).fetch(:custom_attributes, {}).to_h
+    allowed = funnel_scoped_attributes(incoming)
+    merged = (conversation.custom_attributes || {}).merge(allowed)
+    merged.reject { |key, value| key.to_s.start_with?(funnel_attribute_prefix) && value.to_s.strip.empty? }
+  end
+
   def check_authorization
     authorize(@funnel_item || FunnelItem.new(funnel: funnel))
   end
@@ -119,6 +149,12 @@ class Api::V1::Accounts::FunnelItemsController < Api::V1::Accounts::BaseControll
                            .select('DISTINCT ON (conversation_id) conversation_id, content, processed_message_content, created_at')
                            .reorder('conversation_id, id desc')
     @last_messages_by_conversation_id = last_messages.index_by(&:conversation_id)
+  end
+
+  # Account labels are few; one cheap query lets the serializer turn a
+  # conversation's denormalized cached_label_list into colored chips with no N+1.
+  def load_account_labels
+    @labels_by_title = Current.account.labels.index_by { |label| label.title.to_s.downcase }
   end
 
   def legacy_scope(scope) # rubocop:disable Metrics/AbcSize, Metrics/CyclomaticComplexity, Metrics/PerceivedComplexity
@@ -163,7 +199,9 @@ class Api::V1::Accounts::FunnelItemsController < Api::V1::Accounts::BaseControll
       contact = item.conversation&.contact
       phone = contact&.phone_number
       normalized = normalize_brazilian_phone(phone)
-      key = if normalized.present?
+      key = if item.conversation.nil?
+              "item:#{item.id}" # cartão de tarefa: nunca deduplica
+            elsif normalized.present?
               "phone:#{normalized}"
             elsif item.conversation&.contact_id.present?
               "contact:#{item.conversation.contact_id}"

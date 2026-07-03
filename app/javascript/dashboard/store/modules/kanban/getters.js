@@ -31,6 +31,33 @@ export const getters = {
     return camelcaseKeys($state.funnels[id] || {}, { deep: true });
   },
 
+  // Custom field definitions for a funnel (already camelCased in state).
+  getFunnelCustomFields: $state => funnelId => {
+    if (funnelId == null) return [];
+    const fields = $state.funnels[funnelId]?.customFields;
+    if (!Array.isArray(fields)) return [];
+    return [...fields].sort(sortByPositionAndCreatedAt);
+  },
+
+  // Resolve the funnel_item id holding a given conversation (1:1 per funnel),
+  // so the preview modal can persist custom field values by item.
+  getItemIdByConversation: $state => (funnelId, conversationId) => {
+    if (conversationId == null) return null;
+    const targetConv = Number(conversationId);
+    const targetFunnel = funnelId == null ? null : Number(funnelId);
+    const match = Object.values($state.funnelItems || {}).find(item => {
+      const itemFunnel = Number(item?.funnel_id ?? item?.funnelId);
+      const convId = Number(
+        item?.conversation?.id ?? item?.conversation_id ?? item?.conversationId
+      );
+      return (
+        (targetFunnel == null || itemFunnel === targetFunnel) &&
+        convId === targetConv
+      );
+    });
+    return match ? match.id : null;
+  },
+
   getFunnelStages: $state => funnelId => {
     if (!funnelId) return [];
     const stages = $state.funnelStages[funnelId] || {};
@@ -141,9 +168,16 @@ export const getters = {
         labelIds: [],
         assigneeId: null,
         status: 'all',
+        priority: [],
       }
     );
   },
+
+  getSavedViews($state) {
+    return Array.isArray($state.savedViews) ? $state.savedViews : [];
+  },
+
+  getFunnelStats: $state => funnelId => $state.funnelStats?.[funnelId] || null,
 
   getViewBootstrap($state) {
     return (

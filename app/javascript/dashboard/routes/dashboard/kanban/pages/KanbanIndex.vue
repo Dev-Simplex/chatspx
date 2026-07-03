@@ -6,15 +6,19 @@ import { useI18n } from 'vue-i18n';
 import KanbanBoard from 'dashboard/components-next/Kanban/KanbanBoard.vue';
 import ListView from 'dashboard/components-next/Kanban/ListView.vue';
 import CalendarView from 'dashboard/components-next/Kanban/CalendarView.vue';
+import DashboardView from 'dashboard/components-next/Kanban/DashboardView.vue';
 import KanbanFilterSelect from 'dashboard/components-next/Kanban/KanbanFilterSelect.vue';
 import FunnelForm from 'dashboard/components-next/Kanban/FunnelForm.vue';
 import ScheduledMessageForm from 'dashboard/components-next/Kanban/ScheduledMessageForm.vue';
+import KanbanAutomationBuilder from 'dashboard/components-next/Kanban/KanbanAutomationBuilder.vue';
 import ScheduledMessagesDrawer from 'dashboard/components-next/Kanban/ScheduledMessagesDrawer.vue';
+import KanbanLegend from 'dashboard/components-next/Kanban/KanbanLegend.vue';
 import Button from 'dashboard/components-next/button/Button.vue';
 import Input from 'dashboard/components-next/input/Input.vue';
 import Icon from 'dashboard/components-next/icon/Icon.vue';
 import Dialog from 'dashboard/components-next/dialog/Dialog.vue';
 import { useAlert } from 'dashboard/composables';
+import 'dashboard/components-next/Kanban/kanban-theme.css';
 
 const route = useRoute();
 const router = useRouter();
@@ -31,6 +35,59 @@ const activeFunnel = computed(() => {
     funnels.value.find(funnel => funnel.id === activeFunnelId.value) || null
   );
 });
+const KANBAN_DENSITY_KEY = 'kanban:compact';
+const isCompact = ref(false);
+try {
+  isCompact.value = localStorage.getItem(KANBAN_DENSITY_KEY) === '1';
+} catch (_) {
+  // best effort
+}
+const toggleDensity = () => {
+  isCompact.value = !isCompact.value;
+  try {
+    localStorage.setItem(KANBAN_DENSITY_KEY, isCompact.value ? '1' : '0');
+  } catch (_) {
+    // best effort
+  }
+};
+
+const KANBAN_COVER_KEY = 'kanban:card-cover';
+const isCover = ref(false);
+try {
+  isCover.value = localStorage.getItem(KANBAN_COVER_KEY) === '1';
+} catch (_) {
+  // best effort
+}
+const toggleCover = () => {
+  isCover.value = !isCover.value;
+  try {
+    localStorage.setItem(KANBAN_COVER_KEY, isCover.value ? '1' : '0');
+  } catch (_) {
+    // best effort
+  }
+};
+
+const KANBAN_PRIORITIZE_WAITING_KEY = 'kanban:prioritize-waiting';
+// Default ON: the wait-driven ordering is the headline behaviour.
+const prioritizeWaiting = ref(true);
+try {
+  prioritizeWaiting.value =
+    localStorage.getItem(KANBAN_PRIORITIZE_WAITING_KEY) !== '0';
+} catch (_) {
+  // best effort
+}
+const togglePrioritizeWaiting = () => {
+  prioritizeWaiting.value = !prioritizeWaiting.value;
+  try {
+    localStorage.setItem(
+      KANBAN_PRIORITIZE_WAITING_KEY,
+      prioritizeWaiting.value ? '1' : '0'
+    );
+  } catch (_) {
+    // best effort
+  }
+};
+
 const viewMode = computed(
   () => store.getters['kanban/getViewMode'] || 'kanban'
 );
@@ -41,12 +98,14 @@ const scheduledMessages = computed(
 
 const showFunnelForm = ref(false);
 const showScheduledMessageForm = ref(false);
+const showAutomationBuilder = ref(false);
 const selectedFunnel = ref(null);
 const selectedConversation = ref(null);
 const selectedScheduledMessage = ref(null);
 const selectedDate = ref(null);
 const requireConversationForModal = ref(true);
 const showScheduledMessagesDrawer = ref(false);
+const showLegend = ref(false);
 const showAdvancedFilters = ref(false);
 const scheduledMessagesConversationFilter = ref(null);
 const scheduledMessagesRefreshToken = ref(0);
@@ -130,6 +189,15 @@ const statusFilterOptions = computed(() => [
     value: 'snoozed',
     label: t('KANBAN.STATUS.SNOOZED'),
   },
+]);
+
+const priorityFilterOptions = computed(() => [
+  { value: 'all', label: t('KANBAN.FILTERS.PRIORITY.ALL') },
+  { value: 'urgent', label: t('KANBAN.FILTERS.PRIORITY.URGENT') },
+  { value: 'high', label: t('KANBAN.FILTERS.PRIORITY.HIGH') },
+  { value: 'medium', label: t('KANBAN.FILTERS.PRIORITY.MEDIUM') },
+  { value: 'low', label: t('KANBAN.FILTERS.PRIORITY.LOW') },
+  { value: 'none', label: t('KANBAN.FILTERS.PRIORITY.NONE') },
 ]);
 
 const funnelOptions = computed(() => [
@@ -231,6 +299,18 @@ const statusFilter = computed({
   },
 });
 
+// Single-select UI mapped onto the priority array (one priority at a time).
+const priorityFilter = computed({
+  get() {
+    return viewFilters.value?.priority?.[0] || 'all';
+  },
+  set(value) {
+    store.dispatch('kanban/setViewFilters', {
+      priority: !value || value === 'all' ? [] : [value],
+    });
+  },
+});
+
 const hasActiveFilters = computed(() => {
   const filters = viewFilters.value || {};
   return Boolean(
@@ -238,6 +318,7 @@ const hasActiveFilters = computed(() => {
       (filters.stageIds || []).length ||
       (filters.labelIds || []).length ||
       filters.assigneeId ||
+      (filters.priority || []).length ||
       (filters.status || 'all') !== 'all'
   );
 });
@@ -249,6 +330,7 @@ const activeFiltersCount = computed(() => {
   if ((filters.stageIds || []).length) count += 1;
   if ((filters.labelIds || []).length) count += 1;
   if (filters.assigneeId) count += 1;
+  if ((filters.priority || []).length) count += 1;
   if ((filters.status || 'all') !== 'all') count += 1;
   return count;
 });
@@ -259,6 +341,7 @@ const advancedFiltersCount = computed(() => {
   if ((filters.stageIds || []).length) count += 1;
   if ((filters.labelIds || []).length) count += 1;
   if (filters.assigneeId) count += 1;
+  if ((filters.priority || []).length) count += 1;
   if ((filters.status || 'all') !== 'all') count += 1;
   return count;
 });
@@ -356,6 +439,49 @@ const handleCreateFunnel = () => {
 const handleEditFunnel = funnel => {
   selectedFunnel.value = funnel;
   showFunnelForm.value = true;
+};
+
+// Confirmação reutilizável via Dialog tipo "alert" (mesmo padrão do FunnelForm).
+const confirmDialogRef = ref(null);
+const confirmConfig = ref({ title: '', message: '', confirmLabel: '' });
+const confirmResolver = ref(null);
+const askConfirm = ({ title, message, confirmLabel }) =>
+  new Promise(resolve => {
+    confirmConfig.value = { title, message, confirmLabel };
+    confirmResolver.value = resolve;
+    nextTick(() => confirmDialogRef.value?.open?.());
+  });
+const resolveConfirm = value => {
+  const resolver = confirmResolver.value;
+  confirmResolver.value = null;
+  confirmDialogRef.value?.close?.();
+  if (resolver) resolver(value);
+};
+
+// Apagar o funil ativo direto da barra (sem precisar abrir o modal de edição).
+const handleDeleteActiveFunnel = async () => {
+  const funnel = activeFunnel.value;
+  if (!funnel) return;
+
+  const confirmed = await askConfirm({
+    title: t('KANBAN.FUNNELS.DELETE'),
+    message: t('KANBAN.FUNNELS.CONFIRM_DELETE'),
+    confirmLabel: t('KANBAN.FUNNELS.DELETE'),
+  });
+  if (!confirmed) return;
+
+  try {
+    await store.dispatch('kanban/deleteFunnel', funnel.id);
+    const remaining = funnels.value;
+    if (remaining.length) {
+      await handleFunnelSelect(remaining[0].id);
+    } else {
+      await store.dispatch('kanban/setActiveFunnelId', null);
+      await router.replace({ name: 'kanban_index' });
+    }
+  } catch (error) {
+    useAlert(t('KANBAN.FUNNELS.DELETE_ERROR'));
+  }
 };
 
 const handleFunnelSaved = async () => {
@@ -541,35 +667,43 @@ onMounted(async () => {
 <template>
   <div class="kanban-container flex flex-col overflow-hidden">
     <div
-      class="kanban-header flex flex-col border-b border-n-weak bg-n-solid-2 px-5 py-4 gap-4"
+      class="kanban-header relative flex flex-col gap-4 border-b border-n-weak bg-gradient-to-b from-n-solid-2 to-n-background px-5 py-4"
     >
+      <!-- faixa de acento da marca no topo do cabeçalho -->
+      <span
+        class="pointer-events-none absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-n-brand/60 to-transparent"
+        aria-hidden="true"
+      />
       <div class="flex flex-wrap items-center gap-3 justify-between">
         <div class="flex items-center gap-3 min-w-0">
           <div
-            class="flex items-center justify-center size-9 rounded-lg bg-n-solid-3 border border-n-weak"
+            class="flex items-center justify-center size-10 rounded-xl bg-n-brand text-white shadow-[0_6px_18px_-4px_rgba(45,196,111,0.5)]"
           >
-            <Icon icon="i-lucide-layout-grid" class="size-4 text-n-slate-11" />
+            <Icon icon="i-lucide-layout-grid" class="size-5" />
           </div>
-          <h1 class="text-xl font-semibold text-n-slate-12">
-            {{ t('KANBAN.TITLE') }}
-          </h1>
-
-          <div
-            v-if="activeFunnel"
-            class="hidden md:flex items-center gap-2 ml-2"
-          >
-            <span
-              class="inline-flex items-center gap-1.5 rounded-md border border-n-weak bg-n-solid-1 px-2.5 py-1 text-xs text-n-slate-11"
+          <div class="flex flex-col min-w-0">
+            <h1
+              class="text-xl font-bold leading-tight tracking-tight text-n-slate-12"
             >
-              <Icon icon="i-lucide-columns-3" class="size-3.5" />
-              {{ activeFunnelStagesCount }} {{ t('KANBAN.STAGES.TITLE') }}
-            </span>
-            <span
-              class="inline-flex items-center gap-1.5 rounded-md border border-n-weak bg-n-solid-1 px-2.5 py-1 text-xs text-n-slate-11"
-            >
-              <Icon icon="i-lucide-message-square" class="size-3.5" />
-              {{ activeFunnelTotalItems }} {{ t('KANBAN.FILTERS.ITEMS') }}
-            </span>
+              {{ t('KANBAN.TITLE') }}
+            </h1>
+            <div v-if="activeFunnel" class="hidden md:flex items-center gap-2">
+              <span
+                class="inline-flex items-center gap-1.5 rounded-full bg-n-alpha-2 px-2.5 py-0.5 text-[11px] font-medium text-n-slate-11"
+              >
+                <Icon icon="i-lucide-columns-3" class="size-3.5 text-n-brand" />
+                {{ activeFunnelStagesCount }} {{ t('KANBAN.STAGES.TITLE') }}
+              </span>
+              <span
+                class="inline-flex items-center gap-1.5 rounded-full bg-n-alpha-2 px-2.5 py-0.5 text-[11px] font-medium text-n-slate-11"
+              >
+                <Icon
+                  icon="i-lucide-message-square"
+                  class="size-3.5 text-n-brand"
+                />
+                {{ activeFunnelTotalItems }} {{ t('KANBAN.FILTERS.ITEMS') }}
+              </span>
+            </div>
           </div>
         </div>
 
@@ -598,7 +732,49 @@ onMounted(async () => {
               :title="t('KANBAN.VIEWS.CALENDAR')"
               @click="setViewMode('calendar')"
             />
+            <Button
+              :variant="viewMode === 'dashboard' ? 'solid' : 'ghost'"
+              size="sm"
+              icon="i-lucide-bar-chart-3"
+              :title="t('KANBAN.VIEWS.DASHBOARD')"
+              @click="setViewMode('dashboard')"
+            />
           </div>
+
+          <div
+            v-if="viewMode === 'kanban'"
+            class="flex gap-1 rounded-lg border border-n-weak bg-n-solid-3 p-1"
+          >
+            <Button
+              :variant="isCompact ? 'solid' : 'ghost'"
+              size="sm"
+              :icon="isCompact ? 'i-lucide-rows-3' : 'i-lucide-rows-2'"
+              :title="
+                isCompact
+                  ? t('KANBAN.DENSITY.COMFORTABLE')
+                  : t('KANBAN.DENSITY.COMPACT')
+              "
+              @click="toggleDensity"
+            />
+            <Button
+              :variant="isCover ? 'solid' : 'ghost'"
+              size="sm"
+              icon="i-lucide-paintbrush"
+              :title="isCover ? t('KANBAN.COVER.OFF') : t('KANBAN.COVER.ON')"
+              @click="toggleCover"
+            />
+            <Button
+              :variant="prioritizeWaiting ? 'solid' : 'ghost'"
+              size="sm"
+              icon="i-lucide-arrow-up-narrow-wide"
+              :title="t('KANBAN.TOOLBAR.PRIORITIZE_WAITING')"
+              :aria-label="t('KANBAN.TOOLBAR.PRIORITIZE_WAITING')"
+              :aria-pressed="prioritizeWaiting"
+              @click="togglePrioritizeWaiting"
+            />
+          </div>
+
+          <div class="mx-0.5 h-6 w-px shrink-0 bg-n-weak" aria-hidden="true" />
 
           <Button
             variant="ghost"
@@ -612,7 +788,7 @@ onMounted(async () => {
             </span>
             <span
               v-if="scheduledMessagesPendingCount > 0"
-              class="ml-2 inline-flex items-center justify-center min-w-5 h-5 px-1.5 rounded-full bg-n-blue-9 text-white text-[11px] font-semibold"
+              class="ml-2 inline-flex items-center justify-center min-w-5 h-5 px-1.5 rounded-full bg-n-blue-9 text-n-blue-12 dark:text-white text-[11px] font-semibold"
             >
               {{ scheduledMessagesPendingCount }}
             </span>
@@ -622,10 +798,32 @@ onMounted(async () => {
             v-if="activeFunnel"
             variant="ghost"
             size="sm"
-            icon="i-lucide-edit"
-            :title="t('KANBAN.FUNNELS.EDIT')"
-            @click="handleEditFunnel(activeFunnel)"
+            icon="i-lucide-zap"
+            :title="t('KANBAN.AUTOMATIONS.TITLE')"
+            @click="showAutomationBuilder = true"
           />
+          <!-- Ações do funil ativo (editar/excluir) agrupadas — a ação
+               destrutiva fica contida no cluster, separada do "+ criar". -->
+          <div
+            v-if="activeFunnel"
+            class="flex gap-1 rounded-lg border border-n-weak bg-n-solid-3 p-1"
+          >
+            <Button
+              variant="ghost"
+              size="sm"
+              icon="i-lucide-edit"
+              :title="t('KANBAN.FUNNELS.EDIT')"
+              @click="handleEditFunnel(activeFunnel)"
+            />
+            <Button
+              variant="ghost"
+              size="sm"
+              color="ruby"
+              icon="i-lucide-trash-2"
+              :title="t('KANBAN.FUNNELS.DELETE')"
+              @click="handleDeleteActiveFunnel"
+            />
+          </div>
           <Button
             color="blue"
             size="sm"
@@ -633,11 +831,22 @@ onMounted(async () => {
             :title="t('KANBAN.FUNNELS.CREATE')"
             @click="handleCreateFunnel"
           />
+
+          <div class="mx-0.5 h-6 w-px shrink-0 bg-n-weak" aria-hidden="true" />
+
+          <Button
+            variant="ghost"
+            size="sm"
+            icon="i-lucide-help-circle"
+            :title="t('KANBAN.GLOSSARY.OPEN')"
+            :aria-label="t('KANBAN.GLOSSARY.OPEN')"
+            @click="showLegend = true"
+          />
         </div>
       </div>
 
       <div
-        class="relative z-40 rounded-xl border border-n-weak bg-n-solid-1 p-3 shadow-sm"
+        class="relative z-40 rounded-2xl border border-n-weak bg-n-solid-1/90 p-3.5 shadow-sm backdrop-blur-sm"
       >
         <div
           class="kanban-filter-grid grid grid-cols-1 items-start gap-3 lg:grid-cols-[minmax(260px,1fr)_minmax(220px,280px)_auto_auto]"
@@ -692,7 +901,7 @@ onMounted(async () => {
             <span
               v-if="advancedFiltersCount > 0"
               data-testid="kanban-advanced-filters-count"
-              class="ml-2 inline-flex min-w-5 items-center justify-center rounded-full bg-n-blue-9 px-1.5 text-[11px] font-semibold text-white"
+              class="ml-2 inline-flex min-w-5 items-center justify-center rounded-full bg-n-blue-9 px-1.5 text-[11px] font-semibold text-n-blue-12 dark:text-white"
             >
               {{ advancedFiltersCount }}
             </span>
@@ -718,7 +927,7 @@ onMounted(async () => {
         >
           <div class="mb-2 flex items-center justify-between">
             <h2
-              class="text-xs font-semibold uppercase tracking-wide text-n-slate-10"
+              class="text-[11px] font-semibold uppercase tracking-wide text-n-slate-10"
             >
               {{ t('KANBAN.FILTERS.ADVANCED') }}
             </h2>
@@ -776,12 +985,29 @@ onMounted(async () => {
                 :placeholder="t('KANBAN.FILTERS.ALL_AGENTS')"
               />
             </div>
+
+            <div class="kanban-filter-group">
+              <label class="kanban-filter-label text-n-slate-10">
+                {{ t('KANBAN.FILTERS.PRIORITY.LABEL') }}
+              </label>
+              <KanbanFilterSelect
+                v-model="priorityFilter"
+                :options="priorityFilterOptions"
+                :placeholder="t('KANBAN.FILTERS.PRIORITY.ALL')"
+              />
+            </div>
           </div>
         </div>
       </div>
     </div>
 
-    <div class="kanban-content flex-1 min-h-0 overflow-hidden bg-n-background">
+    <div
+      class="kanban-content flex-1 min-h-0 overflow-hidden bg-n-background"
+      :class="{
+        'kanban-compact': isCompact && viewMode === 'kanban',
+        'kanban-cover': isCover && viewMode === 'kanban',
+      }"
+    >
       <div
         v-if="!activeFunnelId && funnels.length === 0"
         class="flex h-full flex-col items-center justify-center px-6 text-center"
@@ -809,9 +1035,18 @@ onMounted(async () => {
 
       <div
         v-else-if="!activeFunnelId"
-        class="flex h-full items-center justify-center text-sm text-n-slate-10"
+        class="flex h-full flex-col items-center justify-center px-6 text-center"
       >
-        {{ t('KANBAN.SELECT_FUNNEL') }}
+        <Icon
+          icon="i-lucide-layout-grid"
+          class="mb-3 size-10 text-n-slate-9 dark:text-n-slate-10"
+        />
+        <p class="text-sm font-medium text-n-slate-11">
+          {{ t('KANBAN.SELECT_FUNNEL') }}
+        </p>
+        <p class="mt-1 text-xs text-n-slate-10">
+          {{ t('KANBAN.SELECT_FUNNEL_HINT') }}
+        </p>
       </div>
 
       <template v-else>
@@ -819,6 +1054,7 @@ onMounted(async () => {
           v-if="viewMode === 'kanban'"
           :key="`kanban-${activeFunnelId}-${viewMode}`"
           :funnel-id="activeFunnelId"
+          :prioritize-waiting="prioritizeWaiting"
           @schedule-message="handleScheduleMessage"
         />
 
@@ -839,6 +1075,12 @@ onMounted(async () => {
           @edit-scheduled-message="handleEditScheduledMessage"
           @cancel-scheduled-message="handleCancelScheduledMessage"
         />
+
+        <DashboardView
+          v-else-if="viewMode === 'dashboard'"
+          :key="`dashboard-${activeFunnelId}-${viewMode}`"
+          :funnel-id="activeFunnelId"
+        />
       </template>
     </div>
 
@@ -847,6 +1089,12 @@ onMounted(async () => {
       :funnel="selectedFunnel"
       @close="showFunnelForm = false"
       @saved="handleFunnelSaved"
+    />
+
+    <KanbanAutomationBuilder
+      :show="showAutomationBuilder"
+      :funnel-id="activeFunnel?.id"
+      @close="showAutomationBuilder = false"
     />
 
     <ScheduledMessageForm
@@ -869,6 +1117,12 @@ onMounted(async () => {
       @cancelled="refreshScheduledMessages"
     />
 
+    <KanbanLegend
+      :show="showLegend"
+      @close="showLegend = false"
+      @replay-tour="showLegend = false"
+    />
+
     <Dialog
       v-if="scheduledMessageToCancel"
       ref="cancelDialogRef"
@@ -878,6 +1132,16 @@ onMounted(async () => {
       type="alert"
       @close="closeCancelDialog"
       @confirm="confirmCancelScheduledMessage"
+    />
+
+    <Dialog
+      ref="confirmDialogRef"
+      type="alert"
+      :title="confirmConfig.title"
+      :description="confirmConfig.message"
+      :confirm-button-label="confirmConfig.confirmLabel"
+      @confirm="resolveConfirm(true)"
+      @close="resolveConfirm(false)"
     />
   </div>
 </template>
@@ -906,8 +1170,8 @@ onMounted(async () => {
 .kanban-filter-label {
   margin-bottom: 0.375rem;
   display: block;
-  font-size: 0.75rem;
-  font-weight: 600;
+  font-size: 0.6875rem;
+  font-weight: 500;
   line-height: 1.2;
 }
 
