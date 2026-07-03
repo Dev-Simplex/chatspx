@@ -152,7 +152,7 @@ const internalChatSoundEnabled = () =>
 const internalChatDesktopEnabled = () =>
   uiSettings.value?.internal_chat_desktop_notifications !== false;
 const internalChatTone = () =>
-  uiSettings.value?.internal_chat_notification_tone || 'ding';
+  uiSettings.value?.internal_chat_notification_tone || 'pop.wav';
 
 const pendingInternalMention = useMapGetter('internalChat/getPendingMention');
 watch(pendingInternalMention, mention => {

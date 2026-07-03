@@ -4,13 +4,16 @@ import { useUISettings } from 'dashboard/composables/useUISettings';
 
 const { uiSettings, updateUISettings } = useUISettings();
 
-// Toques disponíveis (mesmos do seletor oficial do Chatwoot, em public/audio/dashboard).
+const DEFAULT_TONE = 'pop.wav';
+// Toques novos, mais agradáveis (em public/audio/internal_chat). O valor já
+// inclui a extensão para funcionar tanto com .wav (gerados) quanto .mp3.
 const TONES = [
-  { value: 'ding', label: 'Ding' },
-  { value: 'bell', label: 'Bell' },
-  { value: 'chime', label: 'Chime' },
-  { value: 'magic', label: 'Magic' },
-  { value: 'ping', label: 'Ping' },
+  { value: 'pop.wav', label: 'Pop' },
+  { value: 'tritone.wav', label: 'Tri-tom' },
+  { value: 'dingdong.wav', label: 'Ding-dong' },
+  { value: 'marimba.wav', label: 'Marimba' },
+  { value: 'soft.wav', label: 'Suave' },
+  { value: 'chime.mp3', label: 'Chime' },
 ];
 
 const soundOn = computed(
@@ -20,7 +23,11 @@ const desktopOn = computed(
   () => uiSettings.value?.internal_chat_desktop_notifications !== false
 );
 const tone = computed({
-  get: () => uiSettings.value?.internal_chat_notification_tone || 'ding',
+  // valores antigos (ex.: 'ding') caem no padrão para o select não ficar vazio
+  get: () => {
+    const v = uiSettings.value?.internal_chat_notification_tone;
+    return TONES.some(t => t.value === v) ? v : DEFAULT_TONE;
+  },
   set: value => updateUISettings({ internal_chat_notification_tone: value }),
 });
 
@@ -32,7 +39,7 @@ const toggleDesktop = () =>
 const preview = new Audio();
 const playPreview = () => {
   try {
-    preview.src = `/audio/dashboard/${tone.value}.mp3`;
+    preview.src = `/audio/internal_chat/${tone.value}`;
     preview.currentTime = 0;
     preview.play().catch(() => {});
   } catch (e) {
@@ -90,13 +97,13 @@ const playPreview = () => {
       </span>
     </button>
 
-    <!-- Seletor de toque + prévia -->
+    <!-- Seletor de toque + prévia (mesma altura, ícone centralizado) -->
     <div class="px-3 pt-2 pb-1">
       <p class="mb-1.5 text-xs font-medium text-n-slate-11">Som</p>
       <div class="flex items-center gap-2">
         <select
           v-model="tone"
-          class="reset-base flex-1 h-9 px-2 text-sm border rounded-lg outline-none cursor-pointer bg-n-alpha-1 border-transparent focus:border-n-brand text-n-slate-12"
+          class="reset-base flex-1 h-10 mb-0 px-2 text-sm border rounded-lg outline-none cursor-pointer bg-n-alpha-1 border-transparent focus:border-n-brand text-n-slate-12"
           :disabled="!soundOn"
         >
           <option v-for="t in TONES" :key="t.value" :value="t.value">
@@ -105,7 +112,7 @@ const playPreview = () => {
         </select>
         <button
           type="button"
-          class="inline-flex items-center justify-center flex-shrink-0 rounded-lg w-9 h-9 text-n-slate-11 ring-1 ring-inset ring-n-weak hover:bg-n-alpha-2 hover:text-n-slate-12 disabled:opacity-40"
+          class="inline-flex items-center justify-center flex-shrink-0 w-10 h-10 min-h-0 rounded-lg text-n-slate-11 ring-1 ring-inset ring-n-weak hover:bg-n-alpha-2 hover:text-n-slate-12 disabled:opacity-40"
           title="Ouvir"
           :disabled="!soundOn"
           @click="playPreview"
