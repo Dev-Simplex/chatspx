@@ -1,11 +1,16 @@
 // Chat interno (v2 Fase 4) — light, best-effort notifications: a short sound +
 // (when granted) a desktop notification. Used for @mentions and new DMs.
 
-let audio = null;
+// Um Audio por toque (o toque é configurável nas UI settings do chat interno).
+const audioByTone = {};
 
-const playSound = () => {
+const playSound = (tone = 'ding') => {
   try {
-    if (!audio) audio = new Audio('/audio/dashboard/ping.mp3');
+    const key = tone || 'ding';
+    if (!audioByTone[key]) {
+      audioByTone[key] = new Audio(`/audio/dashboard/${key}.mp3`);
+    }
+    const audio = audioByTone[key];
     audio.currentTime = 0;
     audio.play().catch(() => {});
   } catch (e) {
@@ -34,8 +39,13 @@ const showDesktop = (title, body) => {
   }
 };
 
-export const internalChatNotify = ({ title, body, sound = true } = {}) => {
-  if (sound) playSound();
+export const internalChatNotify = ({
+  title,
+  body,
+  sound = true,
+  tone = 'ding',
+} = {}) => {
+  if (sound) playSound(tone);
   showDesktop(title, body);
 };
 

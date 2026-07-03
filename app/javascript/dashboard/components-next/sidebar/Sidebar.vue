@@ -151,6 +151,8 @@ const internalChatSoundEnabled = () =>
   uiSettings.value?.internal_chat_sound_notifications !== false;
 const internalChatDesktopEnabled = () =>
   uiSettings.value?.internal_chat_desktop_notifications !== false;
+const internalChatTone = () =>
+  uiSettings.value?.internal_chat_notification_tone || 'ding';
 
 const pendingInternalMention = useMapGetter('internalChat/getPendingMention');
 watch(pendingInternalMention, mention => {
@@ -164,6 +166,7 @@ watch(pendingInternalMention, mention => {
     title: internalChatDesktopEnabled() ? mention.from : undefined,
     body: message,
     sound: internalChatSoundEnabled(),
+    tone: internalChatTone(),
   });
 });
 
@@ -182,6 +185,7 @@ watch(pendingInternalNotification, notification => {
       internalChatDesktopEnabled() && hidden ? notification.title : undefined,
     body: notification.body,
     sound: internalChatSoundEnabled(),
+    tone: internalChatTone(),
   });
 });
 

@@ -2,6 +2,7 @@
 import { ref, computed } from 'vue';
 import Avatar from 'dashboard/components-next/avatar/Avatar.vue';
 import ConversationListItem from './ConversationListItem.vue';
+import NotificationSettings from './NotificationSettings.vue';
 
 const props = defineProps({
   conversations: { type: Array, default: () => [] },
@@ -17,6 +18,7 @@ const emit = defineEmits(['select', 'createDm', 'createGroup', 'toggleAudit']);
 const search = ref('');
 const activeFilter = ref('all');
 const showCompose = ref(false);
+const showSettings = ref(false);
 const composeMode = ref('dm'); // 'dm' | 'group'
 const groupName = ref('');
 const groupMemberIds = ref([]);
@@ -88,118 +90,143 @@ const createGroup = () => {
       class="flex items-center justify-between px-4 pt-4 pb-2 flex-shrink-0"
     >
       <h1 class="text-lg font-bold text-n-slate-12">Chat Interno</h1>
-      <div class="relative">
-        <button
-          type="button"
-          class="inline-flex items-center justify-center transition-colors rounded-lg w-9 h-9 text-n-slate-11 hover:bg-n-alpha-2 hover:text-n-slate-12"
-          :class="showCompose ? 'text-n-brand bg-n-alpha-2' : ''"
-          title="Nova conversa"
-          @click="showCompose ? closeCompose() : openCompose()"
-        >
-          <span class="text-lg i-lucide-square-pen" />
-        </button>
-        <template v-if="showCompose">
-          <div class="fixed inset-0 z-10" @click="closeCompose" />
-          <div
-            class="absolute right-0 z-20 mt-1 overflow-hidden border shadow-lg top-full w-72 rounded-xl bg-n-solid-1 border-n-weak"
+      <div class="flex items-center gap-0.5">
+        <!-- Configurações de notificação -->
+        <div class="relative">
+          <button
+            type="button"
+            class="inline-flex items-center justify-center transition-colors rounded-lg w-9 h-9 text-n-slate-11 hover:bg-n-alpha-2 hover:text-n-slate-12"
+            :class="showSettings ? 'text-n-brand bg-n-alpha-2' : ''"
+            title="Notificações"
+            @click="showSettings = !showSettings"
           >
-            <!-- mode switch -->
-            <div class="flex items-center gap-1 p-1 border-b border-n-weak">
-              <button
-                type="button"
-                class="flex-1 px-2 py-1.5 text-xs font-medium rounded-lg transition-colors"
-                :class="
-                  composeMode === 'dm'
-                    ? 'bg-n-alpha-2 text-n-brand'
-                    : 'text-n-slate-11 hover:bg-n-alpha-1'
-                "
-                @click="composeMode = 'dm'"
-              >
-                Conversa direta
-              </button>
-              <button
-                type="button"
-                class="flex-1 px-2 py-1.5 text-xs font-medium rounded-lg transition-colors"
-                :class="
-                  composeMode === 'group'
-                    ? 'bg-n-alpha-2 text-n-brand'
-                    : 'text-n-slate-11 hover:bg-n-alpha-1'
-                "
-                @click="composeMode = 'group'"
-              >
-                Novo grupo
-              </button>
-            </div>
-
-            <!-- DM: pick an agent -->
+            <span class="text-lg i-lucide-bell" />
+          </button>
+          <template v-if="showSettings">
+            <div class="fixed inset-0 z-10" @click="showSettings = false" />
             <div
-              v-if="composeMode === 'dm'"
-              class="py-1 overflow-y-auto max-h-72"
+              class="absolute right-0 z-20 mt-1 overflow-hidden border shadow-lg top-full w-72 rounded-xl bg-n-solid-1 border-n-weak"
             >
-              <p
-                v-if="!agents.length"
-                class="px-3 py-4 text-xs text-center text-n-slate-10"
-              >
-                Nenhum colega disponível.
-              </p>
-              <button
-                v-for="a in agents"
-                :key="a.id"
-                type="button"
-                class="flex items-center w-full gap-2.5 px-3 py-2 text-left hover:bg-n-alpha-1"
-                @click="startDm(a)"
-              >
-                <Avatar
-                  :name="a.name"
-                  :src="a.avatar_url || a.thumbnail || ''"
-                  :size="30"
-                  :status="a.availability_status === 'online' ? 'online' : null"
-                  rounded-full
-                />
-                <span class="text-sm text-n-slate-12">{{ a.name }}</span>
-              </button>
+              <NotificationSettings />
             </div>
+          </template>
+        </div>
+        <!-- Nova conversa -->
+        <div class="relative">
+          <button
+            type="button"
+            class="inline-flex items-center justify-center transition-colors rounded-lg w-9 h-9 text-n-slate-11 hover:bg-n-alpha-2 hover:text-n-slate-12"
+            :class="showCompose ? 'text-n-brand bg-n-alpha-2' : ''"
+            title="Nova conversa"
+            @click="showCompose ? closeCompose() : openCompose()"
+          >
+            <span class="text-lg i-lucide-square-pen" />
+          </button>
+          <template v-if="showCompose">
+            <div class="fixed inset-0 z-10" @click="closeCompose" />
+            <div
+              class="absolute right-0 z-20 mt-1 overflow-hidden border shadow-lg top-full w-72 rounded-xl bg-n-solid-1 border-n-weak"
+            >
+              <!-- mode switch -->
+              <div class="flex items-center gap-1 p-1 border-b border-n-weak">
+                <button
+                  type="button"
+                  class="flex-1 px-2 py-1.5 text-xs font-medium rounded-lg transition-colors"
+                  :class="
+                    composeMode === 'dm'
+                      ? 'bg-n-alpha-2 text-n-brand'
+                      : 'text-n-slate-11 hover:bg-n-alpha-1'
+                  "
+                  @click="composeMode = 'dm'"
+                >
+                  Conversa direta
+                </button>
+                <button
+                  type="button"
+                  class="flex-1 px-2 py-1.5 text-xs font-medium rounded-lg transition-colors"
+                  :class="
+                    composeMode === 'group'
+                      ? 'bg-n-alpha-2 text-n-brand'
+                      : 'text-n-slate-11 hover:bg-n-alpha-1'
+                  "
+                  @click="composeMode = 'group'"
+                >
+                  Novo grupo
+                </button>
+              </div>
 
-            <!-- Group: name + members -->
-            <div v-else class="p-2">
-              <input
-                v-model="groupName"
-                type="text"
-                placeholder="Nome do grupo"
-                class="reset-base w-full h-9 px-3 mb-2 text-sm border rounded-lg outline-none bg-n-alpha-1 border-transparent focus:border-n-brand text-n-slate-12 placeholder:text-n-slate-10"
-              />
-              <div class="py-1 overflow-y-auto max-h-52">
-                <label
+              <!-- DM: pick an agent -->
+              <div
+                v-if="composeMode === 'dm'"
+                class="py-1 overflow-y-auto max-h-72"
+              >
+                <p
+                  v-if="!agents.length"
+                  class="px-3 py-4 text-xs text-center text-n-slate-10"
+                >
+                  Nenhum colega disponível.
+                </p>
+                <button
                   v-for="a in agents"
                   :key="a.id"
-                  class="flex items-center w-full gap-2.5 px-2 py-1.5 text-left rounded-lg cursor-pointer hover:bg-n-alpha-1"
+                  type="button"
+                  class="flex items-center w-full gap-2.5 px-3 py-2 text-left hover:bg-n-alpha-1"
+                  @click="startDm(a)"
                 >
-                  <input
-                    type="checkbox"
-                    class="accent-n-brand"
-                    :checked="groupMemberIds.includes(a.id)"
-                    @change="toggleGroupMember(a.id)"
-                  />
                   <Avatar
                     :name="a.name"
-                    :src="a.avatar_url || ''"
-                    :size="26"
+                    :src="a.avatar_url || a.thumbnail || ''"
+                    :size="30"
+                    :status="
+                      a.availability_status === 'online' ? 'online' : null
+                    "
                     rounded-full
                   />
                   <span class="text-sm text-n-slate-12">{{ a.name }}</span>
-                </label>
+                </button>
               </div>
-              <button
-                type="button"
-                class="w-full px-3 py-2 mt-1 text-xs font-semibold text-white rounded-lg bg-n-brand hover:bg-n-brand-hover disabled:opacity-40"
-                :disabled="!canCreateGroup"
-                @click="createGroup"
-              >
-                Criar grupo
-              </button>
+
+              <!-- Group: name + members -->
+              <div v-else class="p-2">
+                <input
+                  v-model="groupName"
+                  type="text"
+                  placeholder="Nome do grupo"
+                  class="reset-base w-full h-9 px-3 mb-2 text-sm border rounded-lg outline-none bg-n-alpha-1 border-transparent focus:border-n-brand text-n-slate-12 placeholder:text-n-slate-10"
+                />
+                <div class="py-1 overflow-y-auto max-h-52">
+                  <label
+                    v-for="a in agents"
+                    :key="a.id"
+                    class="flex items-center w-full gap-2.5 px-2 py-1.5 text-left rounded-lg cursor-pointer hover:bg-n-alpha-1"
+                  >
+                    <input
+                      type="checkbox"
+                      class="accent-n-brand"
+                      :checked="groupMemberIds.includes(a.id)"
+                      @change="toggleGroupMember(a.id)"
+                    />
+                    <Avatar
+                      :name="a.name"
+                      :src="a.avatar_url || ''"
+                      :size="26"
+                      rounded-full
+                    />
+                    <span class="text-sm text-n-slate-12">{{ a.name }}</span>
+                  </label>
+                </div>
+                <button
+                  type="button"
+                  class="w-full px-3 py-2 mt-1 text-xs font-semibold text-white rounded-lg bg-n-brand hover:bg-n-brand-hover disabled:opacity-40"
+                  :disabled="!canCreateGroup"
+                  @click="createGroup"
+                >
+                  Criar grupo
+                </button>
+              </div>
             </div>
-          </div>
-        </template>
+          </template>
+        </div>
       </div>
     </header>
 
