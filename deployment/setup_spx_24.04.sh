@@ -531,7 +531,7 @@ function create_first_account() {
   cat > "$script_file" <<RUBY
 return if User.exists?(email: '$cfg_admin_email')
 
-account = Account.create!(name: '$cfg_account_name')
+account = Account.create!(name: '$cfg_account_name', locale: 'pt_BR')
 
 user = User.new(
   name: '$cfg_admin_name',

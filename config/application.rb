@@ -42,6 +42,10 @@ module Chatwoot
     # Sobrescreva com ENV['TIME_ZONE'] se necessário (ex: Europe/London).
     config.time_zone = ENV.fetch('TIME_ZONE', 'America/Manaus')
 
+    # Idioma padrão da aplicação: pt-BR. Novas contas (o AccountBuilder usa I18n.locale) e as
+    # mensagens do backend nascem em português. Sobrescreva com ENV['DEFAULT_LOCALE'] se preciso.
+    config.i18n.default_locale = ENV.fetch('DEFAULT_LOCALE', 'pt_BR').to_sym
+
     config.eager_load_paths << Rails.root.join('lib')
     config.eager_load_paths << Rails.root.join('enterprise/lib')
     config.eager_load_paths << Rails.root.join('enterprise/listeners')
