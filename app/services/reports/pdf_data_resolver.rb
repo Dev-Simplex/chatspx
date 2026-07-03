@@ -722,8 +722,34 @@ class Reports::PdfDataResolver # rubocop:disable Metrics/ClassLength
       kpis: totals.merge(agents: active),
       source_segments: assignment_source_segments(totals),
       received_chart: assignment_received_chart(rows),
-      table: assignment_table(rows)
+      table: assignment_table(rows),
+      conclusion: assignment_conclusion(totals, active, rows)
     }
+  end
+
+  # "Leitura executiva" (TL;DR) em linguagem simples — totais + composição em % +
+  # quem mais recebeu. Nil quando não há atribuições no período.
+  def assignment_conclusion(totals, active, rows)
+    total = totals[:received_total].to_i
+    return nil if total.zero?
+
+    body = "No período, <span class=\"hl\">#{total} atribuições</span> foram distribuídas entre #{active} atendentes: " \
+           "#{assignment_pct(totals[:received_manual], total)}% manuais, " \
+           "#{assignment_pct(totals[:received_auto], total)}% automáticas (rodízio) e " \
+           "#{assignment_pct(totals[:self_assigned], total)}% auto-assumidas."
+    { title: 'Leitura executiva', body: body + assignment_top_phrase(rows) }
+  end
+
+  def assignment_pct(value, total)
+    ((value.to_i * 100.0) / total).round
+  end
+
+  def assignment_top_phrase(rows)
+    top = rows.select { |row| row[:received_total].to_i.positive? }.max_by { |row| row[:received_total].to_i }
+    return '' if top.nil?
+
+    name = ERB::Util.html_escape(top[:name].presence || "##{top[:id]}")
+    " Quem mais recebeu foi <span class=\"hl\">#{name}</span> (#{top[:received_total]})."
   end
 
   def assignment_params
@@ -778,9 +804,9 @@ class Reports::PdfDataResolver # rubocop:disable Metrics/ClassLength
   end
 
   def assignment_columns
-    [{ label: 'Atendente' }, { label: 'Recebidas', align: 'right' }, { label: 'Manuais', align: 'right' },
-     { label: 'Automáticas', align: 'right' }, { label: 'Auto-assumidas', align: 'right' },
-     { label: 'Feitas p/ outros', align: 'right' }]
+    [{ label: 'Atendente' }, { label: 'Recebidas (total)', align: 'right' }, { label: '↳ Manuais', align: 'right' },
+     { label: '↳ Automáticas', align: 'right' }, { label: '↳ Auto-assumidas', align: 'right' },
+     { label: 'Atribuiu a outros', align: 'right' }]
   end
 
   def assignment_row(row)

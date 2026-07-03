@@ -58,3 +58,25 @@
     </div>
   </div>
 <% end %>
+
+<%# ---------- O que significa cada dado (glossário) ---------- %>
+<% unless empty %>
+  <div class="section">
+    <div class="section-title"><span class="dot">4</span> O que significa cada dado</div>
+    <div class="card">
+      <div style="font-size:12px; line-height:1.7; color:#333;">
+        <p style="margin:0 0 6px;"><strong>Recebidas (total)</strong> — conversas atribuídas a este atendente (ele foi o destino). O total é a soma das três abaixo.</p>
+        <p style="margin:0 0 6px;">↳ <strong>Manuais</strong>: outra pessoa atribuiu a conversa para este atendente.</p>
+        <p style="margin:0 0 6px;">↳ <strong>Automáticas</strong>: o sistema distribuiu por rodízio (round-robin).</p>
+        <p style="margin:0 0 6px;">↳ <strong>Auto-assumidas</strong>: o próprio atendente pegou a conversa pra si.</p>
+        <p style="margin:0;"><strong>Atribuiu a outros</strong>: conversas que este atendente atribuiu manualmente para outra pessoa.</p>
+      </div>
+    </div>
+  </div>
+<% end %>
+
+<%# ---------- Leitura executiva (TL;DR) ---------- %>
+<% if @data[:conclusion].present? %>
+  <%= render 'reports/pdf/conclusion',
+        title: @data[:conclusion][:title], body: @data[:conclusion][:body].html_safe %>
+<% end %>
