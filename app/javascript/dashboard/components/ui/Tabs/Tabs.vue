@@ -1,6 +1,7 @@
 <script setup>
 import {
   ref,
+  watch,
   useTemplateRef,
   provide,
   computed,
@@ -54,6 +55,30 @@ const computeOverflow = () => {
   hasOverflowLeft.value = scrollLeft > OVERFLOW_THRESHOLD;
   hasOverflowRight.value =
     scrollWidth - clientWidth - scrollLeft > OVERFLOW_THRESHOLD;
+};
+
+// Garante que a aba ativa fique visivel dentro do scroller (nao cortada).
+const scrollActiveIntoView = () => {
+  const list = tabsList.value;
+  if (!list) return;
+  const active = list.querySelector('[aria-selected="true"]');
+  const el = active?.closest('li') || active;
+  if (!el) return;
+  const listRect = list.getBoundingClientRect();
+  const elRect = el.getBoundingClientRect();
+  const pad = 12;
+  let delta = 0;
+  if (elRect.right > listRect.right) {
+    delta = elRect.right - listRect.right + pad;
+  } else if (elRect.left < listRect.left) {
+    delta = elRect.left - listRect.left - pad;
+  }
+  if (delta) {
+    list.scrollBy({
+      left: delta,
+      behavior: prefersReducedMotion.value ? 'auto' : 'smooth',
+    });
+  }
 };
 
 const scrollBy = delta => {
@@ -115,6 +140,7 @@ let stopContainerResize;
 onMounted(async () => {
   await nextTick();
   computeOverflow();
+  scrollActiveIntoView();
 
   // Recalcula em qualquer mudança de tamanho da lista ou do container
   stopListResize = useResizeObserver(tabsList, computeOverflow).stop;
@@ -130,6 +156,16 @@ onBeforeUnmount(() => {
   tabsList.value?.removeEventListener('scroll', onListScroll);
   window.removeEventListener('resize', computeOverflow);
 });
+
+// Ao trocar de aba (inclusive navegacao direta por rota), rola a ativa pra vista.
+watch(
+  () => props.index,
+  async () => {
+    await nextTick();
+    computeOverflow();
+    scrollActiveIntoView();
+  }
+);
 </script>
 
 <template>

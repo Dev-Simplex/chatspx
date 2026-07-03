@@ -606,7 +606,7 @@ export default {
   </div>
   <div
     v-else
-    class="grid grid-rows-[auto_1fr] h-full flex-grow flex-shrink pr-0 pl-0 w-full min-w-0 overflow-x-hidden settings"
+    class="grid grid-rows-[auto_1fr] grid-cols-[minmax(0,1fr)] h-full flex-grow flex-shrink pr-0 pl-0 w-full min-w-0 overflow-x-hidden settings"
   >
     <SettingIntroBanner
       :header-image="inbox.avatarUrl"
