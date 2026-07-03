@@ -19,6 +19,10 @@ module Enterprise::ActionService
     # F1.4 (modo FILA): a re-triagem de órfãs não reanexa a IA (senão a fila some). A triagem
     # inicial nunca seta esta flag — só o OrphanRetriageJob no modo fila.
     return if Current.skip_ai_agent_assignment
+    # Reopen de conversa cuja ÚLTIMA fala (humano×IA) foi de um HUMANO não acorda a IA:
+    # o humano/time estava tratando, reabriu por resposta do cliente/NPS -> volta pro
+    # humano, não pra IA roubar da mão dele. Triagem inicial não tem outgoing -> não barra.
+    return if last_outgoing_by_human?
 
     assistant = @account.captain_assistants.find_by(id: assistant_ids.first) # params chegam como ARRAY
     return if assistant.nil?
@@ -39,5 +43,17 @@ module Enterprise::ActionService
     # ao genérico "Sistema de Automação". O ActionService não reseta Current.executed_by
     # entre ações, e assign_ai_agent roda ANTES de assign_team (ordem segura A2b).
     Current.executed_by = assistant
+  end
+
+  # Última mensagem enviada por HUMANO×IA (ignora NPS/template/atividade): se o último
+  # a falar foi um humano (User), a conversa estava na mão dele — a reentrada não deve
+  # reatribuir pra IA. Sem nenhuma mensagem (triagem inicial) retorna false (não barra).
+  def last_outgoing_by_human?
+    last = @conversation.messages
+                        .where(message_type: :outgoing)
+                        .where(sender_type: %w[User Captain::Assistant])
+                        .order(created_at: :desc)
+                        .first
+    last&.sender_type == 'User'
   end
 end

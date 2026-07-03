@@ -127,23 +127,24 @@ class NpsSurveyService # rubocop:disable Metrics/ClassLength
     if cooldown_hours.present? && cooldown_hours.to_s != ''
       return true if cooldown_hours.to_i.zero?
 
-      return elapsed_since_last_response >= cooldown_hours.to_i.hours
+      return elapsed_since_last_survey >= cooldown_hours.to_i.hours
     end
 
     cooldown_days = (nps_config['cooldown_days'] || 30).to_i
     return true if cooldown_days.zero?
 
-    elapsed_since_last_response >= cooldown_days.days
+    elapsed_since_last_survey >= cooldown_days.days
   end
 
-  def elapsed_since_last_response
-    last_response = contact.nps_responses
-                           .where(status: :responded)
-                           .order(answered_at: :desc)
-                           .first
-    return Float::INFINITY unless last_response&.answered_at
+  # Conta desde o ÚLTIMO NPS ENVIADO a este contato (qualquer status), não só o
+  # respondido. Antes olhava só :responded -> quem nunca respondia tomava pesquisa a
+  # cada resolve (INFINITY = cooldown sempre liberado). Agora vale 1 pesquisa por
+  # janela de cooldown por contato, mesmo sem resposta (created_at do último registro).
+  def elapsed_since_last_survey
+    last = contact.nps_responses.order(created_at: :desc).first
+    return Float::INFINITY unless last
 
-    Time.current - last_response.answered_at
+    Time.current - last.created_at
   end
 
   def blocked_by_labels?
