@@ -100,12 +100,24 @@ func (c *Client) do(ctx context.Context, method, path string, body, out any) err
 
 // ---------- LEITURA (RBAC: viewer) ----------
 
+// ghState valida o filtro de estado (default open) — não mascara erro do chamador.
+func ghState(s string) (string, error) {
+	switch s {
+	case "", "open":
+		return "open", nil
+	case "closed", "all":
+		return s, nil
+	}
+	return "", fmt.Errorf("github: state invalido %q (use open|closed|all)", s)
+}
+
 func (c *Client) ListPRs(ctx context.Context, repo, state string) (any, error) {
 	if err := c.checkRepo(repo); err != nil {
 		return nil, err
 	}
-	if state == "" {
-		state = "open"
+	state, serr := ghState(state)
+	if serr != nil {
+		return nil, serr
 	}
 	var v any
 	return v, c.do(ctx, http.MethodGet, fmt.Sprintf("/repos/%s/pulls?state=%s&per_page=30", repo, state), nil, &v)
@@ -123,8 +135,9 @@ func (c *Client) ListIssues(ctx context.Context, repo, state string) (any, error
 	if err := c.checkRepo(repo); err != nil {
 		return nil, err
 	}
-	if state == "" {
-		state = "open"
+	state, serr := ghState(state)
+	if serr != nil {
+		return nil, serr
 	}
 	var v any
 	return v, c.do(ctx, http.MethodGet, fmt.Sprintf("/repos/%s/issues?state=%s&per_page=30", repo, state), nil, &v)

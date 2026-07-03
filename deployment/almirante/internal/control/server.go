@@ -7,6 +7,7 @@ import (
 	"net/http"
 	"os"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/Dev-Simplex/almirante/internal/aiconfig"
@@ -137,7 +138,7 @@ func (s *Server) Handler() http.Handler {
 	mux.HandleFunc("POST /api/deploys/{id}/cancel", s.auth(RoleOperator, s.cancel))
 	mux.HandleFunc("GET /api/freeze", s.auth(RoleViewer, s.listFreeze))
 	mux.HandleFunc("POST /api/freeze", s.auth(RoleOperator, s.doFreeze))
-	mux.HandleFunc("POST /api/unfreeze", s.auth(RoleOperator, s.doUnfreeze))
+	mux.HandleFunc("POST /api/unfreeze", s.auth(RoleAdmin, s.doUnfreeze))
 	mux.HandleFunc("GET /api/merges", s.auth(RoleViewer, s.listMerges))
 	mux.HandleFunc("POST /api/merges", s.auth(RoleOperator, s.proposeMerge))
 	mux.HandleFunc("POST /api/merges/{id}/approve", s.auth(RoleAdmin, s.approveMerge))
@@ -507,11 +508,59 @@ func (s *Server) setSessionCookie(w http.ResponseWriter, email, role string) {
 	http.SetCookie(w, &http.Cookie{Name: "alm_session", Value: s.issueSession(email, role), Path: "/", HttpOnly: true, Secure: true, SameSite: http.SameSiteLaxMode, MaxAge: int(sessionTTL.Seconds())})
 }
 
+// loginLimiter: trava simples por IP contra brute-force (janela deslizante 5min).
+type loginLimiter struct {
+	mu   sync.Mutex
+	hits map[string][]int64
+}
+
+var loginThrottle = &loginLimiter{hits: map[string][]int64{}}
+
+func clientIP(r *http.Request) string {
+	if ip := r.Header.Get("CF-Connecting-IP"); ip != "" {
+		return ip
+	}
+	if xff := r.Header.Get("X-Forwarded-For"); xff != "" {
+		return strings.TrimSpace(strings.Split(xff, ",")[0])
+	}
+	ip := r.RemoteAddr
+	if i := strings.LastIndex(ip, ":"); i > 0 {
+		ip = ip[:i]
+	}
+	return ip
+}
+
+func (l *loginLimiter) blocked(ip string, now time.Time) bool {
+	l.mu.Lock()
+	defer l.mu.Unlock()
+	cutoff := now.Add(-5 * time.Minute).Unix()
+	kept := l.hits[ip][:0]
+	for _, t := range l.hits[ip] {
+		if t >= cutoff {
+			kept = append(kept, t)
+		}
+	}
+	l.hits[ip] = kept
+	return len(kept) >= 8 // 8 falhas em 5min -> 429
+}
+
+func (l *loginLimiter) fail(ip string, now time.Time) {
+	l.mu.Lock()
+	defer l.mu.Unlock()
+	l.hits[ip] = append(l.hits[ip], now.Unix())
+}
+
 func (s *Server) login(w http.ResponseWriter, r *http.Request) {
+	ip := clientIP(r)
+	if loginThrottle.blocked(ip, s.now()) {
+		writeErr(w, 429, "muitas tentativas de login — aguarde alguns minutos")
+		return
+	}
 	var b struct{ Email, Password string }
 	_ = json.NewDecoder(r.Body).Decode(&b)
 	u, err := s.users.Authenticate(b.Email, b.Password)
 	if err != nil {
+		loginThrottle.fail(ip, s.now())
 		writeErr(w, 401, "email ou senha inválidos")
 		return
 	}
