@@ -37,38 +37,48 @@ const renderCount = value =>
 const countCell = cellProps =>
   h('span', { class: 'tabular-nums' }, renderCount(cellProps.getValue()));
 
+// Resumo curto exibido no tooltip de cada cabeçalho (reusa a legenda).
+const tip = key => t(`ASSIGNMENT_REPORTS.LEGEND.${key}`);
+
 // Colunas agrupadas por DIREÇÃO: "Recebidas" (o agente foi o destino, com o
 // detalhamento por origem) vs "Atribuiu" (o agente atribuiu para outra pessoa).
+// meta.tooltip → o Table.vue mostra um resumo ao passar o mouse no cabeçalho.
 const columns = computed(() => [
   columnHelper.accessor('name', {
     header: t('ASSIGNMENT_REPORTS.TABLE.AGENT'),
     width: 240,
     enableSorting: false,
+    meta: { tooltip: tip('AGENT') },
     cell: cellProps =>
       h('span', { class: 'text-n-slate-12' }, cellProps.getValue()),
   }),
   columnHelper.group({
     id: 'received',
     header: t('ASSIGNMENT_REPORTS.TABLE.GROUP_RECEIVED'),
+    meta: { tooltip: tip('RECEIVED') },
     columns: [
       columnHelper.accessor('receivedTotal', {
         header: t('ASSIGNMENT_REPORTS.TABLE.RECEIVED_TOTAL'),
         width: 110,
+        meta: { tooltip: tip('RECEIVED') },
         cell: countCell,
       }),
       columnHelper.accessor('receivedManual', {
         header: t('ASSIGNMENT_REPORTS.TABLE.RECEIVED_MANUAL'),
         width: 130,
+        meta: { tooltip: tip('RECEIVED_MANUAL') },
         cell: countCell,
       }),
       columnHelper.accessor('receivedAuto', {
         header: t('ASSIGNMENT_REPORTS.TABLE.RECEIVED_AUTO'),
         width: 140,
+        meta: { tooltip: tip('RECEIVED_AUTO') },
         cell: countCell,
       }),
       columnHelper.accessor('selfAssigned', {
         header: t('ASSIGNMENT_REPORTS.TABLE.SELF_ASSIGNED'),
         width: 150,
+        meta: { tooltip: tip('SELF_ASSIGNED') },
         cell: countCell,
       }),
     ],
@@ -76,10 +86,12 @@ const columns = computed(() => [
   columnHelper.group({
     id: 'assigned',
     header: t('ASSIGNMENT_REPORTS.TABLE.GROUP_ASSIGNED'),
+    meta: { tooltip: tip('ASSIGNED_TO_OTHERS') },
     columns: [
       columnHelper.accessor('assignedToOthers', {
         header: t('ASSIGNMENT_REPORTS.TABLE.ASSIGNED_TO_OTHERS'),
         width: 130,
+        meta: { tooltip: tip('ASSIGNED_TO_OTHERS') },
         cell: countCell,
       }),
     ],

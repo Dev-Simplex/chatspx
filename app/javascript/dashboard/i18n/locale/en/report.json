@@ -272,6 +272,7 @@
     },
     "LEGEND": {
       "TITLE": "Understand each column",
+      "AGENT": "The agent (name).",
       "RECEIVED": "Received — conversations assigned to this agent (they were the destination). Total is the sum of Manual + Automatic + Self-assigned.",
       "RECEIVED_MANUAL": "↳ Manual: someone else assigned the conversation to this agent.",
       "RECEIVED_AUTO": "↳ Automatic: the system distributed it via round-robin.",

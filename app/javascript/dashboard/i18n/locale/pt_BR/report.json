@@ -272,6 +272,7 @@
     },
     "LEGEND": {
       "TITLE": "Entenda cada coluna",
+      "AGENT": "O atendente (nome).",
       "RECEIVED": "Recebidas — conversas atribuídas a este agente (ele foi o destino). O Total é a soma de Manuais + Automáticas + Auto-assumidas.",
       "RECEIVED_MANUAL": "↳ Manuais: outra pessoa atribuiu a conversa para este agente.",
       "RECEIVED_AUTO": "↳ Automáticas: o sistema distribuiu por rodízio (round-robin).",

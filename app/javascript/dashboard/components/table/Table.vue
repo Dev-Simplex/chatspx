@@ -49,6 +49,7 @@ const cellClass = computed(() =>
         <th
           v-for="header in headerGroup.headers"
           :key="header.id"
+          v-tooltip.top="header.column.columnDef.meta?.tooltip"
           :colspan="header.colSpan"
           :style="{
             width: `${header.getSize()}px`,
