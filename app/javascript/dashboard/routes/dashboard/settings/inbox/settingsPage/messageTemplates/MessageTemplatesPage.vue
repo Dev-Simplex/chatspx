@@ -2,9 +2,11 @@
 import { ref, computed, onMounted } from 'vue';
 import { useI18n } from 'vue-i18n';
 import { useAlert } from 'dashboard/composables';
+import { useStore } from 'dashboard/composables/store';
 import InboxesAPI from 'dashboard/api/inboxes';
 
 import Button from 'dashboard/components-next/button/Button.vue';
+import Checkbox from 'dashboard/components-next/checkbox/Checkbox.vue';
 import Dialog from 'dashboard/components-next/dialog/Dialog.vue';
 import Icon from 'dashboard/components-next/icon/Icon.vue';
 import TemplateBuilder from './TemplateBuilder.vue';
@@ -15,6 +17,7 @@ const props = defineProps({
 });
 
 const { t } = useI18n();
+const store = useStore();
 
 const templates = ref([]);
 const isLoading = ref(false);
@@ -26,6 +29,49 @@ const isDeleting = ref(false);
 const previewTemplate = ref(null);
 
 const inboxId = computed(() => Number(props.inbox.id));
+
+const allowedNames = ref([
+  ...(props.inbox.additional_attributes?.allowed_template_names || []),
+]);
+const savedNames = ref([...allowedNames.value]);
+const isSavingVisibility = ref(false);
+
+const isVisibilityDirty = computed(() => {
+  const current = [...allowedNames.value].sort();
+  const saved = [...savedNames.value].sort();
+  return (
+    current.length !== saved.length ||
+    current.some((name, i) => name !== saved[i])
+  );
+});
+
+const isVisible = name => allowedNames.value.includes(name);
+
+const toggleVisible = name => {
+  allowedNames.value = allowedNames.value.includes(name)
+    ? allowedNames.value.filter(n => n !== name)
+    : [...allowedNames.value, name];
+};
+
+const saveVisibility = async () => {
+  isSavingVisibility.value = true;
+  try {
+    await store.dispatch('inboxes/updateInbox', {
+      id: inboxId.value,
+      formData: false,
+      additional_attributes: {
+        ...(props.inbox.additional_attributes || {}),
+        allowed_template_names: allowedNames.value,
+      },
+    });
+    savedNames.value = [...allowedNames.value];
+    useAlert(t('WHATSAPP_TEMPLATES_MGMT.VISIBILITY.SAVE_SUCCESS'));
+  } catch (error) {
+    useAlert(t('WHATSAPP_TEMPLATES_MGMT.VISIBILITY.SAVE_ERROR'));
+  } finally {
+    isSavingVisibility.value = false;
+  }
+};
 
 const fetchTemplates = async () => {
   isLoading.value = true;
@@ -129,6 +175,14 @@ onMounted(fetchTemplates);
         </div>
         <div class="flex items-center gap-2 shrink-0">
           <Button
+            v-if="isVisibilityDirty"
+            size="sm"
+            icon="i-lucide-check"
+            :label="t('WHATSAPP_TEMPLATES_MGMT.VISIBILITY.SAVE')"
+            :is-loading="isSavingVisibility"
+            @click="saveVisibility"
+          />
+          <Button
             variant="faded"
             color="slate"
             size="sm"
@@ -145,6 +199,10 @@ onMounted(fetchTemplates);
           />
         </div>
       </div>
+
+      <p v-if="templates.length" class="text-sm text-n-slate-11">
+        {{ t('WHATSAPP_TEMPLATES_MGMT.VISIBILITY.HINT') }}
+      </p>
 
       <!-- Loading -->
       <div v-if="isLoading" class="flex items-center justify-center py-12 text-n-slate-11">
@@ -171,6 +229,7 @@ onMounted(fetchTemplates);
               <th class="px-4 py-2.5 font-medium text-start">{{ t('WHATSAPP_TEMPLATES_MGMT.LIST.COL_STATUS') }}</th>
               <th class="px-4 py-2.5 font-medium text-start">{{ t('WHATSAPP_TEMPLATES_MGMT.LIST.COL_CATEGORY') }}</th>
               <th class="px-4 py-2.5 font-medium text-start">{{ t('WHATSAPP_TEMPLATES_MGMT.LIST.COL_LANGUAGE') }}</th>
+              <th class="px-4 py-2.5 font-medium text-start">{{ t('WHATSAPP_TEMPLATES_MGMT.VISIBILITY.COL') }}</th>
               <th class="px-4 py-2.5" />
             </tr>
           </thead>
@@ -197,6 +256,12 @@ onMounted(fetchTemplates);
               </td>
               <td class="px-4 py-3 align-top text-n-slate-11">{{ template.category }}</td>
               <td class="px-4 py-3 align-top text-n-slate-11">{{ template.language }}</td>
+              <td class="px-4 py-3 align-top">
+                <Checkbox
+                  :model-value="isVisible(template.name)"
+                  @change="toggleVisible(template.name)"
+                />
+              </td>
               <td class="px-4 py-3 align-top text-end">
                 <div class="flex items-center justify-end gap-1">
                   <Button

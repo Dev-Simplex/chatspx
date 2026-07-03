@@ -54,17 +54,28 @@ export const getters = {
       additional_attributes: additionalAttributes,
     } = inbox || {};
 
-    const { message_templates: apiInboxMessageTemplates } =
-      additionalAttributes || {};
+    const {
+      message_templates: apiInboxMessageTemplates,
+      allowed_template_names: allowedTemplateNames,
+    } = additionalAttributes || {};
     const templates = whatsAppMessageTemplates || apiInboxMessageTemplates;
 
     if (!templates || !Array.isArray(templates)) {
       return [];
     }
 
+    const hasAllowlist =
+      Array.isArray(allowedTemplateNames) && allowedTemplateNames.length > 0;
+
     return templates.filter(template => {
       // Ensure template has required properties
       if (!template || !template.status || !template.components) {
+        return false;
+      }
+
+      // When an allowlist is configured for the inbox, only those templates
+      // appear in conversation replies
+      if (hasAllowlist && !allowedTemplateNames.includes(template.name)) {
         return false;
       }
 

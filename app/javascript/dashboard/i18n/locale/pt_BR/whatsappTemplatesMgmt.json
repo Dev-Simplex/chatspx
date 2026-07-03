@@ -74,6 +74,13 @@
       "VIDEO": "Vídeo",
       "DOCUMENT": "Documento",
       "BODY_PLACEHOLDER": "Sua mensagem aparece aqui..."
+    },
+    "VISIBILITY": {
+      "COL": "Visível nas conversas",
+      "HINT": "Escolha quais modelos aparecem para os atendentes ao responder nas conversas. Se nenhum for marcado, todos os modelos aprovados aparecem.",
+      "SAVE": "Salvar visibilidade",
+      "SAVE_SUCCESS": "Visibilidade dos modelos atualizada.",
+      "SAVE_ERROR": "Não foi possível atualizar a visibilidade dos modelos."
     }
   }
 }

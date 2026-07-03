@@ -60,6 +60,7 @@ class Captain::Conversation::ResponseBuilderJob < ApplicationJob
       create_messages
       Rails.logger.info("[CAPTAIN][ResponseBuilderJob] Incrementing response usage for #{account.id}")
       account.increment_response_usage
+      auto_schedule_followup if @did_send
     end
   end
 
@@ -92,6 +93,36 @@ class Captain::Conversation::ResponseBuilderJob < ApplicationJob
     @conversation.update!(custom_attributes: attrs.merge('followup_token' => nil, 'followup_count' => 0, 'followup_status' => nil))
   rescue StandardError => e
     Rails.logger.warn("[ResponseBuilderJob] reset_followup: #{e.message}")
+  end
+
+  def auto_schedule_followup
+    return unless auto_followup_enabled?
+
+    attrs = @conversation.reload.custom_attributes || {}
+    return if attrs['aguardando_humano_desde'].present?
+    return if @conversation.resolved?
+    return unless captain_can_respond?
+    return if attrs['followup_count'].to_i > Captain::Conversation::FollowupJob::MAX_FOLLOWUPS
+
+    minutes = followup_auto_minutes
+    token = SecureRandom.hex(8)
+    @conversation.update!(custom_attributes: attrs.merge(
+      'followup_token' => token,
+      'followup_status' => "cutucada auto-programada em ~#{minutes} min"
+    ))
+    Captain::Conversation::FollowupJob.set(wait: minutes.minutes).perform_later(@conversation, token)
+  rescue StandardError => e
+    Rails.logger.warn("[ResponseBuilderJob] auto_followup: #{e.message}")
+  end
+
+  def auto_followup_enabled?
+    return false unless (@assistant.config['tools'] || []).include?('programar_followup')
+
+    @assistant.behavior.dig('followup', 'auto') != false
+  end
+
+  def followup_auto_minutes
+    (@assistant.behavior.dig('followup', 'auto_minutes').presence || 120).to_i.clamp(2, 2880)
   end
 
   def determine_role(message)
@@ -225,6 +256,7 @@ class Captain::Conversation::ResponseBuilderJob < ApplicationJob
   end
 
   def send_response(content)
+    @did_send = true
     content = sanitize_for_whatsapp(content)
     if humanizer_enabled?
       send_humanized_response(content)

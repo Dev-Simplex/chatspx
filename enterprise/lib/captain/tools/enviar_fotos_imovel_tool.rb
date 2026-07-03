@@ -3,7 +3,9 @@ class Captain::Tools::EnviarFotosImovelTool < Captain::Tools::BasePublicTool
               'Chame quando o cliente pedir fotos de um imóvel, informando o código (vem do resultado da busca). ' \
               'Se o cliente pedir mais fotos do mesmo imóvel, chame de novo com o mesmo código que envia as próximas 3.'
 
-  param :codigo, type: 'string', desc: 'Código do imóvel (ex: 6573), tirado do resultado da busca.', required: true
+  param :codigo, type: 'string',
+        desc: 'Código do imóvel que o cliente quer, exatamente como veio no resultado da busca DAQUELE imóvel. ' \
+              'Nunca reutilize o código de outro imóvel, nunca invente.', required: true
 
   BATCH = 3
   SEND_INTERVAL = 2 # segundos entre cada foto, pra o WhatsApp entregar uma por uma
