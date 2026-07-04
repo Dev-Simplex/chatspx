@@ -125,7 +125,7 @@ class Captain::Tools::BuscarImovelTool < Captain::Tools::BasePublicTool
       valor = venda ? "R$ #{im['ValorVenda']}" : "R$ #{im['ValorLocacao']}/mês"
       dorm = im['Dormitorios'].to_i.positive? ? "#{im['Dormitorios']} quartos, " : ''
       dist = im['dist_km'] ? " — a #{format('%.1f', im['dist_km'])} km da referência" : ''
-      "(cód #{im['Codigo']}) #{im['Categoria']} #{dorm}no #{im['Bairro']}, #{valor}#{format_area(im)}#{format_taxas(im)}#{dist}. #{build_url(im, venda)}"
+      "(cód #{im['Codigo']}) #{im['Categoria']} #{dorm}no #{im['Bairro']}, #{valor}#{format_area(im)}#{format_taxas(im)}#{foto_hint(im['Codigo'])}#{dist}. #{build_url(im, venda)}"
     end
     "#{header || "Encontrei #{linhas.size} opção(ões):"}\n#{linhas.join("\n")}"
   end
@@ -146,6 +146,32 @@ class Captain::Tools::BuscarImovelTool < Captain::Tools::BasePublicTool
     bits << "#{im['AreaTotal']} m²" if im['AreaTotal'].to_f.positive?
     bits << "#{im['AreaConstruida']} m² construídos" if im['AreaConstruida'].to_f.positive? && im['AreaConstruida'] != im['AreaTotal']
     bits.any? ? ", #{bits.join(', ')}" : ''
+  end
+
+  # Sinaliza quantas fotos o imóvel tem no Vista — a IA vê aqui que existem e chama
+  # enviar_fotos_imovel quando o cliente pedir, em vez de alucinar "não tem foto".
+  # Falha de rede/consulta -> string vazia (não atrapalha a listagem).
+  def foto_hint(codigo)
+    n = foto_count(codigo)
+    return '' if n.nil?
+
+    n.positive? ? ", #{n} fotos" : ', sem fotos'
+  end
+
+  def foto_count(codigo)
+    resp = HTTParty.get(
+      "#{vista_base_url}/imoveis/detalhes",
+      query: { key: vista_api_key, imovel: codigo, pesquisa: { fields: ['Codigo', { 'Foto' => %w[Foto] }] }.to_json },
+      headers: { 'Accept' => 'application/json' }, timeout: 10
+    )
+    return nil unless resp.code == 200
+
+    data = resp.parsed_response
+    data = JSON.parse(data) if data.is_a?(String)
+    fotos = data.is_a?(Hash) ? data['Foto'] : nil
+    fotos.is_a?(Hash) ? fotos.size : 0
+  rescue StandardError
+    nil
   end
 
   # O site da Tozi acha o imóvel pelo ImoCodigo (não pelo Codigo do Vista); o slug
