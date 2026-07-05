@@ -1,6 +1,7 @@
 {
   "AGENTS_PAGE": {
     "TITLE": "Agentes IA",
+    "TOOLS": "Ferramentas",
     "NEW": "Novo",
     "SEARCH_PLACEHOLDER": "Buscar agentes...",
     "LOADING": "Carregando agentes...",
@@ -10,6 +11,8 @@
   },
   "AGENTS_DASHBOARD": {
     "TITLE": "Painel",
+    "TOOLS": "Ferramentas",
+    "CONNECTION": "Conexões",
     "NEW_AGENT": "Novo Agente",
     "TOTAL_AGENTS": "Total de Agentes",
     "TOTAL_INBOXES": "Caixas Conectadas",
