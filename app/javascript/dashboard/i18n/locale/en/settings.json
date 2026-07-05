@@ -1,6 +1,7 @@
 {
   "AGENTS_PAGE": {
     "TITLE": "AI Agents",
+    "TOOLS": "Tools",
     "NEW": "New",
     "SEARCH_PLACEHOLDER": "Search agents...",
     "LOADING": "Loading agents...",
@@ -10,6 +11,8 @@
   },
   "AGENTS_DASHBOARD": {
     "TITLE": "Dashboard",
+    "TOOLS": "Tools",
+    "CONNECTION": "Connections",
     "NEW_AGENT": "New Agent",
     "TOTAL_AGENTS": "Total Agents",
     "TOTAL_INBOXES": "Connected Inboxes",
