@@ -93,6 +93,9 @@ const startTeam = team => {
   closeCompose();
   emit('createTeam', team);
 };
+
+// Permite que a tela vazia (no painel principal) abra o compose desta sidebar.
+defineExpose({ openCompose });
 </script>
 
 <template>

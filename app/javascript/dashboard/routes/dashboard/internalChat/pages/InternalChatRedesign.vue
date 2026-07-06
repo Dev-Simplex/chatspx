@@ -16,6 +16,7 @@ import ChatComposer from '../components/redesign/ChatComposer.vue';
 import ChatInfoPanel from '../components/redesign/ChatInfoPanel.vue';
 
 const store = useStore();
+const globalConfig = useMapGetter('globalConfig/get');
 const channels = useMapGetter('internalChat/getChannels');
 const auditChannels = useMapGetter('internalChat/getAuditChannels');
 const agents = useMapGetter('internalChat/getAgents');
@@ -48,6 +49,17 @@ const searchQuery = ref('');
 const showInfo = ref(false);
 // Favoritos: só do lado do cliente (o backend ainda não persiste favoritos).
 const favorites = ref(new Set());
+
+// Tela vazia (nenhuma conversa aberta): logo da marca + botão "Nova conversa".
+const chatSidebarRef = ref(null);
+const logoVisible = ref(true);
+const brandLogo = computed(
+  () =>
+    globalConfig.value?.logoThumbnail ||
+    globalConfig.value?.logo ||
+    '/brand-assets/logo_thumbnail.svg'
+);
+const openNewConversation = () => chatSidebarRef.value?.openCompose();
 
 const presenceOf = userId =>
   store.getters['agents/getAgentById'](userId)?.availability_status || null;
@@ -312,6 +324,7 @@ onBeforeUnmount(() => {
       :class="mobileView === 'thread' ? 'hidden md:block' : 'block'"
     >
       <ChatSidebar
+        ref="chatSidebarRef"
         :conversations="conversationList"
         :active-id="activeId"
         :agents="agents"
@@ -408,10 +421,45 @@ onBeforeUnmount(() => {
 
       <div
         v-else
-        class="flex flex-col items-center justify-center flex-1 gap-2 text-n-slate-10"
+        class="relative flex flex-col items-center justify-center flex-1 w-full px-8 py-16 text-center"
       >
-        <span class="text-4xl opacity-60 i-lucide-messages-square" />
-        <p class="text-sm">Selecione uma conversa para começar.</p>
+        <div class="flex flex-col items-center max-w-md">
+          <div v-if="logoVisible" class="mb-8 animate-float-gentle">
+            <img
+              :src="brandLogo"
+              alt=""
+              class="size-20 drop-shadow-sm"
+              @error="logoVisible = false"
+            />
+          </div>
+
+          <h3 class="text-2xl font-semibold text-n-slate-12">Chat interno</h3>
+
+          <p
+            class="mt-3 text-sm leading-relaxed text-center text-n-slate-10 max-w-sm"
+          >
+            Converse com sua equipe em tempo real. Selecione uma conversa ao
+            lado ou comece uma nova.
+          </p>
+
+          <button
+            type="button"
+            class="wa-empty-cta flex items-center gap-2 mt-8 px-6 h-10 rounded-full text-white font-medium text-sm transition-colors active:scale-[0.97]"
+            @click="openNewConversation"
+          >
+            <span class="i-lucide-message-square-plus size-4" />
+            Nova conversa
+          </button>
+        </div>
+
+        <div
+          class="absolute bottom-6 left-0 right-0 flex items-center justify-center gap-1.5"
+        >
+          <span class="i-lucide-lock size-3 text-n-slate-9" />
+          <span class="text-xs text-n-slate-9">
+            Mensagens internas protegidas entre a sua equipe
+          </span>
+        </div>
       </div>
     </div>
 
@@ -449,3 +497,18 @@ onBeforeUnmount(() => {
     </div>
   </div>
 </template>
+
+<style scoped>
+.animate-float-gentle {
+  animation: float-gentle 3s ease-in-out infinite;
+}
+@keyframes float-gentle {
+  0%,
+  100% {
+    transform: translateY(0);
+  }
+  50% {
+    transform: translateY(-8px);
+  }
+}
+</style>
