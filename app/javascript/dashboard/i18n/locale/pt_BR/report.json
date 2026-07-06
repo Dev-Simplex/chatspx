@@ -598,6 +598,17 @@
     "NO_RECORDS": "Nenhum registro encontrado",
     "DOWNLOAD": "Exportar CSV",
     "DOWNLOAD_FAILED": "Erro ao baixar relatório NPS",
+    "LOW_SAMPLE": "⚠️ Amostra baixa: {count} respostas (mínimo {min}). Resultado pouco confiável.",
+    "CHART": {
+      "X_AXIS": "Nota (0-10)",
+      "Y_AXIS": "Quantidade",
+      "TOOLTIP": "Nota {score}: {count} ({share}%)",
+      "LEGEND": {
+        "DETRACTORS": "Detratores (0-6)",
+        "PASSIVES": "Passivos (7-8)",
+        "PROMOTERS": "Promotores (9-10)"
+      }
+    },
     "CLASSIFICATION": {
       "PROMOTER": "Promotor",
       "PASSIVE": "Passivo",
@@ -622,7 +633,8 @@
       },
       "NPS_SCORE": {
         "LABEL": "NPS Score",
-        "TOOLTIP": "Net Promoter Score calculado"
+        "TOOLTIP": "Net Promoter Score calculado",
+        "TREND": "{value} pts vs período anterior"
       },
       "RESPONSE_RATE": {
         "LABEL": "Taxa de Resposta",

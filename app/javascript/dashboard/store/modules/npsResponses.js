@@ -11,11 +11,19 @@ export const state = {
   history: [],
   metrics: {
     total_count: 0,
+    total_sent_count: 0,
     promoters_count: 0,
     passives_count: 0,
     detractors_count: 0,
+    promoters_pct: 0,
+    passives_pct: 0,
+    detractors_pct: 0,
     nps_score: 0,
     response_rate: 0,
+    reliable: true,
+    min_sample: 30,
+    previous_nps_score: null,
+    nps_delta: null,
     blocked_count: 0,
     blocked_by_label_count: {},
     scores_count: {},
@@ -164,31 +172,30 @@ export const mutations = {
     _state.history = data;
   },
 
-  [types.SET_NPS_RESPONSE_METRICS](
-    _state,
-    {
-      total_count,
-      promoters_count,
-      passives_count,
-      detractors_count,
-      nps_score,
-      response_rate,
-      blocked_count,
-      blocked_by_label_count,
-      scores_count,
-      signals,
-    }
-  ) {
-    _state.metrics.total_count = total_count || 0;
-    _state.metrics.promoters_count = promoters_count || 0;
-    _state.metrics.passives_count = passives_count || 0;
-    _state.metrics.detractors_count = detractors_count || 0;
-    _state.metrics.nps_score = nps_score || 0;
-    _state.metrics.response_rate = response_rate || 0;
-    _state.metrics.blocked_count = blocked_count || 0;
-    _state.metrics.blocked_by_label_count = blocked_by_label_count || {};
-    _state.metrics.scores_count = scores_count || {};
-    _state.metrics.signals = signals || [];
+  [types.SET_NPS_RESPONSE_METRICS](_state, payload = {}) {
+    const data = payload || {};
+    _state.metrics = {
+      total_count: data.total_count || 0,
+      total_sent_count: data.total_sent_count || 0,
+      promoters_count: data.promoters_count || 0,
+      passives_count: data.passives_count || 0,
+      detractors_count: data.detractors_count || 0,
+      promoters_pct: data.promoters_pct || 0,
+      passives_pct: data.passives_pct || 0,
+      detractors_pct: data.detractors_pct || 0,
+      nps_score: data.nps_score || 0,
+      response_rate: data.response_rate || 0,
+      // reliable ausente no payload = assume confiável (não penaliza contas legadas)
+      reliable: data.reliable !== false,
+      min_sample: data.min_sample || 30,
+      previous_nps_score:
+        data.previous_nps_score === undefined ? null : data.previous_nps_score,
+      nps_delta: data.nps_delta === undefined ? null : data.nps_delta,
+      blocked_count: data.blocked_count || 0,
+      blocked_by_label_count: data.blocked_by_label_count || {},
+      scores_count: data.scores_count || {},
+      signals: data.signals || [],
+    };
   },
 };
 

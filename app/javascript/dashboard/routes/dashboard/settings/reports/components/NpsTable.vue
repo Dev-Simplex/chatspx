@@ -36,41 +36,40 @@ const npsResponses = useMapGetter('npsResponses/getNpsResponses');
 const metrics = useMapGetter('npsResponses/getMetrics');
 const listTotalCount = useMapGetter('npsResponses/getNpsListTotalCount');
 
-const getClassification = (score, classificationFromBackend = null) => {
-  // If classification comes from backend, translate it first
-  if (
-    classificationFromBackend &&
-    typeof classificationFromBackend === 'string'
-  ) {
-    const classificationMap = {
-      promoter: t('NPS_REPORTS.CLASSIFICATION.PROMOTER', {
-        default: 'Promotor',
-      }),
-      passive: t('NPS_REPORTS.CLASSIFICATION.PASSIVE', { default: 'Passivo' }),
-      detractor: t('NPS_REPORTS.CLASSIFICATION.DETRACTOR', {
-        default: 'Detrator',
-      }),
-    };
-    const translated =
-      classificationMap[classificationFromBackend.toLowerCase()];
-    if (translated) return translated;
+// Faixa canônica (promoter|passive|detractor|null): usa a classificação do
+// backend (fonte única) e só cai no cálculo por score quando ausente. Rótulo E
+// cor derivam da MESMA faixa — não há mais rótulo do backend com cor por score.
+const bandKey = (score, classificationFromBackend = null) => {
+  const fromBackend = classificationFromBackend?.toLowerCase?.();
+  if (['promoter', 'passive', 'detractor'].includes(fromBackend)) {
+    return fromBackend;
   }
-
-  // Otherwise, calculate from score
-  if (score === null || score === undefined) return '--';
-  if (score >= 9)
-    return t('NPS_REPORTS.CLASSIFICATION.PROMOTER', { default: 'Promotor' });
-  if (score >= 7)
-    return t('NPS_REPORTS.CLASSIFICATION.PASSIVE', { default: 'Passivo' });
-  return t('NPS_REPORTS.CLASSIFICATION.DETRACTOR', { default: 'Detrator' });
+  if (score === null || score === undefined) return null;
+  if (score >= 9) return 'promoter';
+  if (score >= 7) return 'passive';
+  return 'detractor';
 };
 
-const getClassificationColor = score => {
-  if (score === null || score === undefined) return 'text-n-slate-10';
-  if (score >= 9) return 'text-green-600';
-  if (score >= 7) return 'text-yellow-600';
-  return 'text-red-600';
+const BAND_COLOR = {
+  promoter: 'text-green-600',
+  passive: 'text-yellow-600',
+  detractor: 'text-red-600',
 };
+
+const getClassificationLabel = band => {
+  switch (band) {
+    case 'promoter':
+      return t('NPS_REPORTS.CLASSIFICATION.PROMOTER', { default: 'Promotor' });
+    case 'passive':
+      return t('NPS_REPORTS.CLASSIFICATION.PASSIVE', { default: 'Passivo' });
+    case 'detractor':
+      return t('NPS_REPORTS.CLASSIFICATION.DETRACTOR', { default: 'Detrator' });
+    default:
+      return '--';
+  }
+};
+
+const getClassificationColor = band => BAND_COLOR[band] || 'text-n-slate-10';
 
 const tableData = computed(() => {
   if (!npsResponses.value) return [];
@@ -112,15 +111,14 @@ const tableData = computed(() => {
       }
     }
 
+    const band = bandKey(response.score, response.classification);
     return {
       id: response.id,
       contact: response.contact,
       assignedAgent: response.assigned_agent,
       score: response.score,
-      classification: getClassification(
-        response.score,
-        response.classification
-      ),
+      classificationBand: band,
+      classification: getClassificationLabel(band),
       conversationId: response.conversation_id,
       conversation: response.conversation,
       createdAgo: unixTimestamp ? dynamicTime(unixTimestamp) : '--',
@@ -187,11 +185,11 @@ const columns = computed(() => [
     align: 'center',
     width: 120,
     cell: cellProps => {
-      const { score, classification } = cellProps.row.original;
+      const { classificationBand, classification } = cellProps.row.original;
       return h(
         'span',
         {
-          class: `font-medium ${getClassificationColor(score)}`,
+          class: `font-medium ${getClassificationColor(classificationBand)}`,
         },
         classification || '--'
       );
