@@ -32,8 +32,9 @@ class Captain::Tools::BuscarImovelTool < Captain::Tools::BasePublicTool
       achados = fetch_vista({ 'Codigo' => cod }, quantidade: 1)
       return "Não achei nenhum imóvel com o código #{cod} no nosso sistema." if achados.blank?
 
-      track_codigos(tool_context, achados)
-      return format_listings(achados, achados.first['Status'].to_s.match?(/vend/i))
+      venda_cod = achados.first['Status'].to_s.match?(/vend/i)
+      track_imoveis(tool_context, achados, venda_cod)
+      return format_listings(achados, venda_cod)
     end
     venda = status_tipo.to_s == 'venda'
     filter = { 'Cidade' => 'Sinop' }
@@ -56,7 +57,7 @@ class Captain::Tools::BuscarImovelTool < Captain::Tools::BasePublicTool
     Rails.logger.info("[BuscarImovel] status=#{status_tipo} categoria=#{categoria.inspect} bairro=#{bairro.inspect} " \
                       "endereco=#{endereco.inspect} valor_max=#{valor_max.inspect} dorm=#{dormitorios.inspect} " \
                       "geo=#{geo} => #{imoveis.size} imoveis #{imoveis.first(5).map { |i| i['Codigo'] }.inspect}")
-    track_codigos(tool_context, imoveis)
+    track_imoveis(tool_context, imoveis, venda)
 
     # Não achou a categoria pedida NESSE bairro? Amplia o tipo dentro do MESMO
     # bairro (o cliente prioriza a localização; apartamento/kitnet ali é melhor
@@ -65,7 +66,7 @@ class Captain::Tools::BuscarImovelTool < Captain::Tools::BasePublicTool
       imoveis = fetch_vista(filter.except('Categoria'), quantidade: 5)
       Rails.logger.info("[BuscarImovel] ampliou categoria em #{bairro.inspect} => #{imoveis.size} " \
                         "#{imoveis.first(5).map { |i| i['Codigo'] }.inspect}")
-      track_codigos(tool_context, imoveis)
+      track_imoveis(tool_context, imoveis, venda)
       unless imoveis.blank?
         return format_listings(imoveis, venda,
                                header: "Nesse bairro não tem #{categoria.downcase} pra #{venda ? 'comprar' : 'alugar'}, " \
@@ -121,6 +122,32 @@ class Captain::Tools::BuscarImovelTool < Captain::Tools::BasePublicTool
     conv.update!(custom_attributes: conv.custom_attributes.merge('codigos_buscados' => (vistos + novos).uniq.last(40)))
   rescue StandardError => e
     Rails.logger.warn("[BuscarImovel] track_codigos: #{e.message}")
+  end
+
+  # Registra códigos (trava de foto) + URLs canônicas (trava de link) numa tacada.
+  def track_imoveis(tool_context, imoveis, venda)
+    track_imoveis(tool_context, imoveis, venda)
+    track_urls(tool_context, imoveis, venda)
+  end
+
+  # A URL certa do imóvel só sai daqui (build_url). Guarda na conversa um mapa
+  # codigo/ImoCodigo -> URL canônica pra o sanitizador de saída trocar/remover
+  # qualquer link que o LLM monte na mão (formato/número inventado). Últimos 60.
+  def track_urls(tool_context, imoveis, venda)
+    conv = find_conversation(tool_context&.state)
+    return unless conv
+
+    novos = {}
+    imoveis.each do |im|
+      url = build_url(im, venda)
+      [im['Codigo'], im['ImoCodigo']].each { |k| novos[k.to_s] = url if k.to_s.strip.present? }
+    end
+    return if novos.empty?
+
+    atual = conv.custom_attributes['urls_imoveis'] || {}
+    conv.update!(custom_attributes: conv.custom_attributes.merge('urls_imoveis' => atual.merge(novos).to_a.last(60).to_h))
+  rescue StandardError => e
+    Rails.logger.warn("[BuscarImovel] track_urls: #{e.message}")
   end
 
   # Credenciais Vista por CONTA: vista_api_key / vista_base_url vêm do concern

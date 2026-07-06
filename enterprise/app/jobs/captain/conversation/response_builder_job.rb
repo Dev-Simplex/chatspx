@@ -292,6 +292,7 @@ class Captain::Conversation::ResponseBuilderJob < ApplicationJob
   def sanitize_for_whatsapp(content)
     return content if content.blank?
 
+    content = fix_property_links(content)
     content.gsub(/\[\s*(ignorar|sem[\s_-]?resposta|no[\s_-]?reply)\s*\]/i, '') # sentinela de silêncio que o LLM às vezes anexa a uma resposta real -> nunca enviar literal
            .gsub(/\[\s*fotos?[^\]]*enviad[ao]s?\s*\]/i, '') # placeholder de foto do histórico que o LLM às vezes ecoa -> remove
            .gsub(/\*\*(.*?)\*\*/m, '\1')   # **negrito** -> negrito
@@ -303,6 +304,22 @@ class Captain::Conversation::ResponseBuilderJob < ApplicationJob
            .gsub(/ +,/, ',')                 # " ," -> ","
            .gsub(/,\s*([.!?;:])/, '\1')      # ", ." -> "."
            .gsub(/,(\s*,)+/, ',')            # ",," -> ","
+  end
+
+  # A URL de um imóvel só vem da buscar_imovel (build_url). O LLM às vezes monta
+  # uma URL do site na mão, com formato e número inventados (ex: caminho
+  # /imovel/...-3338 em vez de ...,ImoCodigo). Aqui, toda URL da Tozi na resposta
+  # é trocada pela que a busca realmente retornou (casando o código no fim da
+  # URL); se nenhum código bater, é inventada -> remove. Sem busca na conversa,
+  # nenhuma URL da Tozi é legítima. Só toca a saída da IA (não a de humano).
+  def fix_property_links(content)
+    return content unless content.match?(/toziimoveis/i)
+
+    mapa = @conversation.reload.custom_attributes&.dig('urls_imoveis') || {}
+    content.gsub(%r{https?://[^\s)\]]*toziimoveis\.com\.br[^\s)\]]*}i) do |url|
+      match = url.scan(/\d+/).find { |n| mapa.key?(n) }
+      match ? mapa[match] : ''
+    end
   end
 
   def send_humanized_response(content)
