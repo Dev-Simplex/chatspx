@@ -58,12 +58,50 @@ module Concerns::Agentable
     now = Time.current.in_time_zone(tz)
     dias = %w[domingo segunda-feira terça-feira quarta-feira quinta-feira sexta-feira sábado]
     inside = Captain::Behavior::BusinessHoursChecker.new(assistant: asst).status == :inside
+    status =
+      if inside
+        'dentro do horário comercial, com atendentes disponíveis agora'
+      else
+        reopen = next_business_opening(bh, now)
+        if reopen.nil?
+          'fora do horário comercial no momento'
+        elsif reopen.to_date == now.to_date
+          "em pausa no momento (fora do horário), mas os atendentes voltam HOJE às #{reopen.strftime('%H:%M')} — o retorno é hoje à tarde, não amanhã"
+        elsif reopen.to_date == now.to_date + 1
+          "fechado no momento; os atendentes voltam amanhã (#{dias[reopen.wday]}) às #{reopen.strftime('%H:%M')}"
+        else
+          "fechado no momento; os atendentes voltam #{dias[reopen.wday]} às #{reopen.strftime('%H:%M')}"
+        end
+      end
     {
       current_datetime: "#{dias[now.wday]}, #{now.strftime('%d/%m/%Y às %H:%M')}",
-      business_status: inside ? 'dentro do horário comercial, com atendentes disponíveis agora' : 'fora do horário comercial no momento'
+      business_status: status
     }
   rescue StandardError
     {}
+  end
+
+  # Próximo horário de abertura a partir de agora (varre o dia de hoje e os
+  # próximos, respeitando a agenda). Serve pra distinguir pausa do almoço
+  # ("volta hoje à tarde") de fim de expediente ("volta amanhã").
+  def next_business_opening(bh, now)
+    schedule = bh['schedule'] || []
+    return nil if schedule.blank?
+
+    (0..7).each do |offset|
+      day = now + offset.days
+      entry = schedule.find { |d| d['day'] == day.wday }
+      next if entry.blank?
+
+      (entry['ranges'] || []).each do |range|
+        next if range['start'].blank?
+
+        hours, minutes = range['start'].split(':').map(&:to_i)
+        start_at = day.change(hour: hours, min: minutes, sec: 0)
+        return start_at if start_at > now
+      end
+    end
+    nil
   end
 
   # Chaves de contexto que MUDAM durante a conversa (data/hora com resolucao de
