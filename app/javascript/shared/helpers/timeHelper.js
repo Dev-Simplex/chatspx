@@ -56,6 +56,23 @@ export const dateFormat = (time, df = 'MMM d, yyyy') => {
 };
 
 /**
+ * Timestamp compacto e INDEPENDENTE de locale para o card de conversa
+ * (agora, 5m, 2h, 3d, e data para itens antigos). Necessário porque o
+ * `dynamicTime` gera texto verboso em pt-BR ("há menos de um minuto") que
+ * estoura o espaco reservado do card e sobrepoe o nome do contato.
+ * @param {number} time - Unix timestamp em segundos.
+ * @returns {string} Ex.: 'agora', '5m', '2h', '3d', '12/05/24'.
+ */
+export const shortTimeAgo = time => {
+  const diffSeconds = Math.floor(Date.now() / 1000 - Number(time));
+  if (!Number.isFinite(diffSeconds) || diffSeconds < 60) return 'agora';
+  if (diffSeconds < 3600) return `${Math.floor(diffSeconds / 60)}m`;
+  if (diffSeconds < 86400) return `${Math.floor(diffSeconds / 3600)}h`;
+  if (diffSeconds < 2592000) return `${Math.floor(diffSeconds / 86400)}d`;
+  return dateFormat(time, 'dd/MM/yy');
+};
+
+/**
  * Converts a detailed time description into a shorter format, optionally appending 'ago'.
  * @param {string} time - Detailed time description (e.g., 'a minute ago').
  * @param {boolean} [withAgo=false] - Whether to append 'ago' to the result.

@@ -2,7 +2,11 @@
 import { computed, ref, onBeforeMount } from 'vue';
 import { useI18n } from 'vue-i18n';
 import { getInboxIconByType } from 'dashboard/helper/inbox';
-import { dynamicTime, shortTimestamp } from 'shared/helpers/timeHelper';
+import {
+  dynamicTime,
+  shortTimestamp,
+  shortTimeAgo,
+} from 'shared/helpers/timeHelper';
 import {
   snoozedReopenTimeToTimestamp,
   shortenSnoozeTime,
@@ -59,7 +63,7 @@ const hasSlaThreshold = computed(() => {
 
 const lastActivityAt = computed(() => {
   const timestamp = props.inboxItem?.lastActivityAt;
-  return timestamp ? shortTimestamp(dynamicTime(timestamp)) : '';
+  return timestamp ? shortTimeAgo(timestamp) : '';
 });
 
 const menuItems = computed(() => [

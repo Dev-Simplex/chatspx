@@ -1,7 +1,7 @@
 <script setup>
 import { computed, watch } from 'vue';
 import { useI18n } from 'vue-i18n';
-import { dateFormat, shortTimestamp } from 'shared/helpers/timeHelper';
+import { dateFormat, shortTimeAgo } from 'shared/helpers/timeHelper';
 import { useTimeAgo } from 'dashboard/composables/useTimeAgo';
 
 const props = defineProps({
@@ -31,9 +31,12 @@ watch(
   }
 );
 
-const lastActivityTime = computed(() =>
-  shortTimestamp(lastActivityDisplay.value)
-);
+const lastActivityTime = computed(() => {
+  // le lastActivityDisplay (atualizado pelo timer do useTimeAgo) para criar a
+  // dependencia reativa e recalcular o compacto ao vivo a cada tick.
+  const tick = lastActivityDisplay.value;
+  return tick ? shortTimeAgo(props.lastActivityTimestamp) : '';
+});
 
 const createdAt = computed(() => {
   const createdTimeDiff = Date.now() - props.createdAtTimestamp * 1000;

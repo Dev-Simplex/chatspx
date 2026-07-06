@@ -4,7 +4,7 @@ import { useStore } from 'vuex';
 import { getInboxIconByType } from 'dashboard/helper/inbox';
 import { useRouter, useRoute } from 'vue-router';
 import { frontendURL, conversationUrl } from 'dashboard/helper/URLHelper.js';
-import { dynamicTime, shortTimestamp } from 'shared/helpers/timeHelper';
+import { shortTimeAgo } from 'shared/helpers/timeHelper';
 import { useMapGetter } from 'dashboard/composables/store';
 import { useConversationUrgency } from 'dashboard/composables/useConversationUrgency';
 import { useUISettings } from 'dashboard/composables/useUISettings';
@@ -68,7 +68,7 @@ const inboxIcon = computed(() => {
 
 const lastActivityAt = computed(() => {
   const timestamp = props.conversation?.timestamp;
-  return timestamp ? shortTimestamp(dynamicTime(timestamp)) : '';
+  return timestamp ? shortTimeAgo(timestamp) : '';
 });
 
 // Pin support — pin_mode by inbox decides whether storage is per-agent or per-inbox.
