@@ -57,7 +57,13 @@ class Captain::Tools::BuscarImovelTool < Captain::Tools::BasePublicTool
                       "endereco=#{endereco.inspect} valor_max=#{valor_max.inspect} dorm=#{dormitorios.inspect} " \
                       "geo=#{geo} => #{imoveis.size} imoveis #{imoveis.first(5).map { |i| i['Codigo'] }.inspect}")
     track_codigos(tool_context, imoveis)
-    return 'Nenhum imóvel encontrado com esses critérios.' if imoveis.blank?
+    if imoveis.blank?
+      # Só o fluxo normal (não-geo) amplia; o geo cai direto no "Nenhum...".
+      ampliados = !geo && ampliar_sem_bairro(tool_context, filter, venda, bairro, endereco)
+      return ampliados if ampliados.present?
+
+      return 'Nenhum imóvel encontrado com esses critérios.'
+    end
     return format_listings(imoveis, venda) unless geo
 
     format_by_distance(imoveis, venda, lat.to_f, lng.to_f, raio_km.presence&.to_f)
@@ -105,6 +111,31 @@ class Captain::Tools::BuscarImovelTool < Captain::Tools::BasePublicTool
     conv.update!(custom_attributes: conv.custom_attributes.merge('codigos_buscados' => (vistos + novos).uniq.last(40)))
   rescue StandardError => e
     Rails.logger.warn("[BuscarImovel] track_codigos: #{e.message}")
+  end
+
+  # Fallback determinístico: quando a busca COM filtro de bairro/endereço vem vazia, refaz
+  # UMA busca /listar (sem loop) removendo só o filtro de bairro/endereço — mantém cidade,
+  # status, categoria, valor, dormitórios (e piscina). Devolve as opções com um header que
+  # ORIENTA a IA (é diretiva, não fala pronta pro cliente) a apresentá-las como alternativas
+  # fora do local pedido. Sem filtro de bairro/endereço não há o que ampliar (retorna nil).
+  # NÃO é chamado no fluxo geo nem no por código. rescue próprio: falha aqui cai no
+  # "Nenhum imóvel encontrado..." limpo, preservando o comportamento original.
+  def ampliar_sem_bairro(tool_context, filter, venda, bairro, endereco)
+    return if bairro.blank? && endereco.blank?
+
+    imoveis = fetch_vista(filter.except('Bairro', 'Endereco'), quantidade: 5)
+    return if imoveis.blank?
+
+    track_codigos(tool_context, imoveis)
+    ref = [bairro, endereco].reject(&:blank?).join('/')
+    format_listings(imoveis, venda,
+                    header: "Sem imóvel no critério exato (#{ref}). As opções abaixo são da mesma cidade e critério, " \
+                            'porém em OUTROS bairros: ofereça como alternativas fora do local pedido, deixando claro ' \
+                            'que não são do bairro/endereço solicitado — nunca encerre só com pergunta, apresente as ' \
+                            'opções concretas.')
+  rescue StandardError => e
+    Rails.logger.warn("[BuscarImovel] ampliar_sem_bairro: #{e.message}")
+    nil
   end
 
   # Credenciais Vista por CONTA: vista_api_key / vista_base_url vêm do concern
