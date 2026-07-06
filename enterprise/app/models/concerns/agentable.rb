@@ -75,10 +75,53 @@ module Concerns::Agentable
       end
     {
       current_datetime: "#{dias[now.wday]}, #{now.strftime('%d/%m/%Y às %H:%M')}",
-      business_status: status
+      business_status: status,
+      business_hours_text: business_hours_text(bh)
     }
   rescue StandardError
     {}
+  end
+
+  # Horário de funcionamento em texto, montado a partir da agenda do config da
+  # conta (business_hours). Agrupa dias com a mesma faixa ("segunda a sexta, das
+  # 7h30 às 11h30 e das 13h30 às 17h30; sábado, das 9h às 11h30"). Assim cada
+  # cliente/assistente injeta o SEU horário do banco — sem hardcode no prompt.
+  def business_hours_text(bh)
+    return nil unless bh['enabled']
+
+    sched = bh['schedule'] || []
+    return nil if sched.blank?
+
+    dias = %w[domingo segunda terça quarta quinta sexta sábado]
+    ordem = [1, 2, 3, 4, 5, 6, 0]
+    sig = ordem.index_with do |d|
+      entry = sched.find { |e| e['day'] == d }
+      Array(entry && entry['ranges']).filter_map do |r|
+        next if r['start'].blank? || r['end'].blank?
+
+        "das #{format_hora(r['start'])} às #{format_hora(r['end'])}"
+      end
+    end
+    partes = []
+    i = 0
+    while i < ordem.size
+      d = ordem[i]
+      if sig[d].empty?
+        i += 1
+        next
+      end
+      j = i
+      j += 1 while j + 1 < ordem.size && sig[ordem[j + 1]] == sig[d]
+      faixa = sig[d].join(' e ')
+      partes << (i == j ? "#{dias[d]}, #{faixa}" : "#{dias[ordem[i]]} a #{dias[ordem[j]]}, #{faixa}")
+      i = j + 1
+    end
+    partes.presence && partes.join('; ')
+  end
+
+  def format_hora(hhmm)
+    h, m = hhmm.split(':').map(&:to_i)
+    m.zero? ? "#{h}h" : format('%<h>dh%<m>02d', h: h, m: m)
   end
 
   # Próximo horário de abertura a partir de agora (varre o dia de hoje e os
