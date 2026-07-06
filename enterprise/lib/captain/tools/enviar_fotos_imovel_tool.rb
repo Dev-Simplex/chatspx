@@ -14,6 +14,15 @@ class Captain::Tools::EnviarFotosImovelTool < Captain::Tools::BasePublicTool
     conversation = find_conversation(tool_context&.state)
     return 'Não consegui identificar a conversa pra enviar as fotos.' unless conversation
 
+    # Trava anti-alucinação: só envia foto de código que apareceu numa busca DESTA
+    # conversa (buscar_imovel registra em codigos_buscados). Bloqueia a IA de mandar
+    # foto de um código que ela supôs/lembrou (ex.: mandar prédio comercial por casa).
+    cod = codigo.to_s.gsub(/\D/, '')
+    vistos = Array(conversation.custom_attributes['codigos_buscados']).map(&:to_s)
+    if vistos.any? && !vistos.include?(cod)
+      return "O código #{cod} não apareceu na busca desta conversa. Use buscar_imovel primeiro e envie fotos SÓ de um código que a busca retornou — nunca de um código que você supôs ou lembrou de outro imóvel."
+    end
+
     fotos = fetch_fotos(codigo)
     return 'Não encontrei fotos desse imóvel.' if fotos.blank?
 

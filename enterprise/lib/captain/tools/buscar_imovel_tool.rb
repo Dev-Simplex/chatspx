@@ -24,7 +24,7 @@ class Captain::Tools::BuscarImovelTool < Captain::Tools::BasePublicTool
                     ValorCondominio ValorIptu AreaTotal AreaConstruida Latitude Longitude].freeze
   META_KEYS = %w[total paginas pagina quantidade].freeze
 
-  def perform(_tool_context, status_tipo:, categoria: nil, bairro: nil, endereco: nil, valor_max: nil,
+  def perform(tool_context, status_tipo:, categoria: nil, bairro: nil, endereco: nil, valor_max: nil,
               dormitorios: nil, piscina: nil, lat: nil, lng: nil, raio_km: nil, codigo: nil)
     # Busca direta por CÓDIGO (placa/anúncio/site) — independe de venda/locação.
     if codigo.present?
@@ -32,6 +32,7 @@ class Captain::Tools::BuscarImovelTool < Captain::Tools::BasePublicTool
       achados = fetch_vista({ 'Codigo' => cod }, quantidade: 1)
       return "Não achei nenhum imóvel com o código #{cod} no nosso sistema." if achados.blank?
 
+      track_codigos(tool_context, achados)
       return format_listings(achados, achados.first['Status'].to_s.match?(/vend/i))
     end
     venda = status_tipo.to_s == 'venda'
@@ -55,6 +56,7 @@ class Captain::Tools::BuscarImovelTool < Captain::Tools::BasePublicTool
     Rails.logger.info("[BuscarImovel] status=#{status_tipo} categoria=#{categoria.inspect} bairro=#{bairro.inspect} " \
                       "endereco=#{endereco.inspect} valor_max=#{valor_max.inspect} dorm=#{dormitorios.inspect} " \
                       "geo=#{geo} => #{imoveis.size} imoveis #{imoveis.first(5).map { |i| i['Codigo'] }.inspect}")
+    track_codigos(tool_context, imoveis)
     return 'Nenhum imóvel encontrado com esses critérios.' if imoveis.blank?
     return format_listings(imoveis, venda) unless geo
 
@@ -87,6 +89,22 @@ class Captain::Tools::BuscarImovelTool < Captain::Tools::BasePublicTool
     return [] unless data.is_a?(Hash)
 
     data.reject { |k, _| META_KEYS.include?(k) }.values.select { |v| v.is_a?(Hash) }
+  end
+
+  # Registra na conversa os códigos que a busca retornou. A enviar_fotos_imovel só
+  # manda foto de código que passou por aqui — trava a IA de inventar/lembrar código
+  # de outro imóvel. Guarda os últimos 40 (rescue-safe: falha aqui não quebra a busca).
+  def track_codigos(tool_context, imoveis)
+    conv = find_conversation(tool_context&.state)
+    return unless conv
+
+    novos = imoveis.filter_map { |i| i['Codigo'].to_s.presence }
+    return if novos.empty?
+
+    vistos = Array(conv.custom_attributes['codigos_buscados']).map(&:to_s)
+    conv.update!(custom_attributes: conv.custom_attributes.merge('codigos_buscados' => (vistos + novos).uniq.last(40)))
+  rescue StandardError => e
+    Rails.logger.warn("[BuscarImovel] track_codigos: #{e.message}")
   end
 
   # Credenciais Vista por CONTA: vista_api_key / vista_base_url vêm do concern
