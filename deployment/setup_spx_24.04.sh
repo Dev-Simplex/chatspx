@@ -18,7 +18,7 @@ fi
 # Global variables
 LONGOPTS=console,debug,help,install,Install:,logs:,restart,ssl,upgrade,Upgrade:,webserver,version,web-only,worker-only,convert:,skip-account
 OPTIONS=cdhiI:l:rsuU:wvWK
-CWCTL_VERSION="4.0.0"
+CWCTL_VERSION="4.0.1"
 pg_pass=$(head /dev/urandom | tr -dc A-Za-z0-9 | head -c 15 ; echo '')
 CHATWOOT_HUB_URL="https://hub.2.chatwoot.com/events"
 RUBY_VERSION="3.4.4"
@@ -412,9 +412,14 @@ function set_env() {
   local key="$1"
   local value="$2"
   if grep -q "^${key}=" "$env_file"; then
-    sudo -u chatwoot perl -pi -e "s|^\Q${key}\E=.*|${key}=${value}|" "$env_file"
+    # Perl le chave/valor de %ENV para NAO interpolar o conteudo do valor.
+    # O antigo "s|...=${value}|" fazia o perl tratar "@chatspx" e "@1239" como
+    # array (vazio) e comer o trecho -> SMTP nascia como contato.app / Master*
+    # (senha de 7 chars), quebrando o envio de email (redefinir senha, etc.).
+    sudo -u chatwoot env SE_KEY="$key" SE_VAL="$value" \
+      perl -i -pe 's|^\Q$ENV{SE_KEY}\E=.*|$ENV{SE_KEY}=$ENV{SE_VAL}|' "$env_file"
   else
-    echo "${key}=${value}" | sudo -u chatwoot tee -a "$env_file" > /dev/null
+    printf '%s=%s\n' "$key" "$value" | sudo -u chatwoot tee -a "$env_file" > /dev/null
   fi
 }
 
