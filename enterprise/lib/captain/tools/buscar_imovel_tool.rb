@@ -57,6 +57,22 @@ class Captain::Tools::BuscarImovelTool < Captain::Tools::BasePublicTool
                       "endereco=#{endereco.inspect} valor_max=#{valor_max.inspect} dorm=#{dormitorios.inspect} " \
                       "geo=#{geo} => #{imoveis.size} imoveis #{imoveis.first(5).map { |i| i['Codigo'] }.inspect}")
     track_codigos(tool_context, imoveis)
+
+    # Não achou a categoria pedida NESSE bairro? Amplia o tipo dentro do MESMO
+    # bairro (o cliente prioriza a localização; apartamento/kitnet ali é melhor
+    # que casa num bairro que ele nem pediu). Não vale pra busca geográfica.
+    if imoveis.blank? && !geo && categoria.present? && bairro.present?
+      imoveis = fetch_vista(filter.except('Categoria'), quantidade: 5)
+      Rails.logger.info("[BuscarImovel] ampliou categoria em #{bairro.inspect} => #{imoveis.size} " \
+                        "#{imoveis.first(5).map { |i| i['Codigo'] }.inspect}")
+      track_codigos(tool_context, imoveis)
+      unless imoveis.blank?
+        return format_listings(imoveis, venda,
+                               header: "Nesse bairro não tem #{categoria.downcase} pra #{venda ? 'comprar' : 'alugar'}, " \
+                                       'mas nesse mesmo bairro tem estas opções:')
+      end
+    end
+
     return 'Nenhum imóvel encontrado com esses critérios.' if imoveis.blank?
     return format_listings(imoveis, venda) unless geo
 
