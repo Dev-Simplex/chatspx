@@ -1,6 +1,8 @@
 class Captain::Tools::BuscarImovelTool < Captain::Tools::BasePublicTool
   description 'Busca imóveis no acervo da Tozi (sistema Vista) e retorna até 5 opções com o link correto do site. ' \
               "Use status_tipo='venda' para comprar e status_tipo='locacao' para alugar. " \
+              'Cada opção já vem com nº de fotos, suítes, vagas de garagem e características (piscina, quintal, ' \
+              'mobiliado, churrasqueira) — use SÓ esses dados retornados, nunca invente característica, foto ou link. ' \
               'Para proximidade geográfica, passe lat/lng (do buscar_localizacao OU da localização que o cliente enviou): ' \
               'retorna os mais próximos, ordenados pela distância em km.'
 
@@ -13,6 +15,7 @@ class Captain::Tools::BuscarImovelTool < Captain::Tools::BasePublicTool
                    desc: 'Rua, avenida ou logradouro, quando o cliente especificar (ex: "Mário Lago"). Estreita a busca dentro do bairro.', required: false
   param :valor_max, type: 'number', desc: 'Valor máximo: aluguel mensal pra locação, valor total pra venda.', required: false
   param :dormitorios, type: 'number', desc: 'Quantidade de dormitórios.', required: false
+  param :piscina, type: 'boolean', desc: 'true SÓ quando o cliente pedir imóvel COM piscina — filtra pra retornar só os que têm.', required: false
   param :lat, type: 'string', desc: 'Latitude do ponto de referência (do buscar_localizacao ou da localização enviada pelo cliente).', required: false
   param :lng, type: 'string', desc: 'Longitude do ponto de referência.', required: false
   param :raio_km, type: 'number', desc: 'Só quando o cliente limitar a distância (ex: "até 2 km"). Sem isso, lista os mais próximos.', required: false
@@ -22,7 +25,7 @@ class Captain::Tools::BuscarImovelTool < Captain::Tools::BasePublicTool
   META_KEYS = %w[total paginas pagina quantidade].freeze
 
   def perform(_tool_context, status_tipo:, categoria: nil, bairro: nil, endereco: nil, valor_max: nil,
-              dormitorios: nil, lat: nil, lng: nil, raio_km: nil, codigo: nil)
+              dormitorios: nil, piscina: nil, lat: nil, lng: nil, raio_km: nil, codigo: nil)
     # Busca direta por CÓDIGO (placa/anúncio/site) — independe de venda/locação.
     if codigo.present?
       cod = codigo.to_s.gsub(/\D/, '')
@@ -42,6 +45,8 @@ class Captain::Tools::BuscarImovelTool < Captain::Tools::BasePublicTool
     filter['Bairro'] = ['like', "%#{bairro}%"] if bairro.present?
     filter['Endereco'] = ['like', "%#{endereco}%"] if endereco.present?
     filter['Dormitorios'] = dormitorios if dormitorios.present?
+    # Piscina é característica (grupo carac) mas o Vista aceita como filtro de topo (testado).
+    filter['Piscina'] = 'Sim' if piscina
 
     geo = lat.present? && lng.present?
     # O Vista compara Latitude/Longitude como STRING (lexicográfico) — com coordenadas
@@ -125,7 +130,7 @@ class Captain::Tools::BuscarImovelTool < Captain::Tools::BasePublicTool
       valor = venda ? "R$ #{im['ValorVenda']}" : "R$ #{im['ValorLocacao']}/mês"
       dorm = im['Dormitorios'].to_i.positive? ? "#{im['Dormitorios']} quartos, " : ''
       dist = im['dist_km'] ? " — a #{format('%.1f', im['dist_km'])} km da referência" : ''
-      "(cód #{im['Codigo']}) #{im['Categoria']} #{dorm}no #{im['Bairro']}, #{valor}#{format_area(im)}#{format_taxas(im)}#{foto_hint(im['Codigo'])}#{dist}. #{build_url(im, venda)}"
+      "(cód #{im['Codigo']}) #{im['Categoria']} #{dorm}no #{im['Bairro']}, #{valor}#{format_area(im)}#{format_taxas(im)}#{format_extras(im['Codigo'])}#{dist}. #{build_url(im, venda)}"
     end
     "#{header || "Encontrei #{linhas.size} opção(ões):"}\n#{linhas.join("\n")}"
   end
@@ -148,30 +153,47 @@ class Captain::Tools::BuscarImovelTool < Captain::Tools::BasePublicTool
     bits.any? ? ", #{bits.join(', ')}" : ''
   end
 
-  # Sinaliza quantas fotos o imóvel tem no Vista — a IA vê aqui que existem e chama
-  # enviar_fotos_imovel quando o cliente pedir, em vez de alucinar "não tem foto".
-  # Falha de rede/consulta -> string vazia (não atrapalha a listagem).
-  def foto_hint(codigo)
-    n = foto_count(codigo)
-    return '' if n.nil?
+  # Numa ÚNICA chamada ao Vista, traz o que a IA precisa saber pra NÃO alucinar:
+  # nº de fotos, suítes, vagas de garagem e as características-chave (piscina, quintal,
+  # mobiliado, churrasqueira). A IA passa a ver o que cada imóvel TEM e para de inventar
+  # ("todas têm piscina", "não tem foto"). Falha de rede -> string vazia (não atrapalha).
+  def format_extras(codigo)
+    i = detalhes_info(codigo)
+    return '' if i.empty?
 
-    n.positive? ? ", #{n} fotos" : ', sem fotos'
+    bits = []
+    bits << (i[:fotos].positive? ? "#{i[:fotos]} fotos" : 'sem fotos')
+    bits << "#{i[:suites]} suíte#{'s' if i[:suites] > 1}" if i[:suites].positive?
+    bits << "#{i[:vagas]} vaga#{'s' if i[:vagas] > 1} de garagem" if i[:vagas].positive?
+    bits << 'com piscina' if i[:piscina]
+    bits << 'com quintal' if i[:quintal]
+    bits << 'mobiliado' if i[:mobiliado]
+    bits << 'com churrasqueira' if i[:churrasqueira]
+    ", #{bits.join(', ')}"
   end
 
-  def foto_count(codigo)
+  def detalhes_info(codigo)
     resp = HTTParty.get(
       "#{vista_base_url}/imoveis/detalhes",
-      query: { key: vista_api_key, imovel: codigo, pesquisa: { fields: ['Codigo', { 'Foto' => %w[Foto] }] }.to_json },
+      query: { key: vista_api_key, imovel: codigo, pesquisa: { fields: ['Codigo', 'Suites', 'Vagas', { 'Foto' => %w[Foto] }, 'Caracteristicas'] }.to_json },
       headers: { 'Accept' => 'application/json' }, timeout: 10
     )
-    return nil unless resp.code == 200
+    return {} unless resp.code == 200
 
-    data = resp.parsed_response
-    data = JSON.parse(data) if data.is_a?(String)
-    fotos = data.is_a?(Hash) ? data['Foto'] : nil
-    fotos.is_a?(Hash) ? fotos.size : 0
+    d = resp.parsed_response
+    d = JSON.parse(d) if d.is_a?(String)
+    return {} unless d.is_a?(Hash)
+
+    carac = d['Caracteristicas'].is_a?(Hash) ? d['Caracteristicas'] : {}
+    { fotos: (d['Foto'].is_a?(Hash) ? d['Foto'].size : 0), suites: d['Suites'].to_i, vagas: d['Vagas'].to_i,
+      piscina: sim?(carac['Piscina']), quintal: sim?(carac['Quintal']),
+      mobiliado: sim?(carac['Mobiliado']), churrasqueira: sim?(carac['Churrasqueira']) }
   rescue StandardError
-    nil
+    {}
+  end
+
+  def sim?(val)
+    val.to_s.strip.casecmp('sim').zero?
   end
 
   # O site da Tozi acha o imóvel pelo ImoCodigo (não pelo Codigo do Vista); o slug
