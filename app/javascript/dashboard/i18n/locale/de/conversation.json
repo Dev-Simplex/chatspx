@@ -317,34 +317,6 @@
       }
     }
   },
-  "ONBOARDING": {
-    "TITLE": "Hallo 👋, Willkommen bei {installationName}!",
-    "DESCRIPTION": "Danke für's Registrieren. Wir möchten, dass Sie {installationName} optimal nutzen. Hier sind ein paar Dinge, die Sie in {installationName} tun können, um das Erlebnis angenehm zu gestalten.",
-    "GREETING_MORNING": "👋 Guten Morgen, {name}. Willkommen bei {installationName}.",
-    "GREETING_AFTERNOON": "👋 Guten Nachmittag, {name}. Willkommen bei {installationName}.",
-    "GREETING_EVENING": "👋 Guten Abend, {name}. Willkommen bei {installationName}.",
-    "READ_LATEST_UPDATES": "Lesen Sie unsere neuesten Updates",
-    "ALL_CONVERSATION": {
-      "TITLE": "All Ihre Konversationen an einem Ort",
-      "DESCRIPTION": "Zeigen Sie alle Konversationen Ihrer Kunden in einem einzigen Dashboard an. Sie können die Konversationen nach eingehendem Kanal, Bezeichnung und Status filtern.",
-      "NEW_LINK": "Hier klicken, um einen Posteingang zu erstellen"
-    },
-    "TEAM_MEMBERS": {
-      "TITLE": "Laden Sie Ihre Teammitglieder ein",
-      "DESCRIPTION": "Da Sie sich darauf vorbereiten, mit Ihrem Kunden zu sprechen, ziehen Sie Ihre Teamkollegen hinzu, um Ihnen zu helfen. Sie können Ihre Teamkollegen einladen, indem Sie deren E-Mail-Adressen zur Agentenliste hinzufügen.",
-      "NEW_LINK": "Klicken Sie hier, um ein Teammitglied einzuladen"
-    },
-    "LABELS": {
-      "TITLE": "Organisieren Sie Konversationen mit Labels",
-      "DESCRIPTION": "Labels bieten eine einfachere Möglichkeit, Ihre Konversation zu kategorisieren. Erstellen Sie einige Labels wie #support-enquiry, #billing-quest etc., damit Sie sie später in einem Gespräch verwenden können.",
-      "NEW_LINK": "Hier klicken, um Tags zu erstellen"
-    },
-    "CANNED_RESPONSES": {
-      "TITLE": "Vorgefertigte Antworten erstellen",
-      "DESCRIPTION": "Vorgefertigte Schnellantwortvorlagen helfen Ihnen, schnell auf eine Konversation zu antworten. Agenten können das Zeichen '/' gefolgt vom Short-Code eingeben, um eine Antwort einzufügen.",
-      "NEW_LINK": "Hier klicken, um eine vorgefertigte Antwort zu erstellen"
-    }
-  },
   "CONVERSATION_SIDEBAR": {
     "ASSIGNEE_LABEL": "Zugewiesener Agent",
     "SELF_ASSIGN": "Mir zuweisen",

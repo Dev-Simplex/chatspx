@@ -317,34 +317,6 @@
       }
     }
   },
-  "ONBOARDING": {
-    "TITLE": "Merhaba 👋, {installationName}'a hoş geldiniz!",
-    "DESCRIPTION": "Üyeliğiniz için teşekkür ederiz. {installationName}'dan en iyi şekilde faydalanmanızı istiyoruz. Deneyimi daha keyifli hale getirmek için {installationName} içinde yapabileceğiniz birkaç şey var.",
-    "GREETING_MORNING": "👋 Good morning, {name}. Welcome to {installationName}.",
-    "GREETING_AFTERNOON": "👋 Good afternoon, {name}. Welcome to {installationName}.",
-    "GREETING_EVENING": "👋 Good evening, {name}. Welcome to {installationName}.",
-    "READ_LATEST_UPDATES": "En Son Güncellemeleri Okuyun",
-    "ALL_CONVERSATION": {
-      "TITLE": "Tüm Konuşmalarınız Bir Arada",
-      "DESCRIPTION": "Müşterilerinizden gelen tüm konuşmaları tek bir gösterge panelinde görüntüleyin. Gelen kanala, etikete ve duruma göre konuşmaları filtreleyebilirsiniz.",
-      "NEW_LINK": "Bir gelen kutusu oluşturmak için buraya tıklayın"
-    },
-    "TEAM_MEMBERS": {
-      "TITLE": "Ekip Üyelerinizi Davet Edin",
-      "DESCRIPTION": "Müşterinizle konuşmaya hazırlanırken, ekibinizi yardıma çağırın. Ekibinizi, temsilci listesine e-posta adreslerini ekleyerek davet edebilirsiniz.",
-      "NEW_LINK": "Bir ekip üyesi davet etmek için buraya tıklayın"
-    },
-    "LABELS": {
-      "TITLE": "Etiketlerle Konuşmaları Düzenleyin",
-      "DESCRIPTION": "Etiketler, konuşmalarınızı kategorize etmenin daha kolay bir yolunu sağlar. #destek-soru, #fatura-sorunu vb. gibi etiketler oluşturun, böylece daha sonra bir konuşmada bunları kullanabilirsiniz.",
-      "NEW_LINK": "Etiket oluşturmak için buraya tıklayın"
-    },
-    "CANNED_RESPONSES": {
-      "TITLE": "Create canned responses",
-      "DESCRIPTION": "Pre-written quick reply templates help you quickly respond to a conversation. Agents can type the '/' character followed by the shortcode to insert a response.",
-      "NEW_LINK": "Click here to create a canned response"
-    }
-  },
   "CONVERSATION_SIDEBAR": {
     "ASSIGNEE_LABEL": "Atanan Temsilci",
     "SELF_ASSIGN": "Bana Ata",

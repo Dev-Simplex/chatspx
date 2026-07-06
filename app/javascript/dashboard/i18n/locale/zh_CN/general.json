@@ -15,5 +15,33 @@
   "CHOICE_TOGGLE": {
     "YES": "是",
     "NO": "否"
+  },
+  "ONBOARDING": {
+    "TITLE": "您好 👋, 欢迎来到 {installationName}!",
+    "DESCRIPTION": "感谢您注册。我们希望您能够充分使用 {installationName}。 这里有几件您可以在 {installationName} 做的事情，让体验变得愉快。",
+    "GREETING_MORNING": "👋 早上好，{name}。欢迎来到 {installationName}。",
+    "GREETING_AFTERNOON": "👋 下午好，{name}。欢迎来到 {installationName}。",
+    "GREETING_EVENING": "👋 晚上好，{name}。欢迎来到 {installationName}。",
+    "READ_LATEST_UPDATES": "阅读我们的最新升级日志",
+    "ALL_CONVERSATION": {
+      "TITLE": "您的所有对话都在一个地方",
+      "DESCRIPTION": "在单个面板中查看您客户的所有对话。您可以通过通道、标签和状态筛选对话。",
+      "NEW_LINK": "点击此处创建收件箱"
+    },
+    "TEAM_MEMBERS": {
+      "TITLE": "邀请您的团队成员",
+      "DESCRIPTION": "当您准备好与您的客户交谈时，带上您的队友来协助您。 您可以通过添加他们的电子邮件地址到客服代表列表来邀请您的队友。",
+      "NEW_LINK": "点击此处邀请一位请团队成员"
+    },
+    "LABELS": {
+      "TITLE": "使用标签组织对话",
+      "DESCRIPTION": "标签提供了一种简单的方法来让您归类对话。创建一些类似 #价格、#问题反馈 这样的标签，之后您可以在对话中使用它们。",
+      "NEW_LINK": "点击此处创建标签"
+    },
+    "CANNED_RESPONSES": {
+      "TITLE": "创建预设回复",
+      "DESCRIPTION": "预定义的快捷回复模板可以帮助您快速响应对话。客服人员只需输入“/”符号，后跟快捷代码，即可插入回复。",
+      "NEW_LINK": "点击这里创建预设回复"
+    }
   }
 }

@@ -317,34 +317,6 @@
       }
     }
   },
-  "ONBOARDING": {
-    "TITLE": "Salam 👋, {installationName}-ə xoş gəlmisiniz!",
-    "DESCRIPTION": "Qeydiyyatdan keçdiyiniz üçün təşəkkür edirik. {installationName}-dən maksimum faydalanmağınızı istəyirik. Təcrübəni xoş etmək üçün {installationName}-də edə biləcəyiniz bir neçə şey var.",
-    "GREETING_MORNING": "👋 Sabahınız xeyir, {name}. {installationName}-ə xoş gəlmisiniz.",
-    "GREETING_AFTERNOON": "👋 Günortanız xeyir, {name}. {installationName}-ə xoş gəlmisiniz.",
-    "GREETING_EVENING": "👋 Axşamınız xeyir, {name}. {installationName}-ə xoş gəlmisiniz.",
-    "READ_LATEST_UPDATES": "Ən son yeniliklərimizi oxuyun",
-    "ALL_CONVERSATION": {
-      "TITLE": "Bütün söhbətləriniz bir yerdə",
-      "DESCRIPTION": "Müştərilərinizdən olan bütün söhbətləri tək bir paneldə görün. Söhbətləri daxil olan kanal, etiket və vəziyyətə görə süzgəcdən keçirə bilərsiniz.",
-      "NEW_LINK": "Qutunu yaratmaq üçün bura klikləyin"
-    },
-    "TEAM_MEMBERS": {
-      "TITLE": "Komanda üzvlərinizi dəvət edin",
-      "DESCRIPTION": "Müştərinizlə danışmağa hazırlaşdığınız üçün, sizə kömək etmək üçün komanda üzvlərinizi dəvət edin. Komanda üzvlərinizi agent siyahısına onların e-poçt ünvanlarını əlavə etməklə dəvət edə bilərsiniz.",
-      "NEW_LINK": "Komanda üzvünü dəvət etmək üçün buraya klikləyin"
-    },
-    "LABELS": {
-      "TITLE": "Söhbətləri etiketlərlə təşkil edin",
-      "DESCRIPTION": "Etiketlər söhbətinizi kateqoriyalara ayırmağı asanlaşdırır. Sonra söhbətdə istifadə etmək üçün #support-enquiry, #billing-question və s. kimi bəzi etiketlər yaradın.",
-      "NEW_LINK": "Etiket yaratmaq üçün buraya klikləyin"
-    },
-    "CANNED_RESPONSES": {
-      "TITLE": "Hazır cavablar yaradın",
-      "DESCRIPTION": "Əvvəlcədən yazılmış sürətli cavab şablonları söhbətə tez cavab verməyinizə kömək edir. Agentlər cavaba daxil etmək üçün '/' simvolunu və sonra qısa kodu yaza bilərlər.",
-      "NEW_LINK": "Sürətli cavab yaratmaq üçün bura klikləyin"
-    }
-  },
   "CONVERSATION_SIDEBAR": {
     "ASSIGNEE_LABEL": "Təyin olunmuş agent",
     "SELF_ASSIGN": "Mənə təyin et",

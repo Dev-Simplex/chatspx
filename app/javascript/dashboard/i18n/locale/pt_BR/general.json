@@ -38,6 +38,31 @@
   },
   "ONBOARDING": {
     "TITLE": "Comece por aqui",
+    "DESCRIPTION": "Obrigado por se inscrever. Queremos que você aproveite o máximo de {installationName}. Aqui estão algumas coisas que você consegue fazer em {installationName} para que tenha uma experiência agradável.",
+    "GREETING_MORNING": "👋 Bom dia, {name}. Bem-vindo a {installationName}.",
+    "GREETING_AFTERNOON": "👋 Boa tarde, {name}. Bem-vindo a {installationName}.",
+    "GREETING_EVENING": "👋 Boa noite, {name}. Bem-vindo a {installationName}.",
+    "READ_LATEST_UPDATES": "Leia as últimas atualizações",
+    "ALL_CONVERSATION": {
+      "TITLE": "Todas as suas conversas em um só lugar",
+      "DESCRIPTION": "Veja todas as conversas dos seus clientes em um único painel. Você pode filtrar as conversas pelo canal de entrada, rótulo e status.",
+      "NEW_LINK": "Clique aqui para criar uma caixa de entrada"
+    },
+    "TEAM_MEMBERS": {
+      "TITLE": "Convidar membros de seu time",
+      "DESCRIPTION": "Já que você está se preparando para conversar com seu cliente, traga seus colegas para ajudá-lo. Você pode convidar seus colegas adicionando os endereços de e-mail deles na lista de agentes.",
+      "NEW_LINK": "Clique aqui para convidar um membro do time"
+    },
+    "LABELS": {
+      "TITLE": "Organizar conversas com etiquetas",
+      "DESCRIPTION": "Etiquetas fornecem uma forma mais fácil de organizar a sua conversa. Criar algumas etiquetas como #solicitação-suporte, #fatura-assunto etc., assim você poderá futuramente utiliza-las em uma conversa posteriormente.",
+      "NEW_LINK": "Clique aqui para criar etiquetas"
+    },
+    "CANNED_RESPONSES": {
+      "TITLE": "Criar respostas prontas",
+      "DESCRIPTION": "Os modelos de respostas prontas ajudam você a responder rapidamente a uma conversa. Os agentes podem digitar o caractere '/' seguido pelo atalho para inserir uma resposta.",
+      "NEW_LINK": "Clique aqui para criar uma resposta pronta"
+    },
     "DISMISS": "Dispensar",
     "STEPS": {
       "INBOX": "Configurar caixa de entrada",

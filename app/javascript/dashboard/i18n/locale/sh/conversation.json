@@ -317,34 +317,6 @@
       }
     }
   },
-  "ONBOARDING": {
-    "TITLE": "Hey 👋, Welcome to {installationName}!",
-    "DESCRIPTION": "Thanks for signing up. We want you to get the most out of {installationName}. Here are a few things you can do in {installationName} to make the experience delightful.",
-    "GREETING_MORNING": "👋 Good morning, {name}. Welcome to {installationName}.",
-    "GREETING_AFTERNOON": "👋 Good afternoon, {name}. Welcome to {installationName}.",
-    "GREETING_EVENING": "👋 Good evening, {name}. Welcome to {installationName}.",
-    "READ_LATEST_UPDATES": "Pročitaj najnovija obaveštenja",
-    "ALL_CONVERSATION": {
-      "TITLE": "Sve konverzacije na jednom mestu",
-      "DESCRIPTION": "Pregledaj sve poruke od korisnika na jednoj kontrolnoj tabli. Možeš filtrirati konverzacije po kanalu, oznaci i statusu.",
-      "NEW_LINK": "Click here to create an inbox"
-    },
-    "TEAM_MEMBERS": {
-      "TITLE": "Pozovi članove tima",
-      "DESCRIPTION": "Since you are getting ready to talk to your customer, bring in your teammates to assist you. You can invite your teammates by adding their email addresses to the agent list.",
-      "NEW_LINK": "Klikni ovde da pozoveš člana tima"
-    },
-    "LABELS": {
-      "TITLE": "Organizuj konverzacije pomoću oznaka",
-      "DESCRIPTION": "Oznake olakšavaju kategorizaciju konverzacija. Kreiraj oznake kao što su #support-enquiry, #billing-question i slično, pa ih koristi kasnije u razgovorima.",
-      "NEW_LINK": "Klikni ovde da kreiraš oznake"
-    },
-    "CANNED_RESPONSES": {
-      "TITLE": "Create canned responses",
-      "DESCRIPTION": "Pre-written quick reply templates help you quickly respond to a conversation. Agents can type the '/' character followed by the shortcode to insert a response.",
-      "NEW_LINK": "Click here to create a canned response"
-    }
-  },
   "CONVERSATION_SIDEBAR": {
     "ASSIGNEE_LABEL": "Dodeljeni agent",
     "SELF_ASSIGN": "Dodeli meni",

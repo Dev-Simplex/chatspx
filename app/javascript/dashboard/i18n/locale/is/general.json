@@ -15,5 +15,33 @@
   "CHOICE_TOGGLE": {
     "YES": "Já",
     "NO": "Nei"
+  },
+  "ONBOARDING": {
+    "TITLE": "Velkomin/n á {installationName}!",
+    "DESCRIPTION": "Takk fyrir að skrá þig. Við viljum að þú fáir sem mest út úr {installationName}. Hér eru nokkur atriði sem þú getur gert í {installationName} til að gera upplifunina ánægjulega.",
+    "GREETING_MORNING": "👋 Good morning, {name}. Welcome to {installationName}.",
+    "GREETING_AFTERNOON": "👋 Good afternoon, {name}. Welcome to {installationName}.",
+    "GREETING_EVENING": "👋 Good evening, {name}. Welcome to {installationName}.",
+    "READ_LATEST_UPDATES": "Sjáðu nýjustu uppfærslurnar okkar",
+    "ALL_CONVERSATION": {
+      "TITLE": "Öll samtölin þin á einum stað",
+      "DESCRIPTION": "Skoðaðu öll samtöl viðskiptavina þinna á einu mælaborði. Þú getur síað samtölin eftir innkominni rás, merkingu og stöðu.",
+      "NEW_LINK": "Smelltu hér til að bæta við innhólfi"
+    },
+    "TEAM_MEMBERS": {
+      "TITLE": "Bjóða í teymið",
+      "DESCRIPTION": "Þar sem þú ert að búa þig undir að tala við viðskiptavini þína skaltu fá samstarfsfélaga þína til að aðstoða þig. Þú getur boðið samstarfsfélögum þínum með því að bæta netföngum þeirra við þjónustufulltrúalistann.",
+      "NEW_LINK": "Smelltu hér til að bjóða meðlim í teymið"
+    },
+    "LABELS": {
+      "TITLE": "Flokkaðu samtöl með merkjum",
+      "DESCRIPTION": "Merkingar eru auðveldari leið til að flokka samtalið þitt. Búðu til merki eins og #support-enquiry, #billing-question o.s.frv., svo þú getir notað þau í samtali síðar.",
+      "NEW_LINK": "Smelltu hér til að búa til merki"
+    },
+    "CANNED_RESPONSES": {
+      "TITLE": "Create canned responses",
+      "DESCRIPTION": "Pre-written quick reply templates help you quickly respond to a conversation. Agents can type the '/' character followed by the shortcode to insert a response.",
+      "NEW_LINK": "Click here to create a canned response"
+    }
   }
 }

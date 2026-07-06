@@ -15,5 +15,33 @@
   "CHOICE_TOGGLE": {
     "YES": "Ano",
     "NO": "Ne"
+  },
+  "ONBOARDING": {
+    "TITLE": "Ahoj, 👋, Vítejte na {installationName}!",
+    "DESCRIPTION": "Děkujeme za registraci. Chceme, abyste získali maximum z {installationName}. Zde je několik věcí, které můžete v {installationName} udělat, abyste udělali zážitek příjemný.",
+    "GREETING_MORNING": "👋 Good morning, {name}. Welcome to {installationName}.",
+    "GREETING_AFTERNOON": "👋 Good afternoon, {name}. Welcome to {installationName}.",
+    "GREETING_EVENING": "👋 Good evening, {name}. Welcome to {installationName}.",
+    "READ_LATEST_UPDATES": "Přečtěte si nejnovější aktualizace",
+    "ALL_CONVERSATION": {
+      "TITLE": "Všechny vaše konverzace na jednom místě",
+      "DESCRIPTION": "Zobrazit všechny konverzace od zákazníků na jednom nástěnce. Můžete filtrovat konverzace podle příchozího kanálu, popisku a stavu.",
+      "NEW_LINK": "Klikněte zde pro vytvoření schránky"
+    },
+    "TEAM_MEMBERS": {
+      "TITLE": "Pozvěte své členy týmu",
+      "DESCRIPTION": "Vzhledem k tomu, že se připravujete na rozhovor se zákazníkem, přiveďte své týmové spolupracovníky, kteří Vám pomohou. Můžete pozvat své spolupracovníky přidáním jejich e-mailové adresy do seznamu agentů.",
+      "NEW_LINK": "Klikněte zde pro pozvání člena týmu"
+    },
+    "LABELS": {
+      "TITLE": "Spravovat konverzace s popisky",
+      "DESCRIPTION": "Štítky poskytují jednodušší způsob, jak kategorizovat vaši konverzaci. Vytvořte nějaké štítky jako #podpora, #fakturace atd., abyste je mohli použít v konverzaci později.",
+      "NEW_LINK": "Klikněte zde pro vytvoření štítků"
+    },
+    "CANNED_RESPONSES": {
+      "TITLE": "Create canned responses",
+      "DESCRIPTION": "Pre-written quick reply templates help you quickly respond to a conversation. Agents can type the '/' character followed by the shortcode to insert a response.",
+      "NEW_LINK": "Click here to create a canned response"
+    }
   }
 }

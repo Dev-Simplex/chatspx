@@ -317,34 +317,6 @@
       }
     }
   },
-  "ONBOARDING": {
-    "TITLE": "Hey 👋, Welcome to {installationName}!",
-    "DESCRIPTION": "Thanks for signing up. We want you to get the most out of {installationName}. Here are a few things you can do in {installationName} to make the experience delightful.",
-    "GREETING_MORNING": "👋 Good morning, {name}. Welcome to {installationName}.",
-    "GREETING_AFTERNOON": "👋 Good afternoon, {name}. Welcome to {installationName}.",
-    "GREETING_EVENING": "👋 Good evening, {name}. Welcome to {installationName}.",
-    "READ_LATEST_UPDATES": "আমাদের সর্বশেষ আপডেট পড়ুন",
-    "ALL_CONVERSATION": {
-      "TITLE": "আপনার সব কথোপকথন এক জায়গায়",
-      "DESCRIPTION": "একটি ড্যাশবোর্ডে আপনার গ্রাহকদের সব কথোপকথন দেখুন। আপনি চ্যানেল, লেবেল ও স্ট্যাটাস অনুযায়ী ফিল্টার করতে পারবেন।",
-      "NEW_LINK": "ইনবক্স তৈরি করতে এখানে ক্লিক করুন"
-    },
-    "TEAM_MEMBERS": {
-      "TITLE": "আপনার টিম সদস্যদের আমন্ত্রণ জানান",
-      "DESCRIPTION": "আপনি যখন গ্রাহকের সাথে কথা বলার জন্য প্রস্তুতি নিচ্ছেন, তখন সহায়তার জন্য আপনার টিমমেটদের যুক্ত করুন। এজেন্ট তালিকায় তাদের ইমেইল ঠিকানা যোগ করে আমন্ত্রণ জানাতে পারেন।",
-      "NEW_LINK": "টিম সদস্য আমন্ত্রণ জানাতে এখানে ক্লিক করুন"
-    },
-    "LABELS": {
-      "TITLE": "লেবেল দিয়ে কথোপকথন সাজান",
-      "DESCRIPTION": "লেবেল ব্যবহার করে সহজেই কথোপকথন শ্রেণিবদ্ধ করুন। যেমন #support-enquiry, #billing-question ইত্যাদি লেবেল তৈরি করুন, পরে কথোপকথনে ব্যবহার করতে পারবেন।",
-      "NEW_LINK": "ট্যাগ তৈরি করতে এখানে ক্লিক করুন"
-    },
-    "CANNED_RESPONSES": {
-      "TITLE": "ক্যানড রেসপন্স তৈরি করুন",
-      "DESCRIPTION": "আগে থেকে লেখা দ্রুত উত্তর টেমপ্লেট দিয়ে সহজেই কথোপকথনে উত্তর দিন। এজেন্টরা '/' চিহ্ন ও শর্টকোড লিখে দ্রুত উত্তর যোগ করতে পারেন।",
-      "NEW_LINK": "ক্যানড রেসপন্স তৈরি করতে এখানে ক্লিক করুন"
-    }
-  },
   "CONVERSATION_SIDEBAR": {
     "ASSIGNEE_LABEL": "নিযুক্ত এজেন্ট",
     "SELF_ASSIGN": "নিজেকে নির্ধারণ করুন",

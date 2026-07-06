@@ -15,5 +15,33 @@
   "CHOICE_TOGGLE": {
     "YES": "Da",
     "NO": "Nu"
+  },
+  "ONBOARDING": {
+    "TITLE": "Hei 👋, Bine ati venit la {installationName}!",
+    "DESCRIPTION": "Vă mulțumim pentru semnarea sus. Vrem să profitați la maximum de {installationName}. Iată câteva lucruri pe care le puteți face în {installationName} pentru a face experiența încântătoare.",
+    "GREETING_MORNING": "👋 Good morning, {name}. Welcome to {installationName}.",
+    "GREETING_AFTERNOON": "👋 Good afternoon, {name}. Welcome to {installationName}.",
+    "GREETING_EVENING": "👋 Good evening, {name}. Welcome to {installationName}.",
+    "READ_LATEST_UPDATES": "Citiți cele mai recente actualizări ale noastre",
+    "ALL_CONVERSATION": {
+      "TITLE": "Toate conversațiile într-un singur loc",
+      "DESCRIPTION": "Vizualizați toate conversațiile de la clienți într-un singur tablou de bord. Puteți filtra conversațiile după canalul, eticheta și starea primite.",
+      "NEW_LINK": "Click aici pentru a crea un inbox"
+    },
+    "TEAM_MEMBERS": {
+      "TITLE": "Invită-ți membrii echipei",
+      "DESCRIPTION": "Din moment ce vă pregătiți să vorbiți cu clientul dvs., aduceți-vă coechipierii pentru a vă ajuta. Vă puteți invita colegii de echipă adăugând adresele lor de e-mail la lista de agenți.",
+      "NEW_LINK": "Faceți clic aici pentru a invita un membru al echipei"
+    },
+    "LABELS": {
+      "TITLE": "Organizarea conversațiilor cu etichete",
+      "DESCRIPTION": "Etichetele oferă o modalitate mai ușoară de a clasifica conversația. Creați unele etichete, cum ar fi #support-solicitare, #billing-întrebare etc., astfel încât să le puteți utiliza într-o conversație mai târziu.",
+      "NEW_LINK": "Click aici pentru a crea tag-uri"
+    },
+    "CANNED_RESPONSES": {
+      "TITLE": "Create canned responses",
+      "DESCRIPTION": "Pre-written quick reply templates help you quickly respond to a conversation. Agents can type the '/' character followed by the shortcode to insert a response.",
+      "NEW_LINK": "Click here to create a canned response"
+    }
   }
 }

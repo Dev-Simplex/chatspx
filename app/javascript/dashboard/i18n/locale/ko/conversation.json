@@ -317,34 +317,6 @@
       }
     }
   },
-  "ONBOARDING": {
-    "TITLE": "안녕하세요 👋, {installationName}에 오신 것을 환영합니다!",
-    "DESCRIPTION": "가입해 주셔서 감사합니다. {installationName}을(를) 최대한 활용하실 수 있도록 도와드리겠습니다. {installationName}에서 경험을 향상시키기 위해 할 수 있는 몇 가지를 소개합니다.",
-    "GREETING_MORNING": "👋 좋은 아침입니다, {name}님. {installationName}에 오신 것을 환영합니다.",
-    "GREETING_AFTERNOON": "👋 좋은 오후입니다, {name}님. {installationName}에 오신 것을 환영합니다.",
-    "GREETING_EVENING": "👋 좋은 저녁입니다, {name}님. {installationName}에 오신 것을 환영합니다.",
-    "READ_LATEST_UPDATES": "최근 업데이트 내용 보기",
-    "ALL_CONVERSATION": {
-      "TITLE": "모든 대화를 한 곳에서",
-      "DESCRIPTION": "고객들과의 모든 대화를 하나의 대시보드에서 확인하십시오. 대화를 채널별, 라벨별, 상태별로 필터링할 수 있습니다.",
-      "NEW_LINK": "클릭하여 받은 메시지함을 생성하십시오"
-    },
-    "TEAM_MEMBERS": {
-      "TITLE": "팀 구성원을 초대하십시오",
-      "DESCRIPTION": "고객과 대화할 준비가 되셨다면, 팀원들을 초대하여 도움을 받으십시오. 에이전트 목록에 팀원의 이메일 주소를 추가하여 초대할 수 있습니다.",
-      "NEW_LINK": "클릭하여 팀원을 초대하십시오"
-    },
-    "LABELS": {
-      "TITLE": "대화를 라벨로 정리하기",
-      "DESCRIPTION": "라벨은 대화를 분류할 수 있는 쉬운 방법을 제공합니다. 예를 들어 #support-enquiry, #billing-question 등과 같은 라벨을 생성하여 나중에 대화에서 사용할 수 있습니다.",
-      "NEW_LINK": "클릭하여 태그를 생성하십시오"
-    },
-    "CANNED_RESPONSES": {
-      "TITLE": "미리 준비된 답변 생성",
-      "DESCRIPTION": "미리 작성된 빠른 답변 템플릿을 통해 대화에 신속하게 응답할 수 있습니다. 에이전트가 '/' 문자와 단축 코드를 입력하여 답변을 삽입할 수 있습니다.",
-      "NEW_LINK": "클릭하여 미리 준비된 답변을 생성하십시오"
-    }
-  },
   "CONVERSATION_SIDEBAR": {
     "ASSIGNEE_LABEL": "배정된 에이전트",
     "SELF_ASSIGN": "나에게 배정",
