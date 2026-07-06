@@ -39,21 +39,53 @@ RSpec.describe 'Summary Reports API — agent assignment', type: :request do
                                                  assignee: agent, assigned_by: admin, source: :manual)
       end
 
-      it 'returns the assignment report per agent' do
+      def fetch_report(extra = {})
         get "/api/v2/accounts/#{account.id}/summary_reports/agent_assignment",
-            params: params,
+            params: params.merge(extra),
             headers: admin.create_new_auth_token,
             as: :json
+        response.parsed_body
+      end
 
+      it 'returns rows (per agent) and the author→destination matrix' do
+        json = fetch_report
         expect(response).to have_http_status(:success)
-        json_response = response.parsed_body
 
-        agent_row = json_response.find { |r| r['id'] == agent.id }
-        admin_row = json_response.find { |r| r['id'] == admin.id }
-
+        agent_row = json['rows'].find { |r| r['id'] == agent.id }
+        admin_row = json['rows'].find { |r| r['id'] == admin.id }
         expect(agent_row['received_total']).to eq(1)
         expect(agent_row['received_manual']).to eq(1)
         expect(admin_row['assigned_to_others']).to eq(1)
+
+        pair = json['matrix'].find { |m| m['from_id'] == admin.id && m['to_id'] == agent.id }
+        expect(pair['count']).to eq(1)
+        expect(pair['from_name']).to eq(admin.name)
+        expect(pair['to_name']).to eq(agent.name)
+      end
+
+      it 'filters by team' do
+        team = create(:team, account: account)
+        other_conversation = create(:conversation, account: account, inbox: inbox)
+        create(:conversation_assignment_history, account: account, conversation: other_conversation,
+                                                 assignee: agent, assigned_by: admin, source: :manual, team: team)
+
+        json = fetch_report(team_id: team.id)
+        agent_row = json['rows'].find { |r| r['id'] == agent.id }
+        # só a atribuição do time filtrado conta (a do `before` não tem time)
+        expect(agent_row['received_total']).to eq(1)
+        expect(json['matrix'].sum { |m| m['count'] }).to eq(1)
+      end
+
+      it 'filters by inbox' do
+        other_inbox = create(:inbox, account: account)
+        other_conversation = create(:conversation, account: account, inbox: other_inbox)
+        create(:conversation_assignment_history, account: account, conversation: other_conversation,
+                                                 assignee: agent, assigned_by: admin, source: :manual)
+
+        # sem filtro seriam 2; filtrando pela inbox original conta só 1
+        json = fetch_report(inbox_id: inbox.id)
+        agent_row = json['rows'].find { |r| r['id'] == agent.id }
+        expect(agent_row['received_total']).to eq(1)
       end
     end
   end

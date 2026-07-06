@@ -21,12 +21,20 @@ const { t } = useI18n();
 const from = ref(0);
 const to = ref(0);
 const businessHours = ref(false);
+const teamId = ref('');
+const inboxId = ref('');
 
 const uiFlags = useMapGetter('summaryReports/getUIFlags');
 const isLoading = computed(
   () => uiFlags.value.isFetchingAgentAssignmentReports ?? false
 );
 const reportData = useMapGetter('summaryReports/getAgentAssignmentReports');
+const teams = useMapGetter('teams/getTeams');
+const inboxes = useMapGetter('inboxes/getInboxes');
+
+// A resposta agora é { rows, matrix }.
+const rows = computed(() => reportData.value?.rows || []);
+const matrixData = computed(() => reportData.value?.matrix || []);
 
 const columnHelper = createColumnHelper();
 
@@ -99,7 +107,7 @@ const columns = computed(() => [
 ]);
 
 const tableData = computed(() =>
-  (reportData.value || []).map(row => ({
+  rows.value.map(row => ({
     id: row.id,
     name: row.name || '—',
     receivedTotal: row.receivedTotal ?? 0,
@@ -112,15 +120,14 @@ const tableData = computed(() =>
 
 // Só mostra a tabela quando há atividade real (senão vira uma grade de zeros).
 const hasData = computed(() =>
-  (reportData.value || []).some(
+  rows.value.some(
     row => (row.receivedTotal ?? 0) > 0 || (row.assignedToOthers ?? 0) > 0
   )
 );
 
 // Resumo em linguagem simples (totais do time + composição em % + quem mais recebeu).
 const summary = computed(() => {
-  const rows = reportData.value || [];
-  const acc = rows.reduce(
+  const acc = rows.value.reduce(
     (a, r) => ({
       total: a.total + (r.receivedTotal ?? 0),
       manual: a.manual + (r.receivedManual ?? 0),
@@ -129,10 +136,10 @@ const summary = computed(() => {
     }),
     { total: 0, manual: 0, auto: 0, self: 0 }
   );
-  const agents = rows.filter(
+  const agents = rows.value.filter(
     r => (r.receivedTotal ?? 0) > 0 || (r.assignedToOthers ?? 0) > 0
   ).length;
-  const top = [...rows]
+  const top = [...rows.value]
     .filter(r => (r.receivedTotal ?? 0) > 0)
     .sort((a, b) => (b.receivedTotal ?? 0) - (a.receivedTotal ?? 0))[0];
   const pct = n => (acc.total ? Math.round((n / acc.total) * 100) : 0);
@@ -145,6 +152,27 @@ const summary = computed(() => {
     pctSelf: pct(acc.self),
   };
 });
+
+// Matriz "quem atribuiu pra quem": deriva os eixos (autores × destinos) e um
+// mapa de células a partir dos pares vindos do backend.
+const matrixAxes = computed(() => {
+  const authors = new Map();
+  const dests = new Map();
+  const cells = {};
+  matrixData.value.forEach(p => {
+    authors.set(p.fromId, p.fromName);
+    dests.set(p.toId, p.toName);
+    cells[`${p.fromId}-${p.toId}`] = p.count;
+  });
+  return {
+    authors: [...authors].map(([id, name]) => ({ id, name })),
+    dests: [...dests].map(([id, name]) => ({ id, name })),
+    cells,
+  };
+});
+const hasMatrix = computed(() => matrixData.value.length > 0);
+const cellCount = (fromId, toId) =>
+  matrixAxes.value.cells[`${fromId}-${toId}`] || 0;
 
 const table = useVueTable({
   get data() {
@@ -160,32 +188,48 @@ const table = useVueTable({
 });
 
 const fetchReports = async () => {
-  const params = {
-    since: from.value,
-    until: to.value,
-    businessHours: businessHours.value,
-  };
   try {
-    await store.dispatch('summaryReports/fetchAgentAssignmentReports', params);
+    await store.dispatch('summaryReports/fetchAgentAssignmentReports', {
+      since: from.value,
+      until: to.value,
+      businessHours: businessHours.value,
+      teamId: teamId.value || undefined,
+      inboxId: inboxId.value || undefined,
+    });
   } catch {
     useAlert(t('REPORT.SUMMARY_FETCHING_FAILED'));
   }
 };
 
-const onFilterChange = ({
-  from: fromValue,
-  to: toValue,
-  businessHours: bh,
-}) => {
-  from.value = fromValue;
-  to.value = toValue;
+// Propaga todos os filtros pro pai (index) montar os filtros do PDF brandeado.
+const emitFilters = () => {
+  emit('filterChange', {
+    from: from.value,
+    to: to.value,
+    businessHours: businessHours.value,
+    teamId: teamId.value || undefined,
+    inboxId: inboxId.value || undefined,
+  });
+};
+
+const onFilterChange = ({ from: f, to: t2, businessHours: bh }) => {
+  from.value = f;
+  to.value = t2;
   businessHours.value = bh;
-  // Propaga pro pai (index) montar os filtros do PDF brandeado.
-  emit('filterChange', { from: fromValue, to: toValue, businessHours: bh });
+  emitFilters();
   fetchReports();
 };
 
-onMounted(() => fetchReports());
+// Time/inbox mudou → re-busca com o mesmo período.
+const onScopeChange = () => {
+  emitFilters();
+  fetchReports();
+};
+
+onMounted(() => {
+  store.dispatch('teams/get');
+  store.dispatch('inboxes/get');
+});
 </script>
 
 <template>
@@ -193,6 +237,40 @@ onMounted(() => fetchReports());
     :disabled="isLoading"
     @filter-change="onFilterChange"
   />
+
+  <!-- Filtros de recorte: time e inbox -->
+  <div class="flex flex-wrap items-center gap-4 -mt-2">
+    <label class="flex items-center gap-2 text-sm text-n-slate-11">
+      {{ $t('ASSIGNMENT_REPORTS.FILTER.TEAM') }}
+      <select
+        v-model="teamId"
+        class="reset-base h-9 mb-0 px-2 text-sm border rounded-lg outline-none cursor-pointer bg-n-alpha-1 border-transparent focus:border-n-brand text-n-slate-12"
+        @change="onScopeChange"
+      >
+        <option value="">
+          {{ $t('ASSIGNMENT_REPORTS.FILTER.ALL_TEAMS') }}
+        </option>
+        <option v-for="team in teams" :key="team.id" :value="team.id">
+          {{ team.name }}
+        </option>
+      </select>
+    </label>
+    <label class="flex items-center gap-2 text-sm text-n-slate-11">
+      {{ $t('ASSIGNMENT_REPORTS.FILTER.INBOX') }}
+      <select
+        v-model="inboxId"
+        class="reset-base h-9 mb-0 px-2 text-sm border rounded-lg outline-none cursor-pointer bg-n-alpha-1 border-transparent focus:border-n-brand text-n-slate-12"
+        @change="onScopeChange"
+      >
+        <option value="">
+          {{ $t('ASSIGNMENT_REPORTS.FILTER.ALL_INBOXES') }}
+        </option>
+        <option v-for="inbox in inboxes" :key="inbox.id" :value="inbox.id">
+          {{ inbox.name }}
+        </option>
+      </select>
+    </label>
+  </div>
 
   <!-- Resumo do período (TL;DR em linguagem simples) -->
   <div
@@ -264,6 +342,60 @@ onMounted(() => fetchReports());
         <Spinner :size="32" class="text-n-brand" />
       </div>
     </Transition>
+  </div>
+
+  <!-- Matriz: quem atribuiu pra quem -->
+  <div
+    v-if="hasMatrix"
+    class="p-4 mt-4 outline-1 outline outline-n-container rounded-xl bg-n-solid-2"
+  >
+    <p class="text-xs font-medium tracking-wider uppercase text-n-slate-10">
+      {{ $t('ASSIGNMENT_REPORTS.MATRIX.TITLE') }}
+    </p>
+    <p class="mt-1 mb-3 text-xs text-n-slate-10">
+      {{ $t('ASSIGNMENT_REPORTS.MATRIX.HINT') }}
+    </p>
+    <div class="overflow-auto">
+      <table class="text-sm border-collapse">
+        <thead>
+          <tr>
+            <th
+              class="sticky left-0 px-3 py-2 text-xs font-semibold text-left border-b border-n-weak text-n-slate-10 bg-n-solid-2"
+            >
+              {{ $t('ASSIGNMENT_REPORTS.MATRIX.FROM_TO') }}
+            </th>
+            <th
+              v-for="d in matrixAxes.dests"
+              :key="d.id"
+              class="px-3 py-2 text-xs font-medium capitalize border-b border-n-weak text-n-slate-11 whitespace-nowrap"
+            >
+              {{ d.name }}
+            </th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr v-for="a in matrixAxes.authors" :key="a.id">
+            <th
+              class="sticky left-0 px-3 py-2 text-xs font-medium text-left capitalize border-b border-n-weak text-n-slate-12 bg-n-solid-2 whitespace-nowrap"
+            >
+              {{ a.name }}
+            </th>
+            <td
+              v-for="d in matrixAxes.dests"
+              :key="d.id"
+              class="px-3 py-2 text-center border-b border-n-weak tabular-nums"
+              :class="
+                cellCount(a.id, d.id)
+                  ? 'text-n-slate-12 font-medium'
+                  : 'text-n-slate-9'
+              "
+            >
+              {{ cellCount(a.id, d.id) || '·' }}
+            </td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
   </div>
 
   <!-- Legenda: o que significa cada coluna -->

@@ -249,6 +249,17 @@
     "HEADER": "Atribuições",
     "DESCRIPTION": "Veja como as atribuições de conversas se distribuem por agente — quantas cada pessoa recebeu (manualmente, por rodízio ou auto-atribuídas) e quantas ela atribuiu para outros.",
     "DOWNLOAD": "Baixar relatório de atribuições",
+    "FILTER": {
+      "TEAM": "Time:",
+      "INBOX": "Caixa:",
+      "ALL_TEAMS": "Todos os times",
+      "ALL_INBOXES": "Todas as caixas"
+    },
+    "MATRIX": {
+      "TITLE": "Quem atribuiu pra quem",
+      "HINT": "Linhas = quem atribuiu · Colunas = quem recebeu · valores = atribuições manuais no período.",
+      "FROM_TO": "De \\ Para"
+    },
     "TABLE": {
       "AGENT": "Agente",
       "GROUP_RECEIVED": "Recebidas",

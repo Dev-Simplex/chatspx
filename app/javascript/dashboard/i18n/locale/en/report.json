@@ -249,6 +249,17 @@
     "HEADER": "Assignments",
     "DESCRIPTION": "See how conversation assignments are distributed per agent — how many each person received (manually, via round-robin, or self-assigned) and how many they assigned to others.",
     "DOWNLOAD": "Download assignment report",
+    "FILTER": {
+      "TEAM": "Team:",
+      "INBOX": "Inbox:",
+      "ALL_TEAMS": "All teams",
+      "ALL_INBOXES": "All inboxes"
+    },
+    "MATRIX": {
+      "TITLE": "Who assigned to whom",
+      "HINT": "Rows = who assigned · Columns = who received · values = manual assignments in the period.",
+      "FROM_TO": "From \\ To"
+    },
     "TABLE": {
       "AGENT": "Agent",
       "GROUP_RECEIVED": "Received",

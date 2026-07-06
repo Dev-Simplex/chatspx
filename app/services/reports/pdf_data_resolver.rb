@@ -753,7 +753,8 @@ class Reports::PdfDataResolver # rubocop:disable Metrics/ClassLength
   end
 
   def assignment_params
-    { since: @filters[:since], until: @filters[:until] }
+    { since: @filters[:since], until: @filters[:until],
+      team_id: @filters[:team_id], inbox_id: @filters[:inbox_id] }
   end
 
   def assignment_totals(rows)
