@@ -292,7 +292,8 @@ class Captain::Conversation::ResponseBuilderJob < ApplicationJob
   def sanitize_for_whatsapp(content)
     return content if content.blank?
 
-    content.gsub(/\[\s*fotos?[^\]]*enviad[ao]s?\s*\]/i, '') # placeholder de foto do histórico que o LLM às vezes ecoa -> remove
+    content.gsub(/\[\s*(ignorar|sem[\s_-]?resposta|no[\s_-]?reply)\s*\]/i, '') # sentinela de silêncio que o LLM às vezes anexa a uma resposta real -> nunca enviar literal
+           .gsub(/\[\s*fotos?[^\]]*enviad[ao]s?\s*\]/i, '') # placeholder de foto do histórico que o LLM às vezes ecoa -> remove
            .gsub(/\*\*(.*?)\*\*/m, '\1')   # **negrito** -> negrito
            .gsub(/__(.*?)__/m, '\1')        # __negrito__ -> negrito
            .gsub(/^\s{0,3}#+\s+/, '')        # ## títulos -> texto
@@ -309,6 +310,8 @@ class Captain::Conversation::ResponseBuilderJob < ApplicationJob
 
     sent = 0
     chunks.each do |chunk|
+      next if chunk.blank? # bolha vazia (ex: sobra de sentinela [IGNORAR] removido) -> não envia
+
       # "digitando..." em rajada curta antes de CADA mensagem (proporcional ao
       # tamanho do texto), com pausa entre elas — em vez de typing continuo desde a
       # chegada. Tambem espaca o envio, impedindo as mensagens de chegarem fora de ordem.
