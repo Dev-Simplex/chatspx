@@ -1,5 +1,15 @@
 {
   "AUTOMATION": {
+    "CANVAS": {
+      "NEW_FLOW": "New flow",
+      "NAME_PLACEHOLDER": "Flow name",
+      "PALETTE": "Blocks",
+      "SAVE": "Save",
+      "SAVED": "Flow saved",
+      "CREATED": "Flow created",
+      "SAVE_ERROR": "Could not save the flow",
+      "EMPTY": "Pick a block from the palette to start"
+    },
     "HEADER": "Automation",
     "DESCRIPTION": "Automation can replace and streamline existing processes that require manual effort, such as adding labels and assigning conversations to the most suitable agent. This allows the team to focus on their strengths while reducing time spent on routine tasks.",
     "LEARN_MORE": "Learn more about automation",

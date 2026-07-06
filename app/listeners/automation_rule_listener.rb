@@ -21,17 +21,9 @@ class AutomationRuleListener < BaseListener
     return if ignore_message_created_event?(event)
 
     account = message.try(:account)
-    changed_attributes = event.data[:changed_attributes]
+    payload = { message: message, changed_attributes: event.data[:changed_attributes] }
 
-    return unless rule_present?('message_created', account)
-
-    rules = current_account_rules('message_created', account)
-
-    rules.each do |rule|
-      conditions_match = ::AutomationRules::ConditionsFilterService.new(rule, message.conversation,
-                                                                        { message: message, changed_attributes: changed_attributes }).perform
-      ::AutomationRules::ActionService.new(rule, account, message.conversation).perform if conditions_match.present?
-    end
+    run_engine('message_created', account, message.conversation, payload)
   end
 
   private
@@ -44,22 +36,49 @@ class AutomationRuleListener < BaseListener
 
     conversation = event.data[:conversation]
     account = conversation.account
-    changed_attributes = event.data[:changed_attributes]
+    payload = { changed_attributes: event.data[:changed_attributes] }
 
-    return unless rule_present?(event_name, account)
+    run_engine(event_name, account, conversation, payload)
+  end
 
-    rules = current_account_rules(event_name, account)
+  # Motor unificado, gated por conta: com a flag `flows` ligada, a conta roda os Flows (que
+  # o backfill criou espelhando as regras antigas); sem ela, roda as AutomationRules como
+  # sempre. Mutuamente exclusivo por conta — é a mitigação de R-1 (dupla-execução) durante a
+  # coexistência, sem tocar dados e reversível (desligar a flag volta ao motor antigo).
+  def run_engine(event_name, account, conversation, payload)
+    return if account.blank?
 
-    rules.each do |rule|
-      conditions_match = ::AutomationRules::ConditionsFilterService.new(rule, conversation, { changed_attributes: changed_attributes }).perform
-      AutomationRules::ActionService.new(rule, account, conversation).perform if conditions_match.present?
+    if flows_engine_active?(account)
+      run_flows(event_name, account, conversation, payload)
+    else
+      run_rules(event_name, account, conversation, payload)
     end
   end
 
-  def rule_present?(event_name, account)
-    return if account.blank?
+  # O motor Flow só assume quando a flag está ligada E a conta já tem flows (o backfill
+  # rodou). Sem o segundo gate, ligar a flag antes do backfill silenciaria TODAS as
+  # automations da conta (run_flows iteraria vazio e as AutomationRules nunca rodariam).
+  def flows_engine_active?(account)
+    return false unless account.flows_engine_enabled?
 
-    current_account_rules(event_name, account).any?
+    Rails.cache.fetch("flows_present:#{account.id}", expires_in: 2.minutes) do
+      account.flows.active.exists?
+    end
+  end
+
+  def run_rules(event_name, account, conversation, payload)
+    current_account_rules(event_name, account).each do |rule|
+      conditions_match = ::AutomationRules::ConditionsFilterService.new(rule, conversation, payload).perform
+      ::AutomationRules::ActionService.new(rule, account, conversation).perform if conditions_match.present?
+    end
+  end
+
+  def run_flows(event_name, account, conversation, payload)
+    current_account_flows(event_name, account).each do |flow|
+      gate = ::Flows::RuleAdapter.new(conditions: flow.trigger_config['conditions'], flow: flow)
+      conditions_match = ::AutomationRules::ConditionsFilterService.new(gate, conversation, payload).perform
+      ::Flows::RunnerService.new(flow: flow, conversation: conversation, trigger_payload: payload).perform if conditions_match.present?
+    end
   end
 
   def current_account_rules(event_name, account)
@@ -70,8 +89,19 @@ class AutomationRuleListener < BaseListener
     AutomationRule.where(id: rule_ids)
   end
 
+  def current_account_flows(event_name, account)
+    cache_key = "flows:#{account.id}:#{event_name}"
+    flow_ids = Rails.cache.fetch(cache_key, expires_in: 2.minutes) do
+      account.flows.active.conversation_event.where("trigger_config->>'event_name' = ?", event_name).pluck(:id)
+    end
+    Flow.where(id: flow_ids)
+  end
+
+  # Reconhece tanto AutomationRule (motor antigo) quanto Flow (motor novo) como "sistema",
+  # para não re-disparar sobre eventos que o próprio motor gerou.
   def performed_by_automation?(event)
-    event.data[:performed_by].present? && event.data[:performed_by].instance_of?(AutomationRule)
+    performer = event.data[:performed_by]
+    performer.present? && (performer.instance_of?(AutomationRule) || performer.instance_of?(Flow))
   end
 
   def ignore_auto_reply_event?(event)
@@ -79,9 +109,13 @@ class AutomationRuleListener < BaseListener
     conversation.additional_attributes['auto_reply'].present?
   end
 
+  # Anti-loop de mensagem: ignora mensagens que o próprio motor criou. Checa a chave legada
+  # `automation_rule_id` E a nova `flow_id` (generalização — Flows::ActionService marca as
+  # mensagens com flow_id, action_service.rb).
   def ignore_message_created_event?(event)
     message = event.data[:message]
     performed_by_automation?(event) || message.activity? || message.auto_reply_email? ||
-      message.content_attributes&.dig('automation_rule_id').present?
+      message.content_attributes&.dig('automation_rule_id').present? ||
+      message.content_attributes&.dig('flow_id').present?
   end
 end

@@ -6,6 +6,7 @@ import BaseSettingsHeader from '../components/BaseSettingsHeader.vue';
 import SettingsLayout from '../SettingsLayout.vue';
 import { computed, onMounted, ref } from 'vue';
 import { useI18n } from 'vue-i18n';
+import { useRouter } from 'vue-router';
 import { useStoreGetters, useStore } from 'dashboard/composables/store';
 import { picoSearch } from '@scmmishra/pico-search';
 import AutomationRuleRow from './AutomationRuleRow.vue';
@@ -14,6 +15,7 @@ import { BaseTable } from 'dashboard/components-next/table';
 
 const getters = useStoreGetters();
 const store = useStore();
+const router = useRouter();
 const { t } = useI18n();
 const confirmDialog = ref(null);
 
@@ -64,6 +66,13 @@ onMounted(() => {
     store.dispatch('sla/get');
   }
 });
+
+const openCanvas = () => {
+  router.push({
+    name: 'automation_canvas_new',
+    params: { accountId: accountId.value },
+  });
+};
 
 const openAddPopup = () => {
   addDialogRef.value?.open();
@@ -203,6 +212,14 @@ const tableHeaders = computed(() => {
           </span>
         </template>
         <template #actions>
+          <Button
+            :label="$t('AUTOMATION.CANVAS.NEW_FLOW')"
+            size="sm"
+            variant="secondary"
+            icon="i-lucide-workflow"
+            data-testid="open-canvas"
+            @click="openCanvas"
+          />
           <Button
             :label="$t('AUTOMATION.HEADER_BTN_TXT')"
             size="sm"

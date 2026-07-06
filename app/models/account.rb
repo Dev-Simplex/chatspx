@@ -112,6 +112,7 @@ class Account < ApplicationRecord # rubocop:disable Metrics/ClassLength
   has_many :assignment_policies, dependent: :destroy_async
   has_many :automation_rules, dependent: :destroy_async
   has_many :macros, dependent: :destroy_async
+  has_many :flows, dependent: :destroy_async
   has_many :campaigns, dependent: :destroy_async
   has_many :canned_responses, dependent: :destroy_async
   has_many :categories, dependent: :destroy_async, class_name: '::Category'
@@ -177,6 +178,14 @@ class Account < ApplicationRecord # rubocop:disable Metrics/ClassLength
 
   def reply_assignment_gate_enabled?
     ActiveModel::Type::Boolean.new.cast(reply_assignment_gate) || false
+  end
+
+  # Gate do motor Flow (F1). NÃO usa o bitmask de features (`feature_flags` já está no
+  # limite do bigint no ChatSPX — 66 features). Guardado em internal_attributes, ligado
+  # pelo admin/cutover após validar o backfill. Mutuamente exclusivo com o motor
+  # AutomationRule (ver AutomationRuleListener#run_engine).
+  def flows_engine_enabled?
+    ActiveModel::Type::Boolean.new.cast(internal_attributes['flows_engine_enabled']) || false
   end
 
   def all_conversation_tags

@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[7.1].define(version: 2026_07_03_170000) do
+ActiveRecord::Schema[7.1].define(version: 2026_07_06_120000) do
   # These extensions should be enabled to support this database
   enable_extension "pg_stat_statements"
   enable_extension "pg_trgm"
@@ -1005,6 +1005,26 @@ ActiveRecord::Schema[7.1].define(version: 2026_07_03_170000) do
     t.datetime "created_at", precision: nil, null: false
     t.datetime "updated_at", precision: nil, null: false
     t.index ["name", "account_id"], name: "index_email_templates_on_name_and_account_id", unique: true
+  end
+
+  create_table "flows", force: :cascade do |t|
+    t.bigint "account_id", null: false
+    t.string "name", null: false
+    t.text "description"
+    t.integer "trigger_type", default: 0, null: false
+    t.jsonb "trigger_config", default: {}, null: false
+    t.jsonb "definition", default: {"edges" => [], "nodes" => []}, null: false
+    t.boolean "active", default: true, null: false
+    t.integer "version", default: 1, null: false
+    t.integer "visibility", default: 1, null: false
+    t.integer "reentry_policy", default: 0, null: false
+    t.jsonb "goal_conditions", default: {}, null: false
+    t.bigint "created_by_id"
+    t.bigint "updated_by_id"
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["account_id", "trigger_type", "active"], name: "index_flows_on_account_id_and_trigger_type_and_active"
+    t.index ["account_id"], name: "index_flows_on_account_id"
   end
 
   create_table "folders", force: :cascade do |t|

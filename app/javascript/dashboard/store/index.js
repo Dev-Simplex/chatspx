@@ -10,6 +10,7 @@ import attributes from './modules/attributes';
 import auditlogs from './modules/auditlogs';
 import auth from './modules/auth';
 import automations from './modules/automations';
+import flows from './modules/flows';
 import bulkActions from './modules/bulkActions';
 import campaigns from './modules/campaigns';
 import cannedResponse from './modules/cannedResponse';
@@ -68,6 +69,7 @@ const plugins = [];
 
 export default createStore({
   modules: {
+    flows,
     accounts,
     agentBots,
     agentCapacityPolicies,
