@@ -8,12 +8,19 @@ const props = defineProps({
   conversations: { type: Array, default: () => [] },
   activeId: { type: [Number, String], default: null },
   agents: { type: Array, default: () => [] },
+  teams: { type: Array, default: () => [] },
   isAdmin: { type: Boolean, default: false },
   auditMode: { type: Boolean, default: false },
   loading: { type: Boolean, default: false },
 });
 
-const emit = defineEmits(['select', 'createDm', 'createGroup', 'toggleAudit']);
+const emit = defineEmits([
+  'select',
+  'createDm',
+  'createGroup',
+  'createTeam',
+  'toggleAudit',
+]);
 
 const search = ref('');
 const activeFilter = ref('all');
@@ -80,6 +87,12 @@ const createGroup = () => {
   });
   closeCompose();
 };
+
+// Abre (ou cria, se admin) o grupo pronto de um time.
+const startTeam = team => {
+  closeCompose();
+  emit('createTeam', team);
+};
 </script>
 
 <template>
@@ -131,7 +144,7 @@ const createGroup = () => {
               <div class="flex items-center gap-1 p-1 border-b border-n-weak">
                 <button
                   type="button"
-                  class="flex-1 px-2 py-1.5 text-xs font-medium rounded-lg transition-colors"
+                  class="flex-1 px-1.5 py-1.5 text-[11px] font-medium leading-tight rounded-lg transition-colors"
                   :class="
                     composeMode === 'dm'
                       ? 'bg-n-alpha-2 text-n-brand'
@@ -139,11 +152,11 @@ const createGroup = () => {
                   "
                   @click="composeMode = 'dm'"
                 >
-                  Conversa direta
+                  Conversa
                 </button>
                 <button
                   type="button"
-                  class="flex-1 px-2 py-1.5 text-xs font-medium rounded-lg transition-colors"
+                  class="flex-1 px-1.5 py-1.5 text-[11px] font-medium leading-tight rounded-lg transition-colors"
                   :class="
                     composeMode === 'group'
                       ? 'bg-n-alpha-2 text-n-brand'
@@ -152,6 +165,19 @@ const createGroup = () => {
                   @click="composeMode = 'group'"
                 >
                   Novo grupo
+                </button>
+                <button
+                  v-if="teams.length"
+                  type="button"
+                  class="flex-1 px-1.5 py-1.5 text-[11px] font-medium leading-tight rounded-lg transition-colors"
+                  :class="
+                    composeMode === 'team'
+                      ? 'bg-n-alpha-2 text-n-brand'
+                      : 'text-n-slate-11 hover:bg-n-alpha-1'
+                  "
+                  @click="composeMode = 'team'"
+                >
+                  Grupos de time
                 </button>
               </div>
 
@@ -187,7 +213,7 @@ const createGroup = () => {
               </div>
 
               <!-- Group: name + members -->
-              <div v-else class="p-2">
+              <div v-else-if="composeMode === 'group'" class="p-2">
                 <input
                   v-model="groupName"
                   type="text"
@@ -222,6 +248,29 @@ const createGroup = () => {
                   @click="createGroup"
                 >
                   Criar grupo
+                </button>
+              </div>
+
+              <!-- Grupos de time: um clique abre o grupo pronto do time -->
+              <div v-else class="py-1 overflow-y-auto max-h-72">
+                <p class="px-3 pt-2 pb-1 text-[11px] text-n-slate-10">
+                  Grupos que espelham suas equipes (membros = time).
+                </p>
+                <button
+                  v-for="team in teams"
+                  :key="team.id"
+                  type="button"
+                  class="flex items-center w-full gap-2.5 px-3 py-2 text-left hover:bg-n-alpha-1"
+                  @click="startTeam(team)"
+                >
+                  <span
+                    class="inline-flex items-center justify-center flex-shrink-0 rounded-full w-7 h-7 bg-n-alpha-2 text-n-slate-11"
+                  >
+                    <span class="text-sm i-lucide-users" />
+                  </span>
+                  <span class="text-sm capitalize text-n-slate-12">
+                    {{ team.name }}
+                  </span>
                 </button>
               </div>
             </div>

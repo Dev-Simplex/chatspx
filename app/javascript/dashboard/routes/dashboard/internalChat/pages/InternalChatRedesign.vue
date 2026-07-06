@@ -22,13 +22,24 @@ const agents = useMapGetter('internalChat/getAgents');
 const uiFlags = useMapGetter('internalChat/getUIFlags');
 const currentUserId = useMapGetter('getCurrentUserID');
 const currentRole = useMapGetter('getCurrentRole');
+const allTeams = useMapGetter('teams/getTeams');
+const myTeams = useMapGetter('teams/getMyTeams');
 
 const isAdmin = computed(() => currentRole.value === 'administrator');
+// Times que viram atalho de "grupo de time": admin vê todos; agente vê os seus.
+const teamList = computed(() =>
+  isAdmin.value ? allTeams.value : myTeams.value
+);
 // Auditoria (admin): a lista passa a mostrar TODOS os canais da conta.
 const auditMode = ref(false);
-const rawChannelList = computed(() =>
-  auditMode.value ? auditChannels.value : channels.value
-);
+// Canais abertos direto (ex.: grupo de time que um admin não-membro abriu pela
+// aba "Grupos de time") — não vêm na lista escopada do fetchChannels.
+const extraChannels = ref([]);
+const rawChannelList = computed(() => {
+  const base = auditMode.value ? auditChannels.value : channels.value;
+  const ids = new Set(base.map(c => c.id));
+  return [...extraChannels.value.filter(c => !ids.has(c.id)), ...base];
+});
 
 const activeId = ref(null);
 const mobileView = ref('list'); // 'list' | 'thread' (só no mobile)
@@ -87,8 +98,9 @@ const mapChannel = ch => {
       ...m,
       presence: presenceOf(m.id),
     })),
-    // Em auditoria, canais dos quais o admin não participa são somente-leitura.
-    readOnly: auditMode.value && !isMember,
+    // Somente-leitura quando o usuário não é membro do canal (auditoria admin
+    // ou grupo de time aberto por um admin que não está na equipe).
+    readOnly: !isMember,
   };
 };
 
@@ -97,7 +109,8 @@ const conversationList = computed(() => rawChannelList.value.map(mapChannel));
 const activeRaw = computed(
   () =>
     channels.value.find(c => c.id === activeId.value) ||
-    auditChannels.value.find(c => c.id === activeId.value)
+    auditChannels.value.find(c => c.id === activeId.value) ||
+    extraChannels.value.find(c => c.id === activeId.value)
 );
 const activeConversation = computed(() =>
   activeRaw.value ? mapChannel(activeRaw.value) : null
@@ -207,6 +220,31 @@ const onCreateGroup = async ({ name, memberIds }) => {
   if (channel?.id) onSelect(channel.id);
 };
 
+// Abre o "grupo de time" pronto: se já existe (membro), só abre; senão cria
+// (admin). Casa pelo título do canal (= nome do time) já que o grupo é auto-criado.
+const onCreateTeam = async team => {
+  const existing = [
+    ...channels.value,
+    ...auditChannels.value,
+    ...extraChannels.value,
+  ].find(c => c.channel_type === 'team' && c.title === team.name);
+  if (existing) {
+    onSelect(existing.id);
+    return;
+  }
+  const channel = await store.dispatch(
+    'internalChat/createTeamChannel',
+    team.id
+  );
+  if (channel?.id) {
+    // guarda o canal aberto (o fetchChannels pode não trazê-lo se não sou membro)
+    if (!extraChannels.value.some(c => c.id === channel.id)) {
+      extraChannels.value = [...extraChannels.value, channel];
+    }
+    onSelect(channel.id);
+  }
+};
+
 const onFavorite = () => {
   const id = activeId.value;
   if (id == null) return;
@@ -256,6 +294,7 @@ onMounted(() => {
   store.dispatch('internalChat/fetchChannels');
   store.dispatch('internalChat/fetchAgents');
   store.dispatch('agents/get');
+  store.dispatch('teams/get');
   emitter.on(BUS_EVENTS.WEBSOCKET_RECONNECT, resync);
 });
 onBeforeUnmount(() => {
@@ -276,12 +315,14 @@ onBeforeUnmount(() => {
         :conversations="conversationList"
         :active-id="activeId"
         :agents="agents"
+        :teams="teamList"
         :is-admin="isAdmin"
         :audit-mode="auditMode"
         :loading="uiFlags.isFetchingChannels"
         @select="onSelect"
         @create-dm="onCreateDm"
         @create-group="onCreateGroup"
+        @create-team="onCreateTeam"
         @toggle-audit="toggleAudit"
       />
     </div>
