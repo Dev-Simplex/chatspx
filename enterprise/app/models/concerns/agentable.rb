@@ -58,12 +58,93 @@ module Concerns::Agentable
     now = Time.current.in_time_zone(tz)
     dias = %w[domingo segunda-feira terça-feira quarta-feira quinta-feira sexta-feira sábado]
     inside = Captain::Behavior::BusinessHoursChecker.new(assistant: asst).status == :inside
+    status =
+      if inside
+        'dentro do horário comercial, com atendentes disponíveis agora'
+      else
+        reopen = next_business_opening(bh, now)
+        if reopen.nil?
+          'fora do horário comercial no momento'
+        elsif reopen.to_date == now.to_date
+          "em pausa no momento (fora do horário), mas os atendentes voltam HOJE às #{reopen.strftime('%H:%M')} — o retorno é hoje à tarde, não amanhã"
+        elsif reopen.to_date == now.to_date + 1
+          "fechado no momento; os atendentes voltam amanhã (#{dias[reopen.wday]}) às #{reopen.strftime('%H:%M')}"
+        else
+          "fechado no momento; os atendentes voltam #{dias[reopen.wday]} às #{reopen.strftime('%H:%M')}"
+        end
+      end
     {
       current_datetime: "#{dias[now.wday]}, #{now.strftime('%d/%m/%Y às %H:%M')}",
-      business_status: inside ? 'dentro do horário comercial, com atendentes disponíveis agora' : 'fora do horário comercial no momento'
+      business_status: status,
+      business_hours_text: business_hours_text(bh)
     }
   rescue StandardError
     {}
+  end
+
+  # Horário de funcionamento em texto, montado a partir da agenda do config da
+  # conta (business_hours). Agrupa dias com a mesma faixa ("segunda a sexta, das
+  # 7h30 às 11h30 e das 13h30 às 17h30; sábado, das 9h às 11h30"). Assim cada
+  # cliente/assistente injeta o SEU horário do banco — sem hardcode no prompt.
+  def business_hours_text(bh)
+    return nil unless bh['enabled']
+
+    sched = bh['schedule'] || []
+    return nil if sched.blank?
+
+    dias = %w[domingo segunda terça quarta quinta sexta sábado]
+    ordem = [1, 2, 3, 4, 5, 6, 0]
+    sig = ordem.index_with do |d|
+      entry = sched.find { |e| e['day'] == d }
+      Array(entry && entry['ranges']).filter_map do |r|
+        next if r['start'].blank? || r['end'].blank?
+
+        "das #{format_hora(r['start'])} às #{format_hora(r['end'])}"
+      end
+    end
+    partes = []
+    i = 0
+    while i < ordem.size
+      d = ordem[i]
+      if sig[d].empty?
+        i += 1
+        next
+      end
+      j = i
+      j += 1 while j + 1 < ordem.size && sig[ordem[j + 1]] == sig[d]
+      faixa = sig[d].join(' e ')
+      partes << (i == j ? "#{dias[d]}, #{faixa}" : "#{dias[ordem[i]]} a #{dias[ordem[j]]}, #{faixa}")
+      i = j + 1
+    end
+    partes.presence && partes.join('; ')
+  end
+
+  def format_hora(hhmm)
+    h, m = hhmm.split(':').map(&:to_i)
+    m.zero? ? "#{h}h" : format('%<h>dh%<m>02d', h: h, m: m)
+  end
+
+  # Próximo horário de abertura a partir de agora (varre o dia de hoje e os
+  # próximos, respeitando a agenda). Serve pra distinguir pausa do almoço
+  # ("volta hoje à tarde") de fim de expediente ("volta amanhã").
+  def next_business_opening(bh, now)
+    schedule = bh['schedule'] || []
+    return nil if schedule.blank?
+
+    (0..7).each do |offset|
+      day = now + offset.days
+      entry = schedule.find { |d| d['day'] == day.wday }
+      next if entry.blank?
+
+      (entry['ranges'] || []).each do |range|
+        next if range['start'].blank?
+
+        hours, minutes = range['start'].split(':').map(&:to_i)
+        start_at = day.change(hour: hours, min: minutes, sec: 0)
+        return start_at if start_at > now
+      end
+    end
+    nil
   end
 
   # Chaves de contexto que MUDAM durante a conversa (data/hora com resolucao de
