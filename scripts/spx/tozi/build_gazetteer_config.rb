@@ -6,19 +6,20 @@
 # pro config['gazetteer'] + um relatorio de reconciliacao. O apply na conta 6 e passo
 # separado (ver rodape).
 #
-# Uso na VM (dentro do repo, branch com o gazetteer-sinop.json presente):
-#   bundle exec rails runner scripts/spx/tozi/build_gazetteer_config.rb
+# INVERSAO (v2): o ACERVO Vista e a espinha (regiao vem do centroide real, nunca do LLM);
+# a pesquisa e overlay de PERFIL onde casa. Match por nucleo do nome (casa "Residencial X"
+# com "X"). Free-text obvio ("av ...", "estrada ...", "chacara" solta) e descartado.
 #
-# ENV opcionais:
-#   GAZ_JSON  -> caminho do gazetteer-sinop.json (default: docs/clientes/tozi/…)
-#   OUT_DIR   -> onde escrever as saidas (default: /tmp)
-#   TOZI_VISTA_BASE_URL / TOZI_VISTA_API_KEY -> ja no ENV de producao
+# Uso na VM (dentro do repo ou com os arquivos em /tmp):
+#   GAZ_JSON=/tmp/gazetteer-sinop.json OUT_DIR=/tmp \
+#     bundle exec rails runner /tmp/build_gazetteer_config.rb
 #
 # Saidas: <OUT_DIR>/config-gazetteer-conta6.json  +  <OUT_DIR>/geocoding-reconciliacao.md
 
 require 'json'
 require 'httparty'
 require 'fileutils'
+require 'set'
 
 GAZ_PATH   = ENV.fetch('GAZ_JSON', Rails.root.join('docs/clientes/tozi/gazetteer-sinop.json').to_s)
 OUT_DIR    = ENV.fetch('OUT_DIR', '/tmp')
@@ -29,16 +30,34 @@ VISTA_KEY  = ENV['TOZI_VISTA_API_KEY'].to_s
 CITY_LAT = -11.8519937
 CITY_LNG = -55.5093314
 CENTRAL_RAIO = 0.015 # ~1,6 km em lat; usado pra classificar o miolo
+# bbox generoso de Sinop: derruba imovel com coord-lixo cadastrada fora da cidade
+# (ex: 5 imoveis com placeholder -13.90,-50.71 em Goias arrastavam a media do bairro).
+LAT_MIN = -12.05; LAT_MAX = -11.65
+LNG_MIN = -55.75; LNG_MAX = -55.35
 
 abort '[abort] TOZI_VISTA_API_KEY ausente no ENV' if VISTA_KEY.empty?
 abort "[abort] gazetteer nao encontrado em #{GAZ_PATH}" unless File.exist?(GAZ_PATH)
 FileUtils.mkdir_p(OUT_DIR)
 
+META_KEYS = %w[total paginas pagina quantidade].freeze
+# Palavras-tipo removidas pra achar o "nucleo" do nome (casa Residencial X <-> X).
+# 'chacara' fica de fora de proposito (evita casar chacara-qualquer com bairro homonimo).
+TIPO_WORDS = %w[residencial jardim condominio loteamento edificio setor bairro vila parque alameda comunidade].freeze
+NAO_BAIRRO = /\A(av|avenida|estrada|rodovia|perimetral|de chacaras|chacaras?)\b/.freeze
+
 def norm(str)
   str.to_s.unicode_normalize(:nfd).gsub(/\p{Mn}/, '').downcase.gsub(/\s+/, ' ').strip
 end
 
-META_KEYS = %w[total paginas pagina quantidade].freeze
+def core(str)
+  parts = norm(str).split(' ')
+  parts.shift if parts.size > 1 && TIPO_WORDS.include?(parts.first)
+  parts.join(' ')
+end
+
+def nao_bairro?(nome)
+  norm(nome).match?(NAO_BAIRRO)
+end
 
 # 1) Puxa TODO o acervo de Sinop, paginando.
 def fetch_all_imoveis
@@ -84,15 +103,25 @@ def aggregate(imoveis)
     b[:locacao] += 1 if st.include?('alug')
     lat = im['Latitude'].to_f
     lng = im['Longitude'].to_f
-    b[:coords] << [lat, lng] unless lat.zero? && lng.zero?
+    next if lat.zero? && lng.zero?
+
+    # so coord dentro do bbox de Sinop entra no centroide (coord-lixo fora = ignorada)
+    b[:coords] << [lat, lng] if lat.between?(LAT_MIN, LAT_MAX) && lng.between?(LNG_MIN, LNG_MAX)
   end
   by
 end
 
+# Mediana por eixo — robusta a outlier (uma coord ruim nao arrasta o ponto, ao contrario da media).
 def centroid(coords)
   return nil if coords.empty?
 
-  [(coords.sum { |c| c[0] } / coords.size).round(6), (coords.sum { |c| c[1] } / coords.size).round(6)]
+  [mediana(coords.map { |c| c[0] }).round(6), mediana(coords.map { |c| c[1] }).round(6)]
+end
+
+def mediana(vals)
+  s = vals.sort
+  n = s.size
+  n.odd? ? s[n / 2] : (s[n / 2 - 1] + s[n / 2]) / 2.0
 end
 
 # Regiao data-driven a partir do centroide relativo a ancora central.
@@ -121,25 +150,50 @@ puts '[2/4] Agregando por bairro + centroide...'
 agg = aggregate(imoveis)
 puts "      #{agg.size} bairros distintos no acervo."
 
-puts '[3/4] Conciliando com o gazetteer de pesquisa...'
+puts '[3/4] Conciliando com o gazetteer (match exato -> nucleo)...'
 gaz = JSON.parse(File.read(GAZ_PATH))
 gaz_bairros = gaz['bairros'] || []
 gaz_index = {}
-gaz_bairros.each { |b| gaz_index[norm(b['nome'])] = b }
+gaz_core = {}
+gaz_bairros.each do |b|
+  gaz_index[norm(b['nome'])] = b
+  gaz_core[core(b['nome'])] ||= b
+end
+
+def match_gaz(nome, gaz_index, gaz_core)
+  g = gaz_index[norm(nome)]
+  return [g, 'exato'] if g
+
+  c = core(nome)
+  return [nil, 'nenhum'] if c.length < 4
+
+  g = gaz_core[c]
+  g ? [g, 'nucleo'] : [nil, 'nenhum']
+end
 
 records = []
+descartados = []
 conflitos = []
 long_tail_posicionado = []
 vista_sem_perfil = []
+metodo_count = Hash.new(0)
+matched_gaz = Set.new
 
-# a) bairros COM imovel (espinha comercial) — ganham centroide + contagem reais
+# a) bairros COM imovel (espinha) — regiao do centroide, perfil da pesquisa quando casa
 agg.each_value do |b|
+  if nao_bairro?(b[:nome])
+    descartados << { nome: b[:nome], n: b[:total] }
+    next
+  end
+
   cen = centroid(b[:coords])
   reg_data = cen ? regiao_por_centroide(*cen) : nil
-  g = gaz_index[norm(b[:nome])]
+  g, metodo = match_gaz(b[:nome], gaz_index, gaz_core)
+  metodo_count[metodo] += 1
+  matched_gaz << g.object_id if g
 
   rec = {
-    'nome' => (g && g['nome']) || b[:nome],
+    'nome' => b[:nome],
     'regiao' => reg_data || (g && g['regiao']),
     'perfil' => g && g['perfil'],
     'faixa' => g && g['faixa_valor'],
@@ -149,7 +203,7 @@ agg.each_value do |b|
     'centroide' => cen ? { 'lat' => cen[0], 'lng' => cen[1] } : nil,
     'imoveis' => { 'total' => b[:total], 'venda' => b[:venda], 'locacao' => b[:locacao] },
     'geo_amostra' => b[:coords].size,
-    'fonte' => g ? 'vista+gazetteer' : 'vista'
+    'fonte' => g ? "vista+#{metodo}" : 'vista'
   }
   records << rec
 
@@ -162,8 +216,8 @@ agg.each_value do |b|
   end
 end
 
-# b) bairros do gazetteer SEM imovel no Vista (conhecimento puro)
-sem_imovel = gaz_bairros.reject { |g| agg.key?(norm(g['nome'])) }
+# b) bairros do gazetteer que NAO casaram com nenhum do acervo (conhecimento puro)
+sem_imovel = gaz_bairros.reject { |g| matched_gaz.include?(g.object_id) }
 sem_imovel.each do |g|
   records << {
     'nome' => g['nome'],
@@ -199,30 +253,31 @@ cfg_path = File.join(OUT_DIR, 'config-gazetteer-conta6.json')
 File.write(cfg_path, JSON.pretty_generate(config))
 
 # ---- relatorio ----
+com_perfil = agg.size - descartados.size - vista_sem_perfil.size
 r = []
-r << '# Geocoding do gazetteer — reconciliacao Vista x pesquisa'
+r << '# Geocoding do gazetteer — reconciliacao Vista x pesquisa (v2, inversao)'
 r << ''
 r << "- Imoveis no acervo (Sinop): **#{imoveis.size}**"
-r << "- Bairros distintos no acervo: **#{agg.size}**"
-r << "- Bairros do acervo COM perfil no gazetteer: **#{agg.size - vista_sem_perfil.size}**"
-r << "- Bairros do acervo SEM perfil no gazetteer: **#{vista_sem_perfil.size}**"
+r << "- Bairros distintos no acervo: **#{agg.size}**  (descartados como nao-bairro: #{descartados.size})"
+r << "- Bairros do acervo COM perfil: **#{com_perfil}**  (exato: #{metodo_count['exato']} · nucleo: #{metodo_count['nucleo']})"
+r << "- Bairros do acervo SEM perfil: **#{vista_sem_perfil.size}**"
 r << "- Bairros so no gazetteer (sem imovel hoje): **#{sem_imovel.size}**"
-r << "- Conflitos de regiao (gazetteer x dados): **#{conflitos.size}**"
-r << "- Long-tail agora posicionado por centroide: **#{long_tail_posicionado.size}**"
-r << "- Total de registros no config: **#{records.size}**  |  pontos: **#{pontos.size}**"
+r << "- Conflitos de regiao (gazetteer x centroide): **#{conflitos.size}**  (na duvida, vale o centroide)"
+r << "- Long-tail posicionado por centroide: **#{long_tail_posicionado.size}**"
+r << "- Total no config: **#{records.size}** bairros · **#{pontos.size}** pontos"
 r << ''
-r << '## Conflitos de regiao (gazetteer disse X, centroide diz Y) — checar'
-r << '| Bairro | Gazetteer | Dados (centroide) | Imoveis |'
+r << '## Bairros do acervo SEM perfil (tem imovel — candidatos a enrich dirigido)'
+vista_sem_perfil.sort_by { |x| -x['imoveis']['total'] }.each do |x|
+  r << "- **#{x['nome']}** — regiao: #{x['regiao'] || '?'} · #{x['imoveis']['total']} imoveis"
+end
+r << ''
+r << '## Conflitos de regiao (gazetteer disse X, centroide diz Y — centroide manda)'
+r << '| Bairro | Gazetteer | Centroide | Imoveis |'
 r << '|---|---|---|---|'
 conflitos.sort_by { |c| -c[:n] }.each { |c| r << "| #{c[:nome]} | #{c[:gazetteer]} | #{c[:dados]} | #{c[:n]} |" }
 r << ''
-r << '## Bairros do acervo SEM perfil no gazetteer (tem imovel — precisam de perfil)'
-vista_sem_perfil.sort_by { |x| -x['imoveis']['total'] }.each do |x|
-  r << "- **#{x['nome']}** — regiao(dados): #{x['regiao'] || '?'} · #{x['imoveis']['total']} imoveis (#{x['geo_amostra']} c/ geo)"
-end
-r << ''
-r << '## Long-tail agora posicionado (tinha regiao fraca; centroide resolveu)'
-long_tail_posicionado.sort_by { |x| -x[:n] }.each { |x| r << "- #{x[:nome]} -> #{x[:regiao]} (#{x[:n]} imoveis)" }
+r << '## Descartados como nao-bairro (free-text no campo Bairro do Vista)'
+r << (descartados.empty? ? '(nenhum)' : descartados.sort_by { |x| -x[:n] }.map { |x| "#{x[:nome]} (#{x[:n]})" }.join(' · '))
 r << ''
 r << '## So no gazetteer (conhecimento, sem imovel hoje)'
 r << sem_imovel.map { |g| g['nome'] }.sort.join(' · ')
@@ -234,8 +289,8 @@ File.write(rep_path, r.join("\n"))
 puts ''
 puts "OK. config -> #{cfg_path}"
 puts "    report -> #{rep_path}"
-puts "Registros: #{records.size} bairros (#{agg.size} c/ imovel, #{sem_imovel.size} so-conhecimento), #{pontos.size} pontos."
-puts "Conflitos de regiao: #{conflitos.size} | Vista sem perfil: #{vista_sem_perfil.size}"
+puts "Registros: #{records.size} (#{com_perfil} c/ perfil, #{vista_sem_perfil.size} sem, #{sem_imovel.size} so-gaz, #{descartados.size} descartados)."
+puts "Match: exato #{metodo_count['exato']} · nucleo #{metodo_count['nucleo']} · nenhum #{metodo_count['nenhum']} | conflitos regiao #{conflitos.size}"
 
 # ============================================================================
 # APPLY (passo SEPARADO — so com OK do Paulo, na conta 6, dentro da cerimonia):

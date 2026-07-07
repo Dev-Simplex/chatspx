@@ -2568,6 +2568,749 @@
       "bairros_vizinhos": [],
       "confianca": "baixa",
       "observacoes": "Comunidade periferica/rural de Sinop, confirmada como bairro em guias locais mas com presenca web muito limitada. Regiao cardeal, avenidas e perfil de padrao nao confirmados; perfil residencial popular/comunidade."
+    },
+    {
+      "nome": "Parque Amazonas",
+      "regiao": "arque Amazon",
+      "perfil": "residencial",
+      "faixa_valor": "popular",
+      "avenidas_principais": [
+        "Avenida Leste Oeste"
+      ],
+      "pontos_referencia_proximos": [
+        "Subestação de energia elétrica (subestação da Energisa às margens do loteamento)",
+        "Programa Habitacional Nossa Casa da Prefeitura de Sinop (unidades no Parque Amazonas)",
+        "Residencial Parque Amazonas (dois condomínios de apartamentos, 128 unidades cada, faixa Minha Casa Minha Vida)"
+      ],
+      "bairros_vizinhos": [
+        "Jardim Bougainville",
+        "Loteamento Florais da Amazônia",
+        "Residencial Recanto dos Canários"
+      ],
+      "observacoes": "Loteamento/bairro residencial de perfil popular na zona de expansão de Sinop, com forte vocação para habitação social. É palco do Programa Habitacional Nossa Casa da Prefeitura e dos condomínios Residencial Parque Amazonas (2 torres/condomínios, 128 apês cada, apartamentos a partir de ~48 m² e valores desde R$220 mil dentro do Minha Casa Minha Vida, com subsídio de até R$20 mil do Governo de MT para renda familiar até R$8.600). No loteamento predominam lotes padronizados de 300 m² (10x30), prontos pra construir, com infraestrutura completa (asfalto, água, energia, drenagem, iluminação) — lotes comparáveis na vizinhança partem de ~R$100 mil. Público-alvo: primeira casa própria, jovens famílias e investidor de renda/aluguel de baixo ticket. Diferenciais são acesso e infraestrutura (não lazer/segurança de condomínio fechado). Acesso principal pela Avenida Leste Oeste, colado ao Jardim Bougainville e próximo à subestação de energia. Mercado ativo (centenas de imóveis anunciados). Não é condomínio fechado de alto padrão — sem clube/piscina/portaria de resort.",
+      "confianca": "alta",
+      "fonte": "enrich-condominios"
+    },
+    {
+      "nome": "Alameda Das Cores",
+      "regiao": "Norte/Oeste",
+      "perfil": "condominio fechado",
+      "faixa_valor": "alto padrao",
+      "avenidas_principais": [
+        "Avenida das Figueiras"
+      ],
+      "pontos_referencia_proximos": [
+        "Restaurante Kaua'i (área comum do condomínio)"
+      ],
+      "bairros_vizinhos": [
+        "Aquarela das Artes",
+        "Aquarela dos Poemas"
+      ],
+      "observacoes": "Condomínio fechado horizontal de alto padrão da JMD Urbanismo (mesma família do Hamoa/Aquarela). Acesso pelo bairro planejado Aquarela das Artes via Av. das Figueiras, vetor de forte valorização. Diferenciais: passeio central conectando os equipamentos de lazer, restaurante Kaua'i, estúdio de pilates, quadras, pet play; segurança com portaria dupla (2 portões), guarita espelhada com vidro blindado e biometria. Público alto padrão.",
+      "confianca": "alta",
+      "fonte": "enrich-condominios"
+    },
+    {
+      "nome": "Residencial Deville",
+      "regiao": "Oeste",
+      "perfil": "misto",
+      "faixa_valor": "medio-alto",
+      "avenidas_principais": [],
+      "pontos_referencia_proximos": [],
+      "bairros_vizinhos": [],
+      "observacoes": "Grande loteamento residencial consolidado no vetor oeste (400+ lotes em oferta). Mix de padrões: casas de R$750 mil a R$980 mil e lançamento de edifício de apartamentos (2 dorm., MCMV, a partir de ~R$430 mil). Oferta ampla e variada — faixa média a médio-alta conforme o produto.",
+      "confianca": "alta",
+      "fonte": "enrich-condominios"
+    },
+    {
+      "nome": "Residencial Santa Cecília",
+      "regiao": "Oeste",
+      "perfil": "residencial",
+      "faixa_valor": "medio-alto",
+      "avenidas_principais": [],
+      "pontos_referencia_proximos": [
+        "UNEMAT / UFMT (região universitária oeste)"
+      ],
+      "bairros_vizinhos": [
+        "Residencial Deville",
+        "Santorini Residence"
+      ],
+      "observacoes": "Loteamento residencial em região descrita como privilegiada e em rápido crescimento, próxima a universidades, comércio e serviços. Estoque inclui casas de alto padrão (suítes, piscina de LED, cozinha gourmet), com casas anunciadas de ~R$650 mil até ~R$1,75 mi — puxa a faixa para médio-alto. Público classe média-alta.",
+      "confianca": "media",
+      "fonte": "enrich-condominios"
+    },
+    {
+      "nome": "Santorini Residence",
+      "regiao": "Oeste",
+      "perfil": "condominio fechado",
+      "faixa_valor": "medio-alto",
+      "avenidas_principais": [
+        "Avenida Bruno Martini"
+      ],
+      "pontos_referencia_proximos": [],
+      "bairros_vizinhos": [],
+      "observacoes": "Condomínio fechado de sobrados (~172 unidades, ~138 m² construídos em terreno de 160 m²), pronto para morar, na Av. Bruno Martini. Lazer completo: piscina, mini parque aquático, quadras de tênis/poliesportiva/beach tênis, salão de festas, espaço gourmet, academia e portaria 24h com controle de acesso. Sobrados anunciados na faixa ~R$420 mil a ~R$895 mil. Público classe média-alta / família.",
+      "confianca": "alta",
+      "fonte": "enrich-condominios"
+    },
+    {
+      "nome": "Jardim Paraíso II",
+      "regiao": "Sinop/MT — bairro Jardim Paraíso (região próxima ao centro, eixo da Av. dos Ingás)",
+      "perfil": "residencial",
+      "faixa_valor": "medio-alto",
+      "avenidas_principais": [
+        "Avenida dos Ingás",
+        "Avenida André Antônio Maggi",
+        "Avenida das Itaúbas",
+        "Avenida dos Flamboyants",
+        "Avenida dos Tarumãs"
+      ],
+      "pontos_referencia_proximos": [
+        "Hospital Santo Antônio",
+        "UBS / Posto de Saúde Jardim Paraíso (Av. dos Ingás, 704)",
+        "Centro de Sinop (~5 min)",
+        "Mercados, farmácias, escolas e academias no entorno"
+      ],
+      "bairros_vizinhos": [
+        "Jardim Paraíso III (subdivisão contígua)",
+        "Jardim das Violetas",
+        "São Cristóvão",
+        "Jardim Imperial",
+        "Boa Esperança"
+      ],
+      "observacoes": "Loteamento/bairro ABERTO, predominantemente residencial (subdivisões Paraíso II e III) — NÃO é condomínio fechado; a segurança (cerca elétrica, portão eletrônico) e a área gourmet são atributos das casas individuais, não de infraestrutura condominial. Público: famílias de classe média/média-alta. Vocação residencial em desenvolvimento, apontado nos anúncios como região de valorização, a ~5 min do centro pelo eixo da Av. dos Ingás. Faixa de preço do bairro vai de médio (casas ~R$380k–650k, terrenos ~R$320k) a médio-alto (casas R$950k–1,5M, picos pontuais até R$2,6M); o Paraíso II especificamente concentra o padrão médio-alto (ex.: casa 250m² lote / 168m² construção, 2 suítes, área gourmet, ~R$950k, na própria listagem da Tozi Imóveis). ATENÇÃO: o valor de 'regiao' que deveria vir travado do centróide NÃO chegou no payload — a entrada foi recebida truncada/corrompida ('aíso II', 'r'); o campo regiao acima é determinação por pesquisa web (Av. dos Ingás / proximidade do centro), não o centróide original — reconfirmar com o dado de origem. Confiança alta quanto ao perfil e faixa (múltiplas fontes, incluindo a Tozi).",
+      "confianca": "alta",
+      "fonte": "enrich-condominios"
+    },
+    {
+      "nome": "Loris Residence Spa Resort",
+      "regiao": "Oeste",
+      "perfil": "condominio fechado",
+      "faixa_valor": "alto padrao",
+      "avenidas_principais": [],
+      "pontos_referencia_proximos": [],
+      "bairros_vizinhos": [],
+      "observacoes": "Condomínio fechado de altíssimo padrão da Incorpore (PR) em parceria com Jaime Rigon (local); lotes esgotaram em ~40 minutos, sucesso de vendas. Conceito resort/spa: cinema, boliche, spa, microcervejaria artesanal, academia/pilates, complexo esportivo, espaços gourmet, horta e pomar. Segurança com portaria principal + portão exclusivo de serviços. Projeto de Fernando Maragno (Habitat). Público alto padrão.",
+      "confianca": "alta",
+      "fonte": "enrich-condominios"
+    },
+    {
+      "nome": "Acqua by SPL",
+      "regiao": "Oeste",
+      "perfil": "condominio fechado",
+      "faixa_valor": "medio-alto",
+      "avenidas_principais": [
+        "Avenida das Figueiras"
+      ],
+      "pontos_referencia_proximos": [
+        "futuro World Trade Center (WTC) Sinop"
+      ],
+      "bairros_vizinhos": [],
+      "observacoes": "Empreendimento vertical (apartamentos) gated da SPL Engenharia, estilo resort, com +40 itens de lazer (piscinas adulto/infantil, salão de festas, brinquedoteca, beach tênis, quadras, pet place, salas de reunião). Apês de 50 a 102 m², a partir de ~R$536 mil, entrega prevista 2026. Localizado na Av. das Figueiras, perto do futuro WTC. Padrão médio-alto.",
+      "confianca": "alta",
+      "fonte": "enrich-condominios"
+    },
+    {
+      "nome": "Ecoville Residence Club",
+      "regiao": "Leste",
+      "perfil": "condominio fechado",
+      "faixa_valor": "medio-alto",
+      "avenidas_principais": [],
+      "pontos_referencia_proximos": [
+        "Shopping Sinop / rodovias"
+      ],
+      "bairros_vizinhos": [],
+      "observacoes": "Condomínio fechado horizontal do Grupo Engerb: 328 lotes a partir de 360 m² (área total ~201 mil m²), infraestrutura completa (asfalto, iluminação, água/esgoto, drenagem). Clube privativo com piscinas adulto/infantil, quadra de areia, pista de caminhada, academia, playground e quiosque; segurança monitorada. Posicionado como região nobre próxima a shopping/comércio/rodovias. Lotes com matrícula individual e financiamento. Médio-alto.",
+      "confianca": "alta",
+      "fonte": "enrich-condominios"
+    },
+    {
+      "nome": "Residencial Flamboyants",
+      "regiao": "Sul",
+      "perfil": "condominio fechado",
+      "faixa_valor": "medio-alto",
+      "avenidas_principais": [
+        "Rodovia MT-140"
+      ],
+      "pontos_referencia_proximos": [
+        "Machado Super Center"
+      ],
+      "bairros_vizinhos": [],
+      "observacoes": "Condomínio fechado com segurança e áreas de lazer, na MT-140 (~4 km do Machado Super Center). Lotes de 576 a 648 m² (16x36 / 18x36) e casas de alto padrão (construções de ~238 m²). Público classe média-alta que busca segurança e lotes generosos. Existe imobiliária homônima (Imobiliária Flamboyants) atuando na área.",
+      "confianca": "alta",
+      "fonte": "enrich-condominios"
+    },
+    {
+      "nome": "Residencial Allegro",
+      "regiao": "Sul",
+      "perfil": "condominio fechado",
+      "faixa_valor": "medio-alto",
+      "avenidas_principais": [
+        "Avenida Joaquim Socreppa"
+      ],
+      "pontos_referencia_proximos": [],
+      "bairros_vizinhos": [
+        "Jardim Santa Mônica"
+      ],
+      "observacoes": "Condomínio vertical fechado de apartamentos na Av. Joaquim Socreppa, dentro do Jardim Santa Mônica. Unidades de 2 e 3 dormitórios (1 suíte), 63 a 71 m², varanda com churrasqueira, fachada com isolamento acústico. Lazer: piscina, academia, playground, quadra, salão de jogos e de festas. Apês na faixa ~R$550 mil a ~R$650 mil. Médio-alto.",
+      "confianca": "alta",
+      "fonte": "enrich-condominios"
+    },
+    {
+      "nome": "ARES ECO CLUB",
+      "regiao": "Oeste",
+      "perfil": "condominio fechado",
+      "faixa_valor": "medio-alto",
+      "avenidas_principais": [],
+      "pontos_referencia_proximos": [],
+      "bairros_vizinhos": [],
+      "observacoes": "Empreendimento vertical fechado da SPL Engenharia (linha 'Eco Club'), em obras. Apês de 2 e 3 dormitórios com jardim/churrasqueira privativos e +40 itens de lazer: piscinas adulto (aquecida/coberta) e infantil, academia, quadras, quadra de areia, brinquedoteca, área de bosque, espaço gourmet, salas de massagem/pilates, portaria 24h com monitoramento. Médio-alto, mesmo DNA do Acqua by SPL.",
+      "confianca": "alta",
+      "fonte": "enrich-condominios"
+    },
+    {
+      "nome": "Residencial Santa Catarina",
+      "regiao": "Sinop - MT",
+      "perfil": "residencial",
+      "faixa_valor": "medio",
+      "avenidas_principais": [
+        "Avenida São José do Cedro",
+        "Estrada Dalva"
+      ],
+      "pontos_referencia_proximos": [
+        "Escolas de bairro",
+        "Postos de combustível",
+        "Comércio de bairro (mecânicas e serviços)"
+      ],
+      "bairros_vizinhos": [],
+      "observacoes": "Fragmento 'ial Santa Ca' identificado como Residencial Santa Catarina — loteamento residencial já consolidado como bairro de Sinop, com forte presença web (ZAP, Viva Real, guiamapa, cadastros de CEP, imobiliárias locais Meta, Gadani, OLS, Tozi). Faixa de CEP 78558-180 a 78558-192; ~13 logradouros. Não é condomínio fechado: é loteamento aberto/bairro. Vocação claramente residencial de padrão médio, público de renda média/famílias — imóveis típicos são casas de 2-3 dormitórios (1 suíte), 70-88 m² construídos em terrenos ~300 m², asfalto e muro. Faixa de preço observada nas listagens: ~R$ 300 mil a R$ 550 mil, com concentração em torno de R$ 370-400 mil. Curiosidade útil ao corretor: o arruamento é todo tematizado com nomes de cidades catarinenses (Rua Itajaí, Itapema, Laguna, Imbituba, São Miguel do Oeste; Travessas Fraiburgo, Joaçaba, Lages, Mafra, Navegantes, Orleans) — coerente com a região de loteamentos de nomes sulistas em Sinop (ex.: Jardim Curitiba nas proximidades). ATENÇÃO: a 'regiao' literal não veio no input (só marcada como travada); usei 'Sinop - MT' como âncora — substituir pelo centroide travado do dado se disponível. Bairros vizinhos e pontos de referência específicos não foram confirmados por fonte direta (mapas/logradouros não detalham adjacências), por isso deixados genéricos/vazios; sem invenção.",
+      "confianca": "alta",
+      "fonte": "enrich-condominios"
+    },
+    {
+      "nome": "Jardim Paraíso III",
+      "regiao": "Sul",
+      "perfil": "residencial",
+      "faixa_valor": "medio-alto",
+      "avenidas_principais": [],
+      "pontos_referencia_proximos": [
+        "Setor Comercial / Centro de Sinop"
+      ],
+      "bairros_vizinhos": [
+        "Jardim Paraíso",
+        "Jardim Paraíso II"
+      ],
+      "observacoes": "Terceira etapa do Jardim Paraíso, mesma vocação residencial valorizada e próxima ao centro do bairro-mãe. Faixa médio-alto herdada; público classe média/média-alta. Perfil e faixa por analogia ao cluster Paraíso (I/II/III).",
+      "confianca": "media",
+      "fonte": "enrich-condominios"
+    },
+    {
+      "nome": "Jardim Curitiba II",
+      "regiao": "Sul",
+      "perfil": "residencial (loteamento)",
+      "faixa_valor": "medio",
+      "avenidas_principais": [],
+      "pontos_referencia_proximos": [
+        "Shopping Sinop",
+        "Futuro empreendimento Duottori (entre Curitiba e Itaubas)"
+      ],
+      "bairros_vizinhos": [
+        "Jardim das Itaúbas",
+        "jardim itaubas"
+      ],
+      "observacoes": "Fase do loteamento Jardim Curitiba, um dos maiores e mais procurados do sul: ruas largas, infraestrutura completa (asfalto, agua, esgoto, drenagem, iluminacao), forte comercio de bairro e proximidade ao shopping. Alto potencial de valorizacao; lancamento Duottori previsto entre Curitiba e Itaubas. Residencial, faixa media.",
+      "confianca": "alta",
+      "fonte": "enrich-condominios"
+    },
+    {
+      "nome": "Canarinho II",
+      "regiao": "Sul/Leste",
+      "perfil": "residencial",
+      "faixa_valor": "medio",
+      "avenidas_principais": [
+        "MT-140 (anel viário)",
+        "Avenida das Itaúbas"
+      ],
+      "pontos_referencia_proximos": [
+        "Futuro campus UNIFASIPE"
+      ],
+      "bairros_vizinhos": [
+        "Residencial Canarinho",
+        "Parkia Condomínio Clube",
+        "Tuim Residencial"
+      ],
+      "observacoes": "Residencial Canarinho 2 da Bussolaro Empreendimentos, loteamento planejado com lotes a partir de 240 m², junto ao futuro campus UNIFASIPE, no anel viário da MT-140 — uma das regiões que mais crescem em Sinop. Lotes residenciais e comerciais, infraestrutura com quadras, quadra de areia, academia ao ar livre, praça e áreas verdes. Perfil residencial em consolidação.",
+      "confianca": "alta",
+      "fonte": "enrich-condominios"
+    },
+    {
+      "nome": "Residencial Villa Verde",
+      "regiao": "Leste",
+      "perfil": "misto",
+      "faixa_valor": "medio",
+      "avenidas_principais": [],
+      "pontos_referencia_proximos": [
+        "Parque de Exposições",
+        "Atacadão",
+        "UFMT - Campus Sinop",
+        "Shopping Sinop"
+      ],
+      "bairros_vizinhos": [],
+      "observacoes": "Bairro em forte expansão, ao lado do Parque de Exposições e a poucos minutos do Atacadão, próximo à UFMT e ao Shopping. Mistura imóveis residenciais e comerciais (~420 estabelecimentos), daí perfil misto. Padrão médio, boa liquidez pela localização estratégica.",
+      "confianca": "alta",
+      "fonte": "enrich-condominios"
+    },
+    {
+      "nome": "Residencial Pienza",
+      "regiao": "Sul",
+      "perfil": "residencial",
+      "faixa_valor": "popular",
+      "avenidas_principais": [],
+      "pontos_referencia_proximos": [],
+      "bairros_vizinhos": [],
+      "observacoes": "Empreendimento da Paiaguás Incorporadora — 96 apartamentos a partir de ~48 m², preços a partir de ~R$220 mil, com subsídio estadual e Minha Casa Minha Vida (obra iniciada em 2026). Público de entrada/habitacional.",
+      "confianca": "alta",
+      "fonte": "enrich-condominios"
+    },
+    {
+      "nome": "Jardim Nápoles",
+      "regiao": "Sul",
+      "perfil": "residencial",
+      "faixa_valor": "medio",
+      "avenidas_principais": [],
+      "pontos_referencia_proximos": [],
+      "bairros_vizinhos": [],
+      "observacoes": "Loteamento residencial (CEP 78558), casas e terrenos, boa localização com acesso fácil a escolas, faculdades, farmácias, supermercados e postos. Estoque com casas de faixa ampla (popular a médio) e terrenos. Padrão médio.",
+      "confianca": "media",
+      "fonte": "enrich-condominios"
+    },
+    {
+      "nome": "Jardim Leblon",
+      "regiao": "Sul",
+      "perfil": "residencial",
+      "faixa_valor": "medio-alto",
+      "avenidas_principais": [
+        "Avenida da Integração",
+        "Avenida Abel Dal'Bosco"
+      ],
+      "pontos_referencia_proximos": [
+        "atrás do Shopping Sinop",
+        "UFMT — Campus Sinop"
+      ],
+      "bairros_vizinhos": [
+        "Jardim Terra Rica"
+      ],
+      "observacoes": "Loteamento novo da Invest Loteamentos — 197 lotes de 300 a 745 m², infraestrutura em fase final de entrega. Lotes de ~R$145 mil a ~R$467 mil. Localização valorizada colada ao shopping e à universidade federal; vetor de valorização.",
+      "confianca": "alta",
+      "fonte": "enrich-condominios"
+    },
+    {
+      "nome": "Jardim Aurora",
+      "regiao": "Sul",
+      "perfil": "misto (residencial + terrenos comerciais)",
+      "faixa_valor": "medio",
+      "avenidas_principais": [
+        "Avenida das Acácias"
+      ],
+      "pontos_referencia_proximos": [
+        "Cargill (planta industrial)",
+        "Setor Residencial Sul"
+      ],
+      "bairros_vizinhos": [
+        "Setor Residencial Sul"
+      ],
+      "observacoes": "Loteamento em crescimento no Setor Residencial Sul, acesso pela Avenida das Acacias e terrenos comerciais ao lado da planta da Cargill. Lotes tipicos de cerca de 310 m2. CEP 78559-740 a 78559-769. Incorporadora Consorcio Jardim Aurora (sede na Av. das Acacias, Setor Residencial Sul). Perfil misto residencial/comercial, faixa popular-media.",
+      "confianca": "alta",
+      "fonte": "enrich-condominios"
+    },
+    {
+      "nome": "Hamoa",
+      "regiao": "Oeste",
+      "perfil": "condominio fechado",
+      "faixa_valor": "alto padrao",
+      "avenidas_principais": [],
+      "pontos_referencia_proximos": [],
+      "bairros_vizinhos": [
+        "Carpe Diem"
+      ],
+      "observacoes": "Condomínio fechado horizontal premium da JMD Urbanismo (conceito 'resort residencial'; nasceu da conversão do antigo Carpe Diem). Primeiro de Sinop com rede elétrica 100% subterrânea. Complexo aquático, arenas esportivas, restaurante e spa Kaua'i. Segurança de perímetro com muro de 4 m (3 m muro + 1 m cerca elétrica), monitoramento 24h, acessos com vidro blindado e biometria. Alto padrão.",
+      "confianca": "alta",
+      "fonte": "enrich-condominios"
+    },
+    {
+      "nome": "JARDIM ITALIA 2",
+      "regiao": "Oeste",
+      "perfil": "residencial",
+      "faixa_valor": "medio-alto",
+      "avenidas_principais": [
+        "Avenida das Figueiras"
+      ],
+      "pontos_referencia_proximos": [],
+      "bairros_vizinhos": [
+        "Jardim Itália",
+        "Jardim Itália III",
+        "Jardim Europa",
+        "Jardim Atenas"
+      ],
+      "observacoes": "Corresponde ao Jardim Itália II, parte do cluster de jardins planejados Itália I/II/III, próximos ao centro e servidos por eixo da Av. das Figueiras. Residencial valorizado, público classe média/média-alta. Herda o perfil do bairro-mãe.",
+      "confianca": "alta",
+      "fonte": "enrich-condominios"
+    },
+    {
+      "nome": "Life Sinop",
+      "regiao": "Oeste",
+      "perfil": "condominio fechado",
+      "faixa_valor": "medio-alto",
+      "avenidas_principais": [],
+      "pontos_referencia_proximos": [],
+      "bairros_vizinhos": [
+        "Residencial Florença"
+      ],
+      "observacoes": "Life Sinop Club Residence: condomínio vertical fechado (6 torres com elevador), no Residencial Florença. Apês de ~55 a ~81 m², 1–2 vagas, a partir de ~R$467 mil, com 14 itens de lazer e lavanderia coletiva. Entregue em nov/2023, pronto para morar. Padrão médio-alto.",
+      "confianca": "alta",
+      "fonte": "enrich-condominios"
+    },
+    {
+      "nome": "Jardim Tarumãs",
+      "regiao": "Norte",
+      "perfil": "misto",
+      "faixa_valor": "medio",
+      "avenidas_principais": [
+        "Avenida André Antônio Maggi"
+      ],
+      "pontos_referencia_proximos": [],
+      "bairros_vizinhos": [
+        "Jardim das Nações"
+      ],
+      "observacoes": "Bairro residencial/comercial consolidado no vetor norte (também grafado Jardim dos Tarumãs), ~12 ruas, cortado pela Av. André Antônio Maggi. Bom acesso a serviços; faixa popular a média. Público residencial e comércio de bairro.",
+      "confianca": "media",
+      "fonte": "enrich-condominios"
+    },
+    {
+      "nome": "Jardim Paulista II",
+      "regiao": "Sul",
+      "perfil": "residencial",
+      "faixa_valor": "medio",
+      "avenidas_principais": [],
+      "pontos_referencia_proximos": [],
+      "bairros_vizinhos": [
+        "Jardim Paulista"
+      ],
+      "observacoes": "Extensão do Jardim Paulista, bairro residencial consolidado de padrão médio com mercado muito ativo (casas de ~R$435 mil a ~R$740 mil, inclusive alto padrão pontual). Público classe média. Faixa e perfil herdados do bairro-mãe.",
+      "confianca": "media",
+      "fonte": "enrich-condominios"
+    },
+    {
+      "nome": "Condomínio de Chácaras Jamari",
+      "regiao": "Sul",
+      "perfil": "condominio fechado",
+      "faixa_valor": "medio",
+      "avenidas_principais": [
+        "Estrada Municipal Lucila"
+      ],
+      "pontos_referencia_proximos": [],
+      "bairros_vizinhos": [],
+      "observacoes": "Condomínio fechado de chácaras de recreio, 100% legalizado (matrículas individuais), a ~15 min do centro, na Estrada Municipal Lucila (área rural, CEP 78559-899). Lotes a partir de ~1.020 m² (desde ~R$128 mil). Lazer: portaria 24h, trilhas de caminhada/ciclismo, playground, quadra de areia, poliesportiva, campo de futsal, academia ao ar livre, ruas pavimentadas. Vocação lazer/segunda residência; faixa média.",
+      "confianca": "alta",
+      "fonte": "enrich-condominios"
+    },
+    {
+      "nome": "Residencial Carandá Bosque",
+      "regiao": "Norte",
+      "perfil": "misto",
+      "faixa_valor": "medio",
+      "avenidas_principais": [],
+      "pontos_referencia_proximos": [],
+      "bairros_vizinhos": [],
+      "observacoes": "Bairro consolidado (~26 ruas, +900 imóveis à venda) com boa densidade comercial (~419 estabelecimentos) mesclada a residências — perfil misto. Oferece opções para vários orçamentos; padrão médio. Faixa CEP 78553.",
+      "confianca": "media",
+      "fonte": "enrich-condominios"
+    },
+    {
+      "nome": "Residencial Canarinho II",
+      "regiao": "Sul/Leste",
+      "perfil": "residencial",
+      "faixa_valor": "medio",
+      "avenidas_principais": [
+        "MT-140 (anel viário)",
+        "Avenida das Itaúbas"
+      ],
+      "pontos_referencia_proximos": [
+        "Futuro campus UNIFASIPE"
+      ],
+      "bairros_vizinhos": [
+        "Residencial Canarinho",
+        "Parkia Condomínio Clube",
+        "Tuim Residencial"
+      ],
+      "observacoes": "Mesmo empreendimento do 'Canarinho II' (Residencial Canarinho 2, Bussolaro Empreendimentos) — registro duplicado no acervo. Loteamento planejado com lotes a partir de 240 m², junto ao futuro campus UNIFASIPE e ao anel viário da MT-140, região de forte crescimento. Infraestrutura de lazer (quadras, quadra de areia, academia ao ar livre, praça).",
+      "confianca": "alta",
+      "fonte": "enrich-condominios"
+    },
+    {
+      "nome": "Jardim Liberdade",
+      "regiao": "Sul",
+      "perfil": "residencial",
+      "faixa_valor": "popular",
+      "avenidas_principais": [],
+      "pontos_referencia_proximos": [
+        "Machado Supercenter"
+      ],
+      "bairros_vizinhos": [],
+      "observacoes": "Loteamento novo com infraestrutura completa, próximo ao Machado Supercenter, escolas, UBS, corpo de bombeiros e posto. ~139 lotes a partir de ~R$85 mil, tamanhos variados. Público de entrada / faixa popular; bom para primeiro imóvel e construção.",
+      "confianca": "media",
+      "fonte": "enrich-condominios"
+    },
+    {
+      "nome": "Jardim Gramado",
+      "regiao": "Norte",
+      "perfil": "misto",
+      "faixa_valor": "medio",
+      "avenidas_principais": [],
+      "pontos_referencia_proximos": [
+        "Setor Comercial / Centro de Sinop"
+      ],
+      "bairros_vizinhos": [],
+      "observacoes": "Um dos bairros mais próximos do centro (CEP 78550), ~13 ruas com forte presença de comércio e serviços (~900 estabelecimentos) mesclada a residências — perfil misto. Padrão médio, boa liquidez pela centralidade.",
+      "confianca": "media",
+      "fonte": "enrich-condominios"
+    },
+    {
+      "nome": "Jardim Monet",
+      "regiao": "Oeste",
+      "perfil": "misto",
+      "faixa_valor": "alto padrao",
+      "avenidas_principais": [
+        "Avenida Jardim de Monet"
+      ],
+      "pontos_referencia_proximos": [],
+      "bairros_vizinhos": [
+        "Carpe Diem"
+      ],
+      "observacoes": "Loteamento (Jardim de Monet) posicionado como área nobre com avenidas/ruas planejadas para comércio e serviços, amplas áreas verdes — perfil misto de alto padrão. Casas de alto padrão (3 suítes, piscina com cascata, jardim de inverno) e apartamentos a partir de ~R$1,6 mi (coworking, academia, piscina). Vizinho do condomínio Carpe Diem (alto padrão). Público classe alta.",
+      "confianca": "alta",
+      "fonte": "enrich-condominios"
+    },
+    {
+      "nome": "Residencial Green Ville",
+      "regiao": "Oeste",
+      "perfil": "condominio fechado",
+      "faixa_valor": "medio",
+      "avenidas_principais": [],
+      "pontos_referencia_proximos": [
+        "Aeroporto de Sinop"
+      ],
+      "bairros_vizinhos": [
+        "Loteamento Village"
+      ],
+      "observacoes": "Condomínio vertical fechado (apartamentos) na Rua dos Mognos, Loteamento Village, região do aeroporto. Portaria 24h com câmeras, salão de festas com piscina/churrasqueira, quadra poliesportiva e sauna. Empreendimento mais antigo (ativo desde 2006). Padrão médio.",
+      "confianca": "alta",
+      "fonte": "enrich-condominios"
+    },
+    {
+      "nome": "Camping Clube",
+      "regiao": "Norte",
+      "perfil": "condominio fechado",
+      "faixa_valor": "medio",
+      "avenidas_principais": [
+        "BR-163",
+        "MT-220",
+        "Avenida Matrinchã"
+      ],
+      "pontos_referencia_proximos": [
+        "Entroncamento BR-163 x MT-220 (Portal da Amazônia)"
+      ],
+      "bairros_vizinhos": [],
+      "observacoes": "Condomínio Residencial Camping Club (Camping Club Portal da Amazônia, desde 1998), condomínio residencial e recreativo de 42 ruas, na BR-163 Km 832, entroncamento com a MT-220 (Av. Matrinchã, 65). Vocação de moradia + recreio/lazer. Passou por regularização recente (memoriais descritivos aprovados pela prefeitura para registro dos lotes).",
+      "confianca": "alta",
+      "fonte": "enrich-condominios"
+    },
+    {
+      "nome": "Figueiras Residencial",
+      "regiao": "Oeste",
+      "perfil": "residencial",
+      "faixa_valor": "medio",
+      "avenidas_principais": [
+        "Avenida das Figueiras"
+      ],
+      "pontos_referencia_proximos": [],
+      "bairros_vizinhos": [],
+      "observacoes": "Loteamento residencial (Loteamento Residencial Figueiras) com lotes prontos para construir, bairro tranquilo e familiar com acesso a escolas, faculdades, supermercados e postos; ligado ao eixo da Av. das Figueiras. Padrão médio. Não confundir com condomínios verticais homônimos na própria Av. das Figueiras (Setor Comercial).",
+      "confianca": "media",
+      "fonte": "enrich-condominios"
+    },
+    {
+      "nome": "Parkia Condomínio Clube",
+      "regiao": "Sul/Leste",
+      "perfil": "condominio fechado",
+      "faixa_valor": "medio-alto",
+      "avenidas_principais": [],
+      "pontos_referencia_proximos": [
+        "Condomínio Tuim Residencial"
+      ],
+      "bairros_vizinhos": [
+        "Condomínio Tuim Residencial"
+      ],
+      "observacoes": "Primeiro condomínio-clube de Sinop, da Bussolaro Empreendimentos: 1.002 lotes de ~415 m² e ~70.000 m² de área verde, próximo ao Tuim com acesso fácil ao centro. Lazer robusto: 9 espaços gourmet, playground de +4.000 m², 10 quadras de beach tênis, 7 de tênis, 2 campos de futsal, piscina coberta, quadra poliesportiva, academia de 330 m², pet space; segurança 24h. Faixa médio-alto.",
+      "confianca": "alta",
+      "fonte": "enrich-condominios"
+    },
+    {
+      "nome": "Vivenda dos Ipes",
+      "regiao": "Leste",
+      "perfil": "residencial",
+      "faixa_valor": "medio-alto",
+      "avenidas_principais": [
+        "Alameda dos Ipês"
+      ],
+      "pontos_referencia_proximos": [],
+      "bairros_vizinhos": [],
+      "observacoes": "Loteamento Residencial Vivenda dos Ipês (CEP 78550-83x), ~6 ruas (Alameda dos Ipês, Av. Amábile Pasqualon). Lotes a partir de ~304 m² e casas anunciadas na faixa ~R$680 mil a ~R$800 mil (garagem coberta, closets, paisagismo) — padrão médio-alto. Também aparecem barracões (uso misto pontual).",
+      "confianca": "media",
+      "fonte": "enrich-condominios"
+    },
+    {
+      "nome": "jardim itaubas",
+      "regiao": "Sul",
+      "perfil": "residencial (loteamento)",
+      "faixa_valor": "medio",
+      "avenidas_principais": [
+        "Avenida das Itaúbas"
+      ],
+      "pontos_referencia_proximos": [
+        "Futuro empreendimento Duottori (entre Curitiba e Itaubas)"
+      ],
+      "bairros_vizinhos": [
+        "Jardim Curitiba II",
+        "Jardim das Palmeiras"
+      ],
+      "observacoes": "Grafia do acervo para 'Jardim das Itaubas': bairro residencial no sul com cerca de 21 ruas, acesso pela Avenida das Itaubas (junto ao Jardim das Palmeiras) e vizinho ao Jardim Curitiba. Lotes de 300 m2 (10x30) com parcelamento acessivel. Lancamento Duottori previsto entre Curitiba e Itaubas. Perfil residencial, faixa popular-media.",
+      "confianca": "alta",
+      "fonte": "enrich-condominios"
+    },
+    {
+      "nome": "Comunidade Águas Clara",
+      "regiao": "Norte",
+      "perfil": "residencial",
+      "faixa_valor": "popular",
+      "avenidas_principais": [],
+      "pontos_referencia_proximos": [],
+      "bairros_vizinhos": [],
+      "observacoes": "Comunidade Águas Claras: área mais antiga e periférica (~140 famílias) que passou por regularização fundiária (entrega de escrituras) e projeto de pavimentação (Estrada Selene). Caráter urbano/semirrural, com casas e chácaras. Público popular; faixa popular. Perfil predominante residencial com componente de chácaras de lazer.",
+      "confianca": "media",
+      "fonte": "enrich-condominios"
+    },
+    {
+      "nome": "Reserva Celeste 2",
+      "regiao": "Sul/Leste",
+      "perfil": "condominio fechado",
+      "faixa_valor": "popular",
+      "avenidas_principais": [],
+      "pontos_referencia_proximos": [],
+      "bairros_vizinhos": [
+        "Residencial São Francisco",
+        "Residencial Buritis"
+      ],
+      "observacoes": "Setor 2 do Residencial Reserva Celeste, condomínio de casas (padrão Minha Casa Minha Vida) na região do Buritis, próximo ao Residencial São Francisco. Casas de 2 dormitórios, ~52 m² construídos em terreno de ~180 m², murado, com guarita/portão eletrônico e portaria 24h; financiáveis pela Caixa. Público de entrada / faixa popular.",
+      "confianca": "alta",
+      "fonte": "enrich-condominios"
+    },
+    {
+      "nome": "Condomínio Alexandria",
+      "regiao": "Oeste",
+      "perfil": "condominio fechado",
+      "faixa_valor": "alto padrao",
+      "avenidas_principais": [],
+      "pontos_referencia_proximos": [],
+      "bairros_vizinhos": [],
+      "observacoes": "Condomínio fechado horizontal de alto padrão (em obras): 275 lotes de 600 a 900 m². Lazer sofisticado: Salão Ilíada com adega para 2.000 garrafas, lareira de mármore, espaço gourmet, pub/salão de jogos, minimercado e pet shop; Salão Thermae com piscina semiolímpica, infantil, spa, sala de massagem e saunas seca/úmida; 2 quadras de beach tênis, quadra oficial de padel, campo de futebol e pista de caminhada de 400 m no bosque. Público alto padrão.",
+      "confianca": "alta",
+      "fonte": "enrich-condominios"
+    },
+    {
+      "nome": "Residencial Moriá",
+      "regiao": "Sul/Leste",
+      "perfil": "misto",
+      "faixa_valor": "medio",
+      "avenidas_principais": [],
+      "pontos_referencia_proximos": [
+        "UFMT - Campus Sinop",
+        "Shopping Sinop"
+      ],
+      "bairros_vizinhos": [],
+      "observacoes": "Loteamento em região valorizada, próximo à UFMT, ao Shopping, atacados, postos e UBS. ~110 lotes de 300 a 400 m², residenciais e comerciais — perfil misto. Casas de padrão médio (3 dorm., suíte, cozinha gourmet). Boa liquidez pela localização.",
+      "confianca": "media",
+      "fonte": "enrich-condominios"
+    },
+    {
+      "nome": "Bosque Village",
+      "regiao": "Oeste",
+      "perfil": "condominio fechado",
+      "faixa_valor": "medio",
+      "avenidas_principais": [
+        "Avenida Bruno Martini"
+      ],
+      "pontos_referencia_proximos": [],
+      "bairros_vizinhos": [
+        "Loteamento Village"
+      ],
+      "observacoes": "Condomínio Residencial Bosque Village: condomínio vertical fechado na Av. Bruno Martini, 130, Loteamento Village (ativo desde 2014). Apês de ~117 m² (3 dorm., 1 suíte, 2 vagas). Portaria 24h, salão de festas, piscinas adulto/infantil, academia, espaço gourmet, playground, quadra poliesportiva. Padrão médio.",
+      "confianca": "alta",
+      "fonte": "enrich-condominios"
+    },
+    {
+      "nome": "Residencial Villa Toscana",
+      "regiao": "Sul/Leste",
+      "perfil": "condominio fechado",
+      "faixa_valor": "medio",
+      "avenidas_principais": [
+        "Rodovia MT-140 (sentido Santa Carmem)"
+      ],
+      "pontos_referencia_proximos": [
+        "Shopping Sinop",
+        "UFMT - Campus Sinop"
+      ],
+      "bairros_vizinhos": [],
+      "observacoes": "Loteamento/condomínio da Bussolaro Empreendimentos na MT-140 sentido Santa Carmem, com avenida projetada conectando ao entorno do Shopping e UFMT (~6 min do centro). Lazer: 3 quadras poliesportivas, 2 de vôlei, 2 áreas comuns com academia ao ar livre e pista de caminhada. Há Villa Toscana I e II (CEP 78557). Padrão médio.",
+      "confianca": "alta",
+      "fonte": "enrich-condominios"
+    },
+    {
+      "nome": "Jardim Toledo",
+      "regiao": "Jardim Toled",
+      "perfil": "misto (residencial + comercial)",
+      "faixa_valor": "popular a médio",
+      "avenidas_principais": [
+        "BR-163 (marginal/rodovia)",
+        "Marginais da BR-163 (Nova Rota do Oeste)"
+      ],
+      "pontos_referencia_proximos": [
+        "Atacadão Sinop (ao lado)",
+        "BR-163",
+        "Centro de Sinop (~3 min)"
+      ],
+      "bairros_vizinhos": [
+        "Centro (região central de Sinop, ~3 min)",
+        "Setor Comercial / eixo da BR-163"
+      ],
+      "observacoes": "Loteamento da Bussolaro Empreendimentos (matrícula 69.393, CRI 1º Ofício de Sinop), com infraestrutura completa entregue: asfalto, água, iluminação pública, esgoto, drenagem e rede elétrica. Lotes a partir de 240 m² liberados para uso residencial E comercial. Terrenos de 240 m² anunciados na faixa de ~R$120 mil, com parcelamento facilitado (até 180x) e entrada facilitada — perfil de investidor e primeira casa/comércio. Vocação mista, com forte apelo comercial por estar de frente para a BR-163 e ao lado do Atacadão (comércio de beira de rodovia), somado à proximidade (~3 min) do centro. Público popular/médio. Não é condomínio fechado — loteamento aberto com lotes convencionais.",
+      "confianca": "alta",
+      "fonte": "enrich-condominios"
+    },
+    {
+      "nome": "Jardim Primaveras",
+      "regiao": "Central",
+      "perfil": "misto",
+      "faixa_valor": "medio",
+      "avenidas_principais": [],
+      "pontos_referencia_proximos": [
+        "Setor Comercial / Centro de Sinop",
+        "UBS"
+      ],
+      "bairros_vizinhos": [],
+      "observacoes": "Bairro residencial consolidado com mercado muito ativo (casas, apês, terrenos e barracões), a ~6 min do centro, próximo a UBS, mercados, escolas e comércio — componente comercial dá perfil misto. Preços de casas desde ~R$220 mil (barracões até ~R$2 mi puxam o topo). Padrão médio, boa liquidez. Corresponde ao 'Jardim Primavera'.",
+      "confianca": "media",
+      "fonte": "enrich-condominios"
     }
   ],
   "pontos_referencia": [
