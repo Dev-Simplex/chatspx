@@ -21,7 +21,7 @@ class Captain::Tools::BuscarImovelTool < Captain::Tools::BasePublicTool
   param :raio_km, type: 'number', desc: 'Só quando o cliente limitar a distância (ex: "até 2 km"). Sem isso, lista os mais próximos.', required: false
 
   VISTA_FIELDS = %w[Codigo ImoCodigo Categoria Status Dormitorios Cidade Bairro BairroComercial ValorLocacao ValorVenda TituloSite
-                    ValorCondominio ValorIptu AreaTotal AreaConstruida Latitude Longitude].freeze
+                    ValorCondominio ValorIptu AreaTotal AreaConstruida DescricaoWeb Latitude Longitude].freeze
   META_KEYS = %w[total paginas pagina quantidade].freeze
 
   def perform(tool_context, status_tipo:, categoria: nil, bairro: nil, endereco: nil, valor_max: nil,
@@ -34,7 +34,7 @@ class Captain::Tools::BuscarImovelTool < Captain::Tools::BasePublicTool
 
       venda_cod = achados.first['Status'].to_s.match?(/vend/i)
       track_imoveis(tool_context, achados, venda_cod)
-      return format_listings(achados, venda_cod)
+      return format_listings(achados, venda_cod, detalhado: true)
     end
     venda = status_tipo.to_s == 'venda'
     filter = { 'Cidade' => 'Sinop' }
@@ -67,7 +67,7 @@ class Captain::Tools::BuscarImovelTool < Captain::Tools::BasePublicTool
       Rails.logger.info("[BuscarImovel] ampliou categoria em #{bairro.inspect} => #{imoveis.size} " \
                         "#{imoveis.first(5).map { |i| i['Codigo'] }.inspect}")
       track_imoveis(tool_context, imoveis, venda)
-      unless imoveis.blank?
+      if imoveis.present?
         return format_listings(imoveis, venda,
                                header: "Nesse bairro não tem #{categoria.downcase} pra #{venda ? 'comprar' : 'alugar'}, " \
                                        'mas nesse mesmo bairro tem estas opções:')
@@ -126,7 +126,7 @@ class Captain::Tools::BuscarImovelTool < Captain::Tools::BasePublicTool
 
   # Registra códigos (trava de foto) + URLs canônicas (trava de link) numa tacada.
   def track_imoveis(tool_context, imoveis, venda)
-    track_imoveis(tool_context, imoveis, venda)
+    track_codigos(tool_context, imoveis)
     track_urls(tool_context, imoveis, venda)
   end
 
@@ -186,12 +186,17 @@ class Captain::Tools::BuscarImovelTool < Captain::Tools::BasePublicTool
     2 * 6371 * Math.asin(Math.sqrt(a))
   end
 
-  def format_listings(imoveis, venda, header: nil)
+  def format_listings(imoveis, venda, header: nil, detalhado: false)
     linhas = imoveis.first(5).map do |im|
       valor = venda ? "R$ #{im['ValorVenda']}" : "R$ #{im['ValorLocacao']}/mês"
       dorm = im['Dormitorios'].to_i.positive? ? "#{im['Dormitorios']} quartos, " : ''
       dist = im['dist_km'] ? " — a #{format('%.1f', im['dist_km'])} km da referência" : ''
-      "(cód #{im['Codigo']}) #{im['Categoria']} #{dorm}no #{im['Bairro']}, #{valor}#{format_area(im)}#{format_taxas(im)}#{format_extras(im['Codigo'])}#{dist}. #{build_url(im, venda)}"
+      linha = "(cód #{im['Codigo']}) #{im['Categoria']} #{dorm}no #{im['Bairro']}, #{valor}#{format_area(im)}#{format_taxas(im)}#{format_extras(im['Codigo'])}#{dist}. #{build_url(
+        im, venda
+      )}"
+      desc = detalhado ? descricao_limpa(im['DescricaoWeb']) : ''
+      linha += "\n#{desc}" if desc.present?
+      linha
     end
     "#{header || "Encontrei #{linhas.size} opção(ões):"}\n#{linhas.join("\n")}"
   end
@@ -212,6 +217,19 @@ class Captain::Tools::BuscarImovelTool < Captain::Tools::BasePublicTool
     bits << "#{im['AreaTotal']} m²" if im['AreaTotal'].to_f.positive?
     bits << "#{im['AreaConstruida']} m² construídos" if im['AreaConstruida'].to_f.positive? && im['AreaConstruida'] != im['AreaTotal']
     bits.any? ? ", #{bits.join(', ')}" : ''
+  end
+
+  # Descrição do anúncio (DescricaoWeb) SEM telefone nem disclaimer — a IA não pode
+  # vazar contato direto (fura o handoff). Só o corpo útil (o que está incluso, mobília,
+  # condomínio incluso, etc.). Usada só no lookup por código (imóvel único).
+  def descricao_limpa(texto)
+    linhas = texto.to_s.split(/\r?\n/).reject do |l|
+      l.match?(/contato|telefone|whats/i) ||
+        l.match?(/\(?\d{2}\)?[\s.-]*\d{4,5}[\s.-]?\d{4}/) ||
+        l.match?(/os valores.*sem pr[eé]vio aviso|mercado imobili/i)
+    end
+    txt = linhas.join("\n").gsub(/\(?\d{2}\)?[\s.-]*\d{4,5}[\s.-]?\d{4}/, '').gsub(/\n{3,}/, "\n\n").strip
+    txt.length > 600 ? "#{txt[0, 600].rstrip}…" : txt
   end
 
   # Numa ÚNICA chamada ao Vista, traz o que a IA precisa saber pra NÃO alucinar:
