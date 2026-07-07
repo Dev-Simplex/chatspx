@@ -20,6 +20,7 @@
       "NODES": {
         "TRIGGER": "Trigger",
         "CONDITION": "Condition",
+        "WAIT": "Wait",
         "SEND_MESSAGE": "Send message",
         "SEND_TEMPLATE": "Send template",
         "ADD_PRIVATE_NOTE": "Private note",

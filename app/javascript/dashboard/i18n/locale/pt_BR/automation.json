@@ -20,6 +20,7 @@
       "NODES": {
         "TRIGGER": "Gatilho",
         "CONDITION": "Condição",
+        "WAIT": "Aguardar",
         "SEND_MESSAGE": "Enviar mensagem",
         "SEND_TEMPLATE": "Enviar template",
         "ADD_PRIVATE_NOTE": "Nota interna",

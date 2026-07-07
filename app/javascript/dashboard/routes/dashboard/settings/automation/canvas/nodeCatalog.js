@@ -56,6 +56,13 @@ export const NODE_CATALOG = [
     icon: 'i-lucide-git-branch',
   },
   {
+    key: 'wait',
+    type: 'wait',
+    family: 'logic',
+    labelKey: 'AUTOMATION.CANVAS.NODES.WAIT',
+    icon: 'i-lucide-clock',
+  },
+  {
     key: 'send_message',
     type: 'action',
     actionName: 'send_message',
@@ -137,14 +144,18 @@ export const NODE_CATALOG = [
   },
 ];
 
-// Entrada do catálogo que descreve um nó da definition (por actionName, senão por type).
+// Entrada do catálogo que descreve um nó da definition. Nós `action` casam pelo actionName
+// (null se a ação não estiver no catálogo → o rótulo cai no action_name cru); os demais
+// tipos (trigger/condition/wait/router) casam pelo `type`. NÃO comparar actionName quando o
+// nó não tem action_name — `undefined === undefined` casaria o 1º item sem actionName (trigger).
 export function catalogEntryForNode(node) {
   if (!node) return null;
-  return (
-    NODE_CATALOG.find(item => item.actionName === node.action_name) ||
-    NODE_CATALOG.find(item => item.type === node.type) ||
-    null
-  );
+  if (node.type === 'action') {
+    return (
+      NODE_CATALOG.find(item => item.actionName === node.action_name) || null
+    );
+  }
+  return NODE_CATALOG.find(item => item.type === node.type) || null;
 }
 
 export function familyForNode(node) {
