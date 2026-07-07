@@ -129,21 +129,83 @@ class Flows::RunnerService
     @flow_run&.complete!
   end
 
+  # Executa o nó e devolve o branch tomado (condition/router) ou nil (action). Cada nó
+  # EXECUTADO grava um FlowStepLog best-effort — ver #record_step (uma falha do log NUNCA
+  # derruba o walk). `trigger`/`wait`/tipos desconhecidos não executam: o walker apenas os
+  # atravessa pela primeira aresta de saída (o `wait` já foi tratado por suspend_on_wait
+  # antes de chegar aqui; o trigger é só o ponto de entrada).
   def visit(node, actions)
     case node['type']
     when 'action'
-      actions.execute(node)
+      instrument_action(node, actions)
       nil
     when 'condition', 'router'
-      evaluate_condition(node) ? 'true' : 'false'
+      instrument_condition(node)
     end
-    # 'trigger', 'wait' já tratado antes, e tipos desconhecidos: no-op retornando nil e o
-    # fluxo segue pela primeira aresta de saída (o trigger é apenas o ponto de entrada).
+  end
+
+  # Roda a ação e registra success/failed/skipped. O ActionService é best-effort e NUNCA
+  # levanta: devolve um Result que traduzimos em status + error_code/message. Se o retorno
+  # não for um Result (ex.: um instance_spy nos testes), tratamos como success.
+  def instrument_action(node, actions)
+    started = monotonic_ms
+    outcome = actions.execute(node)
+    outcome = Flows::ActionService::Result.new(:success) unless outcome.is_a?(Flows::ActionService::Result)
+    record_step(node, status: outcome.status, error: outcome.error, duration_ms: elapsed_ms(started))
+  end
+
+  # Avalia a condition/router, grava o branch tomado e o devolve. Um erro na avaliação é
+  # registrado como failed e RE-LEVANTADO — preserva o comportamento atual (uma condição que
+  # estoura aborta o passo), mas agora deixa rastro.
+  def instrument_condition(node)
+    started = monotonic_ms
+    branch = evaluate_condition(node) ? 'true' : 'false'
+    record_step(node, status: :success, branch_key: branch, duration_ms: elapsed_ms(started))
+    branch
+  rescue StandardError => e
+    record_step(node, status: :failed, error: e, duration_ms: elapsed_ms(started))
+    raise
   end
 
   def evaluate_condition(node)
     adapter = Flows::RuleAdapter.new(conditions: node['conditions'], flow: @flow)
     AutomationRules::ConditionsFilterService.new(adapter, @conversation, @payload).perform
+  end
+
+  # Grava UM passo. Best-effort absoluto: se o INSERT falhar, capturamos e seguimos — a
+  # observabilidade NUNCA pode derrubar a execução do flow. @flow_run é nil enquanto não há
+  # suspensão (fluxo linear), então o passo fica sem run, o que é esperado.
+  def record_step(node, status:, duration_ms:, error: nil, branch_key: nil)
+    FlowStepLog.create!(
+      flow: @flow, account: @flow.account, conversation: @conversation, flow_run: @flow_run,
+      node_id: node['id'], action_name: node['action_name'],
+      status: status, branch_key: branch_key,
+      error_code: error && error_code_for(error, node), error_message: error&.message,
+      duration_ms: duration_ms, metadata: { 'node_type' => node['type'] }
+    )
+  rescue StandardError => e
+    ChatwootExceptionTracker.new(e, account: @flow.account).capture_exception
+  end
+
+  # Mapeia a exceção capturada para um código legível e triável. Skips já trazem o código
+  # tipado; NoMethodError no dispatch (action_name inexistente — validado no model, mas
+  # defensivo aqui) vira 'unknown_action'; o resto cai em famílias conhecidas ou 'generic'.
+  def error_code_for(error, node)
+    case error
+    when Flows::StepSkip then error.code
+    when NoMethodError then error.name.to_s == node['action_name'].to_s ? 'unknown_action' : 'generic'
+    when ActiveRecord::RecordNotFound then 'record_not_found'
+    when ActiveRecord::RecordInvalid then 'record_invalid'
+    else 'generic'
+    end
+  end
+
+  def monotonic_ms
+    Process.clock_gettime(Process::CLOCK_MONOTONIC, :float_millisecond)
+  end
+
+  def elapsed_ms(started)
+    (monotonic_ms - started).round
   end
 
   def nodes

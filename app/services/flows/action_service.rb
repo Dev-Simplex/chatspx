@@ -10,6 +10,11 @@
 # O loop sobre os nós fica no Flows::RunnerService; aqui executamos UM nó por vez.
 # Ver plano §2.4.
 class Flows::ActionService < ActionService
+  # Outcome of ONE action node, consumed by the Flows::RunnerService to build a FlowStepLog.
+  # `error` carries the captured exception (failed) or the Flows::StepSkip (skipped); nil on
+  # success. Returned instead of raising so the walk stays best-effort AND leaves a trace.
+  Result = Struct.new(:status, :error)
+
   def initialize(flow:, conversation:, actor: nil)
     super(conversation)
     @flow = flow
@@ -19,16 +24,21 @@ class Flows::ActionService < ActionService
   end
 
   # Executa UM nó `type:"action"`. Best-effort por nó (padrão de
-  # automation_rules/action_service.rb:13-17): um erro num nó não derruba o fluxo — o
-  # Runner segue para o próximo. Dispatch via `send` (métodos de ação são privados),
-  # nunca `public_send`.
+  # automation_rules/action_service.rb:13-17): um erro num nó não derruba o fluxo — o Runner
+  # segue para o próximo. Dispatch via `send` (métodos de ação são privados), nunca
+  # `public_send`. Devolve um Result (success/failed/skipped) para o Runner registrar o passo;
+  # NUNCA levanta. Um Flows::StepSkip (guarda intencional) é observável como `skipped` e NÃO
+  # vai ao tracker; qualquer outro erro é capturado (Sentry) e reportado como `failed`.
   def execute(node)
     @conversation.reload
     action = node.with_indifferent_access
     send(action[:action_name], action[:action_params])
+    Result.new(:success)
+  rescue Flows::StepSkip => e
+    Result.new(:skipped, e)
   rescue StandardError => e
     ChatwootExceptionTracker.new(e, account: @account).capture_exception
-    nil
+    Result.new(:failed, e)
   end
 
   private
@@ -111,8 +121,10 @@ class Flows::ActionService < ActionService
     return if conversation_a_tweet?
 
     template = action_params[0].to_h.with_indifferent_access
-    return unless whatsapp_cloud_inbox?
-    return unless approved_template?(template)
+    # Guardas do gap-BR: em vez do no-op silencioso (que sumia sem rastro), sinalizamos o
+    # motivo tipado — o Runner registra um passo `skipped` triável, sem enviar ao Sentry.
+    raise Flows::StepSkip.new('inbox_not_whatsapp', 'inbox is not a WhatsApp Cloud channel') unless whatsapp_cloud_inbox?
+    raise Flows::StepSkip.new('template_not_approved', 'template is not approved on the inbox') unless approved_template?(template)
 
     params = {
       message_type: 'outgoing',
@@ -195,6 +207,8 @@ class Flows::ActionService < ActionService
     Array(macro.actions).each do |macro_action|
       macro_action = macro_action.with_indifferent_access
       send(macro_action[:action_name], macro_action[:action_params])
+    rescue Flows::StepSkip
+      # Guarda intencional dentro da macro: no-op silencioso (paridade com a macro pura).
     rescue StandardError => e
       ChatwootExceptionTracker.new(e, account: @account).capture_exception
     end

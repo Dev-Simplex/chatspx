@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[7.1].define(version: 2026_07_07_120000) do
+ActiveRecord::Schema[7.1].define(version: 2026_07_07_130000) do
   # These extensions should be enabled to support this database
   enable_extension "pg_stat_statements"
   enable_extension "pg_trgm"
@@ -1026,6 +1026,29 @@ ActiveRecord::Schema[7.1].define(version: 2026_07_07_120000) do
     t.index ["status", "wait_until"], name: "index_flow_runs_on_status_and_wait_until"
   end
 
+  create_table "flow_step_logs", force: :cascade do |t|
+    t.bigint "flow_id", null: false
+    t.bigint "account_id", null: false
+    t.bigint "conversation_id"
+    t.bigint "flow_run_id"
+    t.string "node_id"
+    t.string "action_name"
+    t.integer "status", default: 0, null: false
+    t.string "branch_key"
+    t.string "error_code"
+    t.text "error_message"
+    t.integer "duration_ms"
+    t.jsonb "metadata", default: {}, null: false
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["account_id"], name: "index_flow_step_logs_on_account_id"
+    t.index ["conversation_id"], name: "index_flow_step_logs_on_conversation_id"
+    t.index ["created_at"], name: "index_flow_step_logs_on_created_at"
+    t.index ["flow_id"], name: "index_flow_step_logs_on_flow_id"
+    t.index ["flow_run_id"], name: "index_flow_step_logs_on_flow_run_id"
+    t.index ["status"], name: "index_flow_step_logs_on_status"
+  end
+
   create_table "flows", force: :cascade do |t|
     t.bigint "account_id", null: false
     t.string "name", null: false
@@ -1939,6 +1962,10 @@ ActiveRecord::Schema[7.1].define(version: 2026_07_07_120000) do
   add_foreign_key "flow_runs", "contacts"
   add_foreign_key "flow_runs", "conversations"
   add_foreign_key "flow_runs", "flows"
+  add_foreign_key "flow_step_logs", "accounts"
+  add_foreign_key "flow_step_logs", "conversations"
+  add_foreign_key "flow_step_logs", "flow_runs"
+  add_foreign_key "flow_step_logs", "flows"
   add_foreign_key "funnel_automations", "funnel_stages"
   add_foreign_key "funnel_automations", "funnels"
   add_foreign_key "funnel_custom_fields", "funnels"
