@@ -86,4 +86,125 @@ describe AutomationRuleListener do
       expect(Flows::RunnerService).not_to have_received(:new)
     end
   end
+
+  describe 'keyword trigger' do
+    before { enable_flows_engine }
+
+    after { Current.reset }
+
+    def keyword_flow(keywords, match: 'contains', active: true, label: 'kw-hit')
+      node = { 'id' => 'n1', 'type' => 'action', 'action_name' => 'add_label', 'action_params' => [label] }
+      create(:flow, account: account, active: active, trigger_type: :keyword,
+                    trigger_config: { 'keywords' => keywords, 'match' => match },
+                    definition: { 'nodes' => [node], 'edges' => [] })
+    end
+
+    def deliver(message)
+      listener.message_created(Events::Base.new('message_created', Time.zone.now, { message: message }))
+    end
+
+    def incoming(content)
+      create(:message, conversation: conversation, inbox: inbox, account: account, message_type: :incoming, content: content)
+    end
+
+    context 'with contains match (default)' do
+      before { keyword_flow(%w[suporte ajuda]) }
+
+      it 'fires when the message contains a keyword' do
+        deliver(incoming('preciso de suporte agora'))
+        expect(conversation.reload.label_list).to include('kw-hit')
+      end
+
+      it 'does not fire when no keyword is present' do
+        deliver(incoming('bom dia'))
+        expect(conversation.reload.label_list).not_to include('kw-hit')
+      end
+
+      it 'matches case-insensitively' do
+        deliver(incoming('QUERO AJUDA'))
+        expect(conversation.reload.label_list).to include('kw-hit')
+      end
+
+      it 'matches accent-insensitively (keyword accented, message not)' do
+        keyword_flow(['horário'], label: 'accent-hit')
+        deliver(incoming('qual o horario de atendimento?'))
+        expect(conversation.reload.label_list).to include('accent-hit')
+      end
+
+      it 'matches accent-insensitively (message accented, keyword not)' do
+        keyword_flow(['horario'], label: 'accent-hit')
+        deliver(incoming('qual o horário?'))
+        expect(conversation.reload.label_list).to include('accent-hit')
+      end
+    end
+
+    context 'with exact match' do
+      before { keyword_flow(%w[oi], match: 'exact') }
+
+      it 'fires when the whole message equals a keyword (normalized)' do
+        deliver(incoming('Oi'))
+        expect(conversation.reload.label_list).to include('kw-hit')
+      end
+
+      it 'does not fire when the keyword is only a substring of the message' do
+        deliver(incoming('oi, tudo bem?'))
+        expect(conversation.reload.label_list).not_to include('kw-hit')
+      end
+    end
+
+    context 'with ineligible messages' do
+      before { keyword_flow(%w[suporte]) }
+
+      it 'ignores outgoing messages' do
+        allow(Flows::RunnerService).to receive(:new)
+        deliver(create(:message, conversation: conversation, inbox: inbox, account: account, message_type: :outgoing, content: 'suporte'))
+        expect(Flows::RunnerService).not_to have_received(:new)
+      end
+
+      it 'ignores private notes' do
+        allow(Flows::RunnerService).to receive(:new)
+        deliver(create(:message, conversation: conversation, inbox: inbox, account: account,
+                                 message_type: :outgoing, private: true, content: 'suporte'))
+        expect(Flows::RunnerService).not_to have_received(:new)
+      end
+
+      it 'ignores activity messages' do
+        allow(Flows::RunnerService).to receive(:new)
+        deliver(create(:message, conversation: conversation, inbox: inbox, account: account, message_type: :activity, content: 'suporte'))
+        expect(Flows::RunnerService).not_to have_received(:new)
+      end
+    end
+
+    context 'with guards' do
+      it 'does not re-trigger on a message the flow itself generated (flow_id anti-loop)' do
+        keyword_flow(%w[suporte])
+        allow(Flows::RunnerService).to receive(:new)
+        deliver(create(:message, conversation: conversation, inbox: inbox, account: account,
+                                 message_type: :incoming, content: 'suporte', content_attributes: { 'flow_id' => 7 }))
+        expect(Flows::RunnerService).not_to have_received(:new)
+      end
+
+      it 'does not fire an inactive keyword flow' do
+        keyword_flow(%w[suporte], active: false)
+        allow(Flows::RunnerService).to receive(:new)
+        deliver(incoming('quero suporte'))
+        expect(Flows::RunnerService).not_to have_received(:new)
+      end
+
+      it 'does not fire when the keyword list is empty' do
+        keyword_flow([])
+        allow(Flows::RunnerService).to receive(:new)
+        deliver(incoming('quero suporte'))
+        expect(Flows::RunnerService).not_to have_received(:new)
+      end
+
+      it 'does not fire when the flows engine is disabled for the account' do
+        account.update!(internal_attributes: account.internal_attributes.merge('flows_engine_enabled' => false))
+        keyword_flow(%w[suporte])
+        allow(Flows::RunnerService).to receive(:new)
+        deliver(incoming('quero suporte'))
+        expect(Flows::RunnerService).not_to have_received(:new)
+      end
+    end
+  end
 end

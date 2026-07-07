@@ -101,9 +101,21 @@
           "ADD": "Adicionar condição"
         },
         "TRIGGER": {
+          "KIND_LABEL": "Iniciar o fluxo por",
+          "KIND_HINT": "Escolha o que dispara este fluxo.",
+          "KIND_EVENT": "Um evento da conversa",
+          "KIND_KEYWORD": "Uma palavra-chave na mensagem",
           "EVENT_LABEL": "Evento",
           "EVENT_PLACEHOLDER": "Selecione um evento",
-          "EVENT_HINT": "O evento que inicia este fluxo."
+          "EVENT_HINT": "O evento que inicia este fluxo.",
+          "KEYWORD": {
+            "MATCH_LABEL": "Correspondência",
+            "MATCH_CONTAINS": "A mensagem contém uma palavra-chave",
+            "MATCH_EXACT": "A mensagem é exatamente uma palavra-chave",
+            "LIST_LABEL": "Palavras-chave",
+            "LIST_PLACEHOLDER": "Uma palavra-chave por linha, ex.:\noi\nsuporte\nhorário",
+            "LIST_HINT": "Uma por linha. Ignora maiúsculas e acentos."
+          }
         },
         "GENERIC": {
           "NO_PARAMS": "Este bloco não tem parâmetros para configurar."

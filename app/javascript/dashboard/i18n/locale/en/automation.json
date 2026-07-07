@@ -101,9 +101,21 @@
           "ADD": "Add condition"
         },
         "TRIGGER": {
+          "KIND_LABEL": "Start the flow on",
+          "KIND_HINT": "Choose what fires this flow.",
+          "KIND_EVENT": "A conversation event",
+          "KIND_KEYWORD": "A keyword in a message",
           "EVENT_LABEL": "Event",
           "EVENT_PLACEHOLDER": "Select an event",
-          "EVENT_HINT": "The event that starts this flow."
+          "EVENT_HINT": "The event that starts this flow.",
+          "KEYWORD": {
+            "MATCH_LABEL": "Match",
+            "MATCH_CONTAINS": "Message contains a keyword",
+            "MATCH_EXACT": "Message is exactly a keyword",
+            "LIST_LABEL": "Keywords",
+            "LIST_PLACEHOLDER": "One keyword per line, e.g.\nhi\nsupport\nhours",
+            "LIST_HINT": "One per line. Case and accent insensitive."
+          }
         },
         "GENERIC": {
           "NO_PARAMS": "This block has no settings to configure."

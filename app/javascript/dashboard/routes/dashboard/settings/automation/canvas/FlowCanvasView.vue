@@ -138,6 +138,33 @@ const updateSelectedNode = patch => {
   };
 };
 
+// Projeta o nó `trigger` em { trigger_type, trigger_config } para o backend. A fonte da
+// verdade continua sendo o nó na definition (round-trip pelo canvas); aqui só derivamos o
+// que o motor consome. Sem nó de gatilho o flow é `manual`.
+//  • trigger_kind 'keyword' → trigger_type keyword  + { keywords[], match }
+//  • event_name definido     → trigger_type conversation_event + { event_name }
+const triggerPayload = triggerNode => {
+  if (!triggerNode) return { trigger_type: 'manual', trigger_config: {} };
+  if (triggerNode.trigger_kind === 'keyword') {
+    return {
+      trigger_type: 'keyword',
+      trigger_config: {
+        keywords: (triggerNode.keywords || [])
+          .map(kw => (kw || '').trim())
+          .filter(Boolean),
+        match: triggerNode.match === 'exact' ? 'exact' : 'contains',
+      },
+    };
+  }
+  if (triggerNode.event_name) {
+    return {
+      trigger_type: 'conversation_event',
+      trigger_config: { event_name: triggerNode.event_name },
+    };
+  }
+  return { trigger_type: 'manual', trigger_config: {} };
+};
+
 const save = async () => {
   isSaving.value = true;
   try {
@@ -146,11 +173,8 @@ const save = async () => {
     );
     const payload = {
       name: name.value,
-      trigger_type: triggerNode ? 'conversation_event' : 'manual',
       definition: definition.value,
-      trigger_config: triggerNode?.event_name
-        ? { event_name: triggerNode.event_name }
-        : {},
+      ...triggerPayload(triggerNode),
     };
     if (isEdit.value) {
       await store.dispatch('flows/update', { id: flowId.value, ...payload });

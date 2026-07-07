@@ -79,6 +79,30 @@ class AutomationRuleListener < BaseListener
       conditions_match = ::AutomationRules::ConditionsFilterService.new(gate, conversation, payload).perform
       ::Flows::RunnerService.new(flow: flow, conversation: conversation, trigger_payload: payload).perform if conditions_match.present?
     end
+
+    # Os Flows `trigger_type: keyword` casam contra o CONTEÚDO da mensagem, não contra um
+    # event_name — por isso ficam fora do laço por-evento e só rodam em message_created (o
+    # único evento que carrega a mensagem no payload). A gate `flows_engine_active?` já foi
+    # aplicada por run_engine, então reaproveitamos o cache de flows sem re-checá-la.
+    run_keyword_flows(account, conversation, payload) if event_name == 'message_created'
+  end
+
+  # Gatilho `keyword`: dispara os Flows keyword-triggered ativos quando o conteúdo de uma
+  # mensagem INCOMING de contato casa com as palavras-chave em trigger_config. Anti-loop já
+  # garantido por ignore_message_created_event? (mensagens com flow_id nem chegam ao listener)
+  # e reforçado aqui pelo filtro incoming (as mensagens que o motor gera são outgoing).
+  def run_keyword_flows(account, conversation, payload)
+    message = payload[:message]
+    return unless message&.incoming? && !message.private?
+
+    content = message.content.to_s
+    return if content.blank?
+
+    current_account_keyword_flows(account).each do |flow|
+      next unless keyword_trigger_match?(content, flow.trigger_config)
+
+      ::Flows::RunnerService.new(flow: flow, conversation: conversation, trigger_payload: payload).perform
+    end
   end
 
   def current_account_rules(event_name, account)
@@ -95,6 +119,39 @@ class AutomationRuleListener < BaseListener
       account.flows.active.conversation_event.where("trigger_config->>'event_name' = ?", event_name).pluck(:id)
     end
     Flow.where(id: flow_ids)
+  end
+
+  # Mesmo padrão de cache (2 min) dos flows por-evento — evita a query por mensagem. A lista
+  # de keyword flows muda raramente; o matching case/acento-insensitive roda em memória.
+  def current_account_keyword_flows(account)
+    cache_key = "flows:#{account.id}:keyword"
+    flow_ids = Rails.cache.fetch(cache_key, expires_in: 2.minutes) do
+      account.flows.active.keyword.pluck(:id)
+    end
+    Flow.where(id: flow_ids)
+  end
+
+  # Casa o conteúdo da mensagem com as keywords do trigger_config, case- e acento-insensitive
+  # (I18n.transliterate: "Olá" → "ola", como o normalize do WahaMessageResolvable). Modos:
+  #   • 'exact'    → o conteúdo normalizado é IGUAL a alguma keyword
+  #   • 'contains' → o conteúdo CONTÉM alguma keyword como substring (default)
+  # Keywords em branco são descartadas; sem keyword válida, nunca casa.
+  def keyword_trigger_match?(content, trigger_config)
+    keywords = Array(trigger_config['keywords']).filter_map { |kw| normalize_keyword(kw).presence }
+    return false if keywords.blank?
+
+    haystack = normalize_keyword(content)
+    return false if haystack.blank?
+
+    if trigger_config['match'].to_s == 'exact'
+      keywords.include?(haystack)
+    else
+      keywords.any? { |kw| haystack.include?(kw) }
+    end
+  end
+
+  def normalize_keyword(text)
+    I18n.transliterate(text.to_s).downcase.gsub(/\s+/, ' ').strip
   end
 
   # Reconhece tanto AutomationRule (motor antigo) quanto Flow (motor novo) como "sistema",
