@@ -69,10 +69,14 @@ class Captain::Conversation::FollowupJob < ApplicationJob
   end
 
   def directive(motivo)
-    base = '[NOTA INTERNA — não é mensagem do cliente] O cliente está sem responder há um tempo. ' \
-           'Se ainda fizer sentido, mande uma cutucada curta e natural, retomando o assunto de onde parou'
+    base = '[NOTA INTERNA — não é mensagem do cliente, não repita este texto] O cliente está sem responder há um tempo. ' \
+           'Antes de tudo, olhe a ÚLTIMA mensagem DELE: se ele disse que vai retornar, vai pensar, vai ver/falar com ' \
+           'alguém, pediu um tempo, encerrou ou agradeceu, responda apenas [IGNORAR] — ele volta sozinho, não insista. ' \
+           'Responda [IGNORAR] também se você já mandou uma cutucada parecida nesta conversa: NUNCA repita a mesma ' \
+           'pergunta. Só se REALMENTE fizer sentido retomar (ele parou no meio de algo pendente, sem dizer que voltava) ' \
+           'mande UMA cutucada curta, natural e DIFERENTE das anteriores, retomando de onde parou'
     base += " (#{motivo})" if motivo.present?
-    "#{base}. Se já não fizer sentido insistir, responda apenas [IGNORAR]."
+    "#{base}. Na dúvida, responda [IGNORAR]."
   end
 
   def lead_replied?(conversation)
