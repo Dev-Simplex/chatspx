@@ -79,6 +79,9 @@ module AssignmentHandler
 
   def process_assignment_changes
     process_assignment_activities
+    # Rastreio estruturado de "quem atribuiu pra quem" (Relatório de Atribuições).
+    # Best-effort: o service tem rescue próprio e nunca quebra a atribuição.
+    Conversations::AssignmentHistoryService.new(self).record_change! if saved_change_to_assignee_id?
   end
 
   def mark_conversation_unread_on_assignment_change

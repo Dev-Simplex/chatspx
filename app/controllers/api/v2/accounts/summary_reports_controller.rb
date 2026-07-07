@@ -1,9 +1,17 @@
 class Api::V2::Accounts::SummaryReportsController < Api::V1::Accounts::BaseController
   before_action :check_authorization
-  before_action :prepare_builder_params, only: [:agent, :team, :inbox, :label, :channel]
+  before_action :prepare_builder_params, only: [:agent, :agent_assignment, :team, :inbox, :label, :channel]
 
   def agent
     render_report_with(V2::Reports::AgentSummaryBuilder)
+  end
+
+  # Relatório de Atribuições por Agente (quem atribuiu pra quem). Renderiza o builder direto
+  # (contagens, não métricas de tempo) — não passa pelo enriquecimento de signals do #agent.
+  # Retorna { rows: contagens por agente, matrix: pares autor→destino }.
+  def agent_assignment
+    builder = V2::Reports::AgentAssignmentBuilder.new(account: Current.account, params: @builder_params)
+    render json: { rows: builder.build, matrix: builder.matrix }
   end
 
   def team
@@ -34,7 +42,9 @@ class Api::V2::Accounts::SummaryReportsController < Api::V1::Accounts::BaseContr
     @builder_params = {
       since: permitted_params[:since],
       until: permitted_params[:until],
-      business_hours: ActiveModel::Type::Boolean.new.cast(permitted_params[:business_hours])
+      business_hours: ActiveModel::Type::Boolean.new.cast(permitted_params[:business_hours]),
+      team_id: permitted_params[:team_id],
+      inbox_id: permitted_params[:inbox_id]
     }
   end
 
@@ -48,7 +58,7 @@ class Api::V2::Accounts::SummaryReportsController < Api::V1::Accounts::BaseContr
   end
 
   def permitted_params
-    params.permit(:since, :until, :business_hours)
+    params.permit(:since, :until, :business_hours, :team_id, :inbox_id)
   end
 
   def date_range_too_long?

@@ -245,6 +245,52 @@
       "PLACEHOLDER": "Select date range"
     }
   },
+  "ASSIGNMENT_REPORTS": {
+    "HEADER": "Assignments",
+    "DESCRIPTION": "See how conversation assignments are distributed per agent — how many each person received (manually, via round-robin, or self-assigned) and how many they assigned to others.",
+    "DOWNLOAD": "Download assignment report",
+    "FILTER": {
+      "TEAM": "Team:",
+      "INBOX": "Inbox:",
+      "ALL_TEAMS": "All teams",
+      "ALL_INBOXES": "All inboxes"
+    },
+    "MATRIX": {
+      "TITLE": "Who assigned to whom",
+      "HINT": "Rows = who assigned · Columns = who received · values = manual assignments in the period.",
+      "FROM_TO": "From \\ To"
+    },
+    "TABLE": {
+      "AGENT": "Agent",
+      "GROUP_RECEIVED": "Received",
+      "GROUP_ASSIGNED": "Assigned",
+      "RECEIVED_TOTAL": "Total",
+      "RECEIVED_MANUAL": "↳ Manual",
+      "RECEIVED_AUTO": "↳ Automatic",
+      "SELF_ASSIGNED": "↳ Self-assigned",
+      "ASSIGNED_TO_OTHERS": "To others"
+    },
+    "SUMMARY": {
+      "TITLE": "Period summary",
+      "TOTAL": "{total} assignments distributed across {agents} agents.",
+      "COMPOSITION": "Source of received: {manual}% manual · {auto}% automatic (round-robin) · {self}% self-assigned.",
+      "TOP": "Received the most: {name} ({count}).",
+      "FORWARD_ONLY": "Counts start from when the feature was enabled — older periods may show as zero."
+    },
+    "EMPTY": {
+      "TITLE": "No assignments in this period",
+      "BODY": "There are no assignments recorded for the selected range. History is counted from when the feature was enabled, with no retroactive data."
+    },
+    "LEGEND": {
+      "TITLE": "Understand each column",
+      "AGENT": "The agent (name).",
+      "RECEIVED": "Received — conversations assigned to this agent (they were the destination). Total is the sum of Manual + Automatic + Self-assigned.",
+      "RECEIVED_MANUAL": "↳ Manual: someone else assigned the conversation to this agent.",
+      "RECEIVED_AUTO": "↳ Automatic: the system distributed it via round-robin.",
+      "SELF_ASSIGNED": "↳ Self-assigned: the agent picked up the conversation themselves.",
+      "ASSIGNED_TO_OTHERS": "Assigned → To others: conversations this agent manually assigned to someone else."
+    }
+  },
   "LABEL_REPORTS": {
     "HEADER": "Labels Overview",
     "DESCRIPTION": "Track label performance with key metrics including conversations, response times, resolution times, and resolved cases. Click a label name for detailed insights.",

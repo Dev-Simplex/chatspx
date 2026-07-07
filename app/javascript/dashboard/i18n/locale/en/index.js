@@ -25,7 +25,9 @@ import inbox from './inbox.json';
 import inboxMgmt from './inboxMgmt.json';
 import integrationApps from './integrationApps.json';
 import integrations from './integrations.json';
+import interactiveMessage from './interactiveMessage.json';
 import kanban from './kanban.json';
+import internalChat from './internalChat.json';
 import labelsMgmt from './labelsMgmt.json';
 import login from './login.json';
 import macros from './macros.json';
@@ -72,7 +74,9 @@ export default {
   ...inboxMgmt,
   ...integrationApps,
   ...integrations,
+  ...interactiveMessage,
   ...kanban,
+  ...internalChat,
   ...labelsMgmt,
   ...login,
   ...macros,

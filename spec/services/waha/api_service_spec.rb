@@ -101,4 +101,87 @@ RSpec.describe Waha::ApiService do
       expect(vcard).to match(/FN:Mal\s+Intencionado/)
     end
   end
+
+  describe '#send_list' do
+    # GOWS payload: message wraps title (required) + button (required) + sections.
+    # description is omitted when no explicit title is given; row description is
+    # omitted when blank.
+    it 'POSTs a GOWS-shaped list payload (title + button) to /api/sendList' do
+      stub = stub_request(:post, 'https://waha.example.com/api/sendList')
+             .with(body: {
+               session: 'default',
+               chatId: '5511@c.us',
+               message: {
+                 title: 'Escolha um setor',
+                 button: 'Menu',
+                 sections: [{
+                   title: 'Menu',
+                   rows: [
+                     { rowId: 'fin', title: 'Financeiro' },
+                     { rowId: 'sup', title: 'Suporte' }
+                   ]
+                 }]
+               }
+             }.to_json)
+             .to_return(status: 200, body: { 'id' => 'list-1' }.to_json)
+
+      result = service.send_list(
+        session: 'default', chat_id: '5511@c.us', body: 'Escolha um setor', button_text: 'Menu',
+        sections: [{ title: 'Menu', rows: [
+          { rowId: 'fin', title: 'Financeiro', description: '' },
+          { rowId: 'sup', title: 'Suporte', description: '' }
+        ] }]
+      )
+
+      expect(stub).to have_been_requested
+      expect(result).to eq('id' => 'list-1')
+    end
+  end
+
+  describe '#send_poll' do
+    # Native WhatsApp poll — the reliable interactive format on GOWS PLUS.
+    it 'POSTs a poll payload (name + options + multipleAnswers) to /api/sendPoll' do
+      stub = stub_request(:post, 'https://waha.example.com/api/sendPoll')
+             .with(body: {
+               session: 'default',
+               chatId: '5511@c.us',
+               poll: {
+                 name: 'Como foi o atendimento?',
+                 options: %w[Ótimo Bom Regular],
+                 multipleAnswers: false
+               }
+             }.to_json)
+             .to_return(status: 201, body: { 'id' => 'poll-1' }.to_json)
+
+      result = service.send_poll(
+        session: 'default', chat_id: '5511@c.us',
+        name: 'Como foi o atendimento?', options: %w[Ótimo Bom Regular]
+      )
+
+      expect(stub).to have_been_requested
+      expect(result).to eq('id' => 'poll-1')
+    end
+
+    it 'coerces multiple_answers to a real boolean' do
+      stub = stub_request(:post, 'https://waha.example.com/api/sendPoll')
+             .with(body: hash_including('poll' => hash_including('multipleAnswers' => true)))
+             .to_return(status: 201, body: { 'id' => 'poll-2' }.to_json)
+
+      service.send_poll(session: 'default', chat_id: '5511@c.us', name: 'Q', options: %w[a b], multiple_answers: 'yes')
+
+      expect(stub).to have_been_requested
+    end
+  end
+
+  describe '#send_text' do
+    it 'POSTs plain text to /api/sendText' do
+      stub = stub_request(:post, 'https://waha.example.com/api/sendText')
+             .with(body: { session: 'default', chatId: '5511@c.us', text: "Escolha:\n1. A\n2. B" }.to_json)
+             .to_return(status: 200, body: { 'id' => 'txt-1' }.to_json)
+
+      service.send_text(session: 'default', chat_id: '5511@c.us', text: "Escolha:\n1. A\n2. B")
+
+      expect(stub).to have_been_requested
+    end
+  end
 end

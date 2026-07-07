@@ -104,14 +104,12 @@
   display_name: Audit Logs
   enabled: false
   premium: true
-- name: response_bot
-  display_name: Response Bot
+- name: message_sequences
+  display_name: Message Sequences
   enabled: false
-  deprecated: true
-- name: message_reply_to
-  display_name: Message Reply To
+- name: internal_chat
+  display_name: Internal Chat
   enabled: false
-  deprecated: true
 - name: insert_article_in_reply
   display_name: Insert Article in Reply
   enabled: false
@@ -143,10 +141,11 @@
 - name: chatwoot_v4
   display_name: Chatwoot V4
   enabled: true
-- name: report_v4
-  display_name: Report V4
+- name: ai_assistant_v2
+  display_name: AI Assistant v2 (Copilot redesign)
   enabled: false
-  deprecated: true
+  premium: false
+  chatwoot_internal: false
 - name: contact_chatwoot_support_team
   display_name: Contact Chatwoot Support Team
   enabled: true
@@ -247,8 +246,3 @@
   display_name: Advanced Assignment
   enabled: false
   premium: true
-- name: ai_assistant_v2
-  display_name: AI Assistant v2 (Copilot redesign)
-  enabled: false
-  premium: false
-  chatwoot_internal: false

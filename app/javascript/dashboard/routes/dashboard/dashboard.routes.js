@@ -11,6 +11,7 @@ import campaignsRoutes from './campaigns/campaigns.routes';
 import { routes as captainRoutes } from './captain/captain.routes';
 import { routes as agentsRoutes } from './agents/agents.routes';
 import { routes as kanbanRoutes } from './kanban/routes';
+import { routes as internalChatRoutes } from './internalChat/routes';
 import { routes as galleryRoutes } from './gallery/routes';
 import AppContainer from './Dashboard.vue';
 import Suspended from './suspended/Index.vue';
@@ -26,6 +27,7 @@ export default {
         ...captainRoutes,
         ...agentsRoutes,
         ...kanbanRoutes,
+        ...internalChatRoutes,
         ...inboxRoutes,
         ...galleryRoutes,
         {

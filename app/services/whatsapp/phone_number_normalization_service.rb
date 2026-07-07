@@ -21,13 +21,22 @@ class Whatsapp::PhoneNumberNormalizationService
 
     # Try every known variant of the number (e.g., Brazil 12d/13d) so we
     # reuse an existing ContactInbox regardless of how it was originally stored.
-    normalizer.variants(clean_number).each do |variant|
-      provider_format = format_for_provider(variant, provider)
-      existing = find_existing_contact_inbox(provider_format)
-      return existing.source_id if existing
-    end
+    matches = normalizer.variants(clean_number).filter_map do |variant|
+      find_existing_contact_inbox(format_for_provider(variant, provider))
+    end.uniq
 
-    raw_number
+    return raw_number if matches.empty?
+    # Common case (single ContactInbox): identical to the historical behaviour,
+    # keeping the hot path (every inbound WhatsApp message hits this) untouched.
+    return matches.first.source_id if matches.one?
+
+    # Duplicate fichas (e.g. ninth-digit legacy + current forms of the same
+    # number): route to the ContactInbox whose conversation is most recent —
+    # the "live thread" — instead of whichever variant happened to match first.
+    best = matches.max_by do |contact_inbox|
+      contact_inbox.conversations.maximum(:created_at) || contact_inbox.created_at
+    end
+    best.source_id
   end
 
   private

@@ -41,8 +41,52 @@ class ActionCableConnector extends BaseActionCableConnector {
       'conversation.updated': this.onConversationUpdated,
       'account.cache_invalidated': this.onCacheInvalidate,
       'copilot.message.created': this.onCopilotMessageCreated,
+      'funnel_item.moved': this.onFunnelItemMoved,
+      'internal.message.created': this.onInternalMessageCreated,
+      'internal.message.updated': this.onInternalMessageUpdated,
+      'internal.mention.created': this.onInternalMentionCreated,
+      'internal.typing': this.onInternalTyping,
+      'internal.read': this.onInternalRead,
+      'internal.channel.updated': this.onInternalChannelUpdated,
     };
   }
+
+  // Kanban v2 (Fase 4): another user moved a card to a different stage — relocate
+  // it live. Best-effort; the store action no-ops if the item isn't loaded.
+  onFunnelItemMoved = data => {
+    this.app.$store.dispatch('kanban/applyRemoteMove', data);
+  };
+
+  // Chat interno (Módulo B): a peer posted into one of my internal channels.
+  onInternalMessageCreated = data => {
+    this.app.$store.dispatch('internalChat/applyIncomingMessage', data);
+  };
+
+  // Chat interno (v2 Fase 2): a message was edited / deleted / reacted-to.
+  onInternalMessageUpdated = data => {
+    this.app.$store.dispatch('internalChat/applyUpdatedMessage', data);
+  };
+
+  // Chat interno (v2 Fase 2B): peer is typing / read up to a point.
+  onInternalTyping = data => {
+    this.app.$store.dispatch('internalChat/applyTyping', data);
+  };
+
+  onInternalRead = data => {
+    this.app.$store.dispatch('internalChat/applyRead', data);
+  };
+
+  // Chat interno (v2 Fase 5): a channel's name/membership changed.
+  onInternalChannelUpdated = () => {
+    this.app.$store.dispatch('internalChat/applyChannelUpdated');
+  };
+
+  // Chat interno (B2): I was @mentioned. The toast (localized) is fired by the
+  // always-mounted Sidebar watching this store state — keeps i18n out of the
+  // connector and avoids touching the global notification bell.
+  onInternalMentionCreated = data => {
+    this.app.$store.dispatch('internalChat/applyIncomingMention', data);
+  };
 
   // eslint-disable-next-line class-methods-use-this
   onReconnect = async () => {
@@ -96,6 +140,7 @@ class ActionCableConnector extends BaseActionCableConnector {
       this.app.$store.dispatch('updateConversation', payload);
     }
     this.fetchConversationStats();
+    this.app.$store.dispatch('kanban/syncConversationFromRealtime', payload);
   };
 
   onConversationCreated = data => {
@@ -123,6 +168,7 @@ class ActionCableConnector extends BaseActionCableConnector {
       lastActivityAt,
       conversationId,
     });
+    this.app.$store.dispatch('kanban/syncConversationFromRealtime', data);
   };
 
   // eslint-disable-next-line class-methods-use-this
@@ -131,11 +177,13 @@ class ActionCableConnector extends BaseActionCableConnector {
   onStatusChange = data => {
     this.app.$store.dispatch('updateConversation', data);
     this.fetchConversationStats();
+    this.app.$store.dispatch('kanban/syncConversationFromRealtime', data);
   };
 
   onConversationUpdated = data => {
     this.app.$store.dispatch('updateConversation', data);
     this.fetchConversationStats();
+    this.app.$store.dispatch('kanban/syncConversationFromRealtime', data);
   };
 
   onTypingOn = ({ conversation, user }) => {

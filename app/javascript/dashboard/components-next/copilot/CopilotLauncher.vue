@@ -22,6 +22,9 @@ const isConversationRoute = computed(() => {
     'conversation_through_unread',
     'conversation_through_participating',
     'inbox_view_conversation',
+    // Internal team chat has its own bottom-right composer/send button — the
+    // launcher would overlap it, so hide it here too.
+    'internal_chat_index',
   ];
   return CONVERSATION_ROUTES.includes(route.name);
 });

@@ -148,6 +148,13 @@ export const actions = {
   },
 
   limits: async ({ commit, state: accountState, rootGetters }) => {
+    // O endpoint /enterprise/.../limits é exclusivo do Chatwoot Cloud
+    // (check_cloud_env → 404 em self-hosted). Fora da nuvem nem chamamos,
+    // evitando o 404 no console — o dado de limites não existe self-hosted.
+    if (!rootGetters['globalConfig/isOnChatwootCloud']) {
+      return null;
+    }
+
     const accountId = Number(rootGetters?.getCurrentAccountId);
     if (
       accountId &&

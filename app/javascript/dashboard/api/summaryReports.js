@@ -26,6 +26,24 @@ class SummaryReportsAPI extends ApiClient {
     });
   }
 
+  getAgentAssignmentReports({
+    since,
+    until,
+    businessHours,
+    teamId,
+    inboxId,
+  } = {}) {
+    return axios.get(`${this.url}/agent_assignment`, {
+      params: {
+        since,
+        until,
+        business_hours: businessHours,
+        team_id: teamId || undefined,
+        inbox_id: inboxId || undefined,
+      },
+    });
+  }
+
   getInboxReports({ since, until, businessHours } = {}) {
     return axios.get(`${this.url}/inbox`, {
       params: {
