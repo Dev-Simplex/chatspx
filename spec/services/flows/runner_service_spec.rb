@@ -95,4 +95,86 @@ RSpec.describe Flows::RunnerService do
     described_class.new(flow: flow, conversation: conversation, actor: agent).perform
     expect(conversation.reload.assignee_id).to eq(agent.id)
   end
+
+  describe 'wait nodes (Fase 2 — suspend/resume)' do
+    def wait_node(id, value: 5, unit: 'minutes')
+      { 'id' => id, 'type' => 'wait', 'wait' => { 'value' => value, 'unit' => unit } }
+    end
+
+    let(:wait_definition) do
+      {
+        'nodes' => [action_node('n1', 'before'), wait_node('w1'), action_node('n2', 'after')],
+        'edges' => [{ 'from' => 'n1', 'to' => 'w1' }, { 'from' => 'w1', 'to' => 'n2' }]
+      }
+    end
+
+    it 'runs up to the wait, suspends into a waiting FlowRun, and stops before the rest' do
+      flow = create(:flow, account: account, definition: wait_definition)
+
+      expect do
+        described_class.new(flow: flow, conversation: conversation).perform
+      end.to change(FlowRun, :count).by(1)
+
+      expect(conversation.reload.label_list).to include('before')
+      expect(conversation.reload.label_list).not_to include('after')
+
+      run = FlowRun.last
+      expect(run).to be_waiting
+      expect(run.current_node_id).to eq('n2') # the node AFTER the wait
+      expect(run.wait_until).to be_within(1.minute).of(5.minutes.from_now)
+    end
+
+    it 'creates no FlowRun for a flow without a wait (linear path untouched)' do
+      flow = create(:flow, account: account,
+                           definition: { 'nodes' => [action_node('n1', 'x')], 'edges' => [] })
+
+      expect do
+        described_class.new(flow: flow, conversation: conversation).perform
+      end.not_to change(FlowRun, :count)
+    end
+
+    it 'derives wait_until from the node unit (hours)' do
+      flow = create(:flow, account: account, definition: {
+                      'nodes' => [wait_node('w1', value: 2, unit: 'hours'), action_node('n2', 'after')],
+                      'edges' => [{ 'from' => 'w1', 'to' => 'n2' }]
+                    })
+
+      described_class.new(flow: flow, conversation: conversation).perform
+
+      expect(FlowRun.last.wait_until).to be_within(1.minute).of(2.hours.from_now)
+    end
+
+    it 'resumes from the stored node and completes the run' do
+      flow = create(:flow, account: account, definition: wait_definition)
+      described_class.new(flow: flow, conversation: conversation).perform
+      run = FlowRun.last
+
+      described_class.new(flow: flow, conversation: conversation, flow_run: run)
+                     .resume_from(run.current_node_id)
+
+      expect(conversation.reload.label_list).to include('after')
+      expect(run.reload).to be_completed
+      expect(run.current_node_id).to be_nil
+      expect(run.wait_until).to be_nil
+    end
+
+    it 'suspends again on a chained second wait (updates the same run)' do
+      flow = create(:flow, account: account, definition: {
+                      'nodes' => [wait_node('w1'), wait_node('w2'), action_node('n3', 'done')],
+                      'edges' => [{ 'from' => 'w1', 'to' => 'w2' }, { 'from' => 'w2', 'to' => 'n3' }]
+                    })
+      described_class.new(flow: flow, conversation: conversation).perform
+      run = FlowRun.last
+      expect(run.current_node_id).to eq('w2')
+
+      expect do
+        described_class.new(flow: flow, conversation: conversation, flow_run: run)
+                       .resume_from(run.current_node_id)
+      end.not_to change(FlowRun, :count)
+
+      expect(run.reload).to be_waiting
+      expect(run.current_node_id).to eq('n3')
+      expect(conversation.reload.label_list).not_to include('done')
+    end
+  end
 end

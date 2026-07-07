@@ -75,6 +75,14 @@
           "LABEL": "Prioridade",
           "PLACEHOLDER": "Selecione uma prioridade"
         },
+        "WAIT": {
+          "VALUE_LABEL": "Aguardar",
+          "VALUE_PLACEHOLDER": "ex.: 30",
+          "UNIT_LABEL": "Unidade",
+          "UNIT_MINUTES": "Minutos",
+          "UNIT_HOURS": "Horas",
+          "UNIT_DAYS": "Dias"
+        },
         "LABELS": {
           "ADD_LABEL": "Etiquetas a adicionar",
           "REMOVE_LABEL": "Etiquetas a remover"

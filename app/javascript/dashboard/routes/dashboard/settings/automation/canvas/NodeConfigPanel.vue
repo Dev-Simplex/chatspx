@@ -14,6 +14,7 @@ import AssignAiAgentConfig from './config/AssignAiAgentConfig.vue';
 import LabelConfig from './config/LabelConfig.vue';
 import ChangeStatusConfig from './config/ChangeStatusConfig.vue';
 import ChangePriorityConfig from './config/ChangePriorityConfig.vue';
+import WaitConfig from './config/WaitConfig.vue';
 import GenericConfig from './config/GenericConfig.vue';
 
 const props = defineProps({
@@ -43,6 +44,7 @@ const TYPE_EDITORS = {
   trigger: markRaw(TriggerConfig),
   condition: markRaw(ConditionConfig),
   router: markRaw(ConditionConfig),
+  wait: markRaw(WaitConfig),
 };
 
 const editor = computed(() => {
