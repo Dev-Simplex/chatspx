@@ -121,6 +121,7 @@
           "KIND_HINT": "Escolha o que dispara este fluxo.",
           "KIND_EVENT": "Um evento da conversa",
           "KIND_KEYWORD": "Uma palavra-chave na mensagem",
+          "KIND_SCHEDULE": "Um agendamento (por tempo)",
           "EVENT_LABEL": "Evento",
           "EVENT_PLACEHOLDER": "Selecione um evento",
           "EVENT_HINT": "O evento que inicia este fluxo.",
@@ -131,6 +132,21 @@
             "LIST_LABEL": "Palavras-chave",
             "LIST_PLACEHOLDER": "Uma palavra-chave por linha, ex.:\noi\nsuporte\nhorário",
             "LIST_HINT": "Uma por linha. Ignora maiúsculas e acentos."
+          },
+          "SCHEDULE": {
+            "MODE_LABEL": "Com que frequência",
+            "HINT": "Roda periodicamente, verificado a cada 15 minutos. Dispara no máximo uma vez por janela.",
+            "MODE_CRON": "Por expressão cron",
+            "MODE_INTERVAL": "A cada N minutos/horas/dias",
+            "CRON_LABEL": "Expressão cron",
+            "CRON_PLACEHOLDER": "0 9 * * 1",
+            "CRON_HINT": "Cinco campos: minuto hora dia mês dia-da-semana. Ex.: 0 9 * * 1 = segundas às 09:00.",
+            "EVERY_LABEL": "A cada",
+            "EVERY_PLACEHOLDER": "ex.: 3",
+            "UNIT_LABEL": "Unidade",
+            "UNIT_MINUTES": "Minutos",
+            "UNIT_HOURS": "Horas",
+            "UNIT_DAYS": "Dias"
           }
         },
         "GENERIC": {

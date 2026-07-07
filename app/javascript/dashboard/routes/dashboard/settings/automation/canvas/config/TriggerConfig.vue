@@ -1,15 +1,21 @@
 <script setup>
-// Editor do nó `trigger`: escolhe COMO o fluxo começa. Dois modos (trigger_kind):
-//   • 'event'   → um evento de conversa inicia o fluxo. Persistido em `node.event_name`;
-//                 o FlowCanvasView o reflete em trigger_config.event_name (conversation_event).
-//   • 'keyword' → uma mensagem de contato cujo conteúdo casa com as palavras-chave inicia o
-//                 fluxo. Persistido em `node.keywords` (lista) + `node.match` (exact|contains);
-//                 vira trigger_config.{keywords,match} (trigger_type keyword) ao salvar.
+// Editor do nó `trigger`: escolhe COMO o fluxo começa. Três modos (trigger_kind):
+//   • 'event'    → um evento de conversa inicia o fluxo. Persistido em `node.event_name`;
+//                  o FlowCanvasView o reflete em trigger_config.event_name (conversation_event).
+//   • 'keyword'  → uma mensagem de contato cujo conteúdo casa com as palavras-chave inicia o
+//                  fluxo. Persistido em `node.keywords` (lista) + `node.match` (exact|contains);
+//                  vira trigger_config.{keywords,match} (trigger_type keyword) ao salvar.
+//   • 'schedule' → o TEMPO inicia o fluxo (cron ou intervalo). Persistido em
+//                  `node.schedule` = { mode, cron, every, unit }; vira trigger_config
+//                  { mode, cron | every, unit } (trigger_type schedule). O Flows::ScheduleTriggerJob
+//                  o lê a cada 15 min. Um schedule só age sobre conversas quando o flow tem
+//                  condições de alvo (ver o job) — TODO(F3): editor de condições/alvo aqui.
 // A fonte da verdade é o nó na definition — o canvas faz o round-trip; trigger_config é só a
-// projeção que o backend consome. TODO(F2): gatilhos de schedule/webhook e filtros do gatilho.
+// projeção que o backend consome. TODO(F2): filtros do gatilho e gatilho de webhook externo.
 import { computed } from 'vue';
 import { useI18n } from 'vue-i18n';
 import SingleSelect from 'dashboard/components-next/filter/inputs/SingleSelect.vue';
+import Input from 'dashboard/components-next/input/Input.vue';
 import { AUTOMATION_RULE_EVENTS } from 'dashboard/routes/dashboard/settings/automation/constants';
 import ConfigField from './ConfigField.vue';
 
@@ -25,13 +31,16 @@ const emit = defineEmits(['update']);
 const { t } = useI18n();
 
 // Nós de gatilho antigos não têm trigger_kind — tratamos como 'event' (retrocompatível).
-const kind = computed(() =>
-  props.node.trigger_kind === 'keyword' ? 'keyword' : 'event'
-);
+const kind = computed(() => {
+  if (props.node.trigger_kind === 'keyword') return 'keyword';
+  if (props.node.trigger_kind === 'schedule') return 'schedule';
+  return 'event';
+});
 
 const kindOptions = computed(() => [
   { id: 'event', name: t('AUTOMATION.CANVAS.CONFIG.TRIGGER.KIND_EVENT') },
   { id: 'keyword', name: t('AUTOMATION.CANVAS.CONFIG.TRIGGER.KIND_KEYWORD') },
+  { id: 'schedule', name: t('AUTOMATION.CANVAS.CONFIG.TRIGGER.KIND_SCHEDULE') },
 ]);
 
 const kindModel = computed({
@@ -105,6 +114,97 @@ const keywordsText = computed({
     emit('update', { keywords });
   },
 });
+
+// --- Modo schedule ---------------------------------------------------------------
+// node.schedule = { mode: 'cron'|'interval', cron, every, unit }. Espelha node.wait do WaitConfig.
+const SCHEDULE_DEFAULTS = {
+  mode: 'cron',
+  cron: '0 9 * * 1',
+  every: 1,
+  unit: 'days',
+};
+
+const schedule = computed(() => ({
+  ...SCHEDULE_DEFAULTS,
+  ...(props.node.schedule || {}),
+}));
+
+const patchSchedule = partial => {
+  emit('update', { schedule: { ...schedule.value, ...partial } });
+};
+
+const scheduleMode = computed(() =>
+  schedule.value.mode === 'interval' ? 'interval' : 'cron'
+);
+
+const modeOptions = computed(() => [
+  {
+    id: 'cron',
+    name: t('AUTOMATION.CANVAS.CONFIG.TRIGGER.SCHEDULE.MODE_CRON'),
+  },
+  {
+    id: 'interval',
+    name: t('AUTOMATION.CANVAS.CONFIG.TRIGGER.SCHEDULE.MODE_INTERVAL'),
+  },
+]);
+
+const modeModel = computed({
+  get() {
+    return (
+      modeOptions.value.find(opt => opt.id === scheduleMode.value) ||
+      modeOptions.value[0]
+    );
+  },
+  set(value) {
+    patchSchedule({ mode: value?.id === 'interval' ? 'interval' : 'cron' });
+  },
+});
+
+const cronModel = computed({
+  get() {
+    return schedule.value.cron;
+  },
+  set(value) {
+    patchSchedule({ cron: String(value ?? '').trim() });
+  },
+});
+
+const everyModel = computed({
+  get() {
+    return schedule.value.every;
+  },
+  set(value) {
+    const parsed = Number.parseInt(value, 10);
+    patchSchedule({ every: Number.isNaN(parsed) || parsed < 1 ? 1 : parsed });
+  },
+});
+
+const unitOptions = computed(() => [
+  {
+    id: 'minutes',
+    name: t('AUTOMATION.CANVAS.CONFIG.TRIGGER.SCHEDULE.UNIT_MINUTES'),
+  },
+  {
+    id: 'hours',
+    name: t('AUTOMATION.CANVAS.CONFIG.TRIGGER.SCHEDULE.UNIT_HOURS'),
+  },
+  {
+    id: 'days',
+    name: t('AUTOMATION.CANVAS.CONFIG.TRIGGER.SCHEDULE.UNIT_DAYS'),
+  },
+]);
+
+const unitModel = computed({
+  get() {
+    return (
+      unitOptions.value.find(opt => opt.id === schedule.value.unit) ||
+      unitOptions.value[2]
+    );
+  },
+  set(value) {
+    patchSchedule({ unit: value?.id || 'days' });
+  },
+});
 </script>
 
 <template>
@@ -133,7 +233,7 @@ const keywordsText = computed({
       />
     </ConfigField>
 
-    <template v-else>
+    <template v-else-if="kind === 'keyword'">
       <ConfigField
         :label="t('AUTOMATION.CANVAS.CONFIG.TRIGGER.KEYWORD.MATCH_LABEL')"
       >
@@ -158,6 +258,62 @@ const keywordsText = computed({
           data-testid="config-trigger-keywords"
         />
       </ConfigField>
+    </template>
+
+    <template v-else-if="kind === 'schedule'">
+      <ConfigField
+        :label="t('AUTOMATION.CANVAS.CONFIG.TRIGGER.SCHEDULE.MODE_LABEL')"
+        :hint="t('AUTOMATION.CANVAS.CONFIG.TRIGGER.SCHEDULE.HINT')"
+      >
+        <SingleSelect
+          v-model="modeModel"
+          disable-search
+          disable-deselect
+          :options="modeOptions"
+        />
+      </ConfigField>
+
+      <ConfigField
+        v-if="scheduleMode === 'cron'"
+        :label="t('AUTOMATION.CANVAS.CONFIG.TRIGGER.SCHEDULE.CRON_LABEL')"
+        :hint="t('AUTOMATION.CANVAS.CONFIG.TRIGGER.SCHEDULE.CRON_HINT')"
+      >
+        <Input
+          v-model="cronModel"
+          size="sm"
+          :placeholder="
+            t('AUTOMATION.CANVAS.CONFIG.TRIGGER.SCHEDULE.CRON_PLACEHOLDER')
+          "
+          data-testid="config-trigger-cron"
+        />
+      </ConfigField>
+
+      <template v-else>
+        <ConfigField
+          :label="t('AUTOMATION.CANVAS.CONFIG.TRIGGER.SCHEDULE.EVERY_LABEL')"
+        >
+          <Input
+            v-model="everyModel"
+            type="number"
+            size="sm"
+            min="1"
+            :placeholder="
+              t('AUTOMATION.CANVAS.CONFIG.TRIGGER.SCHEDULE.EVERY_PLACEHOLDER')
+            "
+            data-testid="config-trigger-every"
+          />
+        </ConfigField>
+        <ConfigField
+          :label="t('AUTOMATION.CANVAS.CONFIG.TRIGGER.SCHEDULE.UNIT_LABEL')"
+        >
+          <SingleSelect
+            v-model="unitModel"
+            disable-search
+            disable-deselect
+            :options="unitOptions"
+          />
+        </ConfigField>
+      </template>
     </template>
   </div>
 </template>

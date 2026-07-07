@@ -141,8 +141,9 @@ const updateSelectedNode = patch => {
 // Projeta o nó `trigger` em { trigger_type, trigger_config } para o backend. A fonte da
 // verdade continua sendo o nó na definition (round-trip pelo canvas); aqui só derivamos o
 // que o motor consome. Sem nó de gatilho o flow é `manual`.
-//  • trigger_kind 'keyword' → trigger_type keyword  + { keywords[], match }
-//  • event_name definido     → trigger_type conversation_event + { event_name }
+//  • trigger_kind 'keyword'  → trigger_type keyword  + { keywords[], match }
+//  • trigger_kind 'schedule' → trigger_type schedule + { mode, cron | every, unit }
+//  • event_name definido      → trigger_type conversation_event + { event_name }
 const triggerPayload = triggerNode => {
   if (!triggerNode) return { trigger_type: 'manual', trigger_config: {} };
   if (triggerNode.trigger_kind === 'keyword') {
@@ -154,6 +155,26 @@ const triggerPayload = triggerNode => {
           .filter(Boolean),
         match: triggerNode.match === 'exact' ? 'exact' : 'contains',
       },
+    };
+  }
+  if (triggerNode.trigger_kind === 'schedule') {
+    const sched = triggerNode.schedule || {};
+    if (sched.mode === 'interval') {
+      const every = Number.parseInt(sched.every, 10);
+      return {
+        trigger_type: 'schedule',
+        trigger_config: {
+          mode: 'interval',
+          every: Number.isNaN(every) || every < 1 ? 1 : every,
+          unit: ['minutes', 'hours', 'days'].includes(sched.unit)
+            ? sched.unit
+            : 'days',
+        },
+      };
+    }
+    return {
+      trigger_type: 'schedule',
+      trigger_config: { mode: 'cron', cron: String(sched.cron ?? '').trim() },
     };
   }
   if (triggerNode.event_name) {

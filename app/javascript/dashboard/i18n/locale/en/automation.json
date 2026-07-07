@@ -121,6 +121,7 @@
           "KIND_HINT": "Choose what fires this flow.",
           "KIND_EVENT": "A conversation event",
           "KIND_KEYWORD": "A keyword in a message",
+          "KIND_SCHEDULE": "A schedule (by time)",
           "EVENT_LABEL": "Event",
           "EVENT_PLACEHOLDER": "Select an event",
           "EVENT_HINT": "The event that starts this flow.",
@@ -131,6 +132,21 @@
             "LIST_LABEL": "Keywords",
             "LIST_PLACEHOLDER": "One keyword per line, e.g.\nhi\nsupport\nhours",
             "LIST_HINT": "One per line. Case and accent insensitive."
+          },
+          "SCHEDULE": {
+            "MODE_LABEL": "How often",
+            "HINT": "Runs periodically, checked every 15 minutes. Fires at most once per window.",
+            "MODE_CRON": "On a cron schedule",
+            "MODE_INTERVAL": "Every N minutes/hours/days",
+            "CRON_LABEL": "Cron expression",
+            "CRON_PLACEHOLDER": "0 9 * * 1",
+            "CRON_HINT": "Five fields: minute hour day month weekday. Example: 0 9 * * 1 = Mondays at 09:00.",
+            "EVERY_LABEL": "Every",
+            "EVERY_PLACEHOLDER": "e.g. 3",
+            "UNIT_LABEL": "Unit",
+            "UNIT_MINUTES": "Minutes",
+            "UNIT_HOURS": "Hours",
+            "UNIT_DAYS": "Days"
           }
         },
         "GENERIC": {
