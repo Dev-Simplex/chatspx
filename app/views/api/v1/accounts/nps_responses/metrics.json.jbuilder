@@ -23,4 +23,8 @@ json.nps_delta @metrics[:nps_delta]
 json.status_count @status_count
 json.blocked_count @blocked_count
 json.blocked_by_label_count @blocked_by_label_count
+
+# Closing the loop: tempo medio de follow-up humano ao detrator + fila aguardando.
+json.detractor_followup @detractor_followup
+
 json.signals @signals

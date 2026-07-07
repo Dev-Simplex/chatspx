@@ -29,6 +29,7 @@ class Api::V1::Accounts::NpsResponsesController < Api::V1::Accounts::BaseControl
     @metrics = calculator.to_h
     @status_count = cohort.group(:status).count
     assign_blocked_counts(cohort)
+    @detractor_followup = Reports::NpsDetractorFollowup.new(responded).to_h
     @signals = Reports::SignalSet.new(entries: [{ metric: :nps, value: @metrics[:nps_score] }]).build
   end
 
