@@ -30,7 +30,10 @@
         "CHANGE_STATUS": "Mudar status",
         "CHANGE_PRIORITY": "Prioridade",
         "ASSIGN_AI_AGENT": "Transferir p/ IA",
-        "SET_ATTRIBUTE": "Definir atributo"
+        "SET_ATTRIBUTE": "Definir atributo",
+        "MOVE_FUNNEL_STAGE": "Mover etapa no funil",
+        "CALL_MACRO": "Executar macro",
+        "SEND_CSAT": "Enviar CSAT"
       },
       "CONFIG": {
         "CLOSE": "Fechar",
@@ -50,6 +53,18 @@
           "VALUE_LABEL": "Valor",
           "VALUE_PLACEHOLDER": "Valor a gravar",
           "VALUE_HINT": "Aceita Liquid, ex.: {'{{'}contact.name{'}}'}."
+        },
+        "MOVE_FUNNEL_STAGE": {
+          "FUNNEL_LABEL": "Funil",
+          "FUNNEL_PLACEHOLDER": "Selecione um funil",
+          "STAGE_LABEL": "Etapa",
+          "STAGE_PLACEHOLDER": "Selecione uma etapa",
+          "NO_FUNNELS": "Nenhum funil disponível. Crie um funil no Kanban primeiro."
+        },
+        "CALL_MACRO": {
+          "LABEL": "Macro",
+          "PLACEHOLDER": "Selecione uma macro",
+          "NO_MACROS": "Nenhuma macro disponível. Crie uma em Configurações › Macros."
         },
         "ASSIGN_AGENT": {
           "LABEL": "Agente",

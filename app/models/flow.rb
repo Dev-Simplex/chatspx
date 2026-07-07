@@ -49,12 +49,18 @@ class Flow < ApplicationRecord
   # (automation_rule.rb:42), já normalizando as assimetrias (open/pending/remove_assigned_team
   # ficam disponíveis para ambos os modos). Ações enterprise (add_sla, assign_ai_agent) somam
   # via `Enterprise::Flow#allowed_action_names`.
+  #
+  # F1.5 — capacidades já existentes no produto, expostas ao motor: move_funnel_stage
+  # (mover a conversa de etapa no Kanban, via FunnelItems::MoveService), call_macro
+  # (rodar uma Macro existente sobre a conversa) e send_csat (disparar a pesquisa CSAT
+  # via CsatSurveyService). Todas reusam o serviço real — o motor só orquestra.
   BASE_ACTION_NAMES = %w[
     send_message add_private_note send_attachment send_webhook_event send_email_to_team
     add_label remove_label assign_agent assign_team remove_assigned_team
     mute_conversation snooze_conversation resolve_conversation open_conversation pending_conversation
     change_status change_priority send_email_transcript
     send_template set_attribute
+    move_funnel_stage call_macro send_csat
   ].freeze
 
   NODE_TYPES = %w[trigger action condition router wait].freeze

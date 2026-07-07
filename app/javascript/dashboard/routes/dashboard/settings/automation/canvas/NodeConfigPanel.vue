@@ -8,6 +8,8 @@ import ConditionConfig from './config/ConditionConfig.vue';
 import MessageConfig from './config/MessageConfig.vue';
 import SendTemplateConfig from './config/SendTemplateConfig.vue';
 import SetAttributeConfig from './config/SetAttributeConfig.vue';
+import MoveFunnelStageConfig from './config/MoveFunnelStageConfig.vue';
+import CallMacroConfig from './config/CallMacroConfig.vue';
 import AssignAgentConfig from './config/AssignAgentConfig.vue';
 import AssignTeamConfig from './config/AssignTeamConfig.vue';
 import AssignAiAgentConfig from './config/AssignAiAgentConfig.vue';
@@ -31,6 +33,8 @@ const ACTION_EDITORS = {
   add_private_note: markRaw(MessageConfig),
   send_template: markRaw(SendTemplateConfig),
   set_attribute: markRaw(SetAttributeConfig),
+  move_funnel_stage: markRaw(MoveFunnelStageConfig),
+  call_macro: markRaw(CallMacroConfig),
   assign_agent: markRaw(AssignAgentConfig),
   assign_team: markRaw(AssignTeamConfig),
   assign_ai_agent: markRaw(AssignAiAgentConfig),

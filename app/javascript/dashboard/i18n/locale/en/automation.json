@@ -30,7 +30,10 @@
         "CHANGE_STATUS": "Change status",
         "CHANGE_PRIORITY": "Priority",
         "ASSIGN_AI_AGENT": "Hand off to AI",
-        "SET_ATTRIBUTE": "Set attribute"
+        "SET_ATTRIBUTE": "Set attribute",
+        "MOVE_FUNNEL_STAGE": "Move funnel stage",
+        "CALL_MACRO": "Run macro",
+        "SEND_CSAT": "Send CSAT"
       },
       "CONFIG": {
         "CLOSE": "Close",
@@ -50,6 +53,18 @@
           "VALUE_LABEL": "Value",
           "VALUE_PLACEHOLDER": "Value to store",
           "VALUE_HINT": "Accepts Liquid, e.g. {'{{'}contact.name{'}}'}."
+        },
+        "MOVE_FUNNEL_STAGE": {
+          "FUNNEL_LABEL": "Funnel",
+          "FUNNEL_PLACEHOLDER": "Select a funnel",
+          "STAGE_LABEL": "Stage",
+          "STAGE_PLACEHOLDER": "Select a stage",
+          "NO_FUNNELS": "No funnels available. Create a funnel in the Kanban first."
+        },
+        "CALL_MACRO": {
+          "LABEL": "Macro",
+          "PLACEHOLDER": "Select a macro",
+          "NO_MACROS": "No macros available. Create one under Settings › Macros."
         },
         "ASSIGN_AGENT": {
           "LABEL": "Agent",

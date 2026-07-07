@@ -141,6 +141,82 @@ class Flows::ActionService < ActionService
     target.update!(store => current.merge(key => render_liquid(config['value'])))
   end
 
+  # Move a conversa de etapa no Kanban reusando o MESMO caminho do board (arrastar cartão):
+  # FunnelItems::MoveService — que sincroniza status open/resolved da etapa, faz o broadcast
+  # em tempo real e dispara as automações declarativas do funil. action_params =
+  # [{ funnel_id, stage_id }] (stage_id pode vir como 'stage'; funnel_id é opcional — sem
+  # ele usamos o único/primeiro funil em que a conversa já está).
+  # GUARD (risco real): se a conversa NÃO tem funnel_item, é no-op — nunca criamos uma
+  # colocação do zero (isso plantaria a conversa num funil por conta do motor). Só movemos
+  # cartões que já existem.
+  def move_funnel_stage(action_params)
+    config = action_params[0].to_h.with_indifferent_access
+    stage_id = config['stage_id'].presence || config['stage'].presence
+    return if stage_id.blank?
+
+    funnel_item = existing_funnel_item(config['funnel_id'])
+    return if funnel_item.blank?
+
+    stage = funnel_item.funnel.funnel_stages.find_by(id: stage_id)
+    return if stage.blank?
+
+    FunnelItems::MoveService.new(
+      conversation: @conversation.reload, funnel: funnel_item.funnel, funnel_stage: stage, moved_by: @actor
+    ).perform
+  end
+
+  # Roda uma Macro existente (conjunto nomeado de ações) sobre a conversa atual. Em vez de
+  # chamar Macros::ExecutionService — que faz `Current.reset` no ensure (corromperia o
+  # Current.executed_by/flow_depth do walker em andamento) e cria mensagens SEM o marcador
+  # flow_id (elas re-disparariam o listener → o próprio loop macro→flow→macro que o task
+  # pede pra evitar) — despachamos as ações da macro pelo PRÓPRIO Flows::ActionService.
+  # Assim herdam autoria e anti-loop (flow_id) idênticos aos demais nós.
+  # GUARDS: macro inexistente/fora da conta → no-op; anti-recursão via Current.flow_depth
+  # (mesmo contador do RunnerService) — no-op acima de MAX_DEPTH, barrando aninhamento
+  # síncrono descontrolado.
+  def call_macro(action_params)
+    macro = @account.macros.find_by(id: Array(action_params).first)
+    return if macro.blank?
+
+    depth = Current.flow_depth || 0
+    return if depth > Flows::RunnerService::MAX_DEPTH
+
+    Current.flow_depth = depth + 1
+    begin
+      run_macro_actions(macro)
+    ensure
+      Current.flow_depth = depth
+    end
+  end
+
+  # Best-effort por ação da macro (paridade com Macros::ExecutionService#perform e com o
+  # nosso #execute): um erro numa ação não derruba as demais.
+  def run_macro_actions(macro)
+    Array(macro.actions).each do |macro_action|
+      macro_action = macro_action.with_indifferent_access
+      send(macro_action[:action_name], macro_action[:action_params])
+    rescue StandardError => e
+      ChatwootExceptionTracker.new(e, account: @account).capture_exception
+    end
+  end
+
+  # Dispara a pesquisa CSAT reusando o CsatSurveyService — o mesmo serviço que o
+  # CsatSurveyListener usa ao resolver a conversa. Ele já carrega TODOS os guards do
+  # produto (conversa resolvida, CSAT habilitado na inbox, dedup "não enviar duas vezes",
+  # regras de rótulo, janela de mensagens, templates WhatsApp/Twilio). Sem params.
+  def send_csat(_action_params = nil)
+    return if conversation_a_tweet?
+
+    CsatSurveyService.new(conversation: @conversation.reload).perform
+  end
+
+  # O único/primeiro funnel_item da conversa (por funnel_id quando informado). Retorna nil
+  # quando a conversa não está em nenhum funil (ou não naquele funil) — a base do no-op.
+  def existing_funnel_item(funnel_id)
+    items = @conversation.reload.funnel_items
+    funnel_id.present? ? items.find_by(funnel_id: funnel_id) : items.first
+  end
+
   def whatsapp_cloud_inbox?
     channel = @conversation.inbox.channel
     channel.is_a?(Channel::Whatsapp) && channel.provider == 'whatsapp_cloud'

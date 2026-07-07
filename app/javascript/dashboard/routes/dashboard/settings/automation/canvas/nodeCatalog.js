@@ -142,6 +142,30 @@ export const NODE_CATALOG = [
     labelKey: 'AUTOMATION.CANVAS.NODES.SET_ATTRIBUTE',
     icon: 'i-lucide-database',
   },
+  {
+    key: 'move_funnel_stage',
+    type: 'action',
+    actionName: 'move_funnel_stage',
+    family: 'action',
+    labelKey: 'AUTOMATION.CANVAS.NODES.MOVE_FUNNEL_STAGE',
+    icon: 'i-lucide-square-kanban',
+  },
+  {
+    key: 'call_macro',
+    type: 'action',
+    actionName: 'call_macro',
+    family: 'action',
+    labelKey: 'AUTOMATION.CANVAS.NODES.CALL_MACRO',
+    icon: 'i-lucide-wand-sparkles',
+  },
+  {
+    key: 'send_csat',
+    type: 'action',
+    actionName: 'send_csat',
+    family: 'msg',
+    labelKey: 'AUTOMATION.CANVAS.NODES.SEND_CSAT',
+    icon: 'i-lucide-star',
+  },
 ];
 
 // Entrada do catálogo que descreve um nó da definition. Nós `action` casam pelo actionName
