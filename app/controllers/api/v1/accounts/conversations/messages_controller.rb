@@ -89,10 +89,14 @@ class Api::V1::Accounts::Conversations::MessagesController < Api::V1::Accounts::
   def retry
     return if message.blank?
 
-    service = Messages::StatusUpdateService.new(message, 'sent')
-    service.perform
-    message.update!(content_attributes: {})
-    ::SendReplyJob.perform_later(message.id)
+    if waha_interactive_message?(message)
+      retry_waha_interactive
+    else
+      service = Messages::StatusUpdateService.new(message, 'sent')
+      service.perform
+      message.update!(content_attributes: {})
+      ::SendReplyJob.perform_later(message.id)
+    end
   rescue ActiveRecord::RecordInvalid, ArgumentError => e
     render_could_not_create_error(e.message)
   end
@@ -191,6 +195,24 @@ class Api::V1::Accounts::Conversations::MessagesController < Api::V1::Accounts::
   end
 
   private
+
+  # Interactive (input_select) WhatsApp messages must keep their items on retry.
+  # The default retry wipes content_attributes, which makes items => nil and
+  # crashes ContentAttributeValidator (nil.reject) → 500.
+  def waha_interactive_message?(msg)
+    msg.content_type == 'input_select' &&
+      msg.inbox&.channel_type == 'Channel::Api' &&
+      msg.inbox.waha_session_name.present? &&
+      msg.content_attributes&.dig('items').present?
+  end
+
+  # Re-dispatch the interactive message via the WAHA REST path, preserving the
+  # items and clearing the prior error/source_id so it actually re-sends.
+  def retry_waha_interactive
+    attrs = (message.content_attributes || {}).except('external_error')
+    message.update!(content_attributes: attrs, status: :sent, source_id: nil)
+    Waha::OutboundSpecialMessageService.new(message).perform
+  end
 
   def enqueue_waha_status_sync
     inbox = @conversation.inbox

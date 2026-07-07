@@ -1,5 +1,128 @@
 {
   "AUTOMATION": {
+    "CANVAS": {
+      "NEW_FLOW": "Novo fluxo",
+      "NAME_PLACEHOLDER": "Nome do fluxo",
+      "PALETTE": "Blocos",
+      "SAVE": "Salvar",
+      "SAVED": "Fluxo salvo",
+      "CREATED": "Fluxo criado",
+      "SAVE_ERROR": "Não foi possível salvar o fluxo",
+      "EMPTY": "Escolha um bloco na paleta para começar",
+      "FAMILIES": {
+        "TRIGGER": "Gatilho",
+        "MSG": "Mensagem",
+        "LOGIC": "Lógica",
+        "AI": "IA",
+        "ACTION": "Ação",
+        "DATA": "Dados"
+      },
+      "NODES": {
+        "TRIGGER": "Gatilho",
+        "CONDITION": "Condição",
+        "WAIT": "Aguardar",
+        "SEND_MESSAGE": "Enviar mensagem",
+        "SEND_TEMPLATE": "Enviar template",
+        "ADD_PRIVATE_NOTE": "Nota interna",
+        "ASSIGN_AGENT": "Atribuir agente",
+        "ASSIGN_TEAM": "Atribuir time",
+        "ADD_LABEL": "Etiqueta",
+        "CHANGE_STATUS": "Mudar status",
+        "CHANGE_PRIORITY": "Prioridade",
+        "ASSIGN_AI_AGENT": "Transferir p/ IA",
+        "SET_ATTRIBUTE": "Definir atributo"
+      },
+      "CONFIG": {
+        "CLOSE": "Fechar",
+        "MESSAGE": {
+          "LABEL": "Mensagem",
+          "NOTE_LABEL": "Nota interna",
+          "PLACEHOLDER": "Escreva a mensagem a enviar…",
+          "NOTE_PLACEHOLDER": "Escreva a nota interna…",
+          "VARIABLES_HINT": "Suporta variáveis Liquid como {'{{'}contact.name{'}}'}."
+        },
+        "SET_ATTRIBUTE": {
+          "TARGET_LABEL": "Onde",
+          "TARGET_CONVERSATION": "Conversa",
+          "TARGET_CONTACT": "Contato",
+          "KEY_LABEL": "Atributo",
+          "KEY_PLACEHOLDER": "Chave do atributo",
+          "VALUE_LABEL": "Valor",
+          "VALUE_PLACEHOLDER": "Valor a gravar",
+          "VALUE_HINT": "Aceita Liquid, ex.: {'{{'}contact.name{'}}'}."
+        },
+        "ASSIGN_AGENT": {
+          "LABEL": "Agente",
+          "PLACEHOLDER": "Selecione um agente",
+          "SELF": "Quem executar o fluxo"
+        },
+        "ASSIGN_TEAM": {
+          "LABEL": "Time",
+          "PLACEHOLDER": "Selecione um time"
+        },
+        "ASSIGN_AI_AGENT": {
+          "LABEL": "Agente IA",
+          "PLACEHOLDER": "Selecione um agente IA"
+        },
+        "CHANGE_STATUS": {
+          "LABEL": "Status",
+          "PLACEHOLDER": "Selecione um status",
+          "OPEN": "Aberta",
+          "RESOLVED": "Resolvida",
+          "PENDING": "Pendente",
+          "SNOOZED": "Adiada"
+        },
+        "CHANGE_PRIORITY": {
+          "LABEL": "Prioridade",
+          "PLACEHOLDER": "Selecione uma prioridade"
+        },
+        "WAIT": {
+          "VALUE_LABEL": "Aguardar",
+          "VALUE_PLACEHOLDER": "ex.: 30",
+          "UNIT_LABEL": "Unidade",
+          "UNIT_MINUTES": "Minutos",
+          "UNIT_HOURS": "Horas",
+          "UNIT_DAYS": "Dias"
+        },
+        "LABELS": {
+          "ADD_LABEL": "Etiquetas a adicionar",
+          "REMOVE_LABEL": "Etiquetas a remover"
+        },
+        "TEMPLATE": {
+          "NO_INBOXES": "Nenhuma caixa WhatsApp Cloud disponível. Conecte uma para enviar templates.",
+          "INBOX_LABEL": "Caixa de entrada",
+          "INBOX_PLACEHOLDER": "Selecione uma caixa",
+          "TEMPLATE_LABEL": "Template",
+          "TEMPLATE_PLACEHOLDER": "Selecione um template",
+          "NO_TEMPLATES": "Nenhum template aprovado para esta caixa.",
+          "APPLY": "Aplicar variáveis"
+        },
+        "CONDITION": {
+          "LABEL": "Condições",
+          "ADD": "Adicionar condição"
+        },
+        "TRIGGER": {
+          "KIND_LABEL": "Iniciar o fluxo por",
+          "KIND_HINT": "Escolha o que dispara este fluxo.",
+          "KIND_EVENT": "Um evento da conversa",
+          "KIND_KEYWORD": "Uma palavra-chave na mensagem",
+          "EVENT_LABEL": "Evento",
+          "EVENT_PLACEHOLDER": "Selecione um evento",
+          "EVENT_HINT": "O evento que inicia este fluxo.",
+          "KEYWORD": {
+            "MATCH_LABEL": "Correspondência",
+            "MATCH_CONTAINS": "A mensagem contém uma palavra-chave",
+            "MATCH_EXACT": "A mensagem é exatamente uma palavra-chave",
+            "LIST_LABEL": "Palavras-chave",
+            "LIST_PLACEHOLDER": "Uma palavra-chave por linha, ex.:\noi\nsuporte\nhorário",
+            "LIST_HINT": "Uma por linha. Ignora maiúsculas e acentos."
+          }
+        },
+        "GENERIC": {
+          "NO_PARAMS": "Este bloco não tem parâmetros para configurar."
+        }
+      }
+    },
     "HEADER": "Automação",
     "DESCRIPTION": "A automação pode substituir e simplificar processos existentes que requerem esforço manual, como a adição de etiquetas e a atribuição de conversas ao agente mais adequado. Isso permite que o time se concentre em seus pontos fortes e reduza o tempo gasto em tarefas rotineiras.",
     "LEARN_MORE": "Aprenda mais sobre automação",

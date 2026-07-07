@@ -6,9 +6,11 @@ import { useAlert } from 'dashboard/composables';
 import { useI18n } from 'vue-i18n';
 import { emitter } from 'shared/helpers/mitt';
 import EmailTranscriptModal from './EmailTranscriptModal.vue';
+import ShareToInternalChat from './ShareToInternalChat.vue';
 import ResolveAction from '../../buttons/ResolveAction.vue';
 import ButtonV4 from 'dashboard/components-next/button/Button.vue';
 import DropdownMenu from 'dashboard/components-next/dropdown-menu/DropdownMenu.vue';
+import { FEATURE_FLAGS } from 'dashboard/featureFlags';
 
 import {
   CMD_MUTE_CONVERSATION,
@@ -22,6 +24,7 @@ const { t } = useI18n();
 
 const [showEmailActionsModal, toggleEmailModal] = useToggle(false);
 const [showActionsDropdown, toggleDropdown] = useToggle(false);
+const [showShareToInternalChat, toggleShareToInternalChat] = useToggle(false);
 
 const currentChat = computed(() => store.getters.getSelectedChat);
 
@@ -34,6 +37,13 @@ const canRetriage = computed(() =>
       (assistant.inbox_ids || []).includes(currentChat.value?.inbox_id)
   )
 );
+const hasInternalChat = computed(() => {
+  const accountId = store.getters.getCurrentAccountId;
+  return store.getters['accounts/isFeatureEnabledonAccount'](
+    accountId,
+    FEATURE_FLAGS.INTERNAL_CHAT
+  );
+});
 
 const actionMenuItems = computed(() => {
   const items = [];
@@ -44,6 +54,15 @@ const actionMenuItems = computed(() => {
       label: t('CONVERSATION_SIDEBAR.RETRIAGE'),
       action: 'retriage',
       value: 'retriage',
+    });
+  }
+
+  if (hasInternalChat.value) {
+    items.push({
+      icon: 'i-lucide-messages-square',
+      label: t('INTERNAL_CHAT.SHARE.MENU_ITEM'),
+      action: 'share_to_internal_chat',
+      value: 'share_to_internal_chat',
     });
   }
 
@@ -106,6 +125,8 @@ const handleActionClick = ({ action }) => {
     toggleEmailModal();
   } else if (action === 'retriage') {
     onRetriage();
+  } else if (action === 'share_to_internal_chat') {
+    toggleShareToInternalChat(true);
   }
 };
 
@@ -162,6 +183,12 @@ onUnmounted(() => {
       :show="showEmailActionsModal"
       :current-chat="currentChat"
       @cancel="toggleEmailModal"
+    />
+    <ShareToInternalChat
+      v-if="showShareToInternalChat"
+      :show="showShareToInternalChat"
+      :conversation="currentChat"
+      @close="toggleShareToInternalChat(false)"
     />
   </div>
 </template>

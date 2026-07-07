@@ -1,6 +1,7 @@
 <script setup>
-import { ref, onMounted, onBeforeUnmount } from 'vue';
+import { ref, computed, onMounted, onBeforeUnmount } from 'vue';
 import { useI18n } from 'vue-i18n';
+import { useRoute } from 'vue-router';
 import {
   hasPushPermissions,
   verifyServiceWorkerExistence,
@@ -8,6 +9,11 @@ import {
 } from 'dashboard/helper/pushHelper';
 
 const { t } = useI18n();
+const route = useRoute();
+
+// Internal chat has its own bottom-right composer/send button and its own
+// in-chat notification controls — this banner would overlap the send button.
+const isInternalChat = computed(() => route.name === 'internal_chat_index');
 
 const DISMISS_KEY = 'push_permission_dismissed_at';
 const DISMISS_TTL_DAYS = 30;
@@ -23,6 +29,7 @@ const recentlyDismissed = () => {
 };
 
 const canPrompt = () => {
+  if (isInternalChat.value) return false;
   if (!('Notification' in window)) return false;
   if (Notification.permission !== 'default') return false;
   if (hasPushPermissions()) return false;
@@ -55,7 +62,7 @@ onBeforeUnmount(() => {
 
 <template>
   <div
-    v-if="visible"
+    v-if="visible && !isInternalChat"
     class="fixed bottom-4 right-4 z-50 max-w-sm bg-n-solid-2 border border-n-weak rounded-xl shadow-lg p-4 flex items-start gap-3"
   >
     <div class="flex-1">

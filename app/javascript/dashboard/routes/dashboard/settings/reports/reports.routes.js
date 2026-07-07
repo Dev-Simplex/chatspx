@@ -5,6 +5,7 @@ import ReportsWrapper from './components/ReportsWrapper.vue';
 import Index from './Index.vue';
 
 import AgentReportsIndex from './AgentReportsIndex.vue';
+import AgentAssignmentReports from './AgentAssignmentReports.vue';
 import InboxReportsIndex from './InboxReportsIndex.vue';
 import TeamReportsIndex from './TeamReportsIndex.vue';
 import LabelReportsIndex from './LabelReportsIndex.vue';
@@ -74,6 +75,14 @@ const revisedReportRoutes = [
       permissions: ['administrator', 'report_manage'],
     },
     component: AgentReportsShow,
+  },
+  {
+    path: 'assignments',
+    name: 'agent_assignment_reports',
+    meta: {
+      permissions: ['administrator', 'report_manage'],
+    },
+    component: AgentAssignmentReports,
   },
 
   {

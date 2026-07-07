@@ -182,11 +182,14 @@ const confirmDeletion = () => {
       >
         {{ $t('AGENT_MGMT.NO_RESULTS') }}
       </span>
-      <div v-else class="divide-y divide-n-weak border-t border-n-weak">
+      <div
+        v-else
+        class="divide-y divide-n-weak border border-n-weak rounded-xl"
+      >
         <div
           v-for="(agent, index) in filteredAgentList"
           :key="agent.email"
-          class="flex justify-between flex-row items-start gap-4 py-4"
+          class="flex justify-between flex-row items-start gap-4 px-4 py-4"
         >
           <div class="flex items-center gap-4">
             <Avatar

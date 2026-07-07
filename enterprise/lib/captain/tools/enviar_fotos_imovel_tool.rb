@@ -4,15 +4,25 @@ class Captain::Tools::EnviarFotosImovelTool < Captain::Tools::BasePublicTool
               'Se o cliente pedir mais fotos do mesmo imóvel, chame de novo com o mesmo código que envia as próximas 3.'
 
   param :codigo, type: 'string',
-        desc: 'Código do imóvel que o cliente quer, exatamente como veio no resultado da busca DAQUELE imóvel. ' \
-              'Nunca reutilize o código de outro imóvel, nunca invente.', required: true
+                 desc: 'Código do imóvel que o cliente quer, exatamente como veio no resultado da busca DAQUELE imóvel. ' \
+                       'Nunca reutilize o código de outro imóvel, nunca invente.', required: true
 
   BATCH = 3
   SEND_INTERVAL = 2 # segundos entre cada foto, pra o WhatsApp entregar uma por uma
+  COOLDOWN = 90 # segundos entre lotes de foto na MESMA conversa — freia a rajada multi-imóvel
+  MAX_POR_IMOVEL = 6 # teto de fotos por imóvel (2 lotes) — evita dilúvio
 
   def perform(tool_context, codigo:)
     conversation = find_conversation(tool_context&.state)
     return 'Não consegui identificar a conversa pra enviar as fotos.' unless conversation
+
+    # Freio anti-rajada: não deixa a IA despejar fotos de vários imóveis no mesmo turno
+    # (era o "todas juntas"). O 1º lote da conversa sempre passa (ultimo=0).
+    ultimo = conversation.custom_attributes['fotos_ultimo_envio_at'].to_i
+    if ultimo.positive? && (Time.current.to_i - ultimo) < COOLDOWN
+      return 'Você acabou de enviar fotos há pouco. NÃO envie mais fotos agora — avance a conversa e ' \
+             'espere o cliente reagir. Só envie de novo se ele pedir explicitamente.'
+    end
 
     # Trava anti-alucinação: só envia foto de código que apareceu numa busca DESTA
     # conversa (buscar_imovel registra em codigos_buscados). Bloqueia a IA de mandar
@@ -28,13 +38,13 @@ class Captain::Tools::EnviarFotosImovelTool < Captain::Tools::BasePublicTool
 
     key = "fotos_offset_#{codigo}"
     sent = conversation.custom_attributes[key].to_i
-    batch = fotos[sent, BATCH] || []
-    if batch.empty?
-      # Cliente pediu fotos de novo e ja enviamos todas: recomeca do inicio (reenvio —
-      # cobre tambem o caso de as anteriores nao terem chegado).
-      sent = 0
-      batch = fotos[0, BATCH] || []
+    limite = [fotos.size, MAX_POR_IMOVEL].min
+    if sent >= limite
+      # Já enviou o teto (ou todas): NÃO reenvia do zero (evita foto repetida) — avança.
+      return "Já enviei as fotos principais do imóvel #{codigo}. NÃO reenvie — avance a conversa (interesse, visita)."
     end
+
+    batch = fotos[sent, BATCH] || []
     return 'Não encontrei fotos desse imóvel.' if batch.empty?
 
     # Envia uma por uma com intervalo: em rajada o bridge do WhatsApp entrega só a 1ª.
@@ -43,16 +53,17 @@ class Captain::Tools::EnviarFotosImovelTool < Captain::Tools::BasePublicTool
       sleep(SEND_INTERVAL) if i < batch.size - 1
     end
     new_sent = sent + batch.size
-    conversation.update!(custom_attributes: conversation.custom_attributes.merge(key => new_sent))
+    conversation.update!(custom_attributes: conversation.custom_attributes.merge(
+      key => new_sent, 'fotos_ultimo_envio_at' => Time.current.to_i
+    ))
 
-    restantes = fotos.size - new_sent
-    if restantes.positive?
+    if limite - new_sent > 0
       # Nao oferecer mais fotos por conta propria (prende o lead num loop de midia):
       # avancar a conversa pro proximo passo; se o cliente pedir mais, chamar de novo.
       "Enviei #{batch.size} fotos do imóvel #{codigo}. NÃO ofereça mais fotos por conta própria — " \
         'avance a conversa pro próximo passo (interesse, visita). Se o cliente pedir mais fotos, chame esta ferramenta de novo.'
     else
-      "Enviei as últimas #{batch.size} fotos do imóvel #{codigo}. Não há mais fotos — avance a conversa."
+      "Enviei as fotos principais do imóvel #{codigo}. Avance a conversa."
     end
   rescue StandardError => e
     Rails.logger.warn("[EnviarFotosImovelTool] #{e.message}")

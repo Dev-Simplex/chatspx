@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[7.1].define(version: 2026_07_03_170000) do
+ActiveRecord::Schema[7.1].define(version: 2026_07_07_120000) do
   # These extensions should be enabled to support this database
   enable_extension "pg_stat_statements"
   enable_extension "pg_trgm"
@@ -755,10 +755,13 @@ ActiveRecord::Schema[7.1].define(version: 2026_07_03_170000) do
     t.datetime "unassigned_at"
     t.datetime "created_at", null: false
     t.datetime "updated_at", null: false
+    t.bigint "assigned_by_id"
+    t.integer "source", default: 6, null: false
     t.index ["account_id", "assigned_at"], name: "idx_conv_assign_hist_account_assigned_at"
     t.index ["account_id", "assignee_id"], name: "idx_conv_assign_hist_account_assignee"
     t.index ["account_id", "team_id"], name: "idx_conv_assign_hist_account_team"
     t.index ["account_id"], name: "index_conversation_assignment_histories_on_account_id"
+    t.index ["assigned_by_id"], name: "index_conversation_assignment_histories_on_assigned_by_id"
     t.index ["assignee_id"], name: "index_conversation_assignment_histories_on_assignee_id"
     t.index ["conversation_id"], name: "index_conversation_assignment_histories_on_conversation_id"
     t.index ["team_id"], name: "index_conversation_assignment_histories_on_team_id"
@@ -1007,6 +1010,45 @@ ActiveRecord::Schema[7.1].define(version: 2026_07_03_170000) do
     t.index ["name", "account_id"], name: "index_email_templates_on_name_and_account_id", unique: true
   end
 
+  create_table "flow_runs", force: :cascade do |t|
+    t.bigint "flow_id", null: false
+    t.bigint "account_id", null: false
+    t.bigint "conversation_id", null: false
+    t.bigint "contact_id"
+    t.integer "status", default: 0, null: false
+    t.string "current_node_id"
+    t.datetime "wait_until"
+    t.jsonb "context", default: {}, null: false
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["account_id"], name: "index_flow_runs_on_account_id"
+    t.index ["contact_id"], name: "index_flow_runs_on_contact_id"
+    t.index ["conversation_id"], name: "index_flow_runs_on_conversation_id"
+    t.index ["flow_id", "conversation_id"], name: "index_active_flow_run_per_flow_conversation", unique: true, where: "(status = ANY (ARRAY[0, 1]))"
+    t.index ["flow_id"], name: "index_flow_runs_on_flow_id"
+    t.index ["status", "wait_until"], name: "index_flow_runs_on_status_and_wait_until"
+  end
+
+  create_table "flows", force: :cascade do |t|
+    t.bigint "account_id", null: false
+    t.string "name", null: false
+    t.text "description"
+    t.integer "trigger_type", default: 0, null: false
+    t.jsonb "trigger_config", default: {}, null: false
+    t.jsonb "definition", default: {"edges" => [], "nodes" => []}, null: false
+    t.boolean "active", default: true, null: false
+    t.integer "version", default: 1, null: false
+    t.integer "visibility", default: 1, null: false
+    t.integer "reentry_policy", default: 0, null: false
+    t.jsonb "goal_conditions", default: {}, null: false
+    t.bigint "created_by_id"
+    t.bigint "updated_by_id"
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["account_id", "trigger_type", "active"], name: "index_flows_on_account_id_and_trigger_type_and_active"
+    t.index ["account_id"], name: "index_flows_on_account_id"
+  end
+
   create_table "folders", force: :cascade do |t|
     t.integer "account_id", null: false
     t.integer "category_id", null: false
@@ -1233,6 +1275,54 @@ ActiveRecord::Schema[7.1].define(version: 2026_07_03_170000) do
     t.jsonb "settings", default: {}
     t.index ["account_id", "app_id"], name: "idx_integrations_hooks_account_app"
     t.index ["inbox_id"], name: "idx_integrations_hooks_inbox_id"
+  end
+
+  create_table "internal_channel_members", force: :cascade do |t|
+    t.bigint "internal_channel_id", null: false
+    t.bigint "user_id", null: false
+    t.datetime "last_read_at"
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.datetime "favorited_at"
+    t.index ["internal_channel_id", "user_id"], name: "idx_on_internal_channel_id_user_id_30257ceaa6", unique: true
+    t.index ["internal_channel_id"], name: "index_internal_channel_members_on_internal_channel_id"
+    t.index ["user_id"], name: "index_internal_channel_members_on_user_id"
+  end
+
+  create_table "internal_channels", force: :cascade do |t|
+    t.bigint "account_id", null: false
+    t.string "name"
+    t.integer "channel_type", default: 0, null: false
+    t.bigint "team_id"
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.string "dm_key"
+    t.index ["account_id", "channel_type"], name: "index_internal_channels_on_account_id_and_channel_type"
+    t.index ["account_id", "dm_key"], name: "idx_internal_channels_on_account_and_dm_key", unique: true, where: "((channel_type = 0) AND (dm_key IS NOT NULL))"
+    t.index ["account_id"], name: "index_internal_channels_on_account_id"
+    t.index ["team_id"], name: "index_internal_channels_on_team_id"
+  end
+
+  create_table "internal_messages", force: :cascade do |t|
+    t.bigint "internal_channel_id", null: false
+    t.bigint "user_id", null: false
+    t.text "content", null: false
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.jsonb "mentioned_user_ids", default: [], null: false
+    t.datetime "edited_at"
+    t.datetime "deleted_at"
+    t.jsonb "reactions", default: {}, null: false
+    t.bigint "reply_to_id"
+    t.bigint "shared_conversation_id"
+    t.index ["internal_channel_id", "created_at"], name: "index_internal_messages_on_internal_channel_id_and_created_at"
+    t.index ["internal_channel_id", "id"], name: "idx_internal_messages_on_channel_and_id"
+    t.index ["internal_channel_id"], name: "index_internal_messages_on_internal_channel_id"
+    t.index ["mentioned_user_ids"], name: "idx_internal_messages_on_mentioned_user_ids", using: :gin
+    t.index ["reactions"], name: "idx_internal_messages_on_reactions", using: :gin
+    t.index ["reply_to_id"], name: "index_internal_messages_on_reply_to_id"
+    t.index ["shared_conversation_id"], name: "index_internal_messages_on_shared_conversation_id"
+    t.index ["user_id"], name: "index_internal_messages_on_user_id"
   end
 
   create_table "kanban_automations", force: :cascade do |t|
@@ -1896,6 +1986,10 @@ ActiveRecord::Schema[7.1].define(version: 2026_07_03_170000) do
   add_foreign_key "conversations", "teams", on_delete: :nullify
   add_foreign_key "conversations", "users", column: "assignee_id", on_delete: :nullify
   add_foreign_key "csat_survey_responses", "conversations", on_delete: :cascade
+  add_foreign_key "flow_runs", "accounts"
+  add_foreign_key "flow_runs", "contacts"
+  add_foreign_key "flow_runs", "conversations"
+  add_foreign_key "flow_runs", "flows"
   add_foreign_key "funnel_automations", "funnel_stages"
   add_foreign_key "funnel_automations", "funnels"
   add_foreign_key "funnel_custom_fields", "funnels"
@@ -1913,6 +2007,14 @@ ActiveRecord::Schema[7.1].define(version: 2026_07_03_170000) do
   add_foreign_key "funnels", "accounts"
   add_foreign_key "funnels", "teams"
   add_foreign_key "inboxes", "portals"
+  add_foreign_key "internal_channel_members", "internal_channels"
+  add_foreign_key "internal_channel_members", "users"
+  add_foreign_key "internal_channels", "accounts"
+  add_foreign_key "internal_channels", "teams"
+  add_foreign_key "internal_messages", "conversations", column: "shared_conversation_id", on_delete: :nullify
+  add_foreign_key "internal_messages", "internal_channels"
+  add_foreign_key "internal_messages", "internal_messages", column: "reply_to_id", on_delete: :nullify
+  add_foreign_key "internal_messages", "users"
   add_foreign_key "kanban_automations", "kanban_stages", on_delete: :cascade
   add_foreign_key "kanban_automations", "kanbans", on_delete: :cascade
   add_foreign_key "kanban_items", "conversations", on_delete: :cascade

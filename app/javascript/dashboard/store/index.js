@@ -10,6 +10,7 @@ import attributes from './modules/attributes';
 import auditlogs from './modules/auditlogs';
 import auth from './modules/auth';
 import automations from './modules/automations';
+import flows from './modules/flows';
 import bulkActions from './modules/bulkActions';
 import campaigns from './modules/campaigns';
 import cannedResponse from './modules/cannedResponse';
@@ -63,11 +64,13 @@ import captainTools from './captain/tools';
 import captainCustomTools from './captain/customTools';
 import captainAssistantLogs from './captain/assistantLogs';
 import kanban from './modules/kanban';
+import internalChat from './modules/internalChat';
 
 const plugins = [];
 
 export default createStore({
   modules: {
+    flows,
     accounts,
     agentBots,
     agentCapacityPolicies,
@@ -131,6 +134,7 @@ export default createStore({
     captainCustomTools,
     captainAssistantLogs,
     kanban,
+    internalChat,
   },
   plugins,
 });

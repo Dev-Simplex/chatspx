@@ -39,6 +39,12 @@ message_sequences_advance_job:
   class: 'MessageSequences::AdvanceJob'
   queue: scheduled_jobs
 
+# Motor Flow (Fase 2): retoma os flow-runs suspensos cujo `wait` venceu, a cada minuto
+flows_resume_job:
+  cron: '*/1 * * * *'
+  class: 'Flows::ResumeJob'
+  queue: scheduled_jobs
+
 # executed daily at 2230 UTC
 # which is our lowest traffic time
 remove_stale_contact_inboxes_job.rb:

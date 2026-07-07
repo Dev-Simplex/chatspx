@@ -12,6 +12,14 @@ module Current
   # 'move' action re-triggers MoveService → the engine again; this depth counter
   # caps the chain so a misconfigured rule can never loop forever.
   thread_mattr_accessor :funnel_automation_depth
+  # F1 (motor Flow): depth-guard para re-entrada SÍNCRONA inline de flows (ex.: um futuro
+  # nó call_flow que invoque outro flow na mesma thread). NÃO cobre o re-trigger via
+  # evento: o AutomationRuleListener despacha async (Sidekiq) e cada job nasce em thread
+  # nova com este thread-local zerado, então loops cross-flow por evento são barrados pelo
+  # anti-loop de mensagem (content_attributes.flow_id, lido na F4) + marcador idempotente
+  # (F2), não por este contador. funnel_automation_depth acima só funciona por o Kanban
+  # re-entrar inline (síncrono). Ver Flows::RunnerService::MAX_DEPTH.
+  thread_mattr_accessor :flow_depth
 
   def self.reset
     Current.user = nil
@@ -21,5 +29,6 @@ module Current
     Current.contact = nil
     Current.skip_ai_agent_assignment = nil
     Current.funnel_automation_depth = nil
+    Current.flow_depth = nil
   end
 end

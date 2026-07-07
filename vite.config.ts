@@ -44,6 +44,24 @@ if (isLibraryMode) {
 
 export default defineConfig({
   plugins: plugins,
+  optimizeDeps: {
+    // Deps do canvas de Automações que leem `process.env.*`. Como o canvas é lazy-loaded,
+    // sem incluí-las o vite dev não substitui `process` no pré-bundle e o chunk quebra com
+    // "process is not defined" (Vue Flow via NODE_ENV; vue-shepherd via ES_BUILD). Só afeta
+    // o DEV — o build de produção já substitui.
+    include: [
+      '@vue-flow/core',
+      '@vue-flow/background',
+      '@vue-flow/controls',
+      '@vue-flow/minimap',
+      'vue-shepherd',
+    ],
+    esbuildOptions: {
+      define: {
+        'process.env.ES_BUILD': 'false',
+      },
+    },
+  },
   build: {
     rollupOptions: {
       output: {

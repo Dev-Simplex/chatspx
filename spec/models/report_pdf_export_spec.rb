@@ -13,7 +13,7 @@ RSpec.describe ReportPdfExport do
     end
 
     it 'accepts the supported report types' do
-      %w[nps csat bot conversations overview agent inbox team label sla].each do |report_type|
+      %w[nps csat bot conversations overview agent inbox team label sla funnel agent_assignment].each do |report_type|
         expect(build(:report_pdf_export, account: account, report_type: report_type)).to be_valid
       end
     end

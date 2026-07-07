@@ -119,6 +119,9 @@ Rails.application.routes.draw do
           resources :macros, only: [:index, :create, :show, :update, :destroy] do
             post :execute, on: :member
           end
+          resources :flows, only: [:index, :create, :show, :update, :destroy] do
+            post :execute, on: :member
+          end
           resources :sla_policies, only: [:index, :create, :show, :update, :destroy]
           resources :custom_roles, only: [:index, :create, :show, :update, :destroy]
           resources :agent_capacity_policies, only: [:index, :create, :show, :update, :destroy] do
@@ -133,8 +136,14 @@ Rails.application.routes.draw do
             end
           end
           resources :funnels, only: [:index, :show, :create, :update, :destroy] do
+            collection do
+              get :templates
+              post :create_from_template
+            end
             member do
               post :reorder_stages
+              get :stats
+              post :form
             end
             resources :funnel_stages, only: [:index, :show, :create, :update, :destroy]
             resources :custom_fields, only: [:index, :show, :create, :update, :destroy], module: :funnels
@@ -159,6 +168,23 @@ Rails.application.routes.draw do
           end
           resources :message_sequences, only: [:index, :show, :create, :update, :destroy]
           resources :message_sequence_enrollments, only: [:index, :create, :destroy]
+          resources :internal_channels, only: [:index, :show, :create, :update] do
+            collection do
+              get :mentions
+              get :search
+            end
+            member do
+              post :read
+              post :typing
+              post :add_member
+              delete :remove_member
+              post :leave
+            end
+            resources :internal_messages, only: [:index, :create, :update, :destroy], module: :internal_channels do
+              member { post :react }
+            end
+          end
+          resources :agents_for_internal_chat, only: [:index], controller: :internal_chat_agents
           resources :dashboard_apps, only: [:index, :show, :create, :update, :destroy]
           namespace :channels do
             resource :twilio_channel, only: [:create]
@@ -563,6 +589,7 @@ Rails.application.routes.draw do
           resources :summary_reports, only: [] do
             collection do
               get :agent
+              get :agent_assignment
               get :team
               get :inbox
               get :label
@@ -706,6 +733,7 @@ Rails.application.routes.draw do
   post 'webhooks/twitter', to: 'api/v1/webhooks#twitter_events'
   post 'webhooks/line/:line_channel_id', to: 'webhooks/line#process_payload'
   post 'webhooks/telegram/:bot_token', to: 'webhooks/telegram#process_payload'
+  post 'webhooks/waha/:session_name', to: 'webhooks/waha#process_payload'
   post 'webhooks/sms/:phone_number', to: 'webhooks/sms#process_payload'
   get 'webhooks/whatsapp/:phone_number', to: 'webhooks/whatsapp#verify'
   post 'webhooks/whatsapp/:phone_number', to: 'webhooks/whatsapp#process_payload'

@@ -1,5 +1,128 @@
 {
   "AUTOMATION": {
+    "CANVAS": {
+      "NEW_FLOW": "New flow",
+      "NAME_PLACEHOLDER": "Flow name",
+      "PALETTE": "Blocks",
+      "SAVE": "Save",
+      "SAVED": "Flow saved",
+      "CREATED": "Flow created",
+      "SAVE_ERROR": "Could not save the flow",
+      "EMPTY": "Pick a block from the palette to start",
+      "FAMILIES": {
+        "TRIGGER": "Trigger",
+        "MSG": "Message",
+        "LOGIC": "Logic",
+        "AI": "AI",
+        "ACTION": "Action",
+        "DATA": "Data"
+      },
+      "NODES": {
+        "TRIGGER": "Trigger",
+        "CONDITION": "Condition",
+        "WAIT": "Wait",
+        "SEND_MESSAGE": "Send message",
+        "SEND_TEMPLATE": "Send template",
+        "ADD_PRIVATE_NOTE": "Private note",
+        "ASSIGN_AGENT": "Assign agent",
+        "ASSIGN_TEAM": "Assign team",
+        "ADD_LABEL": "Label",
+        "CHANGE_STATUS": "Change status",
+        "CHANGE_PRIORITY": "Priority",
+        "ASSIGN_AI_AGENT": "Hand off to AI",
+        "SET_ATTRIBUTE": "Set attribute"
+      },
+      "CONFIG": {
+        "CLOSE": "Close",
+        "MESSAGE": {
+          "LABEL": "Message",
+          "NOTE_LABEL": "Private note",
+          "PLACEHOLDER": "Type the message to send…",
+          "NOTE_PLACEHOLDER": "Type the internal note…",
+          "VARIABLES_HINT": "Supports Liquid variables like {'{{'}contact.name{'}}'}."
+        },
+        "SET_ATTRIBUTE": {
+          "TARGET_LABEL": "Where",
+          "TARGET_CONVERSATION": "Conversation",
+          "TARGET_CONTACT": "Contact",
+          "KEY_LABEL": "Attribute",
+          "KEY_PLACEHOLDER": "Attribute key",
+          "VALUE_LABEL": "Value",
+          "VALUE_PLACEHOLDER": "Value to store",
+          "VALUE_HINT": "Accepts Liquid, e.g. {'{{'}contact.name{'}}'}."
+        },
+        "ASSIGN_AGENT": {
+          "LABEL": "Agent",
+          "PLACEHOLDER": "Select an agent",
+          "SELF": "Whoever runs the flow"
+        },
+        "ASSIGN_TEAM": {
+          "LABEL": "Team",
+          "PLACEHOLDER": "Select a team"
+        },
+        "ASSIGN_AI_AGENT": {
+          "LABEL": "AI agent",
+          "PLACEHOLDER": "Select an AI agent"
+        },
+        "CHANGE_STATUS": {
+          "LABEL": "Status",
+          "PLACEHOLDER": "Select a status",
+          "OPEN": "Open",
+          "RESOLVED": "Resolved",
+          "PENDING": "Pending",
+          "SNOOZED": "Snoozed"
+        },
+        "CHANGE_PRIORITY": {
+          "LABEL": "Priority",
+          "PLACEHOLDER": "Select a priority"
+        },
+        "WAIT": {
+          "VALUE_LABEL": "Wait for",
+          "VALUE_PLACEHOLDER": "e.g. 30",
+          "UNIT_LABEL": "Unit",
+          "UNIT_MINUTES": "Minutes",
+          "UNIT_HOURS": "Hours",
+          "UNIT_DAYS": "Days"
+        },
+        "LABELS": {
+          "ADD_LABEL": "Labels to add",
+          "REMOVE_LABEL": "Labels to remove"
+        },
+        "TEMPLATE": {
+          "NO_INBOXES": "No WhatsApp Cloud inbox available. Connect one to send templates.",
+          "INBOX_LABEL": "Inbox",
+          "INBOX_PLACEHOLDER": "Select an inbox",
+          "TEMPLATE_LABEL": "Template",
+          "TEMPLATE_PLACEHOLDER": "Select a template",
+          "NO_TEMPLATES": "No approved templates for this inbox.",
+          "APPLY": "Apply variables"
+        },
+        "CONDITION": {
+          "LABEL": "Conditions",
+          "ADD": "Add condition"
+        },
+        "TRIGGER": {
+          "KIND_LABEL": "Start the flow on",
+          "KIND_HINT": "Choose what fires this flow.",
+          "KIND_EVENT": "A conversation event",
+          "KIND_KEYWORD": "A keyword in a message",
+          "EVENT_LABEL": "Event",
+          "EVENT_PLACEHOLDER": "Select an event",
+          "EVENT_HINT": "The event that starts this flow.",
+          "KEYWORD": {
+            "MATCH_LABEL": "Match",
+            "MATCH_CONTAINS": "Message contains a keyword",
+            "MATCH_EXACT": "Message is exactly a keyword",
+            "LIST_LABEL": "Keywords",
+            "LIST_PLACEHOLDER": "One keyword per line, e.g.\nhi\nsupport\nhours",
+            "LIST_HINT": "One per line. Case and accent insensitive."
+          }
+        },
+        "GENERIC": {
+          "NO_PARAMS": "This block has no settings to configure."
+        }
+      }
+    },
     "HEADER": "Automation",
     "DESCRIPTION": "Automation can replace and streamline existing processes that require manual effort, such as adding labels and assigning conversations to the most suitable agent. This allows the team to focus on their strengths while reducing time spent on routine tasks.",
     "LEARN_MORE": "Learn more about automation",

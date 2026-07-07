@@ -46,6 +46,7 @@ class Reports::PdfDataResolver # rubocop:disable Metrics/ClassLength
     when 'overview' then overview_data
     when 'sla' then sla_data
     when 'funnel' then funnel_data
+    when 'agent_assignment' then agent_assignment_data
     when 'agent', 'inbox', 'team', 'label' then summary_data(@report_type)
     else
       raise ArgumentError, "report_type desconhecido: #{@report_type}"
@@ -705,6 +706,113 @@ class Reports::PdfDataResolver # rubocop:disable Metrics/ClassLength
 
   def funnel_age_label(seconds)
     seconds.to_i.positive? ? format_seconds(seconds) : '—'
+  end
+
+  # ======================= ATRIBUIÇÕES (quem atribuiu pra quem) =======================
+  # Reusa V2::Reports::AgentAssignmentBuilder (mesma fonte da aba "Atribuições") — não recria métrica.
+  def agent_assignment_data
+    rows = V2::Reports::AgentAssignmentBuilder.new(account: @account, params: assignment_params).build
+    totals = assignment_totals(rows)
+    active = rows.count { |row| row[:received_total].to_i.positive? || row[:assigned_to_others].to_i.positive? }
+    {
+      report_type: 'agent_assignment', title: 'Relatório de Atribuições', period: period_meta,
+      overline: 'Distribuição de Atribuições · Confidencial',
+      subtitle: assignment_subtitle(totals, active),
+      base_label: "#{totals[:received_total]} atribuições",
+      kpis: totals.merge(agents: active),
+      source_segments: assignment_source_segments(totals),
+      received_chart: assignment_received_chart(rows),
+      table: assignment_table(rows),
+      conclusion: assignment_conclusion(totals, active, rows)
+    }
+  end
+
+  # "Leitura executiva" (TL;DR) em linguagem simples — totais + composição em % +
+  # quem mais recebeu. Nil quando não há atribuições no período.
+  def assignment_conclusion(totals, active, rows)
+    total = totals[:received_total].to_i
+    return nil if total.zero?
+
+    body = "No período, <span class=\"hl\">#{total} atribuições</span> foram distribuídas entre #{active} atendentes: " \
+           "#{assignment_pct(totals[:received_manual], total)}% manuais, " \
+           "#{assignment_pct(totals[:received_auto], total)}% automáticas (rodízio) e " \
+           "#{assignment_pct(totals[:self_assigned], total)}% auto-assumidas."
+    { title: 'Leitura executiva', body: body + assignment_top_phrase(rows) }
+  end
+
+  def assignment_pct(value, total)
+    ((value.to_i * 100.0) / total).round
+  end
+
+  def assignment_top_phrase(rows)
+    top = rows.select { |row| row[:received_total].to_i.positive? }.max_by { |row| row[:received_total].to_i }
+    return '' if top.nil?
+
+    name = ERB::Util.html_escape(top[:name].presence || "##{top[:id]}")
+    " Quem mais recebeu foi <span class=\"hl\">#{name}</span> (#{top[:received_total]})."
+  end
+
+  def assignment_params
+    { since: @filters[:since], until: @filters[:until],
+      team_id: @filters[:team_id], inbox_id: @filters[:inbox_id] }
+  end
+
+  def assignment_totals(rows)
+    {
+      received_total: rows.sum { |row| row[:received_total].to_i },
+      received_manual: rows.sum { |row| row[:received_manual].to_i },
+      received_auto: rows.sum { |row| row[:received_auto].to_i },
+      self_assigned: rows.sum { |row| row[:self_assigned].to_i },
+      assigned_to_others: rows.sum { |row| row[:assigned_to_others].to_i }
+    }
+  end
+
+  def assignment_subtitle(totals, active)
+    return 'Nenhuma atribuição registrada no período.' if totals[:received_total].zero?
+
+    "#{totals[:received_total]} atribuições no período, distribuídas entre #{active} atendentes."
+  end
+
+  # Split da origem das atribuições recebidas p/ a barra de composição. "Outras" cobre
+  # automação/bot/api que entram no total mas não nas 3 faixas principais.
+  def assignment_source_segments(totals)
+    others = totals[:received_total] - totals[:received_manual] - totals[:received_auto] - totals[:self_assigned]
+    segments = [
+      { label: 'Manuais', value: totals[:received_manual], color: '#2dc46f' },
+      { label: 'Automáticas', value: totals[:received_auto], color: '#1f93ff' },
+      { label: 'Auto-assumidas', value: totals[:self_assigned], color: '#95de64' }
+    ]
+    segments << { label: 'Outras', value: others, color: '#bfbfbf' } if others.positive?
+    segments
+  end
+
+  def assignment_received_chart(rows)
+    rows.select { |row| row[:received_total].to_i.positive? }
+        .sort_by { |row| -row[:received_total].to_i }
+        .first(10)
+        .map { |row| { label: assignment_short_name(row[:name]), value: row[:received_total].to_i } }
+  end
+
+  def assignment_short_name(name)
+    name.to_s.split(/\s+/).first.presence || '—'
+  end
+
+  def assignment_table(rows)
+    visible = rows.select { |row| row[:received_total].to_i.positive? || row[:assigned_to_others].to_i.positive? }
+    visible = rows if visible.empty?
+    visible = visible.sort_by { |row| -row[:received_total].to_i }
+    { columns: assignment_columns, rows: visible.map { |row| assignment_row(row) } }
+  end
+
+  def assignment_columns
+    [{ label: 'Atendente' }, { label: 'Recebidas (total)', align: 'right' }, { label: '↳ Manuais', align: 'right' },
+     { label: '↳ Automáticas', align: 'right' }, { label: '↳ Auto-assumidas', align: 'right' },
+     { label: 'Atribuiu a outros', align: 'right' }]
+  end
+
+  def assignment_row(row)
+    [row[:name] || "##{row[:id]}", row[:received_total].to_i.to_s, row[:received_manual].to_i.to_s,
+     row[:received_auto].to_i.to_s, row[:self_assigned].to_i.to_s, row[:assigned_to_others].to_i.to_s]
   end
 
   # ======================= SUMMARY (agent/inbox/team/label) =======================

@@ -32,6 +32,11 @@ class Team < ApplicationRecord
   end
 
   after_create :create_default_funnel
+  # Chat interno: todo time tem um "grupo de time" no chat interno, com os membros
+  # espelhando a equipe. Cria o grupo ao criar o time e renomeia se o time muda de
+  # nome. Best-effort — uma falha no chat nunca pode bloquear o CRUD do time.
+  after_create :sync_internal_team_channel
+  after_update :sync_internal_team_channel, if: :saved_change_to_name?
 
   # Adds multiple members to the team
   # @param user_ids [Array<Integer>] Array of user IDs to add as members
@@ -74,6 +79,12 @@ class Team < ApplicationRecord
     Kanban::CreateFunnelForTeamService.new(team: self).perform
   rescue StandardError => e
     Rails.logger.error "Error creating default funnel for team #{id}: #{e.message}"
+  end
+
+  def sync_internal_team_channel
+    InternalChannels::SyncTeamChannelsService.new(account: account, team: self).perform
+  rescue StandardError => e
+    Rails.logger.warn "[internal_chat] team channel sync failed for team ##{id}: #{e.message}"
   end
 end
 
