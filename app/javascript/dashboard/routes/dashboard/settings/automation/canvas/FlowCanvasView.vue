@@ -1,5 +1,5 @@
 <script setup>
-import { ref, computed, onMounted } from 'vue';
+import { ref, computed, onMounted, nextTick } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import { useI18n } from 'vue-i18n';
 import { VueFlow } from '@vue-flow/core';
@@ -9,6 +9,7 @@ import { MiniMap } from '@vue-flow/minimap';
 import { useStore } from 'dashboard/composables/store';
 import { useAlert } from 'dashboard/composables';
 import FlowNode from './FlowNode.vue';
+import ConfigPanel from './ConfigPanel.vue';
 import { NODE_CATALOG, FAMILIES, familyForNode } from './nodeCatalog';
 
 import '@vue-flow/core/dist/style.css';
@@ -27,14 +28,24 @@ const isEdit = computed(() => Boolean(flowId.value));
 const name = ref('');
 const definition = ref({ nodes: [], edges: [] });
 const isSaving = ref(false);
+const selectedNodeId = ref(null);
+const flowInstance = ref(null);
 
 const nodeTypes = { flow: FlowNode };
+
+const selectedNode = computed(
+  () =>
+    (definition.value.nodes || []).find(
+      node => String(node.id) === String(selectedNodeId.value)
+    ) || null
+);
 
 const vfNodes = computed(() =>
   (definition.value.nodes || []).map((node, index) => ({
     id: String(node.id),
     type: 'flow',
     position: { x: 180, y: index * 130 + 40 },
+    selected: String(node.id) === String(selectedNodeId.value),
     data: { node },
   }))
 );
@@ -53,7 +64,18 @@ const nodeColor = node => {
   return (FAMILIES[familyForNode(raw)] || FAMILIES.action).color;
 };
 
+// Opções usadas pelos editores de nó (agente/time/etiqueta/inbox/atributos/IA).
+const loadConfigOptions = () => {
+  store.dispatch('agents/get');
+  store.dispatch('teams/get');
+  store.dispatch('labels/get');
+  store.dispatch('inboxes/get');
+  store.dispatch('attributes/get');
+  store.dispatch('captainAssistants/get').catch(() => {});
+};
+
 onMounted(async () => {
+  loadConfigOptions();
   if (!isEdit.value) {
     name.value = t('AUTOMATION.CANVAS.NEW_FLOW');
     return;
@@ -85,18 +107,50 @@ const addNode = item => {
   const prev = definition.value.nodes[definition.value.nodes.length - 1];
   if (prev) edges.push({ from: prev.id, to: id });
   definition.value = { nodes, edges };
+  selectedNodeId.value = id;
+  // Re-enquadra para o nó novo entrar na área visível (fit-view-on-init só roda na montagem).
+  nextTick(() => flowInstance.value?.fitView({ padding: 0.3, duration: 300 }));
+};
+
+const onFlowInit = instance => {
+  flowInstance.value = instance;
+};
+
+const onNodeClick = ({ node }) => {
+  selectedNodeId.value = node?.id ?? null;
+};
+
+const onPaneClick = () => {
+  selectedNodeId.value = null;
+};
+
+// Aplica um patch ao nó selecionado de forma IMUTÁVEL (substitui o nó no array), como a
+// definition espera. O patch vem do editor: action_params, conditions ou event_name.
+const updateSelectedNode = patch => {
+  if (!selectedNodeId.value) return;
+  definition.value = {
+    ...definition.value,
+    nodes: (definition.value.nodes || []).map(node =>
+      String(node.id) === String(selectedNodeId.value)
+        ? { ...node, ...patch }
+        : node
+    ),
+  };
 };
 
 const save = async () => {
   isSaving.value = true;
   try {
-    const hasTrigger = (definition.value.nodes || []).some(
+    const triggerNode = (definition.value.nodes || []).find(
       n => n.type === 'trigger'
     );
     const payload = {
       name: name.value,
-      trigger_type: hasTrigger ? 'conversation_event' : 'manual',
+      trigger_type: triggerNode ? 'conversation_event' : 'manual',
       definition: definition.value,
+      trigger_config: triggerNode?.event_name
+        ? { event_name: triggerNode.event_name }
+        : {},
     };
     if (isEdit.value) {
       await store.dispatch('flows/update', { id: flowId.value, ...payload });
@@ -173,7 +227,7 @@ const goBack = () =>
               backgroundColor: (FAMILIES[item.family] || FAMILIES.action).color,
             }"
           />
-          {{ item.label }}
+          {{ t(item.labelKey) }}
         </button>
       </aside>
 
@@ -185,6 +239,9 @@ const goBack = () =>
           :default-viewport="{ zoom: 0.9 }"
           fit-view-on-init
           class="w-full h-full"
+          @node-click="onNodeClick"
+          @pane-click="onPaneClick"
+          @init="onFlowInit"
         >
           <template #node-flow="nodeProps">
             <FlowNode v-bind="nodeProps" />
@@ -203,6 +260,13 @@ const goBack = () =>
           <p class="text-sm">{{ t('AUTOMATION.CANVAS.EMPTY') }}</p>
         </div>
       </main>
+
+      <ConfigPanel
+        v-if="selectedNode"
+        :node="selectedNode"
+        @close="onPaneClick"
+        @update="updateSelectedNode"
+      />
     </div>
   </div>
 </template>

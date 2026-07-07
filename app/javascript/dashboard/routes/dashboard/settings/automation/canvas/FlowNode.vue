@@ -1,5 +1,6 @@
 <script setup>
 import { computed } from 'vue';
+import { useI18n } from 'vue-i18n';
 import { Handle, Position } from '@vue-flow/core';
 import { FAMILIES, familyForNode, labelForNode } from './nodeCatalog';
 
@@ -8,10 +9,13 @@ const props = defineProps({
   selected: { type: Boolean, default: false },
 });
 
+const { t } = useI18n();
+
 const node = computed(() => props.data?.node || {});
 const familyKey = computed(() => familyForNode(node.value));
 const familyMeta = computed(() => FAMILIES[familyKey.value] || FAMILIES.action);
-const label = computed(() => labelForNode(node.value));
+const familyLabel = computed(() => t(familyMeta.value.labelKey));
+const label = computed(() => t(labelForNode(node.value)));
 const subtitle = computed(() => {
   const params = node.value.action_params;
   if (Array.isArray(params) && params.length && typeof params[0] === 'string') {
@@ -41,7 +45,7 @@ const isTrigger = computed(() => node.value.type === 'trigger');
         class="text-[10px] font-bold tracking-wider uppercase"
         :style="{ color: familyMeta.color }"
       >
-        {{ familyMeta.label }}
+        {{ familyLabel }}
       </span>
       <span class="text-sm font-semibold truncate text-n-slate-12">{{
         label
