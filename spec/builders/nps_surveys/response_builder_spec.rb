@@ -1,0 +1,122 @@
+require 'rails_helper'
+
+RSpec.describe NpsSurveys::ResponseBuilder do
+  let(:account) { create(:account) }
+  let(:agent) { create(:user, account: account, role: :agent) }
+  let(:inbox) { create(:inbox, account: account) }
+  let(:conversation) { create(:conversation, account: account, inbox: inbox, status: :resolved) }
+
+  def create_active_nps(sent_at: 1.hour.ago)
+    create(:nps_response, conversation: conversation, status: :sent, answered_at: nil, score: nil, sent_at: sent_at)
+  end
+
+  def incoming(content)
+    create(:message, account: account, inbox: inbox, conversation: conversation,
+                     message_type: :incoming, content: content)
+  end
+
+  def perform_for(content)
+    described_class.new(message: incoming(content)).perform
+  end
+
+  describe 'per-band thank-you' do
+    before do
+      inbox.update!(nps_config: { 'thank_you_promoter' => 'Que bom!', 'thank_you_detractor' => 'Vamos melhorar',
+                                  'thank_you_message' => 'Obrigado' })
+      create_active_nps
+    end
+
+    it 'sends the promoter message for 9-10' do
+      perform_for('10')
+      expect(conversation.messages.where(message_type: :outgoing).last.content).to eq('Que bom!')
+    end
+
+    it 'sends the detractor message for 0-6' do
+      perform_for('3')
+      expect(conversation.messages.where(message_type: :outgoing).where(content: 'Vamos melhorar')).to exist
+    end
+
+    it 'falls back to the generic message for a passive when no band message is set' do
+      perform_for('7')
+      expect(conversation.messages.where(message_type: :outgoing).last.content).to eq('Obrigado')
+    end
+  end
+
+  describe 'detractor routing (0-6)' do
+    before do
+      inbox.update!(nps_config: {
+                      'detractor_reopen' => true,
+                      'detractor_label' => 'detrator',
+                      'detractor_assignee_id' => agent.id
+                    })
+      create_active_nps
+    end
+
+    it 'reopens, assigns and labels a detractor conversation' do
+      perform_for('2')
+      conversation.reload
+      expect(conversation.status).to eq('open')
+      expect(conversation.assignee_id).to eq(agent.id)
+      expect(conversation.label_list).to include('detrator')
+    end
+
+    it 'stamps detractor_routed_at on the nps response' do
+      perform_for('2')
+      nps = conversation.nps_responses.order(created_at: :desc).first
+      expect(nps.metadata['detractor_routed_at']).to be_present
+    end
+
+    it 'does not route promoters or passives' do
+      perform_for('9')
+      conversation.reload
+      expect(conversation.status).to eq('resolved')
+      expect(conversation.label_list).not_to include('detrator')
+    end
+
+    it 'does not duplicate the label when already present' do
+      conversation.add_labels('detrator')
+      perform_for('1')
+      conversation.reload
+      expect(conversation.label_list.count { |l| l == 'detrator' }).to eq(1)
+    end
+  end
+
+  describe 'detractor routing when unconfigured' do
+    before do
+      inbox.update!(nps_config: {})
+      create_active_nps
+    end
+
+    it 'leaves the conversation resolved and unlabeled' do
+      perform_for('2')
+      conversation.reload
+      expect(conversation.status).to eq('resolved')
+      expect(conversation.label_list).to be_empty
+    end
+  end
+
+  describe 'GPT-parse fallback' do
+    before { create_active_nps }
+
+    it 'uses the LLM to parse a written-out score when enabled and regex fails' do
+      inbox.update!(nps_config: { 'gpt_parse_enabled' => true })
+      allow(NpsSurveys::ScoreLlmParser).to receive(:extract).and_return(9)
+      perform_for('nota nove')
+      nps = conversation.nps_responses.order(created_at: :desc).first
+      expect(nps.status).to eq('responded')
+      expect(nps.score).to eq(9)
+    end
+
+    it 'does not call the LLM when disabled' do
+      inbox.update!(nps_config: { 'gpt_parse_enabled' => false })
+      expect(NpsSurveys::ScoreLlmParser).not_to receive(:extract)
+      perform_for('nota nove')
+    end
+
+    it 'does not call the LLM for long non-numeric messages even when enabled' do
+      inbox.update!(nps_config: { 'gpt_parse_enabled' => true })
+      expect(NpsSurveys::ScoreLlmParser).not_to receive(:extract)
+      perform_for('obrigado pelo excelente atendimento de voces todos hoje de manha')
+    end
+  end
+end

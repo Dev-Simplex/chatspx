@@ -1,4 +1,4 @@
-class NpsSurveys::ResponseBuilder
+class NpsSurveys::ResponseBuilder # rubocop:disable Metrics/ClassLength
   pattr_initialize [:message]
 
   def perform
@@ -58,7 +58,37 @@ class NpsSurveys::ResponseBuilder
     score = NpsSurveys::ScoreValidator.validate_and_extract(message.content)
     return score if score.present? && valid_score?(score)
 
+    # [NOVO] Fallback de PARSING via LLM (so quando o regex falha e a mensagem
+    # parece uma nota escrita por extenso, ex.: "dez", "nota nove"). Atras de
+    # toggle por inbox; nunca infere nota a partir de sentimento.
+    llm_score = extract_score_via_llm
+    return llm_score if llm_score.present? && valid_score?(llm_score)
+
     nil
+  end
+
+  def extract_score_via_llm
+    return nil unless gpt_parse_enabled?
+    return nil unless gpt_parse_candidate?(message.content)
+
+    NpsSurveys::ScoreLlmParser.extract(text: message.content, account: message.account)
+  end
+
+  def gpt_parse_enabled?
+    config = message.inbox&.nps_config || {}
+    ActiveModel::Type::Boolean.new.cast(config['gpt_parse_enabled'])
+  end
+
+  # Limita as chamadas ao LLM: mensagem curta que contenha um digito ou um
+  # numeral por extenso (0-10). Evita gastar chamada em conversa normal.
+  NUMBER_WORDS = /\b(zero|um|uma|dois|duas|tr[êe]s|quatro|cinco|seis|sete|oito|nove|dez)\b/i
+
+  def gpt_parse_candidate?(text)
+    normalized = NpsSurveys::ScoreValidator.normalize(text)
+    return false if normalized.blank?
+    return false if normalized.length > 40
+
+    normalized.match?(/\d/) || normalized.match?(NUMBER_WORDS)
   end
 
   def valid_score?(score)
@@ -80,10 +110,81 @@ class NpsSurveys::ResponseBuilder
     # Create activity message (only if one doesn't already exist for this NPS response)
     create_responded_activity_message(nps_response, score) unless activity_message_exists?(nps_response, score)
 
-    # Optionally send thank you message
+    # Optionally send thank you message (per-band se configurado)
     send_thank_you_message(nps_response) if should_send_thank_you?(nps_response)
 
+    # [NOVO] Detrator (0-6) -> reabrir + atribuir a humano + label, para
+    # follow-up (o unico caso em que reabrir e desejado). Config-driven, idempotente.
+    route_detractor(nps_response, score)
+
     nps_response
+  end
+
+  # Ramifica o pos-resposta pela faixa. So o detrator dispara acao (reabrir/atribuir/label);
+  # promotor e neutro apenas recebem o agradecimento (send_thank_you_message).
+  def route_detractor(nps_response, score)
+    return unless score.between?(0, 6)
+
+    config = nps_response.inbox.nps_config || {}
+    return unless detractor_routing_configured?(config)
+
+    conversation = nps_response.conversation
+    apply_detractor_label(conversation, config['detractor_label'])
+    apply_detractor_assignment(conversation, config)
+    reopen_for_detractor(conversation) if truthy_config?(config['detractor_reopen'])
+    stamp_detractor_routed(nps_response)
+  rescue StandardError => e
+    Rails.logger.warn("[NPS detractor] routing failed conv=#{nps_response.conversation_id}: #{e.message}")
+  end
+
+  def detractor_routing_configured?(config)
+    truthy_config?(config['detractor_reopen']) ||
+      config['detractor_assignee_id'].present? ||
+      config['detractor_team_id'].present? ||
+      config['detractor_label'].present?
+  end
+
+  def apply_detractor_label(conversation, label)
+    return if label.blank?
+    return if conversation.label_list.include?(label)
+
+    conversation.add_labels(label)
+  end
+
+  def apply_detractor_assignment(conversation, config)
+    attrs = {
+      assignee_id: resolved_detractor_id(conversation, config, :assignee_id, 'detractor_assignee_id', :users),
+      team_id: resolved_detractor_id(conversation, config, :team_id, 'detractor_team_id', :teams)
+    }.compact
+
+    conversation.update!(attrs) if attrs.present?
+  end
+
+  # Resolve o id de destino (agente/time) so quando muda de fato e pertence a conta.
+  def resolved_detractor_id(conversation, config, current_attr, config_key, association)
+    id = config[config_key].presence&.to_i
+    return nil if id.nil?
+    return nil if conversation.public_send(current_attr) == id
+    return nil unless conversation.account.public_send(association).exists?(id: id)
+
+    id
+  end
+
+  def reopen_for_detractor(conversation)
+    return unless conversation.resolved?
+
+    conversation.open!
+  end
+
+  def stamp_detractor_routed(nps_response)
+    meta = nps_response.metadata || {}
+    return if meta['detractor_routed_at'].present?
+
+    nps_response.update!(metadata: meta.merge('detractor_routed_at' => Time.current.iso8601))
+  end
+
+  def truthy_config?(value)
+    ActiveModel::Type::Boolean.new.cast(value)
   end
 
   def create_responded_activity_message(nps_response, score)
@@ -128,15 +229,25 @@ class NpsSurveys::ResponseBuilder
   end
 
   def should_send_thank_you?(nps_response)
-    nps_config = nps_response.inbox.nps_config || {}
-    thank_you_message = nps_config['thank_you_message']
-    thank_you_message.present?
+    band_thank_you_message(nps_response).present?
+  end
+
+  # Mensagem por faixa (promotor/neutro/detrator) com fallback para a mensagem
+  # generica thank_you_message — mantem compat com a config antiga.
+  def band_thank_you_message(nps_response)
+    config = nps_response.inbox.nps_config || {}
+    key = case nps_response.score
+          when 9..10 then 'thank_you_promoter'
+          when 7..8 then 'thank_you_passive'
+          when 0..6 then 'thank_you_detractor'
+          end
+    band = key ? config[key] : nil
+    band.presence || config['thank_you_message'].presence
   end
 
   def send_thank_you_message(nps_response)
-    inbox = nps_response.inbox
-    nps_config = inbox.nps_config || {}
-    thank_you_message = nps_config['thank_you_message'] || I18n.t('conversations.templates.nps_thank_you', default: 'Thank you for your feedback!')
+    thank_you_message = band_thank_you_message(nps_response) ||
+                        I18n.t('conversations.templates.nps_thank_you', default: 'Thank you for your feedback!')
 
     # Remove any signature patterns that might have been added
     thank_you_message = thank_you_message.gsub(/\*\*:\s*/, '').gsub(/\n\n--\s*\n\n\*\*:.*$/m, '').strip
