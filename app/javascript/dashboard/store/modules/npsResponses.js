@@ -28,6 +28,13 @@ export const state = {
     blocked_by_label_count: {},
     scores_count: {},
     signals: [],
+    detractor_followup: {
+      total: 0,
+      followed_up_count: 0,
+      awaiting_count: 0,
+      avg_followup_seconds: null,
+      scan_truncated: false,
+    },
   },
   uiFlags: {
     isFetching: false,
@@ -195,6 +202,14 @@ export const mutations = {
       blocked_by_label_count: data.blocked_by_label_count || {},
       scores_count: data.scores_count || {},
       signals: data.signals || [],
+      detractor_followup: {
+        total: data.detractor_followup?.total || 0,
+        followed_up_count: data.detractor_followup?.followed_up_count || 0,
+        awaiting_count: data.detractor_followup?.awaiting_count || 0,
+        avg_followup_seconds:
+          data.detractor_followup?.avg_followup_seconds ?? null,
+        scan_truncated: data.detractor_followup?.scan_truncated || false,
+      },
     };
   },
 };

@@ -96,6 +96,38 @@ export default {
         ? this.metrics.blocked_count.toLocaleString()
         : '--';
     },
+    detractorFollowup() {
+      return this.metrics.detractor_followup || {};
+    },
+    // Só exibe o card quando houve detratores no período.
+    hasDetractorFollowup() {
+      return Boolean(this.detractorFollowup.total);
+    },
+    // Tempo médio até um agente responder um detrator: "1h 10min" / "45min" / "—".
+    detractorFollowupTime() {
+      const seconds = this.detractorFollowup.avg_followup_seconds;
+      if (seconds === null || seconds === undefined) return '—';
+      if (seconds < 60) return `${Math.round(seconds)}s`;
+      const totalMinutes = Math.floor(seconds / 60);
+      const hours = Math.floor(totalMinutes / 60);
+      const minutes = totalMinutes % 60;
+      if (hours > 0)
+        return minutes > 0 ? `${hours}h ${minutes}min` : `${hours}h`;
+      return `${minutes}min`;
+    },
+    detractorFollowupSummary() {
+      return this.$t('NPS_REPORTS.METRIC.DETRACTOR_FOLLOWUP.SUMMARY', {
+        followedUp: this.detractorFollowup.followed_up_count || 0,
+        awaiting: this.detractorFollowup.awaiting_count || 0,
+        default: `${this.detractorFollowup.followed_up_count || 0} respondidos / ${this.detractorFollowup.awaiting_count || 0} aguardando`,
+      });
+    },
+    detractorFollowupTooltip() {
+      return this.$t('NPS_REPORTS.METRIC.DETRACTOR_FOLLOWUP.TOOLTIP', {
+        default:
+          "Tempo médio até um agente responder um detrator (0-6) após a nota. 'Aguardando' = detratores ainda sem retorno humano.",
+      });
+    },
     // Tooltip do card "Bloqueados": inclui o detalhamento por etiqueta.
     blockedTooltip() {
       const base = this.$t('NPS_REPORTS.METRIC.BLOCKED.TOOLTIP', {
@@ -301,6 +333,18 @@ export default {
       :label="$t('NPS_REPORTS.METRIC.BLOCKED.LABEL', { default: 'Bloqueados' })"
       :info-text="blockedTooltip"
       :value="blockedCount"
+      class="xs:w-full sm:max-w-[50%] lg:w-1/6 lg:max-w-[16%]"
+    />
+    <ReportMetricCard
+      v-if="hasDetractorFollowup"
+      :label="
+        $t('NPS_REPORTS.METRIC.DETRACTOR_FOLLOWUP.LABEL', {
+          default: 'Follow-up de detratores',
+        })
+      "
+      :info-text="detractorFollowupTooltip"
+      :value="detractorFollowupTime"
+      :trend="{ text: detractorFollowupSummary, tone: 'flat' }"
       class="xs:w-full sm:max-w-[50%] lg:w-1/6 lg:max-w-[16%]"
     />
 

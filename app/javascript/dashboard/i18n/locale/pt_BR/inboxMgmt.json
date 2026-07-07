@@ -1037,6 +1037,43 @@
         "LABEL": "Etiquetas Obrigatórias",
         "SELECT_PLACEHOLDER": "Adicionar etiqueta"
       },
+      "THANK_YOU_PROMOTER": {
+        "LABEL": "Agradecimento para promotores (9-10)",
+        "PLACEHOLDER": "Que ótimo! Obrigado por recomendar a gente.",
+        "HINT": "Opcional. Se vazio, usa a mensagem de agradecimento genérica."
+      },
+      "THANK_YOU_PASSIVE": {
+        "LABEL": "Agradecimento para neutros (7-8)",
+        "PLACEHOLDER": "Obrigado pela sua avaliação!",
+        "HINT": "Opcional. Se vazio, usa a mensagem de agradecimento genérica."
+      },
+      "THANK_YOU_DETRACTOR": {
+        "LABEL": "Agradecimento para detratores (0-6)",
+        "PLACEHOLDER": "Obrigado pelo retorno. Vamos melhorar e já vamos te ajudar.",
+        "HINT": "Opcional. Se vazio, usa a mensagem de agradecimento genérica."
+      },
+      "GPT_PARSE_ENABLED": {
+        "LABEL": "Interpretar nota escrita por extenso (IA)",
+        "HINT": "Quando o cliente escreve a nota por extenso (ex.: 'dez', 'nota nove') e o reconhecimento automático falha, usa IA apenas para extrair o número. Nunca infere nota a partir de elogio ou reclamação."
+      },
+      "DETRACTOR": {
+        "SECTION_TITLE": "Detrator (0-6) → follow-up humano",
+        "REOPEN": {
+          "LABEL": "Reabrir e encaminhar detratores para follow-up"
+        },
+        "ASSIGNEE": {
+          "LABEL": "Atribuir detrator ao agente"
+        },
+        "ASSIGNEE_NONE": "Não atribuir",
+        "TEAM": {
+          "LABEL": "Atribuir detrator ao time"
+        },
+        "TEAM_NONE": "Nenhum",
+        "LABEL": {
+          "LABEL": "Adicionar etiqueta ao detrator",
+          "PLACEHOLDER": "detrator"
+        }
+      },
       "NOTE": "O NPS será enviado automaticamente quando uma conversa for resolvida, se todas as condições forem atendidas.",
       "API": {
         "SUCCESS_MESSAGE": "Configurações NPS atualizadas com sucesso",

@@ -656,6 +656,11 @@
         "LABEL": "Bloqueados",
         "TOOLTIP": "Total de NPS bloqueados por etiquetas"
       },
+      "DETRACTOR_FOLLOWUP": {
+        "LABEL": "Follow-up de detratores",
+        "TOOLTIP": "Tempo médio até um agente responder um detrator (0-6) após a nota. 'Aguardando' = detratores ainda sem retorno humano.",
+        "SUMMARY": "{followedUp} respondidos / {awaiting} aguardando"
+      },
       "SCORE_DISTRIBUTION": {
         "LABEL": "Distribuição de Scores"
       }

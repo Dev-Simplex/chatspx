@@ -18,6 +18,8 @@ const props = defineProps({
 const { t } = useI18n();
 const store = useStore();
 const labels = useMapGetter('labels/getLabels');
+const agents = useMapGetter('agents/getAgents');
+const teams = useMapGetter('teams/getTeams');
 
 const isUpdating = ref(false);
 const selectedBlocklistLabels = ref([]);
@@ -37,6 +39,14 @@ const state = reactive({
   minMessages: null,
   minDurationMinutes: null,
   requiredTags: [],
+  gptParseEnabled: false,
+  thankYouPromoter: '',
+  thankYouPassive: '',
+  thankYouDetractor: '',
+  detractorReopen: false,
+  detractorAssigneeId: '',
+  detractorTeamId: '',
+  detractorLabel: '',
 });
 
 const modeOptions = [
@@ -84,6 +94,30 @@ const requiredTagOptions = computed(() =>
     : []
 );
 
+const detractorAssigneeOptions = computed(() => [
+  {
+    label: t('INBOX_MGMT.NPS.DETRACTOR.ASSIGNEE_NONE', {
+      default: 'Não atribuir',
+    }),
+    value: '',
+  },
+  ...(agents.value || []).map(agent => ({
+    label: agent.name,
+    value: agent.id,
+  })),
+]);
+
+const detractorTeamOptions = computed(() => [
+  {
+    label: t('INBOX_MGMT.NPS.DETRACTOR.TEAM_NONE', { default: 'Nenhum' }),
+    value: '',
+  },
+  ...(teams.value || []).map(team => ({
+    label: team.name,
+    value: team.id,
+  })),
+]);
+
 const initializeState = () => {
   if (!props.inbox) return;
 
@@ -104,6 +138,14 @@ const initializeState = () => {
     state.minMessages = null;
     state.minDurationMinutes = null;
     state.requiredTags = [];
+    state.gptParseEnabled = false;
+    state.thankYouPromoter = '';
+    state.thankYouPassive = '';
+    state.thankYouDetractor = '';
+    state.detractorReopen = false;
+    state.detractorAssigneeId = '';
+    state.detractorTeamId = '';
+    state.detractorLabel = '';
     selectedBlocklistLabels.value = [];
     selectedRequiredTags.value = [];
     return;
@@ -124,6 +166,14 @@ const initializeState = () => {
   state.minMessages = nps_config.min_messages || null;
   state.minDurationMinutes = nps_config.min_duration_minutes || null;
   state.requiredTags = nps_config.required_tags || [];
+  state.gptParseEnabled = nps_config.gpt_parse_enabled === true;
+  state.thankYouPromoter = nps_config.thank_you_promoter || '';
+  state.thankYouPassive = nps_config.thank_you_passive || '';
+  state.thankYouDetractor = nps_config.thank_you_detractor || '';
+  state.detractorReopen = nps_config.detractor_reopen === true;
+  state.detractorAssigneeId = nps_config.detractor_assignee_id ?? '';
+  state.detractorTeamId = nps_config.detractor_team_id ?? '';
+  state.detractorLabel = nps_config.detractor_label || '';
 
   selectedBlocklistLabels.value = Array.isArray(nps_config.blocklist_labels)
     ? [...nps_config.blocklist_labels]
@@ -136,6 +186,8 @@ const initializeState = () => {
 onMounted(() => {
   initializeState();
   if (!labels.value?.length) store.dispatch('labels/get');
+  if (!agents.value?.length) store.dispatch('agents/get');
+  if (!teams.value?.length) store.dispatch('teams/get');
 });
 
 // Watch com deep para observar mudanças profundas, mas evitando reinicialização durante save
@@ -204,6 +256,14 @@ const saveSettings = async () => {
       min_messages: state.minMessages,
       min_duration_minutes: state.minDurationMinutes,
       required_tags: selectedRequiredTags.value,
+      gpt_parse_enabled: state.gptParseEnabled === true,
+      thank_you_promoter: state.thankYouPromoter,
+      thank_you_passive: state.thankYouPassive,
+      thank_you_detractor: state.thankYouDetractor,
+      detractor_reopen: state.detractorReopen === true,
+      detractor_assignee_id: state.detractorAssigneeId || null,
+      detractor_team_id: state.detractorTeamId || null,
+      detractor_label: state.detractorLabel,
     };
 
     // Garantir que estamos enviando um boolean explícito
@@ -312,6 +372,84 @@ const saveSettings = async () => {
 
         <WithLabel
           :label="
+            $t('INBOX_MGMT.NPS.THANK_YOU_PROMOTER.LABEL', {
+              default: 'Agradecimento para promotores (9-10)',
+            })
+          "
+          :help-message="
+            $t('INBOX_MGMT.NPS.THANK_YOU_PROMOTER.HINT', {
+              default:
+                'Opcional. Se vazio, usa a mensagem de agradecimento genérica.',
+            })
+          "
+          name="thank_you_promoter"
+        >
+          <Editor
+            v-model="state.thankYouPromoter"
+            :placeholder="
+              $t('INBOX_MGMT.NPS.THANK_YOU_PROMOTER.PLACEHOLDER', {
+                default: 'Que ótimo! Obrigado por recomendar a gente.',
+              })
+            "
+            :max-length="200"
+            class="w-full"
+          />
+        </WithLabel>
+
+        <WithLabel
+          :label="
+            $t('INBOX_MGMT.NPS.THANK_YOU_PASSIVE.LABEL', {
+              default: 'Agradecimento para neutros (7-8)',
+            })
+          "
+          :help-message="
+            $t('INBOX_MGMT.NPS.THANK_YOU_PASSIVE.HINT', {
+              default:
+                'Opcional. Se vazio, usa a mensagem de agradecimento genérica.',
+            })
+          "
+          name="thank_you_passive"
+        >
+          <Editor
+            v-model="state.thankYouPassive"
+            :placeholder="
+              $t('INBOX_MGMT.NPS.THANK_YOU_PASSIVE.PLACEHOLDER', {
+                default: 'Obrigado pelo retorno! Vamos melhorar ainda mais.',
+              })
+            "
+            :max-length="200"
+            class="w-full"
+          />
+        </WithLabel>
+
+        <WithLabel
+          :label="
+            $t('INBOX_MGMT.NPS.THANK_YOU_DETRACTOR.LABEL', {
+              default: 'Agradecimento para detratores (0-6)',
+            })
+          "
+          :help-message="
+            $t('INBOX_MGMT.NPS.THANK_YOU_DETRACTOR.HINT', {
+              default:
+                'Opcional. Se vazio, usa a mensagem de agradecimento genérica.',
+            })
+          "
+          name="thank_you_detractor"
+        >
+          <Editor
+            v-model="state.thankYouDetractor"
+            :placeholder="
+              $t('INBOX_MGMT.NPS.THANK_YOU_DETRACTOR.PLACEHOLDER', {
+                default: 'Sentimos muito. Vamos entrar em contato para ajudar.',
+              })
+            "
+            :max-length="200"
+            class="w-full"
+          />
+        </WithLabel>
+
+        <WithLabel
+          :label="
             $t('INBOX_MGMT.NPS.INVALID_RESPONSE_MESSAGE.LABEL', {
               default: 'Mensagem para Resposta Inválida',
             })
@@ -328,6 +466,23 @@ const saveSettings = async () => {
             :max-length="200"
             class="w-full"
           />
+        </WithLabel>
+
+        <WithLabel
+          :label="
+            $t('INBOX_MGMT.NPS.GPT_PARSE_ENABLED.LABEL', {
+              default: 'Interpretar nota escrita por extenso (IA)',
+            })
+          "
+          :help-message="
+            $t('INBOX_MGMT.NPS.GPT_PARSE_ENABLED.HINT', {
+              default:
+                'Quando o cliente escreve a nota por extenso (ex.: \'dez\', \'nota nove\') e o reconhecimento automatico falha, usa IA apenas para extrair o numero. Nunca infere nota a partir de elogio/reclamacao.',
+            })
+          "
+          name="gpt_parse_enabled"
+        >
+          <Switch v-model="state.gptParseEnabled" />
         </WithLabel>
 
         <WithLabel
@@ -497,6 +652,77 @@ const saveSettings = async () => {
               />
             </span>
           </div>
+        </WithLabel>
+
+        <div class="pt-2">
+          <h4 class="text-sm font-medium text-n-slate-12 mb-1">
+            {{
+              $t('INBOX_MGMT.NPS.DETRACTOR.SECTION_TITLE', {
+                default: 'Detrator (0-6) -> follow-up humano',
+              })
+            }}
+          </h4>
+        </div>
+
+        <WithLabel
+          :label="
+            $t('INBOX_MGMT.NPS.DETRACTOR.REOPEN.LABEL', {
+              default: 'Reabrir e encaminhar detratores para follow-up',
+            })
+          "
+          name="detractor_reopen"
+        >
+          <Switch v-model="state.detractorReopen" />
+        </WithLabel>
+
+        <WithLabel
+          :label="
+            $t('INBOX_MGMT.NPS.DETRACTOR.ASSIGNEE.LABEL', {
+              default: 'Atribuir detrator ao agente',
+            })
+          "
+          name="detractor_assignee_id"
+        >
+          <FilterSelect
+            v-model="state.detractorAssigneeId"
+            :options="detractorAssigneeOptions"
+            class="w-full"
+          />
+        </WithLabel>
+
+        <WithLabel
+          :label="
+            $t('INBOX_MGMT.NPS.DETRACTOR.TEAM.LABEL', {
+              default: 'Atribuir detrator ao time',
+            })
+          "
+          name="detractor_team_id"
+        >
+          <FilterSelect
+            v-model="state.detractorTeamId"
+            :options="detractorTeamOptions"
+            class="w-full"
+          />
+        </WithLabel>
+
+        <WithLabel
+          :label="
+            $t('INBOX_MGMT.NPS.DETRACTOR.LABEL.LABEL', {
+              default: 'Adicionar etiqueta ao detrator',
+            })
+          "
+          name="detractor_label"
+        >
+          <input
+            v-model="state.detractorLabel"
+            type="text"
+            :placeholder="
+              $t('INBOX_MGMT.NPS.DETRACTOR.LABEL.PLACEHOLDER', {
+                default: 'detrator',
+              })
+            "
+            class="w-full"
+          />
         </WithLabel>
 
         <div>
