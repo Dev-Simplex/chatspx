@@ -741,6 +741,39 @@ RSpec.describe 'Conversation Messages API', type: :request do
         expect(response).to have_http_status(:unprocessable_entity)
       end
     end
+
+    context 'when retrying a WAHA interactive (input_select) message' do
+      let(:agent) { create(:user, account: account, role: :agent) }
+      let(:waha_channel) { create(:channel_api, account: account) }
+      let(:waha_inbox) do
+        ib = waha_channel.inbox
+        ib.update!(waha_session_name: 'default')
+        ib
+      end
+      let(:waha_conversation) { create(:conversation, account: account, inbox: waha_inbox) }
+      let(:message) do
+        create(:message, account: account, conversation: waha_conversation, inbox: waha_inbox,
+                         message_type: :outgoing, status: :failed,
+                         content: 'Como ajudar?', content_type: :input_select,
+                         content_attributes: { items: [{ 'title' => 'Sim', 'value' => 'sim' }], external_error: 'boom' })
+      end
+
+      before do
+        create(:inbox_member, inbox: waha_inbox, user: agent)
+        special = instance_double(Waha::OutboundSpecialMessageService, perform: true)
+        allow(Waha::OutboundSpecialMessageService).to receive(:new).and_return(special)
+      end
+
+      it 'preserves items, clears the error and re-dispatches via WAHA without 500' do
+        post "/api/v1/accounts/#{account.id}/conversations/#{waha_conversation.display_id}/messages/#{message.id}/retry",
+             headers: agent.create_new_auth_token, as: :json
+
+        expect(response).to have_http_status(:success)
+        expect(message.reload.content_attributes['items']).to eq([{ 'title' => 'Sim', 'value' => 'sim' }])
+        expect(message.reload.content_attributes['external_error']).to be_nil
+        expect(Waha::OutboundSpecialMessageService).to have_received(:new)
+      end
+    end
   end
 
   describe 'PATCH /api/v1/accounts/{account.id}/conversations/:conversation_id/messages/:id' do

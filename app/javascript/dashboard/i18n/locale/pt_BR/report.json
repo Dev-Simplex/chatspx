@@ -245,6 +245,52 @@
       "PLACEHOLDER": "Selecionar intervalo de datas"
     }
   },
+  "ASSIGNMENT_REPORTS": {
+    "HEADER": "Atribuições",
+    "DESCRIPTION": "Veja como as atribuições de conversas se distribuem por agente — quantas cada pessoa recebeu (manualmente, por rodízio ou auto-atribuídas) e quantas ela atribuiu para outros.",
+    "DOWNLOAD": "Baixar relatório de atribuições",
+    "FILTER": {
+      "TEAM": "Time:",
+      "INBOX": "Caixa:",
+      "ALL_TEAMS": "Todos os times",
+      "ALL_INBOXES": "Todas as caixas"
+    },
+    "MATRIX": {
+      "TITLE": "Quem atribuiu pra quem",
+      "HINT": "Linhas = quem atribuiu · Colunas = quem recebeu · valores = atribuições manuais no período.",
+      "FROM_TO": "De \\ Para"
+    },
+    "TABLE": {
+      "AGENT": "Agente",
+      "GROUP_RECEIVED": "Recebidas",
+      "GROUP_ASSIGNED": "Atribuiu",
+      "RECEIVED_TOTAL": "Total",
+      "RECEIVED_MANUAL": "↳ Manuais",
+      "RECEIVED_AUTO": "↳ Automáticas",
+      "SELF_ASSIGNED": "↳ Auto-assumidas",
+      "ASSIGNED_TO_OTHERS": "Para outros"
+    },
+    "SUMMARY": {
+      "TITLE": "Resumo do período",
+      "TOTAL": "{total} atribuições distribuídas entre {agents} atendentes.",
+      "COMPOSITION": "Origem das recebidas: {manual}% manuais · {auto}% automáticas (rodízio) · {self}% auto-assumidas.",
+      "TOP": "Quem mais recebeu: {name} ({count}).",
+      "FORWARD_ONLY": "As contagens começam a partir da ativação do recurso — períodos antigos podem aparecer zerados."
+    },
+    "EMPTY": {
+      "TITLE": "Nenhuma atribuição no período",
+      "BODY": "Não há atribuições registradas no intervalo selecionado. O histórico é contado a partir da ativação do recurso, sem dados retroativos."
+    },
+    "LEGEND": {
+      "TITLE": "Entenda cada coluna",
+      "AGENT": "O atendente (nome).",
+      "RECEIVED": "Recebidas — conversas atribuídas a este agente (ele foi o destino). O Total é a soma de Manuais + Automáticas + Auto-assumidas.",
+      "RECEIVED_MANUAL": "↳ Manuais: outra pessoa atribuiu a conversa para este agente.",
+      "RECEIVED_AUTO": "↳ Automáticas: o sistema distribuiu por rodízio (round-robin).",
+      "SELF_ASSIGNED": "↳ Auto-assumidas: o próprio agente pegou a conversa pra si.",
+      "ASSIGNED_TO_OTHERS": "Atribuiu → Para outros: conversas que este agente atribuiu manualmente para outra pessoa."
+    }
+  },
   "LABEL_REPORTS": {
     "HEADER": "Visão Geral das Etiquetas",
     "DESCRIPTION": "Acompanhe o desempenho da sua etiqueta com métricas-chave incluindo conversas, tempo de resposta, tempos de resolução e casos resolvidos. Clique no nome da etiqueta para obter detalhes.",

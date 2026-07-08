@@ -5,6 +5,8 @@ import { useAccount } from 'dashboard/composables/useAccount';
 import { useKbd } from 'dashboard/composables/utils/useKbd';
 import { useMapGetter } from 'dashboard/composables/store';
 import { useUISettings } from 'dashboard/composables/useUISettings';
+import { useAlert } from 'dashboard/composables';
+import { internalChatNotify } from 'dashboard/helper/internalChatNotify';
 import draggable from 'vuedraggable';
 import { useStore } from 'vuex';
 import { useI18n } from 'vue-i18n';
@@ -74,6 +76,66 @@ const hasAdvancedAssignment = computed(() => {
   );
 });
 
+const hasMessageSequences = computed(() => {
+  return isFeatureEnabledonAccount.value(
+    accountId.value,
+    FEATURE_FLAGS.MESSAGE_SEQUENCES
+  );
+});
+
+const hasInternalChat = computed(() => {
+  return isFeatureEnabledonAccount.value(
+    accountId.value,
+    FEATURE_FLAGS.INTERNAL_CHAT
+  );
+});
+
+// Real-time @mention toast for internal chat (localized here — the Sidebar is
+// always mounted and has i18n; keeps the ActionCable connector i18n-free).
+// User notification preferences for internal chat (set in the chat's header).
+// Default ON when unset, so existing users keep the prior behavior.
+const internalChatSoundEnabled = () =>
+  uiSettings.value?.internal_chat_sound_notifications !== false;
+const internalChatDesktopEnabled = () =>
+  uiSettings.value?.internal_chat_desktop_notifications !== false;
+const internalChatTone = () =>
+  uiSettings.value?.internal_chat_notification_tone || 'pop.wav';
+
+const pendingInternalMention = useMapGetter('internalChat/getPendingMention');
+watch(pendingInternalMention, mention => {
+  if (!mention) return;
+  const message = t('INTERNAL_CHAT.MENTION_TOAST', {
+    from: mention.from,
+    channel: mention.channel,
+  });
+  useAlert(message);
+  internalChatNotify({
+    title: internalChatDesktopEnabled() ? mention.from : undefined,
+    body: message,
+    sound: internalChatSoundEnabled(),
+    tone: internalChatTone(),
+  });
+});
+
+// Real-time toast + som para QUALQUER nova mensagem de canais que participo
+// (DM/grupo/time) quando não estou olhando aquele canal. Som sempre; toast só
+// com a aba visível; notificação desktop só com a aba em segundo plano.
+const pendingInternalNotification = useMapGetter(
+  'internalChat/getPendingNotification'
+);
+watch(pendingInternalNotification, notification => {
+  if (!notification) return;
+  const hidden = typeof document !== 'undefined' && document.hidden;
+  if (!hidden) useAlert(`${notification.title}: ${notification.body}`);
+  internalChatNotify({
+    title:
+      internalChatDesktopEnabled() && hidden ? notification.title : undefined,
+    body: notification.body,
+    sound: internalChatSoundEnabled(),
+    tone: internalChatTone(),
+  });
+});
+
 const toggleShortcutModalFn = show => {
   if (show) {
     emit('openKeyShortcutModal');
@@ -128,6 +190,9 @@ onMounted(() => {
   store.dispatch('attributes/get');
   store.dispatch('customViews/get', 'conversation');
   store.dispatch('customViews/get', 'contact');
+  // Carrega os canais do chat interno para o badge de não lidas aparecer (e o
+  // tempo-real incrementar) mesmo sem abrir a página do chat.
+  if (hasInternalChat.value) store.dispatch('internalChat/fetchChannels');
   setTimeout(() => {
     store.dispatch('conversationStats/get', {});
   }, 2000);
@@ -148,6 +213,11 @@ const newReportRoutes = () => [
     label: t('SIDEBAR.REPORTS_AGENT'),
     to: accountScopedRoute('agent_reports_index'),
     activeOn: ['agent_reports_show'],
+  },
+  {
+    name: 'Reports Agent Assignment',
+    label: t('SIDEBAR.REPORTS_AGENT_ASSIGNMENT'),
+    to: accountScopedRoute('agent_assignment_reports'),
   },
   {
     name: 'Reports Label',
@@ -409,6 +479,20 @@ const menuItems = computed(() => {
       to: accountScopedRoute('agents_dashboard'),
       activeOn: ['agents_dashboard', 'agents_settings', 'agents_tools'],
     },
+    ...(hasInternalChat.value
+      ? [
+          {
+            name: 'Internal Chat',
+            label: t('SIDEBAR.INTERNAL_CHAT'),
+            icon: lordIcon('internalChat', 'i-lucide-messages-square'),
+            to: accountScopedRoute('internal_chat_index'),
+            activeOn: ['internal_chat_index'],
+            getterKeys: {
+              count: 'internalChat/getTotalUnread',
+            },
+          },
+        ]
+      : []),
     {
       name: 'Contacts',
       label: t('SIDEBAR.CONTACTS'),
@@ -686,6 +770,17 @@ const menuItems = computed(() => {
           icon: lordIcon('waha'),
           to: accountScopedRoute('waha_connections_list'),
         },
+        ...(hasMessageSequences.value
+          ? [
+              {
+                name: 'Settings Message Sequences',
+                label: t('SIDEBAR.MESSAGE_SEQUENCES'),
+                icon: lordIcon('automation', 'i-lucide-mails'),
+                activeOn: ['message_sequences_index'],
+                to: accountScopedRoute('message_sequences_index'),
+              },
+            ]
+          : []),
         {
           name: 'Settings Labels',
           label: t('SIDEBAR.LABELS'),
@@ -952,3 +1047,4 @@ const onSidebarReorder = () => {
     </section>
   </aside>
 </template>
+

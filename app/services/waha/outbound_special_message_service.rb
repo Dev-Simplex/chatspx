@@ -23,6 +23,23 @@ class Waha::OutboundSpecialMessageService
     # Protege contra reentrância (status updates: sent → delivered → read) e retries.
     return false if @message.source_id.present?
 
+    # Free-form interactive messages (buttons / list) carry no attachment — the
+    # options live in content_attributes['items'].
+    if interactive_message?
+      send_interactive
+      return true
+    end
+
+    dispatch_attachment
+  rescue Waha::ApiService::Error => e
+    Rails.logger.error("[Waha::OutboundSpecialMessageService] failed: #{e.message}")
+    @message.update(status: :failed, external_error: e.message)
+    true # we handled it (failed) — don't fall back to webhook to avoid double send
+  end
+
+  private
+
+  def dispatch_attachment
     attachment = @message.attachments.first
     case attachment.file_type.to_s
     when 'location'
@@ -34,23 +51,30 @@ class Waha::OutboundSpecialMessageService
     else
       false
     end
-  rescue Waha::ApiService::Error => e
-    Rails.logger.error("[Waha::OutboundSpecialMessageService] failed: #{e.message}")
-    @message.update(status: :failed, external_error: e.message)
-    true # we handled it (failed) — don't fall back to webhook to avoid double send
   end
-
-  private
 
   def applicable?
     return false unless @message.outgoing? && !@message.private?
     return false unless @inbox&.channel_type == 'Channel::Api'
     return false if @inbox.waha_session_name.blank?
 
-    attachment = @message.attachments.first
-    return false unless attachment
+    interactive_message? || attachment_applicable?
+  end
 
-    %w[location contact].include?(attachment.file_type.to_s)
+  def attachment_applicable?
+    file_type = @message.attachments.first&.file_type.to_s
+    %w[location contact].include?(file_type)
+  end
+
+  # An outgoing interactive menu: content_type input_select with a non-empty
+  # items list. WAHA WEBJS renders <=3 items as reply buttons, more as a list.
+  def interactive_message?
+    @message.content_type == 'input_select' && interactive_items.present?
+  end
+
+  def interactive_items
+    items = @message.content_attributes&.dig('items') || @message.content_attributes&.dig(:items)
+    Array(items).select { |i| i.is_a?(Hash) && (i['title'] || i[:title]).present? }
   end
 
   def waha
@@ -73,7 +97,9 @@ class Waha::OutboundSpecialMessageService
     raise Waha::ApiService::Error, "destinatário sem número válido (source_id=#{raw.inspect})" if digits.blank?
 
     check = waha.check_contact_exists(session_name: @inbox.waha_session_name, phone: digits)
-    exists = check.is_a?(Hash) ? (check['numberExists'].nil? ? check[:numberExists] : check['numberExists']) : nil
+    exists = if check.is_a?(Hash)
+               check['numberExists'].nil? ? check[:numberExists] : check['numberExists']
+             end
     resolved = check.is_a?(Hash) ? (check['chatId'] || check[:chatId]) : nil
 
     raise Waha::ApiService::Error, "WhatsApp não cadastrado: #{digits}" if exists == false
@@ -86,9 +112,7 @@ class Waha::OutboundSpecialMessageService
   def candidate_digits(str)
     return '' if str.blank?
 
-    if str =~ /@(c\.us|s\.whatsapp\.net|lid)\z/
-      return str.split('@').first.to_s.gsub(/\D/, '')
-    end
+    return str.split('@').first.to_s.gsub(/\D/, '') if /@(c\.us|s\.whatsapp\.net|lid)\z/.match?(str)
 
     cleaned = str.gsub(/\D/, '')
     return cleaned if str.match?(/\A\+?\d[\d\s\-()]*\z/) && cleaned.length >= 10
@@ -120,6 +144,53 @@ class Waha::OutboundSpecialMessageService
       phone: phone
     )
     mark_sent(resp)
+  end
+
+  # Interactive menus are delivered as a native WhatsApp POLL. On the GOWS PLUS
+  # engine, list/button messages are accepted (201) but WhatsApp renders them
+  # inconsistently (Meta deprecated them for non-official senders) — polls are
+  # the only "tap an option" format that renders reliably for every recipient.
+  # The recipient taps an option to vote; the vote comes back as a poll update.
+  #
+  # WhatsApp polls require 2..12 unique options. When the menu carries fewer than
+  # 2 distinct options we can't build a poll, so we fall back to a numbered text
+  # menu (always works) instead of silently failing.
+  def send_interactive
+    body = @message.outgoing_content.presence || @message.content.to_s
+    options = poll_options(interactive_items)
+
+    if options.length < 2
+      mark_sent(send_text_menu(body, interactive_items))
+    else
+      mark_sent(send_interactive_poll(body, options))
+    end
+  end
+
+  # Distinct, non-empty option labels, capped at WhatsApp's 12-option limit.
+  def poll_options(items)
+    items.map { |item| item_title(item) }.map(&:strip).reject(&:blank?).uniq.first(12)
+  end
+
+  def send_interactive_poll(body, options)
+    waha.send_poll(
+      session: @inbox.waha_session_name,
+      chat_id: chat_id,
+      name: body.presence || I18n.t('conversations.messages.whatsapp.poll_default_name', default: 'Escolha uma opção'),
+      options: options,
+      multiple_answers: false
+    )
+  end
+
+  # Fallback for degenerate menus (0/1 distinct option): a plain numbered text
+  # menu. Always renders on any WhatsApp.
+  def send_text_menu(body, items)
+    lines = items.map.with_index(1) { |item, idx| "#{idx}. #{item_title(item)}" }
+    text = [body.presence, *lines].compact.join("\n")
+    waha.send_text(session: @inbox.waha_session_name, chat_id: chat_id, text: text)
+  end
+
+  def item_title(item)
+    (item['title'] || item[:title]).to_s
   end
 
   def mark_sent(response = nil)

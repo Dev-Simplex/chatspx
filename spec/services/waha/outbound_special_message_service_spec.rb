@@ -24,6 +24,9 @@ RSpec.describe Waha::OutboundSpecialMessageService do
     allow(waha_api).to receive(:send_location).and_return('id' => 'loc-1')
     allow(waha_api).to receive(:send_contact_vcard).and_return('id' => 'vc-1')
     allow(waha_api).to receive(:send_text_with_vcard).and_return('id' => 'tv-1')
+    allow(waha_api).to receive(:send_list).and_return('id' => 'list-1')
+    allow(waha_api).to receive(:send_poll).and_return('id' => 'poll-1')
+    allow(waha_api).to receive(:send_text).and_return('id' => 'txt-1')
   end
 
   describe '#perform' do
@@ -104,6 +107,109 @@ RSpec.describe Waha::OutboundSpecialMessageService do
           name: 'João',
           phone: '+5511977776666'
         )
+      end
+    end
+
+    # Interactive menus are delivered as a native WhatsApp POLL — the only
+    # "tap an option" format that renders reliably on GOWS PLUS (lists/buttons
+    # are deprecated by WhatsApp for non-official senders).
+    context 'with an interactive message (2 options)' do
+      let(:message) do
+        create(:message, conversation: conversation, message_type: :outgoing, inbox: inbox,
+                         content: 'Como podemos ajudar?',
+                         content_type: :input_select,
+                         content_attributes: { items: [
+                           { 'title' => 'Financeiro', 'value' => 'fin' },
+                           { 'title' => 'Suporte', 'value' => 'sup' }
+                         ] })
+      end
+
+      it 'dispatches via Waha::ApiService#send_poll and returns true' do
+        result = described_class.new(message).perform
+
+        expect(waha_api).to have_received(:send_poll).with(
+          session: 'default',
+          chat_id: '5566999998888@c.us',
+          name: 'Como podemos ajudar?',
+          options: %w[Financeiro Suporte],
+          multiple_answers: false
+        )
+        expect(result).to be(true)
+        expect(message.reload.status).to eq('sent')
+        expect(message.reload.source_id).to eq('poll-1')
+      end
+    end
+
+    context 'with an interactive message (4 options)' do
+      let(:message) do
+        create(:message, conversation: conversation, message_type: :outgoing, inbox: inbox,
+                         content: 'Escolha um setor',
+                         content_type: :input_select,
+                         content_attributes: { items: [
+                           { 'title' => 'Financeiro', 'value' => 'fin' },
+                           { 'title' => 'Suporte', 'value' => 'sup' },
+                           { 'title' => 'Vendas', 'value' => 'ven' },
+                           { 'title' => 'Outros', 'value' => 'out' }
+                         ] })
+      end
+
+      it 'dispatches via Waha::ApiService#send_poll with all options' do
+        result = described_class.new(message).perform
+
+        expect(waha_api).to have_received(:send_poll).with(
+          hash_including(
+            session: 'default',
+            chat_id: '5566999998888@c.us',
+            name: 'Escolha um setor',
+            options: %w[Financeiro Suporte Vendas Outros]
+          )
+        )
+        expect(result).to be(true)
+      end
+    end
+
+    context 'with an interactive message carrying duplicate / blank option titles' do
+      let(:message) do
+        create(:message, conversation: conversation, message_type: :outgoing, inbox: inbox,
+                         content: 'Confirma?',
+                         content_type: :input_select,
+                         content_attributes: { items: [
+                           { 'title' => 'Sim', 'value' => 's1' },
+                           { 'title' => 'Sim', 'value' => 's2' },
+                           { 'title' => '  ', 'value' => 'blank' },
+                           { 'title' => 'Não', 'value' => 'n1' }
+                         ] })
+      end
+
+      it 'dedupes and drops blanks before building the poll' do
+        described_class.new(message).perform
+
+        expect(waha_api).to have_received(:send_poll).with(
+          hash_including(options: %w[Sim Não])
+        )
+      end
+    end
+
+    context 'with an interactive message that has fewer than 2 distinct options' do
+      let(:message) do
+        create(:message, conversation: conversation, message_type: :outgoing, inbox: inbox,
+                         content: 'Único item',
+                         content_type: :input_select,
+                         content_attributes: { items: [
+                           { 'title' => 'Confirmar', 'value' => 'ok' }
+                         ] })
+      end
+
+      it 'falls back to a numbered text menu (poll needs 2+ options)' do
+        result = described_class.new(message).perform
+
+        expect(waha_api).not_to have_received(:send_poll)
+        expect(waha_api).to have_received(:send_text).with(
+          session: 'default',
+          chat_id: '5566999998888@c.us',
+          text: "Único item\n1. Confirmar"
+        )
+        expect(result).to be(true)
       end
     end
 

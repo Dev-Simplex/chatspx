@@ -64,6 +64,7 @@ import captainTools from './captain/tools';
 import captainCustomTools from './captain/customTools';
 import captainAssistantLogs from './captain/assistantLogs';
 import kanban from './modules/kanban';
+import internalChat from './modules/internalChat';
 
 const plugins = [];
 
@@ -133,6 +134,7 @@ export default createStore({
     captainCustomTools,
     captainAssistantLogs,
     kanban,
+    internalChat,
   },
   plugins,
 });

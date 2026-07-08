@@ -19,6 +19,12 @@ export const LORDICON = {
     active: 'https://cdn.lordicon.com/wwsllqpi.json',
     family: 'system',
   },
+  // Chat Interno entre agentes — pessoas (distinto do balão de Conversas)
+  internalChat: {
+    idle: 'https://cdn.lordicon.com/kphwxuxr.json',
+    active: 'https://cdn.lordicon.com/ziflyeyv.json',
+    family: 'system',
+  },
   // Canais / Caixa de entrada (sub-conv + Settings Inboxes) — bandeja real
   channels: {
     idle: 'https://cdn.lordicon.com/bimokqfw.json',

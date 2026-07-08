@@ -49,6 +49,22 @@ describe Whatsapp::PhoneNumberNormalizationService do
 
         expect(result).to eq('5566996636632')
       end
+
+      it 'routes to the ficha whose conversation is most recent when duplicates exist' do
+        # Same lead, two fichas (ninth-digit duplication). The 13-digit ficha is the FIRST
+        # variant tried, but its thread is stale; the live thread sits on the 12-digit ficha.
+        # The reply must follow the live thread, not whichever variant matched first.
+        ci_13 = create(:contact_inbox, contact: contact, inbox: inbox, source_id: '5566996636632')
+        contact_12 = create(:contact, account: account)
+        ci_12 = create(:contact_inbox, contact: contact_12, inbox: inbox, source_id: '556696636632')
+
+        create(:conversation, account: account, inbox: inbox, contact: contact, contact_inbox: ci_13, created_at: 10.days.ago)
+        create(:conversation, account: account, inbox: inbox, contact: contact_12, contact_inbox: ci_12, created_at: 1.hour.ago)
+
+        result = service.normalize_and_find_contact_by_provider('5566996636632', :cloud)
+
+        expect(result).to eq('556696636632')
+      end
     end
 
     context 'with non-Brazilian numbers' do

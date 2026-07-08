@@ -39,6 +39,7 @@ import {
 import ContactAPI from 'dashboard/api/contacts';
 import ConversationAPI from 'dashboard/api/conversations';
 import WhatsappTemplates from './WhatsappTemplates/Modal.vue';
+import InteractiveMessageModal from './InteractiveMessageModal.vue';
 import WhatsappWindowExpired from './WhatsappTemplates/WhatsappWindowExpired.vue';
 import ContentTemplates from './ContentTemplates/ContentTemplatesModal.vue';
 import CannedResponseModal from 'dashboard/components-next/canned-response/CannedResponseModal.vue';
@@ -127,6 +128,7 @@ export default {
     ReplyTopPanel,
     ContentTemplates,
     WhatsappTemplates,
+    InteractiveMessageModal,
     WhatsappWindowExpired,
     CannedResponseModal,
     WootMessageEditor,
@@ -235,6 +237,7 @@ export default {
       doAutoSaveDraft: () => {},
       showWhatsAppTemplatesModal: false,
       showContentTemplatesModal: false,
+      showInteractiveModal: false,
       showCannedResponseModal: false,
       showLocationPickerModal: false,
       showShareContactModal: false,
@@ -346,6 +349,15 @@ export default {
     },
     showContentTemplates() {
       return this.isATwilioWhatsAppChannel && !this.isPrivate;
+    },
+    // Free-form interactive buttons/list are delivered via WAHA (Channel::Api).
+    // Offer on WhatsApp / API inboxes, in reply mode, when a reply is allowed.
+    showInteractiveMessage() {
+      return (
+        !this.isPrivate &&
+        (this.isAWhatsAppChannel || this.isAPIInbox) &&
+        !!this.currentChat.id
+      );
     },
     isPrivate() {
       if (
@@ -1835,6 +1847,19 @@ export default {
       });
       this.hideContentTemplatesModal();
     },
+    openInteractiveModal() {
+      this.showInteractiveModal = true;
+    },
+    hideInteractiveModal() {
+      this.showInteractiveModal = false;
+    },
+    async onSendInteractiveMessage(messagePayload) {
+      await this.sendMessage({
+        conversationId: this.currentChat.id,
+        ...messagePayload,
+      });
+      this.hideInteractiveModal();
+    },
     replaceText(message) {
       if (this.sendWithSignature && !this.private) {
         // if signature is enabled, append it to the message
@@ -3093,6 +3118,14 @@ export default {
                 icon="i-lucide-user-round-plus"
                 :click="openShareContactModal"
               />
+              <!-- Mensagem interativa: botões / lista (WhatsApp livre via WAHA) -->
+              <DropdownItem
+                v-if="showInteractiveMessage"
+                data-testid="replybox-interactive-message"
+                :label="$t('INTERACTIVE_MESSAGE.MENU')"
+                icon="i-lucide-list-checks"
+                :click="openInteractiveModal"
+              />
             </DropdownBody>
           </DropdownContainer>
           <button
@@ -3289,6 +3322,12 @@ export default {
       @close="hideWhatsappTemplatesModal"
       @on-send="onSendWhatsAppReply"
       @cancel="hideWhatsappTemplatesModal"
+    />
+
+    <InteractiveMessageModal
+      v-model:show="showInteractiveModal"
+      @send="onSendInteractiveMessage"
+      @cancel="hideInteractiveModal"
     />
 
     <ContentTemplates

@@ -1,0 +1,20 @@
+{
+  "INTERACTIVE_MESSAGE": {
+    "MENU": "Interactive message",
+    "TITLE": "Interactive message",
+    "SUBTITLE": "Send tappable buttons or a list. Up to 3 options become buttons; more become a list.",
+    "BODY_LABEL": "Message",
+    "BODY_PLACEHOLDER": "e.g. How can we help you today?",
+    "OPTIONS_LABEL": "Options",
+    "OPTION_PLACEHOLDER": "Option {index}",
+    "ADD_OPTION": "Add option",
+    "REMOVE_OPTION": "Remove option",
+    "HELP": "The customer taps an option and the choice comes back into the conversation. Requires a WhatsApp (WAHA) inbox.",
+    "MODE": {
+      "BUTTONS": "Buttons",
+      "LIST": "List"
+    },
+    "CANCEL": "Cancel",
+    "SEND": "Send"
+  }
+}

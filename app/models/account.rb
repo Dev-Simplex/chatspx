@@ -153,6 +153,7 @@ class Account < ApplicationRecord # rubocop:disable Metrics/ClassLength
   has_many :funnels, dependent: :destroy
   has_many :funnel_views, dependent: :destroy
   has_many :message_sequences, dependent: :destroy
+  has_many :internal_channels, dependent: :destroy_async
 
   has_one_attached :contacts_export
   has_one_attached :chat_wallpaper_image
