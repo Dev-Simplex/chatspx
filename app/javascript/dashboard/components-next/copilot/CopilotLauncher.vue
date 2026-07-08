@@ -25,6 +25,10 @@ const isConversationRoute = computed(() => {
     // Internal team chat has its own bottom-right composer/send button — the
     // launcher would overlap it, so hide it here too.
     'internal_chat_index',
+    // Central de Ajuda embutida renderiza o portal em iframe, que já tem o
+    // próprio widget "pedir ajuda" no canto inferior — o launcher do Copilot
+    // sobreporia, então esconde nesta rota também.
+    'help_center_view',
   ];
   return CONVERSATION_ROUTES.includes(route.name);
 });
