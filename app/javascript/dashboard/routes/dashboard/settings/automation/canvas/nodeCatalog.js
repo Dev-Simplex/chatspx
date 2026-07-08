@@ -134,6 +134,14 @@ export const NODE_CATALOG = [
     icon: 'i-lucide-flag',
   },
   {
+    key: 'snooze_conversation',
+    type: 'action',
+    actionName: 'snooze_conversation',
+    family: 'action',
+    labelKey: 'AUTOMATION.CANVAS.NODES.SNOOZE',
+    icon: 'i-lucide-alarm-clock',
+  },
+  {
     key: 'assign_ai_agent',
     type: 'action',
     actionName: 'assign_ai_agent',

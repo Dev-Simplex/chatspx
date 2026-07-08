@@ -20,6 +20,7 @@ import LabelConfig from './config/LabelConfig.vue';
 import ChangeStatusConfig from './config/ChangeStatusConfig.vue';
 import ChangePriorityConfig from './config/ChangePriorityConfig.vue';
 import WaitConfig from './config/WaitConfig.vue';
+import SnoozeConfig from './config/SnoozeConfig.vue';
 import GenericConfig from './config/GenericConfig.vue';
 
 const props = defineProps({
@@ -47,6 +48,7 @@ const ACTION_EDITORS = {
   remove_label: markRaw(LabelConfig),
   change_status: markRaw(ChangeStatusConfig),
   change_priority: markRaw(ChangePriorityConfig),
+  snooze_conversation: markRaw(SnoozeConfig),
 };
 
 const TYPE_EDITORS = {

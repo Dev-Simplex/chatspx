@@ -31,9 +31,6 @@ const toggleModalDescription = ref(
 
 // A tela agora lista FLOWS (o motor unificado), não mais AutomationRules.
 const records = computed(() => getters['flows/getFlows'].value);
-// Fontes legadas — só usadas pela ação "Importar automações e macros".
-const macros = computed(() => getters['macros/getMacros'].value);
-const automations = computed(() => getters['automations/getAutomations'].value);
 
 const filteredRecords = computed(() => {
   const query = searchQuery.value.trim();
@@ -65,9 +62,6 @@ onMounted(() => {
   store.dispatch('labels/get');
   store.dispatch('campaigns/get');
   store.dispatch('flows/get');
-  // Carregadas para a ação de importar e para o form clássico (avançado).
-  store.dispatch('automations/get');
-  store.dispatch('macros/get');
   if (isSLAEnabled.value) {
     store.dispatch('sla/get');
   }
@@ -168,94 +162,20 @@ const toggleFlow = async ({ id, name, status }) => {
   }
 };
 
-// Cada ação (na ordem) vira um nó `action`; as arestas encadeiam linearmente. Espelha
-// `Flows::BackfillService#actions_to_definition` (backfill_service.rb) — mantido em paridade.
-const actionsToDefinition = actions => {
-  const nodes = (actions || []).map((action, index) => ({
-    id: `n${index + 1}`,
-    type: 'action',
-    action_name: action.action_name,
-    action_params: action.action_params,
-  }));
-  const edges = nodes
-    .slice(1)
-    .map((node, index) => ({ from: nodes[index].id, to: node.id }));
-  return { nodes, edges };
-};
-
-// Idempotência: um Flow importado carrega `trigger_config.backfill_source` ("macro:<id>" /
-// "automation_rule:<id>"). Reimportar só cria o que ainda falta — igual ao BackfillService.
-const backfilledSources = () => {
-  const done = new Set();
-  records.value.forEach(flow => {
-    const src = flow?.trigger_config?.backfill_source;
-    if (src) done.add(src);
-  });
-  return done;
-};
-
 // Importa Macros + AutomationRules existentes como Flows equivalentes (cada uma vira um Flow
-// LINEAR). TODO: quando a fatia de backend expuser um endpoint de backfill (rake flows:backfill
-// já existe em CLI), trocar este espelho client-side por uma chamada única a esse endpoint.
+// LINEAR) via o endpoint POST flows/import, que roda o Flows::BackfillService no servidor
+// (idempotente por trigger_config.backfill_source). O store recarrega a lista ao concluir; aqui
+// só traduzimos o `summary` no feedback (criados / falhas / nada a importar).
 const importLegacy = async () => {
   importing.value = true;
   try {
-    // Garante fontes frescas antes de calcular o que falta importar.
-    await Promise.all([
-      store.dispatch('automations/get'),
-      store.dispatch('macros/get'),
-      store.dispatch('flows/get'),
-    ]);
+    const { summary } = await store.dispatch('flows/importLegacy', {});
+    const created = (summary?.macros || 0) + (summary?.automation_rules || 0);
+    const failed = (summary?.errors || []).length;
 
-    const done = backfilledSources();
-    const jobs = [];
-
-    macros.value.forEach(macro => {
-      const source = `macro:${macro.id}`;
-      if (done.has(source)) return;
-      jobs.push({
-        name: macro.name,
-        trigger_type: 'manual',
-        trigger_config: { backfill_source: source },
-        definition: actionsToDefinition(macro.actions),
-        visibility: macro.visibility || 'global',
-        active: true,
-      });
-    });
-
-    automations.value.forEach(rule => {
-      const source = `automation_rule:${rule.id}`;
-      if (done.has(source)) return;
-      jobs.push({
-        name: rule.name,
-        description: rule.description,
-        trigger_type: 'conversation_event',
-        trigger_config: {
-          event_name: rule.event_name,
-          conditions: rule.conditions,
-          backfill_source: source,
-        },
-        definition: actionsToDefinition(rule.actions),
-        visibility: 'global',
-        active: rule.active,
-      });
-    });
-
-    if (!jobs.length) {
+    if (!created && !failed) {
       useAlert(t('AUTOMATION.IMPORT.NOTHING'));
-      return;
-    }
-
-    const results = await Promise.allSettled(
-      jobs.map(job => store.dispatch('flows/create', job))
-    );
-    const created = results.filter(r => r.status === 'fulfilled').length;
-    const failed = results.length - created;
-
-    // Reconcilia com a verdade do servidor (nomes/definições normalizados).
-    await store.dispatch('flows/get');
-
-    if (failed && created) {
+    } else if (failed && created) {
       useAlert(t('AUTOMATION.IMPORT.PARTIAL', { created, failed }));
     } else if (failed) {
       useAlert(t('AUTOMATION.IMPORT.ERROR'));

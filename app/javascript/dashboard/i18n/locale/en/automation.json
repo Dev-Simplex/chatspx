@@ -42,6 +42,9 @@
       "SAVED": "Flow saved",
       "CREATED": "Flow created",
       "SAVE_ERROR": "Could not save the flow",
+      "UNDO": "Undo",
+      "REDO": "Redo",
+      "UNSAVED": "Unsaved changes",
       "EMPTY": "Pick a block from the palette to start",
       "FAMILIES": {
         "TRIGGER": "Trigger",
@@ -64,6 +67,7 @@
         "ADD_LABEL": "Label",
         "CHANGE_STATUS": "Change status",
         "CHANGE_PRIORITY": "Priority",
+        "SNOOZE": "Snooze",
         "ASSIGN_AI_AGENT": "Hand off to AI",
         "AI_CLASSIFY": "Classify with AI",
         "AI_GENERATE": "Generate with AI",
@@ -168,7 +172,19 @@
           "UNIT_LABEL": "Unit",
           "UNIT_MINUTES": "Minutes",
           "UNIT_HOURS": "Hours",
-          "UNIT_DAYS": "Days"
+          "UNIT_DAYS": "Days",
+          "BUSINESS_HOURS_LABEL": "Respect business hours",
+          "BUSINESS_HOURS_HINT": "When on, the wait ends at the next business hour of the conversation's inbox instead of at any time of day."
+        },
+        "SNOOZE": {
+          "VALUE_LABEL": "Snooze for",
+          "VALUE_PLACEHOLDER": "e.g. 2",
+          "UNIT_LABEL": "Unit",
+          "HINT": "The conversation reopens automatically when the time is up.",
+          "UNIT_MINUTES": "Minutes",
+          "UNIT_HOURS": "Hours",
+          "UNIT_DAYS": "Days",
+          "UNIT_WEEKS": "Weeks"
         },
         "LABELS": {
           "ADD_LABEL": "Labels to add",

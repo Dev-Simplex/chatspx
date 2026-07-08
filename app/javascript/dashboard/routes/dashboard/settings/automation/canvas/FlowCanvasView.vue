@@ -1,5 +1,12 @@
 <script setup>
-import { ref, computed, onMounted, nextTick } from 'vue';
+import {
+  ref,
+  computed,
+  onMounted,
+  onBeforeUnmount,
+  nextTick,
+  watch,
+} from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import { useI18n } from 'vue-i18n';
 import { VueFlow, MarkerType } from '@vue-flow/core';
@@ -14,6 +21,8 @@ import ConfigPanel from './ConfigPanel.vue';
 import SimulationOverlay from './SimulationOverlay.vue';
 import LogsPanel from './LogsPanel.vue';
 import { NODE_CATALOG, FAMILIES, familyForNode } from './nodeCatalog';
+import { flatToDefinition } from './flatToDefinition';
+import { useFlowHistory } from './useFlowHistory';
 
 import '@vue-flow/core/dist/style.css';
 import '@vue-flow/core/dist/theme-default.css';
@@ -38,8 +47,74 @@ const flowInstance = ref(null);
 const showSimulation = ref(false);
 const showLogs = ref(false);
 
+// Histórico undo/redo da definition. `suppressHistory` blinda o watcher enquanto aplicamos um
+// snapshot (undo/redo) ou o echo read-only do webhook_token — mutações que NÃO são edições do
+// usuário e não devem virar passos de undo nem marcar o fluxo como sujo.
+const history = useFlowHistory();
+const { canUndo, canRedo, isDirty } = history;
+const suppressHistory = ref(false);
+
 const nodeTypes = { flow: FlowNode };
 const edgeTypes = { flow: FlowEdge };
+
+// Roda uma mutação da definition sem registrá-la no histórico (o watcher é assíncrono; o flag
+// segue ligado durante o flush e só é liberado no próximo tick).
+const withoutHistory = fn => {
+  suppressHistory.value = true;
+  fn();
+  nextTick(() => {
+    suppressHistory.value = false;
+  });
+};
+
+// Fonte única de captura: toda mutação da definition (todas imutáveis nos handlers) alimenta o
+// histórico por aqui — debounced dentro do composable. Pulado sob suppressHistory.
+watch(
+  definition,
+  value => {
+    if (suppressHistory.value) return;
+    history.record(value);
+  },
+  { deep: true }
+);
+
+const applySnapshot = snapshot => {
+  if (!snapshot) return;
+  withoutHistory(() => {
+    definition.value = snapshot;
+    // Se o nó selecionado sumiu no snapshot, fecha o painel de configuração.
+    const stillExists = (snapshot.nodes || []).some(
+      node => String(node.id) === String(selectedNodeId.value)
+    );
+    if (selectedNodeId.value && !stillExists) selectedNodeId.value = null;
+  });
+};
+
+const undo = () => applySnapshot(history.undo());
+const redo = () => applySnapshot(history.redo());
+
+// Não sequestrar o undo nativo enquanto o usuário digita num campo do painel de configuração.
+const isEditableTarget = target => {
+  if (!target) return false;
+  if (target.isContentEditable) return true;
+  const tag = target.tagName;
+  return tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT';
+};
+
+// Ctrl/Cmd+Z = desfazer; Ctrl/Cmd+Shift+Z ou Ctrl+Y = refazer.
+const onKeydown = event => {
+  if (!(event.ctrlKey || event.metaKey)) return;
+  const key = event.key.toLowerCase();
+  const wantsRedo = (key === 'z' && event.shiftKey) || key === 'y';
+  const wantsUndo = key === 'z' && !event.shiftKey;
+  if (!wantsRedo && !wantsUndo) return;
+  if (isEditableTarget(event.target)) return;
+  event.preventDefault();
+  if (wantsRedo) redo();
+  else undo();
+};
+
+onBeforeUnmount(() => window.removeEventListener('keydown', onKeydown));
 
 // Cores dos ramos fixos (espelham FlowNode/FlowEdge). Rotas do router herdam a cor da família.
 const BRANCH_TRUE_COLOR = '#0e9f6e';
@@ -178,19 +253,46 @@ const syncWebhookToken = flow => {
   };
 };
 
+// Abre uma AutomationRule clássica no canvas (rota `new` com ?fromRuleId=<id>): converte a regra
+// (event_name + conditions + actions) numa `definition` via flatToDefinition — inteiramente
+// client-side, sem depender do backfill do servidor. O usuário revisa e salva como um Flow novo.
+const seedFromRule = async ruleId => {
+  const findRule = () =>
+    (store.getters['automations/getAutomations'] || []).find(
+      rule => String(rule.id) === String(ruleId)
+    );
+  let rule = findRule();
+  if (!rule) {
+    await store.dispatch('automations/get');
+    rule = findRule();
+  }
+  if (!rule) return false;
+  name.value = rule.name || t('AUTOMATION.CANVAS.NEW_FLOW');
+  definition.value = flatToDefinition(rule);
+  return true;
+};
+
 onMounted(async () => {
+  window.addEventListener('keydown', onKeydown);
   loadConfigOptions();
+
   if (!isEdit.value) {
-    name.value = t('AUTOMATION.CANVAS.NEW_FLOW');
+    const seeded = route.query.fromRuleId
+      ? await seedFromRule(route.query.fromRuleId)
+      : false;
+    if (!seeded) name.value = t('AUTOMATION.CANVAS.NEW_FLOW');
+    history.commit(definition.value);
     return;
   }
+
   let flow = store.getters['flows/getFlow'](flowId.value);
   if (!flow) flow = await store.dispatch('flows/show', flowId.value);
   if (flow) {
     name.value = flow.name;
     definition.value = flow.definition || { nodes: [], edges: [] };
-    syncWebhookToken(flow);
+    withoutHistory(() => syncWebhookToken(flow));
   }
+  history.commit(definition.value);
 });
 
 const nextNodeId = () => {
@@ -395,11 +497,13 @@ const save = async () => {
         id: flowId.value,
         ...payload,
       });
-      syncWebhookToken(updated);
+      withoutHistory(() => syncWebhookToken(updated));
+      history.markSaved(definition.value);
       useAlert(t('AUTOMATION.CANVAS.SAVED'));
     } else {
       const created = await store.dispatch('flows/create', payload);
-      syncWebhookToken(created);
+      withoutHistory(() => syncWebhookToken(created));
+      history.markSaved(definition.value);
       useAlert(t('AUTOMATION.CANVAS.CREATED'));
       router.replace({
         name: 'automation_canvas_edit',
@@ -438,6 +542,35 @@ const goBack = () =>
         :placeholder="t('AUTOMATION.CANVAS.NAME_PLACEHOLDER')"
         data-testid="canvas-name"
       />
+      <span
+        v-if="isDirty"
+        class="rounded-full size-1.5 shrink-0 bg-n-amber-9"
+        :aria-label="t('AUTOMATION.CANVAS.UNSAVED')"
+        :title="t('AUTOMATION.CANVAS.UNSAVED')"
+        data-testid="canvas-dirty"
+      />
+      <div class="flex items-center gap-0.5">
+        <button
+          class="grid rounded-lg size-8 place-items-center text-n-slate-11 hover:text-n-slate-12 hover:bg-n-alpha-2 disabled:opacity-40 disabled:hover:bg-transparent disabled:hover:text-n-slate-11"
+          :disabled="!canUndo"
+          :aria-label="t('AUTOMATION.CANVAS.UNDO')"
+          :title="t('AUTOMATION.CANVAS.UNDO')"
+          data-testid="canvas-undo"
+          @click="undo"
+        >
+          <span class="i-lucide-undo-2" />
+        </button>
+        <button
+          class="grid rounded-lg size-8 place-items-center text-n-slate-11 hover:text-n-slate-12 hover:bg-n-alpha-2 disabled:opacity-40 disabled:hover:bg-transparent disabled:hover:text-n-slate-11"
+          :disabled="!canRedo"
+          :aria-label="t('AUTOMATION.CANVAS.REDO')"
+          :title="t('AUTOMATION.CANVAS.REDO')"
+          data-testid="canvas-redo"
+          @click="redo"
+        >
+          <span class="i-lucide-redo-2" />
+        </button>
+      </div>
       <button
         v-if="isEdit"
         class="inline-flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium rounded-lg text-n-slate-12 bg-n-alpha-2 hover:bg-n-alpha-3"

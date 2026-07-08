@@ -24,6 +24,13 @@ class FlowsAPI extends ApiClient {
   getLogs(flowId, page = 1) {
     return axios.get(`${this.url}/${flowId}/logs`, { params: { page } });
   }
+
+  // Importa as Macros e AutomationRules legadas da conta como Flows equivalentes, rodando o
+  // Flows::BackfillService no servidor (idempotente via trigger_config.backfill_source). Com
+  // dry_run: true valida sem gravar. Retorna { dry_run, summary, flows }.
+  importLegacy(dryRun = false) {
+    return axios.post(`${this.url}/import`, { dry_run: dryRun });
+  }
 }
 
 export default new FlowsAPI();

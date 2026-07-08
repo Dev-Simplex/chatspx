@@ -42,6 +42,9 @@
       "SAVED": "Fluxo salvo",
       "CREATED": "Fluxo criado",
       "SAVE_ERROR": "Não foi possível salvar o fluxo",
+      "UNDO": "Desfazer",
+      "REDO": "Refazer",
+      "UNSAVED": "Alterações não salvas",
       "EMPTY": "Escolha um bloco na paleta para começar",
       "FAMILIES": {
         "TRIGGER": "Gatilho",
@@ -64,6 +67,7 @@
         "ADD_LABEL": "Etiqueta",
         "CHANGE_STATUS": "Mudar status",
         "CHANGE_PRIORITY": "Prioridade",
+        "SNOOZE": "Adiar",
         "ASSIGN_AI_AGENT": "Transferir p/ IA",
         "AI_CLASSIFY": "Classificar com IA",
         "AI_GENERATE": "Gerar com IA",
@@ -168,7 +172,19 @@
           "UNIT_LABEL": "Unidade",
           "UNIT_MINUTES": "Minutos",
           "UNIT_HOURS": "Horas",
-          "UNIT_DAYS": "Dias"
+          "UNIT_DAYS": "Dias",
+          "BUSINESS_HOURS_LABEL": "Respeitar horário comercial",
+          "BUSINESS_HOURS_HINT": "Quando ligado, a espera termina no próximo horário comercial da caixa de entrada da conversa, em vez de a qualquer hora do dia."
+        },
+        "SNOOZE": {
+          "VALUE_LABEL": "Adiar por",
+          "VALUE_PLACEHOLDER": "ex.: 2",
+          "UNIT_LABEL": "Unidade",
+          "HINT": "A conversa reabre automaticamente quando o tempo acaba.",
+          "UNIT_MINUTES": "Minutos",
+          "UNIT_HOURS": "Horas",
+          "UNIT_DAYS": "Dias",
+          "UNIT_WEEKS": "Semanas"
         },
         "LABELS": {
           "ADD_LABEL": "Etiquetas a adicionar",

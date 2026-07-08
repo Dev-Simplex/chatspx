@@ -12,6 +12,7 @@ export const state = {
     isExecuting: false,
     isSimulating: false,
     isFetchingLogs: false,
+    isImporting: false,
   },
 };
 
@@ -111,6 +112,23 @@ export const actions = {
       return response.data;
     } finally {
       commit(types.SET_FLOW_UI_FLAG, { isFetchingLogs: false });
+    }
+  },
+  // Importa Macros + AutomationRules legadas como Flows via o endpoint (POST flows/import), que
+  // roda o Flows::BackfillService no servidor. Fora do dry_run, recarrega a lista para refletir
+  // a verdade do servidor. Retorna { dry_run, summary, flows } — o resumo alimenta o feedback.
+  importLegacy: async ({ commit, dispatch }, { dryRun = false } = {}) => {
+    commit(types.SET_FLOW_UI_FLAG, { isImporting: true });
+    try {
+      const response = await FlowsAPI.importLegacy(dryRun);
+      if (!dryRun) {
+        await dispatch('get');
+      }
+      return response.data;
+    } catch (error) {
+      throw new Error(error);
+    } finally {
+      commit(types.SET_FLOW_UI_FLAG, { isImporting: false });
     }
   },
 };
