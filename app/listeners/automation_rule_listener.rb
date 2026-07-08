@@ -1,4 +1,10 @@
 class AutomationRuleListener < BaseListener
+  # Palavras de opt-out (descadastro) do WhatsApp marketing. Casamento por IGUALDADE (não
+  # "contains") sobre a mensagem normalizada — acento/caixa/pontuação-insensível, ver
+  # #opt_out_message? — pra "PARAR"/"Sair"/"stop."/"CANCELAR" descadastrarem, mas "não vou
+  # parar de comprar" (que só CONTÉM "parar") NÃO. Lista central e extensível.
+  OPT_OUT_KEYWORDS = %w[parar sair stop cancelar].freeze
+
   def conversation_updated(event)
     process_conversation_event(event, 'conversation_updated')
   end
@@ -74,6 +80,11 @@ class AutomationRuleListener < BaseListener
   end
 
   def run_flows(event_name, account, conversation, payload)
+    # Compliance opt-out ("PARAR"): uma mensagem incoming de descadastro registra a suppression
+    # e NÃO dispara flow algum por si — nem por-evento, nem keyword. Só corre em message_created
+    # (único evento com a mensagem no payload) e só com o motor Flow ativo (estamos em run_flows).
+    return if event_name == 'message_created' && handle_incoming_opt_out(account, conversation, payload)
+
     current_account_flows(event_name, account).each do |flow|
       gate = ::Flows::RuleAdapter.new(conditions: flow.trigger_config['conditions'], flow: flow)
       conditions_match = ::AutomationRules::ConditionsFilterService.new(gate, conversation, payload).perform
@@ -103,6 +114,28 @@ class AutomationRuleListener < BaseListener
 
       ::Flows::RunnerService.new(flow: flow, conversation: conversation, trigger_payload: payload).perform
     end
+  end
+
+  # Detecta e processa um opt-out numa mensagem INCOMING de contato. Ao casar, registra a
+  # suppression de marketing (reason: opt_out) e devolve true — o run_flows aborta TODO disparo
+  # por essa mensagem. Reusa os mesmos filtros de elegibilidade do keyword matcher (incoming,
+  # não-privada); o anti-loop flow_id já foi aplicado por ignore_message_created_event?.
+  def handle_incoming_opt_out(account, conversation, payload)
+    message = payload[:message]
+    return false unless message&.incoming? && !message.private?
+    return false unless opt_out_message?(message.content)
+
+    contact = conversation.contact
+    ContactFlowSuppression.record_opt_out!(contact: contact, account: account) if contact.present?
+    true
+  end
+
+  # É um pedido de descadastro? A mensagem, normalizada (transliterada, minúscula, colapsada) e
+  # com a pontuação removida, é EXATAMENTE uma das OPT_OUT_KEYWORDS. Match exato (não substring)
+  # evita falso-positivo em frases que só contêm a palavra. Ver #normalize_keyword.
+  def opt_out_message?(content)
+    normalized = normalize_keyword(content).gsub(/[^a-z0-9 ]/, '').strip
+    OPT_OUT_KEYWORDS.include?(normalized)
   end
 
   def current_account_rules(event_name, account)

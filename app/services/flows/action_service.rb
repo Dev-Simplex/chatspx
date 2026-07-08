@@ -10,6 +10,10 @@
 # O loop sobre os nós fica no Flows::RunnerService; aqui executamos UM nó por vez.
 # Ver plano §2.4.
 class Flows::ActionService < ActionService
+  # Guardas de compliance (opt-out PARAR / cap de marketing / janela 24h) que
+  # send_message/send_template chamam antes de enviar. Extraídas p/ manter esta classe enxuta.
+  include Flows::Compliance
+
   # Outcome of ONE action node, consumed by the Flows::RunnerService to build a FlowStepLog.
   # `error` carries the captured exception (failed) or the Flows::StepSkip (skipped); nil on
   # success. Returned instead of raising so the walk stays best-effort AND leaves a trace.
@@ -64,6 +68,11 @@ class Flows::ActionService < ActionService
 
   def send_message(message)
     return if conversation_a_tweet?
+
+    # Mensagem LIVRE (não-template): trata-se como `utility` (não-marketing) e exige a janela
+    # de 24h — fora dela o WhatsApp só aceita template, então um texto livre seria rejeitado.
+    # opt-out de marketing (PARAR) NÃO barra um texto de serviço; só uma suppression `all` barra.
+    enforce_compliance!(category: 'utility', free_form: true)
 
     params = { content: message[0], private: false, content_attributes: message_content_attributes }
     Messages::MessageBuilder.new(author, @conversation.reload, params).perform
@@ -125,6 +134,11 @@ class Flows::ActionService < ActionService
     # motivo tipado — o Runner registra um passo `skipped` triável, sem enviar ao Sentry.
     raise Flows::StepSkip.new('inbox_not_whatsapp', 'inbox is not a WhatsApp Cloud channel') unless whatsapp_cloud_inbox?
     raise Flows::StepSkip.new('template_not_approved', 'template is not approved on the inbox') unless approved_template?(template)
+
+    # Compliance ANTES de montar/enviar. Categoria resolvida do metadata REAL do template
+    # (MARKETING → marketing; resto → utility). Templates PODEM sair fora da janela de 24h (é o
+    # propósito deles), por isso free_form:false — só o cap e o opt-out se aplicam aqui.
+    enforce_compliance!(category: compliance_category(template), free_form: false)
 
     params = {
       message_type: 'outgoing',

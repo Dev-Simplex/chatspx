@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[7.1].define(version: 2026_07_07_130000) do
+ActiveRecord::Schema[7.1].define(version: 2026_07_08_120000) do
   # These extensions should be enabled to support this database
   enable_extension "pg_stat_statements"
   enable_extension "pg_trgm"
@@ -694,6 +694,20 @@ ActiveRecord::Schema[7.1].define(version: 2026_07_07_130000) do
     t.index ["account_id", "domain"], name: "index_companies_on_account_and_domain", unique: true, where: "(domain IS NOT NULL)"
     t.index ["account_id"], name: "index_companies_on_account_id"
     t.index ["name", "account_id"], name: "index_companies_on_name_and_account_id"
+  end
+
+  create_table "contact_flow_suppressions", force: :cascade do |t|
+    t.bigint "contact_id", null: false
+    t.bigint "account_id", null: false
+    t.string "category", default: "marketing", null: false
+    t.string "reason", default: "opt_out", null: false
+    t.datetime "expires_at"
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["account_id", "category"], name: "index_contact_flow_suppressions_on_account_id_and_category"
+    t.index ["account_id"], name: "index_contact_flow_suppressions_on_account_id"
+    t.index ["contact_id", "category"], name: "index_contact_flow_suppressions_on_contact_and_category", unique: true
+    t.index ["contact_id"], name: "index_contact_flow_suppressions_on_contact_id"
   end
 
   create_table "contact_inboxes", force: :cascade do |t|
@@ -1950,6 +1964,8 @@ ActiveRecord::Schema[7.1].define(version: 2026_07_07_130000) do
   add_foreign_key "agent_bots", "captain_assistants", on_delete: :nullify
   add_foreign_key "captain_assistant_logs", "captain_assistants"
   add_foreign_key "captain_assistant_logs", "conversations"
+  add_foreign_key "contact_flow_suppressions", "accounts"
+  add_foreign_key "contact_flow_suppressions", "contacts"
   add_foreign_key "conversation_pdf_exports", "accounts", on_delete: :cascade
   add_foreign_key "conversation_pdf_exports", "conversations", on_delete: :cascade
   add_foreign_key "conversation_pdf_exports", "users", column: "requester_user_id", on_delete: :nullify
