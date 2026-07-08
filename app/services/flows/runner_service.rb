@@ -8,12 +8,29 @@
 # MAX_STEPS (ciclo no grafo por aresta malformada, por passo de execução) e MAX_DEPTH via
 # Current.flow_depth (re-entrada SÍNCRONA inline de flows — o re-trigger async por evento
 # NÃO é coberto por este contador; ver o comentário em Current#flow_depth). Ver plano §2.5.
+#
+# DISPARO REAL: #perform (início) / #resume_from (retomada pós-wait). SIMULAÇÃO (dry-run, Fase
+# 3.3): #simulate — percorre o MESMO grafo sem efetivar nada (ver Flows::SimulationService).
 class Flows::RunnerService
+  # Instrumentação do DISPARO REAL: roda a ação/ramo e grava o FlowStepLog (trilha de auditoria,
+  # best-effort). Extraído p/ manter esta classe enxuta. Ver Flows::StepInstrumentation.
+  include Flows::StepInstrumentation
+  # Comportamento do walker em modo SIMULAÇÃO (dry_run): descreve ações em vez de executá-las e
+  # atravessa `wait` em vez de suspender. Ver Flows::SimulationWalk e Flows::SimulationService.
+  include Flows::SimulationWalk
+
   MAX_STEPS = 100
   MAX_DEPTH = 3
   WAIT_UNITS = %w[minutes hours days].freeze
   DEFAULT_WAIT_UNIT = 'minutes'
   DEFAULT_WAIT_VALUE = 1
+  # Sentinela interna de #step_node: sinaliza ao #walk que um `wait` suspendeu o disparo real e o
+  # laço deve parar. Não é um branch — branches são strings/nil, então nunca colidem com este símbolo.
+  HALT = :halt
+
+  # Lista ORDENADA dos passos simulados, populada SÓ pelo #simulate (fica [] no disparo real).
+  # A Flows::SimulationService a lê. Ver Flows::SimulationWalk#simulate_visit para o formato.
+  attr_reader :simulation_steps
 
   def initialize(flow:, conversation:, actor: nil, trigger_payload: {}, flow_run: nil)
     @flow = flow
@@ -25,12 +42,29 @@ class Flows::RunnerService
     # o mesmo run em vez de criar outro. No disparo inicial nasce nil e é materializado
     # preguiçosamente no primeiro `wait`.
     @flow_run = flow_run
+    # dry_run desligado por padrão: #perform/#resume_from são o disparo REAL, idêntico ao de hoje.
+    # Só o #simulate liga o flag (a assinatura do construtor fica intacta p/ os chamadores atuais).
+    @dry_run = false
+    @simulation_steps = []
   end
 
   # Disparo do início do grafo (manual/evento). Caminha síncrono até o grafo acabar OU um
   # nó `wait` suspender o passo. Só materializa FlowRun se houver wait.
   def perform
     with_depth_guard { walk(start_node_id) }
+  ensure
+    Current.reset
+  end
+
+  # Ponto de entrada da SIMULAÇÃO (Flows::SimulationService, base da Fase 3.3). Liga o dry-run e
+  # percorre o MESMO grafo do #perform seguindo condition/router como no ar, MAS sem efetivar
+  # NADA — nenhuma ação executada, `wait` atravessado, nada persistido (nem FlowStepLog, nem
+  # FlowRun, nem a conversa). Devolve os passos simulados. INOCUIDADE POR CONSTRUÇÃO: com dry_run
+  # ligado, #walk nem instancia o Flows::ActionService (a única porta de efeito colateral).
+  def simulate
+    @dry_run = true
+    with_depth_guard { walk(start_node_id) }
+    simulation_steps
   ensure
     Current.reset
   end
@@ -53,18 +87,37 @@ class Flows::RunnerService
   private
 
   def walk(node_id)
-    actions = Flows::ActionService.new(flow: @flow, conversation: @conversation, actor: @actor)
+    actions = build_walk_actions
     steps = 0
     while node_id && (steps += 1) <= MAX_STEPS
       node = find_node(node_id)
       break if node.nil?
 
-      return if suspend_on_wait(node, node_id) # `wait` pausa o passo; estado já persistido
+      branch = step_node(node, node_id, actions)
+      return if branch == HALT # disparo real: um `wait` suspendeu o passo (estado já persistido)
 
-      branch = visit(node, actions)
       node_id = next_node_id(node_id, branch)
     end
-    finish_run
+    finish_run unless @dry_run # no dry-run não há FlowRun a completar (nada foi persistido)
+  end
+
+  # INOCUIDADE POR CONSTRUÇÃO: no dry-run NÃO instanciamos o Flows::ActionService — a ÚNICA porta
+  # para efetivar uma ação (#execute manda mensagem, grava atributo, chama IA…). Sem a instância,
+  # #execute é literalmente inalcançável: a simulação não tem como disparar nada.
+  def build_walk_actions
+    return if @dry_run
+
+    Flows::ActionService.new(flow: @flow, conversation: @conversation, actor: @actor)
+  end
+
+  # Processa UM nó e devolve o `branch` a seguir (condition/router) ou nil (action/wait/etc). No
+  # dry-run apenas DESCREVE/AVALIA (nunca executa, suspende ou persiste). No disparo real, um `wait`
+  # suspende o passo e devolvemos HALT para o walker parar o laço (estado já persistido).
+  def step_node(node, node_id, actions)
+    return simulate_visit(node) if @dry_run
+    return HALT if suspend_on_wait(node, node_id)
+
+    visit(node, actions)
   end
 
   # Ao chegar num nó `wait`: grava ONDE retomar (o sucessor do wait) e QUANDO (wait_until) e
@@ -113,15 +166,22 @@ class Flows::RunnerService
   # da inbox da conversa se cair fora do expediente (Flows::BusinessHours; no-op se a inbox não
   # tem working hours ligado).
   def wait_until_for(node)
+    w = normalized_wait(node)
+    base = w[:value].public_send(w[:unit]).from_now
+    # `business_hours` aceita boolean nativo ou string ('true'/'1') — o canvas grava no JSON.
+    return base unless ActiveModel::Type::Boolean.new.cast(w[:business_hours])
+
+    Flows::BusinessHours.next_opening(@conversation.inbox, from: base)
+  end
+
+  # Normaliza a config do wait (mesma lógica no disparo real e na descrição do dry-run): value<=0
+  # → 1; unit inválida → 'minutes'. Ver o comentário de #wait_until_for para o porquê dos defaults.
+  def normalized_wait(node)
     cfg = wait_config(node)
     value = cfg['value'].to_i
     value = DEFAULT_WAIT_VALUE if value <= 0
     unit = WAIT_UNITS.include?(cfg['unit']) ? cfg['unit'] : DEFAULT_WAIT_UNIT
-    base = value.public_send(unit).from_now
-    # `business_hours` aceita boolean nativo ou string ('true'/'1') — o canvas grava no JSON.
-    return base unless ActiveModel::Type::Boolean.new.cast(cfg['business_hours'])
-
-    Flows::BusinessHours.next_opening(@conversation.inbox, from: base)
+    { value: value, unit: unit, business_hours: cfg['business_hours'] }
   end
 
   def wait_config(node)
@@ -153,30 +213,6 @@ class Flows::RunnerService
     end
   end
 
-  # Roda a ação e registra success/failed/skipped. O ActionService é best-effort e NUNCA
-  # levanta: devolve um Result que traduzimos em status + error_code/message. Se o retorno
-  # não for um Result (ex.: um instance_spy nos testes), tratamos como success.
-  def instrument_action(node, actions)
-    started = monotonic_ms
-    outcome = actions.execute(node)
-    outcome = Flows::ActionService::Result.new(:success) unless outcome.is_a?(Flows::ActionService::Result)
-    record_step(node, status: outcome.status, error: outcome.error, duration_ms: elapsed_ms(started))
-  end
-
-  # Avalia um nó de ramificação (condition/router), grava o branch tomado e o devolve. O bloco
-  # calcula o branch: 'true'/'false' para `condition`; a `route.key` que casou (ou o
-  # fallback) para `router`. Um erro na avaliação é registrado como failed e RE-LEVANTADO —
-  # preserva o comportamento atual (uma avaliação que estoura aborta o passo), com rastro.
-  def instrument_branch(node)
-    started = monotonic_ms
-    branch = yield
-    record_step(node, status: :success, branch_key: branch, duration_ms: elapsed_ms(started))
-    branch
-  rescue StandardError => e
-    record_step(node, status: :failed, error: e, duration_ms: elapsed_ms(started))
-    raise
-  end
-
   def evaluate_condition(node)
     conditions_match?(node['conditions'])
   end
@@ -199,42 +235,6 @@ class Flows::RunnerService
   def conditions_match?(conditions)
     adapter = Flows::RuleAdapter.new(conditions: conditions, flow: @flow)
     AutomationRules::ConditionsFilterService.new(adapter, @conversation, @payload).perform
-  end
-
-  # Grava UM passo. Best-effort absoluto: se o INSERT falhar, capturamos e seguimos — a
-  # observabilidade NUNCA pode derrubar a execução do flow. @flow_run é nil enquanto não há
-  # suspensão (fluxo linear), então o passo fica sem run, o que é esperado.
-  def record_step(node, status:, duration_ms:, error: nil, branch_key: nil)
-    FlowStepLog.create!(
-      flow: @flow, account: @flow.account, conversation: @conversation, flow_run: @flow_run,
-      node_id: node['id'], action_name: node['action_name'],
-      status: status, branch_key: branch_key,
-      error_code: error && error_code_for(error, node), error_message: error&.message,
-      duration_ms: duration_ms, metadata: { 'node_type' => node['type'] }
-    )
-  rescue StandardError => e
-    ChatwootExceptionTracker.new(e, account: @flow.account).capture_exception
-  end
-
-  # Mapeia a exceção capturada para um código legível e triável. Skips já trazem o código
-  # tipado; NoMethodError no dispatch (action_name inexistente — validado no model, mas
-  # defensivo aqui) vira 'unknown_action'; o resto cai em famílias conhecidas ou 'generic'.
-  def error_code_for(error, node)
-    case error
-    when Flows::StepSkip then error.code
-    when NoMethodError then error.name.to_s == node['action_name'].to_s ? 'unknown_action' : 'generic'
-    when ActiveRecord::RecordNotFound then 'record_not_found'
-    when ActiveRecord::RecordInvalid then 'record_invalid'
-    else 'generic'
-    end
-  end
-
-  def monotonic_ms
-    Process.clock_gettime(Process::CLOCK_MONOTONIC, :float_millisecond)
-  end
-
-  def elapsed_ms(started)
-    (monotonic_ms - started).round
   end
 
   def nodes
