@@ -20,6 +20,7 @@
       "NODES": {
         "TRIGGER": "Gatilho",
         "CONDITION": "Condição",
+        "ROUTER": "Roteador",
         "WAIT": "Aguardar",
         "SEND_MESSAGE": "Enviar mensagem",
         "SEND_TEMPLATE": "Enviar template",
@@ -114,7 +115,23 @@
         },
         "CONDITION": {
           "LABEL": "Condições",
-          "ADD": "Adicionar condição"
+          "ADD": "Adicionar condição",
+          "YES": "Sim",
+          "NO": "Não"
+        },
+        "ROUTER": {
+          "HINT": "As rotas são avaliadas de cima para baixo. A conversa segue a primeira rota cujas condições casam; se nenhuma casar, segue o fallback.",
+          "ROUTE_N": "Rota {n}",
+          "ROUTE_NAME_PLACEHOLDER": "Nome da rota (opcional)",
+          "ADD_ROUTE": "Adicionar rota",
+          "REMOVE_ROUTE": "Remover rota",
+          "MOVE_UP": "Mover para cima",
+          "MOVE_DOWN": "Mover para baixo",
+          "FALLBACK": "Senão",
+          "FALLBACK_HINT": "Fallback — seguido quando nenhuma rota casa."
+        },
+        "EDGE": {
+          "REMOVE": "Remover conexão"
         },
         "TRIGGER": {
           "KIND_LABEL": "Iniciar o fluxo por",

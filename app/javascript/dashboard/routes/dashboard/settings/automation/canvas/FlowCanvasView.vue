@@ -2,13 +2,14 @@
 import { ref, computed, onMounted, nextTick } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import { useI18n } from 'vue-i18n';
-import { VueFlow } from '@vue-flow/core';
+import { VueFlow, MarkerType } from '@vue-flow/core';
 import { Background } from '@vue-flow/background';
 import { Controls } from '@vue-flow/controls';
 import { MiniMap } from '@vue-flow/minimap';
 import { useStore } from 'dashboard/composables/store';
 import { useAlert } from 'dashboard/composables';
 import FlowNode from './FlowNode.vue';
+import FlowEdge from './FlowEdge.vue';
 import ConfigPanel from './ConfigPanel.vue';
 import { NODE_CATALOG, FAMILIES, familyForNode } from './nodeCatalog';
 
@@ -32,6 +33,74 @@ const selectedNodeId = ref(null);
 const flowInstance = ref(null);
 
 const nodeTypes = { flow: FlowNode };
+const edgeTypes = { flow: FlowEdge };
+
+// Cores dos ramos fixos (espelham FlowNode/FlowEdge). Rotas do router herdam a cor da família.
+const BRANCH_TRUE_COLOR = '#0e9f6e';
+const BRANCH_FALSE_COLOR = '#e5484d';
+const BRANCH_FALLBACK_COLOR = '#8b93aa';
+
+// Identidade do ramo: normaliza null/undefined/'' — uma porta de saída sem branch é o fluxo
+// linear (Handle padrão). Usada para casar/deduplicar arestas por (origem, ramo).
+const branchId = branch => (branch == null ? '' : String(branch));
+
+// Id ESTÁVEL da aresta (inclui o ramo): duas arestas podem sair do mesmo nó por ramos
+// diferentes. É o id que o Vue Flow usa e o que o onEdgesChange casa ao remover.
+const edgeKey = edge => `${edge.from}:${branchId(edge.branch)}->${edge.to}`;
+
+// Portas de saída válidas de um nó (para podar arestas órfãs quando uma rota é apagada).
+const validBranchKeys = node => {
+  if (node.type === 'condition') return ['true', 'false'];
+  if (node.type === 'router') {
+    const keys = (Array.isArray(node.routes) ? node.routes : []).map(r =>
+      String(r.key)
+    );
+    keys.push(String(node.fallback_key || 'fallback'));
+    return keys;
+  }
+  return [];
+};
+
+// Rótulo + cor do pill da aresta, derivados do nó de origem: 'true'→Sim, 'false'→Não, key da
+// rota→nome da rota (ou "Rota N"), fallback_key→"Senão". Sem ramo → sem rótulo (linear).
+const branchMeta = edge => {
+  const branch = edge.branch;
+  if (branch == null) return { label: '', color: null };
+  const from = (definition.value.nodes || []).find(
+    n => String(n.id) === String(edge.from)
+  );
+  if (from?.type === 'condition') {
+    if (String(branch) === 'true')
+      return {
+        label: t('AUTOMATION.CANVAS.CONFIG.CONDITION.YES'),
+        color: BRANCH_TRUE_COLOR,
+      };
+    if (String(branch) === 'false')
+      return {
+        label: t('AUTOMATION.CANVAS.CONFIG.CONDITION.NO'),
+        color: BRANCH_FALSE_COLOR,
+      };
+  }
+  if (from?.type === 'router') {
+    if (String(branch) === String(from.fallback_key || 'fallback')) {
+      return {
+        label: t('AUTOMATION.CANVAS.CONFIG.ROUTER.FALLBACK'),
+        color: BRANCH_FALLBACK_COLOR,
+      };
+    }
+    const routes = Array.isArray(from.routes) ? from.routes : [];
+    const idx = routes.findIndex(r => String(r.key) === String(branch));
+    if (idx >= 0) {
+      return {
+        label:
+          routes[idx].label ||
+          t('AUTOMATION.CANVAS.CONFIG.ROUTER.ROUTE_N', { n: idx + 1 }),
+        color: null,
+      };
+    }
+  }
+  return { label: String(branch), color: null };
+};
 
 const selectedNode = computed(
   () =>
@@ -40,22 +109,37 @@ const selectedNode = computed(
     ) || null
 );
 
+// Posição persistida por nó (definition.node.position); fallback a um empilhamento linear só
+// para nós legados/sem posição — assim ramos arrastados não são recalculados a cada render.
+const hasPosition = node =>
+  node.position &&
+  Number.isFinite(node.position.x) &&
+  Number.isFinite(node.position.y);
+
 const vfNodes = computed(() =>
   (definition.value.nodes || []).map((node, index) => ({
     id: String(node.id),
     type: 'flow',
-    position: { x: 180, y: index * 130 + 40 },
+    position: hasPosition(node)
+      ? node.position
+      : { x: 180, y: index * 160 + 40 },
     selected: String(node.id) === String(selectedNodeId.value),
     data: { node },
   }))
 );
+// Aresta → Vue Flow: `sourceHandle` = branch (casa o Handle rotulado do FlowNode); `type:flow`
+// desenha o FlowEdge com o pill do ramo. Arestas sem branch saem do Handle padrão (linear).
 const vfEdges = computed(() =>
   (definition.value.edges || [])
     .filter(edge => edge.to)
     .map(edge => ({
-      id: `${edge.from}->${edge.to}`,
+      id: edgeKey(edge),
       source: String(edge.from),
       target: String(edge.to),
+      sourceHandle: edge.branch != null ? String(edge.branch) : undefined,
+      type: 'flow',
+      markerEnd: MarkerType.ArrowClosed,
+      data: branchMeta(edge),
     }))
 );
 
@@ -95,17 +179,41 @@ const nextNodeId = () => {
   return `n${(ids.length ? Math.max(...ids) : 0) + 1}`;
 };
 
+// Posição do nó novo: empilha abaixo do mais baixo já colocado (cascata previsível, sem
+// sobreposição). O primeiro nó nasce no topo-esquerda.
+const nextNodePosition = existing => {
+  const positioned = existing.filter(hasPosition);
+  if (!positioned.length) return { x: 180, y: 40 };
+  const lowest = positioned.reduce((a, b) =>
+    b.position.y > a.position.y ? b : a
+  );
+  return { x: lowest.position.x, y: lowest.position.y + 160 };
+};
+
 const addNode = item => {
   const id = nextNodeId();
-  const node = { id, type: item.type };
+  const existing = definition.value.nodes || [];
+  const node = { id, type: item.type, position: nextNodePosition(existing) };
   if (item.actionName) {
     node.action_name = item.actionName;
     node.action_params = [];
   }
-  const nodes = [...(definition.value.nodes || []), node];
+  // Router nasce com uma rota vazia + fallback, para já expor as portas de saída no canvas.
+  if (item.type === 'router') {
+    node.routes = [{ key: 'route_1', label: '', conditions: [] }];
+    node.fallback_key = 'fallback';
+  }
+  const nodes = [...existing, node];
   const edges = [...(definition.value.edges || [])];
-  const prev = definition.value.nodes[definition.value.nodes.length - 1];
-  if (prev) edges.push({ from: prev.id, to: id });
+  // Auto-liga só o caso linear seguro: o nó anterior é de saída única (não condition/router) e
+  // ainda não tem aresta de saída. Ramos são sempre conectados manualmente pelo usuário.
+  const prev = existing[existing.length - 1];
+  const prevIsBranch = prev && ['condition', 'router'].includes(prev.type);
+  const prevHasOutgoing =
+    prev && edges.some(e => String(e.from) === String(prev.id));
+  if (prev && !prevIsBranch && !prevHasOutgoing) {
+    edges.push({ from: prev.id, to: id });
+  }
   definition.value = { nodes, edges };
   selectedNodeId.value = id;
   // Re-enquadra para o nó novo entrar na área visível (fit-view-on-init só roda na montagem).
@@ -114,6 +222,59 @@ const addNode = item => {
 
 const onFlowInit = instance => {
   flowInstance.value = instance;
+};
+
+// Conexão manual: o usuário arrastou de um Handle de origem para o alvo. `sourceHandle` é o
+// branch (id do Handle) — para condition/router; ausente = fluxo linear. UMA aresta por porta
+// de saída: reconectar a mesma porta SUBSTITUI a aresta anterior daquele ramo (imutável).
+const onConnect = connection => {
+  const { source, target, sourceHandle } = connection;
+  if (!source || !target) return;
+  const branch = sourceHandle || undefined;
+  const edges = (definition.value.edges || []).filter(
+    edge =>
+      !(
+        String(edge.from) === String(source) &&
+        branchId(edge.branch) === branchId(branch)
+      )
+  );
+  const edge = { from: source, to: target };
+  if (branch) edge.branch = branch;
+  definition.value = { ...definition.value, edges: [...edges, edge] };
+};
+
+// Remoção de arestas (tecla Delete ou o × do FlowEdge → removeEdges → edges-change). Sincroniza
+// a exclusão de volta na definition (fonte da verdade), casando pelo id estável.
+const onEdgesChange = changes => {
+  const removed = new Set(
+    changes.filter(change => change.type === 'remove').map(change => change.id)
+  );
+  if (!removed.size) return;
+  definition.value = {
+    ...definition.value,
+    edges: (definition.value.edges || []).filter(
+      edge => !removed.has(edgeKey(edge))
+    ),
+  };
+};
+
+// Persiste a(s) posição(ões) após arrastar — assim o layout do usuário sobrevive ao reload.
+const onNodeDragStop = ({ nodes: dragged }) => {
+  if (!dragged?.length) return;
+  const moved = new Map(
+    dragged.map(n => [
+      String(n.id),
+      { x: Math.round(n.position.x), y: Math.round(n.position.y) },
+    ])
+  );
+  definition.value = {
+    ...definition.value,
+    nodes: (definition.value.nodes || []).map(node =>
+      moved.has(String(node.id))
+        ? { ...node, position: moved.get(String(node.id)) }
+        : node
+    ),
+  };
 };
 
 const onNodeClick = ({ node }) => {
@@ -125,17 +286,23 @@ const onPaneClick = () => {
 };
 
 // Aplica um patch ao nó selecionado de forma IMUTÁVEL (substitui o nó no array), como a
-// definition espera. O patch vem do editor: action_params, conditions ou event_name.
+// definition espera. O patch vem do editor: action_params, conditions, event_name, routes…
+// Ao mudar as portas de um nó (ex.: apagar uma rota do router), poda as arestas cujo `branch`
+// não corresponde mais a uma porta válida daquele nó — evita arestas órfãs no grafo.
 const updateSelectedNode = patch => {
   if (!selectedNodeId.value) return;
-  definition.value = {
-    ...definition.value,
-    nodes: (definition.value.nodes || []).map(node =>
-      String(node.id) === String(selectedNodeId.value)
-        ? { ...node, ...patch }
-        : node
-    ),
-  };
+  const nodes = (definition.value.nodes || []).map(node =>
+    String(node.id) === String(selectedNodeId.value)
+      ? { ...node, ...patch }
+      : node
+  );
+  const byId = new Map(nodes.map(node => [String(node.id), node]));
+  const edges = (definition.value.edges || []).filter(edge => {
+    if (edge.branch == null) return true;
+    const from = byId.get(String(edge.from));
+    return !from || validBranchKeys(from).includes(String(edge.branch));
+  });
+  definition.value = { ...definition.value, nodes, edges };
 };
 
 // Projeta o nó `trigger` em { trigger_type, trigger_config } para o backend. A fonte da
@@ -281,15 +448,23 @@ const goBack = () =>
           :nodes="vfNodes"
           :edges="vfEdges"
           :node-types="nodeTypes"
+          :edge-types="edgeTypes"
           :default-viewport="{ zoom: 0.9 }"
+          default-marker-color="#8b93aa"
           fit-view-on-init
           class="w-full h-full"
           @node-click="onNodeClick"
           @pane-click="onPaneClick"
           @init="onFlowInit"
+          @connect="onConnect"
+          @edges-change="onEdgesChange"
+          @node-drag-stop="onNodeDragStop"
         >
           <template #node-flow="nodeProps">
             <FlowNode v-bind="nodeProps" />
+          </template>
+          <template #edge-flow="edgeProps">
+            <FlowEdge v-bind="edgeProps" />
           </template>
           <Background :gap="16" />
           <Controls />

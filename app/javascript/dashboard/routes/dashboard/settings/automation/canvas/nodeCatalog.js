@@ -56,6 +56,13 @@ export const NODE_CATALOG = [
     icon: 'i-lucide-git-branch',
   },
   {
+    key: 'router',
+    type: 'router',
+    family: 'logic',
+    labelKey: 'AUTOMATION.CANVAS.NODES.ROUTER',
+    icon: 'i-lucide-split',
+  },
+  {
     key: 'wait',
     type: 'wait',
     family: 'logic',

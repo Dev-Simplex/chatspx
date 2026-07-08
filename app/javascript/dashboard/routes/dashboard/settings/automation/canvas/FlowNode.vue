@@ -24,11 +24,60 @@ const subtitle = computed(() => {
   return node.value.type === 'trigger' ? node.value.event_name || '' : '';
 });
 const isTrigger = computed(() => node.value.type === 'trigger');
+
+// Portas de saída ROTULADAS dos nós de ramificação. Cada porta vira um `source` Handle cujo
+// `id` é o `branch` que a aresta carrega (o Runner casa edge.branch === handle.id):
+//  • condition → 2 portas fixas: 'true' (Sim) e 'false' (Não).
+//  • router    → 1 porta por rota (id = route.key) na ORDEM + 1 porta de fallback.
+// Renderizamos cada porta como uma linha `relative` com o Handle em Position.Right: o handle
+// ancora no canto direito da própria linha, alinhando-se ao rótulo sem cálculo de offset.
+// Nós de saída única (action/trigger/wait) não têm portas rotuladas: usam o Handle Bottom
+// padrão (sem id → aresta sem `branch`, fluxo linear).
+const TRUE_COLOR = '#0e9f6e';
+const FALSE_COLOR = '#e5484d';
+const FALLBACK_COLOR = '#8b93aa';
+
+const branchPorts = computed(() => {
+  const raw = node.value;
+  if (raw.type === 'condition') {
+    return [
+      {
+        key: 'true',
+        label: t('AUTOMATION.CANVAS.CONFIG.CONDITION.YES'),
+        color: TRUE_COLOR,
+      },
+      {
+        key: 'false',
+        label: t('AUTOMATION.CANVAS.CONFIG.CONDITION.NO'),
+        color: FALSE_COLOR,
+      },
+    ];
+  }
+  if (raw.type === 'router') {
+    const routes = Array.isArray(raw.routes) ? raw.routes : [];
+    const ports = routes.map((route, i) => ({
+      key: String(route.key),
+      label:
+        route.label ||
+        t('AUTOMATION.CANVAS.CONFIG.ROUTER.ROUTE_N', { n: i + 1 }),
+      color: familyMeta.value.color,
+    }));
+    ports.push({
+      key: String(raw.fallback_key || 'fallback'),
+      label: t('AUTOMATION.CANVAS.CONFIG.ROUTER.FALLBACK'),
+      color: FALLBACK_COLOR,
+    });
+    return ports;
+  }
+  return [];
+});
+
+const hasBranchPorts = computed(() => branchPorts.value.length > 0);
 </script>
 
 <template>
   <div
-    class="relative flex items-stretch w-64 overflow-hidden border rounded-xl bg-n-solid-1 border-n-weak shadow-sm transition-shadow"
+    class="relative flex items-stretch w-64 border rounded-xl bg-n-solid-1 border-n-weak shadow-sm transition-shadow"
     :class="selected ? 'ring-2 ring-offset-1 ring-offset-transparent' : ''"
     :style="selected ? { '--tw-ring-color': familyMeta.color } : {}"
     data-testid="flow-node"
@@ -39,8 +88,11 @@ const isTrigger = computed(() => node.value.type === 'trigger');
       :position="Position.Top"
       :style="{ backgroundColor: familyMeta.color }"
     />
-    <span class="w-1 shrink-0" :style="{ backgroundColor: familyMeta.color }" />
-    <div class="flex flex-col min-w-0 gap-0.5 px-3 py-2.5">
+    <span
+      class="w-1 shrink-0 rounded-l-[11px]"
+      :style="{ backgroundColor: familyMeta.color }"
+    />
+    <div class="flex flex-col min-w-0 gap-0.5 px-3 py-2.5 grow">
       <span
         class="text-[10px] font-bold tracking-wider uppercase"
         :style="{ color: familyMeta.color }"
@@ -53,8 +105,34 @@ const isTrigger = computed(() => node.value.type === 'trigger');
       <span v-if="subtitle" class="text-xs truncate text-n-slate-11">{{
         subtitle
       }}</span>
+
+      <ul
+        v-if="hasBranchPorts"
+        class="flex flex-col gap-1 p-0 m-0 mt-1.5 list-none"
+        data-testid="flow-node-ports"
+      >
+        <li
+          v-for="port in branchPorts"
+          :key="port.key"
+          class="relative flex items-center gap-1.5 pr-1.5 py-0.5 text-xs"
+          :data-testid="`flow-node-port-${port.key}`"
+        >
+          <span
+            class="rounded-full size-1.5 shrink-0"
+            :style="{ backgroundColor: port.color }"
+          />
+          <span class="truncate text-n-slate-11">{{ port.label }}</span>
+          <Handle
+            :id="port.key"
+            type="source"
+            :position="Position.Right"
+            :style="{ backgroundColor: port.color }"
+          />
+        </li>
+      </ul>
     </div>
     <Handle
+      v-if="!hasBranchPorts"
       type="source"
       :position="Position.Bottom"
       :style="{ backgroundColor: familyMeta.color }"

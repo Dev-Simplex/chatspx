@@ -5,6 +5,7 @@
 import { computed, markRaw } from 'vue';
 import TriggerConfig from './config/TriggerConfig.vue';
 import ConditionConfig from './config/ConditionConfig.vue';
+import RouterConfig from './config/RouterConfig.vue';
 import MessageConfig from './config/MessageConfig.vue';
 import SendTemplateConfig from './config/SendTemplateConfig.vue';
 import SetAttributeConfig from './config/SetAttributeConfig.vue';
@@ -47,7 +48,7 @@ const ACTION_EDITORS = {
 const TYPE_EDITORS = {
   trigger: markRaw(TriggerConfig),
   condition: markRaw(ConditionConfig),
-  router: markRaw(ConditionConfig),
+  router: markRaw(RouterConfig),
   wait: markRaw(WaitConfig),
 };
 

@@ -20,6 +20,7 @@
       "NODES": {
         "TRIGGER": "Trigger",
         "CONDITION": "Condition",
+        "ROUTER": "Router",
         "WAIT": "Wait",
         "SEND_MESSAGE": "Send message",
         "SEND_TEMPLATE": "Send template",
@@ -114,7 +115,23 @@
         },
         "CONDITION": {
           "LABEL": "Conditions",
-          "ADD": "Add condition"
+          "ADD": "Add condition",
+          "YES": "Yes",
+          "NO": "No"
+        },
+        "ROUTER": {
+          "HINT": "Routes are evaluated top to bottom. The conversation follows the first route whose conditions match; if none match, it takes the fallback.",
+          "ROUTE_N": "Route {n}",
+          "ROUTE_NAME_PLACEHOLDER": "Route name (optional)",
+          "ADD_ROUTE": "Add route",
+          "REMOVE_ROUTE": "Remove route",
+          "MOVE_UP": "Move up",
+          "MOVE_DOWN": "Move down",
+          "FALLBACK": "Otherwise",
+          "FALLBACK_HINT": "Fallback — taken when no route matches."
+        },
+        "EDGE": {
+          "REMOVE": "Remove connection"
         },
         "TRIGGER": {
           "KIND_LABEL": "Start the flow on",

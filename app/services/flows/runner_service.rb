@@ -139,8 +139,10 @@ class Flows::RunnerService
     when 'action'
       instrument_action(node, actions)
       nil
-    when 'condition', 'router'
-      instrument_condition(node)
+    when 'condition'
+      instrument_branch(node) { evaluate_condition(node) ? 'true' : 'false' }
+    when 'router'
+      instrument_branch(node) { evaluate_router(node) }
     end
   end
 
@@ -154,12 +156,13 @@ class Flows::RunnerService
     record_step(node, status: outcome.status, error: outcome.error, duration_ms: elapsed_ms(started))
   end
 
-  # Avalia a condition/router, grava o branch tomado e o devolve. Um erro na avaliação é
-  # registrado como failed e RE-LEVANTADO — preserva o comportamento atual (uma condição que
-  # estoura aborta o passo), mas agora deixa rastro.
-  def instrument_condition(node)
+  # Avalia um nó de ramificação (condition/router), grava o branch tomado e o devolve. O bloco
+  # calcula o branch: 'true'/'false' para `condition`; a `route.key` que casou (ou o
+  # fallback) para `router`. Um erro na avaliação é registrado como failed e RE-LEVANTADO —
+  # preserva o comportamento atual (uma avaliação que estoura aborta o passo), com rastro.
+  def instrument_branch(node)
     started = monotonic_ms
-    branch = evaluate_condition(node) ? 'true' : 'false'
+    branch = yield
     record_step(node, status: :success, branch_key: branch, duration_ms: elapsed_ms(started))
     branch
   rescue StandardError => e
@@ -168,7 +171,26 @@ class Flows::RunnerService
   end
 
   def evaluate_condition(node)
-    adapter = Flows::RuleAdapter.new(conditions: node['conditions'], flow: @flow)
+    conditions_match?(node['conditions'])
+  end
+
+  # Router first-match (EXECUTE_FIRST_MATCH): avalia as rotas ORDENADAS e devolve a `key` da
+  # PRIMEIRA cujas condições casam. Rota sem condições nunca casa (uma rota em branco não pode
+  # engolir tudo). Nenhuma casa → `fallback_key` (o ramo "senão"). A aresta é escolhida por
+  # `next_node_id` casando `edge['branch'] == key`; a aresta sem rótulo é a última rede.
+  def evaluate_router(node)
+    routes = node['routes']
+    routes = [] unless routes.is_a?(Array)
+    matched = routes.find do |route|
+      conditions = route['conditions']
+      conditions.present? && conditions_match?(conditions)
+    end
+    (matched && matched['key'].to_s.presence) || node['fallback_key'].to_s.presence || 'fallback'
+  end
+
+  # Reusa o motor de condição inteiro via RuleAdapter (`conditions` na forma GERADA).
+  def conditions_match?(conditions)
+    adapter = Flows::RuleAdapter.new(conditions: conditions, flow: @flow)
     AutomationRules::ConditionsFilterService.new(adapter, @conversation, @payload).perform
   end
 
