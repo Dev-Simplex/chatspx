@@ -142,6 +142,22 @@ export const NODE_CATALOG = [
     icon: 'i-lucide-bot',
   },
   {
+    key: 'ai_classify',
+    type: 'action',
+    actionName: 'ai_classify',
+    family: 'ai',
+    labelKey: 'AUTOMATION.CANVAS.NODES.AI_CLASSIFY',
+    icon: 'i-lucide-tags',
+  },
+  {
+    key: 'ai_generate',
+    type: 'action',
+    actionName: 'ai_generate',
+    family: 'ai',
+    labelKey: 'AUTOMATION.CANVAS.NODES.AI_GENERATE',
+    icon: 'i-lucide-sparkles',
+  },
+  {
     key: 'set_attribute',
     type: 'action',
     actionName: 'set_attribute',

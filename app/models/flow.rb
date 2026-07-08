@@ -47,8 +47,8 @@ class Flow < ApplicationRecord
   # set_attribute). Um nó `type:"action"` só é válido se seu `action_name` existir aqui —
   # espelha `Macro::ACTIONS_ATTRS` (macro.rb:33) e `AutomationRule#actions_attributes`
   # (automation_rule.rb:42), já normalizando as assimetrias (open/pending/remove_assigned_team
-  # ficam disponíveis para ambos os modos). Ações enterprise (add_sla, assign_ai_agent) somam
-  # via `Enterprise::Flow#allowed_action_names`.
+  # ficam disponíveis para ambos os modos). Ações enterprise (add_sla, assign_ai_agent e os nós
+  # de IA ai_classify/ai_generate da Fase 3.2) somam via `Enterprise::Flow#allowed_action_names`.
   #
   # F1.5 — capacidades já existentes no produto, expostas ao motor: move_funnel_stage
   # (mover a conversa de etapa no Kanban, via FunnelItems::MoveService), call_macro

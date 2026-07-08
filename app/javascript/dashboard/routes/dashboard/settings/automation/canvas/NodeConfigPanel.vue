@@ -14,6 +14,8 @@ import CallMacroConfig from './config/CallMacroConfig.vue';
 import AssignAgentConfig from './config/AssignAgentConfig.vue';
 import AssignTeamConfig from './config/AssignTeamConfig.vue';
 import AssignAiAgentConfig from './config/AssignAiAgentConfig.vue';
+import AiClassifyConfig from './config/AiClassifyConfig.vue';
+import AiGenerateConfig from './config/AiGenerateConfig.vue';
 import LabelConfig from './config/LabelConfig.vue';
 import ChangeStatusConfig from './config/ChangeStatusConfig.vue';
 import ChangePriorityConfig from './config/ChangePriorityConfig.vue';
@@ -39,6 +41,8 @@ const ACTION_EDITORS = {
   assign_agent: markRaw(AssignAgentConfig),
   assign_team: markRaw(AssignTeamConfig),
   assign_ai_agent: markRaw(AssignAiAgentConfig),
+  ai_classify: markRaw(AiClassifyConfig),
+  ai_generate: markRaw(AiGenerateConfig),
   add_label: markRaw(LabelConfig),
   remove_label: markRaw(LabelConfig),
   change_status: markRaw(ChangeStatusConfig),

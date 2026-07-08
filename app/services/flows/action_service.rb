@@ -13,6 +13,10 @@ class Flows::ActionService < ActionService
   # Guardas de compliance (opt-out PARAR / cap de marketing / janela 24h) que
   # send_message/send_template chamam antes de enviar. Extraídas p/ manter esta classe enxuta.
   include Flows::Compliance
+  # Nós de IA (Fase 3.2): ai_classify/ai_generate + helpers do Captain, extraídos p/ concern
+  # (mesmo padrão do Flows::Compliance — mantém a classe enxuta). São ações ENTERPRISE, usam o
+  # Captain como motor via Captain::Llm::AssistantChatService. Ver Flows::AiActions.
+  include Flows::AiActions
 
   # Outcome of ONE action node, consumed by the Flows::RunnerService to build a FlowStepLog.
   # `error` carries the captured exception (failed) or the Flows::StepSkip (skipped); nil on
