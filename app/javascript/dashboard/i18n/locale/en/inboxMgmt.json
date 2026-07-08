@@ -730,6 +730,10 @@
           "HINT": "All agents in this inbox see the same pinned conversations."
         }
       },
+      "AGENT_SIGNATURE": {
+        "TITLE": "Sign messages with the agent's name",
+        "SUBTITLE": "Prepend the agent's name to outgoing messages on the official WhatsApp Cloud API (format: *Name*:). Media sent without a caption is not signed."
+      },
       "ALLOW_MOBILE_WEBVIEW": {
         "LABEL": "Enable widget in mobile apps",
         "SUBTITLE": "Check this if you embed the widget in iOS or Android apps. Mobile apps don't send domain information, so they would be blocked by domain restrictions unless this is enabled."

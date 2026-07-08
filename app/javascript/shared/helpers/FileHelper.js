@@ -111,6 +111,13 @@ export const getMaxUploadSizeByChannel = ({
     );
   }
 
+  // Canal oficial (Meta Cloud): midia acima do limite inline do Meta e enviada como
+  // DOCUMENTO no backend (video >16MB, imagem >5MB). Por isso liberamos o upload ate o
+  // teto (100MB); useFileUpload ainda aplica min(channelLimit, installationLimit).
+  if (channelType === INBOX_TYPES.WHATSAPP) {
+    return HARD_MAXIMUM_FILE_UPLOAD_SIZE;
+  }
+
   return getMaxUploadSizeByChannelBase({ channelType, medium, mime });
 };
 

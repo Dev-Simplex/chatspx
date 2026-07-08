@@ -46,6 +46,8 @@ export default {
       isSettingDefaults: false,
       pinMode: 'per_agent',
       isUpdatingPinMode: false,
+      agentSignatureEnabled: false,
+      isUpdatingAgentSignature: false,
     };
   },
   validations: {
@@ -73,6 +75,10 @@ export default {
       if (!this.isSettingDefaults && this.isAWebWidgetInbox)
         this.handleHmacFlag();
     },
+    agentSignatureEnabled() {
+      if (!this.isSettingDefaults && this.isAWhatsAppCloudChannel)
+        this.updateAgentSignature();
+    },
   },
   mounted() {
     this.setDefaults();
@@ -86,6 +92,8 @@ export default {
       ).includes('allow_mobile_webview');
       this.allowedDomains = this.inbox.allowed_domains || '';
       this.pinMode = this.inbox.additional_attributes?.pin_mode || 'per_agent';
+      this.agentSignatureEnabled =
+        this.inbox.additional_attributes?.agent_signature_enabled || false;
       this.$nextTick(() => {
         this.isSettingDefaults = false;
       });
@@ -110,6 +118,25 @@ export default {
         useAlert(this.$t('INBOX_MGMT.EDIT.API.ERROR_MESSAGE'));
       } finally {
         this.isUpdatingPinMode = false;
+      }
+    },
+    async updateAgentSignature() {
+      if (this.isUpdatingAgentSignature) return;
+      this.isUpdatingAgentSignature = true;
+      try {
+        await this.$store.dispatch('inboxes/updateInbox', {
+          id: this.inbox.id,
+          formData: false,
+          additional_attributes: {
+            ...(this.inbox.additional_attributes || {}),
+            agent_signature_enabled: this.agentSignatureEnabled,
+          },
+        });
+        useAlert(this.$t('INBOX_MGMT.EDIT.API.SUCCESS_MESSAGE'));
+      } catch (error) {
+        useAlert(this.$t('INBOX_MGMT.EDIT.API.ERROR_MESSAGE'));
+      } finally {
+        this.isUpdatingAgentSignature = false;
       }
     },
     handleHmacFlag() {
@@ -533,6 +560,13 @@ export default {
         </label>
       </div>
     </SettingsFieldSection>
+  </div>
+  <div v-if="isAWhatsAppCloudChannel" class="mt-6">
+    <SettingsToggleSection
+      v-model="agentSignatureEnabled"
+      :header="$t('INBOX_MGMT.SETTINGS_POPUP.AGENT_SIGNATURE.TITLE')"
+      :description="$t('INBOX_MGMT.SETTINGS_POPUP.AGENT_SIGNATURE.SUBTITLE')"
+    />
   </div>
 </template>
 
