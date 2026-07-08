@@ -74,7 +74,10 @@
         "SET_ATTRIBUTE": "Set attribute",
         "MOVE_FUNNEL_STAGE": "Move funnel stage",
         "CALL_MACRO": "Run macro",
-        "SEND_CSAT": "Send CSAT"
+        "SEND_CSAT": "Send CSAT",
+        "ADD_PARTICIPANT": "Add participant",
+        "ENROLL_SEQUENCE": "Enroll in sequence",
+        "HTTP_REQUEST": "HTTP request"
       },
       "CONFIG": {
         "CLOSE": "Close",
@@ -106,6 +109,34 @@
           "LABEL": "Macro",
           "PLACEHOLDER": "Select a macro",
           "NO_MACROS": "No macros available. Create one under Settings › Macros."
+        },
+        "ADD_PARTICIPANT": {
+          "LABEL": "Participant",
+          "PLACEHOLDER": "Select an agent"
+        },
+        "ENROLL_SEQUENCE": {
+          "LABEL": "Sequence",
+          "PLACEHOLDER": "Select a sequence",
+          "NO_SEQUENCES": "No active sequences. Create one under Settings › Message sequences."
+        },
+        "HTTP_REQUEST": {
+          "METHOD_LABEL": "Method",
+          "URL_LABEL": "URL",
+          "URL_PLACEHOLDER": "https://api.example.com/hook",
+          "URL_HINT": "Accepts Liquid variables. Only public http(s) hosts; internal/private addresses are blocked.",
+          "HEADERS_LABEL": "Headers",
+          "HEADER_KEY_PLACEHOLDER": "Header",
+          "HEADER_VALUE_PLACEHOLDER": "Value",
+          "HEADER_ADD": "Add header",
+          "HEADER_REMOVE": "Remove header",
+          "BODY_LABEL": "Body",
+          "BODY_PLACEHOLDER": "Raw request body (JSON by default)",
+          "BODY_HINT": "Sent as-is. Accepts Liquid variables.",
+          "STORE_LABEL": "Store response in (optional)",
+          "STORE_HINT": "Saves the response body into an attribute. Leave the attribute empty to skip storing.",
+          "TARGET_CONVERSATION": "Conversation",
+          "TARGET_CONTACT": "Contact",
+          "STORE_KEY_PLACEHOLDER": "Attribute key"
         },
         "ASSIGN_AGENT": {
           "LABEL": "Agent",

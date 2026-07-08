@@ -21,6 +21,19 @@ class Flows::ActionService < ActionService
   # indefinido). Extraído p/ concern pelo mesmo motivo dos acima — mantém a classe enxuta. Como o
   # módulo é incluído na subclasse, seu snooze_conversation precede o da superclasse ActionService.
   include Flows::SnoozeAction
+  # add_participant: adiciona um agente como participante (seguidor) da conversa via o model
+  # ConversationParticipant (idempotente). Concern pelo mesmo motivo dos acima.
+  include Flows::ParticipantAction
+  # enroll_in_sequence: inscreve a conversa numa Message Sequence (drip) via o serviço real
+  # MessageSequences::EnrollService (idempotente).
+  include Flows::SequenceAction
+  # http_request: chamada HTTP(S) externa com guarda SSRF (bloqueia IP interno/metadata, fixa o
+  # IP validado, sem redirect, timeout+cap). Ver o modelo de ameaça em Flows::HttpAction.
+  include Flows::HttpAction
+  # send_whatsapp_flow: envio de WhatsApp Flow interactive nativo. INTEGRAÇÃO PENDENTE (TODO
+  # documentado em Flows::WhatsappFlowAction) — não está na whitelist/paleta; monta o payload
+  # Meta e sinaliza um skip triável em vez de enviar errado.
+  include Flows::WhatsappFlowAction
 
   # Outcome of ONE action node, consumed by the Flows::RunnerService to build a FlowStepLog.
   # `error` carries the captured exception (failed) or the Flows::StepSkip (skipped); nil on

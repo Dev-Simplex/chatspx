@@ -110,6 +110,14 @@ export const NODE_CATALOG = [
     icon: 'i-lucide-users',
   },
   {
+    key: 'add_participant',
+    type: 'action',
+    actionName: 'add_participant',
+    family: 'action',
+    labelKey: 'AUTOMATION.CANVAS.NODES.ADD_PARTICIPANT',
+    icon: 'i-lucide-user-plus',
+  },
+  {
     key: 'add_label',
     type: 'action',
     actionName: 'add_label',
@@ -196,6 +204,22 @@ export const NODE_CATALOG = [
     family: 'msg',
     labelKey: 'AUTOMATION.CANVAS.NODES.SEND_CSAT',
     icon: 'i-lucide-star',
+  },
+  {
+    key: 'enroll_in_sequence',
+    type: 'action',
+    actionName: 'enroll_in_sequence',
+    family: 'msg',
+    labelKey: 'AUTOMATION.CANVAS.NODES.ENROLL_SEQUENCE',
+    icon: 'i-lucide-list-plus',
+  },
+  {
+    key: 'http_request',
+    type: 'action',
+    actionName: 'http_request',
+    family: 'data',
+    labelKey: 'AUTOMATION.CANVAS.NODES.HTTP_REQUEST',
+    icon: 'i-lucide-webhook',
   },
 ];
 

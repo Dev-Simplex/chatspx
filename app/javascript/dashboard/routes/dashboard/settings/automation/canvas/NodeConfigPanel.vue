@@ -11,8 +11,11 @@ import SendTemplateConfig from './config/SendTemplateConfig.vue';
 import SetAttributeConfig from './config/SetAttributeConfig.vue';
 import MoveFunnelStageConfig from './config/MoveFunnelStageConfig.vue';
 import CallMacroConfig from './config/CallMacroConfig.vue';
+import HttpRequestConfig from './config/HttpRequestConfig.vue';
 import AssignAgentConfig from './config/AssignAgentConfig.vue';
 import AssignTeamConfig from './config/AssignTeamConfig.vue';
+import AddParticipantConfig from './config/AddParticipantConfig.vue';
+import EnrollSequenceConfig from './config/EnrollSequenceConfig.vue';
 import AssignAiAgentConfig from './config/AssignAiAgentConfig.vue';
 import AiClassifyConfig from './config/AiClassifyConfig.vue';
 import AiGenerateConfig from './config/AiGenerateConfig.vue';
@@ -39,8 +42,11 @@ const ACTION_EDITORS = {
   set_attribute: markRaw(SetAttributeConfig),
   move_funnel_stage: markRaw(MoveFunnelStageConfig),
   call_macro: markRaw(CallMacroConfig),
+  http_request: markRaw(HttpRequestConfig),
   assign_agent: markRaw(AssignAgentConfig),
   assign_team: markRaw(AssignTeamConfig),
+  add_participant: markRaw(AddParticipantConfig),
+  enroll_in_sequence: markRaw(EnrollSequenceConfig),
   assign_ai_agent: markRaw(AssignAiAgentConfig),
   ai_classify: markRaw(AiClassifyConfig),
   ai_generate: markRaw(AiGenerateConfig),

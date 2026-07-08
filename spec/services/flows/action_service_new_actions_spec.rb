@@ -281,4 +281,81 @@ RSpec.describe Flows::ActionService do
       end
     end
   end
+
+  describe '#add_participant (agente como participante da conversa)' do
+    let(:inbox) { create(:inbox, account: account) }
+    let(:conversation) { create(:conversation, account: account, inbox: inbox) }
+    let(:agent) { create(:user, account: account, role: :agent) }
+
+    before { create(:inbox_member, user: agent, inbox: inbox) } # dá acesso à inbox (assignable_agents)
+
+    it 'adds the agent as a conversation participant (reuso do model ConversationParticipant)' do
+      expect { described_class.new(flow: flow, conversation: conversation).execute(action('add_participant', [agent.id])) }
+        .to change { conversation.reload.conversation_participants.count }.by(1)
+      expect(conversation.conversation_participants.first.user).to eq(agent)
+    end
+
+    it 'is idempotent — re-running does not add a duplicate participant' do
+      service = described_class.new(flow: flow, conversation: conversation)
+      service.execute(action('add_participant', [agent.id]))
+      expect { service.execute(action('add_participant', [agent.id])) }
+        .not_to(change { conversation.reload.conversation_participants.count })
+    end
+
+    it 'accepts the user_id under a hash param' do
+      described_class.new(flow: flow, conversation: conversation).execute(action('add_participant', [{ 'user_id' => agent.id }]))
+      expect(conversation.reload.conversation_participants.first&.user).to eq(agent)
+    end
+
+    it 'is a no-op when the agent has no inbox access (mirrors the assign_agent guard)' do
+      outsider = create(:user, account: account, role: :agent) # sem inbox_member → sem acesso
+      expect { described_class.new(flow: flow, conversation: conversation).execute(action('add_participant', [outsider.id])) }
+        .not_to change(ConversationParticipant, :count)
+    end
+
+    it 'is a no-op for a blank/unknown user id' do
+      expect { described_class.new(flow: flow, conversation: conversation).execute(action('add_participant', [0])) }
+        .not_to change(ConversationParticipant, :count)
+    end
+  end
+
+  describe '#enroll_in_sequence (inscreve numa Message Sequence via EnrollService)' do
+    let(:conversation) { create(:conversation, account: account) }
+    let(:sequence) { create(:message_sequence, :with_steps, account: account) }
+
+    it 'enrolls the conversation into the sequence' do
+      expect { described_class.new(flow: flow, conversation: conversation).execute(action('enroll_in_sequence', [sequence.id])) }
+        .to change { MessageSequenceEnrollment.where(conversation: conversation, message_sequence: sequence).count }.by(1)
+    end
+
+    it 'is idempotent — a second enroll is a no-op (EnrollService already_enrolled guard)' do
+      service = described_class.new(flow: flow, conversation: conversation)
+      service.execute(action('enroll_in_sequence', [sequence.id]))
+      expect { service.execute(action('enroll_in_sequence', [sequence.id])) }.not_to change(MessageSequenceEnrollment, :count)
+    end
+
+    it 'accepts sequence_id under a hash param' do
+      described_class.new(flow: flow, conversation: conversation).execute(action('enroll_in_sequence', [{ 'sequence_id' => sequence.id }]))
+      expect(MessageSequenceEnrollment.where(conversation: conversation).count).to eq(1)
+    end
+
+    it 'delegates to MessageSequences::EnrollService with enrolled_by = actor in manual mode' do
+      agent = create(:user, account: account)
+      fake = instance_double(MessageSequences::EnrollService, perform: nil)
+      expect(MessageSequences::EnrollService).to receive(:new)
+        .with(hash_including(sequence: sequence, enrolled_by: agent)).and_return(fake)
+      described_class.new(flow: flow, conversation: conversation, actor: agent).execute(action('enroll_in_sequence', [sequence.id]))
+    end
+
+    it 'is a no-op for an unknown sequence id' do
+      expect { described_class.new(flow: flow, conversation: conversation).execute(action('enroll_in_sequence', [0])) }
+        .not_to change(MessageSequenceEnrollment, :count)
+    end
+
+    it 'is a no-op for an inactive sequence (EnrollService guard)' do
+      sequence.update!(active: false)
+      expect { described_class.new(flow: flow, conversation: conversation).execute(action('enroll_in_sequence', [sequence.id])) }
+        .not_to change(MessageSequenceEnrollment, :count)
+    end
+  end
 end

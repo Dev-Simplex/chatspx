@@ -54,6 +54,14 @@ class Flow < ApplicationRecord
   # (mover a conversa de etapa no Kanban, via FunnelItems::MoveService), call_macro
   # (rodar uma Macro existente sobre a conversa) e send_csat (disparar a pesquisa CSAT
   # via CsatSurveyService). Todas reusam o serviço real — o motor só orquestra.
+  #
+  # F1.6 — novas ações (community, sem dependência enterprise): add_participant (agente como
+  # participante da conversa, via ConversationParticipant), enroll_in_sequence (inscreve a
+  # conversa numa Message Sequence, via MessageSequences::EnrollService) e http_request (chamada
+  # HTTP externa com guarda SSRF — ver Flows::HttpAction). São community porque nenhuma depende
+  # de licença enterprise (Captain/SLA); o par assign_ai_agent(enterprise)/add_label(community)
+  # guia a decisão. NOTA: send_whatsapp_flow NÃO está aqui de propósito — sua integração de
+  # envio está pendente (TODO em Flows::WhatsappFlowAction); expô-lo geraria nós que sempre pulam.
   BASE_ACTION_NAMES = %w[
     send_message add_private_note send_attachment send_webhook_event send_email_to_team
     add_label remove_label assign_agent assign_team remove_assigned_team
@@ -61,6 +69,7 @@ class Flow < ApplicationRecord
     change_status change_priority send_email_transcript
     send_template set_attribute
     move_funnel_stage call_macro send_csat
+    add_participant enroll_in_sequence http_request
   ].freeze
 
   NODE_TYPES = %w[trigger action condition router wait].freeze

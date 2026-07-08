@@ -74,7 +74,10 @@
         "SET_ATTRIBUTE": "Definir atributo",
         "MOVE_FUNNEL_STAGE": "Mover etapa no funil",
         "CALL_MACRO": "Executar macro",
-        "SEND_CSAT": "Enviar CSAT"
+        "SEND_CSAT": "Enviar CSAT",
+        "ADD_PARTICIPANT": "Adicionar participante",
+        "ENROLL_SEQUENCE": "Inscrever em sequência",
+        "HTTP_REQUEST": "Requisição HTTP"
       },
       "CONFIG": {
         "CLOSE": "Fechar",
@@ -106,6 +109,34 @@
           "LABEL": "Macro",
           "PLACEHOLDER": "Selecione uma macro",
           "NO_MACROS": "Nenhuma macro disponível. Crie uma em Configurações › Macros."
+        },
+        "ADD_PARTICIPANT": {
+          "LABEL": "Participante",
+          "PLACEHOLDER": "Selecione um agente"
+        },
+        "ENROLL_SEQUENCE": {
+          "LABEL": "Sequência",
+          "PLACEHOLDER": "Selecione uma sequência",
+          "NO_SEQUENCES": "Nenhuma sequência ativa. Crie uma em Configurações › Sequências de mensagens."
+        },
+        "HTTP_REQUEST": {
+          "METHOD_LABEL": "Método",
+          "URL_LABEL": "URL",
+          "URL_PLACEHOLDER": "https://api.exemplo.com/hook",
+          "URL_HINT": "Aceita variáveis Liquid. Só hosts http(s) públicos; endereços internos/privados são bloqueados.",
+          "HEADERS_LABEL": "Cabeçalhos",
+          "HEADER_KEY_PLACEHOLDER": "Cabeçalho",
+          "HEADER_VALUE_PLACEHOLDER": "Valor",
+          "HEADER_ADD": "Adicionar cabeçalho",
+          "HEADER_REMOVE": "Remover cabeçalho",
+          "BODY_LABEL": "Corpo",
+          "BODY_PLACEHOLDER": "Corpo da requisição (JSON por padrão)",
+          "BODY_HINT": "Enviado como está. Aceita variáveis Liquid.",
+          "STORE_LABEL": "Gravar resposta em (opcional)",
+          "STORE_HINT": "Grava o corpo da resposta num atributo. Deixe o atributo vazio para não gravar.",
+          "TARGET_CONVERSATION": "Conversa",
+          "TARGET_CONTACT": "Contato",
+          "STORE_KEY_PLACEHOLDER": "Chave do atributo"
         },
         "ASSIGN_AGENT": {
           "LABEL": "Agente",
