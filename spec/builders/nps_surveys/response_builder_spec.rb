@@ -169,15 +169,16 @@ RSpec.describe NpsSurveys::ResponseBuilder do
     end
   end
 
-  describe 'sentiment detractor (insatisfacao sem nota)' do
+  describe 'classificacao por IA sem nota (sentimento + outro assunto)' do
     before do
       inbox.update!(nps_config: { 'sentiment_detractor_enabled' => true,
-                                  'thank_you_detractor' => 'Vamos melhorar' })
+                                  'thank_you_detractor' => 'Vamos melhorar',
+                                  'thank_you_promoter' => 'Que bom!' })
       create_active_nps
     end
 
-    it 'records a detractor and sends the detractor thank-you when the LLM detects dissatisfaction' do
-      allow(NpsSurveys::ScoreLlmParser).to receive(:dissatisfied?).and_return(true)
+    it 'trata insatisfacao (negative) como detrator e agradece' do
+      allow(NpsSurveys::ScoreLlmParser).to receive(:classify).and_return('negative')
       perform_for('pessimo, nao gostei')
       nps = conversation.nps_responses.first.reload
       expect(nps.status).to eq('responded')
@@ -186,22 +187,62 @@ RSpec.describe NpsSurveys::ResponseBuilder do
       expect(conversation.messages.where(message_type: :outgoing, content: 'Vamos melhorar')).to exist
     end
 
-    it 'does nothing special when the LLM says not dissatisfied (falls through)' do
-      allow(NpsSurveys::ScoreLlmParser).to receive(:dissatisfied?).and_return(false)
-      perform_for('obrigado')
+    it 'trata elogio (positive) como promotor e agradece' do
+      allow(NpsSurveys::ScoreLlmParser).to receive(:classify).and_return('positive')
+      perform_for('adorei o atendimento')
+      nps = conversation.nps_responses.first.reload
+      expect(nps.status).to eq('responded')
+      expect(nps.promoter?).to be(true)
+      expect(nps.metadata['sentiment_inferred']).to be(true)
+      expect(conversation.messages.where(message_type: :outgoing, content: 'Que bom!')).to exist
+    end
+
+    it 'trata outro assunto (other_topic) como atendimento humano: dismissa e reabre' do
+      allow(NpsSurveys::ScoreLlmParser).to receive(:classify).and_return('other_topic')
+      perform_for('quero falar sobre meu pedido')
+      nps = conversation.nps_responses.first.reload
+      expect(nps.status).to eq('dismissed')
+      expect(nps.dismiss_reason).to eq('other_topic')
+      expect(conversation.reload.status).to eq('open')
+    end
+
+    it 'neutral nao registra resposta (deixa reabrir para atendimento)' do
+      allow(NpsSurveys::ScoreLlmParser).to receive(:classify).and_return('neutral')
+      perform_for('bom dia, tudo bem?')
       expect(conversation.nps_responses.first.reload.status).to eq('sent')
     end
 
-    it 'does not call the sentiment LLM when the toggle is off' do
+    it 'nao chama a IA quando o toggle esta off' do
       inbox.update!(nps_config: { 'sentiment_detractor_enabled' => false })
-      expect(NpsSurveys::ScoreLlmParser).not_to receive(:dissatisfied?)
+      expect(NpsSurveys::ScoreLlmParser).not_to receive(:classify)
       perform_for('pessimo, nao gostei')
     end
 
-    it 'still records an explicit score without invoking sentiment' do
-      expect(NpsSurveys::ScoreLlmParser).not_to receive(:dissatisfied?)
+    it 'nao chama a IA para tentativa invalida obvia (heuristica barata primeiro)' do
+      expect(NpsSurveys::ScoreLlmParser).not_to receive(:classify)
+      perform_for('abc')
+    end
+
+    it 'registra nota explicita sem invocar a IA' do
+      expect(NpsSurveys::ScoreLlmParser).not_to receive(:classify)
       perform_for('9')
       expect(conversation.nps_responses.first.reload.score).to eq(9)
+    end
+  end
+
+  describe 'agradecimento idempotente (nao duplica)' do
+    before do
+      inbox.update!(nps_config: { 'thank_you_promoter' => 'Que ótimo!' })
+      create_active_nps
+    end
+
+    it 'nao envia o mesmo agradecimento duas vezes para a mesma resposta' do
+      described_class.new(message: incoming('9')).perform
+      # segunda passagem simulando reprocessamento (corrida de eventos)
+      nps = conversation.nps_responses.first
+      builder = described_class.new(message: incoming('comentario extra'))
+      builder.send(:send_thank_you_message, nps) if builder.send(:should_send_thank_you?, nps)
+      expect(conversation.messages.where(message_type: :outgoing, content: 'Que ótimo!').count).to eq(1)
     end
   end
 end

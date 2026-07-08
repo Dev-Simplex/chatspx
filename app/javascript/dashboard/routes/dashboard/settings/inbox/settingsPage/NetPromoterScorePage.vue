@@ -493,13 +493,13 @@ const saveSettings = async () => {
         <WithLabel
           :label="
             $t('INBOX_MGMT.NPS.SENTIMENT_DETRACTOR_ENABLED.LABEL', {
-              default: 'Tratar insatisfação sem nota como detrator (IA)',
+              default: 'Interpretar feedback sem nota (IA)',
             })
           "
           :help-message="
             $t('INBOX_MGMT.NPS.SENTIMENT_DETRACTOR_ENABLED.HINT', {
               default:
-                'Quando o cliente responde sem número mas expressa insatisfação clara (ex.: \'péssimo, não gostei\'), usa IA para classificar como detrator: envia o agradecimento de detrator, conta no cálculo do NPS e aciona o roteamento de detrator (se configurado).',
+                'Quando o cliente responde sem número, usa IA para reconhecer a intenção: elogio (ex.: \'adorei\') vira promotor e recebe o agradecimento; insatisfação (ex.: \'péssimo, não gostei\') vira detrator (conta no NPS e aciona o roteamento); e se quer tratar de outro assunto (ex.: \'quero falar do meu pedido\'), encerra a pesquisa e reabre para atendimento humano.',
             })
           "
           name="sentiment_detractor_enabled"

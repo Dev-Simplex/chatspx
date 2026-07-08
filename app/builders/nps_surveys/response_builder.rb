@@ -12,17 +12,7 @@ class NpsSurveys::ResponseBuilder # rubocop:disable Metrics/ClassLength
     score = extract_score_from_message
 
     if score.nil?
-      # Sem nota explicita: se a mensagem expressa insatisfacao clara (via IA, atras
-      # de toggle), trata como detrator. Senao, trata como tentativa invalida.
-      if (sentiment_score = detract_by_sentiment_score(nps_response))
-        process_nps_response(nps_response, sentiment_score, sentiment_inferred: true)
-        return
-      end
-
-      # Resposta que parece uma tentativa de NPS mas nao tem nota valida
-      # (ex.: "abc", "onze", "?"). Avisa nas 1as tentativas e finaliza a conversa
-      # apos MAX_INVALID_ATTEMPTS respostas invalidas.
-      handle_invalid_response(nps_response) if looks_like_nps_attempt?
+      handle_without_score(nps_response)
       return
     end
 
@@ -87,19 +77,44 @@ class NpsSurveys::ResponseBuilder # rubocop:disable Metrics/ClassLength
     ActiveModel::Type::Boolean.new.cast(config['gpt_parse_enabled'])
   end
 
-  # Nota atribuida quando a insatisfacao e detectada por sentimento (sem numero).
-  # Fica na faixa de detrator; puxa o NPS para baixo (decisao do produto).
+  # Notas atribuidas quando o sentimento e detectado (sem numero na mensagem).
+  # Ficam nas faixas de detrator/promotor; entram no calculo do NPS (decisao do produto).
   SENTIMENT_DETRACTOR_SCORE = 3
+  SENTIMENT_PROMOTER_SCORE = 9
 
-  # Retorna a nota de detrator quando (a) o toggle de sentimento esta ligado,
-  # (b) a mensagem nao e vazia/longa demais e (c) o LLM classifica como insatisfeita.
-  # Caso contrario nil. Nunca infere para elogio/neutro.
-  def detract_by_sentiment_score(_nps_response)
-    return nil unless sentiment_detractor_enabled?
-    return nil unless sentiment_candidate?(message.content)
-    return nil unless NpsSurveys::ScoreLlmParser.dissatisfied?(text: message.content, account: message.account)
+  # Resposta sem nota explicita. Ordem (barato -> caro):
+  # 1. Tentativa invalida obvia (heuristica) -> aviso; finaliza apos 3 (nao sabe avaliar).
+  # 2. Classificacao por IA (atras de toggle): elogio -> promotor, insatisfacao -> detrator,
+  #    outro assunto -> atendimento humano. Neutro/duvida -> deixa reabrir (sem acao).
+  def handle_without_score(nps_response)
+    if looks_like_nps_attempt?
+      handle_invalid_response(nps_response)
+      return
+    end
 
-    SENTIMENT_DETRACTOR_SCORE
+    handle_ai_classification(nps_response)
+  end
+
+  def handle_ai_classification(nps_response)
+    return unless sentiment_detractor_enabled?
+    return unless sentiment_candidate?(message.content)
+
+    case NpsSurveys::ScoreLlmParser.classify(text: message.content, account: message.account)
+    when 'negative' then process_nps_response(nps_response, SENTIMENT_DETRACTOR_SCORE, sentiment_inferred: true)
+    when 'positive' then process_nps_response(nps_response, SENTIMENT_PROMOTER_SCORE, sentiment_inferred: true)
+    when 'other_topic' then handoff_to_human_new_topic(nps_response)
+    end
+  end
+
+  # Cliente quer tratar de outro assunto: encerra a pesquisa (nao e resposta de NPS)
+  # e mantem a conversa aberta para atendimento humano.
+  def handoff_to_human_new_topic(nps_response)
+    nps_response.update!(status: :dismissed, dismiss_reason: 'other_topic')
+    conversation = nps_response.conversation
+    conversation.reload
+    conversation.open! if conversation.resolved?
+  rescue StandardError => e
+    Rails.logger.warn("[NPS] handoff outro assunto conv=#{nps_response.conversation_id}: #{e.message}")
   end
 
   def sentiment_detractor_enabled?
@@ -107,7 +122,7 @@ class NpsSurveys::ResponseBuilder # rubocop:disable Metrics/ClassLength
     ActiveModel::Type::Boolean.new.cast(config['sentiment_detractor_enabled'])
   end
 
-  # So chama o LLM de sentimento em mensagem nao-vazia de tamanho de feedback (<=280),
+  # So chama o LLM em mensagem nao-vazia de tamanho de feedback (<=280),
   # evitando gasto em mensagens muito longas/estranhas.
   def sentiment_candidate?(text)
     normalized = NpsSurveys::ScoreValidator.normalize(text)
@@ -290,7 +305,18 @@ class NpsSurveys::ResponseBuilder # rubocop:disable Metrics/ClassLength
   end
 
   def should_send_thank_you?(nps_response)
-    band_thank_you_message(nps_response).present?
+    return false if band_thank_you_message(nps_response).blank?
+
+    # Idempotencia: nao reenviar o mesmo agradecimento se ja foi enviado ha pouco
+    # (evita duplicidade quando a resposta e processada 2x por corrida de eventos).
+    !thank_you_already_sent?(nps_response)
+  end
+
+  def thank_you_already_sent?(nps_response)
+    content = thank_you_content(nps_response)
+    nps_response.conversation.messages
+                .where(message_type: :outgoing, content: content)
+                .exists?(['created_at >= ?', 5.minutes.ago])
   end
 
   # Mensagem por faixa (promotor/neutro/detrator) com fallback para a mensagem
@@ -306,12 +332,15 @@ class NpsSurveys::ResponseBuilder # rubocop:disable Metrics/ClassLength
     band.presence || config['thank_you_message'].presence
   end
 
-  def send_thank_you_message(nps_response)
-    thank_you_message = band_thank_you_message(nps_response) ||
-                        I18n.t('conversations.templates.nps_thank_you', default: 'Thank you for your feedback!')
+  # Conteudo final do agradecimento (por faixa, com fallback e sem assinatura).
+  def thank_you_content(nps_response)
+    msg = band_thank_you_message(nps_response) ||
+          I18n.t('conversations.templates.nps_thank_you', default: 'Thank you for your feedback!')
+    msg.gsub(/\*\*:\s*/, '').gsub(/\n\n--\s*\n\n\*\*:.*$/m, '').strip
+  end
 
-    # Remove any signature patterns that might have been added
-    thank_you_message = thank_you_message.gsub(/\*\*:\s*/, '').gsub(/\n\n--\s*\n\n\*\*:.*$/m, '').strip
+  def send_thank_you_message(nps_response)
+    thank_you_message = thank_you_content(nps_response)
 
     conversation = nps_response.conversation
     # skip_signature: sem assinatura; nps_survey_system: nao dismissar a pesquisa (ver NpsSurveyListener)

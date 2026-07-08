@@ -31,32 +31,38 @@ class NpsSurveys::ScoreLlmParser
     Responda apenas com o JSON, sem texto extra.
   PROMPT
 
-  # Classificador de SENTIMENTO (separado do parsing de nota). So responde se a
-  # mensagem, SEM declarar numero, expressa insatisfacao CLARA com o atendimento/
-  # empresa. Usado para tratar "pessimo, nao gostei" como detrator. Nunca marca
-  # como insatisfeito por elogio/neutro; em duvida -> false.
-  SENTIMENT_PROMPT = <<~PROMPT
-    Voce classifica o SENTIMENTO de uma mensagem curta (pt-BR) enviada como resposta
-    a uma pesquisa de satisfacao, quando ela NAO contem um numero de 0 a 10.
-    Retorne SOMENTE um JSON {"dissatisfied": true|false}.
+  # Classificador de uma resposta que NAO declara numero, em 4 categorias:
+  # positive (elogio), negative (insatisfacao), other_topic (o cliente quer tratar de
+  # outro assunto, nao avaliar) e neutral (saudacao/ambiguo). Usado para: "adorei" ->
+  # promotor, "pessimo" -> detrator, "quero falar do meu pedido" -> atendimento humano.
+  # Em duvida -> neutral.
+  CLASSIFY_PROMPT = <<~PROMPT
+    Voce classifica uma mensagem curta (pt-BR) enviada como resposta a uma pesquisa de
+    satisfacao (NPS), quando ela NAO contem um numero de 0 a 10.
+    Retorne SOMENTE um JSON {"category": "positive"|"negative"|"other_topic"|"neutral"}.
 
     Regras:
-    - true SOMENTE quando ha insatisfacao/reclamacao CLARA sobre o atendimento,
-      produto ou empresa ("pessimo", "nao gostei", "horrivel", "demorou demais",
-      "ninguem me ajudou", "muito ruim").
-    - false para elogio ("otimo", "adorei"), neutro, saudacao, pergunta, ou
-      mensagem ambigua/sem opiniao clara.
-    - Na duvida -> false.
+    - "negative": insatisfacao/reclamacao CLARA sobre o atendimento/produto/empresa
+      ("pessimo", "nao gostei", "horrivel", "demorou demais", "ninguem me ajudou").
+    - "positive": satisfacao/elogio CLARO ("otimo", "adorei", "excelente", "muito bom",
+      "atendimento perfeito", "recomendo").
+    - "other_topic": o cliente NAO esta avaliando; quer falar de OUTRO assunto ou pedir
+      ajuda com algo novo ("quero falar sobre meu pedido", "tenho outra duvida",
+      "preciso de ajuda com...", "gostaria de comprar", "cade meu produto").
+    - "neutral": saudacao, agradecimento simples, ou mensagem ambigua/sem intencao clara.
+    - Na duvida -> "neutral".
     Responda apenas com o JSON.
   PROMPT
+
+  VALID_CATEGORIES = %w[positive negative other_topic neutral].freeze
 
   def self.extract(text:, account:)
     new(text: text, account: account).extract
   end
 
-  # true quando a mensagem expressa insatisfacao clara (sem numero). false em erro/sem chave.
-  def self.dissatisfied?(text:, account:)
-    new(text: text, account: account).dissatisfied?
+  # 'positive' | 'negative' | 'other_topic' | 'neutral'. 'neutral' em erro/sem chave.
+  def self.classify(text:, account:)
+    new(text: text, account: account).classify
   end
 
   def initialize(text:, account:)
@@ -76,16 +82,16 @@ class NpsSurveys::ScoreLlmParser
     nil
   end
 
-  def dissatisfied?
-    return false if @text.blank?
-    return false if api_key.blank?
+  def classify
+    return 'neutral' if @text.blank?
+    return 'neutral' if api_key.blank?
 
-    response = client.chat(parameters: sentiment_parameters)
+    response = client.chat(parameters: classify_parameters)
     content = response.dig('choices', 0, 'message', 'content')
-    parse_dissatisfied(content)
+    parse_category(content)
   rescue StandardError => e
-    Rails.logger.warn("[NpsSurveys::ScoreLlmParser#dissatisfied?] #{e.class}: #{e.message}")
-    false
+    Rails.logger.warn("[NpsSurveys::ScoreLlmParser#classify] #{e.class}: #{e.message}")
+    'neutral'
   end
 
   private
@@ -107,25 +113,26 @@ class NpsSurveys::ScoreLlmParser
     }
   end
 
-  def sentiment_parameters
+  def classify_parameters
     {
       model: model,
       temperature: 0,
       max_tokens: 15,
       response_format: { type: 'json_object' },
       messages: [
-        { role: 'system', content: SENTIMENT_PROMPT },
+        { role: 'system', content: CLASSIFY_PROMPT },
         { role: 'user', content: @text.truncate(280) }
       ]
     }
   end
 
-  def parse_dissatisfied(content)
-    return false if content.blank?
+  def parse_category(content)
+    return 'neutral' if content.blank?
 
-    ActiveModel::Type::Boolean.new.cast(JSON.parse(content)['dissatisfied']) || false
+    value = JSON.parse(content)['category'].to_s.downcase
+    VALID_CATEGORIES.include?(value) ? value : 'neutral'
   rescue JSON::ParserError
-    false
+    'neutral'
   end
 
   def parse_score(content)
