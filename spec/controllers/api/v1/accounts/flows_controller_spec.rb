@@ -80,4 +80,48 @@ RSpec.describe 'Api::V1::Accounts::FlowsController', type: :request do
       expect(response).to have_http_status(:success)
     end
   end
+
+  describe 'POST /api/v1/accounts/{account.id}/flows/import' do
+    before do
+      create(:macro, account: account, name: 'Boas-vindas',
+                     actions: [{ 'action_name' => 'add_label', 'action_params' => ['vip'] }])
+      create(:automation_rule, account: account, name: 'Regra', event_name: 'conversation_created',
+                               actions: [{ 'action_name' => 'add_label', 'action_params' => ['novo'] }])
+    end
+
+    it 'returns unauthorized when unauthenticated' do
+      post "/api/v1/accounts/#{account.id}/flows/import"
+      expect(response).to have_http_status(:unauthorized)
+    end
+
+    it 'imports macros and automation rules as flows and returns them' do
+      expect do
+        post "/api/v1/accounts/#{account.id}/flows/import", headers: administrator.create_new_auth_token
+      end.to change(Flow, :count).by(2)
+      expect(response).to have_http_status(:success)
+      body = response.parsed_body
+      expect(body['dry_run']).to be(false)
+      expect(body['summary']['macros']).to eq(1)
+      expect(body['summary']['automation_rules']).to eq(1)
+      expect(body['flows'].pluck('name')).to contain_exactly('Boas-vindas', 'Regra')
+    end
+
+    it 'is idempotent — a second call creates no duplicates' do
+      post "/api/v1/accounts/#{account.id}/flows/import", headers: administrator.create_new_auth_token
+      expect do
+        post "/api/v1/accounts/#{account.id}/flows/import", headers: administrator.create_new_auth_token
+      end.not_to change(Flow, :count)
+      expect(response.parsed_body['summary']['skipped']).to eq(2)
+    end
+
+    it 'does not persist anything in dry_run mode but still reports the counts' do
+      expect do
+        post "/api/v1/accounts/#{account.id}/flows/import", params: { dry_run: true },
+                                                            headers: administrator.create_new_auth_token
+      end.not_to change(Flow, :count)
+      expect(response).to have_http_status(:success)
+      expect(response.parsed_body['dry_run']).to be(true)
+      expect(response.parsed_body['summary']['macros']).to eq(1)
+    end
+  end
 end

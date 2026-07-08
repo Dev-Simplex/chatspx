@@ -105,16 +105,23 @@ class Flows::RunnerService
     )
   end
 
-  # Config do wait: { value: N, unit: 'minutes'|'hours'|'days' } em node['wait'] (ou, como
-  # fallback, node['action_params'], que segue o formato de array das outras ações). Ausente
-  # ou inválido → 1 minuto: um wait malconfigurado retoma no próximo tick em vez de martelar
-  # (value<=0) ou esperar pra sempre (unit inválida).
+  # Config do wait: { value: N, unit: 'minutes'|'hours'|'days', business_hours: bool } em
+  # node['wait'] (ou, como fallback, node['action_params'], que segue o formato de array das
+  # outras ações). Ausente ou inválido → 1 minuto: um wait malconfigurado retoma no próximo
+  # tick em vez de martelar (value<=0) ou esperar pra sempre (unit inválida). Com
+  # `business_hours: true` o instante calculado é empurrado para a próxima abertura comercial
+  # da inbox da conversa se cair fora do expediente (Flows::BusinessHours; no-op se a inbox não
+  # tem working hours ligado).
   def wait_until_for(node)
     cfg = wait_config(node)
     value = cfg['value'].to_i
     value = DEFAULT_WAIT_VALUE if value <= 0
     unit = WAIT_UNITS.include?(cfg['unit']) ? cfg['unit'] : DEFAULT_WAIT_UNIT
-    value.public_send(unit).from_now
+    base = value.public_send(unit).from_now
+    # `business_hours` aceita boolean nativo ou string ('true'/'1') — o canvas grava no JSON.
+    return base unless ActiveModel::Type::Boolean.new.cast(cfg['business_hours'])
+
+    Flows::BusinessHours.next_opening(@conversation.inbox, from: base)
   end
 
   def wait_config(node)

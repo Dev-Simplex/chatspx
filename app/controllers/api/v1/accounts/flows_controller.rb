@@ -38,7 +38,24 @@ class Api::V1::Accounts::FlowsController < Api::V1::Accounts::BaseController
     head :ok
   end
 
+  # Importa as Macros e AutomationRules legadas da conta como Flows equivalentes, rodando o
+  # Flows::BackfillService (idempotente via marcador trigger_config.backfill_source). Com
+  # `dry_run: true` valida sem gravar. Autorização classe-nível na FlowPolicy#create? (importar
+  # é criar em lote), no mesmo espírito do #execute. Devolve o resumo + os flows já importados.
+  def import
+    authorize(Flow.new(account: Current.account), :create?)
+    @dry_run = ActiveModel::Type::Boolean.new.cast(params[:dry_run]) || false
+    @result = ::Flows::BackfillService.new(account: Current.account, dry_run: @dry_run).perform
+    @flows = imported_flows
+  end
+
   private
+
+  # Todos os flows nascidos de um backfill (o service marca trigger_config.backfill_source).
+  # Em dry_run nada foi gravado, então reflete só o que já existia de execuções anteriores.
+  def imported_flows
+    Current.account.flows.where("trigger_config->>'backfill_source' IS NOT NULL").order(created_at: :desc)
+  end
 
   # `definition` (nodes+edges) e `trigger_config` são jsonb de forma variável — atribuídos
   # direto (como automation_rules faz com conditions/actions). O Flow#definition_shape/
