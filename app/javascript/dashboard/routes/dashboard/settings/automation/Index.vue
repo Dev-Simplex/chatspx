@@ -1,7 +1,6 @@
 <script setup>
 import { useAlert } from 'dashboard/composables';
 import AddAutomationRule from './AddAutomationRule.vue';
-import EditAutomationRule from './EditAutomationRule.vue';
 import BaseSettingsHeader from '../components/BaseSettingsHeader.vue';
 import SettingsLayout from '../SettingsLayout.vue';
 import { computed, onMounted, ref } from 'vue';
@@ -9,7 +8,7 @@ import { useI18n } from 'vue-i18n';
 import { useRouter } from 'vue-router';
 import { useStoreGetters, useStore } from 'dashboard/composables/store';
 import { picoSearch } from '@scmmishra/pico-search';
-import AutomationRuleRow from './AutomationRuleRow.vue';
+import FlowRow from './FlowRow.vue';
 import Button from 'dashboard/components-next/button/Button.vue';
 import { BaseTable } from 'dashboard/components-next/table';
 
@@ -21,34 +20,38 @@ const confirmDialog = ref(null);
 
 const loading = ref({});
 const addDialogRef = ref(null);
-const editDialogRef = ref(null);
 const showDeleteConfirmationPopup = ref(false);
-const selectedAutomation = ref({});
+const selectedFlow = ref({});
 const searchQuery = ref('');
+const importing = ref(false);
 const toggleModalTitle = ref(t('AUTOMATION.TOGGLE.ACTIVATION_TITLE'));
 const toggleModalDescription = ref(
   t('AUTOMATION.TOGGLE.ACTIVATION_DESCRIPTION')
 );
 
-const records = computed(() => getters['automations/getAutomations'].value);
+// A tela agora lista FLOWS (o motor unificado), não mais AutomationRules.
+const records = computed(() => getters['flows/getFlows'].value);
+// Fontes legadas — só usadas pela ação "Importar automações e macros".
+const macros = computed(() => getters['macros/getMacros'].value);
+const automations = computed(() => getters['automations/getAutomations'].value);
 
 const filteredRecords = computed(() => {
   const query = searchQuery.value.trim();
   if (!query) return records.value;
   return picoSearch(records.value, query, ['name', 'description']);
 });
-const uiFlags = computed(() => getters['automations/getUIFlags'].value);
+const uiFlags = computed(() => getters['flows/getUIFlags'].value);
 const accountId = computed(() => getters.getCurrentAccountId.value);
 
 const deleteConfirmText = computed(
-  () => `${t('AUTOMATION.DELETE.CONFIRM.YES')} ${selectedAutomation.value.name}`
+  () => `${t('AUTOMATION.DELETE.CONFIRM.YES')} ${selectedFlow.value.name}`
 );
 
 const deleteRejectText = computed(
-  () => `${t('AUTOMATION.DELETE.CONFIRM.NO')} ${selectedAutomation.value.name}`
+  () => `${t('AUTOMATION.DELETE.CONFIRM.NO')} ${selectedFlow.value.name}`
 );
 
-const deleteMessage = computed(() => ` ${selectedAutomation.value.name}?`);
+const deleteMessage = computed(() => ` ${selectedFlow.value.name}?`);
 
 const isSLAEnabled = computed(() =>
   getters['accounts/isFeatureEnabledonAccount'].value(accountId.value, 'sla')
@@ -61,7 +64,10 @@ onMounted(() => {
   store.dispatch('teams/get');
   store.dispatch('labels/get');
   store.dispatch('campaigns/get');
+  store.dispatch('flows/get');
+  // Carregadas para a ação de importar e para o form clássico (avançado).
   store.dispatch('automations/get');
+  store.dispatch('macros/get');
   if (isSLAEnabled.value) {
     store.dispatch('sla/get');
   }
@@ -74,6 +80,16 @@ const openCanvas = () => {
   });
 };
 
+// Editar um Flow = abrir o canvas (a `definition` é a fonte da verdade; não há form aqui).
+const openFlowCanvas = flow => {
+  router.push({
+    name: 'automation_canvas_edit',
+    params: { accountId: accountId.value, flowId: flow.id },
+  });
+};
+
+// Form CLÁSSICO (AutomationRule) — mantido funcional atrás do botão "avançado". Cria uma
+// regra no motor legado; ela não aparece nesta lista (que mostra Flows) até ser importada.
 const openAddPopup = () => {
   addDialogRef.value?.open();
 };
@@ -81,70 +97,42 @@ const hideAddPopup = () => {
   addDialogRef.value?.close();
 };
 
-const openEditPopup = response => {
-  selectedAutomation.value = { ...response };
-  editDialogRef.value?.open();
-};
-const hideEditPopup = () => {
-  editDialogRef.value?.close();
-};
-
-const openDeletePopup = response => {
+const openDeletePopup = flow => {
   showDeleteConfirmationPopup.value = true;
-  selectedAutomation.value = response;
+  selectedFlow.value = flow;
 };
 const closeDeletePopup = () => {
   showDeleteConfirmationPopup.value = false;
 };
 
-const deleteAutomation = async id => {
+const deleteFlow = async id => {
   try {
-    await store.dispatch('automations/delete', id);
+    await store.dispatch('flows/delete', id);
     useAlert(t('AUTOMATION.DELETE.API.SUCCESS_MESSAGE'));
   } catch (error) {
     useAlert(t('AUTOMATION.DELETE.API.ERROR_MESSAGE'));
   } finally {
-    loading.value[selectedAutomation.value.id] = false;
+    loading.value[selectedFlow.value.id] = false;
   }
 };
 const confirmDeletion = () => {
-  loading.value[selectedAutomation.value.id] = true;
+  loading.value[selectedFlow.value.id] = true;
   closeDeletePopup();
-  deleteAutomation(selectedAutomation.value.id);
+  deleteFlow(selectedFlow.value.id);
 };
-const cloneAutomation = async ({ id }) => {
+
+// Criar regra clássica (motor legado) — só via o form avançado.
+const submitAutomation = async payload => {
   try {
-    await store.dispatch('automations/clone', id);
-    useAlert(t('AUTOMATION.CLONE.API.SUCCESS_MESSAGE'));
-    store.dispatch('automations/get');
+    await store.dispatch('automations/create', payload);
+    useAlert(t('AUTOMATION.ADD.API.SUCCESS_MESSAGE'));
+    hideAddPopup();
   } catch (error) {
-    useAlert(t('AUTOMATION.CLONE.API.ERROR_MESSAGE'));
-  } finally {
-    loading.value[selectedAutomation.value.id] = false;
+    useAlert(t('AUTOMATION.ADD.API.ERROR_MESSAGE'));
   }
 };
 
-const submitAutomation = async (payload, mode) => {
-  try {
-    const action =
-      mode === 'edit' ? 'automations/update' : 'automations/create';
-    const successMessage =
-      mode === 'edit'
-        ? t('AUTOMATION.EDIT.API.SUCCESS_MESSAGE')
-        : t('AUTOMATION.ADD.API.SUCCESS_MESSAGE');
-    await store.dispatch(action, payload);
-    useAlert(successMessage);
-    hideAddPopup();
-    hideEditPopup();
-  } catch (error) {
-    const errorMessage =
-      mode === 'edit'
-        ? t('AUTOMATION.EDIT.API.ERROR_MESSAGE')
-        : t('AUTOMATION.ADD.API.ERROR_MESSAGE');
-    useAlert(errorMessage);
-  }
-};
-const toggleAutomation = async ({ id, name, status }) => {
+const toggleFlow = async ({ id, name, status }) => {
   try {
     if (status) {
       toggleModalTitle.value = t('AUTOMATION.TOGGLE.DEACTIVATION_TITLE');
@@ -166,7 +154,7 @@ const toggleAutomation = async ({ id, name, status }) => {
 
     const ok = await confirmDialog.value.showConfirmation();
     if (ok) {
-      await store.dispatch('automations/update', {
+      await store.dispatch('flows/update', {
         id: id,
         active: !status,
       });
@@ -180,11 +168,112 @@ const toggleAutomation = async ({ id, name, status }) => {
   }
 };
 
+// Cada ação (na ordem) vira um nó `action`; as arestas encadeiam linearmente. Espelha
+// `Flows::BackfillService#actions_to_definition` (backfill_service.rb) — mantido em paridade.
+const actionsToDefinition = actions => {
+  const nodes = (actions || []).map((action, index) => ({
+    id: `n${index + 1}`,
+    type: 'action',
+    action_name: action.action_name,
+    action_params: action.action_params,
+  }));
+  const edges = nodes
+    .slice(1)
+    .map((node, index) => ({ from: nodes[index].id, to: node.id }));
+  return { nodes, edges };
+};
+
+// Idempotência: um Flow importado carrega `trigger_config.backfill_source` ("macro:<id>" /
+// "automation_rule:<id>"). Reimportar só cria o que ainda falta — igual ao BackfillService.
+const backfilledSources = () => {
+  const done = new Set();
+  records.value.forEach(flow => {
+    const src = flow?.trigger_config?.backfill_source;
+    if (src) done.add(src);
+  });
+  return done;
+};
+
+// Importa Macros + AutomationRules existentes como Flows equivalentes (cada uma vira um Flow
+// LINEAR). TODO: quando a fatia de backend expuser um endpoint de backfill (rake flows:backfill
+// já existe em CLI), trocar este espelho client-side por uma chamada única a esse endpoint.
+const importLegacy = async () => {
+  importing.value = true;
+  try {
+    // Garante fontes frescas antes de calcular o que falta importar.
+    await Promise.all([
+      store.dispatch('automations/get'),
+      store.dispatch('macros/get'),
+      store.dispatch('flows/get'),
+    ]);
+
+    const done = backfilledSources();
+    const jobs = [];
+
+    macros.value.forEach(macro => {
+      const source = `macro:${macro.id}`;
+      if (done.has(source)) return;
+      jobs.push({
+        name: macro.name,
+        trigger_type: 'manual',
+        trigger_config: { backfill_source: source },
+        definition: actionsToDefinition(macro.actions),
+        visibility: macro.visibility || 'global',
+        active: true,
+      });
+    });
+
+    automations.value.forEach(rule => {
+      const source = `automation_rule:${rule.id}`;
+      if (done.has(source)) return;
+      jobs.push({
+        name: rule.name,
+        description: rule.description,
+        trigger_type: 'conversation_event',
+        trigger_config: {
+          event_name: rule.event_name,
+          conditions: rule.conditions,
+          backfill_source: source,
+        },
+        definition: actionsToDefinition(rule.actions),
+        visibility: 'global',
+        active: rule.active,
+      });
+    });
+
+    if (!jobs.length) {
+      useAlert(t('AUTOMATION.IMPORT.NOTHING'));
+      return;
+    }
+
+    const results = await Promise.allSettled(
+      jobs.map(job => store.dispatch('flows/create', job))
+    );
+    const created = results.filter(r => r.status === 'fulfilled').length;
+    const failed = results.length - created;
+
+    // Reconcilia com a verdade do servidor (nomes/definições normalizados).
+    await store.dispatch('flows/get');
+
+    if (failed && created) {
+      useAlert(t('AUTOMATION.IMPORT.PARTIAL', { created, failed }));
+    } else if (failed) {
+      useAlert(t('AUTOMATION.IMPORT.ERROR'));
+    } else {
+      useAlert(t('AUTOMATION.IMPORT.SUCCESS', { created }));
+    }
+  } catch (error) {
+    useAlert(t('AUTOMATION.IMPORT.ERROR'));
+  } finally {
+    importing.value = false;
+  }
+};
+
 const tableHeaders = computed(() => {
   return [
     t('AUTOMATION.LIST.TABLE_HEADER.NAME'),
+    t('AUTOMATION.LIST.TABLE_HEADER.TYPE'),
     t('AUTOMATION.LIST.TABLE_HEADER.ACTIVE'),
-    t('AUTOMATION.LIST.TABLE_HEADER.CREATED_ON'),
     t('AUTOMATION.LIST.TABLE_HEADER.ACTIONS'),
   ];
 });
@@ -195,7 +284,7 @@ const tableHeaders = computed(() => {
     :is-loading="uiFlags.isFetching"
     :loading-message="$t('AUTOMATION.LOADING')"
     :no-records-found="!records.length"
-    :no-records-message="$t('AUTOMATION.LIST.404')"
+    :no-records-message="$t('AUTOMATION.LIST.EMPTY')"
   >
     <template #header>
       <BaseSettingsHeader
@@ -213,17 +302,28 @@ const tableHeaders = computed(() => {
         </template>
         <template #actions>
           <Button
+            :label="$t('AUTOMATION.CLASSIC_RULE_BTN')"
+            size="sm"
+            variant="link"
+            color="slate"
+            data-testid="create-classic-rule"
+            @click="openAddPopup"
+          />
+          <Button
+            :label="$t('AUTOMATION.IMPORT.BUTTON')"
+            size="sm"
+            variant="faded"
+            icon="i-lucide-download"
+            :is-loading="importing"
+            data-testid="import-legacy"
+            @click="importLegacy"
+          />
+          <Button
             :label="$t('AUTOMATION.CANVAS.NEW_FLOW')"
             size="sm"
-            variant="secondary"
             icon="i-lucide-workflow"
             data-testid="open-canvas"
             @click="openCanvas"
-          />
-          <Button
-            :label="$t('AUTOMATION.HEADER_BTN_TXT')"
-            size="sm"
-            @click="openAddPopup"
           />
         </template>
       </BaseSettingsHeader>
@@ -233,18 +333,19 @@ const tableHeaders = computed(() => {
         :headers="tableHeaders"
         :items="filteredRecords"
         :no-data-message="
-          searchQuery ? $t('AUTOMATION.NO_RESULTS') : $t('AUTOMATION.LIST.404')
+          searchQuery
+            ? $t('AUTOMATION.NO_RESULTS')
+            : $t('AUTOMATION.LIST.EMPTY')
         "
       >
         <template #row="{ items }">
-          <AutomationRuleRow
-            v-for="automation in items"
-            :key="automation.id"
-            :automation="automation"
-            :loading="loading[automation.id]"
-            @clone="cloneAutomation"
-            @toggle="toggleAutomation"
-            @edit="openEditPopup"
+          <FlowRow
+            v-for="flow in items"
+            :key="flow.id"
+            :flow="flow"
+            :loading="loading[flow.id]"
+            @toggle="toggleFlow"
+            @edit="openFlowCanvas"
             @delete="openDeletePopup"
           />
         </template>
@@ -264,11 +365,6 @@ const tableHeaders = computed(() => {
       :reject-text="deleteRejectText"
     />
 
-    <EditAutomationRule
-      ref="editDialogRef"
-      :selected-response="selectedAutomation"
-      @save-automation="submitAutomation"
-    />
     <woot-confirm-modal
       ref="confirmDialog"
       :title="toggleModalTitle"

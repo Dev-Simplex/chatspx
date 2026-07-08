@@ -176,9 +176,25 @@
     "LEARN_MORE": "Aprenda mais sobre automação",
     "COUNT": "{n} automação | {n} automações",
     "HEADER_BTN_TXT": "Criar Automação",
-    "LOADING": "Buscando regras de automação",
-    "SEARCH_PLACEHOLDER": "Pesquisar regras de automação...",
-    "NO_RESULTS": "Nenhuma regra de automação encontrada correspondente à sua busca",
+    "CLASSIC_RULE_BTN": "Regra clássica",
+    "LOADING": "Buscando fluxos",
+    "SEARCH_PLACEHOLDER": "Pesquisar fluxos...",
+    "NO_RESULTS": "Nenhum fluxo encontrado correspondente à sua busca",
+    "TRIGGER_TYPES": {
+      "MANUAL": "Manual",
+      "EVENT": "Evento",
+      "KEYWORD": "Palavra-chave",
+      "SCHEDULE": "Agendamento",
+      "WEBHOOK": "Webhook",
+      "UNKNOWN": "—"
+    },
+    "IMPORT": {
+      "BUTTON": "Importar automações e macros",
+      "NOTHING": "Nada para importar — suas automações e macros já viraram fluxos.",
+      "SUCCESS": "{created} item(ns) importado(s) como fluxos.",
+      "PARTIAL": "{created} item(ns) importado(s); {failed} não puderam ser importados.",
+      "ERROR": "Não foi possível importar automações e macros. Tente novamente."
+    },
     "ADD": {
       "TITLE": "Adicionar regra de automação",
       "SUBMIT": "Criar",
@@ -216,11 +232,13 @@
     "LIST": {
       "TABLE_HEADER": {
         "NAME": "Nome",
+        "TYPE": "Tipo",
         "ACTIVE": "Ativo",
         "CREATED_ON": "Criado em",
         "ACTIONS": "Ações"
       },
-      "404": "Nenhuma regra de automação encontrada"
+      "404": "Nenhuma regra de automação encontrada",
+      "EMPTY": "Nenhum fluxo ainda. Crie um fluxo ou importe suas automações e macros existentes."
     },
     "DELETE": {
       "TITLE": "Excluir regra de automação",

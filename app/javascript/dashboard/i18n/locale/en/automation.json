@@ -176,9 +176,25 @@
     "LEARN_MORE": "Learn more about automation",
     "COUNT": "{n} automation | {n} automations",
     "HEADER_BTN_TXT": "Create Automation",
-    "LOADING": "Fetching automation rules",
-    "SEARCH_PLACEHOLDER": "Search automation rules...",
-    "NO_RESULTS": "No automation rules found matching your search",
+    "CLASSIC_RULE_BTN": "Classic rule",
+    "LOADING": "Fetching flows",
+    "SEARCH_PLACEHOLDER": "Search flows...",
+    "NO_RESULTS": "No flows found matching your search",
+    "TRIGGER_TYPES": {
+      "MANUAL": "Manual",
+      "EVENT": "Event",
+      "KEYWORD": "Keyword",
+      "SCHEDULE": "Schedule",
+      "WEBHOOK": "Webhook",
+      "UNKNOWN": "—"
+    },
+    "IMPORT": {
+      "BUTTON": "Import automations & macros",
+      "NOTHING": "Nothing to import — your automations and macros are already flows.",
+      "SUCCESS": "Imported {created} item(s) as flows.",
+      "PARTIAL": "Imported {created} item(s); {failed} could not be imported.",
+      "ERROR": "Could not import automations and macros. Please try again."
+    },
     "ADD": {
       "TITLE": "Add Automation Rule",
       "SUBMIT": "Create",
@@ -216,11 +232,13 @@
     "LIST": {
       "TABLE_HEADER": {
         "NAME": "Name",
+        "TYPE": "Type",
         "ACTIVE": "Active",
         "CREATED_ON": "Created on",
         "ACTIONS": "Actions"
       },
-      "404": "No automation rules found"
+      "404": "No automation rules found",
+      "EMPTY": "No flows yet. Create a flow, or import your existing automations and macros."
     },
     "DELETE": {
       "TITLE": "Delete Automation Rule",
