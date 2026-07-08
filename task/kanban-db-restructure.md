@@ -112,6 +112,8 @@ Só se a demanda de filtro/ordenação por custom field crescer, ou se cartão-t
 - Ordenação do backend (dedup/cursor/legacy) **intacta** → zero risco à paginação; a virada para `position` é só client-side. Caveat de escala: em colunas grandes o bastante para paginar (>~30/stage) as páginas são buscadas por recência mas exibidas por position — aceitável no volume atual (<2/stage), follow-up se crescer.
 - **Drop cross-stage NÃO persiste a posição no destino** (evita corrida com a troca de stage); só reorder na mesma coluna persiste. Fine-tune manual no destino persiste. Follow-up se necessário.
 
+**Polish (pós-validação) ✅** — card recém-colocado/movido recebe `position` ÚNICA no topo (fractional indexing, `FunnelItem.top_position_for` no `MoveService` + cartão-tarefa) em vez do default 0 que colidia; healing dos itens 0/colisão que já existiam no staging (renumerados 1..n). E **fix**: `push_event_data` emite `position` como Float (BigDecimal quebrava o `ActionCableBroadcastJob` sob `Sidekiq.strict_args`). Specs de move/broadcast verdes.
+
 **DEFERIDO** (conforme plano): Fase 4 (normalizar custom field values — pesado, só sob demanda) e Fase 5 (P4 `funnel_templates.account_id`; P5 precisão de `moved_at` — este mexe no tiebreak do realtime, risco > ganho cosmético).
 
 **Pendente:** validação visual do usuário no board; commit (working tree, não commitado — [[commit-at-end-of-each-phase]]); promoção à frota só via [[runbook-deploy-producao]] (atenção: nova migration de drop + coluna).

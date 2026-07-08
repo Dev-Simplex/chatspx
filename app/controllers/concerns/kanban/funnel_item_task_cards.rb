@@ -27,7 +27,9 @@ module Kanban::FunnelItemTaskCards
       description: params[:description] || params.dig(:funnel_item, :description),
       assignee_id: normalize_assignee(params[:assignee_id] || params.dig(:funnel_item, :assignee_id)),
       moved_by: Current.user,
-      moved_at: Time.current
+      moved_at: Time.current,
+      # Topo da coluna com position única (fractional indexing), em vez do default 0.
+      position: FunnelItem.top_position_for(funnel_stage.id)
     )
   end
 

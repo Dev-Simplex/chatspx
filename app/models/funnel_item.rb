@@ -42,6 +42,17 @@ class FunnelItem < ApplicationRecord
     conversation_id.blank?
   end
 
+  # Topo da coluna: menor position - 1 (fractional indexing). Coloca um card
+  # recém-colocado no topo com um valor ÚNICO, sem renumerar a coluna inteira nem
+  # cair no default 0 (que colidiria entre vários cards novos). 1 se vazia.
+  # A primeira reordenação manual renumera a coluna para 1..n (ReorderService).
+  def self.top_position_for(funnel_stage_id, excluding_id: nil)
+    scope = where(funnel_stage_id: funnel_stage_id)
+    scope = scope.where.not(id: excluding_id) if excluding_id
+    min = scope.minimum(:position)
+    min.nil? ? 1 : min - 1
+  end
+
   # Minimal payload broadcast on a real-time move (Kanban v2 / Fase 4). The
   # receiving client relocates the item it already holds, so only ids + the
   # new stage + moved_at (for conflict resolution) are needed.
@@ -53,7 +64,10 @@ class FunnelItem < ApplicationRecord
       conversation_id: conversation_id,
       moved_at: moved_at,
       moved_by_id: moved_by_id,
-      position: position
+      # to_f: position é decimal (BigDecimal). O broadcast vira args de Sidekiq
+      # (ActionCableBroadcastJob), que sob strict_args rejeita BigDecimal — Float
+      # é tipo JSON nativo e tem precisão de sobra p/ ordenar no client.
+      position: position&.to_f
     }
   end
 
