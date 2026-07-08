@@ -26,6 +26,7 @@ import SidebarAccountSwitcher from './SidebarAccountSwitcher.vue';
 import Logo from 'next/icon/Logo.vue';
 import LordIconIcon from 'next/icon/LordIconIcon.vue';
 import { LORDICON } from 'dashboard/constants/lordicons';
+import { isHelpCenterAuthoringAccount } from 'dashboard/helper/helpCenterEmbed';
 
 const props = defineProps({
   isMobileSidebarOpen: {
@@ -88,6 +89,73 @@ const hasInternalChat = computed(() => {
     accountId.value,
     FEATURE_FLAGS.INTERNAL_CHAT
   );
+});
+
+// Só a conta autora (conta 3 do deploy de casa) mantém o construtor do Help
+// Center; todas as outras contas/VMs veem o portal publicado embutido.
+const isHelpCenterAuthoring = computed(() =>
+  isHelpCenterAuthoringAccount(accountId.value)
+);
+
+// Item "Central de Ajuda" do rail: construtor (conta autora) x iframe (resto).
+const helpCenterMenuItem = computed(() => {
+  const base = {
+    name: 'Portals',
+    label: t('SIDEBAR.HELP_CENTER.TITLE'),
+    icon: lordIcon('helpCenter', 'i-lucide-library-big'),
+  };
+  if (!isHelpCenterAuthoring.value) {
+    return {
+      ...base,
+      to: accountScopedRoute('help_center_view'),
+      activeOn: ['help_center_view'],
+    };
+  }
+  return {
+    ...base,
+    children: [
+      {
+        name: 'Articles',
+        label: t('SIDEBAR.HELP_CENTER.ARTICLES'),
+        activeOn: [
+          'portals_articles_index',
+          'portals_articles_new',
+          'portals_articles_edit',
+        ],
+        to: accountScopedRoute('portals_index', {
+          navigationPath: 'portals_articles_index',
+        }),
+      },
+      {
+        name: 'Categories',
+        label: t('SIDEBAR.HELP_CENTER.CATEGORIES'),
+        activeOn: [
+          'portals_categories_index',
+          'portals_categories_articles_index',
+          'portals_categories_articles_edit',
+        ],
+        to: accountScopedRoute('portals_index', {
+          navigationPath: 'portals_categories_index',
+        }),
+      },
+      {
+        name: 'Locales',
+        label: t('SIDEBAR.HELP_CENTER.LOCALES'),
+        activeOn: ['portals_locales_index'],
+        to: accountScopedRoute('portals_index', {
+          navigationPath: 'portals_locales_index',
+        }),
+      },
+      {
+        name: 'Settings',
+        label: t('SIDEBAR.HELP_CENTER.SETTINGS'),
+        activeOn: ['portals_settings_index'],
+        to: accountScopedRoute('portals_index', {
+          navigationPath: 'portals_settings_index',
+        }),
+      },
+    ],
+  };
 });
 
 // Real-time @mention toast for internal chat (localized here — the Sidebar is
@@ -645,53 +713,7 @@ const menuItems = computed(() => {
         },
       ],
     },
-    {
-      name: 'Portals',
-      label: t('SIDEBAR.HELP_CENTER.TITLE'),
-      icon: lordIcon('helpCenter', 'i-lucide-library-big'),
-      children: [
-        {
-          name: 'Articles',
-          label: t('SIDEBAR.HELP_CENTER.ARTICLES'),
-          activeOn: [
-            'portals_articles_index',
-            'portals_articles_new',
-            'portals_articles_edit',
-          ],
-          to: accountScopedRoute('portals_index', {
-            navigationPath: 'portals_articles_index',
-          }),
-        },
-        {
-          name: 'Categories',
-          label: t('SIDEBAR.HELP_CENTER.CATEGORIES'),
-          activeOn: [
-            'portals_categories_index',
-            'portals_categories_articles_index',
-            'portals_categories_articles_edit',
-          ],
-          to: accountScopedRoute('portals_index', {
-            navigationPath: 'portals_categories_index',
-          }),
-        },
-        {
-          name: 'Locales',
-          label: t('SIDEBAR.HELP_CENTER.LOCALES'),
-          activeOn: ['portals_locales_index'],
-          to: accountScopedRoute('portals_index', {
-            navigationPath: 'portals_locales_index',
-          }),
-        },
-        {
-          name: 'Settings',
-          label: t('SIDEBAR.HELP_CENTER.SETTINGS'),
-          activeOn: ['portals_settings_index'],
-          to: accountScopedRoute('portals_index', {
-            navigationPath: 'portals_settings_index',
-          }),
-        },
-      ],
-    },
+    helpCenterMenuItem.value,
     {
       name: 'Settings',
       label: t('SIDEBAR.SETTINGS'),
@@ -1047,4 +1069,3 @@ const onSidebarReorder = () => {
     </section>
   </aside>
 </template>
-

@@ -49,7 +49,13 @@ class Public::Api::V1::Portals::BaseController < PublicController
   end
 
   def allow_iframe_requests
-    response.headers.delete('X-Frame-Options') if @is_plain_layout_enabled
+    # Embed da Central de Ajuda no app (iframe cross-origin de outra VM):
+    # `embed=true` libera o framing MANTENDO o layout completo — com o widget
+    # "pedir ajuda". `show_plain_layout=true` segue liberando (layout enxuto,
+    # sem widget).
+    return unless @is_plain_layout_enabled || params[:embed] == 'true'
+
+    response.headers.delete('X-Frame-Options')
   end
 
   def render_404

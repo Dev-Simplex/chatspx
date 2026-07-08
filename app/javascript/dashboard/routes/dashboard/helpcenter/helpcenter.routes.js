@@ -1,10 +1,30 @@
 import { FEATURE_FLAGS } from '../../../featureFlags';
+import { frontendURL } from 'dashboard/helper/URLHelper';
+import {
+  ROLES,
+  CONVERSATION_PERMISSIONS,
+} from 'dashboard/constants/permissions';
+import { isHelpCenterAuthoringAccount } from 'dashboard/helper/helpCenterEmbed';
 import { getPortalRoute } from './helpers/routeHelper';
 
 import HelpCenterPageRouteView from './pages/HelpCenterPageRouteView.vue';
-
 import PortalsIndex from './pages/PortalsIndexPage.vue';
 import PortalsNew from './pages/PortalsNewPage.vue';
+
+const HelpCenterEmbedPage = () => import('./pages/HelpCenterEmbedPage.vue');
+
+// Fora da conta autora (conta 3 do deploy de casa) o construtor de artigos
+// não existe: qualquer rota `portals_*` cai no iframe somente-leitura.
+const redirectNonAuthoringToEmbed = (to, from, next) => {
+  if (isHelpCenterAuthoringAccount(to.params.accountId)) {
+    next();
+    return;
+  }
+  next({
+    name: 'help_center_view',
+    params: { accountId: to.params.accountId },
+  });
+};
 
 const PortalsArticlesIndexPage = () =>
   import('./pages/PortalsArticlesIndexPage.vue');
@@ -105,6 +125,17 @@ const portalRoutes = [
 export default {
   routes: [
     {
+      // Central de Ajuda embutida (iframe do portal publicado). Visível a
+      // todos os papéis — é somente leitura. Todas as contas caem aqui, menos
+      // a conta autora, que continua no construtor abaixo.
+      path: frontendURL('accounts/:accountId/help-center'),
+      name: 'help_center_view',
+      component: HelpCenterEmbedPage,
+      meta: {
+        permissions: [...ROLES, ...CONVERSATION_PERMISSIONS],
+      },
+    },
+    {
       path: getPortalRoute(),
       component: HelpCenterPageRouteView,
       redirect: to => {
@@ -116,7 +147,10 @@ export default {
           },
         };
       },
-      children: [...portalRoutes],
+      children: portalRoutes.map(route => ({
+        ...route,
+        beforeEnter: redirectNonAuthoringToEmbed,
+      })),
     },
   ],
 };
