@@ -12,6 +12,7 @@ export const state = {
     isExecuting: false,
     isSimulating: false,
     isFetchingLogs: false,
+    isFetchingStats: false,
     isImporting: false,
   },
 };
@@ -112,6 +113,17 @@ export const actions = {
       return response.data;
     } finally {
       commit(types.SET_FLOW_UI_FLAG, { isFetchingLogs: false });
+    }
+  },
+  // Analytics por nó (Fase 3.3): { period, total_entries, nodes } — alimenta as pills do canvas.
+  // Retorna o payload cru (sem estado dedicado, como getLogs); o canvas o injeta em cada nó.
+  getStats: async ({ commit }, { id }) => {
+    commit(types.SET_FLOW_UI_FLAG, { isFetchingStats: true });
+    try {
+      const response = await FlowsAPI.getStats(id);
+      return response.data;
+    } finally {
+      commit(types.SET_FLOW_UI_FLAG, { isFetchingStats: false });
     }
   },
   // Importa Macros + AutomationRules legadas como Flows via o endpoint (POST flows/import), que

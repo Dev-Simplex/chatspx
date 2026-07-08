@@ -246,4 +246,51 @@ RSpec.describe 'Api::V1::Accounts::FlowsController', type: :request do
       expect(response).to have_http_status(:unauthorized)
     end
   end
+
+  describe 'GET /api/v1/accounts/{account.id}/flows/{id}/stats' do
+    let(:flow) { create(:flow, account: account, created_by: administrator, visibility: :global) }
+
+    it 'returns unauthorized when unauthenticated' do
+      get "/api/v1/accounts/#{account.id}/flows/#{flow.id}/stats"
+      expect(response).to have_http_status(:unauthorized)
+    end
+
+    it 'returns per-node executions/failures with a pct relative to the busiest node' do
+      create(:flow_node_stat, flow: flow, account: account, node_id: 'n1', executions: 100, failures: 0)
+      create(:flow_node_stat, flow: flow, account: account, node_id: 'n2', executions: 38, failures: 4)
+
+      get "/api/v1/accounts/#{account.id}/flows/#{flow.id}/stats", headers: administrator.create_new_auth_token
+      expect(response).to have_http_status(:success)
+      body = response.parsed_body
+      expect(body['period']).to eq('all')
+      expect(body['total_entries']).to eq(100)
+      expect(body['nodes']['n1']).to eq('executions' => 100, 'failures' => 0, 'pct' => 100)
+      expect(body['nodes']['n2']).to eq('executions' => 38, 'failures' => 4, 'pct' => 38)
+    end
+
+    it 'returns an empty node map when the flow has no stats yet' do
+      get "/api/v1/accounts/#{account.id}/flows/#{flow.id}/stats", headers: administrator.create_new_auth_token
+      expect(response).to have_http_status(:success)
+      expect(response.parsed_body['nodes']).to eq({})
+      expect(response.parsed_body['total_entries']).to eq(0)
+    end
+
+    it 'ignores stats from other flows and non-lifetime periods' do
+      other_flow = create(:flow, account: account, created_by: administrator, visibility: :global)
+      create(:flow_node_stat, flow: flow, account: account, node_id: 'n1', executions: 10)
+      create(:flow_node_stat, flow: flow, account: account, node_id: 'n1', period: '2026-07-08', executions: 3)
+      create(:flow_node_stat, flow: other_flow, account: account, node_id: 'x1', executions: 99)
+
+      get "/api/v1/accounts/#{account.id}/flows/#{flow.id}/stats", headers: administrator.create_new_auth_token
+      expect(response.parsed_body['nodes'].keys).to contain_exactly('n1')
+      expect(response.parsed_body['nodes']['n1']['executions']).to eq(10)
+    end
+
+    it 'forbids reading stats of a flow the user cannot see' do
+      agent = create(:user, account: account, role: :agent)
+      private_flow = create(:flow, account: account, created_by: administrator, visibility: :personal)
+      get "/api/v1/accounts/#{account.id}/flows/#{private_flow.id}/stats", headers: agent.create_new_auth_token
+      expect(response).to have_http_status(:unauthorized)
+    end
+  end
 end

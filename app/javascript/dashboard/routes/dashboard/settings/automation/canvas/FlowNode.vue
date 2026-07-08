@@ -25,6 +25,29 @@ const subtitle = computed(() => {
 });
 const isTrigger = computed(() => node.value.type === 'trigger');
 
+// Analytics por nó (Fase 3.3): stat pré-agregado que o FlowCanvasView injeta em data.stats quando
+// abre um flow salvo (via flows/getStats). Formato { executions, failures, pct }. Sem stat, ou nó
+// que nunca rodou (executions 0), NÃO desenha pill — a ausência é o estado padrão. Números crus,
+// sem i18n: a pill é "142 · 38%" (execuções · % das entradas que chegaram até aqui).
+const stats = computed(() => props.data?.stats || null);
+const hasStats = computed(
+  () => Boolean(stats.value) && stats.value.executions > 0
+);
+const hasFailures = computed(() => hasStats.value && stats.value.failures > 0);
+// Rótulo da pill montado no script (não texto cru no template) — "142 · 38%": execuções · % das
+// entradas que chegaram até aqui. Números puros, sem i18n.
+const statsLabel = computed(() =>
+  hasStats.value ? `${stats.value.executions} · ${stats.value.pct}%` : ''
+);
+// Total cru para o tooltip (sem palavra: "142 · 38% · ✕3" quando há falha) — a pill em si mostra
+// só "142 · 38%". Símbolos, não rótulos traduzidos, pra não tocar o automation.json.
+const statsTitle = computed(() => {
+  if (!hasStats.value) return undefined;
+  return hasFailures.value
+    ? `${statsLabel.value} · ✕${stats.value.failures}`
+    : statsLabel.value;
+});
+
 // Portas de saída ROTULADAS dos nós de ramificação. Cada porta vira um `source` Handle cujo
 // `id` é o `branch` que a aresta carrega (o Runner casa edge.branch === handle.id):
 //  • condition → 2 portas fixas: 'true' (Sim) e 'false' (Não).
@@ -93,12 +116,23 @@ const hasBranchPorts = computed(() => branchPorts.value.length > 0);
       :style="{ backgroundColor: familyMeta.color }"
     />
     <div class="flex flex-col min-w-0 gap-0.5 px-3 py-2.5 grow">
-      <span
-        class="text-[10px] font-bold tracking-wider uppercase"
-        :style="{ color: familyMeta.color }"
-      >
-        {{ familyLabel }}
-      </span>
+      <div class="flex items-center justify-between gap-2">
+        <span
+          class="text-[10px] font-bold tracking-wider uppercase truncate"
+          :style="{ color: familyMeta.color }"
+        >
+          {{ familyLabel }}
+        </span>
+        <span
+          v-if="hasStats"
+          class="inline-flex items-center shrink-0 rounded-full px-1.5 py-px text-[10px] font-semibold tabular-nums bg-n-alpha-2"
+          :class="hasFailures ? 'text-n-ruby-11' : 'text-n-slate-11'"
+          :title="statsTitle"
+          data-testid="flow-node-stat"
+        >
+          {{ statsLabel }}
+        </span>
+      </div>
       <span class="text-sm font-semibold truncate text-n-slate-12">{{
         label
       }}</span>

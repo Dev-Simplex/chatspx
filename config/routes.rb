@@ -124,6 +124,7 @@ Rails.application.routes.draw do
               post :execute
               post :simulate
               get :logs
+              get :stats
             end
             post :import, on: :collection
           end

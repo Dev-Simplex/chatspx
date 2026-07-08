@@ -25,6 +25,12 @@ class FlowsAPI extends ApiClient {
     return axios.get(`${this.url}/${flowId}/logs`, { params: { page } });
   }
 
+  // Analytics por nó (Fase 3.3): { period, total_entries, nodes: { node_id → { executions, failures,
+  // pct } } } — as contagens pré-agregadas que viram as pills "142 · 38%" no canvas.
+  getStats(flowId) {
+    return axios.get(`${this.url}/${flowId}/stats`);
+  }
+
   // Importa as Macros e AutomationRules legadas da conta como Flows equivalentes, rodando o
   // Flows::BackfillService no servidor (idempotente via trigger_config.backfill_source). Com
   // dry_run: true valida sem gravar. Retorna { dry_run, summary, flows }.

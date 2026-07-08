@@ -47,6 +47,11 @@ const flowInstance = ref(null);
 const showSimulation = ref(false);
 const showLogs = ref(false);
 
+// Analytics por nó (Fase 3.3): map node_id → { executions, failures, pct } carregado do backend
+// (flows/getStats) ao abrir um flow SALVO. Alimenta as pills "142 · 38%" do FlowNode. Fica {} num
+// flow novo (sem id, nada a mostrar) — a ausência de stat é o estado padrão da pill.
+const nodeStats = ref({});
+
 // Histórico undo/redo da definition. `suppressHistory` blinda o watcher enquanto aplicamos um
 // snapshot (undo/redo) ou o echo read-only do webhook_token — mutações que NÃO são edições do
 // usuário e não devem virar passos de undo nem marcar o fluxo como sujo.
@@ -205,7 +210,7 @@ const vfNodes = computed(() =>
       ? node.position
       : { x: 180, y: index * 160 + 40 },
     selected: String(node.id) === String(selectedNodeId.value),
-    data: { node },
+    data: { node, stats: nodeStats.value[String(node.id)] || null },
   }))
 );
 // Aresta → Vue Flow: `sourceHandle` = branch (casa o Handle rotulado do FlowNode); `type:flow`
@@ -272,6 +277,18 @@ const seedFromRule = async ruleId => {
   return true;
 };
 
+// Carrega o analytics por nó do flow salvo e o expõe em nodeStats (node_id → stat). Best-effort:
+// as pills são um extra — se o endpoint falhar, o canvas segue sem elas (nunca quebra a edição).
+const loadStats = async () => {
+  if (!isEdit.value) return;
+  try {
+    const data = await store.dispatch('flows/getStats', { id: flowId.value });
+    nodeStats.value = data?.nodes || {};
+  } catch (error) {
+    nodeStats.value = {};
+  }
+};
+
 onMounted(async () => {
   window.addEventListener('keydown', onKeydown);
   loadConfigOptions();
@@ -293,6 +310,7 @@ onMounted(async () => {
     withoutHistory(() => syncWebhookToken(flow));
   }
   history.commit(definition.value);
+  loadStats();
 });
 
 const nextNodeId = () => {

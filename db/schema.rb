@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[7.1].define(version: 2026_07_08_120000) do
+ActiveRecord::Schema[7.1].define(version: 2026_07_09_120000) do
   # These extensions should be enabled to support this database
   enable_extension "pg_stat_statements"
   enable_extension "pg_trgm"
@@ -1021,6 +1021,20 @@ ActiveRecord::Schema[7.1].define(version: 2026_07_08_120000) do
     t.index ["name", "account_id"], name: "index_email_templates_on_name_and_account_id", unique: true
   end
 
+  create_table "flow_node_stats", force: :cascade do |t|
+    t.bigint "flow_id", null: false
+    t.bigint "account_id", null: false
+    t.string "node_id", null: false
+    t.integer "executions", default: 0, null: false
+    t.integer "failures", default: 0, null: false
+    t.string "period", default: "all", null: false
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["account_id"], name: "index_flow_node_stats_on_account_id"
+    t.index ["flow_id", "node_id", "period"], name: "index_flow_node_stats_on_flow_node_period", unique: true
+    t.index ["flow_id"], name: "index_flow_node_stats_on_flow_id"
+  end
+
   create_table "flow_runs", force: :cascade do |t|
     t.bigint "flow_id", null: false
     t.bigint "account_id", null: false
@@ -1974,6 +1988,8 @@ ActiveRecord::Schema[7.1].define(version: 2026_07_08_120000) do
   add_foreign_key "conversations", "teams", on_delete: :nullify
   add_foreign_key "conversations", "users", column: "assignee_id", on_delete: :nullify
   add_foreign_key "csat_survey_responses", "conversations", on_delete: :cascade
+  add_foreign_key "flow_node_stats", "accounts"
+  add_foreign_key "flow_node_stats", "flows"
   add_foreign_key "flow_runs", "accounts"
   add_foreign_key "flow_runs", "contacts"
   add_foreign_key "flow_runs", "conversations"

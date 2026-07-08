@@ -1,5 +1,5 @@
 class Api::V1::Accounts::FlowsController < Api::V1::Accounts::BaseController
-  before_action :fetch_flow, only: [:show, :update, :destroy, :execute, :simulate, :logs]
+  before_action :fetch_flow, only: [:show, :update, :destroy, :execute, :simulate, :logs, :stats]
   before_action :check_authorization, only: [:show, :update, :destroy, :execute]
 
   # Máximo de step-logs por página no painel "Execuções" (GET #logs). Paginação simples via kaminari.
@@ -61,6 +61,17 @@ class Api::V1::Accounts::FlowsController < Api::V1::Accounts::BaseController
   def logs
     authorize(@flow, :show?)
     @logs = FlowStepLog.for_flow(@flow).recent.page(params[:page]).per(LOGS_PER_PAGE)
+  end
+
+  # Analytics por nó (Fase 3.3): as contagens que viram as pills "142 · 38%" no canvas. Lê o
+  # flow_node_stats PRÉ-AGREGADO pelo Flows::StatsRollupJob (não escaneia os logs no request). O
+  # denominador da % (@total_entries) é o MAIOR executions do flow no período: o nó de entrada,
+  # alcançado por toda execução, é o 100%; os de baixo mostram a fração que chegou até eles. Sem
+  # rollup ainda → lista vazia (a UI não desenha pill). Autoriza como #show?.
+  def stats
+    authorize(@flow, :show?)
+    @stats = FlowNodeStat.for_flow(@flow).all_time.to_a
+    @total_entries = @stats.map(&:executions).max || 0
   end
 
   # Importa as Macros e AutomationRules legadas da conta como Flows equivalentes, rodando o
