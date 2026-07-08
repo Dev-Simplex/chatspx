@@ -22,6 +22,7 @@ import SimulationOverlay from './SimulationOverlay.vue';
 import LogsPanel from './LogsPanel.vue';
 import { NODE_CATALOG, FAMILIES, familyForNode } from './nodeCatalog';
 import { flatToDefinition } from './flatToDefinition';
+import { flowTemplateByKey } from './flowTemplates';
 import { useFlowHistory } from './useFlowHistory';
 
 import '@vue-flow/core/dist/style.css';
@@ -277,6 +278,19 @@ const seedFromRule = async ruleId => {
   return true;
 };
 
+// Abre um MODELO da galeria no canvas (rota `new` com ?templateKey=<key>): copia a definition
+// pronta do flowTemplates para o canvas — deep-clone para NUNCA mutar o módulo compartilhado — e
+// nomeia o fluxo com o nome (editável) do modelo. NADA é gravado até o usuário salvar; o nó
+// `trigger` já carrega event_name/trigger_kind, então triggerPayload deriva o trigger_type no
+// save (não precisamos do trigger_type declarado no template aqui). Espelha o seedFromRule.
+const seedFromTemplate = key => {
+  const template = flowTemplateByKey(key);
+  if (!template) return false;
+  name.value = t(template.nameKey);
+  definition.value = structuredClone(template.definition);
+  return true;
+};
+
 // Carrega o analytics por nó do flow salvo e o expõe em nodeStats (node_id → stat). Best-effort:
 // as pills são um extra — se o endpoint falhar, o canvas segue sem elas (nunca quebra a edição).
 const loadStats = async () => {
@@ -294,9 +308,12 @@ onMounted(async () => {
   loadConfigOptions();
 
   if (!isEdit.value) {
-    const seeded = route.query.fromRuleId
-      ? await seedFromRule(route.query.fromRuleId)
-      : false;
+    let seeded = false;
+    if (route.query.fromRuleId) {
+      seeded = await seedFromRule(route.query.fromRuleId);
+    } else if (route.query.templateKey) {
+      seeded = seedFromTemplate(route.query.templateKey);
+    }
     if (!seeded) name.value = t('AUTOMATION.CANVAS.NEW_FLOW');
     history.commit(definition.value);
     return;

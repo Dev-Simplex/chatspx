@@ -9,6 +9,7 @@ import { useRouter } from 'vue-router';
 import { useStoreGetters, useStore } from 'dashboard/composables/store';
 import { picoSearch } from '@scmmishra/pico-search';
 import FlowRow from './FlowRow.vue';
+import FlowTemplatesGallery from './FlowTemplatesGallery.vue';
 import Button from 'dashboard/components-next/button/Button.vue';
 import { BaseTable } from 'dashboard/components-next/table';
 
@@ -21,6 +22,7 @@ const confirmDialog = ref(null);
 const loading = ref({});
 const addDialogRef = ref(null);
 const showDeleteConfirmationPopup = ref(false);
+const showTemplatesGallery = ref(false);
 const selectedFlow = ref({});
 const searchQuery = ref('');
 const importing = ref(false);
@@ -71,6 +73,21 @@ const openCanvas = () => {
   router.push({
     name: 'automation_canvas_new',
     params: { accountId: accountId.value },
+  });
+};
+
+// Galeria de modelos: abre o overlay; escolher um modelo semeia o canvas via ?templateKey
+// (o FlowCanvasView monta a definition — NADA é gravado até o usuário salvar). `null` = começar
+// do zero (mesmo destino que "Novo fluxo"). Ver flowTemplates.js / FlowCanvasView#seedFromTemplate.
+const openTemplatesGallery = () => {
+  showTemplatesGallery.value = true;
+};
+const onSelectTemplate = template => {
+  showTemplatesGallery.value = false;
+  router.push({
+    name: 'automation_canvas_new',
+    params: { accountId: accountId.value },
+    query: template ? { templateKey: template.key } : {},
   });
 };
 
@@ -239,6 +256,14 @@ const tableHeaders = computed(() => {
             @click="importLegacy"
           />
           <Button
+            :label="$t('AUTOMATION.TEMPLATES.BUTTON')"
+            size="sm"
+            variant="faded"
+            icon="i-lucide-layout-grid"
+            data-testid="open-templates"
+            @click="openTemplatesGallery"
+          />
+          <Button
             :label="$t('AUTOMATION.CANVAS.NEW_FLOW')"
             size="sm"
             icon="i-lucide-workflow"
@@ -271,6 +296,12 @@ const tableHeaders = computed(() => {
         </template>
       </BaseTable>
     </template>
+
+    <FlowTemplatesGallery
+      v-if="showTemplatesGallery"
+      @close="showTemplatesGallery = false"
+      @select="onSelectTemplate"
+    />
 
     <AddAutomationRule ref="addDialogRef" @save-automation="submitAutomation" />
 

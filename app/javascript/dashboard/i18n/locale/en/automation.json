@@ -296,6 +296,54 @@
         }
       }
     },
+    "TEMPLATES": {
+      "BUTTON": "Templates",
+      "TITLE": "Flow templates",
+      "SUBTITLE": "Ready-made flows — pick one and customize it on the canvas.",
+      "START_BLANK": "Start from scratch",
+      "CLOSE": "Close",
+      "SEARCH_PLACEHOLDER": "Search by name, trigger or action…",
+      "USE": "Use template",
+      "EMPTY": "No templates match your search.",
+      "FILTERS": {
+        "ALL": "All",
+        "WHATSAPP": "WhatsApp",
+        "AI": "With AI"
+      },
+      "BADGE": {
+        "OFFICIAL": "Official",
+        "POPULAR": "Popular"
+      },
+      "CATEGORIES": {
+        "WELCOME": "Welcome",
+        "DRIP": "Drip",
+        "TRIAGE": "Triage",
+        "CSAT": "CSAT",
+        "KEYWORD": "Keyword"
+      },
+      "ITEMS": {
+        "WELCOME": {
+          "NAME": "Welcome message",
+          "DESCRIPTION": "Every new conversation gets a friendly greeting and is tagged as a new lead for the team to follow up."
+        },
+        "DRIP_WHATSAPP": {
+          "NAME": "WhatsApp drip",
+          "DESCRIPTION": "Send a first template, wait a day, then nudge again with a second template if the customer hasn't replied yet."
+        },
+        "AI_TRIAGE": {
+          "NAME": "AI triage",
+          "DESCRIPTION": "AI reads the first message, classifies the intent and routes the conversation to the right team — Sales, Support or Billing."
+        },
+        "CSAT_SURVEY": {
+          "NAME": "CSAT survey",
+          "DESCRIPTION": "Ten minutes after a conversation is resolved, send the satisfaction survey automatically."
+        },
+        "KEYWORD_HANDOFF": {
+          "NAME": "Keyword handoff",
+          "DESCRIPTION": "When a message contains a keyword like \"agent\" or \"human\", assign a team and let the customer know help is on the way."
+        }
+      }
+    },
     "HEADER": "Automation",
     "DESCRIPTION": "Automation can replace and streamline existing processes that require manual effort, such as adding labels and assigning conversations to the most suitable agent. This allows the team to focus on their strengths while reducing time spent on routine tasks.",
     "LEARN_MORE": "Learn more about automation",

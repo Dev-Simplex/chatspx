@@ -296,6 +296,54 @@
         }
       }
     },
+    "TEMPLATES": {
+      "BUTTON": "Modelos",
+      "TITLE": "Modelos de fluxo",
+      "SUBTITLE": "Fluxos prontos — escolha um e personalize no canvas.",
+      "START_BLANK": "Começar do zero",
+      "CLOSE": "Fechar",
+      "SEARCH_PLACEHOLDER": "Buscar por nome, gatilho ou ação…",
+      "USE": "Usar modelo",
+      "EMPTY": "Nenhum modelo corresponde à sua busca.",
+      "FILTERS": {
+        "ALL": "Todos",
+        "WHATSAPP": "WhatsApp",
+        "AI": "Com IA"
+      },
+      "BADGE": {
+        "OFFICIAL": "Oficial",
+        "POPULAR": "Popular"
+      },
+      "CATEGORIES": {
+        "WELCOME": "Boas-vindas",
+        "DRIP": "Drip",
+        "TRIAGE": "Triagem",
+        "CSAT": "CSAT",
+        "KEYWORD": "Palavra-chave"
+      },
+      "ITEMS": {
+        "WELCOME": {
+          "NAME": "Mensagem de boas-vindas",
+          "DESCRIPTION": "Todo primeiro contato recebe uma saudação e é marcado como lead novo para o time acompanhar."
+        },
+        "DRIP_WHATSAPP": {
+          "NAME": "Drip no WhatsApp",
+          "DESCRIPTION": "Envia um primeiro template, espera um dia e cutuca de novo com um segundo template se o cliente não respondeu."
+        },
+        "AI_TRIAGE": {
+          "NAME": "Triagem por IA",
+          "DESCRIPTION": "A IA lê a primeira mensagem, classifica a intenção e encaminha a conversa para o time certo — Vendas, Suporte ou Financeiro."
+        },
+        "CSAT_SURVEY": {
+          "NAME": "Pesquisa CSAT",
+          "DESCRIPTION": "Dez minutos depois de resolver a conversa, dispara a pesquisa de satisfação automaticamente."
+        },
+        "KEYWORD_HANDOFF": {
+          "NAME": "Atendimento por palavra-chave",
+          "DESCRIPTION": "Quando a mensagem contém uma palavra como \"atendente\" ou \"humano\", atribui um time e avisa o cliente que já vai ser atendido."
+        }
+      }
+    },
     "HEADER": "Automação",
     "DESCRIPTION": "A automação pode substituir e simplificar processos existentes que requerem esforço manual, como a adição de etiquetas e a atribuição de conversas ao agente mais adequado. Isso permite que o time se concentre em seus pontos fortes e reduza o tempo gasto em tarefas rotineiras.",
     "LEARN_MORE": "Aprenda mais sobre automação",
