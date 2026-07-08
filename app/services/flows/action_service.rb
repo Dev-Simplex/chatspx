@@ -17,6 +17,10 @@ class Flows::ActionService < ActionService
   # (mesmo padrão do Flows::Compliance — mantém a classe enxuta). São ações ENTERPRISE, usam o
   # Captain como motor via Captain::Llm::AssistantChatService. Ver Flows::AiActions.
   include Flows::AiActions
+  # snooze_conversation com DURAÇÃO opcional (override do base ActionService, que só faz snooze
+  # indefinido). Extraído p/ concern pelo mesmo motivo dos acima — mantém a classe enxuta. Como o
+  # módulo é incluído na subclasse, seu snooze_conversation precede o da superclasse ActionService.
+  include Flows::SnoozeAction
 
   # Outcome of ONE action node, consumed by the Flows::RunnerService to build a FlowStepLog.
   # `error` carries the captured exception (failed) or the Flows::StepSkip (skipped); nil on

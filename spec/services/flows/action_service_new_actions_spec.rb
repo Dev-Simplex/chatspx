@@ -205,4 +205,80 @@ RSpec.describe Flows::ActionService do
         .not_to(change { conversation.reload.messages.where(content_type: :input_csat).count })
     end
   end
+
+  describe '#snooze_conversation (duração opcional)' do
+    let(:conversation) { create(:conversation, account: account) }
+
+    def snooze(params)
+      described_class.new(flow: flow, conversation: conversation).execute(action('snooze_conversation', params))
+    end
+
+    context 'without a duration (comportamento atual — não-regressão)' do
+      it 'coloca a conversa em snooze indefinido, sem gravar snoozed_until (params vazio)' do
+        snooze([])
+        expect(conversation.reload).to be_snoozed
+        expect(conversation.snoozed_until).to be_nil
+      end
+
+      it 'trata action_params nil como snooze indefinido' do
+        snooze(nil)
+        expect(conversation.reload).to be_snoozed
+        expect(conversation.snoozed_until).to be_nil
+      end
+
+      it 'cai para snooze indefinido quando value não é positivo' do
+        snooze([{ 'value' => 0, 'unit' => 'hours' }])
+        expect(conversation.reload).to be_snoozed
+        expect(conversation.snoozed_until).to be_nil
+      end
+    end
+
+    context 'with a duration → grava snoozed_until ≈ Time.current + duração' do
+      it 'aceita horas' do
+        freeze_time do
+          snooze([{ 'value' => 2, 'unit' => 'hours' }])
+          expect(conversation.reload).to be_snoozed
+          expect(conversation.snoozed_until).to be_within(1.second).of(2.hours.from_now)
+        end
+      end
+
+      it 'aceita dias' do
+        freeze_time do
+          snooze([{ 'value' => 3, 'unit' => 'days' }])
+          expect(conversation.reload.snoozed_until).to be_within(1.second).of(3.days.from_now)
+        end
+      end
+
+      it 'aceita minutos' do
+        freeze_time do
+          snooze([{ 'value' => 45, 'unit' => 'minutes' }])
+          expect(conversation.reload.snoozed_until).to be_within(1.second).of(45.minutes.from_now)
+        end
+      end
+
+      it 'usa minutos quando a unidade é desconhecida' do
+        freeze_time do
+          snooze([{ 'value' => 10, 'unit' => 'fortnights' }])
+          expect(conversation.reload.snoozed_until).to be_within(1.second).of(10.minutes.from_now)
+        end
+      end
+
+      it 'interpreta um número puro como minutos (atalho)' do
+        freeze_time do
+          snooze([90])
+          expect(conversation.reload.snoozed_until).to be_within(1.second).of(90.minutes.from_now)
+        end
+      end
+    end
+
+    it 'é reaberta pelo mecanismo REAL do Chatwoot (ReopenSnoozedConversationsJob) quando o snoozed_until vence' do
+      snooze([{ 'value' => 1, 'unit' => 'hours' }])
+      expect(conversation.reload).to be_snoozed
+
+      travel(2.hours) do
+        Conversations::ReopenSnoozedConversationsJob.perform_now
+        expect(conversation.reload).to be_open
+      end
+    end
+  end
 end
