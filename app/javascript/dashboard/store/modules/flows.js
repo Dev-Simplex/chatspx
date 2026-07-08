@@ -10,6 +10,8 @@ export const state = {
     isDeleting: false,
     isUpdating: false,
     isExecuting: false,
+    isSimulating: false,
+    isFetchingLogs: false,
   },
 };
 
@@ -89,6 +91,26 @@ export const actions = {
       throw new Error(error);
     } finally {
       commit(types.SET_FLOW_UI_FLAG, { isExecuting: false });
+    }
+  },
+  // Simulação (dry-run). Deixa o erro do axios propagar CRU (sem `new Error(error)`) pra o overlay
+  // conseguir ler `error.response.status` — o 422 "sem conversa" precisa ser distinguível.
+  simulate: async ({ commit }, { id, conversationId = null }) => {
+    commit(types.SET_FLOW_UI_FLAG, { isSimulating: true });
+    try {
+      const response = await FlowsAPI.simulate(id, conversationId);
+      return response.data;
+    } finally {
+      commit(types.SET_FLOW_UI_FLAG, { isSimulating: false });
+    }
+  },
+  getLogs: async ({ commit }, { id, page = 1 }) => {
+    commit(types.SET_FLOW_UI_FLAG, { isFetchingLogs: true });
+    try {
+      const response = await FlowsAPI.getLogs(id, page);
+      return response.data;
+    } finally {
+      commit(types.SET_FLOW_UI_FLAG, { isFetchingLogs: false });
     }
   },
 };

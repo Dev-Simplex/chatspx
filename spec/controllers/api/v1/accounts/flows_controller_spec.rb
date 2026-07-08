@@ -124,4 +124,126 @@ RSpec.describe 'Api::V1::Accounts::FlowsController', type: :request do
       expect(response.parsed_body['summary']['macros']).to eq(1)
     end
   end
+
+  describe 'POST /api/v1/accounts/{account.id}/flows/{id}/simulate' do
+    let(:flow) do
+      create(:flow, account: account, created_by: administrator, visibility: :global,
+                    definition: {
+                      'nodes' => [
+                        { 'id' => 'n1', 'type' => 'action', 'action_name' => 'send_message', 'action_params' => ['Olá {{contact.name}}'] }
+                      ],
+                      'edges' => []
+                    })
+    end
+
+    it 'returns unauthorized when unauthenticated' do
+      post "/api/v1/accounts/#{account.id}/flows/#{flow.id}/simulate"
+      expect(response).to have_http_status(:unauthorized)
+    end
+
+    it 'returns the simulated steps WITHOUT effecting anything (no message, no logs, no run)' do
+      conversation = create(:conversation, account: account)
+      expect do
+        post "/api/v1/accounts/#{account.id}/flows/#{flow.id}/simulate",
+             params: { conversation_id: conversation.display_id },
+             headers: administrator.create_new_auth_token, as: :json
+      end.to not_change(Message, :count)
+        .and(not_change(FlowStepLog, :count))
+        .and(not_change(FlowRun, :count))
+
+      expect(response).to have_http_status(:success)
+      body = response.parsed_body
+      expect(body['steps']).to be_an(Array)
+      expect(body['steps'].first).to include('node_id' => 'n1', 'type' => 'action', 'action_name' => 'send_message')
+      expect(body['steps'].first['would']).to be_present
+      expect(body['conversation']['id']).to eq(conversation.display_id)
+    end
+
+    it 'falls back to the most recent conversation when none is given' do
+      create(:conversation, account: account)
+      post "/api/v1/accounts/#{account.id}/flows/#{flow.id}/simulate",
+           headers: administrator.create_new_auth_token, as: :json
+      expect(response).to have_http_status(:success)
+      expect(response.parsed_body['steps']).to be_present
+    end
+
+    it 'returns 422 with a stable code when the account has no conversation to simulate with' do
+      post "/api/v1/accounts/#{account.id}/flows/#{flow.id}/simulate",
+           headers: administrator.create_new_auth_token, as: :json
+      expect(response).to have_http_status(:unprocessable_entity)
+      expect(response.parsed_body['error']).to eq('no_conversation')
+    end
+
+    it 'records the branch a condition takes, without executing anything' do
+      status_condition = { 'attribute_key' => 'status', 'filter_operator' => 'equal_to', 'values' => ['open'], 'query_operator' => nil }
+      branching = create(:flow, account: account, created_by: administrator, visibility: :global,
+                                definition: {
+                                  'nodes' => [
+                                    { 'id' => 'c1', 'type' => 'condition', 'conditions' => [status_condition] },
+                                    { 'id' => 'a1', 'type' => 'action', 'action_name' => 'add_label', 'action_params' => ['vip'] }
+                                  ],
+                                  'edges' => [{ 'from' => 'c1', 'to' => 'a1', 'branch' => 'true' }]
+                                })
+      create(:conversation, account: account, status: :open)
+      post "/api/v1/accounts/#{account.id}/flows/#{branching.id}/simulate",
+           headers: administrator.create_new_auth_token, as: :json
+      expect(response).to have_http_status(:success)
+      body = response.parsed_body
+      condition_step = body['steps'].find { |s| s['type'] == 'condition' }
+      expect(condition_step['branch_key']).to eq('true')
+      expect(body['branch_path'].first).to include('node_id' => 'c1', 'branch' => 'true')
+    end
+
+    it 'forbids simulating a flow the user cannot see' do
+      agent = create(:user, account: account, role: :agent)
+      private_flow = create(:flow, account: account, created_by: administrator, visibility: :personal)
+      create(:conversation, account: account)
+      post "/api/v1/accounts/#{account.id}/flows/#{private_flow.id}/simulate",
+           headers: agent.create_new_auth_token, as: :json
+      expect(response).to have_http_status(:unauthorized)
+    end
+  end
+
+  describe 'GET /api/v1/accounts/{account.id}/flows/{id}/logs' do
+    it 'returns unauthorized when unauthenticated' do
+      flow = create(:flow, account: account, created_by: administrator, visibility: :global)
+      get "/api/v1/accounts/#{account.id}/flows/#{flow.id}/logs"
+      expect(response).to have_http_status(:unauthorized)
+    end
+
+    it "returns only this flow's step logs, most recent first, with a meta count" do
+      flow = create(:flow, account: account, created_by: administrator, visibility: :global)
+      other_flow = create(:flow, account: account, created_by: administrator, visibility: :global)
+      create(:flow_step_log, flow: flow, account: account, node_id: 'n1', created_at: 2.minutes.ago)
+      create(:flow_step_log,
+             flow: flow, account: account, node_id: 'n2', action_name: nil,
+             status: :failed, error_code: 'action_failed', error_message: 'boom',
+             duration_ms: 3, created_at: 1.minute.ago)
+      create(:flow_step_log, flow: other_flow, account: account, node_id: 'x1')
+
+      get "/api/v1/accounts/#{account.id}/flows/#{flow.id}/logs", headers: administrator.create_new_auth_token
+      expect(response).to have_http_status(:success)
+      body = response.parsed_body
+      expect(body['payload'].length).to eq(2)
+      expect(body['payload'].pluck('node_id')).to eq(%w[n2 n1]) # recent first
+      failed = body['payload'].first
+      expect(failed).to include('status' => 'failed', 'error_code' => 'action_failed', 'error_message' => 'boom', 'duration_ms' => 3)
+      expect(body['meta']['total_count']).to eq(2)
+    end
+
+    it 'returns an empty payload when the flow never ran' do
+      flow = create(:flow, account: account, created_by: administrator, visibility: :global)
+      get "/api/v1/accounts/#{account.id}/flows/#{flow.id}/logs", headers: administrator.create_new_auth_token
+      expect(response).to have_http_status(:success)
+      expect(response.parsed_body['payload']).to eq([])
+      expect(response.parsed_body['meta']['total_count']).to eq(0)
+    end
+
+    it 'forbids reading logs of a flow the user cannot see' do
+      agent = create(:user, account: account, role: :agent)
+      private_flow = create(:flow, account: account, created_by: administrator, visibility: :personal)
+      get "/api/v1/accounts/#{account.id}/flows/#{private_flow.id}/logs", headers: agent.create_new_auth_token
+      expect(response).to have_http_status(:unauthorized)
+    end
+  end
 end

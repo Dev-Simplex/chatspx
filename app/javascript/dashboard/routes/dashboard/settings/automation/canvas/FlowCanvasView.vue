@@ -11,6 +11,8 @@ import { useAlert } from 'dashboard/composables';
 import FlowNode from './FlowNode.vue';
 import FlowEdge from './FlowEdge.vue';
 import ConfigPanel from './ConfigPanel.vue';
+import SimulationOverlay from './SimulationOverlay.vue';
+import LogsPanel from './LogsPanel.vue';
 import { NODE_CATALOG, FAMILIES, familyForNode } from './nodeCatalog';
 
 import '@vue-flow/core/dist/style.css';
@@ -31,6 +33,10 @@ const definition = ref({ nodes: [], edges: [] });
 const isSaving = ref(false);
 const selectedNodeId = ref(null);
 const flowInstance = ref(null);
+// Overlays de simulação (dry-run) e de execuções/logs — só fazem sentido num fluxo já salvo
+// (precisam do id pra bater no backend), por isso os botões aparecem só quando isEdit.
+const showSimulation = ref(false);
+const showLogs = ref(false);
 
 const nodeTypes = { flow: FlowNode };
 const edgeTypes = { flow: FlowEdge };
@@ -433,6 +439,24 @@ const goBack = () =>
         data-testid="canvas-name"
       />
       <button
+        v-if="isEdit"
+        class="inline-flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium rounded-lg text-n-slate-12 bg-n-alpha-2 hover:bg-n-alpha-3"
+        data-testid="canvas-logs"
+        @click="showLogs = true"
+      >
+        <span class="i-lucide-scroll-text" />
+        {{ t('AUTOMATION.CANVAS.LOGS.OPEN') }}
+      </button>
+      <button
+        v-if="isEdit"
+        class="inline-flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium rounded-lg text-n-slate-12 bg-n-alpha-2 hover:bg-n-alpha-3"
+        data-testid="canvas-simulate"
+        @click="showSimulation = true"
+      >
+        <span class="i-lucide-flask-conical" />
+        {{ t('AUTOMATION.CANVAS.SIMULATE.OPEN') }}
+      </button>
+      <button
         class="px-3 py-1.5 text-sm font-medium text-white rounded-lg bg-n-brand disabled:opacity-60"
         :disabled="isSaving"
         data-testid="canvas-save"
@@ -513,5 +537,13 @@ const goBack = () =>
         @update="updateSelectedNode"
       />
     </div>
+
+    <SimulationOverlay
+      v-if="showSimulation"
+      :flow-id="flowId"
+      :definition="definition"
+      @close="showSimulation = false"
+    />
+    <LogsPanel v-if="showLogs" :flow-id="flowId" @close="showLogs = false" />
   </div>
 </template>

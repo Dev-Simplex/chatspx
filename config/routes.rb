@@ -120,7 +120,11 @@ Rails.application.routes.draw do
             post :execute, on: :member
           end
           resources :flows, only: [:index, :create, :show, :update, :destroy] do
-            post :execute, on: :member
+            member do
+              post :execute
+              post :simulate
+              get :logs
+            end
             post :import, on: :collection
           end
           resources :sla_policies, only: [:index, :create, :show, :update, :destroy]

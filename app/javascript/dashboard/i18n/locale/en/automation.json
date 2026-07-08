@@ -1,6 +1,40 @@
 {
   "AUTOMATION": {
     "CANVAS": {
+      "SIMULATE": {
+        "OPEN": "Test",
+        "TITLE": "Test run (simulation)",
+        "MODE_BADGE": "Simulation mode · nothing was sent",
+        "MODE_HINT": "Dry run: messages and AI are calculated, not fired. Nothing is sent and nothing is saved — this is only a rehearsal of the path the flow would take.",
+        "AGAINST": "Simulated against {name}",
+        "RUNNING": "Tracing the path…",
+        "STEP_COUNT": "{count} steps",
+        "RERUN": "Run again",
+        "RETRY": "Try again",
+        "EMPTY": "This flow has no blocks to run yet.",
+        "ERROR": "Could not run the simulation.",
+        "NO_CONVERSATION": "No sample conversation to simulate with.",
+        "NO_CONVERSATION_HINT": "Conditions are evaluated against a real conversation. Create or receive one, then test again."
+      },
+      "LOGS": {
+        "OPEN": "Runs",
+        "TITLE": "Runs",
+        "COUNT": "{count} steps",
+        "REFRESH": "Refresh",
+        "LOADING": "Loading runs…",
+        "EMPTY": "No runs yet",
+        "EMPTY_HINT": "Once this flow runs, each step it takes shows up here.",
+        "ERROR": "Could not load the runs.",
+        "RETRY": "Try again",
+        "LOAD_MORE": "Load more",
+        "BRANCH_STEP": "Decision",
+        "UNKNOWN_STEP": "Step",
+        "STATUS": {
+          "SUCCESS": "Success",
+          "FAILED": "Failed",
+          "SKIPPED": "Skipped"
+        }
+      },
       "NEW_FLOW": "New flow",
       "NAME_PLACEHOLDER": "Flow name",
       "PALETTE": "Blocks",

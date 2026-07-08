@@ -1,6 +1,40 @@
 {
   "AUTOMATION": {
     "CANVAS": {
+      "SIMULATE": {
+        "OPEN": "Testar",
+        "TITLE": "Ensaio (simulação)",
+        "MODE_BADGE": "Modo simulação · nada foi enviado",
+        "MODE_HINT": "Ensaio a seco (dry-run): mensagens e IA são calculadas, não disparadas. Nada é enviado e nada é gravado — é só um ensaio do caminho que o fluxo tomaria.",
+        "AGAINST": "Simulado com {name}",
+        "RUNNING": "Traçando o caminho…",
+        "STEP_COUNT": "{count} passos",
+        "RERUN": "Simular de novo",
+        "RETRY": "Tentar de novo",
+        "EMPTY": "Este fluxo ainda não tem blocos para executar.",
+        "ERROR": "Não foi possível rodar a simulação.",
+        "NO_CONVERSATION": "Nenhuma conversa de amostra para simular.",
+        "NO_CONVERSATION_HINT": "As condições são avaliadas contra uma conversa real. Crie ou receba uma e teste de novo."
+      },
+      "LOGS": {
+        "OPEN": "Execuções",
+        "TITLE": "Execuções",
+        "COUNT": "{count} passos",
+        "REFRESH": "Atualizar",
+        "LOADING": "Carregando execuções…",
+        "EMPTY": "Nenhuma execução ainda",
+        "EMPTY_HINT": "Quando este fluxo rodar, cada passo que ele der aparece aqui.",
+        "ERROR": "Não foi possível carregar as execuções.",
+        "RETRY": "Tentar de novo",
+        "LOAD_MORE": "Carregar mais",
+        "BRANCH_STEP": "Decisão",
+        "UNKNOWN_STEP": "Passo",
+        "STATUS": {
+          "SUCCESS": "Sucesso",
+          "FAILED": "Falhou",
+          "SKIPPED": "Pulado"
+        }
+      },
       "NEW_FLOW": "Novo fluxo",
       "NAME_PLACEHOLDER": "Nome do fluxo",
       "PALETTE": "Blocos",
