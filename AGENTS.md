@@ -32,6 +32,29 @@ Cada helper imprime um banner CLIENTE · AMBIENTE · HOST — confira antes de r
 cliente = namespace `Spx::Tozi::*` / `Spx::FabricaOculos::*` + config no banco da conta. Docs por
 cliente em `docs/clientes/<cliente>/`; scripts operacionais em `scripts/spx/<cliente>/`.
 
+## 🔒 Isolamento multi-cliente (nao-negociavel — evita o incidente Fabrica->Tozi)
+
+> So o **CODIGO** (branch `producao`) replica pra todas as VMs. O **COMPORTAMENTO de cada IA**
+> (prompt, persona, tom, conduta, modelo LLM) vive no **BANCO de cada conta** e **NAO** replica.
+
+- **Conduta/persona especifica de um cliente -> SEMPRE no banco da conta** (`assistant.config['instructions']` / `behavior`, via o helper daquele cliente). **NUNCA** em codigo compartilhado — em especial `enterprise/lib/captain/prompts/assistant.liquid`, que e o **molde de TODOS os clientes**. Ja vazou 1x (conduta de oticas da Fabrica -> Tozi via a `.232`, revertida em `645b58ceb`).
+- O `assistant.liquid` compartilhado so aceita conduta **agnostica** (nao narrar tool, `[IGNORAR]` no fechamento). Nada que nomeie cliente ou vertical (oticas/imoveis). Se precisar variar por cliente no template, gateie por conta lendo do banco — nao hardcode.
+- **Push na `homologacao` desce AO VIVO pra `.232`** (auto-pull), que tem clientes reais (contas 3/4/5). Pense "quem mais recebe isso?" antes de pushar.
+- **Antes de tocar IA de qualquer cliente: declare CLIENTE + CONTA + VM** e use o helper certo (confira o banner). Sessoes locais usam **worktree por cliente** em `chatspx-clientes/` (`tozi-prod` conta 6 · `tozi-hml` conta 3 · `fabrica` contas 1/2), cada um com `CLAUDE.local.md` fixando o alvo.
+- Canal governado pra aplicar config-por-conta na VM certa, com aprovacao de dois: **ai-config-receptor + Almirante**.
+
+## Almirante — control plane da frota (MCP)
+
+> MCP `almirante` (`painel.chatspx.app/mcp`). Token na env de usuário `ALMIRANTE_TOKEN` — **sessão nova conecta sozinha**; se der `Failed to connect / Missing ALMIRANTE_TOKEN`, a sessão nasceu antes da variável (abra outra). Mapa completo das 50 tools: vault `Obsidian/aprendizados/almirante-mcp.md`.
+
+**Use o Almirante no lugar de SSH** pra operar a frota SPX:
+- **Saúde/ops:** `fleet_status`, `vm_health`, `service_status`/`service_logs`, `sidekiq_status`, `migration_status`, `drift_check`, `version_matrix`.
+- **Git/entrega:** `git_diff` + GitHub (`gh_list_prs`/`gh_get_pr`/`gh_create_pr`/`gh_merge_pr`/`gh_comment`/issues/`gh_read_file`).
+- **Deploy é SEMPRE propor→aprovar (nunca aplicar direto):** `dry_run` → `propose_deploy_vm/group/all` / `propose_merge` / `propose_migrate` / `propose_restart_*` / `propose_rollback` → `list_pending`/`request_status` → **aprovação humana** → `deploy_history`/`deploy_logs`. `freeze_deploys` congela a frota.
+- **Config de IA por conta (jeito governado de aplicar a §Isolamento):** `ai_list_agents`/`ai_get_agent` → `ai_update_prompt`/`ai_update_behavior`/`ai_set_tool`/`ai_add_faq`/`ai_set_credential`, com `ai_history` + **`ai_rollback`**. Escreve no **banco da conta** (não no molde compartilhado). **Declare CLIENTE + CONTA + VM antes** e confira em `ai_get_agent`.
+
+**⚠️ Limite:** o Almirante **NÃO lê conversas**. Análise comportamental (por que a IA não fez handoff, etc.) continua via **banco/eval nativo** do Chatwoot, não pelo Almirante.
+
 ## Stack Tecnica
 
 | Camada | Tecnologia | Versao |
