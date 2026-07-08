@@ -117,7 +117,35 @@ class NpsSurveys::ResponseBuilder # rubocop:disable Metrics/ClassLength
     # follow-up (o unico caso em que reabrir e desejado). Config-driven, idempotente.
     route_detractor(nps_response, score)
 
+    # Respostas por extenso ("nota nove") sao extraidas pelo LLM DEPOIS do
+    # ReopenGuard (que so ve regex) ja ter reaberto a conversa. Como uma resposta
+    # de NPS valida nao deve reabrir (igual ao caminho de digito), re-resolvemos —
+    # exceto quando e um detrator com reopen configurado (unico reabrir desejado).
+    ensure_conversation_not_reopened_by_response(nps_response, score)
+
     nps_response
+  end
+
+  # Se a conversa reabriu por causa da mensagem-resposta do NPS, devolve para
+  # resolved. So age quando de fato esta aberta e nao e detrator-com-reopen.
+  def ensure_conversation_not_reopened_by_response(nps_response, score)
+    return if detractor_reopen_requested?(nps_response, score)
+
+    conversation = nps_response.conversation
+    conversation.reload
+    return unless conversation.open?
+
+    conversation.skip_team_required_for_resolution_validation = true
+    conversation.update!(status: :resolved)
+  rescue StandardError => e
+    Rails.logger.warn("[NPS] nao consegui re-resolver conv=#{nps_response.conversation_id} apos resposta: #{e.message}")
+  end
+
+  def detractor_reopen_requested?(nps_response, score)
+    return false unless score.between?(0, 6)
+
+    config = nps_response.inbox.nps_config || {}
+    truthy_config?(config['detractor_reopen'])
   end
 
   # Ramifica o pos-resposta pela faixa. So o detrator dispara acao (reabrir/atribuir/label);
@@ -280,27 +308,11 @@ class NpsSurveys::ResponseBuilder # rubocop:disable Metrics/ClassLength
     failed_attempts < MAX_INVALID_RETRIES
   end
 
-  # Short messages that look like failed NPS attempts (number out of range, single char, "?", etc.)
+  # Short messages that look like failed NPS attempts (number out of range, single char, "?", "abc", etc.)
   # We send "invalid response" only for these — not for normal conversation messages.
+  # Fonte unica compartilhada com o ReopenGuard (NpsSurveys::ScoreValidator).
   def looks_like_nps_attempt?
-    text = NpsSurveys::ScoreValidator.normalize(message.content)
-    return false if text.blank?
-    return false if text.length > 25
-
-    # Bare number outside 0-10 range (e.g. "11", "100", "-1")
-    return true if text.match?(/\A\s*-?\d+\s*\z/)
-
-    # Short skip/confusion patterns (single char, punctuation, "nao sei", etc.)
-    short_patterns = [
-      /\A(n[ãa]o\s*)?sei\z/i,
-      %r{\An/a\z}i,
-      /\A\?+\z/,
-      /\A\.+\z/,
-      /\A(nao|não)\z/i,
-      /\A[a-z]\z/i,
-      /\A[\s\?\.,!\-]+\z/
-    ]
-    short_patterns.any? { |p| text.match?(p) }
+    NpsSurveys::ScoreValidator.looks_like_failed_attempt?(message.content)
   end
 
   def send_invalid_response_message(nps_response)

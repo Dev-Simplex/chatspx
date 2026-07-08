@@ -72,9 +72,10 @@ class NpsSurveys::ReopenGuard
     false
   end
 
-  # Invalid or "skip" responses should also not reopen (e.g., "11", "don't know", "?").
+  # Invalid or "skip" responses should also not reopen (e.g., "11", "don't know", "?", "abc").
+  # Fonte unica compartilhada com o ResponseBuilder (NpsSurveys::ScoreValidator).
   def content_looks_like_wrong_or_skip_nps_attempt?(text = content)
-    looks_like_wrong_nps_attempt_only?(normalize_content(text))
+    NpsSurveys::ScoreValidator.looks_like_failed_attempt?(text)
   end
 
   def nps_score_like_content?(normalized)
@@ -82,30 +83,6 @@ class NpsSurveys::ReopenGuard
 
     # Delegate to ScoreValidator — single source of truth for score extraction
     NpsSurveys::ScoreValidator.validate_and_extract(normalized).present?
-  end
-
-  def looks_like_wrong_nps_attempt_only?(normalized)
-    return false if normalized.blank?
-
-    # Number outside 0-10 range (e.g., "100", "11", "-1")
-    if normalized.match?(/^\s*-?\d+\s*$/)
-      num = normalized.to_i
-      return true unless (0..10).cover?(num)
-    end
-
-    return false if normalized.length > 25
-
-    short_skip_patterns = [
-      /\A(n[ãa]o\s*)?sei\z/i,
-      %r{\An/a\z}i,
-      /\A\?+\z/,
-      /\A\.+\z/,
-      /\A(nao|não)\z/i,
-      /\Aabc\z/i,
-      /\A[a-z]\z/i,
-      /\A[\s\?\.,!\-]+\z/
-    ]
-    short_skip_patterns.any? { |pattern| normalized.match?(pattern) }
   end
 
   # Remove invisible characters and normalize encoding for reliable detection (e.g., "10" with zero-width chars).
