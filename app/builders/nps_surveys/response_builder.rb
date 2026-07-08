@@ -12,6 +12,13 @@ class NpsSurveys::ResponseBuilder # rubocop:disable Metrics/ClassLength
     score = extract_score_from_message
 
     if score.nil?
+      # Sem nota explicita: se a mensagem expressa insatisfacao clara (via IA, atras
+      # de toggle), trata como detrator. Senao, trata como tentativa invalida.
+      if (sentiment_score = detract_by_sentiment_score(nps_response))
+        process_nps_response(nps_response, sentiment_score, sentiment_inferred: true)
+        return
+      end
+
       # Resposta que parece uma tentativa de NPS mas nao tem nota valida
       # (ex.: "abc", "onze", "?"). Avisa nas 1as tentativas e finaliza a conversa
       # apos MAX_INVALID_ATTEMPTS respostas invalidas.
@@ -80,6 +87,33 @@ class NpsSurveys::ResponseBuilder # rubocop:disable Metrics/ClassLength
     ActiveModel::Type::Boolean.new.cast(config['gpt_parse_enabled'])
   end
 
+  # Nota atribuida quando a insatisfacao e detectada por sentimento (sem numero).
+  # Fica na faixa de detrator; puxa o NPS para baixo (decisao do produto).
+  SENTIMENT_DETRACTOR_SCORE = 3
+
+  # Retorna a nota de detrator quando (a) o toggle de sentimento esta ligado,
+  # (b) a mensagem nao e vazia/longa demais e (c) o LLM classifica como insatisfeita.
+  # Caso contrario nil. Nunca infere para elogio/neutro.
+  def detract_by_sentiment_score(_nps_response)
+    return nil unless sentiment_detractor_enabled?
+    return nil unless sentiment_candidate?(message.content)
+    return nil unless NpsSurveys::ScoreLlmParser.dissatisfied?(text: message.content, account: message.account)
+
+    SENTIMENT_DETRACTOR_SCORE
+  end
+
+  def sentiment_detractor_enabled?
+    config = message.inbox&.nps_config || {}
+    ActiveModel::Type::Boolean.new.cast(config['sentiment_detractor_enabled'])
+  end
+
+  # So chama o LLM de sentimento em mensagem nao-vazia de tamanho de feedback (<=280),
+  # evitando gasto em mensagens muito longas/estranhas.
+  def sentiment_candidate?(text)
+    normalized = NpsSurveys::ScoreValidator.normalize(text)
+    normalized.present? && normalized.length <= 280
+  end
+
   # Limita as chamadas ao LLM: mensagem curta que contenha um digito ou um
   # numeral por extenso (0-10). Evita gastar chamada em conversa normal.
   NUMBER_WORDS = /\b(zero|um|uma|dois|duas|tr[êe]s|quatro|cinco|seis|sete|oito|nove|dez)\b/i
@@ -96,17 +130,15 @@ class NpsSurveys::ResponseBuilder # rubocop:disable Metrics/ClassLength
     score.is_a?(Integer) && score >= 0 && score <= 10
   end
 
-  def process_nps_response(nps_response, score)
+  def process_nps_response(nps_response, score, sentiment_inferred: false)
     comment = extract_comment
 
     # Update NPS response first to mark it as answered
     # This prevents conversation from reopening when response_to_active_survey? is checked
-    nps_response.update!(
-      score: score,
-      comment: comment,
-      status: :responded,
-      answered_at: Time.current
-    )
+    attrs = { score: score, comment: comment, status: :responded, answered_at: Time.current }
+    # Marca respostas cuja nota veio de sentimento (sem numero), para auditoria/relatorio.
+    attrs[:metadata] = (nps_response.metadata || {}).merge('sentiment_inferred' => true) if sentiment_inferred
+    nps_response.update!(attrs)
 
     # Create activity message (only if one doesn't already exist for this NPS response)
     create_responded_activity_message(nps_response, score) unless activity_message_exists?(nps_response, score)

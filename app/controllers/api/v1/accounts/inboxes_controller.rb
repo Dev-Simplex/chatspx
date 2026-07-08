@@ -192,6 +192,8 @@ class Api::V1::Accounts::InboxesController < Api::V1::Accounts::BaseController #
       'thank_you_detractor' => config['thank_you_detractor'] || '',
       # [NOVO] fallback de parsing via LLM (so extrai numero explicito)
       'gpt_parse_enabled' => ActiveModel::Type::Boolean.new.cast(config['gpt_parse_enabled']) || false,
+      # [NOVO] detecta insatisfacao por sentimento (sem numero) e trata como detrator
+      'sentiment_detractor_enabled' => ActiveModel::Type::Boolean.new.cast(config['sentiment_detractor_enabled']) || false,
       # [NOVO] roteamento de detrator (0-6) -> humano
       'detractor_reopen' => ActiveModel::Type::Boolean.new.cast(config['detractor_reopen']) || false,
       'detractor_assignee_id' => config['detractor_assignee_id'].presence&.to_i,
@@ -212,7 +214,7 @@ class Api::V1::Accounts::InboxesController < Api::V1::Accounts::BaseController #
      { nps_config: [:mode, :message, :cooldown_hours, :cooldown_days, :expiration_hours, :blocklist_scope,
                     :min_messages, :min_duration_minutes, :thank_you_message, :invalid_response_message,
                     :thank_you_promoter, :thank_you_passive, :thank_you_detractor,
-                    :gpt_parse_enabled, :detractor_reopen, :detractor_assignee_id, :detractor_team_id, :detractor_label,
+                    :gpt_parse_enabled, :sentiment_detractor_enabled, :detractor_reopen, :detractor_assignee_id, :detractor_team_id, :detractor_label,
                     { blocklist_labels: [] }, { required_tags: [] }] }]
   end
 

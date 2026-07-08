@@ -40,6 +40,7 @@ const state = reactive({
   minDurationMinutes: null,
   requiredTags: [],
   gptParseEnabled: false,
+  sentimentDetractorEnabled: false,
   thankYouPromoter: '',
   thankYouPassive: '',
   thankYouDetractor: '',
@@ -139,6 +140,7 @@ const initializeState = () => {
     state.minDurationMinutes = null;
     state.requiredTags = [];
     state.gptParseEnabled = false;
+    state.sentimentDetractorEnabled = false;
     state.thankYouPromoter = '';
     state.thankYouPassive = '';
     state.thankYouDetractor = '';
@@ -167,6 +169,8 @@ const initializeState = () => {
   state.minDurationMinutes = nps_config.min_duration_minutes || null;
   state.requiredTags = nps_config.required_tags || [];
   state.gptParseEnabled = nps_config.gpt_parse_enabled === true;
+  state.sentimentDetractorEnabled =
+    nps_config.sentiment_detractor_enabled === true;
   state.thankYouPromoter = nps_config.thank_you_promoter || '';
   state.thankYouPassive = nps_config.thank_you_passive || '';
   state.thankYouDetractor = nps_config.thank_you_detractor || '';
@@ -257,6 +261,7 @@ const saveSettings = async () => {
       min_duration_minutes: state.minDurationMinutes,
       required_tags: selectedRequiredTags.value,
       gpt_parse_enabled: state.gptParseEnabled === true,
+      sentiment_detractor_enabled: state.sentimentDetractorEnabled === true,
       thank_you_promoter: state.thankYouPromoter,
       thank_you_passive: state.thankYouPassive,
       thank_you_detractor: state.thankYouDetractor,
@@ -483,6 +488,23 @@ const saveSettings = async () => {
           name="gpt_parse_enabled"
         >
           <Switch v-model="state.gptParseEnabled" />
+        </WithLabel>
+
+        <WithLabel
+          :label="
+            $t('INBOX_MGMT.NPS.SENTIMENT_DETRACTOR_ENABLED.LABEL', {
+              default: 'Tratar insatisfação sem nota como detrator (IA)',
+            })
+          "
+          :help-message="
+            $t('INBOX_MGMT.NPS.SENTIMENT_DETRACTOR_ENABLED.HINT', {
+              default:
+                'Quando o cliente responde sem número mas expressa insatisfação clara (ex.: \'péssimo, não gostei\'), usa IA para classificar como detrator: envia o agradecimento de detrator, conta no cálculo do NPS e aciona o roteamento de detrator (se configurado).',
+            })
+          "
+          name="sentiment_detractor_enabled"
+        >
+          <Switch v-model="state.sentimentDetractorEnabled" />
         </WithLabel>
 
         <WithLabel

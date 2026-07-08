@@ -31,8 +31,32 @@ class NpsSurveys::ScoreLlmParser
     Responda apenas com o JSON, sem texto extra.
   PROMPT
 
+  # Classificador de SENTIMENTO (separado do parsing de nota). So responde se a
+  # mensagem, SEM declarar numero, expressa insatisfacao CLARA com o atendimento/
+  # empresa. Usado para tratar "pessimo, nao gostei" como detrator. Nunca marca
+  # como insatisfeito por elogio/neutro; em duvida -> false.
+  SENTIMENT_PROMPT = <<~PROMPT
+    Voce classifica o SENTIMENTO de uma mensagem curta (pt-BR) enviada como resposta
+    a uma pesquisa de satisfacao, quando ela NAO contem um numero de 0 a 10.
+    Retorne SOMENTE um JSON {"dissatisfied": true|false}.
+
+    Regras:
+    - true SOMENTE quando ha insatisfacao/reclamacao CLARA sobre o atendimento,
+      produto ou empresa ("pessimo", "nao gostei", "horrivel", "demorou demais",
+      "ninguem me ajudou", "muito ruim").
+    - false para elogio ("otimo", "adorei"), neutro, saudacao, pergunta, ou
+      mensagem ambigua/sem opiniao clara.
+    - Na duvida -> false.
+    Responda apenas com o JSON.
+  PROMPT
+
   def self.extract(text:, account:)
     new(text: text, account: account).extract
+  end
+
+  # true quando a mensagem expressa insatisfacao clara (sem numero). false em erro/sem chave.
+  def self.dissatisfied?(text:, account:)
+    new(text: text, account: account).dissatisfied?
   end
 
   def initialize(text:, account:)
@@ -52,6 +76,18 @@ class NpsSurveys::ScoreLlmParser
     nil
   end
 
+  def dissatisfied?
+    return false if @text.blank?
+    return false if api_key.blank?
+
+    response = client.chat(parameters: sentiment_parameters)
+    content = response.dig('choices', 0, 'message', 'content')
+    parse_dissatisfied(content)
+  rescue StandardError => e
+    Rails.logger.warn("[NpsSurveys::ScoreLlmParser#dissatisfied?] #{e.class}: #{e.message}")
+    false
+  end
+
   private
 
   def client
@@ -69,6 +105,27 @@ class NpsSurveys::ScoreLlmParser
         { role: 'user', content: @text.truncate(280) }
       ]
     }
+  end
+
+  def sentiment_parameters
+    {
+      model: model,
+      temperature: 0,
+      max_tokens: 15,
+      response_format: { type: 'json_object' },
+      messages: [
+        { role: 'system', content: SENTIMENT_PROMPT },
+        { role: 'user', content: @text.truncate(280) }
+      ]
+    }
+  end
+
+  def parse_dissatisfied(content)
+    return false if content.blank?
+
+    ActiveModel::Type::Boolean.new.cast(JSON.parse(content)['dissatisfied']) || false
+  rescue JSON::ParserError
+    false
   end
 
   def parse_score(content)

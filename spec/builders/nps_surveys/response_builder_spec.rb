@@ -168,4 +168,40 @@ RSpec.describe NpsSurveys::ResponseBuilder do
       expect(conversation.nps_responses.first.reload.status).to eq('sent')
     end
   end
+
+  describe 'sentiment detractor (insatisfacao sem nota)' do
+    before do
+      inbox.update!(nps_config: { 'sentiment_detractor_enabled' => true,
+                                  'thank_you_detractor' => 'Vamos melhorar' })
+      create_active_nps
+    end
+
+    it 'records a detractor and sends the detractor thank-you when the LLM detects dissatisfaction' do
+      allow(NpsSurveys::ScoreLlmParser).to receive(:dissatisfied?).and_return(true)
+      perform_for('pessimo, nao gostei')
+      nps = conversation.nps_responses.first.reload
+      expect(nps.status).to eq('responded')
+      expect(nps.detractor?).to be(true)
+      expect(nps.metadata['sentiment_inferred']).to be(true)
+      expect(conversation.messages.where(message_type: :outgoing, content: 'Vamos melhorar')).to exist
+    end
+
+    it 'does nothing special when the LLM says not dissatisfied (falls through)' do
+      allow(NpsSurveys::ScoreLlmParser).to receive(:dissatisfied?).and_return(false)
+      perform_for('obrigado')
+      expect(conversation.nps_responses.first.reload.status).to eq('sent')
+    end
+
+    it 'does not call the sentiment LLM when the toggle is off' do
+      inbox.update!(nps_config: { 'sentiment_detractor_enabled' => false })
+      expect(NpsSurveys::ScoreLlmParser).not_to receive(:dissatisfied?)
+      perform_for('pessimo, nao gostei')
+    end
+
+    it 'still records an explicit score without invoking sentiment' do
+      expect(NpsSurveys::ScoreLlmParser).not_to receive(:dissatisfied?)
+      perform_for('9')
+      expect(conversation.nps_responses.first.reload.score).to eq(9)
+    end
+  end
 end
