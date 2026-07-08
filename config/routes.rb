@@ -147,6 +147,7 @@ Rails.application.routes.draw do
               collection do
                 post :bulk_move
                 post :bulk_update
+                post :reorder
               end
               resources :funnel_item_notes, only: [:index, :create, :destroy], path: 'notes', module: :funnels
             end

@@ -7,8 +7,9 @@ class Api::V1::Accounts::FunnelItemsController < Api::V1::Accounts::BaseControll
   BACKFILL_THROTTLE = 10.minutes
 
   before_action :funnel
-  # bulk_move / bulk_update live in Kanban::FunnelItemsBulkActions (concern).
-  before_action :funnel_item, except: [:index, :create, :bulk_move, :bulk_update] # rubocop:disable Rails/LexicallyScopedActionFilter
+  # bulk_move / bulk_update / reorder live in concerns or act on a collection —
+  # they must not try to load a single :id.
+  before_action :funnel_item, except: [:index, :create, :bulk_move, :bulk_update, :reorder] # rubocop:disable Rails/LexicallyScopedActionFilter
   before_action :check_authorization
 
   def index

@@ -52,7 +52,8 @@ class FunnelItem < ApplicationRecord
       funnel_stage_id: funnel_stage_id,
       conversation_id: conversation_id,
       moved_at: moved_at,
-      moved_by_id: moved_by_id
+      moved_by_id: moved_by_id,
+      position: position
     }
   end
 

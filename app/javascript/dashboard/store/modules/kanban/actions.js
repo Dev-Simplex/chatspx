@@ -549,6 +549,28 @@ export const actions = {
     commit(types.DELETE_FUNNEL_ITEM, itemId);
   },
 
+  // Reordenação manual de cartões dentro de uma coluna (Kanban DB restructure / P1).
+  // Atualiza `position` otimisticamente (a lista do draggable é one-way: sem isso o
+  // card volta pro lugar) e persiste no backend; reverte as posições em caso de erro.
+  async reorderItems({ commit, state }, { funnelId, stageId, itemIds }) {
+    const ids = (itemIds || []).map(Number).filter(id => !Number.isNaN(id));
+    if (!ids.length) return;
+
+    const previous = ids.map(id => ({
+      id,
+      position: state.funnelItems[id]?.position,
+    }));
+    const next = ids.map((id, index) => ({ id, position: index + 1 }));
+
+    commit(types.SET_FUNNEL_ITEM_POSITIONS, { positions: next });
+    try {
+      await KanbanAPI.reorderItems(funnelId, stageId, ids);
+    } catch (error) {
+      commit(types.SET_FUNNEL_ITEM_POSITIONS, { positions: previous });
+      throw error;
+    }
+  },
+
   // Bridges the central websocket events to the kanban store so cards reflect
   // status/assignee/priority/labels/new-message changes in real time without a
   // full reload. Self-protecting: bails out cheaply when the board is inactive

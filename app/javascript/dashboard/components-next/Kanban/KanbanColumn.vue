@@ -35,6 +35,7 @@ const props = defineProps({
 
 const emit = defineEmits([
   'moveItem',
+  'reorderItems',
   'scheduleMessage',
   'removeItem',
   'editStage',
@@ -211,6 +212,14 @@ const waitInputs = conversation => {
   };
 };
 
+// Ordem manual persistida (Kanban DB restructure / P1): a base é `position`
+// (backfilled para casar com a ordem antiga → mudança invisível até um reorder
+// manual). Itens sem position vão para o fim.
+const positionOf = item => {
+  const p = Number(item?.position);
+  return Number.isFinite(p) ? p : Number.MAX_SAFE_INTEGER;
+};
+
 const itemsWithConversations = computed(() => {
   const source = props.items || [];
   const mapped = source.map(item => {
@@ -234,11 +243,16 @@ const itemsWithConversations = computed(() => {
     };
   });
 
-  if (!props.prioritizeWaiting) return mapped;
+  // Base order = manual position (ASC), id as a stable tiebreaker.
+  const ordered = [...mapped].sort(
+    (a, b) => positionOf(a) - positionOf(b) || Number(a.id) - Number(b.id)
+  );
 
-  // Stable sort by wait priority (DESC), preserving the keyset order from the
-  // backend between cards with equal keys (idx ASC tiebreaker).
-  return mapped
+  if (!props.prioritizeWaiting) return ordered;
+
+  // Stable sort by wait priority (DESC), preserving the manual position order
+  // between cards with equal keys (idx ASC tiebreaker).
+  return ordered
     .map((item, idx) => {
       const { waitingSince, lastActivity } = waitInputs(item.conversation);
       return { item, idx, key: waitSortKey(waitingSince, lastActivity) };
@@ -326,13 +340,25 @@ const resolveDropPayload = evt => {
 };
 
 const handleDropChange = evt => {
+  const stageId = Number(props.stage?.id);
+
+  // Same-column reorder → persist the new manual order (survives reload).
+  if (evt?.moved?.element?.id != null) {
+    const { oldIndex, newIndex } = evt.moved;
+    if (oldIndex == null || newIndex == null || oldIndex === newIndex) return;
+    const ids = itemsWithConversations.value
+      .map(i => Number(i.id))
+      .filter(Boolean);
+    const [moved] = ids.splice(oldIndex, 1);
+    ids.splice(newIndex, 0, moved);
+    emit('reorderItems', { stageId, orderedIds: ids });
+    return;
+  }
+
+  // Cross-stage drop keeps the existing move flow (changes the card's stage).
   const payload = resolveDropPayload(evt);
   if (!payload) return;
-
-  emit('moveItem', {
-    ...payload,
-    stageId: Number(props.stage?.id),
-  });
+  emit('moveItem', { ...payload, stageId });
 };
 
 const ensureStageLoaded = async () => {
