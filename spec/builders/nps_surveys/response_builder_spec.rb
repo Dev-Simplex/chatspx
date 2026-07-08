@@ -119,4 +119,53 @@ RSpec.describe NpsSurveys::ResponseBuilder do
       perform_for('obrigado pelo excelente atendimento de voces todos hoje de manha')
     end
   end
+
+  describe 'invalid responses (3 strikes -> finaliza)' do
+    before do
+      inbox.update!(nps_config: { 'invalid_response_message' => 'Envie uma nota de 0 a 10.' })
+      create_active_nps
+    end
+
+    def invalid_nudges
+      conversation.messages.where(message_type: :outgoing, content: 'Envie uma nota de 0 a 10.')
+    end
+
+    it 'sends the invalid-response message on the first two invalid attempts' do
+      perform_for('abc')
+      perform_for('11')
+      expect(invalid_nudges.count).to eq(2)
+      expect(conversation.nps_responses.first.reload.status).to eq('sent')
+    end
+
+    it 'finalizes on the third invalid attempt: dismisses NPS and does not send another nudge' do
+      perform_for('abc')
+      perform_for('11')
+      perform_for('?')
+      expect(invalid_nudges.count).to eq(2)
+      nps = conversation.nps_responses.first.reload
+      expect(nps.status).to eq('dismissed')
+      expect(nps.dismiss_reason).to eq('invalid_responses')
+    end
+
+    it 'leaves the conversation resolved (does not repeat the survey question)' do
+      perform_for('abc')
+      perform_for('11')
+      perform_for('?')
+      expect(conversation.reload.status).to eq('resolved')
+      expect(conversation.messages.where("content_attributes ->> 'nps_survey' = 'true'").count).to eq(0)
+    end
+
+    it 'marks the invalid message as an NPS system message (nao dismissa a pesquisa)' do
+      perform_for('abc')
+      msg = invalid_nudges.last
+      expect(msg.content_attributes['nps_survey_system']).to be_truthy
+    end
+
+    it 'does not count a normal (non-attempt) message as a strike' do
+      perform_for('abc')
+      perform_for('quero falar com um atendente por favor agora')
+      perform_for('11')
+      expect(conversation.nps_responses.first.reload.status).to eq('sent')
+    end
+  end
 end

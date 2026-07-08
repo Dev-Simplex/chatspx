@@ -12,9 +12,10 @@ class NpsSurveys::ResponseBuilder # rubocop:disable Metrics/ClassLength
     score = extract_score_from_message
 
     if score.nil?
-      # Only send "invalid response" for short messages that look like NPS attempts
-      # (e.g. "onze", "abc", "?"), and cap at 2 retries to avoid annoying loops.
-      send_invalid_response_message(nps_response) if looks_like_nps_attempt? && retry_count_within_limit?(nps_response)
+      # Resposta que parece uma tentativa de NPS mas nao tem nota valida
+      # (ex.: "abc", "onze", "?"). Avisa nas 1as tentativas e finaliza a conversa
+      # apos MAX_INVALID_ATTEMPTS respostas invalidas.
+      handle_invalid_response(nps_response) if looks_like_nps_attempt?
       return
     end
 
@@ -281,31 +282,69 @@ class NpsSurveys::ResponseBuilder # rubocop:disable Metrics/ClassLength
     thank_you_message = thank_you_message.gsub(/\*\*:\s*/, '').gsub(/\n\n--\s*\n\n\*\*:.*$/m, '').strip
 
     conversation = nps_response.conversation
-    # Create message without signature by setting content_attributes to skip signature
+    # skip_signature: sem assinatura; nps_survey_system: nao dismissar a pesquisa (ver NpsSurveyListener)
     conversation.messages.create!(
       account_id: conversation.account_id,
       inbox_id: conversation.inbox_id,
       message_type: :outgoing,
       content_type: :text,
       content: thank_you_message,
-      content_attributes: { skip_signature: true }
+      content_attributes: { skip_signature: true, nps_survey_system: true }
     )
   end
 
-  MAX_INVALID_RETRIES = 2
+  # Numero de respostas invalidas toleradas antes de encerrar a conversa.
+  # Ate MAX-1 -> envia o aviso; na MAX-esima -> finaliza (nao repete a pergunta).
+  MAX_INVALID_ATTEMPTS = 3
 
-  # Cap retries: count incoming messages after the NPS survey that didn't produce a valid score.
-  # After 2 failed attempts, stop sending "invalid response" to avoid annoying the customer.
-  def retry_count_within_limit?(nps_response)
+  # Roteia a resposta invalida: avisa nas primeiras tentativas e, ao atingir
+  # MAX_INVALID_ATTEMPTS respostas invalidas, encerra a pesquisa e resolve a conversa.
+  def handle_invalid_response(nps_response)
+    attempts = invalid_attempts_count(nps_response)
+
+    if attempts >= MAX_INVALID_ATTEMPTS
+      finalize_after_invalid_attempts(nps_response)
+    else
+      send_invalid_response_message(nps_response)
+    end
+  end
+
+  # Conta apenas as respostas RECONHECIDAS como tentativa invalida de NPS
+  # (abc, "?", "nao sei", numero fora de 0-10...) pos-survey, ate a atual (inclusive).
+  # Mensagem normal de conversa nao conta (ela reabre a conversa via ReopenGuard).
+  def invalid_attempts_count(nps_response)
     nps_message_id = nps_response.metadata&.dig('message_id')
-    return true unless nps_message_id
+    scope = message.conversation.messages.where(message_type: :incoming).where('id <= ?', message.id)
+    scope = scope.where('id > ?', nps_message_id) if nps_message_id
 
-    failed_attempts = message.conversation.messages
-                             .where(message_type: :incoming)
-                             .where('id > ?', nps_message_id)
-                             .where('id < ?', message.id)
-                             .count
-    failed_attempts < MAX_INVALID_RETRIES
+    scope.count { |m| NpsSurveys::ScoreValidator.looks_like_failed_attempt?(m.content) }
+  end
+
+  # Encerra a pesquisa apos respostas invalidas em excesso: marca a NpsResponse
+  # como dismissed e garante a conversa resolvida (nao reabre, nao reenvia pergunta).
+  def finalize_after_invalid_attempts(nps_response)
+    nps_response.update!(status: :dismissed, dismiss_reason: 'invalid_responses')
+
+    create_invalid_finalized_activity_message(nps_response)
+
+    conversation = nps_response.conversation
+    conversation.reload
+    return unless conversation.open?
+
+    conversation.skip_team_required_for_resolution_validation = true
+    conversation.update!(status: :resolved)
+  rescue StandardError => e
+    Rails.logger.warn("[NPS] falha ao finalizar apos respostas invalidas conv=#{nps_response.conversation_id}: #{e.message}")
+  end
+
+  def create_invalid_finalized_activity_message(nps_response)
+    content = I18n.t('conversations.activity.nps.finalized_invalid',
+                     count: MAX_INVALID_ATTEMPTS,
+                     default: "Pesquisa NPS encerrada apos #{MAX_INVALID_ATTEMPTS} respostas invalidas.")
+    ::Conversations::ActivityMessageJob.perform_later(
+      nps_response.conversation_id,
+      { account_id: nps_response.account_id, inbox_id: nps_response.inbox_id, message_type: :activity, content: content }
+    )
   end
 
   # Short messages that look like failed NPS attempts (number out of range, single char, "?", "abc", etc.)
@@ -323,12 +362,14 @@ class NpsSurveys::ResponseBuilder # rubocop:disable Metrics/ClassLength
                              default: 'Please respond with a number from 0 to 10.')
 
     conversation = nps_response.conversation
+    # nps_survey_system: impede o NpsSurveyListener de dismissar a pesquisa (nao e agente assumindo).
     conversation.messages.create!(
       account_id: conversation.account_id,
       inbox_id: conversation.inbox_id,
       message_type: :outgoing,
       content_type: :text,
-      content: invalid_message
+      content: invalid_message,
+      content_attributes: { nps_survey_system: true }
     )
   end
 end

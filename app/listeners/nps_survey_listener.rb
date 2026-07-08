@@ -18,8 +18,10 @@ class NpsSurveyListener < BaseListener
   def message_created(event)
     message = extract_message_and_account(event)[0]
 
-    # If an agent sends a message, dismiss any active NPS (agent took over the conversation)
-    if message.outgoing? && !message.content_attributes&.dig('nps_survey')
+    # Se um AGENTE envia mensagem, dismissa a pesquisa (agente assumiu a conversa).
+    # Mas nao dismissar as mensagens do proprio fluxo NPS (pergunta, aviso de resposta
+    # invalida, agradecimento) — senao a pesquisa e cancelada e reenviada em duplicidade.
+    if message.outgoing? && !nps_system_message?(message)
       dismiss_active_nps(message.conversation)
       return
     end
@@ -39,6 +41,13 @@ class NpsSurveyListener < BaseListener
   end
 
   private
+
+  # Mensagens geradas pelo proprio NPS: a pergunta (nps_survey) e as mensagens de
+  # sistema (aviso de invalida, agradecimento) marcadas com nps_survey_system.
+  def nps_system_message?(message)
+    attrs = message.content_attributes || {}
+    attrs['nps_survey'].present? || attrs['nps_survey_system'].present?
+  end
 
   def dismiss_active_nps(conversation)
     dismissed = conversation.nps_responses
