@@ -158,6 +158,20 @@ const loadConfigOptions = () => {
   store.dispatch('captainAssistants/get').catch(() => {});
 };
 
+// O webhook_token é backend-autoritativo e vive em flow.trigger_config; injetamo-lo no nó
+// `trigger` (in-memory) para o TriggerConfig exibir a URL read-only. É só um ECHO de exibição —
+// o backend ignora qualquer token vindo no payload (Flow#ensure_webhook_token).
+const syncWebhookToken = flow => {
+  const token = flow?.trigger_config?.webhook_token;
+  if (!token) return;
+  definition.value = {
+    ...definition.value,
+    nodes: (definition.value.nodes || []).map(node =>
+      node.type === 'trigger' ? { ...node, webhook_token: token } : node
+    ),
+  };
+};
+
 onMounted(async () => {
   loadConfigOptions();
   if (!isEdit.value) {
@@ -169,6 +183,7 @@ onMounted(async () => {
   if (flow) {
     name.value = flow.name;
     definition.value = flow.definition || { nodes: [], edges: [] };
+    syncWebhookToken(flow);
   }
 });
 
@@ -310,9 +325,14 @@ const updateSelectedNode = patch => {
 // que o motor consome. Sem nó de gatilho o flow é `manual`.
 //  • trigger_kind 'keyword'  → trigger_type keyword  + { keywords[], match }
 //  • trigger_kind 'schedule' → trigger_type schedule + { mode, cron | every, unit }
+//  • trigger_kind 'webhook'  → trigger_type external_webhook + {} (o backend gera/preserva o
+//    webhook_token — nunca o cliente; ver Flow#ensure_webhook_token)
 //  • event_name definido      → trigger_type conversation_event + { event_name }
 const triggerPayload = triggerNode => {
   if (!triggerNode) return { trigger_type: 'manual', trigger_config: {} };
+  if (triggerNode.trigger_kind === 'webhook') {
+    return { trigger_type: 'external_webhook', trigger_config: {} };
+  }
   if (triggerNode.trigger_kind === 'keyword') {
     return {
       trigger_type: 'keyword',
@@ -365,10 +385,15 @@ const save = async () => {
       ...triggerPayload(triggerNode),
     };
     if (isEdit.value) {
-      await store.dispatch('flows/update', { id: flowId.value, ...payload });
+      const updated = await store.dispatch('flows/update', {
+        id: flowId.value,
+        ...payload,
+      });
+      syncWebhookToken(updated);
       useAlert(t('AUTOMATION.CANVAS.SAVED'));
     } else {
       const created = await store.dispatch('flows/create', payload);
+      syncWebhookToken(created);
       useAlert(t('AUTOMATION.CANVAS.CREATED'));
       router.replace({
         name: 'automation_canvas_edit',

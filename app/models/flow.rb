@@ -69,7 +69,22 @@ class Flow < ApplicationRecord
   validate :definition_shape
   validate :definition_action_names
 
+  # F1 (R-2) — gatilho `external_webhook`: um endpoint PÚBLICO dispara o flow via POST externo.
+  # A segurança inteira repousa sobre um token forte e não-adivinhável que IDENTIFICA o flow (o
+  # id sequencial NUNCA é exposto). Ver Webhooks::FlowsController para o modelo de ameaça.
+  before_save :ensure_webhook_token
+
   scope :active, -> { where(active: true) }
+
+  # Localiza o flow pelo token público do webhook. Espelha Funnel.for_form_token (lookup por
+  # igualdade no jsonb). Restringe a `external_webhook` — um token não pode disparar um flow de
+  # outro tipo. O controller decide o comportamento dos não-elegíveis (inativo/engine-off), mas
+  # devolve a MESMA resposta genérica para não vazar existência. Token em branco nunca casa.
+  def self.for_webhook_token(token)
+    return if token.blank?
+
+    external_webhook.where("trigger_config ->> 'webhook_token' = ?", token.to_s).first
+  end
 
   def nodes
     definition_hash.fetch('nodes', [])
@@ -82,6 +97,12 @@ class Flow < ApplicationRecord
   # Sobrescrito por `Enterprise::Flow` para somar add_sla/assign_ai_agent no build enterprise.
   def allowed_action_names
     BASE_ACTION_NAMES
+  end
+
+  # Token público do webhook (nil se o flow não é external_webhook / ainda não foi salvo).
+  # Lido pelo serializer (para o widget exibir a URL) e pelo controller (re-verificação).
+  def webhook_token
+    trigger_config['webhook_token'] if trigger_config.is_a?(Hash)
   end
 
   def file_base_data
@@ -99,6 +120,28 @@ class Flow < ApplicationRecord
   end
 
   private
+
+  # Materializa o token do webhook — BACKEND-AUTORITATIVO. O controller de autoria copia o
+  # trigger_config cru do cliente (flows_controller.rb#assign_jsonb_attributes), então IGNORAMOS
+  # qualquer `webhook_token` que venha de fora: reusa SEMPRE o token já persistido e só gera um
+  # novo (SecureRandom.hex(24) = 192 bits de entropia) na primeira vez que o flow vira webhook.
+  # Assim o cliente não define nem rotaciona o token, e a URL é ESTÁVEL entre edições. Ao sair de
+  # external_webhook o token é preservado (a mesma URL volta a valer se reativar); não vaza porque
+  # for_webhook_token filtra por external_webhook. TODO(F2): endpoint autenticado de rotação.
+  def ensure_webhook_token
+    return unless external_webhook?
+
+    token = persisted_webhook_token.presence || SecureRandom.hex(24)
+    self.trigger_config = trigger_config.to_h.merge('webhook_token' => token)
+  end
+
+  # O token como está PERSISTIDO (valor pré-alteração da atribuição atual). Numa criação é nil
+  # (gera-se um novo); num update é o token do banco (preserva-se), mesmo que o cliente tente
+  # sobrescrevê-lo no payload.
+  def persisted_webhook_token
+    previous = trigger_config_was
+    previous['webhook_token'] if previous.is_a?(Hash)
+  end
 
   def definition_hash
     definition.is_a?(Hash) ? definition : {}

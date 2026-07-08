@@ -130,6 +130,12 @@ class Rack::Attack
     req.ip if req.path_without_extentions.match?(%r{\A/public/api/v1/funnel_forms/[^/]+\z}) && req.post?
   end
 
+  ## F1 (R-2): public Flow webhook trigger — anti-flood per IP on the path (edge defense; the
+  ## controller adds a second, per-token throttle). Machine-to-machine, so a higher default.
+  throttle('public/flow_webhooks', limit: ENV.fetch('RATE_LIMIT_FLOW_WEBHOOKS', 120).to_i, period: 1.minute) do |req|
+    req.ip if req.path_without_extentions.match?(%r{\A/webhooks/flows/[^/]+\z}) && req.post?
+  end
+
   ## MFA throttling - prevent brute force attacks
   throttle('mfa_verification/ip', limit: 5, period: 1.minute) do |req|
     if req.path_without_extentions == '/api/v1/profile/mfa'

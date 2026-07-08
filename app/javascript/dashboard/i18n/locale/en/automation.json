@@ -175,6 +175,7 @@
           "KIND_EVENT": "A conversation event",
           "KIND_KEYWORD": "A keyword in a message",
           "KIND_SCHEDULE": "A schedule (by time)",
+          "KIND_WEBHOOK": "An external webhook",
           "EVENT_LABEL": "Event",
           "EVENT_PLACEHOLDER": "Select an event",
           "EVENT_HINT": "The event that starts this flow.",
@@ -200,6 +201,13 @@
             "UNIT_MINUTES": "Minutes",
             "UNIT_HOURS": "Hours",
             "UNIT_DAYS": "Days"
+          },
+          "WEBHOOK": {
+            "URL_LABEL": "Webhook URL",
+            "HINT": "Any external system can start this flow with an HTTP POST to this URL. Keep it secret — the URL is the only credential. Optionally send a conversation_id (the conversation number) in the JSON body to target a conversation, and an Idempotency-Key header to avoid duplicate triggers.",
+            "SAVE_FIRST": "Save the flow to generate its webhook URL.",
+            "COPY": "Copy URL",
+            "COPIED": "Webhook URL copied"
           }
         },
         "GENERIC": {

@@ -10,10 +10,15 @@
 //                  { mode, cron | every, unit } (trigger_type schedule). O Flows::ScheduleTriggerJob
 //                  o lê a cada 15 min. Um schedule só age sobre conversas quando o flow tem
 //                  condições de alvo (ver o job) — TODO(F3): editor de condições/alvo aqui.
+//   • 'webhook'  → um POST externo em `…/webhooks/flows/<token>` inicia o fluxo (trigger_type
+//                  external_webhook). O TOKEN nasce no BACKEND ao salvar (Flow#ensure_webhook_token,
+//                  backend-autoritativo) — o widget só EXIBE a URL read-only. O FlowCanvasView
+//                  injeta `node.webhook_token` a partir de flow.trigger_config para display.
 // A fonte da verdade é o nó na definition — o canvas faz o round-trip; trigger_config é só a
-// projeção que o backend consome. TODO(F2): filtros do gatilho e gatilho de webhook externo.
+// projeção que o backend consome. TODO(F2): filtros do gatilho.
 import { computed } from 'vue';
 import { useI18n } from 'vue-i18n';
+import { useAlert } from 'dashboard/composables';
 import SingleSelect from 'dashboard/components-next/filter/inputs/SingleSelect.vue';
 import Input from 'dashboard/components-next/input/Input.vue';
 import { AUTOMATION_RULE_EVENTS } from 'dashboard/routes/dashboard/settings/automation/constants';
@@ -34,6 +39,7 @@ const { t } = useI18n();
 const kind = computed(() => {
   if (props.node.trigger_kind === 'keyword') return 'keyword';
   if (props.node.trigger_kind === 'schedule') return 'schedule';
+  if (props.node.trigger_kind === 'webhook') return 'webhook';
   return 'event';
 });
 
@@ -41,6 +47,7 @@ const kindOptions = computed(() => [
   { id: 'event', name: t('AUTOMATION.CANVAS.CONFIG.TRIGGER.KIND_EVENT') },
   { id: 'keyword', name: t('AUTOMATION.CANVAS.CONFIG.TRIGGER.KIND_KEYWORD') },
   { id: 'schedule', name: t('AUTOMATION.CANVAS.CONFIG.TRIGGER.KIND_SCHEDULE') },
+  { id: 'webhook', name: t('AUTOMATION.CANVAS.CONFIG.TRIGGER.KIND_WEBHOOK') },
 ]);
 
 const kindModel = computed({
@@ -205,6 +212,22 @@ const unitModel = computed({
     patchSchedule({ unit: value?.id || 'days' });
   },
 });
+
+// --- Modo webhook ----------------------------------------------------------------
+// O token é backend-autoritativo e chega em node.webhook_token (injetado pelo FlowCanvasView a
+// partir de flow.trigger_config). Vazio até o 1º save → mostramos "salve para gerar". O widget
+// só EXIBE; nunca cria nem edita o token.
+const webhookUrl = computed(() =>
+  props.node.webhook_token
+    ? `${window.location.origin}/webhooks/flows/${props.node.webhook_token}`
+    : ''
+);
+
+const copyWebhookUrl = () => {
+  if (!webhookUrl.value) return;
+  navigator.clipboard?.writeText(webhookUrl.value);
+  useAlert(t('AUTOMATION.CANVAS.CONFIG.TRIGGER.WEBHOOK.COPIED'));
+};
 </script>
 
 <template>
@@ -314,6 +337,35 @@ const unitModel = computed({
           />
         </ConfigField>
       </template>
+    </template>
+
+    <template v-else-if="kind === 'webhook'">
+      <ConfigField
+        :label="t('AUTOMATION.CANVAS.CONFIG.TRIGGER.WEBHOOK.URL_LABEL')"
+        :hint="t('AUTOMATION.CANVAS.CONFIG.TRIGGER.WEBHOOK.HINT')"
+      >
+        <div v-if="webhookUrl" class="flex items-center gap-2">
+          <input
+            :value="webhookUrl"
+            readonly
+            class="flex-1 px-3 py-2 font-mono text-xs rounded-lg outline outline-1 text-n-slate-12 bg-n-alpha-1 outline-n-weak dark:outline-n-strong"
+            data-testid="config-trigger-webhook-url"
+            @focus="event => event.target.select()"
+          />
+          <button
+            type="button"
+            class="flex items-center justify-center rounded-lg shrink-0 size-9 text-n-slate-11 bg-n-alpha-1 outline outline-1 outline-n-weak dark:outline-n-strong hover:text-n-slate-12"
+            :title="t('AUTOMATION.CANVAS.CONFIG.TRIGGER.WEBHOOK.COPY')"
+            data-testid="config-trigger-webhook-copy"
+            @click="copyWebhookUrl"
+          >
+            <span class="i-lucide-copy" />
+          </button>
+        </div>
+        <p v-else class="text-sm text-n-slate-10">
+          {{ t('AUTOMATION.CANVAS.CONFIG.TRIGGER.WEBHOOK.SAVE_FIRST') }}
+        </p>
+      </ConfigField>
     </template>
   </div>
 </template>

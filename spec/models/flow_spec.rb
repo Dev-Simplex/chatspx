@@ -91,6 +91,58 @@ RSpec.describe Flow do
     end
   end
 
+  describe 'external_webhook token (R-2)' do
+    def webhook_flow(config = {})
+      create(:flow, account: account, trigger_type: :external_webhook, trigger_config: config)
+    end
+
+    it 'generates a strong token on save when the flow is a webhook' do
+      flow = webhook_flow
+      expect(flow.webhook_token).to match(/\A[0-9a-f]{48}\z/) # SecureRandom.hex(24) = 192 bits
+    end
+
+    it 'does not generate a token for non-webhook flows' do
+      expect(create(:flow, account: account).webhook_token).to be_nil
+    end
+
+    it 'keeps the token stable across edits (URL never changes)' do
+      flow = webhook_flow
+      original = flow.webhook_token
+      flow.update!(name: 'renamed', trigger_config: {})
+      expect(flow.reload.webhook_token).to eq(original)
+    end
+
+    it 'is backend-authoritative: ignores a client-supplied token on create' do
+      flow = webhook_flow('webhook_token' => 'client-chosen-weak-token')
+      expect(flow.webhook_token).not_to eq('client-chosen-weak-token')
+      expect(flow.webhook_token).to match(/\A[0-9a-f]{48}\z/)
+    end
+
+    it 'is backend-authoritative: a client cannot rotate the token on update' do
+      flow = webhook_flow
+      original = flow.webhook_token
+      flow.update!(trigger_config: { 'webhook_token' => 'attacker-rotated' })
+      expect(flow.reload.webhook_token).to eq(original)
+    end
+
+    describe '.for_webhook_token' do
+      it 'finds an active webhook flow by its token' do
+        flow = webhook_flow
+        expect(described_class.for_webhook_token(flow.webhook_token)).to eq(flow)
+      end
+
+      it 'returns nil for a blank token' do
+        expect(described_class.for_webhook_token('')).to be_nil
+        expect(described_class.for_webhook_token(nil)).to be_nil
+      end
+
+      it 'does not match a flow of another trigger type' do
+        other = create(:flow, account: account, trigger_type: :manual, trigger_config: { 'webhook_token' => 'x' })
+        expect(described_class.for_webhook_token('x')).not_to eq(other)
+      end
+    end
+  end
+
   describe 'attachments' do
     it 'supports file attachments (preserves @macro/@rule.files for send_attachment)' do
       flow = create(:flow, account: account)

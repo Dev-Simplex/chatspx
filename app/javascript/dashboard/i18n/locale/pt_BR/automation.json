@@ -175,6 +175,7 @@
           "KIND_EVENT": "Um evento da conversa",
           "KIND_KEYWORD": "Uma palavra-chave na mensagem",
           "KIND_SCHEDULE": "Um agendamento (por tempo)",
+          "KIND_WEBHOOK": "Um webhook externo",
           "EVENT_LABEL": "Evento",
           "EVENT_PLACEHOLDER": "Selecione um evento",
           "EVENT_HINT": "O evento que inicia este fluxo.",
@@ -200,6 +201,13 @@
             "UNIT_MINUTES": "Minutos",
             "UNIT_HOURS": "Horas",
             "UNIT_DAYS": "Dias"
+          },
+          "WEBHOOK": {
+            "URL_LABEL": "URL do webhook",
+            "HINT": "Qualquer sistema externo pode iniciar este fluxo com um POST HTTP para esta URL. Mantenha-a em segredo — a URL é a única credencial. Opcionalmente envie um conversation_id (o número da conversa) no corpo JSON para mirar uma conversa, e um header Idempotency-Key para evitar disparos duplicados.",
+            "SAVE_FIRST": "Salve o fluxo para gerar a URL do webhook.",
+            "COPY": "Copiar URL",
+            "COPIED": "URL do webhook copiada"
           }
         },
         "GENERIC": {
