@@ -25,11 +25,7 @@ module Spx
           config: @assistant.config,
           behavior: @assistant.behavior,
           faqs: faqs,
-          eligibility: eligibility,
-          # Tools disponiveis (built-in + custom enabled) pro list_tools do MCP comparar
-          # com as armadas (config['tools']). Espelha Captain::Assistant#available_tool_ids.
-          available_tool_ids: @assistant.available_tool_ids,
-          armed_tool_ids: Array(@assistant.config['tools']).map(&:to_s)
+          eligibility: eligibility
         }
       end
 

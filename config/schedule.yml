@@ -21,42 +21,13 @@ trigger_imap_email_inboxes_job:
   class: 'Inboxes::FetchImapEmailInboxesJob'
   queue: scheduled_jobs
 
-# Kanban v2 (Fase 5): fire time_in_stage funnel automations (SLA monitor)
-kanban_sla_monitor_job:
-  cron: '*/15 * * * *'
-  class: 'Kanban::SlaMonitorJob'
-  queue: scheduled_jobs
-
-# Kanban v2 (Fase 6): daily per-funnel metric snapshot (baselines)
-kanban_daily_snapshot_job:
-  cron: '5 0 * * *'
-  class: 'Kanban::DailySnapshotJob'
-  queue: scheduled_jobs
-
-# Follow-up drip (Módulo A): advance due message-sequence enrollments every minute
-message_sequences_advance_job:
+# executed every minute
+# engine de disparo de campanhas WhatsApp (HSM): despacha o proximo lote de
+# campaign_recipients pendentes respeitando pacing/quiet-hours/health-gate.
+# NO-OP quando nao ha campanha em dispatch_status=running.
+campaigns_whatsapp_dispatch_job:
   cron: '*/1 * * * *'
-  class: 'MessageSequences::AdvanceJob'
-  queue: scheduled_jobs
-
-# Motor Flow (Fase 2): retoma os flow-runs suspensos cujo `wait` venceu, a cada minuto
-flows_resume_job:
-  cron: '*/1 * * * *'
-  class: 'Flows::ResumeJob'
-  queue: scheduled_jobs
-
-# Motor Flow (Fase 2): gatilho `schedule` — dispara flows por tempo (cron/intervalo) a cada
-# 15 min. Molde Kanban::SlaMonitorJob; marcador idempotente `last_fired_at` em trigger_config.
-flows_schedule_trigger_job:
-  cron: '*/15 * * * *'
-  class: 'Flows::ScheduleTriggerJob'
-  queue: scheduled_jobs
-
-# Motor Flow (Fase 3.3): rollup do analytics por nó — agrega os flow_step_logs em flow_node_stats
-# (as pills "142 · 38%" do canvas), de hora em hora. Idempotente (recomputa + upsert com SET).
-flows_stats_rollup_job:
-  cron: '7 * * * *'
-  class: 'Flows::StatsRollupJob'
+  class: 'Campaigns::Whatsapp::DispatchSchedulerJob'
   queue: scheduled_jobs
 
 # executed daily at 2230 UTC

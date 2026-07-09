@@ -139,6 +139,9 @@ Rails.application.routes.draw do
           resources :campaigns, only: [:index, :create, :show, :update, :destroy] do
             member do
               get :stats
+              post :recipients
+              post :start
+              post :pause
             end
           end
           resources :funnels, only: [:index, :show, :create, :update, :destroy] do

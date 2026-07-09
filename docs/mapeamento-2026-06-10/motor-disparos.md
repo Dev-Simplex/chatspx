@@ -14,8 +14,8 @@
 | Rake tasks | `lib/tasks/spx_tozi.rake` | `setup_funnel`, `create_templates`, `disparo`, `disparo_teste`, `backfill_funnel` |
 | Scripts de operação | `scripts/spx/tozi/` (20 arquivos, ver `README.md`) | Ingestão (Python), motores de enfileiramento (Ruby `rails runner`), criação de templates (Graph API), relatório, consolidação |
 | Consolidação one-shot | `scripts/spx/tozi/consolida_conversas_duplicadas.rb` | Fusão das 275 duplicatas (rodado em prod 08/06) |
-| Catálogo de templates | `docs/TEMPLATES-DISPARO-TOZI.md` | 23 templates APPROVED/MARKETING/pt_BR, IDs Meta, botões |
-| Relatório consolidado | `docs/RELATORIO-DISPAROS-TOZI-2026-06-08.md` | 7.249 HSM, 84,4% alcance, 24,2% resposta, ~US$382 |
+| Catálogo de templates | `docs/clientes/tozi/TEMPLATES-DISPARO-TOZI.md` | 23 templates APPROVED/MARKETING/pt_BR, IDs Meta, botões |
+| Relatório consolidado | `docs/clientes/tozi/RELATORIO-DISPAROS-TOZI-2026-06-08.md` | 7.249 HSM, 84,4% alcance, 24,2% resposta, ~US$382 |
 | Backlog defensivo | `docs/backlog/reconciliador-incoming-9-digito.md` | Proposta: preferir ficha da conversa mais recente quando 2+ fichas casam |
 | Stats por campanha | `app/controllers/api/v1/accounts/campaigns_controller.rb:43-86` | `GET .../campaigns/:id/stats` agrega por `campaign_id` |
 | Blaster nativo DESATIVADO | `app/models/campaign.rb:66-74` | `execute_campaign` p/ `Whatsapp` só loga; campanha âncora (`completed`) serve apenas como agregador de stats |

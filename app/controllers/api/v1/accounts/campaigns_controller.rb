@@ -13,6 +13,28 @@ class Api::V1::Accounts::CampaignsController < Api::V1::Accounts::BaseController
     render json: campaign_stats
   end
 
+  # Carrega a lista (upload) de destinatarios na campanha de disparo.
+  def recipients
+    inserted = Campaigns::Whatsapp::ListLoaderService.new(campaign: @campaign, rows: recipient_rows).perform
+    render json: { inserted: inserted, total: @campaign.campaign_recipients.count,
+                   pending: @campaign.campaign_recipients.pending.count }
+  end
+
+  # Inicia/retoma o disparo (dispatch_status: running). O scheduler despacha no pacing.
+  def start
+    return render json: { error: 'Campanha sem destinatários' }, status: :unprocessable_entity if @campaign.campaign_recipients.empty?
+    return render json: { error: 'Defina o template do disparo' }, status: :unprocessable_entity if @campaign.template_name.blank?
+
+    @campaign.dispatch_running!
+    render json: dispatch_state
+  end
+
+  # Pausa o disparo mantendo os pendentes (retomar = start).
+  def pause
+    @campaign.dispatch_paused!
+    render json: dispatch_state
+  end
+
   def create
     @campaign = Current.account.campaigns.create!(campaign_params)
   end
@@ -34,7 +56,18 @@ class Api::V1::Accounts::CampaignsController < Api::V1::Accounts::BaseController
 
   def campaign_params
     params.require(:campaign).permit(:title, :description, :message, :enabled, :trigger_only_during_business_hours, :inbox_id, :sender_id,
-                                     :scheduled_at, audience: [:type, :id], trigger_rules: {}, template_params: {})
+                                     :scheduled_at, :template_name, :template_language, :target_team_id, :pacing_seconds,
+                                     audience: [:type, :id], trigger_rules: {}, template_params: {}, dispatch_config: {})
+  end
+
+  # Linhas da lista enviada (upload): [{name, phone}]. ListLoaderService normaliza e deduplica.
+  def recipient_rows
+    params.permit(rows: %i[name phone nome telefone])[:rows]&.map(&:to_h) || []
+  end
+
+  def dispatch_state
+    { dispatch_status: @campaign.dispatch_status, pending: @campaign.campaign_recipients.pending.count,
+      total: @campaign.campaign_recipients.count }
   end
 
   # Agregado read-only de um disparo ancorado nesta campanha (conversas linkadas por
@@ -78,6 +111,8 @@ class Api::V1::Accounts::CampaignsController < Api::V1::Accounts::BaseController
 
     {
       campaign: { display_id: @campaign.display_id, title: @campaign.title, status: @campaign.campaign_status },
+      dispatch_status: @campaign.dispatch_status,
+      recipients: @campaign.campaign_recipients.group(:status).count,
       total: total, reached: reached, sent: sent, delivered: delivered, read: read, failed: failed, replied: replied,
       delivery_rate: total.zero? ? 0 : (reached.to_f / total * 100).round(1),
       read_rate: reached.zero? ? 0 : (read.to_f / reached * 100).round(1),
