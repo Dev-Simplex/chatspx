@@ -93,6 +93,13 @@ export default {
     hideOnOnboardingView() {
       return !isOnOnboardingView(this.$route);
     },
+    // Rotas "imersivas" (canvas full-bleed do Flow) escondem widgets flutuantes globais —
+    // onboarding, prompts de PWA/push — que sobrepõem o minimap e as barras do editor.
+    isImmersiveRoute() {
+      return ['automation_canvas_new', 'automation_canvas_edit'].includes(
+        this.$route.name
+      );
+    },
   },
 
   watch: {
@@ -206,9 +213,9 @@ export default {
       <WootSnackbarBox />
       <NetworkNotification />
       <MessageToast />
-      <OnboardingChecklist v-if="currentAccountId" />
-      <PwaInstallPrompt v-if="currentAccountId" />
-      <PushPermissionPrompt v-if="currentAccountId" />
+      <OnboardingChecklist v-if="currentAccountId && !isImmersiveRoute" />
+      <PwaInstallPrompt v-if="currentAccountId && !isImmersiveRoute" />
+      <PushPermissionPrompt v-if="currentAccountId && !isImmersiveRoute" />
       <MigrationBanner />
     </MotionConfig>
   </div>

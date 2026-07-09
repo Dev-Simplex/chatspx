@@ -108,6 +108,30 @@ export const NODE_CATALOG = [
     icon: 'i-lucide-sticky-note',
   },
   {
+    key: 'send_attachment',
+    type: 'action',
+    actionName: 'send_attachment',
+    family: 'msg',
+    labelKey: 'AUTOMATION.CANVAS.NODES.SEND_ATTACHMENT',
+    icon: 'i-lucide-paperclip',
+  },
+  {
+    key: 'send_email_to_team',
+    type: 'action',
+    actionName: 'send_email_to_team',
+    family: 'msg',
+    labelKey: 'AUTOMATION.CANVAS.NODES.SEND_EMAIL_TO_TEAM',
+    icon: 'i-lucide-mail',
+  },
+  {
+    key: 'send_email_transcript',
+    type: 'action',
+    actionName: 'send_email_transcript',
+    family: 'msg',
+    labelKey: 'AUTOMATION.CANVAS.NODES.SEND_EMAIL_TRANSCRIPT',
+    icon: 'i-lucide-file-text',
+  },
+  {
     key: 'assign_agent',
     type: 'action',
     actionName: 'assign_agent',
@@ -140,6 +164,14 @@ export const NODE_CATALOG = [
     icon: 'i-lucide-tag',
   },
   {
+    key: 'remove_label',
+    type: 'action',
+    actionName: 'remove_label',
+    family: 'action',
+    labelKey: 'AUTOMATION.CANVAS.NODES.REMOVE_LABEL',
+    icon: 'i-lucide-badge-minus',
+  },
+  {
     key: 'change_status',
     type: 'action',
     actionName: 'change_status',
@@ -162,6 +194,22 @@ export const NODE_CATALOG = [
     family: 'action',
     labelKey: 'AUTOMATION.CANVAS.NODES.SNOOZE',
     icon: 'i-lucide-alarm-clock',
+  },
+  {
+    key: 'mute_conversation',
+    type: 'action',
+    actionName: 'mute_conversation',
+    family: 'action',
+    labelKey: 'AUTOMATION.CANVAS.NODES.MUTE_CONVERSATION',
+    icon: 'i-lucide-bell-off',
+  },
+  {
+    key: 'add_sla',
+    type: 'action',
+    actionName: 'add_sla',
+    family: 'action',
+    labelKey: 'AUTOMATION.CANVAS.NODES.ADD_SLA',
+    icon: 'i-lucide-timer',
   },
   {
     key: 'assign_ai_agent',
@@ -234,6 +282,14 @@ export const NODE_CATALOG = [
     family: 'data',
     labelKey: 'AUTOMATION.CANVAS.NODES.HTTP_REQUEST',
     icon: 'i-lucide-webhook',
+  },
+  {
+    key: 'send_webhook_event',
+    type: 'action',
+    actionName: 'send_webhook_event',
+    family: 'data',
+    labelKey: 'AUTOMATION.CANVAS.NODES.SEND_WEBHOOK_EVENT',
+    icon: 'i-lucide-radio-tower',
   },
 ];
 

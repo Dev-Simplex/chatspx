@@ -16,9 +16,22 @@ const props = defineProps({
 });
 
 const emit = defineEmits(['close']);
+const dialogRef = ref(null);
 
 const { t } = useI18n();
 const store = useStore();
+
+// Rótulo do ramo tomado, localizado: 'true'/'false' viram Sim/Não, 'fallback' vira Senão; nomes
+// de rota customizados (route_1, etc.) aparecem como estão.
+const BRANCH_LABELS = {
+  true: 'AUTOMATION.CANVAS.CONFIG.CONDITION.YES',
+  false: 'AUTOMATION.CANVAS.CONFIG.CONDITION.NO',
+  fallback: 'AUTOMATION.CANVAS.CONFIG.ROUTER.FALLBACK',
+};
+const branchLabel = key => {
+  const mapped = BRANCH_LABELS[String(key)];
+  return mapped ? t(mapped) : String(key);
+};
 
 const isLoading = ref(true);
 const hasError = ref(false);
@@ -100,11 +113,23 @@ const isInitialLoading = computed(
 const loadMore = () => fetchLogs(currentPage.value + 1);
 const refresh = () => fetchLogs(1);
 
-onMounted(() => fetchLogs(1));
+onMounted(() => {
+  dialogRef.value?.focus();
+  fetchLogs(1);
+});
 </script>
 
 <template>
-  <div class="fixed inset-0 z-50 flex" data-testid="logs-panel">
+  <div
+    ref="dialogRef"
+    class="fixed inset-0 z-50 flex outline-none"
+    role="dialog"
+    aria-modal="true"
+    :aria-label="t('AUTOMATION.CANVAS.LOGS.OPEN')"
+    tabindex="-1"
+    data-testid="logs-panel"
+    @keydown.esc="emit('close')"
+  >
     <div
       class="absolute inset-0 bg-n-alpha-black2 backdrop-blur-[1px]"
       @click="emit('close')"
@@ -232,7 +257,7 @@ onMounted(() => fetchLogs(1));
                 class="inline-flex items-center gap-1"
               >
                 <span class="i-lucide-git-branch" />
-                {{ log.branch_key }}
+                {{ branchLabel(log.branch_key) }}
               </span>
               <span>{{ formatTime(log.created_at) }}</span>
             </div>

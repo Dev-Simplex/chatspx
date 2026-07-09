@@ -24,6 +24,11 @@ import ChangeStatusConfig from './config/ChangeStatusConfig.vue';
 import ChangePriorityConfig from './config/ChangePriorityConfig.vue';
 import WaitConfig from './config/WaitConfig.vue';
 import SnoozeConfig from './config/SnoozeConfig.vue';
+import SendEmailToTeamConfig from './config/SendEmailToTeamConfig.vue';
+import SendEmailTranscriptConfig from './config/SendEmailTranscriptConfig.vue';
+import SendWebhookEventConfig from './config/SendWebhookEventConfig.vue';
+import SendAttachmentConfig from './config/SendAttachmentConfig.vue';
+import AddSlaConfig from './config/AddSlaConfig.vue';
 import GenericConfig from './config/GenericConfig.vue';
 
 const props = defineProps({
@@ -55,6 +60,11 @@ const ACTION_EDITORS = {
   change_status: markRaw(ChangeStatusConfig),
   change_priority: markRaw(ChangePriorityConfig),
   snooze_conversation: markRaw(SnoozeConfig),
+  send_email_to_team: markRaw(SendEmailToTeamConfig),
+  send_email_transcript: markRaw(SendEmailTranscriptConfig),
+  send_webhook_event: markRaw(SendWebhookEventConfig),
+  send_attachment: markRaw(SendAttachmentConfig),
+  add_sla: markRaw(AddSlaConfig),
 };
 
 const TYPE_EDITORS = {

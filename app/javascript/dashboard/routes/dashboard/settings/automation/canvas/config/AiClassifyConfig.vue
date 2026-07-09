@@ -143,7 +143,7 @@ const attributeKey = computed({
       <textarea
         v-model="promptModel"
         rows="3"
-        class="w-full px-3 py-2 text-sm rounded-lg resize-y outline outline-1 text-n-slate-12 bg-n-alpha-1 outline-n-weak dark:outline-n-strong focus:outline-n-brand"
+        class="w-full px-3 py-2 text-sm rounded-lg resize-y !h-auto outline outline-1 text-n-slate-12 bg-n-alpha-1 outline-n-weak dark:outline-n-strong focus:outline-n-brand"
         :placeholder="
           t('AUTOMATION.CANVAS.CONFIG.AI_CLASSIFY.PROMPT_PLACEHOLDER')
         "

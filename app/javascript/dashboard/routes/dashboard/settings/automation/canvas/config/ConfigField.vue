@@ -14,7 +14,7 @@ defineProps({
 </script>
 
 <template>
-  <div class="flex flex-col gap-1.5">
+  <label class="flex flex-col gap-1.5">
     <span
       v-if="label"
       class="text-xs font-medium text-n-slate-11"
@@ -26,5 +26,5 @@ defineProps({
     <span v-if="hint" class="text-xs leading-snug text-n-slate-10">
       {{ hint }}
     </span>
-  </div>
+  </label>
 </template>
