@@ -41,16 +41,22 @@ const visibilityBadge = label => {
   if (visibility === 'team') {
     const team = getters['teams/getTeam'].value(label.team_id);
     return {
-      icon: '👥',
+      icon: 'i-lucide-users',
       text: team?.name
         ? `${t('LABEL_MGMT.FORM.VISIBILITY.TEAM.LABEL')} «${team.name}»`
         : t('LABEL_MGMT.FORM.VISIBILITY.TEAM.LABEL'),
     };
   }
   if (visibility === 'personal') {
-    return { icon: '🔒', text: t('LABEL_MGMT.FORM.VISIBILITY.PERSONAL.LABEL') };
+    return {
+      icon: 'i-lucide-lock',
+      text: t('LABEL_MGMT.FORM.VISIBILITY.PERSONAL.LABEL'),
+    };
   }
-  return { icon: '🌐', text: t('LABEL_MGMT.FORM.VISIBILITY.EVERYONE.LABEL') };
+  return {
+    icon: 'i-lucide-globe',
+    text: t('LABEL_MGMT.FORM.VISIBILITY.EVERYONE.LABEL'),
+  };
 };
 
 const loading = ref({});
@@ -199,9 +205,12 @@ onBeforeMount(() => {
 
               <BaseTableCell>
                 <span
-                  class="inline-flex items-center gap-1 text-body-main text-n-slate-11"
+                  class="inline-flex items-center gap-1.5 text-body-main text-n-slate-11"
                 >
-                  <span>{{ visibilityBadge(label).icon }}</span>
+                  <span
+                    class="size-4 flex-shrink-0 text-n-slate-10"
+                    :class="visibilityBadge(label).icon"
+                  />
                   <span>{{ visibilityBadge(label).text }}</span>
                 </span>
               </BaseTableCell>
