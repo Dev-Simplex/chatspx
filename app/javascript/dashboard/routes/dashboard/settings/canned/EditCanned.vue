@@ -69,6 +69,9 @@ export default {
         ? this.$t('CANNED_MGMT.VISIBILITY.TEAM_SELECT.REQUIRED_ERROR')
         : '';
     },
+    attachmentSummary() {
+      return this.attachmentFiles.map(file => file.name).join(', ');
+    },
     isAuthor() {
       return !!this.edcreatedBy && this.currentUser?.id === this.edcreatedBy.id;
     },
@@ -103,6 +106,17 @@ export default {
       this.v$.shortCode.$reset();
       this.v$.content.$reset();
       this.v$.teamId.$reset();
+      this.clearAttachmentInput();
+    },
+    openAttachmentPicker() {
+      this.$refs.attachmentInput?.click();
+    },
+    clearAttachmentInput() {
+      if (this.$refs.attachmentInput) this.$refs.attachmentInput.value = '';
+    },
+    clearAttachments() {
+      this.attachmentFiles = [];
+      this.clearAttachmentInput();
     },
     onAttachmentChange(event) {
       this.attachmentFiles = Array.from(event.target.files || []);
@@ -182,26 +196,56 @@ export default {
             />
           </div>
         </div>
-        <div class="w-full">
-          <label>{{ $t('CANNED_MGMT.EDIT.FORM.ATTACHMENT.LABEL') }}</label>
+        <div class="w-full mt-4">
+          <label class="block mb-1">
+            {{ $t('CANNED_MGMT.EDIT.FORM.ATTACHMENT.LABEL') }}
+          </label>
           <input
+            ref="attachmentInput"
             type="file"
             multiple
             accept="image/*,video/*,application/pdf"
-            class="text-sm"
+            class="hidden"
             @change="onAttachmentChange"
           />
-          <span v-if="attachmentFiles.length" class="text-xs text-n-slate-11">
-            {{ attachmentFiles.length }}
-          </span>
+          <div class="flex items-center flex-wrap gap-2">
+            <NextButton
+              type="button"
+              faded
+              slate
+              sm
+              icon="i-lucide-paperclip"
+              :label="$t('CANNED_MGMT.ATTACHMENT.CHOOSE')"
+              @click="openAttachmentPicker"
+            />
+            <template v-if="attachmentFiles.length">
+              <span
+                v-tooltip.top="attachmentSummary"
+                class="text-sm text-n-slate-11 truncate max-w-[55%]"
+              >
+                {{ attachmentSummary }}
+              </span>
+              <NextButton
+                type="button"
+                ghost
+                slate
+                xs
+                icon="i-lucide-x"
+                :label="$t('CANNED_MGMT.ATTACHMENT.CLEAR')"
+                @click="clearAttachments"
+              />
+            </template>
+          </div>
         </div>
 
-        <CannedVisibilityField
-          v-model:visibility="visibility"
-          v-model:team-id="teamId"
-          :team-error="teamErrorMessage"
-          :disabled="!canChangeVisibility"
-        />
+        <div class="w-full mt-4">
+          <CannedVisibilityField
+            v-model:visibility="visibility"
+            v-model:team-id="teamId"
+            :team-error="teamErrorMessage"
+            :disabled="!canChangeVisibility"
+          />
+        </div>
 
         <div class="flex flex-row justify-end w-full gap-2 px-0 py-2">
           <NextButton

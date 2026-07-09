@@ -41,6 +41,10 @@
       },
       "NO_MANAGE_PERMISSION": "Você não tem permissão para editar esta resposta pronta. Somente o autor, membros do time ou um administrador podem gerenciá-la."
     },
+    "ATTACHMENT": {
+      "CHOOSE": "Escolher arquivos",
+      "CLEAR": "Limpar"
+    },
     "ADD": {
       "TITLE": "Adicionar resposta pronta",
       "DESC": "Respostas Prontas são modelos de resposta predefinidas que podem ser usados para enviar respostas rapidamente durante conversas.",
