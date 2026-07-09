@@ -19,7 +19,7 @@ const props = defineProps({
   },
 });
 
-const emit = defineEmits(['close', 'update']);
+const emit = defineEmits(['close', 'update', 'delete']);
 
 const { t } = useI18n();
 
@@ -35,7 +35,7 @@ const onUpdate = patch => emit('update', patch);
 
 <template>
   <aside
-    class="flex flex-col w-[350px] shrink-0 h-full border-l border-n-weak bg-n-solid-1"
+    class="flex flex-col w-[400px] shrink-0 h-full border-l border-n-weak bg-n-solid-1"
     data-testid="flow-config-panel"
   >
     <header
@@ -58,14 +58,25 @@ const onUpdate = patch => emit('update', patch);
           {{ title }}
         </span>
       </div>
-      <button
-        class="ml-auto text-n-slate-11 hover:text-n-slate-12 shrink-0"
-        :aria-label="t('AUTOMATION.CANVAS.CONFIG.CLOSE')"
-        data-testid="config-panel-close"
-        @click="emit('close')"
-      >
-        <span class="i-lucide-x" />
-      </button>
+      <div class="flex items-center gap-1 ml-auto shrink-0">
+        <button
+          class="grid rounded-md size-7 place-items-center text-n-slate-11 hover:text-n-ruby-9 hover:bg-n-alpha-2"
+          :aria-label="t('AUTOMATION.CANVAS.CONFIG.DELETE_NODE')"
+          :title="t('AUTOMATION.CANVAS.CONFIG.DELETE_NODE')"
+          data-testid="config-panel-delete"
+          @click="emit('delete')"
+        >
+          <span class="i-lucide-trash-2" />
+        </button>
+        <button
+          class="grid rounded-md size-7 place-items-center text-n-slate-11 hover:text-n-slate-12 hover:bg-n-alpha-2"
+          :aria-label="t('AUTOMATION.CANVAS.CONFIG.CLOSE')"
+          data-testid="config-panel-close"
+          @click="emit('close')"
+        >
+          <span class="i-lucide-x" />
+        </button>
+      </div>
     </header>
 
     <div class="flex-1 min-h-0 p-4 overflow-y-auto">

@@ -7,7 +7,7 @@ import {
   nextTick,
   watch,
 } from 'vue';
-import { useRoute, useRouter } from 'vue-router';
+import { useRoute, useRouter, onBeforeRouteLeave } from 'vue-router';
 import { useI18n } from 'vue-i18n';
 import { VueFlow, MarkerType } from '@vue-flow/core';
 import { Background } from '@vue-flow/background';
@@ -20,6 +20,7 @@ import FlowEdge from './FlowEdge.vue';
 import ConfigPanel from './ConfigPanel.vue';
 import SimulationOverlay from './SimulationOverlay.vue';
 import LogsPanel from './LogsPanel.vue';
+import Button from 'dashboard/components-next/button/Button.vue';
 import {
   NODE_CATALOG,
   FAMILIES,
@@ -71,6 +72,10 @@ const hasPaletteResults = computed(() => paletteSections.value.length > 0);
 const name = ref('');
 const definition = ref({ nodes: [], edges: [] });
 const isSaving = ref(false);
+// Falha ao carregar um fluxo existente (404/erro): mostra um estado de erro em vez de um canvas
+// vazio (que ao salvar sobrescreveria o registro). Não redirecionamos no onMounted — navegar
+// durante a montagem inicial do app trava a montagem; o usuário volta pela ação do estado.
+const loadError = ref(false);
 const selectedNodeId = ref(null);
 const flowInstance = ref(null);
 
@@ -148,6 +153,17 @@ const isEditableTarget = target => {
   return tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT';
 };
 
+const goBack = () =>
+  router.push({ name: 'automation_list', params: route.params });
+
+// Guarda contra perda de trabalho: confirma antes de sair (navegação via router ou fechar/
+// recarregar a aba) com alterações não salvas. isDirty só fica true após uma edição real.
+const onBeforeUnload = event => {
+  if (!isDirty.value) return;
+  event.preventDefault();
+  event.returnValue = '';
+};
+
 // Ctrl/Cmd+Z = desfazer; Ctrl/Cmd+Shift+Z ou Ctrl+Y = refazer.
 const onKeydown = event => {
   if (!(event.ctrlKey || event.metaKey)) return;
@@ -163,6 +179,7 @@ const onKeydown = event => {
 
 onBeforeUnmount(() => {
   window.removeEventListener('keydown', onKeydown);
+  window.removeEventListener('beforeunload', onBeforeUnload);
   themeObserver?.disconnect();
 });
 
@@ -247,11 +264,13 @@ const hasPosition = node =>
   Number.isFinite(node.position.x) &&
   Number.isFinite(node.position.y);
 
+// Auto-layout em árvore DERIVADO da definition (fonte da verdade): filhos abaixo do pai, ramos
+// (Sim/Não, rotas) em colunas lado a lado. Computed próprio para o algoritmo O(n+e) só rodar em
+// mudança ESTRUTURAL — não a cada clique de seleção nem atualização de stats (que passam por vfNodes).
+const nodeLayout = computed(() => computeTreeLayout(definition.value));
+
 const vfNodes = computed(() => {
-  // Auto-layout em árvore (flowLayout): filhos abaixo do pai, ramos (Sim/Não, rotas) em
-  // colunas lado a lado. É DERIVADO da definition (fonte da verdade) e recalculado a cada
-  // mudança estrutural; a posição manual (arrastada) tem prioridade sobre a derivada.
-  const layout = computeTreeLayout(definition.value);
+  const layout = nodeLayout.value;
   return (definition.value.nodes || []).map(node => ({
     id: String(node.id),
     type: 'flow',
@@ -356,6 +375,7 @@ const loadStats = async () => {
 
 onMounted(async () => {
   window.addEventListener('keydown', onKeydown);
+  window.addEventListener('beforeunload', onBeforeUnload);
   syncTheme();
   themeObserver = new MutationObserver(syncTheme);
   themeObserver.observe(document.body, {
@@ -377,21 +397,34 @@ onMounted(async () => {
   }
 
   let flow = store.getters['flows/getFlow'](flowId.value);
-  if (!flow) flow = await store.dispatch('flows/show', flowId.value);
-  if (flow) {
-    name.value = flow.name;
-    definition.value = flow.definition || { nodes: [], edges: [] };
-    withoutHistory(() => syncWebhookToken(flow));
+  if (!flow) {
+    try {
+      flow = await store.dispatch('flows/show', flowId.value);
+    } catch (error) {
+      loadError.value = true;
+      return;
+    }
   }
+  // Fluxo inexistente/sem retorno: marca erro e mostra um estado claro em vez de um canvas vazio
+  // "editável" que sobrescreveria o registro real ao salvar (evita perda de dados).
+  if (!flow) {
+    loadError.value = true;
+    return;
+  }
+  name.value = flow.name;
+  definition.value = flow.definition || { nodes: [], edges: [] };
+  withoutHistory(() => syncWebhookToken(flow));
   history.commit(definition.value);
   loadStats();
 });
 
+// Gera um id de nó garantidamente único no grafo, robusto a ids sem dígito (ex.: importados de
+// fluxos legados como "trigger") — que no esquema antigo colapsariam em 0 e colidiriam entre si.
 const nextNodeId = () => {
-  const ids = (definition.value.nodes || []).map(
-    n => parseInt(String(n.id).replace(/\D/g, ''), 10) || 0
-  );
-  return `n${(ids.length ? Math.max(...ids) : 0) + 1}`;
+  const taken = new Set((definition.value.nodes || []).map(n => String(n.id)));
+  let i = taken.size + 1;
+  while (taken.has(`n${i}`)) i += 1;
+  return `n${i}`;
 };
 
 // Posição do nó novo, coerente com a árvore. Retornar `undefined` = SEM position → o nó entra
@@ -484,6 +517,33 @@ const onEdgesChange = changes => {
       edge => !removed.has(edgeKey(edge))
     ),
   };
+};
+
+// Remoção de NÓS (tecla Delete/Backspace com nó selecionado, ou botão excluir do painel). Tira o
+// nó da definition E poda toda aresta conectada a ele (entrada e saída), sem deixar aresta órfã.
+// Espelha onEdgesChange: a definition é a fonte da verdade; o Vue Flow só emite a intenção.
+const removeNodeIds = ids => {
+  const gone = new Set(ids.map(String));
+  if (!gone.size) return;
+  definition.value = {
+    ...definition.value,
+    nodes: (definition.value.nodes || []).filter(
+      node => !gone.has(String(node.id))
+    ),
+    edges: (definition.value.edges || []).filter(
+      edge => !gone.has(String(edge.from)) && !gone.has(String(edge.to))
+    ),
+  };
+  if (gone.has(String(selectedNodeId.value))) selectedNodeId.value = null;
+};
+
+const onNodesChange = changes =>
+  removeNodeIds(
+    changes.filter(change => change.type === 'remove').map(change => change.id)
+  );
+
+const removeSelectedNode = () => {
+  if (selectedNodeId.value != null) removeNodeIds([selectedNodeId.value]);
 };
 
 // Persiste a(s) posição(ões) após arrastar — assim o layout do usuário sobrevive ao reload.
@@ -590,7 +650,26 @@ const triggerPayload = triggerNode => {
   return { trigger_type: 'manual', trigger_config: {} };
 };
 
+// Validação mínima antes de persistir: nome, ao menos um gatilho e uma ação. Evita criar um
+// fluxo vazio/inutilizável (o backend aceitaria, mas ele não faria nada).
+const validationError = () => {
+  const nodes = definition.value.nodes || [];
+  if (!name.value.trim())
+    return t('AUTOMATION.CANVAS.VALIDATION.NAME_REQUIRED');
+  if (!nodes.some(node => node.type === 'trigger'))
+    return t('AUTOMATION.CANVAS.VALIDATION.TRIGGER_REQUIRED');
+  if (!nodes.some(node => node.type !== 'trigger'))
+    return t('AUTOMATION.CANVAS.VALIDATION.ACTION_REQUIRED');
+  return null;
+};
+
 const save = async () => {
+  if (isSaving.value) return;
+  const invalid = validationError();
+  if (invalid) {
+    useAlert(invalid);
+    return;
+  }
   isSaving.value = true;
   try {
     const triggerNode = (definition.value.nodes || []).find(
@@ -626,20 +705,41 @@ const save = async () => {
   }
 };
 
-const goBack = () =>
-  router.push({ name: 'automation_list', params: route.params });
+onBeforeRouteLeave(
+  () =>
+    !isDirty.value ||
+    // eslint-disable-next-line no-alert
+    window.confirm(t('AUTOMATION.CANVAS.UNSAVED_CONFIRM'))
+);
 </script>
 
 <template>
   <div
-    class="flex flex-col w-full h-full bg-n-solid-2"
+    class="relative flex flex-col w-full h-full bg-n-solid-2"
     data-testid="flow-canvas-view"
   >
+    <div
+      v-if="loadError"
+      class="absolute inset-0 z-10 flex flex-col items-center justify-center gap-3 text-center bg-n-solid-2"
+      data-testid="canvas-load-error"
+    >
+      <span class="text-4xl i-lucide-triangle-alert text-n-amber-9" />
+      <p class="text-sm text-n-slate-11">
+        {{ t('AUTOMATION.CANVAS.LOAD_ERROR') }}
+      </p>
+      <Button
+        :label="t('AUTOMATION.CANVAS.BACK')"
+        data-testid="canvas-load-error-back"
+        @click="goBack"
+      />
+    </div>
     <header
       class="flex items-center gap-3 px-4 border-b h-14 shrink-0 border-n-weak bg-n-solid-1"
     >
       <button
         class="text-n-slate-11 hover:text-n-slate-12"
+        :aria-label="t('AUTOMATION.CANVAS.BACK')"
+        :title="t('AUTOMATION.CANVAS.BACK')"
         data-testid="canvas-back"
         @click="goBack"
       >
@@ -698,14 +798,13 @@ const goBack = () =>
         <span class="i-lucide-flask-conical" />
         {{ t('AUTOMATION.CANVAS.SIMULATE.OPEN') }}
       </button>
-      <button
-        class="px-3 py-1.5 text-sm font-medium text-white rounded-lg bg-n-brand disabled:opacity-60"
+      <Button
+        :label="t('AUTOMATION.CANVAS.SAVE')"
+        :is-loading="isSaving"
         :disabled="isSaving"
         data-testid="canvas-save"
         @click="save"
-      >
-        {{ t('AUTOMATION.CANVAS.SAVE') }}
-      </button>
+      />
     </header>
 
     <div class="flex flex-1 min-h-0">
@@ -768,6 +867,7 @@ const goBack = () =>
           :node-types="nodeTypes"
           :edge-types="edgeTypes"
           :default-viewport="{ zoom: 0.9 }"
+          :delete-key-code="['Delete', 'Backspace']"
           default-marker-color="#8b93aa"
           fit-view-on-init
           class="w-full h-full"
@@ -776,6 +876,7 @@ const goBack = () =>
           @init="onFlowInit"
           @connect="onConnect"
           @edges-change="onEdgesChange"
+          @nodes-change="onNodesChange"
           @node-drag-stop="onNodeDragStop"
         >
           <template #node-flow="nodeProps">
@@ -811,6 +912,7 @@ const goBack = () =>
         :node="selectedNode"
         @close="onPaneClick"
         @update="updateSelectedNode"
+        @delete="removeSelectedNode"
       />
     </div>
 
