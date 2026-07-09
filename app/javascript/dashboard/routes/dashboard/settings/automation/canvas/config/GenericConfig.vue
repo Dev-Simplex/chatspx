@@ -1,6 +1,6 @@
 <script setup>
-// Fallback para ações sem editor dedicado (ex.: mute/snooze/resolve/open/pending, que não
-// têm parâmetros) ou tipos ainda não cobertos. Apenas informa que não há o que configurar.
+// Fallback para ações sem editor dedicado (ex.: mute/resolve/open/pending, que não têm
+// parâmetros) ou tipos ainda não cobertos. Apenas informa que não há o que configurar.
 // inheritAttrs:false — o dispatcher passa :node/@update, que aqui não têm uso.
 import { useI18n } from 'vue-i18n';
 

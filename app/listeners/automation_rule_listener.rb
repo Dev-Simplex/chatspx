@@ -1,4 +1,16 @@
 class AutomationRuleListener < BaseListener
+  # Palavras de opt-out (descadastro) do WhatsApp marketing. Casamento por IGUALDADE (não
+  # "contains") sobre a mensagem normalizada — acento/caixa/pontuação-insensível, ver
+  # #opt_out_message? — pra "PARAR"/"Sair"/"stop."/"CANCELAR" descadastrarem, mas "não vou
+  # parar de comprar" (que só CONTÉM "parar") NÃO. Lista central e extensível.
+  OPT_OUT_KEYWORDS = %w[parar sair stop cancelar].freeze
+
+  # Direções válidas do filtro de gatilho (trigger_config['direction']). 'both' é o default e
+  # NÃO filtra nada (comportamento histórico). Resolve o bug clássico: uma regra "ao criar
+  # conversa → atribuir ao time X" que também disparava quando o AGENTE inicia a conversa
+  # (saída/outbound), jogando-a no time errado. Ver #flow_trigger_direction e TriggerConfig.vue.
+  FLOW_TRIGGER_DIRECTIONS = %w[inbound outbound both].freeze
+
   def conversation_updated(event)
     process_conversation_event(event, 'conversation_updated')
   end
@@ -74,7 +86,20 @@ class AutomationRuleListener < BaseListener
   end
 
   def run_flows(event_name, account, conversation, payload)
+    # Compliance opt-out ("PARAR"): uma mensagem incoming de descadastro registra a suppression
+    # e NÃO dispara flow algum por si — nem por-evento, nem keyword. Só corre em message_created
+    # (único evento com a mensagem no payload) e só com o motor Flow ativo (estamos em run_flows).
+    return if event_name == 'message_created' && handle_incoming_opt_out(account, conversation, payload)
+
+    # Direção do evento (inbound/outbound) resolvida SOB DEMANDA e memoizada: só é calculada
+    # quando algum flow filtra por direção — o caso comum ('both'/ausente) nunca a materializa,
+    # então não há query extra na não-regressão. Proc LOCAL de propósito (o listener é singleton:
+    # uma ivar vazaria estado entre threads/eventos). Ver #memoized_event_direction.
+    event_direction = memoized_event_direction(event_name, conversation, payload)
+
     current_account_flows(event_name, account).each do |flow|
+      next unless flow_direction_matches?(flow, event_direction)
+
       gate = ::Flows::RuleAdapter.new(conditions: flow.trigger_config['conditions'], flow: flow)
       conditions_match = ::AutomationRules::ConditionsFilterService.new(gate, conversation, payload).perform
       ::Flows::RunnerService.new(flow: flow, conversation: conversation, trigger_payload: payload).perform if conditions_match.present?
@@ -84,14 +109,14 @@ class AutomationRuleListener < BaseListener
     # event_name — por isso ficam fora do laço por-evento e só rodam em message_created (o
     # único evento que carrega a mensagem no payload). A gate `flows_engine_active?` já foi
     # aplicada por run_engine, então reaproveitamos o cache de flows sem re-checá-la.
-    run_keyword_flows(account, conversation, payload) if event_name == 'message_created'
+    run_keyword_flows(account, conversation, payload, event_direction) if event_name == 'message_created'
   end
 
   # Gatilho `keyword`: dispara os Flows keyword-triggered ativos quando o conteúdo de uma
   # mensagem INCOMING de contato casa com as palavras-chave em trigger_config. Anti-loop já
   # garantido por ignore_message_created_event? (mensagens com flow_id nem chegam ao listener)
   # e reforçado aqui pelo filtro incoming (as mensagens que o motor gera são outgoing).
-  def run_keyword_flows(account, conversation, payload)
+  def run_keyword_flows(account, conversation, payload, event_direction)
     message = payload[:message]
     return unless message&.incoming? && !message.private?
 
@@ -99,10 +124,101 @@ class AutomationRuleListener < BaseListener
     return if content.blank?
 
     current_account_keyword_flows(account).each do |flow|
-      next unless keyword_trigger_match?(content, flow.trigger_config)
+      next unless keyword_flow_fires?(flow, content, event_direction)
 
       ::Flows::RunnerService.new(flow: flow, conversation: conversation, trigger_payload: payload).perform
     end
+  end
+
+  # Um keyword flow dispara quando o conteúdo casa E a direção casa. Gatilho keyword é inbound por
+  # natureza (só corre em mensagem incoming): honramos o filtro literalmente — 'outbound' nunca
+  # casa (correto), 'inbound'/'both' casam. Extraído para manter #run_keyword_flows simples.
+  def keyword_flow_fires?(flow, content, event_direction)
+    keyword_trigger_match?(content, flow.trigger_config) && flow_direction_matches?(flow, event_direction)
+  end
+
+  # Resolve a direção do evento apenas quando LIDA (memoizada no fechamento do lambda). Para
+  # message_created a direção é a da PRÓPRIA mensagem (payload — sem I/O); para eventos de conversa
+  # é a da 1ª mensagem não-activity da conversa (uma query indexada). Devolve sempre 'inbound' ou
+  # 'outbound', então o `memo ||=` memoiza corretamente (nunca nil/false).
+  def memoized_event_direction(event_name, conversation, payload)
+    memo = nil
+    lambda do
+      memo ||= if event_name == 'message_created'
+                 message_direction(payload[:message])
+               else
+                 conversation_direction(conversation)
+               end
+    end
+  end
+
+  # Um flow passa no filtro de direção quando é 'both' (default — sem filtro) ou quando a direção
+  # configurada é EXATAMENTE a do evento. Só invoca o resolvedor (e sua eventual query) para os
+  # flows que de fato filtram; o caso 'both' devolve antes de tocá-lo.
+  def flow_direction_matches?(flow, event_direction)
+    wanted = flow_trigger_direction(flow)
+    wanted == 'both' || wanted == event_direction.call
+  end
+
+  # Direção configurada do gatilho: 'inbound' | 'outbound' | 'both' (default). Fonte PRIMÁRIA é
+  # trigger_config['direction'] (a projeção que o canvas grava). Como o canvas TAMBÉM persiste a
+  # direção no próprio nó `trigger` da definition (updateSelectedNode espalha o patch no nó), lemos
+  # de lá como FALLBACK — assim o filtro já funciona ponta-a-ponta antes mesmo de a projeção do
+  # FlowCanvasView copiar `direction` para trigger_config (ver TODO no canvas). Valor ausente/
+  # desconhecido → 'both' (sem filtro; preserva o comportamento atual / não-regressão).
+  def flow_trigger_direction(flow)
+    config = flow.trigger_config
+    raw = config['direction'] if config.is_a?(Hash)
+    raw = trigger_node_direction(flow) if raw.blank?
+    FLOW_TRIGGER_DIRECTIONS.include?(raw.to_s) ? raw.to_s : 'both'
+  end
+
+  # Fallback: a direção gravada no nó `trigger` da definition (usada quando trigger_config ainda
+  # não a projeta). nil se não houver nó de gatilho — aí #flow_trigger_direction cai em 'both'.
+  def trigger_node_direction(flow)
+    node = flow.nodes.find { |n| n.is_a?(Hash) && n['type'] == 'trigger' }
+    node && node['direction']
+  end
+
+  # Direção da CONVERSA no instante do evento: a da 1ª mensagem não-activity dela. É ROBUSTO
+  # porque o AutomationRuleListener roda ASSÍNCRONO (EventDispatcherJob.perform_later): o evento
+  # foi enfileirado no after_create_commit da conversa, então quando o job corre a conversa e sua
+  # 1ª mensagem já commitaram. No bug real (agente inicia a conversa = saída), o controller cria
+  # conversa + 1ª mensagem OUTGOING na MESMA transação, logo o after_create_commit só dispara com
+  # a outgoing já presente — a leitura reflete o iniciador. Usamos all_messages (não `messages`)
+  # para ignorar o isolamento por time: a direção é a ORIGEM da conversa, não o que o time atual
+  # enxerga. Sem mensagem direcional → 'inbound' (fail-open ao comportamento de hoje; uma conversa
+  # sem mensagem não é o outbound-iniciado-por-agente, que sempre carrega a outgoing).
+  def conversation_direction(conversation)
+    first = conversation.all_messages.where.not(message_type: :activity).reorder(:created_at, :id).first
+    first.nil? || first.incoming? ? 'inbound' : 'outbound'
+  end
+
+  # Direção de uma MENSAGEM: incoming = entrada; qualquer outra (outgoing/template) = saída.
+  def message_direction(message)
+    message&.incoming? ? 'inbound' : 'outbound'
+  end
+
+  # Detecta e processa um opt-out numa mensagem INCOMING de contato. Ao casar, registra a
+  # suppression de marketing (reason: opt_out) e devolve true — o run_flows aborta TODO disparo
+  # por essa mensagem. Reusa os mesmos filtros de elegibilidade do keyword matcher (incoming,
+  # não-privada); o anti-loop flow_id já foi aplicado por ignore_message_created_event?.
+  def handle_incoming_opt_out(account, conversation, payload)
+    message = payload[:message]
+    return false unless message&.incoming? && !message.private?
+    return false unless opt_out_message?(message.content)
+
+    contact = conversation.contact
+    ContactFlowSuppression.record_opt_out!(contact: contact, account: account) if contact.present?
+    true
+  end
+
+  # É um pedido de descadastro? A mensagem, normalizada (transliterada, minúscula, colapsada) e
+  # com a pontuação removida, é EXATAMENTE uma das OPT_OUT_KEYWORDS. Match exato (não substring)
+  # evita falso-positivo em frases que só contêm a palavra. Ver #normalize_keyword.
+  def opt_out_message?(content)
+    normalized = normalize_keyword(content).gsub(/[^a-z0-9 ]/, '').strip
+    OPT_OUT_KEYWORDS.include?(normalized)
   end
 
   def current_account_rules(event_name, account)

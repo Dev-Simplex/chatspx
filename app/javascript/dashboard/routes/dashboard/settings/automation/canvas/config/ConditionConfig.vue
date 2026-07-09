@@ -1,36 +1,20 @@
 <script setup>
-// Editor dos nós `condition` / `router`. Reusa integralmente o ConditionRow das automações
-// e o motor de filterTypes (atributos + operadores + opções). Persiste em `node.conditions`
-// na FORMA GERADA (a que o Flows::RunnerService entrega ao ConditionsFilterService).
+// Editor do nó `condition` (2 saídas Sim/Não). Reusa integralmente o ConditionRow das
+// automações e o motor de filterTypes (atributos + operadores + opções). Persiste em
+// `node.conditions` na FORMA GERADA (a que o Flows::RunnerService entrega ao
+// ConditionsFilterService). O nó `router` (multi-rota) tem editor próprio: RouterConfig.vue.
 //
-// Contexto de atributos: na F1 usamos o conjunto de `conversation_updated` — o superset de
-// atributos de conversa (status, agente, time, prioridade, etiquetas, inbox, idioma...). O
-// ConditionsFilterService avalia qualquer um deles independentemente do gatilho.
-// TODO(F2): derivar o conjunto do evento do gatilho e ramos rotulados do router.
-import {
-  ref,
-  computed,
-  h,
-  nextTick,
-  onMounted,
-  useTemplateRef,
-  watch,
-} from 'vue';
+// filterTypes (atributos/operadores/opções, contexto `conversation_updated`) vêm do composable
+// compartilhado useFlowFilterTypes — o mesmo conjunto que o RouterConfig usa. Reuso integral
+// do motor de filtro das automações; nada de formato novo.
+import { ref, nextTick, onMounted, useTemplateRef, watch } from 'vue';
 import { useI18n } from 'vue-i18n';
-import { useOperators } from 'dashboard/components-next/filter/operators';
-import { useAutomation } from 'dashboard/composables/useAutomation';
-import {
-  getAttributes,
-  getDefaultConditions,
-} from 'dashboard/helper/automationHelper';
+import { getDefaultConditions } from 'dashboard/helper/automationHelper';
 import ConditionRow from 'dashboard/components-next/filter/ConditionRow.vue';
 import NextButton from 'dashboard/components-next/button/Button.vue';
 import ConfigField from './ConfigField.vue';
-import {
-  INPUT_TYPE_MAP,
-  toGeneratedConditions,
-  toRichConditions,
-} from './conditionHelpers';
+import { toGeneratedConditions, toRichConditions } from './conditionHelpers';
+import { useFlowFilterTypes, EVENT_CONTEXT } from './useFlowFilterTypes';
 
 const props = defineProps({
   node: {
@@ -41,67 +25,13 @@ const props = defineProps({
 
 const emit = defineEmits(['update']);
 
-const EVENT_CONTEXT = 'conversation_updated';
-
 const { t } = useI18n();
-const { operators } = useOperators();
-const {
-  automationTypes,
-  getConditionDropdownValues,
-  manifestCustomAttributes,
-} = useAutomation();
+const { filterTypes, manifestCustomAttributes } = useFlowFilterTypes();
 
 const conditionsRef = useTemplateRef('conditionsRef');
 const conditions = ref([]);
 // Trava a emissão durante a (re)hidratação a partir do nó, evitando eco de update.
 let isHydrating = false;
-
-const getTranslatedAttributes = () =>
-  getAttributes(automationTypes, EVENT_CONTEXT).map(attribute => {
-    const skipTranslation =
-      attribute.customAttributeType ||
-      ['contact_custom_attribute', 'conversation_custom_attribute'].includes(
-        attribute.key
-      );
-    return {
-      ...attribute,
-      name: skipTranslation
-        ? attribute.name
-        : t(`AUTOMATION.ATTRIBUTES.${attribute.name}`),
-    };
-  });
-
-const filterTypes = computed(() =>
-  getTranslatedAttributes().map(attr => {
-    if (attr.disabled) {
-      return { value: attr.key, label: attr.name, disabled: true };
-    }
-    const mappedInputType = INPUT_TYPE_MAP[attr.inputType] || 'plainText';
-    const options = getConditionDropdownValues(attr.key) || [];
-    const filterOperators = (attr.filterOperators || []).map(op => {
-      const enriched = operators.value[op.value];
-      if (enriched) return enriched;
-      return {
-        value: op.value,
-        label: t(`FILTER.OPERATOR_LABELS.${op.value}`),
-        hasInput: true,
-        inputOverride: null,
-        icon: h('span', { class: 'i-lucide-equal !text-n-blue-11' }),
-      };
-    });
-    return {
-      attributeKey: attr.key,
-      value: attr.key,
-      attributeName: attr.name,
-      label: attr.name,
-      inputType: mappedInputType,
-      options,
-      filterOperators,
-      dataType: 'text',
-      attributeModel: attr.customAttributeType || 'standard',
-    };
-  })
-);
 
 const hydrateFromNode = () => {
   isHydrating = true;

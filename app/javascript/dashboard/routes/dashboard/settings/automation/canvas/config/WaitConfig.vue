@@ -1,12 +1,15 @@
 <script setup>
 // Editor do nó `wait` (Fase 2): pausa o fluxo por um tempo antes de seguir. Grava em
-// node.wait = { value, unit } — exatamente o formato que o Flows::RunnerService lê para
-// calcular wait_until. unit ∈ minutes|hours|days; value é inteiro ≥ 1 (o backend cai em
-// 1 minuto se ausente/inválido). Espelha o padrão de SetAttributeConfig.vue.
+// node.wait = { value, unit, business_hours } — exatamente o formato que o
+// Flows::RunnerService lê para calcular wait_until. unit ∈ minutes|hours|days; value é
+// inteiro ≥ 1 (o backend cai em 1 minuto se ausente/inválido). Com business_hours: true o
+// instante é empurrado para a próxima abertura comercial da inbox (Flows::BusinessHours).
+// Espelha o padrão de SetAttributeConfig.vue.
 import { computed } from 'vue';
 import { useI18n } from 'vue-i18n';
 import SingleSelect from 'dashboard/components-next/filter/inputs/SingleSelect.vue';
 import Input from 'dashboard/components-next/input/Input.vue';
+import Switch from 'dashboard/components-next/switch/Switch.vue';
 import ConfigField from './ConfigField.vue';
 
 const props = defineProps({
@@ -20,7 +23,7 @@ const emit = defineEmits(['update']);
 
 const { t } = useI18n();
 
-const DEFAULTS = { value: 5, unit: 'minutes' };
+const DEFAULTS = { value: 5, unit: 'minutes', business_hours: false };
 
 const config = computed(() => ({ ...DEFAULTS, ...(props.node.wait || {}) }));
 
@@ -55,6 +58,15 @@ const valueModel = computed({
     patch({ value: Number.isNaN(parsed) || parsed < 1 ? 1 : parsed });
   },
 });
+
+const businessHoursModel = computed({
+  get() {
+    return Boolean(config.value.business_hours);
+  },
+  set(value) {
+    patch({ business_hours: Boolean(value) });
+  },
+});
 </script>
 
 <template>
@@ -76,5 +88,19 @@ const valueModel = computed({
         :options="unitOptions"
       />
     </ConfigField>
+    <div class="flex flex-col gap-1.5">
+      <label
+        class="flex items-center justify-between gap-3 cursor-pointer"
+        data-testid="wait-business-hours"
+      >
+        <span class="text-xs font-medium text-n-slate-11">
+          {{ t('AUTOMATION.CANVAS.CONFIG.WAIT.BUSINESS_HOURS_LABEL') }}
+        </span>
+        <Switch v-model="businessHoursModel" />
+      </label>
+      <span class="text-xs leading-snug text-n-slate-10">
+        {{ t('AUTOMATION.CANVAS.CONFIG.WAIT.BUSINESS_HOURS_HINT') }}
+      </span>
+    </div>
   </div>
 </template>

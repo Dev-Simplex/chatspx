@@ -1,13 +1,52 @@
 {
   "AUTOMATION": {
     "CANVAS": {
+      "SIMULATE": {
+        "OPEN": "Testar",
+        "TITLE": "Ensaio (simulação)",
+        "MODE_BADGE": "Modo simulação · nada foi enviado",
+        "MODE_HINT": "Ensaio a seco (dry-run): mensagens e IA são calculadas, não disparadas. Nada é enviado e nada é gravado — é só um ensaio do caminho que o fluxo tomaria.",
+        "AGAINST": "Simulado com {name}",
+        "RUNNING": "Traçando o caminho…",
+        "STEP_COUNT": "{count} passos",
+        "RERUN": "Simular de novo",
+        "RETRY": "Tentar de novo",
+        "EMPTY": "Este fluxo ainda não tem blocos para executar.",
+        "ERROR": "Não foi possível rodar a simulação.",
+        "NO_CONVERSATION": "Nenhuma conversa de amostra para simular.",
+        "NO_CONVERSATION_HINT": "As condições são avaliadas contra uma conversa real. Crie ou receba uma e teste de novo."
+      },
+      "LOGS": {
+        "OPEN": "Execuções",
+        "TITLE": "Execuções",
+        "COUNT": "{count} passos",
+        "REFRESH": "Atualizar",
+        "LOADING": "Carregando execuções…",
+        "EMPTY": "Nenhuma execução ainda",
+        "EMPTY_HINT": "Quando este fluxo rodar, cada passo que ele der aparece aqui.",
+        "ERROR": "Não foi possível carregar as execuções.",
+        "RETRY": "Tentar de novo",
+        "LOAD_MORE": "Carregar mais",
+        "BRANCH_STEP": "Decisão",
+        "UNKNOWN_STEP": "Passo",
+        "STATUS": {
+          "SUCCESS": "Sucesso",
+          "FAILED": "Falhou",
+          "SKIPPED": "Pulado"
+        }
+      },
       "NEW_FLOW": "Novo fluxo",
       "NAME_PLACEHOLDER": "Nome do fluxo",
       "PALETTE": "Blocos",
+      "PALETTE_SEARCH": "Buscar bloco…",
+      "PALETTE_NO_RESULTS": "Nenhum bloco encontrado",
       "SAVE": "Salvar",
       "SAVED": "Fluxo salvo",
       "CREATED": "Fluxo criado",
       "SAVE_ERROR": "Não foi possível salvar o fluxo",
+      "UNDO": "Desfazer",
+      "REDO": "Refazer",
+      "UNSAVED": "Alterações não salvas",
       "EMPTY": "Escolha um bloco na paleta para começar",
       "FAMILIES": {
         "TRIGGER": "Gatilho",
@@ -17,9 +56,18 @@
         "ACTION": "Ação",
         "DATA": "Dados"
       },
+      "PALETTE_SECTIONS": {
+        "TRIGGER": "Gatilhos",
+        "MSG": "Mensagens",
+        "LOGIC": "Lógica",
+        "AI": "IA",
+        "ACTION": "Ações",
+        "DATA": "Dados"
+      },
       "NODES": {
         "TRIGGER": "Gatilho",
         "CONDITION": "Condição",
+        "ROUTER": "Roteador",
         "WAIT": "Aguardar",
         "SEND_MESSAGE": "Enviar mensagem",
         "SEND_TEMPLATE": "Enviar template",
@@ -29,8 +77,17 @@
         "ADD_LABEL": "Etiqueta",
         "CHANGE_STATUS": "Mudar status",
         "CHANGE_PRIORITY": "Prioridade",
+        "SNOOZE": "Adiar",
         "ASSIGN_AI_AGENT": "Transferir p/ IA",
-        "SET_ATTRIBUTE": "Definir atributo"
+        "AI_CLASSIFY": "Classificar com IA",
+        "AI_GENERATE": "Gerar com IA",
+        "SET_ATTRIBUTE": "Definir atributo",
+        "MOVE_FUNNEL_STAGE": "Mover etapa no funil",
+        "CALL_MACRO": "Executar macro",
+        "SEND_CSAT": "Enviar CSAT",
+        "ADD_PARTICIPANT": "Adicionar participante",
+        "ENROLL_SEQUENCE": "Inscrever em sequência",
+        "HTTP_REQUEST": "Requisição HTTP"
       },
       "CONFIG": {
         "CLOSE": "Fechar",
@@ -51,6 +108,46 @@
           "VALUE_PLACEHOLDER": "Valor a gravar",
           "VALUE_HINT": "Aceita Liquid, ex.: {'{{'}contact.name{'}}'}."
         },
+        "MOVE_FUNNEL_STAGE": {
+          "FUNNEL_LABEL": "Funil",
+          "FUNNEL_PLACEHOLDER": "Selecione um funil",
+          "STAGE_LABEL": "Etapa",
+          "STAGE_PLACEHOLDER": "Selecione uma etapa",
+          "NO_FUNNELS": "Nenhum funil disponível. Crie um funil no Kanban primeiro."
+        },
+        "CALL_MACRO": {
+          "LABEL": "Macro",
+          "PLACEHOLDER": "Selecione uma macro",
+          "NO_MACROS": "Nenhuma macro disponível. Crie uma em Configurações › Macros."
+        },
+        "ADD_PARTICIPANT": {
+          "LABEL": "Participante",
+          "PLACEHOLDER": "Selecione um agente"
+        },
+        "ENROLL_SEQUENCE": {
+          "LABEL": "Sequência",
+          "PLACEHOLDER": "Selecione uma sequência",
+          "NO_SEQUENCES": "Nenhuma sequência ativa. Crie uma em Configurações › Sequências de mensagens."
+        },
+        "HTTP_REQUEST": {
+          "METHOD_LABEL": "Método",
+          "URL_LABEL": "URL",
+          "URL_PLACEHOLDER": "https://api.exemplo.com/hook",
+          "URL_HINT": "Aceita variáveis Liquid. Só hosts http(s) públicos; endereços internos/privados são bloqueados.",
+          "HEADERS_LABEL": "Cabeçalhos",
+          "HEADER_KEY_PLACEHOLDER": "Cabeçalho",
+          "HEADER_VALUE_PLACEHOLDER": "Valor",
+          "HEADER_ADD": "Adicionar cabeçalho",
+          "HEADER_REMOVE": "Remover cabeçalho",
+          "BODY_LABEL": "Corpo",
+          "BODY_PLACEHOLDER": "Corpo da requisição (JSON por padrão)",
+          "BODY_HINT": "Enviado como está. Aceita variáveis Liquid.",
+          "STORE_LABEL": "Gravar resposta em (opcional)",
+          "STORE_HINT": "Grava o corpo da resposta num atributo. Deixe o atributo vazio para não gravar.",
+          "TARGET_CONVERSATION": "Conversa",
+          "TARGET_CONTACT": "Contato",
+          "STORE_KEY_PLACEHOLDER": "Chave do atributo"
+        },
         "ASSIGN_AGENT": {
           "LABEL": "Agente",
           "PLACEHOLDER": "Selecione um agente",
@@ -63,6 +160,40 @@
         "ASSIGN_AI_AGENT": {
           "LABEL": "Agente IA",
           "PLACEHOLDER": "Selecione um agente IA"
+        },
+        "AI_CLASSIFY": {
+          "ASSISTANT_LABEL": "Agente IA",
+          "ASSISTANT_PLACEHOLDER": "Selecione um agente IA",
+          "PROMPT_LABEL": "Instruções",
+          "PROMPT_HINT": "Opcional. Diga à IA no que focar ao classificar.",
+          "PROMPT_PLACEHOLDER": "ex.: Classifique a intenção do cliente",
+          "CATEGORIES_LABEL": "Categorias",
+          "CATEGORIES_HINT": "A IA escolhe exatamente uma. Um Roteador posterior ramifica pelo valor gravado.",
+          "CATEGORY_PLACEHOLDER": "ex.: reclamação",
+          "CATEGORY_ADD": "Adicionar categoria",
+          "CATEGORY_REMOVE": "Remover categoria",
+          "TARGET_LABEL": "Onde gravar",
+          "TARGET_CONVERSATION": "Conversa",
+          "TARGET_CONTACT": "Contato",
+          "KEY_LABEL": "Atributo",
+          "KEY_HINT": "A categoria escolhida é gravada aqui.",
+          "KEY_PLACEHOLDER": "ex.: categoria_ia"
+        },
+        "AI_GENERATE": {
+          "ASSISTANT_LABEL": "Agente IA",
+          "ASSISTANT_PLACEHOLDER": "Selecione um agente IA",
+          "PROMPT_LABEL": "Prompt",
+          "PROMPT_HINT": "O que a IA deve escrever? A conversa entra como contexto.",
+          "PROMPT_PLACEHOLDER": "ex.: Rascunhe uma resposta cordial à dúvida do cliente",
+          "TARGET_LABEL": "Salvar como",
+          "TARGET_NOTE": "Nota privada",
+          "TARGET_ATTRIBUTE": "Atributo",
+          "WHERE_LABEL": "Onde gravar",
+          "WHERE_CONVERSATION": "Conversa",
+          "WHERE_CONTACT": "Contato",
+          "KEY_LABEL": "Atributo",
+          "KEY_HINT": "O texto gerado é gravado aqui.",
+          "KEY_PLACEHOLDER": "ex.: rascunho_ia"
         },
         "CHANGE_STATUS": {
           "LABEL": "Status",
@@ -82,7 +213,19 @@
           "UNIT_LABEL": "Unidade",
           "UNIT_MINUTES": "Minutos",
           "UNIT_HOURS": "Horas",
-          "UNIT_DAYS": "Dias"
+          "UNIT_DAYS": "Dias",
+          "BUSINESS_HOURS_LABEL": "Respeitar horário comercial",
+          "BUSINESS_HOURS_HINT": "Quando ligado, a espera termina no próximo horário comercial da caixa de entrada da conversa, em vez de a qualquer hora do dia."
+        },
+        "SNOOZE": {
+          "VALUE_LABEL": "Adiar por",
+          "VALUE_PLACEHOLDER": "ex.: 2",
+          "UNIT_LABEL": "Unidade",
+          "HINT": "A conversa reabre automaticamente quando o tempo acaba.",
+          "UNIT_MINUTES": "Minutos",
+          "UNIT_HOURS": "Horas",
+          "UNIT_DAYS": "Dias",
+          "UNIT_WEEKS": "Semanas"
         },
         "LABELS": {
           "ADD_LABEL": "Etiquetas a adicionar",
@@ -99,13 +242,31 @@
         },
         "CONDITION": {
           "LABEL": "Condições",
-          "ADD": "Adicionar condição"
+          "ADD": "Adicionar condição",
+          "YES": "Sim",
+          "NO": "Não"
+        },
+        "ROUTER": {
+          "HINT": "As rotas são avaliadas de cima para baixo. A conversa segue a primeira rota cujas condições casam; se nenhuma casar, segue o fallback.",
+          "ROUTE_N": "Rota {n}",
+          "ROUTE_NAME_PLACEHOLDER": "Nome da rota (opcional)",
+          "ADD_ROUTE": "Adicionar rota",
+          "REMOVE_ROUTE": "Remover rota",
+          "MOVE_UP": "Mover para cima",
+          "MOVE_DOWN": "Mover para baixo",
+          "FALLBACK": "Senão",
+          "FALLBACK_HINT": "Fallback — seguido quando nenhuma rota casa."
+        },
+        "EDGE": {
+          "REMOVE": "Remover conexão"
         },
         "TRIGGER": {
           "KIND_LABEL": "Iniciar o fluxo por",
           "KIND_HINT": "Escolha o que dispara este fluxo.",
           "KIND_EVENT": "Um evento da conversa",
           "KIND_KEYWORD": "Uma palavra-chave na mensagem",
+          "KIND_SCHEDULE": "Um agendamento (por tempo)",
+          "KIND_WEBHOOK": "Um webhook externo",
           "EVENT_LABEL": "Evento",
           "EVENT_PLACEHOLDER": "Selecione um evento",
           "EVENT_HINT": "O evento que inicia este fluxo.",
@@ -116,10 +277,87 @@
             "LIST_LABEL": "Palavras-chave",
             "LIST_PLACEHOLDER": "Uma palavra-chave por linha, ex.:\noi\nsuporte\nhorário",
             "LIST_HINT": "Uma por linha. Ignora maiúsculas e acentos."
+          },
+          "SCHEDULE": {
+            "MODE_LABEL": "Com que frequência",
+            "HINT": "Roda periodicamente, verificado a cada 15 minutos. Dispara no máximo uma vez por janela.",
+            "MODE_CRON": "Por expressão cron",
+            "MODE_INTERVAL": "A cada N minutos/horas/dias",
+            "CRON_LABEL": "Expressão cron",
+            "CRON_PLACEHOLDER": "0 9 * * 1",
+            "CRON_HINT": "Cinco campos: minuto hora dia mês dia-da-semana. Ex.: 0 9 * * 1 = segundas às 09:00.",
+            "EVERY_LABEL": "A cada",
+            "EVERY_PLACEHOLDER": "ex.: 3",
+            "UNIT_LABEL": "Unidade",
+            "UNIT_MINUTES": "Minutos",
+            "UNIT_HOURS": "Horas",
+            "UNIT_DAYS": "Dias"
+          },
+          "WEBHOOK": {
+            "URL_LABEL": "URL do webhook",
+            "HINT": "Qualquer sistema externo pode iniciar este fluxo com um POST HTTP para esta URL. Mantenha-a em segredo — a URL é a única credencial. Opcionalmente envie um conversation_id (o número da conversa) no corpo JSON para mirar uma conversa, e um header Idempotency-Key para evitar disparos duplicados.",
+            "SAVE_FIRST": "Salve o fluxo para gerar a URL do webhook.",
+            "COPY": "Copiar URL",
+            "COPIED": "URL do webhook copiada"
+          },
+          "DIRECTION": {
+            "LABEL": "Direção",
+            "HINT": "Quais conversas disparam este fluxo: entrada (o contato inicia), saída (um agente inicia) ou ambas. Use 'entrada' para uma conversa iniciada pelo agente não ser pega por regras como 'ao criar, atribuir ao time X'.",
+            "BOTH": "Ambas",
+            "INBOUND": "Entrada (contato inicia)",
+            "OUTBOUND": "Saída (agente inicia)"
           }
         },
         "GENERIC": {
           "NO_PARAMS": "Este bloco não tem parâmetros para configurar."
+        }
+      }
+    },
+    "TEMPLATES": {
+      "BUTTON": "Modelos",
+      "TITLE": "Modelos de fluxo",
+      "SUBTITLE": "Fluxos prontos — escolha um e personalize no canvas.",
+      "START_BLANK": "Começar do zero",
+      "CLOSE": "Fechar",
+      "SEARCH_PLACEHOLDER": "Buscar por nome, gatilho ou ação…",
+      "USE": "Usar modelo",
+      "EMPTY": "Nenhum modelo corresponde à sua busca.",
+      "FILTERS": {
+        "ALL": "Todos",
+        "WHATSAPP": "WhatsApp",
+        "AI": "Com IA"
+      },
+      "BADGE": {
+        "OFFICIAL": "Oficial",
+        "POPULAR": "Popular"
+      },
+      "CATEGORIES": {
+        "WELCOME": "Boas-vindas",
+        "DRIP": "Drip",
+        "TRIAGE": "Triagem",
+        "CSAT": "CSAT",
+        "KEYWORD": "Palavra-chave"
+      },
+      "ITEMS": {
+        "WELCOME": {
+          "NAME": "Mensagem de boas-vindas",
+          "DESCRIPTION": "Todo primeiro contato recebe uma saudação e é marcado como lead novo para o time acompanhar."
+        },
+        "DRIP_WHATSAPP": {
+          "NAME": "Drip no WhatsApp",
+          "DESCRIPTION": "Envia um primeiro template, espera um dia e cutuca de novo com um segundo template se o cliente não respondeu."
+        },
+        "AI_TRIAGE": {
+          "NAME": "Triagem por IA",
+          "DESCRIPTION": "A IA lê a primeira mensagem, classifica a intenção e encaminha a conversa para o time certo — Vendas, Suporte ou Financeiro."
+        },
+        "CSAT_SURVEY": {
+          "NAME": "Pesquisa CSAT",
+          "DESCRIPTION": "Dez minutos depois de resolver a conversa, dispara a pesquisa de satisfação automaticamente."
+        },
+        "KEYWORD_HANDOFF": {
+          "NAME": "Atendimento por palavra-chave",
+          "DESCRIPTION": "Quando a mensagem contém uma palavra como \"atendente\" ou \"humano\", atribui um time e avisa o cliente que já vai ser atendido."
         }
       }
     },
@@ -128,9 +366,25 @@
     "LEARN_MORE": "Aprenda mais sobre automação",
     "COUNT": "{n} automação | {n} automações",
     "HEADER_BTN_TXT": "Criar Automação",
-    "LOADING": "Buscando regras de automação",
-    "SEARCH_PLACEHOLDER": "Pesquisar regras de automação...",
-    "NO_RESULTS": "Nenhuma regra de automação encontrada correspondente à sua busca",
+    "CLASSIC_RULE_BTN": "Regra clássica",
+    "LOADING": "Buscando fluxos",
+    "SEARCH_PLACEHOLDER": "Pesquisar fluxos...",
+    "NO_RESULTS": "Nenhum fluxo encontrado correspondente à sua busca",
+    "TRIGGER_TYPES": {
+      "MANUAL": "Manual",
+      "EVENT": "Evento",
+      "KEYWORD": "Palavra-chave",
+      "SCHEDULE": "Agendamento",
+      "WEBHOOK": "Webhook",
+      "UNKNOWN": "—"
+    },
+    "IMPORT": {
+      "BUTTON": "Importar automações e macros",
+      "NOTHING": "Nada para importar — suas automações e macros já viraram fluxos.",
+      "SUCCESS": "{created} item(ns) importado(s) como fluxos.",
+      "PARTIAL": "{created} item(ns) importado(s); {failed} não puderam ser importados.",
+      "ERROR": "Não foi possível importar automações e macros. Tente novamente."
+    },
     "ADD": {
       "TITLE": "Adicionar regra de automação",
       "SUBMIT": "Criar",
@@ -168,11 +422,13 @@
     "LIST": {
       "TABLE_HEADER": {
         "NAME": "Nome",
+        "TYPE": "Tipo",
         "ACTIVE": "Ativo",
         "CREATED_ON": "Criado em",
         "ACTIONS": "Ações"
       },
-      "404": "Nenhuma regra de automação encontrada"
+      "404": "Nenhuma regra de automação encontrada",
+      "EMPTY": "Nenhum fluxo ainda. Crie um fluxo ou importe suas automações e macros existentes."
     },
     "DELETE": {
       "TITLE": "Excluir regra de automação",

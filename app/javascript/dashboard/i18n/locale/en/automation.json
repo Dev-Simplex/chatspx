@@ -1,13 +1,52 @@
 {
   "AUTOMATION": {
     "CANVAS": {
+      "SIMULATE": {
+        "OPEN": "Test",
+        "TITLE": "Test run (simulation)",
+        "MODE_BADGE": "Simulation mode · nothing was sent",
+        "MODE_HINT": "Dry run: messages and AI are calculated, not fired. Nothing is sent and nothing is saved — this is only a rehearsal of the path the flow would take.",
+        "AGAINST": "Simulated against {name}",
+        "RUNNING": "Tracing the path…",
+        "STEP_COUNT": "{count} steps",
+        "RERUN": "Run again",
+        "RETRY": "Try again",
+        "EMPTY": "This flow has no blocks to run yet.",
+        "ERROR": "Could not run the simulation.",
+        "NO_CONVERSATION": "No sample conversation to simulate with.",
+        "NO_CONVERSATION_HINT": "Conditions are evaluated against a real conversation. Create or receive one, then test again."
+      },
+      "LOGS": {
+        "OPEN": "Runs",
+        "TITLE": "Runs",
+        "COUNT": "{count} steps",
+        "REFRESH": "Refresh",
+        "LOADING": "Loading runs…",
+        "EMPTY": "No runs yet",
+        "EMPTY_HINT": "Once this flow runs, each step it takes shows up here.",
+        "ERROR": "Could not load the runs.",
+        "RETRY": "Try again",
+        "LOAD_MORE": "Load more",
+        "BRANCH_STEP": "Decision",
+        "UNKNOWN_STEP": "Step",
+        "STATUS": {
+          "SUCCESS": "Success",
+          "FAILED": "Failed",
+          "SKIPPED": "Skipped"
+        }
+      },
       "NEW_FLOW": "New flow",
       "NAME_PLACEHOLDER": "Flow name",
       "PALETTE": "Blocks",
+      "PALETTE_SEARCH": "Search blocks…",
+      "PALETTE_NO_RESULTS": "No blocks found",
       "SAVE": "Save",
       "SAVED": "Flow saved",
       "CREATED": "Flow created",
       "SAVE_ERROR": "Could not save the flow",
+      "UNDO": "Undo",
+      "REDO": "Redo",
+      "UNSAVED": "Unsaved changes",
       "EMPTY": "Pick a block from the palette to start",
       "FAMILIES": {
         "TRIGGER": "Trigger",
@@ -17,9 +56,18 @@
         "ACTION": "Action",
         "DATA": "Data"
       },
+      "PALETTE_SECTIONS": {
+        "TRIGGER": "Triggers",
+        "MSG": "Messages",
+        "LOGIC": "Logic",
+        "AI": "AI",
+        "ACTION": "Actions",
+        "DATA": "Data"
+      },
       "NODES": {
         "TRIGGER": "Trigger",
         "CONDITION": "Condition",
+        "ROUTER": "Router",
         "WAIT": "Wait",
         "SEND_MESSAGE": "Send message",
         "SEND_TEMPLATE": "Send template",
@@ -29,8 +77,17 @@
         "ADD_LABEL": "Label",
         "CHANGE_STATUS": "Change status",
         "CHANGE_PRIORITY": "Priority",
+        "SNOOZE": "Snooze",
         "ASSIGN_AI_AGENT": "Hand off to AI",
-        "SET_ATTRIBUTE": "Set attribute"
+        "AI_CLASSIFY": "Classify with AI",
+        "AI_GENERATE": "Generate with AI",
+        "SET_ATTRIBUTE": "Set attribute",
+        "MOVE_FUNNEL_STAGE": "Move funnel stage",
+        "CALL_MACRO": "Run macro",
+        "SEND_CSAT": "Send CSAT",
+        "ADD_PARTICIPANT": "Add participant",
+        "ENROLL_SEQUENCE": "Enroll in sequence",
+        "HTTP_REQUEST": "HTTP request"
       },
       "CONFIG": {
         "CLOSE": "Close",
@@ -51,6 +108,46 @@
           "VALUE_PLACEHOLDER": "Value to store",
           "VALUE_HINT": "Accepts Liquid, e.g. {'{{'}contact.name{'}}'}."
         },
+        "MOVE_FUNNEL_STAGE": {
+          "FUNNEL_LABEL": "Funnel",
+          "FUNNEL_PLACEHOLDER": "Select a funnel",
+          "STAGE_LABEL": "Stage",
+          "STAGE_PLACEHOLDER": "Select a stage",
+          "NO_FUNNELS": "No funnels available. Create a funnel in the Kanban first."
+        },
+        "CALL_MACRO": {
+          "LABEL": "Macro",
+          "PLACEHOLDER": "Select a macro",
+          "NO_MACROS": "No macros available. Create one under Settings › Macros."
+        },
+        "ADD_PARTICIPANT": {
+          "LABEL": "Participant",
+          "PLACEHOLDER": "Select an agent"
+        },
+        "ENROLL_SEQUENCE": {
+          "LABEL": "Sequence",
+          "PLACEHOLDER": "Select a sequence",
+          "NO_SEQUENCES": "No active sequences. Create one under Settings › Message sequences."
+        },
+        "HTTP_REQUEST": {
+          "METHOD_LABEL": "Method",
+          "URL_LABEL": "URL",
+          "URL_PLACEHOLDER": "https://api.example.com/hook",
+          "URL_HINT": "Accepts Liquid variables. Only public http(s) hosts; internal/private addresses are blocked.",
+          "HEADERS_LABEL": "Headers",
+          "HEADER_KEY_PLACEHOLDER": "Header",
+          "HEADER_VALUE_PLACEHOLDER": "Value",
+          "HEADER_ADD": "Add header",
+          "HEADER_REMOVE": "Remove header",
+          "BODY_LABEL": "Body",
+          "BODY_PLACEHOLDER": "Raw request body (JSON by default)",
+          "BODY_HINT": "Sent as-is. Accepts Liquid variables.",
+          "STORE_LABEL": "Store response in (optional)",
+          "STORE_HINT": "Saves the response body into an attribute. Leave the attribute empty to skip storing.",
+          "TARGET_CONVERSATION": "Conversation",
+          "TARGET_CONTACT": "Contact",
+          "STORE_KEY_PLACEHOLDER": "Attribute key"
+        },
         "ASSIGN_AGENT": {
           "LABEL": "Agent",
           "PLACEHOLDER": "Select an agent",
@@ -63,6 +160,40 @@
         "ASSIGN_AI_AGENT": {
           "LABEL": "AI agent",
           "PLACEHOLDER": "Select an AI agent"
+        },
+        "AI_CLASSIFY": {
+          "ASSISTANT_LABEL": "AI agent",
+          "ASSISTANT_PLACEHOLDER": "Select an AI agent",
+          "PROMPT_LABEL": "Instructions",
+          "PROMPT_HINT": "Optional. Tell the AI what to focus on when classifying.",
+          "PROMPT_PLACEHOLDER": "e.g. Classify the customer's intent",
+          "CATEGORIES_LABEL": "Categories",
+          "CATEGORIES_HINT": "The AI picks exactly one. A later Router can branch on the stored value.",
+          "CATEGORY_PLACEHOLDER": "e.g. complaint",
+          "CATEGORY_ADD": "Add category",
+          "CATEGORY_REMOVE": "Remove category",
+          "TARGET_LABEL": "Where to store",
+          "TARGET_CONVERSATION": "Conversation",
+          "TARGET_CONTACT": "Contact",
+          "KEY_LABEL": "Attribute",
+          "KEY_HINT": "The chosen category is saved here.",
+          "KEY_PLACEHOLDER": "e.g. ai_category"
+        },
+        "AI_GENERATE": {
+          "ASSISTANT_LABEL": "AI agent",
+          "ASSISTANT_PLACEHOLDER": "Select an AI agent",
+          "PROMPT_LABEL": "Prompt",
+          "PROMPT_HINT": "What should the AI write? The conversation is added as context.",
+          "PROMPT_PLACEHOLDER": "e.g. Draft a friendly reply answering the customer's question",
+          "TARGET_LABEL": "Save as",
+          "TARGET_NOTE": "Private note",
+          "TARGET_ATTRIBUTE": "Attribute",
+          "WHERE_LABEL": "Where to store",
+          "WHERE_CONVERSATION": "Conversation",
+          "WHERE_CONTACT": "Contact",
+          "KEY_LABEL": "Attribute",
+          "KEY_HINT": "The generated text is saved here.",
+          "KEY_PLACEHOLDER": "e.g. ai_draft"
         },
         "CHANGE_STATUS": {
           "LABEL": "Status",
@@ -82,7 +213,19 @@
           "UNIT_LABEL": "Unit",
           "UNIT_MINUTES": "Minutes",
           "UNIT_HOURS": "Hours",
-          "UNIT_DAYS": "Days"
+          "UNIT_DAYS": "Days",
+          "BUSINESS_HOURS_LABEL": "Respect business hours",
+          "BUSINESS_HOURS_HINT": "When on, the wait ends at the next business hour of the conversation's inbox instead of at any time of day."
+        },
+        "SNOOZE": {
+          "VALUE_LABEL": "Snooze for",
+          "VALUE_PLACEHOLDER": "e.g. 2",
+          "UNIT_LABEL": "Unit",
+          "HINT": "The conversation reopens automatically when the time is up.",
+          "UNIT_MINUTES": "Minutes",
+          "UNIT_HOURS": "Hours",
+          "UNIT_DAYS": "Days",
+          "UNIT_WEEKS": "Weeks"
         },
         "LABELS": {
           "ADD_LABEL": "Labels to add",
@@ -99,13 +242,31 @@
         },
         "CONDITION": {
           "LABEL": "Conditions",
-          "ADD": "Add condition"
+          "ADD": "Add condition",
+          "YES": "Yes",
+          "NO": "No"
+        },
+        "ROUTER": {
+          "HINT": "Routes are evaluated top to bottom. The conversation follows the first route whose conditions match; if none match, it takes the fallback.",
+          "ROUTE_N": "Route {n}",
+          "ROUTE_NAME_PLACEHOLDER": "Route name (optional)",
+          "ADD_ROUTE": "Add route",
+          "REMOVE_ROUTE": "Remove route",
+          "MOVE_UP": "Move up",
+          "MOVE_DOWN": "Move down",
+          "FALLBACK": "Otherwise",
+          "FALLBACK_HINT": "Fallback — taken when no route matches."
+        },
+        "EDGE": {
+          "REMOVE": "Remove connection"
         },
         "TRIGGER": {
           "KIND_LABEL": "Start the flow on",
           "KIND_HINT": "Choose what fires this flow.",
           "KIND_EVENT": "A conversation event",
           "KIND_KEYWORD": "A keyword in a message",
+          "KIND_SCHEDULE": "A schedule (by time)",
+          "KIND_WEBHOOK": "An external webhook",
           "EVENT_LABEL": "Event",
           "EVENT_PLACEHOLDER": "Select an event",
           "EVENT_HINT": "The event that starts this flow.",
@@ -116,10 +277,87 @@
             "LIST_LABEL": "Keywords",
             "LIST_PLACEHOLDER": "One keyword per line, e.g.\nhi\nsupport\nhours",
             "LIST_HINT": "One per line. Case and accent insensitive."
+          },
+          "SCHEDULE": {
+            "MODE_LABEL": "How often",
+            "HINT": "Runs periodically, checked every 15 minutes. Fires at most once per window.",
+            "MODE_CRON": "On a cron schedule",
+            "MODE_INTERVAL": "Every N minutes/hours/days",
+            "CRON_LABEL": "Cron expression",
+            "CRON_PLACEHOLDER": "0 9 * * 1",
+            "CRON_HINT": "Five fields: minute hour day month weekday. Example: 0 9 * * 1 = Mondays at 09:00.",
+            "EVERY_LABEL": "Every",
+            "EVERY_PLACEHOLDER": "e.g. 3",
+            "UNIT_LABEL": "Unit",
+            "UNIT_MINUTES": "Minutes",
+            "UNIT_HOURS": "Hours",
+            "UNIT_DAYS": "Days"
+          },
+          "WEBHOOK": {
+            "URL_LABEL": "Webhook URL",
+            "HINT": "Any external system can start this flow with an HTTP POST to this URL. Keep it secret — the URL is the only credential. Optionally send a conversation_id (the conversation number) in the JSON body to target a conversation, and an Idempotency-Key header to avoid duplicate triggers.",
+            "SAVE_FIRST": "Save the flow to generate its webhook URL.",
+            "COPY": "Copy URL",
+            "COPIED": "Webhook URL copied"
+          },
+          "DIRECTION": {
+            "LABEL": "Direction",
+            "HINT": "Which conversations trigger this flow: inbound (the contact starts), outbound (an agent starts) or both. Use 'inbound' so an agent-initiated conversation is not caught by rules like 'on create, assign to team X'.",
+            "BOTH": "Both",
+            "INBOUND": "Inbound (contact starts)",
+            "OUTBOUND": "Outbound (agent starts)"
           }
         },
         "GENERIC": {
           "NO_PARAMS": "This block has no settings to configure."
+        }
+      }
+    },
+    "TEMPLATES": {
+      "BUTTON": "Templates",
+      "TITLE": "Flow templates",
+      "SUBTITLE": "Ready-made flows — pick one and customize it on the canvas.",
+      "START_BLANK": "Start from scratch",
+      "CLOSE": "Close",
+      "SEARCH_PLACEHOLDER": "Search by name, trigger or action…",
+      "USE": "Use template",
+      "EMPTY": "No templates match your search.",
+      "FILTERS": {
+        "ALL": "All",
+        "WHATSAPP": "WhatsApp",
+        "AI": "With AI"
+      },
+      "BADGE": {
+        "OFFICIAL": "Official",
+        "POPULAR": "Popular"
+      },
+      "CATEGORIES": {
+        "WELCOME": "Welcome",
+        "DRIP": "Drip",
+        "TRIAGE": "Triage",
+        "CSAT": "CSAT",
+        "KEYWORD": "Keyword"
+      },
+      "ITEMS": {
+        "WELCOME": {
+          "NAME": "Welcome message",
+          "DESCRIPTION": "Every new conversation gets a friendly greeting and is tagged as a new lead for the team to follow up."
+        },
+        "DRIP_WHATSAPP": {
+          "NAME": "WhatsApp drip",
+          "DESCRIPTION": "Send a first template, wait a day, then nudge again with a second template if the customer hasn't replied yet."
+        },
+        "AI_TRIAGE": {
+          "NAME": "AI triage",
+          "DESCRIPTION": "AI reads the first message, classifies the intent and routes the conversation to the right team — Sales, Support or Billing."
+        },
+        "CSAT_SURVEY": {
+          "NAME": "CSAT survey",
+          "DESCRIPTION": "Ten minutes after a conversation is resolved, send the satisfaction survey automatically."
+        },
+        "KEYWORD_HANDOFF": {
+          "NAME": "Keyword handoff",
+          "DESCRIPTION": "When a message contains a keyword like \"agent\" or \"human\", assign a team and let the customer know help is on the way."
         }
       }
     },
@@ -128,9 +366,25 @@
     "LEARN_MORE": "Learn more about automation",
     "COUNT": "{n} automation | {n} automations",
     "HEADER_BTN_TXT": "Create Automation",
-    "LOADING": "Fetching automation rules",
-    "SEARCH_PLACEHOLDER": "Search automation rules...",
-    "NO_RESULTS": "No automation rules found matching your search",
+    "CLASSIC_RULE_BTN": "Classic rule",
+    "LOADING": "Fetching flows",
+    "SEARCH_PLACEHOLDER": "Search flows...",
+    "NO_RESULTS": "No flows found matching your search",
+    "TRIGGER_TYPES": {
+      "MANUAL": "Manual",
+      "EVENT": "Event",
+      "KEYWORD": "Keyword",
+      "SCHEDULE": "Schedule",
+      "WEBHOOK": "Webhook",
+      "UNKNOWN": "—"
+    },
+    "IMPORT": {
+      "BUTTON": "Import automations & macros",
+      "NOTHING": "Nothing to import — your automations and macros are already flows.",
+      "SUCCESS": "Imported {created} item(s) as flows.",
+      "PARTIAL": "Imported {created} item(s); {failed} could not be imported.",
+      "ERROR": "Could not import automations and macros. Please try again."
+    },
     "ADD": {
       "TITLE": "Add Automation Rule",
       "SUBMIT": "Create",
@@ -168,11 +422,13 @@
     "LIST": {
       "TABLE_HEADER": {
         "NAME": "Name",
+        "TYPE": "Type",
         "ACTIVE": "Active",
         "CREATED_ON": "Created on",
         "ACTIONS": "Actions"
       },
-      "404": "No automation rules found"
+      "404": "No automation rules found",
+      "EMPTY": "No flows yet. Create a flow, or import your existing automations and macros."
     },
     "DELETE": {
       "TITLE": "Delete Automation Rule",

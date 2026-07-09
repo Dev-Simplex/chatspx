@@ -39,6 +39,20 @@ export const FAMILIES = {
   },
 };
 
+// Seções da paleta do canvas (F1): agrupam os itens do NODE_CATALOG por família, na ordem
+// semântica do design system (Gatilhos → Mensagens → Lógica → IA → Ações → Dados). Cada `family`
+// casa 1:1 com uma seção; o `labelKey` resolve via i18n e PODE diferir do rótulo da família (ex.:
+// família "msg" = "Mensagem", seção = "Mensagens"). A paleta deriva a seção de cada item pela sua
+// `family` — um item novo no catálogo cai automaticamente na seção da sua família, sem tocar aqui.
+export const PALETTE_SECTIONS = [
+  { family: 'trigger', labelKey: 'AUTOMATION.CANVAS.PALETTE_SECTIONS.TRIGGER' },
+  { family: 'msg', labelKey: 'AUTOMATION.CANVAS.PALETTE_SECTIONS.MSG' },
+  { family: 'logic', labelKey: 'AUTOMATION.CANVAS.PALETTE_SECTIONS.LOGIC' },
+  { family: 'ai', labelKey: 'AUTOMATION.CANVAS.PALETTE_SECTIONS.AI' },
+  { family: 'action', labelKey: 'AUTOMATION.CANVAS.PALETTE_SECTIONS.ACTION' },
+  { family: 'data', labelKey: 'AUTOMATION.CANVAS.PALETTE_SECTIONS.DATA' },
+];
+
 // Itens da paleta (F1 linear — read+edit). `labelKey` resolve via i18n AUTOMATION.CANVAS.NODES.*.
 export const NODE_CATALOG = [
   {
@@ -54,6 +68,13 @@ export const NODE_CATALOG = [
     family: 'logic',
     labelKey: 'AUTOMATION.CANVAS.NODES.CONDITION',
     icon: 'i-lucide-git-branch',
+  },
+  {
+    key: 'router',
+    type: 'router',
+    family: 'logic',
+    labelKey: 'AUTOMATION.CANVAS.NODES.ROUTER',
+    icon: 'i-lucide-split',
   },
   {
     key: 'wait',
@@ -103,6 +124,14 @@ export const NODE_CATALOG = [
     icon: 'i-lucide-users',
   },
   {
+    key: 'add_participant',
+    type: 'action',
+    actionName: 'add_participant',
+    family: 'action',
+    labelKey: 'AUTOMATION.CANVAS.NODES.ADD_PARTICIPANT',
+    icon: 'i-lucide-user-plus',
+  },
+  {
     key: 'add_label',
     type: 'action',
     actionName: 'add_label',
@@ -127,6 +156,14 @@ export const NODE_CATALOG = [
     icon: 'i-lucide-flag',
   },
   {
+    key: 'snooze_conversation',
+    type: 'action',
+    actionName: 'snooze_conversation',
+    family: 'action',
+    labelKey: 'AUTOMATION.CANVAS.NODES.SNOOZE',
+    icon: 'i-lucide-alarm-clock',
+  },
+  {
     key: 'assign_ai_agent',
     type: 'action',
     actionName: 'assign_ai_agent',
@@ -135,12 +172,68 @@ export const NODE_CATALOG = [
     icon: 'i-lucide-bot',
   },
   {
+    key: 'ai_classify',
+    type: 'action',
+    actionName: 'ai_classify',
+    family: 'ai',
+    labelKey: 'AUTOMATION.CANVAS.NODES.AI_CLASSIFY',
+    icon: 'i-lucide-tags',
+  },
+  {
+    key: 'ai_generate',
+    type: 'action',
+    actionName: 'ai_generate',
+    family: 'ai',
+    labelKey: 'AUTOMATION.CANVAS.NODES.AI_GENERATE',
+    icon: 'i-lucide-sparkles',
+  },
+  {
     key: 'set_attribute',
     type: 'action',
     actionName: 'set_attribute',
     family: 'data',
     labelKey: 'AUTOMATION.CANVAS.NODES.SET_ATTRIBUTE',
     icon: 'i-lucide-database',
+  },
+  {
+    key: 'move_funnel_stage',
+    type: 'action',
+    actionName: 'move_funnel_stage',
+    family: 'action',
+    labelKey: 'AUTOMATION.CANVAS.NODES.MOVE_FUNNEL_STAGE',
+    icon: 'i-lucide-square-kanban',
+  },
+  {
+    key: 'call_macro',
+    type: 'action',
+    actionName: 'call_macro',
+    family: 'action',
+    labelKey: 'AUTOMATION.CANVAS.NODES.CALL_MACRO',
+    icon: 'i-lucide-wand-sparkles',
+  },
+  {
+    key: 'send_csat',
+    type: 'action',
+    actionName: 'send_csat',
+    family: 'msg',
+    labelKey: 'AUTOMATION.CANVAS.NODES.SEND_CSAT',
+    icon: 'i-lucide-star',
+  },
+  {
+    key: 'enroll_in_sequence',
+    type: 'action',
+    actionName: 'enroll_in_sequence',
+    family: 'msg',
+    labelKey: 'AUTOMATION.CANVAS.NODES.ENROLL_SEQUENCE',
+    icon: 'i-lucide-list-plus',
+  },
+  {
+    key: 'http_request',
+    type: 'action',
+    actionName: 'http_request',
+    family: 'data',
+    labelKey: 'AUTOMATION.CANVAS.NODES.HTTP_REQUEST',
+    icon: 'i-lucide-webhook',
   },
 ];
 

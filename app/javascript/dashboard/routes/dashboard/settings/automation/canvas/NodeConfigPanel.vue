@@ -5,16 +5,25 @@
 import { computed, markRaw } from 'vue';
 import TriggerConfig from './config/TriggerConfig.vue';
 import ConditionConfig from './config/ConditionConfig.vue';
+import RouterConfig from './config/RouterConfig.vue';
 import MessageConfig from './config/MessageConfig.vue';
 import SendTemplateConfig from './config/SendTemplateConfig.vue';
 import SetAttributeConfig from './config/SetAttributeConfig.vue';
+import MoveFunnelStageConfig from './config/MoveFunnelStageConfig.vue';
+import CallMacroConfig from './config/CallMacroConfig.vue';
+import HttpRequestConfig from './config/HttpRequestConfig.vue';
 import AssignAgentConfig from './config/AssignAgentConfig.vue';
 import AssignTeamConfig from './config/AssignTeamConfig.vue';
+import AddParticipantConfig from './config/AddParticipantConfig.vue';
+import EnrollSequenceConfig from './config/EnrollSequenceConfig.vue';
 import AssignAiAgentConfig from './config/AssignAiAgentConfig.vue';
+import AiClassifyConfig from './config/AiClassifyConfig.vue';
+import AiGenerateConfig from './config/AiGenerateConfig.vue';
 import LabelConfig from './config/LabelConfig.vue';
 import ChangeStatusConfig from './config/ChangeStatusConfig.vue';
 import ChangePriorityConfig from './config/ChangePriorityConfig.vue';
 import WaitConfig from './config/WaitConfig.vue';
+import SnoozeConfig from './config/SnoozeConfig.vue';
 import GenericConfig from './config/GenericConfig.vue';
 
 const props = defineProps({
@@ -31,19 +40,27 @@ const ACTION_EDITORS = {
   add_private_note: markRaw(MessageConfig),
   send_template: markRaw(SendTemplateConfig),
   set_attribute: markRaw(SetAttributeConfig),
+  move_funnel_stage: markRaw(MoveFunnelStageConfig),
+  call_macro: markRaw(CallMacroConfig),
+  http_request: markRaw(HttpRequestConfig),
   assign_agent: markRaw(AssignAgentConfig),
   assign_team: markRaw(AssignTeamConfig),
+  add_participant: markRaw(AddParticipantConfig),
+  enroll_in_sequence: markRaw(EnrollSequenceConfig),
   assign_ai_agent: markRaw(AssignAiAgentConfig),
+  ai_classify: markRaw(AiClassifyConfig),
+  ai_generate: markRaw(AiGenerateConfig),
   add_label: markRaw(LabelConfig),
   remove_label: markRaw(LabelConfig),
   change_status: markRaw(ChangeStatusConfig),
   change_priority: markRaw(ChangePriorityConfig),
+  snooze_conversation: markRaw(SnoozeConfig),
 };
 
 const TYPE_EDITORS = {
   trigger: markRaw(TriggerConfig),
   condition: markRaw(ConditionConfig),
-  router: markRaw(ConditionConfig),
+  router: markRaw(RouterConfig),
   wait: markRaw(WaitConfig),
 };
 

@@ -67,6 +67,63 @@ RSpec.describe Flows::RunnerService do
     expect(conversation.reload.label_list).not_to include('matched')
   end
 
+  describe 'router nodes (first-match branching)' do
+    def route(key, attribute_key, value)
+      { 'key' => key,
+        'conditions' => [{ 'attribute_key' => attribute_key, 'filter_operator' => 'equal_to', 'values' => [value], 'query_operator' => nil }] }
+    end
+
+    def router_node(id, routes, fallback_key: 'fallback')
+      { 'id' => id, 'type' => 'router', 'routes' => routes, 'fallback_key' => fallback_key }
+    end
+
+    # r1 fan-out: rota `by_status` (status=open), rota `by_priority` (priority=urgent) e o
+    # fallback. As arestas carregam `branch` = key da rota (ou fallback_key).
+    def router_definition(routes)
+      {
+        'nodes' => [
+          router_node('r1', routes),
+          action_node('a_status', 'status_route'),
+          action_node('a_priority', 'priority_route'),
+          action_node('a_else', 'fell_back')
+        ],
+        'edges' => [
+          { 'from' => 'r1', 'to' => 'a_status', 'branch' => 'by_status' },
+          { 'from' => 'r1', 'to' => 'a_priority', 'branch' => 'by_priority' },
+          { 'from' => 'r1', 'to' => 'a_else', 'branch' => 'fallback' }
+        ]
+      }
+    end
+
+    it 'follows the FIRST matching route even when a later route also matches' do
+      conversation.update!(status: :open, priority: :urgent) # both routes would match
+      run(router_definition([route('by_status', 'status', 'open'), route('by_priority', 'priority', 'urgent')]))
+      expect(conversation.reload.label_list).to include('status_route')
+      expect(conversation.reload.label_list).not_to include('priority_route', 'fell_back')
+    end
+
+    it 'skips a non-matching route and follows the next one that matches' do
+      conversation.update!(status: :open, priority: :urgent)
+      run(router_definition([route('by_status', 'status', 'resolved'), route('by_priority', 'priority', 'urgent')]))
+      expect(conversation.reload.label_list).to include('priority_route')
+      expect(conversation.reload.label_list).not_to include('status_route', 'fell_back')
+    end
+
+    it 'follows the fallback branch when no route matches' do
+      conversation.update!(status: :open, priority: :low)
+      run(router_definition([route('by_status', 'status', 'resolved'), route('by_priority', 'priority', 'urgent')]))
+      expect(conversation.reload.label_list).to include('fell_back')
+      expect(conversation.reload.label_list).not_to include('status_route', 'priority_route')
+    end
+
+    it 'treats a route with blank conditions as non-matching (falls through to fallback)' do
+      conversation.update!(status: :open)
+      run(router_definition([{ 'key' => 'by_status', 'conditions' => [] }, route('by_priority', 'priority', 'urgent')]))
+      expect(conversation.reload.label_list).to include('fell_back')
+      expect(conversation.reload.label_list).not_to include('status_route', 'priority_route')
+    end
+  end
+
   it 'stops after MAX_STEPS on a cyclic graph (no infinite loop)' do
     stub_const("#{described_class}::MAX_STEPS", 5)
     definition = { 'nodes' => [action_node('n1', 'x')], 'edges' => [{ 'from' => 'n1', 'to' => 'n1' }] }

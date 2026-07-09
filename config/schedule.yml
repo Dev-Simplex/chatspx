@@ -45,6 +45,20 @@ flows_resume_job:
   class: 'Flows::ResumeJob'
   queue: scheduled_jobs
 
+# Motor Flow (Fase 2): gatilho `schedule` — dispara flows por tempo (cron/intervalo) a cada
+# 15 min. Molde Kanban::SlaMonitorJob; marcador idempotente `last_fired_at` em trigger_config.
+flows_schedule_trigger_job:
+  cron: '*/15 * * * *'
+  class: 'Flows::ScheduleTriggerJob'
+  queue: scheduled_jobs
+
+# Motor Flow (Fase 3.3): rollup do analytics por nó — agrega os flow_step_logs em flow_node_stats
+# (as pills "142 · 38%" do canvas), de hora em hora. Idempotente (recomputa + upsert com SET).
+flows_stats_rollup_job:
+  cron: '7 * * * *'
+  class: 'Flows::StatsRollupJob'
+  queue: scheduled_jobs
+
 # executed daily at 2230 UTC
 # which is our lowest traffic time
 remove_stale_contact_inboxes_job.rb:

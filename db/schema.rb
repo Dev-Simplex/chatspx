@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[7.1].define(version: 2026_07_07_120000) do
+ActiveRecord::Schema[7.1].define(version: 2026_07_09_120000) do
   # These extensions should be enabled to support this database
   enable_extension "pg_stat_statements"
   enable_extension "pg_trgm"
@@ -696,6 +696,20 @@ ActiveRecord::Schema[7.1].define(version: 2026_07_07_120000) do
     t.index ["name", "account_id"], name: "index_companies_on_name_and_account_id"
   end
 
+  create_table "contact_flow_suppressions", force: :cascade do |t|
+    t.bigint "contact_id", null: false
+    t.bigint "account_id", null: false
+    t.string "category", default: "marketing", null: false
+    t.string "reason", default: "opt_out", null: false
+    t.datetime "expires_at"
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["account_id", "category"], name: "index_contact_flow_suppressions_on_account_id_and_category"
+    t.index ["account_id"], name: "index_contact_flow_suppressions_on_account_id"
+    t.index ["contact_id", "category"], name: "index_contact_flow_suppressions_on_contact_and_category", unique: true
+    t.index ["contact_id"], name: "index_contact_flow_suppressions_on_contact_id"
+  end
+
   create_table "contact_inboxes", force: :cascade do |t|
     t.bigint "contact_id"
     t.bigint "inbox_id"
@@ -1010,6 +1024,20 @@ ActiveRecord::Schema[7.1].define(version: 2026_07_07_120000) do
     t.index ["name", "account_id"], name: "index_email_templates_on_name_and_account_id", unique: true
   end
 
+  create_table "flow_node_stats", force: :cascade do |t|
+    t.bigint "flow_id", null: false
+    t.bigint "account_id", null: false
+    t.string "node_id", null: false
+    t.integer "executions", default: 0, null: false
+    t.integer "failures", default: 0, null: false
+    t.string "period", default: "all", null: false
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["account_id"], name: "index_flow_node_stats_on_account_id"
+    t.index ["flow_id", "node_id", "period"], name: "index_flow_node_stats_on_flow_node_period", unique: true
+    t.index ["flow_id"], name: "index_flow_node_stats_on_flow_id"
+  end
+
   create_table "flow_runs", force: :cascade do |t|
     t.bigint "flow_id", null: false
     t.bigint "account_id", null: false
@@ -1027,6 +1055,29 @@ ActiveRecord::Schema[7.1].define(version: 2026_07_07_120000) do
     t.index ["flow_id", "conversation_id"], name: "index_active_flow_run_per_flow_conversation", unique: true, where: "(status = ANY (ARRAY[0, 1]))"
     t.index ["flow_id"], name: "index_flow_runs_on_flow_id"
     t.index ["status", "wait_until"], name: "index_flow_runs_on_status_and_wait_until"
+  end
+
+  create_table "flow_step_logs", force: :cascade do |t|
+    t.bigint "flow_id", null: false
+    t.bigint "account_id", null: false
+    t.bigint "conversation_id"
+    t.bigint "flow_run_id"
+    t.string "node_id"
+    t.string "action_name"
+    t.integer "status", default: 0, null: false
+    t.string "branch_key"
+    t.string "error_code"
+    t.text "error_message"
+    t.integer "duration_ms"
+    t.jsonb "metadata", default: {}, null: false
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["account_id"], name: "index_flow_step_logs_on_account_id"
+    t.index ["conversation_id"], name: "index_flow_step_logs_on_conversation_id"
+    t.index ["created_at"], name: "index_flow_step_logs_on_created_at"
+    t.index ["flow_id"], name: "index_flow_step_logs_on_flow_id"
+    t.index ["flow_run_id"], name: "index_flow_step_logs_on_flow_run_id"
+    t.index ["status"], name: "index_flow_step_logs_on_status"
   end
 
   create_table "flows", force: :cascade do |t|
@@ -1978,6 +2029,8 @@ ActiveRecord::Schema[7.1].define(version: 2026_07_07_120000) do
   add_foreign_key "agent_bots", "captain_assistants", on_delete: :nullify
   add_foreign_key "captain_assistant_logs", "captain_assistants"
   add_foreign_key "captain_assistant_logs", "conversations"
+  add_foreign_key "contact_flow_suppressions", "accounts"
+  add_foreign_key "contact_flow_suppressions", "contacts"
   add_foreign_key "conversation_pdf_exports", "accounts", on_delete: :cascade
   add_foreign_key "conversation_pdf_exports", "conversations", on_delete: :cascade
   add_foreign_key "conversation_pdf_exports", "users", column: "requester_user_id", on_delete: :nullify
@@ -1986,10 +2039,16 @@ ActiveRecord::Schema[7.1].define(version: 2026_07_07_120000) do
   add_foreign_key "conversations", "teams", on_delete: :nullify
   add_foreign_key "conversations", "users", column: "assignee_id", on_delete: :nullify
   add_foreign_key "csat_survey_responses", "conversations", on_delete: :cascade
+  add_foreign_key "flow_node_stats", "accounts"
+  add_foreign_key "flow_node_stats", "flows"
   add_foreign_key "flow_runs", "accounts"
   add_foreign_key "flow_runs", "contacts"
   add_foreign_key "flow_runs", "conversations"
   add_foreign_key "flow_runs", "flows"
+  add_foreign_key "flow_step_logs", "accounts"
+  add_foreign_key "flow_step_logs", "conversations"
+  add_foreign_key "flow_step_logs", "flow_runs"
+  add_foreign_key "flow_step_logs", "flows"
   add_foreign_key "funnel_automations", "funnel_stages"
   add_foreign_key "funnel_automations", "funnels"
   add_foreign_key "funnel_custom_fields", "funnels"

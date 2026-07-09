@@ -10,6 +10,10 @@ export const state = {
     isDeleting: false,
     isUpdating: false,
     isExecuting: false,
+    isSimulating: false,
+    isFetchingLogs: false,
+    isFetchingStats: false,
+    isImporting: false,
   },
 };
 
@@ -89,6 +93,54 @@ export const actions = {
       throw new Error(error);
     } finally {
       commit(types.SET_FLOW_UI_FLAG, { isExecuting: false });
+    }
+  },
+  // Simulação (dry-run). Deixa o erro do axios propagar CRU (sem `new Error(error)`) pra o overlay
+  // conseguir ler `error.response.status` — o 422 "sem conversa" precisa ser distinguível.
+  simulate: async ({ commit }, { id, conversationId = null }) => {
+    commit(types.SET_FLOW_UI_FLAG, { isSimulating: true });
+    try {
+      const response = await FlowsAPI.simulate(id, conversationId);
+      return response.data;
+    } finally {
+      commit(types.SET_FLOW_UI_FLAG, { isSimulating: false });
+    }
+  },
+  getLogs: async ({ commit }, { id, page = 1 }) => {
+    commit(types.SET_FLOW_UI_FLAG, { isFetchingLogs: true });
+    try {
+      const response = await FlowsAPI.getLogs(id, page);
+      return response.data;
+    } finally {
+      commit(types.SET_FLOW_UI_FLAG, { isFetchingLogs: false });
+    }
+  },
+  // Analytics por nó (Fase 3.3): { period, total_entries, nodes } — alimenta as pills do canvas.
+  // Retorna o payload cru (sem estado dedicado, como getLogs); o canvas o injeta em cada nó.
+  getStats: async ({ commit }, { id }) => {
+    commit(types.SET_FLOW_UI_FLAG, { isFetchingStats: true });
+    try {
+      const response = await FlowsAPI.getStats(id);
+      return response.data;
+    } finally {
+      commit(types.SET_FLOW_UI_FLAG, { isFetchingStats: false });
+    }
+  },
+  // Importa Macros + AutomationRules legadas como Flows via o endpoint (POST flows/import), que
+  // roda o Flows::BackfillService no servidor. Fora do dry_run, recarrega a lista para refletir
+  // a verdade do servidor. Retorna { dry_run, summary, flows } — o resumo alimenta o feedback.
+  importLegacy: async ({ commit, dispatch }, { dryRun = false } = {}) => {
+    commit(types.SET_FLOW_UI_FLAG, { isImporting: true });
+    try {
+      const response = await FlowsAPI.importLegacy(dryRun);
+      if (!dryRun) {
+        await dispatch('get');
+      }
+      return response.data;
+    } catch (error) {
+      throw new Error(error);
+    } finally {
+      commit(types.SET_FLOW_UI_FLAG, { isImporting: false });
     }
   },
 };
