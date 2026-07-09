@@ -6,10 +6,12 @@ import { getRandomColor } from 'dashboard/helper/labelColor';
 import { useVuelidate } from '@vuelidate/core';
 
 import NextButton from 'dashboard/components-next/button/Button.vue';
+import LabelVisibilityField from './LabelVisibilityField.vue';
 
 export default {
   components: {
     NextButton,
+    LabelVisibilityField,
   },
   props: {
     prefillTitle: {
@@ -27,6 +29,8 @@ export default {
       description: '',
       title: '',
       showOnSidebar: true,
+      visibility: 'everyone',
+      teamId: null,
     };
   },
   validations,
@@ -37,6 +41,11 @@ export default {
     labelTitleErrorMessage() {
       const errorMessage = getLabelTitleErrorMessage(this.v$);
       return this.$t(errorMessage);
+    },
+    teamErrorMessage() {
+      return this.v$.teamId.$error
+        ? this.$t('LABEL_MGMT.FORM.VISIBILITY.TEAM_SELECT.REQUIRED_ERROR')
+        : '';
     },
   },
   mounted() {
@@ -54,6 +63,8 @@ export default {
           description: this.description,
           title: this.title.toLowerCase(),
           show_on_sidebar: this.showOnSidebar,
+          visibility: this.visibility,
+          team_id: this.visibility === 'team' ? this.teamId : null,
         });
         useAlert(this.$t('LABEL_MGMT.ADD.API.SUCCESS_MESSAGE'));
         this.onClose();
@@ -103,7 +114,14 @@ export default {
           <woot-color-picker v-model="color" />
         </label>
       </div>
-      <div class="flex items-center w-full gap-2">
+
+      <LabelVisibilityField
+        v-model:visibility="visibility"
+        v-model:team-id="teamId"
+        :team-error="teamErrorMessage"
+      />
+
+      <div class="flex items-center w-full gap-2 mt-3">
         <input v-model="showOnSidebar" type="checkbox" :value="true" />
         <label for="conversation_creation">
           {{ $t('LABEL_MGMT.FORM.SHOW_ON_SIDEBAR.LABEL') }}
@@ -121,7 +139,9 @@ export default {
           type="submit"
           data-testid="label-submit"
           :label="$t('LABEL_MGMT.FORM.CREATE')"
-          :disabled="v$.title.$invalid || uiFlags.isCreating"
+          :disabled="
+            v$.title.$invalid || v$.teamId.$invalid || uiFlags.isCreating
+          "
           :is-loading="uiFlags.isCreating"
         />
       </div>

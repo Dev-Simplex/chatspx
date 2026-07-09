@@ -3,6 +3,7 @@ import { useAlert } from 'dashboard/composables';
 import { computed, onBeforeMount, ref } from 'vue';
 import { useI18n } from 'vue-i18n';
 import { useStoreGetters, useStore } from 'dashboard/composables/store';
+import { useAdmin } from 'dashboard/composables/useAdmin';
 import { picoSearch } from '@scmmishra/pico-search';
 
 import AddLabel from './AddLabel.vue';
@@ -19,6 +20,38 @@ import {
 const getters = useStoreGetters();
 const store = useStore();
 const { t } = useI18n();
+const { isAdmin } = useAdmin();
+
+const currentUser = computed(() => getters.getCurrentUser.value);
+const myTeams = computed(() => getters['teams/getMyTeams'].value);
+
+// Mirrors the backend LabelPolicy#manage? rule so we only surface actions the
+// user is actually allowed to perform (backend still 403s as the source of truth).
+const canManage = label => {
+  if (isAdmin.value) return true;
+  if (label.visibility === 'team') {
+    return myTeams.value.some(team => team.id === label.team_id);
+  }
+  // everyone (public) and personal are both author-only for non-admins.
+  return !!label.created_by && currentUser.value?.id === label.created_by.id;
+};
+
+const visibilityBadge = label => {
+  const visibility = label.visibility || 'everyone';
+  if (visibility === 'team') {
+    const team = getters['teams/getTeam'].value(label.team_id);
+    return {
+      icon: '👥',
+      text: team?.name
+        ? `${t('LABEL_MGMT.FORM.VISIBILITY.TEAM.LABEL')} «${team.name}»`
+        : t('LABEL_MGMT.FORM.VISIBILITY.TEAM.LABEL'),
+    };
+  }
+  if (visibility === 'personal') {
+    return { icon: '🔒', text: t('LABEL_MGMT.FORM.VISIBILITY.PERSONAL.LABEL') };
+  }
+  return { icon: '🌐', text: t('LABEL_MGMT.FORM.VISIBILITY.EVERYONE.LABEL') };
+};
 
 const loading = ref({});
 const showAddPopup = ref(false);
@@ -88,12 +121,14 @@ const tableHeaders = computed(() => {
     t('LABEL_MGMT.LIST.TABLE_HEADER.NAME'),
     t('LABEL_MGMT.LIST.TABLE_HEADER.DESCRIPTION'),
     t('LABEL_MGMT.LIST.TABLE_HEADER.COLOR'),
+    t('LABEL_MGMT.LIST.TABLE_HEADER.VISIBILITY'),
     t('LABEL_MGMT.LIST.TABLE_HEADER.ACTION'),
   ];
 });
 
 onBeforeMount(() => {
   store.dispatch('labels/get');
+  store.dispatch('teams/get');
 });
 </script>
 
@@ -162,9 +197,19 @@ onBeforeMount(() => {
                 </div>
               </BaseTableCell>
 
+              <BaseTableCell>
+                <span
+                  class="inline-flex items-center gap-1 text-body-main text-n-slate-11"
+                >
+                  <span>{{ visibilityBadge(label).icon }}</span>
+                  <span>{{ visibilityBadge(label).text }}</span>
+                </span>
+              </BaseTableCell>
+
               <BaseTableCell align="end">
                 <div class="flex gap-3 justify-end flex-shrink-0">
                   <Button
+                    v-if="canManage(label)"
                     v-tooltip.top="$t('LABEL_MGMT.FORM.EDIT')"
                     icon="i-woot-edit-pen"
                     slate
@@ -173,6 +218,7 @@ onBeforeMount(() => {
                     @click="openEditPopup(label)"
                   />
                   <Button
+                    v-if="canManage(label)"
                     v-tooltip.top="$t('LABEL_MGMT.FORM.DELETE')"
                     icon="i-woot-bin"
                     slate
