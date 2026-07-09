@@ -41,6 +41,10 @@ class Team < ApplicationRecord
   # visibility=team e team_id=NULL (inválidas na próxima validação). Rebaixa para
   # everyone antes do destroy (roda antes do dependent: :destroy_async dos membros).
   before_destroy :rebase_team_labels
+  # Mesma razão do rebase_team_labels: a FK de CannedResponse.team faz nullify, mas
+  # isso deixaria respostas "de-time" com visibility=team e team_id=NULL (inválidas).
+  # Rebaixa para everyone antes do destroy.
+  before_destroy :rebase_team_canned_responses
 
   # Adds multiple members to the team
   # @param user_ids [Array<Integer>] Array of user IDs to add as members
@@ -93,6 +97,10 @@ class Team < ApplicationRecord
 
   def rebase_team_labels
     Label.where(team_id: id, visibility: :team).update_all(visibility: :everyone, team_id: nil) # rubocop:disable Rails/SkipsModelValidations
+  end
+
+  def rebase_team_canned_responses
+    CannedResponse.where(team_id: id, visibility: :team).update_all(visibility: :everyone, team_id: nil) # rubocop:disable Rails/SkipsModelValidations
   end
 end
 

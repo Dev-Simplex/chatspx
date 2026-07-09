@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[7.1].define(version: 2026_07_09_120000) do
+ActiveRecord::Schema[7.1].define(version: 2026_07_09_130000) do
   # These extensions should be enabled to support this database
   enable_extension "pg_stat_statements"
   enable_extension "pg_trgm"
@@ -321,8 +321,14 @@ ActiveRecord::Schema[7.1].define(version: 2026_07_09_120000) do
     t.text "content"
     t.datetime "created_at", precision: nil, null: false
     t.datetime "updated_at", precision: nil, null: false
+    t.integer "visibility", default: 0, null: false
+    t.bigint "created_by_id"
+    t.bigint "team_id"
     t.index ["account_id", "short_code"], name: "idx_canned_responses_account_short_code"
+    t.index ["account_id", "visibility"], name: "index_canned_responses_on_account_and_visibility"
     t.index ["account_id"], name: "idx_canned_responses_account_id"
+    t.index ["created_by_id"], name: "index_canned_responses_on_created_by_id"
+    t.index ["team_id"], name: "index_canned_responses_on_team_id"
   end
 
   create_table "captain_assistant_logs", force: :cascade do |t|
@@ -1756,6 +1762,8 @@ ActiveRecord::Schema[7.1].define(version: 2026_07_09_120000) do
   end
 
   add_foreign_key "agent_bots", "captain_assistants", on_delete: :nullify
+  add_foreign_key "canned_responses", "teams", on_delete: :nullify
+  add_foreign_key "canned_responses", "users", column: "created_by_id", on_delete: :nullify
   add_foreign_key "captain_assistant_logs", "captain_assistants"
   add_foreign_key "captain_assistant_logs", "conversations"
   add_foreign_key "conversation_pdf_exports", "accounts", on_delete: :cascade
