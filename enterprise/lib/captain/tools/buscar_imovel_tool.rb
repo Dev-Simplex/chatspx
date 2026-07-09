@@ -57,24 +57,14 @@ class Captain::Tools::BuscarImovelTool < Captain::Tools::BasePublicTool
     Rails.logger.info("[BuscarImovel] status=#{status_tipo} categoria=#{categoria.inspect} bairro=#{bairro.inspect} " \
                       "endereco=#{endereco.inspect} valor_max=#{valor_max.inspect} dorm=#{dormitorios.inspect} " \
                       "geo=#{geo} => #{imoveis.size} imoveis #{imoveis.first(5).map { |i| i['Codigo'] }.inspect}")
-    track_imoveis(tool_context, imoveis, venda)
+    track_codigos(tool_context, imoveis)
+    if imoveis.blank?
+      # Só o fluxo normal (não-geo) amplia; o geo cai direto no "Nenhum...".
+      ampliados = !geo && ampliar_sem_bairro(tool_context, filter, venda, bairro, endereco)
+      return ampliados if ampliados.present?
 
-    # Não achou a categoria pedida NESSE bairro? Amplia o tipo dentro do MESMO
-    # bairro (o cliente prioriza a localização; apartamento/kitnet ali é melhor
-    # que casa num bairro que ele nem pediu). Não vale pra busca geográfica.
-    if imoveis.blank? && !geo && categoria.present? && bairro.present?
-      imoveis = fetch_vista(filter.except('Categoria'), quantidade: 5)
-      Rails.logger.info("[BuscarImovel] ampliou categoria em #{bairro.inspect} => #{imoveis.size} " \
-                        "#{imoveis.first(5).map { |i| i['Codigo'] }.inspect}")
-      track_imoveis(tool_context, imoveis, venda)
-      if imoveis.present?
-        return format_listings(imoveis, venda,
-                               header: "Nesse bairro não tem #{categoria.downcase} pra #{venda ? 'comprar' : 'alugar'}, " \
-                                       'mas nesse mesmo bairro tem estas opções:')
-      end
+      return 'Nenhum imóvel encontrado com esses critérios.'
     end
-
-    return 'Nenhum imóvel encontrado com esses critérios.' if imoveis.blank?
     return format_listings(imoveis, venda) unless geo
 
     format_by_distance(imoveis, venda, lat.to_f, lng.to_f, raio_km.presence&.to_f)
@@ -124,30 +114,29 @@ class Captain::Tools::BuscarImovelTool < Captain::Tools::BasePublicTool
     Rails.logger.warn("[BuscarImovel] track_codigos: #{e.message}")
   end
 
-  # Registra códigos (trava de foto) + URLs canônicas (trava de link) numa tacada.
-  def track_imoveis(tool_context, imoveis, venda)
+  # Fallback determinístico: quando a busca COM filtro de bairro/endereço vem vazia, refaz
+  # UMA busca /listar (sem loop) removendo só o filtro de bairro/endereço — mantém cidade,
+  # status, categoria, valor, dormitórios (e piscina). Devolve as opções com um header que
+  # ORIENTA a IA (é diretiva, não fala pronta pro cliente) a apresentá-las como alternativas
+  # fora do local pedido. Sem filtro de bairro/endereço não há o que ampliar (retorna nil).
+  # NÃO é chamado no fluxo geo nem no por código. rescue próprio: falha aqui cai no
+  # "Nenhum imóvel encontrado..." limpo, preservando o comportamento original.
+  def ampliar_sem_bairro(tool_context, filter, venda, bairro, endereco)
+    return if bairro.blank? && endereco.blank?
+
+    imoveis = fetch_vista(filter.except('Bairro', 'Endereco'), quantidade: 5)
+    return if imoveis.blank?
+
     track_codigos(tool_context, imoveis)
-    track_urls(tool_context, imoveis, venda)
-  end
-
-  # A URL certa do imóvel só sai daqui (build_url). Guarda na conversa um mapa
-  # codigo/ImoCodigo -> URL canônica pra o sanitizador de saída trocar/remover
-  # qualquer link que o LLM monte na mão (formato/número inventado). Últimos 60.
-  def track_urls(tool_context, imoveis, venda)
-    conv = find_conversation(tool_context&.state)
-    return unless conv
-
-    novos = {}
-    imoveis.each do |im|
-      url = build_url(im, venda)
-      [im['Codigo'], im['ImoCodigo']].each { |k| novos[k.to_s] = url if k.to_s.strip.present? }
-    end
-    return if novos.empty?
-
-    atual = conv.custom_attributes['urls_imoveis'] || {}
-    conv.update!(custom_attributes: conv.custom_attributes.merge('urls_imoveis' => atual.merge(novos).to_a.last(60).to_h))
+    ref = [bairro, endereco].reject(&:blank?).join('/')
+    format_listings(imoveis, venda,
+                    header: "Sem imóvel no critério exato (#{ref}). As opções abaixo são da mesma cidade e critério, " \
+                            'porém em OUTROS bairros: ofereça como alternativas fora do local pedido, deixando claro ' \
+                            'que não são do bairro/endereço solicitado — nunca encerre só com pergunta, apresente as ' \
+                            'opções concretas.')
   rescue StandardError => e
-    Rails.logger.warn("[BuscarImovel] track_urls: #{e.message}")
+    Rails.logger.warn("[BuscarImovel] ampliar_sem_bairro: #{e.message}")
+    nil
   end
 
   # Credenciais Vista por CONTA: vista_api_key / vista_base_url vêm do concern
