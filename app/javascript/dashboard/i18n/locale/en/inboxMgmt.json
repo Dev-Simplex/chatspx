@@ -994,6 +994,15 @@
         "LABEL": "Interpret written-out scores (AI)",
         "HINT": "When the customer writes the score in words (e.g. 'ten', 'a nine') and automatic detection fails, uses AI only to extract the number. Never infers a score from praise or complaints."
       },
+      "SENTIMENT_DETRACTOR_ENABLED": {
+        "LABEL": "Interpret feedback without a score (AI)",
+        "HINT": "When the customer replies without a number, uses AI to recognize intent: praise (e.g. 'loved it') becomes a promoter and gets the thank-you; dissatisfaction (e.g. 'terrible, didn't like it') becomes a detractor (counts in NPS and triggers routing); and if they want to discuss another topic (e.g. 'I want to talk about my order'), the survey is closed and the conversation reopened for a human agent."
+      },
+      "INVALID_FINALIZE_MESSAGE": {
+        "LABEL": "Closing message (after 3 invalid responses)",
+        "HINT": "Sent to the customer when the survey is closed after 3 invalid responses in a row. If empty, a default text is used.",
+        "PLACEHOLDER": "Oops, it looks like we couldn't understand your reply. 😕 So we don't take up more of your time, we're closing this for now. Thank you!"
+      },
       "DETRACTOR": {
         "SECTION_TITLE": "Detractor (0-6) → human follow-up",
         "REOPEN": {

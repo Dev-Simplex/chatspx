@@ -1056,6 +1056,15 @@
         "LABEL": "Interpretar nota escrita por extenso (IA)",
         "HINT": "Quando o cliente escreve a nota por extenso (ex.: 'dez', 'nota nove') e o reconhecimento automático falha, usa IA apenas para extrair o número. Nunca infere nota a partir de elogio ou reclamação."
       },
+      "SENTIMENT_DETRACTOR_ENABLED": {
+        "LABEL": "Interpretar feedback sem nota (IA)",
+        "HINT": "Quando o cliente responde sem número, usa IA para reconhecer a intenção: elogio (ex.: 'adorei') vira promotor e recebe o agradecimento; insatisfação (ex.: 'péssimo, não gostei') vira detrator (conta no NPS e aciona o roteamento); e se quer tratar de outro assunto (ex.: 'quero falar do meu pedido'), encerra a pesquisa e reabre para atendimento humano."
+      },
+      "INVALID_FINALIZE_MESSAGE": {
+        "LABEL": "Mensagem de Encerramento (após 3 respostas inválidas)",
+        "HINT": "Enviada ao cliente quando a pesquisa é encerrada por 3 respostas inválidas seguidas. Se vazio, usa um texto padrão.",
+        "PLACEHOLDER": "Ops, parece que não conseguimos entender a sua resposta. 😕 Para não tomarmos mais o seu tempo, estamos encerrando este atendimento por agora. Obrigado!"
+      },
       "DETRACTOR": {
         "SECTION_TITLE": "Detrator (0-6) → follow-up humano",
         "REOPEN": {
