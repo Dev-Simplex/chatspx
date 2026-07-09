@@ -1,11 +1,12 @@
 <script>
 import { useVuelidate } from '@vuelidate/core';
-import { required, minLength } from '@vuelidate/validators';
+import { required, minLength, requiredIf } from '@vuelidate/validators';
 import { useAlert } from 'dashboard/composables';
 
 import NextButton from 'dashboard/components-next/button/Button.vue';
 import Modal from '../../../../components/Modal.vue';
 import WootMessageEditor from 'dashboard/components/widgets/WootWriter/Editor.vue';
+import CannedVisibilityField from './CannedVisibilityField.vue';
 
 export default {
   name: 'AddCanned',
@@ -13,6 +14,7 @@ export default {
     NextButton,
     Modal,
     WootMessageEditor,
+    CannedVisibilityField,
   },
   props: {
     responseContent: {
@@ -32,6 +34,8 @@ export default {
       shortCode: '',
       content: this.responseContent || '',
       attachmentFiles: [],
+      visibility: 'everyone',
+      teamId: null,
       addCanned: {
         showLoading: false,
         message: '',
@@ -47,14 +51,28 @@ export default {
     content: {
       required,
     },
+    visibility: {},
+    teamId: {
+      requiredIf: requiredIf((_value, model) => model?.visibility === 'team'),
+    },
+  },
+  computed: {
+    teamErrorMessage() {
+      return this.v$.teamId.$error
+        ? this.$t('CANNED_MGMT.VISIBILITY.TEAM_SELECT.REQUIRED_ERROR')
+        : '';
+    },
   },
   methods: {
     resetForm() {
       this.shortCode = '';
       this.content = '';
       this.attachmentFiles = [];
+      this.visibility = 'everyone';
+      this.teamId = null;
       this.v$.shortCode.$reset();
       this.v$.content.$reset();
+      this.v$.teamId.$reset();
     },
     onAttachmentChange(event) {
       this.attachmentFiles = Array.from(event.target.files || []);
@@ -68,6 +86,8 @@ export default {
           short_code: this.shortCode,
           content: this.content,
           attachments: this.attachmentFiles,
+          visibility: this.visibility,
+          team_id: this.visibility === 'team' ? this.teamId : null,
         })
         .then(() => {
           // Reset Form, Show success message
@@ -137,6 +157,13 @@ export default {
             {{ attachmentFiles.length }}
           </span>
         </div>
+
+        <CannedVisibilityField
+          v-model:visibility="visibility"
+          v-model:team-id="teamId"
+          :team-error="teamErrorMessage"
+        />
+
         <div class="flex flex-row justify-end w-full gap-2 px-0 py-2">
           <NextButton
             faded
@@ -151,6 +178,7 @@ export default {
             :disabled="
               v$.content.$invalid ||
               v$.shortCode.$invalid ||
+              v$.teamId.$invalid ||
               addCanned.showLoading
             "
             :is-loading="addCanned.showLoading"

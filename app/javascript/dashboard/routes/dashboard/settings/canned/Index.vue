@@ -7,6 +7,7 @@ import BaseSettingsHeader from '../components/BaseSettingsHeader.vue';
 import { computed, onMounted, ref, defineOptions } from 'vue';
 import { useI18n } from 'vue-i18n';
 import { useStoreGetters, useStore } from 'dashboard/composables/store';
+import { useAdmin } from 'dashboard/composables/useAdmin';
 import { picoSearch } from '@scmmishra/pico-search';
 import { useMessageFormatter } from 'shared/composables/useMessageFormatter';
 
@@ -25,8 +26,52 @@ defineOptions({
 const getters = useStoreGetters();
 const store = useStore();
 const { t } = useI18n();
+const { isAdmin } = useAdmin();
 
 const { getPlainText } = useMessageFormatter();
+
+const currentUser = computed(() => getters.getCurrentUser.value);
+const myTeams = computed(() => getters['teams/getMyTeams'].value);
+
+// Mirrors the backend CannedResponsePolicy#manage? rule so we only surface actions the
+// user is actually allowed to perform (backend still 403/401s as the source of truth).
+const canManage = cannedItem => {
+  if (isAdmin.value) return true;
+  if (cannedItem.visibility === 'team') {
+    return myTeams.value.some(team => team.id === cannedItem.team_id);
+  }
+  if (cannedItem.visibility === 'personal') {
+    return (
+      !!cannedItem.created_by &&
+      currentUser.value?.id === cannedItem.created_by.id
+    );
+  }
+  // everyone (public), including legacy orphans, is editable by any agent.
+  return true;
+};
+
+const visibilityBadge = cannedItem => {
+  const visibility = cannedItem.visibility || 'everyone';
+  if (visibility === 'team') {
+    const team = getters['teams/getTeam'].value(cannedItem.team_id);
+    return {
+      icon: 'i-lucide-users',
+      text: team?.name
+        ? `${t('CANNED_MGMT.VISIBILITY.TEAM.LABEL')} «${team.name}»`
+        : t('CANNED_MGMT.VISIBILITY.TEAM.LABEL'),
+    };
+  }
+  if (visibility === 'personal') {
+    return {
+      icon: 'i-lucide-lock',
+      text: t('CANNED_MGMT.VISIBILITY.PERSONAL.LABEL'),
+    };
+  }
+  return {
+    icon: 'i-lucide-globe',
+    text: t('CANNED_MGMT.VISIBILITY.EVERYONE.LABEL'),
+  };
+};
 
 const showAddPopup = ref(false);
 const loading = ref({});
@@ -80,6 +125,8 @@ const fetchCannedResponses = async () => {
 
 onMounted(() => {
   fetchCannedResponses();
+  // Teams are needed to resolve team names in the visibility badge and membership gating.
+  store.dispatch('teams/get');
 });
 
 const showAlertMessage = message => {
@@ -133,6 +180,7 @@ const confirmDeletion = () => {
 const tableHeaders = computed(() => {
   return [
     t('CANNED_MGMT.LIST.TABLE_HEADER.SHORT_CODE'),
+    t('CANNED_MGMT.LIST.TABLE_HEADER.VISIBILITY'),
     t('CANNED_MGMT.LIST.TABLE_HEADER.ACTIONS'),
   ];
 });
@@ -199,10 +247,6 @@ const tableHeaders = computed(() => {
             />
           </button>
         </template>
-        <template #header-1>
-          {{ tableHeaders[1] }}
-        </template>
-
         <template #row="{ items }">
           <BaseTableRow
             v-for="cannedItem in items"
@@ -221,9 +265,22 @@ const tableHeaders = computed(() => {
                 </div>
               </BaseTableCell>
 
+              <BaseTableCell>
+                <span
+                  class="inline-flex items-center gap-1.5 text-body-main text-n-slate-11"
+                >
+                  <span
+                    class="size-4 flex-shrink-0 text-n-slate-10"
+                    :class="visibilityBadge(cannedItem).icon"
+                  />
+                  <span>{{ visibilityBadge(cannedItem).text }}</span>
+                </span>
+              </BaseTableCell>
+
               <BaseTableCell align="end" class="w-24">
                 <div class="flex gap-3 justify-end flex-shrink-0">
                   <Button
+                    v-if="canManage(cannedItem)"
                     v-tooltip.top="$t('CANNED_MGMT.EDIT.BUTTON_TEXT')"
                     icon="i-woot-edit-pen"
                     slate
@@ -231,6 +288,7 @@ const tableHeaders = computed(() => {
                     @click="openEditPopup(cannedItem)"
                   />
                   <Button
+                    v-if="canManage(cannedItem)"
                     v-tooltip.top="$t('CANNED_MGMT.DELETE.BUTTON_TEXT')"
                     icon="i-woot-bin"
                     slate
@@ -256,6 +314,9 @@ const tableHeaders = computed(() => {
         :id="activeResponse.id"
         :edshort-code="activeResponse.short_code"
         :edcontent="activeResponse.content"
+        :edvisibility="activeResponse.visibility"
+        :edteam-id="activeResponse.team_id"
+        :edcreated-by="activeResponse.created_by"
         :on-close="hideEditPopup"
       />
     </woot-modal>
