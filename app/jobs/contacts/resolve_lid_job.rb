@@ -24,8 +24,11 @@ class Contacts::ResolveLidJob < ApplicationJob
 
     if pn.blank?
       lid = contact_inbox.source_id.to_s.end_with?('@lid') ? contact_inbox.source_id : contact.identifier
+      # LID degenerado/vazio: nada a resolver — evita o retry infinito (7x) que inundava o Sentry.
+      return if lid.blank?
+
       Rails.logger.info("[ResolveLidJob] LID #{lid} still unresolved (contact_inbox=#{contact_inbox_id})")
-      raise Waha::ApiService::Error, "LID not yet resolvable: #{lid}"
+      raise Waha::ApiService::LidNotResolvable, "LID not yet resolvable: #{lid}"
     end
 
     normalized_phone = normalize_phone(pn)
