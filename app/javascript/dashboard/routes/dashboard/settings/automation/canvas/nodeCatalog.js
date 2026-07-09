@@ -39,6 +39,20 @@ export const FAMILIES = {
   },
 };
 
+// Seções da paleta do canvas (F1): agrupam os itens do NODE_CATALOG por família, na ordem
+// semântica do design system (Gatilhos → Mensagens → Lógica → IA → Ações → Dados). Cada `family`
+// casa 1:1 com uma seção; o `labelKey` resolve via i18n e PODE diferir do rótulo da família (ex.:
+// família "msg" = "Mensagem", seção = "Mensagens"). A paleta deriva a seção de cada item pela sua
+// `family` — um item novo no catálogo cai automaticamente na seção da sua família, sem tocar aqui.
+export const PALETTE_SECTIONS = [
+  { family: 'trigger', labelKey: 'AUTOMATION.CANVAS.PALETTE_SECTIONS.TRIGGER' },
+  { family: 'msg', labelKey: 'AUTOMATION.CANVAS.PALETTE_SECTIONS.MSG' },
+  { family: 'logic', labelKey: 'AUTOMATION.CANVAS.PALETTE_SECTIONS.LOGIC' },
+  { family: 'ai', labelKey: 'AUTOMATION.CANVAS.PALETTE_SECTIONS.AI' },
+  { family: 'action', labelKey: 'AUTOMATION.CANVAS.PALETTE_SECTIONS.ACTION' },
+  { family: 'data', labelKey: 'AUTOMATION.CANVAS.PALETTE_SECTIONS.DATA' },
+];
+
 // Itens da paleta (F1 linear — read+edit). `labelKey` resolve via i18n AUTOMATION.CANVAS.NODES.*.
 export const NODE_CATALOG = [
   {

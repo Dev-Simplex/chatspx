@@ -20,7 +20,12 @@ import FlowEdge from './FlowEdge.vue';
 import ConfigPanel from './ConfigPanel.vue';
 import SimulationOverlay from './SimulationOverlay.vue';
 import LogsPanel from './LogsPanel.vue';
-import { NODE_CATALOG, FAMILIES, familyForNode } from './nodeCatalog';
+import {
+  NODE_CATALOG,
+  FAMILIES,
+  PALETTE_SECTIONS,
+  familyForNode,
+} from './nodeCatalog';
 import { flatToDefinition } from './flatToDefinition';
 import { flowTemplateByKey } from './flowTemplates';
 import { computeTreeLayout, H_SPACING, V_SPACING } from './flowLayout';
@@ -38,6 +43,30 @@ const { t } = useI18n();
 
 const flowId = computed(() => route.params.flowId);
 const isEdit = computed(() => Boolean(flowId.value));
+
+// Paleta de blocos: agrupada por seção (PALETTE_SECTIONS) + busca. `paletteQuery` filtra os itens
+// pelo rótulo resolvido via t() (sem caixa nem acento — normalizeSearch tira os diacríticos).
+// `paletteSections` percorre as seções na ordem do design system, agrupa o NODE_CATALOG pela
+// `family` de cada item e descarta seções sem resultado; `hasPaletteResults` distingue o estado
+// "nenhum bloco" (busca sem correspondência).
+const paletteQuery = ref('');
+const normalizeSearch = value =>
+  (value || '')
+    .toLowerCase()
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '');
+const paletteSections = computed(() => {
+  const query = normalizeSearch(paletteQuery.value.trim());
+  return PALETTE_SECTIONS.map(section => ({
+    ...section,
+    items: NODE_CATALOG.filter(
+      item =>
+        item.family === section.family &&
+        (!query || normalizeSearch(t(item.labelKey)).includes(query))
+    ),
+  })).filter(section => section.items.length);
+});
+const hasPaletteResults = computed(() => paletteSections.value.length > 0);
 
 const name = ref('');
 const definition = ref({ nodes: [], edges: [] });
@@ -688,21 +717,48 @@ const goBack = () =>
         >
           {{ t('AUTOMATION.CANVAS.PALETTE') }}
         </span>
-        <button
-          v-for="item in NODE_CATALOG"
-          :key="item.key"
-          class="flex items-center gap-2 px-2 py-1.5 text-sm text-left rounded-lg text-n-slate-12 hover:bg-n-solid-3"
-          :data-testid="`palette-${item.key}`"
-          @click="addNode(item)"
+        <div
+          class="flex items-center h-8 gap-2 px-2 mb-1 rounded-lg bg-n-alpha-1 outline outline-1 outline-n-weak dark:outline-n-strong focus-within:outline-n-brand"
         >
-          <span
-            class="w-2 h-2 rounded-full shrink-0"
-            :style="{
-              backgroundColor: (FAMILIES[item.family] || FAMILIES.action).color,
-            }"
+          <span class="text-sm shrink-0 text-n-slate-10 i-lucide-search" />
+          <input
+            v-model="paletteQuery"
+            type="text"
+            class="w-full text-sm bg-transparent outline-none text-n-slate-12 placeholder:text-n-slate-10"
+            :placeholder="t('AUTOMATION.CANVAS.PALETTE_SEARCH')"
+            data-testid="palette-search"
           />
-          {{ t(item.labelKey) }}
-        </button>
+        </div>
+        <template v-for="section in paletteSections" :key="section.family">
+          <span
+            class="px-2 pt-2 pb-0.5 text-[10px] font-bold tracking-wider uppercase text-n-slate-10"
+          >
+            {{ t(section.labelKey) }}
+          </span>
+          <button
+            v-for="item in section.items"
+            :key="item.key"
+            class="flex items-center gap-2 px-2 py-1.5 text-sm text-left rounded-lg text-n-slate-12 hover:bg-n-solid-3"
+            :data-testid="`palette-${item.key}`"
+            @click="addNode(item)"
+          >
+            <span
+              class="w-2 h-2 rounded-full shrink-0"
+              :style="{
+                backgroundColor: (FAMILIES[item.family] || FAMILIES.action)
+                  .color,
+              }"
+            />
+            {{ t(item.labelKey) }}
+          </button>
+        </template>
+        <p
+          v-if="!hasPaletteResults"
+          class="px-2 py-3 text-sm text-center text-n-slate-10"
+          data-testid="palette-empty"
+        >
+          {{ t('AUTOMATION.CANVAS.PALETTE_NO_RESULTS') }}
+        </p>
       </aside>
 
       <main class="relative flex-1 min-w-0">

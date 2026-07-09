@@ -38,6 +38,8 @@
       "NEW_FLOW": "Novo fluxo",
       "NAME_PLACEHOLDER": "Nome do fluxo",
       "PALETTE": "Blocos",
+      "PALETTE_SEARCH": "Buscar bloco…",
+      "PALETTE_NO_RESULTS": "Nenhum bloco encontrado",
       "SAVE": "Salvar",
       "SAVED": "Fluxo salvo",
       "CREATED": "Fluxo criado",
@@ -52,6 +54,14 @@
         "LOGIC": "Lógica",
         "AI": "IA",
         "ACTION": "Ação",
+        "DATA": "Dados"
+      },
+      "PALETTE_SECTIONS": {
+        "TRIGGER": "Gatilhos",
+        "MSG": "Mensagens",
+        "LOGIC": "Lógica",
+        "AI": "IA",
+        "ACTION": "Ações",
         "DATA": "Dados"
       },
       "NODES": {

@@ -38,6 +38,8 @@
       "NEW_FLOW": "New flow",
       "NAME_PLACEHOLDER": "Flow name",
       "PALETTE": "Blocks",
+      "PALETTE_SEARCH": "Search blocks…",
+      "PALETTE_NO_RESULTS": "No blocks found",
       "SAVE": "Save",
       "SAVED": "Flow saved",
       "CREATED": "Flow created",
@@ -52,6 +54,14 @@
         "LOGIC": "Logic",
         "AI": "AI",
         "ACTION": "Action",
+        "DATA": "Data"
+      },
+      "PALETTE_SECTIONS": {
+        "TRIGGER": "Triggers",
+        "MSG": "Messages",
+        "LOGIC": "Logic",
+        "AI": "AI",
+        "ACTION": "Actions",
         "DATA": "Data"
       },
       "NODES": {
