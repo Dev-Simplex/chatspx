@@ -147,6 +147,23 @@ RSpec.describe NpsSurveys::ResponseBuilder do
       expect(nps.dismiss_reason).to eq('invalid_responses')
     end
 
+    it 'sends the configured closing message when finalizing' do
+      inbox.update!(nps_config: inbox.nps_config.merge('invalid_finalize_message' => 'Encerrando por agora, obrigado!'))
+      perform_for('abc')
+      perform_for('11')
+      perform_for('?')
+      expect(conversation.messages.where(message_type: :outgoing, content: 'Encerrando por agora, obrigado!')).to exist
+    end
+
+    it 'sends a default closing message when none is configured' do
+      perform_for('abc')
+      perform_for('11')
+      perform_for('?')
+      last = conversation.messages.where(message_type: :outgoing).order(:created_at).last
+      expect(last.content).to include('encerrando este atendimento')
+      expect(last.content_attributes['nps_survey_system']).to be_truthy
+    end
+
     it 'leaves the conversation resolved (does not repeat the survey question)' do
       perform_for('abc')
       perform_for('11')

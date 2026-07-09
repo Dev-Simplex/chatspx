@@ -381,9 +381,11 @@ class NpsSurveys::ResponseBuilder # rubocop:disable Metrics/ClassLength
     scope.count { |m| NpsSurveys::ScoreValidator.looks_like_failed_attempt?(m.content) }
   end
 
-  # Encerra a pesquisa apos respostas invalidas em excesso: marca a NpsResponse
-  # como dismissed e garante a conversa resolvida (nao reabre, nao reenvia pergunta).
+  # Encerra a pesquisa apos respostas invalidas em excesso: envia a mensagem de
+  # encerramento ao cliente, marca a NpsResponse como dismissed e garante a conversa
+  # resolvida (nao reabre, nao reenvia pergunta).
   def finalize_after_invalid_attempts(nps_response)
+    send_invalid_finalize_message(nps_response)
     nps_response.update!(status: :dismissed, dismiss_reason: 'invalid_responses')
 
     create_invalid_finalized_activity_message(nps_response)
@@ -396,6 +398,27 @@ class NpsSurveys::ResponseBuilder # rubocop:disable Metrics/ClassLength
     conversation.update!(status: :resolved)
   rescue StandardError => e
     Rails.logger.warn("[NPS] falha ao finalizar apos respostas invalidas conv=#{nps_response.conversation_id}: #{e.message}")
+  end
+
+  DEFAULT_INVALID_FINALIZE_MESSAGE = 'Ops, parece que não conseguimos entender a sua resposta. 😕 ' \
+                                     'Para não tomarmos mais o seu tempo, estamos encerrando este atendimento por agora. Obrigado!'.freeze
+
+  def send_invalid_finalize_message(nps_response)
+    config = nps_response.inbox.nps_config || {}
+    content = config['invalid_finalize_message'].presence ||
+              I18n.t('conversations.templates.nps_invalid_finalize', default: DEFAULT_INVALID_FINALIZE_MESSAGE)
+    return if content.blank?
+
+    conversation = nps_response.conversation
+    # nps_survey_system: nao dismissar/reprocessar a pesquisa (ver NpsSurveyListener).
+    conversation.messages.create!(
+      account_id: conversation.account_id,
+      inbox_id: conversation.inbox_id,
+      message_type: :outgoing,
+      content_type: :text,
+      content: content,
+      content_attributes: { nps_survey_system: true }
+    )
   end
 
   def create_invalid_finalized_activity_message(nps_response)

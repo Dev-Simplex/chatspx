@@ -186,6 +186,8 @@ class Api::V1::Accounts::InboxesController < Api::V1::Accounts::BaseController #
       'required_tags' => Array(config['required_tags'] || []),
       'thank_you_message' => config['thank_you_message'] || '',
       'invalid_response_message' => config['invalid_response_message'] || '',
+      # [NOVO] mensagem enviada ao encerrar apos 3 respostas invalidas
+      'invalid_finalize_message' => config['invalid_finalize_message'] || '',
       # [NOVO] mensagens de agradecimento por faixa (fallback -> thank_you_message)
       'thank_you_promoter' => config['thank_you_promoter'] || '',
       'thank_you_passive' => config['thank_you_passive'] || '',
@@ -213,6 +215,7 @@ class Api::V1::Accounts::InboxesController < Api::V1::Accounts::BaseController #
                        template: [:name, :template_id, :friendly_name, :content_sid, :approval_sid, :created_at, :language, :status] }] },
      { nps_config: [:mode, :message, :cooldown_hours, :cooldown_days, :expiration_hours, :blocklist_scope,
                     :min_messages, :min_duration_minutes, :thank_you_message, :invalid_response_message,
+                    :invalid_finalize_message,
                     :thank_you_promoter, :thank_you_passive, :thank_you_detractor,
                     :gpt_parse_enabled, :sentiment_detractor_enabled, :detractor_reopen, :detractor_assignee_id, :detractor_team_id, :detractor_label,
                     { blocklist_labels: [] }, { required_tags: [] }] }]

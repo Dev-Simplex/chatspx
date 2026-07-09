@@ -33,6 +33,7 @@ const state = reactive({
   message: '',
   thankYouMessage: '',
   invalidResponseMessage: '',
+  invalidFinalizeMessage: '',
   expirationHours: 72,
   cooldownHours: 24,
   blocklistScope: 'both',
@@ -133,6 +134,7 @@ const initializeState = () => {
     state.message = '';
     state.thankYouMessage = '';
     state.invalidResponseMessage = '';
+    state.invalidFinalizeMessage = '';
     state.expirationHours = 72;
     state.cooldownHours = 24;
     state.blocklistScope = 'both';
@@ -157,6 +159,7 @@ const initializeState = () => {
   state.message = nps_config.message || '';
   state.thankYouMessage = nps_config.thank_you_message || '';
   state.invalidResponseMessage = nps_config.invalid_response_message || '';
+  state.invalidFinalizeMessage = nps_config.invalid_finalize_message || '';
   state.expirationHours = nps_config.expiration_hours || 72;
   // Cooldown em horas (prioridade); fallback: cooldown_days convertido para horas
   state.cooldownHours =
@@ -253,6 +256,7 @@ const saveSettings = async () => {
       message: state.message,
       thank_you_message: state.thankYouMessage,
       invalid_response_message: state.invalidResponseMessage,
+      invalid_finalize_message: state.invalidFinalizeMessage,
       expiration_hours: state.expirationHours,
       cooldown_hours: state.cooldownHours,
       blocklist_labels: selectedBlocklistLabels.value,
@@ -469,6 +473,33 @@ const saveSettings = async () => {
               })
             "
             :max-length="200"
+            class="w-full"
+          />
+        </WithLabel>
+
+        <WithLabel
+          :label="
+            $t('INBOX_MGMT.NPS.INVALID_FINALIZE_MESSAGE.LABEL', {
+              default: 'Mensagem de Encerramento (após 3 respostas inválidas)',
+            })
+          "
+          :help-message="
+            $t('INBOX_MGMT.NPS.INVALID_FINALIZE_MESSAGE.HINT', {
+              default:
+                'Enviada ao cliente quando a pesquisa é encerrada por 3 respostas inválidas seguidas. Se vazio, usa um texto padrão.',
+            })
+          "
+          name="invalid_finalize_message"
+        >
+          <Editor
+            v-model="state.invalidFinalizeMessage"
+            :placeholder="
+              $t('INBOX_MGMT.NPS.INVALID_FINALIZE_MESSAGE.PLACEHOLDER', {
+                default:
+                  'Ops, parece que não conseguimos entender a sua resposta. 😕 Para não tomarmos mais o seu tempo, estamos encerrando este atendimento por agora. Obrigado!',
+              })
+            "
+            :max-length="300"
             class="w-full"
           />
         </WithLabel>
