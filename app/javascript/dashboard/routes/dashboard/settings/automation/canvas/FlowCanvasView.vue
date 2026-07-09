@@ -647,7 +647,7 @@ const goBack = () =>
       </button>
       <input
         v-model="name"
-        class="flex-1 max-w-md px-2 py-1 text-sm font-semibold bg-transparent rounded outline-none text-n-slate-12 focus:bg-n-solid-2"
+        class="flex-1 max-w-md px-2 py-1 text-sm font-semibold bg-transparent rounded outline-none reset-base text-n-slate-12 focus:bg-n-solid-2"
         :placeholder="t('AUTOMATION.CANVAS.NAME_PLACEHOLDER')"
         data-testid="canvas-name"
       />
@@ -724,7 +724,7 @@ const goBack = () =>
           <input
             v-model="paletteQuery"
             type="text"
-            class="w-full text-sm bg-transparent outline-none text-n-slate-12 placeholder:text-n-slate-10"
+            class="w-full h-full p-0 text-sm bg-transparent border-0 outline-none reset-base text-n-slate-12"
             :placeholder="t('AUTOMATION.CANVAS.PALETTE_SEARCH')"
             data-testid="palette-search"
           />
