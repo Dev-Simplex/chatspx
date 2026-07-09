@@ -37,6 +37,10 @@ class Team < ApplicationRecord
   # nome. Best-effort — uma falha no chat nunca pode bloquear o CRUD do time.
   after_create :sync_internal_team_channel
   after_update :sync_internal_team_channel, if: :saved_change_to_name?
+  # A FK de Label.team já faz nullify, mas isso deixaria labels "de-time" com
+  # visibility=team e team_id=NULL (inválidas na próxima validação). Rebaixa para
+  # everyone antes do destroy (roda antes do dependent: :destroy_async dos membros).
+  before_destroy :rebase_team_labels
 
   # Adds multiple members to the team
   # @param user_ids [Array<Integer>] Array of user IDs to add as members
@@ -85,6 +89,10 @@ class Team < ApplicationRecord
     InternalChannels::SyncTeamChannelsService.new(account: account, team: self).perform
   rescue StandardError => e
     Rails.logger.warn "[internal_chat] team channel sync failed for team ##{id}: #{e.message}"
+  end
+
+  def rebase_team_labels
+    Label.where(team_id: id, visibility: :team).update_all(visibility: :everyone, team_id: nil) # rubocop:disable Rails/SkipsModelValidations
   end
 end
 
