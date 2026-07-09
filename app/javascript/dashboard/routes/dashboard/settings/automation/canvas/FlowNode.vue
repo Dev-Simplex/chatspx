@@ -9,19 +9,33 @@ const props = defineProps({
   selected: { type: Boolean, default: false },
 });
 
-const { t } = useI18n();
+const { t, te } = useI18n();
 
 const node = computed(() => props.data?.node || {});
 const familyKey = computed(() => familyForNode(node.value));
 const familyMeta = computed(() => FAMILIES[familyKey.value] || FAMILIES.action);
 const familyLabel = computed(() => t(familyMeta.value.labelKey));
 const label = computed(() => t(labelForNode(node.value)));
+// Rótulo-resumo do nó. Gatilho: evento localizado (AUTOMATION.EVENTS.*) com fallback pro valor
+// cru se a chave não existir, ou as palavras-chave; ações: os primeiros parâmetros de texto.
+const triggerSubtitle = raw => {
+  if (raw.trigger_kind === 'keyword') {
+    return (Array.isArray(raw.keywords) ? raw.keywords : [])
+      .filter(Boolean)
+      .join(', ');
+  }
+  if (!raw.event_name) return '';
+  const key = `AUTOMATION.EVENTS.${raw.event_name}`;
+  return te(key) ? t(key) : raw.event_name;
+};
 const subtitle = computed(() => {
-  const params = node.value.action_params;
+  const raw = node.value;
+  if (raw.type === 'trigger') return triggerSubtitle(raw);
+  const params = raw.action_params;
   if (Array.isArray(params) && params.length && typeof params[0] === 'string') {
     return params.join(', ');
   }
-  return node.value.type === 'trigger' ? node.value.event_name || '' : '';
+  return '';
 });
 const isTrigger = computed(() => node.value.type === 'trigger');
 
@@ -197,6 +211,5 @@ const hasBranchPorts = computed(() => branchPorts.value.length > 0);
   box-shadow: 0 0 0 4px rgb(120 130 150 / 0.28);
   cursor: crosshair;
 }
-/* TODO(i18n): quando o automation.json for liberado, um title/tooltip "arraste para conectar"
-   nas portas de saída melhora a descoberta (hoje o sinal é só visual para não criar chave i18n). */
+/* O sinal de "arraste para conectar" é visual (tamanho + halo + cursor no hover). */
 </style>

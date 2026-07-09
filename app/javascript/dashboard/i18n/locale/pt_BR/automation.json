@@ -41,12 +41,20 @@
       "PALETTE_SEARCH": "Buscar bloco…",
       "PALETTE_NO_RESULTS": "Nenhum bloco encontrado",
       "SAVE": "Salvar",
+      "BACK": "Voltar",
       "SAVED": "Fluxo salvo",
       "CREATED": "Fluxo criado",
       "SAVE_ERROR": "Não foi possível salvar o fluxo",
       "UNDO": "Desfazer",
       "REDO": "Refazer",
       "UNSAVED": "Alterações não salvas",
+      "UNSAVED_CONFIRM": "Você tem alterações não salvas. Deseja sair mesmo assim?",
+      "LOAD_ERROR": "Não foi possível carregar o fluxo",
+      "VALIDATION": {
+        "NAME_REQUIRED": "Dê um nome ao fluxo antes de salvar",
+        "TRIGGER_REQUIRED": "Adicione um gatilho para iniciar o fluxo",
+        "ACTION_REQUIRED": "Adicione ao menos uma ação ao fluxo"
+      },
       "EMPTY": "Escolha um bloco na paleta para começar",
       "FAMILIES": {
         "TRIGGER": "Gatilho",
@@ -87,10 +95,18 @@
         "SEND_CSAT": "Enviar CSAT",
         "ADD_PARTICIPANT": "Adicionar participante",
         "ENROLL_SEQUENCE": "Inscrever em sequência",
-        "HTTP_REQUEST": "Requisição HTTP"
+        "HTTP_REQUEST": "Requisição HTTP",
+        "SEND_ATTACHMENT": "Enviar anexo",
+        "SEND_EMAIL_TO_TEAM": "E-mail para o time",
+        "SEND_EMAIL_TRANSCRIPT": "Enviar transcrição",
+        "REMOVE_LABEL": "Remover etiqueta",
+        "MUTE_CONVERSATION": "Silenciar conversa",
+        "ADD_SLA": "Aplicar SLA",
+        "SEND_WEBHOOK_EVENT": "Disparar webhook"
       },
       "CONFIG": {
         "CLOSE": "Fechar",
+        "DELETE_NODE": "Excluir bloco",
         "MESSAGE": {
           "LABEL": "Mensagem",
           "NOTE_LABEL": "Nota interna",
@@ -307,6 +323,32 @@
             "INBOUND": "Entrada (contato inicia)",
             "OUTBOUND": "Saída (agente inicia)"
           }
+        },
+        "SEND_EMAIL_TO_TEAM": {
+          "TEAMS_LABEL": "Times",
+          "NO_TEAMS": "Nenhum time disponível. Crie um time em Configurações › Times.",
+          "MESSAGE_LABEL": "Mensagem",
+          "MESSAGE_PLACEHOLDER": "Mensagem enviada por e-mail ao(s) time(s)…"
+        },
+        "SEND_EMAIL_TRANSCRIPT": {
+          "LABEL": "E-mails",
+          "PLACEHOLDER": "email@exemplo.com, outro@exemplo.com",
+          "HINT": "Separe múltiplos endereços por vírgula. A transcrição da conversa é enviada por e-mail."
+        },
+        "SEND_WEBHOOK_EVENT": {
+          "LABEL": "URL do webhook",
+          "PLACEHOLDER": "https://api.exemplo.com/hook",
+          "HINT": "Um POST com os dados da conversa e o nome do evento é enviado a esta URL."
+        },
+        "SEND_ATTACHMENT": {
+          "LABEL": "Arquivo",
+          "HINT": "O arquivo é anexado a uma mensagem na conversa.",
+          "ATTACHED": "Arquivo selecionado"
+        },
+        "ADD_SLA": {
+          "LABEL": "Política de SLA",
+          "PLACEHOLDER": "Selecione uma política de SLA",
+          "NO_POLICIES": "Nenhuma política de SLA disponível. Crie uma em Configurações › SLA."
         },
         "GENERIC": {
           "NO_PARAMS": "Este bloco não tem parâmetros para configurar."

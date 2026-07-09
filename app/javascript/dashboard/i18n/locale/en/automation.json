@@ -41,12 +41,20 @@
       "PALETTE_SEARCH": "Search blocks…",
       "PALETTE_NO_RESULTS": "No blocks found",
       "SAVE": "Save",
+      "BACK": "Back",
       "SAVED": "Flow saved",
       "CREATED": "Flow created",
       "SAVE_ERROR": "Could not save the flow",
       "UNDO": "Undo",
       "REDO": "Redo",
       "UNSAVED": "Unsaved changes",
+      "UNSAVED_CONFIRM": "You have unsaved changes. Leave anyway?",
+      "LOAD_ERROR": "Could not load the flow",
+      "VALIDATION": {
+        "NAME_REQUIRED": "Name the flow before saving",
+        "TRIGGER_REQUIRED": "Add a trigger to start the flow",
+        "ACTION_REQUIRED": "Add at least one action to the flow"
+      },
       "EMPTY": "Pick a block from the palette to start",
       "FAMILIES": {
         "TRIGGER": "Trigger",
@@ -87,10 +95,18 @@
         "SEND_CSAT": "Send CSAT",
         "ADD_PARTICIPANT": "Add participant",
         "ENROLL_SEQUENCE": "Enroll in sequence",
-        "HTTP_REQUEST": "HTTP request"
+        "HTTP_REQUEST": "HTTP request",
+        "SEND_ATTACHMENT": "Send attachment",
+        "SEND_EMAIL_TO_TEAM": "Email to team",
+        "SEND_EMAIL_TRANSCRIPT": "Send transcript",
+        "REMOVE_LABEL": "Remove label",
+        "MUTE_CONVERSATION": "Mute conversation",
+        "ADD_SLA": "Apply SLA",
+        "SEND_WEBHOOK_EVENT": "Trigger webhook"
       },
       "CONFIG": {
         "CLOSE": "Close",
+        "DELETE_NODE": "Delete block",
         "MESSAGE": {
           "LABEL": "Message",
           "NOTE_LABEL": "Private note",
@@ -307,6 +323,32 @@
             "INBOUND": "Inbound (contact starts)",
             "OUTBOUND": "Outbound (agent starts)"
           }
+        },
+        "SEND_EMAIL_TO_TEAM": {
+          "TEAMS_LABEL": "Teams",
+          "NO_TEAMS": "No teams available. Create one in Settings › Teams.",
+          "MESSAGE_LABEL": "Message",
+          "MESSAGE_PLACEHOLDER": "Message emailed to the team(s)…"
+        },
+        "SEND_EMAIL_TRANSCRIPT": {
+          "LABEL": "Emails",
+          "PLACEHOLDER": "email@example.com, another@example.com",
+          "HINT": "Separate multiple addresses with commas. The conversation transcript is emailed to them."
+        },
+        "SEND_WEBHOOK_EVENT": {
+          "LABEL": "Webhook URL",
+          "PLACEHOLDER": "https://api.example.com/hook",
+          "HINT": "A POST with the conversation data and the event name is sent to this URL."
+        },
+        "SEND_ATTACHMENT": {
+          "LABEL": "File",
+          "HINT": "The file is attached to a message in the conversation.",
+          "ATTACHED": "File selected"
+        },
+        "ADD_SLA": {
+          "LABEL": "SLA policy",
+          "PLACEHOLDER": "Select an SLA policy",
+          "NO_POLICIES": "No SLA policies available. Create one in Settings › SLA."
         },
         "GENERIC": {
           "NO_PARAMS": "This block has no settings to configure."

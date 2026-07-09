@@ -28,6 +28,7 @@ const props = defineProps({
 });
 
 const emit = defineEmits(['close']);
+const dialogRef = ref(null);
 
 const { t } = useI18n();
 const store = useStore();
@@ -118,11 +119,23 @@ const runSimulation = async () => {
   }
 };
 
-onMounted(runSimulation);
+onMounted(() => {
+  dialogRef.value?.focus();
+  runSimulation();
+});
 </script>
 
 <template>
-  <div class="fixed inset-0 z-50 flex" data-testid="simulation-overlay">
+  <div
+    ref="dialogRef"
+    class="fixed inset-0 z-50 flex outline-none"
+    role="dialog"
+    aria-modal="true"
+    :aria-label="t('AUTOMATION.CANVAS.SIMULATE.OPEN')"
+    tabindex="-1"
+    data-testid="simulation-overlay"
+    @keydown.esc="emit('close')"
+  >
     <div
       class="absolute inset-0 bg-n-alpha-black2 backdrop-blur-[1px]"
       @click="emit('close')"
