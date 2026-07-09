@@ -7,7 +7,8 @@ if ENV['SENTRY_DSN'].present?
     # We recommend adjusting the value in production:
     config.traces_sample_rate = 0.1 if ENV['ENABLE_SENTRY_TRANSACTIONS']
 
-    config.excluded_exceptions += ['Rack::Timeout::RequestTimeoutException']
+    # LidNotResolvable é esperado (WhatsApp demora mapear LID→número, tem retry) — silencia no Sentry, mantém erros WAHA reais.
+    config.excluded_exceptions += ['Rack::Timeout::RequestTimeoutException', 'Waha::ApiService::LidNotResolvable']
 
     # to track post data in sentry
     config.send_default_pii = true unless ENV['DISABLE_SENTRY_PII']

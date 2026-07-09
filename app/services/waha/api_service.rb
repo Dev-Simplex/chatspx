@@ -5,6 +5,9 @@ class Waha::ApiService # rubocop:disable Metrics/ClassLength
   class ConnectionError < Error; end
   class AuthenticationError < Error; end
   class NotFoundError < Error; end
+  # LID ainda nao mapeado pra numero pelo WhatsApp — esperado, tem retry (ResolveLidJob).
+  # Fica FORA do Sentry (excluded_exceptions) pra nao virar ruido; erros WAHA reais continuam reportando.
+  class LidNotResolvable < Error; end
 
   def initialize
     @base_url = ENV.fetch('WAHA_API_URL', 'http://localhost:3000')
