@@ -289,6 +289,13 @@
             "SAVE_FIRST": "Save the flow to generate its webhook URL.",
             "COPY": "Copy URL",
             "COPIED": "Webhook URL copied"
+          },
+          "DIRECTION": {
+            "LABEL": "Direction",
+            "HINT": "Which conversations trigger this flow: inbound (the contact starts), outbound (an agent starts) or both. Use 'inbound' so an agent-initiated conversation is not caught by rules like 'on create, assign to team X'.",
+            "BOTH": "Both",
+            "INBOUND": "Inbound (contact starts)",
+            "OUTBOUND": "Outbound (agent starts)"
           }
         },
         "GENERIC": {

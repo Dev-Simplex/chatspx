@@ -289,6 +289,13 @@
             "SAVE_FIRST": "Salve o fluxo para gerar a URL do webhook.",
             "COPY": "Copiar URL",
             "COPIED": "URL do webhook copiada"
+          },
+          "DIRECTION": {
+            "LABEL": "Direção",
+            "HINT": "Quais conversas disparam este fluxo: entrada (o contato inicia), saída (um agente inicia) ou ambas. Use 'entrada' para uma conversa iniciada pelo agente não ser pega por regras como 'ao criar, atribuir ao time X'.",
+            "BOTH": "Ambas",
+            "INBOUND": "Entrada (contato inicia)",
+            "OUTBOUND": "Saída (agente inicia)"
           }
         },
         "GENERIC": {

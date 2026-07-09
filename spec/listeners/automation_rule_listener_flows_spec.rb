@@ -207,4 +207,166 @@ describe AutomationRuleListener do
       end
     end
   end
+
+  # Filtro de DIREÇÃO do gatilho (trigger_config['direction'] = inbound|outbound|both). Resolve o
+  # bug real: uma regra "ao criar conversa → atribuir ao time X" também disparava quando o AGENTE
+  # iniciava a conversa (saída). Critério: para eventos de conversa, a direção é a da 1ª mensagem
+  # não-activity da conversa (incoming = entrada, senão saída); para message_created/keyword é a da
+  # própria mensagem. Ver AutomationRuleListener#conversation_direction / #message_direction.
+  describe 'trigger direction filter' do
+    before { enable_flows_engine }
+
+    after { Current.reset }
+
+    # Flow por-evento com direção em trigger_config E no nó `trigger` (como o canvas persiste).
+    def directional_flow(direction, event_name: 'conversation_created', label: 'dir-hit')
+      action = { 'id' => 'a1', 'type' => 'action', 'action_name' => 'add_label', 'action_params' => [label] }
+      trigger = { 'id' => 't1', 'type' => 'trigger', 'direction' => direction }
+      create(:flow, account: account, trigger_type: :conversation_event,
+                    trigger_config: { 'event_name' => event_name, 'conditions' => [], 'direction' => direction },
+                    definition: { 'nodes' => [trigger, action], 'edges' => [{ 'from' => 't1', 'to' => 'a1' }] })
+    end
+
+    def add_message(type, content: 'oi')
+      create(:message, conversation: conversation, inbox: inbox, account: account, message_type: type, content: content)
+    end
+
+    def fire_created
+      listener.conversation_created(created_event)
+    end
+
+    context 'when the trigger is a conversation event (direction from the first message)' do
+      context "when the flow wants 'inbound'" do
+        before { directional_flow('inbound') }
+
+        it 'fires when the contact started the conversation (first message incoming)' do
+          add_message(:incoming)
+          fire_created
+          expect(conversation.reload.label_list).to include('dir-hit')
+        end
+
+        it 'does NOT fire when an agent started the conversation (first message outgoing) — the reported bug' do
+          add_message(:outgoing)
+          fire_created
+          expect(conversation.reload.label_list).not_to include('dir-hit')
+        end
+      end
+
+      context "when the flow wants 'outbound'" do
+        before { directional_flow('outbound') }
+
+        it 'fires when an agent started the conversation (first message outgoing)' do
+          add_message(:outgoing)
+          fire_created
+          expect(conversation.reload.label_list).to include('dir-hit')
+        end
+
+        it 'does NOT fire on an inbound conversation (first message incoming)' do
+          add_message(:incoming)
+          fire_created
+          expect(conversation.reload.label_list).not_to include('dir-hit')
+        end
+      end
+
+      context "when the flow wants 'both' (explicit)" do
+        before { directional_flow('both') }
+
+        it 'fires on an outbound conversation' do
+          add_message(:outgoing)
+          fire_created
+          expect(conversation.reload.label_list).to include('dir-hit')
+        end
+
+        it 'fires on an inbound conversation' do
+          add_message(:incoming)
+          fire_created
+          expect(conversation.reload.label_list).to include('dir-hit')
+        end
+      end
+
+      # Não-regressão: flows legados não têm `direction` — devem disparar como antes (== 'both').
+      context 'when direction is absent (legacy flows)' do
+        it 'fires regardless of direction, as before' do
+          event_flow
+          add_message(:outgoing)
+          fire_created
+          expect(conversation.reload.label_list).to include('auto')
+        end
+      end
+
+      context 'when the conversation has no directional message yet' do
+        before { directional_flow('inbound') }
+
+        it "treats it as inbound (fail-open) so an 'inbound' flow still fires" do
+          fire_created
+          expect(conversation.reload.label_list).to include('dir-hit')
+        end
+      end
+
+      # Fallback self-contained: mesmo se a projeção do FlowCanvasView ainda não copiar `direction`
+      # para trigger_config, o backend lê a direção do próprio nó `trigger` da definition.
+      context 'when direction lives only on the trigger node (trigger_config not yet projected)' do
+        it 'reads the fallback from the definition and still filters out the outbound conversation' do
+          action = { 'id' => 'a1', 'type' => 'action', 'action_name' => 'add_label', 'action_params' => ['node-dir'] }
+          trigger = { 'id' => 't1', 'type' => 'trigger', 'direction' => 'inbound' }
+          create(:flow, account: account, trigger_type: :conversation_event,
+                        trigger_config: { 'event_name' => 'conversation_created', 'conditions' => [] },
+                        definition: { 'nodes' => [trigger, action], 'edges' => [{ 'from' => 't1', 'to' => 'a1' }] })
+          add_message(:outgoing)
+          fire_created
+          expect(conversation.reload.label_list).not_to include('node-dir')
+        end
+      end
+    end
+
+    context 'when the trigger is message_created (direction from the message itself)' do
+      def deliver(message)
+        listener.message_created(Events::Base.new('message_created', Time.zone.now, { message: message }))
+      end
+
+      it "an 'outbound' flow fires on an outgoing message but not an incoming one" do
+        directional_flow('outbound', event_name: 'message_created', label: 'msg-out')
+        deliver(add_message(:incoming))
+        expect(conversation.reload.label_list).not_to include('msg-out')
+        deliver(add_message(:outgoing))
+        expect(conversation.reload.label_list).to include('msg-out')
+      end
+
+      it "an 'inbound' flow fires on an incoming message but not an outgoing one" do
+        directional_flow('inbound', event_name: 'message_created', label: 'msg-in')
+        deliver(add_message(:outgoing))
+        expect(conversation.reload.label_list).not_to include('msg-in')
+        deliver(add_message(:incoming))
+        expect(conversation.reload.label_list).to include('msg-in')
+      end
+    end
+
+    context 'when the trigger is a keyword flow (inbound by nature)' do
+      def kw_flow(direction, label: 'kw-dir')
+        action = { 'id' => 'a1', 'type' => 'action', 'action_name' => 'add_label', 'action_params' => [label] }
+        trigger = { 'id' => 't1', 'type' => 'trigger', 'direction' => direction }
+        create(:flow, account: account, trigger_type: :keyword,
+                      trigger_config: { 'keywords' => ['suporte'], 'match' => 'contains', 'direction' => direction },
+                      definition: { 'nodes' => [trigger, action], 'edges' => [{ 'from' => 't1', 'to' => 'a1' }] })
+      end
+
+      def deliver_incoming(content)
+        message = create(:message, conversation: conversation, inbox: inbox, account: account, message_type: :incoming, content: content)
+        listener.message_created(Events::Base.new('message_created', Time.zone.now, { message: message }))
+      end
+
+      it "fires an 'inbound' keyword flow on a matching incoming message" do
+        kw_flow('inbound')
+        deliver_incoming('quero suporte')
+        expect(conversation.reload.label_list).to include('kw-dir')
+      end
+
+      it "never fires an 'outbound' keyword flow (a keyword only matches inbound messages)" do
+        kw_flow('outbound')
+        allow(Flows::RunnerService).to receive(:new)
+        deliver_incoming('quero suporte')
+        expect(Flows::RunnerService).not_to have_received(:new)
+      end
+    end
+  end
 end

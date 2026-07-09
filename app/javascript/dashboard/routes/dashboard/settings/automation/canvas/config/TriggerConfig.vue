@@ -81,6 +81,43 @@ const selectedEvent = computed({
   },
 });
 
+// --- Direção (entrada/saída/ambas) -----------------------------------------------
+// Filtra o gatilho pela direção do evento: só ENTRADA (o contato inicia), só SAÍDA (um agente
+// inicia) ou AMBAS (default). Resolve o bug clássico "ao criar conversa → atribuir ao time X"
+// disparar quando o AGENTE abre a conversa (saída). Aplica-se aos gatilhos por evento e por
+// palavra-chave. Persistido em node.direction; o backend lê de trigger_config.direction, com
+// fallback ao próprio nó (ver automation_rule_listener#flow_trigger_direction). 'both' não filtra.
+const showDirection = computed(
+  () => kind.value === 'event' || kind.value === 'keyword'
+);
+
+const directionOptions = computed(() => [
+  { id: 'both', name: t('AUTOMATION.CANVAS.CONFIG.TRIGGER.DIRECTION.BOTH') },
+  {
+    id: 'inbound',
+    name: t('AUTOMATION.CANVAS.CONFIG.TRIGGER.DIRECTION.INBOUND'),
+  },
+  {
+    id: 'outbound',
+    name: t('AUTOMATION.CANVAS.CONFIG.TRIGGER.DIRECTION.OUTBOUND'),
+  },
+]);
+
+const directionModel = computed({
+  get() {
+    const current = ['inbound', 'outbound'].includes(props.node.direction)
+      ? props.node.direction
+      : 'both';
+    return (
+      directionOptions.value.find(opt => opt.id === current) ||
+      directionOptions.value[0]
+    );
+  },
+  set(value) {
+    emit('update', { direction: value?.id || 'both' });
+  },
+});
+
 // --- Modo keyword ----------------------------------------------------------------
 const matchOptions = computed(() => [
   {
@@ -367,5 +404,19 @@ const copyWebhookUrl = () => {
         </p>
       </ConfigField>
     </template>
+
+    <ConfigField
+      v-if="showDirection"
+      :label="t('AUTOMATION.CANVAS.CONFIG.TRIGGER.DIRECTION.LABEL')"
+      :hint="t('AUTOMATION.CANVAS.CONFIG.TRIGGER.DIRECTION.HINT')"
+    >
+      <SingleSelect
+        v-model="directionModel"
+        disable-search
+        disable-deselect
+        :options="directionOptions"
+        data-testid="config-trigger-direction"
+      />
+    </ConfigField>
   </div>
 </template>
