@@ -385,7 +385,7 @@ const copyWebhookUrl = () => {
           <input
             :value="webhookUrl"
             readonly
-            class="flex-1 px-3 py-2 font-mono text-xs rounded-lg outline outline-1 text-n-slate-12 bg-n-alpha-1 outline-n-weak dark:outline-n-strong"
+            class="flex-1 px-3 py-2 font-mono text-xs rounded-lg outline outline-1 reset-base text-n-slate-12 bg-n-alpha-1 outline-n-weak dark:outline-n-strong"
             data-testid="config-trigger-webhook-url"
             @focus="event => event.target.select()"
           />
