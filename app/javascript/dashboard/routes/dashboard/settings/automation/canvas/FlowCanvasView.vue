@@ -23,6 +23,7 @@ import LogsPanel from './LogsPanel.vue';
 import { NODE_CATALOG, FAMILIES, familyForNode } from './nodeCatalog';
 import { flatToDefinition } from './flatToDefinition';
 import { flowTemplateByKey } from './flowTemplates';
+import { computeTreeLayout, H_SPACING, V_SPACING } from './flowLayout';
 import { useFlowHistory } from './useFlowHistory';
 
 import '@vue-flow/core/dist/style.css';
@@ -43,6 +44,17 @@ const definition = ref({ nodes: [], edges: [] });
 const isSaving = ref(false);
 const selectedNodeId = ref(null);
 const flowInstance = ref(null);
+
+// Tema atual: o app alterna a classe `.dark` no <body> (themeHelper.js). Observamos a classe
+// para repintar o MiniMap no dark (o Vue Flow o desenha claro por padrão) e escolher a
+// variante de cor dos nós no minimapa. Um MutationObserver cobre qualquer origem da troca
+// (toggle manual do usuário ou mudança do SO no modo automático).
+const isDark = ref(false);
+let themeObserver = null;
+const syncTheme = () => {
+  isDark.value =
+    typeof document !== 'undefined' && document.body.classList.contains('dark');
+};
 // Overlays de simulação (dry-run) e de execuções/logs — só fazem sentido num fluxo já salvo
 // (precisam do id pra bater no backend), por isso os botões aparecem só quando isEdit.
 const showSimulation = ref(false);
@@ -120,7 +132,10 @@ const onKeydown = event => {
   else undo();
 };
 
-onBeforeUnmount(() => window.removeEventListener('keydown', onKeydown));
+onBeforeUnmount(() => {
+  window.removeEventListener('keydown', onKeydown);
+  themeObserver?.disconnect();
+});
 
 // Cores dos ramos fixos (espelham FlowNode/FlowEdge). Rotas do router herdam a cor da família.
 const BRANCH_TRUE_COLOR = '#0e9f6e';
@@ -196,24 +211,28 @@ const selectedNode = computed(
     ) || null
 );
 
-// Posição persistida por nó (definition.node.position); fallback a um empilhamento linear só
-// para nós legados/sem posição — assim ramos arrastados não são recalculados a cada render.
+// Uma posição é "manual" quando o usuário a arrastou (persistida em definition.node.position).
+// Essas são RESPEITADAS; os demais nós recebem a posição derivada do auto-layout em árvore.
 const hasPosition = node =>
   node.position &&
   Number.isFinite(node.position.x) &&
   Number.isFinite(node.position.y);
 
-const vfNodes = computed(() =>
-  (definition.value.nodes || []).map((node, index) => ({
+const vfNodes = computed(() => {
+  // Auto-layout em árvore (flowLayout): filhos abaixo do pai, ramos (Sim/Não, rotas) em
+  // colunas lado a lado. É DERIVADO da definition (fonte da verdade) e recalculado a cada
+  // mudança estrutural; a posição manual (arrastada) tem prioridade sobre a derivada.
+  const layout = computeTreeLayout(definition.value);
+  return (definition.value.nodes || []).map(node => ({
     id: String(node.id),
     type: 'flow',
     position: hasPosition(node)
       ? node.position
-      : { x: 180, y: index * 160 + 40 },
+      : layout.get(String(node.id)) || { x: 0, y: 0 },
     selected: String(node.id) === String(selectedNodeId.value),
     data: { node, stats: nodeStats.value[String(node.id)] || null },
-  }))
-);
+  }));
+});
 // Aresta → Vue Flow: `sourceHandle` = branch (casa o Handle rotulado do FlowNode); `type:flow`
 // desenha o FlowEdge com o pill do ramo. Arestas sem branch saem do Handle padrão (linear).
 const vfEdges = computed(() =>
@@ -230,9 +249,12 @@ const vfEdges = computed(() =>
     }))
 );
 
+// Cor do nó no MiniMap, por família. No dark usa a variante `colorDark` (mais clara/saturada)
+// para manter contraste sobre o fundo escuro do minimapa.
 const nodeColor = node => {
   const raw = node.data?.node || {};
-  return (FAMILIES[familyForNode(raw)] || FAMILIES.action).color;
+  const family = FAMILIES[familyForNode(raw)] || FAMILIES.action;
+  return isDark.value ? family.colorDark || family.color : family.color;
 };
 
 // Opções usadas pelos editores de nó (agente/time/etiqueta/inbox/atributos/IA).
@@ -305,6 +327,12 @@ const loadStats = async () => {
 
 onMounted(async () => {
   window.addEventListener('keydown', onKeydown);
+  syncTheme();
+  themeObserver = new MutationObserver(syncTheme);
+  themeObserver.observe(document.body, {
+    attributes: true,
+    attributeFilter: ['class'],
+  });
   loadConfigOptions();
 
   if (!isEdit.value) {
@@ -337,21 +365,43 @@ const nextNodeId = () => {
   return `n${(ids.length ? Math.max(...ids) : 0) + 1}`;
 };
 
-// Posição do nó novo: empilha abaixo do mais baixo já colocado (cascata previsível, sem
-// sobreposição). O primeiro nó nasce no topo-esquerda.
-const nextNodePosition = existing => {
+// Posição do nó novo, coerente com a árvore. Retornar `undefined` = SEM position → o nó entra
+// no auto-layout (flowLayout) e é posicionado como filho do pai. Só fixamos uma posição quando
+// há nós MANUAIS por perto (ex.: um template com posições curadas), para o novo nó pousar junto
+// deles em vez de saltar para a origem do auto-layout:
+//  • auto-ligado (linear) a um `prev` manual → logo abaixo do prev, na mesma coluna;
+//  • auto-ligado a um `prev` auto-posicionado → undefined (o auto-layout o coloca sob o pai);
+//  • solto, mas há nós manuais → coluna à direita do mais baixo, sem sobrepor;
+//  • solto e tudo é auto → undefined (o auto-layout trata como nova raiz).
+const positionForNewNode = (prev, autoConnected, existing) => {
+  if (autoConnected && prev && hasPosition(prev)) {
+    return { x: prev.position.x, y: prev.position.y + V_SPACING };
+  }
+  if (autoConnected) return undefined;
   const positioned = existing.filter(hasPosition);
-  if (!positioned.length) return { x: 180, y: 40 };
+  if (!positioned.length) return undefined;
   const lowest = positioned.reduce((a, b) =>
     b.position.y > a.position.y ? b : a
   );
-  return { x: lowest.position.x, y: lowest.position.y + 160 };
+  return { x: lowest.position.x + H_SPACING, y: lowest.position.y };
 };
 
 const addNode = item => {
   const id = nextNodeId();
   const existing = definition.value.nodes || [];
-  const node = { id, type: item.type, position: nextNodePosition(existing) };
+  const edges = [...(definition.value.edges || [])];
+
+  // Auto-liga só o caso linear seguro: o nó anterior é de saída única (não condition/router) e
+  // ainda não tem aresta de saída. Ramos são sempre conectados manualmente pelo usuário.
+  const prev = existing[existing.length - 1];
+  const prevIsBranch = prev && ['condition', 'router'].includes(prev.type);
+  const prevHasOutgoing =
+    prev && edges.some(e => String(e.from) === String(prev.id));
+  const autoConnected = Boolean(prev && !prevIsBranch && !prevHasOutgoing);
+
+  const node = { id, type: item.type };
+  const position = positionForNewNode(prev, autoConnected, existing);
+  if (position) node.position = position;
   if (item.actionName) {
     node.action_name = item.actionName;
     node.action_params = [];
@@ -361,18 +411,9 @@ const addNode = item => {
     node.routes = [{ key: 'route_1', label: '', conditions: [] }];
     node.fallback_key = 'fallback';
   }
-  const nodes = [...existing, node];
-  const edges = [...(definition.value.edges || [])];
-  // Auto-liga só o caso linear seguro: o nó anterior é de saída única (não condition/router) e
-  // ainda não tem aresta de saída. Ramos são sempre conectados manualmente pelo usuário.
-  const prev = existing[existing.length - 1];
-  const prevIsBranch = prev && ['condition', 'router'].includes(prev.type);
-  const prevHasOutgoing =
-    prev && edges.some(e => String(e.from) === String(prev.id));
-  if (prev && !prevIsBranch && !prevHasOutgoing) {
-    edges.push({ from: prev.id, to: id });
-  }
-  definition.value = { nodes, edges };
+  if (autoConnected) edges.push({ from: prev.id, to: id });
+
+  definition.value = { nodes: [...existing, node], edges };
   selectedNodeId.value = id;
   // Re-enquadra para o nó novo entrar na área visível (fit-view-on-init só roda na montagem).
   nextTick(() => flowInstance.value?.fitView({ padding: 0.3, duration: 300 }));
@@ -484,6 +525,7 @@ const triggerPayload = triggerNode => {
           .map(kw => (kw || '').trim())
           .filter(Boolean),
         match: triggerNode.match === 'exact' ? 'exact' : 'contains',
+        direction: triggerNode.direction || 'both',
       },
     };
   }
@@ -510,7 +552,10 @@ const triggerPayload = triggerNode => {
   if (triggerNode.event_name) {
     return {
       trigger_type: 'conversation_event',
-      trigger_config: { event_name: triggerNode.event_name },
+      trigger_config: {
+        event_name: triggerNode.event_name,
+        direction: triggerNode.direction || 'both',
+      },
     };
   }
   return { trigger_type: 'manual', trigger_config: {} };
@@ -685,7 +730,14 @@ const goBack = () =>
           </template>
           <Background :gap="16" />
           <Controls />
-          <MiniMap :node-color="nodeColor" pannable zoomable />
+          <MiniMap
+            :node-color="nodeColor"
+            :mask-color="
+              isDark ? 'rgba(12, 14, 18, 0.6)' : 'rgba(240, 240, 240, 0.6)'
+            "
+            pannable
+            zoomable
+          />
         </VueFlow>
 
         <div
@@ -715,3 +767,25 @@ const goBack = () =>
     <LogsPanel v-if="showLogs" :flow-id="flowId" @close="showLogs = false" />
   </div>
 </template>
+
+<style>
+/* Widgets do Vue Flow (MiniMap + Controls) nascem claros e ficam "brancos" no dark. Repintamos
+   para o tema escuro do app. Global (não scoped) porque essas classes são do Vue Flow e só
+   existem no canvas; o prefixo `.dark` — que o app põe no <body> (themeHelper.js) — as isola do
+   tema claro, que segue com o default do Vue Flow. A cor dos NÓS e a máscara do MiniMap vão por
+   prop reativa (:node-color/:mask-color); aqui tratamos só o que não tem API de prop: o fundo. */
+.dark .vue-flow__minimap {
+  background-color: #1b1d23;
+}
+.dark .vue-flow__controls {
+  box-shadow: 0 0 2px 1px rgb(0 0 0 / 0.4);
+}
+.dark .vue-flow__controls-button {
+  background: #22252c;
+  border-bottom: 1px solid #33363d;
+  fill: #cbd0d9;
+}
+.dark .vue-flow__controls-button:hover {
+  background: #2c2f38;
+}
+</style>

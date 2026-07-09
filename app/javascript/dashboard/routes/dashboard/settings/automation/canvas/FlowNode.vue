@@ -100,7 +100,7 @@ const hasBranchPorts = computed(() => branchPorts.value.length > 0);
 
 <template>
   <div
-    class="relative flex items-stretch w-64 border rounded-xl bg-n-solid-1 border-n-weak shadow-sm transition-shadow"
+    class="flow-node-card relative flex items-stretch w-64 border rounded-xl bg-n-solid-1 border-n-weak shadow-sm transition-shadow"
     :class="selected ? 'ring-2 ring-offset-1 ring-offset-transparent' : ''"
     :style="selected ? { '--tw-ring-color': familyMeta.color } : {}"
     data-testid="flow-node"
@@ -173,3 +173,30 @@ const hasBranchPorts = computed(() => branchPorts.value.length > 0);
     />
   </div>
 </template>
+
+<style scoped>
+/* Affordance de conexão. Os handles do Vue Flow são pontinhos ~6px difíceis de perceber/pegar.
+   Aumentamos e damos um anel claro para lê-los como "pontos de conexão", e no hover do nó as
+   portas de SAÍDA (source: base = fluxo linear; direita = ramos Sim/Não/rotas) crescem, ganham
+   um halo e o cursor vira crosshair — sinal claro de "arraste daqui para conectar", sem texto.
+   NÃO tocamos em `transform`: o Vue Flow o usa para posicionar cada handle (translate por lado);
+   o realce é feito só com tamanho + box-shadow, que não deslocam a âncora. */
+.flow-node-card :deep(.vue-flow__handle) {
+  width: 10px;
+  height: 10px;
+  border: 2px solid rgb(255 255 255 / 0.85);
+  transition:
+    width 0.12s ease,
+    height 0.12s ease,
+    box-shadow 0.12s ease;
+}
+.flow-node-card:hover :deep(.vue-flow__handle-bottom),
+.flow-node-card:hover :deep(.vue-flow__handle-right) {
+  width: 14px;
+  height: 14px;
+  box-shadow: 0 0 0 4px rgb(120 130 150 / 0.28);
+  cursor: crosshair;
+}
+/* TODO(i18n): quando o automation.json for liberado, um title/tooltip "arraste para conectar"
+   nas portas de saída melhora a descoberta (hoje o sinal é só visual para não criar chave i18n). */
+</style>
