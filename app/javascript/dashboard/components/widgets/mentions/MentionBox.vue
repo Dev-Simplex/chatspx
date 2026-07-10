@@ -20,6 +20,11 @@ const { getPlainText } = useMessageFormatter();
 
 const mentionsListContainerRef = ref(null);
 const selectedIndex = ref(0);
+// True when the selection changed because of the mouse hovering an item. A hovered
+// item is already under the cursor, so it must NOT be scrolled into view — doing so
+// scrolls the ancestor containers and nudges this absolutely-positioned box, moving a
+// different item under the cursor and re-firing hover (a jitter/"tremor" feedback loop).
+const isPointerNavigation = ref(false);
 
 const adjustScroll = () => {
   nextTick(() => {
@@ -54,9 +59,18 @@ watch(
   }
 );
 
-watch(selectedIndex, adjustScroll);
+watch(selectedIndex, () => {
+  // Skip the programmatic scroll for pointer-driven selection (see isPointerNavigation).
+  if (isPointerNavigation.value) {
+    isPointerNavigation.value = false;
+    return;
+  }
+  adjustScroll();
+});
 
 const onHover = index => {
+  if (index === selectedIndex.value) return;
+  isPointerNavigation.value = true;
   selectedIndex.value = index;
 };
 
