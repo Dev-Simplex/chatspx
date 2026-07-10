@@ -87,7 +87,7 @@ const variableKey = (item = {}) => {
 <template>
   <div
     ref="mentionsListContainerRef"
-    class="bg-n-solid-1 p-1 rounded-xl overflow-auto absolute w-full z-20 shadow-dropdown left-0 bottom-full mb-1 max-h-60 border border-n-weak mention--box animate-dropdown-in"
+    class="bg-n-solid-1 p-1 rounded-xl overflow-auto absolute w-full min-w-[16rem] max-w-[calc(100vw_-_1.5rem)] z-20 shadow-dropdown left-0 bottom-full mb-1 max-h-60 border border-n-weak mention--box animate-dropdown-in"
   >
     <ul class="mb-0 vertical dropdown menu">
       <woot-dropdown-item
