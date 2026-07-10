@@ -63,7 +63,7 @@ class Captain::Tools::EnviarLocalizacaoImovelTool < Captain::Tools::BasePublicTo
     return [nil, nil, nil] if lat.zero? || lng.zero?
 
     bairro = data['BairroComercial'].presence || data['Bairro']
-    nome = "Imóvel cód #{codigo}#{bairro ? " - #{bairro}" : ''} (Tozi Imóveis)"
+    nome = "Imóvel cód #{codigo}#{bairro ? " - #{bairro}" : ''}"
     [lat, lng, nome]
   end
 end

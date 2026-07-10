@@ -7,7 +7,7 @@ class Captain::Tools::TransferirParaAgenteTool < Captain::Tools::BasePublicTool
               'Use quando o assunto da conversa pertence a outro agente. A transferência é invisível ' \
               'para o cliente: o novo agente assume e continua a conversa.'
 
-  param :agente, type: 'string', desc: 'Nome do agente de destino (ex: Júlia, Bruna, Letícia, Marina, Rafa, Clara).', required: true
+  param :agente, type: 'string', desc: 'Nome exato do agente de destino, conforme as regras de transferência das instruções.', required: true
 
   def perform(tool_context, agente:)
     conversation = find_conversation(tool_context&.state)
