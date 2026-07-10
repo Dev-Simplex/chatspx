@@ -91,12 +91,7 @@ class Captain::Tools::BuscarImovelTool < Captain::Tools::BasePublicTool
       order: { 'Codigo' => 'desc' },
       paginacao: { pagina: 1, quantidade: quantidade }
     }
-    resp = HTTParty.get(
-      "#{base}/imoveis/listar",
-      query: { key: vista_api_key, showtotal: 1, pesquisa: pesquisa.to_json },
-      headers: { 'Accept' => 'application/json' },
-      timeout: 15
-    )
+    resp = vista_get("#{base}/imoveis/listar", { key: vista_api_key, showtotal: 1, pesquisa: pesquisa.to_json })
     return [] unless resp.code == 200
 
     data = resp.parsed_response
@@ -104,6 +99,16 @@ class Captain::Tools::BuscarImovelTool < Captain::Tools::BasePublicTool
     return [] unless data.is_a?(Hash)
 
     data.reject { |k, _| META_KEYS.include?(k) }.values.select { |v| v.is_a?(Hash) }
+  end
+
+  # 1 retry no GET do Vista: um timeout transitório fazia a IA dizer "não consegui / dificuldade
+  # de acesso" num imóvel que EXISTE (conv 18960, 19099). Se a 2ª tentativa também falhar, o erro
+  # sobe pro rescue do perform ("não consegui buscar agora"), não vira "não achei".
+  def vista_get(url, query)
+    HTTParty.get(url, query: query, headers: { 'Accept' => 'application/json' }, timeout: 15)
+  rescue StandardError
+    sleep(0.6)
+    HTTParty.get(url, query: query, headers: { 'Accept' => 'application/json' }, timeout: 15)
   end
 
   # Registra na conversa os códigos que a busca retornou. A enviar_fotos_imovel só
