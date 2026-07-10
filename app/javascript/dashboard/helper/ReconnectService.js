@@ -42,11 +42,16 @@ class ReconnectService {
       ? Math.max(differenceInSeconds(new Date(), this.disconnectTime), 0)
       : 0;
 
-  // Force reload if the user is disconnected for more than 3 hours
+  // Force reload if the user is disconnected for more than 3 hours; otherwise,
+  // when the network comes back (`online`), trigger an immediate catch-up
+  // (gap-fill by updatedWithin) instead of waiting for the next reconnect poll
+  // or stale-check. Cheap F0 bonus — reuses the existing route-specific refetch.
   handleOnlineEvent = () => {
     if (this.getSecondsSinceDisconnect() >= MAX_DISCONNECT_SECONDS) {
       window.location.reload();
+      return;
     }
+    this.handleRouteSpecificFetch();
   };
 
   fetchConversations = async () => {

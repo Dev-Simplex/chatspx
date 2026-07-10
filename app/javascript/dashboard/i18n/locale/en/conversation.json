@@ -390,6 +390,7 @@
       "WHATSAPP_REVALIDATE_STILL_INVALID": "This number is still not registered on WhatsApp.",
       "WHATSAPP_REVALIDATE_COOLDOWN": "Please wait a few minutes before checking again.",
       "WHATSAPP_REVALIDATE_ERROR": "Unable to verify the number right now. Please try again later.",
+      "OFFLINE_HINT": "Offline — your message will be sent when the connection is back",
       "INSERT_READ_MORE": "Read more",
       "DISMISS_REPLY": "Dismiss reply",
       "REPLYING_TO": "Replying to:",

@@ -261,7 +261,8 @@
     "NOTIFICATION": {
       "OFFLINE": "Desconectado",
       "RECONNECTING": "Reconectando...",
-      "RECONNECT_SUCCESS": "Reconectado"
+      "RECONNECT_SUCCESS": "Reconectado",
+      "SUSTAINED_OFFLINE": "Sem conexão em tempo real · reconectando…"
     },
     "BUTTON": {
       "REFRESH": "Atualizar"

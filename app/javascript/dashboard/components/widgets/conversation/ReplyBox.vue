@@ -76,6 +76,7 @@ import { useKbd } from 'dashboard/composables/utils/useKbd';
 import { useAIOnboarding } from 'dashboard/composables/useAIOnboarding';
 import { useReducedMotion } from 'dashboard/composables/useReducedMotion';
 import { useReplyAssignmentGate } from 'dashboard/composables/useReplyAssignmentGate';
+import { useConnectionStatus } from 'dashboard/composables/useConnectionStatus';
 import { useAIAssistantFlag } from 'dashboard/components-next/ai-assistant/composables/useAIAssistantFlag';
 import { useAITour } from 'dashboard/components-next/ai-assistant/composables/useAITour';
 import AIOnboardingCoachmark from './AIOnboardingCoachmark.vue';
@@ -189,6 +190,10 @@ export default {
     const aiAssistantFlag = useAIAssistantFlag();
     const aiTour = useAITour();
     const { isAssignmentGateEnabled } = useReplyAssignmentGate();
+    // N2 do aviso offline escalonado: hint sutil acima do input. NUNCA bloqueia o
+    // envio — o ChatSPX já tem envio otimista + reconcilePendingMessages, então o
+    // ReconnectService reenvia sozinho ao voltar; travar o envio seria pior.
+    const { isSustainedOffline } = useConnectionStatus();
 
     return {
       uiSettings,
@@ -208,6 +213,7 @@ export default {
       aiAssistantFlag,
       aiTour,
       isAssignmentGateEnabled,
+      isSustainedOffline,
       globalDropFiles,
       globalDropEnabled,
       isGlobalDragActive,
@@ -2797,6 +2803,22 @@ export default {
               : $t('CONVERSATION.REPLYBOX.WHATSAPP_REVALIDATE')
           }}
         </button>
+      </div>
+    </transition>
+    <!-- Hint offline (N2): informa que a mensagem sai ao reconectar, SEM bloquear
+         o envio (envio otimista + reconcilePendingMessages cuidam do reenvio). -->
+    <transition name="whatsapp-invalid">
+      <div
+        v-if="isSustainedOffline"
+        role="status"
+        aria-live="polite"
+        data-testid="reply-offline-hint"
+        class="mx-3 mt-2 mb-1 flex items-center gap-2 rounded-lg border border-n-amber-5/40 bg-n-amber-3 px-3 py-1.5 text-xs font-medium text-n-amber-12"
+      >
+        <span class="i-lucide-wifi-off size-3.5 shrink-0 text-n-amber-11" />
+        <span class="flex-1">{{
+          $t('CONVERSATION.REPLYBOX.OFFLINE_HINT')
+        }}</span>
       </div>
     </transition>
     <ArticleSearchPopover

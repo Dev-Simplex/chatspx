@@ -44,6 +44,17 @@ class BaseActionCableConnector {
           this.perform('update_presence');
         },
         received: this.onReceived,
+        connected: () => {
+          // A lib acabou de (re)abrir o socket — inclusive o reopen automático
+          // que o ConnectionMonitor dispara no visibilitychange. Ouvir esse
+          // callback direto elimina a espera pelo poll de isOpen() com backoff
+          // (que satura em 30s e é congelado em abas de fundo). Era essa espera
+          // que deixava o banner "Desconectado" preso ao voltar para a aba.
+          if (this.isDestroyed) return;
+          this.reconnectAttempts = 0;
+          this.clearReconnectTimer();
+          this.checkConnection();
+        },
         disconnected: () => {
           if (this.isDestroyed) return;
           BaseActionCableConnector.isDisconnected = true;
@@ -66,6 +77,43 @@ class BaseActionCableConnector {
     };
     this.triggerPresenceInterval();
     this.triggerStaleCheckInterval();
+
+    // Reconecta imediatamente ao voltar para a aba/janela. O ConnectionMonitor da
+    // lib só cobre visibilitychange (e ~200ms depois); aqui reforçamos isso e
+    // cobrimos os dois casos que a lib erra: foco de janela sem troca de aba
+    // (máquina que "dormiu" com a aba em foreground) e bfcache (back/forward →
+    // pageshow persisted). O gate isOpen() evita matar um handshake em voo e
+    // brigar com o visibilityDidChange interno da lib.
+    this.handleReturnToForeground = () => {
+      if (this.isDestroyed) return;
+      const conn = this.consumer.connection;
+      if (conn && !conn.isOpen()) conn.reopen();
+      this.reconnectAttempts = 0;
+      this.clearReconnectTimer();
+      this.checkConnection();
+      // Gap-fill (Método D): recupera o que passou enquanto a aba esteve fora,
+      // reusando o refetch por updatedWithin já existente. No-op no widget (não
+      // há reconnectService no window).
+      window.reconnectService?.handleRouteSpecificFetch?.();
+    };
+    this.onVisibilityChange = () => {
+      if (
+        typeof document === 'undefined' ||
+        document.visibilityState === 'visible'
+      ) {
+        this.handleReturnToForeground();
+      }
+    };
+    this.onPageShow = event => {
+      if (event?.persisted) this.handleReturnToForeground();
+    };
+    if (typeof document !== 'undefined') {
+      document.addEventListener('visibilitychange', this.onVisibilityChange);
+    }
+    if (typeof window !== 'undefined') {
+      window.addEventListener('focus', this.handleReturnToForeground);
+      window.addEventListener('pageshow', this.onPageShow);
+    }
   }
 
   // Dormant watchdog: if the realtime stream goes silent while the tab is
@@ -135,6 +183,17 @@ class BaseActionCableConnector {
     this.isDestroyed = true;
     this.consumer.disconnect();
     this.clearReconnectTimer();
+    if (typeof document !== 'undefined' && this.onVisibilityChange) {
+      document.removeEventListener('visibilitychange', this.onVisibilityChange);
+    }
+    if (typeof window !== 'undefined') {
+      if (this.handleReturnToForeground) {
+        window.removeEventListener('focus', this.handleReturnToForeground);
+      }
+      if (this.onPageShow) {
+        window.removeEventListener('pageshow', this.onPageShow);
+      }
+    }
     if (this.presenceTimer) {
       clearTimeout(this.presenceTimer);
       this.presenceTimer = null;

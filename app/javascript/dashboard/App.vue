@@ -28,6 +28,7 @@ import OnboardingChecklist from './components-next/Onboarding/OnboardingChecklis
 import PwaInstallPrompt from './components-next/PwaInstallPrompt/PwaInstallPrompt.vue';
 import PushPermissionPrompt from './components-next/PushPermissionPrompt/PushPermissionPrompt.vue';
 import MigrationBanner from './components-next/MigrationBanner/MigrationBanner.vue';
+import ConnectionStatusBar from './components-next/banner/ConnectionStatusBar.vue';
 import { Toaster } from 'vue-sonner';
 import 'vue-sonner/style.css';
 // D8/D-L5: MotionConfig renderless do motion-v — reduced-motion="user" respeita a
@@ -52,6 +53,7 @@ export default {
     PwaInstallPrompt,
     PushPermissionPrompt,
     MigrationBanner,
+    ConnectionStatusBar,
     Toaster,
     MotionConfig,
   },
@@ -187,6 +189,10 @@ export default {
          os filhos continuam diretos do div#app, o layout flex fica intacto; só propaga
          reduced-motion="user" para os efeitos motion-v descendentes. -->
     <MotionConfig reduced-motion="user">
+      <!-- N2 do aviso offline escalonado: barra full-width no topo do fluxo
+           (empurra o conteúdo, não sobrepõe o topbar). Só aparece em queda
+           sustentada (> SUSTAINED_MS) e recolhe sozinha ao reconectar. -->
+      <ConnectionStatusBar />
       <AppVersionBanner />
       <UpdateBanner
         :latest-chatwoot-version="latestChatwootVersion"
