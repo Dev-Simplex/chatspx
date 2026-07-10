@@ -258,7 +258,8 @@
     "NOTIFICATION": {
       "OFFLINE": "Offline",
       "RECONNECTING": "Reconnecting...",
-      "RECONNECT_SUCCESS": "Reconnected"
+      "RECONNECT_SUCCESS": "Reconnected",
+      "SUSTAINED_OFFLINE": "Real-time connection lost · reconnecting…"
     },
     "BUTTON": {
       "REFRESH": "Refresh"

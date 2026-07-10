@@ -10,6 +10,11 @@ import {
   isNotificationRoute,
 } from 'dashboard/helper/routeHelpers';
 import { useEventListener } from '@vueuse/core';
+import {
+  useConnectionStatus,
+  GRACE_MS,
+  SUSTAINED_MS,
+} from 'dashboard/composables/useConnectionStatus';
 
 import Button from 'dashboard/components-next/button/Button.vue';
 
@@ -18,11 +23,27 @@ const route = useRoute();
 
 const RECONNECTED_BANNER_TIMEOUT = 2000;
 
+// N2 compartilhado (barra do topo + hint no composer). Este componente é o dono
+// dos relógios da escalada; a barra e o hint só leem o ref.
+const { isSustainedOffline } = useConnectionStatus();
+
 const showNotification = ref(!navigator.onLine);
 const isDisconnected = ref(false);
 const isReconnecting = ref(false);
 const isReconnected = ref(false);
 let reconnectTimeout = null;
+// Escalada offline: só pintamos o pill (N1) depois de GRACE_MS caído e escalamos
+// para a barra do topo (N2, via isSustainedOffline) depois de SUSTAINED_MS.
+// Reconexão sub-GRACE_MS nunca acende nada.
+let graceTimer = null;
+let sustainedTimer = null;
+
+const clearOfflineTimers = () => {
+  clearTimeout(graceTimer);
+  clearTimeout(sustainedTimer);
+  graceTimer = null;
+  sustainedTimer = null;
+};
 
 const bannerText = computed(() => {
   if (isReconnecting.value) return t('NETWORK.NOTIFICATION.RECONNECTING');
@@ -35,6 +56,15 @@ const canRefresh = computed(
   () => !isReconnecting.value && !isReconnected.value
 );
 
+// O pill (N1) recolhe quando a queda escala para a barra do topo (N2), para não
+// duplicar indicadores — mas o transitório "Reconectando…/Reconectado" é sempre
+// mostrado no pill.
+const showPill = computed(
+  () =>
+    showNotification.value &&
+    (!isSustainedOffline.value || isReconnecting.value || isReconnected.value)
+);
+
 const refreshPage = () => {
   window.location.reload();
 };
@@ -42,6 +72,8 @@ const refreshPage = () => {
 const closeNotification = () => {
   showNotification.value = false;
   isReconnected.value = false;
+  isSustainedOffline.value = false;
+  clearOfflineTimers();
   clearTimeout(reconnectTimeout);
 };
 
@@ -54,19 +86,39 @@ const isInAnyOfTheRoutes = routeName => {
 };
 
 const updateWebsocketStatus = () => {
+  const wasAlreadyDown = isDisconnected.value;
   isDisconnected.value = true;
-  showNotification.value = true;
+  // Queda já em curso: não reinicia os relógios (senão grace/sustained nunca
+  // "vencem" sob disconnects repetidos da lib).
+  if (wasAlreadyDown || graceTimer || sustainedTimer) return;
+  graceTimer = setTimeout(() => {
+    graceTimer = null;
+    if (isDisconnected.value) showNotification.value = true; // N1 (pill)
+  }, GRACE_MS);
+  sustainedTimer = setTimeout(() => {
+    sustainedTimer = null;
+    if (isDisconnected.value) {
+      showNotification.value = true;
+      isSustainedOffline.value = true; // N2 (barra do topo + hint no composer)
+    }
+  }, SUSTAINED_MS);
 };
 
 const handleReconnectionCompleted = () => {
+  clearOfflineTimers();
   isDisconnected.value = false;
   isReconnecting.value = false;
+  isSustainedOffline.value = false;
   isReconnected.value = true;
   showNotification.value = true;
   reconnectTimeout = setTimeout(closeNotification, RECONNECTED_BANNER_TIMEOUT);
 };
 
 const handleReconnecting = () => {
+  // O socket reabriu (refetch em curso). Para a escalada e recolhe a barra N2;
+  // o pill assume o transitório "Reconectando…".
+  clearOfflineTimers();
+  isSustainedOffline.value = false;
   if (isInAnyOfTheRoutes(route.name)) {
     isReconnecting.value = true;
     isReconnected.value = false;
@@ -104,12 +156,17 @@ useEmitter(BUS_EVENTS.WEBSOCKET_RECONNECT, handleReconnecting);
 
 onBeforeUnmount(() => {
   clearTimeout(reconnectTimeout);
+  clearOfflineTimers();
 });
 </script>
 
 <template>
   <transition name="network-notification-fade" tag="div">
-    <div v-show="showNotification" class="fixed z-50 top-2 left-2 group">
+    <div
+      v-show="showPill"
+      data-testid="network-pill"
+      class="fixed z-50 top-2 left-2 group"
+    >
       <div
         class="relative flex items-center justify-between w-full px-2 py-1 bg-n-amber-4 dark:bg-n-amber-8 rounded-lg shadow-lg"
       >

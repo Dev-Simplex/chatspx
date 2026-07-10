@@ -362,6 +362,7 @@
       "WHATSAPP_REVALIDATE_STILL_INVALID": "Este número ainda não está registrado no WhatsApp.",
       "WHATSAPP_REVALIDATE_COOLDOWN": "Aguarde alguns minutos antes de verificar novamente.",
       "WHATSAPP_REVALIDATE_ERROR": "Não foi possível verificar o número agora. Tente novamente mais tarde.",
+      "OFFLINE_HINT": "Offline — sua mensagem será enviada ao reconectar",
       "INSERT_READ_MORE": "Saiba mais",
       "DISMISS_REPLY": "Dispensar resposta",
       "REPLYING_TO": "Respondendo a:",
