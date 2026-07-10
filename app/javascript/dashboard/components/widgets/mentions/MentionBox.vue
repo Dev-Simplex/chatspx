@@ -98,7 +98,7 @@ const variableKey = (item = {}) => {
         @mouseover="onHover(index)"
       >
         <button
-          class="flex rounded-lg group flex-col gap-0.5 overflow-hidden cursor-pointer items-start px-3 py-2 justify-center w-full h-full text-left hover:bg-n-slate-3/50"
+          class="flex rounded-lg group flex-col gap-0.5 overflow-hidden cursor-pointer items-start px-3 py-2 min-h-9 justify-center w-full h-full text-left hover:bg-n-slate-3/50"
           :class="{
             'bg-n-brand/10': index === selectedIndex,
           }"
