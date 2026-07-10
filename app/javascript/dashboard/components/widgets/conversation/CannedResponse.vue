@@ -66,7 +66,7 @@ export default {
     <template #default="{ item }">
       <div class="flex items-center justify-between w-full gap-3">
         <p
-          class="flex-1 min-w-0 mb-0 overflow-hidden text-sm leading-snug text-n-slate-12 line-clamp-2 break-words"
+          class="flex-1 min-w-0 mb-0 text-sm leading-snug truncate text-n-slate-12"
         >
           {{ previewText(item.description) }}
         </p>
