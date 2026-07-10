@@ -350,6 +350,7 @@ class Captain::Conversation::ResponseBuilderJob < ApplicationJob
   def sanitize_for_whatsapp(content)
     return content if content.blank?
 
+    content = content.gsub(%r{\[([^\]\n]+)\]\((https?://[^)\s]+)\)}, '\2') # link markdown [texto](url) -> só a url (WhatsApp linka sozinho)
     content = fix_property_links(content)
     content.gsub(/\[\s*(ignorar|sem[\s_-]?resposta|no[\s_-]?reply)\s*\]/i, '') # sentinela de silêncio que o LLM às vezes anexa a uma resposta real -> nunca enviar literal
            .gsub(/\[\s*fotos?[^\]]*enviad[ao]s?\s*\]/i, '') # placeholder de foto do histórico que o LLM às vezes ecoa -> remove
