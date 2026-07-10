@@ -29,7 +29,10 @@ class Captain::Tools::BuscarImovelTool < Captain::Tools::BasePublicTool
     # Busca direta por CÓDIGO (placa/anúncio/site) — independe de venda/locação.
     if codigo.present?
       cod = codigo.to_s.gsub(/\D/, '')
+      # O número que o cliente passa (placa/site/anúncio) às vezes é o Codigo interno,
+      # às vezes o ImoCodigo do site — tenta os dois antes de dizer que não achou.
       achados = fetch_vista({ 'Codigo' => cod }, quantidade: 1)
+      achados = fetch_vista({ 'ImoCodigo' => cod }, quantidade: 1) if achados.blank?
       return "Não achei nenhum imóvel com o código #{cod} no nosso sistema." if achados.blank?
 
       venda_cod = achados.first['Status'].to_s.match?(/vend/i)

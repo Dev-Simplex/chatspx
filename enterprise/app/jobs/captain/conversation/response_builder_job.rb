@@ -230,9 +230,13 @@ class Captain::Conversation::ResponseBuilderJob < ApplicationJob
   # handoff e nenhum disparou, dispara a mecanica AQUI — sem reenviar o template (o modelo ja avisou).
   # Deteccao conservadora; loga 'handoff_auto_fired' pra medir e afinar. Mantem o time atual da
   # conversa (nao aplica o override de recepcao), entregando ao humano do time que ja atendia.
+  # Cobre as 3 formas ja vistas em prod (18973 "vou passar", 19029 "vai retornar",
+  # 19006/18960 "o time retorna amanha") + variacoes comuns de promessa de retorno humano.
+  HUMANO = 'consultor|atendente|humano|equipe|time|colega|respons\\w+|algu[ée]m (do time|da equipe)'
   HANDOFF_PROMISE_PATTERNS = [
-    /\b(vou|irei|vamos|já vou)\b.{0,30}\b(passar|chamar|encaminhar|acionar|transferir|pedir)\b.{0,40}\b(consultor|time|atendente|humano|equipe|colega)\b/i,
-    /\b(consultor|atendente|humano|equipe|algu[ée]m do time)\b.{0,30}\bvai\b.{0,25}\b(assumir|continuar|dar sequ[êe]ncia|te atender|te ajudar)\b/i
+    /\b(vou|irei|vamos|já vou|vou já)\b.{0,40}\b(passar|chamar|encaminhar|acionar|transferir|pedir|avisar)\b.{0,40}\b(#{HUMANO})\b/i,
+    /\b(#{HUMANO})\b.{0,45}\b(retorn\w+|entr\w+ em contato|(te )?cham\w+|falar? com voc[êe]|assum\w+|continu\w+|dar sequ[êe]ncia|d[áa]\w* as informa\w+|te atend\w+|te ajud\w+)\b/i,
+    /\b(o time|o consultor|a equipe|um consultor|um atendente)\b.{0,30}\bretorn\w+/i
   ].freeze
 
   def promised_handoff?(text)
