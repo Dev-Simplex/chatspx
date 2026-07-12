@@ -20,14 +20,15 @@ class Messages::AudioTranscriptionService< Llm::LegacyBaseOpenAiService
     Rails.logger.info "Audio transcription successful: #{transcriptions}"
     { success: true, transcriptions: transcriptions }
   rescue Faraday::UnauthorizedError
-    Rails.logger.warn('Skipping audio transcription: OpenAI configuration is invalid or disabled (401 Unauthorized).')
+    Rails.logger.warn("[AudioTranscription] 401 OpenAI (chave inválida/desabilitada) att=#{attachment&.id} acc=#{account&.id}")
     { error: 'OpenAI configuration is invalid or disabled (401)' }
   rescue Faraday::Error => e
     # Transcrição é best-effort: rate limit (429), 5xx, timeout ou falha de conexão da
     # OpenAI NÃO podem abortar o atendimento. Sem este rescue, o erro sobe pelo builder
     # de histórico e derruba a resposta inteira (IA fica muda). Degrada para "sem
-    # transcrição" — o chamador já trata `{ error: ... }` como texto vazio.
-    Rails.logger.warn("Skipping audio transcription: OpenAI request failed (#{e.class}).")
+    # transcrição" — o chamador já trata `{ error: ... }` como texto vazio. Log VISÍVEL
+    # (att/acc) porque era exatamente esse erro que sumia sem rastro (rate limit da key).
+    Rails.logger.warn("[AudioTranscription] FALHOU após retry: #{e.class} att=#{attachment&.id} acc=#{account&.id}")
     { error: "OpenAI request failed (#{e.class})" }
   end
 
@@ -70,23 +71,32 @@ class Messages::AudioTranscriptionService< Llm::LegacyBaseOpenAiService
     return transcribed_text if transcribed_text.present?
 
     temp_file_path = fetch_audio_file
-    transcribed_text = nil
-
-    File.open(temp_file_path, 'rb') do |file|
-      response = @client.audio.transcribe(
-        parameters: {
-          model: WHISPER_MODEL,
-          file: file,
-          temperature: 0.4
-        }
-      )
-      transcribed_text = response['text']
-    end
+    transcribed_text = whisper_with_retry(temp_file_path)
 
     update_transcription(transcribed_text)
     transcribed_text
   ensure
     FileUtils.rm_f(temp_file_path) if temp_file_path.present?
+  end
+
+  # 1 retry: um 429/timeout/5xx transitório da OpenAI deixava o áudio SEM transcrição em
+  # silêncio (best-effort). Agora tenta de novo antes de desistir. 401/400 não repete.
+  def whisper_with_retry(path)
+    tries = 0
+    begin
+      tries += 1
+      File.open(path, 'rb') do |file|
+        @client.audio.transcribe(parameters: { model: WHISPER_MODEL, file: file, temperature: 0.4 })['text']
+      end
+    rescue Faraday::UnauthorizedError, Faraday::BadRequestError
+      raise
+    rescue Faraday::Error => e
+      raise if tries >= 2
+
+      Rails.logger.warn("[AudioTranscription] retry após #{e.class} (att=#{attachment&.id} acc=#{account&.id})")
+      sleep(1)
+      retry
+    end
   end
 
   def instrumentation_params(file_path)
