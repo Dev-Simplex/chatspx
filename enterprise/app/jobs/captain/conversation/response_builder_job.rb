@@ -61,7 +61,7 @@ class Captain::Conversation::ResponseBuilderJob < ApplicationJob
       Rails.logger.info("[CAPTAIN][ResponseBuilderJob] Incrementing response usage for #{account.id}")
       account.increment_response_usage
       ensure_handoff_if_promised
-      auto_schedule_followup if @did_send
+      auto_schedule_followup if @did_send || sent_media_this_turn?
     end
   end
 
@@ -145,6 +145,18 @@ class Captain::Conversation::ResponseBuilderJob < ApplicationJob
 
   def followup_auto_minutes
     (@assistant.behavior.dig('followup', 'auto_minutes').presence || 120).to_i.clamp(2, 2880)
+  end
+
+  # Turno que só enviou FOTO/localização (via tool) não seta @did_send, então o lead ficava
+  # sem follow-up mesmo esperando reagir às fotos (conv 19126). Sinal robusto (não depende de
+  # flag da tool): a IA criou mensagem com anexo image/location neste turno?
+  def sent_media_this_turn?
+    @conversation.messages
+                 .where(message_type: :outgoing, sender_type: 'Captain::Assistant')
+                 .where('messages.created_at > ?', 90.seconds.ago)
+                 .joins(:attachments)
+                 .where(attachments: { file_type: [Attachment.file_types[:image], Attachment.file_types[:location]] })
+                 .exists?
   end
 
   def determine_role(message)
