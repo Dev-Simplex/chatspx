@@ -490,6 +490,10 @@
     "COUNT": "{n} automação | {n} automações",
     "HEADER_BTN_TXT": "Criar Automação",
     "CLASSIC_RULE_BTN": "Regra clássica",
+    "LEGACY": {
+      "TITLE": "Automações (modo antigo)",
+      "HELP": "Automações criadas no modo antigo. Desative, edite ou exclua aqui — ou use \"Importar\" para migrar para o canvas."
+    },
     "LOADING": "Buscando fluxos",
     "SEARCH_PLACEHOLDER": "Pesquisar fluxos...",
     "NO_RESULTS": "Nenhum fluxo encontrado correspondente à sua busca",

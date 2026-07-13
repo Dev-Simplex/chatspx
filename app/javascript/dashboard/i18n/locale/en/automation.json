@@ -490,6 +490,10 @@
     "COUNT": "{n} automation | {n} automations",
     "HEADER_BTN_TXT": "Create Automation",
     "CLASSIC_RULE_BTN": "Classic rule",
+    "LEGACY": {
+      "TITLE": "Automations (old mode)",
+      "HELP": "Automations created in the old mode. Disable, edit or delete them here — or use \"Import\" to migrate them to the canvas."
+    },
     "LOADING": "Fetching flows",
     "SEARCH_PLACEHOLDER": "Search flows...",
     "NO_RESULTS": "No flows found matching your search",
