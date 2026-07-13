@@ -118,6 +118,38 @@ describe Messages::MessageBuilder do
     end
   end
 
+  # Regressão do gotcha do service layer (Flows::ActionService#send_interactive): com Hash puro
+  # (não ActionController::Parameters), o initialize precisa popular @items/@in_reply_to a partir do
+  # content_attributes normalizado — senão message_params injeta `items: nil` e APAGA os items.
+  describe '#perform with a plain Hash param (service layer)' do
+    let(:items) do
+      [{ 'title' => 'Suporte', 'value' => 'suporte', 'description' => 'Falar com o time' },
+       { 'title' => 'Vendas', 'value' => 'vendas' }]
+    end
+
+    it 'persists items carried in a plain Hash content_attributes (does not wipe them to nil)' do
+      params = { content: 'Escolha:', content_type: 'input_select', content_attributes: { items: items } }
+      message = described_class.new(user, conversation, params).perform
+      expect(message.reload.content_type).to eq('input_select')
+      expect(message.reload.content_attributes['items']).to eq(items)
+    end
+
+    it 'honours in_reply_to carried in a plain Hash content_attributes' do
+      params = { content: 'oi', content_attributes: { in_reply_to: message_for_reply.id } }
+      message = described_class.new(user, conversation, params).perform
+      expect(message.reload.content_attributes['in_reply_to']).to eq(message_for_reply.id)
+    end
+
+    it 'is non-regressive for a bare Hash without items/in_reply_to (parity with the old path)' do
+      params = { content: 'oi', content_attributes: { flow_id: 42 } }
+      message = described_class.new(user, conversation, params).perform
+      expect(message.content).to eq('oi')
+      expect(message.content_type).to eq('text')
+      expect(message.reload.content_attributes['flow_id']).to eq(42)
+      expect(message.reload.content_attributes['items']).to be_nil
+    end
+  end
+
   describe '#perform when message_type is incoming' do
     context 'when channel is not api' do
       let(:params) do

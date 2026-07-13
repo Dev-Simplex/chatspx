@@ -36,6 +36,7 @@ module Flows::SimulationWalk
     case node['type']
     when 'action' then record_simulated_action(node)
     when 'wait' then record_simulated_wait(node)
+    when 'wait_for_reply' then record_simulated_wait_for_reply(node)
     else record_simulated_passthrough(node) # trigger / desconhecido: só atravessa (paridade c/ real)
     end
     nil
@@ -59,6 +60,15 @@ module Flows::SimulationWalk
       node_id: node['id'], type: 'wait',
       would: "aguardaria #{w[:value]} #{w[:unit]}#{business_hours ? ' (em horário comercial)' : ''}",
       params_resolved: { 'value' => w[:value], 'unit' => w[:unit], 'business_hours' => business_hours }
+    }
+  end
+
+  # Dry-run ATRAVESSA o wait_for_reply (não suspende, igual ao `wait`): registra a espera e devolve
+  # nil, então o walker segue pela 1ª aresta de saída — percorre o caminho em vez de parar.
+  def record_simulated_wait_for_reply(node)
+    @simulation_steps << {
+      node_id: node['id'], type: 'wait_for_reply',
+      would: 'aguardaria a resposta do contato e seguiria pela opção escolhida'
     }
   end
 

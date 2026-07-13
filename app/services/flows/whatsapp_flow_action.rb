@@ -2,32 +2,17 @@
 
 # Nó `send_whatsapp_flow` do motor Flow — envio de um WhatsApp Flow interactive NATIVO (Meta)
 # pela inbox WhatsApp Cloud. Misturado no Flows::ActionService. Depende do host: @conversation,
-# @account e as guardas whatsapp_cloud_inbox?/enforce_compliance!.
+# @account e as guardas whatsapp_cloud_inbox?/enforce_compliance!, mais o wrapper
+# create_interactive_message (Flows::RichInteractiveAction).
 #
-# ── ESTADO: TODO DOCUMENTADO (integração pendente), NÃO exposto no produto ──────────────────
-# O canal WhatsApp Cloud deste fork SÓ sabe enviar `interactive` do tipo botão/lista
-# (Whatsapp::Providers::WhatsappCloudService#send_interactive_text_message, para content_type
-# `input_select`). NÃO existe caminho de envio para `interactive.type = "flow"`. Seguindo a
-# diretriz "não invente a API da Meta; segurança/corretude > completude", esta ação:
-#   • FAZ a parte segura e correta: valida que a inbox é WhatsApp Cloud, aplica compliance
-#     (Flow interactive é mensagem de sessão → exige a janela de 24h) e MONTA o payload Meta
-#     no formato real (documentado abaixo);
-#   • NÃO envia: como não há caminho de provider reutilizável e o provider está FORA da fatia
-#     segura desta tarefa (é o canal ao vivo), levanta Flows::StepSkip('whatsapp_flow_provider_missing')
-#     — passo `skipped` triável, nunca um envio silenciosamente errado.
-# Por isso `send_whatsapp_flow` NÃO entra na whitelist (Flow::BASE_ACTION_NAMES) nem na paleta:
-# um nó que sempre pula seria enganoso. Este arquivo é o ponto de integração pronto.
-#
-# PARA CONCLUIR (fatia separada, fora do escopo de analytics):
-#   1. Adicionar Whatsapp::Providers::WhatsappCloudService#send_interactive_flow(phone, payload)
-#      — um POST em `#{phone_id_path}/messages` com { type: 'interactive', interactive: payload },
-#      espelhando #send_interactive_text_message.
-#   2. Rotear até ele: um content_type/message novo (ex.: `input_flow`) OU um serviço dedicado
-#      Whatsapp::SendFlowService, para o Flow interactive sair pelo pipeline de mensagens real
-#      (herdando SendOnWhatsappService, retries, marcador flow_id anti-loop).
-#   3. Trocar o StepSkip abaixo pela chamada real, e então somar 'send_whatsapp_flow' à
-#      whitelist (community — o canal WhatsApp é community) + paleta (família `msg`) + widget
-#      (flow_id, cta, body/header/footer, screen, flow_token) + i18n en/pt_BR.
+# ── ESTADO: INTEGRADO (F3) ───────────────────────────────────────────────────────────────────
+# A ação monta o payload Meta `interactive:flow` (build_whatsapp_flow_payload) e o entrega pelo
+# PASSTHROUGH genérico do F3: persiste o payload em content_attributes['interactive_payload'] e o
+# provider (Whatsapp::Providers::WhatsappCloudService#send_raw_interactive) faz o POST cru
+# { type:'interactive', interactive:<payload> } — o MESMO caminho de cta_url/location_request, sem
+# rota hardcoded por tipo. Guardas preservadas: inbox WhatsApp Cloud, config mínima válida e
+# compliance (Flow interactive é mensagem de sessão → exige a janela de 24h). Por já enviar de
+# verdade, `send_whatsapp_flow` ENTRA na whitelist (Flow::BASE_ACTION_NAMES) e na paleta.
 #
 # ── PAYLOAD META (formato real, montado por #build_whatsapp_flow_payload) ────────────────────
 # https://developers.facebook.com/docs/whatsapp/flows/reference/flowjson  (Send Flow message)
@@ -63,10 +48,10 @@ module Flows::WhatsappFlowAction
     enforce_compliance!(category: 'utility', free_form: true)
 
     payload = build_whatsapp_flow_payload(config)
-    # Ponto de integração: sem caminho de envio de interactive:flow no provider, sinalizamos um
-    # skip triável em vez de enviar errado. payload validado fica no rastro do StepSkip.
-    raise Flows::StepSkip.new('whatsapp_flow_provider_missing',
-                              "WhatsApp Flow send path not wired yet (payload ready: #{payload[:action][:parameters][:flow_id]})")
+    # F3: passthrough genérico. O payload `interactive:flow` sai pelo provider via
+    # content_attributes['interactive_payload'] (WhatsappCloudService#send_raw_interactive) — o MESMO
+    # wrapper das ações cta_url/location_request (Flows::RichInteractiveAction#create_interactive_message).
+    create_interactive_message(payload)
   end
 
   def whatsapp_flow_config_valid?(config)

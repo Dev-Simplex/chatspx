@@ -27,6 +27,7 @@ import {
   PALETTE_SECTIONS,
   familyForNode,
 } from './nodeCatalog';
+import { repliesFromInteractiveNode } from './waitForReply';
 import { flatToDefinition } from './flatToDefinition';
 import { flowTemplateByKey } from './flowTemplates';
 import { computeTreeLayout, H_SPACING, V_SPACING } from './flowLayout';
@@ -183,10 +184,12 @@ onBeforeUnmount(() => {
   themeObserver?.disconnect();
 });
 
-// Cores dos ramos fixos (espelham FlowNode/FlowEdge). Rotas do router herdam a cor da família.
+// Cores dos ramos fixos (espelham FlowNode/FlowEdge). Rotas do router e respostas do
+// wait_for_reply herdam a cor da família; o ramo de timeout tem cor própria.
 const BRANCH_TRUE_COLOR = '#0e9f6e';
 const BRANCH_FALSE_COLOR = '#e5484d';
 const BRANCH_FALLBACK_COLOR = '#8b93aa';
+const BRANCH_TIMEOUT_COLOR = '#0d9488';
 
 // Identidade do ramo: normaliza null/undefined/'' — uma porta de saída sem branch é o fluxo
 // linear (Handle padrão). Usada para casar/deduplicar arestas por (origem, ramo).
@@ -196,7 +199,9 @@ const branchId = branch => (branch == null ? '' : String(branch));
 // diferentes. É o id que o Vue Flow usa e o que o onEdgesChange casa ao remover.
 const edgeKey = edge => `${edge.from}:${branchId(edge.branch)}->${edge.to}`;
 
-// Portas de saída válidas de um nó (para podar arestas órfãs quando uma rota é apagada).
+// Portas de saída válidas de um nó (para podar arestas órfãs quando uma rota/resposta é apagada).
+// Só lista os branches ROTULADOS: a aresta de fallback do wait_for_reply é SEM rótulo (branch
+// ausente) e nunca é podada aqui (updateSelectedNode preserva toda aresta com branch nulo).
 const validBranchKeys = node => {
   if (node.type === 'condition') return ['true', 'false'];
   if (node.type === 'router') {
@@ -206,17 +211,51 @@ const validBranchKeys = node => {
     keys.push(String(node.fallback_key || 'fallback'));
     return keys;
   }
+  if (node.type === 'wait_for_reply') {
+    const keys = (Array.isArray(node.replies) ? node.replies : []).map(r =>
+      String(r.key)
+    );
+    if (node.timeout?.enabled) keys.push('timeout');
+    return keys;
+  }
   return [];
 };
 
 // Rótulo + cor do pill da aresta, derivados do nó de origem: 'true'→Sim, 'false'→Não, key da
-// rota→nome da rota (ou "Rota N"), fallback_key→"Senão". Sem ramo → sem rótulo (linear).
+// rota→nome da rota (ou "Rota N"), fallback_key→"Senão". Sem ramo → sem rótulo (linear), EXCETO
+// no wait_for_reply, onde a aresta sem rótulo é a saída de fallback ("Sem correspondência").
 const branchMeta = edge => {
   const branch = edge.branch;
-  if (branch == null) return { label: '', color: null };
   const from = (definition.value.nodes || []).find(
     n => String(n.id) === String(edge.from)
   );
+  // wait_for_reply: aresta SEM branch = fallback (resposta não-casada); 'timeout' = prazo
+  // esgotado; demais = respostas esperadas (reply.key → rótulo da resposta, ou "Resposta N").
+  if (from?.type === 'wait_for_reply') {
+    if (branch == null) {
+      return {
+        label: t('AUTOMATION.CANVAS.CONFIG.WAIT_FOR_REPLY.FALLBACK_PORT'),
+        color: BRANCH_FALLBACK_COLOR,
+      };
+    }
+    if (String(branch) === 'timeout') {
+      return {
+        label: t('AUTOMATION.CANVAS.CONFIG.WAIT_FOR_REPLY.TIMEOUT_PORT'),
+        color: BRANCH_TIMEOUT_COLOR,
+      };
+    }
+    const replies = Array.isArray(from.replies) ? from.replies : [];
+    const idx = replies.findIndex(r => String(r.key) === String(branch));
+    return {
+      label:
+        idx >= 0
+          ? replies[idx].label ||
+            t('AUTOMATION.CANVAS.CONFIG.WAIT_FOR_REPLY.REPLY_N', { n: idx + 1 })
+          : String(branch),
+      color: null,
+    };
+  }
+  if (branch == null) return { label: '', color: null };
   if (from?.type === 'condition') {
     if (String(branch) === 'true')
       return {
@@ -281,8 +320,25 @@ const vfNodes = computed(() => {
     data: { node, stats: nodeStats.value[String(node.id)] || null },
   }));
 });
+// Handle de origem que a aresta ARMAZENADA usa ao renderizar. Normalmente é o próprio branch;
+// mas a aresta de fallback do wait_for_reply é gravada SEM branch (contrato com o backend) e
+// mesmo assim deve sair da porta de fallback dedicada — então mapeamos "sem branch" de volta
+// para o fallback_key do nó. Sem isso, o Vue Flow (getEdgeHandle) desenharia a aresta a partir
+// do 1º handle do nó (bounds[0]), fora da porta certa num nó com múltiplas portas.
+const sourceHandleFor = edge => {
+  if (edge.branch != null) return String(edge.branch);
+  const from = (definition.value.nodes || []).find(
+    n => String(n.id) === String(edge.from)
+  );
+  if (from?.type === 'wait_for_reply') {
+    return String(from.fallback_key || 'fallback');
+  }
+  return undefined;
+};
+
 // Aresta → Vue Flow: `sourceHandle` = branch (casa o Handle rotulado do FlowNode); `type:flow`
-// desenha o FlowEdge com o pill do ramo. Arestas sem branch saem do Handle padrão (linear).
+// desenha o FlowEdge com o pill do ramo. Arestas sem branch saem do Handle padrão (linear),
+// exceto o fallback do wait_for_reply, que sai da porta de fallback (ver sourceHandleFor).
 const vfEdges = computed(() =>
   (definition.value.edges || [])
     .filter(edge => edge.to)
@@ -290,7 +346,7 @@ const vfEdges = computed(() =>
       id: edgeKey(edge),
       source: String(edge.from),
       target: String(edge.to),
-      sourceHandle: edge.branch != null ? String(edge.branch) : undefined,
+      sourceHandle: sourceHandleFor(edge),
       type: 'flow',
       markerEnd: MarkerType.ArrowClosed,
       data: branchMeta(edge),
@@ -473,6 +529,15 @@ const addNode = item => {
     node.routes = [{ key: 'route_1', label: '', conditions: [] }];
     node.fallback_key = 'fallback';
   }
+  // wait_for_reply nasce com timeout desligado + fallback. Se o bloco anterior (auto-conectado)
+  // for um send_interactive, pré-preenche as respostas com as opções dele (reply.key = value da
+  // opção = branch da aresta), fechando o loop F1→F2 sem duplicar. Portas de saída: uma por
+  // resposta esperada + timeout (quando habilitado) + fallback (aresta sem rótulo).
+  if (item.type === 'wait_for_reply') {
+    node.replies = autoConnected ? repliesFromInteractiveNode(prev) : [];
+    node.timeout = { enabled: false, value: 1, unit: 'hours' };
+    node.fallback_key = 'fallback';
+  }
   if (autoConnected) edges.push({ from: prev.id, to: id });
 
   definition.value = { nodes: [...existing, node], edges };
@@ -491,7 +556,19 @@ const onFlowInit = instance => {
 const onConnect = connection => {
   const { source, target, sourceHandle } = connection;
   if (!source || !target) return;
-  const branch = sourceHandle || undefined;
+  let branch = sourceHandle || undefined;
+  // wait_for_reply: a porta de fallback grava uma aresta SEM branch (o backend ramifica a
+  // resposta não-casada pela aresta sem rótulo — ver waitForReply.js). As portas de resposta e
+  // de timeout seguem carregando seu branch normalmente.
+  const fromNode = (definition.value.nodes || []).find(
+    n => String(n.id) === String(source)
+  );
+  if (
+    fromNode?.type === 'wait_for_reply' &&
+    branch === String(fromNode.fallback_key || 'fallback')
+  ) {
+    branch = undefined;
+  }
   const edges = (definition.value.edges || []).filter(
     edge =>
       !(

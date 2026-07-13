@@ -8,7 +8,14 @@ import {
   catalogEntryForNode,
 } from '../nodeCatalog';
 
-const VALID_TYPES = ['trigger', 'action', 'condition', 'router', 'wait'];
+const VALID_TYPES = [
+  'trigger',
+  'action',
+  'condition',
+  'router',
+  'wait',
+  'wait_for_reply',
+];
 
 // Builds a definition node that should resolve to the given catalog item.
 const nodeFor = item =>
@@ -119,6 +126,9 @@ describe('catalogEntryForNode', () => {
     expect(catalogEntryForNode({ type: 'condition' }).key).toBe('condition');
     expect(catalogEntryForNode({ type: 'router' }).key).toBe('router');
     expect(catalogEntryForNode({ type: 'wait' }).key).toBe('wait');
+    expect(catalogEntryForNode({ type: 'wait_for_reply' }).key).toBe(
+      'wait_for_reply'
+    );
   });
 
   it('returns null for an unknown node type', () => {
@@ -150,10 +160,11 @@ describe('familyForNode', () => {
     ).toBe('action');
   });
 
-  it('resolves the logic family for condition / router / wait', () => {
+  it('resolves the logic family for condition / router / wait / wait_for_reply', () => {
     expect(familyForNode({ type: 'condition' })).toBe('logic');
     expect(familyForNode({ type: 'router' })).toBe('logic');
     expect(familyForNode({ type: 'wait' })).toBe('logic');
+    expect(familyForNode({ type: 'wait_for_reply' })).toBe('logic');
   });
 
   it('resolves the trigger family for a trigger node', () => {
@@ -209,6 +220,196 @@ describe('iconForNode', () => {
     );
     expect(iconForNode({ type: 'mystery' })).toBe('i-lucide-square');
     expect(iconForNode(null)).toBe('i-lucide-square');
+  });
+});
+
+describe('send_interactive node (F1 WhatsApp interactive)', () => {
+  const node = { type: 'action', action_name: 'send_interactive' };
+
+  it('is registered in the catalog under the msg family', () => {
+    const entry = NODE_CATALOG.find(item => item.key === 'send_interactive');
+    expect(entry).toMatchObject({
+      key: 'send_interactive',
+      type: 'action',
+      actionName: 'send_interactive',
+      family: 'msg',
+      labelKey: 'AUTOMATION.CANVAS.NODES.SEND_INTERACTIVE',
+      icon: 'i-lucide-list',
+    });
+  });
+
+  it('resolves via catalogEntryForNode by action_name', () => {
+    expect(catalogEntryForNode(node)).toMatchObject({
+      key: 'send_interactive',
+      actionName: 'send_interactive',
+      family: 'msg',
+    });
+  });
+
+  it('resolves the msg family via familyForNode', () => {
+    expect(familyForNode(node)).toBe('msg');
+  });
+
+  it('resolves the i18n labelKey via labelForNode', () => {
+    expect(labelForNode(node)).toBe('AUTOMATION.CANVAS.NODES.SEND_INTERACTIVE');
+  });
+
+  it('resolves the list icon via iconForNode', () => {
+    expect(iconForNode(node)).toBe('i-lucide-list');
+  });
+});
+
+describe('wait_for_reply node (F2 branch-on-reply)', () => {
+  const node = { type: 'wait_for_reply' };
+
+  it('is registered in the catalog under the logic family', () => {
+    const entry = NODE_CATALOG.find(item => item.key === 'wait_for_reply');
+    expect(entry).toMatchObject({
+      key: 'wait_for_reply',
+      type: 'wait_for_reply',
+      family: 'logic',
+      labelKey: 'AUTOMATION.CANVAS.NODES.WAIT_FOR_REPLY',
+      icon: 'i-lucide-messages-square',
+    });
+  });
+
+  it('has no actionName (it is a type node, not an action)', () => {
+    const entry = NODE_CATALOG.find(item => item.key === 'wait_for_reply');
+    expect(entry.actionName).toBeUndefined();
+  });
+
+  it('resolves via catalogEntryForNode by type', () => {
+    expect(catalogEntryForNode(node)).toMatchObject({
+      key: 'wait_for_reply',
+      type: 'wait_for_reply',
+      family: 'logic',
+    });
+  });
+
+  it('resolves the logic family via familyForNode', () => {
+    expect(familyForNode(node)).toBe('logic');
+  });
+
+  it('resolves the i18n labelKey via labelForNode', () => {
+    expect(labelForNode(node)).toBe('AUTOMATION.CANVAS.NODES.WAIT_FOR_REPLY');
+  });
+
+  it('resolves the messages icon via iconForNode', () => {
+    expect(iconForNode(node)).toBe('i-lucide-messages-square');
+  });
+});
+
+describe('send_cta_url node (F3 WhatsApp link button)', () => {
+  const node = { type: 'action', action_name: 'send_cta_url' };
+
+  it('is registered in the catalog under the msg family', () => {
+    const entry = NODE_CATALOG.find(item => item.key === 'send_cta_url');
+    expect(entry).toMatchObject({
+      key: 'send_cta_url',
+      type: 'action',
+      actionName: 'send_cta_url',
+      family: 'msg',
+      labelKey: 'AUTOMATION.CANVAS.NODES.SEND_CTA_URL',
+      icon: 'i-lucide-external-link',
+    });
+  });
+
+  it('resolves via catalogEntryForNode by action_name', () => {
+    expect(catalogEntryForNode(node)).toMatchObject({
+      key: 'send_cta_url',
+      actionName: 'send_cta_url',
+      family: 'msg',
+    });
+  });
+
+  it('resolves the msg family via familyForNode', () => {
+    expect(familyForNode(node)).toBe('msg');
+  });
+
+  it('resolves the i18n labelKey via labelForNode', () => {
+    expect(labelForNode(node)).toBe('AUTOMATION.CANVAS.NODES.SEND_CTA_URL');
+  });
+
+  it('resolves the external-link icon via iconForNode', () => {
+    expect(iconForNode(node)).toBe('i-lucide-external-link');
+  });
+});
+
+describe('send_location_request node (F3 WhatsApp location request)', () => {
+  const node = { type: 'action', action_name: 'send_location_request' };
+
+  it('is registered in the catalog under the msg family', () => {
+    const entry = NODE_CATALOG.find(
+      item => item.key === 'send_location_request'
+    );
+    expect(entry).toMatchObject({
+      key: 'send_location_request',
+      type: 'action',
+      actionName: 'send_location_request',
+      family: 'msg',
+      labelKey: 'AUTOMATION.CANVAS.NODES.SEND_LOCATION_REQUEST',
+      icon: 'i-lucide-map-pin',
+    });
+  });
+
+  it('resolves via catalogEntryForNode by action_name', () => {
+    expect(catalogEntryForNode(node)).toMatchObject({
+      key: 'send_location_request',
+      actionName: 'send_location_request',
+      family: 'msg',
+    });
+  });
+
+  it('resolves the msg family via familyForNode', () => {
+    expect(familyForNode(node)).toBe('msg');
+  });
+
+  it('resolves the i18n labelKey via labelForNode', () => {
+    expect(labelForNode(node)).toBe(
+      'AUTOMATION.CANVAS.NODES.SEND_LOCATION_REQUEST'
+    );
+  });
+
+  it('resolves the map-pin icon via iconForNode', () => {
+    expect(iconForNode(node)).toBe('i-lucide-map-pin');
+  });
+});
+
+describe('send_whatsapp_flow node (F3 native WhatsApp Flow form)', () => {
+  const node = { type: 'action', action_name: 'send_whatsapp_flow' };
+
+  it('is registered in the catalog under the msg family', () => {
+    const entry = NODE_CATALOG.find(item => item.key === 'send_whatsapp_flow');
+    expect(entry).toMatchObject({
+      key: 'send_whatsapp_flow',
+      type: 'action',
+      actionName: 'send_whatsapp_flow',
+      family: 'msg',
+      labelKey: 'AUTOMATION.CANVAS.NODES.SEND_WHATSAPP_FLOW',
+      icon: 'i-lucide-clipboard-list',
+    });
+  });
+
+  it('resolves via catalogEntryForNode by action_name', () => {
+    expect(catalogEntryForNode(node)).toMatchObject({
+      key: 'send_whatsapp_flow',
+      actionName: 'send_whatsapp_flow',
+      family: 'msg',
+    });
+  });
+
+  it('resolves the msg family via familyForNode', () => {
+    expect(familyForNode(node)).toBe('msg');
+  });
+
+  it('resolves the i18n labelKey via labelForNode', () => {
+    expect(labelForNode(node)).toBe(
+      'AUTOMATION.CANVAS.NODES.SEND_WHATSAPP_FLOW'
+    );
+  });
+
+  it('resolves the clipboard-list icon via iconForNode', () => {
+    expect(iconForNode(node)).toBe('i-lucide-clipboard-list');
   });
 });
 

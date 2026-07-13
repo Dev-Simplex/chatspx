@@ -18,6 +18,9 @@ class Flows::RunnerService
   # Comportamento do walker em modo SIMULAÇÃO (dry_run): descreve ações em vez de executá-las e
   # atravessa `wait` em vez de suspender. Ver Flows::SimulationWalk e Flows::SimulationService.
   include Flows::SimulationWalk
+  # Nó `wait_for_reply` (F2): suspende esperando a resposta do contato e, na retomada, ramifica pela
+  # opção escolhida ou por 'timeout'. Extraído p/ manter esta classe enxuta. Ver Flows::ReplyWait.
+  include Flows::ReplyWait
 
   MAX_STEPS = 100
   MAX_DEPTH = 3
@@ -32,7 +35,9 @@ class Flows::RunnerService
   # A Flows::SimulationService a lê. Ver Flows::SimulationWalk#simulate_visit para o formato.
   attr_reader :simulation_steps
 
-  def initialize(flow:, conversation:, actor: nil, trigger_payload: {}, flow_run: nil)
+  # rubocop:disable Metrics/ParameterLists
+  def initialize(flow:, conversation:, actor: nil, trigger_payload: {}, flow_run: nil, resume_reply: nil)
+    # rubocop:enable Metrics/ParameterLists
     @flow = flow
     @conversation = conversation
     @actor = actor
@@ -42,6 +47,15 @@ class Flows::RunnerService
     # o mesmo run em vez de criar outro. No disparo inicial nasce nil e é materializado
     # preguiçosamente no primeiro `wait`.
     @flow_run = flow_run
+    # Presente só na retomada por MENSAGEM (Flows::ReplyResumeService injeta a resposta do
+    # contato): { id, title }. Com resposta, o wait_for_reply ramifica pelo id da opção; SEM ela
+    # (retomada por TEMPO/timeout e disparo inicial) nasce nil e ramifica por 'timeout'. Ver
+    # #evaluate_reply_branch.
+    @resume_reply = resume_reply&.to_h&.with_indifferent_access
+    # Nó de reentrada da retomada (gravado por #resume_from). Distingue, num wait_for_reply, o
+    # "1º toque no walk pra frente" (SUSPENDE) da "retomada NESTE nó" (RAMIFICA). Ver
+    # #suspend_on_wait_for_reply.
+    @resume_start_id = nil
     # dry_run desligado por padrão: #perform/#resume_from são o disparo REAL, idêntico ao de hoje.
     # Só o #simulate liga o flag (a assinatura do construtor fica intacta p/ os chamadores atuais).
     @dry_run = false
@@ -73,6 +87,9 @@ class Flows::RunnerService
   # Chamado por Flows::ResumeService depois que wait_until venceu; @flow_run é o run
   # persistido, então um novo wait o ATUALIZA em vez de criar outro.
   def resume_from(node_id)
+    # Guarda o nó de reentrada: quando ele é um wait_for_reply, #suspend_on_wait_for_reply o
+    # reconhece e NÃO re-suspende — deixa o #visit ramificar pela resposta/timeout.
+    @resume_start_id = node_id
     with_depth_guard { walk(node_id) }
   ensure
     Current.reset
@@ -116,6 +133,7 @@ class Flows::RunnerService
   def step_node(node, node_id, actions)
     return simulate_visit(node) if @dry_run
     return HALT if suspend_on_wait(node, node_id)
+    return HALT if suspend_on_wait_for_reply(node, node_id)
 
     visit(node, actions)
   end
@@ -131,20 +149,23 @@ class Flows::RunnerService
     if successor.nil?
       finish_run
     else
-      persist_suspension(successor, node)
+      persist_suspension(node_id: successor, wait_until: wait_until_for(node))
     end
     true
   end
 
-  def persist_suspension(successor, node)
+  # Grava a suspensão (node_id de reentrada + wait_until) num FlowRun, materializando-o
+  # preguiçosamente no disparo inicial ou atualizando o existente na retomada. Reusado pelo `wait`
+  # (grava o sucessor) e pelo `wait_for_reply` (grava o próprio nó).
+  def persist_suspension(node_id:, wait_until:)
     run = flow_run
-    run.suspend!(node_id: successor, wait_until: wait_until_for(node))
+    run.suspend!(node_id: node_id, wait_until: wait_until)
     @flow_run = run
   rescue ActiveRecord::RecordNotUnique
     # Perdeu a corrida com outro run in-flight desta (flow, conversation); reusa-o pra os
     # dois disparos convergirem num só row (o índice único parcial é a última linha de defesa).
     existing = FlowRun.where(status: FlowRun::ACTIVE_STATUSES).find_by(flow: @flow, conversation: @conversation)
-    existing&.suspend!(node_id: successor, wait_until: wait_until_for(node))
+    existing&.suspend!(node_id: node_id, wait_until: wait_until)
     @flow_run = existing
   end
 
@@ -177,7 +198,13 @@ class Flows::RunnerService
   # Normaliza a config do wait (mesma lógica no disparo real e na descrição do dry-run): value<=0
   # → 1; unit inválida → 'minutes'. Ver o comentário de #wait_until_for para o porquê dos defaults.
   def normalized_wait(node)
-    cfg = wait_config(node)
+    normalize_wait_config(wait_config(node))
+  end
+
+  # Núcleo da normalização, reusado pelo `wait` (config em node['wait']) e pelo timeout do
+  # `wait_for_reply` (config em node['timeout']): value<=0 → 1; unit inválida → 'minutes'.
+  def normalize_wait_config(cfg)
+    cfg = (cfg || {}).to_h.with_indifferent_access
     value = cfg['value'].to_i
     value = DEFAULT_WAIT_VALUE if value <= 0
     unit = WAIT_UNITS.include?(cfg['unit']) ? cfg['unit'] : DEFAULT_WAIT_UNIT
@@ -210,6 +237,8 @@ class Flows::RunnerService
       instrument_branch(node) { evaluate_condition(node) ? 'true' : 'false' }
     when 'router'
       instrument_branch(node) { evaluate_router(node) }
+    when 'wait_for_reply'
+      instrument_branch(node) { evaluate_reply_branch(node) }
     end
   end
 

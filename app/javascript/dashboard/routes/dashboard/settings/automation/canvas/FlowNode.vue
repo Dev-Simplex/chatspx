@@ -64,8 +64,12 @@ const statsTitle = computed(() => {
 
 // Portas de saída ROTULADAS dos nós de ramificação. Cada porta vira um `source` Handle cujo
 // `id` é o `branch` que a aresta carrega (o Runner casa edge.branch === handle.id):
-//  • condition → 2 portas fixas: 'true' (Sim) e 'false' (Não).
-//  • router    → 1 porta por rota (id = route.key) na ORDEM + 1 porta de fallback.
+//  • condition      → 2 portas fixas: 'true' (Sim) e 'false' (Não).
+//  • router         → 1 porta por rota (id = route.key) na ORDEM + 1 porta de fallback.
+//  • wait_for_reply → 1 porta por resposta esperada (id = reply.key) + 'timeout' (se habilitado)
+//    + fallback. Espelha o router; a porta de fallback tem um id de handle real (fallback_key)
+//    para posicionar a aresta, mas o FlowCanvasView grava essa aresta SEM branch (o backend
+//    ramifica respostas não-casadas pela aresta sem rótulo — ver waitForReply.js).
 // Renderizamos cada porta como uma linha `relative` com o Handle em Position.Right: o handle
 // ancora no canto direito da própria linha, alinhando-se ao rótulo sem cálculo de offset.
 // Nós de saída única (action/trigger/wait) não têm portas rotuladas: usam o Handle Bottom
@@ -73,6 +77,7 @@ const statsTitle = computed(() => {
 const TRUE_COLOR = '#0e9f6e';
 const FALSE_COLOR = '#e5484d';
 const FALLBACK_COLOR = '#8b93aa';
+const TIMEOUT_COLOR = '#0d9488';
 
 const branchPorts = computed(() => {
   const raw = node.value;
@@ -102,6 +107,29 @@ const branchPorts = computed(() => {
     ports.push({
       key: String(raw.fallback_key || 'fallback'),
       label: t('AUTOMATION.CANVAS.CONFIG.ROUTER.FALLBACK'),
+      color: FALLBACK_COLOR,
+    });
+    return ports;
+  }
+  if (raw.type === 'wait_for_reply') {
+    const replies = Array.isArray(raw.replies) ? raw.replies : [];
+    const ports = replies.map((reply, i) => ({
+      key: String(reply.key),
+      label:
+        reply.label ||
+        t('AUTOMATION.CANVAS.CONFIG.WAIT_FOR_REPLY.REPLY_N', { n: i + 1 }),
+      color: familyMeta.value.color,
+    }));
+    if (raw.timeout?.enabled) {
+      ports.push({
+        key: 'timeout',
+        label: t('AUTOMATION.CANVAS.CONFIG.WAIT_FOR_REPLY.TIMEOUT_PORT'),
+        color: TIMEOUT_COLOR,
+      });
+    }
+    ports.push({
+      key: String(raw.fallback_key || 'fallback'),
+      label: t('AUTOMATION.CANVAS.CONFIG.WAIT_FOR_REPLY.FALLBACK_PORT'),
       color: FALLBACK_COLOR,
     });
     return ports;

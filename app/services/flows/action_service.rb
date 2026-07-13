@@ -30,9 +30,20 @@ class Flows::ActionService < ActionService
   # http_request: chamada HTTP(S) externa com guarda SSRF (bloqueia IP interno/metadata, fixa o
   # IP validado, sem redirect, timeout+cap). Ver o modelo de ameaça em Flows::HttpAction.
   include Flows::HttpAction
-  # send_whatsapp_flow: envio de WhatsApp Flow interactive nativo. INTEGRAÇÃO PENDENTE (TODO
-  # documentado em Flows::WhatsappFlowAction) — não está na whitelist/paleta; monta o payload
-  # Meta e sinaliza um skip triável em vez de enviar errado.
+  # send_interactive: envia lista/botões WhatsApp interativos (F1). Espelha send_message (utility,
+  # free_form) e sanea os itens contra os limites da Meta. Concern pelo mesmo motivo dos acima —
+  # mantém a classe enxuta (Metrics/ClassLength). Ver Flows::InteractiveAction e o contrato em
+  # plano/F1-contrato-send-interactive.md.
+  include Flows::InteractiveAction
+  # send_cta_url / send_location_request: extras interativos "ricos" (F3) via passthrough genérico —
+  # cada ação monta um objeto `interactive` Meta em content_attributes['interactive_payload'] e o
+  # provider (WhatsappCloudService#send_raw_interactive) o POSTa cru. Ver Flows::RichInteractiveAction
+  # e plano/F3-contrato-extras-interativos.md. Também dona do wrapper create_interactive_message,
+  # reusado pelo send_whatsapp_flow.
+  include Flows::RichInteractiveAction
+  # send_whatsapp_flow: envio de WhatsApp Flow interactive NATIVO (F3). Monta o payload Meta
+  # (interactive:flow) e o entrega pelo MESMO passthrough (create_interactive_message →
+  # interactive_payload → provider). Ver Flows::WhatsappFlowAction.
   include Flows::WhatsappFlowAction
 
   # Outcome of ONE action node, consumed by the Flows::RunnerService to build a FlowStepLog.

@@ -11,6 +11,11 @@
 class Whatsapp::Providers::BaseService
   pattr_initialize [:whatsapp_channel!]
 
+  # Cap defensivo de linhas numa lista interativa: a Meta estoura acima de 10. A validação primária
+  # é no Flows::ActionService#sanitize_interactive_items; aqui é a última linha de defesa do canal
+  # (vale p/ Cloud e 360dialog, que compartilham este builder). Ver plano/F1-contrato-send-interactive.md.
+  WHATSAPP_INTERACTIVE_LIST_LIMIT = 10
+
   def send_message(_phone_number, _message)
     raise 'Overwrite this method in child class'
   end
@@ -71,8 +76,12 @@ class Whatsapp::Providers::BaseService
 
   def create_rows(items)
     rows = []
-    items.each do |item|
+    # Cap defensivo (a Meta rejeita >10 linhas). `first` é no-op quando há ≤10.
+    items.first(WHATSAPP_INTERACTIVE_LIST_LIMIT).each do |item|
       row = { 'id' => item['value'], 'title' => item['title'] }
+      # Linha de lista suporta descrição (o botão não) — só inclui quando presente, senão a Meta
+      # recebe um campo vazio. Chaves-string casam com o content_attributes persistido (jsonb).
+      row['description'] = item['description'] if item['description'].present?
       rows << row
     end
     rows
@@ -108,23 +117,5 @@ class Whatsapp::Providers::BaseService
     sections = [section1]
     json_hash = { :button => I18n.t('conversations.messages.whatsapp.list_button_label'), 'sections' => sections }
     create_payload('list', message.outgoing_content, JSON.generate(json_hash))
-  end
-
-  # Prefixa o conteudo com o nome do agente ("*Nome*:\n...") quando a inbox tem a
-  # assinatura ligada (additional_attributes['agent_signature_enabled']). So p/ mensagem
-  # de agente (User); midia sem legenda (content vazio) fica sem nome (Opcao B). Espelha o
-  # formato que o bridge do WAHA ja aplica, mas so nos providers nativos (Cloud/360dialog).
-  def with_agent_prefix(message, content)
-    return content if content.blank?
-    return content unless agent_signature_enabled?(message.inbox)
-    return content unless message.sender_type == 'User' && message.sender.present?
-
-    name = message.sender.available_name.to_s.strip
-    name.present? ? "*#{name}*:\n#{content}" : content
-  end
-
-  # Toggle por inbox (default OFF). Ligado via additional_attributes['agent_signature_enabled'].
-  def agent_signature_enabled?(inbox)
-    inbox&.additional_attributes&.dig('agent_signature_enabled') == true
   end
 end

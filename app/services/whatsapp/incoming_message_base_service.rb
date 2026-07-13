@@ -192,6 +192,14 @@ class Whatsapp::IncomingMessageBaseService
     attrs = outgoing_echo ? { external_echo: true } : {}
     attrs[:in_reply_to_external_id] = @in_reply_to_external_id if @in_reply_to_external_id.present?
     attrs[:referral] = message[:referral].to_h if message[:referral].present?
+
+    # Aditivo: para respostas interativas (botao/lista), persiste o id da opcao escolhida.
+    # `content` segue sendo o titulo (message_content) — nao-regressao. O id e o value do F1
+    # (send_interactive) e o branch consumido pelo wait_for_reply (F2).
+    if (reply = interactive_reply(message)).present?
+      attrs[:selected_option] = { 'id' => reply[:id], 'title' => reply[:title] }
+    end
+
     attrs
   end
 

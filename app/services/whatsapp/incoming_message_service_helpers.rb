@@ -33,6 +33,13 @@ module Whatsapp::IncomingMessageServiceHelpers
       message.dig(:name, :formatted_name)
   end
 
+  # Retorna o objeto de escolha de uma resposta interativa (toque em botao ou item de lista),
+  # ou nil quando a mensagem inbound nao e interativa. O `id` e o `value` que o Flow enviou na
+  # opcao (F1 send_interactive) e vira o branch da aresta em wait_for_reply (F2).
+  def interactive_reply(message)
+    message.dig(:interactive, :button_reply) || message.dig(:interactive, :list_reply)
+  end
+
   def file_content_type(file_type)
     return :image if %w[image sticker].include?(file_type)
     return :audio if %w[audio voice].include?(file_type)

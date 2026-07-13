@@ -44,7 +44,8 @@ class Flow < ApplicationRecord
   enum visibility: { personal: 0, global: 1 }
 
   # Whitelist-união Macro ∪ AutomationRule (community) + os nós novos da F1 (send_template,
-  # set_attribute). Um nó `type:"action"` só é válido se seu `action_name` existir aqui —
+  # send_interactive — lista/botões WhatsApp, set_attribute). Um nó `type:"action"` só é válido
+  # se seu `action_name` existir aqui —
   # espelha `Macro::ACTIONS_ATTRS` (macro.rb:33) e `AutomationRule#actions_attributes`
   # (automation_rule.rb:42), já normalizando as assimetrias (open/pending/remove_assigned_team
   # ficam disponíveis para ambos os modos). Ações enterprise (add_sla, assign_ai_agent e os nós
@@ -60,19 +61,29 @@ class Flow < ApplicationRecord
   # conversa numa Message Sequence, via MessageSequences::EnrollService) e http_request (chamada
   # HTTP externa com guarda SSRF — ver Flows::HttpAction). São community porque nenhuma depende
   # de licença enterprise (Captain/SLA); o par assign_ai_agent(enterprise)/add_label(community)
-  # guia a decisão. NOTA: send_whatsapp_flow NÃO está aqui de propósito — sua integração de
-  # envio está pendente (TODO em Flows::WhatsappFlowAction); expô-lo geraria nós que sempre pulam.
+  # guia a decisão.
+  #
+  # F3 — extras interativos WhatsApp Cloud (community): send_cta_url (botão de link),
+  # send_location_request (pedir localização) e send_whatsapp_flow (formulário nativo/WhatsApp
+  # Flows). Os três saem pelo passthrough genérico do provider (send_raw_interactive) via
+  # content_attributes['interactive_payload']. send_whatsapp_flow, antes um TODO que sempre pulava,
+  # agora ENVIA de verdade (integração concluída em Flows::WhatsappFlowAction) — por isso entrou.
   BASE_ACTION_NAMES = %w[
     send_message add_private_note send_attachment send_webhook_event send_email_to_team
     add_label remove_label assign_agent assign_team remove_assigned_team
     mute_conversation snooze_conversation resolve_conversation open_conversation pending_conversation
     change_status change_priority send_email_transcript
-    send_template set_attribute
+    send_template send_interactive set_attribute
     move_funnel_stage call_macro send_csat
     add_participant enroll_in_sequence http_request
+    send_cta_url send_location_request send_whatsapp_flow
   ].freeze
 
-  NODE_TYPES = %w[trigger action condition router wait].freeze
+  # `wait_for_reply` (F2): suspende o walk ESPERANDO a resposta do contato e ramifica pela opção
+  # escolhida (o value da opção do send_interactive anterior == o id da reply == edge.branch) ou
+  # por 'timeout' (quando o prazo vence sem resposta). Diferente do `wait` (tempo puro), que só
+  # pausa e segue. Ver Flows::RunnerService#suspend_on_wait_for_reply e plano/F2-contrato-wait-for-reply.md.
+  NODE_TYPES = %w[trigger action condition router wait wait_for_reply].freeze
 
   validates :name, presence: true
   validate :definition_shape
