@@ -265,6 +265,57 @@ describe Whatsapp::Providers::WhatsappCloudService do
     end
   end
 
+  describe '#send_raw_interactive (F3 passthrough)' do
+    let(:cta_payload) do
+      { 'type' => 'cta_url', 'body' => { 'text' => 'Veja aqui' },
+        'action' => { 'name' => 'cta_url', 'parameters' => { 'display_text' => 'Abrir', 'url' => 'https://example.com' } } }
+    end
+    let(:interactive_message) do
+      create(:message, conversation: conversation, message_type: :outgoing, content: 'Veja aqui',
+                       inbox: whatsapp_channel.inbox, content_attributes: { interactive_payload: cta_payload }).reload
+    end
+
+    it 'routes send_message to a raw interactive POST when interactive_payload is present' do
+      stub_request(:post, 'https://graph.facebook.com/v13.0/123456789/messages')
+        .with do |req|
+          body = JSON.parse(req.body)
+          body['messaging_product'] == 'whatsapp' &&
+            body['to'] == '+123456789' &&
+            body['type'] == 'interactive' &&
+            body['interactive'] == cta_payload
+        end
+        .to_return(status: 200, body: whatsapp_response.to_json, headers: response_headers)
+
+      expect(service.send_message('+123456789', interactive_message)).to eq('message_id')
+    end
+
+    it 'passes a location_request_message payload through unchanged' do
+      location_payload = { 'type' => 'location_request_message', 'body' => { 'text' => 'Onde?' },
+                           'action' => { 'name' => 'send_location' } }
+      msg = create(:message, conversation: conversation, message_type: :outgoing, content: 'Onde?',
+                             inbox: whatsapp_channel.inbox, content_attributes: { interactive_payload: location_payload }).reload
+
+      stub_request(:post, 'https://graph.facebook.com/v13.0/123456789/messages')
+        .with do |req|
+          body = JSON.parse(req.body)
+          body['type'] == 'interactive' && body['interactive'] == location_payload
+        end
+        .to_return(status: 200, body: whatsapp_response.to_json, headers: response_headers)
+
+      expect(service.send_message('+123456789', msg)).to eq('message_id')
+    end
+
+    it 'does NOT route a plain text message through the raw interactive path' do
+      stub_request(:post, 'https://graph.facebook.com/v13.0/123456789/messages')
+        .with do |req|
+          JSON.parse(req.body)['type'] == 'text'
+        end
+        .to_return(status: 200, body: whatsapp_response.to_json, headers: response_headers)
+
+      expect(service.send_message('+123456789', message)).to eq('message_id')
+    end
+  end
+
   describe '#send_template' do
     let(:template_info) do
       {

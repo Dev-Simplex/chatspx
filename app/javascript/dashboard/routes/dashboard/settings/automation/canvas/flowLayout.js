@@ -24,7 +24,9 @@ export const V_SPACING = 220;
 
 // Ordem estável das portas de saída de um nó, para os ramos abrirem sempre na mesma ordem:
 // condition → Sim (esquerda) / Não (direita); router → rotas na ordem declarada + fallback
-// por último (extrema direita). Espelha branchPorts do FlowNode.
+// por último (extrema direita); wait_for_reply → respostas na ordem + timeout, com o fallback
+// (aresta SEM rótulo) caindo por último naturalmente (keyOf '' → rank fora da ordem). Espelha
+// branchPorts do FlowNode.
 const branchOrder = node => {
   if (!node) return [];
   if (node.type === 'condition') return ['true', 'false'];
@@ -33,6 +35,13 @@ const branchOrder = node => {
       String(route.key)
     );
     keys.push(String(node.fallback_key || 'fallback'));
+    return keys;
+  }
+  if (node.type === 'wait_for_reply') {
+    const keys = (Array.isArray(node.replies) ? node.replies : []).map(reply =>
+      String(reply.key)
+    );
+    keys.push('timeout');
     return keys;
   }
   return [];

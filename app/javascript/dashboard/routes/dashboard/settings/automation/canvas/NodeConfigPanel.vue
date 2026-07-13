@@ -8,6 +8,10 @@ import ConditionConfig from './config/ConditionConfig.vue';
 import RouterConfig from './config/RouterConfig.vue';
 import MessageConfig from './config/MessageConfig.vue';
 import SendTemplateConfig from './config/SendTemplateConfig.vue';
+import SendInteractiveConfig from './config/SendInteractiveConfig.vue';
+import CtaUrlConfig from './config/CtaUrlConfig.vue';
+import LocationRequestConfig from './config/LocationRequestConfig.vue';
+import WhatsappFlowConfig from './config/WhatsappFlowConfig.vue';
 import SetAttributeConfig from './config/SetAttributeConfig.vue';
 import MoveFunnelStageConfig from './config/MoveFunnelStageConfig.vue';
 import CallMacroConfig from './config/CallMacroConfig.vue';
@@ -23,6 +27,7 @@ import LabelConfig from './config/LabelConfig.vue';
 import ChangeStatusConfig from './config/ChangeStatusConfig.vue';
 import ChangePriorityConfig from './config/ChangePriorityConfig.vue';
 import WaitConfig from './config/WaitConfig.vue';
+import WaitForReplyConfig from './config/WaitForReplyConfig.vue';
 import SnoozeConfig from './config/SnoozeConfig.vue';
 import SendEmailToTeamConfig from './config/SendEmailToTeamConfig.vue';
 import SendEmailTranscriptConfig from './config/SendEmailTranscriptConfig.vue';
@@ -44,6 +49,10 @@ const ACTION_EDITORS = {
   send_message: markRaw(MessageConfig),
   add_private_note: markRaw(MessageConfig),
   send_template: markRaw(SendTemplateConfig),
+  send_interactive: markRaw(SendInteractiveConfig),
+  send_cta_url: markRaw(CtaUrlConfig),
+  send_location_request: markRaw(LocationRequestConfig),
+  send_whatsapp_flow: markRaw(WhatsappFlowConfig),
   set_attribute: markRaw(SetAttributeConfig),
   move_funnel_stage: markRaw(MoveFunnelStageConfig),
   call_macro: markRaw(CallMacroConfig),
@@ -72,6 +81,7 @@ const TYPE_EDITORS = {
   condition: markRaw(ConditionConfig),
   router: markRaw(RouterConfig),
   wait: markRaw(WaitConfig),
+  wait_for_reply: markRaw(WaitForReplyConfig),
 };
 
 const editor = computed(() => {

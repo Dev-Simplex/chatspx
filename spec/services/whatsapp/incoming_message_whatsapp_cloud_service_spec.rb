@@ -236,6 +236,113 @@ describe Whatsapp::IncomingMessageWhatsappCloudService do
         end
       end
     end
+
+    context 'when message is an interactive button reply (Flow option)' do
+      let(:button_reply_params) do
+        {
+          phone_number: whatsapp_channel.phone_number,
+          object: 'whatsapp_business_account',
+          entry: [{
+            changes: [{
+              value: {
+                contacts: [{ profile: { name: 'Flow Lead' }, wa_id: '5566900000010' }],
+                messages: [{
+                  from: '5566900000010',
+                  id: 'wamid.BUTTON_REPLY_ID',
+                  timestamp: '1770407840',
+                  type: 'interactive',
+                  interactive: {
+                    type: 'button_reply',
+                    button_reply: { id: 'opt_yes', title: 'Sim' }
+                  }
+                }]
+              }
+            }]
+          }]
+        }.with_indifferent_access
+      end
+
+      it 'persists the selected option id and title in content_attributes' do
+        described_class.new(inbox: whatsapp_channel.inbox, params: button_reply_params).perform
+
+        message = whatsapp_channel.inbox.messages.last
+        expect(message.content_attributes['selected_option']).to eq('id' => 'opt_yes', 'title' => 'Sim')
+      end
+
+      it 'keeps the option title as the message content (no regression)' do
+        described_class.new(inbox: whatsapp_channel.inbox, params: button_reply_params).perform
+
+        expect(whatsapp_channel.inbox.messages.last.content).to eq('Sim')
+      end
+    end
+
+    context 'when message is an interactive list reply (Flow option)' do
+      let(:list_reply_params) do
+        {
+          phone_number: whatsapp_channel.phone_number,
+          object: 'whatsapp_business_account',
+          entry: [{
+            changes: [{
+              value: {
+                contacts: [{ profile: { name: 'Flow Lead' }, wa_id: '5566900000011' }],
+                messages: [{
+                  from: '5566900000011',
+                  id: 'wamid.LIST_REPLY_ID',
+                  timestamp: '1770407841',
+                  type: 'interactive',
+                  interactive: {
+                    type: 'list_reply',
+                    list_reply: { id: 'sku_123', title: 'Produto A', description: 'Descricao da opcao' }
+                  }
+                }]
+              }
+            }]
+          }]
+        }.with_indifferent_access
+      end
+
+      it 'persists the selected option id and title in content_attributes' do
+        described_class.new(inbox: whatsapp_channel.inbox, params: list_reply_params).perform
+
+        message = whatsapp_channel.inbox.messages.last
+        expect(message.content_attributes['selected_option']).to eq('id' => 'sku_123', 'title' => 'Produto A')
+      end
+
+      it 'keeps the option title as the message content (no regression)' do
+        described_class.new(inbox: whatsapp_channel.inbox, params: list_reply_params).perform
+
+        expect(whatsapp_channel.inbox.messages.last.content).to eq('Produto A')
+      end
+    end
+
+    context 'when message is plain text (interactive regression)' do
+      let(:plain_text_params) do
+        {
+          phone_number: whatsapp_channel.phone_number,
+          object: 'whatsapp_business_account',
+          entry: [{
+            changes: [{
+              value: {
+                contacts: [{ profile: { name: 'Regular Lead' }, wa_id: '5566900000012' }],
+                messages: [{
+                  from: '5566900000012',
+                  id: 'wamid.PLAIN_INTERACTIVE_REGRESSION_ID',
+                  timestamp: '1770407842',
+                  text: { body: 'Mensagem comum' },
+                  type: 'text'
+                }]
+              }
+            }]
+          }]
+        }.with_indifferent_access
+      end
+
+      it 'does not add a selected_option key to content_attributes' do
+        described_class.new(inbox: whatsapp_channel.inbox, params: plain_text_params).perform
+
+        expect(whatsapp_channel.inbox.messages.last.content_attributes).not_to have_key('selected_option')
+      end
+    end
   end
 
   # Métodos auxiliares para reduzir o tamanho do exemplo

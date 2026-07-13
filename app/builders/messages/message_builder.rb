@@ -14,8 +14,12 @@ class Messages::MessageBuilder # rubocop:disable Metrics/ClassLength
     @message_type = params[:message_type] || 'outgoing'
     @attachments = params[:attachments]
     @automation_rule = content_attributes&.dig(:automation_rule_id)
-    return unless params.instance_of?(ActionController::Parameters)
-
+    # `in_reply_to`/`items` são lidos do content_attributes JÁ normalizado (o método content_attributes
+    # cobre ActionController::Parameters E Hash), então valem também para callers da camada de serviço
+    # (Flows::ActionService#send_interactive, macros, etc.). Antes ficavam sob `return unless
+    # ActionController::Parameters`, então um caller de Hash tinha @items = nil — e message_params (que
+    # sempre injeta `items: @items`) APAGAVA os items setados via content_attributes. Aditivo: para os
+    # callers de Hash existentes (sem items/in_reply_to no content_attributes) o valor segue nil.
     @in_reply_to = content_attributes&.dig(:in_reply_to)
     @items = content_attributes&.dig(:items)
   end

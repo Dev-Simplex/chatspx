@@ -1,6 +1,11 @@
 class Whatsapp::Providers::WhatsappCloudService < Whatsapp::Providers::BaseService
   def send_message(phone_number, message)
     @message = message
+    # Passthrough genérico de interativo (F3): qualquer ação do Flow que monte um objeto `interactive`
+    # Meta e o persista em content_attributes['interactive_payload'] (cta_url, location_request, Flow
+    # nativo) sai por AQUI — um POST cru, sem caminho hardcoded por tipo. Precede os ramos
+    # attachment/input_select(F1)/text, que NÃO carregam essa chave.
+    return send_raw_interactive(phone_number, message) if message.content_attributes&.dig('interactive_payload').present?
 
     if message.attachments.present?
       attachment = message.attachments.first
@@ -134,7 +139,7 @@ class Whatsapp::Providers::WhatsappCloudService < Whatsapp::Providers::BaseServi
         messaging_product: 'whatsapp',
         context: whatsapp_reply_context(message),
         to: phone_number,
-        text: { body: with_agent_prefix(message, message.outgoing_content) },
+        text: { body: message.outgoing_content },
         type: 'text'
       }.to_json
     )
@@ -198,17 +203,13 @@ class Whatsapp::Providers::WhatsappCloudService < Whatsapp::Providers::BaseServi
     process_response(response, message)
   end
 
-  # Limites INLINE do Meta por tipo (MB). Acima disso o Meta rejeita o envio inline,
-  # entao mandamos como 'document' (limite 100 MB) p/ nao falhar. Ex.: video >16 MB.
-  META_INLINE_LIMITS_MB = { 'image' => 5, 'audio' => 16, 'video' => 16 }.freeze
-
   def send_attachment_message(phone_number, message)
     attachment = message.attachments.first
-    type = resolve_media_type(attachment)
+    type = %w[image audio video].include?(attachment.file_type) ? attachment.file_type : 'document'
     type_content = {
       'link': attachment.download_url
     }
-    apply_caption(type_content, type, message)
+    type_content['caption'] = message.outgoing_content unless %w[audio sticker].include?(type)
     type_content['filename'] = attachment.file.filename if type == 'document'
     response = HTTParty.post(
       "#{phone_id_path}/messages",
@@ -223,25 +224,6 @@ class Whatsapp::Providers::WhatsappCloudService < Whatsapp::Providers::BaseServi
     )
 
     process_response(response, message)
-  end
-
-  # Decide o 'type' do Meta: mantem image/audio/video se dentro do limite inline;
-  # senao (ou tipo nao-midia) manda como 'document' (video >16 MB, imagem >5 MB, etc.).
-  def resolve_media_type(attachment)
-    base = %w[image audio video].include?(attachment.file_type) ? attachment.file_type : 'document'
-    limit_mb = META_INLINE_LIMITS_MB[base]
-    return base unless limit_mb && attachment.file.attached?
-
-    attachment.file.byte_size > limit_mb.megabytes ? 'document' : base
-  end
-
-  # Define a legenda (com assinatura do agente, se ligada). Opcao B: midia sem
-  # conteudo fica sem legenda. Audio/sticker nao levam legenda.
-  def apply_caption(type_content, type, message)
-    return if %w[audio sticker].include?(type)
-
-    caption = with_agent_prefix(message, message.outgoing_content)
-    type_content['caption'] = caption if caption.present?
   end
 
   def error_message(response)
@@ -293,6 +275,25 @@ class Whatsapp::Providers::WhatsappCloudService < Whatsapp::Providers::BaseServi
     {
       message_id: reply_to
     }
+  end
+
+  # Passthrough F3: POSTa um objeto `interactive` Meta JÁ montado pela ação do Flow
+  # (content_attributes['interactive_payload']). Um único caminho serve cta_url,
+  # location_request_message e flow (nativo) — zero acoplamento entre os tipos. Espelha
+  # send_interactive_text_message, mas o payload vem pronto em vez de derivado dos items.
+  def send_raw_interactive(phone_number, message)
+    response = HTTParty.post(
+      "#{phone_id_path}/messages",
+      headers: api_headers,
+      body: {
+        messaging_product: 'whatsapp',
+        to: phone_number,
+        interactive: message.content_attributes['interactive_payload'],
+        type: 'interactive'
+      }.to_json
+    )
+
+    process_response(response, message)
   end
 
   def send_interactive_text_message(phone_number, message)

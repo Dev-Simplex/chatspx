@@ -1,4 +1,4 @@
-class AutomationRuleListener < BaseListener
+class AutomationRuleListener < BaseListener # rubocop:disable Metrics/ClassLength
   # Palavras de opt-out (descadastro) do WhatsApp marketing. Casamento por IGUALDADE (não
   # "contains") sobre a mensagem normalizada — acento/caixa/pontuação-insensível, ver
   # #opt_out_message? — pra "PARAR"/"Sair"/"stop."/"CANCELAR" descadastrarem, mas "não vou
@@ -86,10 +86,11 @@ class AutomationRuleListener < BaseListener
   end
 
   def run_flows(event_name, account, conversation, payload)
-    # Compliance opt-out ("PARAR"): uma mensagem incoming de descadastro registra a suppression
-    # e NÃO dispara flow algum por si — nem por-evento, nem keyword. Só corre em message_created
+    # Uma mensagem incoming pode ser CONSUMIDA antes de qualquer disparo — opt-out de compliance
+    # ("PARAR") OU retomada de um wait_for_reply pendente (F2) — e então run_flows aborta, sem
+    # disparar flow novo (por-evento/keyword) com a mesma mensagem. Só corre em message_created
     # (único evento com a mensagem no payload) e só com o motor Flow ativo (estamos em run_flows).
-    return if event_name == 'message_created' && handle_incoming_opt_out(account, conversation, payload)
+    return if event_name == 'message_created' && incoming_message_consumed?(account, conversation, payload)
 
     # Direção do evento (inbound/outbound) resolvida SOB DEMANDA e memoizada: só é calculada
     # quando algum flow filtra por direção — o caso comum ('both'/ausente) nunca a materializa,
@@ -197,6 +198,30 @@ class AutomationRuleListener < BaseListener
   # Direção de uma MENSAGEM: incoming = entrada; qualquer outra (outgoing/template) = saída.
   def message_direction(message)
     message&.incoming? ? 'inbound' : 'outbound'
+  end
+
+  # Consome uma mensagem incoming ANTES do disparo por-evento/keyword. Ordem importa: o opt-out
+  # (compliance) vence a retomada. Devolve true quando a mensagem foi consumida (run_flows aborta).
+  def incoming_message_consumed?(account, conversation, payload)
+    handle_incoming_opt_out(account, conversation, payload) || resume_pending_reply(conversation, payload)
+  end
+
+  # Retoma um wait_for_reply pendente com esta mensagem incoming de contato; true só quando de fato
+  # retomou. Mesmos filtros do keyword/opt-out (incoming, não-privada); anti-loop flow_id já aplicado
+  # por ignore_message_created_event?.
+  def resume_pending_reply(conversation, payload)
+    message = payload[:message]
+    return false unless message&.incoming? && !message.private?
+
+    Flows::ReplyResumeService.new(conversation: conversation, reply: reply_from_message(message)).perform
+  end
+
+  # O reply { id, title } vem do selected_option (toque em botão/lista, id == o value da opção do
+  # send_interactive) ou, sem ele, do próprio content (resposta digitada) — assim o wait_for_reply
+  # casa tanto a escolha de opção quanto o texto livre.
+  def reply_from_message(message)
+    selected = message.content_attributes&.dig('selected_option')
+    { id: selected&.dig('id') || message.content, title: selected&.dig('title') || message.content }
   end
 
   # Detecta e processa um opt-out numa mensagem INCOMING de contato. Ao casar, registra a
