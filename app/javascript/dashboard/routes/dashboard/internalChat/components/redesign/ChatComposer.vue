@@ -1,11 +1,12 @@
 <script setup>
-import { ref, nextTick, defineAsyncComponent } from 'vue';
+import { ref, computed, nextTick, defineAsyncComponent } from 'vue';
 import { useAlert } from 'dashboard/composables';
 import {
   checkFileSizeLimit,
   HARD_MAXIMUM_FILE_UPLOAD_SIZE,
 } from 'shared/helpers/FileHelper';
 import { AUDIO_FORMATS } from 'shared/constants/messages';
+import CannedResponse from 'dashboard/components/widgets/conversation/CannedResponse.vue';
 
 const props = defineProps({
   // Mensagem sendo respondida: { id, name, preview } (ou null).
@@ -34,6 +35,32 @@ const autoResize = () => {
   if (!el) return;
   el.style.height = 'auto';
   el.style.height = `${Math.min(el.scrollHeight, 112)}px`;
+};
+
+// ── Respostas prontas (picker "/") ────────────────────────────────────────────
+// Mesmo componente do compositor de conversas; já respeita a visibilidade
+// (pública/privada/de-time) via índice escopado. Aparece quando a mensagem começa
+// com "/"; o texto após a barra vira o filtro de busca.
+const showCanned = computed(
+  () => !recording.value && draft.value.startsWith('/')
+);
+const cannedSearchKey = computed(() =>
+  showCanned.value ? draft.value.slice(1) : ''
+);
+
+// O conteúdo da resposta pronta é rich text (HTML); no textarea entra como texto puro.
+const stripHtml = html => {
+  const tmp = document.createElement('div');
+  tmp.innerHTML = html || '';
+  return (tmp.textContent || tmp.innerText || '').trim();
+};
+
+const onCannedSelect = content => {
+  draft.value = stripHtml(content);
+  nextTick(() => {
+    textareaRef.value?.focus();
+    autoResize();
+  });
 };
 
 const toggleEmoji = () => {
@@ -96,11 +123,26 @@ const send = () => {
   showEmoji.value = false;
   nextTick(autoResize);
 };
+
+// Enter envia — a menos que o picker esteja REALMENTE aberto (com resultados), aí o
+// Enter escolhe a resposta. Sem match (nenhuma .mention--box), envia normalmente —
+// assim uma mensagem que começa com "/" e não é atalho ainda pode ser enviada.
+const onEnter = () => {
+  if (showCanned.value && document.querySelector('.mention--box')) return;
+  send();
+};
 </script>
 
 <template>
   <!-- eslint-disable vue/no-bare-strings-in-template -->
   <div class="relative px-4 pb-3 md:px-6 flex-shrink-0 bg-n-background">
+    <!-- Respostas prontas: aparece acima do compositor ao começar com "/" -->
+    <CannedResponse
+      v-if="showCanned"
+      :search-key="cannedSearchKey"
+      @replace="onCannedSelect"
+    />
+
     <!-- Barra "respondendo a X" -->
     <div
       v-if="replyingTo"
@@ -224,7 +266,7 @@ const send = () => {
         placeholder="Digite sua mensagem..."
         class="reset-base flex-1 h-auto min-h-0 px-1 py-1.5 mb-0 text-sm bg-transparent outline-none resize-none text-n-slate-12 placeholder:text-n-slate-10 max-h-28 leading-snug"
         @input="autoResize"
-        @keydown.enter.exact.prevent="send"
+        @keydown.enter.exact.prevent="onEnter"
       />
       <button
         type="button"
