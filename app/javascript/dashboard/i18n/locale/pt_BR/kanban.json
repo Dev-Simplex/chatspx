@@ -190,6 +190,8 @@
       "COLOR": "Cor",
       "NO_FUNNELS": "Nenhum funil criado ainda",
       "NO_FUNNELS_DESCRIPTION": "Crie seu primeiro funil para começar a organizar suas conversas",
+      "NO_FUNNELS_AGENT": "Você ainda não participa de nenhum funil",
+      "NO_FUNNELS_AGENT_DESCRIPTION": "Os funis são organizados por time. Peça a um administrador para adicioná-lo a um time para ver o quadro.",
       "SAVE_ERROR": "Erro ao salvar funil",
       "CONFIRM_DELETE": "Tem certeza que deseja excluir este funil? Todas as etapas e itens serão removidos.",
       "DELETE_ERROR": "Erro ao excluir funil",
