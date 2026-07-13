@@ -42,7 +42,10 @@ RSpec.describe 'Funnel templates + form config (Kanban v2 / Fase 8)', type: :req
   end
 
   describe 'POST form (enable public form)' do
-    let(:funnel) { Funnel.create!(account: account, name: 'Vendas') }
+    let(:team) { create(:team, account: account) }
+    let(:funnel) { Funnel.create!(account: account, name: 'Vendas', team_id: team.id) }
+
+    before { team.add_members([agent.id]) }
 
     it 'mints a token + URL and enables the form' do
       post "#{base}/#{funnel.id}/form",

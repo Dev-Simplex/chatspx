@@ -6,9 +6,12 @@ RSpec.describe 'Funnel stats (Kanban v2 / Fase 6)', type: :request do
   let(:account) { create(:account) }
   let(:agent) { create(:user, account: account, role: :agent) }
   let(:inbox) { create(:inbox, account: account, channel: create(:channel_widget, account: account)) }
-  let(:funnel) { Funnel.create!(account: account, name: 'Vendas') }
+  let(:team) { create(:team, account: account) }
+  let(:funnel) { Funnel.create!(account: account, name: 'Vendas', team_id: team.id) }
   let(:stage) { FunnelStage.create!(funnel: funnel, name: 'Aberto', position: 0) }
   let(:endpoint) { "/api/v1/accounts/#{account.id}/funnels/#{funnel.id}/stats" }
+
+  before { team.add_members([agent.id]) }
 
   it 'requires authentication' do
     get endpoint

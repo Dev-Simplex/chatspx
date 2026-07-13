@@ -6,21 +6,24 @@ RSpec.describe 'Funnel Items API', type: :request do
   let(:account) { create(:account) }
   let(:agent) { create(:user, account: account, role: :agent) }
   let(:inbox) { create(:inbox, account: account, channel: create(:channel_widget, account: account)) }
-  let(:funnel) { Funnel.create!(account: account, name: 'Geral', color: '#94a3b8') }
+  let(:team) { create(:team, account: account) }
+  let(:funnel) { Funnel.create!(account: account, name: 'Time X', color: '#94a3b8', team_id: team.id) }
   let(:open_stage) { FunnelStage.create!(funnel: funnel, name: 'Abertos', automation_type: 'open', position: 0) }
   let(:resolved_stage) { FunnelStage.create!(funnel: funnel, name: 'Resolvidos', automation_type: 'resolved', position: 1) }
 
-  let!(:conversation_1) { create(:conversation, account: account, inbox: inbox, status: :open, last_activity_at: 3.minutes.ago) }
-  let!(:conversation_2) { create(:conversation, account: account, inbox: inbox, status: :open, last_activity_at: 2.minutes.ago) }
-  let!(:conversation_3) { create(:conversation, account: account, inbox: inbox, status: :open, last_activity_at: 1.minute.ago) }
-  let!(:conversation_resolved) { create(:conversation, account: account, inbox: inbox, status: :open, last_activity_at: 4.minutes.ago) }
-
+  let!(:conversation_1) { create(:conversation, account: account, inbox: inbox, status: :open, team: team, last_activity_at: 3.minutes.ago) }
+  let!(:conversation_2) { create(:conversation, account: account, inbox: inbox, status: :open, team: team, last_activity_at: 2.minutes.ago) }
+  let!(:conversation_3) { create(:conversation, account: account, inbox: inbox, status: :open, team: team, last_activity_at: 1.minute.ago) }
   let!(:item_1) { FunnelItem.create!(funnel: funnel, funnel_stage: open_stage, conversation: conversation_1) }
   let!(:item_2) { FunnelItem.create!(funnel: funnel, funnel_stage: open_stage, conversation: conversation_2) }
   let!(:item_3) { FunnelItem.create!(funnel: funnel, funnel_stage: open_stage, conversation: conversation_3) }
-  let!(:resolved_item) { FunnelItem.create!(funnel: funnel, funnel_stage: resolved_stage, conversation: conversation_resolved) }
+  let!(:resolved_item) do
+    conversation = create(:conversation, account: account, inbox: inbox, status: :open, team: team, last_activity_at: 4.minutes.ago)
+    FunnelItem.create!(funnel: funnel, funnel_stage: resolved_stage, conversation: conversation)
+  end
 
   before do
+    team.add_members([agent.id])
     create(:inbox_member, inbox: inbox, user: agent)
     account.enable_features!('kanban_cursor_loading')
   end
@@ -81,7 +84,7 @@ RSpec.describe 'Funnel Items API', type: :request do
 
         expect(response).to have_http_status(:success)
         payload_ids = response.parsed_body.fetch('payload').map { |item| item['id'] }
-        expect(payload_ids).to match_array([item_1.id, item_2.id, item_3.id])
+        expect(payload_ids).to contain_exactly(item_1.id, item_2.id, item_3.id)
       end
 
       it 'falls back safely when cursor is invalid' do
@@ -111,8 +114,10 @@ RSpec.describe 'Funnel Items API', type: :request do
         contact_b = create(:contact, account: account, phone_number: '+5511912345678')
         contact_b.update_column(:phone_number, shared_phone)
 
-        conversation_a = create(:conversation, account: account, inbox: inbox, contact: contact_a, assignee: agent, status: :open, last_activity_at: 10.minutes.ago)
-        conversation_b = create(:conversation, account: account, inbox: inbox, contact: contact_b, assignee: agent, status: :open, last_activity_at: 30.seconds.ago)
+        conversation_a = create(:conversation, account: account, inbox: inbox, contact: contact_a, assignee: agent, team: team,
+                                               status: :open, last_activity_at: 10.minutes.ago)
+        conversation_b = create(:conversation, account: account, inbox: inbox, contact: contact_b, assignee: agent, team: team,
+                                               status: :open, last_activity_at: 30.seconds.ago)
 
         FunnelItem.create!(funnel: funnel, funnel_stage: open_stage, conversation: conversation_a)
         FunnelItem.create!(funnel: funnel, funnel_stage: open_stage, conversation: conversation_b)
@@ -138,17 +143,19 @@ RSpec.describe 'Funnel Items API', type: :request do
   describe 'PATCH /api/v1/accounts/:account_id/funnels/:funnel_id/funnel_items/:id' do
     context 'when authenticated' do
       it 'moves to resolved stage and resolves conversation without team' do
-        expect(conversation_1.team_id).to be_nil
-        expect(conversation_1.status).to eq('open')
+        teamless = create(:conversation, account: account, inbox: inbox, status: :open)
+        teamless_item = FunnelItem.create!(funnel: funnel, funnel_stage: open_stage, conversation: teamless)
+        expect(teamless.team_id).to be_nil
+        expect(teamless.status).to eq('open')
 
-        patch "/api/v1/accounts/#{account.id}/funnels/#{funnel.id}/funnel_items/#{item_1.id}",
+        patch "/api/v1/accounts/#{account.id}/funnels/#{funnel.id}/funnel_items/#{teamless_item.id}",
               params: { funnel_item: { funnel_stage_id: resolved_stage.id } },
               headers: agent.create_new_auth_token,
               as: :json
 
         expect(response).to have_http_status(:success)
-        expect(item_1.reload.funnel_stage_id).to eq(resolved_stage.id)
-        expect(conversation_1.reload.status).to eq('resolved')
+        expect(teamless_item.reload.funnel_stage_id).to eq(resolved_stage.id)
+        expect(teamless.reload.status).to eq('resolved')
       end
 
       it 'returns not found when target stage does not exist' do
