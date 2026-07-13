@@ -12,6 +12,8 @@ import FlowRow from './FlowRow.vue';
 import FlowTemplatesGallery from './FlowTemplatesGallery.vue';
 import Button from 'dashboard/components-next/button/Button.vue';
 import { BaseTable } from 'dashboard/components-next/table';
+import AutomationRuleRow from './AutomationRuleRow.vue';
+import EditAutomationRule from './EditAutomationRule.vue';
 
 const getters = useStoreGetters();
 const store = useStore();
@@ -24,6 +26,8 @@ const addDialogRef = ref(null);
 const showDeleteConfirmationPopup = ref(false);
 const showTemplatesGallery = ref(false);
 const selectedFlow = ref({});
+const editDialogRef = ref(null);
+const selectedAutomation = ref({});
 const searchQuery = ref('');
 const importing = ref(false);
 const toggleModalTitle = ref(t('AUTOMATION.TOGGLE.ACTIVATION_TITLE'));
@@ -39,6 +43,21 @@ const filteredRecords = computed(() => {
   if (!query) return records.value;
   return picoSearch(records.value, query, ['name', 'description']);
 });
+
+// Automações do MODO ANTIGO (automation_rules): reexibidas para ver / ligar-desligar / editar /
+// excluir. Aditivo — não altera as flows. A migração pro canvas é o botão "Importar" (BackfillService).
+const legacyRules = computed(() => getters['automations/getAutomations'].value);
+const filteredLegacyRules = computed(() => {
+  const query = searchQuery.value.trim();
+  if (!query) return legacyRules.value;
+  return picoSearch(legacyRules.value, query, ['name', 'description']);
+});
+const legacyHeaders = computed(() => [
+  t('AUTOMATION.LIST.TABLE_HEADER.NAME'),
+  t('AUTOMATION.LIST.TABLE_HEADER.ACTIVE'),
+  t('AUTOMATION.LIST.TABLE_HEADER.CREATED_ON'),
+  t('AUTOMATION.LIST.TABLE_HEADER.ACTIONS'),
+]);
 const uiFlags = computed(() => getters['flows/getUIFlags'].value);
 const accountId = computed(() => getters.getCurrentAccountId.value);
 
@@ -64,6 +83,7 @@ onMounted(() => {
   store.dispatch('labels/get');
   store.dispatch('campaigns/get');
   store.dispatch('flows/get');
+  store.dispatch('automations/get');
   if (isSLAEnabled.value) {
     store.dispatch('sla/get');
   }
@@ -132,14 +152,81 @@ const confirmDeletion = () => {
   deleteFlow(selectedFlow.value.id);
 };
 
-// Criar regra clássica (motor legado) — só via o form avançado.
-const submitAutomation = async payload => {
+// Criar (add) ou editar (edit) uma regra clássica — mesmo handler dos dois dialogs (Add/Edit).
+const submitAutomation = async (payload, mode) => {
   try {
-    await store.dispatch('automations/create', payload);
-    useAlert(t('AUTOMATION.ADD.API.SUCCESS_MESSAGE'));
+    const action =
+      mode === 'edit' ? 'automations/update' : 'automations/create';
+    await store.dispatch(action, payload);
+    useAlert(
+      mode === 'edit'
+        ? t('AUTOMATION.EDIT.API.SUCCESS_MESSAGE')
+        : t('AUTOMATION.ADD.API.SUCCESS_MESSAGE')
+    );
     hideAddPopup();
+    editDialogRef.value?.close();
   } catch (error) {
-    useAlert(t('AUTOMATION.ADD.API.ERROR_MESSAGE'));
+    useAlert(
+      mode === 'edit'
+        ? t('AUTOMATION.EDIT.API.ERROR_MESSAGE')
+        : t('AUTOMATION.ADD.API.ERROR_MESSAGE')
+    );
+  }
+};
+
+// --- Gerência das regras do MODO ANTIGO (reaproveita a store 'automations' + handlers legados) ---
+const openEditPopup = rule => {
+  selectedAutomation.value = { ...rule };
+  editDialogRef.value?.open();
+};
+
+// Liga/desliga uma regra antiga — PERSISTE (PATCH automation_rules/:id) e reflete após reload;
+// desligar faz a regra PARAR de disparar no backend. Reusa o confirmDialog + vocabulário TOGGLE.
+const toggleAutomation = async ({ id, name, status }) => {
+  try {
+    toggleModalTitle.value = status
+      ? t('AUTOMATION.TOGGLE.DEACTIVATION_TITLE')
+      : t('AUTOMATION.TOGGLE.ACTIVATION_TITLE');
+    toggleModalDescription.value = status
+      ? t('AUTOMATION.TOGGLE.DEACTIVATION_DESCRIPTION', {
+          automationName: name,
+        })
+      : t('AUTOMATION.TOGGLE.ACTIVATION_DESCRIPTION', { automationName: name });
+    const ok = await confirmDialog.value.showConfirmation();
+    if (ok) {
+      await store.dispatch('automations/update', { id, active: !status });
+      useAlert(
+        status
+          ? t('AUTOMATION.TOGGLE.DEACTIVATION_SUCCESFUL')
+          : t('AUTOMATION.TOGGLE.ACTIVATION_SUCCESFUL')
+      );
+    }
+  } catch (error) {
+    useAlert(t('AUTOMATION.EDIT.API.ERROR_MESSAGE'));
+  }
+};
+
+const cloneAutomation = async ({ id }) => {
+  try {
+    await store.dispatch('automations/clone', id);
+    useAlert(t('AUTOMATION.CLONE.API.SUCCESS_MESSAGE'));
+    store.dispatch('automations/get');
+  } catch (error) {
+    useAlert(t('AUTOMATION.CLONE.API.ERROR_MESSAGE'));
+  }
+};
+
+const deleteAutomation = async rule => {
+  toggleModalTitle.value = t('LABEL_MGMT.DELETE.CONFIRM.TITLE');
+  toggleModalDescription.value = `${t('AUTOMATION.DELETE.CONFIRM.MESSAGE')} ${rule.name}?`;
+  try {
+    const ok = await confirmDialog.value.showConfirmation();
+    if (ok) {
+      await store.dispatch('automations/delete', rule.id);
+      useAlert(t('AUTOMATION.DELETE.API.SUCCESS_MESSAGE'));
+    }
+  } catch (error) {
+    useAlert(t('AUTOMATION.DELETE.API.ERROR_MESSAGE'));
   }
 };
 
@@ -220,7 +307,7 @@ const tableHeaders = computed(() => {
   <SettingsLayout
     :is-loading="uiFlags.isFetching"
     :loading-message="$t('AUTOMATION.LOADING')"
-    :no-records-found="!records.length"
+    :no-records-found="!records.length && !legacyRules.length"
     :no-records-message="$t('AUTOMATION.LIST.EMPTY')"
   >
     <template #header>
@@ -275,6 +362,7 @@ const tableHeaders = computed(() => {
     </template>
     <template #body>
       <BaseTable
+        v-if="records.length"
         :headers="tableHeaders"
         :items="filteredRecords"
         :no-data-message="
@@ -295,6 +383,36 @@ const tableHeaders = computed(() => {
           />
         </template>
       </BaseTable>
+
+      <!-- Automações do MODO ANTIGO (automation_rules) — só quando houver ao menos uma regra -->
+      <div v-if="legacyRules.length" :class="records.length ? 'mt-8' : ''">
+        <div class="mb-3">
+          <h3 class="text-base font-medium text-n-slate-12">
+            {{ $t('AUTOMATION.LEGACY.TITLE') }}
+          </h3>
+          <p class="mt-1 text-sm text-n-slate-11">
+            {{ $t('AUTOMATION.LEGACY.HELP') }}
+          </p>
+        </div>
+        <BaseTable
+          :headers="legacyHeaders"
+          :items="filteredLegacyRules"
+          :no-data-message="$t('AUTOMATION.NO_RESULTS')"
+        >
+          <template #row="{ items }">
+            <AutomationRuleRow
+              v-for="rule in items"
+              :key="rule.id"
+              :automation="rule"
+              :loading="loading[rule.id]"
+              @toggle="toggleAutomation"
+              @edit="openEditPopup"
+              @delete="deleteAutomation"
+              @clone="cloneAutomation"
+            />
+          </template>
+        </BaseTable>
+      </div>
     </template>
 
     <FlowTemplatesGallery
@@ -304,6 +422,12 @@ const tableHeaders = computed(() => {
     />
 
     <AddAutomationRule ref="addDialogRef" @save-automation="submitAutomation" />
+
+    <EditAutomationRule
+      ref="editDialogRef"
+      :selected-response="selectedAutomation"
+      @save-automation="submitAutomation"
+    />
 
     <woot-delete-modal
       v-model:show="showDeleteConfirmationPopup"
