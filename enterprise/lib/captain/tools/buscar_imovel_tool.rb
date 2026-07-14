@@ -33,7 +33,7 @@ class Captain::Tools::BuscarImovelTool < Captain::Tools::BasePublicTool
       return "Não achei nenhum imóvel com o código #{cod} no nosso sistema." if achados.blank?
 
       venda_cod = achados.first['Status'].to_s.match?(/vend/i)
-      track_imoveis(tool_context, achados, venda_cod)
+      track_codigos(tool_context, achados)
       return format_listings(achados, venda_cod, detalhado: true)
     end
     venda = status_tipo.to_s == 'venda'
