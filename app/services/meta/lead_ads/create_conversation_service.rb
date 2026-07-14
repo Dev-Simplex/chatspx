@@ -24,14 +24,19 @@ module Meta
         end
 
         contact_inbox = build_contact_inbox(normalized_phone)
-        conversation = create_conversation(contact_inbox)
-        place_in_funnel(conversation)
+        conversation, created = find_or_create_conversation(contact_inbox)
+        # So coloca no "Novo Lead" quando a conversa nasceu agora — nao regride pro
+        # inicio um lead que ja avancou no funil (redelivery do webhook / contato existente).
+        place_in_funnel(conversation) if created
 
         if normalized_phone.blank?
           # Sem phone nao da pra mandar via WAHA — anota e pula 1a msg
           Rails.logger.info("Meta Lead Ads: hook=#{@hook.id} conversation=#{conversation.id} — sem phone, sem 1a mensagem (lead exige follow-up manual)")
         elsif skip_initial_message?
           Rails.logger.info("Meta Lead Ads: skip_initial_message=true hook=#{@hook.id} conversation=#{conversation.id} — conversa criada sem 1a mensagem")
+        elsif initial_message_already_sent?(conversation)
+          # Idempotencia: redelivery/retry do webhook nao reenvia a abertura.
+          Rails.logger.info("Meta Lead Ads: hook=#{@hook.id} conversation=#{conversation.id} — 1a mensagem ja enviada, pulando (idempotencia)")
         else
           create_initial_message(conversation)
         end
@@ -96,34 +101,75 @@ module Meta
       end
 
       def source_id_for(phone)
-        # WAHA inbox usa JID `<digits>@c.us` como source_id (quando ha phone)
-        if phone.present? && @inbox.channel_type == 'Channel::Api' && @inbox.respond_to?(:waha_session_name) && @inbox.waha_session_name.present?
-          digits = phone.to_s.gsub(/\D/, '')
-          return "#{digits}@c.us"
-        end
-
         # Sem phone: fallback unico por leadgen_id (evita duplicidade e nao colide com outros contatos)
         return "meta_lead:#{@lead[:leadgen_id]}" if phone.blank?
+
+        # WAHA inbox usa JID `<digits>@c.us` como source_id
+        if @inbox.channel_type == 'Channel::Api' && @inbox.respond_to?(:waha_session_name) && @inbox.waha_session_name.present?
+          return "#{phone.to_s.gsub(/\D/, '')}@c.us"
+        end
+
+        # Cloud API (Channel::Whatsapp): o inbound cria/busca a ficha por wa_id so-digitos
+        # (via PhoneNumberNormalizationService, reconciliando o 9o digito — variantes 12d/13d).
+        # Espelhamos isso pra reusar a ficha que o cliente ja usa nos replies; do contrario a
+        # ficha nasce com "+" e o reply cai em ficha/conversa nova (reply orfao + duplicata).
+        # Mesmo fix aplicado no DisparoLeadJob#resolved_source_id.
+        if @inbox.channel_type == 'Channel::Whatsapp'
+          waid = phone.to_s.gsub(/\D/, '')
+          return Whatsapp::PhoneNumberNormalizationService.new(@inbox)
+                                                          .normalize_and_find_contact_by_provider(waid, :cloud)
+        end
 
         phone
       end
 
-      def create_conversation(contact_inbox)
-        Conversation.create!(
+      # Honra o lock_to_single da inbox: reusa a conversa unica do contato (em qualquer
+      # ficha), reabrindo se resolvida e atualizando o contexto do lead. Cria conversa nova
+      # so quando o contato nunca teve uma. Devolve [conversation, created?]. Idempotente
+      # contra redelivery do webhook e retry do Sidekiq (o job re-raise em erro).
+      def find_or_create_conversation(contact_inbox)
+        base = Conversation.where(inbox_id: @inbox.id, contact_id: contact_inbox.contact_id)
+        conversation = base.where.not(status: :resolved).order(created_at: :desc).first ||
+                       base.order(created_at: :desc).first
+
+        if conversation
+          merge_lead_attributes(conversation)
+          conversation.open! unless conversation.open?
+          return [conversation, false]
+        end
+
+        conversation = Conversation.create!(
           account_id: @inbox.account_id,
           inbox_id: @inbox.id,
           contact_id: contact_inbox.contact_id,
           contact_inbox_id: contact_inbox.id,
           status: conversation_status,
-          additional_attributes: {
-            source: 'meta_lead_ads',
-            lead: @lead.slice(:leadgen_id, :ad_name, :campaign_name, :form_id, :platform).compact
-          }
+          additional_attributes: { source: 'meta_lead_ads', lead: lead_attributes }
         )
+        [conversation, true]
+      end
+
+      def lead_attributes
+        @lead.slice(:leadgen_id, :ad_name, :campaign_name, :form_id, :platform).compact
+      end
+
+      # Reuso: registra o contexto do NOVO form (o lead pode ter entrado por outra campanha
+      # antes) sem apagar o source original. A campanha/anuncio atual e o que roteia agora.
+      def merge_lead_attributes(conversation)
+        attrs = conversation.additional_attributes || {}
+        attrs['source'] ||= 'meta_lead_ads'
+        attrs['lead'] = lead_attributes
+        conversation.update!(additional_attributes: attrs)
       end
 
       def conversation_status
         @inbox.pending_status_enabled? ? 'pending' : 'open'
+      end
+
+      # A abertura automatica carrega content_attributes.meta_lead_ads_initial=true —
+      # se ja existe nessa conversa, um redelivery/retry nao deve reenviar.
+      def initial_message_already_sent?(conversation)
+        conversation.messages.where('content_attributes @> ?', { meta_lead_ads_initial: true }.to_json).exists?
       end
 
       # Cloud API (WhatsApp oficial) fora da janela 24h só aceita HSM aprovado — texto
