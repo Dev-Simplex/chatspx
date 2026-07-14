@@ -134,7 +134,7 @@ class Captain::Tools::BuscarImovelTool < Captain::Tools::BasePublicTool
 
   # Registra códigos (trava de foto) + URLs canônicas (trava de link) numa tacada.
   def track_imoveis(tool_context, imoveis, venda)
-    track_imoveis(tool_context, imoveis, venda)
+    track_codigos(tool_context, imoveis)
     track_urls(tool_context, imoveis, venda)
   end
 
