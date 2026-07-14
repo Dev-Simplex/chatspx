@@ -10,6 +10,16 @@
 
 ## 🚧 Em andamento
 
+### [2026-07-14] 🟢 META LEADS (Caminho B, formulário) — gap corrigido + IA Sofia criada; falta plugar webhook
+
+> **Contexto:** campanha Meta `120243133255210544` (forms Pacaembu/Tívoli MCMV). Estado ao vivo verificado read-only na prod Tozi (conta 6): **0 hooks meta_lead_ads, 0 conversas `source=meta_lead_ads`, 0 CTWA em 180d** — nenhum lead de anúncio chega ao SPX hoje. Decisão do Paulo: fazer funcionar por **formulário com webhook** (não CTWA). Modelo de IA vigente = "IA como agente atribuível" (7 agentes: Clara #7 triagem, Júlia #13, Bruna #14, Letícia #15, Marina #16, Rafa #17, Helena #18 RH).
+
+- **✅ Gap do webhook corrigido** (`app/services/meta/lead_ads/create_conversation_service.rb`, commit `0e6f37820` em **homologacao**): (1) `source_id` em Cloud API via `PhoneNumberNormalizationService` (fim do reply órfão/duplicata); (2) `find_or_create_conversation` honra `lock_to_single` + idempotência contra redelivery/retry; (3) guard anti-1ª-msg-duplicada. Espelha o `DisparoLeadJob`. Syntax OK. **Falta chegar na `producao`** (governado) antes de ligar o webhook.
+- **✅ IA Sofia #19 criada** na prod conta 6 (runner clonando comportamento da Júlia + prompt novo script-free, 9461 ch): pré-qualificação de leads Meta com **gates sensíveis** (trava não é parede — nome sujo → previsão de quitação/Tuiuiú; sem holerite → renda alternativa/terreno; sempre busca caminho e passa pro corretor), herda o *feeling* de venda da Júlia (encantar sem "namorar"). Mirror AgentBot #23. **DESCONECTADA** (0 CaptainInbox = não responde nada). `image_description` ON (foto do holerite → sinaliza, não reprova). Tools: salvar_info_lead, programar_followup, transferir_para_agente, atualizar_resumo, registrar_observacao, registrar_assunto.
+- **✅ Time "Leads Meta" #67** criado (conta 6), único membro **Cibely (user #67)** — ela distribui manual entre corretores. `Sofia.config.team_id=67`.
+- **Credenciais do webhook** (vault `credenciais/tozi.md`): app `1658426868710322`, page `539594042748152`, verify/secret/system-user-token OK. **Callback ainda em PAULAO** (`paulo.chatspx.app`) — migrar pra `tozi.chatspx.app/webhooks/meta_lead_ads`.
+- **PENDENTE pro go-live:** (a) Paulo aprova a copy do HSM de abertura → eu submeto ao Meta (WABA `905788818829319`); (b) fix pra `producao` (governado); (c) criar hook meta_lead_ads na conta 6 (target_inbox_id=91 + template); (d) migrar callback do app Meta + re-verificar; (e) automação `conversa source=meta_lead_ads → assign_ai_agent(Sofia #19)`; (f) plugar Sofia (CaptainInbox 91) + piloto controlado. Futuras campanhas: diferenciar por `campaign_id`/`form_id` → agente/knowledge (tag pelo ID do Meta).
+
 ### [2026-06-11] ✅ DECISÃO 2.7 EXECUTADA em prod Tozi — higiene das abertas só-HSM (4.013 resolvidas, 0 falhas)
 
 - **Critério estrito do Paulo:** conversa com APENAS template(s) outgoing, zero resposta do lead, zero texto humano, atribuída. Universo: 4.606 (nenhum corretor tinha escrito nada). Resolvidas as paradas 3d+: **4.013 em 369s, 0 falhas** (lotes de 50 + pacing; teams setados nas sem-team via MAP corretor→time de disparo; Gelson/Adrian via skip flag). Dry-run prévio: CSAT/NPS OFF (zero pesquisa pro lead), 0 webhooks de conta, resolve+rollback de teste OK.
