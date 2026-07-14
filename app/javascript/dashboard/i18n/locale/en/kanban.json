@@ -322,7 +322,11 @@
       "SEND": "Send",
       "SENT": "Message sent",
       "SEND_ERROR": "Could not send the message",
-      "REPLY_DISABLED": "Replies are not available for this conversation"
+      "REPLY_DISABLED": "Replies are not available for this conversation",
+      "GATE_TITLE": "Conversation not assigned to you",
+      "GATE_DESCRIPTION": "To preview this conversation you need to assume it (it will be assigned to you).",
+      "ASSUME_AND_VIEW": "Assume and view",
+      "ASSUME_ERROR": "Could not assume the conversation"
     },
     "DENSITY": {
       "COMPACT": "Compact view",

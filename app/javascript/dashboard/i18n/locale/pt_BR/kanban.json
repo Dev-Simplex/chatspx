@@ -322,7 +322,11 @@
       "SEND": "Enviar",
       "SENT": "Mensagem enviada",
       "SEND_ERROR": "Não foi possível enviar a mensagem",
-      "REPLY_DISABLED": "Respostas não estão disponíveis para esta conversa"
+      "REPLY_DISABLED": "Respostas não estão disponíveis para esta conversa",
+      "GATE_TITLE": "Conversa não atribuída a você",
+      "GATE_DESCRIPTION": "Para pré-visualizar esta conversa, você precisa assumi-la (ela será atribuída a você).",
+      "ASSUME_AND_VIEW": "Assumir e visualizar",
+      "ASSUME_ERROR": "Não foi possível assumir a conversa"
     },
     "DENSITY": {
       "COMPACT": "Visão compacta",
