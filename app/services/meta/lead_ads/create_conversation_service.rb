@@ -28,6 +28,7 @@ module Meta
         # So coloca no "Novo Lead" quando a conversa nasceu agora — nao regride pro
         # inicio um lead que ja avancou no funil (redelivery do webhook / contato existente).
         place_in_funnel(conversation) if created
+        assign_agent_bot(conversation) if created
 
         if normalized_phone.blank?
           # Sem phone nao da pra mandar via WAHA — anota e pula 1a msg
@@ -48,6 +49,22 @@ module Meta
 
       def skip_initial_message?
         ActiveModel::Type::Boolean.new.cast(@hook.settings['skip_initial_message'])
+      end
+
+      # Roteamento por campanha: atribui o lead ao espelho AgentBot configurado no hook
+      # (cada hook = uma campanha/formulário = a IA daquele funil). Só em conversa nova,
+      # pra não roubar conversa de contato já em atendimento por outro time. A eligibilidade
+      # é validada pelo próprio AssignmentService (agent bot precisa estar elegível à inbox).
+      # No-op silencioso se não configurado ou se a atribuição falhar.
+      def assign_agent_bot(conversation)
+        bot_id = @hook.settings['assign_agent_bot_id'].presence
+        return if bot_id.blank?
+
+        Conversations::AssignmentService.new(
+          conversation: conversation, assignee_id: bot_id, assignee_type: 'AgentBot'
+        ).perform
+      rescue StandardError => e
+        Rails.logger.warn("Meta Lead Ads: falha ao atribuir agent_bot=#{bot_id} conv=#{conversation.id}: #{e.class}: #{e.message}")
       end
 
       # Coloca o lead no estágio "Novo Lead" do funil de pré-venda Tozi (Kanban).
