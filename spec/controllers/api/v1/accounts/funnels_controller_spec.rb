@@ -100,11 +100,13 @@ RSpec.describe 'Funnels API', type: :request do
   end
 
   describe 'non-admin cannot create/point a funnel at the Geral bucket (team_id nil)' do
-    it 'forbids an agent creating a funnel without a team' do
+    it 'forbids an agent creating a funnel without a team and explains why' do
       post "/api/v1/accounts/#{account.id}/funnels",
            params: { funnel: { name: 'Meu Funil', color: '#000000' } },
            headers: agent.create_new_auth_token, as: :json
       expect(response).to have_http_status(:forbidden)
+      # the response must carry a human-readable reason (not an empty 403) so the UI can show it
+      expect(response.parsed_body['error']).to be_present
     end
 
     it 'lets an agent create a funnel with a team and then see it' do
@@ -123,6 +125,15 @@ RSpec.describe 'Funnels API', type: :request do
             params: { funnel: { team_id: '' } },
             headers: agent.create_new_auth_token, as: :json
       expect(response).to have_http_status(:forbidden)
+    end
+
+    it 'forbids an agent creating a funnel for a team they do not belong to' do
+      other_team = create(:team, account: account) # agent is NOT a member
+      post "/api/v1/accounts/#{account.id}/funnels",
+           params: { funnel: { name: 'Time Alheio', color: '#000000', team_id: other_team.id } },
+           headers: agent.create_new_auth_token, as: :json
+      expect(response).to have_http_status(:forbidden)
+      expect(account.funnels.exists?(name: 'Time Alheio')).to be(false)
     end
 
     it 'lets an admin create a funnel without a team' do
