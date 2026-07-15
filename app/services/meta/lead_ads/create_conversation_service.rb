@@ -17,6 +17,11 @@ module Meta
       end
 
       def perform
+        unless campaign_allowed?
+          Rails.logger.info("Meta Lead Ads: campanha #{@lead[:campaign_id].inspect} (#{@lead[:campaign_name]}) fora do allowlist do hook=#{@hook.id} — lead ignorado (leadgen=#{@lead[:leadgen_id]})")
+          return nil
+        end
+
         normalized_phone = @lead[:phone_number].present? ? normalize_phone(@lead[:phone_number]) : nil
 
         if normalized_phone.blank?
@@ -36,7 +41,10 @@ module Meta
         # So coloca no "Novo Lead" quando a conversa nasceu agora — nao regride pro
         # inicio um lead que ja avancou no funil (redelivery do webhook / contato existente).
         place_in_funnel(conversation) if created
-        assign_agent_bot(conversation) if created
+        # Atribui time + IA do hook JA na criacao (antes do template). Com o time setado na
+        # criacao, a triagem geral (automation #55, so p/ conversa SEM time) pula este lead —
+        # entao a atribuicao a Sofia gruda em vez de ser sobrescrita pela triagem.
+        route_lead(conversation)
 
         if normalized_phone.blank?
           # Sem phone nao da pra mandar via WAHA — anota e pula 1a msg
@@ -59,14 +67,48 @@ module Meta
         ActiveModel::Type::Boolean.new.cast(@hook.settings['skip_initial_message'])
       end
 
-      # Roteamento por campanha: atribui o lead ao espelho AgentBot configurado no hook
-      # (cada hook = uma campanha/formulário = a IA daquele funil). Só em conversa nova,
-      # pra não roubar conversa de contato já em atendimento por outro time. A eligibilidade
-      # é validada pelo próprio AssignmentService (agent bot precisa estar elegível à inbox).
-      # No-op silencioso se não configurado ou se a atribuição falhar.
+      # Filtro dinamico por campanha: o operador define allowed_campaign_ids no hook (Array
+      # ou CSV de campaign_ids). Vazio = aceita todas. So leads das campanhas listadas entram.
+      def campaign_allowed?
+        allowed = allowed_campaign_ids
+        return true if allowed.empty?
+
+        allowed.include?(@lead[:campaign_id].to_s)
+      end
+
+      def allowed_campaign_ids
+        raw = @hook.settings['allowed_campaign_ids']
+        list = raw.is_a?(Array) ? raw : raw.to_s.split(',')
+        list.map { |x| x.to_s.strip }.reject(&:blank?)
+      end
+
+      def assign_team_id
+        @hook.settings['assign_team_id'].presence
+      end
+
+      # Roteia o lead pro time + IA (espelho AgentBot) do hook, JA na criacao. Setar o time
+      # na criacao faz a triagem geral (automation #55, so p/ conversa sem time) pular o lead.
+      def route_lead(conversation)
+        set_team(conversation)
+        assign_agent_bot(conversation)
+      end
+
+      def set_team(conversation)
+        return if assign_team_id.blank?
+        return if conversation.team_id.to_s == assign_team_id.to_s
+
+        conversation.update!(team_id: assign_team_id)
+      rescue StandardError => e
+        Rails.logger.warn("Meta Lead Ads: falha ao setar team=#{assign_team_id} conv=#{conversation.id}: #{e.class}: #{e.message}")
+      end
+
+      # Atribui o lead ao espelho AgentBot do hook (a IA daquele funil). Nao rouba conversa
+      # que um HUMANO ja atende (assignee_id presente). A eligibilidade e validada pelo
+      # proprio AssignmentService (o bot precisa estar elegivel a inbox). No-op silencioso.
       def assign_agent_bot(conversation)
         bot_id = @hook.settings['assign_agent_bot_id'].presence
         return if bot_id.blank?
+        return if conversation.assignee_id.present?
 
         Conversations::AssignmentService.new(
           conversation: conversation, assignee_id: bot_id, assignee_type: 'AgentBot'
@@ -169,6 +211,7 @@ module Meta
           contact_id: contact_inbox.contact_id,
           contact_inbox_id: contact_inbox.id,
           status: conversation_status,
+          team_id: assign_team_id,
           additional_attributes: { source: 'meta_lead_ads', lead: lead_attributes }
         )
         [conversation, true]
