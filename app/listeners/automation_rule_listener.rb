@@ -254,10 +254,16 @@ class AutomationRuleListener < BaseListener # rubocop:disable Metrics/ClassLengt
     AutomationRule.where(id: rule_ids)
   end
 
+  # Casa o flow pelo evento. Multi-gatilho (F1-multi): o flow pode disparar em VÁRIOS eventos —
+  # o canvas grava todos em `trigger_config.event_names` (array). Retrocompat: flows antigos têm
+  # só `event_name` (string). Casa se o evento == event_name OU está contido em event_names.
   def current_account_flows(event_name, account)
     cache_key = "flows:#{account.id}:#{event_name}"
     flow_ids = Rails.cache.fetch(cache_key, expires_in: 2.minutes) do
-      account.flows.active.conversation_event.where("trigger_config->>'event_name' = ?", event_name).pluck(:id)
+      account.flows.active.conversation_event
+             .where("trigger_config->>'event_name' = :ev OR trigger_config->'event_names' @> to_jsonb(:ev::text)",
+                    ev: event_name)
+             .pluck(:id)
     end
     Flow.where(id: flow_ids)
   end
