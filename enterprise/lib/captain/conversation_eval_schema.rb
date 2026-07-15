@@ -1,4 +1,11 @@
 class Captain::ConversationEvalSchema < RubyLLM::Schema
+  string :representatividade, enum: %w[atendimento_real interno outra_empresa bot_automatizado teste sem_atendimento],
+                             description: 'Esta conversa é um atendimento real de cliente da imobiliária? ' \
+                                          'atendimento_real = sim, cliente/lead real sendo atendido (EM ESCOPO). ' \
+                                          'Os demais valores marcam FORA de escopo (ruído): interno=conversa/grupo interno da equipe; ' \
+                                          'outra_empresa=a pessoa trata de assunto de OUTRA empresa, não da imobiliária; ' \
+                                          'bot_automatizado=o interlocutor é um sistema automatizado (comando/erro em repetição), não uma pessoa; ' \
+                                          'teste=conversa de teste da própria equipe; sem_atendimento=não houve interação real. Na dúvida, atendimento_real.'
   string :interesse, enum: %w[alto medio baixo nenhum],
                      description: 'Nível de interesse demonstrado pelo cliente ao longo do atendimento.'
   string :intencao, enum: %w[locacao venda duvida pos_venda reclamacao outro],
