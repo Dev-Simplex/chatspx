@@ -34,7 +34,8 @@ class Captain::Tools::BuscarEmpreendimentoTool < Captain::Tools::BasePublicTool
   private
 
   def fetch(filter, fields)
-    pesquisa = { fields: fields, filter: filter, paginacao: { pagina: 1, quantidade: 100 } }
+    # O Vista limita a 50 resultados por página (o cadastro de empreendimentos cabe nisso).
+    pesquisa = { fields: fields, filter: filter, paginacao: { pagina: 1, quantidade: 50 } }
     resp = HTTParty.get(
       "#{vista_base_url}/imoveis/listar",
       query: { key: vista_api_key, showtotal: 1, pesquisa: pesquisa.to_json },
