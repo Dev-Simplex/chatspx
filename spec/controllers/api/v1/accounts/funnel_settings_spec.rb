@@ -8,8 +8,11 @@ require 'rails_helper'
 RSpec.describe 'Funnel settings (Kanban v2)', type: :request do
   let(:account) { create(:account) }
   let(:agent) { create(:user, account: account, role: :agent) }
-  let(:funnel) { Funnel.create!(account: account, name: 'Geral', color: '#94a3b8') }
+  let(:team) { create(:team, account: account) }
+  let(:funnel) { Funnel.create!(account: account, name: 'Time X', color: '#94a3b8', team_id: team.id) }
   let(:stage) { FunnelStage.create!(funnel: funnel, name: 'Abertos', position: 0) }
+
+  before { team.add_members([agent.id]) }
 
   describe 'PATCH /api/v1/accounts/:account_id/funnels/:funnel_id/funnel_stages/:id' do
     it 'persists wip_limit and sla_hours in settings and serializes them back' do

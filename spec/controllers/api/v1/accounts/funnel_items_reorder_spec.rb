@@ -6,7 +6,8 @@ RSpec.describe 'Funnel Items reorder API', type: :request do
   let(:account) { create(:account) }
   let(:agent) { create(:user, account: account, role: :agent) }
   let(:inbox) { create(:inbox, account: account, channel: create(:channel_widget, account: account)) }
-  let(:funnel) { Funnel.create!(account: account, name: 'Geral', color: '#94a3b8') }
+  let(:team) { create(:team, account: account) }
+  let(:funnel) { Funnel.create!(account: account, name: 'Time X', color: '#94a3b8', team_id: team.id) }
   let(:open_stage) { FunnelStage.create!(funnel: funnel, name: 'Abertos', automation_type: 'open', position: 0) }
   let(:other_stage) { FunnelStage.create!(funnel: funnel, name: 'Fechados', automation_type: 'resolved', position: 1) }
 
@@ -18,7 +19,10 @@ RSpec.describe 'Funnel Items reorder API', type: :request do
   let!(:item_2) { FunnelItem.create!(funnel: funnel, funnel_stage: open_stage, conversation: conversation_2, position: 2) }
   let!(:item_3) { FunnelItem.create!(funnel: funnel, funnel_stage: open_stage, conversation: conversation_3, position: 3) }
 
-  before { create(:inbox_member, inbox: inbox, user: agent) }
+  before do
+    team.add_members([agent.id])
+    create(:inbox_member, inbox: inbox, user: agent)
+  end
 
   def reorder(params, headers: agent.create_new_auth_token)
     post "/api/v1/accounts/#{account.id}/funnels/#{funnel.id}/funnel_items/reorder",

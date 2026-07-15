@@ -24,6 +24,7 @@ class Messages::NewMessageNotificationService
       primary_actor: message.conversation,
       secondary_actor: message
     ).perform
+    mark_notified(conversation.assignee)
   end
 
   def notify_participating_users
@@ -32,6 +33,10 @@ class Messages::NewMessageNotificationService
 
     participating_users.uniq.each do |participant|
       next if already_notified?(participant)
+      # Participação é eterna (ParticipationListener nunca remove o assignee anterior), então sem
+      # este guard o ex-assignee recebe sino de toda mensagem nova de uma conversa que já sumiu da
+      # lista dele e responde 403 se ele abrir. Não apagamos a participação: só paramos de notificar.
+      next unless visibility.visible_to?(participant)
 
       NotificationBuilder.new(
         notification_type: 'participating_conversation_new_message',
@@ -43,10 +48,21 @@ class Messages::NewMessageNotificationService
     end
   end
 
+  def visibility
+    @visibility ||= Conversations::VisibilityService.new(conversation: conversation)
+  end
+
   # The user could already have been notified via a mention or via assignment
   # So we don't need to notify them again
   def already_notified?(user)
     already_notified_user_ids.include?(user.id)
+  end
+
+  # O set é memoizado na PRIMEIRA chamada, que acontece em notify_conversation_assignee ANTES de a
+  # notificação do assignee existir. Sem registrar o que este próprio service acabou de criar, o
+  # assignee que também é participante levava um sino duplicado.
+  def mark_notified(user)
+    already_notified_user_ids << user.id
   end
 
   def already_notified_user_ids

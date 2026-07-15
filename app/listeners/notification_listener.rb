@@ -89,9 +89,17 @@ class NotificationListener < BaseListener
     old_id
   end
 
+  # Notifica todo membro do inbox. Hoje isso só dispara para quem ligou "Nova conversa"
+  # (NotificationBuilder exige opt-in em conversation_creation), mas o opt-in é self-service:
+  # sem o guard, qualquer agente pode ligar e passar a receber conversa de outro time.
+  # Em conversation_created o team_id normalmente ainda é nil -> a regra cai no ramo permissivo
+  # e o comportamento fica igual ao de hoje. Isso é correto: conversa sem time notifica o inbox todo.
   def notify_inbox_members(conversation, account)
+    visibility = Conversations::VisibilityService.new(conversation: conversation)
     members = conversation.inbox.members.includes(:notification_settings)
     members.each do |agent|
+      next unless visibility.visible_to?(agent)
+
       NotificationBuilder.new(
         notification_type: 'conversation_creation',
         user: agent,

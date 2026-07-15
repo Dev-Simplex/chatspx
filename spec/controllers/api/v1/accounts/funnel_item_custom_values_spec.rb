@@ -6,18 +6,22 @@ RSpec.describe 'Funnel Item custom field values (Kanban v2)', type: :request do
   let(:account) { create(:account) }
   let(:agent) { create(:user, account: account, role: :agent) }
   let(:inbox) { create(:inbox, account: account, channel: create(:channel_widget, account: account)) }
-  let(:funnel) { Funnel.create!(account: account, name: 'Vendas') }
+  let(:team) { create(:team, account: account) }
+  let(:funnel) { Funnel.create!(account: account, name: 'Vendas', team_id: team.id) }
   let(:stage) { FunnelStage.create!(funnel: funnel, name: 'Aberto', position: 0) }
   let!(:value_field) do
     funnel.funnel_custom_fields.create!(key: 'valor', label: 'Valor', field_type: 'number', show_on_card: true)
   end
 
-  let(:conversation) { create(:conversation, account: account, inbox: inbox, status: :open) }
+  let(:conversation) { create(:conversation, account: account, inbox: inbox, status: :open, team: team) }
   let(:item) { FunnelItem.create!(funnel: funnel, funnel_stage: stage, conversation: conversation) }
   let(:attr_key) { "funnel_#{funnel.id}_valor" }
   let(:endpoint) { "/api/v1/accounts/#{account.id}/funnels/#{funnel.id}/funnel_items/#{item.id}/custom_attributes" }
 
-  before { create(:inbox_member, inbox: inbox, user: agent) }
+  before do
+    team.add_members([agent.id])
+    create(:inbox_member, inbox: inbox, user: agent)
+  end
 
   describe 'PATCH custom_attributes' do
     it 'sets a funnel-namespaced value' do
@@ -63,9 +67,9 @@ RSpec.describe 'Funnel Item custom field values (Kanban v2)', type: :request do
     before { account.enable_features!('kanban_cursor_loading') }
 
     it 'returns sum/avg/count for numeric show_on_card fields across the stage' do
-      c1 = create(:conversation, account: account, inbox: inbox, status: :open, custom_attributes: { attr_key => '100' })
-      c2 = create(:conversation, account: account, inbox: inbox, status: :open, custom_attributes: { attr_key => '300' })
-      c3 = create(:conversation, account: account, inbox: inbox, status: :open, custom_attributes: { attr_key => 'not-a-number' })
+      c1 = create(:conversation, account: account, inbox: inbox, status: :open, team: team, custom_attributes: { attr_key => '100' })
+      c2 = create(:conversation, account: account, inbox: inbox, status: :open, team: team, custom_attributes: { attr_key => '300' })
+      c3 = create(:conversation, account: account, inbox: inbox, status: :open, team: team, custom_attributes: { attr_key => 'not-a-number' })
       FunnelItem.create!(funnel: funnel, funnel_stage: stage, conversation: c1)
       FunnelItem.create!(funnel: funnel, funnel_stage: stage, conversation: c2)
       FunnelItem.create!(funnel: funnel, funnel_stage: stage, conversation: c3)

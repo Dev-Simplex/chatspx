@@ -14,7 +14,8 @@ class FunnelPolicy < ApplicationPolicy
 
       user_team_ids.include?(record.team_id)
     else
-      @account_user.agent? || @account_user.administrator?
+      # funil "Geral" (default, team_id nil) → só admin (agente não vê mais "tudo")
+      @account_user.administrator?
     end
   end
 
@@ -76,7 +77,8 @@ class FunnelPolicy < ApplicationPolicy
       conditions = []
 
       conditions << arel_table[:team_id].in(team_ids) if team_ids.any?
-      conditions << arel_table[:team_id].eq(nil) if @account_user.agent? || @account_user.administrator?
+      # funil "Geral" (default, team_id nil) só entra no escopo do admin; agente vê só os funis dos seus times
+      conditions << arel_table[:team_id].eq(nil) if @account_user.administrator?
 
       if conditions.any?
         base_scope.where(conditions.reduce(:or))

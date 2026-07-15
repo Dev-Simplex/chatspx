@@ -480,6 +480,8 @@ pt_BR:
       one: '%{count} segundo'
       other: '%{count} segundos'
   kanban:
+    funnels:
+      team_required: 'Selecione um time para o funil. Como agente, você só pode criar funis vinculados a um dos seus times.'
     stages:
       general: 'Geral'
       open: 'Abertos'

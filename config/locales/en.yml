@@ -492,6 +492,8 @@ en:
       one: '%{count} second'
       other: '%{count} seconds'
   kanban:
+    funnels:
+      team_required: 'Select a team for the funnel. As an agent, you can only create funnels tied to one of your teams.'
     stages:
       general: 'General'
       open: 'Open'

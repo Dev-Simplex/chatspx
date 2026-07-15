@@ -7,11 +7,14 @@ RSpec.describe 'Funnel Item Notes API', type: :request do
   let(:agent) { create(:user, account: account, role: :agent) }
   let(:other_agent) { create(:user, account: account, role: :agent) }
   let(:inbox) { create(:inbox, account: account, channel: create(:channel_widget, account: account)) }
-  let(:funnel) { Funnel.create!(account: account, name: 'Vendas') }
+  let(:team) { create(:team, account: account) }
+  let(:funnel) { Funnel.create!(account: account, name: 'Vendas', team_id: team.id) }
   let(:stage) { FunnelStage.create!(funnel: funnel, name: 'Aberto', position: 0) }
   let(:conversation) { create(:conversation, account: account, inbox: inbox) }
   let(:item) { FunnelItem.create!(funnel: funnel, funnel_stage: stage, conversation: conversation) }
   let(:base) { "/api/v1/accounts/#{account.id}/funnels/#{funnel.id}/funnel_items/#{item.id}/notes" }
+
+  before { team.add_members([agent.id]) }
 
   describe 'unauthenticated' do
     it 'returns unauthorized' do

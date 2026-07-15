@@ -9,7 +9,9 @@ import { useStore } from 'vuex';
 import MessageApi from 'dashboard/api/inbox/message';
 import KanbanAPI from 'dashboard/api/kanban';
 import TasksAPI from 'dashboard/api/captain/tasks';
+import ConversationAPI from 'dashboard/api/inbox/conversation';
 import { useAlert } from 'dashboard/composables';
+import { useAdmin } from 'dashboard/composables/useAdmin';
 import { useMapGetter } from 'dashboard/composables/store';
 import {
   rawFieldValue,
@@ -193,6 +195,34 @@ const commitField = async field => {
 
 // ── Internal notes (Fase 4): the card's memory / shift handoff ──────────
 const currentUserId = useMapGetter('getCurrentUserID');
+
+// ── Gate de pré-visualização (regra do Kanban) ──────────────────────────
+// O AGENTE só pré-visualiza a conversa se estiver ATRIBUÍDO a ela. Se não
+// estiver, precisa ASSUMIR (auto-atribuir) primeiro. Admin vê/abre tudo.
+const { isAdmin } = useAdmin();
+// Override local para destravar o preview no ato do "Assumir" (o prop não é reativo ao store).
+const localAssigneeId = ref(null);
+const isAssuming = ref(false);
+const conversationAssigneeId = computed(() => {
+  if (localAssigneeId.value != null) return Number(localAssigneeId.value);
+  const c = props.conversation || {};
+  const raw =
+    c.assignee_id ??
+    c.assigneeId ??
+    c.assignee?.id ??
+    c.meta?.assignee?.id ??
+    null;
+  return raw == null ? null : Number(raw);
+});
+const canPreview = computed(
+  () =>
+    isAdmin.value ||
+    (conversationAssigneeId.value != null &&
+      conversationAssigneeId.value === Number(currentUserId.value))
+);
+// Só faz sentido gatear quando há uma conversa (cartões de tarefa não têm).
+const showAssignGate = computed(() => !!displayId.value && !canPreview.value);
+
 const notes = ref([]);
 const noteDraft = ref('');
 const notesLoading = ref(false);
@@ -456,6 +486,34 @@ const resetState = () => {
   hasError.value = false;
   replyText.value = '';
   isSending.value = false;
+  localAssigneeId.value = null;
+  isAssuming.value = false;
+};
+
+// "Assumir e visualizar": auto-atribui a conversa ao usuário atual e então
+// carrega o preview. É o único caminho para um agente ver uma conversa que
+// não é dele (regra: só pré-visualiza o que está atribuído a si).
+const assumeAndPreview = async () => {
+  if (!displayId.value || !currentUserId.value || isAssuming.value) return;
+  isAssuming.value = true;
+  try {
+    await ConversationAPI.assignAgent({
+      conversationId: displayId.value,
+      agentId: currentUserId.value,
+    });
+    localAssigneeId.value = Number(currentUserId.value);
+    // Mantém o card do board em sincronia (o prop aqui é um snapshot).
+    store.dispatch('kanban/patchItemConversation', {
+      displayId: displayId.value,
+      id: props.conversation?.id,
+      patch: { assignee_id: Number(currentUserId.value) },
+    });
+    fetchMessages();
+  } catch (error) {
+    useAlert(error?.response?.data?.error || t('KANBAN.PREVIEW.ASSUME_ERROR'));
+  } finally {
+    isAssuming.value = false;
+  }
 };
 
 const close = () => {
@@ -478,7 +536,9 @@ watch(
     if (newShow && props.conversation) {
       nextTick(() => {
         dialogRef.value?.open();
-        fetchMessages();
+        // Só busca as mensagens se o agente pode pré-visualizar; senão mostra o
+        // gate "Assumir e visualizar".
+        if (canPreview.value) fetchMessages();
       });
     } else {
       resetState();
@@ -664,7 +724,7 @@ watch(
 
       <!-- AI actions (Fase 7) — only when AI is configured for the account -->
       <div
-        v-if="aiAvailable"
+        v-if="aiAvailable && !showAssignGate"
         class="rounded-lg border border-n-weak bg-n-alpha-1 p-2"
       >
         <div class="flex flex-wrap items-center gap-1.5">
@@ -720,7 +780,36 @@ watch(
         ref="scrollRef"
         class="kanban-preview__body flex flex-col gap-2 overflow-y-auto rounded-lg bg-n-alpha-1 p-3"
       >
-        <MessageBubbleSkeleton v-if="isLoading" :count="4" />
+        <!-- Gate: agente não atribuído precisa ASSUMIR para ver a conversa -->
+        <div
+          v-if="showAssignGate"
+          class="flex flex-col items-center justify-center gap-3 py-10 text-center"
+        >
+          <div
+            class="flex size-12 items-center justify-center rounded-full bg-n-alpha-2"
+          >
+            <Icon icon="i-lucide-lock" class="size-5 text-n-slate-10" />
+          </div>
+          <div class="flex flex-col gap-1">
+            <p class="m-0 text-sm font-medium text-n-slate-12">
+              {{ t('KANBAN.PREVIEW.GATE_TITLE') }}
+            </p>
+            <p class="m-0 max-w-xs text-xs text-n-slate-10">
+              {{ t('KANBAN.PREVIEW.GATE_DESCRIPTION') }}
+            </p>
+          </div>
+          <Button
+            color="blue"
+            type="button"
+            icon="i-lucide-user-check"
+            :label="t('KANBAN.PREVIEW.ASSUME_AND_VIEW')"
+            :is-loading="isAssuming"
+            :disabled="isAssuming"
+            @click="assumeAndPreview"
+          />
+        </div>
+
+        <MessageBubbleSkeleton v-else-if="isLoading" :count="4" />
 
         <div
           v-else-if="hasError"
@@ -788,7 +877,10 @@ watch(
       </div>
 
       <!-- Reply composer -->
-      <div class="kanban-preview__composer flex flex-col gap-2">
+      <div
+        v-if="!showAssignGate"
+        class="kanban-preview__composer flex flex-col gap-2"
+      >
         <p
           v-if="!canReply"
           class="m-0 flex items-center gap-1 text-xs text-n-slate-10"
@@ -831,6 +923,7 @@ watch(
           @click="close"
         />
         <Button
+          v-if="!showAssignGate"
           color="blue"
           type="button"
           icon="i-lucide-arrow-up-right"

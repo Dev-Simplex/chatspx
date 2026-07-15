@@ -291,6 +291,21 @@ export const actions = {
     return nextAttributes;
   },
 
+  // Patch pontual da conversa de um card no board (ex.: após "Assumir e
+  // visualizar" atualizar o assignee sem recarregar o quadro).
+  patchItemConversation(
+    { commit },
+    { displayId, id, patch, bumpRecency } = {}
+  ) {
+    if (!patch) return;
+    commit(types.UPDATE_ITEM_CONVERSATION, {
+      displayId,
+      id,
+      patch,
+      bumpRecency,
+    });
+  },
+
   async fetchFunnelStages({ commit }, funnelId) {
     if (!funnelId) return { data: [] };
 

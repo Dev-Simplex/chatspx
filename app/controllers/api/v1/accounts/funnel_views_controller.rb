@@ -7,6 +7,7 @@ class Api::V1::Accounts::FunnelViewsController < Api::V1::Accounts::BaseControll
   before_action :check_authorization
 
   def index
+    ensure_funnel_visible!(params[:funnel_id]) if params[:funnel_id].present?
     scope = Current.account.funnel_views.visible_to(Current.user).ordered
     scope = scope.where(funnel_id: params[:funnel_id]) if params[:funnel_id].present?
     @funnel_views = scope
@@ -15,6 +16,7 @@ class Api::V1::Accounts::FunnelViewsController < Api::V1::Accounts::BaseControll
   def show; end
 
   def create
+    ensure_funnel_visible!(funnel_view_params[:funnel_id])
     @funnel_view = Current.account.funnel_views.new(funnel_view_params)
     @funnel_view.user = Current.user
     @funnel_view.save!
@@ -39,6 +41,16 @@ class Api::V1::Accounts::FunnelViewsController < Api::V1::Accounts::BaseControll
 
   def funnel_view
     @funnel_view ||= Current.account.funnel_views.find(params[:id])
+  end
+
+  # A saved view is scoped to a funnel; a user must be able to see that funnel
+  # (via FunnelPolicy) to list or create views for it. This closes the gap where
+  # funnel_views is not policy_scoped(Funnel) — e.g. an agent building a view of
+  # the "Geral" funnel they can no longer see. Raises RecordNotFound (404).
+  def ensure_funnel_visible!(funnel_id)
+    return if funnel_id.blank?
+
+    policy_scope(Funnel).find(funnel_id)
   end
 
   def check_authorization
