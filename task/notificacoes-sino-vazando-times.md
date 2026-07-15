@@ -1,5 +1,62 @@
 # Notificações: sino (Caixa de Entrada) mostrando conversas de outros times/usuários
 
+> # ⚠️ ALVO SUPERADO (2026-07-15) — leia antes de implementar qualquer coisa daqui
+>
+> Em 2026-07-15 o dono redefiniu a tarefa: **"mensagem nova só deve notificar quem estava atribuído
+> no momento em que a conversa foi resolvida"** — e informou que **quem reclamou é ADMIN**.
+>
+> **Consequência dura:** o fix deste documento **NÃO resolve a queixa do dono**. A regra dele (P1)
+> isenta admin de propósito (`return true if administrator_ids.include?(user.id)`), então o sino do
+> reclamante fica **exatamente igual**. Confirmado com dado: **42 das 47** notificações tipo-5 da
+> conta #1 são do admin e **todas passam legitimamente** → a limpeza acha **0 vazadas**.
+>
+> 👉 **A tarefa ativa agora é `task/notificacoes-sino-so-ultimo-atribuido.md`.**
+>
+> Este documento **continua válido** para o problema que ele realmente resolve (agente de outro time
+> recebendo sino de conversa que não acha na lista e que dá 403). As Fases 1–4 foram implementadas e
+> validadas no staging (E2E ALL GREEN). O que se mantém, o que morre e o porquê estão na **§6 do
+> documento novo**.
+
+> ## ✅ ANÁLISE + IMPLEMENTAÇÃO (2026-07-14)
+>
+> **Diagnóstico do plano: confirmado.** Cada afirmação de código foi verificada no fonte real
+> (participação eterna em `participation_listener.rb:8`; `notify_participating_users` só filtra sender
+> e dedup; o builder só gateia `conversation_creation`; `mention_service_spec.rb:22` realmente troca o
+> `NotificationBuilder` por um double → a regressão da Armadilha 1 seria mesmo silenciosa).
+> **Fase 0 reproduzida na conta #1 do staging:** 47 tipo-5 (84%), 0 de 18 com opt-in, 52/58 conversas
+> com time, 5 times, **0 custom roles**. O contra-intuitivo também se confirma: `notify_inbox_members`
+> está inerte.
+>
+> ### 3 correções feitas no plano
+>
+> **1. 🔴 O script da Fase 4 estava destrutivo demais (erro real).** Aplicar `visible_to?` em *toda*
+> notificação de conversa apagaria (a) **menção cross-team** — que a P5 declara intocável e cujo
+> destinatário reprova em `visible_to?` **por definição**; e (b) **`conversation_unassignment` (tipo 10)**
+> — feature do fork que existe justamente para avisar quem **perdeu** a conversa, cujo destinatário
+> também reprova por definição. O script apagaria a história inteira dessas duas features.
+> → Escopado só aos tipos que os guards governam: **1, 5, 6, 7, 8**. Tipos 2/3 também ficam de fora
+> (revogar notificação que nasceu válida = handler `team_changed`, deliberadamente adiado na Fase 5).
+>
+> **2. 🟠 Invariante do modelo que o plano não menciona.** `AssignmentHandler#validate_current_assignee_team`
+> (`app/models/concerns/assignment_handler.rb:48-50`) **zera o assignee que não é do time** sempre que
+> `team_id` muda, e `sync_team_from_assignee` puxa o time do assignee no caminho inverso. Ou seja:
+> "conversa do time X com assignee do time Y" **é um estado que o modelo se recusa a persistir**.
+> Isso **não enfraquece o fix** (o bug reportado é sobre *ex*-assignee que continua participante), mas
+> reclassifica a cláusula de assignee da P1 como **defensiva** — ela segue no service porque ainda é
+> alcançável quando o assignee **sai do inbox**, e espelha `authorize_team_access:251`. Documentado no spec.
+>
+> **3. 🟠 Bug PRÉ-EXISTENTE de sino duplicado, corrigido.** `already_notified_user_ids` é memoizado na
+> primeira chamada, que acontece em `notify_conversation_assignee` **antes** de a notificação do assignee
+> existir → o memo congela vazio e o assignee que também é participante levava **dois** sinos.
+> O spec `new_message_notification_service_spec.rb:88` já falhava **no HEAD, sem as minhas mudanças**
+> (verificado por stash). É ruído de sino, exatamente a queixa → corrigido com `mark_notified`.
+>
+> **Custom roles (EE):** `Enterprise::Conversations::PermissionFilterService` sobrescreve `perform` e é
+> mais restritivo que a regra base (ex.: `conversation_participating_manage` → só as próprias). O
+> `VisibilityService` espelha a regra **base**, então sobraria um vazamento residual em conta com custom
+> role. **Medido: 0 custom roles em uso** → não é bloqueador. Mitigado com `prepend_mod_with` no service,
+> para o EE poder sobrescrever depois sem refactor.
+
 > **Prompt de implementação** — branch `nicolas`, **sem migration**, **sem feature flag** (ver Decisão P8).
 > Fix cirúrgico: **1 service novo (~30 linhas) + 3 call sites de audiência**. Todo o resto é teste,
 > pré-checagem e limpeza de histórico.
