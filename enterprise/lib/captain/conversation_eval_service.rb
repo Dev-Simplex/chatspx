@@ -115,6 +115,7 @@ class Captain::ConversationEvalService < Captain::BaseTaskService
 
     {
       verdict: {
+        representatividade: message['representatividade'].presence || 'atendimento_real',
         interesse: message['interesse'],
         intencao: message['intencao'],
         funil: message['funil'],
