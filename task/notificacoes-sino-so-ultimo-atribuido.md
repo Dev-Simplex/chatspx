@@ -179,12 +179,17 @@ tudo): a queixa dele é **ruído** de participação eterna — o que a F1 acima
 - [x] **F1:** remover `notify_participating_users`; specs reescritos verdes. → commit `6d741efec`
 - [x] Spec que trava a ordem `reopen_conversation` → `dispatch_create_events` (armadilha 5).
 - [x] `bundle exec rubocop` nos arquivos tocados. (0 offenses)
-- [x] **F2:** script atualizado; dry-run rodado na conta #1. → **falta o `--apply` (decisão do dono)**
+- [x] **F2:** script atualizado; dry-run revisado com o dono → **`--apply` EXECUTADO** na conta #1 do
+      staging: 47 tipo-5 apagadas (42 do admin, 4 Cibely, 1 Agente Teste A). Restaram **0** tipo-5;
+      o sino do dono caiu de 48 → 6 notificações, todas legítimas (5 tipo-3 + 4 tipo-2).
 - [x] Validar no staging (`task/sino_e2e.rb` adaptado): **E2E ALL GREEN** — admin participante não
       recebe · assignee recebe · conversa sem assignee → ninguém · @menção ainda notifica cross-team.
 - [x] Restart do staging.
-- [ ] **Pendente do dono:** revisar o dry-run (abaixo) e autorizar o `--apply`.
-- [ ] **Pendente do dono:** QA visual no sino do staging.
+- [x] **QA visual FEITO** (navegador, `task/sino_teste_visual.rb`): ver §10.
+
+**TAREFA CONCLUÍDA.** 6 commits em `nicolas` (`6d741efec..5cd1ebccb`), staging LIVE e validado.
+Só na branch `nicolas` — produção/frota **não** foram tocadas (ver [[runbook-deploy-producao]] se um
+dia promoverem).
 
 ### Baseline de specs (medido, não presumido)
 
@@ -196,14 +201,53 @@ assinatura do `HookJob` (`hook_listener_spec`) e expectativas estritas de dispat
 Os specs do escopo (`new_message_notification_service`, `mention_service`, `visibility_service`,
 `notification_listener`) estão **74 exemplos, 0 falhas**.
 
-### Dry-run da F2 na conta #1 (staging, read-only) — para o dono revisar
+### F2 na conta #1 do staging — dry-run e resultado do `--apply`
 
     (A) APOSENTADO participating_conversation_new_message: 47  -> apaga todas
     (B) governados pelo time (creation/sla_*):              0  -> nada a avaliar
     A APAGAR: 47   | user #1 (admin): 42 · user #5 (Cibely Oliveira): 4 · user #10 (Agente Teste A): 1
 
 Confirma o §8: as 42 do admin **passam** em `visible_to?` (ele está no time da conversa — ex.:
-`conv.team=5`, `user.teams=[2,5]`), por isso a regra antiga achava **0**. Agora o critério é o
-**tipo aposentado**, não a visibilidade. Rodar quando o dono aprovar:
+`conv.team=5`, `user.teams=[2,5]`), por isso a regra antiga achava **0**. O critério passou a ser o
+**tipo aposentado**, não a visibilidade — é isso que pega as do admin.
 
-    RAILS_ENV=production bundle exec rails runner task/notificacoes_vazadas_cleanup.rb -- --account=1 --apply
+**`--apply` executado e conferido:** 0 tipo-5 restantes; sino do admin 48 → **6** (5 tipo-3 + 4 tipo-2,
+todas legítimas). Para outras contas: trocar `--account`.
+
+---
+
+## 10. QA visual (feito no navegador, staging)
+
+`task/sino_teste_visual.rb` monta o trio e imprime links/logins. Rodou **5/5 PASS** e foi conferido
+na tela via Playwright.
+
+| Conversa | Assignee | Sino do dono/admin | Sino do agente |
+|---|---|---|---|
+| A | dono (admin real) | 🔔 toca | — |
+| B | agente; dono e admin de teste **só participam** | 🔇 **não toca** | 🔔 toca |
+| C | admin de teste | 🔔 toca (p/ ele) | — |
+
+**A prova que fecha o caso** (print do sino do *admin de teste*, mesmo papel que o dono): o sino
+mostra **só a C** e **não** a B, enquanto a lista "Todas" exibe a B e ele **consegue abrir e ler**.
+Ou seja: o silêncio é a **regra**, não falta de permissão — distinção que um sino vazio não provaria.
+
+**Existe um "admin de teste" porque:** ninguém tem a senha do dono, e a agente do print original
+(Misya Correa) é **pessoa real** — resetar a senha dela a trancaria fora do staging. Como a regra não
+isenta admin (D4), o admin de teste reproduz o caso do dono e permite logar/fotografar.
+
+**Usuários de teste criados** (`sino_teste_visual_*@example.com`, senha `Test@12345678`) — um deles é
+**administrator**. Removê-los ao fim do QA:
+
+    RAILS_ENV=production bundle exec rails runner task/sino_teste_visual.rb -- --limpar
+
+### ⚠️ Armadilha que custou 3 execuções (não repita)
+
+O script acusava **"FALHOU: o sino não tocou"** com a notificação **existindo** no banco. Não era fila
+lenta nem worker: no `rails runner` o **query cache do ActiveRecord vem LIGADO** e **cacheia o MISS** —
+a 1ª consulta devolve `nil`, o `nil` fica preso na conexão e toda consulta idêntica seguinte devolve
+`nil` para sempre, mesmo depois de o worker criar a linha. O `&&` com curto-circuito mascarava mais
+ainda (a 2ª condição só rodava depois do loop, fresca, e passava). Solução: `Notification.uncached`.
+Com ela a fila responde em ~2s. Detalhes em [[rails-runner-query-cache-miss]].
+
+Corolário: **espere os sinais POSITIVOS antes de avaliar uma AUSÊNCIA** — sem eles você mede a
+lentidão da fila, não a regra.
