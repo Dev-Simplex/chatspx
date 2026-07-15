@@ -24,6 +24,7 @@ class Messages::NewMessageNotificationService
       primary_actor: message.conversation,
       secondary_actor: message
     ).perform
+    mark_notified(conversation.assignee)
   end
 
   def notify_participating_users
@@ -47,6 +48,13 @@ class Messages::NewMessageNotificationService
   # So we don't need to notify them again
   def already_notified?(user)
     already_notified_user_ids.include?(user.id)
+  end
+
+  # O set é memoizado na PRIMEIRA chamada, que acontece em notify_conversation_assignee ANTES de a
+  # notificação do assignee existir. Sem registrar o que este próprio service acabou de criar, o
+  # assignee que também é participante levava um sino duplicado.
+  def mark_notified(user)
+    already_notified_user_ids << user.id
   end
 
   def already_notified_user_ids
