@@ -598,6 +598,17 @@
     "NO_RECORDS": "No records found",
     "DOWNLOAD": "Export CSV",
     "DOWNLOAD_FAILED": "Failed to download NPS report",
+    "LOW_SAMPLE": "⚠️ Low sample: {count} responses (minimum {min}). Result is unreliable.",
+    "CHART": {
+      "X_AXIS": "Score (0-10)",
+      "Y_AXIS": "Count",
+      "TOOLTIP": "Score {score}: {count} ({share}%)",
+      "LEGEND": {
+        "DETRACTORS": "Detractors (0-6)",
+        "PASSIVES": "Passives (7-8)",
+        "PROMOTERS": "Promoters (9-10)"
+      }
+    },
     "CLASSIFICATION": {
       "PROMOTER": "Promoter",
       "PASSIVE": "Passive",
@@ -622,7 +633,8 @@
       },
       "NPS_SCORE": {
         "LABEL": "NPS Score",
-        "TOOLTIP": "Net Promoter Score calculated"
+        "TOOLTIP": "Net Promoter Score calculated",
+        "TREND": "{value} pts vs previous period"
       },
       "RESPONSE_RATE": {
         "LABEL": "Response Rate",
@@ -643,6 +655,11 @@
       "BLOCKED": {
         "LABEL": "Blocked",
         "TOOLTIP": "Total NPS blocked by labels"
+      },
+      "DETRACTOR_FOLLOWUP": {
+        "LABEL": "Detractor follow-up",
+        "TOOLTIP": "Average time until an agent replies to a detractor (0-6) after the score. 'Awaiting' = detractors still without a human reply.",
+        "SUMMARY": "{followedUp} replied / {awaiting} awaiting"
       },
       "SCORE_DISTRIBUTION": {
         "LABEL": "Score Distribution"

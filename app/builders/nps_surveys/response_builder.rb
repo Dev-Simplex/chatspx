@@ -1,4 +1,4 @@
-class NpsSurveys::ResponseBuilder
+class NpsSurveys::ResponseBuilder # rubocop:disable Metrics/ClassLength
   pattr_initialize [:message]
 
   def perform
@@ -12,9 +12,7 @@ class NpsSurveys::ResponseBuilder
     score = extract_score_from_message
 
     if score.nil?
-      # Only send "invalid response" for short messages that look like NPS attempts
-      # (e.g. "onze", "abc", "?"), and cap at 2 retries to avoid annoying loops.
-      send_invalid_response_message(nps_response) if looks_like_nps_attempt? && retry_count_within_limit?(nps_response)
+      handle_without_score(nps_response)
       return
     end
 
@@ -58,32 +56,211 @@ class NpsSurveys::ResponseBuilder
     score = NpsSurveys::ScoreValidator.validate_and_extract(message.content)
     return score if score.present? && valid_score?(score)
 
+    # [NOVO] Fallback de PARSING via LLM (so quando o regex falha e a mensagem
+    # parece uma nota escrita por extenso, ex.: "dez", "nota nove"). Atras de
+    # toggle por inbox; nunca infere nota a partir de sentimento.
+    llm_score = extract_score_via_llm
+    return llm_score if llm_score.present? && valid_score?(llm_score)
+
     nil
+  end
+
+  def extract_score_via_llm
+    return nil unless gpt_parse_enabled?
+    return nil unless gpt_parse_candidate?(message.content)
+
+    NpsSurveys::ScoreLlmParser.extract(text: message.content, account: message.account)
+  end
+
+  def gpt_parse_enabled?
+    config = message.inbox&.nps_config || {}
+    ActiveModel::Type::Boolean.new.cast(config['gpt_parse_enabled'])
+  end
+
+  # Notas atribuidas quando o sentimento e detectado (sem numero na mensagem).
+  # Ficam nas faixas de detrator/promotor; entram no calculo do NPS (decisao do produto).
+  SENTIMENT_DETRACTOR_SCORE = 3
+  SENTIMENT_PROMOTER_SCORE = 9
+
+  # Resposta sem nota explicita. Ordem (barato -> caro):
+  # 1. Tentativa invalida obvia (heuristica) -> aviso; finaliza apos 3 (nao sabe avaliar).
+  # 2. Classificacao por IA (atras de toggle): elogio -> promotor, insatisfacao -> detrator,
+  #    outro assunto -> atendimento humano. Neutro/duvida -> deixa reabrir (sem acao).
+  def handle_without_score(nps_response)
+    if looks_like_nps_attempt?
+      handle_invalid_response(nps_response)
+      return
+    end
+
+    handle_ai_classification(nps_response)
+  end
+
+  def handle_ai_classification(nps_response)
+    return unless sentiment_detractor_enabled?
+    return unless sentiment_candidate?(message.content)
+
+    case NpsSurveys::ScoreLlmParser.classify(text: message.content, account: message.account)
+    when 'negative' then process_nps_response(nps_response, SENTIMENT_DETRACTOR_SCORE, sentiment_inferred: true)
+    when 'positive' then process_nps_response(nps_response, SENTIMENT_PROMOTER_SCORE, sentiment_inferred: true)
+    when 'other_topic' then handoff_to_human_new_topic(nps_response)
+    end
+  end
+
+  # Cliente quer tratar de outro assunto: encerra a pesquisa (nao e resposta de NPS)
+  # e mantem a conversa aberta para atendimento humano.
+  def handoff_to_human_new_topic(nps_response)
+    nps_response.update!(status: :dismissed, dismiss_reason: 'other_topic')
+    conversation = nps_response.conversation
+    conversation.reload
+    conversation.open! if conversation.resolved?
+  rescue StandardError => e
+    Rails.logger.warn("[NPS] handoff outro assunto conv=#{nps_response.conversation_id}: #{e.message}")
+  end
+
+  def sentiment_detractor_enabled?
+    config = message.inbox&.nps_config || {}
+    ActiveModel::Type::Boolean.new.cast(config['sentiment_detractor_enabled'])
+  end
+
+  # So chama o LLM em mensagem nao-vazia de tamanho de feedback (<=280),
+  # evitando gasto em mensagens muito longas/estranhas.
+  def sentiment_candidate?(text)
+    normalized = NpsSurveys::ScoreValidator.normalize(text)
+    normalized.present? && normalized.length <= 280
+  end
+
+  # Limita as chamadas ao LLM: mensagem curta que contenha um digito ou um
+  # numeral por extenso (0-10). Evita gastar chamada em conversa normal.
+  NUMBER_WORDS = /\b(zero|um|uma|dois|duas|tr[êe]s|quatro|cinco|seis|sete|oito|nove|dez)\b/i
+
+  def gpt_parse_candidate?(text)
+    normalized = NpsSurveys::ScoreValidator.normalize(text)
+    return false if normalized.blank?
+    return false if normalized.length > 40
+
+    normalized.match?(/\d/) || normalized.match?(NUMBER_WORDS)
   end
 
   def valid_score?(score)
     score.is_a?(Integer) && score >= 0 && score <= 10
   end
 
-  def process_nps_response(nps_response, score)
+  def process_nps_response(nps_response, score, sentiment_inferred: false)
     comment = extract_comment
 
     # Update NPS response first to mark it as answered
     # This prevents conversation from reopening when response_to_active_survey? is checked
-    nps_response.update!(
-      score: score,
-      comment: comment,
-      status: :responded,
-      answered_at: Time.current
-    )
+    attrs = { score: score, comment: comment, status: :responded, answered_at: Time.current }
+    # Marca respostas cuja nota veio de sentimento (sem numero), para auditoria/relatorio.
+    attrs[:metadata] = (nps_response.metadata || {}).merge('sentiment_inferred' => true) if sentiment_inferred
+    nps_response.update!(attrs)
 
     # Create activity message (only if one doesn't already exist for this NPS response)
     create_responded_activity_message(nps_response, score) unless activity_message_exists?(nps_response, score)
 
-    # Optionally send thank you message
+    # Optionally send thank you message (per-band se configurado)
     send_thank_you_message(nps_response) if should_send_thank_you?(nps_response)
 
+    # [NOVO] Detrator (0-6) -> reabrir + atribuir a humano + label, para
+    # follow-up (o unico caso em que reabrir e desejado). Config-driven, idempotente.
+    route_detractor(nps_response, score)
+
+    # Respostas por extenso ("nota nove") sao extraidas pelo LLM DEPOIS do
+    # ReopenGuard (que so ve regex) ja ter reaberto a conversa. Como uma resposta
+    # de NPS valida nao deve reabrir (igual ao caminho de digito), re-resolvemos —
+    # exceto quando e um detrator com reopen configurado (unico reabrir desejado).
+    ensure_conversation_not_reopened_by_response(nps_response, score)
+
     nps_response
+  end
+
+  # Se a conversa reabriu por causa da mensagem-resposta do NPS, devolve para
+  # resolved. So age quando de fato esta aberta e nao e detrator-com-reopen.
+  def ensure_conversation_not_reopened_by_response(nps_response, score)
+    return if detractor_reopen_requested?(nps_response, score)
+
+    conversation = nps_response.conversation
+    conversation.reload
+    return unless conversation.open?
+
+    conversation.skip_team_required_for_resolution_validation = true
+    conversation.update!(status: :resolved)
+  rescue StandardError => e
+    Rails.logger.warn("[NPS] nao consegui re-resolver conv=#{nps_response.conversation_id} apos resposta: #{e.message}")
+  end
+
+  def detractor_reopen_requested?(nps_response, score)
+    return false unless score.between?(0, 6)
+
+    config = nps_response.inbox.nps_config || {}
+    truthy_config?(config['detractor_reopen'])
+  end
+
+  # Ramifica o pos-resposta pela faixa. So o detrator dispara acao (reabrir/atribuir/label);
+  # promotor e neutro apenas recebem o agradecimento (send_thank_you_message).
+  def route_detractor(nps_response, score)
+    return unless score.between?(0, 6)
+
+    config = nps_response.inbox.nps_config || {}
+    return unless detractor_routing_configured?(config)
+
+    conversation = nps_response.conversation
+    apply_detractor_label(conversation, config['detractor_label'])
+    apply_detractor_assignment(conversation, config)
+    reopen_for_detractor(conversation) if truthy_config?(config['detractor_reopen'])
+    stamp_detractor_routed(nps_response)
+  rescue StandardError => e
+    Rails.logger.warn("[NPS detractor] routing failed conv=#{nps_response.conversation_id}: #{e.message}")
+  end
+
+  def detractor_routing_configured?(config)
+    truthy_config?(config['detractor_reopen']) ||
+      config['detractor_assignee_id'].present? ||
+      config['detractor_team_id'].present? ||
+      config['detractor_label'].present?
+  end
+
+  def apply_detractor_label(conversation, label)
+    return if label.blank?
+    return if conversation.label_list.include?(label)
+
+    conversation.add_labels(label)
+  end
+
+  def apply_detractor_assignment(conversation, config)
+    attrs = {
+      assignee_id: resolved_detractor_id(conversation, config, :assignee_id, 'detractor_assignee_id', :users),
+      team_id: resolved_detractor_id(conversation, config, :team_id, 'detractor_team_id', :teams)
+    }.compact
+
+    conversation.update!(attrs) if attrs.present?
+  end
+
+  # Resolve o id de destino (agente/time) so quando muda de fato e pertence a conta.
+  def resolved_detractor_id(conversation, config, current_attr, config_key, association)
+    id = config[config_key].presence&.to_i
+    return nil if id.nil?
+    return nil if conversation.public_send(current_attr) == id
+    return nil unless conversation.account.public_send(association).exists?(id: id)
+
+    id
+  end
+
+  def reopen_for_detractor(conversation)
+    return unless conversation.resolved?
+
+    conversation.open!
+  end
+
+  def stamp_detractor_routed(nps_response)
+    meta = nps_response.metadata || {}
+    return if meta['detractor_routed_at'].present?
+
+    nps_response.update!(metadata: meta.merge('detractor_routed_at' => Time.current.iso8601))
+  end
+
+  def truthy_config?(value)
+    ActiveModel::Type::Boolean.new.cast(value)
   end
 
   def create_responded_activity_message(nps_response, score)
@@ -128,68 +305,137 @@ class NpsSurveys::ResponseBuilder
   end
 
   def should_send_thank_you?(nps_response)
-    nps_config = nps_response.inbox.nps_config || {}
-    thank_you_message = nps_config['thank_you_message']
-    thank_you_message.present?
+    return false if band_thank_you_message(nps_response).blank?
+
+    # Idempotencia: nao reenviar o mesmo agradecimento se ja foi enviado ha pouco
+    # (evita duplicidade quando a resposta e processada 2x por corrida de eventos).
+    !thank_you_already_sent?(nps_response)
+  end
+
+  def thank_you_already_sent?(nps_response)
+    content = thank_you_content(nps_response)
+    nps_response.conversation.messages
+                .where(message_type: :outgoing, content: content)
+                .exists?(['created_at >= ?', 5.minutes.ago])
+  end
+
+  # Mensagem por faixa (promotor/neutro/detrator) com fallback para a mensagem
+  # generica thank_you_message — mantem compat com a config antiga.
+  def band_thank_you_message(nps_response)
+    config = nps_response.inbox.nps_config || {}
+    key = case nps_response.score
+          when 9..10 then 'thank_you_promoter'
+          when 7..8 then 'thank_you_passive'
+          when 0..6 then 'thank_you_detractor'
+          end
+    band = key ? config[key] : nil
+    band.presence || config['thank_you_message'].presence
+  end
+
+  # Conteudo final do agradecimento (por faixa, com fallback e sem assinatura).
+  def thank_you_content(nps_response)
+    msg = band_thank_you_message(nps_response) ||
+          I18n.t('conversations.templates.nps_thank_you', default: 'Thank you for your feedback!')
+    msg.gsub(/\*\*:\s*/, '').gsub(/\n\n--\s*\n\n\*\*:.*$/m, '').strip
   end
 
   def send_thank_you_message(nps_response)
-    inbox = nps_response.inbox
-    nps_config = inbox.nps_config || {}
-    thank_you_message = nps_config['thank_you_message'] || I18n.t('conversations.templates.nps_thank_you', default: 'Thank you for your feedback!')
-
-    # Remove any signature patterns that might have been added
-    thank_you_message = thank_you_message.gsub(/\*\*:\s*/, '').gsub(/\n\n--\s*\n\n\*\*:.*$/m, '').strip
+    thank_you_message = thank_you_content(nps_response)
 
     conversation = nps_response.conversation
-    # Create message without signature by setting content_attributes to skip signature
+    # skip_signature: sem assinatura; nps_survey_system: nao dismissar a pesquisa (ver NpsSurveyListener)
     conversation.messages.create!(
       account_id: conversation.account_id,
       inbox_id: conversation.inbox_id,
       message_type: :outgoing,
       content_type: :text,
       content: thank_you_message,
-      content_attributes: { skip_signature: true }
+      content_attributes: { skip_signature: true, nps_survey_system: true }
     )
   end
 
-  MAX_INVALID_RETRIES = 2
+  # Numero de respostas invalidas toleradas antes de encerrar a conversa.
+  # Ate MAX-1 -> envia o aviso; na MAX-esima -> finaliza (nao repete a pergunta).
+  MAX_INVALID_ATTEMPTS = 3
 
-  # Cap retries: count incoming messages after the NPS survey that didn't produce a valid score.
-  # After 2 failed attempts, stop sending "invalid response" to avoid annoying the customer.
-  def retry_count_within_limit?(nps_response)
-    nps_message_id = nps_response.metadata&.dig('message_id')
-    return true unless nps_message_id
+  # Roteia a resposta invalida: avisa nas primeiras tentativas e, ao atingir
+  # MAX_INVALID_ATTEMPTS respostas invalidas, encerra a pesquisa e resolve a conversa.
+  def handle_invalid_response(nps_response)
+    attempts = invalid_attempts_count(nps_response)
 
-    failed_attempts = message.conversation.messages
-                             .where(message_type: :incoming)
-                             .where('id > ?', nps_message_id)
-                             .where('id < ?', message.id)
-                             .count
-    failed_attempts < MAX_INVALID_RETRIES
+    if attempts >= MAX_INVALID_ATTEMPTS
+      finalize_after_invalid_attempts(nps_response)
+    else
+      send_invalid_response_message(nps_response)
+    end
   end
 
-  # Short messages that look like failed NPS attempts (number out of range, single char, "?", etc.)
+  # Conta apenas as respostas RECONHECIDAS como tentativa invalida de NPS
+  # (abc, "?", "nao sei", numero fora de 0-10...) pos-survey, ate a atual (inclusive).
+  # Mensagem normal de conversa nao conta (ela reabre a conversa via ReopenGuard).
+  def invalid_attempts_count(nps_response)
+    nps_message_id = nps_response.metadata&.dig('message_id')
+    scope = message.conversation.messages.where(message_type: :incoming).where('id <= ?', message.id)
+    scope = scope.where('id > ?', nps_message_id) if nps_message_id
+
+    scope.count { |m| NpsSurveys::ScoreValidator.looks_like_failed_attempt?(m.content) }
+  end
+
+  # Encerra a pesquisa apos respostas invalidas em excesso: envia a mensagem de
+  # encerramento ao cliente, marca a NpsResponse como dismissed e garante a conversa
+  # resolvida (nao reabre, nao reenvia pergunta).
+  def finalize_after_invalid_attempts(nps_response)
+    send_invalid_finalize_message(nps_response)
+    nps_response.update!(status: :dismissed, dismiss_reason: 'invalid_responses')
+
+    create_invalid_finalized_activity_message(nps_response)
+
+    conversation = nps_response.conversation
+    conversation.reload
+    return unless conversation.open?
+
+    conversation.skip_team_required_for_resolution_validation = true
+    conversation.update!(status: :resolved)
+  rescue StandardError => e
+    Rails.logger.warn("[NPS] falha ao finalizar apos respostas invalidas conv=#{nps_response.conversation_id}: #{e.message}")
+  end
+
+  DEFAULT_INVALID_FINALIZE_MESSAGE = 'Ops, parece que não conseguimos entender a sua resposta. 😕 ' \
+                                     'Para não tomarmos mais o seu tempo, estamos encerrando este atendimento por agora. Obrigado!'.freeze
+
+  def send_invalid_finalize_message(nps_response)
+    config = nps_response.inbox.nps_config || {}
+    content = config['invalid_finalize_message'].presence ||
+              I18n.t('conversations.templates.nps_invalid_finalize', default: DEFAULT_INVALID_FINALIZE_MESSAGE)
+    return if content.blank?
+
+    conversation = nps_response.conversation
+    # nps_survey_system: nao dismissar/reprocessar a pesquisa (ver NpsSurveyListener).
+    conversation.messages.create!(
+      account_id: conversation.account_id,
+      inbox_id: conversation.inbox_id,
+      message_type: :outgoing,
+      content_type: :text,
+      content: content,
+      content_attributes: { nps_survey_system: true }
+    )
+  end
+
+  def create_invalid_finalized_activity_message(nps_response)
+    content = I18n.t('conversations.activity.nps.finalized_invalid',
+                     count: MAX_INVALID_ATTEMPTS,
+                     default: "Pesquisa NPS encerrada apos #{MAX_INVALID_ATTEMPTS} respostas invalidas.")
+    ::Conversations::ActivityMessageJob.perform_later(
+      nps_response.conversation_id,
+      { account_id: nps_response.account_id, inbox_id: nps_response.inbox_id, message_type: :activity, content: content }
+    )
+  end
+
+  # Short messages that look like failed NPS attempts (number out of range, single char, "?", "abc", etc.)
   # We send "invalid response" only for these — not for normal conversation messages.
+  # Fonte unica compartilhada com o ReopenGuard (NpsSurveys::ScoreValidator).
   def looks_like_nps_attempt?
-    text = NpsSurveys::ScoreValidator.normalize(message.content)
-    return false if text.blank?
-    return false if text.length > 25
-
-    # Bare number outside 0-10 range (e.g. "11", "100", "-1")
-    return true if text.match?(/\A\s*-?\d+\s*\z/)
-
-    # Short skip/confusion patterns (single char, punctuation, "nao sei", etc.)
-    short_patterns = [
-      /\A(n[ãa]o\s*)?sei\z/i,
-      %r{\An/a\z}i,
-      /\A\?+\z/,
-      /\A\.+\z/,
-      /\A(nao|não)\z/i,
-      /\A[a-z]\z/i,
-      /\A[\s\?\.,!\-]+\z/
-    ]
-    short_patterns.any? { |p| text.match?(p) }
+    NpsSurveys::ScoreValidator.looks_like_failed_attempt?(message.content)
   end
 
   def send_invalid_response_message(nps_response)
@@ -200,12 +446,14 @@ class NpsSurveys::ResponseBuilder
                              default: 'Please respond with a number from 0 to 10.')
 
     conversation = nps_response.conversation
+    # nps_survey_system: impede o NpsSurveyListener de dismissar a pesquisa (nao e agente assumindo).
     conversation.messages.create!(
       account_id: conversation.account_id,
       inbox_id: conversation.inbox_id,
       message_type: :outgoing,
       content_type: :text,
-      content: invalid_message
+      content: invalid_message,
+      content_attributes: { nps_survey_system: true }
     )
   end
 end

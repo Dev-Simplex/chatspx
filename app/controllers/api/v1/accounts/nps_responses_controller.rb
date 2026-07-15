@@ -5,10 +5,9 @@ class Api::V1::Accounts::NpsResponsesController < Api::V1::Accounts::BaseControl
   RESULTS_PER_PAGE = 25
 
   before_action :check_authorization
-  before_action :set_nps_responses, only: [:index, :metrics, :download]
+  before_action :set_nps_responses, only: [:index, :download]
   before_action :set_current_page, only: [:index]
   before_action :set_current_page_responses, only: [:index]
-  before_action :set_total_sent_count, only: [:metrics]
 
   sort_on :created_at, type: :datetime
 
@@ -16,16 +15,22 @@ class Api::V1::Accounts::NpsResponsesController < Api::V1::Accounts::BaseControl
     response.headers['X-Total-Count'] = @nps_responses.total_count.to_s
   end
 
+  # Métricas apuradas sobre UM coorte (por created_at, respeitando agente/inbox/
+  # contato) — numerador e denominador da taxa de resposta saem do mesmo coorte,
+  # e o cálculo do NPS vem da fonte única Reports::NpsCalculator.
   def metrics
-    responded_responses = @nps_responses.where(status: :responded).where.not(score: nil).trusted
-    @total_count = responded_responses.count
-    @scores_count = responded_responses.group(:score).count
-    @status_count = @nps_responses.group(:status).count
-    @promoters_count = responded_responses.promoters.count
-    @passives_count = responded_responses.passives.count
-    @detractors_count = responded_responses.detractors.count
-    set_blocked_counts
-    @signals = Reports::SignalSet.new(entries: [{ metric: :nps, value: nps_score }]).build
+    cohort = metrics_cohort
+    responded = cohort.where(status: :responded).where.not(score: nil).trusted
+    calculator = Reports::NpsCalculator.new(
+      responded_scope: responded,
+      sent_count: cohort.where(status: %i[sent responded expired]).count,
+      previous_score: previous_period_nps_score
+    )
+    @metrics = calculator.to_h
+    @status_count = cohort.group(:status).count
+    assign_blocked_counts(cohort)
+    @detractor_followup = Reports::NpsDetractorFollowup.new(responded).to_h
+    @signals = Reports::SignalSet.new(entries: [{ metric: :nps, value: @metrics[:nps_score] }]).build
   end
 
   def download
@@ -65,33 +70,48 @@ class Api::V1::Accounts::NpsResponsesController < Api::V1::Accounts::BaseControl
 
   private
 
-  def set_blocked_counts
-    @blocked_count = @nps_responses.where(status: :dismissed).count
-    @blocked_by_label_count = @nps_responses.where(status: :dismissed)
-                                            .where.not(blocked_by_label: nil)
-                                            .group(:blocked_by_label)
-                                            .count
+  def assign_blocked_counts(cohort)
+    @blocked_count = cohort.where(status: :dismissed).count
+    @blocked_by_label_count = cohort.where(status: :dismissed)
+                                    .where.not(blocked_by_label: nil)
+                                    .group(:blocked_by_label)
+                                    .count
   end
 
-  # NPS = %promotores - %detratores (mesma fórmula do jbuilder, p/ o sinal bater com o card).
-  def nps_score
-    total = @promoters_count + @passives_count + @detractors_count
-    return 0 if total.zero?
+  # Base filtrada (agente/inbox/contato), SEM recorte de data — o coorte por
+  # created_at é aplicado por cima, tanto no período atual quanto no anterior.
+  def metrics_filtered_base
+    @metrics_filtered_base ||= begin
+      scope = Current.account.nps_responses
+                     .filter_by_assigned_agent_id(params[:user_ids])
+                     .filter_by_inbox_id(params[:inbox_id])
+      scope = scope.where(contact_id: params[:contact_id]) if params[:contact_id].present?
+      scope
+    end
+  end
 
-    promoters_pct = (@promoters_count.to_f / total * 100).round(2)
-    detractors_pct = (@detractors_count.to_f / total * 100).round(2)
-    (promoters_pct - detractors_pct).round(2)
+  # Coorte do período: pesquisas criadas dentro do range (ou tudo, se sem range).
+  def metrics_cohort
+    range.present? ? metrics_filtered_base.where(created_at: range) : metrics_filtered_base
+  end
+
+  # NPS do período imediatamente anterior, de mesma duração (nil se não há range
+  # ou não há respostas anteriores) — alimenta o delta em pontos.
+  def previous_period_nps_score
+    return nil if range.blank?
+
+    duration = range.last - range.first
+    previous_range = (range.first - duration)...range.first
+    counts = metrics_filtered_base.where(created_at: previous_range)
+                                  .where(status: :responded).where.not(score: nil).trusted
+                                  .group(:score).count
+    return nil if counts.values.sum.zero?
+
+    Reports::NpsCalculator.score_from_counts(counts)
   end
 
   def check_authorization
     authorize NpsResponse
-  end
-
-  def set_total_sent_count
-    sent_statuses = %i[sent responded expired]
-    @total_sent_count = Current.account.nps_responses.where(status: sent_statuses)
-    @total_sent_count = @total_sent_count.where(created_at: range) if range.present?
-    @total_sent_count = @total_sent_count.count
   end
 
   def set_nps_responses # rubocop:disable Metrics/AbcSize

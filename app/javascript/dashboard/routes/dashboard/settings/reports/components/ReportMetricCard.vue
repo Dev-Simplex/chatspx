@@ -23,10 +23,24 @@ const props = defineProps({
     type: Object,
     default: null,
   },
+  // Tendência opcional: { text, tone } com tone em 'good' | 'bad' | 'flat'.
+  trend: {
+    type: Object,
+    default: null,
+  },
 });
 
 const { pillFor } = useReportNarrative();
 const pill = computed(() => pillFor(props.signal));
+
+const TREND_TONE_CLASS = {
+  good: 'text-n-teal-11',
+  bad: 'text-n-ruby-11',
+  flat: 'text-n-slate-10',
+};
+const trendClass = computed(
+  () => TREND_TONE_CLASS[props.trend?.tone] || TREND_TONE_CLASS.flat
+);
 </script>
 
 <template>
@@ -55,6 +69,13 @@ const pill = computed(() => pillFor(props.signal));
     >
       {{ value }}
     </h4>
+    <span
+      v-if="trend"
+      class="mt-1 block text-xs font-medium tabular-nums"
+      :class="trendClass"
+    >
+      {{ trend.text }}
+    </span>
     <span
       v-if="pill"
       class="text-xs inline-flex items-center gap-1 px-2 py-1 mt-2 rounded-full border font-medium"

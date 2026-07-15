@@ -16,8 +16,34 @@
       "TABLE_HEADER": {
         "SHORT_CODE": "Atalho",
         "CONTENT": "Conteúdo",
+        "VISIBILITY": "Visibilidade",
         "ACTIONS": "Ações"
       }
+    },
+    "VISIBILITY": {
+      "LABEL": "Visibilidade",
+      "EVERYONE": {
+        "LABEL": "Pública",
+        "DESCRIPTION": "Todos da conta veem e podem usar"
+      },
+      "PERSONAL": {
+        "LABEL": "Privada",
+        "DESCRIPTION": "Só você vê e pode usar"
+      },
+      "TEAM": {
+        "LABEL": "De um time",
+        "DESCRIPTION": "Só os membros de um time veem e podem usar"
+      },
+      "TEAM_SELECT": {
+        "LABEL": "Time",
+        "PLACEHOLDER": "Selecione um time",
+        "REQUIRED_ERROR": "Selecione um time"
+      },
+      "NO_MANAGE_PERMISSION": "Você não tem permissão para editar esta resposta pronta. Somente o autor, membros do time ou um administrador podem gerenciá-la."
+    },
+    "ATTACHMENT": {
+      "CHOOSE": "Escolher arquivos",
+      "CLEAR": "Limpar"
     },
     "ADD": {
       "TITLE": "Adicionar resposta pronta",

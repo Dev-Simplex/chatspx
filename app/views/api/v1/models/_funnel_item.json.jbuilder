@@ -4,6 +4,7 @@ json.funnel_id resource.funnel_id
 json.funnel_stage_id resource.funnel_stage_id
 json.moved_at resource.moved_at
 json.moved_by_id resource.moved_by_id
+json.position resource.position
 json.created_at resource.created_at
 json.updated_at resource.updated_at
 

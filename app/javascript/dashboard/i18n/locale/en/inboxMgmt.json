@@ -978,6 +978,52 @@
       "COOLDOWN_HOURS": {
         "LABEL": "Cooldown (hours)",
         "HINT": "E.g. 24 = 1 day. Multiple agents can assist the same customer on the same day without sending NPS on every resolution."
+      },
+      "THANK_YOU_PROMOTER": {
+        "LABEL": "Thank-you for promoters (9-10)",
+        "PLACEHOLDER": "Awesome! Thanks for recommending us.",
+        "HINT": "Optional. If empty, the generic thank-you message is used."
+      },
+      "THANK_YOU_PASSIVE": {
+        "LABEL": "Thank-you for passives (7-8)",
+        "PLACEHOLDER": "Thank you for your feedback!",
+        "HINT": "Optional. If empty, the generic thank-you message is used."
+      },
+      "THANK_YOU_DETRACTOR": {
+        "LABEL": "Thank-you for detractors (0-6)",
+        "PLACEHOLDER": "Thanks for the feedback. We'll do better and reach out shortly.",
+        "HINT": "Optional. If empty, the generic thank-you message is used."
+      },
+      "GPT_PARSE_ENABLED": {
+        "LABEL": "Interpret written-out scores (AI)",
+        "HINT": "When the customer writes the score in words (e.g. 'ten', 'a nine') and automatic detection fails, uses AI only to extract the number. Never infers a score from praise or complaints."
+      },
+      "SENTIMENT_DETRACTOR_ENABLED": {
+        "LABEL": "Interpret feedback without a score (AI)",
+        "HINT": "When the customer replies without a number, uses AI to recognize intent: praise (e.g. 'loved it') becomes a promoter and gets the thank-you; dissatisfaction (e.g. 'terrible, didn't like it') becomes a detractor (counts in NPS and triggers routing); and if they want to discuss another topic (e.g. 'I want to talk about my order'), the survey is closed and the conversation reopened for a human agent."
+      },
+      "INVALID_FINALIZE_MESSAGE": {
+        "LABEL": "Closing message (after 3 invalid responses)",
+        "HINT": "Sent to the customer when the survey is closed after 3 invalid responses in a row. If empty, a default text is used.",
+        "PLACEHOLDER": "Oops, it looks like we couldn't understand your reply. 😕 So we don't take up more of your time, we're closing this for now. Thank you!"
+      },
+      "DETRACTOR": {
+        "SECTION_TITLE": "Detractor (0-6) → human follow-up",
+        "REOPEN": {
+          "LABEL": "Reopen and route detractors for follow-up"
+        },
+        "ASSIGNEE": {
+          "LABEL": "Assign detractor to agent"
+        },
+        "ASSIGNEE_NONE": "Do not assign",
+        "TEAM": {
+          "LABEL": "Assign detractor to team"
+        },
+        "TEAM_NONE": "None",
+        "LABEL": {
+          "LABEL": "Add label to detractor",
+          "PLACEHOLDER": "detractor"
+        }
       }
     },
     "BUSINESS_HOURS": {

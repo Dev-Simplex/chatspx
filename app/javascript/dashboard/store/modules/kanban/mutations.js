@@ -426,6 +426,16 @@ export const mutations = {
     assignItemToStage($state, item);
   },
 
+  // Ordenação manual persistida (Kanban DB restructure / P1). Atualiza só o campo
+  // `position` dos itens afetados — otimista no reorder e para rollback em falha.
+  // A ordem visual é derivada de `position` no KanbanColumn.
+  [types.SET_FUNNEL_ITEM_POSITIONS]($state, { positions }) {
+    (positions || []).forEach(({ id, position }) => {
+      const item = $state.funnelItems[id];
+      if (item) item.position = position;
+    });
+  },
+
   [types.UPDATE_ITEM_CONVERSATION](
     $state,
     { displayId, id, patch, bumpRecency }
