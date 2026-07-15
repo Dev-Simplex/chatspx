@@ -20,7 +20,15 @@ module Meta
         normalized_phone = @lead[:phone_number].present? ? normalize_phone(@lead[:phone_number]) : nil
 
         if normalized_phone.blank?
-          Rails.logger.warn("Meta Lead Ads: lead sem phone_number hook=#{@hook.id} leadgen=#{@lead[:leadgen_id]} form=#{@lead[:form_id]} — criando conversa mesmo assim, sem envio de 1a mensagem")
+          Rails.logger.warn("Meta Lead Ads: lead sem phone_number hook=#{@hook.id} leadgen=#{@lead[:leadgen_id]} form=#{@lead[:form_id]}")
+          # Inbox Cloud API (Channel::Whatsapp) valida o source_id como wa_id so-digitos.
+          # Sem telefone nao ha ContactInbox valido nem como enviar — pula limpo (o job nao
+          # estoura). Os dados do form ficam na Meta pra follow-up manual. Leads de teste
+          # (dummy sem phone) e forms sem campo de telefone caem aqui.
+          if cloud_whatsapp_inbox?
+            Rails.logger.info("Meta Lead Ads: sem telefone em inbox Cloud API hook=#{@hook.id} leadgen=#{@lead[:leadgen_id]} — pulando (sem contato WhatsApp possivel)")
+            return nil
+          end
         end
 
         contact_inbox = build_contact_inbox(normalized_phone)
