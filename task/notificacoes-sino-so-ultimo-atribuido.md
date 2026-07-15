@@ -176,12 +176,34 @@ tudo): a queixa dele é **ruído** de participação eterna — o que a F1 acima
 
 - [x] Regra definida; decisões D1–D5 travadas.
 - [x] Verificado que `conversation.assignee` sobrevive ao resolve→reabrir (§2).
-- [ ] **F1:** remover `notify_participating_users`; specs reescritos verdes.
-- [ ] Spec que trava a ordem `reopen_conversation` → `dispatch_create_events` (armadilha 5).
-- [ ] `bundle exec rubocop` nos arquivos tocados.
-- [ ] **F2:** script atualizado; **dry-run revisado com o dono** → `--apply`.
-- [ ] Validar no staging (`task/sino_e2e.rb` adaptado): admin participante **não** recebe · assignee
-      recebe · conversa sem assignee → ninguém · @menção ainda notifica.
-- [ ] Restart: `sudo /bin/systemctl restart chatwoot.target` (unidades reais: `chatwoot-web.1`,
-      `chatwoot-worker.1`; código Ruby, sem `assets:precompile`).
-- [ ] Commit por fase.
+- [x] **F1:** remover `notify_participating_users`; specs reescritos verdes. → commit `6d741efec`
+- [x] Spec que trava a ordem `reopen_conversation` → `dispatch_create_events` (armadilha 5).
+- [x] `bundle exec rubocop` nos arquivos tocados. (0 offenses)
+- [x] **F2:** script atualizado; dry-run rodado na conta #1. → **falta o `--apply` (decisão do dono)**
+- [x] Validar no staging (`task/sino_e2e.rb` adaptado): **E2E ALL GREEN** — admin participante não
+      recebe · assignee recebe · conversa sem assignee → ninguém · @menção ainda notifica cross-team.
+- [x] Restart do staging.
+- [ ] **Pendente do dono:** revisar o dry-run (abaixo) e autorizar o `--apply`.
+- [ ] **Pendente do dono:** QA visual no sino do staging.
+
+### Baseline de specs (medido, não presumido)
+
+`bundle exec rspec spec/services/messages spec/listeners spec/mailers/agent_notifications`
+→ **25 falhas idênticas ANTES e DEPOIS** deste fix (diff vazio contra um worktree em HEAD limpo).
+Nenhuma é deste trabalho — são de ambiente/fork: `SMTP From address may not be blank` (mailers),
+assinatura do `HookJob` (`hook_listener_spec`) e expectativas estritas de dispatcher
+(`pin_service_spec`, `action_cable_listener_spec`, `reporting_event_listener_spec`).
+Os specs do escopo (`new_message_notification_service`, `mention_service`, `visibility_service`,
+`notification_listener`) estão **74 exemplos, 0 falhas**.
+
+### Dry-run da F2 na conta #1 (staging, read-only) — para o dono revisar
+
+    (A) APOSENTADO participating_conversation_new_message: 47  -> apaga todas
+    (B) governados pelo time (creation/sla_*):              0  -> nada a avaliar
+    A APAGAR: 47   | user #1 (admin): 42 · user #5 (Cibely Oliveira): 4 · user #10 (Agente Teste A): 1
+
+Confirma o §8: as 42 do admin **passam** em `visible_to?` (ele está no time da conversa — ex.:
+`conv.team=5`, `user.teams=[2,5]`), por isso a regra antiga achava **0**. Agora o critério é o
+**tipo aposentado**, não a visibilidade. Rodar quando o dono aprovar:
+
+    RAILS_ENV=production bundle exec rails runner task/notificacoes_vazadas_cleanup.rb -- --account=1 --apply

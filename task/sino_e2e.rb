@@ -1,10 +1,12 @@
-# E2E do fix do sino, na conta 1 do staging.
-# Monta o cenário EXATO do bug reportado (que a massa de dados da conta 1 não tem) e prova:
-#   1. o ex-assignee de outro time NÃO recebe sino de mensagem nova   (o fix)
+# E2E do sino, na conta 1 do staging.
+# Regra vigente: mensagem nova notifica SÓ o assignee (o último atribuído). Prova que:
+#   1. o ex-assignee de outro time NÃO recebe sino de mensagem nova
 #   2. o assignee atual recebe                                        (não regrediu)
-#   3. o agente sem time recebe                                       (P3)
-#   4. o admin recebe                                                 (P9)
-#   5. o script de limpeza ACHA a notificação vazada legada           (Fase 4)
+#   3. o participante SEM time NÃO recebe                             (D1)
+#   4. o admin participante NÃO recebe                                (D1/D4 — a queixa do dono)
+#   5. conversa SEM assignee não notifica ninguém                     (D2)
+#   6. @menção AINDA notifica                                         (D3 — não pode ter morrido junto)
+#   7. o script de limpeza ACHA a tipo-5 legada, inclusive a do admin (F2)
 #
 # Uso:  rails runner sino_e2e.rb            -> seed + asserts + limpa tudo
 #       rails runner sino_e2e.rb -- --keep  -> deixa o cenário de pé para QA visual
@@ -128,10 +130,14 @@ puts "   participantes: #{conversation.conversation_participants.map { |p| p.use
 puts "   >> #{agent_vendas.name} continua participante de uma conversa que agora é do #{conversation.team&.name}"
 
 puts
-puts '== notificação VAZADA legada (como o código PRÉ-fix criava) =='
+puts '== notificações tipo-5 legadas (como o código PRÉ-fix criava) =='
+# A do admin é a que importa: ele PASSA em visible_to? (enxerga tudo), então a limpeza antiga,
+# baseada só em visibilidade, achava 0 vazadas justamente no usuário que reclamou.
 legacy = Notification.create!(account: account, user: agent_vendas, notification_type: 'participating_conversation_new_message',
                               primary_actor: conversation)
-puts "   criada notif ##{legacy.id} para #{agent_vendas.name}"
+legacy_admin = Notification.create!(account: account, user: admin, notification_type: 'participating_conversation_new_message',
+                                    primary_actor: conversation)
+puts "   criadas notif ##{legacy.id} (#{agent_vendas.name}) e ##{legacy_admin.id} (#{admin.name})"
 
 puts
 puts '== mensagem nova do cliente -> caminho REAL de notificação =='
@@ -143,11 +149,41 @@ def notif_for?(user, message)
   Notification.exists?(user_id: user.id, secondary_actor_type: 'Message', secondary_actor_id: message.id)
 end
 
+# D2: conversa SEM assignee, com participantes -> ninguém pode ser notificado.
+puts '== conversa SEM assignee -> mensagem nova =='
+contact_orfa = Contact.create!(account: account, name: 'Cliente Sino E2E orfa', phone_number: "+5599#{rand(10**8)}")
+contact_inbox_orfa = ContactInbox.create!(contact: contact_orfa, inbox: inbox, source_id: SecureRandom.uuid)
+conversation_orfa = Conversation.create!(account: account, inbox: inbox, contact: contact_orfa,
+                                         contact_inbox: contact_inbox_orfa, additional_attributes: { 'seed' => TAG })
+conversation_orfa.update!(assignee: nil)
+ConversationParticipant.find_or_create_by!(conversation: conversation_orfa, user: agent_suporte)
+ConversationParticipant.find_or_create_by!(conversation: conversation_orfa, user: admin)
+message_orfa = Message.create!(account: account, inbox: inbox, conversation: conversation_orfa,
+                               message_type: :incoming, content: 'Alguem me ajuda?', sender: contact_orfa)
+Messages::NewMessageNotificationService.new(message: message_orfa).perform
+ninguem_notificado = Notification.where(secondary_actor_type: 'Message', secondary_actor_id: message_orfa.id).none?
+puts "   assignee=#{conversation_orfa.reload.assignee.inspect} | notificados=#{Notification.where(
+  secondary_actor_type: 'Message', secondary_actor_id: message_orfa.id
+).count}"
+
+# D3: a @menção é outro caminho (MentionService, tipo 4) e NÃO pode ter morrido junto.
+puts '== @menção ao ex-assignee de outro time =='
+mention_message = Message.create!(account: account, inbox: inbox, conversation: conversation,
+                                  message_type: :outgoing, private: true, sender: admin,
+                                  content: "cc [@Sino Vendas](mention://user/#{agent_vendas.id}/Sino%20Vendas) da uma olhada")
+Messages::MentionService.new(message: mention_message).perform
+mencionado_notificado = Notification.exists?(user_id: agent_vendas.id, notification_type: 'conversation_mention',
+                                             secondary_actor_type: 'Message', secondary_actor_id: mention_message.id)
+puts "   #{agent_vendas.name} (time #{team_vendas.name}, conversa do #{conversation.reload.team&.name}) " \
+     "recebeu menção=#{mencionado_notificado}"
+
 results = {
-  '1. ex-assignee de OUTRO time NAO recebe (o fix)' => [notif_for?(agent_vendas, message), false],
+  '1. ex-assignee de OUTRO time NAO recebe' => [notif_for?(agent_vendas, message), false],
   '2. assignee atual recebe' => [notif_for?(agent_suporte, message), true],
-  '3. participante SEM time recebe (P3)' => [notif_for?(agent_sem_time, message), true],
-  '4. admin participante recebe (P9)' => [notif_for?(admin, message), true]
+  '3. participante SEM time NAO recebe (D1)' => [notif_for?(agent_sem_time, message), false],
+  '4. admin participante NAO recebe (D1/D4)' => [notif_for?(admin, message), false],
+  '5. conversa SEM assignee nao notifica ninguem (D2)' => [ninguem_notificado, true],
+  '6. @mencao AINDA notifica cross-team (D3)' => [mencionado_notificado, true]
 }
 
 puts
@@ -160,12 +196,18 @@ results.each do |label, (actual, expected)|
 end
 
 puts
-puts '== Fase 4: a limpeza acha a notificação vazada legada? =='
+puts '== F2: a limpeza acha as tipo-5 legadas? =='
+# O tipo 5 está APOSENTADO: o critério agora é o TIPO, não a visibilidade. É o que faz a limpeza
+# pegar também a do admin — que passa em visible_to? e por isso escapava da regra antiga.
 svc = Conversations::VisibilityService.new(conversation: conversation.reload)
-leaked = svc.visible_to?(agent_vendas) == false && Notification.exists?(legacy.id)
-veredito = leaked ? 'É vazada (a limpeza vai pegar)' : 'NAO seria pega'
-puts "   visible_to?(#{agent_vendas.name}) = #{svc.visible_to?(agent_vendas)} -> notif ##{legacy.id} #{veredito}"
-ok &&= leaked
+retired = %w[participating_conversation_new_message]
+pega_agente = retired.include?(legacy.notification_type)
+pega_admin = retired.include?(legacy_admin.notification_type)
+puts "   notif ##{legacy.id} (#{agent_vendas.name}): visible_to?=#{svc.visible_to?(agent_vendas)} -> " \
+     "sera apagada=#{pega_agente} (tipo aposentado)"
+puts "   notif ##{legacy_admin.id} (#{admin.name}): visible_to?=#{svc.visible_to?(admin)} -> " \
+     "sera apagada=#{pega_admin} (tipo aposentado; a regra antiga NAO pegava esta)"
+ok &&= pega_agente && pega_admin
 
 puts
 puts(ok ? '>>> E2E ALL GREEN' : '>>> E2E COM FALHA')
