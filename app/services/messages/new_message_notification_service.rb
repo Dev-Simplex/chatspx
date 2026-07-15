@@ -33,6 +33,10 @@ class Messages::NewMessageNotificationService
 
     participating_users.uniq.each do |participant|
       next if already_notified?(participant)
+      # Participação é eterna (ParticipationListener nunca remove o assignee anterior), então sem
+      # este guard o ex-assignee recebe sino de toda mensagem nova de uma conversa que já sumiu da
+      # lista dele e responde 403 se ele abrir. Não apagamos a participação: só paramos de notificar.
+      next unless visibility.visible_to?(participant)
 
       NotificationBuilder.new(
         notification_type: 'participating_conversation_new_message',
@@ -42,6 +46,10 @@ class Messages::NewMessageNotificationService
         secondary_actor: message
       ).perform
     end
+  end
+
+  def visibility
+    @visibility ||= Conversations::VisibilityService.new(conversation: conversation)
   end
 
   # The user could already have been notified via a mention or via assignment
