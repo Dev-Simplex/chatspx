@@ -119,8 +119,8 @@ end
 puts '== limpando resíduo de execução anterior =='
 limpar!(account, TAG)
 
-def criar_usuario(account, inbox, nome, email, senha, papel)
-  user = User.create!(name: nome, email: email, password: senha, confirmed_at: Time.current)
+def criar_usuario(account, inbox, nome:, email:, papel:)
+  user = User.create!(name: nome, email: email, password: SENHA, confirmed_at: Time.current)
   AccountUser.create!(account: account, user: user, role: papel)
   InboxMember.create!(inbox: inbox, user: user)
   user
@@ -135,8 +135,8 @@ end
 
 puts
 puts '== usuários de teste =='
-agente = criar_usuario(account, inbox, 'Agente Sino (teste)', AGENTE_EMAIL, SENHA, :agent)
-admin_teste = criar_usuario(account, inbox, 'Admin Sino (teste)', ADMIN_EMAIL, SENHA, :administrator)
+agente = criar_usuario(account, inbox, nome: 'Agente Sino (teste)', email: AGENTE_EMAIL, papel: :agent)
+admin_teste = criar_usuario(account, inbox, nome: 'Admin Sino (teste)', email: ADMIN_EMAIL, papel: :administrator)
 puts "   ##{agente.id} #{agente.name} <#{agente.email}> (agent)"
 puts "   ##{admin_teste.id} #{admin_teste.name} <#{admin_teste.email}> (administrator)"
 
