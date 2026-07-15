@@ -90,16 +90,18 @@ RSpec.describe Captain::Conversation::FollowupJob, type: :job do
   end
 
   context 'when followups are exhausted and the AI still owns the conversation' do
-    it 'cools the lead and moves the card to Frio' do
+    it 'cools the lead, moves the card to Frio and hands off to a human' do
       allow(Spx::Tozi::FunnelPlacementService).to receive(:move)
-      reactivation = instance_double(Spx::Tozi::ReactivationCadenceService, perform: true)
-      allow(Spx::Tozi::ReactivationCadenceService).to receive(:new).and_return(reactivation)
+      handoff = instance_double(Captain::Conversation::HumanHandoffService, perform: true)
+      allow(Captain::Conversation::HumanHandoffService).to receive(:new).and_return(handoff)
       conversation.update!(custom_attributes: conversation.custom_attributes.merge('followup_count' => described_class::MAX_FOLLOWUPS))
 
       described_class.perform_now(conversation, token)
 
       expect(conversation.reload.custom_attributes['tozi_status_lead']).to eq('esfriado')
       expect(Spx::Tozi::FunnelPlacementService).to have_received(:move).with(conversation: conversation, to: 'frio')
+      expect(Captain::Conversation::HumanHandoffService).to have_received(:new)
+      expect(handoff).to have_received(:perform)
       expect(Captain::Conversation::ResponseBuilderJob).not_to have_received(:perform_now)
     end
   end
