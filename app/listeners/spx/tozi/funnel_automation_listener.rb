@@ -23,6 +23,11 @@ module Spx
       # reagimos ao status failed: marca e joga pro humano do time como lista de LIGAÇÃO.
       NO_WHATSAPP_ERROR_CODES = %w[131026 131030].freeze
       NO_WHATSAPP_LABEL = 'sem-whatsapp'.freeze
+      # Meta segurou a entrega por qualidade/engajamento (o número pode estar OK — tentar de novo/ligar).
+      THROTTLE_ERROR_CODE = '131049'.freeze
+      THROTTLE_LABEL = 'entrega-segurada'.freeze
+      # Erros de CONTA (não do lead): conta bloqueada, pagamento, spam-pause — pedem atenção de ops.
+      ACCOUNT_CRITICAL_CODES = %w[131031 131042 131048].freeze
 
       # Lead respondeu: cancela a cadência de reativação pendente e traz o card de
       # volta pra "Em Conversa" (só se estava num estágio de espera/frio).
@@ -56,43 +61,53 @@ module Spx
         Rails.logger.error("[Spx::Tozi::FunnelAutomationListener] assignee_changed conv=#{conversation&.id}: #{e.message}")
       end
 
-      # Abertura HSM de lead Meta falhou por número sem WhatsApp (131026/131030): a IA não
-      # tem como mandar nada, então tiramos do fluxo dela, marcamos com label e jogamos pro
-      # humano do time (Cibely) como follow-up por LIGAÇÃO. Idempotente (age 1x, via label).
+      # Abertura HSM de lead Meta falhou: trata a família de erros da Meta. Só age em conversa
+      # de lead Meta. Sem WhatsApp (131026/131030) e Meta-segurou (131049) tiram o lead do fluxo
+      # da IA e jogam pro humano do time como follow-up; erros de CONTA (bloqueio/pagamento/spam)
+      # só logam crítico (não são problema do lead). Idempotente por label.
       def message_updated(event)
         message, _account = extract_message_and_account(event)
         return if message.nil? || message.status != 'failed'
-        return unless NO_WHATSAPP_ERROR_CODES.any? { |code| message.external_error.to_s.include?(code) }
 
         conversation = message.conversation
         return if conversation.nil?
         return unless conversation.additional_attributes.is_a?(Hash) && conversation.additional_attributes['source'] == 'meta_lead_ads'
-        return if conversation.label_list.include?(NO_WHATSAPP_LABEL)
 
-        flag_no_whatsapp(conversation, message.external_error.to_s)
+        error = message.external_error.to_s
+        if NO_WHATSAPP_ERROR_CODES.any? { |c| error.include?(c) }
+          flag_for_human(conversation, error, NO_WHATSAPP_LABEL, 'Número provavelmente sem WhatsApp — fazer follow-up por ligação.')
+        elsif error.include?(THROTTLE_ERROR_CODE)
+          flag_for_human(conversation, error, THROTTLE_LABEL, 'A Meta segurou a entrega da abertura (qualidade/engajamento). O número pode estar OK — tentar de novo ou ligar.')
+        elsif ACCOUNT_CRITICAL_CODES.any? { |c| error.include?(c) }
+          Rails.logger.error("[Spx::Tozi] META LEAD ADS ERRO CRITICO DE CONTA (#{error}) conv=#{conversation.id} — verificar Business Manager (bloqueio/pagamento/spam).")
+        end
       rescue StandardError => e
         Rails.logger.error("[Spx::Tozi::FunnelAutomationListener] message_updated conv=#{message&.conversation_id}: #{e.message}")
       end
 
       private
 
-      def flag_no_whatsapp(conversation, error)
-        conversation.add_labels((conversation.label_list + [NO_WHATSAPP_LABEL]).uniq)
-        human = no_whatsapp_assignee(conversation)
+      # Tira o lead do fluxo da IA (que não tem como mandar nada), marca com a label e joga pro
+      # humano do time (Cibele) como follow-up. Idempotente por label.
+      def flag_for_human(conversation, error, label, note)
+        return if conversation.label_list.include?(label)
+
+        conversation.add_labels((conversation.label_list + [label]).uniq)
+        human = meta_team_assignee(conversation)
         Conversations::AssignmentService.new(conversation: conversation, assignee_id: human.id).perform if human
         begin
           conversation.messages.create!(
             account_id: conversation.account_id, inbox_id: conversation.inbox_id, message_type: :activity,
-            content: "Abertura não entregue (#{error}). Número provavelmente sem WhatsApp — fazer follow-up por ligação."
+            content: "Abertura não entregue (#{error}). #{note}"
           )
         rescue StandardError => e
-          Rails.logger.warn("[Spx::Tozi::FunnelAutomationListener] nota no_whatsapp conv=#{conversation.id}: #{e.message}")
+          Rails.logger.warn("[Spx::Tozi::FunnelAutomationListener] nota #{label} conv=#{conversation.id}: #{e.message}")
         end
       end
 
-      # Humano do time do lead (ex.: Cibely no time "Leads Meta"). Assignee humano remove o bot.
-      def no_whatsapp_assignee(conversation)
-        team = conversation.team || Team.find_by(account_id: conversation.account_id, name: 'Leads Meta')
+      # Humano do time do lead (ex.: Cibele no time "Leads Meta"). Assignee humano remove o bot.
+      def meta_team_assignee(conversation)
+        team = conversation.team || Team.where(account_id: conversation.account_id).find_by('LOWER(name) = ?', 'leads meta')
         team&.team_members&.first&.user
       end
     end
