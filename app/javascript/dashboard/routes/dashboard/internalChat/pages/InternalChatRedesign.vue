@@ -2,7 +2,8 @@
 // Chat interno — REDESIGN visual ligado ao BACKEND real (store internalChat).
 // Mostra DMs, grupos e "grupos de time" (auto-criados a partir dos Teams da
 // conta). Admin pode alternar "Ver todos" para auditar todos os canais.
-// Envio de texto + emoji nesta versão; anexos/reações/respostas são próximos passos.
+// Suporta texto, emoji, anexos, áudio, reações, reply, editar/apagar, menções e
+// busca de conteúdo — toda a funcionalidade vem do store/backend real.
 import { ref, computed, onMounted, onBeforeUnmount } from 'vue';
 import { useStore, useMapGetter } from 'dashboard/composables/store';
 import { messageStamp } from 'shared/helpers/timeHelper';
@@ -16,6 +17,7 @@ import ChatComposer from '../components/redesign/ChatComposer.vue';
 import ChatInfoPanel from '../components/redesign/ChatInfoPanel.vue';
 
 const store = useStore();
+const globalConfig = useMapGetter('globalConfig/get');
 const channels = useMapGetter('internalChat/getChannels');
 const auditChannels = useMapGetter('internalChat/getAuditChannels');
 const agents = useMapGetter('internalChat/getAgents');
@@ -24,6 +26,7 @@ const currentUserId = useMapGetter('getCurrentUserID');
 const currentRole = useMapGetter('getCurrentRole');
 const allTeams = useMapGetter('teams/getTeams');
 const myTeams = useMapGetter('teams/getMyTeams');
+const mentions = useMapGetter('internalChat/getMentions');
 
 const isAdmin = computed(() => currentRole.value === 'administrator');
 // Times que viram atalho de "grupo de time": admin vê todos; agente vê os seus.
@@ -48,6 +51,17 @@ const searchQuery = ref('');
 const showInfo = ref(false);
 // Favoritos: só do lado do cliente (o backend ainda não persiste favoritos).
 const favorites = ref(new Set());
+
+// Tela vazia (nenhuma conversa aberta): logo da marca + botão "Nova conversa".
+const chatSidebarRef = ref(null);
+const logoVisible = ref(true);
+const brandLogo = computed(
+  () =>
+    globalConfig.value?.logoThumbnail ||
+    globalConfig.value?.logo ||
+    '/brand-assets/logo_thumbnail.svg'
+);
+const openNewConversation = () => chatSidebarRef.value?.openCompose();
 
 const presenceOf = userId =>
   store.getters['agents/getAgentById'](userId)?.availability_status || null;
@@ -153,12 +167,21 @@ const threadItems = computed(() => {
     out.push({
       type: 'message',
       id: m.id ?? m.echo_id,
+      echoId: m.echo_id,
       mine: m.user?.id === currentUserId.value,
       senderName: m.user?.name,
       avatarSrc: m.user?.avatar_url,
-      content: m.deleted ? 'Mensagem apagada' : m.content,
+      content: m.content,
       time: messageStamp(m.created_at, 'HH:mm'),
       read: m.status !== 'progress',
+      // campos crus para render rico (anexos, reações, reply, editado, apagada…)
+      attachments: m.attachments || [],
+      reactions: m.reactions || {},
+      replyTo: m.reply_to || null,
+      edited: Boolean(m.edited),
+      deleted: Boolean(m.deleted),
+      status: m.status,
+      mentionedUserIds: m.mentioned_user_ids || [],
     });
   });
   return out;
@@ -188,22 +211,80 @@ const docItems = computed(() =>
 );
 
 // ── Handlers ─────────────────────────────────────────────────────────────
+// Mensagem sendo respondida (barra "respondendo a X" no composer). Fica no pai
+// para que enviar/cancelar/trocar de conversa a limpem de forma consistente.
+const replyingTo = ref(null);
+
 const onSelect = async id => {
   activeId.value = id;
   mobileView.value = 'thread';
   searchOpen.value = false;
   searchQuery.value = '';
   showInfo.value = false;
+  replyingTo.value = null;
   await store.dispatch('internalChat/fetchMessages', id);
 };
 
-const onSend = content => {
+// O composer emite { content, attachments, replyToId }; permite enviar só-anexo.
+const onSend = ({ content, attachments = [], replyToId = null } = {}) => {
   const text = (content || '').trim();
-  if (!text || !activeId.value) return;
+  if ((!text && !attachments.length) || !activeId.value) return;
   store.dispatch('internalChat/sendMessage', {
     channelId: activeId.value,
     content: text,
+    attachments,
+    replyToId: replyToId || replyingTo.value?.id || null,
     echoId: getUuid(),
+  });
+  replyingTo.value = null;
+};
+
+const onReply = msg => {
+  replyingTo.value = {
+    id: msg.id,
+    name: msg.senderName,
+    preview: msg.content || '📎 Anexo',
+  };
+};
+const onCancelReply = () => {
+  replyingTo.value = null;
+};
+
+const onReact = ({ messageId, emoji }) => {
+  if (!activeId.value) return;
+  store.dispatch('internalChat/reactToMessage', {
+    channelId: activeId.value,
+    messageId,
+    emoji,
+  });
+};
+
+const onEdit = ({ messageId, content }) => {
+  const text = (content || '').trim();
+  if (!text || !activeId.value) return;
+  store.dispatch('internalChat/editMessage', {
+    channelId: activeId.value,
+    messageId,
+    content: text,
+  });
+};
+
+const onDelete = messageId => {
+  if (!activeId.value) return;
+  store.dispatch('internalChat/deleteMessage', {
+    channelId: activeId.value,
+    messageId,
+  });
+};
+
+// Reenvia uma bolha que falhou (reusa o echo_id para reconciliar no lugar).
+const onRetry = msg => {
+  if (!activeId.value) return;
+  store.dispatch('internalChat/sendMessage', {
+    channelId: activeId.value,
+    content: msg.content,
+    mentionedUserIds: msg.mentionedUserIds || [],
+    echoId: msg.echoId || msg.id,
   });
 };
 
@@ -285,6 +366,28 @@ const toggleAudit = async () => {
   if (auditMode.value) await store.dispatch('internalChat/fetchAuditChannels');
 };
 
+// ── Inbox de menções (cross-channel) ────────────────────────────────────────
+// Painel flutuante sobre a sidebar: lista onde fui @mencionado; clicar abre o
+// canal. fetchMentions não é por canal (usa índice GIN em mentioned_user_ids).
+const mentionsOpen = ref(false);
+const openMentions = () => {
+  mentionsOpen.value = true;
+  store.dispatch('internalChat/fetchMentions');
+};
+const mentionTime = ts => {
+  if (!ts) return '';
+  return new Date(ts * 1000).toLocaleString('pt-BR', {
+    day: '2-digit',
+    month: '2-digit',
+    hour: '2-digit',
+    minute: '2-digit',
+  });
+};
+const openMentionResult = result => {
+  mentionsOpen.value = false;
+  if (result?.internal_channel_id) onSelect(result.internal_channel_id);
+};
+
 // ── Ciclo de vida + tempo real ─────────────────────────────────────────────
 const resync = () => {
   store.dispatch('internalChat/fetchChannels');
@@ -308,10 +411,11 @@ onBeforeUnmount(() => {
   <div class="flex w-full h-full bg-n-background">
     <!-- Sidebar -->
     <div
-      class="w-full h-full md:w-[360px] md:flex-shrink-0 md:border-r md:border-n-weak"
+      class="relative w-full h-full md:w-[360px] md:flex-shrink-0 md:border-r md:border-n-weak"
       :class="mobileView === 'thread' ? 'hidden md:block' : 'block'"
     >
       <ChatSidebar
+        ref="chatSidebarRef"
         :conversations="conversationList"
         :active-id="activeId"
         :agents="agents"
@@ -324,7 +428,62 @@ onBeforeUnmount(() => {
         @create-group="onCreateGroup"
         @create-team="onCreateTeam"
         @toggle-audit="toggleAudit"
+        @open-mentions="openMentions"
       />
+
+      <!-- Inbox de menções (painel sobre a sidebar) -->
+      <template v-if="mentionsOpen">
+        <div class="absolute inset-0 z-40 flex flex-col bg-n-solid-1">
+          <header
+            class="flex items-center gap-2 px-4 pt-4 pb-3 border-b border-n-weak flex-shrink-0"
+          >
+            <button
+              type="button"
+              class="inline-flex items-center justify-center rounded-lg w-9 h-9 text-n-slate-11 hover:bg-n-alpha-2 flex-shrink-0"
+              title="Voltar"
+              @click="mentionsOpen = false"
+            >
+              <span class="text-lg i-lucide-arrow-left" />
+            </button>
+            <span
+              class="flex items-center gap-2 text-base font-bold text-n-slate-12"
+            >
+              <span class="text-lg i-lucide-at-sign text-n-brand" />
+              Menções
+            </span>
+          </header>
+          <div class="flex-1 min-h-0 px-2 py-2 space-y-0.5 overflow-y-auto">
+            <button
+              v-for="m in mentions"
+              :key="m.id"
+              type="button"
+              class="flex flex-col w-full gap-0.5 px-3 py-2.5 text-left rounded-xl hover:bg-n-alpha-1 transition-colors"
+              @click="openMentionResult(m)"
+            >
+              <span class="flex items-center justify-between gap-2">
+                <span class="text-sm font-semibold text-n-slate-12 truncate">
+                  {{ m.channel_title }}
+                </span>
+                <span class="text-[11px] text-n-slate-10 flex-shrink-0">
+                  {{ mentionTime(m.created_at) }}
+                </span>
+              </span>
+              <span class="block text-xs truncate text-n-slate-10">
+                <span class="font-medium text-n-slate-11">
+                  {{ m.user?.name }}:
+                </span>
+                {{ m.content || '📎 Anexo' }}
+              </span>
+            </button>
+            <p
+              v-if="!mentions.length"
+              class="px-6 py-12 text-sm text-center text-n-slate-10"
+            >
+              Ninguém te mencionou ainda.
+            </p>
+          </div>
+        </div>
+      </template>
     </div>
 
     <!-- Conversation -->
@@ -372,12 +531,23 @@ onBeforeUnmount(() => {
         </div>
 
         <!-- key por conversa: remonta → fade da thread + rola pro fim ao abrir -->
-        <MessageThread :key="activeId" :items="visibleMessages" />
+        <MessageThread
+          :key="activeId"
+          :items="visibleMessages"
+          :current-user-id="currentUserId"
+          @react="onReact"
+          @edit="onEdit"
+          @delete="onDelete"
+          @reply="onReply"
+          @retry="onRetry"
+        />
 
         <ChatComposer
           v-if="!activeConversation.readOnly"
           :key="`composer-${activeId}`"
+          :replying-to="replyingTo"
           @send="onSend"
+          @cancel-reply="onCancelReply"
         />
         <div
           v-else
@@ -408,10 +578,45 @@ onBeforeUnmount(() => {
 
       <div
         v-else
-        class="flex flex-col items-center justify-center flex-1 gap-2 text-n-slate-10"
+        class="relative flex flex-col items-center justify-center flex-1 w-full px-8 py-16 text-center"
       >
-        <span class="text-4xl opacity-60 i-lucide-messages-square" />
-        <p class="text-sm">Selecione uma conversa para começar.</p>
+        <div class="flex flex-col items-center max-w-md">
+          <div v-if="logoVisible" class="mb-8 animate-float-gentle">
+            <img
+              :src="brandLogo"
+              alt=""
+              class="size-20 drop-shadow-sm"
+              @error="logoVisible = false"
+            />
+          </div>
+
+          <h3 class="text-2xl font-semibold text-n-slate-12">Chat interno</h3>
+
+          <p
+            class="mt-3 text-sm leading-relaxed text-center text-n-slate-10 max-w-sm"
+          >
+            Converse com sua equipe em tempo real. Selecione uma conversa ao
+            lado ou comece uma nova.
+          </p>
+
+          <button
+            type="button"
+            class="wa-empty-cta flex items-center gap-2 mt-8 px-6 h-10 rounded-full text-white font-medium text-sm transition-colors active:scale-[0.97]"
+            @click="openNewConversation"
+          >
+            <span class="i-lucide-message-square-plus size-4" />
+            Nova conversa
+          </button>
+        </div>
+
+        <div
+          class="absolute bottom-6 left-0 right-0 flex items-center justify-center gap-1.5"
+        >
+          <span class="i-lucide-lock size-3 text-n-slate-9" />
+          <span class="text-xs text-n-slate-9">
+            Mensagens internas protegidas entre a sua equipe
+          </span>
+        </div>
       </div>
     </div>
 
@@ -449,3 +654,18 @@ onBeforeUnmount(() => {
     </div>
   </div>
 </template>
+
+<style scoped>
+.animate-float-gentle {
+  animation: float-gentle 3s ease-in-out infinite;
+}
+@keyframes float-gentle {
+  0%,
+  100% {
+    transform: translateY(0);
+  }
+  50% {
+    transform: translateY(-8px);
+  }
+}
+</style>

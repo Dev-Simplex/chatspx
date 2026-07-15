@@ -11,6 +11,7 @@ vi.mock('../../../../api/kanban', () => ({
     deleteScheduledMessage: vi.fn(),
     createItem: vi.fn(),
     updateItem: vi.fn(),
+    reorderItems: vi.fn(),
   },
 }));
 
@@ -285,6 +286,63 @@ describe('#kanban actions', () => {
         funnel_stage_id: 44,
         conversation_id: 501,
       });
+    });
+  });
+
+  describe('#reorderItems', () => {
+    const state = {
+      funnelItems: {
+        1: { id: 1, position: 1 },
+        2: { id: 2, position: 2 },
+        3: { id: 3, position: 3 },
+      },
+    };
+
+    it('optimistically sets 1-based positions and persists the order', async () => {
+      KanbanAPI.reorderItems.mockResolvedValue({});
+
+      await actions.reorderItems(
+        { commit, state },
+        { funnelId: 7, stageId: 9, itemIds: [3, 1, 2] }
+      );
+
+      expect(commit).toHaveBeenCalledWith(types.SET_FUNNEL_ITEM_POSITIONS, {
+        positions: [
+          { id: 3, position: 1 },
+          { id: 1, position: 2 },
+          { id: 2, position: 3 },
+        ],
+      });
+      expect(KanbanAPI.reorderItems).toHaveBeenCalledWith(7, 9, [3, 1, 2]);
+    });
+
+    it('rolls back to the previous positions when the request fails', async () => {
+      KanbanAPI.reorderItems.mockRejectedValue(new Error('boom'));
+
+      await expect(
+        actions.reorderItems(
+          { commit, state },
+          { funnelId: 7, stageId: 9, itemIds: [3, 1, 2] }
+        )
+      ).rejects.toThrow('boom');
+
+      // last commit restores the snapshot captured before the optimistic update
+      expect(commit).toHaveBeenLastCalledWith(types.SET_FUNNEL_ITEM_POSITIONS, {
+        positions: [
+          { id: 3, position: 3 },
+          { id: 1, position: 1 },
+          { id: 2, position: 2 },
+        ],
+      });
+    });
+
+    it('is a no-op when there are no valid ids', async () => {
+      await actions.reorderItems(
+        { commit, state },
+        { funnelId: 7, stageId: 9, itemIds: [] }
+      );
+      expect(KanbanAPI.reorderItems).not.toHaveBeenCalled();
+      expect(commit).not.toHaveBeenCalled();
     });
   });
 

@@ -5,10 +5,12 @@ import validations, { getLabelTitleErrorMessage } from './validations';
 import { useVuelidate } from '@vuelidate/core';
 
 import NextButton from 'dashboard/components-next/button/Button.vue';
+import LabelVisibilityField from './LabelVisibilityField.vue';
 
 export default {
   components: {
     NextButton,
+    LabelVisibilityField,
   },
   props: {
     selectedResponse: {
@@ -26,12 +28,17 @@ export default {
       description: '',
       showOnSidebar: true,
       color: '',
+      visibility: 'everyone',
+      teamId: null,
     };
   },
   validations,
   computed: {
     ...mapGetters({
       uiFlags: 'labels/getUIFlags',
+      currentUser: 'getCurrentUser',
+      currentRole: 'getCurrentRole',
+      myTeams: 'teams/getMyTeams',
     }),
     pageTitle() {
       return `${this.$t('LABEL_MGMT.EDIT.TITLE')} - ${
@@ -41,6 +48,22 @@ export default {
     labelTitleErrorMessage() {
       const errorMessage = getLabelTitleErrorMessage(this.v$);
       return this.$t(errorMessage);
+    },
+    teamErrorMessage() {
+      return this.v$.teamId.$error
+        ? this.$t('LABEL_MGMT.FORM.VISIBILITY.TEAM_SELECT.REQUIRED_ERROR')
+        : '';
+    },
+    // Mirrors the backend LabelPolicy#manage? rule so the form does not frustrate.
+    canManage() {
+      const label = this.selectedResponse || {};
+      if (this.currentRole === 'administrator') return true;
+      const isAuthor =
+        !!label.created_by && this.currentUser?.id === label.created_by.id;
+      if (label.visibility === 'team') {
+        return this.myTeams.some(team => team.id === label.team_id);
+      }
+      return isAuthor;
     },
   },
   mounted() {
@@ -55,6 +78,8 @@ export default {
       this.description = this.selectedResponse.description;
       this.showOnSidebar = this.selectedResponse.show_on_sidebar;
       this.color = this.selectedResponse.color;
+      this.visibility = this.selectedResponse.visibility || 'everyone';
+      this.teamId = this.selectedResponse.team_id || null;
     },
     editLabel() {
       this.$store
@@ -64,6 +89,8 @@ export default {
           description: this.description,
           title: this.title.toLowerCase(),
           show_on_sidebar: this.showOnSidebar,
+          visibility: this.visibility,
+          team_id: this.visibility === 'team' ? this.teamId : null,
         })
         .then(() => {
           useAlert(this.$t('LABEL_MGMT.EDIT.API.SUCCESS_MESSAGE'));
@@ -80,6 +107,14 @@ export default {
 <template>
   <div class="flex flex-col h-auto overflow-auto">
     <woot-modal-header :header-title="pageTitle" />
+    <div
+      v-if="!canManage"
+      class="flex items-start w-full p-2 mt-2 rounded-md bg-n-alpha-1 dark:bg-n-solid-3"
+    >
+      <p class="mb-0 text-n-slate-11 text-body-para">
+        {{ $t('LABEL_MGMT.FORM.NO_MANAGE_PERMISSION') }}
+      </p>
+    </div>
     <form class="flex flex-wrap mx-0" @submit.prevent="editLabel">
       <woot-input
         v-model="title"
@@ -107,7 +142,14 @@ export default {
           <woot-color-picker v-model="color" />
         </label>
       </div>
-      <div class="flex items-center w-full gap-2">
+
+      <LabelVisibilityField
+        v-model:visibility="visibility"
+        v-model:team-id="teamId"
+        :team-error="teamErrorMessage"
+      />
+
+      <div class="flex items-center w-full gap-2 mt-3">
         <input v-model="showOnSidebar" type="checkbox" :value="true" />
         <label for="conversation_creation">
           {{ $t('LABEL_MGMT.FORM.SHOW_ON_SIDEBAR.LABEL') }}
@@ -124,7 +166,12 @@ export default {
         <NextButton
           type="submit"
           :label="$t('LABEL_MGMT.FORM.EDIT')"
-          :disabled="v$.title.$invalid || uiFlags.isUpdating"
+          :disabled="
+            !canManage ||
+            v$.title.$invalid ||
+            v$.teamId.$invalid ||
+            uiFlags.isUpdating
+          "
           :is-loading="uiFlags.isUpdating"
         />
       </div>

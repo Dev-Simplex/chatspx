@@ -24,6 +24,32 @@ class NpsSurveys::ScoreValidator
     nil
   end
 
+  # Fonte unica para "isto parece uma tentativa (falha) de responder o NPS":
+  # numero fora de 0-10, ou mensagem curta de confusao/pulo ("abc", "?", "nao sei").
+  # Usada por ResponseBuilder (para enviar o aviso de resposta invalida) e por
+  # ReopenGuard (para nao reabrir a conversa). Manter os dois em sincronia.
+  SHORT_SKIP_PATTERNS = [
+    /\A(n[ãa]o\s*)?sei\z/i,
+    %r{\An/a\z}i,
+    /\A\?+\z/,
+    /\A\.+\z/,
+    /\A(nao|não)\z/i,
+    /\Aabc\z/i,
+    /\A[a-z]\z/i,
+    /\A[\s\?\.,!\-]+\z/
+  ].freeze
+
+  def self.looks_like_failed_attempt?(text)
+    normalized = normalize(text)
+    return false if normalized.blank?
+
+    # Numero puro fora de 0-10 (ex.: "11", "100", "-1")
+    return !(0..10).cover?(normalized.to_i) if normalized.match?(/\A\s*-?\d+\s*\z/)
+    return false if normalized.length > 25
+
+    SHORT_SKIP_PATTERNS.any? { |pattern| normalized.match?(pattern) }
+  end
+
   private
 
   def normalize(text)

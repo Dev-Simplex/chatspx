@@ -39,4 +39,19 @@ module Kanban::FunnelItemsBulkActions
 
     render json: result
   end
+
+  # Reordenação manual de cartões dentro de uma coluna (Kanban DB restructure / P1).
+  # Recebe a lista ordenada de ids da stage e persiste `position` (1-based), para
+  # que a ordem sobreviva a reload. Espelha o padrão de Funnels#reorder_stages.
+  def reorder
+    FunnelItems::ReorderService.new(
+      funnel: funnel,
+      funnel_stage_id: params[:funnel_stage_id],
+      item_ids: params[:item_ids]
+    ).perform
+    head :ok
+  rescue StandardError => e
+    Rails.logger.error "FunnelItemsController#reorder: #{e.class} - #{e.message}"
+    render json: { error: 'Error reordering items' }, status: :internal_server_error
+  end
 end

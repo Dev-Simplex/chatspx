@@ -13,10 +13,14 @@ class Api::V1::Accounts::FunnelsController < Api::V1::Accounts::BaseController
   def show; end
 
   def create
+    return render_team_required unless team_id_allowed?
+
     @funnel = Current.account.funnels.create!(funnel_params)
   end
 
   def update
+    return render_team_required unless team_id_allowed?
+
     @funnel.update!(funnel_params)
   end
 
@@ -103,5 +107,42 @@ class Api::V1::Accounts::FunnelsController < Api::V1::Accounts::BaseController
 
   def check_authorization
     authorize(@funnel || Funnel.new(account: Current.account))
+  end
+
+  # Non-admins cannot create/point a funnel at the "Geral" bucket (team_id nil),
+  # which would be invisible to them (see FunnelPolicy). Admins are unrestricted.
+  # On create a blank team_id means the default (nil) funnel; on update we only
+  # block an explicit attempt to clear team_id (a partial update that omits the
+  # key keeps the funnel's existing team and stays allowed).
+  def team_id_allowed?
+    team_id = funnel_params[:team_id]
+
+    if Current.account_user.administrator?
+      # Admin: qualquer time DESTA conta, ou nenhum (funil "Geral").
+      return true if team_id.blank?
+
+      account_team_ids.include?(team_id.to_i)
+    elsif action_name == 'create'
+      # Agente: obrigatório e SÓ um dos seus times (impede injetar em time alheio/outra conta).
+      team_id.present? && my_team_ids.include?(team_id.to_i)
+    else
+      # Update: omitir team_id preserva o time atual; se enviado, deve ser um dos seus.
+      return true unless funnel_params.key?(:team_id)
+
+      team_id.present? && my_team_ids.include?(team_id.to_i)
+    end
+  end
+
+  def account_team_ids
+    @account_team_ids ||= Current.account.teams.pluck(:id)
+  end
+
+  def my_team_ids
+    @my_team_ids ||= Current.user.teams.where(account_id: Current.account.id).pluck(:id)
+  end
+
+  # Explains WHY the funnel was rejected (empty 403 gave the UI nothing to show).
+  def render_team_required
+    render json: { error: I18n.t('kanban.funnels.team_required') }, status: :forbidden
   end
 end

@@ -17,6 +17,7 @@
         "NAME": "Nome",
         "DESCRIPTION": "Descrição",
         "COLOR": "Cor",
+        "VISIBILITY": "Visibilidade",
         "ACTION": "Ações"
       }
     },
@@ -26,7 +27,8 @@
         "PLACEHOLDER": "Nome da etiqueta",
         "REQUIRED_ERROR": "O nome da etiqueta é obrigatório",
         "MINIMUM_LENGTH_ERROR": "Tamanho mínimo 2 é necessário",
-        "VALID_ERROR": "Somente Letras, Números, Hífen e Sublinhado são permitidos"
+        "VALID_ERROR": "Somente Letras, Números, Hífen e Sublinhado são permitidos",
+        "EXISTS_ERROR": "Já existe uma etiqueta com esse nome nesta conta."
       },
       "DESCRIPTION": {
         "LABEL": "Descrição",
@@ -35,9 +37,30 @@
       "COLOR": {
         "LABEL": "Cor"
       },
+      "VISIBILITY": {
+        "LABEL": "Visibilidade",
+        "EVERYONE": {
+          "LABEL": "Pública",
+          "DESCRIPTION": "Todos da conta veem e podem usar"
+        },
+        "PERSONAL": {
+          "LABEL": "Privada",
+          "DESCRIPTION": "Só você vê e pode usar"
+        },
+        "TEAM": {
+          "LABEL": "De um time",
+          "DESCRIPTION": "Só os membros de um time veem e podem usar"
+        },
+        "TEAM_SELECT": {
+          "LABEL": "Time",
+          "PLACEHOLDER": "Selecione um time",
+          "REQUIRED_ERROR": "Selecione um time"
+        }
+      },
       "SHOW_ON_SIDEBAR": {
         "LABEL": "Exibir etiqueta na barra lateral"
       },
+      "NO_MANAGE_PERMISSION": "Você não tem permissão para editar esta etiqueta. Somente o autor, membros do time ou um administrador podem gerenciá-la.",
       "EDIT": "Alterar",
       "CREATE": "Criar",
       "DELETE": "Excluir",

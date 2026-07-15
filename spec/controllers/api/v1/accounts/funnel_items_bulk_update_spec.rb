@@ -7,13 +7,15 @@ RSpec.describe 'Funnel Items bulk_update (Kanban v2 / Fase 3)', type: :request d
   let(:agent) { create(:user, account: account, role: :agent) }
   let(:assignee) { create(:user, account: account, role: :agent) }
   let(:inbox) { create(:inbox, account: account, channel: create(:channel_widget, account: account)) }
-  let(:funnel) { Funnel.create!(account: account, name: 'Vendas') }
+  let(:team) { create(:team, account: account) }
+  let(:funnel) { Funnel.create!(account: account, name: 'Vendas', team_id: team.id) }
   let(:stage) { FunnelStage.create!(funnel: funnel, name: 'Aberto', position: 0) }
   let(:c1) { create(:conversation, account: account, inbox: inbox, status: :open) }
   let(:c2) { create(:conversation, account: account, inbox: inbox, status: :open) }
   let(:endpoint) { "/api/v1/accounts/#{account.id}/funnels/#{funnel.id}/funnel_items/bulk_update" }
 
   before do
+    team.add_members([agent.id])
     create(:inbox_member, inbox: inbox, user: agent)
     FunnelItem.create!(funnel: funnel, funnel_stage: stage, conversation: c1)
     FunnelItem.create!(funnel: funnel, funnel_stage: stage, conversation: c2)

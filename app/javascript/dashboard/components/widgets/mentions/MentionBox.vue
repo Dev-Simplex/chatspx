@@ -20,6 +20,11 @@ const { getPlainText } = useMessageFormatter();
 
 const mentionsListContainerRef = ref(null);
 const selectedIndex = ref(0);
+// True when the selection changed because of the mouse hovering an item. A hovered
+// item is already under the cursor, so it must NOT be scrolled into view — doing so
+// scrolls the ancestor containers and nudges this absolutely-positioned box, moving a
+// different item under the cursor and re-firing hover (a jitter/"tremor" feedback loop).
+const isPointerNavigation = ref(false);
 
 const adjustScroll = () => {
   nextTick(() => {
@@ -54,9 +59,18 @@ watch(
   }
 );
 
-watch(selectedIndex, adjustScroll);
+watch(selectedIndex, () => {
+  // Skip the programmatic scroll for pointer-driven selection (see isPointerNavigation).
+  if (isPointerNavigation.value) {
+    isPointerNavigation.value = false;
+    return;
+  }
+  adjustScroll();
+});
 
 const onHover = index => {
+  if (index === selectedIndex.value) return;
+  isPointerNavigation.value = true;
   selectedIndex.value = index;
 };
 
@@ -73,7 +87,7 @@ const variableKey = (item = {}) => {
 <template>
   <div
     ref="mentionsListContainerRef"
-    class="bg-n-solid-1 p-1 rounded-xl overflow-auto absolute w-full z-20 shadow-dropdown left-0 bottom-full mb-1 max-h-60 border border-n-weak mention--box animate-dropdown-in"
+    class="bg-n-solid-1 p-1 rounded-xl overflow-auto absolute w-full min-w-[16rem] max-w-[calc(100vw_-_1.5rem)] z-20 shadow-dropdown left-0 bottom-full mb-1 max-h-60 border border-n-weak mention--box animate-dropdown-in"
   >
     <ul class="mb-0 vertical dropdown menu">
       <woot-dropdown-item
@@ -84,7 +98,7 @@ const variableKey = (item = {}) => {
         @mouseover="onHover(index)"
       >
         <button
-          class="flex rounded-lg group flex-col gap-0.5 overflow-hidden cursor-pointer items-start px-3 py-2 justify-center w-full h-full text-left hover:bg-n-slate-3/50"
+          class="flex rounded-lg group flex-col gap-0.5 overflow-hidden cursor-pointer items-start px-3 py-2 min-h-9 justify-center w-full h-full text-left hover:bg-n-slate-3/50"
           :class="{
             'bg-n-brand/10': index === selectedIndex,
           }"

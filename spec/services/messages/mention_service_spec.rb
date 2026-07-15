@@ -504,4 +504,44 @@ describe Messages::MentionService do
       expect(Conversations::UserMentionJob).not_to have_received(:perform_later)
     end
   end
+
+  # REGRESSÃO (não remover): a audiência do sino é escopada pela regra de visibilidade da LISTA em
+  # Conversations::VisibilityService, mas a MENÇÃO cross-team é deliberada — menção é consentimento
+  # explícito e nominal. Se alguém "otimizar" e mover aquele guard para dentro do NotificationBuilder
+  # (o choke point dos 9 call sites), a menção cross-team morre. Os outros exemplos deste arquivo NÃO
+  # pegariam isso: o `before` troca o NotificationBuilder por um double, então o build_notification real
+  # nunca roda. Este exemplo usa o builder REAL de propósito.
+  describe 'cross-team mentions (with the real NotificationBuilder)' do
+    let!(:agent_from_other_team) { create(:user, account: account, role: :agent) }
+    let!(:team_conversation) do
+      create(:conversation, account: account, inbox: inbox, team: create(:team, account: account, name: 'Team X'))
+    end
+
+    before do
+      # desfaz o stub do NotificationBuilder feito no `before` do topo deste arquivo
+      allow(NotificationBuilder).to receive(:new).and_call_original
+      create(:inbox_member, user: agent_from_other_team, inbox: inbox)
+      create(:team_member, user: agent_from_other_team, team: create(:team, account: account, name: 'Team Y'))
+      team_conversation.reload
+    end
+
+    it 'notifies a mentioned user from another team' do
+      message = create(
+        :message,
+        conversation: team_conversation,
+        account: account,
+        content: "hey (mention://user/#{agent_from_other_team.id}/#{agent_from_other_team.name})",
+        private: true
+      )
+
+      described_class.new(message: message).perform
+
+      expect(
+        agent_from_other_team.notifications.where(
+          notification_type: 'conversation_mention',
+          primary_actor: team_conversation
+        )
+      ).to exist
+    end
+  end
 end

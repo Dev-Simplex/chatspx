@@ -1,5 +1,5 @@
 <script setup>
-import { computed, ref, onMounted, nextTick } from 'vue';
+import { computed, ref, onMounted, onBeforeUnmount, nextTick } from 'vue';
 import { useRouter } from 'vue-router';
 import { useSidebarContext } from './provider';
 import { useMapGetter } from 'dashboard/composables/store';
@@ -23,8 +23,24 @@ const { isAllowed, sidebarWidth } = useSidebarContext();
 const expandedSubGroup = ref(null);
 const popoverRef = ref(null);
 const topPosition = ref(0);
+let resizeObserver = null;
 const isRTL = useMapGetter('accounts/isRTL');
 const skipTransition = ref(true);
+
+// Keeps the flyout inside the viewport: measured against the *current* rendered
+// height, so it must re-run whenever content grows (e.g. expanding a subgroup).
+const updatePosition = () => {
+  if (!props.triggerRect) return;
+
+  const viewportHeight = window.innerHeight;
+  const popoverHeight = popoverRef.value?.offsetHeight || 300;
+  const { top: triggerTop } = props.triggerRect;
+
+  topPosition.value =
+    triggerTop + popoverHeight > viewportHeight - 20
+      ? Math.max(20, viewportHeight - popoverHeight - 20)
+      : triggerTop;
+};
 
 const toggleSubGroup = name => {
   expandedSubGroup.value = expandedSubGroup.value === name ? null : name;
@@ -82,20 +98,22 @@ onMounted(async () => {
     }
   }
 
-  if (!props.triggerRect) return;
+  updatePosition();
 
-  const viewportHeight = window.innerHeight;
-  const popoverHeight = popoverRef.value?.offsetHeight || 300;
-  const { top: triggerTop } = props.triggerRect;
-
-  // Adjust position if popover would overflow viewport
-  topPosition.value =
-    triggerTop + popoverHeight > viewportHeight - 20
-      ? Math.max(20, viewportHeight - popoverHeight - 20)
-      : triggerTop;
+  // Reposition whenever the flyout's height changes (expanding/collapsing a
+  // subgroup animates its height), so growing lists slide up to stay on-screen
+  // instead of clipping the last item off the bottom of the viewport.
+  if (typeof ResizeObserver !== 'undefined' && popoverRef.value) {
+    resizeObserver = new ResizeObserver(() => updatePosition());
+    resizeObserver.observe(popoverRef.value);
+  }
 
   await nextTick();
   skipTransition.value = false;
+});
+
+onBeforeUnmount(() => {
+  resizeObserver?.disconnect();
 });
 </script>
 
@@ -120,7 +138,7 @@ onMounted(async () => {
           {{ label }}
         </div>
         <ul
-          class="m-0 p-0 list-none max-h-[400px] overflow-y-auto no-scrollbar"
+          class="m-0 p-0 list-none max-h-[calc(100vh-8rem)] overflow-y-auto no-scrollbar"
         >
           <template v-for="child in accessibleChildren" :key="child.name">
             <!-- SubGroup with children -->

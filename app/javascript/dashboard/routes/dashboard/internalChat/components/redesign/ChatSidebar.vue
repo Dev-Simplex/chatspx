@@ -1,5 +1,6 @@
 <script setup>
 import { ref, computed } from 'vue';
+import { useStore, useMapGetter } from 'dashboard/composables/store';
 import Avatar from 'dashboard/components-next/avatar/Avatar.vue';
 import ConversationListItem from './ConversationListItem.vue';
 import NotificationSettings from './NotificationSettings.vue';
@@ -20,9 +21,41 @@ const emit = defineEmits([
   'createGroup',
   'createTeam',
   'toggleAudit',
+  'openMentions',
 ]);
 
+const store = useStore();
 const search = ref('');
+
+// ── Busca de conteúdo (cross-channel via backend, min 2 chars, debounce) ─────
+// O campo de busca continua filtrando os nomes localmente; além disso, quando o
+// termo tem ≥2 chars, consulta o servidor por mensagens que contenham o texto.
+const searchResults = useMapGetter('internalChat/getSearchResults');
+const showMessageResults = computed(() => search.value.trim().length >= 2);
+let searchTimer = null;
+const onSearchInput = () => {
+  clearTimeout(searchTimer);
+  const q = search.value.trim();
+  if (q.length < 2) {
+    store.dispatch('internalChat/searchMessages', '');
+    return;
+  }
+  searchTimer = setTimeout(() => {
+    store.dispatch('internalChat/searchMessages', q);
+  }, 300);
+};
+const resultTime = ts => {
+  if (!ts) return '';
+  return new Date(ts * 1000).toLocaleString('pt-BR', {
+    day: '2-digit',
+    month: '2-digit',
+    hour: '2-digit',
+    minute: '2-digit',
+  });
+};
+const openResult = result => {
+  if (result?.internal_channel_id) emit('select', result.internal_channel_id);
+};
 const activeFilter = ref('all');
 const showCompose = ref(false);
 const showSettings = ref(false);
@@ -93,6 +126,9 @@ const startTeam = team => {
   closeCompose();
   emit('createTeam', team);
 };
+
+// Permite que a tela vazia (no painel principal) abra o compose desta sidebar.
+defineExpose({ openCompose });
 </script>
 
 <template>
@@ -104,6 +140,15 @@ const startTeam = team => {
     >
       <h1 class="text-lg font-bold text-n-slate-12">Chat Interno</h1>
       <div class="flex items-center gap-0.5">
+        <!-- Inbox de menções -->
+        <button
+          type="button"
+          class="inline-flex items-center justify-center transition-colors rounded-lg w-9 h-9 text-n-slate-11 hover:bg-n-alpha-2 hover:text-n-slate-12"
+          title="Menções"
+          @click="$emit('openMentions')"
+        >
+          <span class="text-lg i-lucide-at-sign" />
+        </button>
         <!-- Configurações de notificação -->
         <div class="relative">
           <button
@@ -288,8 +333,9 @@ const startTeam = team => {
         <input
           v-model="search"
           type="text"
-          placeholder="Buscar conversas..."
+          placeholder="Buscar conversas e mensagens..."
           class="reset-base w-full h-10 pl-9 pr-3 text-sm transition-colors border border-transparent outline-none rounded-xl bg-n-alpha-1 focus:border-n-brand focus:bg-n-background text-n-slate-12 placeholder:text-n-slate-10"
+          @input="onSearchInput"
         />
       </div>
     </div>
@@ -381,11 +427,46 @@ const startTeam = team => {
           @select="$emit('select', $event)"
         />
         <p
-          v-if="!filtered.length"
+          v-if="!filtered.length && !showMessageResults"
           class="px-4 py-10 text-sm text-center text-n-slate-10"
         >
           Nenhuma conversa encontrada.
         </p>
+
+        <!-- Resultados de mensagens (busca por conteúdo, cross-channel) -->
+        <template v-if="showMessageResults">
+          <p
+            class="px-3 pt-3 pb-1 text-[11px] font-semibold uppercase tracking-wide text-n-slate-10"
+          >
+            Mensagens
+          </p>
+          <button
+            v-for="r in searchResults"
+            :key="`msg-${r.id}`"
+            type="button"
+            class="flex flex-col w-full gap-0.5 px-3 py-2 text-left rounded-xl hover:bg-n-alpha-1 transition-colors"
+            @click="openResult(r)"
+          >
+            <span class="flex items-center justify-between gap-2">
+              <span class="text-sm font-medium text-n-slate-12 truncate">
+                {{ r.channel_title }}
+              </span>
+              <span class="text-[11px] text-n-slate-10 flex-shrink-0">
+                {{ resultTime(r.created_at) }}
+              </span>
+            </span>
+            <span class="block text-xs truncate text-n-slate-10">
+              <span class="text-n-slate-11">{{ r.user?.name }}:</span>
+              {{ r.content || '📎 Anexo' }}
+            </span>
+          </button>
+          <p
+            v-if="!searchResults.length"
+            class="px-4 py-6 text-sm text-center text-n-slate-10"
+          >
+            Nenhuma mensagem encontrada.
+          </p>
+        </template>
       </template>
     </div>
   </aside>

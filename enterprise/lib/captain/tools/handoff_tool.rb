@@ -61,73 +61,14 @@ class Captain::Tools::HandoffTool < Captain::Tools::BasePublicTool
 
   private
 
-  # Modelo A (decisão Paulo): a IA NÃO solta a conversa no handoff — ela SEGUE dona e
-  # respondendo até um humano PUXAR a atribuição ("Assumir conversa"). Isso evita
-  # abandonar o lead (ex.: handoff num sábado à noite, sem ninguém pra assumir até
-  # segunda — a IA segura o cliente nesse meio-tempo).
-  #
-  # A espera é sinalizada pelo custom attribute `aguardando_humano_desde`. A conversa fica
-  # "atribuída à IA + marcador" → aparece no filtro "Aguardando atendimento" (e SAI do
-  # filtro "IA", porque já está na hora de um humano), SEM virar "não atribuída" (ela TEM
-  # dono: a IA). Some de "Aguardando atendimento" quando um humano assume (atribuição),
-  # responde (A2c) ou a conversa resolve — o concern limpa o marcador nesses casos.
-  #
-  # Sem round-robin / auto-assign de humano: com o espelho captain presente, o A2b já
-  # bloqueia o auto-assign de time, então a conversa não é empurrada pra um humano ausente.
+  # Modelo A (decisão Paulo): a IA NÃO solta a conversa no handoff — segue dona e
+  # respondendo até um humano PUXAR a atribuição. A lógica (abrir a conversa, rotear pro
+  # time, marcar `aguardando_humano_desde`, distribuir) vive no HumanHandoffService, fonte
+  # única reusada também pelo FollowupJob quando as cutucadas in-window esgotam.
   def trigger_handoff(conversation, reason, team_id = nil)
-    create_handoff_note(conversation, reason) if reason.present?
-
-    # Abre a conversa + dispara eventos. NÃO solta o espelho — a IA continua dona/respondendo.
-    conversation.bot_handoff!
-
-    # Time + marcador "aguardando humano" no MESMO save. Espelho captain presente => o A2b
-    # impede o auto-assign de time, então o time é só roteamento (pra fila do setor certo).
-    team = resolve_team(conversation, team_id)
-    attrs = (conversation.custom_attributes || {}).merge('aguardando_humano_desde' => Time.current.iso8601)
-    update_attrs = { custom_attributes: attrs }
-    update_attrs[:team] = team if team
-    conversation.update!(update_attrs)
-
-    # Motor de Distribuição (F1): se o time tem política modo=rodizio, EMPURRA a conversa
-    # pro consultor certo (continuidade/rodízio) em vez de deixá-la na fila "Aguardando
-    # atendimento". Sem política / modo off/online => no-op (segue o pull atual). A
-    # atribuição solta o espelho e limpa o marcador que acabamos de setar — o "aguardando"
-    # é transitório no modo push (ver docs/MOTOR-DISTRIBUICAO.md §10.4/§10.7).
-    Spx::Distribuicao::DistribuirService.new(conversation).call
-
-    # Send out of office message if applicable (since template messages were suppressed while Captain was handling)
-    send_out_of_office_message_if_applicable(conversation)
-  end
-
-  # post the reason as a private note (dossiê pro humano que assumir)
-  def create_handoff_note(conversation, reason)
-    conversation.messages.create!(
-      message_type: :outgoing,
-      private: true,
-      sender: @assistant,
-      account: conversation.account,
-      inbox: conversation.inbox,
-      content: reason
-    )
-  end
-
-  # LLM pode alucinar id — validar SEMPRE na conta. Se o LLM não passar um time válido,
-  # cai no time do PRÓPRIO agente (config['team_id']) — assim a conversa nunca fica sem
-  # fila/setor (ex.: handoff de pedido vago "falar com humano", sem time explícito).
-  def resolve_team(conversation, team_id)
-    explicit = team_id.present? ? conversation.account.teams.find_by(id: team_id) : nil
-    return explicit if explicit
-
-    default_id = (@assistant.config || {})['team_id']
-    default_id.present? ? conversation.account.teams.find_by(id: default_id) : nil
-  end
-
-  def send_out_of_office_message_if_applicable(conversation)
-    # Campaign conversations should never receive OOO templates — the campaign itself
-    # serves as the initial outreach, and OOO would be confusing in that context.
-    return if conversation.campaign.present?
-
-    ::MessageTemplates::Template::OutOfOffice.perform_if_applicable(conversation)
+    Captain::Conversation::HumanHandoffService.new(
+      conversation: conversation, assistant: @assistant, reason: reason, team_id: team_id
+    ).perform
   end
 
   # TODO: Future enhancement

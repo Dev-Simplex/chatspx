@@ -18,12 +18,14 @@ import Input from 'dashboard/components-next/input/Input.vue';
 import Icon from 'dashboard/components-next/icon/Icon.vue';
 import Dialog from 'dashboard/components-next/dialog/Dialog.vue';
 import { useAlert } from 'dashboard/composables';
+import { useAdmin } from 'dashboard/composables/useAdmin';
 import 'dashboard/components-next/Kanban/kanban-theme.css';
 
 const route = useRoute();
 const router = useRouter();
 const store = useStore();
 const { t } = useI18n();
+const { isAdmin } = useAdmin();
 
 const funnels = computed(() => store.getters['kanban/getFunnels']);
 const activeFunnelId = computed(
@@ -1018,12 +1020,21 @@ onMounted(async () => {
           <Icon icon="i-lucide-layout-grid" class="size-10 text-n-slate-10" />
         </div>
         <h2 class="text-2xl font-semibold text-n-slate-12">
-          {{ t('KANBAN.FUNNELS.NO_FUNNELS') }}
+          {{
+            isAdmin
+              ? t('KANBAN.FUNNELS.NO_FUNNELS')
+              : t('KANBAN.FUNNELS.NO_FUNNELS_AGENT')
+          }}
         </h2>
         <p class="mt-2 max-w-lg text-sm text-n-slate-10">
-          {{ t('KANBAN.FUNNELS.NO_FUNNELS_DESCRIPTION') }}
+          {{
+            isAdmin
+              ? t('KANBAN.FUNNELS.NO_FUNNELS_DESCRIPTION')
+              : t('KANBAN.FUNNELS.NO_FUNNELS_AGENT_DESCRIPTION')
+          }}
         </p>
         <Button
+          v-if="isAdmin"
           icon="i-lucide-plus"
           color="blue"
           class="mt-6"

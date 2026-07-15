@@ -250,7 +250,7 @@ onMounted(() => {
                 role="option"
                 :aria-selected="index === activeIndex"
                 :data-index="index"
-                class="flex items-start justify-between gap-3 px-3 py-2.5 rounded-lg cursor-pointer transition-colors"
+                class="flex items-center justify-between h-14 gap-3 px-3 rounded-lg cursor-pointer transition-colors"
                 :class="{
                   'bg-n-slate-3 dark:bg-n-slate-7': index === activeIndex,
                   'hover:bg-n-slate-2 dark:hover:bg-n-slate-8':
@@ -260,7 +260,7 @@ onMounted(() => {
                 @click="handleSelect(item)"
               >
                 <p
-                  class="flex-1 text-sm text-n-slate-12 leading-snug line-clamp-3 whitespace-pre-wrap break-words"
+                  class="flex-1 text-sm text-n-slate-12 leading-snug line-clamp-2 whitespace-pre-wrap break-words"
                 >
                   {{ previewLines(item.content) }}
                 </p>

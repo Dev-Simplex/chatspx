@@ -112,4 +112,79 @@ describe Messages::NewMessageNotificationService do
       end
     end
   end
+
+  # A participação é eterna: o ParticipationListener adiciona todo assignee e nunca remove o anterior.
+  # Estes casos travam a regra de que a audiência do sino segue a mesma regra da LISTA de conversas.
+  context 'when the conversation is scoped to a team' do
+    let(:account) { create(:account) }
+    let(:inbox) { create(:inbox, account: account) }
+    let(:team_x) { create(:team, account: account) }
+    let(:team_y) { create(:team, account: account) }
+
+    let(:agent_x) { create(:user, account: account, role: :agent) }
+    let(:agent_y) { create(:user, account: account, role: :agent) }
+    let(:agent_without_team) { create(:user, account: account, role: :agent) }
+    let(:admin) { create(:user, account: account, role: :administrator) }
+
+    before do
+      [agent_x, agent_y, agent_without_team, admin].each { |user| create(:inbox_member, inbox: inbox, user: user) }
+      create(:team_member, user: agent_x, team: team_x)
+      create(:team_member, user: agent_y, team: team_y)
+    end
+
+    # Cenário reportado: agent_x era o assignee (virou participante), a conversa foi reatribuída
+    # ao agent_y e o AssignmentHandler moveu o time junto. agent_x continua participante.
+    context 'when a participant was reassigned away to another team' do
+      let(:conversation) { create(:conversation, account: account, inbox: inbox, assignee: agent_y) }
+      let(:message) { create(:message, conversation: conversation, account: account) }
+
+      before do
+        create(:conversation_participant, conversation: conversation, user: agent_x)
+        create(:conversation_participant, conversation: conversation, user: agent_without_team)
+        create(:conversation_participant, conversation: conversation, user: admin)
+        described_class.new(message: message).perform
+      end
+
+      it 'moved the conversation to the assignee team' do
+        expect(conversation.reload.team_id).to eq(team_y.id)
+      end
+
+      it 'does not notify the ex-assignee who is now in another team' do
+        expect(agent_x.notifications.where(primary_actor: conversation)).not_to exist
+      end
+
+      it 'still notifies the current assignee' do
+        expect(agent_y.notifications.where(notification_type: 'assigned_conversation_new_message',
+                                           primary_actor: conversation)).to exist
+      end
+
+      it 'still notifies a participating agent without any team' do
+        expect(agent_without_team.notifications.where(notification_type: 'participating_conversation_new_message',
+                                                      primary_actor: conversation)).to exist
+      end
+
+      it 'still notifies a participating administrator from another team' do
+        expect(admin.notifications.where(notification_type: 'participating_conversation_new_message',
+                                         primary_actor: conversation)).to exist
+      end
+    end
+
+    context 'when the conversation has no team' do
+      let(:conversation) { create(:conversation, account: account, inbox: inbox, team: nil) }
+      let(:message) { create(:message, conversation: conversation, account: account) }
+
+      before do
+        create(:conversation_participant, conversation: conversation, user: agent_x)
+        create(:conversation_participant, conversation: conversation, user: agent_y)
+        described_class.new(message: message).perform
+      end
+
+      it 'notifies every participant regardless of team' do
+        expect(agent_x.notifications.where(notification_type: 'participating_conversation_new_message',
+                                           primary_actor: conversation)).to exist
+        expect(agent_y.notifications.where(notification_type: 'participating_conversation_new_message',
+                                           primary_actor: conversation)).to exist
+      end
+    end
+  end
 end

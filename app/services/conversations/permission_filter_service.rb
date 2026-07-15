@@ -15,6 +15,9 @@ class Conversations::PermissionFilterService
 
   private
 
+  # Espelho INVERSO em Conversations::VisibilityService (app/services/conversations/visibility_service.rb),
+  # que decide a audiência de notificação do sino: dada 1 conversa -> quais usuários.
+  # SE VOCÊ MUDAR A REGRA AQUI, MUDE LÁ TAMBÉM — as duas superfícies precisam concordar.
   def accessible_conversations
     conversations_by_inbox = conversations.where(inbox: user.inboxes.where(account_id: account.id))
     if user_team_ids.any?

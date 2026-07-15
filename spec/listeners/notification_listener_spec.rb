@@ -42,6 +42,67 @@ describe NotificationListener do
         expect(notification_setting.user.notifications.count).to eq(0)
       end
     end
+
+    # A audiência do sino segue a mesma regra da LISTA de conversas: membro do inbox E
+    # (conversa sem time OU time do usuário). Agente sem time nenhum não é filtrado por time.
+    context 'when the conversation already belongs to a team' do
+      let!(:team_x) { create(:team, account: account) }
+      let!(:team_y) { create(:team, account: account) }
+      let!(:team_conversation) { create(:conversation, account: account, inbox: inbox, team: team_x) }
+
+      def opt_in(user)
+        setting = user.notification_settings.first
+        setting.selected_email_flags = [:email_conversation_creation]
+        setting.selected_push_flags = []
+        setting.save!
+      end
+
+      def dispatch
+        listener.conversation_created(
+          Events::Base.new(event_name, Time.zone.now, conversation: team_conversation.reload)
+        )
+      end
+
+      it 'does not notify an inbox member from another team' do
+        opt_in(first_agent)
+        create(:inbox_member, user: first_agent, inbox: inbox)
+        create(:team_member, user: first_agent, team: team_y)
+
+        dispatch
+
+        expect(first_agent.notifications.count).to eq(0)
+      end
+
+      it 'notifies an inbox member of the same team' do
+        opt_in(first_agent)
+        create(:inbox_member, user: first_agent, inbox: inbox)
+        create(:team_member, user: first_agent, team: team_x)
+
+        dispatch
+
+        expect(first_agent.notifications.count).to eq(1)
+      end
+
+      it 'notifies an inbox member without any team' do
+        opt_in(first_agent)
+        create(:inbox_member, user: first_agent, inbox: inbox)
+
+        dispatch
+
+        expect(first_agent.notifications.count).to eq(1)
+      end
+
+      it 'notifies an administrator from another team' do
+        admin = create(:user, account: account, role: :administrator)
+        opt_in(admin)
+        create(:inbox_member, user: admin, inbox: inbox)
+        create(:team_member, user: admin, team: team_y)
+
+        dispatch
+
+        expect(admin.notifications.count).to eq(1)
+      end
+    end
   end
 
   describe 'message_created' do

@@ -6,8 +6,11 @@ RSpec.describe 'Funnel Views API', type: :request do
   let(:account) { create(:account) }
   let(:agent) { create(:user, account: account, role: :agent) }
   let(:other_agent) { create(:user, account: account, role: :agent) }
-  let(:funnel) { Funnel.create!(account: account, name: 'Vendas') }
+  let(:team) { create(:team, account: account) }
+  let(:funnel) { Funnel.create!(account: account, name: 'Vendas', team_id: team.id) }
   let(:base) { "/api/v1/accounts/#{account.id}/funnel_views" }
+
+  before { team.add_members([agent.id, other_agent.id]) }
 
   describe 'unauthenticated' do
     it 'returns unauthorized' do

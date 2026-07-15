@@ -1,16 +1,25 @@
 <%
   k = @data[:kpis]
   score = k[:nps_score]
+  # Zonas derivadas da fonte única (PdfBenchmarks) — sem rehardcodar 75/50/0.
   zone, zone_class =
-    if score >= 75
-      ['Excelência', '']
-    elsif score >= 50
-      ['Zona de Qualidade', '']
-    elsif score >= 0
-      ['Aperfeiçoar', 'is-passive']
-    else
-      ['Zona Crítica', 'is-detractor']
+    case Reports::PdfBenchmarks.nps_zone(score)
+    when :excellent then ['Excelência', '']
+    when :good      then ['Zona de Qualidade', '']
+    when :warn      then ['Aperfeiçoar', 'is-passive']
+    else                 ['Zona Crítica', 'is-detractor']
     end
+  nps_bench = Reports::PdfBenchmarks::BENCHMARKS[:nps]
+  delta = k[:delta]
+  trend_html =
+    if delta && !delta.zero?
+      arrow = delta.positive? ? '▲' : '▼'
+      cls = delta.positive? ? 'good' : 'bad'
+      %(<span class="delta delta--#{cls}">#{arrow} #{delta.abs} pts vs período anterior</span>)
+    else
+      ''
+    end
+  low_sample = k[:reliable] == false
 
   composition = [
     { label: 'Promotores', value: k[:promoters], color: '#2dc46f' },
@@ -23,7 +32,7 @@
   recos << { title: 'Amplie a taxa de resposta', body: "A taxa de resposta está em #{k[:response_rate]}%. Ajuste o gatilho da pesquisa e o canal de envio para ampliar a base." } if k[:response_rate].to_f < 40
   recos << { title: 'Converta passivos', body: "#{k[:passives]} clientes passivos (7-8) estão a um passo de virar promotores — investigue o atrito final do atendimento." } if k[:passives].positive?
   low_agent = (@data[:agents] || []).select { |a| a[:total].to_i.positive? }.min_by { |a| a[:nps_score] }
-  recos << { title: 'Apoie quem está abaixo da meta', body: "#{low_agent[:name]} está com NPS #{low_agent[:nps_score]}. Sessões de coaching e revisão de scripts tendem a recuperar o índice." } if low_agent && low_agent[:nps_score] < 50
+  recos << { title: 'Apoie quem está abaixo da meta', body: "#{low_agent[:name]} está com NPS #{low_agent[:nps_score]}. Sessões de coaching e revisão de scripts tendem a recuperar o índice." } if low_agent && low_agent[:nps_score] < nps_bench[:green]
   recos << { title: 'Reconheça promotores', body: "#{k[:promoters]} clientes recomendam ativamente a operação. Mantenha o padrão e capture depoimentos para prova social." } if recos.size < 4 && k[:promoters].positive?
   recos = recos.first(4)
 %>
@@ -46,6 +55,15 @@
           title: 'Composição das avaliações',
           segments: composition %>
   </div>
+  <% if trend_html.present? %>
+    <div style="margin-top:8px;"><%= raw trend_html %></div>
+  <% end %>
+  <% if low_sample %>
+    <div style="margin-top:10px;">
+      <%= render 'reports/pdf/callout', variant: 'warning', title: 'Amostra baixa',
+            body: raw("Apenas <strong>#{k[:total]}</strong> avaliações válidas (mínimo #{k[:min_sample]} para leitura confiável). Interprete o NPS de #{score} com cautela.") %>
+    </div>
+  <% end %>
 </div>
 
 <%# ---------- KPIs de apoio ---------- %>
@@ -88,8 +106,8 @@
           columns: { entity: 'Atendente', count: 'Avaliações', perf: 'Desempenho (% promotores)', index: 'NPS' },
           rows: @data[:agents].map { |agent|
             nps = agent[:nps_score]
-            badge_class = nps >= 75 ? 'up' : (nps >= 50 ? 'mid' : 'down')
-            bar_color = nps >= 75 ? '#2dc46f' : (nps >= 50 ? '#ffc53d' : '#e54666')
+            badge_class = nps >= nps_bench[:excellent] ? 'up' : (nps >= nps_bench[:green] ? 'mid' : 'down')
+            bar_color = nps >= nps_bench[:excellent] ? '#2dc46f' : (nps >= nps_bench[:green] ? '#ffc53d' : '#e54666')
             { name: agent[:name], count: agent[:total], ratio: agent[:positive_pct].to_f / 100,
               bar_color: bar_color, badge: nps, badge_class: badge_class }
           } %>
@@ -106,7 +124,16 @@
 
 <%# ---------- Conclusao ---------- %>
 <div class="section">
+  <%
+    trend_clause =
+      if delta && !delta.zero?
+        " O índice #{delta.positive? ? 'subiu' : 'caiu'} <span class=\"hl\">#{delta.abs} pontos</span> vs o período anterior."
+      else
+        ''
+      end
+    sample_clause = low_sample ? " <strong>Atenção:</strong> a base tem apenas #{k[:total]} avaliações (mínimo #{k[:min_sample]}), então o número é volátil." : ''
+  %>
   <%= render 'reports/pdf/conclusion',
         title: 'Leitura executiva',
-        body: raw("O NPS de <span class=\"hl\">#{score}</span> posiciona a operação em <span class=\"hl\">#{zone.downcase}</span>, sustentado por #{k[:promoters]} promotores sobre #{k[:total]} avaliações válidas. A apuração aplica filtro anti-fraude (#{k[:blocked]} respostas suspeitas descartadas) e considera apenas avaliações confiáveis.") %>
+        body: raw("O NPS de <span class=\"hl\">#{score}</span> posiciona a operação em <span class=\"hl\">#{zone.downcase}</span>, sustentado por #{k[:promoters]} promotores sobre #{k[:total]} avaliações válidas.#{trend_clause} A apuração aplica filtro anti-fraude (#{k[:blocked]} respostas suspeitas descartadas) e considera apenas avaliações confiáveis.#{sample_clause}") %>
 </div>

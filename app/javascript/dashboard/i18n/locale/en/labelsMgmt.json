@@ -17,6 +17,7 @@
         "NAME": "Name",
         "DESCRIPTION": "Description",
         "COLOR": "Color",
+        "VISIBILITY": "Visibility",
         "ACTION": "Actions"
       }
     },
@@ -26,7 +27,8 @@
         "PLACEHOLDER": "Label name",
         "REQUIRED_ERROR": "Label name is required",
         "MINIMUM_LENGTH_ERROR": "Minimum length 2 is required",
-        "VALID_ERROR": "Only Alphabets, Numbers, Hyphen and Underscore are allowed"
+        "VALID_ERROR": "Only Alphabets, Numbers, Hyphen and Underscore are allowed",
+        "EXISTS_ERROR": "A label with this name already exists in this account."
       },
       "DESCRIPTION": {
         "LABEL": "Description",
@@ -35,9 +37,30 @@
       "COLOR": {
         "LABEL": "Color"
       },
+      "VISIBILITY": {
+        "LABEL": "Visibility",
+        "EVERYONE": {
+          "LABEL": "Public",
+          "DESCRIPTION": "Everyone in the account can see and use it"
+        },
+        "PERSONAL": {
+          "LABEL": "Private",
+          "DESCRIPTION": "Only you can see and use it"
+        },
+        "TEAM": {
+          "LABEL": "Team",
+          "DESCRIPTION": "Only members of a team can see and use it"
+        },
+        "TEAM_SELECT": {
+          "LABEL": "Team",
+          "PLACEHOLDER": "Select a team",
+          "REQUIRED_ERROR": "Please select a team"
+        }
+      },
       "SHOW_ON_SIDEBAR": {
         "LABEL": "Show label on sidebar"
       },
+      "NO_MANAGE_PERMISSION": "You do not have permission to edit this label. Only the author, team members or an administrator can manage it.",
       "EDIT": "Edit",
       "CREATE": "Create",
       "DELETE": "Delete",

@@ -1,4 +1,4 @@
-import { required, minLength } from '@vuelidate/validators';
+import { required, minLength, requiredIf } from '@vuelidate/validators';
 
 export const validLabelCharacters = (str = '') => !!str && !str.includes(' ');
 
@@ -27,4 +27,9 @@ export default {
     required,
   },
   showOnSidebar: {},
+  visibility: {},
+  // team_id is only required when the label is scoped to a team.
+  teamId: {
+    required: requiredIf((_value, model) => model?.visibility === 'team'),
+  },
 };

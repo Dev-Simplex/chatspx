@@ -21,7 +21,7 @@ class Captain::Conversation::FollowupJob < ApplicationJob
 
     attrs = conversation.custom_attributes || {}
     count = attrs['followup_count'].to_i
-    return cool_down_lead(conversation, attrs) if count >= MAX_FOLLOWUPS
+    return cool_down_lead(conversation, attrs, assistant) if count >= MAX_FOLLOWUPS
 
     conversation.update!(custom_attributes: attrs.merge('followup_count' => count + 1, 'followup_token' => nil))
     Captain::Conversation::ResponseBuilderJob.perform_now(conversation, assistant, directive: directive(attrs['followup_motivo']))
@@ -55,17 +55,19 @@ class Captain::Conversation::FollowupJob < ApplicationJob
     mirror.captain_assistant
   end
 
-  # Esgotou as cutucadas in-window (e o dono ainda é a IA) -> card "Frio" e, em inbox
-  # Cloud API, agenda a cadência de reativação por HSM (fora da janela 24h). Bloco 3+4
-  # do funil Tozi.
-  def cool_down_lead(conversation, attrs)
+  # Esgotou as cutucadas in-window e o cliente segue sem responder: em vez de só esfriar,
+  # ESCALA pra um humano tentar recuperar o lead que a IA não converteu. Vai pelo mesmo
+  # caminho do handoff do agente (HumanHandoffService: abre, roteia pro time, marca
+  # `aguardando_humano_desde` -> a IA para de cutucar e de responder). Substitui a cadência
+  # de reativação por HSM: quem conduz o lead frio passa a ser a pessoa, não um automático.
+  def cool_down_lead(conversation, attrs, assistant)
     conversation.update!(custom_attributes: attrs.merge(
       'tozi_status_lead' => 'esfriado',
-      'followup_status' => 'esfriado (sem resposta após cutucadas)',
+      'followup_status' => 'esgotou cutucadas -> encaminhado pra humano',
       'followup_token' => nil
     ))
     Spx::Tozi::FunnelPlacementService.move(conversation: conversation, to: 'frio')
-    Spx::Tozi::ReactivationCadenceService.new(conversation: conversation).perform
+    Captain::Conversation::HumanHandoffService.new(conversation: conversation, assistant: assistant).perform
   end
 
   def directive(motivo)

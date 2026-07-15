@@ -56,35 +56,62 @@ class Reports::PdfDataResolver # rubocop:disable Metrics/ClassLength
   private
 
   # ======================= NPS =======================
+  # Mesma fonte única do card/API (Reports::NpsCalculator) — score inteiro, taxa
+  # de resposta em coorte e delta em pontos vs período anterior.
   def nps_data
-    scope = nps_scope
-    responded = scope.where(status: :responded).where.not(score: nil).trusted
-    total = responded.count
-    promoters = responded.promoters.count
-    passives = responded.passives.count
-    detractors = responded.detractors.count
-    kpis = nps_kpis(total, promoters, passives, detractors)
+    cohort = nps_cohort
+    responded = cohort.where(status: :responded).where.not(score: nil).trusted
+    calc = Reports::NpsCalculator.new(
+      responded_scope: responded,
+      sent_count: cohort.where(status: %i[sent responded expired]).count,
+      previous_score: previous_nps_score
+    )
+    kpis = nps_kpis(calc, cohort)
 
     {
       report_type: 'nps', title: 'Relatório de NPS', period: period_meta,
       overline: 'Experiência do Cliente · Confidencial',
-      subtitle: "Net Promoter Score de #{kpis[:nps_score]} apurado sobre #{total} avaliações válidas no período.",
-      base_label: "#{total} avaliações válidas",
+      subtitle: nps_subtitle(kpis),
+      base_label: "#{kpis[:total]} avaliações válidas",
       kpis: kpis,
-      verdict: metric_verdict(metric: :nps, value: kpis[:nps_score], human: kpis[:nps_score].to_s, label: 'NPS'),
+      verdict: nps_verdict(calc),
       distribution: nps_distribution(responded),
       agents: nps_by_agent(responded)
     }
   end
 
-  def nps_kpis(total, promoters, passives, detractors)
+  def nps_kpis(calc, cohort)
     {
-      total: total, nps_score: nps_score(promoters, detractors, total),
-      response_rate: nps_response_rate(total),
-      promoters: promoters, passives: passives, detractors: detractors,
-      promoters_pct: pct(promoters, total), passives_pct: pct(passives, total),
-      detractors_pct: pct(detractors, total),
-      blocked: nps_scope.where(status: :dismissed).count
+      total: calc.total, nps_score: calc.score,
+      response_rate: calc.response_rate,
+      promoters: calc.promoters, passives: calc.passives, detractors: calc.detractors,
+      promoters_pct: calc.promoters_pct, passives_pct: calc.passives_pct,
+      detractors_pct: calc.detractors_pct,
+      blocked: cohort.where(status: :dismissed).count,
+      reliable: calc.reliable?, min_sample: Reports::NpsCalculator::MIN_SAMPLE,
+      delta: calc.delta
+    }
+  end
+
+  # Subtítulo com tendência em pontos (quando há período anterior comparável).
+  def nps_subtitle(kpis)
+    base = "Net Promoter Score de #{kpis[:nps_score]} apurado sobre #{kpis[:total]} avaliações válidas no período."
+    return base if kpis[:delta].nil? || kpis[:delta].zero?
+
+    arrow = kpis[:delta].positive? ? '▲' : '▼'
+    "#{base} #{arrow} #{kpis[:delta].abs} pts vs período anterior."
+  end
+
+  # Veredito neutro quando a amostra é baixa (não pinta vermelho um N=1).
+  def nps_verdict(calc)
+    return metric_verdict(metric: :nps, value: calc.score, human: calc.score.to_s, label: 'NPS') if calc.reliable?
+
+    {
+      kind: :attention, emoji: 'ℹ️', title: 'Amostra insuficiente',
+      level: :warn, word: 'amostra baixa', metric_label: 'NPS',
+      value_human: calc.score.to_s, goal_human: metric_goal_human(:nps),
+      body: "Apenas #{calc.total} avaliações válidas (mínimo #{Reports::NpsCalculator::MIN_SAMPLE} para leitura confiável). " \
+            "Interprete o NPS de #{calc.score} com cautela."
     }
   end
 
@@ -115,28 +142,35 @@ class Reports::PdfDataResolver # rubocop:disable Metrics/ClassLength
     detractors = scores.select { |score, _| score.between?(0, 6) }.values.sum
     total = scores.values.sum
     { id: agent_id, name: entity_name(agent_id, names), total: total,
-      nps_score: nps_score(promoters, detractors, total), positive_pct: pct(promoters, total) }
+      nps_score: Reports::NpsCalculator.score(promoters: promoters, detractors: detractors, total: total),
+      positive_pct: pct(promoters, total) }
   end
 
-  def nps_scope
-    @nps_scope ||= begin
-      scope = @account.nps_responses
-      scope = scope.filter_by_created_at(range) if range.present?
-      scope = scope.filter_by_assigned_agent_id(@filters[:user_ids])
-      scope.filter_by_inbox_id(@filters[:inbox_id])
-    end
+  # Base filtrada (agente/inbox), sem recorte de data — reusada pelo coorte atual
+  # e pelo período anterior.
+  def nps_filtered_base
+    @nps_filtered_base ||= @account.nps_responses
+                                   .filter_by_assigned_agent_id(@filters[:user_ids])
+                                   .filter_by_inbox_id(@filters[:inbox_id])
   end
 
-  def nps_response_rate(total)
-    sent = @account.nps_responses.where(status: %i[sent responded expired])
-    sent = sent.where(created_at: range) if range.present?
-    pct(total, sent.count)
+  # Coorte por created_at — mesma base do numerador e do denominador da taxa.
+  def nps_cohort
+    @nps_cohort ||= range.present? ? nps_filtered_base.where(created_at: range) : nps_filtered_base
   end
 
-  def nps_score(promoters, detractors, total)
-    return 0 if total.zero?
+  # NPS do período imediatamente anterior de mesma duração (nil se indisponível).
+  def previous_nps_score
+    return nil if range.blank?
 
-    (((promoters - detractors).to_f / total) * 100).round
+    duration = range.last - range.first
+    previous_range = (range.first - duration)...range.first
+    counts = nps_filtered_base.where(created_at: previous_range)
+                              .where(status: :responded).where.not(score: nil).trusted
+                              .group(:score).count
+    return nil if counts.values.sum.zero?
+
+    Reports::NpsCalculator.score_from_counts(counts)
   end
 
   def nps_band(score)

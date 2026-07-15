@@ -16,8 +16,34 @@
       "TABLE_HEADER": {
         "SHORT_CODE": "Short code",
         "CONTENT": "Content",
+        "VISIBILITY": "Visibility",
         "ACTIONS": "Actions"
       }
+    },
+    "VISIBILITY": {
+      "LABEL": "Visibility",
+      "EVERYONE": {
+        "LABEL": "Public",
+        "DESCRIPTION": "Everyone in the account can see and use it"
+      },
+      "PERSONAL": {
+        "LABEL": "Private",
+        "DESCRIPTION": "Only you can see and use it"
+      },
+      "TEAM": {
+        "LABEL": "Team",
+        "DESCRIPTION": "Only members of a team can see and use it"
+      },
+      "TEAM_SELECT": {
+        "LABEL": "Team",
+        "PLACEHOLDER": "Select a team",
+        "REQUIRED_ERROR": "Please select a team"
+      },
+      "NO_MANAGE_PERMISSION": "You do not have permission to edit this canned response. Only the author, team members or an administrator can manage it."
+    },
+    "ATTACHMENT": {
+      "CHOOSE": "Choose files",
+      "CLEAR": "Clear"
     },
     "ADD": {
       "TITLE": "Add canned response",

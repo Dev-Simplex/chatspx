@@ -291,6 +291,22 @@ const scrollToStage = stageId => {
     });
 };
 
+// Persist manual card ordering within a column (Kanban DB restructure / P1).
+// Best-effort: the store already applied the new positions optimistically and
+// rolls them back on failure, so we only need to surface a soft error.
+const handleReorderItems = async ({ stageId, orderedIds }) => {
+  if (!stageId || !Array.isArray(orderedIds) || !orderedIds.length) return;
+  try {
+    await store.dispatch('kanban/reorderItems', {
+      funnelId: props.funnelId,
+      stageId,
+      itemIds: orderedIds,
+    });
+  } catch (error) {
+    useAlert(t('KANBAN.ITEMS.MOVE_ERROR'));
+  }
+};
+
 const handleMoveItem = async ({ item, stageId }) => {
   // The card "move" button emits without a target stage → open the stage
   // picker modal (the drag&drop path always provides stageId and moves directly).
@@ -594,6 +610,7 @@ const handleDeleteStage = stage => {
               :conversations="conversations"
               :prioritize-waiting="prioritizeWaiting"
               @move-item="handleMoveItem"
+              @reorder-items="handleReorderItems"
               @schedule-message="handleScheduleMessage"
               @remove-item="handleRemoveItem"
               @edit-stage="handleEditStage"

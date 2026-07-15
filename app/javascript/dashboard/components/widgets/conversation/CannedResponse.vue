@@ -35,6 +35,14 @@ export default {
     fetchCannedResponses() {
       this.$store.dispatch('getCannedResponse', { searchKey: this.searchKey });
     },
+    // Strip HTML/whitespace for a compact single-source preview (mirrors the modal picker).
+    previewText(content) {
+      if (!content) return '';
+      return String(content)
+        .replace(/<[^>]*>/g, ' ')
+        .replace(/\s+/g, ' ')
+        .trim();
+    },
     handleMentionClick(item = {}) {
       this.$emit('replace', item.description);
       const selected = this.cannedMessages.find(
@@ -54,5 +62,20 @@ export default {
     v-if="items.length"
     :items="items"
     @mention-select="handleMentionClick"
-  />
+  >
+    <template #default="{ item }">
+      <div class="flex items-center justify-between w-full gap-3">
+        <p
+          class="flex-1 min-w-0 mb-0 text-sm leading-snug truncate text-n-slate-12"
+        >
+          {{ previewText(item.description) }}
+        </p>
+        <span
+          class="inline-flex items-center flex-shrink-0 px-2 py-0.5 font-mono text-xs rounded-md bg-n-slate-4 dark:bg-n-slate-8 text-n-slate-11"
+        >
+          {{ `/${item.label}` }}
+        </span>
+      </div>
+    </template>
+  </MentionBox>
 </template>

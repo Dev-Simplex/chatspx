@@ -31,6 +31,11 @@ class FunnelItemPolicy < ApplicationPolicy
     create?
   end
 
+  # Reordenação manual de cartões dentro de uma coluna (Kanban DB restructure / P1).
+  def reorder?
+    create?
+  end
+
   def destroy?
     create? && record.funnel.account_id == account.id
   end

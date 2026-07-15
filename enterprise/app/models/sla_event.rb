@@ -62,7 +62,11 @@ class SlaEvent < ApplicationRecord
   end
 
   def create_notifications
-    notify_users = conversation.conversation_participants.map(&:user)
+    # Só o ramo de participantes é escopado: a participação é eterna, então sem isto o ex-assignee
+    # de outro time recebe alerta de SLA de uma conversa que ele não enxerga mais.
+    # Admins e assignee seguem intocados abaixo (admin vê tudo, por design).
+    visibility = Conversations::VisibilityService.new(conversation: conversation)
+    notify_users = conversation.conversation_participants.map(&:user).select { |user| visibility.visible_to?(user) }
     # Add all admins from the account to notify list
     notify_users += account.administrators
     # Ensure conversation assignee is notified

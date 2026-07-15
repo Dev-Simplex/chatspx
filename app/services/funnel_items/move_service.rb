@@ -26,6 +26,10 @@ class FunnelItems::MoveService
     # false for a no-op "move" to the same stage (so we don't broadcast noise).
     stage_changed = funnel_item.will_save_change_to_funnel_stage_id?
 
+    # Nova colocação ou troca de coluna → topo da coluna de destino com position
+    # única (fractional indexing), em vez do default 0 que colidiria.
+    funnel_item.position = FunnelItem.top_position_for(funnel_stage.id, excluding_id: funnel_item.id) if stage_changed
+
     funnel_item.save!
 
     update_conversation_status

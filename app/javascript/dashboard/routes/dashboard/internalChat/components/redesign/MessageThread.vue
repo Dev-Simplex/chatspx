@@ -4,9 +4,24 @@ import MessageBubble from './MessageBubble.vue';
 
 const props = defineProps({
   items: { type: Array, default: () => [] },
+  currentUserId: { type: [Number, String], default: null },
 });
 
+defineEmits(['react', 'edit', 'delete', 'reply', 'retry']);
+
 const scroller = ref(null);
+
+// Rola até a mensagem citada e a destaca por um instante (clique no reply).
+const scrollToMessage = id => {
+  const el = scroller.value?.querySelector(`[data-msg-id="${id}"]`);
+  if (!el) return;
+  el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+  el.classList.add('ring-2', 'ring-n-brand/60', 'rounded-2xl');
+  setTimeout(
+    () => el.classList.remove('ring-2', 'ring-n-brand/60', 'rounded-2xl'),
+    1400
+  );
+};
 
 const scrollToBottom = (smooth = false) => {
   const el = scroller.value;
@@ -55,7 +70,17 @@ watch(
         </div>
 
         <!-- Message -->
-        <MessageBubble v-else :message="item" />
+        <MessageBubble
+          v-else
+          :message="item"
+          :current-user-id="currentUserId"
+          @react="$emit('react', $event)"
+          @edit="$emit('edit', $event)"
+          @delete="$emit('delete', $event)"
+          @reply="$emit('reply', $event)"
+          @retry="$emit('retry', $event)"
+          @scroll-to="scrollToMessage"
+        />
       </div>
     </TransitionGroup>
   </div>

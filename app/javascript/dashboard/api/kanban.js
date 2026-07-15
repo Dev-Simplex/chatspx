@@ -251,6 +251,17 @@ class KanbanAPI extends ApiClient {
     });
   }
 
+  // Persiste a ordem manual dos cartões de uma coluna (P1 do restructure).
+  reorderItems(funnelId, stageId, itemIds) {
+    const normalizedIds = Array.isArray(itemIds)
+      ? itemIds.map(id => Number(id)).filter(id => !Number.isNaN(id))
+      : [];
+    return axios.post(`${this.url}/${funnelId}/funnel_items/reorder`, {
+      funnel_stage_id: Number(stageId),
+      item_ids: normalizedIds,
+    });
+  }
+
   getScheduledMessages(options = {}) {
     const accountId = this.accountIdFromRoute;
     const {

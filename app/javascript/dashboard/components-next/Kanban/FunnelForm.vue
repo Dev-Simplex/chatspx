@@ -7,6 +7,8 @@ import Dialog from 'dashboard/components-next/dialog/Dialog.vue';
 import Button from 'dashboard/components-next/button/Button.vue';
 import Icon from 'dashboard/components-next/icon/Icon.vue';
 import { useAlert } from 'dashboard/composables';
+import { useAdmin } from 'dashboard/composables/useAdmin';
+import { parseAPIErrorResponse } from 'dashboard/store/utils/api';
 import KanbanAPI from 'dashboard/api/kanban';
 import KanbanCustomFieldEditor from './KanbanCustomFieldEditor.vue';
 
@@ -25,12 +27,17 @@ const emit = defineEmits(['close', 'saved']);
 
 const store = useStore();
 const { t } = useI18n();
+const { isAdmin } = useAdmin();
 
 const formData = ref({
   name: '',
   color: '#3b82f6',
+  team_id: '',
   inbox_ids: [],
 });
+
+// Inline validation errors (shown next to the field, not just as a toast).
+const errors = ref({ name: '', team_id: '' });
 
 const normalizeInboxIds = ids => {
   if (!Array.isArray(ids)) {
@@ -64,8 +71,10 @@ watch(
       formData.value = {
         name: newFunnel.name || '',
         color: newFunnel.color || '#3b82f6',
+        team_id: newFunnel.team_id ?? newFunnel.teamId ?? '',
         inbox_ids: inboxIds,
       };
+      errors.value = { name: '', team_id: '' };
       store.dispatch('kanban/fetchFunnelStages', newFunnel.id).then(() => {
         const fetchedStages = store.getters['kanban/getFunnelStages'](
           newFunnel.id
@@ -86,8 +95,10 @@ watch(
       formData.value = {
         name: '',
         color: '#3b82f6',
+        team_id: '',
         inbox_ids: [],
       };
+      errors.value = { name: '', team_id: '' };
       stages.value = [];
     }
   },
@@ -198,11 +209,25 @@ watch(
   { immediate: true }
 );
 
+// ── Time (equipe) do funil ────────────────────────────────────────────
+// Admin escolhe qualquer time (ou nenhum → funil "Geral" da conta).
+// Agente SÓ pode vincular a um dos seus times, e é OBRIGATÓRIO (o backend
+// recusa um funil sem time criado por agente — ver FunnelPolicy/guard).
+const allTeams = computed(() => store.getters['teams/getTeams'] || []);
+const myTeams = computed(() => store.getters['teams/getMyTeams'] || []);
+const isTeamRequired = computed(() => !isAdmin.value);
+// Admin escolhe entre TODOS os times (+ opção "sem time"); agente só os seus.
+const teamChoices = computed(() =>
+  isAdmin.value ? allTeams.value : myTeams.value
+);
+
 onMounted(() => {
   // Carregar inboxes se ainda não foram carregadas
   if (availableInboxes.value.length === 0) {
     store.dispatch('inboxes/get');
   }
+  // Times para o seletor (getMyTeams/getTeams dependem deste fetch).
+  store.dispatch('teams/get');
 
   if (props.show) {
     nextTick(() => {
@@ -330,15 +355,37 @@ const removeStage = async index => {
   });
 };
 
-const save = async () => {
+// parseAPIErrorResponse devolve o Error CRU quando não há corpo (rede/offline/500
+// sem JSON) — o que renderiza "[object Object]" no toast. Garantimos uma string.
+const apiErrorMessage = error => {
+  const parsed = parseAPIErrorResponse(error);
+  return typeof parsed === 'string' && parsed.trim()
+    ? parsed
+    : t('KANBAN.FUNNELS.SAVE_ERROR');
+};
+
+// Validação inline: retorna true se OK e preenche errors.value com o motivo.
+const validate = () => {
+  errors.value = { name: '', team_id: '' };
   if (!formData.value.name.trim()) {
-    useAlert(t('KANBAN.FUNNELS.NAME_REQUIRED'));
-    return;
+    errors.value.name = t('KANBAN.FUNNELS.NAME_REQUIRED');
   }
+  if (isTeamRequired.value && !formData.value.team_id) {
+    errors.value.team_id = t('KANBAN.FUNNELS.TEAM_REQUIRED');
+  }
+  const firstError = errors.value.name || errors.value.team_id;
+  if (firstError) useAlert(firstError);
+  return !firstError;
+};
+
+const save = async () => {
+  if (!validate()) return;
 
   try {
     formData.value = {
       ...formData.value,
+      // '' (admin sem time) precisa ir como null para o funil "Geral".
+      team_id: formData.value.team_id || null,
       inbox_ids: normalizeInboxIds(formData.value.inbox_ids),
     };
     if (isEditing.value) {
@@ -417,7 +464,10 @@ const save = async () => {
             // eslint-disable-next-line no-console
             console.error('Erro ao criar etapa:', error);
             useAlert(
-              `Erro ao criar etapa "${stage.name}": ${error.message || error}`
+              t('KANBAN.STAGES.CREATE_ERROR_NAMED', {
+                name: stage.name,
+                reason: apiErrorMessage(error),
+              })
             );
           }
         }
@@ -462,7 +512,10 @@ const save = async () => {
           // eslint-disable-next-line no-console
           console.error('Erro ao criar etapa:', error);
           useAlert(
-            `Erro ao criar etapa "${stage.name}": ${error.message || error}`
+            t('KANBAN.STAGES.CREATE_ERROR_NAMED', {
+              name: stage.name,
+              reason: apiErrorMessage(error),
+            })
           );
         }
       }
@@ -479,7 +532,9 @@ const save = async () => {
   } catch (error) {
     // eslint-disable-next-line no-console
     console.error('Erro ao salvar funil:', error);
-    useAlert(t('KANBAN.FUNNELS.SAVE_ERROR'));
+    // Mostra o MOTIVO real vindo do backend (403 time obrigatório, validação,
+    // etc.); só cai no genérico se o backend não mandou mensagem.
+    useAlert(apiErrorMessage(error));
   }
 };
 
@@ -568,10 +623,65 @@ const handleDeleteFunnel = async () => {
           id="funnel-name"
           v-model="formData.name"
           type="text"
-          class="w-full px-4 !py-3 !h-12 border border-n-weak rounded-xl bg-n-solid-1 text-n-slate-12 text-sm leading-5 focus:outline-none focus:ring-2 focus:ring-n-brand"
+          class="w-full px-4 !py-3 !h-12 border rounded-xl bg-n-solid-1 text-n-slate-12 text-sm leading-5 focus:outline-none focus:ring-2 focus:ring-n-brand"
+          :class="errors.name ? 'border-n-ruby-8' : 'border-n-weak'"
           :placeholder="t('KANBAN.FUNNELS.NAME_PLACEHOLDER')"
           @keydown.enter.prevent="save"
+          @input="errors.name = ''"
         />
+        <p v-if="errors.name" class="mt-1.5 text-xs text-n-ruby-11">
+          {{ errors.name }}
+        </p>
+      </div>
+
+      <!-- Funnel Team (equipe) -->
+      <div>
+        <label
+          for="funnel-team"
+          class="block text-sm font-semibold mb-2 text-n-slate-12"
+        >
+          <div class="flex items-center gap-2">
+            <Icon icon="i-lucide-users" class="size-4" />
+            {{ t('KANBAN.FUNNELS.TEAM') }}
+            <!-- eslint-disable-next-line @intlify/vue-i18n/no-raw-text -->
+            <span v-if="isTeamRequired" class="text-n-ruby-11">*</span>
+          </div>
+        </label>
+        <select
+          id="funnel-team"
+          v-model="formData.team_id"
+          class="w-full px-4 !py-3 !h-12 border rounded-xl bg-n-solid-1 text-n-slate-12 text-sm leading-5 focus:outline-none focus:ring-2 focus:ring-n-brand"
+          :class="errors.team_id ? 'border-n-ruby-8' : 'border-n-weak'"
+          @change="errors.team_id = ''"
+        >
+          <!-- Agente: placeholder desabilitado força escolher um time.
+               Admin: "sem time" é uma opção VÁLIDA (funil geral). -->
+          <option v-if="isTeamRequired" value="" disabled>
+            {{ t('KANBAN.FUNNELS.TEAM_PLACEHOLDER') }}
+          </option>
+          <option v-if="isAdmin" value="">
+            {{ t('KANBAN.FUNNELS.TEAM_NONE') }}
+          </option>
+          <option v-for="team in teamChoices" :key="team.id" :value="team.id">
+            {{ team.name }}
+          </option>
+        </select>
+        <p v-if="errors.team_id" class="mt-1.5 text-xs text-n-ruby-11">
+          {{ errors.team_id }}
+        </p>
+        <p
+          v-else-if="isTeamRequired && !teamChoices.length"
+          class="mt-1.5 text-xs text-n-ruby-11"
+        >
+          {{ t('KANBAN.FUNNELS.TEAM_NONE_AVAILABLE') }}
+        </p>
+        <p v-else class="mt-1.5 text-xs text-n-slate-10">
+          {{
+            isTeamRequired
+              ? t('KANBAN.FUNNELS.TEAM_HINT_AGENT')
+              : t('KANBAN.FUNNELS.TEAM_HINT_ADMIN')
+          }}
+        </p>
       </div>
 
       <!-- Funnel Color -->
