@@ -313,6 +313,7 @@
     },
     "PREVIEW": {
       "TITLE": "Pré-visualização da conversa",
+      "NO_CONTENT": "Mensagem sem conteúdo para exibir",
       "OPEN": "Abrir conversa",
       "EMPTY": "Sem mensagens para mostrar",
       "ERROR": "Não foi possível carregar a conversa",
