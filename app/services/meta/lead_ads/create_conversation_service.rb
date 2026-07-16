@@ -45,6 +45,9 @@ module Meta
         # criacao, a triagem geral (automation #55, so p/ conversa SEM time) pula este lead —
         # entao a atribuicao a Sofia gruda em vez de ser sobrescrita pela triagem.
         route_lead(conversation)
+        # Espelha a origem (campanha/anuncio/publico/plataforma) em custom_attributes + label,
+        # pra ficar VISIVEL pro time no painel (additional_attributes nao renderiza na UI).
+        stamp_campaign_visibility(conversation)
 
         if normalized_phone.blank?
           # Sem phone nao da pra mandar via WAHA — anota e pula 1a msg
@@ -115,6 +118,53 @@ module Meta
         ).perform
       rescue StandardError => e
         Rails.logger.warn("Meta Lead Ads: falha ao atribuir agent_bot=#{bot_id} conv=#{conversation.id}: #{e.class}: #{e.message}")
+      end
+
+      # Espelha a origem do lead (campanha/anúncio/público/plataforma) nos custom_attributes da
+      # conversa + uma label da campanha. O time NÃO vê additional_attributes na UI (o Chatwoot
+      # só renderiza custom_attributes definidos); isto torna a origem visível e filtrável.
+      # Idempotente. Genérico — serve qualquer conta que use Meta Lead Ads (no-op se sem dados).
+      def stamp_campaign_visibility(conversation)
+        attrs = {
+          'meta_campanha' => @lead[:campaign_name].to_s.strip.presence,
+          'meta_anuncio' => @lead[:ad_name].to_s.strip.presence,
+          'meta_publico' => @lead[:adset_name].to_s.strip.presence,
+          'meta_origem' => platform_label
+        }.compact
+        return if attrs.empty?
+
+        conversation.update!(custom_attributes: (conversation.custom_attributes || {}).merge(attrs))
+
+        slug = campaign_slug(@lead[:campaign_name])
+        return if slug.blank?
+
+        ensure_label(slug)
+        conversation.add_labels((conversation.label_list + [slug]).uniq)
+      rescue StandardError => e
+        Rails.logger.warn("Meta Lead Ads: falha ao carimbar visibilidade conv=#{conversation.id}: #{e.class}: #{e.message}")
+      end
+
+      def platform_label
+        case @lead[:platform].to_s.downcase
+        when 'fb', 'facebook' then 'Facebook'
+        when 'ig', 'instagram' then 'Instagram'
+        else @lead[:platform].to_s.strip.presence
+        end
+      end
+
+      # "[FORMS] - PACAEMBU" -> "pacaembu"; "[FORMS] - RMKT VENDAS - 2026" -> "rmkt-vendas-2026".
+      # Tira o prefixo entre colchetes, normaliza acento e vira slug com hifens (formato de label).
+      def campaign_slug(name)
+        s = name.to_s.downcase.tr('áàâãäéèêëíìîïóòôõöúùûüç', 'aaaaaeeeeiiiiooooouuuuc')
+        s = s.gsub(/\[.*?\]/, ' ').gsub(/[^a-z0-9]+/, '-').gsub(/\A-+|-+\z/, '')
+        s.presence
+      end
+
+      # Garante o registro Label na conta (pra renderizar com cor + entrar no filtro). find_or_create.
+      def ensure_label(slug)
+        @inbox.account.labels.find_or_create_by!(title: slug)
+      rescue ActiveRecord::RecordInvalid, ActiveRecord::RecordNotUnique
+        nil
       end
 
       # Coloca o lead no estágio "Novo Lead" do funil de pré-venda Tozi (Kanban).
