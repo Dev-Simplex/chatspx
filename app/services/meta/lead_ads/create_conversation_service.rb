@@ -129,9 +129,19 @@ module Meta
         digits = phone.to_s.gsub(/\D/, '')
         return nil if digits.blank?
 
+        # Número sem DDD (só o celular de 8-9 dígitos, ex.: "996926393"): prefixa o DDD padrão
+        # do hook (ex.: 66 = Sinop). Muita gente digita o número sem o DDD no formulário do Meta.
+        ddd = default_ddd
+        digits = "#{ddd}#{digits}" if ddd.present? && digits.length.between?(8, 9)
+        # Com DDD mas sem o código do país (10-11 dígitos): prefixa 55.
         digits = "55#{digits}" if digits.length.between?(10, 11)
         formatted = "+#{digits}"
         Contacts::BrazilPhoneNormalizer.normalize(formatted) || formatted
+      end
+
+      # DDD padrão do hook (dinâmico, por conta/campanha) pra completar número sem DDD.
+      def default_ddd
+        @hook.settings['default_ddd'].to_s.gsub(/\D/, '').presence
       end
 
       def build_contact_inbox(normalized_phone)
