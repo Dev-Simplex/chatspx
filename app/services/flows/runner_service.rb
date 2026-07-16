@@ -64,6 +64,13 @@ class Flows::RunnerService
 
   # Disparo do início do grafo (manual/evento). Caminha síncrono até o grafo acabar OU um
   # nó `wait` suspender o passo. Só materializa FlowRun se houver wait.
+  #
+  # O reset é obrigatório: o Current (lib/current.rb) NÃO é ActiveSupport::CurrentAttributes, é um
+  # módulo com thread_mattr_accessor — nada o limpa sozinho no fim do job, e o Sidekiq REUSA as
+  # threads do pool. Sem o reset, o `Current.executed_by = flow` que o Flows::ActionService seta no
+  # construtor vazaria para o próximo job da mesma thread. Aqui é seguro resetar no ensure porque
+  # o #perform roda FORA de transação: cada update! já commitou (e seus after_commit já rodaram)
+  # antes de chegarmos no reset. Na retomada NÃO é — ver #resume_from.
   def perform
     with_depth_guard { walk(start_node_id) }
   ensure
@@ -86,13 +93,21 @@ class Flows::RunnerService
   # Retomada: continua do nó que o wait apontou (o sucessor, já salvo em current_node_id).
   # Chamado por Flows::ResumeService depois que wait_until venceu; @flow_run é o run
   # persistido, então um novo wait o ATUALIZA em vez de criar outro.
+  #
+  # NÃO reseta o Current (ao contrário de #perform/#simulate): os dois chamadores da retomada
+  # (Flows::ResumeService e Flows::ReplyResumeService) reentram DENTRO de um `with_lock`, ou seja,
+  # com uma transação ABERTA. Um reset aqui rodaria antes do COMMIT e apagaria o contexto que os
+  # after_commit da Conversation leem — o create_team_change_activity depende de
+  # Current.executed_by e, sem ele, a activity "Atribuído a <time> por Sistema de Automação" nunca
+  # nasce (e o dispatch sai com performed_by nil, enfraquecendo o anti-loop do
+  # AutomationRuleListener). Por isso o reset é responsabilidade de QUEM ABRIU o contexto: os dois
+  # services o fazem num `ensure` DEPOIS que o with_lock fecha (commit já efetivado). Ver o
+  # comentário de #perform sobre o porquê do reset existir.
   def resume_from(node_id)
     # Guarda o nó de reentrada: quando ele é um wait_for_reply, #suspend_on_wait_for_reply o
     # reconhece e NÃO re-suspende — deixa o #visit ramificar pela resposta/timeout.
     @resume_start_id = node_id
     with_depth_guard { walk(node_id) }
-  ensure
-    Current.reset
   end
 
   # Nota (revisão adversarial): NÃO replicamos o `mark_as_unread!`-na-reatribuição do
