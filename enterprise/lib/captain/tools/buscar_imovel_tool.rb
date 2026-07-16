@@ -34,6 +34,7 @@ class Captain::Tools::BuscarImovelTool < Captain::Tools::BasePublicTool
 
       venda_cod = achados.first['Status'].to_s.match?(/vend/i)
       track_codigos(tool_context, achados)
+      track_urls(tool_context, achados, venda_cod)
       return format_listings(achados, venda_cod, detalhado: true)
     end
     venda = status_tipo.to_s == 'venda'
@@ -58,6 +59,7 @@ class Captain::Tools::BuscarImovelTool < Captain::Tools::BasePublicTool
                       "endereco=#{endereco.inspect} valor_max=#{valor_max.inspect} dorm=#{dormitorios.inspect} " \
                       "geo=#{geo} => #{imoveis.size} imoveis #{imoveis.first(5).map { |i| i['Codigo'] }.inspect}")
     track_codigos(tool_context, imoveis)
+    track_urls(tool_context, imoveis, venda)
     if imoveis.blank?
       # Só o fluxo normal (não-geo) amplia; o geo cai direto no "Nenhum...".
       ampliados = !geo && ampliar_sem_bairro(tool_context, filter, venda, bairro, endereco)
@@ -114,6 +116,26 @@ class Captain::Tools::BuscarImovelTool < Captain::Tools::BasePublicTool
     Rails.logger.warn("[BuscarImovel] track_codigos: #{e.message}")
   end
 
+  # Guarda o mapa codigo/ImoCodigo -> URL canônica (build_url) na conversa (urls_imoveis),
+  # pra o sanitizador de saída (fix_property_links) manter os links que a IA manda e remover
+  # só os inventados. Sem isso, urls_imoveis fica vazio e TODO link da Tozi é apagado.
+  def track_urls(tool_context, imoveis, venda)
+    conv = find_conversation(tool_context&.state)
+    return unless conv
+
+    novos = {}
+    imoveis.each do |im|
+      url = build_url(im, venda)
+      [im['Codigo'], im['ImoCodigo']].each { |k| novos[k.to_s] = url if k.to_s.strip.present? }
+    end
+    return if novos.empty?
+
+    atual = conv.custom_attributes['urls_imoveis'] || {}
+    conv.update!(custom_attributes: conv.custom_attributes.merge('urls_imoveis' => atual.merge(novos).to_a.last(60).to_h))
+  rescue StandardError => e
+    Rails.logger.warn("[BuscarImovel] track_urls: #{e.message}")
+  end
+
   # Fallback determinístico: quando a busca COM filtro de bairro/endereço vem vazia, refaz
   # UMA busca /listar (sem loop) removendo só o filtro de bairro/endereço — mantém cidade,
   # status, categoria, valor, dormitórios (e piscina). Devolve as opções com um header que
@@ -128,6 +150,7 @@ class Captain::Tools::BuscarImovelTool < Captain::Tools::BasePublicTool
     return if imoveis.blank?
 
     track_codigos(tool_context, imoveis)
+    track_urls(tool_context, imoveis, venda)
     ref = [bairro, endereco].reject(&:blank?).join('/')
     format_listings(imoveis, venda,
                     header: "Sem imóvel no critério exato (#{ref}). As opções abaixo são da mesma cidade e critério, " \

@@ -55,6 +55,11 @@
   description: 'Busca imóveis no acervo da Tozi (Vista) e retorna opções com o link correto do site'
   icon: 'home'
 
+- id: buscar_empreendimento
+  title: 'Buscar Empreendimentos (Vista)'
+  description: 'Consulta o cadastro de empreendimentos da Tozi no Vista/Loft: localização, descrição, entrega e se está pronto ou na planta'
+  icon: 'building'
+
 - id: enviar_fotos_imovel
   title: 'Enviar Fotos do Imóvel'
   description: 'Envia ao cliente as fotos de um imóvel em lotes de 3'
