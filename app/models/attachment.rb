@@ -103,8 +103,15 @@ class Attachment < ApplicationRecord
   end
 
   def audio_metadata
-    audio_file_data = base_data.merge(file_metadata)
-    audio_file_data.merge!(transcribed_text: meta&.[]('transcribed_text') || '')
+    # `file_metadata` reads `file.byte_size` / `file.metadata[:width]`, which blow up when no file
+    # is attached — and an audio row can legitimately exist without one: the builders save the
+    # attachment BEFORE downloading the media, so any failed download leaves the row behind. Since
+    # push_event_data feeds the messages endpoint, one such row used to 500 the WHOLE conversation.
+    # Same guard the generic branch already applies in `metadata_for_file_type`.
+    audio_file_data = base_data.merge(
+      file.attached? ? file_metadata : { data_url: external_url, thumb_url: '' }
+    )
+    audio_file_data[:transcribed_text] = meta&.[]('transcribed_text') || ''
 
     peaks = meta&.[]('waveform_peaks')
     audio_file_data[:waveform_peaks] = peaks if peaks.is_a?(Array) && peaks.any?
