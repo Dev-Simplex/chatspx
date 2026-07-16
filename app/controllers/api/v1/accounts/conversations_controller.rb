@@ -1,12 +1,17 @@
 class Api::V1::Accounts::ConversationsController < Api::V1::Accounts::BaseController
   include Events::Types
   include HmacConcern
+  include ConversationTeamAccessConcern
 
-  before_action :conversation, except: [:index, :meta, :search, :create, :filter]
+  CONVERSATIONLESS_ACTIONS = [:index, :meta, :search, :create, :filter].freeze
+
+  before_action :conversation, except: CONVERSATIONLESS_ACTIONS
   before_action :inbox, :contact, :contact_inbox, only: [:create]
-  before_action :authorize_team_access,
-                only: [:show, :update, :destroy, :attachments, :mute, :unmute, :transcript, :toggle_status, :toggle_priority, :toggle_typing_status,
-                       :update_last_seen, :unread, :custom_attributes]
+  # Guarda por EXCEÇÃO, não por lista de permissão: onde há conversa carregada, o
+  # isolamento por time vale. A lista `only:` anterior deixou `inbox_assistant` e
+  # `reporting_events` de fora — toda action nova nascia desprotegida por
+  # esquecimento. Assim a proteção passa a ser o padrão.
+  before_action :authorize_team_access, except: CONVERSATIONLESS_ACTIONS
 
   ATTACHMENT_RESULTS_PER_PAGE = 40
 
@@ -243,22 +248,9 @@ class Api::V1::Accounts::ConversationsController < Api::V1::Accounts::BaseContro
     @conversation.assignee_id? && Current.user == @conversation.assignee
   end
 
-  def authorize_team_access
-    return if Current.user.is_a?(AgentBot)
-    return if Current.user.administrator?
-    return if @conversation.team_id.nil?
-    # Assignee always has access to their own conversation (assignment implies access)
-    return if @conversation.assignee_id == Current.user&.id
-
-    validate_team_param_access if params[:team_id].present?
-    return if performed?
-
-    # Block access if the user is not a member of the conversation's team
-    return if Current.user.teams.exists?(id: @conversation.team_id)
-
-    render json: { error: 'You do not have permission to access this conversation.' }, status: :forbidden
-  end
-
+  # `authorize_team_access` e `team_access_exempt?` vêm do ConversationTeamAccessConcern.
+  # Aqui `team_id` significa "estou vendo a conversa no contexto do time X", então
+  # este controller (e só ele) implementa o hook de validação do parâmetro.
   def validate_team_param_access
     team_id = params[:team_id].to_i
 
