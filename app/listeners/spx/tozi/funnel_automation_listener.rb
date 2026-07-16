@@ -23,9 +23,10 @@ module Spx
       # reagimos ao status failed: marca e joga pro humano do time como lista de LIGAÇÃO.
       NO_WHATSAPP_ERROR_CODES = %w[131026 131030].freeze
       NO_WHATSAPP_LABEL = 'sem-whatsapp'.freeze
-      # Meta segurou a entrega por qualidade/engajamento (o número pode estar OK — tentar de novo/ligar).
-      THROTTLE_ERROR_CODE = '131049'.freeze
-      THROTTLE_LABEL = 'entrega-segurada'.freeze
+      # Meta não entregou a abertura mas o número está OK: 131049 (segurou por qualidade/engajamento)
+      # e 130472 (número em experimento da Meta que bloqueia MARKETING). Vira follow-up humano.
+      DELIVERY_BLOCKED_CODES = %w[131049 130472].freeze
+      DELIVERY_BLOCKED_LABEL = 'entrega-segurada'.freeze
       # Erros de CONTA (não do lead): conta bloqueada, pagamento, spam-pause — pedem atenção de ops.
       ACCOUNT_CRITICAL_CODES = %w[131031 131042 131048].freeze
 
@@ -76,8 +77,8 @@ module Spx
         error = message.external_error.to_s
         if NO_WHATSAPP_ERROR_CODES.any? { |c| error.include?(c) }
           flag_for_human(conversation, error, NO_WHATSAPP_LABEL, 'Número provavelmente sem WhatsApp — fazer follow-up por ligação.')
-        elsif error.include?(THROTTLE_ERROR_CODE)
-          flag_for_human(conversation, error, THROTTLE_LABEL, 'A Meta segurou a entrega da abertura (qualidade/engajamento). O número pode estar OK — tentar de novo ou ligar.')
+        elsif DELIVERY_BLOCKED_CODES.any? { |c| error.include?(c) }
+          flag_for_human(conversation, error, DELIVERY_BLOCKED_LABEL, 'A Meta não entregou a abertura (número em experimento/qualidade da Meta). O número está OK — fazer follow-up por ligação.')
         elsif ACCOUNT_CRITICAL_CODES.any? { |c| error.include?(c) }
           Rails.logger.error("[Spx::Tozi] META LEAD ADS ERRO CRITICO DE CONTA (#{error}) conv=#{conversation.id} — verificar Business Manager (bloqueio/pagamento/spam).")
         end
