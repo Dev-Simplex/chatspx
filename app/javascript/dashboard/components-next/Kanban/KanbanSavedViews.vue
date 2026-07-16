@@ -132,7 +132,7 @@ onBeforeUnmount(() => document.removeEventListener('click', onClickOutside));
           <button
             v-if="canDelete(view)"
             type="button"
-            class="shrink-0 rounded p-1 text-n-slate-10 opacity-0 transition hover:bg-n-ruby-3 hover:text-n-ruby-11 group-hover:opacity-100"
+            class="shrink-0 rounded p-1 text-n-slate-10 transition hover:bg-n-ruby-3 hover:text-n-ruby-11 md:opacity-0 md:group-hover:opacity-100"
             :title="t('KANBAN.SAVED_VIEWS.DELETE')"
             @click.stop="removeView(view)"
           >

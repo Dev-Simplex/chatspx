@@ -639,16 +639,20 @@ watch(
     ref="dialogRef"
     width="5xl"
     position="center"
-    overflow-y-auto
+    full-height
     :title="t('KANBAN.PREVIEW.TITLE')"
     :show-cancel-button="false"
     :show-confirm-button="false"
     @close="close"
   >
-    <!-- Content stack: tighter, uniform vertical rhythm between sections.
-         Capped so the composer and the footer actions never scroll out of
-         view — only the message list absorbs the leftover space. -->
-    <div class="kanban-preview__stack flex min-h-0 flex-col gap-3">
+    <!-- Content stack. Height comes from the dialog (full-height), never from a
+         hand-computed `100vh - x`: such a cap is unsatisfiable once the panels'
+         own minimums exceed it, and the content then spills over the footer.
+         Here the stack scrolls as a last resort, so the footer and the title
+         stay put and no control is ever painted over. -->
+    <div
+      class="kanban-preview__stack flex min-h-0 flex-1 flex-col gap-3 overflow-y-auto"
+    >
       <!-- Header: contact + inbox -->
       <div class="flex shrink-0 items-center gap-3">
         <Avatar
@@ -683,13 +687,13 @@ watch(
           </span>
         </div>
         <div
-          class="grid grid-cols-2 gap-x-3 gap-y-2 rounded-lg border border-n-weak bg-n-alpha-1 p-3"
+          class="grid grid-cols-1 gap-x-3 gap-y-2 rounded-lg border border-n-weak bg-n-alpha-1 p-3 sm:grid-cols-2"
         >
           <div
             v-for="field in customFieldDefs"
             :key="field.key"
             class="flex min-w-0 flex-col gap-1"
-            :class="{ 'col-span-2': field.fieldType === 'long_text' }"
+            :class="{ 'sm:col-span-2': field.fieldType === 'long_text' }"
           >
             <label
               class="flex items-center gap-1 truncate text-[11px] font-medium text-n-slate-11"
@@ -812,7 +816,7 @@ watch(
               <button
                 v-if="canDeleteNote(note)"
                 type="button"
-                class="shrink-0 rounded p-1 text-n-slate-10 opacity-0 transition hover:bg-n-ruby-3 hover:text-n-ruby-11 group-hover:opacity-100"
+                class="shrink-0 rounded p-1 text-n-slate-10 transition hover:bg-n-ruby-3 hover:text-n-ruby-11 md:opacity-0 md:group-hover:opacity-100"
                 :title="t('KANBAN.NOTES.DELETE')"
                 @click="removeNote(note)"
               >
@@ -884,7 +888,7 @@ watch(
       <!-- Body -->
       <div
         ref="scrollRef"
-        class="kanban-preview__body flex min-h-0 flex-1 flex-col gap-2 overflow-y-auto rounded-lg bg-n-alpha-1 p-3"
+        class="kanban-preview__body flex flex-col gap-2 overflow-y-auto rounded-lg bg-n-alpha-1 p-3"
         @scroll.passive="onBodyScroll"
       >
         <!-- Gate: agente não atribuído precisa ASSUMIR para ver a conversa -->
@@ -954,8 +958,10 @@ watch(
                 isOutgoing(message)
                   ? 'bg-n-teal-3 rounded-br-sm'
                   : 'bg-n-alpha-2 rounded-bl-sm',
-                // Players and file chips are w-full: give them room to breathe.
-                hasMediaAttachment(message) ? 'min-w-[17rem]' : '',
+                // Players and file chips are w-full: give them room to breathe,
+                // but never past the bubble's own width — a bare `min-w` beats
+                // `max-w` and would force a horizontal scrollbar on the list.
+                hasMediaAttachment(message) ? 'min-w-[min(17rem,100%)]' : '',
               ]"
             >
               <!-- Attachments first, caption below — as in the inbox. -->
@@ -1060,7 +1066,7 @@ watch(
     </div>
 
     <template #footer>
-      <div class="flex items-center justify-end gap-2">
+      <div class="flex shrink-0 items-center justify-end gap-2">
         <Button
           variant="faded"
           color="slate"
@@ -1082,17 +1088,25 @@ watch(
 </template>
 
 <style scoped>
-.kanban-preview__stack {
-  /* Chrome around this stack: dialog margin + form padding + gaps + title +
-     footer. Capping here (instead of on the message list alone) keeps the
-     composer and the footer actions on screen at any viewport height. */
-  max-height: calc(100vh - 13rem);
+.kanban-preview__body {
+  /* A real conversation area on tall screens, without letting it own the whole
+     dialog. The floor is only safe because the stack scrolls: when the sections
+     no longer fit, the stack gives way instead of the content spilling over the
+     footer — which is exactly what the old `max-height` on the stack could not
+     do. */
+  flex: 1 1 auto;
+  min-height: 12rem;
+  max-height: 42vh;
 }
 
-.kanban-preview__body {
-  /* Absorbs the leftover height inside the capped stack; the floor keeps the
-     loading/empty states from collapsing when there is room to spare. */
-  min-height: 8rem;
+/* The global `textarea` rule in _base.scss applies `field-base`, which carries
+   `mb-4`. `.reset-base` only opts out of the `input[type]` selector there, not
+   of the bare `textarea`/`select` element selectors — so the margin leaks in and
+   silently pads the composer and the custom fields. Reset it explicitly. */
+.kanban-preview__textarea,
+textarea.kanban-cf-input,
+select.kanban-cf-input {
+  margin-bottom: 0;
 }
 
 /* Compact controls for the inline panels. The `input[type]` rule in _base.scss
