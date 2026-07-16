@@ -17,6 +17,16 @@ module Meta
       # Filtra dummy data do Lead Ads Testing Tool (`<test lead: dummy data for X>`)
       TEST_DUMMY_REGEX = /\A\s*<test lead:.*?>\s*\z/i.freeze
 
+      # A Meta às vezes cola o texto do botão/CTA do anúncio no valor cru do campo nome,
+      # separado por 2+ espaços: "Quero saber mais   Tiago". Como o nome vira o contato e o
+      # first_name do template, isso faz a IA chamar o lead de "Quero". Estas são as frases de
+      # CTA/intenção a descartar quando aparecem como segmento separado (nunca um nome real).
+      CTA_PHRASES = [
+        'quero saber mais', 'quero saber', 'quero sim', 'sim quero', 'quero',
+        'tenho interesse', 'me interessei', 'saiba mais', 'me chama', 'me chama depois',
+        'gostaria de saber', 'mais informacoes', 'solicitar informacoes', 'receber contato'
+      ].freeze
+
       def initialize(leadgen_id:, access_token:)
         @leadgen_id = leadgen_id
         @access_token = access_token
@@ -55,7 +65,7 @@ module Meta
           campaign_id: json['campaign_id'],
           campaign_name: json['campaign_name'],
           platform: json['platform'],
-          full_name: find_by_hints(fields, NAME_HINTS),
+          full_name: sanitize_name(find_by_hints(fields, NAME_HINTS)),
           phone_number: find_by_hints(fields, PHONE_HINTS),
           email: find_by_hints(fields, EMAIL_HINTS),
           city: find_by_hints(fields, CITY_HINTS),
@@ -77,6 +87,26 @@ module Meta
           return value if hints.any? { |h| key.include?(h) }
         end
         nil
+      end
+
+      # Limpa o CTA que a Meta às vezes gruda no campo nome ("Quero saber mais   Tiago").
+      # Quebra em segmentos separados por 2+ espaços e descarta os que são frase de CTA;
+      # sobra o nome real. Se TUDO parecer CTA (lead sem nome de verdade), não apaga —
+      # devolve o valor colapsado pro humano tratar. Nome normal passa intacto.
+      def sanitize_name(raw)
+        return raw if raw.blank?
+
+        segments = raw.to_s.split(/\s{2,}/).map(&:strip).reject(&:blank?)
+        cleaned = segments.reject { |seg| cta_phrase?(seg) }
+        cleaned = segments if cleaned.empty?
+        cleaned.join(' ').gsub(/\s+/, ' ').strip.presence
+      end
+
+      def cta_phrase?(segment)
+        normalized = segment.to_s.downcase
+                            .tr('áàâãäéèêëíìîïóòôõöúùûüç', 'aaaaaeeeeiiiiooooouuuuc')
+                            .strip
+        CTA_PHRASES.include?(normalized)
       end
     end
   end
