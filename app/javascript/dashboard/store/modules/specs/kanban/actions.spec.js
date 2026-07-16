@@ -368,12 +368,19 @@ describe('#kanban actions', () => {
         { funnelId: 7, itemId: 10, stageId: 2 }
       );
 
-      // otimista ANTES da API: já na etapa 2 e no topo (menor position - 1 = 2)
-      expect(commit).toHaveBeenNthCalledWith(1, types.UPDATE_FUNNEL_ITEM, {
-        id: 10,
-        funnelStageId: 2,
-        position: 2,
-      });
+      // otimista: já commitou ANTES de chamar a API
+      const [type, payload] = commit.mock.calls[0];
+      expect(type).toBe(types.UPDATE_FUNNEL_ITEM);
+      expect(payload).toMatchObject({ id: 10, funnelStageId: 2 });
+
+      // A regra é "vai para o TOPO", não uma conta específica: a position tem que
+      // ficar abaixo de TODAS as da etapa destino (é o que põe o card em primeiro).
+      // Afirmar `position: 2` travaria a aritmética da fixture, não o comportamento.
+      const positionsDoDestino = state.stageItems['7:2'].map(
+        id => state.funnelItems[id].position
+      );
+      expect(payload.position).toBeLessThan(Math.min(...positionsDoDestino));
+
       expect(KanbanAPI.updateItem).toHaveBeenCalledWith(7, 10, {
         funnel_stage_id: 2,
       });

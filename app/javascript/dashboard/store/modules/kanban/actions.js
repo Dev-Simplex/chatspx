@@ -6,9 +6,19 @@ const DEFAULT_SCHEDULED_PAGE_LIMIT = 50;
 const stageRequestLocks = new Map();
 const scheduledRequestLocks = new Map();
 
-// Espelha `FunnelItem.top_position_for` (backend): topo = menor position - 1, ou
-// 1 na coluna vazia. Usado só para PREVER onde o servidor vai pôr o cartão que
-// muda de etapa, para o movimento otimista não dar um segundo salto.
+// Prevê o topo da coluna para o movimento otimista não dar um segundo salto.
+//
+// NÃO é um espelho exato do `FunnelItem.top_position_for`: o backend tira o
+// `min(position)` de TODAS as linhas da etapa, e aqui só temos as CARREGADAS (a
+// página traz 30, ordenadas por recência — o mínimo real costuma estar fora).
+// O número diverge de propósito; quem garante a ordem é o invariante do
+// subconjunto: como o carregado ⊆ total, `min(total) ≤ min(carregado)`, então
+// tanto esta previsão quanto o valor que o servidor devolve são MENORES que
+// qualquer position visível — e o cartão aparece em primeiro nos dois casos
+// (KanbanColumn ordena por position ASC).
+//
+// Ou seja: serve para ORDENAR, nunca como position exata (não mande este valor
+// para o backend).
 const topPositionForStage = (state, funnelId, stageId, excludingId) => {
   const stageKey = `${Number(funnelId)}:${Number(stageId)}`;
   const ids = state.stageItems?.[stageKey] || [];
