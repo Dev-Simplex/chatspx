@@ -391,8 +391,18 @@ const isOutgoing = message => {
   return type === MESSAGE_TYPE.OUTGOING;
 };
 
-const messageContent = message =>
-  message?.content || message?.processed_message_content || '';
+// O composer manda o texto com um rastro de linhas em branco ("teste\r\n\r\n..."
+// dezenas de vezes). Como a bolha usa `whitespace-pre-line`, TODAS eram
+// renderizadas: a mensagem virava um bloco vazio gigante que empurrava a imagem
+// para fora da vista — a conversa parecia ter uma bolha em branco. Some com o
+// rastro e limita a 1 linha em branco (parágrafo de propósito continua valendo).
+const messageContent = message => {
+  const raw = message?.content || message?.processed_message_content || '';
+  return raw
+    .replace(/\r\n/g, '\n')
+    .replace(/\n{3,}/g, '\n\n')
+    .trim();
+};
 
 const messageAttachments = message =>
   Array.isArray(message?.attachments) ? message.attachments : [];
