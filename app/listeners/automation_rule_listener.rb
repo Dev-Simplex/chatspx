@@ -313,13 +313,31 @@ class AutomationRuleListener < BaseListener # rubocop:disable Metrics/ClassLengt
     conversation.additional_attributes['auto_reply'].present?
   end
 
-  # Anti-loop de mensagem: ignora mensagens que o próprio motor criou. Checa a chave legada
-  # `automation_rule_id` E a nova `flow_id` (generalização — Flows::ActionService marca as
-  # mensagens com flow_id, action_service.rb).
   def ignore_message_created_event?(event)
     message = event.data[:message]
     performed_by_automation?(event) || message.activity? || message.auto_reply_email? ||
-      message.content_attributes&.dig('automation_rule_id').present? ||
-      message.content_attributes&.dig('flow_id').present?
+      automation_generated_message?(message) || nps_survey_traffic?(message)
+  end
+
+  # Anti-loop de mensagem: ignora mensagens que o próprio motor criou. Checa a chave legada
+  # `automation_rule_id` E a nova `flow_id` (generalização — Flows::ActionService marca as
+  # mensagens com flow_id, action_service.rb).
+  def automation_generated_message?(message)
+    attrs = message.content_attributes || {}
+    attrs['automation_rule_id'].present? || attrs['flow_id'].present?
+  end
+
+  # Tráfego da pesquisa NPS não é conversa e não deve mover automação: nem as mensagens que
+  # o próprio NPS envia (pergunta = `nps_survey`; agradecimento/aviso/encerramento =
+  # `nps_survey_system`), nem a resposta do cliente à pesquisa — que chega como incoming numa
+  # conversa resolvida e dispararia flow de boas-vindas/LGPD + triagem em cima de quem só
+  # respondeu "9". A resposta é reconhecida pelo NpsSurveys::ReopenGuard (mesma pergunta que
+  # o Message#reopen_conversation faz) pra não divergir dele — este listener roda antes do
+  # NpsSurveyListener no mesmo dispatch, então a pesquisa ainda está ativa aqui.
+  def nps_survey_traffic?(message)
+    attrs = message.content_attributes || {}
+    return true if attrs['nps_survey'].present? || attrs['nps_survey_system'].present?
+
+    message.incoming? && NpsSurveys::ReopenGuard.new(message: message).prevent_reopen?
   end
 end

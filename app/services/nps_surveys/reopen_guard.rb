@@ -7,8 +7,15 @@
 # - Only considers it an "NPS response" if there is an active survey: status :sent, answered_at nil.
 # - Survey expiration uses nps_config['expiration_hours'] (via NpsResponse#expired?).
 # - Message must be after the survey was sent (created_at >= sent_at).
-# - Content must clearly look like a response attempt (score 0-10, or "skip" patterns).
-# - When in doubt, does NOT block reopening (reopens so the customer can be served).
+# - Content looks like a response attempt (score 0-10, or "skip" patterns), OR the
+#   ResponseBuilder is going to ask the LLM about it (NpsSurveys::LlmGate).
+# - When in doubt AND nobody else will decide (no LLM), does NOT block reopening.
+#
+# Este guard so enxerga regex; o ResponseBuilder (assincrono) enxerga regex + LLM.
+# Quando o builder vai consultar o LLM, o guard segura o reopen e DEFERE a decisao a ele
+# — senao a conversa reabre e dispara automacoes/flows antes do NPS reconhecer a resposta
+# (ex.: "excelente" nao tem digito). Contrapartida obrigatoria: todo caminho do builder que
+# conclui "nao era resposta de NPS" precisa abrir a conversa (release_conversation_for_human).
 #
 # Flow: Message created -> reopen_conversation -> calls prevent_reopen?(message) ->
 #   if true: conversation stays resolved; NpsSurveyListener then processes and marks NPS as answered.
@@ -17,7 +24,7 @@ class NpsSurveys::ReopenGuard
   pattr_initialize [:message!]
 
   # Returns true if the message is a response to an active NPS survey and the conversation should NOT reopen.
-  def prevent_reopen? # rubocop:disable Metrics/CyclomaticComplexity
+  def prevent_reopen?
     return false unless message.incoming?
     return false unless message.conversation.resolved?
 
@@ -26,13 +33,20 @@ class NpsSurveys::ReopenGuard
 
     return false if nps_expired_or_message_before_survey?(active_nps)
     return false if agent_responded_after_nps?(active_nps)
-    return true if content_looks_like_nps_response?
-    return true if content_looks_like_wrong_or_skip_nps_attempt?
 
-    false
+    response_to_survey?
   end
 
   private
+
+  # Reconhece a mensagem como resposta a pesquisa por regex (nota valida ou tentativa invalida
+  # obvia) ou, quando o regex nao ve nada, porque o ResponseBuilder VAI consultar o LLM sobre
+  # ela (LlmGate) — ai o guard segura o reopen e defere a decisao a ele.
+  def response_to_survey?
+    content_looks_like_nps_response? ||
+      content_looks_like_wrong_or_skip_nps_attempt? ||
+      NpsSurveys::LlmGate.will_attempt?(inbox: message.inbox, text: content)
+  end
 
   delegate :conversation, :content, :content_attributes, :created_at, to: :message
 
