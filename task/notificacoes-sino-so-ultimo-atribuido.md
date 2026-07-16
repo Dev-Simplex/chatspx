@@ -139,10 +139,16 @@ Atualizar `task/notificacoes_vazadas_cleanup.rb`:
 - Assignee que saiu do inbox segue notificado (armadilha 6).
 - Automação em `conversation_opened` roda **async, depois** da notificação: se o cliente usa automação
   que reatribui na reabertura, o sino vai pro assignee antigo (`automation_rule_listener.rb:10-12`).
-- **🔴 P11 (mais grave que este bug):** `conversations/base_controller.rb:8` só faz `authorize :show?`,
-  **sem** `authorize_team_access` → `GET conversations/:id` dá **403** mas `GET .../messages` devolve
-  **200 com o conteúdo do outro time**. Herdam: messages, labels, assignments, participants, reactions,
-  funnel_items, copilot_chats.
+- ~~**🔴 P11**~~ **RESOLVIDO em 2026-07-16** (commit `d9046246b`). Era pior que o descrito: além de
+  LER, o agente de fora **escrevia** mensagem e **tirava o time** da conversa (`assignments` com
+  `team_id: 0`) — com `team_id` nulo ela caía no colo dele (escalada de privilégio).
+  `authorize_team_access` virou `ConversationTeamAccessConcern`, aplicado no
+  `Conversations::BaseController` (pega os 13 controllers de uma vez). O guard passou a ser por
+  EXCEÇÃO, não por lista `only:` — era a lista que deixava `inbox_assistant`/`reporting_events` de
+  fora. `validate_team_param_access` NÃO foi junto: em `assignments` o `team_id` é o time de DESTINO,
+  e aplicá-lo lá quebraria mover conversa de time. Provas: 11 specs +
+  `task/p11_vazamento_times_e2e.rb` (E2E HTTP no staging; com o guard removido acusa as 5 falhas).
+  Baseline de specs medido: 23 falhas idênticas ao HEAD, nenhuma regressão.
 
 ---
 
