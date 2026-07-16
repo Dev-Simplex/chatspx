@@ -85,8 +85,21 @@ module Meta
         list.map { |x| x.to_s.strip }.reject(&:blank?)
       end
 
+      # Resolve uma config do hook honrando OVERRIDE POR CAMPANHA. O operador pode definir
+      # settings['campaign_overrides'] = { "<campaign_id>" => { "whatsapp_template_name" => "...",
+      # "assign_agent_bot_id" => "...", ... } } pra dar opener/time/IA distintos por campanha
+      # (ex.: remarketing com abertura calorosa). Sem override, cai no valor global do hook.
+      def hook_setting(key)
+        overrides = @hook.settings['campaign_overrides']
+        if overrides.is_a?(Hash)
+          ov = overrides[@lead[:campaign_id].to_s]
+          return ov[key] if ov.is_a?(Hash) && ov[key].to_s.strip.present?
+        end
+        @hook.settings[key]
+      end
+
       def assign_team_id
-        @hook.settings['assign_team_id'].presence
+        hook_setting('assign_team_id').presence
       end
 
       # Roteia o lead pro time + IA (espelho AgentBot) do hook, JA na criacao. Setar o time
@@ -109,7 +122,7 @@ module Meta
       # que um HUMANO ja atende (assignee_id presente). A eligibilidade e validada pelo
       # proprio AssignmentService (o bot precisa estar elegivel a inbox). No-op silencioso.
       def assign_agent_bot(conversation)
-        bot_id = @hook.settings['assign_agent_bot_id'].presence
+        bot_id = hook_setting('assign_agent_bot_id').presence
         return if bot_id.blank?
         return if conversation.assignee_id.present?
 
@@ -129,7 +142,8 @@ module Meta
           'meta_campanha' => @lead[:campaign_name].to_s.strip.presence,
           'meta_anuncio' => @lead[:ad_name].to_s.strip.presence,
           'meta_publico' => @lead[:adset_name].to_s.strip.presence,
-          'meta_origem' => platform_label
+          'meta_origem' => platform_label,
+          'meta_tipo' => lead_tipo_label
         }.compact
         return if attrs.empty?
 
@@ -150,6 +164,13 @@ module Meta
         when 'ig', 'instagram' then 'Instagram'
         else @lead[:platform].to_s.strip.presence
         end
+      end
+
+      # Classifica o lead como Remarketing (já teve contato com a Tozi) vs Lead novo (frio), a
+      # partir do override da campanha (campaign_overrides[cid]['lead_tipo'] == 'remarketing').
+      # Alimenta a conduta da Sofia (retomada calorosa vs apresentação) e aparece no painel.
+      def lead_tipo_label
+        hook_setting('lead_tipo').to_s.downcase.strip == 'remarketing' ? 'Remarketing' : 'Lead novo'
       end
 
       # "[FORMS] - PACAEMBU" -> "pacaembu"; "[FORMS] - RMKT VENDAS - 2026" -> "rmkt-vendas-2026".
@@ -328,7 +349,7 @@ module Meta
       # NÃO envia nada — melhor o lead entrar sem abertura (e o time trabalhar) do que a
       # mensagem morrer no bloqueio da Meta sem ninguém saber.
       def create_initial_template_message(conversation)
-        name = @hook.settings['whatsapp_template_name'].to_s.strip
+        name = hook_setting('whatsapp_template_name').to_s.strip
         if name.blank?
           Rails.logger.warn(
             "Meta Lead Ads: inbox #{@inbox.id} é Cloud API mas hook=#{@hook.id} sem whatsapp_template_name — " \
@@ -337,7 +358,7 @@ module Meta
           return
         end
 
-        locale = @hook.settings['whatsapp_template_locale'].presence || 'pt_BR'
+        locale = hook_setting('whatsapp_template_locale').presence || 'pt_BR'
         body = template_body_params
 
         Messages::MessageBuilder.new(
@@ -360,7 +381,7 @@ module Meta
       # {{1}}, {{2}}, ... vêm de whatsapp_template_body_fields (campos do lead, em ordem;
       # default first_name). Vazio → template sem variáveis de corpo.
       def template_body_params
-        fields = (@hook.settings['whatsapp_template_body_fields'].presence || 'first_name')
+        fields = (hook_setting('whatsapp_template_body_fields').presence || 'first_name')
                  .to_s.split(',').map(&:strip).reject(&:blank?)
         return {} if fields.empty?
 
@@ -376,7 +397,7 @@ module Meta
       end
 
       def render_template
-        template = @hook.settings['initial_message_template'].presence || DEFAULT_TEMPLATE
+        template = hook_setting('initial_message_template').presence || DEFAULT_TEMPLATE
         Liquid::Template.parse(template).render(template_render_context)
       end
 
