@@ -20,7 +20,10 @@ const props = defineProps({
   inbox: { type: Object, default: () => ({}) },
   assignee: { type: Object, default: null },
   team: { type: Object, default: null },
-  currentUserId: { type: Number, default: null },
+  // Vem do BACKEND (mesma regra do endpoint de pedido): só é true quando este
+  // usuário realmente pode solicitar esta conversa. Sem isto o botão apareceria
+  // em conversas de outro time e o clique tomaria 403.
+  canRequest: { type: Boolean, default: false },
   isRequesting: { type: Boolean, default: false },
 });
 
@@ -29,15 +32,6 @@ const emit = defineEmits(['requestAttendance']);
 const { t } = useI18n();
 
 const isBotAssignee = computed(() => props.assignee?.type === 'agent_bot');
-
-// Só faz sentido "solicitar" de um DONO HUMANO que não sou eu. Sem dono
-// (é só assumir), dona IA e conversa minha → sem botão. Cross-time ainda pode
-// dar 403 no backend (não posso pedir o que não enxergo); o erro é tratado
-// com mensagem clara na página.
-const canRequest = computed(() => {
-  if (!props.assignee || isBotAssignee.value) return false;
-  return props.assignee.id !== props.currentUserId;
-});
 
 const assigneeName = computed(
   () =>

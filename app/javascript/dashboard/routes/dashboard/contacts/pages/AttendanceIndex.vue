@@ -24,7 +24,6 @@ const { t } = useI18n();
 const attendances = useMapGetter('activeAttendances/getAttendances');
 const meta = useMapGetter('activeAttendances/getMeta');
 const uiFlags = useMapGetter('activeAttendances/getUIFlags');
-const currentUserId = useMapGetter('getCurrentUserID');
 
 // display_id da conversa cujo pedido está em andamento (loading no card).
 const requestingId = ref(null);
@@ -151,7 +150,6 @@ onMounted(() => fetchAttendances(pageFromRoute.value));
             <div v-else class="flex flex-col gap-4 pt-4 pb-6">
               <AttendanceList
                 :attendances="attendances"
-                :current-user-id="currentUserId"
                 :requesting-id="requestingId"
                 @request-attendance="onRequestAttendance"
               />

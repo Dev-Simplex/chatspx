@@ -12,9 +12,43 @@ class Api::V1::Accounts::ActiveAttendancesController < Api::V1::Accounts::BaseCo
   def index
     @attendances = fetch_attendances
     @attendances_count = @attendances.total_count
+    @requestable_ids = compute_requestable_ids
   end
 
   private
+
+  # A aba mostra TODOS os atendimentos (D2, p/ dar ciência), mas SOLICITAR só é
+  # possível para conversas que o usuário realmente alcança — senão o botão
+  # promete uma ação que o backend recusa com 403. Este Set espelha EXATAMENTE a
+  # autorização do POST .../takeover_requests (ConversationPolicy#show? +
+  # authorize_team_access):
+  #   - admin não pede (atribui direto; a policy create? bloqueia) → conjunto vazio;
+  #   - precisa de dono HUMANO que não seja eu;
+  #   - conversa COM time  → tenho que ser do time (satisfaz o show? por time E o
+  #     guard de time de uma vez);
+  #   - conversa SEM time  → o guard passa; o show? exige ser membro da CAIXA.
+  # Times/caixas do usuário puxados UMA vez; o jbuilder só faz include? no Set.
+  def compute_requestable_ids
+    user = Current.user
+    return Set.new unless user.is_a?(User)
+    return Set.new if Current.account_user&.administrator?
+
+    team_ids = user.teams.where(account_id: Current.account.id).pluck(:id).to_set
+    inbox_ids = user.inboxes.where(account_id: Current.account.id).pluck(:id).to_set
+
+    @attendances.filter_map { |conv| conv.id if requestable?(conv, user, team_ids, inbox_ids) }.to_set
+  end
+
+  def requestable?(conversation, user, team_ids, inbox_ids)
+    return false if conversation.assignee_id.blank? || conversation.assignee_agent_bot_id.present?
+    return false if conversation.assignee_id == user.id
+
+    if conversation.team_id.present?
+      team_ids.include?(conversation.team_id)
+    else
+      inbox_ids.include?(conversation.inbox_id)
+    end
+  end
 
   # Api::BaseController#check_authorization resolve a policy por
   # controller_name.classify.constantize, e não existe model ActiveAttendance

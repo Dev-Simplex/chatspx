@@ -14,6 +14,10 @@ json.payload do
     # tomar 404.
     json.id conversation.display_id
     json.status conversation.status
+    # Se ESTE usuário pode solicitar esta conversa (mesma regra do backend de
+    # pedido). O botão "Solicitar" no front só aparece quando true — senão
+    # prometeria uma ação que resultaria em 403.
+    json.can_request @requestable_ids.include?(conversation.id)
     # assignee_last_changed_at NÃO é "atendendo desde": é zerado na primeira
     # resposta do agente (message.rb:440), então mostraria "—" justamente nos
     # atendimentos que engrenaram. created_at/last_activity_at são verdade.

@@ -138,6 +138,71 @@ RSpec.describe 'Active Attendances API', type: :request do
         end
       end
 
+      # can_request espelha a autorização do endpoint de pedido: o botão
+      # "Solicitar" no front SÓ aparece quando true, senão prometeria uma ação
+      # que o backend recusa com 403 (foi o bug que o usuário viu).
+      describe 'can_request' do
+        def can_request_for(conversation)
+          get "/api/v1/accounts/#{account.id}/active_attendances", headers: agent.create_new_auth_token, as: :json
+          response.parsed_body['payload'].find { |p| p['id'] == conversation.display_id }['can_request']
+        end
+
+        it 'is true for a human-owned conversation with no team when I am an inbox member' do
+          conv = create(:conversation, account: account, inbox: inbox, assignee: owner, team: nil, status: :open)
+          expect(can_request_for(conv)).to be(true)
+        end
+
+        it 'is false for a conversation whose team I am not part of' do
+          other_team = create(:team, account: account)
+          # o dono precisa ser do time, senão o ensure_assignee_is_from_team
+          # (assignment_handler.rb:49) zera o assignee e o teste mediria "sem dono".
+          create(:team_member, user: owner, team: other_team)
+          conv = create(:conversation, account: account, inbox: inbox, assignee: owner, team: other_team, status: :open)
+          expect(conv.reload.assignee_id).to eq(owner.id)
+          expect(can_request_for(conv)).to be(false)
+        end
+
+        it 'is true when I belong to the conversation team' do
+          team = create(:team, account: account)
+          create(:team_member, user: agent, team: team)
+          create(:team_member, user: owner, team: team) # dono é do time (senão vira sem-dono)
+          conv = create(:conversation, account: account, inbox: inbox, assignee: owner, team: team, status: :open)
+          expect(conv.reload.assignee_id).to eq(owner.id)
+          expect(can_request_for(conv)).to be(true)
+        end
+
+        it 'is false for my own conversation' do
+          conv = create(:conversation, account: account, inbox: inbox, assignee: agent, team: nil, status: :open)
+          expect(can_request_for(conv)).to be(false)
+        end
+
+        it 'is false for an unassigned conversation' do
+          conv = create(:conversation, account: account, inbox: inbox, assignee: nil, team: nil, status: :open)
+          expect(can_request_for(conv)).to be(false)
+        end
+
+        it 'is false for an AI-owned conversation' do
+          assistant = create(:captain_assistant, account: account)
+          conv = create(:conversation, account: account, inbox: inbox, assignee: nil, team: nil, status: :open)
+          conv.update!(assignee_agent_bot: assistant.mirror_agent_bot)
+          expect(can_request_for(conv)).to be(false)
+        end
+
+        it 'is false for an inbox I am not a member of (even with a human owner)' do
+          other_inbox = create(:inbox, account: account)
+          conv = create(:conversation, account: account, inbox: other_inbox, assignee: owner, team: nil, status: :open)
+          expect(can_request_for(conv)).to be(false)
+        end
+
+        it 'is always false for an admin (admins assign directly)' do
+          admin = create(:user, account: account, role: :administrator)
+          conv = create(:conversation, account: account, inbox: inbox, assignee: owner, team: nil, status: :open)
+          get "/api/v1/accounts/#{account.id}/active_attendances", headers: admin.create_new_auth_token, as: :json
+          row = response.parsed_body['payload'].find { |p| p['id'] == conv.display_id }
+          expect(row['can_request']).to be(false)
+        end
+      end
+
       # NOTA: os GETs com parâmetro vão pela QUERY STRING de propósito. `get ...,
       # params: {...}, as: :json` faz o Rails reescrever a request como POST com
       # corpo JSON (+ X-Http-Method-Override), preservando Integer — ou seja,

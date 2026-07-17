@@ -72,32 +72,21 @@ describe('AttendanceCard', () => {
     expect(Object.keys(AttendanceCard.props)).not.toContain('lastMessage');
   });
 
-  // O botão de pedido só faz sentido para um dono HUMANO que não sou eu.
-  it('shows the request button for a human owner that is not me', () => {
-    const wrapper = mountCard({ currentUserId: 999 });
-    expect(wrapper.findComponent({ name: 'Button' }).exists()).toBe(true);
+  // A visibilidade do botão é decidida no BACKEND (canRequest) — que espelha a
+  // autorização do endpoint de pedido. O card só obedece: sem canRequest, nada
+  // de botão prometendo uma ação que daria 403.
+  it('shows the request button only when canRequest is true', () => {
+    expect(
+      mountCard({ canRequest: true }).findComponent({ name: 'Button' }).exists()
+    ).toBe(true);
   });
 
-  it('hides the request button when the conversation is already mine', () => {
-    // assignee.id === currentUserId → não há de quem pedir.
-    const wrapper = mountCard({ currentUserId: 7 });
-    expect(wrapper.findComponent({ name: 'Button' }).exists()).toBe(false);
-  });
-
-  it('hides the request button when there is no owner', () => {
-    const wrapper = mountCard({ assignee: null });
-    expect(wrapper.findComponent({ name: 'Button' }).exists()).toBe(false);
-  });
-
-  it('hides the request button when the owner is an AI bot', () => {
-    const wrapper = mountCard({
-      assignee: { id: 9, name: 'Captain', type: 'agent_bot' },
-    });
-    expect(wrapper.findComponent({ name: 'Button' }).exists()).toBe(false);
+  it('hides the request button when canRequest is false (default)', () => {
+    expect(mountCard().findComponent({ name: 'Button' }).exists()).toBe(false);
   });
 
   it('emits requestAttendance with the conversation and contact ids', async () => {
-    const wrapper = mountCard({ currentUserId: 999 });
+    const wrapper = mountCard({ canRequest: true });
 
     await wrapper.findComponent({ name: 'Button' }).vm.$emit('click');
 

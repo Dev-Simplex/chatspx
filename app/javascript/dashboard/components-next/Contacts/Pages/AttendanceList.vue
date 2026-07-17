@@ -3,7 +3,6 @@ import AttendanceCard from 'dashboard/components-next/Contacts/AttendanceCard/At
 
 defineProps({
   attendances: { type: Array, required: true },
-  currentUserId: { type: Number, default: null },
   // display_id da conversa cujo pedido está em andamento (mostra o loading no card).
   requestingId: { type: Number, default: null },
 });
@@ -24,7 +23,7 @@ const emit = defineEmits(['requestAttendance']);
       :inbox="attendance.inbox"
       :assignee="attendance.assignee"
       :team="attendance.team"
-      :current-user-id="currentUserId"
+      :can-request="attendance.canRequest"
       :is-requesting="requestingId === attendance.id"
       @request-attendance="emit('requestAttendance', $event)"
     />
