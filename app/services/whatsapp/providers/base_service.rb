@@ -118,4 +118,23 @@ class Whatsapp::Providers::BaseService
     json_hash = { :button => I18n.t('conversations.messages.whatsapp.list_button_label'), 'sections' => sections }
     create_payload('list', message.outgoing_content, JSON.generate(json_hash))
   end
+
+  # Prefixa o conteudo com o nome do agente ("*Nome*:\n...") quando a inbox tem a
+  # assinatura ligada (additional_attributes['agent_signature_enabled']). So p/ mensagem
+  # de agente (User); midia sem legenda (content vazio) fica sem nome (Opcao B). Espelha o
+  # formato que o bridge do WAHA ja aplica, mas so nos providers nativos (Cloud/360dialog).
+  # Reintroduzido apos a reescrita do canvas interativo (40239f7571) ter removido isto.
+  def with_agent_prefix(message, content)
+    return content if content.blank?
+    return content unless agent_signature_enabled?(message.inbox)
+    return content unless message.sender_type == 'User' && message.sender.present?
+
+    name = message.sender.available_name.to_s.strip
+    name.present? ? "*#{name}*:\n#{content}" : content
+  end
+
+  # Toggle por inbox (default OFF). Ligado via additional_attributes['agent_signature_enabled'].
+  def agent_signature_enabled?(inbox)
+    inbox&.additional_attributes&.dig('agent_signature_enabled') == true
+  end
 end
