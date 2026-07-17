@@ -45,6 +45,11 @@ class Captain::Tools::EnviarFotosImovelTool < Captain::Tools::BasePublicTool
       return "Já enviei as fotos que dá pra mandar aqui do imóvel #{codigo}. Se o cliente quiser ver TODAS, ofereça o link do imóvel (o mesmo que veio da busca) — a galeria completa está no site. NÃO reenvie as mesmas — avance a conversa (interesse, visita)."
     end
 
+    # Opt-in por conta (assistant.config['fotos_carrossel']): manda as fotos numa ÚNICA
+    # mensagem de carrossel interativo (1 foto por card + botões), em vez de N imagens.
+    # Carrossel exige 2+ cards — com 1 foto restante cai no envio de imagem comum.
+    return send_fotos_carrossel(conversation, fotos, codigo, key, sent, limite) if carrossel_ativo? && (limite - sent) >= 2
+
     batch = fotos[sent, BATCH] || []
     return 'Não encontrei fotos desse imóvel.' if batch.empty?
 
@@ -95,6 +100,54 @@ class Captain::Tools::EnviarFotosImovelTool < Captain::Tools::BasePublicTool
     fotos.values
          .sort_by { |f| [f['Destaque'] == 'Sim' ? 0 : 1] }
          .filter_map { |f| f['Foto'] }
+  end
+
+  def carrossel_ativo?
+    @assistant&.config&.[]('fotos_carrossel') == true
+  end
+
+  # Carrossel de mídia interativo (2-10 cards, 1 foto por card, quick replies) numa única
+  # mensagem, via passthrough interactive_payload (WhatsappCloudService#send_raw_interactive,
+  # Graph v23+). A Meta baixa a foto pela URL pública do Vista — sem Down.download aqui.
+  # Obs.: card 'type' => 'cta_url' mesmo com quick_reply é o formato do exemplo oficial da
+  # doc (validado ao vivo) — não trocar sem re-testar.
+  def send_fotos_carrossel(conversation, fotos, codigo, key, sent, limite)
+    urls = fotos[sent, limite - sent] || []
+    total = urls.size
+    cards = urls.each_with_index.map do |url, i|
+      {
+        'card_index' => i,
+        'type' => 'cta_url',
+        'header' => { 'type' => 'image', 'image' => { 'link' => url } },
+        'body' => { 'text' => "Foto #{i + 1} de #{total} — imóvel #{codigo}" },
+        'action' => { 'buttons' => [
+          { 'type' => 'quick_reply', 'quick_reply' => { 'id' => "interesse-#{codigo}", 'title' => 'Tenho interesse' } },
+          { 'type' => 'quick_reply', 'quick_reply' => { 'id' => "visita-#{codigo}", 'title' => 'Agendar visita' } }
+        ] }
+      }
+    end
+
+    conversation.messages.create!(
+      message_type: :outgoing,
+      account_id: conversation.account_id,
+      inbox_id: conversation.inbox_id,
+      sender: @assistant,
+      content: "📷 Carrossel: #{total} fotos do imóvel #{codigo}",
+      additional_attributes: { 'property_code' => codigo },
+      content_attributes: { 'interactive_payload' => {
+        'type' => 'carousel',
+        'body' => { 'text' => "Fotos do imóvel #{codigo} — desliza pro lado pra ver todas" },
+        'action' => { 'cards' => cards }
+      } }
+    )
+
+    conversation.update!(custom_attributes: conversation.custom_attributes.merge(
+      key => sent + total, 'fotos_ultimo_envio_at' => Time.current.to_i
+    ))
+
+    "Enviei um carrossel com #{total} fotos do imóvel #{codigo}, com botões de interesse e visita. " \
+      'Se o cliente quiser ver TODAS as fotos, ofereça o link do imóvel (galeria completa no site). ' \
+      'NÃO reenvie as mesmas fotos — avance a conversa.'
   end
 
   def send_photo(conversation, url, codigo)
