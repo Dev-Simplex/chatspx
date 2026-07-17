@@ -79,6 +79,7 @@ namespace :spx do
       evals = Captain::ConversationEval.for_account(account.id).recent.limit(limit).to_a
       puts "Reprocessando #{evals.size} eval(s) da conta #{account.id}..."
       ok = 0
+      falhas = 0
       evals.each_with_index do |ev, index|
         conversation = Conversation.find_by(id: ev.conversation_id)
         next if conversation.nil?
@@ -92,8 +93,11 @@ namespace :spx do
         ev.update!(avaliado_em: Time.now.utc, **result[:verdict])
         ok += 1
         print "\r#{index + 1}/#{evals.size}"
+      rescue StandardError => e
+        falhas += 1
+        warn "\nfalha na conv #{ev.conversation_id}: #{e.class} #{e.message.to_s[0, 80]}"
       end
-      puts "\nReprocessadas OK: #{ok}. Rode spx:eval:report[#{account.id}] pra ver o antes/depois."
+      puts "\nReprocessadas OK: #{ok}, falhas: #{falhas}. Rode spx:eval:report[#{account.id}] pra ver o antes/depois."
     end
   end
 end
