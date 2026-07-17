@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[7.1].define(version: 2026_07_09_130000) do
+ActiveRecord::Schema[7.1].define(version: 2026_07_17_140000) do
   # These extensions should be enabled to support this database
   enable_extension "pg_stat_statements"
   enable_extension "pg_trgm"
@@ -775,6 +775,26 @@ ActiveRecord::Schema[7.1].define(version: 2026_07_09_130000) do
     t.index ["requester_user_id"], name: "index_conversation_pdf_exports_on_requester_user_id"
     t.index ["sha256"], name: "index_conversation_pdf_exports_on_sha256", unique: true, where: "(sha256 IS NOT NULL)"
     t.index ["status"], name: "index_conversation_pdf_exports_on_status"
+  end
+
+  create_table "conversation_takeover_requests", force: :cascade do |t|
+    t.bigint "account_id", null: false
+    t.bigint "conversation_id", null: false
+    t.bigint "requester_id", null: false
+    t.bigint "owner_id"
+    t.integer "status", default: 0, null: false
+    t.integer "resolution_source"
+    t.text "reason"
+    t.text "response_note"
+    t.bigint "responded_by_id"
+    t.datetime "responded_at"
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["account_id", "status"], name: "idx_takeover_requests_account_status"
+    t.index ["conversation_id", "requester_id"], name: "idx_takeover_requests_unique_pending", unique: true, where: "(status = 0)"
+    t.index ["conversation_id"], name: "idx_takeover_requests_conversation"
+    t.index ["owner_id", "status"], name: "idx_takeover_requests_owner_status"
+    t.index ["requester_id", "status"], name: "idx_takeover_requests_requester_status"
   end
 
   create_table "conversations", id: :serial, force: :cascade do |t|
@@ -1769,6 +1789,11 @@ ActiveRecord::Schema[7.1].define(version: 2026_07_09_130000) do
   add_foreign_key "conversation_pdf_exports", "accounts", on_delete: :cascade
   add_foreign_key "conversation_pdf_exports", "conversations", on_delete: :cascade
   add_foreign_key "conversation_pdf_exports", "users", column: "requester_user_id", on_delete: :nullify
+  add_foreign_key "conversation_takeover_requests", "accounts", on_delete: :cascade
+  add_foreign_key "conversation_takeover_requests", "conversations", on_delete: :cascade
+  add_foreign_key "conversation_takeover_requests", "users", column: "owner_id", on_delete: :nullify
+  add_foreign_key "conversation_takeover_requests", "users", column: "requester_id", on_delete: :nullify
+  add_foreign_key "conversation_takeover_requests", "users", column: "responded_by_id", on_delete: :nullify
   add_foreign_key "conversations", "contacts", on_delete: :cascade
   add_foreign_key "conversations", "inboxes", on_delete: :cascade
   add_foreign_key "conversations", "teams", on_delete: :nullify

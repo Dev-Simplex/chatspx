@@ -42,6 +42,7 @@ class Account < ApplicationRecord # rubocop:disable Metrics/ClassLength
         'auto_resolve_label': { 'type': %w[string null] },
         'keep_pending_on_bot_failure': { 'type': %w[boolean null] },
         'resolve_assignment_gate': { 'type': %w[boolean null] },
+        'takeover_request_gate': { 'type': %w[boolean null] },
         'captain_auto_resolve_mode': { 'type': %w[string null], 'enum': ['evaluated', 'legacy', 'disabled', nil] },
         'reply_assignment_gate': { 'type': %w[boolean null] },
         'orphan_retriage_after': { 'type': %w[integer null], 'minimum': 5, 'maximum': 10_080 },
@@ -103,6 +104,10 @@ class Account < ApplicationRecord # rubocop:disable Metrics/ClassLength
   store_accessor :settings, :captain_auto_resolve_mode
   store_accessor :settings, :reply_assignment_gate, :orphan_retriage_after, :queue_escalation_after
   store_accessor :settings, :resolve_assignment_gate
+  # Modo "só troca de mãos via pedido aprovado" (D1). Independente do
+  # reply_assignment_gate de propósito: acoplar no backend seria surpresa.
+  # NÃO vai em features.yml — o bitmask bigint já estourou os 63 bits.
+  store_accessor :settings, :takeover_request_gate
   include AccountCaptainAutoResolve
 
   has_many :account_users, dependent: :destroy_async
@@ -223,6 +228,13 @@ class Account < ApplicationRecord # rubocop:disable Metrics/ClassLength
   # conversation manually. Stored as a JSONB setting flag.
   def resolve_assignment_gate_enabled?
     ActiveModel::Type::Boolean.new.cast(resolve_assignment_gate)
+  end
+
+  # D1 — "o pedido é o único caminho": com o modo ligado, conversa de dono humano
+  # só troca de mãos via pedido aprovado ou por admin. DESLIGADO por padrão: o
+  # guard é no-op enquanto isto for false, então quem não ligar não vê diferença.
+  def takeover_request_gate_enabled?
+    ActiveModel::Type::Boolean.new.cast(takeover_request_gate) || false
   end
 
   private

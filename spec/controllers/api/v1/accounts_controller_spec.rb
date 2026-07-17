@@ -259,7 +259,8 @@ RSpec.describe 'Accounts API', type: :request do
           reply_assignment_gate: true,
           resolve_assignment_gate: true,
           orphan_retriage_after: 30,
-          queue_escalation_after: 15
+          queue_escalation_after: 15,
+          takeover_request_gate: true
         }
 
         patch "/api/v1/accounts/#{account.id}",
@@ -272,6 +273,7 @@ RSpec.describe 'Accounts API', type: :request do
         expect(account.reload.resolve_assignment_gate).to be(true)
         expect(account.reload.orphan_retriage_after).to eq(30)
         expect(account.reload.queue_escalation_after).to eq(15)
+        expect(account.reload.takeover_request_gate).to be(true)
       end
 
       it 'updates onboarding step to invite_team if onboarding step is present in account custom attributes' do

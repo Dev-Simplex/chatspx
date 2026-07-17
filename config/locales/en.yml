@@ -243,6 +243,8 @@ en:
   conversations:
     reply_assignment_gate:
       assignment_required: 'You must take over this conversation before replying'
+    takeover_request_gate:
+      request_required: 'This conversation belongs to another agent. Request it to take over.'
     errors:
       team_required_for_resolution: 'A team must be assigned before resolving this conversation'
       resolve_assignment_required: 'Only the assigned agent can resolve this conversation'

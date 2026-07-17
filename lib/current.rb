@@ -12,6 +12,12 @@ module Current
   # 'move' action re-triggers MoveService → the engine again; this depth counter
   # caps the chain so a misconfigured rule can never loop forever.
   thread_mattr_accessor :funnel_automation_depth
+  # D1 (Fase 3): a própria aprovação de um pedido atribui a conversa. Sem isto o
+  # Conversations::TakeoverGate barraria o caminho de aprovação — ou seja, o gate
+  # impediria justamente a única forma legítima de trocar de dono. Thread-local +
+  # Puma reusa threads → quem setar TEM que limpar num `ensure` (precedente:
+  # Macros::ExecutionService).
+  thread_mattr_accessor :takeover_approval_in_progress
 
   def self.reset
     Current.user = nil
@@ -21,5 +27,6 @@ module Current
     Current.contact = nil
     Current.skip_ai_agent_assignment = nil
     Current.funnel_automation_depth = nil
+    Current.takeover_approval_in_progress = nil
   end
 end
