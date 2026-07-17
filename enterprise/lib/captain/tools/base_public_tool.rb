@@ -4,6 +4,13 @@ class Captain::Tools::BasePublicTool < Agents::Tool
   # Per-account credential resolution (Vista/Google/office/site) with ENV fallback.
   include Captain::Tools::IntegrationCredentials
 
+  # Trace de tool calls (Eval 2.0 F2): prepend na SUBCLASSE (prepend aqui não
+  # interceptaria o perform definido nelas).
+  def self.inherited(subclass)
+    super
+    subclass.prepend(Captain::Tools::TraceRecorder)
+  end
+
   def initialize(assistant)
     @assistant = assistant
     super()

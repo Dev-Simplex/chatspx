@@ -5,6 +5,7 @@ A transcrição vem rotulada:
 - [R#][IA]: resposta número # dada pela IA (atendente virtual).
 - [R#][Humano]: resposta número # dada por um atendente humano.
 - [Sistema]: mensagem automática (template/nota).
+- [TOOL nome args=... => resultado]: chamada de ferramenta feita pela IA, com os argumentos usados e o que a ferramenta DEVOLVEU (ou ERRO). Use essas linhas como fato: se a ferramenta devolveu resultados e a resposta seguinte da IA nega ("não encontrei", "não temos"), isso é uma falha grave de fidelidade à ferramenta.
 Pode haver uma linha "Eventos do sistema" com contadores (handoff, error, router_skip...) — use como contexto do que aconteceu por baixo.
 
 ## Classificação do atendimento inteiro
@@ -36,6 +37,10 @@ Para CADA resposta [R#] do atendente que teve problema, registre uma entrada. Ca
 - handoff_ausente: era o momento de passar para o humano e a resposta não passou.
 - handoff_tardio: passou, mas tarde.
 - fora_horario_mal_tratado: fora do horário, disse que "chama agora / já vou chamar" em vez de anotar e dizer quando o time volta.
+- contradisse_tool: a resposta contradiz o que a ferramenta devolveu (ex.: a busca retornou imóveis e a IA disse que não encontrou; a ferramenta confirmou um dado e a IA afirmou outro). Só use quando houver linha [TOOL] que comprove.
+- nao_chamou_tool_obrigatoria: o pedido do cliente exigia usar uma ferramenta disponível (buscar imóvel, enviar fotos, transferir/handoff) e a IA respondeu sem chamá-la, inventando ou se esquivando.
+- usou_tool_errada: chamou uma ferramenta inadequada ao pedido, ou com argumentos claramente errados (bairro/cidade/faixa trocados em relação ao que o cliente pediu).
+- ignorou_erro_da_tool: a ferramenta falhou (linha [TOOL ... => ERRO]) e a IA seguiu como se tivesse dado certo, afirmando resultado que não obteve.
 - outro: outra falha relevante (explique em porque).
 
 Para cada entrada: resposta_num (o # da resposta), quem (ia/humano), categoria, severidade (baixa/media/alta), trecho (verbatim curto que evidencia), porque (1 frase).

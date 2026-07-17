@@ -9,7 +9,7 @@ class Captain::ConversationEvalService < Captain::BaseTaskService
   RESPONSE_SCHEMA = Captain::ConversationEvalSchema
   TRANSCRIPT_CHAR_LIMIT = 60_000
 
-  pattr_initialize [:account!, :conversation_display_id!]
+  pattr_initialize [:account!, :conversation_display_id!, :episode]
 
   def perform
     transcript, response_map = build_transcript
@@ -19,7 +19,7 @@ class Captain::ConversationEvalService < Captain::BaseTaskService
       model: eval_model,
       messages: [
         { role: 'system', content: prompt_from_file('conversation_eval') },
-        { role: 'user', content: [system_events_summary, transcript].compact.join("\n\n") }
+        { role: 'user', content: [carryover_context, system_events_summary, transcript].compact.join("\n\n") }
       ],
       schema: RESPONSE_SCHEMA
     )
@@ -61,31 +61,71 @@ class Captain::ConversationEvalService < Captain::BaseTaskService
   end
 
   def countable_messages
-    conversation.messages
-                .where(message_type: %i[incoming outgoing])
-                .where(private: false)
-                .reorder('id asc')
+    scope = conversation.messages
+                        .where(message_type: %i[incoming outgoing])
+                        .where(private: false)
+    # Unidade episódio: só as mensagens do episódio, nunca o blob da conversa.
+    scope = scope.where(id: episode.first_message_id..episode.last_message_id) if episode.present?
+    scope.reorder('id asc')
+  end
+
+  # Carryover (unidade episódio): resumo dos atendimentos ANTERIORES do mesmo contato,
+  # pra o juiz não marcar falso "ignorou contexto" quando a IA referencia algo combinado
+  # antes. Vem dos vereditos já gravados — custo zero de LLM.
+  def carryover_context
+    return if episode.blank? || episode.seq <= 1
+
+    previous_ids = Captain::ConversationEpisode.where(conversation_id: conversation.id)
+                                               .where(seq: ...episode.seq)
+                                               .order(seq: :desc).limit(3).pluck(:id)
+    resumos = Captain::ConversationEval.where(episode_id: previous_ids)
+                                       .order(avaliado_em: :desc)
+                                       .pluck(:funil, :resumo)
+                                       .filter_map { |funil, resumo| "- [#{funil}] #{resumo}" if resumo.present? }
+    return if resumos.empty?
+
+    "Contexto (NÃO avaliar): atendimentos anteriores deste contato, do mais recente ao mais antigo:\n" \
+      "#{resumos.join("\n")}\nAvalie SOMENTE o atendimento transcrito abaixo."
   end
 
   def build_transcript
     messages = trim_to_limit(countable_messages.to_a)
+    tools = pending_tool_lines(messages)
     response_num = 0
     response_map = {}
-    lines = messages.filter_map do |message|
+    lines = []
+    messages.each do |message|
+      # tool calls entram na posição cronológica correta (Eval 2.0 F2)
+      lines << tools.shift[:line] while tools.any? && tools.first[:at] <= message.created_at
       text = message_text(message)
       next if text.blank?
 
-      if message.incoming?
-        "[Cliente]: #{text}"
-      elsif (label = sender_label(message))
-        response_num += 1
-        response_map[response_num] = message.id
-        "[R#{response_num}][#{label}]: #{text}"
-      else
-        "[Sistema]: #{text}"
-      end
+      lines << if message.incoming?
+                 "[Cliente]: #{text}"
+               elsif (label = sender_label(message))
+                 response_num += 1
+                 response_map[response_num] = message.id
+                 "[R#{response_num}][#{label}]: #{text}"
+               else
+                 "[Sistema]: #{text}"
+               end
     end
+    tools.each { |t| lines << t[:line] }
     [lines.join("\n"), response_map]
+  end
+
+  # Tool calls da janela avaliada, prontas pra intercalar no transcript. O juiz passa
+  # a VER o que cada ferramenta recebeu e devolveu — sem isso, "não achei imóvel" com
+  # a busca retornando resultados passa invisível.
+  def pending_tool_lines(messages)
+    return [] if messages.empty?
+
+    from = messages.first.created_at
+    to = messages.last.created_at + 2.minutes
+    Captain::ToolCall.for_conversation(conversation.id).in_window(from, to).order(:created_at).map do |call|
+      resultado = call.status == 'error' ? "ERRO: #{call.error}" : call.result_preview.to_s[0, 400]
+      { at: call.created_at, line: "[TOOL #{call.tool_name} args=#{call.args.to_json[0, 200]} => #{resultado}]" }
+    end
   end
 
   # Conversas longas: mantém a cauda (mensagens mais recentes) dentro do teto de chars.
@@ -115,10 +155,12 @@ class Captain::ConversationEvalService < Captain::BaseTaskService
   end
 
   def system_events_summary
-    counts = Captain::AssistantLog.where(conversation_id: conversation.id).group(:event_type).count
+    scope = Captain::AssistantLog.where(conversation_id: conversation.id)
+    scope = scope.where(created_at: episode.started_at..(episode.ended_at || Time.current)) if episode.present?
+    counts = scope.group(:event_type).count
     return if counts.blank?
 
-    "Eventos do sistema nesta conversa: #{counts.map { |k, v| "#{k}=#{v}" }.join(', ')}."
+    "Eventos do sistema neste atendimento: #{counts.map { |k, v| "#{k}=#{v}" }.join(', ')}."
   end
 
   def parse_verdict(message, response_map)
