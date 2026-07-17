@@ -4,7 +4,7 @@ class Captain::Tools::SalvarInfoLeadTool < Captain::Tools::BasePublicTool
               'Atualiza o que já existir, sem apagar o resto.'
 
   param :status, type: 'string',
-        desc: 'Status do lead: novo, em_contato, qualificado, esfriado, perdido ou convertido.', required: false
+        desc: 'Status do lead: novo, em_contato, qualificado, esfriado, perdido, nao_qualificado ou convertido.', required: false
   param :sobre_cliente, type: 'string',
         desc: 'Descrição curta (1 a 2 frases) sobre o cliente: o que procura, perfil e situação.', required: false
   param :precisa_followup, type: 'boolean',
@@ -39,6 +39,13 @@ class Captain::Tools::SalvarInfoLeadTool < Captain::Tools::BasePublicTool
     when 'esfriado', 'perdido'
       Spx::Tozi::FunnelPlacementService.move(conversation: conversation, to: 'frio')
       Spx::Tozi::ReactivationCadenceService.new(conversation: conversation).perform
+    when 'nao_qualificado'
+      # Sem perfil pro financiamento (renda por auxilio temporario INSS, ou abaixo do piso sem
+      # composicao) e sem caminho alternativo. NAO re-aborda (nao gasta HSM nem tempo do corretor):
+      # cancela cadencia, tira do funil ativo e marca com label pro time filtrar.
+      Spx::Tozi::ReactivationCadenceService.cancel_pending(conversation)
+      Spx::Tozi::FunnelPlacementService.move(conversation: conversation, to: 'frio')
+      conversation.add_labels((conversation.label_list + ['nao-qualificado']).uniq)
     end
   end
 
