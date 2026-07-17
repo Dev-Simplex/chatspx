@@ -295,7 +295,6 @@
       "ID": "(ID: {identifier})"
     }
   },
-
   "CONTACTS_LAYOUT": {
     "HEADER": {
       "TITLE": "Contacts",
@@ -619,7 +618,6 @@
       "OPENED_AGO": "Opened {time}",
       "LAST_ACTIVITY": "Last activity {time}",
       "REQUEST_ATTENDANCE": "Request attendance",
-      "COMING_SOON": "Coming soon",
       "LOAD_ERROR": "Could not load who is in attendance. Without this, there is no way to tell whether someone is already serving these contacts.",
       "RETRY": "Try again",
       "PAGINATION_SHOWING": "Showing {startItem} - {endItem} of {totalItems} attendance | Showing {startItem} - {endItem} of {totalItems} attendances",
@@ -627,6 +625,17 @@
         "OPEN": "Open",
         "PENDING": "Pending",
         "SNOOZED": "Snoozed"
+      },
+      "REQUEST": {
+        "SENT": "Request sent to the current agent",
+        "ERRORS": {
+          "UNASSIGNED": "This conversation has no owner — just assign it to yourself.",
+          "BOT": "This conversation is handled by AI.",
+          "EXISTS": "You already have a pending request for this conversation.",
+          "SELF": "You already own this conversation.",
+          "NO_ACCESS": "You can't request this conversation — it belongs to a team you're not part of.",
+          "GENERIC": "Couldn't send the request, please try again."
+        }
       }
     },
     "LOAD_MORE": "Load more"
@@ -652,7 +661,6 @@
       "CONFIRM_SINGLE": "Delete contact"
     }
   },
-
   "COMPOSE_NEW_CONVERSATION": {
     "TITLE": "New conversation",
     "ATTENDANCE_WARNING": {

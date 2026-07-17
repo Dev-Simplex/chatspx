@@ -20,6 +20,8 @@ const props = defineProps({
   inbox: { type: Object, default: () => ({}) },
   assignee: { type: Object, default: null },
   team: { type: Object, default: null },
+  currentUserId: { type: Number, default: null },
+  isRequesting: { type: Boolean, default: false },
 });
 
 const emit = defineEmits(['requestAttendance']);
@@ -27,6 +29,15 @@ const emit = defineEmits(['requestAttendance']);
 const { t } = useI18n();
 
 const isBotAssignee = computed(() => props.assignee?.type === 'agent_bot');
+
+// Só faz sentido "solicitar" de um DONO HUMANO que não sou eu. Sem dono
+// (é só assumir), dona IA e conversa minha → sem botão. Cross-time ainda pode
+// dar 403 no backend (não posso pedir o que não enxergo); o erro é tratado
+// com mensagem clara na página.
+const canRequest = computed(() => {
+  if (!props.assignee || isBotAssignee.value) return false;
+  return props.assignee.id !== props.currentUserId;
+});
 
 const assigneeName = computed(
   () =>
@@ -146,14 +157,14 @@ const onRequestAttendance = () => {
       </span>
     </div>
 
-    <div class="shrink-0">
+    <div v-if="canRequest" class="shrink-0">
       <Button
         size="sm"
         variant="faded"
         color="slate"
-        disabled
+        :is-loading="isRequesting"
+        :disabled="isRequesting"
         :label="t('CONTACTS_LAYOUT.IN_ATTENDANCE.REQUEST_ATTENDANCE')"
-        :title="t('CONTACTS_LAYOUT.IN_ATTENDANCE.COMING_SOON')"
         @click="onRequestAttendance"
       />
     </div>

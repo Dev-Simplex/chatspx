@@ -1,8 +1,9 @@
 <script setup>
-import { onMounted, computed, watch } from 'vue';
+import { onMounted, computed, ref, watch } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import { useI18n } from 'vue-i18n';
 import { useStore, useMapGetter } from 'dashboard/composables/store';
+import { useAlert } from 'dashboard/composables';
 
 import Spinner from 'dashboard/components-next/spinner/Spinner.vue';
 import Button from 'dashboard/components-next/button/Button.vue';
@@ -23,6 +24,10 @@ const { t } = useI18n();
 const attendances = useMapGetter('activeAttendances/getAttendances');
 const meta = useMapGetter('activeAttendances/getMeta');
 const uiFlags = useMapGetter('activeAttendances/getUIFlags');
+const currentUserId = useMapGetter('getCurrentUserID');
+
+// display_id da conversa cujo pedido está em andamento (loading no card).
+const requestingId = ref(null);
 
 const isFetching = computed(() => uiFlags.value.isFetching);
 const hasError = computed(() => uiFlags.value.hasError);
@@ -52,6 +57,40 @@ const fetchAttendances = async (page = 1) => {
 watch(pageFromRoute, page => {
   if (page !== currentPage.value) fetchAttendances(page);
 });
+
+// Solicitar o atendimento direto da aba (D1 / Fase 3). O endpoint é
+// conversa-scoped e passa pelo authorize_team_access: pedir uma conversa de
+// outro TIME dá 403 (não posso pedir o que não enxergo) — tratado com mensagem
+// clara em vez de erro genérico.
+const TAKEOVER_ERROR_KEYS = {
+  conversation_unassigned:
+    'CONTACTS_LAYOUT.IN_ATTENDANCE.REQUEST.ERRORS.UNASSIGNED',
+  conversation_owned_by_bot: 'CONTACTS_LAYOUT.IN_ATTENDANCE.REQUEST.ERRORS.BOT',
+  takeover_request_exists:
+    'CONTACTS_LAYOUT.IN_ATTENDANCE.REQUEST.ERRORS.EXISTS',
+  takeover_request_self: 'CONTACTS_LAYOUT.IN_ATTENDANCE.REQUEST.ERRORS.SELF',
+};
+
+const onRequestAttendance = async ({ conversationId }) => {
+  if (requestingId.value) return;
+  requestingId.value = conversationId;
+  try {
+    await store.dispatch('takeoverRequests/create', { conversationId });
+    useAlert(t('CONTACTS_LAYOUT.IN_ATTENDANCE.REQUEST.SENT'));
+  } catch (error) {
+    const status = error?.response?.status;
+    const code = error?.response?.data?.error_code;
+    if (status === 403) {
+      useAlert(t('CONTACTS_LAYOUT.IN_ATTENDANCE.REQUEST.ERRORS.NO_ACCESS'));
+    } else if (code && TAKEOVER_ERROR_KEYS[code]) {
+      useAlert(t(TAKEOVER_ERROR_KEYS[code]));
+    } else {
+      useAlert(t('CONTACTS_LAYOUT.IN_ATTENDANCE.REQUEST.ERRORS.GENERIC'));
+    }
+  } finally {
+    requestingId.value = null;
+  }
+};
 
 onMounted(() => fetchAttendances(pageFromRoute.value));
 </script>
@@ -110,7 +149,12 @@ onMounted(() => fetchAttendances(pageFromRoute.value));
               </span>
             </div>
             <div v-else class="flex flex-col gap-4 pt-4 pb-6">
-              <AttendanceList :attendances="attendances" />
+              <AttendanceList
+                :attendances="attendances"
+                :current-user-id="currentUserId"
+                :requesting-id="requestingId"
+                @request-attendance="onRequestAttendance"
+              />
             </div>
           </div>
         </main>

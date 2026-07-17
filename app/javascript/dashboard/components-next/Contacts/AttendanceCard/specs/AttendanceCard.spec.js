@@ -72,18 +72,32 @@ describe('AttendanceCard', () => {
     expect(Object.keys(AttendanceCard.props)).not.toContain('lastMessage');
   });
 
-  // Na Fase 1 o botão nasce DESABILITADO ("Em breve"): o endpoint de pedido só
-  // existe na Fase 3. Este teste é o que avisa se alguém habilitá-lo antes.
-  it('renders the request button disabled while phase 3 does not exist', () => {
-    const button = mountCard().findComponent({ name: 'Button' });
-
-    expect(button.attributes('disabled')).toBeDefined();
+  // O botão de pedido só faz sentido para um dono HUMANO que não sou eu.
+  it('shows the request button for a human owner that is not me', () => {
+    const wrapper = mountCard({ currentUserId: 999 });
+    expect(wrapper.findComponent({ name: 'Button' }).exists()).toBe(true);
   });
 
-  // O handler já monta o payload que a Fase 3 vai consumir. Como o botão está
-  // desabilitado, o clique real ainda não dispara — o emit é forçado no stub.
+  it('hides the request button when the conversation is already mine', () => {
+    // assignee.id === currentUserId → não há de quem pedir.
+    const wrapper = mountCard({ currentUserId: 7 });
+    expect(wrapper.findComponent({ name: 'Button' }).exists()).toBe(false);
+  });
+
+  it('hides the request button when there is no owner', () => {
+    const wrapper = mountCard({ assignee: null });
+    expect(wrapper.findComponent({ name: 'Button' }).exists()).toBe(false);
+  });
+
+  it('hides the request button when the owner is an AI bot', () => {
+    const wrapper = mountCard({
+      assignee: { id: 9, name: 'Captain', type: 'agent_bot' },
+    });
+    expect(wrapper.findComponent({ name: 'Button' }).exists()).toBe(false);
+  });
+
   it('emits requestAttendance with the conversation and contact ids', async () => {
-    const wrapper = mountCard();
+    const wrapper = mountCard({ currentUserId: 999 });
 
     await wrapper.findComponent({ name: 'Button' }).vm.$emit('click');
 
