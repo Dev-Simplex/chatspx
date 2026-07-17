@@ -622,6 +622,7 @@
       "COMING_SOON": "Coming soon",
       "LOAD_ERROR": "Could not load who is in attendance. Without this, there is no way to tell whether someone is already serving these contacts.",
       "RETRY": "Try again",
+      "PAGINATION_SHOWING": "Showing {startItem} - {endItem} of {totalItems} attendance | Showing {startItem} - {endItem} of {totalItems} attendances",
       "STATUS": {
         "OPEN": "Open",
         "PENDING": "Pending",

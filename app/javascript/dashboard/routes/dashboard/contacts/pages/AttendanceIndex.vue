@@ -121,8 +121,11 @@ onMounted(() => fetchAttendances(pageFromRoute.value));
           v-if="!isFetching && !hasError && totalItems > 0"
           class="sticky bottom-0 z-0"
         >
+          <!-- Chave própria: a do contacts diz "de 21 contatos", e a linha aqui é
+               um ATENDIMENTO — 21 atendimentos são 20 contatos distintos no
+               staging hoje, então o rótulo emprestado é literalmente falso. -->
           <PaginationFooter
-            current-page-info="CONTACTS_LAYOUT.PAGINATION_FOOTER.SHOWING"
+            current-page-info="CONTACTS_LAYOUT.IN_ATTENDANCE.PAGINATION_SHOWING"
             :current-page="currentPage"
             :total-items="totalItems"
             :items-per-page="itemsPerPage"
