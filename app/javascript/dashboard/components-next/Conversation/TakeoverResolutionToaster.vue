@@ -17,6 +17,11 @@ const { accountId } = useAccount();
 
 const notice = useMapGetter('takeoverRequests/getResolvedNotice');
 
+// Recado importante (aprovado/negado) — fica MAIS tempo que o toast padrão (2,5s)
+// p/ dar tempo de ler e, no aprovado, de clicar em "Abrir conversa".
+const APPROVED_DURATION = 12000;
+const DENIED_DURATION = 10000;
+
 watch(notice, value => {
   if (!value) return;
 
@@ -26,12 +31,13 @@ watch(notice, value => {
       type: 'link',
       to: `/app/accounts/${accountId.value}/conversations/${value.conversationId}`,
       message: t('CONVERSATION.TAKEOVER_RESULT.OPEN'),
+      duration: APPROVED_DURATION,
     });
   } else {
     const message = value.note
       ? t('CONVERSATION.TAKEOVER_RESULT.DENIED_WITH_NOTE', { note: value.note })
       : t('CONVERSATION.TAKEOVER_RESULT.DENIED');
-    useAlert(message);
+    useAlert(message, { duration: DENIED_DURATION });
   }
 
   // consome o aviso (senão reaparece ao remontar).
