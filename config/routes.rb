@@ -265,6 +265,9 @@ Rails.application.routes.draw do
               get :search
             end
           end
+          # Aba "Em atendimento": metadado de quem está sendo atendido por quem
+          # (conversa-shaped, por isso fora do contacts_controller).
+          resources :active_attendances, only: [:index]
           resources :contacts, only: [:index, :show, :update, :create, :destroy] do
             collection do
               get :active

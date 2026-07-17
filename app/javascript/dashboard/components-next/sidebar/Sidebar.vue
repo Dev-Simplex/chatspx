@@ -579,6 +579,12 @@ const menuItems = computed(() => {
           activeOn: ['contacts_dashboard_active'],
         },
         {
+          name: 'In Attendance',
+          label: t('SIDEBAR.IN_ATTENDANCE'),
+          to: accountScopedRoute('contacts_dashboard_in_attendance'),
+          activeOn: ['contacts_dashboard_in_attendance'],
+        },
+        {
           name: 'Segments',
           icon: lordIcon('team', 'i-lucide-group'),
           label: t('SIDEBAR.CUSTOM_VIEWS_SEGMENTS'),

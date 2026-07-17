@@ -300,6 +300,7 @@
       "TITLE": "Contatos",
       "SEARCH_TITLE": "Pesquisar contatos",
       "ACTIVE_TITLE": "Contatos ativos",
+      "IN_ATTENDANCE_TITLE": "Em atendimento",
       "SEARCH_PLACEHOLDER": "Pesquisar...",
       "MESSAGE_BUTTON": "Enviar Mensagem",
       "SEND_MESSAGE": "Enviar mensagem",
@@ -607,7 +608,22 @@
       "BUTTON_LABEL": "Adicionar contato",
       "SEARCH_EMPTY_STATE_TITLE": "Nenhum contato corresponde à sua pesquisa 🔍",
       "LIST_EMPTY_STATE_TITLE": "Não há contatos disponíveis nesta visualização 📋",
-      "ACTIVE_EMPTY_STATE_TITLE": "Nenhum contato está ativo no momento 🌙"
+      "ACTIVE_EMPTY_STATE_TITLE": "Nenhum contato está ativo no momento 🌙",
+      "IN_ATTENDANCE_EMPTY_STATE_TITLE": "Nenhum contato em atendimento no momento 🌙"
+    },
+    "IN_ATTENDANCE": {
+      "NO_ASSIGNEE": "Sem responsável",
+      "NO_TEAM": "Sem time",
+      "AI_BADGE": "IA",
+      "OPENED_AGO": "Aberto {time}",
+      "LAST_ACTIVITY": "Última atividade {time}",
+      "REQUEST_ATTENDANCE": "Solicitar atendimento",
+      "COMING_SOON": "Em breve",
+      "STATUS": {
+        "OPEN": "Aberto",
+        "PENDING": "Pendente",
+        "SNOOZED": "Adiado"
+      }
     },
     "LOAD_MORE": "Carregar mais"
   },
