@@ -612,6 +612,12 @@
       "DENIED": "Pedido negado",
       "ALREADY_CLOSED": "Este pedido já foi respondido.",
       "ERROR": "Não foi possível responder ao pedido, tente novamente."
+    },
+    "TAKEOVER_RESULT": {
+      "APPROVED": "Seu pedido foi aprovado — a conversa agora é sua.",
+      "OPEN": "Abrir conversa",
+      "DENIED": "Seu pedido de atendimento foi negado.",
+      "DENIED_WITH_NOTE": "Seu pedido de atendimento foi negado: {note}"
     }
   },
   "EMAIL_TRANSCRIPT": {

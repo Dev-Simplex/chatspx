@@ -8,6 +8,10 @@ import TakeoverRequestsAPI from '../../api/takeoverRequests';
 export const state = {
   records: {},
   uiFlags: { isFetching: false, isCreating: false },
+  // Último pedido MEU (solicitante) que foi respondido — o toaster mostra e limpa.
+  // Sem isto o solicitante não saberia que foi NEGADO (no aprovado ele ganha a
+  // conversa; no negado nada muda, então precisa de aviso explícito).
+  resolvedNotice: null,
 };
 
 const normalize = record => camelcaseKeys(record, { deep: true });
@@ -31,6 +35,9 @@ export const getters = {
     ),
   getUIFlags(_state) {
     return _state.uiFlags;
+  },
+  getResolvedNotice(_state) {
+    return _state.resolvedNotice;
   },
 };
 
@@ -80,9 +87,26 @@ export const actions = {
     return data;
   },
 
-  // Vindos do realtime dirigido (takeover_request_created/updated).
-  upsertFromRealtime: ({ commit }, record) => {
-    commit(types.SET_TAKEOVER_REQUEST, record);
+  // Vindos do realtime dirigido (takeover_request.created/updated). Um evento só,
+  // dois papéis: (1) DONO → refaz a lista/contador; (2) SOLICITANTE → se o MEU
+  // pedido foi respondido, guarda o aviso p/ o toaster mostrar.
+  handleRealtimeEvent: ({ commit, dispatch, rootGetters }, data = {}) => {
+    dispatch('fetchIncoming'); // lado do dono (contador + lista)
+
+    const myId = rootGetters.getCurrentUserID;
+    const requesterId = data.requester?.id ?? data.requester_id;
+    const status = data.status;
+    if (requesterId === myId && ['approved', 'denied'].includes(status)) {
+      commit(types.SET_TAKEOVER_RESOLVED_NOTICE, {
+        status,
+        conversationId: data.conversation_id ?? data.conversationId,
+        note: data.response_note ?? data.responseNote ?? null,
+      });
+    }
+  },
+
+  clearResolvedNotice: ({ commit }) => {
+    commit(types.SET_TAKEOVER_RESOLVED_NOTICE, null);
   },
 };
 
@@ -101,6 +125,9 @@ export const mutations = {
       map[normalized.id] = normalized;
     });
     _state.records = map;
+  },
+  [types.SET_TAKEOVER_RESOLVED_NOTICE](_state, notice) {
+    _state.resolvedNotice = notice;
   },
 };
 

@@ -104,4 +104,64 @@ describe('takeoverRequests store', () => {
       ).toEqual([1]);
     });
   });
+
+  // O aviso ao SOLICITANTE quando seu pedido é respondido (o toaster consome).
+  describe('#handleRealtimeEvent', () => {
+    const rootGetters = { getCurrentUserID: 10 };
+
+    it('notifies the requester when their request is denied', () => {
+      const commit = vi.fn();
+      const dispatch = vi.fn();
+      actions.handleRealtimeEvent(
+        { commit, dispatch, rootGetters },
+        {
+          status: 'denied',
+          requester: { id: 10 },
+          conversation_id: 5,
+          response_note: 'agora não',
+        }
+      );
+
+      expect(dispatch).toHaveBeenCalledWith('fetchIncoming');
+      expect(commit).toHaveBeenCalledWith(
+        types.default.SET_TAKEOVER_RESOLVED_NOTICE,
+        { status: 'denied', conversationId: 5, note: 'agora não' }
+      );
+    });
+
+    it('notifies the requester when their request is approved', () => {
+      const commit = vi.fn();
+      actions.handleRealtimeEvent(
+        { commit, dispatch: vi.fn(), rootGetters },
+        { status: 'approved', requester: { id: 10 }, conversation_id: 5 }
+      );
+      expect(commit).toHaveBeenCalledWith(
+        types.default.SET_TAKEOVER_RESOLVED_NOTICE,
+        { status: 'approved', conversationId: 5, note: null }
+      );
+    });
+
+    // O DONO (não sou o solicitante) só refaz a lista — sem toast de resolução.
+    it('does NOT set a notice for someone who is not the requester', () => {
+      const commit = vi.fn();
+      const dispatch = vi.fn();
+      actions.handleRealtimeEvent(
+        { commit, dispatch, rootGetters },
+        { status: 'denied', requester: { id: 99 }, conversation_id: 5 }
+      );
+
+      expect(dispatch).toHaveBeenCalledWith('fetchIncoming');
+      expect(commit).not.toHaveBeenCalled();
+    });
+
+    // Pedido só CRIADO (pending) não é resolução — nada de toast.
+    it('does NOT set a notice for a pending (created) event', () => {
+      const commit = vi.fn();
+      actions.handleRealtimeEvent(
+        { commit, dispatch: vi.fn(), rootGetters },
+        { status: 'pending', requester: { id: 10 }, conversation_id: 5 }
+      );
+      expect(commit).not.toHaveBeenCalled();
+    });
+  });
 });

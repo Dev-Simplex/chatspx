@@ -78,7 +78,9 @@ class Conversations::TakeoverRequestNotifier
       conversation_id: @request.conversation.display_id,
       requester: @request.requester && { id: @request.requester_id, name: @request.requester.available_name },
       owner_id: @request.owner_id,
-      reason: @request.reason
+      reason: @request.reason,
+      # p/ o toast do solicitante quando negado/aprovado (a nota da resposta).
+      response_note: @request.response_note
     }
   end
 end

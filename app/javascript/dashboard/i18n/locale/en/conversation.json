@@ -621,6 +621,12 @@
       "DENIED": "Request denied",
       "ALREADY_CLOSED": "This request was already answered.",
       "ERROR": "Couldn't respond to the request, please try again."
+    },
+    "TAKEOVER_RESULT": {
+      "APPROVED": "Your request was approved — the conversation is now yours.",
+      "OPEN": "Open conversation",
+      "DENIED": "Your attendance request was denied.",
+      "DENIED_WITH_NOTE": "Your attendance request was denied: {note}"
     }
   },
   "EMAIL_TRANSCRIPT": {

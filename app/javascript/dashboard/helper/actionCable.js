@@ -59,11 +59,11 @@ class ActionCableConnector extends BaseActionCableConnector {
     this.app.$store.dispatch('kanban/applyRemoteMove', data);
   };
 
-  // D1 (Fase 3): pedido de atendimento criado/respondido. O payload do broadcast
-  // é mínimo (dado dirigido entre 2 pessoas), então em vez de mesclar um registro
-  // parcial, refazemos o fetch da lista — barato (só os MEUS pendentes) e robusto.
-  onTakeoverRequestChanged = () => {
-    this.app.$store.dispatch('takeoverRequests/fetchIncoming');
+  // D1 (Fase 3): pedido de atendimento criado/respondido. Um evento, dois papéis
+  // (dono refaz a lista; solicitante recebe o aviso de resposta) — a lógica mora
+  // na action p/ ficar testável e fora do connector.
+  onTakeoverRequestChanged = data => {
+    this.app.$store.dispatch('takeoverRequests/handleRealtimeEvent', data);
   };
 
   // Chat interno (Módulo B): a peer posted into one of my internal channels.
