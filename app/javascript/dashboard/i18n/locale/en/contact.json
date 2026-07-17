@@ -655,6 +655,20 @@
 
   "COMPOSE_NEW_CONVERSATION": {
     "TITLE": "New conversation",
+    "ATTENDANCE_WARNING": {
+      "TITLE": "This contact is already in attendance",
+      "BODY_HUMAN": "{name} is already serving this contact. Sending now would put two people on the same conversation.",
+      "BODY_HUMAN_WITH_TEAM": "{name} ({team}) is already serving this contact. Sending now would put two people on the same conversation.",
+      "BODY_BOT": "This contact is being served by {name}.",
+      "BODY_UNASSIGNED": "There is already an open conversation with this contact, waiting in the team queue.",
+      "BODY_UNKNOWN": "We could not check whether this contact is already in attendance. Sending now may duplicate an ongoing conversation.",
+      "SAME_INBOX": "It is in this same inbox — your message would land in that conversation.",
+      "OTHER_INBOX": "It is in another inbox ({inbox}).",
+      "GO_TO_CONVERSATION": "Go to the conversation",
+      "SEND_ANYWAY": "Send anyway",
+      "CANCEL": "Cancel",
+      "BANNER": "This contact is already in attendance."
+    },
     "CONTACT_SEARCH": {
       "ERROR_MESSAGE": "We couldn’t complete the search. Please try again."
     },

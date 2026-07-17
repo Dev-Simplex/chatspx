@@ -53,4 +53,29 @@ describe('aba "Em atendimento" pt-BR i18n parity', () => {
     expect(readLocale('en', 'settings').SIDEBAR.IN_ATTENDANCE).toBeTruthy();
     expect(readLocale('pt_BR', 'settings').SIDEBAR.IN_ATTENDANCE).toBeTruthy();
   });
+
+  // Fase 2 — aviso ao criar conversa para contato já em atendimento.
+  it('keeps COMPOSE_NEW_CONVERSATION.ATTENDANCE_WARNING keys aligned', () => {
+    const en = readLocale('en', 'contact');
+    const ptBr = readLocale('pt_BR', 'contact');
+
+    const enKeys = flattenKeys(
+      en.COMPOSE_NEW_CONVERSATION.ATTENDANCE_WARNING
+    ).sort();
+    const ptBrKeys = flattenKeys(
+      ptBr.COMPOSE_NEW_CONVERSATION.ATTENDANCE_WARNING
+    ).sort();
+
+    expect(enKeys).not.toEqual([]);
+    expect(ptBrKeys).toEqual(enKeys);
+  });
+
+  it('defines the attendance check failure alert in both locales', () => {
+    expect(
+      readLocale('en', 'conversation').CONVERSATION.ATTENDANCE_CHECK_FAILED
+    ).toBeTruthy();
+    expect(
+      readLocale('pt_BR', 'conversation').CONVERSATION.ATTENDANCE_CHECK_FAILED
+    ).toBeTruthy();
+  });
 });

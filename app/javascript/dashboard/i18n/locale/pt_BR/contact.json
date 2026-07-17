@@ -653,6 +653,20 @@
   },
   "COMPOSE_NEW_CONVERSATION": {
     "TITLE": "Nova conversa",
+    "ATTENDANCE_WARNING": {
+      "TITLE": "Este contato já está em atendimento",
+      "BODY_HUMAN": "{name} já está atendendo este contato. Enviar agora coloca duas pessoas no mesmo atendimento.",
+      "BODY_HUMAN_WITH_TEAM": "{name} ({team}) já está atendendo este contato. Enviar agora coloca duas pessoas no mesmo atendimento.",
+      "BODY_BOT": "Este contato está sendo atendido pela {name}.",
+      "BODY_UNASSIGNED": "Já existe uma conversa aberta com este contato, esperando na fila do time.",
+      "BODY_UNKNOWN": "Não foi possível verificar se este contato já está em atendimento. Enviar agora pode duplicar um atendimento em andamento.",
+      "SAME_INBOX": "É nesta mesma caixa — sua mensagem cairia dentro daquela conversa.",
+      "OTHER_INBOX": "É em outra caixa ({inbox}).",
+      "GO_TO_CONVERSATION": "Ir para a conversa",
+      "SEND_ANYWAY": "Enviar mesmo assim",
+      "CANCEL": "Cancelar",
+      "BANNER": "Este contato já está em atendimento."
+    },
     "CONTACT_SEARCH": {
       "ERROR_MESSAGE": "Não foi possível completar a pesquisa. Por favor, tente novamente."
     },

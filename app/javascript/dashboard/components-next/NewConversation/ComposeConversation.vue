@@ -20,6 +20,8 @@ import {
   mergeInboxDetails,
 } from 'dashboard/components-next/NewConversation/helpers/composeConversationHelper';
 import ComposeNewConversationForm from 'dashboard/components-next/NewConversation/components/ComposeNewConversationForm.vue';
+import AttendanceWarningDialog from 'dashboard/components-next/NewConversation/components/AttendanceWarningDialog.vue';
+import { useAttendanceGate } from 'dashboard/composables/useAttendanceGate';
 
 const props = defineProps({
   alignPosition: {
@@ -103,7 +105,9 @@ const clearFormState = () => {
 
 const contactById = useMapGetter('contacts/getContactById');
 const contactsUiFlags = useMapGetter('contacts/getUIFlags');
+const currentAccountId = useMapGetter('getCurrentAccountId');
 const currentUser = useMapGetter('getCurrentUser');
+const { resolveGate } = useAttendanceGate();
 const globalConfig = useMapGetter('globalConfig/get');
 const uiFlags = useMapGetter('contactConversations/getUIFlags');
 const messageSignature = useMapGetter('getMessageSignature');
@@ -218,7 +222,7 @@ const discardCompose = () => {
   closeCompose();
 };
 
-const createConversation = async ({ payload, isFromWhatsApp }) => {
+const performCreateConversation = async ({ payload, isFromWhatsApp }) => {
   try {
     let data;
     const contactId = payload.contactId;
@@ -264,6 +268,61 @@ const createConversation = async ({ payload, isFromWhatsApp }) => {
     useAlert(message, whatsappAlertAction(message));
     return false; // Return failure
   }
+};
+
+// GATE DA FASE 2 — o ponto em que o sistema para de mandar mensagem calado.
+// Até aqui, quando o contato já tinha conversa ativa, o fluxo acima reusava a
+// conversa em silêncio (sendToExistingConversation): o agente achava que estava
+// abrindo um atendimento novo e na verdade escrevia no meio do atendimento de um
+// colega — sem nunca ver o nome dele.
+const attendanceDialogRef = ref(null);
+const attendanceGate = ref({
+  variant: null,
+  attendance: null,
+  sameInbox: false,
+});
+const pendingConversation = ref(null);
+
+const createConversation = async ({ payload, isFromWhatsApp }) => {
+  const gate = await resolveGate({
+    contactId: payload.contactId,
+    inboxId: payload.inboxId,
+  });
+
+  if (gate.blocked) {
+    attendanceGate.value = gate;
+    pendingConversation.value = { payload, isFromWhatsApp };
+    attendanceDialogRef.value?.open();
+    // false = o form NÃO limpa a mensagem — ela precisa sobreviver p/ o
+    // "Enviar mesmo assim".
+    return false;
+  }
+
+  return performCreateConversation({ payload, isFromWhatsApp });
+};
+
+const onAttendanceCancel = () => {
+  attendanceDialogRef.value?.close();
+  pendingConversation.value = null;
+};
+
+const onAttendanceSendAnyway = async () => {
+  const pending = pendingConversation.value;
+  attendanceDialogRef.value?.close();
+  pendingConversation.value = null;
+  if (pending) await performCreateConversation(pending);
+};
+
+const onAttendanceGoToConversation = () => {
+  const attendance = attendanceGate.value?.attendance;
+  attendanceDialogRef.value?.close();
+  pendingConversation.value = null;
+  if (!attendance?.id) return;
+  // attendance.id é o display_id — é o que a rota de conversa espera.
+  discardCompose();
+  router.push(
+    `/app/accounts/${currentAccountId.value}/conversations/${attendance.id}`
+  );
 };
 
 const toggle = () => {
@@ -392,5 +451,14 @@ useKeyboardEvents(keyboardEvents);
         @discard="discardCompose"
       />
     </div>
+    <AttendanceWarningDialog
+      ref="attendanceDialogRef"
+      :variant="attendanceGate.variant"
+      :attendance="attendanceGate.attendance"
+      :same-inbox="attendanceGate.sameInbox"
+      @go-to-conversation="onAttendanceGoToConversation"
+      @send-anyway="onAttendanceSendAnyway"
+      @cancel="onAttendanceCancel"
+    />
   </div>
 </template>

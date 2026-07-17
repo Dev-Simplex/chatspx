@@ -97,6 +97,7 @@
     "START_CONVERSATION": "Conversar",
     "SHARED_CONTACT_LABEL": "Contato compartilhado",
     "NO_INBOX_FOR_CONTACT": "Nenhuma caixa de entrada disponível para iniciar conversa com este contato.",
+    "ATTENDANCE_CHECK_FAILED": "Não foi possível verificar se este contato já está em atendimento. Tente de novo — criar agora pode duplicar um atendimento em andamento.",
     "NO_CONTENT": "Nenhum conteúdo a ser exibido",
     "SHARED_ATTACHMENT": {
       "CONTACT": "{sender} compartilhou um contato",
