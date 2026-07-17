@@ -224,6 +224,8 @@ pt_BR:
       sla_missed_resolution: 'Meta de SLA de Resolução não alcançada para a conversa (#%{display_id})'
       conversation_orphaned: '[Sem dono] A conversa [ID - %{display_id}] está sem responsável e precisa de triagem'
       conversation_unassignment: 'A conversa (#%{display_id}) foi assumida por %{taker}'
+      conversation_takeover_requested: '%{requester} pediu a conversa (#%{display_id})'
+      conversation_takeover_responded: 'Seu pedido da conversa (#%{display_id}) foi respondido'
     attachment: 'Anexo'
     no_content: 'Sem conteúdo'
   conversations:

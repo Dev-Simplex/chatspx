@@ -189,6 +189,10 @@ Rails.application.routes.draw do
               post :filter
             end
             scope module: :conversations do
+              # D1 (Fase 3): pedir o atendimento de uma conversa de outro agente.
+              # Pendurado aqui p/ herdar `authorize :show?` + authorize_team_access
+              # do Conversations::BaseController de graça.
+              resources :takeover_requests, only: [:create]
               resources :messages, only: [:index, :create, :destroy, :update] do
                 member do
                   post :translate
@@ -268,6 +272,17 @@ Rails.application.routes.draw do
           # Aba "Em atendimento": metadado de quem está sendo atendido por quem
           # (conversa-shaped, por isso fora do contacts_controller).
           resources :active_attendances, only: [:index]
+          # D1 (Fase 3): responder/acompanhar pedidos. Nível de CONTA (não de
+          # conversa) porque o dono responde a partir de uma lista, não de dentro
+          # da conversa. O index filtra por owner_id/requester_id → seguro por
+          # construção, sem precisar de PermissionFilterService.
+          resources :takeover_requests, only: [:index] do
+            member do
+              post :approve
+              post :deny
+              post :cancel
+            end
+          end
           resources :contacts, only: [:index, :show, :update, :create, :destroy] do
             collection do
               get :active

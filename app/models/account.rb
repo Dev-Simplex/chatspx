@@ -123,6 +123,7 @@ class Account < ApplicationRecord # rubocop:disable Metrics/ClassLength
   has_many :categories, dependent: :destroy_async, class_name: '::Category'
   has_many :contacts, dependent: :destroy_async
   has_many :conversations, dependent: :destroy_async
+  has_many :conversation_takeover_requests, dependent: :destroy_async
   has_many :csat_survey_responses, dependent: :destroy_async
   has_many :nps_responses, dependent: :destroy_async
   has_many :report_pdf_exports, dependent: :destroy_async

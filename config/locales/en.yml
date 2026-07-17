@@ -238,6 +238,8 @@ en:
       sla_missed_resolution: 'SLA target resolution missed for conversation (#%{display_id})'
       conversation_orphaned: '[Unassigned] Conversation [ID - %{display_id}] has no owner and needs triage'
       conversation_unassignment: 'Conversation (#%{display_id}) was taken over by %{taker}'
+      conversation_takeover_requested: '%{requester} requested conversation (#%{display_id})'
+      conversation_takeover_responded: 'Your request for conversation (#%{display_id}) was answered'
     attachment: 'Attachment'
     no_content: 'No content'
   conversations:

@@ -157,6 +157,7 @@ class Conversation < ApplicationRecord
                                                           inverse_of: :conversation
   has_many :conversation_participants, dependent: :destroy_async
   has_many :notifications, as: :primary_actor, dependent: :destroy_async
+  has_many :conversation_takeover_requests, dependent: :destroy_async
   has_many :attachments, through: :messages
   has_many :reporting_events, dependent: :destroy_async
   has_many :funnel_items, dependent: :destroy
@@ -171,6 +172,11 @@ class Conversation < ApplicationRecord
   after_update_commit :execute_after_update_commit_callbacks
   after_update_commit :move_to_automated_stage, if: :saved_change_to_status?
   after_update_commit :move_to_team_funnel, if: :saved_change_to_team_id?
+  # D1 (Fase 3): callback NOVO e INDEPENDENTE (não pendurar no
+  # process_assignment_changes — reentrância). Se a conversa foi reatribuída por
+  # QUALQUER outro caminho, os pedidos pendentes contra o dono antigo ficam
+  # obsoletos. `if:` barato p/ não custar nada em toda atualização.
+  after_update_commit :supersede_stale_takeover_requests, if: :saved_change_to_assignee_id?
   after_create_commit :notify_conversation_creation
   after_create_commit :load_attributes_created_by_db_triggers
   after_create_commit :add_to_appropriate_funnel
@@ -367,6 +373,25 @@ class Conversation < ApplicationRecord
 
   def notify_conversation_creation
     dispatcher_dispatch(CONVERSATION_CREATED)
+  end
+
+  # Reatribuída por outro caminho → pedidos pendentes contra o dono antigo viram
+  # `superseded`. EXCEÇÃO: se o novo dono é justamente o solicitante, o pedido é
+  # aprovado (system) — a transferência aconteceu, só não passou pelo fluxo.
+  # A própria aprovação seta takeover_approval_in_progress, então NÃO reprocessa
+  # aqui (senão fecharia o pedido duas vezes).
+  def supersede_stale_takeover_requests
+    return if Current.takeover_approval_in_progress
+    return unless conversation_takeover_requests.pending.exists?
+
+    new_owner_id = assignee_id
+    conversation_takeover_requests.pending.find_each do |request|
+      if new_owner_id.present? && request.requester_id == new_owner_id
+        request.close!(status: :approved, source: :system)
+      else
+        request.close!(status: :superseded, source: :system)
+      end
+    end
   end
 
   def notify_conversation_updation
