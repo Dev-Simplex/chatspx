@@ -586,6 +586,21 @@
     "AGENT_ISOLATION": {
       "RESTRICTED_TITLE": "Agente: {agent}",
       "RESTRICTED_SUBTITLE": "Conteúdo restrito"
+    },
+    "TAKEOVER_REQUEST": {
+      "TITLE": "Solicitar esta conversa",
+      "DESC": "{name} está atendendo este contato agora. Peça para assumir a conversa — a pessoa pode aprovar ou recusar. Nada é enviado até a aprovação.",
+      "REASON_LABEL": "Motivo (opcional)",
+      "REASON_PLACEHOLDER": "Por que você precisa desta conversa?",
+      "CONFIRM": "Solicitar atendimento",
+      "SENT": "Seu pedido foi enviado ao agente atual",
+      "ERRORS": {
+        "CONVERSATION_UNASSIGNED": "Esta conversa não tem dono — é só assumir.",
+        "CONVERSATION_OWNED_BY_BOT": "Esta conversa é atendida pela IA.",
+        "TAKEOVER_REQUEST_EXISTS": "Você já tem um pedido pendente nesta conversa.",
+        "TAKEOVER_REQUEST_CLOSED": "Este pedido já foi respondido.",
+        "TAKEOVER_REQUEST_STALE": "A conversa trocou de dono desde o seu pedido."
+      }
     }
   },
   "EMAIL_TRANSCRIPT": {

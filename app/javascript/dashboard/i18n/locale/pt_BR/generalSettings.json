@@ -204,6 +204,14 @@
       "FEATURES": {
         "INBOUND_EMAIL_ENABLED": "A continuidade das conversas com e-mails está ativada para sua conta.",
         "CUSTOM_EMAIL_DOMAIN_ENABLED": "Você pode receber e-mails em seu domínio personalizado agora."
+      },
+      "TAKEOVER_GATE": {
+        "TITLE": "Pedido para assumir a conversa",
+        "NOTE": "Uma conversa de outro agente só troca de mãos por pedido aprovado ou por um admin. O \"Assumir\" vira \"Solicitar atendimento\". Funciona melhor com o modo Atendimento ligado.",
+        "API": {
+          "SUCCESS": "Modo de pedido de atendimento atualizado com sucesso",
+          "ERROR": "Falha ao atualizar o modo de pedido de atendimento"
+        }
       }
     },
     "UPDATE_CHATWOOT": "Uma atualização {latestChatwootVersion} para o Chatwoot está disponível. Por favor, atualize sua instância.",

@@ -595,6 +595,21 @@
     "AGENT_ISOLATION": {
       "RESTRICTED_TITLE": "Agent: {agent}",
       "RESTRICTED_SUBTITLE": "Restricted content"
+    },
+    "TAKEOVER_REQUEST": {
+      "TITLE": "Request this conversation",
+      "DESC": "{name} is currently serving this contact. Ask them to hand the conversation over — they can approve or decline. Nothing is sent until they approve.",
+      "REASON_LABEL": "Reason (optional)",
+      "REASON_PLACEHOLDER": "Why do you need this conversation?",
+      "CONFIRM": "Request attendance",
+      "SENT": "Your request was sent to the current agent",
+      "ERRORS": {
+        "CONVERSATION_UNASSIGNED": "This conversation has no owner — just assign it to yourself.",
+        "CONVERSATION_OWNED_BY_BOT": "This conversation is handled by AI.",
+        "TAKEOVER_REQUEST_EXISTS": "You already have a pending request for this conversation.",
+        "TAKEOVER_REQUEST_CLOSED": "This request was already answered.",
+        "TAKEOVER_REQUEST_STALE": "The conversation changed owner since your request."
+      }
     }
   },
   "EMAIL_TRANSCRIPT": {
