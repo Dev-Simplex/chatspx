@@ -175,6 +175,7 @@ class Conversation < ApplicationRecord
 
   # Status changes must use update! or save! (never update_column) so these callbacks run and
   # CONVERSATION_STATUS_CHANGED is dispatched (e.g. for NPS survey).
+  after_update :record_team_id_change
   after_update_commit :execute_after_update_commit_callbacks
   after_update_commit :move_to_automated_stage, if: :saved_change_to_status?
   after_update_commit :move_to_team_funnel, if: :saved_change_to_team_id?
@@ -310,10 +311,26 @@ class Conversation < ApplicationRecord
     update_messages_team_id
   end
 
+  # Reetiqueta as mensagens (team_message_isolation) quando o time da conversa muda. NAO usa
+  # saved_change_to_team_id? aqui: este metodo roda no after_COMMIT, que reflete so o ULTIMO save
+  # da transacao. O flow muda o time e depois salva a conversa de novo na MESMA transacao (ex.:
+  # assign_team seguido de outro update dentro do with_lock do ReplyResumeService) -> o 2o save
+  # zera saved_change_to_team_id? -> o job nunca era enfileirado -> as mensagens da fase anterior
+  # ficavam com o team velho e SUMIAM para o time novo (bug do "sumiu tudo" na AGN). O flag
+  # #record_team_id_change captura a mudanca no after_UPDATE (que roda por save) e sobrevive ate o
+  # commit. A rake messages:reconcile_team_id continua como rede de seguranca.
   def update_messages_team_id
-    return unless saved_change_to_team_id?
+    return unless @team_id_changed_for_retag
 
+    @team_id_changed_for_retag = false
     Conversations::UpdateMessagesTeamIdJob.perform_later(id, team_id)
+  end
+
+  # after_update roda uma vez POR save (dentro da transacao). Marca o flag quando o time muda; um
+  # save posterior sem mudanca de time nao mexe na marca (o `if` so atribui na mudanca). Consumido
+  # no after_commit por #update_messages_team_id.
+  def record_team_id_change
+    @team_id_changed_for_retag = true if saved_change_to_team_id?
   end
 
   def handle_resolved_status_change
