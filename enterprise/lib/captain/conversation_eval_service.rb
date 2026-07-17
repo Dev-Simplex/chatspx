@@ -9,7 +9,7 @@ class Captain::ConversationEvalService < Captain::BaseTaskService
   RESPONSE_SCHEMA = Captain::ConversationEvalSchema
   TRANSCRIPT_CHAR_LIMIT = 60_000
 
-  pattr_initialize [:account!, :conversation_display_id!]
+  pattr_initialize [:account!, :conversation_display_id!, :episode]
 
   def perform
     transcript, response_map = build_transcript
@@ -19,7 +19,7 @@ class Captain::ConversationEvalService < Captain::BaseTaskService
       model: eval_model,
       messages: [
         { role: 'system', content: prompt_from_file('conversation_eval') },
-        { role: 'user', content: [system_events_summary, transcript].compact.join("\n\n") }
+        { role: 'user', content: [carryover_context, system_events_summary, transcript].compact.join("\n\n") }
       ],
       schema: RESPONSE_SCHEMA
     )
@@ -61,10 +61,31 @@ class Captain::ConversationEvalService < Captain::BaseTaskService
   end
 
   def countable_messages
-    conversation.messages
-                .where(message_type: %i[incoming outgoing])
-                .where(private: false)
-                .reorder('id asc')
+    scope = conversation.messages
+                        .where(message_type: %i[incoming outgoing])
+                        .where(private: false)
+    # Unidade episódio: só as mensagens do episódio, nunca o blob da conversa.
+    scope = scope.where(id: episode.first_message_id..episode.last_message_id) if episode.present?
+    scope.reorder('id asc')
+  end
+
+  # Carryover (unidade episódio): resumo dos atendimentos ANTERIORES do mesmo contato,
+  # pra o juiz não marcar falso "ignorou contexto" quando a IA referencia algo combinado
+  # antes. Vem dos vereditos já gravados — custo zero de LLM.
+  def carryover_context
+    return if episode.blank? || episode.seq <= 1
+
+    previous_ids = Captain::ConversationEpisode.where(conversation_id: conversation.id)
+                                               .where(seq: ...episode.seq)
+                                               .order(seq: :desc).limit(3).pluck(:id)
+    resumos = Captain::ConversationEval.where(episode_id: previous_ids)
+                                       .order(avaliado_em: :desc)
+                                       .pluck(:funil, :resumo)
+                                       .filter_map { |funil, resumo| "- [#{funil}] #{resumo}" if resumo.present? }
+    return if resumos.empty?
+
+    "Contexto (NÃO avaliar): atendimentos anteriores deste contato, do mais recente ao mais antigo:\n" \
+      "#{resumos.join("\n")}\nAvalie SOMENTE o atendimento transcrito abaixo."
   end
 
   def build_transcript
@@ -115,10 +136,12 @@ class Captain::ConversationEvalService < Captain::BaseTaskService
   end
 
   def system_events_summary
-    counts = Captain::AssistantLog.where(conversation_id: conversation.id).group(:event_type).count
+    scope = Captain::AssistantLog.where(conversation_id: conversation.id)
+    scope = scope.where(created_at: episode.started_at..(episode.ended_at || Time.current)) if episode.present?
+    counts = scope.group(:event_type).count
     return if counts.blank?
 
-    "Eventos do sistema nesta conversa: #{counts.map { |k, v| "#{k}=#{v}" }.join(', ')}."
+    "Eventos do sistema neste atendimento: #{counts.map { |k, v| "#{k}=#{v}" }.join(', ')}."
   end
 
   def parse_verdict(message, response_map)

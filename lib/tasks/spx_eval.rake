@@ -4,6 +4,9 @@
 #   spx:eval:run[account_id,limit]        avalia agora as N conversas mais recentes (backfill)
 #   spx:eval:report[account_id]           imprime o agregado atual (só atendimentos reais)
 #   spx:eval:reprocess[account_id,limit]  re-julga evals existentes (preenche representatividade)
+#   spx:eval:unit[account_id,unit]        define a unidade: episode (Eval 2.0) | conversation
+#   spx:eval:segment[account_id,limit]    segmenta as N conversas mais recentes em episódios (backfill F1)
+#   spx:eval:run_episodes[account_id,limit] julga agora N episódios fechados sem eval
 namespace :spx do
   namespace :eval do
     desc 'Liga o eval na conta: spx:eval:enable[account_id]'
@@ -47,10 +50,83 @@ namespace :spx do
       puts "\nConcluído. Evals na conta: #{Captain::ConversationEval.for_account(account.id).count}"
     end
 
+    desc 'Define a unidade de avaliação: spx:eval:unit[account_id,unit] (episode | conversation)'
+    task :unit, %i[account_id unit] => :environment do |_t, args|
+      account = Account.find(args[:account_id])
+      unit = args[:unit].to_s
+      abort "unit inválida: #{unit} (use episode | conversation)" unless %w[episode conversation].include?(unit)
+
+      attrs = account.custom_attributes || {}
+      attrs['eval_unit'] = unit
+      account.update!(custom_attributes: attrs)
+      puts "eval_unit=#{unit} na conta #{account.id} (#{account.name})"
+    end
+
+    desc 'Segmenta conversas em episódios (backfill F1): spx:eval:segment[account_id,limit]'
+    task :segment, %i[account_id limit] => :environment do |_t, args|
+      account = Account.find(args[:account_id])
+      limit = (args[:limit] || 500).to_i
+      captain_inbox_ids = CaptainInbox.where(inbox_id: account.inboxes.select(:id)).distinct.pluck(:inbox_id)
+      conversations = account.conversations
+                             .where(inbox_id: captain_inbox_ids)
+                             .order(last_activity_at: :desc)
+                             .limit(limit)
+                             .to_a
+      puts "Segmentando #{conversations.size} conversa(s) da conta #{account.id}..."
+      falhas = 0
+      conversations.each_with_index do |conversation, index|
+        Captain::EpisodeSegmenterService.new(conversation: conversation).perform
+        print "\r#{index + 1}/#{conversations.size}"
+      rescue StandardError => e
+        falhas += 1
+        warn "\nfalha na conv #{conversation.display_id}: #{e.class} #{e.message.to_s[0, 80]}"
+      end
+      episodes = Captain::ConversationEpisode.for_account(account.id)
+      puts "\nConcluído (falhas: #{falhas}). Episódios: #{episodes.count} " \
+           "(fechados: #{episodes.closed.count} · abertos: #{episodes.open_ones.count}) " \
+           "em #{episodes.distinct.count(:conversation_id)} conversa(s). " \
+           "Fechamento: #{episodes.closed.group(:boundary_reason).count}"
+    end
+
+    desc 'Julga agora N episódios fechados sem eval: spx:eval:run_episodes[account_id,limit]'
+    task :run_episodes, %i[account_id limit] => :environment do |_t, args|
+      account = Account.find(args[:account_id])
+      unless Captain::ConversationEval.enabled_for?(account)
+        abort "Conta #{account.id} está com eval_enabled=false. Rode spx:eval:enable[#{account.id}] antes."
+      end
+
+      limit = (args[:limit] || 100).to_i
+      judged = Captain::ConversationEval.for_account(account.id).por_episodio.select(:episode_id)
+      episodes = Captain::ConversationEpisode.closed
+                                             .for_account(account.id)
+                                             .where.not(id: judged)
+                                             .order(ended_at: :desc)
+                                             .limit(limit)
+                                             .to_a
+      puts "Julgando #{episodes.size} episódio(s) fechado(s) da conta #{account.id}..."
+      falhas = 0
+      episodes.each_with_index do |episode, index|
+        Captain::EpisodeEvalJob.perform_now(episode)
+        print "\r#{index + 1}/#{episodes.size}"
+      rescue StandardError => e
+        falhas += 1
+        warn "\nfalha no episódio #{episode.id} (conv #{episode.conversation_id}): #{e.class} #{e.message.to_s[0, 80]}"
+      end
+      puts "\nConcluído (falhas: #{falhas}). Evals por episódio: " \
+           "#{Captain::ConversationEval.for_account(account.id).por_episodio.count}"
+    end
+
     desc 'Imprime o agregado do eval (só atendimentos reais): spx:eval:report[account_id]'
     task :report, %i[account_id] => :environment do |_t, args|
       account = Account.find(args[:account_id])
-      all = Captain::ConversationEval.for_account(account.id)
+      base = Captain::ConversationEval.for_account(account.id)
+      # Unidade episódio: quando existem evals por episódio, o agregado usa SÓ eles
+      # (misturar com os antigos por-conversa duplicaria as mesmas mensagens).
+      all = base.por_episodio.exists? ? base.por_episodio : base
+      if base.por_episodio.exists?
+        puts "Unidade: EPISÓDIO — #{all.count} episódios de #{all.distinct.count(:conversation_id)} conversa(s) " \
+             "(evals legados por conversa fora do agregado: #{base.where(episode_id: nil).count})"
+      end
       evals = all.em_escopo
       fora = all.where.not(representatividade: 'atendimento_real')
       puts "== Eval da conta #{account.id} (#{account.name}) =="
