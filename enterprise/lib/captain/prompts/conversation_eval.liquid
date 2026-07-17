@@ -8,6 +8,7 @@ A transcrição vem rotulada:
 Pode haver uma linha "Eventos do sistema" com contadores (handoff, error, router_skip...) — use como contexto do que aconteceu por baixo.
 
 ## Classificação do atendimento inteiro
+- representatividade: esta conversa é um atendimento real de cliente da imobiliária? Use `atendimento_real` quando há um cliente/lead de verdade sendo atendido. Marque FORA de escopo quando for ruído: conversa/grupo interno da equipe (`interno`); a pessoa trata de assunto de OUTRA empresa e não da imobiliária (`outra_empresa`); o interlocutor é um sistema automatizado que devolve comando/erro em repetição em vez de uma pessoa (`bot_automatizado`); teste da própria equipe (`teste`); ou nenhuma interação real, só mensagem automática/uma bolha solta (`sem_atendimento`). Na dúvida, `atendimento_real`.
 - interesse: quão interessado o cliente demonstrou estar (alto/medio/baixo/nenhum).
 - intencao: o que o cliente queria (locacao/venda/duvida/pos_venda/reclamacao/outro).
 - funil: estágio em que a conversa terminou (lead_novo/qualificando/qualificado/handoff/frio).
