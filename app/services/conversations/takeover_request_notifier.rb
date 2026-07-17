@@ -69,6 +69,10 @@ class Conversations::TakeoverRequestNotifier
 
   def payload
     {
+      # account_id é OBRIGATÓRIO: o front descarta todo evento cujo data.account_id
+      # não bate com a conta atual (isAValidEvent em actionCable.js). Sem ele o
+      # realtime some silenciosamente — foi exatamente o que aconteceu.
+      account_id: @request.account_id,
       id: @request.id,
       status: @request.status,
       conversation_id: @request.conversation.display_id,
