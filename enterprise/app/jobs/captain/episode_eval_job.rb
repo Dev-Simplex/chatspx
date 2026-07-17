@@ -21,10 +21,23 @@ class Captain::EpisodeEvalJob < ApplicationJob
     ).perform
     return if result[:error].present? || result[:verdict].blank?
 
-    persist(episode, conversation, account, result[:verdict], existing)
+    verdict = merge_gate_findings(episode, result[:verdict])
+    persist(episode, conversation, account, verdict, existing)
   end
 
   private
+
+  # Flagras objetivos do gate determinístico (custo zero) entram junto dos findings
+  # do juiz, marcados com origem 'gate'. Falha do gate nunca derruba o eval.
+  def merge_gate_findings(episode, verdict)
+    gate = Captain::EpisodeGateService.new(episode: episode).perform
+    return verdict if gate.empty?
+
+    verdict.merge(response_findings: gate + Array(verdict[:response_findings]))
+  rescue StandardError => e
+    Rails.logger.warn("[eval-gate] falhou no episódio #{episode.id}: #{e.class} #{e.message}")
+    verdict
+  end
 
   def persist(episode, conversation, account, verdict, existing)
     record = existing || Captain::ConversationEval.new(conversation_id: conversation.id, episode_id: episode.id)

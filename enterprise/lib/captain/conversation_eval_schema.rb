@@ -31,7 +31,8 @@ class Captain::ConversationEvalSchema < RubyLLM::Schema
       string :categoria, enum: %w[
         alucinacao info_incorreta nao_respondeu_pergunta narrou_ferramenta
         tom_robotico repeticao exemplo_copiado quebrou_regra promessa_indevida
-        handoff_ausente handoff_tardio fora_horario_mal_tratado outro
+        handoff_ausente handoff_tardio fora_horario_mal_tratado
+        contradisse_tool nao_chamou_tool_obrigatoria usou_tool_errada ignorou_erro_da_tool outro
       ], description: 'Categoria da falha.'
       string :severidade, enum: %w[baixa media alta], description: 'Gravidade da falha.'
       string :trecho, description: 'Trecho curto (verbatim) da resposta que evidencia a falha.'

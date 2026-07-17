@@ -90,23 +90,42 @@ class Captain::ConversationEvalService < Captain::BaseTaskService
 
   def build_transcript
     messages = trim_to_limit(countable_messages.to_a)
+    tools = pending_tool_lines(messages)
     response_num = 0
     response_map = {}
-    lines = messages.filter_map do |message|
+    lines = []
+    messages.each do |message|
+      # tool calls entram na posição cronológica correta (Eval 2.0 F2)
+      lines << tools.shift[:line] while tools.any? && tools.first[:at] <= message.created_at
       text = message_text(message)
       next if text.blank?
 
-      if message.incoming?
-        "[Cliente]: #{text}"
-      elsif (label = sender_label(message))
-        response_num += 1
-        response_map[response_num] = message.id
-        "[R#{response_num}][#{label}]: #{text}"
-      else
-        "[Sistema]: #{text}"
-      end
+      lines << if message.incoming?
+                 "[Cliente]: #{text}"
+               elsif (label = sender_label(message))
+                 response_num += 1
+                 response_map[response_num] = message.id
+                 "[R#{response_num}][#{label}]: #{text}"
+               else
+                 "[Sistema]: #{text}"
+               end
     end
+    tools.each { |t| lines << t[:line] }
     [lines.join("\n"), response_map]
+  end
+
+  # Tool calls da janela avaliada, prontas pra intercalar no transcript. O juiz passa
+  # a VER o que cada ferramenta recebeu e devolveu — sem isso, "não achei imóvel" com
+  # a busca retornando resultados passa invisível.
+  def pending_tool_lines(messages)
+    return [] if messages.empty?
+
+    from = messages.first.created_at
+    to = messages.last.created_at + 2.minutes
+    Captain::ToolCall.for_conversation(conversation.id).in_window(from, to).order(:created_at).map do |call|
+      resultado = call.status == 'error' ? "ERRO: #{call.error}" : call.result_preview.to_s[0, 400]
+      { at: call.created_at, line: "[TOOL #{call.tool_name} args=#{call.args.to_json[0, 200]} => #{resultado}]" }
+    end
   end
 
   # Conversas longas: mantém a cauda (mensagens mais recentes) dentro do teto de chars.
