@@ -749,14 +749,28 @@ const save = async () => {
   }
   isSaving.value = true;
   try {
-    const triggerNode = (definition.value.nodes || []).find(
+    const triggerNodes = (definition.value.nodes || []).filter(
       n => n.type === 'trigger'
     );
     const payload = {
       name: name.value,
       definition: definition.value,
-      ...triggerPayload(triggerNode),
+      ...triggerPayload(triggerNodes[0]),
     };
+    // Multi-gatilho: com mais de um nó `trigger` de evento, grava TODOS os event_names
+    // em trigger_config.event_names — o backend (current_account_flows) casa qualquer um.
+    // Retrocompat: com 1 só, mantém apenas event_name (event_names ausente).
+    if (payload.trigger_type === 'conversation_event') {
+      const eventNames = [
+        ...new Set(triggerNodes.map(n => n.event_name).filter(Boolean)),
+      ];
+      if (eventNames.length > 1) {
+        payload.trigger_config = {
+          ...payload.trigger_config,
+          event_names: eventNames,
+        };
+      }
+    }
     if (isEdit.value) {
       const updated = await store.dispatch('flows/update', {
         id: flowId.value,

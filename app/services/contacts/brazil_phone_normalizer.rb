@@ -10,6 +10,10 @@ class Contacts::BrazilPhoneNormalizer
   # Length without 9: DDD (2) + number (8) = 10 digits
   EXPECTED_LENGTH_WITHOUT_9 = 10
   EXPECTED_LENGTH_WITH_9 = 11
+  # Landlines and legacy mobiles share the same length (DDD + 8 digits); only the first
+  # digit of the subscriber number tells them apart: landlines start with 2-5,
+  # mobiles with 6-9. Adding the "9" to a landline produces a number that does not exist.
+  LANDLINE_FIRST_DIGITS = %w[2 3 4 5].freeze
 
   def self.normalize(phone_number)
     new(phone_number).normalize
@@ -22,6 +26,7 @@ class Contacts::BrazilPhoneNormalizer
   def normalize
     return @phone_number unless brazilian_number?
     return @phone_number if already_normalized?
+    return @phone_number if landline?
 
     add_ninth_digit
   end
@@ -46,8 +51,20 @@ class Contacts::BrazilPhoneNormalizer
     # Remove +55 to check the length of DDD + number
     # If it has 11+ digits, it's already normalized (has the 9)
     # If it has exactly 10 digits, it needs the 9 added
-    number_after_country_code = phone_number[3..]
     number_after_country_code.length >= EXPECTED_LENGTH_WITH_9
+  end
+
+  # DDD + 8 digits starting with 2-5 is a landline, not a legacy mobile:
+  # +55 66 3531-1930 must stay as is, otherwise it becomes +55 66 9 3531-1930,
+  # a mobile that does not exist and collides with the real contact on save.
+  def landline?
+    return false unless number_after_country_code.length == EXPECTED_LENGTH_WITHOUT_9
+
+    LANDLINE_FIRST_DIGITS.include?(number_after_country_code[DDD_LENGTH])
+  end
+
+  def number_after_country_code
+    phone_number[3..]
   end
 
   def add_ninth_digit

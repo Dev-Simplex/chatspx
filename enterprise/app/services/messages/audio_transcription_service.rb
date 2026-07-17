@@ -33,6 +33,11 @@ class Messages::AudioTranscriptionService< Llm::LegacyBaseOpenAiService
 
   private
 
+  # Áudio (Whisper) usa uma key OpenAI própria, com fallback pra CAPTAIN_OPEN_AI_API_KEY.
+  def api_key_config_name
+    'AUDIO_OPEN_AI_API_KEY'
+  end
+
   def can_transcribe?
     # Captain v2 ("AI Agents") is the canonical flag; 'captain_integration' is the
     # legacy one (hidden from the super-admin UI). Accounts migrated to v2 can end up

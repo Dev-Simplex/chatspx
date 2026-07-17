@@ -568,6 +568,8 @@
     },
     "FORWARDED": "Forwarded",
     "STARRED": "Starred",
+    "TEMPLATE_BADGE": "Template",
+    "TEMPLATE_BADGE_NAMED": "Template: {name}",
     "STAR_SUCCESS": "Message starred successfully",
     "STAR_ERROR": "Error starring message",
     "UNSTAR_SUCCESS": "Message unstarred successfully",

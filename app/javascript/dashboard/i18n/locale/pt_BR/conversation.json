@@ -559,6 +559,8 @@
     },
     "FORWARDED": "Encaminhada",
     "STARRED": "Favoritada",
+    "TEMPLATE_BADGE": "Template",
+    "TEMPLATE_BADGE_NAMED": "Template: {name}",
     "STAR_SUCCESS": "Mensagem favoritada com sucesso",
     "STAR_ERROR": "Erro ao favoritar mensagem",
     "UNSTAR_SUCCESS": "Mensagem desfavoritada com sucesso",

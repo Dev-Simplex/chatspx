@@ -208,6 +208,41 @@ describe AutomationRuleListener do
         expect(AutomationRules::ActionService).not_to have_received(:new).with(automation_rule, account, conversation)
       end
 
+      # Trafego da pesquisa NPS nao move automacao: nem as mensagens do proprio NPS, nem a
+      # resposta do cliente a uma pesquisa ativa (que dispararia boas-vindas/triagem em cima
+      # de quem so respondeu a pesquisa).
+      it 'does not call AutomationRules::ActionService for the NPS survey question' do
+        message.update!(message_type: 'outgoing', content_attributes: { nps_survey: true })
+        allow(condition_match).to receive(:present?).and_return(true)
+        listener.message_created(event)
+        expect(AutomationRules::ActionService).not_to have_received(:new).with(automation_rule, account, conversation)
+      end
+
+      it 'does not call AutomationRules::ActionService for NPS system messages (agradecimento/aviso)' do
+        message.update!(message_type: 'outgoing', content_attributes: { nps_survey_system: true })
+        allow(condition_match).to receive(:present?).and_return(true)
+        listener.message_created(event)
+        expect(AutomationRules::ActionService).not_to have_received(:new).with(automation_rule, account, conversation)
+      end
+
+      it 'does not call AutomationRules::ActionService for an incoming reply to an active NPS survey' do
+        conversation.update!(status: :resolved)
+        create(:nps_response, conversation: conversation, status: :sent, answered_at: nil, score: nil, sent_at: 1.hour.ago)
+        message.update!(message_type: 'incoming', content: '9')
+        allow(condition_match).to receive(:present?).and_return(true)
+
+        listener.message_created(event)
+        expect(AutomationRules::ActionService).not_to have_received(:new).with(automation_rule, account, conversation)
+      end
+
+      it 'still calls AutomationRules::ActionService for a normal message without an active NPS survey' do
+        message.update!(message_type: 'incoming', content: '9')
+        allow(condition_match).to receive(:present?).and_return(true)
+
+        listener.message_created(event)
+        expect(AutomationRules::ActionService).to have_received(:new).with(automation_rule, account, conversation)
+      end
+
       it 'does not call AutomationRules::ActionService if message is auto reply email' do
         email_channel = create(:channel_email, account: account)
         email_inbox = create(:inbox, channel: email_channel, account: account)

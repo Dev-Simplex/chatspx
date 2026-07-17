@@ -11,6 +11,14 @@ class AutomationRuleListener < BaseListener # rubocop:disable Metrics/ClassLengt
   # (saída/outbound), jogando-a no time errado. Ver #flow_trigger_direction e TriggerConfig.vue.
   FLOW_TRIGGER_DIRECTIONS = %w[inbound outbound both].freeze
 
+  # Teto do scan que procura quem INICIOU o ciclo atual (ver #first_message_of_reopened_cycle). A
+  # iniciativa humana, quando existe, está nas PRIMEIRAS mensagens do ciclo — o sistema fala uma ou
+  # três vezes (pergunta do NPS, agradecimento, boas-vindas do flow) e então alguém de verdade
+  # aparece. O teto evita carregar um ciclo inteiro (que pode ter centenas de mensagens) só para
+  # achá-la. Estourar o teto sem achar humano cai no fallback (comportamento de hoje), não em
+  # 'outbound' — o pior que acontece é o filtro não barrar, nunca o cliente ficar sem resposta.
+  CYCLE_SCAN_LIMIT = 20
+
   def conversation_updated(event)
     process_conversation_event(event, 'conversation_updated')
   end
@@ -140,7 +148,7 @@ class AutomationRuleListener < BaseListener # rubocop:disable Metrics/ClassLengt
 
   # Resolve a direção do evento apenas quando LIDA (memoizada no fechamento do lambda). Para
   # message_created a direção é a da PRÓPRIA mensagem (payload — sem I/O); para eventos de conversa
-  # é a da 1ª mensagem não-activity da conversa (uma query indexada). Devolve sempre 'inbound' ou
+  # é a da 1ª mensagem não-activity do CICLO ATUAL (uma query indexada). Devolve sempre 'inbound' ou
   # 'outbound', então o `memo ||=` memoiza corretamente (nunca nil/false).
   def memoized_event_direction(event_name, conversation, payload)
     memo = nil
@@ -148,7 +156,7 @@ class AutomationRuleListener < BaseListener # rubocop:disable Metrics/ClassLengt
       memo ||= if event_name == 'message_created'
                  message_direction(payload[:message])
                else
-                 conversation_direction(conversation)
+                 conversation_direction(conversation, event_name)
                end
     end
   end
@@ -181,18 +189,73 @@ class AutomationRuleListener < BaseListener # rubocop:disable Metrics/ClassLengt
     node && node['direction']
   end
 
-  # Direção da CONVERSA no instante do evento: a da 1ª mensagem não-activity dela. É ROBUSTO
-  # porque o AutomationRuleListener roda ASSÍNCRONO (EventDispatcherJob.perform_later): o evento
-  # foi enfileirado no after_create_commit da conversa, então quando o job corre a conversa e sua
-  # 1ª mensagem já commitaram. No bug real (agente inicia a conversa = saída), o controller cria
-  # conversa + 1ª mensagem OUTGOING na MESMA transação, logo o after_create_commit só dispara com
-  # a outgoing já presente — a leitura reflete o iniciador. Usamos all_messages (não `messages`)
-  # para ignorar o isolamento por time: a direção é a ORIGEM da conversa, não o que o time atual
-  # enxerga. Sem mensagem direcional → 'inbound' (fail-open ao comportamento de hoje; uma conversa
-  # sem mensagem não é o outbound-iniciado-por-agente, que sempre carrega a outgoing).
-  def conversation_direction(conversation)
-    first = conversation.all_messages.where.not(message_type: :activity).reorder(:created_at, :id).first
+  # Direção da CONVERSA no instante do evento: a da 1ª mensagem não-activity do CICLO ATUAL — não
+  # a da 1ª mensagem da história. "Ciclo atual" = o que começa na ÚLTIMA resolução (ou na criação
+  # da conversa, se ela nunca foi resolvida). É a única leitura que responde a pergunta que o
+  # usuário faz ao marcar "Entrada (contato inicia)": quem iniciou ESTE atendimento?
+  #
+  # Sem o recorte por ciclo a direção fica COLADA na origem histórica e o filtro vira ruído numa
+  # conversa reaberta (bug real, AGN conv 110: nascida incoming há 9 dias, a AGENTE reabre com um
+  # template e o contato só responde → o flow 'inbound' disparava). Pior ainda com
+  # `lock_to_single_conversation`, em que a conversa é eternamente reaproveitada e a 1ª mensagem
+  # NUNCA representa o ciclo corrente — o cenário da AGN.
+  #
+  # É ROBUSTO porque o AutomationRuleListener roda ASSÍNCRONO (EventDispatcherJob.perform_later):
+  # quando o job corre, a conversa e as mensagens do ciclo já commitaram. No caso outbound (agente
+  # inicia a conversa), o controller cria conversa + 1ª mensagem OUTGOING na MESMA transação, logo
+  # o after_create_commit só dispara com a outgoing já presente. Usamos all_messages (não
+  # `messages`) para ignorar o isolamento por time: a direção é quem INICIOU o ciclo, não o que o
+  # time atual enxerga. Sem mensagem direcional → 'inbound' (fail-open ao comportamento de hoje;
+  # uma conversa sem mensagem não é o outbound-iniciado-por-agente, que sempre carrega a outgoing).
+  def conversation_direction(conversation, event_name)
+    scope = conversation.all_messages.where.not(message_type: :activity).reorder(:created_at, :id)
+    first = first_message_of_reopened_cycle(conversation, scope) if event_name == 'conversation_opened'
+    first ||= scope.first
     first.nil? || first.incoming? ? 'inbound' : 'outbound'
+  end
+
+  # Recorta o ciclo SÓ em conversation_opened, o único evento de conversa cujo gatilho é, por
+  # construção, o início de um ciclo novo — e onde a mensagem que reabriu garante que o ciclo não
+  # é vazio. Os demais ficam de fora de propósito:
+  #   • conversation_created → a conversa acabou de nascer, jamais foi resolvida: o ciclo atual JÁ
+  #     começa na criação e a leitura é idêntica à de hoje. Pular é otimização (poupa a query do
+  #     boundary), não exceção semântica — e é o caso que hoje funciona e não pode regredir.
+  #   • conversation_updated/_resolved → podem ocorrer com o ciclo ainda VAZIO (ex.: trocar o time
+  #     de uma conversa já resolvida). Recortar ali exigiria uma regra de desempate para "ciclo sem
+  #     mensagem" e viraria regressão (a conversa outbound-iniciada passaria a ler 'inbound').
+  # nil quando não há resolução registrada, quando nada foi dito depois dela OU quando ninguém de
+  # carne e osso falou no ciclo — aí #conversation_direction cai na 1ª mensagem da conversa
+  # (comportamento de hoje). Nunca inventamos 'outbound' a partir de um ciclo só de sistema.
+  def first_message_of_reopened_cycle(conversation, scope)
+    boundary = last_resolved_at(conversation)
+    return nil if boundary.nil?
+
+    scope.where(created_at: boundary..).limit(CYCLE_SCAN_LIMIT).detect { |message| human_initiated?(message) }
+  end
+
+  # Quem INICIA um ciclo é gente: o contato (incoming) ou um humano de verdade (outgoing que o motor
+  # não gerou). Mensagem de SISTEMA não inicia ciclo — logo depois de uma resolução quem fala
+  # primeiro é quase sempre ele (a pergunta do NPS, as boas-vindas de um flow), e como tudo isso é
+  # outgoing, contá-las faria TODO ciclo nascer 'outbound'. O estrago seria pior que o bug original:
+  # o cliente que voltasse espontaneamente ("Bom dia", 3 dias depois do NPS) ficaria sem o menu,
+  # porque o flow 'inbound' não dispararia — trocar automação-demais por cliente-sem-atendimento.
+  # Casos reais (AGN): conv 424 abre o ciclo com a pergunta do NPS; conv 449, com a fala do FLOW.
+  # Reusa o vocabulário que o arquivo já fala (#automation_generated_message?, #nps_survey_message?)
+  # em vez de inventar outro. Um TEMPLATE enviado pela agente NÃO é sistema: é a iniciativa dela —
+  # exatamente o caso da conv 110, que tem de continuar barrando o flow 'inbound'.
+  def human_initiated?(message)
+    !automation_generated_message?(message) && !nps_survey_message?(message)
+  end
+
+  # A resolução não tem coluna própria na conversa: o registro estruturado dela é o ReportingEvent
+  # 'conversation_resolved' (gravado sempre — o ReportingEventListener é incondicional no
+  # async_dispatcher, e o bot_resolved é um `dup`, não um rename). Mesmíssima leitura que o
+  # ReportingEventListener#conversation_opened já faz por conta própria em TODO reopen, e mais
+  # barata: uma query no índice `index_reporting_events_on_conversation_id` (punhado de linhas por
+  # conversa), resolvida sob demanda e só quando algum flow filtra por direção. `event_end_time` é
+  # o instante SEMÂNTICO da resolução (created_at é quando a linha foi escrita, já assíncrono).
+  def last_resolved_at(conversation)
+    ReportingEvent.where(conversation_id: conversation.id, name: 'conversation_resolved').maximum(:event_end_time)
   end
 
   # Direção de uma MENSAGEM: incoming = entrada; qualquer outra (outgoing/template) = saída.
@@ -254,10 +317,16 @@ class AutomationRuleListener < BaseListener # rubocop:disable Metrics/ClassLengt
     AutomationRule.where(id: rule_ids)
   end
 
+  # Casa o flow pelo evento. Multi-gatilho (F1-multi): o flow pode disparar em VÁRIOS eventos —
+  # o canvas grava todos em `trigger_config.event_names` (array). Retrocompat: flows antigos têm
+  # só `event_name` (string). Casa se o evento == event_name OU está contido em event_names.
   def current_account_flows(event_name, account)
     cache_key = "flows:#{account.id}:#{event_name}"
     flow_ids = Rails.cache.fetch(cache_key, expires_in: 2.minutes) do
-      account.flows.active.conversation_event.where("trigger_config->>'event_name' = ?", event_name).pluck(:id)
+      account.flows.active.conversation_event
+             .where("trigger_config->>'event_name' = :ev OR trigger_config->'event_names' @> to_jsonb(:ev::text)",
+                    ev: event_name)
+             .pluck(:id)
     end
     Flow.where(id: flow_ids)
   end
@@ -307,13 +376,40 @@ class AutomationRuleListener < BaseListener # rubocop:disable Metrics/ClassLengt
     conversation.additional_attributes['auto_reply'].present?
   end
 
-  # Anti-loop de mensagem: ignora mensagens que o próprio motor criou. Checa a chave legada
-  # `automation_rule_id` E a nova `flow_id` (generalização — Flows::ActionService marca as
-  # mensagens com flow_id, action_service.rb).
   def ignore_message_created_event?(event)
     message = event.data[:message]
     performed_by_automation?(event) || message.activity? || message.auto_reply_email? ||
-      message.content_attributes&.dig('automation_rule_id').present? ||
-      message.content_attributes&.dig('flow_id').present?
+      automation_generated_message?(message) || nps_survey_traffic?(message)
+  end
+
+  # Anti-loop de mensagem: ignora mensagens que o próprio motor criou. Checa a chave legada
+  # `automation_rule_id` E a nova `flow_id` (generalização — Flows::ActionService marca as
+  # mensagens com flow_id, action_service.rb).
+  def automation_generated_message?(message)
+    attrs = message.content_attributes || {}
+    attrs['automation_rule_id'].present? || attrs['flow_id'].present?
+  end
+
+  # Tráfego da pesquisa NPS não é conversa e não deve mover automação: nem as mensagens que
+  # o próprio NPS envia (pergunta = `nps_survey`; agradecimento/aviso/encerramento =
+  # `nps_survey_system`), nem a resposta do cliente à pesquisa — que chega como incoming numa
+  # conversa resolvida e dispararia flow de boas-vindas/LGPD + triagem em cima de quem só
+  # respondeu "9". A resposta é reconhecida pelo NpsSurveys::ReopenGuard (mesma pergunta que
+  # o Message#reopen_conversation faz) pra não divergir dele — este listener roda antes do
+  # NpsSurveyListener no mesmo dispatch, então a pesquisa ainda está ativa aqui.
+  def nps_survey_traffic?(message)
+    return true if nps_survey_message?(message)
+
+    message.incoming? && NpsSurveys::ReopenGuard.new(message: message).prevent_reopen?
+  end
+
+  # As mensagens que a PRÓPRIA pesquisa NPS emite, reconhecidas pelos marcadores que ela grava:
+  # `nps_survey` (a pergunta) e `nps_survey_system` (agradecimento/aviso/encerramento). Só os
+  # marcadores, de propósito — sem o ReopenGuard, que é a outra metade do #nps_survey_traffic?:
+  # o guard pergunta pela pesquisa ATIVA AGORA (time-dependent) e cobra I/O, então não serve para
+  # interrogar mensagens HISTÓRICAS, que é o que o scan do ciclo faz. Ver #human_initiated?.
+  def nps_survey_message?(message)
+    attrs = message.content_attributes || {}
+    attrs['nps_survey'].present? || attrs['nps_survey_system'].present?
   end
 end
