@@ -41,6 +41,7 @@ class AutomationRuleListener < BaseListener # rubocop:disable Metrics/ClassLengt
     return if ignore_message_created_event?(event)
 
     account = message.try(:account)
+    cancel_pending_flow_waits_on_agent_reply(account, message)
     payload = { message: message, changed_attributes: event.data[:changed_attributes] }
 
     run_engine('message_created', account, message.conversation, payload)
@@ -261,6 +262,29 @@ class AutomationRuleListener < BaseListener # rubocop:disable Metrics/ClassLengt
   # Direção de uma MENSAGEM: incoming = entrada; qualquer outra (outgoing/template) = saída.
   def message_direction(message)
     message&.incoming? ? 'inbound' : 'outbound'
+  end
+
+  # Quando um AGENTE humano manda mensagem, ele assumiu a conversa: cancela os wait_for_reply
+  # pendentes do flow. Sem isso, um menu que ficou pendente (o cliente nao escolheu opcao) captura
+  # a PROXIMA resposta do cliente e responde "Nao entendi a opcao" — mesmo quando a resposta era
+  # para o agente. Bug real (AGN): agente manda o template `continua_mensagem` -> cliente responde
+  # "sim" -> um wait_for_reply de 2 dias atras resume e cai no fallback "nao entendi". Espelha o
+  # NpsSurveyListener#dismiss_active_nps (agente assume -> encerra o fluxo do bot).
+  # So mensagem de User HUMANO: o proprio flow manda outgoing sem sender User (e com flow_id).
+  def cancel_pending_flow_waits_on_agent_reply(account, message)
+    return if account.blank? || !flows_engine_active?(account)
+    return unless human_agent_takeover?(message)
+
+    FlowRun.where(conversation_id: message.conversation_id, status: :waiting).find_each(&:complete!)
+  end
+
+  # Mensagem que representa um agente HUMANO assumindo a conversa: outgoing, de User real, nao
+  # privada e nao gerada pela automacao (o proprio flow manda outgoing com flow_id, nunca User).
+  def human_agent_takeover?(message)
+    return false unless message&.outgoing? && !message.private?
+    return false unless message.sender_type == 'User' && message.sender.present?
+
+    !automation_generated_message?(message)
   end
 
   # Consome uma mensagem incoming ANTES do disparo por-evento/keyword. Ordem importa: o opt-out
