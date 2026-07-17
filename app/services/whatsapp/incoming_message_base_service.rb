@@ -198,6 +198,10 @@ class Whatsapp::IncomingMessageBaseService
     # (send_interactive) e o branch consumido pelo wait_for_reply (F2).
     if (reply = interactive_reply(message)).present?
       attrs[:selected_option] = { 'id' => reply[:id], 'title' => reply[:title] }
+    elsif message.dig(:button, :payload).present?
+      # Quick replies de CARROSSEL e de template chegam como type 'button' (payload/text),
+      # não como interactive.button_reply — persiste no mesmo formato (provado ao vivo).
+      attrs[:selected_option] = { 'id' => message.dig(:button, :payload), 'title' => message.dig(:button, :text) }
     end
 
     attrs
