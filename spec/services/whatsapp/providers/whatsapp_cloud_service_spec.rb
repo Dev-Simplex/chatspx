@@ -276,7 +276,7 @@ describe Whatsapp::Providers::WhatsappCloudService do
     end
 
     it 'routes send_message to a raw interactive POST when interactive_payload is present' do
-      stub_request(:post, 'https://graph.facebook.com/v13.0/123456789/messages')
+      stub_request(:post, 'https://graph.facebook.com/v23.0/123456789/messages')
         .with do |req|
           body = JSON.parse(req.body)
           body['messaging_product'] == 'whatsapp' &&
@@ -295,7 +295,7 @@ describe Whatsapp::Providers::WhatsappCloudService do
       msg = create(:message, conversation: conversation, message_type: :outgoing, content: 'Onde?',
                              inbox: whatsapp_channel.inbox, content_attributes: { interactive_payload: location_payload }).reload
 
-      stub_request(:post, 'https://graph.facebook.com/v13.0/123456789/messages')
+      stub_request(:post, 'https://graph.facebook.com/v23.0/123456789/messages')
         .with do |req|
           body = JSON.parse(req.body)
           body['type'] == 'interactive' && body['interactive'] == location_payload

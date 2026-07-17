@@ -127,6 +127,13 @@ class Whatsapp::Providers::WhatsappCloudService < Whatsapp::Providers::BaseServi
     "#{api_base_path}/v13.0/#{whatsapp_channel.provider_config['phone_number_id']}"
   end
 
+  # Interativos do passthrough saem numa versão mais nova da Graph API: o carrossel de mídia
+  # exige v23+ (cta_url/location_request/flow também existem na v23 — sem regressão). O endpoint
+  # padrão segue pinado em v13.0 (phone_id_path); typing_indicator idem em v21.0.
+  def interactive_messages_path
+    "#{api_base_path}/v23.0/#{whatsapp_channel.provider_config['phone_number_id']}"
+  end
+
   def business_account_path
     "#{api_base_path}/v14.0/#{whatsapp_channel.provider_config['business_account_id']}"
   end
@@ -283,7 +290,7 @@ class Whatsapp::Providers::WhatsappCloudService < Whatsapp::Providers::BaseServi
   # send_interactive_text_message, mas o payload vem pronto em vez de derivado dos items.
   def send_raw_interactive(phone_number, message)
     response = HTTParty.post(
-      "#{phone_id_path}/messages",
+      "#{interactive_messages_path}/messages",
       headers: api_headers,
       body: {
         messaging_product: 'whatsapp',
