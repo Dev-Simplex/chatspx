@@ -9,7 +9,7 @@ class Captain::Tools::BuscarImovelTool < Captain::Tools::BasePublicTool
   param :status_tipo, type: 'string', desc: "'venda' para comprar, 'locacao' para alugar", required: true
   param :codigo, type: 'string',
                  desc: 'Código do imóvel que o cliente informar (do anúncio, da placa do imóvel, ou do site). Quando presente, busca o imóvel EXATO por esse código — ignore os outros filtros.', required: false
-  param :categoria, type: 'string', desc: 'Casa, Apartamento, Terreno, Sala Comercial, Kitnet. Vazio se não especificou.', required: false
+  param :categoria, type: 'string', desc: 'Casa, Apartamento, Terreno, Kitnet, Ponto Comercial, Prédio Comercial. Pra qualquer imóvel comercial (sala/ponto/loja/prédio comercial) use "Ponto Comercial". Vazio se não especificou.', required: false
   param :bairro, type: 'string', desc: 'Bairro/condomínio em Sinop. Vazio se não especificou.', required: false
   param :endereco, type: 'string',
                    desc: 'Rua, avenida ou logradouro, quando o cliente especificar (ex: "Mário Lago"). Estreita a busca dentro do bairro.', required: false
@@ -43,7 +43,11 @@ class Captain::Tools::BuscarImovelTool < Captain::Tools::BasePublicTool
     if valor_max.present?
       filter[venda ? 'ValorVenda' : 'ValorLocacao'] = ['', valor_max]
     end
-    filter['Categoria'] = categoria if categoria.present?
+    # Vista NÃO tem "Sala Comercial": os comerciais são "Ponto Comercial"/"Prédio Comercial".
+    # Qualquer intenção comercial vira LIKE %Comercial% pra casar os dois; demais categorias, exato.
+    if categoria.present?
+      filter['Categoria'] = categoria.match?(/comercial|\bsala\b|\bloja\b/i) ? ['like', '%Comercial%'] : categoria
+    end
     # match parcial: cliente diz "Aquarela", base tem "Residencial Aquarela Das Artes"
     filter['Bairro'] = ['like', "%#{bairro}%"] if bairro.present?
     filter['Endereco'] = ['like', "%#{endereco}%"] if endereco.present?
