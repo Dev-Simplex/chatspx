@@ -39,8 +39,9 @@ const teamName = computed(
   () => props.team?.name || t('CONTACTS_LAYOUT.IN_ATTENDANCE.NO_TEAM')
 );
 
-// Mapa explícito em vez de chave montada em runtime: chave dinâmica some das
-// ferramentas de extração de i18n (e do lint).
+// Mapa explícito em vez de montar `...STATUS.${status.toUpperCase()}`: chave
+// concatenada em runtime some das ferramentas de extração/varredura de i18n, que
+// não conseguem provar que as 3 chaves existem nos dois locales.
 const STATUS_LABEL_KEYS = {
   open: 'CONTACTS_LAYOUT.IN_ATTENDANCE.STATUS.OPEN',
   pending: 'CONTACTS_LAYOUT.IN_ATTENDANCE.STATUS.PENDING',

@@ -1,6 +1,9 @@
 json.meta do
   json.count @attendances_count
   json.current_page @current_page
+  # O front usa este valor p/ calcular o total de páginas; duplicar o 15 lá faria
+  # a paginação mentir no dia em que este controller mudasse o seu.
+  json.per_page Api::V1::Accounts::ActiveAttendancesController::RESULTS_PER_PAGE
 end
 
 json.payload do

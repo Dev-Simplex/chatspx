@@ -619,6 +619,8 @@
       "LAST_ACTIVITY": "Última atividade {time}",
       "REQUEST_ATTENDANCE": "Solicitar atendimento",
       "COMING_SOON": "Em breve",
+      "LOAD_ERROR": "Não foi possível carregar quem está em atendimento. Sem isso, não dá para saber se alguém já atende estes contatos.",
+      "RETRY": "Tentar de novo",
       "STATUS": {
         "OPEN": "Aberto",
         "PENDING": "Pendente",

@@ -1,10 +1,11 @@
 <script setup>
-import { onMounted, computed } from 'vue';
+import { onMounted, computed, watch } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import { useI18n } from 'vue-i18n';
 import { useStore, useMapGetter } from 'dashboard/composables/store';
 
 import Spinner from 'dashboard/components-next/spinner/Spinner.vue';
+import Button from 'dashboard/components-next/button/Button.vue';
 import PaginationFooter from 'dashboard/components-next/pagination/PaginationFooter.vue';
 import AttendanceList from 'dashboard/components-next/Contacts/Pages/AttendanceList.vue';
 
@@ -14,8 +15,6 @@ import AttendanceList from 'dashboard/components-next/Contacts/Pages/AttendanceL
 // disso, e cada branch a mais ali é risco para as abas que já funcionam. O preço
 // é redesenhar o cabeçalho/rodapé — ~20 linhas, contra ~5 flags novas atravessando
 // 3 componentes compartilhados.
-const ITEMS_PER_PAGE = 15;
-
 const store = useStore();
 const route = useRoute();
 const router = useRouter();
@@ -26,17 +25,33 @@ const meta = useMapGetter('activeAttendances/getMeta');
 const uiFlags = useMapGetter('activeAttendances/getUIFlags');
 
 const isFetching = computed(() => uiFlags.value.isFetching);
+const hasError = computed(() => uiFlags.value.hasError);
 const hasAttendances = computed(() => attendances.value.length > 0);
 const currentPage = computed(() => Number(meta.value?.currentPage) || 1);
 const totalItems = computed(() => meta.value?.count ?? 0);
+// per_page vem do backend: duplicar o 15 aqui faria o PaginationFooter calcular
+// o total de páginas errado no dia em que o controller mudasse o seu.
+const itemsPerPage = computed(() => Number(meta.value?.perPage) || 15);
 const pageFromRoute = computed(() => Number(route.query?.page) || 1);
 
 const fetchAttendances = async (page = 1) => {
-  await store.dispatch('activeAttendances/get', { page });
+  try {
+    await store.dispatch('activeAttendances/get', { page });
+  } catch {
+    // o store já marcou hasError; a tela mostra o estado de erro + "Tentar de novo"
+    return;
+  }
   if (Number(route.query?.page || 1) !== page) {
     router.replace({ query: { ...route.query, page: String(page) } });
   }
 };
+
+// Voltar/avançar no navegador muda só a query — sem isto a lista ficaria na
+// página anterior enquanto a URL diz outra. A guarda contra currentPage evita o
+// laço com o router.replace do próprio fetch.
+watch(pageFromRoute, page => {
+  if (page !== currentPage.value) fetchAttendances(page);
+});
 
 onMounted(() => fetchAttendances(pageFromRoute.value));
 </script>
@@ -68,6 +83,21 @@ onMounted(() => fetchAttendances(pageFromRoute.value));
               <Spinner />
             </div>
             <div
+              v-else-if="hasError"
+              class="flex flex-col items-center justify-center gap-3 py-10"
+            >
+              <span class="text-base text-n-slate-11">
+                {{ t('CONTACTS_LAYOUT.IN_ATTENDANCE.LOAD_ERROR') }}
+              </span>
+              <Button
+                size="sm"
+                variant="faded"
+                color="slate"
+                :label="t('CONTACTS_LAYOUT.IN_ATTENDANCE.RETRY')"
+                @click="fetchAttendances(pageFromRoute)"
+              />
+            </div>
+            <div
               v-else-if="!hasAttendances"
               class="flex items-center justify-center py-10"
             >
@@ -85,15 +115,17 @@ onMounted(() => fetchAttendances(pageFromRoute.value));
           </div>
         </main>
 
+        <!-- totalItems, não hasAttendances: com ?page=99 a lista vem vazia e
+             esconder o rodapé deixaria o usuário preso sem como voltar. -->
         <footer
-          v-if="!isFetching && hasAttendances"
+          v-if="!isFetching && !hasError && totalItems > 0"
           class="sticky bottom-0 z-0"
         >
           <PaginationFooter
             current-page-info="CONTACTS_LAYOUT.PAGINATION_FOOTER.SHOWING"
             :current-page="currentPage"
             :total-items="totalItems"
-            :items-per-page="ITEMS_PER_PAGE"
+            :items-per-page="itemsPerPage"
             class="max-w-[67rem]"
             @update:current-page="fetchAttendances"
           />

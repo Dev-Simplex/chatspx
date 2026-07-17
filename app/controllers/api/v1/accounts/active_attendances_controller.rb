@@ -38,15 +38,22 @@ class Api::V1::Accounts::ActiveAttendancesController < Api::V1::Accounts::BaseCo
     scope = scope.where(contact_id: params[:contact_id]) if params[:contact_id].present?
 
     # preload, NÃO includes: `includes` + `order` vira LEFT JOIN e quebra o total_count.
-    scope.preload(:team, :inbox, :assignee_agent_bot,
+    # O avatar do assignee_agent_bot também entra: o jbuilder chama bot.avatar_url,
+    # que sem isto custa +1 query por bot DISTINTO na página.
+    scope.preload(:team, :inbox,
                   contact: { avatar_attachment: [:blob] },
-                  assignee: { avatar_attachment: [:blob] })
+                  assignee: { avatar_attachment: [:blob] },
+                  assignee_agent_bot: { avatar_attachment: [:blob] })
          .order(last_activity_at: :desc, id: :desc) # o id desempata p/ paginação estável
          .page(@current_page)
          .per(RESULTS_PER_PAGE)
   end
 
+  # .to_i: `params[:page] || 1` (o padrão copiado do contacts_controller) devolve a
+  # String crua do query string, então meta.current_page saía "2" numa request real
+  # e 2 num spec com `as: :json` — tipo instável, e o spec não pegava. O max(1)
+  # protege de ?page=abc (→ 0) e de página negativa.
   def set_current_page
-    @current_page = params[:page] || 1
+    @current_page = [(params[:page] || 1).to_i, 1].max
   end
 end

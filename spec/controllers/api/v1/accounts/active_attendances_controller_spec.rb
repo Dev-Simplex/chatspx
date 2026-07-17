@@ -138,6 +138,11 @@ RSpec.describe 'Active Attendances API', type: :request do
         end
       end
 
+      # NOTA: os GETs com parâmetro vão pela QUERY STRING de propósito. `get ...,
+      # params: {...}, as: :json` faz o Rails reescrever a request como POST com
+      # corpo JSON (+ X-Http-Method-Override), preservando Integer — ou seja,
+      # testaria um formato que nenhum cliente real manda (o axios manda "2").
+      #
       # A Fase 2 usa este filtro como FONTE DE VERDADE do aviso — nunca o
       # contactConversations, que devolve vazio p/ agente de outro time.
       it 'filters by contact_id' do
@@ -145,8 +150,8 @@ RSpec.describe 'Active Attendances API', type: :request do
         mine = create(:conversation, account: account, inbox: inbox, contact: contact, assignee: owner, status: :open)
         create(:conversation, account: account, inbox: inbox, assignee: owner, status: :open)
 
-        get "/api/v1/accounts/#{account.id}/active_attendances",
-            params: { contact_id: contact.id }, headers: agent.create_new_auth_token, as: :json
+        get "/api/v1/accounts/#{account.id}/active_attendances?contact_id=#{contact.id}",
+            headers: agent.create_new_auth_token
 
         body = response.parsed_body
         expect(body['meta']['count']).to eq(1)
@@ -156,13 +161,25 @@ RSpec.describe 'Active Attendances API', type: :request do
       it 'paginates with a stable order' do
         create_list(:conversation, 17, account: account, inbox: inbox, assignee: owner, status: :open)
 
-        get "/api/v1/accounts/#{account.id}/active_attendances",
-            params: { page: 2 }, headers: agent.create_new_auth_token, as: :json
+        get "/api/v1/accounts/#{account.id}/active_attendances?page=2", headers: agent.create_new_auth_token
 
         body = response.parsed_body
         expect(body['meta']['count']).to eq(17)
+        # Integer mesmo vindo da query string (onde page é a String "2"), senão o
+        # front compara tipo trocado ao decidir a página atual.
         expect(body['meta']['current_page']).to eq(2)
+        expect(body['meta']['per_page']).to eq(15)
         expect(body['payload'].length).to eq(2)
+      end
+
+      it 'falls back to page 1 when the page param is garbage' do
+        create(:conversation, account: account, inbox: inbox, assignee: owner, status: :open)
+
+        get "/api/v1/accounts/#{account.id}/active_attendances?page=abc", headers: agent.create_new_auth_token
+
+        expect(response).to have_http_status(:success)
+        expect(response.parsed_body['meta']['current_page']).to eq(1)
+        expect(response.parsed_body['payload'].length).to eq(1)
       end
 
       it 'does not issue more queries as more attendances are listed' do
@@ -182,6 +199,32 @@ RSpec.describe 'Active Attendances API', type: :request do
         end
 
         expect(response.parsed_body['payload'].length).to eq(5)
+        expect(scaled).to eq(baseline)
+      end
+
+      # O teste acima só cobre assignee HUMANO, e o jbuilder curto-circuita no
+      # `assignee.present?` — o branch do espelho captain (bot.avatar_url) nunca
+      # era exercitado. Sem o preload do avatar do bot isto cresce +1 query por
+      # bot distinto.
+      it 'does not issue more queries as more captain-owned attendances are listed' do
+        bots = Array.new(3) { create(:captain_assistant, account: account).mirror_agent_bot }
+
+        create(:conversation, account: account, inbox: inbox, status: :open).update!(assignee_agent_bot: bots.first)
+        baseline = count_queries do
+          get "/api/v1/accounts/#{account.id}/active_attendances", headers: agent.create_new_auth_token
+        end
+
+        bots.each do |bot|
+          2.times do
+            create(:conversation, account: account, inbox: inbox, status: :open).update!(assignee_agent_bot: bot)
+          end
+        end
+        scaled = count_queries do
+          get "/api/v1/accounts/#{account.id}/active_attendances", headers: agent.create_new_auth_token
+        end
+
+        expect(response.parsed_body['payload'].length).to eq(7)
+        expect(response.parsed_body['payload'].first['assignee']).to include('type' => 'agent_bot')
         expect(scaled).to eq(baseline)
       end
     end

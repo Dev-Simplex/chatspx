@@ -11,9 +11,16 @@ export const state = {
   meta: {
     count: 0,
     currentPage: 1,
+    perPage: 15,
   },
   uiFlags: {
     isFetching: false,
+    // hasError existe porque "deu erro" e "não tem ninguém em atendimento" são
+    // respostas OPOSTAS que ficariam idênticas na tela (lista vazia). Numa aba
+    // que existe p/ responder "alguém já atende este contato?", engolir a falha
+    // e dizer "ninguém" é justamente a resposta errada — e a Fase 2 usa esta
+    // mesma fonte p/ decidir se avisa o agente.
+    hasError: false,
   },
 };
 
@@ -34,14 +41,24 @@ export const getters = {
 
 export const actions = {
   get: async ({ commit }, { page = 1, contactId } = {}) => {
-    commit(types.SET_ACTIVE_ATTENDANCES_UI_FLAG, { isFetching: true });
+    commit(types.SET_ACTIVE_ATTENDANCES_UI_FLAG, {
+      isFetching: true,
+      hasError: false,
+    });
     try {
       const { data } = await ActiveAttendancesAPI.get({ page, contactId });
       commit(types.SET_ACTIVE_ATTENDANCES, data.payload ?? []);
       commit(types.SET_ACTIVE_ATTENDANCES_META, {
         count: data.meta?.count ?? 0,
         currentPage: Number(data.meta?.current_page) || 1,
+        perPage: Number(data.meta?.per_page) || 15,
       });
+    } catch (error) {
+      // Zera os records: manter a página anterior na tela enquanto a URL/paginação
+      // dizem outra coisa mente tanto quanto o "ninguém em atendimento".
+      commit(types.SET_ACTIVE_ATTENDANCES, []);
+      commit(types.SET_ACTIVE_ATTENDANCES_UI_FLAG, { hasError: true });
+      throw error;
     } finally {
       commit(types.SET_ACTIVE_ATTENDANCES_UI_FLAG, { isFetching: false });
     }

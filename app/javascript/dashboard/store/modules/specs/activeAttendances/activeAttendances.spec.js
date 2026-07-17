@@ -14,24 +14,42 @@ describe('#actions', () => {
       await actions.get({ commit }, { page: 1 });
 
       expect(commit.mock.calls).toEqual([
-        [types.default.SET_ACTIVE_ATTENDANCES_UI_FLAG, { isFetching: true }],
+        [
+          types.default.SET_ACTIVE_ATTENDANCES_UI_FLAG,
+          { isFetching: true, hasError: false },
+        ],
         [types.default.SET_ACTIVE_ATTENDANCES, apiResponse.payload],
         [
           types.default.SET_ACTIVE_ATTENDANCES_META,
-          { count: 2, currentPage: 1 },
+          { count: 2, currentPage: 1, perPage: 15 },
         ],
         [types.default.SET_ACTIVE_ATTENDANCES_UI_FLAG, { isFetching: false }],
       ]);
     });
 
-    it('clears the fetching flag when the API fails', async () => {
+    // Sem isto a falha viraria lista vazia = "ninguém em atendimento", que é a
+    // resposta OPOSTA à verdade numa aba feita p/ responder "alguém já atende?".
+    it('flags the error and empties the list when the API fails', async () => {
       axios.get.mockRejectedValue({ message: 'boom' });
       await expect(actions.get({ commit }, { page: 1 })).rejects.toBeTruthy();
 
       expect(commit.mock.calls).toEqual([
-        [types.default.SET_ACTIVE_ATTENDANCES_UI_FLAG, { isFetching: true }],
+        [
+          types.default.SET_ACTIVE_ATTENDANCES_UI_FLAG,
+          { isFetching: true, hasError: false },
+        ],
+        [types.default.SET_ACTIVE_ATTENDANCES, []],
+        [types.default.SET_ACTIVE_ATTENDANCES_UI_FLAG, { hasError: true }],
         [types.default.SET_ACTIVE_ATTENDANCES_UI_FLAG, { isFetching: false }],
       ]);
+    });
+
+    it('rethrows so the page can keep the URL on the page that still renders', async () => {
+      axios.get.mockRejectedValue(new Error('boom'));
+
+      await expect(actions.get({ commit }, { page: 2 })).rejects.toThrow(
+        'boom'
+      );
     });
   });
 });

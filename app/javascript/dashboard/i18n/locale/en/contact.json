@@ -620,6 +620,8 @@
       "LAST_ACTIVITY": "Last activity {time}",
       "REQUEST_ATTENDANCE": "Request attendance",
       "COMING_SOON": "Coming soon",
+      "LOAD_ERROR": "Could not load who is in attendance. Without this, there is no way to tell whether someone is already serving these contacts.",
+      "RETRY": "Try again",
       "STATUS": {
         "OPEN": "Open",
         "PENDING": "Pending",
