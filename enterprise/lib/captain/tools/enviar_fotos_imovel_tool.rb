@@ -1,7 +1,8 @@
 class Captain::Tools::EnviarFotosImovelTool < Captain::Tools::BasePublicTool
   description 'Envia ao cliente as fotos reais de um imóvel pelo WhatsApp, em lotes de 3. ' \
               'Chame quando o cliente pedir fotos de um imóvel, informando o código (vem do resultado da busca). ' \
-              'Se o cliente pedir mais fotos do mesmo imóvel, chame de novo com o mesmo código que envia as próximas 3.'
+              'Se o cliente pedir mais fotos do mesmo imóvel, chame de novo com o mesmo código que envia as próximas 3. ' \
+              'Pra o cliente ver TODAS as fotos, ofereça o link do imóvel (galeria completa no site) em vez de chamar isto em loop.'
 
   param :codigo, type: 'string',
                  desc: 'Código do imóvel que o cliente quer, exatamente como veio no resultado da busca DAQUELE imóvel. ' \
@@ -10,7 +11,7 @@ class Captain::Tools::EnviarFotosImovelTool < Captain::Tools::BasePublicTool
   BATCH = 3
   SEND_INTERVAL = 2 # segundos entre cada foto, pra o WhatsApp entregar uma por uma
   COOLDOWN = 90 # segundos entre lotes de foto na MESMA conversa — freia a rajada multi-imóvel
-  MAX_POR_IMOVEL = 6 # teto de fotos por imóvel (2 lotes) — evita dilúvio
+  MAX_POR_IMOVEL = 9 # teto de fotos por imóvel no WhatsApp (3 lotes) — evita dilúvio; pra ver TODAS, a IA oferece o link da galeria
 
   def perform(tool_context, codigo:)
     conversation = find_conversation(tool_context&.state)
@@ -41,7 +42,7 @@ class Captain::Tools::EnviarFotosImovelTool < Captain::Tools::BasePublicTool
     limite = [fotos.size, MAX_POR_IMOVEL].min
     if sent >= limite
       # Já enviou o teto (ou todas): NÃO reenvia do zero (evita foto repetida) — avança.
-      return "Já enviei as fotos principais do imóvel #{codigo}. NÃO reenvie — avance a conversa (interesse, visita)."
+      return "Já enviei as fotos que dá pra mandar aqui do imóvel #{codigo}. Se o cliente quiser ver TODAS, ofereça o link do imóvel (o mesmo que veio da busca) — a galeria completa está no site. NÃO reenvie as mesmas — avance a conversa (interesse, visita)."
     end
 
     batch = fotos[sent, BATCH] || []
@@ -58,12 +59,13 @@ class Captain::Tools::EnviarFotosImovelTool < Captain::Tools::BasePublicTool
     ))
 
     if limite - new_sent > 0
-      # Nao oferecer mais fotos por conta propria (prende o lead num loop de midia):
-      # avancar a conversa pro proximo passo; se o cliente pedir mais, chamar de novo.
-      "Enviei #{batch.size} fotos do imóvel #{codigo}. NÃO ofereça mais fotos por conta própria — " \
-        'avance a conversa pro próximo passo (interesse, visita). Se o cliente pedir mais fotos, chame esta ferramenta de novo.'
+      # Nao despejar fotos por conta propria (prende o lead num loop de midia): avancar a
+      # conversa. Pra "ver todas", a IA oferece o LINK da galeria, nao mais fotos no chat.
+      "Enviei #{batch.size} fotos do imóvel #{codigo}. Se o cliente quiser ver TODAS as fotos, " \
+        'ofereça o link do imóvel (o mesmo que veio da busca) — o site tem a galeria completa. ' \
+        'NÃO despeje mais fotos por conta própria; se ele pedir mais fotos aqui, chame esta ferramenta de novo.'
     else
-      "Enviei as fotos principais do imóvel #{codigo}. Avance a conversa."
+      "Enviei as fotos principais do imóvel #{codigo}. Se o cliente quiser ver todas, ofereça o link do imóvel (galeria completa no site). Avance a conversa."
     end
   rescue StandardError => e
     Rails.logger.warn("[EnviarFotosImovelTool] #{e.message}")
