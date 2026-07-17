@@ -11,6 +11,10 @@ class Captain::ConversationEvalSchedulerJob < ApplicationJob
   ELIGIBILITY_WINDOW = 25.hours
   MAX_PER_ACCOUNT = 200
   MAX_STALE_RESEGMENTS = 100
+  # O cron julga o FLUXO (episódios que fecharam há pouco), nunca o backlog histórico —
+  # backfill de histórico é decisão manual de custo (spx:eval:run_episodes). Mesma
+  # janela de 7 dias do avaliador multi-turn do LangSmith.
+  EPISODE_RECENT_WINDOW = 7.days
 
   def perform
     Account.find_each(batch_size: 100) do |account|
@@ -81,6 +85,7 @@ class Captain::ConversationEvalSchedulerJob < ApplicationJob
     judged = Captain::ConversationEval.for_account(account.id).por_episodio.select(:episode_id)
     Captain::ConversationEpisode.closed
                                 .for_account(account.id)
+                                .where('ended_at >= ?', EPISODE_RECENT_WINDOW.ago)
                                 .where.not(id: judged)
                                 .order(ended_at: :desc)
                                 .limit(MAX_PER_ACCOUNT)
