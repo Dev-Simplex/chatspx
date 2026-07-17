@@ -8,13 +8,16 @@ class Captain::OpenAiMessageBuilderService
   # Placeholder de texto pra mensagem só-imagem (sem legenda) — ver #ensure_text_part.
   IMAGE_PLACEHOLDER = '[imagem]'.freeze
 
-  # Extracts text and image URLs from multimodal content array (reverse of generate_content)
+  # Extracts text + attachment URLs (imagens e PDFs) do array multimodal (reverso do
+  # generate_content). PDFs entram junto com as imagens: o RubyLLM detecta o tipo e manda
+  # imagem como visão e PDF como bloco 'document' (o Claude lê nativo).
   def self.extract_text_and_attachments(content)
     return [content, []] unless content.is_a?(Array)
 
     text_parts = content.select { |part| part[:type] == 'text' }.pluck(:text)
     image_urls = content.select { |part| part[:type] == 'image_url' }.filter_map { |part| part.dig(:image_url, :url) }
-    [text_parts.join(' ').presence, image_urls]
+    file_urls = content.select { |part| part[:type] == 'file_url' }.filter_map { |part| part.dig(:file_url, :url) }
+    [text_parts.join(' ').presence, image_urls + file_urls]
   end
 
   def generate_content
@@ -51,6 +54,12 @@ class Captain::OpenAiMessageBuilderService
     { type: 'image_url', image_url: { url: image_url } }
   end
 
+  # PDF vira bloco de documento (o extract junta com as imagens; o RubyLLM manda como
+  # 'document' e o Claude lê nativo — ex.: holerite em PDF).
+  def file_part(url)
+    { type: 'file_url', file_url: { url: url } }
+  end
+
   def attachment_parts(attachments)
     image_attachments = attachments.where(file_type: :image)
     image_content = image_parts(image_attachments)
@@ -61,9 +70,21 @@ class Captain::OpenAiMessageBuilderService
     locations = extract_locations(attachments)
     location_part = text_part(locations) if locations.present?
 
-    attachment_part = text_part('User has shared an attachment') if attachments.where.not(file_type: %i[image audio location]).exists?
+    # PDF (ex.: holerite) vai como documento pro LLM ler; os demais anexos não-lidos
+    # (docx, xlsx, zip...) seguem como nota de texto — o Claude só lê imagem e PDF.
+    others = attachments.where.not(file_type: %i[image audio location]).to_a
+    pdf_content = others.select { |a| pdf_attachment?(a) }.filter_map { |a| (u = get_attachment_url(a)) && file_part(u) }
+    attachment_part = text_part('User has shared an attachment') if others.any? { |a| !pdf_attachment?(a) }
 
-    [image_content, transcription_part, location_part, attachment_part].flatten.compact
+    [image_content, pdf_content, transcription_part, location_part, attachment_part].flatten.compact
+  end
+
+  # PDF? Confia no content_type do blob (Active Storage) e, no fallback (anexo externo/WAHA),
+  # na extensão .pdf da URL. O RubyLLM ainda re-checa pelo conteúdo se a extensão faltar.
+  def pdf_attachment?(attachment)
+    return true if attachment.file.attached? && attachment.file.blob.content_type.to_s == 'application/pdf'
+
+    get_attachment_url(attachment).to_s.split('?').first.downcase.end_with?('.pdf')
   end
 
   # Localização (pin do WhatsApp) vira texto com as coordenadas — é assim que o
