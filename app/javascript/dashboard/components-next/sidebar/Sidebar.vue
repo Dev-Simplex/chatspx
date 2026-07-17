@@ -535,7 +535,10 @@ const menuItems = computed(() => {
           {
             name: 'Takeover Requests',
             label: t('SIDEBAR.TAKEOVER_REQUESTS'),
-            icon: lordIcon('handRaised', 'i-lucide-hand'),
+            // Ícone lucide DIRETO (string), não lordIcon: não existe lord 'handRaised',
+            // e o LordIconIcon, sem src válido, esconde o fallback após 3s (timeout
+            // fixo) e fica em branco. O <Icon> renderiza o span estático na hora.
+            icon: 'i-lucide-hand',
             to: accountScopedRoute('takeover_requests_index'),
             activeOn: ['takeover_requests_index'],
             getterKeys: {
