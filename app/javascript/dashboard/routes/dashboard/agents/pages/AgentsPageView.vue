@@ -59,8 +59,15 @@ function goToTools() {
     params: { accountId: accountId.value },
   });
 }
+function goToEvaluation() {
+  router.push({
+    name: 'agents_evaluation',
+    params: { accountId: accountId.value },
+  });
+}
 const connectionActive = computed(() => route.name === 'agents_settings');
 const toolsActive = computed(() => route.name === 'agents_tools');
+const evaluationActive = computed(() => route.name === 'agents_evaluation');
 onMounted(() => store.dispatch('captainAssistants/get'));
 </script>
 
@@ -130,8 +137,26 @@ onMounted(() => store.dispatch('captainAssistants/get'));
         </template>
       </div>
 
-      <!-- Ferramentas / Conexão -->
+      <!-- Avaliação / Ferramentas / Conexão -->
       <div class="p-2 space-y-0.5 border-t border-n-weak">
+        <button
+          type="button"
+          class="flex gap-2.5 items-center px-2.5 py-2 w-full text-left rounded-xl transition-colors"
+          :class="evaluationActive ? 'bg-n-alpha-2' : 'hover:bg-n-alpha-1'"
+          @click="goToEvaluation"
+        >
+          <span
+            class="grid flex-none place-items-center text-white rounded-lg bg-n-brand size-7"
+          >
+            <span class="i-lucide-gauge size-4" />
+          </span>
+          <span
+            class="text-[13px] font-semibold text-n-slate-12"
+            :class="evaluationActive ? 'font-bold' : ''"
+          >
+            {{ t('AGENTS_EVALUATION.TITLE') }}
+          </span>
+        </button>
         <button
           type="button"
           class="flex gap-2.5 items-center px-2.5 py-2 w-full text-left rounded-xl transition-colors"

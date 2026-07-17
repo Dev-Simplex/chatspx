@@ -60,6 +60,7 @@ Rails.application.routes.draw do
           resource :agent_stats, only: [:show]
           namespace :captain do
             resource :preferences, only: [:show, :update]
+            resource :eval_dashboard, only: [:show], controller: 'eval_dashboard'
             resources :assistants do
               member do
                 post :playground
