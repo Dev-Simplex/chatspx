@@ -18,6 +18,12 @@ export const getters = {
       .filter(r => r.status === 'pending' && r.owner)
       .sort((a, b) => b.createdAt - a.createdAt);
   },
+  // Contador do item "Pedidos" na sidebar (padrão getterKeys.count).
+  getIncomingCount(_state) {
+    return Object.values(_state.records).filter(
+      r => r.status === 'pending' && r.owner
+    ).length;
+  },
   // Pendentes de uma conversa específica (o banner no topo da conversa usa).
   getPendingForConversation: _state => conversationId =>
     Object.values(_state.records).filter(

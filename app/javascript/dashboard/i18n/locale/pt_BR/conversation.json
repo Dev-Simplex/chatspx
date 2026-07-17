@@ -601,6 +601,17 @@
         "TAKEOVER_REQUEST_CLOSED": "Este pedido já foi respondido.",
         "TAKEOVER_REQUEST_STALE": "A conversa trocou de dono desde o seu pedido."
       }
+    },
+    "TAKEOVER_APPROVAL": {
+      "WANTS_THIS": "pediu esta conversa",
+      "SOMEONE": "Alguém",
+      "AND_MORE": "+{count} outro(s)",
+      "APPROVE": "Aprovar",
+      "DENY": "Negar",
+      "APPROVED": "Conversa transferida",
+      "DENIED": "Pedido negado",
+      "ALREADY_CLOSED": "Este pedido já foi respondido.",
+      "ERROR": "Não foi possível responder ao pedido, tente novamente."
     }
   },
   "EMAIL_TRANSCRIPT": {

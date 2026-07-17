@@ -42,6 +42,8 @@ class ActionCableConnector extends BaseActionCableConnector {
       'account.cache_invalidated': this.onCacheInvalidate,
       'copilot.message.created': this.onCopilotMessageCreated,
       'funnel_item.moved': this.onFunnelItemMoved,
+      'takeover_request.created': this.onTakeoverRequestChanged,
+      'takeover_request.updated': this.onTakeoverRequestChanged,
       'internal.message.created': this.onInternalMessageCreated,
       'internal.message.updated': this.onInternalMessageUpdated,
       'internal.mention.created': this.onInternalMentionCreated,
@@ -55,6 +57,13 @@ class ActionCableConnector extends BaseActionCableConnector {
   // it live. Best-effort; the store action no-ops if the item isn't loaded.
   onFunnelItemMoved = data => {
     this.app.$store.dispatch('kanban/applyRemoteMove', data);
+  };
+
+  // D1 (Fase 3): pedido de atendimento criado/respondido. O payload do broadcast
+  // é mínimo (dado dirigido entre 2 pessoas), então em vez de mesclar um registro
+  // parcial, refazemos o fetch da lista — barato (só os MEUS pendentes) e robusto.
+  onTakeoverRequestChanged = () => {
+    this.app.$store.dispatch('takeoverRequests/fetchIncoming');
   };
 
   // Chat interno (Módulo B): a peer posted into one of my internal channels.

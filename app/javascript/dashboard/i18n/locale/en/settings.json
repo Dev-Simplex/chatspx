@@ -356,6 +356,7 @@
     "INBOX": "Notifications",
     "KANBAN": "CRM KANBAN",
     "GALLERY": "Gallery",
+    "TAKEOVER_REQUESTS": "Requests",
     "INTERNAL_CHAT": "Internal Chat",
     "ALL_CONVERSATIONS": "All Conversations",
     "MENTIONED_CONVERSATIONS": "Mentions",

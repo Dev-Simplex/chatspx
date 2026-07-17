@@ -23,19 +23,21 @@ class Conversations::TakeoverRequestNotifier
       type: :conversation_takeover_requested,
       actor: @request.requester
     )
-    broadcast(:takeover_request_created, [@request.owner])
+    # nome pontilhado espelha FUNNEL_ITEM_MOVED ('funnel_item.moved') — o front
+    # casa por string exata em helper/actionCable.js.
+    broadcast('takeover_request.created', [@request.owner])
   end
 
   def notify_responded
     # Cancelar não notifica o dono: ruído puro (o solicitante desistiu).
-    return broadcast(:takeover_request_updated, [@request.owner].compact) if @request.cancelled?
+    return broadcast('takeover_request.updated', [@request.owner].compact) if @request.cancelled?
 
     create_notification(
       user_id: @request.requester_id,
       type: :conversation_takeover_responded,
       actor: @request.responded_by
     )
-    broadcast(:takeover_request_updated, [@request.requester, @request.owner].compact.uniq)
+    broadcast('takeover_request.updated', [@request.requester, @request.owner].compact.uniq)
   end
 
   private

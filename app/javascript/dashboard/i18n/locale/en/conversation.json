@@ -610,6 +610,17 @@
         "TAKEOVER_REQUEST_CLOSED": "This request was already answered.",
         "TAKEOVER_REQUEST_STALE": "The conversation changed owner since your request."
       }
+    },
+    "TAKEOVER_APPROVAL": {
+      "WANTS_THIS": "requested this conversation",
+      "SOMEONE": "Someone",
+      "AND_MORE": "+{count} more",
+      "APPROVE": "Approve",
+      "DENY": "Deny",
+      "APPROVED": "Conversation handed over",
+      "DENIED": "Request denied",
+      "ALREADY_CLOSED": "This request was already answered.",
+      "ERROR": "Couldn't respond to the request, please try again."
     }
   },
   "EMAIL_TRANSCRIPT": {
