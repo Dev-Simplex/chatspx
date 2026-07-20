@@ -86,39 +86,64 @@ const alertForError = error => {
   }
 };
 
-// Toda ação da linha passa por aqui: trava a linha (loading), age, refaz a lista
-// (a linha muda de estado: assumir vira "Abrir", pedir vira "Pedido enviado") e
-// traduz o erro. Refetch SEMPRE, inclusive no erro — se falhou por corrida
-// (alguém assumiu antes), a lista precisa refletir a verdade nova.
-const runRowAction = async ({ conversationId, action, successKey }) => {
-  if (busyId.value) return;
-  busyId.value = conversationId;
-  try {
-    await action();
-    useAlert(t(successKey));
-  } catch (error) {
-    alertForError(error);
-  } finally {
-    busyId.value = null;
-    await fetchAttendances(pageFromRoute.value);
-  }
-};
-
-const onOpenConversation = ({ conversationId }) => {
+const goToConversation = conversationId => {
   router.push(
     `/app/accounts/${accountId.value}/conversations/${conversationId}`
   );
 };
 
+// Toda ação da linha passa por aqui: trava a linha (loading), age, refaz a lista
+// (a linha muda de estado: assumir vira "Abrir", pedir vira "Pedido enviado") e
+// traduz o erro. Refetch SEMPRE, inclusive no erro — se falhou por corrida
+// (alguém assumiu antes), a lista precisa refletir a verdade nova.
+const runRowAction = async ({
+  conversationId,
+  action,
+  successKey,
+  navigateTo = null,
+}) => {
+  if (busyId.value) return;
+  busyId.value = conversationId;
+  let succeeded = false;
+  try {
+    await action();
+    succeeded = true;
+    useAlert(t(successKey));
+  } catch (error) {
+    alertForError(error);
+  } finally {
+    busyId.value = null;
+  }
+
+  // Só navega se deu certo — senão o erro sumiria da vista junto com a página.
+  if (succeeded && navigateTo) {
+    goToConversation(navigateTo);
+    return;
+  }
+  // Refaz a lista p/ a linha refletir o novo estado (assumir → Abrir, pedir →
+  // "Pedido enviado"). Também no erro: se falhou por corrida, a verdade mudou.
+  await fetchAttendances(pageFromRoute.value);
+};
+
+const onOpenConversation = ({ conversationId }) =>
+  goToConversation(conversationId);
+
+// ATENÇÃO: 'assignAgent' é RAIZ, não 'conversations/assignAgent'. O módulo
+// conversations NÃO é namespaced (store/modules/conversations/index.js exporta
+// sem `namespaced: true`), e o Vuex, ao receber uma action inexistente, apenas
+// loga e devolve undefined — o await RESOLVE e o alerta cantava "assumido" sem
+// ter atribuído nada. Foi exatamente esse o bug do falso sucesso.
 const onAssumeAttendance = ({ conversationId }) =>
   runRowAction({
     conversationId,
     successKey: 'CONTACTS_LAYOUT.IN_ATTENDANCE.ASSUMED',
+    // Assumiu = quer atender: vai direto para a conversa.
+    navigateTo: conversationId,
     action: () =>
-      store.dispatch('conversations/assignAgent', {
+      store.dispatch('assignAgent', {
         conversationId,
         agentId: currentUserId.value,
-        rethrow: true, // sem isto o store engole o erro e o alerta mentiria "assumido"
+        rethrow: true, // sem isto o store engole o erro e o alerta mentiria
       }),
   });
 
