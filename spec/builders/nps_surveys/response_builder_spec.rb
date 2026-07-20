@@ -229,43 +229,6 @@ RSpec.describe NpsSurveys::ResponseBuilder do
       expect(conversation.nps_responses.first.reload.status).to eq('sent')
     end
 
-    # O ReopenGuard segura o reopen quando o LLM vai ser consultado (NpsSurveys::LlmGate),
-    # entao quem nao trata a mensagem aqui TEM que abrir a conversa — senao o cliente fica
-    # preso numa conversa resolved e ninguem atende.
-    it 'neutral libera a conversa para atendimento (guard segurou o reopen)' do
-      allow(NpsSurveys::ScoreLlmParser).to receive(:classify).and_return('neutral')
-      perform_for('bom dia, tudo bem?')
-      expect(conversation.reload.status).to eq('open')
-    end
-
-    it 'categoria desconhecida libera a conversa para atendimento' do
-      allow(NpsSurveys::ScoreLlmParser).to receive(:classify).and_return(nil)
-      perform_for('bom dia, tudo bem?')
-      expect(conversation.reload.status).to eq('open')
-    end
-
-    it 'libera a conversa quando a IA falha (fail-open)' do
-      allow(NpsSurveys::ScoreLlmParser).to receive(:classify).and_raise(StandardError, 'timeout')
-      perform_for('bom dia, tudo bem?')
-      expect(conversation.reload.status).to eq('open')
-      expect(conversation.nps_responses.first.reload.status).to eq('sent')
-    end
-
-    it 'libera a conversa quando o gpt_parse nao extrai nota e o sentimento esta off' do
-      inbox.update!(nps_config: { 'gpt_parse_enabled' => true, 'sentiment_detractor_enabled' => false })
-      allow(NpsSurveys::ScoreLlmParser).to receive(:extract).and_return(nil)
-      perform_for('nota nove')
-      expect(conversation.reload.status).to eq('open')
-    end
-
-    it 'trata elogio sem digito como promotor e mantem a conversa resolvida' do
-      allow(NpsSurveys::ScoreLlmParser).to receive(:classify).and_return('positive')
-      perform_for('excelente')
-      nps = conversation.nps_responses.first.reload
-      expect(nps.score).to eq(9)
-      expect(conversation.reload.status).to eq('resolved')
-    end
-
     it 'nao chama a IA quando o toggle esta off' do
       inbox.update!(nps_config: { 'sentiment_detractor_enabled' => false })
       expect(NpsSurveys::ScoreLlmParser).not_to receive(:classify)

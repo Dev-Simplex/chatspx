@@ -86,17 +86,6 @@ export const buildConversationList = (
   );
   context.commit(types.CLEAR_LIST_LOADING_STATUS);
   setContacts(context.commit, conversationList);
-
-  // A gap-fill (ReconnectService, `updatedWithin`) is a point-in-time catch-up
-  // — "what changed in the last N seconds?" — not a page of the list. The
-  // backend answers it without a cursor, and a short/cursorless answer only
-  // means little changed, never that the list ran out. Letting it write
-  // pagination state would end the infinite scroll (and, for the `all` filter,
-  // also for `me`/`unassigned`) until a reload, while wiping the real cursor
-  // and rewinding the page to 1. Merging the fresh conversations above is the
-  // whole job here; pagination stays owned by the paging fetches.
-  if (requestPayload.updatedWithin) return;
-
   const hasNextCursor = !!metaData?.next_cursor;
   const markEndReached =
     conversationList.length < CONVERSATIONS_PER_PAGE || !hasNextCursor;

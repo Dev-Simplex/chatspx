@@ -9,7 +9,6 @@ class Captain::ConversationEval < ApplicationRecord
 
   scope :for_account, ->(account_id) { where(account_id: account_id) }
   scope :recent, -> { order(avaliado_em: :desc) }
-  scope :em_escopo, -> { where(representatividade: 'atendimento_real') }
 
   # Gate por conta (opt-in, multi-tenant). Comportamento novo nunca liga sozinho:
   # a conta precisa de custom_attributes['eval_enabled'] = true.

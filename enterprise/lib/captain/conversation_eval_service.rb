@@ -16,7 +16,7 @@ class Captain::ConversationEvalService < Captain::BaseTaskService
     return { error: 'Sem mensagens para avaliar' } if transcript.blank?
 
     response = make_api_call(
-      model: eval_model,
+      model: InstallationConfig.find_by(name: 'CAPTAIN_OPEN_AI_MODEL')&.value.presence || GPT_MODEL,
       messages: [
         { role: 'system', content: prompt_from_file('conversation_eval') },
         { role: 'user', content: [system_events_summary, transcript].compact.join("\n\n") }
@@ -38,18 +38,7 @@ class Captain::ConversationEvalService < Captain::BaseTaskService
 
   # Prefere a chave de sistema (custo interno, não debita a chave do cliente).
   def api_key
-    @api_key ||= eval_api_key.presence || system_api_key.presence || openai_hook&.settings&.dig('api_key')
-  end
-
-  # Chave e modelo dedicados do eval, com fallback pra config compartilhada do captain.
-  # Isola custo / rate-limit / blast-radius do juiz das demais funções OpenAI.
-  def eval_api_key
-    InstallationConfig.find_by(name: 'EVAL_OPEN_AI_API_KEY')&.value
-  end
-
-  def eval_model
-    InstallationConfig.find_by(name: 'EVAL_OPEN_AI_MODEL')&.value.presence ||
-      InstallationConfig.find_by(name: 'CAPTAIN_OPEN_AI_MODEL')&.value.presence || GPT_MODEL
+    @api_key ||= system_api_key.presence || openai_hook&.settings&.dig('api_key')
   end
 
   # O eval é avaliação operacional interna com opt-in próprio (eval_enabled),
@@ -124,10 +113,8 @@ class Captain::ConversationEvalService < Captain::BaseTaskService
   def parse_verdict(message, response_map)
     return { error: 'Formato de veredito inválido' } unless message.is_a?(Hash)
 
-    message = deep_sanitize(message)
     {
       verdict: {
-        representatividade: message['representatividade'].presence || 'atendimento_real',
         interesse: message['interesse'],
         intencao: message['intencao'],
         funil: message['funil'],
@@ -140,17 +127,6 @@ class Captain::ConversationEvalService < Captain::BaseTaskService
         veredito_raw: message
       }
     }
-  end
-
-  # Remove null bytes / caracteres de controle C0 que o Postgres (jsonb/text) recusa
-  # ( e cia., vindos de mensagens do WhatsApp e ecoados pelo juiz no trecho).
-  def deep_sanitize(obj)
-    case obj
-    when String then obj.gsub(/[\x00-\x08\x0B\x0C\x0E-\x1F]/, '')
-    when Array then obj.map { |v| deep_sanitize(v) }
-    when Hash then obj.transform_values { |v| deep_sanitize(v) }
-    else obj
-    end
   end
 
   def normalize_findings(raw, response_map)
