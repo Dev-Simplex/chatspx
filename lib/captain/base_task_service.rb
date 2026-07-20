@@ -70,9 +70,7 @@ class Captain::BaseTaskService
   end
 
   def build_chat(context, model:, messages:, schema: nil, tools: [])
-    # provider explicito + assume_model_exists: chama o modelo direto na API sem depender
-    # do registry (potencialmente desatualizado) do gem, liberando modelos novos (ex.: gpt-5.4).
-    chat = context.chat(model: model, provider: 'openai', assume_model_exists: true)
+    chat = context.chat(model: model)
     system_msg = messages.find { |m| m[:role] == 'system' }
     chat.with_instructions(system_msg[:content]) if system_msg
     chat.with_schema(schema) if schema

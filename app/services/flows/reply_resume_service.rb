@@ -17,15 +17,6 @@ class Flows::ReplyResumeService
   end
 
   # true se retomou um wait_for_reply pendente; false se não havia nenhum (ou se falhou).
-  #
-  # O `ensure Current.reset` mora AQUI (e não no Flows::RunnerService#resume_from, como no disparo
-  # inicial) porque o #resume reentra o runner DENTRO de um `with_lock`: resetar lá dentro apagaria
-  # o Current ANTES do commit, e os after_commit da Conversation acordariam sem contexto — era o que
-  # engolia a activity "Atribuído a <time> por Sistema de Automação" na retomada por resposta. Neste
-  # ensure o with_lock já fechou (commit efetivado, callbacks já rodaram com o Current vivo) e a
-  # limpeza continua garantida em TODO caminho de saída — inclusive no early-return e no rescue —
-  # então nada vaza para o próximo job da thread (o Current é thread_mattr_accessor e o Sidekiq
-  # reusa threads; ver Flows::RunnerService#perform).
   def perform
     run = pending_reply_run
     return false unless run
@@ -35,8 +26,6 @@ class Flows::ReplyResumeService
     Rails.logger.error("Flows::ReplyResumeService conversation=#{@conversation&.id}: #{e.message}")
     mark_failed(run)
     false
-  ensure
-    Current.reset
   end
 
   private

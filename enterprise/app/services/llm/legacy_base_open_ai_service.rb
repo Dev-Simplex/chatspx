@@ -13,7 +13,7 @@ class Llm::LegacyBaseOpenAiService
 
   def initialize
     @client = OpenAI::Client.new(
-      access_token: resolve_access_token,
+      access_token: InstallationConfig.find_by!(name: 'CAPTAIN_OPEN_AI_API_KEY').value,
       uri_base: uri_base,
       log_errors: Rails.env.development?
     )
@@ -23,18 +23,6 @@ class Llm::LegacyBaseOpenAiService
   end
 
   private
-
-  # Config da key OpenAI deste serviço. Subclasses (ex.: transcrição de áudio)
-  # sobrescrevem pra usar uma key por-propósito; cai em CAPTAIN_OPEN_AI_API_KEY
-  # se a config específica estiver vazia.
-  def api_key_config_name
-    'CAPTAIN_OPEN_AI_API_KEY'
-  end
-
-  def resolve_access_token
-    InstallationConfig.find_by(name: api_key_config_name)&.value.presence ||
-      InstallationConfig.find_by!(name: 'CAPTAIN_OPEN_AI_API_KEY').value
-  end
 
   # Strips markdown code fences (```json ... ``` or ``` ... ```) that some
   # LLM providers/gateways wrap around JSON responses despite response_format hints.

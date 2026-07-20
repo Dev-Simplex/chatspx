@@ -10,7 +10,6 @@ import {
 } from 'vue';
 import { useTimeoutFn } from '@vueuse/core';
 import { provideMessageContext } from './provider.js';
-import { getTemplateInfo } from './templateHelper.js';
 import { useTrack } from 'dashboard/composables';
 import { useMapGetter } from 'dashboard/composables/store';
 import { emitter } from 'shared/helpers/mitt';
@@ -278,22 +277,6 @@ const scheduledByName = computed(
 const scheduledByLabel = computed(() =>
   t('CONVERSATION.SCHEDULED_BY', { name: scheduledByName.value })
 );
-
-// WhatsApp approved template (HSM): outgoing messages carrying `template_params`. Without
-// this the agent cannot tell a template apart from a message someone typed by hand.
-const templateInfo = computed(() =>
-  getTemplateInfo({
-    messageType: props.messageType,
-    additionalAttributes: props.additionalAttributes,
-  })
-);
-const templateBadgeLabel = computed(() => {
-  if (!templateInfo.value) return '';
-
-  return templateInfo.value.name
-    ? t('CONVERSATION.TEMPLATE_BADGE_NAMED', { name: templateInfo.value.name })
-    : t('CONVERSATION.TEMPLATE_BADGE');
-});
 
 /**
  * Computes the message variant based on props
@@ -883,9 +866,9 @@ provideMessageContext({
         <div
           class="relative w-full group-hover/message:bg-n-alpha-1 group-hover/message:ltr:pr-8 group-hover/message:rtl:pl-8 transition-all duration-200"
         >
-          <!-- Badge de Template, Encaminhada, Estrela e Mensagem agendada -->
+          <!-- Badge de Encaminhada, Estrela e Mensagem agendada -->
           <div
-            v-if="forwarded || starred || isScheduledMessage || templateInfo"
+            v-if="forwarded || starred || isScheduledMessage"
             class="inline-flex items-center gap-2 text-xs text-slate-500 dark:text-slate-400 mb-1"
           >
             <div
@@ -894,10 +877,6 @@ provideMessageContext({
             >
               <Icon icon="i-lucide-clock" class="size-3" />
               <span>{{ scheduledByLabel }}</span>
-            </div>
-            <div v-if="templateInfo" class="inline-flex items-center gap-1">
-              <Icon icon="i-lucide-layout-template" class="size-3" />
-              <span>{{ templateBadgeLabel }}</span>
             </div>
             <div v-if="forwarded" class="inline-flex items-center gap-1 italic">
               <Icon icon="i-lucide-forward" class="size-3" />

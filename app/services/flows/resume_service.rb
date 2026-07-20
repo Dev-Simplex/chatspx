@@ -12,12 +12,6 @@ class Flows::ResumeService
     @flow_run = flow_run
   end
 
-  # O `ensure Current.reset` mora AQUI pelo mesmo motivo do Flows::ReplyResumeService (a retomada por
-  # TEMPO tem exatamente o mesmo formato: reentra o runner dentro de um `with_lock`): resetar dentro
-  # da transação apagaria o Current antes do commit e os after_commit da Conversation acordariam sem
-  # contexto (activity de mudança de time engolida). Neste ensure o with_lock já fechou e a limpeza
-  # cobre todo caminho de saída — inclusive o rescue — então nada vaza para o próximo job da thread.
-  # Ver Flows::RunnerService#resume_from.
   def perform
     @flow_run.with_lock do
       next unless @flow_run.waiting?
@@ -34,8 +28,6 @@ class Flows::ResumeService
     Rails.logger.error("Flows::ResumeService flow_run=#{@flow_run&.id}: #{e.message}")
     mark_failed
     nil
-  ensure
-    Current.reset
   end
 
   private

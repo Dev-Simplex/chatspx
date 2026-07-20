@@ -1,6 +1,4 @@
 class Captain::Tools::BuscarImovelTool < Captain::Tools::BasePublicTool
-  include Captain::Tools::VistaImovelUrl
-
   description 'Busca imóveis no acervo da Tozi (sistema Vista) e retorna até 5 opções com o link correto do site. ' \
               "Use status_tipo='venda' para comprar e status_tipo='locacao' para alugar. " \
               'Cada opção já vem com nº de fotos, suítes, vagas de garagem e características (piscina, quintal, ' \
@@ -11,7 +9,7 @@ class Captain::Tools::BuscarImovelTool < Captain::Tools::BasePublicTool
   param :status_tipo, type: 'string', desc: "'venda' para comprar, 'locacao' para alugar", required: true
   param :codigo, type: 'string',
                  desc: 'Código do imóvel que o cliente informar (do anúncio, da placa do imóvel, ou do site). Quando presente, busca o imóvel EXATO por esse código — ignore os outros filtros.', required: false
-  param :categoria, type: 'string', desc: 'Casa, Apartamento, Terreno, Kitnet, Ponto Comercial, Prédio Comercial. Pra qualquer imóvel comercial (sala/ponto/loja/prédio comercial) use "Ponto Comercial". Vazio se não especificou.', required: false
+  param :categoria, type: 'string', desc: 'Casa, Apartamento, Terreno, Sala Comercial, Kitnet. Vazio se não especificou.', required: false
   param :bairro, type: 'string', desc: 'Bairro/condomínio em Sinop. Vazio se não especificou.', required: false
   param :endereco, type: 'string',
                    desc: 'Rua, avenida ou logradouro, quando o cliente especificar (ex: "Mário Lago"). Estreita a busca dentro do bairro.', required: false
@@ -35,8 +33,7 @@ class Captain::Tools::BuscarImovelTool < Captain::Tools::BasePublicTool
       return "Não achei nenhum imóvel com o código #{cod} no nosso sistema." if achados.blank?
 
       venda_cod = achados.first['Status'].to_s.match?(/vend/i)
-      track_codigos(tool_context, achados)
-      track_urls(tool_context, achados, venda_cod)
+      track_imoveis(tool_context, achados, venda_cod)
       return format_listings(achados, venda_cod, detalhado: true)
     end
     venda = status_tipo.to_s == 'venda'
@@ -45,11 +42,7 @@ class Captain::Tools::BuscarImovelTool < Captain::Tools::BasePublicTool
     if valor_max.present?
       filter[venda ? 'ValorVenda' : 'ValorLocacao'] = ['', valor_max]
     end
-    # Vista NÃO tem "Sala Comercial": os comerciais são "Ponto Comercial"/"Prédio Comercial".
-    # Qualquer intenção comercial vira LIKE %Comercial% pra casar os dois; demais categorias, exato.
-    if categoria.present?
-      filter['Categoria'] = categoria.match?(/comercial|\bsala\b|\bloja\b/i) ? ['like', '%Comercial%'] : categoria
-    end
+    filter['Categoria'] = categoria if categoria.present?
     # match parcial: cliente diz "Aquarela", base tem "Residencial Aquarela Das Artes"
     filter['Bairro'] = ['like', "%#{bairro}%"] if bairro.present?
     filter['Endereco'] = ['like', "%#{endereco}%"] if endereco.present?
@@ -65,7 +58,6 @@ class Captain::Tools::BuscarImovelTool < Captain::Tools::BasePublicTool
                       "endereco=#{endereco.inspect} valor_max=#{valor_max.inspect} dorm=#{dormitorios.inspect} " \
                       "geo=#{geo} => #{imoveis.size} imoveis #{imoveis.first(5).map { |i| i['Codigo'] }.inspect}")
     track_codigos(tool_context, imoveis)
-    track_urls(tool_context, imoveis, venda)
     if imoveis.blank?
       # Só o fluxo normal (não-geo) amplia; o geo cai direto no "Nenhum...".
       ampliados = !geo && ampliar_sem_bairro(tool_context, filter, venda, bairro, endereco)
@@ -122,26 +114,6 @@ class Captain::Tools::BuscarImovelTool < Captain::Tools::BasePublicTool
     Rails.logger.warn("[BuscarImovel] track_codigos: #{e.message}")
   end
 
-  # Guarda o mapa codigo/ImoCodigo -> URL canônica (build_url) na conversa (urls_imoveis),
-  # pra o sanitizador de saída (fix_property_links) manter os links que a IA manda e remover
-  # só os inventados. Sem isso, urls_imoveis fica vazio e TODO link da Tozi é apagado.
-  def track_urls(tool_context, imoveis, venda)
-    conv = find_conversation(tool_context&.state)
-    return unless conv
-
-    novos = {}
-    imoveis.each do |im|
-      url = build_url(im, venda)
-      [im['Codigo'], im['ImoCodigo']].each { |k| novos[k.to_s] = url if k.to_s.strip.present? }
-    end
-    return if novos.empty?
-
-    atual = conv.custom_attributes['urls_imoveis'] || {}
-    conv.update!(custom_attributes: conv.custom_attributes.merge('urls_imoveis' => atual.merge(novos).to_a.last(60).to_h))
-  rescue StandardError => e
-    Rails.logger.warn("[BuscarImovel] track_urls: #{e.message}")
-  end
-
   # Fallback determinístico: quando a busca COM filtro de bairro/endereço vem vazia, refaz
   # UMA busca /listar (sem loop) removendo só o filtro de bairro/endereço — mantém cidade,
   # status, categoria, valor, dormitórios (e piscina). Devolve as opções com um header que
@@ -156,7 +128,6 @@ class Captain::Tools::BuscarImovelTool < Captain::Tools::BasePublicTool
     return if imoveis.blank?
 
     track_codigos(tool_context, imoveis)
-    track_urls(tool_context, imoveis, venda)
     ref = [bairro, endereco].reject(&:blank?).join('/')
     format_listings(imoveis, venda,
                     header: "Sem imóvel no critério exato (#{ref}). As opções abaixo são da mesma cidade e critério, " \
@@ -293,4 +264,19 @@ class Captain::Tools::BuscarImovelTool < Captain::Tools::BasePublicTool
     val.to_s.strip.casecmp('sim').zero?
   end
 
+  # O site da Tozi acha o imóvel pelo ImoCodigo (não pelo Codigo do Vista); o slug
+  # é cosmético. Padrão observado: {finalidade}-{categoria}-{N}-dormitorios-{bairroComercial}-{cidade},{ImoCodigo}
+  def build_url(im, venda)
+    bairro = im['BairroComercial'].presence || im['Bairro']
+    parts = [venda ? 'venda' : 'aluguel', slugify(im['Categoria'])]
+    parts << "#{im['Dormitorios']}-dormitorios" if im['Dormitorios'].to_i.positive?
+    parts << slugify(bairro) << slugify(im['Cidade'])
+    id = im['ImoCodigo'].presence || im['Codigo']
+    "https://www.#{site_domain}/#{parts.reject(&:blank?).join('-')},#{id}"
+  end
+
+  def slugify(str)
+    str.to_s.unicode_normalize(:nfd).gsub(/\p{Mn}/, '')
+       .downcase.gsub(/[^a-z0-9]+/, '-').gsub(/\A-+|-+\z/, '')
+  end
 end

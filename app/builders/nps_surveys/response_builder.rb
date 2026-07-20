@@ -65,12 +65,16 @@ class NpsSurveys::ResponseBuilder # rubocop:disable Metrics/ClassLength
     nil
   end
 
-  # Toggle + candidatura vivem no NpsSurveys::LlmGate — fonte unica compartilhada com o
-  # ReopenGuard, que segura o reopen exatamente quando este caminho vai rodar.
   def extract_score_via_llm
-    return nil unless NpsSurveys::LlmGate.gpt_parse_candidate?(inbox: message.inbox, text: message.content)
+    return nil unless gpt_parse_enabled?
+    return nil unless gpt_parse_candidate?(message.content)
 
     NpsSurveys::ScoreLlmParser.extract(text: message.content, account: message.account)
+  end
+
+  def gpt_parse_enabled?
+    config = message.inbox&.nps_config || {}
+    ActiveModel::Type::Boolean.new.cast(config['gpt_parse_enabled'])
   end
 
   # Notas atribuidas quando o sentimento e detectado (sem numero na mensagem).
@@ -81,62 +85,60 @@ class NpsSurveys::ResponseBuilder # rubocop:disable Metrics/ClassLength
   # Resposta sem nota explicita. Ordem (barato -> caro):
   # 1. Tentativa invalida obvia (heuristica) -> aviso; finaliza apos 3 (nao sabe avaliar).
   # 2. Classificacao por IA (atras de toggle): elogio -> promotor, insatisfacao -> detrator,
-  #    outro assunto -> atendimento humano. Neutro/duvida/falha -> libera para humano.
-  #
-  # Invariante: o ReopenGuard segura o reopen sempre que o LlmGate diz que o LLM sera
-  # consultado. Entao TODO caminho que nao trata a mensagem tem que liberar a conversa
-  # aqui — senao o cliente fica preso numa conversa resolved e ninguem atende. A garantia
-  # e centralizada neste `unless handled` (nao depende de lembrar em cada branch).
+  #    outro assunto -> atendimento humano. Neutro/duvida -> deixa reabrir (sem acao).
   def handle_without_score(nps_response)
     if looks_like_nps_attempt?
       handle_invalid_response(nps_response)
       return
     end
 
-    release_conversation_for_human(nps_response) unless handle_ai_classification(nps_response)
+    handle_ai_classification(nps_response)
   end
 
-  # Retorna true quando a mensagem foi TRATADA como resposta de NPS (nota por sentimento
-  # ou handoff). Neutro, categoria desconhecida, toggle off e falha do LLM -> false.
   def handle_ai_classification(nps_response)
-    return false unless NpsSurveys::LlmGate.sentiment_candidate?(inbox: message.inbox, text: message.content)
+    return unless sentiment_detractor_enabled?
+    return unless sentiment_candidate?(message.content)
 
-    case classify_via_llm
+    case NpsSurveys::ScoreLlmParser.classify(text: message.content, account: message.account)
     when 'negative' then process_nps_response(nps_response, SENTIMENT_DETRACTOR_SCORE, sentiment_inferred: true)
     when 'positive' then process_nps_response(nps_response, SENTIMENT_PROMOTER_SCORE, sentiment_inferred: true)
     when 'other_topic' then handoff_to_human_new_topic(nps_response)
-    else return false
     end
-
-    true
-  end
-
-  # Fail-open: erro/timeout do LLM nao pode prender o cliente numa conversa resolved
-  # (o guard ja segurou o reopen contando com esta decisao) -> sem categoria, libera.
-  def classify_via_llm
-    NpsSurveys::ScoreLlmParser.classify(text: message.content, account: message.account)
-  rescue StandardError => e
-    Rails.logger.warn("[NPS] classificacao por IA falhou conv=#{message.conversation_id}: #{e.message}")
-    nil
   end
 
   # Cliente quer tratar de outro assunto: encerra a pesquisa (nao e resposta de NPS)
   # e mantem a conversa aberta para atendimento humano.
   def handoff_to_human_new_topic(nps_response)
     nps_response.update!(status: :dismissed, dismiss_reason: 'other_topic')
-    release_conversation_for_human(nps_response)
-  rescue StandardError => e
-    Rails.logger.warn("[NPS] handoff outro assunto conv=#{nps_response.conversation_id}: #{e.message}")
-  end
-
-  # Nao era resposta de NPS: devolve a conversa para atendimento humano. No-op quando o
-  # guard nao segurou (a conversa ja reabriu sozinha via Message#reopen_conversation).
-  def release_conversation_for_human(nps_response)
     conversation = nps_response.conversation
     conversation.reload
     conversation.open! if conversation.resolved?
   rescue StandardError => e
-    Rails.logger.warn("[NPS] nao consegui liberar conv=#{nps_response.conversation_id} para atendimento: #{e.message}")
+    Rails.logger.warn("[NPS] handoff outro assunto conv=#{nps_response.conversation_id}: #{e.message}")
+  end
+
+  def sentiment_detractor_enabled?
+    config = message.inbox&.nps_config || {}
+    ActiveModel::Type::Boolean.new.cast(config['sentiment_detractor_enabled'])
+  end
+
+  # So chama o LLM em mensagem nao-vazia de tamanho de feedback (<=280),
+  # evitando gasto em mensagens muito longas/estranhas.
+  def sentiment_candidate?(text)
+    normalized = NpsSurveys::ScoreValidator.normalize(text)
+    normalized.present? && normalized.length <= 280
+  end
+
+  # Limita as chamadas ao LLM: mensagem curta que contenha um digito ou um
+  # numeral por extenso (0-10). Evita gastar chamada em conversa normal.
+  NUMBER_WORDS = /\b(zero|um|uma|dois|duas|tr[êe]s|quatro|cinco|seis|sete|oito|nove|dez)\b/i
+
+  def gpt_parse_candidate?(text)
+    normalized = NpsSurveys::ScoreValidator.normalize(text)
+    return false if normalized.blank?
+    return false if normalized.length > 40
+
+    normalized.match?(/\d/) || normalized.match?(NUMBER_WORDS)
   end
 
   def valid_score?(score)
