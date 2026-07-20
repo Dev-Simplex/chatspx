@@ -204,11 +204,15 @@ module Meta
         partes.join(' — ').presence || "imóvel #{imovel['Codigo']}"
       end
 
-      # URL da foto de destaque (ou a 1ª) — pública no CDN do Vista, serve pro header do template.
+      # URL da FOTO DE DESTAQUE (a capa do imóvel) — pública no CDN do Vista, serve pro header do
+      # template. Usa o campo dedicado FotoDestaque; fallback: a marcada Destaque no array, senão a 1ª.
       def imovel_foto(base, key, codigo)
         det = vista_get(base, key, '/imoveis/detalhes',
-                        { fields: ['Codigo', { 'Foto' => %w[Foto Destaque] }] }, imovel: codigo)
-        fotos = det.is_a?(Hash) ? det['Foto'] : nil
+                        { fields: ['Codigo', 'FotoDestaque', { 'Foto' => %w[Foto Destaque] }] }, imovel: codigo)
+        return nil unless det.is_a?(Hash)
+        return det['FotoDestaque'] if det['FotoDestaque'].to_s.strip.present?
+
+        fotos = det['Foto']
         return nil unless fotos.is_a?(Hash)
 
         destaque = fotos.values.find { |f| f.is_a?(Hash) && f['Destaque'].to_s.casecmp('sim').zero? }
