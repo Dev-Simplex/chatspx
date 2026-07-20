@@ -691,6 +691,8 @@
       "SAME_INBOX": "It is in this same inbox — your message would land in that conversation.",
       "OTHER_INBOX": "It is in another inbox ({inbox}).",
       "GO_TO_CONVERSATION": "Go to the conversation",
+      "REQUEST": "Request attendance",
+      "REQUEST_SENT": "Request sent",
       "SEND_ANYWAY": "Send anyway",
       "CANCEL": "Cancel",
       "BANNER": "This contact is already in attendance."

@@ -21,7 +21,11 @@ import {
 } from 'dashboard/components-next/NewConversation/helpers/composeConversationHelper';
 import ComposeNewConversationForm from 'dashboard/components-next/NewConversation/components/ComposeNewConversationForm.vue';
 import AttendanceWarningDialog from 'dashboard/components-next/NewConversation/components/AttendanceWarningDialog.vue';
-import { useAttendanceGate } from 'dashboard/composables/useAttendanceGate';
+import {
+  useAttendanceGate,
+  ATTENDANCE_VARIANT,
+} from 'dashboard/composables/useAttendanceGate';
+import { useAccount } from 'dashboard/composables/useAccount';
 
 const props = defineProps({
   alignPosition: {
@@ -108,6 +112,13 @@ const contactsUiFlags = useMapGetter('contacts/getUIFlags');
 const currentAccountId = useMapGetter('getCurrentAccountId');
 const currentUser = useMapGetter('getCurrentUser');
 const { resolveGate } = useAttendanceGate();
+// Modo de pedido ligado? getCurrentAccount (auth store) vem SEM settings — a
+// fonte com settings é useAccount().currentAccount (mesma do AssignToReplyDialog
+// e do useContactAttendance).
+const { currentAccount } = useAccount();
+const takeoverGateEnabled = computed(() =>
+  Boolean(currentAccount.value?.settings?.takeover_request_gate)
+);
 const globalConfig = useMapGetter('globalConfig/get');
 const uiFlags = useMapGetter('contactConversations/getUIFlags');
 const messageSignature = useMapGetter('getMessageSignature');
@@ -301,9 +312,54 @@ const createConversation = async ({ payload, isFromWhatsApp }) => {
   return performCreateConversation({ payload, isFromWhatsApp });
 };
 
+// Com o modo ligado + dono HUMANO, o aviso vira validação: sem "enviar mesmo
+// assim"; a saída é Solicitar (se eu alcanço) ou nada (outro time).
+const isHumanTakeover = computed(
+  () => attendanceGate.value.variant === ATTENDANCE_VARIANT.HUMAN
+);
+const attendanceCanRequest = computed(
+  () =>
+    takeoverGateEnabled.value &&
+    isHumanTakeover.value &&
+    Boolean(attendanceGate.value.attendance?.canRequest) &&
+    !attendanceGate.value.attendance?.myPendingRequestId
+);
+const attendanceHasPendingRequest = computed(
+  () =>
+    takeoverGateEnabled.value &&
+    isHumanTakeover.value &&
+    Boolean(attendanceGate.value.attendance?.myPendingRequestId)
+);
+const attendanceAllowSendAnyway = computed(
+  () => !(takeoverGateEnabled.value && isHumanTakeover.value)
+);
+const isRequestingAttendance = ref(false);
+
 const onAttendanceCancel = () => {
   attendanceDialogRef.value?.close();
   pendingConversation.value = null;
+};
+
+const onAttendanceRequest = async () => {
+  const conversationId = attendanceGate.value?.attendance?.id;
+  if (!conversationId || isRequestingAttendance.value) return;
+  isRequestingAttendance.value = true;
+  try {
+    await store.dispatch('takeoverRequests/create', { conversationId });
+    useAlert(t('CONTACTS_LAYOUT.IN_ATTENDANCE.REQUEST.SENT'));
+    attendanceDialogRef.value?.close();
+    pendingConversation.value = null;
+    discardCompose();
+  } catch (error) {
+    const code = error?.response?.data?.error_code;
+    useAlert(
+      code === 'takeover_request_exists'
+        ? t('CONTACTS_LAYOUT.IN_ATTENDANCE.REQUEST.ERRORS.EXISTS')
+        : t('CONTACTS_LAYOUT.IN_ATTENDANCE.REQUEST.ERRORS.GENERIC')
+    );
+  } finally {
+    isRequestingAttendance.value = false;
+  }
 };
 
 const onAttendanceSendAnyway = async () => {
@@ -456,8 +512,13 @@ useKeyboardEvents(keyboardEvents);
       :variant="attendanceGate.variant"
       :attendance="attendanceGate.attendance"
       :same-inbox="attendanceGate.sameInbox"
+      :can-request="attendanceCanRequest"
+      :has-pending-request="attendanceHasPendingRequest"
+      :allow-send-anyway="attendanceAllowSendAnyway"
+      :is-requesting="isRequestingAttendance"
       @go-to-conversation="onAttendanceGoToConversation"
       @send-anyway="onAttendanceSendAnyway"
+      @request-attendance="onAttendanceRequest"
       @cancel="onAttendanceCancel"
     />
   </div>

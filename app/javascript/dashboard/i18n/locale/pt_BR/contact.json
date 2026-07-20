@@ -691,6 +691,8 @@
       "SAME_INBOX": "É nesta mesma caixa — sua mensagem cairia dentro daquela conversa.",
       "OTHER_INBOX": "É em outra caixa ({inbox}).",
       "GO_TO_CONVERSATION": "Ir para a conversa",
+      "REQUEST": "Solicitar atendimento",
+      "REQUEST_SENT": "Pedido enviado",
       "SEND_ANYWAY": "Enviar mesmo assim",
       "CANCEL": "Cancelar",
       "BANNER": "Este contato já está em atendimento."
