@@ -412,10 +412,12 @@ module Meta
       def create_imovel_opener(conversation)
         d = imovel_info
         first = template_render_context['first_name'].presence || 'tudo bem'
+        # {{2}} carrega a descrição + o código do imóvel, pra o lead/corretor referenciar o imóvel exato.
+        imovel_txt = "#{d[:descricao]} (cód #{d[:codigo]})"
         Messages::MessageBuilder.new(
           nil, conversation,
           {
-            content: "Oi #{first}! Aqui é da Tozi Imóveis. Vi que você se interessou neste imóvel: #{d[:descricao]}. " \
+            content: "Oi #{first}! Aqui é da Tozi Imóveis. Vi que você se interessou neste imóvel: #{imovel_txt}. " \
                      'Quer que eu te mande as fotos e os detalhes?',
             content_type: :text, message_type: 'outgoing', private: false,
             content_attributes: { meta_lead_ads_initial: true },
@@ -424,7 +426,7 @@ module Meta
               'language' => (hook_setting('whatsapp_template_locale').presence || 'pt_BR'),
               'processed_params' => {
                 'header' => { 'media_url' => d[:foto_url], 'media_type' => 'image' },
-                'body' => { '1' => first, '2' => d[:descricao] }
+                'body' => { '1' => first, '2' => imovel_txt }
               }
             }
           }.with_indifferent_access
