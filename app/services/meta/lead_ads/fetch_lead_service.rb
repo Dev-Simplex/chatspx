@@ -5,7 +5,9 @@ module Meta
     class FetchLeadService
       BASE_URI = 'https://graph.facebook.com'.freeze
       GRAPH_VERSION = 'v22.0'.freeze
-      FIELDS = 'id,created_time,ad_id,ad_name,form_id,campaign_id,campaign_name,adset_id,adset_name,field_data,platform'.freeze
+      # retailer_item_id: em campanhas de catálogo (dynamic ads), é o produto que o lead viu —
+      # no caso da Tozi, o CÓDIGO do imóvel no Vista. Permite abrir já no imóvel específico.
+      FIELDS = 'id,created_time,ad_id,ad_name,form_id,campaign_id,campaign_name,adset_id,adset_name,field_data,platform,retailer_item_id'.freeze
 
       # Substrings que identificam o tipo do campo. Match parcial — funciona
       # com qualquer form (nomes custom tipo "qual_seu_telefone?", "celular_contato", etc).
@@ -65,6 +67,7 @@ module Meta
           campaign_id: json['campaign_id'],
           campaign_name: json['campaign_name'],
           platform: json['platform'],
+          retailer_item_id: json['retailer_item_id'],
           full_name: sanitize_name(find_by_hints(fields, NAME_HINTS)),
           phone_number: find_by_hints(fields, PHONE_HINTS),
           email: find_by_hints(fields, EMAIL_HINTS),

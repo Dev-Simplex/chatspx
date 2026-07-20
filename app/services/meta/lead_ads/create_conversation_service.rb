@@ -138,12 +138,15 @@ module Meta
       # só renderiza custom_attributes definidos); isto torna a origem visível e filtrável.
       # Idempotente. Genérico — serve qualquer conta que use Meta Lead Ads (no-op se sem dados).
       def stamp_campaign_visibility(conversation)
+        im = imovel_info
         attrs = {
           'meta_campanha' => @lead[:campaign_name].to_s.strip.presence,
           'meta_anuncio' => @lead[:ad_name].to_s.strip.presence,
           'meta_publico' => @lead[:adset_name].to_s.strip.presence,
           'meta_origem' => platform_label,
-          'meta_tipo' => lead_tipo_label
+          'meta_tipo' => lead_tipo_label,
+          'meta_imovel_codigo' => im && im[:codigo],
+          'meta_imovel' => im && im[:descricao]
         }.compact
         return if attrs.empty?
 
@@ -164,6 +167,61 @@ module Meta
         when 'ig', 'instagram' then 'Instagram'
         else @lead[:platform].to_s.strip.presence
         end
+      end
+
+      # Imóvel específico do lead (catálogo/dynamic ads): retailer_item_id = código no Vista.
+      # Busca descrição curta + foto de destaque. Memoizado. No-op (nil) se não houver
+      # retailer_item_id ou credencial Vista — aí o lead segue sem imóvel (fluxo normal).
+      def imovel_info
+        return @imovel_info if defined?(@imovel_info)
+
+        @imovel_info = fetch_imovel(@lead[:retailer_item_id])
+      end
+
+      def fetch_imovel(codigo)
+        codigo = codigo.to_s.strip
+        key = ENV['TOZI_VISTA_API_KEY'].to_s
+        return nil if codigo.blank? || key.blank?
+
+        base = ENV['TOZI_VISTA_BASE_URL'].presence || 'toz19328-rest.vistahost.com.br'
+        info = vista_get(base, key, '/imoveis/listar',
+                         fields: %w[Codigo TipoImovel Categoria Dormitorios Bairro Cidade ValorVenda TituloSite Status],
+                         filter: { 'Codigo' => codigo }, paginacao: { pagina: 1, quantidade: 1 })
+        im = info.is_a?(Hash) ? info.values.find { |v| v.is_a?(Hash) && v['Codigo'] } : nil
+        return nil unless im
+
+        { codigo: codigo, descricao: imovel_descricao(im), foto_url: imovel_foto(base, key, codigo) }
+      rescue StandardError => e
+        Rails.logger.warn("Meta Lead Ads: falha buscando imóvel #{codigo} no Vista: #{e.class}: #{e.message}")
+        nil
+      end
+
+      def imovel_descricao(imovel)
+        dorm = imovel['Dormitorios'].to_s.strip
+        partes = [imovel['Categoria'].to_s.strip.presence,
+                  (dorm.present? && dorm != '0' ? "#{dorm} dorm" : nil),
+                  imovel['Bairro'].to_s.strip.presence].compact
+        partes.join(' — ').presence || "imóvel #{imovel['Codigo']}"
+      end
+
+      # URL da foto de destaque (ou a 1ª) — pública no CDN do Vista, serve pro header do template.
+      def imovel_foto(base, key, codigo)
+        det = vista_get(base, key, '/imoveis/detalhes',
+                        { fields: ['Codigo', { 'Foto' => %w[Foto Destaque] }] }, imovel: codigo)
+        fotos = det.is_a?(Hash) ? det['Foto'] : nil
+        return nil unless fotos.is_a?(Hash)
+
+        destaque = fotos.values.find { |f| f.is_a?(Hash) && f['Destaque'].to_s.casecmp('sim').zero? }
+        ((destaque || fotos.values.first) || {})['Foto']
+      end
+
+      def vista_get(base, key, path, pesquisa, extra = {})
+        res = HTTParty.get("https://#{base}#{path}",
+                           query: { key: key, pesquisa: pesquisa.to_json }.merge(extra),
+                           headers: { 'Accept' => 'application/json' })
+        res.success? ? res.parsed_response : nil
+      rescue StandardError
+        nil
       end
 
       # Classifica o lead como Remarketing (já teve contato com a Tozi) vs Lead novo (frio), a
@@ -233,6 +291,7 @@ module Meta
               campaign_name: @lead[:campaign_name],
               form_id: @lead[:form_id],
               platform: @lead[:platform],
+              retailer_item_id: @lead[:retailer_item_id],
               city: @lead[:city]
             }.compact
           },
@@ -299,7 +358,7 @@ module Meta
       end
 
       def lead_attributes
-        @lead.slice(:leadgen_id, :ad_name, :campaign_name, :form_id, :platform).compact
+        @lead.slice(:leadgen_id, :ad_name, :campaign_name, :form_id, :platform, :retailer_item_id).compact
       end
 
       # Reuso: registra o contexto do NOVO form (o lead pode ter entrado por outra campanha
@@ -326,6 +385,7 @@ module Meta
       # a 1ª mensagem cai fora da janela → tem que ser template. WAHA (Channel::Api) não
       # tem essa restrição → segue texto livre.
       def create_initial_message(conversation)
+        return create_imovel_opener(conversation) if cloud_whatsapp_inbox? && imovel_opener_ready?
         return create_initial_template_message(conversation) if cloud_whatsapp_inbox?
 
         rendered = render_template
@@ -338,6 +398,36 @@ module Meta
           message_type: 'outgoing',
           private: false,
           content_attributes: { meta_lead_ads_initial: true }
+        ).perform
+      end
+
+      # Opener com FOTO do imóvel do anúncio (remarketing de catálogo). Só entra quando o hook
+      # tem imovel_template_name configurado E o lead traz um imóvel com foto. Sem isso, cai no
+      # opener normal (fica inativo até o template ser aprovado e configurado no override).
+      def imovel_opener_ready?
+        hook_setting('imovel_template_name').to_s.strip.present? &&
+          imovel_info.present? && imovel_info[:foto_url].present?
+      end
+
+      def create_imovel_opener(conversation)
+        d = imovel_info
+        first = template_render_context['first_name'].presence || 'tudo bem'
+        Messages::MessageBuilder.new(
+          nil, conversation,
+          {
+            content: "Oi #{first}! Aqui é da Tozi Imóveis. Vi que você se interessou neste imóvel: #{d[:descricao]}. " \
+                     'Quer que eu te mande as fotos e os detalhes?',
+            content_type: :text, message_type: 'outgoing', private: false,
+            content_attributes: { meta_lead_ads_initial: true },
+            template_params: {
+              'name' => hook_setting('imovel_template_name'),
+              'language' => (hook_setting('whatsapp_template_locale').presence || 'pt_BR'),
+              'processed_params' => {
+                'header' => { 'media_url' => d[:foto_url], 'media_type' => 'image' },
+                'body' => { '1' => first, '2' => d[:descricao] }
+              }
+            }
+          }.with_indifferent_access
         ).perform
       end
 
