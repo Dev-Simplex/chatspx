@@ -614,7 +614,7 @@
     "TAKEOVER_APPROVAL": {
       "WANTS_THIS": "requested this conversation",
       "SOMEONE": "Someone",
-      "AND_MORE": "+{count} more",
+      "AND_MORE": "and {count} more request | and {count} more requests",
       "APPROVE": "Approve",
       "DENY": "Deny",
       "APPROVED": "Conversation handed over",

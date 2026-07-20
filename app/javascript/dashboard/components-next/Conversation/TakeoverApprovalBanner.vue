@@ -105,9 +105,15 @@ watch(
         <span v-if="quotedReason" class="italic text-n-amber-11">
           {{ quotedReason }}
         </span>
+        <!-- 3º argumento = seletor de plural. Sem ele o vue-i18n renderiza
+             sempre o 1º ramo ("e mais 2 pedido"). -->
         <span v-if="extraCount" class="text-n-amber-11">
           {{ ' ' }}({{
-            t('CONVERSATION.TAKEOVER_APPROVAL.AND_MORE', { count: extraCount })
+            t(
+              'CONVERSATION.TAKEOVER_APPROVAL.AND_MORE',
+              { count: extraCount },
+              extraCount
+            )
           }})
         </span>
       </span>

@@ -605,7 +605,7 @@
     "TAKEOVER_APPROVAL": {
       "WANTS_THIS": "pediu esta conversa",
       "SOMEONE": "Alguém",
-      "AND_MORE": "+{count} outro(s)",
+      "AND_MORE": "e mais {count} pedido | e mais {count} pedidos",
       "APPROVE": "Aprovar",
       "DENY": "Negar",
       "APPROVED": "Conversa transferida",
