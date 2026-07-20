@@ -12,42 +12,101 @@ class Api::V1::Accounts::ActiveAttendancesController < Api::V1::Accounts::BaseCo
   def index
     @attendances = fetch_attendances
     @attendances_count = @attendances.total_count
-    @requestable_ids = compute_requestable_ids
+    @capabilities = compute_capabilities
+    @my_pending_requests = fetch_my_pending_requests
+    @duplicated_contact_ids = fetch_duplicated_contact_ids
   end
 
   private
 
-  # A aba mostra TODOS os atendimentos (D2, p/ dar ciência), mas SOLICITAR só é
-  # possível para conversas que o usuário realmente alcança — senão o botão
-  # promete uma ação que o backend recusa com 403. Este Set espelha EXATAMENTE a
-  # autorização do POST .../takeover_requests (ConversationPolicy#show? +
-  # authorize_team_access):
-  #   - admin não pede (atribui direto; a policy create? bloqueia) → conjunto vazio;
-  #   - precisa de dono HUMANO que não seja eu;
-  #   - conversa COM time  → tenho que ser do time (satisfaz o show? por time E o
-  #     guard de time de uma vez);
-  #   - conversa SEM time  → o guard passa; o show? exige ser membro da CAIXA.
-  # Times/caixas do usuário puxados UMA vez; o jbuilder só faz include? no Set.
-  def compute_requestable_ids
-    user = Current.user
-    return Set.new unless user.is_a?(User)
-    return Set.new if Current.account_user&.administrator?
-
-    team_ids = user.teams.where(account_id: Current.account.id).pluck(:id).to_set
-    inbox_ids = user.inboxes.where(account_id: Current.account.id).pluck(:id).to_set
-
-    @attendances.filter_map { |conv| conv.id if requestable?(conv, user, team_ids, inbox_ids) }.to_set
+  # Contexto do solicitante puxado UMA vez (2 queries no total, não por linha).
+  def requester_context
+    @requester_context ||= begin
+      user = Current.user
+      if user.is_a?(User)
+        { user_id: user.id,
+          admin: Current.account_user&.administrator? || false,
+          team_ids: user.teams.where(account_id: Current.account.id).pluck(:id).to_set,
+          inbox_ids: user.inboxes.where(account_id: Current.account.id).pluck(:id).to_set }
+      else
+        { user_id: nil, admin: false, team_ids: Set.new, inbox_ids: Set.new }
+      end
+    end
   end
 
-  def requestable?(conversation, user, team_ids, inbox_ids)
-    return false if conversation.assignee_id.blank? || conversation.assignee_agent_bot_id.present?
-    return false if conversation.assignee_id == user.id
+  # A aba mostra TODOS os atendimentos (D2, p/ dar ciência), mas cada linha só pode
+  # oferecer a ação que o backend REALMENTE autoriza — senão o botão promete algo
+  # que vira 403/422 no clique. Uma capacidade por linha; o jbuilder só lê o hash.
+  def compute_capabilities
+    ctx = requester_context
+    @attendances.each_with_object({}) do |conversation, map|
+      map[conversation.id] = {
+        open: can_open?(conversation, ctx),
+        assume: can_assume?(conversation, ctx),
+        request: can_request?(conversation, ctx)
+      }
+    end
+  end
+
+  # "Posso abrir/ver": espelha ConversationPolicy#show? + authorize_team_access.
+  # As isenções do guard de time são exatamente estas (conversation_team_access_concern.rb:27):
+  # admin, conversa sem time, ou eu ser o dono. Fora delas, tem que ser do time —
+  # e sem time o show? exige ser membro da CAIXA.
+  def can_open?(conversation, ctx)
+    return true if ctx[:admin]
+    return false if ctx[:user_id].nil?
+    return true if conversation.assignee_id == ctx[:user_id]
 
     if conversation.team_id.present?
-      team_ids.include?(conversation.team_id)
+      ctx[:team_ids].include?(conversation.team_id)
     else
-      inbox_ids.include?(conversation.inbox_id)
+      ctx[:inbox_ids].include?(conversation.inbox_id)
     end
+  end
+
+  # "Assumir sem pedir": só conversa SEM dono humano (fila ou IA — nos dois casos
+  # assignee_id é nil e o AssignmentService troca o bot pelo humano), ou admin, que
+  # força. Nunca oferece assumir a conversa que já é minha.
+  def can_assume?(conversation, ctx)
+    return false unless can_open?(conversation, ctx)
+    return false if ctx[:user_id].nil? || conversation.assignee_id == ctx[:user_id]
+
+    conversation.assignee_id.blank? || ctx[:admin]
+  end
+
+  # Regra do pedido (inalterada): admin não pede (atribui direto; a policy create?
+  # bloqueia), precisa de dono HUMANO que não seja eu, e preciso alcançar a conversa.
+  def can_request?(conversation, ctx)
+    return false if ctx[:admin] || ctx[:user_id].nil?
+    return false if conversation.assignee_id.blank? || conversation.assignee_agent_bot_id.present?
+    return false if conversation.assignee_id == ctx[:user_id]
+
+    can_open?(conversation, ctx)
+  end
+
+  # Meu pedido pendente por conversa → a linha vira "Pedido enviado · Cancelar".
+  # UMA query para a página inteira.
+  def fetch_my_pending_requests
+    user_id = requester_context[:user_id]
+    return {} if user_id.nil?
+
+    ConversationTakeoverRequest.pending
+                               .where(requester_id: user_id, conversation_id: @attendances.map(&:id))
+                               .pluck(:conversation_id, :id).to_h
+  end
+
+  # Contatos com 2+ atendimentos abertos AO MESMO TEMPO — o sintoma exato que a
+  # feature existe para matar. Calculado na CONTA INTEIRA (não só na página): as
+  # duas conversas do mesmo contato podem cair em páginas diferentes e a duplicação
+  # passaria despercebida.
+  def fetch_duplicated_contact_ids
+    Current.account.conversations
+           .where(status: Conversation.statuses.values_at(*IN_SERVICE_STATUSES))
+           .where.not(contact_id: nil)
+           .group(:contact_id)
+           .having('COUNT(*) > 1')
+           .pluck(:contact_id)
+           .to_set
   end
 
   # Api::BaseController#check_authorization resolve a policy por

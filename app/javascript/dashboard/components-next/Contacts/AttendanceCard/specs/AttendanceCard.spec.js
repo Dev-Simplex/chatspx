@@ -72,26 +72,83 @@ describe('AttendanceCard', () => {
     expect(Object.keys(AttendanceCard.props)).not.toContain('lastMessage');
   });
 
-  // A visibilidade do botão é decidida no BACKEND (canRequest) — que espelha a
-  // autorização do endpoint de pedido. O card só obedece: sem canRequest, nada
-  // de botão prometendo uma ação que daria 403.
-  it('shows the request button only when canRequest is true', () => {
-    expect(
-      mountCard({ canRequest: true }).findComponent({ name: 'Button' }).exists()
-    ).toBe(true);
+  // A ação da linha é decidida pelas capacidades que o BACKEND manda — o card só
+  // obedece. Assim o botão nunca promete algo que viraria 403/422 no clique.
+  describe('ação contextual da linha', () => {
+    const clickButton = async wrapper =>
+      wrapper.findComponent({ name: 'Button' }).vm.$emit('click');
+
+    it('offers "assumir" when the row can be assumed', async () => {
+      const wrapper = mountCard({ canOpen: true, canAssume: true });
+      await clickButton(wrapper);
+      expect(wrapper.emitted('assumeAttendance')).toEqual([
+        [{ conversationId: 11, contactId: 1 }],
+      ]);
+    });
+
+    it('offers "solicitar" when the row can only be requested', async () => {
+      const wrapper = mountCard({ canOpen: true, canRequest: true });
+      await clickButton(wrapper);
+      expect(wrapper.emitted('requestAttendance')).toEqual([
+        [{ conversationId: 11, contactId: 1 }],
+      ]);
+    });
+
+    it('offers "abrir" when I can only open it (my own conversation)', async () => {
+      const wrapper = mountCard({ canOpen: true });
+      await clickButton(wrapper);
+      expect(wrapper.emitted('openConversation')).toEqual([
+        [{ conversationId: 11, contactId: 1 }],
+      ]);
+    });
+
+    // "já pedi" vence "posso pedir" — senão eu pediria duas vezes.
+    it('shows the pending state with cancel when I already requested it', async () => {
+      const wrapper = mountCard({
+        canOpen: true,
+        canRequest: true,
+        myPendingRequestId: 77,
+      });
+
+      expect(wrapper.text()).toContain(
+        'CONTACTS_LAYOUT.IN_ATTENDANCE.REQUEST.PENDING_STATE'
+      );
+      await clickButton(wrapper);
+      expect(wrapper.emitted('cancelRequest')).toEqual([
+        [{ conversationId: 11, contactId: 1, requestId: 77 }],
+      ]);
+      expect(wrapper.emitted('requestAttendance')).toBeUndefined();
+    });
+
+    // A linha sem acesso NÃO some: explica o porquê (a ciência da duplicação é
+    // metade do valor da aba) mas não oferece botão nenhum.
+    it('explains why instead of offering a button when I have no access', () => {
+      const wrapper = mountCard();
+      expect(wrapper.findComponent({ name: 'Button' }).exists()).toBe(false);
+      expect(wrapper.text()).toContain(
+        'CONTACTS_LAYOUT.IN_ATTENDANCE.NO_ACCESS_TEAM'
+      );
+    });
+
+    it('falls back to the inbox reason when the row has no team', () => {
+      const wrapper = mountCard({ team: null });
+      expect(wrapper.text()).toContain(
+        'CONTACTS_LAYOUT.IN_ATTENDANCE.NO_ACCESS_INBOX'
+      );
+    });
   });
 
-  it('hides the request button when canRequest is false (default)', () => {
-    expect(mountCard().findComponent({ name: 'Button' }).exists()).toBe(false);
-  });
+  describe('destaque de duplicação', () => {
+    it('flags the contact when they have 2+ open attendances', () => {
+      expect(mountCard({ duplicated: true }).text()).toContain(
+        'CONTACTS_LAYOUT.IN_ATTENDANCE.DUPLICATED'
+      );
+    });
 
-  it('emits requestAttendance with the conversation and contact ids', async () => {
-    const wrapper = mountCard({ canRequest: true });
-
-    await wrapper.findComponent({ name: 'Button' }).vm.$emit('click');
-
-    expect(wrapper.emitted('requestAttendance')).toEqual([
-      [{ conversationId: 11, contactId: 1 }],
-    ]);
+    it('does not flag a contact with a single attendance', () => {
+      expect(mountCard().text()).not.toContain(
+        'CONTACTS_LAYOUT.IN_ATTENDANCE.DUPLICATED'
+      );
+    });
   });
 });

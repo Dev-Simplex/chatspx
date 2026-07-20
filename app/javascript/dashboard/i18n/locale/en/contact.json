@@ -635,8 +635,18 @@
           "SELF": "You already own this conversation.",
           "NO_ACCESS": "You can't request this conversation — it belongs to a team you're not part of.",
           "GENERIC": "Couldn't send the request, please try again."
-        }
-      }
+        },
+        "PENDING_STATE": "Request sent",
+        "CANCEL": "Cancel",
+        "CANCELLED": "Request cancelled"
+      },
+      "OPEN": "Open",
+      "ASSUME": "Take over",
+      "ASSUMED": "You are now serving this contact",
+      "NO_ACCESS_TEAM": "Team {team} — you are not a member",
+      "NO_ACCESS_INBOX": "You don't have access to this inbox",
+      "DUPLICATED": "2+ open",
+      "DUPLICATED_HINT": "This contact has more than one conversation open at the same time"
     },
     "LOAD_MORE": "Load more"
   },

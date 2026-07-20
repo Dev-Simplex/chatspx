@@ -635,8 +635,18 @@
           "SELF": "Você já é o dono desta conversa.",
           "NO_ACCESS": "Você não pode solicitar esta conversa — ela é de um time do qual você não faz parte.",
           "GENERIC": "Não foi possível enviar o pedido, tente novamente."
-        }
-      }
+        },
+        "PENDING_STATE": "Pedido enviado",
+        "CANCEL": "Cancelar",
+        "CANCELLED": "Pedido cancelado"
+      },
+      "OPEN": "Abrir",
+      "ASSUME": "Assumir",
+      "ASSUMED": "Você agora está atendendo este contato",
+      "NO_ACCESS_TEAM": "Time {team} — você não participa",
+      "NO_ACCESS_INBOX": "Você não tem acesso a esta caixa",
+      "DUPLICATED": "2+ abertos",
+      "DUPLICATED_HINT": "Este contato tem mais de uma conversa aberta ao mesmo tempo"
     },
     "LOAD_MORE": "Carregar mais"
   },

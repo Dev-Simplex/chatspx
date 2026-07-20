@@ -24,9 +24,13 @@ const { t } = useI18n();
 const attendances = useMapGetter('activeAttendances/getAttendances');
 const meta = useMapGetter('activeAttendances/getMeta');
 const uiFlags = useMapGetter('activeAttendances/getUIFlags');
+const currentUserId = useMapGetter('getCurrentUserID');
+const accountId = useMapGetter('getCurrentAccountId');
+// Observado p/ refazer a lista quando um pedido muda de estado via realtime.
+const takeoverRecords = useMapGetter('takeoverRequests/getIncoming');
 
-// display_id da conversa cujo pedido está em andamento (loading no card).
-const requestingId = ref(null);
+// display_id da conversa com ação em andamento (loading naquele card).
+const busyId = ref(null);
 
 const isFetching = computed(() => uiFlags.value.isFetching);
 const hasError = computed(() => uiFlags.value.hasError);
@@ -70,26 +74,72 @@ const TAKEOVER_ERROR_KEYS = {
   takeover_request_self: 'CONTACTS_LAYOUT.IN_ATTENDANCE.REQUEST.ERRORS.SELF',
 };
 
-const onRequestAttendance = async ({ conversationId }) => {
-  if (requestingId.value) return;
-  requestingId.value = conversationId;
-  try {
-    await store.dispatch('takeoverRequests/create', { conversationId });
-    useAlert(t('CONTACTS_LAYOUT.IN_ATTENDANCE.REQUEST.SENT'));
-  } catch (error) {
-    const status = error?.response?.status;
-    const code = error?.response?.data?.error_code;
-    if (status === 403) {
-      useAlert(t('CONTACTS_LAYOUT.IN_ATTENDANCE.REQUEST.ERRORS.NO_ACCESS'));
-    } else if (code && TAKEOVER_ERROR_KEYS[code]) {
-      useAlert(t(TAKEOVER_ERROR_KEYS[code]));
-    } else {
-      useAlert(t('CONTACTS_LAYOUT.IN_ATTENDANCE.REQUEST.ERRORS.GENERIC'));
-    }
-  } finally {
-    requestingId.value = null;
+const alertForError = error => {
+  const status = error?.response?.status;
+  const code = error?.response?.data?.error_code;
+  if (status === 403) {
+    useAlert(t('CONTACTS_LAYOUT.IN_ATTENDANCE.REQUEST.ERRORS.NO_ACCESS'));
+  } else if (code && TAKEOVER_ERROR_KEYS[code]) {
+    useAlert(t(TAKEOVER_ERROR_KEYS[code]));
+  } else {
+    useAlert(t('CONTACTS_LAYOUT.IN_ATTENDANCE.REQUEST.ERRORS.GENERIC'));
   }
 };
+
+// Toda ação da linha passa por aqui: trava a linha (loading), age, refaz a lista
+// (a linha muda de estado: assumir vira "Abrir", pedir vira "Pedido enviado") e
+// traduz o erro. Refetch SEMPRE, inclusive no erro — se falhou por corrida
+// (alguém assumiu antes), a lista precisa refletir a verdade nova.
+const runRowAction = async ({ conversationId, action, successKey }) => {
+  if (busyId.value) return;
+  busyId.value = conversationId;
+  try {
+    await action();
+    useAlert(t(successKey));
+  } catch (error) {
+    alertForError(error);
+  } finally {
+    busyId.value = null;
+    await fetchAttendances(pageFromRoute.value);
+  }
+};
+
+const onOpenConversation = ({ conversationId }) => {
+  router.push(
+    `/app/accounts/${accountId.value}/conversations/${conversationId}`
+  );
+};
+
+const onAssumeAttendance = ({ conversationId }) =>
+  runRowAction({
+    conversationId,
+    successKey: 'CONTACTS_LAYOUT.IN_ATTENDANCE.ASSUMED',
+    action: () =>
+      store.dispatch('conversations/assignAgent', {
+        conversationId,
+        agentId: currentUserId.value,
+        rethrow: true, // sem isto o store engole o erro e o alerta mentiria "assumido"
+      }),
+  });
+
+const onRequestAttendance = ({ conversationId }) =>
+  runRowAction({
+    conversationId,
+    successKey: 'CONTACTS_LAYOUT.IN_ATTENDANCE.REQUEST.SENT',
+    action: () => store.dispatch('takeoverRequests/create', { conversationId }),
+  });
+
+const onCancelRequest = ({ conversationId, requestId }) =>
+  runRowAction({
+    conversationId,
+    successKey: 'CONTACTS_LAYOUT.IN_ATTENDANCE.REQUEST.CANCELLED',
+    action: () => store.dispatch('takeoverRequests/cancel', { id: requestId }),
+  });
+
+// O dono aprovou/negou enquanto a aba está aberta → a linha precisa mudar de
+// estado sem F5. handleRealtimeEvent é o ponto único desses eventos; observar o
+// store de pedidos cobre criado/aprovado/negado/cancelado de uma vez.
+watch(takeoverRecords, () => fetchAttendances(pageFromRoute.value));
 
 onMounted(() => fetchAttendances(pageFromRoute.value));
 </script>
@@ -150,8 +200,11 @@ onMounted(() => fetchAttendances(pageFromRoute.value));
             <div v-else class="flex flex-col gap-4 pt-4 pb-6">
               <AttendanceList
                 :attendances="attendances"
-                :requesting-id="requestingId"
+                :busy-id="busyId"
+                @open-conversation="onOpenConversation"
+                @assume-attendance="onAssumeAttendance"
                 @request-attendance="onRequestAttendance"
+                @cancel-request="onCancelRequest"
               />
             </div>
           </div>

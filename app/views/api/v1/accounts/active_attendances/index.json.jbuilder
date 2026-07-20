@@ -14,10 +14,17 @@ json.payload do
     # tomar 404.
     json.id conversation.display_id
     json.status conversation.status
-    # Se ESTE usuário pode solicitar esta conversa (mesma regra do backend de
-    # pedido). O botão "Solicitar" no front só aparece quando true — senão
-    # prometeria uma ação que resultaria em 403.
-    json.can_request @requestable_ids.include?(conversation.id)
+    # O que ESTE usuário pode fazer nesta linha (mesma regra que o backend aplica
+    # de verdade). O front escolhe UMA ação a partir daqui — sem isto o botão
+    # prometeria algo que viraria 403/422 no clique.
+    capabilities = @capabilities[conversation.id] || {}
+    json.can_open capabilities[:open] || false
+    json.can_assume capabilities[:assume] || false
+    json.can_request capabilities[:request] || false
+    # Pedido MEU pendente nesta conversa → a linha vira "Pedido enviado · Cancelar".
+    json.my_pending_request_id @my_pending_requests[conversation.id]
+    # Contato com 2+ atendimentos abertos ao mesmo tempo (duplicação acontecendo).
+    json.duplicated @duplicated_contact_ids.include?(conversation.contact_id)
     # assignee_last_changed_at NÃO é "atendendo desde": é zerado na primeira
     # resposta do agente (message.rb:440), então mostraria "—" justamente nos
     # atendimentos que engrenaram. created_at/last_activity_at são verdade.

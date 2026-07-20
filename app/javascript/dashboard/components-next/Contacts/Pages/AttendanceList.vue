@@ -3,11 +3,16 @@ import AttendanceCard from 'dashboard/components-next/Contacts/AttendanceCard/At
 
 defineProps({
   attendances: { type: Array, required: true },
-  // display_id da conversa cujo pedido está em andamento (mostra o loading no card).
-  requestingId: { type: Number, default: null },
+  // display_id da conversa com ação em andamento (mostra o loading naquele card).
+  busyId: { type: Number, default: null },
 });
 
-const emit = defineEmits(['requestAttendance']);
+const emit = defineEmits([
+  'openConversation',
+  'assumeAttendance',
+  'requestAttendance',
+  'cancelRequest',
+]);
 </script>
 
 <template>
@@ -23,9 +28,16 @@ const emit = defineEmits(['requestAttendance']);
       :inbox="attendance.inbox"
       :assignee="attendance.assignee"
       :team="attendance.team"
+      :can-open="attendance.canOpen"
+      :can-assume="attendance.canAssume"
       :can-request="attendance.canRequest"
-      :is-requesting="requestingId === attendance.id"
+      :my-pending-request-id="attendance.myPendingRequestId"
+      :duplicated="attendance.duplicated"
+      :is-busy="busyId === attendance.id"
+      @open-conversation="emit('openConversation', $event)"
+      @assume-attendance="emit('assumeAttendance', $event)"
       @request-attendance="emit('requestAttendance', $event)"
+      @cancel-request="emit('cancelRequest', $event)"
     />
   </div>
 </template>

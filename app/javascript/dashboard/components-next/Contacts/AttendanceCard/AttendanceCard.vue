@@ -20,14 +20,24 @@ const props = defineProps({
   inbox: { type: Object, default: () => ({}) },
   assignee: { type: Object, default: null },
   team: { type: Object, default: null },
-  // Vem do BACKEND (mesma regra do endpoint de pedido): só é true quando este
-  // usuário realmente pode solicitar esta conversa. Sem isto o botão apareceria
-  // em conversas de outro time e o clique tomaria 403.
+  // Capacidades vindas do BACKEND (mesma regra que ele aplica de verdade). Sem
+  // isto o botão prometeria uma ação que viraria 403/422 no clique.
+  canOpen: { type: Boolean, default: false },
+  canAssume: { type: Boolean, default: false },
   canRequest: { type: Boolean, default: false },
-  isRequesting: { type: Boolean, default: false },
+  // id do MEU pedido pendente nesta conversa (se houver) → "Pedido enviado · Cancelar".
+  myPendingRequestId: { type: Number, default: null },
+  // contato com 2+ atendimentos abertos ao mesmo tempo.
+  duplicated: { type: Boolean, default: false },
+  isBusy: { type: Boolean, default: false },
 });
 
-const emit = defineEmits(['requestAttendance']);
+const emit = defineEmits([
+  'openConversation',
+  'assumeAttendance',
+  'requestAttendance',
+  'cancelRequest',
+]);
 
 const { t } = useI18n();
 
@@ -67,12 +77,35 @@ const lastActivityAgo = computed(() =>
   props.lastActivityAt ? dynamicTime(props.lastActivityAt) : null
 );
 
-const onRequestAttendance = () => {
-  emit('requestAttendance', {
-    conversationId: props.id,
-    contactId: props.contact?.id,
-  });
-};
+// UMA ação por linha, decidida aqui (fonte única) — o template não repete
+// condição. A ordem importa: "já pedi" vence "posso pedir".
+const rowAction = computed(() => {
+  if (props.myPendingRequestId) return 'pending';
+  if (props.canAssume) return 'assume';
+  if (props.canRequest) return 'request';
+  if (props.canOpen) return 'open';
+  return 'blocked';
+});
+
+// Por que a linha está muda: quase sempre é time do qual não participo.
+const blockedReason = computed(() =>
+  props.team?.name
+    ? t('CONTACTS_LAYOUT.IN_ATTENDANCE.NO_ACCESS_TEAM', {
+        team: props.team.name,
+      })
+    : t('CONTACTS_LAYOUT.IN_ATTENDANCE.NO_ACCESS_INBOX')
+);
+
+const payload = () => ({
+  conversationId: props.id,
+  contactId: props.contact?.id,
+});
+
+const onOpen = () => emit('openConversation', payload());
+const onAssume = () => emit('assumeAttendance', payload());
+const onRequest = () => emit('requestAttendance', payload());
+const onCancel = () =>
+  emit('cancelRequest', { ...payload(), requestId: props.myPendingRequestId });
 </script>
 
 <template>
@@ -87,9 +120,20 @@ const onRequestAttendance = () => {
         rounded-full
       />
       <div class="flex flex-col min-w-0 gap-1">
-        <span class="text-sm font-medium truncate text-n-slate-12">
-          {{ contact.name }}
-        </span>
+        <div class="flex items-center gap-1.5 min-w-0">
+          <span class="text-sm font-medium truncate text-n-slate-12">
+            {{ contact.name }}
+          </span>
+          <!-- O sintoma que a feature existe p/ matar: mesmo contato em 2+
+               atendimentos ABERTOS ao mesmo tempo. -->
+          <span
+            v-if="duplicated"
+            class="px-1.5 py-0.5 text-xs font-medium rounded shrink-0 bg-n-amber-3 text-n-amber-11"
+            :title="t('CONTACTS_LAYOUT.IN_ATTENDANCE.DUPLICATED_HINT')"
+          >
+            {{ t('CONTACTS_LAYOUT.IN_ATTENDANCE.DUPLICATED') }}
+          </span>
+        </div>
         <span
           v-if="contact.phoneNumber || contact.email"
           class="text-xs truncate text-n-slate-11"
@@ -151,16 +195,53 @@ const onRequestAttendance = () => {
       </span>
     </div>
 
-    <div v-if="canRequest" class="shrink-0">
+    <!-- UMA ação por linha (rowAction decide). A linha sem acesso não some: ela
+         explica o porquê, porque a ciência da duplicação é metade do valor da aba. -->
+    <div class="shrink-0 flex items-center gap-2">
+      <template v-if="rowAction === 'pending'">
+        <span class="text-xs text-n-slate-11">
+          {{ t('CONTACTS_LAYOUT.IN_ATTENDANCE.REQUEST.PENDING_STATE') }}
+        </span>
+        <Button
+          size="sm"
+          variant="ghost"
+          color="slate"
+          :is-loading="isBusy"
+          :disabled="isBusy"
+          :label="t('CONTACTS_LAYOUT.IN_ATTENDANCE.REQUEST.CANCEL')"
+          @click="onCancel"
+        />
+      </template>
       <Button
+        v-else-if="rowAction === 'assume'"
+        size="sm"
+        color="blue"
+        :is-loading="isBusy"
+        :disabled="isBusy"
+        :label="t('CONTACTS_LAYOUT.IN_ATTENDANCE.ASSUME')"
+        @click="onAssume"
+      />
+      <Button
+        v-else-if="rowAction === 'request'"
         size="sm"
         variant="faded"
         color="slate"
-        :is-loading="isRequesting"
-        :disabled="isRequesting"
+        :is-loading="isBusy"
+        :disabled="isBusy"
         :label="t('CONTACTS_LAYOUT.IN_ATTENDANCE.REQUEST_ATTENDANCE')"
-        @click="onRequestAttendance"
+        @click="onRequest"
       />
+      <Button
+        v-else-if="rowAction === 'open'"
+        size="sm"
+        variant="faded"
+        color="slate"
+        :label="t('CONTACTS_LAYOUT.IN_ATTENDANCE.OPEN')"
+        @click="onOpen"
+      />
+      <span v-else class="text-xs italic text-n-slate-10 text-right max-w-40">
+        {{ blockedReason }}
+      </span>
     </div>
   </div>
 </template>

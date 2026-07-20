@@ -203,6 +203,104 @@ RSpec.describe 'Active Attendances API', type: :request do
         end
       end
 
+      # A aba deixou de ser um mural: cada linha oferece UMA ação, e ela precisa
+      # bater com o que o backend autoriza de verdade.
+      describe 'can_open / can_assume' do
+        def row_for(conversation, user: agent)
+          get "/api/v1/accounts/#{account.id}/active_attendances", headers: user.create_new_auth_token, as: :json
+          response.parsed_body['payload'].find { |p| p['id'] == conversation.display_id }
+        end
+
+        it 'lets me open and assume an unassigned conversation in my inbox' do
+          conv = create(:conversation, account: account, inbox: inbox, assignee: nil, team: nil, status: :open)
+          row = row_for(conv)
+          expect(row['can_open']).to be(true)
+          expect(row['can_assume']).to be(true)
+        end
+
+        # Assumir de uma IA é legítimo: o AssignmentService troca o bot pelo humano.
+        it 'lets me assume an AI-owned conversation' do
+          assistant = create(:captain_assistant, account: account)
+          conv = create(:conversation, account: account, inbox: inbox, assignee: nil, team: nil, status: :open)
+          conv.update!(assignee_agent_bot: assistant.mirror_agent_bot)
+          expect(row_for(conv)['can_assume']).to be(true)
+        end
+
+        it 'lets me open my own conversation but not assume it again' do
+          conv = create(:conversation, account: account, inbox: inbox, assignee: agent, team: nil, status: :open)
+          row = row_for(conv)
+          expect(row['can_open']).to be(true)
+          expect(row['can_assume']).to be(false)
+        end
+
+        # Conversa de colega: abro (mesmo time/caixa) mas NÃO assumo — tenho que pedir.
+        it 'lets me open a colleague conversation but not assume it' do
+          conv = create(:conversation, account: account, inbox: inbox, assignee: owner, team: nil, status: :open)
+          row = row_for(conv)
+          expect(row['can_open']).to be(true)
+          expect(row['can_assume']).to be(false)
+          expect(row['can_request']).to be(true)
+        end
+
+        # A linha "muda": time do qual não participo — nada de abrir/assumir/pedir.
+        it 'blocks everything for a conversation of a team I am not part of' do
+          other_team = create(:team, account: account)
+          create(:team_member, user: owner, team: other_team)
+          conv = create(:conversation, account: account, inbox: inbox, assignee: owner, team: other_team, status: :open)
+          row = row_for(conv)
+          expect(row['can_open']).to be(false)
+          expect(row['can_assume']).to be(false)
+          expect(row['can_request']).to be(false)
+        end
+
+        it 'lets an admin open and assume a colleague conversation (force)' do
+          admin = create(:user, account: account, role: :administrator)
+          conv = create(:conversation, account: account, inbox: inbox, assignee: owner, team: nil, status: :open)
+          row = row_for(conv, user: admin)
+          expect(row['can_open']).to be(true)
+          expect(row['can_assume']).to be(true)
+        end
+      end
+
+      describe 'my_pending_request_id' do
+        it 'exposes my own pending request so the row can offer cancelling it' do
+          conv = create(:conversation, account: account, inbox: inbox, assignee: owner, team: nil, status: :open)
+          request = create(:conversation_takeover_request, account: account, conversation: conv,
+                                                           requester: agent, owner: owner, status: :pending)
+
+          get "/api/v1/accounts/#{account.id}/active_attendances", headers: agent.create_new_auth_token, as: :json
+          row = response.parsed_body['payload'].find { |p| p['id'] == conv.display_id }
+          expect(row['my_pending_request_id']).to eq(request.id)
+        end
+
+        it 'is null when the pending request is from SOMEONE ELSE' do
+          conv = create(:conversation, account: account, inbox: inbox, assignee: agent, team: nil, status: :open)
+          create(:conversation_takeover_request, account: account, conversation: conv,
+                                                 requester: owner, owner: agent, status: :pending)
+
+          get "/api/v1/accounts/#{account.id}/active_attendances", headers: agent.create_new_auth_token, as: :json
+          row = response.parsed_body['payload'].find { |p| p['id'] == conv.display_id }
+          expect(row['my_pending_request_id']).to be_nil
+        end
+      end
+
+      # O sintoma que a feature existe p/ matar: o MESMO contato em 2 atendimentos.
+      describe 'duplicated' do
+        it 'flags every row of a contact that has two open attendances' do
+          contact = create(:contact, account: account)
+          first = create(:conversation, account: account, inbox: inbox, contact: contact, assignee: owner, status: :open)
+          second = create(:conversation, account: account, inbox: create(:inbox, account: account),
+                                         contact: contact, assignee: owner, status: :open)
+          alone = create(:conversation, account: account, inbox: inbox, assignee: owner, status: :open)
+
+          get "/api/v1/accounts/#{account.id}/active_attendances", headers: agent.create_new_auth_token, as: :json
+          rows = response.parsed_body['payload'].index_by { |p| p['id'] }
+          expect(rows[first.display_id]['duplicated']).to be(true)
+          expect(rows[second.display_id]['duplicated']).to be(true)
+          expect(rows[alone.display_id]['duplicated']).to be(false)
+        end
+      end
+
       # NOTA: os GETs com parâmetro vão pela QUERY STRING de propósito. `get ...,
       # params: {...}, as: :json` faz o Rails reescrever a request como POST com
       # corpo JSON (+ X-Http-Method-Override), preservando Integer — ou seja,
