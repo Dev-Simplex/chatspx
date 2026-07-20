@@ -9,10 +9,11 @@ import ContactsDetailsLayout from 'dashboard/components-next/Contacts/ContactsDe
 import Spinner from 'dashboard/components-next/spinner/Spinner.vue';
 import ContactDetails from 'dashboard/components-next/Contacts/Pages/ContactDetails.vue';
 import TabBar from 'dashboard/components-next/tabbar/TabBar.vue';
-import ContactNotes from 'dashboard/components-next/Contacts/ContactsSidebar/ContactNotes.vue';
 import ContactHistory from 'dashboard/components-next/Contacts/ContactsSidebar/ContactHistory.vue';
 import ContactMerge from 'dashboard/components-next/Contacts/ContactsSidebar/ContactMerge.vue';
 import ContactCustomAttributes from 'dashboard/components-next/Contacts/ContactsSidebar/ContactCustomAttributes.vue';
+import ContactAttendanceStatus from 'dashboard/components-next/Contacts/ContactsSidebar/ContactAttendanceStatus.vue';
+import { useContactAttendance } from 'dashboard/composables/useContactAttendance';
 
 const store = useStore();
 const route = useRoute();
@@ -30,6 +31,17 @@ const isUpdatingContact = computed(() => uiFlags.value.isUpdating);
 
 const selectedContact = computed(() => contact.value(route.params.contactId));
 
+const contactId = computed(() => route.params.contactId);
+// Fonte única do botão do header + da aba "Andamento" (reusa o endpoint da Fase 1).
+const {
+  attendances,
+  isFetching: isFetchingAttendance,
+  refetch: refetchAttendance,
+  statusLabel,
+  sendAction,
+} = useContactAttendance(contactId);
+const isRequestingAttendance = ref(false);
+
 const showSpinner = computed(
   () => isFetchingItem.value || isMergingContact.value
 );
@@ -39,7 +51,9 @@ const { t } = useI18n();
 const CONTACT_TABS_OPTIONS = [
   { key: 'ATTRIBUTES', value: 'attributes' },
   { key: 'HISTORY', value: 'history' },
-  { key: 'NOTES', value: 'notes' },
+  // "Notas" saiu da página de contato (segue disponível dentro das conversas,
+  // via ContactPanel) e deu lugar a "Andamento": quem atende este contato agora.
+  { key: 'ATTENDANCE', value: 'attendance' },
   { key: 'MERGE', value: 'merge' },
 ];
 
@@ -76,14 +90,42 @@ const handleTabChange = tab => {
   activeTab.value = tab.value;
 };
 
-const fetchContactNotes = () => {
-  const { contactId } = route.params;
-  if (contactId) store.dispatch('contactNotes/get', { contactId });
+// Solicitar/cancelar o atendimento direto da página de contato — mesmos handlers
+// do AttendanceIndex: age, avisa e refaz o status (o botão troca de estado).
+const runAttendanceAction = async ({ action, successKey }) => {
+  if (isRequestingAttendance.value) return;
+  isRequestingAttendance.value = true;
+  try {
+    await action();
+    useAlert(t(successKey));
+  } catch (error) {
+    const status = error?.response?.status;
+    useAlert(
+      status === 403
+        ? t('CONTACTS_LAYOUT.IN_ATTENDANCE.REQUEST.ERRORS.NO_ACCESS')
+        : t('CONTACTS_LAYOUT.IN_ATTENDANCE.REQUEST.ERRORS.GENERIC')
+    );
+  } finally {
+    isRequestingAttendance.value = false;
+    await refetchAttendance();
+  }
 };
 
+const onRequestAttendance = ({ conversationId }) =>
+  runAttendanceAction({
+    successKey: 'CONTACTS_LAYOUT.IN_ATTENDANCE.REQUEST.SENT',
+    action: () => store.dispatch('takeoverRequests/create', { conversationId }),
+  });
+
+const onCancelRequest = ({ requestId }) =>
+  runAttendanceAction({
+    successKey: 'CONTACTS_LAYOUT.IN_ATTENDANCE.REQUEST.CANCELLED',
+    action: () => store.dispatch('takeoverRequests/cancel', { id: requestId }),
+  });
+
 const fetchContactConversations = () => {
-  const { contactId } = route.params;
-  if (contactId) store.dispatch('contactConversations/get', contactId);
+  if (contactId.value)
+    store.dispatch('contactConversations/get', contactId.value);
 };
 
 const fetchAttributes = () => {
@@ -119,9 +161,10 @@ const toggleContactBlock = async isBlocked => {
 
 onMounted(() => {
   fetchActiveContact();
-  fetchContactNotes();
   fetchContactConversations();
   fetchAttributes();
+  // o atendimento (status + botão) é buscado pelo useContactAttendance (watch
+  // immediate no contactId).
 });
 </script>
 
@@ -135,8 +178,13 @@ onMounted(() => {
       is-detail-view
       :show-pagination-footer="false"
       :is-updating="isUpdatingContact"
+      :send-action="sendAction"
+      :status-label="statusLabel"
+      :is-requesting="isRequestingAttendance"
       @go-to-contacts-list="goToContactsList"
       @toggle-block="toggleContactBlock"
+      @request-attendance="onRequestAttendance"
+      @cancel-request="onCancelRequest"
     >
       <div
         v-if="showSpinner"
@@ -169,7 +217,11 @@ onMounted(() => {
             v-if="activeTab === 'attributes'"
             :selected-contact="selectedContact"
           />
-          <ContactNotes v-if="activeTab === 'notes'" />
+          <ContactAttendanceStatus
+            v-if="activeTab === 'attendance'"
+            :attendances="attendances"
+            :is-fetching="isFetchingAttendance"
+          />
           <ContactHistory v-if="activeTab === 'history'" />
           <ContactMerge
             v-if="activeTab === 'merge'"

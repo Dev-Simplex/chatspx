@@ -528,7 +528,8 @@
         "ATTRIBUTES": "Attributes",
         "HISTORY": "History",
         "NOTES": "Notes",
-        "MERGE": "Merge"
+        "MERGE": "Merge",
+        "ATTENDANCE": "Attendance"
       },
       "HISTORY": {
         "EMPTY_STATE": "There are no previous conversations associated to this contact",
@@ -646,7 +647,12 @@
       "NO_ACCESS_TEAM": "Team {team} — you are not a member",
       "NO_ACCESS_INBOX": "You don't have access to this inbox",
       "DUPLICATED": "2+ open",
-      "DUPLICATED_HINT": "This contact has more than one conversation open at the same time"
+      "DUPLICATED_HINT": "This contact has more than one conversation open at the same time",
+      "ATTENDED_BY": "Attended by {name}",
+      "ATTENDED_BY_TEAM": "Attended by {name} ({team})",
+      "YOU": "you",
+      "NO_ACTIVE_ATTENDANCE": "No attendance in progress 🌙",
+      "SEND_BLOCKED": "This contact is being attended by another team. You cannot message them from here."
     },
     "LOAD_MORE": "Load more"
   },

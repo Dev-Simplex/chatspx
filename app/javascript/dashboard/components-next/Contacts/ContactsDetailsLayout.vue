@@ -18,13 +18,47 @@ const props = defineProps({
     type: Boolean,
     default: false,
   },
+  // Ação do botão principal, decidida por useContactAttendance no pai:
+  // { type: 'send' | 'request' | 'pending' | 'blocked', conversationId?, requestId? }
+  // Default 'send' → a lista de contatos (que não passa isto) segue igual.
+  sendAction: {
+    type: Object,
+    default: () => ({ type: 'send' }),
+  },
+  // { name, team } de quem atende — mostrado ao lado do botão. null = ninguém.
+  statusLabel: {
+    type: Object,
+    default: null,
+  },
+  isRequesting: {
+    type: Boolean,
+    default: false,
+  },
 });
 
-const emit = defineEmits(['goToContactsList', 'toggleBlock']);
+const emit = defineEmits([
+  'goToContactsList',
+  'toggleBlock',
+  'requestAttendance',
+  'cancelRequest',
+]);
 
 const { t } = useI18n();
 const slots = useSlots();
 const route = useRoute();
+
+// Texto "Atendido por Ana (suporte)" / "Atendido por Ana".
+const attendedByText = computed(() => {
+  if (!props.statusLabel) return '';
+  return props.statusLabel.team
+    ? t('CONTACTS_LAYOUT.IN_ATTENDANCE.ATTENDED_BY_TEAM', {
+        name: props.statusLabel.name,
+        team: props.statusLabel.team,
+      })
+    : t('CONTACTS_LAYOUT.IN_ATTENDANCE.ATTENDED_BY', {
+        name: props.statusLabel.name,
+      });
+});
 
 const isContactSidebarOpen = ref(false);
 
@@ -87,26 +121,26 @@ const closeMobileSidebar = () => {
               :items="breadcrumbItems"
               @click="handleBreadcrumbClick"
             />
-            <div class="flex items-center gap-2">
-              <Button
-                :label="
-                  !isContactBlocked
-                    ? $t('CONTACTS_LAYOUT.HEADER.BLOCK_CONTACT')
-                    : $t('CONTACTS_LAYOUT.HEADER.UNBLOCK_CONTACT')
-                "
-                size="sm"
-                slate
-                :is-loading="isUpdating"
-                :disabled="isUpdating"
-                @click="toggleBlock"
-              />
+            <div class="flex items-center gap-3 min-w-0">
+              <!-- status "Atendido por Ana (suporte)" ao lado do botão -->
+              <span
+                v-if="attendedByText"
+                class="hidden text-xs truncate sm:inline text-n-slate-11 max-w-52"
+                :title="attendedByText"
+              >
+                {{ attendedByText }}
+              </span>
               <VoiceCallButton
                 :phone="selectedContact?.phoneNumber"
                 :contact-id="contactId"
                 :label="$t('CONTACT_PANEL.CALL')"
                 size="sm"
               />
-              <ComposeConversation :contact-id="contactId">
+              <!-- Botão principal decidido por sendAction (fonte única no pai) -->
+              <ComposeConversation
+                v-if="sendAction.type === 'send'"
+                :contact-id="contactId"
+              >
                 <template #trigger="{ toggle }">
                   <Button
                     :label="$t('CONTACTS_LAYOUT.HEADER.SEND_MESSAGE')"
@@ -115,7 +149,58 @@ const closeMobileSidebar = () => {
                   />
                 </template>
               </ComposeConversation>
+              <Button
+                v-else-if="sendAction.type === 'request'"
+                :label="$t('CONTACTS_LAYOUT.IN_ATTENDANCE.REQUEST_ATTENDANCE')"
+                size="sm"
+                :is-loading="isRequesting"
+                :disabled="isRequesting"
+                @click="emit('requestAttendance', sendAction)"
+              />
+              <div
+                v-else-if="sendAction.type === 'pending'"
+                class="flex items-center gap-2"
+              >
+                <span class="text-xs text-n-slate-11">
+                  {{
+                    $t('CONTACTS_LAYOUT.IN_ATTENDANCE.REQUEST.PENDING_STATE')
+                  }}
+                </span>
+                <Button
+                  :label="$t('CONTACTS_LAYOUT.IN_ATTENDANCE.REQUEST.CANCEL')"
+                  size="sm"
+                  variant="ghost"
+                  slate
+                  :is-loading="isRequesting"
+                  :disabled="isRequesting"
+                  @click="emit('cancelRequest', sendAction)"
+                />
+              </div>
+              <Button
+                v-else
+                :label="$t('CONTACTS_LAYOUT.HEADER.SEND_MESSAGE')"
+                size="sm"
+                disabled
+                :title="$t('CONTACTS_LAYOUT.IN_ATTENDANCE.SEND_BLOCKED')"
+              />
             </div>
+          </div>
+          <!-- "Bloquear contato" DESCEU: ação secundária, abaixo da linha
+               principal, alinhada à direita e discreta (ghost). -->
+          <div class="flex justify-end w-full -mt-3 mb-1">
+            <Button
+              :label="
+                !isContactBlocked
+                  ? $t('CONTACTS_LAYOUT.HEADER.BLOCK_CONTACT')
+                  : $t('CONTACTS_LAYOUT.HEADER.UNBLOCK_CONTACT')
+              "
+              size="sm"
+              variant="ghost"
+              slate
+              :is-loading="isUpdating"
+              :disabled="isUpdating"
+              @click="toggleBlock"
+            />
           </div>
         </div>
       </header>

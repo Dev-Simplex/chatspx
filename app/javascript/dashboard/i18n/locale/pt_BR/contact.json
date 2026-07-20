@@ -528,7 +528,8 @@
         "ATTRIBUTES": "Atributos",
         "HISTORY": "Histórico",
         "NOTES": "Notas",
-        "MERGE": "Mesclar"
+        "MERGE": "Mesclar",
+        "ATTENDANCE": "Andamento"
       },
       "HISTORY": {
         "EMPTY_STATE": "Não há conversas anteriores associadas a este contato",
@@ -646,7 +647,12 @@
       "NO_ACCESS_TEAM": "Time {team} — você não participa",
       "NO_ACCESS_INBOX": "Você não tem acesso a esta caixa",
       "DUPLICATED": "2+ abertos",
-      "DUPLICATED_HINT": "Este contato tem mais de uma conversa aberta ao mesmo tempo"
+      "DUPLICATED_HINT": "Este contato tem mais de uma conversa aberta ao mesmo tempo",
+      "ATTENDED_BY": "Atendido por {name}",
+      "ATTENDED_BY_TEAM": "Atendido por {name} ({team})",
+      "YOU": "você",
+      "NO_ACTIVE_ATTENDANCE": "Nenhum atendimento em andamento 🌙",
+      "SEND_BLOCKED": "Este contato está sendo atendido por outro time. Você não pode enviar mensagem por aqui."
     },
     "LOAD_MORE": "Carregar mais"
   },
