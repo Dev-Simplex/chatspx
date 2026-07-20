@@ -502,6 +502,8 @@
       "CREATED_AT": "Criado {date}",
       "LAST_ACTIVITY": "Última atividade {date}",
       "DELETE_CONTACT_DESCRIPTION": "Excluir permanentemente este contato. Esta ação é irreversível",
+      "BLOCK_CONTACT_DESCRIPTION": "Bloquear este contato para parar de receber novas conversas dele.",
+      "UNBLOCK_CONTACT_DESCRIPTION": "Este contato está bloqueado. Desbloqueie para voltar a receber conversas.",
       "DELETE_CONTACT": "Excluir contato",
       "DELETE_DIALOG": {
         "TITLE": "Confirmar exclusão",

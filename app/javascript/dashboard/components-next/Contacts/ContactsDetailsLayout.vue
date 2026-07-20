@@ -14,10 +14,6 @@ const props = defineProps({
     type: Object,
     default: () => ({}),
   },
-  isUpdating: {
-    type: Boolean,
-    default: false,
-  },
   // Ação do botão principal, decidida por useContactAttendance no pai:
   // { type: 'send' | 'request' | 'pending' | 'blocked', conversationId?, requestId? }
   // Default 'send' → a lista de contatos (que não passa isto) segue igual.
@@ -38,7 +34,6 @@ const props = defineProps({
 
 const emit = defineEmits([
   'goToContactsList',
-  'toggleBlock',
   'requestAttendance',
   'cancelRequest',
 ]);
@@ -83,16 +78,8 @@ const breadcrumbItems = computed(() => {
   return items;
 });
 
-const isContactBlocked = computed(() => {
-  return props.selectedContact?.blocked;
-});
-
 const handleBreadcrumbClick = () => {
   emit('goToContactsList');
-};
-
-const toggleBlock = () => {
-  emit('toggleBlock', isContactBlocked.value);
 };
 
 const handleConversationSidebarToggle = () => {
@@ -184,23 +171,6 @@ const closeMobileSidebar = () => {
                 :title="$t('CONTACTS_LAYOUT.IN_ATTENDANCE.SEND_BLOCKED')"
               />
             </div>
-          </div>
-          <!-- "Bloquear contato" DESCEU: ação secundária, abaixo da linha
-               principal, alinhada à direita e discreta (ghost). -->
-          <div class="flex justify-end w-full -mt-3 mb-1">
-            <Button
-              :label="
-                !isContactBlocked
-                  ? $t('CONTACTS_LAYOUT.HEADER.BLOCK_CONTACT')
-                  : $t('CONTACTS_LAYOUT.HEADER.UNBLOCK_CONTACT')
-              "
-              size="sm"
-              variant="ghost"
-              slate
-              :is-loading="isUpdating"
-              :disabled="isUpdating"
-              @click="toggleBlock"
-            />
           </div>
         </div>
       </header>

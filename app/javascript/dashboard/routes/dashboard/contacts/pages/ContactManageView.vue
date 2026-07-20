@@ -27,7 +27,6 @@ const contactMergeRef = ref(null);
 
 const isFetchingItem = computed(() => uiFlags.value.isFetchingItem);
 const isMergingContact = computed(() => uiFlags.value.isMerging);
-const isUpdatingContact = computed(() => uiFlags.value.isUpdating);
 
 const selectedContact = computed(() => contact.value(route.params.contactId));
 
@@ -132,32 +131,8 @@ const fetchAttributes = () => {
   store.dispatch('attributes/get');
 };
 
-const toggleContactBlock = async isBlocked => {
-  const ALERT_MESSAGES = {
-    success: {
-      block: t('CONTACTS_LAYOUT.HEADER.ACTIONS.BLOCK_SUCCESS_MESSAGE'),
-      unblock: t('CONTACTS_LAYOUT.HEADER.ACTIONS.UNBLOCK_SUCCESS_MESSAGE'),
-    },
-    error: {
-      block: t('CONTACTS_LAYOUT.HEADER.ACTIONS.BLOCK_ERROR_MESSAGE'),
-      unblock: t('CONTACTS_LAYOUT.HEADER.ACTIONS.UNBLOCK_ERROR_MESSAGE'),
-    },
-  };
-
-  try {
-    await store.dispatch(`contacts/update`, {
-      ...selectedContact.value,
-      blocked: !isBlocked,
-    });
-    useAlert(
-      isBlocked ? ALERT_MESSAGES.success.unblock : ALERT_MESSAGES.success.block
-    );
-  } catch (error) {
-    useAlert(
-      isBlocked ? ALERT_MESSAGES.error.unblock : ALERT_MESSAGES.error.block
-    );
-  }
-};
+// Bloquear/desbloquear migrou para a seção de gestão em ContactDetails (junto de
+// "Excluir contato"), longe da ação primária do topo.
 
 onMounted(() => {
   fetchActiveContact();
@@ -177,12 +152,10 @@ onMounted(() => {
       :selected-contact="selectedContact"
       is-detail-view
       :show-pagination-footer="false"
-      :is-updating="isUpdatingContact"
       :send-action="sendAction"
       :status-label="statusLabel"
       :is-requesting="isRequestingAttendance"
       @go-to-contacts-list="goToContactsList"
-      @toggle-block="toggleContactBlock"
       @request-attendance="onRequestAttendance"
       @cancel-request="onCancelRequest"
     >

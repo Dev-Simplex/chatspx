@@ -502,6 +502,8 @@
       "CREATED_AT": "Created {date}",
       "LAST_ACTIVITY": "Last active {date}",
       "DELETE_CONTACT_DESCRIPTION": "Permanently delete this contact. This action is irreversible",
+      "BLOCK_CONTACT_DESCRIPTION": "Block this contact to stop receiving new conversations from them.",
+      "UNBLOCK_CONTACT_DESCRIPTION": "This contact is blocked. Unblock to receive conversations again.",
       "DELETE_CONTACT": "Delete contact",
       "DELETE_DIALOG": {
         "TITLE": "Confirm Deletion",
