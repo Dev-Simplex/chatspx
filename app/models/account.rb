@@ -228,7 +228,7 @@ class Account < ApplicationRecord # rubocop:disable Metrics/ClassLength
   # "Atribuição obrigatória" mode: when enabled, only the assignee can resolve a
   # conversation manually. Stored as a JSONB setting flag.
   def resolve_assignment_gate_enabled?
-    ActiveModel::Type::Boolean.new.cast(resolve_assignment_gate)
+    ActiveModel::Type::Boolean.new.cast(resolve_assignment_gate) || false
   end
 
   # D1 — "o pedido é o único caminho": com o modo ligado, conversa de dono humano

@@ -182,11 +182,6 @@ class Api::V1::Accounts::ConversationsController < Api::V1::Accounts::BaseContro
     @conversation.snoozed_until = parse_date_time(params[:snoozed_until].to_s) if params[:snoozed_until]
   end
 
-  def assign_conversation
-    @conversation.assignee = current_user
-    @conversation.save!
-  end
-
   # D1/DD-2 (OQ-D1 sancionada): gate ON + conversa nova criada já com mensagem do criador
   # e sem dono explícito → self-assign automático do criador (1 ação, SEM escolha de time;
   # exigência de time fica na resolução). 422 aqui quebraria o modal de nova conversa e
