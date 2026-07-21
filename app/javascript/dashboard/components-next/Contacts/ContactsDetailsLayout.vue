@@ -101,22 +101,27 @@ const closeMobileSidebar = () => {
     >
       <header class="sticky top-0 z-10 px-6 3xl:px-0">
         <div class="w-full mx-auto max-w-[40.625rem]">
-          <div
-            class="flex flex-col xs:flex-row items-start xs:items-center justify-between w-full py-7 gap-2"
-          >
-            <Breadcrumb
-              :items="breadcrumbItems"
-              @click="handleBreadcrumbClick"
-            />
-            <div class="flex items-center gap-3 min-w-0">
-              <!-- status "Atendido por Ana (suporte)" ao lado do botão -->
+          <div class="flex items-start justify-between w-full py-7 gap-3">
+            <!-- Nome (breadcrumb) + status "Atendido por…" como subtítulo discreto,
+                 numa coluna que TRUNCA — nunca empurra o botão de ação. -->
+            <div class="flex flex-col min-w-0 flex-1 gap-1.5">
+              <Breadcrumb
+                :items="breadcrumbItems"
+                @click="handleBreadcrumbClick"
+              />
               <span
                 v-if="attendedByText"
-                class="hidden text-xs truncate sm:inline text-n-slate-11 max-w-52"
+                class="inline-flex items-center min-w-0 gap-1.5 text-xs text-n-slate-11"
                 :title="attendedByText"
               >
-                {{ attendedByText }}
+                <span
+                  class="i-lucide-user-round-check size-3.5 shrink-0 text-n-slate-10"
+                />
+                <span class="truncate">{{ attendedByText }}</span>
               </span>
+            </div>
+            <!-- Ações à direita: largura fixa, o rótulo do botão nunca trunca. -->
+            <div class="flex items-center gap-2 shrink-0">
               <VoiceCallButton
                 :phone="selectedContact?.phoneNumber"
                 :contact-id="contactId"
@@ -132,6 +137,7 @@ const closeMobileSidebar = () => {
                   <Button
                     :label="$t('CONTACTS_LAYOUT.HEADER.SEND_MESSAGE')"
                     size="sm"
+                    class="shrink-0 whitespace-nowrap"
                     @click="toggle"
                   />
                 </template>
@@ -140,15 +146,18 @@ const closeMobileSidebar = () => {
                 v-else-if="sendAction.type === 'request'"
                 :label="$t('CONTACTS_LAYOUT.IN_ATTENDANCE.REQUEST_ATTENDANCE')"
                 size="sm"
+                class="shrink-0 whitespace-nowrap"
                 :is-loading="isRequesting"
                 :disabled="isRequesting"
                 @click="emit('requestAttendance', sendAction)"
               />
               <div
                 v-else-if="sendAction.type === 'pending'"
-                class="flex items-center gap-2"
+                class="flex items-center gap-2 shrink-0"
               >
-                <span class="text-xs text-n-slate-11">
+                <span
+                  class="hidden text-xs sm:inline text-n-slate-11 whitespace-nowrap"
+                >
                   {{
                     $t('CONTACTS_LAYOUT.IN_ATTENDANCE.REQUEST.PENDING_STATE')
                   }}
@@ -158,6 +167,7 @@ const closeMobileSidebar = () => {
                   size="sm"
                   variant="ghost"
                   slate
+                  class="shrink-0 whitespace-nowrap"
                   :is-loading="isRequesting"
                   :disabled="isRequesting"
                   @click="emit('cancelRequest', sendAction)"
@@ -167,6 +177,7 @@ const closeMobileSidebar = () => {
                 v-else
                 :label="$t('CONTACTS_LAYOUT.HEADER.SEND_MESSAGE')"
                 size="sm"
+                class="shrink-0 whitespace-nowrap"
                 disabled
                 :title="$t('CONTACTS_LAYOUT.IN_ATTENDANCE.SEND_BLOCKED')"
               />
