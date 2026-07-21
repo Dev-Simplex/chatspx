@@ -25,6 +25,10 @@ const props = defineProps({
   hasPendingRequest: { type: Boolean, default: false },
   allowSendAnyway: { type: Boolean, default: true },
   isRequesting: { type: Boolean, default: false },
+  // 'compose' (default) = criar conversa; 'conversation' = dropdown de responsável
+  // dentro de uma conversa (reusa o copy CONVERSATION.TAKEOVER_REQUEST.*, que fala
+  // em "assumir esta conversa" em vez de "enviar").
+  context: { type: String, default: 'compose' },
 });
 
 const emit = defineEmits([
@@ -47,10 +51,15 @@ const teamName = computed(() => props.attendance?.team?.name || '');
 const inboxName = computed(() => props.attendance?.inbox?.name || '');
 
 const title = computed(() =>
-  t('COMPOSE_NEW_CONVERSATION.ATTENDANCE_WARNING.TITLE')
+  props.context === 'conversation'
+    ? t('CONVERSATION.TAKEOVER_REQUEST.TITLE')
+    : t('COMPOSE_NEW_CONVERSATION.ATTENDANCE_WARNING.TITLE')
 );
 
 const description = computed(() => {
+  if (props.context === 'conversation') {
+    return t('CONVERSATION.TAKEOVER_REQUEST.DESC', { name: ownerName.value });
+  }
   if (props.variant === ATTENDANCE_VARIANT.UNKNOWN) {
     return t('COMPOSE_NEW_CONVERSATION.ATTENDANCE_WARNING.BODY_UNKNOWN');
   }
@@ -75,6 +84,9 @@ const description = computed(() => {
 // "nesta caixa" vs "em outra caixa ({nome})": o atendimento pode estar em OUTRA
 // inbox — que é justamente a duplicação que o código antigo não via.
 const inboxHint = computed(() => {
+  // No dropdown da conversa não há noção de "outra caixa" — o pedido é sobre ESTA
+  // conversa.
+  if (props.context === 'conversation') return '';
   if (props.variant === ATTENDANCE_VARIANT.UNKNOWN || !inboxName.value) {
     return '';
   }

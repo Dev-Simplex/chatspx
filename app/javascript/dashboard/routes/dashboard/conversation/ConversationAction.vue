@@ -12,6 +12,8 @@ import { CONVERSATION_EVENTS } from '../../../helper/AnalyticsHelper/events';
 import { useTrack } from 'dashboard/composables';
 import NextButton from 'dashboard/components-next/button/Button.vue';
 import TeamSelectionModal from 'dashboard/components/widgets/conversation/TeamSelectionModal.vue';
+import AttendanceWarningDialog from 'dashboard/components-next/NewConversation/components/AttendanceWarningDialog.vue';
+import { ATTENDANCE_VARIANT } from 'dashboard/composables/useAttendanceGate';
 import { losesConversationAccess } from 'dashboard/helper/conversationAccessHelper';
 
 export default {
@@ -20,6 +22,7 @@ export default {
     ConversationLabels,
     NextButton,
     TeamSelectionModal,
+    AttendanceWarningDialog,
   },
   props: {
     conversationId: {
@@ -69,6 +72,11 @@ export default {
       ],
       showTransferTeamModal: false,
       pendingTransferAgent: null,
+      // Gate D1: quando a atribuição pelo dropdown bate no takeover_request_gate, o
+      // backend devolve 422 error_code 'takeover_request_required' + meta (dono/time/
+      // pedido). Em vez de "Falha ao atribuir", oferecemos "Solicitar atendimento".
+      takeoverGate: null,
+      isRequestingTakeover: false,
     };
   },
   computed: {
@@ -316,8 +324,67 @@ export default {
           assigneeId: agent?.id || null,
         });
       } catch (error) {
+        if (this.offerTakeoverRequest(error, conversationId)) return;
         useAlert(this.$t('CONVERSATION.CHANGE_AGENT_FAILED'));
       }
+    },
+
+    // Se o erro é o 422 do gate, monta o estado do diálogo a partir do meta e o
+    // abre (retorna true p/ o chamador NÃO mostrar o alerta genérico).
+    offerTakeoverRequest(error, conversationId) {
+      if (error?.response?.data?.error_code !== 'takeover_request_required') {
+        return false;
+      }
+      const meta = error.response.data.meta || {};
+      this.takeoverGate = {
+        variant: ATTENDANCE_VARIANT.HUMAN,
+        attendance: {
+          id: conversationId,
+          assignee: meta.current_assignee
+            ? { name: meta.current_assignee.name, type: 'user' }
+            : null,
+          team: meta.team || null,
+          // já estamos NA conversa → esconde "Ir para a conversa"
+          canOpen: false,
+          canRequest: !meta.existing_request,
+          myPendingRequestId: meta.existing_request?.id || null,
+        },
+      };
+      this.$refs.attendanceDialogRef?.open();
+      return true;
+    },
+
+    async onTakeoverRequest() {
+      const conversationId = this.takeoverGate?.attendance?.id;
+      if (!conversationId || this.isRequestingTakeover) return;
+      this.isRequestingTakeover = true;
+      try {
+        await this.$store.dispatch('takeoverRequests/create', {
+          conversationId,
+        });
+        useAlert(this.$t('CONVERSATION.TAKEOVER_REQUEST.SENT'));
+        this.$refs.attendanceDialogRef?.close();
+        this.takeoverGate = null;
+      } catch (error) {
+        const code = error?.response?.data?.error_code;
+        useAlert(
+          code
+            ? this.$t(
+                `CONVERSATION.TAKEOVER_REQUEST.ERRORS.${code.toUpperCase()}`,
+                {
+                  default: this.$t('CONVERSATION.REPLY_GATE_DIALOG.ERROR'),
+                }
+              )
+            : this.$t('CONVERSATION.REPLY_GATE_DIALOG.ERROR')
+        );
+      } finally {
+        this.isRequestingTakeover = false;
+      }
+    },
+
+    onTakeoverCancel() {
+      this.$refs.attendanceDialogRef?.close();
+      this.takeoverGate = null;
     },
 
     async onConfirmTransferTeam(teamId) {
@@ -532,6 +599,21 @@ export default {
       :description="$t('CONVERSATION.SELECT_TEAM_FOR_TRANSFER_DESCRIPTION')"
       @confirm="onConfirmTransferTeam"
       @close="closeTransferTeamModal"
+    />
+    <AttendanceWarningDialog
+      ref="attendanceDialogRef"
+      context="conversation"
+      :variant="takeoverGate?.variant"
+      :attendance="takeoverGate?.attendance"
+      :can-request="Boolean(takeoverGate?.attendance?.canRequest)"
+      :has-pending-request="
+        Boolean(takeoverGate?.attendance?.myPendingRequestId)
+      "
+      :allow-send-anyway="false"
+      :is-requesting="isRequestingTakeover"
+      @request-attendance="onTakeoverRequest"
+      @go-to-conversation="onTakeoverCancel"
+      @cancel="onTakeoverCancel"
     />
   </div>
 </template>
