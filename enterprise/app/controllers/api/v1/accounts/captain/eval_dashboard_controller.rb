@@ -2,7 +2,9 @@
 # Read-only, defensivo (nunca 500 — seção com erro volta vazia) e por conta.
 class Api::V1::Accounts::Captain::EvalDashboardController < Api::V1::Accounts::BaseController
   before_action :current_account
-  before_action -> { check_authorization(Captain::Assistant) }
+  # authorize com query fixa :show? — check_authorization derivaria "episodes?",
+  # que não existe na AssistantPolicy (Pundit::NotDefinedError → 500)
+  before_action -> { authorize(Captain::Assistant, :show?) }
 
   def show
     base = Captain::ConversationEval.for_account(Current.account.id)
