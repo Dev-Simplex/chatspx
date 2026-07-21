@@ -9,6 +9,10 @@ class CaptainEvalDashboard extends ApiClient {
   show() {
     return axios.get(this.url);
   }
+
+  episodes(params = {}) {
+    return axios.get(`${this.url}/episodes`, { params });
+  }
 }
 
 export default new CaptainEvalDashboard();

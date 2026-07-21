@@ -22,7 +22,53 @@ class Api::V1::Accounts::Captain::EvalDashboardController < Api::V1::Accounts::B
     }
   end
 
+  # Drill-down por indicador (F4.1): lista os episódios julgados que compõem um
+  # número do painel. Filtros combináveis: nota_faixa, funil, handoff_timing,
+  # categoria (+quem), escopo=ruido. Com categoria, devolve a evidência (trecho
+  # do finding que casou).
+  def episodes
+    base = Captain::ConversationEval.for_account(Current.account.id)
+    evals = base.por_episodio.exists? ? base.por_episodio : base
+    evals = apply_filters(evals)
+    render json: {
+      rows: serialize_rows(evals.recent.limit(50).to_a,
+                           matched_categoria: params[:categoria].presence,
+                           matched_quem: params[:quem].presence)
+    }
+  rescue StandardError
+    render json: { rows: [] }
+  end
+
   private
+
+  NOTA_FAIXAS = { '0-4' => 0..4, '5-6' => 5..6, '7-8' => 7..8, '9-10' => 9..10 }.freeze
+
+  def apply_filters(scope)
+    scope = if params[:escopo] == 'ruido'
+              scope.where.not(representatividade: 'atendimento_real')
+            else
+              scope.em_escopo
+            end
+    scope = scope.where(funil: params[:funil]) if params[:funil].present?
+    scope = scope.where(handoff_timing: params[:handoff_timing]) if params[:handoff_timing].present?
+    scope = scope.where(nota: NOTA_FAIXAS[params[:nota_faixa]]) if NOTA_FAIXAS.key?(params[:nota_faixa])
+    scope = filter_by_finding(scope)
+    scope
+  end
+
+  # jsonb containment: acha evals cujo response_findings contém um finding com
+  # a categoria (e opcionalmente o autor) pedidos.
+  def filter_by_finding(scope)
+    if params[:categoria].present?
+      cond = { 'categoria' => params[:categoria] }
+      cond['quem'] = params[:quem] if params[:quem].present?
+      scope.where('response_findings @> ?', [cond].to_json)
+    elsif params[:quem].present?
+      scope.where('response_findings @> ?', [{ 'quem' => params[:quem] }].to_json)
+    else
+      scope
+    end
+  end
 
   def totals(evals, escopo)
     episodes = Captain::ConversationEpisode.for_account(Current.account.id)
@@ -82,7 +128,12 @@ class Api::V1::Accounts::Captain::EvalDashboardController < Api::V1::Accounts::B
   end
 
   def recentes(evals)
-    rows = evals.recent.limit(20).to_a
+    serialize_rows(evals.recent.limit(20).to_a)
+  rescue StandardError
+    []
+  end
+
+  def serialize_rows(rows, matched_categoria: nil, matched_quem: nil)
     episode_ids = rows.filter_map(&:episode_id)
     episodes = Captain::ConversationEpisode.where(id: episode_ids).index_by(&:id)
     totals_by_conv = Captain::ConversationEpisode.where(conversation_id: rows.map(&:conversation_id).uniq)
@@ -103,10 +154,22 @@ class Api::V1::Accounts::Captain::EvalDashboardController < Api::V1::Accounts::B
         conduzido_por: ev.conduzido_por,
         representatividade: ev.representatividade,
         resumo: ev.resumo.to_s[0, 180],
-        avaliado_em: ev.avaliado_em
+        avaliado_em: ev.avaliado_em,
+        findings_matched: matched_findings(ev, matched_categoria, matched_quem)
       }
     end
-  rescue StandardError
-    []
+  end
+
+  # Evidência do drill-down: os findings do eval que casaram com o filtro.
+  def matched_findings(evaluation, categoria, quem)
+    return [] if categoria.blank? && quem.blank?
+
+    Array(evaluation.response_findings).select do |f|
+      next false unless f.is_a?(Hash)
+
+      (categoria.blank? || f['categoria'] == categoria) && (quem.blank? || f['quem'] == quem)
+    end.first(3).map do |f|
+      { quem: f['quem'], severidade: f['severidade'], trecho: f['trecho'].to_s[0, 140], porque: f['porque'].to_s[0, 160] }
+    end
   end
 end

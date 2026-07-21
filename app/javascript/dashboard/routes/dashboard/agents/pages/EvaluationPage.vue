@@ -16,6 +16,11 @@ const loading = ref(true);
 const loadError = ref(false);
 const data = ref(null);
 
+// drill-down por indicador (F4.1): clicar numa barra/KPI filtra a lista de episódios
+const activeFilter = ref(null); // { params, chave }
+const filteredRows = ref(null);
+const filterLoading = ref(false);
+
 onMounted(async () => {
   try {
     const { data: payload } = await EvalDashboardAPI.show();
@@ -26,6 +31,31 @@ onMounted(async () => {
     loading.value = false;
   }
 });
+
+const applyFilter = async (params, chave) => {
+  activeFilter.value = { params, chave };
+  filterLoading.value = true;
+  try {
+    const { data: payload } = await EvalDashboardAPI.episodes(params);
+    filteredRows.value = payload.rows || [];
+  } catch (e) {
+    filteredRows.value = [];
+  } finally {
+    filterLoading.value = false;
+  }
+};
+
+const clearFilter = () => {
+  activeFilter.value = null;
+  filteredRows.value = null;
+};
+
+const displayRows = computed(() =>
+  activeFilter.value ? filteredRows.value || [] : data.value?.recentes || []
+);
+const hasEvidence = computed(() =>
+  displayRows.value.some(r => r.findings_matched && r.findings_matched.length)
+);
 
 const totals = computed(() => data.value?.totals || {});
 const nota = computed(() => data.value?.nota || {});
@@ -166,12 +196,20 @@ const openConversation = displayId => {
           icon="i-lucide-messages-square"
           tint="#0e9aa7"
         />
-        <AiStatCard
-          :value="totals.fora_de_escopo || 0"
-          :label="t('AGENTS_EVALUATION.KPI_RUIDO')"
-          icon="i-lucide-filter-x"
-          tint="#c2831f"
-        />
+        <div
+          class="cursor-pointer"
+          role="button"
+          tabindex="0"
+          @click="applyFilter({ escopo: 'ruido' }, t('AGENTS_EVALUATION.KPI_RUIDO'))"
+          @keydown.enter="applyFilter({ escopo: 'ruido' }, t('AGENTS_EVALUATION.KPI_RUIDO'))"
+        >
+          <AiStatCard
+            :value="totals.fora_de_escopo || 0"
+            :label="t('AGENTS_EVALUATION.KPI_RUIDO')"
+            icon="i-lucide-filter-x"
+            tint="#c2831f"
+          />
+        </div>
       </div>
 
       <!-- Distribuições -->
@@ -184,7 +222,11 @@ const openConversation = displayId => {
             <div
               v-for="bar in notaBars"
               :key="bar.key"
-              class="grid grid-cols-[70px_1fr_40px] gap-3 items-center"
+              class="grid grid-cols-[70px_1fr_40px] gap-3 items-center rounded-md cursor-pointer hover:bg-n-alpha-1"
+              role="button"
+              tabindex="0"
+              @click="applyFilter({ nota_faixa: bar.key }, bar.key)"
+              @keydown.enter="applyFilter({ nota_faixa: bar.key }, bar.key)"
             >
               <span class="text-[12.5px] text-n-slate-11">{{ bar.key }}</span>
               <div class="overflow-hidden h-2 rounded-full bg-n-alpha-1">
@@ -209,7 +251,11 @@ const openConversation = displayId => {
             <div
               v-for="bar in funilBars"
               :key="bar.key"
-              class="grid grid-cols-[110px_1fr_40px] gap-3 items-center"
+              class="grid grid-cols-[110px_1fr_40px] gap-3 items-center rounded-md cursor-pointer hover:bg-n-alpha-1"
+              role="button"
+              tabindex="0"
+              @click="applyFilter({ funil: bar.key }, label(bar.key))"
+              @keydown.enter="applyFilter({ funil: bar.key }, label(bar.key))"
             >
               <span class="text-[12.5px] truncate text-n-slate-11">
                 {{ label(bar.key) }}
@@ -235,7 +281,11 @@ const openConversation = displayId => {
             <div
               v-for="bar in handoffBars"
               :key="bar.key"
-              class="grid grid-cols-[130px_1fr_40px] gap-3 items-center"
+              class="grid grid-cols-[130px_1fr_40px] gap-3 items-center rounded-md cursor-pointer hover:bg-n-alpha-1"
+              role="button"
+              tabindex="0"
+              @click="applyFilter({ handoff_timing: bar.key }, label(bar.key))"
+              @keydown.enter="applyFilter({ handoff_timing: bar.key }, label(bar.key))"
             >
               <span class="text-[12.5px] truncate text-n-slate-11">
                 {{ label(bar.key) }}
@@ -304,14 +354,24 @@ const openConversation = displayId => {
           class="flex overflow-hidden mb-4 h-7 text-[11.5px] font-semibold text-white rounded-lg"
         >
           <div
-            class="flex justify-center items-center bg-b-600"
-            :style="{ width: `${iaHumanoPct.ia}%` }"
+            class="flex justify-center items-center cursor-pointer bg-b-600 hover:opacity-90"
+            role="button"
+            tabindex="0"
+            @click="applyFilter({ quem: 'ia' }, 'IA')"
+            @keydown.enter="applyFilter({ quem: 'ia' }, 'IA')"
           >
             IA · {{ findings.ia }}
           </div>
           <div
-            class="flex justify-center items-center bg-r-600"
-            :style="{ width: `${iaHumanoPct.humano}%` }"
+            class="flex justify-center items-center cursor-pointer bg-r-600 hover:opacity-90"
+            role="button"
+            tabindex="0"
+            @click="
+              applyFilter({ quem: 'humano' }, t('AGENTS_EVALUATION.HUMANO'))
+            "
+            @keydown.enter="
+              applyFilter({ quem: 'humano' }, t('AGENTS_EVALUATION.HUMANO'))
+            "
           >
             {{ t('AGENTS_EVALUATION.HUMANO') }} · {{ findings.humano }}
           </div>
@@ -320,7 +380,11 @@ const openConversation = displayId => {
           <div
             v-for="bar in findingBars"
             :key="bar.key"
-            class="grid grid-cols-[180px_1fr_40px] gap-3 items-center"
+            class="grid grid-cols-[180px_1fr_40px] gap-3 items-center rounded-md cursor-pointer hover:bg-n-alpha-1"
+            role="button"
+            tabindex="0"
+            @click="applyFilter({ categoria: bar.key }, label(bar.key))"
+            @keydown.enter="applyFilter({ categoria: bar.key }, label(bar.key))"
           >
             <span class="text-[12.5px] truncate text-n-slate-11">
               {{ label(bar.key) }}
@@ -338,12 +402,39 @@ const openConversation = displayId => {
         </div>
       </div>
 
-      <!-- Últimos julgamentos -->
+      <!-- Últimos julgamentos / resultado do filtro -->
       <div class="p-4 mt-3 rounded-2xl border border-n-weak bg-n-solid-1/70">
-        <h2 class="mb-3 text-xs font-bold tracking-wide uppercase text-n-slate-11">
-          {{ t('AGENTS_EVALUATION.SECTION_RECENTES') }}
-        </h2>
-        <div class="overflow-x-auto">
+        <div class="flex flex-wrap gap-2 items-center mb-3">
+          <h2 class="text-xs font-bold tracking-wide uppercase text-n-slate-11">
+            {{
+              activeFilter
+                ? t('AGENTS_EVALUATION.SECTION_FILTRADOS')
+                : t('AGENTS_EVALUATION.SECTION_RECENTES')
+            }}
+          </h2>
+          <button
+            v-if="activeFilter"
+            type="button"
+            class="inline-flex gap-1.5 items-center px-2.5 py-1 text-xs font-semibold rounded-full border border-n-brand/40 bg-n-brand/10 text-n-brand hover:bg-n-brand/20"
+            @click="clearFilter"
+          >
+            {{ activeFilter.chave }}
+            <span class="i-lucide-x size-3.5" />
+          </button>
+        </div>
+        <div
+          v-if="filterLoading"
+          class="py-10 text-sm text-center text-n-slate-10"
+        >
+          {{ t('AGENTS_EVALUATION.LOADING') }}
+        </div>
+        <div
+          v-else-if="activeFilter && !displayRows.length"
+          class="py-10 text-sm text-center text-n-slate-10"
+        >
+          {{ t('AGENTS_EVALUATION.EMPTY_FILTER') }}
+        </div>
+        <div v-else class="overflow-x-auto">
           <table class="w-full min-w-[720px] text-[12.5px]">
             <thead>
               <tr class="text-left border-b border-n-weak text-n-slate-10">
@@ -360,13 +451,17 @@ const openConversation = displayId => {
                   {{ t('AGENTS_EVALUATION.COL_FUNIL') }}
                 </th>
                 <th class="py-2 pr-3 font-semibold">
-                  {{ t('AGENTS_EVALUATION.COL_RESUMO') }}
+                  {{
+                    hasEvidence
+                      ? t('AGENTS_EVALUATION.COL_EVIDENCIA')
+                      : t('AGENTS_EVALUATION.COL_RESUMO')
+                  }}
                 </th>
               </tr>
             </thead>
             <tbody>
               <tr
-                v-for="(row, index) in data.recentes"
+                v-for="(row, index) in displayRows"
                 :key="index"
                 class="border-b cursor-pointer border-n-weak/60 hover:bg-n-alpha-1"
                 @click="openConversation(row.conversation_display_id)"
@@ -392,8 +487,24 @@ const openConversation = displayId => {
                 <td class="py-2 pr-3 whitespace-nowrap text-n-slate-11">
                   {{ label(row.funil || '') }}
                 </td>
-                <td class="py-2 pr-3 max-w-[360px] truncate text-n-slate-11">
-                  {{ row.resumo }}
+                <td class="py-2 pr-3 max-w-[380px] text-n-slate-11">
+                  <template
+                    v-if="row.findings_matched && row.findings_matched.length"
+                  >
+                    <div
+                      v-for="(f, fi) in row.findings_matched"
+                      :key="fi"
+                      class="mb-1 last:mb-0"
+                    >
+                      <span
+                        class="italic text-n-slate-12"
+                      >“{{ f.trecho }}”</span>
+                      <span class="block text-[11.5px] text-n-slate-10">
+                        {{ f.porque }}
+                      </span>
+                    </div>
+                  </template>
+                  <span v-else class="block truncate">{{ row.resumo }}</span>
                 </td>
               </tr>
             </tbody>

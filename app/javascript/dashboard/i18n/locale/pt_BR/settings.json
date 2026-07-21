@@ -66,7 +66,10 @@
       "USOU_TOOL_ERRADA": "Ferramenta errada",
       "IGNOROU_ERRO_DA_TOOL": "Ignorou erro da ferramenta",
       "OUTRO": "Outro"
-    }
+    },
+    "SECTION_FILTRADOS": "Episódios filtrados",
+    "EMPTY_FILTER": "Nenhum episódio corresponde a este indicador.",
+    "COL_EVIDENCIA": "Evidência"
   },
   "AGENTS_DASHBOARD": {
     "TITLE": "Painel",
@@ -1207,7 +1210,7 @@
       "STEP_1": "Abra o {whatsapp} no seu celular",
       "STEP_1_WHATSAPP": "WhatsApp",
       "STEP_2_PREFIX": "Toque em",
-      "STEP_2_MENU": "Menu (\u22ee)",
+      "STEP_2_MENU": "Menu (⋮)",
       "STEP_2_OR": "ou",
       "STEP_2_SETTINGS": "Configurações",
       "STEP_3_PREFIX": "Toque em",
