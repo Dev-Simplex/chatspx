@@ -146,6 +146,7 @@ const closeMobileSidebar = () => {
                 v-else-if="sendAction.type === 'request'"
                 :label="$t('CONTACTS_LAYOUT.IN_ATTENDANCE.REQUEST_ATTENDANCE')"
                 size="sm"
+                color="amber"
                 class="shrink-0 whitespace-nowrap"
                 :is-loading="isRequesting"
                 :disabled="isRequesting"

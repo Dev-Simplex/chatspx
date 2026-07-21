@@ -162,7 +162,7 @@ defineExpose({ open, close });
         <Button
           v-else-if="canRequest"
           type="button"
-          color="blue"
+          color="amber"
           size="sm"
           :is-loading="isRequesting"
           :disabled="isRequesting"
