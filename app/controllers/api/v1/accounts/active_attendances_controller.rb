@@ -74,14 +74,25 @@ class Api::V1::Accounts::ActiveAttendancesController < Api::V1::Accounts::BaseCo
     conversation.assignee_id.blank? || ctx[:admin]
   end
 
-  # Regra do pedido (inalterada): admin não pede (atribui direto; a policy create?
+  # Regra do pedido: o pedido é uma superfície da Fase 3, então só faz sentido com o
+  # takeover_request_gate LIGADO — sem a flag a aba não oferece "Solicitar" (degrada
+  # p/ "Abrir"), ficando consistente com o compose e a página de contato, que já
+  # checam a flag. Fora isso: admin não pede (atribui direto; a policy create?
   # bloqueia), precisa de dono HUMANO que não seja eu, e preciso alcançar a conversa.
   def can_request?(conversation, ctx)
+    return false unless takeover_gate_enabled?
     return false if ctx[:admin] || ctx[:user_id].nil?
     return false if conversation.assignee_id.blank? || conversation.assignee_agent_bot_id.present?
     return false if conversation.assignee_id == ctx[:user_id]
 
     can_open?(conversation, ctx)
+  end
+
+  # Flag da conta puxada UMA vez (a capacidade é calculada por linha).
+  def takeover_gate_enabled?
+    return @takeover_gate_enabled if defined?(@takeover_gate_enabled)
+
+    @takeover_gate_enabled = Current.account.takeover_request_gate_enabled?
   end
 
   # Meu pedido pendente por conversa → a linha vira "Pedido enviado · Cancelar".

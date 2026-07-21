@@ -34,7 +34,13 @@ RSpec.describe 'Active Attendances API', type: :request do
       let(:agent) { create(:user, account: account, role: :agent) }
       let(:owner) { create(:user, account: account, role: :agent) }
 
-      before { create(:inbox_member, user: agent, inbox: inbox) }
+      before do
+        create(:inbox_member, user: agent, inbox: inbox)
+        # "Solicitar" é uma superfície da Fase 3 — a capacidade can_request só é
+        # oferecida com o modo de pedido ligado. O grosso dos testes assume o modo
+        # ON; um teste dedicado cobre o degradê com o modo OFF.
+        account.update!(takeover_request_gate: true)
+      end
 
       it 'returns conversations in service and omits resolved ones' do
         open_conversation = create(:conversation, account: account, inbox: inbox, assignee: owner, status: :open)
@@ -200,6 +206,17 @@ RSpec.describe 'Active Attendances API', type: :request do
           get "/api/v1/accounts/#{account.id}/active_attendances", headers: admin.create_new_auth_token, as: :json
           row = response.parsed_body['payload'].find { |p| p['id'] == conv.display_id }
           expect(row['can_request']).to be(false)
+        end
+
+        # Fase 3 desligada: a aba não oferece "Solicitar" — a linha degrada para
+        # "Abrir" (consistente com o compose e a página de contato, que checam a flag).
+        it 'is false when the takeover request mode is off, degrading to open' do
+          account.update!(takeover_request_gate: false)
+          conv = create(:conversation, account: account, inbox: inbox, assignee: owner, team: nil, status: :open)
+          get "/api/v1/accounts/#{account.id}/active_attendances", headers: agent.create_new_auth_token, as: :json
+          row = response.parsed_body['payload'].find { |p| p['id'] == conv.display_id }
+          expect(row['can_request']).to be(false)
+          expect(row['can_open']).to be(true)
         end
       end
 
