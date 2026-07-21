@@ -159,10 +159,12 @@ defineExpose({ open, close });
           {{ t('COMPOSE_NEW_CONVERSATION.ATTENDANCE_WARNING.REQUEST_SENT') }}
         </span>
         <!-- Ação primária no modo ligado: solicitar o atendimento ao dono. -->
+        <!-- Cor de atenção (âmbar) só no fluxo de "Todos os contatos" (compose);
+             no dropdown da conversa segue verde. -->
         <Button
           v-else-if="canRequest"
           type="button"
-          color="amber"
+          :color="context === 'conversation' ? 'blue' : 'amber'"
           size="sm"
           :is-loading="isRequesting"
           :disabled="isRequesting"

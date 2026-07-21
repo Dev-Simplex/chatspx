@@ -224,7 +224,7 @@ const onCancel = () =>
       <Button
         v-else-if="rowAction === 'request'"
         size="sm"
-        color="amber"
+        color="blue"
         :is-loading="isBusy"
         :disabled="isBusy"
         :label="t('CONTACTS_LAYOUT.IN_ATTENDANCE.REQUEST_ATTENDANCE')"
