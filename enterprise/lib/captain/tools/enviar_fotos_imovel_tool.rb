@@ -3,7 +3,7 @@ class Captain::Tools::EnviarFotosImovelTool < Captain::Tools::BasePublicTool
               'Chame quando o cliente pedir fotos de um imóvel, informando o código (vem do resultado da busca). ' \
               'Se o cliente pedir mais fotos do mesmo imóvel, chame de novo com o mesmo código que envia as próximas 3.'
 
-  param :codigo, type: 'string', desc: 'Código do imóvel (ex: 6573), tirado do resultado da busca.', required: true
+  param :codigo, type: 'string', desc: 'Código do imóvel, tirado do resultado da busca. Nunca inventar.', required: true
 
   BATCH = 3
   SEND_INTERVAL = 2 # segundos entre cada foto, pra o WhatsApp entregar uma por uma
@@ -28,7 +28,7 @@ class Captain::Tools::EnviarFotosImovelTool < Captain::Tools::BasePublicTool
 
     # Envia uma por uma com intervalo: em rajada o bridge do WhatsApp entrega só a 1ª.
     batch.each_with_index do |url, i|
-      send_photo(conversation, url)
+      send_photo(conversation, url, codigo)
       sleep(SEND_INTERVAL) if i < batch.size - 1
     end
     new_sent = sent + batch.size
@@ -72,16 +72,19 @@ class Captain::Tools::EnviarFotosImovelTool < Captain::Tools::BasePublicTool
          .filter_map { |f| f['Foto'] }
   end
 
-  def send_photo(conversation, url)
+  def send_photo(conversation, url, codigo)
     io = Down.download(url, max_size: 15 * 1024 * 1024)
     # Anexo construido ANTES do save: o envio dispara no after_create_commit da mensagem,
     # entao criar o attachment depois (create! + create!) e corrida — o WhatsApp Cloud
     # recebia payload de texto com body vazio e recusava (text.body expected string).
+    # property_code carimba a qual imovel a foto pertence: sem isso a foto e um outgoing
+    # de conteudo vazio, indistinguivel no historico e no reply-context (o "esse e qual?").
     msg = conversation.messages.build(
       message_type: :outgoing,
       account_id: conversation.account_id,
       inbox_id: conversation.inbox_id,
-      sender: @assistant
+      sender: @assistant,
+      additional_attributes: { 'property_code' => codigo }
     )
     msg.attachments.build(
       account_id: conversation.account_id,

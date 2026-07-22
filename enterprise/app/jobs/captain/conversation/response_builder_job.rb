@@ -58,6 +58,7 @@ class Captain::Conversation::ResponseBuilderJob < ApplicationJob
         Rails.logger.info("[CAPTAIN][ResponseBuilderJob] Incrementing response usage for #{account.id}")
         account.increment_response_usage
       end
+      ensure_handoff_if_promised
     end
   end
 
@@ -72,7 +73,7 @@ class Captain::Conversation::ResponseBuilderJob < ApplicationJob
       content = if message.incoming?
                   with_reply_context(message, prepare_multimodal_message_content(message))
                 else
-                  message.content.presence || (message.attachments.any? ? '[foto do imóvel enviada]' : '')
+                  message.content.presence || outgoing_attachment_placeholder(message)
                 end
       message_hash = {
         content: content,
@@ -104,6 +105,16 @@ class Captain::Conversation::ResponseBuilderJob < ApplicationJob
     message.message_type == 'incoming' ? 'user' : 'assistant'
   end
 
+  # Foto sai como outgoing de conteudo vazio; sem o codigo, todas viram o MESMO placeholder
+  # no historico e o modelo nao sabe qual imovel e qual ("esse e qual?"). Carimbado pela
+  # EnviarFotosImovelTool em additional_attributes['property_code'].
+  def outgoing_attachment_placeholder(message)
+    return '' unless message.attachments.any?
+
+    code = message.additional_attributes&.dig('property_code')
+    code.present? ? "[foto do imóvel #{code} enviada]" : '[foto do imóvel enviada]'
+  end
+
   # Quando o cliente responde (reply) a uma mensagem específica do WhatsApp,
   # injeta o texto citado no contexto pra o agente saber a qual imóvel/mensagem
   # ele se refere. Sem isso, "é essa" / "quero essa" ficavam sem referência.
@@ -114,14 +125,30 @@ class Captain::Conversation::ResponseBuilderJob < ApplicationJob
     quoted = nil
     quoted = @conversation.messages.find_by(id: reply_id) if reply_id.present?
     quoted ||= @conversation.messages.find_by(source_id: reply_ext) if reply_ext.present?
-    return content if quoted&.content.blank?
+    return content if quoted.nil?
 
-    prefix = "[Respondendo a esta mensagem anterior: \"#{quoted.content.to_s.gsub(/\s+/, ' ').strip[0, 180]}\"] "
+    desc = quoted_description(quoted)
+    return content if desc.blank?
+
+    prefix = "[Respondendo a esta mensagem anterior: \"#{desc}\"] "
     case content
     when String then prefix + content
     when Array then [{ type: 'text', text: prefix }] + content
     else content
     end
+  end
+
+  # A msg citada pode ser uma FOTO (outgoing de conteudo vazio). Antes, content.blank?
+  # descartava a citacao e o "esse e qual?" ficava sem referencia — resolve pelo
+  # property_code carimbado na foto; senao, ao menos sinaliza que e uma foto.
+  def quoted_description(quoted)
+    text = quoted.content.to_s.gsub(/\s+/, ' ').strip
+    return text[0, 180] if text.present?
+
+    code = quoted.additional_attributes&.dig('property_code')
+    return "foto do imóvel #{code}" if code.present?
+
+    quoted.attachments.any? ? 'uma foto enviada anteriormente' : ''
   end
 
   def prepare_multimodal_message_content(message)
@@ -130,6 +157,33 @@ class Captain::Conversation::ResponseBuilderJob < ApplicationJob
 
   def handoff_requested?
     @response['response'] == 'conversation_handoff'
+  end
+
+  # Rede de seguranca (P10): o modelo as vezes ESCREVE que vai passar pro consultor/time sem
+  # ACIONAR o handoff (a resposta nao veio como 'conversation_handoff'), deixando o cliente
+  # orfao esperando um humano que nunca vem (visto na conv 18973). Se o texto ja enviado promete
+  # handoff e nenhum disparou, dispara a mecanica AQUI — sem reenviar o template (o modelo ja avisou).
+  # Deteccao conservadora; loga 'handoff_auto_fired' pra medir e afinar. Mantem o time atual da
+  # conversa (nao aplica o override de recepcao), entregando ao humano do time que ja atendia.
+  HANDOFF_PROMISE_PATTERNS = [
+    /\b(vou|irei|vamos|já vou)\b.{0,30}\b(passar|chamar|encaminhar|acionar|transferir|pedir)\b.{0,40}\b(consultor|time|atendente|humano|equipe|colega)\b/i,
+    /\b(consultor|atendente|humano|equipe|algu[ée]m do time)\b.{0,30}\bvai\b.{0,25}\b(assumir|continuar|dar sequ[êe]ncia|te atender|te ajudar)\b/i
+  ].freeze
+
+  def promised_handoff?(text)
+    return false if text.blank?
+
+    HANDOFF_PROMISE_PATTERNS.any? { |re| re.match?(text.to_s) }
+  end
+
+  def ensure_handoff_if_promised
+    return unless promised_handoff?(@response['response'])
+    return unless captain_can_respond?
+
+    log_behavior_event('handoff_auto_fired', { snippet: @response['response'].to_s[0, 160] })
+    I18n.with_locale(@assistant.account.locale) { @conversation.bot_handoff! }
+  rescue StandardError => e
+    Rails.logger.warn("[Captain] ensure_handoff_if_promised falhou: #{e.message}")
   end
 
   def process_action(action)
