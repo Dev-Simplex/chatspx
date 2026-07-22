@@ -21,6 +21,10 @@ const props = defineProps({
   message: { type: String, default: '' },
   hasError: { type: Boolean, default: false },
   useApiResults: { type: Boolean, default: false }, // useApiResults prop to determine if search is handled by API
+  // Permite CRIAR um valor novo digitando (ex.: nova categoria de encerramento no modal).
+  // Termo buscado sem correspondência -> injeta uma linha que emite o próprio termo. Default
+  // false -> zero efeito nos usos existentes.
+  creatable: { type: Boolean, default: false },
 });
 
 const emit = defineEmits(['update:modelValue', 'search']);
@@ -41,9 +45,21 @@ const filteredOptions = computed(() => {
 
   // For local search, filter options based on search term
   const searchTerm = search.value.toLowerCase();
-  return props.options.filter(option =>
+  const matches = props.options.filter(option =>
     option.label.toLowerCase().includes(searchTerm)
   );
+
+  // Creatable: termo digitado sem correspondência EXATA -> oferece criar o valor novo.
+  const term = search.value.trim();
+  if (props.creatable && term) {
+    const exact = props.options.some(
+      option => option.label.toLowerCase() === term.toLowerCase()
+    );
+    if (!exact) {
+      return [...matches, { value: term, label: term, isNew: true }];
+    }
+  }
+  return matches;
 });
 const selectPlaceholder = computed(() => {
   return props.placeholder || t('COMBOBOX.PLACEHOLDER');
@@ -52,7 +68,10 @@ const selectedLabel = computed(() => {
   const selected = props.options.find(
     option => option.value === selectedValue.value
   );
-  return selected?.label ?? selectPlaceholder.value;
+  if (selected) return selected.label;
+  // Valor criado (creatable) não está em options -> mostra o próprio valor.
+  if (props.creatable && selectedValue.value) return selectedValue.value;
+  return selectPlaceholder.value;
 });
 
 const selectOption = option => {

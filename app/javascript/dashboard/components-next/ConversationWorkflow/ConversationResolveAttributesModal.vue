@@ -231,6 +231,7 @@ defineExpose({ open, close });
           <ComboBox
             v-model="formValues[attribute.value]"
             :options="comboBoxOptions[attribute.value]"
+            creatable
             :placeholder="getPlaceholder(ATTRIBUTE_TYPES.LIST)"
             :message="getErrorMessage(attribute.value)"
             :message-type="v$[attribute.value].$error ? 'error' : 'info'"
