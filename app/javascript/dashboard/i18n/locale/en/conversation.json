@@ -624,6 +624,14 @@
       "ALREADY_CLOSED": "This request was already answered.",
       "ERROR": "Couldn't respond to the request, please try again."
     },
+    "TAKEOVER_INCOMING": {
+      "TITLE": "Attendance request",
+      "SOMEONE": "Someone",
+      "BODY": "{name} wants to take over one of your conversations.",
+      "BODY_WITH_CONTACT": "{name} wants to take over your conversation with {contact}.",
+      "APPROVE": "Approve",
+      "LATER": "Not yet"
+    },
     "TAKEOVER_RESULT": {
       "APPROVED": "Your request was approved — the conversation is now yours.",
       "OPEN": "Open conversation",

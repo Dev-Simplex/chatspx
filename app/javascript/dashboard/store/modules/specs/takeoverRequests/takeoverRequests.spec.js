@@ -174,14 +174,60 @@ describe('takeoverRequests store', () => {
       expect(commit).not.toHaveBeenCalled();
     });
 
-    // Pedido só CRIADO (pending) não é resolução — nada de toast.
-    it('does NOT set a notice for a pending (created) event', () => {
+    // Pedido só CRIADO (pending) não é resolução p/ o solicitante — nada de toast.
+    it('does NOT set a resolved notice for a pending (created) event', () => {
       const commit = vi.fn();
       actions.handleRealtimeEvent(
         { commit, dispatch: vi.fn(), rootGetters },
         { status: 'pending', requester: { id: 10 }, conversation_id: 5 }
       );
-      expect(commit).not.toHaveBeenCalled();
+      expect(commit).not.toHaveBeenCalledWith(
+        types.default.SET_TAKEOVER_RESOLVED_NOTICE,
+        expect.anything()
+      );
+    });
+
+    // DONO: pedido novo (pending) chegando p/ mim → abre o modal proativo.
+    it('opens the incoming-request modal for the owner on a new pending request', () => {
+      const commit = vi.fn();
+      actions.handleRealtimeEvent(
+        { commit, dispatch: vi.fn(), rootGetters },
+        {
+          status: 'pending',
+          owner_id: 10,
+          requester: { id: 3, name: 'Ana' },
+          contact: { name: 'Cliente X' },
+          conversation_id: 5,
+          reason: 'preciso',
+        }
+      );
+      expect(commit).toHaveBeenCalledWith(
+        types.default.SET_TAKEOVER_INCOMING_REQUEST,
+        expect.objectContaining({
+          id: undefined,
+          conversationId: 5,
+          requesterName: 'Ana',
+          contactName: 'Cliente X',
+          reason: 'preciso',
+        })
+      );
+    });
+
+    it('does NOT open the modal when the pending request is not mine to own', () => {
+      const commit = vi.fn();
+      actions.handleRealtimeEvent(
+        { commit, dispatch: vi.fn(), rootGetters },
+        {
+          status: 'pending',
+          owner_id: 99,
+          requester: { id: 3 },
+          conversation_id: 5,
+        }
+      );
+      expect(commit).not.toHaveBeenCalledWith(
+        types.default.SET_TAKEOVER_INCOMING_REQUEST,
+        expect.anything()
+      );
     });
   });
 });

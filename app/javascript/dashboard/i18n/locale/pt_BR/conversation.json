@@ -615,6 +615,14 @@
       "ALREADY_CLOSED": "Este pedido já foi respondido.",
       "ERROR": "Não foi possível responder ao pedido, tente novamente."
     },
+    "TAKEOVER_INCOMING": {
+      "TITLE": "Pedido de atendimento",
+      "SOMEONE": "Alguém",
+      "BODY": "{name} quer assumir uma conversa sua.",
+      "BODY_WITH_CONTACT": "{name} quer assumir sua conversa com {contact}.",
+      "APPROVE": "Aprovar",
+      "LATER": "Ainda não"
+    },
     "TAKEOVER_RESULT": {
       "APPROVED": "Seu pedido foi aprovado — a conversa agora é sua.",
       "OPEN": "Abrir conversa",

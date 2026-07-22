@@ -12,6 +12,8 @@ export const state = {
   // Sem isto o solicitante não saberia que foi NEGADO (no aprovado ele ganha a
   // conversa; no negado nada muda, então precisa de aviso explícito).
   resolvedNotice: null,
+  // Pedido que ACABOU de chegar e sou o dono — o modal proativo mostra e limpa.
+  incomingRequest: null,
 };
 
 const normalize = record => camelcaseKeys(record, { deep: true });
@@ -44,6 +46,9 @@ export const getters = {
   },
   getResolvedNotice(_state) {
     return _state.resolvedNotice;
+  },
+  getIncomingRequest(_state) {
+    return _state.incomingRequest;
   },
 };
 
@@ -101,7 +106,18 @@ export const actions = {
 
     const myId = rootGetters.getCurrentUserID;
     const requesterId = data.requester?.id ?? data.requester_id;
+    const ownerId = data.owner_id ?? data.ownerId;
     const status = data.status;
+    // DONO: pedido novo (pending) chegando p/ mim → modal proativo (aprovar/adiar).
+    if (status === 'pending' && ownerId === myId) {
+      commit(types.SET_TAKEOVER_INCOMING_REQUEST, {
+        id: data.id,
+        conversationId: data.conversation_id ?? data.conversationId,
+        requesterName: data.requester?.name ?? '',
+        contactName: data.contact?.name ?? '',
+        reason: data.reason ?? '',
+      });
+    }
     // superseded: outro pedido foi aprovado / a conversa trocou de mãos — o MEU
     // pedido morreu. Sem este aviso o solicitante perdedor ficaria preso em
     // "Pedido enviado" (é o cenário multi-agente que a feature resolve).
@@ -120,6 +136,10 @@ export const actions = {
   clearResolvedNotice: ({ commit }) => {
     commit(types.SET_TAKEOVER_RESOLVED_NOTICE, null);
   },
+
+  clearIncomingRequest: ({ commit }) => {
+    commit(types.SET_TAKEOVER_INCOMING_REQUEST, null);
+  },
 };
 
 export const mutations = {
@@ -137,6 +157,9 @@ export const mutations = {
       map[normalized.id] = normalized;
     });
     _state.records = map;
+  },
+  [types.SET_TAKEOVER_INCOMING_REQUEST](_state, request) {
+    _state.incomingRequest = request;
   },
   [types.SET_TAKEOVER_RESOLVED_NOTICE](_state, notice) {
     _state.resolvedNotice = notice;

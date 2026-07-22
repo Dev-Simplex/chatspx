@@ -85,6 +85,8 @@ class Conversations::TakeoverRequestNotifier
       id: @request.id,
       status: @request.status,
       conversation_id: @request.conversation.display_id,
+      # nome do contato p/ o modal do dono ("Fulano quer a conversa com {contato}").
+      contact: @request.conversation.contact && { name: @request.conversation.contact.name },
       requester: @request.requester && { id: @request.requester_id, name: @request.requester.available_name },
       owner_id: @request.owner_id,
       reason: @request.reason,
