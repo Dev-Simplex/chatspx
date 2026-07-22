@@ -120,5 +120,44 @@ RSpec.describe BulkActionsJob do
         expect(conversation_3.reload.status).to eq('resolved')
       end
     end
+
+    context 'when agent conversation isolation is enabled on the inbox' do
+      let!(:owner) { create(:user, account: account, role: :agent) }
+
+      before do
+        create(:inbox_member, inbox: conversation_1.inbox, user: owner)
+        conversation_1.inbox.update!(agent_conversation_isolation: true)
+        conversation_1.update!(assignee: owner)
+      end
+
+      it 'skips assignee/status/label changes on a colleague-owned isolated conversation' do
+        params = {
+          type: 'Conversation',
+          fields: { status: 'snoozed', assignee_id: agent.id },
+          labels: { add: ['roubada'] },
+          ids: [conversation_1.display_id]
+        }
+
+        described_class.perform_now(account_id: account.id, params: params, user_id: agent.id)
+
+        conversation_1.reload
+        expect(conversation_1.assignee_id).to eq(owner.id)
+        expect(conversation_1.status).to eq('open')
+        expect(conversation_1.label_list).not_to include('roubada')
+      end
+
+      it 'still lets the owner act on their own isolated conversation' do
+        params = { type: 'Conversation', fields: { status: 'snoozed' }, ids: [conversation_1.display_id] }
+        described_class.perform_now(account_id: account.id, params: params, user_id: owner.id)
+        expect(conversation_1.reload.status).to eq('snoozed')
+      end
+
+      it 'still lets an administrator act' do
+        admin = create(:user, account: account, role: :administrator)
+        params = { type: 'Conversation', fields: { status: 'snoozed' }, ids: [conversation_1.display_id] }
+        described_class.perform_now(account_id: account.id, params: params, user_id: admin.id)
+        expect(conversation_1.reload.status).to eq('snoozed')
+      end
+    end
   end
 end

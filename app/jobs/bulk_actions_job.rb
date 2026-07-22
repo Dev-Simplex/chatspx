@@ -31,6 +31,8 @@ class BulkActionsJob < ApplicationJob
   def bulk_conversation_update
     params = available_params(@params)
     records.each do |conversation|
+      next if isolation_blocked?(conversation)
+
       bulk_add_labels(conversation)
       bulk_snoozed_until(conversation)
 
@@ -39,6 +41,16 @@ class BulkActionsJob < ApplicationJob
 
       conversation.update(params) if params
     end
+  end
+
+  # Isolamento por agente (coluna por-inbox): o bulk tem porta própria (Current.user
+  # + update direto) e não passa pelo AgentConversationAccessConcern. Sem isto um
+  # agente mutaria/roubaria (assignee/team/labels/snooze/resolve) uma conversa que
+  # ele nem consegue ABRIR. Pula a conversa INTEIRA (independe do takeover_request_gate).
+  def isolation_blocked?(conversation)
+    blocked = AgentConversationIsolation.hidden_from?(conversation, Current.user, @account)
+    Rails.logger.warn("Skipping bulk action on conversation #{conversation.id} - not accessible to actor") if blocked
+    blocked
   end
 
   # D1 (Fase 3) — guard (b): o bulk tem porta PRÓPRIA (seta Current.user e faz
@@ -90,6 +102,8 @@ class BulkActionsJob < ApplicationJob
 
   def bulk_remove_labels
     records.each do |conversation|
+      next if isolation_blocked?(conversation)
+
       remove_labels(conversation)
     end
   end

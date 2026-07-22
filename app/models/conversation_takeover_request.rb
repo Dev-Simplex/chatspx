@@ -37,6 +37,11 @@ class ConversationTakeoverRequest < ApplicationRecord
   belongs_to :owner, class_name: 'User', optional: true
   belongs_to :responded_by, class_name: 'User', optional: true
 
+  # O recado do solicitante é opcional e curto — o front limita via :maxlength, mas
+  # a API pública não pode confiar no cliente (evita texto gigante persistido e
+  # rebroadcastado ao dono via ActionCable). Espelha o REASON_MAX do front.
+  REASON_MAX_LENGTH = 140
+
   enum status: { pending: 0, approved: 1, denied: 2, cancelled: 3, superseded: 4 }
   # Os três juntos importam: responded_by_id sozinho não distingue "o dono
   # aprovou" de "um admin que por acaso é o dono" de "o sistema encerrou".
@@ -45,6 +50,7 @@ class ConversationTakeoverRequest < ApplicationRecord
   validates :account_id, presence: true
   validates :conversation_id, presence: true
   validates :requester_id, presence: true
+  validates :reason, length: { maximum: REASON_MAX_LENGTH }, allow_blank: true
 
   scope :incoming_for, ->(user) { where(owner_id: user.id) }
   scope :outgoing_for, ->(user) { where(requester_id: user.id) }

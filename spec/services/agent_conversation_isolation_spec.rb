@@ -51,4 +51,39 @@ RSpec.describe AgentConversationIsolation do
       end
     end
   end
+
+  describe '.exclude_hidden' do
+    let(:relation) { account.conversations.joins(:inbox) }
+
+    context 'when the inbox IS isolated' do
+      before { inbox.update!(agent_conversation_isolation: true) }
+
+      let!(:mine) { create(:conversation, account: account, inbox: inbox, assignee: agent) }
+      let!(:foreign) { create(:conversation, account: account, inbox: inbox, assignee: owner) }
+      let!(:unassigned) { create(:conversation, account: account, inbox: inbox, assignee: nil) }
+
+      it 'removes a colleague-owned conversation for a non-owner agent' do
+        result = described_class.exclude_hidden(relation, agent, account)
+        expect(result).to include(mine, unassigned)
+        expect(result).not_to include(foreign)
+      end
+
+      it 'keeps everything for an administrator' do
+        result = described_class.exclude_hidden(relation, admin, account)
+        expect(result).to include(mine, foreign, unassigned)
+      end
+
+      it 'returns the relation untouched when there is no user' do
+        expect(described_class.exclude_hidden(relation, nil, account)).to eq(relation)
+      end
+    end
+
+    context 'when the inbox is NOT isolated' do
+      let!(:foreign) { create(:conversation, account: account, inbox: inbox, assignee: owner) }
+
+      it 'keeps a colleague conversation' do
+        expect(described_class.exclude_hidden(relation, agent, account)).to include(foreign)
+      end
+    end
+  end
 end

@@ -32,4 +32,20 @@ module AgentConversationIsolation
     owner = conversation.assignee_id
     owner.present? && owner != restriction_id
   end
+
+  # Mesma regra de `hidden_from?`, porém como CONDIÇÃO SQL — remove de uma relation
+  # os registros de conversas isoladas de OUTRO agente. Serve às superfícies de
+  # nível de conta que não passam pelo guard por-conversa (galeria de anexos, links,
+  # download em massa). A relation precisa ter as tabelas `inboxes` e `conversations`
+  # já unidas (JOIN). Admin / sem User -> relation intacta (acessam tudo).
+  def exclude_hidden(relation, user, account)
+    restriction_id = viewer_restriction_id(user, account)
+    return relation if restriction_id.nil?
+
+    relation.where(
+      'NOT (inboxes.agent_conversation_isolation AND conversations.assignee_id IS NOT NULL ' \
+      'AND conversations.assignee_id <> ?)',
+      restriction_id
+    )
+  end
 end
