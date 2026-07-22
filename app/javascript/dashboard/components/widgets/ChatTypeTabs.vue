@@ -17,14 +17,14 @@ const props = defineProps({
 const emit = defineEmits(['chatTabChange']);
 
 // Layout em 2 linhas agrupadas (modo IA / gate ON), escopado ao chat-list:
-//   Linha 1 (primário, sempre): Minhas, Todas
-//   Linha 2 (filas, dinâmicas): Aguardando atendimento, IA
+//   Linha 1 (primário, sempre): Minhas, IA, Todas
+//   Linha 2 (filas, dinâmicas): Aguardando atendimento, Aguardando encerramento
 // As filas só existem no array `items` quando têm conteúdo (count > 0) — a
 // filtragem já acontece em ChatList.vue. Aqui só reordenamos e separamos os
 // grupos. No modo clássico (sem filas) só sobra a linha 1.
 const QUEUE_KEYS = [
   wootConstants.ASSIGNEE_TYPE.AWAITING,
-  wootConstants.ASSIGNEE_TYPE.AI,
+  wootConstants.ASSIGNEE_TYPE.PENDING_CLOSURE,
 ];
 
 const isQueueKey = key => QUEUE_KEYS.includes(key);

@@ -9,6 +9,7 @@ const state = {
   unAssignedCount: 0,
   aiCount: 0,
   awaitingCount: 0,
+  awaitingClosureCount: 0,
   allCount: 0,
   unattendedAssignedCount: 0,
   unattendedUnassignedCount: 0,
@@ -26,6 +27,8 @@ export const getters = {
   // the AI handed off (custom_attributes.aguardando_humano_desde present) and is
   // still attending until a human takes over. Backed by awaiting_count from /meta.
   getAwaitingCount: $state => $state.awaitingCount || 0,
+  // "Aguardando encerramento" badge. Backed by awaiting_closure_count from /meta.
+  getAwaitingClosureCount: $state => $state.awaitingClosureCount || 0,
 };
 
 // Fetch metadata with single retry on transient failure
@@ -104,6 +107,7 @@ export const mutations = {
       unassigned_count: unAssignedCount,
       ai_count: aiCount,
       awaiting_count: awaitingCount,
+      awaiting_closure_count: awaitingClosureCount,
       all_count: allCount,
       unattended_assigned_to_me_count: unattendedAssignedCount,
       unattended_unassigned_count: unattendedUnassignedCount,
@@ -120,6 +124,9 @@ export const mutations = {
     }
     if ('awaiting_count' in payload) {
       $state.awaitingCount = awaitingCount ?? 0;
+    }
+    if ('awaiting_closure_count' in payload) {
+      $state.awaitingClosureCount = awaitingClosureCount ?? 0;
     }
     if ('unattended_assigned_to_me_count' in payload) {
       $state.unattendedAssignedCount = unattendedAssignedCount ?? 0;
