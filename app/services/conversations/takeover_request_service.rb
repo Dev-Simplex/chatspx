@@ -108,7 +108,12 @@ class Conversations::TakeoverRequestService
     ConversationTakeoverRequest
       .where(conversation_id: @request.conversation_id, status: :pending)
       .where.not(id: @request.id)
-      .find_each { |sibling| sibling.close!(status: :superseded, source: :system) }
+      .find_each do |sibling|
+        sibling.close!(status: :superseded, source: :system)
+        # Avisa o solicitante perdedor (só broadcast) — senão fica preso em
+        # "Pedido enviado".
+        Conversations::TakeoverRequestNotifier.new(sibling).notify_superseded
+      end
   end
 
   # Os três juntos importam: responded_by_id sozinho não distingue "o dono

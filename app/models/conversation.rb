@@ -387,9 +387,14 @@ class Conversation < ApplicationRecord
     new_owner_id = assignee_id
     conversation_takeover_requests.pending.find_each do |request|
       if new_owner_id.present? && request.requester_id == new_owner_id
+        # O novo dono é o próprio solicitante: ele já ganhou a conversa por outro
+        # caminho, então não precisa de aviso.
         request.close!(status: :approved, source: :system)
       else
         request.close!(status: :superseded, source: :system)
+        # Avisa o solicitante perdedor (só broadcast) — senão fica preso em
+        # "Pedido enviado" até um refetch manual.
+        Conversations::TakeoverRequestNotifier.new(request).notify_superseded
       end
     end
   end

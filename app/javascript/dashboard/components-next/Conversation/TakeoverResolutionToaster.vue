@@ -33,6 +33,11 @@ watch(notice, value => {
       message: t('CONVERSATION.TAKEOVER_RESULT.OPEN'),
       duration: APPROVED_DURATION,
     });
+  } else if (value.status === 'superseded') {
+    // O pedido morreu porque outra pessoa assumiu a conversa antes.
+    useAlert(t('CONVERSATION.TAKEOVER_RESULT.SUPERSEDED'), {
+      duration: DENIED_DURATION,
+    });
   } else {
     const message = value.note
       ? t('CONVERSATION.TAKEOVER_RESULT.DENIED_WITH_NOTE', { note: value.note })

@@ -28,6 +28,15 @@ class Conversations::TakeoverRequestNotifier
     broadcast('takeover_request.created', [@request.owner])
   end
 
+  # Supersede: o pedido do PERDEDOR morreu porque um pedido irmão foi aprovado (ou
+  # a conversa trocou de mãos por fora). Só broadcast, sem Notification (como o
+  # cancel): o toaster do solicitante avisa e a aba/lista se refazem. Sem isto o
+  # perdedor ficava preso em "Pedido enviado" até um refetch manual — justo o
+  # cenário multi-agente que a feature existe para resolver.
+  def notify_superseded
+    broadcast('takeover_request.updated', [@request.requester].compact)
+  end
+
   def notify_responded
     # Cancelar não notifica o dono: ruído puro (o solicitante desistiu).
     return broadcast('takeover_request.updated', [@request.owner].compact) if @request.cancelled?

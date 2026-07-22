@@ -628,7 +628,8 @@
       "APPROVED": "Your request was approved — the conversation is now yours.",
       "OPEN": "Open conversation",
       "DENIED": "Your attendance request was denied.",
-      "DENIED_WITH_NOTE": "Your attendance request was denied: {note}"
+      "DENIED_WITH_NOTE": "Your attendance request was denied: {note}",
+      "SUPERSEDED": "Your request is no longer needed — someone else took over the conversation."
     }
   },
   "EMAIL_TRANSCRIPT": {

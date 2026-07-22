@@ -102,7 +102,13 @@ export const actions = {
     const myId = rootGetters.getCurrentUserID;
     const requesterId = data.requester?.id ?? data.requester_id;
     const status = data.status;
-    if (requesterId === myId && ['approved', 'denied'].includes(status)) {
+    // superseded: outro pedido foi aprovado / a conversa trocou de mãos — o MEU
+    // pedido morreu. Sem este aviso o solicitante perdedor ficaria preso em
+    // "Pedido enviado" (é o cenário multi-agente que a feature resolve).
+    if (
+      requesterId === myId &&
+      ['approved', 'denied', 'superseded'].includes(status)
+    ) {
       commit(types.SET_TAKEOVER_RESOLVED_NOTICE, {
         status,
         conversationId: data.conversation_id ?? data.conversationId,

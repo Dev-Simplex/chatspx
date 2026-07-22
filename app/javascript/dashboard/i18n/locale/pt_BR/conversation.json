@@ -619,7 +619,8 @@
       "APPROVED": "Seu pedido foi aprovado — a conversa agora é sua.",
       "OPEN": "Abrir conversa",
       "DENIED": "Seu pedido de atendimento foi negado.",
-      "DENIED_WITH_NOTE": "Seu pedido de atendimento foi negado: {note}"
+      "DENIED_WITH_NOTE": "Seu pedido de atendimento foi negado: {note}",
+      "SUPERSEDED": "Seu pedido não é mais necessário — outra pessoa assumiu a conversa."
     }
   },
   "EMAIL_TRANSCRIPT": {

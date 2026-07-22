@@ -148,6 +148,19 @@ describe('takeoverRequests store', () => {
       );
     });
 
+    // O PERDEDOR (outro pedido aprovado antes) precisa saber que o dele morreu.
+    it('notifies the requester when their request is superseded', () => {
+      const commit = vi.fn();
+      actions.handleRealtimeEvent(
+        { commit, dispatch: vi.fn(), rootGetters },
+        { status: 'superseded', requester: { id: 10 }, conversation_id: 5 }
+      );
+      expect(commit).toHaveBeenCalledWith(
+        types.default.SET_TAKEOVER_RESOLVED_NOTICE,
+        { status: 'superseded', conversationId: 5, note: null }
+      );
+    });
+
     // O DONO (não sou o solicitante) só refaz a lista — sem toast de resolução.
     it('does NOT set a notice for someone who is not the requester', () => {
       const commit = vi.fn();

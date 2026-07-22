@@ -116,6 +116,18 @@ RSpec.describe Conversations::TakeoverRequestService do
       expect(sibling.resolution_source).to eq('system')
     end
 
+    # ...e o solicitante PERDEDOR recebe o sinal realtime (senão fica preso em
+    # "Pedido enviado" até um refetch manual).
+    it 'broadcasts the supersede to the losing requester' do
+      other = create(:user, account: account, role: :agent)
+      sibling = described_class.new(conversation: conversation, actor: other).create!
+
+      expect do
+        described_class.new(request: request, actor: owner).approve!
+      end.to have_enqueued_job(ActionCableBroadcastJob)
+        .with([other.pubsub_token], 'takeover_request.updated', hash_including(id: sibling.id, status: 'superseded'))
+    end
+
     it 'records admin as the resolution source when an admin approves' do
       described_class.new(request: request, actor: admin).approve!
       expect(request.reload.resolution_source).to eq('admin')
