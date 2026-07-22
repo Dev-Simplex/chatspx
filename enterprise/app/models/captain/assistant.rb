@@ -152,15 +152,19 @@ class Captain::Assistant < ApplicationRecord
     return [] if ids.empty?
 
     available = available_agent_tools
+    # select(&:active?) gateia tool que depende de config do assistente (ex.: responder_em_audio
+    # exige voice_id) — sem a config, a tool nem entra no toolset do agente.
     ids.filter_map do |tool_id|
       meta = available.find { |t| t[:id] == tool_id }
-      next if meta.nil?
+      instantiate_configured_tool(tool_id, meta) if meta
+    end.select(&:active?)
+  end
 
-      if meta[:custom]
-        Captain::CustomTool.find_by(slug: tool_id, account_id: account_id, enabled: true)&.tool(self)
-      else
-        self.class.resolve_tool_class(tool_id)&.new(self)
-      end
+  def instantiate_configured_tool(tool_id, meta)
+    if meta[:custom]
+      Captain::CustomTool.find_by(slug: tool_id, account_id: account_id, enabled: true)&.tool(self)
+    else
+      self.class.resolve_tool_class(tool_id)&.new(self)
     end
   end
 
