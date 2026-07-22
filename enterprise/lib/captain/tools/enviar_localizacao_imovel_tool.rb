@@ -63,7 +63,9 @@ class Captain::Tools::EnviarLocalizacaoImovelTool < Captain::Tools::BasePublicTo
     return [nil, nil, nil] if lat.zero? || lng.zero?
 
     bairro = data['BairroComercial'].presence || data['Bairro']
-    nome = "Imóvel cód #{codigo}#{bairro ? " - #{bairro}" : ''} (Tozi Imóveis)"
+    # NÃO incluir nome de negócio ("Tozi Imóveis") no título: o WhatsApp/Google Maps
+    # snapa o pin pro POI da empresa em vez das coordenadas do imóvel (abria no escritório).
+    nome = "Imóvel cód #{codigo}#{bairro ? " - #{bairro}" : ''}"
     [lat, lng, nome]
   end
 end
