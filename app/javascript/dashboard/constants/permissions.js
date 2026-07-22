@@ -42,6 +42,13 @@ export const ASSIGNEE_TYPE_TAB_PERMISSIONS = {
     count: 'awaitingCount',
     permissions: [...ROLES, ...CONVERSATION_PERMISSIONS],
   },
+  // "Aguardando encerramento": fila irmã — conversas paradas/encerradas que a IA
+  // marcou para um humano julgar o fecho. Dinâmica (gate ON + awaitingClosureCount
+  // > 0, filtragem em ChatList.vue). Fica na linha 2 junto de "Aguardando atendimento".
+  pending_closure: {
+    count: 'awaitingClosureCount',
+    permissions: [...ROLES, ...CONVERSATION_PERMISSIONS],
+  },
   unassigned: {
     count: 'unAssignedCount',
     permissions: [

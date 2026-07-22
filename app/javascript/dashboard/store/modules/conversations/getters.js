@@ -169,8 +169,13 @@ const getters = {
         const isAwaiting = Boolean(
           conversation.custom_attributes?.aguardando_humano_desde
         );
+        // Conversa na fila de encerramento também sai da aba "IA" (espelha o backend:
+        // ai_count exige os dois marcadores ausentes).
+        const isPendingClosure = Boolean(
+          conversation.custom_attributes?.aguardando_encerramento_desde
+        );
         const shouldFilter = applyPageFilters(conversation, filters);
-        return isAIAssigned && !isAwaiting && shouldFilter;
+        return isAIAssigned && !isAwaiting && !isPendingClosure && shouldFilter;
       })
       .sort((a, b) => sortComparator(a, b, _state.chatSortFilter));
   },
@@ -190,6 +195,22 @@ const getters = {
         );
         const shouldFilter = applyPageFilters(conversation, filters);
         return isAwaiting && shouldFilter;
+      })
+      .sort((a, b) => sortComparator(a, b, _state.chatSortFilter));
+  },
+  getPendingClosureChats: _state => {
+    // "Aguardando encerramento": espelha o backend (Conversation.awaiting_closure /
+    // assignee_type='pending_closure') — basta o marcador aguardando_encerramento_desde
+    // presente (a IA continua dona). Mesma mecânica da fila "Aguardando atendimento".
+    const filters = _state.conversationFilters;
+
+    return _state.allConversations
+      .filter(conversation => {
+        const isPendingClosure = Boolean(
+          conversation.custom_attributes?.aguardando_encerramento_desde
+        );
+        const shouldFilter = applyPageFilters(conversation, filters);
+        return isPendingClosure && shouldFilter;
       })
       .sort((a, b) => sortComparator(a, b, _state.chatSortFilter));
   },

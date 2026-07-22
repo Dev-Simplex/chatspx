@@ -64,6 +64,7 @@ class ConversationFinder # rubocop:disable Metrics/ClassLength
         unassigned_count: counts[:unassigned_count],
         ai_count: counts[:ai_count],
         awaiting_count: counts[:awaiting_count],
+        awaiting_closure_count: counts[:awaiting_closure_count],
         all_count: counts[:all_count],
         unattended_assigned_to_me_count: counts[:unattended_mine_count],
         unattended_unassigned_count: counts[:unattended_unassigned_count],
@@ -86,6 +87,7 @@ class ConversationFinder # rubocop:disable Metrics/ClassLength
         unassigned_count: counts[:unassigned_count],
         ai_count: counts[:ai_count],
         awaiting_count: counts[:awaiting_count],
+        awaiting_closure_count: counts[:awaiting_closure_count],
         all_count: counts[:all_count],
         unattended_assigned_to_me_count: counts[:unattended_mine_count],
         unattended_unassigned_count: counts[:unattended_unassigned_count],
@@ -107,6 +109,7 @@ class ConversationFinder # rubocop:disable Metrics/ClassLength
         unassigned_count: counts[:unassigned_count],
         ai_count: counts[:ai_count],
         awaiting_count: counts[:awaiting_count],
+        awaiting_closure_count: counts[:awaiting_closure_count],
         all_count: counts[:all_count],
         unattended_assigned_to_me_count: counts[:unattended_mine_count],
         unattended_unassigned_count: counts[:unattended_unassigned_count],
@@ -209,14 +212,19 @@ class ConversationFinder # rubocop:disable Metrics/ClassLength
     when 'unassigned'
       @conversations = ai_tabs_enabled? ? @conversations.unassigned.without_captain_assignee : @conversations.unassigned
     when 'ai'
-      # IA = atribuída à IA E ainda SEM o marcador "aguardando humano" (as que já
-      # aguardam atendente saem daqui e vão pro tab 'awaiting').
+      # IA = atribuída à IA E sem marcador de fila (as que aguardam atendente vão pro tab
+      # 'awaiting'; as que aguardam encerramento, pro tab 'pending_closure').
       @conversations = @conversations.assigned_to_captain
                                      .where("conversations.custom_attributes->>'aguardando_humano_desde' IS NULL")
+                                     .where("conversations.custom_attributes->>'aguardando_encerramento_desde' IS NULL")
     when 'awaiting'
       # Aguardando atendimento = a IA fez handoff e segue dona, mas marcou que é hora de
       # um humano assumir. TEM dono (IA) — por isso NÃO é "não atribuída".
       @conversations = @conversations.awaiting_human
+    when 'pending_closure'
+      # Aguardando encerramento = conversa parada/encerrada marcada pra um humano JULGAR o
+      # fecho. A IA segue dona (responde se o cliente voltar) — some da aba IA, entra aqui.
+      @conversations = @conversations.awaiting_closure
     when 'assigned'
       @conversations = @conversations.assigned
     end
@@ -324,8 +332,9 @@ class ConversationFinder # rubocop:disable Metrics/ClassLength
         COUNT(*)::int AS all_count,
         COUNT(*) FILTER (WHERE sub.assignee_id = #{uid})::int AS mine_count,
         COUNT(*) FILTER (WHERE sub.assignee_id IS NULL#{' AND ab.id IS NULL' if ai_tabs_enabled?})::int AS unassigned_count,
-        COUNT(*) FILTER (WHERE ab.id IS NOT NULL AND (sub.custom_attributes->>'aguardando_humano_desde') IS NULL)::int AS ai_count,
+        COUNT(*) FILTER (WHERE ab.id IS NOT NULL AND (sub.custom_attributes->>'aguardando_humano_desde') IS NULL AND (sub.custom_attributes->>'aguardando_encerramento_desde') IS NULL)::int AS ai_count,
         COUNT(*) FILTER (WHERE (sub.custom_attributes->>'aguardando_humano_desde') IS NOT NULL)::int AS awaiting_count,
+        COUNT(*) FILTER (WHERE (sub.custom_attributes->>'aguardando_encerramento_desde') IS NOT NULL)::int AS awaiting_closure_count,
         COUNT(*) FILTER (WHERE #{unattended})::int AS unattended_all_count,
         COUNT(*) FILTER (WHERE #{unattended} AND sub.assignee_id = #{uid})::int AS unattended_mine_count,
         COUNT(*) FILTER (WHERE #{unattended} AND sub.assignee_id IS NULL)::int AS unattended_unassigned_count
@@ -340,6 +349,7 @@ class ConversationFinder # rubocop:disable Metrics/ClassLength
       unassigned_count: result['unassigned_count'].to_i,
       ai_count: result['ai_count'].to_i,
       awaiting_count: result['awaiting_count'].to_i,
+      awaiting_closure_count: result['awaiting_closure_count'].to_i,
       unattended_all_count: result['unattended_all_count'].to_i,
       unattended_mine_count: result['unattended_mine_count'].to_i,
       unattended_unassigned_count: result['unattended_unassigned_count'].to_i

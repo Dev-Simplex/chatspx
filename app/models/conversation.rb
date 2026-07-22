@@ -104,6 +104,13 @@ class Conversation < ApplicationRecord
   scope :awaiting_human, lambda {
     where("conversations.custom_attributes->>'aguardando_humano_desde' IS NOT NULL")
   }
+  # "Aguardando encerramento": conversa parada/encerrada que o roteador de auto-resolve marcou
+  # para um humano JULGAR se fecha. A IA segue dona (responde se o cliente voltar), some do
+  # filtro IA e aparece nesta fila. O concern limpa o marcador quando um humano assume, o
+  # cliente volta a falar (waiting_since repopulado) ou a conversa resolve.
+  scope :awaiting_closure, lambda {
+    where("conversations.custom_attributes->>'aguardando_encerramento_desde' IS NOT NULL")
+  }
   scope :unattended, -> { where(first_reply_created_at: nil).or(where.not(waiting_since: nil)) }
   # Conversas com mensagem recebida (incoming) ainda nao vista pelo agente:
   # existe incoming criada depois do agent_last_seen_at (ou nunca aberta). Espelha

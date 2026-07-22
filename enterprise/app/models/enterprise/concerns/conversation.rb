@@ -28,6 +28,11 @@ module Enterprise::Concerns::Conversation
     # engaja DE FATO — assumiu a conversa (atribuição limpa o espelho), respondeu sem
     # assumir (A2c, reason human_reply) — ou quando a conversa resolve (saiu da fila).
     after_commit :clear_awaiting_human_marker, if: -> { awaiting_human_clearable? }
+    # Gêmeo do awaiting_human para a fila "Aguardando encerramento": some da fila quando um
+    # humano assume, o CLIENTE volta a falar (waiting_since repopulado no incoming) ou a
+    # conversa resolve. Não limpa quando a própria IA responde (a nota de encerramento não
+    # tira a conversa da fila).
+    after_commit :clear_awaiting_closure_marker, if: -> { awaiting_closure_clearable? }
   end
 
   private
@@ -52,6 +57,27 @@ module Enterprise::Concerns::Conversation
     update_columns(custom_attributes: (custom_attributes || {}).except('aguardando_humano_desde')) # rubocop:disable Rails/SkipsModelValidations
   rescue StandardError => e
     Rails.logger.warn("[Captain] limpa aguardando_humano conv=#{id}: #{e.message}")
+  end
+
+  def awaiting_closure_clearable?
+    attrs = custom_attributes || {}
+    return false unless attrs.key?('aguardando_encerramento_desde') || attrs.key?('encerramento_avisado_em')
+
+    awaiting_human_assumed? || awaiting_closure_customer_returned? || (saved_change_to_status? && resolved?)
+  end
+
+  # Cliente voltou a falar: o incoming repopula waiting_since (nil -> presente) na conversa
+  # que estava parada (a IA havia respondido por último). A IA retoma via pipeline normal.
+  def awaiting_closure_customer_returned?
+    saved_change_to_waiting_since? && waiting_since.present?
+  end
+
+  def clear_awaiting_closure_marker
+    update_columns(custom_attributes: (custom_attributes || {}).except( # rubocop:disable Rails/SkipsModelValidations
+                     'aguardando_encerramento_desde', 'encerramento_avisado_em', 'encerramento_classe'
+                   ))
+  rescue StandardError => e
+    Rails.logger.warn("[Captain] limpa aguardando_encerramento conv=#{id}: #{e.message}")
   end
 
   def kick_captain_pipeline_after_mirror_assignment

@@ -48,12 +48,13 @@ class Captain::ConversationCompletionService < Captain::BaseTaskService
 
     {
       complete: message['complete'] == true,
+      classe: message['classe'],
       reason: message['reason'] || 'No reason provided'
     }
   end
 
   def default_incomplete_response(reason)
-    { complete: false, reason: reason }
+    { complete: false, classe: nil, reason: reason }
   end
 
   # Prefer the system API key over the account's OpenAI hook key.

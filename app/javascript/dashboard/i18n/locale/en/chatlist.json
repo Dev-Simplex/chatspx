@@ -22,6 +22,7 @@
     "ASSIGNEE_TYPE_TABS": {
       "me": "Mine",
       "awaiting": "Awaiting assignment",
+      "pending_closure": "Awaiting closure",
       "unassigned": "Unassigned",
       "ai": "AI",
       "all": "All"

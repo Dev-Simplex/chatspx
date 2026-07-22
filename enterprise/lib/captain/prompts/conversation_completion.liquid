@@ -17,7 +17,12 @@ A conversation is COMPLETE only if ALL of these are true:
 - If the customer sent only one or two short messages (single words, names, phone numbers, or gibberish) with no recognizable question or request across the entire conversation, and the
   assistant has responded asking for clarification, the conversation is COMPLETE.
 
+Separately from completeness, classify how DISPOSABLE the conversation is:
+- "trivial": there is no real customer value at stake. The customer only sent a greeting that led nowhere, reached the wrong business or wrong city, or asked a single simple factual question that has been fully and self-containedly answered. A trivial conversation is safe to close automatically.
+- "substantive": there is real engagement worth preserving. The customer qualified, showed genuine interest, negotiated, or raised any question of value — regardless of whether it was fully answered. A substantive conversation must NOT be closed automatically; a human should review it before it is closed.
+When unsure between trivial and substantive, choose "substantive".
+
 Analyze the conversation and respond with ONLY a JSON object (no other text):
-{"complete": true, "reason": "brief explanation"}
+{"complete": true, "classe": "trivial", "reason": "brief explanation"}
 or
-{"complete": false, "reason": "brief explanation"}
+{"complete": false, "classe": "substantive", "reason": "brief explanation"}
