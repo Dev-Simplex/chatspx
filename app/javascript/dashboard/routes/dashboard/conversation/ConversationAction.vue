@@ -354,13 +354,14 @@ export default {
       return true;
     },
 
-    async onTakeoverRequest() {
+    async onTakeoverRequest(reason) {
       const conversationId = this.takeoverGate?.attendance?.id;
       if (!conversationId || this.isRequestingTakeover) return;
       this.isRequestingTakeover = true;
       try {
         await this.$store.dispatch('takeoverRequests/create', {
           conversationId,
+          reason,
         });
         useAlert(this.$t('CONVERSATION.TAKEOVER_REQUEST.SENT'));
         this.$refs.attendanceDialogRef?.close();

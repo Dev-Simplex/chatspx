@@ -637,6 +637,7 @@
       "BODY_WITH_TEAM": "It's assigned to {name} ({team}). Request it to access the conversation.",
       "REQUEST": "Request attendance",
       "REQUEST_SENT": "Request sent",
+      "REASON_PLACEHOLDER": "Add a short note for the owner (optional)",
       "REQUEST_EXISTS": "You already have a pending request for this conversation.",
       "REQUEST_ERROR": "Could not send the request, please try again."
     }

@@ -29,6 +29,9 @@ const teamName = computed(() => props.meta?.team?.name || '');
 
 const requested = ref(Boolean(props.meta?.existing_request));
 const isRequesting = ref(false);
+// Mensagem curta e opcional para o dono — limitada p/ não virar textão.
+const reason = ref('');
+const REASON_MAX = 140;
 
 const description = computed(() =>
   teamName.value
@@ -45,6 +48,7 @@ const onRequest = async () => {
   try {
     await store.dispatch('takeoverRequests/create', {
       conversationId: props.conversationId,
+      reason: reason.value.trim() || undefined,
     });
     requested.value = true;
     useAlert(t('CONVERSATION.TAKEOVER_REQUEST.SENT'));
@@ -78,15 +82,31 @@ const onRequest = async () => {
     <span v-if="requested" class="mt-5 text-sm font-medium text-n-slate-11">
       {{ $t('CONVERSATION.ACCESS_BLOCKED.REQUEST_SENT') }}
     </span>
-    <Button
-      v-else-if="gateEnabled"
-      color="amber"
-      size="sm"
-      class="mt-5"
-      :is-loading="isRequesting"
-      :disabled="isRequesting"
-      :label="$t('CONVERSATION.ACCESS_BLOCKED.REQUEST')"
-      @click="onRequest"
-    />
+    <template v-else-if="gateEnabled">
+      <div class="relative w-full mt-5 max-w-sm">
+        <textarea
+          v-model="reason"
+          :maxlength="REASON_MAX"
+          rows="2"
+          class="reset-base w-full px-3 py-2 text-sm text-left rounded-lg resize-none bg-n-alpha-2 border border-n-weak text-n-slate-12 placeholder:text-n-slate-10 focus:outline-none focus:border-n-brand"
+          :placeholder="$t('CONVERSATION.ACCESS_BLOCKED.REASON_PLACEHOLDER')"
+        />
+        <span
+          v-if="reason.length"
+          class="absolute text-xs bottom-1.5 ltr:right-2 rtl:left-2 text-n-slate-10"
+        >
+          {{ `${reason.length}/${REASON_MAX}` }}
+        </span>
+      </div>
+      <Button
+        color="amber"
+        size="sm"
+        class="mt-3"
+        :is-loading="isRequesting"
+        :disabled="isRequesting"
+        :label="$t('CONVERSATION.ACCESS_BLOCKED.REQUEST')"
+        @click="onRequest"
+      />
+    </template>
   </div>
 </template>

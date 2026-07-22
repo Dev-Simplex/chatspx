@@ -340,12 +340,12 @@ const onAttendanceCancel = () => {
   pendingConversation.value = null;
 };
 
-const onAttendanceRequest = async () => {
+const onAttendanceRequest = async reason => {
   const conversationId = attendanceGate.value?.attendance?.id;
   if (!conversationId || isRequestingAttendance.value) return;
   isRequestingAttendance.value = true;
   try {
-    await store.dispatch('takeoverRequests/create', { conversationId });
+    await store.dispatch('takeoverRequests/create', { conversationId, reason });
     useAlert(t('CONTACTS_LAYOUT.IN_ATTENDANCE.REQUEST.SENT'));
     attendanceDialogRef.value?.close();
     pendingConversation.value = null;

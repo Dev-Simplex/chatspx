@@ -693,6 +693,7 @@
       "GO_TO_CONVERSATION": "Go to the conversation",
       "REQUEST": "Request attendance",
       "REQUEST_SENT": "Request sent",
+      "REASON_PLACEHOLDER": "Add a short note for the owner (optional)",
       "SEND_ANYWAY": "Send anyway",
       "CANCEL": "Cancel",
       "BANNER": "This contact is already in attendance."

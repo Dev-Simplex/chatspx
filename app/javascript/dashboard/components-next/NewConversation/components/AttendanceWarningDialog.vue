@@ -40,6 +40,9 @@ const emit = defineEmits([
 
 const { t } = useI18n();
 const dialogRef = ref(null);
+// Mensagem curta e opcional para o dono (limitada p/ não virar textão).
+const reason = ref('');
+const REASON_MAX = 140;
 
 const ownerName = computed(
   () =>
@@ -117,6 +120,24 @@ defineExpose({ open, close });
     <div class="flex flex-col gap-2">
       <p class="text-sm text-n-slate-11">{{ description }}</p>
       <p v-if="inboxHint" class="text-sm text-n-slate-10">{{ inboxHint }}</p>
+      <!-- Recado curto ao dono, só no fluxo de pedir (canRequest, sem pendente). -->
+      <div v-if="canRequest && !hasPendingRequest" class="relative mt-1">
+        <textarea
+          v-model="reason"
+          :maxlength="REASON_MAX"
+          rows="2"
+          class="reset-base w-full px-3 py-2 text-sm rounded-lg resize-none bg-n-alpha-2 border border-n-weak text-n-slate-12 placeholder:text-n-slate-10 focus:outline-none focus:border-n-brand"
+          :placeholder="
+            t('COMPOSE_NEW_CONVERSATION.ATTENDANCE_WARNING.REASON_PLACEHOLDER')
+          "
+        />
+        <span
+          v-if="reason.length"
+          class="absolute text-xs bottom-1.5 ltr:right-2 rtl:left-2 text-n-slate-10"
+        >
+          {{ `${reason.length}/${REASON_MAX}` }}
+        </span>
+      </div>
     </div>
 
     <!-- type="button" OBRIGATÓRIO: este rodapé vive dentro do <form> do Dialog e
@@ -169,7 +190,7 @@ defineExpose({ open, close });
           :is-loading="isRequesting"
           :disabled="isRequesting"
           :label="t('COMPOSE_NEW_CONVERSATION.ATTENDANCE_WARNING.REQUEST')"
-          @click="emit('requestAttendance')"
+          @click="emit('requestAttendance', reason.trim() || undefined)"
         />
       </div>
     </template>

@@ -693,6 +693,7 @@
       "GO_TO_CONVERSATION": "Ir para a conversa",
       "REQUEST": "Solicitar atendimento",
       "REQUEST_SENT": "Pedido enviado",
+      "REASON_PLACEHOLDER": "Escreva um recado curto para o dono (opcional)",
       "SEND_ANYWAY": "Enviar mesmo assim",
       "CANCEL": "Cancelar",
       "BANNER": "Este contato já está em atendimento."

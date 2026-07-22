@@ -628,6 +628,7 @@
       "BODY_WITH_TEAM": "Está atribuída a {name} ({team}). Solicite o atendimento para acessá-la.",
       "REQUEST": "Solicitar atendimento",
       "REQUEST_SENT": "Pedido enviado",
+      "REASON_PLACEHOLDER": "Escreva um recado curto para o dono (opcional)",
       "REQUEST_EXISTS": "Você já tem um pedido pendente nesta conversa.",
       "REQUEST_ERROR": "Não foi possível solicitar, tente novamente."
     }
