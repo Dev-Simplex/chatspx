@@ -9,6 +9,7 @@ describe('#validLabelCharacters', () => {
     expect(validLabelCharacters('str str')).toEqual(false);
     expect(validLabelCharacters('str_str')).toEqual(true);
     expect(validLabelCharacters('str-str')).toEqual(true);
+    expect(validLabelCharacters('str.str')).toEqual(true);
   });
 });
 
