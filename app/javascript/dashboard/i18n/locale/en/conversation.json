@@ -72,6 +72,8 @@
     "AI_HANDLING_HINT": "{name} is handling this conversation",
     "AI_HANDLING_SUBHINT": "Take over to reply yourself",
     "AI_SUMMARY_TITLE": "AI summary",
+    "AI_SUMMARY_READ_MORE": "Read more",
+    "AI_SUMMARY_READ_LESS": "Read less",
     "NEWEST_MESSAGE": "Latest messages",
     "CLICK_HERE": "Click here",
     "LOADING_INBOXES": "Loading inboxes",
@@ -92,7 +94,6 @@
     "WHATSAPP_WINDOW_EXPIRED": {
       "TITLE": "Janela de 24 horas expirada",
       "DESCRIPTION": "O WhatsApp só permite mensagens livres dentro de 24 horas após a última mensagem do cliente. Para retomar, envie um template aprovado.",
-      "QUICK_TEMPLATES": "Envio rápido",
       "SEND_TEMPLATE": "Enviar Template",
       "SEND_TEMPLATE_ACTION": "Enviar Template",
       "PRIVATE_NOTE": "Nota Privada"
@@ -677,10 +678,12 @@
       "EDIT": "Edit",
       "SAVE": "Save",
       "CANCEL": "Cancel",
+      "READ_MORE": "Read more",
+      "READ_LESS": "Read less",
       "SAVE_ERROR": "Couldn't save the summary."
     },
     "CHECKLIST": {
-      "TITLE": "Subjects / Tasks",
+      "TITLE": "Subjects and Tasks",
       "EMPTY": "No subjects identified yet.",
       "ADD_PLACEHOLDER": "Add a subject or task",
       "ADD": "Add",

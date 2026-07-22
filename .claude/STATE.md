@@ -10,6 +10,10 @@
 
 ## 🚧 Em andamento
 
+### [2026-07-22] 🟢 UI conversa — 7 ajustes de UX (front compartilhado, commitado na homologacao)
+
+- Resumo da IA (banner `ReplyBoxBanner.vue` + card lateral `ConversationSummary.vue`) **colapsável** (clamp 3 linhas + "ler mais/menos", nasce colapsado, não persiste — composable `useCollapsibleText.js`) e **só renderiza em conta com IA** (`FEATURE_FLAGS.CAPTAIN_V2`); janela 24h expirada **sem lista de templates rápidos**; **bug do "Resumo do humano" corrigido** (método `updateCustomAttributes` faltava no API client + `try/catch` engolia o erro) e "Resumo da IA" agora **somente leitura**; checkbox do checklist com **borda visível** nos 2 temas + "Assuntos / Tarefas"→"Assuntos e Tarefas"; ações da conversa com **toggle Atribuir↔Devolver** por dono. ⚠️ **A `.232` precisa de precompile + restart do web pra exibir** (não é automático). Eslint 0 erros.
+
 ### [2026-07-16] 🟢 META LEADS — higiene de dados + visibilidade no painel + RMKT separado (tudo LIVE na prod Tozi)
 
 > Sessão de refinamento pós-go-live. Tudo em `homologacao` + cherry-pick `producao`, hotfix no box (conta 6), worker reiniciado. Serviço central: `app/services/meta/lead_ads/`.

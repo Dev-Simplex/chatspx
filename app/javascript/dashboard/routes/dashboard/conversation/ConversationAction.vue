@@ -131,10 +131,16 @@ export default {
     showAssigneeGroups() {
       return false;
     },
-    // Botão "Devolver para a IA" aparece quando há IA atribuível nesta inbox
-    // (logo, triagem possível). O backend valida se há triagem de fato.
+    isAssignedToMe() {
+      return Boolean(
+        this.assignedAgent && this.assignedAgent.id === this.currentUser?.id
+      );
+    },
+    // "Devolver para a IA" é o par do "Atribuir a mim": só aparece quando a
+    // conversa já é minha (não faz sentido devolver o que não é meu) e há IA
+    // atribuível na inbox. O backend valida se há triagem de fato.
     canRetriage() {
-      return this.aiAgentsList.length > 0;
+      return this.isAssignedToMe && this.aiAgentsList.length > 0;
     },
     selectedAssignee() {
       return this.assignedAIAgent || this.assignedAgent;
@@ -207,13 +213,9 @@ export default {
       );
     },
     showSelfAssign() {
-      if (!this.assignedAgent) {
-        return true;
-      }
-      if (this.assignedAgent.id !== this.currentUser.id) {
-        return true;
-      }
-      return false;
+      // "Atribuir a mim" some quando a conversa já é minha (vira "Devolver
+      // para a IA"). Aparece quando não atribuída ou atribuída a outro.
+      return !this.isAssignedToMe;
     },
   },
   mounted() {

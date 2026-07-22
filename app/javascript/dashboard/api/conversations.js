@@ -10,6 +10,12 @@ class ConversationApi extends ApiClient {
     return axios.get(`${this.url}/${conversationID}/labels`);
   }
 
+  updateCustomAttributes({ conversationId, customAttributes }) {
+    return axios.post(`${this.url}/${conversationId}/custom_attributes`, {
+      custom_attributes: customAttributes,
+    });
+  }
+
   updateLabels(conversationID, labels) {
     return axios.post(`${this.url}/${conversationID}/labels`, { labels });
   }

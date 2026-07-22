@@ -856,19 +856,15 @@ const actions = {
     { commit },
     { conversationId, customAttributes }
   ) => {
-    try {
-      const response = await ConversationApi.updateCustomAttributes({
-        conversationId,
-        customAttributes,
-      });
-      const { custom_attributes } = response.data;
-      commit(types.UPDATE_CONVERSATION_CUSTOM_ATTRIBUTES, {
-        conversationId,
-        customAttributes: custom_attributes,
-      });
-    } catch (error) {
-      // Handle error
-    }
+    const response = await ConversationApi.updateCustomAttributes({
+      conversationId,
+      customAttributes,
+    });
+    const { custom_attributes } = response.data;
+    commit(types.UPDATE_CONVERSATION_CUSTOM_ATTRIBUTES, {
+      conversationId,
+      customAttributes: custom_attributes,
+    });
   },
 
   setConversationFilters({ commit }, data) {

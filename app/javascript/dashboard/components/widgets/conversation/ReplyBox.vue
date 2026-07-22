@@ -2839,7 +2839,6 @@ export default {
       <div :key="copilot.editorTransitionKey.value" class="reply-box__top">
         <WhatsappWindowExpired
           v-if="showWhatsappWindowExpired"
-          :inbox-id="inboxId"
           @send-template="onExpiredSendTemplate"
           @switch-to-note="onExpiredSwitchToNote"
         />

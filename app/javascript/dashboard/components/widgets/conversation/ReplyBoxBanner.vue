@@ -6,7 +6,9 @@ import { useAlert } from 'dashboard/composables';
 import { useI18n } from 'vue-i18n';
 import wootConstants from 'dashboard/constants/globals';
 import { useReplyAssignmentGate } from 'dashboard/composables/useReplyAssignmentGate';
+import { useCollapsibleText } from 'dashboard/composables/useCollapsibleText';
 import { aiAccentVars } from 'dashboard/helper/aiAccent';
+import { FEATURE_FLAGS } from 'dashboard/featureFlags';
 
 import Banner from 'dashboard/components/ui/Banner.vue';
 import TeamSelectionModal from './TeamSelectionModal.vue';
@@ -32,7 +34,20 @@ const { isAssignmentGateEnabled } = useReplyAssignmentGate();
 
 const currentChat = useMapGetter('getSelectedChat');
 const currentUser = useMapGetter('getCurrentUser');
+const currentAccountId = useMapGetter('getCurrentAccountId');
+const isFeatureEnabledonAccount = useMapGetter(
+  'accounts/isFeatureEnabledonAccount'
+);
 const teams = useMapGetter('teams/getTeams');
+
+// O "Resumo da IA" só aparece em conta com o módulo de IA ativo (mesmo sinal
+// canônico das rotas de Agentes IA).
+const isCaptainEnabled = computed(() =>
+  isFeatureEnabledonAccount.value(
+    currentAccountId.value,
+    FEATURE_FLAGS.CAPTAIN_V2
+  )
+);
 
 const assignedAgent = computed(() => currentChat.value?.meta?.assignee);
 // IA como dona: a conversa é atendida pelo espelho captain. Mostra a barra roxa
@@ -47,6 +62,13 @@ const aiBarStyle = computed(() =>
 const aiSummary = computed(
   () => currentChat.value?.custom_attributes?.resumo_atendimento_ia || ''
 );
+// Resumo longo colapsa por padrão (clamp de 3 linhas) pra não comer a janela.
+const {
+  contentRef: aiSummaryRef,
+  isExpanded: isAiSummaryExpanded,
+  isOverflowing: isAiSummaryOverflowing,
+  toggle: toggleAiSummary,
+} = useCollapsibleText(aiSummary);
 const showTransferTeamModal = ref(false);
 const pendingTransferAgent = ref(null);
 const isPendingBotHandoff = ref(false);
@@ -270,7 +292,7 @@ const onClickBotHandoff = async () => {
   <!-- Resumo vivo da IA: card realçado (identidade violeta de IA do SPX) com o quadro
        completo do atendimento, pra o humano ler antes de assumir a conversa. -->
   <div
-    v-if="isAIAssignee && aiSummary"
+    v-if="isAIAssignee && aiSummary && isCaptainEnabled"
     class="mx-2 mb-2 rounded-xl border border-n-violet-5 bg-gradient-to-br from-n-violet-2 to-n-violet-1 px-3.5 py-3 dark:border-n-violet-6 dark:from-n-violet-3 dark:to-n-violet-2"
   >
     <div class="mb-1.5 flex items-center gap-1.5">
@@ -281,9 +303,25 @@ const onClickBotHandoff = async () => {
         {{ $t('CONVERSATION.AI_SUMMARY_TITLE') }}
       </span>
     </div>
-    <p class="text-sm leading-relaxed text-n-violet-12 whitespace-pre-line">
+    <p
+      ref="aiSummaryRef"
+      class="text-sm leading-relaxed text-n-violet-12 whitespace-pre-line"
+      :class="{ 'line-clamp-3': !isAiSummaryExpanded }"
+    >
       {{ aiSummary }}
     </p>
+    <button
+      v-if="isAiSummaryOverflowing || isAiSummaryExpanded"
+      type="button"
+      class="mt-1 text-xs font-medium text-n-violet-11 hover:text-n-violet-12"
+      @click="toggleAiSummary"
+    >
+      {{
+        isAiSummaryExpanded
+          ? $t('CONVERSATION.AI_SUMMARY_READ_LESS')
+          : $t('CONVERSATION.AI_SUMMARY_READ_MORE')
+      }}
+    </button>
   </div>
   <Banner
     v-if="showSelfAssignBanner && !showBotHandoffBanner"

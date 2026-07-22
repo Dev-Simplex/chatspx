@@ -72,6 +72,8 @@
     "AI_HANDLING_HINT": "{name} está atendendo esta conversa",
     "AI_HANDLING_SUBHINT": "Assuma para responder você mesmo",
     "AI_SUMMARY_TITLE": "Resumo da IA",
+    "AI_SUMMARY_READ_MORE": "Ler mais",
+    "AI_SUMMARY_READ_LESS": "Ler menos",
     "CLICK_HERE": "Clique aqui",
     "LOADING_INBOXES": "Carregando caixas de entrada",
     "LOADING_CONVERSATIONS": "Carregando conversas",
@@ -668,10 +670,12 @@
       "EDIT": "Editar",
       "SAVE": "Salvar",
       "CANCEL": "Cancelar",
+      "READ_MORE": "Ler mais",
+      "READ_LESS": "Ler menos",
       "SAVE_ERROR": "Não foi possível salvar o resumo."
     },
     "CHECKLIST": {
-      "TITLE": "Assuntos / Tarefas",
+      "TITLE": "Assuntos e Tarefas",
       "EMPTY": "Nenhum assunto identificado ainda.",
       "ADD_PLACEHOLDER": "Adicionar assunto ou tarefa",
       "ADD": "Adicionar",
