@@ -34,9 +34,8 @@ export const getters = {
   getUIFlags(_state) {
     return _state.uiFlags;
   },
-  // A Fase 2 usa isto p/ avisar que o contato já está em atendimento.
-  getByContactId: _state => contactId =>
-    _state.records.filter(record => record.contact?.id === Number(contactId)),
+  // (A Fase 2 NÃO lê do store: usa useAttendanceGate.fetchAttendances, que chama a
+  // API direto — por isso não existe um getter por contato aqui.)
 };
 
 export const actions = {

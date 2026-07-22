@@ -608,7 +608,9 @@
         "CONVERSATION_OWNED_BY_BOT": "This conversation is handled by AI.",
         "TAKEOVER_REQUEST_EXISTS": "You already have a pending request for this conversation.",
         "TAKEOVER_REQUEST_CLOSED": "This request was already answered.",
-        "TAKEOVER_REQUEST_STALE": "The conversation changed owner since your request."
+        "TAKEOVER_REQUEST_STALE": "The conversation changed owner since your request.",
+        "TAKEOVER_REQUEST_SELF": "You are already the owner of this conversation.",
+        "TAKEOVER_GATE_DISABLED": "Attendance-request mode is turned off."
       }
     },
     "TAKEOVER_APPROVAL": {

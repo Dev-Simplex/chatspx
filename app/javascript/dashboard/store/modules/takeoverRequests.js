@@ -17,15 +17,21 @@ export const state = {
 const normalize = record => camelcaseKeys(record, { deep: true });
 
 export const getters = {
-  getIncoming(_state) {
+  // "incoming" = pedidos em que EU sou o dono (preciso responder). Filtra por
+  // owner.id: create()/cancel() injetam a linha OUTGOING (owner=colega) no mesmo
+  // mapa `records`, então sem o filtro por dono o pedido que EU enviei inflava o
+  // meu próprio badge/lista "Pedidos".
+  getIncoming(_state, _getters, _rootState, rootGetters) {
+    const uid = rootGetters.getCurrentUserID;
     return Object.values(_state.records)
-      .filter(r => r.status === 'pending' && r.owner)
+      .filter(r => r.status === 'pending' && r.owner?.id === uid)
       .sort((a, b) => b.createdAt - a.createdAt);
   },
   // Contador do item "Pedidos" na sidebar (padrão getterKeys.count).
-  getIncomingCount(_state) {
+  getIncomingCount(_state, _getters, _rootState, rootGetters) {
+    const uid = rootGetters.getCurrentUserID;
     return Object.values(_state.records).filter(
-      r => r.status === 'pending' && r.owner
+      r => r.status === 'pending' && r.owner?.id === uid
     ).length;
   },
   // Pendentes de uma conversa específica (o banner no topo da conversa usa).

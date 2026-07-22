@@ -366,17 +366,7 @@ export default {
         this.$refs.attendanceDialogRef?.close();
         this.takeoverGate = null;
       } catch (error) {
-        const code = error?.response?.data?.error_code;
-        useAlert(
-          code
-            ? this.$t(
-                `CONVERSATION.TAKEOVER_REQUEST.ERRORS.${code.toUpperCase()}`,
-                {
-                  default: this.$t('CONVERSATION.REPLY_GATE_DIALOG.ERROR'),
-                }
-              )
-            : this.$t('CONVERSATION.REPLY_GATE_DIALOG.ERROR')
-        );
+        useAlert(this.takeoverErrorMessage(error));
       } finally {
         this.isRequestingTakeover = false;
       }
@@ -387,6 +377,19 @@ export default {
       this.takeoverGate = null;
     },
 
+    // Traduz o error_code do pedido; cai no erro genérico se a chave não existir.
+    // O vue-i18n 9 devolve a própria chave quando falta (o `{ default }` de 2 args
+    // é ignorado), então detectamos ausência por igualdade em vez de mostrar a
+    // string pontilhada crua na tela.
+    takeoverErrorMessage(error) {
+      const generic = this.$t('CONVERSATION.REPLY_GATE_DIALOG.ERROR');
+      const code = error?.response?.data?.error_code;
+      if (!code) return generic;
+      const key = `CONVERSATION.TAKEOVER_REQUEST.ERRORS.${code.toUpperCase()}`;
+      const translated = this.$t(key);
+      return translated === key ? generic : translated;
+    },
+
     async onConfirmTransferTeam(teamId) {
       if (!this.pendingTransferAgent?.id) {
         this.closeTransferTeamModal();
@@ -394,6 +397,9 @@ export default {
       }
 
       const conversationId = this.currentChat.id;
+      // Capturado ANTES: se a atribuição do agente bater no gate, desfazemos a
+      // troca de time (que é comitada primeiro) de volta para este valor.
+      const previousTeamId = this.currentChat?.meta?.team?.id || null;
       let teamApplied = false;
       try {
         await this.$store.dispatch('assignTeam', {
@@ -414,12 +420,22 @@ export default {
           assigneeId: this.pendingTransferAgent.id,
         });
       } catch (error) {
-        if (teamApplied) {
-          useAlert(this.$t('CONVERSATION.CHANGE_AGENT_FAILED'));
-        } else {
-          useAlert(this.$t('CONVERSATION.CHANGE_TEAM_FAILED'));
+        // Gate D1: assignTeam não tem gate, mas assignAgent sim. Se a atribuição do
+        // agente exige pedido (422), oferece "Solicitar" — e DESFAZ a troca de time
+        // já comitada, para não mexer na conversa do colega numa tentativa barrada.
+        if (this.offerTakeoverRequest(error, conversationId)) {
+          if (teamApplied) {
+            this.$store
+              .dispatch('assignTeam', {
+                conversationId,
+                teamId: previousTeamId || 0,
+              })
+              .catch(() => {});
+          }
+          return;
         }
         if (teamApplied) {
+          useAlert(this.$t('CONVERSATION.CHANGE_AGENT_FAILED'));
           // The team change was committed before the failure; the backend may
           // have cleared the assignee, so check access with the new team only.
           this.leaveConversationIfAccessLost({
@@ -427,6 +443,8 @@ export default {
             teamId,
             assigneeId: null,
           });
+        } else {
+          useAlert(this.$t('CONVERSATION.CHANGE_TEAM_FAILED'));
         }
       } finally {
         this.closeTransferTeamModal();

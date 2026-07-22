@@ -179,11 +179,14 @@ const onRequestTakeover = async () => {
     hide();
   } catch (error) {
     const code = error?.response?.data?.error_code;
-    errorMessage.value = code
-      ? t(`CONVERSATION.TAKEOVER_REQUEST.ERRORS.${code.toUpperCase()}`, {
-          default: t('CONVERSATION.REPLY_GATE_DIALOG.ERROR'),
-        })
-      : t('CONVERSATION.REPLY_GATE_DIALOG.ERROR');
+    const generic = t('CONVERSATION.REPLY_GATE_DIALOG.ERROR');
+    // vue-i18n 9 devolve a própria chave quando falta (o `{ default }` de 2 args é
+    // ignorado) — detectamos ausência por igualdade em vez de exibir a chave crua.
+    const key =
+      code && `CONVERSATION.TAKEOVER_REQUEST.ERRORS.${code.toUpperCase()}`;
+    const translated = key && t(key);
+    errorMessage.value =
+      translated && translated !== key ? translated : generic;
   } finally {
     isLoading.value = false;
   }

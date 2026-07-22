@@ -599,7 +599,9 @@
         "CONVERSATION_OWNED_BY_BOT": "Esta conversa é atendida pela IA.",
         "TAKEOVER_REQUEST_EXISTS": "Você já tem um pedido pendente nesta conversa.",
         "TAKEOVER_REQUEST_CLOSED": "Este pedido já foi respondido.",
-        "TAKEOVER_REQUEST_STALE": "A conversa trocou de dono desde o seu pedido."
+        "TAKEOVER_REQUEST_STALE": "A conversa trocou de dono desde o seu pedido.",
+        "TAKEOVER_REQUEST_SELF": "Você já é o responsável por esta conversa.",
+        "TAKEOVER_GATE_DISABLED": "O modo de pedido de atendimento está desligado."
       }
     },
     "TAKEOVER_APPROVAL": {

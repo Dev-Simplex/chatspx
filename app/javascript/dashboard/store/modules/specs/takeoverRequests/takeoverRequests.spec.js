@@ -79,15 +79,22 @@ describe('takeoverRequests store', () => {
   });
 
   describe('#getters', () => {
-    it('getIncoming returns pending requests that have an owner, newest first', () => {
+    it('getIncoming returns MY pending requests (owner is me), newest first', () => {
       const state = {
         records: {
           1: { id: 1, status: 'pending', owner: { id: 2 }, createdAt: 100 },
           2: { id: 2, status: 'approved', owner: { id: 2 }, createdAt: 200 },
           3: { id: 3, status: 'pending', owner: { id: 2 }, createdAt: 300 },
+          // pedido de OUTRO dono (ex.: um que EU enviei, owner=colega) — não é
+          // incoming meu, não pode inflar meu badge "Pedidos".
+          4: { id: 4, status: 'pending', owner: { id: 99 }, createdAt: 400 },
         },
       };
-      expect(getters.getIncoming(state).map(r => r.id)).toEqual([3, 1]);
+      const rootGetters = { getCurrentUserID: 2 };
+      expect(
+        getters.getIncoming(state, null, null, rootGetters).map(r => r.id)
+      ).toEqual([3, 1]);
+      expect(getters.getIncomingCount(state, null, null, rootGetters)).toBe(2);
     });
 
     it('getPendingForConversation filters by conversation', () => {

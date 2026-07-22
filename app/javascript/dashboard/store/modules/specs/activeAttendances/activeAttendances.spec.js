@@ -1,5 +1,5 @@
 import axios from 'axios';
-import { actions, getters, mutations } from '../../activeAttendances';
+import { actions, mutations } from '../../activeAttendances';
 import * as types from '../../../mutation-types';
 import apiResponse from './fixtures';
 
@@ -63,31 +63,5 @@ describe('#mutations', () => {
     expect(state.records[0].contact.phoneNumber).toBe('+5511999999999');
     expect(state.records[0].inbox.channelType).toBe('Channel::Api');
     expect(state.records[0].assignee.availableName).toBe('Ana');
-  });
-});
-
-describe('#getters', () => {
-  // A Fase 2 (aviso ao criar conversa) depende deste getter.
-  it('getByContactId returns every attendance of a contact', () => {
-    const state = {
-      records: [
-        { id: 11, contact: { id: 1 } },
-        { id: 12, contact: { id: 5 } },
-        // mesmo contato, outra caixa: é justamente a duplicação que a aba expõe
-        { id: 13, contact: { id: 1 } },
-      ],
-    };
-
-    expect(
-      getters
-        .getByContactId(state)(1)
-        .map(r => r.id)
-    ).toEqual([11, 13]);
-    expect(
-      getters
-        .getByContactId(state)('1')
-        .map(r => r.id)
-    ).toEqual([11, 13]);
-    expect(getters.getByContactId(state)(99)).toEqual([]);
   });
 });
