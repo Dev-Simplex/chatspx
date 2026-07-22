@@ -9,7 +9,7 @@ class Captain::ConversationEvalService < Captain::BaseTaskService
   RESPONSE_SCHEMA = Captain::ConversationEvalSchema
   TRANSCRIPT_CHAR_LIMIT = 60_000
 
-  pattr_initialize [:account!, :conversation_display_id!, :episode]
+  pattr_initialize [:account!, :conversation_display_id!, :episode, :model_override]
 
   def perform
     transcript, response_map = build_transcript
@@ -48,7 +48,8 @@ class Captain::ConversationEvalService < Captain::BaseTaskService
   end
 
   def eval_model
-    InstallationConfig.find_by(name: 'EVAL_OPEN_AI_MODEL')&.value.presence ||
+    model_override.presence ||
+      InstallationConfig.find_by(name: 'EVAL_OPEN_AI_MODEL')&.value.presence ||
       InstallationConfig.find_by(name: 'CAPTAIN_OPEN_AI_MODEL')&.value.presence || GPT_MODEL
   end
 
