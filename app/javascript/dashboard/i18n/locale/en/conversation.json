@@ -630,7 +630,7 @@
       "BODY": "{name} wants to take over one of your conversations.",
       "BODY_WITH_CONTACT": "{name} wants to take over your conversation with {contact}.",
       "APPROVE": "Approve",
-      "LATER": "Not yet"
+      "LATER": "Not now"
     },
     "TAKEOVER_RESULT": {
       "APPROVED": "Your request was approved — the conversation is now yours.",

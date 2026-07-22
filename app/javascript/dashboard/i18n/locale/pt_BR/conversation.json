@@ -621,7 +621,7 @@
       "BODY": "{name} quer assumir uma conversa sua.",
       "BODY_WITH_CONTACT": "{name} quer assumir sua conversa com {contact}.",
       "APPROVE": "Aprovar",
-      "LATER": "Ainda não"
+      "LATER": "Agora não"
     },
     "TAKEOVER_RESULT": {
       "APPROVED": "Seu pedido foi aprovado — a conversa agora é sua.",
