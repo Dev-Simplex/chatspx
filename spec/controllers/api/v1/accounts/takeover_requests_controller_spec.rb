@@ -41,6 +41,18 @@ RSpec.describe 'Takeover Requests API', type: :request do
       end.to change { Notification.where(user_id: owner.id, notification_type: 'conversation_takeover_requested').count }.by(1)
     end
 
+    # Galinha-e-ovo: num inbox ISOLADO o requester não pode ABRIR a conversa do
+    # dono — mas PRECISA poder pedir (o pedido é como se ganha acesso). O guard de
+    # isolamento é pulado só neste endpoint.
+    it 'still lets the requester create a request in an isolated inbox (not blocked)' do
+      inbox.update!(agent_conversation_isolation: true)
+      post "/api/v1/accounts/#{account.id}/conversations/#{conversation.display_id}/takeover_requests",
+           headers: requester.create_new_auth_token, as: :json
+
+      expect(response).to have_http_status(:success)
+      expect(response.parsed_body['status']).to eq('pending')
+    end
+
     # Fase 3 desligada: nem via POST direto o pedido pode nascer (a UI ja gateia,
     # mas a API precisa do mesmo guard, senao notificaria o dono com o modo OFF).
     it 'refuses to create a request when the takeover mode is off' do

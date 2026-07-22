@@ -233,6 +233,8 @@ pt_BR:
       assignment_required: 'Você precisa assumir a conversa antes de responder'
     takeover_request_gate:
       request_required: 'Esta conversa é de outro agente. Solicite o atendimento para assumir.'
+    agent_conversation_isolation:
+      access_blocked: 'Esta conversa está atribuída a outro agente. Solicite o atendimento para acessá-la.'
     errors:
       team_required_for_resolution: 'Um time deve ser atribuído antes de resolver esta conversa'
       resolve_assignment_required: 'Apenas o agente atribuído pode encerrar esta conversa'

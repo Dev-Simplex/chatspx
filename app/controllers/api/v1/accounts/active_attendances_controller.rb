@@ -51,20 +51,41 @@ class Api::V1::Accounts::ActiveAttendancesController < Api::V1::Accounts::BaseCo
     end
   end
 
-  # "Posso abrir/ver": espelha ConversationPolicy#show? + authorize_team_access.
-  # As isenções do guard de time são exatamente estas (conversation_team_access_concern.rb:27):
-  # admin, conversa sem time, ou eu ser o dono. Fora delas, tem que ser do time —
-  # e sem time o show? exige ser membro da CAIXA.
+  # "Posso abrir/ver": alcançabilidade por time/inbox + o VETO do isolamento por
+  # agente (inbox isolado: conversa de colega não abre, mesmo eu sendo do time).
+  # Sem o veto, a aba ofereceria "Abrir"/"Ir para a conversa" que daria 403.
   def can_open?(conversation, ctx)
     return true if ctx[:admin]
     return false if ctx[:user_id].nil?
     return true if conversation.assignee_id == ctx[:user_id]
+    return false if isolated_and_foreign?(conversation, ctx)
+
+    reachable?(conversation, ctx)
+  end
+
+  # Alcançabilidade pura (espelha authorize_team_access), SEM o veto de isolamento:
+  # é a base do pedido — dá pra SOLICITAR uma conversa isolada que eu alcanço pelo
+  # time/inbox, mesmo não podendo abri-la.
+  def reachable?(conversation, ctx)
+    return true if ctx[:admin]
+    return false if ctx[:user_id].nil?
 
     if conversation.team_id.present?
       ctx[:team_ids].include?(conversation.team_id)
     else
       ctx[:inbox_ids].include?(conversation.inbox_id)
     end
+  end
+
+  # Inbox isolado + dono humano ≠ eu → não posso abrir (só solicitar).
+  def isolated_and_foreign?(conversation, ctx)
+    return false unless isolated_inbox_ids.include?(conversation.inbox_id)
+
+    conversation.assignee_id.present? && conversation.assignee_id != ctx[:user_id]
+  end
+
+  def isolated_inbox_ids
+    @isolated_inbox_ids ||= Current.account.inboxes.where(agent_conversation_isolation: true).pluck(:id).to_set
   end
 
   # "Assumir sem pedir": só conversa SEM dono humano (fila ou IA — nos dois casos
@@ -79,16 +100,15 @@ class Api::V1::Accounts::ActiveAttendancesController < Api::V1::Accounts::BaseCo
 
   # Regra do pedido: o pedido é uma superfície da Fase 3, então só faz sentido com o
   # takeover_request_gate LIGADO — sem a flag a aba não oferece "Solicitar" (degrada
-  # p/ "Abrir"), ficando consistente com o compose e a página de contato, que já
-  # checam a flag. Fora isso: admin não pede (atribui direto; a policy create?
-  # bloqueia), precisa de dono HUMANO que não seja eu, e preciso alcançar a conversa.
+  # p/ "Abrir"/"Bloqueado"). Usa `reachable?` (NÃO `can_open?`): senão o veto de
+  # isolamento derrubaria justamente o caminho de pedir a conversa isolada do colega.
   def can_request?(conversation, ctx)
     return false unless takeover_gate_enabled?
     return false if ctx[:admin] || ctx[:user_id].nil?
     return false if conversation.assignee_id.blank? || conversation.assignee_agent_bot_id.present?
     return false if conversation.assignee_id == ctx[:user_id]
 
-    can_open?(conversation, ctx)
+    reachable?(conversation, ctx)
   end
 
   # Flag da conta puxada UMA vez (a capacidade é calculada por linha).

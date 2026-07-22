@@ -1,6 +1,11 @@
 # Criar o pedido: pendurado no Conversations::BaseController de propósito — herda
 # `authorize @conversation, :show?` E o authorize_team_access de graça.
 class Api::V1::Accounts::Conversations::TakeoverRequestsController < Api::V1::Accounts::Conversations::BaseController
+  # O pedido é justamente COMO se ganha acesso a uma conversa isolada de outro
+  # agente — aplicar o guard de isolamento aqui seria galinha-e-ovo (não dá pra
+  # pedir o que não se pode acessar). O guard de time + a policy show? continuam
+  # valendo (só peço conversa que alcanço pelo time/inbox).
+  skip_before_action :authorize_agent_conversation_access
   before_action :check_authorization
 
   def create

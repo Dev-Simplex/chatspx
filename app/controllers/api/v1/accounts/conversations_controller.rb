@@ -2,6 +2,7 @@ class Api::V1::Accounts::ConversationsController < Api::V1::Accounts::BaseContro
   include Events::Types
   include HmacConcern
   include ConversationTeamAccessConcern
+  include AgentConversationAccessConcern
 
   CONVERSATIONLESS_ACTIONS = [:index, :meta, :search, :create, :filter].freeze
 
@@ -12,6 +13,9 @@ class Api::V1::Accounts::ConversationsController < Api::V1::Accounts::BaseContro
   # `reporting_events` de fora — toda action nova nascia desprotegida por
   # esquecimento. Assim a proteção passa a ser o padrão.
   before_action :authorize_team_access, except: CONVERSATIONLESS_ACTIONS
+  # Isolamento por AGENTE (inbox isolado): só o dono abre a conversa. Mesmo escopo
+  # do guard de time — cobre conversa + sub-recursos.
+  before_action :authorize_agent_conversation_access, except: CONVERSATIONLESS_ACTIONS
 
   ATTACHMENT_RESULTS_PER_PAGE = 40
 

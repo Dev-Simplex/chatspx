@@ -326,6 +326,67 @@ RSpec.describe 'Conversations API', type: :request do
         expect(response).to have_http_status(:success)
         expect(JSON.parse(response.body, symbolize_names: true)[:id]).to eq(conversation.display_id)
       end
+
+      # Isolamento de acesso por agente: num inbox isolado, só o dono abre — mas a
+      # conversa CONTINUA aparecendo na busca (o bloqueio age só na abertura).
+      context 'when the inbox has agent_conversation_isolation enabled' do
+        let(:owner) { create(:user, account: account, role: :agent) }
+        let(:isolated_conversation) do
+          create(:conversation, account: account, inbox: conversation.inbox, assignee: owner)
+        end
+
+        before do
+          conversation.inbox.update!(agent_conversation_isolation: true)
+          create(:inbox_member, user: agent, inbox: conversation.inbox)
+          create(:inbox_member, user: owner, inbox: conversation.inbox)
+        end
+
+        it 'blocks a non-owner agent with a rich 403' do
+          get "/api/v1/accounts/#{account.id}/conversations/#{isolated_conversation.display_id}",
+              headers: agent.create_new_auth_token, as: :json
+
+          expect(response).to have_http_status(:forbidden)
+          body = JSON.parse(response.body, symbolize_names: true)
+          expect(body[:error_code]).to eq('conversation_access_blocked')
+          expect(body[:meta][:current_assignee][:id]).to eq(owner.id)
+        end
+
+        it 'blocks the sub-resources too (messages)' do
+          get "/api/v1/accounts/#{account.id}/conversations/#{isolated_conversation.display_id}/messages",
+              headers: agent.create_new_auth_token, as: :json
+          expect(response).to have_http_status(:forbidden)
+        end
+
+        it 'lets the assignee open their own conversation' do
+          get "/api/v1/accounts/#{account.id}/conversations/#{isolated_conversation.display_id}",
+              headers: owner.create_new_auth_token, as: :json
+          expect(response).to have_http_status(:success)
+        end
+
+        it 'lets any inbox member open an unassigned conversation' do
+          unowned = create(:conversation, account: account, inbox: conversation.inbox, assignee: nil)
+          get "/api/v1/accounts/#{account.id}/conversations/#{unowned.display_id}",
+              headers: agent.create_new_auth_token, as: :json
+          expect(response).to have_http_status(:success)
+        end
+
+        it 'lets an administrator open anything' do
+          get "/api/v1/accounts/#{account.id}/conversations/#{isolated_conversation.display_id}",
+              headers: administrator.create_new_auth_token, as: :json
+          expect(response).to have_http_status(:success)
+        end
+
+        it 'still returns the conversation in search (NOT hidden)' do
+          create(:message, conversation: isolated_conversation, account: account,
+                           content: 'findmeisolated', message_type: :incoming)
+          get "/api/v1/accounts/#{account.id}/conversations/search",
+              headers: agent.create_new_auth_token, params: { q: 'findmeisolated' }, as: :json
+
+          expect(response).to have_http_status(:success)
+          ids = JSON.parse(response.body, symbolize_names: true)[:payload].map { |c| c[:id] }
+          expect(ids).to include(isolated_conversation.display_id)
+        end
+      end
     end
   end
 

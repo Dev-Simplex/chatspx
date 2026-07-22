@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[7.1].define(version: 2026_07_17_140000) do
+ActiveRecord::Schema[7.1].define(version: 2026_07_22_120000) do
   # These extensions should be enabled to support this database
   enable_extension "pg_stat_statements"
   enable_extension "pg_trgm"
@@ -1169,6 +1169,7 @@ ActiveRecord::Schema[7.1].define(version: 2026_07_17_140000) do
     t.boolean "pending_status_enabled", default: false, null: false
     t.jsonb "additional_attributes", default: {}, null: false
     t.boolean "agent_message_isolation", default: false, null: false
+    t.boolean "agent_conversation_isolation", default: false, null: false
     t.index ["account_id"], name: "index_inboxes_on_account_id"
     t.index ["channel_id", "channel_type"], name: "index_inboxes_on_channel_id_and_channel_type"
     t.index ["portal_id"], name: "index_inboxes_on_portal_id"

@@ -279,6 +279,45 @@ RSpec.describe 'Active Attendances API', type: :request do
         end
       end
 
+      # Inbox isolado: colega não ABRE, mas ainda PODE pedir (o decouple
+      # reachable? vs can_open?). A aba continua listando tudo (awareness).
+      describe 'agent_conversation_isolation' do
+        def iso_row_for(conversation, user: agent)
+          get "/api/v1/accounts/#{account.id}/active_attendances", headers: user.create_new_auth_token, as: :json
+          response.parsed_body['payload'].find { |p| p['id'] == conversation.display_id }
+        end
+
+        before { inbox.update!(agent_conversation_isolation: true) }
+
+        it 'vetoes opening a colleague conversation but still offers request (gate on)' do
+          conv = create(:conversation, account: account, inbox: inbox, assignee: owner, team: nil, status: :open)
+          row = iso_row_for(conv)
+          expect(row['can_open']).to be(false)
+          expect(row['can_assume']).to be(false)
+          expect(row['can_request']).to be(true)
+        end
+
+        it 'degrades to blocked (no open, no request) for a colleague when the gate is off' do
+          account.update!(takeover_request_gate: false)
+          conv = create(:conversation, account: account, inbox: inbox, assignee: owner, team: nil, status: :open)
+          row = iso_row_for(conv)
+          expect(row['can_open']).to be(false)
+          expect(row['can_request']).to be(false)
+        end
+
+        it 'still lets me open my own and assume the unowned queue' do
+          mine = create(:conversation, account: account, inbox: inbox, assignee: agent, team: nil, status: :open)
+          unowned = create(:conversation, account: account, inbox: inbox, assignee: nil, team: nil, status: :open)
+          expect(iso_row_for(mine)['can_open']).to be(true)
+          expect(iso_row_for(unowned)['can_assume']).to be(true)
+        end
+
+        it 'still lists the colleague attendance (awareness intact)' do
+          conv = create(:conversation, account: account, inbox: inbox, assignee: owner, team: nil, status: :open)
+          expect(iso_row_for(conv)).to be_present
+        end
+      end
+
       describe 'my_pending_request_id' do
         it 'exposes my own pending request so the row can offer cancelling it' do
           conv = create(:conversation, account: account, inbox: inbox, assignee: owner, team: nil, status: :open)
