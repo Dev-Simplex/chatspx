@@ -8,6 +8,10 @@ RSpec.describe Conversations::TakeoverRequestService do
   let(:admin) { create(:user, account: account, role: :administrator) }
   let(:conversation) { create(:conversation, account: account, inbox: inbox, assignee: owner, status: :open) }
 
+  # O create! agora exige o modo ligado (guard de backend); o resto do fluxo
+  # assume Fase 3 ON. Um teste dedicado cobre o OFF.
+  before { account.update!(takeover_request_gate: true) }
+
   describe '#create!' do
     it 'snapshots the current owner into owner_id' do
       request = described_class.new(conversation: conversation, actor: requester).create!(reason: 'preciso')
@@ -16,6 +20,13 @@ RSpec.describe Conversations::TakeoverRequestService do
       expect(request.requester_id).to eq(requester.id)
       expect(request).to be_pending
       expect(request.reason).to eq('preciso')
+    end
+
+    it 'refuses to create when the takeover mode is off' do
+      account.update!(takeover_request_gate: false)
+      expect { described_class.new(conversation: conversation, actor: requester).create! }
+        .to raise_error(described_class::Error) { |e| expect(e.error_code).to eq(:takeover_gate_disabled) }
+      expect(ConversationTakeoverRequest.count).to eq(0)
     end
 
     it 'refuses a conversation with no owner' do

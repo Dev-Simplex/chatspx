@@ -11,6 +11,9 @@ RSpec.describe 'Takeover Requests API', type: :request do
   before do
     create(:inbox_member, user: owner, inbox: inbox)
     create(:inbox_member, user: requester, inbox: inbox)
+    # O pedido é uma superfície da Fase 3 — só existe com o modo ligado (guard de
+    # backend em TakeoverRequestService#create!). Um teste dedicado cobre o OFF.
+    account.update!(takeover_request_gate: true)
   end
 
   describe 'POST create (conversation-scoped)' do
@@ -36,6 +39,18 @@ RSpec.describe 'Takeover Requests API', type: :request do
         post "/api/v1/accounts/#{account.id}/conversations/#{conversation.display_id}/takeover_requests",
              headers: requester.create_new_auth_token, as: :json
       end.to change { Notification.where(user_id: owner.id, notification_type: 'conversation_takeover_requested').count }.by(1)
+    end
+
+    # Fase 3 desligada: nem via POST direto o pedido pode nascer (a UI ja gateia,
+    # mas a API precisa do mesmo guard, senao notificaria o dono com o modo OFF).
+    it 'refuses to create a request when the takeover mode is off' do
+      account.update!(takeover_request_gate: false)
+      expect do
+        post "/api/v1/accounts/#{account.id}/conversations/#{conversation.display_id}/takeover_requests",
+             headers: requester.create_new_auth_token, as: :json
+      end.not_to change(ConversationTakeoverRequest, :count)
+      expect(response).to have_http_status(:unprocessable_entity)
+      expect(response.parsed_body['error_code']).to eq('takeover_gate_disabled')
     end
 
     it 'returns 422 with an error_code for a conversation with no owner' do
@@ -84,6 +99,17 @@ RSpec.describe 'Takeover Requests API', type: :request do
 
       expect(response).to have_http_status(:unauthorized).or have_http_status(:forbidden)
       expect(conversation.reload.assignee_id).to eq(owner.id)
+    end
+
+    # O VETOR PERIGOSO: se o proprio SOLICITANTE pudesse aprovar, o pedido viraria
+    # um "roubo com 1 clique" — o D1 inteiro cairia. So o dono (ou admin) aprova.
+    it 'forbids the requester from approving their own request (theft vector)' do
+      post "/api/v1/accounts/#{account.id}/takeover_requests/#{request_record.id}/approve",
+           headers: requester.create_new_auth_token, as: :json
+
+      expect(response).to have_http_status(:unauthorized).or have_http_status(:forbidden)
+      expect(conversation.reload.assignee_id).to eq(owner.id)
+      expect(request_record.reload).to be_pending
     end
 
     it 'lets an admin force approval' do

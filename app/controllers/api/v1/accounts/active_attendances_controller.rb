@@ -14,7 +14,10 @@ class Api::V1::Accounts::ActiveAttendancesController < Api::V1::Accounts::BaseCo
     @attendances_count = @attendances.total_count
     @capabilities = compute_capabilities
     @my_pending_requests = fetch_my_pending_requests
-    @duplicated_contact_ids = fetch_duplicated_contact_ids
+    # O chip "2+ abertos" (duplicated) só é lido pela ABA (lista completa). As
+    # chamadas escopadas por contato — gate do compose e botão da página de contato
+    # — ignoram o campo, então NÃO pagam o GROUP BY/HAVING de conta inteira.
+    @duplicated_contact_ids = params[:contact_id].present? ? Set.new : fetch_duplicated_contact_ids
   end
 
   private

@@ -26,6 +26,13 @@ class Conversations::TakeoverRequestService
   end
 
   def create!(reason: nil)
+    # O pedido é uma superfície da Fase 3: sem o modo ligado ele não deve existir.
+    # A UI já gateia (can_request?, compose, dropdown), mas um POST direto na API
+    # furava isso — criava o pedido e notificava o dono mesmo com o modo DESLIGADO.
+    # Guard de backend espelhando o front.
+    raise Error.new(:takeover_gate_disabled, 'O modo de pedido de atendimento está desligado') unless
+      @conversation.account.takeover_request_gate_enabled?
+
     # Ordem importa: a conversa de IA tem assignee_id NULO, então a checagem de
     # bot precisa vir ANTES da de "sem dono" — senão pedir conversa de bot
     # devolveria `conversation_unassigned`, que é o erro errado.
