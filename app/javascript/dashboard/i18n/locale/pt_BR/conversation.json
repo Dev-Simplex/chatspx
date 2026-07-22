@@ -621,6 +621,15 @@
       "DENIED": "Seu pedido de atendimento foi negado.",
       "DENIED_WITH_NOTE": "Seu pedido de atendimento foi negado: {note}",
       "SUPERSEDED": "Seu pedido não é mais necessário — outra pessoa assumiu a conversa."
+    },
+    "ACCESS_BLOCKED": {
+      "TITLE": "Esta conversa não está atribuída a você",
+      "BODY": "Está atribuída a {name}. Solicite o atendimento para acessá-la.",
+      "BODY_WITH_TEAM": "Está atribuída a {name} ({team}). Solicite o atendimento para acessá-la.",
+      "REQUEST": "Solicitar atendimento",
+      "REQUEST_SENT": "Pedido enviado",
+      "REQUEST_EXISTS": "Você já tem um pedido pendente nesta conversa.",
+      "REQUEST_ERROR": "Não foi possível solicitar, tente novamente."
     }
   },
   "EMAIL_TRANSCRIPT": {

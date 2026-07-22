@@ -630,6 +630,15 @@
       "DENIED": "Your attendance request was denied.",
       "DENIED_WITH_NOTE": "Your attendance request was denied: {note}",
       "SUPERSEDED": "Your request is no longer needed — someone else took over the conversation."
+    },
+    "ACCESS_BLOCKED": {
+      "TITLE": "This conversation isn't assigned to you",
+      "BODY": "It's assigned to {name}. Request it to access the conversation.",
+      "BODY_WITH_TEAM": "It's assigned to {name} ({team}). Request it to access the conversation.",
+      "REQUEST": "Request attendance",
+      "REQUEST_SENT": "Request sent",
+      "REQUEST_EXISTS": "You already have a pending request for this conversation.",
+      "REQUEST_ERROR": "Could not send the request, please try again."
     }
   },
   "EMAIL_TRANSCRIPT": {
