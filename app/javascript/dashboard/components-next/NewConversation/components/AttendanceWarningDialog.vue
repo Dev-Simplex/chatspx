@@ -109,7 +109,12 @@ const canGoToConversation = computed(
     props.attendance?.canOpen !== false
 );
 
-const open = () => dialogRef.value?.open();
+// Zera o recado a cada abertura — o diálogo é uma instância persistente
+// (open/close), então sem isto o texto de uma tentativa vazaria p/ a próxima.
+const open = () => {
+  reason.value = '';
+  dialogRef.value?.open();
+};
 const close = () => dialogRef.value?.close();
 
 defineExpose({ open, close });

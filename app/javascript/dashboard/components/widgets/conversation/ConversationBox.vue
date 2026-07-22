@@ -47,14 +47,16 @@ export default {
       accessBlockedMetaFor: 'getAccessBlockedMeta',
     }),
     // A conversa da rota — cobre os DOIS caminhos: já carregada na lista
-    // (currentChat) ou aberta por link/busca antes de carregar (rota).
+    // (currentChat) ou aberta por link/busca antes de carregar (rota). O param
+    // vem como conversation_id (snake) em 4 rotas e conversationId (camel) nas
+    // outras 6 — aceitamos os dois. A ROTA tem prioridade sobre currentChat.id,
+    // que pode ficar OBSOLETO ao abrir por link uma conversa fora da lista
+    // (getConversation falha com 403 e não atualiza a seleção).
     blockedConversationId() {
-      // o param da rota é snake_case (conversation_id)
-      return (
-        this.currentChat.id ||
-        Number(this.$route.params.conversation_id) ||
-        null
+      const routeId = Number(
+        this.$route.params.conversation_id || this.$route.params.conversationId
       );
+      return routeId || this.currentChat.id || null;
     },
     // Isolamento de acesso: se a conversa aberta é de outro agente (403), mostra o
     // painel de bloqueio no lugar das mensagens / do empty-state.
@@ -157,6 +159,7 @@ export default {
     <div v-show="!activeIndex" class="flex h-full min-h-0 m-0">
       <ConversationAccessBlocked
         v-if="accessBlockedMeta"
+        :key="blockedConversationId"
         :conversation-id="blockedConversationId"
         :meta="accessBlockedMeta"
       />

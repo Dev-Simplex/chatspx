@@ -632,8 +632,9 @@
     },
     "ACCESS_BLOCKED": {
       "TITLE": "Esta conversa não está atribuída a você",
-      "BODY": "Está atribuída a {name}. Solicite o atendimento para acessá-la.",
-      "BODY_WITH_TEAM": "Está atribuída a {name} ({team}). Solicite o atendimento para acessá-la.",
+      "BODY": "Está atribuída a {name}.",
+      "BODY_WITH_TEAM": "Está atribuída a {name} ({team}).",
+      "ACTION_HINT": "Solicite o atendimento para acessá-la.",
       "REQUEST": "Solicitar atendimento",
       "REQUEST_SENT": "Pedido enviado",
       "REASON_PLACEHOLDER": "Escreva um recado curto para o dono (opcional)",

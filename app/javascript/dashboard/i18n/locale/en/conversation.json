@@ -641,8 +641,9 @@
     },
     "ACCESS_BLOCKED": {
       "TITLE": "This conversation isn't assigned to you",
-      "BODY": "It's assigned to {name}. Request it to access the conversation.",
-      "BODY_WITH_TEAM": "It's assigned to {name} ({team}). Request it to access the conversation.",
+      "BODY": "It's assigned to {name}.",
+      "BODY_WITH_TEAM": "It's assigned to {name} ({team}).",
+      "ACTION_HINT": "Request it to access the conversation.",
       "REQUEST": "Request attendance",
       "REQUEST_SENT": "Request sent",
       "REASON_PLACEHOLDER": "Add a short note for the owner (optional)",

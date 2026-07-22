@@ -83,6 +83,9 @@ const onRequest = async () => {
       {{ $t('CONVERSATION.ACCESS_BLOCKED.REQUEST_SENT') }}
     </span>
     <template v-else-if="gateEnabled">
+      <p class="mt-1 max-w-md text-sm text-n-slate-11">
+        {{ $t('CONVERSATION.ACCESS_BLOCKED.ACTION_HINT') }}
+      </p>
       <div class="relative w-full mt-5 max-w-sm">
         <textarea
           v-model="reason"
