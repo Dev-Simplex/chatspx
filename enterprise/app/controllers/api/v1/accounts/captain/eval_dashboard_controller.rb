@@ -20,7 +20,8 @@ class Api::V1::Accounts::Captain::EvalDashboardController < Api::V1::Accounts::B
       handoff: safe_group(escopo, :handoff_timing),
       fronteiras: fronteiras,
       findings: findings_stats(escopo),
-      recentes: recentes(evals)
+      recentes: recentes(evals),
+      saude: saude
     }
   end
 
@@ -106,6 +107,20 @@ class Api::V1::Accounts::Captain::EvalDashboardController < Api::V1::Accounts::B
 
   def fronteiras
     Captain::ConversationEpisode.for_account(Current.account.id).closed.group(:boundary_reason).count
+  rescue StandardError
+    {}
+  end
+
+  # Sinais vitais do pipeline pro painel: as panes do eval são silenciosas por
+  # natureza — o gestor precisa VER que o julgamento está vivo (ou parado).
+  def saude
+    epi = Captain::ConversationEval.for_account(Current.account.id).por_episodio
+    {
+      ultimo_julgamento_em: epi.maximum(:avaliado_em),
+      julgados_24h: epi.where('avaliado_em >= ?', 24.hours.ago).count,
+      fechados_24h: Captain::ConversationEpisode.for_account(Current.account.id)
+                                                .where('ended_at >= ?', 24.hours.ago).count
+    }
   rescue StandardError
     {}
   end

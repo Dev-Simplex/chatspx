@@ -55,6 +55,24 @@ class Captain::ConversationEvalSchedulerJob < ApplicationJob
     segment_touched_conversations(account, inbox_ids)
     resegment_stale_open_episodes(account)
     enqueue_closed_episodes(account)
+    flow_watchdog(account)
+  end
+
+  # Dead man's switch do funil: todas as panes do eval até hoje foram SILENCIOSAS
+  # (key morta com 401 engolido; flag clobberada; funil entupido) — o cron rodava e
+  # ninguém via que nada era julgado. Se fecharam episódios e NADA foi julgado nas
+  # últimas 24h, loga erro e rastreia (Sentry via ChatwootExceptionTracker).
+  def flow_watchdog(account)
+    closed = Captain::ConversationEpisode.for_account(account.id).where('ended_at >= ?', 24.hours.ago).count
+    judged = Captain::ConversationEval.for_account(account.id).por_episodio.where('avaliado_em >= ?', 24.hours.ago).count
+    return unless closed > 5 && judged.zero?
+
+    message = "[eval-watchdog] funil SECO na conta #{account.id}: #{closed} episódios fechados e 0 julgados nas últimas 24h " \
+              '(verificar: key do juiz, eval_unit, backlog de não-julgáveis, worker)'
+    Rails.logger.error(message)
+    ChatwootExceptionTracker.new(StandardError.new(message), account: account).capture_exception
+  rescue StandardError => e
+    Rails.logger.warn("[eval-watchdog] falhou: #{e.class} #{e.message}")
   end
 
   def segment_touched_conversations(account, inbox_ids)
