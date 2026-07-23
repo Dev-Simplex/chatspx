@@ -295,12 +295,12 @@
       "ID": "(ID: {identifier})"
     }
   },
-
   "CONTACTS_LAYOUT": {
     "HEADER": {
       "TITLE": "Contacts",
       "SEARCH_TITLE": "Search contacts",
       "ACTIVE_TITLE": "Active contacts",
+      "IN_ATTENDANCE_TITLE": "In attendance",
       "SEARCH_PLACEHOLDER": "Search...",
       "MESSAGE_BUTTON": "Message",
       "SEND_MESSAGE": "Send message",
@@ -502,6 +502,8 @@
       "CREATED_AT": "Created {date}",
       "LAST_ACTIVITY": "Last active {date}",
       "DELETE_CONTACT_DESCRIPTION": "Permanently delete this contact. This action is irreversible",
+      "BLOCK_CONTACT_DESCRIPTION": "Block this contact to stop receiving new conversations from them.",
+      "UNBLOCK_CONTACT_DESCRIPTION": "This contact is blocked. Unblock to receive conversations again.",
       "DELETE_CONTACT": "Delete contact",
       "DELETE_DIALOG": {
         "TITLE": "Confirm Deletion",
@@ -528,7 +530,8 @@
         "ATTRIBUTES": "Attributes",
         "HISTORY": "History",
         "NOTES": "Notes",
-        "MERGE": "Merge"
+        "MERGE": "Merge",
+        "ATTENDANCE": "Attendance"
       },
       "HISTORY": {
         "EMPTY_STATE": "There are no previous conversations associated to this contact",
@@ -608,7 +611,50 @@
       "BUTTON_LABEL": "Add contact",
       "SEARCH_EMPTY_STATE_TITLE": "No contacts matches your search 🔍",
       "LIST_EMPTY_STATE_TITLE": "No contacts available in this view 📋",
-      "ACTIVE_EMPTY_STATE_TITLE": "No contacts are active at the moment 🌙"
+      "ACTIVE_EMPTY_STATE_TITLE": "No contacts are active at the moment 🌙",
+      "IN_ATTENDANCE_EMPTY_STATE_TITLE": "No contacts are in attendance at the moment 🌙"
+    },
+    "IN_ATTENDANCE": {
+      "NO_ASSIGNEE": "Unassigned",
+      "NO_TEAM": "No team",
+      "AI_BADGE": "AI",
+      "OPENED_AGO": "Opened {time}",
+      "LAST_ACTIVITY": "Last activity {time}",
+      "REQUEST_ATTENDANCE": "Request attendance",
+      "LOAD_ERROR": "Could not load who is in attendance. Without this, there is no way to tell whether someone is already serving these contacts.",
+      "RETRY": "Try again",
+      "PAGINATION_SHOWING": "Showing {startItem} - {endItem} of {totalItems} attendance | Showing {startItem} - {endItem} of {totalItems} attendances",
+      "STATUS": {
+        "OPEN": "Open",
+        "PENDING": "Pending",
+        "SNOOZED": "Snoozed"
+      },
+      "REQUEST": {
+        "SENT": "Request sent to the current agent",
+        "ERRORS": {
+          "UNASSIGNED": "This conversation has no owner — just assign it to yourself.",
+          "BOT": "This conversation is handled by AI.",
+          "EXISTS": "You already have a pending request for this conversation.",
+          "SELF": "You already own this conversation.",
+          "NO_ACCESS": "You can't request this conversation — it belongs to a team you're not part of.",
+          "GENERIC": "Couldn't send the request, please try again."
+        },
+        "PENDING_STATE": "Request sent",
+        "CANCEL": "Cancel",
+        "CANCELLED": "Request cancelled"
+      },
+      "OPEN": "Open",
+      "ASSUME": "Take over",
+      "ASSUMED": "You are now serving this contact",
+      "NO_ACCESS_TEAM": "Team {team} — you are not a member",
+      "NO_ACCESS_INBOX": "You don't have access to this inbox",
+      "DUPLICATED": "2+ open",
+      "DUPLICATED_HINT": "This contact has more than one conversation open at the same time",
+      "ATTENDED_BY": "Attended by {name}",
+      "ATTENDED_BY_TEAM": "Attended by {name} ({team})",
+      "YOU": "you",
+      "NO_ACTIVE_ATTENDANCE": "No attendance in progress 🌙",
+      "SEND_BLOCKED": "This contact is being attended by another team. You cannot message them from here."
     },
     "LOAD_MORE": "Load more"
   },
@@ -633,9 +679,25 @@
       "CONFIRM_SINGLE": "Delete contact"
     }
   },
-
   "COMPOSE_NEW_CONVERSATION": {
     "TITLE": "New conversation",
+    "ATTENDANCE_WARNING": {
+      "TITLE": "This contact is already in attendance",
+      "BODY_HUMAN": "{name} is already serving this contact. Sending now would put two people on the same conversation.",
+      "BODY_HUMAN_WITH_TEAM": "{name} ({team}) is already serving this contact. Sending now would put two people on the same conversation.",
+      "BODY_BOT": "This contact is being served by {name}.",
+      "BODY_UNASSIGNED": "There is already an open conversation with this contact, waiting in the team queue.",
+      "BODY_UNKNOWN": "We could not check whether this contact is already in attendance. Sending now may duplicate an ongoing conversation.",
+      "SAME_INBOX": "It is in this same inbox — your message would land in that conversation.",
+      "OTHER_INBOX": "It is in another inbox ({inbox}).",
+      "GO_TO_CONVERSATION": "Go to the conversation",
+      "REQUEST": "Request attendance",
+      "REQUEST_SENT": "Request sent",
+      "REASON_PLACEHOLDER": "Add a short note for the owner (optional)",
+      "SEND_ANYWAY": "Send anyway",
+      "CANCEL": "Cancel",
+      "BANNER": "This contact is already in attendance."
+    },
     "CONTACT_SEARCH": {
       "ERROR_MESSAGE": "We couldn’t complete the search. Please try again."
     },

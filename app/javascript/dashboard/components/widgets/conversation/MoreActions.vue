@@ -27,15 +27,29 @@ const [showActionsDropdown, toggleDropdown] = useToggle(false);
 const [showShareToInternalChat, toggleShareToInternalChat] = useToggle(false);
 
 const currentChat = computed(() => store.getters.getSelectedChat);
+const currentUser = computed(() => store.getters.getCurrentUser);
 
-// "Devolver para a IA" no header: só aparece quando há IA atribuível nesta inbox
-// (logo, triagem possível). O backend valida se há triagem de fato.
-const canRetriage = computed(() =>
-  (store.getters['captainAssistants/getRecords'] || []).some(
-    assistant =>
-      assistant.agent_bot_id &&
-      (assistant.inbox_ids || []).includes(currentChat.value?.inbox_id)
-  )
+// "Devolver para a IA" só quando a conversa é minha (mesmo par do "Atribuir a
+// mim" da sidebar) — não devolve conversa de outro agente nem da própria IA.
+const isAssignedToMe = computed(() => {
+  const assignee = currentChat.value?.meta?.assignee;
+  return Boolean(
+    assignee &&
+      assignee.type !== 'agent_bot' &&
+      assignee.id === currentUser.value?.id
+  );
+});
+
+// "Devolver para a IA" no header: além de ser minha, precisa haver IA atribuível
+// nesta inbox (logo, triagem possível). O backend valida se há triagem de fato.
+const canRetriage = computed(
+  () =>
+    isAssignedToMe.value &&
+    (store.getters['captainAssistants/getRecords'] || []).some(
+      assistant =>
+        assistant.agent_bot_id &&
+        (assistant.inbox_ids || []).includes(currentChat.value?.inbox_id)
+    )
 );
 const hasInternalChat = computed(() => {
   const accountId = store.getters.getCurrentAccountId;

@@ -137,6 +137,7 @@ const allChatList = useMapGetter('getAllStatusChats');
 const unAssignedChatsList = useMapGetter('getUnAssignedChats');
 const aiChatsList = useMapGetter('getAIChats');
 const awaitingChatsList = useMapGetter('getAwaitingChats');
+const pendingClosureChatsList = useMapGetter('getPendingClosureChats');
 const chatListLoading = useMapGetter('getChatListLoadingStatus');
 const activeInbox = useMapGetter('getSelectedInbox');
 const conversationStats = useMapGetter('conversationStats/getStats');
@@ -316,6 +317,8 @@ const assigneeTabItems = computed(() => {
     if (key === wootConstants.ASSIGNEE_TYPE.UNASSIGNED)
       return 'i-lucide-user-round-x';
     if (key === wootConstants.ASSIGNEE_TYPE.AI) return 'i-lucide-sparkles';
+    if (key === wootConstants.ASSIGNEE_TYPE.PENDING_CLOSURE)
+      return 'i-lucide-check-check';
     if (key === wootConstants.ASSIGNEE_TYPE.ALL) return 'i-lucide-users';
     return null;
   };
@@ -342,6 +345,13 @@ const assigneeTabItems = computed(() => {
           isAssignmentGateEnabled.value &&
           !useUnattendedCounts &&
           (stats.aiCount ?? 0) > 0
+        );
+      // "Aguardando encerramento": gate ON + awaiting_closure_count > 0.
+      if (key === wootConstants.ASSIGNEE_TYPE.PENDING_CLOSURE)
+        return (
+          isAssignmentGateEnabled.value &&
+          !useUnattendedCounts &&
+          (stats.awaitingClosureCount ?? 0) > 0
         );
       // Gate ON: "Não atribuídas" deixa de ser chip da tab-bar no modo IA
       // (a fila vira "Aguardando atendimento"). Modo clássico mantém
@@ -588,6 +598,8 @@ const conversationList = computed(() => {
       localConversationList = unAssignedChatsList.value;
     } else if (activeAssigneeTab.value === 'awaiting') {
       localConversationList = awaitingChatsList.value;
+    } else if (activeAssigneeTab.value === 'pending_closure') {
+      localConversationList = pendingClosureChatsList.value;
     } else if (activeAssigneeTab.value === 'ai') {
       localConversationList = aiChatsList.value;
     } else {

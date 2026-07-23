@@ -346,6 +346,110 @@ describe('#kanban actions', () => {
     });
   });
 
+  // Arrastar entre etapas: a lista do draggable é one-way, então sem otimismo o
+  // card volta para a coluna de origem até o PATCH responder (0,26s a 1,63s
+  // medidos no staging).
+  describe('#moveItemToStage', () => {
+    const buildState = () => ({
+      funnelItems: {
+        10: { id: 10, funnelStageId: 1, position: 5 },
+        20: { id: 20, funnelStageId: 2, position: 3 },
+        30: { id: 30, funnelStageId: 2, position: 8 },
+      },
+      stageItems: { '7:1': [10], '7:2': [20, 30] },
+    });
+
+    it('moves the card right away and only then persists', async () => {
+      const state = buildState();
+      KanbanAPI.updateItem.mockResolvedValue({ data: { id: 10 } });
+
+      await actions.moveItemToStage(
+        { commit, state },
+        { funnelId: 7, itemId: 10, stageId: 2 }
+      );
+
+      // otimista: já commitou ANTES de chamar a API
+      const [type, payload] = commit.mock.calls[0];
+      expect(type).toBe(types.UPDATE_FUNNEL_ITEM);
+      expect(payload).toMatchObject({ id: 10, funnelStageId: 2 });
+
+      // A regra é "vai para o TOPO", não uma conta específica: a position tem que
+      // ficar abaixo de TODAS as da etapa destino (é o que põe o card em primeiro).
+      // Afirmar `position: 2` travaria a aritmética da fixture, não o comportamento.
+      const positionsDoDestino = state.stageItems['7:2'].map(
+        id => state.funnelItems[id].position
+      );
+      expect(payload.position).toBeLessThan(Math.min(...positionsDoDestino));
+
+      expect(KanbanAPI.updateItem).toHaveBeenCalledWith(7, 10, {
+        funnel_stage_id: 2,
+      });
+      // e a resposta do servidor continua sendo a autoridade
+      expect(commit).toHaveBeenLastCalledWith(types.UPDATE_FUNNEL_ITEM, {
+        id: 10,
+      });
+    });
+
+    it('puts the card at position 1 when the target stage is empty', async () => {
+      const state = buildState();
+      state.stageItems['7:9'] = [];
+      KanbanAPI.updateItem.mockResolvedValue({ data: { id: 10 } });
+
+      await actions.moveItemToStage(
+        { commit, state },
+        { funnelId: 7, itemId: 10, stageId: 9 }
+      );
+
+      expect(commit).toHaveBeenNthCalledWith(1, types.UPDATE_FUNNEL_ITEM, {
+        id: 10,
+        funnelStageId: 9,
+        position: 1,
+      });
+    });
+
+    it('sends the card back to the original stage when the request fails', async () => {
+      const state = buildState();
+      KanbanAPI.updateItem.mockRejectedValue(new Error('boom'));
+
+      await expect(
+        actions.moveItemToStage(
+          { commit, state },
+          { funnelId: 7, itemId: 10, stageId: 2 }
+        )
+      ).rejects.toThrow('boom');
+
+      expect(commit).toHaveBeenLastCalledWith(types.UPDATE_FUNNEL_ITEM, {
+        id: 10,
+        funnelStageId: 1,
+        position: 5,
+      });
+    });
+
+    it('does nothing when the card is already in the target stage', async () => {
+      const state = buildState();
+
+      await actions.moveItemToStage(
+        { commit, state },
+        { funnelId: 7, itemId: 10, stageId: 1 }
+      );
+
+      expect(commit).not.toHaveBeenCalled();
+      expect(KanbanAPI.updateItem).not.toHaveBeenCalled();
+    });
+
+    it('does nothing for an unknown card', async () => {
+      const state = buildState();
+
+      await actions.moveItemToStage(
+        { commit, state },
+        { funnelId: 7, itemId: 999, stageId: 2 }
+      );
+
+      expect(commit).not.toHaveBeenCalled();
+      expect(KanbanAPI.updateItem).not.toHaveBeenCalled();
+    });
+  });
+
   describe('#fetchFunnelItemsPage', () => {
     it('prevents concurrent request duplication for the same stage', async () => {
       let resolveRequest;

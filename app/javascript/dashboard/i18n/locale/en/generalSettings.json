@@ -204,6 +204,14 @@
       "FEATURES": {
         "INBOUND_EMAIL_ENABLED": "Conversation continuity with emails is enabled for your account.",
         "CUSTOM_EMAIL_DOMAIN_ENABLED": "You can receive emails in your custom domain now."
+      },
+      "TAKEOVER_GATE": {
+        "TITLE": "Request to take over a conversation",
+        "NOTE": "A conversation owned by another agent can only change hands through an approved request or by an admin. \"Take over\" becomes \"Request attendance\". Works best with the Attendance mode on.",
+        "API": {
+          "SUCCESS": "Takeover request mode updated successfully",
+          "ERROR": "Failed to update takeover request mode"
+        }
       }
     },
     "UPDATE_CHATWOOT": "An update {latestChatwootVersion} for Chatwoot is available. Please update your instance.",

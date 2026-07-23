@@ -23,11 +23,14 @@ module Enterprise::ActionService
     # o humano/time estava tratando, reabriu por resposta do cliente/NPS -> volta pro
     # humano, não pra IA roubar da mão dele. Triagem inicial não tem outgoing -> não barra.
     return if last_outgoing_by_human?
+    # Procedência (opt-in por conta): se a conversa nasceu de uma resposta a um template que um
+    # HUMANO mandou 1:1 pro contato (<24h), o dono é esse humano -> a IA não assume. Cobre o caso
+    # do incidente 22/07 (o template saiu de OUTRA conversa/ficha do mesmo contato, então a
+    # guarda `last_outgoing_by_human?` — que só olha ESTA conversa — não pega).
+    return if reassigned_to_human_template_sender?
 
-    assistant = @account.captain_assistants.find_by(id: assistant_ids.first) # params chegam como ARRAY
+    assistant = eligible_captain_assistant(assistant_ids.first) # params chegam como ARRAY
     return if assistant.nil?
-    # Elegibilidade (C8 no caminho in-process): IA só atua em inbox onde está registrada
-    return unless @conversation.inbox.captain_assistants.exists?(assistant.id)
 
     mirror = assistant.mirror_agent_bot # cria o espelho se faltar (Fase A)
     return if mirror.nil?
@@ -45,6 +48,16 @@ module Enterprise::ActionService
     Current.executed_by = assistant
   end
 
+  # Assistant existente E elegível (C8 no caminho in-process): a IA só atua em inbox onde está
+  # registrada. nil em qualquer caso inválido -> assign_ai_agent para.
+  def eligible_captain_assistant(assistant_id)
+    assistant = @account.captain_assistants.find_by(id: assistant_id)
+    return nil if assistant.nil?
+    return nil unless @conversation.inbox.captain_assistants.exists?(assistant.id)
+
+    assistant
+  end
+
   # Última mensagem enviada por HUMANO×IA (ignora NPS/template/atividade): se o último
   # a falar foi um humano (User), a conversa estava na mão dele — a reentrada não deve
   # reatribuir pra IA. Sem nenhuma mensagem (triagem inicial) retorna false (não barra).
@@ -55,5 +68,52 @@ module Enterprise::ActionService
                         .order(created_at: :desc)
                         .first
     last&.sender_type == 'User'
+  end
+
+  # Procedência da triagem (OPT-IN por conta, default OFF via custom_attribute):
+  # quando a conversa nasce de uma resposta a um template que um HUMANO mandou 1:1 pro contato
+  # (última msg outgoing de template <24h com sender User), o dono é esse humano — a IA não
+  # assume. Template de CAMPANHA/disparo (MessageBuilder sem user -> sem sender User) e openers
+  # de IA seguem pra triagem normal. Determinístico, sem LLM. Retorna true quando reatribuiu ao
+  # humano (aí assign_ai_agent para). Guarda desligada => comportamento idêntico ao atual.
+  def reassigned_to_human_template_sender?
+    return false unless @account.custom_attributes&.dig('ai_triage_respects_human_template')
+
+    sender = human_template_sender_for_contact
+    return false if sender.nil?
+
+    Conversations::AssignmentService.new(conversation: @conversation, assignee_id: sender.id).perform
+    assign_conversation_team(sender)
+    true
+  end
+
+  # User remetente da última mensagem outgoing de TEMPLATE pro contato nas últimas 24h — só
+  # quando foi um humano 1:1 (sender User). Busca nas conversas do MESMO contato na mesma inbox
+  # (o template pode ter saído de outra conversa/ficha do contato — foi o caso do incidente).
+  def human_template_sender_for_contact
+    contact_id = @conversation.contact_id
+    return nil if contact_id.blank?
+
+    latest_template = Message.joins(:conversation)
+                             .where(conversations: { account_id: @account.id, contact_id: contact_id, inbox_id: @conversation.inbox_id })
+                             .where(message_type: %i[outgoing template])
+                             .where('messages.created_at > ?', 24.hours.ago)
+                             .where("messages.additional_attributes -> 'template_params' IS NOT NULL")
+                             .order('messages.created_at DESC')
+                             .first
+    return nil unless latest_template&.sender_type == 'User'
+
+    latest_template.sender
+  end
+
+  # "Time dele se houver": só quando não-ambíguo (o humano pertence a exatamente 1 time) e a
+  # conversa ainda não tem time — evita a dessincronização assignee∉team (bug do 403).
+  def assign_conversation_team(user)
+    return if @conversation.team_id.present?
+
+    teams = user.teams.where(account_id: @account.id)
+    return unless teams.count == 1
+
+    @conversation.update!(team_id: teams.first.id)
   end
 end

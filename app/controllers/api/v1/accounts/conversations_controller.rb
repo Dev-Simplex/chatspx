@@ -1,12 +1,22 @@
 class Api::V1::Accounts::ConversationsController < Api::V1::Accounts::BaseController
   include Events::Types
   include HmacConcern
+  include ConversationTeamAccessConcern
+  include AgentConversationAccessConcern
 
-  before_action :conversation, except: [:index, :meta, :search, :create, :filter]
+  CONVERSATIONLESS_ACTIONS = [:index, :meta, :search, :create, :filter].freeze
+
+  before_action :conversation, except: CONVERSATIONLESS_ACTIONS
   before_action :inbox, :contact, :contact_inbox, only: [:create]
-  before_action :authorize_team_access,
-                only: [:show, :update, :destroy, :attachments, :mute, :unmute, :transcript, :toggle_status, :toggle_priority, :toggle_typing_status,
-                       :update_last_seen, :unread, :custom_attributes, :retriage]
+  # Guarda por EXCEÇÃO, não por lista de permissão: onde há conversa carregada, o
+  # isolamento por time vale. A lista `only:` anterior deixou `inbox_assistant` e
+  # `reporting_events` de fora — toda action nova nascia desprotegida por
+  # esquecimento. Assim a proteção passa a ser o padrão. (Cobre :retriage e todas as
+  # actions com conversa que o only: antigo listava — retriage não está em CONVERSATIONLESS_ACTIONS.)
+  before_action :authorize_team_access, except: CONVERSATIONLESS_ACTIONS
+  # Isolamento por AGENTE (inbox isolado): só o dono abre a conversa. Mesmo escopo
+  # do guard de time — cobre conversa + sub-recursos.
+  before_action :authorize_agent_conversation_access, except: CONVERSATIONLESS_ACTIONS
 
   ATTACHMENT_RESULTS_PER_PAGE = 40
 
@@ -187,11 +197,6 @@ class Api::V1::Accounts::ConversationsController < Api::V1::Accounts::BaseContro
     @conversation.snoozed_until = parse_date_time(params[:snoozed_until].to_s) if params[:snoozed_until]
   end
 
-  def assign_conversation
-    @conversation.assignee = current_user
-    @conversation.save!
-  end
-
   # D1/DD-2 (OQ-D1 sancionada): gate ON + conversa nova criada já com mensagem do criador
   # e sem dono explícito → self-assign automático do criador (1 ação, SEM escolha de time;
   # exigência de time fica na resolução). 422 aqui quebraria o modal de nova conversa e
@@ -253,22 +258,9 @@ class Api::V1::Accounts::ConversationsController < Api::V1::Accounts::BaseContro
     @conversation.assignee_id? && Current.user == @conversation.assignee
   end
 
-  def authorize_team_access
-    return if Current.user.is_a?(AgentBot)
-    return if Current.user.administrator?
-    return if @conversation.team_id.nil?
-    # Assignee always has access to their own conversation (assignment implies access)
-    return if @conversation.assignee_id == Current.user&.id
-
-    validate_team_param_access if params[:team_id].present?
-    return if performed?
-
-    # Block access if the user is not a member of the conversation's team
-    return if Current.user.teams.exists?(id: @conversation.team_id)
-
-    render json: { error: 'You do not have permission to access this conversation.' }, status: :forbidden
-  end
-
+  # `authorize_team_access` e `team_access_exempt?` vêm do ConversationTeamAccessConcern.
+  # Aqui `team_id` significa "estou vendo a conversa no contexto do time X", então
+  # este controller (e só ele) implementa o hook de validação do parâmetro.
   def validate_team_param_access
     team_id = params[:team_id].to_i
 

@@ -7,6 +7,7 @@ import ConversationHeader from './ConversationHeader.vue';
 import DashboardAppFrame from '../DashboardApp/Frame.vue';
 import EmptyState from './EmptyState/EmptyState.vue';
 import MessagesView from './MessagesView.vue';
+import ConversationAccessBlocked from './ConversationAccessBlocked.vue';
 
 export default {
   components: {
@@ -14,6 +15,7 @@ export default {
     DashboardAppFrame,
     EmptyState,
     MessagesView,
+    ConversationAccessBlocked,
   },
   props: {
     inboxId: {
@@ -42,8 +44,27 @@ export default {
       currentChat: 'getSelectedChat',
       dashboardApps: 'dashboardApps/getRecords',
       currentAccount: 'getCurrentAccount',
-      uiSettings: 'getUISettings',
+      accessBlockedMetaFor: 'getAccessBlockedMeta',
     }),
+    // A conversa da rota — cobre os DOIS caminhos: já carregada na lista
+    // (currentChat) ou aberta por link/busca antes de carregar (rota). O param
+    // vem como conversation_id (snake) em 4 rotas e conversationId (camel) nas
+    // outras 6 — aceitamos os dois. A ROTA tem prioridade sobre currentChat.id,
+    // que pode ficar OBSOLETO ao abrir por link uma conversa fora da lista
+    // (getConversation falha com 403 e não atualiza a seleção).
+    blockedConversationId() {
+      const routeId = Number(
+        this.$route.params.conversation_id || this.$route.params.conversationId
+      );
+      return routeId || this.currentChat.id || null;
+    },
+    // Isolamento de acesso: se a conversa aberta é de outro agente (403), mostra o
+    // painel de bloqueio no lugar das mensagens / do empty-state.
+    accessBlockedMeta() {
+      return this.blockedConversationId
+        ? this.accessBlockedMetaFor(this.blockedConversationId)
+        : null;
+    },
     chatWallpaperStyle() {
       const url = this.currentAccount?.settings?.chat_wallpaper_url;
       if (!url) return null;
@@ -136,13 +157,19 @@ export default {
       />
     </woot-tabs>
     <div v-show="!activeIndex" class="flex h-full min-h-0 m-0">
+      <ConversationAccessBlocked
+        v-if="accessBlockedMeta"
+        :key="blockedConversationId"
+        :conversation-id="blockedConversationId"
+        :meta="accessBlockedMeta"
+      />
       <MessagesView
-        v-if="currentChat.id"
+        v-else-if="currentChat.id"
         :inbox-id="inboxId"
         :is-inbox-view="isInboxView"
       />
       <EmptyState
-        v-if="!currentChat.id && !isInboxView"
+        v-else-if="!isInboxView"
         :is-on-expanded-layout="isOnExpandedLayout"
       />
       <slot />

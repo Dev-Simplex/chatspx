@@ -21,6 +21,7 @@ import emoji from './emoji.json';
 import gallery from './gallery.json';
 import general from './general.json';
 import generalSettings from './generalSettings.json';
+import takeoverRequests from './takeoverRequests.json';
 import helpCenter from './helpCenter.json';
 import inbox from './inbox.json';
 import inboxMgmt from './inboxMgmt.json';
@@ -71,6 +72,7 @@ export default {
   ...gallery,
   ...general,
   ...generalSettings,
+  ...takeoverRequests,
   ...helpCenter,
   ...inbox,
   ...inboxMgmt,

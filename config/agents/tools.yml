@@ -109,3 +109,8 @@
   title: 'Registrar Assunto'
   description: 'Registra um assunto/tarefa identificado na conversa, que vira item de checklist pra equipe'
   icon: 'task'
+
+- id: responder_em_audio
+  title: 'Responder em Áudio (voz)'
+  description: 'Responde o cliente com voice note (voz exclusiva do agente via ElevenLabs) quando ele pede áudio'
+  icon: 'mic'

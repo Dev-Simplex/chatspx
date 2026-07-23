@@ -37,7 +37,7 @@ class Label < ApplicationRecord
 
   validates :title,
             presence: { message: I18n.t('errors.validations.presence') },
-            format: { with: UNICODE_CHARACTER_NUMBER_HYPHEN_UNDERSCORE },
+            format: { with: UNICODE_CHARACTER_NUMBER_HYPHEN_UNDERSCORE_DOT },
             uniqueness: { scope: :account_id }
   validates :team_id, presence: true, if: :visibility_team?
   validate  :team_belongs_to_account, if: :visibility_team?

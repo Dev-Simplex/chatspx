@@ -104,6 +104,13 @@ class Conversation < ApplicationRecord
   scope :awaiting_human, lambda {
     where("conversations.custom_attributes->>'aguardando_humano_desde' IS NOT NULL")
   }
+  # "Aguardando encerramento": conversa parada/encerrada que o roteador de auto-resolve marcou
+  # para um humano JULGAR se fecha. A IA segue dona (responde se o cliente voltar), some do
+  # filtro IA e aparece nesta fila. O concern limpa o marcador quando um humano assume, o
+  # cliente volta a falar (waiting_since repopulado) ou a conversa resolve.
+  scope :awaiting_closure, lambda {
+    where("conversations.custom_attributes->>'aguardando_encerramento_desde' IS NOT NULL")
+  }
   scope :unattended, -> { where(first_reply_created_at: nil).or(where.not(waiting_since: nil)) }
   # Conversas com mensagem recebida (incoming) ainda nao vista pelo agente:
   # existe incoming criada depois do agent_last_seen_at (ou nunca aberta). Espelha
@@ -164,6 +171,7 @@ class Conversation < ApplicationRecord
                                                           inverse_of: :conversation
   has_many :conversation_participants, dependent: :destroy_async
   has_many :notifications, as: :primary_actor, dependent: :destroy_async
+  has_many :conversation_takeover_requests, dependent: :destroy_async
   has_many :attachments, through: :messages
   has_many :reporting_events, dependent: :destroy_async
   has_many :funnel_items, dependent: :destroy
@@ -179,6 +187,11 @@ class Conversation < ApplicationRecord
   after_update_commit :execute_after_update_commit_callbacks
   after_update_commit :move_to_automated_stage, if: :saved_change_to_status?
   after_update_commit :move_to_team_funnel, if: :saved_change_to_team_id?
+  # D1 (Fase 3): callback NOVO e INDEPENDENTE (não pendurar no
+  # process_assignment_changes — reentrância). Se a conversa foi reatribuída por
+  # QUALQUER outro caminho, os pedidos pendentes contra o dono antigo ficam
+  # obsoletos. `if:` barato p/ não custar nada em toda atualização.
+  after_update_commit :supersede_stale_takeover_requests, if: :saved_change_to_assignee_id?
   after_create_commit :notify_conversation_creation
   after_create_commit :load_attributes_created_by_db_triggers
   after_create_commit :add_to_appropriate_funnel
@@ -391,6 +404,30 @@ class Conversation < ApplicationRecord
 
   def notify_conversation_creation
     dispatcher_dispatch(CONVERSATION_CREATED)
+  end
+
+  # Reatribuída por outro caminho → pedidos pendentes contra o dono antigo viram
+  # `superseded`. EXCEÇÃO: se o novo dono é justamente o solicitante, o pedido é
+  # aprovado (system) — a transferência aconteceu, só não passou pelo fluxo.
+  # A própria aprovação seta takeover_approval_in_progress, então NÃO reprocessa
+  # aqui (senão fecharia o pedido duas vezes).
+  def supersede_stale_takeover_requests
+    return if Current.takeover_approval_in_progress
+    return unless conversation_takeover_requests.pending.exists?
+
+    new_owner_id = assignee_id
+    conversation_takeover_requests.pending.find_each do |request|
+      if new_owner_id.present? && request.requester_id == new_owner_id
+        # O novo dono é o próprio solicitante: ele já ganhou a conversa por outro
+        # caminho, então não precisa de aviso.
+        request.close!(status: :approved, source: :system)
+      else
+        request.close!(status: :superseded, source: :system)
+        # Avisa o solicitante perdedor (só broadcast) — senão fica preso em
+        # "Pedido enviado" até um refetch manual.
+        Conversations::TakeoverRequestNotifier.new(request).notify_superseded
+      end
+    end
   end
 
   def notify_conversation_updation

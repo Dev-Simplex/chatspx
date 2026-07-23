@@ -17,6 +17,8 @@ import { ref, computed } from 'vue';
 import { useI18n } from 'vue-i18n';
 import { Motion } from 'motion-v';
 import { useStore, useMapGetter } from 'dashboard/composables/store';
+import { useAccount } from 'dashboard/composables/useAccount';
+import { useAlert } from 'dashboard/composables';
 import Dialog from 'dashboard/components-next/dialog/Dialog.vue';
 import Avatar from 'dashboard/components-next/avatar/Avatar.vue';
 import { fireTakeoverConfetti } from 'dashboard/components-next/effects/useConfetti';
@@ -24,6 +26,7 @@ import { fireTakeoverConfetti } from 'dashboard/components-next/effects/useConfe
 const emit = defineEmits(['confirm']);
 const { t } = useI18n();
 const store = useStore();
+const { currentAccount } = useAccount();
 
 const currentChat = useMapGetter('getSelectedChat');
 const currentUser = useMapGetter('getCurrentUser');
@@ -78,6 +81,16 @@ const variant = computed(() => {
   return 'a'; // sem dono
 });
 
+// D1 (Fase 3): com o takeover_request_gate ligado, a variante (b) — dono humano
+// (colega) — deixa de ASSUMIR e passa a SOLICITAR. As outras variantes (sem
+// dono / IA / fora do time) seguem intactas: nelas não há de quem "tomar".
+const isTakeoverGateEnabled = computed(() =>
+  Boolean(currentAccount.value?.settings?.takeover_request_gate)
+);
+const isRequestFlow = computed(
+  () => isTakeoverGateEnabled.value && variant.value === 'b'
+);
+
 // DD-5: variante (a/b/c) em conversa SEM time + usuário com 1+ times →
 // select dos MEUS times (pré-seleciona quando há 1 só). 0 times = self-assign
 // puro (a conversa mantém o time atual; AD-15 / OQ-D4 não exigem time).
@@ -107,10 +120,29 @@ const description = computed(() =>
   })
 );
 
-const confirmLabel = computed(() =>
-  t(`CONVERSATION.REPLY_GATE_DIALOG.CONFIRM.${variant.value.toUpperCase()}`, {
-    name: assigneeInfo.value?.name || '',
-  })
+const confirmLabel = computed(() => {
+  if (isRequestFlow.value) {
+    return t('CONVERSATION.TAKEOVER_REQUEST.CONFIRM');
+  }
+  return t(
+    `CONVERSATION.REPLY_GATE_DIALOG.CONFIRM.${variant.value.toUpperCase()}`,
+    {
+      name: assigneeInfo.value?.name || '',
+    }
+  );
+});
+
+const dialogTitle = computed(() =>
+  isRequestFlow.value ? t('CONVERSATION.TAKEOVER_REQUEST.TITLE') : title.value
+);
+
+const dialogDescription = computed(() =>
+  isRequestFlow.value
+    ? t('CONVERSATION.TAKEOVER_REQUEST.DESC', {
+        name: assigneeInfo.value?.name || '',
+        team: conversationTeam.value?.name || '',
+      })
+    : description.value
 );
 
 const show = (meta = null) => {
@@ -129,7 +161,43 @@ const hide = () => dialogRef.value?.close();
 
 defineExpose({ show, hide });
 
+const reason = ref('');
+
+// Fluxo de pedido: NÃO emite 'confirm' (nada foi assumido, o ReplyBox não pode
+// reenviar), NÃO dispara confetti (não houve takeover) e NÃO chama assignTeam
+// (mudar o time da conversa DE OUTRA PESSOA antes da aprovação é efeito colateral
+// não autorizado).
+const onRequestTakeover = async () => {
+  isLoading.value = true;
+  errorMessage.value = '';
+  try {
+    await store.dispatch('takeoverRequests/create', {
+      conversationId: currentChat.value.id,
+      reason: reason.value?.trim() || undefined,
+    });
+    useAlert(t('CONVERSATION.TAKEOVER_REQUEST.SENT'));
+    hide();
+  } catch (error) {
+    const code = error?.response?.data?.error_code;
+    const generic = t('CONVERSATION.REPLY_GATE_DIALOG.ERROR');
+    // vue-i18n 9 devolve a própria chave quando falta (o `{ default }` de 2 args é
+    // ignorado) — detectamos ausência por igualdade em vez de exibir a chave crua.
+    const key =
+      code && `CONVERSATION.TAKEOVER_REQUEST.ERRORS.${code.toUpperCase()}`;
+    const translated = key && t(key);
+    errorMessage.value =
+      translated && translated !== key ? translated : generic;
+  } finally {
+    isLoading.value = false;
+  }
+};
+
 const onConfirm = async () => {
+  if (isRequestFlow.value) {
+    await onRequestTakeover();
+    return;
+  }
+
   isLoading.value = true;
   errorMessage.value = '';
   try {
@@ -162,8 +230,8 @@ const onConfirm = async () => {
     ref="dialogRef"
     type="edit"
     width="md"
-    :title="title"
-    :description="description"
+    :title="dialogTitle"
+    :description="dialogDescription"
     :confirm-button-label="confirmLabel"
     :cancel-button-label="$t('CONVERSATION.REPLY_GATE_DIALOG.CANCEL')"
     :is-loading="isLoading"
@@ -195,8 +263,26 @@ const onConfirm = async () => {
         </span>
       </div>
 
+      <!-- Fluxo de pedido (gate ON + dono humano): motivo opcional. Sem seleção
+           de time — mudar o time da conversa de outra pessoa não é permitido. -->
+      <div v-if="isRequestFlow" class="flex flex-col gap-2">
+        <label class="text-sm text-n-slate-11" for="takeover-reason">
+          {{ $t('CONVERSATION.TAKEOVER_REQUEST.REASON_LABEL') }}
+        </label>
+        <textarea
+          id="takeover-reason"
+          v-model="reason"
+          rows="2"
+          class="reset-base w-full resize-none rounded-lg border border-n-weak bg-n-alpha-1 p-2 text-sm text-n-slate-12"
+          :placeholder="$t('CONVERSATION.TAKEOVER_REQUEST.REASON_PLACEHOLDER')"
+        />
+      </div>
+
       <!-- variante (d) / DD-5: select dos times DO usuário (NUNCA todos) -->
-      <div v-if="needsTeamSelection" class="flex flex-col gap-2">
+      <div
+        v-if="needsTeamSelection && !isRequestFlow"
+        class="flex flex-col gap-2"
+      >
         <span class="text-sm text-n-slate-11">
           {{ $t('CONVERSATION.REPLY_GATE_DIALOG.TEAM_LABEL') }}
         </span>

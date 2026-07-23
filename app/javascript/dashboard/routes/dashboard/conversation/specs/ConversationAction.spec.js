@@ -1,4 +1,5 @@
 import { describe, it, expect, vi } from 'vitest';
+import { useAlert } from 'dashboard/composables';
 import ConversationAction from '../ConversationAction.vue';
 
 vi.mock('dashboard/composables', () => ({
@@ -164,9 +165,134 @@ describe('ConversationAction methods', () => {
   });
 });
 
+describe('ConversationAction takeover path (dropdown 422)', () => {
+  const build422 = (meta = {}) => ({
+    response: { data: { error_code: 'takeover_request_required', meta } },
+  });
+
+  const buildVm = (overrides = {}) => {
+    const vm = {
+      takeoverGate: null,
+      isRequestingTakeover: false,
+      currentChat: { id: 99, meta: {} },
+      $refs: { attendanceDialogRef: { open: vi.fn(), close: vi.fn() } },
+      $store: { dispatch: vi.fn().mockResolvedValue() },
+      $t: key => key,
+      leaveConversationIfAccessLost: vi.fn(),
+      ...overrides,
+    };
+    // métodos que um método chama no próprio componente precisam existir no vm
+    vm.offerTakeoverRequest = methods.offerTakeoverRequest.bind(vm);
+    vm.takeoverErrorMessage = methods.takeoverErrorMessage.bind(vm);
+    return vm;
+  };
+
+  it('offerTakeoverRequest opens the dialog and builds the gate for a takeover 422', () => {
+    const vm = buildVm();
+    const result = methods.offerTakeoverRequest.call(
+      vm,
+      build422({
+        current_assignee: { id: 5, name: 'Ana' },
+        team: { id: 2, name: 'suporte' },
+        existing_request: null,
+      }),
+      99
+    );
+
+    expect(result).toBe(true);
+    expect(vm.$refs.attendanceDialogRef.open).toHaveBeenCalled();
+    expect(vm.takeoverGate.attendance.id).toBe(99);
+    expect(vm.takeoverGate.attendance.assignee.name).toBe('Ana');
+    expect(vm.takeoverGate.attendance.canRequest).toBe(true);
+    expect(vm.takeoverGate.attendance.canOpen).toBe(false);
+  });
+
+  it('offerTakeoverRequest ignores a non-takeover error', () => {
+    const vm = buildVm();
+    const result = methods.offerTakeoverRequest.call(
+      vm,
+      { response: { data: { error_code: 'something_else' } } },
+      99
+    );
+    expect(result).toBe(false);
+    expect(vm.$refs.attendanceDialogRef.open).not.toHaveBeenCalled();
+  });
+
+  it('offerTakeoverRequest marks a pending request from meta.existing_request', () => {
+    const vm = buildVm();
+    methods.offerTakeoverRequest.call(
+      vm,
+      build422({ existing_request: { id: 42 } }),
+      99
+    );
+    expect(vm.takeoverGate.attendance.myPendingRequestId).toBe(42);
+    expect(vm.takeoverGate.attendance.canRequest).toBe(false);
+  });
+
+  it('assignAgentDirect offers Solicitar on a takeover 422 instead of the generic failure', async () => {
+    useAlert.mockClear();
+    const vm = buildVm({
+      $store: { dispatch: vi.fn().mockRejectedValue(build422()) },
+    });
+    await methods.assignAgentDirect.call(vm, { id: 3 });
+
+    expect(vm.$refs.attendanceDialogRef.open).toHaveBeenCalled();
+    expect(useAlert).not.toHaveBeenCalledWith(
+      'CONVERSATION.CHANGE_AGENT_FAILED'
+    );
+  });
+
+  it('assignAgentDirect falls back to the generic alert on a non-takeover error', async () => {
+    useAlert.mockClear();
+    const vm = buildVm({
+      $store: {
+        dispatch: vi.fn().mockRejectedValue({ response: { data: {} } }),
+      },
+    });
+    await methods.assignAgentDirect.call(vm, { id: 3 });
+
+    expect(vm.$refs.attendanceDialogRef.open).not.toHaveBeenCalled();
+    expect(useAlert).toHaveBeenCalledWith('CONVERSATION.CHANGE_AGENT_FAILED');
+  });
+
+  it('onTakeoverRequest dispatches create and clears the gate', async () => {
+    useAlert.mockClear();
+    const vm = buildVm({ takeoverGate: { attendance: { id: 99 } } });
+    await methods.onTakeoverRequest.call(vm);
+
+    expect(vm.$store.dispatch).toHaveBeenCalledWith('takeoverRequests/create', {
+      conversationId: 99,
+    });
+    expect(useAlert).toHaveBeenCalledWith('CONVERSATION.TAKEOVER_REQUEST.SENT');
+    expect(vm.takeoverGate).toBeNull();
+  });
+
+  it('takeoverErrorMessage falls back to the generic message for a missing key', () => {
+    // vue-i18n devolve a própria chave quando falta
+    const vm = { $t: key => key };
+    const msg = methods.takeoverErrorMessage.call(vm, {
+      response: { data: { error_code: 'weird_code' } },
+    });
+    expect(msg).toBe('CONVERSATION.REPLY_GATE_DIALOG.ERROR');
+  });
+
+  it('takeoverErrorMessage returns the mapped message for a known code', () => {
+    const vm = {
+      $t: key =>
+        key.endsWith('TAKEOVER_REQUEST_EXISTS') ? 'Você já tem um pedido' : key,
+    };
+    const msg = methods.takeoverErrorMessage.call(vm, {
+      response: { data: { error_code: 'takeover_request_exists' } },
+    });
+    expect(msg).toBe('Você já tem um pedido');
+  });
+});
+
 describe('ConversationAction mounted', () => {
   it('fetches captain assistants for admins only', () => {
-    const dispatch = vi.fn();
+    // mockResolvedValue: mounted encadeia .catch() no dispatch (guarda defensiva),
+    // então o mock precisa devolver uma promise.
+    const dispatch = vi.fn().mockResolvedValue();
     mounted.call({ isAdminUser: true, $store: { dispatch } });
     expect(dispatch).toHaveBeenCalledWith('captainAssistants/get');
 

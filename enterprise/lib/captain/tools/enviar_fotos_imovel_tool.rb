@@ -1,4 +1,6 @@
 class Captain::Tools::EnviarFotosImovelTool < Captain::Tools::BasePublicTool
+  include Captain::Tools::VistaImovelUrl
+
   description 'Envia ao cliente as fotos reais de um imóvel pelo WhatsApp, em lotes de 3. ' \
               'Chame quando o cliente pedir fotos de um imóvel, informando o código (vem do resultado da busca). ' \
               'Se o cliente pedir mais fotos do mesmo imóvel, chame de novo com o mesmo código que envia as próximas 3. ' \
@@ -34,7 +36,8 @@ class Captain::Tools::EnviarFotosImovelTool < Captain::Tools::BasePublicTool
       return "O código #{cod} não apareceu na busca desta conversa. Use buscar_imovel primeiro e envie fotos SÓ de um código que a busca retornou — nunca de um código que você supôs ou lembrou de outro imóvel."
     end
 
-    fotos = fetch_fotos(codigo)
+    dados = fetch_detalhes(codigo)
+    fotos = extract_fotos(dados)
     return 'Não encontrei fotos desse imóvel.' if fotos.blank?
 
     key = "fotos_offset_#{codigo}"
@@ -48,7 +51,7 @@ class Captain::Tools::EnviarFotosImovelTool < Captain::Tools::BasePublicTool
     # Opt-in por conta (assistant.config['fotos_carrossel']): manda as fotos numa ÚNICA
     # mensagem de carrossel interativo (1 foto por card + botões), em vez de N imagens.
     # Carrossel exige 2+ cards — com 1 foto restante cai no envio de imagem comum.
-    return send_fotos_carrossel(conversation, fotos, codigo, key, sent, limite) if carrossel_ativo? && (limite - sent) >= 2
+    return send_fotos_carrossel(conversation, dados, fotos, codigo, key, sent, limite) if carrossel_ativo? && (limite - sent) >= 2
 
     batch = fotos[sent, BATCH] || []
     return 'Não encontrei fotos desse imóvel.' if batch.empty?
@@ -79,21 +82,27 @@ class Captain::Tools::EnviarFotosImovelTool < Captain::Tools::BasePublicTool
 
   private
 
-  def fetch_fotos(codigo)
+  def fetch_detalhes(codigo)
     # Credenciais Vista por CONTA via concern (AccountIntegration -> custom_attributes -> ENV).
+    # Além das fotos, traz os campos que montam a URL do site (modo ver_detalhes do carrossel).
     base = vista_base_url
-    pesquisa = { fields: ['Codigo', { 'Foto' => %w[Foto Destaque] }] }
+    pesquisa = { fields: ['Codigo', 'ImoCodigo', 'Categoria', 'Dormitorios', 'Bairro', 'BairroComercial',
+                          'Cidade', 'Status', { 'Foto' => %w[Foto Destaque] }] }
     resp = HTTParty.get(
       "#{base}/imoveis/detalhes",
       query: { key: vista_api_key, imovel: codigo, pesquisa: pesquisa.to_json },
       headers: { 'Accept' => 'application/json' },
       timeout: 15
     )
-    return [] unless resp.code == 200
+    return {} unless resp.code == 200
 
     data = resp.parsed_response
     data = JSON.parse(data) if data.is_a?(String)
-    fotos = data.is_a?(Hash) ? data['Foto'] : nil
+    data.is_a?(Hash) ? data : {}
+  end
+
+  def extract_fotos(dados)
+    fotos = dados['Foto']
     return [] unless fotos.is_a?(Hash)
 
     # Destaque primeiro, depois o resto, na ordem das chaves
@@ -106,24 +115,26 @@ class Captain::Tools::EnviarFotosImovelTool < Captain::Tools::BasePublicTool
     @assistant&.config&.[]('fotos_carrossel') == true
   end
 
-  # Carrossel de mídia interativo (2-10 cards, 1 foto por card, quick replies) numa única
-  # mensagem, via passthrough interactive_payload (WhatsappCloudService#send_raw_interactive,
-  # Graph v23+). A Meta baixa a foto pela URL pública do Vista — sem Down.download aqui.
+  # Carrossel de mídia interativo (2-10 cards, 1 foto por card) numa única mensagem, via
+  # passthrough interactive_payload (WhatsappCloudService#send_raw_interactive, Graph v23+).
+  # A Meta baixa a foto pela URL pública do Vista — sem Down.download aqui.
+  # Botões por config da conta ('fotos_carrossel_botoes'): default = quick replies
+  # (interesse/visita, geram resposta na conversa); 'ver_detalhes' = 1 botão CTA URL que
+  # abre a página do imóvel no site (não gera resposta nem webhook). Meta não deixa
+  # misturar os dois tipos no mesmo carrossel.
   # Obs.: card 'type' => 'cta_url' mesmo com quick_reply é o formato do exemplo oficial da
   # doc (validado ao vivo) — não trocar sem re-testar.
-  def send_fotos_carrossel(conversation, fotos, codigo, key, sent, limite)
+  def send_fotos_carrossel(conversation, dados, fotos, codigo, key, sent, limite)
     urls = fotos[sent, limite - sent] || []
     total = urls.size
+    card_action = card_action_for(dados, codigo)
     cards = urls.each_with_index.map do |url, i|
       {
         'card_index' => i,
         'type' => 'cta_url',
         'header' => { 'type' => 'image', 'image' => { 'link' => url } },
         'body' => { 'text' => "Foto #{i + 1} de #{total} — imóvel #{codigo}" },
-        'action' => { 'buttons' => [
-          { 'type' => 'quick_reply', 'quick_reply' => { 'id' => "interesse-#{codigo}", 'title' => 'Tenho interesse' } },
-          { 'type' => 'quick_reply', 'quick_reply' => { 'id' => "visita-#{codigo}", 'title' => 'Agendar visita' } }
-        ] }
+        'action' => card_action
       }
     end
 
@@ -148,6 +159,27 @@ class Captain::Tools::EnviarFotosImovelTool < Captain::Tools::BasePublicTool
     "Enviei um carrossel com #{total} fotos do imóvel #{codigo}, com botões de interesse e visita. " \
       'Se o cliente quiser ver TODAS as fotos, ofereça o link do imóvel (galeria completa no site). ' \
       'NÃO reenvie as mesmas fotos — avance a conversa.'
+  end
+
+  def card_action_for(dados, codigo)
+    if @assistant&.config&.[]('fotos_carrossel_botoes') == 'ver_detalhes' && (site_url = imovel_site_url(dados)).present?
+      { 'name' => 'cta_url', 'parameters' => { 'display_text' => 'Ver detalhes', 'url' => site_url } }
+    else
+      { 'buttons' => [
+        { 'type' => 'quick_reply', 'quick_reply' => { 'id' => "interesse-#{codigo}", 'title' => 'Tenho interesse' } },
+        { 'type' => 'quick_reply', 'quick_reply' => { 'id' => "visita-#{codigo}", 'title' => 'Agendar visita' } }
+      ] }
+    end
+  end
+
+  # Mesma URL que a buscar_imovel entrega (módulo compartilhado) — respeita a trava de link.
+  # Sem dados suficientes, retorna nil e o card cai nos quick replies.
+  def imovel_site_url(dados)
+    return nil if dados['Codigo'].blank?
+
+    build_url(dados, dados['Status'].to_s.match?(/vend/i))
+  rescue StandardError
+    nil
   end
 
   def send_photo(conversation, url, codigo)

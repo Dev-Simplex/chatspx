@@ -78,7 +78,7 @@ const removeItem = item => {
           :class="
             item.done
               ? 'bg-n-brand border-n-brand text-white'
-              : 'border-n-weak text-transparent hover:border-n-slate-8'
+              : 'border-n-strong text-transparent hover:border-n-slate-8'
           "
           @click="toggleItem(item)"
         >

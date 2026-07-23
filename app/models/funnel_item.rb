@@ -46,6 +46,12 @@ class FunnelItem < ApplicationRecord
   # recém-colocado no topo com um valor ÚNICO, sem renumerar a coluna inteira nem
   # cair no default 0 (que colidiria entre vários cards novos). 1 se vazia.
   # A primeira reordenação manual renumera a coluna para 1..n (ReorderService).
+  #
+  # ⚠️ O front PREVÊ esta regra ao arrastar entre etapas (`topPositionForStage`
+  # em store/modules/kanban/actions.js) para o card não pular duas vezes. Ele não
+  # copia a conta — depende só de "cartão que chega vai para o TOPO". Se esta
+  # regra mudar (ex.: passar a mandar para o fim), atualize lá: o spec de JS não
+  # toca o backend e a regressão passaria calada.
   def self.top_position_for(funnel_stage_id, excluding_id: nil)
     scope = where(funnel_stage_id: funnel_stage_id)
     scope = scope.where.not(id: excluding_id) if excluding_id

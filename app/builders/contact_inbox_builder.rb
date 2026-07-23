@@ -11,6 +11,9 @@ class ContactInboxBuilder
     existing = reuse_existing_waha_contact_inbox
     return existing if existing
 
+    existing = reuse_existing_whatsapp_contact_inbox
+    return existing if existing
+
     @source_id ||= generate_source_id
     create_contact_inbox if source_id.present?
   end
@@ -22,6 +25,23 @@ class ContactInboxBuilder
     return nil unless @inbox.channel_type == 'Channel::Api' && @inbox.waha_session_name.present?
 
     @inbox.contact_inboxes.where(contact_id: @contact.id).order(:created_at).first
+  end
+
+  # WhatsApp Cloud API: um contato brasileiro pode ja ter um ContactInbox gravado na OUTRA
+  # forma do 9o digito (12 digitos legado x 13 digitos atual). Quando o source_id seria
+  # DERIVADO do telefone do contato (nenhum source_id explicito -> "Nova conversa"/"Enviar
+  # template" pelo painel), reusa a ficha existente casando as variantes em vez de criar uma
+  # ficha duplicada que parte a thread numa 2a conversa. source_id explicito (wa_id inbound)
+  # e honrado sem passar por aqui. Reusa o normalizador existente (nao inventa um terceiro).
+  def reuse_existing_whatsapp_contact_inbox
+    return nil if @contact.blank? || @source_id.present?
+    return nil unless @inbox.channel_type == 'Channel::Whatsapp'
+    return nil if @contact.phone_number.blank?
+
+    resolved_source_id = Whatsapp::PhoneNumberNormalizationService
+                         .new(@inbox)
+                         .normalize_and_find_contact_by_provider(@contact.phone_number.delete('+'), :cloud)
+    @inbox.contact_inboxes.find_by(contact_id: @contact.id, source_id: resolved_source_id)
   end
 
   def generate_source_id

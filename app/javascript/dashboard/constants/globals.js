@@ -9,6 +9,10 @@ export default {
     // conversa até um humano assumir. Mapeia para o scope awaiting_human no
     // backend (ConversationFinder assignee_type='awaiting').
     AWAITING: 'awaiting',
+    // "Aguardando encerramento": conversa parada/encerrada marcada pra um humano
+    // JULGAR o fecho. A IA segue dona. Mapeia para o scope awaiting_closure no
+    // backend (ConversationFinder assignee_type='pending_closure').
+    PENDING_CLOSURE: 'pending_closure',
     ALL: 'all',
   },
   STATUS_TYPE: {

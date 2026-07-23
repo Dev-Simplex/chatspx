@@ -139,8 +139,21 @@ const actions = {
       if (hasMoreAvailable ? !hasMore : !payload.length) {
         commit(types.SET_ALL_MESSAGES_LOADED, data.conversationId);
       }
+      // Acesso OK — limpa qualquer bloqueio anterior (ex.: pedido aprovado).
+      commit(types.CLEAR_CONVERSATION_ACCESS_BLOCKED, data.conversationId);
     } catch (error) {
-      // Handle error
+      // Isolamento de acesso por agente: 403 com esse código NÃO é erro genérico —
+      // a conversa é de outro agente. Guarda o meta p/ o painel "não atribuída a
+      // você" + Solicitar (ConversationBox).
+      if (
+        error?.response?.status === 403 &&
+        error.response.data?.error_code === 'conversation_access_blocked'
+      ) {
+        commit(types.SET_CONVERSATION_ACCESS_BLOCKED, {
+          id: data.conversationId,
+          meta: error.response.data.meta,
+        });
+      }
     }
   },
 
@@ -856,19 +869,15 @@ const actions = {
     { commit },
     { conversationId, customAttributes }
   ) => {
-    try {
-      const response = await ConversationApi.updateCustomAttributes({
-        conversationId,
-        customAttributes,
-      });
-      const { custom_attributes } = response.data;
-      commit(types.UPDATE_CONVERSATION_CUSTOM_ATTRIBUTES, {
-        conversationId,
-        customAttributes: custom_attributes,
-      });
-    } catch (error) {
-      // Handle error
-    }
+    const response = await ConversationApi.updateCustomAttributes({
+      conversationId,
+      customAttributes,
+    });
+    const { custom_attributes } = response.data;
+    commit(types.UPDATE_CONVERSATION_CUSTOM_ATTRIBUTES, {
+      conversationId,
+      customAttributes: custom_attributes,
+    });
   },
 
   setConversationFilters({ commit }, data) {

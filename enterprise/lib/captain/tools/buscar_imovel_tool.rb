@@ -1,4 +1,6 @@
 class Captain::Tools::BuscarImovelTool < Captain::Tools::BasePublicTool
+  include Captain::Tools::VistaImovelUrl
+
   description 'Busca imóveis no acervo da Tozi (sistema Vista) e retorna até 5 opções com o link correto do site. ' \
               "Use status_tipo='venda' para comprar e status_tipo='locacao' para alugar. " \
               'Cada opção já vem com nº de fotos, suítes, vagas de garagem e características (piscina, quintal, ' \
@@ -291,19 +293,4 @@ class Captain::Tools::BuscarImovelTool < Captain::Tools::BasePublicTool
     val.to_s.strip.casecmp('sim').zero?
   end
 
-  # O site da Tozi acha o imóvel pelo ImoCodigo (não pelo Codigo do Vista); o slug
-  # é cosmético. Padrão observado: {finalidade}-{categoria}-{N}-dormitorios-{bairroComercial}-{cidade},{ImoCodigo}
-  def build_url(im, venda)
-    bairro = im['BairroComercial'].presence || im['Bairro']
-    parts = [venda ? 'venda' : 'aluguel', slugify(im['Categoria'])]
-    parts << "#{im['Dormitorios']}-dormitorios" if im['Dormitorios'].to_i.positive?
-    parts << slugify(bairro) << slugify(im['Cidade'])
-    id = im['ImoCodigo'].presence || im['Codigo']
-    "https://www.#{site_domain}/#{parts.reject(&:blank?).join('-')},#{id}"
-  end
-
-  def slugify(str)
-    str.to_s.unicode_normalize(:nfd).gsub(/\p{Mn}/, '')
-       .downcase.gsub(/[^a-z0-9]+/, '-').gsub(/\A-+|-+\z/, '')
-  end
 end

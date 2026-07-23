@@ -60,4 +60,51 @@ RSpec.describe Attachments::GalleryScopeBuilder, type: :service do
     expect(ids).to include(recent.id)
     expect(ids).not_to include(old.id)
   end
+
+  # Isolamento por agente: num inbox isolado a galeria não pode vazar a mídia/link
+  # da conversa de OUTRO agente (a superfície de conta não passa pelo guard).
+  describe 'agent conversation isolation' do
+    let(:owner) { create(:user, account: account, role: :agent) }
+
+    def create_owned_attachment(assignee:, content: 'veja https://exemplo.com/x')
+      conversation = create(:conversation, account: account, inbox: inbox, assignee: assignee)
+      message = create(:message, account: account, conversation: conversation, inbox: inbox, content: content)
+      attachment = message.attachments.new(account_id: account.id, file_type: :image)
+      attachment.file.attach(io: Rails.root.join('spec/assets/sample.png').open, filename: 'sample.png', content_type: 'image/png')
+      attachment.save!
+      [conversation, message, attachment]
+    end
+
+    before { inbox.update!(agent_conversation_isolation: true) }
+
+    it 'hides an attachment from a colleague-owned conversation' do
+      _c, _m, foreign = create_owned_attachment(assignee: owner)
+      _c2, _m2, mine = create_owned_attachment(assignee: agent)
+      ids = builder.deduped_scope.pluck(:id)
+      expect(ids).to include(mine.id)
+      expect(ids).not_to include(foreign.id)
+    end
+
+    it 'keeps an attachment from an unassigned conversation' do
+      _c, _m, unassigned = create_owned_attachment(assignee: nil)
+      expect(builder.deduped_scope.pluck(:id)).to include(unassigned.id)
+    end
+
+    it 'hides a colleague conversation link from links_scope' do
+      foreign_conv, foreign_msg, = create_owned_attachment(assignee: owner)
+      mine_conv, mine_msg, = create_owned_attachment(assignee: agent)
+      ids = builder.links_scope.pluck(:id)
+      expect(ids).to include(mine_msg.id)
+      expect(ids).not_to include(foreign_msg.id)
+      expect(foreign_conv.assignee_id).to eq(owner.id)
+      expect(mine_conv.assignee_id).to eq(agent.id)
+    end
+
+    it 'keeps everything for an administrator' do
+      admin = create(:user, account: account, role: :administrator)
+      _c, _m, foreign = create_owned_attachment(assignee: owner)
+      admin_builder = described_class.new(user: admin, account: account, filters: { type: 'image' })
+      expect(admin_builder.deduped_scope.pluck(:id)).to include(foreign.id)
+    end
+  end
 end

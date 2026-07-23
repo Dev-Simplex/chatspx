@@ -1,7 +1,7 @@
 class Api::V1::Accounts::AttachmentsController < Api::V1::Accounts::BaseController
   RESULTS_PER_PAGE = 30
   CACHE_EXPIRES_IN = 5.minutes
-  CACHE_VERSION = 'v2'.freeze
+  CACHE_VERSION = 'v3'.freeze
 
   before_action :ensure_user
 

@@ -1,5 +1,6 @@
 import { frontendURL } from '../../../helper/URLHelper';
 import ContactsIndex from './pages/ContactsIndex.vue';
+import AttendanceIndex from './pages/AttendanceIndex.vue';
 import ContactManageView from './pages/ContactManageView.vue';
 import { FEATURE_FLAGS } from '../../../featureFlags';
 
@@ -39,6 +40,17 @@ export const routes = [
         meta: commonMeta,
       },
     ],
+  },
+  {
+    // Rota IRMÃ, não filha de /contacts: o pai renderiza ContactsIndex e não tem
+    // <router-view>, então o `component` de uma filha seria ignorado (é por isso
+    // que todas as filhas apontam p/ ContactsIndex e a página decide pelo
+    // route.name). Segmento estático ganha de `contacts/:contactId` no ranking
+    // do vue-router — mesmo caso da aba `active`, que já convive com ela.
+    path: frontendURL('accounts/:accountId/contacts/in-attendance'),
+    name: 'contacts_dashboard_in_attendance',
+    component: AttendanceIndex,
+    meta: commonMeta,
   },
   {
     path: frontendURL('accounts/:accountId/contacts/:contactId'),

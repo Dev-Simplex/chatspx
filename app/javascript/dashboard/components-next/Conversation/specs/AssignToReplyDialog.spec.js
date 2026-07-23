@@ -7,6 +7,14 @@ vi.mock('dashboard/components-next/effects/useConfetti', () => ({
   fireTakeoverConfetti: (...args) => fireTakeoverConfetti(...args),
 }));
 
+// useAccount() lê a rota; fixamos accountId=1.
+vi.mock('vue-router', () => ({
+  useRoute: () => ({ params: { accountId: '1' } }),
+}));
+
+const alert = vi.fn();
+vi.mock('dashboard/composables', () => ({ useAlert: (...a) => alert(...a) }));
+
 // `Motion` (motion-v) is a renderless wrapper in the dialog body — stub it to a
 // plain div so the slot content renders in JSDOM without the animation engine.
 const MotionStub = {
@@ -42,13 +50,26 @@ const AvatarStub = {
   template: '<div data-testid="avatar">{{ name }}</div>',
 };
 
-const buildStore = ({ chat, currentUser, myTeams = [], allTeams = [] }) => {
+const buildStore = ({
+  chat,
+  currentUser,
+  myTeams = [],
+  allTeams = [],
+  takeoverGate = false,
+}) => {
   const store = createStore({
     getters: {
       getSelectedChat: () => chat,
       getCurrentUser: () => currentUser,
       'teams/getMyTeams': () => myTeams,
       'teams/getTeams': () => allTeams,
+      // useAccount() → accounts/getAccount(id) → conta com a flag do gate.
+      'accounts/getAccount': () => () => ({
+        id: 1,
+        settings: { takeover_request_gate: takeoverGate },
+      }),
+      'globalConfig/isOnChatwootCloud': () => false,
+      'accounts/isFeatureEnabledonAccount': () => () => false,
     },
   });
   store.dispatch = vi.fn().mockResolvedValue({});
@@ -211,5 +232,57 @@ describe('AssignToReplyDialog.vue', () => {
     const calls = store.dispatch.mock.calls.map(c => c[0]);
     expect(calls).toEqual(['assignAgent']); // no assignTeam
     expect(wrapper.emitted('confirm')).toHaveLength(1);
+  });
+
+  // D1 (Fase 3) — variante (b) com o takeover_request_gate LIGADO vira PEDIDO.
+  describe('with the takeover gate enabled', () => {
+    const colleagueChat = {
+      chat: { id: 20, meta: { assignee: { id: 2, name: 'Colega' } } },
+      currentUser: CURRENT_USER,
+      takeoverGate: true,
+    };
+
+    it('shows the request title instead of the take-over title', async () => {
+      const wrapper = mountDialog(colleagueChat);
+      wrapper.vm.show();
+      await flushPromises();
+      expect(titleOf(wrapper)).toBe('Request this conversation');
+      expect(
+        wrapper.findComponent(DialogStub).props('confirmButtonLabel')
+      ).toBe('Request attendance');
+    });
+
+    it('creates a request and does NOT assign, confetti or emit confirm', async () => {
+      const wrapper = mountDialog(colleagueChat);
+      const store = wrapper.vm.$.appContext.config.globalProperties.$store;
+      wrapper.vm.show();
+      await flushPromises();
+      await wrapper.findComponent(DialogStub).vm.$emit('confirm');
+      await flushPromises();
+
+      const calls = store.dispatch.mock.calls.map(c => c[0]);
+      expect(calls).toEqual(['takeoverRequests/create']);
+      expect(calls).not.toContain('assignAgent');
+      expect(calls).not.toContain('assignTeam');
+      expect(fireTakeoverConfetti).not.toHaveBeenCalled();
+      expect(wrapper.emitted('confirm')).toBeUndefined();
+    });
+
+    it('leaves the other variants (a/c/d) as plain take-over even with the gate on', async () => {
+      // variante (a): sem dono → não há pedido, é self-assign normal.
+      const wrapper = mountDialog({
+        chat: { id: 21, meta: {} },
+        currentUser: CURRENT_USER,
+        takeoverGate: true,
+      });
+      const store = wrapper.vm.$.appContext.config.globalProperties.$store;
+      wrapper.vm.show();
+      await flushPromises();
+      await wrapper.findComponent(DialogStub).vm.$emit('confirm');
+      await flushPromises();
+
+      expect(store.dispatch.mock.calls.map(c => c[0])).toContain('assignAgent');
+      expect(wrapper.emitted('confirm')).toHaveLength(1);
+    });
   });
 });

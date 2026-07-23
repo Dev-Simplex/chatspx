@@ -213,9 +213,13 @@ const deleteTask = async () => {
     :show-cancel-button="false"
     :show-confirm-button="false"
     width="md"
+    full-height
     @close="close"
   >
-    <div class="space-y-4">
+    <!-- `full-height` + este scroll: sem eles, em tela baixa o conteúdo passava do
+         teto do <dialog> sem barra de rolagem, e o botão de salvar ficava
+         inalcançável (o dialog é `fixed`, não há scroll de página que o traga). -->
+    <div class="min-h-0 flex-1 space-y-4 overflow-y-auto">
       <!-- Alternância buscar conversa | criar tarefa (só ao adicionar) -->
       <div
         v-if="!isEditing"

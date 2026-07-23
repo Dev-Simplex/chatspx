@@ -1,5 +1,5 @@
 <script setup>
-import { computed, ref, watch, nextTick } from 'vue';
+import { computed, ref, watch, nextTick, onBeforeUnmount } from 'vue';
 import { useI18n } from 'vue-i18n';
 import { useStore } from 'vuex';
 import { useAlert } from 'dashboard/composables';
@@ -217,24 +217,60 @@ const isAssigning = ref(false);
 // que o cortava). Posicionado como fixed, centralizado no avatar e preso à tela.
 const assignBtnRef = ref(null);
 const assignMenuStyle = ref({});
+const ASSIGN_MENU_WIDTH = 208; // w-52
+const ASSIGN_MENU_MAX_HEIGHT = 224; // max-h-56
+const ASSIGN_MENU_GAP = 6;
+const ASSIGN_MENU_EDGE = 8; // respiro mínimo contra a borda da tela
+
 const positionAssignMenu = () => {
   const el = assignBtnRef.value;
   if (!el) return;
   const rect = el.getBoundingClientRect();
-  const width = 208; // w-52
   const left = Math.min(
-    Math.max(8, rect.left + rect.width / 2 - width / 2),
-    window.innerWidth - width - 8
+    Math.max(
+      ASSIGN_MENU_EDGE,
+      rect.left + rect.width / 2 - ASSIGN_MENU_WIDTH / 2
+    ),
+    window.innerWidth - ASSIGN_MENU_WIDTH - ASSIGN_MENU_EDGE
   );
+
+  // Ancorar só por `bottom` abria SEMPRE para cima: num card perto do topo o menu
+  // saía da tela, e como é `fixed` nenhum scroll alcançava as primeiras opções.
+  // Então: abre para cima se couber, senão inverte; e a altura fica limitada ao
+  // espaço real do lado escolhido, para nunca vazar da viewport.
+  const espacoAcima = rect.top - ASSIGN_MENU_GAP - ASSIGN_MENU_EDGE;
+  const espacoAbaixo =
+    window.innerHeight - rect.bottom - ASSIGN_MENU_GAP - ASSIGN_MENU_EDGE;
+  const paraCima =
+    espacoAcima >= ASSIGN_MENU_MAX_HEIGHT || espacoAcima >= espacoAbaixo;
+  const espacoDisponivel = paraCima ? espacoAcima : espacoAbaixo;
+
   assignMenuStyle.value = {
     position: 'fixed',
-    width: `${width}px`,
+    width: `${ASSIGN_MENU_WIDTH}px`,
     left: `${left}px`,
-    bottom: `${window.innerHeight - rect.top + 6}px`,
+    maxHeight: `${Math.max(0, Math.min(ASSIGN_MENU_MAX_HEIGHT, espacoDisponivel))}px`,
+    ...(paraCima
+      ? { bottom: `${window.innerHeight - rect.top + ASSIGN_MENU_GAP}px` }
+      : { top: `${rect.bottom + ASSIGN_MENU_GAP}px` }),
   };
 };
+
+// O menu é `fixed` mas a âncora anda: sem reposicionar, ele descola do avatar ao
+// redimensionar a janela ou rolar a coluna/o quadro.
 watch(assignMenuOpen, open => {
-  if (open) nextTick(positionAssignMenu);
+  if (open) {
+    nextTick(positionAssignMenu);
+    window.addEventListener('resize', positionAssignMenu);
+    window.addEventListener('scroll', positionAssignMenu, true);
+  } else {
+    window.removeEventListener('resize', positionAssignMenu);
+    window.removeEventListener('scroll', positionAssignMenu, true);
+  }
+});
+onBeforeUnmount(() => {
+  window.removeEventListener('resize', positionAssignMenu);
+  window.removeEventListener('scroll', positionAssignMenu, true);
 });
 const agentOptions = computed(() =>
   Array.isArray(agentsList.value) ? agentsList.value : []
