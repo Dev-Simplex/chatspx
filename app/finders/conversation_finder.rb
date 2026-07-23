@@ -47,7 +47,7 @@ class ConversationFinder # rubocop:disable Metrics/ClassLength
     account_user&.administrator? || false
   end
 
-  def perform
+  def perform # rubocop:disable Metrics/MethodLength
     set_up
 
     counts = compute_all_counts
@@ -205,7 +205,7 @@ class ConversationFinder # rubocop:disable Metrics/ClassLength
     @conversations
   end
 
-  def filter_by_assignee_type
+  def filter_by_assignee_type # rubocop:disable Metrics/CyclomaticComplexity
     case @assignee_type
     when 'me'
       @conversations = @conversations.assigned_to(current_user)
@@ -313,7 +313,7 @@ class ConversationFinder # rubocop:disable Metrics/ClassLength
     @conversations = @conversations.where('conversations.last_activity_at <= ?', to) if to
   end
 
-  def compute_all_counts # rubocop:disable Metrics/MethodLength
+  def compute_all_counts # rubocop:disable Metrics/MethodLength, Metrics/AbcSize
     subquery = @conversations.reselect(
       'conversations.id', 'conversations.assignee_id', 'conversations.status',
       'conversations.first_reply_created_at', 'conversations.waiting_since',
