@@ -19,6 +19,11 @@ class Captain::InboxPendingConversationsResolutionJob < ApplicationJob
   private
 
   def evaluate_conversation_completion?(account)
+    # auto_closure precisa da avaliação LLM (classificador) -> liga o caminho avaliado mesmo
+    # numa conta em modo 'legacy' que só optou por auto_closure. 'disabled' segue barrando
+    # tudo (já checado em #perform), então continua sendo o opt-out forte.
+    return true if auto_closure_enabled?(account)
+
     account.feature_enabled?('captain_tasks') && account.captain_auto_resolve_evaluated?
   end
 
