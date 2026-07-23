@@ -11,6 +11,27 @@ class CaptainListener < BaseListener
     Captain::Llm::ConversationFaqService.new(assistant, conversation).generate_and_deduplicate if assistant.config['feature_faq'].present?
   end
 
+  # F4.2 (Eval humano): nota privada de gestor com o marcador #eval é um veredito
+  # humano sobre o atendimento — re-julga o episódio correspondente na hora, com a
+  # anotação no prompt do juiz (peso máximo) e escalação pro modelo forte.
+  # Episódio ainda aberto não precisa de ação: o julgamento normal ao fechar já lê
+  # as anotações via ConversationEpisode#human_annotations.
+  def message_created(event)
+    message, account = extract_message_and_account(event)
+    return unless message.private? && message.sender_type == 'User'
+    return unless message.content.to_s.match?(/#eval\b/i)
+    return unless Captain::ConversationEval.enabled_for?(account)
+
+    episode = Captain::ConversationEpisode.where(conversation_id: message.conversation_id)
+                                          .where(started_at: ..message.created_at)
+                                          .order(:seq).last
+    return if episode.nil? || episode.ended_at.blank?
+
+    Captain::EpisodeEvalJob.perform_later(episode, force: true)
+  rescue StandardError => e
+    Rails.logger.error("[CaptainListener] eval annotation conv=#{message&.conversation_id}: #{e.message}")
+  end
+
   private
 
   # Dono atual (espelho) ou, pós-handoff (bot já desatribuído por A2e), o participante:
