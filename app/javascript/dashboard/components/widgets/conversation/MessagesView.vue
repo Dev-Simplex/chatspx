@@ -12,7 +12,6 @@ import ForwardMessageModal from 'next/message/ForwardMessageModal.vue';
 import ConversationLabelSuggestion from './conversation/LabelSuggestion.vue';
 import Banner from 'dashboard/components/ui/Banner.vue';
 import Spinner from 'dashboard/components-next/spinner/Spinner.vue';
-import TakeoverApprovalBanner from 'dashboard/components-next/Conversation/TakeoverApprovalBanner.vue';
 import TypingIndicator from 'next/message/TypingIndicator.vue';
 import { useAlert } from 'dashboard/composables';
 
@@ -45,7 +44,6 @@ export default {
     MessageList,
     ForwardMessageModal,
     ReplyBox,
-    TakeoverApprovalBanner,
     Banner,
     ConversationLabelSuggestion,
     Spinner,
@@ -611,9 +609,6 @@ export default {
 
 <template>
   <div class="flex flex-col justify-between flex-grow h-full min-w-0 m-0">
-    <!-- D1 (Fase 3): pedido de atendimento pendente p/ o dono. Auto-suficiente
-         (lê o store); só renderiza p/ o dono da conversa com pedido pendente. -->
-    <TakeoverApprovalBanner />
     <Banner
       v-if="!currentChat.can_reply"
       color-scheme="alert"

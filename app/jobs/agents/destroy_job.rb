@@ -42,17 +42,6 @@ class Agents::DestroyJob < ApplicationJob
     # rubocop:disable Rails/SkipsModelValidations
     user.assigned_conversations.where(account: account).in_batches.update_all(assignee_id: nil)
     # rubocop:enable Rails/SkipsModelValidations
-    supersede_takeover_requests(account, user)
-  end
-
-  # D1 (Fase 3): o update_all acima PULA o after_commit que supersederia os
-  # pedidos, então faço explícito aqui — senão o dono/solicitante sair da conta
-  # deixaria pedidos órfãos pendentes para sempre.
-  def supersede_takeover_requests(account, user)
-    account.conversation_takeover_requests
-           .pending
-           .where('owner_id = :id OR requester_id = :id', id: user.id)
-           .find_each { |request| request.close!(status: :superseded, source: :system) }
   end
 
   def cleanup_notifications(account, user)

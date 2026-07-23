@@ -372,35 +372,4 @@ describe('#mutations', () => {
       expect(state.allConversations[0].messages).toHaveLength(1);
     });
   });
-
-  describe('#SET/CLEAR_CONVERSATION_ACCESS_BLOCKED', () => {
-    it('stores the block meta by conversation id', () => {
-      const state = { accessBlocked: {} };
-      mutations[types.SET_CONVERSATION_ACCESS_BLOCKED](state, {
-        id: 7,
-        meta: { current_assignee: { id: 3, name: 'Ana' } },
-      });
-      expect(state.accessBlocked[7].current_assignee.name).toBe('Ana');
-    });
-
-    it('defaults the meta to an empty object', () => {
-      const state = { accessBlocked: {} };
-      mutations[types.SET_CONVERSATION_ACCESS_BLOCKED](state, { id: 7 });
-      expect(state.accessBlocked[7]).toEqual({});
-    });
-
-    it('clears the block for a conversation', () => {
-      const state = { accessBlocked: { 7: { foo: 1 }, 9: { bar: 2 } } };
-      mutations[types.CLEAR_CONVERSATION_ACCESS_BLOCKED](state, 7);
-      expect(state.accessBlocked[7]).toBeUndefined();
-      expect(state.accessBlocked[9]).toBeDefined();
-    });
-
-    it('is a no-op clearing an id that is not blocked', () => {
-      const state = { accessBlocked: { 9: { bar: 2 } } };
-      const before = state.accessBlocked;
-      mutations[types.CLEAR_CONVERSATION_ACCESS_BLOCKED](state, 7);
-      expect(state.accessBlocked).toBe(before);
-    });
-  });
 });

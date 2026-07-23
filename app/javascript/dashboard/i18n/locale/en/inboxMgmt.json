@@ -764,8 +764,6 @@
       "TEAM_MESSAGE_ISOLATION_SUB_TEXT": "When enabled, agents can only see messages from their own team. Messages from other teams appear blurred with restricted access.",
       "AGENT_MESSAGE_ISOLATION": "Agent message isolation",
       "AGENT_MESSAGE_ISOLATION_SUB_TEXT": "When enabled, each agent can only see the messages they sent themselves. Messages from other agents appear blurred with restricted access.",
-      "AGENT_CONVERSATION_ISOLATION": "Agent conversation isolation",
-      "AGENT_CONVERSATION_ISOLATION_SUB_TEXT": "When enabled, an agent can only open conversations assigned to them. Others show a request prompt instead. Unassigned conversations stay available to pick up; admins see everything.",
       "PENDING_STATUS": {
         "TITLE": "Allow Pending status",
         "SUB_TEXT": "When enabled, agents can mark conversations as Pending in this inbox. Conversations already pending remain visible even if disabled."

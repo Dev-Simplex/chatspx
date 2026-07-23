@@ -91,7 +91,6 @@ export default {
       locktoSingleConversation: false,
       teamMessageIsolation: false,
       agentMessageIsolation: false,
-      agentConversationIsolation: false,
       pendingStatusEnabled: false,
       allowMessagesAfterResolved: true,
       continuityViaEmail: true,
@@ -408,8 +407,6 @@ export default {
       this.locktoSingleConversation = this.inbox.lock_to_single_conversation;
       this.teamMessageIsolation = this.inbox.team_message_isolation || false;
       this.agentMessageIsolation = this.inbox.agent_message_isolation || false;
-      this.agentConversationIsolation =
-        this.inbox.agent_conversation_isolation || false;
       this.pendingStatusEnabled = this.inbox.pending_status_enabled || false;
       this.selectedPortalSlug = this.inbox.help_center
         ? this.inbox.help_center.slug
@@ -530,7 +527,6 @@ export default {
           lock_to_single_conversation: this.locktoSingleConversation,
           team_message_isolation: this.teamMessageIsolation,
           agent_message_isolation: this.agentMessageIsolation,
-          agent_conversation_isolation: this.agentConversationIsolation,
           pending_status_enabled: this.pendingStatusEnabled,
           sender_name_type: this.senderNameType,
           business_name: this.businessName || null,
@@ -817,19 +813,6 @@ export default {
               :header="$t('INBOX_MGMT.SETTINGS_POPUP.AGENT_MESSAGE_ISOLATION')"
               :description="
                 $t('INBOX_MGMT.SETTINGS_POPUP.AGENT_MESSAGE_ISOLATION_SUB_TEXT')
-              "
-              class="mb-4"
-            />
-
-            <SettingsToggleSection
-              v-model="agentConversationIsolation"
-              :header="
-                $t('INBOX_MGMT.SETTINGS_POPUP.AGENT_CONVERSATION_ISOLATION')
-              "
-              :description="
-                $t(
-                  'INBOX_MGMT.SETTINGS_POPUP.AGENT_CONVERSATION_ISOLATION_SUB_TEXT'
-                )
               "
               class="mb-4"
             />

@@ -90,12 +90,9 @@ const close = () => {
     :title="t('KANBAN.ITEMS.MOVE')"
     :show-cancel-button="false"
     :show-confirm-button="false"
-    full-height
     @close="() => emit('close')"
   >
-    <!-- `full-height` + este scroll: em tela baixa o conteúdo passava do teto do
-         <dialog> sem barra de rolagem e o botão de mover ficava inalcançável. -->
-    <div class="min-h-0 flex-1 space-y-4 overflow-y-auto">
+    <div class="space-y-4">
       <div>
         <label class="block text-sm font-semibold mb-2 text-n-slate-12">
           <div class="flex items-center gap-2">

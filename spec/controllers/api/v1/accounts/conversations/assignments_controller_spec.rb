@@ -305,11 +305,6 @@ RSpec.describe 'Conversation Assignment API', type: :request do
       before do
         conversation.update!(team: team)
         create(:inbox_member, inbox: conversation.inbox, user: agent)
-        # Regra do fork (isolamento por time): quem não é do time não alcança a
-        # conversa — o `authorize_team_access` agora vale também nos sub-recursos.
-        # Sem isto o agente de fora removeria o time e, com `team_id` nulo, a
-        # conversa cairia no colo dele: escalada de privilégio, não permissão.
-        create(:team_member, user: agent, team: team)
       end
 
       it 'unassigns the team from the conversation' do

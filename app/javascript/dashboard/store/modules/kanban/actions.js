@@ -6,30 +6,6 @@ const DEFAULT_SCHEDULED_PAGE_LIMIT = 50;
 const stageRequestLocks = new Map();
 const scheduledRequestLocks = new Map();
 
-// Prevê o topo da coluna para o movimento otimista não dar um segundo salto.
-//
-// NÃO é um espelho exato do `FunnelItem.top_position_for`: o backend tira o
-// `min(position)` de TODAS as linhas da etapa, e aqui só temos as CARREGADAS (a
-// página traz 30, ordenadas por recência — o mínimo real costuma estar fora).
-// O número diverge de propósito; quem garante a ordem é o invariante do
-// subconjunto: como o carregado ⊆ total, `min(total) ≤ min(carregado)`, então
-// tanto esta previsão quanto o valor que o servidor devolve são MENORES que
-// qualquer position visível — e o cartão aparece em primeiro nos dois casos
-// (KanbanColumn ordena por position ASC).
-//
-// Ou seja: serve para ORDENAR, nunca como position exata (não mande este valor
-// para o backend).
-const topPositionForStage = (state, funnelId, stageId, excludingId) => {
-  const stageKey = `${Number(funnelId)}:${Number(stageId)}`;
-  const ids = state.stageItems?.[stageKey] || [];
-  const positions = ids
-    .filter(id => Number(id) !== Number(excludingId))
-    .map(id => Number(state.funnelItems?.[id]?.position))
-    .filter(Number.isFinite);
-
-  return positions.length ? Math.min(...positions) - 1 : 1;
-};
-
 const defaultScheduledWindow = () => {
   const now = new Date();
   const past = new Date(now);
@@ -581,48 +557,6 @@ export const actions = {
     const response = await KanbanAPI.updateItem(funnelId, itemId, data);
     commit(types.UPDATE_FUNNEL_ITEM, response.data);
     return response;
-  },
-
-  // Arrastar um cartão de uma etapa para outra. Otimista pelo mesmo motivo do
-  // `reorderItems`: a lista do draggable é one-way, então esperar o PATCH fazia
-  // o card VOLTAR para a coluna de origem e só pular depois da resposta —
-  // medido em 0,26s a 1,63s no staging. Move na hora e reverte se o backend
-  // recusar (o servidor continua sendo a autoridade: a resposta é reaplicada).
-  async moveItemToStage({ commit, state }, { funnelId, itemId, stageId }) {
-    const id = Number(itemId);
-    const nextStageId = Number(stageId);
-    const current = state.funnelItems[id];
-    if (!current || !nextStageId) return null;
-
-    const previousStageId = Number(
-      current.funnelStageId ?? current.funnel_stage_id
-    );
-    if (previousStageId === nextStageId) return null;
-
-    // Só camelCase: a mutação camelizes o que recebe, e misturar as duas grafias
-    // da MESMA chave deixaria a vencedora por conta da ordem do merge.
-    // A `position` espelha o `FunnelItem.top_position_for` do backend (cartão que
-    // chega vai para o topo). Sem prever isso o card cairia no meio da coluna e
-    // pularia DE NOVO ao chegar a resposta — troca um salto por dois.
-    commit(types.UPDATE_FUNNEL_ITEM, {
-      ...current,
-      funnelStageId: nextStageId,
-      position: topPositionForStage(state, funnelId, nextStageId, id),
-    });
-
-    try {
-      const response = await KanbanAPI.updateItem(funnelId, id, {
-        funnel_stage_id: nextStageId,
-      });
-      commit(types.UPDATE_FUNNEL_ITEM, response.data);
-      return response;
-    } catch (error) {
-      commit(types.UPDATE_FUNNEL_ITEM, {
-        ...current,
-        funnelStageId: previousStageId,
-      });
-      throw error;
-    }
   },
 
   async deleteItem({ commit }, { funnelId, itemId }) {

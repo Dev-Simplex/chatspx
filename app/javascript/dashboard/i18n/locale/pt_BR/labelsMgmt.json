@@ -27,7 +27,7 @@
         "PLACEHOLDER": "Nome da etiqueta",
         "REQUIRED_ERROR": "O nome da etiqueta é obrigatório",
         "MINIMUM_LENGTH_ERROR": "Tamanho mínimo 2 é necessário",
-        "VALID_ERROR": "Somente Letras, Números, Hífen, Sublinhado e Ponto são permitidos",
+        "VALID_ERROR": "Somente Letras, Números, Hífen e Sublinhado são permitidos",
         "EXISTS_ERROR": "Já existe uma etiqueta com esse nome nesta conta."
       },
       "DESCRIPTION": {

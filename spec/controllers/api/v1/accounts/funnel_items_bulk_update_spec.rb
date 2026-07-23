@@ -44,24 +44,6 @@ RSpec.describe 'Funnel Items bulk_update (Kanban v2 / Fase 3)', type: :request d
       expect(c1.reload.assignee_id).to eq(assignee.id)
       expect(c2.reload.assignee_id).to eq(assignee.id)
     end
-
-    # D1 (guard d): o bulk do Kanban e a 4a porta de troca de dono. Com o modo de
-    # pedido ligado, roubar a conversa de um colega por aqui deve ser BARRADO (sem
-    # criar pedido em massa) — senao o D1 seria contornavel pelo Kanban.
-    it 'skips reassigning a colleague human-owned conversation when the takeover mode is on' do
-      colleague = create(:user, account: account, role: :agent)
-      create(:inbox_member, inbox: inbox, user: colleague)
-      c1.update!(assignee: colleague)
-      account.update!(takeover_request_gate: true)
-
-      post endpoint,
-           params: { operation: 'reassign', conversation_ids: [c1.id], assignee_id: assignee.id },
-           headers: agent.create_new_auth_token, as: :json
-
-      expect(response).to have_http_status(:success)
-      expect(c1.reload.assignee_id).to eq(colleague.id) # nao foi roubada
-      expect(ConversationTakeoverRequest.count).to eq(0) # e nao virou pedido em massa
-    end
   end
 
   describe 'tag' do

@@ -313,7 +313,6 @@
     },
     "PREVIEW": {
       "TITLE": "Conversation preview",
-      "NO_CONTENT": "No content to display",
       "OPEN": "Open conversation",
       "EMPTY": "No messages to show",
       "ERROR": "Could not load the conversation",

@@ -15,7 +15,6 @@ class Api::V1::Accounts::Conversations::AssignmentsController < Api::V1::Account
   def set_agent
     return render_captain_assignment_forbidden if forbidden_captain_assignment?
     return render_captain_assignment_not_eligible if ineligible_captain_assignment?
-    return render_takeover_request_required if takeover_blocked?
 
     resource = Conversations::AssignmentService.new(
       conversation: @conversation,
@@ -24,42 +23,6 @@ class Api::V1::Accounts::Conversations::AssignmentsController < Api::V1::Account
     ).perform
 
     render_agent(resource)
-  end
-
-  # D1 (Fase 3) — guard (a) das 3 superfícies humanas. Mesma lógica do guard
-  # captain logo abaixo: automação/macro/round-robin NÃO passam pelo controller
-  # (são in-process), então o guard aqui não as afeta — e isso é intencional.
-  # No-op com o takeover_request_gate desligado.
-  def takeover_blocked?
-    return false if agent_bot_assignment?
-
-    Conversations::TakeoverGate.new(
-      conversation: @conversation,
-      actor: Current.user,
-      new_assignee_id: params[:assignee_id]
-    ).blocked?
-  end
-
-  # 422 + meta com o dono ATUAL, p/ a UI oferecer "Solicitar atendimento" sem
-  # precisar de outra request (molde: messages_controller#render_assignment_required).
-  def render_takeover_request_required
-    owner = @conversation.assignee
-    existing = ConversationTakeoverRequest.find_by(
-      conversation_id: @conversation.id, requester_id: Current.user&.id, status: :pending
-    )
-    render json: {
-      error: I18n.t('conversations.takeover_request_gate.request_required'),
-      error_code: 'takeover_request_required',
-      meta: {
-        current_assignee: owner && {
-          id: owner.id,
-          name: owner.try(:available_name) || owner.name,
-          type: 'User'
-        },
-        team: @conversation.team && { id: @conversation.team.id, name: @conversation.team.name },
-        existing_request: existing && { id: existing.id, status: existing.status, created_at: existing.created_at.to_i }
-      }
-    }, status: :unprocessable_entity
   end
 
   # Atribuição MANUAL de espelho captain é admin-only (D-3). Automação/macro/tool

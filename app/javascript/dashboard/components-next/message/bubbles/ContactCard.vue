@@ -10,10 +10,6 @@ import ContactAPI from 'dashboard/api/contacts';
 import BaseBubble from './Base.vue';
 import Icon from 'next/icon/Icon.vue';
 import { useMessageContext } from '../provider.js';
-import {
-  useAttendanceGate,
-  ATTENDANCE_VARIANT,
-} from 'dashboard/composables/useAttendanceGate';
 
 import {
   DuplicateContactException,
@@ -37,7 +33,8 @@ const $store = useStore();
 const { t } = useI18n();
 const router = useRouter();
 const { inboxId } = useMessageContext();
-const { resolveGate } = useAttendanceGate();
+
+const ACTIVE_CONVERSATION_STATUSES = ['open', 'pending', 'snoozed'];
 
 // Deterministic avatar palette (picked by name) so each contact keeps a
 // consistent colour, à la WhatsApp/Google, instead of always the brand pink.
@@ -199,6 +196,27 @@ async function resolveTargetInbox(contactId) {
   );
 }
 
+// Returns an already-open conversation with this contact (preferring the
+// current inbox), or null if none is active.
+function findActiveConversation(contactId) {
+  const current = $store.getters[
+    'contactConversations/getActiveConversationByInbox'
+  ](contactId, inboxId?.value);
+  if (current) return current;
+
+  const all =
+    $store.getters['contactConversations/getAllConversationsByContactId'](
+      contactId
+    ) || [];
+  return (
+    all.find(conversation =>
+      ACTIVE_CONVERSATION_STATUSES.includes(
+        String(conversation.status || '').toLowerCase()
+      )
+    ) || null
+  );
+}
+
 // Flow: save the contact -> reuse an open conversation if one exists,
 // otherwise create a new one -> navigate to it.
 async function startConversation() {
@@ -206,24 +224,8 @@ async function startConversation() {
     const contact = await resolveContact();
     const contactId = Number(contact.id);
 
-    // Antes havia um findActiveConversation PRÓPRIO aqui, montado sobre o store
-    // contactConversations — que passa pelo PermissionFilterService e devolve
-    // vazio p/ conversa de outro time. Resultado: "não achei nada" → criava uma
-    // conversa DUPLICADA justamente no caso que a feature existe pra evitar.
-    // Agora a verdade é uma só: useAttendanceGate (ver o comentário lá).
-    const { attendance, variant } = await resolveGate({
-      contactId,
-      inboxId: inboxId?.value,
-    });
-
-    if (variant === ATTENDANCE_VARIANT.UNKNOWN) {
-      // Criar às cegas é o que produz o atendimento duplicado. Melhor avisar e
-      // deixar o agente tentar de novo do que duplicar em silêncio.
-      useAlert(t('CONVERSATION.ATTENDANCE_CHECK_FAILED'));
-      return;
-    }
-
-    let conversation = attendance ? { id: attendance.id } : null;
+    await $store.dispatch('contactConversations/get', contactId);
+    let conversation = findActiveConversation(contactId);
 
     if (!conversation) {
       const targetInbox = await resolveTargetInbox(contactId);

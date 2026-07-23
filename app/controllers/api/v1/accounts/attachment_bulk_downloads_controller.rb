@@ -42,11 +42,6 @@ class Api::V1::Accounts::AttachmentBulkDownloadsController < Api::V1::Accounts::
 
     conversation = Current.account.conversations.find_by!(display_id: params[:conversation_id])
     authorize conversation, :show?
-    # ConversationPolicy#show? aprova por membro do inbox; o isolamento por agente
-    # (guard por-conversa) vive fora da policy, então reforçamos aqui p/ não baixar
-    # a mídia de uma conversa que o agente nem consegue abrir.
-    raise Pundit::NotAuthorizedError if AgentConversationIsolation.hidden_from?(conversation, Current.user, Current.account)
-
     conversation
   end
 

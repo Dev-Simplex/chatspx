@@ -273,41 +273,6 @@ RSpec.describe Attachment do
         expect(attachment.reload.push_event_data).not_to have_key(:waveform_peaks)
       end
     end
-
-    # Os builders salvam o attachment ANTES de baixar a mídia (ex.: Messages::Messenger::MessageBuilder
-    # faz save! e só então Down.download), então um download que falha deixa uma linha de áudio sem
-    # arquivo. Como push_event_data alimenta o endpoint de mensagens, isso derrubava a CONVERSA INTEIRA
-    # com 500 — e não só aquele anexo.
-    describe 'push_event_data without an attached file' do
-      it 'does not raise for an audio attachment with no file' do
-        attachment = audio_message.attachments.create!(account_id: audio_message.account_id, file_type: :audio)
-
-        expect { attachment.push_event_data }.not_to raise_error
-      end
-
-      it 'falls back to the external url instead of the missing file' do
-        attachment = audio_message.attachments.create!(
-          account_id: audio_message.account_id, file_type: :audio, external_url: 'https://example.com/audio.ogg'
-        )
-
-        expect(attachment.push_event_data).to include(data_url: 'https://example.com/audio.ogg', thumb_url: '')
-      end
-
-      it 'still exposes transcribed_text' do
-        attachment = audio_message.attachments.create!(account_id: audio_message.account_id, file_type: :audio)
-        attachment.update_column(:meta, { 'transcribed_text' => 'oi' }) # rubocop:disable Rails/SkipsModelValidations
-
-        expect(attachment.reload.push_event_data[:transcribed_text]).to eq('oi')
-      end
-
-      it 'does not raise for any file type' do
-        described_class.file_types.each_key do |file_type|
-          attachment = audio_message.attachments.new(account_id: audio_message.account_id, file_type: file_type)
-
-          expect { attachment.push_event_data }.not_to raise_error, "file_type #{file_type} raised"
-        end
-      end
-    end
   end
 
   describe 'file size validation' do

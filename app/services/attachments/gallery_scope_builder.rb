@@ -32,7 +32,6 @@ class Attachments::GalleryScopeBuilder
                       .where(messages: { account_id: @account.id })
                       .where(conversations: { inbox_id: inbox_ids })
     scope = exclude_incoming_whatsapp(scope)
-    scope = exclude_isolated_conversations(scope)
     scope = filter_by_inbox(scope)
     scope = filter_by_contact(scope)
     scope = filter_by_date_range(scope)
@@ -74,7 +73,6 @@ class Attachments::GalleryScopeBuilder
                     .where("content ILIKE '%://%'")
                     .joins(conversation: :inbox)
                     .where(conversations: { inbox_id: inbox_ids })
-    scope = exclude_isolated_conversations(scope)
     scope = filter_inbox(scope)
     scope = filter_contact(scope)
     scope = filter_message_date_range(scope)
@@ -114,13 +112,6 @@ class Attachments::GalleryScopeBuilder
       outgoing: 1,
       wa: WHATSAPP_INTEGRATION_CHANNELS
     )
-  end
-
-  # Num inbox com isolamento por agente ligado, esconde da galeria a mídia/link das
-  # conversas atribuídas a OUTRO agente — a superfície de conta não passa pelo guard
-  # por-conversa (AgentConversationAccessConcern), então o vazamento é fechado aqui.
-  def exclude_isolated_conversations(scope)
-    AgentConversationIsolation.exclude_hidden(scope, @user, @account)
   end
 
   # --- filtros compartilhados entre attachments e links -------------------
