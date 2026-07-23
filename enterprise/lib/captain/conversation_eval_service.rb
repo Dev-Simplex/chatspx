@@ -151,7 +151,7 @@ class Captain::ConversationEvalService < Captain::BaseTaskService
     from = messages.first.created_at
     to = messages.last.created_at + 2.minutes
     Captain::ToolCall.for_conversation(conversation.id).in_window(from, to).order(:created_at).map do |call|
-      resultado = call.status == 'error' ? "ERRO: #{call.error}" : call.result_preview.to_s[0, 400]
+      resultado = call.status == 'error' ? "ERRO: #{call.error}" : call.result_preview.to_s[0, 1200]
       { at: call.created_at, line: "[TOOL #{call.tool_name} args=#{call.args.to_json[0, 200]} => #{resultado}]" }
     end
   end
