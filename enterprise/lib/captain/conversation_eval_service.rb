@@ -19,7 +19,7 @@ class Captain::ConversationEvalService < Captain::BaseTaskService
       model: eval_model,
       messages: [
         { role: 'system', content: [prompt_from_file('conversation_eval'), spec_context].compact.join("\n\n") },
-        { role: 'user', content: [carryover_context, system_events_summary, transcript].compact.join("\n\n") }
+        { role: 'user', content: [carryover_context, system_events_summary, human_annotations_context, transcript].compact.join("\n\n") }
       ],
       schema: RESPONSE_SCHEMA
     )
@@ -114,6 +114,32 @@ class Captain::ConversationEvalService < Captain::BaseTaskService
 
     "Contexto (NÃO avaliar): atendimentos anteriores deste contato, do mais recente ao mais antigo:\n" \
       "#{resumos.join("\n")}\nAvalie SOMENTE o atendimento transcrito abaixo."
+  end
+
+  ANNOTATION_CHAR_LIMIT = 500
+
+  # F4.2 (Eval humano): notas privadas da gestão com o marcador #eval são veredito
+  # humano — quem opera o negócio apontou o problema (ou o acerto). Entram no prompt
+  # com peso máximo, acima de qualquer inferência do próprio juiz.
+  def human_annotations_context
+    notes = annotation_scope.limit(10).filter_map do |message|
+      texto = message.content.to_s.gsub(/#eval\b/i, ' ').gsub(/\s+/, ' ').strip
+      "- [#{message.sender&.name.presence || 'gestor'}] #{texto[0, ANNOTATION_CHAR_LIMIT]}" if texto.present?
+    end
+    return if notes.empty?
+
+    "AVALIAÇÃO HUMANA DA GESTÃO sobre este atendimento (peso MÁXIMO — a gestão conhece o negócio; " \
+      "incorpore estes apontamentos ao veredito, refletindo-os na nota, nas respostas_problematicas " \
+      "e no resumo; não os contradiga sem evidência forte no transcript):\n#{notes.join("\n")}"
+  end
+
+  def annotation_scope
+    return episode.human_annotations if episode.present?
+
+    conversation.messages
+                .where(private: true, sender_type: 'User')
+                .where('content ILIKE ?', '%#eval%')
+                .reorder(:created_at)
   end
 
   def build_transcript

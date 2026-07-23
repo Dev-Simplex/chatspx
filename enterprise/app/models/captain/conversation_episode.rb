@@ -21,4 +21,16 @@ class Captain::ConversationEpisode < ApplicationRecord
   def closed?
     ended_at.present?
   end
+
+  # F4.2 (Eval humano): notas privadas de gestores com o marcador #eval que pertencem
+  # a ESTE episódio. A nota costuma vir DEPOIS do fato (gestor revisa mais tarde), então
+  # a janela vai do início deste episódio até o início do episódio seguinte (ou agora).
+  def human_annotations
+    upper = self.class.where(conversation_id: conversation_id, seq: seq + 1).pick(:started_at) || Time.current
+    conversation.messages
+                .where(private: true, sender_type: 'User')
+                .where('content ILIKE ?', '%#eval%')
+                .where(created_at: started_at..upper)
+                .reorder(:created_at)
+  end
 end

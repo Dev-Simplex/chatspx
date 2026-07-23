@@ -12,7 +12,9 @@ class Captain::EpisodeEvalJob < ApplicationJob
   ESCALATION_MAX_NOTA = 5
   ESCALATION_SAMPLE_RATE = 10 # 1 em cada N episódios sobe pro juiz forte
 
-  def perform(episode)
+  # force: re-julga mesmo com veredito existente — usado pela anotação humana (#eval),
+  # que muda o contexto do juiz sem mudar a faixa de mensagens do episódio.
+  def perform(episode, force: false)
     return if episode.ended_at.blank?
 
     conversation = episode.conversation
@@ -20,8 +22,9 @@ class Captain::EpisodeEvalJob < ApplicationJob
     return unless Captain::ConversationEval.enabled_for?(account)
 
     existing = Captain::ConversationEval.find_by(episode_id: episode.id)
-    return if existing && existing.mensagens_avaliadas == episode.mensagens
+    return if !force && existing && existing.mensagens_avaliadas == episode.mensagens
 
+    annotated = episode.human_annotations.exists?
     result = judge(episode, conversation, account)
     # Episódio sem mensagem avaliável (ex.: só HSM de disparo sem resposta) recebe um
     # eval sintético 'sem_atendimento' — sai do funil pra sempre em vez de re-tentar
@@ -30,8 +33,9 @@ class Captain::EpisodeEvalJob < ApplicationJob
     return if result[:error].present? || result[:verdict].blank?
 
     gate = gate_findings(episode)
-    result = escalate_if_needed(result, gate, episode, conversation, account)
+    result = escalate_if_needed(result, gate, episode, conversation, account, annotated)
     verdict = merge_findings(result[:verdict], gate)
+    verdict = verdict.merge(veredito_raw: verdict[:veredito_raw].to_h.merge('human_annotated' => true)) if annotated
     persist(episode, conversation, account, verdict, existing)
   end
 
@@ -47,13 +51,15 @@ class Captain::EpisodeEvalJob < ApplicationJob
   end
 
   # Re-julga com o juiz forte quando o veredito barato indica problema (nota baixa),
-  # o gate flagrou algo objetivo, ou o episódio caiu na amostra de auditoria.
-  def escalate_if_needed(result, gate, episode, conversation, account)
+  # o gate flagrou algo objetivo, há anotação humana (#eval — sinal máximo de que o
+  # episódio importa), ou o episódio caiu na amostra de auditoria.
+  def escalate_if_needed(result, gate, episode, conversation, account, annotated)
     strong = InstallationConfig.find_by(name: 'EVAL_ESCALATION_MODEL')&.value
     return result if strong.blank?
 
     nota = result.dig(:verdict, :nota)
-    needs = (nota.present? && nota <= ESCALATION_MAX_NOTA) || gate.any? || (episode.id % ESCALATION_SAMPLE_RATE).zero?
+    needs = (nota.present? && nota <= ESCALATION_MAX_NOTA) || gate.any? || annotated ||
+            (episode.id % ESCALATION_SAMPLE_RATE).zero?
     return result unless needs
 
     strong_result = judge(episode, conversation, account, model_override: strong)
