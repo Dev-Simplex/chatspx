@@ -48,14 +48,7 @@ class Notification < ApplicationRecord # rubocop:disable Metrics/ClassLength
     # D4 (D-9): notifica quem PERDEU a conversa quando outro agente assume (takeover).
     # 9 é reservado para conversation_orphaned (Fase C/C10). NUNCA renumerar: NotificationSetting
     # deriva os bits FlagShihTzu do valor (notification_setting.rb:30-34). Sem migration (coluna integer).
-    conversation_unassignment: 10,
-    # D1 (Fase 3): 11 ao DONO (alguém pediu a conversa dele), 12 ao SOLICITANTE
-    # (o pedido foi respondido — aprovado/negado se distinguem no corpo; cada
-    # tipo custa 2 bits e uma linha de preferência, então não vale 3).
-    # NUNCA renumerar (ver o aviso acima). Sem migration: coluna integer, e o
-    # NotificationSetting deriva os bits em colunas de 31 bits — 12 cabe.
-    conversation_takeover_requested: 11,
-    conversation_takeover_responded: 12
+    conversation_unassignment: 10
   }.freeze
 
   enum notification_type: NOTIFICATION_TYPES
@@ -137,46 +130,38 @@ class Notification < ApplicationRecord # rubocop:disable Metrics/ClassLength
     actor_data
   end
 
-  NOTIFICATION_TITLE_KEY = {
-    'conversation_creation' => 'notifications.notification_title.conversation_creation',
-    'conversation_assignment' => 'notifications.notification_title.conversation_assignment',
-    'assigned_conversation_new_message' => 'notifications.notification_title.assigned_conversation_new_message',
-    'participating_conversation_new_message' => 'notifications.notification_title.assigned_conversation_new_message',
-    'conversation_mention' => 'notifications.notification_title.conversation_mention',
-    'sla_missed_first_response' => 'notifications.notification_title.sla_missed_first_response',
-    'sla_missed_next_response' => 'notifications.notification_title.sla_missed_next_response',
-    'sla_missed_resolution' => 'notifications.notification_title.sla_missed_resolution',
-    'conversation_orphaned' => 'notifications.notification_title.conversation_orphaned',
-    'conversation_unassignment' => 'notifications.notification_title.conversation_unassignment',
-    'conversation_takeover_requested' => 'notifications.notification_title.conversation_takeover_requested',
-    'conversation_takeover_responded' => 'notifications.notification_title.conversation_takeover_responded'
-  }.freeze
-
+  # rubocop:disable Metrics/MethodLength
   def push_message_title
     return '' if primary_actor.blank?
 
-    i18n_key = NOTIFICATION_TITLE_KEY[notification_type]
+    notification_title_map = {
+      'conversation_creation' => 'notifications.notification_title.conversation_creation',
+      'conversation_assignment' => 'notifications.notification_title.conversation_assignment',
+      'assigned_conversation_new_message' => 'notifications.notification_title.assigned_conversation_new_message',
+      'participating_conversation_new_message' => 'notifications.notification_title.assigned_conversation_new_message',
+      'conversation_mention' => 'notifications.notification_title.conversation_mention',
+      'sla_missed_first_response' => 'notifications.notification_title.sla_missed_first_response',
+      'sla_missed_next_response' => 'notifications.notification_title.sla_missed_next_response',
+      'sla_missed_resolution' => 'notifications.notification_title.sla_missed_resolution',
+      'conversation_orphaned' => 'notifications.notification_title.conversation_orphaned',
+      'conversation_unassignment' => 'notifications.notification_title.conversation_unassignment'
+    }
+
+    i18n_key = notification_title_map[notification_type]
     return '' unless i18n_key
 
-    I18n.t(i18n_key, **notification_title_interpolations)
-  end
-
-  # Cada tipo só usa as chaves que interpola; as sobrando são ignoradas pelo I18n.
-  def notification_title_interpolations
-    case notification_type
-    when 'conversation_creation'
-      { display_id: conversation.display_id, inbox_name: primary_actor.inbox.name }
-    when 'conversation_unassignment'
-      { display_id: conversation.display_id, taker: takeover_actor_name }
-    when 'conversation_takeover_requested'
-      { display_id: conversation.display_id, requester: secondary_actor&.available_name || '' }
-    when 'conversation_assignment', 'assigned_conversation_new_message',
-         'participating_conversation_new_message', 'conversation_mention', 'conversation_takeover_responded'
-      { display_id: conversation.display_id }
+    if notification_type == 'conversation_creation'
+      I18n.t(i18n_key, display_id: conversation.display_id, inbox_name: primary_actor.inbox.name)
+    elsif notification_type == 'conversation_unassignment'
+      I18n.t(i18n_key, display_id: conversation.display_id, taker: takeover_actor_name)
+    elsif %w[conversation_assignment assigned_conversation_new_message participating_conversation_new_message
+             conversation_mention].include?(notification_type)
+      I18n.t(i18n_key, display_id: conversation.display_id)
     else
-      { display_id: primary_actor.display_id }
+      I18n.t(i18n_key, display_id: primary_actor.display_id)
     end
   end
+  # rubocop:enable Metrics/MethodLength
 
   # D4: nome de quem assumiu a conversa (assignee atual; fallback p/ o secondary_actor = executor).
   def takeover_actor_name

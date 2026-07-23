@@ -38,8 +38,6 @@
       "PARTICIPATING_CONVERSATION_NEW_MESSAGE": "Nova Mensagem",
       "ASSIGNED_CONVERSATION_NEW_MESSAGE": "Nova Mensagem",
       "CONVERSATION_ORPHANED": "Conversa sem responsável",
-      "CONVERSATION_TAKEOVER_REQUESTED": "Pediram sua conversa",
-      "CONVERSATION_TAKEOVER_RESPONDED": "Pedido respondido",
       "SNOOZED_UNTIL": "Adiado para {time}",
       "SNOOZED_ENDS": "Adiamento encerrado"
     },

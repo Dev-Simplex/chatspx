@@ -100,7 +100,6 @@
     "START_CONVERSATION": "Conversar",
     "SHARED_CONTACT_LABEL": "Contato compartilhado",
     "NO_INBOX_FOR_CONTACT": "Nenhuma caixa de entrada disponível para iniciar conversa com este contato.",
-    "ATTENDANCE_CHECK_FAILED": "Não foi possível verificar se este contato já está em atendimento. Tente de novo — criar agora pode duplicar um atendimento em andamento.",
     "NO_CONTENT": "Nenhum conteúdo a ser exibido",
     "SHARED_ATTACHMENT": {
       "CONTACT": "{sender} compartilhou um contato",
@@ -592,60 +591,6 @@
     "AGENT_ISOLATION": {
       "RESTRICTED_TITLE": "Agente: {agent}",
       "RESTRICTED_SUBTITLE": "Conteúdo restrito"
-    },
-    "TAKEOVER_REQUEST": {
-      "TITLE": "Solicitar esta conversa",
-      "DESC": "{name} está atendendo este contato agora. Peça para assumir a conversa — a pessoa pode aprovar ou recusar. Nada é enviado até a aprovação.",
-      "REASON_LABEL": "Motivo (opcional)",
-      "REASON_PLACEHOLDER": "Por que você precisa desta conversa?",
-      "CONFIRM": "Solicitar atendimento",
-      "SENT": "Seu pedido foi enviado ao agente atual",
-      "ERRORS": {
-        "CONVERSATION_UNASSIGNED": "Esta conversa não tem dono — é só assumir.",
-        "CONVERSATION_OWNED_BY_BOT": "Esta conversa é atendida pela IA.",
-        "TAKEOVER_REQUEST_EXISTS": "Você já tem um pedido pendente nesta conversa.",
-        "TAKEOVER_REQUEST_CLOSED": "Este pedido já foi respondido.",
-        "TAKEOVER_REQUEST_STALE": "A conversa trocou de dono desde o seu pedido.",
-        "TAKEOVER_REQUEST_SELF": "Você já é o responsável por esta conversa.",
-        "TAKEOVER_GATE_DISABLED": "O modo de pedido de atendimento está desligado."
-      }
-    },
-    "TAKEOVER_APPROVAL": {
-      "WANTS_THIS": "pediu esta conversa",
-      "SOMEONE": "Alguém",
-      "AND_MORE": "e mais {count} pedido | e mais {count} pedidos",
-      "APPROVE": "Aprovar",
-      "DENY": "Negar",
-      "APPROVED": "Conversa transferida",
-      "DENIED": "Pedido negado",
-      "ALREADY_CLOSED": "Este pedido já foi respondido.",
-      "ERROR": "Não foi possível responder ao pedido, tente novamente."
-    },
-    "TAKEOVER_INCOMING": {
-      "TITLE": "Pedido de atendimento",
-      "SOMEONE": "Alguém",
-      "BODY": "{name} quer assumir uma conversa sua.",
-      "BODY_WITH_CONTACT": "{name} quer assumir sua conversa com {contact}.",
-      "APPROVE": "Aprovar",
-      "LATER": "Agora não"
-    },
-    "TAKEOVER_RESULT": {
-      "APPROVED": "Seu pedido foi aprovado — a conversa agora é sua.",
-      "OPEN": "Abrir conversa",
-      "DENIED": "Seu pedido de atendimento foi negado.",
-      "DENIED_WITH_NOTE": "Seu pedido de atendimento foi negado: {note}",
-      "SUPERSEDED": "Seu pedido não é mais necessário — outra pessoa assumiu a conversa."
-    },
-    "ACCESS_BLOCKED": {
-      "TITLE": "Esta conversa não está atribuída a você",
-      "BODY": "Está atribuída a {name}.",
-      "BODY_WITH_TEAM": "Está atribuída a {name} ({team}).",
-      "ACTION_HINT": "Solicite o atendimento para acessá-la.",
-      "REQUEST": "Solicitar atendimento",
-      "REQUEST_SENT": "Pedido enviado",
-      "REASON_PLACEHOLDER": "Escreva um recado curto para o dono (opcional)",
-      "REQUEST_EXISTS": "Você já tem um pedido pendente nesta conversa.",
-      "REQUEST_ERROR": "Não foi possível solicitar, tente novamente."
     }
   },
   "EMAIL_TRANSCRIPT": {

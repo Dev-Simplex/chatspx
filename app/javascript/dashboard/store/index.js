@@ -1,8 +1,6 @@
 import { createStore } from 'vuex';
 
 import accounts from './modules/accounts';
-import activeAttendances from './modules/activeAttendances';
-import takeoverRequests from './modules/takeoverRequests';
 import agentBots from './modules/agentBots';
 import agentCapacityPolicies from './modules/agentCapacityPolicies';
 import agents from './modules/agents';
@@ -74,8 +72,6 @@ export default createStore({
   modules: {
     flows,
     accounts,
-    activeAttendances,
-    takeoverRequests,
     agentBots,
     agentCapacityPolicies,
     agents,

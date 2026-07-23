@@ -42,8 +42,6 @@ class ActionCableConnector extends BaseActionCableConnector {
       'account.cache_invalidated': this.onCacheInvalidate,
       'copilot.message.created': this.onCopilotMessageCreated,
       'funnel_item.moved': this.onFunnelItemMoved,
-      'takeover_request.created': this.onTakeoverRequestChanged,
-      'takeover_request.updated': this.onTakeoverRequestChanged,
       'internal.message.created': this.onInternalMessageCreated,
       'internal.message.updated': this.onInternalMessageUpdated,
       'internal.mention.created': this.onInternalMentionCreated,
@@ -57,13 +55,6 @@ class ActionCableConnector extends BaseActionCableConnector {
   // it live. Best-effort; the store action no-ops if the item isn't loaded.
   onFunnelItemMoved = data => {
     this.app.$store.dispatch('kanban/applyRemoteMove', data);
-  };
-
-  // D1 (Fase 3): pedido de atendimento criado/respondido. Um evento, dois papéis
-  // (dono refaz a lista; solicitante recebe o aviso de resposta) — a lógica mora
-  // na action p/ ficar testável e fora do connector.
-  onTakeoverRequestChanged = data => {
-    this.app.$store.dispatch('takeoverRequests/handleRealtimeEvent', data);
   };
 
   // Chat interno (Módulo B): a peer posted into one of my internal channels.

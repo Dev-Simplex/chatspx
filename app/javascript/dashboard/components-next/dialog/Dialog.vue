@@ -48,14 +48,6 @@ const props = defineProps({
     type: Boolean,
     default: false,
   },
-  // Opt-in: caps the dialog at the viewport and turns it into a flex column, so
-  // the title and the footer stay put and the CONTENT is what gives way. Without
-  // it a tall body just grows the dialog past the screen. Off by default — every
-  // other dialog keeps its current auto-height behaviour untouched.
-  fullHeight: {
-    type: Boolean,
-    default: false,
-  },
   width: {
     type: String,
     default: 'lg',
@@ -134,26 +126,17 @@ defineExpose({ open, close });
         maxWidthClass,
         positionClass,
         overflowYAuto ? 'overflow-y-auto' : 'overflow-visible',
-        fullHeight ? 'dialog-full-height' : '',
       ]"
       @close.prevent="handleDialogClose"
     >
-      <OnClickOutside
-        :class="fullHeight ? 'flex w-full min-h-0 max-h-full' : ''"
-        @trigger="handleClickOutside"
-      >
+      <OnClickOutside @trigger="handleClickOutside">
         <form
           ref="dialogContentRef"
-          class="flex flex-col w-full gap-6 p-6 overflow-visible text-start align-middle transition-all duration-300 ease-in-out transform bg-n-solid-1 dark:bg-[#233138] border border-[var(--wa-list-border)] dark:border-[var(--wa-list-border-dark)] shadow-[0_2px_8px_rgba(11,20,26,0.12)] rounded-lg"
-          :class="fullHeight ? 'min-h-0 max-h-full' : 'h-auto'"
+          class="flex flex-col w-full h-auto gap-6 p-6 overflow-visible text-start align-middle transition-all duration-300 ease-in-out transform bg-n-solid-1 dark:bg-[#233138] border border-[var(--wa-list-border)] dark:border-[var(--wa-list-border-dark)] shadow-[0_2px_8px_rgba(11,20,26,0.12)] rounded-lg"
           @submit.prevent="confirm"
           @click.stop
         >
-          <div
-            v-if="title || description"
-            class="flex flex-col gap-2"
-            :class="{ 'shrink-0': fullHeight }"
-          >
+          <div v-if="title || description" class="flex flex-col gap-2">
             <h3 class="text-base font-medium leading-6 text-n-slate-12">
               {{ title }}
             </h3>
@@ -163,20 +146,12 @@ defineExpose({ open, close });
               </p>
             </slot>
           </div>
-          <!-- Dialog content will be injected here. In fullHeight mode it gets a
-               flex-1/min-h-0 wrapper so the content — not the dialog — absorbs
-               the leftover height and can scroll inside. -->
-          <template v-if="isOpen">
-            <div v-if="fullHeight" class="flex flex-col flex-1 min-h-0">
-              <slot />
-            </div>
-            <slot v-else />
-          </template>
+          <slot v-if="isOpen" />
+          <!-- Dialog content will be injected here -->
           <slot name="footer">
             <div
               v-if="showCancelButton || showConfirmButton"
               class="flex items-center justify-between w-full gap-3"
-              :class="{ 'shrink-0': fullHeight }"
             >
               <Button
                 v-if="showCancelButton"
@@ -207,13 +182,6 @@ defineExpose({ open, close });
 <style scoped>
 dialog::backdrop {
   @apply bg-n-alpha-black1 backdrop-blur-[4px];
-}
-
-/* fullHeight: the dialog owns the height budget and the form distributes it.
-   `dvh` (not `vh`) so the mobile URL bar can't push the footer off-screen. */
-.dialog-full-height {
-  display: flex;
-  max-height: 90dvh;
 }
 
 .dialog-position-top {

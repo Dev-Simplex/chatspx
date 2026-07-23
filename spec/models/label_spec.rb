@@ -135,16 +135,6 @@ RSpec.describe Label do
       expect(label.valid?).to be true
     end
 
-    it 'allows dots, hyphens and underscores' do
-      label = FactoryBot.build(:label, title: 'v1.2.3-beta_final')
-      expect(label.valid?).to be true
-    end
-
-    it 'would not let you start title with a dot' do
-      label = FactoryBot.build(:label, title: '.hidden')
-      expect(label.valid?).to be false
-    end
-
     it 'converts uppercase letters to lowercase' do
       label = FactoryBot.build(:label, title: 'Hello_World')
       expect(label.valid?).to be true

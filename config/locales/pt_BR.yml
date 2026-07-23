@@ -224,17 +224,11 @@ pt_BR:
       sla_missed_resolution: 'Meta de SLA de Resolução não alcançada para a conversa (#%{display_id})'
       conversation_orphaned: '[Sem dono] A conversa [ID - %{display_id}] está sem responsável e precisa de triagem'
       conversation_unassignment: 'A conversa (#%{display_id}) foi assumida por %{taker}'
-      conversation_takeover_requested: '%{requester} pediu a conversa (#%{display_id})'
-      conversation_takeover_responded: 'Seu pedido da conversa (#%{display_id}) foi respondido'
     attachment: 'Anexo'
     no_content: 'Sem conteúdo'
   conversations:
     reply_assignment_gate:
       assignment_required: 'Você precisa assumir a conversa antes de responder'
-    takeover_request_gate:
-      request_required: 'Esta conversa é de outro agente. Solicite o atendimento para assumir.'
-    agent_conversation_isolation:
-      access_blocked: 'Esta conversa está atribuída a outro agente. Solicite o atendimento para acessá-la.'
     errors:
       team_required_for_resolution: 'Um time deve ser atribuído antes de resolver esta conversa'
       resolve_assignment_required: 'Apenas o agente atribuído pode encerrar esta conversa'

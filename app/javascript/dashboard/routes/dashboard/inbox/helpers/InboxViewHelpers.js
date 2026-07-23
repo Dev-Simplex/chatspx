@@ -13,7 +13,4 @@ export const NOTIFICATION_TYPES_MAPPING = {
   SLA_MISSED_FIRST_RESPONSE: ['i-lucide-heart-crack', 'text-n-ruby-11'],
   SLA_MISSED_NEXT_RESPONSE: ['i-lucide-heart-crack', 'text-n-ruby-11'],
   SLA_MISSED_RESOLUTION: ['i-lucide-heart-crack', 'text-n-ruby-11'],
-  // D1 (Fase 3): pedido de atendimento (ao dono) / resposta (ao solicitante).
-  CONVERSATION_TAKEOVER_REQUESTED: ['i-lucide-hand', 'text-n-amber-11'],
-  CONVERSATION_TAKEOVER_RESPONDED: ['i-lucide-check-check', 'text-n-teal-11'],
 };

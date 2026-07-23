@@ -137,29 +137,6 @@ RSpec.describe 'Attachment Bulk Downloads API', type: :request do
 
         expect(response).to have_http_status(:unauthorized)
       end
-
-      it 'forbids a member when the conversation is isolated to another agent' do
-        _attachment, conversation = create_attachment(inbox)
-        create(:inbox_member, user: other_agent, inbox: inbox)
-        inbox.update!(agent_conversation_isolation: true)
-        conversation.update!(assignee: other_agent)
-
-        post "/api/v1/accounts/#{account.id}/attachment_bulk_downloads",
-             headers: agent.create_new_auth_token, params: { conversation_id: conversation.display_id }, as: :json
-
-        expect(response).to have_http_status(:unauthorized)
-      end
-
-      it 'still allows the assigned agent when the conversation is isolated' do
-        _attachment, conversation = create_attachment(inbox)
-        inbox.update!(agent_conversation_isolation: true)
-        conversation.update!(assignee: agent)
-
-        post "/api/v1/accounts/#{account.id}/attachment_bulk_downloads",
-             headers: agent.create_new_auth_token, params: { conversation_id: conversation.display_id }, as: :json
-
-        expect(response).to have_http_status(:accepted)
-      end
     end
   end
 

@@ -765,8 +765,6 @@
       "TEAM_MESSAGE_ISOLATION_SUB_TEXT": "Quando ativado, agentes só visualizam mensagens do seu próprio time. Mensagens de outros times aparecem com acesso restrito.",
       "AGENT_MESSAGE_ISOLATION": "Isolamento de mensagens por agente",
       "AGENT_MESSAGE_ISOLATION_SUB_TEXT": "Quando ativado, cada agente só visualiza as mensagens que ele mesmo enviou. As de outros agentes aparecem com acesso restrito.",
-      "AGENT_CONVERSATION_ISOLATION": "Isolamento de conversas por agente",
-      "AGENT_CONVERSATION_ISOLATION_SUB_TEXT": "Quando ativado, o agente só abre as conversas atribuídas a ele; as demais mostram um aviso para solicitar o atendimento. Conversas sem dono seguem disponíveis para assumir; o admin vê tudo.",
       "PENDING_STATUS": {
         "TITLE": "Permitir status Pendente",
         "SUB_TEXT": "Quando ativado, atendentes podem marcar conversas como Pendente nesta caixa de entrada. Conversas já pendentes continuam visíveis mesmo se desativado."

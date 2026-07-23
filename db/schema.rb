@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[7.1].define(version: 2026_07_22_120000) do
+ActiveRecord::Schema[7.1].define(version: 2026_07_14_140000) do
   # These extensions should be enabled to support this database
   enable_extension "pg_stat_statements"
   enable_extension "pg_trgm"
@@ -323,24 +323,6 @@ ActiveRecord::Schema[7.1].define(version: 2026_07_22_120000) do
     t.index ["account_id"], name: "index_automation_rules_on_account_id"
   end
 
-  create_table "campaign_recipients", force: :cascade do |t|
-    t.bigint "campaign_id", null: false
-    t.bigint "account_id", null: false
-    t.bigint "contact_id"
-    t.bigint "conversation_id"
-    t.string "phone_number", null: false
-    t.string "name"
-    t.jsonb "template_params", default: {}, null: false
-    t.integer "status", default: 0, null: false
-    t.string "external_error"
-    t.datetime "sent_at"
-    t.datetime "created_at", null: false
-    t.datetime "updated_at", null: false
-    t.index ["account_id", "phone_number"], name: "index_campaign_recipients_on_account_id_and_phone_number"
-    t.index ["campaign_id", "status"], name: "index_campaign_recipients_on_campaign_id_and_status"
-    t.index ["conversation_id"], name: "index_campaign_recipients_on_conversation_id"
-  end
-
   create_table "campaigns", force: :cascade do |t|
     t.integer "display_id", null: false
     t.string "title", null: false
@@ -454,12 +436,10 @@ ActiveRecord::Schema[7.1].define(version: 2026_07_22_120000) do
     t.datetime "avaliado_em"
     t.datetime "created_at", null: false
     t.datetime "updated_at", null: false
-    t.string "representatividade", default: "atendimento_real", null: false
     t.index ["account_id"], name: "index_captain_conversation_evals_on_account_id"
     t.index ["avaliado_em"], name: "index_captain_conversation_evals_on_avaliado_em"
     t.index ["captain_assistant_id"], name: "index_captain_conversation_evals_on_captain_assistant_id"
     t.index ["conversation_id"], name: "idx_cap_conv_evals_on_conversation", unique: true
-    t.index ["representatividade"], name: "index_captain_conversation_evals_on_representatividade"
   end
 
   create_table "captain_custom_tools", force: :cascade do |t|
@@ -874,26 +854,6 @@ ActiveRecord::Schema[7.1].define(version: 2026_07_22_120000) do
     t.index ["requester_user_id"], name: "index_conversation_pdf_exports_on_requester_user_id"
     t.index ["sha256"], name: "index_conversation_pdf_exports_on_sha256", unique: true, where: "(sha256 IS NOT NULL)"
     t.index ["status"], name: "index_conversation_pdf_exports_on_status"
-  end
-
-  create_table "conversation_takeover_requests", force: :cascade do |t|
-    t.bigint "account_id", null: false
-    t.bigint "conversation_id", null: false
-    t.bigint "requester_id", null: false
-    t.bigint "owner_id"
-    t.integer "status", default: 0, null: false
-    t.integer "resolution_source"
-    t.text "reason"
-    t.text "response_note"
-    t.bigint "responded_by_id"
-    t.datetime "responded_at"
-    t.datetime "created_at", null: false
-    t.datetime "updated_at", null: false
-    t.index ["account_id", "status"], name: "idx_takeover_requests_account_status"
-    t.index ["conversation_id", "requester_id"], name: "idx_takeover_requests_unique_pending", unique: true, where: "(status = 0)"
-    t.index ["conversation_id"], name: "idx_takeover_requests_conversation"
-    t.index ["owner_id", "status"], name: "idx_takeover_requests_owner_status"
-    t.index ["requester_id", "status"], name: "idx_takeover_requests_requester_status"
   end
 
   create_table "conversations", id: :serial, force: :cascade do |t|
@@ -1377,7 +1337,6 @@ ActiveRecord::Schema[7.1].define(version: 2026_07_22_120000) do
     t.boolean "pending_status_enabled", default: false, null: false
     t.jsonb "additional_attributes", default: {}, null: false
     t.boolean "agent_message_isolation", default: false, null: false
-    t.boolean "agent_conversation_isolation", default: false, null: false
     t.index ["account_id"], name: "index_inboxes_on_account_id"
     t.index ["channel_id", "channel_type"], name: "index_inboxes_on_channel_id_and_channel_type"
     t.index ["portal_id"], name: "index_inboxes_on_portal_id"
@@ -1993,7 +1952,6 @@ ActiveRecord::Schema[7.1].define(version: 2026_07_22_120000) do
   add_foreign_key "active_storage_variant_records", "active_storage_blobs", column: "blob_id"
   add_foreign_key "agent_bots", "captain_assistants", on_delete: :nullify
   add_foreign_key "applied_slas", "conversations", on_delete: :cascade
-  add_foreign_key "campaign_recipients", "campaigns", on_delete: :cascade
   add_foreign_key "canned_responses", "teams", on_delete: :nullify
   add_foreign_key "canned_responses", "users", column: "created_by_id", on_delete: :nullify
   add_foreign_key "captain_assistant_logs", "captain_assistants"
@@ -2011,11 +1969,6 @@ ActiveRecord::Schema[7.1].define(version: 2026_07_22_120000) do
   add_foreign_key "conversation_pdf_exports", "accounts", on_delete: :cascade
   add_foreign_key "conversation_pdf_exports", "conversations", on_delete: :cascade
   add_foreign_key "conversation_pdf_exports", "users", column: "requester_user_id", on_delete: :nullify
-  add_foreign_key "conversation_takeover_requests", "accounts", on_delete: :cascade
-  add_foreign_key "conversation_takeover_requests", "conversations", on_delete: :cascade
-  add_foreign_key "conversation_takeover_requests", "users", column: "owner_id", on_delete: :nullify
-  add_foreign_key "conversation_takeover_requests", "users", column: "requester_id", on_delete: :nullify
-  add_foreign_key "conversation_takeover_requests", "users", column: "responded_by_id", on_delete: :nullify
   add_foreign_key "conversations", "accounts", on_delete: :cascade
   add_foreign_key "conversations", "contacts", on_delete: :cascade
   add_foreign_key "conversations", "inboxes", on_delete: :cascade

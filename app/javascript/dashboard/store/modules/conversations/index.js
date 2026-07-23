@@ -27,10 +27,6 @@ const state = {
   syncConversationsMessages: {},
   conversationFilters: {},
   copilotAssistant: {},
-  // Isolamento de acesso por agente: mapa conversationId -> meta do 403
-  // (dono/time/pedido). Preenchido quando abrir a conversa devolve
-  // 'conversation_access_blocked'; a ConversationBox mostra o painel de bloqueio.
-  accessBlocked: {},
 };
 
 // Helper to rebuild the conversationMap from the allConversations array
@@ -185,17 +181,6 @@ export const mutations = {
     if (activeChat) {
       _state.selectedChatId = activeChat.id;
     }
-  },
-
-  [types.SET_CONVERSATION_ACCESS_BLOCKED](_state, { id, meta }) {
-    _state.accessBlocked = { ..._state.accessBlocked, [id]: meta || {} };
-  },
-
-  [types.CLEAR_CONVERSATION_ACCESS_BLOCKED](_state, id) {
-    if (_state.accessBlocked[id] === undefined) return;
-    const next = { ..._state.accessBlocked };
-    delete next[id];
-    _state.accessBlocked = next;
   },
 
   [types.ASSIGN_AGENT](_state, { conversationId, assignee }) {

@@ -238,7 +238,7 @@ const close = () => emit('close');
         </div>
         <button
           type="button"
-          class="shrink-0 rounded p-1 text-n-ruby-11 transition hover:bg-n-ruby-3 md:opacity-0 md:group-hover:opacity-100"
+          class="shrink-0 rounded p-1 text-n-ruby-11 opacity-0 transition hover:bg-n-ruby-3 group-hover:opacity-100"
           :title="t('KANBAN.AUTOMATIONS.DELETE')"
           @click="remove(automation)"
         >

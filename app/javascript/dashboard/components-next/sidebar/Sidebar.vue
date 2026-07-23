@@ -242,9 +242,6 @@ provideSidebarContext({
 });
 
 const inboxes = useMapGetter('inboxes/getInboxes');
-// D1 (Fase 3): contador de pedidos de atendimento pendentes (item "Pedidos" só
-// aparece quando há algum — sem poluir a sidebar de quem não usa o modo).
-const takeoverRequestCount = useMapGetter('takeoverRequests/getIncomingCount');
 const labels = useMapGetter('labels/getLabelsOnSidebar');
 const teams = useMapGetter('teams/getMyTeams');
 const conversationStats = useMapGetter('conversationStats/getStats');
@@ -261,9 +258,6 @@ onMounted(() => {
   store.dispatch('attributes/get');
   store.dispatch('customViews/get', 'conversation');
   store.dispatch('customViews/get', 'contact');
-  // D1 (Fase 3): popula o contador de "Pedidos" no boot (o realtime atualiza
-  // depois). Silencioso: sem pedidos, a conta 99% das vezes nem vê o item.
-  store.dispatch('takeoverRequests/fetchIncoming').catch(() => {});
   // Carrega os canais do chat interno para o badge de não lidas aparecer (e o
   // tempo-real incrementar) mesmo sem abrir a página do chat.
   if (hasInternalChat.value) store.dispatch('internalChat/fetchChannels');
@@ -542,23 +536,6 @@ const menuItems = computed(() => {
       to: accountScopedRoute('gallery_index'),
       activeOn: ['gallery_index'],
     },
-    ...(takeoverRequestCount.value > 0
-      ? [
-          {
-            name: 'Takeover Requests',
-            label: t('SIDEBAR.TAKEOVER_REQUESTS'),
-            // Ícone lucide DIRETO (string), não lordIcon: não existe lord 'handRaised',
-            // e o LordIconIcon, sem src válido, esconde o fallback após 3s (timeout
-            // fixo) e fica em branco. O <Icon> renderiza o span estático na hora.
-            icon: 'i-lucide-hand',
-            to: accountScopedRoute('takeover_requests_index'),
-            activeOn: ['takeover_requests_index'],
-            getterKeys: {
-              count: 'takeoverRequests/getIncomingCount',
-            },
-          },
-        ]
-      : []),
     {
       // Item único (sem submenu): "Conexão LLM" saiu do menu lateral — a
       // config de provedor/modelo passa a viver em "Opções avançadas" do
@@ -604,12 +581,6 @@ const menuItems = computed(() => {
           label: t('SIDEBAR.ACTIVE'),
           to: accountScopedRoute('contacts_dashboard_active'),
           activeOn: ['contacts_dashboard_active'],
-        },
-        {
-          name: 'In Attendance',
-          label: t('SIDEBAR.IN_ATTENDANCE'),
-          to: accountScopedRoute('contacts_dashboard_in_attendance'),
-          activeOn: ['contacts_dashboard_in_attendance'],
         },
         {
           name: 'Segments',

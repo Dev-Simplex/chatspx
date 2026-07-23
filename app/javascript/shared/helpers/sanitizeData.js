@@ -1,4 +1,4 @@
-export const labelSanitizePattern = /[^a-zA-Z0-9._-]/g;
+export const labelSanitizePattern = /[^a-zA-Z0-9_-]/g;
 export const spacesPattern = /\s+/g;
 
 /**

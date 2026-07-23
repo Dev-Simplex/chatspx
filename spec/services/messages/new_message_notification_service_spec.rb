@@ -15,23 +15,44 @@ describe Messages::NewMessageNotificationService do
     end
   end
 
-  # Regra canônica: notificar U sobre mensagem nova em C  <=>  U == C.assignee.
-  # A participação é ETERNA (o ParticipationListener adiciona todo assignee e nunca remove o
-  # anterior), então notificar participantes fazia o sino tocar para todo mundo que um dia encostou
-  # na conversa. A aba "Participantes da conversa" continua sendo alimentada, mas é só informativa.
   context 'when message is notifiable' do
     let(:account) { create(:account) }
     let(:assignee) { create(:user, account: account) }
     let(:participating_agent_1) { create(:user, account: account) }
     let(:participating_agent_2) { create(:user, account: account) }
-    let(:participating_admin) { create(:user, account: account, role: :administrator) }
     let(:inbox) { create(:inbox, account: account) }
     let(:conversation) { create(:conversation, account: account, inbox: inbox, assignee: assignee) }
 
     before do
-      [participating_agent_1, participating_agent_2, participating_admin, assignee].each do |user|
-        create(:inbox_member, inbox: inbox, user: user)
-        create(:conversation_participant, conversation: conversation, user: user)
+      create(:inbox_member, inbox: inbox, user: participating_agent_1)
+      create(:inbox_member, inbox: inbox, user: participating_agent_2)
+      create(:inbox_member, inbox: inbox, user: assignee)
+      create(:conversation_participant, conversation: conversation, user: participating_agent_1)
+      create(:conversation_participant, conversation: conversation, user: participating_agent_2)
+      create(:conversation_participant, conversation: conversation, user: assignee)
+    end
+
+    context 'when message is created by a participant' do
+      let(:message) { create(:message, conversation: conversation, account: account, sender: participating_agent_1) }
+
+      before do
+        described_class.new(message: message).perform
+      end
+
+      it 'creates notifications for other participating users' do
+        expect(participating_agent_2.notifications.where(notification_type: 'participating_conversation_new_message', account: account,
+                                                         primary_actor: message.conversation, secondary_actor: message)).to exist
+      end
+
+      it 'creates notifications for assignee' do
+        expect(assignee.notifications.where(notification_type: 'assigned_conversation_new_message', account: account,
+                                            primary_actor: message.conversation, secondary_actor: message)).to exist
+      end
+
+      it 'will not create notifications for the user who created the message' do
+        expect(participating_agent_1.notifications.where(notification_type: 'participating_conversation_new_message',
+                                                         account: account, primary_actor: message.conversation,
+                                                         secondary_actor: message)).not_to exist
       end
     end
 
@@ -42,44 +63,35 @@ describe Messages::NewMessageNotificationService do
         described_class.new(message: message).perform
       end
 
-      it 'creates a notification for the assignee' do
+      it 'creates notifications for assignee' do
         expect(assignee.notifications.where(notification_type: 'assigned_conversation_new_message', account: account,
                                             primary_actor: message.conversation, secondary_actor: message)).to exist
       end
 
-      it 'does not notify a participant who is not the assignee' do
-        expect(participating_agent_1.notifications.where(primary_actor: message.conversation)).not_to exist
-        expect(participating_agent_2.notifications.where(primary_actor: message.conversation)).not_to exist
-      end
-
-      # D4: o admin não é exceção. O dono é admin e pediu MENOS ruído, não mais.
-      it 'does not notify a participating administrator' do
-        expect(participating_admin.notifications.where(primary_actor: message.conversation)).not_to exist
-      end
-
-      it 'notifies the assignee and nobody else' do
-        expect(Notification.where(primary_actor: message.conversation).pluck(:user_id)).to contain_exactly(assignee.id)
+      it 'creates notifications for all participating users' do
+        expect(participating_agent_1.notifications.where(notification_type: 'participating_conversation_new_message',
+                                                         account: account, primary_actor: message.conversation,
+                                                         secondary_actor: message)).to exist
+        expect(participating_agent_2.notifications.where(notification_type: 'participating_conversation_new_message',
+                                                         account: account, primary_actor: message.conversation,
+                                                         secondary_actor: message)).to exist
       end
     end
 
-    context 'when message is created by a participant' do
-      let(:message) { create(:message, conversation: conversation, account: account, sender: participating_agent_1) }
+    context 'when multiple notification conditions are met' do
+      let(:message) { create(:message, conversation: conversation, account: account) }
 
       before do
         described_class.new(message: message).perform
       end
 
-      it 'creates a notification for the assignee' do
-        expect(assignee.notifications.where(notification_type: 'assigned_conversation_new_message', account: account,
-                                            primary_actor: message.conversation, secondary_actor: message)).to exist
-      end
-
-      it 'does not notify the other participants' do
-        expect(participating_agent_2.notifications.where(primary_actor: message.conversation)).not_to exist
-      end
-
-      it 'will not create notifications for the user who created the message' do
-        expect(participating_agent_1.notifications.where(primary_actor: message.conversation)).not_to exist
+      it 'will not create participating notifications for the assignee if assignee notification was send' do
+        expect(assignee.notifications.where(notification_type: 'assigned_conversation_new_message',
+                                            account: account, primary_actor: message.conversation,
+                                            secondary_actor: message)).to exist
+        expect(assignee.notifications.where(notification_type: 'participating_conversation_new_message',
+                                            account: account, primary_actor: message.conversation,
+                                            secondary_actor: message)).not_to exist
       end
     end
 
@@ -91,84 +103,88 @@ describe Messages::NewMessageNotificationService do
       end
 
       it 'will not create notifications for the user who created the message' do
-        expect(assignee.notifications.where(primary_actor: message.conversation)).not_to exist
+        expect(assignee.notifications.where(notification_type: 'participating_conversation_new_message',
+                                            account: account, primary_actor: message.conversation,
+                                            secondary_actor: message)).not_to exist
+        expect(assignee.notifications.where(notification_type: 'assigned_conversation_new_message',
+                                            account: account, primary_actor: message.conversation,
+                                            secondary_actor: message)).not_to exist
       end
     end
+  end
 
-    # Guard contra o sino duplicado (o assignee também é participante): mesmo depois de este service
-    # criar a notificação do assignee, uma segunda passada não pode gerar outra.
-    context 'when the service runs twice for the same message' do
+  # A participação é eterna: o ParticipationListener adiciona todo assignee e nunca remove o anterior.
+  # Estes casos travam a regra de que a audiência do sino segue a mesma regra da LISTA de conversas.
+  context 'when the conversation is scoped to a team' do
+    let(:account) { create(:account) }
+    let(:inbox) { create(:inbox, account: account) }
+    let(:team_x) { create(:team, account: account) }
+    let(:team_y) { create(:team, account: account) }
+
+    let(:agent_x) { create(:user, account: account, role: :agent) }
+    let(:agent_y) { create(:user, account: account, role: :agent) }
+    let(:agent_without_team) { create(:user, account: account, role: :agent) }
+    let(:admin) { create(:user, account: account, role: :administrator) }
+
+    before do
+      [agent_x, agent_y, agent_without_team, admin].each { |user| create(:inbox_member, inbox: inbox, user: user) }
+      create(:team_member, user: agent_x, team: team_x)
+      create(:team_member, user: agent_y, team: team_y)
+    end
+
+    # Cenário reportado: agent_x era o assignee (virou participante), a conversa foi reatribuída
+    # ao agent_y e o AssignmentHandler moveu o time junto. agent_x continua participante.
+    context 'when a participant was reassigned away to another team' do
+      let(:conversation) { create(:conversation, account: account, inbox: inbox, assignee: agent_y) }
       let(:message) { create(:message, conversation: conversation, account: account) }
 
-      it 'does not notify the assignee twice' do
-        2.times { described_class.new(message: message).perform }
-
-        expect(assignee.notifications.where(primary_actor: message.conversation, secondary_actor: message).count).to eq(1)
-      end
-    end
-  end
-
-  # D2: silêncio aceito. A lista de "Não atribuídas" + orphan_retriage_job / queue_escalation_job
-  # cobrem esse caso alertando o admin por outro caminho.
-  context 'when the conversation has no assignee' do
-    let(:account) { create(:account) }
-    let(:inbox) { create(:inbox, account: account) }
-    let(:participant) { create(:user, account: account) }
-    let(:conversation) { create(:conversation, account: account, inbox: inbox, assignee: nil) }
-    let(:message) { create(:message, conversation: conversation, account: account) }
-
-    before do
-      create(:inbox_member, inbox: inbox, user: participant)
-      create(:conversation_participant, conversation: conversation, user: participant)
-      described_class.new(message: message).perform
-    end
-
-    it 'does not notify anyone' do
-      expect(Notification.where(primary_actor: conversation)).not_to exist
-    end
-  end
-
-  # O assignee sobrevive ao resolve (nada zera assignee_id) e a reabertura não o troca no caso normal,
-  # então "notificar o assignee" == "notificar quem estava atribuído quando a conversa foi resolvida".
-  context 'when a resolved conversation is reopened by a new message' do
-    let(:account) { create(:account) }
-    let(:inbox) { create(:inbox, account: account) }
-    let(:assignee) { create(:user, account: account) }
-    let(:ex_assignee) { create(:user, account: account) }
-    let(:conversation) { create(:conversation, account: account, inbox: inbox, assignee: assignee) }
-
-    before do
-      [assignee, ex_assignee].each { |user| create(:inbox_member, inbox: inbox, user: user) }
-      create(:conversation_participant, conversation: conversation, user: ex_assignee)
-      conversation.resolved!
-    end
-
-    it 'notifies the user who was assigned when it was resolved' do
-      message = create(:message, conversation: conversation, account: account, message_type: :incoming)
-      described_class.new(message: message).perform
-
-      expect(conversation.reload.open?).to be true
-      expect(Notification.where(primary_actor: conversation).pluck(:user_id)).to contain_exactly(assignee.id)
-    end
-
-    # Armadilha: o sino lê conversation.assignee. Hoje reopen_conversation roda ANTES de
-    # dispatch_create_events (message.rb, ordem explícita por causa de rails/rails#20911). Se alguém
-    # reordenar, uma reabertura que reatribua a conversa mandaria o sino para o assignee ANTIGO.
-    it 'reopens the conversation before dispatching the create events' do
-      message = build(:message, conversation: conversation, account: account, message_type: :incoming)
-      call_order = []
-      allow(message).to receive(:reopen_conversation).and_wrap_original do |original|
-        call_order << :reopen_conversation
-        original.call
-      end
-      allow(message).to receive(:dispatch_create_events).and_wrap_original do |original|
-        call_order << :dispatch_create_events
-        original.call
+      before do
+        create(:conversation_participant, conversation: conversation, user: agent_x)
+        create(:conversation_participant, conversation: conversation, user: agent_without_team)
+        create(:conversation_participant, conversation: conversation, user: admin)
+        described_class.new(message: message).perform
       end
 
-      message.save!
+      it 'moved the conversation to the assignee team' do
+        expect(conversation.reload.team_id).to eq(team_y.id)
+      end
 
-      expect(call_order).to eq(%i[reopen_conversation dispatch_create_events])
+      it 'does not notify the ex-assignee who is now in another team' do
+        expect(agent_x.notifications.where(primary_actor: conversation)).not_to exist
+      end
+
+      it 'still notifies the current assignee' do
+        expect(agent_y.notifications.where(notification_type: 'assigned_conversation_new_message',
+                                           primary_actor: conversation)).to exist
+      end
+
+      it 'still notifies a participating agent without any team' do
+        expect(agent_without_team.notifications.where(notification_type: 'participating_conversation_new_message',
+                                                      primary_actor: conversation)).to exist
+      end
+
+      it 'still notifies a participating administrator from another team' do
+        expect(admin.notifications.where(notification_type: 'participating_conversation_new_message',
+                                         primary_actor: conversation)).to exist
+      end
+    end
+
+    context 'when the conversation has no team' do
+      let(:conversation) { create(:conversation, account: account, inbox: inbox, team: nil) }
+      let(:message) { create(:message, conversation: conversation, account: account) }
+
+      before do
+        create(:conversation_participant, conversation: conversation, user: agent_x)
+        create(:conversation_participant, conversation: conversation, user: agent_y)
+        described_class.new(message: message).perform
+      end
+
+      it 'notifies every participant regardless of team' do
+        expect(agent_x.notifications.where(notification_type: 'participating_conversation_new_message',
+                                           primary_actor: conversation)).to exist
+        expect(agent_y.notifications.where(notification_type: 'participating_conversation_new_message',
+                                           primary_actor: conversation)).to exist
+      end
     end
   end
 end

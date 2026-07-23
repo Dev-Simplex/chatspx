@@ -14,46 +14,17 @@ const props = defineProps({
     type: Object,
     default: () => ({}),
   },
-  // Ação do botão principal, decidida por useContactAttendance no pai:
-  // { type: 'send' | 'request' | 'pending' | 'blocked', conversationId?, requestId? }
-  // Default 'send' → a lista de contatos (que não passa isto) segue igual.
-  sendAction: {
-    type: Object,
-    default: () => ({ type: 'send' }),
-  },
-  // { name, team } de quem atende — mostrado ao lado do botão. null = ninguém.
-  statusLabel: {
-    type: Object,
-    default: null,
-  },
-  isRequesting: {
+  isUpdating: {
     type: Boolean,
     default: false,
   },
 });
 
-const emit = defineEmits([
-  'goToContactsList',
-  'requestAttendance',
-  'cancelRequest',
-]);
+const emit = defineEmits(['goToContactsList', 'toggleBlock']);
 
 const { t } = useI18n();
 const slots = useSlots();
 const route = useRoute();
-
-// Texto "Atendido por Ana (suporte)" / "Atendido por Ana".
-const attendedByText = computed(() => {
-  if (!props.statusLabel) return '';
-  return props.statusLabel.team
-    ? t('CONTACTS_LAYOUT.IN_ATTENDANCE.ATTENDED_BY_TEAM', {
-        name: props.statusLabel.name,
-        team: props.statusLabel.team,
-      })
-    : t('CONTACTS_LAYOUT.IN_ATTENDANCE.ATTENDED_BY', {
-        name: props.statusLabel.name,
-      });
-});
 
 const isContactSidebarOpen = ref(false);
 
@@ -78,8 +49,16 @@ const breadcrumbItems = computed(() => {
   return items;
 });
 
+const isContactBlocked = computed(() => {
+  return props.selectedContact?.blocked;
+});
+
 const handleBreadcrumbClick = () => {
   emit('goToContactsList');
+};
+
+const toggleBlock = () => {
+  emit('toggleBlock', isContactBlocked.value);
 };
 
 const handleConversationSidebarToggle = () => {
@@ -101,87 +80,41 @@ const closeMobileSidebar = () => {
     >
       <header class="sticky top-0 z-10 px-6 3xl:px-0">
         <div class="w-full mx-auto max-w-[40.625rem]">
-          <div class="flex items-start justify-between w-full py-7 gap-3">
-            <!-- Nome (breadcrumb) + status "Atendido por…" como subtítulo discreto,
-                 numa coluna que TRUNCA — nunca empurra o botão de ação. -->
-            <div class="flex flex-col min-w-0 flex-1 gap-1.5">
-              <Breadcrumb
-                :items="breadcrumbItems"
-                @click="handleBreadcrumbClick"
+          <div
+            class="flex flex-col xs:flex-row items-start xs:items-center justify-between w-full py-7 gap-2"
+          >
+            <Breadcrumb
+              :items="breadcrumbItems"
+              @click="handleBreadcrumbClick"
+            />
+            <div class="flex items-center gap-2">
+              <Button
+                :label="
+                  !isContactBlocked
+                    ? $t('CONTACTS_LAYOUT.HEADER.BLOCK_CONTACT')
+                    : $t('CONTACTS_LAYOUT.HEADER.UNBLOCK_CONTACT')
+                "
+                size="sm"
+                slate
+                :is-loading="isUpdating"
+                :disabled="isUpdating"
+                @click="toggleBlock"
               />
-              <span
-                v-if="attendedByText"
-                class="inline-flex items-center min-w-0 gap-1.5 text-xs text-n-slate-11"
-                :title="attendedByText"
-              >
-                <span
-                  class="i-lucide-user-round-check size-3.5 shrink-0 text-n-slate-10"
-                />
-                <span class="truncate">{{ attendedByText }}</span>
-              </span>
-            </div>
-            <!-- Ações à direita: largura fixa, o rótulo do botão nunca trunca. -->
-            <div class="flex items-center gap-2 shrink-0">
               <VoiceCallButton
                 :phone="selectedContact?.phoneNumber"
                 :contact-id="contactId"
                 :label="$t('CONTACT_PANEL.CALL')"
                 size="sm"
               />
-              <!-- Botão principal decidido por sendAction (fonte única no pai) -->
-              <ComposeConversation
-                v-if="sendAction.type === 'send'"
-                :contact-id="contactId"
-              >
+              <ComposeConversation :contact-id="contactId">
                 <template #trigger="{ toggle }">
                   <Button
                     :label="$t('CONTACTS_LAYOUT.HEADER.SEND_MESSAGE')"
                     size="sm"
-                    class="shrink-0 whitespace-nowrap"
                     @click="toggle"
                   />
                 </template>
               </ComposeConversation>
-              <Button
-                v-else-if="sendAction.type === 'request'"
-                :label="$t('CONTACTS_LAYOUT.IN_ATTENDANCE.REQUEST_ATTENDANCE')"
-                size="sm"
-                color="amber"
-                class="shrink-0 whitespace-nowrap"
-                :is-loading="isRequesting"
-                :disabled="isRequesting"
-                @click="emit('requestAttendance', sendAction)"
-              />
-              <div
-                v-else-if="sendAction.type === 'pending'"
-                class="flex items-center gap-2 shrink-0"
-              >
-                <span
-                  class="hidden text-xs sm:inline text-n-slate-11 whitespace-nowrap"
-                >
-                  {{
-                    $t('CONTACTS_LAYOUT.IN_ATTENDANCE.REQUEST.PENDING_STATE')
-                  }}
-                </span>
-                <Button
-                  :label="$t('CONTACTS_LAYOUT.IN_ATTENDANCE.REQUEST.CANCEL')"
-                  size="sm"
-                  variant="ghost"
-                  slate
-                  class="shrink-0 whitespace-nowrap"
-                  :is-loading="isRequesting"
-                  :disabled="isRequesting"
-                  @click="emit('cancelRequest', sendAction)"
-                />
-              </div>
-              <Button
-                v-else
-                :label="$t('CONTACTS_LAYOUT.HEADER.SEND_MESSAGE')"
-                size="sm"
-                class="shrink-0 whitespace-nowrap"
-                disabled
-                :title="$t('CONTACTS_LAYOUT.IN_ATTENDANCE.SEND_BLOCKED')"
-              />
             </div>
           </div>
         </div>
