@@ -2,7 +2,7 @@ import { useVuelidate } from '@vuelidate/core';
 import { reactive } from 'vue';
 import validations, {
   validLabelCharacters,
-  getLabelTitleErrorMessage,
+  getLabelTitleError,
 } from '../validations';
 
 describe('#validLabelCharacters', () => {
@@ -24,97 +24,116 @@ describe('#validLabelCharacters', () => {
   });
 });
 
-describe('#getLabelTitleErrorMessage', () => {
+describe('#getLabelTitleError', () => {
   // Vuelidate 2 exposes each rule as an object with a `$invalid` flag.
-  const createValidation = titleValidation => ({
+  const createValidation = t => ({
     title: {
-      $error: titleValidation.$error,
-      required: { $invalid: titleValidation.requiredInvalid },
-      minLength: { $invalid: titleValidation.minLengthInvalid },
-      validLabelCharacters: {
-        $invalid: titleValidation.validLabelCharactersInvalid,
-      },
+      $error: t.$error,
+      required: { $invalid: t.requiredInvalid },
+      minLength: { $invalid: t.minLengthInvalid },
+      validLabelCharacters: { $invalid: t.validLabelCharactersInvalid },
     },
   });
 
-  it('returns an empty string when there are no validation errors', () => {
-    const validation = createValidation({
+  const charRuleFailed = createValidation({
+    $error: true,
+    requiredInvalid: false,
+    minLengthInvalid: false,
+    validLabelCharactersInvalid: true,
+  });
+
+  it('returns no key when there are no validation errors', () => {
+    const v = createValidation({
       $error: false,
       requiredInvalid: false,
       minLengthInvalid: false,
       validLabelCharactersInvalid: false,
     });
-
-    expect(getLabelTitleErrorMessage(validation)).toEqual('');
+    expect(getLabelTitleError(v, 'valid').key).toEqual('');
   });
 
-  it('returns a required error message when the title is required but not provided', () => {
-    const validation = createValidation({
+  it('flags a missing title as required', () => {
+    const v = createValidation({
       $error: true,
       requiredInvalid: true,
       minLengthInvalid: true,
       validLabelCharactersInvalid: false,
     });
-
-    expect(getLabelTitleErrorMessage(validation)).toEqual(
+    expect(getLabelTitleError(v, '').key).toEqual(
       'LABEL_MGMT.FORM.NAME.REQUIRED_ERROR'
     );
   });
 
-  it('returns a minimum length error message when the title is too short', () => {
-    const validation = createValidation({
+  it('flags a short title', () => {
+    const v = createValidation({
       $error: true,
       requiredInvalid: false,
       minLengthInvalid: true,
       validLabelCharactersInvalid: false,
     });
-
-    expect(getLabelTitleErrorMessage(validation)).toEqual(
+    expect(getLabelTitleError(v, 'a').key).toEqual(
       'LABEL_MGMT.FORM.NAME.MINIMUM_LENGTH_ERROR'
     );
   });
 
-  it('returns a valid label characters error message when the title has invalid characters', () => {
-    const validation = createValidation({
-      $error: true,
-      requiredInvalid: false,
-      minLengthInvalid: false,
-      validLabelCharactersInvalid: true,
+  describe('when the character rule fails, it names the exact reason', () => {
+    it('reports spaces', () => {
+      expect(getLabelTitleError(charRuleFailed, 'triagem ').key).toEqual(
+        'LABEL_MGMT.FORM.NAME.NO_SPACES_ERROR'
+      );
     });
 
-    expect(getLabelTitleErrorMessage(validation)).toEqual(
-      'LABEL_MGMT.FORM.NAME.VALID_ERROR'
+    it('reports a leading separator', () => {
+      expect(getLabelTitleError(charRuleFailed, '.oculto').key).toEqual(
+        'LABEL_MGMT.FORM.NAME.NO_LEADING_SEPARATOR_ERROR'
+      );
+      expect(getLabelTitleError(charRuleFailed, '-x').key).toEqual(
+        'LABEL_MGMT.FORM.NAME.NO_LEADING_SEPARATOR_ERROR'
+      );
+    });
+
+    it('reports the specific forbidden character', () => {
+      const err = getLabelTitleError(charRuleFailed, 'label(3)');
+      expect(err.key).toEqual('LABEL_MGMT.FORM.NAME.INVALID_CHARACTER_ERROR');
+      expect(err.values).toEqual({ char: '(' });
+    });
+  });
+});
+
+// Integration guard: runs against a REAL Vuelidate instance (not a hand-mocked
+// shape) so the helper can never silently break against the actual v2 API again.
+describe('#getLabelTitleError against a real vuelidate instance', () => {
+  const errorFor = title => {
+    const state = reactive({ title });
+    const v$ = useVuelidate(validations, state);
+    v$.value.title.$touch();
+    return getLabelTitleError(v$.value, title);
+  };
+
+  it('flags an empty title as required', () => {
+    expect(errorFor('').key).toEqual('LABEL_MGMT.FORM.NAME.REQUIRED_ERROR');
+  });
+
+  it('flags a single character as too short', () => {
+    expect(errorFor('a').key).toEqual(
+      'LABEL_MGMT.FORM.NAME.MINIMUM_LENGTH_ERROR'
     );
   });
 
-  // Integration guard: runs against a REAL Vuelidate instance (not a hand-mocked
-  // shape) so the helper can never silently break against the actual v2 API again.
-  describe('against a real vuelidate instance', () => {
-    const messageFor = title => {
-      const state = reactive({ title });
-      const v$ = useVuelidate(validations, state);
-      v$.value.title.$touch();
-      return getLabelTitleErrorMessage(v$.value);
-    };
+  it('flags a trailing space with the no-spaces message', () => {
+    expect(errorFor('triagem ').key).toEqual(
+      'LABEL_MGMT.FORM.NAME.NO_SPACES_ERROR'
+    );
+  });
 
-    it('flags an empty title as required', () => {
-      expect(messageFor('')).toEqual('LABEL_MGMT.FORM.NAME.REQUIRED_ERROR');
+  it('flags parentheses with the specific character', () => {
+    expect(errorFor('label(3)')).toEqual({
+      key: 'LABEL_MGMT.FORM.NAME.INVALID_CHARACTER_ERROR',
+      values: { char: '(' },
     });
+  });
 
-    it('flags a single character as too short', () => {
-      expect(messageFor('a')).toEqual(
-        'LABEL_MGMT.FORM.NAME.MINIMUM_LENGTH_ERROR'
-      );
-    });
-
-    it('flags invalid characters with the valid-characters message', () => {
-      expect(messageFor('mudança (3) - 4.0')).toEqual(
-        'LABEL_MGMT.FORM.NAME.VALID_ERROR'
-      );
-    });
-
-    it('returns no message for a valid title', () => {
-      expect(messageFor('mudança-4.0')).toEqual('');
-    });
+  it('returns no key for a valid title', () => {
+    expect(errorFor('mudança-4.0').key).toEqual('');
   });
 });
