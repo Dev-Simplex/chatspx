@@ -1073,5 +1073,23 @@
     "ERASER": "Borracha",
     "APPLY": "Aplicar",
     "CANCEL": "Cancelar"
+  },
+  "EVALUATE_EPISODE": {
+    "MENU_ITEM": "Avaliar atendimento",
+    "TITLE": "Avaliar atendimento",
+    "DESC": "A conversa é contínua, mas cada ciclo de atendimento (episódio) é avaliado separadamente. Escolha qual você está avaliando.",
+    "LOADING": "Carregando atendimentos...",
+    "NO_EPISODES": "Ainda não há atendimentos segmentados nesta conversa.",
+    "EPISODE": "Atendimento #{seq}",
+    "CURRENT": "Em andamento",
+    "MESSAGES": "{count} mensagens",
+    "NOTA": "nota {nota}",
+    "ANNOTATED": "{count} observação(ões)",
+    "PLACEHOLDER": "O que você observou neste atendimento? Sua observação tem peso máximo na avaliação da IA.",
+    "SUBMIT": "Enviar avaliação",
+    "CANCEL": "Cancelar",
+    "SUCCESS": "Avaliação registrada — o Eval vai re-julgar este atendimento agora.",
+    "SUCCESS_OPEN": "Avaliação registrada — entra no julgamento quando este atendimento fechar.",
+    "ERROR": "Não foi possível registrar a avaliação."
   }
 }
