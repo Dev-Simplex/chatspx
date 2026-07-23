@@ -13,6 +13,7 @@ import { routes as agentsRoutes } from './agents/agents.routes';
 import { routes as kanbanRoutes } from './kanban/routes';
 import { routes as internalChatRoutes } from './internalChat/routes';
 import { routes as galleryRoutes } from './gallery/routes';
+import { routes as takeoverRequestsRoutes } from './takeoverRequests/routes';
 import AppContainer from './Dashboard.vue';
 import Suspended from './suspended/Index.vue';
 import NoAccounts from './noAccounts/Index.vue';
@@ -30,6 +31,7 @@ export default {
         ...internalChatRoutes,
         ...inboxRoutes,
         ...galleryRoutes,
+        ...takeoverRequestsRoutes,
         {
           path: frontendURL('accounts/:accountId/notes'),
           name: 'account_notes',

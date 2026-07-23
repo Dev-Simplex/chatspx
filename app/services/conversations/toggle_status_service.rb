@@ -55,8 +55,29 @@ class Conversations::ToggleStatusService
     @conversation.status == 'pending' && @params[:status] == 'open'
   end
 
+  # ATENÇÃO — o buraco do D1. Esta condição NUNCA checou se a conversa já tem
+  # dono: quem reabre a conversa resolvida de um colega vira o dono dela, sem
+  # passar por controller nenhum. Isso é comportamento do Chatwoot ORIGINAL
+  # (upstream: conversations_controller "quem reabre, assume"), copiado fielmente
+  # — não é bug do fork, e por isso NÃO foi "corrigido" isoladamente.
+  #
+  # O guard aqui é NO-OP com o takeover_request_gate desligado: quem não ligar o
+  # modo continua vendo o comportamento de sempre. Quem ligar aceita a regra nova.
+  #
+  # Fail-safe: só pula o SELF-ASSIGN — reabrir a conversa continua permitido, a
+  # conversa só permanece com o dono original.
   def should_assign_conversation?
-    @conversation.status == 'open' && @user.is_a?(User) && @user.agent?
+    return false unless @conversation.status == 'open' && @user.is_a?(User) && @user.agent?
+
+    !takeover_blocked?
+  end
+
+  def takeover_blocked?
+    Conversations::TakeoverGate.new(
+      conversation: @conversation,
+      actor: @user,
+      new_assignee_id: @user.id
+    ).blocked?
   end
 
   def set_conversation_status

@@ -25,10 +25,16 @@ describe('sanitizeLabel', () => {
     expect(sanitizedLabel).toEqual('my-label-123');
   });
 
-  it('should remove any characters that are not alphanumeric, underscore, or hyphen', () => {
+  it('should remove any characters that are not alphanumeric, underscore, hyphen, or dot', () => {
     const label = 'My_Label!123';
     const sanitizedLabel = sanitizeLabel(label);
     expect(sanitizedLabel).toEqual('my_label123');
+  });
+
+  it('should preserve dots, hyphens and underscores', () => {
+    const label = 'v1.2.3-beta_final';
+    const sanitizedLabel = sanitizeLabel(label);
+    expect(sanitizedLabel).toEqual('v1.2.3-beta_final');
   });
 
   it('should handle null and undefined input', () => {

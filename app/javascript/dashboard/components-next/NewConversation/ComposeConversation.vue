@@ -20,6 +20,12 @@ import {
   mergeInboxDetails,
 } from 'dashboard/components-next/NewConversation/helpers/composeConversationHelper';
 import ComposeNewConversationForm from 'dashboard/components-next/NewConversation/components/ComposeNewConversationForm.vue';
+import AttendanceWarningDialog from 'dashboard/components-next/NewConversation/components/AttendanceWarningDialog.vue';
+import {
+  useAttendanceGate,
+  ATTENDANCE_VARIANT,
+} from 'dashboard/composables/useAttendanceGate';
+import { useAccount } from 'dashboard/composables/useAccount';
 
 const props = defineProps({
   alignPosition: {
@@ -103,7 +109,16 @@ const clearFormState = () => {
 
 const contactById = useMapGetter('contacts/getContactById');
 const contactsUiFlags = useMapGetter('contacts/getUIFlags');
+const currentAccountId = useMapGetter('getCurrentAccountId');
 const currentUser = useMapGetter('getCurrentUser');
+const { resolveGate } = useAttendanceGate();
+// Modo de pedido ligado? getCurrentAccount (auth store) vem SEM settings — a
+// fonte com settings é useAccount().currentAccount (mesma do AssignToReplyDialog
+// e do useContactAttendance).
+const { currentAccount } = useAccount();
+const takeoverGateEnabled = computed(() =>
+  Boolean(currentAccount.value?.settings?.takeover_request_gate)
+);
 const globalConfig = useMapGetter('globalConfig/get');
 const uiFlags = useMapGetter('contactConversations/getUIFlags');
 const messageSignature = useMapGetter('getMessageSignature');
@@ -218,7 +233,7 @@ const discardCompose = () => {
   closeCompose();
 };
 
-const createConversation = async ({ payload, isFromWhatsApp }) => {
+const performCreateConversation = async ({ payload, isFromWhatsApp }) => {
   try {
     let data;
     const contactId = payload.contactId;
@@ -264,6 +279,106 @@ const createConversation = async ({ payload, isFromWhatsApp }) => {
     useAlert(message, whatsappAlertAction(message));
     return false; // Return failure
   }
+};
+
+// GATE DA FASE 2 — o ponto em que o sistema para de mandar mensagem calado.
+// Até aqui, quando o contato já tinha conversa ativa, o fluxo acima reusava a
+// conversa em silêncio (sendToExistingConversation): o agente achava que estava
+// abrindo um atendimento novo e na verdade escrevia no meio do atendimento de um
+// colega — sem nunca ver o nome dele.
+const attendanceDialogRef = ref(null);
+const attendanceGate = ref({
+  variant: null,
+  attendance: null,
+  sameInbox: false,
+});
+const pendingConversation = ref(null);
+
+const createConversation = async ({ payload, isFromWhatsApp }) => {
+  const gate = await resolveGate({
+    contactId: payload.contactId,
+    inboxId: payload.inboxId,
+  });
+
+  if (gate.blocked) {
+    attendanceGate.value = gate;
+    pendingConversation.value = { payload, isFromWhatsApp };
+    attendanceDialogRef.value?.open();
+    // false = o form NÃO limpa a mensagem — ela precisa sobreviver p/ o
+    // "Enviar mesmo assim".
+    return false;
+  }
+
+  return performCreateConversation({ payload, isFromWhatsApp });
+};
+
+// Com o modo ligado + dono HUMANO, o aviso vira validação: sem "enviar mesmo
+// assim"; a saída é Solicitar (se eu alcanço) ou nada (outro time).
+const isHumanTakeover = computed(
+  () => attendanceGate.value.variant === ATTENDANCE_VARIANT.HUMAN
+);
+const attendanceCanRequest = computed(
+  () =>
+    takeoverGateEnabled.value &&
+    isHumanTakeover.value &&
+    Boolean(attendanceGate.value.attendance?.canRequest) &&
+    !attendanceGate.value.attendance?.myPendingRequestId
+);
+const attendanceHasPendingRequest = computed(
+  () =>
+    takeoverGateEnabled.value &&
+    isHumanTakeover.value &&
+    Boolean(attendanceGate.value.attendance?.myPendingRequestId)
+);
+const attendanceAllowSendAnyway = computed(
+  () => !(takeoverGateEnabled.value && isHumanTakeover.value)
+);
+const isRequestingAttendance = ref(false);
+
+const onAttendanceCancel = () => {
+  attendanceDialogRef.value?.close();
+  pendingConversation.value = null;
+};
+
+const onAttendanceRequest = async reason => {
+  const conversationId = attendanceGate.value?.attendance?.id;
+  if (!conversationId || isRequestingAttendance.value) return;
+  isRequestingAttendance.value = true;
+  try {
+    await store.dispatch('takeoverRequests/create', { conversationId, reason });
+    useAlert(t('CONTACTS_LAYOUT.IN_ATTENDANCE.REQUEST.SENT'));
+    attendanceDialogRef.value?.close();
+    pendingConversation.value = null;
+    discardCompose();
+  } catch (error) {
+    const code = error?.response?.data?.error_code;
+    useAlert(
+      code === 'takeover_request_exists'
+        ? t('CONTACTS_LAYOUT.IN_ATTENDANCE.REQUEST.ERRORS.EXISTS')
+        : t('CONTACTS_LAYOUT.IN_ATTENDANCE.REQUEST.ERRORS.GENERIC')
+    );
+  } finally {
+    isRequestingAttendance.value = false;
+  }
+};
+
+const onAttendanceSendAnyway = async () => {
+  const pending = pendingConversation.value;
+  attendanceDialogRef.value?.close();
+  pendingConversation.value = null;
+  if (pending) await performCreateConversation(pending);
+};
+
+const onAttendanceGoToConversation = () => {
+  const attendance = attendanceGate.value?.attendance;
+  attendanceDialogRef.value?.close();
+  pendingConversation.value = null;
+  if (!attendance?.id) return;
+  // attendance.id é o display_id — é o que a rota de conversa espera.
+  discardCompose();
+  router.push(
+    `/app/accounts/${currentAccountId.value}/conversations/${attendance.id}`
+  );
 };
 
 const toggle = () => {
@@ -392,5 +507,19 @@ useKeyboardEvents(keyboardEvents);
         @discard="discardCompose"
       />
     </div>
+    <AttendanceWarningDialog
+      ref="attendanceDialogRef"
+      :variant="attendanceGate.variant"
+      :attendance="attendanceGate.attendance"
+      :same-inbox="attendanceGate.sameInbox"
+      :can-request="attendanceCanRequest"
+      :has-pending-request="attendanceHasPendingRequest"
+      :allow-send-anyway="attendanceAllowSendAnyway"
+      :is-requesting="isRequestingAttendance"
+      @go-to-conversation="onAttendanceGoToConversation"
+      @send-anyway="onAttendanceSendAnyway"
+      @request-attendance="onAttendanceRequest"
+      @cancel="onAttendanceCancel"
+    />
   </div>
 </template>

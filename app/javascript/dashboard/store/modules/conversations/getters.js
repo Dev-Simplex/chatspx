@@ -70,6 +70,12 @@ const getters = {
   getSelectedChatAttachments: ({ selectedChatId, attachments }) => {
     return attachments[selectedChatId] || [];
   },
+  // Isolamento de acesso por agente: meta do bloqueio (dono/time/pedido) por id,
+  // ou null. A ConversationBox mostra o painel de bloqueio quando presente.
+  getAccessBlockedMeta:
+    ({ accessBlocked }) =>
+    conversationId =>
+      accessBlocked[conversationId] || null,
   getSelectedChatAttachmentsMeta: ({ selectedChatId, attachmentsMeta }) => {
     return (
       attachmentsMeta[selectedChatId] || {

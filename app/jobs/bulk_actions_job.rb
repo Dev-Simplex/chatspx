@@ -31,13 +31,44 @@ class BulkActionsJob < ApplicationJob
   def bulk_conversation_update
     params = available_params(@params)
     records.each do |conversation|
+      next if isolation_blocked?(conversation)
+
       bulk_add_labels(conversation)
       bulk_snoozed_until(conversation)
 
       next if resolution_blocked?(conversation, params)
+      next if takeover_blocked?(conversation, params)
 
       conversation.update(params) if params
     end
+  end
+
+  # Isolamento por agente (coluna por-inbox): o bulk tem porta própria (Current.user
+  # + update direto) e não passa pelo AgentConversationAccessConcern. Sem isto um
+  # agente mutaria/roubaria (assignee/team/labels/snooze/resolve) uma conversa que
+  # ele nem consegue ABRIR. Pula a conversa INTEIRA (independe do takeover_request_gate).
+  def isolation_blocked?(conversation)
+    blocked = AgentConversationIsolation.hidden_from?(conversation, Current.user, @account)
+    Rails.logger.warn("Skipping bulk action on conversation #{conversation.id} - not accessible to actor") if blocked
+    blocked
+  end
+
+  # D1 (Fase 3) — guard (b): o bulk tem porta PRÓPRIA (seta Current.user e faz
+  # update(params) com assignee_id), então não passa pelo assignments_controller.
+  # Guard irmão do resolution_blocked? logo abaixo.
+  #
+  # NÃO cria pedidos em massa de propósito: 500 conversas selecionadas viraria
+  # 500 pedidos = DoS social no dono. Aqui só pula e loga.
+  def takeover_blocked?(conversation, params)
+    return false unless params && params[:assignee_id].present?
+
+    blocked = Conversations::TakeoverGate.new(
+      conversation: conversation,
+      actor: Current.user,
+      new_assignee_id: params[:assignee_id]
+    ).blocked?
+    Rails.logger.warn("Skipping assignment of conversation #{conversation.id} - takeover request required") if blocked
+    blocked
   end
 
   # Guards that prevent a resolve from being applied during a bulk update.
@@ -71,6 +102,8 @@ class BulkActionsJob < ApplicationJob
 
   def bulk_remove_labels
     records.each do |conversation|
+      next if isolation_blocked?(conversation)
+
       remove_labels(conversation)
     end
   end

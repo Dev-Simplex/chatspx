@@ -108,6 +108,7 @@
     "START_CONVERSATION": "Start conversation",
     "SHARED_CONTACT_LABEL": "Shared contact",
     "NO_INBOX_FOR_CONTACT": "No inbox available to start a conversation with this contact.",
+    "ATTENDANCE_CHECK_FAILED": "Could not check whether this contact is already in attendance. Please try again — creating now may duplicate an ongoing conversation.",
     "NO_CONTENT": "No content to display",
     "SHARED_ATTACHMENT": {
       "CONTACT": "{sender} has shared a contact",
@@ -599,6 +600,60 @@
     "AGENT_ISOLATION": {
       "RESTRICTED_TITLE": "Agent: {agent}",
       "RESTRICTED_SUBTITLE": "Restricted content"
+    },
+    "TAKEOVER_REQUEST": {
+      "TITLE": "Request this conversation",
+      "DESC": "{name} is currently serving this contact. Ask them to hand the conversation over — they can approve or decline. Nothing is sent until they approve.",
+      "REASON_LABEL": "Reason (optional)",
+      "REASON_PLACEHOLDER": "Why do you need this conversation?",
+      "CONFIRM": "Request attendance",
+      "SENT": "Your request was sent to the current agent",
+      "ERRORS": {
+        "CONVERSATION_UNASSIGNED": "This conversation has no owner — just assign it to yourself.",
+        "CONVERSATION_OWNED_BY_BOT": "This conversation is handled by AI.",
+        "TAKEOVER_REQUEST_EXISTS": "You already have a pending request for this conversation.",
+        "TAKEOVER_REQUEST_CLOSED": "This request was already answered.",
+        "TAKEOVER_REQUEST_STALE": "The conversation changed owner since your request.",
+        "TAKEOVER_REQUEST_SELF": "You are already the owner of this conversation.",
+        "TAKEOVER_GATE_DISABLED": "Attendance-request mode is turned off."
+      }
+    },
+    "TAKEOVER_APPROVAL": {
+      "WANTS_THIS": "requested this conversation",
+      "SOMEONE": "Someone",
+      "AND_MORE": "and {count} more request | and {count} more requests",
+      "APPROVE": "Approve",
+      "DENY": "Deny",
+      "APPROVED": "Conversation handed over",
+      "DENIED": "Request denied",
+      "ALREADY_CLOSED": "This request was already answered.",
+      "ERROR": "Couldn't respond to the request, please try again."
+    },
+    "TAKEOVER_INCOMING": {
+      "TITLE": "Attendance request",
+      "SOMEONE": "Someone",
+      "BODY": "{name} wants to take over one of your conversations.",
+      "BODY_WITH_CONTACT": "{name} wants to take over your conversation with {contact}.",
+      "APPROVE": "Approve",
+      "LATER": "Not now"
+    },
+    "TAKEOVER_RESULT": {
+      "APPROVED": "Your request was approved — the conversation is now yours.",
+      "OPEN": "Open conversation",
+      "DENIED": "Your attendance request was denied.",
+      "DENIED_WITH_NOTE": "Your attendance request was denied: {note}",
+      "SUPERSEDED": "Your request is no longer needed — someone else took over the conversation."
+    },
+    "ACCESS_BLOCKED": {
+      "TITLE": "This conversation isn't assigned to you",
+      "BODY": "It's assigned to {name}.",
+      "BODY_WITH_TEAM": "It's assigned to {name} ({team}).",
+      "ACTION_HINT": "Request it to access the conversation.",
+      "REQUEST": "Request attendance",
+      "REQUEST_SENT": "Request sent",
+      "REASON_PLACEHOLDER": "Add a short note for the owner (optional)",
+      "REQUEST_EXISTS": "You already have a pending request for this conversation.",
+      "REQUEST_ERROR": "Could not send the request, please try again."
     }
   },
   "EMAIL_TRANSCRIPT": {

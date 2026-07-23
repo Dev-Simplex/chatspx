@@ -25,6 +25,31 @@ const store = useStore();
 
 const confirmDeleteContactDialogRef = ref(null);
 
+const isContactBlocked = computed(() => props.selectedContact?.blocked);
+
+// "Bloquear contato" mora aqui embaixo (junto de Excluir), não no topo: ação
+// de gestão do contato, longe da ação primária (Enviar/Solicitar).
+const toggleBlock = async () => {
+  const blocked = isContactBlocked.value;
+  try {
+    await store.dispatch('contacts/update', {
+      ...props.selectedContact,
+      blocked: !blocked,
+    });
+    useAlert(
+      blocked
+        ? t('CONTACTS_LAYOUT.HEADER.ACTIONS.UNBLOCK_SUCCESS_MESSAGE')
+        : t('CONTACTS_LAYOUT.HEADER.ACTIONS.BLOCK_SUCCESS_MESSAGE')
+    );
+  } catch (error) {
+    useAlert(
+      blocked
+        ? t('CONTACTS_LAYOUT.HEADER.ACTIONS.UNBLOCK_ERROR_MESSAGE')
+        : t('CONTACTS_LAYOUT.HEADER.ACTIONS.BLOCK_ERROR_MESSAGE')
+    );
+  }
+};
+
 const avatarFile = ref(null);
 const avatarUrl = ref('');
 
@@ -186,6 +211,39 @@ const handleAvatarDelete = async () => {
         :is-loading="isUpdating"
         :disabled="isUpdating || isFormInvalid"
         @click="updateContact"
+      />
+    </div>
+    <div
+      class="flex flex-col items-start w-full gap-4 pt-6 border-t border-n-strong"
+    >
+      <div class="flex flex-col gap-2">
+        <h6 class="text-base font-medium text-n-slate-12">
+          {{
+            isContactBlocked
+              ? t('CONTACTS_LAYOUT.HEADER.UNBLOCK_CONTACT')
+              : t('CONTACTS_LAYOUT.HEADER.BLOCK_CONTACT')
+          }}
+        </h6>
+        <span class="text-sm text-n-slate-11">
+          {{
+            isContactBlocked
+              ? t('CONTACTS_LAYOUT.DETAILS.UNBLOCK_CONTACT_DESCRIPTION')
+              : t('CONTACTS_LAYOUT.DETAILS.BLOCK_CONTACT_DESCRIPTION')
+          }}
+        </span>
+      </div>
+      <Button
+        :label="
+          isContactBlocked
+            ? t('CONTACTS_LAYOUT.HEADER.UNBLOCK_CONTACT')
+            : t('CONTACTS_LAYOUT.HEADER.BLOCK_CONTACT')
+        "
+        size="sm"
+        variant="faded"
+        slate
+        :is-loading="isUpdating"
+        :disabled="isUpdating"
+        @click="toggleBlock"
       />
     </div>
     <div

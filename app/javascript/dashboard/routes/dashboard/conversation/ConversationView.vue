@@ -194,7 +194,19 @@ export default {
         try {
           await this.$store.dispatch('getConversation', this.conversationId);
         } catch (error) {
-          if (error.response && error.response.status === 403) {
+          const code = error?.response?.data?.error_code;
+          if (
+            error.response?.status === 403 &&
+            code === 'conversation_access_blocked'
+          ) {
+            // Isolamento por agente: em vez do modal genérico, guarda o meta para a
+            // ConversationBox mostrar o painel rico "não atribuída a você" +
+            // Solicitar (keyed pela conversa da rota).
+            this.$store.commit('SET_CONVERSATION_ACCESS_BLOCKED', {
+              id: Number(this.conversationId),
+              meta: error.response.data.meta,
+            });
+          } else if (error.response && error.response.status === 403) {
             this.permissionErrorMessage =
               'Você não tem permissão para acessar esta conversa.';
             this.showPermissionModal = true;

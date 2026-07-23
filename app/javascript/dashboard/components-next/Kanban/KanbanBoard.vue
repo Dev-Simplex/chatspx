@@ -326,10 +326,10 @@ const handleMoveItem = async ({ item, stageId }) => {
   movingItems.value.add(lockKey);
 
   try {
-    await store.dispatch('kanban/updateItem', {
+    await store.dispatch('kanban/moveItemToStage', {
       funnelId: props.funnelId,
       itemId,
-      data: { funnel_stage_id: newStageId },
+      stageId: newStageId,
     });
 
     emit('itemMoved', { item, newStageId });

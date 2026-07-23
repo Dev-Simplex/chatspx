@@ -45,10 +45,29 @@ class FunnelItems::BulkUpdateService
   end
 
   def reassign(conversation)
+    # D1 (Fase 3) — guard (d): o bulk do Kanban é a 4ª porta HUMANA de troca de dono
+    # (não passa pelo assignments_controller), então precisa do mesmo TakeoverGate
+    # dos guards (a)/(b)/(c). Espelha o bulk_actions_job: se o modo de pedido exige
+    # aprovação, PULA a linha (não cria pedido em massa — 500 cartões viraria 500
+    # pedidos = DoS social no dono). No-op com a flag desligada.
+    return if takeover_blocked?(conversation)
+
     Conversations::AssignmentService.new(
       conversation: conversation,
       assignee_id: params[:assignee_id]
     ).perform
+  end
+
+  def takeover_blocked?(conversation)
+    return false if params[:assignee_id].blank?
+
+    blocked = Conversations::TakeoverGate.new(
+      conversation: conversation,
+      actor: performed_by,
+      new_assignee_id: params[:assignee_id]
+    ).blocked?
+    Rails.logger.warn("BulkUpdateService reassign skipped for conversation #{conversation.id} - takeover request required") if blocked
+    blocked
   end
 
   def tag(conversation)

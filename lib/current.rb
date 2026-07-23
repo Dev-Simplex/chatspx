@@ -20,6 +20,12 @@ module Current
   # (F2), não por este contador. funnel_automation_depth acima só funciona por o Kanban
   # re-entrar inline (síncrono). Ver Flows::RunnerService::MAX_DEPTH.
   thread_mattr_accessor :flow_depth
+  # D1 (Fase 3): a própria aprovação de um pedido atribui a conversa. Sem isto o
+  # Conversations::TakeoverGate barraria o caminho de aprovação — ou seja, o gate
+  # impediria justamente a única forma legítima de trocar de dono. Thread-local +
+  # Puma reusa threads → quem setar TEM que limpar num `ensure` (precedente:
+  # Macros::ExecutionService).
+  thread_mattr_accessor :takeover_approval_in_progress
 
   def self.reset
     Current.user = nil
@@ -30,5 +36,6 @@ module Current
     Current.skip_ai_agent_assignment = nil
     Current.funnel_automation_depth = nil
     Current.flow_depth = nil
+    Current.takeover_approval_in_progress = nil
   end
 end

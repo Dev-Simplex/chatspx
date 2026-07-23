@@ -2,6 +2,8 @@
 import { defineAsyncComponent, ref, computed, onMounted } from 'vue';
 
 import NextSidebar from 'next/sidebar/Sidebar.vue';
+import TakeoverResolutionToaster from 'dashboard/components-next/Conversation/TakeoverResolutionToaster.vue';
+import TakeoverRequestModal from 'dashboard/components-next/Conversation/TakeoverRequestModal.vue';
 import WootKeyShortcutModal from 'dashboard/components/widgets/modal/WootKeyShortcutModal.vue';
 import AddAccountModal from 'dashboard/components/app/AddAccountModal.vue';
 import UpgradePage from 'dashboard/routes/dashboard/upgrade/UpgradePage.vue';
@@ -34,6 +36,8 @@ import { useCallsStore } from 'dashboard/stores/calls';
 export default {
   components: {
     NextSidebar,
+    TakeoverResolutionToaster,
+    TakeoverRequestModal,
     CommandBar,
     WootKeyShortcutModal,
     AddAccountModal,
@@ -157,6 +161,11 @@ export default {
 
 <template>
   <div class="flex flex-grow overflow-hidden text-n-slate-12">
+    <!-- D1 (Fase 3): avisa o solicitante (em qualquer tela) que seu pedido de
+         atendimento foi aprovado/negado. Renderless. -->
+    <TakeoverResolutionToaster />
+    <!-- D1: modal proativo p/ o DONO quando chega um pedido (Aprovar / Ainda não). -->
+    <TakeoverRequestModal />
     <NextSidebar
       :is-mobile-sidebar-open="isMobileSidebarOpen"
       @toggle-account-modal="toggleAccountModal"

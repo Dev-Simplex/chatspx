@@ -250,6 +250,32 @@ RSpec.describe 'Accounts API', type: :request do
         end
       end
 
+      # Toda setting do `store_accessor` precisa estar em `permitted_settings_attributes`,
+      # senão ela existe no modelo, valida no schema JSON... e a API descarta calada.
+      # Foi o que aconteceu com `queue_escalation_after`: entrou no modelo e no schema,
+      # ficou fora da whitelist, e ninguém percebeu porque nada a testava.
+      it 'saves the assignment-mode settings through the API' do
+        settings = {
+          reply_assignment_gate: true,
+          resolve_assignment_gate: true,
+          orphan_retriage_after: 30,
+          queue_escalation_after: 15,
+          takeover_request_gate: true
+        }
+
+        patch "/api/v1/accounts/#{account.id}",
+              params: params.merge(settings),
+              headers: admin.create_new_auth_token,
+              as: :json
+
+        expect(response).to have_http_status(:success)
+        expect(account.reload.reply_assignment_gate).to be(true)
+        expect(account.reload.resolve_assignment_gate).to be(true)
+        expect(account.reload.orphan_retriage_after).to eq(30)
+        expect(account.reload.queue_escalation_after).to eq(15)
+        expect(account.reload.takeover_request_gate).to be(true)
+      end
+
       it 'updates onboarding step to invite_team if onboarding step is present in account custom attributes' do
         account.update(custom_attributes: { onboarding_step: 'account_update' })
         patch "/api/v1/accounts/#{account.id}",
