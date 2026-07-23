@@ -42,6 +42,51 @@ class Api::V1::Accounts::Captain::EvalDashboardController < Api::V1::Accounts::B
     render json: { rows: [] }
   end
 
+  # F4.2 (Eval humano): episódios de UMA conversa, pro modal "Avaliar atendimento"
+  # — o gestor vê os ciclos de atendimento da conversa perpétua e escolhe qual avaliar.
+  def conversation_episodes
+    conversation = Current.account.conversations.find_by!(display_id: params[:conversation_display_id])
+    episodes = Captain::ConversationEpisode.where(conversation_id: conversation.id).order(seq: :desc).limit(30).to_a
+    evals = Captain::ConversationEval.where(episode_id: episodes.map(&:id)).index_by(&:episode_id)
+    render json: {
+      episodes: episodes.map do |ep|
+        ev = evals[ep.id]
+        {
+          id: ep.id,
+          seq: ep.seq,
+          started_at: ep.started_at,
+          ended_at: ep.ended_at,
+          mensagens: ep.mensagens,
+          nota: ev&.nota,
+          conduzido_por: ev&.conduzido_por,
+          resumo: ev&.resumo.to_s.truncate(160).presence,
+          anotacoes: ep.human_annotations.count
+        }
+      end
+    }
+  end
+
+  # F4.2: registra a avaliação do gestor como nota privada #eval ANCORADA no episódio
+  # escolhido (content_attributes.eval_episode_id — sem adivinhação temporal). A criação
+  # da mensagem dispara o CaptainListener, que re-julga o episódio se já fechado.
+  def annotate
+    conversation = Current.account.conversations.find_by!(display_id: params[:conversation_display_id])
+    episode = Captain::ConversationEpisode.find_by!(id: params[:episode_id], conversation_id: conversation.id)
+    texto = params[:texto].to_s.strip
+    return render json: { error: 'texto vazio' }, status: :unprocessable_entity if texto.blank?
+
+    conversation.messages.create!(
+      account_id: Current.account.id,
+      inbox_id: conversation.inbox_id,
+      message_type: :outgoing,
+      private: true,
+      sender: Current.user,
+      content: "#eval #{texto}",
+      content_attributes: { eval_episode_id: episode.id }
+    )
+    render json: { ok: true, episode_id: episode.id, pending: episode.ended_at.blank? }
+  end
+
   private
 
   NOTA_FAIXAS = { '0-4' => 0..4, '5-6' => 5..6, '7-8' => 7..8, '9-10' => 9..10 }.freeze

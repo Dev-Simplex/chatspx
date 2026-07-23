@@ -23,14 +23,18 @@ class Captain::ConversationEpisode < ApplicationRecord
   end
 
   # F4.2 (Eval humano): notas privadas de gestores com o marcador #eval que pertencem
-  # a ESTE episódio. A nota costuma vir DEPOIS do fato (gestor revisa mais tarde), então
-  # a janela vai do início deste episódio até o início do episódio seguinte (ou agora).
+  # a ESTE episódio. Duas formas de vínculo: EXPLÍCITO (content_attributes.eval_episode_id,
+  # setado pelo modal "Avaliar atendimento" — vale pra qualquer episódio, até antigo) e
+  # TEMPORAL (nota solta sem âncora: janela do início deste episódio até o início do
+  # seguinte, porque o gestor costuma comentar logo depois do fato).
   def human_annotations
     upper = self.class.where(conversation_id: conversation_id, seq: seq + 1).pick(:started_at) || Time.current
-    conversation.messages
-                .where(private: true, sender_type: 'User')
-                .where('content ILIKE ?', '%#eval%')
-                .where(created_at: started_at..upper)
-                .reorder(:created_at)
+    base = conversation.messages
+                       .where(private: true, sender_type: 'User')
+                       .where('content ILIKE ?', '%#eval%')
+    janela = base.where(created_at: started_at..upper)
+                 .where("COALESCE(content_attributes->>'eval_episode_id', '') = ''")
+    explicitas = base.where("content_attributes->>'eval_episode_id' = ?", id.to_s)
+    base.where(id: janela.select(:id)).or(base.where(id: explicitas.select(:id))).reorder(:created_at)
   end
 end

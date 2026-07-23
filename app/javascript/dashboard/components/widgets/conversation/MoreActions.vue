@@ -3,9 +3,11 @@ import { computed, onUnmounted } from 'vue';
 import { useToggle } from '@vueuse/core';
 import { useStore } from 'vuex';
 import { useAlert } from 'dashboard/composables';
+import { useAdmin } from 'dashboard/composables/useAdmin';
 import { useI18n } from 'vue-i18n';
 import { emitter } from 'shared/helpers/mitt';
 import EmailTranscriptModal from './EmailTranscriptModal.vue';
+import EvaluateEpisodeModal from './EvaluateEpisodeModal.vue';
 import ShareToInternalChat from './ShareToInternalChat.vue';
 import ResolveAction from '../../buttons/ResolveAction.vue';
 import ButtonV4 from 'dashboard/components-next/button/Button.vue';
@@ -21,10 +23,12 @@ import {
 // No props needed as we're getting currentChat from the store directly
 const store = useStore();
 const { t } = useI18n();
+const { isAdmin } = useAdmin();
 
 const [showEmailActionsModal, toggleEmailModal] = useToggle(false);
 const [showActionsDropdown, toggleDropdown] = useToggle(false);
 const [showShareToInternalChat, toggleShareToInternalChat] = useToggle(false);
+const [showEvaluateModal, toggleEvaluateModal] = useToggle(false);
 
 const currentChat = computed(() => store.getters.getSelectedChat);
 
@@ -91,6 +95,16 @@ const actionMenuItems = computed(() => {
     value: 'send_transcript',
   });
 
+  // F4.2 (Eval humano): avaliação da gestão por episódio, só pra admins.
+  if (isAdmin.value) {
+    items.push({
+      icon: 'i-lucide-clipboard-check',
+      label: t('EVALUATE_EPISODE.MENU_ITEM'),
+      action: 'evaluate_episode',
+      value: 'evaluate_episode',
+    });
+  }
+
   return items;
 });
 
@@ -127,6 +141,8 @@ const handleActionClick = ({ action }) => {
     onRetriage();
   } else if (action === 'share_to_internal_chat') {
     toggleShareToInternalChat(true);
+  } else if (action === 'evaluate_episode') {
+    toggleEvaluateModal(true);
   }
 };
 
@@ -189,6 +205,12 @@ onUnmounted(() => {
       :show="showShareToInternalChat"
       :conversation="currentChat"
       @close="toggleShareToInternalChat(false)"
+    />
+    <EvaluateEpisodeModal
+      v-if="showEvaluateModal"
+      :show="showEvaluateModal"
+      :current-chat="currentChat"
+      @cancel="toggleEvaluateModal(false)"
     />
   </div>
 </template>

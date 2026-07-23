@@ -1023,5 +1023,23 @@
     "ERASER": "Eraser",
     "APPLY": "Apply",
     "CANCEL": "Cancel"
+  },
+  "EVALUATE_EPISODE": {
+    "MENU_ITEM": "Evaluate service",
+    "TITLE": "Evaluate service",
+    "DESC": "The conversation is continuous, but each service cycle (episode) is evaluated separately. Pick which one you are evaluating.",
+    "LOADING": "Loading episodes...",
+    "NO_EPISODES": "No service episodes segmented in this conversation yet.",
+    "EPISODE": "Service #{seq}",
+    "CURRENT": "In progress",
+    "MESSAGES": "{count} messages",
+    "NOTA": "score {nota}",
+    "ANNOTATED": "{count} note(s)",
+    "PLACEHOLDER": "What did you observe in this service? Your note carries maximum weight in the AI evaluation.",
+    "SUBMIT": "Send evaluation",
+    "CANCEL": "Cancel",
+    "SUCCESS": "Evaluation saved — the Eval will re-judge this service now.",
+    "SUCCESS_OPEN": "Evaluation saved — it will be considered when this service closes.",
+    "ERROR": "Could not save the evaluation."
   }
 }
