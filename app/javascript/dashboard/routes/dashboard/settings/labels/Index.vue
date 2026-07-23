@@ -206,17 +206,11 @@ onBeforeMount(() => {
               </BaseTableCell>
 
               <BaseTableCell>
-                <div class="flex items-center gap-2">
-                  <span
-                    class="rounded-md size-5 flex-shrink-0 ring-1 ring-inset ring-black/10 dark:ring-white/20"
-                    :style="{ backgroundColor: label.color }"
-                  />
-                  <span
-                    class="font-mono text-xs tracking-wide uppercase text-n-slate-10"
-                  >
-                    {{ label.color }}
-                  </span>
-                </div>
+                <span
+                  v-tooltip.top="label.color"
+                  class="inline-block rounded-md size-5 flex-shrink-0 ring-1 ring-inset ring-black/10 dark:ring-white/20"
+                  :style="{ backgroundColor: label.color }"
+                />
               </BaseTableCell>
 
               <BaseTableCell>
