@@ -1,10 +1,7 @@
 <script>
 import { useAlert } from 'dashboard/composables';
 import { mapGetters } from 'vuex';
-import { useAdmin } from 'dashboard/composables/useAdmin';
 import { useMessageFormatter } from 'shared/composables/useMessageFormatter';
-import { emitter } from 'shared/helpers/mitt';
-import { BUS_EVENTS } from 'shared/constants/busEvents';
 import ContextMenu from 'dashboard/components/ui/ContextMenu.vue';
 import AddCannedModal from 'dashboard/routes/dashboard/settings/canned/AddCanned.vue';
 import { useSnakeCase } from 'dashboard/composables/useTransformKeys';
@@ -50,11 +47,9 @@ export default {
   emits: ['open', 'close', 'replyTo', 'forward', 'star', 'unstar', 'edit'],
   setup() {
     const { getPlainText } = useMessageFormatter();
-    const { isAdmin } = useAdmin();
 
     return {
       getPlainText,
-      isAdmin,
     };
   },
   data() {
@@ -139,14 +134,6 @@ export default {
     },
     handleReplyTo() {
       this.$emit('replyTo', this.message);
-      this.handleClose();
-    },
-    // F4.2 (Eval humano): abre o composer em modo nota privada já com a anotação
-    // #eval ancorada no trecho desta mensagem — o gestor só completa o motivo.
-    handleEvalNote() {
-      const trecho = (this.plainTextContent || '').trim().slice(0, 140);
-      const prefill = trecho ? `#eval “${trecho}” — ` : '#eval ';
-      emitter.emit(BUS_EVENTS.START_EVAL_NOTE, prefill);
       this.handleClose();
     },
     handleForward() {
@@ -283,15 +270,6 @@ export default {
           }"
           variant="icon"
           @click.stop="showCannedResponseModal"
-        />
-        <MenuItem
-          v-if="isAdmin"
-          :option="{
-            icon: 'i-lucide-clipboard-check',
-            label: $t('CONVERSATION.CONTEXT_MENU.EVAL_NOTE'),
-          }"
-          variant="icon"
-          @click.stop="handleEvalNote"
         />
         <MenuItem
           v-if="enabledOptions['edit']"

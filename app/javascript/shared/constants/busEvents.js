@@ -18,7 +18,4 @@ export const BUS_EVENTS = {
   INSERT_INTO_RICH_EDITOR: 'insertIntoRichEditor',
   INSERT_INTO_NORMAL_EDITOR: 'insertIntoNormalEditor',
   OPEN_WHATSAPP_TEMPLATE_MODAL: 'OPEN_WHATSAPP_TEMPLATE_MODAL',
-  // Abre o composer em modo NOTA PRIVADA pré-preenchido com uma anotação #eval
-  // ancorada na mensagem escolhida (menu de contexto da mensagem -> Eval humano).
-  START_EVAL_NOTE: 'startEvalNote',
 };
