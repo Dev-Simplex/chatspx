@@ -564,6 +564,15 @@ export default {
         :label="$t('CONVERSATION_SIDEBAR.SELF_ASSIGN')"
         @click="onSelfAssign"
       />
+      <NextButton
+        v-else-if="canRetriage"
+        link
+        xs
+        icon="i-lucide-sparkles"
+        class="!gap-1"
+        :label="$t('CONVERSATION_SIDEBAR.RETRIAGE')"
+        @click="onRetriage"
+      />
     </div>
     <div class="wa-assign-value-wrap">
       <MultiselectDropdown
@@ -579,16 +588,6 @@ export default {
           $t('AGENT_MGMT.MULTI_SELECTOR.SEARCH.PLACEHOLDER.AGENT')
         "
         @select="onClickAssignAssignee"
-      />
-    </div>
-    <div v-if="canRetriage" class="wa-assign-value-wrap">
-      <NextButton
-        link
-        sm
-        icon="i-lucide-sparkles"
-        class="!gap-1"
-        :label="$t('CONVERSATION_SIDEBAR.RETRIAGE')"
-        @click="onRetriage"
       />
     </div>
     <div class="wa-assign-row">
