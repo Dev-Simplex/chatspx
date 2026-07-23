@@ -1,19 +1,27 @@
 import { required, minLength, requiredIf } from '@vuelidate/validators';
 
-export const validLabelCharacters = (str = '') => !!str && !str.includes(' ');
+// Mirrors the backend regex (RegexHelper::UNICODE_CHARACTER_NUMBER_HYPHEN_UNDERSCORE_DOT):
+// must start with a unicode letter/number and may then contain letters, numbers,
+// dot, hyphen and underscore. The minimum length is enforced by the separate
+// minLength rule, so a single valid char is allowed here.
+export const labelCharactersPattern = /^[\p{L}\p{N}][\p{L}\p{N}._-]*$/u;
 
+export const validLabelCharacters = (str = '') =>
+  !!str && labelCharactersPattern.test(str);
+
+// Vuelidate 2 exposes each rule as an object ({ $invalid, $message, ... }),
+// so we must read `rule.$invalid` — not the rule itself (which is always truthy).
 export const getLabelTitleErrorMessage = validation => {
-  let errorMessage = '';
-  if (!validation.title.$error) {
-    errorMessage = '';
-  } else if (!validation.title.required) {
-    errorMessage = 'LABEL_MGMT.FORM.NAME.REQUIRED_ERROR';
-  } else if (!validation.title.minLength) {
-    errorMessage = 'LABEL_MGMT.FORM.NAME.MINIMUM_LENGTH_ERROR';
-  } else if (!validation.title.validLabelCharacters) {
-    errorMessage = 'LABEL_MGMT.FORM.NAME.VALID_ERROR';
+  const title = validation.title;
+  if (!title.$error) return '';
+  if (title.required?.$invalid) return 'LABEL_MGMT.FORM.NAME.REQUIRED_ERROR';
+  if (title.minLength?.$invalid) {
+    return 'LABEL_MGMT.FORM.NAME.MINIMUM_LENGTH_ERROR';
   }
-  return errorMessage;
+  if (title.validLabelCharacters?.$invalid) {
+    return 'LABEL_MGMT.FORM.NAME.VALID_ERROR';
+  }
+  return '';
 };
 
 export default {
