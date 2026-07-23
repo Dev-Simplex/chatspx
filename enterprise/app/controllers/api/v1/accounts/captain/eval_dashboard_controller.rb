@@ -129,17 +129,23 @@ class Api::V1::Accounts::Captain::EvalDashboardController < Api::V1::Accounts::B
     ia = 0
     humano = 0
     gate = 0
-    categorias = Hash.new(0)
+    categorias = Hash.new { |hash, key| hash[key] = { count: 0, ia: 0, humano: 0 } }
     escopo.recent.limit(1000).pluck(:response_findings).each do |findings|
       Array(findings).each do |f|
         next unless f.is_a?(Hash)
 
-        f['quem'] == 'humano' ? humano += 1 : ia += 1
+        de_humano = f['quem'] == 'humano'
+        de_humano ? humano += 1 : ia += 1
         gate += 1 if f['origem'] == 'gate'
-        categorias[f['categoria']] += 1 if f['categoria'].present?
+        next if f['categoria'].blank?
+
+        cat = categorias[f['categoria']]
+        cat[:count] += 1
+        de_humano ? cat[:humano] += 1 : cat[:ia] += 1
       end
     end
-    { ia: ia, humano: humano, gate: gate, top: categorias.sort_by { |_, v| -v }.first(8).map { |k, v| { categoria: k, count: v } } }
+    top = categorias.sort_by { |_, v| -v[:count] }.first(8).map { |k, v| { categoria: k, **v } }
+    { ia: ia, humano: humano, gate: gate, top: top }
   rescue StandardError
     {}
   end

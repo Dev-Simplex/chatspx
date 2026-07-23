@@ -97,13 +97,24 @@ const notaBarClass = key => {
 const funilBars = computed(() => toBars(data.value?.funil));
 const handoffBars = computed(() => toBars(data.value?.handoff));
 const fronteiraBars = computed(() => toBars(data.value?.fronteiras));
-const findingBars = computed(() =>
-  toBars(
-    Object.fromEntries(
-      (findings.value.top || []).map(f => [f.categoria, f.count])
-    )
-  )
-);
+// cada categoria carrega o split IA x Humano (mesmas cores da barra-resumo acima)
+const findingBars = computed(() => {
+  const top = findings.value.top || [];
+  const max = top.length ? Math.max(...top.map(f => f.count || 0)) : 0;
+  return top.map(f => {
+    const count = f.count || 0;
+    const pctIa = count ? Math.round(((f.ia || 0) / count) * 100) : 0;
+    return {
+      key: f.categoria,
+      count,
+      ia: f.ia || 0,
+      humano: f.humano || 0,
+      pct: max ? Math.max(2, Math.round((count / max) * 100)) : 0,
+      pctIa,
+      pctHumano: 100 - pctIa,
+    };
+  });
+});
 
 const iaHumanoPct = computed(() => {
   const ia = findings.value.ia || 0;
@@ -417,9 +428,34 @@ const openConversation = displayId => {
             </span>
             <div class="overflow-hidden h-2 rounded-full bg-n-alpha-1">
               <div
-                class="h-full rounded-full bg-n-ruby-9"
+                class="flex overflow-hidden h-full rounded-full"
                 :style="{ width: `${bar.pct}%` }"
-              />
+              >
+                <div
+                  v-if="bar.ia"
+                  class="h-full bg-n-blue-9 hover:opacity-80"
+                  :style="{ width: `${bar.pctIa}%` }"
+                  :title="`${t('AGENTS_EVALUATION.IA')} · ${bar.ia}`"
+                  @click.stop="
+                    applyFilter(
+                      { categoria: bar.key, quem: 'ia' },
+                      `${label(bar.key)} — ${t('AGENTS_EVALUATION.IA')}`
+                    )
+                  "
+                />
+                <div
+                  v-if="bar.humano"
+                  class="h-full bg-n-ruby-9 hover:opacity-80"
+                  :style="{ width: `${bar.pctHumano}%` }"
+                  :title="`${t('AGENTS_EVALUATION.HUMANO')} · ${bar.humano}`"
+                  @click.stop="
+                    applyFilter(
+                      { categoria: bar.key, quem: 'humano' },
+                      `${label(bar.key)} — ${t('AGENTS_EVALUATION.HUMANO')}`
+                    )
+                  "
+                />
+              </div>
             </div>
             <span
               class="text-[12.5px] font-semibold text-right text-n-slate-12"
