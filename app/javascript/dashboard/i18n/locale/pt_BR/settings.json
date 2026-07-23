@@ -28,6 +28,7 @@
     "SECTION_FRONTEIRAS": "O que fecha um episódio",
     "SECTION_FALHAS": "Onde estão as falhas",
     "FALHAS_HINT": "IA: {ia} · Humanos: {humano} · flags automáticas do gate: {gate}",
+    "IA": "IA",
     "HUMANO": "Humano",
     "SECTION_RECENTES": "Últimos julgamentos",
     "COL_CONVERSA": "Conversa",
