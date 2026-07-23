@@ -177,7 +177,11 @@ onBeforeMount(() => {
         "
       >
         <template #row="{ items }">
-          <BaseTableRow v-for="label in items" :key="label.title" :item="label">
+          <BaseTableRow
+            v-for="(label, index) in items"
+            :key="label.title"
+            :item="label"
+          >
             <template #default>
               <BaseTableCell>
                 <span
@@ -188,8 +192,11 @@ onBeforeMount(() => {
                   }"
                 >
                   <span
-                    class="rounded-full size-2 flex-shrink-0"
-                    :style="{ backgroundColor: label.color }"
+                    class="label-dot rounded-full size-2 flex-shrink-0"
+                    :style="{
+                      backgroundColor: label.color,
+                      animationDelay: `${(index % 6) * 0.18}s`,
+                    }"
                   />
                   <span class="truncate min-w-0">{{ label.title }}</span>
                 </span>
@@ -274,3 +281,30 @@ onBeforeMount(() => {
     />
   </SettingsLayout>
 </template>
+
+<style scoped>
+/* Gentle "live" blink on each label's color dot. Staggered per row via an
+   inline animation-delay so they don't pulse in robotic lockstep. */
+.label-dot {
+  animation: label-dot-blink 1.4s ease-in-out infinite;
+}
+
+@keyframes label-dot-blink {
+  0%,
+  100% {
+    opacity: 1;
+    transform: scale(1);
+  }
+  50% {
+    opacity: 0.25;
+    transform: scale(0.82);
+  }
+}
+
+/* Respect users who prefer less motion. */
+@media (prefers-reduced-motion: reduce) {
+  .label-dot {
+    animation: none;
+  }
+}
+</style>
