@@ -568,7 +568,7 @@ const menuItems = computed(() => {
       icon: lordIcon('captain', 'i-woot-captain'),
       label: t('SIDEBAR.CAPTAIN'),
       to: accountScopedRoute('agents_dashboard'),
-      activeOn: ['agents_dashboard', 'agents_settings', 'agents_tools'],
+      activeOn: ['agents_dashboard', 'agents_settings', 'agents_tools', 'agents_evaluation'],
     },
     ...(hasInternalChat.value
       ? [

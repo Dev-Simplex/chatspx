@@ -1,8 +1,16 @@
 # Avalia UM episódio fechado e faz upsert do veredito (Eval 2.0 F1). Idempotente:
 # episódios fechados são imutáveis, então cada um é julgado uma única vez (re-julga
 # só se a faixa de mensagens mudou — re-segmentação).
+#
+# Custo em 2 camadas (padrão juiz-pequeno-pra-volume): o EVAL_OPEN_AI_MODEL julga
+# tudo; se existir EVAL_ESCALATION_MODEL, o juiz forte re-julga só nota baixa,
+# episódios com flag do gate e uma amostra fixa — auditoria contínua sem pagar o
+# modelo caro no tráfego inteiro.
 class Captain::EpisodeEvalJob < ApplicationJob
   queue_as :low
+
+  ESCALATION_MAX_NOTA = 5
+  ESCALATION_SAMPLE_RATE = 10 # 1 em cada N episódios sobe pro juiz forte
 
   def perform(episode)
     return if episode.ended_at.blank?
@@ -14,29 +22,71 @@ class Captain::EpisodeEvalJob < ApplicationJob
     existing = Captain::ConversationEval.find_by(episode_id: episode.id)
     return if existing && existing.mensagens_avaliadas == episode.mensagens
 
-    result = Captain::ConversationEvalService.new(
-      account: account,
-      conversation_display_id: conversation.display_id,
-      episode: episode
-    ).perform
+    result = judge(episode, conversation, account)
+    # Episódio sem mensagem avaliável (ex.: só HSM de disparo sem resposta) recebe um
+    # eval sintético 'sem_atendimento' — sai do funil pra sempre em vez de re-tentar
+    # a cada ciclo e entupir os slots do cron.
+    return persist_empty(episode, conversation, account, existing) if result[:error] == 'Sem mensagens para avaliar'
     return if result[:error].present? || result[:verdict].blank?
 
-    verdict = merge_gate_findings(episode, result[:verdict])
+    gate = gate_findings(episode)
+    result = escalate_if_needed(result, gate, episode, conversation, account)
+    verdict = merge_findings(result[:verdict], gate)
     persist(episode, conversation, account, verdict, existing)
   end
 
   private
 
-  # Flagras objetivos do gate determinístico (custo zero) entram junto dos findings
-  # do juiz, marcados com origem 'gate'. Falha do gate nunca derruba o eval.
-  def merge_gate_findings(episode, verdict)
-    gate = Captain::EpisodeGateService.new(episode: episode).perform
+  def judge(episode, conversation, account, model_override: nil)
+    Captain::ConversationEvalService.new(
+      account: account,
+      conversation_display_id: conversation.display_id,
+      episode: episode,
+      model_override: model_override
+    ).perform
+  end
+
+  # Re-julga com o juiz forte quando o veredito barato indica problema (nota baixa),
+  # o gate flagrou algo objetivo, ou o episódio caiu na amostra de auditoria.
+  def escalate_if_needed(result, gate, episode, conversation, account)
+    strong = InstallationConfig.find_by(name: 'EVAL_ESCALATION_MODEL')&.value
+    return result if strong.blank?
+
+    nota = result.dig(:verdict, :nota)
+    needs = (nota.present? && nota <= ESCALATION_MAX_NOTA) || gate.any? || (episode.id % ESCALATION_SAMPLE_RATE).zero?
+    return result unless needs
+
+    strong_result = judge(episode, conversation, account, model_override: strong)
+    strong_result[:error].blank? && strong_result[:verdict].present? ? strong_result : result
+  end
+
+  def persist_empty(episode, conversation, account, existing)
+    record = existing || Captain::ConversationEval.new(conversation_id: conversation.id, episode_id: episode.id)
+    record.assign_attributes(
+      account_id: account.id,
+      captain_assistant_id: assistant_id_for(conversation, episode),
+      mensagens_avaliadas: episode.mensagens,
+      avaliado_em: Time.now.utc,
+      representatividade: 'sem_atendimento',
+      resumo: 'Sem mensagens avaliáveis (ex.: disparo sem resposta do contato).',
+      veredito_raw: { 'skip' => 'sem_mensagens' }
+    )
+    record.save!
+  end
+
+  # Flagras objetivos do gate determinístico (custo zero), marcados com origem
+  # 'gate'. Falha do gate nunca derruba o eval.
+  def gate_findings(episode)
+    Captain::EpisodeGateService.new(episode: episode).perform
+  rescue StandardError => e
+    Rails.logger.warn("[eval-gate] falhou no episódio #{episode.id}: #{e.class} #{e.message}")
+    []
+  end
+
+  def merge_findings(verdict, gate)
     return verdict if gate.empty?
 
     verdict.merge(response_findings: gate + Array(verdict[:response_findings]))
-  rescue StandardError => e
-    Rails.logger.warn("[eval-gate] falhou no episódio #{episode.id}: #{e.class} #{e.message}")
-    verdict
   end
 
   def persist(episode, conversation, account, verdict, existing)
