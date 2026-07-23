@@ -45,6 +45,15 @@ class Account < ApplicationRecord # rubocop:disable Metrics/ClassLength
         'captain_auto_resolve_mode': { 'type': %w[string null], 'enum': ['evaluated', 'legacy', 'disabled', nil] },
         'reply_assignment_gate': { 'type': %w[boolean null] },
         'orphan_retriage_after': { 'type': %w[integer null], 'minimum': 5, 'maximum': 10_080 },
+        'template_reply_routing': {
+          'type': %w[object null],
+          'properties': {
+            'enabled': { 'type': %w[boolean null] },
+            'rmkt_label_prefix': { 'type': %w[string null] },
+            'rmkt_assistant_id': { 'type': %w[integer null] }
+          },
+          'additionalProperties': false
+        },
         'conversation_required_attributes': {
           'type': %w[array null],
           'items': { 'type': 'string' }
@@ -101,6 +110,7 @@ class Account < ApplicationRecord # rubocop:disable Metrics/ClassLength
   store_accessor :settings, :keep_pending_on_bot_failure
   store_accessor :settings, :captain_auto_resolve_mode
   store_accessor :settings, :reply_assignment_gate, :orphan_retriage_after
+  store_accessor :settings, :template_reply_routing
   store_accessor :settings, :resolve_assignment_gate
   include AccountCaptainAutoResolve
 
