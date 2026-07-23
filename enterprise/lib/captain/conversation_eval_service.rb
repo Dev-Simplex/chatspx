@@ -9,7 +9,7 @@ class Captain::ConversationEvalService < Captain::BaseTaskService
   RESPONSE_SCHEMA = Captain::ConversationEvalSchema
   TRANSCRIPT_CHAR_LIMIT = 60_000
 
-  pattr_initialize [:account!, :conversation_display_id!, :episode]
+  pattr_initialize [:account!, :conversation_display_id!, :episode, :model_override]
 
   def perform
     transcript, response_map = build_transcript
@@ -18,7 +18,7 @@ class Captain::ConversationEvalService < Captain::BaseTaskService
     response = make_api_call(
       model: eval_model,
       messages: [
-        { role: 'system', content: prompt_from_file('conversation_eval') },
+        { role: 'system', content: [prompt_from_file('conversation_eval'), spec_context].compact.join("\n\n") },
         { role: 'user', content: [carryover_context, system_events_summary, transcript].compact.join("\n\n") }
       ],
       schema: RESPONSE_SCHEMA
@@ -48,7 +48,8 @@ class Captain::ConversationEvalService < Captain::BaseTaskService
   end
 
   def eval_model
-    InstallationConfig.find_by(name: 'EVAL_OPEN_AI_MODEL')&.value.presence ||
+    model_override.presence ||
+      InstallationConfig.find_by(name: 'EVAL_OPEN_AI_MODEL')&.value.presence ||
       InstallationConfig.find_by(name: 'CAPTAIN_OPEN_AI_MODEL')&.value.presence || GPT_MODEL
   end
 
@@ -67,6 +68,33 @@ class Captain::ConversationEvalService < Captain::BaseTaskService
     # Unidade episódio: só as mensagens do episódio, nunca o blob da conversa.
     scope = scope.where(id: episode.first_message_id..episode.last_message_id) if episode.present?
     scope.reorder('id asc')
+  end
+
+  SPEC_CHAR_LIMIT = 14_000
+
+  # Spec-grounded judging (padrão Model Spec Evals): o juiz recebe as NORMAS do
+  # agente de IA que atendeu o episódio (instructions da conta, lidas do banco) e
+  # julga CONFORMIDADE — divergência factual ou de conduta em relação à spec vira
+  # falha mesmo quando o juiz não conhece o negócio. Multi-tenant de graça: cada
+  # conta injeta a própria spec.
+  def spec_context
+    instructions = episode_assistant&.config&.dig('instructions').to_s
+    return if instructions.blank?
+
+    "NORMAS DO AGENTE DE IA AVALIADO (#{episode_assistant.name}). A conduta e as afirmações da IA devem " \
+      "CONFORMAR com estas normas: contradizer um fato ou uma regra daqui é falha (info_incorreta ou " \
+      "quebrou_regra). As normas valem só para as respostas da IA, não para as dos humanos.\n---\n" \
+      "#{instructions[0, SPEC_CHAR_LIMIT]}\n---"
+  end
+
+  # O assistente dominante da janela avaliada (episódio) ou da conversa (legado).
+  def episode_assistant
+    @episode_assistant ||= begin
+      scope = conversation.messages.where(sender_type: 'Captain::Assistant')
+      scope = scope.where(id: episode.first_message_id..episode.last_message_id) if episode.present?
+      sender_id = scope.reorder(:created_at).last&.sender_id
+      Captain::Assistant.find_by(id: sender_id) if sender_id
+    end
   end
 
   # Carryover (unidade episódio): resumo dos atendimentos ANTERIORES do mesmo contato,
@@ -123,7 +151,7 @@ class Captain::ConversationEvalService < Captain::BaseTaskService
     from = messages.first.created_at
     to = messages.last.created_at + 2.minutes
     Captain::ToolCall.for_conversation(conversation.id).in_window(from, to).order(:created_at).map do |call|
-      resultado = call.status == 'error' ? "ERRO: #{call.error}" : call.result_preview.to_s[0, 400]
+      resultado = call.status == 'error' ? "ERRO: #{call.error}" : call.result_preview.to_s[0, 1200]
       { at: call.created_at, line: "[TOOL #{call.tool_name} args=#{call.args.to_json[0, 200]} => #{resultado}]" }
     end
   end
