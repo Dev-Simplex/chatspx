@@ -1,0 +1,509 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Automações · Execuções — ChatSPX</title>
+<style>
+  :root{
+    --sans: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+    --mono: ui-monospace, "SF Mono", "JetBrains Mono", "Cascadia Code", Menlo, Consolas, monospace;
+    --bg:#e9ecf7; --surface:#ffffff; --surface-2:#f6f7fc;
+    --glass:rgba(255,255,255,.72);
+    --border:#e2e5f1; --border-2:#ccd1e6;
+    --ink:#1a1d2e; --ink-2:#585d78; --ink-3:#8b90ab;
+    --accent:#6366f1; --accent-2:#4f46e5; --accent-soft:rgba(99,102,241,.12);
+    --wire:#c6cbe0;
+    --trigger:#0e9f6e; --msg:#0f8a6f; --logic:#c77a06; --ai:#6f63e6; --action:#5b6478; --data:#2563c9;
+    --ok:#15803d; --warn:#c2410c;
+    --shadow:0 1px 2px rgba(20,22,44,.06), 0 8px 24px -12px rgba(20,22,44,.18);
+    --shadow-node:0 1px 1px rgba(20,22,44,.05), 0 6px 16px -10px rgba(20,22,44,.28);
+  }
+  @media (prefers-color-scheme: dark){
+    :root{
+      --bg:#080a12; --surface:#12141f; --surface-2:#171a28; --glass:rgba(20,23,37,.66);
+      --border:#252a3d; --border-2:#343a52; --ink:#eaecf6; --ink-2:#a7acc7; --ink-3:#6d7291;
+      --accent:#8286ff; --accent-2:#9a9dff; --accent-soft:rgba(130,134,255,.14); --wire:#333952;
+      --trigger:#34d399; --msg:#25d366; --logic:#fbbf24; --ai:#a99bff; --action:#8b93aa; --data:#5b9bff;
+      --ok:#4ade80; --warn:#fb923c;
+      --shadow:0 1px 2px rgba(0,0,0,.4), 0 12px 30px -16px rgba(0,0,0,.7);
+      --shadow-node:0 1px 1px rgba(0,0,0,.3), 0 8px 20px -12px rgba(0,0,0,.6);
+    }
+  }
+  :root[data-theme="light"]{
+    --bg:#e9ecf7; --surface:#ffffff; --surface-2:#f6f7fc; --glass:rgba(255,255,255,.72);
+    --border:#e2e5f1; --border-2:#ccd1e6; --ink:#1a1d2e; --ink-2:#585d78; --ink-3:#8b90ab;
+    --accent:#6366f1; --accent-2:#4f46e5; --accent-soft:rgba(99,102,241,.12); --wire:#c6cbe0;
+    --trigger:#0e9f6e; --msg:#0f8a6f; --logic:#c77a06; --ai:#6f63e6; --action:#5b6478; --data:#2563c9;
+    --ok:#15803d; --warn:#c2410c;
+    --shadow:0 1px 2px rgba(20,22,44,.06), 0 8px 24px -12px rgba(20,22,44,.18);
+    --shadow-node:0 1px 1px rgba(20,22,44,.05), 0 6px 16px -10px rgba(20,22,44,.28);
+  }
+  :root[data-theme="dark"]{
+    --bg:#080a12; --surface:#12141f; --surface-2:#171a28; --glass:rgba(20,23,37,.66);
+    --border:#252a3d; --border-2:#343a52; --ink:#eaecf6; --ink-2:#a7acc7; --ink-3:#6d7291;
+    --accent:#8286ff; --accent-2:#9a9dff; --accent-soft:rgba(130,134,255,.14); --wire:#333952;
+    --trigger:#34d399; --msg:#25d366; --logic:#fbbf24; --ai:#a99bff; --action:#8b93aa; --data:#5b9bff;
+    --ok:#4ade80; --warn:#fb923c;
+    --shadow:0 1px 2px rgba(0,0,0,.4), 0 12px 30px -16px rgba(0,0,0,.7);
+    --shadow-node:0 1px 1px rgba(0,0,0,.3), 0 8px 20px -12px rgba(0,0,0,.6);
+  }
+  *{box-sizing:border-box} html,body{margin:0}
+  body{font-family:var(--sans); color:var(--ink); background:var(--bg); -webkit-font-smoothing:antialiased; font-size:14px; line-height:1.45}
+  .app{position:relative; height:100vh; min-height:660px; display:grid; grid-template-columns:1fr 384px; grid-template-rows:58px 52px 1fr; overflow:hidden}
+  .aurora{position:fixed; inset:0; z-index:0; overflow:hidden; pointer-events:none}
+  .aurora b{position:absolute; border-radius:50%; filter:blur(80px)}
+  .aurora .a1{width:520px;height:520px; left:-120px; top:-160px; background:radial-gradient(circle at 30% 30%,var(--accent),transparent 62%); opacity:.32; animation:d1 22s ease-in-out infinite}
+  .aurora .a2{width:460px;height:460px; right:-140px; top:38%; background:radial-gradient(circle at 50% 50%,var(--msg),transparent 60%); opacity:.2; animation:d2 26s ease-in-out infinite}
+  .aurora .a3{width:420px;height:420px; left:32%; bottom:-180px; background:radial-gradient(circle at 50% 50%,var(--ai),transparent 60%); opacity:.22; animation:d1 30s ease-in-out infinite reverse}
+  @keyframes d1{0%,100%{transform:translate(0,0)}50%{transform:translate(40px,30px)}}
+  @keyframes d2{0%,100%{transform:translate(0,0)}50%{transform:translate(-36px,24px)}}
+  @media (prefers-reduced-motion:reduce){.aurora b{animation:none}}
+
+  .topbar{grid-column:1/-1; z-index:5; display:flex; align-items:center; gap:12px; padding:0 15px; background:var(--glass); backdrop-filter:blur(14px) saturate(1.3); -webkit-backdrop-filter:blur(14px) saturate(1.3); border-bottom:1px solid var(--border)}
+  .brand .spark{width:26px;height:26px;border-radius:8px; display:grid;place-items:center; background:linear-gradient(135deg,var(--accent),var(--ai)); color:#fff; font-size:15px; box-shadow:0 4px 12px -4px var(--accent)}
+  .crumb{color:var(--ink-3); font-size:12.5px; display:flex; align-items:center; gap:7px} .crumb b{color:var(--ink-2); font-weight:600}
+  .name{font-weight:650; font-size:14.5px; letter-spacing:-.01em; padding:5px 9px; border-radius:8px; margin-left:4px}
+  .name:hover{background:var(--surface-2)}
+  .spacer{flex:1}
+  .btn{font:inherit; font-size:13px; font-weight:600; border-radius:9px; padding:8px 12px; cursor:pointer; border:1px solid var(--border-2); background:var(--surface); color:var(--ink)}
+  .btn:hover{background:var(--surface-2)}
+  .btn.primary{background:linear-gradient(135deg,var(--accent),var(--accent-2)); border-color:transparent; color:#fff; box-shadow:0 6px 16px -8px var(--accent)}
+  .btn.ghost{background:transparent; border-color:transparent; color:var(--ink-2)}
+  .btn.ghost:hover{background:var(--surface-2); color:var(--ink)}
+
+  .tag{font-size:10.5px; font-weight:700; letter-spacing:.04em; text-transform:uppercase; padding:2px 7px; border-radius:6px} .tag.ok{color:#fff; background:var(--ok)}
+  .note{display:flex; gap:9px; align-items:flex-start; font-size:12.5px; line-height:1.5; color:var(--ink-2); background:color-mix(in srgb,var(--ok) 8%,var(--surface)); border:1px solid color-mix(in srgb,var(--ok) 24%,var(--border)); border-radius:10px; padding:10px 12px}
+  .note .ic{color:var(--ok); flex:none; font-weight:800}
+  .note.warn{background:color-mix(in srgb,var(--warn) 9%,var(--surface)); border-color:color-mix(in srgb,var(--warn) 26%,var(--border))}
+  .note.warn .ic{color:var(--warn)}
+
+  /* ===== TELA C2 · EXECUÇÕES ===== */
+  /* filtros */
+  .filters{grid-column:1/2; grid-row:2; z-index:4; display:flex; align-items:center; gap:9px; padding:0 16px; background:var(--glass); backdrop-filter:blur(12px); -webkit-backdrop-filter:blur(12px); border-bottom:1px solid var(--border)}
+  .fpick{display:inline-flex; align-items:center; gap:8px; font-size:12.8px; font-weight:600; color:var(--ink); background:var(--surface); border:1px solid var(--border-2); border-radius:9px; padding:7px 11px; cursor:pointer}
+  .fpick:hover{border-color:var(--accent)}
+  .fpick .fl{font-size:10.5px; font-weight:700; letter-spacing:.05em; text-transform:uppercase; color:var(--ink-3)}
+  .fpick .chev{color:var(--ink-3); font-size:11px}
+  .fpick .sw{width:8px;height:8px;border-radius:50%}
+  .fsearch{display:flex; align-items:center; gap:8px; background:var(--surface); border:1px solid var(--border-2); border-radius:9px; padding:7px 11px; color:var(--ink-3); font-size:12.8px; min-width:200px}
+  .fcount{margin-left:auto; font-size:12px; color:var(--ink-3); font-variant-numeric:tabular-nums}
+  .fcount b{color:var(--ink-2); font-weight:650}
+
+  /* área da tabela */
+  .listwrap{grid-column:1/2; grid-row:3; position:relative; z-index:2; overflow:auto}
+  .tbl{width:100%; border-collapse:separate; border-spacing:0; font-size:13px}
+  .tbl thead th{position:sticky; top:0; z-index:1; text-align:left; font-size:10.5px; font-weight:700; letter-spacing:.06em; text-transform:uppercase; color:var(--ink-3); background:var(--glass); backdrop-filter:blur(10px); -webkit-backdrop-filter:blur(10px); padding:11px 14px; border-bottom:1px solid var(--border); white-space:nowrap}
+  .tbl tbody td{padding:11px 14px; border-bottom:1px solid var(--border); vertical-align:middle}
+  .tbl tbody tr{cursor:pointer}
+  .tbl tbody tr:hover td{background:var(--surface-2)}
+  .tbl tbody tr.sel td{background:var(--accent-soft)}
+  .tbl tbody tr.sel td:first-child{box-shadow:inset 3px 0 0 var(--accent)}
+  .ts{font-family:var(--mono); font-size:12px; color:var(--ink-2); font-variant-numeric:tabular-nums; white-space:nowrap}
+  .ts b{display:block; color:var(--ink); font-weight:600}
+  .who{display:flex; align-items:center; gap:9px; min-width:0}
+  .av{width:28px;height:28px;border-radius:50%; flex:none; display:grid; place-items:center; font-size:11.5px; font-weight:700; color:#fff}
+  .who .wn{font-weight:600; letter-spacing:-.01em; line-height:1.2}
+  .who .wp{font-family:var(--mono); font-size:11px; color:var(--ink-3)}
+  .auto{min-width:0}
+  .auto .an{font-weight:600; letter-spacing:-.01em; line-height:1.25; display:flex; align-items:center; gap:7px}
+  .auto .dotf{width:7px;height:7px;border-radius:2px; flex:none}
+  .auto .at{font-size:11.5px; color:var(--ink-2); margin-top:2px}
+
+  /* status pill */
+  .pill{display:inline-flex; align-items:center; gap:6px; font-size:11.5px; font-weight:650; padding:4px 9px; border-radius:999px; white-space:nowrap; border:1px solid var(--border-2); color:var(--ink-2); background:var(--surface)}
+  .pill .pi{font-size:11px; line-height:1}
+  .pill.ok{color:var(--ok); border-color:color-mix(in srgb,var(--ok) 40%,var(--border)); background:color-mix(in srgb,var(--ok) 9%,var(--surface))}
+  .pill.fail{color:var(--warn); border-color:color-mix(in srgb,var(--warn) 42%,var(--border)); background:color-mix(in srgb,var(--warn) 9%,var(--surface))}
+  .pill.wait{color:var(--logic); border-color:color-mix(in srgb,var(--logic) 42%,var(--border)); background:color-mix(in srgb,var(--logic) 10%,var(--surface))}
+  .pill.skip{color:var(--ink-3); border-color:var(--border-2); background:color-mix(in srgb,var(--ink) 5%,var(--surface))}
+  .pill.run{color:var(--accent-2); border-color:color-mix(in srgb,var(--accent) 45%,var(--border)); background:var(--accent-soft)}
+  .spin{width:11px;height:11px;border-radius:50%; border:2px solid color-mix(in srgb,var(--accent) 30%,transparent); border-top-color:var(--accent); animation:spin .8s linear infinite; flex:none}
+  @keyframes spin{to{transform:rotate(360deg)}}
+  @media (prefers-reduced-motion:reduce){.spin{animation:none}}
+  .dur{font-family:var(--mono); font-size:12px; color:var(--ink-2); font-variant-numeric:tabular-nums; white-space:nowrap}
+  .stop{display:inline-flex; align-items:center; gap:7px; font-size:12px; color:var(--ink-2)}
+  .stop .si{width:20px;height:20px;border-radius:6px; display:grid; place-items:center; font-size:11px; flex:none; background:color-mix(in srgb,var(--fam,var(--action)) 15%,transparent); color:var(--fam,var(--action))}
+  .stop.fam-trigger{--fam:var(--trigger)} .stop.fam-msg{--fam:var(--msg)} .stop.fam-logic{--fam:var(--logic)} .stop.fam-ai{--fam:var(--ai)} .stop.fam-action{--fam:var(--action)} .stop.fam-data{--fam:var(--data)}
+  .stop .sd{color:var(--ink-3)}
+
+  /* drawer / detalhe */
+  .detail{z-index:4; grid-row:2/-1; grid-column:2; overflow-y:auto; border-left:1px solid var(--border); background:var(--glass); backdrop-filter:blur(12px); -webkit-backdrop-filter:blur(12px); display:flex; flex-direction:column}
+  .dh{padding:15px 16px 13px; border-bottom:1px solid var(--border)}
+  .dh .dtop{display:flex; align-items:center; gap:10px; margin-bottom:9px}
+  .dh .dclose{margin-left:auto; width:28px;height:28px;border-radius:8px; border:1px solid var(--border-2); background:var(--surface); color:var(--ink-3); cursor:pointer; font-size:14px; line-height:1}
+  .dh .dclose:hover{background:var(--surface-2); color:var(--ink)}
+  .dh .did{font-family:var(--mono); font-size:11px; color:var(--ink-3)}
+  .dh .dwho{font-weight:680; font-size:15px; letter-spacing:-.01em}
+  .dmeta{display:grid; grid-template-columns:1fr 1fr; gap:8px 12px; margin-top:11px; font-size:12px}
+  .dmeta .dk{font-size:10px; font-weight:700; letter-spacing:.05em; text-transform:uppercase; color:var(--ink-3)}
+  .dmeta .dv{color:var(--ink); font-weight:600; margin-top:2px; display:flex; align-items:center; gap:6px}
+  .dmeta .dv .mono{font-family:var(--mono); font-size:11.5px; font-weight:500; color:var(--ink-2)}
+
+  .dbody{padding:15px 16px; display:flex; flex-direction:column; gap:14px}
+  .dsec-t{font-size:10.5px; font-weight:700; letter-spacing:.06em; text-transform:uppercase; color:var(--ink-3); margin-bottom:2px}
+
+  /* mini-timeline .spine */
+  .spine{display:flex; flex-direction:column; position:relative; padding-left:4px}
+  .step{position:relative; display:flex; gap:12px; padding-bottom:14px}
+  .step:last-child{padding-bottom:0}
+  .step .rail{position:relative; flex:none; width:26px; display:flex; justify-content:center}
+  .step .rail::before{content:""; position:absolute; top:24px; bottom:-14px; width:2px; background:var(--wire)}
+  .step:last-child .rail::before{display:none}
+  .step .dot{width:26px;height:26px;border-radius:8px; display:grid; place-items:center; font-size:13px; z-index:1; background:color-mix(in srgb,var(--fam,var(--action)) 15%,var(--surface)); color:var(--fam,var(--action)); border:1px solid color-mix(in srgb,var(--fam,var(--action)) 30%,var(--border))}
+  .step.fam-trigger{--fam:var(--trigger)} .step.fam-msg{--fam:var(--msg)} .step.fam-logic{--fam:var(--logic)} .step.fam-ai{--fam:var(--ai)} .step.fam-action{--fam:var(--action)} .step.fam-data{--fam:var(--data)}
+  .step .sbody{flex:1; min-width:0; padding-top:1px}
+  .step .stt{font-weight:640; font-size:13px; letter-spacing:-.01em; display:flex; align-items:center; gap:8px}
+  .step .stt .mark{font-size:11px}
+  .step .ssub{font-size:11.5px; color:var(--ink-2); margin-top:2px}
+  .step .payload{margin-top:7px; font-family:var(--mono); font-size:11px; line-height:1.6; color:var(--ink-2); background:var(--surface); border:1px solid var(--border); border-radius:8px; padding:8px 10px; overflow-x:auto}
+  .step .payload .pk{color:var(--ink-3)} .step .payload .pv{color:var(--ink)} .step .payload .pa{color:var(--accent-2)}
+  /* estado do passo */
+  .step.done .mark{color:var(--ok)}
+  .step.here .dot{box-shadow:0 0 0 4px var(--accent-soft); border-color:var(--accent)}
+  .step.here .stt{color:var(--ink)}
+  .step.failed .dot{background:color-mix(in srgb,var(--warn) 15%,var(--surface)); color:var(--warn); border-color:color-mix(in srgb,var(--warn) 40%,var(--border))}
+  .step.failed .mark{color:var(--warn)}
+  .step.pending{opacity:.5}
+  .step.pending .dot{background:var(--surface); color:var(--ink-3); border-style:dashed}
+  .step.running .dot{border-color:var(--accent)}
+
+  @media (max-width:1080px){.app{grid-template-columns:1fr 340px}}
+  @media (max-width:900px){.app{grid-template-columns:1fr}.detail{display:none}.fcount{display:none}}
+
+  .svic{width:1.05em;height:1.05em;stroke:currentColor;fill:none;flex:none;vertical-align:middle}
+  *{scrollbar-width:thin;scrollbar-color:var(--border-2) transparent}
+  ::-webkit-scrollbar{width:10px;height:10px}
+  ::-webkit-scrollbar-track{background:transparent}
+  ::-webkit-scrollbar-thumb{background:var(--border-2);border-radius:999px;border:2px solid transparent;background-clip:padding-box}
+  ::-webkit-scrollbar-thumb:hover{background:var(--ink-3);background-clip:padding-box}
+  ::-webkit-scrollbar-corner{background:transparent}
+</style>
+</head>
+<body>
+
+<svg id="spx-icons" aria-hidden="true" style="position:absolute;width:0;height:0;overflow:hidden">
+  <symbol id="ic-zap" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 14a1 1 0 0 1-.78-1.63l9.9-10.2a.5.5 0 0 1 .86.46l-1.92 6.02A1 1 0 0 0 13 10h7a1 1 0 0 1 .78 1.63l-9.9 10.2a.5.5 0 0 1-.86-.46l1.92-6.02A1 1 0 0 0 11 14z" /></symbol>
+  <symbol id="ic-message-circle" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M2.992 16.342a2 2 0 0 1 .094 1.167l-1.065 3.29a1 1 0 0 0 1.236 1.168l3.413-.998a2 2 0 0 1 1.099.092 10 10 0 1 0-4.777-4.719" /></symbol>
+  <symbol id="ic-refresh-cw" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12a9 9 0 0 1 9-9 9.75 9.75 0 0 1 6.74 2.74L21 8" /><path d="M21 3v5h-5" /><path d="M21 12a9 9 0 0 1-9 9 9.75 9.75 0 0 1-6.74-2.74L3 16" /><path d="M8 16H3v5" /></symbol>
+  <symbol id="ic-check-circle" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10" /><path d="m9 12 2 2 4-4" /></symbol>
+  <symbol id="ic-alarm-clock" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="13" r="8" /><path d="M12 9v4l2 2" /><path d="M5 3 2 6" /><path d="m22 6-3-3" /><path d="M6.38 18.7 4 21" /><path d="M17.64 18.67 20 21" /></symbol>
+  <symbol id="ic-key-round" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M2.586 17.414A2 2 0 0 0 2 18.828V21a1 1 0 0 0 1 1h3a1 1 0 0 0 1-1v-1a1 1 0 0 1 1-1h1a1 1 0 0 0 1-1v-1a1 1 0 0 1 1-1h.172a2 2 0 0 0 1.414-.586l.814-.814a6.5 6.5 0 1 0-4-4z" /><circle cx="16.5" cy="7.5" r=".5" fill="currentColor" /></symbol>
+  <symbol id="ic-message-square" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 17a2 2 0 0 1-2 2H6.828a2 2 0 0 0-1.414.586l-2.202 2.202A.71.71 0 0 1 2 21.286V5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2z" /></symbol>
+  <symbol id="ic-send" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14.536 21.686a.5.5 0 0 0 .937-.024l6.5-19a.496.496 0 0 0-.635-.635l-19 6.5a.5.5 0 0 0-.024.937l7.93 3.18a2 2 0 0 1 1.112 1.11z" /><path d="m21.854 2.147-10.94 10.939" /></symbol>
+  <symbol id="ic-star" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11.525 2.295a.53.53 0 0 1 .95 0l2.31 4.679a2.123 2.123 0 0 0 1.595 1.16l5.166.756a.53.53 0 0 1 .294.904l-3.736 3.638a2.123 2.123 0 0 0-.611 1.878l.882 5.14a.53.53 0 0 1-.771.56l-4.618-2.428a2.122 2.122 0 0 0-1.973 0L6.396 21.01a.53.53 0 0 1-.77-.56l.881-5.139a2.122 2.122 0 0 0-.611-1.879L2.16 9.795a.53.53 0 0 1 .294-.906l5.165-.755a2.122 2.122 0 0 0 1.597-1.16z" /></symbol>
+  <symbol id="ic-git-branch" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 6a9 9 0 0 0-9 9V3" /><circle cx="18" cy="6" r="3" /><circle cx="6" cy="18" r="3" /></symbol>
+  <symbol id="ic-timer" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="10" x2="14" y1="2" y2="2" /><line x1="12" x2="15" y1="14" y2="11" /><circle cx="12" cy="14" r="8" /></symbol>
+  <symbol id="ic-target" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10" /><circle cx="12" cy="12" r="6" /><circle cx="12" cy="12" r="2" /></symbol>
+  <symbol id="ic-user" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2" /><circle cx="12" cy="7" r="4" /></symbol>
+  <symbol id="ic-shield" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 13c0 5-3.5 7.5-7.66 8.95a1 1 0 0 1-.67-.01C7.5 20.5 4 18 4 13V6a1 1 0 0 1 1-1c2 0 4.5-1.2 6.24-2.72a1.17 1.17 0 0 1 1.52 0C14.51 3.81 17 5 19 5a1 1 0 0 1 1 1z" /></symbol>
+  <symbol id="ic-search" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m21 21-4.34-4.34" /><circle cx="11" cy="11" r="8" /></symbol>
+</svg>
+
+<div class="aurora"><b class="a1"></b><b class="a2"></b><b class="a3"></b></div>
+
+<div class="app">
+  <header class="topbar">
+    <div class="brand"><span class="spark"><svg class="svic"><use href="#ic-zap"></use></svg></span></div>
+    <div class="crumb">Configurações <span>›</span> <b>Automações</b> <span>›</span></div>
+    <div class="name">Execuções</div>
+    <div class="spacer"></div>
+    <button class="btn ghost">⟳ Atualizar</button>
+    <button class="btn">⭳ Exportar CSV</button>
+  </header>
+
+  <!-- FILTROS -->
+  <div class="filters">
+    <span class="fpick"><span class="fl">Período</span> Últimas 24h <span class="chev">▾</span></span>
+    <span class="fpick"><span class="fl">Status</span> Todos <span class="chev">▾</span></span>
+    <span class="fpick"><span class="sw" style="background:var(--ai)"></span> Reengajar leads do anúncio <span class="chev">▾</span></span>
+    <span class="fsearch"><svg class="svic"><use href="#ic-search"></use></svg> Buscar contato ou telefone…</span>
+    <span class="fcount"><b>10</b> execuções · <b>2</b> falhas · <b>1</b> em andamento</span>
+  </div>
+
+  <!-- TABELA -->
+  <div class="listwrap">
+    <table class="tbl">
+      <thead>
+        <tr>
+          <th>Quando</th>
+          <th>Contato</th>
+          <th>Automação · gatilho</th>
+          <th>Status</th>
+          <th>Duração</th>
+          <th>Parou em</th>
+        </tr>
+      </thead>
+      <tbody id="rows">
+        <!-- 1 · em andamento -->
+        <tr data-run="r1" class="sel">
+          <td><span class="ts"><b>15:42:07</b>hoje</span></td>
+          <td><div class="who"><span class="av" style="background:#0f8a6f">MA</span><div><div class="wn">Marina Alves</div><div class="wp">+55 11 99812-4477</div></div></div></td>
+          <td><div class="auto"><div class="an"><span class="dotf" style="background:var(--ai)"></span> Reengajar leads do anúncio</div><div class="at">Conversa criada · anúncio CTWA</div></div></td>
+          <td><span class="pill run"><span class="spin"></span> Em andamento</span></td>
+          <td><span class="dur">3,1 s</span></td>
+          <td><span class="stop fam-logic"><span class="si"><svg class="svic"><use href="#ic-timer"></use></svg></span> Esperar 2h</span></td>
+        </tr>
+        <!-- 2 · concluído -->
+        <tr data-run="r2">
+          <td><span class="ts"><b>15:38:51</b>hoje</span></td>
+          <td><div class="who"><span class="av" style="background:#2563c9">RC</span><div><div class="wn">Rafael Campos</div><div class="wp">+55 21 98134-2201</div></div></div></td>
+          <td><div class="auto"><div class="an"><span class="dotf" style="background:var(--ai)"></span> Reengajar leads do anúncio</div><div class="at">Conversa criada · anúncio CTWA</div></div></td>
+          <td><span class="pill ok"><span class="pi">✓</span> Concluído</span></td>
+          <td><span class="dur">1,8 s</span></td>
+          <td><span class="stop fam-action"><span class="si"><svg class="svic"><use href="#ic-user"></use></svg></span> Atribuir · Vendas</span></td>
+        </tr>
+        <!-- 3 · falhou · template não aprovado -->
+        <tr data-run="r3">
+          <td><span class="ts"><b>15:31:19</b>hoje</span></td>
+          <td><div class="who"><span class="av" style="background:#c2410c">JS</span><div><div class="wn">Juliana Souza</div><div class="wp">+55 31 99655-8890</div></div></div></td>
+          <td><div class="auto"><div class="an"><span class="dotf" style="background:var(--msg)"></span> Recuperação fora da janela 24h</div><div class="at">Sem resposta · 26h</div></div></td>
+          <td><span class="pill fail"><span class="pi">✗</span> Falhou</span></td>
+          <td><span class="dur">0,4 s</span></td>
+          <td><span class="stop fam-msg"><span class="si"><svg class="svic"><use href="#ic-send"></use></svg></span> Enviar template</span></td>
+        </tr>
+        <!-- 4 · aguardando -->
+        <tr data-run="r4">
+          <td><span class="ts"><b>15:12:03</b>hoje</span></td>
+          <td><div class="who"><span class="av" style="background:#6f63e6">PL</span><div><div class="wn">Pedro Lima</div><div class="wp">+55 11 97722-3345</div></div></div></td>
+          <td><div class="auto"><div class="an"><span class="dotf" style="background:var(--ai)"></span> Reengajar leads do anúncio</div><div class="at">Conversa criada · anúncio CTWA</div></div></td>
+          <td><span class="pill wait"><span class="pi"><svg class="svic"><use href="#ic-timer"></use></svg></span> Aguardando</span></td>
+          <td><span class="dur">— · pausa 2h</span></td>
+          <td><span class="stop fam-logic"><span class="si"><svg class="svic"><use href="#ic-timer"></use></svg></span> Esperar resposta</span></td>
+        </tr>
+        <!-- 5 · concluído -->
+        <tr data-run="r5">
+          <td><span class="ts"><b>14:57:40</b>hoje</span></td>
+          <td><div class="who"><span class="av" style="background:#0e9f6e">CF</span><div><div class="wn">Carla Ferreira</div><div class="wp">+55 41 99180-7766</div></div></div></td>
+          <td><div class="auto"><div class="an"><span class="dotf" style="background:var(--msg)"></span> CSAT pós-resolução</div><div class="at">Conversa resolvida</div></div></td>
+          <td><span class="pill ok"><span class="pi">✓</span> Concluído</span></td>
+          <td><span class="dur">2,3 s</span></td>
+          <td><span class="stop fam-msg"><span class="si"><svg class="svic"><use href="#ic-star"></use></svg></span> Pesquisa CSAT</span></td>
+        </tr>
+        <!-- 6 · suprimido · guard -->
+        <tr data-run="r6">
+          <td><span class="ts"><b>14:49:12</b>hoje</span></td>
+          <td><div class="who"><span class="av" style="background:#5b6478">AN</span><div><div class="wn">André Nunes</div><div class="wp">+55 51 98470-1129</div></div></div></td>
+          <td><div class="auto"><div class="an"><span class="dotf" style="background:var(--trigger)"></span> Triagem por IA → time</div><div class="at">Mensagem recebida</div></div></td>
+          <td><span class="pill skip"><span class="pi">⊘</span> Suprimido</span></td>
+          <td><span class="dur">0,1 s</span></td>
+          <td><span class="stop fam-trigger"><span class="si"><svg class="svic"><use href="#ic-message-circle"></use></svg></span> Gatilho · guard</span></td>
+        </tr>
+        <!-- 7 · concluído -->
+        <tr data-run="r7">
+          <td><span class="ts"><b>14:22:55</b>hoje</span></td>
+          <td><div class="who"><span class="av" style="background:#0f8a6f">TG</span><div><div class="wn">Tatiane Gomes</div><div class="wp">+55 11 99034-6612</div></div></div></td>
+          <td><div class="auto"><div class="an"><span class="dotf" style="background:var(--msg)"></span> Boas-vindas + catálogo</div><div class="at">Palavra-chave · "oi"</div></div></td>
+          <td><span class="pill ok"><span class="pi">✓</span> Concluído</span></td>
+          <td><span class="dur">1,5 s</span></td>
+          <td><span class="stop fam-msg"><span class="si"><svg class="svic"><use href="#ic-send"></use></svg></span> Enviar template</span></td>
+        </tr>
+        <!-- 8 · falhou · fora da janela 24h -->
+        <tr data-run="r8">
+          <td><span class="ts"><b>13:58:31</b>hoje</span></td>
+          <td><div class="who"><span class="av" style="background:#c2410c">BM</span><div><div class="wn">Bruno Martins</div><div class="wp">+55 62 99711-4408</div></div></div></td>
+          <td><div class="auto"><div class="an"><span class="dotf" style="background:var(--msg)"></span> Reengajar leads do anúncio</div><div class="at">Sem resposta · retorno</div></div></td>
+          <td><span class="pill fail"><span class="pi">✗</span> Falhou</span></td>
+          <td><span class="dur">0,3 s</span></td>
+          <td><span class="stop fam-msg"><span class="si"><svg class="svic"><use href="#ic-message-square"></use></svg></span> Enviar mensagem</span></td>
+        </tr>
+        <!-- 9 · aguardando -->
+        <tr data-run="r9">
+          <td><span class="ts"><b>13:40:08</b>hoje</span></td>
+          <td><div class="who"><span class="av" style="background:#6f63e6">VS</span><div><div class="wn">Vanessa Silva</div><div class="wp">+55 85 98266-9033</div></div></div></td>
+          <td><div class="auto"><div class="an"><span class="dotf" style="background:var(--msg)"></span> Drip 3 templates c/ opt-out</div><div class="at">Agendado · passo 2/3</div></div></td>
+          <td><span class="pill wait"><span class="pi"><svg class="svic"><use href="#ic-timer"></use></svg></span> Aguardando</span></td>
+          <td><span class="dur">— · próx. 24h</span></td>
+          <td><span class="stop fam-logic"><span class="si"><svg class="svic"><use href="#ic-timer"></use></svg></span> Esperar 1 dia</span></td>
+        </tr>
+        <!-- 10 · suprimido · opt-out -->
+        <tr data-run="r10">
+          <td><span class="ts"><b>13:11:47</b>hoje</span></td>
+          <td><div class="who"><span class="av" style="background:#5b6478">LO</span><div><div class="wn">Lucas Oliveira</div><div class="wp">+55 11 99500-2218</div></div></div></td>
+          <td><div class="auto"><div class="an"><span class="dotf" style="background:var(--msg)"></span> Drip 3 templates c/ opt-out</div><div class="at">Agendado · passo 3/3</div></div></td>
+          <td><span class="pill skip"><span class="pi">⊘</span> Suprimido</span></td>
+          <td><span class="dur">0,1 s</span></td>
+          <td><span class="stop fam-action"><span class="si"><svg class="svic"><use href="#ic-shield"></use></svg></span> Opt-out "PARAR"</span></td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+
+  <!-- DETALHE / DRAWER -->
+  <aside class="detail" id="detail">
+    <div class="dh">
+      <div class="dtop">
+        <span class="av" id="dAv" style="background:#0f8a6f">MA</span>
+        <div>
+          <div class="dwho" id="dWho">Marina Alves</div>
+          <div class="did" id="dPhone">+55 11 99812-4477 · #cnv-48213</div>
+        </div>
+        <button class="dclose" aria-label="Fechar">✕</button>
+      </div>
+      <div class="dmeta">
+        <div><div class="dk">Automação</div><div class="dv" id="dAuto">Reengajar leads do anúncio</div></div>
+        <div><div class="dk">Gatilho</div><div class="dv" id="dTrig">Conversa criada</div></div>
+        <div><div class="dk">Iniciado</div><div class="dv"><span class="mono" id="dStart">hoje 15:42:04</span></div></div>
+        <div><div class="dk">Status</div><div class="dv" id="dStatus"><span class="pill run"><span class="spin"></span> Em andamento</span></div></div>
+      </div>
+    </div>
+
+    <div class="dbody" id="dBody">
+      <div class="dsec-t">Linha do tempo da execução</div>
+      <div class="spine" id="dSpine">
+        <div class="step done fam-trigger">
+          <div class="rail"><span class="dot"><svg class="svic"><use href="#ic-message-circle"></use></svg></span></div>
+          <div class="sbody">
+            <div class="stt">Conversa criada <span class="mark">✓</span></div>
+            <div class="ssub">Origem: anúncio Click-to-WhatsApp</div>
+            <div class="payload"><span class="pk">source</span>=<span class="pa">"ctwa_ad_9921"</span> · <span class="pk">contact</span>=<span class="pv">Marina Alves</span></div>
+          </div>
+        </div>
+        <div class="step done fam-ai">
+          <div class="rail"><span class="dot"><svg class="svic"><use href="#ic-target"></use></svg></span></div>
+          <div class="sbody">
+            <div class="stt">Captain · classificar intenção <span class="mark">✓</span></div>
+            <div class="ssub">Saída: <b>Comprar</b> · confiança 0,91</div>
+            <div class="payload"><span class="pk">intent</span>=<span class="pa">"comprar"</span> · <span class="pk">score</span>=<span class="pv">0.91</span></div>
+          </div>
+        </div>
+        <div class="step done fam-logic">
+          <div class="rail"><span class="dot"><svg class="svic"><use href="#ic-git-branch"></use></svg></span></div>
+          <div class="sbody">
+            <div class="stt">Roteador <span class="mark">✓</span></div>
+            <div class="ssub">Rota escolhida: <b>Comprar</b> (first-match)</div>
+            <div class="payload"><span class="pk">match</span>=<span class="pv">rota 1 · intent == comprar</span></div>
+          </div>
+        </div>
+        <div class="step done fam-msg">
+          <div class="rail"><span class="dot"><svg class="svic"><use href="#ic-send"></use></svg></span></div>
+          <div class="sbody">
+            <div class="stt">Enviar template <span class="mark">✓</span></div>
+            <div class="ssub"><code style="font-family:var(--mono);font-size:11px">boas_vindas_catalogo</code> · entregue</div>
+            <div class="payload"><span class="pk">template</span>=<span class="pv">boas_vindas_catalogo</span> · <span class="pk">wamid</span>=<span class="pa">"…HBg="</span></div>
+          </div>
+        </div>
+        <div class="step running here fam-logic">
+          <div class="rail"><span class="dot"><svg class="svic"><use href="#ic-timer"></use></svg></span></div>
+          <div class="sbody">
+            <div class="stt">Esperar 2 horas <span class="spin" style="margin-left:2px"></span></div>
+            <div class="ssub">Pausado · retoma às <b>17:42</b> ou quando o cliente responder</div>
+          </div>
+        </div>
+        <div class="step pending fam-msg">
+          <div class="rail"><span class="dot"><svg class="svic"><use href="#ic-send"></use></svg></span></div>
+          <div class="sbody">
+            <div class="stt">Template reengajamento_24h</div>
+            <div class="ssub">Aguardando passo anterior</div>
+          </div>
+        </div>
+      </div>
+      <div class="note"><span class="ic">✓</span><span>Execução saudável. O bloco <b>Esperar</b> retoma sozinho — nada trava. Se o cliente responder antes, o fluxo pula direto para a atribuição.</span></div>
+    </div>
+  </aside>
+</div>
+
+<script>
+  (function(){
+    // dados por execução: preenchem o drawer
+    var DATA={
+      r1:{who:'Marina Alves',av:'MA',avc:'#0f8a6f',phone:'+55 11 99812-4477 · #cnv-48213',auto:'Reengajar leads do anúncio',trig:'Conversa criada',start:'hoje 15:42:04',
+          status:'<span class="pill run"><span class="spin"></span> Em andamento</span>',spine:'progress'},
+      r2:{who:'Rafael Campos',av:'RC',avc:'#2563c9',phone:'+55 21 98134-2201 · #cnv-48207',auto:'Reengajar leads do anúncio',trig:'Conversa criada',start:'hoje 15:38:49',
+          status:'<span class="pill ok"><span class="pi">✓</span> Concluído</span>',spine:'done'},
+      r3:{who:'Juliana Souza',av:'JS',avc:'#c2410c',phone:'+55 31 99655-8890 · #cnv-48198',auto:'Recuperação fora da janela 24h',trig:'Sem resposta · 26h',start:'hoje 15:31:19',
+          status:'<span class="pill fail"><span class="pi">✗</span> Falhou</span>',spine:'fail_tpl'},
+      r4:{who:'Pedro Lima',av:'PL',avc:'#6f63e6',phone:'+55 11 97722-3345 · #cnv-48176',auto:'Reengajar leads do anúncio',trig:'Conversa criada',start:'hoje 15:12:01',
+          status:'<span class="pill wait"><span class="pi"><svg class="svic"><use href="#ic-timer"></use></svg></span> Aguardando</span>',spine:'wait'},
+      r5:{who:'Carla Ferreira',av:'CF',avc:'#0e9f6e',phone:'+55 41 99180-7766 · #cnv-48140',auto:'CSAT pós-resolução',trig:'Conversa resolvida',start:'hoje 14:57:38',
+          status:'<span class="pill ok"><span class="pi">✓</span> Concluído</span>',spine:'csat'},
+      r6:{who:'André Nunes',av:'AN',avc:'#5b6478',phone:'+55 51 98470-1129 · #cnv-48122',auto:'Triagem por IA → time',trig:'Mensagem recebida',start:'hoje 14:49:12',
+          status:'<span class="pill skip"><span class="pi">⊘</span> Suprimido</span>',spine:'guard'},
+      r7:{who:'Tatiane Gomes',av:'TG',avc:'#0f8a6f',phone:'+55 11 99034-6612 · #cnv-48090',auto:'Boas-vindas + catálogo',trig:'Palavra-chave "oi"',start:'hoje 14:22:53',
+          status:'<span class="pill ok"><span class="pi">✓</span> Concluído</span>',spine:'welcome'},
+      r8:{who:'Bruno Martins',av:'BM',avc:'#c2410c',phone:'+55 62 99711-4408 · #cnv-48061',auto:'Reengajar leads do anúncio',trig:'Sem resposta · retorno',start:'hoje 13:58:31',
+          status:'<span class="pill fail"><span class="pi">✗</span> Falhou</span>',spine:'fail_window'},
+      r9:{who:'Vanessa Silva',av:'VS',avc:'#6f63e6',phone:'+55 85 98266-9033 · #cnv-48033',auto:'Drip 3 templates c/ opt-out',trig:'Agendado · passo 2/3',start:'hoje 13:40:06',
+          status:'<span class="pill wait"><span class="pi"><svg class="svic"><use href="#ic-timer"></use></svg></span> Aguardando</span>',spine:'drip'},
+      r10:{who:'Lucas Oliveira',av:'LO',avc:'#5b6478',phone:'+55 11 99500-2218 · #cnv-48001',auto:'Drip 3 templates c/ opt-out',trig:'Agendado · passo 3/3',start:'hoje 13:11:47',
+          status:'<span class="pill skip"><span class="pi">⊘</span> Suprimido</span>',spine:'optout'}
+    };
+
+    function step(cls,ic,tt,sub,payload,mark){
+      return '<div class="step '+cls+'"><div class="rail"><span class="dot">'+ic+'</span></div>'+
+             '<div class="sbody"><div class="stt">'+tt+(mark||'')+'</div>'+
+             '<div class="ssub">'+sub+'</div>'+(payload?'<div class="payload">'+payload+'</div>':'')+'</div></div>';
+    }
+    var OK='<span class="mark">✓</span>', X='<span class="mark">✗</span>', SP='<span class="spin" style="margin-left:2px"></span>';
+
+    var SPINES={
+      progress:document.getElementById('dSpine').innerHTML, // default já no HTML
+      done:
+        step('done fam-trigger','<svg class="svic"><use href="#ic-message-circle"></use></svg>','Conversa criada','Origem: anúncio Click-to-WhatsApp','<span class="pk">source</span>=<span class="pa">"ctwa_ad_9921"</span>',OK)+
+        step('done fam-ai','<svg class="svic"><use href="#ic-target"></use></svg>','Captain · classificar intenção','Saída: <b>Comprar</b> · confiança 0,88','<span class="pk">intent</span>=<span class="pa">"comprar"</span> · <span class="pk">score</span>=<span class="pv">0.88</span>',OK)+
+        step('done fam-logic','<svg class="svic"><use href="#ic-git-branch"></use></svg>','Roteador','Rota: <b>Comprar</b>','<span class="pk">match</span>=<span class="pv">rota 1</span>',OK)+
+        step('done fam-msg','<svg class="svic"><use href="#ic-send"></use></svg>','Enviar template','<code style="font-family:var(--mono);font-size:11px">boas_vindas_catalogo</code> · entregue','<span class="pk">wamid</span>=<span class="pa">"…HBg="</span>',OK)+
+        step('done here fam-action','<svg class="svic"><use href="#ic-user"></use></svg>','Atribuir · Vendas','Round-robin → <b>Camila R.</b>','<span class="pk">agent</span>=<span class="pv">camila.r</span>',OK)+
+        '<div class="note"><span class="ic">✓</span><span>Fluxo concluído com a meta de saída: cliente atribuído ao time de <b>Vendas</b>.</span></div>',
+      fail_tpl:
+        step('done fam-trigger','<svg class="svic"><use href="#ic-alarm-clock"></use></svg>','Gatilho · sem resposta','26h desde a última mensagem','<span class="pk">idle_h</span>=<span class="pv">26</span>',OK)+
+        step('failed here fam-msg','<svg class="svic"><use href="#ic-send"></use></svg>','Enviar template','Falhou ao resolver o template','<span class="pk">template</span>=<span class="pa">"recuperacao_pos_venda"</span> · <span class="pk">find_template</span>=<span class="pv">nil</span>',X)+
+        '<div class="note warn"><span class="ic">✗</span><span><b>Template não aprovado.</b> <code style="font-family:var(--mono);font-size:11px">find_template</code> retornou <b>nil</b> — a versão <code style="font-family:var(--mono);font-size:11px">recuperacao_pos_venda</code> está <b>pendente</b> na Meta. Aprove o template ou escolha outro já aprovado.</span></div>',
+      fail_window:
+        step('done fam-trigger','<svg class="svic"><use href="#ic-alarm-clock"></use></svg>','Gatilho · retorno','Cliente sem resposta','<span class="pk">status</span>=<span class="pv">sem_resposta</span>',OK)+
+        step('done fam-logic','<svg class="svic"><use href="#ic-timer"></use></svg>','Esperar 24h','Retomou após a espera','<span class="pk">resumed_at</span>=<span class="pv">13:58</span>',OK)+
+        step('failed here fam-msg','<svg class="svic"><use href="#ic-message-square"></use></svg>','Enviar mensagem','Bloqueado pela janela de atendimento','<span class="pk">window</span>=<span class="pv">closed</span> · <span class="pk">since_last_msg_h</span>=<span class="pa">26.4</span>',X)+
+        '<div class="note warn"><span class="ic">✗</span><span><b>Fora da janela de 24h.</b> Última mensagem do cliente há <b>26h</b> — mensagem livre não entrega. Use um <b>template aprovado</b> neste ponto para reabrir a conversa.</span></div>',
+      guard:
+        step('failed here fam-trigger','<svg class="svic"><use href="#ic-message-circle"></use></svg>','Gatilho · mensagem recebida','Suprimido antes de executar','<span class="pk">guard</span>=<span class="pa">performed_by_automation</span> · <span class="pk">actor</span>=<span class="pv">bot</span>',
+             '<span class="mark">⊘</span>')+
+        '<div class="note warn"><span class="ic">⊘</span><span><b>Guard <code style="font-family:var(--mono);font-size:11px">performed_by_automation</code>.</b> A mensagem que dispararia veio de <b>outra automação</b> — anti-loop suprimiu a execução de propósito para não criar um ciclo de bots respondendo bots.</span></div>',
+      optout:
+        step('done fam-logic','<svg class="svic"><use href="#ic-timer"></use></svg>','Esperar 1 dia','Passo 3/3 do drip agendado','<span class="pk">step</span>=<span class="pv">3/3</span>',OK)+
+        step('failed here fam-action','<svg class="svic"><use href="#ic-shield"></use></svg>','Opt-out "PARAR"','Contato removido do fluxo','<span class="pk">optout</span>=<span class="pa">"PARAR"</span> · <span class="pk">removed</span>=<span class="pv">true</span>',
+             '<span class="mark">⊘</span>')+
+        '<div class="note warn"><span class="ic">⊘</span><span><b>Opt-out respeitado.</b> O contato respondeu <b>PARAR</b> — a conformidade de marketing removeu-o do drip. Nenhum template foi enviado. Protege o quality rating do número.</span></div>',
+      wait:
+        step('done fam-trigger','<svg class="svic"><use href="#ic-message-circle"></use></svg>','Conversa criada','Origem: anúncio CTWA','<span class="pk">source</span>=<span class="pa">"ctwa_ad_9921"</span>',OK)+
+        step('done fam-ai','<svg class="svic"><use href="#ic-target"></use></svg>','Captain · classificar intenção','Saída: <b>Sem resposta</b>','<span class="pk">intent</span>=<span class="pa">"sem_resposta"</span>',OK)+
+        step('running here fam-logic','<svg class="svic"><use href="#ic-timer"></use></svg>','Esperar resposta','Pausado · aguarda o cliente responder',null,SP)+
+        step('pending fam-msg','<svg class="svic"><use href="#ic-send"></use></svg>','Template reengajamento_24h','Aguardando passo anterior')+
+        '<div class="note"><span class="ic"><svg class="svic"><use href="#ic-timer"></use></svg></span><span>Aguardando o cliente. Se responder, o fluxo retoma na hora; senão, dispara o template de reengajamento.</span></div>',
+      drip:
+        step('done fam-msg','<svg class="svic"><use href="#ic-send"></use></svg>','Template · passo 1','ofertas_semana_a · entregue','<span class="pk">step</span>=<span class="pv">1/3</span>',OK)+
+        step('done fam-msg','<svg class="svic"><use href="#ic-send"></use></svg>','Template · passo 2','ofertas_semana_b · entregue','<span class="pk">step</span>=<span class="pv">2/3</span>',OK)+
+        step('running here fam-logic','<svg class="svic"><use href="#ic-timer"></use></svg>','Esperar 1 dia','Retoma amanhã 13:40 para o passo 3',null,SP)+
+        step('pending fam-msg','<svg class="svic"><use href="#ic-send"></use></svg>','Template · passo 3','Aguardando janela do agendamento')+
+        '<div class="note"><span class="ic"><svg class="svic"><use href="#ic-timer"></use></svg></span><span>Sequência no ar. Cada passo fora da janela de 24h usa <b>template aprovado</b>. Contato pode sair a qualquer momento com <b>PARAR</b>.</span></div>',
+      csat:
+        step('done fam-trigger','<svg class="svic"><use href="#ic-check-circle"></use></svg>','Conversa resolvida','Fechada pelo agente','<span class="pk">resolved_by</span>=<span class="pv">bruno.a</span>',OK)+
+        step('done fam-logic','<svg class="svic"><use href="#ic-timer"></use></svg>','Esperar 10 min','Deixa o cliente respirar','<span class="pk">delay</span>=<span class="pv">10m</span>',OK)+
+        step('done here fam-msg','<svg class="svic"><use href="#ic-star"></use></svg>','Pesquisa CSAT','Enviada · aguardando nota 1–5','<span class="pk">survey</span>=<span class="pa">"csat_pos_atendimento"</span>',OK)+
+        '<div class="note"><span class="ic">✓</span><span>Pesquisa entregue. A nota do cliente volta como atributo e alimenta os relatórios de satisfação.</span></div>',
+      welcome:
+        step('done fam-trigger','<svg class="svic"><use href="#ic-key-round"></use></svg>','Palavra-chave "oi"','Primeira mensagem do contato','<span class="pk">keyword</span>=<span class="pa">"oi"</span>',OK)+
+        step('done here fam-msg','<svg class="svic"><use href="#ic-send"></use></svg>','Enviar template','boas_vindas_catalogo · entregue','<span class="pk">wamid</span>=<span class="pa">"…kQ2="</span>',OK)+
+        '<div class="note"><span class="ic">✓</span><span>Boas-vindas entregue com o catálogo. Conversa pronta para a triagem.</span></div>'
+    };
+
+    var rows=[].slice.call(document.querySelectorAll('#rows tr'));
+    var dAv=document.getElementById('dAv'),dWho=document.getElementById('dWho'),dPhone=document.getElementById('dPhone'),
+        dAuto=document.getElementById('dAuto'),dTrig=document.getElementById('dTrig'),dStart=document.getElementById('dStart'),
+        dStatus=document.getElementById('dStatus'),dSpine=document.getElementById('dSpine');
+
+    function pick(id){
+      rows.forEach(function(r){r.classList.toggle('sel',r.getAttribute('data-run')===id);});
+      var d=DATA[id]; if(!d) return;
+      dAv.textContent=d.av; dAv.style.background=d.avc; dWho.textContent=d.who; dPhone.textContent=d.phone;
+      dAuto.textContent=d.auto; dTrig.textContent=d.trig; dStart.textContent=d.start; dStatus.innerHTML=d.status;
+      dSpine.innerHTML=SPINES[d.spine]||SPINES.progress;
+    }
+    rows.forEach(function(r){r.addEventListener('click',function(){pick(r.getAttribute('data-run'));});});
+    document.querySelector('.dclose').addEventListener('click',function(){
+      rows.forEach(function(r){r.classList.remove('sel');});
+    });
+  })();
+</script>
+
+</body>
+</html>

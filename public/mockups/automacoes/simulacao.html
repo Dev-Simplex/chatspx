@@ -1,0 +1,605 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Automações · Simulação (dry-run) — ChatSPX</title>
+<style>
+  :root{
+    --sans: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+    --mono: ui-monospace, "SF Mono", "JetBrains Mono", "Cascadia Code", Menlo, Consolas, monospace;
+    --bg:#e9ecf7; --surface:#ffffff; --surface-2:#f6f7fc;
+    --glass:rgba(255,255,255,.72);
+    --border:#e2e5f1; --border-2:#ccd1e6;
+    --ink:#1a1d2e; --ink-2:#585d78; --ink-3:#8b90ab;
+    --accent:#6366f1; --accent-2:#4f46e5; --accent-soft:rgba(99,102,241,.12);
+    --wire:#c6cbe0;
+    --trigger:#0e9f6e; --msg:#0f8a6f; --logic:#c77a06; --ai:#6f63e6; --action:#5b6478; --data:#2563c9;
+    --ok:#15803d; --warn:#c2410c;
+    --shadow:0 1px 2px rgba(20,22,44,.06), 0 8px 24px -12px rgba(20,22,44,.18);
+    --shadow-node:0 1px 1px rgba(20,22,44,.05), 0 6px 16px -10px rgba(20,22,44,.28);
+  }
+  @media (prefers-color-scheme: dark){
+    :root{
+      --bg:#080a12; --surface:#12141f; --surface-2:#171a28; --glass:rgba(20,23,37,.66);
+      --border:#252a3d; --border-2:#343a52; --ink:#eaecf6; --ink-2:#a7acc7; --ink-3:#6d7291;
+      --accent:#8286ff; --accent-2:#9a9dff; --accent-soft:rgba(130,134,255,.14); --wire:#333952;
+      --trigger:#34d399; --msg:#25d366; --logic:#fbbf24; --ai:#a99bff; --action:#8b93aa; --data:#5b9bff;
+      --ok:#4ade80; --warn:#fb923c;
+      --shadow:0 1px 2px rgba(0,0,0,.4), 0 12px 30px -16px rgba(0,0,0,.7);
+      --shadow-node:0 1px 1px rgba(0,0,0,.3), 0 8px 20px -12px rgba(0,0,0,.6);
+    }
+  }
+  :root[data-theme="light"]{
+    --bg:#e9ecf7; --surface:#ffffff; --surface-2:#f6f7fc; --glass:rgba(255,255,255,.72);
+    --border:#e2e5f1; --border-2:#ccd1e6; --ink:#1a1d2e; --ink-2:#585d78; --ink-3:#8b90ab;
+    --accent:#6366f1; --accent-2:#4f46e5; --accent-soft:rgba(99,102,241,.12); --wire:#c6cbe0;
+    --trigger:#0e9f6e; --msg:#0f8a6f; --logic:#c77a06; --ai:#6f63e6; --action:#5b6478; --data:#2563c9;
+    --ok:#15803d; --warn:#c2410c;
+    --shadow:0 1px 2px rgba(20,22,44,.06), 0 8px 24px -12px rgba(20,22,44,.18);
+    --shadow-node:0 1px 1px rgba(20,22,44,.05), 0 6px 16px -10px rgba(20,22,44,.28);
+  }
+  :root[data-theme="dark"]{
+    --bg:#080a12; --surface:#12141f; --surface-2:#171a28; --glass:rgba(20,23,37,.66);
+    --border:#252a3d; --border-2:#343a52; --ink:#eaecf6; --ink-2:#a7acc7; --ink-3:#6d7291;
+    --accent:#8286ff; --accent-2:#9a9dff; --accent-soft:rgba(130,134,255,.14); --wire:#333952;
+    --trigger:#34d399; --msg:#25d366; --logic:#fbbf24; --ai:#a99bff; --action:#8b93aa; --data:#5b9bff;
+    --ok:#4ade80; --warn:#fb923c;
+    --shadow:0 1px 2px rgba(0,0,0,.4), 0 12px 30px -16px rgba(0,0,0,.7);
+    --shadow-node:0 1px 1px rgba(0,0,0,.3), 0 8px 20px -12px rgba(0,0,0,.6);
+  }
+  *{box-sizing:border-box} html,body{margin:0}
+  body{font-family:var(--sans); color:var(--ink); background:var(--bg); -webkit-font-smoothing:antialiased; font-size:14px; line-height:1.45}
+  .app{position:relative; height:100vh; min-height:660px; display:grid; grid-template-columns:252px 1fr 350px; grid-template-rows:58px 1fr; overflow:hidden}
+  .aurora{position:fixed; inset:0; z-index:0; overflow:hidden; pointer-events:none}
+  .aurora b{position:absolute; border-radius:50%; filter:blur(80px)}
+  .aurora .a1{width:520px;height:520px; left:-120px; top:-160px; background:radial-gradient(circle at 30% 30%,var(--accent),transparent 62%); opacity:.32; animation:d1 22s ease-in-out infinite}
+  .aurora .a2{width:460px;height:460px; right:-140px; top:38%; background:radial-gradient(circle at 50% 50%,var(--msg),transparent 60%); opacity:.2; animation:d2 26s ease-in-out infinite}
+  .aurora .a3{width:420px;height:420px; left:32%; bottom:-180px; background:radial-gradient(circle at 50% 50%,var(--ai),transparent 60%); opacity:.22; animation:d1 30s ease-in-out infinite reverse}
+  @keyframes d1{0%,100%{transform:translate(0,0)}50%{transform:translate(40px,30px)}}
+  @keyframes d2{0%,100%{transform:translate(0,0)}50%{transform:translate(-36px,24px)}}
+  @media (prefers-reduced-motion:reduce){.aurora b{animation:none}}
+
+  .topbar{grid-column:1/-1; z-index:5; display:flex; align-items:center; gap:12px; padding:0 15px; background:var(--glass); backdrop-filter:blur(14px) saturate(1.3); -webkit-backdrop-filter:blur(14px) saturate(1.3); border-bottom:1px solid var(--border)}
+  .brand .spark{width:26px;height:26px;border-radius:8px; display:grid;place-items:center; background:linear-gradient(135deg,var(--accent),var(--ai)); color:#fff; font-size:15px; box-shadow:0 4px 12px -4px var(--accent)}
+  .crumb{color:var(--ink-3); font-size:12.5px; display:flex; align-items:center; gap:7px} .crumb b{color:var(--ink-2); font-weight:600}
+  .name{font-weight:650; font-size:14.5px; letter-spacing:-.01em; padding:5px 9px; border-radius:8px; margin-left:4px}
+  .name:hover{background:var(--surface-2)}
+  .ver{display:inline-flex; align-items:center; gap:6px; font-size:11.5px; color:var(--warn); background:color-mix(in srgb,var(--warn) 10%,var(--surface)); border:1px solid color-mix(in srgb,var(--warn) 26%,var(--border)); border-radius:999px; padding:4px 9px}
+  .ver .dot{width:6px;height:6px;border-radius:50%; background:var(--warn)}
+  .spacer{flex:1}
+  .switch{display:inline-flex; align-items:center; gap:8px; font-size:12.5px; color:var(--ink-2)}
+  .toggle{width:38px;height:22px;border-radius:999px; background:var(--trigger); position:relative; border:none; cursor:pointer}
+  .toggle::after{content:"";position:absolute; top:2px; left:2px; width:18px;height:18px;border-radius:50%; background:#fff; box-shadow:0 1px 3px rgba(0,0,0,.3)}
+  .btn{font:inherit; font-size:13px; font-weight:600; border-radius:9px; padding:8px 12px; cursor:pointer; border:1px solid var(--border-2); background:var(--surface); color:var(--ink)}
+  .btn:hover{background:var(--surface-2)}
+  .btn.primary{background:linear-gradient(135deg,var(--accent),var(--accent-2)); border-color:transparent; color:#fff; box-shadow:0 6px 16px -8px var(--accent)}
+  .btn.ghost{background:transparent; border-color:transparent; color:var(--ink-2)}
+  .btn.ghost:hover{background:var(--surface-2); color:var(--ink)}
+
+  .palette{z-index:4; overflow-y:auto; padding:13px 12px 40px; border-right:1px solid var(--border); background:var(--glass); backdrop-filter:blur(10px); -webkit-backdrop-filter:blur(10px)}
+  .psearch{display:flex; align-items:center; gap:8px; background:var(--surface-2); border:1px solid var(--border); border-radius:9px; padding:8px 10px; color:var(--ink-3); font-size:13px; margin-bottom:13px}
+  .pgroup{margin-bottom:14px}
+  .plabel{font-size:10.5px; font-weight:700; letter-spacing:.09em; text-transform:uppercase; color:var(--ink-3); margin:0 4px 7px; display:flex; align-items:center; gap:7px}
+  .plabel .tick{width:8px;height:8px;border-radius:3px}
+  .chip{display:flex; align-items:center; gap:9px; width:100%; text-align:left; padding:6px 9px; border-radius:9px; border:1px solid transparent; background:transparent; color:var(--ink); font:inherit; font-size:12.8px; cursor:grab; margin-bottom:1px}
+  .chip:hover{background:var(--surface-2); border-color:var(--border)}
+  .chip .ci{width:25px;height:25px;border-radius:7px; display:grid; place-items:center; font-size:13px; flex:none}
+  .chip .cx{font-size:10px; color:var(--ink-3); margin-left:auto}
+  .fam-trigger .ci,.ci.trigger{background:color-mix(in srgb,var(--trigger) 16%,transparent); color:var(--trigger)}
+  .fam-msg .ci,.ci.msg{background:color-mix(in srgb,var(--msg) 16%,transparent); color:var(--msg)}
+  .fam-logic .ci,.ci.logic{background:color-mix(in srgb,var(--logic) 18%,transparent); color:var(--logic)}
+  .fam-ai .ci,.ci.ai{background:color-mix(in srgb,var(--ai) 16%,transparent); color:var(--ai)}
+  .fam-action .ci,.ci.action{background:color-mix(in srgb,var(--action) 16%,transparent); color:var(--action)}
+  .fam-data .ci,.ci.data{background:color-mix(in srgb,var(--data) 16%,transparent); color:var(--data)}
+  .tick.trigger{background:var(--trigger)} .tick.msg{background:var(--msg)} .tick.logic{background:var(--logic)} .tick.ai{background:var(--ai)} .tick.action{background:var(--action)} .tick.data{background:var(--data)}
+
+  .canvas{position:relative; z-index:2; overflow:hidden}
+  .cscroll{position:absolute; inset:0; overflow:auto; padding:30px 40px 80px;
+    background:radial-gradient(circle at 1px 1px, color-mix(in srgb,var(--ink) 8%,transparent) 1px, transparent 0) 0 0/22px 22px}
+  .flow{width:max-content; margin:0 auto; min-width:520px}
+  .spine{display:flex; flex-direction:column; align-items:center}
+  .link{width:2px; height:24px; background:var(--wire); position:relative}
+  .link .plus{position:absolute; left:50%; top:50%; transform:translate(-50%,-50%); width:20px;height:20px;border-radius:50%; background:var(--surface); border:1px solid var(--border-2); color:var(--ink-3); display:grid; place-items:center; font-size:13px; cursor:pointer}
+  .link .plus:hover{color:var(--accent); border-color:var(--accent)}
+  .node{position:relative; display:flex; align-items:center; gap:11px; width:272px; text-align:left; background:var(--surface); border:1px solid var(--border); border-radius:13px; padding:11px 13px; box-shadow:var(--shadow-node); cursor:pointer; font:inherit; color:inherit; transition:transform .14s, border-color .14s, box-shadow .14s}
+  .node:hover{transform:translateY(-1px); border-color:var(--border-2)}
+  .node::before{content:""; position:absolute; left:0; top:12px; bottom:12px; width:3px; border-radius:3px; background:var(--fam,var(--action))}
+  .node.fam-trigger{--fam:var(--trigger)} .node.fam-msg{--fam:var(--msg)} .node.fam-logic{--fam:var(--logic)} .node.fam-ai{--fam:var(--ai)} .node.fam-action{--fam:var(--action)} .node.fam-data{--fam:var(--data)}
+  .node .ni{width:32px;height:32px;border-radius:9px; display:grid; place-items:center; font-size:16px; flex:none; background:color-mix(in srgb,var(--fam) 15%,transparent); color:var(--fam)}
+  .node .nm{min-width:0; flex:1}
+  .node .nt{display:block; font-weight:640; font-size:13.5px; letter-spacing:-.01em; line-height:1.2}
+  .node .ns{display:block; font-size:12px; color:var(--ink-2); margin-top:3px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; max-width:180px}
+  .node .nf{position:absolute; right:11px; top:9px; font-size:9.5px; font-weight:700; letter-spacing:.06em; text-transform:uppercase; color:var(--fam); opacity:.85}
+  .node.selected{border-color:var(--accent); box-shadow:0 0 0 3px var(--accent-soft), var(--shadow-node)}
+  .node:focus-visible{outline:2px solid var(--accent); outline-offset:2px}
+
+  .tree{position:relative; margin:0 auto; padding-left:30px; width:max-content}
+  .tree::before{content:""; position:absolute; left:0; top:0; width:2px; height:calc(100% - 39px); background:var(--wire)}
+  .branch{position:relative; display:flex; align-items:center; gap:8px; min-height:78px}
+  .branch::before{content:""; position:absolute; left:-30px; top:39px; width:30px; height:2px; background:var(--wire)}
+  .bpill{display:inline-flex; align-items:center; gap:7px; font-size:11.5px; font-weight:650; padding:4px 10px; border-radius:999px; white-space:nowrap; background:var(--surface); border:1px solid var(--border-2); color:var(--ink-2)}
+  .bpill.yes{color:var(--ok); border-color:color-mix(in srgb,var(--ok) 40%,var(--border))}
+  .bpill.wait{color:var(--warn); border-color:color-mix(in srgb,var(--warn) 40%,var(--border))}
+  .bpill .bm{font-family:var(--mono); font-size:10px; font-weight:600; color:var(--ink-3); font-variant-numeric:tabular-nums; background:color-mix(in srgb,var(--ink) 6%,transparent); border-radius:5px; padding:1px 5px}
+  .arrow{width:22px; height:2px; background:var(--wire); position:relative; flex:none}
+  .arrow::after{content:""; position:absolute; right:-1px; top:50%; transform:translateY(-50%); border-left:6px solid var(--wire); border-top:4px solid transparent; border-bottom:4px solid transparent}
+  .node.sm{width:auto; min-width:150px; padding:9px 12px; border-radius:11px}
+  .node.sm .ni{width:28px;height:28px; font-size:14px} .node.sm .nt{font-size:12.5px} .node.sm .ns{font-size:11px; max-width:150px} .node.sm .nf{display:none}
+  .legend{display:flex; gap:14px; flex-wrap:wrap; margin:32px auto 0; width:max-content; max-width:100%; font-size:11.5px; color:var(--ink-3); padding:10px 14px; background:var(--glass); border:1px solid var(--border); border-radius:11px}
+  .legend span{display:inline-flex; align-items:center; gap:6px} .legend i{width:9px;height:9px;border-radius:3px; display:inline-block}
+
+  /* canvas overlays: zoom + minimap */
+  .zoom{position:absolute; left:16px; bottom:16px; z-index:3; display:flex; align-items:center; gap:2px; background:var(--glass); border:1px solid var(--border); border-radius:10px; padding:3px; backdrop-filter:blur(10px); -webkit-backdrop-filter:blur(10px); box-shadow:var(--shadow)}
+  .zoom button{width:30px;height:30px; border:none; background:transparent; color:var(--ink-2); font:inherit; font-size:15px; border-radius:7px; cursor:pointer}
+  .zoom button:hover{background:var(--surface-2); color:var(--ink)}
+  .zoom .z-val{font-size:12px; color:var(--ink-2); min-width:44px; text-align:center; font-variant-numeric:tabular-nums}
+  .minimap{position:absolute; right:16px; bottom:16px; z-index:3; width:176px; height:112px; background:var(--glass); border:1px solid var(--border); border-radius:11px; backdrop-filter:blur(10px); -webkit-backdrop-filter:blur(10px); box-shadow:var(--shadow); overflow:hidden}
+  .minimap .mm-lbl{position:absolute; top:6px; left:9px; font-size:9.5px; font-weight:700; letter-spacing:.08em; text-transform:uppercase; color:var(--ink-3)}
+  .minimap .mm-node{position:absolute; border-radius:3px; height:9px}
+  .minimap .mm-vp{position:absolute; border:1.5px solid var(--accent); border-radius:5px; background:var(--accent-soft)}
+
+  .props{z-index:4; overflow:hidden; border-left:1px solid var(--border); background:var(--glass); backdrop-filter:blur(12px); -webkit-backdrop-filter:blur(12px); display:flex; flex-direction:column}
+  .ptabs{display:flex; gap:4px; padding:9px 12px 0; border-bottom:1px solid var(--border)}
+  .ptabs button{flex:1; font:inherit; font-size:13px; font-weight:600; color:var(--ink-3); background:transparent; border:none; border-bottom:2px solid transparent; padding:8px 0 10px; cursor:pointer}
+  .ptabs button.on{color:var(--ink); border-bottom-color:var(--accent)}
+  .tabwrap{flex:1; overflow-y:auto; display:flex; flex-direction:column}
+  .ph{padding:14px 16px 12px; border-bottom:1px solid var(--border); display:flex; align-items:center; gap:11px}
+  .ph .ni{width:34px;height:34px;border-radius:9px; display:grid; place-items:center; font-size:17px; flex:none; background:color-mix(in srgb,var(--fam,var(--msg)) 15%,transparent); color:var(--fam,var(--msg))}
+  .ph .pt{font-weight:680; font-size:14.5px; letter-spacing:-.01em} .ph .pfam{font-size:11px; color:var(--ink-3)}
+  .pbody{padding:16px; display:flex; flex-direction:column; gap:15px}
+  .panel[hidden],[hidden]{display:none}
+  .field{display:flex; flex-direction:column; gap:6px}
+  .flabel{font-size:11px; font-weight:700; letter-spacing:.05em; text-transform:uppercase; color:var(--ink-3)}
+  .control{display:flex; align-items:center; justify-content:space-between; gap:8px; background:var(--surface); border:1px solid var(--border-2); border-radius:9px; padding:9px 11px; font-size:13px}
+  .control .chev{color:var(--ink-3)} .control.pick strong{font-weight:600}
+  .tag{font-size:10.5px; font-weight:700; letter-spacing:.04em; text-transform:uppercase; padding:2px 7px; border-radius:6px} .tag.ok{color:#fff; background:var(--ok)}
+  .preview{background:color-mix(in srgb,var(--msg) 9%,var(--surface)); border:1px solid color-mix(in srgb,var(--msg) 22%,var(--border)); border-radius:12px; padding:12px; font-size:13px; line-height:1.5}
+  .preview .bubble{background:var(--surface); border-radius:10px; padding:10px 12px; box-shadow:var(--shadow-node)}
+  .preview .var{background:var(--accent-soft); color:var(--accent-2); border-radius:5px; padding:1px 5px; font-family:var(--mono); font-size:12px; font-weight:600}
+  .preview .btns{display:flex; gap:6px; margin-top:9px; flex-wrap:wrap}
+  .preview .rbtn{flex:1; text-align:center; font-size:12.5px; color:var(--msg); font-weight:600; background:color-mix(in srgb,var(--msg) 8%,var(--surface)); border:1px solid color-mix(in srgb,var(--msg) 24%,var(--border)); border-radius:8px; padding:6px}
+  .vmap{display:flex; flex-direction:column; gap:7px}
+  .vrow{display:flex; align-items:center; gap:9px; font-size:12.5px}
+  .vrow .k{font-family:var(--mono); font-weight:700; color:var(--accent-2); background:var(--accent-soft); border-radius:6px; padding:3px 7px; flex:none}
+  .vrow .to{color:var(--ink-3)} .vrow .v{flex:1; background:var(--surface); border:1px solid var(--border-2); border-radius:7px; padding:6px 9px; color:var(--ink)}
+  .note{display:flex; gap:9px; align-items:flex-start; font-size:12.5px; line-height:1.5; color:var(--ink-2); background:color-mix(in srgb,var(--ok) 8%,var(--surface)); border:1px solid color-mix(in srgb,var(--ok) 24%,var(--border)); border-radius:10px; padding:10px 12px}
+  .note .ic{color:var(--ok); flex:none; font-weight:800}
+  .outs{display:flex; flex-direction:column; gap:7px}
+  .out{display:flex; align-items:center; gap:9px; background:var(--surface); border:1px solid var(--border-2); border-radius:9px; padding:8px 10px; font-size:13px}
+  .out .oi{width:9px;height:9px;border-radius:50%; flex:none} .out .ox{margin-left:auto; color:var(--ink-3); font-size:11px}
+  .rule{display:flex; align-items:center; gap:7px; font-size:12.5px; background:var(--surface); border:1px solid var(--border-2); border-radius:9px; padding:8px 10px} .rule .op{font-family:var(--mono); color:var(--ink-3)}
+  .swrow{display:flex; align-items:center; justify-content:space-between; gap:10px; font-size:13px; line-height:1.4}
+  .mini-toggle{width:34px;height:20px;border-radius:999px; background:var(--accent); position:relative; border:none; flex:none; cursor:pointer}
+  .mini-toggle::after{content:"";position:absolute; top:2px; right:2px; width:16px;height:16px;border-radius:50%; background:#fff}
+  .mini-toggle.off{background:var(--border-2)} .mini-toggle.off::after{left:2px; right:auto}
+  .radio{display:flex; flex-direction:column; gap:7px}
+  .ropt{display:flex; align-items:center; gap:10px; font-size:13px; background:var(--surface); border:1px solid var(--border-2); border-radius:9px; padding:9px 11px; cursor:pointer}
+  .ropt .rdot{width:16px;height:16px;border-radius:50%; border:2px solid var(--border-2); flex:none}
+  .ropt.on{border-color:var(--accent); background:var(--accent-soft)} .ropt.on .rdot{border-color:var(--accent); background:radial-gradient(circle,var(--accent) 42%,transparent 46%)}
+  .fsec{display:flex; flex-direction:column; gap:8px}
+  .fsec > .flabel{margin-bottom:1px}
+  .pfoot{margin-top:auto; padding:12px 16px; border-top:1px solid var(--border); display:flex; gap:8px}
+  .pfoot .btn{flex:1; text-align:center}
+  .hint{position:fixed; z-index:6; left:50%; bottom:16px; transform:translateX(-50%); font-size:12px; color:var(--ink-2); background:var(--glass); border:1px solid var(--border); backdrop-filter:blur(10px); -webkit-backdrop-filter:blur(10px); border-radius:999px; padding:7px 14px; box-shadow:var(--shadow)}
+  .hint b{color:var(--accent-2)}
+  @media (max-width:1240px){.app{grid-template-columns:214px 1fr 310px} .node{width:238px} .minimap{display:none}}
+
+  /* ===== ESPECÍFICO DA TELA C3 · SIMULAÇÃO (dry-run) ===== */
+  /* faixa fixa "modo simulação" abaixo da topbar */
+  .simbar{grid-column:1/-1; z-index:6; display:flex; align-items:center; gap:12px; padding:9px 16px;
+    background:color-mix(in srgb,var(--accent) 12%,var(--surface));
+    border-bottom:1px solid color-mix(in srgb,var(--accent) 34%,var(--border)); color:var(--ink)}
+  .app{grid-template-rows:58px 40px 1fr} /* 3ª linha: topbar · simbar · corpo */
+  .simbar .pill{display:inline-flex; align-items:center; gap:8px; font-size:12px; font-weight:700; letter-spacing:.04em;
+    background:linear-gradient(135deg,var(--accent),var(--ai)); color:#fff; border-radius:999px; padding:5px 12px; box-shadow:0 4px 12px -6px var(--accent)}
+  .simbar .pill .rec{width:8px;height:8px;border-radius:50%; background:#fff; box-shadow:0 0 0 0 rgba(255,255,255,.7); animation:simrec 1.6s ease-out infinite}
+  @keyframes simrec{0%{box-shadow:0 0 0 0 rgba(255,255,255,.7)}70%{box-shadow:0 0 0 7px rgba(255,255,255,0)}100%{box-shadow:0 0 0 0 rgba(255,255,255,0)}}
+  .simbar .sub{font-size:12.5px; color:var(--ink-2)}
+  .simbar .sub b{color:var(--ink); font-weight:600}
+  .simbar .simact{display:inline-flex; align-items:center; gap:8px}
+  .simbar .btn{padding:6px 11px; font-size:12.5px}
+  .btn.step{background:linear-gradient(135deg,var(--accent),var(--accent-2)); border-color:transparent; color:#fff; box-shadow:0 6px 16px -8px var(--accent)}
+  .btn.step:hover{filter:brightness(1.05)}
+
+  /* seletor de conversa-amostra na barra lateral */
+  .samp{display:flex; align-items:center; gap:9px; width:100%; text-align:left; padding:8px 9px; border-radius:10px;
+    border:1px solid transparent; background:transparent; color:var(--ink); font:inherit; font-size:12.8px; cursor:pointer; margin-bottom:2px}
+  .samp:hover{background:var(--surface-2); border-color:var(--border)}
+  .samp.on{background:var(--accent-soft); border-color:color-mix(in srgb,var(--accent) 40%,var(--border))}
+  .samp .av{width:30px;height:30px;border-radius:50%; flex:none; display:grid; place-items:center; font-size:12.5px; font-weight:700; color:#fff}
+  .samp .sm-nm{min-width:0; flex:1}
+  .samp .sm-t{display:block; font-weight:600; letter-spacing:-.01em; white-space:nowrap; overflow:hidden; text-overflow:ellipsis}
+  .samp .sm-s{display:block; font-size:11px; color:var(--ink-3); white-space:nowrap; overflow:hidden; text-overflow:ellipsis}
+  .samp.on .sm-s{color:var(--accent-2)}
+  .samp .chk{margin-left:auto; color:var(--accent); font-weight:800; flex:none; opacity:0}
+  .samp.on .chk{opacity:1}
+  .avg1{background:linear-gradient(135deg,#6366f1,#8b5cf6)} .avg2{background:linear-gradient(135deg,#0f8a6f,#25a06f)}
+  .avg3{background:linear-gradient(135deg,#c2410c,#ea7317)} .avg4{background:linear-gradient(135deg,#2563c9,#4f8bff)}
+  .samp-note{font-size:11.5px; line-height:1.5; color:var(--ink-2); background:var(--surface-2); border:1px solid var(--border); border-radius:10px; padding:9px 11px; margin-top:4px}
+  .samp-note b{color:var(--ink)}
+
+  /* estados de execução dos nós no canvas */
+  .node.done{border-color:color-mix(in srgb,var(--ok) 45%,var(--border))}
+  .node.done .stflag{color:var(--ok)}
+  .node.pending{opacity:.5}
+  .node.pending .stflag{color:var(--ink-3)}
+  .node .stflag{position:absolute; right:10px; bottom:8px; font-size:12px; font-weight:800}
+  .node.sm .stflag{position:static; margin-left:6px; font-size:13px}
+  /* nó ACESO — ring pulsante via box-shadow animado */
+  .node.active{border-color:var(--accent)}
+  .node.active{animation:simring 1.8s ease-out infinite}
+  @keyframes simring{
+    0%{box-shadow:0 0 0 0 color-mix(in srgb,var(--accent) 55%,transparent), var(--shadow-node)}
+    70%{box-shadow:0 0 0 10px rgba(99,102,241,0), var(--shadow-node)}
+    100%{box-shadow:0 0 0 0 rgba(99,102,241,0), var(--shadow-node)}
+  }
+  @media (prefers-reduced-motion:reduce){
+    .node.active{animation:none; box-shadow:0 0 0 3px color-mix(in srgb,var(--accent) 45%,transparent), var(--shadow-node)}
+    .simbar .pill .rec{animation:none}
+  }
+  /* rota escolhida pelo roteador em destaque + demais esmaecidas */
+  .branch.chosen .bpill{border-color:var(--accent); box-shadow:0 0 0 3px var(--accent-soft)}
+  .branch.chosen::before,.branch.chosen .arrow,.branch.chosen .arrow::after{background:var(--accent)}
+  .branch.chosen .arrow::after{border-left-color:var(--accent)}
+  .branch.skipped{opacity:.4}
+  .bpill .bm.hit{color:var(--accent-2); background:var(--accent-soft)}
+
+  /* CONSOLE (painel direito) */
+  .console{flex:1; overflow-y:auto; padding:14px 16px; display:flex; flex-direction:column; gap:12px}
+  .cslug{display:flex; align-items:center; gap:8px; font-size:11px; font-weight:700; letter-spacing:.06em; text-transform:uppercase; color:var(--ink-3)}
+  .cslug .cn{margin-left:auto; font-family:var(--mono); font-size:11px; letter-spacing:0; color:var(--ink-3); background:var(--surface-2); border-radius:5px; padding:1px 6px}
+  /* linha de passo executado */
+  .cstep{position:relative; padding-left:26px}
+  .cstep::before{content:""; position:absolute; left:9px; top:22px; bottom:-12px; width:2px; background:var(--border-2)}
+  .cstep:last-child::before{display:none}
+  .cstep .cdot{position:absolute; left:0; top:2px; width:20px;height:20px;border-radius:50%; display:grid; place-items:center; font-size:11px; font-weight:800; color:#fff; background:var(--ok)}
+  .cstep.now .cdot{background:var(--accent); animation:simring 1.8s ease-out infinite}
+  .cstep.next .cdot{background:var(--surface); border:2px dashed var(--border-2); color:var(--ink-3)}
+  @media (prefers-reduced-motion:reduce){.cstep.now .cdot{animation:none}}
+  .cstep .chead{display:flex; align-items:baseline; gap:8px}
+  .cstep .cttl{font-weight:640; font-size:13px; letter-spacing:-.01em}
+  .cstep .cfam{font-size:9.5px; font-weight:700; letter-spacing:.06em; text-transform:uppercase; color:var(--fam,var(--ink-3))}
+  .cstep.fam-trigger{--fam:var(--trigger)} .cstep.fam-msg{--fam:var(--msg)} .cstep.fam-logic{--fam:var(--logic)} .cstep.fam-ai{--fam:var(--ai)} .cstep.fam-action{--fam:var(--action)} .cstep.fam-data{--fam:var(--data)}
+  .cstep .cdur{margin-left:auto; font-family:var(--mono); font-size:10.5px; color:var(--ink-3); font-variant-numeric:tabular-nums}
+  .cbox{margin-top:7px; background:var(--surface); border:1px solid var(--border); border-radius:10px; padding:9px 11px; font-size:12.5px; line-height:1.5; box-shadow:var(--shadow-node)}
+  .io{display:flex; flex-direction:column; gap:6px; font-family:var(--mono); font-size:11.5px}
+  .io .r{display:flex; align-items:baseline; gap:7px}
+  .io .r .lbl{flex:none; width:44px; font-weight:700; text-transform:uppercase; letter-spacing:.03em; font-size:9.5px; color:var(--ink-3); padding-top:1px}
+  .io .r.in .lbl{color:var(--ink-3)} .io .r.out .lbl{color:var(--ok)}
+  .io .val{color:var(--ink); word-break:break-word}
+  .io .val .var{background:var(--accent-soft); color:var(--accent-2); border-radius:5px; padding:0 4px; font-weight:600}
+  .io .val .res{background:color-mix(in srgb,var(--ok) 12%,transparent); color:var(--ok); border-radius:5px; padding:0 4px; font-weight:600}
+  .io .arr{color:var(--ink-3)}
+  .cresult{display:inline-flex; align-items:center; gap:6px; font-size:11.5px; font-weight:650; border-radius:999px; padding:3px 9px; margin-top:8px}
+  .cresult.ok{color:var(--ok); background:color-mix(in srgb,var(--ok) 12%,transparent)}
+  .cresult.route{color:var(--accent-2); background:var(--accent-soft)}
+  .cresult.wait{color:var(--warn); background:color-mix(in srgb,var(--warn) 12%,transparent)}
+  .cresult.dry{color:var(--ai); background:color-mix(in srgb,var(--ai) 12%,transparent)}
+  .cvars{display:flex; flex-direction:column; gap:5px; margin-top:8px}
+  .cvar{display:flex; align-items:center; gap:6px; font-family:var(--mono); font-size:11px}
+  .cvar .vk{color:var(--accent-2); background:var(--accent-soft); border-radius:5px; padding:1px 5px; font-weight:600}
+  .cvar .va{color:var(--ok); font-weight:600}
+  .cnext{font-size:12.5px; color:var(--ink-3)}
+  .cnext b{color:var(--ink-2); font-weight:600}
+  .cfoot{margin-top:auto; padding:12px 16px; border-top:1px solid var(--border); display:flex; gap:8px; align-items:center}
+  .cfoot .prog{font-size:11.5px; color:var(--ink-3); font-family:var(--mono); font-variant-numeric:tabular-nums}
+  .cfoot .btn{flex:1; text-align:center}
+  .chead-panel{padding:12px 16px; border-bottom:1px solid var(--border); display:flex; align-items:center; gap:10px}
+  .chead-panel .ni{width:32px;height:32px;border-radius:9px; display:grid; place-items:center; font-size:15px; flex:none; background:color-mix(in srgb,var(--ai) 15%,transparent); color:var(--ai)}
+  .chead-panel .pt{font-weight:680; font-size:14.5px; letter-spacing:-.01em}
+  .chead-panel .pfam{font-size:11px; color:var(--ink-3)}
+  .svic{width:1.05em;height:1.05em;stroke:currentColor;fill:none;flex:none;vertical-align:middle}
+  *{scrollbar-width:thin;scrollbar-color:var(--border-2) transparent}
+  ::-webkit-scrollbar{width:10px;height:10px}
+  ::-webkit-scrollbar-track{background:transparent}
+  ::-webkit-scrollbar-thumb{background:var(--border-2);border-radius:999px;border:2px solid transparent;background-clip:padding-box}
+  ::-webkit-scrollbar-thumb:hover{background:var(--ink-3);background-clip:padding-box}
+  ::-webkit-scrollbar-corner{background:transparent}
+</style>
+</head>
+<body>
+
+<svg id="spx-icons" aria-hidden="true" style="position:absolute;width:0;height:0;overflow:hidden">
+  <symbol id="ic-zap" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 14a1 1 0 0 1-.78-1.63l9.9-10.2a.5.5 0 0 1 .86.46l-1.92 6.02A1 1 0 0 0 13 10h7a1 1 0 0 1 .78 1.63l-9.9 10.2a.5.5 0 0 1-.86-.46l1.92-6.02A1 1 0 0 0 11 14z" /></symbol>
+  <symbol id="ic-message-circle" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M2.992 16.342a2 2 0 0 1 .094 1.167l-1.065 3.29a1 1 0 0 0 1.236 1.168l3.413-.998a2 2 0 0 1 1.099.092 10 10 0 1 0-4.777-4.719" /></symbol>
+  <symbol id="ic-inbox" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="22 12 16 12 14 15 10 15 8 12 2 12" /><path d="M5.45 5.11 2 12v6a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2v-6l-3.45-6.89A2 2 0 0 0 16.76 4H7.24a2 2 0 0 0-1.79 1.11z" /></symbol>
+  <symbol id="ic-refresh-cw" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12a9 9 0 0 1 9-9 9.75 9.75 0 0 1 6.74 2.74L21 8" /><path d="M21 3v5h-5" /><path d="M21 12a9 9 0 0 1-9 9 9.75 9.75 0 0 1-6.74-2.74L3 16" /><path d="M8 16H3v5" /></symbol>
+  <symbol id="ic-check-circle" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10" /><path d="m9 12 2 2 4-4" /></symbol>
+  <symbol id="ic-alarm-clock" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="13" r="8" /><path d="M12 9v4l2 2" /><path d="M5 3 2 6" /><path d="m22 6-3-3" /><path d="M6.38 18.7 4 21" /><path d="M17.64 18.67 20 21" /></symbol>
+  <symbol id="ic-key-round" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M2.586 17.414A2 2 0 0 0 2 18.828V21a1 1 0 0 0 1 1h3a1 1 0 0 0 1-1v-1a1 1 0 0 1 1-1h1a1 1 0 0 0 1-1v-1a1 1 0 0 1 1-1h.172a2 2 0 0 0 1.414-.586l.814-.814a6.5 6.5 0 1 0-4-4z" /><circle cx="16.5" cy="7.5" r=".5" fill="currentColor" /></symbol>
+  <symbol id="ic-link-2" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 17H7A5 5 0 0 1 7 7h2" /><path d="M15 7h2a5 5 0 1 1 0 10h-2" /><line x1="8" x2="16" y1="12" y2="12" /></symbol>
+  <symbol id="ic-webhook" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 16.98h-5.99c-1.1 0-1.95.94-2.48 1.9A4 4 0 0 1 2 17c.01-.7.2-1.4.57-2" /><path d="m6 17 3.13-5.78c.53-.97.1-2.18-.5-3.1a4 4 0 1 1 6.89-4.06" /><path d="m12 6 3.13 5.73C15.66 12.7 16.9 13 18 13a4 4 0 0 1 0 8" /></symbol>
+  <symbol id="ic-message-square" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 17a2 2 0 0 1-2 2H6.828a2 2 0 0 0-1.414.586l-2.202 2.202A.71.71 0 0 1 2 21.286V5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2z" /></symbol>
+  <symbol id="ic-send" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14.536 21.686a.5.5 0 0 0 .937-.024l6.5-19a.496.496 0 0 0-.635-.635l-19 6.5a.5.5 0 0 0-.024.937l7.93 3.18a2 2 0 0 1 1.112 1.11z" /><path d="m21.854 2.147-10.94 10.939" /></symbol>
+  <symbol id="ic-receipt" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 17V7" /><path d="M16 8h-6a2 2 0 0 0 0 4h4a2 2 0 0 1 0 4H8" /><path d="M4 3a1 1 0 0 1 1-1 1.3 1.3 0 0 1 .7.2l.933.6a1.3 1.3 0 0 0 1.4 0l.934-.6a1.3 1.3 0 0 1 1.4 0l.933.6a1.3 1.3 0 0 0 1.4 0l.933-.6a1.3 1.3 0 0 1 1.4 0l.934.6a1.3 1.3 0 0 0 1.4 0l.933-.6A1.3 1.3 0 0 1 19 2a1 1 0 0 1 1 1v18a1 1 0 0 1-1 1 1.3 1.3 0 0 1-.7-.2l-.933-.6a1.3 1.3 0 0 0-1.4 0l-.934.6a1.3 1.3 0 0 1-1.4 0l-.933-.6a1.3 1.3 0 0 0-1.4 0l-.933.6a1.3 1.3 0 0 1-1.4 0l-.934-.6a1.3 1.3 0 0 0-1.4 0l-.933.6a1.3 1.3 0 0 1-.7.2 1 1 0 0 1-1-1z" /></symbol>
+  <symbol id="ic-droplet" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22a7 7 0 0 0 7-7c0-2-1-3.9-3-5.5s-3.5-4-4-6.5c-.5 2.5-2 4.9-4 6.5C6 11.1 5 13 5 15a7 7 0 0 0 7 7z" /></symbol>
+  <symbol id="ic-droplets" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M7 16.3c2.2 0 4-1.83 4-4.05 0-1.16-.57-2.26-1.71-3.19S7.29 6.75 7 5.3c-.29 1.45-1.14 2.84-2.29 3.76S3 11.1 3 12.25c0 2.22 1.8 4.05 4 4.05z" /><path d="M12.56 6.6A10.97 10.97 0 0 0 14 3.02c.5 2.5 2 4.9 4 6.5s3 3.5 3 5.5a6.98 6.98 0 0 1-11.91 4.97" /></symbol>
+  <symbol id="ic-square-pen" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3H5a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7" /><path d="M18.375 2.625a1 1 0 0 1 3 3l-9.013 9.014a2 2 0 0 1-.853.505l-2.873.84a.5.5 0 0 1-.62-.62l.84-2.873a2 2 0 0 1 .506-.852z" /></symbol>
+  <symbol id="ic-star" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11.525 2.295a.53.53 0 0 1 .95 0l2.31 4.679a2.123 2.123 0 0 0 1.595 1.16l5.166.756a.53.53 0 0 1 .294.904l-3.736 3.638a2.123 2.123 0 0 0-.611 1.878l.882 5.14a.53.53 0 0 1-.771.56l-4.618-2.428a2.122 2.122 0 0 0-1.973 0L6.396 21.01a.53.53 0 0 1-.77-.56l.881-5.139a2.122 2.122 0 0 0-.611-1.879L2.16 9.795a.53.53 0 0 1 .294-.906l5.165-.755a2.122 2.122 0 0 0 1.597-1.16z" /></symbol>
+  <symbol id="ic-git-branch" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 6a9 9 0 0 0-9 9V3" /><circle cx="18" cy="6" r="3" /><circle cx="6" cy="18" r="3" /></symbol>
+  <symbol id="ic-split" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M16 3h5v5" /><path d="M8 3H3v5" /><path d="M12 22v-8.3a4 4 0 0 0-1.172-2.872L3 3" /><path d="m15 9 6-6" /></symbol>
+  <symbol id="ic-timer" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="10" x2="14" y1="2" y2="2" /><line x1="12" x2="15" y1="14" y2="11" /><circle cx="12" cy="14" r="8" /></symbol>
+  <symbol id="ic-clock" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10" /><path d="M12 6v6l4 2" /></symbol>
+  <symbol id="ic-target" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10" /><circle cx="12" cy="12" r="6" /><circle cx="12" cy="12" r="2" /></symbol>
+  <symbol id="ic-pen-line" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M13 21h8" /><path d="M21.174 6.812a1 1 0 0 0-3.986-3.987L3.842 16.174a2 2 0 0 0-.5.83l-1.321 4.352a.5.5 0 0 0 .623.622l4.353-1.32a2 2 0 0 0 .83-.497z" /></symbol>
+  <symbol id="ic-compass" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10" /><path d="m16.24 7.76-1.804 5.411a2 2 0 0 1-1.265 1.265L7.76 16.24l1.804-5.411a2 2 0 0 1 1.265-1.265z" /></symbol>
+  <symbol id="ic-route" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="6" cy="19" r="3" /><path d="M9 19h8.5a3.5 3.5 0 0 0 0-7h-11a3.5 3.5 0 0 1 0-7H15" /><circle cx="18" cy="5" r="3" /></symbol>
+  <symbol id="ic-handshake" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m11 17 2 2a1 1 0 1 0 3-3" /><path d="m14 14 2.5 2.5a1 1 0 1 0 3-3l-3.88-3.88a3 3 0 0 0-4.24 0l-.88.88a1 1 0 1 1-3-3l2.81-2.81a5.79 5.79 0 0 1 7.06-.87l.47.28a2 2 0 0 0 1.42.25L21 4" /><path d="m21 3 1 11h-2" /><path d="M3 3 2 14l6.5 6.5a1 1 0 1 0 3-3" /><path d="M3 4h8" /></symbol>
+  <symbol id="ic-user-round-check" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M2 21a8 8 0 0 1 13.292-6" /><circle cx="10" cy="8" r="5" /><path d="m16 19 2 2 4-4" /></symbol>
+  <symbol id="ic-user" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2" /><circle cx="12" cy="7" r="4" /></symbol>
+  <symbol id="ic-users" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2" /><path d="M16 3.128a4 4 0 0 1 0 7.744" /><path d="M22 21v-2a4 4 0 0 0-3-3.87" /><circle cx="9" cy="7" r="4" /></symbol>
+  <symbol id="ic-tag" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12.586 2.586A2 2 0 0 0 11.172 2H4a2 2 0 0 0-2 2v7.172a2 2 0 0 0 .586 1.414l8.704 8.704a2.426 2.426 0 0 0 3.42 0l6.58-6.58a2.426 2.426 0 0 0 0-3.42z" /><circle cx="7.5" cy="7.5" r=".5" fill="currentColor" /></symbol>
+  <symbol id="ic-flag" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 22V4a1 1 0 0 1 .4-.8A6 6 0 0 1 8 2c3 0 5 2 7.333 2q2 0 3.067-.8A1 1 0 0 1 20 4v10a1 1 0 0 1-.4.8A6 6 0 0 1 16 16c-3 0-5-2-8-2a6 6 0 0 0-4 1.528" /></symbol>
+  <symbol id="ic-moon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20.985 12.486a9 9 0 1 1-9.473-9.472c.405-.022.617.46.402.803a6 6 0 0 0 8.268 8.268c.344-.215.825-.004.803.401" /></symbol>
+  <symbol id="ic-shield-check" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 13c0 5-3.5 7.5-7.66 8.95a1 1 0 0 1-.67-.01C7.5 20.5 4 18 4 13V6a1 1 0 0 1 1-1c2 0 4.5-1.2 6.24-2.72a1.17 1.17 0 0 1 1.52 0C14.51 3.81 17 5 19 5a1 1 0 0 1 1 1z" /><path d="m9 12 2 2 4-4" /></symbol>
+  <symbol id="ic-shield" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 13c0 5-3.5 7.5-7.66 8.95a1 1 0 0 1-.67-.01C7.5 20.5 4 18 4 13V6a1 1 0 0 1 1-1c2 0 4.5-1.2 6.24-2.72a1.17 1.17 0 0 1 1.52 0C14.51 3.81 17 5 19 5a1 1 0 0 1 1 1z" /></symbol>
+  <symbol id="ic-user-plus" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2" /><circle cx="9" cy="7" r="4" /><line x1="19" x2="19" y1="8" y2="14" /><line x1="22" x2="16" y1="11" y2="11" /></symbol>
+  <symbol id="ic-kanban" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 3v14" /><path d="M12 3v8" /><path d="M19 3v18" /></symbol>
+  <symbol id="ic-columns-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect width="18" height="18" x="3" y="3" rx="2" /><path d="M9 3v18" /><path d="M15 3v18" /></symbol>
+  <symbol id="ic-list-checks" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M13 5h8" /><path d="M13 12h8" /><path d="M13 19h8" /><path d="m3 17 2 2 4-4" /><path d="m3 7 2 2 4-4" /></symbol>
+  <symbol id="ic-clipboard-list" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect width="8" height="4" x="8" y="2" rx="1" ry="1" /><path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2" /><path d="M12 11h4" /><path d="M12 16h4" /><path d="M8 11h.01" /><path d="M8 16h.01" /></symbol>
+  <symbol id="ic-puzzle" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15.39 4.39a1 1 0 0 0 1.68-.474 2.5 2.5 0 1 1 3.014 3.015 1 1 0 0 0-.474 1.68l1.683 1.682a2.414 2.414 0 0 1 0 3.414L19.61 15.39a1 1 0 0 1-1.68-.474 2.5 2.5 0 1 0-3.014 3.015 1 1 0 0 1 .474 1.68l-1.683 1.682a2.414 2.414 0 0 1-3.414 0L8.61 19.61a1 1 0 0 0-1.68.474 2.5 2.5 0 1 1-3.014-3.015 1 1 0 0 0 .474-1.68l-1.683-1.682a2.414 2.414 0 0 1 0-3.414L4.39 8.61a1 1 0 0 1 1.68.474 2.5 2.5 0 1 0 3.014-3.015 1 1 0 0 1-.474-1.68l1.683-1.682a2.414 2.414 0 0 1 3.414 0z" /></symbol>
+  <symbol id="ic-braces" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M8 3H7a2 2 0 0 0-2 2v5a2 2 0 0 1-2 2 2 2 0 0 1 2 2v5c0 1.1.9 2 2 2h1" /><path d="M16 21h1a2 2 0 0 0 2-2v-5c0-1.1.9-2 2-2a2 2 0 0 1-2-2V5a2 2 0 0 0-2-2h-1" /></symbol>
+  <symbol id="ic-database" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><ellipse cx="12" cy="5" rx="9" ry="3" /><path d="M3 5V19A9 3 0 0 0 21 19V5" /><path d="M3 12A9 3 0 0 0 21 12" /></symbol>
+  <symbol id="ic-mail" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m22 7-8.991 5.727a2 2 0 0 1-2.009 0L2 7" /><rect x="2" y="4" width="20" height="16" rx="2" /></symbol>
+  <symbol id="ic-search" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m21 21-4.34-4.34" /><circle cx="11" cy="11" r="8" /></symbol>
+  <symbol id="ic-shopping-cart" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="8" cy="21" r="1" /><circle cx="19" cy="21" r="1" /><path d="M2.05 2.05h2l2.66 12.42a2 2 0 0 0 2 1.58h9.78a2 2 0 0 0 1.95-1.57l1.65-7.43H5.12" /></symbol>
+  <symbol id="ic-life-buoy" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10" /><path d="m4.93 4.93 4.24 4.24" /><path d="m14.83 9.17 4.24-4.24" /><path d="m14.83 14.83 4.24 4.24" /><path d="m9.17 14.83-4.24 4.24" /><circle cx="12" cy="12" r="4" /></symbol>
+  <symbol id="ic-layout-grid" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect width="7" height="7" x="3" y="3" rx="1" /><rect width="7" height="7" x="14" y="3" rx="1" /><rect width="7" height="7" x="14" y="14" rx="1" /><rect width="7" height="7" x="3" y="14" rx="1" /></symbol>
+  <symbol id="ic-play" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 5a2 2 0 0 1 3.008-1.728l11.997 6.998a2 2 0 0 1 .003 3.458l-12 7A2 2 0 0 1 5 19z" /></symbol>
+  <symbol id="ic-maximize" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M8 3H5a2 2 0 0 0-2 2v3" /><path d="M21 8V5a2 2 0 0 0-2-2h-3" /><path d="M3 16v3a2 2 0 0 0 2 2h3" /><path d="M16 21h3a2 2 0 0 0 2-2v-3" /></symbol>
+  <symbol id="ic-minus" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14" /></symbol>
+  <symbol id="ic-plus" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14" /><path d="M12 5v14" /></symbol>
+  <symbol id="ic-sparkles" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11.017 2.814a1 1 0 0 1 1.966 0l1.051 5.558a2 2 0 0 0 1.594 1.594l5.558 1.051a1 1 0 0 1 0 1.966l-5.558 1.051a2 2 0 0 0-1.594 1.594l-1.051 5.558a1 1 0 0 1-1.966 0l-1.051-5.558a2 2 0 0 0-1.594-1.594l-5.558-1.051a1 1 0 0 1 0-1.966l5.558-1.051a2 2 0 0 0 1.594-1.594z" /><path d="M20 2v4" /><path d="M22 4h-4" /><circle cx="4" cy="20" r="2" /></symbol>
+  <symbol id="ic-bot" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 8V4H8" /><rect width="16" height="12" x="4" y="8" rx="2" /><path d="M2 14h2" /><path d="M20 14h2" /><path d="M15 13v2" /><path d="M9 13v2" /></symbol>
+  <symbol id="ic-calendar-clock" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M16 14v2.2l1.6 1" /><path d="M16 2v4" /><path d="M21 7.5V6a2 2 0 0 0-2-2H5a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h3.5" /><path d="M3 10h5" /><path d="M8 2v4" /><circle cx="16" cy="16" r="6" /></symbol>
+  <symbol id="ic-hourglass" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 22h14" /><path d="M5 2h14" /><path d="M17 22v-4.172a2 2 0 0 0-.586-1.414L12 12l-4.414 4.414A2 2 0 0 0 7 17.828V22" /><path d="M7 2v4.172a2 2 0 0 0 .586 1.414L12 12l4.414-4.414A2 2 0 0 0 17 6.172V2" /></symbol>
+  <symbol id="ic-more-horizontal" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="1" /><circle cx="19" cy="12" r="1" /><circle cx="5" cy="12" r="1" /></symbol>
+  <symbol id="ic-phone" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M13.832 16.568a1 1 0 0 0 1.213-.303l.355-.465A2 2 0 0 1 17 15h3a2 2 0 0 1 2 2v3a2 2 0 0 1-2 2A18 18 0 0 1 2 4a2 2 0 0 1 2-2h3a2 2 0 0 1 2 2v3a2 2 0 0 1-.8 1.6l-.468.351a1 1 0 0 0-.292 1.233 14 14 0 0 0 6.392 6.384" /></symbol>
+</svg>
+
+<div class="aurora"><b class="a1"></b><b class="a2"></b><b class="a3"></b></div>
+
+<div class="app">
+  <header class="topbar">
+    <div class="brand"><span class="spark"><svg class="svic"><use href="#ic-zap"></use></svg></span></div>
+    <div class="crumb">Configurações <span>›</span> <b>Automações</b> <span>›</span></div>
+    <div class="name">Reengajar leads do anúncio</div>
+    <span class="ver"><span class="dot"></span> Rascunho · v3 ▾</span>
+    <div class="spacer"></div>
+    <button class="btn ghost"><svg class="svic"><use href="#ic-square-pen"></use></svg> Editar fluxo</button>
+    <button class="btn">Publicar</button>
+  </header>
+
+  <!-- FAIXA MODO SIMULAÇÃO -->
+  <div class="simbar">
+    <span class="pill"><span class="rec"></span> MODO SIMULAÇÃO · nada foi enviado</span>
+    <span class="sub">Ensaio a seco (<i>dry-run</i>): a IA e as mensagens são <b>calculadas, não disparadas</b>.</span>
+    <div class="spacer"></div>
+    <div class="simact">
+      <button class="btn ghost">↺ Reiniciar</button>
+      <button class="btn step" id="stepBtn"><svg class="svic"><use href="#ic-play"></use></svg> Executar passo</button>
+    </div>
+  </div>
+
+  <!-- BARRA LATERAL → SELETOR DE CONVERSA-AMOSTRA -->
+  <aside class="palette">
+    <div class="psearch"><svg class="svic"><use href="#ic-search"></use></svg> Buscar contato de teste…</div>
+
+    <div class="pgroup"><div class="plabel"><span class="tick trigger"></span> Conversa-amostra</div>
+      <button class="samp on">
+        <span class="av avg1">MS</span>
+        <span class="sm-nm"><span class="sm-t">Maria Silva</span><span class="sm-s">Origem: anúncio · “quero comprar”</span></span>
+        <span class="chk">✓</span>
+      </button>
+      <button class="samp">
+        <span class="av avg2">JP</span>
+        <span class="sm-nm"><span class="sm-t">João Pereira</span><span class="sm-s">Origem: anúncio · “tô com problema”</span></span>
+        <span class="chk">✓</span>
+      </button>
+      <button class="samp">
+        <span class="av avg3">CT</span>
+        <span class="sm-nm"><span class="sm-t">Carla Tozi</span><span class="sm-s">Origem: anúncio · sem resposta</span></span>
+        <span class="chk">✓</span>
+      </button>
+      <button class="samp">
+        <span class="av avg4">RA</span>
+        <span class="sm-nm"><span class="sm-t">Rafael Alves</span><span class="sm-s">Cliente antigo · reabriu conversa</span></span>
+        <span class="chk">✓</span>
+      </button>
+    </div>
+
+    <div class="pgroup"><div class="plabel"><span class="tick data"></span> Dados de entrada</div>
+      <div class="vmap" style="margin:0 2px">
+        <div class="vrow"><span class="k">nome</span><span class="to">→</span><span class="v">Maria Silva</span></div>
+        <div class="vrow"><span class="k">fone</span><span class="to">→</span><span class="v">+55 11 9•••• 4021</span></div>
+        <div class="vrow"><span class="k">origem</span><span class="to">→</span><span class="v">Click-to-WhatsApp</span></div>
+      </div>
+    </div>
+
+    <div class="samp-note">Use um contato real ou <b>fictício</b>. Nada é gravado, nenhuma mensagem sai — é só um ensaio do caminho que o fluxo tomaria.</div>
+  </aside>
+
+  <!-- CANVAS EM MODO SIMULAÇÃO -->
+  <main class="canvas">
+    <div class="cscroll">
+      <div class="flow">
+        <div class="spine">
+          <button class="node fam-trigger done" data-node="trigger">
+            <span class="ni"><svg class="svic"><use href="#ic-message-circle"></use></svg></span><span class="nm"><span class="nt">Conversa criada</span><span class="ns">Origem: anúncio Click-to-WhatsApp</span></span><span class="nf">Gatilho</span>
+            <span class="stflag">✓</span>
+          </button>
+          <div class="link"></div>
+          <button class="node fam-ai done" data-node="ai">
+            <span class="ni"><svg class="svic"><use href="#ic-target"></use></svg></span><span class="nm"><span class="nt">Captain · classificar intenção</span><span class="ns">Detectou: Comprar (94%)</span></span><span class="nf">IA</span>
+            <span class="stflag">✓</span>
+          </button>
+          <div class="link"></div>
+          <button class="node fam-logic active selected" data-node="router">
+            <span class="ni"><svg class="svic"><use href="#ic-git-branch"></use></svg></span><span class="nm"><span class="nt">Roteador</span><span class="ns">avaliando: intenção detectada…</span></span><span class="nf">Lógica</span>
+          </button>
+        </div>
+
+        <div class="link" style="margin:0 auto"></div>
+
+        <div class="tree">
+          <div class="branch chosen">
+            <span class="bpill yes"><svg class="svic"><use href="#ic-shopping-cart"></use></svg> Comprar <em class="bm hit">rota #1</em></span>
+            <span class="arrow"></span>
+            <button class="node sm fam-msg pending" data-node="tpl"><span class="ni"><svg class="svic"><use href="#ic-send"></use></svg></span><span class="nm"><span class="nt">Enviar template</span><span class="ns">boas_vindas_catalogo</span></span><span class="stflag">•</span></button>
+            <span class="arrow"></span>
+            <button class="node sm fam-action pending" data-node="assign"><span class="ni"><svg class="svic"><use href="#ic-user"></use></svg></span><span class="nm"><span class="nt">Atribuir</span><span class="ns">Time: Vendas</span></span><span class="stflag">•</span></button>
+          </div>
+          <div class="branch skipped">
+            <span class="bpill"><svg class="svic"><use href="#ic-life-buoy"></use></svg> Suporte <em class="bm">não</em></span>
+            <span class="arrow"></span>
+            <button class="node sm fam-action pending" data-node="assign2"><span class="ni"><svg class="svic"><use href="#ic-user"></use></svg></span><span class="nm"><span class="nt">Atribuir</span><span class="ns">Time: Suporte</span></span></button>
+            <span class="arrow"></span>
+            <button class="node sm fam-data pending" data-node="attr"><span class="ni"><svg class="svic"><use href="#ic-puzzle"></use></svg></span><span class="nm"><span class="nt">Definir atributo</span><span class="ns">tipo = suporte</span></span></button>
+          </div>
+          <div class="branch skipped">
+            <span class="bpill wait"><svg class="svic"><use href="#ic-clock"></use></svg> Sem resposta <em class="bm">não</em></span>
+            <span class="arrow"></span>
+            <button class="node sm fam-logic pending" data-node="wait"><span class="ni"><svg class="svic"><use href="#ic-timer"></use></svg></span><span class="nm"><span class="nt">Esperar</span><span class="ns">2 horas</span></span></button>
+            <span class="arrow"></span>
+            <button class="node sm fam-msg pending" data-node="reeng"><span class="ni"><svg class="svic"><use href="#ic-send"></use></svg></span><span class="nm"><span class="nt">Template</span><span class="ns">reengajamento_24h</span></span></button>
+          </div>
+        </div>
+
+        <div class="legend">
+          <span><i style="background:var(--ok)"></i> Executado</span>
+          <span><i style="background:var(--accent)"></i> Passo atual</span>
+          <span><i style="background:var(--border-2)"></i> Pendente</span>
+          <span><i style="background:var(--ai)"></i> IA (simulada)</span>
+          <span><i style="background:var(--warn)"></i> Espera (pulada)</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- zoom controls -->
+    <div class="zoom">
+      <button aria-label="Menos">−</button>
+      <span class="z-val">100%</span>
+      <button aria-label="Mais">+</button>
+      <button aria-label="Ajustar"><svg class="svic"><use href="#ic-maximize"></use></svg></button>
+    </div>
+    <!-- minimap -->
+    <div class="minimap">
+      <span class="mm-lbl">Minimapa</span>
+      <span class="mm-node" style="left:64px; top:26px; width:48px; background:var(--ok)"></span>
+      <span class="mm-node" style="left:64px; top:44px; width:48px; background:var(--ok)"></span>
+      <span class="mm-node" style="left:64px; top:62px; width:48px; background:var(--accent)"></span>
+      <span class="mm-node" style="left:36px; top:82px; width:34px; background:var(--msg); opacity:.5"></span>
+      <span class="mm-node" style="left:78px; top:82px; width:34px; background:var(--action); opacity:.5"></span>
+      <span class="mm-node" style="left:120px; top:82px; width:34px; background:var(--msg); opacity:.5"></span>
+      <span class="mm-vp" style="left:22px; top:18px; width:130px; height:78px"></span>
+    </div>
+  </main>
+
+  <!-- PAINEL DIREITO → CONSOLE DE SIMULAÇÃO -->
+  <aside class="props" id="props">
+    <div class="chead-panel">
+      <span class="ni"><svg class="svic"><use href="#ic-play"></use></svg></span>
+      <div><div class="pt">Console de simulação</div><div class="pfam">Maria Silva · entrada → saída por bloco</div></div>
+    </div>
+
+    <div class="console">
+      <div class="cslug">Trilha de execução <span class="cn">passo 2 / 4</span></div>
+
+      <!-- PASSO 1: Gatilho (executado) -->
+      <div class="cstep fam-trigger">
+        <span class="cdot">✓</span>
+        <div class="chead"><span class="cttl">Conversa criada</span><span class="cfam">Gatilho</span><span class="cdur">0 ms</span></div>
+        <div class="cbox">
+          <div class="io">
+            <div class="r in"><span class="lbl">Entra</span><span class="val">evento <span class="var">conversation.created</span></span></div>
+            <div class="r out"><span class="lbl">Sai</span><span class="val">contato = <span class="res">Maria Silva</span> · origem = <span class="res">anúncio</span></span></div>
+          </div>
+          <span class="cresult ok">✓ Condições do gatilho batem — fluxo iniciado</span>
+        </div>
+      </div>
+
+      <!-- PASSO 2: IA (executado, dry-run) -->
+      <div class="cstep fam-ai">
+        <span class="cdot">✓</span>
+        <div class="chead"><span class="cttl">Captain · classificar intenção</span><span class="cfam">IA</span><span class="cdur">~1,2 s</span></div>
+        <div class="cbox">
+          <div class="io">
+            <div class="r in"><span class="lbl">Entra</span><span class="val">mensagem: “Oi! Vi o anúncio, <span class="var">quero comprar</span> o kit”</span></div>
+            <div class="r out"><span class="lbl">Sai</span><span class="val">intenção = <span class="res">Comprar</span> <span class="arr">·</span> confiança <span class="res">94%</span></span></div>
+          </div>
+          <div class="cvars">
+            <div class="cvar"><span class="vk">{{ai.intent}}</span><span class="arr">→</span><span class="va">"Comprar"</span></div>
+            <div class="cvar"><span class="vk">{{ai.score}}</span><span class="arr">→</span><span class="va">0.94</span></div>
+          </div>
+          <span class="cresult dry"><svg class="svic"><use href="#ic-sparkles"></use></svg> IA simulada — nenhum token real consumido</span>
+        </div>
+      </div>
+
+      <!-- PASSO 3: Roteador (atual) -->
+      <div class="cstep fam-logic now">
+        <span class="cdot">3</span>
+        <div class="chead"><span class="cttl">Roteador</span><span class="cfam">Lógica</span><span class="cdur">agora</span></div>
+        <div class="cbox">
+          <div class="io">
+            <div class="r in"><span class="lbl">Avalia</span><span class="val"><span class="var">{{ai.intent}}</span> = <span class="res">"Comprar"</span></span></div>
+            <div class="r out"><span class="lbl">Rota</span><span class="val">1ª que casou → <span class="res"><svg class="svic"><use href="#ic-shopping-cart"></use></svg> Comprar</span> (rota #1 de 3)</span></div>
+          </div>
+          <span class="cresult route">→ Segue pela rota “Comprar” · demais ignoradas</span>
+        </div>
+      </div>
+
+      <!-- PASSO 4: próximo (nó de espera na outra rota — mostra o "pularia") -->
+      <div class="cstep fam-logic next">
+        <span class="cdot">4</span>
+        <div class="chead"><span class="cttl">Enviar template</span><span class="cfam">Mensagem</span><span class="cdur">a seguir</span></div>
+        <div class="cbox">
+          <div class="io">
+            <div class="r in"><span class="lbl">Prévia</span><span class="val">template <span class="var">boas_vindas_catalogo</span> · <span class="res">Aprovado</span></span></div>
+            <div class="r in"><span class="lbl">Var.</span><span class="val"><span class="var">{{contact.name}}</span> <span class="arr">→</span> <span class="res">Maria Silva</span></span></div>
+          </div>
+          <span class="cnext">Se houvesse um bloco <b>Esperar 2h</b> no caminho, aqui apareceria: <b>“pularia 2h (simulado)”</b> — a simulação não espera de verdade.</span>
+          <span class="cresult wait"><svg class="svic"><use href="#ic-timer"></use></svg> Esperas são puladas na simulação</span>
+        </div>
+      </div>
+    </div>
+
+    <div class="cfoot">
+      <span class="prog">2 / 4 blocos</span>
+      <button class="btn step" style="flex:1"><svg class="svic"><use href="#ic-play"></use></svg> Executar passo</button>
+    </div>
+  </aside>
+</div>
+
+<div class="hint"><b>Ensaio a seco</b> — clique <b>Executar passo</b> pra avançar bloco a bloco · nada é enviado ao cliente</div>
+
+<script>
+  (function(){
+    // seleção de conversa-amostra (visual)
+    var samps=[].slice.call(document.querySelectorAll('.samp'));
+    samps.forEach(function(s){s.addEventListener('click',function(){
+      samps.forEach(function(x){x.classList.remove('on');}); s.classList.add('on');
+    });});
+    // "Executar passo" — só feedback visual (mockup): move o anel para o próximo nó da rota escolhida
+    var order=['trigger','ai','router','tpl','assign'];
+    var idx=2; // roteador é o atual
+    function pulse(btn){
+      order.forEach(function(id){var n=document.querySelector('.node[data-node="'+id+'"]'); if(n){n.classList.remove('active');}});
+      var cur=document.querySelector('.node[data-node="'+order[idx]+'"]');
+      if(cur){cur.classList.remove('pending'); cur.classList.add('active','selected');}
+    }
+    [].slice.call(document.querySelectorAll('.btn.step')).forEach(function(b){
+      b.addEventListener('click',function(){
+        // marca o atual como done
+        var cur=document.querySelector('.node[data-node="'+order[idx]+'"]');
+        if(cur){cur.classList.remove('active','selected'); cur.classList.add('done');
+          var f=cur.querySelector('.stflag'); if(f){f.textContent='✓';}}
+        if(idx<order.length-1){idx++; pulse();}
+      });
+    });
+  })();
+</script>
+
+</body>
+</html>

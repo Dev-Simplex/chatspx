@@ -1,0 +1,161 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Automações · Proposta — ChatSPX</title>
+<style>
+  :root{
+    --sans:ui-sans-serif,system-ui,-apple-system,"Segoe UI",Roboto,"Helvetica Neue",Arial,sans-serif;
+    --mono:ui-monospace,"SF Mono","JetBrains Mono",Menlo,Consolas,monospace;
+    --bg:#e9ecf7; --surface:#fff; --surface-2:#f6f7fc; --glass:rgba(255,255,255,.72);
+    --border:#e2e5f1; --border-2:#ccd1e6; --ink:#1a1d2e; --ink-2:#585d78; --ink-3:#8b90ab;
+    --accent:#6366f1; --accent-2:#4f46e5; --accent-soft:rgba(99,102,241,.12);
+    --trigger:#0e9f6e; --msg:#0f8a6f; --logic:#c77a06; --ai:#6f63e6; --action:#5b6478; --data:#2563c9;
+    --ok:#15803d; --warn:#c2410c;
+    --shadow:0 1px 2px rgba(20,22,44,.06),0 10px 30px -14px rgba(20,22,44,.2);
+  }
+  @media (prefers-color-scheme:dark){:root{
+    --bg:#080a12; --surface:#12141f; --surface-2:#171a28; --glass:rgba(20,23,37,.62);
+    --border:#252a3d; --border-2:#343a52; --ink:#eaecf6; --ink-2:#a7acc7; --ink-3:#6d7291;
+    --accent:#8286ff; --accent-2:#9a9dff; --accent-soft:rgba(130,134,255,.14);
+    --trigger:#34d399; --msg:#25d366; --logic:#fbbf24; --ai:#a99bff; --action:#8b93aa; --data:#5b9bff;
+    --ok:#4ade80; --warn:#fb923c; --shadow:0 1px 2px rgba(0,0,0,.4),0 14px 34px -16px rgba(0,0,0,.7);
+  }}
+  :root[data-theme="light"]{--bg:#e9ecf7;--surface:#fff;--surface-2:#f6f7fc;--glass:rgba(255,255,255,.72);--border:#e2e5f1;--border-2:#ccd1e6;--ink:#1a1d2e;--ink-2:#585d78;--ink-3:#8b90ab;--accent:#6366f1;--accent-2:#4f46e5;--accent-soft:rgba(99,102,241,.12);--trigger:#0e9f6e;--msg:#0f8a6f;--logic:#c77a06;--ai:#6f63e6;--action:#5b6478;--data:#2563c9;--ok:#15803d;--warn:#c2410c;--shadow:0 1px 2px rgba(20,22,44,.06),0 10px 30px -14px rgba(20,22,44,.2);}
+  :root[data-theme="dark"]{--bg:#080a12;--surface:#12141f;--surface-2:#171a28;--glass:rgba(20,23,37,.62);--border:#252a3d;--border-2:#343a52;--ink:#eaecf6;--ink-2:#a7acc7;--ink-3:#6d7291;--accent:#8286ff;--accent-2:#9a9dff;--accent-soft:rgba(130,134,255,.14);--trigger:#34d399;--msg:#25d366;--logic:#fbbf24;--ai:#a99bff;--action:#8b93aa;--data:#5b9bff;--ok:#4ade80;--warn:#fb923c;--shadow:0 1px 2px rgba(0,0,0,.4),0 14px 34px -16px rgba(0,0,0,.7);}
+  *{box-sizing:border-box} html,body{margin:0}
+  body{font-family:var(--sans); color:var(--ink); background:var(--bg); -webkit-font-smoothing:antialiased; line-height:1.5; font-size:15px}
+  .aurora{position:fixed; inset:0; z-index:0; overflow:hidden; pointer-events:none}
+  .aurora b{position:absolute; border-radius:50%; filter:blur(90px)}
+  .aurora .a1{width:560px;height:560px;left:-140px;top:-200px;background:radial-gradient(circle,var(--accent),transparent 62%);opacity:.3;animation:d1 24s ease-in-out infinite}
+  .aurora .a2{width:500px;height:500px;right:-160px;top:20%;background:radial-gradient(circle,var(--msg),transparent 60%);opacity:.18;animation:d2 28s ease-in-out infinite}
+  .aurora .a3{width:460px;height:460px;left:36%;bottom:-220px;background:radial-gradient(circle,var(--ai),transparent 60%);opacity:.2;animation:d1 32s ease-in-out infinite reverse}
+  @keyframes d1{0%,100%{transform:translate(0,0)}50%{transform:translate(44px,32px)}}
+  @keyframes d2{0%,100%{transform:translate(0,0)}50%{transform:translate(-40px,26px)}}
+  @media (prefers-reduced-motion:reduce){.aurora b{animation:none}}
+  .wrap{position:relative; z-index:1; max-width:1080px; margin:0 auto; padding:0 24px}
+  nav{display:flex; align-items:center; gap:12px; padding:20px 0}
+  .spark{width:30px;height:30px;border-radius:9px;display:grid;place-items:center;background:linear-gradient(135deg,var(--accent),var(--ai));color:#fff;font-size:16px;box-shadow:0 5px 14px -4px var(--accent)}
+  nav b{font-weight:700; letter-spacing:-.01em} nav .sep{color:var(--ink-3)}
+  nav .sp{flex:1}
+  .lnk{color:var(--ink-2); text-decoration:none; font-size:13.5px; font-weight:600; padding:7px 11px; border-radius:8px}
+  .lnk:hover{background:var(--surface-2); color:var(--ink)}
+  .btn{display:inline-flex; align-items:center; gap:7px; text-decoration:none; font-size:14px; font-weight:650; border-radius:10px; padding:10px 16px; border:1px solid var(--border-2); background:var(--surface); color:var(--ink)}
+  .btn:hover{background:var(--surface-2)}
+  .btn.primary{background:linear-gradient(135deg,var(--accent),var(--accent-2)); border-color:transparent; color:#fff; box-shadow:0 8px 20px -8px var(--accent)}
+
+  header.hero{padding:38px 0 26px}
+  .eyebrow{display:inline-flex; align-items:center; gap:8px; font-size:11.5px; font-weight:700; letter-spacing:.11em; text-transform:uppercase; color:var(--accent-2); background:var(--accent-soft); border-radius:999px; padding:6px 13px}
+  h1{font-size:clamp(30px,4.6vw,50px); line-height:1.05; letter-spacing:-.03em; margin:18px 0 0; text-wrap:balance; font-weight:800}
+  h1 em{font-style:normal; background:linear-gradient(120deg,var(--accent),var(--ai) 60%,var(--msg)); -webkit-background-clip:text; background-clip:text; color:transparent}
+  .lead{font-size:18px; color:var(--ink-2); max-width:62ch; margin:18px 0 26px}
+  .cta{display:flex; gap:12px; flex-wrap:wrap}
+  .stats{display:flex; gap:10px; flex-wrap:wrap; margin-top:30px}
+  .stat{background:var(--glass); border:1px solid var(--border); border-radius:12px; padding:12px 16px; backdrop-filter:blur(10px); -webkit-backdrop-filter:blur(10px)}
+  .stat b{display:block; font-size:21px; font-weight:800; letter-spacing:-.02em; font-variant-numeric:tabular-nums}
+  .stat span{font-size:11.5px; color:var(--ink-3); font-weight:600; text-transform:uppercase; letter-spacing:.05em}
+
+  section{padding:34px 0}
+  .kicker{font-size:12px; font-weight:700; letter-spacing:.09em; text-transform:uppercase; color:var(--ink-3); margin-bottom:16px}
+  .grid{display:grid; grid-template-columns:repeat(auto-fill,minmax(300px,1fr)); gap:14px}
+  .card{display:flex; flex-direction:column; text-decoration:none; color:inherit; background:var(--glass); border:1px solid var(--border); border-radius:15px; padding:16px; backdrop-filter:blur(10px); -webkit-backdrop-filter:blur(10px); box-shadow:var(--shadow); transition:transform .15s, border-color .15s}
+  .card:hover{transform:translateY(-2px); border-color:var(--border-2)}
+  .card .code{font-family:var(--mono); font-size:11px; font-weight:700; color:var(--accent-2); background:var(--accent-soft); border-radius:6px; padding:2px 7px; align-self:flex-start}
+  .card h3{margin:11px 0 5px; font-size:16.5px; letter-spacing:-.01em; display:flex; align-items:center; gap:8px}
+  .card .fam{width:9px;height:9px;border-radius:3px;flex:none}
+  .card p{margin:0; font-size:13.5px; color:var(--ink-2); flex:1}
+  .card .go{margin-top:12px; font-size:13px; font-weight:650; color:var(--accent-2)}
+
+  .road{display:grid; grid-template-columns:repeat(3,1fr); gap:14px}
+  .phase{background:var(--surface); border:1px solid var(--border); border-radius:15px; padding:18px; box-shadow:var(--shadow)}
+  .phase .ph{display:flex; align-items:center; gap:9px; font-weight:800; letter-spacing:-.01em; font-size:16px}
+  .phase .tag{font-family:var(--mono); font-size:11px; font-weight:700; padding:2px 8px; border-radius:6px}
+  .phase.f1 .tag{color:var(--ok);background:color-mix(in srgb,var(--ok) 12%,transparent)}
+  .phase.f2 .tag{color:var(--accent-2);background:var(--accent-soft)}
+  .phase.f3 .tag{color:var(--ai);background:color-mix(in srgb,var(--ai) 14%,transparent)}
+  .phase ul{margin:12px 0 0; padding-left:18px; color:var(--ink-2); font-size:13.5px} .phase li{margin:5px 0}
+  .note{display:flex; gap:12px; background:var(--glass); border:1px solid var(--border); border-radius:14px; padding:16px 18px; backdrop-filter:blur(10px); -webkit-backdrop-filter:blur(10px)}
+  .note .mk{font-size:22px; flex:none}
+  .note p{margin:0; font-size:14px; color:var(--ink-2)} .note b{color:var(--ink)}
+  footer{padding:26px 0 60px; color:var(--ink-3); font-size:13px; border-top:1px solid var(--border); margin-top:20px}
+  footer code{font-family:var(--mono); background:var(--surface-2); padding:2px 7px; border-radius:6px; color:var(--ink-2)}
+  @media (max-width:720px){ .road{grid-template-columns:1fr} }
+  .svic{width:1.05em;height:1.05em;stroke:currentColor;fill:none;flex:none;vertical-align:middle}
+  *{scrollbar-width:thin;scrollbar-color:var(--border-2) transparent}
+  ::-webkit-scrollbar{width:10px;height:10px}
+  ::-webkit-scrollbar-track{background:transparent}
+  ::-webkit-scrollbar-thumb{background:var(--border-2);border-radius:999px;border:2px solid transparent;background-clip:padding-box}
+  ::-webkit-scrollbar-thumb:hover{background:var(--ink-3);background-clip:padding-box}
+  ::-webkit-scrollbar-corner{background:transparent}
+</style>
+</head>
+<body>
+<svg id="spx-icons" aria-hidden="true" style="position:absolute;width:0;height:0;overflow:hidden">
+  <symbol id="ic-zap" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 14a1 1 0 0 1-.78-1.63l9.9-10.2a.5.5 0 0 1 .86.46l-1.92 6.02A1 1 0 0 0 13 10h7a1 1 0 0 1 .78 1.63l-9.9 10.2a.5.5 0 0 1-.86-.46l1.92-6.02A1 1 0 0 0 11 14z" /></symbol>
+  <symbol id="ic-puzzle" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15.39 4.39a1 1 0 0 0 1.68-.474 2.5 2.5 0 1 1 3.014 3.015 1 1 0 0 0-.474 1.68l1.683 1.682a2.414 2.414 0 0 1 0 3.414L19.61 15.39a1 1 0 0 1-1.68-.474 2.5 2.5 0 1 0-3.014 3.015 1 1 0 0 1 .474 1.68l-1.683 1.682a2.414 2.414 0 0 1-3.414 0L8.61 19.61a1 1 0 0 0-1.68.474 2.5 2.5 0 1 1-3.014-3.015 1 1 0 0 0 .474-1.68l-1.683-1.682a2.414 2.414 0 0 1 0-3.414L4.39 8.61a1 1 0 0 1 1.68.474 2.5 2.5 0 1 0 3.014-3.015 1 1 0 0 1-.474-1.68l1.683-1.682a2.414 2.414 0 0 1 3.414 0z" /></symbol>
+</svg>
+<div class="aurora"><b class="a1"></b><b class="a2"></b><b class="a3"></b></div>
+
+<div class="wrap">
+  <nav>
+    <span class="spark"><svg class="svic"><use href="#ic-zap"></use></svg></span> <b>ChatSPX</b> <span class="sep">·</span> <span style="color:var(--ink-2)">Automações</span>
+    <span class="sp"></span>
+    <a class="lnk" href="canvas.html">Canvas</a>
+    <a class="lnk" href="#telas">Telas</a>
+    <a class="lnk" href="#roadmap">Roadmap</a>
+  </nav>
+
+  <header class="hero">
+    <span class="eyebrow">◆ Proposta de produto · pesquisada e prototipada</span>
+    <h1>Uma plataforma de automação, <em>do gatilho à IA</em>.</h1>
+    <p class="lead">Unifica <b>automações e macros</b> num só lugar — um canvas visual onde cada bloco (gatilho, condição, espera, mensagem, IA do Captain, ação) roda sobre o motor de ações que o ChatSPX já tem. Nascida pro WhatsApp: template oficial, janela de 24h e conformidade no centro.</p>
+    <div class="cta">
+      <a class="btn primary" href="canvas.html"><svg class="svic"><use href="#ic-zap"></use></svg> Abrir o canvas →</a>
+      <a class="btn" href="#telas">Ver as 7 telas</a>
+    </div>
+    <div class="stats">
+      <div class="stat"><b>39</b><span>blocos</span></div>
+      <div class="stat"><b>6</b><span>famílias</span></div>
+      <div class="stat"><b>1</b><span>motor (ActionService)</span></div>
+      <div class="stat"><b>3</b><span>fases</span></div>
+      <div class="stat"><b>Vue Flow</b><span>canvas · MIT</span></div>
+    </div>
+  </header>
+
+  <section id="telas">
+    <div class="kicker">As telas · alta fidelidade, light &amp; dark</div>
+    <div class="grid">
+      <a class="card" href="canvas.html"><span class="code">A2 · Canvas</span><h3><span class="fam" style="background:var(--logic)"></span>Editor de canvas</h3><p>O coração: arrasta blocos, ramifica com roteador, espera, zoom &amp; minimapa. O nó de template com prévia e variáveis.</p><span class="go">Abrir →</span></a>
+      <a class="card" href="index.html"><span class="code">A1 · Lista</span><h3><span class="fam" style="background:var(--trigger)"></span>Lista de automações</h3><p>Todos os fluxos (automação + macro unificados): tipo, status, métricas de 7 dias e liga/desliga.</p><span class="go">Abrir →</span></a>
+      <a class="card" href="modelos.html"><span class="code">A3 · Modelos</span><h3><span class="fam" style="background:var(--msg)"></span>Galeria de modelos</h3><p>Receitas prontas pro Brasil: reengajamento, boas-vindas, triagem por IA, CSAT, drip com opt-out.</p><span class="go">Abrir →</span></a>
+      <a class="card" href="paineis.html"><span class="code">B1–B9 · Blocos</span><h3><span class="fam" style="background:var(--ai)"></span>Config de cada bloco</h3><p>Os 9 painéis de nó: template, IA·Captain, roteador, espera, definir atributo, CSAT, drip, Kanban, chamar macro.</p><span class="go">Abrir →</span></a>
+      <a class="card" href="logs.html"><span class="code">C2 · Logs</span><h3><span class="fam" style="background:var(--action)"></span>Execuções &amp; logs</h3><p>Por que disparou (ou não): trilha por conversa, status, e a falha explicada — template não aprovado, fora da janela 24h.</p><span class="go">Abrir →</span></a>
+      <a class="card" href="simulacao.html"><span class="code">C3 · Simulação</span><h3><span class="fam" style="background:var(--data)"></span>Simulação (dry-run)</h3><p>Testa passo a passo com um contato-amostra: nada é enviado, a IA é simulada, você vê as variáveis resolvidas.</p><span class="go">Abrir →</span></a>
+      <a class="card" href="vazios.html"><span class="code">E1–E5 · Vazios</span><h3><span class="fam" style="background:var(--accent)"></span>Estados vazios</h3><p>Onboarding e telas em branco com carinho: primeira automação, sem execuções, canvas vazio, guard de WhatsApp.</p><span class="go">Abrir →</span></a>
+    </div>
+  </section>
+
+  <section id="roadmap">
+    <div class="kicker">Roadmap · entrega em ondas (backlog completo no plano)</div>
+    <div class="road">
+      <div class="phase f1"><div class="ph"><span class="tag">FASE 1</span> Fusão + base</div>
+        <ul><li>Modelo <b>Flow</b> + migração macro/automação</li><li><b>Runner</b> reusa o ActionService inteiro</li><li><b>send_template</b> + roteador + espera</li><li>Definir atributo · canvas (Vue Flow)</li></ul></div>
+      <div class="phase f2"><div class="ph"><span class="tag">FASE 2</span> Gatilhos + estado</div>
+        <ul><li>Agendado · palavra-chave · webhook</li><li>Scheduler → <b>drip/sequências</b></li><li><b>Janela de 24h</b> automática</li><li>Logs &amp; métricas por ramo</li></ul></div>
+      <div class="phase f3"><div class="ph"><span class="tag">FASE 3</span> IA + avançado</div>
+        <ul><li>Nó de <b>IA (Captain)</b> no fluxo</li><li><b>Simulação</b> passo a passo</li><li>WhatsApp Flows nativos · Kanban</li><li>Analytics no canvas</li></ul></div>
+    </div>
+  </section>
+
+  <section>
+    <div class="kicker">O que veio dos experimentos do Google (estudados de verdade)</div>
+    <div class="note"><span class="mk"><svg class="svic"><use href="#ic-puzzle"></use></svg></span><p><b>ProductCanvas (Roman Nurik)</b> → a <b>camada de comandos nomeados</b> (<code style="font-family:var(--mono)">CommandProvider</code>/<code style="font-family:var(--mono)">CommandPalette</code>): toda mudança no canvas é um comando validado — então <b>o usuário e a IA do Captain dirigem o mesmo trilho</b>, e a IA nunca gera uma ação fora da whitelist. <br><b>MoMoA (Reto Meier)</b> → o método de <b>salas adversariais</b> (revisão em tensão) que usei no próprio planejamento.</p></div>
+  </section>
+
+  <footer>
+    Plano de implementação completo (arquitetura, 39 nós, backlog F1–F3, riscos) em <code>plano/automacoes-plano-mestre.md</code> · Pesquisa de mercado em <code>plano/automacao-macros-pesquisa.md</code> · Mockups em <code>public/mockups/automacoes/</code> · ChatSPX
+  </footer>
+</div>
+</body>
+</html>
