@@ -19,12 +19,14 @@ class Captain::InboxPendingConversationsResolutionJob < ApplicationJob # rubocop
   private
 
   def evaluate_conversation_completion?(account)
-    # auto_closure precisa da avaliação LLM (classificador) -> liga o caminho avaliado mesmo
-    # numa conta em modo 'legacy' que só optou por auto_closure. 'disabled' segue barrando
-    # tudo (já checado em #perform), então continua sendo o opt-out forte.
-    return true if auto_closure_enabled?(account)
+    # O classificador roda via make_api_call, que EXIGE captain_tasks (senão devolve
+    # 'captain.disabled' e a classe volta nil -> enfileiraria às cegas). Sem captain_tasks
+    # não há classificação, então nem liga o caminho avaliado.
+    return false unless account.feature_enabled?('captain_tasks')
 
-    account.feature_enabled?('captain_tasks') && account.captain_auto_resolve_evaluated?
+    # Com captain_tasks: caminho avaliado no modo 'evaluated' OU quando a conta optou por
+    # auto_closure (mesmo em 'legacy'). 'disabled' segue barrando tudo (checado em #perform).
+    account.captain_auto_resolve_evaluated? || auto_closure_enabled?(account)
   end
 
   def perform_time_based(inbox)
