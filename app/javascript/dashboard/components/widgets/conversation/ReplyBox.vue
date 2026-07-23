@@ -946,6 +946,7 @@ export default {
       this.onNewConversationModalActive
     );
     emitter.on(BUS_EVENTS.INSERT_INTO_NORMAL_EDITOR, this.addIntoEditor);
+    emitter.on(BUS_EVENTS.START_EVAL_NOTE, this.onStartEvalNote);
     emitter.on(
       BUS_EVENTS.OPEN_WHATSAPP_TEMPLATE_MODAL,
       this.openWhatsappTemplateModal
@@ -960,6 +961,7 @@ export default {
     document.removeEventListener('keydown', this.handleKeyEvents);
     emitter.off(BUS_EVENTS.TOGGLE_REPLY_TO_MESSAGE, this.onReplyToMessage);
     emitter.off(BUS_EVENTS.INSERT_INTO_NORMAL_EDITOR, this.addIntoEditor);
+    emitter.off(BUS_EVENTS.START_EVAL_NOTE, this.onStartEvalNote);
     emitter.off(
       BUS_EVENTS.OPEN_WHATSAPP_TEMPLATE_MODAL,
       this.openWhatsappTemplateModal
@@ -1353,6 +1355,12 @@ export default {
     },
     onExpiredSwitchToNote() {
       this.setReplyMode(REPLY_EDITOR_MODES.NOTE);
+    },
+    // F4.2 (Eval humano): menu de contexto da mensagem -> nota privada pré-preenchida
+    // com a anotação #eval ancorada no trecho da mensagem escolhida.
+    onStartEvalNote(content) {
+      this.setReplyMode(REPLY_EDITOR_MODES.NOTE);
+      this.$nextTick(() => this.addIntoEditor(content));
     },
     openContentTemplateModal() {
       this.showContentTemplatesModal = true;
