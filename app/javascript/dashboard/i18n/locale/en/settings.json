@@ -28,6 +28,7 @@
     "SECTION_FRONTEIRAS": "What closes an episode",
     "SECTION_FALHAS": "Where the failures are",
     "FALHAS_HINT": "AI: {ia} · Humans: {humano} · automatic gate flags: {gate}",
+    "IA": "AI",
     "HUMANO": "Human",
     "SECTION_RECENTES": "Latest judgements",
     "COL_CONVERSA": "Conversation",
