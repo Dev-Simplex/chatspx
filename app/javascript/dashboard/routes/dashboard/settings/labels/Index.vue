@@ -180,24 +180,40 @@ onBeforeMount(() => {
           <BaseTableRow v-for="label in items" :key="label.title" :item="label">
             <template #default>
               <BaseTableCell>
-                <span class="text-body-main text-n-slate-12">
-                  {{ label.title }}
-                </span>
-              </BaseTableCell>
-
-              <BaseTableCell>
-                <span class="text-body-main text-n-slate-11">
-                  {{ label.description }}
-                </span>
-              </BaseTableCell>
-
-              <BaseTableCell>
-                <div class="flex items-center">
+                <span
+                  class="inline-flex items-center h-7 gap-2 px-2.5 font-medium rounded-lg max-w-full text-body-main text-n-slate-12"
+                  :style="{
+                    backgroundColor: `${label.color}1a`,
+                    boxShadow: `inset 0 0 0 1px ${label.color}33`,
+                  }"
+                >
                   <span
-                    class="w-4 h-4 ltr:mr-2 rtl:ml-2 border border-solid rounded border-n-weak"
+                    class="rounded-full size-2 flex-shrink-0"
                     :style="{ backgroundColor: label.color }"
                   />
-                  <span class="text-body-main text-n-slate-12">
+                  <span class="truncate min-w-0">{{ label.title }}</span>
+                </span>
+              </BaseTableCell>
+
+              <BaseTableCell>
+                <span
+                  v-if="label.description"
+                  class="text-body-main text-n-slate-11"
+                >
+                  {{ label.description }}
+                </span>
+                <span v-else class="text-n-slate-9" aria-hidden="true">—</span>
+              </BaseTableCell>
+
+              <BaseTableCell>
+                <div class="flex items-center gap-2">
+                  <span
+                    class="rounded-md size-5 flex-shrink-0 ring-1 ring-inset ring-black/10 dark:ring-white/20"
+                    :style="{ backgroundColor: label.color }"
+                  />
+                  <span
+                    class="font-mono text-xs tracking-wide uppercase text-n-slate-10"
+                  >
                     {{ label.color }}
                   </span>
                 </div>
