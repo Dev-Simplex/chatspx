@@ -60,7 +60,7 @@ class Captain::Tools::BuscarImovelTool < Captain::Tools::BasePublicTool
     geo = lat.present? && lng.present?
     # O Vista compara Latitude/Longitude como STRING (lexicográfico) — com coordenadas
     # negativas o range nunca casa. Proximidade é calculada AQUI (Haversine), não lá.
-    imoveis = fetch_vista(filter, quantidade: geo ? 50 : 5)
+    imoveis = fetch_vista(filter, quantidade: geo ? 50 : 5, venda: venda)
     Rails.logger.info("[BuscarImovel] status=#{status_tipo} categoria=#{categoria.inspect} bairro=#{bairro.inspect} " \
                       "endereco=#{endereco.inspect} valor_max=#{valor_max.inspect} dorm=#{dormitorios.inspect} " \
                       "geo=#{geo} => #{imoveis.size} imoveis #{imoveis.first(5).map { |i| i['Codigo'] }.inspect}")
@@ -83,12 +83,16 @@ class Captain::Tools::BuscarImovelTool < Captain::Tools::BasePublicTool
 
   private
 
-  def fetch_vista(filter, quantidade: 5)
+  def fetch_vista(filter, quantidade: 5, venda: false)
     base = vista_base_url
+    # Ordena por PREÇO crescente (o mais em conta dentro do filtro primeiro), não por
+    # Codigo desc (arbitrário, que escondia opções boas de código baixo — ex.: casa cód
+    # 5474 barata no bairro pedido ficava fora do top 5). O Vista ordena ValorLocacao/
+    # ValorVenda numericamente (testado). Geo re-ordena por distância depois.
     pesquisa = {
       fields: VISTA_FIELDS,
       filter: filter,
-      order: { 'Codigo' => 'desc' },
+      order: { (venda ? 'ValorVenda' : 'ValorLocacao') => 'asc' },
       paginacao: { pagina: 1, quantidade: quantidade }
     }
     resp = HTTParty.get(
@@ -152,7 +156,7 @@ class Captain::Tools::BuscarImovelTool < Captain::Tools::BasePublicTool
   def ampliar_sem_bairro(tool_context, filter, venda, bairro, endereco)
     return if bairro.blank? && endereco.blank?
 
-    imoveis = fetch_vista(filter.except('Bairro', 'Endereco'), quantidade: 5)
+    imoveis = fetch_vista(filter.except('Bairro', 'Endereco'), quantidade: 5, venda: venda)
     return if imoveis.blank?
 
     track_codigos(tool_context, imoveis)
