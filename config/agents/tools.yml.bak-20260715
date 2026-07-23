@@ -1,0 +1,106 @@
+######  Captain Agent Tools Configuration #######
+# id: Tool identifier used to resolve the class (Captain::Tools::{PascalCase(id)}Tool)
+# title: Human-readable tool name for frontend display
+# description: Brief description of what the tool does
+# icon: Icon name for frontend display (frontend icon system)
+#######################################################
+
+- id: add_contact_note
+  title: 'Add Contact Note'
+  description: 'Add a note to a contact profile'
+  icon: 'note-add'
+
+- id: add_private_note
+  title: 'Add Private Note'
+  description: 'Add a private note to a conversation (internal only)'
+  icon: 'eye-off'
+
+- id: update_priority
+  title: 'Update Priority'
+  description: 'Update conversation priority level'
+  icon: 'exclamation-triangle'
+
+- id: add_label_to_conversation
+  title: 'Add Label to Conversation'
+  description: 'Add a label to a conversation'
+  icon: 'tag'
+
+- id: faq_lookup
+  title: 'FAQ Lookup'
+  description: 'Search FAQ responses using semantic similarity'
+  icon: 'search'
+
+- id: search_knowledge
+  title: 'Buscar na Base de Conhecimento'
+  description: 'Busca passagens em documentos (chunk-RAG) por busca híbrida semântica + termo exato'
+  icon: 'book'
+
+- id: resolve_conversation
+  title: 'Resolve Conversation'
+  description: 'Resolve a conversation when the issue has been addressed'
+  icon: 'checkmark'
+
+- id: handoff
+  title: 'Handoff to Human'
+  description: 'Hand off the conversation to a human agent'
+  icon: 'user-switch'
+
+- id: transferir_para_agente
+  title: 'Transferir para outro Agente IA'
+  description: 'Transfere a conversa para outro agente IA da conta (especialidade diferente)'
+  icon: 'arrow-swap'
+
+- id: buscar_imovel
+  title: 'Buscar Imóveis (Vista)'
+  description: 'Busca imóveis no acervo da Tozi (Vista) e retorna opções com o link correto do site'
+  icon: 'home'
+
+- id: enviar_fotos_imovel
+  title: 'Enviar Fotos do Imóvel'
+  description: 'Envia ao cliente as fotos de um imóvel em lotes de 3'
+  icon: 'image'
+
+- id: salvar_info_lead
+  title: 'Salvar Info do Lead'
+  description: 'Salva status do lead e descrição curta do cliente na conversa, e marca follow-up'
+  icon: 'person'
+
+- id: programar_followup
+  title: 'Programar Follow-up'
+  description: 'Programa uma cutucada futura pra retomar a conversa se o cliente não responder'
+  icon: 'clock'
+
+- id: enviar_localizacao
+  title: 'Enviar Localização do Escritório'
+  description: 'Envia ao cliente o pin de localização do escritório da Tozi no mapa'
+  icon: 'location'
+
+- id: enviar_localizacao_imovel
+  title: 'Enviar Localização do Imóvel'
+  description: 'Envia ao cliente o pin de localização de um imóvel no mapa (por código)'
+  icon: 'location'
+
+- id: buscar_lugar
+  title: 'Buscar lugares (Places)'
+  description: 'Lista lugares/comércios por nome em Sinop (nome + endereço + coords) para referência de proximidade'
+  icon: 'location'
+
+- id: buscar_localizacao
+  title: 'Buscar Localização (Geocoding)'
+  description: 'Geocodifica um endereço/bairro/ponto em Sinop-MT e retorna as coordenadas (lat/lng) e o endereço formatado'
+  icon: 'location'
+
+- id: atualizar_resumo
+  title: 'Atualizar Resumo do Atendimento'
+  description: 'Cria ou atualiza o resumo vivo do atendimento da IA na conversa (atributo Resumo Atendimento IA)'
+  icon: 'document'
+
+- id: registrar_observacao
+  title: 'Registrar Observação'
+  description: 'Registra uma observação como nota privada, pro humano notar ao ler o histórico'
+  icon: 'note'
+
+- id: registrar_assunto
+  title: 'Registrar Assunto'
+  description: 'Registra um assunto/tarefa identificado na conversa, que vira item de checklist pra equipe'
+  icon: 'task'
