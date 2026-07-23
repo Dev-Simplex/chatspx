@@ -27,6 +27,9 @@
         "PLACEHOLDER": "Label name",
         "REQUIRED_ERROR": "Label name is required",
         "MINIMUM_LENGTH_ERROR": "Minimum length 2 is required",
+        "NO_SPACES_ERROR": "Label name cannot contain spaces",
+        "NO_LEADING_SEPARATOR_ERROR": "Label name cannot start with a dot, hyphen or underscore",
+        "INVALID_CHARACTER_ERROR": "The character \"{char}\" is not allowed",
         "VALID_ERROR": "Only Alphabets, Numbers, Hyphen, Underscore and Dot are allowed",
         "EXISTS_ERROR": "A label with this name already exists in this account."
       },
