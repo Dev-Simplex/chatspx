@@ -14,7 +14,7 @@ import { useSidebarKeyboardShortcuts } from './useSidebarKeyboardShortcuts';
 import { vOnClickOutside } from '@vueuse/components';
 
 import { FEATURE_FLAGS } from 'dashboard/featureFlags';
-import { useWindowSize } from '@vueuse/core';
+import { useWindowSize, onKeyStroke } from '@vueuse/core';
 
 import SidebarGroup from './SidebarGroup.vue';
 import SidebarProfileMenu from './SidebarProfileMenu.vue';
@@ -233,12 +233,18 @@ const isEffectivelyCollapsed = computed(() => !isMobile.value);
 
 const isResizing = ref(false);
 
+// Modo "reordenar barra lateral": ligado pelo item do menu de perfil. Enquanto
+// ativo, os ícones do rail ficam arrastáveis (jiggle) e param de navegar. Vai
+// pelo contexto (como isCollapsed) porque o SidebarGroup lê estado por injeção.
+const reorderMode = ref(false);
+
 provideSidebarContext({
   expandedItem,
   setExpandedItem,
   isCollapsed: isEffectivelyCollapsed,
   sidebarWidth,
   isResizing,
+  reorderMode,
 });
 
 const inboxes = useMapGetter('inboxes/getInboxes');
@@ -947,6 +953,25 @@ const onSidebarReorder = () => {
   const newOrder = liveMenuItems.value.map(item => item.name);
   updateUISettings({ sidebar_order: newOrder });
 };
+
+const enterReorderMode = () => {
+  reorderMode.value = true;
+};
+
+const exitReorderMode = () => {
+  reorderMode.value = false;
+};
+
+// Restaura a ordem padrão: zera sidebar_order — orderedMenuItems cai de volta na
+// ordem natural de menuItems e liveMenuItems re-sincroniza pelo watch existente.
+const resetSidebarOrder = () => {
+  updateUISettings({ sidebar_order: [] });
+};
+
+// Esc sai do modo reordenar.
+onKeyStroke('Escape', () => {
+  if (reorderMode.value) exitReorderMode();
+});
 </script>
 
 <template>
@@ -1054,8 +1079,8 @@ const onSidebarReorder = () => {
         tag="ul"
         item-key="name"
         :animation="150"
-        :delay="120"
-        delay-on-touch-only
+        :disabled="!reorderMode"
+        :delay="0"
         class="flex flex-col gap-1 m-0 list-none min-w-0"
         :class="{ 'items-center': isEffectivelyCollapsed }"
         ghost-class="opacity-50"
@@ -1093,8 +1118,37 @@ const onSidebarReorder = () => {
         <SidebarProfileMenu
           :is-collapsed="isEffectivelyCollapsed"
           @open-key-shortcut-modal="emit('openKeyShortcutModal')"
+          @enter-reorder-mode="enterReorderMode"
         />
       </div>
     </section>
+
+    <!-- Barra flutuante do modo reordenar. Teleportada pro body porque o <aside>
+         tem transform (translate-x), o que quebraria position:fixed relativo. -->
+    <Teleport to="body">
+      <div
+        v-if="reorderMode"
+        class="fixed bottom-6 left-1/2 z-[100] flex -translate-x-1/2 items-center gap-2 py-2 ltr:pl-4 ltr:pr-2 rtl:pr-4 rtl:pl-2 rounded-full border shadow-lg bg-n-background border-n-weak text-n-slate-12"
+      >
+        <span class="flex gap-2 items-center pr-1 text-sm text-n-slate-11">
+          <span class="i-lucide-arrow-up-down size-4" />
+          {{ t('SIDEBAR.REORDER.HINT') }}
+        </span>
+        <button
+          type="button"
+          class="px-3 py-1.5 text-sm rounded-lg transition-colors text-n-slate-11 hover:bg-n-alpha-2"
+          @click="resetSidebarOrder"
+        >
+          {{ t('SIDEBAR.REORDER.RESET') }}
+        </button>
+        <button
+          type="button"
+          class="px-3 py-1.5 text-sm font-medium text-white rounded-lg transition-colors bg-n-brand hover:opacity-90"
+          @click="exitReorderMode"
+        >
+          {{ t('SIDEBAR.REORDER.DONE') }}
+        </button>
+      </div>
+    </Teleport>
   </aside>
 </template>

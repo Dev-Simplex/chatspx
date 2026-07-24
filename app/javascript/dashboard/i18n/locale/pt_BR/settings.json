@@ -411,6 +411,7 @@
     "YEAR_IN_REVIEW": "Retrospectiva do Ano",
     "KEYBOARD_SHORTCUTS": "Atalhos do teclado",
     "APPEARANCE": "Alterar Tema",
+    "REORDER_SIDEBAR": "Reordenar barra lateral",
     "DARK_MODE": "Modo escuro",
     "LIGHT_MODE": "Modo claro",
     "AUTO_MODE": "Modo automático",
@@ -480,6 +481,11 @@
   "SIDEBAR": {
     "NO_ITEMS": "Nenhum item",
     "SEARCH_PLACEHOLDER": "Buscar ou executar...",
+    "REORDER": {
+      "HINT": "Arraste os ícones para reordenar",
+      "RESET": "Restaurar padrão",
+      "DONE": "Concluído"
+    },
     "CURRENTLY_VIEWING_ACCOUNT": "Visualização atual:",
     "SWITCH": "Trocar",
     "INBOX_VIEW": "Caixa de entrada",

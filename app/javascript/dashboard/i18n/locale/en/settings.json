@@ -411,6 +411,7 @@
     "YEAR_IN_REVIEW": "Year in Review",
     "KEYBOARD_SHORTCUTS": "Keyboard shortcuts",
     "APPEARANCE": "Change appearance",
+    "REORDER_SIDEBAR": "Reorder sidebar",
     "DARK_MODE": "Dark mode",
     "LIGHT_MODE": "Light mode",
     "AUTO_MODE": "Auto mode",
@@ -480,6 +481,11 @@
   "SIDEBAR": {
     "NO_ITEMS": "No items",
     "SEARCH_PLACEHOLDER": "Search or run...",
+    "REORDER": {
+      "HINT": "Drag the icons to reorder",
+      "RESET": "Restore default",
+      "DONE": "Done"
+    },
     "CURRENTLY_VIEWING_ACCOUNT": "Currently viewing:",
     "SWITCH": "Switch",
     "INBOX_VIEW": "Inbox View",
