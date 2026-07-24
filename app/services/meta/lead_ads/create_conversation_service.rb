@@ -505,7 +505,9 @@ module Meta
           'campaign_name' => @lead[:campaign_name].to_s,
           'city' => @lead[:city].to_s,
           'email' => @lead[:email].to_s,
-          'phone' => @lead[:phone_number].to_s
+          'phone' => @lead[:phone_number].to_s,
+          # nome do empreendimento p/ o opener ancorado (ex.: "ETNA BY SPL"), setado por override de campanha
+          'empreendimento' => hook_setting('empreendimento').to_s
         }
       end
     end
