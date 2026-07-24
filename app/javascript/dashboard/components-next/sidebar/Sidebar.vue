@@ -1138,16 +1138,18 @@ onKeyStroke('Escape', () => {
         </span>
         <button
           type="button"
-          class="flex-shrink-0 px-3 py-1.5 text-sm rounded-full transition-colors text-n-slate-11 hover:bg-n-alpha-2"
+          class="flex flex-shrink-0 gap-1.5 items-center py-1.5 ltr:pl-2.5 ltr:pr-3 rtl:pr-2.5 rtl:pl-3 text-sm rounded-full transition-colors text-n-slate-11 hover:bg-n-alpha-2"
           @click="resetSidebarOrder"
         >
+          <span class="flex-shrink-0 size-4 i-lucide-rotate-ccw" />
           {{ t('SIDEBAR.REORDER.RESET') }}
         </button>
         <button
           type="button"
-          class="flex-shrink-0 px-4 py-1.5 text-sm font-medium text-white rounded-full transition-colors bg-n-brand hover:opacity-90"
+          class="flex flex-shrink-0 gap-1.5 items-center py-1.5 ltr:pl-3 ltr:pr-4 rtl:pr-3 rtl:pl-4 text-sm font-medium text-white rounded-full transition-colors bg-n-brand hover:opacity-90"
           @click="exitReorderMode"
         >
+          <span class="flex-shrink-0 size-4 i-lucide-check" />
           {{ t('SIDEBAR.REORDER.DONE') }}
         </button>
       </div>
