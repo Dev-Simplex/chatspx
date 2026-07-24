@@ -1128,24 +1128,24 @@ onKeyStroke('Escape', () => {
     <Teleport to="body">
       <div
         v-if="reorderMode"
-        class="fixed bottom-6 left-1/2 z-[100] flex -translate-x-1/2 items-center gap-1 py-1.5 ltr:pl-4 ltr:pr-1.5 rtl:pr-4 rtl:pl-1.5 max-w-[calc(100vw-1rem)] rounded-full border shadow-lg whitespace-nowrap bg-n-background border-n-weak text-n-slate-12"
+        class="fixed bottom-6 left-1/2 z-[100] flex -translate-x-1/2 items-center gap-1.5 p-1.5 max-w-[calc(100vw-1rem)] rounded-full border shadow-lg whitespace-nowrap bg-n-background border-n-weak text-n-slate-12"
       >
         <span
-          class="flex flex-shrink-0 gap-2 items-center pr-2 text-sm text-n-slate-11"
+          class="flex flex-shrink-0 gap-2 items-center text-sm ltr:pl-2.5 rtl:pr-2.5 text-n-slate-11"
         >
           <span class="flex-shrink-0 size-4 i-lucide-arrow-up-down" />
           {{ t('SIDEBAR.REORDER.HINT') }}
         </span>
         <button
           type="button"
-          class="flex-shrink-0 px-3 py-1.5 text-sm rounded-lg transition-colors text-n-slate-11 hover:bg-n-alpha-2"
+          class="flex-shrink-0 px-3 py-1.5 text-sm rounded-full transition-colors text-n-slate-11 hover:bg-n-alpha-2"
           @click="resetSidebarOrder"
         >
           {{ t('SIDEBAR.REORDER.RESET') }}
         </button>
         <button
           type="button"
-          class="flex-shrink-0 px-3 py-1.5 text-sm font-medium text-white rounded-lg transition-colors bg-n-brand hover:opacity-90"
+          class="flex-shrink-0 px-4 py-1.5 text-sm font-medium text-white rounded-full transition-colors bg-n-brand hover:opacity-90"
           @click="exitReorderMode"
         >
           {{ t('SIDEBAR.REORDER.DONE') }}
