@@ -1,5 +1,5 @@
 <script setup>
-import { computed, onUnmounted } from 'vue';
+import { computed, onUnmounted, ref } from 'vue';
 import { useToggle } from '@vueuse/core';
 import { useStore } from 'vuex';
 import { useAlert } from 'dashboard/composables';
@@ -19,6 +19,7 @@ import {
   CMD_SEND_TRANSCRIPT,
   CMD_UNMUTE_CONVERSATION,
 } from 'dashboard/helper/commandbar/events';
+import { BUS_EVENTS } from 'shared/constants/busEvents';
 
 // No props needed as we're getting currentChat from the store directly
 const store = useStore();
@@ -29,6 +30,19 @@ const [showEmailActionsModal, toggleEmailModal] = useToggle(false);
 const [showActionsDropdown, toggleDropdown] = useToggle(false);
 const [showShareToInternalChat, toggleShareToInternalChat] = useToggle(false);
 const [showEvaluateModal, toggleEvaluateModal] = useToggle(false);
+// Âncora opcional do modal de avaliação (setada pelo menu ⋮ de uma mensagem):
+// pré-seleciona o episódio da mensagem e cita o trecho na observação.
+const evalAnchor = ref(null);
+
+const openEvalModal = payload => {
+  evalAnchor.value = payload || null;
+  toggleEvaluateModal(true);
+};
+
+const closeEvalModal = () => {
+  evalAnchor.value = null;
+  toggleEvaluateModal(false);
+};
 
 const currentChat = computed(() => store.getters.getSelectedChat);
 const currentUser = computed(() => store.getters.getCurrentUser);
@@ -156,7 +170,7 @@ const handleActionClick = ({ action }) => {
   } else if (action === 'share_to_internal_chat') {
     toggleShareToInternalChat(true);
   } else if (action === 'evaluate_episode') {
-    toggleEvaluateModal(true);
+    openEvalModal(null);
   }
 };
 
@@ -174,11 +188,13 @@ const unmute = () => {
 emitter.on(CMD_MUTE_CONVERSATION, mute);
 emitter.on(CMD_UNMUTE_CONVERSATION, unmute);
 emitter.on(CMD_SEND_TRANSCRIPT, toggleEmailModal);
+emitter.on(BUS_EVENTS.OPEN_EVAL_MODAL, openEvalModal);
 
 onUnmounted(() => {
   emitter.off(CMD_MUTE_CONVERSATION, mute);
   emitter.off(CMD_UNMUTE_CONVERSATION, unmute);
   emitter.off(CMD_SEND_TRANSCRIPT, toggleEmailModal);
+  emitter.off(BUS_EVENTS.OPEN_EVAL_MODAL, openEvalModal);
 });
 </script>
 
@@ -224,7 +240,8 @@ onUnmounted(() => {
       v-if="showEvaluateModal"
       :show="showEvaluateModal"
       :current-chat="currentChat"
-      @cancel="toggleEvaluateModal(false)"
+      :anchor="evalAnchor"
+      @cancel="closeEvalModal"
     />
   </div>
 </template>
