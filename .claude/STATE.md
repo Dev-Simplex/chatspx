@@ -10,6 +10,15 @@
 
 ## 🚧 Em andamento
 
+### [2026-07-25] 🟢 CASO 20058 RESOLVIDO: falso positivo do anti-bot silenciou cliente real por 16h (transcrição de áudio)
+
+> Diagnóstico com evidência de log: triagem OK (Clara atribuída 17:42, run executou), mas o áudio do cliente foi transcrito errado ("tudo joia" → palavra estranha tipo nome de empresa) e a Clara classificou como spam/sistema → `[IGNORAR]` — e o protocolo anti-bot manda seguir ignorando o padrão ("Bom dia"/"Olá" seguintes também silenciados) até humano assumir 09:33 do dia seguinte. Invisível no painel: run que termina em `[IGNORAR]` não gerava mensagem nem log.
+
+- **Fix estrutural (commit `5e9d09d91`, deployado + restart):** (1) transcrição de áudio chega ao agente MARCADA — `[áudio transcrito automaticamente — pode conter erros de transcrição]: <texto>` (`OpenAiMessageBuilderService#transcription_or_placeholder`) — sem o rótulo, transcrição errada é indistinguível de texto digitado e vira "evidência" de robô; (2) `[IGNORAR]` agora grava `AssistantLog event_type='ignored'` com o raw (`ResponseBuilderJob#log_ignored` + event type novo) — silêncio deliberado auditável no painel/diagnóstico.
+- **Fix de conduta (banco, 8 agentes + molde, commit `ee3284a39`):** `[IGNORAR]` de sistema/spam exige evidência POSITIVA (menu/oferta/link/repetição); primeira mensagem ambígua = pessoa; a exceção anti-URA do molde ganhou a mesma salvaguarda agnóstica. Backups `/tmp/assistant_*_ins_antibot3.bak-*` + `/tmp/assistant.liquid.bak-fp` na VM.
+- **Provado nos 2 lados (probe 2159):** transcrição marcada com palavra estranha → responde normal ✓ · URA com menu → `[IGNORAR]` mantido ✓. Obs: só a conduta NÃO bastou (probes intermediários) — o marcador estrutural foi o que virou o jogo.
+- **Bug paralelo descoberto (não tratado):** `Conversations::OrphanRetriageJob` da conta 6 explodindo em loop com `RecordInvalid: Contact can't be blank` (alguma conversa órfã com contato deletado) — o job morre e órfãs não são re-triadas nem notificadas. Investigar/blindar.
+
 ### [2026-07-23] 🟢 CONDUTAS DA IA (prod Tozi, banco conta 6) + POLÍTICA DE TEMPLATES (código deployado)
 
 > Sessão de correções dirigidas por casos reais que o Paulo trouxe. Tudo probado na conversa de teste 2159 (probes via `run_raw`, traces deletados após).
