@@ -1031,6 +1031,7 @@
     "CANCEL": "Cancelar",
     "SUCCESS": "Avaliação registrada — o Eval vai re-julgar este atendimento agora.",
     "SUCCESS_OPEN": "Avaliação registrada — entra no julgamento quando este atendimento fechar.",
-    "ERROR": "Não foi possível registrar a avaliação."
+    "ERROR": "Não foi possível registrar a avaliação.",
+    "MENU_ITEM_MESSAGE": "Avaliar esta resposta"
   }
 }

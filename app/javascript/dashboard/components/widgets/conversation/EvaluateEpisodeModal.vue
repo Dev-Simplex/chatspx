@@ -17,6 +17,12 @@ const props = defineProps({
     type: Object,
     required: true,
   },
+  // Âncora opcional vinda do menu ⋮ de uma mensagem: { messageId, trecho }.
+  // Pré-seleciona o episódio que contém a mensagem e cita o trecho na observação.
+  anchor: {
+    type: Object,
+    default: null,
+  },
 });
 
 const emit = defineEmits(['cancel']);
@@ -39,6 +45,12 @@ const fmt = iso => {
   });
 };
 
+const episodeContains = (ep, messageId) => {
+  if (!ep.first_message_id) return false;
+  if (messageId < ep.first_message_id) return false;
+  return !ep.last_message_id || messageId <= ep.last_message_id;
+};
+
 onMounted(async () => {
   try {
     const { data } = await EvalDashboardAPI.conversationEpisodes(
@@ -46,6 +58,13 @@ onMounted(async () => {
     );
     episodes.value = data.episodes || [];
     selectedId.value = episodes.value[0]?.id || null;
+    if (props.anchor?.messageId) {
+      const target = episodes.value.find(ep =>
+        episodeContains(ep, props.anchor.messageId)
+      );
+      if (target) selectedId.value = target.id;
+      if (props.anchor.trecho) texto.value = `“${props.anchor.trecho}” — `;
+    }
   } catch (e) {
     episodes.value = [];
   } finally {

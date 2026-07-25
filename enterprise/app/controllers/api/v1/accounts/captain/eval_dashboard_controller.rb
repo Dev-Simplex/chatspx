@@ -57,6 +57,10 @@ class Api::V1::Accounts::Captain::EvalDashboardController < Api::V1::Accounts::B
           started_at: ep.started_at,
           ended_at: ep.ended_at,
           mensagens: ep.mensagens,
+          # faixa de mensagens: permite ao front achar o episódio de uma mensagem
+          # específica (âncora do menu ⋮ da mensagem)
+          first_message_id: ep.first_message_id,
+          last_message_id: ep.last_message_id,
           nota: ev&.nota,
           conduzido_por: ev&.conduzido_por,
           resumo: ev&.resumo.to_s.truncate(160).presence,

@@ -1040,6 +1040,7 @@
     "CANCEL": "Cancel",
     "SUCCESS": "Evaluation saved — the Eval will re-judge this service now.",
     "SUCCESS_OPEN": "Evaluation saved — it will be considered when this service closes.",
-    "ERROR": "Could not save the evaluation."
+    "ERROR": "Could not save the evaluation.",
+    "MENU_ITEM_MESSAGE": "Evaluate this reply"
   }
 }
