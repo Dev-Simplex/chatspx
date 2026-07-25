@@ -278,17 +278,27 @@ class Captain::Conversation::ResponseBuilderJob < ApplicationJob
 
   def create_messages
     content = @response['response']
-    return if no_reply?(content)
+    return log_ignored(content) if no_reply?(content)
 
     if skip_duplicate?(content)
       return unless regenerate_to_avoid_repeat
 
       content = @response['response']
-      return if no_reply?(content)
+      return log_ignored(content) if no_reply?(content)
       return if skip_duplicate?(content)
     end
 
     send_response(content)
+  end
+
+  # Silêncio deliberado do agente ([IGNORAR]) deixa rastro auditável: sem isso, uma
+  # conversa silenciada (ex.: falso positivo de spam) fica invisível no painel e no
+  # diagnóstico — nenhuma mensagem, nenhum log (caso real: conv sem resposta por 16h).
+  def log_ignored(content)
+    log_behavior_event('ignored', { raw: content.to_s[0, 120] })
+    nil
+  rescue StandardError
+    nil
   end
 
   # O agente decide quando NÃO responder (ex: cliente só mandou "ok"/"blz" e não há
