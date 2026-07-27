@@ -2,7 +2,10 @@
 import emojis from './emojisGroup.json';
 import FluentIcon from 'shared/components/FluentIcon/Index.vue';
 import NextButton from 'dashboard/components-next/button/Button.vue';
+import { getRecentEmojis, addRecentEmoji } from 'shared/helpers/recentEmojis';
 const SEARCH_KEY = 'Search';
+const RECENT_KEY = 'Recent';
+const RECENT_TAB_ICON = '🕘';
 
 export default {
   components: { FluentIcon, NextButton },
@@ -21,11 +24,20 @@ export default {
       selectedKey: 'Search',
       emojis,
       search: '',
+      recentEmojis: getRecentEmojis(),
+      recentKey: RECENT_KEY,
+      recentTabIcon: RECENT_TAB_ICON,
     };
   },
   computed: {
     categories() {
       return [...this.emojis];
+    },
+    hasRecentEmojis() {
+      return this.recentEmojis.length > 0;
+    },
+    isRecentSelected() {
+      return this.selectedKey === RECENT_KEY;
     },
     filterEmojisByCategory() {
       const selectedCategoryName = this.emojis.find(category =>
@@ -44,7 +56,20 @@ export default {
       });
     },
     hasNoSearch() {
-      return this.selectedKey !== SEARCH_KEY && this.search === '';
+      return (
+        this.selectedKey !== SEARCH_KEY &&
+        this.selectedKey !== RECENT_KEY &&
+        this.search === ''
+      );
+    },
+    // Estado inicial da caixa (aba de busca, sem termo digitado): os recentes
+    // aparecem no topo, acima de todas as categorias.
+    showRecentSection() {
+      return (
+        this.hasRecentEmojis &&
+        this.selectedKey === SEARCH_KEY &&
+        this.search === ''
+      );
     },
     hasEmptySearchResult() {
       return this.filterAllEmojisBySearch.every(
@@ -68,6 +93,11 @@ export default {
       this.search = '';
       this.$refs.emojiItem.scrollTo({ top: 0 });
       this.selectedKey = category;
+    },
+    // Todo emoji escolhido pela caixa passa por aqui, para alimentar os recentes.
+    selectEmoji(emoji) {
+      this.recentEmojis = addRecentEmoji(emoji);
+      this.onClick(emoji);
     },
     getFirstEmojiByCategoryName(categoryName) {
       const categoryItem = this.emojis.find(category =>
@@ -108,7 +138,23 @@ export default {
           @click="onClick('')"
         />
       </div>
-      <div v-if="hasNoSearch" ref="emojiItem" class="emoji-item">
+      <div v-if="isRecentSelected" ref="emojiItem" class="emoji-item">
+        <h5
+          class="text-sm text-n-slate-12 font-medium leading-normal m-0 py-1 px-2 capitalize"
+        >
+          {{ $t('EMOJI.RECENT') }}
+        </h5>
+        <div class="emoji--row">
+          <button
+            v-for="emoji in recentEmojis"
+            :key="emoji"
+            v-dompurify-html="emoji"
+            class="emoji--item"
+            @click="selectEmoji(emoji)"
+          />
+        </div>
+      </div>
+      <div v-else-if="hasNoSearch" ref="emojiItem" class="emoji-item">
         <h5
           class="text-sm text-n-slate-12 font-medium leading-normal m-0 py-1 px-2 capitalize"
         >
@@ -121,11 +167,27 @@ export default {
             v-dompurify-html="item.emoji"
             class="emoji--item"
             track-by="$index"
-            @click="onClick(item.emoji)"
+            @click="selectEmoji(item.emoji)"
           />
         </div>
       </div>
       <div v-else ref="emojiItem" class="emoji-item">
+        <div v-if="showRecentSection">
+          <h5
+            class="text-sm text-n-slate-12 font-medium leading-normal m-0 py-1 px-2 capitalize"
+          >
+            {{ $t('EMOJI.RECENT') }}
+          </h5>
+          <div class="emoji--row">
+            <button
+              v-for="emoji in recentEmojis"
+              :key="emoji"
+              v-dompurify-html="emoji"
+              class="emoji--item"
+              @click="selectEmoji(emoji)"
+            />
+          </div>
+        </div>
         <div v-for="category in filterAllEmojisBySearch" :key="category.slug">
           <h5
             v-if="category.emojis.length > 0"
@@ -140,7 +202,7 @@ export default {
               v-dompurify-html="item.emoji"
               class="emoji--item"
               track-by="$index"
-              @click="onClick(item.emoji)"
+              @click="selectEmoji(item.emoji)"
             />
           </div>
         </div>
@@ -172,6 +234,15 @@ export default {
             >
               <FluentIcon icon="search" size="16" class="text-n-slate-11" />
             </button>
+          </li>
+          <li v-if="hasRecentEmojis">
+            <button
+              v-dompurify-html="recentTabIcon"
+              class="emoji--item"
+              :class="{ active: isRecentSelected }"
+              :title="$t('EMOJI.RECENT')"
+              @click="changeCategory(recentKey)"
+            />
           </li>
           <li
             v-for="category in categories"

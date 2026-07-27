@@ -104,7 +104,8 @@
   "EMOJI": {
     "PLACEHOLDER": "Search emojis",
     "NOT_FOUND": "No emoji match your search",
-    "ARIA_LABEL": "Emoji picker"
+    "ARIA_LABEL": "Emoji picker",
+    "RECENT": "Recent"
   },
   "CSAT": {
     "TITLE": "Rate your conversation",
