@@ -81,10 +81,14 @@ class Captain::OpenAiMessageBuilderService
 
   # PDF? Confia no content_type do blob (Active Storage) e, no fallback (anexo externo/WAHA),
   # na extensão .pdf da URL. O RubyLLM ainda re-checa pelo conteúdo se a extensão faltar.
+  # O `to_s` depois do split é obrigatório: anexo SEM arquivo e SEM url externa (vCard do
+  # WhatsApp = file_type contact) devolve url vazia, e `''.split('?').first` é nil — o
+  # `nil.downcase` derrubava o ResponseBuilderJob inteiro antes de chamar o LLM, deixando a
+  # IA muda em toda conversa que tivesse um cartão de contato no histórico.
   def pdf_attachment?(attachment)
     return true if attachment.file.attached? && attachment.file.blob.content_type.to_s == 'application/pdf'
 
-    get_attachment_url(attachment).to_s.split('?').first.downcase.end_with?('.pdf')
+    get_attachment_url(attachment).to_s.split('?').first.to_s.downcase.end_with?('.pdf')
   end
 
   # Localização (pin do WhatsApp) vira texto com as coordenadas — é assim que o
