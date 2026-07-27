@@ -105,7 +105,18 @@
     "PLACEHOLDER": "Search emojis",
     "NOT_FOUND": "No emoji match your search",
     "ARIA_LABEL": "Emoji picker",
-    "RECENT": "Recent"
+    "RECENT": "Recent",
+    "CATEGORIES": {
+      "SMILEYS_EMOTION": "Smileys & Emotion",
+      "PEOPLE_BODY": "People & Body",
+      "ANIMALS_NATURE": "Animals & Nature",
+      "FOOD_DRINK": "Food & Drink",
+      "TRAVEL_PLACES": "Travel & Places",
+      "ACTIVITIES": "Activities",
+      "OBJECTS": "Objects",
+      "SYMBOLS": "Symbols",
+      "FLAGS": "Flags"
+    }
   },
   "CSAT": {
     "TITLE": "Rate your conversation",

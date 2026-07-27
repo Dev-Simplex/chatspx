@@ -57,11 +57,11 @@ export default {
     isRecentSelected() {
       return this.selectedKey === RECENT_KEY;
     },
+    selectedCategory() {
+      return this.emojis.find(category => category.name === this.selectedKey);
+    },
     filterEmojisByCategory() {
-      const selectedCategoryName = this.emojis.find(category =>
-        category.name === this.selectedKey ? category.name : null
-      );
-      return selectedCategoryName?.emojis;
+      return this.selectedCategory?.emojis;
     },
     filterAllEmojisBySearch() {
       return this.emojis.map(category => {
@@ -120,6 +120,14 @@ export default {
     categoryIcon(categorySlug) {
       return CATEGORY_ICONS[categorySlug] || FALLBACK_CATEGORY_ICON;
     },
+    // Os nomes das categorias vêm em inglês do emojisGroup.json; traduzimos na
+    // exibição, caindo no nome original se a chave não existir no locale.
+    categoryLabel(category) {
+      if (!category) return '';
+      const key = `EMOJI.CATEGORIES.${category.slug.toUpperCase()}`;
+      const label = this.$t(key);
+      return label === key ? category.name : label;
+    },
     focusSearchInput() {
       this.$nextTick(() => {
         this.$refs.searchbar.focus();
@@ -155,7 +163,7 @@ export default {
       </div>
       <div v-if="isRecentSelected" ref="emojiItem" class="emoji-item">
         <h5
-          class="text-sm text-n-slate-12 font-medium leading-normal m-0 py-1 px-2 capitalize"
+          class="text-sm text-n-slate-12 font-medium leading-normal m-0 py-1 px-2"
         >
           {{ $t('EMOJI.RECENT') }}
         </h5>
@@ -171,9 +179,9 @@ export default {
       </div>
       <div v-else-if="hasNoSearch" ref="emojiItem" class="emoji-item">
         <h5
-          class="text-sm text-n-slate-12 font-medium leading-normal m-0 py-1 px-2 capitalize"
+          class="text-sm text-n-slate-12 font-medium leading-normal m-0 py-1 px-2"
         >
-          {{ selectedKey }}
+          {{ categoryLabel(selectedCategory) }}
         </h5>
         <div class="emoji--row">
           <button
@@ -189,7 +197,7 @@ export default {
       <div v-else ref="emojiItem" class="emoji-item">
         <div v-if="showRecentSection">
           <h5
-            class="text-sm text-n-slate-12 font-medium leading-normal m-0 py-1 px-2 capitalize"
+            class="text-sm text-n-slate-12 font-medium leading-normal m-0 py-1 px-2"
           >
             {{ $t('EMOJI.RECENT') }}
           </h5>
@@ -206,9 +214,9 @@ export default {
         <div v-for="category in filterAllEmojisBySearch" :key="category.slug">
           <h5
             v-if="category.emojis.length > 0"
-            class="text-sm text-n-slate-12 font-medium leading-normal m-0 py-1 px-2 capitalize"
+            class="text-sm text-n-slate-12 font-medium leading-normal m-0 py-1 px-2"
           >
-            {{ category.name }}
+            {{ categoryLabel(category) }}
           </h5>
           <div v-if="category.emojis.length > 0" class="emoji--row">
             <button
@@ -269,7 +277,7 @@ export default {
             <button
               class="emoji--item"
               :class="{ active: selectedKey === category.name }"
-              :title="category.name"
+              :title="categoryLabel(category)"
               @click="changeCategory(category.name)"
             >
               <span
