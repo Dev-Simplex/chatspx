@@ -24,6 +24,7 @@ class Captain::OpenAiMessageBuilderService
     parts = []
     parts << text_part(referral_note) if referral_note.present?
     parts << text_part(@message.content) if @message.content.present?
+    parts << text_part(property_ref_note) if property_ref_note.present?
     parts.concat(attachment_parts(@message.attachments)) if @message.attachments.any?
 
     return 'Message without content' if parts.blank?
@@ -118,6 +119,16 @@ class Captain::OpenAiMessageBuilderService
     partes << "conteúdo do anúncio: #{corpo}" if corpo.present?
     partes << "mídia: #{ref['media_type']}" if ref['media_type'].present?
     "#{partes.join(' — ')}]"
+  end
+
+  # Mesma ideia do referral, para o lead que chega pelo botão do site: o texto pronto traz
+  # o código do imóvel mas não diz se ele é de venda ou de locação, e sem isso a triagem
+  # pergunta o que o acervo já sabe. Memoizado porque `generate_content` consulta duas
+  # vezes e a resolução do código faz I/O (o serviço ainda cacheia por conta+código).
+  def property_ref_note
+    return @property_ref_note if defined?(@property_ref_note)
+
+    @property_ref_note = Captain::PropertyRefContextService.new(message: @message).note
   end
 
   def image_parts(image_attachments)
