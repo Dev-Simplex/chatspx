@@ -54,6 +54,18 @@ const isMediaSectionOpen = computed(
   () => uiSettings.value?.is_conv_media_open !== false
 );
 
+// "Ações da conversa" (atribuir agente, trocar time, prioridade, etiquetas) é
+// fixada logo abaixo do contato e aberta por padrão — são as ações do dia a
+// dia, não podem depender de expandir um acordeão lá embaixo. Sai da lista
+// reordenável por isso.
+const PINNED_ACTIONS_ITEM = 'conversation_actions';
+const isActionsSectionOpen = computed(
+  () => uiSettings.value?.is_conv_actions_open !== false
+);
+const toggleActionsSection = () => {
+  updateUISettings({ is_conv_actions_open: !isActionsSectionOpen.value });
+};
+
 const dragging = ref(false);
 const conversationSidebarItems = ref([]);
 
@@ -125,7 +137,12 @@ watch(contactId, (newContactId, prevContactId) => {
 const onDragEnd = () => {
   dragging.value = false;
   updateUISettings({
-    conversation_sidebar_items_order: conversationSidebarItems.value,
+    // A seção fixada não está na lista arrastável; devolve a entrada ao salvar
+    // para não perdê-la do ajuste de ordem do usuário.
+    conversation_sidebar_items_order: [
+      ...conversationSidebarItems.value,
+      { name: PINNED_ACTIONS_ITEM },
+    ],
   });
 };
 
@@ -137,7 +154,9 @@ const closeContactPanel = () => {
 };
 
 onMounted(() => {
-  conversationSidebarItems.value = conversationSidebarItemsOrder.value;
+  conversationSidebarItems.value = conversationSidebarItemsOrder.value.filter(
+    item => item.name !== PINNED_ACTIONS_ITEM
+  );
   getContactDetails();
   store.dispatch('attributes/get', 0);
   store.dispatch('macros/get');
@@ -153,6 +172,18 @@ onMounted(() => {
       @close="closeContactPanel"
     />
     <ContactInfo :contact="contact" :channel-type="channelType" />
+    <div class="conversation--actions">
+      <AccordionItem
+        :title="$t('CONVERSATION_SIDEBAR.ACCORDION.CONVERSATION_ACTIONS')"
+        :is-open="isActionsSectionOpen"
+        @toggle="toggleActionsSection"
+      >
+        <ConversationAction
+          :conversation-id="conversationId"
+          :inbox-id="inboxId"
+        />
+      </AccordionItem>
+    </div>
     <ConversationSummary />
     <ConversationChecklist />
     <div class="pb-8">
@@ -180,23 +211,6 @@ onMounted(() => {
               "
             >
               <ConversationMedia :conversation-id="conversationId" />
-            </AccordionItem>
-          </div>
-          <div
-            v-else-if="element.name === 'conversation_actions'"
-            class="conversation--actions"
-          >
-            <AccordionItem
-              :title="$t('CONVERSATION_SIDEBAR.ACCORDION.CONVERSATION_ACTIONS')"
-              :is-open="isContactSidebarItemOpen('is_conv_actions_open')"
-              @toggle="
-                value => toggleSidebarUIState('is_conv_actions_open', value)
-              "
-            >
-              <ConversationAction
-                :conversation-id="conversationId"
-                :inbox-id="inboxId"
-              />
             </AccordionItem>
           </div>
           <div
