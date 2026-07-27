@@ -5,7 +5,24 @@ import NextButton from 'dashboard/components-next/button/Button.vue';
 import { getRecentEmojis, addRecentEmoji } from 'shared/helpers/recentEmojis';
 const SEARCH_KEY = 'Search';
 const RECENT_KEY = 'Recent';
-const RECENT_TAB_ICON = '🕘';
+
+// Ícone de cada aba do rodapé, por slug de categoria do emojisGroup.json.
+// As classes i-lucide-* vêm do plugin de ícones do tailwind.config.js, cujo
+// content já cobre shared/ — logo valem também no widget.
+const CATEGORY_ICONS = {
+  smileys_emotion: 'i-lucide-smile',
+  people_body: 'i-lucide-hand',
+  animals_nature: 'i-lucide-paw-print',
+  food_drink: 'i-lucide-utensils',
+  travel_places: 'i-lucide-plane',
+  activities: 'i-lucide-party-popper',
+  objects: 'i-lucide-lightbulb',
+  symbols: 'i-lucide-shapes',
+  flags: 'i-lucide-flag',
+};
+const FALLBACK_CATEGORY_ICON = 'i-lucide-smile';
+const RECENT_TAB_ICON = 'i-lucide-clock';
+const SEARCH_TAB_ICON = 'i-lucide-search';
 
 export default {
   components: { FluentIcon, NextButton },
@@ -27,6 +44,7 @@ export default {
       recentEmojis: getRecentEmojis(),
       recentKey: RECENT_KEY,
       recentTabIcon: RECENT_TAB_ICON,
+      searchTabIcon: SEARCH_TAB_ICON,
     };
   },
   computed: {
@@ -99,11 +117,8 @@ export default {
       this.recentEmojis = addRecentEmoji(emoji);
       this.onClick(emoji);
     },
-    getFirstEmojiByCategoryName(categoryName) {
-      const categoryItem = this.emojis.find(category =>
-        category.name === categoryName ? category : null
-      );
-      return categoryItem ? categoryItem.emojis[0].emoji : '';
+    categoryIcon(categorySlug) {
+      return CATEGORY_ICONS[categorySlug] || FALLBACK_CATEGORY_ICON;
     },
     focusSearchInput() {
       this.$nextTick(() => {
@@ -230,19 +245,21 @@ export default {
             <button
               class="emoji--item"
               :class="{ active: selectedKey === 'Search' }"
+              :title="$t('EMOJI.PLACEHOLDER')"
               @click="changeCategory('Search')"
             >
-              <FluentIcon icon="search" size="16" class="text-n-slate-11" />
+              <span class="emoji--tab-icon" :class="searchTabIcon" />
             </button>
           </li>
           <li v-if="hasRecentEmojis">
             <button
-              v-dompurify-html="recentTabIcon"
               class="emoji--item"
               :class="{ active: isRecentSelected }"
               :title="$t('EMOJI.RECENT')"
               @click="changeCategory(recentKey)"
-            />
+            >
+              <span class="emoji--tab-icon" :class="recentTabIcon" />
+            </button>
           </li>
           <li
             v-for="category in categories"
@@ -250,11 +267,16 @@ export default {
             @click="changeCategory(category.name)"
           >
             <button
-              v-dompurify-html="getFirstEmojiByCategoryName(category.name)"
               class="emoji--item"
               :class="{ active: selectedKey === category.name }"
+              :title="category.name"
               @click="changeCategory(category.name)"
-            />
+            >
+              <span
+                class="emoji--tab-icon"
+                :class="categoryIcon(category.slug)"
+              />
+            </button>
           </li>
         </ul>
       </div>
@@ -315,11 +337,20 @@ export default {
     }
 
     .emoji--item {
-      @apply items-center flex text-sm;
+      @apply items-center flex justify-center text-sm;
 
       &:hover {
         @apply bg-n-slate-2;
       }
+    }
+
+    // Abas de categoria: ícones de traço no lugar do emoji representativo.
+    .emoji--tab-icon {
+      @apply text-base text-n-slate-11;
+    }
+
+    .active .emoji--tab-icon {
+      @apply text-n-slate-12;
     }
   }
 }
