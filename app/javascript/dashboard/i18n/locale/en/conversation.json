@@ -750,6 +750,22 @@
       "LINKS": "Links"
     },
     "MEDIA_EMPTY": "No media or files in this conversation",
+    "MEDIA_STRIP": {
+      "TITLE": "Media, links and docs",
+      "EMPTY": "No media",
+      "MORE_COUNT": "+{count}",
+      "PANEL_TITLE": "Media, links and docs",
+      "TABS": {
+        "MEDIA": "Media",
+        "DOCS": "Docs",
+        "LINKS": "Links"
+      },
+      "EMPTY_TABS": {
+        "MEDIA": "No photos or videos",
+        "DOCS": "No documents",
+        "LINKS": "No links"
+      }
+    },
     "SHOW_MORE": "Show {count} more",
     "BULK": {
       "DOWNLOAD_ALL": "Download all ({count})",

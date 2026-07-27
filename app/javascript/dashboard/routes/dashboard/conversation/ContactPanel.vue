@@ -12,7 +12,7 @@ import { FEATURE_FLAGS } from 'dashboard/featureFlags';
 import AccordionItem from 'dashboard/components/Accordion/AccordionItem.vue';
 import ContactConversations from './ContactConversations.vue';
 import ConversationAction from './ConversationAction.vue';
-import ConversationMedia from './ConversationMedia.vue';
+import ConversationMediaStrip from './ConversationMediaStrip.vue';
 import ConversationParticipant from './ConversationParticipant.vue';
 import ContactInfo from './contact/ContactInfo.vue';
 import ContactNotes from './contact/ContactNotes.vue';
@@ -48,17 +48,15 @@ const {
   toggleSidebarUIState,
 } = useUISettings();
 
-// "Mídias e Arquivos" abre por padrão (deixa o "Baixar todas" à vista de quem
-// está no chat). Só fica recolhido se o usuário o tiver fechado de propósito.
-const isMediaSectionOpen = computed(
-  () => uiSettings.value?.is_conv_media_open !== false
-);
-
-// "Ações da conversa" (atribuir agente, trocar time, prioridade, etiquetas) é
-// fixada logo abaixo do contato e aberta por padrão — são as ações do dia a
-// dia, não podem depender de expandir um acordeão lá embaixo. Sai da lista
-// reordenável por isso.
-const PINNED_ACTIONS_ITEM = 'conversation_actions';
+// Seções fixadas na barra lateral: ficam fora da lista reordenável porque o
+// lugar delas não é negociável.
+// "Ações da conversa" (atribuir agente, trocar time, prioridade, etiquetas)
+// fica logo abaixo do contato e aberta por padrão — são as ações do dia a dia,
+// não podem depender de expandir um acordeão lá embaixo.
+// "Mídias e arquivos" vira uma faixa logo abaixo do Resumo da IA: caçar um
+// comprovante ou áudio é rotina, então precisa estar à vista sem rolar a
+// barra inteira nem depender de o usuário ter arrastado a seção pra cima.
+const PINNED_SIDEBAR_ITEMS = ['conversation_actions', 'conversation_media'];
 const isActionsSectionOpen = computed(
   () => uiSettings.value?.is_conv_actions_open !== false
 );
@@ -137,11 +135,12 @@ watch(contactId, (newContactId, prevContactId) => {
 const onDragEnd = () => {
   dragging.value = false;
   updateUISettings({
-    // A seção fixada não está na lista arrastável; devolve a entrada ao salvar
-    // para não perdê-la do ajuste de ordem do usuário.
+    // As seções fixadas não estão na lista arrastável; devolve as entradas ao
+    // salvar para não perdê-las do ajuste de ordem do usuário. Como elas são
+    // filtradas na montagem, não há risco de entrar duplicado aqui.
     conversation_sidebar_items_order: [
       ...conversationSidebarItems.value,
-      { name: PINNED_ACTIONS_ITEM },
+      ...PINNED_SIDEBAR_ITEMS.map(name => ({ name })),
     ],
   });
 };
@@ -155,7 +154,7 @@ const closeContactPanel = () => {
 
 onMounted(() => {
   conversationSidebarItems.value = conversationSidebarItemsOrder.value.filter(
-    item => item.name !== PINNED_ACTIONS_ITEM
+    item => !PINNED_SIDEBAR_ITEMS.includes(item.name)
   );
   getContactDetails();
   store.dispatch('attributes/get', 0);
@@ -185,6 +184,7 @@ onMounted(() => {
       </AccordionItem>
     </div>
     <ConversationSummary />
+    <ConversationMediaStrip :conversation-id="conversationId" />
     <ConversationChecklist />
     <div class="pb-8">
       <Draggable
@@ -199,22 +199,7 @@ onMounted(() => {
       >
         <template #item="{ element }">
           <div
-            v-if="element.name === 'conversation_media'"
-            class="conversation--media"
-          >
-            <AccordionItem
-              :title="$t('CONVERSATION_SIDEBAR.ACCORDION.MEDIA_AND_FILES')"
-              :is-open="isMediaSectionOpen"
-              compact
-              @toggle="
-                value => toggleSidebarUIState('is_conv_media_open', value)
-              "
-            >
-              <ConversationMedia :conversation-id="conversationId" />
-            </AccordionItem>
-          </div>
-          <div
-            v-else-if="element.name === 'conversation_participants'"
+            v-if="element.name === 'conversation_participants'"
             class="conversation--actions"
           >
             <AccordionItem

@@ -742,6 +742,22 @@
       "LINKS": "Links"
     },
     "MEDIA_EMPTY": "Nenhuma mídia ou arquivo nesta conversa",
+    "MEDIA_STRIP": {
+      "TITLE": "Mídia, links e docs",
+      "EMPTY": "Nenhuma mídia",
+      "MORE_COUNT": "+{count}",
+      "PANEL_TITLE": "Mídia, links e docs",
+      "TABS": {
+        "MEDIA": "Mídia",
+        "DOCS": "Docs",
+        "LINKS": "Links"
+      },
+      "EMPTY_TABS": {
+        "MEDIA": "Nenhuma foto ou vídeo",
+        "DOCS": "Nenhum documento",
+        "LINKS": "Nenhum link"
+      }
+    },
     "SHOW_MORE": "Ver mais {count}",
     "BULK": {
       "DOWNLOAD_ALL": "Baixar todas ({count})",
