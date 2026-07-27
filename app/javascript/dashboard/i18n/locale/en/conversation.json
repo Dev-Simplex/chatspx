@@ -728,14 +728,8 @@
     "SUMMARY": {
       "AI_TITLE": "AI summary",
       "AI_EMPTY": "The AI hasn't summarized this conversation yet.",
-      "HUMAN_TITLE": "Human summary",
-      "HUMAN_EMPTY": "Add a summary of the human attendance.",
-      "EDIT": "Edit",
-      "SAVE": "Save",
-      "CANCEL": "Cancel",
       "READ_MORE": "Read more",
-      "READ_LESS": "Read less",
-      "SAVE_ERROR": "Couldn't save the summary."
+      "READ_LESS": "Read less"
     },
     "CHECKLIST": {
       "TITLE": "Subjects and Tasks",

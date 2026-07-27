@@ -720,14 +720,8 @@
     "SUMMARY": {
       "AI_TITLE": "Resumo da IA",
       "AI_EMPTY": "A IA ainda não resumiu este atendimento.",
-      "HUMAN_TITLE": "Resumo do humano",
-      "HUMAN_EMPTY": "Adicione um resumo do atendimento humano.",
-      "EDIT": "Editar",
-      "SAVE": "Salvar",
-      "CANCEL": "Cancelar",
       "READ_MORE": "Ler mais",
-      "READ_LESS": "Ler menos",
-      "SAVE_ERROR": "Não foi possível salvar o resumo."
+      "READ_LESS": "Ler menos"
     },
     "CHECKLIST": {
       "TITLE": "Assuntos e Tarefas",
