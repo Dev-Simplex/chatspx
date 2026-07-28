@@ -8,17 +8,33 @@ class Conversations::OrphanRetriageJob < ApplicationJob
   BATCH_LIMIT = 100
 
   def perform(account)
-    threshold = retriage_after(account).minutes.ago
-    # órfã = open + SEM humano + SEM espelho captain (os DOIS nils — scope :unassigned não basta;
-    # janela em last_activity_at: cobre conversa que ficou órfã DEPOIS, ex. user deletado)
-    account.conversations.open
-           .where(assignee_id: nil).without_captain_assignee
-           .where('conversations.last_activity_at < ?', threshold)
-           .limit(BATCH_LIMIT)
-           .each { |conversation| process_orphan(conversation, account) }
+    orphan_scope(account).each do |conversation|
+      process_orphan(conversation, account)
+    rescue StandardError => e
+      # blindagem do laço: uma conversa problemática NÃO pode impedir o processamento das
+      # demais (antes, a exceção subia pelo .each e deixava a vigia inoperante na conta).
+      Rails.logger.error("[OrphanRetriageJob] account=#{account.id} conversation=#{conversation.id} " \
+                         "falhou: #{e.class}: #{e.message}")
+      ChatwootExceptionTracker.new(e, account: account).capture_exception
+    end
   end
 
   private
+
+  # órfã = open + SEM humano + SEM espelho captain (os DOIS nils — scope :unassigned não basta;
+  # janela em last_activity_at: cobre conversa que ficou órfã DEPOIS, ex. user deletado).
+  #
+  # where.not(contact_id: nil): mesmo guard do Conversations::ResolutionJob (resolution_job.rb:28-29)
+  # — conversa cujo contato foi apagado (cleanup pendente / migration de FK que nulificou a coluna)
+  # é inválida no model (contact_id presence) e irrecuperável por definição: não há para quem
+  # responder. Sem o filtro, o update! do marcador reprovava e derrubava o batch inteiro.
+  def orphan_scope(account)
+    account.conversations.open
+           .where(assignee_id: nil).without_captain_assignee
+           .where.not(contact_id: nil)
+           .where('conversations.last_activity_at < ?', retriage_after(account).minutes.ago)
+           .limit(BATCH_LIMIT)
+  end
 
   def retriage_after(account)
     (account.orphan_retriage_after.presence || DEFAULT_RETRIAGE_AFTER_MINUTES).to_i
@@ -33,7 +49,15 @@ class Conversations::OrphanRetriageJob < ApplicationJob
     retriage(conversation, account)
     return unless still_orphan?(conversation)
 
+    # ORDEM IMPORTA: grava o marcador ANTES de notificar. Notificar primeiro e falhar no
+    # marcador (conversa inválida) repetia push/e-mail para todos os admins a cada tick do
+    # cron, para sempre — o dedupe nunca chegava a existir. Se o marcador não pode ser
+    # gravado, o alerta não sai: melhor um alerta perdido do que spam infinito.
+    mark_alerted(conversation)
     notify_admins(conversation, account)
+  end
+
+  def mark_alerted(conversation)
     conversation.update!(additional_attributes:
       conversation.additional_attributes.merge('orphan_alerted_at' => Time.current.iso8601))
   end

@@ -25,10 +25,19 @@ class Captain::ConversationEvalSchedulerJob < ApplicationJob
       else
         enqueue_for_account(account)
       end
+    rescue StandardError => e
+      # rede final: uma conta com dado inconsistente não pode impedir o eval das CONTAS
+      # seguintes do find_each (era o efeito colateral mais grave do episódio órfão).
+      report(e, account, "account=#{account.id}")
     end
   end
 
   private
+
+  def report(error, account, context)
+    Rails.logger.error("[ConversationEvalSchedulerJob] #{context} falhou: #{error.class}: #{error.message}")
+    ChatwootExceptionTracker.new(error, account: account).capture_exception
+  end
 
   def captain_inbox_ids(account)
     CaptainInbox.where(inbox_id: account.inboxes.select(:id)).distinct.pluck(:inbox_id)
@@ -63,7 +72,11 @@ class Captain::ConversationEvalSchedulerJob < ApplicationJob
            .where('last_activity_at >= ?', ELIGIBILITY_WINDOW.ago)
            .order(last_activity_at: :desc)
            .limit(MAX_PER_ACCOUNT)
-           .each { |conversation| Captain::EpisodeSegmenterService.new(conversation: conversation).perform }
+           .each do |conversation|
+      Captain::EpisodeSegmenterService.new(conversation: conversation).perform
+    rescue StandardError => e
+      report(e, account, "conversation=#{conversation.id}")
+    end
   end
 
   # Episódios abertos cuja última mensagem já venceu o gap fecham por decurso —
@@ -72,13 +85,21 @@ class Captain::ConversationEvalSchedulerJob < ApplicationJob
     gap_hours = account.custom_attributes&.dig('eval_episode_gap_hours').to_i
     gap_hours = Captain::EpisodeSegmenterService::DEFAULT_GAP_HOURS unless gap_hours.positive?
 
+    # joins(:conversation): INNER JOIN descarta no SQL o episódio ÓRFÃO — conversa apagada
+    # (não há FK nem dependent: na tabela), que entregava conversation: nil ao segmenter e
+    # derrubava o eval da conta inteira. preload evita o N+1 que o includes dava de graça.
     Captain::ConversationEpisode.open_ones
                                 .for_account(account.id)
-                                .where('last_message_at < ?', gap_hours.hours.ago)
+                                .where('captain_conversation_episodes.last_message_at < ?', gap_hours.hours.ago)
                                 .order(last_message_at: :asc)
                                 .limit(MAX_STALE_RESEGMENTS)
-                                .includes(:conversation)
-                                .each { |ep| Captain::EpisodeSegmenterService.new(conversation: ep.conversation).perform }
+                                .joins(:conversation)
+                                .preload(:conversation)
+                                .each do |ep|
+      Captain::EpisodeSegmenterService.new(conversation: ep.conversation).perform
+    rescue StandardError => e
+      report(e, account, "episode=#{ep.id}")
+    end
   end
 
   def enqueue_closed_episodes(account)

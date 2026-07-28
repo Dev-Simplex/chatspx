@@ -18,7 +18,12 @@ class Captain::EpisodeSegmenterService
 
   pattr_initialize [:conversation!]
 
+  # pattr_initialize [:conversation!] exige a CHAVE, não rejeita nil: um episódio órfão
+  # (conversa apagada, sem FK na tabela) entregava conversation: nil e estourava em #rows,
+  # matando o eval da conta inteira. Sem conversa não há mensagens para segmentar.
   def perform
+    return [] if conversation.nil?
+
     segments = build_segments
     persist(segments)
   end
@@ -120,7 +125,7 @@ class Captain::EpisodeSegmenterService
 
   # O último segmento fecha se: houve resolve pendente sem reply, a conversa está
   # resolvida, ou o gap já venceu. Senão permanece aberto (ended_at nil).
-  def finalize(segments, current, pending_close)
+  def finalize(_segments, current, pending_close)
     return if current.nil?
 
     if pending_close

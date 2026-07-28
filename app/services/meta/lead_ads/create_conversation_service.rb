@@ -8,7 +8,10 @@
 module Meta
   module LeadAds
     class CreateConversationService
-      DEFAULT_TEMPLATE = "Olá {{first_name}}! Vi seu interesse no anúncio \"{{ad_name}}\". Sou da equipe e estou aqui pra ajudar. Pode me contar um pouco mais sobre o que você procura?".freeze
+      DEFAULT_TEMPLATE = 'Olá {{first_name}}! Vi seu interesse no anúncio "{{ad_name}}". Sou da equipe e estou aqui pra ajudar. Pode me contar um pouco mais sobre o que você procura?'.freeze
+      # Mesmo formato exigido por Contact (app/models/contact.rb): '+' + 1 a 15 digitos,
+      # o primeiro diferente de zero.
+      E164_FORMAT = /\A\+[1-9]\d{1,14}\z/
 
       def initialize(hook:, lead:)
         @hook = hook
@@ -268,8 +271,23 @@ module Meta
         digits = "#{ddd}#{digits}" if ddd.present? && digits.length.between?(8, 9)
         # Com DDD mas sem o código do país (10-11 dígitos): prefixa 55.
         digits = "55#{digits}" if digits.length.between?(10, 11)
-        formatted = "+#{digits}"
-        Contacts::BrazilPhoneNormalizer.normalize(formatted) || formatted
+        # O normalizer NAO e filtro: ele devolve a entrada intacta quando nao reconhece o
+        # formato (nunca nil). Sem validar o resultado, lixo do formulario aberto do Meta
+        # (zero a esquerda, dois numeros colados) chegava ao Contact e estourava RecordInvalid
+        # no builder, derrubando o job em retry infinito. Validamos aqui e devolvemos nil —
+        # o perform ja trata "lead sem phone_number" (loga e segue / pula em inbox Cloud API).
+        normalized = Contacts::BrazilPhoneNormalizer.normalize("+#{digits}").to_s
+        return normalized if normalized.match?(E164_FORMAT)
+
+        Rails.logger.warn("Meta Lead Ads: telefone fora do formato E.164 descartado hook=#{@hook.id} " \
+                          "leadgen=#{@lead[:leadgen_id]} valor=#{mask_phone(normalized)}")
+        nil
+      end
+
+      # Mascara tudo menos os 4 ultimos digitos — o log precisa ser diagnosticavel sem
+      # despejar o telefone do lead inteiro.
+      def mask_phone(value)
+        value.gsub(/\d(?=\d{4})/, '*')
       end
 
       # DDD padrão do hook (dinâmico, por conta/campanha) pra completar número sem DDD.

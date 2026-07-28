@@ -19,18 +19,11 @@ class Contacts::ResolveLidJob < ApplicationJob
     session_name = inbox.waha_session_name
     return if session_name.blank?
 
-    # Preferir JID ja capturado em custom_attributes (mais barato e confiavel)
-    pn = pn_from_custom_attributes(contact) || resolve_lid_via_waha(session_name, contact_inbox, contact)
+    lid = lid_for(contact_inbox, contact)
+    pn = resolve_pn(session_name, contact, lid)
+    return handle_unresolved(session_name, lid, contact_inbox_id) if pn.blank?
 
-    if pn.blank?
-      lid = contact_inbox.source_id.to_s.end_with?('@lid') ? contact_inbox.source_id : contact.identifier
-      # LID degenerado/vazio: nada a resolver — evita o retry infinito (7x) que inundava o Sentry.
-      return if lid.blank?
-
-      Rails.logger.info("[ResolveLidJob] LID #{lid} still unresolved (contact_inbox=#{contact_inbox_id})")
-      raise Waha::ApiService::LidNotResolvable, "LID not yet resolvable: #{lid}"
-    end
-
+    remember_success(session_name, lid, pn)
     normalized_phone = normalize_phone(pn)
     merge_or_update(inbox, contact_inbox, pn, normalized_phone)
 
@@ -40,10 +33,26 @@ class Contacts::ResolveLidJob < ApplicationJob
 
   private
 
+  # Ordem: o mais barato e confiavel primeiro.
+  #   1. JID que o proprio webhook ja trouxe (zero I/O);
+  #   2. cache Redis LID->PN, populado a cada 30 min pelo Waha::RefreshGroupsJob;
+  #   3. WAHA — e so aqui, atras da guarda de sessao/backoff.
+  def resolve_pn(session_name, contact, lid)
+    pn = pn_from_custom_attributes(contact) || pn_from_cache(session_name, lid)
+    return pn if pn.present?
+    return nil unless attempt_waha?(session_name, lid)
+
+    resolve_lid_via_waha(session_name, lid)
+  end
+
   def needs_resolution?(contact_inbox, contact)
     contact_inbox.source_id.to_s.end_with?('@lid') ||
       contact.identifier.to_s.end_with?('@lid') ||
       contact.name.to_s.end_with?('@lid')
+  end
+
+  def lid_for(contact_inbox, contact)
+    contact_inbox.source_id.to_s.end_with?('@lid') ? contact_inbox.source_id : contact.identifier
   end
 
   # Se o webhook ja trouxe o JID em custom_attributes, evita rodar round-trip
@@ -55,12 +64,92 @@ class Contacts::ResolveLidJob < ApplicationJob
     jid
   end
 
-  def resolve_lid_via_waha(session_name, contact_inbox, contact)
-    waha_service = Waha::ApiService.new
-    lid = contact_inbox.source_id.to_s.end_with?('@lid') ? contact_inbox.source_id : contact.identifier
+  # Cache-first. O `Waha::RefreshGroupsJob` ja mantem o mapa LID->PN quente
+  # (waha:lid_pn:{sessao}:{lid}, TTL 7d); um acerto aqui poupa um round-trip que
+  # custa ate 8s de socket.
+  #
+  # ⚠️ O cache guarda SO DIGITOS, mas o resto deste job trata `pn` como JID: ele
+  # vira `source_id` do contact_inbox (`...@c.us`), que e a chave de identidade do
+  # contato. Reconstruir o JID aqui e obrigatorio — devolver digitos crus mudaria
+  # silenciosamente essa chave (armadilha documentada em plano/glitchtip/G3).
+  def pn_from_cache(session_name, lid)
     return nil if lid.blank?
 
-    resolve_lid(waha_service, session_name, lid)
+    digits = Whatsapp::LidPhoneCache.phone(session_name, lid)
+    return nil if digits.blank?
+
+    "#{digits}@c.us"
+  end
+
+  # Vale a pena gastar a chamada? Dois freios, ambos verificados antes do socket:
+  #   - sessao que nao esta WORKING NAO devolve erro rapido: a WAHA leva ~10s para
+  #     dizer 422 e o timeout do ApiService e 8s, entao vira Net::ReadTimeout
+  #     sempre (causa dos 2.812 eventos da issue 27);
+  #   - LID em backoff/negativo: ja falhou e nao mudou nada desde entao.
+  # Quando pulamos, `@waha_skipped` marca que NAO houve tentativa — o job termina
+  # em silencio, sem levantar e sem queimar as 7 tentativas do retry_on.
+  def attempt_waha?(session_name, lid)
+    return false if lid.blank?
+
+    return skip_waha("sessao #{session_name} nao esta WORKING") unless Waha::SessionStatusCache.usable?(session_name)
+    return skip_waha("LID #{lid} em backoff (falhas=#{Whatsapp::LidPhoneCache.failure_count(session_name, lid)})") if
+      Whatsapp::LidPhoneCache.cooling_down?(session_name, lid)
+    return skip_waha("LID #{lid} marcado como nao resolvivel ha pouco") if Whatsapp::LidPhoneCache.unresolved?(session_name, lid)
+
+    true
+  end
+
+  def skip_waha(reason)
+    @waha_skipped = true
+    Rails.logger.info("[ResolveLidJob] pulando WAHA: #{reason}")
+    false
+  end
+
+  def resolve_lid_via_waha(session_name, lid)
+    resolve_lid(Waha::ApiService.new, session_name, lid)
+  rescue Waha::ApiService::ConnectionError
+    # Timeout/conexao: conta como ciclo falho para o proximo sweep respeitar o
+    # backoff, e propaga para o retry_on deste job continuar valendo.
+    record_failure_once(session_name, lid)
+    raise
+  end
+
+  # Nao resolveu. Tres situacoes bem diferentes:
+  #   - nao chegamos a tentar (guarda de sessao/backoff): nada a registrar, nada a
+  #     retentar — retorna em silencio. E o que quebra o loop da issue 27;
+  #   - LID degenerado/vazio: idem;
+  #   - tentamos e a WAHA nao soube: registra o ciclo falho, marca o negativo curto
+  #     e levanta para o retry_on (a WAHA pode aprender o mapeamento em minutos).
+  def handle_unresolved(session_name, lid, contact_inbox_id)
+    return if @waha_skipped || lid.blank?
+
+    record_failure_once(session_name, lid)
+    Whatsapp::LidPhoneCache.write_unresolved(session_name, lid)
+    Rails.logger.info("[ResolveLidJob] LID #{lid} still unresolved (contact_inbox=#{contact_inbox_id})")
+    raise Waha::ApiService::LidNotResolvable, "LID not yet resolvable: #{lid}"
+  end
+
+  # Um incremento por CICLO, nao por tentativa: `executions` e 1 na primeira
+  # passada e cresce a cada retry_on. Sem isto, as 7 tentativas de um unico ciclo
+  # levariam o LID direto ao teto de 7 dias do backoff.
+  def record_failure_once(session_name, lid)
+    return if lid.blank? || executions.to_i > 1
+
+    count = Whatsapp::LidPhoneCache.record_failure(session_name, lid)
+    return if count.zero?
+
+    Rails.logger.info(
+      "[ResolveLidJob] LID #{lid} (sessao #{session_name}) falhou #{count}x; " \
+      "proxima tentativa so daqui a #{Whatsapp::LidPhoneCache.backoff_for(count)}s"
+    )
+  end
+
+  # Alimenta o cache com o que acabamos de descobrir e zera a memoria de falha.
+  def remember_success(session_name, lid, pn) # rubocop:disable Naming/MethodParameterName
+    return if lid.blank?
+
+    Whatsapp::LidPhoneCache.write(session_name, lid, pn)
+    Whatsapp::LidPhoneCache.clear_failures(session_name, lid)
   end
 
   def resolve_lid(waha_service, session_name, lid)
