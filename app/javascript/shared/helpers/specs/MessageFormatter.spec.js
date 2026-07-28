@@ -119,6 +119,59 @@ describe('#MessageFormatter', () => {
     });
   });
 
+  // Saneamento de exibição do histórico de grupos de WhatsApp (WAHA).
+  // Contexto e decisões: plano/pesquisa-grupos-waha/SINTESE.md
+  describe('legacy WhatsApp group prefix', () => {
+    it('removes the technical identifier and keeps the author hint', () => {
+      const message =
+        '👥 *‎Rogerio José Da Silva (229480102662169@lid)*\n\nQual Wi-Fi está?';
+      const formatted = new MessageFormatter(message).formattedMessage;
+
+      expect(formatted).not.toContain('@lid');
+      expect(formatted).not.toContain('229480102662169');
+      expect(formatted).toContain('Rogerio José Da Silva');
+      expect(formatted).toContain('Qual Wi-Fi está?');
+    });
+
+    it('removes the identifier when it shows up mid-message (broadcast)', () => {
+      const message =
+        '*📱 Enviado do WhatsApp*\n\n💬 **Mensagem:**\n"👥 **Atila Ferreira (116239062036570@lid)**\n\nPessoal bom dia"';
+      const { plainText } = new MessageFormatter(message);
+
+      expect(plainText).not.toContain('@lid');
+      expect(plainText).toContain('Atila Ferreira');
+      expect(plainText).toContain('Pessoal bom dia');
+    });
+
+    it('keeps a single line break when the original had one', () => {
+      const message = '👥 *Walisson (60756640940218@lid)*\nReiniciei aqui';
+      const { plainText } = new MessageFormatter(message);
+
+      expect(plainText).not.toContain('@lid');
+      expect(plainText).toContain('Walisson');
+      expect(plainText).toContain('Reiniciei aqui');
+    });
+
+    it('does not touch legitimate user text that mentions @lid', () => {
+      const message = 'Manda pro meu email: lid@lid.com.br';
+      expect(new MessageFormatter(message).plainText).toContain(
+        'lid@lid.com.br'
+      );
+    });
+
+    it('does not touch parenthesised numbers without the identifier', () => {
+      const message = 'O pedido (12345678) já foi faturado';
+      expect(new MessageFormatter(message).plainText).toContain(
+        'O pedido (12345678) já foi faturado'
+      );
+    });
+
+    it('leaves ordinary messages untouched', () => {
+      const message = 'Bom dia, tudo certo por aí?';
+      expect(new MessageFormatter(message).plainText).toContain(message);
+    });
+  });
+
   describe('#sanitize', () => {
     it('sanitizes markup and removes all unnecessary elements', () => {
       const message =

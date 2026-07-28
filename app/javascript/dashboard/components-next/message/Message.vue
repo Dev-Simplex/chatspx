@@ -31,8 +31,11 @@ import {
   CONTENT_TYPES,
 } from './constants';
 
+import { buildGroupAuthor, groupAuthorLabels } from './groupAuthorPresenter.js';
+
 import Avatar from 'next/avatar/Avatar.vue';
 import Icon from 'next/icon/Icon.vue';
+import GroupAuthorAvatar from './GroupAuthorAvatar.vue';
 
 import TextBubble from './bubbles/Text/Index.vue';
 import ActivityBubble from './bubbles/Activity.vue';
@@ -52,6 +55,7 @@ import NPSBubble from './bubbles/NPS.vue';
 import FormBubble from './bubbles/Form.vue';
 
 import MessageError from './MessageError.vue';
+import MessageReactions from './MessageReactions.vue';
 import MessageEditInput from './MessageEditInput.vue';
 import MessageEditHistory from './MessageEditHistory.vue';
 import MessageDeleteHistory from './MessageDeleteHistory.vue';
@@ -143,6 +147,8 @@ const props = defineProps({
   createdAt: { type: Number, required: true }, // eslint-disable-line vue/no-unused-properties
   currentUserId: { type: Number, required: true }, // eslint-disable-line vue/no-unused-properties
   groupWithNext: { type: Boolean, default: false },
+  groupWithPrevious: { type: Boolean, default: false },
+  isGroupConversation: { type: Boolean, default: false },
   inboxId: { type: Number, default: null }, // eslint-disable-line vue/no-unused-properties
   inboxSupportsReplyTo: { type: Object, default: () => ({}) },
   inReplyTo: { type: Object, default: null }, // eslint-disable-line vue/no-unused-properties
@@ -154,6 +160,12 @@ const props = defineProps({
   senderType: { type: String, default: null },
   sourceId: { type: String, default: '' }, // eslint-disable-line vue/no-unused-properties
   reactions: { type: Array, default: () => [] },
+  /**
+   * Reações do WhatsApp que chegaram como mensagem e foram agregadas pelo MessageList
+   * (`[{ emoji, count, title }]`). Vazio em toda mensagem que não foi reagida — ou seja,
+   * na esmagadora maioria, onde nada muda.
+   */
+  whatsappReactions: { type: Array, default: () => [] },
   forwarded: { type: Boolean, default: false },
   starred: { type: Boolean, default: false },
   isWahaInbox: { type: Boolean, default: false },
@@ -734,6 +746,36 @@ async function handleRetry() {
   }
 }
 
+/**
+ * Autor da mensagem dentro do grupo, gravado na ingestão
+ * (`content_attributes.group_sender`, camelizado pelo MessageList).
+ */
+const groupSender = computed(() => {
+  const attrs = props.contentAttributes || {};
+  return attrs.groupSender ?? attrs.group_sender ?? null;
+});
+
+/**
+ * Identidade visual do autor na bolha de grupo: rótulo, iniciais, cor determinística
+ * (light e dark) e tooltip.
+ *
+ * Só existe em conversa de grupo E mensagem recebida — a conversa 1:1 nunca passa por
+ * aqui e continua idêntica. Mensagem legada (autor dentro do texto, sem `group_sender`)
+ * devolve `null`: a bolha degrada para o comportamento de hoje em vez de quebrar.
+ */
+const groupAuthor = computed(() => {
+  if (!props.isGroupConversation) return null;
+  if (props.messageType !== MESSAGE_TYPES.INCOMING) return null;
+
+  return buildGroupAuthor(groupSender.value, groupAuthorLabels(t));
+});
+
+// No WhatsApp o autor abre o bloco; no Chatwoot o avatar fecha. Em grupo seguimos o
+// WhatsApp — e só aqui, para não mudar um pixel da conversa 1:1.
+const shouldShowGroupAuthorAvatar = computed(
+  () => !!groupAuthor.value && !props.groupWithPrevious
+);
+
 const avatarInfo = computed(() => {
   if (props.contentAttributes?.externalEcho) {
     const { name, avatar_url, channel_type, medium } = inbox.value;
@@ -803,6 +845,7 @@ provideMessageContext({
   orientation,
   isBotOrAgentMessage,
   shouldGroupWithNext,
+  groupAuthor,
 });
 </script>
 
@@ -860,8 +903,20 @@ provideMessageContext({
         gridTemplateAreas: gridTemplate,
       }"
     >
+      <!-- Grupo: quem aparece é o PARTICIPANTE, não o contato-grupo. O espaço fica
+           reservado nas mensagens seguintes do bloco para o fio não desalinhar. -->
       <div
-        v-if="!shouldGroupWithNext && shouldShowAvatar"
+        v-if="groupAuthor"
+        class="[grid-area:avatar] flex items-start pt-0.5"
+      >
+        <GroupAuthorAvatar
+          v-if="shouldShowGroupAuthorAvatar"
+          :author="groupAuthor"
+        />
+        <span v-else class="block size-7" aria-hidden="true" />
+      </div>
+      <div
+        v-else-if="!shouldGroupWithNext && shouldShowAvatar"
         v-tooltip.left-end="avatarTooltip"
         class="[grid-area:avatar] flex items-start pt-0.5"
       >
@@ -927,6 +982,17 @@ provideMessageContext({
             <Component :is="componentToRender" />
           </div>
           <Component :is="componentToRender" v-else />
+
+          <!-- Reações recebidas do WhatsApp: chip colado na bolha reagida, no lugar da
+               bolha de texto que a WAHA gerava. Vazio (e portanto inerte) em qualquer
+               mensagem sem reação. -->
+          <MessageReactions
+            v-if="whatsappReactions.length"
+            readonly
+            mode="chips"
+            :chips="whatsappReactions"
+            :class="flexOrientationClass"
+          />
 
           <!-- Indicador "Editado" -->
           <div

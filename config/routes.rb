@@ -233,6 +233,9 @@ Rails.application.routes.draw do
               resources :funnel_items, only: [:index]
               resources :labels, only: [:create, :index]
               resource :participants, only: [:show, :create, :update, :destroy]
+              # I3 — integrantes do grupo de WhatsApp (WAHA). show le o snapshot
+              # gravado; create e o "Sincronizar agora" do painel.
+              resource :waha_group, only: [:show, :create], controller: 'waha_group'
               resource :direct_uploads, only: [:create]
               resource :draft_messages, only: [:show, :update, :destroy]
               resource :ghost_suggestion, only: [:create]

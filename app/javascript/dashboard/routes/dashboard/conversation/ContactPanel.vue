@@ -1,5 +1,6 @@
 <script setup>
 import { computed, watch, onMounted, ref } from 'vue';
+import { useI18n } from 'vue-i18n';
 import {
   useMapGetter,
   useFunctionGetter,
@@ -7,6 +8,7 @@ import {
 } from 'dashboard/composables/store';
 import { useAccount } from 'dashboard/composables/useAccount';
 import { useUISettings } from 'dashboard/composables/useUISettings';
+import { useGroupConversation } from 'dashboard/composables/useGroupConversation';
 import { FEATURE_FLAGS } from 'dashboard/featureFlags';
 
 import AccordionItem from 'dashboard/components/Accordion/AccordionItem.vue';
@@ -14,6 +16,7 @@ import ContactConversations from './ContactConversations.vue';
 import ConversationAction from './ConversationAction.vue';
 import ConversationMedia from './ConversationMedia.vue';
 import ConversationParticipant from './ConversationParticipant.vue';
+import GroupParticipants from './GroupParticipants.vue';
 import ContactInfo from './contact/ContactInfo.vue';
 import ContactNotes from './contact/ContactNotes.vue';
 import ConversationInfo from './ConversationInfo.vue';
@@ -39,6 +42,8 @@ const props = defineProps({
     default: undefined,
   },
 });
+
+const { t } = useI18n();
 
 const {
   uiSettings,
@@ -102,6 +107,23 @@ const conversationAdditionalAttributes = computed(
 );
 
 const channelType = computed(() => currentChat.value.meta?.channel);
+
+// A seção "Integrantes" só existe em conversa de grupo (WhatsApp/WAHA).
+const { isGroup, participantCount, hasSnapshot } = useGroupConversation();
+
+// Integrantes abre por padrão (é a informação que falta hoje em grupo); só fica
+// recolhido se o agente o fechar de propósito — mesmo critério de "Mídias".
+const isGroupParticipantsOpen = computed(
+  () => uiSettings.value?.is_group_participants_open !== false
+);
+
+const groupParticipantsTitle = computed(() =>
+  hasSnapshot.value && participantCount.value
+    ? t('GROUP_INFO.SIDEBAR_TITLE_WITH_COUNT', {
+        count: participantCount.value,
+      })
+    : t('GROUP_INFO.SIDEBAR_TITLE')
+);
 
 const contactGetter = useMapGetter('contacts/getContact');
 const contactId = computed(() => currentChat.value.meta?.sender?.id);
@@ -180,6 +202,22 @@ onMounted(() => {
               "
             >
               <ConversationMedia :conversation-id="conversationId" />
+            </AccordionItem>
+          </div>
+          <div
+            v-else-if="element.name === 'group_participants' && isGroup"
+            class="conversation--group-participants"
+          >
+            <AccordionItem
+              :title="groupParticipantsTitle"
+              :is-open="isGroupParticipantsOpen"
+              compact
+              @toggle="
+                value =>
+                  toggleSidebarUIState('is_group_participants_open', value)
+              "
+            >
+              <GroupParticipants :conversation-id="conversationId" />
             </AccordionItem>
           </div>
           <div

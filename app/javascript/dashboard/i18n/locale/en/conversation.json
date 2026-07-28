@@ -529,7 +529,8 @@
       }
     },
     "REACTIONS": {
-      "PICKER_TOOLTIP": "Add reaction"
+      "PICKER_TOOLTIP": "Add reaction",
+      "FROM_WHATSAPP": "Reaction received from WhatsApp"
     },
     "PDF_PREVIEW": {
       "OPEN_FULL": "Open"
@@ -719,7 +720,8 @@
       "MACROS": "Macros",
       "LINEAR_ISSUES": "Linked Linear Issues",
       "SHOPIFY_ORDERS": "Shopify Orders",
-      "KANBAN_STATUS": "Kanban Status"
+      "KANBAN_STATUS": "Kanban Status",
+      "GROUP_PARTICIPANTS": "Group members"
     },
     "KANBAN_STATUS": {
       "EMPTY": "Not in any funnel",
@@ -832,6 +834,50 @@
       "ERROR_MESSAGE": "Could not update, try again!",
       "SUCCESS_MESSAGE": "Participants updated!"
     }
+  },
+  "GROUP_INFO": {
+    "BADGE": "Group",
+    "BADGE_TOOLTIP": "WhatsApp group conversation",
+    "PARTICIPANTS_COUNT": "{count} participants",
+    "PARTICIPANTS_COUNT_ONE": "1 participant",
+    "HEADER_NOT_SYNCED": "Group · members not synced",
+    "SIDEBAR_TITLE": "Members",
+    "SIDEBAR_TITLE_WITH_COUNT": "Members ({count})",
+    "SEARCH_PLACEHOLDER": "Search member…",
+    "ADMIN_BADGE": "Admin",
+    "SUPER_ADMIN_BADGE": "Owner",
+    "SHOW_ALL": "See all {count} members",
+    "SHOW_LESS": "Show less",
+    "UNKNOWN_PARTICIPANT": "Unidentified participant",
+    "UNKNOWN_PARTICIPANT_HINT": "WhatsApp did not tell us who sent this message. Sync the group members to try to identify them.",
+    "NO_PHONE": "Phone number unavailable",
+    "LEFT_GROUP": "left the group",
+    "LEFT_GROUP_SECTION": "Left the group ({count})",
+    "NOT_IN_GROUP_BANNER": "You are no longer a member of this group. Sending messages is not possible.",
+    "EMPTY_TITLE": "Members not synced yet",
+    "EMPTY_BODY": "ChatSPX has not received the participant list for this group yet.",
+    "SYNC_NOW": "Sync now",
+    "SYNCING": "Syncing…",
+    "SYNC_TOOLTIP": "Sync members",
+    "SYNC_SUCCESS": "Members updated",
+    "SYNC_THROTTLED": "Wait a few seconds before syncing again",
+    "SYNCED_AT": "Synced {relative}",
+    "NOT_SYNCED": "Members not synced",
+    "PARTIALLY_RESOLVED": "{unresolved} of {total} members still unidentified",
+    "LOAD_ERROR": "Could not load the members",
+    "LOAD_ERROR_KEEPING_LIST": "Could not refresh the members. Showing the last list we received.",
+    "LOAD_ERROR_RETRY": "Try again",
+    "STALE_WARNING": "This list may be out of date",
+    "ACTIONS": {
+      "OPEN_DM": "Open 1:1 conversation",
+      "OPEN_DM_DISABLED": "This member does not have a contact in ChatSPX yet",
+      "VIEW_CONTACT": "View contact",
+      "COPY_PHONE": "Copy phone number",
+      "COPY_PHONE_DISABLED": "This member has no known phone number",
+      "PHONE_COPIED": "Phone number copied"
+    },
+    "SENT_BY_IN_GROUP": "Sent by {name} in this group",
+    "REPLYING_TO": "Replying to {name}"
   },
   "TRANSLATE_MODAL": {
     "TITLE": "View translated content",

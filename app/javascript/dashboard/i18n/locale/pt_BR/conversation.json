@@ -521,7 +521,8 @@
       "DELETED_BY": "Apagada por {name}"
     },
     "REACTIONS": {
-      "PICKER_TOOLTIP": "Adicionar reação"
+      "PICKER_TOOLTIP": "Adicionar reação",
+      "FROM_WHATSAPP": "Reação recebida pelo WhatsApp"
     },
     "PDF_PREVIEW": {
       "OPEN_FULL": "Abrir"
@@ -711,7 +712,8 @@
       "MACROS": "Macros",
       "LINEAR_ISSUES": "Problemas do Linear vinculados",
       "SHOPIFY_ORDERS": "Pedidos do Shopify",
-      "KANBAN_STATUS": "Situação no Kanban"
+      "KANBAN_STATUS": "Situação no Kanban",
+      "GROUP_PARTICIPANTS": "Integrantes do grupo"
     },
     "KANBAN_STATUS": {
       "EMPTY": "Não está em nenhum funil",
@@ -824,6 +826,50 @@
       "ERROR_MESSAGE": "Não foi possível atualizar, tente novamente!",
       "SUCCESS_MESSAGE": "Participantes atualizados!"
     }
+  },
+  "GROUP_INFO": {
+    "BADGE": "Grupo",
+    "BADGE_TOOLTIP": "Conversa de grupo do WhatsApp",
+    "PARTICIPANTS_COUNT": "{count} participantes",
+    "PARTICIPANTS_COUNT_ONE": "1 participante",
+    "HEADER_NOT_SYNCED": "Grupo · integrantes não sincronizados",
+    "SIDEBAR_TITLE": "Integrantes",
+    "SIDEBAR_TITLE_WITH_COUNT": "Integrantes ({count})",
+    "SEARCH_PLACEHOLDER": "Buscar integrante…",
+    "ADMIN_BADGE": "Admin",
+    "SUPER_ADMIN_BADGE": "Criador",
+    "SHOW_ALL": "Ver todos os {count} integrantes",
+    "SHOW_LESS": "Ver menos",
+    "UNKNOWN_PARTICIPANT": "Participante não identificado",
+    "UNKNOWN_PARTICIPANT_HINT": "O WhatsApp não informou quem enviou esta mensagem. Sincronize os integrantes do grupo para tentar identificar.",
+    "NO_PHONE": "Telefone não disponível",
+    "LEFT_GROUP": "saiu do grupo",
+    "LEFT_GROUP_SECTION": "Saíram do grupo ({count})",
+    "NOT_IN_GROUP_BANNER": "Você não faz mais parte deste grupo. Não é possível enviar mensagens.",
+    "EMPTY_TITLE": "Integrantes ainda não sincronizados",
+    "EMPTY_BODY": "O ChatSPX ainda não recebeu a lista de participantes deste grupo.",
+    "SYNC_NOW": "Sincronizar agora",
+    "SYNCING": "Sincronizando…",
+    "SYNC_TOOLTIP": "Sincronizar integrantes",
+    "SYNC_SUCCESS": "Integrantes atualizados",
+    "SYNC_THROTTLED": "Aguarde alguns segundos antes de sincronizar de novo",
+    "SYNCED_AT": "Sincronizado {relative}",
+    "NOT_SYNCED": "Integrantes não sincronizados",
+    "PARTIALLY_RESOLVED": "{unresolved} de {total} integrantes ainda não identificados",
+    "LOAD_ERROR": "Não foi possível carregar os integrantes",
+    "LOAD_ERROR_KEEPING_LIST": "Não foi possível atualizar os integrantes. Mostrando a última lista recebida.",
+    "LOAD_ERROR_RETRY": "Tentar novamente",
+    "STALE_WARNING": "Esta lista pode estar desatualizada",
+    "ACTIONS": {
+      "OPEN_DM": "Abrir conversa 1:1",
+      "OPEN_DM_DISABLED": "Este integrante ainda não tem um contato no ChatSPX",
+      "VIEW_CONTACT": "Ver contato",
+      "COPY_PHONE": "Copiar telefone",
+      "COPY_PHONE_DISABLED": "Este integrante não tem telefone conhecido",
+      "PHONE_COPIED": "Telefone copiado"
+    },
+    "SENT_BY_IN_GROUP": "Enviado por {name} neste grupo",
+    "REPLYING_TO": "Respondendo a {name}"
   },
   "TRANSLATE_MODAL": {
     "TITLE": "Ver conteúdo traduzido",

@@ -23,6 +23,7 @@ import wootConstants from 'dashboard/constants/globals';
 import { conversationListPageURL } from 'dashboard/helper/URLHelper';
 import { snoozedReopenTime } from 'dashboard/helper/snoozeHelpers';
 import { useInbox } from 'dashboard/composables/useInbox';
+import { useGroupConversation } from 'dashboard/composables/useGroupConversation';
 import { useUISettings } from 'dashboard/composables/useUISettings';
 import { useI18n } from 'vue-i18n';
 import { CONVERSATION_PRIORITY } from 'shared/constants/messages';
@@ -137,6 +138,34 @@ const presenceText = computed(() => {
   if (isContactOnline.value) return t('CONVERSATION.HEADER.ONLINE');
   return lastSeenLabel.value;
 });
+
+// --- Conversa de grupo (WhatsApp/WAHA) -----------------------------------
+// Grupo não tem presença: "visto por último" mostraria o last_seen_at do
+// contato-grupo, um dado sem significado. A linha vira a contagem de
+// integrantes, lida do snapshot em additional_attributes.waha_group.
+const chatRef = computed(() => props.chat);
+const { isGroup, groupName, hasSnapshot, participantCount } =
+  useGroupConversation(chatRef);
+
+/** Nome exibido: em grupo, sem o sufixo "(GROUP)" que a integração gruda. */
+const displayName = computed(() => {
+  const name = currentContact.value?.name || '';
+  return isGroup.value ? groupName.value || name : name;
+});
+
+const groupSubtitle = computed(() => {
+  // Sem snapshot, é honesto dizer que não sincronizou — "0 participantes" seria mentira.
+  if (!hasSnapshot.value || !participantCount.value) {
+    return t('GROUP_INFO.HEADER_NOT_SYNCED');
+  }
+  return participantCount.value === 1
+    ? t('GROUP_INFO.PARTICIPANTS_COUNT_ONE')
+    : t('GROUP_INFO.PARTICIPANTS_COUNT', { count: participantCount.value });
+});
+
+const sublineText = computed(() =>
+  isGroup.value ? groupSubtitle.value : presenceText.value
+);
 
 const isSnoozed = computed(
   () => currentChat.value.status === wootConstants.STATUS_TYPE.SNOOZED
@@ -380,7 +409,7 @@ const setPriority = async value => {
       />
       <Thumbnail
         :src="currentContact.thumbnail"
-        :username="currentContact.name"
+        :username="displayName"
         :status="
           isContactOnline ? 'online' : currentContact.availability_status
         "
@@ -396,7 +425,15 @@ const setPriority = async value => {
             tabindex="0"
             @click="toggleContactPanel"
           >
-            {{ currentContact.name }}
+            {{ displayName }}
+          </span>
+          <span
+            v-if="isGroup"
+            v-tooltip="$t('GROUP_INFO.BADGE_TOOLTIP')"
+            class="wa-group-badge inline-flex items-center gap-1 flex-shrink-0 px-[7px] py-px rounded-full border border-n-weak text-[10.5px] font-semibold tracking-wide text-n-slate-11"
+          >
+            <span class="i-lucide-users size-3" />
+            {{ $t('GROUP_INFO.BADGE') }}
           </span>
           <fluent-icon
             v-if="!isHMACVerified"
@@ -407,15 +444,15 @@ const setPriority = async value => {
           />
         </div>
         <div
-          v-if="presenceText"
+          v-if="sublineText"
           class="wa-contact-presence text-[12px] leading-tight truncate"
           :class="
-            isContactTyping || isContactOnline
+            !isGroup && (isContactTyping || isContactOnline)
               ? 'text-n-teal-11'
               : 'text-n-slate-11'
           "
         >
-          {{ presenceText }}
+          {{ sublineText }}
         </div>
 
         <div

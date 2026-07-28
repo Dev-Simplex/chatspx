@@ -9,12 +9,17 @@ class Waha::ApiService # rubocop:disable Metrics/ClassLength
   # Fica FORA do Sentry (excluded_exceptions) pra nao virar ruido; erros WAHA reais continuam reportando.
   class LidNotResolvable < Error; end
 
-  def initialize
+  DEFAULT_TIMEOUT = 8
+
+  # timeout: padrao 8s para ficar abaixo do Rack::Timeout (15s) — assim o
+  # Net::ReadTimeout dispara primeiro e devolvemos erro amigavel em vez de 500.
+  # Fora do ciclo web (Sidekiq) nao ha Rack::Timeout: chamadas pesadas como
+  # GET /groups (240 KB / ~2s aqui, e ~10s quando a sessao esta parada) podem
+  # pedir um timeout maior explicitamente.
+  def initialize(timeout: DEFAULT_TIMEOUT)
     @base_url = ENV.fetch('WAHA_API_URL', 'http://localhost:3000')
     @api_key = ENV.fetch('WAHA_API_KEY', nil)
-    # Keep below Rack::Timeout (15s) so Net::ReadTimeout fires first and we
-    # surface a friendly error instead of a hard 500.
-    @timeout = 8
+    @timeout = timeout
   end
 
   def list_sessions(all: true)
@@ -105,8 +110,41 @@ class Waha::ApiService # rubocop:disable Metrics/ClassLength
     get("/api/#{session_name}/lids", limit: limit, offset: offset)
   end
 
+  # GET /api/{session}/groups — lista TODOS os grupos da sessao, e cada grupo ja
+  # vem com `Participants[]` (JID/LID + PhoneNumber + IsAdmin) embutido. Medido
+  # nesta VM: 78 grupos, 932 participantes, 932 com telefone, 240 KB, ~1,9s.
+  # E o payload mais barato que existe para popular o mapa LID->PN em lote.
   def get_groups(session_name)
     get("/api/#{session_name}/groups")
+  end
+
+  # GET /api/{session}/groups/{groupId} — um grupo so, mesmo objeto do /groups
+  # (inclui Name e Participants[]).
+  def get_group(session_name, group_id)
+    get("/api/#{session_name}/groups/#{encode_path_segment(group_id)}")
+  end
+
+  # Participantes de um grupo. A WAHA 2026.4.2 (engine GOWS) expoe DUAS rotas,
+  # ambas HTTP 200 nesta versao — validadas ao vivo contra "TI TOZI - Inovacao":
+  #
+  #   /participants     -> [{JID, PhoneNumber, LID, IsAdmin, IsSuperAdmin, DisplayName, Error, AddRequest}]
+  #   /participants/v2  -> [{id, pn, role}]
+  #
+  # Preferimos a **v2** por dois motivos: (a) e o contrato normalizado da WAHA
+  # (chaves minusculas, JID no formato canonico @c.us, `role` como enum), enquanto
+  # a v1 e a serializacao crua da struct do engine (campos internos como
+  # `AddRequest`/`Error`) e portanto acompanha mudancas do whatsmeow; (b) e mais
+  # leve — 874 B contra 2199 B no mesmo grupo, com latencia igual ou menor.
+  # Mantemos a v1 como fallback automatico porque o parser dela ja e obrigatorio
+  # (e o mesmo shape que vem dentro de GET /groups), entao o fallback sai de graca.
+  # DisplayName vem SEMPRE vazio no GOWS — o nome do participante nao vem daqui.
+  def get_group_participants(session_name, group_id)
+    get("/api/#{session_name}/groups/#{encode_path_segment(group_id)}/participants/v2")
+  rescue Error => e
+    raise e if e.is_a?(AuthenticationError) || e.is_a?(ConnectionError)
+
+    Rails.logger.info("[WAHA] participants/v2 indisponivel para #{session_name}/#{group_id} (#{e.message}); caindo para v1")
+    get("/api/#{session_name}/groups/#{encode_path_segment(group_id)}/participants")
   end
 
   # Sends a WhatsApp location message via WAHA REST.

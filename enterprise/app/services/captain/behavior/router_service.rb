@@ -1,4 +1,7 @@
 class Captain::Behavior::RouterService
+  # Padrão SEGURO: sem configuração explícita, a IA não responde dentro de grupo de WhatsApp.
+  SKIP_GROUPS_DEFAULT = true
+
   def initialize(assistant:, conversation:, message:)
     @assistant = assistant
     @conversation = conversation
@@ -22,29 +25,32 @@ class Captain::Behavior::RouterService
 
   private
 
-  # skip_groups continua honrando a config (comportamento preservado p/ grupos WAHA).
+  # skip_groups continua honrando a config — o que mudou é o DEFAULT.
+  #
+  # Antes: chave ausente => a IA respondia dentro do grupo. Isso é inseguro por omissão: quem
+  # nunca abriu a tela de comportamento tinha a IA falando no meio de um grupo de trabalho, com
+  # o classificador lendo mensagens de N pessoas como se fossem de um cliente só.
+  # Agora: chave ausente => NÃO responde em grupo. Quem configurou explicitamente (true OU false)
+  # continua mandando — inclusive quem quer deliberadamente a IA dentro do grupo (`false`).
   def skip_groups?
-    return false unless @config['skip_groups']
+    return false unless skip_groups_enabled?
 
     conversation_is_group?
   end
 
-  # WAHA não seta `additional_attributes['type'] = 'group'` que é o sinal padrão
-  # do Chatwoot — em vez disso, o JID/chat_id do contato termina com `@g.us`.
-  # Para cobrir os dois fluxos e qualquer integração futura, olhamos múltiplos
-  # campos antes de decidir.
+  # Resolve a config tri-estado: ausente/vazia => SKIP_GROUPS_DEFAULT; presente => valor do usuário
+  # (aceita boolean e string, porque a config vem de JSON editado por tela e por API).
+  def skip_groups_enabled?
+    raw = @config['skip_groups']
+    return SKIP_GROUPS_DEFAULT if raw.nil? || raw == ''
+
+    ActiveModel::Type::Boolean.new.cast(raw) || false
+  end
+
+  # Delega ao ponto único de verdade (Conversation#group?), que conhece tanto o sinal padrão do
+  # Chatwoot (`additional_attributes['type'] == 'group'`) quanto o da WAHA (JID terminando em
+  # `@g.us`, no identifier ou nos custom_attributes). A heurística NÃO vive mais aqui.
   def conversation_is_group?
-    return true if @conversation.additional_attributes&.dig('type') == 'group'
-
-    contact = @conversation.contact
-    return false unless contact
-
-    return true if contact.identifier.to_s.end_with?('@g.us')
-
-    custom = contact.custom_attributes || {}
-    return true if custom['waha_whatsapp_chat_id'].to_s.end_with?('@g.us')
-    return true if custom['waha_whatsapp_jid'].to_s.end_with?('@g.us')
-
-    false
+    @conversation.group?
   end
 end
