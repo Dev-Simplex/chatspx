@@ -1,5 +1,5 @@
 <script setup>
-import { computed } from 'vue';
+import { computed, ref } from 'vue';
 import { useI18n } from 'vue-i18n';
 import { useMapGetter } from 'dashboard/composables/store';
 import Spinner from 'dashboard/components-next/spinner/Spinner.vue';
@@ -19,6 +19,20 @@ const globalConfig = useMapGetter('globalConfig/get');
 const installationName = computed(() => {
   return globalConfig.value?.installationName || 'Chatwoot';
 });
+
+// Marca da instalação em vez de um ícone genérico. Mesma cadeia de fallback do
+// empty state da conversa: thumbnail (quadrada) > logo > arquivo padrão.
+const logoUrl = computed(() => {
+  return (
+    globalConfig.value?.logoThumbnail ||
+    globalConfig.value?.logo ||
+    '/brand-assets/logo_thumbnail.svg'
+  );
+});
+
+// Se a marca configurada apontar para um arquivo inexistente, some com a
+// imagem em vez de deixar o ícone quebrado do navegador.
+const logoVisible = ref(true);
 </script>
 
 <template>
@@ -29,9 +43,12 @@ const installationName = computed(() => {
       <Spinner class="text-n-brand" />
     </div>
     <div v-else class="flex flex-col items-center max-w-md">
-      <Icon
-        icon="i-lucide-message-circle"
-        class="size-[120px] text-n-slate-4"
+      <img
+        v-if="logoVisible"
+        :src="logoUrl"
+        alt=""
+        class="size-24 drop-shadow-sm"
+        @error="logoVisible = false"
       />
       <h3 class="mt-6 text-2xl font-semibold text-n-slate-12">
         {{ installationName }}
