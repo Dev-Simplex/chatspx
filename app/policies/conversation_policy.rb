@@ -29,8 +29,11 @@ class ConversationPolicy < ApplicationPolicy
     @accessible_inbox_ids ||= user.inboxes.where(account_id: account&.id).pluck(:id).to_set
   end
 
+  # Membro ∪ supervisionado (D2): o supervisor alcança a conversa do time que
+  # supervisiona mesmo sem ser membro do time nem da caixa. Sem supervisão o
+  # TeamSupervision devolve só os times de membro — mesmo conjunto de antes.
   def accessible_team_ids
-    @accessible_team_ids ||= user.teams.where(account_id: account&.id).pluck(:id).to_set
+    @accessible_team_ids ||= TeamSupervision.accessible_team_ids(user, account&.id).to_set
   end
 
   def inbox_access?

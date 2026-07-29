@@ -5,6 +5,8 @@ class Api::V1::Accounts::TeamsController < Api::V1::Accounts::BaseController
   def index
     @teams = Current.account.teams
     @current_user_team_ids = Current.user.teams.pluck(:id).to_set
+    # pré-carrega para o partial não repetir a consulta por time da listagem
+    @current_user_supervised_team_ids = TeamSupervision.team_ids(Current.user, Current.account).to_set
   end
 
   def show; end

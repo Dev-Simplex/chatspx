@@ -141,6 +141,81 @@ RSpec.describe 'Agents API', type: :request do
         expect(other_agent.account_users.first.role).to eq('administrator')
       end
     end
+
+    context 'when marking the agent as a team supervisor' do
+      let!(:team) { create(:team, account: account) }
+      let!(:other_team) { create(:team, account: account) }
+
+      it 'lets an administrator mark the supervised teams' do
+        put "/api/v1/accounts/#{account.id}/agents/#{other_agent.id}",
+            params: { supervised_team_ids: [team.id] },
+            headers: admin.create_new_auth_token,
+            as: :json
+
+        expect(response).to have_http_status(:success)
+        expect(response.parsed_body['supervised_team_ids']).to eq([team.id])
+        expect(other_agent.reload.supervised_teams).to contain_exactly(team)
+      end
+
+      it 'replaces the whole set (add + remove no mesmo request)' do
+        create(:team_supervisor, team: team, user: other_agent)
+
+        put "/api/v1/accounts/#{account.id}/agents/#{other_agent.id}",
+            params: { supervised_team_ids: [other_team.id] },
+            headers: admin.create_new_auth_token,
+            as: :json
+
+        expect(response).to have_http_status(:success)
+        expect(other_agent.reload.supervised_teams).to contain_exactly(other_team)
+      end
+
+      it 'clears the supervision with an empty array' do
+        create(:team_supervisor, team: team, user: other_agent)
+
+        put "/api/v1/accounts/#{account.id}/agents/#{other_agent.id}",
+            params: { supervised_team_ids: [] },
+            headers: admin.create_new_auth_token,
+            as: :json
+
+        expect(response).to have_http_status(:success)
+        expect(other_agent.reload.supervised_teams).to be_empty
+      end
+
+      it 'keeps the supervision untouched when the key is absent' do
+        create(:team_supervisor, team: team, user: other_agent)
+
+        put "/api/v1/accounts/#{account.id}/agents/#{other_agent.id}",
+            params: { name: 'TestUser' },
+            headers: admin.create_new_auth_token,
+            as: :json
+
+        expect(response).to have_http_status(:success)
+        expect(other_agent.reload.supervised_teams).to contain_exactly(team)
+      end
+
+      it 'ignores team ids from another account' do
+        foreign_team = create(:team, account: create(:account))
+
+        put "/api/v1/accounts/#{account.id}/agents/#{other_agent.id}",
+            params: { supervised_team_ids: [team.id, foreign_team.id] },
+            headers: admin.create_new_auth_token,
+            as: :json
+
+        expect(response).to have_http_status(:success)
+        expect(other_agent.reload.supervised_teams).to contain_exactly(team)
+      end
+
+      # D7: senão um agente se autopromove a supervisor
+      it 'returns unauthorized for an agent' do
+        put "/api/v1/accounts/#{account.id}/agents/#{agent.id}",
+            params: { supervised_team_ids: [team.id] },
+            headers: agent.create_new_auth_token,
+            as: :json
+
+        expect(response).to have_http_status(:unauthorized)
+        expect(agent.reload.supervised_teams).to be_empty
+      end
+    end
   end
 
   describe 'POST /api/v1/accounts/{account.id}/agents' do
