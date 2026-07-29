@@ -86,6 +86,10 @@ class Captain::ConversationEvalSchedulerJob < ApplicationJob
 
   # Episódios abertos cuja última mensagem já venceu o gap fecham por decurso —
   # mesmo sem atividade nova na conversa (a conversa saiu da janela de varredura).
+  #
+  # `joins(:conversation)` (INNER JOIN) descarta episódio cuja conversa foi deletada:
+  # o segmenter faz `conversation.messages` e estourava NoMethodError com conversa nil,
+  # matando o cron inteiro na 1ª iteração — e com ele o enqueue e o watchdog abaixo.
   def resegment_stale_open_episodes(account)
     gap_hours = account.custom_attributes&.dig('eval_episode_gap_hours').to_i
     gap_hours = Captain::EpisodeSegmenterService::DEFAULT_GAP_HOURS unless gap_hours.positive?
@@ -95,7 +99,7 @@ class Captain::ConversationEvalSchedulerJob < ApplicationJob
                                 .where('last_message_at < ?', gap_hours.hours.ago)
                                 .order(last_message_at: :asc)
                                 .limit(MAX_STALE_RESEGMENTS)
-                                .includes(:conversation)
+                                .joins(:conversation).includes(:conversation)
                                 .each { |ep| Captain::EpisodeSegmenterService.new(conversation: ep.conversation).perform }
   end
 
@@ -107,6 +111,7 @@ class Captain::ConversationEvalSchedulerJob < ApplicationJob
                                 .where.not(id: judged)
                                 .order(ended_at: :desc)
                                 .limit(MAX_PER_ACCOUNT)
+                                .joins(:conversation)
                                 .each { |episode| Captain::EpisodeEvalJob.perform_later(episode) }
   end
 end
