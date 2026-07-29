@@ -188,9 +188,24 @@ const currentInbox = computed(() => {
   const inboxId = currentChat.value?.inbox_id;
   return inboxId ? store.getters['inboxes/getInbox'](inboxId) : {};
 });
-const myTeams = computed(() => {
-  const teams = store.getters['teams/getMyTeams'] || [];
+// Membro ∪ supervisionado (getter da F4). Sem ninguém supervisionando isto é
+// idêntico a getMyTeams — o agente comum continua vendo o cadeado.
+const visibleTeams = computed(() => {
+  const teams = store.getters['teams/getVisibleTeams'] || [];
   return teams.map(team => team.id);
+});
+const supervisedTeams = computed(() => {
+  const teams = store.getters['teams/getSupervisedTeams'] || [];
+  return teams.map(team => team.id);
+});
+// O backend (F2) isenta o supervisor por CONVERSA: se o time da conversa aberta é
+// supervisionado, o MessageFinder devolve todas as bolhas dela. O front tem que
+// usar o mesmo eixo, senão mascara justamente o que o servidor destravou.
+const isSupervisedChat = computed(() => {
+  if (!supervisedTeams.value.length) return false;
+  const chatTeamId =
+    currentChat.value?.meta?.team?.id || currentChat.value?.team_id || null;
+  return !!chatTeamId && supervisedTeams.value.includes(chatTeamId);
 });
 const currentAccount = computed(() => store.getters.getCurrentAccount || {});
 const isAdmin = computed(() => {
@@ -213,7 +228,8 @@ const isRestrictedByTeam = computed(() => {
   if (!props.teamId) return false;
   if (props.messageType === MESSAGE_TYPES.ACTIVITY) return false;
   if (isAdmin.value) return false;
-  return !myTeams.value.includes(props.teamId);
+  if (isSupervisedChat.value) return false;
+  return !visibleTeams.value.includes(props.teamId);
 });
 
 // Agent isolation: depende de QUEM olha — restrito se a msg pertence a OUTRO agente.
@@ -231,6 +247,7 @@ const isRestrictedByAgent = computed(() => {
   if (!props.agentId) return false;
   if (props.messageType === MESSAGE_TYPES.ACTIVITY) return false;
   if (isAdmin.value) return false;
+  if (isSupervisedChat.value) return false;
   return props.agentId !== props.currentUserId;
 });
 

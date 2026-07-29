@@ -50,11 +50,23 @@ const filteredAgentList = computed(() => {
 const uiFlags = computed(() => getters['agents/getUIFlags'].value);
 const currentUserId = computed(() => getters.getCurrentUserID.value);
 const customRoles = useMapGetter('customRole/getCustomRoles');
+const teams = useMapGetter('teams/getTeams');
 
 onMounted(() => {
   store.dispatch('agents/get');
   store.dispatch('customRole/getCustomRole');
+  // os times alimentam o chip de supervisor e o campo do modal de edição
+  store.dispatch('teams/get');
 });
+
+// supervisionar ≠ ser membro: a lista vem separada de team_ids
+const isSupervisor = agent => !!agent.supervised_team_ids?.length;
+
+const supervisedTeamNames = agent =>
+  (agent.supervised_team_ids || [])
+    .map(id => teams.value.find(team => team.id === id)?.name)
+    .filter(Boolean)
+    .join(', ');
 
 const findCustomRole = agent =>
   customRoles.value.find(role => role.id === agent.custom_role_id);
@@ -254,6 +266,13 @@ const confirmDeletion = () => {
                 >
                   {{ $t('AGENT_MGMT.LIST.VERIFICATION_PENDING') }}
                 </span>
+                <span
+                  v-if="isSupervisor(agent)"
+                  v-tooltip.top="supervisedTeamNames(agent)"
+                  class="px-1.5 py-0.5 rounded-md bg-n-teal-3 text-n-teal-11 text-label-small"
+                >
+                  {{ $t('AGENT_MGMT.LIST.SUPERVISOR') }}
+                </span>
               </div>
             </div>
           </div>
@@ -296,6 +315,7 @@ const confirmDeletion = () => {
         :email="currentAgent.email"
         :availability="currentAgent.availability_status"
         :custom-role-id="currentAgent.custom_role_id"
+        :supervised-team-ids="currentAgent.supervised_team_ids || []"
         @close="hideEditPopup"
       />
     </woot-modal>

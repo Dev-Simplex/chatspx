@@ -9,6 +9,7 @@ import { useMapGetter } from 'dashboard/composables/store.js';
 import { useStoreGetters, useStore } from 'dashboard/composables/store';
 import { useI18n } from 'vue-i18n';
 
+import Avatar from 'next/avatar/Avatar.vue';
 import Icon from 'dashboard/components-next/icon/Icon.vue';
 import Button from 'dashboard/components-next/button/Button.vue';
 
@@ -20,13 +21,48 @@ const { isAdmin } = useAdmin();
 const loading = ref({});
 const searchQuery = ref('');
 
-const teamsList = useMapGetter('teams/getTeams');
+const allTeams = useMapGetter('teams/getTeams');
+const supervisedTeams = useMapGetter('teams/getSupervisedTeams');
+
+// Quem chega aqui sem ser admin só pode ter entrado pela permissão
+// `team_supervisor` (ver teams.routes.js), então a tela vira somente-leitura e
+// mostra apenas os times supervisionados. Para o admin nada muda.
+const isSupervisorView = computed(() => !isAdmin.value);
+
+const teamsList = computed(() =>
+  isSupervisorView.value ? supervisedTeams.value : allTeams.value
+);
 
 const filteredTeamsList = computed(() => {
   const query = searchQuery.value.trim();
   if (!query) return teamsList.value;
   return picoSearch(teamsList.value, query, ['name', 'description']);
 });
+
+// Lista de membros (somente leitura) para o supervisor: um time expandido por
+// vez, buscado sob demanda — o endpoint /team_members já é liberado a agentes.
+const expandedTeamId = ref(null);
+const membersLoading = ref({});
+const getTeamMembersFn = useMapGetter('teamMembers/getTeamMembers');
+
+const membersOf = teamId => getTeamMembersFn.value(teamId) || [];
+
+const toggleMembers = async team => {
+  if (expandedTeamId.value === team.id) {
+    expandedTeamId.value = null;
+    return;
+  }
+  expandedTeamId.value = team.id;
+  if (membersOf(team.id).length) return;
+  try {
+    membersLoading.value[team.id] = true;
+    await store.dispatch('teamMembers/get', { teamId: team.id });
+  } catch (error) {
+    useAlert(t('TEAMS_SETTINGS.MEMBERS.API_ERROR'));
+  } finally {
+    membersLoading.value[team.id] = false;
+  }
+};
 
 const uiFlags = computed(() => getters['teams/getUIFlags'].value);
 
@@ -84,13 +120,21 @@ const confirmPlaceHolderText = computed(() =>
     :is-loading="uiFlags.isFetching"
     :loading-message="$t('TEAMS_SETTINGS.LOADING')"
     :no-records-found="!teamsList.length"
-    :no-records-message="$t('TEAMS_SETTINGS.LIST.404')"
+    :no-records-message="
+      isSupervisorView
+        ? $t('TEAMS_SETTINGS.LIST.404_SUPERVISOR')
+        : $t('TEAMS_SETTINGS.LIST.404')
+    "
   >
     <template #header>
       <BaseSettingsHeader
         v-model:search-query="searchQuery"
         :title="$t('TEAMS_SETTINGS.HEADER')"
-        :description="$t('TEAMS_SETTINGS.DESCRIPTION')"
+        :description="
+          isSupervisorView
+            ? $t('TEAMS_SETTINGS.DESCRIPTION_SUPERVISOR')
+            : $t('TEAMS_SETTINGS.DESCRIPTION')
+        "
         :link-text="$t('TEAMS_SETTINGS.LEARN_MORE')"
         :search-placeholder="$t('TEAMS_SETTINGS.SEARCH_PLACEHOLDER')"
         feature-name="team_management"
@@ -119,55 +163,113 @@ const confirmPlaceHolderText = computed(() =>
         v-else
         class="divide-y divide-n-weak border border-n-weak rounded-xl"
       >
-        <div
-          v-for="team in filteredTeamsList"
-          :key="team.id"
-          class="flex justify-between flex-row items-start gap-4 px-4 py-4"
-        >
-          <div class="flex items-start gap-4">
-            <div
-              class="flex items-center flex-shrink-0 size-10 justify-center rounded-xl outline outline-1 outline-n-weak -outline-offset-1"
-            >
-              <Icon
-                icon="i-lucide-users-round"
-                class="size-4 text-n-slate-11"
-              />
+        <div v-for="team in filteredTeamsList" :key="team.id" class="px-4 py-4">
+          <div class="flex justify-between flex-row items-start gap-4">
+            <div class="flex items-start gap-4">
+              <div
+                class="flex items-center flex-shrink-0 size-10 justify-center rounded-xl outline outline-1 outline-n-weak -outline-offset-1"
+              >
+                <Icon
+                  icon="i-lucide-users-round"
+                  class="size-4 text-n-slate-11"
+                />
+              </div>
+              <div class="flex flex-col items-start gap-1">
+                <span class="block text-heading-3 text-n-slate-12 capitalize">
+                  {{ team.name }}
+                </span>
+                <p class="mb-0 text-n-slate-11 text-body-main">
+                  {{ team.description }}
+                </p>
+              </div>
             </div>
-            <div class="flex flex-col items-start gap-1">
-              <span class="block text-heading-3 text-n-slate-12 capitalize">
-                {{ team.name }}
-              </span>
-              <p class="mb-0 text-n-slate-11 text-body-main">
-                {{ team.description }}
-              </p>
-            </div>
-          </div>
-          <div class="flex justify-end gap-3">
-            <router-link
-              :to="{
-                name: 'settings_teams_edit',
-                params: { teamId: team.id },
-              }"
-            >
+            <div class="flex justify-end gap-3">
               <Button
-                v-if="isAdmin"
-                v-tooltip.top="$t('TEAMS_SETTINGS.LIST.EDIT_TEAM')"
-                icon="i-woot-settings"
+                v-if="isSupervisorView"
+                :label="
+                  expandedTeamId === team.id
+                    ? $t('TEAMS_SETTINGS.MEMBERS.HIDE')
+                    : $t('TEAMS_SETTINGS.MEMBERS.SHOW')
+                "
+                :icon="
+                  expandedTeamId === team.id
+                    ? 'i-lucide-chevron-up'
+                    : 'i-lucide-chevron-down'
+                "
                 slate
                 sm
+                :is-loading="membersLoading[team.id]"
+                @click="toggleMembers(team)"
               />
-            </router-link>
+              <router-link
+                v-if="isAdmin"
+                :to="{
+                  name: 'settings_teams_edit',
+                  params: { teamId: team.id },
+                }"
+              >
+                <Button
+                  v-tooltip.top="$t('TEAMS_SETTINGS.LIST.EDIT_TEAM')"
+                  icon="i-woot-settings"
+                  slate
+                  sm
+                />
+              </router-link>
 
-            <Button
-              v-if="isAdmin"
-              v-tooltip.top="$t('TEAMS_SETTINGS.DELETE.BUTTON_TEXT')"
-              icon="i-woot-bin"
-              slate
-              sm
-              class="hover:enabled:text-n-ruby-11 hover:enabled:bg-n-ruby-2"
-              :is-loading="loading[team.id]"
-              @click="openDelete(team)"
-            />
+              <Button
+                v-if="isAdmin"
+                v-tooltip.top="$t('TEAMS_SETTINGS.DELETE.BUTTON_TEXT')"
+                icon="i-woot-bin"
+                slate
+                sm
+                class="hover:enabled:text-n-ruby-11 hover:enabled:bg-n-ruby-2"
+                :is-loading="loading[team.id]"
+                @click="openDelete(team)"
+              />
+            </div>
+          </div>
+
+          <div
+            v-if="
+              isSupervisorView &&
+              expandedTeamId === team.id &&
+              !membersLoading[team.id]
+            "
+            class="mt-4 ml-14 flex flex-col gap-3"
+          >
+            <span
+              v-if="!membersOf(team.id).length"
+              class="text-body-main text-n-slate-11"
+            >
+              {{ $t('TEAMS_SETTINGS.MEMBERS.EMPTY') }}
+            </span>
+            <template v-else>
+              <span class="text-body-main text-n-slate-11">
+                {{
+                  $t('TEAMS_SETTINGS.MEMBERS.COUNT', {
+                    n: membersOf(team.id).length,
+                  })
+                }}
+              </span>
+              <div
+                v-for="member in membersOf(team.id)"
+                :key="member.id"
+                class="flex items-center gap-3"
+              >
+                <Avatar
+                  :src="member.thumbnail"
+                  :name="member.name"
+                  :status="member.availability_status"
+                  :size="28"
+                />
+                <span class="text-body-main text-n-slate-12 capitalize">
+                  {{ member.name }}
+                </span>
+                <span class="text-body-main text-n-slate-11">
+                  {{ member.email }}
+                </span>
+              </div>
+            </template>
           </div>
         </div>
       </div>

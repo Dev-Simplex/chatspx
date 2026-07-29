@@ -122,9 +122,11 @@ const currentInbox = computed(() => {
 // Isolamento por agente: não expor no preview de reply/quote uma mensagem de outro agente
 // (que possa ter entrado no store via websocket). Restrita → fica de fora do mapa, o
 // getInReplyToMessage devolve null e o quote não é renderizado.
+// currentChat vai como 3º argumento porque o supervisor do time da conversa não é
+// restrito — o thread dele mostra a bolha, então o quote também tem que mostrar.
 const replyMessagesById = computed(() => {
   return allMessages.value.reduce((messageMap, message) => {
-    if (!isMessageRestricted(message, currentInbox.value)) {
+    if (!isMessageRestricted(message, currentInbox.value, currentChat.value)) {
       messageMap.set(message.id, message);
     }
     return messageMap;

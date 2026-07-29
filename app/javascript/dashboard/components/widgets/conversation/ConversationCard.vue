@@ -290,7 +290,13 @@ export default {
     },
 
     isLastMessageRestrictedByAgent() {
-      return this.isAgentMessageRestricted(this.lastMessageInChat, this.inbox);
+      // 3º argumento = a conversa: dela sai o time que isenta o supervisor
+      // (sem supervisão o argumento é ignorado).
+      return this.isAgentMessageRestricted(
+        this.lastMessageInChat,
+        this.inbox,
+        this.chat
+      );
     },
 
     // Mensagem a exibir no preview. Se restrita por agente, troca o conteúdo por 🔒 +

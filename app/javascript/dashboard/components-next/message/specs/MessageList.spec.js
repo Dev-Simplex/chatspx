@@ -1,3 +1,4 @@
+import { createStore } from 'vuex';
 import { shallowMount } from '@vue/test-utils';
 import MessageList from '../MessageList.vue';
 import { useCamelCase } from 'dashboard/composables/useTransformKeys';
@@ -44,7 +45,38 @@ const buildMessage = ({
   contentAttributes,
 });
 
-const mountComponent = props =>
+// MessageList lê o store (conversa/caixa selecionadas) para decidir o isolamento por
+// agente do mapa de reply/quote — sem um $store instalado os computeds estouram.
+const buildStore = ({
+  chat = { id: 55, inbox_id: 3 },
+  agentIsolation = false,
+  supervisedTeams = [],
+} = {}) =>
+  createStore({
+    getters: {
+      getSelectedChat: () => chat,
+      getCurrentUser: () => ({
+        id: 1,
+        accounts: [{ id: 100, role: 'agent' }],
+      }),
+      getCurrentAccount: () => ({ id: 100 }),
+      getConversationById: () => () => chat,
+    },
+    modules: {
+      inboxes: {
+        namespaced: true,
+        getters: {
+          getInbox: () => () => ({ agent_message_isolation: agentIsolation }),
+        },
+      },
+      teams: {
+        namespaced: true,
+        getters: { getSupervisedTeams: () => supervisedTeams },
+      },
+    },
+  });
+
+const mountComponent = (props, storeOptions) =>
   shallowMount(MessageList, {
     props: {
       currentUserId: 1,
@@ -52,6 +84,7 @@ const mountComponent = props =>
       ...props,
     },
     global: {
+      plugins: [buildStore(storeOptions)],
       stubs: {
         Message: MessageStub,
         DateSeparator: DateSeparatorStub,
@@ -103,5 +136,46 @@ describe('MessageList', () => {
     const renderedMessages = wrapper.findAll('.message-stub');
     expect(renderedMessages).toHaveLength(2);
     expect(renderedMessages[1].attributes()['data-in-reply-to']).toBe('1');
+  });
+
+  // Isolamento por agente x supervisão: a mensagem citada é de OUTRO agente. O agente
+  // comum não pode ver o quote; o supervisor do time da conversa pode (o backend já
+  // devolve a bolha inteira para ele).
+  describe('quote/reply sob agent_message_isolation', () => {
+    const quotedFromAnotherAgent = () => [
+      { ...buildMessage({ id: 1, createdAt: 120 }), agentId: 2 },
+      buildMessage({
+        id: 2,
+        createdAt: 240,
+        contentAttributes: { inReplyTo: 1 },
+      }),
+    ];
+
+    it('esconde o quote do agente comum', () => {
+      const wrapper = mountComponent(
+        { messages: quotedFromAnotherAgent() },
+        { agentIsolation: true }
+      );
+
+      // sem quote o stub nem renderiza o atributo (inReplyTo === null)
+      const renderedMessages = wrapper.findAll('.message-stub');
+      expect(
+        renderedMessages[1].attributes()['data-in-reply-to']
+      ).toBeUndefined();
+    });
+
+    it('mostra o quote para o supervisor do time da conversa', () => {
+      const wrapper = mountComponent(
+        { messages: quotedFromAnotherAgent() },
+        {
+          chat: { id: 55, inbox_id: 3, meta: { team: { id: 7 } } },
+          agentIsolation: true,
+          supervisedTeams: [{ id: 7 }],
+        }
+      );
+
+      const renderedMessages = wrapper.findAll('.message-stub');
+      expect(renderedMessages[1].attributes()['data-in-reply-to']).toBe('1');
+    });
   });
 });

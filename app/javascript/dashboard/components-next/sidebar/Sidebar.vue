@@ -252,7 +252,9 @@ const inboxes = useMapGetter('inboxes/getInboxes');
 // aparece quando há algum — sem poluir a sidebar de quem não usa o modo).
 const takeoverRequestCount = useMapGetter('takeoverRequests/getIncomingCount');
 const labels = useMapGetter('labels/getLabelsOnSidebar');
-const teams = useMapGetter('teams/getMyTeams');
+// Filtro de time da lista de conversas: membro ∪ supervisionado. É o único
+// consumidor de `teams` aqui, então nada de etiquetas/respostas "de-time" muda.
+const teams = useMapGetter('teams/getVisibleTeams');
 const conversationStats = useMapGetter('conversationStats/getStats');
 const contactCustomViews = useMapGetter('customViews/getContactCustomViews');
 const conversationCustomViews = useMapGetter(

@@ -4,14 +4,23 @@
     "HEADER": "Times",
     "LOADING": "Buscando times",
     "DESCRIPTION": "Os times permitem que você organize agentes em grupos com base em suas responsabilidades. Um agente pode pertencer a vários times. Ao trabalhar de forma colaborativa, você pode atribuir conversas a times específicos.",
+    "DESCRIPTION_SUPERVISOR": "Estes são os times que você supervisiona. Você vê os membros e todas as conversas deles, mas criar, editar ou excluir time continua sendo ação de administrador.",
     "LEARN_MORE": "Saiba mais sobre times",
     "COUNT": "{n} time | {n} times",
     "SEARCH_PLACEHOLDER": "Pesquisar times...",
     "NO_RESULTS": "Nenhum time encontrado correspondente à sua busca",
     "LIST": {
       "404": "Não existem agentes associados a esta conta.",
+      "404_SUPERVISOR": "Você ainda não supervisiona nenhum time.",
       "EDIT_TEAM": "Editar time",
       "NONE": "Nenhuma"
+    },
+    "MEMBERS": {
+      "SHOW": "Membros",
+      "HIDE": "Ocultar membros",
+      "COUNT": "{n} membro | {n} membros",
+      "EMPTY": "Este time ainda não tem membros.",
+      "API_ERROR": "Não foi possível carregar os membros do time. Tente novamente."
     },
     "CREATE_FLOW": {
       "CREATE": {

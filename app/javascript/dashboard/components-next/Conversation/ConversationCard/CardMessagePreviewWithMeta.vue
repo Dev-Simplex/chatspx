@@ -38,9 +38,11 @@ const lastNonActivityMessageContent = computed(() => {
   const inbox = inboxById.value(
     props.conversation.inboxId || props.conversation.inbox_id
   );
+  // 3º argumento = a conversa: é dela que sai o time usado para isentar o
+  // supervisor (sem supervisão o argumento é ignorado).
   if (
     isMessageRestricted(lastNonActivityMessage, inbox) ||
-    isAgentMessageRestricted(lastNonActivityMessage, inbox)
+    isAgentMessageRestricted(lastNonActivityMessage, inbox, props.conversation)
   )
     return '🔒';
   const { email: { subject } = {} } = customAttributes;
