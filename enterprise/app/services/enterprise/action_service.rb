@@ -28,10 +28,11 @@ module Enterprise::ActionService
     # O que ela NÃO faz é tomar conversa que está NA MÃO de alguém: com assignee humano
     # presente o dono é ele, e a IA não entra (senão a conversa some da fila do atendente).
     return if @conversation.assignee_id.present?
+
     # Procedência (opt-in por conta): se a conversa nasceu de uma resposta a um template que um
     # HUMANO mandou 1:1 pro contato (<24h), o dono é esse humano -> a IA não assume. Cobre o caso
-    # do incidente 22/07 (o template saiu de OUTRA conversa/ficha do mesmo contato, então a
-    # guarda `last_outgoing_by_human?` — que só olha ESTA conversa — não pega).
+    # do incidente 22/07, em que o template saiu de OUTRA conversa/ficha do mesmo contato — a
+    # checagem de assignee, que só olha ESTA conversa, não pegaria.
     return if reassigned_to_human_template_sender?
 
     assistant = eligible_captain_assistant(assistant_ids.first) # params chegam como ARRAY
