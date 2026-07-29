@@ -22,16 +22,26 @@ class Contacts::ResolveLidSweepJob < ApplicationJob
   # (nunca truncado em silencio).
   DEFAULT_MAX_PER_RUN = 1_000
 
+  # Prazo de desistencia. O sweep existe para o caso do WAHA REAPRENDER o mapeamento
+  # LID->PN depois de uma migracao/restart; isso acontece em dias, nao em meses. Passado
+  # este prazo o LID nao volta mais (o cache do WhatsApp nao guarda o par), e insistir so
+  # gera job morto de hora em hora, para sempre. Sem este corte, 3 contatos presos desde
+  # junho produziam 72 jobs mortos/dia indefinidamente.
+  ABANDON_AFTER = 30.days
+
   def perform(max_per_run = DEFAULT_MAX_PER_RUN)
     relation = stuck_contact_inboxes
     total = relation.count
+    recuperaveis = relation.where('contact_inboxes.created_at >= ?', ABANDON_AFTER.ago)
+    abandonados = total - recuperaveis.count
 
-    ids = relation.limit(max_per_run).pluck('contact_inboxes.id')
+    ids = recuperaveis.limit(max_per_run).pluck('contact_inboxes.id')
     ids.each { |contact_inbox_id| Contacts::ResolveLidJob.set(queue: :scheduled_jobs).perform_later(contact_inbox_id) }
 
-    remaining = [total - ids.size, 0].max
+    remaining = [recuperaveis.count - ids.size, 0].max
     Rails.logger.info(
-      "[ResolveLidSweepJob] presos=#{total} reenfileirados=#{ids.size} restantes=#{remaining} teto=#{max_per_run}"
+      "[ResolveLidSweepJob] presos=#{total} reenfileirados=#{ids.size} restantes=#{remaining} " \
+      "abandonados=#{abandonados} (>#{ABANDON_AFTER.inspect}) teto=#{max_per_run}"
     )
   end
 
