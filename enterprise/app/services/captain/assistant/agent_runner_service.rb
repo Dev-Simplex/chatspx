@@ -204,9 +204,16 @@ class Captain::Assistant::AgentRunnerService
     # banco pros outros usos (guard do follow-up + filtro "Aguardando atendimento").
     state[:conversation][:custom_attributes] = (state[:conversation][:custom_attributes] || {}).except('aguardando_humano_desde')
     state[:channel_type] = @conversation.inbox&.channel_type
+    state[:channel_number] = channel_number
     state[:contact] = slice_attrs(@conversation.contact, CONTACT_STATE_ATTRIBUTES) if @conversation.contact
     state[:campaign] = slice_attrs(@conversation.campaign, CAMPAIGN_STATE_ATTRIBUTES) if @conversation.campaign
     state[:contact_inbox] = slice_attrs(@conversation.contact_inbox, CONTACT_INBOX_STATE_ATTRIBUTES) if @conversation.contact_inbox
+  end
+
+  # Número em que o atendimento acontece. Sem ele o agente não tem NENHUM telefone em
+  # contexto e, ao ser cobrado pelo "número de vocês", confabula um (caso 20314).
+  def channel_number
+    @conversation.inbox&.channel.try(:phone_number)
   end
 
   def slice_attrs(record, keys)

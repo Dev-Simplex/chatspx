@@ -85,6 +85,11 @@
   description: 'Envia ao cliente o pin de localização de um imóvel no mapa (por código)'
   icon: 'location'
 
+- id: chamar_contato
+  title: 'Chamar contato no WhatsApp'
+  description: 'Envia a mensagem de abertura (template) pro outro número do próprio cliente ou pra uma pessoa que ele indicou, e segue o atendimento naquele fio'
+  icon: 'phone'
+
 - id: buscar_lugar
   title: 'Buscar lugares (Places)'
   description: 'Lista lugares/comércios por nome em Sinop (nome + endereço + coords) para referência de proximidade'
