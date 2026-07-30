@@ -89,6 +89,42 @@ Confirmado (08/07) via Almirante `drift_check`/`version_matrix`: **nenhuma VM fa
 
 ---
 
+## Frentes de trabalho em paralelo — `chatspx-frentes/*` (criadas 29/07)
+
+**Por que existem:** o git não permite duas worktrees na mesma branch. Enquanto todas as sessões
+compartilhavam a pasta `chatspx/` (única com a `homologacao` aberta), trabalho paralelo virava
+colisão — em 29/07 duas sessões commitaram na mesma worktree em 9 segundos e uma quase regrediu
+o fix da outra. Uma frente = uma pasta = uma branch resolve isso na raiz.
+
+| Pasta | Branch | Frente |
+|---|---|---|
+| `chatspx-frentes/rodizio/` | `spx/rodizio` | rodízio, handoff reservado, SLA, espelho do card no Vista |
+| `chatspx-frentes/followup/` | `spx/followup` | follow-up, encerramento, agendamento, notificações |
+| `chatspx-frentes/eval/` | `spx/eval` | Eval 2.0 (F3 outcomes, F5 golden set), sentimento, abordagem |
+| `chatspx-frentes/campanhas/` | `spx/campanhas` | Meta Leads, analítico de campanha, módulo de disparo |
+| `chatspx-frentes/fricoes/` | `spx/fricoes` | fricções de uso (erro de envio, lida/não-lida, chaves, link do site) |
+
+Cada pasta tem um `CLAUDE.local.md` com o escopo da frente, as peças que já existem (pra não
+reinventar) e os guard-rails. Nova frente: `git worktree add ../chatspx-frentes/<nome> -b spx/<nome> origin/homologacao`.
+
+### Contrato das frentes
+1. **Executora commita só na própria `spx/<frente>`.** Nunca em `homologacao`/`producao`.
+2. **Só a sessão da pasta `chatspx/` integra** — ela é a única que mergeia, propõe deploy e fala
+   com o Almirante. As frentes não pusham `homologacao`/`producao`.
+3. **Fim de sessão: `git push -u origin spx/<frente>`.** Branch local-only = trabalho que vive só
+   no notebook.
+4. **Fecha na sessão: merge ou delete.** Branch órfã é lixo — em 29/07 havia 6 delas
+   (`spx/fix-fotos-handoff*`, `tmp/f*-eval`, `worktree-tozi-eval`) cujo conteúdo já estava em
+   `producao` por cherry-pick, só confundindo quem auditava.
+5. **Bug de outra frente: anote e avise, não corrija.** Duas frentes no mesmo arquivo é como
+   nasce o conflito de linhagem tripla.
+
+### Se uma sessão de CLIENTE precisar mexer em código compartilhado
+Não vá pra pasta `chatspx/` commitar. Use (ou crie) a worktree da frente correspondente — foi
+por essa lacuna que a sessão da Fábrica commitou na worktree primária em 29/07.
+
+---
+
 ## Regras não-negociáveis
 
 1. **Nunca commitar direto em `producao` nem `homologacao`.** Sempre via feature branch → merge.

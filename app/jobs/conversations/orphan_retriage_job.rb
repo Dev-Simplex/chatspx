@@ -11,11 +11,24 @@ class Conversations::OrphanRetriageJob < ApplicationJob
     threshold = retriage_after(account).minutes.ago
     # órfã = open + SEM humano + SEM espelho captain (os DOIS nils — scope :unassigned não basta;
     # janela em last_activity_at: cobre conversa que ficou órfã DEPOIS, ex. user deletado)
+    #
+    # `joins(:contact)` (INNER JOIN) exclui conversa cujo contato não existe mais (resíduo de
+    # consolidação feita com delete/update_columns). Essas são órfãs de DADO, não de atribuição:
+    # não há quem notificar nem o que triar, e o `update!` do carimbo estourava RecordInvalid
+    # (Contact must exist) abortando o lote inteiro.
     account.conversations.open
+           .joins(:contact)
            .where(assignee_id: nil).without_captain_assignee
            .where('conversations.last_activity_at < ?', threshold)
            .limit(BATCH_LIMIT)
-           .each { |conversation| process_orphan(conversation, account) }
+           .each do |conversation|
+      # Uma conversa problemática não pode abortar o lote: sem isto, a exceção sobe pelo
+      # `each` e as conversas seguintes ficam sem re-triagem até alguém notar (o cron
+      # rodou 288x/dia por semanas assim). Mesmo tratamento do loop de regras abaixo.
+      process_orphan(conversation, account)
+    rescue StandardError => e
+      ChatwootExceptionTracker.new(e, account: account).capture_exception
+    end
   end
 
   private
