@@ -16,11 +16,23 @@ class Captain::Behavior::RouterService
     return false if @message.activity?
     return false if @message.content.blank? && @message.attachments.blank?
     return false if skip_groups?
+    return false if skip_labeled?
 
     true
   end
 
   private
+
+  # Kill-switch por conversa (revivido p/ interlocutor-bot): conversa com uma label
+  # listada em behavior.router.skip_labels fica MUDA pra IA — determinístico, sem
+  # gastar LLM. Uso canônico: label 'bot-externo' quando o outro lado é URA/robô de
+  # outra empresa (aplicada por automation rule ou manualmente pelo atendente).
+  def skip_labeled?
+    skips = Array(@config['skip_labels']).map(&:to_s)
+    return false if skips.empty?
+
+    (@conversation.label_list.map(&:to_s) & skips).any?
+  end
 
   # skip_groups continua honrando a config (comportamento preservado p/ grupos WAHA).
   def skip_groups?

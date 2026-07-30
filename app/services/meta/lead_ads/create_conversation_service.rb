@@ -9,6 +9,10 @@ module Meta
   module LeadAds
     class CreateConversationService
       DEFAULT_TEMPLATE = "Olá {{first_name}}! Vi seu interesse no anúncio \"{{ad_name}}\". Sou da equipe e estou aqui pra ajudar. Pode me contar um pouco mais sobre o que você procura?".freeze
+      # Mesmo formato que o Contact exige em `phone_number` (app/models/contact.rb).
+      # Espelhado aqui porque quem grava é este serviço: telefone reprovado tem que
+      # virar nil ANTES do Contact, senão o RecordInvalid mata o job e o lead se perde.
+      CONTACT_E164_FORMAT = /\+[1-9]\d{1,14}\z/
 
       def initialize(hook:, lead:)
         @hook = hook
@@ -25,7 +29,12 @@ module Meta
         normalized_phone = @lead[:phone_number].present? ? normalize_phone(@lead[:phone_number]) : nil
 
         if normalized_phone.blank?
-          Rails.logger.warn("Meta Lead Ads: lead sem phone_number hook=#{@hook.id} leadgen=#{@lead[:leadgen_id]} form=#{@lead[:form_id]}")
+          # Loga o telefone CRU e o e-mail: este log é o único rastro de um lead pago que não
+          # vira conversa. Sem ele, recuperar exige garimpar o Lead Center da Meta.
+          Rails.logger.warn(
+            "Meta Lead Ads: lead sem phone_number utilizavel hook=#{@hook.id} leadgen=#{@lead[:leadgen_id]} " \
+            "form=#{@lead[:form_id]} telefone_cru=#{@lead[:phone_number].inspect} email=#{@lead[:email].inspect}"
+          )
           # Inbox Cloud API (Channel::Whatsapp) valida o source_id como wa_id so-digitos.
           # Sem telefone nao ha ContactInbox valido nem como enviar — pula limpo (o job nao
           # estoura). Os dados do form ficam na Meta pra follow-up manual. Leads de teste
@@ -262,6 +271,10 @@ module Meta
         digits = phone.to_s.gsub(/\D/, '')
         return nil if digits.blank?
 
+        # Zero de tronco da discagem nacional ("066 99963-6866"): não existe em e164 e é o
+        # que mais aparece no formulário. Sem tirar, o número vira "+066..." e o lead se perde
+        # — sendo que o telefone é perfeitamente válido.
+        digits = digits.sub(/\A0+/, '')
         # Número sem DDD (só o celular de 8-9 dígitos, ex.: "996926393"): prefixa o DDD padrão
         # do hook (ex.: 66 = Sinop). Muita gente digita o número sem o DDD no formulário do Meta.
         ddd = default_ddd
@@ -269,7 +282,13 @@ module Meta
         # Com DDD mas sem o código do país (10-11 dígitos): prefixa 55.
         digits = "55#{digits}" if digits.length.between?(10, 11)
         formatted = "+#{digits}"
-        Contacts::BrazilPhoneNormalizer.normalize(formatted) || formatted
+        candidate = Contacts::BrazilPhoneNormalizer.normalize(formatted) || formatted
+        # O BrazilPhoneNormalizer NÃO valida — ele só acrescenta o 9º dígito e devolve a
+        # entrada intacta quando não reconhece o padrão. Quem valida é o Contact, e lá o
+        # estouro MATA o job e o LEAD SOME. O campo telefone do formulário recebe de tudo
+        # ("2 mil de entrada", "6......"), então a validação tem que acontecer aqui: telefone
+        # impossível vira nil e o lead segue pelo caminho de "sem telefone".
+        candidate.match?(CONTACT_E164_FORMAT) ? candidate : nil
       end
 
       # DDD padrão do hook (dinâmico, por conta/campanha) pra completar número sem DDD.
