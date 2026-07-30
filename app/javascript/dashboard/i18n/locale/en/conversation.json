@@ -681,7 +681,14 @@
         "CANCELLED": "Schedule cancelled.",
         "CANCEL_ERROR": "Could not cancel the schedule."
       },
-      "OTHER_INBOX_WARNING": "On another inbox the message goes to this same contact conversation over there — one is created if none exists. That is why it will not show in this conversation list below."
+      "OTHER_INBOX_WARNING": "On another inbox the message goes to this same contact conversation over there — one is created if none exists. That is why it will not show in this conversation list below.",
+      "MISSING": {
+        "INBOX": "Pick an inbox.",
+        "WHEN": "Set the date and time.",
+        "PAST": "That time is in the past. Pick a future one.",
+        "TEMPLATE": "Pick a template — this is an Official WhatsApp inbox.",
+        "MESSAGE": "Write the message."
+      }
     }
   },
   "EMAIL_TRANSCRIPT": {

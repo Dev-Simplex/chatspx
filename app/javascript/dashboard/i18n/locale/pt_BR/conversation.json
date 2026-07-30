@@ -673,7 +673,14 @@
         "CANCELLED": "Agendamento cancelado.",
         "CANCEL_ERROR": "Não foi possível cancelar o agendamento."
       },
-      "OTHER_INBOX_WARNING": "Em outra caixa o envio vai para a conversa desse mesmo contato naquela caixa — se não existir, uma é criada. Por isso ele não aparece na lista desta conversa aqui embaixo."
+      "OTHER_INBOX_WARNING": "Em outra caixa o envio vai para a conversa desse mesmo contato naquela caixa — se não existir, uma é criada. Por isso ele não aparece na lista desta conversa aqui embaixo.",
+      "MISSING": {
+        "INBOX": "Escolha a caixa de entrada.",
+        "WHEN": "Informe a data e a hora do envio.",
+        "PAST": "A data escolhida já passou. Escolha um horário futuro.",
+        "TEMPLATE": "Escolha um modelo — esta caixa é WhatsApp Oficial.",
+        "MESSAGE": "Escreva a mensagem."
+      }
     }
   },
   "EMAIL_TRANSCRIPT": {

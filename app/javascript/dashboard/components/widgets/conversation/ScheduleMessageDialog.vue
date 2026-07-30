@@ -27,8 +27,18 @@ const templateParserRef = ref(null);
 const inboxesList = useMapGetter('inboxes/getInboxes');
 const templatesFor = useMapGetter('inboxes/getFilteredWhatsAppTemplates');
 
+const toLocalInputValue = date => {
+  const pad = n => String(n).padStart(2, '0');
+  return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}T${pad(date.getHours())}:${pad(date.getMinutes())}`;
+};
+
 const selectedInboxId = ref(props.inboxId ? Number(props.inboxId) : null);
-const scheduledAt = ref('');
+// Já nasce com uma hora à frente. Campo obrigatório vazio + botão desabilitado
+// sem explicação faz o agente achar que a tela travou — principalmente porque o
+// campo de data fica acima da dobra depois que o bloco de template aparece.
+const scheduledAt = ref(
+  toLocalInputValue(new Date(Date.now() + 60 * 60 * 1000))
+);
 const messageText = ref('');
 const selectedTemplateName = ref('');
 const isSaving = ref(false);
@@ -68,12 +78,26 @@ const minDateTime = computed(() => {
   return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
 });
 
-const isValid = computed(() => {
-  if (!selectedInboxId.value || !scheduledAt.value) return false;
-  if (new Date(scheduledAt.value).getTime() <= Date.now()) return false;
-  if (requiresTemplate.value) return Boolean(selectedTemplate.value);
-  return messageText.value.trim().length > 0;
+// Diz O QUE falta. Botão desabilitado mudo é o que fez o agente achar que a tela
+// tinha quebrado, já que o campo pendente costuma estar fora da área visível.
+const missingReason = computed(() => {
+  if (!selectedInboxId.value)
+    return t('CONVERSATION.SCHEDULE_MESSAGE.MISSING.INBOX');
+  if (!scheduledAt.value)
+    return t('CONVERSATION.SCHEDULE_MESSAGE.MISSING.WHEN');
+  if (new Date(scheduledAt.value).getTime() <= Date.now()) {
+    return t('CONVERSATION.SCHEDULE_MESSAGE.MISSING.PAST');
+  }
+  if (requiresTemplate.value && !selectedTemplate.value) {
+    return t('CONVERSATION.SCHEDULE_MESSAGE.MISSING.TEMPLATE');
+  }
+  if (!requiresTemplate.value && !messageText.value.trim()) {
+    return t('CONVERSATION.SCHEDULE_MESSAGE.MISSING.MESSAGE');
+  }
+  return '';
 });
+
+const isValid = computed(() => !missingReason.value);
 
 const loadScheduled = async () => {
   isLoadingList.value = true;
@@ -148,7 +172,11 @@ const submit = async () => {
     useAlert(t('CONVERSATION.SCHEDULE_MESSAGE.API.SUCCESS'));
     messageText.value = '';
     selectedTemplateName.value = '';
-    scheduledAt.value = '';
+    // volta ao padrão em vez de zerar: campo obrigatório vazio é justamente o que
+    // fazia o botão desabilitar sem explicação.
+    scheduledAt.value = toLocalInputValue(
+      new Date(Date.now() + 60 * 60 * 1000)
+    );
     await loadScheduled();
   } catch (error) {
     const apiError = error?.response?.data?.error;
@@ -274,16 +302,6 @@ onMounted(() => {
         />
       </div>
 
-      <div class="flex justify-end">
-        <Button
-          type="button"
-          :label="t('CONVERSATION.SCHEDULE_MESSAGE.SUBMIT')"
-          :disabled="!isValid || isSaving"
-          :is-loading="isSaving"
-          @click="submit"
-        />
-      </div>
-
       <div class="pt-4 border-t border-n-weak">
         <h4 class="mb-2 text-sm font-medium text-n-slate-12">
           {{ t('CONVERSATION.SCHEDULE_MESSAGE.PENDING_TITLE') }}
@@ -320,5 +338,23 @@ onMounted(() => {
         </ul>
       </div>
     </div>
+
+    <!-- Rodapé fixo: o botão não pode viver dentro da área que rola, senão fica
+         fora da vista justamente quando o bloco de template estica o formulário. -->
+    <template #footer>
+      <div class="flex items-center justify-between w-full gap-3">
+        <p class="mb-0 text-xs text-n-amber-11">
+          {{ missingReason }}
+        </p>
+        <Button
+          type="button"
+          class="flex-shrink-0"
+          :label="t('CONVERSATION.SCHEDULE_MESSAGE.SUBMIT')"
+          :disabled="!isValid || isSaving"
+          :is-loading="isSaving"
+          @click="submit"
+        />
+      </div>
+    </template>
   </Dialog>
 </template>
