@@ -162,7 +162,10 @@ class Captain::OpenAiMessageBuilderService
   # disparado no upload (after_create_commit) já costuma ter preenchido o cache.
   def transcription_or_placeholder(attachment)
     cached = attachment.meta&.[]('transcribed_text').to_s
-    return cached if cached.present?
+    # Marca a origem: sem o rótulo, a transcrição é indistinguível de texto DIGITADO e
+    # uma palavra transcrita errado vira "evidência" de robô/spam pro agente (caso real:
+    # saudação por áudio transcrita com nome estranho foi silenciada como spam por 16h).
+    return "[áudio transcrito automaticamente — pode conter erros de transcrição]: #{cached}" if cached.present?
 
     Messages::AudioTranscriptionJob.perform_later(attachment.id)
     AUDIO_PLACEHOLDER
