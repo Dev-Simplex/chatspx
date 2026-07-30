@@ -654,6 +654,34 @@
       "REASON_PLACEHOLDER": "Add a short note for the owner (optional)",
       "REQUEST_EXISTS": "You already have a pending request for this conversation.",
       "REQUEST_ERROR": "Could not send the request, please try again."
+    },
+    "SCHEDULE_MESSAGE": {
+      "TOOLTIP": "Schedule message",
+      "TITLE": "Schedule message",
+      "INBOX": "Inbox",
+      "INBOX_HINT": "Starts on this conversation inbox. You can pick another one.",
+      "WHEN": "Date and time",
+      "MESSAGE": "Message",
+      "MESSAGE_PLACEHOLDER": "What will be sent at the scheduled time…",
+      "TEMPLATE": "Template",
+      "TEMPLATE_PLACEHOLDER": "Pick a template",
+      "TEMPLATE_REQUIRED_HINT": "This is an Official WhatsApp inbox. Outside the 24 hour window only an approved template is delivered, and at scheduling time there is no way to know whether the window will be open — so a template is required here.",
+      "NO_TEMPLATES": "This inbox has no approved template. Register one on WhatsApp before scheduling through it.",
+      "SUBMIT": "Schedule",
+      "PENDING_TITLE": "Scheduled for this conversation",
+      "LOADING": "Loading…",
+      "EMPTY": "Nothing scheduled for this conversation.",
+      "CANCEL_ITEM": "Cancel",
+      "ERRORS": {
+        "TEMPLATE_INCOMPLETE": "Fill in every template variable before scheduling."
+      },
+      "API": {
+        "SUCCESS": "Message scheduled.",
+        "ERROR": "Could not schedule the message.",
+        "CANCELLED": "Schedule cancelled.",
+        "CANCEL_ERROR": "Could not cancel the schedule."
+      },
+      "OTHER_INBOX_WARNING": "On another inbox the message goes to this same contact conversation over there — one is created if none exists. That is why it will not show in this conversation list below."
     }
   },
   "EMAIL_TRANSCRIPT": {

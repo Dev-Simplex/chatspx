@@ -10,6 +10,7 @@ import MoreActions from './MoreActions.vue';
 import Thumbnail from '../Thumbnail.vue';
 import SLACardLabel from './components/SLACardLabel.vue';
 import ConversationMessageSearch from './ConversationMessageSearch.vue';
+import ScheduleMessageDialog from './ScheduleMessageDialog.vue';
 import ConversationStatusActions from 'dashboard/components-next/Conversation/ConversationStatusActions.vue';
 import ButtonV4 from 'dashboard/components-next/button/Button.vue';
 import wootConstants from 'dashboard/constants/globals';
@@ -39,6 +40,7 @@ const { width } = useElementSize(conversationHeader);
 const { isAWebWidgetInbox } = useInbox();
 const { uiSettings, updateUISettings } = useUISettings();
 const showMessageSearch = ref(false);
+const showScheduleDialog = ref(false);
 
 const toggleContactPanel = () => {
   updateUISettings({
@@ -362,6 +364,16 @@ const whatsAppWindowIcon = computed(() => {
         class="wa-header-icon-btn"
         @click="showMessageSearch = true"
       />
+      <ButtonV4
+        v-if="currentChat.id"
+        v-tooltip="$t('CONVERSATION.SCHEDULE_MESSAGE.TOOLTIP')"
+        size="sm"
+        variant="ghost"
+        color="slate"
+        icon="i-lucide-calendar-clock"
+        class="wa-header-icon-btn"
+        @click="showScheduleDialog = true"
+      />
       <MoreActions :conversation-id="currentChat.id" />
     </div>
     <ConversationMessageSearch
@@ -369,6 +381,13 @@ const whatsAppWindowIcon = computed(() => {
       :conversation-id="currentChat.id"
       :show="showMessageSearch"
       @close="showMessageSearch = false"
+    />
+    <ScheduleMessageDialog
+      v-if="showScheduleDialog && currentChat.id"
+      :conversation-id="currentChat.id"
+      :inbox-id="currentChat.inbox_id"
+      :contact-id="currentChat.meta?.sender?.id"
+      @close="showScheduleDialog = false"
     />
   </div>
 </template>

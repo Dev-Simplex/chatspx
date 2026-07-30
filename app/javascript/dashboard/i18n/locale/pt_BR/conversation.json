@@ -646,6 +646,34 @@
       "REASON_PLACEHOLDER": "Escreva um recado curto para o dono (opcional)",
       "REQUEST_EXISTS": "Você já tem um pedido pendente nesta conversa.",
       "REQUEST_ERROR": "Não foi possível solicitar, tente novamente."
+    },
+    "SCHEDULE_MESSAGE": {
+      "TOOLTIP": "Agendar mensagem",
+      "TITLE": "Agendar mensagem",
+      "INBOX": "Caixa de entrada",
+      "INBOX_HINT": "Começa na caixa desta conversa. Você pode escolher outra.",
+      "WHEN": "Data e hora do envio",
+      "MESSAGE": "Mensagem",
+      "MESSAGE_PLACEHOLDER": "O que será enviado no horário marcado…",
+      "TEMPLATE": "Modelo (template)",
+      "TEMPLATE_PLACEHOLDER": "Escolha um modelo",
+      "TEMPLATE_REQUIRED_HINT": "Esta caixa é WhatsApp Oficial. Fora da janela de 24 horas só modelo aprovado é entregue, e no agendamento não há como saber se a janela estará aberta — por isso o modelo é obrigatório aqui.",
+      "NO_TEMPLATES": "Esta caixa não tem nenhum modelo aprovado. Cadastre um modelo no WhatsApp antes de agendar por ela.",
+      "SUBMIT": "Agendar",
+      "PENDING_TITLE": "Agendamentos desta conversa",
+      "LOADING": "Carregando…",
+      "EMPTY": "Nada agendado para esta conversa.",
+      "CANCEL_ITEM": "Cancelar",
+      "ERRORS": {
+        "TEMPLATE_INCOMPLETE": "Preencha todas as variáveis do modelo antes de agendar."
+      },
+      "API": {
+        "SUCCESS": "Mensagem agendada.",
+        "ERROR": "Não foi possível agendar a mensagem.",
+        "CANCELLED": "Agendamento cancelado.",
+        "CANCEL_ERROR": "Não foi possível cancelar o agendamento."
+      },
+      "OTHER_INBOX_WARNING": "Em outra caixa o envio vai para a conversa desse mesmo contato naquela caixa — se não existir, uma é criada. Por isso ele não aparece na lista desta conversa aqui embaixo."
     }
   },
   "EMAIL_TRANSCRIPT": {
