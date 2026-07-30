@@ -282,20 +282,20 @@ class Captain::Conversation::ResponseBuilderJob < ApplicationJob
   end
 
   def create_messages
-    content = @response['response']
+    content = normalize_response_content(@response['response'])
     return log_ignored(content) if no_reply?(content)
 
     if unknown_marker?(content)
       return unless regenerate_after_unknown_marker(content)
 
-      content = @response['response']
+      content = normalize_response_content(@response['response'])
       return if no_reply?(content)
     end
 
     if skip_duplicate?(content)
       return unless regenerate_to_avoid_repeat
 
-      content = @response['response']
+      content = normalize_response_content(@response['response'])
       return log_ignored(content) if no_reply?(content)
       return if skip_duplicate?(content)
     end
@@ -319,6 +319,31 @@ class Captain::Conversation::ResponseBuilderJob < ApplicationJob
     return true if content.blank?
 
     content.to_s.strip.match?(/\A\[?\s*(ignorar|sem[\s_-]?resposta|no[\s_-]?reply)\s*\]?\z/i)
+  end
+
+  # O modelo às vezes devolve a PRÓPRIA estrutura de saída como texto, no formato cru do
+  # inspect ({"response"=>"...", "reasoning"=>"..."}), em vez de só o texto do campo response.
+  # Acontece principalmente quando o turno termina em transferência e o fallback de handoff
+  # pega a última fala do assistente já serializada. Escapa das duas redes existentes — não é
+  # blank e não casa com UNKNOWN_MARKER — e o hash cru chega no cliente.
+  # Abre com a chave e traz o campo response logo em seguida, em hash-rocket ou JSON.
+  LEAKED_STRUCT = /\A\{.*["']response["']\s*(?:=>|:)/m
+  # Captura o valor do campo response, respeitando aspas escapadas dentro do texto.
+  LEAKED_RESPONSE_FIELD = /["']response["']\s*(?:=>|:)\s*"((?:[^"\\]|\\.)*)"/m
+
+  def normalize_response_content(content)
+    return unwrapped_or_silence(content['response'] || content[:response]) if content.is_a?(Hash)
+
+    str = content.to_s
+    return content unless str.strip.match?(LEAKED_STRUCT)
+
+    unwrapped_or_silence(str.match(LEAKED_RESPONSE_FIELD)&.captures&.first)
+  end
+
+  # Campo response vazio depois de desembrulhar significa que o agente quis silêncio.
+  def unwrapped_or_silence(value)
+    text = value.to_s
+    text.strip.empty? ? '[IGNORAR]' : text
   end
 
   # A resposta INTEIRA virou um marcador entre colchetes que o pipeline não conhece. O agente

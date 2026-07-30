@@ -101,7 +101,11 @@ module Concerns::Toolable
     return raw_response_body if response_template.blank?
 
     response_data = parse_response_body(raw_response_body)
-    render_template(response_template, { 'response' => response_data, 'r' => response_data })
+    # strict: false SÓ aqui. A entrada (endpoint_url/request_template) é nossa e tem que
+    # falhar alto se referenciar variável inexistente. Já a resposta vem da API externa,
+    # que omite campo conforme o caso (registro sem telefone, lista vazia): em modo strict
+    # o Liquid levanta e a tool inteira morre, quando o certo é renderizar o resto.
+    render_template(response_template, { 'response' => response_data, 'r' => response_data }, strict: false)
   end
 
   private
@@ -130,9 +134,9 @@ module Concerns::Toolable
     {}
   end
 
-  def render_template(template, context)
+  def render_template(template, context, strict: true)
     liquid_template = Liquid::Template.parse(template, error_mode: :strict)
-    liquid_template.render(context.deep_stringify_keys, registers: {}, strict_variables: true, strict_filters: true)
+    liquid_template.render(context.deep_stringify_keys, registers: {}, strict_variables: strict, strict_filters: strict)
   rescue Liquid::SyntaxError, Liquid::UndefinedVariable, Liquid::UndefinedFilter => e
     Rails.logger.error("Liquid template error: #{e.message}")
     raise "Template rendering failed: #{e.message}"
