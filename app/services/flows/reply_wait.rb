@@ -17,7 +17,17 @@ module Flows::ReplyWait
   # reentrado no mesmo nó.
   def suspend_on_wait_for_reply(node, node_id)
     return false unless node['type'] == 'wait_for_reply'
-    return false if node_id == @resume_start_id
+
+    # Passe livre de USO UNICO. O marcador existe para a PRIMEIRA chegada da retomada (nao suspende,
+    # deixa o #visit ramificar pela resposta) e e CONSUMIDO aqui. Sem consumir, um ciclo no grafo que
+    # volte a ESTE mesmo no (o desenho natural "nao entendi" -> reenvia lista -> espera de novo) nunca
+    # re-suspendia: re-ramificava com o @resume_reply velho e repetia ate estourar MAX_STEPS, disparando
+    # dezenas de mensagens em rajada. Consumido o marcador, a 2a chegada SUSPENDE e espera a proxima
+    # mensagem real do cliente.
+    if node_id == @resume_start_id
+      @resume_start_id = nil
+      return false
+    end
 
     persist_suspension(node_id: node_id, wait_until: reply_timeout_until(node))
     true
@@ -28,9 +38,14 @@ module Flows::ReplyWait
   # `edge.branch == id`; sem aresta correspondente cai na aresta sem rótulo (fallback). SEM resposta
   # (retomada por TEMPO — timeout via ResumeService/ResumeJob, @resume_reply nil) → 'timeout'.
   def evaluate_reply_branch(_node)
-    return 'timeout' if @resume_reply.blank?
+    # A resposta tambem e de USO UNICO: consumimos ANTES de devolver o branch. Se o grafo voltar a um
+    # wait_for_reply mais adiante, ele nao pode reaproveitar a resposta ja gasta — tem que esperar uma
+    # nova. Ler-e-limpar (em vez de limpar no fim do walk) mantem o par com @resume_start_id.
+    reply = @resume_reply
+    @resume_reply = nil
+    return 'timeout' if reply.blank?
 
-    @resume_reply['id'].to_s
+    reply['id'].to_s
   end
 
   # Prazo do timeout: node['timeout'] = { enabled, value, unit }. Desabilitado (ou ausente) → nil = o
