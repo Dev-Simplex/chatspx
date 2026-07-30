@@ -282,20 +282,20 @@ class Captain::Conversation::ResponseBuilderJob < ApplicationJob
   end
 
   def create_messages
-    content = @response['response']
+    content = normalize_response_content(@response['response'])
     return if no_reply?(content)
 
     if unknown_marker?(content)
       return unless regenerate_after_unknown_marker(content)
 
-      content = @response['response']
+      content = normalize_response_content(@response['response'])
       return if no_reply?(content)
     end
 
     if skip_duplicate?(content)
       return unless regenerate_to_avoid_repeat
 
-      content = @response['response']
+      content = normalize_response_content(@response['response'])
       return if no_reply?(content)
       return if skip_duplicate?(content)
     end
@@ -309,6 +309,25 @@ class Captain::Conversation::ResponseBuilderJob < ApplicationJob
     return true if content.blank?
 
     content.to_s.strip.match?(/\A\[?\s*(ignorar|sem[\s_-]?resposta|no[\s_-]?reply)\s*\]?\z/i)
+  end
+
+  # O modelo às vezes devolve a PRÓPRIA estrutura de saída como texto, no formato cru do
+  # inspect ({"response"=>"...", "reasoning"=>"..."}), em vez de só o texto do campo response.
+  # Isso escapa das duas redes existentes — não é blank e não casa com UNKNOWN_MARKER (não
+  # está entre colchetes) — e o cliente recebe o hash cru. O JSON.parse do fallback de handoff
+  # também não pega, porque hash-rocket não é JSON válido. Aqui desembrulha pro texto real;
+  # se o campo interno vier vazio, o agente quis silêncio.
+  def normalize_response_content(content)
+    if content.is_a?(Hash)
+      inner = (content['response'] || content[:response]).to_s
+      return inner.strip.empty? ? '[IGNORAR]' : inner
+    end
+
+    str = content.to_s
+    return content unless str.strip.match?(/\A\{.*["']response["']\s*(?:=>|:)/m)
+
+    inner = str.match(/["']response["']\s*(?:=>|:)\s*"((?:[^"\\]|\\.)*)"/m)&.captures&.first.to_s
+    inner.strip.empty? ? '[IGNORAR]' : inner
   end
 
   # A resposta INTEIRA virou um marcador entre colchetes que o pipeline não conhece. O agente
