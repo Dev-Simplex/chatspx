@@ -8,7 +8,9 @@ Configurações → Agentes → Editar Agente). O supervisor passa a:
 1. **Ver todas as conversas** dos times que supervisiona — mesmo as atribuídas a outros
    agentes, mesmo em caixas de entrada das quais ele não é membro, e mesmo com as flags de
    isolamento (`agent_conversation_isolation` / `agent_message_isolation`) ligadas.
-2. **Ver os agentes** que compõem esses times (lista de membros, somente leitura).
+2. **Ver os agentes** que compõem esses times (lista de membros).
+3. **Gerenciar a composição** desses times: adicionar e remover agentes, e renomear um agente
+   do time. Ver "F5" abaixo para o recorte exato do que ele pode e não pode.
 
 ## Decisões de design (fixadas antes de implementar)
 
@@ -86,15 +88,37 @@ supervisiona nada.
   respostas prontas "de-time".
 - `ChatList.vue`: o filtro de time passa a usar `getVisibleTeams`.
 - Rota `settings_teams_list`: `permissions: ['administrator', 'team_supervisor']`. Para o
-  supervisor a tela é **somente leitura** e lista **apenas** os times supervisionados
-  (sem criar/editar/excluir), com acesso à lista de membros.
+  supervisor a tela lista **apenas** os times supervisionados, sem criar/editar/excluir time,
+  com acesso à lista de membros.
 - i18n dos rótulos novos.
+
+### F5 — supervisor gerencia a composição do time
+
+Decidido com o usuário em 2026-07-30. O supervisor **pode**: renomear um agente dos times dele,
+adicionar agente ao time e remover agente do time. **Não pode**: excluir agente da conta,
+convidar agente novo, redefinir senha, trocar função/disponibilidade, nem alterar supervisão.
+
+| # | Decisão | Motivo |
+|---|---------|--------|
+| D8 | Renomear é global e isso foi **aceito conscientemente** | O nome do agente não é por time: renomear troca em toda a conta e em todo o histórico. Não há como limitar por time. |
+| D9 | O **pool** de adição é a união dos membros dos times supervisionados | Escolha do usuário: não vaza o quadro completo de agentes. Consequência aceita: quem supervisiona um único time tem pool vazio, e a tela explica o porquê em vez de parecer quebrada. |
+| D10 | `GET /agents` **não** é recortado no backend | Ele alimenta a store `agents` do app inteiro (menções, participantes, Kanban, ChatList, InboxView). Recortar ali deixava supervisor de time sem membros com lista vazia em tudo. O recorte é do **cliente**, só na tela de Agentes. Nunca foi controle de segurança: `UserPolicy#index?` é `true` para todo agente. |
+| D11 | As guardas reais vivem nos **controllers**, não nas policies | A policy recebe a classe, não a instância — o recorte fino (alvo está num time meu? id está no pool?) precisa do registro concreto. |
+
+Guardas: `authorize_supervisor_update` (whitelist de chave única `name`, alvo tem que estar num
+time supervisionado, alvo nunca pode ser admin) e `authorize_supervisor_membership_change`
+(só time supervisionado; quem entra tem que estar no pool; remover não tem restrição de pool).
+
+Verificado por revisão adversarial: 48 asserções de ataque, incluindo chave proibida via corpo
+JSON, wrapper `agent`, form-encoded e query string; autopromoção; id fora do pool como string e
+de outra conta. Todas barradas com 401 e nenhuma escrita no banco.
 
 ## Fora de escopo (deferido)
 
 - Relatórios escopados por supervisão.
 - Kanban / funis do time supervisionado.
-- Modo estritamente read-only para o supervisor (D3).
+- Modo estritamente read-only na CONVERSA para o supervisor (D3) — a Fase 4 abriu a gestão do
+  time, mas dentro da conversa ele segue agindo como membro.
 - Sino/notificações (D4).
 
 ## Validação
