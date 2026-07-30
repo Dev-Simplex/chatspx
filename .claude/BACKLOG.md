@@ -7,6 +7,12 @@
 
 ## Knowledge / chunk-RAG (genérico do produto)
 
+### ✅ RESOLVIDO (30/07) — `format_chunk` descarta o `contextual_content`
+> Corrigido na frente `spx/fricoes`, commit `3b05d9b67`, aguardando merge. O `contextual_content`
+> é sempre superset do trecho (o serviço cai no chunk puro em caso de falha), então não há perda
+> possível; conta sem contextual retrieval ligado segue no comportamento antigo. RuboCop: zero
+> offense nova. Descrição original abaixo, mantida como registro.
+
 ### 🔴 `format_chunk` descarta o `contextual_content` — chunk chega órfão pro agente
 - **O quê:** `Captain::Tools::SearchKnowledgeTool#format_chunk` entrega `chunk.content` (texto cru fatiado) e ignora a coluna `contextual_content`, que é justamente onde o contextual retrieval grava a âncora ("O trecho descreve o empreendimento X…"). Resultado: o agente recebe fatos sem dono e os atribui ao assunto em discussão.
 - **Medido na Tozi (28/07):** 93 de 114 chunks do catálogo não citavam empreendimento nenhum no `content`; **73 de 114 citavam no `contextual_content`**. Preço de um empreendimento podia responder pergunta de outro.
@@ -91,6 +97,22 @@
 ---
 
 ## Editor / Respostas rápidas
+
+### ⚪ NÃO REPRODUZ (investigado 30/07) — re-escopar antes de mexer
+> A frente `spx/fricoes` montou o pipeline real (schema do WhatsApp via `buildMessageSchema`,
+> markdown de verdade, `getContentNode` + `insertAtCursor` + `MessageMarkdownSerializer`) e comparou
+> os dois caminhos com `\n\n`, `\n` e `\r\n\r\n`: **botão e `/` inline preservam igual nos três**.
+> As duas causas suspeitas caíram: o `insertAtCursor` preserva parágrafos, e o `from - 1` do
+> `nodeCreators.cannedResponse` não achata. Também confirmou que `editorHelper.js`, `Editor.vue` e
+> `CannedResponse.vue` são **byte-idênticos entre o box da Tozi e a branch**, sem commit tocando
+> neles desde `2bd596be8` — não é caso de "já corrigido na homologação e a prod não pegou".
+>
+> **Hipótese que sobrou:** a queixa da equipe pode ser sobre o **preview da lista**, não sobre o
+> envio — o `previewText` faz `replace(/\s+/g, ' ')` de propósito, pra caber numa linha. Esse achata
+> de verdade.
+>
+> **Pra reabrir:** é preciso o short-code de uma resposta rápida que reproduza, ou confirmação de que
+> a reclamação era sobre a listagem. Sem isso, não há o que corrigir. Descrição original abaixo.
 
 ### 🟡 Canned multi-parágrafo via `/` inline achata quebras duplas → simples
 - **Sintoma:** resposta rápida com linhas em branco entre parágrafos (`\n\n`), inserida pelo `/` inline, chega no WhatsApp com quebra simples (`\n`). O **botão** (modal) preserva.
