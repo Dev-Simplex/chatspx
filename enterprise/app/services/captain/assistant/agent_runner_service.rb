@@ -175,6 +175,17 @@ class Captain::Assistant::AgentRunnerService
     end
     return parsed['response'].to_s if parsed.is_a?(Hash) && parsed['response'].present?
 
+    # O modelo às vezes serializa a PRÓPRIA estrutura de saída no formato cru do inspect
+    # ({"response"=>"...", "reasoning"=>"..."}). O JSON.parse acima não pega, porque
+    # hash-rocket não é JSON válido, e a estrutura inteira viraria a fala do agente.
+    # Acontece sobretudo quando o turno termina em transferência: o response sai vazio,
+    # cai neste fallback e o hash cru seguiria como se fosse mensagem pro cliente.
+    # Desembrulhando, turno de transferência devolve texto vazio — que é o certo, porque
+    # quem fala em seguida é a agente que assumiu.
+    if content.to_s.strip.match?(/\A\{.*["']response["']\s*=>/m)
+      return content.to_s.match(/["']response["']\s*=>\s*"((?:[^"\\]|\\.)*)"/m)&.captures&.first.to_s
+    end
+
     content.to_s
   end
 
