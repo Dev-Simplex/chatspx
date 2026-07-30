@@ -81,13 +81,19 @@ class Api::V1::Accounts::ScheduledMessagesController < Api::V1::Accounts::BaseCo
       a.is_a?(String) || a.respond_to?(:tempfile)
     end
 
+    # vira Hash puro antes de descer: a coluna é jsonb e ActionController::Parameters
+    # não serializa como hash.
+    raw_template_params = sm_params[:template_params] || sm_params['template_params']
+    template_params = raw_template_params.respond_to?(:to_h) ? raw_template_params.to_h : raw_template_params
+
     @scheduled_message = ScheduledMessages::CreateService.new(
       conversation: conv,
       inbox: inbox_to_use,
       message: message_content,
       scheduled_at: scheduled_at_param,
       user: Current.user,
-      attachments: attachments_list
+      attachments: attachments_list,
+      template_params: template_params.presence
     ).perform
 
     render 'api/v1/accounts/scheduled_messages/create', formats: [:json], status: :created
@@ -150,12 +156,18 @@ class Api::V1::Accounts::ScheduledMessagesController < Api::V1::Accounts::BaseCo
     permitted_fields << :conversation_id unless for_update
     permitted_fields << :contact_id unless for_update
 
+    # template_params é um hash de forma aberta (o corpo do template do WhatsApp
+    # Oficial: name, language, e os componentes com as variáveis). Sem `{}` aqui a
+    # chave era descartada em silêncio — o CreateService e o SendService já sabiam
+    # lidar com ela, mas ela nunca chegava lá.
+    nested = { attachments: [], template_params: {} }
+
     if raw.is_a?(ActionController::Parameters)
-      raw.permit(*permitted_fields, attachments: [])
+      raw.permit(*permitted_fields, **nested)
     elsif raw.respond_to?(:to_unsafe_h)
-      ActionController::Parameters.new(raw.to_unsafe_h).permit(*permitted_fields, attachments: [])
+      ActionController::Parameters.new(raw.to_unsafe_h).permit(*permitted_fields, **nested)
     else
-      ActionController::Parameters.new(raw.to_h).permit(*permitted_fields, attachments: [])
+      ActionController::Parameters.new(raw.to_h).permit(*permitted_fields, **nested)
     end
   end
 
