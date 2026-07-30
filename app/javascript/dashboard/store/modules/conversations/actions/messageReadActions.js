@@ -42,8 +42,26 @@ const clearMatchingNotification = async (
   }
 };
 
+// Espelha `may_clear_unread_marker?` do backend: numa conversa com dono humano,
+// só o dono limpa o "não lida" — senão quem só passa o olho apaga o marcador de
+// quem precisa responder. O backend já recusa a escrita; sem este guarda o front
+// ainda zeraria o contador localmente (otimista) e mostraria como lida uma
+// conversa que o servidor manteve não-lida.
+//
+// Sem dono — incluindo conversa em poder da IA, que não ocupa `assignee` humano
+// — segue o comportamento padrão: quem abrir, leu.
+// Conversa desconhecida no store não bloqueia: o backend é a autoridade.
+const canClearUnreadMarker = (rootGetters, conversationId) => {
+  const conversation = rootGetters?.getConversationById?.(conversationId);
+  const assignee = conversation?.meta?.assignee;
+  if (!assignee?.id || assignee.type === 'agent_bot') return true;
+  return Number(assignee.id) === Number(rootGetters?.getCurrentUserID);
+};
+
 export default {
   markMessagesRead: async ({ commit, dispatch, rootGetters }, data) => {
+    if (!canClearUnreadMarker(rootGetters, data.id)) return;
+
     try {
       const {
         data: { id, agent_last_seen_at: lastSeen },
