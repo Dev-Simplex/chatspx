@@ -1,9 +1,11 @@
 {
   "AGENT_MGMT": {
     "HEADER": "Agentes",
+    "HEADER_SUPERVISOR": "Agentes dos meus times",
     "HEADER_BTN_TXT": "Adicionar Agente",
     "LOADING": "Buscando lista de agente",
     "DESCRIPTION": "Um agente é um membro de seu time de atendimento ao cliente que pode visualizar e responder às mensagens de usuários. A lista abaixo mostra todos os agentes de sua conta.",
+    "DESCRIPTION_SUPERVISOR": "Estes são os agentes dos times que você supervisiona. Você pode corrigir o nome deles; convidar, excluir, trocar função ou disponibilidade continua sendo ação de administrador.",
     "LEARN_MORE": "Saiba mais sobre as funções do usuário",
     "AGENT_TYPES": {
       "ADMINISTRATOR": "Administrador",
@@ -20,6 +22,7 @@
     "COUNT": "{n} agente | {n} agentes",
     "LIST": {
       "404": "Não existem agentes associados a esta conta",
+      "404_SUPERVISOR": "Não há agentes nos times que você supervisiona",
       "TITLE": "Gerenciar agentes de seu time",
       "DESC": "Você pode adicionar e/ou remover agentes de um time.",
       "NAME": "Nome",

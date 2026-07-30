@@ -30,10 +30,11 @@ export default {
           component: TeamsIndex,
           meta: {
             featureFlag: FEATURE_FLAGS.TEAM_MANAGEMENT,
-            // Supervisor de time entra aqui em modo somente-leitura: vê apenas
-            // os times que supervisiona e a lista de membros deles. Criar/editar/
-            // excluir continua exclusivo de admin — tanto no botão (Index.vue)
-            // quanto nas rotas filhas, que seguem `['administrator']`.
+            // Supervisor de time entra aqui em modo reduzido: vê apenas os times
+            // que supervisiona e compõe os MEMBROS deles (adicionar/remover, com
+            // o pool fechado no backend). Criar/editar/excluir time continua
+            // exclusivo de admin — tanto no botão (Index.vue) quanto nas rotas
+            // filhas, que seguem `['administrator']`.
             permissions: ['administrator', 'team_supervisor'],
           },
         },

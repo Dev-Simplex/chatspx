@@ -20,7 +20,28 @@
       "HIDE": "Hide members",
       "COUNT": "{n} member | {n} members",
       "EMPTY": "This team has no members yet.",
-      "API_ERROR": "Couldn't load the team members. Try again."
+      "API_ERROR": "Couldn't load the team members. Try again.",
+      "FORBIDDEN": "You are not allowed to change the members of this team. You can only move agents between the teams you supervise.",
+      "ACTION_ERROR": "Couldn't update the team members. Try again.",
+      "REMOVE": {
+        "BUTTON": "Remove from team",
+        "TITLE": "Remove {name} from the team?",
+        "MESSAGE": "{name} stops being a member of {teamName} and loses access to the team conversations. You can add them back later.",
+        "CONFIRM": "Remove",
+        "CANCEL": "Cancel",
+        "SUCCESS": "{name} was removed from the team."
+      },
+      "ADD": {
+        "BUTTON": "Add agent",
+        "TITLE": "Add agent to team - {teamName}",
+        "DESC": "Pick from the agents of the other teams you supervise.",
+        "CONFIRM": "Add",
+        "CANCEL": "Cancel",
+        "LOADING": "Loading available agents...",
+        "SUCCESS": "{n} agent added to the team. | {n} agents added to the team.",
+        "EMPTY_POOL": "No agent available to add: you can only move agents between the teams you supervise, and all of them are already in this team.",
+        "SINGLE_TEAM": "You supervise a single team. You can only move agents between the teams you supervise, so there is nobody to add."
+      }
     },
     "CREATE_FLOW": {
       "CREATE": {

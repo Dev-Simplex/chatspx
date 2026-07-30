@@ -1,5 +1,6 @@
 <script setup>
 import { useAlert } from 'dashboard/composables';
+import { useAdmin } from 'dashboard/composables/useAdmin';
 import { computed, onMounted, ref } from 'vue';
 import Avatar from 'next/avatar/Avatar.vue';
 import { useI18n } from 'vue-i18n';
@@ -20,6 +21,12 @@ import Button from 'dashboard/components-next/button/Button.vue';
 const getters = useStoreGetters();
 const store = useStore();
 const { t } = useI18n();
+const { isAdmin } = useAdmin();
+
+// Quem chega aqui sem ser admin só pode ter entrado pela permissão
+// `team_supervisor` (ver agent.routes.js). Aqui reduzimos os poderes (nada de
+// convidar nem excluir agente) e recortamos a lista para os times supervisionados.
+const isSupervisorView = computed(() => !isAdmin.value);
 
 const loading = ref({});
 const showAddPopup = ref(false);
@@ -39,7 +46,26 @@ const deleteMessage = computed(() => {
   return ` ${currentAgent.value.name}?`;
 });
 
-const agentList = computed(() => getters['agents/getAgents'].value);
+const allAgents = computed(() => getters['agents/getAgents'].value);
+const supervisedTeams = useMapGetter('teams/getSupervisedTeams');
+
+// T4: o recorte "só os agentes dos meus times" é DESTA TELA, não da API.
+// `GET /agents` devolve a conta inteira de propósito: a mesma resposta alimenta a
+// store `agents` do dashboard inteiro (menções do chat interno, participantes da
+// conversa, Kanban, filtro de responsável da lista). Recortar lá tirava gente
+// dessas telas e, no caso de supervisionar um time sem membros, deixava o
+// supervisor sem agente nenhum em lugar nenhum.
+const agentList = computed(() => {
+  if (!isSupervisorView.value) return allAgents.value;
+
+  const supervisedIds = new Set(supervisedTeams.value.map(({ id }) => id));
+  if (!supervisedIds.size) return [];
+
+  // supervisionar ≠ ser membro: cruzamos com os times de que o agente É MEMBRO
+  return allAgents.value.filter(agent =>
+    (agent.team_ids || []).some(id => supervisedIds.has(id))
+  );
+});
 
 const filteredAgentList = computed(() => {
   const query = searchQuery.value.trim();
@@ -47,7 +73,18 @@ const filteredAgentList = computed(() => {
   return picoSearch(agentList.value, query, ['name', 'email']);
 });
 
-const uiFlags = computed(() => getters['agents/getUIFlags'].value);
+const agentsUiFlags = computed(() => getters['agents/getUIFlags'].value);
+const teamsUiFlags = computed(() => getters['teams/getUIFlags'].value);
+
+// No modo supervisor o recorte depende dos TIMES: enquanto eles não chegam a lista
+// filtrada é legitimamente vazia, e sem esperar por eles a tela pisca o
+// "não há agentes nos times que você supervisiona" antes de mostrar quem existe.
+const uiFlags = computed(() => ({
+  ...agentsUiFlags.value,
+  isFetching:
+    agentsUiFlags.value.isFetching ||
+    (isSupervisorView.value && teamsUiFlags.value.isFetching),
+}));
 const currentUserId = computed(() => getters.getCurrentUserID.value);
 const customRoles = useMapGetter('customRole/getCustomRoles');
 const teams = useMapGetter('teams/getTeams');
@@ -94,10 +131,22 @@ const verifiedAdministrators = computed(() => {
 });
 
 const showEditAction = agent => {
-  return currentUserId.value !== agent.id;
+  if (currentUserId.value === agent.id) return false;
+
+  // O backend recusa (401) um supervisor editando um administrador. Sem esconder
+  // o botão aqui, o admin aparece na lista — ele é membro do time — e o
+  // supervisor cai num beco: abre o modal, renomeia e só descobre no erro.
+  if (isSupervisorView.value && agent.role === 'administrator') return false;
+
+  return true;
 };
 
 const showDeleteAction = agent => {
+  // excluir agente da conta é ação de admin — supervisor só renomeia
+  if (isSupervisorView.value) {
+    return false;
+  }
+
   if (currentUserId.value === agent.id) {
     return false;
   }
@@ -162,13 +211,25 @@ const confirmDeletion = () => {
     :is-loading="uiFlags.isFetching"
     :loading-message="$t('AGENT_MGMT.LOADING')"
     :no-records-found="!agentList.length"
-    :no-records-message="$t('AGENT_MGMT.LIST.404')"
+    :no-records-message="
+      isSupervisorView
+        ? $t('AGENT_MGMT.LIST.404_SUPERVISOR')
+        : $t('AGENT_MGMT.LIST.404')
+    "
   >
     <template #header>
       <BaseSettingsHeader
         v-model:search-query="searchQuery"
-        :title="$t('AGENT_MGMT.HEADER')"
-        :description="$t('AGENT_MGMT.DESCRIPTION')"
+        :title="
+          isSupervisorView
+            ? $t('AGENT_MGMT.HEADER_SUPERVISOR')
+            : $t('AGENT_MGMT.HEADER')
+        "
+        :description="
+          isSupervisorView
+            ? $t('AGENT_MGMT.DESCRIPTION_SUPERVISOR')
+            : $t('AGENT_MGMT.DESCRIPTION')
+        "
         :link-text="$t('AGENT_MGMT.LEARN_MORE')"
         :search-placeholder="$t('AGENT_MGMT.SEARCH_PLACEHOLDER')"
         feature-name="agents"
@@ -180,6 +241,7 @@ const confirmDeletion = () => {
         </template>
         <template #actions>
           <Button
+            v-if="!isSupervisorView"
             :label="$t('AGENT_MGMT.HEADER_BTN_TXT')"
             size="sm"
             @click="openAddPopup"
@@ -316,6 +378,7 @@ const confirmDeletion = () => {
         :availability="currentAgent.availability_status"
         :custom-role-id="currentAgent.custom_role_id"
         :supervised-team-ids="currentAgent.supervised_team_ids || []"
+        :is-supervisor-view="isSupervisorView"
         @close="hideEditPopup"
       />
     </woot-modal>

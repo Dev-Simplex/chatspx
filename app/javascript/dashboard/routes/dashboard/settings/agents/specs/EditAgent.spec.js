@@ -175,3 +175,74 @@ describe('EditAgent supervised teams', () => {
     expect(teamsGetSpy).toHaveBeenCalled();
   });
 });
+
+// Modo supervisor: quem abriu o modal é supervisor de time, não admin. A API só
+// aceita `name` dele, então a tela não pode nem oferecer o resto.
+describe('EditAgent in supervisor view', () => {
+  beforeEach(() => {
+    updateSpy.mockClear();
+    teamsGetSpy.mockClear();
+  });
+
+  const mountAsSupervisor = (props = {}, storeState = { teams }) =>
+    mountComponent({ isSupervisorView: true, ...props }, storeState);
+
+  it('shows the name field only — no role, availability or teams', () => {
+    const wrapper = mountAsSupervisor({ supervisedTeamIds: [1] });
+
+    expect(wrapper.findAll('input[type="text"]')).toHaveLength(1);
+    expect(wrapper.findAll('select')).toHaveLength(0);
+    expect(wrapper.findAll('input[type="checkbox"]')).toHaveLength(0);
+    expect(wrapper.text()).not.toContain('Teams they supervise');
+  });
+
+  it('hides the reset password action', () => {
+    const wrapper = mountAsSupervisor();
+
+    expect(wrapper.text()).not.toContain('Reset Password');
+  });
+
+  it('keeps cancel and submit available', () => {
+    const wrapper = mountAsSupervisor();
+
+    expect(wrapper.text()).toContain('Cancel');
+    expect(wrapper.find('button[type="submit"]').exists()).toBe(true);
+  });
+
+  it('sends only id and name on submit', async () => {
+    const wrapper = mountAsSupervisor();
+
+    await wrapper.find('input[type="text"]').setValue('Nicolas Editado');
+    await submit(wrapper);
+
+    expect(supervisionPayload()).toEqual({ id: 7, name: 'Nicolas Editado' });
+  });
+
+  // renomear não pode mexer na supervisão de quem já supervisiona
+  it('never sends supervision or role for a supervised agent', async () => {
+    const wrapper = mountAsSupervisor({ supervisedTeamIds: [1, 2] });
+
+    await submit(wrapper);
+
+    const payload = supervisionPayload();
+    expect(payload).not.toHaveProperty('supervised_team_ids');
+    expect(payload).not.toHaveProperty('role');
+    expect(payload).not.toHaveProperty('custom_role_id');
+    expect(payload).not.toHaveProperty('availability');
+  });
+
+  it('does not fetch the teams it will never show', () => {
+    mountAsSupervisor({}, { teams: [] });
+
+    expect(teamsGetSpy).not.toHaveBeenCalled();
+  });
+
+  // sem disponibilidade na tela, exigi-la travaria o salvar por um campo invisível
+  it('submits even when the agent has no availability set', async () => {
+    const wrapper = mountAsSupervisor({ availability: '' });
+
+    await submit(wrapper);
+
+    expect(updateSpy).toHaveBeenCalled();
+  });
+});

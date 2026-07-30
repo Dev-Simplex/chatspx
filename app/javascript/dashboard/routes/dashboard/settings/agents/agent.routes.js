@@ -21,7 +21,10 @@ export default {
           component: AgentHome,
           meta: {
             featureFlag: FEATURE_FLAGS.AGENT_MANAGEMENT,
-            permissions: ['administrator'],
+            // Supervisor de time entra aqui em modo reduzido: a API já devolve
+            // só os agentes dos times que ele supervisiona, e a tela (Index.vue)
+            // esconde convidar/excluir — editar fica limitado ao nome.
+            permissions: ['administrator', 'team_supervisor'],
           },
         },
       ],
