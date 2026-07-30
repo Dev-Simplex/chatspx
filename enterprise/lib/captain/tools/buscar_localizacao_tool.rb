@@ -4,8 +4,7 @@ class Captain::Tools::BuscarLocalizacaoTool < Captain::Tools::BasePublicTool
               'coordenadas de um local pra passar pro buscar_imovel (filtro por proximidade).'
 
   param :local, type: 'string',
-                desc: 'Endereço, bairro ou ponto de referência a localizar ' \
-                      '(ex: "Jardim Botânico", "Av. das Figueiras 1646").',
+                desc: 'Endereço, bairro ou ponto de referência a localizar, conforme o cliente citou.',
                 required: true
 
   def perform(_tool_context, local:)
