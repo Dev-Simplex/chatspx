@@ -83,6 +83,62 @@ RSpec.describe TeamSupervision do
     end
   end
 
+  describe '.manageable_agent_ids' do
+    it 'returns an empty list when the user supervises nothing (caminho inerte)' do
+      create(:team_member, team: team, user: create(:user, account: account, role: :agent))
+
+      expect(described_class.manageable_agent_ids(agent, account)).to eq([])
+    end
+
+    it 'returns the members of the supervised team' do
+      member = create(:user, account: account, role: :agent)
+      create(:team_member, team: team, user: member)
+      create(:team_supervisor, team: team, user: agent)
+
+      expect(described_class.manageable_agent_ids(agent, account)).to contain_exactly(member.id)
+    end
+
+    it 'unites the members of every supervised team without duplicating' do
+      member = create(:user, account: account, role: :agent)
+      other_member = create(:user, account: account, role: :agent)
+      create(:team_member, team: team, user: member)
+      create(:team_member, team: other_team, user: member)
+      create(:team_member, team: other_team, user: other_member)
+      create(:team_supervisor, team: team, user: agent)
+      create(:team_supervisor, team: other_team, user: agent)
+
+      expect(described_class.manageable_agent_ids(agent, account)).to contain_exactly(member.id, other_member.id)
+    end
+
+    it 'leaves out the members of a team the user does not supervise' do
+      outsider = create(:user, account: account, role: :agent)
+      create(:team_member, team: other_team, user: outsider)
+      create(:team_supervisor, team: team, user: agent)
+
+      expect(described_class.manageable_agent_ids(agent, account)).to eq([])
+    end
+
+    it 'does not include the supervisor himself when he is not a member' do
+      create(:team_supervisor, team: team, user: agent)
+
+      expect(described_class.manageable_agent_ids(agent, account)).not_to include(agent.id)
+    end
+
+    it 'scopes the supervision to the given account' do
+      foreign_team = create(:team, account: other_account)
+      foreign_member = create(:user, account: other_account, role: :agent)
+      create(:team_member, team: foreign_team, user: foreign_member)
+      create(:account_user, user: agent, account: other_account, role: :agent)
+      create(:team_supervisor, team: foreign_team, user: agent)
+
+      expect(described_class.manageable_agent_ids(agent, account)).to eq([])
+    end
+
+    it 'returns an empty list without a user' do
+      expect(described_class.manageable_agent_ids(nil, account)).to eq([])
+    end
+  end
+
   describe '.accessible_team_ids' do
     it 'returns the teams the user is a member of' do
       create(:team_member, team: team, user: agent)

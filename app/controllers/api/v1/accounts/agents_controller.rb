@@ -2,10 +2,19 @@ class Api::V1::Accounts::AgentsController < Api::V1::Accounts::BaseController
   before_action :fetch_agent, except: [:create, :index, :bulk_create]
   before_action :check_authorization
   before_action :authorize_supervision_change, only: [:update]
+  before_action :authorize_supervisor_update, only: [:update]
   before_action :validate_limit, only: [:create]
   before_action :validate_limit_for_bulk_create, only: [:bulk_create]
 
   def index
+    # Devolve a conta inteira para TODO MUNDO, como sempre foi (UserPolicy#index? é
+    # `true` para qualquer agente — este endpoint nunca foi controle de segurança).
+    # T4: não recorte aqui. Esta resposta alimenta a store `agents` do dashboard
+    # inteiro (participantes da conversa, menções do chat interno, Kanban, filtro de
+    # responsável da lista); estreitá-la para o supervisor tirava gente dessas telas,
+    # e um supervisor de time sem membros ficava com a lista VAZIA em todas elas.
+    # O recorte de "agentes dos meus times" é da TELA de Agentes e mora no front
+    # (settings/agents/Index.vue), que cruza `team_ids` com os times supervisionados.
     @agents = agents
   end
 
@@ -81,6 +90,45 @@ class Api::V1::Accounts::AgentsController < Api::V1::Accounts::BaseController
     return if supervised_team_ids_param.nil?
 
     raise Pundit::NotAuthorizedError unless Current.account_user.administrator?
+  end
+
+  # T1: com a UserPolicy#update? afrouxada para deixar o supervisor entrar, TUDO o que
+  # limita o que ele pode fazer mora aqui. Três recusas, todas antes de qualquer
+  # escrita:
+  #   1. chave diferente de `name` (role/availability/custom_role_id/...) → seria troca
+  #      de função/disponibilidade, que ele não tem;
+  #   2. alvo fora dos times supervisionados → renomear quem ele nem enxerga;
+  #   3. alvo administrador → um supervisor jamais edita quem está acima dele.
+  # Admin não passa por nada disso (caminho idêntico ao de antes).
+  def authorize_supervisor_update
+    return unless supervisor_scope?
+
+    raise Pundit::NotAuthorizedError if forbidden_supervisor_keys.any?
+    raise Pundit::NotAuthorizedError unless manageable_agent_ids.include?(@agent.id)
+    raise Pundit::NotAuthorizedError if @agent.administrator?
+  end
+
+  # Whitelist de uma chave só. Olhamos o hash aninhado (o ParamsWrapper copia o corpo
+  # inteiro para `agent`, porque não existe modelo `Agent`) e ainda o `custom_role_id`
+  # de topo, que é de onde o módulo enterprise o lê.
+  def forbidden_supervisor_keys
+    submitted = params[:agent].present? ? params[:agent].keys.map(&:to_s) : []
+    submitted |= ['custom_role_id'] if params.key?(:custom_role_id)
+
+    submitted - ['name']
+  end
+
+  # "Este request é de um supervisor puro?" — admin e quem não supervisiona nada
+  # respondem `false` e passam pelo caminho de sempre (D5: inerte enquanto ninguém
+  # for marcado supervisor).
+  def supervisor_scope?
+    return false if Current.account_user&.administrator?
+
+    TeamSupervision.supervisor?(current_user, Current.account)
+  end
+
+  def manageable_agent_ids
+    @manageable_agent_ids ||= TeamSupervision.manageable_agent_ids(current_user, Current.account)
   end
 
   # Marcação de supervisor (F1). Só no update — o create fica enxuto de propósito.

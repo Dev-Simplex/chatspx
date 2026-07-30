@@ -36,6 +36,23 @@ module TeamSupervision
     team_ids(user, account).any?
   end
 
+  # Agentes que o supervisor pode GERENCIAR: a união dos membros de todos os times que
+  # ele supervisiona. É o mesmo conjunto usado em dois papéis:
+  #   * quem ele pode renomear (AgentsController#authorize_supervisor_update);
+  #   * o POOL de quem ele pode ADICIONAR num time supervisionado — ele nunca traz
+  #     alguém de fora desse conjunto.
+  # NÃO use isto para recortar GET /agents: aquela resposta alimenta a store `agents`
+  # do dashboard inteiro (menções, participantes, Kanban), e estreitá-la some com
+  # gente em telas que nada têm a ver com supervisão (T4).
+  # [] para quem não supervisiona nada, então o caller faz short-circuit sem consultar
+  # team_members.
+  def manageable_agent_ids(user, account)
+    supervised_ids = team_ids(user, account)
+    return [] if supervised_ids.empty?
+
+    TeamMember.where(team_id: supervised_ids).distinct.pluck(:user_id)
+  end
+
   # Times que o usuário alcança: membro ∪ supervisionado. É o conjunto usado pelos
   # filtros de conversa — NÃO troque por ele a visibilidade de etiquetas/respostas
   # "de-time", que continua sendo só de membro.
