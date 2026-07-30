@@ -45,7 +45,7 @@ class Captain::Tools::EnviarFotosImovelTool < Captain::Tools::BasePublicTool
     limite = [fotos.size, MAX_POR_IMOVEL].min
     if sent >= limite
       # Já enviou o teto (ou todas): NÃO reenvia do zero (evita foto repetida) — avança.
-      return "Já enviei as fotos que dá pra mandar aqui do imóvel #{codigo}. Se o cliente quiser ver TODAS, ofereça o link do imóvel (o mesmo que veio da busca) — a galeria completa está no site. NÃO reenvie as mesmas — avance a conversa (interesse, visita)."
+      return "Já enviei as fotos que dá pra mandar aqui do imóvel #{codigo}. Se o cliente quiser ver TODAS, ofereça o link do imóvel#{link_galeria(conversation, cod)} — a galeria completa está no site. NÃO reenvie as mesmas — avance a conversa (interesse, visita)."
     end
 
     # Opt-in por conta (assistant.config['fotos_carrossel']): manda as fotos numa ÚNICA
@@ -70,10 +70,11 @@ class Captain::Tools::EnviarFotosImovelTool < Captain::Tools::BasePublicTool
       # Nao despejar fotos por conta propria (prende o lead num loop de midia): avancar a
       # conversa. Pra "ver todas", a IA oferece o LINK da galeria, nao mais fotos no chat.
       "Enviei #{batch.size} fotos do imóvel #{codigo}. Se o cliente quiser ver TODAS as fotos, " \
-        'ofereça o link do imóvel (o mesmo que veio da busca) — o site tem a galeria completa. ' \
+        "ofereça o link do imóvel#{link_galeria(conversation, cod)} — o site tem a galeria completa. " \
         'NÃO despeje mais fotos por conta própria; se ele pedir mais fotos aqui, chame esta ferramenta de novo.'
     else
-      "Enviei as fotos principais do imóvel #{codigo}. Se o cliente quiser ver todas, ofereça o link do imóvel (galeria completa no site). Avance a conversa."
+      "Enviei as fotos principais do imóvel #{codigo}. Se o cliente quiser ver todas, " \
+        "ofereça o link do imóvel#{link_galeria(conversation, cod)} (galeria completa no site). Avance a conversa."
     end
   rescue StandardError => e
     Rails.logger.warn("[EnviarFotosImovelTool] #{e.message}")
@@ -81,6 +82,15 @@ class Captain::Tools::EnviarFotosImovelTool < Captain::Tools::BasePublicTool
   end
 
   private
+
+  # Entrega a URL canônica que a busca já registrou (urls_imoveis, alimentado pelo
+  # buscar_imovel) em vez de mandar a IA lembrar dela: link remontado errado é apagado
+  # pelo fix_property_links e o cliente recebe "veja no site" sem site nenhum.
+  # Sem registro (busca antiga, conversa migrada), volta a orientação genérica.
+  def link_galeria(conversation, cod)
+    url = conversation.custom_attributes.dig('urls_imoveis', cod.to_s)
+    url.present? ? ": #{url}" : ' (o mesmo que veio da busca)'
+  end
 
   def fetch_detalhes(codigo)
     # Credenciais Vista por CONTA via concern (AccountIntegration -> custom_attributes -> ENV).
