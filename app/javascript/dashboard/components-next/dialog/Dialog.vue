@@ -226,7 +226,12 @@ dialog::backdrop {
 
 /* fullHeight: the dialog owns the height budget and the form distributes it.
    `dvh` (not `vh`) so the mobile URL bar can't push the footer off-screen. */
-.dialog-full-height {
+/* `[open]` é obrigatório: sem ele este `display: flex` vence o `display: none`
+   que o navegador dá a um <dialog> FECHADO. O diálogo então continuava ocupando
+   espaço no fim da página — uma caixa vazia sob o campo de mensagem, empurrando
+   o rodapé para fora e criando rolagem na tela inteira. Vale para todo diálogo
+   full-height que fica montado (painel de mídias, modais do Kanban). */
+.dialog-full-height[open] {
   display: flex;
   max-height: 90dvh;
 }
