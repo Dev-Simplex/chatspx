@@ -23,7 +23,7 @@ class Captain::Tools::BuscarImovelTool < Captain::Tools::BasePublicTool
   param :raio_km, type: 'number', desc: 'Só quando o cliente limitar a distância. Sem isso, lista os mais próximos.', required: false
 
   VISTA_FIELDS = %w[Codigo ImoCodigo Categoria Status Dormitorios Cidade Bairro BairroComercial ValorLocacao ValorVenda TituloSite
-                    ValorCondominio ValorIptu AreaTotal AreaConstruida DescricaoWeb Latitude Longitude].freeze
+                    Condominio ValorCondominio ValorIptu AreaTotal AreaConstruida DescricaoWeb Latitude Longitude].freeze
   META_KEYS = %w[total paginas pagina quantidade].freeze
 
   def perform(tool_context, status_tipo:, categoria: nil, bairro: nil, endereco: nil, valor_max: nil,
@@ -217,9 +217,8 @@ class Captain::Tools::BuscarImovelTool < Captain::Tools::BasePublicTool
       valor = venda ? "R$ #{im['ValorVenda']}" : "R$ #{im['ValorLocacao']}/mês"
       dorm = im['Dormitorios'].to_i.positive? ? "#{im['Dormitorios']} quartos, " : ''
       dist = im['dist_km'] ? " — a #{format('%.1f', im['dist_km'])} km da referência" : ''
-      linha = "(cód #{im['Codigo']}) #{im['Categoria']} #{dorm}no #{im['Bairro']}, #{valor}#{format_area(im)}#{format_taxas(im)}#{format_extras(im['Codigo'])}#{dist}. #{build_url(
-        im, venda
-      )}"
+      linha = "(cód #{im['Codigo']}) #{im['Categoria']} #{dorm}no #{im['Bairro']}, #{valor}" \
+              "#{format_area(im)}#{format_taxas(im)}#{format_extras(im['Codigo'])}#{format_condominio(im)}#{dist}. #{build_url(im, venda)}"
       desc = detalhado ? descricao_limpa(im['DescricaoWeb']) : ''
       linha += "\n#{desc}" if desc.present?
       linha
@@ -233,6 +232,17 @@ class Captain::Tools::BuscarImovelTool < Captain::Tools::BasePublicTool
     parts << "condomínio R$ #{im['ValorCondominio']}" if im['ValorCondominio'].to_f.positive?
     parts << "IPTU R$ #{im['ValorIptu']}" if im['ValorIptu'].to_f.positive?
     parts.any? ? " (#{parts.join(', ')})" : ''
+  end
+
+  # Vista diz se o imóvel está EM condomínio (campo Condominio). Antes a IA chutava
+  # "condomínio fechado" pelo nome do bairro ("Residencial X") e errava a regra de
+  # visita/chave (conv 19092); com o dado real ela acerta. Só mostra quando o Vista responde.
+  def format_condominio(im)
+    case im['Condominio'].to_s.strip.downcase
+    when 'sim' then ' [em condomínio fechado]'
+    when 'nao', 'não' then ' [imóvel avulso, sem condomínio]'
+    else ''
+    end
   end
 
   # Área/metragem em m²: AreaTotal é a metragem do terreno/lote (essencial pra terreno);
