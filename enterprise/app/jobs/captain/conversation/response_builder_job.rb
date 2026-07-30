@@ -327,17 +327,24 @@ class Captain::Conversation::ResponseBuilderJob < ApplicationJob
   # está entre colchetes) — e o cliente recebe o hash cru. O JSON.parse do fallback de handoff
   # também não pega, porque hash-rocket não é JSON válido. Aqui desembrulha pro texto real;
   # se o campo interno vier vazio, o agente quis silêncio.
+  # Abre com a chave e traz o campo response logo em seguida, em hash-rocket ou JSON.
+  LEAKED_STRUCT = /\A\{.*["']response["']\s*(?:=>|:)/m
+  # Captura o valor do campo response, respeitando aspas escapadas dentro do texto.
+  LEAKED_RESPONSE_FIELD = /["']response["']\s*(?:=>|:)\s*"((?:[^"\\]|\\.)*)"/m
+
   def normalize_response_content(content)
-    if content.is_a?(Hash)
-      inner = (content['response'] || content[:response]).to_s
-      return inner.strip.empty? ? '[IGNORAR]' : inner
-    end
+    return unwrapped_or_silence(content['response'] || content[:response]) if content.is_a?(Hash)
 
     str = content.to_s
-    return content unless str.strip.match?(/\A\{.*["']response["']\s*(?:=>|:)/m)
+    return content unless str.strip.match?(LEAKED_STRUCT)
 
-    inner = str.match(/["']response["']\s*(?:=>|:)\s*"((?:[^"\\]|\\.)*)"/m)&.captures&.first.to_s
-    inner.strip.empty? ? '[IGNORAR]' : inner
+    unwrapped_or_silence(str.match(LEAKED_RESPONSE_FIELD)&.captures&.first)
+  end
+
+  # Campo response vazio depois de desembrulhar significa que o agente quis silêncio.
+  def unwrapped_or_silence(value)
+    text = value.to_s
+    text.strip.empty? ? '[IGNORAR]' : text
   end
 
   # A resposta INTEIRA virou um marcador entre colchetes que o pipeline não conhece. O agente
