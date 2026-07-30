@@ -168,25 +168,30 @@ class Captain::Assistant::AgentRunnerService
     content = last && (last[:content] || last['content'])
     return '' if content.blank?
 
+    unwrap_agent_output(content)
+  end
+
+  # Estrutura de saída serializada no formato cru do inspect, com hash-rocket.
+  SERIALIZED_OUTPUT = /\A\{.*["']response["']\s*=>/m
+  SERIALIZED_RESPONSE_FIELD = /["']response["']\s*=>\s*"((?:[^"\\]|\\.)*)"/m
+
+  # O modelo às vezes serializa a PRÓPRIA estrutura de saída ({"response"=>"...",
+  # "reasoning"=>"..."}) em vez de devolver só o texto. Em JSON válido o parse abaixo
+  # resolve; em hash-rocket, não — e a estrutura inteira viraria a fala do agente.
+  # Acontece sobretudo quando o turno termina em transferência: o response sai vazio,
+  # cai neste fallback e o hash cru seguiria como mensagem pro cliente. Desembrulhado,
+  # o turno de transferência devolve vazio, que é o certo — quem fala em seguida é a
+  # agente que assumiu.
+  def unwrap_agent_output(content)
     parsed = begin
       JSON.parse(content)
     rescue StandardError
       nil
     end
     return parsed['response'].to_s if parsed.is_a?(Hash) && parsed['response'].present?
+    return content.to_s unless content.to_s.strip.match?(SERIALIZED_OUTPUT)
 
-    # O modelo às vezes serializa a PRÓPRIA estrutura de saída no formato cru do inspect
-    # ({"response"=>"...", "reasoning"=>"..."}). O JSON.parse acima não pega, porque
-    # hash-rocket não é JSON válido, e a estrutura inteira viraria a fala do agente.
-    # Acontece sobretudo quando o turno termina em transferência: o response sai vazio,
-    # cai neste fallback e o hash cru seguiria como se fosse mensagem pro cliente.
-    # Desembrulhando, turno de transferência devolve texto vazio — que é o certo, porque
-    # quem fala em seguida é a agente que assumiu.
-    if content.to_s.strip.match?(/\A\{.*["']response["']\s*=>/m)
-      return content.to_s.match(/["']response["']\s*=>\s*"((?:[^"\\]|\\.)*)"/m)&.captures&.first.to_s
-    end
-
-    content.to_s
+    content.to_s.match(SERIALIZED_RESPONSE_FIELD)&.captures&.first.to_s
   end
 
   def error_response(error_message)
