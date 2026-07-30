@@ -10,6 +10,19 @@
 
 ## 🚧 Em andamento
 
+### [2026-07-28] 🟢 CONSOLIDAÇÃO Sofia → Júlia + knowledge ancorada por empreendimento (EXECUTADO em prod)
+
+> **Decisão do Paulo:** agente se separa por **especialidade** (vendas/locação/…), nunca por **origem** (Meta, site, direct). Origem vira contexto, não identidade. A Sofia tinha nascido por origem e já estava divergindo da Júlia.
+
+- **Diagnóstico que motivou:** Sofia (#19) e Júlia (#13) faziam a mesma coisa com cérebros diferentes — Júlia 41 FAQs × Sofia 6 (e **a Júlia sabia mais MCMV que a Sofia**: faixas 2026, FGTS, docs, taxa de obra); Sofia tinha remarketing/holerite/tabela ETNA que a Júlia não tinha; **Catálogo duplicado** (doc#7 = doc#8, byte-a-byte); **tabela ETNA só na Sofia** → lead orgânico do Etna caía na Júlia e não simulava. Conversa 41613 provou a fronteira vazando (lead Meta com a Júlia).
+- **Knowledge:** catálogo monolítico (114 chunks, **93 órfãos sem citar empreendimento**) → **17 documentos, 1 por empreendimento** (docs #10–#26, 118 chunks, todos embeddados). Fonte agora ancora 100% (`0 sem fonte, 0 genérica`). Tabela ETNA copiada pra Júlia (doc#27). doc#8 removido após 5 verificações. **Pacaembu:** docs renomeados pra `Pacaembu Tívoli — casas MCMV` e `Pacaembu Rhodivi Morada do Bosque — casas MCMV` (Rhodivi = Morada do Bosque; mesmo produto, localidades diferentes — Paulo confirmou) + metadata dos chunks re-etiquetada.
+- **Prompt da Júlia:** 28.373 → **38.460 chars** (37 seções, nada removido; backups em `/tmp/julia_prompt_backup_*`). Absorveu da Sofia: origem/remarketing, holerite (conferência sem reprovar), pedido-de-falar-depois, campanhas de aquisição SPL (levantamento + ramo com/sem tabela + documentação + preferência de visita). Dos briefings: escada de produtos, permuta (quitado é crítico), renda por último, frustração ≠ saída, não presumir aluguel, condomínio incluso, 2 perguntas de benefício (filho menor / 3 anos de carteira). Novo: **maioridade sem interrogatório** (inferência passiva → pergunta de processo → nunca gate, nunca data de nascimento na abertura). Tudo como instrução, zero exemplo (regra #1).
+- **FAQs:** 41 → **45** (planta única Pacaembu, alternativa a quem não financia, prazo Pacaembu, + nova de score/CPF). 45/45 com embedding.
+- **Roteamento virado:** o mecanismo real é o **hook** (`assign_agent_bot_id`), não a rule — hook#8 `23 (Sofia) → 17 (Júlia)` + rule #66 (reabertura time 67) `Sofia → Júlia`. **Time 67 "leads meta" mantido** (preserva segmentação e fila). Smoke test: prompt renderiza (48.807 chars, 2 blocos, cache_control ok), 16 tools, knowledge responde ancorada.
+- **⚠️ Sofia INTOCADA de propósito** (decisão do Paulo): segue elegível na inbox 91 atendendo as **414 conversas já abertas** com ela; doc#7 (catálogo monolítico) mantido como knowledge dela + backup. Desligar de vez só quando as abertas resolverem.
+- **Pendências abertas:** (1) o material do Rhodivi tem códigos de tipologia (linha básica / cobertura) que **conflitam com a FAQ de "planta única"** — Paulo vai confirmar qual é o certo; (2) **Blend, Méditerranée, De Ville Urban e Elleva Studios** aparecem no `buscar_empreendimento` mas **não têm material no catálogo** (pauta do marketing); (3) simulação de financiamento (briefing RMKT) **NÃO entrou** — depende de definir banco parceiro (as taxas do briefing são média de mercado e superestimam a parcela); (4) Loft fora de escopo até a integração existir.
+- **🚨 PREEXISTENTE, não relacionado:** Sidekiq da Tozi com **9.999 jobs no DeadSet**. Não foi tocado; investigar em separado.
+
 ### [2026-07-23] 🟢 VISTA — criar card no pipeline (PROVADO ao vivo, aguardando regras de rodízio)
 
 > Próximo grande passo pós-meta-leads: o SPX criar o card no funil do Vista/Loft quando a Sofia marca lead QUENTE. Hoje todo handoff vai pra Cibele que cadastra + faz rodízio manual; corretores NÃO usam SPX (só Vista).
