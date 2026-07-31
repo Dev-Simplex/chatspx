@@ -315,6 +315,24 @@ ciclomática. Não confundir com regressão de quem mexer neles.
 
 ---
 
+## Conduta da IA — Tozi (decisões do Paulo, 31/07)
+
+### 🟡 Simulação de financiamento na conduta MCMV — parado por decisão
+- **O quê:** o briefing de RMKT pede que a IA simule a parcela do financiamento. Hoje o prompt tem um guard-rail proibindo.
+- **Por que está parado:** depende de **definir o banco parceiro** (taxa, prazo, LTV reais). As taxas do briefing são média de mercado e **superestimam a parcela** — entrar com elas é pior que não simular.
+- **Decisão (Paulo, 31/07):** vai pro backlog, sem data.
+- **Se for aprovado um dia:** tool determinística com parâmetros por conta, **nunca número no prompt** — número em prompt é alucinação esperando acontecer.
+
+### 🟢 Catálogo faltante de 4 empreendimentos — pendência aceita
+- **O quê:** Blend, Méditerranée, De Ville Urban e Elleva Studios aparecem no `buscar_empreendimento` (vêm vivos do Vista) mas **não têm material na knowledge**. A IA cita o nome e não sabe falar deles.
+- **Decisão (Paulo, 31/07):** fica como pendência mesmo — "não tem muita procura para esses". Não é prioridade do marketing.
+- **Mitigação que já existe:** a conduta manda não afirmar o que não está nas duas fontes, então ela encaminha pro corretor em vez de inventar.
+
+### ✅ Rhodivi × "planta única" — falso alarme, fechado
+O material do doc#22 diz *"modelo **único** identificado como BT_2D8_4385 (B = Linha Básica; T = Cobertura Telhado Aparente…)"*. Os termos que pareciam duas tipologias são a **decodificação das letras do código do modelo único**. FAQ e material sempre concordaram. Paulo confirmou em 31/07: **Rhodivi é MCMV planta única**. Nada a corrigir.
+
+---
+
 ## Como usar este arquivo
 - Resíduo arquitetural / bloqueio reutilizável → vault Obsidian (não aqui).
 - Item fechado → remover (o git guarda histórico).
