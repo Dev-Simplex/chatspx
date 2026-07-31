@@ -248,11 +248,13 @@ que o SLA nasce com a resolução do intervalo de varredura.
    `handoff`, `assumido`, `esfriou`, `descartado`). Commit `b7c221406`.
 2. ✅ **Traços de conduta por episódio** + cruzamento conduta × desfecho por campanha impresso
    pela `spx:eval:outcomes`.
-3. ⬜ Corte no painel F4: conversão por campanha, com o eixo de autoria do F4.1.
+3. ✅ **Seção "Desfecho" no painel F4**: taxa de conversão, escada com split de autoria, tabela
+   conduta × desfecho e o corte por campanha. Seção some sozinha enquanto não houver dado
+   (o `desfechos` do controller devolve `{}` em qualquer erro, inclusive migration ausente).
 4. ⬜ Leitor do Vista (§ 5) — depende do acordo com a `rodizio` e do card existir.
 
-Os passos 1+2 já respondem à pergunta do Paulo pela linha de comando. O passo 3 leva a resposta
-pro painel; o 4 acrescenta o degrau externo. Nenhum dos dois é pré-requisito dos anteriores.
+Os passos 1+2 respondem à pergunta pela linha de comando; o 3 leva a resposta pro painel. O 4
+acrescenta o degrau externo e é o único que depende de outra frente.
 
 > **⚠️ Nada disto foi executado.** Não há Ruby no ambiente onde o código foi escrito (nem WSL):
 > `ruby -c`, RuboCop, migration e rake seguem **pendentes de verificação** numa box com Ruby. As
