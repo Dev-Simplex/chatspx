@@ -5,6 +5,7 @@ module AssignmentHandler
   included do
     before_save :ensure_assignee_is_from_team
     before_save :set_assignee_last_changed_at
+    after_update :record_assignment_change_for_notify
     after_commit :notify_assignment_change, :process_assignment_changes, :mark_conversation_unread_on_assignment_change
   end
 
@@ -56,13 +57,29 @@ module AssignmentHandler
     ::AutoAssignment::AgentAssignmentService.new(conversation: self, allowed_agent_ids: team_members_with_capacity).find_assignee
   end
 
+  # ADITIVO: mantem o predicado original E aceita o flag, entao nenhum evento que ja disparava deixa
+  # de disparar — so acrescenta o caso que se perdia. saved_change_to_* roda aqui no after_COMMIT, que
+  # reflete apenas o ULTIMO save da transacao: o flow troca o time e salva a conversa de novo na mesma
+  # transacao, o 2o save zera saved_change_to_team_id? e TEAM_CHANGED nunca era despachado — a UI do
+  # agente ficava no time antigo ate dar F5. Mesma armadilha documentada em #update_messages_team_id.
   def notify_assignment_change
     {
-      ASSIGNEE_CHANGED => -> { saved_change_to_assignee_id? },
-      TEAM_CHANGED => -> { saved_change_to_team_id? }
+      ASSIGNEE_CHANGED => -> { saved_change_to_assignee_id? || @assignee_changed_for_notify },
+      TEAM_CHANGED => -> { saved_change_to_team_id? || @team_changed_for_notify }
     }.each do |event, condition|
       condition.call && dispatcher_dispatch(event, previous_changes, assignment_change_event_data(event))
     end
+  ensure
+    # Uso unico: o flag nao pode sobreviver para um proximo commit da mesma instancia.
+    @assignee_changed_for_notify = false
+    @team_changed_for_notify = false
+  end
+
+  # Captura no after_UPDATE (roda a cada save) e sobrevive ate o commit. Flags proprios, para nao
+  # interferir no @team_id_changed_for_retag que o Conversation ja consome no seu after_commit.
+  def record_assignment_change_for_notify
+    @assignee_changed_for_notify = true if saved_change_to_assignee_id?
+    @team_changed_for_notify = true if saved_change_to_team_id?
   end
 
   # D4 (D-9): NotificationListener roda no async dispatcher (EventDispatcherJob/Sidekiq), onde

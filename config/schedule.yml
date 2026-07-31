@@ -16,6 +16,14 @@ trigger_scheduled_items_job:
   queue: scheduled_jobs
 
 # executed At every minute..
+# Retoma os flows suspensos cujo wait venceu (no `wait` e timeout de `wait_for_reply`). O job existia
+# desde a F2 e o flow_run.rb sempre afirmou que rodava "every minute", mas a entrada nunca foi criada.
+flows_resume_job:
+  cron: '*/1 * * * *'
+  class: 'Flows::ResumeJob'
+  queue: scheduled_jobs
+
+# executed At every minute..
 trigger_imap_email_inboxes_job:
   cron: '*/1 * * * *'
   class: 'Inboxes::FetchImapEmailInboxesJob'
