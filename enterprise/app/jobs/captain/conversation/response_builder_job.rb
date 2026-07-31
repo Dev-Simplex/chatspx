@@ -319,27 +319,36 @@ class Captain::Conversation::ResponseBuilderJob < ApplicationJob
   # Dossie pro humano que assumir: sem isso ele recebe a conversa sem saber por que chegou.
   def auto_handoff_reason
     'A IA avisou o cliente que uma pessoa do time assume, mas nao acionou a passagem — ' \
-      'o handoff foi disparado automaticamente para o cliente nao ficar esperando. ' \
-      "Trecho enviado: \"#{@response['response'].to_s[0, 160]}\""
+    'o handoff foi disparado automaticamente para o cliente nao ficar esperando. ' \
+    "Trecho enviado: \"#{@response['response'].to_s[0, 160]}\""
   end
 
   def process_action(action)
     case action
     when 'handoff'
       I18n.with_locale(@assistant.account.locale) do
+        # A fala pro cliente sai ANTES e FORA de transacao: o after_create_commit dela precisa
+        # disparar antes do handoff setar waiting_since (regressao do PR #13417).
         create_handoff_message
-        @conversation.bot_handoff!
-        send_out_of_office_message_if_applicable
+        # Pelo service, mesmo motivo do safety-net: com bot_handoff! puro este caminho tambem
+        # pulava dossie, time e rodizio. E em v2 ele e o do error_response — ou seja, toda vez
+        # que o runner quebra a conversa prometia humano sem entrar em fila nenhuma, justo
+        # quando o cliente mais precisa de alguem. O service e idempotente (sai cedo se ja
+        # aguarda humano) e ja cuida do out-of-office.
+        Captain::Conversation::HumanHandoffService.new(
+          conversation: @conversation, assistant: @assistant,
+          reason: handoff_action_reason, team_id: @conversation.team_id
+        ).perform
       end
     end
   end
 
-  def send_out_of_office_message_if_applicable
-    # Campaign conversations should never receive OOO templates — the campaign itself
-    # serves as the initial outreach, and OOO would be confusing in that context.
-    return if @conversation.campaign.present?
-
-    ::MessageTemplates::Template::OutOfOffice.perform_if_applicable(@conversation)
+  # O 'reasoning' e o unico rastro do PORQUE quando o gatilho e o error_response do runner:
+  # sem ele o humano recebe a conversa sem saber que a IA quebrou.
+  def handoff_action_reason
+    base = 'A IA encerrou o atendimento e pediu passagem para uma pessoa do time.'
+    motivo = @response.is_a?(Hash) ? @response['reasoning'].presence : nil
+    motivo ? "#{base} Motivo registrado: #{motivo.to_s[0, 300]}" : base
   end
 
   def create_handoff_message

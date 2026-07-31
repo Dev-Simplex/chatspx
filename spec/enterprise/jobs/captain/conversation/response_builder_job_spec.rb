@@ -295,6 +295,19 @@ RSpec.describe Captain::Conversation::ResponseBuilderJob, type: :job do
                          sender: agent, account: account, inbox: inbox)
         expect(conversation.reload.waiting_since).to be_nil
       end
+
+      # Regressao (frente spx/followup): este caminho tambem chamava bot_handoff! puro. Em v2 ele
+      # e o do error_response E o de handle_error — ou seja, toda vez que o runner quebra a
+      # conversa prometia humano sem entrar em fila nenhuma, justo quando o cliente mais precisa.
+      it 'goes through HumanHandoffService so the dossie and the rodizio engine run' do
+        expect(Spx::Distribuicao::DistribuirService).to receive(:new).with(conversation).and_call_original
+
+        described_class.perform_now(conversation, assistant)
+
+        conversation.reload
+        expect(conversation.custom_attributes['aguardando_humano_desde']).to be_present
+        expect(conversation.messages.where(private: true).last.content).to include('pediu passagem')
+      end
     end
 
     # Regressao (frente spx/followup): o safety-net de handoff chamava bot_handoff! puro, entao
