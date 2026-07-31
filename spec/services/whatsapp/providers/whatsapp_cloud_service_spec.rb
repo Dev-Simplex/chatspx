@@ -91,6 +91,64 @@ describe Whatsapp::Providers::WhatsappCloudService do
           .to_return(status: 200, body: whatsapp_response.to_json, headers: response_headers)
         expect(service.send_message('+123456789', message)).to eq 'message_id'
       end
+
+      # Regressao real: video de 16,15 MB falhou na AGN com "131053: Media upload error"
+      # porque o commit 40239f7571 removeu o resolve_media_type e o video voltou a ser
+      # enviado como 'video' (teto de 16 MB no Meta) em vez de 'document' (teto 100 MB).
+      # Sem este teste a regressao passou 3 semanas sem ninguem notar.
+      it 'sends video above the Meta inline limit as document instead of video' do
+        attachment = message.attachments.new(account_id: message.account_id, file_type: :video)
+        attachment.file.attach(io: Rails.root.join('spec/assets/sample.mp4').open, filename: 'sample.mp4', content_type: 'video/mp4')
+        allow(attachment.file).to receive(:byte_size).and_return(17.megabytes)
+
+        stub_request(:post, 'https://graph.facebook.com/v13.0/123456789/messages')
+          .with(
+            body: hash_including({
+                                   messaging_product: 'whatsapp',
+                                   to: '+123456789',
+                                   type: 'document',
+                                   document: WebMock::API.hash_including({ filename: 'sample.mp4', link: anything })
+                                 })
+          )
+          .to_return(status: 200, body: whatsapp_response.to_json, headers: response_headers)
+        expect(service.send_message('+123456789', message)).to eq 'message_id'
+      end
+
+      it 'keeps video below the Meta inline limit as video' do
+        attachment = message.attachments.new(account_id: message.account_id, file_type: :video)
+        attachment.file.attach(io: Rails.root.join('spec/assets/sample.mp4').open, filename: 'sample.mp4', content_type: 'video/mp4')
+        allow(attachment.file).to receive(:byte_size).and_return(10.megabytes)
+
+        stub_request(:post, 'https://graph.facebook.com/v13.0/123456789/messages')
+          .with(
+            body: hash_including({
+                                   messaging_product: 'whatsapp',
+                                   to: '+123456789',
+                                   type: 'video',
+                                   video: WebMock::API.hash_including({ link: anything })
+                                 })
+          )
+          .to_return(status: 200, body: whatsapp_response.to_json, headers: response_headers)
+        expect(service.send_message('+123456789', message)).to eq 'message_id'
+      end
+
+      it 'sends image above the 5MB inline limit as document' do
+        attachment = message.attachments.new(account_id: message.account_id, file_type: :image)
+        attachment.file.attach(io: Rails.root.join('spec/assets/avatar.png').open, filename: 'avatar.png', content_type: 'image/png')
+        allow(attachment.file).to receive(:byte_size).and_return(6.megabytes)
+
+        stub_request(:post, 'https://graph.facebook.com/v13.0/123456789/messages')
+          .with(
+            body: hash_including({
+                                   messaging_product: 'whatsapp',
+                                   to: '+123456789',
+                                   type: 'document',
+                                   document: WebMock::API.hash_including({ filename: 'avatar.png', link: anything })
+                                 })
+          )
+          .to_return(status: 200, body: whatsapp_response.to_json, headers: response_headers)
+        expect(service.send_message('+123456789', message)).to eq 'message_id'
+      end
     end
   end
 
