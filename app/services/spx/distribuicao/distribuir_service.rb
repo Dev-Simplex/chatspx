@@ -9,14 +9,25 @@
 #   2. rodízio      — senão, próximo do pool DEPOIS do último (ponteiro em distribuicao_states), pulando cap cheio
 #   3. sem_pool     — pool todo indisponível → NÃO atribui (fica aguardando), registra o motivo
 #
-# Atribui via Conversations::AssignmentService (seta assignee_id humano E solta o
-# espelho captain no MESMO save → o concern Enterprise::Concerns::Conversation limpa
-# o marcador `aguardando_humano_desde` e registra a auditoria da virada). Logo o
-# "aguardando" vira transitório e o SLA passa a contar da atribuição.
+# O que acontece com a POSSE depois da escolha depende de `policy.modo_posse`:
+#
+#   assignee   — atribui via Conversations::AssignmentService (seta assignee_id humano E
+#                solta o espelho captain no MESMO save → o concern
+#                Enterprise::Concerns::Conversation limpa o marcador
+#                `aguardando_humano_desde` e registra a auditoria da virada). O
+#                "aguardando" vira transitório e o SLA conta da atribuição.
+#
+#   designacao — NÃO toca em assignee. A escolha vira uma linha ABERTA no Log
+#                (status=designado) e nada mais: o espelho captain sobrevive e a IA
+#                continua atendendo até alguém assumir de fato. É o terceiro estado da
+#                SPEC-RODIZIO §3, e existe porque em vendas o corretor não vive no SPX —
+#                gravar `assignee` ali seria mentir no dado e calar a IA à toa.
 module Spx
   module Distribuicao
     class DistribuirService
-      Result = Struct.new(:assigned, :user_id, :motivo, keyword_init: true)
+      # `decidido` = o Motor escolheu um responsável. NÃO quer dizer que houve atribuição:
+      # em modo_posse=designacao ninguém vira `assignee` (ver #assign!).
+      Result = Struct.new(:decidido, :user_id, :motivo, keyword_init: true)
 
       def initialize(conversation)
         @conversation = conversation
@@ -26,19 +37,19 @@ module Spx
       def call
         return noop unless @team
 
-        policy = Policy.for_team(@conversation.account_id, @team.id)
-        return noop if policy.nil? || policy.modo != 'rodizio'
+        @policy = Policy.for_team(@conversation.account_id, @team.id)
+        return noop if @policy.nil? || @policy.modo != 'rodizio'
 
-        pool_ids = build_pool(policy) # ordenado: pool ativo ∩ membros atuais do time
+        pool_ids = build_pool(@policy) # ordenado: pool ativo ∩ produto ∩ membros atuais do time
         return sem_pool(pool_ids) if pool_ids.empty?
 
-        chosen, motivo = pick(policy, pool_ids)
+        chosen, motivo = pick(@policy, pool_ids)
         return sem_pool(pool_ids) if chosen.nil?
 
         assign!(chosen)
         advance_state(chosen)
-        registrar_log(chosen, motivo, pool_ids)
-        Result.new(assigned: true, user_id: chosen, motivo: motivo)
+        registrar(chosen, motivo, pool_ids)
+        Result.new(decidido: true, user_id: chosen, motivo: motivo)
       rescue StandardError => e
         Rails.logger.error("[Distribuicao] conv=#{@conversation&.id} team=#{@team&.id}: #{e.message}")
         noop
@@ -47,12 +58,12 @@ module Spx
       private
 
       def noop
-        Result.new(assigned: false, user_id: nil, motivo: nil)
+        Result.new(decidido: false, user_id: nil, motivo: nil)
       end
 
       def sem_pool(candidatos)
-        registrar_log(nil, 'sem_pool', candidatos)
-        Result.new(assigned: false, user_id: nil, motivo: 'sem_pool')
+        registrar(nil, 'sem_pool', candidatos)
+        Result.new(decidido: false, user_id: nil, motivo: 'sem_pool')
       end
 
       # Interseção pool-configurado ∩ quem atende o PRODUTO do lead ∩ membros atuais do
@@ -104,6 +115,10 @@ module Spx
 
       # Consultor que já atendeu ESTE contato NESTE time, dentro da janela, e que
       # ainda está no pool ativo. Query por contato (índice conversations.contact_id).
+      #
+      # ⚠️ Em modo_posse=designacao isto naturalmente não casa: `assignee` nunca é gravado,
+      # então não há histórico por onde procurar. NÃO é bug — em vendas a fonte de "quem já
+      # atende este cliente" é o VISTA (SPEC-RODIZIO §7.1), e entra junto com o espelho.
       def consultor_anterior(policy, pool_ids)
         desde = policy.continuidade_dias.to_i.days.ago
         @conversation.contact.conversations
@@ -143,7 +158,13 @@ module Spx
         abertas >= cap
       end
 
+      # Em modo_posse=designacao NÃO tocamos em `assignee`. É exatamente isso que mantém o
+      # espelho captain vivo (o callback de exclusividade nunca dispara) e a IA atendendo
+      # até alguém assumir de fato — o terceiro estado da SPEC-RODIZIO §3.
+      # Em modo assignee, comportamento de sempre: atribui e a IA cala.
       def assign!(user_id)
+        return if @policy.designacao?
+
         Conversations::AssignmentService.new(conversation: @conversation, assignee_id: user_id).perform
       end
 
@@ -152,12 +173,40 @@ module Spx
         state.update!(last_user_id: user_id)
       end
 
-      def registrar_log(user_id, motivo, candidatos)
+      # Uma designação viva por conversa: um re-handoff substitui a anterior, senão a conta
+      # de "designados sem movimento" enxergaria a mesma conversa duas vezes.
+      def registrar(user_id, motivo, candidatos)
+        Log.designacao_aberta(@conversation.id)&.encerrar!('substituido') if user_id.present?
+
         Log.create!(account_id: @conversation.account_id, conversation_id: @conversation.id,
                     chosen_user_id: user_id, motivo: motivo, candidatos: candidatos,
-                    produto_slug: produto, created_at: Time.current)
+                    produto_slug: produto, policy_snapshot: snapshot(candidatos),
+                    created_at: Time.current, **ciclo(user_id))
       rescue StandardError => e
         Rails.logger.warn("[Distribuicao] log conv=#{@conversation&.id}: #{e.message}")
+      end
+
+      # `sem_pool` não é designação — é linha de auditoria, nasce sem ciclo de vida.
+      # Em modo assignee a posse já é do humano no mesmo instante: nasce e fecha junto.
+      def ciclo(user_id)
+        return { status: nil } if user_id.blank?
+
+        agora = Time.current
+        return { status: 'designado', designado_em: agora } if @policy.designacao?
+
+        { status: 'assumido', designado_em: agora, encerrado_em: agora }
+      end
+
+      # A regra que valeu NESTA decisão, inteira. Quando o gestor mudar o pool amanhã, a
+      # tela ainda precisa saber explicar a escolha de ontem.
+      def snapshot(candidatos)
+        {
+          'modo_posse' => @policy&.modo_posse,
+          'produto' => produto,
+          'pool_elegivel' => candidatos,
+          'pool_configurado' => @policy&.pool,
+          'continuidade' => { 'ativa' => @policy&.continuidade_ativa, 'dias' => @policy&.continuidade_dias }
+        }
       end
     end
   end

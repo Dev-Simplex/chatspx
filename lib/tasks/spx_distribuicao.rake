@@ -45,13 +45,29 @@ namespace :spx do
         next
       end
       st = Spx::Distribuicao::State.find_by(team_id: pol.team_id)
-      puts "policy ##{pol.id} modo=#{pol.modo} ativo=#{pol.ativo} continuidade=#{pol.continuidade_ativa}/#{pol.continuidade_dias}d"
+      puts "policy ##{pol.id} modo=#{pol.modo} posse=#{pol.modo_posse} ativo=#{pol.ativo} " \
+           "continuidade=#{pol.continuidade_ativa}/#{pol.continuidade_dias}d"
       puts "  pool=#{pol.pool.inspect}"
       puts "  último escolhido (rodízio)=#{st&.last_user_id.inspect}"
+      abertas = Spx::Distribuicao::Log.abertas
+                                      .where(conversation_id: Conversation.where(team_id: pol.team_id).select(:id))
+      puts "  designações ABERTAS (IA ainda atendendo)=#{abertas.count}"
       puts '  últimos logs:'
       Spx::Distribuicao::Log.where(conversation_id: Conversation.where(team_id: pol.team_id).select(:id))
                             .order(created_at: :desc).limit(5)
                             .each { |l| puts "    conv=#{l.conversation_id} → user=#{l.chosen_user_id.inspect} (#{l.motivo}) produto=#{l.produto_slug.inspect}" }
+    end
+
+    desc 'Define quem fica com a posse após a escolha: assignee (atribui, IA cala) ou designacao (IA continua)'
+    task :posse, %i[account_id team_id modo_posse] => :environment do |_t, args|
+      policy = Spx::Distribuicao::Policy.for_team(args[:account_id].to_i, args[:team_id].to_i)
+      if policy.nil?
+        puts "sem política ativa (conta=#{args[:account_id]} time=#{args[:team_id]}) — crie com spx:distribuicao:policy"
+        next
+      end
+      policy.update!(modo_posse: args[:modo_posse].to_s.strip)
+      puts "OK policy ##{policy.id} time=#{policy.team_id} modo_posse=#{policy.modo_posse}"
+      puts '  designacao => o Motor escolhe mas NÃO atribui; a IA segue atendendo até alguém assumir'
     end
 
     desc 'Cria/atualiza um produto do catálogo. matchers = chave:termo|termo (chaves: empreendimentos, campanhas, palavras)'
