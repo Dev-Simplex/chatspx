@@ -248,7 +248,7 @@ Nenhuma mudança no rodízio em si (âncora 7). O que muda é o que acontece **a
        ∩ atende o produto                (NOVO)
        ∩ dentro do valor_max             (NOVO)
        ∩ abaixo do cap                   (já existe)
-3. preferência do cliente?  → esse corretor        motivo=preferencia_cliente   ⚠️ ver §10
+3. preferência do cliente?  → esse corretor        motivo=preferencia_cliente
 4. continuidade?            → consultor anterior   motivo=continuidade
 5. senão                    → próximo do ponteiro  motivo=rodizio
 6. pool vazio               → não designa          motivo=sem_pool
@@ -265,6 +265,21 @@ ativo). Custo zero de chamada nova. Vista indisponível ou sem negócio ativo �
 - **Valor desconhecido não filtra.** Excluir alguém do rodízio por um dado que a Sofia não capturou
   é injustiça silenciosa e ninguém descobre. Risco aceito: um lead acima do teto pode cair em quem
   tem limite — e aí ele repassa internamente, como já acontece hoje.
+
+### 7.1.1. Quem GASTA a vez no rodízio
+
+| Motivo | Consome a vez? | Por quê |
+|---|---|---|
+| `rodizio` | ✅ | lead novo, é a própria fila |
+| `preferencia_cliente` | ✅ | **lead novo.** Se não contasse viraria porta dos fundos: bastaria o corretor dizer aos contatos *"peça por mim"* pra furar a fila inteira. Contando, ele recebe o lead **e** anda pro fim da fila — o pedido do cliente é respeitado e a justiça também |
+| `continuidade` | 🚫 | **retorno**, não lead novo. Cliente que já era dele volta pra ele sem gastar a vez de ninguém |
+| `manual_gestor` | ✅ (contagem) 🚫 (ponteiro) | é lead de verdade e tem que aparecer na tela, mas não faz parte da sequência (§7.3) |
+
+**Guarda comum a preferência e continuidade:** quem não está no **pool ativo** não recebe — o lead
+cai no rodízio normal. No caso da preferência, o casamento do nome é **estrito** (id, nome completo
+ou primeiro nome único); nome ambíguo cai no rodízio, porque mandar pro *"Bruno errado"* é pior.
+
+**Quem escreve o pedido do cliente é a conduta da IA**; esta frente só **lê** o campo.
 
 ### 7.2. SLA
 
@@ -374,6 +389,22 @@ a conversa para uma IA.
 
 ---
 
+### 8.6. ⚠️ Silenciar cria uma falsa órfã — e isso teve que ser tratado
+
+Soltar o espelho deixa a conversa **open, sem `assignee`, sem espelho, sem atividade** — a cara
+exata do que o `Conversations::OrphanRetriageJob` caça a cada 15 min. Medido na conta 6:
+
+- **A IA não volta** (bom): com `reply_assignment_gate_enabled?`, a re-triagem seta
+  `Current.skip_ai_agent_assignment` e a reatribuição de IA é suprimida. O silêncio se mantém.
+- **Mas cada conversa virava `conversation_orphaned` para CADA administrador** (ruim). Com
+  centenas de leads de campanha entrando por esse caminho, vira enxurrada e **mata o sinal que
+  existe pra achar órfã de verdade** — equipe afogada desliga notificação e perde a órfã real.
+
+**Tratado:** o job exclui conversa cuja designação foi encerrada como `engajado`. A exclusão é
+**sensível a atividade** (`encerrado_em >= last_activity_at`): se o cliente voltar a falar depois
+do engajamento, a conversa é órfã de novo e volta pro fluxo. Feito **na query**, não no laço —
+senão as designadas ocupariam o `BATCH_LIMIT` e as órfãs reais ficariam sem re-triagem.
+
 ## 9. Tela de contabilização
 
 Requisito trazido pela planilha do Léo (`Controle de Atendimento.xlsx`) — que é **placar de
@@ -417,7 +448,7 @@ número não é errado — é outro número.
 |---|---|---|
 | **Template manual 1:1** | Fica com quem enviou o template | ✅ `Spx::TemplateReplyRouterListener` (já existe) |
 | **Disparo/RMKT** | Volta para a IA, que decide se o cliente mudou de assunto → **depois** entra no rodízio | ✅ mesmo listener |
-| **Cliente pede um consultor** | **Conduta da IA** — ela aciona o handoff e o lead entra no rodízio. **Não é lacuna e não é código desta frente.** | ✅ conduta (conta 6) |
+| **Cliente pede um consultor** | Vai pra ele (se estiver no pool ativo) e **consome a vez** — `motivo: 'preferencia_cliente'`, §7.1.1. A **detecção** é conduta da IA; o **desvio** é código | ✅ ambos |
 | **Continuidade** | Cliente volta para quem já o atende | ✅ existe (adaptar a fonte para o Vista) |
 | **Override do gestor** | Sempre permitido, sempre logado | 🔨 construir |
 
@@ -464,6 +495,7 @@ por preferência está fazendo alguma coisa. Punir é decisão humana; o código
 | Composição inicial do pool de vendas | Guilherme (na configuração) | não |
 | Conduta "modo contido" no prompt da Sofia | banco da conta 6 (fora desta frente) | não |
 | Gatilho do anúncio *"um consultor vai entrar em contato"* | banco da conta 6 (fora desta frente) | não |
+| ~~**§7.1 passo 3 sobrevive?**~~ ✅ **RESOLVIDO 31/07:** sobrevive **e contabiliza** (§7.1.1). | — | — |
 | **Card trocou de corretor por fora.** O `vista_corretor` do poll passa a divergir do designado: a contagem creditou o lead a quem o rodízio escolheu, mas quem trabalhou foi outro. Hoje isso só vira log. Corrigir a atribuição da contagem? Mostrar na tela? Ignorar? | **Paulo / Guilherme** | não |
 | **§7.1 passo 3 sobrevive?** Se "cliente pede consultor" é conduta da IA que cai no rodízio normal (§10), o desvio por `preferencia_cliente` **deixa de existir** — ou a IA registra a preferência e a designação a honra? | **Paulo** | **sim**, no passo 1 da implementação |
 
