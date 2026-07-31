@@ -158,6 +158,9 @@ vista:jsonb       pipe · etapa · veiculo_captacao · prefixo_nome_negocio
 - **Taxonomia plana, não hierárquica.** A carteira real mistura construtora (SPL, Pacaembú),
   empreendimento (Loris, Tuiuiú) e categoria (Terceiros, Terrenos/Loteamentos). Hierarquia rígida
   quebra na primeira exceção.
+- 🚧 **GUARD DE ESCOPO (Paulo, 30/07): NÃO inventar taxonomia.** O **Vista já tem** empreendimento e
+  tipo — o catálogo **reaproveita** o que existe lá; os `matchers` só amarram o que o Vista não
+  cobre (campanha, intenção). **Se o catálogo crescer, ele é a PRIMEIRA coisa a cortar do escopo.**
 - **O bloco `vista:` paga uma dívida:** sem ele, `Pipe 3 / PROSPECTO / "C - <imóvel>"` sairia
   hardcodado no `VistaCardService`.
 
@@ -216,7 +219,7 @@ Nenhuma mudança no rodízio em si (âncora 7). O que muda é o que acontece **a
        ∩ atende o produto                (NOVO)
        ∩ dentro do valor_max             (NOVO)
        ∩ abaixo do cap                   (já existe)
-3. preferência do cliente?  → esse corretor        motivo=preferencia_cliente
+3. preferência do cliente?  → esse corretor        motivo=preferencia_cliente   ⚠️ ver §10
 4. continuidade?            → consultor anterior   motivo=continuidade
 5. senão                    → próximo do ponteiro  motivo=rodizio
 6. pool vazio               → não designa          motivo=sem_pool
@@ -241,6 +244,9 @@ ativo). Custo zero de chamada nova. Vista indisponível ou sem negócio ativo �
 | Estourou | **repassa** ao próximo, marca `expirado` | **não repassa** — vira **medida** |
 | Consequência | conta como recebido → punição aritmética | aparece na tela: *"N leads designados há mais de X sem movimento"* |
 | Esgotou o pool | cai em `pool_esgotado_destino_user_id` | n/a |
+
+**Relógio:** ver **§8.4**. `t0` = timestamp da designação (nosso, exato); parada = `vista_engajado_em`
+(±intervalo do poll). **Nunca** usar data do Vista para contar tempo contra corretor.
 
 **Por que sem repasse em vendas:** o card no Vista já existe com o nome do corretor. Repassar
 exigiria reescrever o `CorretorNegocio` de um card existente — **capacidade não testada**, e o
@@ -278,10 +284,40 @@ Tudo isso atrás de `espelho_vista` (§5.1).
 ### 8.2. Limpeza pendente
 Registros do teste de 23/07 a remover manualmente: cliente **65205**, negócios **85015/85016/85017**.
 
-### 8.3. Sinal de engajamento — **NÃO é desta frente**
-A **`spx/eval`** constrói o poll do Vista (card mudou de etapa = corretor engajou → IA silencia).
-Esta frente **consome o campo**; não construir outro leitor. Alinhar o nome/formato do campo com
-aquela frente antes de codar o consumo.
+### 8.3. Contrato de campos com a `spx/eval` — **DECIDIDO, não alinhar**
+
+A **`spx/eval`** constrói o poll do Vista. Esta frente **consome os campos**; **não construir
+outro leitor**.
+
+| Campo | Quem escreve | Significado |
+|---|---|---|
+| `vista_negocio_codigo` | **esta frente**, na criação | id do card |
+| `vista_etapa` | `spx/eval` (poll) | etapa atual observada |
+| `vista_engajado_em` | `spx/eval` (poll) | **timestamp da 1ª mudança de etapa observada DEPOIS da designação** |
+| `vista_corretor` | `spx/eval` (poll) | corretor atual no card — detecta troca por fora |
+| `vista_sync_em` | `spx/eval` (poll) | última varredura |
+
+**`vista_engajado_em` é o sinal de "o corretor pegou".** `nil` = ninguém mexeu. É o que dispara
+o silêncio da Sofia **e** o que para o cronômetro do SLA.
+
+### 8.4. O relógio do SLA é NOSSO — não depende do Vista
+
+- **t0 = timestamp da designação** no `Spx::Distribuicao::State`. **Exato.**
+- **Parada = `vista_engajado_em`**, com erro **limitado pelo intervalo do poll (±intervalo)**, em
+  vez de fingir exatidão.
+- 🚫 **Nunca contar tempo contra corretor usando data do Vista.** Com isso o bug do
+  `/negocios/atividades` deixa de importar para esta frente.
+- **Ganho político:** o número que o gestor mostra é medido pelo SPX, com margem declarada — não
+  é contestável como "o dado do Vista está errado".
+
+### 8.5. Contrato observado hoje na conta 6 (dispensa probe)
+
+- `/negocios/detalhes` — exige o parâmetro de **código do negócio**.
+- `/negocios/listar` — exige **`codigo_pipe` ou `codigo_cliente`**; `codigo_cliente` é justamente a
+  busca usada na checagem de negócio ativo (§8.1 item 4).
+- **Não há catálogo de campos** — a descoberta é **empírica**.
+- `listar` precisa do filtro **explícito em `pesquisa`**.
+- ⚠️ **O contrato final só fecha contra um card criado pela própria frente.**
 
 ---
 
@@ -314,7 +350,7 @@ aparece na tela. O algoritmo por ponteiro não depende dele.
 |---|---|---|
 | **Template manual 1:1** | Fica com quem enviou o template | ✅ `Spx::TemplateReplyRouterListener` (já existe) |
 | **Disparo/RMKT** | Volta para a IA, que decide se o cliente mudou de assunto → **depois** entra no rodízio | ✅ mesmo listener |
-| **Cliente pede um consultor** | Vai para ele **mesmo fora do pool**, **consome a vez**, `motivo: 'preferencia_cliente'` | 🔨 construir |
+| **Cliente pede um consultor** | **Conduta da IA** — ela aciona o handoff e o lead entra no rodízio. **Não é lacuna e não é código desta frente.** | ✅ conduta (conta 6) |
 | **Continuidade** | Cliente volta para quem já o atende | ✅ existe (adaptar a fonte para o Vista) |
 | **Override do gestor** | Sempre permitido, sempre logado | 🔨 construir |
 
@@ -355,10 +391,12 @@ por preferência está fazendo alguma coisa. Punir é decisão humana; o código
 
 ## 13. Flags pendentes
 
-| Item | Dono |
-|---|---|
-| Usuário do `pool_esgotado_destino` na Tozi (recepção/gestor) | Paulo / Guilherme |
-| Nome e formato do campo de engajamento do Vista | frente **spx/eval** |
-| Conduta "modo contido" no prompt da Sofia | banco da conta 6 (fora desta frente) |
-| Gatilho do anúncio *"um consultor vai entrar em contato"* | banco da conta 6 (fora desta frente) |
-| Composição inicial do pool de vendas | Guilherme (na configuração) |
+| Item | Dono | Bloqueia? |
+|---|---|---|
+| Usuário do `pool_esgotado_destino` na Tozi | Guilherme (na configuração) | não |
+| Composição inicial do pool de vendas | Guilherme (na configuração) | não |
+| Conduta "modo contido" no prompt da Sofia | banco da conta 6 (fora desta frente) | não |
+| Gatilho do anúncio *"um consultor vai entrar em contato"* | banco da conta 6 (fora desta frente) | não |
+| **§7.1 passo 3 sobrevive?** Se "cliente pede consultor" é conduta da IA que cai no rodízio normal (§10), o desvio por `preferencia_cliente` **deixa de existir** — ou a IA registra a preferência e a designação a honra? | **Paulo** | **sim**, no passo 1 da implementação |
+
+✅ **Resolvido em 30/07:** contrato de campos com a `spx/eval` (§8.3) — **decidido, não alinhar.**
