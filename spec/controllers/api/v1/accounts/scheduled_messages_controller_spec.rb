@@ -92,5 +92,49 @@ RSpec.describe 'Scheduled Messages API', type: :request do
         expect(ScheduledMessage.last.conversation.inbox_id).to eq(other_inbox.id)
       end
     end
+
+    # A policy so pergunta "e agente/admin da conta?". Sem a guarda de caixa no
+    # controller, um agente agendava por QUALQUER caixa — inclusive uma de que nao
+    # e membro — e no caminho contact_id + inbox_id o backend ainda criava a
+    # conversa la. Escrita futura, sem ninguem olhando.
+    context 'when the agent is not a member of the target inbox' do
+      let(:agent) { create(:user, account: account, role: :agent) }
+      let(:foreign_inbox) { create(:inbox, account: account) }
+
+      it 'refuses to schedule' do
+        expect do
+          post "/api/v1/accounts/#{account.id}/scheduled_messages",
+               params: {
+                 scheduled_message: {
+                   contact_id: contact.id,
+                   inbox_id: foreign_inbox.id,
+                   message: 'caixa que nao e minha',
+                   scheduled_at: scheduled_at
+                 }
+               },
+               headers: agent.create_new_auth_token,
+               as: :json
+        end.not_to change(ScheduledMessage, :count)
+
+        expect(response).to have_http_status(:unauthorized)
+      end
+
+      it 'allows scheduling on an inbox the agent belongs to' do
+        create(:inbox_member, user: agent, inbox: inbox)
+
+        post "/api/v1/accounts/#{account.id}/scheduled_messages",
+             params: {
+               scheduled_message: {
+                 conversation_id: conversation.id,
+                 message: 'minha caixa',
+                 scheduled_at: scheduled_at
+               }
+             },
+             headers: agent.create_new_auth_token,
+             as: :json
+
+        expect(response).to have_http_status(:created)
+      end
+    end
   end
 end

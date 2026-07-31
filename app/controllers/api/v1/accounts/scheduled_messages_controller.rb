@@ -66,6 +66,16 @@ class Api::V1::Accounts::ScheduledMessagesController < Api::V1::Accounts::BaseCo
       return
     end
 
+    # A policy so pergunta "e agente/admin da conta?" — nao olha a caixa. Sem esta
+    # guarda, um agente agendava por QUALQUER caixa da conta (inclusive uma de que
+    # nao e membro), e no caminho contact_id + inbox_id o backend ainda criava a
+    # conversa la. Escrita futura, sem ninguem olhando: tem que respeitar a mesma
+    # fronteira do envio normal.
+    unless inbox_accessible?(inbox_to_use)
+      render json: { error: 'You do not have access to this inbox' }, status: :unauthorized
+      return
+    end
+
     message_content = sm_params[:message] || sm_params['message'] || params[:message]
     scheduled_at_param = sm_params[:scheduled_at] || sm_params['scheduled_at'] || params[:scheduled_at]
 
@@ -138,11 +148,17 @@ class Api::V1::Accounts::ScheduledMessagesController < Api::V1::Accounts::BaseCo
 
   def inboxes
     authorize(ScheduledMessage.new, :inboxes?)
-    @inboxes = Current.account.inboxes
+    # assigned_inboxes ja devolve TODAS para admin e so as do agente para os demais.
+    @inboxes = Current.user.assigned_inboxes
     render 'api/v1/accounts/scheduled_messages/inboxes', formats: [:json]
   end
 
   private
+
+  # admin recebe todas as caixas da conta; agente, so as suas.
+  def inbox_accessible?(inbox)
+    Current.user.assigned_inboxes.exists?(id: inbox.id)
+  end
 
   def set_scheduled_message
     @scheduled_message = policy_scope(ScheduledMessage).find(params[:id])
