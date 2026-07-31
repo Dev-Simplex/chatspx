@@ -7,6 +7,24 @@ class Conversations::OrphanRetriageJob < ApplicationJob
   DEFAULT_RETRIAGE_AFTER_MINUTES = 15
   BATCH_LIMIT = 100
 
+  # Conversa cujo dono está trabalhando o lead FORA do SPX (engajou no card do Vista) tem a
+  # cara exata de uma órfã — open, sem assignee, sem espelho captain — mas não é. Sem este
+  # filtro, cada lead designado vira uma notificação `conversation_orphaned` por administrador,
+  # o que afoga justamente o sinal que existe pra achar órfã de verdade.
+  #
+  # A comparação com `last_activity_at` é o que impede a exclusão de virar permanente: se o
+  # cliente voltar a falar DEPOIS do engajamento, a conversa é órfã de novo e volta pro fluxo.
+  # Também mantém a exclusão fora do BATCH_LIMIT, senão as designadas ocupariam o lote e as
+  # órfãs reais ficariam sem re-triagem.
+  TRABALHADA_FORA_DO_SPX = <<~SQL.squish.freeze
+    NOT EXISTS (
+      SELECT 1 FROM distribuicao_logs dl
+      WHERE dl.conversation_id = conversations.id
+        AND dl.status = 'engajado'
+        AND dl.encerrado_em >= conversations.last_activity_at
+    )
+  SQL
+
   def perform(account)
     threshold = retriage_after(account).minutes.ago
     # órfã = open + SEM humano + SEM espelho captain (os DOIS nils — scope :unassigned não basta;
@@ -20,6 +38,7 @@ class Conversations::OrphanRetriageJob < ApplicationJob
            .joins(:contact)
            .where(assignee_id: nil).without_captain_assignee
            .where('conversations.last_activity_at < ?', threshold)
+           .where(TRABALHADA_FORA_DO_SPX)
            .limit(BATCH_LIMIT)
            .each do |conversation|
       # Uma conversa problemática não pode abortar o lote: sem isto, a exceção sobe pelo
