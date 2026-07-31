@@ -58,6 +58,9 @@ Rails.application.routes.draw do
             post :bulk_create, on: :collection
           end
           resource :agent_stats, only: [:show]
+          resource :distribuicao_dashboard, only: [:show], controller: 'distribuicao_dashboard' do
+            get :designacoes
+          end
           namespace :captain do
             resource :preferences, only: [:show, :update]
             resource :eval_dashboard, only: [:show], controller: 'eval_dashboard' do

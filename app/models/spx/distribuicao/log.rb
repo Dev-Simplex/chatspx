@@ -8,6 +8,11 @@ module Spx
     class Log < ApplicationRecord
       self.table_name = 'distribuicao_logs'
 
+      # optional: uma linha `sem_pool` não tem corretor, e conversa deletada não pode
+      # derrubar a leitura do histórico.
+      belongs_to :conversation, optional: true
+      belongs_to :chosen_user, class_name: 'User', optional: true
+
       MOTIVOS = %w[continuidade rodizio sem_pool preferencia_cliente manual_gestor].freeze
       # designado   — escolhido, ninguém assumiu ainda (só existe em modo_posse=designacao)
       # assumido    — um humano pegou a conversa dentro do SPX

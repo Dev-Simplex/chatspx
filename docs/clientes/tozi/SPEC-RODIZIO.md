@@ -385,6 +385,20 @@ online/mês; vendas = 13 corretores.
 **Fora do alcance, registrado:** atendimento **presencial** (balcão) não passa pelo SPX e não
 aparece na tela. O algoritmo por ponteiro não depende dele.
 
+### 9.1. ⚠️ O relógio da tela é wall-clock, não expediente
+
+O §8.4 define que o SLA respeita o **expediente do time**. A tela **ainda não faz isso**: mede
+tempo corrido.
+
+**Motivo estrutural:** o Chatwoot tem `working_hours` **por inbox**, não por time — a fonte de
+horário que a regra pede **não existe no modelo**. Fechar isso exige decidir de onde vem o
+expediente (working_hours da inbox da conversa · campo novo na policy · business hours da conta) e
+é decisão de produto, não detalhe de implementação.
+
+Enquanto isso, `minutos_parado` é tempo corrido, e o limiar `sla_assumir_minutos` é aplicado sobre
+ele. Efeito prático: lead designado sexta à noite aparece "parado há 60h" na segunda de manhã. O
+número não é errado — é outro número.
+
 ---
 
 ## 10. Exceções — o que NÃO entra no rodízio
