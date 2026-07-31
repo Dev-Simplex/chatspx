@@ -8,6 +8,11 @@
 #   bundle exec rails "spx:distribuicao:show[6,27]"
 #   bundle exec rails "spx:distribuicao:produto[6,<slug>,<nome>,empreendimentos:<termo>|<termo>]"
 #   bundle exec rails "spx:distribuicao:produtos[6]"
+#
+# Metrics/BlockLength desligado no arquivo inteiro: o bloco aqui é o DSL do rake, não lógica —
+# quebrar em métodos só pra caber no cop deixaria um script de config menos legível. Mesmo
+# tratamento que os outros rakes grandes do fork (spx_tozi, captain_chat) já recebem.
+# rubocop:disable Metrics/BlockLength
 namespace :spx do
   namespace :distribuicao do
     desc 'Cria/atualiza a política de distribuição de um time. pool = user_id:cap separado por vírgula'
@@ -60,7 +65,10 @@ namespace :spx do
       puts '  últimos logs:'
       Spx::Distribuicao::Log.where(conversation_id: Conversation.where(team_id: pol.team_id).select(:id))
                             .order(created_at: :desc).limit(5)
-                            .each { |l| puts "    conv=#{l.conversation_id} → user=#{l.chosen_user_id.inspect} (#{l.motivo}) produto=#{l.produto_slug.inspect}" }
+                            .each do |l|
+        puts "    conv=#{l.conversation_id} → user=#{l.chosen_user_id.inspect} " \
+             "(#{l.motivo}) produto=#{l.produto_slug.inspect} status=#{l.status.inspect}"
+      end
     end
 
     desc 'Define quem fica com a posse após a escolha: assignee (atribui, IA cala) ou designacao (IA continua)'
@@ -106,3 +114,4 @@ namespace :spx do
     end
   end
 end
+# rubocop:enable Metrics/BlockLength

@@ -67,6 +67,13 @@ const abrirDetalhe = async lead => {
 };
 
 const data_hora = valor => (valor ? new Date(valor).toLocaleString() : '—');
+
+// Montados aqui, e não no template, porque texto solto em template (o "#" e os "·")
+// é erro de lint no projeto — nada de string crua fora do i18n.
+const conversa = displayId => `#${displayId}`;
+
+const resumoDesignacao = registro =>
+  [registro.corretor || '—', registro.motivo, registro.status || '—'].join(' · ');
 </script>
 
 <template>
@@ -210,7 +217,9 @@ const data_hora = valor => (valor ? new Date(valor).toLocaleString() : '—');
             :key="lead.conversation_id"
             class="flex flex-wrap items-center gap-3 px-3 py-2 bg-white border rounded-lg dark:bg-n-solid-2 border-n-weak"
           >
-            <span class="text-sm text-n-slate-12">#{{ lead.display_id }}</span>
+            <span class="text-sm text-n-slate-12">
+              {{ conversa(lead.display_id) }}
+            </span>
             <span class="text-sm text-n-slate-11">{{ lead.corretor || '—' }}</span>
             <span class="text-sm text-n-slate-10">
               {{ t('AGENTS_RODIZIO.STALLED.MINUTES', { min: lead.minutos_parado }) }}
@@ -243,28 +252,30 @@ const data_hora = valor => (valor ? new Date(valor).toLocaleString() : '—');
         <p v-if="detalheLoading" class="text-sm text-n-slate-10">
           {{ t('AGENTS_RODIZIO.LOADING') }}
         </p>
-        <div
-          v-for="registro in detalhe.designacoes"
-          v-else
-          :key="registro.id"
-          class="flex flex-col gap-1 pt-2 border-t border-n-weak"
-        >
-          <p class="text-sm text-n-slate-12">
-            {{ registro.corretor || '—' }} · {{ registro.motivo }} ·
-            {{ registro.status || '—' }}
-          </p>
-          <p class="text-xs text-n-slate-10">
-            {{ t('AGENTS_RODIZIO.DETAIL.DESIGNATED_AT') }}
-            {{ data_hora(registro.designado_em) }}
-          </p>
-          <p class="text-xs text-n-slate-10">
-            {{ t('AGENTS_RODIZIO.DETAIL.CANDIDATES') }}
-            {{ (registro.candidatos || []).join(', ') || '—' }}
-          </p>
-          <pre
-            class="p-2 overflow-x-auto text-xs rounded-lg bg-n-solid-1 dark:bg-n-solid-3 text-n-slate-11"
-            >{{ registro.regra_aplicada }}</pre
+        <!-- wrapper por causa do v-else: v-else e v-for no MESMO elemento é
+             anti-padrão do Vue e dá bug de renderização -->
+        <div v-else class="flex flex-col gap-3">
+          <div
+            v-for="registro in detalhe.designacoes"
+            :key="registro.id"
+            class="flex flex-col gap-1 pt-2 border-t border-n-weak"
           >
+            <p class="text-sm text-n-slate-12">
+              {{ resumoDesignacao(registro) }}
+            </p>
+            <p class="text-xs text-n-slate-10">
+              {{ t('AGENTS_RODIZIO.DETAIL.DESIGNATED_AT') }}
+              {{ data_hora(registro.designado_em) }}
+            </p>
+            <p class="text-xs text-n-slate-10">
+              {{ t('AGENTS_RODIZIO.DETAIL.CANDIDATES') }}
+              {{ (registro.candidatos || []).join(', ') || '—' }}
+            </p>
+            <pre
+              class="p-2 overflow-x-auto text-xs rounded-lg bg-n-solid-1 dark:bg-n-solid-3 text-n-slate-11"
+              >{{ registro.regra_aplicada }}</pre
+            >
+          </div>
         </div>
       </section>
     </template>
