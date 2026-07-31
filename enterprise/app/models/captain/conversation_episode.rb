@@ -21,4 +21,25 @@ class Captain::ConversationEpisode < ApplicationRecord
   def closed?
     ended_at.present?
   end
+
+  # F4.2 (Eval humano): notas privadas de gestores com o marcador #eval que pertencem
+  # a ESTE episódio. Duas formas de vínculo: EXPLÍCITO (content_attributes.eval_episode_id,
+  # setado pelo modal "Avaliar atendimento" — vale pra qualquer episódio, até antigo) e
+  # TEMPORAL (nota solta sem âncora: janela do início deste episódio até o início do
+  # seguinte, porque o gestor costuma comentar logo depois do fato).
+  # Message#content_attributes é `store ... coder: JSON` sobre coluna jsonb — DUPLA
+  # serialização: o jsonb guarda uma STRING JSON. O `#>> '{}'` desembrulha o scalar
+  # pra texto (e é inócuo quando o valor é objeto de verdade) antes do cast/extração.
+  EPISODE_ANCHOR_SQL = "(content_attributes #>> '{}')::jsonb ->> 'eval_episode_id'".freeze
+
+  def human_annotations
+    upper = self.class.where(conversation_id: conversation_id, seq: seq + 1).pick(:started_at) || Time.current
+    base = conversation.messages
+                       .where(private: true, sender_type: 'User')
+                       .where('content ILIKE ?', '%#eval%')
+    janela = base.where(created_at: started_at..upper)
+                 .where("COALESCE(#{EPISODE_ANCHOR_SQL}, '') = ''")
+    explicitas = base.where("#{EPISODE_ANCHOR_SQL} = ?", id.to_s)
+    base.where(id: janela.select(:id)).or(base.where(id: explicitas.select(:id))).reorder(:created_at)
+  end
 end

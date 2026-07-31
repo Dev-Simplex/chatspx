@@ -15,10 +15,19 @@ module Enterprise::Account::PlanUsageAndLimits # rubocop:disable Metrics/ModuleL
     }
   end
 
+  # Incremento ATÔMICO via jsonb_set: roda a cada resposta do Captain e o antigo
+  # read-modify-write da hash inteira clobberava chaves recém-gravadas por outros
+  # processos em custom_attributes (ex.: eval_unit sumiu em produção — mesma classe
+  # de bug do reetiqueta team_id). Toca SÓ a própria chave, sem full-write.
   def increment_response_usage
-    current_usage = custom_attributes[CAPTAIN_RESPONSES_USAGE].to_i || 0
-    custom_attributes[CAPTAIN_RESPONSES_USAGE] = current_usage + 1
-    save
+    self.class.where(id: id).update_all(
+      Arel.sql(
+        "custom_attributes = jsonb_set(COALESCE(custom_attributes, '{}'::jsonb), " \
+        "'{#{CAPTAIN_RESPONSES_USAGE}}', " \
+        "(COALESCE(custom_attributes->>'#{CAPTAIN_RESPONSES_USAGE}', '0')::int + 1)::text::jsonb)"
+      )
+    )
+    custom_attributes[CAPTAIN_RESPONSES_USAGE] = custom_attributes[CAPTAIN_RESPONSES_USAGE].to_i + 1
   end
 
   def reset_response_usage

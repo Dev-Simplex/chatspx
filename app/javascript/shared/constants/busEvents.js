@@ -18,4 +18,8 @@ export const BUS_EVENTS = {
   INSERT_INTO_RICH_EDITOR: 'insertIntoRichEditor',
   INSERT_INTO_NORMAL_EDITOR: 'insertIntoNormalEditor',
   OPEN_WHATSAPP_TEMPLATE_MODAL: 'OPEN_WHATSAPP_TEMPLATE_MODAL',
+  // Abre o modal "Avaliar atendimento" (Eval humano) ancorado numa mensagem:
+  // payload { messageId, trecho }. Emitido pelo menu de contexto da mensagem;
+  // escutado pelo MoreActions (que monta o modal com o episódio pré-selecionado).
+  OPEN_EVAL_MODAL: 'openEvalModal',
 };
