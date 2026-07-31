@@ -21,6 +21,15 @@ RSpec.describe Captain::Conversation::FollowupJob, type: :job do
     travel_to Time.utc(2026, 6, 11, 15, 0)
   end
 
+  # ARMADILHA: o travel_to acima roda DEPOIS da outgoing, então tudo criado dentro dos exemplos
+  # nasce com created_at ANTERIOR a ela e `order(:created_at).last` devolve a mensagem da IA.
+  # Quem precisa que a última mensagem seja do cliente tem que carimbar a data explicitamente.
+  def responde_por_ultimo(texto)
+    create(:message, conversation: conversation, account: account, inbox: inbox,
+                     message_type: :incoming, content: texto,
+                     created_at: conversation.messages.maximum(:created_at) + 1.second)
+  end
+
   context 'when the conversation is still owned by the assistant mirror' do
     it 'fires the nudge from the owner assistant and consumes token/followup_count' do
       described_class.perform_now(conversation, token)
@@ -125,8 +134,7 @@ RSpec.describe Captain::Conversation::FollowupJob, type: :job do
 
     before do
       conversation.update!(custom_attributes: conversation.custom_attributes.merge('followup_motivo' => motivo))
-      create(:message, conversation: conversation, account: account, inbox: inbox,
-                       message_type: :incoming, content: 'Obrigada, boa noite!')
+      responde_por_ultimo('Obrigada, boa noite!')
     end
 
     it 'still fires the nudge' do
@@ -155,8 +163,7 @@ RSpec.describe Captain::Conversation::FollowupJob, type: :job do
   # Controle: sem compromisso, a cutucada e so preventiva — resposta do cliente cancela mesmo.
   context 'when there is no commitment and the lead replied' do
     it 'still cancels the preventive nudge' do
-      create(:message, conversation: conversation, account: account, inbox: inbox,
-                       message_type: :incoming, content: 'Oi, me manda mais fotos?')
+      responde_por_ultimo('Oi, me manda mais fotos?')
 
       described_class.perform_now(conversation, token)
 

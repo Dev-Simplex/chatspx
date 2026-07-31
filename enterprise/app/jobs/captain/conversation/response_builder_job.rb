@@ -669,6 +669,10 @@ class Captain::Conversation::ResponseBuilderJob < ApplicationJob
     @assistant.behavior.dig('humanizer', 'enabled') == true
   end
 
+  # Registrar NUNCA pode derrubar comportamento. Sem este rescue, um event_type que ninguem
+  # lembrou de declarar em EVENT_TYPES levanta RecordInvalid aqui, o rescue do CHAMADOR engole
+  # em silencio e tudo que vinha DEPOIS da linha de log deixa de acontecer — foi exatamente
+  # assim que o safety-net de handoff e o backstop anti-repeticao morreram sem ninguem ver.
   def log_behavior_event(event_type, payload = {})
     Captain::AssistantLog.create!(
       captain_assistant: @assistant,
@@ -676,6 +680,8 @@ class Captain::Conversation::ResponseBuilderJob < ApplicationJob
       event_type: event_type,
       payload: payload
     )
+  rescue StandardError => e
+    Rails.logger.warn("[Captain] log_behavior_event(#{event_type}): #{e.message}")
   end
 
   def conversation_pending?
