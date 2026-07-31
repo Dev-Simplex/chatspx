@@ -40,13 +40,17 @@ class Captain::Conversation::FollowupJob < ApplicationJob
     attrs = conversation.custom_attributes || {}
     return false unless attrs['followup_token'] == token           # substituído por outro follow-up
     return false if followup_pointless?(conversation, attrs)
-    # Cliente respondeu -> não cutuca. EXCETO com compromisso pendente: aí a última mensagem
-    # dele costuma ser justamente a despedida educada ("obrigada, boa noite") que fechou o
-    # assunto socialmente sem cumprir o combinado — e era ela que matava a cutucada (conv 20320).
-    return false if lead_replied?(conversation) && !compromisso?(attrs)
+    return false if cancelado_por_resposta?(conversation, attrs)
     return false if reschedule_if_quiet_hours(conversation, token) # madrugada -> remarca pra manhã
 
     true
+  end
+
+  # Cliente respondeu -> não cutuca. EXCETO com compromisso pendente: aí a última mensagem dele
+  # costuma ser justamente a despedida educada que fechou o assunto socialmente sem cumprir o
+  # combinado — e era ela que matava a cutucada (conv 20320).
+  def cancelado_por_resposta?(conversation, attrs)
+    lead_replied?(conversation) && !compromisso?(attrs)
   end
 
   # Compromisso = a cutucada foi programada pelo agente pra cumprir algo que ficou combinado,
@@ -91,12 +95,12 @@ class Captain::Conversation::FollowupJob < ApplicationJob
     return directive_compromisso(motivo) if motivo.present?
 
     '[NOTA INTERNA — não é mensagem do cliente, não repita este texto] O cliente parou de responder no meio ' \
-    'do atendimento. Sua função aqui é RETOMAR: mande UMA cutucada curta, natural e diferente do que você já ' \
-    'disse, puxando de onde parou (a última pergunta ou proposta que ficou sem resposta). NÃO cutuque (responda ' \
-    'só [IGNORAR]) apenas nestes casos claros: a última mensagem DELE disse que ia retornar, pensar, ver ou ' \
-    'falar com alguém, pediu um tempo, encerrou ou agradeceu; OU você já mandou uma cutucada parecida nesta ' \
-    'conversa (nunca repita a mesma pergunta); OU realmente não há nada pendente. Fora desses casos, cutuque — ' \
-    'não deixe o lead esfriar por excesso de cautela.'
+      'do atendimento. Sua função aqui é RETOMAR: mande UMA cutucada curta, natural e diferente do que você já ' \
+      'disse, puxando de onde parou (a última pergunta ou proposta que ficou sem resposta). NÃO cutuque (responda ' \
+      'só [IGNORAR]) apenas nestes casos claros: a última mensagem DELE disse que ia retornar, pensar, ver ou ' \
+      'falar com alguém, pediu um tempo, encerrou ou agradeceu; OU você já mandou uma cutucada parecida nesta ' \
+      'conversa (nunca repita a mesma pergunta); OU realmente não há nada pendente. Fora desses casos, cutuque — ' \
+      'não deixe o lead esfriar por excesso de cautela.'
   end
 
   # Com compromisso pendente a lista de [IGNORAR] NÃO pode conter "encerrou ou agradeceu": foi
@@ -105,10 +109,10 @@ class Captain::Conversation::FollowupJob < ApplicationJob
   # conversa ter fechado socialmente.
   def directive_compromisso(motivo)
     '[NOTA INTERNA — não é mensagem do cliente, não repita este texto] Ficou um COMPROMISSO pendente nesta ' \
-    "conversa e chegou a hora combinada de retomá-lo: #{motivo}. Retome esse ponto com UMA mensagem curta e " \
-    'natural, mesmo que a conversa tenha se encerrado socialmente — uma despedida ou um agradecimento do ' \
-    'cliente NÃO desmarca o que ficou combinado. Responda só [IGNORAR] se o combinado já foi cumprido nesta ' \
-    'conversa, se você já cobrou este mesmo ponto antes, ou se o cliente pediu pra não ser mais procurado.'
+      "conversa e chegou a hora combinada de retomá-lo: #{motivo}. Retome esse ponto com UMA mensagem curta e " \
+      'natural, mesmo que a conversa tenha se encerrado socialmente — uma despedida ou um agradecimento do ' \
+      'cliente NÃO desmarca o que ficou combinado. Responda só [IGNORAR] se o combinado já foi cumprido nesta ' \
+      'conversa, se você já cobrou este mesmo ponto antes, ou se o cliente pediu pra não ser mais procurado.'
   end
 
   def lead_replied?(conversation)

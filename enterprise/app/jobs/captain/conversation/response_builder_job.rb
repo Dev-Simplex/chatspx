@@ -133,11 +133,7 @@ class Captain::Conversation::ResponseBuilderJob < ApplicationJob
     return unless auto_followup_enabled?
 
     attrs = @conversation.reload.custom_attributes || {}
-    return if attrs['aguardando_humano_desde'].present?
-    # Compromisso combinado tem hora marcada e o token é um só: a cutucada preventiva não pode
-    # roubar o slot dele. Quando o compromisso é cumprido o motivo é consumido e o auto volta;
-    # se ele morrer sem cumprir (dono virou humano), um novo programar_followup rearma os dois.
-    return if attrs['followup_motivo'].present?
+    return if ja_tem_destino?(attrs)
     return if @conversation.resolved?
     return unless captain_can_respond?
     return if attrs['followup_count'].to_i > Captain::Conversation::FollowupJob::MAX_FOLLOWUPS
@@ -151,6 +147,14 @@ class Captain::Conversation::ResponseBuilderJob < ApplicationJob
     Captain::Conversation::FollowupJob.set(wait: minutes.minutes).perform_later(@conversation, token)
   rescue StandardError => e
     Rails.logger.warn("[ResponseBuilderJob] auto_followup: #{e.message}")
+  end
+
+  # A conversa já tem destino definido, então não se agenda cutucada preventiva: ou está com um
+  # humano (aguardando_humano_desde), ou existe um compromisso combinado com hora marcada — e o
+  # token é um só, então a preventiva roubaria o slot dele. Cumprido o compromisso, o motivo é
+  # consumido e o auto volta; se ele morrer sem cumprir, um novo programar_followup rearma.
+  def ja_tem_destino?(attrs)
+    attrs['aguardando_humano_desde'].present? || attrs['followup_motivo'].present?
   end
 
   # Opt-in implícito: só agentes que já têm a ferramenta de follow-up. Desligável por
@@ -266,7 +270,7 @@ class Captain::Conversation::ResponseBuilderJob < ApplicationJob
   # singular. 'corretor' e a palavra natural no vertical imobiliario — sem ela o safety-net
   # nao via a forma mais comum de promessa da Tozi.
   HUMANO = ('consultor\\w*|corretor\\w*|vendedor\\w*|gerente\\w*|especialista\\w*|atendente\\w*|' \
-            'humano|equipe|time|colega|respons\\w+|algu[ée]m (do time|da equipe)').freeze
+    'humano|equipe|time|colega|respons\\w+|algu[ée]m (do time|da equipe)').freeze
   # Promessa em 1a PESSOA — quem fala e a IA e o destinatario e outra pessoa, entao vale sempre.
   PROMESSA_PRIMEIRA_PESSOA = [
     # com auxiliar: "vou/vamos passar/chamar/encaminhar/transferir/pedir ... <humano>"
@@ -332,8 +336,8 @@ class Captain::Conversation::ResponseBuilderJob < ApplicationJob
   # Dossie pro humano que assumir: sem isso ele recebe a conversa sem saber por que chegou.
   def auto_handoff_reason
     'A IA avisou o cliente que uma pessoa do time assume, mas nao acionou a passagem — ' \
-    'o handoff foi disparado automaticamente para o cliente nao ficar esperando. ' \
-    "Trecho enviado: \"#{@response['response'].to_s[0, 160]}\""
+      'o handoff foi disparado automaticamente para o cliente nao ficar esperando. ' \
+      "Trecho enviado: \"#{@response['response'].to_s[0, 160]}\""
   end
 
   def process_action(action)
@@ -669,6 +673,10 @@ class Captain::Conversation::ResponseBuilderJob < ApplicationJob
     @assistant.behavior.dig('humanizer', 'enabled') == true
   end
 
+  # Registrar NUNCA pode derrubar comportamento. Sem este rescue, um event_type que ninguem
+  # lembrou de declarar em EVENT_TYPES levanta RecordInvalid aqui, o rescue do CHAMADOR engole
+  # em silencio e tudo que vinha DEPOIS da linha de log deixa de acontecer — foi exatamente
+  # assim que o safety-net de handoff e o backstop anti-repeticao morreram sem ninguem ver.
   def log_behavior_event(event_type, payload = {})
     Captain::AssistantLog.create!(
       captain_assistant: @assistant,
@@ -676,6 +684,8 @@ class Captain::Conversation::ResponseBuilderJob < ApplicationJob
       event_type: event_type,
       payload: payload
     )
+  rescue StandardError => e
+    Rails.logger.warn("[Captain] log_behavior_event(#{event_type}): #{e.message}")
   end
 
   def conversation_pending?
