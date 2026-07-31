@@ -144,6 +144,7 @@ Rails.application.routes.draw do
           resources :campaigns, only: [:index, :create, :show, :update, :destroy] do
             member do
               get :stats
+              post :audience_preview
               post :recipients
               post :start
               post :pause

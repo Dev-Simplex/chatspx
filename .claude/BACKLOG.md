@@ -71,6 +71,12 @@
 - **Fix:** UI "Novo disparo" — upload de CSV, multiselect de corretores, multiselect de templates (com rotação automática decorrelacionada), slider de pacing (s/envio), preview da audiência limpa (dedup + blacklist na hora). Reusa o motor existente.
 - **Tamanho:** grande (é um módulo). Candidato a workflow de design antes de implementar.
 
+### 🟠 `campaign_id` da conversa é grudento — 2ª campanha na mesma base roteia pro dono errado
+- **Dói:** `Campaigns::Whatsapp::RecipientDispatchService#close_with_team` só grava `campaign_id` **se estiver nulo** (`attrs[:campaign_id] = campaign.id if conversation.campaign_id.nil?`). Contato que já entrou numa campanha mantém o `campaign_id` da PRIMEIRA para sempre. Consequências: (a) o **dono do disparo** (`Spx::TemplateReplyRouterListener#route_to_campaign_owner`) lê `conversation.campaign.dispatch_assignee_id` → a resposta da campanha nova vai pro dono da campanha ANTIGA, sem nenhuma pista do porquê; (b) o `campaign_stats` credita a conversa à campanha errada, então a métrica da 2ª campanha nasce subnotificada.
+- **Inócuo hoje** (descoberto 31/07): a campanha Motoristas usa a inbox 99, que é nova e não tem campanha anterior. Vira problema **na segunda campanha sobre a mesma base**.
+- **Fix:** decidir a semântica antes de codar — `campaign_id` é "de qual campanha esta conversa NASCEU" (atual) ou "qual campanha tocou por último"? Se for a segunda, sobrescrever aqui e conferir o impacto no `campaign_stats`. Se for a primeira, o dono do disparo precisa vir do `campaign_recipients` (que é por campanha) e não da conversa — provavelmente o caminho certo, porque preserva as duas leituras.
+- **Tamanho:** pequeno no código, médio na decisão (mexe em como o histórico é atribuído).
+
 ### 🟡 Tela de detalhe é estática (números congelam até reload)
 - **Fix:** auto-refresh do `getStats` a cada ~15s enquanto a campanha tem jobs pendentes (polling simples ou `setInterval` no `onMounted`/`onUnmounted`). Indicador "ao vivo".
 - **Tamanho:** pequeno.
