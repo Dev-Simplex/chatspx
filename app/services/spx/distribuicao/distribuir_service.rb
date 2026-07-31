@@ -50,6 +50,7 @@ module Spx
         advance_state(chosen)
         registrar(chosen, motivo, pool_ids)
         carimbar(chosen)
+        espelhar_vista(chosen)
         Result.new(decidido: true, user_id: chosen, motivo: motivo)
       rescue StandardError => e
         Rails.logger.error("[Distribuicao] conv=#{@conversation&.id} team=#{@team&.id}: #{e.message}")
@@ -180,6 +181,14 @@ module Spx
         return unless @policy.designacao?
 
         CarimbarService.new(conversation: @conversation, user_id: user_id, produto: produto).perform
+      end
+
+      # Espelho no Vista — é como o corretor de vendas fica sabendo do lead. Roda POR ÚLTIMO
+      # de propósito: se o Vista estiver fora do ar, a designação já é verdade no SPX (log +
+      # carimbo). O próprio serviço checa a flag `espelho_vista` do time.
+      def espelhar_vista(user_id)
+        VistaCardService.new(conversation: @conversation, policy: @policy,
+                             user_id: user_id, produto_slug: produto).perform
       end
 
       # Uma designação viva por conversa: um re-handoff substitui a anterior, senão a conta

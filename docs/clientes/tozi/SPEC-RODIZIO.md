@@ -308,7 +308,21 @@ recebe o espelho. A máquina de estados **não** depende do Vista.
 4. **Ser idempotente** — checar negócio ativo **antes** de criar. Com `DELETE` bloqueado (401),
    **não existe desfazer**.
 
-Tudo isso atrás de `espelho_vista` (§5.1).
+Tudo isso atrás de `espelho_vista` (§5.1), que nasce **desligado**.
+
+**Config do card, com precedência:** bloco `vista:` do **produto** (§5.2) sobrepõe
+`policy.vista_padrao`. O default da policy existe para o lead **sem produto identificado** — sem
+ele, esse lead seria designado e o corretor nunca ficaria sabendo.
+
+#### ⚠️ `CorretorNegocio` não é o `user_id` do SPX
+O Vista tem identificador próprio de corretor. O mapeamento é **declarado na entrada do pool**
+(`vista_corretor`), nunca inferido: **sem mapeamento, o card não é criado**. Card no corretor
+errado é pior que card ausente, porque com `DELETE` 401 ninguém apaga depois.
+
+#### ⚠️ Código de escrita ainda NÃO validado contra o Vista real
+O contrato veio do teste de 23/07 e da leitura de campos empírica (§8.5) — não há catálogo. O
+serviço está escrito e desligado por flag. **Antes de ligar `espelho_vista` em produção**, rodar
+uma criação real e conferir cliente + card; é a única forma de fechar o contrato (§8.5).
 
 ### 8.2. Limpeza pendente
 Registros do teste de 23/07 a remover manualmente: cliente **65205**, negócios **85015/85016/85017**.

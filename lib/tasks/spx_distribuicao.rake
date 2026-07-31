@@ -2,8 +2,9 @@
 # A UI "Política de Distribuição" por time é F3.
 #
 #   bundle exec rails "spx:distribuicao:policy[6,27,rodizio,128:20,126:20,131:20,127:20]"
-#     account=6 team=27(locação) modo=rodizio pool="user_id:cap:produto|produto"
+#     account=6 team=27(locação) modo=rodizio pool="user_id:cap:produto|produto:vista_corretor"
 #     cap opcional (0/omisso = sem teto) · produtos opcional (omisso = atende TUDO)
+#     vista_corretor opcional (sem ele o espelho do Vista não cria card pra essa pessoa)
 #   bundle exec rails "spx:distribuicao:show[6,27]"
 #   bundle exec rails "spx:distribuicao:produto[6,<slug>,<nome>,empreendimentos:<termo>|<termo>]"
 #   bundle exec rails "spx:distribuicao:produtos[6]"
@@ -18,8 +19,12 @@ namespace :spx do
       # os demais em args.extras. Junta os dois.
       pool_tokens = [args[:pool], *args.extras].compact_blank
       pool = pool_tokens.map do |tok|
-        uid, cap, produtos = tok.to_s.split(':')
+        uid, cap, produtos, vista_corretor = tok.to_s.split(':')
         entry = { 'user_id' => uid.to_i, 'ativo' => true, 'cap' => cap.to_i }
+        # 4º campo (opcional) = identificador do corretor NO VISTA. Sem ele o espelho não
+        # cria card pra essa pessoa — de propósito: o DELETE do Vista é 401, então card no
+        # corretor errado não tem desfazer.
+        entry['vista_corretor'] = vista_corretor.to_s.strip if vista_corretor.present?
         # 3º campo (opcional) = slugs de produto que a pessoa atende, separados por "|".
         # AUSENTE = atende TUDO — é o default, e é o que preserva as políticas já
         # configuradas decidindo como decidiam antes do filtro de produto existir.
