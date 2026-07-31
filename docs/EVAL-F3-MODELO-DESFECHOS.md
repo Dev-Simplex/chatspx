@@ -1,0 +1,224 @@
+# Eval 2.0 · F3 — Modelo de desfechos e autoria
+
+> **Status:** modelo definido, não implementado. Escrito na frente `spx/eval` (30/07/2026).
+> **Decisões congeladas** (não reabrir): ver `CLAUDE.local.md` da frente, § DECISÕES TOMADAS (30/07).
+> **Contrato cross-frente:** a § 5 é acordo com a frente `spx/rodizio` — ler antes de codar o leitor.
+
+---
+
+## 0. Por que F3 existe
+
+Hoje o juiz (`Captain::ConversationEvalService`) sabe cobrar **norma**: a IA narrou a ferramenta,
+alucinou, não respondeu a pergunta. Ele nunca sabe dizer **o que converte**, porque não existe
+desfecho registrado — não há com o que correlacionar a conduta.
+
+F3 registra o desfecho de cada episódio como **fato observado**, e a autoria de quem o causou.
+Com isso, "resposta curta converte mais no público Pacaembu?" vira uma query, não uma opinião.
+
+**O juiz fica FORA do caminho do dado de conversão.** ~80% dos degraus já têm sinal determinístico
+no código de hoje. O juiz só entra onde não há sinal (por que esfriou, qualidade da abordagem) —
+nunca para produzir o número de conversão. Esse era o maior risco do F3 (alucinação virando
+métrica) e sai de cena por construção, não por disciplina.
+
+---
+
+## 1. A escada
+
+Dois eixos separados: **progressão** (ascendente, o que queremos) e **saída** (terminal).
+
+### Progressão
+
+| # | Degrau | O que significa |
+|---|---|---|
+| 1 | `respondeu` | o lead deu sinal de vida (≥1 mensagem entrante no episódio) |
+| 2 | `qualificado` | tem perfil e caminho — vale o tempo de uma pessoa |
+| 3 | `handoff` | passou pro humano (dossiê registrado, conversa marcada) |
+| 4 | `assumido` | um humano de fato respondeu depois do handoff |
+| 5 | `visita` | o corretor marcou/realizou visita — **só via Vista** |
+| 6 | `venda` | negócio fechado — **só via Vista** |
+
+### Saída
+
+| Degrau | O que significa | Reabordagem |
+|---|---|---|
+| `esfriou` | pessoa real, sem fit imediato → pool de reabordagem | sim |
+| `descartado` | sem perfil pra nada (`nao_qualificado`) | **não** (não gasta HSM nem tempo) |
+
+> A distinção `esfriou` × `descartado` não é cosmética: é o modelo quente/frio já decidido em
+> 16/07 — um mis-gauge de renda cai no pool frio, não some. Colapsar os dois em "perdido"
+> destruiria justamente a informação que protege contra o erro de enquadramento.
+
+### O corte da conversão
+
+**Conversão = `qualificado` + `handoff`.** Só isso. Os degraus 1–4 são do SPX; os degraus 5–6 são
+do Vista e entram como **camada externa** (§ 4).
+
+O corte está aí porque é o degrau que **a IA de fato controla**. Visita e venda dependem do
+corretor: incluí-las mede o time comercial, não o atendimento.
+
+---
+
+## 2. Detecção — sinal por degrau
+
+Tudo abaixo já existe no código de hoje. Nenhuma tool nova, nenhuma chamada de LLM.
+
+| Degrau | Sinal | Onde está |
+|---|---|---|
+| `respondeu` | ≥1 `message` `incoming` na janela do episódio | `Captain::ConversationEpisode#first_message_id..last_message_id` |
+| `qualificado` | `custom_attributes['tozi_status_lead'] ∈ {qualificado, convertido}` **ou** `FunnelItem` no estágio `qualificado` | `SalvarInfoLeadTool` · `Spx::Tozi::FunnelPlacementService` |
+| `handoff` | `custom_attributes['aguardando_humano_desde']` presente | `Captain::Tools::HandoffTool` |
+| `assumido` | 1ª `outgoing` com `sender_type = 'User'` **após** o `aguardando_humano_desde` | `messages` |
+| `esfriou` | status ∈ `{esfriado, perdido}` **ou** estágio `frio` | `SalvarInfoLeadTool#move_funnel_by_status` |
+| `descartado` | status `nao_qualificado` **ou** label `nao-qualificado` | idem + `add_labels` |
+| `visita` / `venda` | etapa do card no Vista | § 5 (leitor) |
+
+**Regra de ouro:** o degrau é gravado quando o sinal aparece, com o `ocorreu_em` do sinal — nunca
+inferido retroativamente por leitura de transcrição.
+
+---
+
+## 3. Autoria
+
+`causado_por` ∈ `ia` · `humano` · `sistema` · `externo`. Deriva do sinal, não de julgamento:
+
+- **`ia`** — existe `Captain::ToolCall` com a tool correspondente (`salvar_info_lead`, `handoff`)
+  na janela do degrau. É prova direta: a IA chamou a ferramenta que produziu o fato.
+- **`humano`** — o fato existe mas não há tool call da IA (um atendente mexeu no funil/status na
+  mão), ou o degrau é `assumido`. Grava `ator_id` = `user_id`.
+- **`sistema`** — job/automação (cadência, watchdog, re-triagem).
+- **`externo`** — veio do Vista. O SPX **não sabe** quem causou; sabe apenas a qual episódio
+  atribuir. Rotular isso honestamente é o que impede a camada externa de virar crédito da IA.
+
+O eixo é o mesmo que o painel já usa em `findings_stats` (`ia`/`humano`) — o drill-down do F4.1
+funciona sem mudança conceitual.
+
+---
+
+## 4. Onde grava — e por que não é coluna
+
+Tabela nova: **`captain_episode_outcomes`**. Uma linha **por degrau atingido**, não uma coluna de
+estado.
+
+```
+account_id, conversation_id, episode_id
+degrau         respondeu|qualificado|handoff|assumido|visita|venda|esfriou|descartado
+causado_por    ia|humano|sistema|externo
+ator_id        user_id (humano) · assistant_id (ia) · nil
+origem         tool|funnel|label|mensagem|vista
+detalhe        jsonb  {tool_call_id, status_lead, stage, etapa_vista, ...}
+ocorreu_em     datetime
+-- denormalizado NO MOMENTO DO REGISTRO:
+campanha, anuncio, publico, empreendimento, lead_tipo
+unique (episode_id, degrau)
+```
+
+Três razões para tabela separada, cada uma sozinha suficiente:
+
+1. **Fato ≠ opinião.** O eval é veredito reprocessável (`spx:eval:reprocess`). Se o desfecho morar
+   no eval, re-julgar apaga fato. Desfecho é observação; veredito é leitura.
+2. **Desfecho tem tempo próprio.** O episódio fecha hoje; o corretor move o card daqui a cinco
+   dias. Coluna no episódio obrigaria a mutar um registro fechado e perderia a linha do tempo —
+   que é justamente o que responde "quanto tempo entre handoff e assumido".
+3. **Escada é N degraus, não 1 estado.** Precisamos de *"qualificado 14h02 pela IA · handoff 14h09
+   pela IA · assumido 15h30 pelo Lucas"*. Uma linha por degrau resolve; uma coluna força escolher
+   um só e perder o resto.
+
+**A denormalização de campanha/anúncio/público/empreendimento é obrigatória.** Esses campos vivem
+em `conversation.custom_attributes` (carimbados pelo Meta Lead Ads: `meta_campanha`, `meta_anuncio`,
+`meta_publico`, `meta_tipo`, `meta_imovel`, `empreendimento`) e **mudam**. Métrica histórica não
+pode mudar de valor retroativamente porque alguém reetiquetou a conversa.
+
+### Traços de conduta (o outro lado da correlação)
+
+Desfecho sozinho não responde nada — precisa do traço da conduta que o produziu. Todos
+determinísticos e baratos, computados por episódio:
+
+`turnos_ia` · `chars_medios_resposta` · `tool_calls` · `enviou_midia` (foto/áudio/localização) ·
+`tempo_ate_1a_resposta` · `duracao_episodio`
+
+Cruzados com `degrau` e segmentados por `campanha`/`empreendimento`, respondem a pergunta que
+originou o F3: *"no público Pacaembu, episódio com resposta média mais curta chega a handoff com
+que frequência?"*
+
+---
+
+## 5. Camada externa — o leitor do Vista
+
+> **Contrato com `spx/rodizio`.** A `rodizio` **escreve** `vista_negocio_codigo` na conversa ao
+> criar o card. Esta frente **constrói o leitor**. É **um leitor só**, com dois consumidores.
+
+### O guard-rail (não pode cair)
+
+O corretor não alimenta o CRM com disciplina. Se "card parado" entrar na métrica primária, o painel
+passa a medir **disciplina de CRM do corretor**, não qualidade de atendimento.
+
+Portanto, e isto é regra de implementação, não convenção:
+
+- degraus `visita`/`venda` gravam sempre `origem = 'vista'` e `causado_por = 'externo'`;
+- **o agregador de conversão filtra `origem != 'vista'` por padrão** — não é toggle, é o default;
+- o dado do Vista aparece em seção própria e rotulada ("CRM Vista"), nunca somada;
+- o Vista serve para **correlação e atribuição**, jamais para julgar a IA.
+
+### O job
+
+Periódico, varre **apenas** conversas com `vista_negocio_codigo` presente (volume baixo — só lead
+com handoff). Read-only: **não escreve nada no Vista**. Sem webhook.
+
+### Campos a gravar em `conversation.custom_attributes` — proposta
+
+| Campo | Conteúdo | Quem consome |
+|---|---|---|
+| `vista_negocio_codigo` | código do card (**escrito pela `rodizio`**, eu só leio) | ambos |
+| `vista_pipe` | 3 = vendas · 4 = locação | eval |
+| `vista_etapa` | nome da etapa atual | ambos |
+| `vista_etapa_codigo` | código (PROSPECTO 67 · CONTATO 73 · …) | ambos |
+| `vista_etapa_desde` | data da última mudança de etapa | **rodizio** (SLA) |
+| `vista_corretor` / `vista_corretor_codigo` | corretor responsável | ambos |
+| `vista_motivo_perda` | motivo, quando perdido | eval |
+| `vista_lido_em` | timestamp da última varredura | ambos (frescor) |
+
+### Os dois consumidores
+
+- **eval (F3):** fecha a escada — `visita`/`venda` como degraus externos + atribuição do card ao
+  episódio que o gerou.
+- **rodizio:** `vista_etapa_desde` mudou ou etapa avançou de PROSPECTO = **"o corretor engajou"** →
+  Sofia entra em silêncio. Mesmo campo vira base do **SLA de vendas** (tempo parado na etapa).
+
+### ⚠️ Gotcha que muda o desenho — `data da última mudança de etapa`
+
+O endpoint natural para isso, `GET /negocios/atividades`, **tem bug conhecido**: retorna formato
+colunar com arrays de tamanhos diferentes (vault, `clientes/tozi-vista-capacidades.md`). Não dá
+para confiar nele.
+
+Três saídas, em ordem de preferência:
+
+1. **Probe primeiro:** verificar se `GET /negocios/detalhes` já traz um campo de data de alteração
+   de etapa. Se trouxer, acabou — é o dado real.
+2. **Workaround do vault:** reconstruir via `historicos_do_cliente()` cruzando `DataInicial`/
+   `DataFinal`. Funciona, mas é caro por card.
+3. **Derivar por diferença entre varreduras:** o leitor guarda a etapa anterior e carimba a data
+   quando ela muda. Robusto e barato, **mas mede "quando nós notamos", não quando aconteceu** — e
+   só tem resolução a partir do dia em que o leitor liga.
+
+**A opção 3 é aceitável para o eval** (correlação tolera ruído de horas) e **arriscada para o SLA
+da `rodizio`**, que conta tempo contra o corretor. Se o probe (1) falhar, a `rodizio` precisa saber
+que o SLA nasce com a resolução do intervalo de varredura.
+
+### O que precisa de acordo antes de codar
+
+1. Os nomes de campo da tabela acima — em especial `vista_etapa_desde`, que é o insumo do SLA.
+2. Quem grava `vista_negocio_codigo` e em que momento exato (na criação do card, presumo).
+3. Resultado do probe do item 1 do gotcha — decide de onde vem a data de etapa.
+
+---
+
+## 6. Ordem de implementação
+
+1. `captain_episode_outcomes` + registro dos degraus **determinísticos do SPX** (1–4, `esfriou`,
+   `descartado`). Zero dependência externa, zero LLM — mede desde o primeiro dia.
+2. Traços de conduta por episódio.
+3. Corte no painel F4: conversão por campanha/empreendimento, com o eixo de autoria do F4.1.
+4. Leitor do Vista (§ 5) — depende do acordo com a `rodizio` e do card existir.
+
+O passo 1 sozinho já responde à pergunta do Paulo. Os passos 3 e 4 melhoram a resolução; nenhum
+deles é pré-requisito do 1.
