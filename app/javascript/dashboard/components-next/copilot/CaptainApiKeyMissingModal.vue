@@ -41,7 +41,7 @@ const handleClose = () => {
 const handleConfirm = () => {
   if (props.isAdmin && props.accountId) {
     router.push({
-      name: 'captain_settings_index',
+      name: 'agents_settings',
       params: { accountId: props.accountId },
     });
   }

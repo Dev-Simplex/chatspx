@@ -151,6 +151,10 @@ const labels = useMapGetter('labels/getLabels');
 const currentAccountId = useMapGetter('getCurrentAccountId');
 const currentRole = useMapGetter('getCurrentRole');
 const myTeams = useMapGetter('teams/getMyTeams');
+// Membro ∪ supervisionado — só para a guarda de acesso à conversa. Os diálogos
+// de "assumir e encerrar" continuam com myTeams: atribuir a si mesmo em time do
+// qual não se é membro seria desfeito por ensure_assignee_is_from_team.
+const visibleTeams = useMapGetter('teams/getVisibleTeams');
 // We can't useFunctionGetter here since it needs to be called on setup?
 const getTeamFn = useMapGetter('teams/getTeam');
 const getConversationById = useMapGetter('getConversationById');
@@ -1035,10 +1039,13 @@ function leaveConversationIfAccessLost(team, conversationId) {
   if (!teamsList.value.length) return;
   // assigneeId stays null: on a team change the backend clears or reassigns
   // a non-member assignee (ensure_assignee_is_from_team).
+  // Times visíveis (membro ∪ supervisionado): o backend deixa o supervisor
+  // continuar na conversa do time que ele supervisiona, então ejetá-lo aqui
+  // seria o front discordando da regra do servidor.
   const lostAccess = losesConversationAccess({
     isAdmin: currentRole.value === 'administrator',
     userId: currentUser.value.id,
-    userTeamIds: myTeams.value.map(memberTeam => memberTeam.id),
+    userTeamIds: visibleTeams.value.map(visibleTeam => visibleTeam.id),
     teamId: team.id,
     assigneeId: null,
   });

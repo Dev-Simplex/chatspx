@@ -11,4 +11,6 @@ json.name resource.name
 json.role resource.role
 json.thumbnail resource.avatar_url
 json.team_ids resource.teams.select { |t| t.account_id == Current.account&.id }.map(&:id)
+# times que este agente SUPERVISIONA (D1: supervisionar ≠ ser membro, por isso a lista é separada)
+json.supervised_team_ids resource.supervised_teams.select { |t| t.account_id == Current.account&.id }.map(&:id)
 json.custom_role_id resource.current_account_user&.custom_role_id if ChatwootApp.enterprise?

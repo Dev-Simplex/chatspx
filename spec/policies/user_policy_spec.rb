@@ -23,6 +23,23 @@ RSpec.describe UserPolicy, type: :policy do
     end
   end
 
+  # T1: o supervisor de time entra no update? (renomear os agentes dos times dele), mas
+  # continua fora do create?/destroy? — convidar e excluir agente segue exclusivo de admin.
+  context 'when the agent supervises a team' do
+    let(:supervisor_context) do
+      create(:team_supervisor, team: create(:team, account: account), user: agent)
+      { user: agent, account: account, account_user: account.account_users.find_by(user_id: agent.id) }
+    end
+
+    permissions :update? do
+      it { expect(user_policy).to permit(supervisor_context, user) }
+    end
+
+    permissions :create?, :destroy? do
+      it { expect(user_policy).not_to permit(supervisor_context, user) }
+    end
+  end
+
   permissions :index? do
     context 'when administrator' do
       it { expect(user_policy).to permit(administrator_context, user) }

@@ -43,8 +43,10 @@ onMounted(loadStats);
 const heroPct = computed(() => Number(stats.value.resolution_rate) || 0);
 const heroCaption = computed(() =>
   stats.value.handled > 0
-    ? `das ${stats.value.handled} conversas a IA resolveu sem precisar de um humano`
-    : 'Assim que a IA atender conversas, as métricas reais aparecem aqui.'
+    ? t('CAPTAIN.AGENT_TABS.OVERVIEW.HERO_CAPTION', {
+        count: stats.value.handled,
+      })
+    : t('CAPTAIN.AGENT_TABS.OVERVIEW.HERO_EMPTY')
 );
 
 const kpis = computed(() => [
@@ -52,26 +54,26 @@ const kpis = computed(() => [
     icon: 'i-lucide-messages-square',
     tint: '#1faa59',
     value: stats.value.handled,
-    label: 'Conversas atendidas',
+    label: t('CAPTAIN.AGENT_TABS.OVERVIEW.KPI_HANDLED'),
     spark: true,
   },
   {
     icon: 'i-lucide-smile',
     tint: '#34c759',
     value: stats.value.csat || 0,
-    label: 'Satisfação (CSAT)',
+    label: t('CAPTAIN.AGENT_TABS.OVERVIEW.KPI_CSAT'),
   },
   {
     icon: 'i-lucide-check-check',
     tint: '#0a84ff',
     value: stats.value.resolved,
-    label: 'Resolvidas',
+    label: t('CAPTAIN.AGENT_TABS.OVERVIEW.KPI_RESOLVED'),
   },
   {
     icon: 'i-lucide-user-round',
     tint: '#ff3b30',
     value: stats.value.handoffs,
-    label: 'Passou pra humano',
+    label: t('CAPTAIN.AGENT_TABS.OVERVIEW.KPI_HANDOFFS'),
   },
 ]);
 

@@ -164,6 +164,7 @@
     "LOADING": "Loading agent...",
     "TABS": {
       "OVERVIEW": "Overview",
+      "FLOW": "Flow",
       "BEHAVIOR": "Behavior",
       "KNOWLEDGE": "Knowledge",
       "TOOLS": "Tools",
@@ -171,6 +172,133 @@
       "INBOXES": "Inboxes",
       "LOGS": "Logs",
       "SETTINGS": "Settings"
+    }
+  },
+  "AGENTS_TOOLS": {
+    "TITLE": "Tools",
+    "SUBTITLE": "Skills your agents can use during conversations.",
+    "SEARCH_PLACEHOLDER": "Search tools...",
+    "LOADING": "Loading tools...",
+    "SYSTEM_BADGE": "System",
+    "SECTION_BUILTIN": "Tools",
+    "SECTION_CUSTOM": "Custom tools (HTTP)",
+    "NEW_TOOL": "New tool",
+    "ACTIVE": "Active",
+    "INACTIVE": "Inactive",
+    "EMPTY_BUILTIN_TITLE": "No tools found",
+    "EMPTY_BUILTIN_DESC": "No system tool matches your search.",
+    "EMPTY_CUSTOM_TITLE": "No custom tools",
+    "EMPTY_CUSTOM_DESC": "Connect your agents to your own APIs by creating an HTTP tool.",
+    "ACTIONS": {
+      "EDIT": "Edit",
+      "DELETE": "Delete",
+      "ENABLE": "Enable",
+      "DISABLE": "Disable"
+    },
+    "FORM": {
+      "CREATE_TITLE": "New tool",
+      "EDIT_TITLE": "Edit tool",
+      "TITLE_LABEL": "Title",
+      "TITLE_PLACEHOLDER": "e.g. Check order status",
+      "DESCRIPTION_LABEL": "Description",
+      "DESCRIPTION_PLACEHOLDER": "What the tool does (the agent uses this to decide when to call it)",
+      "ENDPOINT_LABEL": "Endpoint URL",
+      "ENDPOINT_PLACEHOLDER": "https://your-api.com/resource",
+      "METHOD_LABEL": "HTTP method",
+      "AUTH_LABEL": "Authentication",
+      "AUTH": {
+        "NONE": "No authentication",
+        "BEARER": "Bearer Token",
+        "BASIC": "Basic (user/password)",
+        "API_KEY": "API Key (header)"
+      },
+      "AUTH_FIELDS": {
+        "TOKEN_LABEL": "Token",
+        "TOKEN_PLACEHOLDER": "Access token",
+        "USERNAME_LABEL": "Username",
+        "PASSWORD_LABEL": "Password",
+        "HEADER_NAME_LABEL": "Header name",
+        "HEADER_NAME_PLACEHOLDER": "e.g. X-API-Key",
+        "HEADER_VALUE_LABEL": "Value",
+        "HEADER_VALUE_PLACEHOLDER": "API key"
+      },
+      "PARAMS_LABEL": "Parameters",
+      "PARAMS_DESC": "Fields the agent fills in when calling the tool.",
+      "PARAM_NAME_PLACEHOLDER": "name",
+      "PARAM_DESC_PLACEHOLDER": "description (helps the agent fill it in)",
+      "PARAM_REQUIRED": "Required",
+      "ADD_PARAM": "Add parameter",
+      "NO_PARAMS": "No parameters. The tool will be called without arguments.",
+      "TYPE": {
+        "STRING": "Text",
+        "NUMBER": "Number",
+        "BOOLEAN": "Boolean"
+      },
+      "CANCEL": "Cancel",
+      "SAVE": "Save",
+      "SAVING": "Saving..."
+    },
+    "DELETE": {
+      "TITLE": "Delete tool",
+      "CONFIRM": "Are you sure you want to delete \"{name}\"? This action cannot be undone.",
+      "CANCEL": "Cancel",
+      "CONFIRM_BTN": "Delete"
+    },
+    "MESSAGES": {
+      "CREATE_SUCCESS": "Tool created successfully",
+      "CREATE_ERROR": "Failed to create tool. Check the fields and try again.",
+      "UPDATE_SUCCESS": "Tool updated",
+      "UPDATE_ERROR": "Failed to update tool. Try again.",
+      "DELETE_SUCCESS": "Tool deleted",
+      "DELETE_ERROR": "Failed to delete tool. Try again.",
+      "VALIDATION": "Fill in the title and the endpoint URL."
+    },
+    "MCP": {
+      "TITLE": "MCP Servers",
+      "DESCRIPTION": "Connect external tools to your agents via the Model Context Protocol.",
+      "SOON": "coming soon",
+      "FILE": "mcp_config.json",
+      "COPY": "Copy",
+      "COPIED": "Copied!"
+    },
+    "INTEGRATIONS": {
+      "SECTION_TITLE": "Integrations",
+      "CONNECTED": "Connected",
+      "NOT_CONNECTED": "Not connected",
+      "CONFIGURE": "Configure",
+      "ENABLED_LABEL": "Enabled",
+      "ENABLED_DESC": "When enabled, agents can use this integration.",
+      "TEST_CONNECTION": "Test connection",
+      "TESTING": "Testing…",
+      "TEST_OK": "Connection successful",
+      "TEST_FAIL": "Connection failed",
+      "SAVE": "Save",
+      "SAVING": "Saving…",
+      "CANCEL": "Cancel",
+      "SAVE_SUCCESS": "Integration saved successfully",
+      "SAVE_ERROR": "Could not save the integration",
+      "VISTA": {
+        "NAME": "Vista (Loft)",
+        "DESCRIPTION": "Real estate CRM — property lookups and Vista/Loft data.",
+        "API_KEY": "API key",
+        "API_KEY_PLACEHOLDER": "Paste your Vista key",
+        "BASE_URL": "Base URL",
+        "BASE_URL_PLACEHOLDER": "https://your-domain.vistahost.com.br",
+        "OFFICE_NAME": "Office name",
+        "OFFICE_NAME_PLACEHOLDER": "Example Realty",
+        "OFFICE_LAT": "Office latitude",
+        "OFFICE_LAT_PLACEHOLDER": "-23.5505",
+        "OFFICE_LNG": "Office longitude",
+        "OFFICE_LNG_PLACEHOLDER": "-46.6333",
+        "SITE_DOMAIN": "Site domain",
+        "SITE_DOMAIN_PLACEHOLDER": "https://www.yourrealty.com"
+      },
+      "GOOGLE": {
+        "NAME": "Google",
+        "DESCRIPTION": "Google Maps — geocoding and location for your agents.",
+        "MAPS_KEY": "Google Maps key",
+        "MAPS_KEY_PLACEHOLDER": "Paste your Google Maps key"
+      }
     }
   },
   "PROFILE_SETTINGS": {
@@ -412,6 +540,7 @@
     "YEAR_IN_REVIEW": "Year in Review",
     "KEYBOARD_SHORTCUTS": "Keyboard shortcuts",
     "APPEARANCE": "Change appearance",
+    "REORDER_SIDEBAR": "Reorder sidebar",
     "DARK_MODE": "Dark mode",
     "LIGHT_MODE": "Light mode",
     "AUTO_MODE": "Auto mode",
@@ -481,6 +610,11 @@
   "SIDEBAR": {
     "NO_ITEMS": "No items",
     "SEARCH_PLACEHOLDER": "Search or run...",
+    "REORDER": {
+      "HINT": "Drag the icons to reorder",
+      "RESET": "Restore default",
+      "DONE": "Done"
+    },
     "CURRENTLY_VIEWING_ACCOUNT": "Currently viewing:",
     "SWITCH": "Switch",
     "INBOX_VIEW": "Inbox View",
@@ -603,6 +737,20 @@
     "LOADING": "Loading AI Agents configuration...",
     "LINK_TEXT": "Learn more about AI Agents Credits",
     "NOT_ENABLED": "AI Agents is not enabled for your account.",
+    "INTRO": "Connect the account's AI provider — it applies to every agent. The key is stored per account and never appears in conversations.",
+    "SECTIONS": {
+      "PROVIDER": "Provider",
+      "API_KEY": "API Key"
+    },
+    "CONNECTION": {
+      "KEY_LABEL": "{provider} key",
+      "DESCRIPTION": "Paste your {provider} secret key to enable AI on this account.",
+      "STATUS_CONNECTED": "Connected",
+      "STATUS_DISCONNECTED": "Not connected",
+      "CURRENT_KEY": "Current key",
+      "PLACEHOLDER": "Paste your {provider} secret key (e.g. sk-…)",
+      "SECURITY_NOTE": "Your key is encrypted and stored securely."
+    },
     "OPENAI_CONNECTION": {
       "TITLE": "OpenAI Connection",
       "DESCRIPTION": "Configure the OpenAI API key for this account. AI Agents will use this account-level key for AI requests.",

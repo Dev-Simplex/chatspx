@@ -177,30 +177,47 @@ onBeforeMount(() => {
         "
       >
         <template #row="{ items }">
-          <BaseTableRow v-for="label in items" :key="label.title" :item="label">
+          <BaseTableRow
+            v-for="(label, index) in items"
+            :key="label.title"
+            :item="label"
+          >
             <template #default>
               <BaseTableCell>
-                <span class="text-body-main text-n-slate-12">
-                  {{ label.title }}
+                <span
+                  class="inline-flex items-center h-7 gap-2 px-2.5 font-medium rounded-lg max-w-full text-body-main text-n-slate-12"
+                  :style="{
+                    backgroundColor: `${label.color}1a`,
+                    boxShadow: `inset 0 0 0 1px ${label.color}33`,
+                  }"
+                >
+                  <span
+                    class="label-dot rounded-full size-2 flex-shrink-0"
+                    :style="{
+                      backgroundColor: label.color,
+                      animationDelay: `${(index % 6) * 0.18}s`,
+                    }"
+                  />
+                  <span class="truncate min-w-0">{{ label.title }}</span>
                 </span>
               </BaseTableCell>
 
               <BaseTableCell>
-                <span class="text-body-main text-n-slate-11">
+                <span
+                  v-if="label.description"
+                  class="text-body-main text-n-slate-11"
+                >
                   {{ label.description }}
                 </span>
+                <span v-else class="text-n-slate-9" aria-hidden="true">—</span>
               </BaseTableCell>
 
               <BaseTableCell>
-                <div class="flex items-center">
-                  <span
-                    class="w-4 h-4 ltr:mr-2 rtl:ml-2 border border-solid rounded border-n-weak"
-                    :style="{ backgroundColor: label.color }"
-                  />
-                  <span class="text-body-main text-n-slate-12">
-                    {{ label.color }}
-                  </span>
-                </div>
+                <span
+                  v-tooltip.top="label.color"
+                  class="inline-block rounded-md size-5 flex-shrink-0 ring-1 ring-inset ring-black/10 dark:ring-white/20"
+                  :style="{ backgroundColor: label.color }"
+                />
               </BaseTableCell>
 
               <BaseTableCell>
@@ -264,3 +281,30 @@ onBeforeMount(() => {
     />
   </SettingsLayout>
 </template>
+
+<style scoped>
+/* Gentle "live" blink on each label's color dot. Staggered per row via an
+   inline animation-delay so they don't pulse in robotic lockstep. */
+.label-dot {
+  animation: label-dot-blink 1.4s ease-in-out infinite;
+}
+
+@keyframes label-dot-blink {
+  0%,
+  100% {
+    opacity: 1;
+    transform: scale(1);
+  }
+  50% {
+    opacity: 0.25;
+    transform: scale(0.82);
+  }
+}
+
+/* Respect users who prefer less motion. */
+@media (prefers-reduced-motion: reduce) {
+  .label-dot {
+    animation: none;
+  }
+}
+</style>

@@ -1,6 +1,7 @@
 <script setup>
 import { shallowRef, computed, onMounted } from 'vue';
 import emojiGroups from 'shared/components/emoji/emojisGroup.json';
+import { getRecentEmojis, addRecentEmoji } from 'shared/helpers/recentEmojis';
 import MentionBox from '../mentions/MentionBox.vue';
 
 const props = defineProps({
@@ -13,12 +14,23 @@ const props = defineProps({
 const emit = defineEmits(['selectEmoji']);
 
 const allEmojis = shallowRef([]);
+const recentEmojis = shallowRef([]);
 
 const items = computed(() => {
   if (!props.searchKey) return [];
   const searchTerm = props.searchKey.toLowerCase();
-  return allEmojis.value.filter(emoji =>
+  const matches = allEmojis.value.filter(emoji =>
     emoji.searchString.includes(searchTerm)
+  );
+
+  // Entre os resultados da busca, os usados recentemente vêm primeiro.
+  const recentRank = new Map(recentEmojis.value.map((emoji, i) => [emoji, i]));
+  if (!recentRank.size) return matches;
+
+  return [...matches].sort(
+    (a, b) =>
+      (recentRank.get(a.emoji) ?? Number.MAX_SAFE_INTEGER) -
+      (recentRank.get(b.emoji) ?? Number.MAX_SAFE_INTEGER)
   );
 });
 
@@ -34,11 +46,13 @@ function loadEmojis() {
 }
 
 function handleMentionClick(item = {}) {
+  recentEmojis.value = addRecentEmoji(item.emoji);
   emit('selectEmoji', item.emoji);
 }
 
 onMounted(() => {
   loadEmojis();
+  recentEmojis.value = getRecentEmojis();
 });
 </script>
 

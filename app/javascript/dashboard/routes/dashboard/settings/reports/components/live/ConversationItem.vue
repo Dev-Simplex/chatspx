@@ -3,13 +3,7 @@ import { computed } from 'vue';
 import { useI18n } from 'vue-i18n';
 import { useRouter } from 'vue-router';
 import { useAccount } from 'dashboard/composables/useAccount';
-import {
-  fromUnixTime,
-  format,
-  isToday,
-  isYesterday,
-  differenceInHours,
-} from 'date-fns';
+import { fromUnixTime, format, isToday, isYesterday } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import Avatar from 'next/avatar/Avatar.vue';
 
@@ -45,12 +39,12 @@ const formatTime = time => {
   } else if (typeof time === 'string') {
     // Se for string, tentar parsear como ISO ou timestamp
     const parsed = Date.parse(time);
-    if (!isNaN(parsed)) {
+    if (!Number.isNaN(parsed)) {
       date = new Date(parsed);
     } else {
       // Tentar como timestamp Unix
       const numTime = Number(time);
-      if (!isNaN(numTime)) {
+      if (!Number.isNaN(numTime)) {
         date = fromUnixTime(numTime);
       } else {
         return '';
@@ -61,12 +55,9 @@ const formatTime = time => {
   }
 
   // Verificar se a data é válida
-  if (isNaN(date.getTime())) {
+  if (Number.isNaN(date.getTime())) {
     return '';
   }
-
-  const now = new Date();
-  const diffInHours = differenceInHours(now, date);
 
   if (isToday(date)) {
     return format(date, 'HH:mm', { locale: ptBR });
@@ -104,13 +95,7 @@ const handleConversationClick = () => {
     >
       <template #badge>
         <div
-          class="absolute z-20 flex items-center justify-center rounded-full bg-n-brand border border-white dark:border-n-solid-2 flex-shrink-0"
-          :style="{
-            width: '14px',
-            height: '14px',
-            top: '26px',
-            left: '26px',
-          }"
+          class="absolute z-20 flex items-center justify-center rounded-full bg-n-brand border border-white dark:border-n-solid-2 flex-shrink-0 size-3.5 top-[26px] left-[26px]"
         >
           <span class="i-lucide-message-circle size-2.5 text-white" />
         </div>

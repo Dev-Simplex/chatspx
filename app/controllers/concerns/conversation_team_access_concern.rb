@@ -30,6 +30,10 @@ module ConversationTeamAccessConcern
     return true if @conversation.team_id.nil?
     # Atribuição implica acesso: o assignee sempre alcança a própria conversa
     return true if @conversation.assignee_id == Current.user&.id
+    # Supervisão de time (D2): quem supervisiona o time da conversa passa como se
+    # fosse membro. Usa o account_id da conversa (e não Current.account) porque o
+    # concern também roda em sub-recursos onde Current pode não estar populado.
+    return true if TeamSupervision.supervises?(Current.user, @conversation.team_id, @conversation.account_id)
 
     false
   end

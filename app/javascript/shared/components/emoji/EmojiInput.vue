@@ -2,7 +2,27 @@
 import emojis from './emojisGroup.json';
 import FluentIcon from 'shared/components/FluentIcon/Index.vue';
 import NextButton from 'dashboard/components-next/button/Button.vue';
+import { getRecentEmojis, addRecentEmoji } from 'shared/helpers/recentEmojis';
 const SEARCH_KEY = 'Search';
+const RECENT_KEY = 'Recent';
+
+// Ícone de cada aba do rodapé, por slug de categoria do emojisGroup.json.
+// As classes i-lucide-* vêm do plugin de ícones do tailwind.config.js, cujo
+// content já cobre shared/ — logo valem também no widget.
+const CATEGORY_ICONS = {
+  smileys_emotion: 'i-lucide-smile',
+  people_body: 'i-lucide-hand',
+  animals_nature: 'i-lucide-paw-print',
+  food_drink: 'i-lucide-utensils',
+  travel_places: 'i-lucide-plane',
+  activities: 'i-lucide-party-popper',
+  objects: 'i-lucide-lightbulb',
+  symbols: 'i-lucide-shapes',
+  flags: 'i-lucide-flag',
+};
+const FALLBACK_CATEGORY_ICON = 'i-lucide-smile';
+const RECENT_TAB_ICON = 'i-lucide-clock';
+const SEARCH_TAB_ICON = 'i-lucide-search';
 
 export default {
   components: { FluentIcon, NextButton },
@@ -21,17 +41,27 @@ export default {
       selectedKey: 'Search',
       emojis,
       search: '',
+      recentEmojis: getRecentEmojis(),
+      recentKey: RECENT_KEY,
+      recentTabIcon: RECENT_TAB_ICON,
+      searchTabIcon: SEARCH_TAB_ICON,
     };
   },
   computed: {
     categories() {
       return [...this.emojis];
     },
+    hasRecentEmojis() {
+      return this.recentEmojis.length > 0;
+    },
+    isRecentSelected() {
+      return this.selectedKey === RECENT_KEY;
+    },
+    selectedCategory() {
+      return this.emojis.find(category => category.name === this.selectedKey);
+    },
     filterEmojisByCategory() {
-      const selectedCategoryName = this.emojis.find(category =>
-        category.name === this.selectedKey ? category.name : null
-      );
-      return selectedCategoryName?.emojis;
+      return this.selectedCategory?.emojis;
     },
     filterAllEmojisBySearch() {
       return this.emojis.map(category => {
@@ -44,7 +74,20 @@ export default {
       });
     },
     hasNoSearch() {
-      return this.selectedKey !== SEARCH_KEY && this.search === '';
+      return (
+        this.selectedKey !== SEARCH_KEY &&
+        this.selectedKey !== RECENT_KEY &&
+        this.search === ''
+      );
+    },
+    // Estado inicial da caixa (aba de busca, sem termo digitado): os recentes
+    // aparecem no topo, acima de todas as categorias.
+    showRecentSection() {
+      return (
+        this.hasRecentEmojis &&
+        this.selectedKey === SEARCH_KEY &&
+        this.search === ''
+      );
     },
     hasEmptySearchResult() {
       return this.filterAllEmojisBySearch.every(
@@ -69,11 +112,21 @@ export default {
       this.$refs.emojiItem.scrollTo({ top: 0 });
       this.selectedKey = category;
     },
-    getFirstEmojiByCategoryName(categoryName) {
-      const categoryItem = this.emojis.find(category =>
-        category.name === categoryName ? category : null
-      );
-      return categoryItem ? categoryItem.emojis[0].emoji : '';
+    // Todo emoji escolhido pela caixa passa por aqui, para alimentar os recentes.
+    selectEmoji(emoji) {
+      this.recentEmojis = addRecentEmoji(emoji);
+      this.onClick(emoji);
+    },
+    categoryIcon(categorySlug) {
+      return CATEGORY_ICONS[categorySlug] || FALLBACK_CATEGORY_ICON;
+    },
+    // Os nomes das categorias vêm em inglês do emojisGroup.json; traduzimos na
+    // exibição, caindo no nome original se a chave não existir no locale.
+    categoryLabel(category) {
+      if (!category) return '';
+      const key = `EMOJI.CATEGORIES.${category.slug.toUpperCase()}`;
+      const label = this.$t(key);
+      return label === key ? category.name : label;
     },
     focusSearchInput() {
       this.$nextTick(() => {
@@ -108,11 +161,27 @@ export default {
           @click="onClick('')"
         />
       </div>
-      <div v-if="hasNoSearch" ref="emojiItem" class="emoji-item">
+      <div v-if="isRecentSelected" ref="emojiItem" class="emoji-item">
         <h5
-          class="text-sm text-n-slate-12 font-medium leading-normal m-0 py-1 px-2 capitalize"
+          class="text-sm text-n-slate-12 font-medium leading-normal m-0 py-1 px-2"
         >
-          {{ selectedKey }}
+          {{ $t('EMOJI.RECENT') }}
+        </h5>
+        <div class="emoji--row">
+          <button
+            v-for="emoji in recentEmojis"
+            :key="emoji"
+            v-dompurify-html="emoji"
+            class="emoji--item"
+            @click="selectEmoji(emoji)"
+          />
+        </div>
+      </div>
+      <div v-else-if="hasNoSearch" ref="emojiItem" class="emoji-item">
+        <h5
+          class="text-sm text-n-slate-12 font-medium leading-normal m-0 py-1 px-2"
+        >
+          {{ categoryLabel(selectedCategory) }}
         </h5>
         <div class="emoji--row">
           <button
@@ -121,17 +190,33 @@ export default {
             v-dompurify-html="item.emoji"
             class="emoji--item"
             track-by="$index"
-            @click="onClick(item.emoji)"
+            @click="selectEmoji(item.emoji)"
           />
         </div>
       </div>
       <div v-else ref="emojiItem" class="emoji-item">
+        <div v-if="showRecentSection">
+          <h5
+            class="text-sm text-n-slate-12 font-medium leading-normal m-0 py-1 px-2"
+          >
+            {{ $t('EMOJI.RECENT') }}
+          </h5>
+          <div class="emoji--row">
+            <button
+              v-for="emoji in recentEmojis"
+              :key="emoji"
+              v-dompurify-html="emoji"
+              class="emoji--item"
+              @click="selectEmoji(emoji)"
+            />
+          </div>
+        </div>
         <div v-for="category in filterAllEmojisBySearch" :key="category.slug">
           <h5
             v-if="category.emojis.length > 0"
-            class="text-sm text-n-slate-12 font-medium leading-normal m-0 py-1 px-2 capitalize"
+            class="text-sm text-n-slate-12 font-medium leading-normal m-0 py-1 px-2"
           >
-            {{ category.name }}
+            {{ categoryLabel(category) }}
           </h5>
           <div v-if="category.emojis.length > 0" class="emoji--row">
             <button
@@ -140,7 +225,7 @@ export default {
               v-dompurify-html="item.emoji"
               class="emoji--item"
               track-by="$index"
-              @click="onClick(item.emoji)"
+              @click="selectEmoji(item.emoji)"
             />
           </div>
         </div>
@@ -168,9 +253,20 @@ export default {
             <button
               class="emoji--item"
               :class="{ active: selectedKey === 'Search' }"
+              :title="$t('EMOJI.PLACEHOLDER')"
               @click="changeCategory('Search')"
             >
-              <FluentIcon icon="search" size="16" class="text-n-slate-11" />
+              <span class="emoji--tab-icon" :class="searchTabIcon" />
+            </button>
+          </li>
+          <li v-if="hasRecentEmojis">
+            <button
+              class="emoji--item"
+              :class="{ active: isRecentSelected }"
+              :title="$t('EMOJI.RECENT')"
+              @click="changeCategory(recentKey)"
+            >
+              <span class="emoji--tab-icon" :class="recentTabIcon" />
             </button>
           </li>
           <li
@@ -179,11 +275,16 @@ export default {
             @click="changeCategory(category.name)"
           >
             <button
-              v-dompurify-html="getFirstEmojiByCategoryName(category.name)"
               class="emoji--item"
               :class="{ active: selectedKey === category.name }"
+              :title="categoryLabel(category)"
               @click="changeCategory(category.name)"
-            />
+            >
+              <span
+                class="emoji--tab-icon"
+                :class="categoryIcon(category.slug)"
+              />
+            </button>
           </li>
         </ul>
       </div>
@@ -244,11 +345,20 @@ export default {
     }
 
     .emoji--item {
-      @apply items-center flex text-sm;
+      @apply items-center flex justify-center text-sm;
 
       &:hover {
         @apply bg-n-slate-2;
       }
+    }
+
+    // Abas de categoria: ícones de traço no lugar do emoji representativo.
+    .emoji--tab-icon {
+      @apply text-base text-n-slate-11;
+    }
+
+    .active .emoji--tab-icon {
+      @apply text-n-slate-12;
     }
   }
 }
