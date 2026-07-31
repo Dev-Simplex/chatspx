@@ -160,8 +160,7 @@ class Captain::Conversation::ResponseBuilderJob < ApplicationJob
                  .where(message_type: :outgoing, sender_type: 'Captain::Assistant')
                  .where('messages.created_at > ?', 90.seconds.ago)
                  .joins(:attachments)
-                 .where(attachments: { file_type: [Attachment.file_types[:image], Attachment.file_types[:location]] })
-                 .exists?
+                 .exists?(attachments: { file_type: [Attachment.file_types[:image], Attachment.file_types[:location]] })
   end
 
   def determine_role(message)
@@ -249,7 +248,7 @@ class Captain::Conversation::ResponseBuilderJob < ApplicationJob
   # conversa (nao aplica o override de recepcao), entregando ao humano do time que ja atendia.
   # Cobre as 3 formas ja vistas em prod (18973 "vou passar", 19029 "vai retornar",
   # 19006 "o time retorna amanha") + variacoes comuns de promessa de retorno humano.
-  HUMANO = 'consultor|atendente|humano|equipe|time|colega|respons\\w+|algu[ée]m (do time|da equipe)'
+  HUMANO = 'consultor|atendente|humano|equipe|time|colega|respons\\w+|algu[ée]m (do time|da equipe)'.freeze
   HANDOFF_PROMISE_PATTERNS = [
     # 1a pessoa: "vou/vamos passar/chamar/encaminhar/transferir/pedir ... <humano>"
     /\b(vou|irei|vamos|já vou|vou já)\b.{0,40}\b(passar|chamar|encaminhar|acionar|transferir|pedir|avisar)\b.{0,40}\b(#{HUMANO})\b/i,

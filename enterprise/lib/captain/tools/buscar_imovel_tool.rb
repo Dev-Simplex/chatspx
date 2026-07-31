@@ -241,8 +241,8 @@ class Captain::Tools::BuscarImovelTool < Captain::Tools::BasePublicTool
   # Vista diz se o imóvel está EM condomínio (campo Condominio). Antes a IA chutava
   # "condomínio fechado" pelo nome do bairro ("Residencial X") e errava a regra de
   # visita/chave (conv 19092); com o dado real ela acerta. Só mostra quando o Vista responde.
-  def format_condominio(im)
-    case im['Condominio'].to_s.strip.downcase
+  def format_condominio(imovel)
+    case imovel['Condominio'].to_s.strip.downcase
     when 'sim' then ' [em condomínio fechado]'
     when 'nao', 'não' then ' [imóvel avulso, sem condomínio]'
     else ''
