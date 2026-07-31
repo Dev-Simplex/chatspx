@@ -174,6 +174,12 @@ vista:jsonb       pipe · etapa · veiculo_captacao · prefixo_nome_negocio
 O qualificador `valor_max` existe porque a carteira real exige: há corretor que atende um produto
 **apenas até certo valor**. A associação corretor↔produto carrega atributos; não é par simples.
 
+> ⚠️ **`valor_max` ainda NÃO é aplicado.** O filtro por **produto** está implementado; o teto de
+> valor depende de uma **fonte do valor do lead**, que hoje não é carimbada na conversa. O lugar
+> natural para carimbá-la é o `fetch_imovel` do fluxo Meta Lead Ads — **arquivo de outra frente**,
+> não tocado aqui. Enquanto não existir, o comportamento é o decidido: **valor desconhecido não
+> filtra** (§7.1). Fechar isso é um passo próprio, alinhado com a frente dona do arquivo.
+
 ### 5.4. `distribuicao_logs` — o livro-razão da designação
 
 É aqui que a designação vive (âncora 2). Campos **novos**:

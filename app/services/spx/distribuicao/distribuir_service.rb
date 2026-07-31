@@ -3,6 +3,8 @@
 # NO-OP → a conversa segue no fluxo atual ("Aguardando atendimento", pull do dev).
 #
 # Ordem de decisão (docs/MOTOR-DISTRIBUICAO.md §10.3):
+#   0. pool         — filtrado por quem atende o PRODUTO do lead (SPEC-RODIZIO §4 e §7.1).
+#                     Sem produto identificado, ou entrada de pool sem `produtos`, nada é filtrado.
 #   1. continuidade — contato já atendido por um consultor do pool nos últimos N dias → volta pra ele
 #   2. rodízio      — senão, próximo do pool DEPOIS do último (ponteiro em distribuicao_states), pulando cap cheio
 #   3. sem_pool     — pool todo indisponível → NÃO atribui (fica aguardando), registra o motivo
@@ -53,14 +55,43 @@ module Spx
         Result.new(assigned: false, user_id: nil, motivo: 'sem_pool')
       end
 
-      # Interseção pool-configurado ∩ membros atuais do time, PRESERVANDO a ordem do
-      # pool (o rodízio anda nessa ordem). cap é aplicado só na hora de escolher.
+      # Interseção pool-configurado ∩ quem atende o PRODUTO do lead ∩ membros atuais do
+      # time, PRESERVANDO a ordem do pool (o rodízio anda nessa ordem). cap é aplicado só
+      # na hora de escolher.
       def build_pool(policy)
         member_ids = @team.members.pluck(:id).to_set
         policy.pool_entries
+              .select { |e| atende_produto?(e) }
               .filter_map { |e| e['user_id']&.to_i }
               .select { |uid| member_ids.include?(uid) }
               .uniq
+      end
+
+      # Entrada SEM `produtos` atende TUDO. É o que mantém as políticas já configuradas
+      # decidindo exatamente como decidiam antes deste filtro existir — e é também o
+      # comportamento certo pra quem é generalista.
+      def atende_produto?(entry)
+        return true if produto.blank?
+
+        lista = entry['produtos']
+        return true if lista.blank?
+
+        Array(lista).any? { |p| p['produto'].to_s == produto }
+      end
+
+      # Memoizado com `defined?` porque nil é resposta legítima (lead sem produto
+      # identificado) e não pode ser reconsultado a cada entrada do pool.
+      #
+      # Rescue próprio, e não o do #call: lá em cima uma exceção vira no-op, ou seja,
+      # um erro resolvendo produto DESLIGARIA a distribuição do time inteiro em silêncio.
+      # Aqui ele degrada pro comportamento anterior (sem filtro), que é o certo.
+      def produto
+        return @produto if defined?(@produto)
+
+        @produto = ResolverProdutoService.new(@conversation).call
+      rescue StandardError => e
+        Rails.logger.warn("[Distribuicao] produto conv=#{@conversation&.id}: #{e.message}")
+        @produto = nil
       end
 
       def pick(policy, pool_ids)
@@ -124,7 +155,7 @@ module Spx
       def registrar_log(user_id, motivo, candidatos)
         Log.create!(account_id: @conversation.account_id, conversation_id: @conversation.id,
                     chosen_user_id: user_id, motivo: motivo, candidatos: candidatos,
-                    created_at: Time.current)
+                    produto_slug: produto, created_at: Time.current)
       rescue StandardError => e
         Rails.logger.warn("[Distribuicao] log conv=#{@conversation&.id}: #{e.message}")
       end
