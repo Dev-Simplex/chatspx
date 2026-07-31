@@ -1,6 +1,7 @@
 <script setup>
 import { ref, computed, nextTick } from 'vue';
 import Avatar from 'dashboard/components-next/avatar/Avatar.vue';
+import { getRecentEmojis, addRecentEmoji } from 'shared/helpers/recentEmojis';
 
 const props = defineProps({
   message: { type: Object, required: true },
@@ -17,6 +18,7 @@ const emit = defineEmits([
 ]);
 
 const QUICK_EMOJIS = ['👍', '❤️', '😂', '🎉', '✅', '🙏'];
+const REACTION_SLOTS = QUICK_EMOJIS.length;
 const IMAGE_RE = /\.(png|jpe?g|gif|webp|bmp|svg|avif)$/i;
 const AUDIO_RE = /\.(mp3|wav|ogg|oga|m4a|aac|webm|opus)$/i;
 const isImage = att => IMAGE_RE.test(att?.filename || '');
@@ -56,13 +58,25 @@ const onReply = () => {
   emit('reply', props.message);
 };
 
+// Os emojis oferecidos na barra de reação: seus recentes primeiro, completando
+// com os padrões até encher os slots (mantém a barra sempre do mesmo tamanho).
+const recentEmojis = ref(getRecentEmojis());
+const reactionEmojis = computed(() => {
+  const recent = recentEmojis.value.slice(0, REACTION_SLOTS);
+  const fallback = QUICK_EMOJIS.filter(emoji => !recent.includes(emoji));
+  return [...recent, ...fallback].slice(0, REACTION_SLOTS);
+});
+
 const toggleReactionPicker = () => {
   showMenu.value = false;
   confirmDelete.value = false;
+  // Relê ao abrir: o emoji pode ter sido usado no composer desde a última vez.
+  if (!showReactionPicker.value) recentEmojis.value = getRecentEmojis();
   showReactionPicker.value = !showReactionPicker.value;
 };
 const react = emoji => {
   closeAll();
+  recentEmojis.value = addRecentEmoji(emoji);
   emit('react', { messageId: props.message.id, emoji });
 };
 
@@ -241,7 +255,7 @@ const iReacted = emoji =>
           :class="message.mine ? 'right-0' : 'left-0'"
         >
           <button
-            v-for="e in QUICK_EMOJIS"
+            v-for="e in reactionEmojis"
             :key="e"
             type="button"
             class="text-base leading-none transition-transform hover:scale-125"

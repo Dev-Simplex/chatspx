@@ -104,7 +104,8 @@ module Concerns::Toolable
     # strict: false SÓ aqui. A entrada (endpoint_url/request_template) é nossa e tem que
     # falhar alto se referenciar variável inexistente. Já a resposta vem da API externa,
     # que omite campo conforme o caso (registro sem telefone, lista vazia): em modo strict
-    # o Liquid levanta e a tool inteira morre, quando o certo é renderizar o resto.
+    # o Liquid levanta e a tool inteira morre, quando o certo é renderizar o resto e deixar
+    # o campo ausente vazio.
     render_template(response_template, { 'response' => response_data, 'r' => response_data }, strict: false)
   end
 

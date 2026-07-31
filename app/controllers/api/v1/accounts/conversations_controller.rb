@@ -128,6 +128,11 @@ class Api::V1::Accounts::ConversationsController < Api::V1::Accounts::BaseContro
   end
 
   def update_last_seen
+    # Numa conversa que tem dono, só o dono limpa o "não lida" — ver
+    # `may_clear_unread_marker?`. Sem isso, quem só passa o olho apaga o
+    # marcador de quem precisa responder.
+    return unless may_clear_unread_marker?
+
     # High-traffic accounts generate excessive DB writes when agents frequently switch between conversations.
     # Throttle last_seen updates to once per hour when there are no unread messages to reduce DB load.
     # Always update immediately if there are unread messages to maintain accurate read/unread state.
@@ -256,6 +261,18 @@ class Api::V1::Accounts::ConversationsController < Api::V1::Accounts::BaseContro
 
   def assignee?
     @conversation.assignee_id? && Current.user == @conversation.assignee
+  end
+
+  # `agent_last_seen_at` é global por conversa: quem abre limpa o "não lida" de
+  # TODO mundo. Numa conversa atribuída a um humano isso fazia observador
+  # (supervisor, outro corretor) apagar o marcador de quem era responsável, e
+  # atendimento passava batido. Regra: só o atribuído limpa.
+  #
+  # Sem atribuído — incluindo quando quem responde é a IA, que ocupa
+  # `assignee_agent_bot_id` e deixa `assignee_id` nulo — segue o comportamento
+  # padrão: quem abrir, leu.
+  def may_clear_unread_marker?
+    @conversation.assignee_id.blank? || assignee?
   end
 
   # `authorize_team_access` e `team_access_exempt?` vêm do ConversationTeamAccessConcern.

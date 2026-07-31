@@ -7,6 +7,15 @@
       "404": "There are no active conversations in this group."
     },
     "FAILED_TO_SEND": "Failed to send",
+    "SEND_ERROR": {
+      "META_SOURCE": "WhatsApp (Meta) rejected this message",
+      "NO_WHATSAPP": "This number most likely has no WhatsApp account. Try reaching out by phone.",
+      "DELIVERY_BLOCKED": "Meta held back the delivery. The number is fine — try again later or call.",
+      "ACCOUNT": "Problem with the WhatsApp account itself (block, billing or limit). Let support know.",
+      "WINDOW_EXPIRED": "More than 24 hours have passed since the customer's last message. Only an approved template can be sent now.",
+      "TEMPLATE": "Meta rejected the template (name, language or variables). Check the template.",
+      "CODE": "Code {code}"
+    },
     "TAB_HEADING": "Conversations",
     "MENTION_HEADING": "Mentions",
     "UNATTENDED_HEADING": "Unanswered",

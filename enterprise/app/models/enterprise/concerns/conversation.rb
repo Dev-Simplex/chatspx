@@ -73,9 +73,8 @@ module Enterprise::Concerns::Conversation
   end
 
   def clear_awaiting_closure_marker
-    update_columns(custom_attributes: (custom_attributes || {}).except( # rubocop:disable Rails/SkipsModelValidations
-                     'aguardando_encerramento_desde', 'encerramento_avisado_em', 'encerramento_classe'
-                   ))
+    keys = %w[aguardando_encerramento_desde encerramento_avisado_em encerramento_classe]
+    update_columns(custom_attributes: (custom_attributes || {}).except(*keys)) # rubocop:disable Rails/SkipsModelValidations
   rescue StandardError => e
     Rails.logger.warn("[Captain] limpa aguardando_encerramento conv=#{id}: #{e.message}")
   end

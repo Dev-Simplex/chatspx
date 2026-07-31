@@ -1,7 +1,7 @@
 <script>
 import { mapGetters } from 'vuex';
 import { useAlert } from 'dashboard/composables';
-import validations, { getLabelTitleErrorMessage } from './validations';
+import validations, { getLabelTitleError } from './validations';
 import { getRandomColor } from 'dashboard/helper/labelColor';
 import { useVuelidate } from '@vuelidate/core';
 
@@ -39,8 +39,8 @@ export default {
       uiFlags: 'labels/getUIFlags',
     }),
     labelTitleErrorMessage() {
-      const errorMessage = getLabelTitleErrorMessage(this.v$);
-      return this.$t(errorMessage);
+      const { key, values } = getLabelTitleError(this.v$, this.title);
+      return key ? this.$t(key, values) : '';
     },
     teamErrorMessage() {
       return this.v$.teamId.$error

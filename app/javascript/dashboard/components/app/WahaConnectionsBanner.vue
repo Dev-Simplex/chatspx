@@ -3,6 +3,7 @@ import { ref, onMounted, onUnmounted, computed, watch } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import { useI18n } from 'vue-i18n';
 import { useAccount } from 'dashboard/composables/useAccount';
+import { useAdmin } from 'dashboard/composables/useAdmin';
 import wahaConnectionsAPI from 'dashboard/api/wahaConnections';
 import { LocalStorage } from 'shared/helpers/localStorage';
 
@@ -10,6 +11,9 @@ const { t } = useI18n();
 const router = useRouter();
 const route = useRoute();
 const { accountId } = useAccount();
+// A policy de waha_connections exige administrador: sem esse guard todo agente
+// logado dispara um 401 a cada ciclo de polling (engolido pelo catch de loadConnections).
+const { isAdmin } = useAdmin();
 
 const connections = ref([]);
 const pollingInterval = ref(null);
@@ -45,6 +49,7 @@ const hasProblematicConnections = computed(() => {
 
 const shouldShowBanner = computed(() => {
   return (
+    isAdmin.value &&
     hasProblematicConnections.value &&
     !userDismissedBanner.value &&
     isValidAccountId(accountId.value)
@@ -87,6 +92,10 @@ const loadConnections = async () => {
     return;
   }
 
+  if (!isAdmin.value) {
+    return;
+  }
+
   if (!isValidAccountId(accountId.value)) {
     return;
   }
@@ -119,6 +128,10 @@ const loadConnections = async () => {
 };
 
 const startPolling = () => {
+  if (!isAdmin.value) {
+    return;
+  }
+
   if (!shouldPollOnCurrentRoute.value) {
     return;
   }

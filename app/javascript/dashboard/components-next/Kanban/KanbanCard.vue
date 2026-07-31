@@ -138,7 +138,8 @@ const lastMessage = computed(() => {
 
   if (
     isMessageRestricted(message, inbox.value) ||
-    isAgentMessageRestricted(message, inbox.value)
+    // 3º argumento = a conversa (time que isenta o supervisor).
+    isAgentMessageRestricted(message, inbox.value, props.conversation)
   )
     return '🔒';
 

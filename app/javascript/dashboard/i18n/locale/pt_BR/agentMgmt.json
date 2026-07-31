@@ -1,13 +1,16 @@
 {
   "AGENT_MGMT": {
     "HEADER": "Agentes",
+    "HEADER_SUPERVISOR": "Agentes dos meus times",
     "HEADER_BTN_TXT": "Adicionar Agente",
     "LOADING": "Buscando lista de agente",
     "DESCRIPTION": "Um agente é um membro de seu time de atendimento ao cliente que pode visualizar e responder às mensagens de usuários. A lista abaixo mostra todos os agentes de sua conta.",
+    "DESCRIPTION_SUPERVISOR": "Estes são os agentes dos times que você supervisiona. Você pode corrigir o nome deles; convidar, excluir, trocar função ou disponibilidade continua sendo ação de administrador.",
     "LEARN_MORE": "Saiba mais sobre as funções do usuário",
     "AGENT_TYPES": {
       "ADMINISTRATOR": "Administrador",
-      "AGENT": "Agente"
+      "AGENT": "Agente",
+      "SUPERVISOR": "Supervisor"
     },
     "AI_AGENTS": {
       "TITLE": "Agentes IA",
@@ -19,6 +22,7 @@
     "COUNT": "{n} agente | {n} agentes",
     "LIST": {
       "404": "Não existem agentes associados a esta conta",
+      "404_SUPERVISOR": "Não há agentes nos times que você supervisiona",
       "TITLE": "Gerenciar agentes de seu time",
       "DESC": "Você pode adicionar e/ou remover agentes de um time.",
       "NAME": "Nome",
@@ -27,6 +31,7 @@
       "ACTIONS": "Ações",
       "VERIFIED": "Verificado",
       "VERIFICATION_PENDING": "Verificação Pendente",
+      "SUPERVISOR": "Supervisor",
       "AVAILABLE_CUSTOM_ROLE": "Permissões de função personalizada disponíveis"
     },
     "ADD": {
@@ -88,6 +93,12 @@
           "LABEL": "Disponibilidade",
           "PLACEHOLDER": "Por favor, selecione a disponibilidade do agente",
           "ERROR": "A disponibilidade é necessária"
+        },
+        "SUPERVISED_TEAMS": {
+          "LABEL": "Times que ele supervisiona",
+          "DESCRIPTION": "O supervisor vê todas as conversas dos times marcados, inclusive as atribuídas a outros agentes e as de caixas de entrada das quais ele não é membro. Supervisionar não é o mesmo que ser membro do time.",
+          "EMPTY": "Ainda não existem times nesta conta.",
+          "REQUIRED": "Marque ao menos um time — supervisor sem time é igual a um agente comum."
         },
         "SUBMIT": "Editar agente"
       },

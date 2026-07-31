@@ -4,8 +4,12 @@ import { useStore } from 'dashboard/composables/store';
 export function useTeamIsolation() {
   const store = useStore();
 
-  const myTeamIds = computed(() => {
-    const teams = store.getters['teams/getMyTeams'] || [];
+  // Membro ∪ supervisionado (getter da F4). Supervisor de time enxerga as
+  // mensagens daquele time sem ser membro dele — é exatamente o que o backend
+  // já entrega. Sem ninguém supervisionando, getVisibleTeams devolve o mesmo
+  // conjunto de getMyTeams e o comportamento fica idêntico ao de antes.
+  const visibleTeamIds = computed(() => {
+    const teams = store.getters['teams/getVisibleTeams'] || [];
     return teams.map(t => t.id);
   });
 
@@ -26,13 +30,13 @@ export function useTeamIsolation() {
     if (!teamId) return false;
     if (message?.message_type === 2 || message?.messageType === 2) return false;
     if (isAdmin.value) return false;
-    return !myTeamIds.value.includes(teamId);
+    return !visibleTeamIds.value.includes(teamId);
   };
 
   const getRestrictedPreview = () => '🔒';
 
   return {
-    myTeamIds,
+    visibleTeamIds,
     isAdmin,
     isMessageRestricted,
     getRestrictedPreview,

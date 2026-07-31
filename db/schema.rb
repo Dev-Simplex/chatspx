@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[7.1].define(version: 2026_07_22_120000) do
+ActiveRecord::Schema[7.1].define(version: 2026_07_29_120000) do
   # These extensions should be enabled to support this database
   enable_extension "pg_stat_statements"
   enable_extension "pg_trgm"
@@ -1946,6 +1946,15 @@ ActiveRecord::Schema[7.1].define(version: 2026_07_22_120000) do
     t.index ["user_id"], name: "index_team_members_on_user_id"
   end
 
+  create_table "team_supervisors", force: :cascade do |t|
+    t.bigint "team_id", null: false
+    t.bigint "user_id", null: false
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["team_id", "user_id"], name: "index_team_supervisors_on_team_id_and_user_id", unique: true
+    t.index ["user_id"], name: "index_team_supervisors_on_user_id"
+  end
+
   create_table "teams", force: :cascade do |t|
     t.string "name", null: false
     t.text "description"
@@ -2119,6 +2128,8 @@ ActiveRecord::Schema[7.1].define(version: 2026_07_22_120000) do
   add_foreign_key "scheduled_messages", "messages"
   add_foreign_key "scheduled_messages", "users", column: "scheduled_by_id"
   add_foreign_key "sla_events", "conversations", on_delete: :cascade
+  add_foreign_key "team_supervisors", "teams", on_delete: :cascade
+  add_foreign_key "team_supervisors", "users", on_delete: :cascade
   create_trigger("accounts_after_insert_row_tr", :generated => true, :compatibility => 1).
       on("accounts").
       after(:insert).

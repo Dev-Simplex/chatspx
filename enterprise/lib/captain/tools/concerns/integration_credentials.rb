@@ -64,6 +64,23 @@ module Captain
           DEFAULT_SITE_DOMAIN
       end
 
+      # API do site do cliente que resolve código do imóvel -> URL da página.
+      # Por padrão mora no próprio domínio público, então configurar `site_domain`
+      # já basta; `site_api_url` existe pra apontar pra outro host quando preciso.
+      def site_api_url
+        integration_setting('vista', 'site_api_url') ||
+          custom_attribute('site_api_url') ||
+          ENV['SITE_API_URL'].presence ||
+          "https://www.#{site_domain}/functions/v1/api"
+      end
+
+      # Sem chave, o link cai no formato montado localmente (ver VistaImovelUrl).
+      def site_api_key
+        integration_setting('vista', 'site_api_key') ||
+          custom_attribute('site_api_key') ||
+          ENV['SITE_API_KEY'].presence
+      end
+
       private
 
       # The account that owns the running tool (assistant's account).

@@ -140,6 +140,7 @@ const buildStore = ({
         getters: {
           getTeams: () => [],
           getMyTeams: () => [],
+          getVisibleTeams: () => [],
           getTeam: () => () => ({}),
         },
       },

@@ -14,7 +14,7 @@ import { useSidebarKeyboardShortcuts } from './useSidebarKeyboardShortcuts';
 import { vOnClickOutside } from '@vueuse/components';
 
 import { FEATURE_FLAGS } from 'dashboard/featureFlags';
-import { useWindowSize } from '@vueuse/core';
+import { useWindowSize, onKeyStroke } from '@vueuse/core';
 
 import SidebarGroup from './SidebarGroup.vue';
 import SidebarProfileMenu from './SidebarProfileMenu.vue';
@@ -233,12 +233,18 @@ const isEffectivelyCollapsed = computed(() => !isMobile.value);
 
 const isResizing = ref(false);
 
+// Modo "reordenar barra lateral": ligado pelo item do menu de perfil. Enquanto
+// ativo, os ícones do rail ficam arrastáveis (jiggle) e param de navegar. Vai
+// pelo contexto (como isCollapsed) porque o SidebarGroup lê estado por injeção.
+const reorderMode = ref(false);
+
 provideSidebarContext({
   expandedItem,
   setExpandedItem,
   isCollapsed: isEffectivelyCollapsed,
   sidebarWidth,
   isResizing,
+  reorderMode,
 });
 
 const inboxes = useMapGetter('inboxes/getInboxes');
@@ -246,7 +252,9 @@ const inboxes = useMapGetter('inboxes/getInboxes');
 // aparece quando há algum — sem poluir a sidebar de quem não usa o modo).
 const takeoverRequestCount = useMapGetter('takeoverRequests/getIncomingCount');
 const labels = useMapGetter('labels/getLabelsOnSidebar');
-const teams = useMapGetter('teams/getMyTeams');
+// Filtro de time da lista de conversas: membro ∪ supervisionado. É o único
+// consumidor de `teams` aqui, então nada de etiquetas/respostas "de-time" muda.
+const teams = useMapGetter('teams/getVisibleTeams');
 const conversationStats = useMapGetter('conversationStats/getStats');
 const contactCustomViews = useMapGetter('customViews/getContactCustomViews');
 const conversationCustomViews = useMapGetter(
@@ -568,7 +576,12 @@ const menuItems = computed(() => {
       icon: lordIcon('captain', 'i-woot-captain'),
       label: t('SIDEBAR.CAPTAIN'),
       to: accountScopedRoute('agents_dashboard'),
-      activeOn: ['agents_dashboard', 'agents_settings', 'agents_tools', 'agents_evaluation'],
+      activeOn: [
+        'agents_dashboard',
+        'agents_settings',
+        'agents_tools',
+        'agents_evaluation',
+      ],
     },
     ...(hasInternalChat.value
       ? [
@@ -720,28 +733,28 @@ const menuItems = computed(() => {
         },
       ],
     },
-    {
-      name: 'Campaigns',
-      label: t('SIDEBAR.CAMPAIGNS'),
-      icon: lordIcon('megaphone', 'i-lucide-megaphone'),
-      children: [
-        {
-          name: 'Live chat',
-          label: t('SIDEBAR.LIVE_CHAT'),
-          to: accountScopedRoute('campaigns_livechat_index'),
-        },
-        {
-          name: 'SMS',
-          label: t('SIDEBAR.SMS'),
-          to: accountScopedRoute('campaigns_sms_index'),
-        },
-        {
-          name: 'WhatsApp',
-          label: t('SIDEBAR.WHATSAPP'),
-          to: accountScopedRoute('campaigns_whatsapp_index'),
-        },
-      ],
-    },
+    // {
+    //   name: 'Campaigns',
+    //   label: t('SIDEBAR.CAMPAIGNS'),
+    //   icon: lordIcon('megaphone', 'i-lucide-megaphone'),
+    //   children: [
+    //     {
+    //       name: 'Live chat',
+    //       label: t('SIDEBAR.LIVE_CHAT'),
+    //       to: accountScopedRoute('campaigns_livechat_index'),
+    //     },
+    //     {
+    //       name: 'SMS',
+    //       label: t('SIDEBAR.SMS'),
+    //       to: accountScopedRoute('campaigns_sms_index'),
+    //     },
+    //     {
+    //       name: 'WhatsApp',
+    //       label: t('SIDEBAR.WHATSAPP'),
+    //       to: accountScopedRoute('campaigns_whatsapp_index'),
+    //     },
+    //   ],
+    // },
     helpCenterMenuItem.value,
     {
       name: 'Settings',
@@ -947,6 +960,25 @@ const onSidebarReorder = () => {
   const newOrder = liveMenuItems.value.map(item => item.name);
   updateUISettings({ sidebar_order: newOrder });
 };
+
+const enterReorderMode = () => {
+  reorderMode.value = true;
+};
+
+const exitReorderMode = () => {
+  reorderMode.value = false;
+};
+
+// Restaura a ordem padrão: zera sidebar_order — orderedMenuItems cai de volta na
+// ordem natural de menuItems e liveMenuItems re-sincroniza pelo watch existente.
+const resetSidebarOrder = () => {
+  updateUISettings({ sidebar_order: [] });
+};
+
+// Esc sai do modo reordenar.
+onKeyStroke('Escape', () => {
+  if (reorderMode.value) exitReorderMode();
+});
 </script>
 
 <template>
@@ -1054,8 +1086,8 @@ const onSidebarReorder = () => {
         tag="ul"
         item-key="name"
         :animation="150"
-        :delay="120"
-        delay-on-touch-only
+        :disabled="!reorderMode"
+        :delay="0"
         class="flex flex-col gap-1 m-0 list-none min-w-0"
         :class="{ 'items-center': isEffectivelyCollapsed }"
         ghost-class="opacity-50"
@@ -1093,8 +1125,41 @@ const onSidebarReorder = () => {
         <SidebarProfileMenu
           :is-collapsed="isEffectivelyCollapsed"
           @open-key-shortcut-modal="emit('openKeyShortcutModal')"
+          @enter-reorder-mode="enterReorderMode"
         />
       </div>
     </section>
+
+    <!-- Barra flutuante do modo reordenar. Teleportada pro body porque o <aside>
+         tem transform (translate-x), o que quebraria position:fixed relativo. -->
+    <Teleport to="body">
+      <div
+        v-if="reorderMode"
+        class="fixed bottom-6 left-1/2 z-[100] flex -translate-x-1/2 items-center gap-1.5 p-1.5 max-w-[calc(100vw-1rem)] rounded-full border shadow-lg whitespace-nowrap bg-n-background border-n-weak text-n-slate-12"
+      >
+        <span
+          class="flex flex-shrink-0 gap-2 items-center text-sm ltr:pl-2.5 rtl:pr-2.5 text-n-slate-11"
+        >
+          <span class="flex-shrink-0 size-4 i-lucide-arrow-up-down" />
+          {{ t('SIDEBAR.REORDER.HINT') }}
+        </span>
+        <button
+          type="button"
+          class="flex flex-shrink-0 gap-1.5 items-center py-1.5 ltr:pl-2.5 ltr:pr-3 rtl:pr-2.5 rtl:pl-3 text-sm rounded-full transition-colors text-n-slate-11 hover:bg-n-alpha-2"
+          @click="resetSidebarOrder"
+        >
+          <span class="flex-shrink-0 size-4 i-lucide-rotate-ccw" />
+          {{ t('SIDEBAR.REORDER.RESET') }}
+        </button>
+        <button
+          type="button"
+          class="flex flex-shrink-0 gap-1.5 items-center py-1.5 ltr:pl-3 ltr:pr-4 rtl:pr-3 rtl:pl-4 text-sm font-medium text-white rounded-full transition-colors bg-n-brand hover:opacity-90"
+          @click="exitReorderMode"
+        >
+          <span class="flex-shrink-0 size-4 i-lucide-check" />
+          {{ t('SIDEBAR.REORDER.DONE') }}
+        </button>
+      </div>
+    </Teleport>
   </aside>
 </template>

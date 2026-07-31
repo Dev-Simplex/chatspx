@@ -61,7 +61,7 @@ class Captain::Conversation::ResponseBuilderJob < ApplicationJob
       Rails.logger.info("[CAPTAIN][ResponseBuilderJob] Incrementing response usage for #{account.id}")
       account.increment_response_usage
       ensure_handoff_if_promised
-      auto_schedule_followup if @did_send
+      auto_schedule_followup if @did_send || sent_media_this_turn?
     end
   end
 
@@ -109,7 +109,16 @@ class Captain::Conversation::ResponseBuilderJob < ApplicationJob
     attrs = @conversation.custom_attributes || {}
     return if attrs['followup_token'].blank? && attrs['followup_count'].to_i.zero?
 
-    @conversation.update!(custom_attributes: attrs.merge('followup_token' => nil, 'followup_count' => 0, 'followup_status' => nil))
+    # Compromisso combinado (followup_motivo, escrito só pela ProgramarFollowupTool) SOBREVIVE à
+    # resposta do cliente: fechar a conversa socialmente não desmarca o que ficou combinado. Esta
+    # era a camada mais letal da conv 20320 — o token morria aqui, a cada mensagem do cliente e
+    # antes de o FollowupJob sequer rodar. Sem compromisso, a cutucada preventiva zera mesmo.
+    zerado = if attrs['followup_motivo'].present?
+               { 'followup_count' => 0 }
+             else
+               { 'followup_token' => nil, 'followup_count' => 0, 'followup_status' => nil }
+             end
+    @conversation.update!(custom_attributes: attrs.merge(zerado))
   rescue StandardError => e
     Rails.logger.warn("[ResponseBuilderJob] reset_followup: #{e.message}")
   end
@@ -124,7 +133,7 @@ class Captain::Conversation::ResponseBuilderJob < ApplicationJob
     return unless auto_followup_enabled?
 
     attrs = @conversation.reload.custom_attributes || {}
-    return if attrs['aguardando_humano_desde'].present?
+    return if ja_tem_destino?(attrs)
     return if @conversation.resolved?
     return unless captain_can_respond?
     return if attrs['followup_count'].to_i > Captain::Conversation::FollowupJob::MAX_FOLLOWUPS
@@ -140,6 +149,14 @@ class Captain::Conversation::ResponseBuilderJob < ApplicationJob
     Rails.logger.warn("[ResponseBuilderJob] auto_followup: #{e.message}")
   end
 
+  # A conversa já tem destino definido, então não se agenda cutucada preventiva: ou está com um
+  # humano (aguardando_humano_desde), ou existe um compromisso combinado com hora marcada — e o
+  # token é um só, então a preventiva roubaria o slot dele. Cumprido o compromisso, o motivo é
+  # consumido e o auto volta; se ele morrer sem cumprir, um novo programar_followup rearma.
+  def ja_tem_destino?(attrs)
+    attrs['aguardando_humano_desde'].present? || attrs['followup_motivo'].present?
+  end
+
   # Opt-in implícito: só agentes que já têm a ferramenta de follow-up. Desligável por
   # conta/agente via behavior['followup']['auto'] = false.
   def auto_followup_enabled?
@@ -150,6 +167,17 @@ class Captain::Conversation::ResponseBuilderJob < ApplicationJob
 
   def followup_auto_minutes
     (@assistant.behavior.dig('followup', 'auto_minutes').presence || 120).to_i.clamp(2, 2880)
+  end
+
+  # Turno que só enviou FOTO/localização (via tool) não seta @did_send, então o lead ficava
+  # sem follow-up mesmo esperando reagir às fotos (conv 19126). Sinal robusto (não depende de
+  # flag da tool): a IA criou mensagem com anexo image/location neste turno?
+  def sent_media_this_turn?
+    @conversation.messages
+                 .where(message_type: :outgoing, sender_type: 'Captain::Assistant')
+                 .where('messages.created_at > ?', 90.seconds.ago)
+                 .joins(:attachments)
+                 .exists?(attachments: { file_type: [Attachment.file_types[:image], Attachment.file_types[:location]] })
   end
 
   def determine_role(message)
@@ -235,44 +263,109 @@ class Captain::Conversation::ResponseBuilderJob < ApplicationJob
   # handoff e nenhum disparou, dispara a mecanica AQUI — sem reenviar o template (o modelo ja avisou).
   # Deteccao conservadora; loga 'handoff_auto_fired' pra medir e afinar. Mantem o time atual da
   # conversa (nao aplica o override de recepcao), entregando ao humano do time que ja atendia.
-  HANDOFF_PROMISE_PATTERNS = [
-    /\b(vou|irei|vamos|já vou)\b.{0,30}\b(passar|chamar|encaminhar|acionar|transferir|pedir)\b.{0,40}\b(consultor|time|atendente|humano|equipe|colega)\b/i,
-    /\b(consultor|atendente|humano|equipe|algu[ée]m do time)\b.{0,30}\bvai\b.{0,25}\b(assumir|continuar|dar sequ[êe]ncia|te atender|te ajudar)\b/i
+  # Cobre as 3 formas ja vistas em prod (18973 "vou passar", 19029 "vai retornar",
+  # 19006 "o time retorna amanha") + variacoes comuns de promessa de retorno humano.
+  # Sufixo \w* nos cargos porque a promessa vem no feminino/plural com a mesma frequencia
+  # ("a corretora te chama", "os vendedores retornam") e o \b cru so casava o masculino
+  # singular. 'corretor' e a palavra natural no vertical imobiliario — sem ela o safety-net
+  # nao via a forma mais comum de promessa da Tozi.
+  HUMANO = ('consultor\\w*|corretor\\w*|vendedor\\w*|gerente\\w*|especialista\\w*|atendente\\w*|' \
+    'humano|equipe|time|colega|respons\\w+|algu[ée]m (do time|da equipe)').freeze
+  # Promessa em 1a PESSOA — quem fala e a IA e o destinatario e outra pessoa, entao vale sempre.
+  PROMESSA_PRIMEIRA_PESSOA = [
+    # com auxiliar: "vou/vamos passar/chamar/encaminhar/transferir/pedir ... <humano>"
+    /\b(vou|irei|vamos|já vou|vou já)\b.{0,40}\b(passar|chamar|encaminhar|acionar|transferir|pedir|avisar)\b.{0,40}\b(#{HUMANO})\b/i,
+    # no PRESENTE: "ja encaminho pro time", "aciono a corretora". O padrao com auxiliar nao via
+    # essa forma — a mais curta e das mais comuns. 'chamo' pede guarda: "me chamo Sofia" e
+    # apresentacao, nao promessa, e dispararia handoff na abertura de toda conversa.
+    /\b(encaminho|transfiro|aciono|repasso|solicito|(?<!me )chamo)\b.{0,40}\b(#{HUMANO})\b/i,
+    # 'passo' e tambem substantivo ("o proximo passo"), entao so conta com preposicao na frente.
+    /\bpasso\b.{0,25}\b(pro|pra|para|ao)\b.{0,25}\b(#{HUMANO})\b/i
   ].freeze
+
+  # Promessa em 3a PESSOA: "<humano> ... retorna/entra em contato/te chama/assume/te atende".
+  PROMESSA_TERCEIRA_PESSOA = [
+    /\b(#{HUMANO})\b.{0,45}\b(retorn\w+|entr\w+ em contato|(te )?cham\w+|falar? com voc[êe]|assum\w+|continu\w+|dar sequ[êe]ncia|d[áa]\w* as informa\w+|te atend\w+|te ajud\w+)\b/i,
+    # forma direta "o time/consultor (te) retorna [amanha/mais tarde]"
+    /\b(o time|o consultor|a equipe|um consultor|um atendente)\b.{0,30}\bretorn\w+/i
+  ].freeze
+
+  # A agente se apresenta como consultora ("sou a consultora que vai te atender", "aqui e a Sofia,
+  # consultora da casa"). Em 3a pessoa isso e indistinguivel de promessa de humano — mas fala DELA.
+  # Sem este veto, o safety-net dispararia handoff na abertura de toda conversa e afogaria a fila.
+  APRESENTACAO = /\b(me chamo|meu nome|sou a |sou o |sou um|sou sua|sou seu|sou consultor|aqui (é|e) a |aqui (é|e) o )/i
 
   def promised_handoff?(text)
     return false if text.blank?
 
-    HANDOFF_PROMISE_PATTERNS.any? { |re| re.match?(text.to_s) }
+    texto = text.to_s
+    return true if PROMESSA_PRIMEIRA_PESSOA.any? { |re| re.match?(texto) }
+
+    # 3a pessoa avalia FRASE A FRASE pra poder descartar so a que e apresentacao: assim
+    # "Sou a Sofia. O corretor te chama amanha." continua acionando pela segunda frase.
+    texto.split(/(?<=[.!?\n])/).any? do |frase|
+      !APRESENTACAO.match?(frase) && PROMESSA_TERCEIRA_PESSOA.any? { |re| re.match?(frase) }
+    end
   end
 
   def ensure_handoff_if_promised
     return unless promised_handoff?(@response['response'])
     return unless captain_can_respond?
+    # Ja aguardando humano (o agente chamou o tool NESTE turno e tambem escreveu a promessa):
+    # nada a fazer, e sair antes do log mantem a metrica 'handoff_auto_fired' honesta —
+    # ela mede so os casos em que o agente PROMETEU sem acionar.
+    return if @conversation.custom_attributes&.dig('aguardando_humano_desde').present?
 
     log_behavior_event('handoff_auto_fired', { snippet: @response['response'].to_s[0, 160] })
-    I18n.with_locale(@assistant.account.locale) { @conversation.bot_handoff! }
+    # Pelo HumanHandoffService, nao por bot_handoff! puro: o service e quem registra o dossie,
+    # marca `aguardando_humano_desde` e chama o Spx::Distribuicao::DistribuirService (rodizio).
+    # Com bot_handoff! direto, todo handoff que caia neste safety-net pulava o rodizio inteiro —
+    # o lead ouvia que um humano assume e nao entrava na fila de ninguem.
+    # team_id = o time ATUAL da conversa (mantem o comportamento original de entregar ao time que
+    # ja atendia); sem time, o service cai no time padrao do proprio agente.
+    I18n.with_locale(@assistant.account.locale) do
+      Captain::Conversation::HumanHandoffService.new(
+        conversation: @conversation, assistant: @assistant,
+        reason: auto_handoff_reason, team_id: @conversation.team_id
+      ).perform
+    end
   rescue StandardError => e
     Rails.logger.warn("[Captain] ensure_handoff_if_promised falhou: #{e.message}")
+  end
+
+  # Dossie pro humano que assumir: sem isso ele recebe a conversa sem saber por que chegou.
+  def auto_handoff_reason
+    'A IA avisou o cliente que uma pessoa do time assume, mas nao acionou a passagem — ' \
+      'o handoff foi disparado automaticamente para o cliente nao ficar esperando. ' \
+      "Trecho enviado: \"#{@response['response'].to_s[0, 160]}\""
   end
 
   def process_action(action)
     case action
     when 'handoff'
       I18n.with_locale(@assistant.account.locale) do
+        # A fala pro cliente sai ANTES e FORA de transacao: o after_create_commit dela precisa
+        # disparar antes do handoff setar waiting_since (regressao do PR #13417).
         create_handoff_message
-        @conversation.bot_handoff!
-        send_out_of_office_message_if_applicable
+        # Pelo service, mesmo motivo do safety-net: com bot_handoff! puro este caminho tambem
+        # pulava dossie, time e rodizio. E em v2 ele e o do error_response — ou seja, toda vez
+        # que o runner quebra a conversa prometia humano sem entrar em fila nenhuma, justo
+        # quando o cliente mais precisa de alguem. O service e idempotente (sai cedo se ja
+        # aguarda humano) e ja cuida do out-of-office.
+        Captain::Conversation::HumanHandoffService.new(
+          conversation: @conversation, assistant: @assistant,
+          reason: handoff_action_reason, team_id: @conversation.team_id
+        ).perform
       end
     end
   end
 
-  def send_out_of_office_message_if_applicable
-    # Campaign conversations should never receive OOO templates — the campaign itself
-    # serves as the initial outreach, and OOO would be confusing in that context.
-    return if @conversation.campaign.present?
-
-    ::MessageTemplates::Template::OutOfOffice.perform_if_applicable(@conversation)
+  # O 'reasoning' e o unico rastro do PORQUE quando o gatilho e o error_response do runner:
+  # sem ele o humano recebe a conversa sem saber que a IA quebrou.
+  def handoff_action_reason
+    base = 'A IA encerrou o atendimento e pediu passagem para uma pessoa do time.'
+    motivo = @response.is_a?(Hash) ? @response['reasoning'].presence : nil
+    motivo ? "#{base} Motivo registrado: #{motivo.to_s[0, 300]}" : base
   end
 
   def create_handoff_message
@@ -323,6 +416,10 @@ class Captain::Conversation::ResponseBuilderJob < ApplicationJob
 
   # O modelo às vezes devolve a PRÓPRIA estrutura de saída como texto, no formato cru do
   # inspect ({"response"=>"...", "reasoning"=>"..."}), em vez de só o texto do campo response.
+  # Isso escapa das duas redes existentes — não é blank e não casa com UNKNOWN_MARKER (não
+  # está entre colchetes) — e o cliente recebe o hash cru. O JSON.parse do fallback de handoff
+  # também não pega, porque hash-rocket não é JSON válido. Aqui desembrulha pro texto real;
+  # se o campo interno vier vazio, o agente quis silêncio.
   # Acontece principalmente quando o turno termina em transferência e o fallback de handoff
   # pega a última fala do assistente já serializada. Escapa das duas redes existentes — não é
   # blank e não casa com UNKNOWN_MARKER — e o hash cru chega no cliente.
@@ -455,9 +552,9 @@ class Captain::Conversation::ResponseBuilderJob < ApplicationJob
            .gsub(/,(\s*,)+/, ',')            # ",," -> ","
   end
 
-  # A URL de um imóvel só vem da buscar_imovel (build_url). O LLM às vezes monta
-  # uma URL do site na mão, com formato e número inventados (ex: caminho
-  # /imovel/...-3338 em vez de ...,ImoCodigo). Aqui, toda URL da Tozi na resposta
+  # A URL de um imóvel só vem da buscar_imovel (build_url, que resolve o link pela
+  # API do site). O LLM às vezes monta uma URL na mão, com número inventado — o
+  # formato até parece certo, o código é que não é. Aqui, toda URL da Tozi na resposta
   # é trocada pela que a busca realmente retornou (casando o código no fim da
   # URL); se nenhum código bater, é inventada -> remove. Sem busca na conversa,
   # nenhuma URL da Tozi é legítima. Só toca a saída da IA (não a de humano).
@@ -576,6 +673,10 @@ class Captain::Conversation::ResponseBuilderJob < ApplicationJob
     @assistant.behavior.dig('humanizer', 'enabled') == true
   end
 
+  # Registrar NUNCA pode derrubar comportamento. Sem este rescue, um event_type que ninguem
+  # lembrou de declarar em EVENT_TYPES levanta RecordInvalid aqui, o rescue do CHAMADOR engole
+  # em silencio e tudo que vinha DEPOIS da linha de log deixa de acontecer — foi exatamente
+  # assim que o safety-net de handoff e o backstop anti-repeticao morreram sem ninguem ver.
   def log_behavior_event(event_type, payload = {})
     Captain::AssistantLog.create!(
       captain_assistant: @assistant,
@@ -583,6 +684,8 @@ class Captain::Conversation::ResponseBuilderJob < ApplicationJob
       event_type: event_type,
       payload: payload
     )
+  rescue StandardError => e
+    Rails.logger.warn("[Captain] log_behavior_event(#{event_type}): #{e.message}")
   end
 
   def conversation_pending?

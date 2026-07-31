@@ -20,6 +20,39 @@ describe('#getters', () => {
     ).toEqual([teamsList[1]]);
   });
 
+  it('getSupervisedTeams', () => {
+    const state = {
+      records: teamsList,
+    };
+    expect(
+      getters.getSupervisedTeams(state, {
+        getTeams: [teamsList[1], teamsList[2]],
+      })
+    ).toEqual([teamsList[2]]);
+  });
+
+  it('getVisibleTeams', () => {
+    const state = {
+      records: teamsList,
+    };
+    // membro ∪ supervisionado: o time 2 entra por supervisão, sem ser membro
+    expect(
+      getters.getVisibleTeams(state, {
+        getTeams: [teamsList[1], teamsList[2]],
+      })
+    ).toEqual([teamsList[1], teamsList[2]]);
+  });
+
+  it('getVisibleTeams falls back to membership when nobody supervises', () => {
+    const plainTeams = [
+      { ...teamsList[1], is_supervisor: false },
+      { ...teamsList[2], is_supervisor: false },
+    ];
+    expect(
+      getters.getVisibleTeams({ records: plainTeams }, { getTeams: plainTeams })
+    ).toEqual([plainTeams[0]]);
+  });
+
   it('getTeam', () => {
     const state = {
       records: teamsList,
@@ -30,6 +63,7 @@ describe('#getters', () => {
       name: 'Test',
       description: 'Some team',
       is_member: true,
+      is_supervisor: false,
     });
   });
 

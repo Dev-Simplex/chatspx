@@ -1,4 +1,4 @@
-class Captain::InboxPendingConversationsResolutionJob < ApplicationJob
+class Captain::InboxPendingConversationsResolutionJob < ApplicationJob # rubocop:disable Metrics/ClassLength
   CAPTAIN_INFERENCE_RESOLVE_ACTIVITY_REASON = 'no outstanding questions'.freeze
   CAPTAIN_INFERENCE_HANDOFF_ACTIVITY_REASON = 'pending clarification from customer'.freeze
 
@@ -19,7 +19,14 @@ class Captain::InboxPendingConversationsResolutionJob < ApplicationJob
   private
 
   def evaluate_conversation_completion?(account)
-    account.feature_enabled?('captain_tasks') && account.captain_auto_resolve_evaluated?
+    # O classificador roda via make_api_call, que EXIGE captain_tasks (senão devolve
+    # 'captain.disabled' e a classe volta nil -> enfileiraria às cegas). Sem captain_tasks
+    # não há classificação, então nem liga o caminho avaliado.
+    return false unless account.feature_enabled?('captain_tasks')
+
+    # Com captain_tasks: caminho avaliado no modo 'evaluated' OU quando a conta optou por
+    # auto_closure (mesmo em 'legacy'). 'disabled' segue barrando tudo (checado em #perform).
+    account.captain_auto_resolve_evaluated? || auto_closure_enabled?(account)
   end
 
   def perform_time_based(inbox)
@@ -63,7 +70,7 @@ class Captain::InboxPendingConversationsResolutionJob < ApplicationJob
 
   # Política de encerramento (opt-in por conta): triagem janela-aware com cadência STATEFUL
   # (marcadores em custom_attributes; o cron reavalia a cada ciclo, sem job novo).
-  def route_with_closure_policy(conversation, assistant, inbox)
+  def route_with_closure_policy(conversation, assistant, inbox) # rubocop:disable Metrics/CyclomaticComplexity, Metrics/PerceivedComplexity
     attrs = conversation.custom_attributes || {}
 
     # 1) Já na fila de encerramento: fecha pela válvula (N dias ocioso) ou espera o humano —
@@ -92,7 +99,7 @@ class Captain::InboxPendingConversationsResolutionJob < ApplicationJob
     dispatch_closure_action(conversation, assistant, evaluation)
   end
 
-  def dispatch_closure_action(conversation, assistant, evaluation)
+  def dispatch_closure_action(conversation, assistant, evaluation) # rubocop:disable Metrics/CyclomaticComplexity
     classe = evaluation[:classe]
     case closure_action_for(conversation.account, classe)
     when 'queue'
@@ -128,7 +135,7 @@ class Captain::InboxPendingConversationsResolutionJob < ApplicationJob
     ).perform
   end
 
-  def resolvable_pending_conversations(inbox, closure_on = false)
+  def resolvable_pending_conversations(inbox, closure_on = false) # rubocop:disable Style/OptionalBooleanParameter
     cutoff = auto_resolve_cutoff_time
     limit = Limits::BULK_ACTIONS_LIMIT
     pending = inbox.conversations.pending.where('last_activity_at < ?', cutoff)
@@ -141,7 +148,7 @@ class Captain::InboxPendingConversationsResolutionJob < ApplicationJob
     inbox.conversations.where(id: ids)
   end
 
-  def still_resolvable_after_evaluation?(conversation, closure_on = false)
+  def still_resolvable_after_evaluation?(conversation, closure_on = false) # rubocop:disable Metrics/CyclomaticComplexity, Style/OptionalBooleanParameter
     conversation.reload
     return false unless conversation.last_activity_at && conversation.last_activity_at < auto_resolve_cutoff_time
     return true if conversation.pending?

@@ -1846,11 +1846,22 @@ aside.bg-n-background[style*='width: 64'] .sidebar-group-children {
   [class*='border-n-weak'] { border-color: #2a3942 !important; }
   [class*='border-n-strong'] { border-color: #374045 !important; }
 
-  /* Text */
-  [class*='text-n-slate-12'] { color: #e9edef !important; }
-  [class*='text-n-slate-11'] { color: #aebac1 !important; }
-  [class*='text-n-slate-10'] { color: #8696a0 !important; }
-  [class*='text-n-slate-9'] { color: #667781 !important; }
+  /* Text — [class~=] casa a classe INTEIRA (palavra separada por espaço), não
+     um pedaço dela. Com [class*=] o seletor pegava também as VARIANTES, e como
+     estas regras são !important e de mesma especificidade, a última do bloco
+     vencia: um input com `dark:placeholder:text-n-slate-9` tinha o texto
+     digitado pintado de #667781 (cinza de tema claro) em cima do escuro — o
+     valor ficava mais apagado que o próprio placeholder. O mesmo acontecia com
+     os 88 usos de `hover:text-n-slate-*`, que tinham a cor de repouso forçada e
+     o hover anulado. As variantes já são resolvidas pelo Tailwind. */
+  [class~='text-n-slate-12'],
+  [class~='dark:text-n-slate-12'] { color: #e9edef !important; }
+  [class~='text-n-slate-11'],
+  [class~='dark:text-n-slate-11'] { color: #aebac1 !important; }
+  [class~='text-n-slate-10'],
+  [class~='dark:text-n-slate-10'] { color: #8696a0 !important; }
+  [class~='text-n-slate-9'],
+  [class~='dark:text-n-slate-9'] { color: #667781 !important; }
 
   /* Hover states */
   [class*='hover\\:bg-n-alpha-1']:hover,

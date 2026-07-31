@@ -110,6 +110,10 @@ class User < ApplicationRecord
   has_many :notifications, dependent: :destroy_async
   has_many :team_members, dependent: :destroy_async
   has_many :teams, through: :team_members
+  # Supervisão de time (D1): separado de team_members de propósito — supervisionar não
+  # é ser membro. Ver TeamSupervision para a regra de leitura.
+  has_many :team_supervisions, class_name: 'TeamSupervisor', dependent: :destroy_async
+  has_many :supervised_teams, through: :team_supervisions, source: :team
   has_many :articles, foreign_key: 'author_id', dependent: :nullify, inverse_of: :author
   # rubocop:disable Rails/HasManyOrHasOneDependent
   # we are handling this in `remove_macros` callback
@@ -135,6 +139,24 @@ class User < ApplicationRecord
 
   def assigned_inboxes
     administrator? ? Current.account.inboxes : inboxes.where(account_id: Current.account.id)
+  end
+
+  # Ids dos times que este usuário SUPERVISIONA na conta informada. Memoizado por
+  # instância (na prática, escopo de request): a pergunta é feita em vários pontos da
+  # mesma requisição — permissões, filtro de conversa, guard de acesso — e a resposta
+  # não muda no meio dela. Use TeamSupervision.team_ids como porta de entrada.
+  def supervised_team_ids_for(account_id)
+    return [] if account_id.blank?
+
+    @supervised_team_ids_for ||= {}
+    @supervised_team_ids_for[account_id.to_i] ||=
+      team_supervisions.joins(:team).where(teams: { account_id: account_id }).pluck(:team_id)
+  end
+
+  # Invalida a memoização acima. Necessário quando as supervisões mudam DENTRO do
+  # mesmo request (admin salvando o agente) e a resposta ainda vai ser serializada.
+  def reset_supervised_team_ids_cache
+    @supervised_team_ids_for = nil
   end
 
   def serializable_hash(options = nil)

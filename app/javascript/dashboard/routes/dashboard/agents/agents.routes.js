@@ -7,6 +7,7 @@ const LLMSettingsPage = () => import('./pages/LLMSettingsPage.vue');
 const ToolsView = () => import('./pages/ToolsView.vue');
 const AgentDetailView = () => import('./pages/AgentDetailView.vue');
 const EvaluationPage = () => import('./pages/EvaluationPage.vue');
+const RodizioPage = () => import('./pages/RodizioPage.vue');
 
 const OverviewTab = () =>
   import('dashboard/components-next/agents/tabs/OverviewTab.vue');
@@ -115,6 +116,12 @@ export const routes = [
         path: 'evaluation',
         component: EvaluationPage,
         name: 'agents_evaluation',
+        meta,
+      },
+      {
+        path: 'rodizio',
+        component: RodizioPage,
+        name: 'agents_rodizio',
         meta,
       },
       {

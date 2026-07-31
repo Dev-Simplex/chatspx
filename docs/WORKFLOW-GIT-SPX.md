@@ -89,6 +89,76 @@ Confirmado (08/07) via Almirante `drift_check`/`version_matrix`: **nenhuma VM fa
 
 ---
 
+## Frentes de trabalho em paralelo — `chatspx-frentes/*` (criadas 29/07)
+
+**Por que existem:** o git não permite duas worktrees na mesma branch. Enquanto todas as sessões
+compartilhavam a pasta `chatspx/` (única com a `homologacao` aberta), trabalho paralelo virava
+colisão — em 29/07 duas sessões commitaram na mesma worktree em 9 segundos e uma quase regrediu
+o fix da outra. Uma frente = uma pasta = uma branch resolve isso na raiz.
+
+| Pasta | Branch | Frente |
+|---|---|---|
+| `chatspx-frentes/rodizio/` | `spx/rodizio` | rodízio, handoff reservado, SLA, espelho do card no Vista |
+| `chatspx-frentes/followup/` | `spx/followup` | follow-up, encerramento, agendamento, notificações |
+| `chatspx-frentes/eval/` | `spx/eval` | Eval 2.0 (F3 outcomes, F5 golden set), sentimento, abordagem |
+| `chatspx-frentes/campanhas/` | `spx/campanhas` | Meta Leads, analítico de campanha, módulo de disparo |
+| `chatspx-frentes/fricoes/` | `spx/fricoes` | fricções de uso (erro de envio, lida/não-lida, chaves, link do site) |
+
+Cada pasta tem um `CLAUDE.local.md` com o escopo da frente, as peças que já existem (pra não
+reinventar) e os guard-rails. Nova frente: `git worktree add ../chatspx-frentes/<nome> -b spx/<nome> origin/homologacao`.
+
+### Onde rodar teste e lint (as worktrees não têm Ruby)
+
+Nenhuma worktree de frente tem Ruby, então `rubocop` e `rspec` **não rodam localmente** — o hook de
+pre-commit quebra por ambiente e as frentes acabam entregando "verificado por leitura". Em 31/07
+isso cobrou o preço: a `spx/followup` entregou três commits de lógica de fila; na primeira execução
+real, **4 de 55 exemplos falharam**, incluindo o próprio fix central e uma regressão que ela mesma
+tinha introduzido.
+
+**A VM de homologação (`192.168.8.232`) é o box de CI** — tem ruby 3.4.4, rspec 7 e os bancos
+`chatwoot_test` até `chatwoot_test_7`. A receita usa um **git worktree em `/tmp`**, então **não
+toca o checkout que serve as contas 3/4/5**:
+
+```bash
+H=scripts/ops/tozi-hml.sh
+# 1. cria o worktree isolado a partir da branch da frente
+bash $H chatwoot "cd /home/chatwoot/chatwoot; git fetch origin --quiet; \
+  git worktree add --detach /tmp/ci-<frente> origin/spx/<frente>"
+# 2. o .env fica por symlink (não copia segredo pro /tmp)
+bash $H chatwoot "ln -sf /home/chatwoot/chatwoot/.env /tmp/ci-<frente>/.env"
+# 3. specs e lint
+bash $H chatwoot "cd /tmp/ci-<frente>; RAILS_ENV=test bundle exec rspec <arquivos>"
+bash $H chatwoot "cd /tmp/ci-<frente>; bundle exec rubocop <arquivos>"
+# 4. limpeza
+bash $H chatwoot "cd /home/chatwoot/chatwoot; git worktree remove --force /tmp/ci-<frente>"
+```
+
+Sem o symlink do `.env` o rspec morre em `PG::ConnectionBad: no password supplied` — o worktree não
+herda a configuração do banco.
+
+**Para lint isolado** (sem precisar da branch pushada) dá pra empacotar só os arquivos alterados e
+comparar contra o baseline do mesmo arquivo — foi assim que as frentes `resgate` e `fricoes` foram
+conferidas. ⚠️ Rodando a partir de `/tmp`, os `Exclude:` do `.rubocop.yml` que são por caminho
+(ex.: `spec/**/*`) **não casam** e geram falso positivo; para specs, rode de dentro do worktree.
+
+### Contrato das frentes
+1. **Executora commita só na própria `spx/<frente>`.** Nunca em `homologacao`/`producao`.
+2. **Só a sessão da pasta `chatspx/` integra** — ela é a única que mergeia, propõe deploy e fala
+   com o Almirante. As frentes não pusham `homologacao`/`producao`.
+3. **Fim de sessão: `git push -u origin spx/<frente>`.** Branch local-only = trabalho que vive só
+   no notebook.
+4. **Fecha na sessão: merge ou delete.** Branch órfã é lixo — em 29/07 havia 6 delas
+   (`spx/fix-fotos-handoff*`, `tmp/f*-eval`, `worktree-tozi-eval`) cujo conteúdo já estava em
+   `producao` por cherry-pick, só confundindo quem auditava.
+5. **Bug de outra frente: anote e avise, não corrija.** Duas frentes no mesmo arquivo é como
+   nasce o conflito de linhagem tripla.
+
+### Se uma sessão de CLIENTE precisar mexer em código compartilhado
+Não vá pra pasta `chatspx/` commitar. Use (ou crie) a worktree da frente correspondente — foi
+por essa lacuna que a sessão da Fábrica commitou na worktree primária em 29/07.
+
+---
+
 ## Regras não-negociáveis
 
 1. **Nunca commitar direto em `producao` nem `homologacao`.** Sempre via feature branch → merge.

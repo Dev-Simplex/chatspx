@@ -104,7 +104,19 @@
   "EMOJI": {
     "PLACEHOLDER": "Pesquisar emojis",
     "NOT_FOUND": "Nenhum emoji corresponde à sua pesquisa",
-    "ARIA_LABEL": "Seletor de emoji"
+    "ARIA_LABEL": "Seletor de emoji",
+    "RECENT": "Recentes",
+    "CATEGORIES": {
+      "SMILEYS_EMOTION": "Carinhas e emoções",
+      "PEOPLE_BODY": "Pessoas e corpo",
+      "ANIMALS_NATURE": "Animais e natureza",
+      "FOOD_DRINK": "Comidas e bebidas",
+      "TRAVEL_PLACES": "Viagens e lugares",
+      "ACTIVITIES": "Atividades",
+      "OBJECTS": "Objetos",
+      "SYMBOLS": "Símbolos",
+      "FLAGS": "Bandeiras"
+    }
   },
   "CSAT": {
     "TITLE": "Avalie sua conversa",

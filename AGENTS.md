@@ -39,7 +39,7 @@ cliente em `docs/clientes/<cliente>/`; scripts operacionais em `scripts/spx/<cli
 
 - **Conduta/persona especifica de um cliente -> SEMPRE no banco da conta** (`assistant.config['instructions']` / `behavior`, via o helper daquele cliente). **NUNCA** em codigo compartilhado — em especial `enterprise/lib/captain/prompts/assistant.liquid`, que e o **molde de TODOS os clientes**. Ja vazou 1x (conduta de oticas da Fabrica -> Tozi via a `.232`, revertida em `645b58ceb`).
 - O `assistant.liquid` compartilhado so aceita conduta **agnostica** (nao narrar tool, `[IGNORAR]` no fechamento). Nada que nomeie cliente ou vertical (oticas/imoveis). Se precisar variar por cliente no template, gateie por conta lendo do banco — nao hardcode.
-- **Push na `homologacao` desce AO VIVO pra `.232`** (auto-pull), que tem clientes reais (contas 3/4/5). Pense "quem mais recebe isso?" antes de pushar.
+- **NAO existe auto-pull** (verificado 08/07 e 29/07 via Almirante `drift_check`): push na `homologacao` **nao desce ao vivo** pra `.232`. Codigo so entra numa VM por `propose_deploy_vm` + aprovacao humana. Mesmo assim, a `.232` tem clientes reais (contas 3/4/5) — pense "quem mais recebe isso?" antes de PROPOR o deploy. Fonte da verdade do fluxo: `docs/WORKFLOW-GIT-SPX.md`.
 - **Antes de tocar IA de qualquer cliente: declare CLIENTE + CONTA + VM** e use o helper certo (confira o banner). Sessoes locais usam **worktree por cliente** em `chatspx-clientes/` (`tozi-prod` conta 6 · `tozi-hml` conta 3 · `fabrica` contas 1/2), cada um com `CLAUDE.local.md` fixando o alvo.
 - Canal governado pra aplicar config-por-conta na VM certa, com aprovacao de dois: **ai-config-receptor + Almirante**.
 
@@ -134,8 +134,11 @@ Chatwoot tem overlay Enterprise em `enterprise/` que extende/sobrescreve codigo 
 
 ## Translations
 
-- Apenas editar `en.yml` (backend) e `en.json` (frontend)
-- Outros idiomas sao mantidos pela comunidade
+- **Esta regra e do upstream, NAO vale pra este fork.** No Chatwoot original so `en` e editado
+  porque os outros idiomas vem de traducao comunitaria. Aqui a base de usuarios e brasileira e o
+  produto e entregue em PT-BR: **feature nova edita `en` E `pt_BR`**, senao o time do cliente ve
+  metade da tela em ingles. Os commits recentes fazem isso rotineiramente.
+- Demais idiomas (es, fr, ...) continuam sendo da comunidade — nao traduzir.
 
 ## Frontend
 

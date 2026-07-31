@@ -100,7 +100,7 @@ const handleSuggestion = opt => {
       </p>
       <router-link
         :to="{
-          name: 'captain_assistants_create_index',
+          name: 'agents_dashboard',
           params: { accountId: route.params.accountId },
         }"
         class="text-sm text-n-brand hover:underline"

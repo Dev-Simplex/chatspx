@@ -4,9 +4,10 @@ import Icon from 'next/icon/Icon.vue';
 import { useI18n } from 'vue-i18n';
 import { useMessageContext } from './provider.js';
 import { hasOneDayPassed } from 'shared/helpers/timeHelper';
+import { metaErrorReason } from 'dashboard/helper/metaErrorHelper';
 import { ORIENTATION, MESSAGE_STATUS } from './constants';
 
-defineProps({
+const props = defineProps({
   error: { type: String, required: true },
   // Driven by the parent while a retry POST is in flight: disables the button
   // and swaps the icon for a spinner so the agent can't fire a duplicate retry.
@@ -25,6 +26,10 @@ const canRetry = computed(() => {
   const hasAttachments = attachments.value && attachments.value.length > 0;
   return !hasOneDayPassed(createdAt.value) && (hasContent || hasAttachments);
 });
+
+// Só resolve quando o código da Meta é reconhecido; caso contrário o tooltip
+// segue mostrando apenas o texto cru, como antes.
+const metaReason = computed(() => metaErrorReason(props.error));
 </script>
 
 <template>
@@ -40,13 +45,24 @@ const canRetry = computed(() => {
         />
       </div>
       <div
-        class="absolute bg-n-solid-1 dark:bg-[#233138] px-4 py-3 border rounded-lg border-[var(--wa-list-border)] dark:border-[var(--wa-list-border-dark)] text-n-slate-12 bottom-6 w-52 text-xs shadow-[0_2px_8px_rgba(11,20,26,0.12)] opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all break-all"
+        class="absolute bg-n-solid-1 dark:bg-[#233138] px-4 py-3 border rounded-lg border-[var(--wa-list-border)] dark:border-[var(--wa-list-border-dark)] text-n-slate-12 bottom-6 w-64 text-xs shadow-[0_2px_8px_rgba(11,20,26,0.12)] opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all text-start"
         :class="{
           'ltr:left-0 rtl:right-0': orientation === ORIENTATION.LEFT,
           'ltr:right-0 rtl:left-0': orientation === ORIENTATION.RIGHT,
         }"
       >
-        {{ error }}
+        <template v-if="metaReason">
+          <p class="font-medium">
+            {{ t('CHAT_LIST.SEND_ERROR.META_SOURCE') }}
+          </p>
+          <p class="mt-1 text-n-slate-11">
+            {{ t(`CHAT_LIST.SEND_ERROR.${metaReason.reasonKey}`) }}
+          </p>
+          <p class="mt-1.5 text-n-slate-10">
+            {{ t('CHAT_LIST.SEND_ERROR.CODE', { code: metaReason.code }) }}
+          </p>
+        </template>
+        <span v-else class="break-all">{{ error }}</span>
       </div>
     </div>
     <button

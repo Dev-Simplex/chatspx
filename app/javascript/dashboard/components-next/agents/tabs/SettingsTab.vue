@@ -2,6 +2,7 @@
 import { ref, reactive, computed, watch, onMounted } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import { useStore } from 'vuex';
+import { useI18n } from 'vue-i18n';
 import { useClipboard } from '@vueuse/core';
 import { useAlert } from 'dashboard/composables';
 
@@ -15,6 +16,7 @@ import AiListGroup from 'dashboard/components-next/agents-ui/AiListGroup.vue';
 import AiListRow from 'dashboard/components-next/agents-ui/AiListRow.vue';
 import AgentSettingField from 'dashboard/components-next/agents/AgentSettingField.vue';
 
+const { t } = useI18n();
 const route = useRoute();
 const router = useRouter();
 const store = useStore();
@@ -133,7 +135,7 @@ function isToolArmed(id) {
 }
 function toggleTool(id) {
   if (form.tools.includes(id)) {
-    form.tools = form.tools.filter(t => t !== id);
+    form.tools = form.tools.filter(toolId => toolId !== id);
   } else {
     form.tools = [...form.tools, id];
   }
@@ -178,9 +180,9 @@ async function save() {
       config,
     });
     savedSnapshot.value = snapshotOf();
-    useAlert('Configuração salva com sucesso.');
+    useAlert(t('CAPTAIN.AGENT_TABS.SETTINGS.SAVE_SUCCESS'));
   } catch {
-    useAlert('Não foi possível salvar. Tente novamente.');
+    useAlert(t('CAPTAIN.AGENT_TABS.SETTINGS.SAVE_ERROR'));
   } finally {
     saving.value = false;
   }
@@ -214,7 +216,7 @@ function copyConfig() {
 const showDeleteConfirm = ref(false);
 async function deleteAgent() {
   await store.dispatch('captainAssistants/delete', assistantId.value);
-  useAlert('Agente excluído.');
+  useAlert(t('CAPTAIN.AGENT_TABS.SETTINGS.DELETE_SUCCESS'));
   router.push({ name: 'agents_dashboard' });
 }
 </script>
