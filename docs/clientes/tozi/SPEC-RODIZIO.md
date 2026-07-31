@@ -343,6 +343,16 @@ outro leitor**.
 **`vista_engajado_em` é o sinal de "o corretor pegou".** `nil` = ninguém mexeu. É o que dispara
 o silêncio da Sofia **e** o que para o cronômetro do SLA.
 
+**Como o consumo funciona (implementado):** o `Spx::Distribuicao::DesignacaoListener` observa
+`conversation_updated`; ao ver o campo preenchido numa conversa com designação aberta, ele
+(1) fecha a designação como `engajado` — o que **para o cronômetro**, porque o SLA-como-medida só
+olha designações abertas — e (2) **solta o espelho captain**, que é o jeito nativo de calar a IA
+(todo o pipeline do Captain gateia em `assignee_agent_bot`).
+
+A conversa fica **sem dono no SPX** — e isso é a verdade, não um efeito colateral: quem atende
+agora está no Vista. Cliente que volta com assunto novo cai nas regras de reentrada, que devolvem
+a conversa para uma IA.
+
 ### 8.4. O relógio do SLA é NOSSO — não depende do Vista
 
 - **t0 = timestamp da designação** no `Spx::Distribuicao::State`. **Exato.**
@@ -454,6 +464,7 @@ por preferência está fazendo alguma coisa. Punir é decisão humana; o código
 | Composição inicial do pool de vendas | Guilherme (na configuração) | não |
 | Conduta "modo contido" no prompt da Sofia | banco da conta 6 (fora desta frente) | não |
 | Gatilho do anúncio *"um consultor vai entrar em contato"* | banco da conta 6 (fora desta frente) | não |
+| **Card trocou de corretor por fora.** O `vista_corretor` do poll passa a divergir do designado: a contagem creditou o lead a quem o rodízio escolheu, mas quem trabalhou foi outro. Hoje isso só vira log. Corrigir a atribuição da contagem? Mostrar na tela? Ignorar? | **Paulo / Guilherme** | não |
 | **§7.1 passo 3 sobrevive?** Se "cliente pede consultor" é conduta da IA que cai no rodízio normal (§10), o desvio por `preferencia_cliente` **deixa de existir** — ou a IA registra a preferência e a designação a honra? | **Paulo** | **sim**, no passo 1 da implementação |
 
 ✅ **Resolvido em 30/07:** contrato de campos com a `spx/eval` (§8.3) — **decidido, não alinhar.**
