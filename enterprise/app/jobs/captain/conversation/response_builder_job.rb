@@ -109,7 +109,16 @@ class Captain::Conversation::ResponseBuilderJob < ApplicationJob
     attrs = @conversation.custom_attributes || {}
     return if attrs['followup_token'].blank? && attrs['followup_count'].to_i.zero?
 
-    @conversation.update!(custom_attributes: attrs.merge('followup_token' => nil, 'followup_count' => 0, 'followup_status' => nil))
+    # Compromisso combinado (followup_motivo, escrito só pela ProgramarFollowupTool) SOBREVIVE à
+    # resposta do cliente: fechar a conversa socialmente não desmarca o que ficou combinado. Esta
+    # era a camada mais letal da conv 20320 — o token morria aqui, a cada mensagem do cliente e
+    # antes de o FollowupJob sequer rodar. Sem compromisso, a cutucada preventiva zera mesmo.
+    zerado = if attrs['followup_motivo'].present?
+               { 'followup_count' => 0 }
+             else
+               { 'followup_token' => nil, 'followup_count' => 0, 'followup_status' => nil }
+             end
+    @conversation.update!(custom_attributes: attrs.merge(zerado))
   rescue StandardError => e
     Rails.logger.warn("[ResponseBuilderJob] reset_followup: #{e.message}")
   end
@@ -125,6 +134,10 @@ class Captain::Conversation::ResponseBuilderJob < ApplicationJob
 
     attrs = @conversation.reload.custom_attributes || {}
     return if attrs['aguardando_humano_desde'].present?
+    # Compromisso combinado tem hora marcada e o token é um só: a cutucada preventiva não pode
+    # roubar o slot dele. Quando o compromisso é cumprido o motivo é consumido e o auto volta;
+    # se ele morrer sem cumprir (dono virou humano), um novo programar_followup rearma os dois.
+    return if attrs['followup_motivo'].present?
     return if @conversation.resolved?
     return unless captain_can_respond?
     return if attrs['followup_count'].to_i > Captain::Conversation::FollowupJob::MAX_FOLLOWUPS

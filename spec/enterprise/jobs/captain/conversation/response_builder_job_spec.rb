@@ -358,6 +358,48 @@ RSpec.describe Captain::Conversation::ResponseBuilderJob, type: :job do
       end
     end
 
+    # Regressao (conv 20320) — a camada mais letal do cancelamento indevido da cutucada, e a que
+    # nem estava mapeada: o reset zerava o token a CADA resposta do cliente, entao o compromisso
+    # combinado morria aqui, antes de o FollowupJob sequer rodar.
+    context 'when the client replies while a commitment follow-up is armed' do
+      let(:conversation) do
+        create(:conversation, inbox: inbox, account: account, status: :pending,
+                              assignee_agent_bot: assistant.mirror_agent_bot,
+                              custom_attributes: { 'followup_token' => 'compromisso-1', 'followup_count' => 2,
+                                                   'followup_motivo' => 'ia confirmar com o marido ate as 19h' })
+      end
+
+      before do
+        allow(account).to receive(:feature_enabled?).and_return(false)
+        allow(account).to receive(:feature_enabled?).with('captain_integration_v2').and_return(false)
+      end
+
+      it 'keeps the commitment armed and only zeroes the attempt count' do
+        described_class.perform_now(conversation, assistant)
+
+        attrs = conversation.reload.custom_attributes
+        expect(attrs['followup_token']).to eq('compromisso-1')
+        expect(attrs['followup_motivo']).to be_present
+        expect(attrs['followup_count']).to eq(0)
+      end
+
+      it 'does not let a preventive nudge steal the commitment slot' do
+        assistant.update!(config: (assistant.config || {}).merge('tools' => ['programar_followup']))
+
+        described_class.perform_now(conversation, assistant)
+
+        expect(conversation.reload.custom_attributes['followup_token']).to eq('compromisso-1')
+      end
+
+      it 'goes back to resetting the preventive nudge when there is no commitment' do
+        conversation.update!(custom_attributes: { 'followup_token' => 'auto-1', 'followup_count' => 2 })
+
+        described_class.perform_now(conversation, assistant)
+
+        expect(conversation.reload.custom_attributes['followup_count']).to eq(0)
+      end
+    end
+
     context 'when message contains an image' do
       let(:message_with_image) { create(:message, conversation: conversation, message_type: :incoming, content: 'Can you help with this error?') }
       let(:image_attachment) { message_with_image.attachments.create!(account: account, file_type: :image, external_url: 'https://example.com/error.jpg') }
