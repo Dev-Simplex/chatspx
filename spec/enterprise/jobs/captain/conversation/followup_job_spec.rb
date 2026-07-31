@@ -21,6 +21,15 @@ RSpec.describe Captain::Conversation::FollowupJob, type: :job do
     travel_to Time.utc(2026, 6, 11, 15, 0)
   end
 
+  # ARMADILHA: o travel_to acima roda DEPOIS da outgoing, então tudo criado dentro dos exemplos
+  # nasce com created_at ANTERIOR a ela e `order(:created_at).last` devolve a mensagem da IA.
+  # Quem precisa que a última mensagem seja do cliente tem que carimbar a data explicitamente.
+  def responde_por_ultimo(texto)
+    create(:message, conversation: conversation, account: account, inbox: inbox,
+                     message_type: :incoming, content: texto,
+                     created_at: conversation.messages.maximum(:created_at) + 1.second)
+  end
+
   context 'when the conversation is still owned by the assistant mirror' do
     it 'fires the nudge from the owner assistant and consumes token/followup_count' do
       described_class.perform_now(conversation, token)
@@ -112,6 +121,54 @@ RSpec.describe Captain::Conversation::FollowupJob, type: :job do
 
       expect(Captain::Conversation::ResponseBuilderJob).not_to have_received(:perform_now)
       expect(conversation.reload.custom_attributes['followup_count']).to eq(1)
+    end
+  end
+
+  # Regressao (conv 20320): a cutucada existia pra cumprir um COMPROMISSO — o cliente ficou de
+  # confirmar algo num horario combinado. Ele fechou a conversa socialmente ("obrigada, boa
+  # noite") e isso matava a cutucada em duas camadas: lead_replied? cancelava so por a ultima
+  # mensagem ser dele, e a directive mandava o modelo responder [IGNORAR] porque ele "encerrou
+  # ou agradeceu". Despedida educada nao desmarca o que ficou combinado.
+  context 'when a commitment is pending and the lead only closed socially' do
+    let(:motivo) { 'cliente ia confirmar com o marido e responder ate as 19h' }
+
+    before do
+      conversation.update!(custom_attributes: conversation.custom_attributes.merge('followup_motivo' => motivo))
+      responde_por_ultimo('Obrigada, boa noite!')
+    end
+
+    it 'still fires the nudge' do
+      described_class.perform_now(conversation, token)
+
+      expect(Captain::Conversation::ResponseBuilderJob).to have_received(:perform_now)
+    end
+
+    it 'carries the commitment and drops the order to ignore a social close' do
+      captured = nil
+      allow(Captain::Conversation::ResponseBuilderJob).to receive(:perform_now) { |_c, _a, directive:| captured = directive }
+
+      described_class.perform_now(conversation, token)
+
+      expect(captured).to include(motivo)
+      expect(captured).not_to include('agradeceu')
+    end
+
+    it 'consumes the commitment so it does not leak into later preventive nudges' do
+      described_class.perform_now(conversation, token)
+
+      expect(conversation.reload.custom_attributes['followup_motivo']).to be_blank
+    end
+  end
+
+  # Controle: sem compromisso, a cutucada e so preventiva — resposta do cliente cancela mesmo.
+  context 'when there is no commitment and the lead replied' do
+    it 'still cancels the preventive nudge' do
+      responde_por_ultimo('Oi, me manda mais fotos?')
+
+      described_class.perform_now(conversation, token)
+
+      expect(Captain::Conversation::ResponseBuilderJob).not_to have_received(:perform_now)
+      expect(conversation.reload.custom_attributes['followup_token']).to eq(token)
     end
   end
 end

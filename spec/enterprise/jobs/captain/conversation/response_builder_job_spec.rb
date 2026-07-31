@@ -295,6 +295,109 @@ RSpec.describe Captain::Conversation::ResponseBuilderJob, type: :job do
                          sender: agent, account: account, inbox: inbox)
         expect(conversation.reload.waiting_since).to be_nil
       end
+
+      # Regressao (frente spx/followup): este caminho tambem chamava bot_handoff! puro. Em v2 ele
+      # e o do error_response E o de handle_error — ou seja, toda vez que o runner quebra a
+      # conversa prometia humano sem entrar em fila nenhuma, justo quando o cliente mais precisa.
+      it 'goes through HumanHandoffService so the dossie and the rodizio engine run' do
+        expect(Spx::Distribuicao::DistribuirService).to receive(:new).with(conversation).and_call_original
+
+        described_class.perform_now(conversation, assistant)
+
+        conversation.reload
+        expect(conversation.custom_attributes['aguardando_humano_desde']).to be_present
+        expect(conversation.messages.where(private: true).last.content).to include('pediu passagem')
+      end
+    end
+
+    # Regressao (frente spx/followup): o safety-net de handoff chamava bot_handoff! puro, entao
+    # todo handoff disparado por ele pulava o dossie, o roteamento de time e o motor de rodizio
+    # (Spx::Distribuicao::DistribuirService) — o lead ouvia que um humano assume e nao entrava na
+    # fila de ninguem. A deteccao tambem nao via 'corretor' (a palavra do vertical imobiliario)
+    # nem a promessa no presente ("eu passo pro corretor"), que exigia auxiliar (vou/vamos).
+    context 'when the agent promises a human without firing the handoff' do
+      let(:conversation) do
+        create(:conversation, inbox: inbox, account: account, status: :pending, assignee_agent_bot: assistant.mirror_agent_bot)
+      end
+
+      before do
+        allow(account).to receive(:feature_enabled?).and_return(false)
+        allow(account).to receive(:feature_enabled?).with('captain_integration_v2').and_return(false)
+      end
+
+      def responde(texto)
+        allow(mock_llm_chat_service).to receive(:generate_response).and_return({ 'response' => texto })
+        described_class.perform_now(conversation, assistant)
+        conversation.reload
+      end
+
+      it 'fires the handoff on a first-person present promise naming a corretor' do
+        responde('Perfeito! Eu passo pro corretor te dar os detalhes.')
+
+        expect(conversation.custom_attributes['aguardando_humano_desde']).to be_present
+      end
+
+      it 'goes through HumanHandoffService so the dossie and the rodizio engine run' do
+        expect(Spx::Distribuicao::DistribuirService).to receive(:new).with(conversation).and_call_original
+
+        responde('A corretora vai entrar em contato com voce ainda hoje.')
+
+        expect(conversation.messages.where(private: true).last.content).to include('handoff foi disparado automaticamente')
+      end
+
+      it 'stays quiet when the agent is only introducing herself as consultora' do
+        responde('Meu nome e Julia, sou a consultora que vai te atender.')
+
+        expect(conversation.custom_attributes['aguardando_humano_desde']).to be_nil
+      end
+
+      it 'still fires when a real promise follows the introduction' do
+        responde('Sou a Julia, consultora virtual. O corretor te chama amanha.')
+
+        expect(conversation.custom_attributes['aguardando_humano_desde']).to be_present
+      end
+    end
+
+    # Regressao (conv 20320) — a camada mais letal do cancelamento indevido da cutucada, e a que
+    # nem estava mapeada: o reset zerava o token a CADA resposta do cliente, entao o compromisso
+    # combinado morria aqui, antes de o FollowupJob sequer rodar.
+    context 'when the client replies while a commitment follow-up is armed' do
+      let(:conversation) do
+        create(:conversation, inbox: inbox, account: account, status: :pending,
+                              assignee_agent_bot: assistant.mirror_agent_bot,
+                              custom_attributes: { 'followup_token' => 'compromisso-1', 'followup_count' => 2,
+                                                   'followup_motivo' => 'ia confirmar com o marido ate as 19h' })
+      end
+
+      before do
+        allow(account).to receive(:feature_enabled?).and_return(false)
+        allow(account).to receive(:feature_enabled?).with('captain_integration_v2').and_return(false)
+      end
+
+      it 'keeps the commitment armed and only zeroes the attempt count' do
+        described_class.perform_now(conversation, assistant)
+
+        attrs = conversation.reload.custom_attributes
+        expect(attrs['followup_token']).to eq('compromisso-1')
+        expect(attrs['followup_motivo']).to be_present
+        expect(attrs['followup_count']).to eq(0)
+      end
+
+      it 'does not let a preventive nudge steal the commitment slot' do
+        assistant.update!(config: (assistant.config || {}).merge('tools' => ['programar_followup']))
+
+        described_class.perform_now(conversation, assistant)
+
+        expect(conversation.reload.custom_attributes['followup_token']).to eq('compromisso-1')
+      end
+
+      it 'goes back to resetting the preventive nudge when there is no commitment' do
+        conversation.update!(custom_attributes: { 'followup_token' => 'auto-1', 'followup_count' => 2 })
+
+        described_class.perform_now(conversation, assistant)
+
+        expect(conversation.reload.custom_attributes['followup_count']).to eq(0)
+      end
     end
 
     context 'when message contains an image' do
