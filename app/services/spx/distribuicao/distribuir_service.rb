@@ -5,9 +5,11 @@
 # Ordem de decisão (docs/MOTOR-DISTRIBUICAO.md §10.3):
 #   0. pool         — filtrado por quem atende o PRODUTO do lead (SPEC-RODIZIO §4 e §7.1).
 #                     Sem produto identificado, ou entrada de pool sem `produtos`, nada é filtrado.
-#   1. continuidade — contato já atendido por um consultor do pool nos últimos N dias → volta pra ele
-#   2. rodízio      — senão, próximo do pool DEPOIS do último (ponteiro em distribuicao_states), pulando cap cheio
-#   3. sem_pool     — pool todo indisponível → NÃO atribui (fica aguardando), registra o motivo
+#   1. preferência  — o CLIENTE pediu um corretor pelo nome → vai pra ele, e GASTA a vez dele
+#   2. continuidade — contato já atendido por um consultor do pool nos últimos N dias → volta pra
+#                     ele, SEM gastar a vez (é retorno, não lead novo)
+#   3. rodízio      — senão, próximo do pool DEPOIS do último (ponteiro em distribuicao_states), pulando cap cheio
+#   4. sem_pool     — pool todo indisponível → NÃO atribui (fica aguardando), registra o motivo
 #
 # O que acontece com a POSSE depois da escolha depende de `policy.modo_posse`:
 #
@@ -29,6 +31,11 @@ module Spx
       # em modo_posse=designacao ninguém vira `assignee` (ver #assign!).
       Result = Struct.new(:decidido, :user_id, :motivo, keyword_init: true)
 
+      # Corretor que o CLIENTE pediu pelo nome. Escrito pela conduta da IA, lido aqui.
+      PREFERENCIA = 'rodizio_preferencia'.freeze
+      # Motivos que gastam a vez do consultor no rodízio (ver #consome_vez?).
+      CONSOMEM_VEZ = %w[rodizio preferencia_cliente].freeze
+
       def initialize(conversation)
         @conversation = conversation
         @team = conversation.team
@@ -47,7 +54,7 @@ module Spx
         return sem_pool(pool_ids) if chosen.nil?
 
         assign!(chosen)
-        advance_state(chosen)
+        advance_state(chosen) if consome_vez?(motivo)
         registrar(chosen, motivo, pool_ids)
         carimbar(chosen)
         espelhar_vista(chosen)
@@ -108,11 +115,46 @@ module Spx
       end
 
       def pick(policy, pool_ids)
+        preferido = preferencia_do_cliente(pool_ids)
+        return [preferido, 'preferencia_cliente'] if preferido
+
         if policy.continuidade_ativa
           anterior = consultor_anterior(policy, pool_ids)
           return [anterior, 'continuidade'] if anterior
         end
         [proximo_rodizio(policy, pool_ids), 'rodizio']
+      end
+
+      # O cliente pediu um corretor pelo nome. Quem detecta e registra isso é a CONDUTA DA IA;
+      # aqui só se LÊ o campo. Mesma guarda da continuidade: quem não está no pool ativo não
+      # recebe, e o lead cai no rodízio normal.
+      #
+      # Casamento deliberadamente ESTRITO (id, nome completo ou primeiro nome único). Nome
+      # ambíguo no pool devolve nil de propósito — mandar o lead pro "Bruno errado" é pior que
+      # mandar pro rodízio.
+      def preferencia_do_cliente(pool_ids)
+        pedido = (@conversation.custom_attributes || {})[PREFERENCIA].to_s.strip.downcase
+        return nil if pedido.blank?
+        return pedido.to_i if pedido.match?(/\A\d+\z/) && pool_ids.include?(pedido.to_i)
+
+        candidatos = User.where(id: pool_ids).select do |user|
+          nome = user.name.to_s.strip.downcase
+          nome == pedido || nome.split.first == pedido
+        end
+        candidatos.size == 1 ? candidatos.first.id : nil
+      end
+
+      # Quem GASTA a vez no rodízio é LEAD NOVO.
+      #
+      # `preferencia_cliente` é lead novo: se não contasse, viraria porta dos fundos — bastava
+      # o corretor dizer aos contatos "peça por mim" pra furar a fila inteira, que é justamente
+      # o que o rodízio existe pra impedir. Contando, ele recebe o lead E anda pro fim da fila:
+      # o pedido do cliente é respeitado e a justiça também.
+      #
+      # `continuidade` é RETORNO de cliente que já era dele — não é lead novo e não pode gastar
+      # a vez de ninguém.
+      def consome_vez?(motivo)
+        CONSOMEM_VEZ.include?(motivo)
       end
 
       # Consultor que já atendeu ESTE contato NESTE time, dentro da janela, e que
