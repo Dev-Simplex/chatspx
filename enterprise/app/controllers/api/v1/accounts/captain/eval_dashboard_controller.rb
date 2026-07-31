@@ -42,6 +42,55 @@ class Api::V1::Accounts::Captain::EvalDashboardController < Api::V1::Accounts::B
     render json: { rows: [] }
   end
 
+  # F4.2 (Eval humano): episódios de UMA conversa, pro modal "Avaliar atendimento"
+  # — o gestor vê os ciclos de atendimento da conversa perpétua e escolhe qual avaliar.
+  def conversation_episodes
+    conversation = Current.account.conversations.find_by!(display_id: params[:conversation_display_id])
+    episodes = Captain::ConversationEpisode.where(conversation_id: conversation.id).order(seq: :desc).limit(30).to_a
+    evals = Captain::ConversationEval.where(episode_id: episodes.map(&:id)).index_by(&:episode_id)
+    render json: {
+      episodes: episodes.map do |ep|
+        ev = evals[ep.id]
+        {
+          id: ep.id,
+          seq: ep.seq,
+          started_at: ep.started_at,
+          ended_at: ep.ended_at,
+          mensagens: ep.mensagens,
+          # faixa de mensagens: permite ao front achar o episódio de uma mensagem
+          # específica (âncora do menu ⋮ da mensagem)
+          first_message_id: ep.first_message_id,
+          last_message_id: ep.last_message_id,
+          nota: ev&.nota,
+          conduzido_por: ev&.conduzido_por,
+          resumo: ev&.resumo.to_s.truncate(160).presence,
+          anotacoes: ep.human_annotations.count
+        }
+      end
+    }
+  end
+
+  # F4.2: registra a avaliação do gestor como nota privada #eval ANCORADA no episódio
+  # escolhido (content_attributes.eval_episode_id — sem adivinhação temporal). A criação
+  # da mensagem dispara o CaptainListener, que re-julga o episódio se já fechado.
+  def annotate
+    conversation = Current.account.conversations.find_by!(display_id: params[:conversation_display_id])
+    episode = Captain::ConversationEpisode.find_by!(id: params[:episode_id], conversation_id: conversation.id)
+    texto = params[:texto].to_s.strip
+    return render json: { error: 'texto vazio' }, status: :unprocessable_entity if texto.blank?
+
+    conversation.messages.create!(
+      account_id: Current.account.id,
+      inbox_id: conversation.inbox_id,
+      message_type: :outgoing,
+      private: true,
+      sender: Current.user,
+      content: "#eval #{texto}",
+      content_attributes: { eval_episode_id: episode.id }
+    )
+    render json: { ok: true, episode_id: episode.id, pending: episode.ended_at.blank? }
+  end
+
   private
 
   NOTA_FAIXAS = { '0-4' => 0..4, '5-6' => 5..6, '7-8' => 7..8, '9-10' => 9..10 }.freeze
@@ -129,17 +178,23 @@ class Api::V1::Accounts::Captain::EvalDashboardController < Api::V1::Accounts::B
     ia = 0
     humano = 0
     gate = 0
-    categorias = Hash.new(0)
+    categorias = Hash.new { |hash, key| hash[key] = { count: 0, ia: 0, humano: 0 } }
     escopo.recent.limit(1000).pluck(:response_findings).each do |findings|
       Array(findings).each do |f|
         next unless f.is_a?(Hash)
 
-        f['quem'] == 'humano' ? humano += 1 : ia += 1
+        de_humano = f['quem'] == 'humano'
+        de_humano ? humano += 1 : ia += 1
         gate += 1 if f['origem'] == 'gate'
-        categorias[f['categoria']] += 1 if f['categoria'].present?
+        next if f['categoria'].blank?
+
+        cat = categorias[f['categoria']]
+        cat[:count] += 1
+        de_humano ? cat[:humano] += 1 : cat[:ia] += 1
       end
     end
-    { ia: ia, humano: humano, gate: gate, top: categorias.sort_by { |_, v| -v }.first(8).map { |k, v| { categoria: k, count: v } } }
+    top = categorias.sort_by { |_, v| -v[:count] }.first(8).map { |k, v| { categoria: k, **v } }
+    { ia: ia, humano: humano, gate: gate, top: top }
   rescue StandardError
     {}
   end

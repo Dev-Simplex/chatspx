@@ -9,7 +9,7 @@ class Captain::AssistantLog < ApplicationRecord
   EVENT_TYPES = %w[
     response debounce_skip debounce_fire router_skip business_hours_skip
     handoff media_process humanizer_split dedup_skip error copilot_trigger
-    mirror_assigned mirror_released human_takeover
+    mirror_assigned mirror_released human_takeover ignored
   ].freeze
 
   validates :event_type, presence: true, inclusion: { in: EVENT_TYPES }

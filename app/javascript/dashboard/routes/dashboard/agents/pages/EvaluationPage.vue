@@ -88,22 +88,33 @@ const notaBars = computed(() => {
   }));
 });
 const notaBarClass = key => {
-  if (key === '9-10') return 'bg-g-500';
-  if (key === '7-8') return 'bg-b-500';
-  if (key === '5-6') return 'bg-y-500';
-  return 'bg-r-500';
+  if (key === '9-10') return 'bg-n-teal-9';
+  if (key === '7-8') return 'bg-n-blue-9';
+  if (key === '5-6') return 'bg-n-amber-9';
+  return 'bg-n-ruby-9';
 };
 
 const funilBars = computed(() => toBars(data.value?.funil));
 const handoffBars = computed(() => toBars(data.value?.handoff));
 const fronteiraBars = computed(() => toBars(data.value?.fronteiras));
-const findingBars = computed(() =>
-  toBars(
-    Object.fromEntries(
-      (findings.value.top || []).map(f => [f.categoria, f.count])
-    )
-  )
-);
+// cada categoria carrega o split IA x Humano (mesmas cores da barra-resumo acima)
+const findingBars = computed(() => {
+  const top = findings.value.top || [];
+  const max = top.length ? Math.max(...top.map(f => f.count || 0)) : 0;
+  return top.map(f => {
+    const count = f.count || 0;
+    const pctIa = count ? Math.round(((f.ia || 0) / count) * 100) : 0;
+    return {
+      key: f.categoria,
+      count,
+      ia: f.ia || 0,
+      humano: f.humano || 0,
+      pct: max ? Math.max(2, Math.round((count / max) * 100)) : 0,
+      pctIa,
+      pctHumano: 100 - pctIa,
+    };
+  });
+});
 
 const iaHumanoPct = computed(() => {
   const ia = findings.value.ia || 0;
@@ -119,10 +130,10 @@ const iaHumanoPct = computed(() => {
 
 const notaClass = value => {
   if (value === null || value === undefined) return 'bg-n-slate-7';
-  if (value >= 9) return 'bg-g-500';
-  if (value >= 7) return 'bg-b-500';
-  if (value >= 5) return 'bg-y-500';
-  return 'bg-r-500';
+  if (value >= 9) return 'bg-n-teal-9';
+  if (value >= 7) return 'bg-n-blue-9';
+  if (value >= 5) return 'bg-n-amber-9';
+  return 'bg-n-ruby-9';
 };
 
 const openConversation = displayId => {
@@ -200,8 +211,12 @@ const openConversation = displayId => {
           class="cursor-pointer"
           role="button"
           tabindex="0"
-          @click="applyFilter({ escopo: 'ruido' }, t('AGENTS_EVALUATION.KPI_RUIDO'))"
-          @keydown.enter="applyFilter({ escopo: 'ruido' }, t('AGENTS_EVALUATION.KPI_RUIDO'))"
+          @click="
+            applyFilter({ escopo: 'ruido' }, t('AGENTS_EVALUATION.KPI_RUIDO'))
+          "
+          @keydown.enter="
+            applyFilter({ escopo: 'ruido' }, t('AGENTS_EVALUATION.KPI_RUIDO'))
+          "
         >
           <AiStatCard
             :value="totals.fora_de_escopo || 0"
@@ -215,7 +230,9 @@ const openConversation = displayId => {
       <!-- Distribuições -->
       <div class="grid grid-cols-1 gap-3 mt-3 md:grid-cols-2">
         <div class="p-4 rounded-2xl border border-n-weak bg-n-solid-1/70">
-          <h2 class="mb-3 text-xs font-bold tracking-wide uppercase text-n-slate-11">
+          <h2
+            class="mb-3 text-xs font-bold tracking-wide uppercase text-n-slate-11"
+          >
             {{ t('AGENTS_EVALUATION.SECTION_NOTA') }}
           </h2>
           <div class="space-y-2.5">
@@ -236,7 +253,9 @@ const openConversation = displayId => {
                   :style="{ width: `${bar.pct}%` }"
                 />
               </div>
-              <span class="text-[12.5px] font-semibold text-right text-n-slate-12">
+              <span
+                class="text-[12.5px] font-semibold text-right text-n-slate-12"
+              >
                 {{ bar.count }}
               </span>
             </div>
@@ -244,7 +263,9 @@ const openConversation = displayId => {
         </div>
 
         <div class="p-4 rounded-2xl border border-n-weak bg-n-solid-1/70">
-          <h2 class="mb-3 text-xs font-bold tracking-wide uppercase text-n-slate-11">
+          <h2
+            class="mb-3 text-xs font-bold tracking-wide uppercase text-n-slate-11"
+          >
             {{ t('AGENTS_EVALUATION.SECTION_FUNIL') }}
           </h2>
           <div class="space-y-2.5">
@@ -266,7 +287,9 @@ const openConversation = displayId => {
                   :style="{ width: `${bar.pct}%` }"
                 />
               </div>
-              <span class="text-[12.5px] font-semibold text-right text-n-slate-12">
+              <span
+                class="text-[12.5px] font-semibold text-right text-n-slate-12"
+              >
                 {{ bar.count }}
               </span>
             </div>
@@ -274,7 +297,9 @@ const openConversation = displayId => {
         </div>
 
         <div class="p-4 rounded-2xl border border-n-weak bg-n-solid-1/70">
-          <h2 class="mb-3 text-xs font-bold tracking-wide uppercase text-n-slate-11">
+          <h2
+            class="mb-3 text-xs font-bold tracking-wide uppercase text-n-slate-11"
+          >
             {{ t('AGENTS_EVALUATION.SECTION_HANDOFF') }}
           </h2>
           <div class="space-y-2.5">
@@ -285,7 +310,9 @@ const openConversation = displayId => {
               role="button"
               tabindex="0"
               @click="applyFilter({ handoff_timing: bar.key }, label(bar.key))"
-              @keydown.enter="applyFilter({ handoff_timing: bar.key }, label(bar.key))"
+              @keydown.enter="
+                applyFilter({ handoff_timing: bar.key }, label(bar.key))
+              "
             >
               <span class="text-[12.5px] truncate text-n-slate-11">
                 {{ label(bar.key) }}
@@ -295,13 +322,15 @@ const openConversation = displayId => {
                   class="h-full rounded-full"
                   :class="
                     bar.key === 'tardio' || bar.key === 'precisava_nao_fez'
-                      ? 'bg-r-500'
-                      : 'bg-g-500'
+                      ? 'bg-n-ruby-9'
+                      : 'bg-n-teal-9'
                   "
                   :style="{ width: `${bar.pct}%` }"
                 />
               </div>
-              <span class="text-[12.5px] font-semibold text-right text-n-slate-12">
+              <span
+                class="text-[12.5px] font-semibold text-right text-n-slate-12"
+              >
                 {{ bar.count }}
               </span>
             </div>
@@ -309,7 +338,9 @@ const openConversation = displayId => {
         </div>
 
         <div class="p-4 rounded-2xl border border-n-weak bg-n-solid-1/70">
-          <h2 class="mb-3 text-xs font-bold tracking-wide uppercase text-n-slate-11">
+          <h2
+            class="mb-3 text-xs font-bold tracking-wide uppercase text-n-slate-11"
+          >
             {{ t('AGENTS_EVALUATION.SECTION_FRONTEIRAS') }}
           </h2>
           <div class="space-y-2.5">
@@ -327,7 +358,9 @@ const openConversation = displayId => {
                   :style="{ width: `${bar.pct}%` }"
                 />
               </div>
-              <span class="text-[12.5px] font-semibold text-right text-n-slate-12">
+              <span
+                class="text-[12.5px] font-semibold text-right text-n-slate-12"
+              >
                 {{ bar.count }}
               </span>
             </div>
@@ -337,7 +370,9 @@ const openConversation = displayId => {
 
       <!-- Falhas IA x Humano -->
       <div class="p-4 mt-3 rounded-2xl border border-n-weak bg-n-solid-1/70">
-        <h2 class="mb-1 text-xs font-bold tracking-wide uppercase text-n-slate-11">
+        <h2
+          class="mb-1 text-xs font-bold tracking-wide uppercase text-n-slate-11"
+        >
           {{ t('AGENTS_EVALUATION.SECTION_FALHAS') }}
         </h2>
         <p class="mb-3 text-[12px] text-n-slate-10">
@@ -354,16 +389,18 @@ const openConversation = displayId => {
           class="flex overflow-hidden mb-4 h-7 text-[11.5px] font-semibold text-white rounded-lg"
         >
           <div
-            class="flex justify-center items-center cursor-pointer bg-b-600 hover:opacity-90"
+            class="flex justify-center items-center cursor-pointer bg-n-blue-9 hover:opacity-90"
             role="button"
             tabindex="0"
+            :style="{ width: `${iaHumanoPct.ia}%` }"
             @click="applyFilter({ quem: 'ia' }, 'IA')"
             @keydown.enter="applyFilter({ quem: 'ia' }, 'IA')"
           >
-            IA · {{ findings.ia }}
+            {{ t('AGENTS_EVALUATION.IA') }} · {{ findings.ia }}
           </div>
           <div
-            class="flex justify-center items-center cursor-pointer bg-r-600 hover:opacity-90"
+            class="flex justify-center items-center cursor-pointer bg-n-ruby-9 hover:opacity-90"
+            :style="{ width: `${iaHumanoPct.humano}%` }"
             role="button"
             tabindex="0"
             @click="
@@ -391,11 +428,38 @@ const openConversation = displayId => {
             </span>
             <div class="overflow-hidden h-2 rounded-full bg-n-alpha-1">
               <div
-                class="h-full rounded-full bg-r-500"
+                class="flex overflow-hidden h-full rounded-full"
                 :style="{ width: `${bar.pct}%` }"
-              />
+              >
+                <div
+                  v-if="bar.ia"
+                  class="h-full bg-n-blue-9 hover:opacity-80"
+                  :style="{ width: `${bar.pctIa}%` }"
+                  :title="`${t('AGENTS_EVALUATION.IA')} · ${bar.ia}`"
+                  @click.stop="
+                    applyFilter(
+                      { categoria: bar.key, quem: 'ia' },
+                      `${label(bar.key)} — ${t('AGENTS_EVALUATION.IA')}`
+                    )
+                  "
+                />
+                <div
+                  v-if="bar.humano"
+                  class="h-full bg-n-ruby-9 hover:opacity-80"
+                  :style="{ width: `${bar.pctHumano}%` }"
+                  :title="`${t('AGENTS_EVALUATION.HUMANO')} · ${bar.humano}`"
+                  @click.stop="
+                    applyFilter(
+                      { categoria: bar.key, quem: 'humano' },
+                      `${label(bar.key)} — ${t('AGENTS_EVALUATION.HUMANO')}`
+                    )
+                  "
+                />
+              </div>
             </div>
-            <span class="text-[12.5px] font-semibold text-right text-n-slate-12">
+            <span
+              class="text-[12.5px] font-semibold text-right text-n-slate-12"
+            >
               {{ bar.count }}
             </span>
           </div>
@@ -466,7 +530,9 @@ const openConversation = displayId => {
                 class="border-b cursor-pointer border-n-weak/60 hover:bg-n-alpha-1"
                 @click="openConversation(row.conversation_display_id)"
               >
-                <td class="py-2 pr-3 font-semibold whitespace-nowrap text-n-brand">
+                <td
+                  class="py-2 pr-3 font-semibold whitespace-nowrap text-n-brand"
+                >
                   #{{ row.conversation_display_id }}
                 </td>
                 <td class="py-2 pr-3 whitespace-nowrap text-n-slate-11">
@@ -496,9 +562,9 @@ const openConversation = displayId => {
                       :key="fi"
                       class="mb-1 last:mb-0"
                     >
-                      <span
-                        class="italic text-n-slate-12"
-                      >“{{ f.trecho }}”</span>
+                      <span class="italic text-n-slate-12">
+                        {{ `“${f.trecho}”` }}
+                      </span>
                       <span class="block text-[11.5px] text-n-slate-10">
                         {{ f.porque }}
                       </span>

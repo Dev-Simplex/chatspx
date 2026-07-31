@@ -81,6 +81,11 @@ class Captain::Conversation::ResponseBuilderJob < ApplicationJob
                 end
       with_forwardable_agent_name({ content: content, role: determine_role(message) }, message)
     end.tap do |history|
+      # Reentrada pós-atendimento humano encerrado: o agente precisa saber que houve gente
+      # antes dele e quem foi, senão trata continuidade de caso como assunto novo. Uma vez
+      # por turno (não por mensagem do histórico), e só quando é reentrada de verdade.
+      nota_humana = Captain::Conversation::HumanHistoryNote.new(conversation: @conversation).text
+      history << { content: nota_humana, role: 'user' } if nota_humana.present?
       # Diretiva interna de follow-up (cutucada): entra como último turno pro agente decidir.
       history << { content: @directive, role: 'user' } if @directive.present?
     end
@@ -278,17 +283,34 @@ class Captain::Conversation::ResponseBuilderJob < ApplicationJob
 
   def create_messages
     content = @response['response']
-    return if no_reply?(content)
+    return log_ignored(content) if no_reply?(content)
+
+    if unknown_marker?(content)
+      return unless regenerate_after_unknown_marker(content)
+
+      content = @response['response']
+      return if no_reply?(content)
+    end
 
     if skip_duplicate?(content)
       return unless regenerate_to_avoid_repeat
 
       content = @response['response']
-      return if no_reply?(content)
+      return log_ignored(content) if no_reply?(content)
       return if skip_duplicate?(content)
     end
 
     send_response(content)
+  end
+
+  # Silêncio deliberado do agente ([IGNORAR]) deixa rastro auditável: sem isso, uma
+  # conversa silenciada (ex.: falso positivo de spam) fica invisível no painel e no
+  # diagnóstico — nenhuma mensagem, nenhum log (caso real: conv sem resposta por 16h).
+  def log_ignored(content)
+    log_behavior_event('ignored', { raw: content.to_s[0, 120] })
+    nil
+  rescue StandardError
+    nil
   end
 
   # O agente decide quando NÃO responder (ex: cliente só mandou "ok"/"blz" e não há
@@ -297,6 +319,54 @@ class Captain::Conversation::ResponseBuilderJob < ApplicationJob
     return true if content.blank?
 
     content.to_s.strip.match?(/\A\[?\s*(ignorar|sem[\s_-]?resposta|no[\s_-]?reply)\s*\]?\z/i)
+  end
+
+  # A resposta INTEIRA virou um marcador entre colchetes que o pipeline não conhece. O agente
+  # inventa isso no estilo do [IGNORAR] que existe de verdade — visto em produção como
+  # "[foto do imóvel enviada]". Não é resposta nem silêncio deliberado, e hoje dá nos dois
+  # piores resultados: em julho o marcador foi ENVIADO ao cliente 4 vezes, e na conv 18753 foi
+  # engolido e o cliente ficou sem retorno. Marcador conhecido ([IGNORAR] e variantes) sai
+  # antes daqui, no no_reply?.
+  UNKNOWN_MARKER = /\A\[[^\]\n]{1,80}\]\z/
+
+  def unknown_marker?(content)
+    content.to_s.strip.match?(UNKNOWN_MARKER)
+  end
+
+  # Re-roda UMA vez cobrando texto de verdade. Se insistir no marcador, chama gente em vez de
+  # deixar a conversa muda — a mensagem do cliente segue sem resposta e alguém precisa ver.
+  def regenerate_after_unknown_marker(content)
+    log_behavior_event('unknown_marker', { content: content.to_s.strip.first(80) })
+    return false if @marker_regenerated
+
+    @marker_regenerated = true
+    @directive = 'IMPORTANTE: sua resposta anterior foi só um marcador entre colchetes, que o cliente nao pode receber. ' \
+                 'Responda de novo com uma mensagem de verdade, escrita pro cliente ler. Se a acao ja foi feita por ferramenta, ' \
+                 'diga em palavras o que aconteceu e conduza a conversa pro proximo passo.'
+    @response = if captain_v2_enabled?
+                  Captain::Assistant::AgentRunnerService.new(assistant: @assistant,
+                                                             conversation: @conversation).generate_response(message_history: collect_previous_messages)
+                else
+                  Captain::Llm::AssistantChatService.new(assistant: @assistant,
+                                                         conversation: @conversation).generate_response(message_history: collect_previous_messages)
+                end
+    return true if @response.present? && !unknown_marker?(@response['response'])
+
+    escalate_after_unknown_marker
+    false
+  rescue StandardError => e
+    Rails.logger.warn("[Captain][unknown_marker] #{e.message}")
+    escalate_after_unknown_marker
+    false
+  end
+
+  def escalate_after_unknown_marker
+    Captain::Conversation::HumanHandoffService.new(
+      conversation: @conversation, assistant: @assistant,
+      reason: 'A IA não conseguiu produzir uma resposta enviável para a última mensagem do cliente. Precisa de atendimento humano.'
+    ).perform
+  rescue StandardError => e
+    Rails.logger.warn("[Captain][unknown_marker][handoff] #{e.message}")
   end
 
   # Backstop anti-repeticao: se a resposta saiu identica a uma recente (dedup),

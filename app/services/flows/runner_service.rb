@@ -21,6 +21,8 @@ class Flows::RunnerService
   # Nó `wait_for_reply` (F2): suspende esperando a resposta do contato e, na retomada, ramifica pela
   # opção escolhida ou por 'timeout'. Extraído p/ manter esta classe enxuta. Ver Flows::ReplyWait.
   include Flows::ReplyWait
+  # Saida anomala do walker (estouro de MAX_STEPS = ciclo no grafo). Ver Flows::WalkGuard.
+  include Flows::WalkGuard
 
   MAX_STEPS = 100
   MAX_DEPTH = 3
@@ -130,6 +132,10 @@ class Flows::RunnerService
 
       node_id = next_node_id(node_id, branch)
     end
+
+    # Sair pelo TETO (e não por node_id nil / nó inexistente) é ciclo no grafo — não é conclusão.
+    return fail_on_step_limit if steps > MAX_STEPS
+
     finish_run unless @dry_run # no dry-run não há FlowRun a completar (nada foi persistido)
   end
 
