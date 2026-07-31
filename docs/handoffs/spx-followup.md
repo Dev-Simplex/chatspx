@@ -125,6 +125,37 @@ controlada antes de deixar o cron solto.
 
 ---
 
+## Próximo item: a promessa que o HUMANO esquece — desenho travado
+
+Escolhido antes da cadência configurável porque reusa o motor de compromisso já consertado
+(`followup_motivo` consumido no disparo) e é o caso descrito com nome: atendente promete
+retorno e some. A cadência configurável depende de tela, então vem depois.
+
+**Decisões batidas (Paulo, 31/07):**
+
+1. **Detecção automática, exigindo prazo explícito.** Listener na mensagem `outgoing` de `User`
+   (não de `Captain::Assistant`), no padrão do `Spx::TemplateReplyRouterListener`. Só registra
+   quando há **expressão de tempo** — é ela que discrimina promessa de intenção vaga: "vou ver
+   isso" não conta, "te mando amanhã" conta. Sem prazo não há o que cobrar.
+   Motivo de não usar só o botão adiar/resolver: quem esquece a promessa também esquece o botão.
+
+2. **Escalada só interna, terminando na fila do time.** Prazo vence → nota privada + notificação
+   pro autor. Continuou parada → devolve à fila do time. **A IA não fala com o cliente numa
+   conversa de humano**: contradiz o Modelo A e ela não sabe o que foi combinado fora do sistema
+   (ligação, WhatsApp pessoal) — poderia prometer o que já foi entregue.
+
+**Decidido por regra de projeto, não precisa perguntar:** opt-in **por conta** (default off),
+como todo comportamento novo — nunca hardcode de cliente.
+
+**Cuidado conhecido na entrega:** as notificações desta conta vêm **OFF de fábrica**
+(`assigned_conversation_new_message` sem push/email), então lembrete que dependa só do
+`Notification` pode nunca ser visto. Por isso a nota privada na conversa é o canal primário, e a
+notificação é reforço — e por isso a escalada pro time existe.
+
+**Peças a reusar, não reinventar:** `snoozed_until` + `Conversations::ReopenSnoozedConversationsJob`
+(o "adiar" já existe e reabre sozinho) · o motor de compromisso do `FollowupJob` · o padrão de
+listener SPX.
+
 ## Aberto nesta frente
 
 - **Cadência personalizável no front** (hoje é código: `MAX_FOLLOWUPS`, `QUIET_START/END`,
