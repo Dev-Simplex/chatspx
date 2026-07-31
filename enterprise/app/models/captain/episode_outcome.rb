@@ -11,9 +11,10 @@ class Captain::EpisodeOutcome < ApplicationRecord
   SAIDAS = %w[esfriou descartado].freeze
   DEGRAUS = (PROGRESSAO + SAIDAS).freeze
 
-  # O corte da conversão. Só o que a IA de fato controla: visita e venda dependem
-  # do corretor, então incluí-las mediria o time comercial, não o atendimento.
-  DEGRAUS_CONVERSAO = %w[qualificado handoff].freeze
+  # Degraus que PARTICIPAM da conversão — use só pra marcar/exibir. O filtro
+  # autoritativo é o scope `conversao`, porque 'assumido' só conta com a IA tendo
+  # atendido antes (ver lá).
+  DEGRAUS_CONVERSAO = %w[qualificado assumido].freeze
 
   # Procedências que vêm de FORA do SPX. Ver o scope do_spx abaixo.
   ORIGENS_EXTERNAS = %w[vista].freeze
@@ -40,6 +41,26 @@ class Captain::EpisodeOutcome < ApplicationRecord
   scope :do_spx, -> { where.not(origem: ORIGENS_EXTERNAS) }
   scope :externos, -> { where(origem: ORIGENS_EXTERNAS) }
 
-  # A métrica primária. Passa pelo do_spx por construção, não por convenção do chamador.
-  scope :conversao, -> { do_spx.where(degrau: DEGRAUS_CONVERSAO) }
+  # 'assumido' com a IA tendo conduzido antes. Sem esse qualificador, atendimento que
+  # SEMPRE foi humano viraria conversão da IA — e ele é maioria: no dry-run da conta 6,
+  # 248 dos 342 assumidos eram só-humano.
+  scope :assumido_com_ia, lambda {
+    where(degrau: 'assumido').where('detalhe @> ?', { ia_atendia_antes: true }.to_json)
+  }
+  scope :assumido_so_humano, lambda {
+    where(degrau: 'assumido').where.not('detalhe @> ?', { ia_atendia_antes: true }.to_json)
+  }
+
+  # A métrica primária — CORTE B, decidido em 31/07 sobre o dry-run da conta 6.
+  #
+  # Por que não inclui 'handoff': ele só existe onde o F2 gravou a tool (403 de 499
+  # episódios da amostra não tinham tool call nenhuma), então seria refém permanente da
+  # cobertura do F2. 'assumido' vem de mensagem + log human_takeover, que são duráveis.
+  # Os dois cortes deram praticamente o mesmo número (23,4% × 24,2%), então escolher o
+  # durável não custou precisão.
+  #
+  # Passa pelo do_spx por construção, não por convenção do chamador.
+  scope :conversao, lambda {
+    do_spx.where(degrau: 'qualificado').or(do_spx.assumido_com_ia)
+  }
 end
