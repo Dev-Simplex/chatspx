@@ -134,8 +134,11 @@ Chatwoot tem overlay Enterprise em `enterprise/` que extende/sobrescreve codigo 
 
 ## Translations
 
-- Apenas editar `en.yml` (backend) e `en.json` (frontend)
-- Outros idiomas sao mantidos pela comunidade
+- **Esta regra e do upstream, NAO vale pra este fork.** No Chatwoot original so `en` e editado
+  porque os outros idiomas vem de traducao comunitaria. Aqui a base de usuarios e brasileira e o
+  produto e entregue em PT-BR: **feature nova edita `en` E `pt_BR`**, senao o time do cliente ve
+  metade da tela em ingles. Os commits recentes fazem isso rotineiramente.
+- Demais idiomas (es, fr, ...) continuam sendo da comunidade — nao traduzir.
 
 ## Frontend
 
