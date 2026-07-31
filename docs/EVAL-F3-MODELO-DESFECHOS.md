@@ -66,14 +66,46 @@ Tudo abaixo já existe no código de hoje. Nenhuma tool nova, nenhuma chamada de
 |---|---|---|
 | `respondeu` | ≥1 `message` `incoming` na janela do episódio | `Captain::ConversationEpisode#first_message_id..last_message_id` |
 | `qualificado` | `custom_attributes['tozi_status_lead'] ∈ {qualificado, convertido}` **ou** `FunnelItem` no estágio `qualificado` | `SalvarInfoLeadTool` · `Spx::Tozi::FunnelPlacementService` |
-| `handoff` | `custom_attributes['aguardando_humano_desde']` presente | `Captain::Tools::HandoffTool` |
-| `assumido` | 1ª `outgoing` com `sender_type = 'User'` **após** o `aguardando_humano_desde` | `messages` |
+| `handoff` | `Captain::ToolCall` de `handoff`/`transferir_para_agente` — **só onde o F2 gravou** | F2 |
+| `assumido` | 1ª `outgoing` com `sender_type = 'User'`, qualificada por "a IA atendia antes?" | `messages` + log `human_takeover` |
 | `esfriou` | status ∈ `{esfriado, perdido}` **ou** estágio `frio` | `SalvarInfoLeadTool#move_funnel_by_status` |
 | `descartado` | status `nao_qualificado` **ou** label `nao-qualificado` | idem + `add_labels` |
 | `visita` / `venda` | etapa do card no Vista | § 5 (leitor) |
 
 **Regra de ouro:** o degrau é gravado quando o sinal aparece, com o `ocorreu_em` do sinal — nunca
 inferido retroativamente por leitura de transcrição.
+
+### ⚠️ O que o dry-run de 30/07 (conta 6, 500 episódios) derrubou
+
+A v1 deste modelo detectava `handoff` por `custom_attributes['aguardando_humano_desde']`. **Estava
+cega:** nas 349 conversas analisadas, 287 tinham assignee humano e 322 tinham mensagem de um humano
+— e o detector achou **zero handoff**. Duas causas, ambas do produto e não do eval:
+
+1. **`aguardando_humano_desde` é TRANSITÓRIO.** É um "está aguardando", limpo quando o humano
+   assume — 2 conversas em 20.170 o têm agora. Nunca foi registro histórico.
+2. **AssistantLog `handoff` nunca é escrito.** O event_type está declarado em
+   `Captain::AssistantLog::EVENT_TYPES`, mas `HandoffTool` chama `log_tool_usage`, que só escreve
+   em `Rails.logger` e **não cria registro**. Constante morta desde sempre.
+
+Consequência de modelo: **o degrau durável é o `assumido`, não o `handoff`.** A intenção da IA de
+passar o bastão só é reconstituível onde o F2 gravou a tool; o fato de um humano ter assumido é
+detectável sempre, pela mensagem.
+
+`assumido` sozinho não serve de conversão — atendimento que sempre foi humano entraria como
+crédito da IA. Por isso ele carrega `detalhe['ia_atendia_antes']`, respondido pelo log
+`human_takeover` (que o `log_captain_mirror_transition` só emite quando o espelho captain **estava**
+na conversa, logo já prova que a IA atendia) ou pela varredura das mensagens anteriores.
+
+> **Dois defeitos de produto pra outra frente** (anotados, não corrigidos aqui — `handoff_tool.rb`
+> pertence ao escopo da `spx/rodizio`, que está no mesmo arquivo):
+> - **Handoff não tem evento durável.** Fix: `HandoffTool`/`HumanHandoffService` criarem
+>   `Captain::AssistantLog` com `event_type: 'handoff'` — o valor **já é aceito** por `EVENT_TYPES`.
+>   Sem isso, o degrau `handoff` fica dependente da cobertura do F2 pra sempre.
+> - **`EpisodeSegmenterService` compara `message_type` com inteiro** (`type == 2`, `type == 3`)
+>   sobre um valor vindo de `pluck` de coluna **enum**, que devolve o RÓTULO. Se confirmado, as
+>   fronteiras `resolve` e `hsm_campanha` nunca disparam **e activities entram como mensagem do
+>   episódio**. O dry-run v2 imprime a distribuição de `boundary_reason` justamente pra confirmar
+>   ou descartar. Foi o mesmo erro que zerou a v1 do dry-run.
 
 ---
 

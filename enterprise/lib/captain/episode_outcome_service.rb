@@ -28,8 +28,11 @@ class Captain::EpisodeOutcomeService
   # autor, os dois de que precisamos).
   STAGE_DEGRAU = { 'qualificado' => 'qualificado', 'frio' => 'esfriou' }.freeze
 
-  # Tools que levam ao marcador de handoff — todas passam pelo HumanHandoffService.
+  # Tools que registram a intenção de passar pro humano.
   HANDOFF_TOOLS = %w[handoff transferir_para_agente].freeze
+
+  # Quem conta como "a IA falando" (AgentBot cobre o espelho do assistant).
+  IA_SENDERS = %w[Captain::Assistant AgentBot].freeze
 
   pattr_initialize [:episode!]
 
@@ -122,44 +125,59 @@ class Captain::EpisodeOutcomeService
        detalhe: { 'stage' => item.funnel_stage.automation_type, 'funnel_item_id' => item.id } }]
   end
 
-  # `aguardando_humano_desde` é ele próprio um timestamp ISO8601 — o gate de janela
-  # sai de graça. Escrito SÓ pelo HumanHandoffService, chamado do HandoffTool, do
-  # TransferirParaAgenteTool, do fallback do ResponseBuilderJob e da escalada do
-  # FollowupJob: nenhum caminho humano escreve esse marcador, então a autoria aqui é
-  # 'ia' (pediu via tool) ou 'sistema' (fallback/escalada) — nunca 'humano'.
+  # A INTENÇÃO da IA de passar o bastão. Só é reconstituível onde o F2 gravou a tool
+  # — e isso é uma limitação de observabilidade do produto, não uma escolha:
+  #
+  #   · `aguardando_humano_desde` é TRANSITÓRIO. É um "está aguardando", limpo quando
+  #     o humano assume. Medido em produção (conta 6): 2 conversas em 20.170 o têm.
+  #     Servia de gate de estado, jamais de registro histórico — a v1 deste serviço
+  #     errou nisso e ficou cega pro desfecho mais comum dos dados.
+  #   · AssistantLog 'handoff' NUNCA é escrito. O event_type existe em EVENT_TYPES,
+  #     mas o HandoffTool só chama log_tool_usage, que escreve no Rails.logger e não
+  #     cria registro. Constante morta (ver AVISO no doc do F3).
+  #
+  # Por isso o degrau DURÁVEL da escada é o `assumido`, não o `handoff`.
   def handoff
-    return if handoff_at.nil?
-
     call = tool_calls.find { |c| HANDOFF_TOOLS.include?(c.tool_name) && c.status == 'ok' }
-    { degrau: 'handoff', causado_por: call ? 'ia' : 'sistema',
-      origem: call ? 'tool' : 'atributo', ator_id: call&.captain_assistant_id,
-      ocorreu_em: handoff_at,
-      detalhe: { 'tool_call_id' => call&.id, 'tool' => call&.tool_name }.compact }
+    return if call.nil?
+
+    { degrau: 'handoff', causado_por: 'ia', origem: 'tool',
+      ator_id: call.captain_assistant_id, ocorreu_em: call.created_at,
+      detalhe: { 'tool_call_id' => call.id, 'tool' => call.tool_name } }
   end
 
-  def handoff_at
-    return @handoff_at if defined?(@handoff_at)
-
-    bruto = conversation.custom_attributes&.dig('aguardando_humano_desde')
-    instante = bruto.present? ? Time.zone.parse(bruto.to_s) : nil
-    @handoff_at = na_janela?(instante) ? instante : nil
-  rescue ArgumentError
-    @handoff_at = nil
-  end
-
-  # Um humano de fato respondeu DEPOIS do handoff. Exige o handoff nesta janela: sem
-  # ele não é "assumido", é só um humano trabalhando a conversa — e se o handoff foi
-  # num episódio anterior, o crédito é daquele episódio, não deste.
+  # Um humano ASSUMIU o atendimento — o desfecho mais comum nos dados reais e o mais
+  # durável de detectar. A mensagem é a evidência forte: o humano FALOU, não só foi
+  # atribuído (atribuição sem resposta não é atendimento).
   def assumido
-    return if handoff_at.nil?
-
-    msg = mensagens.find do |m|
-      m.outgoing? && m.sender_type == 'User' && m.created_at >= handoff_at
-    end
+    msg = mensagens.find { |m| m.outgoing? && m.sender_type == 'User' }
     return if msg.nil?
 
     { degrau: 'assumido', causado_por: 'humano', origem: 'mensagem', ator_id: msg.sender_id,
-      ocorreu_em: msg.created_at, detalhe: { 'message_id' => msg.id } }
+      ocorreu_em: msg.created_at,
+      detalhe: { 'message_id' => msg.id, 'ia_atendia_antes' => ia_atendia_antes?(msg) } }
+  end
+
+  # A IA estava conduzindo antes de o humano entrar? Sem isso, atendimento que SEMPRE
+  # foi humano entraria como conversão da IA.
+  #
+  # O log 'human_takeover' responde sozinho: o log_captain_mirror_transition só o emite
+  # quando o espelho captain ESTAVA na conversa e foi solto — ou seja, a existência do
+  # registro já prova que a IA atendia. A varredura das mensagens é o complemento pra
+  # conversa que nunca teve espelho.
+  def ia_atendia_antes?(msg)
+    return true if takeover_log.present?
+
+    mensagens.any? { |m| m.outgoing? && IA_SENDERS.include?(m.sender_type) && m.created_at < msg.created_at }
+  end
+
+  def takeover_log
+    return @takeover_log if defined?(@takeover_log)
+
+    @takeover_log = Captain::AssistantLog
+                    .where(conversation_id: conversation.id, event_type: 'human_takeover')
+                    .where(created_at: episode.started_at..(fim + TOOL_WINDOW))
+                    .order(:created_at).first
   end
 
   # ── persistência ───────────────────────────────────────────────────────────

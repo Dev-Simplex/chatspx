@@ -11,6 +11,8 @@ class Captain::EpisodeTraitsService
   # Quem conta como "a IA falando". AgentBot cobre o espelho do assistant.
   IA_SENDERS = %w[Captain::Assistant AgentBot].freeze
   TOOL_WINDOW = 3.minutes
+  # Ver #ferramentas: as tools que detectam degrau não podem contar como conduta.
+  TOOLS_DETECTORAS = %w[salvar_info_lead handoff transferir_para_agente].freeze
 
   pattr_initialize [:episode!]
 
@@ -73,9 +75,14 @@ class Captain::EpisodeTraitsService
     (tamanhos.sum.to_f / tamanhos.size).round
   end
 
+  # Só ferramentas de CONTEÚDO (busca, fotos, localização). As que DEFINEM degraus
+  # ficam de fora: `qualificado` é detectado por salvar_info_lead, então contá-la como
+  # conduta tornaria a métrica circular — "quem converteu usou mais tools" seria o
+  # detector se medindo, não um traço de conduta.
   def ferramentas
     Captain::ToolCall.for_conversation(conversation.id)
                      .in_window(episode.started_at, fim + TOOL_WINDOW)
+                     .where.not(tool_name: TOOLS_DETECTORAS)
                      .count
   end
 
