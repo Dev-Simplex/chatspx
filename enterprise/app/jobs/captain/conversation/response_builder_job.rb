@@ -327,6 +327,9 @@ class Captain::Conversation::ResponseBuilderJob < ApplicationJob
   # está entre colchetes) — e o cliente recebe o hash cru. O JSON.parse do fallback de handoff
   # também não pega, porque hash-rocket não é JSON válido. Aqui desembrulha pro texto real;
   # se o campo interno vier vazio, o agente quis silêncio.
+  # Acontece principalmente quando o turno termina em transferência e o fallback de handoff
+  # pega a última fala do assistente já serializada. Escapa das duas redes existentes — não é
+  # blank e não casa com UNKNOWN_MARKER — e o hash cru chega no cliente.
   # Abre com a chave e traz o campo response logo em seguida, em hash-rocket ou JSON.
   LEAKED_STRUCT = /\A\{.*["']response["']\s*(?:=>|:)/m
   # Captura o valor do campo response, respeitando aspas escapadas dentro do texto.
