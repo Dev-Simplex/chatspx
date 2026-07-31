@@ -40,12 +40,19 @@ class Campaign < ApplicationRecord
   validate :prevent_completed_campaign_from_update, on: :update
   validate :sender_must_belong_to_account
   validate :inbox_must_belong_to_account
+  validate :dispatch_assignee_must_belong_to_account
 
   belongs_to :account
   belongs_to :inbox
   belongs_to :sender, class_name: 'User', optional: true
   # Time que a conversa recebe no disparo em massa (fica fechada e sem agente).
   belongs_to :target_team, class_name: 'Team', optional: true
+  # Dono do disparo (opcional): quem atende as respostas DESTA campanha. Sem ele,
+  # a conversa fecha sem agente e o reply reabre pra fila do time.
+  # ATENCAO: so em inbox SEM IA — atribuir humano dispara o
+  # `reset_agent_bot_when_assignee_present` e cala o agente. Ver migration
+  # 20260731120100 e, pra inbox com IA, a designacao da frente spx/rodizio.
+  belongs_to :dispatch_assignee, class_name: 'User', optional: true
 
   enum campaign_type: { ongoing: 0, one_off: 1 }
   # TODO : enabled attribute is unneccessary . lets move that to the campaign status with additional statuses like draft, disabled etc.
@@ -136,6 +143,15 @@ class Campaign < ApplicationRecord
     return if account.users.exists?(id: sender.id)
 
     errors.add(:sender_id, 'must belong to the same account as the campaign')
+  end
+
+  # Dono de fora da conta seria descartado em silencio pelo AssignmentService
+  # (que so resolve usuarios da conta) — e o disparo inteiro nasceria sem dono.
+  def dispatch_assignee_must_belong_to_account
+    return if dispatch_assignee.blank?
+    return if account.users.exists?(id: dispatch_assignee_id)
+
+    errors.add(:dispatch_assignee_id, 'must belong to the same account as the campaign')
   end
 
   def prevent_completed_campaign_from_update
