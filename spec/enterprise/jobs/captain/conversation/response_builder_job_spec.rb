@@ -297,6 +297,54 @@ RSpec.describe Captain::Conversation::ResponseBuilderJob, type: :job do
       end
     end
 
+    # Regressao (frente spx/followup): o safety-net de handoff chamava bot_handoff! puro, entao
+    # todo handoff disparado por ele pulava o dossie, o roteamento de time e o motor de rodizio
+    # (Spx::Distribuicao::DistribuirService) — o lead ouvia que um humano assume e nao entrava na
+    # fila de ninguem. A deteccao tambem nao via 'corretor' (a palavra do vertical imobiliario)
+    # nem a promessa no presente ("eu passo pro corretor"), que exigia auxiliar (vou/vamos).
+    context 'when the agent promises a human without firing the handoff' do
+      let(:conversation) do
+        create(:conversation, inbox: inbox, account: account, status: :pending, assignee_agent_bot: assistant.mirror_agent_bot)
+      end
+
+      before do
+        allow(account).to receive(:feature_enabled?).and_return(false)
+        allow(account).to receive(:feature_enabled?).with('captain_integration_v2').and_return(false)
+      end
+
+      def responde(texto)
+        allow(mock_llm_chat_service).to receive(:generate_response).and_return({ 'response' => texto })
+        described_class.perform_now(conversation, assistant)
+        conversation.reload
+      end
+
+      it 'fires the handoff on a first-person present promise naming a corretor' do
+        responde('Perfeito! Eu passo pro corretor te dar os detalhes.')
+
+        expect(conversation.custom_attributes['aguardando_humano_desde']).to be_present
+      end
+
+      it 'goes through HumanHandoffService so the dossie and the rodizio engine run' do
+        expect(Spx::Distribuicao::DistribuirService).to receive(:new).with(conversation).and_call_original
+
+        responde('A corretora vai entrar em contato com voce ainda hoje.')
+
+        expect(conversation.messages.where(private: true).last.content).to include('handoff foi disparado automaticamente')
+      end
+
+      it 'stays quiet when the agent is only introducing herself as consultora' do
+        responde('Meu nome e Julia, sou a consultora que vai te atender.')
+
+        expect(conversation.custom_attributes['aguardando_humano_desde']).to be_nil
+      end
+
+      it 'still fires when a real promise follows the introduction' do
+        responde('Sou a Julia, consultora virtual. O corretor te chama amanha.')
+
+        expect(conversation.custom_attributes['aguardando_humano_desde']).to be_present
+      end
+    end
+
     context 'when message contains an image' do
       let(:message_with_image) { create(:message, conversation: conversation, message_type: :incoming, content: 'Can you help with this error?') }
       let(:image_attachment) { message_with_image.attachments.create!(account: account, file_type: :image, external_url: 'https://example.com/error.jpg') }

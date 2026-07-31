@@ -248,30 +248,79 @@ class Captain::Conversation::ResponseBuilderJob < ApplicationJob
   # conversa (nao aplica o override de recepcao), entregando ao humano do time que ja atendia.
   # Cobre as 3 formas ja vistas em prod (18973 "vou passar", 19029 "vai retornar",
   # 19006 "o time retorna amanha") + variacoes comuns de promessa de retorno humano.
-  HUMANO = 'consultor|atendente|humano|equipe|time|colega|respons\\w+|algu[ée]m (do time|da equipe)'.freeze
-  HANDOFF_PROMISE_PATTERNS = [
-    # 1a pessoa: "vou/vamos passar/chamar/encaminhar/transferir/pedir ... <humano>"
+  # Sufixo \w* nos cargos porque a promessa vem no feminino/plural com a mesma frequencia
+  # ("a corretora te chama", "os vendedores retornam") e o \b cru so casava o masculino
+  # singular. 'corretor' e a palavra natural no vertical imobiliario — sem ela o safety-net
+  # nao via a forma mais comum de promessa da Tozi.
+  HUMANO = ('consultor\\w*|corretor\\w*|vendedor\\w*|gerente\\w*|especialista\\w*|atendente\\w*|' \
+            'humano|equipe|time|colega|respons\\w+|algu[ée]m (do time|da equipe)').freeze
+  # Promessa em 1a PESSOA — quem fala e a IA e o destinatario e outra pessoa, entao vale sempre.
+  PROMESSA_PRIMEIRA_PESSOA = [
+    # com auxiliar: "vou/vamos passar/chamar/encaminhar/transferir/pedir ... <humano>"
     /\b(vou|irei|vamos|já vou|vou já)\b.{0,40}\b(passar|chamar|encaminhar|acionar|transferir|pedir|avisar)\b.{0,40}\b(#{HUMANO})\b/i,
-    # 3a pessoa: "<humano> ... retorna/retornar/entra em contato/te chama/vai falar/assume/continua/da sequencia/te atende/da as informacoes"
+    # no PRESENTE: "ja encaminho pro time", "aciono a corretora". O padrao com auxiliar nao via
+    # essa forma — a mais curta e das mais comuns. 'chamo' pede guarda: "me chamo Sofia" e
+    # apresentacao, nao promessa, e dispararia handoff na abertura de toda conversa.
+    /\b(encaminho|transfiro|aciono|repasso|solicito|(?<!me )chamo)\b.{0,40}\b(#{HUMANO})\b/i,
+    # 'passo' e tambem substantivo ("o proximo passo"), entao so conta com preposicao na frente.
+    /\bpasso\b.{0,25}\b(pro|pra|para|ao)\b.{0,25}\b(#{HUMANO})\b/i
+  ].freeze
+
+  # Promessa em 3a PESSOA: "<humano> ... retorna/entra em contato/te chama/assume/te atende".
+  PROMESSA_TERCEIRA_PESSOA = [
     /\b(#{HUMANO})\b.{0,45}\b(retorn\w+|entr\w+ em contato|(te )?cham\w+|falar? com voc[êe]|assum\w+|continu\w+|dar sequ[êe]ncia|d[áa]\w* as informa\w+|te atend\w+|te ajud\w+)\b/i,
     # forma direta "o time/consultor (te) retorna [amanha/mais tarde]"
     /\b(o time|o consultor|a equipe|um consultor|um atendente)\b.{0,30}\bretorn\w+/i
   ].freeze
 
+  # A agente se apresenta como consultora ("sou a consultora que vai te atender", "aqui e a Sofia,
+  # consultora da casa"). Em 3a pessoa isso e indistinguivel de promessa de humano — mas fala DELA.
+  # Sem este veto, o safety-net dispararia handoff na abertura de toda conversa e afogaria a fila.
+  APRESENTACAO = /\b(me chamo|meu nome|sou a |sou o |sou um|sou sua|sou seu|sou consultor|aqui (é|e) a |aqui (é|e) o )/i
+
   def promised_handoff?(text)
     return false if text.blank?
 
-    HANDOFF_PROMISE_PATTERNS.any? { |re| re.match?(text.to_s) }
+    texto = text.to_s
+    return true if PROMESSA_PRIMEIRA_PESSOA.any? { |re| re.match?(texto) }
+
+    # 3a pessoa avalia FRASE A FRASE pra poder descartar so a que e apresentacao: assim
+    # "Sou a Sofia. O corretor te chama amanha." continua acionando pela segunda frase.
+    texto.split(/(?<=[.!?\n])/).any? do |frase|
+      !APRESENTACAO.match?(frase) && PROMESSA_TERCEIRA_PESSOA.any? { |re| re.match?(frase) }
+    end
   end
 
   def ensure_handoff_if_promised
     return unless promised_handoff?(@response['response'])
     return unless captain_can_respond?
+    # Ja aguardando humano (o agente chamou o tool NESTE turno e tambem escreveu a promessa):
+    # nada a fazer, e sair antes do log mantem a metrica 'handoff_auto_fired' honesta —
+    # ela mede so os casos em que o agente PROMETEU sem acionar.
+    return if @conversation.custom_attributes&.dig('aguardando_humano_desde').present?
 
     log_behavior_event('handoff_auto_fired', { snippet: @response['response'].to_s[0, 160] })
-    I18n.with_locale(@assistant.account.locale) { @conversation.bot_handoff! }
+    # Pelo HumanHandoffService, nao por bot_handoff! puro: o service e quem registra o dossie,
+    # marca `aguardando_humano_desde` e chama o Spx::Distribuicao::DistribuirService (rodizio).
+    # Com bot_handoff! direto, todo handoff que caia neste safety-net pulava o rodizio inteiro —
+    # o lead ouvia que um humano assume e nao entrava na fila de ninguem.
+    # team_id = o time ATUAL da conversa (mantem o comportamento original de entregar ao time que
+    # ja atendia); sem time, o service cai no time padrao do proprio agente.
+    I18n.with_locale(@assistant.account.locale) do
+      Captain::Conversation::HumanHandoffService.new(
+        conversation: @conversation, assistant: @assistant,
+        reason: auto_handoff_reason, team_id: @conversation.team_id
+      ).perform
+    end
   rescue StandardError => e
     Rails.logger.warn("[Captain] ensure_handoff_if_promised falhou: #{e.message}")
+  end
+
+  # Dossie pro humano que assumir: sem isso ele recebe a conversa sem saber por que chegou.
+  def auto_handoff_reason
+    'A IA avisou o cliente que uma pessoa do time assume, mas nao acionou a passagem — ' \
+      'o handoff foi disparado automaticamente para o cliente nao ficar esperando. ' \
+      "Trecho enviado: \"#{@response['response'].to_s[0, 160]}\""
   end
 
   def process_action(action)
