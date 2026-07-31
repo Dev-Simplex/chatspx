@@ -206,10 +206,33 @@ continuar explicando a decisão de ontem. Barato agora, caro depois.
 A designação é carimbada na conversa como **custom attribute**, pelo mesmo caminho por onde já
 entram `meta_campanha` e `meta_imovel` (`CustomAttributeDefinition` + serviço de stamp).
 
-- Campos: corretor designado · quando · produto resolvido.
-- **Fonte da verdade continua sendo `distribuicao_logs`.** O custom attribute é **espelho de
-  leitura para o turno do agente** — sem ele, o gatilho não fica visível para o LLM e a conduta
-  "modo contido" não tem como existir.
+| Chave | Vai pro painel? | Vai pro agente? |
+|---|---|---|
+| `rodizio_corretor` — nome do corretor designado | ✅ | 🚫 **não** |
+| `rodizio_designado_em` — quando | ✅ | ✅ |
+| `rodizio_produto` — produto resolvido | ✅ | ✅ |
+
+- **Fonte da verdade continua sendo `distribuicao_logs`.** O custom attribute é espelho de
+  leitura; se divergir, o log manda.
+- As **definições** (`CustomAttributeDefinition`) são garantidas pelo serviço: o Chatwoot só
+  renderiza custom_attributes definidos, e sem isso o carimbo existiria no banco e seria
+  invisível pro time.
+
+### 6.1. ⚠️ Por que o NOME do corretor não chega ao agente
+
+Precedente no próprio código (`Captain::Assistant::AgentRunnerService#build_conversation_state`):
+`aguardando_humano_desde` **já teve que ser removido** do contexto porque *"a presença dele empurra
+o LLM pro silêncio ([IGNORAR]) mesmo quando o cliente traz pergunta nova"*.
+
+O carimbo do rodízio corre o mesmo risco por dois caminhos:
+1. **Silêncio** — o LLM lê "tem dono" e cala. Seria a morte da feature: a IA existe justamente
+   para cobrir essa janela.
+2. **Anúncio** — com o nome à mão, o LLM diz *"o Fulano vai te procurar"*. O desenho **proíbe**
+   anunciar (âncora 1).
+
+Por isso `rodizio_corretor` é removido do estado do agente, no mesmo `except` do marcador antigo.
+O **estado** da designação segue visível — é ele que a conduta lê. Reverter é uma linha, se o
+teste de conduta mostrar que o nome ajuda mais do que atrapalha.
 
 ---
 

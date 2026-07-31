@@ -202,7 +202,13 @@ class Captain::Assistant::AgentRunnerService
     # O marcador de espera por humano NÃO entra no contexto do agente: a presença dele empurra
     # o LLM pro silêncio ([IGNORAR]) mesmo quando o cliente traz pergunta nova. Ele segue no
     # banco pros outros usos (guard do follow-up + filtro "Aguardando atendimento").
-    state[:conversation][:custom_attributes] = (state[:conversation][:custom_attributes] || {}).except('aguardando_humano_desde')
+    #
+    # `rodizio_corretor` sai pelo motivo oposto: o NOME do corretor no contexto faz o LLM
+    # anunciar o repasse ("o Fulano vai te procurar"), e o rodízio proíbe anunciar — o handoff
+    # é evento de sistema, silencioso. O ESTADO da designação (rodizio_designado_em /
+    # rodizio_produto) continua visível: é ele que a conduta de "modo contido" lê.
+    state[:conversation][:custom_attributes] =
+      (state[:conversation][:custom_attributes] || {}).except('aguardando_humano_desde', 'rodizio_corretor')
     state[:channel_type] = @conversation.inbox&.channel_type
     state[:contact] = slice_attrs(@conversation.contact, CONTACT_STATE_ATTRIBUTES) if @conversation.contact
     state[:campaign] = slice_attrs(@conversation.campaign, CAMPAIGN_STATE_ATTRIBUTES) if @conversation.campaign

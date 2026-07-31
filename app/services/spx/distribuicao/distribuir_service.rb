@@ -49,6 +49,7 @@ module Spx
         assign!(chosen)
         advance_state(chosen)
         registrar(chosen, motivo, pool_ids)
+        carimbar(chosen)
         Result.new(decidido: true, user_id: chosen, motivo: motivo)
       rescue StandardError => e
         Rails.logger.error("[Distribuicao] conv=#{@conversation&.id} team=#{@team&.id}: #{e.message}")
@@ -171,6 +172,14 @@ module Spx
       def advance_state(user_id)
         state = State.find_or_initialize_by(team_id: @team.id)
         state.update!(last_user_id: user_id)
+      end
+
+      # Só em designacao: no modo assignee o painel já mostra o dono, e o carimbo seria ruído.
+      # Aqui ele é necessário — é o único sinal de que a conversa tem dono.
+      def carimbar(user_id)
+        return unless @policy.designacao?
+
+        CarimbarService.new(conversation: @conversation, user_id: user_id, produto: produto).perform
       end
 
       # Uma designação viva por conversa: um re-handoff substitui a anterior, senão a conta
