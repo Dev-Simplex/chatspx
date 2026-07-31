@@ -21,10 +21,10 @@ class Captain::EpisodeEvalJob < ApplicationJob
     account = conversation.account
     return unless Captain::ConversationEval.enabled_for?(account)
 
-    # Desfecho (F3) ANTES do juiz e antes da idempotência do veredito: é fato
-    # determinístico e de custo zero, então não pode se perder quando o LLM falha nem
-    # ficar de fora do episódio que já tem veredito.
-    record_outcomes(episode)
+    # Fatos do F3 (desfecho + traços de conduta) ANTES do juiz e antes da idempotência
+    # do veredito: são determinísticos e de custo zero, então não podem se perder quando
+    # o LLM falha nem ficar de fora do episódio que já tem veredito.
+    record_f3_facts(episode)
 
     existing = Captain::ConversationEval.find_by(episode_id: episode.id)
     return if !force && existing && existing.mensagens_avaliadas == episode.mensagens
@@ -85,12 +85,15 @@ class Captain::EpisodeEvalJob < ApplicationJob
     record.save!
   end
 
-  # Registro do desfecho (F3). Best-effort: falha aqui nunca derruba o julgamento —
+  # Camada de fatos do F3: desfecho (o QUE aconteceu) + traços de conduta (COMO foi
+  # conduzido). Best-effort: falha aqui nunca derruba o julgamento — inclusive quando a
+  # migration ainda não subiu (PG::UndefinedTable/UndefinedColumn cai neste rescue) — e
   # o backfill (spx:eval:outcomes) recupera o que ficar para trás.
-  def record_outcomes(episode)
+  def record_f3_facts(episode)
     Captain::EpisodeOutcomeService.new(episode: episode).perform
+    Captain::EpisodeTraitsService.new(episode: episode).perform
   rescue StandardError => e
-    Rails.logger.warn("[eval-outcome] falhou no episódio #{episode.id}: #{e.class} #{e.message}")
+    Rails.logger.warn("[eval-f3] falhou no episódio #{episode.id}: #{e.class} #{e.message}")
   end
 
   # Flagras objetivos do gate determinístico (custo zero), marcados com origem

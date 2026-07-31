@@ -7,7 +7,8 @@
 #   spx:eval:unit[account_id,unit]        define a unidade: episode (Eval 2.0) | conversation
 #   spx:eval:segment[account_id,limit]    segmenta as N conversas mais recentes em episódios (backfill F1)
 #   spx:eval:run_episodes[account_id,limit] julga agora N episódios fechados sem eval
-#   spx:eval:outcomes[account_id,limit]   registra o desfecho dos episódios fechados (F3, sem LLM)
+#   spx:eval:outcomes[account_id,limit]   desfecho + traços de conduta dos episódios fechados (F3, sem LLM)
+#                                         e imprime o cruzamento conduta × desfecho por campanha
 namespace :spx do
   namespace :eval do
     desc 'Liga o eval na conta: spx:eval:enable[account_id]'
@@ -177,7 +178,7 @@ namespace :spx do
       puts "\nReprocessadas OK: #{ok}, falhas: #{falhas}. Rode spx:eval:report[#{account.id}] pra ver o antes/depois."
     end
 
-    desc 'Registra o desfecho dos episódios fechados (F3, custo zero): spx:eval:outcomes[account_id,limit]'
+    desc 'Desfecho + traços de conduta dos episódios fechados (F3, custo zero): spx:eval:outcomes[account_id,limit]'
     task :outcomes, %i[account_id limit] => :environment do |_t, args|
       account = Account.find(args[:account_id])
       unless Captain::ConversationEval.enabled_for?(account)
@@ -192,11 +193,12 @@ namespace :spx do
                                              .joins(:conversation)
                                              .to_a
 
-      puts "Lendo o desfecho de #{episodes.size} episódio(s) fechado(s) da conta #{account.id} (sem LLM)..."
+      puts "Lendo desfecho + traços de #{episodes.size} episódio(s) fechado(s) da conta #{account.id} (sem LLM)..."
       gravados = 0
       falhas = 0
       episodes.each_with_index do |episode, index|
         gravados += Captain::EpisodeOutcomeService.new(episode: episode).perform.size
+        Captain::EpisodeTraitsService.new(episode: episode).perform
         print "\r#{index + 1}/#{episodes.size}"
       rescue StandardError => e
         falhas += 1
@@ -226,6 +228,41 @@ namespace :spx do
       if campanhas.present?
         puts "\nConversão por campanha:"
         campanhas.sort_by { |_, v| -v }.first(10).each { |nome, total| puts format('    %<n>-45s %<t>5d', n: nome.to_s[0, 45], t: total) }
+      end
+
+      # ── conduta × desfecho: o payoff do F3 ──────────────────────────────────
+      # Unidade = EPISÓDIO, não a linha de desfecho. Assim o episódio que não atingiu
+      # degrau nenhum (HSM enviado, lead nunca respondeu) continua no denominador —
+      # que é justamente onde mora a resposta sobre o opener.
+      convertidos = Captain::EpisodeOutcome.for_account(account.id).do_spx
+                                           .where(degrau: Captain::EpisodeOutcome::DEGRAUS_CONVERSAO)
+                                           .select(:episode_id)
+      com_traco = Captain::ConversationEpisode.for_account(account.id).closed.where.not(turnos_ia: nil)
+
+      resumo = lambda do |rotulo, escopo|
+        total = escopo.count
+        next if total.zero?
+
+        midia = escopo.where(enviou_midia: true).count
+        puts format('    %<r>-15s %<t>5d eps · %<c>4d chars/resposta · %<u>4.1f turnos IA · %<f>4.1f tools · %<m>3d%% mídia',
+                    r: rotulo, t: total, c: escopo.average(:chars_resposta_media).to_i,
+                    u: escopo.average(:turnos_ia).to_f, f: escopo.average(:ferramentas_usadas).to_f,
+                    m: (100.0 * midia / total).round)
+      end
+
+      if com_traco.exists?
+        puts "\nConduta × desfecho — correlação, NÃO causalidade:"
+        resumo.call('converteu', com_traco.where(id: convertidos))
+        resumo.call('não converteu', com_traco.where.not(id: convertidos))
+
+        com_traco.where.not(campanha: nil).group(:campanha).count.sort_by { |_, v| -v }.first(3).each do |campanha, total|
+          puts "\n  campanha: #{campanha.to_s[0, 60]} (#{total} eps)"
+          escopo = com_traco.where(campanha: campanha)
+          resumo.call('converteu', escopo.where(id: convertidos))
+          resumo.call('não converteu', escopo.where.not(id: convertidos))
+        end
+      else
+        puts "\n(sem traço calculado ainda — confira se a migration dos traços subiu)"
       end
     end
   end

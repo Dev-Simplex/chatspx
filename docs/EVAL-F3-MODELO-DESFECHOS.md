@@ -150,14 +150,25 @@ retroativamente porque alguém reetiquetou a conversa.
 ### Traços de conduta (o outro lado da correlação)
 
 Desfecho sozinho não responde nada — precisa do traço da conduta que o produziu. Todos
-determinísticos e baratos, computados por episódio:
+determinísticos e baratos, **colunas em `captain_conversation_episodes`**:
 
-`turnos_ia` · `chars_medios_resposta` · `tool_calls` · `enviou_midia` (foto/áudio/localização) ·
-`tempo_ate_1a_resposta` · `duracao_episodio`
+`turnos_ia` · `turnos_cliente` · `chars_resposta_media` · `ferramentas_usadas` · `enviou_midia` ·
+`duracao_segundos` · `campanha`
 
-Cruzados com `degrau` e segmentados por `campanha`/`empreendimento`, respondem a pergunta que
-originou o F3: *"no público Pacaembu, episódio com resposta média mais curta chega a handoff com
-que frequência?"*
+Moram no episódio (e não em tabela própria) porque são 1:1 com ele, imutáveis depois que fecha e
+da mesma natureza do `mensagens`, que já vivia ali. O `EpisodeSegmenterService` atribui uma lista
+explícita de colunas, então re-segmentar não os apaga.
+
+> **Por que `campanha` também no episódio, se já vai em cada linha de desfecho.** A unidade da
+> análise tem de ser o **episódio**, não a linha de desfecho: um episódio onde o lead nunca
+> respondeu não atinge degrau nenhum e portanto **não tem linha em `captain_episode_outcomes`**.
+> Se a segmentação por campanha dependesse da linha de desfecho, esses episódios sumiriam da
+> conta — e eles são exatamente o denominador de *"o opener funcionou?"*. Com a campanha no
+> episódio, a taxa de conversão tem denominador honesto.
+
+Cruzados com `degrau` e segmentados por `campanha`, respondem a pergunta que originou o F3:
+*"no público Pacaembu, episódio com resposta média mais curta chega a handoff com que
+frequência?"* — hoje impresso por `spx:eval:outcomes`, e no painel no passo 3.
 
 ---
 
@@ -233,11 +244,18 @@ que o SLA nasce com a resolução do intervalo de varredura.
 
 ## 6. Ordem de implementação
 
-1. `captain_episode_outcomes` + registro dos degraus **determinísticos do SPX** (1–4, `esfriou`,
-   `descartado`). Zero dependência externa, zero LLM — mede desde o primeiro dia.
-2. Traços de conduta por episódio.
-3. Corte no painel F4: conversão por campanha/empreendimento, com o eixo de autoria do F4.1.
-4. Leitor do Vista (§ 5) — depende do acordo com a `rodizio` e do card existir.
+1. ✅ **`captain_episode_outcomes` + degraus determinísticos do SPX** (`respondeu`, `qualificado`,
+   `handoff`, `assumido`, `esfriou`, `descartado`). Commit `b7c221406`.
+2. ✅ **Traços de conduta por episódio** + cruzamento conduta × desfecho por campanha impresso
+   pela `spx:eval:outcomes`.
+3. ⬜ Corte no painel F4: conversão por campanha, com o eixo de autoria do F4.1.
+4. ⬜ Leitor do Vista (§ 5) — depende do acordo com a `rodizio` e do card existir.
 
-O passo 1 sozinho já responde à pergunta do Paulo. Os passos 3 e 4 melhoram a resolução; nenhum
-deles é pré-requisito do 1.
+Os passos 1+2 já respondem à pergunta do Paulo pela linha de comando. O passo 3 leva a resposta
+pro painel; o 4 acrescenta o degrau externo. Nenhum dos dois é pré-requisito dos anteriores.
+
+> **⚠️ Nada disto foi executado.** Não há Ruby no ambiente onde o código foi escrito (nem WSL):
+> `ruby -c`, RuboCop, migration e rake seguem **pendentes de verificação** numa box com Ruby. As
+> premissas de associação foram conferidas estaticamente uma a uma contra o código existente. O
+> `record_f3_facts` do `EpisodeEvalJob` é best-effort (`rescue StandardError`), então código no ar
+> sem a migration degrada pra warning no log em vez de derrubar o julgamento.
