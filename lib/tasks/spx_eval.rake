@@ -7,6 +7,7 @@
 #   spx:eval:unit[account_id,unit]        define a unidade: episode (Eval 2.0) | conversation
 #   spx:eval:segment[account_id,limit]    segmenta as N conversas mais recentes em episódios (backfill F1)
 #   spx:eval:run_episodes[account_id,limit] julga agora N episódios fechados sem eval
+#   spx:eval:outcomes[account_id,limit]   registra o desfecho dos episódios fechados (F3, sem LLM)
 namespace :spx do
   namespace :eval do
     desc 'Liga o eval na conta: spx:eval:enable[account_id]'
@@ -174,6 +175,58 @@ namespace :spx do
         warn "\nfalha na conv #{ev.conversation_id}: #{e.class} #{e.message.to_s[0, 80]}"
       end
       puts "\nReprocessadas OK: #{ok}, falhas: #{falhas}. Rode spx:eval:report[#{account.id}] pra ver o antes/depois."
+    end
+
+    desc 'Registra o desfecho dos episódios fechados (F3, custo zero): spx:eval:outcomes[account_id,limit]'
+    task :outcomes, %i[account_id limit] => :environment do |_t, args|
+      account = Account.find(args[:account_id])
+      unless Captain::ConversationEval.enabled_for?(account)
+        abort "Conta #{account.id} está com eval_enabled=false. Rode spx:eval:enable[#{account.id}] antes."
+      end
+
+      limit = (args[:limit] || 500).to_i
+      episodes = Captain::ConversationEpisode.closed
+                                             .for_account(account.id)
+                                             .order(ended_at: :desc)
+                                             .limit(limit)
+                                             .joins(:conversation)
+                                             .to_a
+
+      puts "Lendo o desfecho de #{episodes.size} episódio(s) fechado(s) da conta #{account.id} (sem LLM)..."
+      gravados = 0
+      falhas = 0
+      episodes.each_with_index do |episode, index|
+        gravados += Captain::EpisodeOutcomeService.new(episode: episode).perform.size
+        print "\r#{index + 1}/#{episodes.size}"
+      rescue StandardError => e
+        falhas += 1
+        warn "\nfalha no episódio #{episode.id} (conv #{episode.conversation_id}): #{e.class} #{e.message.to_s[0, 80]}"
+      end
+
+      escopo = Captain::EpisodeOutcome.for_account(account.id)
+      puts "\nDegraus gravados nesta passada: #{gravados} (falhas: #{falhas}). Total na conta: #{escopo.count}"
+      puts "\nEscada (SPX — o CRM externo NÃO entra):"
+      Captain::EpisodeOutcome::DEGRAUS.each do |degrau|
+        total = escopo.do_spx.where(degrau: degrau).count
+        next if total.zero?
+
+        autoria = escopo.do_spx.where(degrau: degrau).group(:causado_por).count
+                        .sort_by { |_, v| -v }.map { |k, v| "#{k} #{v}" }.join(' · ')
+        marca = Captain::EpisodeOutcome::DEGRAUS_CONVERSAO.include?(degrau) ? '*' : ' '
+        puts format('  %<marca>s %<degrau>-12s %<total>5d   (%<autoria>s)',
+                    marca: marca, degrau: degrau, total: total, autoria: autoria)
+      end
+      puts '  (* = degrau que compõe a conversão)'
+
+      externos = escopo.externos.count
+      puts "\nCamada externa (CRM Vista), fora da conversão: #{externos}" if externos.positive?
+
+      campanhas = escopo.do_spx.where(degrau: Captain::EpisodeOutcome::DEGRAUS_CONVERSAO)
+                        .where.not(campanha: nil).group(:campanha).count
+      if campanhas.present?
+        puts "\nConversão por campanha:"
+        campanhas.sort_by { |_, v| -v }.first(10).each { |nome, total| puts format('    %<n>-45s %<t>5d', n: nome.to_s[0, 45], t: total) }
+      end
     end
   end
 end

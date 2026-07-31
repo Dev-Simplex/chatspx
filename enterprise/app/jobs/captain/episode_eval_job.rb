@@ -21,6 +21,11 @@ class Captain::EpisodeEvalJob < ApplicationJob
     account = conversation.account
     return unless Captain::ConversationEval.enabled_for?(account)
 
+    # Desfecho (F3) ANTES do juiz e antes da idempotência do veredito: é fato
+    # determinístico e de custo zero, então não pode se perder quando o LLM falha nem
+    # ficar de fora do episódio que já tem veredito.
+    record_outcomes(episode)
+
     existing = Captain::ConversationEval.find_by(episode_id: episode.id)
     return if !force && existing && existing.mensagens_avaliadas == episode.mensagens
 
@@ -78,6 +83,14 @@ class Captain::EpisodeEvalJob < ApplicationJob
       veredito_raw: { 'skip' => 'sem_mensagens' }
     )
     record.save!
+  end
+
+  # Registro do desfecho (F3). Best-effort: falha aqui nunca derruba o julgamento —
+  # o backfill (spx:eval:outcomes) recupera o que ficar para trás.
+  def record_outcomes(episode)
+    Captain::EpisodeOutcomeService.new(episode: episode).perform
+  rescue StandardError => e
+    Rails.logger.warn("[eval-outcome] falhou no episódio #{episode.id}: #{e.class} #{e.message}")
   end
 
   # Flagras objetivos do gate determinístico (custo zero), marcados com origem

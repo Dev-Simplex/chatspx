@@ -79,15 +79,26 @@ inferido retroativamente por leitura de transcrição.
 
 ## 3. Autoria
 
-`causado_por` ∈ `ia` · `humano` · `sistema` · `externo`. Deriva do sinal, não de julgamento:
+`causado_por` ∈ `ia` · `humano` · `sistema` · `contato` · `externo`. Deriva do sinal, não de
+julgamento:
 
-- **`ia`** — existe `Captain::ToolCall` com a tool correspondente (`salvar_info_lead`, `handoff`)
-  na janela do degrau. É prova direta: a IA chamou a ferramenta que produziu o fato.
-- **`humano`** — o fato existe mas não há tool call da IA (um atendente mexeu no funil/status na
-  mão), ou o degrau é `assumido`. Grava `ator_id` = `user_id`.
-- **`sistema`** — job/automação (cadência, watchdog, re-triagem).
+- **`ia`** — existe `Captain::ToolCall` com a tool correspondente (`salvar_info_lead`, `handoff`,
+  `transferir_para_agente`) na janela do degrau. É prova direta: a IA chamou a ferramenta que
+  produziu o fato.
+- **`humano`** — o fato existe mas não há tool call da IA (um atendente moveu o card na mão —
+  `FunnelItem#moved_by_id`), ou o degrau é `assumido`. Grava `ator_id` = `user_id`.
+- **`sistema`** — job/automação (fallback do `ResponseBuilderJob`, escalada do `FollowupJob`).
+- **`contato`** — o próprio lead. Só o degrau `respondeu`; forçá-lo em `externo` corromperia o
+  eixo, que reserva `externo` pro CRM.
 - **`externo`** — veio do Vista. O SPX **não sabe** quem causou; sabe apenas a qual episódio
   atribuir. Rotular isso honestamente é o que impede a camada externa de virar crédito da IA.
+
+> **Correção descoberta ao implementar:** o marcador `aguardando_humano_desde` é escrito **só**
+> pelo `HumanHandoffService`, chamado de quatro lugares — `HandoffTool`,
+> `TransferirParaAgenteTool`, fallback do `ResponseBuilderJob` e escalada do `FollowupJob`.
+> **Nenhum caminho humano escreve esse atributo.** Logo a autoria do degrau `handoff` é sempre
+> `ia` (pediu via tool) ou `sistema` (fallback/escalada) — **nunca `humano`**, como este doc
+> supunha na primeira versão.
 
 O eixo é o mesmo que o painel já usa em `findings_stats` (`ia`/`humano`) — o drill-down do F4.1
 funciona sem mudança conceitual.
@@ -125,8 +136,16 @@ Três razões para tabela separada, cada uma sozinha suficiente:
 
 **A denormalização de campanha/anúncio/público/empreendimento é obrigatória.** Esses campos vivem
 em `conversation.custom_attributes` (carimbados pelo Meta Lead Ads: `meta_campanha`, `meta_anuncio`,
-`meta_publico`, `meta_tipo`, `meta_imovel`, `empreendimento`) e **mudam**. Métrica histórica não
-pode mudar de valor retroativamente porque alguém reetiquetou a conversa.
+`meta_publico`, `meta_tipo`, `meta_imovel`) e **mudam**. Métrica histórica não pode mudar de valor
+retroativamente porque alguém reetiquetou a conversa.
+
+> ⚠️ **Gap encontrado ao implementar: `empreendimento` NÃO é carimbado na conversa.** Ele só existe
+> no `template_render_context` do `CreateConversationService` (linha ~529), consumido pelo opener e
+> descartado — vem do `hook_setting('empreendimento')` do override de campanha. A coluna fica no
+> lugar e é preenchida se o atributo aparecer, mas **hoje nasce vazia**. Até alguém carimbá-lo, o
+> corte por empreendimento sai por `campanha`/`anuncio` (que carregam o nome: `FORMS-ETNA`,
+> `[FORMS] - ACQUA`, Pacaembu). Carimbar é mudança de uma linha no `stamp_campaign_visibility` —
+> mas é código de outra frente (meta lead ads), então fica anotado, não corrigido aqui.
 
 ### Traços de conduta (o outro lado da correlação)
 
