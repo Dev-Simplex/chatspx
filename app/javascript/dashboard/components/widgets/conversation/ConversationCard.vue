@@ -145,6 +145,15 @@ export default {
     isAIAssignee() {
       return this.assignee?.type === 'agent_bot';
     },
+
+    // Espelha `may_clear_unread_marker?` do backend: em conversa com dono
+    // humano, só o dono limpa o "não lida". Sem dono (inclusive quando quem
+    // está no controle é a IA) qualquer um pode marcar como lida, como antes.
+    canMarkAsRead() {
+      const assigneeId = this.assignee?.id;
+      if (!assigneeId || this.isAIAssignee) return true;
+      return Number(assigneeId) === Number(this.currentUser?.id);
+    },
     // Cor própria da IA (determinística por id do espelho) para o chip do card.
     aiChipStyle() {
       return this.isAIAssignee && this.assignee?.id
@@ -594,6 +603,7 @@ export default {
         :priority="chat.priority"
         :chat-id="chat.id"
         :has-unread-messages="hasUnread"
+        :can-mark-as-read="canMarkAsRead"
         :conversation-labels="chat.labels"
         :allowed-options="allowedContextMenuOptions"
         @update-conversation="onUpdateConversation"

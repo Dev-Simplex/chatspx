@@ -44,7 +44,8 @@ class Api::V1::Accounts::IntegrationsController < Api::V1::Accounts::BaseControl
       :provider,
       :enabled,
       settings: [:vista_api_key, :vista_base_url, :google_maps_key,
-                 :office_lat, :office_lng, :office_name, :site_domain]
+                 :office_lat, :office_lng, :office_name, :site_domain,
+                 :site_api_url, :site_api_key]
     )
   end
 

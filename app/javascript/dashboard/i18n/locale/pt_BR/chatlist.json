@@ -7,6 +7,15 @@
       "404": "Não há conversas ativas neste grupo."
     },
     "FAILED_TO_SEND": "Falha ao enviar",
+    "SEND_ERROR": {
+      "META_SOURCE": "O WhatsApp (Meta) recusou esta mensagem",
+      "NO_WHATSAPP": "Esse número provavelmente não tem WhatsApp. Vale tentar por ligação.",
+      "DELIVERY_BLOCKED": "A Meta segurou a entrega. O número está OK — tente de novo mais tarde ou ligue.",
+      "ACCOUNT": "Problema na conta do WhatsApp (bloqueio, pagamento ou limite). Avise o suporte.",
+      "WINDOW_EXPIRED": "Passaram mais de 24h desde a última mensagem do cliente. Agora só sai mensagem com template aprovado.",
+      "TEMPLATE": "A Meta recusou o template (nome, idioma ou variáveis). Confira o template.",
+      "CODE": "Código {code}"
+    },
     "TAB_HEADING": "Conversas",
     "MENTION_HEADING": "Menções",
     "UNATTENDED_HEADING": "Não Respondidas",
