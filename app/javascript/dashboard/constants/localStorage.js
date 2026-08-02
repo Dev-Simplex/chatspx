@@ -6,4 +6,7 @@ export const LOCAL_STORAGE_KEYS = {
   DISMISSED_LABEL_SUGGESTIONS: 'labelSuggestionsDismissed',
   MESSAGE_REPLY_TO: 'messageReplyTo',
   RECENT_SEARCHES: 'recentSearches',
+  // Fonte da verdade em shared/helpers/recentEmojis.js (o picker é compartilhado
+  // com o widget e não pode importar do dashboard).
+  RECENT_EMOJIS: 'recentEmojis',
 };

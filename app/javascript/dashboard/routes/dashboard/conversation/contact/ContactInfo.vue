@@ -7,27 +7,21 @@ import ContactInfoRow from './ContactInfoRow.vue';
 import Thumbnail from 'dashboard/components/widgets/Thumbnail.vue';
 import SocialIcons from './SocialIcons.vue';
 import EditContact from './EditContact.vue';
-import ContactMergeModal from 'dashboard/modules/contact/ContactMergeModal.vue';
-import ComposeConversation from 'dashboard/components-next/NewConversation/ComposeConversation.vue';
 import ExportConversationModal from 'dashboard/components-next/message/ExportConversationModal.vue';
 import VoiceCallButton from 'dashboard/components-next/Contacts/VoiceCallButton.vue';
-import { BUS_EVENTS } from 'shared/constants/busEvents';
 
 import {
   isAConversationRoute,
   isAInboxViewRoute,
   getConversationDashboardRoute,
 } from '../../../../helper/routeHelpers';
-import { emitter } from 'shared/helpers/mitt';
 
 export default {
   components: {
     ContactInfoRow,
     EditContact,
     Thumbnail,
-    ComposeConversation,
     SocialIcons,
-    ContactMergeModal,
     ExportConversationModal,
     VoiceCallButton,
   },
@@ -113,17 +107,6 @@ export default {
     toggleEditModal() {
       this.showEditModal = !this.showEditModal;
     },
-    openComposeConversationModal(toggleFn) {
-      toggleFn();
-      // Flag to prevent triggering drag n drop,
-      // When compose modal is active
-      emitter.emit(BUS_EVENTS.NEW_CONVERSATION_MODAL, true);
-    },
-    closeComposeConversationModal() {
-      // Flag to enable drag n drop,
-      // When compose modal is closed
-      emitter.emit(BUS_EVENTS.NEW_CONVERSATION_MODAL, false);
-    },
     toggleDeleteModal() {
       this.showDeleteModal = !this.showDeleteModal;
     },
@@ -173,9 +156,6 @@ export default {
             : this.$t('DELETE_CONTACT.API.ERROR_MESSAGE')
         );
       }
-    },
-    openMergeModal() {
-      this.$refs.mergeModal?.open();
     },
   },
 };
@@ -245,27 +225,6 @@ export default {
       <div
         class="flex items-stretch justify-center gap-1.5 mt-6 w-full max-w-[300px] mx-auto"
       >
-        <div class="flex-1 min-w-0">
-          <ComposeConversation
-            :contact-id="String(contact.id)"
-            is-modal
-            @close="closeComposeConversationModal"
-          >
-            <template #trigger="{ toggle }">
-              <button
-                v-tooltip.top-end="$t('CONTACT_PANEL.NEW_MESSAGE')"
-                class="wa-action-btn"
-                :aria-label="$t('CONTACT_PANEL.NEW_MESSAGE')"
-                @click="openComposeConversationModal(toggle)"
-              >
-                <span class="i-lucide-message-circle size-5" />
-                <span class="wa-action-label">
-                  {{ $t('CONTACT_PANEL.NEW_MESSAGE_SHORT') }}
-                </span>
-              </button>
-            </template>
-          </ComposeConversation>
-        </div>
         <VoiceCallButton
           :phone="contact.phoneNumber"
           :contact-id="contact.id"
@@ -284,18 +243,6 @@ export default {
           <span class="i-lucide-pencil size-5" />
           <span class="wa-action-label">
             {{ $t('EDIT_CONTACT.BUTTON_LABEL_SHORT') }}
-          </span>
-        </button>
-        <button
-          v-tooltip.top-end="$t('CONTACT_PANEL.MERGE_CONTACT')"
-          class="wa-action-btn"
-          :aria-label="$t('CONTACT_PANEL.MERGE_CONTACT')"
-          :disabled="uiFlags.isMerging"
-          @click="openMergeModal"
-        >
-          <span class="i-lucide-merge size-5" />
-          <span class="wa-action-label">
-            {{ $t('CONTACT_PANEL.MERGE_CONTACT_SHORT') }}
           </span>
         </button>
         <button
@@ -360,7 +307,6 @@ export default {
       :contact="contact"
       @cancel="toggleEditModal"
     />
-    <ContactMergeModal ref="mergeModal" :primary-contact="contact" />
     <ExportConversationModal
       :show="showExportModal"
       :conversations="currentChat?.id ? [currentChat] : []"

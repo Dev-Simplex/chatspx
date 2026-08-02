@@ -1,13 +1,16 @@
 {
   "AGENT_MGMT": {
     "HEADER": "Agents",
+    "HEADER_SUPERVISOR": "Agents in my teams",
     "HEADER_BTN_TXT": "Add Agent",
     "LOADING": "Fetching Agent List",
     "DESCRIPTION": "An agent is a member of your customer support team who can view and respond to user messages. The list below shows all the agents in your account.",
+    "DESCRIPTION_SUPERVISOR": "These are the agents of the teams you supervise. You can fix their name; inviting, deleting, changing role or availability remains an administrator action.",
     "LEARN_MORE": "Learn about user roles",
     "AGENT_TYPES": {
       "ADMINISTRATOR": "Administrator",
-      "AGENT": "Agent"
+      "AGENT": "Agent",
+      "SUPERVISOR": "Supervisor"
     },
     "AI_AGENTS": {
       "TITLE": "AI Agents",
@@ -19,6 +22,7 @@
     "COUNT": "{n} agent | {n} agents",
     "LIST": {
       "404": "There are no agents associated to this account",
+      "404_SUPERVISOR": "There are no agents in the teams you supervise",
       "TITLE": "Manage agents in your team",
       "DESC": "You can add/remove agents to/in your team.",
       "NAME": "Name",
@@ -27,6 +31,7 @@
       "ACTIONS": "Actions",
       "VERIFIED": "Verified",
       "VERIFICATION_PENDING": "Verification Pending",
+      "SUPERVISOR": "Supervisor",
       "AVAILABLE_CUSTOM_ROLE": "Available custom role permissions"
     },
     "ADD": {
@@ -88,6 +93,12 @@
           "LABEL": "Availability",
           "PLACEHOLDER": "Please select an availability status",
           "ERROR": "Availability is required"
+        },
+        "SUPERVISED_TEAMS": {
+          "LABEL": "Teams they supervise",
+          "DESCRIPTION": "The supervisor sees every conversation of the selected teams, even the ones assigned to other agents or in inboxes they are not a member of. Supervising is not the same as being a team member.",
+          "EMPTY": "There are no teams in this account yet.",
+          "REQUIRED": "Select at least one team — a supervisor with no team is just a regular agent."
         },
         "SUBMIT": "Edit Agent"
       },

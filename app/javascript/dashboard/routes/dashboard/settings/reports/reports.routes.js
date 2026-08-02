@@ -192,6 +192,13 @@ export default {
       component: ReportsWrapper,
       children: [
         {
+          // Mesmo motivo do redirect em /reports: sem um filho para o path vazio,
+          // /live cru nao resolve para rota nenhuma e o router tenta um
+          // replaceState com URL undefined (SecurityError em navegacao client-side).
+          path: '',
+          redirect: to => ({ name: 'live_in_service', params: to.params }),
+        },
+        {
           path: 'in_service',
           name: 'live_in_service',
           meta,

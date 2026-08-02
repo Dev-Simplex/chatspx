@@ -552,9 +552,9 @@ class Captain::Conversation::ResponseBuilderJob < ApplicationJob
            .gsub(/,(\s*,)+/, ',')            # ",," -> ","
   end
 
-  # A URL de um imóvel só vem da buscar_imovel (build_url). O LLM às vezes monta
-  # uma URL do site na mão, com formato e número inventados (ex: caminho
-  # /imovel/...-3338 em vez de ...,ImoCodigo). Aqui, toda URL da Tozi na resposta
+  # A URL de um imóvel só vem da buscar_imovel (build_url, que resolve o link pela
+  # API do site). O LLM às vezes monta uma URL na mão, com número inventado — o
+  # formato até parece certo, o código é que não é. Aqui, toda URL da Tozi na resposta
   # é trocada pela que a busca realmente retornou (casando o código no fim da
   # URL); se nenhum código bater, é inventada -> remove. Sem busca na conversa,
   # nenhuma URL da Tozi é legítima. Só toca a saída da IA (não a de humano).

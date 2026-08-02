@@ -19,7 +19,7 @@ class AccountIntegration < ApplicationRecord
   SUPPORTED_PROVIDERS = %w[vista google].freeze
 
   # Secret keys are masked (suffix-only) in API responses, matching the LLM key pattern.
-  SECRET_KEYS = %w[vista_api_key google_maps_key].freeze
+  SECRET_KEYS = %w[vista_api_key google_maps_key site_api_key].freeze
 
   belongs_to :account
 

@@ -71,6 +71,12 @@
 - **Fix:** UI "Novo disparo" — upload de CSV, multiselect de corretores, multiselect de templates (com rotação automática decorrelacionada), slider de pacing (s/envio), preview da audiência limpa (dedup + blacklist na hora). Reusa o motor existente.
 - **Tamanho:** grande (é um módulo). Candidato a workflow de design antes de implementar.
 
+### 🟠 `campaign_id` da conversa é grudento — 2ª campanha na mesma base roteia pro dono errado
+- **Dói:** `Campaigns::Whatsapp::RecipientDispatchService#close_with_team` só grava `campaign_id` **se estiver nulo** (`attrs[:campaign_id] = campaign.id if conversation.campaign_id.nil?`). Contato que já entrou numa campanha mantém o `campaign_id` da PRIMEIRA para sempre. Consequências: (a) o **dono do disparo** (`Spx::TemplateReplyRouterListener#route_to_campaign_owner`) lê `conversation.campaign.dispatch_assignee_id` → a resposta da campanha nova vai pro dono da campanha ANTIGA, sem nenhuma pista do porquê; (b) o `campaign_stats` credita a conversa à campanha errada, então a métrica da 2ª campanha nasce subnotificada.
+- **Inócuo hoje** (descoberto 31/07): a campanha Motoristas usa a inbox 99, que é nova e não tem campanha anterior. Vira problema **na segunda campanha sobre a mesma base**.
+- **Fix:** decidir a semântica antes de codar — `campaign_id` é "de qual campanha esta conversa NASCEU" (atual) ou "qual campanha tocou por último"? Se for a segunda, sobrescrever aqui e conferir o impacto no `campaign_stats`. Se for a primeira, o dono do disparo precisa vir do `campaign_recipients` (que é por campanha) e não da conversa — provavelmente o caminho certo, porque preserva as duas leituras.
+- **Tamanho:** pequeno no código, médio na decisão (mexe em como o histórico é atribuído).
+
 ### 🟡 Tela de detalhe é estática (números congelam até reload)
 - **Fix:** auto-refresh do `getStats` a cada ~15s enquanto a campanha tem jobs pendentes (polling simples ou `setInterval` no `onMounted`/`onUnmounted`). Indicador "ao vivo".
 - **Tamanho:** pequeno.
@@ -306,6 +312,24 @@
 Baseline da `homologacao` nesses 10 arquivos: **60 offenses** (RuboCop). Quase tudo é
 `Metrics/*` estrutural — `buscar_imovel_tool#perform` sozinho está em 22/7 de complexidade
 ciclomática. Não confundir com regressão de quem mexer neles.
+
+---
+
+## Conduta da IA — Tozi (decisões do Paulo, 31/07)
+
+### 🟡 Simulação de financiamento na conduta MCMV — parado por decisão
+- **O quê:** o briefing de RMKT pede que a IA simule a parcela do financiamento. Hoje o prompt tem um guard-rail proibindo.
+- **Por que está parado:** depende de **definir o banco parceiro** (taxa, prazo, LTV reais). As taxas do briefing são média de mercado e **superestimam a parcela** — entrar com elas é pior que não simular.
+- **Decisão (Paulo, 31/07):** vai pro backlog, sem data.
+- **Se for aprovado um dia:** tool determinística com parâmetros por conta, **nunca número no prompt** — número em prompt é alucinação esperando acontecer.
+
+### 🟢 Catálogo faltante de 4 empreendimentos — pendência aceita
+- **O quê:** Blend, Méditerranée, De Ville Urban e Elleva Studios aparecem no `buscar_empreendimento` (vêm vivos do Vista) mas **não têm material na knowledge**. A IA cita o nome e não sabe falar deles.
+- **Decisão (Paulo, 31/07):** fica como pendência mesmo — "não tem muita procura para esses". Não é prioridade do marketing.
+- **Mitigação que já existe:** a conduta manda não afirmar o que não está nas duas fontes, então ela encaminha pro corretor em vez de inventar.
+
+### ✅ Rhodivi × "planta única" — falso alarme, fechado
+O material do doc#22 diz *"modelo **único** identificado como BT_2D8_4385 (B = Linha Básica; T = Cobertura Telhado Aparente…)"*. Os termos que pareciam duas tipologias são a **decodificação das letras do código do modelo único**. FAQ e material sempre concordaram. Paulo confirmou em 31/07: **Rhodivi é MCMV planta única**. Nada a corrigir.
 
 ---
 

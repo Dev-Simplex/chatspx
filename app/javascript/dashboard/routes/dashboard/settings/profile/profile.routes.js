@@ -16,6 +16,15 @@ export default {
       component: SettingsWrapper,
       children: [
         {
+          // Sem esse redirect a rota-pai casa sozinha e renderiza o wrapper com o
+          // router-view vazio — a tela abre em branco em /profile cru.
+          path: '',
+          redirect: to => ({
+            name: 'profile_settings_index',
+            params: to.params,
+          }),
+        },
+        {
           path: 'settings',
           name: 'profile_settings_index',
           component: Index,

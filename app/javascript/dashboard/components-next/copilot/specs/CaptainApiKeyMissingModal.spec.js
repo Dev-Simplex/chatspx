@@ -68,7 +68,7 @@ describe('CaptainApiKeyMissingModal', () => {
     await wrapper.find('[data-testid="confirm"]').trigger('click');
 
     expect(pushSpy).toHaveBeenCalledWith({
-      name: 'captain_settings_index',
+      name: 'agents_settings',
       params: { accountId: 3 },
     });
   });

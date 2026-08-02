@@ -78,6 +78,7 @@ class Whatsapp::HealthService
       code_verification_status: response['code_verification_status'],
       webhook_configuration: response['webhook_configuration'],
       expected_webhook_url: build_expected_webhook_url,
+      acceptable_webhook_urls: build_acceptable_webhook_urls,
       throughput: response['throughput'],
       last_onboarded_time: response['last_onboarded_time'],
       platform_type: response['platform_type'],
@@ -87,9 +88,36 @@ class Whatsapp::HealthService
   end
 
   def build_expected_webhook_url
+    build_webhook_url(@channel.phone_number)
+  end
+
+  def build_webhook_url(phone_number)
     frontend_url = ENV.fetch('FRONTEND_URL', nil)
     return nil if frontend_url.blank?
 
-    "#{frontend_url}/webhooks/whatsapp/#{@channel.phone_number}"
+    "#{frontend_url}/webhooks/whatsapp/#{phone_number}"
+  end
+
+  # A Meta aceita apenas UM override_callback_uri por WABA (POST /<WABA_ID>/subscribed_apps),
+  # mas o Chatwoot registra nele a URL de um numero especifico. Com varios numeros no mesmo
+  # WABA, a URL efetivamente registrada pertence a apenas um deles -- e mesmo assim e valida
+  # para todos, porque o roteamento de entrada resolve o canal pelo phone_number_id do payload
+  # e nao pela URL (ver Webhooks::WhatsappEventsJob#get_channel_from_wb_payload).
+  # Sem isso, um dos numeros sempre acusaria "webhook url mismatch" mesmo funcionando.
+  def build_acceptable_webhook_urls
+    sibling_phone_numbers.filter_map { |phone_number| build_webhook_url(phone_number) }.uniq
+  end
+
+  def sibling_phone_numbers
+    waba_id = @channel.provider_config['business_account_id']
+    return [@channel.phone_number] if waba_id.blank?
+
+    # Escopo restrito a mesma Account de proposito: um WABA pertence a um unico negocio, e
+    # limitar a busca evita que a URL de outro tenant seja aceita como valida.
+    siblings = Channel::Whatsapp.where(account_id: @channel.account_id, provider: 'whatsapp_cloud')
+                                .where("provider_config->>'business_account_id' = ?", waba_id)
+                                .pluck(:phone_number)
+
+    (siblings + [@channel.phone_number]).compact.uniq
   end
 end

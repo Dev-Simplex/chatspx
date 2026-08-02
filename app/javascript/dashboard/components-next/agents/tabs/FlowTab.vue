@@ -2,11 +2,13 @@
 import { computed, onMounted, ref } from 'vue';
 import { useRoute } from 'vue-router';
 import { useStore } from 'vuex';
+import { useI18n } from 'vue-i18n';
 
 import AiSegmented from 'dashboard/components-next/agents-ui/AiSegmented.vue';
 import AgentFlowSimple from 'dashboard/components-next/agents/workflow/AgentFlowSimple.vue';
 import AgentFlowGraph from 'dashboard/components-next/agents/workflow/AgentFlowGraph.vue';
 
+const { t } = useI18n();
 const route = useRoute();
 const store = useStore();
 
@@ -16,12 +18,10 @@ const agent = computed(() =>
 );
 
 const view = ref('simple');
-const OPTIONS = [
-  { value: 'simple', label: 'Visão simples' },
-  { value: 'tech', label: 'Visão técnica' },
-];
-const HINT =
-  'Gerado da configuração real do agente — muda a config, muda o fluxo.';
+const OPTIONS = computed(() => [
+  { value: 'simple', label: t('CAPTAIN.AGENT_TABS.FLOW.VIEW_SIMPLE') },
+  { value: 'tech', label: t('CAPTAIN.AGENT_TABS.FLOW.VIEW_TECH') },
+]);
 
 onMounted(() => {
   if (!agent.value) store.dispatch('captainAssistants/get').catch(() => {});
@@ -32,7 +32,9 @@ onMounted(() => {
   <div class="px-6 pt-4 pb-10 mx-auto space-y-4 max-w-3xl">
     <div class="flex flex-wrap gap-3 items-center">
       <AiSegmented v-model="view" :options="OPTIONS" />
-      <span class="text-[12px] text-n-slate-10">{{ HINT }}</span>
+      <span class="text-[12px] text-n-slate-10">{{
+        t('CAPTAIN.AGENT_TABS.FLOW.HINT')
+      }}</span>
     </div>
     <AgentFlowSimple v-if="view === 'simple'" :assistant="agent || {}" />
     <AgentFlowGraph v-else :assistant="agent || {}" />

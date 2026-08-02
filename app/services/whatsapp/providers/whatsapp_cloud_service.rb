@@ -210,13 +210,19 @@ class Whatsapp::Providers::WhatsappCloudService < Whatsapp::Providers::BaseServi
     process_response(response, message)
   end
 
+  # Limites INLINE do Meta por tipo (MB). Acima disso o Meta rejeita o envio inline com
+  # "131053: Media upload error", entao mandamos como 'document' (limite 100 MB) p/ nao
+  # falhar. Ex.: video >16 MB. Introduzido em c24110c8d5 e perdido na regressao de
+  # 40239f7571 (que tambem levou o with_agent_prefix, restaurado em 1f1d789f12).
+  META_INLINE_LIMITS_MB = { 'image' => 5, 'audio' => 16, 'video' => 16 }.freeze
+
   def send_attachment_message(phone_number, message)
     attachment = message.attachments.first
-    type = %w[image audio video].include?(attachment.file_type) ? attachment.file_type : 'document'
+    type = resolve_media_type(attachment)
     type_content = {
       'link': attachment.download_url
     }
-    type_content['caption'] = with_agent_prefix(message, message.outgoing_content) unless %w[audio sticker].include?(type)
+    apply_caption(type_content, type, message)
     type_content['filename'] = attachment.file.filename if type == 'document'
     response = HTTParty.post(
       "#{phone_id_path}/messages",
@@ -231,6 +237,25 @@ class Whatsapp::Providers::WhatsappCloudService < Whatsapp::Providers::BaseServi
     )
 
     process_response(response, message)
+  end
+
+  # Decide o 'type' do Meta: mantem image/audio/video se dentro do limite inline;
+  # senao (ou tipo nao-midia) manda como 'document' (video >16 MB, imagem >5 MB, etc.).
+  def resolve_media_type(attachment)
+    base = %w[image audio video].include?(attachment.file_type) ? attachment.file_type : 'document'
+    limit_mb = META_INLINE_LIMITS_MB[base]
+    return base unless limit_mb && attachment.file.attached?
+
+    attachment.file.byte_size > limit_mb.megabytes ? 'document' : base
+  end
+
+  # Define a legenda (com assinatura do agente, se ligada). Opcao B: midia sem
+  # conteudo fica sem legenda. Audio/sticker nao levam legenda.
+  def apply_caption(type_content, type, message)
+    return if %w[audio sticker].include?(type)
+
+    caption = with_agent_prefix(message, message.outgoing_content)
+    type_content['caption'] = caption if caption.present?
   end
 
   def error_message(response)

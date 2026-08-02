@@ -4,14 +4,44 @@
     "HEADER": "Teams",
     "LOADING": "Fetching teams",
     "DESCRIPTION": "Teams allow you to organize agents into groups based on their responsibilities. An agent can belong to multiple teams. When working collaboratively, you can assign conversations to specific teams.",
+    "DESCRIPTION_SUPERVISOR": "These are the teams you supervise. You can see their members and every conversation of theirs, but only an administrator can create, edit or delete teams.",
     "LEARN_MORE": "Learn more about teams",
     "COUNT": "{n} team | {n} teams",
     "SEARCH_PLACEHOLDER": "Search teams...",
     "NO_RESULTS": "No teams found matching your search",
     "LIST": {
       "404": "There are no teams created on this account.",
+      "404_SUPERVISOR": "You do not supervise any team yet.",
       "EDIT_TEAM": "Edit team",
       "NONE": "None"
+    },
+    "MEMBERS": {
+      "SHOW": "Members",
+      "HIDE": "Hide members",
+      "COUNT": "{n} member | {n} members",
+      "EMPTY": "This team has no members yet.",
+      "API_ERROR": "Couldn't load the team members. Try again.",
+      "FORBIDDEN": "You are not allowed to change the members of this team. You can only move agents between the teams you supervise.",
+      "ACTION_ERROR": "Couldn't update the team members. Try again.",
+      "REMOVE": {
+        "BUTTON": "Remove from team",
+        "TITLE": "Remove {name} from the team?",
+        "MESSAGE": "{name} stops being a member of {teamName} and loses access to the team conversations. You can add them back later.",
+        "CONFIRM": "Remove",
+        "CANCEL": "Cancel",
+        "SUCCESS": "{name} was removed from the team."
+      },
+      "ADD": {
+        "BUTTON": "Add agent",
+        "TITLE": "Add agent to team - {teamName}",
+        "DESC": "Pick from the agents of the other teams you supervise.",
+        "CONFIRM": "Add",
+        "CANCEL": "Cancel",
+        "LOADING": "Loading available agents...",
+        "SUCCESS": "{n} agent added to the team. | {n} agents added to the team.",
+        "EMPTY_POOL": "No agent available to add: you can only move agents between the teams you supervise, and all of them are already in this team.",
+        "SINGLE_TEAM": "You supervise a single team. You can only move agents between the teams you supervise, so there is nobody to add."
+      }
     },
     "CREATE_FLOW": {
       "CREATE": {

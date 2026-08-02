@@ -10,7 +10,15 @@ module Spx
       belongs_to :team
 
       MODOS = %w[rodizio online off].freeze
+      # Quem fica com a POSSE da conversa depois que o Motor escolhe alguém:
+      #   assignee   — atribui o humano (o espelho captain cai pelo callback de
+      #                exclusividade e a IA cala). É o comportamento de sempre.
+      #   designacao — só registra a designação; `assignee` segue nulo, o espelho
+      #                sobrevive e a IA continua atendendo até alguém assumir.
+      MODOS_POSSE = %w[assignee designacao].freeze
+
       validates :modo, inclusion: { in: MODOS }
+      validates :modo_posse, inclusion: { in: MODOS_POSSE }
       validates :team_id, uniqueness: { scope: :account_id }
 
       scope :ativas, -> { where(ativo: true) }
@@ -21,9 +29,14 @@ module Spx
       end
 
       # Entradas ativas do pool, na ORDEM configurada (o rodízio anda nessa ordem).
-      # pool = jsonb [{ "user_id" => 128, "ativo" => true, "cap" => 20 }, ...]
+      # pool = jsonb [{ "user_id" => 128, "ativo" => true, "cap" => 20,
+      #                 "produtos" => [{ "produto" => <slug>, "valor_max" => <int> }] }, ...]
       def pool_entries
         (pool || []).select { |e| e['ativo'] != false }
+      end
+
+      def designacao?
+        modo_posse == 'designacao'
       end
     end
   end
