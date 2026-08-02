@@ -27,7 +27,11 @@ class Captain::Tools::SearchKnowledgeTool < Captain::Tools::BasePublicTool
 
   def format_chunk(chunk)
     source = chunk.metadata&.dig('name').presence || chunk.metadata&.dig('source')
-    text = chunk.content.to_s.strip
+    # Entrega o mesmo texto que foi embeddado: quando o contextual retrieval está
+    # ligado na conta, `contextual_content` é "1-2 frases situando o trecho" + o
+    # próprio trecho, então o agente recebe a passagem já situada no documento.
+    # Conta sem o recurso (ou chunk antigo) cai no conteúdo puro, como antes.
+    text = (chunk.contextual_content.presence || chunk.content).to_s.strip
     source.present? ? "#{text}\n(fonte: #{source})" : text
   end
 end

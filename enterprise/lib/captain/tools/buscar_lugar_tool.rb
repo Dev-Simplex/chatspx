@@ -1,11 +1,11 @@
 class Captain::Tools::BuscarLugarTool < Captain::Tools::BasePublicTool
-  description 'Busca lugares/comércios/pontos de referência por NOME em Sinop (ex: "Mercado Machado", "Unifasipe", "Hospital Regional"). ' \
+  description 'Busca lugares/comércios/pontos de referência por NOME em Sinop. ' \
               'Retorna a LISTA de unidades encontradas, cada uma com nome, endereço e coordenadas (lat/lng). ' \
               'Use quando o cliente citar um lugar como referência de proximidade — em especial redes com várias unidades. ' \
               'Mostre as opções, pergunte ao cliente QUAL ele quer, e então passe a lat/lng da escolhida pro buscar_imovel.'
 
   param :referencia, type: 'string',
-                     desc: 'Nome do lugar/comércio/ponto de referência (ex: "Mercado Machado", "Unifasipe", "aeroporto").',
+                     desc: 'Nome do lugar/comércio/ponto de referência que o cliente citou.',
                      required: true
 
   FIELD_MASK = 'places.displayName,places.formattedAddress,places.location'.freeze

@@ -14,16 +14,16 @@ class Captain::Tools::BuscarImovelTool < Captain::Tools::BasePublicTool
   param :categoria, type: 'string', desc: 'Casa, Apartamento, Terreno, Kitnet, Ponto Comercial, Prédio Comercial. Pra qualquer imóvel comercial (sala/ponto/loja/prédio comercial) use "Ponto Comercial". Vazio se não especificou.', required: false
   param :bairro, type: 'string', desc: 'Bairro/condomínio em Sinop. Vazio se não especificou.', required: false
   param :endereco, type: 'string',
-                   desc: 'Rua, avenida ou logradouro, quando o cliente especificar (ex: "Mário Lago"). Estreita a busca dentro do bairro.', required: false
+                   desc: 'Rua, avenida ou logradouro, quando o cliente especificar. Estreita a busca dentro do bairro.', required: false
   param :valor_max, type: 'number', desc: 'Valor máximo: aluguel mensal pra locação, valor total pra venda.', required: false
   param :dormitorios, type: 'number', desc: 'Quantidade de dormitórios.', required: false
   param :piscina, type: 'boolean', desc: 'true SÓ quando o cliente pedir imóvel COM piscina — filtra pra retornar só os que têm.', required: false
   param :lat, type: 'string', desc: 'Latitude do ponto de referência (do buscar_localizacao ou da localização enviada pelo cliente).', required: false
   param :lng, type: 'string', desc: 'Longitude do ponto de referência.', required: false
-  param :raio_km, type: 'number', desc: 'Só quando o cliente limitar a distância (ex: "até 2 km"). Sem isso, lista os mais próximos.', required: false
+  param :raio_km, type: 'number', desc: 'Só quando o cliente limitar a distância. Sem isso, lista os mais próximos.', required: false
 
   VISTA_FIELDS = %w[Codigo ImoCodigo Categoria Status Dormitorios Cidade Bairro BairroComercial ValorLocacao ValorVenda TituloSite
-                    ValorCondominio ValorIptu AreaTotal AreaConstruida DescricaoWeb Latitude Longitude].freeze
+                    Condominio ValorCondominio ValorIptu AreaTotal AreaConstruida DescricaoWeb Latitude Longitude].freeze
   META_KEYS = %w[total paginas pagina quantidade].freeze
 
   def perform(tool_context, status_tipo:, categoria: nil, bairro: nil, endereco: nil, valor_max: nil,
@@ -31,7 +31,10 @@ class Captain::Tools::BuscarImovelTool < Captain::Tools::BasePublicTool
     # Busca direta por CÓDIGO (placa/anúncio/site) — independe de venda/locação.
     if codigo.present?
       cod = codigo.to_s.gsub(/\D/, '')
+      # O número que o cliente passa (placa/site/anúncio) às vezes é o Codigo interno,
+      # às vezes o ImoCodigo do site — tenta os dois antes de dizer que não achou.
       achados = fetch_vista({ 'Codigo' => cod }, quantidade: 1)
+      achados = fetch_vista({ 'ImoCodigo' => cod }, quantidade: 1) if achados.blank?
       return "Não achei nenhum imóvel com o código #{cod} no nosso sistema." if achados.blank?
 
       venda_cod = achados.first['Status'].to_s.match?(/vend/i)
@@ -95,12 +98,7 @@ class Captain::Tools::BuscarImovelTool < Captain::Tools::BasePublicTool
       order: { (venda ? 'ValorVenda' : 'ValorLocacao') => 'asc' },
       paginacao: { pagina: 1, quantidade: quantidade }
     }
-    resp = HTTParty.get(
-      "#{base}/imoveis/listar",
-      query: { key: vista_api_key, showtotal: 1, pesquisa: pesquisa.to_json },
-      headers: { 'Accept' => 'application/json' },
-      timeout: 15
-    )
+    resp = vista_get("#{base}/imoveis/listar", { key: vista_api_key, showtotal: 1, pesquisa: pesquisa.to_json })
     return [] unless resp.code == 200
 
     data = resp.parsed_response
@@ -108,6 +106,16 @@ class Captain::Tools::BuscarImovelTool < Captain::Tools::BasePublicTool
     return [] unless data.is_a?(Hash)
 
     data.reject { |k, _| META_KEYS.include?(k) }.values.select { |v| v.is_a?(Hash) }
+  end
+
+  # 1 retry no GET do Vista: um timeout transitório fazia a IA dizer "não consegui / dificuldade
+  # de acesso" num imóvel que EXISTE (conv 18960, 19099). Se a 2ª tentativa também falhar, o erro
+  # sobe pro rescue do perform ("não consegui buscar agora"), não vira "não achei".
+  def vista_get(url, query)
+    HTTParty.get(url, query: query, headers: { 'Accept' => 'application/json' }, timeout: 15)
+  rescue StandardError
+    sleep(0.6)
+    HTTParty.get(url, query: query, headers: { 'Accept' => 'application/json' }, timeout: 15)
   end
 
   # Registra na conversa os códigos que a busca retornou. A enviar_fotos_imovel só
@@ -213,9 +221,8 @@ class Captain::Tools::BuscarImovelTool < Captain::Tools::BasePublicTool
       valor = venda ? "R$ #{im['ValorVenda']}" : "R$ #{im['ValorLocacao']}/mês"
       dorm = im['Dormitorios'].to_i.positive? ? "#{im['Dormitorios']} quartos, " : ''
       dist = im['dist_km'] ? " — a #{format('%.1f', im['dist_km'])} km da referência" : ''
-      linha = "(cód #{im['Codigo']}) #{im['Categoria']} #{dorm}no #{im['Bairro']}, #{valor}#{format_area(im)}#{format_taxas(im)}#{format_extras(im['Codigo'])}#{dist}. #{build_url(
-        im, venda
-      )}"
+      linha = "(cód #{im['Codigo']}) #{im['Categoria']} #{dorm}no #{im['Bairro']}, #{valor}" \
+              "#{format_area(im)}#{format_taxas(im)}#{format_extras(im['Codigo'])}#{format_condominio(im)}#{dist}. #{build_url(im, venda)}"
       desc = detalhado ? descricao_limpa(im['DescricaoWeb']) : ''
       linha += "\n#{desc}" if desc.present?
       linha
@@ -229,6 +236,17 @@ class Captain::Tools::BuscarImovelTool < Captain::Tools::BasePublicTool
     parts << "condomínio R$ #{im['ValorCondominio']}" if im['ValorCondominio'].to_f.positive?
     parts << "IPTU R$ #{im['ValorIptu']}" if im['ValorIptu'].to_f.positive?
     parts.any? ? " (#{parts.join(', ')})" : ''
+  end
+
+  # Vista diz se o imóvel está EM condomínio (campo Condominio). Antes a IA chutava
+  # "condomínio fechado" pelo nome do bairro ("Residencial X") e errava a regra de
+  # visita/chave (conv 19092); com o dado real ela acerta. Só mostra quando o Vista responde.
+  def format_condominio(imovel)
+    case imovel['Condominio'].to_s.strip.downcase
+    when 'sim' then ' [em condomínio fechado]'
+    when 'nao', 'não' then ' [imóvel avulso, sem condomínio]'
+    else ''
+    end
   end
 
   # Área/metragem em m²: AreaTotal é a metragem do terreno/lote (essencial pra terreno);

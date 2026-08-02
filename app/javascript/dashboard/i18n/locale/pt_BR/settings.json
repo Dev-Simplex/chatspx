@@ -9,6 +9,42 @@
     "ACTIVE": "Ativo",
     "INACTIVE": "Inativo"
   },
+  "AGENTS_RODIZIO": {
+    "TITLE": "Rodízio",
+    "SUBTITLE": "Como os leads estão sendo distribuídos, e sob qual regra",
+    "ALL_TEAMS": "Todos os times",
+    "RELOAD": "Atualizar",
+    "LOADING": "Carregando...",
+    "ERROR": "Não foi possível carregar a contabilização do rodízio",
+    "EMPTY": "Nenhum lead distribuído no período",
+    "TOTAL_RECEIVED": "Leads recebidos",
+    "TABLE": {
+      "CONSULTANT": "Consultor",
+      "RECEIVED": "Recebidos",
+      "ROTATION": "Rodízio",
+      "CONTINUITY": "Continuidade",
+      "PREFERENCE": "Pedido do cliente",
+      "MANUAL": "Gestor",
+      "OPEN": "Em aberto",
+      "CHANNELS": "Canais",
+      "PRODUCTS": "Produtos"
+    },
+    "STALLED": {
+      "TITLE": "Sem movimento",
+      "LIST_TITLE": "Designados sem movimento",
+      "SUBTITLE": "Ninguém pegou ainda. A IA segue cobrindo o cliente.",
+      "THRESHOLD": "acima de {min} min",
+      "MINUTES": "{min} min esperando",
+      "NONE": "Nada parado no momento"
+    },
+    "DETAIL": {
+      "OPEN": "Por que este?",
+      "TITLE": "Conversa #{id}",
+      "CLOSE": "Fechar",
+      "DESIGNATED_AT": "Designado em",
+      "CANDIDATES": "Candidatos:"
+    }
+  },
   "AGENTS_EVALUATION": {
     "TITLE": "Avaliação",
     "SUBTITLE": "Revisão automática de qualidade de cada atendimento (IA e humanos)",

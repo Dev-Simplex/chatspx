@@ -9,6 +9,42 @@
     "ACTIVE": "Active",
     "INACTIVE": "Inactive"
   },
+  "AGENTS_RODIZIO": {
+    "TITLE": "Rotation",
+    "SUBTITLE": "How leads are being distributed, and under which rule",
+    "ALL_TEAMS": "All teams",
+    "RELOAD": "Reload",
+    "LOADING": "Loading...",
+    "ERROR": "Could not load the rotation data",
+    "EMPTY": "No leads distributed in this period",
+    "TOTAL_RECEIVED": "Leads received",
+    "TABLE": {
+      "CONSULTANT": "Consultant",
+      "RECEIVED": "Received",
+      "ROTATION": "Rotation",
+      "CONTINUITY": "Continuity",
+      "PREFERENCE": "Client request",
+      "MANUAL": "Manager",
+      "OPEN": "Still open",
+      "CHANNELS": "Channels",
+      "PRODUCTS": "Products"
+    },
+    "STALLED": {
+      "TITLE": "No movement",
+      "LIST_TITLE": "Designated with no movement",
+      "SUBTITLE": "Nobody picked these up yet. The AI is still covering the client.",
+      "THRESHOLD": "over {min} min",
+      "MINUTES": "{min} min waiting",
+      "NONE": "Nothing stalled right now"
+    },
+    "DETAIL": {
+      "OPEN": "Why this one?",
+      "TITLE": "Conversation #{id}",
+      "CLOSE": "Close",
+      "DESIGNATED_AT": "Designated at",
+      "CANDIDATES": "Candidates:"
+    }
+  },
   "AGENTS_EVALUATION": {
     "TITLE": "Evaluation",
     "SUBTITLE": "Automatic quality review of every service episode (AI and humans)",
