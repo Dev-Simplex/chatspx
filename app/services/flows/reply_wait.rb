@@ -17,7 +17,15 @@ module Flows::ReplyWait
   # reentrado no mesmo nó.
   def suspend_on_wait_for_reply(node, node_id)
     return false unless node['type'] == 'wait_for_reply'
-    return false if node_id == @resume_start_id
+
+    # Passe livre de USO UNICO: consumimos o marcador aqui. Sem consumir, um ciclo no grafo que volte
+    # a ESTE mesmo no ("nao entendi" -> reenvia lista -> espera de novo) nunca re-suspendia:
+    # re-ramificava com o @resume_reply velho ate estourar MAX_STEPS, disparando dezenas de mensagens
+    # em rajada. Consumido, a 2a chegada SUSPENDE e espera a proxima mensagem real do cliente.
+    if node_id == @resume_start_id
+      @resume_start_id = nil
+      return false
+    end
 
     persist_suspension(node_id: node_id, wait_until: reply_timeout_until(node))
     true
@@ -28,9 +36,13 @@ module Flows::ReplyWait
   # `edge.branch == id`; sem aresta correspondente cai na aresta sem rótulo (fallback). SEM resposta
   # (retomada por TEMPO — timeout via ResumeService/ResumeJob, @resume_reply nil) → 'timeout'.
   def evaluate_reply_branch(_node)
-    return 'timeout' if @resume_reply.blank?
+    # A resposta tambem e de USO UNICO: consumimos ANTES de devolver o branch, para que um
+    # wait_for_reply mais adiante nao reaproveite uma resposta ja gasta.
+    reply = @resume_reply
+    @resume_reply = nil
+    return 'timeout' if reply.blank?
 
-    @resume_reply['id'].to_s
+    reply['id'].to_s
   end
 
   # Prazo do timeout: node['timeout'] = { enabled, value, unit }. Desabilitado (ou ausente) → nil = o
