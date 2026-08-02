@@ -107,11 +107,18 @@ crédito da IA. Por isso ele carrega `detalhe['ia_atendia_antes']`, respondido p
 `human_takeover` (que o `log_captain_mirror_transition` só emite quando o espelho captain **estava**
 na conversa, logo já prova que a IA atendia) ou pela varredura das mensagens anteriores.
 
-> **Um defeito de produto pra outra frente** (anotado, não corrigido aqui — `handoff_tool.rb`
-> pertence ao escopo da `spx/rodizio`, que está no mesmo arquivo):
-> **handoff não tem evento durável.** Fix: `HandoffTool`/`HumanHandoffService` criarem
-> `Captain::AssistantLog` com `event_type: 'handoff'` — o valor **já é aceito** por `EVENT_TYPES`.
-> Sem isso, o degrau `handoff` fica dependente da cobertura do F2 pra sempre.
+> ✅ **RESOLVIDO pela `spx/rodizio` em `0f320f967` (31/07).** O `HumanHandoffService` passou a
+> escrever `Captain::AssistantLog` com `event_type: 'handoff'` — e ficou no **service**, não no
+> tool, porque o service é a fonte única dos 6 call sites (tool, transferência entre agentes,
+> escalada do follow-up, safety-nets do `ResponseBuilderJob`). O `handoff` **é degrau durável a
+> partir dessa data**, e este serviço lê o log como evidência principal, usando a `ToolCall` só
+> pra discriminar autoria (com tool = a IA pediu; sem tool = sistema).
+>
+> ⚠️ **Duas ressalvas que não somem com o fix:**
+> - **O evento nasceu em 31/07.** `handoff` = 0 antes disso é ausência de instrumento, não de
+>   comportamento. Nunca compare pré×pós como mudança de conduta.
+> - **Ainda não está em produção.** Verificado em 02/08: `0f320f967` **não é ancestral** do que a
+>   VM roda (`f542675b7`). Até deployar, prod segue sem evento durável de handoff.
 
 > ✅ **Suspeita DESCARTADA (31/07):** cheguei a suspeitar que o `EpisodeSegmenterService` tivesse
 > o mesmo erro de enum (comparar `message_type` com inteiro sobre valor de `pluck`). **Não tem.**
@@ -181,6 +188,21 @@ Três razões para tabela separada, cada uma sozinha suficiente:
 em `conversation.custom_attributes` (carimbados pelo Meta Lead Ads: `meta_campanha`, `meta_anuncio`,
 `meta_publico`, `meta_tipo`, `meta_imovel`) e **mudam**. Métrica histórica não pode mudar de valor
 retroativamente porque alguém reetiquetou a conversa.
+
+> ✅ **Verificado em 02/08 — a atribuição por campanha NÃO usa `campaign_id`, e isso a salva.**
+> Existem dois motores de disparo e o `campaign_id` da conversa é furado nos dois (o
+> `RecipientDispatchService` só grava se estiver nulo — bug "grudento" no BACKLOG; o
+> `Spx::Tozi::DisparoLeadJob` tem `campaign_id: nil` por default e o rake não passa). Medido: 1 de
+> 152 conversas amostradas tem `campaign_id`.
+>
+> O F3 lê **`custom_attributes['meta_campanha']`**, escrito num lugar só —
+> `meta/lead_ads/create_conversation_service.rb:152`, a partir do `campaign_name` que a Meta
+> devolve. **Nenhum errata é necessário:** PACAEMBU 60% × RMKT 37% mediram o que diziam medir.
+>
+> **A ressalva é de população, não de correção:** o corte por campanha só enxerga conversa criada
+> pelo webhook do Meta Lead Ads. Conversa de disparo não tem `meta_campanha` e cai em
+> "(sem campanha)". Isso mantém a comparação PACAEMBU × RMKT limpa (mesmo canal de aquisição, o
+> mesmo carimbo), mas ela fala de um **subconjunto** do tráfego da conta — não do todo.
 
 > ⚠️ **Gap encontrado ao implementar: `empreendimento` NÃO é carimbado na conversa.** Ele só existe
 > no `template_render_context` do `CreateConversationService` (linha ~529), consumido pelo opener e

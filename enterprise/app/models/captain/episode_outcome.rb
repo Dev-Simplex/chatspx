@@ -51,13 +51,20 @@ class Captain::EpisodeOutcome < ApplicationRecord
     where(degrau: 'assumido').where.not('detalhe @> ?', { ia_atendia_antes: true }.to_json)
   }
 
-  # A métrica primária — CORTE B, decidido em 31/07 sobre o dry-run da conta 6.
+  # A métrica primária — CORTE B, decidido em 31/07 sobre o dry-run da conta 6 e
+  # MANTIDO em 02/08, depois de o `handoff` virar degrau durável (`0f320f967`).
   #
-  # Por que não inclui 'handoff': ele só existe onde o F2 gravou a tool (403 de 499
-  # episódios da amostra não tinham tool call nenhuma), então seria refém permanente da
-  # cobertura do F2. 'assumido' vem de mensagem + log human_takeover, que são duráveis.
-  # Os dois cortes deram praticamente o mesmo número (23,4% × 24,2%), então escolher o
-  # durável não custou precisão.
+  # Por que 'handoff' segue FORA do corte, mesmo agora que é durável:
+  #  1. O evento nasceu em 31/07. Entrar no corte criaria um DEGRAU NA SÉRIE exatamente
+  #     na data do deploy — a conversão saltaria por motivo instrumental, não por
+  #     conduta, e envenenaria a medição antes/depois que está sendo montada.
+  #  2. Handoff sem ninguém pegar é entrega que morreu na fila: é falha de operação,
+  #     não conversão. Somá-lo inflaria o número com o que o time NÃO atendeu.
+  # O degrau continua sendo gravado e exibido na escada — a distância entre `handoff` e
+  # `assumido` é justamente o SLA de pickup que a frente spx/rodizio persegue.
+  #
+  # 'assumido' vem de mensagem + log human_takeover, duráveis desde sempre; os dois
+  # cortes deram praticamente o mesmo número (23,4% × 24,2%).
   #
   # Passa pelo do_spx por construção, não por convenção do chamador.
   scope :conversao, lambda {

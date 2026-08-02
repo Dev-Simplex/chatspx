@@ -125,25 +125,44 @@ class Captain::EpisodeOutcomeService
        detalhe: { 'stage' => item.funnel_stage.automation_type, 'funnel_item_id' => item.id } }]
   end
 
-  # A INTENÇÃO da IA de passar o bastão. Só é reconstituível onde o F2 gravou a tool
-  # — e isso é uma limitação de observabilidade do produto, não uma escolha:
+  # A IA passou o bastão. Duas evidências, e agora a principal é DURÁVEL:
   #
-  #   · `aguardando_humano_desde` é TRANSITÓRIO. É um "está aguardando", limpo quando
-  #     o humano assume. Medido em produção (conta 6): 2 conversas em 20.170 o têm.
-  #     Servia de gate de estado, jamais de registro histórico — a v1 deste serviço
-  #     errou nisso e ficou cega pro desfecho mais comum dos dados.
-  #   · AssistantLog 'handoff' NUNCA é escrito. O event_type existe em EVENT_TYPES,
-  #     mas o HandoffTool só chama log_tool_usage, que escreve no Rails.logger e não
-  #     cria registro. Constante morta (ver AVISO no doc do F3).
+  #   · AssistantLog 'handoff' — escrito pelo HumanHandoffService desde `0f320f967`
+  #     (frente spx/rodizio). Cobre os 6 call sites (tool, transferência entre agentes,
+  #     escalada do follow-up, safety-nets do ResponseBuilderJob), não só o da tool.
+  #   · Captain::ToolCall — existe só onde o F2 gravou, mas discrimina QUEM pediu:
+  #     com tool = a IA decidiu; sem tool = sistema (escalada/safety-net).
   #
-  # Por isso o degrau DURÁVEL da escada é o `assumido`, não o `handoff`.
+  # ⚠️ O evento passou a existir em 31/07. Contagem de `handoff` ANTES dessa data é 0
+  # por ausência de instrumento, não por ausência de comportamento — nunca compare
+  # pré×pós como se fosse mudança de conduta.
+  #
+  # `aguardando_humano_desde` continua FORA: é transitório (limpo quando o humano
+  # assume; 2 conversas em 20.170 na conta 6). Estado não serve de histórico — foi o
+  # erro da v1 deste serviço.
   def handoff
+    log = handoff_log
     call = tool_calls.find { |c| HANDOFF_TOOLS.include?(c.tool_name) && c.status == 'ok' }
-    return if call.nil?
+    return if log.nil? && call.nil?
 
-    { degrau: 'handoff', causado_por: 'ia', origem: 'tool',
-      ator_id: call.captain_assistant_id, ocorreu_em: call.created_at,
-      detalhe: { 'tool_call_id' => call.id, 'tool' => call.tool_name } }
+    { degrau: 'handoff',
+      causado_por: call ? 'ia' : 'sistema',
+      origem: log ? 'log' : 'tool',
+      ator_id: call&.captain_assistant_id || log&.captain_assistant_id,
+      # a tool dispara antes de o service registrar: onde há as duas, a tool é o
+      # instante mais próximo da decisão
+      ocorreu_em: call&.created_at || log.created_at,
+      detalhe: { 'tool_call_id' => call&.id, 'tool' => call&.tool_name,
+                 'assistant_log_id' => log&.id, 'team_id' => log&.payload&.dig('team_id') }.compact }
+  end
+
+  def handoff_log
+    return @handoff_log if defined?(@handoff_log)
+
+    @handoff_log = Captain::AssistantLog
+                   .where(conversation_id: conversation.id, event_type: 'handoff')
+                   .where(created_at: episode.started_at..(fim + TOOL_WINDOW))
+                   .order(:created_at).first
   end
 
   # Um humano ASSUMIU o atendimento — o desfecho mais comum nos dados reais e o mais

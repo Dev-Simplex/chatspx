@@ -15,6 +15,13 @@
 #   (3) prompt da Júlia, "# Quando o cliente pede pra falar depois"
 #                                                 → baseline spx/fricoes: 41,2% (7/17)
 #
+# ⚠️ VERIFICADO em 02/08 contra o commit da VM (f542675b7), não assumido:
+#   · 3be2381ce (mudança de contrato da tool programar_followup, spx/fricoes) NÃO está
+#     deployada → esta medição é de PROMPT-SÓ. Se a tool entrar depois, a série quebra
+#     ali e as janelas não são mais comparáveis.
+#   · 0f320f967 (log durável de handoff, spx/rodizio) NÃO está deployada → o event_type
+#     'handoff' segue sem ser escrito em produção.
+#
 # ── COMO ELE TENTA SEPARÁ-LAS ─────────────────────────────────────────────────
 # Não dá pra separar por tempo (mesma janela). Dá pra separar por POPULAÇÃO, usando
 # dois grupos de controle que já existem no dado:
@@ -189,7 +196,10 @@ puts "\n#{'─' * 82}\n(1) SAFETY-NET DE HANDOFF — baseline histórico: 0 (o e
   puts format('    %<e>-20s antes %<a>4d · depois %<d>4d   (total histórico na instância: %<t>d)',
               e: ev, a: antes_n, d: depois_n, t: total)
 end
-puts '    → antes=0 e depois>0 aqui é ESPERADO e não é efeito de conduta: o evento passou a existir.'
+puts '    → antes=0 e depois>0 aqui é ESPERADO e NÃO é efeito de conduta: o evento passou a existir.'
+puts '      handoff_auto_fired nasceu no deploy de 31/07; handoff só passa a ser escrito quando'
+puts '      0f320f967 (spx/rodizio) deployar — em 02/08 ele NÃO estava na VM. Se der 0 nos dois'
+puts '      lados, é ausência de instrumento, não ausência de handoff.'
 
 # ── (3) REGRA DO "FALAR DEPOIS" — o número que decide ─────────────────────────
 def classificar_adiamentos(por_conversa, ia_senders, resposta_janela, botoes, regex_adia, regex_perg)
