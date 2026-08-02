@@ -65,6 +65,16 @@
   description: 'Envia ao cliente as fotos de um imóvel em lotes de 3'
   icon: 'image'
 
+- id: listar_pecas
+  title: 'Listar Material de Apoio'
+  description: 'Lista as peças de marketing disponíveis para o produto do lead (o que cada uma explica e pra quem serve)'
+  icon: 'library'
+
+- id: enviar_peca
+  title: 'Enviar Peça de Apoio'
+  description: 'Envia ao cliente uma peça do material de apoio, pelo id'
+  icon: 'send'
+
 - id: consultar_chave_imovel
   title: 'Consultar Chave do Imóvel (Vista)'
   description: 'Diz com quem está a chave (imobiliária, proprietário, guarita) para orientar a visita, sem prometer reserva'
