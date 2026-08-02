@@ -41,6 +41,23 @@ def git(*args):
         return ""
 
 
+def ultimo_user(caminho):
+    """Timestamp da última mensagem do PAULO. Distingue 'a sessão está pensando'
+    de 'ninguém falou com ela' — sem isso o painel já me fez concluir errado."""
+    ts = None
+    with open(caminho, "r", encoding="utf-8", errors="replace") as fh:
+        for linha in fh:
+            if '"user"' not in linha:
+                continue
+            try:
+                obj = json.loads(linha)
+            except json.JSONDecodeError:
+                continue
+            if obj.get("type") == "user" and obj.get("timestamp"):
+                ts = obj["timestamp"]
+    return ts
+
+
 def ultimo_texto(caminho):
     """(texto, timestamp) da última fala do assistente que tem texto de verdade."""
     ultimo = None
@@ -132,7 +149,11 @@ for pasta in sorted(glob.glob(os.path.join(PROJETOS, PREFIXO + "*"))):
         print()
         continue
     texto, ts = res
-    print("último relato: %s" % humano(ts))
+    tu = ultimo_user(recente)
+    aviso = ""
+    if tu and ts and tu > ts:
+        aviso = "   ⏳ pediram algo depois — sessão trabalhando ou travada"
+    print("você falou: %s   ·   relato dela: %s%s" % (humano(tu), humano(ts), aviso))
     if LIMITE > 0:
         print("-" * 78)
         print(texto if len(texto) <= LIMITE
