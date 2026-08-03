@@ -213,7 +213,7 @@ const iReacted = emoji =>
         class="relative px-3.5 py-2 text-sm shadow-sm rounded-2xl break-words min-w-0"
         :class="
           message.mine
-            ? 'bg-n-brand text-white rounded-br-md'
+            ? 'bubble-out rounded-br-md'
             : 'bg-n-alpha-2 text-n-slate-12 rounded-bl-md'
         "
         @contextmenu.prevent="openMenuFromEvent"
@@ -235,16 +235,16 @@ const iReacted = emoji =>
              faixa cobria metade de um balão curto. -->
         <div
           v-if="!message.deleted"
-          class="absolute top-0 right-0 z-20 flex items-start justify-end w-12 h-10 max-h-full p-1 transition-opacity duration-200 opacity-0 rounded-tr-2xl bg-gradient-to-l to-transparent group-hover:opacity-100 focus-within:opacity-100"
+          class="absolute top-0 right-0 z-20 flex items-start justify-end w-12 h-10 max-h-full p-1 transition-opacity duration-200 opacity-0 rounded-tr-2xl group-hover:opacity-100 focus-within:opacity-100"
           :class="
             message.mine
-              ? 'from-n-brand from-55%'
-              : 'from-n-background from-55%'
+              ? 'bubble-out-fade'
+              : 'bg-gradient-to-l to-transparent from-n-background from-55%'
           "
         >
           <span
-            class="absolute inset-0 rounded-tr-2xl bg-gradient-to-l to-transparent"
-            :class="message.mine ? '' : 'from-n-alpha-2 from-55%'"
+            v-if="!message.mine"
+            class="absolute inset-0 rounded-tr-2xl bg-gradient-to-l to-transparent from-n-alpha-2 from-55%"
           />
           <button
             ref="dropdownButtonRef"
@@ -252,7 +252,7 @@ const iReacted = emoji =>
             class="relative z-10 inline-flex items-center justify-center w-8 h-8 transition-colors rounded-md"
             :class="
               message.mine
-                ? 'text-white/90 hover:bg-black/10'
+                ? 'bubble-out-meta hover:bg-black/10 dark:hover:bg-white/10'
                 : 'text-n-slate-11 hover:bg-n-alpha-2'
             "
             title="Ações da mensagem"
@@ -354,8 +354,7 @@ const iReacted = emoji =>
         <button
           v-if="message.replyTo"
           type="button"
-          class="block w-full pl-2 mb-1 text-left border-l-2 rounded-sm opacity-90"
-          :class="message.mine ? 'border-white/60' : 'border-n-brand'"
+          class="block w-full pl-2 mb-1 text-left border-l-2 rounded-sm opacity-90 border-n-brand"
           @click="emit('scrollTo', message.replyTo.id)"
         >
           <span class="block text-[11px] font-semibold">
@@ -418,7 +417,7 @@ const iReacted = emoji =>
         <!-- Hora + status -->
         <span
           class="flex items-center justify-end gap-1 mt-1 text-[10px] leading-none"
-          :class="message.mine ? 'text-white/70' : 'text-n-slate-10'"
+          :class="message.mine ? 'bubble-out-meta' : 'text-n-slate-10'"
         >
           {{ message.time }}
           <span
@@ -476,5 +475,46 @@ const iReacted = emoji =>
   hr {
     @apply m-1 border-b border-solid border-n-strong;
   }
+}
+
+/* Balão de saída: a mesma paleta do balão do chat normal (_wa-skin.scss), em
+   vez do verde-brand. O brand é claro e saturado demais — sobre ele o ⌄, o
+   horário e os ticks ficavam lavados, que foi a queixa. Estas variáveis já
+   governam o balão da conversa com o cliente, então os dois chats passam a
+   combinar, e cada tema traz o par fundo/texto com contraste próprio. */
+.bubble-out {
+  background-color: var(--wa-bubble-out);
+  color: var(--wa-text-primary);
+}
+
+/* Texto secundário DENTRO do balão de saída: horário, ticks e o ⌄. */
+.bubble-out-meta {
+  color: var(--wa-text-secondary);
+}
+
+/* Fundo do gatilho ⌄ — repinta o balão em degradê (ver comentário no template). */
+.bubble-out-fade {
+  background-image: linear-gradient(
+    to left,
+    var(--wa-bubble-out) 55%,
+    transparent
+  );
+}
+
+.dark .bubble-out {
+  background-color: var(--wa-bubble-out-dark);
+  color: var(--wa-text-primary-dark);
+}
+
+.dark .bubble-out-meta {
+  color: var(--wa-text-secondary-dark);
+}
+
+.dark .bubble-out-fade {
+  background-image: linear-gradient(
+    to left,
+    var(--wa-bubble-out-dark) 55%,
+    transparent
+  );
 }
 </style>
