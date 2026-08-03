@@ -23,6 +23,11 @@ module Campaigns
           next unless campaign.whatsapp_blast?
 
           process_campaign(campaign)
+        rescue StandardError => e
+          # Uma campanha com config ruim NAO pode parar as outras: sem este rescue a
+          # excecao sobe pelo find_each e mata o tick inteiro — todos os disparos em
+          # andamento param juntos, sem nada no painel indicando o porque.
+          Rails.logger.error("[CampaignDispatch] campanha #{campaign.id} pulada neste tick: #{e.class}: #{e.message}")
         end
       end
 
@@ -59,12 +64,26 @@ module Campaigns
         cfg = campaign.dispatch_config['quiet_hours']
         return false if cfg.blank?
 
-        tz = campaign.account.timezone.presence || 'UTC'
-        hour = Time.current.in_time_zone(tz).hour
+        hour = Time.current.in_time_zone(timezone_for(campaign)).hour
         start_h = cfg['start'].to_i
         end_h = cfg['end'].to_i
         # Janela que cruza a meia-noite (ex.: 21->8) vs. janela no mesmo dia.
         start_h > end_h ? (hour >= start_h || hour < end_h) : (hour >= start_h && hour < end_h)
+      end
+
+      # Fuso da janela de silencio. `Account` NAO responde a `timezone` — tem
+      # `reporting_timezone`, que e outra coisa (fuso dos relatorios) e costuma estar
+      # vazio. Ler dali levantava NoMethodError a cada tick de qualquer campanha com
+      # quiet_hours configurado.
+      #
+      # Ordem: override explicito da campanha -> fuso da aplicacao (`config.time_zone`,
+      # alimentado por ENV['TIME_ZONE'], que em producao e o fuso de operacao).
+      # `inbox.timezone` foi considerado e descartado como padrao: nasce 'UTC' e quase
+      # nunca e revisado, entao deslocaria a janela em horas sem ninguem perceber.
+      # Fuso invalido cai no padrao em vez de estourar.
+      def timezone_for(campaign)
+        configured = campaign.dispatch_config['timezone'].to_s.presence
+        (configured && ActiveSupport::TimeZone[configured]&.name) || Time.zone.name
       end
 
       def health_ok?(campaign)
