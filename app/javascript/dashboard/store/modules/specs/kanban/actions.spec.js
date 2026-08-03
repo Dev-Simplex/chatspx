@@ -754,6 +754,36 @@ describe('#kanban actions', () => {
       );
     });
 
+    it('não faz o card piscar quando ele já estava na tela', () => {
+      const state = { activeFunnelId: 1, funnelItems: { 55: { id: 55 } } };
+      actions.applyRemoteCreate(
+        { state, commit, dispatch, rootGetters },
+        taskPayload()
+      );
+
+      expect(commit).toHaveBeenCalledWith(
+        types.ADD_FUNNEL_ITEM,
+        expect.anything()
+      );
+      expect(dispatch).not.toHaveBeenCalledWith(
+        'flagRemoteActivity',
+        expect.anything()
+      );
+    });
+
+    it('destaca o cartão novo', () => {
+      const state = { activeFunnelId: 1, funnelItems: {} };
+      actions.applyRemoteCreate(
+        { state, commit, dispatch, rootGetters },
+        taskPayload()
+      );
+
+      expect(dispatch).toHaveBeenCalledWith('flagRemoteActivity', {
+        itemId: 55,
+        performer: { id: 9 },
+      });
+    });
+
     it('não reage a outro funil', () => {
       const state = { activeFunnelId: 99, funnelItems: {} };
       actions.applyRemoteCreate(

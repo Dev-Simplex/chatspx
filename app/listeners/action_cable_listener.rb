@@ -152,9 +152,10 @@ class ActionCableListener < BaseListener # rubocop:disable Metrics/ClassLength
   def funnel_item_deleted(event)
     funnel = event.data[:funnel]
     account = funnel&.account
-    return if account.blank?
+    item = event.data[:item]
+    return if account.blank? || item.blank?
 
-    broadcast(account, funnel_audience_tokens(funnel), FUNNEL_ITEM_DELETED, event.data[:item])
+    broadcast(account, funnel_audience_tokens(funnel), FUNNEL_ITEM_DELETED, item)
   end
 
   # Colunas do funil (criar/renomear/recolorir/reordenar/apagar). UM evento

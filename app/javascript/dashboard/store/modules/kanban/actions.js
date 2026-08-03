@@ -917,7 +917,12 @@ export const actions = {
       if (!isRenderableRemoteItem(data)) return;
 
       // Idempotente: `assignItemToStage` faz upsert pelo id.
+      const jaTinhamos = Boolean(state.funnelItems?.[data.id]);
       commit(types.ADD_FUNNEL_ITEM, remoteItemPayload(data));
+
+      // Só destaca o que é NOVO na tela. Quem criou o cartão já o inseriu
+      // localmente, então o eco não deve fazer o próprio card piscar.
+      if (jaTinhamos) return;
       dispatch('flagRemoteActivity', {
         itemId: data.id,
         performer: data.performer,
@@ -954,6 +959,10 @@ export const actions = {
       if (funnelId !== Number(state.activeFunnelId)) return;
 
       if (data.refetch) {
+        // Quem disparou o bulk também cai aqui e refaz o fetch das mesmas
+        // colunas que o `bulkMoveItems` já recarregou. É desperdício pequeno e
+        // idempotente — preferível a voltar a decidir por "quem fez", que era o
+        // que quebrava a segunda janela da mesma pessoa.
         const stageIds = sanitizeStageQueue(data.stage_ids);
         await Promise.all(
           stageIds.map(stageId =>
@@ -968,8 +977,9 @@ export const actions = {
         return;
       }
 
-      // `performer` viaja junto para o destaque do card dizer quem moveu (o
-      // eco da própria ação já foi descartado acima, então ele nunca sou eu).
+      // `performer` viaja junto para o destaque do card dizer quem moveu. Para
+      // quem disparou o bulk cada item cai na guarda de idempotência do
+      // `applyRemoteMove` (etapa de destino já é a atual) e nada pisca.
       (data.items || []).forEach(item =>
         dispatch('applyRemoteMove', { ...item, performer: data.performer })
       );
