@@ -190,7 +190,7 @@ const onEnter = () => {
     <!-- Gravação de áudio: substitui a barra do composer enquanto grava -->
     <div
       v-if="recording"
-      class="relative z-20 flex items-center gap-2 px-3 py-2 border shadow-sm rounded-2xl bg-n-solid-1 border-n-weak"
+      class="relative z-20 flex items-center gap-2 px-3 py-2 border shadow-sm rounded-3xl bg-wa-composer-input border-n-weak"
     >
       <span class="flex-shrink-0 i-lucide-mic text-n-ruby-11 animate-pulse" />
       <div class="flex-1 min-w-0">
@@ -203,7 +203,7 @@ const onEnter = () => {
       </div>
       <button
         type="button"
-        class="inline-flex items-center justify-center flex-shrink-0 w-9 h-9 text-white transition-all rounded-full shadow-sm bg-n-brand hover:bg-n-brand-hover active:scale-90"
+        class="inline-flex items-center justify-center flex-shrink-0 w-9 h-9 transition-all rounded-full shadow-sm bg-wa-composer-send text-wa-composer-send-fg hover:brightness-110 active:scale-90"
         title="Concluir gravação"
         @click="stopRecording"
       >
@@ -214,14 +214,14 @@ const onEnter = () => {
     <!-- Single-row composer pill -->
     <div
       v-else
-      class="relative z-20 flex items-center gap-1 px-2 py-1 transition-colors border shadow-sm rounded-2xl bg-n-solid-1 border-n-weak focus-within:border-n-brand"
+      class="relative z-20 flex items-center gap-1 px-2 py-1 transition-colors border shadow-sm rounded-3xl bg-wa-composer-input border-n-weak focus-within:border-n-strong"
     >
       <!-- Emoji: o picker abre ACIMA do ícone (ancorado ao botão, à esquerda) -->
       <div class="relative flex-shrink-0">
         <button
           type="button"
-          class="inline-flex items-center justify-center transition-colors rounded-full w-9 h-9 text-n-slate-11 hover:bg-n-alpha-2 hover:text-n-slate-12"
-          :class="showEmoji ? 'text-n-brand bg-n-alpha-2' : ''"
+          class="inline-flex items-center justify-center transition-colors rounded-full w-9 h-9 text-wa-composer-icon hover:bg-n-alpha-2 hover:text-n-slate-12"
+          :class="showEmoji ? 'text-wa-composer-send bg-n-alpha-2' : ''"
           title="Emoji"
           @click="toggleEmoji"
         >
@@ -237,7 +237,7 @@ const onEnter = () => {
       <!-- Anexo -->
       <button
         type="button"
-        class="inline-flex items-center justify-center flex-shrink-0 transition-colors rounded-full w-9 h-9 text-n-slate-11 hover:bg-n-alpha-2 hover:text-n-slate-12"
+        class="inline-flex items-center justify-center flex-shrink-0 transition-colors rounded-full w-9 h-9 text-wa-composer-icon hover:bg-n-alpha-2 hover:text-n-slate-12"
         title="Anexar arquivo"
         @click="onPickFile"
       >
@@ -253,7 +253,7 @@ const onEnter = () => {
       <!-- Áudio -->
       <button
         type="button"
-        class="inline-flex items-center justify-center flex-shrink-0 transition-colors rounded-full w-9 h-9 text-n-slate-11 hover:bg-n-alpha-2 hover:text-n-slate-12"
+        class="inline-flex items-center justify-center flex-shrink-0 transition-colors rounded-full w-9 h-9 text-wa-composer-icon hover:bg-n-alpha-2 hover:text-n-slate-12"
         title="Gravar áudio"
         @click="startRecording"
       >
@@ -264,13 +264,13 @@ const onEnter = () => {
         v-model="draft"
         rows="1"
         placeholder="Digite sua mensagem..."
-        class="reset-base flex-1 h-auto min-h-0 px-1 py-1.5 mb-0 text-sm bg-transparent outline-none resize-none text-n-slate-12 placeholder:text-n-slate-10 max-h-28 leading-snug"
+        class="reset-base flex-1 h-auto min-h-0 px-1 py-1.5 mb-0 text-sm bg-transparent outline-none resize-none text-n-slate-12 placeholder:text-wa-composer-placeholder max-h-28 leading-snug"
         @input="autoResize"
         @keydown.enter.exact.prevent="onEnter"
       />
       <button
         type="button"
-        class="inline-flex items-center justify-center flex-shrink-0 w-9 h-9 text-white transition-all rounded-full shadow-sm bg-n-brand hover:bg-n-brand-hover active:scale-90 disabled:opacity-40 disabled:cursor-not-allowed disabled:active:scale-100"
+        class="inline-flex items-center justify-center flex-shrink-0 w-9 h-9 transition-all rounded-full shadow-sm bg-wa-composer-send text-wa-composer-send-fg hover:brightness-110 active:scale-90 disabled:opacity-45 disabled:cursor-not-allowed disabled:active:scale-100"
         title="Enviar"
         :disabled="!draft.trim() && !attachedFiles.length"
         @click="send"
