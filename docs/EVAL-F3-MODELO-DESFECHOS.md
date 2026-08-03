@@ -50,11 +50,22 @@ Dois eixos separados: **progressão** (ascendente, o que queremos) e **saída** 
 
 ### O corte da conversão
 
-**Conversão = `qualificado` + `handoff`.** Só isso. Os degraus 1–4 são do SPX; os degraus 5–6 são
-do Vista e entram como **camada externa** (§ 4).
+**Conversão = `qualificado` + `assumido` com a IA tendo atendido antes.** Os degraus 1–4 são do
+SPX; os degraus 5–6 são do Vista e entram como **camada externa** (§ 4).
 
-O corte está aí porque é o degrau que **a IA de fato controla**. Visita e venda dependem do
-corretor: incluí-las mede o time comercial, não o atendimento.
+O corte para em `assumido` porque é até aí que **a IA de fato controla**. Visita e venda dependem
+do corretor: incluí-las mede o time comercial, não o atendimento.
+
+> **Decidido em 31/07 com dado, não no papel.** O corte original era `qualificado + handoff`. O
+> dry-run rodou os dois lado a lado na conta 6 (499 episódios): **A = 23,4% · B = 24,2%** —
+> praticamente idênticos. `handoff` só existe onde o F2 gravou a tool (403 dos 499 episódios não
+> tinham tool call nenhuma), então seria refém permanente da cobertura do F2; `assumido` vem de
+> mensagem + log `human_takeover`, duráveis. Escolher o durável não custou precisão.
+>
+> **O qualificador não é opcional.** `assumido` sozinho contaria atendimento que sempre foi humano
+> como conversão da IA — e ele é a MAIORIA: dos 342 assumidos, **248 eram só-humano**. Por isso o
+> filtro autoritativo é o scope `conversao` do model, e não a constante `DEGRAUS_CONVERSAO` (que
+> serve só pra marcar os degraus na tela).
 
 ---
 
@@ -96,16 +107,23 @@ crédito da IA. Por isso ele carrega `detalhe['ia_atendia_antes']`, respondido p
 `human_takeover` (que o `log_captain_mirror_transition` só emite quando o espelho captain **estava**
 na conversa, logo já prova que a IA atendia) ou pela varredura das mensagens anteriores.
 
-> **Dois defeitos de produto pra outra frente** (anotados, não corrigidos aqui — `handoff_tool.rb`
-> pertence ao escopo da `spx/rodizio`, que está no mesmo arquivo):
-> - **Handoff não tem evento durável.** Fix: `HandoffTool`/`HumanHandoffService` criarem
->   `Captain::AssistantLog` com `event_type: 'handoff'` — o valor **já é aceito** por `EVENT_TYPES`.
->   Sem isso, o degrau `handoff` fica dependente da cobertura do F2 pra sempre.
-> - **`EpisodeSegmenterService` compara `message_type` com inteiro** (`type == 2`, `type == 3`)
->   sobre um valor vindo de `pluck` de coluna **enum**, que devolve o RÓTULO. Se confirmado, as
->   fronteiras `resolve` e `hsm_campanha` nunca disparam **e activities entram como mensagem do
->   episódio**. O dry-run v2 imprime a distribuição de `boundary_reason` justamente pra confirmar
->   ou descartar. Foi o mesmo erro que zerou a v1 do dry-run.
+> ✅ **RESOLVIDO pela `spx/rodizio` em `0f320f967` (31/07).** O `HumanHandoffService` passou a
+> escrever `Captain::AssistantLog` com `event_type: 'handoff'` — e ficou no **service**, não no
+> tool, porque o service é a fonte única dos 6 call sites (tool, transferência entre agentes,
+> escalada do follow-up, safety-nets do `ResponseBuilderJob`). O `handoff` **é degrau durável a
+> partir dessa data**, e este serviço lê o log como evidência principal, usando a `ToolCall` só
+> pra discriminar autoria (com tool = a IA pediu; sem tool = sistema).
+>
+> ⚠️ **Duas ressalvas que não somem com o fix:**
+> - **O evento nasceu em 31/07.** `handoff` = 0 antes disso é ausência de instrumento, não de
+>   comportamento. Nunca compare pré×pós como mudança de conduta.
+> - **Ainda não está em produção.** Verificado em 02/08: `0f320f967` **não é ancestral** do que a
+>   VM roda (`f542675b7`). Até deployar, prod segue sem evento durável de handoff.
+
+> ✅ **Suspeita DESCARTADA (31/07):** cheguei a suspeitar que o `EpisodeSegmenterService` tivesse
+> o mesmo erro de enum (comparar `message_type` com inteiro sobre valor de `pluck`). **Não tem.**
+> O dry-run v2 mostrou as fronteiras disparando na conta 6 — `gap 10085 · resolve 1653 ·
+> hsm_campanha 218`. O F1 normaliza corretamente; **não mexer nele**.
 
 ---
 
@@ -170,6 +188,21 @@ Três razões para tabela separada, cada uma sozinha suficiente:
 em `conversation.custom_attributes` (carimbados pelo Meta Lead Ads: `meta_campanha`, `meta_anuncio`,
 `meta_publico`, `meta_tipo`, `meta_imovel`) e **mudam**. Métrica histórica não pode mudar de valor
 retroativamente porque alguém reetiquetou a conversa.
+
+> ✅ **Verificado em 02/08 — a atribuição por campanha NÃO usa `campaign_id`, e isso a salva.**
+> Existem dois motores de disparo e o `campaign_id` da conversa é furado nos dois (o
+> `RecipientDispatchService` só grava se estiver nulo — bug "grudento" no BACKLOG; o
+> `Spx::Tozi::DisparoLeadJob` tem `campaign_id: nil` por default e o rake não passa). Medido: 1 de
+> 152 conversas amostradas tem `campaign_id`.
+>
+> O F3 lê **`custom_attributes['meta_campanha']`**, escrito num lugar só —
+> `meta/lead_ads/create_conversation_service.rb:152`, a partir do `campaign_name` que a Meta
+> devolve. **Nenhum errata é necessário:** PACAEMBU 60% × RMKT 37% mediram o que diziam medir.
+>
+> **A ressalva é de população, não de correção:** o corte por campanha só enxerga conversa criada
+> pelo webhook do Meta Lead Ads. Conversa de disparo não tem `meta_campanha` e cai em
+> "(sem campanha)". Isso mantém a comparação PACAEMBU × RMKT limpa (mesmo canal de aquisição, o
+> mesmo carimbo), mas ela fala de um **subconjunto** do tráfego da conta — não do todo.
 
 > ⚠️ **Gap encontrado ao implementar: `empreendimento` NÃO é carimbado na conversa.** Ele só existe
 > no `template_render_context` do `CreateConversationService` (linha ~529), consumido pelo opener e
