@@ -70,6 +70,16 @@ PERGUNTA_HORARIO = /
   (que\s+dia\s+(e\s+hor[áa]rio|fica|seria)) | (posso\s+te\s+(chamar|ligar))
 /xi
 
+# O CLIENTE já informou quando pode. Achado na amostra de 02/08 (conv 41665: "vou entrar
+# em reunião às 15:15hs"): cobrar "perguntou o melhor horário?" nesses casos é errado — a
+# conduta certa ali é USAR o horário, não perguntar de novo. Contá-los como
+# não-cumprimento subestima a taxa. Ficam num grupo à parte, fora do denominador.
+HORARIO_INFORMADO = /
+  (\d{1,2}\s*[:h]\s*\d{0,2}) | (de\s+)?(manh[ãa]|tarde|noite)\b |
+  \b(segunda|ter[çc]a|quarta|quinta|sexta|s[áa]bado|domingo)\b |
+  (daqui\s+a\s+\d+) | (em\s+\d+\s*(min|hora))
+/xi
+
 def dia_util?(time)
   !time.saturday? && !time.sunday?
 end
@@ -220,7 +230,9 @@ def classificar_adiamentos(por_conversa, ia_senders, resposta_janela, botoes, re
         pedido: texto, resposta: resposta&.dig(:txt).to_s,
         assistant_id: resposta&.dig(:sid),
         cumpriu: resposta ? resposta[:txt].match?(regex_perg) : false,
-        respondeu: !resposta.nil?
+        respondeu: !resposta.nil?,
+        # cliente já disse quando pode → cobrar a pergunta aqui é errado (ver HORARIO_INFORMADO)
+        ja_deu_horario: !via_botao && texto.match?(HORARIO_INFORMADO)
       }
     end
   end
@@ -233,6 +245,10 @@ adiamentos.each do |e|
   e[:janela] = dentro?(antes_iv, e[:at]) ? :antes : (dentro?(depois_iv, e[:at]) ? :depois : nil)
 end
 adiamentos.select! { |e| e[:janela] }
+# Denominador da regra = só quem adiou SEM dizer quando. Quem já deu o horário vira
+# grupo à parte (a conduta certa lá é usar o horário, não perguntar).
+com_horario = adiamentos.select { |e| e[:ja_deu_horario] }
+adiamentos = adiamentos.reject { |e| e[:ja_deu_horario] }
 
 def linha_cumprimento(rotulo, lista)
   a = lista.select { |e| e[:janela] == :antes }
@@ -249,7 +265,14 @@ puts "\n#{'─' * 82}"
 puts '(3) "QUANDO O CLIENTE PEDE PRA FALAR DEPOIS" — a IA pergunta o melhor horário?'
 puts '    baseline spx/fricoes (método deles, 14 dias): 41,2% — 7 de 17'
 puts "    detector daqui: adiamento do cliente → resposta da IA em até #{RESPOSTA_JANELA / 60}min"
+puts '    denominador = adiamento SEM horário informado pelo cliente'
 puts linha_cumprimento('GERAL', adiamentos)
+if com_horario.any?
+  ca = com_horario.count { |e| e[:janela] == :antes }
+  cd = com_horario.count { |e| e[:janela] == :depois }
+  puts "    (fora do denominador: #{ca + cd} adiamento(s) em que o CLIENTE já deu o horário" \
+       " — antes #{ca} · depois #{cd}. Ali a conduta certa é usar, não perguntar.)"
+end
 puts "\n  por agente — a Júlia é o alvo do prompt; os outros são CONTROLE:"
 puts linha_cumprimento('Júlia (alvo)', adiamentos.select { |e| julia_ids.include?(e[:assistant_id]) })
 puts linha_cumprimento('outros agentes (ctrl)', adiamentos.reject { |e| julia_ids.include?(e[:assistant_id]) || e[:assistant_id].nil? })
