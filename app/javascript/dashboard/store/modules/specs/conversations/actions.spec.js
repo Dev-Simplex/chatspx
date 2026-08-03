@@ -382,7 +382,9 @@ describe('#actions', () => {
       axios.post.mockResolvedValue({
         data: { id: 1, agent_last_seen_at: lastSeen },
       });
-      await actions.markMessagesRead({ commit }, { id: 1 });
+      // `explicit` porque estes exemplos cobrem a mecânica de API/mutation, não o gate:
+      // sem dono na conversa, a leitura implícita passou a NÃO limpar o "não lida".
+      await actions.markMessagesRead({ commit }, { id: 1, explicit: true });
       vi.runAllTimers();
       expect(commit).toHaveBeenCalledTimes(1);
       expect(commit.mock.calls).toEqual([
@@ -391,7 +393,7 @@ describe('#actions', () => {
     });
     it('sends correct mutations if api is unsuccessful', async () => {
       axios.post.mockRejectedValue({ message: 'Incorrect header' });
-      await actions.markMessagesRead({ commit }, { id: 1 });
+      await actions.markMessagesRead({ commit }, { id: 1, explicit: true });
       expect(commit.mock.calls).toEqual([]);
     });
   });

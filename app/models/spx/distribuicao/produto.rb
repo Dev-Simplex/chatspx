@@ -20,6 +20,20 @@ module Spx
       def matcher(chave)
         Array((matchers || {})[chave.to_s]).map { |termo| termo.to_s.strip.downcase }.compact_blank
       end
+
+      # Inventário de peças de marketing — contrato em docs/contratos/apresentacao-produto.md.
+      # Escrito pela config, consumido pela frente spx/followup. Leitores aqui pra as duas
+      # frentes lerem do MESMO lugar em vez de cada uma parsear o hash por conta.
+      #
+      # A config descreve material e público; NUNCA sequência. Quem escolhe a peça e o momento
+      # é a IA, no contexto — ver §1 do contrato antes de acrescentar campo aqui.
+      def publico_alvo
+        (apresentacao || {})['publico'].presence
+      end
+
+      def pecas
+        Array((apresentacao || {})['pecas']).select { |peca| peca.is_a?(Hash) && peca['id'].present? }
+      end
     end
   end
 end

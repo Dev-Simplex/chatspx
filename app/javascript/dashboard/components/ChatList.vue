@@ -1015,10 +1015,15 @@ async function markAsUnread(conversationId) {
     // Ignore error
   }
 }
+// Ação DELIBERADA (botão "marcar como lida"), não leitura implícita: por isso
+// `explicit`. Sem ele, conversa sem dono nunca mais ficaria lida — abrir e marcar
+// batem no mesmo endpoint, e só o segundo deve limpar o marcador de conversa que
+// não é sua. Ver `may_clear_unread_marker?`.
 async function markAsRead(conversationId) {
   try {
     await store.dispatch('markMessagesRead', {
       id: conversationId,
+      explicit: true,
     });
   } catch (error) {
     // Ignore error

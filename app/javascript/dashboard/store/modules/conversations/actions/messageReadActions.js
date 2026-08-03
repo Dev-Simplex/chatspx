@@ -54,18 +54,24 @@ const clearMatchingNotification = async (
 const canClearUnreadMarker = (rootGetters, conversationId) => {
   const conversation = rootGetters?.getConversationById?.(conversationId);
   const assignee = conversation?.meta?.assignee;
-  if (!assignee?.id || assignee.type === 'agent_bot') return true;
+  // Sem dono humano — inclusive quando quem está no controle é a IA — NINGUÉM limpa
+  // o "não lida" só de abrir. O marcador é o sinal do que falta atender, e some com
+  // um clique de quem passou o olho. Fica não-lida até alguém assumir (ou marcar
+  // explicitamente). Espelha `may_clear_unread_marker?` do backend.
+  if (!assignee?.id || assignee.type === 'agent_bot') return false;
   return Number(assignee.id) === Number(rootGetters?.getCurrentUserID);
 };
 
 export default {
+  // `explicit: true` só vem do botão "marcar como lida". Abrir a conversa nunca manda.
   markMessagesRead: async ({ commit, dispatch, rootGetters }, data) => {
-    if (!canClearUnreadMarker(rootGetters, data.id)) return;
+    const explicit = data.explicit === true;
+    if (!explicit && !canClearUnreadMarker(rootGetters, data.id)) return;
 
     try {
       const {
         data: { id, agent_last_seen_at: lastSeen },
-      } = await ConversationApi.markMessageRead(data);
+      } = await ConversationApi.markMessageRead({ id: data.id, explicit });
       setTimeout(
         () =>
           commit(mutationTypes.UPDATE_MESSAGE_UNREAD_COUNT, { id, lastSeen }),

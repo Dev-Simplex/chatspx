@@ -3,7 +3,7 @@
 #
 # Additiva e INERTE: sem produto cadastrado o filtro de pool é no-op e o Motor decide
 # exatamente como decidia antes. Aplicar com alvo específico
-# (db:migrate:up VERSION=20260730120000) para não disparar migrations destrutivas pendentes.
+# (db:migrate:up VERSION=20260730120100) para não disparar migrations destrutivas pendentes.
 class CreateDistribuicaoProdutos < ActiveRecord::Migration[7.1]
   def change
     create_table :distribuicao_produtos do |t|

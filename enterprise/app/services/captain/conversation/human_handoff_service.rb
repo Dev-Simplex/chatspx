@@ -30,6 +30,8 @@ class Captain::Conversation::HumanHandoffService
     update_attrs[:team] = team if team
     @conversation.update!(update_attrs)
 
+    registrar_handoff(team)
+
     # Motor de Distribuição: se o time tem política modo=rodizio, empurra a conversa pro
     # consultor certo em vez de deixá-la na fila "Aguardando atendimento". Sem política => no-op.
     Spx::Distribuicao::DistribuirService.new(@conversation).call
@@ -38,6 +40,37 @@ class Captain::Conversation::HumanHandoffService
   end
 
   private
+
+  # Sinal DURÁVEL de que a IA passou o bastão.
+  #
+  # `handoff` estava declarado em EVENT_TYPES desde sempre e NUNCA era escrito: o HandoffTool
+  # só chamava `log_tool_usage`, que vai pro Rails.logger e não cria registro. Sem isto, a
+  # reconstituição do desfecho (Captain::EpisodeOutcomeService) fica refém da cobertura do F2
+  # e do `aguardando_humano_desde`, que é TRANSITÓRIO — limpo quando o humano assume, medido
+  # em 2 conversas de 20.170 na conta 6. Estado não serve de histórico.
+  #
+  # Fica AQUI, e não no HandoffTool, porque este service é a fonte única: os 6 call sites
+  # (tool, transferência entre agentes, escalada do follow-up, safety-nets do
+  # ResponseBuilderJob) passam por ele. Logar no tool cobriria um caminho só.
+  #
+  # Depois do `update!` pra o payload já refletir o time resolvido; e rescue-wrapped porque
+  # registrar NUNCA pode derrubar comportamento — foi assim que o safety-net de handoff e o
+  # backstop anti-repetição morreram calados em produção.
+  def registrar_handoff(team)
+    # captain_assistant_id é NOT NULL e o assistant pode chegar nil (o resolve_team já o trata
+    # com `&.`). Sai explícito em vez de estourar no create! e cair no rescue — mesmo critério
+    # do log_mirror_event: sem assistant, está fora da telemetria captain.
+    return if @assistant.blank?
+
+    Captain::AssistantLog.create!(
+      captain_assistant: @assistant,
+      conversation: @conversation,
+      event_type: 'handoff',
+      payload: { 'team_id' => team&.id, 'com_dossie' => @reason.present? }
+    )
+  rescue StandardError => e
+    Rails.logger.warn("[Captain] assistant_log de handoff falhou conv=#{@conversation&.id}: #{e.message}")
+  end
 
   # post the reason as a private note (dossiê pro humano que assumir)
   def create_handoff_note
