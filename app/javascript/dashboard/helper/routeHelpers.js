@@ -148,3 +148,10 @@ export const isAInboxViewRoute = (routeName, includeBase = false) => {
 
 export const isNotificationRoute = routeName =>
   routeName === 'notifications_index';
+
+// Kanban tempo real (Fase 5.1): o board precisa se reconciliar depois de uma
+// queda de websocket (wifi trocado, notebook que dormiu, deploy). Sem isto o
+// board ficava desatualizado PARA SEMPRE — o sintoma "só o F5 resolve".
+// Nomes definidos em routes/dashboard/kanban/routes.js.
+export const isAKanbanRoute = routeName =>
+  ['kanban_index', 'kanban_funnel'].includes(routeName);

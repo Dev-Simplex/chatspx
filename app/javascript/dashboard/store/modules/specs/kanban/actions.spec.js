@@ -582,7 +582,10 @@ describe('#kanban actions', () => {
     it('insere o card que o receptor nunca carregou', () => {
       const state = { activeFunnelId: 1, funnelItems: {} };
 
-      actions.applyRemoteMove({ state, commit, rootGetters }, remotePayload());
+      actions.applyRemoteMove(
+        { state, commit, dispatch, rootGetters },
+        remotePayload()
+      );
 
       expect(commit).toHaveBeenCalledTimes(1);
       const [mutation, payload] = commit.mock.calls[0];
@@ -598,7 +601,7 @@ describe('#kanban actions', () => {
       const state = { activeFunnelId: 1, funnelItems: {} };
 
       actions.applyRemoteMove(
-        { state, commit, rootGetters },
+        { state, commit, dispatch, rootGetters },
         remotePayload({ conversation: undefined, title: undefined })
       );
 
@@ -619,7 +622,10 @@ describe('#kanban actions', () => {
         },
       };
 
-      actions.applyRemoteMove({ state, commit, rootGetters }, remotePayload());
+      actions.applyRemoteMove(
+        { state, commit, dispatch, rootGetters },
+        remotePayload()
+      );
 
       const [mutation, payload] = commit.mock.calls[0];
       expect(mutation).toBe(types.UPDATE_FUNNEL_ITEM);
@@ -630,14 +636,17 @@ describe('#kanban actions', () => {
 
     it('não reage a outro funil', () => {
       const state = { activeFunnelId: 2, funnelItems: {} };
-      actions.applyRemoteMove({ state, commit, rootGetters }, remotePayload());
+      actions.applyRemoteMove(
+        { state, commit, dispatch, rootGetters },
+        remotePayload()
+      );
       expect(commit).not.toHaveBeenCalled();
     });
 
     it('ignora o eco da própria ação', () => {
       const state = { activeFunnelId: 1, funnelItems: {} };
       actions.applyRemoteMove(
-        { state, commit, rootGetters },
+        { state, commit, dispatch, rootGetters },
         remotePayload({ performer: { id: 7 } })
       );
       expect(commit).not.toHaveBeenCalled();
@@ -648,7 +657,10 @@ describe('#kanban actions', () => {
         activeFunnelId: 1,
         funnelItems: { 10: { id: 10, funnelId: 1, funnelStageId: 22 } },
       };
-      actions.applyRemoteMove({ state, commit, rootGetters }, remotePayload());
+      actions.applyRemoteMove(
+        { state, commit, dispatch, rootGetters },
+        remotePayload()
+      );
       expect(commit).not.toHaveBeenCalled();
     });
 
@@ -664,14 +676,17 @@ describe('#kanban actions', () => {
           },
         },
       };
-      actions.applyRemoteMove({ state, commit, rootGetters }, remotePayload());
+      actions.applyRemoteMove(
+        { state, commit, dispatch, rootGetters },
+        remotePayload()
+      );
       expect(commit).not.toHaveBeenCalled();
     });
 
     it('nunca lança para fora do websocket', () => {
       expect(() =>
         actions.applyRemoteMove(
-          { state: null, commit, rootGetters },
+          { state: null, commit, dispatch, rootGetters },
           remotePayload()
         )
       ).not.toThrow();
@@ -693,7 +708,10 @@ describe('#kanban actions', () => {
 
     it('insere o cartão de tarefa criado por outra pessoa', () => {
       const state = { activeFunnelId: 1, funnelItems: {} };
-      actions.applyRemoteCreate({ state, commit, rootGetters }, taskPayload());
+      actions.applyRemoteCreate(
+        { state, commit, dispatch, rootGetters },
+        taskPayload()
+      );
 
       const [mutation, payload] = commit.mock.calls[0];
       expect(mutation).toBe(types.ADD_FUNNEL_ITEM);
@@ -709,7 +727,7 @@ describe('#kanban actions', () => {
     it('ignora o eco da própria criação', () => {
       const state = { activeFunnelId: 1, funnelItems: {} };
       actions.applyRemoteCreate(
-        { state, commit, rootGetters },
+        { state, commit, dispatch, rootGetters },
         taskPayload({ performer: { id: 7 } })
       );
       expect(commit).not.toHaveBeenCalled();
@@ -717,7 +735,10 @@ describe('#kanban actions', () => {
 
     it('não reage a outro funil', () => {
       const state = { activeFunnelId: 99, funnelItems: {} };
-      actions.applyRemoteCreate({ state, commit, rootGetters }, taskPayload());
+      actions.applyRemoteCreate(
+        { state, commit, dispatch, rootGetters },
+        taskPayload()
+      );
       expect(commit).not.toHaveBeenCalled();
     });
   });
@@ -735,7 +756,7 @@ describe('#kanban actions', () => {
     it('remove o card apagado por outra pessoa', () => {
       const state = { activeFunnelId: 1 };
       actions.applyRemoteDelete(
-        { state, commit, rootGetters },
+        { state, commit, dispatch, rootGetters },
         deletePayload()
       );
       expect(commit).toHaveBeenCalledWith(types.DELETE_FUNNEL_ITEM, 10);
@@ -744,7 +765,7 @@ describe('#kanban actions', () => {
     it('ignora o eco da própria exclusão', () => {
       const state = { activeFunnelId: 1 };
       actions.applyRemoteDelete(
-        { state, commit, rootGetters },
+        { state, commit, dispatch, rootGetters },
         deletePayload({ performer: { id: 7 } })
       );
       expect(commit).not.toHaveBeenCalled();
@@ -771,10 +792,12 @@ describe('#kanban actions', () => {
       );
 
       expect(localDispatch).toHaveBeenCalledTimes(2);
+      // `performer` viaja junto para o destaque do card dizer quem moveu.
       expect(localDispatch).toHaveBeenNthCalledWith(1, 'applyRemoteMove', {
         id: 1,
         funnel_id: 1,
         funnel_stage_id: 22,
+        performer: { id: 9 },
       });
     });
 
@@ -820,7 +843,7 @@ describe('#kanban actions', () => {
 
     it('aplica as posições dos cards que temos', () => {
       actions.applyRemoteReorder(
-        { state, commit, rootGetters },
+        { state, commit, dispatch, rootGetters },
         {
           funnel_id: 1,
           funnel_stage_id: 22,
@@ -842,7 +865,7 @@ describe('#kanban actions', () => {
 
     it('descarta ids desconhecidos sem disparar refetch', () => {
       actions.applyRemoteReorder(
-        { state, commit, rootGetters },
+        { state, commit, dispatch, rootGetters },
         {
           funnel_id: 1,
           performer: { id: 9 },
@@ -855,7 +878,7 @@ describe('#kanban actions', () => {
 
     it('ignora o eco da própria reordenação', () => {
       actions.applyRemoteReorder(
-        { state, commit, rootGetters },
+        { state, commit, dispatch, rootGetters },
         {
           funnel_id: 1,
           performer: { id: 7 },
@@ -877,7 +900,7 @@ describe('#kanban actions', () => {
 
     it('substitui a lista de colunas', () => {
       actions.applyRemoteStages(
-        { state: buildState(), commit, rootGetters },
+        { state: buildState(), commit, dispatch, rootGetters },
         {
           funnel_id: 1,
           performer: { id: 9 },
@@ -903,7 +926,7 @@ describe('#kanban actions', () => {
 
     it('limpa os cards órfãos da coluna apagada e o filtro que apontava para ela', () => {
       actions.applyRemoteStages(
-        { state: buildState(), commit, rootGetters },
+        { state: buildState(), commit, dispatch, rootGetters },
         {
           funnel_id: 1,
           performer: { id: 9 },
@@ -922,7 +945,12 @@ describe('#kanban actions', () => {
 
     it('não reage a outro funil', () => {
       actions.applyRemoteStages(
-        { state: { ...buildState(), activeFunnelId: 99 }, commit, rootGetters },
+        {
+          state: { ...buildState(), activeFunnelId: 99 },
+          commit,
+          dispatch,
+          rootGetters,
+        },
         { funnel_id: 1, performer: { id: 9 }, stages: [] }
       );
       expect(commit).not.toHaveBeenCalled();
@@ -930,9 +958,47 @@ describe('#kanban actions', () => {
 
     it('ignora o eco da própria mudança', () => {
       actions.applyRemoteStages(
-        { state: buildState(), commit, rootGetters },
+        { state: buildState(), commit, dispatch, rootGetters },
         { funnel_id: 1, performer: { id: 7 }, stages: [] }
       );
+      expect(commit).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('#flagRemoteActivity', () => {
+    beforeEach(() => vi.useFakeTimers());
+    afterEach(() => vi.useRealTimers());
+
+    it('marca o card com o nome de quem mexeu e limpa sozinho', () => {
+      actions.flagRemoteActivity(
+        { commit },
+        { itemId: 10, performer: { id: 9, name: 'Colega' } }
+      );
+
+      expect(commit).toHaveBeenCalledWith(types.SET_REMOTE_ACTIVITY, {
+        itemId: 10,
+        name: 'Colega',
+        automated: false,
+      });
+
+      vi.runAllTimers();
+      expect(commit).toHaveBeenCalledWith(types.CLEAR_REMOTE_ACTIVITY, 10);
+    });
+
+    // performer é nil em move de job (automação/SLA/backfill): Current.user só
+    // existe dentro do request.
+    it('marca como automático quando não há performer', () => {
+      actions.flagRemoteActivity({ commit }, { itemId: 10 });
+
+      expect(commit).toHaveBeenCalledWith(types.SET_REMOTE_ACTIVITY, {
+        itemId: 10,
+        name: null,
+        automated: true,
+      });
+    });
+
+    it('ignora id inválido', () => {
+      actions.flagRemoteActivity({ commit }, { itemId: null });
       expect(commit).not.toHaveBeenCalled();
     });
   });

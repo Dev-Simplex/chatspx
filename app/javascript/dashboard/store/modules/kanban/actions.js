@@ -234,6 +234,10 @@ const isEchoOfMyOwnAction = (data, rootGetters) => {
   );
 };
 
+// Quanto tempo o card fica destacado depois de mudar por ação remota. Casado
+// com a animação de `.kanban-card--remote` em kanban-theme.css.
+const REMOTE_HIGHLIGHT_MS = 2600;
+
 export const actions = {
   async fetchFunnels({ commit }) {
     commit(types.SET_KANBAN_UI_FLAG, { isFetching: true });
@@ -841,7 +845,7 @@ export const actions = {
   // receptor quase nunca tem o card que estava lá embaixo, e o evento era
   // descartado em silêncio. Agora o payload vem completo (FunnelItem#push_event_data)
   // e o card entra desenhado.
-  applyRemoteMove({ state, commit, rootGetters }, data) {
+  applyRemoteMove({ state, commit, dispatch, rootGetters }, data) {
     try {
       if (!data || typeof data !== 'object') return;
       // Only react when this board is showing the affected funnel.
@@ -858,6 +862,10 @@ export const actions = {
         if (!isRenderableRemoteItem(data)) return;
         // Idempotente: `assignItemToStage` reinsere o mesmo id no mesmo lugar.
         commit(types.ADD_FUNNEL_ITEM, remoteItemPayload(data));
+        dispatch('flagRemoteActivity', {
+          itemId: data.id,
+          performer: data.performer,
+        });
         return;
       }
 
@@ -887,6 +895,10 @@ export const actions = {
         movedAt: data.moved_at,
         ...(data.position == null ? {} : { position: Number(data.position) }),
       });
+      dispatch('flagRemoteActivity', {
+        itemId: data.id,
+        performer: data.performer,
+      });
     } catch (_) {
       // Real-time is best-effort; never throw out of a websocket handler.
     }
@@ -896,7 +908,7 @@ export const actions = {
   // Card de conversa NÃO passa por aqui — ele nasce pelo MoveService, que já
   // dispara `funnel_item.moved`, e o `applyRemoteMove` insere. A assimetria é
   // de propósito: os dois eventos juntos inseririam o card duas vezes.
-  applyRemoteCreate({ state, commit, rootGetters }, data) {
+  applyRemoteCreate({ state, commit, dispatch, rootGetters }, data) {
     try {
       if (!data || typeof data !== 'object') return;
       if (Number(data.funnel_id) !== Number(state.activeFunnelId)) return;
@@ -905,6 +917,10 @@ export const actions = {
 
       // Idempotente: `assignItemToStage` faz upsert pelo id.
       commit(types.ADD_FUNNEL_ITEM, remoteItemPayload(data));
+      dispatch('flagRemoteActivity', {
+        itemId: data.id,
+        performer: data.performer,
+      });
     } catch (_) {
       // best-effort
     }
@@ -953,7 +969,11 @@ export const actions = {
         return;
       }
 
-      (data.items || []).forEach(item => dispatch('applyRemoteMove', item));
+      // `performer` viaja junto para o destaque do card dizer quem moveu (o
+      // eco da própria ação já foi descartado acima, então ele nunca sou eu).
+      (data.items || []).forEach(item =>
+        dispatch('applyRemoteMove', { ...item, performer: data.performer })
+      );
     } catch (_) {
       // best-effort
     }
@@ -988,6 +1008,29 @@ export const actions = {
     } catch (_) {
       // best-effort
     }
+  },
+
+  // Tempo real (Fase 5.2): marca o card que acabou de mudar por ação de outra
+  // pessoa, para o KanbanCard piscar e mostrar "movido por {nome}". Sem isto o
+  // card teleporta sem explicação e o colega acha que bugou (ou desfaz o move
+  // do outro por cima).
+  //
+  // `performer` vem de graça do broadcast, MAS é nil quando o move veio de job
+  // (automação, SLA, backfill) — `Current.user` só existe no request. Nesse caso
+  // o card diz "movido automaticamente".
+  flagRemoteActivity({ commit }, { itemId, performer } = {}) {
+    const id = Number(itemId);
+    if (!id) return;
+
+    commit(types.SET_REMOTE_ACTIVITY, {
+      itemId: id,
+      name: performer?.name || null,
+      automated: !performer?.id,
+    });
+    setTimeout(
+      () => commit(types.CLEAR_REMOTE_ACTIVITY, id),
+      REMOTE_HIGHLIGHT_MS
+    );
   },
 
   // Tempo real (Fase 4): as colunas do funil mudaram. Evento grosso e
