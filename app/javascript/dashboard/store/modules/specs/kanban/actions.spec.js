@@ -810,4 +810,60 @@ describe('#kanban actions', () => {
       expect(localDispatch).not.toHaveBeenCalled();
     });
   });
+
+  describe('#applyRemoteReorder', () => {
+    const rootGetters = { getCurrentUserID: 7 };
+    const state = {
+      activeFunnelId: 1,
+      funnelItems: { 10: { id: 10 }, 11: { id: 11 } },
+    };
+
+    it('aplica as posições dos cards que temos', () => {
+      actions.applyRemoteReorder(
+        { state, commit, rootGetters },
+        {
+          funnel_id: 1,
+          funnel_stage_id: 22,
+          performer: { id: 9 },
+          positions: [
+            { id: 11, position: 1 },
+            { id: 10, position: 2 },
+          ],
+        }
+      );
+
+      expect(commit).toHaveBeenCalledWith(types.SET_FUNNEL_ITEM_POSITIONS, {
+        positions: [
+          { id: 11, position: 1 },
+          { id: 10, position: 2 },
+        ],
+      });
+    });
+
+    it('descarta ids desconhecidos sem disparar refetch', () => {
+      actions.applyRemoteReorder(
+        { state, commit, rootGetters },
+        {
+          funnel_id: 1,
+          performer: { id: 9 },
+          positions: [{ id: 999, position: 1 }],
+        }
+      );
+
+      expect(commit).not.toHaveBeenCalled();
+    });
+
+    it('ignora o eco da própria reordenação', () => {
+      actions.applyRemoteReorder(
+        { state, commit, rootGetters },
+        {
+          funnel_id: 1,
+          performer: { id: 7 },
+          positions: [{ id: 10, position: 1 }],
+        }
+      );
+
+      expect(commit).not.toHaveBeenCalled();
+    });
+  });
 });

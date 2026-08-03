@@ -959,6 +959,37 @@ export const actions = {
     }
   },
 
+  // Tempo real (Fase 3): outra pessoa reordenou os cards dentro de uma coluna.
+  // Reusa a MESMA mutação do otimismo local (`reorderItems`), então a ordem
+  // converge sem o card "pular" para quem arrastou.
+  applyRemoteReorder({ state, commit, rootGetters }, data) {
+    try {
+      if (!data || typeof data !== 'object') return;
+      if (Number(data.funnel_id) !== Number(state.activeFunnelId)) return;
+      if (isEchoOfMyOwnAction(data, rootGetters)) return;
+
+      // Ignora ids que não temos: reorder de card desconhecido não justifica
+      // refetch (ele chega completo no próximo load ou num move).
+      const positions = (data.positions || [])
+        .map(entry => ({
+          id: Number(entry?.id),
+          position: Number(entry?.position),
+        }))
+        .filter(
+          entry =>
+            entry.id &&
+            Number.isFinite(entry.position) &&
+            state.funnelItems?.[entry.id]
+        );
+      if (!positions.length) return;
+
+      // Idempotente: gravar a mesma position duas vezes é o mesmo estado.
+      commit(types.SET_FUNNEL_ITEM_POSITIONS, { positions });
+    } catch (_) {
+      // best-effort
+    }
+  },
+
   setViewFilters({ commit }, filters = {}) {
     commit(types.SET_VIEW_FILTERS, filters);
   },

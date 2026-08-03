@@ -74,4 +74,5 @@ module Events::Types
   FUNNEL_ITEM_CREATED = 'funnel_item.created'
   FUNNEL_ITEM_DELETED = 'funnel_item.deleted'
   FUNNEL_ITEMS_BULK_MOVED = 'funnel_items.bulk_moved'
+  FUNNEL_ITEMS_REORDERED = 'funnel_items.reordered'
 end

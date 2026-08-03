@@ -159,4 +159,20 @@ describe ActionCableListener do
       listener.funnel_items_bulk_moved(bulk_event([]))
     end
   end
+
+  describe '#funnel_items_reordered' do
+    it 'entrega só as posições ao público do funil' do
+      positions = [{ id: 1, position: 1 }, { id: 2, position: 2 }]
+      event = Events::Base.new(:'funnel_items.reordered', Time.zone.now,
+                               funnel: team_funnel, funnel_stage_id: 9, positions: positions)
+
+      expect(ActionCableBroadcastJob).to receive(:perform_later) do |tokens, name, payload|
+        expect(tokens).to contain_exactly(admin.pubsub_token, team_agent.pubsub_token)
+        expect(name).to eq('funnel_items.reordered')
+        expect(payload).to include(funnel_id: team_funnel.id, funnel_stage_id: 9, positions: positions)
+      end
+
+      listener.funnel_items_reordered(event)
+    end
+  end
 end

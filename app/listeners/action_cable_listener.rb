@@ -157,6 +157,21 @@ class ActionCableListener < BaseListener # rubocop:disable Metrics/ClassLength
     broadcast(account, funnel_audience_tokens(funnel), FUNNEL_ITEM_DELETED, event.data[:item])
   end
 
+  # Reordenação manual dentro da coluna. Payload enxuto de propósito: só
+  # `{id, position}` — quem recebe já tem (ou não tem) os cards, e reorder de
+  # card desconhecido não justifica refetch.
+  def funnel_items_reordered(event)
+    funnel = event.data[:funnel]
+    account = funnel&.account
+    return if account.blank?
+
+    broadcast(account, funnel_audience_tokens(funnel), FUNNEL_ITEMS_REORDERED, {
+                funnel_id: funnel.id,
+                funnel_stage_id: event.data[:funnel_stage_id],
+                positions: event.data[:positions]
+              })
+  end
+
   # Bulk move: UM evento com todos os cards, em vez de um por card. Mover 50
   # cards disparava 50 jobs na fila `:critical`, cada um publicando para N
   # usuários. Acima do teto o payload vira uma ordem de refetch das colunas
