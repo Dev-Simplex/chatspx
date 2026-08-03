@@ -225,6 +225,15 @@ def classificar_adiamentos(por_conversa, ia_senders, resposta_janela, botoes, re
       resposta = lista[(idx + 1)..].to_a.find do |n|
         n[:tipo] == 1 && ia_senders.include?(n[:stype]) && (n[:at] - m[:at]) <= resposta_janela
       end
+
+      # Quem estava conduzindo NA HORA do adiamento? Se a última saída antes dele foi de
+      # um humano, a conversa já era dele: atribuir humano solta o espelho captain
+      # (reset_agent_bot_when_assignee_present) e a IA CALA por design. Cobrar dela a
+      # pergunta ali é cobrar de quem não estava na sala.
+      # Achado na amostra de 03/08: convs 41874 e 41813 receberam "Agendar horário" com
+      # assignee humano e bot=nil — apareciam como não-cumprimento e não eram.
+      ultima_saida = lista[0...idx].reverse.find { |n| n[:tipo] == 1 }
+      humano_conduzia = ultima_saida && ultima_saida[:stype] == 'User'
       eventos << {
         cid: m[:cid], at: m[:at], via_botao: via_botao,
         pedido: texto, resposta: resposta&.dig(:txt).to_s,
@@ -232,7 +241,8 @@ def classificar_adiamentos(por_conversa, ia_senders, resposta_janela, botoes, re
         cumpriu: resposta ? resposta[:txt].match?(regex_perg) : false,
         respondeu: !resposta.nil?,
         # cliente já disse quando pode → cobrar a pergunta aqui é errado (ver HORARIO_INFORMADO)
-        ja_deu_horario: !via_botao && texto.match?(HORARIO_INFORMADO)
+        ja_deu_horario: !via_botao && texto.match?(HORARIO_INFORMADO),
+        humano_conduzia: humano_conduzia
       }
     end
   end
@@ -248,7 +258,8 @@ adiamentos.select! { |e| e[:janela] }
 # Denominador da regra = só quem adiou SEM dizer quando. Quem já deu o horário vira
 # grupo à parte (a conduta certa lá é usar o horário, não perguntar).
 com_horario = adiamentos.select { |e| e[:ja_deu_horario] }
-adiamentos = adiamentos.reject { |e| e[:ja_deu_horario] }
+do_humano = adiamentos.select { |e| e[:humano_conduzia] && !e[:ja_deu_horario] }
+adiamentos = adiamentos.reject { |e| e[:ja_deu_horario] || e[:humano_conduzia] }
 
 def linha_cumprimento(rotulo, lista)
   a = lista.select { |e| e[:janela] == :antes }
@@ -265,13 +276,19 @@ puts "\n#{'─' * 82}"
 puts '(3) "QUANDO O CLIENTE PEDE PRA FALAR DEPOIS" — a IA pergunta o melhor horário?'
 puts '    baseline spx/fricoes (método deles, 14 dias): 41,2% — 7 de 17'
 puts "    detector daqui: adiamento do cliente → resposta da IA em até #{RESPOSTA_JANELA / 60}min"
-puts '    denominador = adiamento SEM horário informado pelo cliente'
+puts '    denominador = adiamento SEM horário informado, em conversa que a IA ainda conduzia'
 puts linha_cumprimento('GERAL', adiamentos)
 if com_horario.any?
   ca = com_horario.count { |e| e[:janela] == :antes }
   cd = com_horario.count { |e| e[:janela] == :depois }
   puts "    (fora do denominador: #{ca + cd} adiamento(s) em que o CLIENTE já deu o horário" \
        " — antes #{ca} · depois #{cd}. Ali a conduta certa é usar, não perguntar.)"
+end
+if do_humano.any?
+  ha = do_humano.count { |e| e[:janela] == :antes }
+  hd = do_humano.count { |e| e[:janela] == :depois }
+  puts "    (fora do denominador: #{ha + hd} adiamento(s) em conversa que um HUMANO já conduzia" \
+       " — antes #{ha} · depois #{hd}. A IA calou por design, não por falha.)"
 end
 puts "\n  por agente — a Júlia é o alvo do prompt; os outros são CONTROLE:"
 puts linha_cumprimento('Júlia (alvo)', adiamentos.select { |e| julia_ids.include?(e[:assistant_id]) })
