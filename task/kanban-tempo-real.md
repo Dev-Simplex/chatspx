@@ -476,6 +476,44 @@ O usuário relatou "os dados não atualizam da maneira correta". Não era o webs
 
 > Vale varrer o resto do fork atrás do mesmo padrão: `where.not` em coluna nulável e `NOT IN` com subquery que pode conter NULL.
 
+### Fechamento — revisão final (2026-08-03)
+
+**Estado:** todas as 6 fases entregues, mais 3 correções que só apareceram no QA. Tudo commitado na branch `nicolas` e **LIVE no staging** (`c8dbe006d`). Produção/frota **não** promovidas.
+
+| Commit | O quê |
+|---|---|
+| `923201df0` | F1 — payload completo, insert do card desconhecido, alcance pela FunnelPolicy |
+| `82ace33a3` | F2 — `created`/`deleted` + bulk agregado |
+| `b7cde7eb6` | F3 — `funnel_items.reordered` |
+| `749fbe5d2` | F4 — `funnel_stages.changed` |
+| `8b30ffea2` | F5 — resync no reconnect + destaque no card |
+| `e695fd26e` | cenário de QA (seed + limpeza) |
+| `586acf86c` | **fix** — board não acompanhava a outra janela do mesmo usuário |
+| `39ac72659` | **fix** — coluna sem automação voltava vazia da API |
+| `c1334114b` | **fix** — backfill morria com um cartão de tarefa |
+| `c8dbe006d` | polimento da revisão (destaque só no card novo, comentário defasado, guarda de payload vazio) |
+
+**Testes.** 132 exemplos RSpec das áreas tocadas + 110 do front, todos verdes. `spec/listeners` tem 10 falhas — **provadas pré-existentes**: rodei a suíte num worktree no commit base (`cf77fc4a0`) e deu exatamente as mesmas 10 (269 exemplos lá, 294 aqui, mesmas falhas). São de `hook_listener`, `automation_rule_listener`, `reporting_event_listener` e um `typing_on` com agent bot — nada do Kanban.
+
+**Cobertura nova que trava regressão:**
+- `funnel_item_push_event_data_spec` — payload × partial jbuilder e os tipos aceitos pelo Sidekiq
+- `action_cable_listener_kanban_spec` — alcance por funil, teto do bulk, lista de colunas
+- `funnel_items_realtime_spec` / `funnel_stages_realtime_spec` — os dispatches dos controllers e o kill switch
+- `reorder_service_broadcast_spec`
+- `funnel_items_exclude_automation_spec` — falha 4/4 sem a correção do `IS DISTINCT FROM`
+- `funnel_items_backfill_service_spec` — falha 1/3 sem a correção do `NOT IN`
+- 45 casos de front nos handlers remotos
+
+**Conferido na revisão, com o resultado:**
+- API × banco por coluna, depois de todas as correções: 40→31 (paginado), 16→16, 13→13, resolvidos→0. Bate.
+- Tempo das chamadas do board: 127 ms (colunas) e 228–298 ms (cards, em paralelo). O que sobra de espera é o boot do SPA (~1,4 s), igual ao resto do sistema.
+- Varredura por outras ocorrências de `where.not`/`NOT IN` em coluna nulável dentro do Kanban: as duas restantes (`assignee_id: nil` no relatório e o `NOT IN` do backfill já corrigido) estão corretas.
+
+**Pendente:**
+1. QA visual seu nos itens 3 (reordenar arrastando), 6 (bulk pela UI), 9 (offline 30 s), 11 (filtro ativo) e 12 (dois arrastes simultâneos no mesmo card).
+2. Promoção para produção/frota — os dois bugs de NULL valem para **todos** os funis da frota, então essa promoção tem valor independente do tempo real.
+3. Limpar o cenário de QA quando terminar: `RAILS_ENV=production bundle exec rails runner task/qa_tempo_real_clean.rb`.
+
 ### Nota para o monitoramento do rollout
 
 Cada dispatch percorre **os dois** dispatchers (`Dispatcher#dispatch` chama sync **e** async), então todo evento do board enfileira também um `EventDispatcherJob` na `:critical` — que hoje é no-op (nenhum listener assíncrono trata evento de funil). Não é novo (o `funnel_item.moved` já fazia isso), mas conte 2 jobs por evento ao olhar a fila. A agregação da 2.3 é o que importa aqui: bulk de 50 cards saiu de ~100 jobs para 2.
