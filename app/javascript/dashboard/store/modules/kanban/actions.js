@@ -194,6 +194,46 @@ const sanitizeStageQueue = stageIds => [
   ),
 ];
 
+// ── Tempo real do board (plano task/kanban-tempo-real.md) ─────────────
+//
+// Invariantes de TODO handler remoto:
+//   1. só reage ao funil que está na tela (`funnel_id === activeFunnelId`);
+//   2. ignora o eco da própria ação (`performer.id === currentUserId`) — o
+//      otimismo local já aplicou;
+//   3. é idempotente (aplicar duas vezes = aplicar uma);
+//   4. é best-effort: nunca lança para fora do websocket.
+//
+// Onde NÃO precisa de guarda:
+//   • filtro da view — `viewFilters` é aplicado na RENDERIZAÇÃO
+//     (`KanbanBoard.getFilteredItemsForStage` / `ListView`), não no store. Card
+//     que não passa no filtro entra no cache e simplesmente não desenha; e volta
+//     a aparecer sozinho quando o usuário limpa o filtro. Filtrar aqui deixaria
+//     o cache mentindo para o resto da tela (contadores, busca, preview);
+//   • dedupe por telefone — `assignItemToStage` (mutations.js) já espelha o
+//     `deduplicate_by_contact_phone` do controller, inclusive o 9º dígito BR,
+//     por etapa e resolvendo pelo mais recente. Inserir por aqui passa pelo
+//     mesmo caminho.
+
+// Um card do socket só é INSERÍVEL se vier com o que desenhar. Payload antigo
+// (só ids, de uma VM ainda não deployada) cai fora e o card aparece no próximo
+// load — o mesmo comportamento de antes, sem card-esqueleto na tela.
+const isRenderableRemoteItem = data =>
+  Boolean(data?.conversation || data?.title || data?.is_task);
+
+// O envelope do broadcast carrega `account_id`/`performer` (metadado do
+// transporte). Não são campos do card — ficam de fora do store.
+const remoteItemPayload = data => {
+  const { account_id: _accountId, performer: _performer, ...item } = data || {};
+  return item;
+};
+
+const isEchoOfMyOwnAction = (data, rootGetters) => {
+  const currentUserId = rootGetters?.getCurrentUserID;
+  return Boolean(
+    data?.performer?.id && Number(data.performer.id) === Number(currentUserId)
+  );
+};
+
 export const actions = {
   async fetchFunnels({ commit }) {
     commit(types.SET_KANBAN_UI_FLAG, { isFetching: true });
@@ -793,8 +833,14 @@ export const actions = {
     if (view.view_mode) commit(types.SET_VIEW_MODE, view.view_mode);
   },
 
-  // Real-time (Fase 4): another user moved a card. Relocate our local copy.
-  // Best-effort and defensive — must never break websocket handling or the board.
+  // Tempo real: outra pessoa moveu um card. Reloca a cópia local — ou INSERE,
+  // quando não temos o card.
+  //
+  // O `return` no card desconhecido era a causa nº 1 do "só o F5 resolve": com
+  // `kanban_cursor_loading` ligado cada coluna carrega uma página, então o
+  // receptor quase nunca tem o card que estava lá embaixo, e o evento era
+  // descartado em silêncio. Agora o payload vem completo (FunnelItem#push_event_data)
+  // e o card entra desenhado.
   applyRemoteMove({ state, commit, rootGetters }, data) {
     try {
       if (!data || typeof data !== 'object') return;
@@ -802,23 +848,23 @@ export const actions = {
       if (Number(data.funnel_id) !== Number(state.activeFunnelId)) return;
 
       // Skip our own move — it was already applied optimistically.
-      const currentUserId = rootGetters.getCurrentUserID;
-      if (
-        data.performer?.id &&
-        Number(data.performer.id) === Number(currentUserId)
-      ) {
+      if (isEchoOfMyOwnAction(data, rootGetters)) return;
+
+      const targetStage = Number(data.funnel_stage_id);
+      if (!targetStage) return;
+
+      const existing = state.funnelItems[data.id];
+      if (!existing) {
+        if (!isRenderableRemoteItem(data)) return;
+        // Idempotente: `assignItemToStage` reinsere o mesmo id no mesmo lugar.
+        commit(types.ADD_FUNNEL_ITEM, remoteItemPayload(data));
         return;
       }
 
-      // We can only relocate an item we already hold; otherwise it shows on next load.
-      const existing = state.funnelItems[data.id];
-      if (!existing) return;
-
-      const targetStage = Number(data.funnel_stage_id);
       const currentStage = Number(
         existing.funnelStageId ?? existing.funnel_stage_id
       );
-      if (!targetStage || targetStage === currentStage) return;
+      if (targetStage === currentStage) return;
 
       // Last-write-wins: ignore an out-of-order older move.
       const localMovedAt = existing.movedAt ?? existing.moved_at;
@@ -830,12 +876,16 @@ export const actions = {
         return;
       }
 
+      // Preserva o que já temos (ex.: `lastMessage`, que não vem no broadcast) e
+      // só reloca. `position` vem do backend para o card cair no topo da coluna
+      // de destino, igual ao que quem arrastou está vendo.
       commit(types.UPDATE_FUNNEL_ITEM, {
         ...existing,
         funnel_stage_id: targetStage,
         funnelStageId: targetStage,
         moved_at: data.moved_at,
         movedAt: data.moved_at,
+        ...(data.position == null ? {} : { position: Number(data.position) }),
       });
     } catch (_) {
       // Real-time is best-effort; never throw out of a websocket handler.

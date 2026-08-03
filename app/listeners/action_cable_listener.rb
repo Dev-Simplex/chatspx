@@ -133,15 +133,16 @@ class ActionCableListener < BaseListener # rubocop:disable Metrics/ClassLength
     broadcast(account, tokens, ASSIGNEE_CHANGED, conversation.push_event_data)
   end
 
-  # Kanban v2 (Fase 4): broadcast a card's stage move so other open boards
-  # relocate it live. Goes to every user of the account (board is account-wide).
+  # Kanban tempo real: um card mudou de etapa — os outros boards abertos relocam
+  # (ou INSEREM, quando não tinham o card) ao vivo.
   def funnel_item_moved(event)
     funnel_item = event.data[:funnel_item]
-    account = funnel_item&.funnel&.account
+    funnel = funnel_item&.funnel
+    account = funnel&.account
     return if account.blank?
 
-    tokens = account.users.pluck(:pubsub_token)
-    broadcast(account, tokens, FUNNEL_ITEM_MOVED, funnel_item.push_event_data)
+    broadcast(account, funnel_audience_tokens(funnel), FUNNEL_ITEM_MOVED,
+              funnel_item.push_event_data(label_colors: label_colors_for(account)))
   end
 
   def team_changed(event)
@@ -277,6 +278,50 @@ class ActionCableListener < BaseListener # rubocop:disable Metrics/ClassLength
 
   def account_token(account)
     "account_#{account.id}"
+  end
+
+  # Kanban tempo real: quem pode RECEBER os eventos de um funil.
+  #
+  # Espelha `FunnelPolicy#show?` / `FunnelPolicy::Scope`: administrador da conta
+  # sempre; se o funil é de um time, também os membros desse time; funil "Geral"
+  # (team_id nil) é só de admin.
+  #
+  # Antes isto era `account.users.pluck(:pubsub_token)` — TODOS os usuários da
+  # conta. Medido no staging: funil de um time vazio mandava metadado de card
+  # (nome e telefone do contato) para 16 pessoas que sequer conseguem abrir o
+  # funil. Com o payload engordado da Fase 1 isso deixou de ser aceitável.
+  #
+  # NÃO é por inbox: `funnel.inbox_ids` limita QUAIS conversas entram no funil,
+  # não QUEM enxerga o funil.
+  def funnel_audience_tokens(funnel)
+    account = funnel.account
+    tokens = Rails.cache.fetch(
+      "account:#{account.id}:admin_pubsub_tokens",
+      expires_in: 2.minutes,
+      race_condition_ttl: 10.seconds
+    ) { account.administrators.pluck(:pubsub_token) }
+
+    tokens += team_member_tokens(funnel.team_id) if funnel.team_id.present?
+    tokens.uniq
+  end
+
+  def team_member_tokens(team_id)
+    Rails.cache.fetch(
+      "team:#{team_id}:member_pubsub_tokens",
+      expires_in: 2.minutes,
+      race_condition_ttl: 10.seconds
+    ) { User.joins(:team_members).where(team_members: { team_id: team_id }).pluck(:pubsub_token) }
+  end
+
+  # Mapa título→cor das etiquetas da conta, para o payload do card sair com os
+  # chips coloridos sem N+1. O listener é SÍNCRONO (roda dentro do request do
+  # arraste), por isso o cache curto: são poucas etiquetas e mudam pouco.
+  def label_colors_for(account)
+    Rails.cache.fetch(
+      "account:#{account.id}:kanban_label_colors",
+      expires_in: 2.minutes,
+      race_condition_ttl: 10.seconds
+    ) { account.labels.pluck(:title, :color).to_h.transform_keys { |title| title.to_s.downcase } }
   end
 
   def typing_event_listener_tokens(account, conversation, user)

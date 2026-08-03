@@ -561,4 +561,120 @@ describe('#kanban actions', () => {
       ]);
     });
   });
+
+  // ── Tempo real do board (task/kanban-tempo-real.md) ──────────────────
+  describe('#applyRemoteMove', () => {
+    const rootGetters = { getCurrentUserID: 7 };
+    const remotePayload = (overrides = {}) => ({
+      id: 10,
+      funnel_id: 1,
+      funnel_stage_id: 22,
+      conversation_id: 500,
+      moved_at: '2026-08-03T12:00:00.000Z',
+      position: 0.5,
+      is_task: false,
+      account_id: 1,
+      performer: { id: 9, name: 'Colega' },
+      conversation: { id: 500, status: 'open', contact: { id: 3, name: 'Zé' } },
+      ...overrides,
+    });
+
+    it('insere o card que o receptor nunca carregou', () => {
+      const state = { activeFunnelId: 1, funnelItems: {} };
+
+      actions.applyRemoteMove({ state, commit, rootGetters }, remotePayload());
+
+      expect(commit).toHaveBeenCalledTimes(1);
+      const [mutation, payload] = commit.mock.calls[0];
+      expect(mutation).toBe(types.ADD_FUNNEL_ITEM);
+      expect(payload.id).toBe(10);
+      expect(payload.funnel_stage_id).toBe(22);
+      // metadado de transporte não entra no store
+      expect(payload.performer).toBeUndefined();
+      expect(payload.account_id).toBeUndefined();
+    });
+
+    it('ignora payload magro demais para desenhar (VM ainda não deployada)', () => {
+      const state = { activeFunnelId: 1, funnelItems: {} };
+
+      actions.applyRemoteMove(
+        { state, commit, rootGetters },
+        remotePayload({ conversation: undefined, title: undefined })
+      );
+
+      expect(commit).not.toHaveBeenCalled();
+    });
+
+    it('reloca o card que já temos preservando o que o broadcast não traz', () => {
+      const state = {
+        activeFunnelId: 1,
+        funnelItems: {
+          10: {
+            id: 10,
+            funnelId: 1,
+            funnelStageId: 21,
+            movedAt: '2026-08-03T11:00:00.000Z',
+            conversation: { id: 500, lastMessage: { content: 'oi' } },
+          },
+        },
+      };
+
+      actions.applyRemoteMove({ state, commit, rootGetters }, remotePayload());
+
+      const [mutation, payload] = commit.mock.calls[0];
+      expect(mutation).toBe(types.UPDATE_FUNNEL_ITEM);
+      expect(payload.funnelStageId).toBe(22);
+      expect(payload.position).toBe(0.5);
+      expect(payload.conversation.lastMessage).toEqual({ content: 'oi' });
+    });
+
+    it('não reage a outro funil', () => {
+      const state = { activeFunnelId: 2, funnelItems: {} };
+      actions.applyRemoteMove({ state, commit, rootGetters }, remotePayload());
+      expect(commit).not.toHaveBeenCalled();
+    });
+
+    it('ignora o eco da própria ação', () => {
+      const state = { activeFunnelId: 1, funnelItems: {} };
+      actions.applyRemoteMove(
+        { state, commit, rootGetters },
+        remotePayload({ performer: { id: 7 } })
+      );
+      expect(commit).not.toHaveBeenCalled();
+    });
+
+    it('é idempotente: mover para a etapa em que o card já está não commita', () => {
+      const state = {
+        activeFunnelId: 1,
+        funnelItems: { 10: { id: 10, funnelId: 1, funnelStageId: 22 } },
+      };
+      actions.applyRemoteMove({ state, commit, rootGetters }, remotePayload());
+      expect(commit).not.toHaveBeenCalled();
+    });
+
+    it('descarta move mais antigo que o estado local (last-write-wins)', () => {
+      const state = {
+        activeFunnelId: 1,
+        funnelItems: {
+          10: {
+            id: 10,
+            funnelId: 1,
+            funnelStageId: 21,
+            movedAt: '2026-08-03T13:00:00.000Z',
+          },
+        },
+      };
+      actions.applyRemoteMove({ state, commit, rootGetters }, remotePayload());
+      expect(commit).not.toHaveBeenCalled();
+    });
+
+    it('nunca lança para fora do websocket', () => {
+      expect(() =>
+        actions.applyRemoteMove(
+          { state: null, commit, rootGetters },
+          remotePayload()
+        )
+      ).not.toThrow();
+    });
+  });
 });
