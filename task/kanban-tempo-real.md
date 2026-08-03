@@ -392,3 +392,46 @@ Item 12 é o mais fácil de quebrar — teste de propósito.
 - Histórico/auditoria visual de movimentações no card.
 - Tempo real das visões `ListView` / `CalendarView` / `DashboardView` — as fases acima atendem o **board**; se as outras visões lerem o mesmo store, ganham de graça, mas **não** são critério de aceite.
 - Trocar ActionCable por outro transporte.
+
+---
+
+## Execução — o que foi entregue (2026-08-03, branch `nicolas`)
+
+Fases 0 a 5 implementadas, commitadas, deployadas no staging e **validadas ao vivo**.
+
+| Commit | Fase |
+|--------|------|
+| `923201df0` | 1 — payload completo + insert do card desconhecido + alcance restrito |
+| `82ace33a3` | 2 — `funnel_item.created` / `.deleted` + bulk agregado |
+| `b7cde7eb6` | 3 — `funnel_items.reordered` |
+| `749fbe5d2` | 4 — `funnel_stages.changed` |
+| `8b30ffea2` | 5 — resync no reconnect + destaque no card |
+
+### Desvios do plano (e por quê)
+
+1. **Sem a flag `kanban_realtime`.** `config/features.yml` já tem 65 entradas e `accounts.feature_flags` é bitmask `bigint` (63 bits úteis): a flag nasceria no bit 66 e daria `RangeError` ao ser habilitada. No lugar dela, `Kanban::Realtime` (`app/services/kanban/realtime.rb`) concentra o rescue best-effort **e** o kill switch `KANBAN_REALTIME_ENABLED=false`, que dá a mesma válvula do §Rollout sem gastar bit.
+2. **1.4 usa a `FunnelPolicy`, não as inboxes.** O plano propunha membros das inboxes do funil; quem decide se alguém abre o funil é a `FunnelPolicy` (admin, ou membro do `funnel.team_id`; funil "Geral" = só admin). `inbox_ids` filtra conversas, não pessoas. Medido no staging: de 18 usuários da conta, o alcance caiu para os 2 que realmente conseguem abrir o funil.
+3. **1.3 não filtra nem deduplica no store.** Os dois já existem, em camadas melhores: `viewFilters` é aplicado na **renderização** (`KanbanBoard.getFilteredItemsForStage`), e o dedupe por telefone (com 9º dígito BR) já está em `assignItemToStage` (`mutations.js`), espelhando o `deduplicate_by_contact_phone`. Filtrar no store deixaria o cache mentindo para contadores e busca, e o card não voltaria ao limpar o filtro. Por isso **não** foi criado o `helpers/dedupe.js`.
+4. **Sem `spec/services/funnel_items/reorder_service_broadcast_spec.rb`?** Não — esse foi criado. O que **não** foi feito é ajustar `funnel_items_bulk_update_spec.rb`: ele cobre `bulk_update` (reatribuir/etiquetar/arquivar), que não passa pelo `MoveService`; o `bulk_move` ganhou cobertura nova em `funnel_items_realtime_spec.rb`.
+
+### Validação ao vivo (staging, dois usuários)
+
+Board aberto no navegador como **admin**; ações executadas server-side como **Realtime Test B** (`Current.user`), para o board receber os eventos como se um colega tivesse mexido:
+
+| Item do roteiro | Resultado |
+|---|---|
+| 1 — card muda de coluna | ✅ 22→21 em "Novo", 14→15 em "Em atendimento", sem F5 |
+| 2 — card que o receptor **nunca carregou** (etapa `resolved`, fora do store) | ✅ inserido completo em **2,8 s** (nome, telefone, status), com o badge |
+| 4 — cartão de tarefa criado | ✅ aparece em 2,5 s (`isTask=true`) |
+| 5 — card apagado | ✅ some do board, sem fantasma |
+| 7 — coluna renomeada e recolorida | ✅ nome e cor mudam sozinhos |
+| 8 — coluna restaurada | ✅ volta sozinha |
+| 10 — "movido por {nome}" | ✅ `movido por Realtime Test B`, com o pulso no card |
+
+Console do navegador: **0 erros**. Verificação server-side (`funnel_item.moved/created/deleted`, bulk com teto, reorder, `funnel_stages.changed`, kill switch, tipos JSON) toda verde, com rollback — nada ficou gravado.
+
+**Pendente de QA do usuário:** itens 3 (reordenar arrastando), 6 (bulk de 20 pela UI), 9 (offline 30 s → reconverge — coberto por teste unitário do `ReconnectService`, não exercitado no navegador), 11 (filtro ativo) e 12 (dois arrastes simultâneos no mesmo card).
+
+### Nota para o monitoramento do rollout
+
+Cada dispatch percorre **os dois** dispatchers (`Dispatcher#dispatch` chama sync **e** async), então todo evento do board enfileira também um `EventDispatcherJob` na `:critical` — que hoje é no-op (nenhum listener assíncrono trata evento de funil). Não é novo (o `funnel_item.moved` já fazia isso), mas conte 2 jobs por evento ao olhar a fila. A agregação da 2.3 é o que importa aqui: bulk de 50 cards saiu de ~100 jobs para 2.
