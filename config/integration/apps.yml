@@ -311,6 +311,98 @@ meta_lead_ads:
       },
     ]
   visible_properties: ['page_name', 'page_id', 'target_inbox_id', 'skip_initial_message']
+site_leads:
+  id: site_leads
+  logo: meta_lead_ads.png
+  i18n_key: site_leads
+  hook_type: account
+  allow_multiple_hooks: true
+  settings_json_schema:
+    {
+      'type': 'object',
+      'properties':
+        {
+          'site_name': { 'type': 'string' },
+          'shared_secret': { 'type': 'string' },
+          'target_inbox_id': { 'type': ['integer', 'string'] },
+          'assign_team_id': { 'type': ['integer', 'string'] },
+          'assign_agent_bot_id': { 'type': ['integer', 'string'] },
+          'whatsapp_template_name': { 'type': 'string' },
+          'whatsapp_template_locale': { 'type': 'string' },
+          'whatsapp_template_body_fields': { 'type': 'string' },
+          'default_ddd': { 'type': 'string' },
+          'skip_initial_message': { 'type': 'boolean' },
+          'enabled': { 'type': 'boolean' },
+        },
+      'required': ['shared_secret', 'target_inbox_id'],
+      'additionalProperties': true,
+    }
+  settings_form_schema:
+    [
+      {
+        'label': 'Apelido do site',
+        'type': 'text',
+        'name': 'site_name',
+        'help': 'Identificador para você (ex: Site Tozi).',
+      },
+      {
+        'label': 'Segredo compartilhado',
+        'type': 'text',
+        'name': 'shared_secret',
+        'validation': 'required',
+        'help': 'O site envia este valor no header X-SPX-Token. É ele que identifica a conta — use um valor longo e aleatório, e não reaproveite de outro lugar.',
+      },
+      {
+        'label': 'ID da Inbox alvo',
+        'type': 'number',
+        'name': 'target_inbox_id',
+        'validation': 'required',
+        'help': 'Inbox WhatsApp onde a conversa do lead é aberta.',
+      },
+      {
+        'label': 'ID do time',
+        'type': 'number',
+        'name': 'assign_team_id',
+        'help': 'Time que recebe o lead já na criação (antes da abertura).',
+      },
+      {
+        'label': 'ID do agente de IA (AgentBot)',
+        'type': 'number',
+        'name': 'assign_agent_bot_id',
+        'help': 'Espelho AgentBot do assistente que atende estes leads. Precisa estar elegível à inbox alvo.',
+      },
+      {
+        'label': 'Template HSM da abertura',
+        'type': 'text',
+        'name': 'whatsapp_template_name',
+        'help': 'Nome do template APROVADO na Meta. OBRIGATÓRIO: quem preencheu formulário nunca escreveu, então a janela de 24h está fechada e texto livre é bloqueado.',
+      },
+      {
+        'label': 'Idioma do template HSM',
+        'type': 'text',
+        'name': 'whatsapp_template_locale',
+        'help': 'Locale do template aprovado. Padrão: pt_BR.',
+      },
+      {
+        'label': 'Variáveis do corpo do HSM',
+        'type': 'text',
+        'name': 'whatsapp_template_body_fields',
+        'help': "Campos que preenchem {{1}}, {{2}}, ... em ordem, separados por vírgula (first_name, full_name, city, email, phone). Escreva 'none' quando o template não tem variável no corpo — é o caso do opener genérico.",
+      },
+      {
+        'label': 'DDD padrão',
+        'type': 'text',
+        'name': 'default_ddd',
+        'help': 'Completa telefone digitado sem DDD (ex: 66). Sem isso, número sem DDD é descartado.',
+      },
+      {
+        'label': 'Modo teste — não enviar 1ª mensagem',
+        'type': 'checkbox',
+        'name': 'skip_initial_message',
+        'help': 'Cria a conversa mas NÃO envia a abertura. Útil pra validar o fluxo sem incomodar leads reais.',
+      },
+    ]
+  visible_properties: ['site_name', 'target_inbox_id', 'skip_initial_message']
 leadsquared:
   id: leadsquared
   feature_flag: crm_integration
