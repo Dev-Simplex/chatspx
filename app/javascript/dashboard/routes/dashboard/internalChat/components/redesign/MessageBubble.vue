@@ -2,6 +2,12 @@
 import { ref, computed, nextTick } from 'vue';
 import Avatar from 'dashboard/components-next/avatar/Avatar.vue';
 import { getRecentEmojis, addRecentEmoji } from 'shared/helpers/recentEmojis';
+import { useAlert } from 'dashboard/composables';
+import { copyTextToClipboard } from 'shared/helpers/clipboard';
+// Mesmas peças do menu de mensagem do chat normal — o menu do chat interno
+// passa a ser idêntico ao de lá (lista com rótulo, não uma pílula de ícones).
+import ContextMenu from 'dashboard/components/ui/ContextMenu.vue';
+import MenuItem from 'dashboard/components/widgets/conversation/contextMenu/menuItem.vue';
 
 const props = defineProps({
   message: { type: Object, required: true },
@@ -38,24 +44,52 @@ const closeAll = () => {
   confirmDelete.value = false;
 };
 
-const openMenu = () => {
+// O menu agora é o ContextMenu compartilhado: flutua em `position: fixed` num
+// teleport para o body, então a posição vem em coordenadas de viewport
+// (clientX/clientY), não de página.
+const menuPosition = ref({ x: 0, y: 0 });
+const dropdownButtonRef = ref(null);
+
+const openMenuAt = (x, y) => {
   if (props.message.deleted) return;
   showReactionPicker.value = false;
   confirmDelete.value = false;
-  showMenu.value = !showMenu.value;
+  menuPosition.value = { x, y };
+  showMenu.value = true;
 };
+
+// Gatilho ⌄: o menu abre ancorado embaixo da seta, igual ao do chat normal.
+const openMenuFromButton = () => {
+  const el = dropdownButtonRef.value;
+  if (!el?.getBoundingClientRect) return;
+  const rect = el.getBoundingClientRect();
+  openMenuAt(rect.right, rect.bottom + 4);
+};
+
+const openMenuFromEvent = event =>
+  openMenuAt(event.clientX ?? 0, event.clientY ?? 0);
 
 // Long-press abre o menu no toque (sem clique-direito no mobile).
 let longPressTimer = null;
-const startLongPress = () => {
+const startLongPress = event => {
+  const touch = event.touches?.[0];
   clearTimeout(longPressTimer);
-  longPressTimer = setTimeout(openMenu, 450);
+  longPressTimer = setTimeout(() => {
+    if (touch) openMenuAt(touch.clientX, touch.clientY);
+    else openMenuFromButton();
+  }, 450);
 };
 const cancelLongPress = () => clearTimeout(longPressTimer);
 
 const onReply = () => {
   closeAll();
   emit('reply', props.message);
+};
+
+const copyContent = async () => {
+  closeAll();
+  await copyTextToClipboard(props.message.content || '');
+  useAlert('Mensagem copiada');
 };
 
 // Os emojis oferecidos na barra de reação: seus recentes primeiro, completando
@@ -182,71 +216,99 @@ const iReacted = emoji =>
             ? 'bg-n-brand text-white rounded-br-md'
             : 'bg-n-alpha-2 text-n-slate-12 rounded-bl-md'
         "
-        @contextmenu.prevent="openMenu"
+        @contextmenu.prevent="openMenuFromEvent"
         @touchstart.passive="startLongPress"
         @touchend="cancelLongPress"
         @touchmove.passive="cancelLongPress"
       >
-        <!-- Gatilho ⋯ (hover/foco); toque usa long-press, desktop tem right-click -->
-        <button
-          type="button"
-          class="absolute z-20 inline-flex items-center justify-center transition-opacity -translate-y-1/2 border rounded-full opacity-0 top-1/2 w-7 h-7 bg-n-solid-1 border-n-weak text-n-slate-11 shadow-sm group-hover:opacity-100 focus:opacity-100"
-          :class="message.mine ? '-left-9' : '-right-9'"
-          title="Ações da mensagem"
-          @click.stop="openMenu"
-        >
-          <span class="text-base i-lucide-ellipsis" />
-        </button>
-
-        <!-- Backdrop click-fora do menu/picker -->
+        <!-- Gatilho ⌄ no canto do balão, no mesmo formato do chat normal:
+             aparece no hover/foco, e o toque continua no long-press.
+             A faixa repinta o fundo do balão para o botão não cair em cima do
+             texto, mas em DEGRADÊ e só no topo: num balão curto (um emoji, um
+             "ok") a faixa sólida de altura inteira engolia a mensagem e o
+             horário no hover. Assim o ⌄ tem fundo onde precisa e o conteúdo
+             continua legível por baixo.
+             No balão recebido o tint alpha é recomposto por dentro — duas
+             camadas de 12% empilhadas ficariam mais escuras que o balão, então
+             o degradê é aplicado nas duas camadas.
+             Só o ⌄ mora aqui (responder é o 1º item do menu): com dois botões a
+             faixa cobria metade de um balão curto. -->
         <div
-          v-if="showMenu || showReactionPicker"
+          v-if="!message.deleted"
+          class="absolute top-0 right-0 z-20 flex items-start justify-end w-12 h-10 max-h-full p-1 transition-opacity duration-200 opacity-0 rounded-tr-2xl bg-gradient-to-l to-transparent group-hover:opacity-100 focus-within:opacity-100"
+          :class="
+            message.mine
+              ? 'from-n-brand from-55%'
+              : 'from-n-background from-55%'
+          "
+        >
+          <span
+            class="absolute inset-0 rounded-tr-2xl bg-gradient-to-l to-transparent"
+            :class="message.mine ? '' : 'from-n-alpha-2 from-55%'"
+          />
+          <button
+            ref="dropdownButtonRef"
+            type="button"
+            class="relative z-10 inline-flex items-center justify-center w-8 h-8 transition-colors rounded-md"
+            :class="
+              message.mine
+                ? 'text-white/90 hover:bg-black/10'
+                : 'text-n-slate-11 hover:bg-n-alpha-2'
+            "
+            title="Ações da mensagem"
+            @click.stop="openMenuFromButton"
+          >
+            <span class="text-lg i-lucide-chevron-down" />
+          </button>
+        </div>
+
+        <!-- Backdrop click-fora do picker de reação (o menu fecha sozinho) -->
+        <div
+          v-if="showReactionPicker"
           class="fixed inset-0 z-10"
           @click="closeAll"
           @contextmenu.prevent="closeAll"
         />
 
-        <!-- Menu de ações -->
-        <div
+        <!-- Menu de ações — mesma lista com rótulo do chat normal -->
+        <ContextMenu
           v-if="showMenu"
-          class="absolute z-20 flex items-center gap-1 px-1.5 py-1.5 border rounded-full shadow-lg bottom-full mb-1.5 bg-n-solid-1 border-n-weak"
-          :class="message.mine ? 'right-0' : 'left-0'"
+          :x="menuPosition.x"
+          :y="menuPosition.y"
+          @close="showMenu = false"
         >
-          <button
-            type="button"
-            class="inline-flex items-center justify-center transition-colors rounded-full w-9 h-9 text-n-slate-12 hover:bg-n-alpha-2"
-            title="Responder"
-            @click="onReply"
-          >
-            <span class="text-xl i-lucide-reply" />
-          </button>
-          <button
-            type="button"
-            class="inline-flex items-center justify-center transition-colors rounded-full w-9 h-9 text-n-slate-12 hover:bg-n-alpha-2"
-            title="Reagir"
-            @click="toggleReactionPicker"
-          >
-            <span class="text-xl i-lucide-smile-plus" />
-          </button>
-          <button
-            v-if="message.mine"
-            type="button"
-            class="inline-flex items-center justify-center transition-colors rounded-full w-9 h-9 text-n-slate-12 hover:bg-n-alpha-2"
-            title="Editar"
-            @click="startEdit"
-          >
-            <span class="text-xl i-lucide-pencil" />
-          </button>
-          <button
-            v-if="message.mine"
-            type="button"
-            class="inline-flex items-center justify-center transition-colors rounded-full w-9 h-9 text-n-slate-12 hover:bg-n-ruby-3 hover:text-n-ruby-11"
-            title="Apagar"
-            @click="askDelete"
-          >
-            <span class="text-xl i-lucide-trash-2" />
-          </button>
-        </div>
+          <div class="menu-container">
+            <MenuItem
+              :option="{ icon: 'arrow-reply', label: 'Responder mensagem' }"
+              variant="icon"
+              @click.stop="onReply"
+            />
+            <MenuItem
+              :option="{ icon: 'i-lucide-smile-plus', label: 'Reagir' }"
+              variant="icon"
+              @click.stop="toggleReactionPicker"
+            />
+            <MenuItem
+              v-if="message.content"
+              :option="{ icon: 'clipboard', label: 'Copiar' }"
+              variant="icon"
+              @click.stop="copyContent"
+            />
+            <hr v-if="message.mine" />
+            <MenuItem
+              v-if="message.mine"
+              :option="{ icon: 'i-lucide-pencil', label: 'Editar mensagem' }"
+              variant="icon"
+              @click.stop="startEdit"
+            />
+            <MenuItem
+              v-if="message.mine"
+              :option="{ icon: 'delete', label: 'Excluir' }"
+              variant="icon"
+              @click.stop="askDelete"
+            />
+          </div>
+        </ContextMenu>
 
         <!-- Picker de reação -->
         <div
@@ -405,3 +467,14 @@ const iReacted = emoji =>
     </div>
   </div>
 </template>
+
+<style scoped lang="scss">
+/* Mesma casca do menu de mensagem do chat normal (MessageContextMenu.vue). */
+.menu-container {
+  @apply p-1 rounded-md shadow-xl bg-n-background;
+
+  hr {
+    @apply m-1 border-b border-solid border-n-strong;
+  }
+}
+</style>
