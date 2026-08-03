@@ -117,7 +117,7 @@ de outra conta. Todas barradas com 401 e nenhuma escrita no banco.
 
 - Relatórios escopados por supervisão.
 - Kanban / funis do time supervisionado.
-- Modo estritamente read-only na CONVERSA para o supervisor (D3) — a Fase 4 abriu a gestão do
+- Modo estritamente read-only na CONVERSA para o supervisor (D3) — a F5 abriu a gestão do
   time, mas dentro da conversa ele segue agindo como membro.
 - Sino/notificações (D4).
 
@@ -194,6 +194,126 @@ Specs novos: `spec/services/team_supervision_visibility_spec.rb` (28 ex.) e
 > `create` se o dono ainda não é membro da caixa **e** do time. Crie os `inbox_member`/`team_member`
 > antes e só então atribua (`conversation.update!(assignee: owner)`), senão o cenário perde o
 > "dono humano" e o isolamento por agente nunca dispara.
+
+---
+
+## Estado: F3 + F4 ENTREGUES (UI de marcar supervisor + UI do supervisor)
+
+Commit `858071efc`. Na árvore, verde, deployado no staging.
+
+| Superfície | Arquivo | O que mudou |
+|---|---|---|
+| Marcar supervisor | `settings/agents/EditAgent.vue` | função "Supervisor" no seletor (é `agent` no backend — a diferença são os times) + multi-select "Supervisiona os times". Envia `supervised_team_ids`. |
+| Chip na lista | `settings/agents/Index.vue` | linha do agente que supervisiona ≥ 1 time ganha o chip e os nomes dos times |
+| Getters novos | `store/modules/teams/getters.js` | `getSupervisedTeams` e `getVisibleTeams`. **`getMyTeams` ficou intocado de propósito** — ele governa etiquetas/respostas "de-time", que continua sendo só de membro (D1) |
+| Filtro de time da lista | `ChatList.vue` | passou a usar `getVisibleTeams` (membro ∪ supervisionado) |
+| Tela de Times | `settings/teams/Index.vue` + `teams.routes.js` | rota abre para `team_supervisor`; supervisor vê **só** os times que supervisiona e pode expandir a lista de membros |
+| Isolamento no front | `composables/useAgentIsolation.js`, `useTeamIsolation.js` e call sites (`Message.vue`, `KanbanCard.vue`, previews) | o supervisor deixa de ver o cadeado 🔒 nas conversas/bolhas dos times dele |
+
+Decisões tomadas no caminho:
+
+1. **"Supervisor" é rótulo de UI, não `role` do backend.** No banco continua `agent`; o
+   seletor só existe para o admin ter onde marcar os times. Rebaixar Supervisor → Agente é a
+   única troca que **limpa** `supervised_team_ids` (senão a supervisão seguia valendo sem
+   aparecer em lugar nenhum); promover a admin ou a função personalizada **omite** a chave e
+   preserva a configuração.
+2. **Supervisor sem nenhum time marcado bloqueia o envio** — seria idêntico a agente comum,
+   com o admin achando que configurou algo.
+
+---
+
+## Estado: F5 ENTREGUE (supervisor gerencia agentes e composição do time)
+
+Commits `c4c3fc068` (backend) + `6f63ca1ba` (telas) + `a5f73b3fe` (decisões D8–D11 acima).
+Na árvore, verde, deployado no staging. **Pendente: QA visual do usuário.**
+
+### O contrato, em uma frase
+
+O supervisor **renomeia** um agente dos times dele e **compõe** esses times (adiciona do pool,
+remove sem restrição). Tudo o mais — excluir agente da conta, convidar, redefinir senha, trocar
+função/disponibilidade/`custom_role_id`, alterar supervisão, criar/editar/excluir time —
+continua **exclusivo de admin**.
+
+### Backend (onde moram as guardas)
+
+| Arquivo | O que mudou |
+|---|---|
+| `user_policy.rb` / `team_member_policy.rb` | `update?`/`create?`/`destroy?` passam a aceitar supervisor. **Só abrem a porta** — a policy recebe a CLASSE, não sabe quem é o alvo (D11) |
+| `agents_controller.rb` | `authorize_supervisor_update` (`before_action`, barra **antes** de qualquer escrita): whitelist de chave única `name` → alvo dentro dos times supervisionados → alvo nunca administrador |
+| `team_members_controller.rb` | `authorize_supervisor_membership_change`: só time supervisionado; quem ENTRA tem que estar no pool; `destroy` não tem restrição de pool |
+| `team_supervision.rb` | `manageable_agent_ids(user, account)` — a união dos membros dos times supervisionados. Dois papéis: alvo permitido do rename **e** pool de adição |
+| `enterprise/.../agents_controller.rb` | `associate_agent_with_custom_role` ganhou `return unless administrator?`. Ele roda depois do `super` e escrevia `custom_role_id` **incondicionalmente** — sem a guarda, o supervisor renomeando alguém (request sem a chave) **zerava** a função personalizada do alvo |
+
+### Front (só não oferece o que seria recusado)
+
+- `settings/agents/Index.vue` — abre para o supervisor com título "Agentes dos meus times",
+  lista recortada **no cliente** (`agent.team_ids` × `getSupervisedTeams`), sem convidar e sem
+  nenhuma ação de excluir. O botão de editar também some na linha de um **administrador**: o
+  backend recusa com 401 e o admin aparece na lista quando é membro do time — sem esconder, o
+  supervisor cairia num beco (abre o modal, renomeia, só descobre no erro).
+- `settings/agents/EditAgent.vue` — modo supervisor mostra **só** o campo Nome (sem Função,
+  Disponibilidade, times supervisionados nem "Redefinir a senha") e envia exatamente
+  `{ id, name }`, batendo com a whitelist do backend. As regras de validação também encolhem:
+  validar campo invisível travaria o Salvar por um valor que ele não pode nem ver.
+- `settings/teams/Index.vue` — cada membro ganhou remover-do-time (com confirmação nominal) e
+  cada time um "Adicionar agente" com checkboxes do pool.
+- `settings/teams/helpers/supervisedTeamMembers.js` (**novo**) — o POST reusa `TeamsAPI.addAgents`;
+  o DELETE mora aqui porque aquele client não tem `removeAgents`. Ambos devolvem a **promise
+  crua do axios** de propósito: a store `teamMembers` embrulha em `new Error(error)` e perde o
+  `response.status`, que é justamente como distinguimos "não autorizado" de falha qualquer.
+- i18n `en` + `pt_BR`: `AGENT_MGMT.{HEADER,DESCRIPTION}_SUPERVISOR`, `AGENT_MGMT.LIST.404_SUPERVISOR`,
+  `TEAMS_SETTINGS.MEMBERS.{FORBIDDEN,ACTION_ERROR,REMOVE.*,ADD.*}`.
+
+### Gotchas que custaram caro (leia antes de mexer)
+
+> ⚠️ **`Pundit::NotAuthorizedError` vira HTTP 401 neste fork**, não 403
+> (`RequestExceptionHandler#render_unauthorized`). Ao tratar o erro no front, case **os dois**
+> — é o que `memberActionError` faz. Sem isso o usuário lia "Request failed with status code 401".
+
+> ⚠️ **A whitelist de chaves lê `params[:agent]`, e quem monta esse hash é o ParamsWrapper** —
+> que só embrulha o **corpo**, e só quando a chave `agent` ainda não veio. Cada forma de request
+> monta `params` diferente (corpo JSON, wrapper `agent` explícito, form-encoded, query string),
+> então cada uma tem exemplo próprio no spec. A query string **não** entra no wrapper: o que
+> segura ali é `agent_params` ler exclusivamente de `params[:agent]` — não mude isso.
+
+> ⚠️ **Nunca recorte `GET /agents` no backend** (D10). Ele alimenta a store `agents` do app
+> inteiro. O comentário no `index` e no `manageable_agent_ids` existe para impedir a recaída.
+
+> ⚠️ **No modo supervisor, o `isLoading` da tela de Agentes espera também o fetch de TIMES.**
+> O recorte depende deles: sem esperar, a tela pisca "não há agentes nos times que você
+> supervisiona" antes de mostrar quem existe.
+
+> ⚠️ **`loadedMemberTeamIds` (e não `membersOf(id).length`) é o que diz se a lista de membros já
+> foi buscada** — um time legitimamente sem membros seria refetchado para sempre. E o DELETE
+> responde `head :ok` (sem corpo), então a lista só reflete depois de um GET novo (`force: true`).
+
+### Verificação (revisão adversarial T4 — relatório em `task/T4-revisao-adversarial-supervisor.md`)
+
+48 asserções de ataque num spec de request dedicado, todas **barradas** com 401 e **nenhuma
+escrita** no banco: alvo fora dos times supervisionados; alvo administrador; chave proibida
+(`role`/`availability`/`custom_role_id`/`auto_offline`/`email`) por corpo JSON, wrapper `agent`,
+form-encoded e query string; autopromoção e autosupervisão; auto-adição a time; id fora do pool
+(inclusive como string e de outra conta); rotas admin-only; agente comum sem nenhum ganho; e
+fluxo do admin idêntico ao de antes.
+
+Números: vitest 7 arquivos / 68 testes / 0 falhas · rspec agentes+membros+modelo 82 ex. /
+2 falhas (as **2 pré-existentes** de schema-thumbnail) · rspec policies+supervisão 85 ex. /
+0 falhas · `spec/services/` 1884 ex. / 67 falhas / 18 pendentes (todas pré-existentes e sem
+relação, idênticas antes e depois) · eslint 0 erros · rubocop 0 offenses.
+
+### Conhecido e aceito (não são bugs)
+
+- **Renomear é global** (D8): troca o nome em toda a conta e em todo o histórico.
+- **"Adicionar do pool" COPIA, não move** — o agente passa a estar nos dois times. O texto de
+  i18n fala em "mover agentes entre os times que você supervisiona"; é imprecisão de copy, não
+  de comportamento.
+- **Remover não tem restrição de pool**: o supervisor pode tirar qualquer membro de um time que
+  supervisiona, inclusive um administrador. Tirar do time não reduz o poder de ninguém.
+- **`POST|PATCH|DELETE /team_members` sem `user_ids` responde 500** (`validate_member_id_params`
+  faz `params[:user_ids].map` e estoura em `nil`). **Pré-existente e idêntico para o admin** —
+  não escreve nada, não é escalada. Documentado como exemplo no spec comparando os dois papéis.
+- **"Redefinir senha" escondido para o supervisor é cosmético**: o botão chama o endpoint público
+  do Devise (`auth/password`), não autenticado, e o link vai para a caixa do próprio agente.
 
 ---
 
