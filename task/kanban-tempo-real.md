@@ -466,6 +466,16 @@ Medido no staging antes da correção: dois moves feitos como o próprio usuári
 
 Validado ao vivo depois da correção: 3 movimentos seguidos como o **mesmo** usuário → board acompanhou os 3 (store e DOM); 2 movimentos como **outro** usuário → acompanhou com o selo "movido por Realtime Test B".
 
+### Dois bugs de SQL achados no QA (2026-08-03) — não eram do tempo real
+
+O usuário relatou "os dados não atualizam da maneira correta". Não era o websocket: eram duas ocorrências da **mesma armadilha de SQL com NULL**, pré-existentes e independentes deste plano.
+
+**1. Coluna sem automação voltava vazia da API (`39ac72659`).** O board sempre manda `exclude_automation_type=resolved`, e o filtro era `where.not(funnel_stages: { automation_type: ... })` → SQL `automation_type != 'resolved'`. Como a coluna é nulável e `NULL != 'x'` vale NULL (não TRUE), **toda etapa sem automação sumia inteira da listagem** — "Em andamento", "Aguardando cliente", a maioria delas. Medido: etapa com 18 cards devolvia 18 sem o parâmetro e **0** com ele. Os cards continuavam chegando pelo websocket, então a coluna enchia ao vivo e esvaziava a cada recarga. Corrigido com `IS DISTINCT FROM` nos dois caminhos (cursor e legado); spec nova falha 4/4 sem a correção.
+
+**2. Backfill morria com um cartão de tarefa no funil (`c1334114b`).** A subquery de "conversas que já estão no funil" incluía os cartões de tarefa, que têm `conversation_id` NULO — e `id NOT IN (1, 2, NULL)` nunca é verdadeiro. Bastava **um** cartão de tarefa para o backfill devolver zero candidatas para sempre e nenhuma conversa nova entrar no board. Medido no funil 26 (3 cartões de tarefa): 0 candidatas pelo jeito antigo, 3 ignorando os NULL.
+
+> Vale varrer o resto do fork atrás do mesmo padrão: `where.not` em coluna nulável e `NOT IN` com subquery que pode conter NULL.
+
 ### Nota para o monitoramento do rollout
 
 Cada dispatch percorre **os dois** dispatchers (`Dispatcher#dispatch` chama sync **e** async), então todo evento do board enfileira também um `EventDispatcherJob` na `:critical` — que hoje é no-op (nenhum listener assíncrono trata evento de funil). Não é novo (o `funnel_item.moved` já fazia isso), mas conte 2 jobs por evento ao olhar a fila. A agregação da 2.3 é o que importa aqui: bulk de 50 cards saiu de ~100 jobs para 2.
