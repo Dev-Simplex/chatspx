@@ -456,6 +456,16 @@ Links de login para os três usuários: `./task/links-agentes-teste.sh rt-test-a
 - Atribuir a conversa a um agente do time já cria o `funnel_item`; use `find_or_initialize_by`, não `create!` (unicidade conversation+funnel).
 - A limpeza precisa de varredura de FK **recursiva** (`conversations → conversation_assignment_histories`, `teams → internal_channels → internal_channel_members`) e o `Inbox#destroy` explode no modelo `Campaign`, quebrado neste banco pelas migrations fantasma — daí o fallback para DELETE direto.
 
+### Correção pós-QA (2026-08-03, `586acf86c`) — "atualiza uma vez e depois nunca mais"
+
+Relatado pelo usuário no primeiro teste real. **Causa:** todo handler remoto começava descartando o evento quando `performer.id === currentUserId`. A intenção era evitar o eco da própria ação, mas isso vale por **usuário**, não por aba — então quem abrisse o board em **duas janelas** (ou desktop + notebook, ou testasse com o mesmo login nos dois navegadores) via a janela onde arrastou atualizar pelo otimismo local e a outra **nunca** acompanhar, mesmo com o evento chegando.
+
+Medido no staging antes da correção: dois moves feitos como o próprio usuário logado, os dois eventos chegaram no `dispatch` e **nenhum** foi aplicado.
+
+**Correção:** quem protege contra o eco é a **idempotência**, que já existia e não precisa saber quem fez. Quem arrastou já aplicou o movimento otimista, então o evento chega com a etapa que o card já tem e vira no-op — sem o segundo salto na tela. Mesma lógica nos outros handlers: criar é upsert, apagar o que já sumiu é no-op, o reorder grava as mesmas posições e a lista de colunas do servidor é a verdade. O `performer` continua no payload, agora só para o "movido por fulano" do destaque.
+
+Validado ao vivo depois da correção: 3 movimentos seguidos como o **mesmo** usuário → board acompanhou os 3 (store e DOM); 2 movimentos como **outro** usuário → acompanhou com o selo "movido por Realtime Test B".
+
 ### Nota para o monitoramento do rollout
 
 Cada dispatch percorre **os dois** dispatchers (`Dispatcher#dispatch` chama sync **e** async), então todo evento do board enfileira também um `EventDispatcherJob` na `:critical` — que hoje é no-op (nenhum listener assíncrono trata evento de funil). Não é novo (o `funnel_item.moved` já fazia isso), mas conte 2 jobs por evento ao olhar a fila. A agregação da 2.3 é o que importa aqui: bulk de 50 cards saiu de ~100 jobs para 2.
