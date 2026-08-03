@@ -94,6 +94,34 @@ RSpec.describe Captain::OpenAiMessageBuilderService do
       end
     end
 
+    context 'with an Instagram story reply (ig_story) that is an image' do
+      before do
+        attachment = message.attachments.build(account_id: message.account_id, file_type: :ig_story,
+                                               external_url: 'https://cdn.instagram.com/story.jpg')
+        attachment.save!
+      end
+
+      it 'manda o story como visão pro LLM, não como anexo genérico' do
+        result = service.send(:attachment_parts, attachments)
+        expect(result).to include({ type: 'image_url', image_url: { url: 'https://cdn.instagram.com/story.jpg' } })
+        expect(result).not_to include({ type: 'text', text: 'User has shared an attachment' })
+      end
+    end
+
+    context 'with an Instagram story reply (ig_story) that is a video' do
+      before do
+        attachment = message.attachments.build(account_id: message.account_id, file_type: :ig_story,
+                                               external_url: 'https://cdn.instagram.com/story.mp4')
+        attachment.save!
+      end
+
+      it 'mantém a nota genérica — o Captain ainda não lê vídeo' do
+        result = service.send(:attachment_parts, attachments)
+        expect(result).to include({ type: 'text', text: 'User has shared an attachment' })
+        expect(result.none? { |part| part[:type] == 'image_url' }).to be(true)
+      end
+    end
+
     context 'with mixed attachment types' do
       let(:image_attachment) do
         attachment = message.attachments.build(account_id: message.account_id, file_type: :image, external_url: 'https://example.com/image.jpg')
