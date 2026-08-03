@@ -78,7 +78,12 @@ class Kanban::FunnelItemsQueryService
     filtered = filtered.by_stage(parsed_stage_id) if parsed_stage_id.present?
 
     if parsed_excluded_automation_type.present?
-      filtered = filtered.joins(:funnel_stage).where.not(funnel_stages: { automation_type: parsed_excluded_automation_type })
+      # IS DISTINCT FROM, e não `where.not`: `automation_type` é NULÁVEL e em SQL
+      # `NULL != 'resolved'` não é verdadeiro — é NULL. Com `where.not` toda
+      # coluna sem automação ("Em andamento", "Aguardando cliente"…) voltava
+      # VAZIA para o board, que sempre manda exclude_automation_type=resolved.
+      filtered = filtered.joins(:funnel_stage)
+                         .where('funnel_stages.automation_type IS DISTINCT FROM ?', parsed_excluded_automation_type)
     end
 
     inbox_ids = normalize_inbox_ids(funnel.inbox_ids)

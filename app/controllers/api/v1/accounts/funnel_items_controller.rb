@@ -177,7 +177,11 @@ class Api::V1::Accounts::FunnelItemsController < Api::V1::Accounts::BaseControll
     scoped = scoped.joins(:conversation).where(conversations: { team_id: funnel.team_id }) if funnel.team_id.present?
 
     if params[:exclude_automation_type].present?
-      scoped = scoped.joins(:funnel_stage).where.not(funnel_stages: { automation_type: params[:exclude_automation_type] })
+      # IS DISTINCT FROM, e não `where.not` — ver o comentário em
+      # Kanban::FunnelItemsQueryService#apply_filters: com `where.not`, coluna de
+      # `automation_type` NULO some inteira da listagem.
+      scoped = scoped.joins(:funnel_stage)
+                     .where('funnel_stages.automation_type IS DISTINCT FROM ?', params[:exclude_automation_type])
     end
 
     return scoped if params[:stage_id].blank?
