@@ -20,18 +20,12 @@ module Spx
 
         conversation.open! unless conversation.open?
 
-        params = {
-          content: format(PREVIEW, n: first),
-          content_type: :text,
-          message_type: 'outgoing',
-          private: false,
-          template_params: {
-            'name' => TEMPLATE,
-            'language' => LANGUAGE,
-            'processed_params' => { 'body' => { '1' => first } }
-          }
-        }
-        Messages::MessageBuilder.new(nil, conversation, params.with_indifferent_access).perform
+        # PREVIEW so entra se o template nao estiver sincronizado no canal; com ele
+        # sincronizado, o espelho sai do corpo aprovado (nao pode divergir).
+        ::Whatsapp::SendTemplateService.new(
+          conversation: conversation, name: TEMPLATE, language: LANGUAGE,
+          body_params: { '1' => first }, mirror: format(PREVIEW, n: first)
+        ).perform
       rescue StandardError => e
         Rails.logger.error("[Followup] conv=#{conversation_id}: #{e.class}: #{e.message}")
       end

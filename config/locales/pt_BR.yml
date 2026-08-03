@@ -387,6 +387,10 @@ pt_BR:
       name: 'Meta Lead Ads'
       short_description: 'Receba leads do Facebook/Instagram como conversas automáticas.'
       description: 'Quando um lead preenche um formulário de Lead Ads no Facebook ou Instagram, o SPX cria uma conversa na inbox alvo e envia a primeira mensagem. Suporta múltiplas páginas (um hook por página) e usa System User Token (recomendado) ou Page Access Token.'
+    site_leads:
+      name: 'Leads do Site'
+      short_description: 'Receba os formulários do site como conversas automáticas.'
+      description: 'Quando alguém preenche um formulário no site, o site envia o lead para um webhook e a conversa é aberta na inbox alvo com o template aprovado. O código do imóvel da página em que a pessoa estava abre a conversa já naquele imóvel, e a jornada de navegação vai como contexto para a IA.'
   captain:
     errors:
       missing_api_key: 'A chave da OpenAI não está configurada para esta conta. Configure em Ajustes do Captain.'

@@ -71,11 +71,22 @@
 - **Fix:** UI "Novo disparo" — upload de CSV, multiselect de corretores, multiselect de templates (com rotação automática decorrelacionada), slider de pacing (s/envio), preview da audiência limpa (dedup + blacklist na hora). Reusa o motor existente.
 - **Tamanho:** grande (é um módulo). Candidato a workflow de design antes de implementar.
 
-### 🟠 `campaign_id` da conversa é grudento — 2ª campanha na mesma base roteia pro dono errado
-- **Dói:** `Campaigns::Whatsapp::RecipientDispatchService#close_with_team` só grava `campaign_id` **se estiver nulo** (`attrs[:campaign_id] = campaign.id if conversation.campaign_id.nil?`). Contato que já entrou numa campanha mantém o `campaign_id` da PRIMEIRA para sempre. Consequências: (a) o **dono do disparo** (`Spx::TemplateReplyRouterListener#route_to_campaign_owner`) lê `conversation.campaign.dispatch_assignee_id` → a resposta da campanha nova vai pro dono da campanha ANTIGA, sem nenhuma pista do porquê; (b) o `campaign_stats` credita a conversa à campanha errada, então a métrica da 2ª campanha nasce subnotificada.
-- **Inócuo hoje** (descoberto 31/07): a campanha Motoristas usa a inbox 99, que é nova e não tem campanha anterior. Vira problema **na segunda campanha sobre a mesma base**.
-- **Fix:** decidir a semântica antes de codar — `campaign_id` é "de qual campanha esta conversa NASCEU" (atual) ou "qual campanha tocou por último"? Se for a segunda, sobrescrever aqui e conferir o impacto no `campaign_stats`. Se for a primeira, o dono do disparo precisa vir do `campaign_recipients` (que é por campanha) e não da conversa — provavelmente o caminho certo, porque preserva as duas leituras.
-- **Tamanho:** pequeno no código, médio na decisão (mexe em como o histórico é atribuído).
+### 🟠 Vínculo conversa↔campanha: semântica decidida (02/08), resíduo mapeado
+- **Semântica adotada:** `conversations.campaign_id` = a campanha que **ORIGINOU** a conversa, gravada só quando está nula, e **não muda** em disparos seguintes. Mudar para "última campanha que tocou" reescreveria a atribuição de todo o histórico. O vínculo **por disparo** (que é o exato) vive em `campaign_recipients`.
+- **Resolvido:** o dono do disparo (`Spx::TemplateReplyRouterListener#dispatch_owner_id`) passou a resolver a campanha pelo `campaign_recipients` mais recente da conversa, não por `conversation.campaign` — some o roteamento pro dono da campanha antiga na 2ª campanha sobre a mesma base. E o rake `spx:tozi:disparo` ganhou o argumento `campaign_id` (6º) com aviso em destaque no plano quando ele falta.
+- **Medição que motivou (prod, 02/08):** só **1 de 152** conversas amostradas tinha `campaign_id`. Causa: são **dois motores** e o volume real vai pelo antigo (`Spx::Tozi::DisparoLeadJob`), cujo `campaign_id:` é `nil` por default e o rake nunca passava. Consequência colateral: a guarda `campaign_without_reply?` (`enterprise/app/jobs/captain/inbox_pending_conversations_resolution_job.rb:181`), que existe para a IA não encerrar lead de campanha que ainda não respondeu, **nunca disparava**.
+- **Resíduo (não resolvido):**
+  - `campaign_stats` agrega por `@campaign.conversations` (ou seja, por origem). Com a semântica de origem, a 2ª campanha sobre a mesma base **subnotifica**. O certo é agregar por `campaign_recipients`, que é completo e por disparo — mas isso se cruza com a P5.1 (N+1 + full-scan) e vale fazer junto.
+  - **Corte por campanha enxerga um subconjunto do tráfego:** o F3 da `spx/eval` lê `custom_attributes['meta_campanha']`, que só é carimbado pelo webhook do Meta Lead Ads (`meta/lead_ads/create_conversation_service.rb:152`). Disparo não carimba nada e cai em "(sem campanha)". Os números PACAEMBU 60% × RMKT 37% estão corretos — a ressalva é de população, não de cálculo.
+  - Conversas de disparos antigos seguem com `campaign_id` nulo. Backfill possível pela label/`additional_attributes.template`, se alguém quiser o histórico no corte.
+  - `Messages::MessageBuilder` (linha ~186) faz `.merge(campaign_id).merge(template_params)` e **ambos escrevem `additional_attributes`** — quem passar os dois perde o `campaign_id` da mensagem. Ninguém passa hoje; é armadilha para quem for atribuir campanha no nível da mensagem.
+- **Tamanho:** o resíduo é médio e concentrado no `campaign_stats`.
+
+### 🟡 Ainda há montagem de HSM fora da interface única
+- **Contexto:** `Whatsapp::SendTemplateService` (02/08) virou o caminho único de HSM em conversa existente — `DisparoLeadJob`, `FollowupHsmJob` e `RecipientDispatchService` delegam para ele, e o espelho da transcrição passou a sair do template **sincronizado** (o hash `PREVIEWS` virou só rede de segurança).
+- **Falta:** `Meta::LeadAds::CreateConversationService` ainda monta `template_params` inline em dois pontos (`create_initial_template_message` e `create_imovel_opener`). Migrar os dois fecha o assunto.
+- **Bônus que fica barato depois:** com o template sincronizado em mãos dentro do service, dá para contar os `{{n}}` reais e **cortar params sobrando** — é a P2.3 (`processed_params` sempre com 2 vars → `#132000`), que passa a ter um lugar só para ser corrigida.
+- **Tamanho:** pequeno.
 
 ### 🟡 Tela de detalhe é estática (números congelam até reload)
 - **Fix:** auto-refresh do `getStats` a cada ~15s enquanto a campanha tem jobs pendentes (polling simples ou `setInterval` no `onMounted`/`onUnmounted`). Indicador "ao vivo".

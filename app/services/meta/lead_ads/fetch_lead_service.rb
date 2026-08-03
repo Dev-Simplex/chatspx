@@ -19,14 +19,24 @@ module Meta
       # Filtra dummy data do Lead Ads Testing Tool (`<test lead: dummy data for X>`)
       TEST_DUMMY_REGEX = /\A\s*<test lead:.*?>\s*\z/i.freeze
 
-      # A Meta às vezes cola o texto do botão/CTA do anúncio no valor cru do campo nome,
-      # separado por 2+ espaços: "Quero saber mais   Tiago". Como o nome vira o contato e o
-      # first_name do template, isso faz a IA chamar o lead de "Quero". Estas são as frases de
-      # CTA/intenção a descartar quando aparecem como segmento separado (nunca um nome real).
-      CTA_PHRASES = [
+      # Valores que aparecem no campo NOME do formulário e nunca são o nome de alguém.
+      #
+      # Chegam de dois jeitos. (1) Colados ao nome real, separados por 2+ espaços
+      # ("Quero saber mais   Tiago") — a Meta às vezes gruda o texto do botão do anúncio.
+      # (2) SOZINHOS, como valor inteiro do campo: verificado no payload cru da Graph API
+      # em 02/08, `qual_seu_nome?` valia literalmente "Quero" e "Lista". Aí não há o que
+      # separar — o dado já chega quebrado da Meta (perfil do lead ou digitação), e a única
+      # saída é reconhecer que não é nome.
+      #
+      # Só entram palavras/frases que NUNCA são nome próprio em pt-BR. Na dúvida, fora:
+      # um nome real descartado é pior que um valor estranho preservado.
+      NOT_A_NAME = [
         'quero saber mais', 'quero saber', 'quero sim', 'sim quero', 'quero',
         'tenho interesse', 'me interessei', 'saiba mais', 'me chama', 'me chama depois',
-        'gostaria de saber', 'mais informacoes', 'solicitar informacoes', 'receber contato'
+        'gostaria de saber', 'mais informacoes', 'solicitar informacoes', 'receber contato',
+        'lista', 'sim', 'nao', 'oi', 'ola', 'eu', 'teste', 'test', 'valor', 'preco',
+        'aluguel', 'alugar', 'comprar', 'orcamento', 'contato', 'informacao', 'informacoes',
+        'cliente', 'lead', 'whatsapp', 'zap', 'nada'
       ].freeze
 
       def initialize(leadgen_id:, access_token:)
@@ -92,24 +102,32 @@ module Meta
         nil
       end
 
-      # Limpa o CTA que a Meta às vezes gruda no campo nome ("Quero saber mais   Tiago").
-      # Quebra em segmentos separados por 2+ espaços e descarta os que são frase de CTA;
-      # sobra o nome real. Se TUDO parecer CTA (lead sem nome de verdade), não apaga —
-      # devolve o valor colapsado pro humano tratar. Nome normal passa intacto.
+      # Devolve o nome real do lead, ou NIL quando o que veio não é nome.
+      #
+      # Quebra em segmentos separados por 2+ espaços e descarta os que não são nome;
+      # sobra o nome real ("Quero saber mais   Tiago" -> "Tiago"). Nome normal passa intacto.
+      #
+      # Quando TUDO é não-nome, devolve nil. A versão anterior preservava o valor "pro
+      # humano tratar" — mas quem lê o nome primeiro é a IA, que abre a conversa antes de
+      # qualquer humano: o lead recebia "Oi Quero, tudo bem?". Sem nome, o caller usa
+      # saudação neutra, que é melhor do que um nome errado.
       def sanitize_name(raw)
         return raw if raw.blank?
 
         segments = raw.to_s.split(/\s{2,}/).map(&:strip).reject(&:blank?)
-        cleaned = segments.reject { |seg| cta_phrase?(seg) }
-        cleaned = segments if cleaned.empty?
+        cleaned = segments.reject { |segment| not_a_name?(segment) }
+        return nil if cleaned.empty?
+
         cleaned.join(' ').gsub(/\s+/, ' ').strip.presence
       end
 
-      def cta_phrase?(segment)
+      def not_a_name?(segment)
         normalized = segment.to_s.downcase
                             .tr('áàâãäéèêëíìîïóòôõöúùûüç', 'aaaaaeeeeiiiiooooouuuuc')
+                            .gsub(/[[:punct:]]/, ' ')
+                            .gsub(/\s+/, ' ')
                             .strip
-        CTA_PHRASES.include?(normalized)
+        NOT_A_NAME.include?(normalized)
       end
     end
   end

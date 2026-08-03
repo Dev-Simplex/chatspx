@@ -780,6 +780,7 @@ Rails.application.routes.draw do
   post 'webhooks/shopify', to: 'webhooks/shopify#events'
   get 'webhooks/meta_lead_ads', to: 'webhooks/meta_lead_ads#verify'
   post 'webhooks/meta_lead_ads', to: 'webhooks/meta_lead_ads#process_payload'
+  post 'webhooks/site_leads', to: 'webhooks/site_leads#process_payload'
   # F1 (R-2): gatilho `external_webhook` do motor Flow — endpoint PÚBLICO identificado por token
   # forte (não pelo id). Rate-limitado por IP no rack_attack.rb. Ver Webhooks::FlowsController.
   post 'webhooks/flows/:token', to: 'webhooks/flows#create'

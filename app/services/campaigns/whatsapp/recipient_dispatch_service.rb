@@ -33,7 +33,7 @@ module Campaigns
         end
 
         conversation = find_or_create_conversation(inbox, contact_inbox)
-        send_hsm(conversation, inbox.channel)
+        send_hsm(conversation)
         close_with_team(conversation)
 
         recipient.update!(
@@ -93,17 +93,14 @@ module Campaigns
         )
       end
 
-      def send_hsm(conversation, channel)
-        body_params = default_params.merge(stringify(recipient.template_params))
-        params = {
-          content: render_body_mirror(channel, body_params),
-          content_type: :text, message_type: 'outgoing', private: false,
-          template_params: {
-            'name' => campaign.template_name, 'language' => campaign.template_language,
-            'processed_params' => processed_params(body_params)
-          }
-        }
-        Messages::MessageBuilder.new(nil, conversation, params.with_indifferent_access).perform
+      def send_hsm(conversation)
+        ::Whatsapp::SendTemplateService.new(
+          conversation: conversation,
+          name: campaign.template_name,
+          language: campaign.template_language,
+          body_params: default_params.merge(stringify(recipient.template_params)),
+          header: campaign.dispatch_config['header']
+        ).perform
       end
 
       # Modelo de atribuicao (decisao do Paulo): seta o TIME e FECHA, sem agente.
@@ -117,30 +114,6 @@ module Campaigns
         # o callback ensure_assignee_is_from_team nao re-atribui do time — vale mesmo
         # quando o time tem allow_auto_assign=true.
         conversation.update!(assignee_id: nil) if conversation.assignee_id.present?
-      end
-
-      def processed_params(body_params)
-        processed = {}
-        processed['body'] = body_params if body_params.present?
-        header = campaign.dispatch_config['header']
-        if header.is_a?(Hash) && header['media_url'].present?
-          processed['header'] = { 'media_url' => header['media_url'], 'media_type' => header['media_type'] || 'image' }
-        end
-        processed
-      end
-
-      # Espelho na transcricao do Chatwoot: renderiza o corpo do template
-      # SINCRONIZADO (substitui {{n}}). Acaba o hash PREVIEWS hardcoded.
-      def render_body_mirror(channel, body_params)
-        tmpl = Array(channel.message_templates).find do |t|
-          t['name'] == campaign.template_name &&
-            t['language'].to_s.casecmp?(campaign.template_language.to_s) &&
-            t['status'].to_s.casecmp?('approved')
-        end
-        body = tmpl && Array(tmpl['components']).find { |c| c['type'].to_s.casecmp?('body') }&.dig('text')
-        return body_params.values.join(' ').presence || '(mensagem)' if body.blank?
-
-        body.gsub(/\{\{(\d+)\}\}/) { body_params[Regexp.last_match(1)].to_s }
       end
 
       def default_params
