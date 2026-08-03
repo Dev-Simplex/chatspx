@@ -322,6 +322,10 @@ module Meta
         ).perform
       end
 
+      # O ramo "Lead Meta <telefone>" passou a ser alcançável quando o FetchLeadService
+      # devolve nil (campo nome com algo que não é nome). É deliberado NÃO passar nil
+      # aqui: o ContactInboxWithContactBuilder faz `name || Haikunator.haikunate`, então
+      # nome vazio viraria um apelido aleatório — pior que um marcador explícito.
       def contact_name(normalized_phone)
         return @lead[:full_name] if @lead[:full_name].present?
         return "Lead Meta #{normalized_phone}" if normalized_phone.present?
@@ -434,7 +438,7 @@ module Meta
 
       def create_imovel_opener(conversation)
         d = imovel_info
-        first = template_render_context['first_name'].presence || 'tudo bem'
+        first = first_name
         # {{2}} carrega a descrição + o código do imóvel, pra o lead/corretor referenciar o imóvel exato.
         imovel_txt = "#{d[:descricao]} (cód #{d[:codigo]})"
         Messages::MessageBuilder.new(
@@ -516,10 +520,20 @@ module Meta
         Liquid::Template.parse(template).render(template_render_context)
       end
 
+      # Saudação neutra quando o lead não trouxe nome confiável (o FetchLeadService
+      # devolve nil quando o campo veio com algo que não é nome). Sem isso a abertura
+      # renderizaria "Oi !" — e usar um nome errado é pior ainda: o lead lê como
+      # sistema quebrado. Mesmo fallback do opener de imóvel e do motor de disparo.
+      NEUTRAL_GREETING = 'tudo bem'.freeze
+
+      def first_name
+        @lead[:full_name].to_s.split.first.presence || NEUTRAL_GREETING
+      end
+
       def template_render_context
         {
           'full_name' => @lead[:full_name].to_s,
-          'first_name' => @lead[:full_name].to_s.split.first.to_s,
+          'first_name' => first_name,
           'ad_name' => @lead[:ad_name].to_s,
           'campaign_name' => @lead[:campaign_name].to_s,
           'city' => @lead[:city].to_s,
