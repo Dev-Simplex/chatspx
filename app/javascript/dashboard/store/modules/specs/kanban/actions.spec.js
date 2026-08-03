@@ -643,8 +643,26 @@ describe('#kanban actions', () => {
       expect(commit).not.toHaveBeenCalled();
     });
 
-    it('ignora o eco da própria ação', () => {
+    // Regressão: o guard por `performer.id` fazia a SEGUNDA janela da mesma
+    // pessoa nunca acompanhar ("atualiza uma vez e depois nunca mais"). O eco de
+    // quem arrastou cai sozinho na idempotência (teste seguinte).
+    it('aplica evento do próprio usuário vindo de outra janela', () => {
       const state = { activeFunnelId: 1, funnelItems: {} };
+      actions.applyRemoteMove(
+        { state, commit, dispatch, rootGetters },
+        remotePayload({ performer: { id: 7 } })
+      );
+      expect(commit).toHaveBeenCalledWith(
+        types.ADD_FUNNEL_ITEM,
+        expect.objectContaining({ id: 10 })
+      );
+    });
+
+    it('o eco na janela que arrastou é no-op (a etapa já é a de destino)', () => {
+      const state = {
+        activeFunnelId: 1,
+        funnelItems: { 10: { id: 10, funnelId: 1, funnelStageId: 22 } },
+      };
       actions.applyRemoteMove(
         { state, commit, dispatch, rootGetters },
         remotePayload({ performer: { id: 7 } })
@@ -724,13 +742,16 @@ describe('#kanban actions', () => {
       });
     });
 
-    it('ignora o eco da própria criação', () => {
+    it('aplica criação do próprio usuário (upsert idempotente)', () => {
       const state = { activeFunnelId: 1, funnelItems: {} };
       actions.applyRemoteCreate(
         { state, commit, dispatch, rootGetters },
         taskPayload({ performer: { id: 7 } })
       );
-      expect(commit).not.toHaveBeenCalled();
+      expect(commit).toHaveBeenCalledWith(
+        types.ADD_FUNNEL_ITEM,
+        expect.objectContaining({ id: 55 })
+      );
     });
 
     it('não reage a outro funil', () => {
@@ -762,13 +783,13 @@ describe('#kanban actions', () => {
       expect(commit).toHaveBeenCalledWith(types.DELETE_FUNNEL_ITEM, 10);
     });
 
-    it('ignora o eco da própria exclusão', () => {
+    it('aplica exclusão do próprio usuário (apagar o que já sumiu é no-op)', () => {
       const state = { activeFunnelId: 1 };
       actions.applyRemoteDelete(
         { state, commit, dispatch, rootGetters },
         deletePayload({ performer: { id: 7 } })
       );
-      expect(commit).not.toHaveBeenCalled();
+      expect(commit).toHaveBeenCalledWith(types.DELETE_FUNNEL_ITEM, 10);
     });
   });
 
@@ -824,13 +845,16 @@ describe('#kanban actions', () => {
       });
     });
 
-    it('ignora o eco do próprio bulk', async () => {
+    it('aplica bulk do próprio usuário (cada item passa pela idempotência)', async () => {
       const localDispatch = vi.fn();
       await actions.applyRemoteBulk(
         { state: { activeFunnelId: 1 }, dispatch: localDispatch, rootGetters },
         { funnel_id: 1, performer: { id: 7 }, items: [{ id: 1 }] }
       );
-      expect(localDispatch).not.toHaveBeenCalled();
+      expect(localDispatch).toHaveBeenCalledWith(
+        'applyRemoteMove',
+        expect.objectContaining({ id: 1 })
+      );
     });
   });
 
@@ -876,7 +900,7 @@ describe('#kanban actions', () => {
       expect(commit).not.toHaveBeenCalled();
     });
 
-    it('ignora o eco da própria reordenação', () => {
+    it('aplica reordenação do próprio usuário (mesmas posições do otimismo)', () => {
       actions.applyRemoteReorder(
         { state, commit, dispatch, rootGetters },
         {
@@ -886,7 +910,9 @@ describe('#kanban actions', () => {
         }
       );
 
-      expect(commit).not.toHaveBeenCalled();
+      expect(commit).toHaveBeenCalledWith(types.SET_FUNNEL_ITEM_POSITIONS, {
+        positions: [{ id: 10, position: 1 }],
+      });
     });
   });
 
@@ -956,12 +982,15 @@ describe('#kanban actions', () => {
       expect(commit).not.toHaveBeenCalled();
     });
 
-    it('ignora o eco da própria mudança', () => {
+    it('aplica mudança do próprio usuário (a lista do servidor é a verdade)', () => {
       actions.applyRemoteStages(
         { state: buildState(), commit, dispatch, rootGetters },
         { funnel_id: 1, performer: { id: 7 }, stages: [] }
       );
-      expect(commit).not.toHaveBeenCalled();
+      expect(commit).toHaveBeenCalledWith(types.SET_FUNNEL_STAGES, {
+        funnelId: 1,
+        stages: [],
+      });
     });
   });
 

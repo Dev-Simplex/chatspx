@@ -198,10 +198,18 @@ const sanitizeStageQueue = stageIds => [
 //
 // Invariantes de TODO handler remoto:
 //   1. só reage ao funil que está na tela (`funnel_id === activeFunnelId`);
-//   2. ignora o eco da própria ação (`performer.id === currentUserId`) — o
-//      otimismo local já aplicou;
-//   3. é idempotente (aplicar duas vezes = aplicar uma);
-//   4. é best-effort: nunca lança para fora do websocket.
+//   2. é IDEMPOTENTE (aplicar duas vezes = aplicar uma) — é isto, e não "quem
+//      fez", que protege contra o eco da própria ação;
+//   3. é best-effort: nunca lança para fora do websocket.
+//
+// ⚠️ NÃO volte a descartar evento por `performer.id === currentUserId`.
+// Existia esse guard e ele quebrava o caso real de uma pessoa com o board aberto
+// em DUAS janelas (ou desktop + notebook): o evento chegava e era jogado fora
+// porque "fui eu quem fez", então a segunda janela nunca acompanhava — sintoma
+// "atualiza uma vez e depois nunca mais". Quem faz a ação já aplicou o
+// otimismo local, então o eco cai sozinho na guarda de idempotência (mesma
+// etapa = no-op) sem precisar saber quem foi. O `performer` continua vindo no
+// payload, mas só para dizer "movido por fulano" no destaque do card.
 //
 // Onde NÃO precisa de guarda:
 //   • filtro da view — `viewFilters` é aplicado na RENDERIZAÇÃO
@@ -225,13 +233,6 @@ const isRenderableRemoteItem = data =>
 const remoteItemPayload = data => {
   const { account_id: _accountId, performer: _performer, ...item } = data || {};
   return item;
-};
-
-const isEchoOfMyOwnAction = (data, rootGetters) => {
-  const currentUserId = rootGetters?.getCurrentUserID;
-  return Boolean(
-    data?.performer?.id && Number(data.performer.id) === Number(currentUserId)
-  );
 };
 
 // Quanto tempo o card fica destacado depois de mudar por ação remota. Casado
@@ -845,14 +846,11 @@ export const actions = {
   // receptor quase nunca tem o card que estava lá embaixo, e o evento era
   // descartado em silêncio. Agora o payload vem completo (FunnelItem#push_event_data)
   // e o card entra desenhado.
-  applyRemoteMove({ state, commit, dispatch, rootGetters }, data) {
+  applyRemoteMove({ state, commit, dispatch }, data) {
     try {
       if (!data || typeof data !== 'object') return;
       // Only react when this board is showing the affected funnel.
       if (Number(data.funnel_id) !== Number(state.activeFunnelId)) return;
-
-      // Skip our own move — it was already applied optimistically.
-      if (isEchoOfMyOwnAction(data, rootGetters)) return;
 
       const targetStage = Number(data.funnel_stage_id);
       if (!targetStage) return;
@@ -869,6 +867,10 @@ export const actions = {
         return;
       }
 
+      // ESTA é a guarda contra o eco da própria ação: quem arrastou já aplicou o
+      // movimento otimista, então o evento chega com a etapa que o card já tem e
+      // vira no-op (sem o segundo salto na tela). Quem NÃO arrastou — inclusive
+      // a outra janela da mesma pessoa — ainda está na etapa antiga e aplica.
       const currentStage = Number(
         existing.funnelStageId ?? existing.funnel_stage_id
       );
@@ -908,11 +910,10 @@ export const actions = {
   // Card de conversa NÃO passa por aqui — ele nasce pelo MoveService, que já
   // dispara `funnel_item.moved`, e o `applyRemoteMove` insere. A assimetria é
   // de propósito: os dois eventos juntos inseririam o card duas vezes.
-  applyRemoteCreate({ state, commit, dispatch, rootGetters }, data) {
+  applyRemoteCreate({ state, commit, dispatch }, data) {
     try {
       if (!data || typeof data !== 'object') return;
       if (Number(data.funnel_id) !== Number(state.activeFunnelId)) return;
-      if (isEchoOfMyOwnAction(data, rootGetters)) return;
       if (!isRenderableRemoteItem(data)) return;
 
       // Idempotente: `assignItemToStage` faz upsert pelo id.
@@ -928,11 +929,10 @@ export const actions = {
 
   // Tempo real (Fase 2.2): card apagado por outra pessoa. Sem isto ele virava
   // fantasma — sumia para quem apagou e continuava clicável (404) para o resto.
-  applyRemoteDelete({ state, commit, rootGetters }, data) {
+  applyRemoteDelete({ state, commit }, data) {
     try {
       if (!data || typeof data !== 'object') return;
       if (Number(data.funnel_id) !== Number(state.activeFunnelId)) return;
-      if (isEchoOfMyOwnAction(data, rootGetters)) return;
 
       const itemId = Number(data.id);
       if (!itemId) return;
@@ -947,12 +947,11 @@ export const actions = {
   // aplicado pelo mesmo caminho do move solto (insere ou reloca, idempotente);
   // acima do teto do backend vem `refetch: true` e recarregamos só as colunas
   // afetadas, em vez de receber um payload gigante pelo websocket.
-  async applyRemoteBulk({ state, dispatch, rootGetters }, data) {
+  async applyRemoteBulk({ state, dispatch }, data) {
     try {
       if (!data || typeof data !== 'object') return;
       const funnelId = Number(data.funnel_id);
       if (funnelId !== Number(state.activeFunnelId)) return;
-      if (isEchoOfMyOwnAction(data, rootGetters)) return;
 
       if (data.refetch) {
         const stageIds = sanitizeStageQueue(data.stage_ids);
@@ -982,11 +981,10 @@ export const actions = {
   // Tempo real (Fase 3): outra pessoa reordenou os cards dentro de uma coluna.
   // Reusa a MESMA mutação do otimismo local (`reorderItems`), então a ordem
   // converge sem o card "pular" para quem arrastou.
-  applyRemoteReorder({ state, commit, rootGetters }, data) {
+  applyRemoteReorder({ state, commit }, data) {
     try {
       if (!data || typeof data !== 'object') return;
       if (Number(data.funnel_id) !== Number(state.activeFunnelId)) return;
-      if (isEchoOfMyOwnAction(data, rootGetters)) return;
 
       // Ignora ids que não temos: reorder de card desconhecido não justifica
       // refetch (ele chega completo no próximo load ou num move).
@@ -1043,12 +1041,11 @@ export const actions = {
   //     has_many :funnel_items, dependent: :destroy);
   //   • tela vazia: se o filtro de coluna apontava para a coluna que sumiu, o
   //     board ficaria sem nada e parecendo travado.
-  applyRemoteStages({ state, commit, rootGetters }, data) {
+  applyRemoteStages({ state, commit }, data) {
     try {
       if (!data || typeof data !== 'object') return;
       const funnelId = Number(data.funnel_id);
       if (funnelId !== Number(state.activeFunnelId)) return;
-      if (isEchoOfMyOwnAction(data, rootGetters)) return;
 
       const stages = Array.isArray(data.stages) ? data.stages : [];
       const nextIds = new Set(stages.map(stage => Number(stage?.id)));
