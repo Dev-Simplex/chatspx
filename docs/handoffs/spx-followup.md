@@ -52,6 +52,31 @@ dias existe a série que hoje não existe.
 
 ---
 
+## 🔴 Procedimento — ligar e desligar a política de encerramento têm ordens OPOSTAS
+
+As duas chaves passam pelo mesmo `perform`, e a ordem errada reproduz o incidente de junho
+(auto-resolve fechando conversa de cliente real **com mensagem**). Já foi executada na ordem
+errada em 03/08 — sem dano porque a exposição durou um minuto.
+
+**Para LIGAR:** `auto_closure` primeiro, kill-switch depois.
+1. `settings['auto_closure'] = { enabled: true, ... }`
+2. só então `captain_auto_resolve_mode` sai de `disabled`
+
+**Para DESLIGAR:** kill-switch primeiro.
+1. `captain_auto_resolve_mode = 'disabled'`
+2. só então `auto_closure.enabled = false`
+
+**Por que a ordem importa:** desligar só o `auto_closure` mantendo o modo em `evaluated` faz
+`evaluate_conversation_completion?` continuar `true` (o gate é `captain_tasks && (evaluated? ||
+auto_closure)`) e o job cair no **`route_legacy`** — que resolve conversa `pending` **mandando
+mensagem ao cliente**. É a forma exata do incidente. O `disabled` é a única barreira que corta
+antes de qualquer roteamento, porque é checada na primeira linha do `perform` e no scheduler.
+
+**Marcadores residuais:** desligar não limpa `aguardando_encerramento_desde`. Há **536**
+marcados na conta 6. Eles não somem sozinhos — `awaiting_closure_clearable?` só roda em callback
+de conversa. Com a correção 1.1 no ar eles ficam fora do scan (correto), mas **continuam
+aparecendo na fila do time**. Decidir se limpa antes de religar.
+
 ## O que está na branch
 
 | Commit | O quê |
