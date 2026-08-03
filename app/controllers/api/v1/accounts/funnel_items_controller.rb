@@ -3,6 +3,7 @@
 class Api::V1::Accounts::FunnelItemsController < Api::V1::Accounts::BaseController
   include Kanban::FunnelItemsBulkActions
   include Kanban::FunnelItemTaskCards
+  include Kanban::FunnelItemsDeduplication
 
   BACKFILL_THROTTLE = 10.minutes
 
@@ -74,7 +75,12 @@ class Api::V1::Accounts::FunnelItemsController < Api::V1::Accounts::BaseControll
   end
 
   def destroy
+    # Tempo real (Fase 2.2): captura os ids ANTES do destroy! — depois o objeto
+    # está congelado. Sem isto o card virava fantasma na tela dos outros: sumia
+    # para quem apagou e continuava clicável (404) para o resto.
+    deleted = { id: @funnel_item.id, funnel_id: @funnel_item.funnel_id, funnel_stage_id: @funnel_item.funnel_stage_id }
     @funnel_item.destroy!
+    Kanban::Realtime.dispatch(Events::Types::FUNNEL_ITEM_DELETED, funnel: funnel, item: deleted)
     head :ok
   end
 
@@ -190,41 +196,5 @@ class Api::V1::Accounts::FunnelItemsController < Api::V1::Accounts::BaseControll
     Kanban::BackfillFunnelItemsJob.perform_later(Current.account.id, funnel.id, Current.user&.id)
   rescue StandardError
     # Best effort: backfill should never block list rendering
-  end
-
-  def deduplicate_by_contact_phone(items) # rubocop:disable Metrics/AbcSize, Metrics/CyclomaticComplexity, Metrics/MethodLength, Metrics/PerceivedComplexity
-    return items if items.blank?
-
-    by_stage_and_phone = {}
-    items.each do |item|
-      contact = item.conversation&.contact
-      phone = contact&.phone_number
-      normalized = normalize_brazilian_phone(phone)
-      key = if item.conversation.nil?
-              "item:#{item.id}" # cartão de tarefa: nunca deduplica
-            elsif normalized.present?
-              "phone:#{normalized}"
-            elsif item.conversation&.contact_id.present?
-              "contact:#{item.conversation.contact_id}"
-            else
-              "conversation:#{item.conversation_id}"
-            end
-      stage_key = "#{item.funnel_stage_id}-#{key}"
-
-      existing = by_stage_and_phone[stage_key]
-      recency = item.conversation&.last_activity_at || item.created_at || Time.zone.at(0)
-      if existing.nil? || recency > (existing.conversation&.last_activity_at || existing.created_at || Time.zone.at(0))
-        by_stage_and_phone[stage_key] = item
-      end
-    end
-    by_stage_and_phone.values.sort_by { |i| i.moved_at || i.created_at }.reverse
-  end
-
-  def normalize_brazilian_phone(phone)
-    digits = phone.to_s.gsub(/\D/, '')
-    return nil if digits.blank?
-
-    digits = "#{digits[0, 4]}9#{digits[4, 8]}" if digits.start_with?('55') && digits.length == 12
-    digits.presence
   end
 end

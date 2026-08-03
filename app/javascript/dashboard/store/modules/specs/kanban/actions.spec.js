@@ -677,4 +677,137 @@ describe('#kanban actions', () => {
       ).not.toThrow();
     });
   });
+
+  describe('#applyRemoteCreate', () => {
+    const rootGetters = { getCurrentUserID: 7 };
+    const taskPayload = (overrides = {}) => ({
+      id: 55,
+      funnel_id: 1,
+      funnel_stage_id: 22,
+      is_task: true,
+      title: 'Ligar para o cliente',
+      account_id: 1,
+      performer: { id: 9 },
+      ...overrides,
+    });
+
+    it('insere o cartão de tarefa criado por outra pessoa', () => {
+      const state = { activeFunnelId: 1, funnelItems: {} };
+      actions.applyRemoteCreate({ state, commit, rootGetters }, taskPayload());
+
+      const [mutation, payload] = commit.mock.calls[0];
+      expect(mutation).toBe(types.ADD_FUNNEL_ITEM);
+      expect(payload).toEqual({
+        id: 55,
+        funnel_id: 1,
+        funnel_stage_id: 22,
+        is_task: true,
+        title: 'Ligar para o cliente',
+      });
+    });
+
+    it('ignora o eco da própria criação', () => {
+      const state = { activeFunnelId: 1, funnelItems: {} };
+      actions.applyRemoteCreate(
+        { state, commit, rootGetters },
+        taskPayload({ performer: { id: 7 } })
+      );
+      expect(commit).not.toHaveBeenCalled();
+    });
+
+    it('não reage a outro funil', () => {
+      const state = { activeFunnelId: 99, funnelItems: {} };
+      actions.applyRemoteCreate({ state, commit, rootGetters }, taskPayload());
+      expect(commit).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('#applyRemoteDelete', () => {
+    const rootGetters = { getCurrentUserID: 7 };
+    const deletePayload = (overrides = {}) => ({
+      id: 10,
+      funnel_id: 1,
+      funnel_stage_id: 22,
+      performer: { id: 9 },
+      ...overrides,
+    });
+
+    it('remove o card apagado por outra pessoa', () => {
+      const state = { activeFunnelId: 1 };
+      actions.applyRemoteDelete(
+        { state, commit, rootGetters },
+        deletePayload()
+      );
+      expect(commit).toHaveBeenCalledWith(types.DELETE_FUNNEL_ITEM, 10);
+    });
+
+    it('ignora o eco da própria exclusão', () => {
+      const state = { activeFunnelId: 1 };
+      actions.applyRemoteDelete(
+        { state, commit, rootGetters },
+        deletePayload({ performer: { id: 7 } })
+      );
+      expect(commit).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('#applyRemoteBulk', () => {
+    const rootGetters = { getCurrentUserID: 7 };
+
+    it('aplica cada card pelo mesmo caminho do move solto', async () => {
+      const state = { activeFunnelId: 1 };
+      const localDispatch = vi.fn();
+
+      await actions.applyRemoteBulk(
+        { state, dispatch: localDispatch, rootGetters },
+        {
+          funnel_id: 1,
+          performer: { id: 9 },
+          items: [
+            { id: 1, funnel_id: 1, funnel_stage_id: 22 },
+            { id: 2, funnel_id: 1, funnel_stage_id: 22 },
+          ],
+        }
+      );
+
+      expect(localDispatch).toHaveBeenCalledTimes(2);
+      expect(localDispatch).toHaveBeenNthCalledWith(1, 'applyRemoteMove', {
+        id: 1,
+        funnel_id: 1,
+        funnel_stage_id: 22,
+      });
+    });
+
+    it('recarrega só as colunas afetadas quando o backend manda refetch', async () => {
+      const state = { activeFunnelId: 1 };
+      const localDispatch = vi.fn(() => Promise.resolve());
+
+      await actions.applyRemoteBulk(
+        { state, dispatch: localDispatch, rootGetters },
+        {
+          funnel_id: 1,
+          performer: { id: 9 },
+          refetch: true,
+          stage_ids: [22, 23, 22],
+        }
+      );
+
+      expect(localDispatch).toHaveBeenCalledTimes(2);
+      expect(localDispatch).toHaveBeenCalledWith('fetchFunnelItemsPage', {
+        funnelId: 1,
+        stageId: 22,
+        excludeAutomationType: 'resolved',
+        append: false,
+      });
+    });
+
+    it('ignora o eco do próprio bulk', async () => {
+      const localDispatch = vi.fn();
+      await actions.applyRemoteBulk(
+        { state: { activeFunnelId: 1 }, dispatch: localDispatch, rootGetters },
+        { funnel_id: 1, performer: { id: 7 }, items: [{ id: 1 }] }
+      );
+      expect(localDispatch).not.toHaveBeenCalled();
+    });
+  });
 });

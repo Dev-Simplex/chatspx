@@ -892,6 +892,73 @@ export const actions = {
     }
   },
 
+  // Tempo real (Fase 2.1): cartão de TAREFA criado por outra pessoa.
+  // Card de conversa NÃO passa por aqui — ele nasce pelo MoveService, que já
+  // dispara `funnel_item.moved`, e o `applyRemoteMove` insere. A assimetria é
+  // de propósito: os dois eventos juntos inseririam o card duas vezes.
+  applyRemoteCreate({ state, commit, rootGetters }, data) {
+    try {
+      if (!data || typeof data !== 'object') return;
+      if (Number(data.funnel_id) !== Number(state.activeFunnelId)) return;
+      if (isEchoOfMyOwnAction(data, rootGetters)) return;
+      if (!isRenderableRemoteItem(data)) return;
+
+      // Idempotente: `assignItemToStage` faz upsert pelo id.
+      commit(types.ADD_FUNNEL_ITEM, remoteItemPayload(data));
+    } catch (_) {
+      // best-effort
+    }
+  },
+
+  // Tempo real (Fase 2.2): card apagado por outra pessoa. Sem isto ele virava
+  // fantasma — sumia para quem apagou e continuava clicável (404) para o resto.
+  applyRemoteDelete({ state, commit, rootGetters }, data) {
+    try {
+      if (!data || typeof data !== 'object') return;
+      if (Number(data.funnel_id) !== Number(state.activeFunnelId)) return;
+      if (isEchoOfMyOwnAction(data, rootGetters)) return;
+
+      const itemId = Number(data.id);
+      if (!itemId) return;
+      // Idempotente: apagar o que já não existe é no-op na mutation.
+      commit(types.DELETE_FUNNEL_ITEM, itemId);
+    } catch (_) {
+      // best-effort
+    }
+  },
+
+  // Tempo real (Fase 2.3): UM evento para o bulk move inteiro. Cada item é
+  // aplicado pelo mesmo caminho do move solto (insere ou reloca, idempotente);
+  // acima do teto do backend vem `refetch: true` e recarregamos só as colunas
+  // afetadas, em vez de receber um payload gigante pelo websocket.
+  async applyRemoteBulk({ state, dispatch, rootGetters }, data) {
+    try {
+      if (!data || typeof data !== 'object') return;
+      const funnelId = Number(data.funnel_id);
+      if (funnelId !== Number(state.activeFunnelId)) return;
+      if (isEchoOfMyOwnAction(data, rootGetters)) return;
+
+      if (data.refetch) {
+        const stageIds = sanitizeStageQueue(data.stage_ids);
+        await Promise.all(
+          stageIds.map(stageId =>
+            dispatch('fetchFunnelItemsPage', {
+              funnelId,
+              stageId,
+              excludeAutomationType: 'resolved',
+              append: false,
+            })
+          )
+        );
+        return;
+      }
+
+      (data.items || []).forEach(item => dispatch('applyRemoteMove', item));
+    } catch (_) {
+      // best-effort
+    }
+  },
+
   setViewFilters({ commit }, filters = {}) {
     commit(types.SET_VIEW_FILTERS, filters);
   },

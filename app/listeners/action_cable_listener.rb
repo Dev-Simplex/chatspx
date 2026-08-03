@@ -136,13 +136,40 @@ class ActionCableListener < BaseListener # rubocop:disable Metrics/ClassLength
   # Kanban tempo real: um card mudou de etapa — os outros boards abertos relocam
   # (ou INSEREM, quando não tinham o card) ao vivo.
   def funnel_item_moved(event)
-    funnel_item = event.data[:funnel_item]
-    funnel = funnel_item&.funnel
+    broadcast_funnel_item(event, FUNNEL_ITEM_MOVED)
+  end
+
+  # Só CARTÃO DE TAREFA passa por aqui. Card de conversa entra no board pelo
+  # MoveService, que já dispara `funnel_item.moved` na primeira colocação — e o
+  # `applyRemoteMove` insere quando o receptor não tem o card. Disparar os dois
+  # para conversa seria evento duplicado; a assimetria é de propósito.
+  def funnel_item_created(event)
+    broadcast_funnel_item(event, FUNNEL_ITEM_CREATED)
+  end
+
+  # O card já foi destruído: o payload vem pronto do controller (capturado antes
+  # do destroy!, quando o objeto ainda não estava congelado).
+  def funnel_item_deleted(event)
+    funnel = event.data[:funnel]
     account = funnel&.account
     return if account.blank?
 
-    broadcast(account, funnel_audience_tokens(funnel), FUNNEL_ITEM_MOVED,
-              funnel_item.push_event_data(label_colors: label_colors_for(account)))
+    broadcast(account, funnel_audience_tokens(funnel), FUNNEL_ITEM_DELETED, event.data[:item])
+  end
+
+  # Bulk move: UM evento com todos os cards, em vez de um por card. Mover 50
+  # cards disparava 50 jobs na fila `:critical`, cada um publicando para N
+  # usuários. Acima do teto o payload vira uma ordem de refetch das colunas
+  # afetadas — mais barato que empurrar um JSON gigante pelo websocket.
+  def funnel_items_bulk_moved(event)
+    funnel = event.data[:funnel]
+    account = funnel&.account
+    return if account.blank?
+
+    item_ids = Array(event.data[:item_ids]).compact.uniq
+    return if item_ids.blank?
+
+    broadcast(account, funnel_audience_tokens(funnel), FUNNEL_ITEMS_BULK_MOVED, bulk_moved_payload(funnel, account, item_ids))
   end
 
   def team_changed(event)
@@ -278,6 +305,34 @@ class ActionCableListener < BaseListener # rubocop:disable Metrics/ClassLength
 
   def account_token(account)
     "account_#{account.id}"
+  end
+
+  # Acima disso o payload agregado do bulk vira ordem de refetch (ver
+  # #funnel_items_bulk_moved).
+  BULK_ITEMS_PAYLOAD_LIMIT = 50
+
+  def broadcast_funnel_item(event, event_name)
+    funnel_item = event.data[:funnel_item]
+    funnel = funnel_item&.funnel
+    account = funnel&.account
+    return if account.blank?
+
+    broadcast(account, funnel_audience_tokens(funnel), event_name,
+              funnel_item.push_event_data(label_colors: label_colors_for(account)))
+  end
+
+  def bulk_moved_payload(funnel, account, item_ids)
+    return { funnel_id: funnel.id, stage_ids: bulk_stage_ids(funnel, item_ids), refetch: true } if item_ids.size > BULK_ITEMS_PAYLOAD_LIMIT
+
+    colors = label_colors_for(account)
+    # Recarrega com includes: o listener é síncrono e montar N payloads sem
+    # pré-carregar contato/etiquetas seria N+1 dentro do request do bulk.
+    items = funnel.funnel_items.where(id: item_ids).includes(:assignee, conversation: [:contact])
+    { funnel_id: funnel.id, items: items.map { |item| item.push_event_data(label_colors: colors) } }
+  end
+
+  def bulk_stage_ids(funnel, item_ids)
+    funnel.funnel_items.where(id: item_ids).distinct.pluck(:funnel_stage_id)
   end
 
   # Kanban tempo real: quem pode RECEBER os eventos de um funil.

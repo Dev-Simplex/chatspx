@@ -68,6 +68,10 @@ module Events::Types
   # copilot events
   COPILOT_MESSAGE_CREATED = 'copilot.message.created'
 
-  # kanban (funnel) events
+  # kanban (funnel) events — contrato em task/kanban-tempo-real.md.
+  # O nome com '.' vira método do listener com '_' (Events::Base#method_name).
   FUNNEL_ITEM_MOVED = 'funnel_item.moved'
+  FUNNEL_ITEM_CREATED = 'funnel_item.created'
+  FUNNEL_ITEM_DELETED = 'funnel_item.deleted'
+  FUNNEL_ITEMS_BULK_MOVED = 'funnel_items.bulk_moved'
 end

@@ -3,11 +3,15 @@
 class FunnelItems::MoveService
   attr_reader :conversation, :funnel, :funnel_stage, :moved_by
 
-  def initialize(conversation:, funnel:, funnel_stage:, moved_by:)
+  # `broadcast: false` é para quem move em LOTE e emite um evento agregado no
+  # fim (Kanban::FunnelItemsBulkActions). Default true para não mexer em nenhuma
+  # das chamadas existentes (automação, SLA, backfill, drag simples).
+  def initialize(conversation:, funnel:, funnel_stage:, moved_by:, broadcast: true)
     @conversation = conversation
     @funnel = funnel
     @funnel_stage = funnel_stage
     @moved_by = moved_by
+    @broadcast = broadcast
   end
 
   def perform
@@ -35,7 +39,7 @@ class FunnelItems::MoveService
     update_conversation_status
 
     if stage_changed
-      broadcast_move(funnel_item)
+      broadcast_move(funnel_item) if @broadcast
       run_automations(funnel_item)
     end
 
