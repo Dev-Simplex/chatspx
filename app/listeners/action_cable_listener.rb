@@ -157,6 +157,22 @@ class ActionCableListener < BaseListener # rubocop:disable Metrics/ClassLength
     broadcast(account, funnel_audience_tokens(funnel), FUNNEL_ITEM_DELETED, event.data[:item])
   end
 
+  # Colunas do funil (criar/renomear/recolorir/reordenar/apagar). UM evento
+  # grosso e IDEMPOTENTE com a lista completa e ordenada, em vez de quatro
+  # eventos finos: colunas mudam raramente e são poucas, então não vale carregar
+  # ordem de chegada nem estado parcial. O listener relê a lista do banco — o
+  # controller só avisa "mexeram nas colunas deste funil".
+  def funnel_stages_changed(event)
+    funnel = event.data[:funnel]
+    account = funnel&.account
+    return if account.blank?
+
+    broadcast(account, funnel_audience_tokens(funnel), FUNNEL_STAGES_CHANGED, {
+                funnel_id: funnel.id,
+                stages: funnel.funnel_stages.ordered.map(&:push_event_data)
+              })
+  end
+
   # Reordenação manual dentro da coluna. Payload enxuto de propósito: só
   # `{id, position}` — quem recebe já tem (ou não tem) os cards, e reorder de
   # card desconhecido não justifica refetch.

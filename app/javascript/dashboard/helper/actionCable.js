@@ -46,6 +46,7 @@ class ActionCableConnector extends BaseActionCableConnector {
       'funnel_item.deleted': this.onFunnelItemDeleted,
       'funnel_items.bulk_moved': this.onFunnelItemsBulkMoved,
       'funnel_items.reordered': this.onFunnelItemsReordered,
+      'funnel_stages.changed': this.onFunnelStagesChanged,
       'takeover_request.created': this.onTakeoverRequestChanged,
       'takeover_request.updated': this.onTakeoverRequestChanged,
       'internal.message.created': this.onInternalMessageCreated,
@@ -79,6 +80,11 @@ class ActionCableConnector extends BaseActionCableConnector {
 
   onFunnelItemsReordered = data => {
     this.app.$store.dispatch('kanban/applyRemoteReorder', data);
+  };
+
+  // Lista completa e ordenada das colunas — um evento para todo o CRUD.
+  onFunnelStagesChanged = data => {
+    this.app.$store.dispatch('kanban/applyRemoteStages', data);
   };
 
   // D1 (Fase 3): pedido de atendimento criado/respondido. Um evento, dois papéis

@@ -990,6 +990,49 @@ export const actions = {
     }
   },
 
+  // Tempo real (Fase 4): as colunas do funil mudaram. Evento grosso e
+  // idempotente — recebemos a lista completa e ordenada, então não há ordem de
+  // chegada nem estado parcial para gerenciar.
+  //
+  // Dois cuidados que o `SET_FUNNEL_STAGES` sozinho não cobre:
+  //   • cards órfãos: a mutação troca o mapa de colunas, mas os cards da coluna
+  //     apagada continuariam no store (no banco eles já foram — FunnelStage
+  //     has_many :funnel_items, dependent: :destroy);
+  //   • tela vazia: se o filtro de coluna apontava para a coluna que sumiu, o
+  //     board ficaria sem nada e parecendo travado.
+  applyRemoteStages({ state, commit, rootGetters }, data) {
+    try {
+      if (!data || typeof data !== 'object') return;
+      const funnelId = Number(data.funnel_id);
+      if (funnelId !== Number(state.activeFunnelId)) return;
+      if (isEchoOfMyOwnAction(data, rootGetters)) return;
+
+      const stages = Array.isArray(data.stages) ? data.stages : [];
+      const nextIds = new Set(stages.map(stage => Number(stage?.id)));
+
+      const removedIds = Object.keys(state.funnelStages?.[funnelId] || {})
+        .map(Number)
+        .filter(stageId => !nextIds.has(stageId));
+      removedIds.forEach(stageId =>
+        commit(types.DELETE_FUNNEL_STAGE, { funnelId, stageId })
+      );
+
+      commit(types.SET_FUNNEL_STAGES, { funnelId, stages });
+
+      if (!removedIds.length) return;
+
+      const activeStageFilter = state.viewFilters?.stageIds || [];
+      const survivingFilter = activeStageFilter.filter(stageId =>
+        nextIds.has(Number(stageId))
+      );
+      if (survivingFilter.length !== activeStageFilter.length) {
+        commit(types.SET_VIEW_FILTERS, { stageIds: survivingFilter });
+      }
+    } catch (_) {
+      // best-effort
+    }
+  },
+
   setViewFilters({ commit }, filters = {}) {
     commit(types.SET_VIEW_FILTERS, filters);
   },

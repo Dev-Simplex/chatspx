@@ -1,3 +1,5 @@
+# ⚠️ MANTENHA EM SINCRONIA com `FunnelStage#push_event_data` (app/models/funnel_stage.rb):
+# a mesma coluna chega ao store pelo GET e pelo websocket (`funnel_stages.changed`).
 json.id resource.id
 json.name resource.name
 json.funnel_id resource.funnel_id

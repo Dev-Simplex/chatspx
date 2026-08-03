@@ -866,4 +866,74 @@ describe('#kanban actions', () => {
       expect(commit).not.toHaveBeenCalled();
     });
   });
+
+  describe('#applyRemoteStages', () => {
+    const rootGetters = { getCurrentUserID: 7 };
+    const buildState = () => ({
+      activeFunnelId: 1,
+      funnelStages: { 1: { 21: { id: 21 }, 22: { id: 22 } } },
+      viewFilters: { stageIds: [22] },
+    });
+
+    it('substitui a lista de colunas', () => {
+      actions.applyRemoteStages(
+        { state: buildState(), commit, rootGetters },
+        {
+          funnel_id: 1,
+          performer: { id: 9 },
+          stages: [
+            { id: 21, name: 'Abertos' },
+            { id: 22, name: 'Fechados' },
+          ],
+        }
+      );
+
+      expect(commit).toHaveBeenCalledWith(types.SET_FUNNEL_STAGES, {
+        funnelId: 1,
+        stages: [
+          { id: 21, name: 'Abertos' },
+          { id: 22, name: 'Fechados' },
+        ],
+      });
+      expect(commit).not.toHaveBeenCalledWith(
+        types.DELETE_FUNNEL_STAGE,
+        expect.anything()
+      );
+    });
+
+    it('limpa os cards órfãos da coluna apagada e o filtro que apontava para ela', () => {
+      actions.applyRemoteStages(
+        { state: buildState(), commit, rootGetters },
+        {
+          funnel_id: 1,
+          performer: { id: 9 },
+          stages: [{ id: 21, name: 'Abertos' }],
+        }
+      );
+
+      expect(commit).toHaveBeenCalledWith(types.DELETE_FUNNEL_STAGE, {
+        funnelId: 1,
+        stageId: 22,
+      });
+      expect(commit).toHaveBeenCalledWith(types.SET_VIEW_FILTERS, {
+        stageIds: [],
+      });
+    });
+
+    it('não reage a outro funil', () => {
+      actions.applyRemoteStages(
+        { state: { ...buildState(), activeFunnelId: 99 }, commit, rootGetters },
+        { funnel_id: 1, performer: { id: 9 }, stages: [] }
+      );
+      expect(commit).not.toHaveBeenCalled();
+    });
+
+    it('ignora o eco da própria mudança', () => {
+      actions.applyRemoteStages(
+        { state: buildState(), commit, rootGetters },
+        { funnel_id: 1, performer: { id: 7 }, stages: [] }
+      );
+      expect(commit).not.toHaveBeenCalled();
+    });
+  });
 });

@@ -32,6 +32,8 @@ class Api::V1::Accounts::FunnelsController < Api::V1::Accounts::BaseController
   def reorder_stages
     stage_ids = Array(params[:stage_ids]).map { |id| id.to_s.to_i }.reject(&:zero?)
     Funnels::ReorderStagesService.new(funnel: @funnel, stage_ids: stage_ids).perform
+    # Tempo real (Fase 4): mesmo evento grosso do CRUD de coluna.
+    Kanban::Realtime.dispatch(Events::Types::FUNNEL_STAGES_CHANGED, funnel: @funnel)
     head :ok
   rescue StandardError => e
     Rails.logger.error "FunnelsController#reorder_stages: #{e.class} - #{e.message}"

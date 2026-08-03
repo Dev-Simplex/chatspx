@@ -160,6 +160,35 @@ describe ActionCableListener do
     end
   end
 
+  describe '#funnel_stages_changed' do
+    it 'manda a lista completa e ordenada ao público do funil' do
+      later = FunnelStage.create!(funnel: team_funnel, name: 'Fechado', position: 2)
+      first = FunnelStage.create!(funnel: team_funnel, name: 'Aberto', position: 1)
+      event = Events::Base.new(:'funnel_stages.changed', Time.zone.now, funnel: team_funnel)
+
+      expect(ActionCableBroadcastJob).to receive(:perform_later) do |tokens, name, payload|
+        expect(tokens).to contain_exactly(admin.pubsub_token, team_agent.pubsub_token)
+        expect(name).to eq('funnel_stages.changed')
+        expect(payload[:stages].map { |stage| stage[:id] }).to eq([first.id, later.id])
+        expect(payload[:stages].first).to include(:name, :position, :color, :automation_type, :settings)
+      end
+
+      listener.funnel_stages_changed(event)
+    end
+
+    it 'reflete a coluna apagada (lista relida do banco)' do
+      stage = FunnelStage.create!(funnel: team_funnel, name: 'Aberto', position: 1)
+      stage.destroy!
+      event = Events::Base.new(:'funnel_stages.changed', Time.zone.now, funnel: team_funnel)
+
+      expect(ActionCableBroadcastJob).to receive(:perform_later) do |_tokens, _name, payload|
+        expect(payload[:stages]).to be_empty
+      end
+
+      listener.funnel_stages_changed(event)
+    end
+  end
+
   describe '#funnel_items_reordered' do
     it 'entrega só as posições ao público do funil' do
       positions = [{ id: 1, position: 1 }, { id: 2, position: 2 }]
