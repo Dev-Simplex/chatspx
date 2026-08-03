@@ -69,7 +69,7 @@ class Spx::TemplateReplyRouterListener < BaseListener
   # `reset_agent_bot_when_assignee_present` e cala o agente. Campanha em inbox com
   # IA precisa designar sem atribuir (frente spx/rodizio) — não use este campo lá.
   def route_to_campaign_owner(conversation)
-    owner_id = conversation.campaign&.dispatch_assignee_id
+    owner_id = dispatch_owner_id(conversation)
     return false if owner_id.blank?
     return true if conversation.assignee_id == owner_id
 
@@ -77,6 +77,21 @@ class Spx::TemplateReplyRouterListener < BaseListener
       conversation: conversation, assignee_id: owner_id, assignee_type: 'User'
     ).perform
     true
+  end
+
+  # Dono da campanha que mandou o ÚLTIMO template pra esta conversa — NÃO a que a
+  # originou. `conversations.campaign_id` guarda a campanha de ORIGEM e não muda em
+  # disparos seguintes (é assim de propósito: mudar reescreveria a atribuição do
+  # histórico), então lê-lo aqui mandaria a resposta da 2ª campanha pro dono da 1ª.
+  # O vínculo POR DISPARO vive em campaign_recipients, que é onde ele é exato.
+  def dispatch_owner_id(conversation)
+    campaign_id = CampaignRecipient.where(conversation_id: conversation.id)
+                                   .where.not(sent_at: nil)
+                                   .order(sent_at: :desc)
+                                   .pick(:campaign_id)
+    return nil if campaign_id.blank?
+
+    Campaign.where(id: campaign_id).pick(:dispatch_assignee_id)
   end
 
   def route_to_sender(conversation, template)
