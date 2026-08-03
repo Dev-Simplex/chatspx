@@ -8,7 +8,7 @@
 # e o corretor nunca ficaria sabendo. O produto, quando existe, tem precedência.
 #
 # Additiva e inerte. Aplicar com alvo específico
-# (db:migrate:up VERSION=20260731120000) para não disparar migrations destrutivas pendentes.
+# (db:migrate:up VERSION=20260731120200) para não disparar migrations destrutivas pendentes.
 class AddEspelhoVistaToDistribuicaoPolicies < ActiveRecord::Migration[7.1]
   def change
     add_column :distribuicao_policies, :espelho_vista, :boolean, null: false, default: false

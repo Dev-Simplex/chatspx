@@ -9,7 +9,7 @@
 # quem, quando, sob qual regra, e quando encerrou.
 #
 # Additiva e inerte. Aplicar com alvo específico
-# (db:migrate:up VERSION=20260730130000) para não disparar migrations destrutivas pendentes.
+# (db:migrate:up VERSION=20260730130100) para não disparar migrations destrutivas pendentes.
 class AddDesignacaoToDistribuicao < ActiveRecord::Migration[7.1]
   def change
     add_column :distribuicao_policies, :modo_posse, :string, null: false, default: 'assignee'

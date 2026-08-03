@@ -21,43 +21,39 @@ module Spx
         Array((matchers || {})[chave.to_s]).map { |termo| termo.to_s.strip.downcase }.compact_blank
       end
 
-      # --- Inventário de apresentação -------------------------------------------------
-      # A config descreve MATERIAL e PÚBLICO, nunca SEQUÊNCIA: quem decide qual peça mandar e
-      # quando é a IA, no contexto da conversa. O operador controla o que EXISTE no inventário
-      # e escreve uma orientação em linguagem natural — uma frase, não um if.
+      # Inventário de peças de marketing — contrato em docs/contratos/apresentacao-produto.md.
+      # Escrito pela config, consumido pela frente spx/followup. Leitores aqui pra as duas
+      # frentes lerem do MESMO lugar em vez de cada uma parsear o hash por conta.
       #
-      # A COLUNA `apresentacao` (jsonb) é da frente spx/rodizio, dona desta tabela — esta frente
-      # só CONSOME. Enquanto ela não existir, tudo aqui devolve vazio e o comportamento é o de
-      # hoje (nenhuma peça, nenhuma tool ativa). Formato combinado:
-      #   { "orientacao": "<uma frase sobre quem é este público e o que funciona com ele>",
-      #     "audio_proativo": <bool>,
-      #     "pecas": [ { "id": "<slug>", "tipo": "audio|imagem|video|documento",
-      #                  "descricao": "<o que a peça explica e pra quem serve>", "url": "<...>" } ] }
+      # A config descreve material e público; NUNCA sequência. Quem escolhe a peça e o momento
+      # é a IA, no contexto — ver §1 do contrato antes de acrescentar campo aqui.
+      #
+      # Tolerante à coluna AUSENTE: a migration é aplicada com alvo, VM a VM, então o código
+      # roda em box onde ela ainda não existe. Sem coluna, tudo devolve vazio e o comportamento
+      # é o de hoje (produto sem material, nenhuma tool com o que oferecer).
       def apresentacao_config
         return {} unless has_attribute?(:apresentacao)
 
-        (apresentacao.presence || {})
+        apresentacao.presence || {}
       end
 
-      # Peças utilizáveis: precisam de id, tipo e url. Peça pela metade é ignorada em silêncio
-      # em vez de virar erro na frente do cliente.
+      def publico_alvo
+        apresentacao_config['publico'].presence
+      end
+
       def pecas
-        Array(apresentacao_config['pecas']).select do |p|
-          p.is_a?(Hash) && p['id'].present? && p['tipo'].present? && p['url'].present?
-        end
+        Array(apresentacao_config['pecas']).select { |peca| peca.is_a?(Hash) && peca['id'].present? }
       end
 
+      # Consumo da followup: resolver a peça pelo id que a IA escolheu na lista.
       def peca(id)
         pecas.find { |p| p['id'].to_s == id.to_s }
       end
 
-      # Texto livre do operador sobre QUEM é este público e o que costuma funcionar com ele.
-      def orientacao_publico
-        apresentacao_config['orientacao'].to_s.strip.presence
-      end
-
-      # Áudio de empresa é mais invasivo que texto: o que converte num público pode irritar
-      # outro. Default false — áudio proativo é opt-in por produto.
+      # Permissão de o agente TOMAR A INICIATIVA de responder em áudio neste produto. Não é peça
+      # nem sequência: é política de público (áudio de empresa é mais invasivo que texto, e o que
+      # converte num público irrita outro). Proposto como §4/4 do contrato; ausente = false, então
+      # o áudio A PEDIDO do cliente segue funcionando como sempre.
       def audio_proativo?
         apresentacao_config['audio_proativo'] == true
       end

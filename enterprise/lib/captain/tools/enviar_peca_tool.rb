@@ -24,6 +24,9 @@ class Captain::Tools::EnviarPecaTool < Captain::Tools::BasePublicTool
 
     file_type = TIPOS[peca['tipo'].to_s.downcase]
     return "Peça do tipo #{peca['tipo']} ainda não pode ser enviada por aqui." if file_type.nil?
+    # Peça catalogada sem material resolvível: aparece na lista (a descrição já ajuda a IA a
+    # falar sobre ela), mas não há bytes pra mandar. Recusa explícita em vez de erro no cliente.
+    return 'Essa peça está catalogada mas ainda não tem material anexado.' if peca['url'].blank?
 
     enviar(conversation, peca, file_type)
     'Peça enviada.'

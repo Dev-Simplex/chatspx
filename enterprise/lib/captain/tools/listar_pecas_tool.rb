@@ -28,7 +28,7 @@ class Captain::Tools::ListarPecasTool < Captain::Tools::BasePublicTool
     [
       "Material disponível para #{produto.nome}:",
       *linhas,
-      produto.orientacao_publico.presence && "Sobre este público: #{produto.orientacao_publico}",
+      produto.publico_alvo.presence && "Sobre este público: #{produto.publico_alvo}",
       'Para mandar uma, chame enviar_peca com o id exato de uma das peças acima.'
     ].compact.join("\n")
   end
