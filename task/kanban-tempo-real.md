@@ -432,6 +432,30 @@ Console do navegador: **0 erros**. Verificação server-side (`funnel_item.moved
 
 **Pendente de QA do usuário:** itens 3 (reordenar arrastando), 6 (bulk de 20 pela UI), 9 (offline 30 s → reconverge — coberto por teste unitário do `ReconnectService`, não exercitado no navegador), 11 (filtro ativo) e 12 (dois arrastes simultâneos no mesmo card).
 
+### Cenário de QA (staging) — funil #26 "QA Tempo Real"
+
+Semeado por `task/qa_tempo_real_seed.rb` (limpa com `task/qa_tempo_real_clean.rb`).
+
+Existe um **time/inbox/funil próprios** porque o roteiro exige dois usuários diferentes com o mesmo board aberto, e pela `FunnelPolicy` agente só enxerga funil do **seu time** — os dois usuários de teste não estavam em time nenhum, ou seja, não viam funil nenhum. Time `qa tempo real` = Realtime Test A (#15) + Realtime Test B (#16) + admin.
+
+| Coluna | Cards no banco | Cards que o board carrega | Para que serve |
+|---|---|---|---|
+| Abertos | 46 (+1 tarefa) | 31 | 15 ficam FORA do store — é o item 2 do roteiro |
+| Em Andamento | 12 (+2 tarefas) | todos | reordenar dentro da coluna (item 3) |
+| Aguardando cliente | 8 | todos | destino neutro de arraste |
+| Resolvidos | 10 | **0** | o board não carrega coluna `resolved`; arrastar daqui é o teste mais duro do "card desconhecido entra desenhado" |
+
+Prioridade, responsável, etiqueta (`financeiro`/`duvida`/`reclamacao`/`agendamento`) e idade (4 min a 19 dias) variados, para ter o que filtrar (item 11) e para os trilhos de espera aparecerem.
+
+Links de login para os três usuários: `./task/links-agentes-teste.sh rt-test-a@chatspx.test rt-test-b@chatspx.test dev@simplexsolucoes.com.br` (valem 5 min, uso único).
+
+**Armadilhas encontradas ao montar o seed** (valem para qualquer seed de Kanban futuro):
+- `Team` força o nome para **minúsculas** — `find_by(name: 'QA Tempo Real')` nunca acha e o script recria o time a cada rodada.
+- Criar o time já cria um funil (`Team after_create → Kanban::CreateFunnelForTeamService`); não crie outro.
+- A conversa precisa de `team_id` **igual ao do funil**, senão o `FunnelItemsQueryService` a filtra e o board nasce vazio. E conversa criada já `resolved` sem time bate na validação de encerramento por atribuição.
+- Atribuir a conversa a um agente do time já cria o `funnel_item`; use `find_or_initialize_by`, não `create!` (unicidade conversation+funnel).
+- A limpeza precisa de varredura de FK **recursiva** (`conversations → conversation_assignment_histories`, `teams → internal_channels → internal_channel_members`) e o `Inbox#destroy` explode no modelo `Campaign`, quebrado neste banco pelas migrations fantasma — daí o fallback para DELETE direto.
+
 ### Nota para o monitoramento do rollout
 
 Cada dispatch percorre **os dois** dispatchers (`Dispatcher#dispatch` chama sync **e** async), então todo evento do board enfileira também um `EventDispatcherJob` na `:critical` — que hoje é no-op (nenhum listener assíncrono trata evento de funil). Não é novo (o `funnel_item.moved` já fazia isso), mas conte 2 jobs por evento ao olhar a fila. A agregação da 2.3 é o que importa aqui: bulk de 50 cards saiu de ~100 jobs para 2.
