@@ -5,14 +5,29 @@
 # config['voice_id'] (dado por conta). QUALQUER falha instrui o agente a responder em
 # texto normal — o cliente nunca fica sem resposta por causa do áudio.
 class Captain::Tools::ResponderEmAudioTool < Captain::Tools::BasePublicTool
-  description 'Responde o cliente com uma mensagem de voz (áudio) em vez de texto. ' \
-              'Chame SOMENTE quando o cliente pedir explicitamente uma resposta em áudio ' \
-              'ou disser que não consegue ler mensagens no momento. ' \
-              'O áudio enviado substitui a resposta em texto deste turno.'
+  include Captain::Tools::ProdutoApresentacao
+
+  # A regra antiga ("chame SOMENTE quando o cliente pedir") proibia justamente o uso que se
+  # quer: explicar por voz o que cansa em texto. Virou JULGAMENTO — o agente decide pela
+  # conversa. O que continua sendo config, e não julgamento, é a PERMISSÃO de tomar a
+  # iniciativa: áudio de empresa é mais invasivo que texto, e o que converte num público
+  # irrita outro. Por isso o áudio a pedido do cliente é sempre permitido, e o proativo é
+  # opt-in por produto (ou por assistente, para quem não usa catálogo de produto).
+  description 'Responde o cliente com uma mensagem de voz em vez de texto. Use seu julgamento: ' \
+              'a voz ajuda quando a explicação é longa ou delicada e ficaria cansativa de ler, ' \
+              'e quando o próprio cliente conversa por áudio. Prefira texto quando a resposta ' \
+              'precisa de dado que ele vai querer reler ou copiar, quando a pergunta é curta e ' \
+              'objetiva, ou quando ele já demonstrou preferir ler. ' \
+              'O áudio substitui a resposta em texto deste turno.'
 
   param :texto, type: 'string',
                 desc: 'Texto exato que será falado no áudio — a resposta que você daria a este turno. ' \
                       'Escreva em linguagem falada natural e concisa, sem markdown, sem links e sem listas.', required: true
+
+  param :a_pedido_do_cliente, type: 'boolean',
+                              desc: 'true quando o cliente pediu áudio ou disse que não consegue ler agora; ' \
+                                    'false quando responder em voz é iniciativa sua, pelo contexto da conversa.',
+                              required: true
 
   DEFAULT_MAX_CHARS = 800
 
@@ -22,17 +37,13 @@ class Captain::Tools::ResponderEmAudioTool < Captain::Tools::BasePublicTool
     @assistant&.config&.[]('voice_id').present?
   end
 
-  def perform(tool_context, texto:)
+  def perform(tool_context, texto:, a_pedido_do_cliente: false)
     conversation = find_conversation(tool_context&.state)
     return 'Não consegui identificar a conversa. Responda em texto normalmente.' unless conversation
 
     texto = texto.to_s.strip
-    return 'Não recebi o texto a falar. Responda em texto normalmente.' if texto.blank?
-
-    if texto.length > max_chars
-      return "O texto passou do limite de #{max_chars} caracteres pra áudio. " \
-             'Chame de novo com uma versão mais curta e falada, ou responda em texto normalmente.'
-    end
+    impedimento = impedimento_para(conversation, texto, a_pedido_do_cliente)
+    return impedimento if impedimento
 
     tts = Captain::ElevenLabsTtsService.new(@assistant)
     return 'Resposta em áudio não está configurada pra este agente. Responda em texto normalmente.' unless tts.configured?
@@ -46,6 +57,33 @@ class Captain::Tools::ResponderEmAudioTool < Captain::Tools::BasePublicTool
   end
 
   private
+
+  # Motivo para NÃO mandar o áudio, ou nil quando pode ir. Fora do perform pra manter a
+  # leitura do fluxo feliz: identificou a conversa, sintetizou, enviou.
+  def impedimento_para(conversation, texto, a_pedido_do_cliente)
+    return 'Não recebi o texto a falar. Responda em texto normalmente.' if texto.blank?
+
+    if texto.length > max_chars
+      return "O texto passou do limite de #{max_chars} caracteres pra áudio. " \
+             'Chame de novo com uma versão mais curta e falada, ou responda em texto normalmente.'
+    end
+    return if a_pedido_do_cliente || audio_proativo_liberado?(conversation)
+
+    'Neste público o áudio só é permitido quando o próprio cliente pede. Responda em texto normalmente.'
+  end
+
+  # Iniciativa de mandar áudio é opt-in, e o default é NÃO. Duas portas, porque nem todo tenant
+  # usa o catálogo de produto: a do produto resolvido (apresentacao.audio_proativo) e a do
+  # próprio assistente (config['voice_proativo']), para quem não tem catálogo. Sem nenhuma das
+  # duas, o áudio A PEDIDO do cliente continua funcionando exatamente como antes.
+  def audio_proativo_liberado?(conversation)
+    return true if @assistant&.config&.[]('voice_proativo') == true
+
+    produto_do_lead(conversation)&.audio_proativo? == true
+  rescue StandardError => e
+    Rails.logger.warn("[ResponderEmAudioTool] produto: #{e.class}: #{e.message}")
+    false
+  end
 
   def max_chars
     (@assistant&.config&.[]('voice_max_chars').presence || DEFAULT_MAX_CHARS).to_i

@@ -52,6 +52,31 @@ dias existe a série que hoje não existe.
 
 ---
 
+## 🔴 Procedimento — ligar e desligar a política de encerramento têm ordens OPOSTAS
+
+As duas chaves passam pelo mesmo `perform`, e a ordem errada reproduz o incidente de junho
+(auto-resolve fechando conversa de cliente real **com mensagem**). Já foi executada na ordem
+errada em 03/08 — sem dano porque a exposição durou um minuto.
+
+**Para LIGAR:** `auto_closure` primeiro, kill-switch depois.
+1. `settings['auto_closure'] = { enabled: true, ... }`
+2. só então `captain_auto_resolve_mode` sai de `disabled`
+
+**Para DESLIGAR:** kill-switch primeiro.
+1. `captain_auto_resolve_mode = 'disabled'`
+2. só então `auto_closure.enabled = false`
+
+**Por que a ordem importa:** desligar só o `auto_closure` mantendo o modo em `evaluated` faz
+`evaluate_conversation_completion?` continuar `true` (o gate é `captain_tasks && (evaluated? ||
+auto_closure)`) e o job cair no **`route_legacy`** — que resolve conversa `pending` **mandando
+mensagem ao cliente**. É a forma exata do incidente. O `disabled` é a única barreira que corta
+antes de qualquer roteamento, porque é checada na primeira linha do `perform` e no scheduler.
+
+**Marcadores residuais:** desligar não limpa `aguardando_encerramento_desde`. Há **536**
+marcados na conta 6. Eles não somem sozinhos — `awaiting_closure_clearable?` só roda em callback
+de conversa. Com a correção 1.1 no ar eles ficam fora do scan (correto), mas **continuam
+aparecendo na fila do time**. Decidir se limpa antes de religar.
+
 ## O que está na branch
 
 | Commit | O quê |
@@ -124,6 +149,37 @@ tem custo de inferência e mexe em 496 conversas reais. Considerar drenar o pass
 controlada antes de deixar o cron solto.
 
 ---
+
+## Próximo item: a promessa que o HUMANO esquece — desenho travado
+
+Escolhido antes da cadência configurável porque reusa o motor de compromisso já consertado
+(`followup_motivo` consumido no disparo) e é o caso descrito com nome: atendente promete
+retorno e some. A cadência configurável depende de tela, então vem depois.
+
+**Decisões batidas (Paulo, 31/07):**
+
+1. **Detecção automática, exigindo prazo explícito.** Listener na mensagem `outgoing` de `User`
+   (não de `Captain::Assistant`), no padrão do `Spx::TemplateReplyRouterListener`. Só registra
+   quando há **expressão de tempo** — é ela que discrimina promessa de intenção vaga: "vou ver
+   isso" não conta, "te mando amanhã" conta. Sem prazo não há o que cobrar.
+   Motivo de não usar só o botão adiar/resolver: quem esquece a promessa também esquece o botão.
+
+2. **Escalada só interna, terminando na fila do time.** Prazo vence → nota privada + notificação
+   pro autor. Continuou parada → devolve à fila do time. **A IA não fala com o cliente numa
+   conversa de humano**: contradiz o Modelo A e ela não sabe o que foi combinado fora do sistema
+   (ligação, WhatsApp pessoal) — poderia prometer o que já foi entregue.
+
+**Decidido por regra de projeto, não precisa perguntar:** opt-in **por conta** (default off),
+como todo comportamento novo — nunca hardcode de cliente.
+
+**Cuidado conhecido na entrega:** as notificações desta conta vêm **OFF de fábrica**
+(`assigned_conversation_new_message` sem push/email), então lembrete que dependa só do
+`Notification` pode nunca ser visto. Por isso a nota privada na conversa é o canal primário, e a
+notificação é reforço — e por isso a escalada pro time existe.
+
+**Peças a reusar, não reinventar:** `snoozed_until` + `Conversations::ReopenSnoozedConversationsJob`
+(o "adiar" já existe e reabre sozinho) · o motor de compromisso do `FollowupJob` · o padrão de
+listener SPX.
 
 ## Aberto nesta frente
 

@@ -4,19 +4,47 @@ class Captain::InboxPendingConversationsResolutionJob < ApplicationJob # rubocop
 
   queue_as :low
 
+  # Um ciclo com BULK_ACTIONS_LIMIT conversas faz uma chamada de LLM por conversa e NAO cabe no
+  # intervalo do TriggerScheduledItemsJob, entao as execucoes se sobrepunham: 592 dossies para
+  # 543 conversas distintas, ~49 classificadas DUAS vezes porque a idempotencia do
+  # PendingClosureService perde a corrida. Hoje isso custa nota duplicada; com closing_notice
+  # configurado custaria DUAS despedidas ao mesmo cliente. O TTL cobre um ciclo folgado e
+  # auto-expira se o processo morrer antes do ensure (senao a inbox ficaria travada pra sempre).
+  SCAN_LOCK_TTL = 10.minutes
+
   def perform(inbox)
     return if inbox.account.captain_auto_resolve_disabled?
 
-    if evaluate_conversation_completion?(inbox.account)
-      perform_with_evaluation(inbox)
-    else
-      perform_time_based(inbox)
+    with_inbox_scan_lock(inbox) do
+      if evaluate_conversation_completion?(inbox.account)
+        perform_with_evaluation(inbox)
+      else
+        perform_time_based(inbox)
+      end
     end
   ensure
     Current.reset
   end
 
   private
+
+  # Ciclo sobreposto e PULADO, nao repetido: a execucao que esta com o lock ja cobre estas
+  # conversas, e levantar aqui so encheria o log de erro a cada rodada do cron.
+  def with_inbox_scan_lock(inbox)
+    key = format(::Redis::Alfred::CAPTAIN_CLOSURE_SCAN_MUTEX, inbox_id: inbox.id)
+    lock_manager = ::Redis::LockManager.new
+
+    unless lock_manager.lock(key, SCAN_LOCK_TTL)
+      Rails.logger.info("[Captain][closure] inbox #{inbox.id}: varredura ja em andamento, ciclo pulado")
+      return
+    end
+
+    begin
+      yield
+    ensure
+      lock_manager.unlock(key)
+    end
+  end
 
   def evaluate_conversation_completion?(account)
     # O classificador roda via make_api_call, que EXIGE captain_tasks (senão devolve
@@ -139,13 +167,35 @@ class Captain::InboxPendingConversationsResolutionJob < ApplicationJob # rubocop
     cutoff = auto_resolve_cutoff_time
     limit = Limits::BULK_ACTIONS_LIMIT
     pending = inbox.conversations.pending.where('last_activity_at < ?', cutoff)
-    return pending.limit(limit) unless closure_on
+    # Ordem explícita (mais parada primeiro): sem ORDER BY o Postgres é livre pra devolver as
+    # MESMAS linhas todo ciclo, então a fila do fundo nunca era alcançada.
+    return oldest_first(pending).limit(limit) unless closure_on
 
-    # Política ligada: também alcança as conversas OPEN da IA que ficaram paradas — a aba
-    # "IA" acumula ABERTAS, que o scan pending-only não tocaria.
+    oldest_first(inbox.conversations.where(id: closure_scan_ids(inbox, pending, cutoff)))
+  end
+
+  # Política ligada: além das pending, alcança as conversas OPEN da IA que ficaram paradas —
+  # a aba "IA" acumula ABERTAS, que o scan pending-only não tocaria.
+  def closure_scan_ids(inbox, pending, cutoff)
+    limit = Limits::BULK_ACTIONS_LIMIT
     open_ai = inbox.conversations.open.assigned_to_captain.where('last_activity_at < ?', cutoff)
-    ids = (pending.limit(limit).ids + open_ai.limit(limit).ids).uniq.first(limit)
-    inbox.conversations.where(id: ids)
+    (oldest_first(scannable(pending, inbox.account)).limit(limit).ids +
+     oldest_first(scannable(open_ai, inbox.account)).limit(limit).ids).uniq.first(limit)
+  end
+
+  def oldest_first(scope)
+    scope.order(last_activity_at: :asc)
+  end
+
+  # Conversa JÁ na fila de encerramento não tem o que fazer no scan: ela sai no branch 1 sem agir
+  # e ainda assim consome uma das BULK_ACTIONS_LIMIT vagas. Com a fila grande o lote inteiro vinha
+  # inútil e conversa NOVA nunca entrava — havia paradas há mais de 20h que nunca chegaram à fila.
+  # Ela só precisa voltar quando a válvula PODE fechá-la (max_dias > 0); com a válvula desligada
+  # (0 = hold indefinido, esperando humano) não volta nunca.
+  def scannable(scope, account)
+    return scope if closure_max_days(account).positive?
+
+    scope.where("conversations.custom_attributes->>'aguardando_encerramento_desde' IS NULL")
   end
 
   def still_resolvable_after_evaluation?(conversation, closure_on = false) # rubocop:disable Metrics/CyclomaticComplexity, Style/OptionalBooleanParameter
