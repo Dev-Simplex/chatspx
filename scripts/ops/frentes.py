@@ -6,6 +6,10 @@ o ÚLTIMO RESULTADO que ela reportou (lido direto da transcrição em disco, sem
 depender de a sessão escrever handoff nem de alguém colar no chat) e o ESTADO
 DO GIT dela (commits fora da homologação, se está pushada, se está deployada).
 
+Descobre as sessões a partir de `git worktree list`, não de uma pasta fixa:
+o Orca cria worktrees em `orca/workspaces/` com branch `PauloSeze/<slug>`, e
+elas ficavam invisíveis quando o painel só olhava `chatspx-frentes/`.
+
 Por que ler a transcrição: a convenção `docs/handoffs/spx-<frente>.md` existe
 mas só metade das frentes adota, e handoff é escrito no fim — some quando a
 sessão morre no meio. A transcrição está sempre lá.
@@ -27,18 +31,42 @@ if hasattr(sys.stdout, "reconfigure"):
     sys.stdout.reconfigure(encoding="utf-8", errors="replace")
 
 PROJETOS = os.path.join(os.path.expanduser("~"), ".claude", "projects")
-PREFIXO = "C--Users-paulo-Workspaces-chatspx-frentes-"
 REPO = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", ".."))
 LIMITE = int(sys.argv[1]) if len(sys.argv) > 1 else 600
+BASE = "origin/homologacao"
 
 
 def git(*args):
     try:
         out = subprocess.run(["git", "-C", REPO] + list(args), capture_output=True,
-                             text=True, encoding="utf-8", errors="replace", timeout=30)
+                             text=True, encoding="utf-8", errors="replace", timeout=60)
         return out.stdout.strip() if out.returncode == 0 else ""
     except (OSError, subprocess.SubprocessError):
         return ""
+
+
+def worktrees():
+    """[(caminho, branch)] de `git worktree list`, sem a integradora."""
+    saida = []
+    caminho = branch = None
+    for linha in git("worktree", "list", "--porcelain").splitlines():
+        if linha.startswith("worktree "):
+            caminho = linha[9:].strip()
+        elif linha.startswith("branch "):
+            branch = linha[7:].strip().replace("refs/heads/", "")
+        elif not linha.strip() and caminho:
+            if os.path.normpath(caminho) != os.path.normpath(REPO):
+                saida.append((caminho, branch))
+            caminho = branch = None
+    if caminho and os.path.normpath(caminho) != os.path.normpath(REPO):
+        saida.append((caminho, branch))
+    return saida
+
+
+def pasta_transcricao(caminho_worktree):
+    """O Claude Code codifica o cwd trocando ':' e barra por '-'."""
+    p = caminho_worktree.replace("\\", "/")
+    return os.path.join(PROJETOS, p.replace(":", "-").replace("/", "-"))
 
 
 def ultimo_user(caminho):
@@ -95,23 +123,20 @@ def humano(ts):
         return ts[:16]
 
 
-def estado_git(frente):
-    """Onde a frente está em relação à homologação, ao origin e ao que está no ar."""
-    br = "spx/" + frente
-    if not git("rev-parse", "--verify", "--quiet", br):
-        return "branch não existe localmente"
-    fora = git("rev-list", "--count", "origin/homologacao.." + br) or "?"
-    naop = git("rev-list", "--count", "origin/" + br + ".." + br) or "0"
-    partes = ["%s commits fora da homologação" % fora]
-    if naop != "0":
-        partes.append("⚠ %s NÃO pushado" % naop)
+def estado_git(branch):
+    """Onde a branch está: fora da homologação, pushada, e já na produção."""
+    if not branch:
+        return "detached"
+    fora = git("rev-list", "--count", "%s..%s" % (BASE, branch)) or "?"
+    partes = ["%s fora da hml" % fora]
+    if git("rev-parse", "--verify", "--quiet", "origin/" + branch):
+        nao = git("rev-list", "--count", "origin/%s..%s" % (branch, branch)) or "0"
+        partes.append("pushada" if nao == "0" else "⚠ %s NÃO pushado" % nao)
     else:
-        partes.append("pushado")
-    # deployado = ancestral do que a produção aponta
-    if fora != "0" and fora != "?":
-        head = git("rev-parse", br)
-        anc = subprocess.run(["git", "-C", REPO, "merge-base", "--is-ancestor", head, "origin/producao"],
-                             capture_output=True)
+        partes.append("⚠ SEM remoto")
+    if fora not in ("0", "?"):
+        anc = subprocess.run(["git", "-C", REPO, "merge-base", "--is-ancestor",
+                              git("rev-parse", branch), "origin/producao"], capture_output=True)
         partes.append("na produção" if anc.returncode == 0 else "não deployado")
     return " · ".join(partes)
 
@@ -119,16 +144,23 @@ def estado_git(frente):
 agora = datetime.datetime.now(datetime.timezone.utc)
 git("fetch", "origin", "--quiet")
 
-for pasta in sorted(glob.glob(os.path.join(PROJETOS, PREFIXO + "*"))):
-    frente = os.path.basename(pasta)[len(PREFIXO):]
+for caminho, branch in sorted(worktrees(), key=lambda x: x[0]):
+    nome = os.path.basename(caminho.rstrip("/\\"))
+    pasta = pasta_transcricao(caminho)
     arquivos = glob.glob(os.path.join(pasta, "*.jsonl"))
+    onde = "orca" if "orca" in caminho.replace("\\", "/").lower() else "local"
+
+    print("=" * 78)
     if not arquivos:
+        print("%-13s %-9s %-30s (sem sessão)" % (nome.upper(), onde, branch or "-"))
+        print()
         continue
+
     recente = max(arquivos, key=os.path.getmtime)
     res = ultimo_texto(recente)
 
     # Idade pela ÚLTIMA FALA, não pelo mtime: o arquivo é tocado por atividade que não
-    # produz texto (tool call, retomada), e aí uma sessão morta há dias aparecia "ATIVA".
+    # produz texto, e aí uma sessão morta há dias aparecia "ATIVA".
     idade = None
     if res and res[1]:
         try:
@@ -139,21 +171,18 @@ for pasta in sorted(glob.glob(os.path.join(PROJETOS, PREFIXO + "*"))):
     if idade is None:
         idade = (agora - datetime.datetime.fromtimestamp(
             os.path.getmtime(recente), datetime.timezone.utc)).total_seconds() / 3600.0
-    marca = "🟢 ATIVA" if idade < 0.5 else ("🟡 %.0fh parada" % idade if idade < 24
-                                            else "⚪ %.0fd parada" % (idade / 24))
+    marca = "🟢 ATIVA" if idade < 0.5 else ("🟡 %.0fh" % idade if idade < 24 else "⚪ %.0fd" % (idade / 24))
 
-    print("=" * 78)
-    print("%-11s %-14s %s" % (frente.upper(), marca, estado_git(frente)))
+    print("%-13s %-9s %-30s %s" % (nome.upper(), onde, branch or "-", marca))
+    print("   %s" % estado_git(branch))
     if not res:
-        print("  (sem fala do assistente nesta sessão)")
+        print("   (sem fala do assistente)")
         print()
         continue
     texto, ts = res
     tu = ultimo_user(recente)
-    aviso = ""
-    if tu and ts and tu > ts:
-        aviso = "   ⏳ pediram algo depois — sessão trabalhando ou travada"
-    print("você falou: %s   ·   relato dela: %s%s" % (humano(tu), humano(ts), aviso))
+    aviso = "   ⏳ pediram algo depois — trabalhando ou travada" if (tu and ts and tu > ts) else ""
+    print("   você: %s   ·   ela: %s%s" % (humano(tu), humano(ts), aviso))
     if LIMITE > 0:
         print("-" * 78)
         print(texto if len(texto) <= LIMITE
