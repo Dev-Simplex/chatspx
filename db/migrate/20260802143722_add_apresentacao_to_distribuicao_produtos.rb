@@ -16,6 +16,15 @@
 # as frentes escolhem hora redonda — 120000, 130000, 120100. Segundo real não colide.
 class AddApresentacaoToDistribuicaoProdutos < ActiveRecord::Migration[7.1]
   def change
-    add_column :distribuicao_produtos, :apresentacao, :jsonb, null: false, default: {}
+    # `if_not_exists` NÃO é cargo cult: antes de a divisão de responsabilidade ficar clara, a
+    # frente spx/followup chegou a aplicar esta MESMA coluna no banco de teste da .232 e depois
+    # removeu. Se a remoção não pegou, `add_column` puro aborta com "column already exists" e
+    # derruba o lote inteiro de migrations do deploy — custo alto pra um resíduo conhecido.
+    #
+    # ⚠️ Efeito colateral aceito: se a coluna tiver sobrado com definição DIFERENTE (sem
+    # `null: false` ou sem default), esta migration a aceita em silêncio. É tolerável porque os
+    # leitores do model tratam nil (`(apresentacao || {})`); mas se o resíduo aparecer, confira
+    # a definição antes de popular.
+    add_column :distribuicao_produtos, :apresentacao, :jsonb, null: false, default: {}, if_not_exists: true
   end
 end
