@@ -3,11 +3,15 @@
 class FunnelItems::MoveService
   attr_reader :conversation, :funnel, :funnel_stage, :moved_by
 
-  def initialize(conversation:, funnel:, funnel_stage:, moved_by:)
+  # `broadcast: false` é para quem move em LOTE e emite um evento agregado no
+  # fim (Kanban::FunnelItemsBulkActions). Default true para não mexer em nenhuma
+  # das chamadas existentes (automação, SLA, backfill, drag simples).
+  def initialize(conversation:, funnel:, funnel_stage:, moved_by:, broadcast: true)
     @conversation = conversation
     @funnel = funnel
     @funnel_stage = funnel_stage
     @moved_by = moved_by
+    @broadcast = broadcast
   end
 
   def perform
@@ -35,7 +39,7 @@ class FunnelItems::MoveService
     update_conversation_status
 
     if stage_changed
-      broadcast_move(funnel_item)
+      broadcast_move(funnel_item) if @broadcast
       run_automations(funnel_item)
     end
 
@@ -59,17 +63,14 @@ class FunnelItems::MoveService
     Rails.logger.warn("FunnelItems::MoveService automations failed: #{e.message}")
   end
 
-  # Real-time (Fase 4): tell other open boards to relocate this card. Best-effort
-  # — a broadcast failure must never break the move itself.
+  # Kanban tempo real: avisa os outros boards abertos para relocar (ou inserir)
+  # este card. Best-effort — o rescue e o kill switch moram no Kanban::Realtime.
   def broadcast_move(funnel_item)
-    Rails.configuration.dispatcher.dispatch(
+    Kanban::Realtime.dispatch(
       Events::Types::FUNNEL_ITEM_MOVED,
-      Time.zone.now,
       funnel_item: funnel_item,
       moved_by: moved_by
     )
-  rescue StandardError => e
-    Rails.logger.warn("FunnelItems::MoveService broadcast failed: #{e.message}")
   end
 
   def update_conversation_status

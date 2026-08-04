@@ -31,5 +31,25 @@ class FunnelItems::ReorderService
         scope.where(id: item_id).update_all(position: index + 1) # rubocop:disable Rails/SkipsModelValidations
       end
     end
+
+    broadcast_reorder(ordered_ids)
+  end
+
+  private
+
+  # Tempo real (Fase 3): a ordem manual dentro da coluna também é arraste, e o
+  # usuário não distingue "mudou de coluna" de "mudou de ordem" — só um dos dois
+  # funcionar ao vivo parece bug. Vai DEPOIS da transação (nada de publicar uma
+  # ordem que ainda pode dar rollback).
+  #
+  # `position` aqui é Integer 1-based, então o payload já é tipo JSON nativo —
+  # sem a cicatriz de BigDecimal do move.
+  def broadcast_reorder(ordered_ids)
+    Kanban::Realtime.dispatch(
+      Events::Types::FUNNEL_ITEMS_REORDERED,
+      funnel: funnel,
+      funnel_stage_id: funnel_stage_id,
+      positions: ordered_ids.each_with_index.map { |item_id, index| { id: item_id, position: index + 1 } }
+    )
   end
 end

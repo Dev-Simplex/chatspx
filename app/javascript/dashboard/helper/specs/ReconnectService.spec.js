@@ -5,6 +5,7 @@ import {
   isAConversationRoute,
   isAInboxViewRoute,
   isNotificationRoute,
+  isAKanbanRoute,
 } from 'dashboard/helper/routeHelpers';
 import ReconnectService from 'dashboard/helper/ReconnectService';
 
@@ -24,6 +25,7 @@ vi.mock('dashboard/helper/routeHelpers', () => ({
   isAConversationRoute: vi.fn(),
   isAInboxViewRoute: vi.fn(),
   isNotificationRoute: vi.fn(),
+  isAKanbanRoute: vi.fn(),
 }));
 
 const storeMock = {
@@ -32,6 +34,7 @@ const storeMock = {
     getAppliedConversationFiltersQuery: [],
     'customViews/getActiveConversationFolder': { query: {} },
     'notifications/getNotificationFilters': {},
+    'kanban/getActiveFunnelId': 7,
   },
 };
 
@@ -304,6 +307,49 @@ describe('ReconnectService', () => {
       const spy = vi.spyOn(reconnectService, 'fetchNotificationsOnReconnect');
       await reconnectService.handleRouteSpecificFetch();
       expect(spy).toHaveBeenCalled();
+    });
+
+    // Kanban tempo real (Fase 5.1): sem esta perna o board ficava desatualizado
+    // para sempre depois de qualquer queda de websocket.
+    it('should resync the kanban board if current route is a kanban route', async () => {
+      isAKanbanRoute.mockReturnValue(true);
+      const spy = vi.spyOn(reconnectService, 'fetchKanbanOnReconnect');
+      await reconnectService.handleRouteSpecificFetch();
+      expect(spy).toHaveBeenCalled();
+    });
+  });
+
+  describe('fetchKanbanOnReconnect', () => {
+    it('refetches stages and re-bootstraps the active view', async () => {
+      await reconnectService.fetchKanbanOnReconnect();
+
+      expect(storeMock.dispatch).toHaveBeenCalledWith(
+        'kanban/fetchFunnelStages',
+        7
+      );
+      expect(storeMock.dispatch).toHaveBeenCalledWith('kanban/bootstrapView', {
+        funnelId: 7,
+        force: true,
+      });
+    });
+
+    it('debounces a flapping socket into a single resync', async () => {
+      await reconnectService.fetchKanbanOnReconnect();
+      const callsAfterFirst = storeMock.dispatch.mock.calls.length;
+
+      await reconnectService.fetchKanbanOnReconnect();
+
+      expect(storeMock.dispatch.mock.calls.length).toBe(callsAfterFirst);
+    });
+
+    it('does nothing without an active funnel', async () => {
+      storeMock.getters['kanban/getActiveFunnelId'] = null;
+      await reconnectService.fetchKanbanOnReconnect();
+      expect(storeMock.dispatch).not.toHaveBeenCalledWith(
+        'kanban/fetchFunnelStages',
+        expect.anything()
+      );
+      storeMock.getters['kanban/getActiveFunnelId'] = 7;
     });
   });
 

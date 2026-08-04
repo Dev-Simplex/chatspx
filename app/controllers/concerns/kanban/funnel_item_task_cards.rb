@@ -21,7 +21,7 @@ module Kanban::FunnelItemTaskCards
   end
 
   def create_task_card
-    funnel.funnel_items.create!(
+    card = funnel.funnel_items.create!(
       funnel_stage: funnel_stage,
       title: task_title,
       description: params[:description] || params.dig(:funnel_item, :description),
@@ -31,6 +31,13 @@ module Kanban::FunnelItemTaskCards
       # Topo da coluna com position única (fractional indexing), em vez do default 0.
       position: FunnelItem.top_position_for(funnel_stage.id)
     )
+
+    # Tempo real (Fase 2.1): cartão de TAREFA é o único create que precisa de
+    # evento próprio. Card de conversa nasce pelo MoveService, que já dispara
+    # `funnel_item.moved` na primeira colocação — e o receptor insere a partir
+    # dele. Não duplique: disparar os dois faria o card entrar duas vezes.
+    Kanban::Realtime.dispatch(Events::Types::FUNNEL_ITEM_CREATED, funnel_item: card)
+    card
   end
 
   # Atualiza campos do cartão de tarefa (mover de etapa e/ou editar conteúdo).

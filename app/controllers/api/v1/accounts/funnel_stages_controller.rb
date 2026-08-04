@@ -23,6 +23,7 @@ class Api::V1::Accounts::FunnelStagesController < Api::V1::Accounts::BaseControl
     @funnel_stage = funnel.funnel_stages.build(funnel_stage_params)
     authorize(@funnel_stage)
     @funnel_stage.save!
+    broadcast_stages_changed
     render 'api/v1/accounts/funnels/funnel_stages/create', formats: [:json], status: :created
   rescue Pundit::NotAuthorizedError
     render json: { error: 'Not authorized' }, status: :forbidden
@@ -32,15 +33,24 @@ class Api::V1::Accounts::FunnelStagesController < Api::V1::Accounts::BaseControl
 
   def update
     @funnel_stage.update!(funnel_stage_params)
+    broadcast_stages_changed
     render 'api/v1/accounts/funnels/funnel_stages/update', formats: [:json]
   end
 
   def destroy
     @funnel_stage.destroy!
+    broadcast_stages_changed
     head :ok
   end
 
   private
+
+  # Tempo real (Fase 4): um evento só, com a lista completa e ordenada montada
+  # pelo listener. Antes, criar/renomear/recolorir/apagar coluna exigia F5 — e o
+  # caso "A apaga a coluna, B arrasta card para ela" dava 404 sem explicação.
+  def broadcast_stages_changed
+    Kanban::Realtime.dispatch(Events::Types::FUNNEL_STAGES_CHANGED, funnel: funnel)
+  end
 
   def funnel
     return @funnel if defined?(@funnel)

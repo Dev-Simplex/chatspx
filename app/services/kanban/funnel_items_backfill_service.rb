@@ -53,7 +53,13 @@ class Kanban::FunnelItemsBackfillService
     inbox_ids = normalize_inbox_ids(funnel.inbox_ids)
     relation = relation.where(inbox_id: inbox_ids) if inbox_ids.any?
 
-    existing_conversation_ids = FunnelItem.where(funnel_id: funnel.id).select(:conversation_id)
+    # `where.not(conversation_id: nil)` na subquery é obrigatório: cartão de
+    # TAREFA tem `conversation_id` NULO, e em SQL `id NOT IN (1, 2, NULL)` nunca
+    # é verdadeiro — bastava UM cartão de tarefa no funil para o backfill parar
+    # de achar candidatas e nenhuma conversa nova entrar mais no board.
+    existing_conversation_ids = FunnelItem.where(funnel_id: funnel.id)
+                                          .where.not(conversation_id: nil)
+                                          .select(:conversation_id)
     relation.where.not(id: existing_conversation_ids).limit(max_items)
   end
 

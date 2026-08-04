@@ -42,6 +42,11 @@ class ActionCableConnector extends BaseActionCableConnector {
       'account.cache_invalidated': this.onCacheInvalidate,
       'copilot.message.created': this.onCopilotMessageCreated,
       'funnel_item.moved': this.onFunnelItemMoved,
+      'funnel_item.created': this.onFunnelItemCreated,
+      'funnel_item.deleted': this.onFunnelItemDeleted,
+      'funnel_items.bulk_moved': this.onFunnelItemsBulkMoved,
+      'funnel_items.reordered': this.onFunnelItemsReordered,
+      'funnel_stages.changed': this.onFunnelStagesChanged,
       'takeover_request.created': this.onTakeoverRequestChanged,
       'takeover_request.updated': this.onTakeoverRequestChanged,
       'internal.message.created': this.onInternalMessageCreated,
@@ -53,10 +58,33 @@ class ActionCableConnector extends BaseActionCableConnector {
     };
   }
 
-  // Kanban v2 (Fase 4): another user moved a card to a different stage — relocate
-  // it live. Best-effort; the store action no-ops if the item isn't loaded.
+  // Kanban tempo real: outro usuário mexeu no board. As actions são
+  // best-effort e se protegem sozinhas (funil errado, eco da própria ação,
+  // payload incompleto) — ver store/modules/kanban/actions.js.
   onFunnelItemMoved = data => {
     this.app.$store.dispatch('kanban/applyRemoteMove', data);
+  };
+
+  // Só cartão de TAREFA: card de conversa entra pelo `funnel_item.moved`.
+  onFunnelItemCreated = data => {
+    this.app.$store.dispatch('kanban/applyRemoteCreate', data);
+  };
+
+  onFunnelItemDeleted = data => {
+    this.app.$store.dispatch('kanban/applyRemoteDelete', data);
+  };
+
+  onFunnelItemsBulkMoved = data => {
+    this.app.$store.dispatch('kanban/applyRemoteBulk', data);
+  };
+
+  onFunnelItemsReordered = data => {
+    this.app.$store.dispatch('kanban/applyRemoteReorder', data);
+  };
+
+  // Lista completa e ordenada das colunas — um evento para todo o CRUD.
+  onFunnelStagesChanged = data => {
+    this.app.$store.dispatch('kanban/applyRemoteStages', data);
   };
 
   // D1 (Fase 3): pedido de atendimento criado/respondido. Um evento, dois papéis

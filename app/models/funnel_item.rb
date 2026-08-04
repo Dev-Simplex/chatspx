@@ -59,25 +59,108 @@ class FunnelItem < ApplicationRecord
     min.nil? ? 1 : min - 1
   end
 
-  # Minimal payload broadcast on a real-time move (Kanban v2 / Fase 4). The
-  # receiving client relocates the item it already holds, so only ids + the
-  # new stage + moved_at (for conflict resolution) are needed.
-  def push_event_data
+  # Payload dos eventos de tempo real do board (Kanban tempo real / Fase 1).
+  #
+  # Antes só carregava ids + stage + moved_at, o que bastava para RELOCAR um card
+  # que o receptor já tinha. Só que o receptor frequentemente NÃO tem o card
+  # (paginação por cursor, coluna não carregada, filtro), e aí o evento era
+  # descartado e só o F5 resolvia. Agora o payload traz o suficiente para o front
+  # DESENHAR o card do zero.
+  #
+  # ⚠️ MANTENHA EM SINCRONIA com `app/views/api/v1/models/_funnel_item.json.jbuilder`
+  # (o serializer do GET /funnel_items). São dois caminhos para o mesmo card no
+  # mesmo store do front; campo que só existe num dos dois vira card "meio
+  # desenhado" dependendo de como ele chegou na tela. O spec
+  # `spec/models/funnel_item_push_event_data_spec.rb` trava os dois juntos.
+  #
+  # Diferença deliberada: `last_message` fica FORA. O listener é síncrono (roda
+  # dentro do request do arraste) e a última mensagem exigiria mais uma query no
+  # caminho quente. O card remoto recém-inserido nasce sem prévia de texto e
+  # ganha uma no próximo `message.created` (já tratado por
+  # `syncConversationFromRealtime`).
+  #
+  # `label_colors`: mapa `{ "titulo em minúsculas" => "#cor" }` montado UMA vez
+  # pelo listener (com cache), para não fazer N+1 de Label aqui dentro.
+  def push_event_data(label_colors: {})
     {
       id: id,
       funnel_id: funnel_id,
       funnel_stage_id: funnel_stage_id,
       conversation_id: conversation_id,
-      moved_at: moved_at,
+      # iso8601 em tudo que é tempo: o payload vira args de Sidekiq
+      # (ActionCableBroadcastJob) e String é tipo JSON nativo, sem depender da
+      # serialização de Time do ActiveJob.
+      moved_at: moved_at&.iso8601,
       moved_by_id: moved_by_id,
+      created_at: created_at&.iso8601,
+      updated_at: updated_at&.iso8601,
       # to_f: position é decimal (BigDecimal). O broadcast vira args de Sidekiq
       # (ActionCableBroadcastJob), que sob strict_args rejeita BigDecimal — Float
       # é tipo JSON nativo e tem precisão de sobra p/ ordenar no client.
-      position: position&.to_f
+      position: position&.to_f,
+      is_task: task?,
+      title: title,
+      description: description,
+      assignee_id: assignee_id,
+      assignee: assignee_push_event_data,
+      conversation: conversation_push_event_data(label_colors)
     }
   end
 
   private
+
+  def assignee_push_event_data
+    return if assignee.blank?
+
+    { id: assignee.id, name: assignee.name, thumbnail: assignee.avatar_url }
+  end
+
+  def conversation_push_event_data(label_colors)
+    return if conversation.blank?
+
+    conversation_core_push_event_data.merge(
+      custom_attributes: funnel_scoped_custom_attributes,
+      labels: labels_push_event_data(label_colors),
+      contact: contact_push_event_data
+    )
+  end
+
+  def conversation_core_push_event_data
+    conv = conversation
+    {
+      id: conv.id,
+      display_id: conv.display_id,
+      status: conv.status,
+      priority: conv.priority,
+      contact_id: conv.contact_id,
+      inbox_id: conv.inbox_id,
+      account_id: conv.account_id,
+      assignee_id: conv.assignee_id,
+      last_activity_at: conv.last_activity_at&.iso8601,
+      waiting_since: conv.waiting_since&.iso8601
+    }
+  end
+
+  def contact_push_event_data
+    contact = conversation&.contact
+    return if contact.blank?
+
+    { id: contact.id, name: contact.name, phone_number: contact.phone_number, thumbnail: contact.avatar_url }
+  end
+
+  # Só os campos customizados DESTE funil (mesmo recorte do partial jbuilder).
+  def funnel_scoped_custom_attributes
+    (conversation.custom_attributes || {}).select { |key, _| key.to_s.start_with?("funnel_#{funnel_id}_") }
+  end
+
+  # Cor default #94a3b8 igual ao partial quando o título não está no mapa.
+  def labels_push_event_data(label_colors)
+    titles = conversation.cached_label_list_array
+    return [] if titles.blank?
+
+    lookup = label_colors || {}
+    titles.map { |title| { title: title, color: lookup[title.to_s.downcase] || '#94a3b8' } }
+  end
 
   def set_moved_at
     self.moved_at = Time.current

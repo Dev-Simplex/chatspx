@@ -658,4 +658,20 @@ export const mutations = {
       ? inboxes.map(inbox => camelcaseKeys(inbox, { deep: true }))
       : [];
   },
+
+  // Kanban tempo real (Fase 5.2): marca o card que mudou por ação de outra
+  // pessoa, para o KanbanCard piscar e dizer quem foi.
+  [types.SET_REMOTE_ACTIVITY]($state, { itemId, name, automated }) {
+    if (!itemId) return;
+    $state.remoteActivity = {
+      ...$state.remoteActivity,
+      [itemId]: { name: name || null, automated: Boolean(automated) },
+    };
+  },
+
+  [types.CLEAR_REMOTE_ACTIVITY]($state, itemId) {
+    if (!$state.remoteActivity?.[itemId]) return;
+    const { [itemId]: _removed, ...rest } = $state.remoteActivity;
+    $state.remoteActivity = rest;
+  },
 };

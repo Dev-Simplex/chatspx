@@ -197,4 +197,9 @@ export const getters = {
   getWahaInboxes($state) {
     return $state.wahaInboxes;
   },
+
+  // Kanban tempo real (Fase 5.2): `{ name, automated }` do card que acabou de
+  // mudar por ação remota, ou null.
+  getRemoteActivity: $state => itemId =>
+    $state.remoteActivity?.[itemId] || null,
 };
