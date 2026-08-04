@@ -14,24 +14,51 @@ class Captain::Tools::BuscarEmpreendimentoTool < Captain::Tools::BasePublicTool
   DETAIL_FIELDS = %w[Codigo Empreendimento DataEntrega Situacao Bairro Cidade DescricaoWeb DescricaoEmpreendimento AnoConstrucao].freeze
   META_KEYS = %w[total paginas pagina quantidade].freeze
 
-  def perform(_tool_context, nome: nil)
-    if nome.to_s.strip.present?
-      emps = fetch(BASE_FILTER.merge('Empreendimento' => ['like', "%#{nome.strip}%"]), DETAIL_FIELDS)
-      return "Não achei empreendimento com \"#{nome}\" no cadastro." if emps.blank?
-
-      emps.first(3).map { |e| format_detail(e) }.join("\n\n")
-    else
-      emps = fetch(BASE_FILTER, LIST_FIELDS)
-      return 'Nenhum empreendimento cadastrado.' if emps.blank?
-
-      "Empreendimentos da Tozi:\n" + emps.map { |e| "- #{e['Empreendimento']} (#{e['Bairro']}, #{e['Cidade']}) — #{fase(e)}" }.join("\n")
-    end
+  def perform(tool_context, nome: nil)
+    buscado = nome.to_s.strip
+    buscado.present? ? detalhe(tool_context, buscado) : lista(tool_context)
   rescue StandardError => e
     Rails.logger.warn("[BuscarEmpreendimento] #{e.message}")
     'Não consegui consultar os empreendimentos agora.'
   end
 
   private
+
+  def detalhe(tool_context, nome)
+    emps = fetch(BASE_FILTER.merge('Empreendimento' => ['like', "%#{nome}%"]), DETAIL_FIELDS)
+    return "Não achei empreendimento com \"#{nome}\" no cadastro." if emps.blank?
+
+    achados = emps.first(3)
+    track_codigos(tool_context, achados)
+    achados.map { |e| format_detail(e) }.join("\n\n")
+  end
+
+  def lista(tool_context)
+    emps = fetch(BASE_FILTER, LIST_FIELDS)
+    return 'Nenhum empreendimento cadastrado.' if emps.blank?
+
+    track_codigos(tool_context, emps)
+    "Empreendimentos da Tozi:\n" + emps.map { |e| "- #{e['Empreendimento']} (#{e['Bairro']}, #{e['Cidade']}) — #{fase(e)}" }.join("\n")
+  end
+
+  # Empreendimento também é registro do Vista e tem foto no mesmo campo dos imóveis,
+  # então enviar_fotos_imovel funciona com o código dele. Mas ela só envia código que
+  # apareceu numa busca DESTA conversa (trava anti-alucinação, em codigos_buscados) —
+  # e quem preenchia isso era só a buscar_imovel. Sem registrar aqui, apresentar
+  # empreendimento com foto falhava justamente nas conversas que já tinham buscado
+  # imóvel antes.
+  def track_codigos(tool_context, emps)
+    conv = find_conversation(tool_context&.state)
+    return unless conv
+
+    novos = Array(emps).filter_map { |e| e['Codigo'].to_s.presence }
+    return if novos.empty?
+
+    vistos = Array(conv.custom_attributes['codigos_buscados']).map(&:to_s)
+    conv.update!(custom_attributes: conv.custom_attributes.merge('codigos_buscados' => (vistos + novos).uniq.last(40)))
+  rescue StandardError => e
+    Rails.logger.warn("[BuscarEmpreendimento] track_codigos: #{e.message}")
+  end
 
   def fetch(filter, fields)
     # O Vista limita a 50 resultados por página (o cadastro de empreendimentos cabe nisso).

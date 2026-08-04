@@ -161,6 +161,23 @@ const condutaRows = computed(() => {
 
 const campanhas = computed(() => desfechos.value.campanhas || []);
 
+// Metade do que o eval mede não é IA: no dado real da conta 6, 248 dos 342
+// atendimentos assumidos foram só-humano. Sem separar isso na tela, a gestão
+// atribui à IA resultado que é de gente.
+const atendimentoPct = computed(() => {
+  const { com_ia: comIa = 0, so_humano: soHumano = 0, total = 0 } =
+    desfechos.value.atendimento || {};
+  if (!total) return { comIa: 0, soHumano: 0, total: 0, pctIa: 0, pctHumano: 0 };
+  const pctIa = Math.round((comIa / total) * 100);
+  return {
+    comIa,
+    soHumano,
+    total,
+    pctIa: Math.max(pctIa, 2),
+    pctHumano: Math.max(100 - pctIa, 2),
+  };
+});
+
 const notaClass = value => {
   if (value === null || value === undefined) return 'bg-n-slate-7';
   if (value >= 9) return 'bg-n-teal-9';
@@ -288,6 +305,37 @@ const openConversation = displayId => {
           </span>
         </div>
 
+        <!-- Quem conduziu o atendimento. Fica ANTES da escada de propósito: sem
+             este split, a gestão lê a conversão como se fosse toda da IA. -->
+        <div v-if="atendimentoPct.total" class="mb-5">
+          <div class="flex flex-wrap gap-x-2 gap-y-1 justify-between items-baseline mb-1.5">
+            <span class="text-[12.5px] font-semibold text-n-slate-12">
+              {{ t('AGENTS_EVALUATION.SECTION_ATENDIMENTO') }}
+            </span>
+            <span class="text-[12.5px] text-n-slate-10">
+              {{ t('AGENTS_EVALUATION.ATENDIMENTO_HINT') }}
+            </span>
+          </div>
+          <div
+            class="flex overflow-hidden h-7 text-[11.5px] font-semibold text-white rounded-lg"
+          >
+            <div
+              class="flex justify-center items-center bg-n-blue-9"
+              :style="{ width: `${atendimentoPct.pctIa}%` }"
+            >
+              {{ t('AGENTS_EVALUATION.ATENDIMENTO_COM_IA') }} ·
+              {{ atendimentoPct.comIa }}
+            </div>
+            <div
+              class="flex justify-center items-center bg-n-slate-9"
+              :style="{ width: `${atendimentoPct.pctHumano}%` }"
+            >
+              {{ t('AGENTS_EVALUATION.ATENDIMENTO_SO_HUMANO') }} ·
+              {{ atendimentoPct.soHumano }}
+            </div>
+          </div>
+        </div>
+
         <div class="space-y-2.5">
           <div
             v-for="bar in escadaBars"
@@ -326,8 +374,11 @@ const openConversation = displayId => {
           <h3 class="text-xs font-bold tracking-wide uppercase text-n-slate-11">
             {{ t('AGENTS_EVALUATION.SECTION_CONDUTA') }}
           </h3>
-          <p class="mt-1 mb-3 text-[12.5px] text-n-slate-10">
+          <p class="mt-1 text-[12.5px] text-n-slate-10">
             {{ t('AGENTS_EVALUATION.CONDUTA_HINT') }}
+          </p>
+          <p class="mb-3 text-[12.5px] text-n-slate-10">
+            {{ t('AGENTS_EVALUATION.CONDUTA_HINT_TURNOS') }}
           </p>
           <div class="overflow-x-auto">
             <table class="w-full text-[12.5px]">

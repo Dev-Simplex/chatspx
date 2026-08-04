@@ -218,6 +218,7 @@ class Api::V1::Accounts::Captain::EvalDashboardController < Api::V1::Accounts::B
       conduta: { converteu: conduta(fechados.where(id: convertidos)),
                  nao_converteu: conduta(fechados.where.not(id: convertidos)) },
       campanhas: campanhas_conduta(fechados, convertidos),
+      atendimento: atendimento_split(outcomes),
       # 🔒 contagem à parte, NUNCA somada à conversão (ver o scope do_spx no model)
       externos: outcomes.externos.count
     }
@@ -225,8 +226,18 @@ class Api::V1::Accounts::Captain::EvalDashboardController < Api::V1::Accounts::B
     {}
   end
 
+  # Corte B: o scope `conversao` já aplica do_spx e o qualificador de 'assumido'.
   def convertidos_scope(outcomes)
-    outcomes.do_spx.where(degrau: Captain::EpisodeOutcome::DEGRAUS_CONVERSAO).select(:episode_id)
+    outcomes.conversao.select(:episode_id)
+  end
+
+  # ⚠️ O corte mais importante da tela: METADE DO QUE O EVAL MEDE NÃO É IA. No dry-run
+  # da conta 6, 248 dos 342 atendimentos assumidos foram conduzidos só por humanos. Sem
+  # separar isso visualmente, a gestão atribui à IA resultado que é de gente.
+  def atendimento_split(outcomes)
+    com_ia = outcomes.do_spx.assumido_com_ia.count
+    so_humano = outcomes.do_spx.assumido_so_humano.count
+    { com_ia: com_ia, so_humano: so_humano, total: com_ia + so_humano }
   end
 
   # Cada degrau com o split de autoria — mesmo eixo do findings_stats.

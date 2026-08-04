@@ -1,8 +1,15 @@
 #!/bin/sh
 . "$(dirname "$0")/_/husky.sh"
 
-# lint js and vue files
-npx --no-install lint-staged
+# lint js and vue files — pula (barulhento) quando a toolchain JS nao esta instalada.
+# Worktree de frente nao tem node_modules e o npx nao acha o pacote subindo a arvore,
+# entao o hook travava TODO commit, ate de .md. Mesma forma da guarda do python3 abaixo:
+# ferramenta ausente vira aviso, nao erro. O audit de template Vue continua rodando.
+if npx --no-install lint-staged --version >/dev/null 2>&1; then
+  npx --no-install lint-staged
+else
+  echo "⚠  lint-staged indisponivel nesta worktree — lint de JS/Vue PULADO."
+fi
 
 # audit Vue templates for missing useMapGetter references (CHAT-SPX prevention)
 if command -v python3 >/dev/null 2>&1 && [ -f bin/check_vue_template_refs.py ]; then

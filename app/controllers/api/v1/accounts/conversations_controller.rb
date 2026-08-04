@@ -264,15 +264,28 @@ class Api::V1::Accounts::ConversationsController < Api::V1::Accounts::BaseContro
   end
 
   # `agent_last_seen_at` é global por conversa: quem abre limpa o "não lida" de
-  # TODO mundo. Numa conversa atribuída a um humano isso fazia observador
-  # (supervisor, outro corretor) apagar o marcador de quem era responsável, e
-  # atendimento passava batido. Regra: só o atribuído limpa.
+  # TODO mundo. Regra: **só o atribuído limpa lendo**. Quem abre uma conversa que
+  # não é dele — da IA ou de outra pessoa — deixa ela não-lida.
   #
-  # Sem atribuído — incluindo quando quem responde é a IA, que ocupa
-  # `assignee_agent_bot_id` e deixa `assignee_id` nulo — segue o comportamento
-  # padrão: quem abrir, leu.
+  # A exceção antiga (`assignee_id.blank?` liberava geral) partia da premissa de
+  # que "sem atribuído não há marcador de ninguém pra apagar". A premissa não se
+  # sustenta: medido na conta 6, são 574 conversas abertas sem `assignee_id`, e
+  # das 33 que aguardam humano, 32 não têm dono — 97%. A regra protegia o caso
+  # raro e deixava aberto o comum, que é justamente a fila do que falta atender.
+  # Sem dono, ninguém limpa lendo: fica não-lida até alguém assumir.
+  #
+  # ⚠️ Abrir a conversa e clicar em "marcar como lida" chamam o MESMO endpoint
+  # (`update_last_seen`). Gatear só por `assignee?` mataria os dois, e conversa
+  # sem dono nunca mais ficaria lida. Por isso o gate separa a INTENÇÃO, não o
+  # ator: leitura implícita (abrir) é gateada; o ato deliberado passa.
   def may_clear_unread_marker?
-    @conversation.assignee_id.blank? || assignee?
+    assignee? || explicit_mark_as_read?
+  end
+
+  # Marcado pelo frontend só na ação deliberada (botão "marcar como lida"), nunca
+  # ao abrir a conversa.
+  def explicit_mark_as_read?
+    ActiveModel::Type::Boolean.new.cast(params[:explicit])
   end
 
   # `authorize_team_access` e `team_access_exempt?` vêm do ConversationTeamAccessConcern.

@@ -2,6 +2,13 @@
 # abre Conversation em status pending (Captain dispara) e envia 1a mensagem
 # outgoing renderizada a partir do template Liquid do hook.
 #
+# ⚠️ O NAMESPACE MENTE, de propósito. Este serviço não é mais só do Meta: ele é a engine
+# de "lead de formulário" e atende também os leads do site (Webhooks::SiteLeadJob). Ele
+# sempre foi genérico — recebe `hook:` e `lead:`, e tudo que é específico de uma origem
+# vive no job que chama, não aqui. Renomear para algo como LeadIntake::* seria mais
+# honesto, mas move código que processa ~1.652 conversas/mês: risco sem retorno.
+# Ao mexer aqui, lembre que há mais de uma origem chamando.
+#
 # Flag de teste: `settings.skip_initial_message = true` cria a conversa mas
 # NÃO envia a 1ª mensagem outgoing. Útil enquanto valida o fluxo sem
 # incomodar leads reais.
@@ -13,6 +20,10 @@ module Meta
       # Espelhado aqui porque quem grava é este serviço: telefone reprovado tem que
       # virar nil ANTES do Contact, senão o RecordInvalid mata o job e o lead se perde.
       CONTACT_E164_FORMAT = /\+[1-9]\d{1,14}\z/
+      # Teto da jornada de navegação — ela entra no contexto do LLM a cada turno.
+      JORNADA_MAX_CHARS = 600
+      # `whatsapp_template_body_fields = none` declara template SEM variável no corpo.
+      NO_BODY_FIELDS = 'none'.freeze
 
       def initialize(hook:, lead:)
         @hook = hook
@@ -155,7 +166,8 @@ module Meta
           'meta_origem' => platform_label,
           'meta_tipo' => lead_tipo_label,
           'meta_imovel_codigo' => im && im[:codigo],
-          'meta_imovel' => im && im[:descricao]
+          'meta_imovel' => im && im[:descricao],
+          'jornada' => jornada
         }.compact
         return if attrs.empty?
 
@@ -168,6 +180,19 @@ module Meta
         conversation.add_labels((conversation.label_list + [slug]).uniq)
       rescue StandardError => e
         Rails.logger.warn("Meta Lead Ads: falha ao carimbar visibilidade conv=#{conversation.id}: #{e.class}: #{e.message}")
+      end
+
+      # O que a pessoa viu e curtiu antes de preencher o formulário (leads de site).
+      # É ESTADO — o caminho que ela percorreu — e por isso pode ir ao agente junto do
+      # resto dos custom_attributes, que chegam inteiros ao LLM a cada turno.
+      #
+      # ⚠️ NUNCA colocar aqui identidade de pessoa (nome de corretor/atendente) nem
+      # marcador de espera: a IA repassa ao cliente. Regra vinda de incidente — ver o
+      # vault, `aprendizados/captain-custom-attributes-chegam-ao-llm.md`.
+      #
+      # Truncado porque entra no contexto do modelo em TODA mensagem, não só na primeira.
+      def jornada
+        @lead[:jornada].to_s.strip.presence&.truncate(JORNADA_MAX_CHARS)
       end
 
       def platform_label
@@ -322,6 +347,10 @@ module Meta
         ).perform
       end
 
+      # O ramo "Lead Meta <telefone>" passou a ser alcançável quando o FetchLeadService
+      # devolve nil (campo nome com algo que não é nome). É deliberado NÃO passar nil
+      # aqui: o ContactInboxWithContactBuilder faz `name || Haikunator.haikunate`, então
+      # nome vazio viraria um apelido aleatório — pior que um marcador explícito.
       def contact_name(normalized_phone)
         return @lead[:full_name] if @lead[:full_name].present?
         return "Lead Meta #{normalized_phone}" if normalized_phone.present?
@@ -434,7 +463,7 @@ module Meta
 
       def create_imovel_opener(conversation)
         d = imovel_info
-        first = template_render_context['first_name'].presence || 'tudo bem'
+        first = first_name
         # {{2}} carrega a descrição + o código do imóvel, pra o lead/corretor referenciar o imóvel exato.
         imovel_txt = "#{d[:descricao]} (cód #{d[:codigo]})"
         Messages::MessageBuilder.new(
@@ -494,10 +523,17 @@ module Meta
       end
 
       # {{1}}, {{2}}, ... vêm de whatsapp_template_body_fields (campos do lead, em ordem;
-      # default first_name). Vazio → template sem variáveis de corpo.
+      # default first_name).
+      #
+      # `none` declara explicitamente um template SEM variável no corpo — o opener
+      # genérico, que só abre a porta. Precisa ser explícito porque o default é
+      # 'first_name': deixar o campo em branco mandaria {{1}} para um template que não
+      # tem variável, e a Meta responde #132000.
       def template_body_params
-        fields = (hook_setting('whatsapp_template_body_fields').presence || 'first_name')
-                 .to_s.split(',').map(&:strip).reject(&:blank?)
+        configured = hook_setting('whatsapp_template_body_fields').to_s.strip
+        return {} if configured.casecmp?(NO_BODY_FIELDS)
+
+        fields = (configured.presence || 'first_name').split(',').map(&:strip).reject(&:blank?)
         return {} if fields.empty?
 
         ctx = template_render_context
@@ -516,10 +552,20 @@ module Meta
         Liquid::Template.parse(template).render(template_render_context)
       end
 
+      # Saudação neutra quando o lead não trouxe nome confiável (o FetchLeadService
+      # devolve nil quando o campo veio com algo que não é nome). Sem isso a abertura
+      # renderizaria "Oi !" — e usar um nome errado é pior ainda: o lead lê como
+      # sistema quebrado. Mesmo fallback do opener de imóvel e do motor de disparo.
+      NEUTRAL_GREETING = 'tudo bem'.freeze
+
+      def first_name
+        @lead[:full_name].to_s.split.first.presence || NEUTRAL_GREETING
+      end
+
       def template_render_context
         {
           'full_name' => @lead[:full_name].to_s,
-          'first_name' => @lead[:full_name].to_s.split.first.to_s,
+          'first_name' => first_name,
           'ad_name' => @lead[:ad_name].to_s,
           'campaign_name' => @lead[:campaign_name].to_s,
           'city' => @lead[:city].to_s,

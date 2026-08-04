@@ -146,9 +146,11 @@ export default {
       return this.assignee?.type === 'agent_bot';
     },
 
-    // Espelha `may_clear_unread_marker?` do backend: em conversa com dono
-    // humano, só o dono limpa o "não lida". Sem dono (inclusive quando quem
-    // está no controle é a IA) qualquer um pode marcar como lida, como antes.
+    // Quem pode marcar como lida EXPLICITAMENTE (o botão). Não confundir com o
+    // gate de leitura implícita: abrir conversa que não é sua deixou de limpar o
+    // "não lida" (ver `may_clear_unread_marker?`). O botão segue disponível em
+    // conversa sem dono e da IA — é o único jeito de zerar essas — e em conversa
+    // com dono humano só pra ele.
     canMarkAsRead() {
       const assigneeId = this.assignee?.id;
       if (!assigneeId || this.isAIAssignee) return true;

@@ -138,8 +138,8 @@ namespace :spx do
     ].freeze
 
     desc 'Disparo em massa do lançamento: enfileira HSM espalhado em N min, round-robin corretores+templates. ' \
-         'Args: [csv_path, limit, dry_run, spread_min, template]. dry_run=true (default) só IMPRIME o plano.'
-    task :disparo, %i[csv_path limit dry_run spread_min template] => :environment do |_t, args|
+         'Args: [csv_path, limit, dry_run, spread_min, template, campaign_id]. dry_run=true (default) só IMPRIME o plano.'
+    task :disparo, %i[csv_path limit dry_run spread_min template campaign_id] => :environment do |_t, args|
       require 'csv'
 
       csv_path = args[:csv_path].to_s
@@ -149,6 +149,9 @@ namespace :spx do
       dry_run    = args[:dry_run].to_s.strip.downcase != 'false' # default TRUE (seguro)
       spread_min = args[:spread_min].present? ? Float(args[:spread_min]) : 120.0
       fixed_tmpl = args[:template].presence
+      campaign_id = args[:campaign_id].presence && Integer(args[:campaign_id])
+
+      raise "Campanha ##{campaign_id} não existe." if campaign_id && Campaign.where(id: campaign_id).none?
 
       if fixed_tmpl && DISPARO_TEMPLATES.exclude?(fixed_tmpl)
         raise "Template #{fixed_tmpl.inspect} desconhecido. Use um de: #{DISPARO_TEMPLATES.join(', ')}"
@@ -182,7 +185,8 @@ namespace :spx do
         next if dry_run
 
         Spx::Tozi::DisparoLeadJob.set(wait: delay.seconds).perform_later(
-          nome: lead[:nome], telefone: lead[:telefone], assignee_id: assignee, template: template
+          nome: lead[:nome], telefone: lead[:telefone], assignee_id: assignee,
+          template: template, campaign_id: campaign_id
         )
       end
 
@@ -193,6 +197,16 @@ namespace :spx do
       puts "audiência:        #{total} leads  (csv: #{File.basename(csv_path)})"
       puts "janela:           #{spread_min.round} min  (1 a cada ~#{step.round(1)}s)"
       puts "template:         #{fixed_tmpl || "rotação (#{DISPARO_TEMPLATES.size})"}"
+      puts "campanha:         #{campaign_id ? "##{campaign_id}" : 'NENHUMA'}"
+      if campaign_id.nil?
+        puts ''
+        puts '  ⚠  SEM campaign_id: as conversas nascem desvinculadas de campanha. Isso'
+        puts '     (a) deixa este disparo FORA de qualquer corte por campanha,'
+        puts '     (b) desarma a guarda que impede a IA de encerrar lead de campanha que'
+        puts '         ainda não respondeu (campaign_without_reply?), e'
+        puts '     (c) impede o roteamento da resposta pro dono do disparo.'
+        puts '     Crie/reuse uma Campaign âncora e passe o id no 6º argumento.'
+      end
       puts 'primeiro envio:   imediato (delay 0s)'
       puts "último envio:     ~#{(spread_seconds / 60).round} min após o start"
       puts "\n-- por corretor --"

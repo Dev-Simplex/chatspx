@@ -62,8 +62,14 @@ class Captain::OpenAiMessageBuilderService
   end
 
   def attachment_parts(attachments)
-    image_attachments = attachments.where(file_type: :image)
-    image_content = image_parts(image_attachments)
+    # Reply a story do Instagram chega com file_type :ig_story (enum próprio, NÃO :image) e o
+    # arquivo já baixado pelo builder do canal (`create_story_reply_attachment`). Sem tratar
+    # aqui, o story caía no balde genérico e o agente recebia só "User has shared an
+    # attachment" — cego justamente ao que o cliente estava respondendo. Story em VÍDEO fica
+    # de fora (o Captain ainda não lê vídeo) e segue como nota de texto.
+    story_images, story_others = attachments.where(file_type: :ig_story).partition { |a| image_attachment?(a) }
+
+    image_content = image_parts(attachments.where(file_type: :image) + story_images)
 
     transcription = extract_audio_transcriptions(attachments)
     transcription_part = text_part(transcription) if transcription.present?
@@ -73,7 +79,7 @@ class Captain::OpenAiMessageBuilderService
 
     # PDF (ex.: holerite) vai como documento pro LLM ler; os demais anexos não-lidos
     # (docx, xlsx, zip...) seguem como nota de texto — o Claude só lê imagem e PDF.
-    others = attachments.where.not(file_type: %i[image audio location]).to_a
+    others = attachments.where.not(file_type: %i[image audio location ig_story]).to_a + story_others
     pdf_content = others.select { |a| pdf_attachment?(a) }.filter_map { |a| (u = get_attachment_url(a)) && file_part(u) }
     attachment_part = text_part('User has shared an attachment') if others.any? { |a| !pdf_attachment?(a) }
 
@@ -90,6 +96,15 @@ class Captain::OpenAiMessageBuilderService
     return true if attachment.file.attached? && attachment.file.blob.content_type.to_s == 'application/pdf'
 
     get_attachment_url(attachment).to_s.split('?').first.to_s.downcase.end_with?('.pdf')
+  end
+
+  # Imagem? Mesma lógica do `pdf_attachment?`: confia no content_type do blob e, no fallback
+  # (o download do story falhou e sobrou só a URL do CDN), na extensão da URL. Existe porque
+  # :ig_story não entra no `where(file_type: :image)` — e um story em vídeo precisa cair fora.
+  def image_attachment?(attachment)
+    return true if attachment.file.attached? && attachment.file.blob.content_type.to_s.start_with?('image/')
+
+    get_attachment_url(attachment).to_s.split('?').first.to_s.downcase.end_with?('.jpg', '.jpeg', '.png', '.gif', '.webp')
   end
 
   # Localização (pin do WhatsApp) vira texto com as coordenadas — é assim que o
