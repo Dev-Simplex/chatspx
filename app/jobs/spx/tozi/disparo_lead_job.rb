@@ -74,7 +74,10 @@ class Spx::Tozi::DisparoLeadJob < ApplicationJob
     contact_inbox = ContactInboxWithContactBuilder.new(
       inbox: inbox,
       contact_attributes: {
-        name: nome.to_s.strip.presence || first,
+        # Sem nome na lista, o contato fica SEM NOME (string vazia, nunca nil — nil vira
+        # apelido aleatório no builder). `first` só serve pro template; usá-lo aqui
+        # gravava a saudação neutra como nome do contato. Ver RecipientDispatchService.
+        name: nome.to_s.strip,
         phone_number: phone,
         additional_attributes: { source: 'disparo_lancamento' }
       },
@@ -92,6 +95,8 @@ class Spx::Tozi::DisparoLeadJob < ApplicationJob
 
   private
 
+  # Token de saudação do TEMPLATE (o {{1}}), não o nome do contato. A saudação neutra é
+  # correta aqui — "Oi tudo bem!" — e errada como nome de pessoa.
   def first_name(nome)
     nome.to_s.strip.split.first.presence || 'tudo bem'
   end
