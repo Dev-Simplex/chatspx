@@ -55,7 +55,14 @@ module Campaigns
         ContactInboxWithContactBuilder.new(
           inbox: inbox,
           contact_attributes: {
-            name: recipient.name.presence || first_name,
+            # Sem nome na lista, o contato fica SEM NOME — o painel identifica pelo telefone
+            # e quem descobre o nome é a conversa (a IA ou o atendente pergunta e confirma).
+            # Nada de fallback aqui: `contact.name` é área de trabalho do time humano (eles
+            # anotam "Fulano / Casa do Beltrano"), então fabricar um nome escreve lixo num
+            # campo de trabalho. Foi assim que 110 contatos viraram "tudo bem".
+            # String VAZIA, nunca nil: o builder faz `name || Haikunator.haikunate`, então
+            # nil viraria um apelido aleatório.
+            name: recipient.name.to_s.strip,
             phone_number: recipient.phone_number,
             additional_attributes: { source: "campaign_#{campaign.id}" }
           },
@@ -122,10 +129,6 @@ module Campaigns
 
       def stringify(hash)
         (hash || {}).to_h { |k, v| [k.to_s, v.to_s] }
-      end
-
-      def first_name
-        recipient.name.to_s.strip.split.first.presence || 'tudo bem'
       end
     end
   end
