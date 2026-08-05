@@ -175,6 +175,13 @@ class Captain::Tools::ResponderEmAudioTool < Captain::Tools::BasePublicTool
   # o que foi falado; no WhatsApp Cloud o áudio sai sem caption (o texto não duplica pro
   # cliente). Anexo construído ANTES do save — o envio dispara no after_create_commit
   # (mesmo cuidado da EnviarFotosImovelTool).
+  #
+  # `identify: false` é obrigatório: sem ele o ActiveStorage re-detecta o MIME pelo
+  # conteúdo (Marcel) e troca o `audio/ogg` declarado por `audio/opus`. Como o Chatwoot
+  # entrega mídia à Cloud API por LINK, a Meta busca a URL, lê esse content-type e
+  # rejeita com `131053: Media upload error` — `audio/opus` não está na lista aceita
+  # (audio/aac, audio/amr, audio/mpeg, audio/mp4, audio/ogg). O arquivo sempre esteve
+  # certo (Ogg/Opus mono 48 kHz); só o rótulo é que a Meta não conhece.
   def send_voice_message(conversation, texto, audio)
     msg = conversation.messages.build(
       message_type: :outgoing,
@@ -186,7 +193,7 @@ class Captain::Tools::ResponderEmAudioTool < Captain::Tools::BasePublicTool
     msg.attachments.build(
       account_id: conversation.account_id,
       file_type: :audio,
-      file: { io: audio[:io], filename: audio[:filename], content_type: audio[:content_type] }
+      file: { io: audio[:io], filename: audio[:filename], content_type: audio[:content_type], identify: false }
     )
     msg.save!
   end
