@@ -219,9 +219,7 @@ class Whatsapp::Providers::WhatsappCloudService < Whatsapp::Providers::BaseServi
   def send_attachment_message(phone_number, message)
     attachment = message.attachments.first
     type = resolve_media_type(attachment)
-    type_content = {
-      'link': attachment.download_url
-    }
+    type_content = voice_note_content(attachment, type) || { 'link': attachment.download_url }
     apply_caption(type_content, type, message)
     type_content['filename'] = attachment.file.filename if type == 'document'
     response = HTTParty.post(
@@ -237,6 +235,55 @@ class Whatsapp::Providers::WhatsappCloudService < Whatsapp::Providers::BaseServi
     )
 
     process_response(response, message)
+  end
+
+  # VOICE NOTE (PTT). O Meta so entrega audio como NOTA DE VOZ — bolha com onda, play na
+  # hora — quando a midia vai por ID (upload em /media) e o objeto audio traz voice:true.
+  # Pelo `link`, que e o caminho de toda midia aqui, ela chega como ARQUIVO de audio.
+  # Isso NAO se resolve pelo mime: testado em producao com `audio/ogg` e com
+  # `audio/ogg; codecs=opus` (o header chega intacto no Meta) e os dois vieram como arquivo.
+  # So OGG/Opus vira PTT; qualquer outro formato segue pelo link, como antes.
+  #
+  # Falhou o upload -> nil -> cai no link. O audio chega como arquivo em vez de nao chegar.
+  def voice_note_content(attachment, type)
+    return unless type == 'audio' && ogg_opus?(attachment)
+
+    media_id = upload_media(attachment)
+    media_id.present? ? { 'id' => media_id, 'voice' => true } : nil
+  end
+
+  # `audio/opus` entra junto porque e assim que o Marcel rotula OGG/Opus — inclusive o audio
+  # que o proprio cliente gravou no WhatsApp e que o Chatwoot baixou. Encaminhar essa nota
+  # de voz deve sair como nota de voz.
+  def ogg_opus?(attachment)
+    attachment.file.attached? && attachment.file.content_type.to_s.start_with?('audio/ogg', 'audio/opus')
+  end
+
+  # HTTParty nao monta o multipart aceito pelo Meta aqui (devolve "(#100) The parameter file
+  # is required"), por isso Net::HTTP — que e o que o endpoint aceitou nos testes.
+  def upload_media(attachment)
+    uri = URI("#{phone_id_path}/media")
+    attachment.file.blob.open do |file|
+      response = Net::HTTP.start(uri.hostname, uri.port, use_ssl: uri.scheme == 'https') do |http|
+        http.request(media_upload_request(uri, attachment, file))
+      end
+      JSON.parse(response.body)['id'] if response.is_a?(Net::HTTPSuccess)
+    end
+  rescue StandardError => e
+    Rails.logger.warn("[WhatsApp Cloud] upload de voice note falhou, enviando pelo link: #{e.class}: #{e.message}")
+    nil
+  end
+
+  def media_upload_request(uri, attachment, file)
+    request = Net::HTTP::Post.new(uri)
+    request['Authorization'] = "Bearer #{whatsapp_channel.provider_config['api_key']}"
+    request.set_form(
+      [['messaging_product', 'whatsapp'],
+       ['type', 'audio/ogg'],
+       ['file', file, { filename: attachment.file.filename.to_s, content_type: 'audio/ogg; codecs=opus' }]],
+      'multipart/form-data'
+    )
+    request
   end
 
   # Decide o 'type' do Meta: mantem image/audio/video se dentro do limite inline;
