@@ -325,7 +325,7 @@ module Meta
         ContactInboxWithContactBuilder.new(
           inbox: @inbox,
           contact_attributes: {
-            name: contact_name(normalized_phone),
+            name: contact_name,
             phone_number: normalized_phone,
             email: @lead[:email],
             additional_attributes: {
@@ -347,16 +347,18 @@ module Meta
         ).perform
       end
 
-      # O ramo "Lead Meta <telefone>" passou a ser alcançável quando o FetchLeadService
-      # devolve nil (campo nome com algo que não é nome). É deliberado NÃO passar nil
-      # aqui: o ContactInboxWithContactBuilder faz `name || Haikunator.haikunate`, então
-      # nome vazio viraria um apelido aleatório — pior que um marcador explícito.
-      def contact_name(normalized_phone)
-        return @lead[:full_name] if @lead[:full_name].present?
-        return "Lead Meta #{normalized_phone}" if normalized_phone.present?
-        return "Lead Meta #{@lead[:email]}" if @lead[:email].present?
-
-        "Lead Meta #{@lead[:leadgen_id]}"
+      # Sem nome confiável, o contato fica SEM NOME — o painel identifica pelo telefone e
+      # quem descobre o nome é a conversa (a IA ou o atendente pergunta e confirma).
+      #
+      # Nada de marcador fabricado ("Lead Meta <telefone>", que era o que estava aqui):
+      # `contact.name` é área de trabalho do time humano — eles anotam ali de que se trata
+      # o contato ("Fulano / Casa do Beltrano"). Escrever qualquer coisa nossa nesse campo
+      # apaga a referência que o corretor usa. Mesma regra do disparo.
+      #
+      # String VAZIA, nunca nil: o builder faz `name || Haikunator.haikunate`, e SÓ o nil
+      # cai no apelido aleatório — '' é truthy em Ruby e passa intacto.
+      def contact_name
+        @lead[:full_name].to_s.strip
       end
 
       def source_id_for(phone)
