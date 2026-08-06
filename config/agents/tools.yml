@@ -127,5 +127,5 @@
 
 - id: responder_em_audio
   title: 'Responder em Áudio (voz)'
-  description: 'Responde o cliente com voice note (voz exclusiva do agente via ElevenLabs) quando ele pede áudio'
+  description: 'Responde o cliente com voice note (voz exclusiva do agente via ElevenLabs) quando ele pede áudio, ou por iniciativa do agente em explicação longa — o proativo é opt-in'
   icon: 'mic'
