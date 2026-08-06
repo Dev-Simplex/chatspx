@@ -48,7 +48,7 @@ class Captain::Tools::ResponderEmAudioTool < Captain::Tools::BasePublicTool
   # ÁUDIO" escapava de /[ãa]/i. Normalizar é o que faz caps e acento pararem de importar.
 
   # Dado que a pessoa volta pra procurar: se aparece na fala, tem que existir em texto.
-  DADO_QUE_SE_RELE = %r{r\$\s*[\d.,]+|https?://|\bcod(?:igo)?\b[^.!?]{0,15}\d|\b\d{1,2}/\d{1,2}|\b\d{1,2}\s*h\b|\b\d{1,2}:\d{2}\b}
+  DADO_QUE_SE_RELE = %r{r\$\s*[\d.,]+|https?://|\bcod(?:igo)?\b[^.!?]{0,15}\d|\b\d{1,2}/\d{1,2}|\b\d{1,2}\s*h\b|\b\d{1,2}:\d{2}\b}.freeze
 
   # Recusa do cliente vale pra conversa inteira, e manda mais que qualquer permissão.
   RECUSA_DE_AUDIO = Regexp.union(
@@ -58,7 +58,7 @@ class Captain::Tools::ResponderEmAudioTool < Captain::Tools::BasePublicTool
     /odeio\s+audio/,
     /prefiro\s+(?:por\s+)?(?:texto|escrito)/,
     /manda?e?\s+por\s+escrito/
-  )
+  ).freeze
 
   # Sem voice_id no config do assistente a tool nem entra no toolset do agente
   # (configured_agent_tools filtra por active?).
