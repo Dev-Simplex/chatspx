@@ -26,11 +26,14 @@ class Captain::Conversation::EpisodeContinuityNote
 
   # String pro histórico do turno, ou nil quando não há atendimento anterior.
   def text
-    atual = Captain::ConversationEpisode.atual(@conversation.id)
-    # Contato novo (episódio 1) não tem do que ser lembrado — a nota só nasce na reentrada.
+    # Fronteira derivada no instante do turno quando a tabela do cron ainda não a tem —
+    # sem isso a nota também só apareceria a partir do segundo turno da reentrada.
+    fronteira = Captain::Conversation::EpisodeBoundary.new(conversation: @conversation)
+    atual = fronteira.atual
+    # Contato novo (atendimento 1) não tem do que ser lembrado — a nota nasce na reentrada.
     return if atual.nil? || atual.seq.to_i <= 1
 
-    anteriores = Captain::ConversationEpisode.anteriores(@conversation.id, limite: DETALHADOS)
+    anteriores = fronteira.anteriores(limite: DETALHADOS)
     return if anteriores.empty?
 
     montar(atual, anteriores)
@@ -45,9 +48,11 @@ class Captain::Conversation::EpisodeContinuityNote
     total = atual.seq.to_i - 1
     linhas = ['[Contexto do sistema: este contato já foi atendido nesta conversa antes de hoje.']
     linhas << "#{total} #{total == 1 ? 'atendimento anterior' : 'atendimentos anteriores'}."
-    anteriores.reverse_each { |episodio| linhas << linha_do_episodio(episodio) }
+    # Os ocultos são os MAIS ANTIGOS: vêm antes da lista, que é renderizada do mais antigo
+    # pro mais recente.
     ocultos = total - anteriores.size
-    linhas << "E outros #{ocultos} antes." if ocultos.positive?
+    linhas << "E outros #{ocultos} antes destes." if ocultos.positive?
+    anteriores.reverse_each { |episodio| linhas << linha_do_episodio(episodio) }
     linhas << recencia(anteriores.first)
     linhas << concluidos
     linhas << abertura(atual)
@@ -60,7 +65,7 @@ class Captain::Conversation::EpisodeContinuityNote
     partes << "conduzido por #{conduzido}" if conduzido
     partes << (FECHAMENTO[episodio.boundary_reason] || 'encerrado')
     linha = "#{partes.join(', ')}."
-    resumo = resumos[episodio.id]
+    resumo = resumos[episodio.first_message_id]
     resumo.present? ? "#{linha} #{resumo.strip}" : linha
   end
 
@@ -84,17 +89,25 @@ class Captain::Conversation::EpisodeContinuityNote
     'humano' if humano
   end
 
-  # Bônus quando existe: resumo que o juiz do eval já escreveu daquele atendimento.
+  # Bônus quando existe: resumo que o juiz do eval já escreveu daquele atendimento. A
+  # chave é o first_message_id, não o id do episódio: a fronteira pode ter vindo da
+  # DERIVAÇÃO, que não tem linha na tabela — e aí não haveria id pra casar.
   def resumos
-    @resumos ||= Captain::ConversationEval
-                 .where(episode_id: Captain::ConversationEpisode.anteriores(@conversation.id, limite: DETALHADOS).map(&:id))
-                 .pluck(:episode_id, :resumo).to_h
+    @resumos ||= mapear_resumos
   rescue StandardError
     {}
   end
 
+  def mapear_resumos
+    episodios = Captain::ConversationEpisode.where(conversation_id: @conversation.id).pluck(:id, :first_message_id).to_h
+    return {} if episodios.empty?
+
+    avaliados = Captain::ConversationEval.where(episode_id: episodios.keys).pluck(:episode_id, :resumo).to_h
+    episodios.filter_map { |id, primeira| [primeira, avaliados[id]] if avaliados[id].present? }.to_h
+  end
+
   def recencia(mais_recente)
-    fim = mais_recente.ended_at || mais_recente.last_message_at
+    fim = mais_recente.ended_at
     return if fim.blank?
 
     dias = ((Time.current - fim) / 1.day).floor

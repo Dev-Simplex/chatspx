@@ -110,14 +110,19 @@ class Captain::Conversation::ResponseBuilderJob < ApplicationJob
     todas = @conversation.messages.where(message_type: [:incoming, :outgoing]).where(private: false)
     return todas unless janela_por_episodio?
 
-    inicio = Captain::ConversationEpisode.atual(@conversation.id)&.started_at
+    # A fronteira é DERIVADA no instante do turno quando a tabela ainda não a tem — a
+    # tabela é populada por cron e chegaria tarde demais justamente na reentrada, que é
+    # onde o histórico velho faz estrago. Ver Captain::Conversation::EpisodeBoundary.
+    inicio = Captain::Conversation::EpisodeBoundary.new(conversation: @conversation).atual&.started_at
+    # Sem fronteira alguma (conversa sem mensagem segmentável): conversa inteira.
     return todas if inicio.blank?
 
-    janela = todas.where('messages.created_at >= ?', inicio)
-    # O segmentador roda por CRON, não em tempo real. Episódio defasado, ou started_at à
-    # frente da última mensagem, deixaria o modelo sem histórico nenhum — pior que o
-    # problema original. Falha pro lado seguro: volta pra conversa inteira.
-    janela.exists? ? janela : todas
+    # Janela vazia é resposta VÁLIDA, não erro: significa que o atendimento atual ainda não
+    # teve mensagem conversacional (ex.: aberto por HSM de campanha, cliente sem responder).
+    # Cair em `todas` aqui reintroduziria exatamente o bug — foi o que a conv 32215 mostrou
+    # (janela 0 de 39 turnos). No caminho real sempre há a mensagem do cliente que motivou
+    # o turno, então o vazio só aparece em disparo sem resposta.
+    todas.where('messages.created_at >= ?', inicio)
   end
 
   def nota_de_continuidade
