@@ -29,6 +29,17 @@ class Captain::ConversationEpisode < ApplicationRecord
     ended_at.present?
   end
 
+  # Atendimento EM ANDAMENTO da conversa. É o corte que o runtime da IA usa pra não mandar
+  # o fio perpétuo inteiro pro modelo (inbox com lock_to_single_conversation).
+  def self.atual(conversation_id)
+    open_ones.where(conversation_id: conversation_id).reorder(seq: :desc).first
+  end
+
+  # Atendimentos já encerrados, do mais recente pro mais antigo.
+  def self.anteriores(conversation_id, limite:)
+    closed.where(conversation_id: conversation_id).reorder(seq: :desc).limit(limite).to_a
+  end
+
   # F4.2 (Eval humano): notas privadas de gestores com o marcador #eval que pertencem
   # a ESTE episódio. Duas formas de vínculo: EXPLÍCITO (content_attributes.eval_episode_id,
   # setado pelo modal "Avaliar atendimento" — vale pra qualquer episódio, até antigo) e
