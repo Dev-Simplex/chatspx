@@ -24,7 +24,9 @@ abort("SPX_ACTION inválida: #{action.inspect}. Use plan, apply ou rollback.") u
 
 account = Account.find(ACCOUNT_ID)
 assistants = Captain::Assistant.where(account_id: account.id).index_by(&:name)
-instruction_hashes = assistants.transform_values { |assistant| Digest::SHA256.hexdigest(assistant.config['instructions'].to_s) }
+instruction_hashes = assistants.transform_values do |assistant|
+  Digest::SHA256.hexdigest(assistant.config['instructions'].to_s)
+end
 
 tool_updates = {
   'mtm_calendario' => {
@@ -33,7 +35,9 @@ tool_updates = {
     response_template: <<~LIQUID.strip
       AGORA data_hora={{ r.agora.data_hora }} data={{ r.agora.data }} hora={{ r.agora.hora }} timezone={{ r.agora.timezone }}.
       Hoje é {{ r.hoje }}. Datas exatas dos próximos dias (use estas, nunca calcule):
-      {% for d in r.dias %}- {{ d.dia_semana }}, {{ d.data }}{% if d.rel %} ({{ d.rel }}){% endif %}{% if d.fim_de_semana %} — fim de semana{% endif %}
+      {% for d in r.dias %}
+      - {{ d.dia_semana }}, {{ d.data }}{% if d.rel %} ({{ d.rel }}){% endif %}
+      {% if d.fim_de_semana %} — fim de semana{% endif %}
       {% endfor %}
     LIQUID
   },
@@ -50,7 +54,8 @@ tool_updates = {
     response_template: <<~LIQUID.strip,
       {% if r.data and r.data.status %}PEDIDO_CRIADO id={{ r.data.id }} status={{ r.data.status }}
       {% elsif r.code == "HORARIO_PASSADO" %}HORARIO_PASSADO agora={{ r.meta.agora }} timezone={{ r.meta.timezone }} mensagem="{{ r.message }}"
-      {% elsif r.code == "ANTECEDENCIA_INSUFICIENTE" %}ANTECEDENCIA_INSUFICIENTE agora={{ r.meta.agora }} proximo={{ r.meta.proximo_horario_permitido }} mensagem="{{ r.message }}"
+      {% elsif r.code == "ANTECEDENCIA_INSUFICIENTE" %}ANTECEDENCIA_INSUFICIENTE
+      agora={{ r.meta.agora }} proximo={{ r.meta.proximo_horario_permitido }} mensagem="{{ r.message }}"
       {% elsif r.code == "PERIODO_JA_PASSOU" %}PERIODO_JA_PASSOU agora={{ r.meta.agora }} mensagem="{{ r.message }}"
       {% elsif r.code == "FORA_DO_HORARIO" %}FORA_DO_HORARIO abre={{ r.meta.abre_as }} fecha={{ r.meta.fecha_as }} mensagem="{{ r.message }}"
       {% else %}ERRO_TECNICO_CRIAR_PEDIDO{% endif %}
@@ -62,7 +67,12 @@ tool_updates = {
       { 'name' => 'fone', 'type' => 'string', 'required' => true, 'description' => 'Telefone do cliente com DDD.' },
       { 'name' => 'data', 'type' => 'string', 'required' => true, 'description' => 'Data desejada, AAAA-MM-DD, confirmada por mtm_calendario.' },
       { 'name' => 'hora', 'type' => 'string', 'required' => true, 'description' => 'Hora exata HH:MM; passe string vazia quando usar período.' },
-      { 'name' => 'periodo', 'type' => 'string', 'required' => true, 'description' => 'manha, tarde ou sem_preferencia; passe string vazia quando usar hora exata.' }
+      {
+        'name' => 'periodo',
+        'type' => 'string',
+        'required' => true,
+        'description' => 'manha, tarde ou sem_preferencia; passe string vazia quando usar hora exata.'
+      }
     ]
   },
   'mtm_status_proposta' => {
@@ -79,8 +89,14 @@ tool_updates = {
   },
   'mtm_loja_mais_proxima' => {
     response_template: <<~LIQUID.strip
-      {% if r.data %}LOJA_DEFINIDA nome="{{ r.data.nome }}" cidade="{{ r.data.cidade }}" bairro="{{ r.data.bairro }}" endereco="{{ r.data.endereco }}" shop_id={{ r.data.shop_id }} distancia_km={{ r.data.distancia_km }}
-      {% elsif r.empate %}EMPATE_REAL. Opções ordenadas da mais próxima para a segunda; opcao1 é a mais próxima. Se o cliente pedir apenas a mais perto, escolha opcao1 sem perguntar novamente.{% for loja in r.lojas %} opcao{{ forloop.index }}: nome="{{ loja.nome }}" shop_id={{ loja.shop_id }} distancia_km={{ loja.distancia_km }} bairro="{{ loja.bairro }}" endereco="{{ loja.endereco }}";{% endfor %}
+      {% if r.data %}LOJA_DEFINIDA nome="{{ r.data.nome }}" cidade="{{ r.data.cidade }}"
+      bairro="{{ r.data.bairro }}" endereco="{{ r.data.endereco }}" shop_id={{ r.data.shop_id }}
+      distancia_km={{ r.data.distancia_km }}
+      {% elsif r.empate %}EMPATE_REAL. Opções ordenadas da mais próxima para a segunda;
+      opcao1 é a mais próxima. Se o cliente pedir apenas a mais perto, escolha opcao1 sem perguntar novamente.
+      {% for loja in r.lojas %}opcao{{ forloop.index }}: nome="{{ loja.nome }}" shop_id={{ loja.shop_id }}
+      distancia_km={{ loja.distancia_km }} bairro="{{ loja.bairro }}" endereco="{{ loja.endereco }}";
+      {% endfor %}
       {% elsif r.precisa_referencia %}PRECISA_REFERENCIA
       {% else %}NAO_ACHOU_LOJA{% endif %}
     LIQUID
@@ -89,8 +105,14 @@ tool_updates = {
 
 required_tools = {
   'Bia' => %w[mtm_loja_mais_proxima mtm_calendario mtm_agendar_visita atualizar_resumo],
-  'Carol' => %w[mtm_loja_mais_proxima mtm_calendario mtm_criar_proposta mtm_escolher_slot mtm_status_proposta mtm_cancelar_proposta atualizar_resumo],
-  'Sofia' => %w[mtm_loja_mais_proxima mtm_calendario mtm_criar_proposta mtm_escolher_slot mtm_status_proposta mtm_cancelar_proposta atualizar_resumo]
+  'Carol' => %w[
+    mtm_loja_mais_proxima mtm_calendario mtm_criar_proposta mtm_escolher_slot
+    mtm_status_proposta mtm_cancelar_proposta atualizar_resumo
+  ],
+  'Sofia' => %w[
+    mtm_loja_mais_proxima mtm_calendario mtm_criar_proposta mtm_escolher_slot
+    mtm_status_proposta mtm_cancelar_proposta atualizar_resumo
+  ]
 }.freeze
 
 def validate_templates!(tool_updates)
@@ -201,7 +223,9 @@ ActiveRecord::Base.transaction do
   end
 
   elen_tools = Array(assistants.fetch('Elen').reload.config['tools'])
-  forbidden_for_elen = %w[mtm_criar_proposta mtm_escolher_slot mtm_status_proposta mtm_cancelar_proposta mtm_agendar_visita]
+  forbidden_for_elen = %w[
+    mtm_criar_proposta mtm_escolher_slot mtm_status_proposta mtm_cancelar_proposta mtm_agendar_visita
+  ]
   raise 'Elen recebeu tool operacional indevida' if (elen_tools & forbidden_for_elen).any?
 
   assistants.each_value do |assistant|
@@ -212,4 +236,5 @@ end
 
 puts "APPLY concluído na account #{account.id}; prompts inalterados."
 puts "BACKUP_PATH=#{backup_path}"
-puts "Para desfazer a configuração: SPX_ACTION=rollback SPX_BACKUP_PATH=#{backup_path} bundle exec rails runner #{__FILE__}"
+puts 'Para desfazer a configuração: ' \
+     "SPX_ACTION=rollback SPX_BACKUP_PATH=#{backup_path} bundle exec rails runner #{__FILE__}"
