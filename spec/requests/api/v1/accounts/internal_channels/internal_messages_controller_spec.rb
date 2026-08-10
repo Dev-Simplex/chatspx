@@ -3,7 +3,8 @@
 require 'rails_helper'
 
 RSpec.describe 'Api::V1::Accounts::InternalChannels::InternalMessagesController', type: :request do
-  let(:account) { create(:account) }
+  # A API do chat interno exige a feature ligada na conta (InternalChatFeatureGuard).
+  let(:account) { create(:account).tap { |acc| acc.enable_features!('internal_chat') } }
   let(:alice) { create(:user, account: account, role: :agent) }
   let(:bob) { create(:user, account: account, role: :agent) }
   let(:outsider) { create(:user, account: account, role: :agent) }
@@ -148,6 +149,29 @@ RSpec.describe 'Api::V1::Accounts::InternalChannels::InternalMessagesController'
       delete "/api/v1/accounts/#{account.id}/internal_channels/#{channel.id}/internal_messages/#{message.id}",
              headers: bob.create_new_auth_token
       expect(response).to have_http_status(:forbidden)
+    end
+
+    # O admin lê qualquer canal para auditoria, mas apagar é irreversível
+    # (soft_delete! zera o conteúdo e purga anexos). Moderar exige participar.
+    it 'forbids an admin who is not a member of the channel' do
+      admin = create(:user, account: account, role: :administrator)
+
+      delete "/api/v1/accounts/#{account.id}/internal_channels/#{channel.id}/internal_messages/#{message.id}",
+             headers: admin.create_new_auth_token
+
+      expect(response).to have_http_status(:forbidden)
+      expect(message.reload.deleted?).to be(false)
+    end
+
+    it 'allows an admin who is a member of the channel to moderate' do
+      admin = create(:user, account: account, role: :administrator)
+      create(:internal_channel_member, internal_channel: channel, user: admin)
+
+      delete "/api/v1/accounts/#{account.id}/internal_channels/#{channel.id}/internal_messages/#{message.id}",
+             headers: admin.create_new_auth_token
+
+      expect(response).to have_http_status(:success)
+      expect(message.reload.deleted?).to be(true)
     end
   end
 

@@ -182,7 +182,11 @@ class Account < ApplicationRecord # rubocop:disable Metrics/ClassLength
   has_many :funnels, dependent: :destroy
   has_many :funnel_views, dependent: :destroy
   has_many :message_sequences, dependent: :destroy
-  has_many :internal_channels, dependent: :destroy_async
+  # `destroy_async` apaga o pai ANTES de enfileirar a limpeza dos filhos; com a FK
+  # de internal_channels->accounts sem cascade, isso trancava a exclusão da conta.
+  # As vizinhas deste fork (funnels, funnel_views, message_sequences) já usam
+  # :destroy pelo mesmo motivo.
+  has_many :internal_channels, dependent: :destroy
 
   has_one_attached :contacts_export
   has_one_attached :chat_wallpaper_image

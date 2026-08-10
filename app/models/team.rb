@@ -26,6 +26,17 @@ class Team < ApplicationRecord
   has_many :team_supervisors, dependent: :destroy_async
   has_many :supervisors, through: :team_supervisors, source: :user
   has_many :conversations, dependent: :nullify
+  # As 3 tabelas que este fork acrescentou apontando para `teams` nasceram com FK
+  # sem `on_delete` e sem associação aqui — ou seja, cada uma trancava o destroy
+  # do time com ActiveRecord::InvalidForeignKey (500 na tela).
+  # Semântica escolhida por tabela:
+  #   - grupo do chat interno: morre junto (um canal `team` sem time é inválido);
+  #   - funil do Kanban: sobrevive com team_id NULL (vira o funil "Geral"), porque
+  #     destruir levaria junto o quadro e todos os cartões, sem o admin pedir;
+  #   - histórico de atribuição: é trilha de auditoria, sobrevive sem o time.
+  has_many :internal_channels, dependent: :destroy
+  has_many :funnels, dependent: :nullify
+  has_many :conversation_assignment_histories, dependent: :nullify
 
   validates :name,
             presence: { message: I18n.t('errors.validations.presence') },
@@ -94,6 +105,11 @@ class Team < ApplicationRecord
   end
 
   def sync_internal_team_channel
+    # Sem este guard, TODA conta ganhava canal de chat interno mesmo com a feature
+    # desligada — e junto vinham os cadeados de FK acima. A flag off tem que
+    # significar "não cria nada".
+    return unless account.feature_enabled?('internal_chat')
+
     InternalChannels::SyncTeamChannelsService.new(account: account, team: self).perform
   rescue StandardError => e
     Rails.logger.warn "[internal_chat] team channel sync failed for team ##{id}: #{e.message}"

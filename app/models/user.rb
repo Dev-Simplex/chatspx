@@ -117,6 +117,12 @@ class User < ApplicationRecord
   has_many :team_supervisions, class_name: 'TeamSupervisor', dependent: :destroy_async
   has_many :supervised_teams, through: :team_supervisions, source: :team
   has_many :articles, foreign_key: 'author_id', dependent: :nullify, inverse_of: :author
+  # Chat interno: sem estas duas, as FKs (que não têm on_delete e cujas colunas são
+  # NOT NULL) impediam apagar o usuário — o DeleteObjectJob morria com
+  # InvalidForeignKey depois de a UI já ter respondido "feito". Exclusão de pessoa
+  # (LGPD) precisa alcançar o que ela escreveu, então é :destroy, não :nullify.
+  has_many :internal_channel_members, dependent: :destroy
+  has_many :internal_messages, dependent: :destroy
   # rubocop:disable Rails/HasManyOrHasOneDependent
   # we are handling this in `remove_macros` callback
   has_many :macros, foreign_key: 'created_by_id', inverse_of: :created_by
