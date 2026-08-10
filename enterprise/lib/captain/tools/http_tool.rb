@@ -1,6 +1,18 @@
 require 'agents'
 
 class Captain::Tools::HttpTool < Agents::Tool
+  prepend Captain::Tools::TraceRecorder
+
+  class HttpResponseError < StandardError
+    attr_reader :status, :body
+
+    def initialize(response)
+      @status = response.code.to_i
+      @body = response.body
+      super("HTTP request failed with status #{@status}")
+    end
+  end
+
   def initialize(assistant, custom_tool)
     @assistant = assistant
     @custom_tool = custom_tool
@@ -17,8 +29,15 @@ class Captain::Tools::HttpTool < Agents::Tool
 
     response = execute_http_request(url, body, tool_context)
     @custom_tool.format_response(response.body)
+  rescue HttpResponseError => e
+    @tool_trace_exception = e
+    return format_validation_error(e) if e.status == 422 && @custom_tool.response_template.present?
+
+    log_http_error(e)
+    'An error occurred while executing the request'
   rescue StandardError => e
-    Rails.logger.error("HttpTool execution error for #{@custom_tool.slug}: #{e.class} - #{e.message}")
+    @tool_trace_exception = e
+    log_http_error(e)
     'An error occurred while executing the request'
   end
 
@@ -37,6 +56,20 @@ class Captain::Tools::HttpTool < Agents::Tool
   end
 
   private
+
+  def format_validation_error(exception)
+    JSON.parse(exception.body)
+    @custom_tool.format_response(exception.body)
+  rescue StandardError => e
+    @tool_trace_exception = e
+    log_http_error(e)
+    'An error occurred while executing the request'
+  end
+
+  def log_http_error(exception)
+    safe_message = Captain::Tools::SensitiveDataSanitizer.sanitize(exception.message.to_s)
+    Rails.logger.error("HttpTool execution error for #{@custom_tool.slug}: #{exception.class} - #{safe_message}")
+  end
 
   PRIVATE_IP_RANGES = [
     IPAddr.new('127.0.0.0/8'),    # IPv4 Loopback
@@ -71,7 +104,7 @@ class Captain::Tools::HttpTool < Agents::Tool
 
     response = http.request(request)
 
-    raise "HTTP request failed with status #{response.code}" unless response.is_a?(Net::HTTPSuccess)
+    raise HttpResponseError.new(response) unless response.is_a?(Net::HTTPSuccess)
 
     validate_response!(response)
 

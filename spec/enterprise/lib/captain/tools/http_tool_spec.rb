@@ -165,6 +165,32 @@ RSpec.describe Captain::Tools::HttpTool, type: :model do
     end
 
     context 'when handling errors' do
+      it 'formats a structured HTTP 422 response for the agent' do
+        custom_tool.update!(
+          endpoint_url: 'https://example.com/data',
+          response_template: 'VALIDATION_{{ r.code }}'
+        )
+        stub_request(:get, 'https://example.com/data')
+          .to_return(status: 422, body: '{"code":"HORARIO_PASSADO"}')
+
+        result = tool.perform(tool_context)
+
+        expect(result).to eq('VALIDATION_HORARIO_PASSADO')
+      end
+
+      it 'returns a generic error when the HTTP 422 body cannot be formatted' do
+        custom_tool.update!(
+          endpoint_url: 'https://example.com/data',
+          response_template: 'VALIDATION_{{ r.code }}'
+        )
+        stub_request(:get, 'https://example.com/data')
+          .to_return(status: 422, body: 'not-json')
+
+        result = tool.perform(tool_context)
+
+        expect(result).to eq('An error occurred while executing the request')
+      end
+
       it 'returns generic error message on network failure' do
         custom_tool.update!(endpoint_url: 'https://example.com/data')
         stub_request(:get, 'https://example.com/data').to_raise(SocketError.new('Failed to connect'))
@@ -208,6 +234,45 @@ RSpec.describe Captain::Tools::HttpTool, type: :model do
         expect(Rails.logger).to receive(:error).with(/HttpTool execution error.*Test error/)
 
         tool.perform(tool_context)
+      end
+    end
+
+    context 'when recording custom tool traces' do
+      let(:conversation) { create(:conversation, account: account) }
+      let(:tool_context) { Struct.new(:state).new({ conversation: { id: conversation.id } }) }
+
+      before do
+        account.update!(custom_attributes: (account.custom_attributes || {}).merge('eval_enabled' => true))
+      end
+
+      it 'records the custom tool slug and redacts sensitive arguments and results' do
+        custom_tool.update!(endpoint_url: 'https://example.com/data', response_template: nil)
+        stub_request(:get, 'https://example.com/data')
+          .to_return(status: 200, body: '{"cpf":"123.456.789-00","phone":"+55 (65) 99999-9999"}')
+
+        expect do
+          tool.perform(tool_context, cpf: '123.456.789-00', token: 'plain-secret')
+        end.to change(Captain::ToolCall, :count).by(1)
+
+        trace = Captain::ToolCall.order(:id).last
+        expect(trace.tool_name).to eq(custom_tool.slug)
+        expect(trace.status).to eq('ok')
+        expect(trace.args.to_s).not_to include('123.456.789-00', 'plain-secret')
+        expect(trace.result_preview).not_to include('123.456.789-00', '99999-9999')
+      end
+
+      it 'records handled HTTP failures as sanitized errors' do
+        custom_tool.update!(endpoint_url: 'https://example.com/data')
+        stub_request(:get, 'https://example.com/data')
+          .to_raise(StandardError.new('token=plain-secret telefone +55 (65) 99999-9999'))
+
+        expect do
+          expect(tool.perform(tool_context)).to eq('An error occurred while executing the request')
+        end.to change(Captain::ToolCall, :count).by(1)
+
+        trace = Captain::ToolCall.order(:id).last
+        expect(trace.status).to eq('error')
+        expect(trace.error).not_to include('plain-secret', '99999-9999')
       end
     end
 

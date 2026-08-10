@@ -14,6 +14,10 @@ Account 1 = Fábrica · Account 2 = Atacadão. Rodam via `rails runner` **no box
 - `setup_elen_agents.rb` — segrega a Elen em 3 agentes (Elen triagem · Bia sol/relógios · Carol grau+broker),
   estilo Tozi (transferência invisível). Idempotente (acha por nome novo ou antigo).
 - `elen_ligar.rb` — cutover: liga `CaptainInbox(2,1)` + regra `conversation_created → assign_ai_agent`.
+- `harden_mtm_tools_20260807.rb` — endurece contratos e atribuições das tools do atendimento
+  MTM da conta 1. O modo padrão `plan` não escreve; `SPX_ACTION=apply` cria snapshot 0600
+  sem credenciais antes da transação; `SPX_ACTION=rollback SPX_BACKUP_PATH=...` restaura
+  somente os campos tocados. Em rollback completo, reverta a configuração antes do código.
 
 ## Segredos
 Nenhuma chave/senha vive nestes scripts. `MTM_API_KEY` e senha SSH ficam no vault

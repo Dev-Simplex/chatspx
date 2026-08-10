@@ -8,8 +8,9 @@ module Captain::Tools::TraceRecorder
 
   def perform(tool_context, **kwargs)
     started = Process.clock_gettime(Process::CLOCK_MONOTONIC)
+    @tool_trace_exception = nil
     result = super
-    record_tool_trace(tool_context, kwargs, result, started, nil)
+    record_tool_trace(tool_context, kwargs, result, started, @tool_trace_exception)
     result
   rescue StandardError => e
     record_tool_trace(tool_context, kwargs, nil, started, e)
@@ -22,18 +23,18 @@ module Captain::Tools::TraceRecorder
     account = @assistant&.account
     return unless account && Captain::ConversationEval.enabled_for?(account)
 
-    conversation = find_conversation(tool_context&.state)
+    conversation = find_trace_conversation(tool_context&.state, account)
     return unless conversation
 
     Captain::ToolCall.create!(
       account_id: account.id,
       conversation_id: conversation.id,
       captain_assistant_id: @assistant.id,
-      tool_name: self.class.name.demodulize.underscore.delete_suffix('_tool'),
-      args: sanitize_trace(kwargs),
+      tool_name: trace_tool_name,
+      args: Captain::Tools::SensitiveDataSanitizer.sanitize(kwargs),
       result_preview: exception ? nil : truncate_result(result),
       status: exception ? 'error' : 'ok',
-      error: exception && "#{exception.class}: #{exception.message}"[0, 200],
+      error: exception && Captain::Tools::SensitiveDataSanitizer.sanitize("#{exception.class}: #{exception.message}")[0, 200],
       duration_ms: ((Process.clock_gettime(Process::CLOCK_MONOTONIC) - started) * 1000).round,
       created_at: Time.current
     )
@@ -43,16 +44,19 @@ module Captain::Tools::TraceRecorder
 
   def truncate_result(result)
     text = result.is_a?(String) ? result : result.inspect
-    sanitize_trace(text.to_s[0, RESULT_PREVIEW_LIMIT])
+    Captain::Tools::SensitiveDataSanitizer.sanitize(text.to_s)[0, RESULT_PREVIEW_LIMIT]
   end
 
-  # remove null bytes / controle C0 (o Postgres recusa em text/jsonb)
-  def sanitize_trace(obj)
-    case obj
-    when String then obj.gsub(/[\x00-\x08\x0B\x0C\x0E-\x1F]/, '')
-    when Array then obj.map { |v| sanitize_trace(v) }
-    when Hash then obj.transform_values { |v| sanitize_trace(v) }
-    else obj
-    end
+  def find_trace_conversation(state, account)
+    conversation_id = state&.dig(:conversation, :id)
+    return unless conversation_id
+
+    ::Conversation.find_by(id: conversation_id, account_id: account.id)
+  end
+
+  def trace_tool_name
+    return @custom_tool.slug if defined?(@custom_tool) && @custom_tool&.slug.present?
+
+    self.class.name.demodulize.underscore.delete_suffix('_tool')
   end
 end

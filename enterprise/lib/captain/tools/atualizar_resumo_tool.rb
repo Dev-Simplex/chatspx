@@ -14,8 +14,9 @@ class Captain::Tools::AtualizarResumoTool < Captain::Tools::BasePublicTool
     return 'Não consegui identificar a conversa pra atualizar o resumo.' unless conversation
     return 'Resumo vazio, nada a salvar.' if resumo.to_s.strip.empty?
 
-    attrs = conversation.custom_attributes.dup
-    attrs['resumo_atendimento_ia'] = resumo.to_s.strip
+    sanitized_summary = Captain::Tools::SensitiveDataSanitizer.sanitize(resumo.to_s).strip
+    attrs = conversation.custom_attributes.to_h
+    attrs['resumo_atendimento_ia'] = sanitized_summary
     conversation.update!(custom_attributes: attrs)
     'Resumo do atendimento atualizado.'
   rescue StandardError => e
