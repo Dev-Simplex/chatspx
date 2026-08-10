@@ -404,6 +404,9 @@ Rails.application.routes.draw do
             resources :message_templates, only: [:index, :create, :destroy], controller: 'inbox_message_templates'
           end
           resources :waha_connections, only: [:index, :show, :create, :destroy] do
+            collection do
+              get :health
+            end
             member do
               get :qr_code
               post :connect

@@ -10,6 +10,11 @@ class WahaConnections extends ApiClient {
     return axios.get(this.url);
   }
 
+  // Saúde por inbox (liberada para agente): [{ inbox_id, inbox_name, status }]
+  health() {
+    return axios.get(`${this.url}/health`);
+  }
+
   get(id) {
     return axios.get(`${this.url}/${id}`);
   }

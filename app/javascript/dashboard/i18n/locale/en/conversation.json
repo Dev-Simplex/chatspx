@@ -689,7 +689,8 @@
         "TEMPLATE": "Pick a template — this is an Official WhatsApp inbox.",
         "MESSAGE": "Write the message."
       }
-    }
+    },
+    "WAHA_LINE_DOWN": "This inbox's WhatsApp line is down — anything you send now will not reach the customer."
   },
   "EMAIL_TRANSCRIPT": {
     "TITLE": "Send conversation transcript",

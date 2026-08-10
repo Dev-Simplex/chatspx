@@ -117,6 +117,14 @@ const getStatusConfig = status => {
       iconColor: 'text-green-600',
       text: t('WAHA_CONNECTIONS.STATUS.STARTING'),
     },
+    // A caixa aponta para uma sessão que não existe no servidor WAHA: nada
+    // entrega e não há o que reconectar — precisa recriar a sessão.
+    MISSING: {
+      color: 'bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200',
+      icon: 'i-lucide-unplug',
+      iconColor: 'text-red-600',
+      text: t('WAHA_CONNECTIONS.STATUS.MISSING'),
+    },
   };
   return configs[status] || configs.STOPPED;
 };

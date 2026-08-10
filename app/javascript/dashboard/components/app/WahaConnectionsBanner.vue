@@ -20,7 +20,10 @@ const pollingInterval = ref(null);
 const userDismissedBanner = ref(false);
 const isLoading = ref(false);
 
-const PROBLEMATIC_STATUSES = ['STOPPED', 'FAILED', 'SCAN_QR_CODE'];
+// MISSING = a inbox aponta para uma sessão que não existe mais no WAHA. Antes
+// esse caso sumia da lista (ela era montada a partir das sessões), então o pior
+// estado possível era o único sem alerta.
+const PROBLEMATIC_STATUSES = ['STOPPED', 'FAILED', 'SCAN_QR_CODE', 'MISSING'];
 const POLLING_INTERVAL = 90000; // 90 segundos
 const DISMISS_STORAGE_KEY = 'wahaConnectionsBannerDismissed';
 
@@ -33,6 +36,7 @@ const getStatusText = status => {
     STOPPED: t('GENERAL_SETTINGS.WAHA_BANNER.STATUS_STOPPED'),
     FAILED: t('GENERAL_SETTINGS.WAHA_BANNER.STATUS_FAILED'),
     SCAN_QR_CODE: t('GENERAL_SETTINGS.WAHA_BANNER.STATUS_SCAN_QR'),
+    MISSING: t('GENERAL_SETTINGS.WAHA_BANNER.STATUS_MISSING'),
   };
   return statusMap[status] || status;
 };
@@ -68,6 +72,7 @@ const bannerMessage = computed(() => {
     const connection = problematicConnections.value[0];
     const statusText = getStatusText(connection?.status);
     return t('GENERAL_SETTINGS.WAHA_BANNER.SINGLE_CONNECTION_ISSUE', {
+      inbox: connection?.inbox_name || connection?.session_name || '',
       status: statusText.toLowerCase(),
     });
   }

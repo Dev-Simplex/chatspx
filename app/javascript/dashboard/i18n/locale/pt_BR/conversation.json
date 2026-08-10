@@ -681,7 +681,8 @@
         "TEMPLATE": "Escolha um modelo — esta caixa é WhatsApp Oficial.",
         "MESSAGE": "Escreva a mensagem."
       }
-    }
+    },
+    "WAHA_LINE_DOWN": "A linha do WhatsApp desta caixa de entrada está fora do ar — o que você enviar agora não chega ao cliente."
   },
   "EMAIL_TRANSCRIPT": {
     "TITLE": "Enviar transcrição de conversa",

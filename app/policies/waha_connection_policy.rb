@@ -5,6 +5,13 @@ class WahaConnectionPolicy < ApplicationPolicy
     @account_user.administrator?
   end
 
+  # Saúde da linha é para QUEM RESPONDE, não só para quem administra: o agente
+  # precisa saber que o WhatsApp daquela caixa caiu antes de digitar. A ação
+  # devolve só inbox + status (sem telefone, QR ou credencial).
+  def health?
+    true
+  end
+
   def create?
     @account_user.administrator?
   end

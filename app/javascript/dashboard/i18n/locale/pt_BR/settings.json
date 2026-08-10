@@ -1386,7 +1386,8 @@
       "SCAN_QR_CODE": "Escanear QR Code",
       "FAILED": "Falhou",
       "STOPPED": "Desconectado",
-      "STARTING": "Iniciando"
+      "STARTING": "Iniciando",
+      "MISSING": "Sessão inexistente"
     },
     "ACTIONS": {
       "VIEW_QR": "Ver QR Code",
