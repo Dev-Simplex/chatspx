@@ -101,11 +101,13 @@ RSpec.describe Captain::Tools::HandoffTool, type: :model do
           Current.reset
         end
 
-        it 'logs tool usage with reason' do
+        # O log carrega segmento e prioridade pra dar pra medir handoff por comportamento
+        # de qualificação (conversa sem campanha => segmento nil, prioridade nil).
+        it 'logs tool usage with reason, segment and priority' do
           reason = 'Customer needs help'
           expect(tool).to receive(:log_tool_usage).with(
             'tool_handoff',
-            { conversation_id: conversation.id, reason: reason }
+            { conversation_id: conversation.id, segmento: nil, prioridade: nil, reason: reason }
           )
 
           tool.perform(tool_context, reason: reason)
@@ -244,7 +246,7 @@ RSpec.describe Captain::Tools::HandoffTool, type: :model do
         it 'logs tool usage with default reason' do
           expect(tool).to receive(:log_tool_usage).with(
             'tool_handoff',
-            { conversation_id: conversation.id, reason: 'Agent requested handoff' }
+            { conversation_id: conversation.id, segmento: nil, prioridade: nil, reason: 'Agent requested handoff' }
           )
 
           tool.perform(tool_context)
