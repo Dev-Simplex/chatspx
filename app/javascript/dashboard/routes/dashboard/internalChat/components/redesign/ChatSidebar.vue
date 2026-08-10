@@ -21,7 +21,6 @@ const emit = defineEmits([
   'createGroup',
   'createTeam',
   'toggleAudit',
-  'openMentions',
 ]);
 
 const store = useStore();
@@ -140,15 +139,6 @@ defineExpose({ openCompose });
     >
       <h1 class="text-lg font-bold text-n-slate-12">Chat Interno</h1>
       <div class="flex items-center gap-0.5">
-        <!-- Inbox de menções -->
-        <button
-          type="button"
-          class="inline-flex items-center justify-center transition-colors rounded-lg w-9 h-9 text-n-slate-11 hover:bg-n-alpha-2 hover:text-n-slate-12"
-          title="Menções"
-          @click="$emit('openMentions')"
-        >
-          <span class="text-lg i-lucide-at-sign" />
-        </button>
         <!-- Configurações de notificação -->
         <div class="relative">
           <button
