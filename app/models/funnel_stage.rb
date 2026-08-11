@@ -29,6 +29,26 @@ class FunnelStage < ApplicationRecord
   validates :funnel_id, presence: true
   validates :automation_type, uniqueness: { scope: :funnel_id, allow_nil: true }, if: :automation_type?
 
+  # Payload da coluna nos eventos de tempo real do board (Kanban tempo real /
+  # Fase 4).
+  #
+  # ⚠️ MANTENHA EM SINCRONIA com `app/views/api/v1/models/_funnel_stage.json.jbuilder`
+  # — é a mesma coluna, vinda do GET ou do websocket, para o mesmo store.
+  # Tempos em iso8601 porque o payload vira args de Sidekiq (strict_args).
+  def push_event_data
+    {
+      id: id,
+      name: name,
+      funnel_id: funnel_id,
+      position: position,
+      color: color,
+      automation_type: automation_type,
+      settings: settings || {},
+      created_at: created_at&.iso8601,
+      updated_at: updated_at&.iso8601
+    }
+  end
+
   scope :ordered, -> { order(:position, :created_at) }
   scope :with_automation, ->(automation_type) { where(automation_type: automation_type) }
   scope :with_open_automation, -> { with_automation('open') }

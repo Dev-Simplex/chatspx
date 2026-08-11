@@ -1,5 +1,5 @@
 <script setup>
-import { ref, computed } from 'vue';
+import { ref, computed, onMounted } from 'vue';
 import { useVuelidate } from '@vuelidate/core';
 import { required, minLength } from '@vuelidate/validators';
 import { useStore, useMapGetter } from 'dashboard/composables/store';
@@ -38,6 +38,17 @@ const props = defineProps({
     type: Number,
     default: null,
   },
+  // ids dos times que este agente SUPERVISIONA (supervisionar ≠ ser membro)
+  supervisedTeamIds: {
+    type: Array,
+    default: () => [],
+  },
+  // quem ABRIU o modal é supervisor (não admin): renomear é tudo o que pode.
+  // Não confundir com o agente EDITADO ser supervisor — isso é supervisedTeamIds.
+  isSupervisorView: {
+    type: Boolean,
+    default: false,
+  },
 });
 
 const emit = defineEmits(['close']);
@@ -49,14 +60,31 @@ const { t } = useI18n();
 
 const agentName = ref(props.name);
 const agentAvailability = ref(props.availability);
-const selectedRoleId = ref(props.customRoleId || props.type);
 const agentCredentials = ref({ email: props.email });
+// cópia local: só é enviada quando o campo está visível, senão o backend entende
+// "chave ausente = não mexa" e a supervisão atual fica preservada.
+const supervisedTeamIds = ref([...props.supervisedTeamIds]);
 
-const rules = {
-  agentName: { required, minLength: minLength(1) },
-  selectedRoleId: { required },
-  agentAvailability: { required },
-};
+// "Supervisor" não existe no backend: é agente + times supervisionados. A função
+// vira uma opção só na tela para o admin não ter que descobrir que supervisão é
+// um campo separado. Quem já supervisiona algum time abre o modal como Supervisor.
+const SUPERVISOR_ROLE = 'supervisor';
+const isPlainAgent = !props.customRoleId && props.type === 'agent';
+const selectedRoleId = ref(
+  isPlainAgent && props.supervisedTeamIds.length
+    ? SUPERVISOR_ROLE
+    : props.customRoleId || props.type
+);
+
+// No modo supervisor só o Nome está na tela; validar campos escondidos travaria
+// o botão salvar por um valor que ele nem pode ver, muito menos corrigir.
+const rules = props.isSupervisorView
+  ? { agentName: { required, minLength: minLength(1) } }
+  : {
+      agentName: { required, minLength: minLength(1) },
+      selectedRoleId: { required },
+      agentAvailability: { required },
+    };
 
 const v$ = useVuelidate(rules, {
   agentName,
@@ -70,6 +98,14 @@ const pageTitle = computed(
 
 const uiFlags = useMapGetter('agents/getUIFlags');
 const getCustomRoles = useMapGetter('customRole/getCustomRoles');
+const teams = useMapGetter('teams/getTeams');
+
+onMounted(() => {
+  // a lista de agentes não carrega times por conta própria — e no modo
+  // supervisor o campo de times nem existe, então não há o que buscar
+  if (props.isSupervisorView) return;
+  if (!teams.value.length) store.dispatch('teams/get');
+});
 
 const roles = computed(() => {
   const defaultRoles = [
@@ -82,6 +118,11 @@ const roles = computed(() => {
       id: 'agent',
       name: 'agent',
       label: t('AGENT_MGMT.AGENT_TYPES.AGENT'),
+    },
+    {
+      id: SUPERVISOR_ROLE,
+      name: SUPERVISOR_ROLE,
+      label: t('AGENT_MGMT.AGENT_TYPES.SUPERVISOR'),
     },
   ];
 
@@ -99,6 +140,19 @@ const selectedRole = computed(() =>
     role =>
       role.id === selectedRoleId.value || role.name === selectedRoleId.value
   )
+);
+
+// A lista de times só aparece para "Supervisor" — é o que a função significa.
+// Admin já enxerga tudo, e agente comum por definição não supervisiona.
+// Alterar supervisão é privilégio de admin: no modo supervisor o campo some.
+const canSuperviseTeams = computed(
+  () => !props.isSupervisorView && selectedRole.value?.name === SUPERVISOR_ROLE
+);
+
+// Supervisor sem nenhum time marcado não supervisiona nada: seria idêntico a
+// agente comum, com o admin achando que configurou algo. Bloqueia o envio.
+const isSupervisorWithoutTeams = computed(
+  () => canSuperviseTeams.value && supervisedTeamIds.value.length === 0
 );
 
 const statusList = computed(() => {
@@ -119,20 +173,36 @@ const availabilityStatuses = computed(() =>
 
 const editAgent = async () => {
   v$.value.$touch();
-  if (v$.value.$invalid) return;
+  if (v$.value.$invalid || isSupervisorWithoutTeams.value) return;
 
   try {
-    const payload = {
-      id: props.id,
-      name: agentName.value,
-      availability: agentAvailability.value,
-    };
+    const payload = { id: props.id, name: agentName.value };
 
-    if (selectedRole.value.name.startsWith('custom_')) {
-      payload.custom_role_id = selectedRole.value.id;
-    } else {
-      payload.role = selectedRole.value.name;
-      payload.custom_role_id = null;
+    // Supervisor só renomeia: o backend recusa qualquer outra chave vinda dele,
+    // então o payload para aqui em vez de descer pelo bloco de função/supervisão.
+    if (!props.isSupervisorView) {
+      payload.availability = agentAvailability.value;
+
+      const roleName = selectedRole.value.name;
+      const isCustomRole = roleName.startsWith('custom_');
+
+      if (isCustomRole) {
+        payload.custom_role_id = selectedRole.value.id;
+      } else {
+        // Supervisor é agente no backend — a diferença está nos times supervisionados.
+        payload.role = roleName === SUPERVISOR_ROLE ? 'agent' : roleName;
+        payload.custom_role_id = null;
+      }
+
+      if (canSuperviseTeams.value) {
+        payload.supervised_team_ids = supervisedTeamIds.value;
+      } else if (roleName === 'agent') {
+        // Rebaixar Supervisor -> Agente é a única troca que precisa LIMPAR: sem
+        // isso a supervisão continuaria valendo sem aparecer em lugar nenhum.
+        // Admin e função personalizada omitem a chave, e o backend preserva o que
+        // havia — assim promover alguém a admin não descarta a configuração.
+        payload.supervised_team_ids = [];
+      }
     }
 
     await store.dispatch('agents/update', payload);
@@ -169,7 +239,9 @@ const resetPassword = async () => {
         </label>
       </div>
 
-      <div class="w-full">
+      <!-- Função, times supervisionados e disponibilidade são decisões de admin;
+           o supervisor enxerga só o Nome. -->
+      <div v-if="!isSupervisorView" class="w-full">
         <label :class="{ error: v$.selectedRoleId.$error }">
           {{ $t('AGENT_MGMT.EDIT.FORM.AGENT_TYPE.LABEL') }}
           <select v-model="selectedRoleId" @change="v$.selectedRoleId.$touch">
@@ -183,7 +255,52 @@ const resetPassword = async () => {
         </label>
       </div>
 
-      <div class="w-full">
+      <!-- Times supervisionados: desdobramento da função Supervisor, por isso
+           vem logo abaixo dela em vez de virar uma seção solta no fim do form. -->
+      <div v-if="canSuperviseTeams" class="w-full">
+        <label class="block">
+          {{ $t('AGENT_MGMT.EDIT.FORM.SUPERVISED_TEAMS.LABEL') }}
+        </label>
+        <p class="mt-0 mb-2 text-n-slate-11 text-label-small">
+          {{ $t('AGENT_MGMT.EDIT.FORM.SUPERVISED_TEAMS.DESCRIPTION') }}
+        </p>
+        <div
+          v-if="teams.length"
+          class="flex flex-col gap-2.5 p-3 overflow-y-auto border border-solid rounded-lg max-h-44 border-n-weak dark:border-n-strong"
+        >
+          <div
+            v-for="team in teams"
+            :key="team.id"
+            class="flex items-center gap-2"
+          >
+            <input
+              :id="`supervised-team-${team.id}`"
+              v-model="supervisedTeamIds"
+              type="checkbox"
+              :value="team.id"
+              class="m-0"
+            />
+            <label
+              :for="`supervised-team-${team.id}`"
+              class="mb-0 text-sm cursor-pointer text-n-slate-12"
+            >
+              {{ team.name }}
+            </label>
+          </div>
+        </div>
+        <p v-else class="mb-4 text-n-slate-11 text-label-small">
+          {{ $t('AGENT_MGMT.EDIT.FORM.SUPERVISED_TEAMS.EMPTY') }}
+        </p>
+        <p
+          v-if="teams.length && isSupervisorWithoutTeams"
+          class="mt-2 mb-4 text-n-ruby-11 text-label-small"
+        >
+          {{ $t('AGENT_MGMT.EDIT.FORM.SUPERVISED_TEAMS.REQUIRED') }}
+        </p>
+        <div v-else class="mb-4" />
+      </div>
+
+      <div v-if="!isSupervisorView" class="w-full">
         <label :class="{ error: v$.agentAvailability.$error }">
           {{ $t('PROFILE_SETTINGS.FORM.AVAILABILITY.LABEL') }}
           <select
@@ -207,7 +324,7 @@ const resetPassword = async () => {
       <div class="flex flex-row justify-start w-full gap-2 px-0 py-2">
         <div class="w-[50%] ltr:text-left rtl:text-right">
           <Button
-            v-if="provider !== 'saml'"
+            v-if="!isSupervisorView && provider !== 'saml'"
             ghost
             type="button"
             icon="i-lucide-lock-keyhole"
@@ -227,7 +344,9 @@ const resetPassword = async () => {
           <Button
             type="submit"
             :label="$t('AGENT_MGMT.EDIT.FORM.SUBMIT')"
-            :disabled="v$.$invalid || uiFlags.isUpdating"
+            :disabled="
+              v$.$invalid || isSupervisorWithoutTeams || uiFlags.isUpdating
+            "
             :is-loading="uiFlags.isUpdating"
           />
         </div>

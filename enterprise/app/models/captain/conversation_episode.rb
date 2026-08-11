@@ -10,6 +10,13 @@ class Captain::ConversationEpisode < ApplicationRecord
   belongs_to :conversation, class_name: '::Conversation'
   has_one :eval, class_name: 'Captain::ConversationEval', foreign_key: :episode_id,
                  inverse_of: :episode, dependent: :nullify
+  # Desfechos (F3) são DERIVADOS da fronteira do episódio: se a re-segmentação apaga o
+  # episódio (mudança de regra/versão — ver o destroy_all do EpisodeSegmenterService),
+  # os degraus daquela fronteira deixam de valer. `destroy` em vez de `nullify` porque
+  # outcome órfão continuaria entrando nos agregados por account_id, inflando a conversão
+  # com episódios que não existem mais. O backfill recalcula sobre a fronteira nova.
+  has_many :outcomes, class_name: 'Captain::EpisodeOutcome', foreign_key: :episode_id,
+                      inverse_of: :episode, dependent: :destroy
 
   validates :seq, presence: true, uniqueness: { scope: :conversation_id }
   validates :boundary_reason, inclusion: { in: BOUNDARY_REASONS }
@@ -21,6 +28,7 @@ class Captain::ConversationEpisode < ApplicationRecord
   def closed?
     ended_at.present?
   end
+
 
   # F4.2 (Eval humano): notas privadas de gestores com o marcador #eval que pertencem
   # a ESTE episódio. Duas formas de vínculo: EXPLÍCITO (content_attributes.eval_episode_id,

@@ -8,7 +8,15 @@
 {% endif -%}
 {% if conversation.custom_attributes -%}
   {% for attribute in conversation.custom_attributes -%}
+{% if attribute[0] == "assuntos_checklist" -%}
+{% if attribute[1].size > 0 -%}
+- Assuntos e tarefas:
+{% for item in attribute[1] %}  [{% if item.done %}x{% else %} {% endif %}] {{ item.text }}
+{% endfor -%}
+{% endif -%}
+{% else -%}
 - {{ attribute[0] }}: {{ attribute[1] }}
+{% endif -%}
   {% endfor -%}
 {% endif -%}
 {% if conversation.additional_attributes -%}

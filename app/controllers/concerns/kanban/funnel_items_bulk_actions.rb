@@ -7,20 +7,29 @@ module Kanban::FunnelItemsBulkActions
   extend ActiveSupport::Concern
 
   # Move many conversations to a single stage (Trello-style multi-drag / list bulk).
+  #
+  # Tempo real (Fase 2.3): o broadcast individual do MoveService é SUPRIMIDO e no
+  # fim sai UM evento agregado. Antes, mover 50 cards enfileirava 50
+  # ActionCableBroadcastJob na fila `:critical`, cada um publicando para todos os
+  # usuários do público do funil — 1.500 publicações numa conta de 30 agentes.
   def bulk_move
     stage_id = params[:stage_id]
     return render json: { error: 'stage_id is required' }, status: :unprocessable_entity if stage_id.blank?
 
     stage = funnel.funnel_stages.find(stage_id)
+    moved_ids = []
     Current.account.conversations.where(id: params[:conversation_ids] || []).find_each do |conversation|
-      FunnelItems::MoveService.new(
+      item = FunnelItems::MoveService.new(
         conversation: conversation,
         funnel: funnel,
         funnel_stage: stage,
-        moved_by: Current.user
+        moved_by: Current.user,
+        broadcast: false
       ).perform
+      moved_ids << item.id
     end
 
+    broadcast_bulk_move(moved_ids)
     head :ok
   end
 
@@ -53,5 +62,15 @@ module Kanban::FunnelItemsBulkActions
   rescue StandardError => e
     Rails.logger.error "FunnelItemsController#reorder: #{e.class} - #{e.message}"
     render json: { error: 'Error reordering items' }, status: :internal_server_error
+  end
+
+  private
+
+  # Só ids: o listener recarrega com `includes` para montar os payloads sem N+1
+  # (e aplica o teto acima do qual o evento vira ordem de refetch).
+  def broadcast_bulk_move(item_ids)
+    return if item_ids.blank?
+
+    Kanban::Realtime.dispatch(Events::Types::FUNNEL_ITEMS_BULK_MOVED, funnel: funnel, item_ids: item_ids)
   end
 end

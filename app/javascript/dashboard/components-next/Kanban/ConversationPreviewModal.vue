@@ -554,7 +554,9 @@ const fetchMessages = async () => {
         if (type === MESSAGE_TYPE.ACTIVITY) return false;
         if (message?.private === true) return false;
         if (isMessageRestricted(message, inbox.value)) return false;
-        if (isAgentMessageRestricted(message, inbox.value)) return false;
+        // 3º argumento = a conversa (time que isenta o supervisor).
+        if (isAgentMessageRestricted(message, inbox.value, props.conversation))
+          return false;
         return true;
       })
       .map(normalizeAttachments)

@@ -20,6 +20,7 @@ class Api::V1::Accounts::Captain::EvalDashboardController < Api::V1::Accounts::B
       handoff: safe_group(escopo, :handoff_timing),
       fronteiras: fronteiras,
       findings: findings_stats(escopo),
+      desfechos: desfechos,
       recentes: recentes(evals),
       saude: saude
     }
@@ -197,6 +198,85 @@ class Api::V1::Accounts::Captain::EvalDashboardController < Api::V1::Accounts::B
     { ia: ia, humano: humano, gate: gate, top: top }
   rescue StandardError
     {}
+  end
+
+  # ── F3: camada de FATOS (desfecho + conduta) ──────────────────────────────
+  # Separada do veredito do juiz de propósito: aqui nada veio de LLM.
+  #
+  # Unidade = EPISÓDIO FECHADO, não a linha de desfecho. Episódio que não atingiu
+  # degrau nenhum (HSM enviado, lead nunca respondeu) não tem linha em
+  # captain_episode_outcomes e precisa continuar no denominador — é ele que responde
+  # se o opener funcionou.
+  def desfechos
+    outcomes = Captain::EpisodeOutcome.for_account(Current.account.id)
+    fechados = Captain::ConversationEpisode.for_account(Current.account.id).closed
+    convertidos = convertidos_scope(outcomes)
+
+    {
+      escada: escada(outcomes),
+      conversao: { episodios: fechados.count, convertidos: fechados.where(id: convertidos).count },
+      conduta: { converteu: conduta(fechados.where(id: convertidos)),
+                 nao_converteu: conduta(fechados.where.not(id: convertidos)) },
+      campanhas: campanhas_conduta(fechados, convertidos),
+      atendimento: atendimento_split(outcomes),
+      # 🔒 contagem à parte, NUNCA somada à conversão (ver o scope do_spx no model)
+      externos: outcomes.externos.count
+    }
+  rescue StandardError
+    {}
+  end
+
+  # Corte B: o scope `conversao` já aplica do_spx e o qualificador de 'assumido'.
+  def convertidos_scope(outcomes)
+    outcomes.conversao.select(:episode_id)
+  end
+
+  # ⚠️ O corte mais importante da tela: METADE DO QUE O EVAL MEDE NÃO É IA. No dry-run
+  # da conta 6, 248 dos 342 atendimentos assumidos foram conduzidos só por humanos. Sem
+  # separar isso visualmente, a gestão atribui à IA resultado que é de gente.
+  def atendimento_split(outcomes)
+    com_ia = outcomes.do_spx.assumido_com_ia.count
+    so_humano = outcomes.do_spx.assumido_so_humano.count
+    { com_ia: com_ia, so_humano: so_humano, total: com_ia + so_humano }
+  end
+
+  # Cada degrau com o split de autoria — mesmo eixo do findings_stats.
+  def escada(outcomes)
+    Captain::EpisodeOutcome::DEGRAUS.filter_map do |degrau|
+      escopo = outcomes.do_spx.where(degrau: degrau)
+      total = escopo.count
+      next if total.zero?
+
+      { degrau: degrau, total: total,
+        conversao: Captain::EpisodeOutcome::DEGRAUS_CONVERSAO.include?(degrau),
+        autoria: escopo.group(:causado_por).count }
+    end
+  end
+
+  # Média dos traços de conduta do grupo. Só episódios já com traço calculado.
+  def conduta(escopo)
+    base = escopo.where.not(turnos_ia: nil)
+    total = base.count
+    return { episodios: 0 } if total.zero?
+
+    { episodios: total,
+      chars: base.average(:chars_resposta_media)&.round,
+      turnos_ia: base.average(:turnos_ia)&.round(1),
+      ferramentas: base.average(:ferramentas_usadas)&.round(1),
+      midia_pct: (100.0 * base.where(enviou_midia: true).count / total).round }
+  end
+
+  # O corte que responde "esse público converte com que conduta?".
+  def campanhas_conduta(fechados, convertidos)
+    com_traco = fechados.where.not(turnos_ia: nil).where.not(campanha: nil)
+    com_traco.group(:campanha).count.sort_by { |_, total| -total }.first(5).map do |campanha, total|
+      escopo = com_traco.where(campanha: campanha)
+      convertidos_total = escopo.where(id: convertidos).count
+      { campanha: campanha, episodios: total, convertidos: convertidos_total,
+        taxa: (100.0 * convertidos_total / total).round,
+        converteu: conduta(escopo.where(id: convertidos)),
+        nao_converteu: conduta(escopo.where.not(id: convertidos)) }
+    end
   end
 
   def recentes(evals)

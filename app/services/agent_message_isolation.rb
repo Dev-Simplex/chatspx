@@ -30,6 +30,19 @@ module AgentMessageIsolation
     viewer_restriction_id(user, account)
   end
 
+  # Idem, porém ciente da SUPERVISÃO DE TIME (D2): o supervisor vê TODAS as bolhas
+  # das conversas do time que supervisiona, mesmo com a flag ON. Prefira esta versão
+  # sempre que a conversa for conhecida — `restriction_id_for_inbox` fica para os
+  # pontos que só têm o inbox em mãos.
+  def restriction_id_for_conversation(conversation, user, account = nil)
+    return nil if conversation.nil?
+
+    scope = account || conversation.account_id
+    return nil if TeamSupervision.supervises?(user, conversation.team_id, scope)
+
+    restriction_id_for_inbox(conversation.inbox, user, scope)
+  end
+
   # Aplica o filtro a um scope de Message já restrito a um único inbox isolado.
   def filter_messages(scope, restriction_id)
     return scope if restriction_id.nil?

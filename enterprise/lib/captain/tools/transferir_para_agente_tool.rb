@@ -7,7 +7,21 @@ class Captain::Tools::TransferirParaAgenteTool < Captain::Tools::BasePublicTool
               'Use quando o assunto da conversa pertence a outro agente. A transferência é invisível ' \
               'para o cliente: o novo agente assume e continua a conversa.'
 
-  param :agente, type: 'string', desc: 'Nome do agente de destino (ex: Júlia, Bruna, Letícia, Marina, Rafa, Clara).', required: true
+  param :agente, type: 'string', desc: 'Nome exato do agente de destino, conforme as regras de transferência das instruções.', required: true
+
+  # Trilho anti-ping-pong. Sem ele, A passa pra B, B devolve pra A e o cliente fica esperando
+  # enquanto a conversa quica entre as duas — caso real: conv 17770 em 24/07, Júlia<->Bruna
+  # três vezes em três minutos, até um humano quebrar o loop na mão.
+  #
+  # A janela é curta DE PROPÓSITO: com conversa única por contato (lock_to_single_conversation)
+  # a conversa vive meses e troca de assunto legitimamente (locação -> financeiro -> manutenção).
+  # Contar "transferências da conversa inteira" travaria a troca legítima semanas depois; o
+  # loop, ao contrário, se resolve em minutos. Estourou o trilho -> chama gente, que é a saída
+  # segura: melhor um humano a mais do que um cliente preso no vaivém.
+  TRANSFER_WINDOW = 1.hour
+  MAX_TRANSFERS_IN_WINDOW = 3
+  TRANSFER_HISTORY_KEY = 'ia_transferencias'.freeze
+  HISTORY_LIMIT = 10
 
   # Trilho anti-ping-pong. Sem ele, A passa pra B, B devolve pra A e o cliente fica esperando
   # enquanto a conversa quica entre as duas — caso real: conv 17770 em 24/07, Júlia<->Bruna

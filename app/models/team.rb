@@ -21,6 +21,10 @@ class Team < ApplicationRecord
   belongs_to :account
   has_many :team_members, dependent: :destroy_async
   has_many :members, through: :team_members, source: :user
+  # Supervisão (D1): coleção separada dos membros de propósito — supervisor não conta
+  # como membro em nada (auto-assign, chat interno, etiquetas "de-time").
+  has_many :team_supervisors, dependent: :destroy_async
+  has_many :supervisors, through: :team_supervisors, source: :user
   has_many :conversations, dependent: :nullify
 
   validates :name,

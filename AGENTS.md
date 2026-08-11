@@ -134,8 +134,11 @@ Chatwoot tem overlay Enterprise em `enterprise/` que extende/sobrescreve codigo 
 
 ## Translations
 
-- Apenas editar `en.yml` (backend) e `en.json` (frontend)
-- Outros idiomas sao mantidos pela comunidade
+- **Esta regra e do upstream, NAO vale pra este fork.** No Chatwoot original so `en` e editado
+  porque os outros idiomas vem de traducao comunitaria. Aqui a base de usuarios e brasileira e o
+  produto e entregue em PT-BR: **feature nova edita `en` E `pt_BR`**, senao o time do cliente ve
+  metade da tela em ingles. Os commits recentes fazem isso rotineiramente.
+- Demais idiomas (es, fr, ...) continuam sendo da comunidade — nao traduzir.
 
 ## Frontend
 
@@ -162,6 +165,20 @@ Chatwoot tem overlay Enterprise em `enterprise/` que extende/sobrescreve codigo 
 - Seeds: `db:seed` para dev rapido, `AccountSeeder` para dados ricos
 - rbenv: sempre inicializar antes de qualquer comando Ruby
 - **CRITICO — Nunca `systemctl restart` em producao sem antes rodar `rails db:migrate:status`.** Migration pendente + restart = 500 em cadeia (PG::UndefinedColumn em queries que usam a coluna nova). Bomba latente pode ficar 7+ dias oculta porque codigo antigo em memoria nao a referencia. Ver vault: `01-Permanentes/Incidente - Pending Migration 24-abr-2026.md`. Para aplicar migration especifica pulando outras pendentes (ex: uma com orphan data), usar `db:migrate:up VERSION=YYYYMMDDHHMMSS` (nao `db:migrate VERSION=X` que aplica TODAS ate X).
+
+- **CRÍTICO — timestamp de migration com SEGUNDOS REAIS, nunca hora redonda.** O timestamp **é** a
+  versão da migration. Duplicado, o Rails levanta `DuplicateMigrationVersionError` e **nenhuma
+  migration roda** — não só a duplicada. O deploy inteiro para.
+  - **Como aconteceu (30/07/2026):** três frentes trabalhando em paralelo escolheram, cada uma por
+    conta, horas redondas — `120000`, `120100`, `130000`, `130100`, `120200`. Três colidiram. Não
+    foi azar: hora redonda é o número que todo mundo escolhe.
+  - **Regra:** gere o timestamp de verdade — `date +%Y%m%d%H%M%S` — e **não arredonde**. Dois
+    segundos reais não colidem.
+  - **Antes de escolher, olhe a branch de integração, não a sua worktree:**
+    `git ls-tree origin/homologacao db/migrate/ --name-only | sort | tail`. Worktree de frente
+    costuma estar atrás e **não enxerga** as migrations das outras frentes.
+  - Coluna que outra frente pode ter tocado em banco de teste: `add_column ... if_not_exists: true`
+    transforma um aborto de lote num no-op.
 
 ## Commit Messages
 

@@ -264,9 +264,69 @@
   }
 }
 
+/* Tempo real — o card que acabou de mudar por ação de OUTRA pessoa pisca por
+   ~2,6s (o store limpa a marca, ver `flagRemoteActivity`). Sem isso o card
+   teleporta sem explicação e o colega acha que bugou — ou desfaz o move dele
+   por cima. */
+.kanban-card--remote {
+  animation: kanban-remote-pulse 2.6s ease-out 1;
+}
+
+.kanban-card__remote-badge {
+  position: absolute;
+  top: 0;
+  right: 0;
+  z-index: 3;
+  max-width: 85%;
+  overflow: hidden;
+  padding: 2px 6px;
+  border-bottom-left-radius: var(--kanban-radius-sm);
+  background: rgb(var(--n-brand, 29 155 240));
+  color: #fff;
+  font-size: 10px;
+  font-weight: 600;
+  line-height: 1.4;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  animation: kanban-remote-badge-fade 2.6s ease-out 1 forwards;
+}
+
+@keyframes kanban-remote-pulse {
+  0% {
+    box-shadow:
+      0 0 0 0 rgba(var(--n-brand, 29 155 240), 0.55),
+      var(--kanban-card-shadow);
+  }
+  60% {
+    box-shadow:
+      0 0 0 4px rgba(var(--n-brand, 29 155 240), 0.16),
+      var(--kanban-card-shadow);
+  }
+  100% {
+    box-shadow: var(--kanban-card-shadow);
+  }
+}
+
+@keyframes kanban-remote-badge-fade {
+  0%,
+  70% {
+    opacity: 1;
+  }
+  100% {
+    opacity: 0;
+  }
+}
+
 /* Phase 6 — single consolidated reduced-motion guard for the whole board. */
 @media (prefers-reduced-motion: reduce) {
   .kanban-card {
+    animation: none;
+  }
+
+  /* O selo "movido por …" CONTINUA aparecendo (é informação, não enfeite);
+     só a pulsação e o fade saem. */
+  .kanban-card--remote,
+  .kanban-card__remote-badge {
     animation: none;
   }
 

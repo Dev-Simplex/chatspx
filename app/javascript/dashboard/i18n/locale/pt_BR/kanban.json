@@ -145,6 +145,7 @@
     "CANCEL": "Cancelar",
     "SAVE": "Salvar",
     "MOVE": "Mover",
+    "RECONNECTING": "Reconectando…",
     "LOADING": "Carregando…",
     "LOADING_CONVERSATIONS": "Carregando conversas e contatos…",
     "LOADING_SCHEDULED_MESSAGES": "Carregando mensagens agendadas…",
@@ -287,6 +288,8 @@
     },
     "CARD": {
       "UNASSIGNED": "Não atribuído",
+      "MOVED_BY": "movido por {name}",
+      "MOVED_AUTOMATICALLY": "movido automaticamente",
       "ADD": "Adicionar cartão",
       "PREVIEW": "Pré-visualizar conversa",
       "LABELS_MORE": "mais etiquetas",

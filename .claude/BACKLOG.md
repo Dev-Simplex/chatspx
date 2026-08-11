@@ -7,6 +7,12 @@
 
 ## Knowledge / chunk-RAG (genérico do produto)
 
+### ✅ RESOLVIDO (30/07) — `format_chunk` descarta o `contextual_content`
+> Corrigido na frente `spx/fricoes`, commit `3b05d9b67`, aguardando merge. O `contextual_content`
+> é sempre superset do trecho (o serviço cai no chunk puro em caso de falha), então não há perda
+> possível; conta sem contextual retrieval ligado segue no comportamento antigo. RuboCop: zero
+> offense nova. Descrição original abaixo, mantida como registro.
+
 ### 🔴 `format_chunk` descarta o `contextual_content` — chunk chega órfão pro agente
 - **O quê:** `Captain::Tools::SearchKnowledgeTool#format_chunk` entrega `chunk.content` (texto cru fatiado) e ignora a coluna `contextual_content`, que é justamente onde o contextual retrieval grava a âncora ("O trecho descreve o empreendimento X…"). Resultado: o agente recebe fatos sem dono e os atribui ao assunto em discussão.
 - **Medido na Tozi (28/07):** 93 de 114 chunks do catálogo não citavam empreendimento nenhum no `content`; **73 de 114 citavam no `contextual_content`**. Preço de um empreendimento podia responder pergunta de outro.
@@ -65,6 +71,23 @@
 - **Fix:** UI "Novo disparo" — upload de CSV, multiselect de corretores, multiselect de templates (com rotação automática decorrelacionada), slider de pacing (s/envio), preview da audiência limpa (dedup + blacklist na hora). Reusa o motor existente.
 - **Tamanho:** grande (é um módulo). Candidato a workflow de design antes de implementar.
 
+### 🟠 Vínculo conversa↔campanha: semântica decidida (02/08), resíduo mapeado
+- **Semântica adotada:** `conversations.campaign_id` = a campanha que **ORIGINOU** a conversa, gravada só quando está nula, e **não muda** em disparos seguintes. Mudar para "última campanha que tocou" reescreveria a atribuição de todo o histórico. O vínculo **por disparo** (que é o exato) vive em `campaign_recipients`.
+- **Resolvido:** o dono do disparo (`Spx::TemplateReplyRouterListener#dispatch_owner_id`) passou a resolver a campanha pelo `campaign_recipients` mais recente da conversa, não por `conversation.campaign` — some o roteamento pro dono da campanha antiga na 2ª campanha sobre a mesma base. E o rake `spx:tozi:disparo` ganhou o argumento `campaign_id` (6º) com aviso em destaque no plano quando ele falta.
+- **Medição que motivou (prod, 02/08):** só **1 de 152** conversas amostradas tinha `campaign_id`. Causa: são **dois motores** e o volume real vai pelo antigo (`Spx::Tozi::DisparoLeadJob`), cujo `campaign_id:` é `nil` por default e o rake nunca passava. Consequência colateral: a guarda `campaign_without_reply?` (`enterprise/app/jobs/captain/inbox_pending_conversations_resolution_job.rb:181`), que existe para a IA não encerrar lead de campanha que ainda não respondeu, **nunca disparava**.
+- **Resíduo (não resolvido):**
+  - `campaign_stats` agrega por `@campaign.conversations` (ou seja, por origem). Com a semântica de origem, a 2ª campanha sobre a mesma base **subnotifica**. O certo é agregar por `campaign_recipients`, que é completo e por disparo — mas isso se cruza com a P5.1 (N+1 + full-scan) e vale fazer junto.
+  - **Corte por campanha enxerga um subconjunto do tráfego:** o F3 da `spx/eval` lê `custom_attributes['meta_campanha']`, que só é carimbado pelo webhook do Meta Lead Ads (`meta/lead_ads/create_conversation_service.rb:152`). Disparo não carimba nada e cai em "(sem campanha)". Os números PACAEMBU 60% × RMKT 37% estão corretos — a ressalva é de população, não de cálculo.
+  - Conversas de disparos antigos seguem com `campaign_id` nulo. Backfill possível pela label/`additional_attributes.template`, se alguém quiser o histórico no corte.
+  - `Messages::MessageBuilder` (linha ~186) faz `.merge(campaign_id).merge(template_params)` e **ambos escrevem `additional_attributes`** — quem passar os dois perde o `campaign_id` da mensagem. Ninguém passa hoje; é armadilha para quem for atribuir campanha no nível da mensagem.
+- **Tamanho:** o resíduo é médio e concentrado no `campaign_stats`.
+
+### 🟡 Ainda há montagem de HSM fora da interface única
+- **Contexto:** `Whatsapp::SendTemplateService` (02/08) virou o caminho único de HSM em conversa existente — `DisparoLeadJob`, `FollowupHsmJob` e `RecipientDispatchService` delegam para ele, e o espelho da transcrição passou a sair do template **sincronizado** (o hash `PREVIEWS` virou só rede de segurança).
+- **Falta:** `Meta::LeadAds::CreateConversationService` ainda monta `template_params` inline em dois pontos (`create_initial_template_message` e `create_imovel_opener`). Migrar os dois fecha o assunto.
+- **Bônus que fica barato depois:** com o template sincronizado em mãos dentro do service, dá para contar os `{{n}}` reais e **cortar params sobrando** — é a P2.3 (`processed_params` sempre com 2 vars → `#132000`), que passa a ter um lugar só para ser corrigida.
+- **Tamanho:** pequeno.
+
 ### 🟡 Tela de detalhe é estática (números congelam até reload)
 - **Fix:** auto-refresh do `getStats` a cada ~15s enquanto a campanha tem jobs pendentes (polling simples ou `setInterval` no `onMounted`/`onUnmounted`). Indicador "ao vivo".
 - **Tamanho:** pequeno.
@@ -91,6 +114,22 @@
 ---
 
 ## Editor / Respostas rápidas
+
+### ⚪ NÃO REPRODUZ (investigado 30/07) — re-escopar antes de mexer
+> A frente `spx/fricoes` montou o pipeline real (schema do WhatsApp via `buildMessageSchema`,
+> markdown de verdade, `getContentNode` + `insertAtCursor` + `MessageMarkdownSerializer`) e comparou
+> os dois caminhos com `\n\n`, `\n` e `\r\n\r\n`: **botão e `/` inline preservam igual nos três**.
+> As duas causas suspeitas caíram: o `insertAtCursor` preserva parágrafos, e o `from - 1` do
+> `nodeCreators.cannedResponse` não achata. Também confirmou que `editorHelper.js`, `Editor.vue` e
+> `CannedResponse.vue` são **byte-idênticos entre o box da Tozi e a branch**, sem commit tocando
+> neles desde `2bd596be8` — não é caso de "já corrigido na homologação e a prod não pegou".
+>
+> **Hipótese que sobrou:** a queixa da equipe pode ser sobre o **preview da lista**, não sobre o
+> envio — o `previewText` faz `replace(/\s+/g, ' ')` de propósito, pra caber numa linha. Esse achata
+> de verdade.
+>
+> **Pra reabrir:** é preciso o short-code de uma resposta rápida que reproduza, ou confirmação de que
+> a reclamação era sobre a listagem. Sem isso, não há o que corrigir. Descrição original abaixo.
 
 ### 🟡 Canned multi-parágrafo via `/` inline achata quebras duplas → simples
 - **Sintoma:** resposta rápida com linhas em branco entre parágrafos (`\n\n`), inserida pelo `/` inline, chega no WhatsApp com quebra simples (`\n`). O **botão** (modal) preserva.
@@ -284,6 +323,24 @@
 Baseline da `homologacao` nesses 10 arquivos: **60 offenses** (RuboCop). Quase tudo é
 `Metrics/*` estrutural — `buscar_imovel_tool#perform` sozinho está em 22/7 de complexidade
 ciclomática. Não confundir com regressão de quem mexer neles.
+
+---
+
+## Conduta da IA — Tozi (decisões do Paulo, 31/07)
+
+### 🟡 Simulação de financiamento na conduta MCMV — parado por decisão
+- **O quê:** o briefing de RMKT pede que a IA simule a parcela do financiamento. Hoje o prompt tem um guard-rail proibindo.
+- **Por que está parado:** depende de **definir o banco parceiro** (taxa, prazo, LTV reais). As taxas do briefing são média de mercado e **superestimam a parcela** — entrar com elas é pior que não simular.
+- **Decisão (Paulo, 31/07):** vai pro backlog, sem data.
+- **Se for aprovado um dia:** tool determinística com parâmetros por conta, **nunca número no prompt** — número em prompt é alucinação esperando acontecer.
+
+### 🟢 Catálogo faltante de 4 empreendimentos — pendência aceita
+- **O quê:** Blend, Méditerranée, De Ville Urban e Elleva Studios aparecem no `buscar_empreendimento` (vêm vivos do Vista) mas **não têm material na knowledge**. A IA cita o nome e não sabe falar deles.
+- **Decisão (Paulo, 31/07):** fica como pendência mesmo — "não tem muita procura para esses". Não é prioridade do marketing.
+- **Mitigação que já existe:** a conduta manda não afirmar o que não está nas duas fontes, então ela encaminha pro corretor em vez de inventar.
+
+### ✅ Rhodivi × "planta única" — falso alarme, fechado
+O material do doc#22 diz *"modelo **único** identificado como BT_2D8_4385 (B = Linha Básica; T = Cobertura Telhado Aparente…)"*. Os termos que pareciam duas tipologias são a **decodificação das letras do código do modelo único**. FAQ e material sempre concordaram. Paulo confirmou em 31/07: **Rhodivi é MCMV planta única**. Nada a corrigir.
 
 ---
 

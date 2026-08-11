@@ -5,22 +5,36 @@
 # config['voice_id'] (dado por conta). QUALQUER falha instrui o agente a responder em
 # texto normal — o cliente nunca fica sem resposta por causa do áudio.
 #
-# O gatilho é o TIPO DE CONTEÚDO (resposta longa e explicativa), não um pedido do
-# cliente. Os portões abaixo não são conselho no prompt: a tool recusa sozinha, porque
-# o modelo cumpre o que é chamada de ferramenta e esquece o que é texto solto.
+# Os portões abaixo não são conselho no prompt: a tool recusa sozinha, porque o modelo
+# cumpre o que é chamada de ferramenta e esquece o que é texto solto.
 class Captain::Tools::ResponderEmAudioTool < Captain::Tools::BasePublicTool
-  description 'Responde o cliente com uma mensagem de voz (áudio) em vez de texto. ' \
-              'Use quando a resposta for LONGA E EXPLICATIVA: explicar como funciona algo, por que uma opção compensa, ' \
-              'como é um lugar. NÃO use em atendimento padrão nem para responder um dado pontual. ' \
+  include Captain::Tools::ProdutoApresentacao
+
+  # A regra antiga ("chame SOMENTE quando o cliente pedir") proibia justamente o uso que se
+  # quer: explicar por voz o que cansa em texto. Virou JULGAMENTO — o agente decide pela
+  # conversa. O que continua sendo config, e não julgamento, é a PERMISSÃO de tomar a
+  # iniciativa: áudio de empresa é mais invasivo que texto, e o que converte num público
+  # irrita outro. Por isso o áudio a pedido do cliente é sempre permitido, e o proativo é
+  # opt-in por produto (ou por assistente, para quem não usa catálogo de produto).
+  description 'Responde o cliente com uma mensagem de voz em vez de texto. Use seu julgamento: ' \
+              'a voz ajuda quando a explicação é longa ou delicada e ficaria cansativa de ler, ' \
+              'e quando o próprio cliente conversa por áudio. Prefira texto quando a pergunta é curta ' \
+              'e objetiva, ou quando ele já demonstrou preferir ler. ' \
               'Regra que manda em tudo: áudio é para o que se entende uma vez, texto é para o que se relê. ' \
-              'Valor, endereço, código, data, link e horário combinado vão SEMPRE em texto, porque a pessoa rola a conversa ' \
-              'pra trás procurando e áudio não é pesquisável nem copiável. ' \
-              'Nunca só áudio: mande junto, em `resumo_texto`, a linha curta com esses dados. ' \
-              'A ferramenta recusa sozinha quando o cliente nunca mandou áudio nesta conversa ou já pediu pra não receber áudio.'
+              'Valor, endereço, código, data, link e horário combinado vão SEMPRE em texto, porque a pessoa ' \
+              'rola a conversa pra trás procurando e áudio não é pesquisável nem copiável — quando a fala ' \
+              'citar algum desses, mande junto a linha curta em `resumo_texto`. ' \
+              'O áudio substitui a resposta em texto deste turno.'
 
   param :texto, type: 'string',
-                desc: 'Texto exato que será falado no áudio — a explicação que você daria a este turno. ' \
+                desc: 'Texto exato que será falado no áudio — a resposta que você daria a este turno. ' \
                       'Escreva em linguagem falada natural e concisa, sem markdown, sem links e sem listas.', required: true
+
+  param :a_pedido_do_cliente, type: 'boolean',
+                              desc: 'true quando o cliente pediu áudio ou disse que não consegue ler agora; ' \
+                                    'false quando responder em voz é iniciativa sua, pelo contexto da conversa.',
+                              required: true
+
   param :resumo_texto,
         type: 'string',
         desc: 'Linha curta que vai em TEXTO junto do áudio, com os dados que o cliente vai querer reler ou copiar depois. ' \
@@ -34,9 +48,9 @@ class Captain::Tools::ResponderEmAudioTool < Captain::Tools::BasePublicTool
   # ÁUDIO" escapava de /[ãa]/i. Normalizar é o que faz caps e acento pararem de importar.
 
   # Dado que a pessoa volta pra procurar: se aparece na fala, tem que existir em texto.
-  DADO_QUE_SE_RELE = %r{r\$\s*[\d.,]+|https?://|\bcod(?:igo)?\b[^.!?]{0,15}\d|\b\d{1,2}/\d{1,2}|\b\d{1,2}\s*h\b|\b\d{1,2}:\d{2}\b}
+  DADO_QUE_SE_RELE = %r{r\$\s*[\d.,]+|https?://|\bcod(?:igo)?\b[^.!?]{0,15}\d|\b\d{1,2}/\d{1,2}|\b\d{1,2}\s*h\b|\b\d{1,2}:\d{2}\b}.freeze
 
-  # Recusa do cliente vale pra conversa inteira, e manda mais que os dois portões.
+  # Recusa do cliente vale pra conversa inteira, e manda mais que qualquer permissão.
   RECUSA_DE_AUDIO = Regexp.union(
     /nao\s+(?:manda?e?|quero|gosto|consigo|posso|escuto|ouco)[^.!?]{0,20}audio/,
     /audio\s+nao\b/,
@@ -44,7 +58,7 @@ class Captain::Tools::ResponderEmAudioTool < Captain::Tools::BasePublicTool
     /odeio\s+audio/,
     /prefiro\s+(?:por\s+)?(?:texto|escrito)/,
     /manda?e?\s+por\s+escrito/
-  )
+  ).freeze
 
   # Sem voice_id no config do assistente a tool nem entra no toolset do agente
   # (configured_agent_tools filtra por active?).
@@ -52,15 +66,13 @@ class Captain::Tools::ResponderEmAudioTool < Captain::Tools::BasePublicTool
     @assistant&.config&.[]('voice_id').present?
   end
 
-  def perform(tool_context, texto:, resumo_texto: nil)
+  def perform(tool_context, texto:, a_pedido_do_cliente: false, resumo_texto: nil)
     conversation = find_conversation(tool_context&.state)
     return 'Não consegui identificar a conversa. Responda em texto normalmente.' unless conversation
 
     texto = texto.to_s.strip
-    return 'Não recebi o texto a falar. Responda em texto normalmente.' if texto.blank?
-
-    bloqueio = motivo_para_nao_mandar_audio(conversation, texto, resumo_texto)
-    return bloqueio if bloqueio
+    impedimento = impedimento_para(conversation, texto, a_pedido_do_cliente, resumo_texto)
+    return impedimento if impedimento
 
     enviar(conversation, texto, resumo_texto)
   rescue StandardError => e
@@ -69,8 +81,6 @@ class Captain::Tools::ResponderEmAudioTool < Captain::Tools::BasePublicTool
   end
 
   private
-
-  MSG_PRODUTO = 'Este produto não está liberado pra resposta proativa em áudio. Responda em texto normalmente.'.freeze
 
   def enviar(conversation, texto, resumo_texto)
     tts = Captain::ElevenLabsTtsService.new(@assistant)
@@ -84,30 +94,55 @@ class Captain::Tools::ResponderEmAudioTool < Captain::Tools::BasePublicTool
       'NÃO repita o conteúdo em texto — encerre respondendo apenas [IGNORAR].'
   end
 
-  # nil = pode mandar. String = o porquê de não mandar, já no formato de instrução ao agente.
-  def motivo_para_nao_mandar_audio(conversation, texto, resumo_texto)
+  # Motivo para NÃO mandar o áudio, ou nil quando pode ir. Fora do perform pra manter a
+  # leitura do fluxo feliz: identificou a conversa, sintetizou, enviou.
+  def impedimento_para(conversation, texto, a_pedido_do_cliente, resumo_texto)
+    return 'Não recebi o texto a falar. Responda em texto normalmente.' if texto.blank?
+
     if texto.length > max_chars
       return "O texto passou do limite de #{max_chars} caracteres pra áudio. " \
              'Chame de novo com uma versão mais curta e falada, ou responda em texto normalmente.'
     end
 
+    # A recusa vence até o pedido: o modelo pode marcar `a_pedido_do_cliente` por engano, e
+    # mandar áudio pra quem pediu pra não receber irrita de verdade. O custo do falso
+    # positivo aqui é uma resposta em texto — falha benigna, do lado certo.
     if recusou_audio?(conversation)
       return 'O cliente já pediu pra não receber áudio nesta conversa. NÃO mande áudio aqui nunca mais — ' \
              'responda em texto normalmente.'
     end
 
-    unless cliente_mandou_audio?(conversation)
-      return 'O cliente ainda não mandou nenhum áudio nesta conversa, então não dá pra saber se ele é confortável ' \
-             'com áudio. Responda em texto normalmente. Se ele mandar um áudio em algum momento, aí sim vale usar.'
-    end
+    return permissao_negada_msg unless a_pedido_do_cliente || audio_proativo_liberado?(conversation)
 
-    return MSG_PRODUTO unless produto_permite_audio?(conversation)
+    falta_resumo_msg(texto, resumo_texto)
+  end
 
+  def permissao_negada_msg
+    'Neste público o áudio só é permitido quando o próprio cliente pede, ou depois que ele mesmo mandar um áudio. ' \
+      'Responda em texto normalmente.'
+  end
+
+  def falta_resumo_msg(texto, resumo_texto)
     return nil unless sem_acento(texto).match?(DADO_QUE_SE_RELE) && resumo_texto.to_s.strip.blank?
 
     'A explicação cita dado que o cliente vai querer reler (valor, endereço, código, data, link ou horário) e você não ' \
       'mandou o `resumo_texto`. Áudio não é pesquisável nem copiável: chame de novo com a linha curta em `resumo_texto`, ' \
       'ou responda em texto normalmente.'
+  end
+
+  # Iniciativa de mandar áudio é opt-in, e o default é NÃO. Três portas, porque nem todo tenant
+  # usa o catálogo de produto: a do produto resolvido (apresentacao.audio_proativo), a do próprio
+  # assistente (config['voice_proativo']) e a RECIPROCIDADE — quem já mandou áudio nesta conversa
+  # demonstrou conforto com o formato pela própria ação, não por suposição de perfil. Sem nenhuma
+  # das três, o áudio A PEDIDO do cliente continua funcionando exatamente como antes.
+  def audio_proativo_liberado?(conversation)
+    return true if @assistant&.config&.[]('voice_proativo') == true
+    return true if cliente_mandou_audio?(conversation)
+
+    produto_do_lead(conversation)&.audio_proativo? == true
+  rescue StandardError => e
+    Rails.logger.warn("[ResponderEmAudioTool] produto: #{e.class}: #{e.message}")
+    false
   end
 
   # Reciprocidade: permissão demonstrada pela ação do cliente, não suposta pelo perfil.
@@ -130,26 +165,6 @@ class Captain::Tools::ResponderEmAudioTool < Captain::Tools::BasePublicTool
 
   def sem_acento(str)
     str.to_s.unicode_normalize(:nfd).gsub(/\p{Mn}/, '').downcase
-  end
-
-  # Portão de produto: lê `audio_proativo?` do catálogo quando ele existir. Enquanto o
-  # catálogo não estiver populado (ou o vínculo não existir), não bloqueia — senão a
-  # capability fica morta esperando um dado que ainda não é gravado.
-  def produto_permite_audio?(conversation)
-    produto = produto_da_conversa(conversation)
-    return true if produto.nil? || !produto.respond_to?(:audio_proativo?)
-
-    produto.audio_proativo?
-  end
-
-  def produto_da_conversa(conversation)
-    return nil unless defined?(Produto)
-    return conversation.produto if conversation.respond_to?(:produto)
-
-    nil
-  rescue StandardError => e
-    Rails.logger.warn("[ResponderEmAudioTool] produto: #{e.message}")
-    nil
   end
 
   # Áudio explica, texto registra: a linha curta vai como mensagem de texto normal,

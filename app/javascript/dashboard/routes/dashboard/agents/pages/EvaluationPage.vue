@@ -128,6 +128,56 @@ const iaHumanoPct = computed(() => {
   };
 });
 
+// ── F3: desfecho + conduta (fatos determinísticos, nenhum vindo do juiz) ──
+const desfechos = computed(() => data.value?.desfechos || {});
+
+const conversaoPct = computed(() => {
+  const { episodios, convertidos } = desfechos.value.conversao || {};
+  if (!episodios) return 0;
+  return Math.round((convertidos / episodios) * 100);
+});
+
+const escadaBars = computed(() => {
+  const escada = desfechos.value.escada || [];
+  const max = escada.length ? Math.max(...escada.map(d => d.total || 0)) : 0;
+  return escada.map(d => ({
+    ...d,
+    pct: max ? Math.max(2, Math.round((d.total / max) * 100)) : 0,
+    // split de autoria já formatado — mesmo eixo do IA x Humano das falhas
+    autoria: Object.entries(d.autoria || {})
+      .sort((a, b) => b[1] - a[1])
+      .map(([quem, n]) => `${label(quem)} ${n}`)
+      .join(' · '),
+  }));
+});
+
+const condutaRows = computed(() => {
+  const conduta = desfechos.value.conduta || {};
+  return [
+    { key: 'converteu', ...(conduta.converteu || {}) },
+    { key: 'nao_converteu', ...(conduta.nao_converteu || {}) },
+  ].filter(row => row.episodios);
+});
+
+const campanhas = computed(() => desfechos.value.campanhas || []);
+
+// Metade do que o eval mede não é IA: no dado real da conta 6, 248 dos 342
+// atendimentos assumidos foram só-humano. Sem separar isso na tela, a gestão
+// atribui à IA resultado que é de gente.
+const atendimentoPct = computed(() => {
+  const { com_ia: comIa = 0, so_humano: soHumano = 0, total = 0 } =
+    desfechos.value.atendimento || {};
+  if (!total) return { comIa: 0, soHumano: 0, total: 0, pctIa: 0, pctHumano: 0 };
+  const pctIa = Math.round((comIa / total) * 100);
+  return {
+    comIa,
+    soHumano,
+    total,
+    pctIa: Math.max(pctIa, 2),
+    pctHumano: Math.max(100 - pctIa, 2),
+  };
+});
+
 const notaClass = value => {
   if (value === null || value === undefined) return 'bg-n-slate-7';
   if (value >= 9) return 'bg-n-teal-9';
@@ -225,6 +275,225 @@ const openConversation = displayId => {
             tint="#c2831f"
           />
         </div>
+      </div>
+
+      <!-- Desfecho e conduta (F3) — fatos determinísticos, nada vindo do juiz -->
+      <div
+        v-if="escadaBars.length"
+        class="p-4 mt-3 rounded-2xl border border-n-weak bg-n-solid-1/70"
+      >
+        <div class="flex flex-wrap gap-x-3 gap-y-1 justify-between items-baseline">
+          <h2 class="text-xs font-bold tracking-wide uppercase text-n-slate-11">
+            {{ t('AGENTS_EVALUATION.SECTION_DESFECHO') }}
+          </h2>
+          <span class="text-[12.5px] text-n-slate-10">
+            {{ t('AGENTS_EVALUATION.DESFECHO_HINT') }}
+          </span>
+        </div>
+
+        <div class="flex flex-wrap gap-2 items-baseline mt-3 mb-4">
+          <span class="text-2xl font-bold text-n-slate-12">
+            {{ conversaoPct }}%
+          </span>
+          <span class="text-[12.5px] text-n-slate-11">
+            {{
+              t('AGENTS_EVALUATION.CONVERSAO_DE', {
+                convertidos: desfechos.conversao?.convertidos || 0,
+                total: desfechos.conversao?.episodios || 0,
+              })
+            }}
+          </span>
+        </div>
+
+        <!-- Quem conduziu o atendimento. Fica ANTES da escada de propósito: sem
+             este split, a gestão lê a conversão como se fosse toda da IA. -->
+        <div v-if="atendimentoPct.total" class="mb-5">
+          <div class="flex flex-wrap gap-x-2 gap-y-1 justify-between items-baseline mb-1.5">
+            <span class="text-[12.5px] font-semibold text-n-slate-12">
+              {{ t('AGENTS_EVALUATION.SECTION_ATENDIMENTO') }}
+            </span>
+            <span class="text-[12.5px] text-n-slate-10">
+              {{ t('AGENTS_EVALUATION.ATENDIMENTO_HINT') }}
+            </span>
+          </div>
+          <div
+            class="flex overflow-hidden h-7 text-[11.5px] font-semibold text-white rounded-lg"
+          >
+            <div
+              class="flex justify-center items-center bg-n-blue-9"
+              :style="{ width: `${atendimentoPct.pctIa}%` }"
+            >
+              {{ t('AGENTS_EVALUATION.ATENDIMENTO_COM_IA') }} ·
+              {{ atendimentoPct.comIa }}
+            </div>
+            <div
+              class="flex justify-center items-center bg-n-slate-9"
+              :style="{ width: `${atendimentoPct.pctHumano}%` }"
+            >
+              {{ t('AGENTS_EVALUATION.ATENDIMENTO_SO_HUMANO') }} ·
+              {{ atendimentoPct.soHumano }}
+            </div>
+          </div>
+        </div>
+
+        <div class="space-y-2.5">
+          <div
+            v-for="bar in escadaBars"
+            :key="bar.degrau"
+            class="grid grid-cols-[110px_1fr_40px] md:grid-cols-[110px_1fr_150px_40px] gap-3 items-center"
+          >
+            <span
+              class="text-[12.5px] truncate"
+              :class="
+                bar.conversao
+                  ? 'font-semibold text-n-slate-12'
+                  : 'text-n-slate-11'
+              "
+            >
+              {{ label(bar.degrau) }}
+            </span>
+            <div class="overflow-hidden h-2 rounded-full bg-n-alpha-1">
+              <div
+                class="h-full rounded-full"
+                :class="bar.conversao ? 'bg-n-teal-9' : 'bg-n-brand'"
+                :style="{ width: `${bar.pct}%` }"
+              />
+            </div>
+            <span class="hidden text-[11px] truncate md:block text-n-slate-10">
+              {{ bar.autoria }}
+            </span>
+            <span
+              class="text-[12.5px] font-semibold text-right text-n-slate-12"
+            >
+              {{ bar.total }}
+            </span>
+          </div>
+        </div>
+
+        <div v-if="condutaRows.length" class="pt-4 mt-4 border-t border-n-weak">
+          <h3 class="text-xs font-bold tracking-wide uppercase text-n-slate-11">
+            {{ t('AGENTS_EVALUATION.SECTION_CONDUTA') }}
+          </h3>
+          <p class="mt-1 text-[12.5px] text-n-slate-10">
+            {{ t('AGENTS_EVALUATION.CONDUTA_HINT') }}
+          </p>
+          <p class="mb-3 text-[12.5px] text-n-slate-10">
+            {{ t('AGENTS_EVALUATION.CONDUTA_HINT_TURNOS') }}
+          </p>
+          <div class="overflow-x-auto">
+            <table class="w-full text-[12.5px]">
+              <thead>
+                <tr class="text-n-slate-10">
+                  <th class="py-1.5 pr-3 font-medium text-left">
+                    {{ t('AGENTS_EVALUATION.COL_GRUPO') }}
+                  </th>
+                  <th class="py-1.5 px-2 font-medium text-right">
+                    {{ t('AGENTS_EVALUATION.COL_EPISODIOS') }}
+                  </th>
+                  <th class="py-1.5 px-2 font-medium text-right">
+                    {{ t('AGENTS_EVALUATION.COL_CHARS') }}
+                  </th>
+                  <th class="py-1.5 px-2 font-medium text-right">
+                    {{ t('AGENTS_EVALUATION.COL_TURNOS') }}
+                  </th>
+                  <th class="py-1.5 px-2 font-medium text-right">
+                    {{ t('AGENTS_EVALUATION.COL_TOOLS') }}
+                  </th>
+                  <th class="py-1.5 pl-2 font-medium text-right">
+                    {{ t('AGENTS_EVALUATION.COL_MIDIA') }}
+                  </th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr
+                  v-for="row in condutaRows"
+                  :key="row.key"
+                  class="border-t border-n-weak"
+                >
+                  <td class="py-1.5 pr-3 text-n-slate-12">
+                    {{ label(row.key) }}
+                  </td>
+                  <td class="py-1.5 px-2 text-right text-n-slate-11">
+                    {{ row.episodios }}
+                  </td>
+                  <td class="py-1.5 px-2 text-right text-n-slate-11">
+                    {{ row.chars || '—' }}
+                  </td>
+                  <td class="py-1.5 px-2 text-right text-n-slate-11">
+                    {{ row.turnos_ia || '—' }}
+                  </td>
+                  <td class="py-1.5 px-2 text-right text-n-slate-11">
+                    {{ row.ferramentas || '—' }}
+                  </td>
+                  <td class="py-1.5 pl-2 text-right text-n-slate-11">
+                    {{ row.midia_pct }}%
+                  </td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+        <div v-if="campanhas.length" class="pt-4 mt-4 border-t border-n-weak">
+          <h3 class="mb-3 text-xs font-bold tracking-wide uppercase text-n-slate-11">
+            {{ t('AGENTS_EVALUATION.SECTION_CAMPANHAS') }}
+          </h3>
+          <div class="overflow-x-auto">
+            <table class="w-full text-[12.5px]">
+              <thead>
+                <tr class="text-n-slate-10">
+                  <th class="py-1.5 pr-3 font-medium text-left">
+                    {{ t('AGENTS_EVALUATION.COL_CAMPANHA') }}
+                  </th>
+                  <th class="py-1.5 px-2 font-medium text-right">
+                    {{ t('AGENTS_EVALUATION.COL_EPISODIOS') }}
+                  </th>
+                  <th class="py-1.5 px-2 font-medium text-right">
+                    {{ t('AGENTS_EVALUATION.COL_TAXA') }}
+                  </th>
+                  <th class="py-1.5 px-2 font-medium text-right">
+                    {{ t('AGENTS_EVALUATION.COL_CHARS_CONV') }}
+                  </th>
+                  <th class="py-1.5 pl-2 font-medium text-right">
+                    {{ t('AGENTS_EVALUATION.COL_CHARS_NAO') }}
+                  </th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr
+                  v-for="row in campanhas"
+                  :key="row.campanha"
+                  class="border-t border-n-weak"
+                >
+                  <td class="py-1.5 pr-3 max-w-xs truncate text-n-slate-12">
+                    {{ row.campanha }}
+                  </td>
+                  <td class="py-1.5 px-2 text-right text-n-slate-11">
+                    {{ row.episodios }}
+                  </td>
+                  <td
+                    class="py-1.5 px-2 font-semibold text-right text-n-slate-12"
+                  >
+                    {{ row.taxa }}%
+                  </td>
+                  <td class="py-1.5 px-2 text-right text-n-slate-11">
+                    {{ row.converteu?.chars || '—' }}
+                  </td>
+                  <td class="py-1.5 pl-2 text-right text-n-slate-11">
+                    {{ row.nao_converteu?.chars || '—' }}
+                  </td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+        <p
+          v-if="desfechos.externos"
+          class="pt-3 mt-4 text-[12.5px] border-t text-n-slate-10 border-n-weak"
+        >
+          {{ t('AGENTS_EVALUATION.EXTERNOS', { n: desfechos.externos }) }}
+        </p>
       </div>
 
       <!-- Distribuições -->

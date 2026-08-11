@@ -168,14 +168,30 @@ class Captain::Assistant::AgentRunnerService
     content = last && (last[:content] || last['content'])
     return '' if content.blank?
 
+    unwrap_agent_output(content)
+  end
+
+  # Estrutura de saída serializada no formato cru do inspect, com hash-rocket.
+  SERIALIZED_OUTPUT = /\A\{.*["']response["']\s*=>/m
+  SERIALIZED_RESPONSE_FIELD = /["']response["']\s*=>\s*"((?:[^"\\]|\\.)*)"/m
+
+  # O modelo às vezes serializa a PRÓPRIA estrutura de saída ({"response"=>"...",
+  # "reasoning"=>"..."}) em vez de devolver só o texto. Em JSON válido o parse abaixo
+  # resolve; em hash-rocket, não — e a estrutura inteira viraria a fala do agente.
+  # Acontece sobretudo quando o turno termina em transferência: o response sai vazio,
+  # cai neste fallback e o hash cru seguiria como mensagem pro cliente. Desembrulhado,
+  # o turno de transferência devolve vazio, que é o certo — quem fala em seguida é a
+  # agente que assumiu.
+  def unwrap_agent_output(content)
     parsed = begin
       JSON.parse(content)
     rescue StandardError
       nil
     end
     return parsed['response'].to_s if parsed.is_a?(Hash) && parsed['response'].present?
+    return content.to_s unless content.to_s.strip.match?(SERIALIZED_OUTPUT)
 
-    content.to_s
+    content.to_s.match(SERIALIZED_RESPONSE_FIELD)&.captures&.first.to_s
   end
 
   def error_response(error_message)
@@ -202,11 +218,24 @@ class Captain::Assistant::AgentRunnerService
     # O marcador de espera por humano NÃO entra no contexto do agente: a presença dele empurra
     # o LLM pro silêncio ([IGNORAR]) mesmo quando o cliente traz pergunta nova. Ele segue no
     # banco pros outros usos (guard do follow-up + filtro "Aguardando atendimento").
-    state[:conversation][:custom_attributes] = (state[:conversation][:custom_attributes] || {}).except('aguardando_humano_desde')
+    #
+    # `rodizio_corretor` sai pelo motivo oposto: o NOME do corretor no contexto faz o LLM
+    # anunciar o repasse ("o Fulano vai te procurar"), e o rodízio proíbe anunciar — o handoff
+    # é evento de sistema, silencioso. O ESTADO da designação (rodizio_designado_em /
+    # rodizio_produto) continua visível: é ele que a conduta de "modo contido" lê.
+    state[:conversation][:custom_attributes] =
+      (state[:conversation][:custom_attributes] || {}).except('aguardando_humano_desde', 'rodizio_corretor')
     state[:channel_type] = @conversation.inbox&.channel_type
+    state[:channel_number] = channel_number
     state[:contact] = slice_attrs(@conversation.contact, CONTACT_STATE_ATTRIBUTES) if @conversation.contact
     state[:campaign] = slice_attrs(@conversation.campaign, CAMPAIGN_STATE_ATTRIBUTES) if @conversation.campaign
     state[:contact_inbox] = slice_attrs(@conversation.contact_inbox, CONTACT_INBOX_STATE_ATTRIBUTES) if @conversation.contact_inbox
+  end
+
+  # Número em que o atendimento acontece. Sem ele o agente não tem NENHUM telefone em
+  # contexto e, ao ser cobrado pelo "número de vocês", confabula um (caso 20314).
+  def channel_number
+    @conversation.inbox&.channel.try(:phone_number)
   end
 
   def slice_attrs(record, keys)

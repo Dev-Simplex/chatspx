@@ -105,7 +105,7 @@ if preloaded
     json.messages [last_message.try(:push_event_data)]
   end
 else
-  fallback_rid = AgentMessageIsolation.restriction_id_for_inbox(conversation.inbox, Current.user, conversation.account_id)
+  fallback_rid = AgentMessageIsolation.restriction_id_for_conversation(conversation, Current.user, conversation.account_id)
   fallback_scope = conversation.messages.where(account_id: conversation.account_id)
                                .includes([{ attachments: [{ file_attachment: [:blob] }] }])
   fallback_last = AgentMessageIsolation.filter_messages(fallback_scope, fallback_rid).last
@@ -133,7 +133,7 @@ json.unread_count preloaded ? preloaded.unread_counts[conversation.id].to_i : co
 last_non_activity_msg = if preloaded
                           preloaded.last_non_activity_messages[conversation.id]
                         else
-                          na_rid = AgentMessageIsolation.restriction_id_for_inbox(conversation.inbox, Current.user, conversation.account_id)
+                          na_rid = AgentMessageIsolation.restriction_id_for_conversation(conversation, Current.user, conversation.account_id)
                           na_scope = conversation.messages.where(account_id: conversation.account_id).non_activity_messages
                           AgentMessageIsolation.filter_messages(na_scope, na_rid).first
                         end

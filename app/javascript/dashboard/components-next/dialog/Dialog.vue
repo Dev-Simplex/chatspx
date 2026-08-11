@@ -101,10 +101,25 @@ const open = () => {
   dialogRef.value?.showModal();
 };
 
+// Guarda de reentrância. `close()` emite 'close' ANTES de fechar de fato, e é
+// comum o pai reagir a esse evento chamando close() de novo (é o contrato
+// natural de "fechei o diálogo"). Sem esta guarda isso vira recursão infinita
+// -> RangeError: Maximum call stack size exceeded, que aborta o handler do
+// clique no meio: o diálogo trava e a ação que viria depois (enviar, navegar)
+// nunca roda. Era o caso do aviso "Este contato já está em atendimento", em que
+// os três botões morriam antes de agir.
+let isClosing = false;
+
 const close = () => {
-  emit('close');
-  dialogRef.value?.close();
-  isOpen.value = false;
+  if (isClosing) return;
+  isClosing = true;
+  try {
+    emit('close');
+    dialogRef.value?.close();
+    isOpen.value = false;
+  } finally {
+    isClosing = false;
+  }
 };
 
 // Only close if the close event originated from this dialog,
@@ -211,7 +226,12 @@ dialog::backdrop {
 
 /* fullHeight: the dialog owns the height budget and the form distributes it.
    `dvh` (not `vh`) so the mobile URL bar can't push the footer off-screen. */
-.dialog-full-height {
+/* `[open]` é obrigatório: sem ele este `display: flex` vence o `display: none`
+   que o navegador dá a um <dialog> FECHADO. O diálogo então continuava ocupando
+   espaço no fim da página — uma caixa vazia sob o campo de mensagem, empurrando
+   o rodapé para fora e criando rolagem na tela inteira. Vale para todo diálogo
+   full-height que fica montado (painel de mídias, modais do Kanban). */
+.dialog-full-height[open] {
   display: flex;
   max-height: 90dvh;
 }

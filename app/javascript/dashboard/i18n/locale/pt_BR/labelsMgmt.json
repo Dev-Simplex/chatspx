@@ -27,6 +27,9 @@
         "PLACEHOLDER": "Nome da etiqueta",
         "REQUIRED_ERROR": "O nome da etiqueta é obrigatório",
         "MINIMUM_LENGTH_ERROR": "Tamanho mínimo 2 é necessário",
+        "NO_SPACES_ERROR": "O nome não pode conter espaços",
+        "NO_LEADING_SEPARATOR_ERROR": "O nome não pode começar com ponto, hífen ou sublinhado",
+        "INVALID_CHARACTER_ERROR": "O caractere \"{char}\" não é permitido",
         "VALID_ERROR": "Somente Letras, Números, Hífen, Sublinhado e Ponto são permitidos",
         "EXISTS_ERROR": "Já existe uma etiqueta com esse nome nesta conta."
       },

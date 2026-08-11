@@ -6,7 +6,7 @@ class Captain::Tools::BuscarEmpreendimentoTool < Captain::Tools::BasePublicTool
               'data ou descrição de empreendimento.'
 
   param :nome, type: 'string',
-               desc: 'Nome (ou parte) do empreendimento, ex: "Gaia", "Acqua", "Tívoli". Vazio = lista todos.',
+               desc: 'Nome (ou parte) do empreendimento que o cliente citou. Vazio = lista todos.',
                required: false
 
   BASE_FILTER = { 'Categoria' => 'Empreendimento' }.freeze

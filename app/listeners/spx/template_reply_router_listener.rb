@@ -19,14 +19,22 @@ class Spx::TemplateReplyRouterListener < BaseListener
     return unless message.incoming?
     return if message.private?
 
-    config = account.settings&.dig('template_reply_routing') || {}
-    return unless config['enabled']
-
     conversation = message.conversation
     return if conversation.nil?
 
+    config = account.settings&.dig('template_reply_routing') || {}
+    # Sai antes de tocar o banco quando não há nada a fazer nesta conta: nem
+    # roteamento por conta, nem conversa vinda de campanha (o listener roda pra
+    # TODA conta em TODA mensagem — ver P1.2 no BACKLOG).
+    return if !config['enabled'] && conversation.campaign_id.blank?
+
     template = last_outgoing_before(conversation, message)
     return unless template&.additional_attributes&.key?('template_params')
+
+    # Dono do disparo tem precedência e é opt-in DA CAMPANHA (o campo preenchido),
+    # não da conta — o roteamento por conta existe pras heurísticas abaixo.
+    return if route_to_campaign_owner(conversation)
+    return unless config['enabled']
 
     if template.sender_type == 'User'
       route_to_sender(conversation, template)
@@ -45,6 +53,45 @@ class Spx::TemplateReplyRouterListener < BaseListener
                 .where(id: ...message.id)
                 .reorder(id: :desc)
                 .first
+  end
+
+  # Dono do disparo: a campanha define quem atende AS RESPOSTAS dela. Devolve true
+  # quando assumiu o roteamento (impede as heurísticas de conta atropelarem).
+  #
+  # A atribuição acontece AQUI, na resposta — não no envio — e isso é o ponto:
+  # o Chatwoot liga `conversation_assignment` de fábrica, mas NÃO liga
+  # `assigned_conversation_new_message`. Atribuir no disparo notificaria o dono uma
+  # vez por destinatário, tudo ANTES de qualquer lead responder, e depois ficaria
+  # mudo justamente na resposta — que é o momento que importa. Atribuindo no reply,
+  # é uma notificação por lead que de fato voltou.
+  #
+  # ⚠️ Só vale em inbox SEM IA: atribuir humano dispara o
+  # `reset_agent_bot_when_assignee_present` e cala o agente. Campanha em inbox com
+  # IA precisa designar sem atribuir (frente spx/rodizio) — não use este campo lá.
+  def route_to_campaign_owner(conversation)
+    owner_id = dispatch_owner_id(conversation)
+    return false if owner_id.blank?
+    return true if conversation.assignee_id == owner_id
+
+    Conversations::AssignmentService.new(
+      conversation: conversation, assignee_id: owner_id, assignee_type: 'User'
+    ).perform
+    true
+  end
+
+  # Dono da campanha que mandou o ÚLTIMO template pra esta conversa — NÃO a que a
+  # originou. `conversations.campaign_id` guarda a campanha de ORIGEM e não muda em
+  # disparos seguintes (é assim de propósito: mudar reescreveria a atribuição do
+  # histórico), então lê-lo aqui mandaria a resposta da 2ª campanha pro dono da 1ª.
+  # O vínculo POR DISPARO vive em campaign_recipients, que é onde ele é exato.
+  def dispatch_owner_id(conversation)
+    campaign_id = CampaignRecipient.where(conversation_id: conversation.id)
+                                   .where.not(sent_at: nil)
+                                   .order(sent_at: :desc)
+                                   .pick(:campaign_id)
+    return nil if campaign_id.blank?
+
+    Campaign.where(id: campaign_id).pick(:dispatch_assignee_id)
   end
 
   def route_to_sender(conversation, template)

@@ -9,6 +9,42 @@
     "ACTIVE": "Ativo",
     "INACTIVE": "Inativo"
   },
+  "AGENTS_RODIZIO": {
+    "TITLE": "Rodízio",
+    "SUBTITLE": "Como os leads estão sendo distribuídos, e sob qual regra",
+    "ALL_TEAMS": "Todos os times",
+    "RELOAD": "Atualizar",
+    "LOADING": "Carregando...",
+    "ERROR": "Não foi possível carregar a contabilização do rodízio",
+    "EMPTY": "Nenhum lead distribuído no período",
+    "TOTAL_RECEIVED": "Leads recebidos",
+    "TABLE": {
+      "CONSULTANT": "Consultor",
+      "RECEIVED": "Recebidos",
+      "ROTATION": "Rodízio",
+      "CONTINUITY": "Continuidade",
+      "PREFERENCE": "Pedido do cliente",
+      "MANUAL": "Gestor",
+      "OPEN": "Em aberto",
+      "CHANNELS": "Canais",
+      "PRODUCTS": "Produtos"
+    },
+    "STALLED": {
+      "TITLE": "Sem movimento",
+      "LIST_TITLE": "Designados sem movimento",
+      "SUBTITLE": "Ninguém pegou ainda. A IA segue cobrindo o cliente.",
+      "THRESHOLD": "acima de {min} min",
+      "MINUTES": "{min} min esperando",
+      "NONE": "Nada parado no momento"
+    },
+    "DETAIL": {
+      "OPEN": "Por que este?",
+      "TITLE": "Conversa #{id}",
+      "CLOSE": "Fechar",
+      "DESIGNATED_AT": "Designado em",
+      "CANDIDATES": "Candidatos:"
+    }
+  },
   "AGENTS_EVALUATION": {
     "TITLE": "Avaliação",
     "SUBTITLE": "Revisão automática de qualidade de cada atendimento (IA e humanos)",
@@ -66,11 +102,46 @@
       "NAO_CHAMOU_TOOL_OBRIGATORIA": "Não chamou ferramenta obrigatória",
       "USOU_TOOL_ERRADA": "Ferramenta errada",
       "IGNOROU_ERRO_DA_TOOL": "Ignorou erro da ferramenta",
-      "OUTRO": "Outro"
+      "OUTRO": "Outro",
+      "RESPONDEU": "Respondeu",
+      "ASSUMIDO": "Humano assumiu",
+      "ESFRIOU": "Esfriou",
+      "DESCARTADO": "Descartado",
+      "VISITA": "Visita",
+      "VENDA": "Venda",
+      "IA": "IA",
+      "HUMANO": "Humano",
+      "SISTEMA": "Sistema",
+      "CONTATO": "Cliente",
+      "EXTERNO": "Externo",
+      "CONVERTEU": "Converteu",
+      "NAO_CONVERTEU": "Não converteu"
     },
     "SECTION_FILTRADOS": "Episódios filtrados",
     "EMPTY_FILTER": "Nenhum episódio corresponde a este indicador.",
-    "COL_EVIDENCIA": "Evidência"
+    "COL_EVIDENCIA": "Evidência",
+    "SECTION_DESFECHO": "Desfecho",
+    "DESFECHO_HINT": "Sinal determinístico — o juiz não entra aqui",
+    "CONVERSAO_DE": "conversão: {convertidos} de {total} episódios fechados foram qualificados, ou assumidos depois de a IA atender",
+    "SECTION_ATENDIMENTO": "Quem conduziu o atendimento",
+    "ATENDIMENTO_HINT": "só o lado da IA entra na conversão",
+    "ATENDIMENTO_COM_IA": "IA atendeu antes",
+    "ATENDIMENTO_SO_HUMANO": "só humano",
+    "SECTION_CONDUTA": "Conduta × desfecho",
+    "CONDUTA_HINT": "Correlação, não causalidade. Compare dentro da mesma campanha.",
+    "CONDUTA_HINT_TURNOS": "Mais turnos da IA significa em boa parte que o lead engajou — mede “houve conversa”, não “a conversa foi boa”.",
+    "SECTION_CAMPANHAS": "Por campanha",
+    "COL_GRUPO": "Grupo",
+    "COL_EPISODIOS": "Episódios",
+    "COL_CHARS": "Chars/resposta",
+    "COL_TURNOS": "Turnos IA",
+    "COL_TOOLS": "Ferramentas",
+    "COL_MIDIA": "Com mídia",
+    "COL_CAMPANHA": "Campanha",
+    "COL_TAXA": "Conversão",
+    "COL_CHARS_CONV": "Chars (converteu)",
+    "COL_CHARS_NAO": "Chars (não converteu)",
+    "EXTERNOS": "{n} desfecho(s) do CRM externo (Vista), mostrados à parte e nunca somados à conversão."
   },
   "AGENTS_DASHBOARD": {
     "TITLE": "Painel",
@@ -98,6 +169,7 @@
     "LOADING": "Carregando agente...",
     "TABS": {
       "OVERVIEW": "Visão Geral",
+      "FLOW": "Fluxo",
       "BEHAVIOR": "Comportamento",
       "KNOWLEDGE": "Conhecimento",
       "TOOLS": "Ferramentas",
@@ -105,6 +177,133 @@
       "INBOXES": "Caixas de Entrada",
       "LOGS": "Registros",
       "SETTINGS": "Configurações"
+    }
+  },
+  "AGENTS_TOOLS": {
+    "TITLE": "Ferramentas",
+    "SUBTITLE": "Habilidades que seus agentes podem usar durante o atendimento.",
+    "SEARCH_PLACEHOLDER": "Buscar ferramenta...",
+    "LOADING": "Carregando ferramentas...",
+    "SYSTEM_BADGE": "Sistema",
+    "SECTION_BUILTIN": "Ferramentas",
+    "SECTION_CUSTOM": "Ferramentas personalizadas (HTTP)",
+    "NEW_TOOL": "Nova ferramenta",
+    "ACTIVE": "Ativa",
+    "INACTIVE": "Inativa",
+    "EMPTY_BUILTIN_TITLE": "Nenhuma ferramenta encontrada",
+    "EMPTY_BUILTIN_DESC": "Nenhuma ferramenta de sistema corresponde à sua busca.",
+    "EMPTY_CUSTOM_TITLE": "Nenhuma ferramenta personalizada",
+    "EMPTY_CUSTOM_DESC": "Conecte seus agentes às suas próprias APIs criando uma ferramenta HTTP.",
+    "ACTIONS": {
+      "EDIT": "Editar",
+      "DELETE": "Excluir",
+      "ENABLE": "Ativar",
+      "DISABLE": "Desativar"
+    },
+    "FORM": {
+      "CREATE_TITLE": "Nova ferramenta",
+      "EDIT_TITLE": "Editar ferramenta",
+      "TITLE_LABEL": "Título",
+      "TITLE_PLACEHOLDER": "Ex.: Consultar status do pedido",
+      "DESCRIPTION_LABEL": "Descrição",
+      "DESCRIPTION_PLACEHOLDER": "O que a ferramenta faz (o agente usa isso pra decidir quando chamar)",
+      "ENDPOINT_LABEL": "URL do endpoint",
+      "ENDPOINT_PLACEHOLDER": "https://sua-api.com/recurso",
+      "METHOD_LABEL": "Método HTTP",
+      "AUTH_LABEL": "Autenticação",
+      "AUTH": {
+        "NONE": "Sem autenticação",
+        "BEARER": "Bearer Token",
+        "BASIC": "Básica (usuário/senha)",
+        "API_KEY": "API Key (header)"
+      },
+      "AUTH_FIELDS": {
+        "TOKEN_LABEL": "Token",
+        "TOKEN_PLACEHOLDER": "Token de acesso",
+        "USERNAME_LABEL": "Usuário",
+        "PASSWORD_LABEL": "Senha",
+        "HEADER_NAME_LABEL": "Nome do header",
+        "HEADER_NAME_PLACEHOLDER": "Ex.: X-API-Key",
+        "HEADER_VALUE_LABEL": "Valor",
+        "HEADER_VALUE_PLACEHOLDER": "Chave da API"
+      },
+      "PARAMS_LABEL": "Parâmetros",
+      "PARAMS_DESC": "Campos que o agente preenche ao chamar a ferramenta.",
+      "PARAM_NAME_PLACEHOLDER": "nome",
+      "PARAM_DESC_PLACEHOLDER": "descrição (ajuda o agente a preencher)",
+      "PARAM_REQUIRED": "Obrigatório",
+      "ADD_PARAM": "Adicionar parâmetro",
+      "NO_PARAMS": "Nenhum parâmetro. A ferramenta será chamada sem argumentos.",
+      "TYPE": {
+        "STRING": "Texto",
+        "NUMBER": "Número",
+        "BOOLEAN": "Booleano"
+      },
+      "CANCEL": "Cancelar",
+      "SAVE": "Salvar",
+      "SAVING": "Salvando..."
+    },
+    "DELETE": {
+      "TITLE": "Excluir ferramenta",
+      "CONFIRM": "Tem certeza que deseja excluir \"{name}\"? Esta ação não pode ser desfeita.",
+      "CANCEL": "Cancelar",
+      "CONFIRM_BTN": "Excluir"
+    },
+    "MESSAGES": {
+      "CREATE_SUCCESS": "Ferramenta criada com sucesso",
+      "CREATE_ERROR": "Erro ao criar ferramenta. Verifique os campos e tente novamente.",
+      "UPDATE_SUCCESS": "Ferramenta atualizada",
+      "UPDATE_ERROR": "Erro ao atualizar ferramenta. Tente novamente.",
+      "DELETE_SUCCESS": "Ferramenta excluída",
+      "DELETE_ERROR": "Erro ao excluir ferramenta. Tente novamente.",
+      "VALIDATION": "Preencha o título e a URL do endpoint."
+    },
+    "MCP": {
+      "TITLE": "Servidores MCP",
+      "DESCRIPTION": "Conecte ferramentas externas aos seus agentes pelo Model Context Protocol.",
+      "SOON": "em breve funcional",
+      "FILE": "mcp_config.json",
+      "COPY": "Copiar",
+      "COPIED": "Copiado!"
+    },
+    "INTEGRATIONS": {
+      "SECTION_TITLE": "Integrações",
+      "CONNECTED": "Conectado",
+      "NOT_CONNECTED": "Não conectado",
+      "CONFIGURE": "Configurar",
+      "ENABLED_LABEL": "Ativado",
+      "ENABLED_DESC": "Quando ativado, os agentes podem usar esta integração.",
+      "TEST_CONNECTION": "Testar conexão",
+      "TESTING": "Testando…",
+      "TEST_OK": "Conexão bem-sucedida",
+      "TEST_FAIL": "Falha na conexão",
+      "SAVE": "Salvar",
+      "SAVING": "Salvando…",
+      "CANCEL": "Cancelar",
+      "SAVE_SUCCESS": "Integração salva com sucesso",
+      "SAVE_ERROR": "Não foi possível salvar a integração",
+      "VISTA": {
+        "NAME": "Vista (Loft)",
+        "DESCRIPTION": "CRM imobiliário — consulta de imóveis e dados da Vista/Loft.",
+        "API_KEY": "Chave da API",
+        "API_KEY_PLACEHOLDER": "Cole sua chave da Vista",
+        "BASE_URL": "URL base",
+        "BASE_URL_PLACEHOLDER": "https://seu-dominio.vistahost.com.br",
+        "OFFICE_NAME": "Nome do escritório",
+        "OFFICE_NAME_PLACEHOLDER": "Imobiliária Exemplo",
+        "OFFICE_LAT": "Latitude do escritório",
+        "OFFICE_LAT_PLACEHOLDER": "-23.5505",
+        "OFFICE_LNG": "Longitude do escritório",
+        "OFFICE_LNG_PLACEHOLDER": "-46.6333",
+        "SITE_DOMAIN": "Domínio do site",
+        "SITE_DOMAIN_PLACEHOLDER": "https://www.suaimobiliaria.com.br"
+      },
+      "GOOGLE": {
+        "NAME": "Google",
+        "DESCRIPTION": "Google Maps — geocodificação e localização para os agentes.",
+        "MAPS_KEY": "Chave do Google Maps",
+        "MAPS_KEY_PLACEHOLDER": "Cole sua chave do Google Maps"
+      }
     }
   },
   "PROFILE_SETTINGS": {
@@ -346,6 +545,7 @@
     "YEAR_IN_REVIEW": "Retrospectiva do Ano",
     "KEYBOARD_SHORTCUTS": "Atalhos do teclado",
     "APPEARANCE": "Alterar Tema",
+    "REORDER_SIDEBAR": "Reordenar barra lateral",
     "DARK_MODE": "Modo escuro",
     "LIGHT_MODE": "Modo claro",
     "AUTO_MODE": "Modo automático",
@@ -415,6 +615,11 @@
   "SIDEBAR": {
     "NO_ITEMS": "Nenhum item",
     "SEARCH_PLACEHOLDER": "Buscar ou executar...",
+    "REORDER": {
+      "HINT": "Arraste os ícones para reordenar",
+      "RESET": "Restaurar padrão",
+      "DONE": "Concluído"
+    },
     "CURRENTLY_VIEWING_ACCOUNT": "Visualização atual:",
     "SWITCH": "Trocar",
     "INBOX_VIEW": "Caixa de entrada",
@@ -538,6 +743,20 @@
     "LOADING": "Carregando configurações dos Agentes IA...",
     "LINK_TEXT": "Saiba mais sobre créditos",
     "NOT_ENABLED": "Agentes IA não está habilitado para esta conta.",
+    "INTRO": "Conecte o provedor de IA da conta — vale para todos os agentes. A chave fica guardada por conta e nunca aparece nas conversas.",
+    "SECTIONS": {
+      "PROVIDER": "Provedor",
+      "API_KEY": "Chave de API"
+    },
+    "CONNECTION": {
+      "KEY_LABEL": "Chave da {provider}",
+      "DESCRIPTION": "Cole a chave secreta da {provider} para ativar a IA nesta conta.",
+      "STATUS_CONNECTED": "Conectado",
+      "STATUS_DISCONNECTED": "Não conectado",
+      "CURRENT_KEY": "Chave atual",
+      "PLACEHOLDER": "Cole a chave secreta da {provider} (ex.: sk-…)",
+      "SECURITY_NOTE": "A chave é criptografada e armazenada com segurança."
+    },
     "OPENAI_CONNECTION": {
       "TITLE": "Conexão OpenAI",
       "DESCRIPTION": "Configure a chave da OpenAI desta conta para requisições de IA.",

@@ -36,8 +36,10 @@ class MessageFinder
   # e conhecido. Mesmo acoplamento a Current.user ja usado em Message#reopened_by_contact?.
   # Listagens do widget/public API nao tem Current.user -> o filtro vira no-op (seguro).
   def apply_agent_isolation(scope)
-    restriction_id = AgentMessageIsolation.restriction_id_for_inbox(
-      @conversation.inbox, Current.user, @conversation.account_id
+    # Versao ciente da conversa: alem da flag do inbox ela isenta o supervisor do
+    # time da conversa, que ve todas as bolhas (D2 de task/supervisor-de-time.md).
+    restriction_id = AgentMessageIsolation.restriction_id_for_conversation(
+      @conversation, Current.user, @conversation.account_id
     )
     AgentMessageIsolation.filter_messages(scope, restriction_id)
   end

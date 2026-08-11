@@ -52,6 +52,7 @@ class Spx::Tozi::DisparoLeadJob < ApplicationJob
   }.freeze
 
   INQ_IMAGE_URL = 'https://tozi.chatspx.app/inq-mapa.jpeg'.freeze
+  INQ_IMAGE_HEADER = { 'media_url' => INQ_IMAGE_URL, 'media_type' => 'image' }.freeze
   # templates de inquilinos: corpo SEM variavel; valor = :image (header de imagem) ou :text
   NO_BODY_VAR = {
     'tozi_inq_lancamento' => :image,
@@ -73,7 +74,10 @@ class Spx::Tozi::DisparoLeadJob < ApplicationJob
     contact_inbox = ContactInboxWithContactBuilder.new(
       inbox: inbox,
       contact_attributes: {
-        name: nome.to_s.strip.presence || first,
+        # Sem nome na lista, o contato fica SEM NOME (string vazia, nunca nil — nil vira
+        # apelido aleatório no builder). `first` só serve pro template; usá-lo aqui
+        # gravava a saudação neutra como nome do contato. Ver RecipientDispatchService.
+        name: nome.to_s.strip,
         phone_number: phone,
         additional_attributes: { source: 'disparo_lancamento' }
       },
@@ -91,6 +95,8 @@ class Spx::Tozi::DisparoLeadJob < ApplicationJob
 
   private
 
+  # Token de saudação do TEMPLATE (o {{1}}), não o nome do contato. A saudação neutra é
+  # correta aqui — "Oi tudo bem!" — e errada como nome de pessoa.
   def first_name(nome)
     nome.to_s.strip.split.first.presence || 'tudo bem'
   end
@@ -147,30 +153,23 @@ class Spx::Tozi::DisparoLeadJob < ApplicationJob
   end
 
   def send_hsm(conversation, template, first, agent)
-    params = if NO_BODY_VAR.key?(template)
-               no_var_params(template)
-             else
-               # format ignora chaves nao-usadas, entao n+a serve pros templates de 1 ou 2 vars.
-               {
-                 content: format(PREVIEWS.fetch(template, 'Oi %<n>s!'), n: first, a: agent),
-                 content_type: :text, message_type: 'outgoing', private: false,
-                 template_params: {
-                   'name' => template, 'language' => LANGUAGE,
-                   'processed_params' => { 'body' => { '1' => first, '2' => agent } }
-                 }
-               }
-             end
-    Messages::MessageBuilder.new(nil, conversation, params.with_indifferent_access).perform
+    ::Whatsapp::SendTemplateService.new(
+      conversation: conversation, name: template, language: LANGUAGE,
+      # Templates de inquilinos tem o corpo SEM variavel; os demais usam
+      # {{1}}=lead e {{2}}=corretor.
+      body_params: NO_BODY_VAR.key?(template) ? {} : { '1' => first, '2' => agent },
+      header: (INQ_IMAGE_HEADER if NO_BODY_VAR[template] == :image),
+      mirror: mirror_for(template, first, agent)
+    ).perform
   end
 
-  # Templates de inquilinos: corpo sem variavel; header de imagem quando :image.
-  def no_var_params(template)
-    processed = {}
-    processed['header'] = { 'media_url' => INQ_IMAGE_URL, 'media_type' => 'image' } if NO_BODY_VAR[template] == :image
-    {
-      content: PREVIEWS.fetch(template, '(mensagem)'),
-      content_type: :text, message_type: 'outgoing', private: false,
-      template_params: { 'name' => template, 'language' => LANGUAGE, 'processed_params' => processed }
-    }
+  # Espelho de RESERVA da transcricao: so entra quando o template nao esta
+  # sincronizado no canal. Com ele sincronizado, o espelho sai do corpo aprovado —
+  # e a divergencia que produziu o "Oi Adriana!" deixa de ser possivel.
+  def mirror_for(template, first, agent)
+    return PREVIEWS[template] if NO_BODY_VAR.key?(template)
+
+    # format ignora chaves nao-usadas, entao n+a serve pros templates de 1 ou 2 vars.
+    format(PREVIEWS.fetch(template, 'Oi %<n>s!'), n: first, a: agent)
   end
 end

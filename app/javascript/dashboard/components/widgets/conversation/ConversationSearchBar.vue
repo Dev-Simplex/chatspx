@@ -154,11 +154,11 @@ const handleContainerClick = () => {
         <button
           v-if="hasSearchQuery && !isSearching"
           type="button"
-          class="flex items-center justify-center size-6 rounded-full bg-transparent border-0 cursor-pointer transition-colors duration-200 shrink-0 text-n-slate-10 hover:bg-[rgba(84,101,111,0.1)] dark:hover:bg-[rgba(134,150,160,0.15)] focus:outline-none"
+          class="flex items-center justify-center size-8 -mr-1 rounded-full bg-transparent border-0 cursor-pointer transition-colors duration-200 shrink-0 text-[#54656f] dark:text-[#aebac1] hover:bg-[rgba(84,101,111,0.1)] dark:hover:bg-[rgba(134,150,160,0.15)] focus:outline-none"
           :aria-label="t('GENERAL_SETTINGS.WAHA_BANNER.CLEAR_SEARCH')"
           @click="clearSearch"
         >
-          <span class="i-lucide-x-circle size-4" />
+          <span class="i-lucide-x size-5" />
         </button>
       </div>
     </div>

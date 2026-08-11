@@ -138,3 +138,5 @@ class Whatsapp::Providers::BaseService
     inbox&.additional_attributes&.dig('agent_signature_enabled') == true
   end
 end
+
+Whatsapp::Providers::BaseService.prepend_mod_with('Whatsapp::Providers::BaseService')

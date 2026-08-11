@@ -81,9 +81,13 @@ class Captain::Conversation::HumanHistoryNote
     partes.join(' ')
   end
 
+  # `Time.zone` (TZ do deployment — America/Manaus na Tozi), não `account.timezone`:
+  # Account NÃO responde a `timezone`, então a chamada levantava NoMethodError, o rescue
+  # engolia e a nota SEMPRE renderizava em UTC — informando ao modelo uma hora de
+  # encerramento 4h adiantada. `reporting_timezone` é nil e `Inbox(91).timezone` está no
+  # default 'UTC' (verificado em prod), então nenhum dos dois serve de fonte. Cada cliente
+  # do SPX roda na própria VM, logo o fuso do app é o do cliente.
   def fuso
-    @conversation.account.timezone.presence || 'UTC'
-  rescue StandardError
-    'UTC'
+    Time.zone
   end
 end

@@ -152,11 +152,23 @@ const webhookUrl = computed(
 
 const webhookConfigured = computed(() => !!webhookUrl.value);
 
-const webhookUrlMismatch = computed(
-  () =>
-    webhookConfigured.value &&
-    webhookUrl.value !== props.healthData?.expected_webhook_url
-);
+// A Meta so guarda uma URL de callback por WABA, entao com varios numeros no mesmo WABA a URL
+// registrada e a de um deles. Ela vale para todos: o roteamento de entrada usa o phone_number_id
+// do payload, nao a URL. Aceitamos qualquer URL de numero irmao para nao acusar incompatibilidade
+// falsa -- que e o que leva o usuario a reclicar em "Cadastrar Webhook" e derrubar a outra inbox.
+const acceptableWebhookUrls = computed(() => {
+  const urls = props.healthData?.acceptable_webhook_urls;
+  return Array.isArray(urls) ? urls.filter(Boolean) : [];
+});
+
+const webhookUrlMismatch = computed(() => {
+  if (!webhookConfigured.value) return false;
+  // Backend antigo (sem acceptable_webhook_urls): mantem a comparacao estrita de antes.
+  if (!acceptableWebhookUrls.value.length) {
+    return webhookUrl.value !== props.healthData?.expected_webhook_url;
+  }
+  return !acceptableWebhookUrls.value.includes(webhookUrl.value);
+});
 
 const handleRegisterWebhook = () => {
   emit('registerWebhook');

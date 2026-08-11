@@ -21,7 +21,8 @@ module Concerns::Agentable
       enhanced_context = enhanced_context.merge(
         conversation: state[:conversation] || {},
         contact: config['feature_contact_attributes'].present? ? state[:contact] : nil,
-        campaign: state[:campaign] || {}
+        campaign: state[:campaign] || {},
+        channel_number: state[:channel_number]
       )
     end
 

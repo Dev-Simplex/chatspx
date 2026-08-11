@@ -561,4 +561,504 @@ describe('#kanban actions', () => {
       ]);
     });
   });
+
+  // ── Tempo real do board (task/kanban-tempo-real.md) ──────────────────
+  describe('#applyRemoteMove', () => {
+    const rootGetters = { getCurrentUserID: 7 };
+    const remotePayload = (overrides = {}) => ({
+      id: 10,
+      funnel_id: 1,
+      funnel_stage_id: 22,
+      conversation_id: 500,
+      moved_at: '2026-08-03T12:00:00.000Z',
+      position: 0.5,
+      is_task: false,
+      account_id: 1,
+      performer: { id: 9, name: 'Colega' },
+      conversation: { id: 500, status: 'open', contact: { id: 3, name: 'Zé' } },
+      ...overrides,
+    });
+
+    it('insere o card que o receptor nunca carregou', () => {
+      const state = { activeFunnelId: 1, funnelItems: {} };
+
+      actions.applyRemoteMove(
+        { state, commit, dispatch, rootGetters },
+        remotePayload()
+      );
+
+      expect(commit).toHaveBeenCalledTimes(1);
+      const [mutation, payload] = commit.mock.calls[0];
+      expect(mutation).toBe(types.ADD_FUNNEL_ITEM);
+      expect(payload.id).toBe(10);
+      expect(payload.funnel_stage_id).toBe(22);
+      // metadado de transporte não entra no store
+      expect(payload.performer).toBeUndefined();
+      expect(payload.account_id).toBeUndefined();
+    });
+
+    it('ignora payload magro demais para desenhar (VM ainda não deployada)', () => {
+      const state = { activeFunnelId: 1, funnelItems: {} };
+
+      actions.applyRemoteMove(
+        { state, commit, dispatch, rootGetters },
+        remotePayload({ conversation: undefined, title: undefined })
+      );
+
+      expect(commit).not.toHaveBeenCalled();
+    });
+
+    it('reloca o card que já temos preservando o que o broadcast não traz', () => {
+      const state = {
+        activeFunnelId: 1,
+        funnelItems: {
+          10: {
+            id: 10,
+            funnelId: 1,
+            funnelStageId: 21,
+            movedAt: '2026-08-03T11:00:00.000Z',
+            conversation: { id: 500, lastMessage: { content: 'oi' } },
+          },
+        },
+      };
+
+      actions.applyRemoteMove(
+        { state, commit, dispatch, rootGetters },
+        remotePayload()
+      );
+
+      const [mutation, payload] = commit.mock.calls[0];
+      expect(mutation).toBe(types.UPDATE_FUNNEL_ITEM);
+      expect(payload.funnelStageId).toBe(22);
+      expect(payload.position).toBe(0.5);
+      expect(payload.conversation.lastMessage).toEqual({ content: 'oi' });
+    });
+
+    it('não reage a outro funil', () => {
+      const state = { activeFunnelId: 2, funnelItems: {} };
+      actions.applyRemoteMove(
+        { state, commit, dispatch, rootGetters },
+        remotePayload()
+      );
+      expect(commit).not.toHaveBeenCalled();
+    });
+
+    // Regressão: o guard por `performer.id` fazia a SEGUNDA janela da mesma
+    // pessoa nunca acompanhar ("atualiza uma vez e depois nunca mais"). O eco de
+    // quem arrastou cai sozinho na idempotência (teste seguinte).
+    it('aplica evento do próprio usuário vindo de outra janela', () => {
+      const state = { activeFunnelId: 1, funnelItems: {} };
+      actions.applyRemoteMove(
+        { state, commit, dispatch, rootGetters },
+        remotePayload({ performer: { id: 7 } })
+      );
+      expect(commit).toHaveBeenCalledWith(
+        types.ADD_FUNNEL_ITEM,
+        expect.objectContaining({ id: 10 })
+      );
+    });
+
+    it('o eco na janela que arrastou é no-op (a etapa já é a de destino)', () => {
+      const state = {
+        activeFunnelId: 1,
+        funnelItems: { 10: { id: 10, funnelId: 1, funnelStageId: 22 } },
+      };
+      actions.applyRemoteMove(
+        { state, commit, dispatch, rootGetters },
+        remotePayload({ performer: { id: 7 } })
+      );
+      expect(commit).not.toHaveBeenCalled();
+    });
+
+    it('é idempotente: mover para a etapa em que o card já está não commita', () => {
+      const state = {
+        activeFunnelId: 1,
+        funnelItems: { 10: { id: 10, funnelId: 1, funnelStageId: 22 } },
+      };
+      actions.applyRemoteMove(
+        { state, commit, dispatch, rootGetters },
+        remotePayload()
+      );
+      expect(commit).not.toHaveBeenCalled();
+    });
+
+    it('descarta move mais antigo que o estado local (last-write-wins)', () => {
+      const state = {
+        activeFunnelId: 1,
+        funnelItems: {
+          10: {
+            id: 10,
+            funnelId: 1,
+            funnelStageId: 21,
+            movedAt: '2026-08-03T13:00:00.000Z',
+          },
+        },
+      };
+      actions.applyRemoteMove(
+        { state, commit, dispatch, rootGetters },
+        remotePayload()
+      );
+      expect(commit).not.toHaveBeenCalled();
+    });
+
+    it('nunca lança para fora do websocket', () => {
+      expect(() =>
+        actions.applyRemoteMove(
+          { state: null, commit, dispatch, rootGetters },
+          remotePayload()
+        )
+      ).not.toThrow();
+    });
+  });
+
+  describe('#applyRemoteCreate', () => {
+    const rootGetters = { getCurrentUserID: 7 };
+    const taskPayload = (overrides = {}) => ({
+      id: 55,
+      funnel_id: 1,
+      funnel_stage_id: 22,
+      is_task: true,
+      title: 'Ligar para o cliente',
+      account_id: 1,
+      performer: { id: 9 },
+      ...overrides,
+    });
+
+    it('insere o cartão de tarefa criado por outra pessoa', () => {
+      const state = { activeFunnelId: 1, funnelItems: {} };
+      actions.applyRemoteCreate(
+        { state, commit, dispatch, rootGetters },
+        taskPayload()
+      );
+
+      const [mutation, payload] = commit.mock.calls[0];
+      expect(mutation).toBe(types.ADD_FUNNEL_ITEM);
+      expect(payload).toEqual({
+        id: 55,
+        funnel_id: 1,
+        funnel_stage_id: 22,
+        is_task: true,
+        title: 'Ligar para o cliente',
+      });
+    });
+
+    it('aplica criação do próprio usuário (upsert idempotente)', () => {
+      const state = { activeFunnelId: 1, funnelItems: {} };
+      actions.applyRemoteCreate(
+        { state, commit, dispatch, rootGetters },
+        taskPayload({ performer: { id: 7 } })
+      );
+      expect(commit).toHaveBeenCalledWith(
+        types.ADD_FUNNEL_ITEM,
+        expect.objectContaining({ id: 55 })
+      );
+    });
+
+    it('não faz o card piscar quando ele já estava na tela', () => {
+      const state = { activeFunnelId: 1, funnelItems: { 55: { id: 55 } } };
+      actions.applyRemoteCreate(
+        { state, commit, dispatch, rootGetters },
+        taskPayload()
+      );
+
+      expect(commit).toHaveBeenCalledWith(
+        types.ADD_FUNNEL_ITEM,
+        expect.anything()
+      );
+      expect(dispatch).not.toHaveBeenCalledWith(
+        'flagRemoteActivity',
+        expect.anything()
+      );
+    });
+
+    it('destaca o cartão novo', () => {
+      const state = { activeFunnelId: 1, funnelItems: {} };
+      actions.applyRemoteCreate(
+        { state, commit, dispatch, rootGetters },
+        taskPayload()
+      );
+
+      expect(dispatch).toHaveBeenCalledWith('flagRemoteActivity', {
+        itemId: 55,
+        performer: { id: 9 },
+      });
+    });
+
+    it('não reage a outro funil', () => {
+      const state = { activeFunnelId: 99, funnelItems: {} };
+      actions.applyRemoteCreate(
+        { state, commit, dispatch, rootGetters },
+        taskPayload()
+      );
+      expect(commit).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('#applyRemoteDelete', () => {
+    const rootGetters = { getCurrentUserID: 7 };
+    const deletePayload = (overrides = {}) => ({
+      id: 10,
+      funnel_id: 1,
+      funnel_stage_id: 22,
+      performer: { id: 9 },
+      ...overrides,
+    });
+
+    it('remove o card apagado por outra pessoa', () => {
+      const state = { activeFunnelId: 1 };
+      actions.applyRemoteDelete(
+        { state, commit, dispatch, rootGetters },
+        deletePayload()
+      );
+      expect(commit).toHaveBeenCalledWith(types.DELETE_FUNNEL_ITEM, 10);
+    });
+
+    it('aplica exclusão do próprio usuário (apagar o que já sumiu é no-op)', () => {
+      const state = { activeFunnelId: 1 };
+      actions.applyRemoteDelete(
+        { state, commit, dispatch, rootGetters },
+        deletePayload({ performer: { id: 7 } })
+      );
+      expect(commit).toHaveBeenCalledWith(types.DELETE_FUNNEL_ITEM, 10);
+    });
+  });
+
+  describe('#applyRemoteBulk', () => {
+    const rootGetters = { getCurrentUserID: 7 };
+
+    it('aplica cada card pelo mesmo caminho do move solto', async () => {
+      const state = { activeFunnelId: 1 };
+      const localDispatch = vi.fn();
+
+      await actions.applyRemoteBulk(
+        { state, dispatch: localDispatch, rootGetters },
+        {
+          funnel_id: 1,
+          performer: { id: 9 },
+          items: [
+            { id: 1, funnel_id: 1, funnel_stage_id: 22 },
+            { id: 2, funnel_id: 1, funnel_stage_id: 22 },
+          ],
+        }
+      );
+
+      expect(localDispatch).toHaveBeenCalledTimes(2);
+      // `performer` viaja junto para o destaque do card dizer quem moveu.
+      expect(localDispatch).toHaveBeenNthCalledWith(1, 'applyRemoteMove', {
+        id: 1,
+        funnel_id: 1,
+        funnel_stage_id: 22,
+        performer: { id: 9 },
+      });
+    });
+
+    it('recarrega só as colunas afetadas quando o backend manda refetch', async () => {
+      const state = { activeFunnelId: 1 };
+      const localDispatch = vi.fn(() => Promise.resolve());
+
+      await actions.applyRemoteBulk(
+        { state, dispatch: localDispatch, rootGetters },
+        {
+          funnel_id: 1,
+          performer: { id: 9 },
+          refetch: true,
+          stage_ids: [22, 23, 22],
+        }
+      );
+
+      expect(localDispatch).toHaveBeenCalledTimes(2);
+      expect(localDispatch).toHaveBeenCalledWith('fetchFunnelItemsPage', {
+        funnelId: 1,
+        stageId: 22,
+        excludeAutomationType: 'resolved',
+        append: false,
+      });
+    });
+
+    it('aplica bulk do próprio usuário (cada item passa pela idempotência)', async () => {
+      const localDispatch = vi.fn();
+      await actions.applyRemoteBulk(
+        { state: { activeFunnelId: 1 }, dispatch: localDispatch, rootGetters },
+        { funnel_id: 1, performer: { id: 7 }, items: [{ id: 1 }] }
+      );
+      expect(localDispatch).toHaveBeenCalledWith(
+        'applyRemoteMove',
+        expect.objectContaining({ id: 1 })
+      );
+    });
+  });
+
+  describe('#applyRemoteReorder', () => {
+    const rootGetters = { getCurrentUserID: 7 };
+    const state = {
+      activeFunnelId: 1,
+      funnelItems: { 10: { id: 10 }, 11: { id: 11 } },
+    };
+
+    it('aplica as posições dos cards que temos', () => {
+      actions.applyRemoteReorder(
+        { state, commit, dispatch, rootGetters },
+        {
+          funnel_id: 1,
+          funnel_stage_id: 22,
+          performer: { id: 9 },
+          positions: [
+            { id: 11, position: 1 },
+            { id: 10, position: 2 },
+          ],
+        }
+      );
+
+      expect(commit).toHaveBeenCalledWith(types.SET_FUNNEL_ITEM_POSITIONS, {
+        positions: [
+          { id: 11, position: 1 },
+          { id: 10, position: 2 },
+        ],
+      });
+    });
+
+    it('descarta ids desconhecidos sem disparar refetch', () => {
+      actions.applyRemoteReorder(
+        { state, commit, dispatch, rootGetters },
+        {
+          funnel_id: 1,
+          performer: { id: 9 },
+          positions: [{ id: 999, position: 1 }],
+        }
+      );
+
+      expect(commit).not.toHaveBeenCalled();
+    });
+
+    it('aplica reordenação do próprio usuário (mesmas posições do otimismo)', () => {
+      actions.applyRemoteReorder(
+        { state, commit, dispatch, rootGetters },
+        {
+          funnel_id: 1,
+          performer: { id: 7 },
+          positions: [{ id: 10, position: 1 }],
+        }
+      );
+
+      expect(commit).toHaveBeenCalledWith(types.SET_FUNNEL_ITEM_POSITIONS, {
+        positions: [{ id: 10, position: 1 }],
+      });
+    });
+  });
+
+  describe('#applyRemoteStages', () => {
+    const rootGetters = { getCurrentUserID: 7 };
+    const buildState = () => ({
+      activeFunnelId: 1,
+      funnelStages: { 1: { 21: { id: 21 }, 22: { id: 22 } } },
+      viewFilters: { stageIds: [22] },
+    });
+
+    it('substitui a lista de colunas', () => {
+      actions.applyRemoteStages(
+        { state: buildState(), commit, dispatch, rootGetters },
+        {
+          funnel_id: 1,
+          performer: { id: 9 },
+          stages: [
+            { id: 21, name: 'Abertos' },
+            { id: 22, name: 'Fechados' },
+          ],
+        }
+      );
+
+      expect(commit).toHaveBeenCalledWith(types.SET_FUNNEL_STAGES, {
+        funnelId: 1,
+        stages: [
+          { id: 21, name: 'Abertos' },
+          { id: 22, name: 'Fechados' },
+        ],
+      });
+      expect(commit).not.toHaveBeenCalledWith(
+        types.DELETE_FUNNEL_STAGE,
+        expect.anything()
+      );
+    });
+
+    it('limpa os cards órfãos da coluna apagada e o filtro que apontava para ela', () => {
+      actions.applyRemoteStages(
+        { state: buildState(), commit, dispatch, rootGetters },
+        {
+          funnel_id: 1,
+          performer: { id: 9 },
+          stages: [{ id: 21, name: 'Abertos' }],
+        }
+      );
+
+      expect(commit).toHaveBeenCalledWith(types.DELETE_FUNNEL_STAGE, {
+        funnelId: 1,
+        stageId: 22,
+      });
+      expect(commit).toHaveBeenCalledWith(types.SET_VIEW_FILTERS, {
+        stageIds: [],
+      });
+    });
+
+    it('não reage a outro funil', () => {
+      actions.applyRemoteStages(
+        {
+          state: { ...buildState(), activeFunnelId: 99 },
+          commit,
+          dispatch,
+          rootGetters,
+        },
+        { funnel_id: 1, performer: { id: 9 }, stages: [] }
+      );
+      expect(commit).not.toHaveBeenCalled();
+    });
+
+    it('aplica mudança do próprio usuário (a lista do servidor é a verdade)', () => {
+      actions.applyRemoteStages(
+        { state: buildState(), commit, dispatch, rootGetters },
+        { funnel_id: 1, performer: { id: 7 }, stages: [] }
+      );
+      expect(commit).toHaveBeenCalledWith(types.SET_FUNNEL_STAGES, {
+        funnelId: 1,
+        stages: [],
+      });
+    });
+  });
+
+  describe('#flagRemoteActivity', () => {
+    beforeEach(() => vi.useFakeTimers());
+    afterEach(() => vi.useRealTimers());
+
+    it('marca o card com o nome de quem mexeu e limpa sozinho', () => {
+      actions.flagRemoteActivity(
+        { commit },
+        { itemId: 10, performer: { id: 9, name: 'Colega' } }
+      );
+
+      expect(commit).toHaveBeenCalledWith(types.SET_REMOTE_ACTIVITY, {
+        itemId: 10,
+        name: 'Colega',
+        automated: false,
+      });
+
+      vi.runAllTimers();
+      expect(commit).toHaveBeenCalledWith(types.CLEAR_REMOTE_ACTIVITY, 10);
+    });
+
+    // performer é nil em move de job (automação/SLA/backfill): Current.user só
+    // existe dentro do request.
+    it('marca como automático quando não há performer', () => {
+      actions.flagRemoteActivity({ commit }, { itemId: 10 });
+
+      expect(commit).toHaveBeenCalledWith(types.SET_REMOTE_ACTIVITY, {
+        itemId: 10,
+        name: null,
+        automated: true,
+      });
+    });
+
+    it('ignora id inválido', () => {
+      actions.flagRemoteActivity({ commit }, { itemId: null });
+      expect(commit).not.toHaveBeenCalled();
+    });
+  });
 });
