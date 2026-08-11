@@ -4,7 +4,13 @@ require 'rails_helper'
 
 RSpec.describe Campaigns::Whatsapp::AudienceBuilderService do
   let(:account) { create(:account) }
-  let(:campaign) { create(:campaign, :whatsapp, account: account) }
+  # Inbox montada a mao (e nao pela trait :whatsapp do factory) porque a trait cria um
+  # canal 360dialog, cujo after_create bate na rede pra registrar o webhook.
+  let(:inbox) do
+    create(:channel_whatsapp, account: account, provider: 'whatsapp_cloud',
+                              sync_templates: false, validate_provider_config: false).inbox
+  end
+  let(:campaign) { create(:campaign, account: account, inbox: inbox) }
 
   # +55 66 99292-7211 -> canonico 6692927211 (DDD + ultimos 8 digitos).
   let(:phone) { '+5566992927211' }
@@ -21,7 +27,7 @@ RSpec.describe Campaigns::Whatsapp::AudienceBuilderService do
 
   # Destinatario ja disparado em OUTRA campanha da conta: o motivo `ja_disparado`.
   def already_dispatched!
-    other = create(:campaign, :whatsapp, account: account)
+    other = create(:campaign, account: account, inbox: inbox)
     CampaignRecipient.create!(campaign: other, account: account, phone_number: phone,
                               canonical_phone: canonical, status: :sent)
   end
