@@ -29,6 +29,7 @@ class Captain::ConversationEpisode < ApplicationRecord
     ended_at.present?
   end
 
+
   # F4.2 (Eval humano): notas privadas de gestores com o marcador #eval que pertencem
   # a ESTE episódio. Duas formas de vínculo: EXPLÍCITO (content_attributes.eval_episode_id,
   # setado pelo modal "Avaliar atendimento" — vale pra qualquer episódio, até antigo) e
