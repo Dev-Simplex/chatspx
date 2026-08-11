@@ -170,6 +170,7 @@ class Conversation < ApplicationRecord
   has_one :nps_response, -> { order(created_at: :desc) }, class_name: 'NpsResponse', # rubocop:disable Rails/HasManyOrHasOneDependent
                                                           inverse_of: :conversation
   has_many :conversation_participants, dependent: :destroy_async
+  has_many :conversation_pins, dependent: :destroy_async
   has_many :notifications, as: :primary_actor, dependent: :destroy_async
   has_many :conversation_takeover_requests, dependent: :destroy_async
   has_many :attachments, through: :messages
@@ -248,6 +249,26 @@ class Conversation < ApplicationRecord
 
   def unread_incoming_messages
     unread_messages.incoming.last(10)
+  end
+
+  # Fixar é por atendente. `any?` com bloco roda em memória quando a associação
+  # vem pré-carregada (é o caso da lista), então não gera N+1.
+  def pinned_for?(user)
+    return false if user.blank?
+
+    conversation_pins.any? { |pin| pin.user_id == user.id }
+  end
+
+  # Devolve o estado NOVO, para o cliente não precisar adivinhar.
+  def toggle_pin_for(user)
+    pin = conversation_pins.find_by(user_id: user.id)
+    if pin
+      pin.destroy!
+      false
+    else
+      conversation_pins.create!(user: user)
+      true
+    end
   end
 
   def memoized_unread_count

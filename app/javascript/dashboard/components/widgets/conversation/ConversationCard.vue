@@ -234,6 +234,10 @@ export default {
       return this.unreadCount > 0;
     },
 
+    isPinned() {
+      return Boolean(this.chat.pinned);
+    },
+
     isInboxNameVisible() {
       return !this.activeInbox;
     },
@@ -340,6 +344,11 @@ export default {
     },
   },
   methods: {
+    // Preferência individual: só mexe na lista de quem clicou.
+    togglePin() {
+      this.$store.dispatch('togglePin', { conversationId: this.chat.id });
+    },
+
     onCardClick(e) {
       const { activeInbox, chat } = this;
       const path = frontendURL(
@@ -575,6 +584,25 @@ export default {
       <div
         class="absolute flex flex-col mt-4 ltr:right-4 rtl:left-4 top-4 group-hover:ltr:right-10 group-hover:rtl:left-10 transition-all duration-200"
       >
+        <!-- Alfinete: sempre visível quando fixada; no toque também, porque lá
+             não existe hover (por isso o md: nas classes de opacidade). -->
+        <button
+          type="button"
+          class="ltr:ml-auto rtl:mr-auto mb-0.5 flex size-4 items-center justify-center rounded transition-opacity"
+          :class="
+            isPinned
+              ? 'text-n-brand'
+              : 'text-n-slate-10 md:opacity-0 md:group-hover:opacity-100 hover:text-n-slate-12'
+          "
+          :title="
+            isPinned
+              ? $t('CHAT_LIST.UNPIN_CONVERSATION')
+              : $t('CHAT_LIST.PIN_CONVERSATION')
+          "
+          @click.stop="togglePin"
+        >
+          <span class="i-lucide-pin size-3.5" />
+        </button>
         <span class="conversation--timestamp ml-auto font-normal leading-4">
           <TimeAgo
             :last-activity-timestamp="

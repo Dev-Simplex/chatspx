@@ -46606,6 +46606,10 @@
             "type": "boolean",
             "description": "Se a conversa está silenciada"
           },
+          "pinned": {
+            "type": "boolean",
+            "description": "Se a conversa está fixada no topo da lista do atendente que fez a requisição"
+          },
           "snoozed_until": {
             "type": [
               "string",

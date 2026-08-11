@@ -395,8 +395,33 @@ class ConversationFinder # rubocop:disable Metrics/ClassLength
   def conversations_base_query
     @conversations.includes(
       :taggings, :inbox, { assignee: [:avatar_attachment, :teams] }, { contact: :avatar_attachment }, :team, :contact_inbox,
-      :assignee_agent_bot
-    )
+      :assignee_agent_bot, :conversation_pins
+    ).then { |base| user_has_pins? ? pinned_first(base) : base }
+  end
+
+  # Fixadas sobem para o topo. O JOIN é filtrado pelo usuário da requisição, então
+  # é preferência individual: fixar não muda a lista de mais ninguém. A ordenação
+  # escolhida (atividade, prioridade...) é aplicada depois e continua valendo
+  # dentro de cada grupo, porque os scopes de sort usam `order` (append), não
+  # `reorder`.
+  def pinned_first(relation)
+    relation.joins(
+      ActiveRecord::Base.sanitize_sql_array(
+        ['LEFT OUTER JOIN conversation_pins ON conversation_pins.conversation_id = conversations.id AND conversation_pins.user_id = ?',
+         current_user.id]
+      )
+    ).order(Arel.sql('conversation_pins.id IS NULL'))
+  end
+
+  # O cursor do keyset compara `(last_activity_at, id) < (...)`, o que só é válido
+  # enquanto essa for a ordenação inteira. Com fixadas no topo a comparação deixa
+  # de casar com o ORDER BY e a paginação pularia linhas — então quem tem conversa
+  # fixada cai na paginação por offset, que é correta aqui. Quem não fixou nada
+  # não paga nada: nem o JOIN entra.
+  def user_has_pins?
+    return @user_has_pins if defined?(@user_has_pins)
+
+    @user_has_pins = ConversationPin.exists?(user_id: current_user.id, account_id: current_account.id)
   end
 
   def fetch_conversations
@@ -415,7 +440,7 @@ class ConversationFinder # rubocop:disable Metrics/ClassLength
   end
 
   def use_keyset_pagination?(sort_by, sort_order)
-    sort_by == 'sort_on_last_activity_at' && sort_order == 'desc' && params[:q].blank?
+    sort_by == 'sort_on_last_activity_at' && sort_order == 'desc' && params[:q].blank? && !user_has_pins?
   end
 
   def apply_keyset_and_fetch(base, _sort_order)

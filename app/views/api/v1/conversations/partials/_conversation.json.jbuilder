@@ -123,6 +123,9 @@ json.custom_attributes conversation.custom_attributes
 json.inbox_id conversation.inbox_id
 json.labels conversation.cached_label_list_array
 json.muted conversation.muted?
+# Fixada para QUEM está pedindo — o mesmo registro sai `true` para um atendente e
+# `false` para outro.
+json.pinned conversation.pinned_for?(Current.user)
 json.snoozed_until conversation.snoozed_until
 json.status conversation.status
 json.created_at conversation.created_at.to_i
