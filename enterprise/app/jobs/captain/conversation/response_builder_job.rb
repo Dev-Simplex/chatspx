@@ -66,10 +66,7 @@ class Captain::Conversation::ResponseBuilderJob < ApplicationJob
   end
 
   def collect_previous_messages
-    @conversation
-      .messages
-      .where(message_type: [:incoming, :outgoing])
-      .where(private: false)
+    mensagens_do_contexto
       .reject { |message| survey_message?(message) }
       .map do |message|
       # Blocos de imagem so podem ir em turnos de USER (a API rejeita 'image' em
@@ -80,15 +77,63 @@ class Captain::Conversation::ResponseBuilderJob < ApplicationJob
                   message.content.presence || outgoing_attachment_placeholder(message)
                 end
       with_forwardable_agent_name({ content: content, role: determine_role(message) }, message)
-    end.tap do |history|
-      # Reentrada pós-atendimento humano encerrado: o agente precisa saber que houve gente
-      # antes dele e quem foi, senão trata continuidade de caso como assunto novo. Uma vez
-      # por turno (não por mensagem do histórico), e só quando é reentrada de verdade.
-      nota_humana = Captain::Conversation::HumanHistoryNote.new(conversation: @conversation).text
-      history << { content: nota_humana, role: 'user' } if nota_humana.present?
-      # Diretiva interna de follow-up (cutucada): entra como último turno pro agente decidir.
-      history << { content: @directive, role: 'user' } if @directive.present?
-    end
+    end.tap { |history| injetar_notas(history) }
+  end
+
+  # Notas de contexto do turno. Não são mensagem no banco: não aparecem no painel nem vão
+  # pro WhatsApp — só entram no array que o modelo recebe.
+  def injetar_notas(history)
+    # PREÂMBULO, não rodapé: o runner processa o ÚLTIMO turno role:'user'
+    # (AgentRunnerService#extract_last_user_message). No fim do array, a nota viraria "a
+    # mensagem a responder" e a fala do cliente desceria pro contexto — o que é de
+    # propósito na diretiva de follow-up abaixo, mas seria errado aqui.
+    nota_episodio = nota_de_continuidade
+    history.unshift({ content: nota_episodio, role: 'user' }) if nota_episodio.present?
+
+    # Reentrada pós-atendimento humano encerrado: o agente precisa saber que houve gente
+    # antes dele e quem foi, senão trata continuidade de caso como assunto novo. Uma vez
+    # por turno (não por mensagem do histórico), e só quando é reentrada de verdade.
+    nota_humana = Captain::Conversation::HumanHistoryNote.new(conversation: @conversation).text
+    history << { content: nota_humana, role: 'user' } if nota_humana.present?
+    # Diretiva interna de follow-up (cutucada): entra como último turno pro agente decidir.
+    history << { content: @directive, role: 'user' } if @directive.present?
+  end
+
+  # Recorta o histórico no atendimento ATUAL. Com lock_to_single_conversation o fio do
+  # contato é perpétuo: medido na conta 6, as 200 conversas mais movimentadas mandavam em
+  # média 493 turnos por resposta (máx 6.246) contra 26 se fosse só o episódio. Não é só
+  # token e latência — um desabafo de fevereiro chegava ao modelo como o turno anterior à
+  # mensagem de hoje.
+  #
+  # A fronteira vem do EpisodeSegmenterService, que já roda em prod pro Eval 2.0.
+  def mensagens_do_contexto
+    todas = @conversation.messages.where(message_type: [:incoming, :outgoing]).where(private: false)
+    return todas unless janela_por_episodio?
+
+    # A fronteira é DERIVADA no instante do turno quando a tabela ainda não a tem — a
+    # tabela é populada por cron e chegaria tarde demais justamente na reentrada, que é
+    # onde o histórico velho faz estrago. Ver Captain::Conversation::EpisodeBoundary.
+    inicio = Captain::Conversation::EpisodeBoundary.new(conversation: @conversation).atual&.started_at
+    # Sem fronteira alguma (conversa sem mensagem segmentável): conversa inteira.
+    return todas if inicio.blank?
+
+    # Janela vazia é resposta VÁLIDA, não erro: significa que o atendimento atual ainda não
+    # teve mensagem conversacional (ex.: aberto por HSM de campanha, cliente sem responder).
+    # Cair em `todas` aqui reintroduziria exatamente o bug — foi o que a conv 32215 mostrou
+    # (janela 0 de 39 turnos). No caminho real sempre há a mensagem do cliente que motivou
+    # o turno, então o vazio só aparece em disparo sem resposta.
+    todas.where('messages.created_at >= ?', inicio)
+  end
+
+  def nota_de_continuidade
+    return unless janela_por_episodio?
+
+    Captain::Conversation::EpisodeContinuityNote.new(conversation: @conversation).text
+  end
+
+  # Opt-in por conta, default desligado (produto multi-tenant — nunca hardcode de cliente).
+  def janela_por_episodio?
+    ActiveModel::Type::Boolean.new.cast(account.custom_attributes&.dig('captain_episode_window'))
   end
 
   # Mensagens de pesquisa (NPS/CSAT) NÃO são conversa real — são artefato do sistema. No
