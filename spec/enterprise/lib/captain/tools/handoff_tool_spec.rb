@@ -11,8 +11,12 @@ RSpec.describe Captain::Tools::HandoffTool, type: :model do
   let(:tool_context) { Struct.new(:state).new({ conversation: { id: conversation.id } }) }
 
   describe '#description' do
-    it 'returns the correct description' do
-      expect(tool.description).to eq('Hand off the conversation to a human agent when unable to assist further')
+    # Gatilho POSITIVO: a descrição antiga ("when unable to assist further") fazia a IA
+    # quase nunca chamar o tool — uma IA que atende bem nunca se considera "unable" —
+    # e nenhum lead chegava ao humano. Passar o lead qualificado é o caminho normal.
+    it 'frames the handoff as a normal step, not as giving up' do
+      expect(tool.description).to include('Passa a conversa para um ATENDENTE HUMANO')
+      expect(tool.description).to include('A IA continua respondendo normalmente até um humano assumir')
     end
 
     it 'enumerates the account teams when present (C6)' do
@@ -23,7 +27,7 @@ RSpec.describe Captain::Tools::HandoffTool, type: :model do
 
       description = described_class.new(assistant).description
 
-      expect(description).to include('Hand off the conversation to a human agent when unable to assist further')
+      expect(description).to include('Passa a conversa para um ATENDENTE HUMANO')
       expect(description).to include("#{team_a.id}: #{team_a.name}")
       expect(description).to include("#{team_b.id}: #{team_b.name}")
       expect(description).not_to include("#{other_account_team.id}: #{other_account_team.name}")
@@ -190,12 +194,15 @@ RSpec.describe Captain::Tools::HandoffTool, type: :model do
             .and_return({ team_user.id.to_s => 'online' })
         end
 
-        it 'releases the captain mirror before the handoff' do
+        # Modelo A (decisão do Paulo): a IA NÃO solta a conversa no handoff — segue dona e
+        # respondendo até um humano PUXAR a atribuição. Soltar o espelho aqui deixaria o
+        # cliente sem ninguém no intervalo entre o handoff e alguém assumir de fato.
+        it 'keeps the AI mirror, which goes on answering until a human takes over' do
           perform_enqueued_jobs do
             tool.perform(tool_context, reason: 'Customer needs a broker', team_id: team.id.to_s)
           end
 
-          expect(conversation.reload.assignee_agent_bot_id).to be_nil
+          expect(conversation.reload.assignee_agent_bot_id).to eq(mirror.id)
         end
 
         it 'keeps the team (conversation lands in the team queue)' do
@@ -214,7 +221,7 @@ RSpec.describe Captain::Tools::HandoffTool, type: :model do
           expect(conversation.reload.assignee).to be_nil
         end
 
-        it 'leaves the conversation open + team + no owner + no mirror (estável, F1.3)' do
+        it 'leaves the conversation open + team + no owner, with the AI still on duty (estável, F1.3)' do
           perform_enqueued_jobs do
             tool.perform(tool_context, reason: 'Precisa de humano', team_id: team.id.to_s)
           end
@@ -223,7 +230,7 @@ RSpec.describe Captain::Tools::HandoffTool, type: :model do
           expect(conversation.status).to eq('open')
           expect(conversation.team_id).to eq(team.id)
           expect(conversation.assignee_id).to be_nil
-          expect(conversation.assignee_agent_bot_id).to be_nil
+          expect(conversation.assignee_agent_bot_id).to eq(mirror.id)
         end
 
         it 'sets the aguardando_humano_desde marker' do

@@ -20,13 +20,14 @@ RSpec.describe Captain::Tools::ResolveConversationTool do
     it 'marks resolved and enqueues an activity message with the reason' do
       tool.perform(tool_context, reason: 'Possible spam')
 
-      expect(conversation.reload).to be_resolved
-      expect(Conversations::ActivityMessageJob).to have_been_enqueued.with(
-        conversation,
-        hash_including(
-          content: I18n.t('conversations.activity.captain.resolved_by_tool', user_name: assistant.name, reason: 'Possible spam')
-        )
+      esperado = I18n.t(
+        'conversations.activity.captain.resolved_by_tool',
+        user_name: assistant.name, reason: 'Possible spam', locale: account.locale
       )
+
+      expect(conversation.reload).to be_resolved
+      # O job recebe o ID da conversa, não o registro.
+      expect(Conversations::ActivityMessageJob).to have_been_enqueued.with(conversation.id, hash_including(content: esperado))
     end
 
     it 'creates a conversation_resolved reporting event' do
