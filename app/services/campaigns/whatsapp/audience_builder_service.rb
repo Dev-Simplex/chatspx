@@ -19,7 +19,7 @@ module Campaigns
       # Motivos de descarte, na ordem em que sao avaliados. Chaves estaveis: viram
       # rotulo na tela e coluna no CSV de revisao.
       REASONS = %w[
-        telefone_invalido telefone_fixo numero_suspeito bloqueado
+        telefone_invalido telefone_fixo numero_suspeito bloqueado optou_por_sair
         ja_disparado ja_na_campanha atendimento_ativo duplicado_na_lista
       ].freeze
 
@@ -40,6 +40,13 @@ module Campaigns
 
       # Conversa nao-resolvida = atendimento em andamento. Disparo nao atropela.
       ACTIVE_STATUSES = %i[open pending snoozed].freeze
+
+      # Baldes de supressao que barram o disparo. O handler do "PARAR"
+      # (AutomationRuleListener) so escreve `marketing`, e `all` e o catch-all que
+      # vale pra qualquer balde — os mesmos dois que ContactFlowSuppression.suppressed?
+      # casa. Disparo utility pra quem suprimiu marketing tambem para: num opt-out,
+      # nao enviar e o lado seguro de errar.
+      SUPPRESSION_CATEGORIES = %w[marketing all].freeze
 
       # Status que provam que o numero JA levou um disparo (nao bater de novo).
       DISPATCHED_STATUSES = %i[sent delivered read replied].freeze
@@ -155,6 +162,10 @@ module Campaigns
 
       def rejection_for(canonical, seen)
         return 'bloqueado' if @blocked.include?(canonical)
+        # Antes de ja_disparado de proposito: quem pediu PARAR depois de ter levado um
+        # disparo sairia contado como ja_disparado, e o numero de compliance da tela
+        # sairia menor do que e. A posicao aqui E a medicao.
+        return 'optou_por_sair' if @suppressed.include?(canonical)
         return 'ja_disparado' if @dispatched.include?(canonical)
         return 'ja_na_campanha' if @in_campaign.include?(canonical)
         return 'atendimento_ativo' if @active.include?(canonical)
@@ -180,6 +191,7 @@ module Campaigns
 
       def load_lookups(canonicals)
         @blocked = blocked_canonicals(canonicals)
+        @suppressed = suppressed_canonicals(canonicals)
         @dispatched = dispatched_canonicals(canonicals)
         @in_campaign = in_campaign_canonicals(canonicals)
         @active = active_canonicals(canonicals)
@@ -224,6 +236,23 @@ module Campaigns
 
       def blocklist_labels
         @blocklist_labels ||= Array(campaign.dispatch_config['blocklist_labels']).map(&:to_s).reject(&:blank?)
+      end
+
+      # Quem respondeu PARAR. A supressao ja era escrita pelo handler de opt-out e ja
+      # era respeitada pelo motor de Flows; o disparo em massa nao a consultava e
+      # continuava batendo em quem pediu pra sair. O scope `active` e quem decide o
+      # que ainda vale (linha expirada fica na tabela por causa do indice unico).
+      # Numero sem ficha na base nao tem supressao e passa — mesmo fail-open do
+      # ContactFlowSuppression.suppressed?.
+      def suppressed_canonicals(canonicals)
+        ids_by_canonical = contact_ids_by_canonical(canonicals)
+        return Set.new if ids_by_canonical.empty?
+
+        opted_out = ContactFlowSuppression.active
+                                          .where(contact_id: ids_by_canonical.values.flatten,
+                                                 category: SUPPRESSION_CATEGORIES)
+                                          .distinct.pluck(:contact_id).to_set
+        ids_by_canonical.select { |_, ids| ids.any? { |id| opted_out.include?(id) } }.keys.to_set
       end
 
       # canonical => [contact_ids]. Busca os contatos pelas DUAS variantes e164 do
