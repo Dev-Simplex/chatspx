@@ -55,6 +55,18 @@ class Account < ApplicationRecord # rubocop:disable Metrics/ClassLength
           },
           'additionalProperties': false
         },
+        'contact_invite': {
+          'type': %w[object null],
+          'properties': {
+            'enabled': { 'type': %w[boolean null] },
+            'template_name': { 'type': %w[string null] },
+            'referral_template_name': { 'type': %w[string null] },
+            'language': { 'type': %w[string null] },
+            'cooldown_hours': { 'type': %w[integer null], 'minimum': 1, 'maximum': 720 },
+            'referral_label': { 'type': %w[string null] }
+          },
+          'additionalProperties': false
+        },
         'conversation_required_attributes': {
           'type': %w[array null],
           'items': { 'type': 'string' }
@@ -112,6 +124,7 @@ class Account < ApplicationRecord # rubocop:disable Metrics/ClassLength
   store_accessor :settings, :captain_auto_resolve_mode
   store_accessor :settings, :reply_assignment_gate, :orphan_retriage_after
   store_accessor :settings, :template_reply_routing
+  store_accessor :settings, :contact_invite
   store_accessor :settings, :resolve_assignment_gate
   # Modo "só troca de mãos via pedido aprovado" (D1). Independente do
   # reply_assignment_gate de propósito: acoplar no backend seria surpresa.

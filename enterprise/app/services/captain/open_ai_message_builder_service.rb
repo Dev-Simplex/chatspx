@@ -71,19 +71,46 @@ class Captain::OpenAiMessageBuilderService
 
     image_content = image_parts(attachments.where(file_type: :image) + story_images)
 
-    transcription = extract_audio_transcriptions(attachments)
-    transcription_part = text_part(transcription) if transcription.present?
-
-    locations = extract_locations(attachments)
-    location_part = text_part(locations) if locations.present?
+    transcription_part = optional_text_part(extract_audio_transcriptions(attachments))
+    location_part = optional_text_part(extract_locations(attachments))
+    contacts_part = optional_text_part(extract_shared_contacts(attachments))
 
     # PDF (ex.: holerite) vai como documento pro LLM ler; os demais anexos não-lidos
     # (docx, xlsx, zip...) seguem como nota de texto — o Claude só lê imagem e PDF.
-    others = attachments.where.not(file_type: %i[image audio location ig_story]).to_a + story_others
+    # `contact` sai do balde genérico porque o vCard agora é lido em `extract_shared_contacts`:
+    # deixá-lo aqui faria o cartão contar duas vezes — uma como texto com nome e telefone, outra
+    # como "User has shared an attachment".
+    others = attachments.where.not(file_type: %i[image audio location contact ig_story]).to_a + story_others
     pdf_content = others.select { |a| pdf_attachment?(a) }.filter_map { |a| (u = get_attachment_url(a)) && file_part(u) }
     attachment_part = text_part('User has shared an attachment') if others.any? { |a| !pdf_attachment?(a) }
 
-    [image_content, pdf_content, transcription_part, location_part, attachment_part].flatten.compact
+    [image_content, pdf_content, transcription_part, location_part, contacts_part, attachment_part].flatten.compact
+  end
+
+  def optional_text_part(text)
+    text.present? ? text_part(text) : nil
+  end
+
+  # Cartão de contato (vCard) vira TEXTO com nome e telefone. O número vem no
+  # fallback_title e o nome no meta (firstName/lastName) — sem isso o agente só via
+  # "User has shared an attachment" e ficava cego pra indicação ("olha o contato do
+  # meu amigo que quer alugar"). Descritivo, igual ao pin de localização.
+  def extract_shared_contacts(attachments)
+    attachments.where(file_type: :contact).map { |att| shared_contact_line(att) }.join(' ')
+  end
+
+  def shared_contact_line(attachment)
+    dados = shared_contact_data(attachment)
+    return '[Cliente compartilhou um cartão de contato sem dados legíveis]' if dados.blank?
+
+    "[Cliente compartilhou um cartão de contato: #{dados}]"
+  end
+
+  def shared_contact_data(attachment)
+    meta = attachment.meta || {}
+    campos = { 'nome' => [meta['firstName'], meta['lastName']].join(' ').squish,
+               'telefone' => attachment.fallback_title.to_s.strip }
+    campos.filter_map { |rotulo, valor| "#{rotulo} #{valor}" if valor.present? }.join(', ')
   end
 
   # PDF? Confia no content_type do blob (Active Storage) e, no fallback (anexo externo/WAHA),
