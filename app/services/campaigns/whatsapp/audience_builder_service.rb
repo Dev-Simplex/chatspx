@@ -66,13 +66,14 @@ module Campaigns
         raw = value(row, :phone) || value(row, :telefone)
         name = value(row, :name).to_s.strip.presence || value(row, :nome).to_s.strip.presence
         entry = { name: name, raw: raw.to_s.strip, params: value(row, :params) }
+        parser = phones
 
-        ddd, subscriber = phones.split_number(raw)
+        ddd, subscriber = parser.split_number(raw)
         return entry.merge(reason: 'telefone_invalido') if ddd.nil?
-        return entry.merge(reason: 'telefone_fixo') if phones.landline?(subscriber)
-        return entry.merge(reason: 'numero_suspeito') if phones.suspicious?(ddd, subscriber)
+        return entry.merge(reason: 'telefone_fixo') if parser.landline?(subscriber)
+        return entry.merge(reason: 'numero_suspeito') if parser.suspicious?(ddd, subscriber)
 
-        entry.merge(canonical: phones.canonical(ddd, subscriber), phone: phones.e164(ddd, subscriber))
+        entry.merge(canonical: parser.canonical(ddd, subscriber), phone: parser.e164(ddd, subscriber))
       end
 
       def phones
