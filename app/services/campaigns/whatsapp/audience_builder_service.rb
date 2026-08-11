@@ -178,12 +178,25 @@ module Campaigns
         @blocklist_labels ||= Array(campaign.dispatch_config['blocklist_labels']).map(&:to_s).reject(&:blank?)
       end
 
-      # Quem respondeu PARAR. A supressao ja era escrita pelo handler de opt-out e ja
-      # era respeitada pelo motor de Flows; o disparo em massa nao a consultava e
-      # continuava batendo em quem pediu pra sair. O scope `active` e quem decide o
-      # que ainda vale (linha expirada fica na tabela por causa do indice unico).
-      # Numero sem ficha na base nao tem supressao e passa — mesmo fail-open do
-      # ContactFlowSuppression.suppressed?.
+      # Quem respondeu PARAR. Ate aqui a supressao so era lida pelo motor de Flows
+      # (Flows::Compliance) — o disparo em massa nao a consultava.
+      #
+      # NAO CONCLUA DAQUI QUE OPT-OUT ESTA RESOLVIDO. Medido na Tozi (conta 6) em
+      # 11/08/2026: a tabela tem ZERO linhas na instancia INTEIRA, porque o gravador
+      # (AutomationRuleListener#handle_incoming_opt_out) so e alcancado por dentro do
+      # run_flows, que exige account.flows_engine_enabled? — falso naquela conta. Ou
+      # seja: esta consulta nasce INERTE la, e nao por culpa deste arquivo. A metade
+      # que falta e ESCREVER a linha, nao le-la — opt-out e compliance e nao deveria
+      # depender de o cliente ter o motor de Flows ligado.
+      #
+      # Segundo furo, tambem fora daqui: o matcher exige match exato da mensagem
+      # inteira contra parar/sair/stop/cancelar. Na inbox 99, das 23 recusas reais
+      # ("Nao tenho interesse") nenhuma casou — 10% de quem respondeu recusou, 0% foi
+      # capturado.
+      #
+      # O scope `active` e quem decide o que ainda vale (linha expirada fica na tabela
+      # por causa do indice unico). Numero sem ficha na base nao tem supressao e passa
+      # — mesmo fail-open do ContactFlowSuppression.suppressed?.
       def suppressed_canonicals(canonicals)
         ids_by_canonical = contact_ids_by_canonical(canonicals)
         return Set.new if ids_by_canonical.empty?
