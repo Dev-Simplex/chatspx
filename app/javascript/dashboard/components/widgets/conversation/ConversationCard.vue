@@ -586,9 +586,12 @@ export default {
       >
         <!-- Alfinete: sempre visível quando fixada; no toque também, porque lá
              não existe hover (por isso o md: nas classes de opacidade). -->
+        <!-- p-0 é obrigatório: existe uma regra global `button { padding: .25rem .625rem }`
+             que, somada ao size-4 com box-sizing border-box, zera a largura do conteúdo —
+             o ícone renderiza com 0px e o botão fica invisível. -->
         <button
           type="button"
-          class="ltr:ml-auto rtl:mr-auto mb-0.5 flex size-4 items-center justify-center rounded transition-opacity"
+          class="ltr:ml-auto rtl:mr-auto mb-0.5 flex size-4 p-0 items-center justify-center rounded transition-opacity"
           :class="
             isPinned
               ? 'text-n-brand'
