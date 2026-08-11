@@ -41,7 +41,7 @@ function handleAction(key) {
     <button
       v-for="action in actions"
       :key="action.key"
-      class="flex items-center gap-1 rounded-full border border-ash-200 bg-white px-2.5 py-1 text-xs text-ash-700 transition-colors hover:border-primary-300 hover:bg-primary-25 hover:text-primary-700"
+      class="flex items-center gap-1 rounded-full border border-n-weak bg-n-alpha-2 px-2.5 py-1 text-xs text-n-slate-11 transition-colors hover:border-n-brand/30 hover:bg-n-brand/5 hover:text-n-brand"
       @click="handleAction(action.key)"
     >
       {{ $t(action.label) }}
