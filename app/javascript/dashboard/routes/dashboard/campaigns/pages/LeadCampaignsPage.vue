@@ -265,6 +265,16 @@ const resumoHook = hook =>
                   >
                     {{ t('CAMPAIGN.LEAD_ADS.TABLE.TEMPLATE_MISSING') }}
                   </span>
+                  <span
+                    v-if="linha.template_imovel"
+                    class="block text-xs text-n-slate-10"
+                  >
+                    {{
+                      t('CAMPAIGN.LEAD_ADS.TABLE.CATALOG_TEMPLATE', {
+                        nome: linha.template_imovel,
+                      })
+                    }}
+                  </span>
                 </td>
                 <td class="px-3 py-2 align-top text-n-slate-11">
                   {{ templatesEnviados(linha) || semDado }}
@@ -273,7 +283,17 @@ const resumoHook = hook =>
                   {{ atendimento(linha) }}
                 </td>
                 <td class="px-3 py-2 align-top text-n-slate-11">
-                  {{ distribuicao(linha.tipos) || semDado }}
+                  <span>{{ distribuicao(linha.tipos) || semDado }}</span>
+                  <span
+                    v-if="isAdmin && linha.lead_tipo"
+                    class="block text-xs text-n-slate-10"
+                  >
+                    {{
+                      t('CAMPAIGN.LEAD_ADS.TABLE.CONFIGURED_TYPE', {
+                        tipo: linha.lead_tipo,
+                      })
+                    }}
+                  </span>
                 </td>
               </tr>
             </tbody>

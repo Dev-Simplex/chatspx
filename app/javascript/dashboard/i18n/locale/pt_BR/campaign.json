@@ -276,7 +276,9 @@
         "LEAD_TYPE": "Tipo de lead",
         "BLOCKED": "Fora do allowlist",
         "AMBIGUOUS_ID": "Mais de um id",
-        "TEMPLATE_MISSING": "Não sincronizado no canal"
+        "TEMPLATE_MISSING": "Não sincronizado no canal",
+        "CATALOG_TEMPLATE": "Anúncio de catálogo: {nome}",
+        "CONFIGURED_TYPE": "Configurado como: {tipo}"
       }
     }
   }

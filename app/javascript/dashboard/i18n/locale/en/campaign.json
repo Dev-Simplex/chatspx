@@ -276,7 +276,9 @@
         "LEAD_TYPE": "Lead type",
         "BLOCKED": "Out of the allowlist",
         "AMBIGUOUS_ID": "More than one id",
-        "TEMPLATE_MISSING": "Not synced on the channel"
+        "TEMPLATE_MISSING": "Not synced on the channel",
+        "CATALOG_TEMPLATE": "Catalog ad: {nome}",
+        "CONFIGURED_TYPE": "Set as: {tipo}"
       }
     }
   }
