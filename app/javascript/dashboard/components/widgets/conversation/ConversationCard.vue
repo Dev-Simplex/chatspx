@@ -349,6 +349,11 @@ export default {
       this.$store.dispatch('togglePin', { conversationId: this.chat.id });
     },
 
+    togglePinFromMenu() {
+      this.togglePin();
+      this.closeContextMenu();
+    },
+
     onCardClick(e) {
       const { activeInbox, chat } = this;
       const path = frontendURL(
@@ -644,7 +649,9 @@ export default {
         :has-unread-messages="hasUnread"
         :can-mark-as-read="canMarkAsRead"
         :conversation-labels="chat.labels"
+        :is-pinned="isPinned"
         :allowed-options="allowedContextMenuOptions"
+        @toggle-pin="togglePinFromMenu"
         @update-conversation="onUpdateConversation"
         @assign-agent="onAssignAgent"
         @assign-label="onAssignLabel"
