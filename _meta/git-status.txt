@@ -1,0 +1,34 @@
+ M config/initializers/session_store.rb
+ M enterprise/app/jobs/captain/conversation/response_builder_job.rb
+ M enterprise/app/models/enterprise/concerns/conversation.rb
+ M enterprise/app/services/captain/assistant/agent_runner_service.rb
+ M enterprise/app/services/enterprise/message_templates/hook_execution_service.rb
+ M public/version.json
+?? config/initializers/session_store.rb.bak.20260730T195432Z
+?? enterprise/app/services/captain/conversation/session_reset_service.rb
+?? enterprise/lib/captain/prompts/assistant.liquid.pre-revert-20260706_112919
+?? public/assets/.sprockets-manifest-5369f3d3f46a25d353dc876dfbc7109f.json.gz
+?? public/assets/.sprockets-manifest-c86e541328a20dee97bd1c51af1220f7.json.gz
+?? public/assets/images/auth/auth--bg.svg.gz
+?? public/assets/images/dashboard/captain/assistant-dark.svg.gz
+?? public/assets/images/dashboard/captain/assistant-light.svg.gz
+?? public/assets/images/dashboard/captain/assistant-popover-dark.svg.gz
+?? public/assets/images/dashboard/captain/assistant-popover-light.svg.gz
+?? public/assets/images/dashboard/captain/document-dark.svg.gz
+?? public/assets/images/dashboard/captain/document-light.svg.gz
+?? public/assets/images/dashboard/captain/document-popover-dark.svg.gz
+?? public/assets/images/dashboard/captain/document-popover-light.svg.gz
+?? public/assets/images/dashboard/captain/faqs-dark.svg.gz
+?? public/assets/images/dashboard/captain/faqs-light.svg.gz
+?? public/assets/images/dashboard/captain/faqs-popover-dark.svg.gz
+?? public/assets/images/dashboard/captain/faqs-popover-light.svg.gz
+?? public/assets/images/dashboard/captain/logo.svg.gz
+?? public/assets/images/dashboard/priority/high.svg.gz
+?? public/assets/images/dashboard/priority/medium.svg.gz
+?? public/assets/images/dashboard/priority/urgent.svg.gz
+?? public/assets/images/dashboard/profile/hot-key-ctrl-enter-dark.svg.gz
+?? public/assets/images/dashboard/profile/hot-key-ctrl-enter.svg.gz
+?? public/assets/images/dashboard/profile/hot-key-enter-dark.svg.gz
+?? public/assets/images/dashboard/profile/hot-key-enter.svg.gz
+?? public/assets/images/hc/hexagon-dark.svg.gz
+?? public/assets/images/whatsapp.svg.gz

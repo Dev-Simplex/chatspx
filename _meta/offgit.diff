@@ -1,0 +1,138 @@
+diff --git a/config/initializers/session_store.rb b/config/initializers/session_store.rb
+index 9d0d1f35b..992d6d462 100644
+--- a/config/initializers/session_store.rb
++++ b/config/initializers/session_store.rb
+@@ -1,3 +1,3 @@
+ # Be sure to restart your server when you modify this file.
+ 
+-Rails.application.config.session_store :cookie_store, key: '_chatwoot_session', same_site: :lax
++Rails.application.config.session_store :cookie_store, key: '_chatwoot_session', same_site: :none, secure: Rails.env.production?
+diff --git a/enterprise/app/jobs/captain/conversation/response_builder_job.rb b/enterprise/app/jobs/captain/conversation/response_builder_job.rb
+index f50518876..f5e0f1f92 100644
+--- a/enterprise/app/jobs/captain/conversation/response_builder_job.rb
++++ b/enterprise/app/jobs/captain/conversation/response_builder_job.rb
+@@ -66,10 +66,7 @@ class Captain::Conversation::ResponseBuilderJob < ApplicationJob
+   end
+ 
+   def collect_previous_messages
+-    @conversation
+-      .messages
+-      .where(message_type: [:incoming, :outgoing])
+-      .where(private: false)
++    current_session_messages
+       .reject { |message| survey_message?(message) }
+       .map do |message|
+       # Blocos de imagem so podem ir em turnos de USER (a API rejeita 'image' em
+@@ -84,13 +81,29 @@ class Captain::Conversation::ResponseBuilderJob < ApplicationJob
+       # Reentrada pós-atendimento humano encerrado: o agente precisa saber que houve gente
+       # antes dele e quem foi, senão trata continuidade de caso como assunto novo. Uma vez
+       # por turno (não por mensagem do histórico), e só quando é reentrada de verdade.
+-      nota_humana = Captain::Conversation::HumanHistoryNote.new(conversation: @conversation).text
++      nota_humana = human_history_note
+       history << { content: nota_humana, role: 'user' } if nota_humana.present?
+       # Diretiva interna de follow-up (cutucada): entra como último turno pro agente decidir.
+       history << { content: @directive, role: 'user' } if @directive.present?
+     end
+   end
+ 
++  def current_session_messages
++    scope = @conversation.messages
++                         .where(message_type: [:incoming, :outgoing])
++                         .where(private: false)
++    boundary_id = Captain::Conversation::SessionResetService.boundary_message_id(@conversation)
++    return scope unless boundary_id.positive?
++
++    scope.where('messages.id > ?', boundary_id)
++  end
++
++  def human_history_note
++    return if Captain::Conversation::SessionResetService.boundary_message_id(@conversation).positive?
++
++    Captain::Conversation::HumanHistoryNote.new(conversation: @conversation).text
++  end
++
+   # Mensagens de pesquisa (NPS/CSAT) NÃO são conversa real — são artefato do sistema. No
+   # WhatsApp o NPS vai como content_type=text MARCADO com content_attributes.nps_survey
+   # (ver MessageTemplates::Template::NpsSurvey), então filtrar só por content_type não pega
+diff --git a/enterprise/app/models/enterprise/concerns/conversation.rb b/enterprise/app/models/enterprise/concerns/conversation.rb
+index eefcb66f4..e5bd41fad 100644
+--- a/enterprise/app/models/enterprise/concerns/conversation.rb
++++ b/enterprise/app/models/enterprise/concerns/conversation.rb
+@@ -12,6 +12,7 @@ module Enterprise::Concerns::Conversation
+     # triagem re-atribui). Snooze NÃO limpa; bot webhook e assignee humano preservam
+     # a regra atual do Chatwoot.
+     before_save :release_captain_mirror_on_resolve, if: -> { status_changed? && resolved? }
++    before_save :reset_captain_session_on_resolve, if: -> { Captain::Conversation::SessionResetService.enabled_for_resolve?(self) }
+     # A2d: quando o espelho captain é SETADO (nil/humano/outro espelho -> este espelho),
+     # cutuca o pipeline para que a IA responda o incoming pendente já no 1º turno
+     # (triagem assíncrona) e na transferência IA->IA. Desatribuição não dispara
+@@ -37,6 +38,10 @@ module Enterprise::Concerns::Conversation
+ 
+   private
+ 
++  def reset_captain_session_on_resolve
++    Captain::Conversation::SessionResetService.new(conversation: self).perform
++  end
++
+   def awaiting_human_clearable?
+     return false unless (custom_attributes || {}).key?('aguardando_humano_desde')
+ 
+diff --git a/enterprise/app/services/captain/assistant/agent_runner_service.rb b/enterprise/app/services/captain/assistant/agent_runner_service.rb
+index e1d7d369f..e0d212dd7 100644
+--- a/enterprise/app/services/captain/assistant/agent_runner_service.rb
++++ b/enterprise/app/services/captain/assistant/agent_runner_service.rb
+@@ -218,7 +218,10 @@ class Captain::Assistant::AgentRunnerService
+     # O marcador de espera por humano NÃO entra no contexto do agente: a presença dele empurra
+     # o LLM pro silêncio ([IGNORAR]) mesmo quando o cliente traz pergunta nova. Ele segue no
+     # banco pros outros usos (guard do follow-up + filtro "Aguardando atendimento").
+-    state[:conversation][:custom_attributes] = (state[:conversation][:custom_attributes] || {}).except('aguardando_humano_desde')
++    state[:conversation][:custom_attributes] = (state[:conversation][:custom_attributes] || {}).except(
++      'aguardando_humano_desde', 'captain_session_boundary_message_id',
++      'captain_session_sequence', 'captain_session_pending_reentry'
++    )
+     state[:channel_type] = @conversation.inbox&.channel_type
+     state[:contact] = slice_attrs(@conversation.contact, CONTACT_STATE_ATTRIBUTES) if @conversation.contact
+     state[:campaign] = slice_attrs(@conversation.campaign, CAMPAIGN_STATE_ATTRIBUTES) if @conversation.campaign
+diff --git a/enterprise/app/services/enterprise/message_templates/hook_execution_service.rb b/enterprise/app/services/enterprise/message_templates/hook_execution_service.rb
+index 8b46e5a2e..22807c494 100644
+--- a/enterprise/app/services/enterprise/message_templates/hook_execution_service.rb
++++ b/enterprise/app/services/enterprise/message_templates/hook_execution_service.rb
+@@ -155,20 +155,27 @@ module Enterprise::MessageTemplates::HookExecutionService # rubocop:disable Metr
+   # setor pegar a conversa de volta (senão a fila nunca existe). Modo Clássico (flag OFF):
+   # comportamento D-12 intacto (a IA do setor reentra pra não deixar o cliente no silêncio).
+   def orphan_captain_reentry?
+-    return false if conversation.account.reply_assignment_gate_enabled?
++    return false unless captain_reentry_allowed?
+ 
+     message.incoming? && !message.private? && conversation.open? &&
+       conversation.assignee_id.nil? && conversation.assignee_agent_bot_id.nil? &&
+       triage_assistant.present?
+   end
+ 
++  def captain_reentry_allowed?
++    return true unless conversation.account.reply_assignment_gate_enabled?
++
++    Captain::Conversation::SessionResetService.pending_reentry?(conversation)
++  end
++
+   def reattach_triage_assistant
+     mirror = AgentBot.captain.find_by(captain_assistant_id: triage_assistant.id)
+     return if mirror.nil?
+ 
+     # Reaberta volta pra TRIAGEM (Clara), com o time LIMPO: ela lê o histórico + a mensagem
+     # nova e decide se continua o assunto anterior ou abre um novo, e roteia. Dispara o kick (A2d).
+-    conversation.update!(assignee_agent_bot_id: mirror.id, team_id: nil)
++    attrs = (conversation.custom_attributes || {}).except('captain_session_pending_reentry')
++    conversation.update!(assignee_agent_bot_id: mirror.id, team_id: nil, custom_attributes: attrs)
+   rescue StandardError => e
+     Rails.logger.warn("[Captain] reentrada conv=#{conversation.id}: #{e.message}")
+   end
+diff --git a/public/version.json b/public/version.json
+index 9ab6161fe..d6fd91ac8 100644
+--- a/public/version.json
++++ b/public/version.json
+@@ -1 +1 @@
+-{"version":"9dd3212a6e","deployed_at":1784816589}
+\ No newline at end of file
++{"version":"2d2d2eaef","deployed_at":1786504706}
+\ No newline at end of file
