@@ -67,7 +67,8 @@ const atendimento = linha => {
 };
 
 const rotuloOrigem = linha => {
-  if (linha.origem === 'override') return t('CAMPAIGN.LEAD_ADS.SOURCE.OVERRIDE');
+  if (linha.origem === 'override')
+    return t('CAMPAIGN.LEAD_ADS.SOURCE.OVERRIDE');
   if (linha.origem === 'padrao') return t('CAMPAIGN.LEAD_ADS.SOURCE.DEFAULT');
   return t('CAMPAIGN.LEAD_ADS.SOURCE.UNKNOWN');
 };
@@ -84,7 +85,9 @@ const templateAusente = linha =>
   Boolean(linha.template) && linha.template_sincronizado === false;
 
 const resumoHook = hook =>
-  [hook.pagina, hook.inbox?.name, hook.template].filter(Boolean).join(SEPARADOR);
+  [hook.pagina, hook.inbox?.name, hook.template]
+    .filter(Boolean)
+    .join(SEPARADOR);
 </script>
 
 <template>
@@ -121,7 +124,10 @@ const resumoHook = hook =>
         </div>
       </div>
 
-      <div v-if="loading" class="flex items-center justify-center py-10 text-n-slate-11">
+      <div
+        v-if="loading"
+        class="flex items-center justify-center py-10 text-n-slate-11"
+      >
         <Spinner />
       </div>
 
@@ -246,7 +252,9 @@ const resumoHook = hook =>
                     </span>
                   </p>
                 </td>
-                <td class="px-3 py-2 font-medium text-right align-top text-n-slate-12">
+                <td
+                  class="px-3 py-2 font-medium text-right align-top text-n-slate-12"
+                >
                   {{ linha.leads }}
                 </td>
                 <td v-if="isAdmin" class="px-3 py-2 align-top text-n-slate-11">
