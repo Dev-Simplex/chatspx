@@ -91,6 +91,19 @@ const hasInternalChat = computed(() => {
   );
 });
 
+// Apps de captação de lead por formulário — os mesmos que a tela de campanhas lê.
+const LEAD_INTAKE_APPS = ['meta_lead_ads', 'site_leads'];
+
+const appIntegrations = useMapGetter('integrations/getAppIntegrations');
+
+// A tela de campanhas só existe para conta que captura lead por formulário: sem hook
+// configurado, não há campanha nenhuma para mostrar e o item não aparece.
+const hasLeadIntake = computed(() =>
+  appIntegrations.value.some(
+    app => LEAD_INTAKE_APPS.includes(app.id) && app.hooks?.length > 0
+  )
+);
+
 // Só a conta autora (conta 3 do deploy de casa) mantém o construtor do Help
 // Center; todas as outras contas/VMs veem o portal publicado embutido.
 const isHelpCenterAuthoring = computed(() =>
@@ -275,6 +288,9 @@ onMounted(() => {
   // Carrega os canais do chat interno para o badge de não lidas aparecer (e o
   // tempo-real incrementar) mesmo sem abrir a página do chat.
   if (hasInternalChat.value) store.dispatch('internalChat/fetchChannels');
+  // Só para saber se a conta tem captação de lead configurada (o item "Campanhas"
+  // some quando não tem). O payload não expõe settings de hook para não-admin.
+  if (!appIntegrations.value.length) store.dispatch('integrations/get');
   setTimeout(() => {
     store.dispatch('conversationStats/get', {});
   }, 2000);
@@ -733,6 +749,17 @@ const menuItems = computed(() => {
         },
       ],
     },
+    ...(hasLeadIntake.value
+      ? [
+          {
+            name: 'Lead Campaigns',
+            label: t('SIDEBAR.CAMPAIGNS'),
+            icon: lordIcon('megaphone', 'i-lucide-megaphone'),
+            to: accountScopedRoute('campaigns_lead_ads_index'),
+            activeOn: ['campaigns_lead_ads_index'],
+          },
+        ]
+      : []),
     // {
     //   name: 'Campaigns',
     //   label: t('SIDEBAR.CAMPAIGNS'),

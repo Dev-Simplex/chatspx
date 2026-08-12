@@ -144,6 +144,9 @@ Rails.application.routes.draw do
               resources :inbox_limits, only: [:create, :update, :destroy]
             end
           end
+          # Campanhas de captação (lead ads / formulário): viewer só-leitura do volume por
+          # campanha e da configuração do hook que a atende.
+          resource :lead_campaigns, only: [:show], controller: 'lead_campaigns'
           resources :campaigns, only: [:index, :create, :show, :update, :destroy] do
             member do
               get :stats
