@@ -48,7 +48,24 @@ module Enterprise::Account
   # funnels, e as pessoas do time ficariam sem time). A marca fica no dado, não no código.
   def handoff_teams
     ids = handoff_allowed_team_ids
-    ids.any? ? teams.where(id: ids) : teams
+    return teams if ids.empty?
+
+    allowed = teams.where(id: ids)
+    return allowed if allowed.exists?
+
+    # Allowlist que não casa com NENHUM time da conta (id inexistente, ou id de time de outra
+    # conta) zerava o filtro e a IA ficava sem time nenhum pra transferir — handoff quebrado
+    # por erro de digitação numa chave escrita à mão. Falha ABERTA, mesmo critério do time
+    # recusado no HumanHandoffService: volta a ofertar todos os times em vez de nenhum.
+    #
+    # O log é o que separa isto do caso legítimo "conta sem allowlist", que não loga nada:
+    # aqui houve intenção de filtrar e ela deu em nada, o que é sintoma de configuração errada
+    # e precisa ser visível — senão a conta fica com a allowlist inerte e ninguém percebe.
+    Rails.logger.warn(
+      "[Captain][handoff] allowlist da conta #{id} não casa com nenhum time da conta " \
+      "(handoff_allowed_team_ids=#{ids.join(',')}) — ofertando TODOS os times; confira a configuração"
+    )
+    teams
   end
 
   private

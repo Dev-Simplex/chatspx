@@ -393,6 +393,39 @@ RSpec.describe Captain::Tools::HandoffTool, type: :model do
         expect(conversation.custom_attributes['aguardando_humano_desde']).to be_present
       end
     end
+
+    # A chave é digitada à mão. Errar TODOS os ids (ou colar id de time de outra conta) zerava
+    # o filtro e a IA passava a não enxergar time nenhum — handoff quebrado por erro de
+    # digitação. Falha aberta: volta a ofertar todos, igual à conta sem allowlist.
+    context 'with a key that matches no team at all' do
+      it 'enumerates every team when the ids do not exist' do
+        account.update!(custom_attributes: { 'handoff_allowed_team_ids' => [Team.maximum(:id).to_i + 1_000] })
+
+        description = described_class.new(assistant).description
+
+        expect(description).to include("#{team_marca_a.id}: #{team_marca_a.name}")
+        expect(description).to include("#{team_marca_b.id}: #{team_marca_b.name}")
+      end
+
+      it 'enumerates every team when the ids belong to another account' do
+        other_account_team = create(:team, account: create(:account))
+        account.update!(custom_attributes: { 'handoff_allowed_team_ids' => [other_account_team.id] })
+
+        description = described_class.new(assistant).description
+
+        expect(description).to include("#{team_marca_a.id}: #{team_marca_a.name}")
+        expect(description).to include("#{team_marca_b.id}: #{team_marca_b.name}")
+      end
+
+      it 'still routes the handoff instead of leaving the conversation without a team' do
+        account.update!(custom_attributes: { 'handoff_allowed_team_ids' => (Team.maximum(:id).to_i + 1_000).to_s })
+
+        result = tool.perform(tool_context, reason: 'Precisa de humano', team_id: team_marca_b.id.to_s)
+
+        expect(result).to include('Time humano acionado')
+        expect(conversation.reload.team_id).to eq(team_marca_b.id)
+      end
+    end
   end
 
   describe '#active?' do
