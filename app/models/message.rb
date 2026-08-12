@@ -119,6 +119,19 @@ class Message < ApplicationRecord
                                          :external_created_at, :story_sender, :story_id, :external_error,
                                          :translations, :in_reply_to_external_id, :is_unsupported, :data], coder: JSON
 
+  # `store coder: JSON` sobre uma coluna jsonb = DUPLA serializacao: o banco guarda uma
+  # STRING JSON, nao um objeto. Entao `content_attributes ->> 'chave'` devolve SEMPRE NULL
+  # e qualquer filtro em SQL sobre content_attributes mente em silencio (num `where.not`,
+  # NULL nao e TRUE e a linha inteira e descartada — o filtro inverte). Para filtrar em SQL
+  # e preciso desserializar antes. Use SEMPRE esta constante no lugar do `->` direto:
+  #
+  #   where("#{Message::CONTENT_ATTRIBUTES_JSON} ->> 'chave' = 'valor'")                     # positivo
+  #   where("COALESCE(#{Message::CONTENT_ATTRIBUTES_JSON} ->> 'chave', '') <> 'valor'")      # negativo
+  #
+  # O COALESCE do caso negativo cobre a mensagem sem a chave (e sem content_attributes):
+  # sem ele o NULL derruba a linha de novo.
+  CONTENT_ATTRIBUTES_JSON = "(content_attributes #>> '{}')::jsonb".freeze
+
   store :external_source_ids, accessors: [:slack], coder: JSON, prefix: :external_source_id
 
   scope :created_since, ->(datetime) { where('created_at > ?', datetime) }

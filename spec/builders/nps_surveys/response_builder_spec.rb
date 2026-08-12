@@ -169,7 +169,7 @@ RSpec.describe NpsSurveys::ResponseBuilder do
       perform_for('11')
       perform_for('?')
       expect(conversation.reload.status).to eq('resolved')
-      expect(conversation.messages.where("content_attributes ->> 'nps_survey' = 'true'").count).to eq(0)
+      expect(conversation.messages.where("#{Message::CONTENT_ATTRIBUTES_JSON} ->> 'nps_survey' = 'true'").count).to eq(0)
     end
 
     it 'marks the invalid message as an NPS system message (nao dismissa a pesquisa)' do
@@ -297,6 +297,41 @@ RSpec.describe NpsSurveys::ResponseBuilder do
       builder = described_class.new(message: incoming('comentario extra'))
       builder.send(:send_thank_you_message, nps) if builder.send(:should_send_thank_you?, nps)
       expect(conversation.messages.where(message_type: :outgoing, content: 'Que ótimo!').count).to eq(1)
+    end
+  end
+
+  # Espelho do spec do ReopenGuard ("does not hold when an agent replied after the survey was
+  # sent"): os dois lados usam a MESMA query em #agent_responded_after_nps? e precisam concordar
+  # — um so lado corrigido recria a divergencia guard-vs-builder.
+  describe 'agente ja respondeu depois da pesquisa' do
+    def survey_message
+      create(:message, account: account, inbox: inbox, conversation: conversation, message_type: :outgoing,
+                       content: 'De 0 a 10, quanto voce nos recomenda?', content_attributes: { nps_survey: true })
+    end
+
+    def active_nps_for(message)
+      create(:nps_response, conversation: conversation, status: :sent, answered_at: nil, score: nil,
+                            sent_at: 1.hour.ago, metadata: { 'message_id' => message.id })
+    end
+
+    it 'nao registra a nota quando um agente ja respondeu depois da pesquisa' do
+      nps = active_nps_for(survey_message)
+      create(:message, account: account, inbox: inbox, conversation: conversation, sender: agent,
+                       message_type: :outgoing, content: 'Oi, posso ajudar em algo mais?')
+      # A pesquisa continua ativa — quem tem que barrar e o predicado, nao um dismiss de carona.
+      expect(nps.reload.status).to eq('sent')
+
+      perform_for('9')
+
+      expect(nps.reload.score).to be_nil
+    end
+
+    it 'registra a nota quando so a propria pesquisa veio antes' do
+      nps = active_nps_for(survey_message)
+
+      perform_for('9')
+
+      expect(nps.reload.score).to eq(9)
     end
   end
 end
