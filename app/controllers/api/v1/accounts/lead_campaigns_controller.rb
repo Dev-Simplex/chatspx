@@ -44,13 +44,13 @@ class Api::V1::Accounts::LeadCampaignsController < Api::V1::Accounts::BaseContro
   TEMPLATE_NOME_SQL = Arel.sql("messages.additional_attributes->'template_params'->>'name'").freeze
 
   def show
-    return render json: { habilitado: false, admin: admin?, campanhas: [], hooks: [] } unless config.any?
+    return render json: { habilitado: false, admin: admin?, campanhas: [], hooks: [] } unless resolver.any?
 
     render json: {
       habilitado: true,
       admin: admin?,
       periodo: { de: periodo.first, ate: periodo.last },
-      hooks: admin? ? config.hooks_payload : [],
+      hooks: admin? ? resolver.hooks_payload : [],
       campanhas: campanhas,
       totais: totais
     }
@@ -62,8 +62,11 @@ class Api::V1::Accounts::LeadCampaignsController < Api::V1::Accounts::BaseContro
     Current.account_user&.administrator?
   end
 
-  def config
-    @config ||= LeadCampaigns::ConfigResolver.new(Current.account)
+  # `resolver`, e não `config`: `config` é método do próprio ActionController (o `render`
+  # chama `config.logger`) — sobrescrever derruba a request inteira com NoMethodError, em
+  # TODA requisição, inclusive a não autenticada.
+  def resolver
+    @resolver ||= LeadCampaigns::ConfigResolver.new(Current.account)
   end
 
   # ------------------------------------------------------------------ período
@@ -155,7 +158,7 @@ class Api::V1::Accounts::LeadCampaignsController < Api::V1::Accounts::BaseContro
       origens: contar(registros) { |registro| registro[4] },
       templates_enviados: templates_enviados(registros)
     }
-    admin? ? linha.merge(config.para(campaign_id)) : linha
+    admin? ? linha.merge(resolver.para(campaign_id)) : linha
   end
 
   # Campanha configurada no hook que não trouxe lead no período entra com zero: a pergunta
@@ -164,11 +167,11 @@ class Api::V1::Accounts::LeadCampaignsController < Api::V1::Accounts::BaseContro
     return [] unless admin?
 
     ids_observados = nomes_observados.filter_map { |nome| resolve_id(nome).first }
-    (config.campanhas_configuradas - ids_observados).map do |campaign_id|
+    (resolver.campanhas_configuradas - ids_observados).map do |campaign_id|
       {
         nome: nil, campaign_id: campaign_id, id_ambiguo: false, leads: 0,
         tipos: {}, origens: {}, templates_enviados: []
-      }.merge(config.para(campaign_id))
+      }.merge(resolver.para(campaign_id))
     end
   end
 
