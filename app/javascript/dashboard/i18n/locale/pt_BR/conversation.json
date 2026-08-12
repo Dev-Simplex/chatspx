@@ -153,6 +153,10 @@
       "SNOOZED_UNTIL_TOMORROW": "Adiado até amanhã",
       "SNOOZED_UNTIL_NEXT_WEEK": "Adiada até a próxima semana",
       "SNOOZED_UNTIL_NEXT_REPLY": "Adiado até a próxima resposta",
+      "NAME_CONTACT": "Nomear contato",
+      "EDIT_NAME": "Clique para renomear",
+      "NAME_PLACEHOLDER": "Nome do contato",
+      "NAME_UPDATE_ERROR": "Não foi possível atualizar o nome do contato",
       "STATUS_PILL": {
         "OPEN": "Aberta",
         "PENDING": "Em andamento",

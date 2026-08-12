@@ -180,6 +180,10 @@
       "SNOOZED_UNTIL_TOMORROW": "Snoozed until tomorrow",
       "SNOOZED_UNTIL_NEXT_WEEK": "Snoozed until next week",
       "SNOOZED_UNTIL_NEXT_REPLY": "Snoozed until next reply",
+      "NAME_CONTACT": "Name this contact",
+      "EDIT_NAME": "Click to rename",
+      "NAME_PLACEHOLDER": "Contact name",
+      "NAME_UPDATE_ERROR": "Could not update the contact name",
       "STATUS_PILL": {
         "OPEN": "Open",
         "PENDING": "Pending",

@@ -1,5 +1,12 @@
 <script setup>
-import { computed, onBeforeUnmount, onMounted, ref } from 'vue';
+import {
+  computed,
+  nextTick,
+  onBeforeUnmount,
+  onMounted,
+  ref,
+  watch,
+} from 'vue';
 import { useRoute } from 'vue-router';
 import { useStore } from 'vuex';
 import { useElementSize } from '@vueuse/core';
@@ -16,7 +23,7 @@ import wootConstants from 'dashboard/constants/globals';
 import { conversationListPageURL } from 'dashboard/helper/URLHelper';
 import { snoozedReopenTime } from 'dashboard/helper/snoozeHelpers';
 import { useInbox } from 'dashboard/composables/useInbox';
-import { useUISettings } from 'dashboard/composables/useUISettings';
+import { useAlert } from 'dashboard/composables';
 import { useI18n } from 'vue-i18n';
 import { formatDistanceToNowStrict } from 'date-fns';
 
@@ -37,15 +44,7 @@ const route = useRoute();
 const conversationHeader = ref(null);
 const { width } = useElementSize(conversationHeader);
 const { isAWebWidgetInbox } = useInbox();
-const { uiSettings, updateUISettings } = useUISettings();
 const showMessageSearch = ref(false);
-
-const toggleContactPanel = () => {
-  updateUISettings({
-    is_contact_sidebar_open: !uiSettings.value.is_contact_sidebar_open,
-    is_copilot_panel_open: false,
-  });
-};
 
 const currentChat = computed(() => store.getters.getSelectedChat);
 const accountId = computed(() => store.getters.getCurrentAccountId);
@@ -152,6 +151,66 @@ const hasMultipleInboxes = computed(
 );
 
 const hasSlaPolicyId = computed(() => props.chat?.sla_policy_id);
+
+// --- Nomear o contato pelo cabeçalho --------------------------------------
+// O clique no nome abre a edição inline. O painel de contato continua a um
+// gesto de distância: botão do SidepanelSwitch e atalho Alt+O.
+const isEditingName = ref(false);
+const nameDraft = ref('');
+const nameInput = ref(null);
+// Contato dono do rascunho, capturado quando a edição começa.
+const editingContact = ref(null);
+
+const hasContactName = computed(() => !!currentContact.value.name?.trim());
+
+const startNameEdit = async () => {
+  editingContact.value = {
+    id: currentContact.value.id,
+    name: currentContact.value.name || '',
+  };
+  nameDraft.value = editingContact.value.name;
+  isEditingName.value = true;
+  await nextTick();
+  nameInput.value?.select();
+};
+
+const cancelNameEdit = () => {
+  isEditingName.value = false;
+  editingContact.value = null;
+};
+
+const saveName = async () => {
+  // Protege contra o blur que vem logo após o Esc, para cancelar nunca salvar.
+  if (!isEditingName.value) return;
+  isEditingName.value = false;
+
+  // O rascunho pertence ao contato onde a edição começou. Se a conversa trocar no
+  // meio (notificação, link externo, redirecionamento), o blur chega com OUTRO
+  // contato no cabeçalho — sem este id capturado, o nome de um vai parar no
+  // cadastro do outro.
+  const target = editingContact.value;
+  editingContact.value = null;
+  if (!target?.id) return;
+
+  const name = nameDraft.value.trim();
+  // Campo vazio cancela: nunca apaga o nome que o contato já tinha.
+  if (!name || name === target.name) return;
+
+  try {
+    await store.dispatch('contacts/update', { id: target.id, name });
+  } catch (error) {
+    useAlert(t('CONVERSATION.HEADER.NAME_UPDATE_ERROR'));
+  }
+};
+
+// Trocou de conversa com a edição aberta: fecha na hora, para o campo nunca ficar
+// pairando sobre o contato errado.
+watch(
+  () => currentContact.value.id,
+  () => {
+    if (isEditingName.value) saveName();
+  }
+);
 
 // --- WhatsApp 24h window timer -------------------------------------------
 // Re-render every 60s so "remaining" stays fresh without per-component timers.
@@ -292,14 +351,42 @@ const whatsAppWindowIcon = computed(() => {
       />
       <div class="flex flex-col items-start min-w-0 overflow-hidden">
         <div class="flex flex-row items-center max-w-full gap-1 p-0 m-0">
-          <span
-            class="wa-contact-name truncate text-n-slate-12 cursor-pointer hover:text-n-brand-default transition-colors"
-            role="button"
-            tabindex="0"
-            @click="toggleContactPanel"
+          <input
+            v-if="isEditingName"
+            ref="nameInput"
+            v-model="nameDraft"
+            type="text"
+            :placeholder="$t('CONVERSATION.HEADER.NAME_PLACEHOLDER')"
+            class="wa-contact-name reset-base w-56 max-w-full px-1.5 py-0 border rounded-md border-n-strong bg-n-background text-n-slate-12 focus:border-n-brand focus:outline-none"
+            @keydown.enter.prevent="saveName"
+            @keydown.esc.stop.prevent="cancelNameEdit"
+            @blur="saveName"
+          />
+          <button
+            v-else-if="hasContactName"
+            v-tooltip.bottom-start="$t('CONVERSATION.HEADER.EDIT_NAME')"
+            class="flex items-center min-w-0 gap-1 px-1 -mx-1 rounded-md group hover:bg-n-alpha-2 transition-colors"
+            @click="startNameEdit"
           >
-            {{ currentContact.name }}
-          </span>
+            <span
+              class="wa-contact-name truncate text-n-slate-12 group-hover:text-n-brand-default transition-colors"
+            >
+              {{ currentContact.name }}
+            </span>
+            <span
+              class="i-lucide-pencil size-3.5 flex-shrink-0 text-n-slate-11 opacity-0 group-hover:opacity-100 transition-opacity"
+            />
+          </button>
+          <button
+            v-else
+            class="flex items-center gap-1 px-1 -mx-1 rounded-md text-n-slate-11 hover:bg-n-alpha-2 hover:text-n-slate-12 transition-colors"
+            @click="startNameEdit"
+          >
+            <span class="i-lucide-pencil size-3.5 flex-shrink-0" />
+            <span class="wa-contact-name truncate">
+              {{ $t('CONVERSATION.HEADER.NAME_CONTACT') }}
+            </span>
+          </button>
           <fluent-icon
             v-if="!isHMACVerified"
             v-tooltip="$t('CONVERSATION.UNVERIFIED_SESSION')"
