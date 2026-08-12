@@ -24,6 +24,16 @@ module Meta
       JORNADA_MAX_CHARS = 600
       # `whatsapp_template_body_fields = none` declara template SEM variável no corpo.
       NO_BODY_FIELDS = 'none'.freeze
+      # Código do imóvel escondido no NOME DO ANÚNCIO. Campanha de catálogo entrega o código
+      # no `retailer_item_id`; campanha de FORMULÁRIO não tem catálogo, e aí o único lugar onde
+      # o código existe é o nome que o anunciante deu à peça ("IMÓVEL 9817 - TELHADO APARENTE").
+      #
+      # As duas formas exigem âncora, nunca "algum número no meio do texto": ou vem precedido de
+      # um marcador explícito, ou o nome inteiro É o código. É o que separa "IMÓVEL 9817" de
+      # "RMKT VENDAS 2026" e "CASAS 300-900K" — nome de anúncio é cheio de número que não é imóvel.
+      # Casa contra o nome já normalizado (minúsculo, sem acento) por `normalized_ad_name`.
+      AD_NAME_CODE_MARKER = /\b(?:imove(?:l|is)|cod(?:igo)?)\b\W{0,3}(\d{3,6})\b/
+      AD_NAME_CODE_ONLY = /\A(\d{3,6})\z/
 
       def initialize(hook:, lead:)
         @hook = hook
@@ -203,13 +213,41 @@ module Meta
         end
       end
 
-      # Imóvel específico do lead (catálogo/dynamic ads): retailer_item_id = código no Vista.
-      # Busca descrição curta + foto de destaque. Memoizado. No-op (nil) se não houver
-      # retailer_item_id ou credencial Vista — aí o lead segue sem imóvel (fluxo normal).
+      # Imóvel específico do lead: busca descrição curta + foto de destaque no Vista. Memoizado.
+      # No-op (nil) se não houver código, credencial Vista, ou se o código não resolver — aí o
+      # lead segue sem imóvel (fluxo normal, opener genérico).
       def imovel_info
         return @imovel_info if defined?(@imovel_info)
 
-        @imovel_info = fetch_imovel(@lead[:retailer_item_id])
+        @imovel_info = fetch_imovel(imovel_codigo)
+      end
+
+      # Duas origens para o mesmo código. Catálogo (dynamic ads) entrega no `retailer_item_id` —
+      # é a fonte confiável e tem precedência. Campanha de formulário não tem catálogo e o campo
+      # vem vazio; aí o código só existe no nome do anúncio, e ler dali é opt-in por hook/campanha
+      # (`imovel_codigo_from_ad_name`), porque depende de como o anunciante nomeia as peças.
+      def imovel_codigo
+        @lead[:retailer_item_id].to_s.strip.presence || codigo_from_ad_name
+      end
+
+      def codigo_from_ad_name
+        return nil unless read_codigo_from_ad_name?
+
+        name = normalized_ad_name
+        return nil if name.blank?
+
+        match = name.match(AD_NAME_CODE_ONLY) || name.match(AD_NAME_CODE_MARKER)
+        match && match[1]
+      end
+
+      def read_codigo_from_ad_name?
+        ActiveModel::Type::Boolean.new.cast(hook_setting('imovel_codigo_from_ad_name'))
+      end
+
+      # Minúsculo e sem acento: o marcador é escrito "IMÓVEL", "Imovel", "imóvel" conforme quem
+      # cadastrou o anúncio, e a regex casa uma forma só.
+      def normalized_ad_name
+        @lead[:ad_name].to_s.downcase.tr('áàâãäéèêëíìîïóòôõöúùûüç', 'aaaaaeeeeiiiiooooouuuuc').strip
       end
 
       def fetch_imovel(codigo)
@@ -430,8 +468,17 @@ module Meta
 
       # A abertura automatica carrega content_attributes.meta_lead_ads_initial=true —
       # se ja existe nessa conversa, um redelivery/retry nao deve reenviar.
+      #
+      # ⚠️ `content_attributes` é jsonb NA TABELA mas `store ... coder: JSON` NO MODELO: o Rails
+      # serializa o Hash e o banco guarda uma STRING JSON, não um objeto. Contra uma string,
+      # `@>` e `->>` nunca casam — a checagem devolvia false sempre e 26 leads receberam a
+      # abertura duas vezes em 90 dias. `#>> '{}'` desembrulha a string e o `::jsonb` reparseia;
+      # é o mesmo padrão do `EPISODE_ANCHOR_SQL` (enterprise/app/models/captain/conversation_episode.rb),
+      # e funciona tanto pra linha duplo-serializada quanto pra objeto jsonb de verdade.
+      INITIAL_MESSAGE_SQL = "(content_attributes #>> '{}')::jsonb ->> 'meta_lead_ads_initial' = 'true'".freeze
+
       def initial_message_already_sent?(conversation)
-        conversation.messages.where('content_attributes @> ?', { meta_lead_ads_initial: true }.to_json).exists?
+        conversation.messages.where(INITIAL_MESSAGE_SQL).exists?
       end
 
       # Cloud API (WhatsApp oficial) fora da janela 24h só aceita HSM aprovado — texto
