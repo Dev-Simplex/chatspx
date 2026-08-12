@@ -86,12 +86,33 @@ class Captain::Conversation::HumanHandoffService
 
   # LLM pode alucinar id — validar SEMPRE na conta. Sem time válido, cai no time do
   # PRÓPRIO agente (config['team_id']) — a conversa nunca fica sem fila/setor.
+  #
+  # Validar só por conta aceitava QUALQUER time do cadastro, e é por aí que o modelo mandava
+  # cliente de uma marca pro time de outra. Aqui a conta pode restringir o destino
+  # (`Account#handoff_teams`); sem a chave configurada, `handoff_teams` são todos os times e
+  # nada muda. Este é o ponto que FECHA — a enumeração no tool é só orientação.
   def resolve_team
-    explicit = @team_id.present? ? @conversation.account.teams.find_by(id: @team_id) : nil
+    explicit = @team_id.present? ? allowed_team(@team_id) : nil
     return explicit if explicit
 
     default_id = (@assistant&.config || {})['team_id']
-    default_id.present? ? @conversation.account.teams.find_by(id: default_id) : nil
+    default_id.present? ? allowed_team(default_id) : nil
+  end
+
+  # Time recusado se comporta como id inválido: NÃO derruba o handoff. Cai no time padrão do
+  # agente e, se ele também estiver fora, o handoff segue SEM time — caminho que já existe
+  # (`update_attrs[:team] = team if team`) e não quebra nada, enquanto falhar deixaria o
+  # cliente ouvindo "uma pessoa vai assumir" sem ninguém acionado.
+  #
+  # Loga só quando o id EXISTE na conta mas está fora da allowlist: sem isso a recusa fica
+  # indistinguível de alucinação do modelo, e "por que foi pro time errado?" vira adivinhação.
+  def allowed_team(id)
+    account = @conversation.account
+    team = account.handoff_teams.find_by(id: id)
+    if team.nil? && account.teams.exists?(id: id)
+      Rails.logger.info("[Captain][handoff] time #{id} fora da allowlist da conta #{account.id} — conv=#{@conversation.id}")
+    end
+    team
   end
 
   def send_out_of_office_message_if_applicable
