@@ -1,11 +1,17 @@
 class Captain::Tools::BuscarLocalizacaoTool < Captain::Tools::BasePublicTool
-  description 'Geocodifica um endereço, bairro ou ponto de referência em Sinop-MT e retorna ' \
-              'as coordenadas (lat/lng) e o endereço formatado. Use quando precisar das ' \
+  description 'Geocodifica um endereço, bairro ou ponto de referência na cidade de atendimento ' \
+              'e retorna as coordenadas (lat/lng) e o endereço formatado. Use quando precisar das ' \
               'coordenadas de um local pra passar pro buscar_imovel (filtro por proximidade).'
 
   param :local, type: 'string',
                 desc: 'Endereço, bairro ou ponto de referência a localizar, conforme o cliente citou.',
                 required: true
+
+  # RubyLLM::Tool delega description da instância para a classe — override de instância pra
+  # nomear a cidade REAL da conta. Sem config, geo_city é a cidade que estava fixa no código.
+  def description
+    "#{self.class.description} A cidade de atendimento é #{geo_city}."
+  end
 
   def perform(_tool_context, local:)
     # Chave Google por CONTA via o concern IntegrationCredentials
@@ -14,8 +20,8 @@ class Captain::Tools::BuscarLocalizacaoTool < Captain::Tools::BasePublicTool
     key = google_maps_key
     return 'Busca de localização indisponível no momento.' if key.blank?
 
-    result = geocode("#{local} Sinop MT", key)
-    return "Não achei a localização de \"#{local}\" em Sinop." if result.blank?
+    result = geocode("#{local} #{geo_city}", key)
+    return "Não achei a localização de \"#{local}\" em #{geo_city}." if result.blank?
 
     loc = result.dig('geometry', 'location') || {}
     "Localização de \"#{local}\": #{result['formatted_address']} " \
