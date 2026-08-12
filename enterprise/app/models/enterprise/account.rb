@@ -38,7 +38,28 @@ module Enterprise::Account
     saml_settings&.saml_enabled? || false
   end
 
+  # Times que a conta oferta no handoff da IA. Allowlist OPT-IN em
+  # `custom_attributes['handoff_allowed_team_ids']`: ausente => todos os times da conta,
+  # que é exatamente o comportamento de hoje (nenhuma conta muda sem configurar).
+  #
+  # Existe porque conta com times de marcas/unidades diferentes no mesmo cadastro fazia a IA
+  # rotear o cliente de uma marca pro time da outra: o modelo lê o nome do time e escolhe.
+  # Renomear não resolve (ele lê a marca no nome assim mesmo) e remover não é opção (FK de
+  # funnels, e as pessoas do time ficariam sem time). A marca fica no dado, não no código.
+  def handoff_teams
+    ids = handoff_allowed_team_ids
+    ids.any? ? teams.where(id: ids) : teams
+  end
+
   private
+
+  # Aceita array (`[3, 4]` / `["3", "4"]`) e string separada por vírgula — a chave é escrita
+  # à mão por operador, e uma lista que aplica pela metade em silêncio é pior que nenhuma.
+  def handoff_allowed_team_ids
+    raw = custom_attributes&.dig('handoff_allowed_team_ids')
+    raw = raw.split(',') if raw.is_a?(String)
+    Array(raw).map { |id| id.to_s.strip.to_i }.select(&:positive?)
+  end
 
   def sync_assignment_features
     if feature_enabled?('assignment_v2')

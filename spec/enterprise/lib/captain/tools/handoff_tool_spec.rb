@@ -324,6 +324,77 @@ RSpec.describe Captain::Tools::HandoffTool, type: :model do
     end
   end
 
+  # Conta com times de marcas/unidades diferentes no mesmo cadastro: o modelo lê a marca no
+  # nome do time e roteia o cliente de uma pra outra. A allowlist restringe o DESTINO do
+  # handoff. É opt-in: sem a chave, nenhuma conta muda de comportamento.
+  describe 'allowlist de times por conta (handoff_allowed_team_ids)' do
+    let!(:team_marca_a) { create(:team, account: account, name: 'Vendas Marca A').reload }
+    let!(:team_marca_b) { create(:team, account: account, name: 'Vendas Marca B').reload }
+
+    context 'without the key (comportamento de hoje, inalterado)' do
+      it 'enumerates every team of the account' do
+        description = described_class.new(assistant).description
+
+        expect(description).to include("#{team_marca_a.id}: #{team_marca_a.name}")
+        expect(description).to include("#{team_marca_b.id}: #{team_marca_b.name}")
+      end
+
+      it 'routes to any team of the account' do
+        tool.perform(tool_context, reason: 'Precisa de humano', team_id: team_marca_b.id.to_s)
+
+        expect(conversation.reload.team_id).to eq(team_marca_b.id)
+      end
+    end
+
+    context 'with the key' do
+      before { account.update!(custom_attributes: { 'handoff_allowed_team_ids' => [team_marca_a.id] }) }
+
+      it 'enumerates only the allowlisted teams' do
+        description = described_class.new(assistant).description
+
+        expect(description).to include("#{team_marca_a.id}: #{team_marca_a.name}")
+        expect(description).not_to include("#{team_marca_b.id}: #{team_marca_b.name}")
+      end
+
+      it 'still routes to an allowlisted team' do
+        tool.perform(tool_context, reason: 'Precisa de humano', team_id: team_marca_a.id.to_s)
+
+        expect(conversation.reload.team_id).to eq(team_marca_a.id)
+      end
+
+      # O que FECHA: o modelo pode passar um id que ninguém enumerou pra ele.
+      it 'refuses a team outside the allowlist even when the model asks for it' do
+        tool.perform(tool_context, reason: 'Precisa de humano', team_id: team_marca_b.id.to_s)
+
+        expect(conversation.reload.team_id).to be_nil
+      end
+
+      # Decisão: time recusado NÃO derruba o handoff — se comporta como id inválido e cai no
+      # time padrão do agente. Falhar deixaria o cliente ouvindo "uma pessoa vai assumir".
+      it 'falls back to the agent default team instead of failing the handoff' do
+        assistant.update!(config: assistant.config.merge('team_id' => team_marca_a.id))
+
+        result = tool.perform(tool_context, reason: 'Precisa de humano', team_id: team_marca_b.id.to_s)
+
+        expect(result).to include('Time humano acionado')
+        expect(conversation.reload.team_id).to eq(team_marca_a.id)
+        expect(conversation.custom_attributes['aguardando_humano_desde']).to be_present
+      end
+
+      # Allowlist que não inclui o time padrão do agente: handoff segue SEM time, que é o
+      # caminho já existente (`update_attrs[:team] = team if team`), não um erro.
+      it 'hands off without a team when the agent default is also outside the allowlist' do
+        assistant.update!(config: assistant.config.merge('team_id' => team_marca_b.id))
+
+        result = tool.perform(tool_context, reason: 'Precisa de humano')
+
+        expect(result).to include('Time humano acionado')
+        expect(conversation.reload.team_id).to be_nil
+        expect(conversation.custom_attributes['aguardando_humano_desde']).to be_present
+      end
+    end
+  end
+
   describe '#active?' do
     it 'returns true for public tools' do
       expect(tool.active?).to be true
