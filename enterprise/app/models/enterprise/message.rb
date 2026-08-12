@@ -47,6 +47,22 @@ module Enterprise::Message
     conversation.update!(assignee_agent_bot_id: nil) # IA solta a conversa
   end
 
+  # Fila "Aguardando encerramento": o cliente voltou a falar, então a conversa sai da fila.
+  #
+  # Mora AQUI, e não no after_commit da conversa, por dois motivos. (1) O sinal certo é "existe
+  # incoming novo", não a transição de `waiting_since`: o campo só é populado quando está vazio,
+  # então a partir do segundo incoming seguido não há transição nenhuma — e conversa que entra na
+  # fila com o cliente tendo falado por último já nasce com ele preenchido. (2) Nesse caso a
+  # conversa sequer é salva pelo incoming (`set_conversation_activity` usa update_columns), logo o
+  # after_commit não chega a rodar: dali o evento é invisível. Quem sabe que o cliente falou é a
+  # mensagem. Custo: uma checagem de chave em memória por incoming, sem query nova.
+  def clear_awaiting_closure_after_customer_reply
+    return unless incoming?
+    return if private?
+
+    conversation.clear_awaiting_closure_on_customer_reply
+  end
+
   def template_bootstrap_message?
     additional_attributes['template_params'].present? &&
       !conversation.messages.incoming.exists?

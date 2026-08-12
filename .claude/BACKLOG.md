@@ -22,6 +22,22 @@
 
 ---
 
+## Contexto do prompt / campanhas
+
+### 🔴 Campanha não expira no contexto da IA — disparo de junho ainda conduz conversa de agosto
+- **O quê:** `runtime_context.liquid` injeta o bloco `# Campaign Context` sempre que a conversa tem `campaign_id`, e o campo `campaign.message` entra no prompt rotulado como **"Original Message Sent"** — a IA lê aquilo como *a mensagem que este cliente recebeu*. Não há janela de validade: o bloco entra em **100% das runs**, para sempre.
+- **Por que é permanente (e não transitório):** a inbox 91 tem `lock_to_single_conversation` — o contato nunca ganha conversa nova, a mesma linha é reusada. O `campaign_id` gravado num disparo viaja em toda interação futura daquela pessoa, em qualquer assunto, indefinidamente.
+- **Agravante — o texto injetado não é a copy real.** Está gravado ali anotação interna e slug de template: campanha #1 *"Lançamento apto 3 suítes — disparo para proprietários de locação (enviado pelo orquestrador SPX, fora do motor nativo)"* · #2 *"Disparo proprietarios venda - junho"* · #3 *"tozi_motorista_app"*. A IA anuncia ao cliente uma mensagem que ele nunca recebeu.
+- **Medido na Tozi (05/08):** **6.432** conversas da conta 6 com `campaign_id` (#1 1.524 · #2 4.592 · #3 316). Em 60 dias, 178 mensagens da IA nessas conversas, **6 arrastaram a campanha pra fala, em 6 conversas distintas** — a última no mesmo dia da medição, **65 dias após o disparo**: conv 12331, cliente disse *"Olá! Meu nome é lucas dos santos. Gostaria de mais informações."* e a IA ofereceu o lançamento de junho; conv 11586, cliente perguntou *"Aqua?"* e recebeu resposta sobre outro produto.
+  ⚠️ Os 6 são o que **apareceu na fala**, não o alcance: o bloco entra em toda run das 6.432 e puxa a conversa mesmo quando não vira frase explícita.
+- **Modo de falha traiçoeiro:** não quebra, não dá erro, não aparece em log. Só faz a IA oferecer o produto errado no primeiro contato de um lead real.
+- **Fix estrutural (o que resolve):** injetar o bloco de campanha só dentro de uma **janela a partir do disparo** — 7 dias cobre a resposta ao HSM, que é quando esse contexto de fato ajuda. Configurável por conta, default conservador. Código compartilhado, vale pra todos os clientes.
+- **Mitigação por conta, sem deploy:** corrigir `campaign.message` das campanhas para a copy real que o lead recebeu (ou descrição fiel dela). Resolve o pior sintoma hoje; não resolve a falta de expiração. **Redação pendente do Paulo.**
+- **🚫 NÃO limpar `campaign_id` das conversas antigas:** é ele que sustenta as estatísticas da tela de campanha (`campaign_stats` agrega por `campaign_id`). O dado está certo onde está — errado é transformá-lo em contexto de prompt sem prazo de validade.
+- **Achado de tabela:** limpeza de conversa que pretenda deixá-la virgem **precisa zerar `campaign_id`** — é coluna da conversa, não sobrevive em `custom_attributes`. Foi o que fez uma sessão perseguir uma "alucinação" da IA que não existia: ela estava obedecendo o contexto que recebeu.
+
+---
+
 ## WhatsApp incoming / fichas duplicadas
 
 ### 🔴 Reconciliador de incoming — preferir conversa certa em ficha duplicada (9º dígito)
