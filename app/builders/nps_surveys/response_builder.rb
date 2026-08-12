@@ -26,11 +26,10 @@ class NpsSurveys::ResponseBuilder # rubocop:disable Metrics/ClassLength
     return false unless nps_message_id
 
     # Usa all_messages — deteccao de resposta agente apos NPS deve ver historico global.
-    # content_attributes e JSON serializado como STRING: ver Message::CONTENT_ATTRIBUTES_JSON.
     conversation.all_messages
                 .where(message_type: :outgoing)
                 .where('id > ?', nps_message_id)
-                .where("COALESCE(#{Message::CONTENT_ATTRIBUTES_JSON} ->> 'nps_survey', '') <> 'true'")
+                .where.not("content_attributes ->> 'nps_survey' = 'true'")
                 .exists?
   end
 
