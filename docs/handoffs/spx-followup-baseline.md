@@ -188,9 +188,59 @@ Por cop: `Layout/LineLength` 5 · `Metrics/CyclomaticComplexity` 4 · `Metrics/P
 
 ---
 
-## 5. Dois riscos de infraestrutura descobertos ao medir
+## 5. ⚠️ A `.232` é compartilhada entre TODAS as frentes
 
-### 5.1 🔴 Colisão de path — `/tmp/ci-base` já estava ocupado
+> **Esta seção não é sobre a tarefa A.** Vale para **qualquer sessão** que rode suíte na `.232` —
+> desta frente ou de outra. Leia antes de rodar `rspec` ali.
+
+A `192.168.8.232` é **máquina única para todas as frentes do SPX** rodarem teste. Não existe
+isolamento automático: worktree e banco são recursos **globais** da caixa, e duas sessões que não
+combinarem nomes vão se atropelar. Ao medir este baseline, as duas coisas aconteceram de verdade.
+
+**Fato 1 — o path da worktree é global.** Frentes diferentes escolhem `/tmp/ci-*` por conta
+própria e colidem. No momento desta medição havia worktrees de pelo menos quatro frentes
+convivendo (`/tmp/ci-camp-e1`, `/tmp/ci-eval`, `/tmp/ci-fri` e `/tmp/ci-base`). As receitas de CI
+que circulam começam com `git worktree remove --force <path>; rm -rf <path>` — ou seja, quem
+chegar depois **apaga a árvore de quem já está rodando**, no meio da execução.
+
+**Fato 2 — e este é o silencioso: o banco de teste default é o MESMO para todos.**
+`config/database.yml` resolve o banco de teste como:
+
+```ruby
+test:
+  database: "<%= ENV.fetch('POSTGRES_DATABASE', 'chatwoot_test') %>"
+```
+
+e o `.env` da VM — o mesmo que as receitas mandam symlinkar — **não define `POSTGRES_DATABASE`**.
+Logo **toda** sessão cai em `chatwoot_test`. Duas suítes simultâneas ali compartilham fixtures,
+sequences e limpeza de banco: uma trunca a tabela que a outra está usando e as duas colhem falha
+**espúria**. Não dá erro de "banco ocupado" — dá teste vermelho que parece bug de código. É o
+tipo de contaminação que faz alguém "consertar" um teste que nunca esteve quebrado.
+
+**Regra para qualquer sessão que rode suíte na `.232`:** use **path próprio E banco próprio**.
+Os dois, sempre — path sozinho não protege, porque o banco continua compartilhado.
+
+```bash
+# path exclusivo da sua sessão + banco exclusivo da sua sessão
+POSTGRES_DATABASE=chatwoot_ci_<SEU_ID> RAILS_ENV=test bundle exec rspec <arquivos>
+```
+
+E **limpe no fim** (worktree removida + `dropdb`), senão a caixa acumula lixo até encher o disco.
+A receita completa está em §6.2.
+
+> 🔒 **E o alerta que vale mais que os outros:** o `.env` symlinkado é o de **produção** da `.232`,
+> que atende **clientes reais** (contas 1 SimplexIA, 3 Simplex Tecnologia, 4 Colégio Alternativo,
+> 5 Realizare) e traz `RAILS_ENV=production`. Hoje `RAILS_ENV=test` é seguro **só porque**
+> `POSTGRES_DATABASE` está ausente e o bloco `test` cai no default `chatwoot_test`. **No dia em
+> que alguém definir `POSTGRES_DATABASE` nesse `.env`, a mesma receita passa a apontar a suíte
+> para o banco vivo — e `rspec` limpa o banco entre exemplos.** Seria perda de dados de cliente.
+> **Confira essa variável antes de rodar suíte com o `.env` de produção symlinkado.**
+
+---
+
+## 6. Dois riscos de infraestrutura descobertos ao medir
+
+### 6.1 🔴 Colisão de path — `/tmp/ci-base` já estava ocupado
 
 A spec desta tarefa mandava usar `/tmp/ci-base` como path isolado. Na hora de usar, **havia um
 processo ativo de outro worker exatamente nele** (pid 2107383/2108112), e o comando dele começava
