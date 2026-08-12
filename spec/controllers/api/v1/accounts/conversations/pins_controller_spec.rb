@@ -90,5 +90,57 @@ RSpec.describe 'Conversation Pins API', type: :request do
         expect(ConversationPin.count).to eq(0)
       end
     end
+
+    it 'keeps the pin out of the inbox, so it never leaks to the whole team' do
+      post pin_url(older), headers: agent.create_new_auth_token, as: :json
+
+      expect(ConversationPin.where(user: agent).pluck(:conversation_id)).to eq([older.id])
+      expect(inbox.reload.additional_attributes.keys).not_to include('pin_mode', 'pinned_conversation_ids')
+    end
+
+    # "Mesmo se for admin": não existe parâmetro para fixar em nome de outro. Quem
+    # tentar leva o alfinete para a própria lista e a do agente não se mexe.
+    context 'when it is an authenticated administrator' do
+      let(:admin) { create(:user, account: account, role: :administrator) }
+
+      before { create(:inbox_member, inbox: inbox, user: admin) }
+
+      it 'ignores any attempt to pin on behalf of somebody else' do
+        post pin_url(older), params: { user_id: agent.id }, headers: admin.create_new_auth_token, as: :json
+
+        expect(response).to have_http_status(:success)
+        expect(ConversationPin.pluck(:user_id)).to eq([admin.id])
+        expect(listed_ids_for(admin)).to eq([older.display_id, newer.display_id])
+        expect(listed_ids_for(agent)).to eq([newer.display_id, older.display_id])
+      end
+    end
+  end
+
+  # Sobrou um dia um segundo sistema de fixar, guardado na inbox: fixava para
+  # TODOS os agentes dela. Foi removido; isto aqui existe para ele não voltar
+  # pela porta dos fundos do update de inbox.
+  describe 'PATCH /api/v1/accounts/{account.id}/inboxes/{id}' do
+    let(:admin) { create(:user, account: account, role: :administrator) }
+
+    it 'refuses to store shared pins in the inbox' do
+      patch "/api/v1/accounts/#{account.id}/inboxes/#{inbox.id}",
+            params: { additional_attributes: { pin_mode: 'per_inbox', pinned_conversation_ids: [older.display_id] } },
+            headers: admin.create_new_auth_token, as: :json
+
+      expect(response).to have_http_status(:success)
+      expect(inbox.reload.additional_attributes.keys).not_to include('pin_mode', 'pinned_conversation_ids')
+    end
+
+    it 'still stores the other inbox settings' do
+      patch "/api/v1/accounts/#{account.id}/inboxes/#{inbox.id}",
+            params: { additional_attributes: { agent_signature_enabled: true, allowed_template_names: %w[hello bye] } },
+            headers: admin.create_new_auth_token, as: :json
+
+      expect(response).to have_http_status(:success)
+      expect(inbox.reload.additional_attributes).to include(
+        'agent_signature_enabled' => true,
+        'allowed_template_names' => %w[hello bye]
+      )
+    end
   end
 end

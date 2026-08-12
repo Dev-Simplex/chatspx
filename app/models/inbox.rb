@@ -47,8 +47,6 @@ class Inbox < ApplicationRecord
   include AccountCacheRevalidator
   include InboxAgentAvailability
 
-  store_accessor :additional_attributes, :pin_mode, :pinned_conversation_ids
-
   # Not allowing characters:
   validates :name, presence: true
   validates :account_id, presence: true

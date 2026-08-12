@@ -719,18 +719,6 @@
         "DESCRIPTION": "Restrinja quais sites podem incorporar seu widget de chat. Por segurança, adicione apenas domínios que você possui e confia. Adicione um ou mais domínios separados por vírgulas. Deixe em branco para permitir todos os domínios (não recomendado para produção).",
         "PLACEHOLDER": "exemplo.com, www.exemplo.com, app.exemplo.com"
       },
-      "PIN_MODE": {
-        "TITLE": "Conversas fixadas",
-        "SUBTITLE": "Defina se os pins ficam por agente (cada agente mantém sua própria lista) ou por caixa de entrada (toda a equipe compartilha a mesma lista).",
-        "PER_AGENT": {
-          "LABEL": "Por agente",
-          "HINT": "Cada agente mantém suas próprias conversas fixadas."
-        },
-        "PER_INBOX": {
-          "LABEL": "Por caixa de entrada",
-          "HINT": "Todos os agentes desta caixa veem as mesmas conversas fixadas."
-        }
-      },
       "AGENT_SIGNATURE": {
         "TITLE": "Assinar mensagens com o nome do agente",
         "SUBTITLE": "Adiciona o nome do agente antes das mensagens enviadas pela API oficial do WhatsApp (formato: *Nome*:). Mídia enviada sem legenda não é assinada."
