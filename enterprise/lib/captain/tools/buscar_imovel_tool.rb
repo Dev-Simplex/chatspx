@@ -153,13 +153,19 @@ class Captain::Tools::BuscarImovelTool < Captain::Tools::BasePublicTool
     return if novos.empty?
 
     atuais = conv.custom_attributes
+    # `|| {}` e não `fetch(k, {})`: o default do fetch só entra quando a chave está AUSENTE.
+    # Chave presente valendo nil (a API de custom_attributes aceita gravar isso) devolve nil,
+    # o merge estoura e o rescue abaixo engole — os mapas param de ser escritos sem sinal
+    # nenhum na tela, e sem urls_imoveis o fix_property_links apaga TODO link da Tozi.
     mapas = {
-      'urls_imoveis' => atuais.fetch('urls_imoveis', {}).merge(novos).to_a.last(60).to_h,
-      'dados_imoveis' => atuais.fetch('dados_imoveis', {}).merge(dados).to_a.last(60).to_h
+      'urls_imoveis' => (atuais['urls_imoveis'] || {}).merge(novos).to_a.last(60).to_h,
+      'dados_imoveis' => (atuais['dados_imoveis'] || {}).merge(dados).to_a.last(60).to_h
     }
     conv.update!(custom_attributes: atuais.merge(mapas))
   rescue StandardError => e
-    Rails.logger.warn("[BuscarImovel] track_urls: #{e.message}")
+    # error, não warn (como no track_codigos): falhar aqui não degrada a busca, apaga o link
+    # de todo imóvel da resposta. É invisível pro operador, então precisa aparecer no log.
+    Rails.logger.error("[BuscarImovel] track_urls: #{e.message}")
   end
 
   # O imóvel entra nos dois mapas pelas duas chaves (Codigo e ImoCodigo), porque a IA cita
