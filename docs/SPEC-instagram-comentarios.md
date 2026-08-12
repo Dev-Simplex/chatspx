@@ -127,12 +127,44 @@ params[:messaging_type] = 'MESSAGE_TAG'
 params[:tag] = 'HUMAN_AGENT'
 ```
 
-É **GlobalConfig**: chave da instância inteira, não por conta. Ligada, ela carimba **toda** mensagem
-de **todos** os canais Instagram — Tozi, Fábrica e BigStore juntos. A tag `HUMAN_AGENT` dá janela de
-7 dias e, pela política da Meta, **é para atendimento humano, não para bot**.
+É um **`InstallationConfig`** (`config/installation_config.yml:406`, default `false`, editável no
+super_admin). Não tem escopo de conta: é uma chave por **instalação**.
 
-Mexer nisso atinge todos os clientes de uma vez. **Não tocar sem decisão explícita.** Se a
-necessidade for por conta, o gate precisa deixar de ser global — e isso é mudança de contrato.
+> ⚠️ **Correção de escopo.** Uma versão anterior desta spec dizia que ligar atingiria "Tozi, Fábrica
+> e BigStore juntos". **Errado** — cada box é uma instalação com banco próprio. Ligar na `.232`
+> atinge todas as contas **daquele box** (Simplex Tecnologia, Colégio Alternativo, Realizare…);
+> ligar no box da Tozi atinge a inbox 101, onde a Clara responde DM. **Não existe "ligar só para a
+> BigStore"** — mas também não vaza de um cliente para outro em box diferente.
+
+**A flag faz DUAS coisas, não uma:**
+
+1. **Estica a janela de 24 h para 7 dias.** `Conversations::MessageWindowService#meta_messaging_window`
+   devolve `MESSAGING_WINDOW_7_DAYS` quando ela está ligada. Isso governa o `can_reply?` — ou seja,
+   **o próprio freio do SPX deixa de frear**.
+2. **Carimba `HUMAN_AGENT` em tudo que sai** — texto e cada anexo — **sem condição nenhuma**: não
+   checa se está dentro ou fora das 24 h, e **não tem ramo por remetente**. Assistente, AgentBot e
+   humano saem pelo mesmo caminho. Com a flag ligada, uma resposta automática na hora 30 sai para a
+   Meta **declarando que um humano a escreveu**, que é literalmente o que a tag significa.
+
+O próprio YAML avisa: *"Needs additional app approval"* — a feature Human Agent exige revisão
+específica do app na Meta. Usá-la em resposta automatizada é uso indevido de uma feature aprovada,
+com o canal como fiança.
+
+🔗 **Interação com o PR #35 (`spx/followup`), que ninguém conectou ainda:** aquele PR acabou de pôr
+uma guarda de `can_reply?` no `FollowupJob`. Com esta flag ligada, `can_reply?` passa a valer **7
+dias** no Instagram — então a guarda continua "funcionando" e mesmo assim libera cutucada até o
+sétimo dia, carimbada como humana. Quem ligar a flag precisa saber disso.
+
+**O que ela NÃO resolve:** não substitui HSM. Alarga a janela de resposta a quem falou com você;
+passados os 7 dias, nada sai igual. Cadência **proativa** continua sem solução no Instagram — a flag
+serve para "demoramos a responder", não para "vamos reabordar".
+
+**A forma agnóstica**, se a capacidade for desejada: gate **por conta** em vez de
+`InstallationConfig`, carimbo **só fora das 24 h**, e **só quando o remetente for `User`** — nunca
+assistente. Aí a tag passa a significar o que a Meta pretende e a IA nunca herda o crachá. É balde 2,
+com PR e deploy, e ainda depende da aprovação do app.
+
+**Não tocar sem decisão explícita do Paulo.**
 
 ---
 
