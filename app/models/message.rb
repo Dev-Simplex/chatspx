@@ -361,6 +361,7 @@ class Message < ApplicationRecord
     reopen_conversation
     mark_pending_conversation_as_open_for_human_response
     release_captain_mirror_after_human_reply
+    clear_awaiting_closure_after_customer_reply
     set_conversation_activity
     dispatch_create_events
     send_reply
@@ -485,6 +486,10 @@ class Message < ApplicationRecord
   # Implementado no Enterprise::Message (A2c): outgoing público de humano em
   # conversa cujo dono é o espelho captain desatribui o espelho. No-op aqui.
   def release_captain_mirror_after_human_reply; end
+
+  # Implementado no Enterprise::Message: incoming tira a conversa da fila
+  # "Aguardando encerramento" — o cliente voltou a falar. No-op aqui.
+  def clear_awaiting_closure_after_customer_reply; end
 
   def reopen_resolved_conversation
     # mark resolved bot conversation as pending to be reopened by bot processor service
