@@ -108,15 +108,13 @@ RSpec.describe NpsSurveys::ReopenGuard do
       expect(guard_for('excelente').prevent_reopen?).to be(false)
     end
 
-    # Contrato documentado no cabecalho do guard ("agent replied after -> nao segura"), hoje NAO
-    # cumprido pelo #agent_responded_after_nps?: `where.not("content_attributes ->> 'nps_survey' = 'true'")`
-    # cai na logica de 3 valores do SQL — mensagem de agente nao tem a chave, `->>` devolve NULL,
-    # `NOT (NULL = 'true')` e NULL (nao TRUE) e a linha é descartada. O predicado nunca casa, aqui e
-    # no ResponseBuilder (mesma query). Bug pre-existente e simetrico entre os dois lados, coberto na
-    # pratica pelo dismiss acima — por isso fica pinado como pending, e nao "corrigido" de carona:
-    # consertar so um dos lados recriaria a divergencia guard-vs-builder que este fix elimina.
+    # Contrato documentado no cabecalho do guard ("agent replied after -> nao segura"). Ficou pinado
+    # como pending enquanto o #agent_responded_after_nps? usava `content_attributes ->> 'nps_survey'`:
+    # content_attributes e JSON serializado como STRING, entao `->>` devolvia NULL, `NOT (NULL =
+    # 'true')` era NULL (nao TRUE) e a linha era descartada — o predicado nunca casava. Corrigido nos
+    # DOIS lados de uma vez (guard e ResponseBuilder usam a mesma query; consertar so um recriaria a
+    # divergencia). Ver Message::CONTENT_ATTRIBUTES_JSON.
     it 'does not hold when an agent replied after the survey was sent' do
-      pending('agent_responded_after_nps? nunca casa: NULL trap no where.not sobre jsonb ->>')
       nps_message = create(:message, account: account, inbox: inbox, conversation: conversation,
                                      message_type: :outgoing, content: 'De 0 a 10, quanto voce nos recomenda?',
                                      content_attributes: { nps_survey: true })

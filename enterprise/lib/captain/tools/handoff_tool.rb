@@ -36,11 +36,15 @@ class Captain::Tools::HandoffTool < Captain::Tools::BasePublicTool
   #    times (senão a IA tentaria escolher à toa).
   #  - modo "IA decide" (sem config, DEFAULT): enumera os times pra IA rotear pelo assunto
   #    (param team_id) — comportamento pra clientes que querem a IA definindo o setor.
+  #
+  # A enumeração respeita a allowlist da conta (`Account#handoff_teams`): time fora dela nem
+  # é oferecido ao modelo. Isso é ADVISORY — quem recusa de fato é o HumanHandoffService,
+  # porque o modelo pode passar um id que ninguém enumerou.
   def description
     base = self.class.description
     return base.to_s if fixed_handoff_team?
 
-    teams = @assistant.account.teams.order(:id).map { |t| "#{t.id}: #{t.name}" }.join('; ')
+    teams = @assistant.account.handoff_teams.order(:id).map { |t| "#{t.id}: #{t.name}" }.join('; ')
     teams.present? ? "#{base} Times disponíveis (id: nome) — #{teams}. Roteie pelo assunto passando o team_id." : base.to_s
   end
 

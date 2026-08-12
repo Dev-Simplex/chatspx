@@ -35,6 +35,18 @@ module Enterprise::Concerns::Conversation
     after_commit :clear_awaiting_closure_marker, if: -> { awaiting_closure_clearable? }
   end
 
+  # Entrada PÚBLICA da limpeza da fila de encerramento pelo caminho da mensagem
+  # (Enterprise::Message#clear_awaiting_closure_after_customer_reply). O incoming do cliente não
+  # salva a conversa quando `waiting_since` já está preenchido, então o after_commit abaixo não
+  # enxerga esse caso — que é justamente o da conversa que entrou na fila com o cliente tendo
+  # falado por último.
+  def clear_awaiting_closure_on_customer_reply
+    attrs = custom_attributes || {}
+    return unless attrs.key?('aguardando_encerramento_desde') || attrs.key?('encerramento_avisado_em')
+
+    clear_awaiting_closure_marker
+  end
+
   private
 
   def awaiting_human_clearable?
@@ -66,8 +78,12 @@ module Enterprise::Concerns::Conversation
     awaiting_human_assumed? || awaiting_closure_customer_returned? || (saved_change_to_status? && resolved?)
   end
 
-  # Cliente voltou a falar: o incoming repopula waiting_since (nil -> presente) na conversa
-  # que estava parada (a IA havia respondido por último). A IA retoma via pipeline normal.
+  # Cliente voltou a falar DEPOIS de a IA ter respondido: o incoming repopula waiting_since
+  # (nil -> presente). Cobre só esse recorte — quando o campo já estava preenchido não há
+  # transição, e é o Enterprise::Message que solta a conversa (ver
+  # #clear_awaiting_closure_on_customer_reply). Mantido porque também pega o `bot_handoff!`,
+  # que repopula waiting_since ao mandar a conversa pra fila do humano: sem isto ela ficaria
+  # marcada nas duas filas.
   def awaiting_closure_customer_returned?
     saved_change_to_waiting_since? && waiting_since.present?
   end

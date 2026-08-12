@@ -223,13 +223,40 @@ class Captain::Assistant::AgentRunnerService
     # anunciar o repasse ("o Fulano vai te procurar"), e o rodízio proíbe anunciar — o handoff
     # é evento de sistema, silencioso. O ESTADO da designação (rodizio_designado_em /
     # rodizio_produto) continua visível: é ele que a conduta de "modo contido" lê.
-    state[:conversation][:custom_attributes] =
-      (state[:conversation][:custom_attributes] || {}).except('aguardando_humano_desde', 'rodizio_corretor')
+    state[:conversation][:custom_attributes] = sem_maquinario(state[:conversation][:custom_attributes])
     state[:channel_type] = @conversation.inbox&.channel_type
     state[:channel_number] = channel_number
     state[:contact] = slice_attrs(@conversation.contact, CONTACT_STATE_ATTRIBUTES) if @conversation.contact
     state[:campaign] = slice_attrs(@conversation.campaign, CAMPAIGN_STATE_ATTRIBUTES) if @conversation.campaign
     state[:contact_inbox] = slice_attrs(@conversation.contact_inbox, CONTACT_INBOX_STATE_ATTRIBUTES) if @conversation.contact_inbox
+  end
+
+  # Estado de MAQUINÁRIO da conversa: escrito por tool/job pra ser lido por tool/job, sempre do
+  # BANCO — nenhum destes é lido do prompt (`urls_imoveis` pelo fix_property_links,
+  # `codigos_buscados` pela enviar_fotos_imovel, `fotos_ultimo_envio_at` pelo cooldown dela,
+  # `followup_*` pelo FollowupJob, `resumo_atendimento_ia` pelo painel do time). Tirá-los do
+  # contexto não muda função nenhuma; deixá-los custa duas coisas:
+  #
+  #  - RUÍDO: token hex, epoch e mapa de URLs ocupam contexto sem informar nada ao modelo;
+  #  - VAZAMENTO ENTRE ATENDIMENTOS: `custom_attributes` vive na CONVERSA, e com
+  #    `lock_to_single_conversation` o fio do contato é perpétuo. A janela por episódio
+  #    (ResponseBuilderJob#mensagens_do_contexto) corta os TURNOS, não os atributos — então o
+  #    resumo e os códigos do atendimento de meses atrás atravessavam a fronteira mesmo com a
+  #    janela ligada, e o modelo voltava a falar de um imóvel que ninguém mencionou hoje.
+  #
+  # `followup_` por prefixo porque a família cresce (o `followup_janela` nasceu depois dos
+  # outros três); lista exata nomearia só os de hoje e o próximo voltaria a vazar em silêncio.
+  MAQUINARIO = %w[
+    aguardando_humano_desde rodizio_corretor
+    resumo_atendimento_ia codigos_buscados urls_imoveis fotos_ultimo_envio_at
+  ].freeze
+  MAQUINARIO_PREFIXOS = %w[followup_].freeze
+
+  def sem_maquinario(atributos)
+    (atributos || {}).reject do |chave, _|
+      nome = chave.to_s
+      MAQUINARIO.include?(nome) || MAQUINARIO_PREFIXOS.any? { |prefixo| nome.start_with?(prefixo) }
+    end
   end
 
   # Número em que o atendimento acontece. Sem ele o agente não tem NENHUM telefone em

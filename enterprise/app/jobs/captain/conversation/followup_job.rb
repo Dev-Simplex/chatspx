@@ -41,9 +41,33 @@ class Captain::Conversation::FollowupJob < ApplicationJob
     return false unless attrs['followup_token'] == token           # substituído por outro follow-up
     return false if followup_pointless?(conversation, attrs)
     return false if cancelado_por_resposta?(conversation, attrs)
+    return false if janela_fechada?(conversation)                  # fora da janela -> não é cutucada
     return false if reschedule_if_quiet_hours(conversation, token) # madrugada -> remarca pra manhã
 
     true
+  end
+
+  # BORDA DA JANELA (contrato do eixo, regra 1). Cutucada é engrenagem in-window: fora da janela
+  # quem bate na porta é a repescagem — template pago, escolhido pelo operador —, que ainda não
+  # existe. Texto livre lá fora não vira repescagem disfarçada; vira envio recusado pelo canal.
+  #
+  # Morre DEFINITIVO, não remarca como as quiet hours: a manhã chega sozinha, a janela não. Só a
+  # resposta do cliente reabre (template não reabre), e a cutucada é justamente o que não pode
+  # causar esse evento — remarcar seria esperar por si mesma. Se o cliente voltar, o turno dele
+  # rearma uma cutucada nova pelo auto_schedule_followup; nada se perde.
+  #
+  # Fica em followup_due?, antes de tudo, por dois motivos: (a) mantém o princípio do arquivo —
+  # cutucada que não sai não gasta token nem followup_count, e o compromisso (followup_motivo)
+  # fica armado pra quando a forma-template existir; (b) é o único ponto que também barra o
+  # cool_down_lead, cuja escalada termina em MessageTemplates::Template::OutOfOffice, que cria
+  # mensagem SEM checar can_reply? — parar na borda "sem cair em outro caminho de envio" exige
+  # cortar antes dele. Vem antes do reschedule pra não gastar job remarcando o que já morreu.
+  #
+  # can_reply? devolve TRUE quando o canal não tem janela configurada, e isso é de propósito:
+  # senão a guarda calaria a cutucada em canal sem janela nenhuma. Ele já ancora na última
+  # mensagem do CLIENTE, que é a âncora certa (regra 3).
+  def janela_fechada?(conversation)
+    !conversation.can_reply?
   end
 
   # Cliente respondeu -> não cutuca. EXCETO com compromisso pendente: aí a última mensagem dele
