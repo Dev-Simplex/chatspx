@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[7.1].define(version: 2026_07_31_130000) do
+ActiveRecord::Schema[7.1].define(version: 2026_08_02_143722) do
   # These extensions should be enabled to support this database
   enable_extension "pg_stat_statements"
   enable_extension "pg_trgm"
@@ -1175,6 +1175,7 @@ ActiveRecord::Schema[7.1].define(version: 2026_07_31_130000) do
     t.jsonb "vista", default: {}, null: false
     t.datetime "created_at", null: false
     t.datetime "updated_at", null: false
+    t.jsonb "apresentacao", default: {}, null: false
     t.index ["account_id", "slug"], name: "index_distribuicao_produtos_on_account_id_and_slug", unique: true
   end
 
