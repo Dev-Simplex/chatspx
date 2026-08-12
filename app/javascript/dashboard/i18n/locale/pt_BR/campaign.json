@@ -236,6 +236,48 @@
         "SUCCESS_MESSAGE": "Campanha excluída com sucesso",
         "ERROR_MESSAGE": "Houve um erro. Por favor, tente novamente."
       }
+    },
+    "LEAD_ADS": {
+      "HEADER_TITLE": "Campanhas de captação",
+      "SUBTITLE": "As campanhas que trouxeram lead no período e como cada uma está configurada. Conta o lead que abriu conversa no período.",
+      "ERROR": "Não foi possível carregar as campanhas.",
+      "EMPTY_VALUE": "—",
+      "EMPTY_PERIOD": "Nenhum lead entrou por formulário neste período.",
+      "NO_CAMPAIGN": "Sem campanha",
+      "FOOTNOTE": "Somente leitura. Os overrides são editados na integração de captação de leads.",
+      "DISABLED": {
+        "TITLE": "Captação de leads não configurada",
+        "SUBTITLE": "Configure uma integração de captação de leads para ver as campanhas aqui."
+      },
+      "FILTER": {
+        "FROM": "De",
+        "TO": "Até",
+        "APPLY": "Aplicar"
+      },
+      "TOTALS": {
+        "LEADS": "Leads no período",
+        "CAMPAIGNS": "Campanhas"
+      },
+      "HOOK": {
+        "ACTIVE": "Captação ativa",
+        "INACTIVE": "Captação desligada"
+      },
+      "SOURCE": {
+        "OVERRIDE": "Override",
+        "DEFAULT": "Padrão do hook",
+        "UNKNOWN": "Indefinido"
+      },
+      "TABLE": {
+        "CAMPAIGN": "Campanha",
+        "LEADS": "Leads",
+        "CONFIGURED_TEMPLATE": "Template configurado",
+        "SENT_TEMPLATE": "Template que saiu",
+        "ASSIGNED_TO": "Quem atende",
+        "LEAD_TYPE": "Tipo de lead",
+        "BLOCKED": "Fora do allowlist",
+        "AMBIGUOUS_ID": "Mais de um id",
+        "TEMPLATE_MISSING": "Não sincronizado no canal"
+      }
     }
   }
 }
