@@ -438,6 +438,64 @@ RSpec.describe Captain::Assistant::AgentRunnerService do
       end
     end
 
+    context 'when the conversation carries machinery custom attributes' do
+      let(:conversation) do
+        create(:conversation, account: account, inbox: inbox, contact: contact, custom_attributes: machinery_attributes)
+      end
+
+      let(:machinery_attributes) do
+        {
+          # famílias por afixo
+          'urls_imoveis' => { '9890' => 'https://www.toziimoveis.com.br/imovel/9890' },
+          'dados_imoveis' => { '9890' => { 'preco' => 950_000.0, 'bairro' => 'Jardim Paraiso' } },
+          'fotos_imoveis' => { '9890' => 3 },
+          'followup_count' => 2,
+          'followup_janela' => 'aberta',
+          # lista exata
+          'aguardando_humano_desde' => '2026-08-11T12:00:00Z',
+          'rodizio_corretor' => 'Fulano de Tal',
+          'resumo_atendimento_ia' => 'Cliente procurava casa no Jardim Paraiso em fevereiro.',
+          'codigos_buscados' => %w[9890 7686],
+          'fotos_ultimo_envio_at' => 1_754_900_000,
+          # contexto legítimo, tem que sobreviver
+          'meta_imovel' => 'Casa 3 quartos no Jardim Paraiso',
+          'meta_imovel_codigo' => '9890',
+          'rodizio_produto' => 'venda',
+          'tozi_status_lead' => 'qualificado'
+        }
+      end
+
+      let(:filtered_attributes) { service.send(:build_state)[:conversation][:custom_attributes] }
+
+      it 'drops the whole _imoveis family, not just the members named in the list' do
+        # `dados_imoveis` é irmão do `urls_imoveis` — mesmo método da busca (track_urls), mesmo
+        # save. `fotos_imoveis` faz o papel do PRÓXIMO membro: uma lista exata deixaria os dois
+        # passarem em silêncio.
+        expect(filtered_attributes.keys.grep(/_imoveis\z/)).to be_empty
+      end
+
+      it 'drops the followup family by prefix' do
+        expect(filtered_attributes.keys.grep(/\Afollowup_/)).to be_empty
+      end
+
+      it 'drops the machinery named one by one' do
+        expect(filtered_attributes).not_to include(
+          'aguardando_humano_desde', 'rodizio_corretor', 'resumo_atendimento_ia',
+          'codigos_buscados', 'fotos_ultimo_envio_at'
+        )
+      end
+
+      it 'keeps the attributes the agent is supposed to read' do
+        # O sufixo `_imoveis` não pode levar junto o imóvel do anúncio, que é SINGULAR.
+        expect(filtered_attributes).to eq(
+          'meta_imovel' => 'Casa 3 quartos no Jardim Paraiso',
+          'meta_imovel_codigo' => '9890',
+          'rodizio_produto' => 'venda',
+          'tozi_status_lead' => 'qualificado'
+        )
+      end
+    end
+
     context 'when conversation is nil' do
       subject(:service) { described_class.new(assistant: assistant, conversation: nil) }
 
