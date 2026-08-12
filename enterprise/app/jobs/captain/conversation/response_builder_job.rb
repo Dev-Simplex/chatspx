@@ -1,5 +1,13 @@
 class Captain::Conversation::ResponseBuilderJob < ApplicationJob
   MAX_MESSAGE_LENGTH = 10_000
+  # Tolerância ao comparar o preço citado na frase com o do imóvel do link — a mesma ~2% da
+  # medição do caso 42952. Absorve o arredondamento que a IA faz ("520 mil" para 519.900).
+  PRECO_TOLERANCIA = 0.02
+  # "R$ 520.000", "520.000,00", "R$ 3.200/mês", "520 mil", "1,2 milhão". Exige marcador de
+  # dinheiro ou milhar pontuado: número solto na frase é dormitório, vaga ou código.
+  # "milhão" vem ANTES de "mil" na alternância: invertido, "mil" casa o prefixo de "milhão"
+  # e 1,2 milhão vira 1.200 (a prova do caso 42952 pegou isso).
+  PRECO_CITADO = /(?:R\$\s*)?(\d{1,3}(?:\.\d{3})+(?:,\d{2})?)|(\d+(?:[.,]\d+)?)\s*(milh(?:ão|ões|oes)|mil)/i
   retry_on ActiveStorage::FileNotFoundError, attempts: 3, wait: 2.seconds
   retry_on Faraday::BadRequestError, attempts: 3, wait: 2.seconds
 
@@ -606,10 +614,47 @@ class Captain::Conversation::ResponseBuilderJob < ApplicationJob
   def fix_property_links(content)
     return content unless content.match?(/toziimoveis/i)
 
-    mapa = @conversation.reload.custom_attributes&.dig('urls_imoveis') || {}
+    attrs = @conversation.reload.custom_attributes || {}
+    mapa = attrs['urls_imoveis'] || {}
+    dados = attrs['dados_imoveis'] || {}
+
     content.gsub(%r{https?://[^\s)\]]*toziimoveis\.com\.br[^\s)\]]*}i) do |url|
       match = url.scan(/\d+/).find { |n| mapa.key?(n) }
-      match ? mapa[match] : ''
+      next '' if match.nil?
+      next '' if preco_desmente_link?(Regexp.last_match&.pre_match, dados[match], match)
+
+      mapa[match]
+    end
+  end
+
+  # A troca acima garante que a URL EXISTE; não garante que ela é do imóvel descrito na
+  # frase. No caso 42952 três buscas empilharam 16 imóveis no mapa e a IA remontou os pares
+  # preço<->link de memória 13 minutos depois, errando 6 de 7 — como todos os códigos eram
+  # legítimos, nada foi barrado e a lead foi avaliar a casa errada.
+  #
+  # Aqui os preços citados na MESMA linha, antes do link, são conferidos contra o preço do
+  # imóvel para onde o link aponta. Basta UM bater pra passar: a linha costuma trazer outros
+  # valores (condomínio, entrada) e reprovar por causa deles seria falso positivo. Sem preço
+  # citado, ou sem dado do imóvel (conversa anterior a isto), não opina — só conversa nova
+  # tem dados_imoveis, então a guarda entra junto com a busca que a alimenta.
+  # Divergiu: derruba o link e deixa o texto. Ficar sem link é o mesmo desfecho que a trava
+  # já dá pra URL inventada, e é melhor que mandar a lead pra outra casa.
+  def preco_desmente_link?(antes, dado, codigo)
+    esperado = dado.is_a?(Hash) ? dado['preco'].to_f : 0.0
+    return false unless esperado.positive?
+
+    citados = precos_citados(antes.to_s[/[^\n]*\z/].to_s)
+    return false if citados.empty? || citados.any? { |c| (c - esperado).abs <= esperado * PRECO_TOLERANCIA }
+
+    log_behavior_event('property_link_mismatch', { codigo: codigo, citados: citados.map(&:round), esperado: esperado.round })
+    true
+  end
+
+  def precos_citados(trecho)
+    trecho.scan(PRECO_CITADO).filter_map do |milhar, numero, unidade|
+      next milhar.delete('.').tr(',', '.').to_f if milhar
+
+      numero.tr(',', '.').to_f * (unidade.match?(/lh/i) ? 1_000_000 : 1_000)
     end
   end
 

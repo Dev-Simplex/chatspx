@@ -137,21 +137,49 @@ class Captain::Tools::BuscarImovelTool < Captain::Tools::BasePublicTool
   # Guarda o mapa codigo/ImoCodigo -> URL canônica (build_url) na conversa (urls_imoveis),
   # pra o sanitizador de saída (fix_property_links) manter os links que a IA manda e remover
   # só os inventados. Sem isso, urls_imoveis fica vazio e TODO link da Tozi é apagado.
+  #
+  # Junto vai `dados_imoveis` (preço e bairro por código), que deixa o sanitizador conferir
+  # se o link pertence ao imóvel descrito na frase — e não só se ele existe. É mapa IRMÃO,
+  # não um novo formato do urls_imoveis: este é lido em dois lugares (fix_property_links e
+  # enviar_fotos_imovel_tool), nenhum deles com spec, e um é o carrossel que está em
+  # produção. Trocar o valor por hash quebraria os dois de uma vez.
   def track_urls(tool_context, imoveis, venda)
     conv = find_conversation(tool_context&.state)
     return unless conv
 
     novos = {}
-    imoveis.each do |im|
-      url = build_url(im, venda)
-      [im['Codigo'], im['ImoCodigo']].each { |k| novos[k.to_s] = url if k.to_s.strip.present? }
-    end
+    dados = {}
+    imoveis.each { |im| registra_imovel(im, venda, novos, dados) }
     return if novos.empty?
 
-    atual = conv.custom_attributes['urls_imoveis'] || {}
-    conv.update!(custom_attributes: conv.custom_attributes.merge('urls_imoveis' => atual.merge(novos).to_a.last(60).to_h))
+    atuais = conv.custom_attributes
+    # `|| {}` e não `fetch(k, {})`: o default do fetch só entra quando a chave está AUSENTE.
+    # Chave presente valendo nil (a API de custom_attributes aceita gravar isso) devolve nil,
+    # o merge estoura e o rescue abaixo engole — os mapas param de ser escritos sem sinal
+    # nenhum na tela, e sem urls_imoveis o fix_property_links apaga TODO link da Tozi.
+    mapas = {
+      'urls_imoveis' => (atuais['urls_imoveis'] || {}).merge(novos).to_a.last(60).to_h,
+      'dados_imoveis' => (atuais['dados_imoveis'] || {}).merge(dados).to_a.last(60).to_h
+    }
+    conv.update!(custom_attributes: atuais.merge(mapas))
   rescue StandardError => e
-    Rails.logger.warn("[BuscarImovel] track_urls: #{e.message}")
+    # error, não warn (como no track_codigos): falhar aqui não degrada a busca, apaga o link
+    # de todo imóvel da resposta. É invisível pro operador, então precisa aparecer no log.
+    Rails.logger.error("[BuscarImovel] track_urls: #{e.message}")
+  end
+
+  # O imóvel entra nos dois mapas pelas duas chaves (Codigo e ImoCodigo), porque a IA cita
+  # ora uma ora outra. Preço zero (imóvel só de locação numa busca de venda, ou vice-versa)
+  # fica de fora do dados_imoveis: sem preço confiável, a guarda não deve opinar.
+  def registra_imovel(imovel, venda, novos, dados)
+    url = build_url(imovel, venda)
+    preco = (venda ? imovel['ValorVenda'] : imovel['ValorLocacao']).to_f
+    [imovel['Codigo'], imovel['ImoCodigo']].each do |k|
+      next if k.to_s.strip.blank?
+
+      novos[k.to_s] = url
+      dados[k.to_s] = { 'preco' => preco, 'bairro' => imovel['Bairro'].to_s.strip } if preco.positive?
+    end
   end
 
   # Fallback determinístico: quando a busca COM filtro de bairro/endereço vem vazia, refaz
