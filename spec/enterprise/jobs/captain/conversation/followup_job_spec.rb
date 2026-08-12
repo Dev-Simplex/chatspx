@@ -171,4 +171,80 @@ RSpec.describe Captain::Conversation::FollowupJob, type: :job do
       expect(conversation.reload.custom_attributes['followup_token']).to eq(token)
     end
   end
+
+  # BORDA DA JANELA (contrato do eixo, regra 1). Cutucada e engrenagem in-window; fora da janela
+  # quem bate na porta e a repescagem — template pago, escolhido pelo operador — que ainda nao
+  # existe. Texto livre fora da janela nao vira repescagem disfarcada: vira envio recusado.
+  context 'when the messaging window has already closed' do
+    let(:inbox) { create(:channel_api, account: account, additional_attributes: { agent_reply_time_window: '24' }).inbox }
+
+    before do
+      # A ancora da janela e a ultima mensagem do CLIENTE (regra 3), nao a da IA: 25h -> fechada.
+      create(:message, conversation: conversation, account: account, inbox: inbox,
+                       message_type: :incoming, content: 'Vou pensar e te falo', created_at: 25.hours.ago)
+    end
+
+    it 'dies without firing and without consuming token or followup_count' do
+      described_class.perform_now(conversation, token)
+
+      expect(Captain::Conversation::ResponseBuilderJob).not_to have_received(:perform_now)
+      expect(conversation.reload.custom_attributes['followup_count']).to eq(1)
+      expect(conversation.reload.custom_attributes['followup_token']).to eq(token)
+    end
+
+    # Morte definitiva, nao adiamento: a manha das quiet hours chega sozinha, a janela nao — so a
+    # resposta do cliente reabre, e a cutucada e justamente o que nao pode causar esse evento.
+    it 'does not reschedule itself for whenever the window might reopen' do
+      expect { described_class.perform_now(conversation, token) }.not_to have_enqueued_job(described_class)
+    end
+
+    # A borda vem ANTES do cool_down porque o HumanHandoffService termina no OutOfOffice, que cria
+    # mensagem sem checar can_reply? — seria exatamente o "outro caminho de envio" que a regra 1 veta.
+    it 'does not escalate to a human either, even with the followups exhausted' do
+      allow(Spx::Tozi::FunnelPlacementService).to receive(:move)
+      allow(Captain::Conversation::HumanHandoffService).to receive(:new)
+      conversation.update!(custom_attributes: conversation.custom_attributes.merge('followup_count' => described_class::MAX_FOLLOWUPS))
+
+      described_class.perform_now(conversation, token)
+
+      expect(Captain::Conversation::HumanHandoffService).not_to have_received(:new)
+      expect(Spx::Tozi::FunnelPlacementService).not_to have_received(:move)
+    end
+
+    # Compromisso tambem nao atravessa: fora da janela ele muda de FORMA (vira template), e essa
+    # forma nao existe ainda. O motivo fica armado pra quando existir, em vez de ser consumido.
+    it 'holds the border even with a pending commitment, keeping the commitment armed' do
+      conversation.update!(custom_attributes: conversation.custom_attributes.merge('followup_motivo' => 'ia confirmar com o marido'))
+
+      described_class.perform_now(conversation, token)
+
+      expect(Captain::Conversation::ResponseBuilderJob).not_to have_received(:perform_now)
+      expect(conversation.reload.custom_attributes['followup_motivo']).to be_present
+    end
+  end
+
+  context 'when the messaging window is still open' do
+    let(:inbox) { create(:channel_api, account: account, additional_attributes: { agent_reply_time_window: '24' }).inbox }
+
+    it 'fires the nudge normally' do
+      create(:message, conversation: conversation, account: account, inbox: inbox,
+                       message_type: :incoming, content: 'Manda os detalhes', created_at: 2.hours.ago)
+
+      described_class.perform_now(conversation, token)
+
+      expect(Captain::Conversation::ResponseBuilderJob).to have_received(:perform_now)
+    end
+  end
+
+  # Armadilha do can_reply?: ele devolve TRUE quando o canal nao tem janela configurada. E de
+  # proposito — a guarda nao pode calar a cutucada em canal que nao tem janela nenhuma.
+  context 'when the channel has no messaging window at all' do
+    it 'fires the nudge even without any incoming message to anchor a window' do
+      expect(conversation.messages.incoming).to be_empty
+
+      described_class.perform_now(conversation, token)
+
+      expect(Captain::Conversation::ResponseBuilderJob).to have_received(:perform_now)
+    end
+  end
 end
