@@ -4,10 +4,18 @@ RSpec.describe Meta::LeadAds::CreateConversationService do
   let(:account) { create(:account) }
   let(:inbox) { create(:inbox, account: account) }
 
+  # settings_json_schema (config/integration/apps.yml) exige os 5 campos do formulário.
+  # As chaves de operador (campaign_overrides, imovel_*) passam por additionalProperties.
   def hook_with(settings)
     create(:integrations_hook, account: account,
                                app_id: 'meta_lead_ads',
-                               settings: { 'target_inbox_id' => inbox.id }.merge(settings))
+                               settings: {
+                                 'page_id' => '539594042748152',
+                                 'verify_token' => 'verify',
+                                 'app_secret' => 'secret',
+                                 'page_access_token' => 'token',
+                                 'target_inbox_id' => inbox.id
+                               }.merge(settings))
   end
 
   def lead_with(attrs)
