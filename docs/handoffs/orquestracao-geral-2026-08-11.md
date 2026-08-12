@@ -91,8 +91,21 @@ ORCA_TERMINAL_HANDLE=<handle-vivo> ORCA_PANE_KEY="$PK" \
 **Não canalize o `--wait` por `head`** — o pipe fecha e mata a espera. E timeout **não é falha**:
 tarefa de código roda de 15 a 60 minutos, batimento significa vivo, não pronto. Reinicie a espera.
 
-Terminal **flutuante** é coordenador frágil: o pane muda sozinho e cerca o vínculo. Coordenador
-numa aba de worktree tende a ser mais estável — vale testar.
+**A geral deve viver num terminal FLUTUANTE**, e não dentro de uma worktree. Worktree é o checkout
+de uma branch de um repo: a sessão herdaria o `CLAUDE.md` daquele projeto e passaria a inferir aquele
+repo por padrão — contexto errado embutido para quem fala de vários projetos.
+
+O que parece instabilidade do flutuante não é. Medido em 11/08: o pane **não** fica mudando; ele
+muda quando o terminal é recriado (aconteceu uma vez, no `account add`), e a partir daí o vínculo
+fica estável. O problema real é que **as variáveis de ambiente são um retrato do início da sessão e
+não acompanham** — isso atinge qualquer sessão longa, inclusive uma dentro de worktree.
+
+Ritual de abertura, duas linhas, resolve de vez:
+
+```bash
+orca terminal list --json   # ache o seu handle real: o campo preview mostra seu próprio último comando
+orca orchestration run-use --id <run> --from <handle-real>
+```
 
 ---
 
