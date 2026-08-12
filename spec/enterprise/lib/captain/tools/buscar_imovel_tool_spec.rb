@@ -33,11 +33,12 @@ RSpec.describe Captain::Tools::BuscarImovelTool, type: :model do
       expect(urls['9908']).to include('9908')
     end
 
-    it 'records price and neighbourhood in the sibling map' do
+    it 'records price and neighbourhood in the sibling map, under both codes' do
       track
 
-      expect(conversation.reload.custom_attributes['dados_imoveis']['9908'])
-        .to eq('preco' => 450_000.0, 'bairro' => 'Jardim Paraíso')
+      dados = conversation.reload.custom_attributes['dados_imoveis']
+      expect(dados['9908']).to eq('preco' => 450_000.0, 'bairro' => 'Jardim Paraíso')
+      expect(dados['5501']).to eq(dados['9908'])
     end
 
     it 'merges into what a previous search already recorded' do
@@ -48,7 +49,7 @@ RSpec.describe Captain::Tools::BuscarImovelTool, type: :model do
 
       attrs = conversation.reload.custom_attributes
       expect(attrs['urls_imoveis'].keys).to contain_exactly('111', '9908', '5501')
-      expect(attrs['dados_imoveis'].keys).to contain_exactly('111', '9908')
+      expect(attrs['dados_imoveis'].keys).to contain_exactly('111', '9908', '5501')
     end
 
     it 'keeps unrelated custom attributes untouched' do
