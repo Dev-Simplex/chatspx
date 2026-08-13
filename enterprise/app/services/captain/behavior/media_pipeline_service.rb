@@ -9,8 +9,7 @@ class Captain::Behavior::MediaPipelineService
     return false if account.blank?
 
     Captain::Assistant.where(account_id: account.id)
-                      .where("behavior -> 'media_pipeline' ->> ? = 'true'", IMAGE_DESCRIPTION_KEY)
-                      .exists?
+                      .exists?(["behavior -> 'media_pipeline' ->> ? = 'true'", IMAGE_DESCRIPTION_KEY])
   end
 
   def initialize(assistant:, message:)
