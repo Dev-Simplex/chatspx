@@ -812,6 +812,23 @@ a[class~='bg-n-brand']:not([class*='rounded-full']) {
   }
 }
 
+/* (A.1) A variante `!` do Tailwind é outra palavra de classe. `!bg-n-brand` NÃO
+   é casado por `[class~='bg-n-brand']` do bloco acima — e, mesmo que fosse, o
+   utilitário sai com !important e venceria. São quatro botões, todos com
+   rótulo ou ícone BRANCO e portanto os mesmos 2.27:1: "Resolver" e a opção do
+   seu menu (`ResolveAction.vue`), o lançador redondo do Copilot e o CTA da
+   mensagem do Copilot. O hover chumbado `hover:!bg-[#1FB85A]` também escapava
+   do bloco (E), que casa `hover:bg-[#1FB85A]` — sem o `!` no meio. */
+button[class~='!bg-n-brand'],
+a[class~='!bg-n-brand'] {
+  background-color: var(--wa-primary-button) !important;
+}
+button[class~='!bg-n-brand']:hover,
+a[class~='!bg-n-brand']:hover,
+[class*='hover:!bg-[#1FB85A]']:hover {
+  background-color: var(--wa-primary-button-hover) !important;
+}
+
 /* (B) Text/border using brand token — mesma regra de (A): palavra exata.
    O substring match anterior pegava `text-n-brand/70` e `border-n-brand/20`
    (variantes translúcidas que já saem na cor certa, com o alfa pedido) e
@@ -2754,6 +2771,67 @@ aside [class*='cursor-col-resize'] {
 .dark .bg-n-surface-1 .i-lucide-lock,
 .dark .bg-n-surface-1 .text-n-slate-9 {
   color: var(--wa-text-secondary-dark);
+}
+
+/* =======================================================================
+   TEMA CLARO — paridade de leitura com o escuro dentro do chat
+
+   No escuro tudo que flutua sobre o papel de parede lê bem, porque o papel é
+   quase preto e a tinta é clara. No claro o papel é o bege do WhatsApp
+   (#efeae2) COM a textura de rabiscos por cima, e três coisas ficavam soltas
+   nele — medido no staging:
+
+     pílula de sistema/atividade   4.34:1   fundo `bg-n-alpha-1` = 4% de preto,
+                                            invisível sobre o bege
+     separador de data             4.68:1   sem pílula nenhuma; as duas linhas
+                                            de apoio são `n-slate-4` (#e9edef
+                                            sobre #efeae2 = 1.05:1, ou seja,
+                                            também invisíveis)
+     carimbo de hora na bolha de   4.43:1   tinta cinza do slate herdada dentro
+     falha                                  de uma bolha rosa (ruby-4)
+
+   A solução é a do próprio WhatsApp: pílula BRANCA opaca com sombra de 1px, que
+   destaca do papel sem competir com as bolhas. O escuro não é tocado — lá o
+   conjunto já funciona.
+   ======================================================================= */
+html:not(.dark) {
+  /* Mensagem de sistema/atividade — pílula branca. O `:not(.is-ai)` preserva o
+     glow violeta animado das atividades de IA, que usa box-shadow. */
+  .conversation-panel .ai-activity-bubble {
+    background-color: #ffffff;
+    color: var(--wa-text-secondary); /* #5a6a73 sobre branco = 5.61:1 */
+  }
+
+  .conversation-panel .ai-activity-bubble:not(.is-ai) {
+    box-shadow: 0 1px 0.5px rgba(11, 20, 26, 0.13);
+  }
+
+  /* Separador de data — o elemento é uma faixa de largura total com 50px de
+     altura e duas linhas em ::before/::after. Vira pílula centrada, e as
+     linhas (que ninguém enxergava) saem. */
+  .conversation-panel > div.text-sm.text-center.relative.w-full {
+    width: fit-content;
+    height: auto;
+    margin: 14px auto;
+    padding: 5px 12px;
+    border-radius: 9999px;
+    line-height: 1.35;
+    background-color: #ffffff;
+    color: var(--wa-text-secondary);
+    box-shadow: 0 1px 0.5px rgba(11, 20, 26, 0.13);
+
+    &::before,
+    &::after {
+      display: none;
+    }
+  }
+
+  /* Carimbo de hora dentro da bolha de falha: sai do cinza do slate e passa
+     para a própria escala ruby, a 75% — 5.22:1 sobre a bolha, e continua mais
+     leve que o texto da mensagem (ruby-12 cheio), preservando a hierarquia. */
+  .conversation-panel .bg-n-ruby-4 .text-n-slate-11 {
+    color: rgb(var(--ruby-12) / 0.75);
+  }
 }
 
 /* =======================================================================
