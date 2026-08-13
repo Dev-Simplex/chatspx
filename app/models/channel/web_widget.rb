@@ -57,28 +57,40 @@ class Channel::WebWidget < ApplicationRecord
 
   enum reply_time: { in_a_few_minutes: 0, in_a_few_hours: 1, in_a_day: 2 }
 
-  def name
-    'Website'
-  end
-
-  def web_widget_script
-    "
+  WEB_WIDGET_SCRIPT = <<~HTML.freeze
     <script>
       (function(d,t) {
-        var BASE_URL=\"#{ENV.fetch('FRONTEND_URL', '')}\";
+        var BASE_URL="%<base_url>s";
         var g=d.createElement(t),s=d.getElementsByTagName(t)[0];
-        g.src=BASE_URL+\"/packs/js/sdk.js\";
+        g.src=BASE_URL+"%<sdk_path>s";
         g.async = true;
         s.parentNode.insertBefore(g,s);
         g.onload=function(){
           window.chatwootSDK.run({
-            websiteToken: '#{website_token}',
-            baseUrl: BASE_URL
+            websiteToken: '%<website_token>s',
+            baseUrl: BASE_URL,
+            conversationToken: %<conversation_token>s,
+            persistConversationToParent: %<persist_conversation_to_parent>s
           })
         }
-      })(document,\"script\");
+      })(document,"script");
     </script>
-    "
+  HTML
+
+  def name
+    'Website'
+  end
+
+  def web_widget_script(sdk_version: nil, persist_conversation_to_parent: false)
+    sdk_path = '/packs/js/sdk.js'
+    sdk_path += "?v=#{ERB::Util.url_encode(sdk_version)}" if sdk_version.present?
+    conversation_token = if persist_conversation_to_parent
+                           "new URLSearchParams(window.location.hash.slice(1)).get('cw_conversation')"
+                         else
+                           'null'
+                         end
+    format(WEB_WIDGET_SCRIPT, base_url: ENV.fetch('FRONTEND_URL', ''), sdk_path: sdk_path, website_token: website_token,
+                              conversation_token: conversation_token, persist_conversation_to_parent: persist_conversation_to_parent)
   end
 
   def validate_pre_chat_options

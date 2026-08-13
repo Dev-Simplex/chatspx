@@ -19,7 +19,12 @@ import {
 import { setCookieWithDomain } from '../sdk/cookieHelpers';
 import { SDK_SET_BUBBLE_VISIBILITY } from 'shared/constants/sharedFrameEvents';
 
-const runSDK = ({ baseUrl, websiteToken }) => {
+const runSDK = ({
+  baseUrl,
+  websiteToken,
+  conversationToken,
+  persistConversationToParent = false,
+}) => {
   if (window.$chatwoot) {
     return;
   }
@@ -80,6 +85,7 @@ const runSDK = ({ baseUrl, websiteToken }) => {
     enableFileUpload: chatwootSettings.enableFileUpload,
     enableEmojiPicker: chatwootSettings.enableEmojiPicker ?? true,
     enableEndConversation: chatwootSettings.enableEndConversation ?? true,
+    persistConversationToParent,
 
     toggle(state) {
       IFrameHelper.events.toggleBubble(state);
@@ -214,6 +220,7 @@ const runSDK = ({ baseUrl, websiteToken }) => {
   IFrameHelper.createFrame({
     baseUrl,
     websiteToken,
+    conversationToken,
   });
 };
 
