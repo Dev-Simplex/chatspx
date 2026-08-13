@@ -48,7 +48,7 @@ class LeadCampaigns::TemplateCatalog
   end
 
   def nomes
-    aprovados.map { |descritor| descritor[:nome] }.uniq
+    aprovados.pluck(:nome).uniq
   end
 
   private

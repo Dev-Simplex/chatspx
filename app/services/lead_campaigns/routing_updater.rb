@@ -186,7 +186,7 @@ class LeadCampaigns::RoutingUpdater
     enviados = if configurado.to_s.strip.casecmp?(SEM_VARIAVEL)
                  0
                else
-                 (configurado.to_s.strip.presence || CAMPOS_VALIDOS.first).split(',').map(&:strip).reject(&:blank?).size
+                 (configurado.to_s.strip.presence || CAMPOS_VALIDOS.first).split(',').count { |campo| campo.strip.present? }
                end
     return if enviados == esperadas
 
