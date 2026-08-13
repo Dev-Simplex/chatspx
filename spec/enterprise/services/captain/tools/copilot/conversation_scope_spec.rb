@@ -10,7 +10,7 @@ require 'rails_helper'
 #     admite esse papel de propósito, e era justamente para ele que a leitura vinha sem limite.
 #   - ESCRITA: agente simples sem custom role — o `user_has_permission` devolve true para
 #     qualquer permissão nesse caso, então ele recebe todos os tools de escrita.
-RSpec.describe 'Copilot tools respect the conversation access scope' do
+RSpec.describe Captain::Tools::Copilot::ConversationScope do
   let(:account) { create(:account) }
   let(:assistant) { create(:captain_assistant, account: account) }
 
@@ -78,18 +78,20 @@ RSpec.describe 'Copilot tools respect the conversation access scope' do
 
     it 'send_message refuses and sends nothing' do
       service = tool(Captain::Tools::Copilot::SendMessageService)
+      result = nil
 
-      expect { @result = service.execute(conversation_id: conversation.display_id, content: 'oi') }
+      expect { result = service.execute(conversation_id: conversation.display_id, content: 'oi') }
         .not_to change(Message, :count)
-      expect(@result).to eq(refusal)
+      expect(result).to eq(refusal)
     end
 
     it 'send_template refuses and sends nothing' do
       service = tool(Captain::Tools::Copilot::SendTemplateService)
+      result = nil
 
-      expect { @result = service.execute(conversation_id: conversation.display_id, template_name: 'promo') }
+      expect { result = service.execute(conversation_id: conversation.display_id, template_name: 'promo') }
         .not_to change(Message, :count)
-      expect(@result).to eq(refusal)
+      expect(result).to eq(refusal)
     end
 
     it 'resolve_conversation refuses and leaves the status untouched' do
@@ -164,8 +166,9 @@ RSpec.describe 'Copilot tools respect the conversation access scope' do
     end
 
     it 'writes on any conversation of the account' do
-      Captain::Tools::Copilot::ResolveConversationService.new(assistant, user: admin)
-                                                        .execute(conversation_id: conversation.display_id)
+      Captain::Tools::Copilot::ResolveConversationService
+        .new(assistant, user: admin)
+        .execute(conversation_id: conversation.display_id)
 
       expect(conversation.reload).to be_resolved
     end
