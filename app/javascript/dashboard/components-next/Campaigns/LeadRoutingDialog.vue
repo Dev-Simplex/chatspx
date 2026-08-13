@@ -18,14 +18,14 @@ import LeadCampaignsAPI from 'dashboard/api/leadCampaigns';
 import Dialog from 'dashboard/components-next/dialog/Dialog.vue';
 import Select from 'dashboard/components-next/select/Select.vue';
 
-defineOptions({ name: 'LeadRoutingDialog' });
-
 const props = defineProps({
   campanha: { type: Object, required: true },
   hook: { type: Object, default: null },
 });
 
 const emit = defineEmits(['salvo']);
+
+defineOptions({ name: 'LeadRoutingDialog' });
 
 const { t } = useI18n();
 
@@ -34,12 +34,26 @@ const { t } = useI18n();
 const HERDAR = '';
 const SEPARADOR = ' · ';
 const SEM_VARIAVEL = 'none';
-const IMPEDIMENTOS = [
-  'cabecalho_de_midia',
-  'cabecalho_com_variavel',
-  'botao_com_variavel',
-  'parametro_nomeado',
-];
+
+// Chaves escritas por extenso, e não montadas: é o que deixa o conjunto rastreável pelo
+// lint de i18n e garante que a lista do backend e a tradução andem juntas.
+const MOTIVO_I18N = {
+  cabecalho_de_midia: 'CAMPAIGN.LEAD_ADS.EDIT.BLOCKED.cabecalho_de_midia',
+  cabecalho_com_variavel: 'CAMPAIGN.LEAD_ADS.EDIT.BLOCKED.cabecalho_com_variavel',
+  botao_com_variavel: 'CAMPAIGN.LEAD_ADS.EDIT.BLOCKED.botao_com_variavel',
+  parametro_nomeado: 'CAMPAIGN.LEAD_ADS.EDIT.BLOCKED.parametro_nomeado',
+};
+
+const CAMPO_I18N = {
+  first_name: 'CAMPAIGN.LEAD_ADS.EDIT.FIELDS.first_name',
+  full_name: 'CAMPAIGN.LEAD_ADS.EDIT.FIELDS.full_name',
+  ad_name: 'CAMPAIGN.LEAD_ADS.EDIT.FIELDS.ad_name',
+  campaign_name: 'CAMPAIGN.LEAD_ADS.EDIT.FIELDS.campaign_name',
+  city: 'CAMPAIGN.LEAD_ADS.EDIT.FIELDS.city',
+  email: 'CAMPAIGN.LEAD_ADS.EDIT.FIELDS.email',
+  phone: 'CAMPAIGN.LEAD_ADS.EDIT.FIELDS.phone',
+  empreendimento: 'CAMPAIGN.LEAD_ADS.EDIT.FIELDS.empreendimento',
+};
 
 const dialogRef = ref(null);
 const salvando = ref(false);
@@ -108,9 +122,9 @@ const bloqueados = computed(() =>
 );
 
 const motivo = descritor =>
-  IMPEDIMENTOS.includes(descritor.impedimento)
-    ? t(`CAMPAIGN.LEAD_ADS.EDIT.BLOCKED.${descritor.impedimento}`)
-    : t('CAMPAIGN.LEAD_ADS.EDIT.BLOCKED.generico');
+  t(
+    MOTIVO_I18N[descritor.impedimento] || 'CAMPAIGN.LEAD_ADS.EDIT.BLOCKED.generico'
+  );
 
 const rotuloBloqueado = descritor =>
   `${descritor.nome} (${descritor.idioma})${SEPARADOR}${motivo(descritor)}`;
@@ -151,10 +165,12 @@ watch(selecionado, descritor => {
   );
 });
 
+// Campo que o backend passe a oferecer sem tradução aqui aparece pelo nome cru, e não em
+// branco: melhor um rótulo feio do que um seletor com opções vazias.
 const opcoesDeCampo = computed(() =>
   camposDoLead.value.map(campo => ({
     value: campo,
-    label: t(`CAMPAIGN.LEAD_ADS.EDIT.FIELDS.${campo}`),
+    label: CAMPO_I18N[campo] ? t(CAMPO_I18N[campo]) : campo,
   }))
 );
 
