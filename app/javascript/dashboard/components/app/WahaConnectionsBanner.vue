@@ -320,7 +320,8 @@ onUnmounted(() => {
 
     .banner-action-button {
       @apply ml-2 px-3 py-1 text-xs font-semibold;
-      @apply bg-white text-red-600;
+      /* red-600 sobre branco = 4.37:1; red-700 = 5.21:1, o mesmo tom da faixa */
+      @apply bg-white text-red-700;
       @apply rounded-md;
       @apply hover:bg-red-50;
       @apply transition-colors;
