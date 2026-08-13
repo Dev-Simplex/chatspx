@@ -24,6 +24,15 @@ module Meta
       JORNADA_MAX_CHARS = 600
       # `whatsapp_template_body_fields = none` declara template SEM variável no corpo.
       NO_BODY_FIELDS = 'none'.freeze
+      # Campos do lead que podem preencher {{1}}, {{2}}, ... no corpo do HSM: exatamente as
+      # chaves de `template_render_context`, e nada além delas — campo fora desta lista
+      # renderiza string vazia e a Meta recusa a mensagem. Quem valida a configuração antes
+      # de salvar lê daqui (`LeadCampaigns::RoutingUpdater`); um spec trava a lista contra
+      # o contexto real, para os dois não se separarem em silêncio.
+      BODY_FIELDS = %w[first_name full_name ad_name campaign_name city email phone empreendimento].freeze
+      # Idioma assumido quando o hook não declara: a Meta casa o template por (nome, idioma),
+      # então quem valida a configuração tem que assumir o MESMO default que o envio.
+      DEFAULT_TEMPLATE_LOCALE = 'pt_BR'.freeze
       # Código do imóvel escondido no NOME DO ANÚNCIO. Campanha de catálogo entrega o código
       # no `retailer_item_id`; campanha de FORMULÁRIO não tem catálogo, e aí o único lugar onde
       # o código existe é o nome que o anunciante deu à peça ("IMÓVEL 9817 - TELHADO APARENTE").
@@ -524,7 +533,7 @@ module Meta
             content_attributes: { meta_lead_ads_initial: true },
             template_params: {
               'name' => hook_setting('imovel_template_name'),
-              'language' => (hook_setting('whatsapp_template_locale').presence || 'pt_BR'),
+              'language' => (hook_setting('whatsapp_template_locale').presence || DEFAULT_TEMPLATE_LOCALE),
               'processed_params' => {
                 'header' => { 'media_url' => d[:foto_url], 'media_type' => 'image' },
                 'body' => { '1' => first, '2' => imovel_txt }
@@ -551,7 +560,7 @@ module Meta
           return
         end
 
-        locale = hook_setting('whatsapp_template_locale').presence || 'pt_BR'
+        locale = hook_setting('whatsapp_template_locale').presence || DEFAULT_TEMPLATE_LOCALE
         body = template_body_params
 
         Messages::MessageBuilder.new(
