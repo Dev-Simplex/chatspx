@@ -255,7 +255,7 @@ RSpec.describe 'Lead Campaigns API', type: :request do
   describe 'PUT /api/v1/accounts/{account.id}/lead_campaigns' do
     let(:hook) { criar_hook(extras: { 'target_inbox_id' => inbox_whatsapp.id }) }
 
-    def salvar(roteamento, quem: administrator, campanha: campanha_com_override)
+    def salvar(quem: administrator, campanha: campanha_com_override, **roteamento)
       put url, params: { campaign_id: campanha, roteamento: roteamento },
                headers: quem.create_new_auth_token, as: :json
     end
@@ -264,7 +264,7 @@ RSpec.describe 'Lead Campaigns API', type: :request do
       before { hook }
 
       it 'refuses the edit' do
-        salvar({ template: 'abertura_padrao', campos: ['first_name'] }, quem: agent)
+        salvar(template: 'abertura_padrao', campos: ['first_name'], quem: agent)
 
         expect(response).to have_http_status(:unauthorized)
         expect(overrides_do(hook)).to eq({})
