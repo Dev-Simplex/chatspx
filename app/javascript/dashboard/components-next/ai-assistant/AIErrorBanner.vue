@@ -28,40 +28,40 @@ const VARIANTS = {
   rate_limit: {
     tone: 'amber',
     icon: 'i-lucide-clock',
-    titleKey: 'CONVERSATION.COPILOT_ERRORS.RATE_LIMIT.TITLE',
-    bodyKey: 'CONVERSATION.COPILOT_ERRORS.RATE_LIMIT.BODY',
+    titleKey: 'COPILOT_ERRORS.RATE_LIMIT.TITLE',
+    bodyKey: 'COPILOT_ERRORS.RATE_LIMIT.BODY',
     ariaLive: 'polite',
     ctas: ['retry', 'dismiss'],
   },
   captain_unstable: {
     tone: 'red',
     icon: 'i-lucide-cloud-off',
-    titleKey: 'CONVERSATION.COPILOT_ERRORS.CAPTAIN_UNSTABLE.TITLE',
-    bodyKey: 'CONVERSATION.COPILOT_ERRORS.CAPTAIN_UNSTABLE.BODY',
+    titleKey: 'COPILOT_ERRORS.CAPTAIN_UNSTABLE.TITLE',
+    bodyKey: 'COPILOT_ERRORS.CAPTAIN_UNSTABLE.BODY',
     ariaLive: 'polite',
     ctas: ['retry', 'dismiss'],
   },
   timeout: {
     tone: 'amber',
     icon: 'i-lucide-hourglass',
-    titleKey: 'CONVERSATION.COPILOT_ERRORS.TIMEOUT.TITLE',
-    bodyKey: 'CONVERSATION.COPILOT_ERRORS.TIMEOUT.BODY',
+    titleKey: 'COPILOT_ERRORS.TIMEOUT.TITLE',
+    bodyKey: 'COPILOT_ERRORS.TIMEOUT.BODY',
     ariaLive: 'polite',
     ctas: ['retry', 'cancel'],
   },
   empty_response: {
     tone: 'red',
     icon: 'i-lucide-circle-help',
-    titleKey: 'CONVERSATION.COPILOT_ERRORS.EMPTY_RESPONSE.TITLE',
-    bodyKey: 'CONVERSATION.COPILOT_ERRORS.EMPTY_RESPONSE.BODY',
+    titleKey: 'COPILOT_ERRORS.EMPTY_RESPONSE.TITLE',
+    bodyKey: 'COPILOT_ERRORS.EMPTY_RESPONSE.BODY',
     ariaLive: 'polite',
     ctas: ['retry', 'dismiss'],
   },
   network: {
     tone: 'red',
     icon: 'i-lucide-wifi-off',
-    titleKey: 'CONVERSATION.COPILOT_ERRORS.NETWORK.TITLE',
-    bodyKey: 'CONVERSATION.COPILOT_ERRORS.NETWORK.BODY',
+    titleKey: 'COPILOT_ERRORS.NETWORK.TITLE',
+    bodyKey: 'COPILOT_ERRORS.NETWORK.BODY',
     ariaLive: 'assertive',
     ctas: ['retry', 'dismiss'],
   },
@@ -91,21 +91,21 @@ const isRetryDisabled = computed(() => {
 
 const retryLabel = computed(() => {
   if (props.errorType === 'rate_limit' && props.retryAfterSeconds > 0) {
-    return t('CONVERSATION.COPILOT_ERRORS.RATE_LIMIT.CTA_COUNTDOWN', {
+    return t('COPILOT_ERRORS.RATE_LIMIT.CTA_COUNTDOWN', {
       seconds: props.retryAfterSeconds,
     });
   }
   if (props.errorType === 'timeout') {
-    return t('CONVERSATION.COPILOT_ERRORS.TIMEOUT.CTA_PRIMARY');
+    return t('COPILOT_ERRORS.TIMEOUT.CTA_PRIMARY');
   }
-  return t('CONVERSATION.COPILOT_ERRORS.CTA_RETRY');
+  return t('COPILOT_ERRORS.CTA_RETRY');
 });
 
 const cancelLabel = computed(() =>
-  t('CONVERSATION.COPILOT_ERRORS.TIMEOUT.CTA_CANCEL')
+  t('COPILOT_ERRORS.TIMEOUT.CTA_CANCEL')
 );
 const dismissLabel = computed(() =>
-  t('CONVERSATION.COPILOT_ERRORS.CTA_DISMISS')
+  t('COPILOT_ERRORS.CTA_DISMISS')
 );
 
 const showCancel = computed(() => variant.value?.ctas?.includes('cancel'));

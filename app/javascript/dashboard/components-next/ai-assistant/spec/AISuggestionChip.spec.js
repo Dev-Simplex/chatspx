@@ -30,10 +30,10 @@ describe('AISuggestionChip', () => {
       props: { text: 'Olá, posso ajudar?', isStreaming: false },
     });
     expect(wrapper.text()).toContain(
-      'CONVERSATION.AI_ASSISTANT_PANEL.SUGGESTION_CHIP.HEADER'
+      'AI_ASSISTANT_PANEL.SUGGESTION_CHIP.HEADER'
     );
     expect(wrapper.text()).toContain(
-      'CONVERSATION.AI_ASSISTANT_PANEL.SUGGESTION_CHIP.SUBTITLE'
+      'AI_ASSISTANT_PANEL.SUGGESTION_CHIP.SUBTITLE'
     );
     expect(
       wrapper.find('[data-testid="ai-suggestion-chip-use"]').exists()
@@ -140,7 +140,7 @@ describe('AISuggestionChip', () => {
     const anchor = wrapper.find('[data-ai-tour="suggestion-chip"]');
     expect(anchor.attributes('role')).toBe('region');
     expect(anchor.attributes('aria-label')).toBe(
-      'CONVERSATION.AI_ASSISTANT_PANEL.SUGGESTION_CHIP.HEADER'
+      'AI_ASSISTANT_PANEL.SUGGESTION_CHIP.HEADER'
     );
   });
 });

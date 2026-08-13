@@ -51,7 +51,7 @@ describe('AILoadingShimmer', () => {
     const wrapper = mount(AILoadingShimmer);
     const root = wrapper.find('[role="status"]');
     expect(root.attributes('aria-label')).toBe(
-      'CONVERSATION.AI_ASSISTANT_PANEL.LOADING'
+      'AI_ASSISTANT_PANEL.LOADING'
     );
   });
 
@@ -59,7 +59,7 @@ describe('AILoadingShimmer', () => {
     const wrapper = mount(AILoadingShimmer);
     const srOnly = wrapper.find('.sr-only');
     expect(srOnly.exists()).toBe(true);
-    expect(srOnly.text()).toBe('CONVERSATION.AI_ASSISTANT_PANEL.LOADING');
+    expect(srOnly.text()).toBe('AI_ASSISTANT_PANEL.LOADING');
   });
 
   it('falls back to 3 pulsing dots when prefers-reduced-motion is on', () => {

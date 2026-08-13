@@ -83,41 +83,41 @@ const hasMessages = computed(() => messagesCount.value > 0);
 const sections = computed(() => [
   {
     id: 'understand',
-    title: t('CONVERSATION.AI_ASSISTANT_PANEL.SECTIONS.UNDERSTAND'),
+    title: t('AI_ASSISTANT_PANEL.SECTIONS.UNDERSTAND'),
     items: [
       {
         id: 'sentiment',
         action: 'sentiment',
         icon: 'i-lucide-smile',
-        label: t('CONVERSATION.AI_ASSISTANT_PANEL.PROMPTS.SENTIMENT.LABEL'),
+        label: t('AI_ASSISTANT_PANEL.PROMPTS.SENTIMENT.LABEL'),
         description: t(
-          'CONVERSATION.AI_ASSISTANT_PANEL.PROMPTS.SENTIMENT.DESCRIPTION'
+          'AI_ASSISTANT_PANEL.PROMPTS.SENTIMENT.DESCRIPTION'
         ),
       },
       {
         id: 'summarize',
         action: 'summarize',
         icon: 'i-lucide-file-text',
-        label: t('CONVERSATION.AI_ASSISTANT_PANEL.PROMPTS.SUMMARIZE.LABEL'),
+        label: t('AI_ASSISTANT_PANEL.PROMPTS.SUMMARIZE.LABEL'),
         description: t(
-          'CONVERSATION.AI_ASSISTANT_PANEL.PROMPTS.SUMMARIZE.DESCRIPTION'
+          'AI_ASSISTANT_PANEL.PROMPTS.SUMMARIZE.DESCRIPTION'
         ),
       },
     ],
   },
   {
     id: 'create',
-    title: t('CONVERSATION.AI_ASSISTANT_PANEL.SECTIONS.CREATE'),
+    title: t('AI_ASSISTANT_PANEL.SECTIONS.CREATE'),
     items: [
       {
         id: 'reply_suggestion',
         action: 'reply_suggestion',
         icon: 'i-lucide-lightbulb',
         label: t(
-          'CONVERSATION.AI_ASSISTANT_PANEL.PROMPTS.REPLY_SUGGESTION.LABEL'
+          'AI_ASSISTANT_PANEL.PROMPTS.REPLY_SUGGESTION.LABEL'
         ),
         description: t(
-          'CONVERSATION.AI_ASSISTANT_PANEL.PROMPTS.REPLY_SUGGESTION.DESCRIPTION'
+          'AI_ASSISTANT_PANEL.PROMPTS.REPLY_SUGGESTION.DESCRIPTION'
         ),
       },
     ],
@@ -153,7 +153,7 @@ async function runAction({ action, label }) {
   if (isPrivateMode.value) {
     // Defense-in-depth — useCaptain also guards this
     toast.error(
-      t('CONVERSATION.AI_ASSISTANT_PANEL.TOAST.PRIVATE_MODE_BLOCKED'),
+      t('AI_ASSISTANT_PANEL.TOAST.PRIVATE_MODE_BLOCKED'),
       {
         important: true,
       }
@@ -266,7 +266,7 @@ function handleSuggestionDismiss(suggestion) {
     banner_type: suggestion.id,
     conversation_id: currentChat.value?.id,
   });
-  toast(t('CONVERSATION.AI_ASSISTANT_PANEL.SMART_BANNER.DISMISSED_TOAST'));
+  toast(t('AI_ASSISTANT_PANEL.SMART_BANNER.DISMISSED_TOAST'));
 }
 
 watch(
@@ -315,7 +315,7 @@ async function sendPrompt() {
   if (!value || isLoading.value) return;
   if (isPrivateMode.value) {
     toast.error(
-      t('CONVERSATION.AI_ASSISTANT_PANEL.TOAST.PRIVATE_MODE_BLOCKED'),
+      t('AI_ASSISTANT_PANEL.TOAST.PRIVATE_MODE_BLOCKED'),
       {
         important: true,
       }
@@ -454,7 +454,7 @@ onBeforeUnmount(() => {
 });
 
 const placeholderText = computed(() =>
-  t('CONVERSATION.AI_ASSISTANT_PANEL.TEXTAREA.PLACEHOLDER')
+  t('AI_ASSISTANT_PANEL.TEXTAREA.PLACEHOLDER')
 );
 
 const showEdgeCaseEmpty = computed(
@@ -573,12 +573,12 @@ const showEdgeCaseWhatsappExpired = computed(() => {
                 <DialogTitle
                   class="truncate text-sm font-semibold text-n-slate-12"
                 >
-                  {{ t('CONVERSATION.AI_ASSISTANT_PANEL.TITLE') }}
+                  {{ t('AI_ASSISTANT_PANEL.TITLE') }}
                 </DialogTitle>
               </div>
               <button
                 type="button"
-                :aria-label="t('CONVERSATION.AI_ASSISTANT_PANEL.CLOSE')"
+                :aria-label="t('AI_ASSISTANT_PANEL.CLOSE')"
                 class="inline-flex size-8 items-center justify-center rounded-md text-n-slate-11 transition-colors hover:bg-n-alpha-2 focus:outline-none focus-visible:ring-2 focus-visible:ring-n-violet-8"
                 @click="closeFromUISettings"
               >
@@ -603,21 +603,21 @@ const showEdgeCaseWhatsappExpired = computed(() => {
                     class="text-base font-semibold text-n-slate-12"
                   >
                     <span aria-hidden="true">{{
-                      t('CONVERSATION.AI_ASSISTANT_PANEL.EMPTY.GREETING_EMOJI')
+                      t('AI_ASSISTANT_PANEL.EMPTY.GREETING_EMOJI')
                     }}</span>
                     {{
                       agentName
                         ? t(
-                            'CONVERSATION.AI_ASSISTANT_PANEL.EMPTY.GREETING_NAMED',
+                            'AI_ASSISTANT_PANEL.EMPTY.GREETING_NAMED',
                             { name: agentName }
                           )
                         : t(
-                            'CONVERSATION.AI_ASSISTANT_PANEL.EMPTY.GREETING_GENERIC'
+                            'AI_ASSISTANT_PANEL.EMPTY.GREETING_GENERIC'
                           )
                     }}
                   </h2>
                   <p class="text-xs text-n-slate-10">
-                    {{ t('CONVERSATION.AI_ASSISTANT_PANEL.EMPTY.SUBTITLE') }}
+                    {{ t('AI_ASSISTANT_PANEL.EMPTY.SUBTITLE') }}
                   </p>
                 </div>
 
@@ -638,14 +638,14 @@ const showEdgeCaseWhatsappExpired = computed(() => {
                   <p class="font-semibold text-n-slate-12">
                     {{
                       t(
-                        'CONVERSATION.AI_ASSISTANT_PANEL.EDGE_CASES.EMPTY_CONVERSATION_TITLE'
+                        'AI_ASSISTANT_PANEL.EDGE_CASES.EMPTY_CONVERSATION_TITLE'
                       )
                     }}
                   </p>
                   <p class="mt-0.5">
                     {{
                       t(
-                        'CONVERSATION.AI_ASSISTANT_PANEL.EDGE_CASES.EMPTY_CONVERSATION_BODY'
+                        'AI_ASSISTANT_PANEL.EDGE_CASES.EMPTY_CONVERSATION_BODY'
                       )
                     }}
                   </p>
@@ -658,14 +658,14 @@ const showEdgeCaseWhatsappExpired = computed(() => {
                   <p class="font-semibold">
                     {{
                       t(
-                        'CONVERSATION.AI_ASSISTANT_PANEL.EDGE_CASES.PRIVATE_MODE_TITLE'
+                        'AI_ASSISTANT_PANEL.EDGE_CASES.PRIVATE_MODE_TITLE'
                       )
                     }}
                   </p>
                   <p class="mt-0.5">
                     {{
                       t(
-                        'CONVERSATION.AI_ASSISTANT_PANEL.EDGE_CASES.PRIVATE_MODE_BODY'
+                        'AI_ASSISTANT_PANEL.EDGE_CASES.PRIVATE_MODE_BODY'
                       )
                     }}
                   </p>
@@ -684,14 +684,14 @@ const showEdgeCaseWhatsappExpired = computed(() => {
                     <p class="font-semibold">
                       {{
                         t(
-                          'CONVERSATION.AI_ASSISTANT_PANEL.EDGE_CASES.WHATSAPP_EXPIRED_TITLE'
+                          'AI_ASSISTANT_PANEL.EDGE_CASES.WHATSAPP_EXPIRED_TITLE'
                         )
                       }}
                     </p>
                     <p>
                       {{
                         t(
-                          'CONVERSATION.AI_ASSISTANT_PANEL.EDGE_CASES.WHATSAPP_EXPIRED_BODY'
+                          'AI_ASSISTANT_PANEL.EDGE_CASES.WHATSAPP_EXPIRED_BODY'
                         )
                       }}
                     </p>
@@ -704,7 +704,7 @@ const showEdgeCaseWhatsappExpired = computed(() => {
                 >
                   {{
                     t(
-                      'CONVERSATION.AI_ASSISTANT_PANEL.EDGE_CASES.LONG_CONVERSATION_HINT'
+                      'AI_ASSISTANT_PANEL.EDGE_CASES.LONG_CONVERSATION_HINT'
                     )
                   }}
                 </div>
@@ -730,7 +730,7 @@ const showEdgeCaseWhatsappExpired = computed(() => {
                     :disabled-reason="
                       isPrivateMode
                         ? t(
-                            'CONVERSATION.AI_ASSISTANT_PANEL.EDGE_CASES.PRIVATE_MODE_BODY'
+                            'AI_ASSISTANT_PANEL.EDGE_CASES.PRIVATE_MODE_BODY'
                           )
                         : ''
                     "
@@ -743,7 +743,7 @@ const showEdgeCaseWhatsappExpired = computed(() => {
               <section
                 v-if="history.length"
                 class="flex flex-col gap-3"
-                :aria-label="t('CONVERSATION.AI_ASSISTANT_PANEL.HISTORY_LABEL')"
+                :aria-label="t('AI_ASSISTANT_PANEL.HISTORY_LABEL')"
               >
                 <template v-for="msg in history" :key="msg.id">
                   <AILoadingShimmer v-if="msg.type === 'thinking'" />
@@ -791,7 +791,7 @@ const showEdgeCaseWhatsappExpired = computed(() => {
                 <button
                   type="submit"
                   :disabled="!draftPrompt.trim() || isLoading"
-                  :aria-label="t('CONVERSATION.AI_ASSISTANT_PANEL.SEND')"
+                  :aria-label="t('AI_ASSISTANT_PANEL.SEND')"
                   class="inline-flex size-9 shrink-0 items-center justify-center rounded-full bg-n-violet-9 text-white transition-colors hover:bg-n-violet-10 dark:hover:bg-n-violet-8 focus:outline-none focus-visible:ring-2 focus-visible:ring-n-violet-8 disabled:cursor-not-allowed disabled:opacity-50"
                 >
                   <Icon
@@ -802,7 +802,7 @@ const showEdgeCaseWhatsappExpired = computed(() => {
                 </button>
               </form>
               <p class="mt-1.5 text-[11px] text-n-slate-9">
-                {{ t('CONVERSATION.AI_ASSISTANT_PANEL.TEXTAREA.HINT') }}
+                {{ t('AI_ASSISTANT_PANEL.TEXTAREA.HINT') }}
               </p>
             </footer>
           </DialogPanel>

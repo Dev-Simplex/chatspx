@@ -91,10 +91,10 @@ async function handleCopy() {
     if (navigator?.clipboard?.writeText) {
       await navigator.clipboard.writeText(props.text || '');
     }
-    toast.success(t('CONVERSATION.AI_ASSISTANT_PANEL.TOAST.COPIED'));
+    toast.success(t('AI_ASSISTANT_PANEL.TOAST.COPIED'));
     emit('copy');
   } catch {
-    toast.error(t('CONVERSATION.AI_ASSISTANT_PANEL.TOAST.COPY_FAILED'), {
+    toast.error(t('AI_ASSISTANT_PANEL.TOAST.COPY_FAILED'), {
       important: true,
     });
   }
@@ -102,7 +102,7 @@ async function handleCopy() {
 
 function handleApply() {
   emit('apply', props.text);
-  toast.success(t('CONVERSATION.AI_ASSISTANT_PANEL.TOAST.APPLIED'));
+  toast.success(t('AI_ASSISTANT_PANEL.TOAST.APPLIED'));
 }
 
 function handleRetry() {
@@ -116,7 +116,7 @@ function handleFeedback(kind) {
   if (now - lastFeedbackAt.value < 300) return;
   lastFeedbackAt.value = now;
   emit('feedback', kind);
-  toast.success(t('CONVERSATION.AI_ASSISTANT_PANEL.TOAST.FEEDBACK_SAVED'));
+  toast.success(t('AI_ASSISTANT_PANEL.TOAST.FEEDBACK_SAVED'));
 }
 
 function handleCancelStreaming() {
@@ -150,7 +150,7 @@ const showCancel = computed(
     <div
       v-else-if="type === 'thinking'"
       role="status"
-      :aria-label="t('CONVERSATION.AI_ASSISTANT_PANEL.LOADING')"
+      :aria-label="t('AI_ASSISTANT_PANEL.LOADING')"
       data-testid="ai-message-bubble-thinking"
       class="flex max-w-[85%] items-center gap-2 rounded-2xl rounded-tl-sm bg-n-solid-1 px-3 py-2 text-sm text-n-slate-11 shadow-sm dark:bg-n-slate-12"
     >
@@ -159,7 +159,7 @@ const showCancel = computed(
         class="size-4 animate-pulse text-n-violet-11"
         aria-hidden="true"
       />
-      <span>{{ t('CONVERSATION.AI_ASSISTANT_PANEL.LOADING') }}</span>
+      <span>{{ t('AI_ASSISTANT_PANEL.LOADING') }}</span>
       <span class="flex gap-0.5" aria-hidden="true">
         <span class="size-1 animate-bounce rounded-full bg-current" />
         <span
@@ -206,7 +206,7 @@ const showCancel = computed(
         aria-live="polite"
         class="sr-only"
       >
-        {{ t('CONVERSATION.AI_ASSISTANT_PANEL.STREAM_COMPLETE') }}
+        {{ t('AI_ASSISTANT_PANEL.STREAM_COMPLETE') }}
       </span>
 
       <div v-if="showCancel" class="flex justify-end">
@@ -215,7 +215,7 @@ const showCancel = computed(
           class="rounded-md border border-n-weak bg-transparent px-2 py-1 text-[11px] font-medium text-n-slate-11 transition-colors hover:bg-n-alpha-2 focus:outline-none focus-visible:ring-2 focus-visible:ring-n-violet-8"
           @click="handleCancelStreaming"
         >
-          {{ t('CONVERSATION.AI_ASSISTANT_PANEL.ACTIONS.CANCEL') }}
+          {{ t('AI_ASSISTANT_PANEL.ACTIONS.CANCEL') }}
         </button>
       </div>
 
@@ -223,25 +223,25 @@ const showCancel = computed(
       <div v-if="showActions" class="-mb-1 flex flex-wrap items-center gap-1">
         <button
           type="button"
-          :aria-label="t('CONVERSATION.AI_ASSISTANT_PANEL.ACTIONS.COPY')"
+          :aria-label="t('AI_ASSISTANT_PANEL.ACTIONS.COPY')"
           class="inline-flex items-center gap-1 rounded-md px-2 py-1 text-[11px] font-medium text-n-slate-11 transition-colors hover:bg-n-alpha-2 focus:outline-none focus-visible:ring-2 focus-visible:ring-n-violet-8"
           @click="handleCopy"
         >
           <Icon icon="i-lucide-copy" class="size-3.5" aria-hidden="true" />
-          {{ t('CONVERSATION.AI_ASSISTANT_PANEL.ACTIONS.COPY') }}
+          {{ t('AI_ASSISTANT_PANEL.ACTIONS.COPY') }}
         </button>
         <button
           type="button"
-          :aria-label="t('CONVERSATION.AI_ASSISTANT_PANEL.ACTIONS.APPLY')"
+          :aria-label="t('AI_ASSISTANT_PANEL.ACTIONS.APPLY')"
           class="inline-flex items-center gap-1 rounded-md px-2 py-1 text-[11px] font-medium text-n-slate-11 transition-colors hover:bg-n-alpha-2 focus:outline-none focus-visible:ring-2 focus-visible:ring-n-violet-8"
           @click="handleApply"
         >
           <Icon icon="i-lucide-pencil" class="size-3.5" aria-hidden="true" />
-          {{ t('CONVERSATION.AI_ASSISTANT_PANEL.ACTIONS.APPLY') }}
+          {{ t('AI_ASSISTANT_PANEL.ACTIONS.APPLY') }}
         </button>
         <button
           type="button"
-          :aria-label="t('CONVERSATION.AI_ASSISTANT_PANEL.ACTIONS.RETRY')"
+          :aria-label="t('AI_ASSISTANT_PANEL.ACTIONS.RETRY')"
           class="inline-flex items-center gap-1 rounded-md px-2 py-1 text-[11px] font-medium text-n-slate-11 transition-colors hover:bg-n-alpha-2 focus:outline-none focus-visible:ring-2 focus-visible:ring-n-violet-8"
           @click="handleRetry"
         >
@@ -250,33 +250,33 @@ const showCancel = computed(
             class="size-3.5"
             aria-hidden="true"
           />
-          {{ t('CONVERSATION.AI_ASSISTANT_PANEL.ACTIONS.RETRY') }}
+          {{ t('AI_ASSISTANT_PANEL.ACTIONS.RETRY') }}
         </button>
         <span class="mx-0.5 h-3 w-px bg-n-weak" aria-hidden="true" />
         <button
           type="button"
           :aria-label="
-            t('CONVERSATION.AI_ASSISTANT_PANEL.ACTIONS.FEEDBACK_GOOD')
+            t('AI_ASSISTANT_PANEL.ACTIONS.FEEDBACK_GOOD')
           "
           class="inline-flex items-center gap-1 rounded-md px-1.5 py-1 text-[11px] font-medium text-n-slate-11 transition-colors hover:bg-n-alpha-2 focus:outline-none focus-visible:ring-2 focus-visible:ring-n-violet-8"
           @click="handleFeedback('up')"
         >
           <span aria-hidden="true">👍</span>
           <span class="sr-only">
-            {{ t('CONVERSATION.AI_ASSISTANT_PANEL.ACTIONS.FEEDBACK_GOOD') }}
+            {{ t('AI_ASSISTANT_PANEL.ACTIONS.FEEDBACK_GOOD') }}
           </span>
         </button>
         <button
           type="button"
           :aria-label="
-            t('CONVERSATION.AI_ASSISTANT_PANEL.ACTIONS.FEEDBACK_BAD')
+            t('AI_ASSISTANT_PANEL.ACTIONS.FEEDBACK_BAD')
           "
           class="inline-flex items-center gap-1 rounded-md px-1.5 py-1 text-[11px] font-medium text-n-slate-11 transition-colors hover:bg-n-alpha-2 focus:outline-none focus-visible:ring-2 focus-visible:ring-n-violet-8"
           @click="handleFeedback('down')"
         >
           <span aria-hidden="true">👎</span>
           <span class="sr-only">
-            {{ t('CONVERSATION.AI_ASSISTANT_PANEL.ACTIONS.FEEDBACK_BAD') }}
+            {{ t('AI_ASSISTANT_PANEL.ACTIONS.FEEDBACK_BAD') }}
           </span>
         </button>
       </div>

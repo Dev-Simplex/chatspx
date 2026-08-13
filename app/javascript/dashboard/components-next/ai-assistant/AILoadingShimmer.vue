@@ -21,12 +21,12 @@ const { prefersReducedMotion } = useReducedMotion();
   <div
     role="status"
     aria-busy="true"
-    :aria-label="t('CONVERSATION.AI_ASSISTANT_PANEL.LOADING')"
+    :aria-label="t('AI_ASSISTANT_PANEL.LOADING')"
     data-testid="ai-loading-shimmer"
     class="flex w-full max-w-[85%] flex-col gap-2 rounded-2xl rounded-tl-sm bg-n-solid-1 px-3 py-3 shadow-sm dark:bg-n-slate-12"
   >
     <span class="sr-only">
-      {{ t('CONVERSATION.AI_ASSISTANT_PANEL.LOADING') }}
+      {{ t('AI_ASSISTANT_PANEL.LOADING') }}
     </span>
 
     <template v-if="!prefersReducedMotion">

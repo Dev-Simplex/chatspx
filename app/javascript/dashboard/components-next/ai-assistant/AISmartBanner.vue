@@ -102,7 +102,7 @@ const ctaLabel = computed(() => t(props.suggestion.ctaKey));
 const ariaLabelCta = computed(() => `${ctaLabel.value} — ${bodyText.value}`);
 
 const dismissTooltip = computed(() =>
-  t('CONVERSATION.AI_ASSISTANT_PANEL.SMART_BANNER.DISMISS_TOOLTIP')
+  t('AI_ASSISTANT_PANEL.SMART_BANNER.DISMISS_TOOLTIP')
 );
 
 function handleAction() {

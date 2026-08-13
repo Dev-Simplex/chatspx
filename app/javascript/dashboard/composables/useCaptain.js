@@ -399,7 +399,7 @@ export function useCaptain() {
     if (isBlockedByPrivateMode(type)) {
       useTrack('ai.private_mode.blocked', { type });
       sonnerToast.error(
-        t('CONVERSATION.AI_ASSISTANT_PANEL.TOAST.PRIVATE_MODE_BLOCKED'),
+        t('AI_ASSISTANT_PANEL.TOAST.PRIVATE_MODE_BLOCKED'),
         { important: true }
       );
       return {

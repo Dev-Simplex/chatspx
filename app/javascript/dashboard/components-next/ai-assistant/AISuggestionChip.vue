@@ -162,28 +162,28 @@ onBeforeUnmount(() => {
 });
 
 const headerLabel = computed(() =>
-  t('CONVERSATION.AI_ASSISTANT_PANEL.SUGGESTION_CHIP.HEADER')
+  t('AI_ASSISTANT_PANEL.SUGGESTION_CHIP.HEADER')
 );
 const subtitleLabel = computed(() =>
-  t('CONVERSATION.AI_ASSISTANT_PANEL.SUGGESTION_CHIP.SUBTITLE')
+  t('AI_ASSISTANT_PANEL.SUGGESTION_CHIP.SUBTITLE')
 );
 const useLabel = computed(() =>
-  t('CONVERSATION.AI_ASSISTANT_PANEL.SUGGESTION_CHIP.USE')
+  t('AI_ASSISTANT_PANEL.SUGGESTION_CHIP.USE')
 );
 const editLabel = computed(() =>
-  t('CONVERSATION.AI_ASSISTANT_PANEL.SUGGESTION_CHIP.EDIT')
+  t('AI_ASSISTANT_PANEL.SUGGESTION_CHIP.EDIT')
 );
 const discardLabel = computed(() =>
-  t('CONVERSATION.AI_ASSISTANT_PANEL.SUGGESTION_CHIP.DISCARD')
+  t('AI_ASSISTANT_PANEL.SUGGESTION_CHIP.DISCARD')
 );
 const editTooltip = computed(() =>
-  t('CONVERSATION.AI_ASSISTANT_PANEL.SUGGESTION_CHIP.EDIT_TOOLTIP')
+  t('AI_ASSISTANT_PANEL.SUGGESTION_CHIP.EDIT_TOOLTIP')
 );
 const discardTooltip = computed(() =>
-  t('CONVERSATION.AI_ASSISTANT_PANEL.SUGGESTION_CHIP.DISCARD_TOOLTIP')
+  t('AI_ASSISTANT_PANEL.SUGGESTION_CHIP.DISCARD_TOOLTIP')
 );
 const cancelLabel = computed(() =>
-  t('CONVERSATION.AI_ASSISTANT_PANEL.ACTIONS.CANCEL')
+  t('AI_ASSISTANT_PANEL.ACTIONS.CANCEL')
 );
 const ariaLabelRegion = computed(() => headerLabel.value);
 
@@ -269,7 +269,7 @@ const showCancel = computed(() => !props.errorType && props.isStreaming);
         aria-live="polite"
         class="sr-only"
       >
-        {{ t('CONVERSATION.AI_ASSISTANT_PANEL.STREAM_COMPLETE') }}
+        {{ t('AI_ASSISTANT_PANEL.STREAM_COMPLETE') }}
       </span>
 
       <!-- Cancel during streaming -->
