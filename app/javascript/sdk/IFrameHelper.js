@@ -28,7 +28,12 @@ import {
   CHATWOOT_READY,
 } from '../widget/constants/sdkEvents';
 import { SET_USER_ERROR } from '../widget/constants/errorTypes';
-import { getUserCookieName, setCookieWithDomain } from './cookieHelpers';
+import {
+  getConversationToken,
+  getUserCookieName,
+  setConversationToken,
+  setCookieWithDomain,
+} from './cookieHelpers';
 import {
   getAlertAudio,
   initOnEvents,
@@ -38,8 +43,9 @@ import { popoutChatWindow } from '../widget/helpers/popoutHelper';
 import addHours from 'date-fns/addHours';
 
 const updateAuthCookie = (cookieContent, baseDomain = '') =>
-  setCookieWithDomain('cw_conversation', cookieContent, {
+  setConversationToken(cookieContent, {
     baseDomain,
+    websiteToken: window.$chatwoot.websiteToken,
   });
 
 const updateCampaignReadStatus = baseDomain => {
@@ -61,7 +67,7 @@ export const IFrameHelper = {
 
     loadCSS();
     const iframe = document.createElement('iframe');
-    const cwCookie = Cookies.get('cw_conversation');
+    const cwCookie = getConversationToken(websiteToken);
     let widgetUrl = IFrameHelper.getUrl({ baseUrl, websiteToken });
     if (cwCookie) {
       widgetUrl = `${widgetUrl}&cw_conversation=${cwCookie}`;
@@ -237,7 +243,7 @@ export const IFrameHelper = {
     },
 
     popoutChatWindow: ({ baseUrl, websiteToken, locale }) => {
-      const cwCookie = Cookies.get('cw_conversation');
+      const cwCookie = getConversationToken(window.$chatwoot.websiteToken);
       window.$chatwoot.toggle('close');
       popoutChatWindow(baseUrl, websiteToken, locale, cwCookie);
     },
