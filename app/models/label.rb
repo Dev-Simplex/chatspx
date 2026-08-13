@@ -63,9 +63,12 @@ class Label < ApplicationRecord
   end
 
   # Catálogo visível a um usuário (o coração da feature) — espelha Macro.with_visibility.
-  # ATENÇÃO: usar SÓ no labels_controller#index. Não aplicar globalmente.
-  def self.with_visibility(user)
-    account = Current.account
+  # ATENÇÃO: usar SÓ para LISTAR catálogo. Não aplicar globalmente (não é filtro de conversa).
+  #
+  # `account` é parâmetro (com o default de sempre) porque o copilot também lista catálogo e
+  # roda em job — lá `Current.account` é nil. Passar a conta explicitamente é o que evita a
+  # segunda cópia da regra de visibilidade.
+  def self.with_visibility(user, account = Current.account)
     base = account.labels                         # respeita o scoping por conta da associação
     return base if account_admin?(user, account)  # admin vê tudo
 
