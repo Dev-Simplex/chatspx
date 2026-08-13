@@ -2794,7 +2794,14 @@ aside [class*='cursor-col-resize'] {
    destaca do papel sem competir com as bolhas. O escuro não é tocado — lá o
    conjunto já funciona.
    ======================================================================= */
-html:not(.dark) {
+/* ⚠️ O marcador de tema no dashboard fica no BODY (`themeHelper.js` faz
+   `document.body.classList.add('dark')`), não no `<html>`. Um `html:not(.dark)`
+   é sempre verdadeiro aqui e vaza a pílula branca para o tema escuro — onde,
+   pior, a tinta não acompanha, porque `.dark [class~='text-n-slate-11']` é
+   `!important` e vence: pílula branca com texto cinza-claro. Foi o que
+   aconteceu. Use `body:not(.dark)`, e o bloco `.dark` logo abaixo restaura o
+   visual anterior por garantia, caso o marcador mude de lugar um dia. */
+body:not(.dark) {
   /* Mensagem de sistema/atividade — pílula branca. O `:not(.is-ai)` preserva o
      glow violeta animado das atividades de IA, que usa box-shadow. */
   .conversation-panel .ai-activity-bubble {
@@ -2831,6 +2838,38 @@ html:not(.dark) {
      leve que o texto da mensagem (ruby-12 cheio), preservando a hierarquia. */
   .conversation-panel .bg-n-ruby-4 .text-n-slate-11 {
     color: rgb(var(--ruby-12) / 0.75);
+  }
+}
+
+/* Rede de segurança: o tema escuro volta ao que sempre foi — véu translúcido na
+   pílula de atividade e separador como faixa de largura total com as duas
+   linhas. Como `.dark` é ANCESTRAL (body hoje, html no v3), esta parte funciona
+   independentemente de onde o marcador esteja; se o `body:not(.dark)` acima
+   voltar a vazar, o dano fica desfeito aqui. */
+.dark {
+  .conversation-panel .ai-activity-bubble {
+    background-color: rgba(134, 150, 160, 0.08);
+    box-shadow: none;
+  }
+
+  .conversation-panel .ai-activity-bubble.is-ai {
+    box-shadow: revert;
+  }
+
+  .conversation-panel > div.text-sm.text-center.relative.w-full {
+    width: 100%;
+    height: 50px;
+    margin: 0;
+    padding: 0;
+    border-radius: 0;
+    line-height: 50px;
+    background-color: transparent;
+    box-shadow: none;
+
+    &::before,
+    &::after {
+      display: block;
+    }
   }
 }
 
