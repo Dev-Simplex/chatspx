@@ -340,10 +340,21 @@
 // used inside the contact history sidebar and exposes `.wa-conversation-card`.
 
 // Hover / borders / transitions (both cards).
+//
+// O gancho do card sem classe própria é a utilitária `cursor-pointer`, mas ela
+// entra aqui como ATRIBUTO (`[class~='cursor-pointer']`), nunca como seletor de
+// classe. Motivo: o `@apply` do Tailwind copia toda regra do CSS do usuário que
+// mencione a utilitária, trocando o seletor da classe pelo seletor de quem
+// aplicou. Como `_base.scss` faz `@apply … cursor-pointer` dentro de `p a` e de
+// `button`, estas quatro regras eram duplicadas como
+// `.conversations-list [role=button]p a` e `…[role=button]button` — compostos
+// inválidos (tipo depois de atributo), que o esbuild acusava como
+// css-syntax-error a cada build e que nunca casaram com nada. O atributo casa a
+// mesma coisa e o `@apply` não o reescreve.
 .conversations-list .conversation,
 .conversations-list-wrap .conversation,
-.conversations-list [role='button'].cursor-pointer,
-.conversations-list-wrap [role='button'].cursor-pointer,
+.conversations-list [role='button'][class~='cursor-pointer'],
+.conversations-list-wrap [role='button'][class~='cursor-pointer'],
 .contact-conversations .wa-conversation-card {
   border-bottom: 1px solid var(--wa-list-border);
   transition: background-color 120ms ease-out;
@@ -355,8 +366,8 @@
 
 .dark .conversations-list .conversation,
 .dark .conversations-list-wrap .conversation,
-.dark .conversations-list [role='button'].cursor-pointer,
-.dark .conversations-list-wrap [role='button'].cursor-pointer,
+.dark .conversations-list [role='button'][class~='cursor-pointer'],
+.dark .conversations-list-wrap [role='button'][class~='cursor-pointer'],
 .dark .contact-conversations .wa-conversation-card {
   border-bottom-color: var(--wa-list-border-dark);
   &:hover {
