@@ -39,7 +39,8 @@ const SEM_VARIAVEL = 'none';
 // lint de i18n e garante que a lista do backend e a tradução andem juntas.
 const MOTIVO_I18N = {
   cabecalho_de_midia: 'CAMPAIGN.LEAD_ADS.EDIT.BLOCKED.cabecalho_de_midia',
-  cabecalho_com_variavel: 'CAMPAIGN.LEAD_ADS.EDIT.BLOCKED.cabecalho_com_variavel',
+  cabecalho_com_variavel:
+    'CAMPAIGN.LEAD_ADS.EDIT.BLOCKED.cabecalho_com_variavel',
   botao_com_variavel: 'CAMPAIGN.LEAD_ADS.EDIT.BLOCKED.botao_com_variavel',
   parametro_nomeado: 'CAMPAIGN.LEAD_ADS.EDIT.BLOCKED.parametro_nomeado',
 };
@@ -68,9 +69,12 @@ const time = ref(HERDAR);
 const opcoes = computed(() => props.hook?.opcoes || {});
 const templates = computed(() => opcoes.value.templates || []);
 const camposDoLead = computed(() => opcoes.value.campos || []);
-const templateEditavel = computed(() => opcoes.value.template_editavel === true);
+const templateEditavel = computed(
+  () => opcoes.value.template_editavel === true
+);
 
-const sobrescreve = chave => (props.campanha.sobrescritos || []).includes(chave);
+const sobrescreve = chave =>
+  (props.campanha.sobrescritos || []).includes(chave);
 
 const camposConfigurados = valor => {
   const bruto = String(valor || '').trim();
@@ -123,7 +127,8 @@ const bloqueados = computed(() =>
 
 const motivo = descritor =>
   t(
-    MOTIVO_I18N[descritor.impedimento] || 'CAMPAIGN.LEAD_ADS.EDIT.BLOCKED.generico'
+    MOTIVO_I18N[descritor.impedimento] ||
+      'CAMPAIGN.LEAD_ADS.EDIT.BLOCKED.generico'
   );
 
 const rotuloBloqueado = descritor =>
@@ -187,7 +192,10 @@ const opcoesDeAgente = computed(() => [
 
 const opcoesDeTime = computed(() => [
   { value: HERDAR, label: t('CAMPAIGN.LEAD_ADS.EDIT.INHERIT') },
-  ...(opcoes.value.times || []).map(item => ({ value: item.id, label: item.nome })),
+  ...(opcoes.value.times || []).map(item => ({
+    value: item.id,
+    label: item.nome,
+  })),
 ]);
 
 const padrao = valor =>
@@ -199,7 +207,8 @@ const padraoDoTemplate = computed(() => padrao(props.hook?.template));
 const padraoDoAgente = computed(() => padrao(props.hook?.agente?.nome));
 const padraoDoTime = computed(() => padrao(props.hook?.time?.nome));
 
-const erroDe = campo => erros.value.find(item => item.campo === campo)?.mensagem;
+const erroDe = campo =>
+  erros.value.find(item => item.campo === campo)?.mensagem;
 
 const autoria = computed(() => {
   const quem = props.campanha.atualizado_por;
@@ -232,7 +241,12 @@ const salvar = async () => {
     erros.value =
       Array.isArray(devolvidos) && devolvidos.length
         ? devolvidos
-        : [{ campo: 'geral', mensagem: t('CAMPAIGN.LEAD_ADS.EDIT.SAVE_ERROR') }];
+        : [
+            {
+              campo: 'geral',
+              mensagem: t('CAMPAIGN.LEAD_ADS.EDIT.SAVE_ERROR'),
+            },
+          ];
   } finally {
     salvando.value = false;
   }
