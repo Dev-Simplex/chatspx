@@ -2399,7 +2399,7 @@ li.child-item > a.router-link-active .text-sm {
 /* Counts/badges on leaf items — use WA chip style */
 li.child-item .text-xxs {
   background: transparent !important;
-  color: #667781 !important;
+  color: var(--wa-text-secondary) !important;
   font-weight: 500;
 }
 li.child-item > a.active .text-xxs,
@@ -2769,7 +2769,7 @@ aside [class*='cursor-col-resize'] {
 .conversation .conversation--message,
 .conversation .conversation--message span,
 .conversation .conversation--message svg {
-  color: #667781 !important;
+  color: var(--wa-text-secondary) !important;
 }
 .dark .conversation .conversation--message,
 .dark .conversation .conversation--message span,
@@ -2788,7 +2788,7 @@ aside [class*='cursor-col-resize'] {
 .conversation:hover .conversation--timestamp,
 .conversation:hover .conversation--timestamp div,
 .conversation:hover .conversation--timestamp span {
-  color: #667781 !important;
+  color: var(--wa-text-secondary) !important;
   font-size: 12px;
 }
 .dark .conversation .conversation--timestamp,
@@ -2803,7 +2803,7 @@ aside [class*='cursor-col-resize'] {
   color: #8696a0 !important;
 }
 .conversation .conversation-card--meta .text-n-slate-11 {
-  color: #667781 !important;
+  color: var(--wa-text-secondary) !important;
 }
 .dark .conversation .conversation-card--meta .text-n-slate-11 {
   color: #8696a0 !important;
