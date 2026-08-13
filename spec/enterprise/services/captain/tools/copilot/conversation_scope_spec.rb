@@ -66,6 +66,93 @@ RSpec.describe 'Copilot tools respect the conversation access scope' do
     end
   end
 
+  describe 'write tools' do
+    # Agente simples: não é membro da caixa em que a conversa vive.
+    let(:agent) { create(:user, account: account) }
+
+    before { create(:inbox_member, user: agent, inbox: own_inbox) }
+
+    def tool(klass)
+      klass.new(assistant, user: agent)
+    end
+
+    it 'send_message refuses and sends nothing' do
+      service = tool(Captain::Tools::Copilot::SendMessageService)
+
+      expect { @result = service.execute(conversation_id: conversation.display_id, content: 'oi') }
+        .not_to change(Message, :count)
+      expect(@result).to eq(refusal)
+    end
+
+    it 'send_template refuses and sends nothing' do
+      service = tool(Captain::Tools::Copilot::SendTemplateService)
+
+      expect { @result = service.execute(conversation_id: conversation.display_id, template_name: 'promo') }
+        .not_to change(Message, :count)
+      expect(@result).to eq(refusal)
+    end
+
+    it 'resolve_conversation refuses and leaves the status untouched' do
+      expect(tool(Captain::Tools::Copilot::ResolveConversationService)
+        .execute(conversation_id: conversation.display_id)).to eq(refusal)
+      expect(conversation.reload).not_to be_resolved
+    end
+
+    it 'snooze_conversation refuses and leaves the status untouched' do
+      expect(tool(Captain::Tools::Copilot::SnoozeConversationService)
+        .execute(conversation_id: conversation.display_id, hours: 4)).to eq(refusal)
+      expect(conversation.reload.snoozed_until).to be_nil
+    end
+
+    it 'change_status refuses and leaves the status untouched' do
+      expect(tool(Captain::Tools::Copilot::ChangeStatusService)
+        .execute(conversation_id: conversation.display_id, status: 'resolved')).to eq(refusal)
+      expect(conversation.reload).not_to be_resolved
+    end
+
+    it 'change_priority refuses and leaves the priority untouched' do
+      expect(tool(Captain::Tools::Copilot::ChangePriorityService)
+        .execute(conversation_id: conversation.display_id, priority: 'urgent')).to eq(refusal)
+      expect(conversation.reload.priority).to be_nil
+    end
+
+    it 'add_label refuses and applies no label' do
+      expect(tool(Captain::Tools::Copilot::AddLabelService)
+        .execute(conversation_id: conversation.display_id, label: 'vip')).to eq(refusal)
+      expect(conversation.reload.label_list).to be_empty
+    end
+
+    it 'remove_label refuses and keeps the existing labels' do
+      conversation.update!(label_list: ['vip'])
+
+      expect(tool(Captain::Tools::Copilot::RemoveLabelService)
+        .execute(conversation_id: conversation.display_id, label: 'vip')).to eq(refusal)
+      expect(conversation.reload.label_list).to include('vip')
+    end
+
+    it 'set_custom_attributes refuses and writes nothing' do
+      expect(tool(Captain::Tools::Copilot::SetCustomAttributesService)
+        .execute(target_type: 'conversation', target_id: conversation.display_id,
+                 attributes: '{"origem":"copilot"}')).to eq(refusal)
+      expect(conversation.reload.custom_attributes).to be_blank
+    end
+
+    it 'transfer_to_inbox refuses and leaves the conversation in its inbox' do
+      expect(tool(Captain::Tools::Copilot::TransferToInboxService)
+        .execute(conversation_id: conversation.display_id, inbox_id: own_inbox.id)).to eq(refusal)
+      expect(conversation.reload.inbox_id).to eq(other_inbox.id)
+    end
+
+    it 'still writes on a conversation inside the reach' do
+      mine = create(:conversation, account: account, inbox: own_inbox)
+
+      expect(tool(Captain::Tools::Copilot::ChangePriorityService)
+        .execute(conversation_id: mine.display_id, priority: 'urgent'))
+        .to eq("Conversation ##{mine.display_id} priority changed to urgent")
+      expect(mine.reload.priority).to eq('urgent')
+    end
+  end
+
   # Gestor não perde nada: o PermissionFilterService devolve o escopo cru para administrador.
   describe 'administrators' do
     let(:admin) { create(:user, :administrator, account: account) }
