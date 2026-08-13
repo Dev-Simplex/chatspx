@@ -142,20 +142,6 @@ const deleteNotification = async notificationItem => {
   }
 };
 
-const onFilterChange = option => {
-  const { STATUS, TYPE, SORT_ORDER } = wootConstants.INBOX_FILTER_TYPE;
-  if (option.type === STATUS) {
-    status.value = option.selected ? option.key : '';
-  }
-  if (option.type === TYPE) {
-    type.value = option.selected ? option.key : '';
-  }
-  if (option.type === SORT_ORDER) {
-    sortOrder.value = option.key;
-  }
-  fetchNotifications();
-};
-
 const setSavedFilter = () => {
   const { inbox_filter_by: filterBy = {} } = uiSettings.value;
   const { status: savedStatus, type: savedType, sort_by: sortBy } = filterBy;
@@ -227,11 +213,7 @@ onMounted(() => {
       class="flex flex-col h-full w-full xl:min-w-[380px] xl:max-w-[380px] 2xl:min-w-[448px] 2xl:max-w-[448px] ltr:border-r rtl:border-l border-n-weak"
       :class="!currentConversationId ? 'flex' : 'hidden xl:flex'"
     >
-      <InboxListHeader
-        :is-context-menu-open="isInboxContextMenuOpen"
-        @filter="onFilterChange"
-        @redirect="redirectToInbox"
-      />
+      <InboxListHeader />
       <div
         ref="notificationList"
         class="flex flex-col gap-0.5 w-full h-[calc(100%-56px)] pb-4 overflow-x-hidden px-2 overflow-y-auto divide-y divide-n-weak [&>*:hover]:!border-y-transparent [&>*.active]:!border-y-transparent [&>*:hover+*]:!border-t-transparent [&>*.active+*]:!border-t-transparent"
