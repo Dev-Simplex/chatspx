@@ -1729,7 +1729,7 @@ input:focus-visible {
 
 .wa-ghost-suggestion__hint {
   @apply shrink-0 rounded px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-wide;
-  color: var(--wa-primary);
+  color: var(--wa-primary-text);
   background-color: rgba(0, 168, 132, 0.10);
 }
 
@@ -1809,7 +1809,7 @@ input:focus-visible {
   gap: 6px;
   padding: 10px 4px;
   border-radius: 8px;
-  color: var(--wa-primary);
+  color: var(--wa-primary-text);
   background-color: transparent;
   transition: background 120ms ease;
   /* Equal-width distribution within flex container (auto-collapses hidden siblings) */
@@ -2199,7 +2199,7 @@ button.wa-btn--primary:hover {
 }
 .wa-conversation-header .wa-header-icon-btn:hover {
   background-color: rgba(0, 168, 132, 0.08);
-  color: var(--wa-primary);
+  color: var(--wa-primary-text);
 }
 .dark .wa-conversation-header .wa-header-icon-btn {
   color: var(--wa-text-secondary-dark);
@@ -2252,17 +2252,22 @@ button.wa-btn--primary:hover {
 .dark [class*='chat-list-tabs'] button {
   color: var(--wa-text-secondary-dark) !important;
 }
+/* Este bloco é o skin LEGADO das mesmas abas que `.wa-tab-item` reveste mais
+   abaixo — e, por ser todo `!important`, é ele quem manda. Sem retonar aqui, o
+   ajuste de contraste do outro bloco não chega à tela (medido no staging depois
+   do deploy: o rótulo continuava em 1.74:1). Os tons são os mesmos de lá: o véu
+   verde continua translúcido, só a tinta muda. */
 .conversation-list-tabs button.active,
 .conversation-list-tabs a.active,
 [class*='chat-list-tabs'] button.active {
   background-color: rgba(0, 168, 132, 0.15) !important;
-  color: var(--wa-primary) !important;
+  color: var(--wa-primary-text) !important;
   border-color: transparent !important;
 }
 .conversation-list-tabs button:not(.active):hover,
 [class*='chat-list-tabs'] button:not(.active):hover {
   background-color: rgba(0, 168, 132, 0.08) !important;
-  color: var(--wa-primary) !important;
+  color: var(--wa-primary-text) !important;
 }
 
 /* Count badge inside tabs — subtle when inactive, WA green when active */
@@ -2276,10 +2281,18 @@ button.wa-btn--primary:hover {
   background-color: rgba(134, 150, 160, 0.20) !important;
   color: var(--wa-text-secondary-dark) !important;
 }
+/* Contador da aba ativa: branco sobre `--wa-primary` dava 2.27:1 nos dois
+   temas. Mesmo tratamento do `.wa-tab-item__badge` — o tom escurecido no claro
+   (6.52:1 com texto branco) e, no escuro, tinta quase preta sobre o verde
+   clareado (9.52:1). */
 .conversation-list-tabs button.active > div,
 [class*='chat-list-tabs'] button.active > div {
-  background-color: var(--wa-primary) !important;
+  background-color: var(--wa-primary-text) !important;
   color: #ffffff !important;
+}
+.dark .conversation-list-tabs button.active > div,
+.dark [class*='chat-list-tabs'] button.active > div {
+  color: #111b21 !important;
 }
 
 /* ---------- Message composer polish ---------- */
@@ -2321,7 +2334,7 @@ button.wa-btn--primary:hover {
 .reply-box .reply-bottom-panel button:hover,
 .reply-box .reply-top-panel button:hover {
   background-color: rgba(0, 168, 132, 0.08);
-  color: var(--wa-primary);
+  color: var(--wa-primary-text);
 }
 
 /* =======================================================================
@@ -2457,7 +2470,7 @@ aside [class*='cursor-col-resize'] {
 }
 .wa-status-dropdown__item:hover {
   background-color: rgba(0, 168, 132, 0.08);
-  color: var(--wa-primary);
+  color: var(--wa-primary-text);
 }
 .wa-status-dropdown__icon {
   color: var(--wa-text-secondary);
@@ -2467,7 +2480,7 @@ aside [class*='cursor-col-resize'] {
 }
 .dark .wa-status-dropdown__item:hover {
   background-color: rgba(0, 168, 132, 0.15);
-  color: var(--wa-primary);
+  color: var(--wa-primary-text);
 }
 .dark .wa-status-dropdown__icon {
   color: var(--wa-text-secondary-dark);
@@ -2490,7 +2503,7 @@ aside [class*='cursor-col-resize'] {
 }
 .wa-select-menu__item:hover {
   background-color: rgba(0, 168, 132, 0.08) !important;
-  color: var(--wa-primary) !important;
+  color: var(--wa-primary-text) !important;
 }
 .dark .wa-select-menu__item {
   color: var(--wa-text-primary-dark) !important;
@@ -2501,14 +2514,14 @@ aside [class*='cursor-col-resize'] {
 /* Active option — WA primary tint + check */
 .wa-select-menu__item--active {
   background-color: rgba(0, 168, 132, 0.10) !important;
-  color: var(--wa-primary) !important;
+  color: var(--wa-primary-text) !important;
 }
 .wa-select-menu__item--active .i-lucide-check {
-  color: var(--wa-primary);
+  color: var(--wa-primary-text);
 }
 .dark .wa-select-menu__item--active {
   background-color: rgba(0, 168, 132, 0.18) !important;
-  color: var(--wa-primary) !important;
+  color: var(--wa-primary-text) !important;
 }
 
 /* Filter dropdown container (ConversationBasicFilter outer box) */
