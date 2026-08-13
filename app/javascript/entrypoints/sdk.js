@@ -7,6 +7,7 @@ import {
 } from '../sdk/settingsHelper';
 import {
   computeHashForUserData,
+  removeConversationToken,
   getUserCookieName,
   hasUserKeys,
 } from '../sdk/cookieHelpers';
@@ -197,7 +198,7 @@ const runSDK = ({ baseUrl, websiteToken }) => {
         IFrameHelper.events.toggleBubble();
       }
 
-      Cookies.remove('cw_conversation');
+      removeConversationToken(window.$chatwoot.websiteToken);
       Cookies.remove(getUserCookieName());
 
       const iframe = IFrameHelper.getAppFrame();
