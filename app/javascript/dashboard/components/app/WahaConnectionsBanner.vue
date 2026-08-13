@@ -282,9 +282,12 @@ onUnmounted(() => {
     justify-content: center;
     position: relative;
 
+    /* red-600 (#dc3e42) com texto branco media 4.37:1 — abaixo dos 4.5 de AA,
+       e esta faixa é um aviso de falha que precisa ser lido. red-700 (#ce2c31)
+       sobe para 5.21:1. O hex fixo que vinha depois do @apply era #dc2626, uma
+       terceira cor que nem é a do token — removido. */
     &.error {
-      @apply bg-red-600 text-white;
-      background-color: #dc2626; /* red-600 */
+      @apply bg-red-700 text-white;
     }
 
     .banner-content-wrapper {

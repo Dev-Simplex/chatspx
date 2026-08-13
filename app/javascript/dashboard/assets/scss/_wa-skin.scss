@@ -31,7 +31,14 @@
   --wa-list-border-dark: #2a3942;
   --wa-text-primary: #111b21;
   --wa-text-primary-dark: #e9edef;
-  --wa-text-secondary: #667781;
+  /* Tinta secundária. O #667781 do WhatsApp media 4.14:1 sobre o cinza do
+     painel (#f0f2f5) — abaixo dos 4.5 de AA para texto normal, e ela carrega
+     rótulo de aba inativa, legenda de card e texto de apoio no app inteiro.
+     Escurecida no mesmo matiz (~205°) até folgar nas duas superfícies claras:
+       #5a6a73 sobre #f0f2f5 = 5.00:1
+       #5a6a73 sobre #ffffff = 5.61:1
+     O tom escuro (#8696a0 sobre #111b21 = 5.65:1) já passava e fica intacto. */
+  --wa-text-secondary: #5a6a73;
   --wa-text-secondary-dark: #8696a0;
   --wa-unread-bg: #25d366;
   --wa-check-read: #53bdeb;
@@ -695,13 +702,14 @@ body * {
 }
 
 // EmptyStateMessage CTA (bg-n-brand) → WA green.
+// Rótulo branco em cima, então usa o verde de BOTÃO (ver `--wa-primary-button`).
 .bg-n-brand.rounded-full.text-white,
 button.bg-n-brand[class*='rounded-full'] {
-  background-color: var(--wa-primary) !important;
+  background-color: var(--wa-primary-button) !important;
 }
 .bg-n-brand.rounded-full.text-white:hover,
 button.bg-n-brand[class*='rounded-full']:hover {
-  background-color: #008f72 !important;
+  background-color: var(--wa-primary-button-hover) !important;
 }
 
 // =============================================================================
@@ -744,6 +752,19 @@ button.bg-n-brand[class*='rounded-full']:hover {
   --wa-primary-10: rgba(0, 168, 132, 0.10);
   --wa-primary-20: rgba(0, 168, 132, 0.20);
 
+  /* Verde de BOTÃO — o de preenchimento não serve quando há rótulo branco em
+     cima. Medido: branco sobre `--wa-primary` (#2dc46f) dá 2.27:1 em "Salvar",
+     "Atualizar configurações", "Nova conversa" e todo CTA de marca. #008069 é
+     o verde-escuro oficial do WhatsApp (já na paleta como `wa-teal-dark`):
+       branco sobre #008069 = 4.89:1   (rótulo, AA)
+       branco sobre #006c55 = 6.41:1   (hover)
+     Vale nos dois temas, com o texto branco intacto — no escuro o botão fica
+     um pouco menos vibrante contra o painel (#202c33), troca aceita em favor
+     de um rótulo legível. Fundo translúcido de marca (`bg-n-brand/10`) NÃO usa
+     este token: lá o véu é o efeito desejado. */
+  --wa-primary-button: #008069;
+  --wa-primary-button-hover: #006c55;
+
   /* Verde da marca em versão LEGÍVEL COMO TEXTO.
      `--wa-primary` (#2dc46f) é um tom de PREENCHIMENTO: serve de fundo, nunca
      de texto sobre superfície clara. Medido no staging: #2dc46f sobre o cinza
@@ -784,10 +805,10 @@ button.bg-n-brand[class*='rounded-full']:hover {
    `focus-visible:`, `dark:`): o Tailwind já os emite na cor certa. */
 button[class~='bg-n-brand']:not(.wa-send-btn):not([class*='rounded-full']),
 a[class~='bg-n-brand']:not([class*='rounded-full']) {
-  background-color: var(--wa-primary);
+  background-color: var(--wa-primary-button);
 
   &:hover {
-    background-color: var(--wa-primary-hover);
+    background-color: var(--wa-primary-button-hover);
   }
 }
 
@@ -838,10 +859,10 @@ a[class~='bg-n-brand']:not([class*='rounded-full']) {
    (`bg-woot-500/20`), repinte preservando o alfa — `color-mix(in srgb,
    var(--wa-primary) 20%, transparent)` — nunca com cor chapada. */
 [class~='bg-woot-500'] {
-  background-color: var(--wa-primary);
+  background-color: var(--wa-primary-button);
 }
 [class~='bg-woot-600'] {
-  background-color: var(--wa-primary-hover);
+  background-color: var(--wa-primary-button-hover);
 }
 [class*='hover\\:bg-woot-600']:hover,
 [class*='hover:bg-woot-600']:hover {
@@ -2718,10 +2739,10 @@ aside [class*='cursor-col-resize'] {
    ======================================================================= */
 
 .wa-empty-cta {
-  background-color: var(--wa-primary);
+  background-color: var(--wa-primary-button);
 }
 .wa-empty-cta:hover {
-  background-color: var(--wa-primary-hover);
+  background-color: var(--wa-primary-button-hover);
 }
 
 /* Empty state surface picks up WA workspace bg via .bg-n-surface-1 above,

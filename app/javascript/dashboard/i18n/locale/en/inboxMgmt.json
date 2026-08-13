@@ -309,7 +309,8 @@
           "AUTH_NOT_COMPLETED": "Authentication not completed. Please restart the process.",
           "SUCCESS_FALLBACK": "WhatsApp Business Account has been successfully configured",
           "MANUAL_FALLBACK": "If your number is already connected to the WhatsApp Business Platform (API), or if you’re a tech provider onboarding your own number, please use the {link} flow",
-          "MANUAL_LINK_TEXT": "manual setup flow"
+          "MANUAL_LINK_TEXT": "manual setup flow",
+          "SDK_LOAD_ERROR": "Não foi possível carregar o SDK do Facebook. Recarregue a página e tente novamente."
         },
         "API": {
           "ERROR_MESSAGE": "We were not able to save the WhatsApp channel"

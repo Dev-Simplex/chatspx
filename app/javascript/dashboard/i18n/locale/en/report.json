@@ -170,7 +170,8 @@
         "BOT_RESOLUTION_RATE": "Bot resolution rate",
         "BOT_HANDOFF_RATE": "Bot handoff rate"
       }
-    }
+    },
+    "DOWNLOAD_AGENT_REPORTS": "Baixar relatório de agentes"
   },
   "AGENT_REPORTS": {
     "HEADER": "Agents Overview",
@@ -616,7 +617,8 @@
     },
     "FILTER": {
       "RESPONDED": "Responded",
-      "NOT_RESPONDED": "Not responded"
+      "NOT_RESPONDED": "Not responded",
+      "ARIA_LABEL": "Filtrar por status de resposta"
     },
     "TABLE": {
       "HEADER": {

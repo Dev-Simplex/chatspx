@@ -1,5 +1,14 @@
 {
   "CONVERSATION": {
+    "SCORE_TITLE": "Nota",
+    "SCORE_FORMAT": "{score}/10",
+    "COMMENT_TITLE": "Comentário",
+    "NPS_REPLY_MESSAGE": "Em uma escala de 0 a 10, o quanto você recomendaria nossa empresa?",
+    "RETRY_ERROR": "Erro ao tentar reenviar a mensagem",
+    "PERMISSION_MODAL": {
+      "TITLE": "Atenção",
+      "BACK": "Voltar para conversas"
+    },
     "REPLY_GATE_DIALOG": {
       "TITLE": {
         "A": "No one owns this conversation",
