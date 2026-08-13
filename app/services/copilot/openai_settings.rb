@@ -1,6 +1,7 @@
 class Copilot::OpenaiSettings
   DEFAULT_MODEL = 'gpt-4o-mini'.freeze
   ADVANCED_MODEL = 'gpt-4o'.freeze
+  VISION_MODEL = 'gpt-4o-mini'.freeze
 
   CHAT_MODELS_PRICING = {
     'gpt-4o-mini' => { input: 0.15, output: 0.60 },
@@ -25,6 +26,13 @@ class Copilot::OpenaiSettings
 
     def advanced_model(account)
       account&.settings&.dig('openai_model_advanced').to_s.strip.presence || ADVANCED_MODEL
+    end
+
+    # Modelo de visao (descricao de midia) tem chave PROPRIA por conta, separada do
+    # `openai_model_default`: o default de chat pode ser trocado por um modelo sem visao
+    # e a descricao quebraria junto, sem ninguem relacionar uma coisa com a outra.
+    def vision_model(account)
+      account&.settings&.dig('openai_model_vision').to_s.strip.presence || VISION_MODEL
     end
 
     def log_chat_usage(service:, account:, model:, response:)

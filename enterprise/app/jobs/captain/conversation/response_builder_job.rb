@@ -303,7 +303,7 @@ class Captain::Conversation::ResponseBuilderJob < ApplicationJob
   end
 
   def prepare_multimodal_message_content(message)
-    Captain::OpenAiMessageBuilderService.new(message: message).generate_content
+    Captain::OpenAiMessageBuilderService.new(message: message, assistant: @assistant).generate_content
   end
 
   def handoff_requested?

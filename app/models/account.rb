@@ -117,7 +117,7 @@ class Account < ApplicationRecord # rubocop:disable Metrics/ClassLength
   store_accessor :settings, :audio_transcriptions, :auto_resolve_label
   store_accessor :settings, :chat_wallpaper_url, :show_dashboard_kpi_strip
   store_accessor :settings, :onboarding_completed_steps, :onboarding_dismissed
-  store_accessor :settings, :openai_api_key, :openai_model_default, :openai_model_advanced
+  store_accessor :settings, :openai_api_key, :openai_model_default, :openai_model_advanced, :openai_model_vision
   store_accessor :settings, :captain_models, :captain_features
   store_accessor :settings, :reporting_timezone
   store_accessor :settings, :keep_pending_on_bot_failure

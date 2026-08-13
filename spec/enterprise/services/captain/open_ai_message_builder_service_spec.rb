@@ -308,6 +308,61 @@ RSpec.describe Captain::OpenAiMessageBuilderService do
     end
   end
 
+  describe 'descrição de imagem (camada mídia → contexto)' do
+    let(:message) { create(:message, content: 'olha isso') }
+    let(:assistant) { create(:captain_assistant, account: message.account) }
+
+    let!(:image) do
+      att = message.attachments.build(account_id: message.account_id, file_type: :image, external_url: 'https://example.com/i.jpg')
+      att.save!
+      att.update!(meta: { Captain::MediaDescriptionService::META_KEY => 'Uma folha impressa sobre a mesa.' })
+      att
+    end
+
+    def parts(builder)
+      builder.send(:attachment_parts, message.attachments)
+    end
+
+    context 'when the assistant did not opt in' do
+      it 'keeps the context exactly as it is today (image as direct vision, no description)' do
+        result = parts(described_class.new(message: message, assistant: assistant))
+
+        expect(result).to include({ type: 'image_url', image_url: { url: 'https://example.com/i.jpg' } })
+        expect(result.pluck(:text).compact.join(' ')).not_to include('folha impressa')
+      end
+    end
+
+    context 'when the assistant opted in' do
+      before { assistant.update!(behavior: { 'media_pipeline' => { 'image_description' => true } }) }
+
+      it 'injects the cached description labelled, keeping the image as direct vision' do
+        result = parts(described_class.new(message: message, assistant: assistant))
+
+        expect(result).to include({ type: 'image_url', image_url: { url: 'https://example.com/i.jpg' } })
+        expect(result).to include(
+          { type: 'text',
+            text: "#{described_class::IMAGE_DESCRIPTION_LABEL}: Uma folha impressa sobre a mesa." }
+        )
+      end
+
+      it 'produces nothing when the image has no description cached' do
+        image.update!(meta: {})
+
+        result = parts(described_class.new(message: message, assistant: assistant))
+
+        expect(result.pluck(:text).compact.join(' ')).not_to include('descrita automaticamente')
+      end
+    end
+
+    context 'without an assistant (any other caller)' do
+      it 'never injects a description' do
+        result = parts(described_class.new(message: message))
+
+        expect(result.pluck(:text).compact.join(' ')).not_to include('descrita automaticamente')
+      end
+    end
+  end
+
   describe 'private helper methods' do
     describe '#text_part' do
       it 'returns correct text part format' do

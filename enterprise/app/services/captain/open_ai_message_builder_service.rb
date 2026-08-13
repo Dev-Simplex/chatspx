@@ -1,5 +1,8 @@
 class Captain::OpenAiMessageBuilderService
-  pattr_initialize [:message!]
+  # `assistant` e opcional: sem ele o builder monta o contexto exatamente como sempre montou.
+  # Ele so existe pra consultar a politica de midia (Captain::Behavior::MediaPipelineService),
+  # que vive no behavior do agente.
+  pattr_initialize [:message!, :assistant]
 
   # Placeholder usado quando um áudio ainda não tem transcrição em cache — a transcrição
   # roda em background (ver #extract_audio_transcriptions), nunca síncrona neste caminho.
@@ -7,6 +10,11 @@ class Captain::OpenAiMessageBuilderService
 
   # Placeholder de texto pra mensagem só-imagem (sem legenda) — ver #ensure_text_part.
   IMAGE_PLACEHOLDER = '[imagem]'.freeze
+
+  # Rótulo da descrição de imagem gerada por modelo. Mesmo motivo do rótulo da transcrição
+  # de áudio: sem ele, texto escrito por um modelo fica indistinguível do que o cliente
+  # escreveu, e um erro de descrição vira "fato" na boca do agente.
+  IMAGE_DESCRIPTION_LABEL = '[imagem descrita automaticamente — pode conter erros de descrição]'.freeze
 
   # Extracts text + attachment URLs (imagens e PDFs) do array multimodal (reverso do
   # generate_content). PDFs entram junto com as imagens: o RubyLLM detecta o tipo e manda
@@ -69,7 +77,9 @@ class Captain::OpenAiMessageBuilderService
     # de fora (o Captain ainda não lê vídeo) e segue como nota de texto.
     story_images, story_others = attachments.where(file_type: :ig_story).partition { |a| image_attachment?(a) }
 
-    image_content = image_parts(attachments.where(file_type: :image) + story_images)
+    images = attachments.where(file_type: :image) + story_images
+    image_content = image_parts(images)
+    description_part = optional_text_part(extract_image_descriptions(images))
 
     transcription_part = optional_text_part(extract_audio_transcriptions(attachments))
     location_part = optional_text_part(extract_locations(attachments))
@@ -84,7 +94,27 @@ class Captain::OpenAiMessageBuilderService
     pdf_content = others.select { |a| pdf_attachment?(a) }.filter_map { |a| (u = get_attachment_url(a)) && file_part(u) }
     attachment_part = text_part('User has shared an attachment') if others.any? { |a| !pdf_attachment?(a) }
 
-    [image_content, pdf_content, transcription_part, location_part, contacts_part, attachment_part].flatten.compact
+    [image_content, description_part, pdf_content, transcription_part, location_part, contacts_part, attachment_part].flatten.compact
+  end
+
+  # Descrição de imagem produzida pela camada de mídia (Captain::MediaDescriptionService),
+  # gravada em `attachment.meta` quando a conta liga `media_pipeline.image_description`.
+  # A imagem CONTINUA indo como visão direta: a descrição é contexto adicional, não troca —
+  # tirar a visão regrediria o que o modelo já lê hoje (documento fotografado, por exemplo).
+  # Só LÊ o cache; quem descreve é o job disparado na chegada do anexo. Sem a chave ligada,
+  # ou sem descrição gravada, este método não produz nada e o contexto sai idêntico ao de hoje.
+  def extract_image_descriptions(image_attachments)
+    return '' unless image_description_enabled?
+
+    image_attachments.filter_map { |att| att.meta&.[](Captain::MediaDescriptionService::META_KEY).to_s.strip.presence }
+                     .map { |texto| "#{IMAGE_DESCRIPTION_LABEL}: #{texto}" }
+                     .join(' ')
+  end
+
+  def image_description_enabled?
+    return false if @assistant.blank?
+
+    Captain::Behavior::MediaPipelineService.new(assistant: @assistant, message: @message).image_description?
   end
 
   def optional_text_part(text)
