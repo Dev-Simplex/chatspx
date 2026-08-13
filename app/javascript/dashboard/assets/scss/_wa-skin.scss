@@ -358,6 +358,24 @@
 // inválidos (tipo depois de atributo), que o esbuild acusava como
 // css-syntax-error a cada build e que nunca casaram com nada. O atributo casa a
 // mesma coisa e o `@apply` não o reescreve.
+/* Superfície da lista no tema CLARO.
+   `--wa-list-bg` (#ffffff) existia desde sempre e não era usado por ninguém: a
+   coluna toda herdava `bg-n-surface-1` (#f0f2f5), que no WhatsApp é a cor do
+   CAMPO DE BUSCA, não da lista. Com o fundo já sendo #f0f2f5, os três estados
+   do cartão colapsavam — medido em ΔL* (abaixo de 2 é imperceptível):
+
+     conversa aberta   `--wa-list-active`  #f0f2f5   ΔL* 0.0   (não existia)
+     hover             `--wa-list-hover`   #f5f6f7   ΔL* 1.4
+     divisória         `--wa-list-border`  #e9edef   ΔL* 1.9
+
+   No escuro os mesmos três dão 13.9 / 8.1 / 13.9, porque lá o token é usado.
+   Pintando só a ÁREA ROLÁVEL (`.conversations-list`) de branco, os três voltam
+   a 4.6 / 3.2 / 6.5 — e o cabeçalho, a busca e as abas seguem no cinza, que é
+   o arranjo do WhatsApp Web e evita ter de inverter a cor do campo de busca. */
+body:not(.dark) .conversations-list {
+  background-color: var(--wa-list-bg);
+}
+
 .conversations-list .conversation,
 .conversations-list-wrap .conversation,
 .conversations-list [role='button'][class~='cursor-pointer'],
@@ -465,9 +483,15 @@
 // next-gen uses classes containing `bg-n-brand`. Scope strictly to a
 // conversation card root so send buttons, signature alerts, etc. are not
 // affected.
+//
+// O número vai em tinta ESCURA, não em branco: `--wa-unread-bg` (#25d366) é o
+// verde vivo do WhatsApp e o branco em cima dele mede 1.98:1. O quase-preto do
+// tema dá 8.68:1 e preserva o selo como ele é — é o elemento mais reconhecível
+// da lista, e escurecer o verde custaria mais do que trocar a tinta. Vale nos
+// dois temas, porque o selo é o mesmo verde nos dois.
 .conversations-list .conversation .unread {
   background-color: var(--wa-unread-bg) !important;
-  color: #ffffff;
+  color: var(--wa-text-primary) !important;
 }
 
 .conversations-list .conversation [class*='bg-n-brand']:not(button),
@@ -475,7 +499,7 @@
   .wa-conversation-card
   [class*='bg-n-brand']:not(button) {
   background-color: var(--wa-unread-bg) !important;
-  color: #ffffff;
+  color: var(--wa-text-primary) !important;
 }
 
 // --- Composer / ReplyBox -----------------------------------------------------
