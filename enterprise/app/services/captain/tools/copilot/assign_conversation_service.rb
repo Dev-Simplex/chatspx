@@ -11,26 +11,15 @@ class Captain::Tools::Copilot::AssignConversationService < Captain::Tools::BaseT
   # Quem escolhe `agent_id`/`team_id` é o MODELO, não o operador — ele digita "distribui isso
   # pro time certo" e o copilot resolve o id sozinho. Os ids iam direto pra coluna: conversa
   # apontada pra time de OUTRA conta some da fila de todo mundo e leva o nome do time alheio
-  # pro painel. Resolver ANTES de gravar é o que fecha a fronteira.
-  #
-  # Recusa FECHADA (não grava nada e devolve o motivo), ao contrário do HumanHandoffService,
-  # que falha aberto de propósito. A diferença é quem lê o erro: lá a recusa acontece no meio
-  # de um atendimento, com o dossiê já registrado e o cliente prestes a ouvir "uma pessoa vai
-  # assumir" — abortar deixaria a promessa sem ninguém acionado. Aqui a chamada É a ação
-  # inteira: recusar é no-op, e a string volta pro modelo, que corrige o id ou avisa o
-  # operador. Ignorar em silêncio seria o pior dos três — `format_result` imprimiria
-  # "team: none" como sucesso e a conversa ficaria na fila de ninguém.
+  # pro painel. Validar ANTES de gravar é o que fecha a fronteira.
   def execute(conversation_id:, agent_id: nil, team_id: nil)
     conversation = account.conversations.find_by(display_id: conversation_id)
     return 'Conversation not found' if conversation.blank?
 
-    agent = agent_id.present? ? account.users.find_by(id: agent_id) : nil
-    return "Agent #{agent_id} not found in this account" if agent_id.present? && agent.nil?
+    refusal = refusal_for(agent_id, team_id)
+    return refusal if refusal
 
-    team = team_id.present? ? account.handoff_teams.find_by(id: team_id) : nil
-    return team_refusal(team_id) if team_id.present? && team.nil?
-
-    apply_assignment(conversation, agent, team)
+    apply_assignment(conversation, agent_id, team_id)
     format_result(conversation)
   end
 
@@ -42,6 +31,25 @@ class Captain::Tools::Copilot::AssignConversationService < Captain::Tools::BaseT
 
   def account
     @assistant.account
+  end
+
+  # nil = pode gravar. String = recusa, já no formato que volta pro modelo.
+  #
+  # Recusa FECHADA (não grava nada e devolve o motivo), ao contrário do HumanHandoffService,
+  # que falha aberto de propósito. A diferença é quem lê o erro: lá a recusa acontece no meio
+  # de um atendimento, com o dossiê já registrado e o cliente prestes a ouvir "uma pessoa vai
+  # assumir" — abortar deixaria a promessa sem ninguém acionado. Aqui a chamada É a ação
+  # inteira: recusar é no-op, e a string volta pro modelo, que corrige o id ou avisa o
+  # operador. Ignorar em silêncio seria o pior dos três — `format_result` imprimiria
+  # "team: none" como sucesso e a conversa ficaria na fila de ninguém.
+  #
+  # Recusa os dois ANTES de aplicar qualquer um: gravar só a metade válida é a mesma
+  # armadilha, com cara de sucesso.
+  def refusal_for(agent_id, team_id)
+    return "Agent #{agent_id} not found in this account" if agent_id.present? && account.users.where(id: agent_id).none?
+    return team_refusal(team_id) if team_id.present? && account.handoff_teams.where(id: team_id).none?
+
+    nil
   end
 
   # Além da conta, respeita a allowlist de roteamento (`Account#handoff_teams`, PR #39). Ela
@@ -60,9 +68,9 @@ class Captain::Tools::Copilot::AssignConversationService < Captain::Tools::BaseT
     "Team #{id} is not available for routing in this account"
   end
 
-  def apply_assignment(conversation, agent, team)
-    conversation.assignee = agent if agent
-    conversation.team = team if team
+  def apply_assignment(conversation, agent_id, team_id)
+    conversation.assignee_id = agent_id if agent_id.present?
+    conversation.team_id = team_id if team_id.present?
     conversation.save!
   end
 
