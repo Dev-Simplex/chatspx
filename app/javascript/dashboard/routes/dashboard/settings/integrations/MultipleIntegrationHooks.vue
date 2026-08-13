@@ -133,7 +133,7 @@ const inboxName = hook => (hook.inbox ? hook.inbox.name : '');
                     icon="i-woot-edit-pen"
                     slate
                     sm
-                    class="hover:enabled:text-n-azure-11 hover:enabled:bg-n-azure-2"
+                    class="hover:enabled:text-n-blue-11 hover:enabled:bg-n-blue-2"
                     @click="$emit('edit', hook)"
                   />
                   <NextButton

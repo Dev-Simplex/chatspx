@@ -225,18 +225,18 @@ const showCancel = computed(() => !props.errorType && props.isStreaming);
       data-testid="ai-suggestion-chip"
       role="region"
       :aria-label="ariaLabelRegion"
-      class="flex w-full flex-col gap-2 rounded-xl border border-purple-200 bg-white p-3 shadow-md dark:border-purple-800/50 dark:bg-n-slate-12"
+      class="flex w-full flex-col gap-2 rounded-xl border border-n-violet-6 bg-white p-3 shadow-md dark:bg-n-slate-12"
     >
       <!-- Header -->
       <div class="flex items-center gap-2">
         <Icon
           icon="i-lucide-sparkles"
-          class="size-4 text-purple-600 dark:text-purple-300"
+          class="size-4 text-n-violet-11"
           aria-hidden="true"
         />
         <div class="flex min-w-0 flex-col">
           <span
-            class="text-[11px] font-semibold uppercase tracking-wide text-purple-700 dark:text-purple-200"
+            class="text-[11px] font-semibold uppercase tracking-wide text-n-violet-11"
           >
             {{ headerLabel }}
           </span>
@@ -258,7 +258,7 @@ const showCancel = computed(() => !props.errorType && props.isStreaming);
       <div
         v-else
         :aria-live="isStreaming ? 'off' : undefined"
-        class="prose prose-sm max-w-none break-words text-sm text-n-slate-12 dark:text-n-slate-12 [&_a]:text-purple-700 [&_a]:underline dark:[&_a]:text-purple-300 [&_code]:rounded [&_code]:bg-n-slate-3 [&_code]:px-1 [&_code]:text-[12px] dark:[&_code]:bg-n-slate-11 [&_p]:my-1 [&_ul]:my-1 [&_ol]:my-1"
+        class="prose prose-sm max-w-none break-words text-sm text-n-slate-12 [&_a]:text-n-violet-11 [&_a]:underline [&_code]:rounded [&_code]:bg-n-slate-3 [&_code]:px-1 [&_code]:text-[12px] [&_p]:my-1 [&_ul]:my-1 [&_ol]:my-1"
         data-testid="ai-suggestion-chip-body"
         v-html="html"
       />
@@ -276,7 +276,7 @@ const showCancel = computed(() => !props.errorType && props.isStreaming);
       <div v-if="showCancel" class="flex justify-end">
         <button
           type="button"
-          class="rounded-md border border-n-weak bg-transparent px-2 py-1 text-[11px] font-medium text-n-slate-11 transition-colors hover:bg-n-alpha-2 focus:outline-none focus-visible:ring-2 focus-visible:ring-purple-400"
+          class="rounded-md border border-n-weak bg-transparent px-2 py-1 text-[11px] font-medium text-n-slate-11 transition-colors hover:bg-n-alpha-2 focus:outline-none focus-visible:ring-2 focus-visible:ring-n-violet-8"
           data-testid="ai-suggestion-chip-cancel"
           @click="handleCancelStreaming"
         >
@@ -293,7 +293,7 @@ const showCancel = computed(() => !props.errorType && props.isStreaming);
           type="button"
           :aria-label="discardTooltip"
           :title="discardTooltip"
-          class="inline-flex items-center gap-1 rounded-md px-2.5 py-1 text-[11px] font-medium text-n-slate-11 transition-colors hover:bg-n-alpha-2 focus:outline-none focus-visible:ring-2 focus-visible:ring-purple-400"
+          class="inline-flex items-center gap-1 rounded-md px-2.5 py-1 text-[11px] font-medium text-n-slate-11 transition-colors hover:bg-n-alpha-2 focus:outline-none focus-visible:ring-2 focus-visible:ring-n-violet-8"
           data-testid="ai-suggestion-chip-discard"
           @click="handleDiscard"
         >
@@ -303,7 +303,7 @@ const showCancel = computed(() => !props.errorType && props.isStreaming);
           type="button"
           :aria-label="editTooltip"
           :title="editTooltip"
-          class="inline-flex items-center gap-1 rounded-md border border-n-weak bg-transparent px-2.5 py-1 text-[11px] font-medium text-n-slate-12 transition-colors hover:bg-n-alpha-2 focus:outline-none focus-visible:ring-2 focus-visible:ring-purple-400"
+          class="inline-flex items-center gap-1 rounded-md border border-n-weak bg-transparent px-2.5 py-1 text-[11px] font-medium text-n-slate-12 transition-colors hover:bg-n-alpha-2 focus:outline-none focus-visible:ring-2 focus-visible:ring-n-violet-8"
           data-testid="ai-suggestion-chip-edit"
           @click="handleEdit"
         >
@@ -313,7 +313,7 @@ const showCancel = computed(() => !props.errorType && props.isStreaming);
         <button
           ref="useButtonRef"
           type="button"
-          class="inline-flex items-center gap-1 rounded-md bg-purple-600 px-3 py-1 text-[11px] font-semibold text-white transition-colors hover:bg-purple-700 focus:outline-none focus-visible:ring-2 focus-visible:ring-purple-300"
+          class="inline-flex items-center gap-1 rounded-md bg-n-violet-9 px-3 py-1 text-[11px] font-semibold text-white transition-colors hover:bg-n-violet-10 dark:hover:bg-n-violet-8 focus:outline-none focus-visible:ring-2 focus-visible:ring-n-violet-8"
           data-testid="ai-suggestion-chip-use"
           @click="handleAccept"
         >

@@ -141,7 +141,7 @@ const showCancel = computed(
     <div
       v-if="type === 'user'"
       data-testid="ai-message-bubble-user"
-      class="max-w-[85%] rounded-2xl rounded-tr-sm bg-purple-100 px-3 py-2 text-sm text-n-slate-12 shadow-sm dark:bg-purple-900/40 dark:text-n-slate-12"
+      class="max-w-[85%] rounded-2xl rounded-tr-sm bg-n-violet-4 px-3 py-2 text-sm text-n-slate-12 shadow-sm dark:bg-n-violet-3"
     >
       <p class="whitespace-pre-wrap break-words leading-snug">{{ text }}</p>
     </div>
@@ -156,7 +156,7 @@ const showCancel = computed(
     >
       <Icon
         icon="i-lucide-sparkles"
-        class="size-4 animate-pulse text-purple-600 dark:text-purple-300"
+        class="size-4 animate-pulse text-n-violet-11"
         aria-hidden="true"
       />
       <span>{{ t('CONVERSATION.AI_ASSISTANT_PANEL.LOADING') }}</span>
@@ -182,7 +182,7 @@ const showCancel = computed(
       <div class="flex items-center gap-1.5">
         <Icon
           icon="i-lucide-sparkles"
-          class="size-3.5 text-purple-600 dark:text-purple-300"
+          class="size-3.5 text-n-violet-11"
           aria-hidden="true"
         />
         <span
@@ -195,7 +195,7 @@ const showCancel = computed(
       <!-- Streaming body — silent for SR -->
       <div
         :aria-live="isStreaming ? 'off' : undefined"
-        class="prose prose-sm max-w-none break-words text-n-slate-12 dark:text-n-slate-12 [&_a]:text-purple-700 [&_a]:underline dark:[&_a]:text-purple-300 [&_code]:rounded [&_code]:bg-n-slate-3 [&_code]:px-1 [&_code]:text-[12px] dark:[&_code]:bg-n-slate-11 [&_p]:my-1 [&_ul]:my-1 [&_ol]:my-1"
+        class="prose prose-sm max-w-none break-words text-n-slate-12 [&_a]:text-n-violet-11 [&_a]:underline [&_code]:rounded [&_code]:bg-n-slate-3 [&_code]:px-1 [&_code]:text-[12px] [&_p]:my-1 [&_ul]:my-1 [&_ol]:my-1"
         v-html="html"
       />
 
@@ -212,7 +212,7 @@ const showCancel = computed(
       <div v-if="showCancel" class="flex justify-end">
         <button
           type="button"
-          class="rounded-md border border-n-weak bg-transparent px-2 py-1 text-[11px] font-medium text-n-slate-11 transition-colors hover:bg-n-alpha-2 focus:outline-none focus-visible:ring-2 focus-visible:ring-purple-400"
+          class="rounded-md border border-n-weak bg-transparent px-2 py-1 text-[11px] font-medium text-n-slate-11 transition-colors hover:bg-n-alpha-2 focus:outline-none focus-visible:ring-2 focus-visible:ring-n-violet-8"
           @click="handleCancelStreaming"
         >
           {{ t('CONVERSATION.AI_ASSISTANT_PANEL.ACTIONS.CANCEL') }}
@@ -224,7 +224,7 @@ const showCancel = computed(
         <button
           type="button"
           :aria-label="t('CONVERSATION.AI_ASSISTANT_PANEL.ACTIONS.COPY')"
-          class="inline-flex items-center gap-1 rounded-md px-2 py-1 text-[11px] font-medium text-n-slate-11 transition-colors hover:bg-n-alpha-2 focus:outline-none focus-visible:ring-2 focus-visible:ring-purple-400"
+          class="inline-flex items-center gap-1 rounded-md px-2 py-1 text-[11px] font-medium text-n-slate-11 transition-colors hover:bg-n-alpha-2 focus:outline-none focus-visible:ring-2 focus-visible:ring-n-violet-8"
           @click="handleCopy"
         >
           <Icon icon="i-lucide-copy" class="size-3.5" aria-hidden="true" />
@@ -233,7 +233,7 @@ const showCancel = computed(
         <button
           type="button"
           :aria-label="t('CONVERSATION.AI_ASSISTANT_PANEL.ACTIONS.APPLY')"
-          class="inline-flex items-center gap-1 rounded-md px-2 py-1 text-[11px] font-medium text-n-slate-11 transition-colors hover:bg-n-alpha-2 focus:outline-none focus-visible:ring-2 focus-visible:ring-purple-400"
+          class="inline-flex items-center gap-1 rounded-md px-2 py-1 text-[11px] font-medium text-n-slate-11 transition-colors hover:bg-n-alpha-2 focus:outline-none focus-visible:ring-2 focus-visible:ring-n-violet-8"
           @click="handleApply"
         >
           <Icon icon="i-lucide-pencil" class="size-3.5" aria-hidden="true" />
@@ -242,7 +242,7 @@ const showCancel = computed(
         <button
           type="button"
           :aria-label="t('CONVERSATION.AI_ASSISTANT_PANEL.ACTIONS.RETRY')"
-          class="inline-flex items-center gap-1 rounded-md px-2 py-1 text-[11px] font-medium text-n-slate-11 transition-colors hover:bg-n-alpha-2 focus:outline-none focus-visible:ring-2 focus-visible:ring-purple-400"
+          class="inline-flex items-center gap-1 rounded-md px-2 py-1 text-[11px] font-medium text-n-slate-11 transition-colors hover:bg-n-alpha-2 focus:outline-none focus-visible:ring-2 focus-visible:ring-n-violet-8"
           @click="handleRetry"
         >
           <Icon
@@ -258,7 +258,7 @@ const showCancel = computed(
           :aria-label="
             t('CONVERSATION.AI_ASSISTANT_PANEL.ACTIONS.FEEDBACK_GOOD')
           "
-          class="inline-flex items-center gap-1 rounded-md px-1.5 py-1 text-[11px] font-medium text-n-slate-11 transition-colors hover:bg-n-alpha-2 focus:outline-none focus-visible:ring-2 focus-visible:ring-purple-400"
+          class="inline-flex items-center gap-1 rounded-md px-1.5 py-1 text-[11px] font-medium text-n-slate-11 transition-colors hover:bg-n-alpha-2 focus:outline-none focus-visible:ring-2 focus-visible:ring-n-violet-8"
           @click="handleFeedback('up')"
         >
           <span aria-hidden="true">👍</span>
@@ -271,7 +271,7 @@ const showCancel = computed(
           :aria-label="
             t('CONVERSATION.AI_ASSISTANT_PANEL.ACTIONS.FEEDBACK_BAD')
           "
-          class="inline-flex items-center gap-1 rounded-md px-1.5 py-1 text-[11px] font-medium text-n-slate-11 transition-colors hover:bg-n-alpha-2 focus:outline-none focus-visible:ring-2 focus-visible:ring-purple-400"
+          class="inline-flex items-center gap-1 rounded-md px-1.5 py-1 text-[11px] font-medium text-n-slate-11 transition-colors hover:bg-n-alpha-2 focus:outline-none focus-visible:ring-2 focus-visible:ring-n-violet-8"
           @click="handleFeedback('down')"
         >
           <span aria-hidden="true">👎</span>

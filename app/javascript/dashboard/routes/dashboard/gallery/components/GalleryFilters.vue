@@ -59,7 +59,7 @@ const setSort = sort => {
       </button>
       <div
         v-if="openMenu === 'inbox'"
-        class="absolute z-30 ltr:right-0 rtl:left-0 top-full mt-2 min-w-[220px] max-h-72 overflow-y-auto p-1.5 rounded-2xl bg-n-solid-1 dark:bg-n-solid-2 border border-n-weak shadow-xl ring-1 ring-black/5 dark:ring-white/5"
+        class="absolute z-30 ltr:right-0 rtl:left-0 top-full mt-2 min-w-[220px] max-h-72 overflow-y-auto p-1.5 rounded-2xl bg-n-solid-1 dark:bg-n-solid-2 border border-n-weak shadow-xl ring-1 ring-n-black/5 dark:ring-white/5"
       >
         <button
           type="button"
@@ -118,7 +118,7 @@ const setSort = sort => {
       </button>
       <div
         v-if="openMenu === 'sort'"
-        class="absolute z-30 ltr:right-0 rtl:left-0 top-full mt-2 min-w-[200px] p-1.5 rounded-2xl bg-n-solid-1 dark:bg-n-solid-2 border border-n-weak shadow-xl ring-1 ring-black/5 dark:ring-white/5"
+        class="absolute z-30 ltr:right-0 rtl:left-0 top-full mt-2 min-w-[200px] p-1.5 rounded-2xl bg-n-solid-1 dark:bg-n-solid-2 border border-n-weak shadow-xl ring-1 ring-n-black/5 dark:ring-white/5"
       >
         <button
           v-for="opt in [

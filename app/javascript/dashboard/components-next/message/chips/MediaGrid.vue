@@ -140,8 +140,8 @@ const getMediaSrc = attachment => {
 const mediaClass = () => {
   if (layout.value === 'single') {
     return hasSingleAspectRatio.value
-      ? 'w-full h-full max-h-[60vh] object-contain bg-black/5 dark:bg-white/5 skip-context-menu'
-      : 'w-full h-auto max-h-[60vh] object-contain bg-black/5 dark:bg-white/5 skip-context-menu';
+      ? 'w-full h-full max-h-[60vh] object-contain bg-n-black/5 dark:bg-white/5 skip-context-menu'
+      : 'w-full h-auto max-h-[60vh] object-contain bg-n-black/5 dark:bg-white/5 skip-context-menu';
   }
   return 'w-full h-full object-cover skip-context-menu';
 };
@@ -254,17 +254,17 @@ const shouldShowMoreOverlay = index =>
         </template>
         <div
           v-if="isVideoAttachment(attachment)"
-          class="absolute inset-0 bg-black/25 flex items-center justify-center"
+          class="absolute inset-0 bg-n-black/25 flex items-center justify-center"
         >
           <div
-            class="size-8 rounded-full bg-black/40 flex items-center justify-center"
+            class="size-8 rounded-full bg-n-black/40 flex items-center justify-center"
           >
             <Icon icon="i-teenyicons-play-small-solid" class="text-white" />
           </div>
         </div>
         <div
           v-if="shouldShowMoreOverlay(index)"
-          class="absolute inset-0 z-10 bg-black/60 text-white text-xl font-semibold flex items-center justify-center"
+          class="absolute inset-0 z-10 bg-n-black/60 text-white text-xl font-semibold flex items-center justify-center"
         >
           +{{ extraCount }}
         </div>

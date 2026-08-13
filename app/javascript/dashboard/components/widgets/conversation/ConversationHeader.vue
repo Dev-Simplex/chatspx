@@ -309,7 +309,7 @@ const whatsAppWindowClass = computed(() => {
     case 'expired':
       return 'text-red-700 dark:text-red-400 font-semibold';
     case 'warning':
-      return 'text-amber-600 dark:text-amber-400';
+      return 'text-n-amber-11';
     case 'ok':
     default:
       return 'text-n-slate-11';
@@ -369,7 +369,7 @@ const whatsAppWindowIcon = computed(() => {
             @click="startNameEdit"
           >
             <span
-              class="wa-contact-name truncate text-n-slate-12 group-hover:text-n-brand-default transition-colors"
+              class="wa-contact-name truncate text-n-slate-12 group-hover:text-n-brand transition-colors"
             >
               {{ currentContact.name }}
             </span>

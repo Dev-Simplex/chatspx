@@ -31,27 +31,27 @@ const { prefersReducedMotion } = useReducedMotion();
 
     <template v-if="!prefersReducedMotion">
       <div
-        class="h-3 w-11/12 rounded bg-gradient-to-r from-purple-50 via-purple-100 to-purple-50 bg-[length:200%_100%] animate-shimmer dark:from-purple-900/20 dark:via-purple-800/40 dark:to-purple-900/20"
+        class="h-3 w-11/12 rounded bg-gradient-to-r from-n-violet-3 via-n-violet-4 to-n-violet-3 bg-[length:200%_100%] animate-shimmer"
         aria-hidden="true"
       />
       <div
-        class="h-3 w-9/12 rounded bg-gradient-to-r from-purple-50 via-purple-100 to-purple-50 bg-[length:200%_100%] animate-shimmer dark:from-purple-900/20 dark:via-purple-800/40 dark:to-purple-900/20 [animation-delay:150ms]"
+        class="h-3 w-9/12 rounded bg-gradient-to-r from-n-violet-3 via-n-violet-4 to-n-violet-3 bg-[length:200%_100%] animate-shimmer [animation-delay:150ms]"
         aria-hidden="true"
       />
       <div
-        class="h-3 w-7/12 rounded bg-gradient-to-r from-purple-50 via-purple-100 to-purple-50 bg-[length:200%_100%] animate-shimmer dark:from-purple-900/20 dark:via-purple-800/40 dark:to-purple-900/20 [animation-delay:300ms]"
+        class="h-3 w-7/12 rounded bg-gradient-to-r from-n-violet-3 via-n-violet-4 to-n-violet-3 bg-[length:200%_100%] animate-shimmer [animation-delay:300ms]"
         aria-hidden="true"
       />
     </template>
 
     <template v-else>
       <div class="flex items-center gap-1.5" aria-hidden="true">
-        <span class="size-2 rounded-full bg-purple-500 animate-pulse" />
+        <span class="size-2 rounded-full bg-n-violet-9 animate-pulse" />
         <span
-          class="size-2 rounded-full bg-purple-500 animate-pulse [animation-delay:200ms]"
+          class="size-2 rounded-full bg-n-violet-9 animate-pulse [animation-delay:200ms]"
         />
         <span
-          class="size-2 rounded-full bg-purple-500 animate-pulse [animation-delay:400ms]"
+          class="size-2 rounded-full bg-n-violet-9 animate-pulse [animation-delay:400ms]"
         />
       </div>
     </template>

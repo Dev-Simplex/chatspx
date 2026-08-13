@@ -48,18 +48,18 @@ function handleClick() {
     :aria-disabled="disabled ? 'true' : 'false'"
     :disabled="disabled"
     :title="disabled && disabledReason ? disabledReason : undefined"
-    class="group flex w-full items-start gap-3 rounded-xl border border-n-weak bg-n-solid-1 p-3 text-left transition-all duration-200 ease-out min-h-[44px] focus:outline-none focus-visible:ring-2 focus-visible:ring-purple-400 focus-visible:ring-offset-2 focus-visible:ring-offset-n-solid-1 forced-colors:border-2 forced-colors:border-current"
+    class="group flex w-full items-start gap-3 rounded-xl border border-n-weak bg-n-solid-1 p-3 text-left transition-all duration-200 ease-out min-h-[44px] focus:outline-none focus-visible:ring-2 focus-visible:ring-n-violet-8 focus-visible:ring-offset-2 focus-visible:ring-offset-n-solid-1 forced-colors:border-2 forced-colors:border-current"
     :class="
       disabled
         ? 'cursor-not-allowed opacity-40'
-        : 'hover:scale-[1.01] hover:border-purple-200 hover:bg-purple-50 hover:shadow-sm active:scale-[0.98] active:bg-purple-100 dark:hover:border-purple-700 dark:hover:bg-purple-900/30 dark:active:bg-purple-900/50'
+        : 'hover:scale-[1.01] hover:border-n-violet-6 hover:bg-n-violet-3 hover:shadow-sm active:scale-[0.98] active:bg-n-violet-4 dark:hover:border-n-violet-6 dark:hover:bg-n-violet-3 dark:active:bg-n-violet-3'
     "
     @click="handleClick"
   >
     <span
       v-if="icon"
       aria-hidden="true"
-      class="mt-0.5 inline-flex size-5 shrink-0 items-center justify-center text-base text-n-slate-10 transition-colors group-hover:text-purple-700 dark:group-hover:text-purple-300"
+      class="mt-0.5 inline-flex size-5 shrink-0 items-center justify-center text-base text-n-slate-10 transition-colors group-hover:text-n-violet-11 dark:group-hover:text-n-violet-11"
       :class="icon"
     />
     <span class="flex min-w-0 flex-1 flex-col gap-0.5">

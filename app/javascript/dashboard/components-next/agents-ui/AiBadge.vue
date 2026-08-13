@@ -6,10 +6,10 @@ defineProps({
 // Chip de estado — sempre cor + label (+ aria), com stroke pra legibilidade dark.
 defineOptions({ name: 'AiBadge' });
 const MAP = {
-  on: 'text-g-800 bg-g-100 border-g-300 dark:text-g-200 dark:bg-g-900/40 dark:border-g-800',
+  on: 'text-n-teal-12 bg-n-teal-3 border-n-teal-6',
   off: 'text-n-slate-11 bg-n-alpha-1 border-n-weak',
-  warn: 'text-y-800 bg-y-100 border-y-300 dark:text-y-200 dark:bg-y-900/40 dark:border-y-800',
-  err: 'text-r-800 bg-r-100 border-r-300 dark:text-r-200 dark:bg-r-900/40 dark:border-r-800',
+  warn: 'text-n-amber-12 bg-n-amber-3 border-n-amber-6',
+  err: 'text-n-ruby-12 bg-n-ruby-3 border-n-ruby-6',
 };
 </script>
 

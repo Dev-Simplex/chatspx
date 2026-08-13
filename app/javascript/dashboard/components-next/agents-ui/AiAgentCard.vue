@@ -51,7 +51,7 @@ const isActive = computed(() => props.agent?.active !== false);
       <span class="inline-flex gap-1.5 items-center font-semibold">
         <span
           class="rounded-full size-2"
-          :class="isActive ? 'bg-g-500' : 'bg-n-slate-7'"
+          :class="isActive ? 'bg-n-teal-9' : 'bg-n-slate-7'"
         />
         {{ isActive ? activeLabel : inactiveLabel }}
       </span>

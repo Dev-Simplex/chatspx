@@ -15,7 +15,7 @@ defineProps({
     class="flex items-center gap-3 rounded-xl border border-n-weak bg-white p-4 transition-shadow duration-200 hover:shadow-sm dark:bg-n-solid-2"
   >
     <div
-      class="flex size-10 items-center justify-center rounded-lg bg-primary-50 dark:bg-primary-900/20"
+      class="flex size-10 items-center justify-center rounded-lg bg-n-teal-3"
     >
       <LottieIcon
         v-if="animationData"
@@ -23,7 +23,7 @@ defineProps({
         :size="20"
         :mode="iconMode"
       />
-      <i v-else class="size-5 text-primary-500" :class="[fallbackIcon]" />
+      <i v-else class="size-5 text-n-teal-11" :class="[fallbackIcon]" />
     </div>
     <div>
       <p class="text-xl font-bold tabular-nums text-n-slate-12">{{ value }}</p>

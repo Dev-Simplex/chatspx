@@ -252,7 +252,7 @@ const iReacted = emoji =>
             class="relative z-10 inline-flex items-center justify-center w-8 h-8 transition-colors rounded-md"
             :class="
               message.mine
-                ? 'bubble-out-meta hover:bg-black/10 dark:hover:bg-white/10'
+                ? 'bubble-out-meta hover:bg-n-black/10 dark:hover:bg-white/10'
                 : 'text-n-slate-11 hover:bg-n-alpha-2'
             "
             title="Ações da mensagem"

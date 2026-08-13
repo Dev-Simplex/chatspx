@@ -168,7 +168,7 @@ onMounted(() => setTimeout(playFlow, 400));
           class="p-3 rounded-2xl border shadow-sm"
           :class="
             s.handoff
-              ? 'border-r-300 bg-r-50 dark:bg-r-900/20 dark:border-r-800'
+              ? 'border-n-ruby-6 bg-n-ruby-2 dark:bg-n-ruby-3'
               : 'border-n-weak bg-n-solid-1'
           "
         >

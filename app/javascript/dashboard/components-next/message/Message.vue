@@ -922,7 +922,7 @@ provideMessageContext({
             </div>
             <div
               v-if="starred"
-              class="inline-flex items-center gap-1 text-amber-500 dark:text-amber-400"
+              class="inline-flex items-center gap-1 text-n-amber-11"
               :title="t('CONVERSATION.STARRED') || 'Favoritada'"
             >
               <Icon icon="i-lucide-star" class="size-3 fill-current" />

@@ -28,7 +28,7 @@ onBeforeUnmount(() => {
 
 <template>
   <div
-    class="fixed inset-0 z-[1000] bg-black/90 flex flex-col backdrop-blur-md"
+    class="fixed inset-0 z-[1000] bg-n-black/90 flex flex-col backdrop-blur-md"
     @click.self="emit('close')"
   >
     <header

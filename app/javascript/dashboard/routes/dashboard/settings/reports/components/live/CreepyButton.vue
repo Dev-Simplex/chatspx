@@ -83,10 +83,6 @@ const coverStyle = computed(() => ({
   >
     <span
       class="creepy-btn__cover relative z-10 block rounded-[inherit] text-sm font-medium text-white transition-all duration-300 ease-[cubic-bezier(0.65,0,0.35,1)]"
-      :class="{
-        'bg-n-teal-5': active,
-        'bg-n-slate-5': !active,
-      }"
       :style="coverStyle"
     >
       <slot />
@@ -142,13 +138,44 @@ const coverStyle = computed(() => ({
   overflow: hidden;
 }
 
+/* Fundo do rótulo.
+   O rótulo é branco fixo (`text-white`), então o fundo tem de ser um tom
+   SÓLIDO. Antes vinha de `bg-n-teal-5` / `bg-n-slate-5` — mas o passo 5 da
+   escala é "realce sutil", não cor de botão, e no tema claro o par ficava
+   ilegível:
+     branco sobre #d9dbdf (slate-5 claro, "Ativar Tempo Real")   = 1.39:1
+     branco sobre #99ded1 (teal-5 claro, "Desativar Tempo Real") = 1.53:1
+   No tema escuro os mesmos tokens já passavam (11.92:1 e 5.30:1), então o
+   `.dark` preserva exatamente os valores antigos e só o claro muda:
+     branco sobre #006c55 = 6.41:1   (ativo)
+     branco sobre #54656f = 6.06:1   (inativo) */
+.creepy-btn--active .creepy-btn__cover {
+  background-color: #006c55;
+}
+
+.creepy-btn--inactive .creepy-btn__cover {
+  background-color: #54656f;
+}
+
+.dark .creepy-btn--active .creepy-btn__cover {
+  background-color: #007a63;
+}
+
+.dark .creepy-btn--inactive .creepy-btn__cover {
+  background-color: #2a3942;
+}
+
 .creepy-btn:hover .creepy-btn__cover {
   transform: rotate(-12deg);
   transition-timing-function: cubic-bezier(0.65, 0, 0.35, 1.65);
 }
 
+/* O hover também estava ilegível, nos dois temas: `hsl(173 80% 40%)` é
+   #14b8a5 e o branco em cima dava 2.49:1. Escurecido para 8.31:1, mantendo o
+   mesmo gesto de "afunda ao passar o mouse" do estado inativo (que já estava
+   ok em 7.47:1 e por isso continua intocado). */
 .creepy-btn--active:hover .creepy-btn__cover {
-  background-color: hsl(173 80% 40%);
+  background-color: #00594a;
 }
 
 .creepy-btn--inactive:hover .creepy-btn__cover {

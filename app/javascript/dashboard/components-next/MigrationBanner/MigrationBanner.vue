@@ -105,7 +105,7 @@ onBeforeUnmount(() => {
 <template>
   <div
     v-if="shouldShow"
-    class="fixed inset-0 z-[100000] flex items-center justify-center bg-slate-900/85 dark:bg-slate-950/90 backdrop-blur-md p-4"
+    class="fixed inset-0 z-[100000] flex items-center justify-center bg-slate-900/85 dark:bg-slate-900/90 backdrop-blur-md p-4"
     role="dialog"
     aria-modal="true"
     aria-labelledby="migration-title"
@@ -127,7 +127,7 @@ onBeforeUnmount(() => {
 
       <h1
         id="migration-title"
-        class="text-2xl sm:text-3xl font-bold text-emerald-600 dark:text-emerald-400 mb-3"
+        class="text-2xl sm:text-3xl font-bold text-n-teal-11 mb-3"
       >
         A Tozi mudou de endereço
       </h1>
@@ -144,7 +144,7 @@ onBeforeUnmount(() => {
         ref="ctaRef"
         type="button"
         :disabled="loading"
-        class="w-full inline-flex items-center justify-center gap-2 bg-emerald-500 hover:bg-emerald-600 disabled:bg-emerald-700 disabled:cursor-wait text-white font-semibold text-base sm:text-lg py-3 sm:py-4 px-6 rounded-xl transition-all shadow-lg hover:shadow-emerald-500/20 focus:outline-none focus-visible:ring-4 focus-visible:ring-emerald-300"
+        class="w-full inline-flex items-center justify-center gap-2 bg-n-teal-9 hover:bg-n-teal-10 disabled:bg-n-teal-8 disabled:cursor-wait text-white font-semibold text-base sm:text-lg py-3 sm:py-4 px-6 rounded-xl transition-all shadow-lg hover:shadow-n-teal-9/20 focus:outline-none focus-visible:ring-4 focus-visible:ring-n-teal-8"
         @click="handleMigrate"
       >
         <!-- Spinner SVG (Lucide-style) -->
@@ -185,7 +185,7 @@ onBeforeUnmount(() => {
         </p>
         <p class="text-slate-600 dark:text-slate-300">
           Acesse manualmente:
-          <a :href="MANUAL_URL" class="text-emerald-600 dark:text-emerald-400 underline font-medium">
+          <a :href="MANUAL_URL" class="text-n-teal-11 underline font-medium">
             {{ DESTINATION_HOST }}
           </a>
         </p>

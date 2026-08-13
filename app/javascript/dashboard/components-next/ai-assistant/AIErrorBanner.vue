@@ -73,15 +73,15 @@ const variant = computed(() => VARIANTS[props.errorType] || null);
 const toneClasses = computed(() => {
   if (!variant.value) return '';
   if (variant.value.tone === 'amber') {
-    return 'border-amber-300 bg-amber-50 text-amber-900 dark:border-amber-800/40 dark:bg-amber-950/30 dark:text-amber-100';
+    return 'border-n-amber-6 bg-n-amber-3 text-n-amber-12 dark:bg-n-amber-2';
   }
-  return 'border-red-300 bg-red-50 text-red-900 dark:border-red-800/40 dark:bg-red-950/30 dark:text-red-100';
+  return 'border-red-300 bg-red-50 text-red-900 dark:border-red-800/40 dark:bg-n-ruby-2 dark:text-red-100';
 });
 
 const iconColorClass = computed(() => {
   if (!variant.value) return '';
   return variant.value.tone === 'amber'
-    ? 'text-amber-600 dark:text-amber-400'
+    ? 'text-n-amber-11'
     : 'text-red-600 dark:text-red-400';
 });
 
@@ -163,7 +163,7 @@ const variantTestId = computed(() => {
       <button
         v-if="showCancel"
         type="button"
-        class="rounded-md border border-transparent bg-white/40 px-2.5 py-1 text-[11px] font-medium text-current transition-colors hover:bg-white/70 focus:outline-none focus:ring-2 focus:ring-purple-400 dark:bg-white/5 dark:hover:bg-white/10"
+        class="rounded-md border border-transparent bg-white/40 px-2.5 py-1 text-[11px] font-medium text-current transition-colors hover:bg-white/70 focus:outline-none focus:ring-2 focus:ring-n-violet-8 dark:bg-white/5 dark:hover:bg-white/10"
         @click="emit('cancel')"
       >
         {{ cancelLabel }}
@@ -171,7 +171,7 @@ const variantTestId = computed(() => {
       <button
         v-if="showDismiss"
         type="button"
-        class="rounded-md border border-transparent bg-white/40 px-2.5 py-1 text-[11px] font-medium text-current transition-colors hover:bg-white/70 focus:outline-none focus:ring-2 focus:ring-purple-400 dark:bg-white/5 dark:hover:bg-white/10"
+        class="rounded-md border border-transparent bg-white/40 px-2.5 py-1 text-[11px] font-medium text-current transition-colors hover:bg-white/70 focus:outline-none focus:ring-2 focus:ring-n-violet-8 dark:bg-white/5 dark:hover:bg-white/10"
         @click="emit('dismiss')"
       >
         {{ dismissLabel }}
@@ -179,7 +179,7 @@ const variantTestId = computed(() => {
       <button
         v-if="showRetry"
         type="button"
-        class="inline-flex items-center gap-1 rounded-md bg-purple-600 px-2.5 py-1 text-[11px] font-semibold text-white transition-colors hover:bg-purple-700 focus:outline-none focus:ring-2 focus:ring-purple-400 disabled:cursor-not-allowed disabled:opacity-60"
+        class="inline-flex items-center gap-1 rounded-md bg-n-violet-9 px-2.5 py-1 text-[11px] font-semibold text-white transition-colors hover:bg-n-violet-10 dark:hover:bg-n-violet-8 focus:outline-none focus:ring-2 focus:ring-n-violet-8 disabled:cursor-not-allowed disabled:opacity-60"
         :disabled="isRetryDisabled"
         @click="emit('retry')"
       >

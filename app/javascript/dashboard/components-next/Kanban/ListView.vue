@@ -288,7 +288,7 @@ const statusBadgeClass = status => {
   if (status === 'pending') return 'bg-n-amber-4 text-n-amber-11';
   if (status === 'resolved') return 'bg-n-slate-4 text-n-slate-11';
   if (status === 'snoozed') return 'bg-n-blue-4 text-n-blue-11';
-  return 'bg-n-emerald-4 text-n-emerald-11';
+  return 'bg-n-teal-4 text-n-teal-11';
 };
 
 const matchesQueryFilter = item => {
@@ -823,7 +823,7 @@ const bulkMove = async event => {
                   variant="ghost"
                   icon="i-lucide-trash"
                   :title="t('KANBAN.ITEMS.REMOVE')"
-                  class="!h-8 !w-8 !p-0 text-ruby-10"
+                  class="!h-8 !w-8 !p-0 text-n-ruby-11"
                   @click="handleRemove(item)"
                 />
               </div>
@@ -910,7 +910,7 @@ const bulkMove = async event => {
                 size="xs"
                 variant="ghost"
                 icon="i-lucide-trash"
-                class="!h-8 !w-8 !p-0 text-ruby-10"
+                class="!h-8 !w-8 !p-0 text-n-ruby-11"
                 @click="handleRemove(item)"
               />
             </div>

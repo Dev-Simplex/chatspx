@@ -732,48 +732,133 @@ button.bg-n-brand[class*='rounded-full']:hover {
   --wa-primary-hover: #008f72;
   --wa-primary-10: rgba(0, 168, 132, 0.10);
   --wa-primary-20: rgba(0, 168, 132, 0.20);
+
+  /* Verde da marca em versão LEGÍVEL COMO TEXTO.
+     `--wa-primary` (#2dc46f) é um tom de PREENCHIMENTO: serve de fundo, nunca
+     de texto sobre superfície clara. Medido no staging: #2dc46f sobre o cinza
+     do painel (#f0f2f5) dá 2.03:1 e sobre o véu verde do pill da aba ativa
+     (rgba(0,168,132,.14) em cima do mesmo cinza = rgb(206,232,229)) cai para
+     1.76:1 — o mínimo WCAG AA para texto é 4.5:1.
+
+     `--wa-primary-text` é o MESMO matiz (HSL ~146°, igual ao #2dc46f)
+     escurecido até passar folgado no pior fundo claro que ele encontra:
+       #0f6c37 sobre rgb(206,232,229) = 5.06:1
+       #0f6c37 sobre #f0f2f5          = 5.81:1
+       #0f6c37 sobre #ffffff          = 6.52:1
+     No tema escuro o problema se inverte (o texto precisa CLAREAR), então
+     `.dark` redefine o token — ver bloco (G). Use este token para RÓTULO /
+     ÍCONE; para fundo continue usando `--wa-primary`. */
+  --wa-primary-text: #0f6c37;
 }
 
 /* (A) Generic brand buttons — any element using bg-n-brand as base background.
    Exception list: .wa-send-btn (already WA), rounded-full badges/avatars.
-   IMPORTANTE: usar `[class~='bg-n-brand']` (whitespace-separated word match)
-   ao invés de `[class*='bg-n-brand']` (substring match). O substring match
-   casava `hover:bg-n-brand/5` indevidamente, pintando de verde sólido botões
-   que só usam o brand no hover. `~=` casa apenas a palavra exata `bg-n-brand`
-   na lista de classes. Variantes `bg-n-brand/X` e `bg-n-brand-X` cobertas
-   pelos seletores adicionais abaixo (com prefixo de início ou espaço). */
+
+   REGRA DE OURO deste bloco: casar apenas a PALAVRA EXATA
+   (`[class~='bg-n-brand']`), nunca substring nem prefixo de variante. As
+   variantes de opacidade do Tailwind (`bg-n-brand/5`, `/10`, `/20`, …) ficam
+   deliberadamente DE FORA por dois motivos:
+
+   1. Mesma cor. O token `n.brand` em theme/colors.js é `#2dc46f`, idêntico a
+      `--wa-primary`. O próprio Tailwind já emite `rgb(45 196 111 / 0.05)` no
+      tom certo — não há nada para corrigir na variante translúcida.
+   2. A transparência é INTENCIONAL. `bg-n-brand/5` é véu de seleção/hover;
+      repintar com cor chapada destrói o alfa e o conteúdo por cima fica
+      ilegível. Foi exatamente o que acontecia com o cartão selecionado do
+      "Modo de atendimento" (Configurações › Geral), que renderizava verde
+      sólido com a descrição sumindo por cima — e o mesmo valia para todo
+      seletor/realce translúcido do app.
+
+   Pelo mesmo motivo não há seletor para prefixos de variante (`hover:`,
+   `focus-visible:`, `dark:`): o Tailwind já os emite na cor certa. */
 button[class~='bg-n-brand']:not(.wa-send-btn):not([class*='rounded-full']),
-button[class*=' bg-n-brand/']:not(.wa-send-btn):not([class*='rounded-full']),
-button[class^='bg-n-brand/']:not(.wa-send-btn):not([class*='rounded-full']),
-button[class*=' bg-n-brand-']:not(.wa-send-btn):not([class*='rounded-full']),
-button[class^='bg-n-brand-']:not(.wa-send-btn):not([class*='rounded-full']),
-a[class~='bg-n-brand']:not([class*='rounded-full']),
-a[class*=' bg-n-brand/']:not([class*='rounded-full']),
-a[class^='bg-n-brand/']:not([class*='rounded-full']) {
+a[class~='bg-n-brand']:not([class*='rounded-full']) {
   background-color: var(--wa-primary);
-  &:hover { background-color: var(--wa-primary-hover); }
+
+  &:hover {
+    background-color: var(--wa-primary-hover);
+  }
 }
 
-/* (B) Text/border using brand token */
-[class*='text-n-brand']:not(.wa-brand-green-preserved) {
+/* (B) Text/border using brand token — mesma regra de (A): palavra exata.
+   O substring match anterior pegava `text-n-brand/70` e `border-n-brand/20`
+   (variantes translúcidas que já saem na cor certa, com o alfa pedido) e
+   também classes de variante inválidas como `group-hover:text-n-brand-default`
+   no ConversationHeader, que deixava o nome do contato verde PERMANENTE em vez
+   de só no hover. */
+[class~='text-n-brand']:not(.wa-brand-green-preserved) {
   color: var(--wa-primary);
 }
-[class*='border-n-brand'] {
+[class~='border-n-brand'] {
   border-color: var(--wa-primary);
 }
 
-/* (C) Kill legacy bg-woot-500/600 (Chatwoot blue-purple) */
-[class*='bg-woot-500'] { background-color: var(--wa-primary); }
-[class*='bg-woot-600'] { background-color: var(--wa-primary-hover); }
+/* (B.1) Rótulo da marca EM CIMA do véu translúcido da própria marca.
+   Padrão `bg-n-brand/10 text-n-brand` (24 ocorrências no app: selo "Online" e
+   contador de conversas do painel /live, chips do Kanban, avatares do
+   ShareContact, item selecionado do PhoneInput/ComboBox…). O véu de 10% sobre
+   branco compõe rgb(234,249,241); com o texto em `--wa-primary` isso dá
+   2.16:1 — ilegível. Aqui só o TEXTO muda de tom; o fundo continua sendo o
+   véu do Tailwind com o alfa intacto (REGRA DE OURO deste arquivo: nunca
+   tapar token translúcido com cor chapada).
+
+     antes  #2dc46f sobre rgb(234,249,241) = 2.16:1
+     depois #0f6c37 sobre rgb(234,249,241) = 6.00:1   (claro)
+     depois #3fd97f sobre rgb(36,64,62)    = 6.09:1   (escuro)
+
+   O casamento exige as DUAS condições — palavra exata `text-n-brand` E um
+   `bg-n-brand/<alfa>` qualquer — justamente para não pegar as variantes de
+   estado (`hover:text-n-brand` do CopilotMenuBar continua fora, porque
+   `~=` não casa a palavra com prefixo). */
+[class~='text-n-brand'][class*='bg-n-brand/']:not(.wa-brand-green-preserved) {
+  color: var(--wa-primary-text);
+}
+
+/* (C) Kill legacy bg-woot-500/600 (Chatwoot blue-purple).
+   Aqui o token de origem é OUTRA cor (violeta/azul do Chatwoot antigo), então
+   o repaint continua fazendo sentido — mas o casamento passa a ser por palavra
+   exata, porque o substring match causava dois defeitos reais:
+   - `[class*='bg-woot-50']` casava também `bg-woot-500` e, por vir DEPOIS na
+     cascata, sobrescrevia o verde sólido por um véu de 10%;
+   - `[class*='border-woot-500']` casava `focus:border-woot-500`, pintando a
+     borda de verde no estado base e não só no foco.
+   Variantes com prefixo ganham regra própria já ancorada no estado certo
+   (`:hover` / `:focus`). Se algum dia surgir uma variante translúcida
+   (`bg-woot-500/20`), repinte preservando o alfa — `color-mix(in srgb,
+   var(--wa-primary) 20%, transparent)` — nunca com cor chapada. */
+[class~='bg-woot-500'] {
+  background-color: var(--wa-primary);
+}
+[class~='bg-woot-600'] {
+  background-color: var(--wa-primary-hover);
+}
 [class*='hover\\:bg-woot-600']:hover,
-[class*='hover:bg-woot-600']:hover { background-color: var(--wa-primary-hover); }
-[class*='text-woot-500'] { color: var(--wa-primary); }
-[class*='text-woot-600'] { color: var(--wa-primary-hover); }
-[class*='bg-woot-50'] { background-color: var(--wa-primary-10); }
-[class*='border-woot-500'] { border-color: var(--wa-primary); }
-[class*='ring-woot-500'] { --tw-ring-color: var(--wa-primary); }
+[class*='hover:bg-woot-600']:hover {
+  background-color: var(--wa-primary-hover);
+}
+[class~='text-woot-500'] {
+  color: var(--wa-primary);
+}
+[class~='text-woot-600'] {
+  color: var(--wa-primary-hover);
+}
+[class~='bg-woot-50'] {
+  background-color: var(--wa-primary-10);
+}
+[class~='border-woot-500'] {
+  border-color: var(--wa-primary);
+}
+[class*='focus\\:border-woot-500']:focus,
+[class*='focus:border-woot-500']:focus {
+  border-color: var(--wa-primary);
+}
+[class~='ring-woot-500'] {
+  --tw-ring-color: var(--wa-primary);
+}
 [class*='focus\\:ring-woot-500']:focus,
-[class*='focus:ring-woot-500']:focus { --tw-ring-color: var(--wa-primary); }
+[class*='focus:ring-woot-500']:focus {
+  --tw-ring-color: var(--wa-primary);
+}
 
 /* (D) Saturated WhatsApp green #25d366 → WA primary */
 [class*='bg-\\[\\#25d366\\]'],
@@ -797,6 +882,14 @@ input[type='radio'][class*='text-woot-500'] {
 .dark {
   --wa-primary: #2dc46f;
   --wa-primary-hover: #06cf9c;
+
+  /* No escuro o texto da marca precisa CLAREAR, não escurecer. O #2dc46f já
+     passava por pouco (4.67:1 sobre o pill escuro rgb(26,69,67)); o lift para
+     #3fd97f — mesmo matiz ~146° — dá margem sem virar neon:
+       #3fd97f sobre rgb(26,69,67) [pill da aba ativa] = 5.79:1
+       #3fd97f sobre #202c33       [painel]            = 7.79:1
+       #3fd97f sobre rgb(36,64,62) [véu bg-n-brand/10] = 6.09:1 */
+  --wa-primary-text: #3fd97f;
 }
 
 /* (G.1) Sidebar resize handle — exclude from retone. The inner div carries
@@ -2510,9 +2603,18 @@ aside [class*='cursor-col-resize'] {
   background-color: rgba(17, 27, 33, 0.06);
   /* color inalterado — mantém var(--wa-text-secondary) */
 }
+/* Aba ativa. O pill é um véu verde de 14% sobre o cinza do painel — ele fica
+   como está (é translúcido de propósito). O que muda é o RÓTULO: em
+   `--wa-primary` o par media 1.76:1 contra o pill composto rgb(206,232,229)
+   (2.03:1 contra o cinza liso rgb(240,242,245), que é o número que a sonda
+   reportou por não compor o alfa). `--wa-primary-text` é o mesmo verde
+   escurecido, e o `font-semibold` que o TabsItem.vue já aplica no estado
+   ativo continua reforçando a leitura.
+     antes  #2dc46f sobre rgb(206,232,229) = 1.76:1
+     depois #0f6c37 sobre rgb(206,232,229) = 5.06:1 */
 .wa-tab-item.active {
   background-color: rgba(0, 168, 132, 0.14);
-  color: var(--wa-primary);
+  color: var(--wa-primary-text);
   border-color: transparent;
 }
 .dark .wa-tab-item {
@@ -2522,9 +2624,12 @@ aside [class*='cursor-col-resize'] {
   background-color: rgba(134, 150, 160, 0.10);
   /* color inalterado — mantém var(--wa-text-secondary-dark) */
 }
+/* Escuro: mesmo raciocínio invertido. Contra o pill composto rgb(26,69,67) o
+   #2dc46f dava 4.67:1 (passava raspando); `--wa-primary-text` do `.dark`
+   (#3fd97f) sobe para 5.79:1. */
 .dark .wa-tab-item.active {
   background-color: rgba(0, 168, 132, 0.20);
-  color: var(--wa-primary);
+  color: var(--wa-primary-text);
 }
 
 .wa-tab-item__badge {
@@ -2535,9 +2640,18 @@ aside [class*='cursor-col-resize'] {
   background-color: rgba(134, 150, 160, 0.25);
   color: var(--wa-text-secondary-dark);
 }
+/* O contador da aba ativa sofria do mesmo mal, só que espelhado: branco sobre
+   `--wa-primary` = 2.27:1 nos DOIS temas. Usa agora o mesmo tom do rótulo, com
+   a tinta que cada tema pede.
+     antes  #ffffff sobre #2dc46f = 2.27:1  (claro e escuro)
+     depois #ffffff sobre #0f6c37 = 6.52:1  (claro)
+     depois #111b21 sobre #3fd97f = 9.52:1  (escuro) */
 .wa-tab-item.active .wa-tab-item__badge {
-  background-color: var(--wa-primary);
+  background-color: var(--wa-primary-text);
   color: #ffffff;
+}
+.dark .wa-tab-item.active .wa-tab-item__badge {
+  color: #111b21;
 }
 
 /* =======================================================================
@@ -3023,10 +3137,15 @@ html body .v-popper--theme-tooltip .v-popper__inner,
 }
 
 /* Reset de bg em botões do dropdown que usam apenas modifier `hover:bg-n-brand/X`.
-   A regra geral mais abaixo (`button[class*='bg-n-brand']`) usa attribute substring
-   match e casa `hover:bg-n-brand/5`, pintando o botão inteiro de verde sólido.
-   Aqui sobrescrevemos com especificidade maior pra deixar o estado base transparente
-   (o hover continua via utility Tailwind). */
+   HISTÓRICO: existia porque o bloco (A) casava `hover:bg-n-brand/5` por
+   substring e pintava o botão inteiro de verde sólido. Esse defeito foi
+   corrigido na origem — o bloco (A) agora casa só a palavra exata
+   `bg-n-brand` —, então esta regra virou redundante e fica apenas como
+   cinto-e-suspensório contra regras legadas.
+   ATENÇÃO ao mexer: é `!important` sobre o estado BASE. Se algum botão de
+   dropdown ganhar um estado selecionado com `bg-n-brand/10` E também um
+   `hover:bg-n-brand/X`, esta regra mata o realce de seleção. Nesse dia,
+   remova o bloco em vez de adicionar exceção. */
 .n-dropdown-body button[class*='hover:bg-n-brand'],
 .dropdown-pane button[class*='hover:bg-n-brand'],
 [class*='fixed z-\[100\]'] button[class*='hover:bg-n-brand'] {

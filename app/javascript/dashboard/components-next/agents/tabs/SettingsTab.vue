@@ -271,7 +271,7 @@ async function deleteAgent() {
           <template #aside>
             <span
               class="text-[11px]"
-              :class="descriptionTooLong ? 'text-r-500' : 'text-n-slate-9'"
+              :class="descriptionTooLong ? 'text-n-ruby-11' : 'text-n-slate-9'"
             >
               {{ form.description.length }}/255
             </span>
@@ -509,7 +509,7 @@ async function deleteAgent() {
     <AiCard>
       <div class="flex flex-wrap gap-3 justify-between items-center">
         <div class="min-w-0">
-          <p class="flex gap-2 items-center text-sm font-bold text-r-500">
+          <p class="flex gap-2 items-center text-sm font-bold text-n-ruby-11">
             <span class="i-lucide-alert-triangle size-4" />
             Excluir agente
           </p>

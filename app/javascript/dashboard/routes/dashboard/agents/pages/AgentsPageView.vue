@@ -131,7 +131,7 @@ onMounted(() => store.dispatch('captainAssistants/get'));
             </span>
             <span
               class="flex-none rounded-full size-2"
-              :class="agent.active === false ? 'bg-n-slate-7' : 'bg-g-500'"
+              :class="agent.active === false ? 'bg-n-slate-7' : 'bg-n-teal-9'"
             />
           </button>
         </template>

@@ -830,7 +830,7 @@ onMounted(loadIntegrations);
               <span
                 :class="
                   copiedMcp
-                    ? 'i-lucide-check size-3 text-g-600'
+                    ? 'i-lucide-check size-3 text-n-teal-11'
                     : 'i-lucide-clipboard size-3'
                 "
               />
@@ -843,7 +843,7 @@ onMounted(loadIntegrations);
           </div>
           <!-- eslint-disable prettier/prettier -->
           <pre
-            class="overflow-x-auto p-3 max-h-48 font-mono text-xs text-slate-300 bg-slate-950"
+            class="overflow-x-auto p-3 max-h-48 font-mono text-xs text-slate-300 bg-slate-900"
             >{{ mcpTemplate }}</pre>
           <!-- eslint-enable prettier/prettier -->
         </div>
@@ -1038,7 +1038,7 @@ onMounted(loadIntegrations);
             </div>
             <button
               type="button"
-              class="grid flex-none place-items-center rounded-lg transition size-8 text-n-slate-11 hover:bg-n-alpha-2 hover:text-r-500"
+              class="grid flex-none place-items-center rounded-lg transition size-8 text-n-slate-11 hover:bg-n-alpha-2 hover:text-n-ruby-11"
               @click="removeParam(index)"
             >
               <span class="i-lucide-trash-2 size-4" />
@@ -1226,7 +1226,7 @@ onMounted(loadIntegrations);
           <span
             v-if="testResult"
             class="inline-flex gap-1.5 items-center text-[13px] font-semibold"
-            :class="testResult.ok ? 'text-g-600' : 'text-r-500'"
+            :class="testResult.ok ? 'text-n-teal-11' : 'text-n-ruby-11'"
           >
             <span
               :class="

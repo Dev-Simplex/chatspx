@@ -113,7 +113,7 @@ const fileExtension = computed(() => {
   <div class="flex items-center gap-2 min-w-0">
     <!-- Reply with text: show truncated content -->
     <template v-if="showTextPreview">
-      <span class="break-all line-clamp-2 text-inherit">
+      <span class="break-all line-clamp-2 text-current">
         {{ inReplyTo.content }}
       </span>
     </template>
@@ -127,7 +127,7 @@ const fileExtension = computed(() => {
           :alt="t('CHAT_LIST.ATTACHMENTS.image.CONTENT')"
           class="size-10 shrink-0 rounded object-cover skip-context-menu"
         />
-        <span class="min-w-0 truncate text-inherit">
+        <span class="min-w-0 truncate text-current">
           {{ attachmentLabel }}
         </span>
       </template>
@@ -146,7 +146,7 @@ const fileExtension = computed(() => {
         >
           <Icon icon="i-lucide-video" class="size-5 text-n-slate-11" />
         </div>
-        <span class="min-w-0 truncate text-inherit">{{ attachmentLabel }}</span>
+        <span class="min-w-0 truncate text-current">{{ attachmentLabel }}</span>
       </template>
 
       <!-- Audio: icon + label -->
@@ -156,7 +156,7 @@ const fileExtension = computed(() => {
         >
           <Icon icon="i-lucide-mic" class="size-5 text-n-slate-11" />
         </div>
-        <span class="min-w-0 truncate text-inherit">{{ attachmentLabel }}</span>
+        <span class="min-w-0 truncate text-current">{{ attachmentLabel }}</span>
       </template>
 
       <!-- File / PDF: icon + file name -->
@@ -166,7 +166,7 @@ const fileExtension = computed(() => {
         >
           <FileIcon :file-type="fileExtension" class="size-5 text-n-slate-11" />
         </div>
-        <span class="min-w-0 truncate text-inherit" :title="fileName">{{
+        <span class="min-w-0 truncate text-current" :title="fileName">{{
           fileName
         }}</span>
       </template>
@@ -178,13 +178,13 @@ const fileExtension = computed(() => {
         >
           <Icon icon="i-lucide-paperclip" class="size-5 text-n-slate-11" />
         </div>
-        <span class="min-w-0 truncate text-inherit">{{ attachmentLabel }}</span>
+        <span class="min-w-0 truncate text-current">{{ attachmentLabel }}</span>
       </template>
     </template>
 
     <!-- Fallback: message not found -->
     <template v-else>
-      <span class="text-inherit">
+      <span class="text-current">
         {{ $t('CONVERSATION.REPLY_MESSAGE_NOT_FOUND') }}
       </span>
     </template>

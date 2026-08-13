@@ -104,7 +104,7 @@ const onRetry = attachment => {
         />
         <video
           v-else-if="isTypeVideo(attachment.resource) && attachment.thumb"
-          class="object-cover w-6 h-6 rounded-sm bg-black"
+          class="object-cover w-6 h-6 rounded-sm bg-n-black"
           :src="attachment.thumb"
           muted
           playsinline

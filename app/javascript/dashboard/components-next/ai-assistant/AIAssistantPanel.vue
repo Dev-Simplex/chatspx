@@ -513,7 +513,7 @@ const showEdgeCaseWhatsappExpired = computed(() => {
         leave-to="opacity-0"
       >
         <div
-          class="fixed inset-0 bg-black/30 backdrop-blur-[1px] dark:bg-black/50"
+          class="fixed inset-0 bg-n-black/30 backdrop-blur-[1px] dark:bg-n-black/50"
           aria-hidden="true"
         />
       </TransitionChild>
@@ -567,7 +567,7 @@ const showEdgeCaseWhatsappExpired = computed(() => {
               <div class="flex items-center gap-2 min-w-0">
                 <Icon
                   icon="i-lucide-sparkles"
-                  class="size-5 text-purple-600 dark:text-purple-300"
+                  class="size-5 text-n-violet-11"
                   aria-hidden="true"
                 />
                 <DialogTitle
@@ -579,7 +579,7 @@ const showEdgeCaseWhatsappExpired = computed(() => {
               <button
                 type="button"
                 :aria-label="t('CONVERSATION.AI_ASSISTANT_PANEL.CLOSE')"
-                class="inline-flex size-8 items-center justify-center rounded-md text-n-slate-11 transition-colors hover:bg-n-alpha-2 focus:outline-none focus-visible:ring-2 focus-visible:ring-purple-400"
+                class="inline-flex size-8 items-center justify-center rounded-md text-n-slate-11 transition-colors hover:bg-n-alpha-2 focus:outline-none focus-visible:ring-2 focus-visible:ring-n-violet-8"
                 @click="closeFromUISettings"
               >
                 <Icon icon="i-lucide-x" class="size-4" aria-hidden="true" />
@@ -653,7 +653,7 @@ const showEdgeCaseWhatsappExpired = computed(() => {
 
                 <div
                   v-if="showEdgeCasePrivate"
-                  class="rounded-lg border border-amber-300 bg-amber-50 p-3 text-xs text-amber-900 dark:border-amber-800/40 dark:bg-amber-950/30 dark:text-amber-100"
+                  class="rounded-lg border border-n-amber-6 bg-n-amber-3 p-3 text-xs text-n-amber-12 dark:bg-n-amber-2"
                 >
                   <p class="font-semibold">
                     {{
@@ -673,11 +673,11 @@ const showEdgeCaseWhatsappExpired = computed(() => {
 
                 <div
                   v-if="showEdgeCaseWhatsappExpired"
-                  class="flex items-start gap-2 rounded-lg border border-amber-300 bg-amber-50 p-3 text-xs text-amber-900 dark:border-amber-800/40 dark:bg-amber-950/30 dark:text-amber-100"
+                  class="flex items-start gap-2 rounded-lg border border-n-amber-6 bg-n-amber-3 p-3 text-xs text-n-amber-12 dark:bg-n-amber-2"
                 >
                   <Icon
                     icon="i-lucide-wifi-off"
-                    class="mt-0.5 size-4 shrink-0 text-amber-600 dark:text-amber-300"
+                    class="mt-0.5 size-4 shrink-0 text-n-amber-11"
                     aria-hidden="true"
                   />
                   <div class="flex min-w-0 flex-1 flex-col gap-0.5">
@@ -784,7 +784,7 @@ const showEdgeCaseWhatsappExpired = computed(() => {
                   maxlength="4000"
                   :placeholder="placeholderText"
                   :aria-label="placeholderText"
-                  class="reset-base block w-full resize-none rounded-lg border border-n-weak bg-n-solid-1 px-3 py-2 text-sm text-n-slate-12 placeholder:text-n-slate-9 focus:border-purple-400 focus:outline-none focus:ring-1 focus:ring-purple-400/40 max-h-[160px] overflow-y-auto"
+                  class="reset-base block w-full resize-none rounded-lg border border-n-weak bg-n-solid-1 px-3 py-2 text-sm text-n-slate-12 placeholder:text-n-slate-9 focus:border-n-violet-8 focus:outline-none focus:ring-1 focus:ring-n-violet-8/40 max-h-[160px] overflow-y-auto"
                   @input="adjustTextareaHeight"
                   @keydown="handleKeydown"
                 />
@@ -792,7 +792,7 @@ const showEdgeCaseWhatsappExpired = computed(() => {
                   type="submit"
                   :disabled="!draftPrompt.trim() || isLoading"
                   :aria-label="t('CONVERSATION.AI_ASSISTANT_PANEL.SEND')"
-                  class="inline-flex size-9 shrink-0 items-center justify-center rounded-full bg-purple-600 text-white transition-colors hover:bg-purple-700 focus:outline-none focus-visible:ring-2 focus-visible:ring-purple-400 disabled:cursor-not-allowed disabled:opacity-50"
+                  class="inline-flex size-9 shrink-0 items-center justify-center rounded-full bg-n-violet-9 text-white transition-colors hover:bg-n-violet-10 dark:hover:bg-n-violet-8 focus:outline-none focus-visible:ring-2 focus-visible:ring-n-violet-8 disabled:cursor-not-allowed disabled:opacity-50"
                 >
                   <Icon
                     icon="i-lucide-send-horizontal"

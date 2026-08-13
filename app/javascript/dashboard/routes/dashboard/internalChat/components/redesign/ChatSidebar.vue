@@ -278,7 +278,7 @@ defineExpose({ openCompose });
                 </div>
                 <button
                   type="button"
-                  class="w-full px-3 py-2 mt-1 text-xs font-semibold text-white rounded-lg bg-n-brand hover:bg-n-brand-hover disabled:opacity-40"
+                  class="w-full px-3 py-2 mt-1 text-xs font-semibold text-white rounded-lg bg-n-brand hover:bg-n-teal-10 disabled:opacity-40"
                   :disabled="!canCreateGroup"
                   @click="createGroup"
                 >

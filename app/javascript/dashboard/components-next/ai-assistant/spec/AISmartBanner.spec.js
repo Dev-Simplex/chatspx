@@ -55,7 +55,7 @@ describe('AISmartBanner', () => {
     mockReducedMotion.value = false;
   });
 
-  it('renders the info variant with purple tone classes for long_thread', () => {
+  it('renders the info variant with violet tone classes for long_thread', () => {
     const wrapper = mount(AISmartBanner, {
       props: { suggestion: SUGGESTIONS.longThread },
     });
@@ -63,8 +63,8 @@ describe('AISmartBanner', () => {
       '[data-testid^="ai-smart-banner"]:not([data-testid$="-cta"]):not([data-testid$="-dismiss"])'
     );
     const cls = root.attributes('class') || '';
-    expect(cls).toMatch(/border-purple-500/);
-    expect(cls).toMatch(/bg-purple-50/);
+    expect(cls).toMatch(/border-n-violet-9/);
+    expect(cls).toMatch(/bg-n-violet-3/);
     expect(root.attributes('role')).toBe('status');
     expect(root.attributes('aria-live')).toBe('polite');
   });
@@ -77,8 +77,8 @@ describe('AISmartBanner', () => {
       '[data-testid^="ai-smart-banner"]:not([data-testid$="-cta"]):not([data-testid$="-dismiss"])'
     );
     const cls = root.attributes('class') || '';
-    expect(cls).toMatch(/border-amber-500/);
-    expect(cls).toMatch(/bg-amber-50/);
+    expect(cls).toMatch(/border-n-amber-9/);
+    expect(cls).toMatch(/bg-n-amber-3/);
     expect(root.attributes('role')).toBe('status');
   });
 

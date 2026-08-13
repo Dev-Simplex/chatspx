@@ -76,7 +76,7 @@ const initial = computed(() =>
 
 <template>
   <div
-    class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60"
+    class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-n-black/60"
     @click.self="emit('close')"
   >
     <div class="flex flex-col w-full max-w-sm overflow-hidden shadow-2xl rounded-2xl">
@@ -128,7 +128,7 @@ const initial = computed(() =>
             </p>
             <div
               v-else-if="mediaMeta"
-              class="flex items-center justify-center h-28 gap-2 mb-1.5 rounded-md bg-black/5 text-[#667781] dark:bg-white/5 dark:text-[#8696a0]"
+              class="flex items-center justify-center h-28 gap-2 mb-1.5 rounded-md bg-n-black/5 text-[#667781] dark:bg-white/5 dark:text-[#8696a0]"
             >
               <Icon :icon="mediaMeta.icon" class="size-6" />
               <span class="text-xs">{{ mediaMeta.label }}</span>
@@ -159,7 +159,7 @@ const initial = computed(() =>
           <!-- Botoes (bloco anexado, como no WhatsApp) -->
           <div
             v-if="buttons.length"
-            class="mt-1 overflow-hidden bg-white divide-y rounded-lg shadow-sm divide-black/5 dark:divide-white/10 dark:bg-[#202c33]"
+            class="mt-1 overflow-hidden bg-white divide-y rounded-lg shadow-sm divide-n-black/5 dark:divide-white/10 dark:bg-[#202c33]"
           >
             <div
               v-for="(btn, idx) in buttons"

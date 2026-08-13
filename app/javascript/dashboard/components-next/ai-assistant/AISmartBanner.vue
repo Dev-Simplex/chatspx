@@ -56,15 +56,15 @@ const toneClasses = computed(() => {
   }
   if (severity.value === 'warning') {
     return [
-      'bg-amber-50 dark:bg-amber-900/20',
-      'border-l-4 border-amber-500',
-      'text-amber-900 dark:text-amber-100',
+      'bg-n-amber-3',
+      'border-l-4 border-n-amber-9',
+      'text-n-amber-12',
     ].join(' ');
   }
   return [
-    'bg-purple-50 dark:bg-purple-900/20',
-    'border-l-4 border-purple-500',
-    'text-purple-900 dark:text-purple-100',
+    'bg-n-violet-3',
+    'border-l-4 border-n-violet-9',
+    'text-n-violet-12',
   ].join(' ');
 });
 
@@ -73,9 +73,9 @@ const iconColorClass = computed(() => {
     return 'text-red-600 dark:text-red-300';
   }
   if (severity.value === 'warning') {
-    return 'text-amber-600 dark:text-amber-300';
+    return 'text-n-amber-11';
   }
-  return 'text-purple-600 dark:text-purple-300';
+  return 'text-n-violet-11';
 });
 
 const ctaButtonClass = computed(() => {
@@ -83,9 +83,10 @@ const ctaButtonClass = computed(() => {
     return 'bg-red-600 hover:bg-red-700 text-white focus-visible:ring-red-300';
   }
   if (severity.value === 'warning') {
-    return 'bg-amber-600 hover:bg-amber-700 text-white focus-visible:ring-amber-300';
+    // amber-9/10 são claros nos dois temas: o texto tem de ser escuro fixo.
+    return 'bg-n-amber-9 hover:bg-n-amber-10 text-n-black focus-visible:ring-n-amber-8';
   }
-  return 'bg-purple-600 hover:bg-purple-700 text-white focus-visible:ring-purple-300';
+  return 'bg-n-violet-9 hover:bg-n-violet-10 dark:hover:bg-n-violet-8 text-white focus-visible:ring-n-violet-8';
 });
 
 const ariaLive = computed(() =>
@@ -179,7 +180,7 @@ const variantTestId = computed(() => {
         type="button"
         :aria-label="dismissTooltip"
         :title="dismissTooltip"
-        class="absolute right-1.5 top-1.5 inline-flex size-6 items-center justify-center rounded-md text-current/70 transition-colors hover:bg-black/5 hover:text-current focus:outline-none focus-visible:ring-2 focus-visible:ring-purple-400 dark:hover:bg-white/10"
+        class="absolute right-1.5 top-1.5 inline-flex size-6 items-center justify-center rounded-md opacity-70 transition-colors hover:bg-n-black/5 hover:text-current focus:outline-none focus-visible:ring-2 focus-visible:ring-n-violet-8 dark:hover:bg-white/10"
         data-testid="ai-smart-banner-dismiss"
         @click="handleDismiss"
       >
