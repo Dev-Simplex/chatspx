@@ -41,12 +41,33 @@ import {
 import { isFlatWidgetStyle } from './settingsHelper';
 import { popoutChatWindow } from '../widget/helpers/popoutHelper';
 import addHours from 'date-fns/addHours';
+import { HELP_CENTER_CONVERSATION_TOKEN } from 'shared/constants/helpCenter';
 
-const updateAuthCookie = (cookieContent, baseDomain = '') =>
+const notifyParentOfConversationToken = token => {
+  if (!window.$chatwoot.persistConversationToParent) return;
+  if (window.parent === window || !document.referrer) return;
+
+  try {
+    const parentOrigin = new URL(document.referrer).origin;
+    window.parent.postMessage(
+      {
+        event: HELP_CENTER_CONVERSATION_TOKEN,
+        token,
+      },
+      parentOrigin
+    );
+  } catch {
+    // O cookie/storage local continua sendo o fallback padrão do widget.
+  }
+};
+
+const updateAuthCookie = (cookieContent, baseDomain = '') => {
   setConversationToken(cookieContent, {
     baseDomain,
     websiteToken: window.$chatwoot.websiteToken,
   });
+  notifyParentOfConversationToken(cookieContent);
+};
 
 const updateCampaignReadStatus = baseDomain => {
   const expireBy = addHours(new Date(), 1);
@@ -60,14 +81,14 @@ export const IFrameHelper = {
   getUrl({ baseUrl, websiteToken }) {
     return `${baseUrl}/widget?website_token=${websiteToken}`;
   },
-  createFrame: ({ baseUrl, websiteToken }) => {
+  createFrame: ({ baseUrl, websiteToken, conversationToken }) => {
     if (IFrameHelper.getAppFrame()) {
       return;
     }
 
     loadCSS();
     const iframe = document.createElement('iframe');
-    const cwCookie = getConversationToken(websiteToken);
+    const cwCookie = conversationToken || getConversationToken(websiteToken);
     let widgetUrl = IFrameHelper.getUrl({ baseUrl, websiteToken });
     if (cwCookie) {
       widgetUrl = `${widgetUrl}&cw_conversation=${cwCookie}`;
