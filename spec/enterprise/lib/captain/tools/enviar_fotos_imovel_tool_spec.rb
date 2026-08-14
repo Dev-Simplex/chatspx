@@ -65,4 +65,32 @@ RSpec.describe Captain::Tools::EnviarFotosImovelTool, type: :model do
       expect(conversation.reload.custom_attributes['fotos_offset_9434']).to eq(3)
     end
   end
+
+  # A trava anti-alucinação compara o código pedido com o que a busca DESTA conversa
+  # registrou. Ela lia só `codigos_buscados`, que guarda apenas o Codigo e corta em 40; o
+  # `urls_imoveis` guarda Codigo E ImoCodigo e corta em 60. Como a IA cita ora um ora outro,
+  # a trava recusava foto de imóvel legítimo — aconteceu na conversa 48182 da Tozi, com a
+  # cliente pedindo fotos de três casas e levando "não" silencioso em todas.
+  describe 'the anti-hallucination guard' do
+    let(:channel) do
+      create(:channel_whatsapp, account: account, provider: 'whatsapp_cloud',
+                                validate_provider_config: false, sync_templates: false)
+    end
+    let(:conversation) do
+      create(:conversation, account: account, inbox: channel.inbox,
+                            custom_attributes: { 'codigos_buscados' => ['9434'],
+                                                 'urls_imoveis' => { '9434' => 'https://site/9434',
+                                                                     '9391' => 'https://site/9434' } })
+    end
+
+    it 'accepts the ImoCodigo that the search recorded only in urls_imoveis' do
+      expect(tool.perform(tool_context, codigo: '9391')).not_to include('não apareceu na busca')
+      expect(outgoing.count).to eq(1)
+    end
+
+    it 'still refuses a code that no search of this conversation returned' do
+      expect(tool.perform(tool_context, codigo: '1234')).to include('não apareceu na busca')
+      expect(outgoing).to be_empty
+    end
+  end
 end

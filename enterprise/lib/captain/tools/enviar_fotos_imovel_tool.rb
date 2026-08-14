@@ -31,7 +31,7 @@ class Captain::Tools::EnviarFotosImovelTool < Captain::Tools::BasePublicTool
     # conversa (buscar_imovel registra em codigos_buscados). Bloqueia a IA de mandar
     # foto de um código que ela supôs/lembrou (ex.: mandar prédio comercial por casa).
     cod = codigo.to_s.gsub(/\D/, '')
-    vistos = Array(conversation.custom_attributes['codigos_buscados']).map(&:to_s)
+    vistos = codigos_conhecidos(conversation)
     if vistos.any? && !vistos.include?(cod)
       return "O código #{cod} não apareceu na busca desta conversa. Use buscar_imovel primeiro e envie fotos SÓ de um código que a busca retornou — nunca de um código que você supôs ou lembrou de outro imóvel."
     end
@@ -84,6 +84,18 @@ class Captain::Tools::EnviarFotosImovelTool < Captain::Tools::BasePublicTool
   end
 
   private
+
+  # O que a busca DESTA conversa já devolveu, pelas duas chaves que a IA pode citar. Ler só
+  # `codigos_buscados` recusava imóvel legítimo: o track_codigos grava apenas o Codigo e corta
+  # em 40, enquanto o track_urls grava Codigo E ImoCodigo e corta em 60 — quando a IA cita o
+  # ImoCodigo, ou quando a conversa é longa, o código real fica de fora e o cliente leva um
+  # "não" que ele não vê. Somar os dois mapas não afrouxa a trava: código que busca nenhuma
+  # retornou continua ausente dos dois.
+  def codigos_conhecidos(conversation)
+    attrs = conversation.custom_attributes || {}
+    mapa = attrs['urls_imoveis']
+    Array(attrs['codigos_buscados']).map(&:to_s) + (mapa.is_a?(Hash) ? mapa.keys.map(&:to_s) : [])
+  end
 
   # Entrega a URL canônica que a busca já registrou (urls_imoveis, alimentado pelo
   # buscar_imovel) em vez de mandar a IA lembrar dela: link remontado errado é apagado
