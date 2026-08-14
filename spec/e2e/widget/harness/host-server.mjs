@@ -1,0 +1,84 @@
+import http from 'node:http';
+
+const SDK_URL = 'http://127.0.0.1:3038';
+const WIDGET_URL = 'http://127.0.0.1:3999';
+const allowedScenarios = new Set([
+  'home',
+  'messages',
+  'prechat-form',
+  'unread',
+]);
+const allowedThemes = new Set(['light', 'dark']);
+
+const server = http.createServer((request, response) => {
+  const url = new URL(request.url, 'http://127.0.0.1:8899');
+  if (url.pathname === '/__ready') {
+    response.writeHead(200, { 'Content-Type': 'text/plain; charset=utf-8' });
+    response.end('host-ready');
+    return;
+  }
+  if (url.pathname === '/__sabotage__/500') {
+    response.writeHead(500, { 'Content-Type': 'text/plain; charset=utf-8' });
+    response.end('sabotage');
+    return;
+  }
+  if (url.pathname !== '/') {
+    response.writeHead(404, { 'Content-Type': 'text/plain; charset=utf-8' });
+    response.end('not found');
+    return;
+  }
+
+  const requestedScenario = url.searchParams.get('scenario') || 'home';
+  const requestedTheme = url.searchParams.get('theme') || 'light';
+  const scenario = allowedScenarios.has(requestedScenario)
+    ? requestedScenario
+    : 'home';
+  const theme = allowedThemes.has(requestedTheme) ? requestedTheme : 'light';
+  const settings = {
+    availableMessage: 'Estamos conectados.',
+    darkMode: theme,
+    enableEmojiPicker: true,
+    enableEndConversation: true,
+    enableFileUpload: true,
+    locale: 'pt_BR',
+    showUnreadMessagesDialog: scenario === 'unread',
+    unavailableMessage: 'Voltaremos em breve.',
+    welcomeDescription: 'Atendimento humano, simples e direto.',
+    welcomeTitle: 'Como podemos ajudar?',
+  };
+
+  response.writeHead(200, {
+    'Cache-Control': 'no-store',
+    'Content-Type': 'text/html; charset=utf-8',
+  });
+  response.end(`<!doctype html>
+<html lang="pt-BR">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="color-scheme" content="${theme}">
+    <title>Host real do widget</title>
+  </head>
+  <body>
+    <main aria-label="Página hospedeira determinística">
+      <h1>Atendimento Simplex</h1>
+      <p>Chassi real do SDK carregado após o conteúdo da página.</p>
+    </main>
+    <script>
+      window.__WIDGET_E2E_SCENARIO__ = ${JSON.stringify(scenario)};
+      window.chatwootSettings = ${JSON.stringify(settings)};
+    </script>
+    <script id="chatwoot-snippet" type="module">
+      import '${SDK_URL}/app/javascript/entrypoints/sdk.js';
+      window.chatwootSDK.run({
+        baseUrl: '${WIDGET_URL}',
+        websiteToken: 'widget-e2e-token'
+      });
+    </script>
+  </body>
+</html>`);
+});
+
+process.once('SIGINT', () => server.close());
+process.once('SIGTERM', () => server.close());
+server.listen(8899, '127.0.0.1');
