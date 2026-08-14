@@ -363,6 +363,88 @@ RSpec.describe Captain::OpenAiMessageBuilderService do
     end
   end
 
+  # Reply a story de VÍDEO era o buraco: o anexo chega como :ig_story, não é imagem, e caía
+  # no balde genérico — o agente recebia "User has shared an attachment" e ficava cego
+  # justamente ao que o cliente estava respondendo. Caso real: conv 48193 da conta 6, cliente
+  # perguntando "Qual bairro?" sobre um story cujo quadro trazia o código do imóvel na tela.
+  describe 'contexto de vídeo (camada mídia → contexto)' do
+    let(:message) { create(:message, content: 'Qual bairro?') }
+    let(:assistant) { create(:captain_assistant, account: message.account) }
+
+    let!(:story) do
+      att = message.attachments.build(account_id: message.account_id, file_type: :ig_story,
+                                      external_url: 'https://cdn.example.com/story.mp4')
+      att.save!
+      att.update!(meta: { Captain::MediaDescriptionService::META_KEY => 'Quarto com janela; na tela, codigo 9718.',
+                          Captain::MediaDescriptionService::TRANSCRIPTION_META_KEY => 'Essa casa tem tres quartos.' })
+      att
+    end
+
+    def parts(builder)
+      builder.send(:attachment_parts, message.attachments)
+    end
+
+    def texto(result)
+      result.pluck(:text).compact.join(' ')
+    end
+
+    context 'when the account opted out of both video keys' do
+      it 'keeps the context exactly as it is today (generic attachment note, no reading)' do
+        result = parts(described_class.new(message: message, assistant: assistant))
+
+        expect(texto(result)).to include('User has shared an attachment')
+        expect(texto(result)).not_to include('9718')
+        expect(texto(result)).not_to include('tres quartos')
+      end
+    end
+
+    context 'when only the description key is on' do
+      before { assistant.update!(behavior: { 'media_pipeline' => { 'video_description' => true } }) }
+
+      it 'injects what is written on screen and drops the generic note for that video' do
+        result = parts(described_class.new(message: message, assistant: assistant))
+
+        expect(texto(result)).to include("#{described_class::VIDEO_DESCRIPTION_LABEL}: Quarto com janela; na tela, codigo 9718.")
+        expect(texto(result)).not_to include('User has shared an attachment')
+      end
+
+      it 'does not inject the transcription, which the account did not pay for' do
+        expect(texto(parts(described_class.new(message: message, assistant: assistant)))).not_to include('tres quartos')
+      end
+    end
+
+    context 'when only the transcription key is on' do
+      before { assistant.update!(behavior: { 'media_pipeline' => { 'video_transcription' => true } }) }
+
+      it 'injects what was spoken and not what is written' do
+        result = parts(described_class.new(message: message, assistant: assistant))
+
+        expect(texto(result)).to include("#{described_class::VIDEO_TRANSCRIPTION_LABEL}: Essa casa tem tres quartos.")
+        expect(texto(result)).not_to include('9718')
+      end
+    end
+
+    context 'when the key is on but nothing was read yet (job still queued, ffmpeg mute)' do
+      before do
+        assistant.update!(behavior: { 'media_pipeline' => { 'video_description' => true } })
+        story.update!(meta: {})
+      end
+
+      it 'keeps the generic note, so the agent still knows an attachment arrived' do
+        result = parts(described_class.new(message: message, assistant: assistant))
+
+        expect(texto(result)).to include('User has shared an attachment')
+        expect(texto(result)).not_to include('descrito automaticamente')
+      end
+    end
+
+    context 'without an assistant (any other caller)' do
+      it 'never injects a video reading' do
+        expect(texto(parts(described_class.new(message: message)))).not_to include('descrito automaticamente')
+      end
+    end
+  end
+
   describe 'private helper methods' do
     describe '#text_part' do
       it 'returns correct text part format' do
