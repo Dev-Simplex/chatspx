@@ -2,14 +2,35 @@
 import { computed, getCurrentInstance } from 'vue';
 
 /**
- * Single quick-prompt card rendered inside `AIAssistantPanel`. Idle state
- * is intentionally subtle (matches the surrounding panel surface). On hover
- * the card lifts slightly and the icon shifts to the brand purple to signal
- * affordance without being noisy when several cards are stacked.
+ * Cartão de sugestão do estado vazio, na linguagem da OpenAI
+ * (public/mockups/copiloto-v2.html, seletor `.qp button`): retângulo de canto
+ * 12px, borda `--oa-line`, fundo do painel, texto à esquerda e uma segunda
+ * linha menor explicando o que a ação faz. Hover só escurece o fundo
+ * (`--oa-hover`) — nenhum realce colorido, nenhum "lift".
  *
- * Disabled state shows a `cursor-not-allowed` pointer and surfaces an
- * optional reason via `aria-describedby` so screen reader users get the
- * context (e.g. "Disponível só para texto" when an image is attached).
+ * ⚠️ `border-solid` NÃO é decoração: `_base.scss` aplica `border-0
+ * border-none` a TODO `<button>` do produto. A classe `.border` do Tailwind
+ * só define a LARGURA, então sem restabelecer o `border-style` o cartão
+ * computava `border-style: none` e ficava 1,00:1 contra o fundo — invisível.
+ * Medido e corrigido em 2026-07-29; vale para qualquer `<button>` daqui.
+ *
+ * É aqui que nos afastamos do ChatGPT de propósito: ele abre em branco, e o
+ * agente que está com um cliente esperando não veio explorar, veio resolver.
+ *
+ * Estado desabilitado mostra `cursor-not-allowed` e expõe o motivo por
+ * `aria-describedby` (ex.: "Modo nota privada").
+ *
+ * ⚠️ O desabilitado NÃO usa `opacity`. Ele usava `opacity-40`, e a opacidade
+ * do pai multiplica tudo — inclusive a linha que explica POR QUE o cartão
+ * está fora do ar, que é a única informação que importa nesse estado. Ficava
+ * ilegível (medido: 1,85:1). Agora o estado é dito com os tokens: moldura
+ * `--oa-line-soft`, fundo `--oa-side` e texto `--oa-ink-2`, em opacidade
+ * cheia (6,25:1 claro / 8,65:1 escuro).
+ *
+ * `disabled:opacity-100` é o que torna isso possível: `_base.scss:286` aplica
+ * `disabled:opacity-50` a TODO `<button>` do produto, então tirar a nossa
+ * classe não bastava — a global continuava lavando o cartão. É o mesmo
+ * problema do `border-none` logo abaixo, no mesmo `@apply`.
  */
 
 const props = defineProps({
@@ -24,9 +45,10 @@ const emit = defineEmits(['click']);
 
 // Local stable id per instance — avoids relying on Vue 3.5 `useId` which is
 // not exported by all bundler builds in our pinned version.
-const __uid = getCurrentInstance()?.uid ?? Math.floor(Math.random() * 1e9);
-const descriptionId = `aiqp-${__uid}-desc`;
-const reasonId = `aiqp-${__uid}-reason`;
+const instanceUid =
+  getCurrentInstance()?.uid ?? Math.floor(Math.random() * 1e9);
+const descriptionId = `aiqp-${instanceUid}-desc`;
+const reasonId = `aiqp-${instanceUid}-reason`;
 
 const ariaDescribedBy = computed(() => {
   if (props.disabled && props.disabledReason) return reasonId;
@@ -43,40 +65,41 @@ function handleClick() {
 <template>
   <button
     type="button"
+    data-testid="ai-quick-prompt-card"
     :aria-label="label"
     :aria-describedby="ariaDescribedBy"
     :aria-disabled="disabled ? 'true' : 'false'"
     :disabled="disabled"
     :title="disabled && disabledReason ? disabledReason : undefined"
-    class="group flex w-full items-start gap-3 rounded-xl border border-n-weak bg-n-solid-1 p-3 text-left transition-all duration-200 ease-out min-h-[44px] focus:outline-none focus-visible:ring-2 focus-visible:ring-purple-400 focus-visible:ring-offset-2 focus-visible:ring-offset-n-solid-1 forced-colors:border-2 forced-colors:border-current"
+    class="flex w-full items-start gap-2.5 rounded-xl border border-solid px-[13px] py-[11px] text-left text-[13.5px] leading-[1.4] transition-colors min-h-[44px] disabled:opacity-100 focus:outline-none focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-[var(--oa-focus)] forced-colors:border-2 forced-colors:border-current"
     :class="
       disabled
-        ? 'cursor-not-allowed opacity-40'
-        : 'hover:scale-[1.01] hover:border-purple-200 hover:bg-purple-50 hover:shadow-sm active:scale-[0.98] active:bg-purple-100 dark:hover:border-purple-700 dark:hover:bg-purple-900/30 dark:active:bg-purple-900/50'
+        ? 'cursor-not-allowed border-[var(--oa-line-soft)] bg-[var(--oa-side)] text-[var(--oa-ink-2)]'
+        : 'border-[var(--oa-line)] bg-[var(--oa-bg)] text-[var(--oa-ink)] hover:bg-[var(--oa-hover)]'
     "
     @click="handleClick"
   >
     <span
       v-if="icon"
       aria-hidden="true"
-      class="mt-0.5 inline-flex size-5 shrink-0 items-center justify-center text-base text-n-slate-10 transition-colors group-hover:text-purple-700 dark:group-hover:text-purple-300"
+      class="mt-0.5 inline-flex size-4 shrink-0 items-center justify-center text-[var(--oa-ink-2)]"
       :class="icon"
     />
-    <span class="flex min-w-0 flex-1 flex-col gap-0.5">
-      <span class="text-sm font-semibold leading-snug text-n-slate-12">
-        {{ label }}
-      </span>
+    <span class="flex min-w-0 flex-1 flex-col">
+      <!-- peso, não cor: é o `font-medium` que separa a ação da explicação -->
+      <span class="font-medium">{{ label }}</span>
       <span
         v-if="description"
         :id="descriptionId"
-        class="text-xs leading-snug text-n-slate-10"
+        class="mt-[3px] block text-xs leading-[1.35] text-[var(--oa-ink-2)]"
       >
         {{ description }}
       </span>
+      <!-- É a razão de o cartão estar fora do ar: legível como a descrição. -->
       <span
         v-if="disabled && disabledReason"
         :id="reasonId"
-        class="text-[11px] leading-snug text-n-slate-9"
+        class="mt-[3px] block text-xs leading-[1.35] text-[var(--oa-ink-2)]"
       >
         {{ disabledReason }}
       </span>

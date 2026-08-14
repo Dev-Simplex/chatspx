@@ -655,6 +655,222 @@
       "REASON_PLACEHOLDER": "Add a short note for the owner (optional)",
       "REQUEST_EXISTS": "You already have a pending request for this conversation.",
       "REQUEST_ERROR": "Could not send the request, please try again."
+    },
+    "COPILOT_ERRORS": {
+      "PRIVATE_MODE": "Copilot is off while you're on a private note, so the internal content stays here.",
+      "CTA_RETRY": "Try again",
+      "CTA_DISMISS": "Dismiss",
+      "UNAUTHORIZED": {
+        "TITLE": "Credential rejected",
+        "BODY": "I couldn't answer right now: the AI service rejected the credential. This is not your connection — let whoever administers the account know."
+      },
+      "RATE_LIMITED": {
+        "TITLE": "Too many requests in a short time",
+        "BODY": "The AI service asked for a pause. Wait {seconds}s and ask again.",
+        "CTA_COUNTDOWN": "Wait {seconds}s"
+      },
+      "TIMEOUT": {
+        "TITLE": "This is taking longer than usual",
+        "BODY": "The AI service hasn't answered yet. You can keep waiting or cancel.",
+        "CTA_PRIMARY": "Keep waiting",
+        "CTA_CANCEL": "Cancel"
+      },
+      "PROVIDER_DOWN": {
+        "TITLE": "The AI service is down",
+        "BODY": "The provider didn't respond. This is not your connection — try again in a few minutes."
+      },
+      "CANCELLED": {
+        "TITLE": "Response stopped",
+        "BODY": "You stopped the generation. What already showed up stays here.",
+        "CTA_PRIMARY": "Generate again"
+      },
+      "RATE_LIMIT": {
+        "TITLE": "Too many requests in a short time",
+        "BODY": "The AI service asked for a pause. Wait {seconds}s and ask again.",
+        "CTA_COUNTDOWN": "Wait {seconds}s"
+      },
+      "CAPTAIN_UNSTABLE": {
+        "TITLE": "Copilot is down",
+        "BODY": "The AI service didn't respond. This is not your connection — try again in a few minutes."
+      },
+      "EMPTY_RESPONSE": {
+        "TITLE": "The response came back empty",
+        "BODY": "The AI service returned blank text. Ask again — that usually fixes it."
+      },
+      "NETWORK": {
+        "TITLE": "No connection",
+        "BODY": "I couldn't reach the server. Check your internet and try again."
+      }
+    },
+    "AI_ASSISTANT_PANEL": {
+      "TITLE": "Copilot",
+      "CLOSE": "Close panel",
+      "SEND": "Send prompt",
+      "LOADING": "Writing…",
+      "STREAM_COMPLETE": "Response ready",
+      "HISTORY_LABEL": "Copilot history",
+      "NEW_THREAD": "New chat",
+      "LOADING_THREAD": "Loading the chat",
+      "APPLIED_TOAST": "Response dropped into the message box",
+      "CANCELLED_NOTICE": "You stopped it here.",
+      "EDIT_QUESTION": "Edit question",
+      "EDITING_NOTICE": "Editing the question",
+      "EDIT_CANCEL": "Cancel",
+      "REGENERATE": "Regenerate",
+      "USE_AS_REPLY": "Use as reply",
+      "STOP": "Stop",
+      "SHORTCUTS_HINT": "Enter sends · Shift+Enter breaks line · Esc closes",
+      "ERRORS": {
+        "RETRY": "Try again",
+        "DISMISS": "Dismiss",
+        "UNAUTHORIZED": {
+          "TITLE": "Credential rejected",
+          "BODY": "I couldn't answer right now: the AI service rejected the credential. This is not your connection — let whoever administers the account know."
+        },
+        "GENERIC": {
+          "TITLE": "I couldn't answer",
+          "BODY": "Something broke on the way to the AI service. Try again; if it keeps happening, let whoever administers the account know."
+        }
+      },
+      "QUICK_PROMPTS": {
+        "SUMMARIZE": {
+          "LABEL": "Summarize the conversation",
+          "HINT": "The key points in a few lines",
+          "PROMPT": "Summarize this conversation in short bullets: what the customer asked, what has already been answered and what is still open."
+        },
+        "NEXT_STEP": {
+          "LABEL": "What's the next step",
+          "HINT": "What to do now, in practice",
+          "PROMPT": "Based on this conversation, tell me the next step I should take right now. Be specific and direct."
+        },
+        "DRAFT_REPLY": {
+          "LABEL": "Draft a reply",
+          "HINT": "A text ready for you to review",
+          "PROMPT": "Write a reply to the customer in this conversation. Keep the tone I've been using and don't promise anything that isn't confirmed here."
+        },
+        "POLICY": {
+          "LABEL": "Check the policy",
+          "HINT": "What the knowledge base says",
+          "PROMPT": "Check the knowledge base and tell me which policy or procedure applies to this case. Cite the source."
+        }
+      },
+      "EMPTY": {
+        "GREETING_EMOJI": "👋 ",
+        "GREETING_NAMED": "Hi, {name}! How can I help?",
+        "GREETING_GENERIC": "Hi! How can I help?",
+        "SUBTITLE": "Pick a quick action or write your question."
+      },
+      "SECTIONS": {
+        "UNDERSTAND": "Understand the conversation",
+        "REWRITE": "Adjust my reply",
+        "CREATE": "Create a reply"
+      },
+      "PROMPTS": {
+        "SENTIMENT": {
+          "LABEL": "Analyze customer tone",
+          "DESCRIPTION": "I tell you if they're calm, in a hurry or upset"
+        },
+        "SUMMARIZE": {
+          "LABEL": "Summarize this conversation",
+          "DESCRIPTION": "I give you the key points in a few lines"
+        },
+        "REPLY_SUGGESTION": {
+          "LABEL": "Suggest a reply",
+          "DESCRIPTION": "I write a draft for you to review"
+        }
+      },
+      "TEXTAREA": {
+        "PLACEHOLDER": "Ask anything",
+        "HINT": "Enter sends · Shift+Enter breaks line"
+      },
+      "ACTIONS": {
+        "COPY": "Copy",
+        "APPLY": "Use as reply",
+        "USE_AS_REPLY": "Use as reply",
+        "RETRY": "Regenerate",
+        "STOP": "Stop",
+        "CANCEL": "Cancel",
+        "FEEDBACK_GOOD": "Good response",
+        "FEEDBACK_BAD": "Bad response",
+        "COPIED_TOAST": "Copied to clipboard",
+        "APPLIED_TOAST": "Response dropped into the message box",
+        "COPY_FAILED": "Could not copy"
+      },
+      "CODE": {
+        "COPY": "Copy",
+        "COPIED": "Copied"
+      },
+      "SOURCE": {
+        "ARIA": "Open the cited source: {source}"
+      },
+      "EDGE_CASES": {
+        "EMPTY_CONVERSATION_TITLE": "New customer, conversation just starting.",
+        "EMPTY_CONVERSATION_BODY": "Once there are messages, I can summarize, analyze tone or suggest replies.",
+        "PRIVATE_MODE_TITLE": "Private note mode",
+        "PRIVATE_MODE_BODY": "The content is not sent to Copilot, so the internal note doesn't leak. Switch back to \"Reply\" to use the AI.",
+        "WHATSAPP_EXPIRED_TITLE": "WhatsApp window closed",
+        "WHATSAPP_EXPIRED_BODY": "It's been 24h since the customer's last message. You can draft here, but sending requires an approved template.",
+        "LONG_CONVERSATION_HINT": "I read the last 50 messages"
+      },
+      "TOAST": {
+        "COPIED": "Copied to clipboard",
+        "APPLIED": "Response dropped into the message box",
+        "COPY_FAILED": "Could not copy",
+        "FEEDBACK_SAVED": "Feedback saved, thanks!",
+        "PRIVATE_MODE_BLOCKED": "Copilot is off while you're on a private note"
+      },
+      "TOUR": {
+        "NEXT": "Next",
+        "SKIP": "Skip tour",
+        "FINISH": "Got it, close",
+        "CLOSE": "Close tour",
+        "SKIP_TOAST": "You can run the tour again any time from your account settings.",
+        "STEP_LABEL": "Step {current} of {total}: {title}",
+        "STEP_1": {
+          "TITLE": "Everything starts here",
+          "BODY": "This is your AI shortcut, on the sparkles button of the message box. Anytime you need to tweak a reply or ask for a suggestion, just click it."
+        },
+        "STEP_2": {
+          "TITLE": "Use the quick prompts",
+          "BODY": "Ready-made actions. Hover to see what each one does before clicking."
+        },
+        "STEP_3": {
+          "TITLE": "Review before sending",
+          "BODY": "The AI writes, you decide. Use it, edit it or discard it — the customer only receives it when you hit Send."
+        },
+        "STEP_4": {
+          "TITLE": "Side panel for whatever you need",
+          "BODY": "Long conversation? Tricky customer? Open the panel via the Copilot button on the header and chat with the AI directly. Shortcut: Ctrl+J."
+        }
+      },
+      "SMART_BANNER": {
+        "DISMISS_TOOLTIP": "Dismiss",
+        "DISMISSED_TOAST": "Ok, I won't show it again in this conversation",
+        "LONG_THREAD": {
+          "BODY": "Long thread ({count} messages). Want a summary?",
+          "CTA": "Summarize now"
+        },
+        "SENTIMENT": {
+          "BODY": "The customer seems upset. Want help replying calmly?",
+          "CTA": "Suggest a reply"
+        },
+        "WAITING": {
+          "BODY": "Customer waiting for {minutes} min. Should I prepare a quick reply?",
+          "CTA": "Quick reply"
+        }
+      },
+      "SUGGESTION_CHIP": {
+        "HEADER": "Copilot suggestion",
+        "SUBTITLE": "Review before sending",
+        "USE": "Use this one",
+        "EDIT": "Edit",
+        "DISCARD": "Discard",
+        "EDIT_TOOLTIP": "Drops it into the message box and selects all so you can adjust",
+        "DISCARD_TOOLTIP": "Discard suggestion (Esc)",
+        "USED_TOAST": "Done, just review and send",
+        "EDIT_TOAST": "Suggestion ready to edit",
+        "DISCARDED_TOAST": "Suggestion discarded"
+      }
     }
   },
   "EMAIL_TRANSCRIPT": {
@@ -907,150 +1123,6 @@
     "CONFIRM": "Show me",
     "DISMISS": "Later",
     "TOAST_CONFIRMED": "Got it! Copilot is always on this button"
-  },
-  "COPILOT_ERRORS": {
-    "PRIVATE_MODE": "Private mode: AI disabled to prevent internal note leak",
-    "CTA_RETRY": "Retry",
-    "CTA_DISMISS": "Dismiss",
-    "RATE_LIMIT": {
-      "TITLE": "Too many requests",
-      "BODY": "Wait {seconds}s and try again",
-      "CTA_COUNTDOWN": "Wait {seconds}s"
-    },
-    "CAPTAIN_UNSTABLE": {
-      "TITLE": "Copilot unavailable",
-      "BODY": "Try again in a few minutes"
-    },
-    "TIMEOUT": {
-      "TITLE": "Taking longer than usual",
-      "BODY": "The response is delayed. You can keep waiting or cancel.",
-      "CTA_PRIMARY": "Keep waiting",
-      "CTA_CANCEL": "Cancel"
-    },
-    "EMPTY_RESPONSE": {
-      "TITLE": "I didn't receive a valid response",
-      "BODY": "Something went wrong with Copilot. Want to try again?"
-    },
-    "NETWORK": {
-      "TITLE": "No connection",
-      "BODY": "Check your internet and try again"
-    }
-  },
-  "AI_ASSISTANT_PANEL": {
-    "TITLE": "Copilot",
-    "CLOSE": "Close panel",
-    "SEND": "Send prompt",
-    "LOADING": "Generating response...",
-    "STREAM_COMPLETE": "Response ready",
-    "HISTORY_LABEL": "Copilot history",
-    "EMPTY": {
-      "GREETING_EMOJI": "👋 ",
-      "GREETING_NAMED": "Hi, {name}! How can I help?",
-      "GREETING_GENERIC": "Hi! How can I help?",
-      "SUBTITLE": "Pick a quick action or just ask."
-    },
-    "SECTIONS": {
-      "UNDERSTAND": "UNDERSTAND THE CONVERSATION",
-      "REWRITE": "REWRITE MY REPLY",
-      "CREATE": "CREATE A REPLY"
-    },
-    "PROMPTS": {
-      "SENTIMENT": {
-        "LABEL": "Analyze customer tone",
-        "DESCRIPTION": "I analyze how the customer feels"
-      },
-      "SUMMARIZE": {
-        "LABEL": "Summarize this conversation",
-        "DESCRIPTION": "See the key points"
-      },
-      "REPLY_SUGGESTION": {
-        "LABEL": "Suggest a reply",
-        "DESCRIPTION": "I draft one for you"
-      }
-    },
-    "TEXTAREA": {
-      "PLACEHOLDER": "Ask or request something (e.g. \"summarize the latest orders\")",
-      "HINT": "Enter sends · Shift+Enter breaks line"
-    },
-    "ACTIONS": {
-      "COPY": "Copy",
-      "APPLY": "Use in composer",
-      "RETRY": "Generate another",
-      "CANCEL": "Cancel",
-      "FEEDBACK_GOOD": "Good response",
-      "FEEDBACK_BAD": "Bad response",
-      "COPIED_TOAST": "Copied to clipboard",
-      "APPLIED_TOAST": "Response applied to composer",
-      "COPY_FAILED": "Could not copy"
-    },
-    "EDGE_CASES": {
-      "EMPTY_CONVERSATION_TITLE": "New customer, conversation starting.",
-      "EMPTY_CONVERSATION_BODY": "Once there are messages, I can summarize, analyze tone or suggest replies.",
-      "PRIVATE_MODE_TITLE": "Private note mode",
-      "PRIVATE_MODE_BODY": "The content is not sent to Copilot to avoid leaking the internal note. Switch back to \"Reply\" to use the AI.",
-      "WHATSAPP_EXPIRED_TITLE": "WhatsApp disconnected",
-      "WHATSAPP_EXPIRED_BODY": "Some actions are unavailable until you reconnect the session.",
-      "LONG_CONVERSATION_HINT": "I consider the last 50 messages"
-    },
-    "TOAST": {
-      "COPIED": "Copied to clipboard",
-      "APPLIED": "Response applied to composer",
-      "COPY_FAILED": "Could not copy",
-      "FEEDBACK_SAVED": "Thanks for the feedback!",
-      "PRIVATE_MODE_BLOCKED": "Private note mode — Copilot unavailable"
-    },
-    "TOUR": {
-      "NEXT": "Next",
-      "SKIP": "Skip tour",
-      "FINISH": "Got it, close",
-      "CLOSE": "Close tour",
-      "SKIP_TOAST": "You can run the tour again any time from your account settings.",
-      "STEP_LABEL": "Step {current} of {total}: {title}",
-      "STEP_1": {
-        "TITLE": "Everything starts here",
-        "BODY": "This is your AI shortcut, on the sparkles button of the composer. Anytime you need to tweak a reply or ask for a suggestion, just click it."
-      },
-      "STEP_2": {
-        "TITLE": "Use the quick prompts",
-        "BODY": "Pre-written actions in pt-BR. Hover to see what each one does before clicking."
-      },
-      "STEP_3": {
-        "TITLE": "Review before sending",
-        "BODY": "AI generates, you decide. Use it, edit it or discard it — the customer only receives it when you hit Send."
-      },
-      "STEP_4": {
-        "TITLE": "Side panel for whatever you need",
-        "BODY": "Long conversation? Tricky customer? Open the panel via the Copilot button on the header and chat with the AI directly. Shortcut: Ctrl+J."
-      }
-    },
-    "SMART_BANNER": {
-      "DISMISS_TOOLTIP": "Dismiss",
-      "DISMISSED_TOAST": "Ok, won't show again in this conversation",
-      "LONG_THREAD": {
-        "BODY": "Long thread ({count} msgs). Want a summary?",
-        "CTA": "Summarize now"
-      },
-      "SENTIMENT": {
-        "BODY": "Customer seems frustrated. Want help replying with empathy?",
-        "CTA": "Suggest reply"
-      },
-      "WAITING": {
-        "BODY": "Customer waiting for {minutes} min. Want a quick reply?",
-        "CTA": "Quick reply"
-      }
-    },
-    "SUGGESTION_CHIP": {
-      "HEADER": "Copilot suggestion",
-      "SUBTITLE": "Review before sending",
-      "USE": "Use this one",
-      "EDIT": "Edit",
-      "DISCARD": "Discard",
-      "EDIT_TOOLTIP": "Puts it in the field and selects all for you to adjust",
-      "DISCARD_TOOLTIP": "Discard suggestion (Esc)",
-      "USED_TOAST": "Done, just review and send",
-      "EDIT_TOAST": "Suggestion ready to edit",
-      "DISCARDED_TOAST": "Suggestion discarded"
-    }
   },
   "GALLERY_VIEW": {
     "ERROR_DOWNLOADING": "Unable to download attachment. Please try again",

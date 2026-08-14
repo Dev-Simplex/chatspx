@@ -1,16 +1,5 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { ref } from 'vue';
+import { describe, it, expect, vi } from 'vitest';
 import { mount } from '@vue/test-utils';
-
-// Composable mocks must be hoisted before importing the component under
-// test, otherwise the SFC pulls the real implementation at module load.
-// `prefersReducedMotion` MUST be a Vue ref so the template's
-// `v-if="!prefersReducedMotion"` (with auto-unref via <script setup>)
-// reads the boolean value, not the wrapper object.
-const mockReducedMotion = ref(false);
-vi.mock('dashboard/composables/useReducedMotion', () => ({
-  useReducedMotion: () => ({ prefersReducedMotion: mockReducedMotion }),
-}));
 
 vi.mock('vue-i18n', () => ({
   useI18n: () => ({
@@ -20,70 +9,61 @@ vi.mock('vue-i18n', () => ({
 
 import AILoadingShimmer from '../AILoadingShimmer.vue';
 
-describe('AILoadingShimmer', () => {
-  beforeEach(() => {
-    mockReducedMotion.value = false;
-  });
-
-  // Helpers -----------------------------------------------------------
-
-  it('renders 3 shimmer bars in the default (non-reduced-motion) variant', () => {
+describe('AILoadingShimmer — carregando no padrão OpenAI', () => {
+  it('renderiza três pontinhos, nunca um spinner ou barra colorida', () => {
     const wrapper = mount(AILoadingShimmer);
-    const bars = wrapper.findAll('.animate-shimmer');
-    expect(bars).toHaveLength(3);
-  });
+    expect(wrapper.findAll('[data-testid="ai-loading-dot"]')).toHaveLength(3);
+    expect(wrapper.findAll('.oa-dot')).toHaveLength(3);
 
-  it('shimmer bars use staggered animation-delay arbitrary classes', () => {
-    const wrapper = mount(AILoadingShimmer);
     const html = wrapper.html();
-    expect(html).toMatch(/\[animation-delay:150ms\]/);
-    expect(html).toMatch(/\[animation-delay:300ms\]/);
+    expect(html).not.toContain('animate-spin');
+    expect(html).not.toContain('animate-shimmer');
+    expect(html).not.toContain('purple');
   });
 
-  it('exposes role=status and aria-busy=true so SR announces loading', () => {
+  it('escalona a animação dos pontos 2 e 3', () => {
+    const wrapper = mount(AILoadingShimmer);
+    expect(wrapper.find('.oa-dot--2').exists()).toBe(true);
+    expect(wrapper.find('.oa-dot--3').exists()).toBe(true);
+  });
+
+  it('não desenha bolha: a resposta que vem depois também não tem', () => {
+    const wrapper = mount(AILoadingShimmer);
+    const cls = wrapper.find('[data-testid="ai-loading-shimmer"]').classes();
+    expect(cls).not.toContain('rounded-2xl');
+    expect(cls).not.toContain('shadow-sm');
+    expect(cls).toContain('w-full');
+  });
+
+  it('expõe role=status e aria-busy=true', () => {
     const wrapper = mount(AILoadingShimmer);
     const root = wrapper.find('[role="status"]');
     expect(root.exists()).toBe(true);
     expect(root.attributes('aria-busy')).toBe('true');
   });
 
-  it('uses i18n key for the aria-label loading copy', () => {
+  it('usa a chave i18n como rótulo padrão', () => {
     const wrapper = mount(AILoadingShimmer);
-    const root = wrapper.find('[role="status"]');
-    expect(root.attributes('aria-label')).toBe(
+    expect(wrapper.find('[role="status"]').attributes('aria-label')).toBe(
       'CONVERSATION.AI_ASSISTANT_PANEL.LOADING'
+    );
+    expect(wrapper.text()).toContain('CONVERSATION.AI_ASSISTANT_PANEL.LOADING');
+  });
+
+  it('aceita um rótulo do que está sendo feito', () => {
+    const wrapper = mount(AILoadingShimmer, {
+      props: { label: 'consultando o pedido' },
+    });
+    expect(wrapper.text()).toContain('consultando o pedido');
+    expect(wrapper.find('[role="status"]').attributes('aria-label')).toBe(
+      'consultando o pedido'
     );
   });
 
-  it('keeps a sr-only label inside the bubble for redundancy', () => {
+  it('marca os pontos como aria-hidden — quem fala é o rótulo', () => {
     const wrapper = mount(AILoadingShimmer);
-    const srOnly = wrapper.find('.sr-only');
-    expect(srOnly.exists()).toBe(true);
-    expect(srOnly.text()).toBe('CONVERSATION.AI_ASSISTANT_PANEL.LOADING');
-  });
-
-  it('falls back to 3 pulsing dots when prefers-reduced-motion is on', () => {
-    mockReducedMotion.value = true;
-    const wrapper = mount(AILoadingShimmer);
-
-    expect(wrapper.findAll('.animate-shimmer')).toHaveLength(0);
-
-    const dots = wrapper.findAll('.animate-pulse');
-    expect(dots).toHaveLength(3);
-  });
-
-  it('reduced-motion variant still keeps role=status and aria-busy', () => {
-    mockReducedMotion.value = true;
-    const wrapper = mount(AILoadingShimmer);
-    const root = wrapper.find('[role="status"]');
-    expect(root.exists()).toBe(true);
-    expect(root.attributes('aria-busy')).toBe('true');
-  });
-
-  it('marks visual-only elements as aria-hidden so SR is not duplicated', () => {
-    const wrapper = mount(AILoadingShimmer);
-    const ariaHidden = wrapper.findAll('[aria-hidden="true"]');
-    // 3 shimmer bars are aria-hidden in the default variant.
-    expect(ariaHidden.length).toBeGreaterThanOrEqual(3);
+    const dotsWrapper = wrapper.find('[data-testid="ai-loading-dot"]').element
+      .parentElement;
+    expect(dotsWrapper.getAttribute('aria-hidden')).toBe('true');
   });
 });

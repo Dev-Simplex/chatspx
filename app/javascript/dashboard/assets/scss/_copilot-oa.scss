@@ -1,0 +1,365 @@
+// scss-lint:disable ColorVariable, PropertySortOrder
+// =============================================================================
+// COPILOTO v2 — linguagem visual do chat de IA (padrão OpenAI)
+//
+// Fonte da verdade: public/mockups/copiloto-v2.html (aprovado 2026-07-28).
+// Os valores abaixo são CÓPIA LITERAL dos tokens `--oa-*` do mockup.
+//
+// Por que tokens CSS e não uma paleta Tailwind:
+//   1. a paleta `n-*` do repo foi retonada para o verde/cinza do WhatsApp
+//      (_next-colors.scss) — ela não consegue expressar os cinzas da OpenAI;
+//   2. cada token tem um par claro/escuro; um bloco `.dark` troca os 13 de uma
+//      vez, em vez de duplicar `dark:` em cada utilitário do template;
+//   3. é o mesmo mecanismo que _wa-skin.scss já usa para a pele do WhatsApp.
+//
+// Nos templates os tokens são consumidos por valor arbitrário do Tailwind
+// (`bg-[var(--oa-bg)]`), mantendo o markup Tailwind-first como o resto de
+// components-next. Só o markdown renderizado (v-html, sem classes nossas) é
+// estilizado por descendência aqui, sob `.oa-prose`.
+//
+// ⚠️ CONTRASTE — dois tokens do mockup foram ESCURECIDOS em relação a ele
+// (2026-07-29, medido com Playwright + fórmula WCAG no app rodando):
+//
+//   --oa-ink-3  #8f8f8f → #757575 (claro).  Ele carrega o placeholder do
+//     composer; #8f8f8f media 3,23:1 sobre o branco e reprovava o mínimo de
+//     4,5:1 (WCAG 1.4.3, texto normal). #757575 mede 4,61:1. No escuro
+//     #8f8f8f já media 4,98:1 sobre `--oa-bg` e ficou como está.
+//
+//   --oa-line   #e3e3e3 → #888888 (claro) e #3a3a3a → #7c7c7c (escuro).
+//     É a moldura dos cartões, dos chips e do composer — componente de
+//     interface, então vale WCAG 1.4.11 (3:1). Media 1,28:1 / 1,42:1: os
+//     cartões eram literalmente invisíveis. Os valores novos são os MAIS
+//     CLAROS que ainda passam 3:1 contra o pior fundo em que a borda pousa
+//     (o hover, `--oa-hover`), justamente para não virar uma grade preta:
+//     claro 3,11:1 sobre #f0f0f0 e 3,55:1 sobre #ffffff;
+//     escuro 3,21:1 sobre #2f2f2f e 3,86:1 sobre #212121.
+//
+// `--oa-line-soft` continua clarinho de propósito: ele só desenha separação
+// decorativa (moldura do <pre>, régua do <hr>), que 1.4.11 não alcança.
+//
+// Fora o placeholder, `--oa-ink-3` NÃO deve carregar texto nem ícone: use
+// `--oa-ink-2` (6,58:1 claro / 7,77:1 escuro).
+// =============================================================================
+
+:root {
+  // ---- OpenAI, tema claro ----
+  --oa-bg: #ffffff;
+  --oa-side: #f9f9f9;
+  --oa-ink: #0d0d0d;
+  --oa-ink-2: #5d5d5d;
+  --oa-ink-3: #757575;
+  --oa-line: #888888;
+  --oa-line-soft: #ececec;
+  --oa-user-bub: #f4f4f4; // bolha do usuário
+  --oa-hover: #f0f0f0;
+  --oa-code: #f7f7f8;
+  --oa-send: #0d0d0d; // botão de enviar / ação primária
+  --oa-send-ink: #ffffff;
+  --oa-focus: #0d0d0d;
+
+  --oa-font-mono: ui-monospace, 'SF Mono', 'Cascadia Code', 'JetBrains Mono',
+    menlo, consolas, monospace;
+}
+
+.dark {
+  // ---- OpenAI, tema escuro ----
+  --oa-bg: #212121;
+  --oa-side: #171717;
+  --oa-ink: #ececec;
+  --oa-ink-2: #b4b4b4;
+  --oa-ink-3: #8f8f8f; // 4,98:1 sobre --oa-bg — passa, fica como no mockup
+  --oa-line: #7c7c7c;
+  --oa-line-soft: #2f2f2f;
+  --oa-user-bub: #303030;
+  --oa-hover: #2f2f2f;
+  --oa-code: #1a1a1a;
+  --oa-send: #ffffff;
+  --oa-send-ink: #0d0d0d;
+  --oa-focus: #ececec;
+}
+
+// -----------------------------------------------------------------------------
+// ALVO DE TOQUE de 44×44 (WCAG 2.5.5) sem inflar o desenho.
+//
+// O vocabulário da OpenAI é de ícones de 30–36px e de ações que são link
+// sublinhado de 20px de altura — bonito e pequeno demais para o dedo. Em vez
+// de engordar o botão, um pseudo-elemento centrado estica só a ÁREA CLICÁVEL:
+// ele é filho do próprio botão, então o clique nele é o clique no botão, e
+// como está fora do fluxo (absolute) o layout não muda um pixel.
+//
+// ⚠️ Quem usar isto precisa garantir que os vizinhos fiquem a ≥44px de
+// distância entre centros — senão duas áreas de 44px se sobrepõem e o dedo
+// aciona o botão errado. É por isso que a régua de ações da resposta passou a
+// ter ícones de 36px com `gap-2` (36+8 = 44 de passo, caixas encostadas mas
+// sem invadir uma a outra).
+// -----------------------------------------------------------------------------
+.oa-hit-44 {
+  position: relative;
+
+  &::after {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    width: 100%;
+    min-width: 44px;
+    height: 100%;
+    min-height: 44px;
+    content: '';
+    transform: translate(-50%, -50%);
+  }
+}
+
+// -----------------------------------------------------------------------------
+// Markdown da resposta — o HTML vem do markdown-it (v-html), sem classes
+// nossas, então a estilização é por descendência. Reproduz `.m-ai` do mockup.
+// `preflight` do Tailwind zera list-style/margens: reativamos explicitamente.
+// -----------------------------------------------------------------------------
+.oa-prose {
+  font-size: 14.5px;
+  line-height: 1.65;
+  color: var(--oa-ink);
+  overflow-wrap: break-word;
+
+  > :first-child {
+    margin-top: 0;
+  }
+
+  > :last-child {
+    margin-bottom: 0;
+  }
+
+  p {
+    margin: 0 0 13px;
+  }
+
+  ul,
+  ol {
+    margin: 10px 0;
+    padding-left: 20px;
+  }
+
+  ul {
+    list-style: disc;
+  }
+
+  ol {
+    list-style: decimal;
+  }
+
+  li {
+    margin-bottom: 6px;
+  }
+
+  strong {
+    font-weight: 600;
+    color: var(--oa-ink);
+  }
+
+  em {
+    font-style: italic;
+  }
+
+  a {
+    color: var(--oa-ink);
+    text-decoration: underline;
+    text-underline-offset: 2px;
+  }
+
+  h3,
+  h4,
+  h5,
+  h6 {
+    margin: 14px 0 6px;
+    font-size: 1em;
+    font-weight: 600;
+    color: var(--oa-ink);
+  }
+
+  hr {
+    margin: 14px 0;
+    border: 0;
+    border-top: 1px solid var(--oa-line-soft);
+  }
+
+  blockquote {
+    margin: 12px 0;
+    padding-left: 12px;
+    color: var(--oa-ink-2);
+    border-left: 2px solid var(--oa-line);
+  }
+
+  code {
+    padding: 0.14em 0.4em;
+    font-family: var(--oa-font-mono);
+    font-size: 0.875em;
+    color: var(--oa-ink);
+    background: var(--oa-code);
+    border-radius: 4px;
+  }
+
+  // O painel é estreito: o código rola dentro do próprio bloco, nunca
+  // empurra a coluna da conversa.
+  pre {
+    margin: 12px 0;
+    padding: 12px 14px;
+    overflow-x: auto;
+    font-family: var(--oa-font-mono);
+    font-size: 12.5px;
+    line-height: 1.55;
+    color: var(--oa-ink);
+    background: var(--oa-code);
+    border: 1px solid var(--oa-line-soft);
+    border-radius: 10px;
+  }
+
+  pre code {
+    padding: 0;
+    font-size: inherit;
+    background: none;
+    border-radius: 0;
+  }
+
+  // Tabela — os modelos emitem comparativo o tempo todo. Mesmo tratamento do
+  // bloco de código: rola dentro dela, nunca empurra a coluna.
+  // ⚠️ Só aparece quando `useMarkdown` permitir as tags de tabela no
+  // DOMPurify (hoje ele as remove e o conteúdo vira texto corrido).
+  table {
+    width: 100%;
+    font-size: 13px;
+    line-height: 1.45;
+    border-collapse: collapse;
+  }
+
+  th,
+  td {
+    padding: 6px 10px;
+    text-align: left;
+    vertical-align: top;
+    border: 1px solid var(--oa-line);
+  }
+
+  th {
+    font-weight: 600;
+    color: var(--oa-ink);
+    background: var(--oa-code);
+  }
+
+  td {
+    color: var(--oa-ink);
+  }
+}
+
+.oa-tablewrap {
+  margin: 12px 0;
+  overflow-x: auto;
+}
+
+// Wrapper injetado em volta de cada <pre> para ancorar o botão de copiar.
+// Fica FORA do container de scroll para não deslizar com o código.
+.oa-codeblock {
+  position: relative;
+
+  pre {
+    padding-top: 38px; // espaço para o botão (7px + 24px) não cobrir a 1ª linha
+  }
+}
+
+// O único alvo do painel que fica abaixo de 44px de propósito: ele flutua
+// SOBRE o código, e uma área de 44px de altura cobriria as duas primeiras
+// linhas e roubaria a seleção de texto de quem quer copiar só um trecho.
+// Fica em 44×24 — o piso de 24×24 do WCAG 2.5.8 (AA), que é o critério que
+// vale de fato; 2.5.5 (44×44) é AAA.
+.oa-codeblock__copy {
+  position: absolute;
+  top: 7px;
+  right: 7px;
+  min-width: 44px;
+  min-height: 24px;
+  padding: 4px 8px;
+  font-family: inherit;
+  font-size: 10.5px;
+  line-height: 1.4;
+  color: var(--oa-ink-2);
+  cursor: pointer;
+  background: var(--oa-bg);
+  border: 1px solid var(--oa-line);
+  border-radius: 6px;
+
+  &:hover {
+    color: var(--oa-ink);
+    background: var(--oa-hover);
+  }
+
+  &:focus-visible {
+    outline: 2px solid var(--oa-focus);
+    outline-offset: 1px;
+  }
+}
+
+// -----------------------------------------------------------------------------
+// Animações — três pontinhos (carregando) e cursor de streaming.
+// -----------------------------------------------------------------------------
+@keyframes oa-bob {
+  0%,
+  60%,
+  100% {
+    opacity: 0.25;
+    transform: translateY(0);
+  }
+
+  30% {
+    opacity: 1;
+    transform: translateY(-3px);
+  }
+}
+
+@keyframes oa-blink {
+  0%,
+  50% {
+    opacity: 1;
+  }
+
+  51%,
+  100% {
+    opacity: 0;
+  }
+}
+
+.oa-dot {
+  width: 6px;
+  height: 6px;
+  background: var(--oa-ink-2);
+  border-radius: 50%;
+  animation: oa-bob 1.2s infinite;
+}
+
+.oa-dot--2 {
+  animation-delay: 0.15s;
+}
+
+.oa-dot--3 {
+  animation-delay: 0.3s;
+}
+
+.oa-cursor {
+  display: inline-block;
+  width: 9px;
+  height: 16px;
+  margin-left: 2px;
+  vertical-align: text-bottom;
+  background: var(--oa-ink);
+  border-radius: 1px;
+  animation: oa-blink 1.05s steps(2) infinite;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .oa-dot {
+    opacity: 0.55;
+    animation: none;
+  }
+
+  .oa-cursor {
+    opacity: 1;
+    animation: none;
+  }
+}
