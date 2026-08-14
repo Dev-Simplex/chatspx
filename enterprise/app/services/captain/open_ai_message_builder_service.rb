@@ -102,8 +102,8 @@ class Captain::OpenAiMessageBuilderService
     # mesma mídia entra duas vezes, uma como o que ela diz e outra como "User has shared an
     # attachment". Vídeo SEM leitura (conta com a chave desligada, ffmpeg mudo, job ainda na
     # fila) continua no balde — o agente segue sabendo que veio um anexo.
-    video_part = optional_text_part(extract_video_context(others.select { |a| video_attachment?(a) }))
-    others -= others.select { |a| video_attachment?(a) && video_context_line(a).present? }
+    video_part = optional_text_part(extract_video_context(others))
+    others -= videos_ja_lidos(others)
 
     pdf_content = others.select { |a| pdf_attachment?(a) }.filter_map { |a| (u = get_attachment_url(a)) && file_part(u) }
     attachment_part = text_part('User has shared an attachment') if others.any? { |a| !pdf_attachment?(a) }
@@ -117,10 +117,12 @@ class Captain::OpenAiMessageBuilderService
   # da Tozi o dado está escrito e o áudio é trilha musical; na BigStore a informação do
   # produto é narrada. Só LÊ o cache; quem grava é o job disparado na chegada do anexo.
   # Desligar a chave para de gravar E para de injetar o que já foi gravado, no mesmo gesto.
-  def extract_video_context(video_attachments)
-    return '' if video_attachments.blank?
+  def extract_video_context(attachments)
+    attachments.select { |att| video_attachment?(att) }.filter_map { |att| video_context_line(att) }.join(' ')
+  end
 
-    video_attachments.filter_map { |att| video_context_line(att) }.join(' ')
+  def videos_ja_lidos(attachments)
+    attachments.select { |att| video_attachment?(att) && video_context_line(att).present? }
   end
 
   def video_context_line(attachment)

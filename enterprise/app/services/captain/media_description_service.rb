@@ -17,11 +17,6 @@ class Captain::MediaDescriptionService
   MAX_BYTES = 10.megabytes
   MAX_TOKENS = 350
 
-  # Tres quadros: comeco, meio e fim. Story costuma trocar de cena e repetir o dado escrito
-  # em todas elas, entao mais quadros pagam mais pelo mesmo texto.
-  FRAME_POSITIONS = [0.15, 0.5, 0.85].freeze
-  FRAME_WIDTH = 768
-  FALLBACK_DURATION = 10.0
   # Teto da API de transcricao da OpenAI. Acima disso o request volta 413 e o rescue engoliria.
   MAX_TRANSCRIPTION_BYTES = 25.megabytes
   WHISPER_MODEL = 'whisper-1'.freeze
@@ -43,7 +38,7 @@ class Captain::MediaDescriptionService
 
   def perform
     return nil if attachment.blank?
-    return nil unless SUPPORTED_FILE_TYPES.include?(attachment.file_type.to_s) || video?
+    return nil unless legivel?
     return cached if cached.present?
     return missing_key_warning if api_key.blank?
 
@@ -81,6 +76,10 @@ class Captain::MediaDescriptionService
     self.class.video?(attachment)
   end
 
+  def legivel?
+    SUPPORTED_FILE_TYPES.include?(attachment.file_type.to_s) || video?
+  end
+
   def cached
     attachment.meta&.[](META_KEY).to_s.strip.presence
   end
@@ -111,15 +110,12 @@ class Captain::MediaDescriptionService
   # Video vira UMA chamada de visao com os quadros em ordem — nao uma por quadro. O modelo
   # precisa ver a sequencia junta pra nao repetir tres vezes o mesmo dado escrito na tela.
   def describe_video
-    with_local_copy do |path|
-      frames = extract_frames(path)
-      return nil if frames.empty?
+    sources = Captain::VideoFrameExtractor.new(attachment: attachment).data_urls
+    return nil if sources.empty?
 
-      sources = frames.map { |f| "data:image/jpeg;base64,#{Base64.strict_encode64(File.binread(f))}" }
-      response = OpenAI::Client.new(access_token: api_key).chat(parameters: video_chat_parameters(sources))
-      Copilot::OpenaiSettings.log_chat_usage(service: 'media_description_video', account: account, model: model, response: response)
-      response.dig('choices', 0, 'message', 'content').to_s.strip.presence
-    end
+    response = OpenAI::Client.new(access_token: api_key).chat(parameters: video_chat_parameters(sources))
+    Copilot::OpenaiSettings.log_chat_usage(service: 'media_description_video', account: account, model: model, response: response)
+    response.dig('choices', 0, 'message', 'content').to_s.strip.presence
   rescue StandardError => e
     report_failure(e)
     nil
@@ -156,31 +152,6 @@ class Captain::MediaDescriptionService
     yield(path)
   ensure
     FileUtils.rm_rf(dir) if dir.present?
-  end
-
-  # Quadros em pontos proporcionais a duracao. A duracao vem do metadata que o ActiveStorage
-  # ja gravou (ele mesmo usa ffprobe); sem ela, um fallback curto ainda pega o inicio.
-  def extract_frames(path)
-    duration = attachment.file.blob.metadata['duration'].to_f
-    duration = FALLBACK_DURATION if duration <= 0
-
-    FRAME_POSITIONS.each_with_index.filter_map do |position, index|
-      out = File.join(File.dirname(path), "frame-#{index}.jpg")
-      ok = system('ffmpeg', '-loglevel', 'error', '-y', '-ss', (duration * position).round(1).to_s,
-                  '-i', path, '-frames:v', '1', '-vf', "scale=#{FRAME_WIDTH}:-1", '-q:v', '4', out,
-                  out: File::NULL, err: File::NULL)
-      next ffmpeg_warning(index) unless ok && File.exist?(out) && File.size(out).positive?
-
-      out
-    end
-  end
-
-  # `system` devolve nil quando o binario nao existe e false quando ele falha. Os dois casos
-  # sao configuracao de VM, nao incidente — mas precisam aparecer, senao o operador liga a
-  # chave, nao acontece nada e nao ha o que olhar.
-  def ffmpeg_warning(index)
-    Rails.logger.warn("[MediaDescription] ffmpeg nao extraiu o quadro #{index} att=#{attachment&.id} acc=#{account&.id}")
-    nil
   end
 
   # Falha aqui NAO pode derrubar a resposta ao cliente — a imagem continua indo como visao
