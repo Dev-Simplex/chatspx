@@ -51,7 +51,9 @@ class Captain::Tools::EnviarFotosImovelTool < Captain::Tools::BasePublicTool
     # Opt-in por conta (assistant.config['fotos_carrossel']): manda as fotos numa ÚNICA
     # mensagem de carrossel interativo (1 foto por card + botões), em vez de N imagens.
     # Carrossel exige 2+ cards — com 1 foto restante cai no envio de imagem comum.
-    return send_fotos_carrossel(conversation, dados, fotos, codigo, key, sent, limite) if carrossel_ativo? && (limite - sent) >= 2
+    if carrossel_ativo?(conversation) && (limite - sent) >= 2
+      return send_fotos_carrossel(conversation, dados, fotos, codigo, key, sent, limite)
+    end
 
     batch = fotos[sent, BATCH] || []
     return 'Não encontrei fotos desse imóvel.' if batch.empty?
@@ -121,8 +123,17 @@ class Captain::Tools::EnviarFotosImovelTool < Captain::Tools::BasePublicTool
          .filter_map { |f| f['Foto'] }
   end
 
-  def carrossel_ativo?
-    @assistant&.config&.[]('fotos_carrossel') == true
+  # Duas condições, não uma: a conta opta pelo carrossel E o canal daquela conversa entrega
+  # payload interativo. O carrossel é passthrough do WhatsApp Cloud; num canal que não lê a
+  # chave (Instagram, WAHA, Messenger) a mensagem sai como o TEXTO do content — "📷 Carrossel:
+  # 9 fotos do imóvel X" — sem foto e sem falha registrada, e a tool ainda devolve "enviei",
+  # então a IA garante ao cliente que mandou. Medido na Tozi (conta 6, inbox 101 Instagram):
+  # 9 chamadas, 0 imagem entregue, clientes respondendo "não apareceu" e "fotos não carrega".
+  # Sem carrossel, o fluxo cai no envio foto a foto, que o Instagram entrega normalmente.
+  def carrossel_ativo?(conversation)
+    return false unless @assistant&.config&.[]('fotos_carrossel') == true
+
+    conversation.inbox.channel.supports_interactive_payload?
   end
 
   # Carrossel de mídia interativo (2-10 cards, 1 foto por card) numa única mensagem, via
