@@ -51,9 +51,7 @@ class Captain::Tools::EnviarFotosImovelTool < Captain::Tools::BasePublicTool
     # Opt-in por conta (assistant.config['fotos_carrossel']): manda as fotos numa ÚNICA
     # mensagem de carrossel interativo (1 foto por card + botões), em vez de N imagens.
     # Carrossel exige 2+ cards — com 1 foto restante cai no envio de imagem comum.
-    if carrossel_ativo?(conversation) && (limite - sent) >= 2
-      return send_fotos_carrossel(conversation, dados, fotos, codigo, key, sent, limite)
-    end
+    return send_fotos_carrossel(conversation, dados, fotos, codigo, key, sent, limite) if carrossel_ativo?(conversation) && (limite - sent) >= 2
 
     batch = fotos[sent, BATCH] || []
     return 'Não encontrei fotos desse imóvel.' if batch.empty?
