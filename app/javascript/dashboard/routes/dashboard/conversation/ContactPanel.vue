@@ -1,5 +1,6 @@
 <script setup>
 import { computed, watch, onMounted, ref } from 'vue';
+import { useI18n } from 'vue-i18n';
 import {
   useMapGetter,
   useFunctionGetter,
@@ -7,13 +8,15 @@ import {
 } from 'dashboard/composables/store';
 import { useAccount } from 'dashboard/composables/useAccount';
 import { useUISettings } from 'dashboard/composables/useUISettings';
+import { useGroupConversation } from 'dashboard/composables/useGroupConversation';
 import { FEATURE_FLAGS } from 'dashboard/featureFlags';
 
 import AccordionItem from 'dashboard/components/Accordion/AccordionItem.vue';
 import ContactConversations from './ContactConversations.vue';
 import ConversationAction from './ConversationAction.vue';
-import ConversationMediaStrip from './ConversationMediaStrip.vue';
+import ConversationMedia from './ConversationMedia.vue';
 import ConversationParticipant from './ConversationParticipant.vue';
+import GroupParticipants from './GroupParticipants.vue';
 import ContactInfo from './contact/ContactInfo.vue';
 import ContactNotes from './contact/ContactNotes.vue';
 import ConversationInfo from './ConversationInfo.vue';
@@ -40,6 +43,8 @@ const props = defineProps({
   },
 });
 
+const { t } = useI18n();
+
 const {
   uiSettings,
   updateUISettings,
@@ -48,21 +53,11 @@ const {
   toggleSidebarUIState,
 } = useUISettings();
 
-// Seções fixadas na barra lateral: ficam fora da lista reordenável porque o
-// lugar delas não é negociável.
-// "Ações da conversa" (atribuir agente, trocar time, prioridade, etiquetas)
-// fica logo abaixo do contato e aberta por padrão — são as ações do dia a dia,
-// não podem depender de expandir um acordeão lá embaixo.
-// "Mídias e arquivos" vira uma faixa logo abaixo do Resumo da IA: caçar um
-// comprovante ou áudio é rotina, então precisa estar à vista sem rolar a
-// barra inteira nem depender de o usuário ter arrastado a seção pra cima.
-const PINNED_SIDEBAR_ITEMS = ['conversation_actions', 'conversation_media'];
-const isActionsSectionOpen = computed(
-  () => uiSettings.value?.is_conv_actions_open !== false
+// "Mídias e Arquivos" abre por padrão (deixa o "Baixar todas" à vista de quem
+// está no chat). Só fica recolhido se o usuário o tiver fechado de propósito.
+const isMediaSectionOpen = computed(
+  () => uiSettings.value?.is_conv_media_open !== false
 );
-const toggleActionsSection = () => {
-  updateUISettings({ is_conv_actions_open: !isActionsSectionOpen.value });
-};
 
 const dragging = ref(false);
 const conversationSidebarItems = ref([]);
@@ -113,6 +108,23 @@ const conversationAdditionalAttributes = computed(
 
 const channelType = computed(() => currentChat.value.meta?.channel);
 
+// A seção "Integrantes" só existe em conversa de grupo (WhatsApp/WAHA).
+const { isGroup, participantCount, hasSnapshot } = useGroupConversation();
+
+// Integrantes abre por padrão (é a informação que falta hoje em grupo); só fica
+// recolhido se o agente o fechar de propósito — mesmo critério de "Mídias".
+const isGroupParticipantsOpen = computed(
+  () => uiSettings.value?.is_group_participants_open !== false
+);
+
+const groupParticipantsTitle = computed(() =>
+  hasSnapshot.value && participantCount.value
+    ? t('GROUP_INFO.SIDEBAR_TITLE_WITH_COUNT', {
+        count: participantCount.value,
+      })
+    : t('GROUP_INFO.SIDEBAR_TITLE')
+);
+
 const contactGetter = useMapGetter('contacts/getContact');
 const contactId = computed(() => currentChat.value.meta?.sender?.id);
 const contact = computed(() => contactGetter.value(contactId.value));
@@ -135,13 +147,7 @@ watch(contactId, (newContactId, prevContactId) => {
 const onDragEnd = () => {
   dragging.value = false;
   updateUISettings({
-    // As seções fixadas não estão na lista arrastável; devolve as entradas ao
-    // salvar para não perdê-las do ajuste de ordem do usuário. Como elas são
-    // filtradas na montagem, não há risco de entrar duplicado aqui.
-    conversation_sidebar_items_order: [
-      ...conversationSidebarItems.value,
-      ...PINNED_SIDEBAR_ITEMS.map(name => ({ name })),
-    ],
+    conversation_sidebar_items_order: conversationSidebarItems.value,
   });
 };
 
@@ -153,9 +159,7 @@ const closeContactPanel = () => {
 };
 
 onMounted(() => {
-  conversationSidebarItems.value = conversationSidebarItemsOrder.value.filter(
-    item => !PINNED_SIDEBAR_ITEMS.includes(item.name)
-  );
+  conversationSidebarItems.value = conversationSidebarItemsOrder.value;
   getContactDetails();
   store.dispatch('attributes/get', 0);
   store.dispatch('macros/get');
@@ -171,20 +175,7 @@ onMounted(() => {
       @close="closeContactPanel"
     />
     <ContactInfo :contact="contact" :channel-type="channelType" />
-    <div class="conversation--actions">
-      <AccordionItem
-        :title="$t('CONVERSATION_SIDEBAR.ACCORDION.CONVERSATION_ACTIONS')"
-        :is-open="isActionsSectionOpen"
-        @toggle="toggleActionsSection"
-      >
-        <ConversationAction
-          :conversation-id="conversationId"
-          :inbox-id="inboxId"
-        />
-      </AccordionItem>
-    </div>
     <ConversationSummary />
-    <ConversationMediaStrip :conversation-id="conversationId" />
     <ConversationChecklist />
     <div class="pb-8">
       <Draggable
@@ -199,7 +190,55 @@ onMounted(() => {
       >
         <template #item="{ element }">
           <div
-            v-if="element.name === 'conversation_participants'"
+            v-if="element.name === 'conversation_media'"
+            class="conversation--media"
+          >
+            <AccordionItem
+              :title="$t('CONVERSATION_SIDEBAR.ACCORDION.MEDIA_AND_FILES')"
+              :is-open="isMediaSectionOpen"
+              compact
+              @toggle="
+                value => toggleSidebarUIState('is_conv_media_open', value)
+              "
+            >
+              <ConversationMedia :conversation-id="conversationId" />
+            </AccordionItem>
+          </div>
+          <div
+            v-else-if="element.name === 'group_participants' && isGroup"
+            class="conversation--group-participants"
+          >
+            <AccordionItem
+              :title="groupParticipantsTitle"
+              :is-open="isGroupParticipantsOpen"
+              compact
+              @toggle="
+                value =>
+                  toggleSidebarUIState('is_group_participants_open', value)
+              "
+            >
+              <GroupParticipants :conversation-id="conversationId" />
+            </AccordionItem>
+          </div>
+          <div
+            v-else-if="element.name === 'conversation_actions'"
+            class="conversation--actions"
+          >
+            <AccordionItem
+              :title="$t('CONVERSATION_SIDEBAR.ACCORDION.CONVERSATION_ACTIONS')"
+              :is-open="isContactSidebarItemOpen('is_conv_actions_open')"
+              @toggle="
+                value => toggleSidebarUIState('is_conv_actions_open', value)
+              "
+            >
+              <ConversationAction
+                :conversation-id="conversationId"
+                :inbox-id="inboxId"
+              />
+            </AccordionItem>
+          </div>
+          <div
+            v-else-if="element.name === 'conversation_participants'"
             class="conversation--actions"
           >
             <AccordionItem

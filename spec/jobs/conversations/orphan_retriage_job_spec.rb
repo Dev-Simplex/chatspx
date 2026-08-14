@@ -62,6 +62,67 @@ RSpec.describe Conversations::OrphanRetriageJob do
       expect { described_class.perform_now(account) }.to change(orphan_notifications, :count).by(2)
       expect(conversation.reload.additional_attributes['orphan_alerted_at']).to be_present
     end
+
+    # GlitchTip #68: conversa cujo contato foi apagado (migration de FK nulificou contact_id)
+    # é inválida no model — o update! do marcador reprovava e derrubava o batch inteiro.
+    # Mesmo guard do Conversations::ResolutionJob.
+    it 'ignores orphan conversations whose contact was deleted (contact_id nil)' do
+      conversation = create_orphan
+      conversation.update_columns(contact_id: nil) # rubocop:disable Rails/SkipsModelValidations
+      tracker = instance_double(ChatwootExceptionTracker, capture_exception: nil)
+      allow(ChatwootExceptionTracker).to receive(:new).and_return(tracker)
+
+      expect { described_class.perform_now(account) }.not_to change(orphan_notifications, :count)
+
+      expect(conversation.reload.additional_attributes['orphan_alerted_at']).to be_nil
+      # sai na QUERY, não no rescue: a conversa não chega a ser tocada pelo laço
+      expect(ChatwootExceptionTracker).not_to have_received(:new)
+    end
+  end
+
+  describe 'resilience: one broken conversation cannot break the batch' do
+    # conversa inválida em repouso (contact_inbox apagado) que PASSA pelo guard de contact_id:
+    # representa a próxima variante do mesmo bug — o laço tem que seguir para as demais.
+    def create_broken_orphan
+      conversation = create_orphan
+      conversation.update_columns(contact_inbox_id: nil) # rubocop:disable Rails/SkipsModelValidations
+      conversation
+    end
+
+    before do
+      tracker = instance_double(ChatwootExceptionTracker, capture_exception: nil)
+      allow(ChatwootExceptionTracker).to receive(:new).and_return(tracker)
+    end
+
+    it 'keeps processing the remaining conversations when one of them fails' do
+      broken = create_broken_orphan
+      healthy = create_orphan
+
+      expect { described_class.perform_now(account) }.to change(orphan_notifications, :count).by(2)
+
+      expect(orphan_notifications.pluck(:primary_actor_id).uniq).to eq([healthy.id])
+      expect(healthy.reload.additional_attributes['orphan_alerted_at']).to be_present
+      expect(broken.reload.additional_attributes['orphan_alerted_at']).to be_nil
+    end
+
+    it 'does not raise and reports the failing conversation' do
+      broken = create_broken_orphan
+      allow(Rails.logger).to receive(:error)
+
+      expect { described_class.perform_now(account) }.not_to raise_error
+
+      expect(Rails.logger).to have_received(:error)
+        .with(/conversation=#{broken.id}.*ActiveRecord::RecordInvalid/)
+      expect(ChatwootExceptionTracker).to have_received(:new).at_least(:once)
+    end
+
+    # o spam de notificação vinha daqui: notify_admins rodava ANTES do update! que falhava,
+    # então os admins eram avisados a cada 5 min sobre uma conversa que nunca deduplicava.
+    it 'does not notify admins when the alert marker cannot be persisted' do
+      create_broken_orphan
+
+      expect { described_class.perform_now(account) }.not_to change(orphan_notifications, :count)
+    end
   end
 
   describe 'retriage (direct re-run of conversation_created rules)' do

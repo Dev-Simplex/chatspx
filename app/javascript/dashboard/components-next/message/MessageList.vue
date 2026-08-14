@@ -1,12 +1,16 @@
 <script setup>
 import { defineProps, computed, ref, watch } from 'vue';
 import { isSameDay } from 'date-fns';
+import { useI18n } from 'vue-i18n';
 import Message from './Message.vue';
+import MessageReactions from './MessageReactions.vue';
 import DateSeparator from 'shared/components/DateSeparator.vue';
 import { MESSAGE_TYPES, ATTACHMENT_TYPES } from './constants.js';
 import { useCamelCase } from 'dashboard/composables/useTransformKeys';
 import { useStore } from 'dashboard/composables/store';
 import { useAgentIsolation } from 'dashboard/composables/useAgentIsolation';
+import { authorIdentityKey } from 'dashboard/helper/whatsappGroupHelper';
+import { collectWhatsAppReactions } from 'dashboard/helper/whatsappReactionHelper';
 
 /**
  * Props definition for the component
@@ -112,6 +116,7 @@ const allMessages = computed(() => {
 });
 
 const store = useStore();
+const { t } = useI18n();
 const { isMessageRestricted } = useAgentIsolation();
 const currentChat = computed(() => store.getters.getSelectedChat || {});
 const currentInbox = computed(() => {
@@ -135,6 +140,106 @@ const replyMessagesById = computed(() => {
 
 const isForwardSelected = messageId =>
   props.selectedMessageIds.includes(messageId);
+
+/**
+ * Reação de WhatsApp chega como MENSAGEM de texto ("*Reagiu com* 👍") — uma bolha por
+ * pessoa que reagiu. O índice abaixo tira essas mensagens do fio e devolve o mesmo dado
+ * como chip ancorado na bolha reagida. Ver `whatsappReactionHelper` para o contrato.
+ *
+ * Não é condicionado a grupo: a reação polui a conversa 1:1 do mesmo jeito. O que
+ * condiciona é a mensagem SER uma reação — nada além disso muda de comportamento.
+ */
+const reactionIndex = computed(() =>
+  collectWhatsAppReactions(allMessages.value)
+);
+
+/**
+ * O tooltip nomeia quem reagiu. Só nome ou telefone formatado chegam até aqui: o
+ * identificador técnico do participante é removido no helper e não existe neste dado.
+ * @param {Array<{emoji: String, count: Number, authors: String[]}>} chips
+ */
+const decorateChips = chips =>
+  chips.map(chip => ({
+    emoji: chip.emoji,
+    count: chip.count,
+    title: chip.authors.length
+      ? chip.authors.join(', ')
+      : t('CONVERSATION.REACTIONS.FROM_WHATSAPP'),
+  }));
+
+const reactionsFor = message => {
+  const chips = reactionIndex.value.reactionsByMessageId.get(message.id);
+  return chips ? decorateChips(chips) : [];
+};
+
+const visibleMessages = computed(() => {
+  const hidden = reactionIndex.value.hiddenMessageIds;
+  if (!hidden.size) return allMessages.value;
+
+  return allMessages.value.filter(message => !hidden.has(message.id));
+});
+
+// Espelha `Conversation#group?` (app/models/conversation.rb) — o backend é o ponto
+// único de verdade, mas ainda não serializa o resultado; enquanto isso o front repete
+// a mesma heurística de JID. A WAHA não seta `additional_attributes['type']`, ela
+// identifica o grupo pelo JID do contato terminando em `@g.us`.
+const WHATSAPP_GROUP_JID_SUFFIX = '@g.us';
+
+const endsWithGroupJid = value =>
+  String(value ?? '').endsWith(WHATSAPP_GROUP_JID_SUFFIX);
+
+const isGroupConversation = computed(() => {
+  const chat = currentChat.value;
+  if (chat.additional_attributes?.type === 'group') return true;
+
+  const contact = chat.meta?.sender;
+  if (!contact) return false;
+  if (endsWithGroupJid(contact.identifier)) return true;
+
+  const custom = contact.custom_attributes || {};
+  return [custom.waha_whatsapp_chat_id, custom.waha_whatsapp_jid].some(
+    endsWithGroupJid
+  );
+});
+
+// Autor real da mensagem dentro do grupo, gravado na ingestão (contrato
+// `content_attributes.group_sender`). Chega camelizado por `toCamelizedMessage`;
+// o fallback snake cobre payloads que não passaram pela camelização.
+const groupSenderOf = message =>
+  message?.contentAttributes?.groupSender ??
+  message?.contentAttributes?.group_sender ??
+  null;
+
+/**
+ * Em conversa de grupo o `senderId` é SEMPRE o contato-grupo — igual para todo mundo.
+ * Agrupar por ele junta pessoas diferentes na mesma bolha visual. Quem responde por
+ * "é a mesma pessoa?" é a identidade estável do participante (lid > phone > name).
+ * Sem identidade conhecida (mensagem legada, autor não resolvido) não se agrupa:
+ * é preferível uma bolha a mais do que atribuir a fala a quem não a disse.
+ * @returns {Boolean}
+ */
+const hasSameGroupAuthor = (current, next) => {
+  const currentKey = authorIdentityKey(groupSenderOf(current) || {});
+  const nextKey = authorIdentityKey(groupSenderOf(next) || {});
+
+  if (!currentKey || !nextKey) return false;
+
+  return currentKey === nextKey;
+};
+
+const isIncoming = message => message?.messageType === MESSAGE_TYPES.INCOMING;
+
+const breaksGroupAuthorBlock = (current, next) => {
+  if (!isGroupConversation.value) return false;
+  if (!isIncoming(current) || !isIncoming(next)) return false;
+
+  // Nenhuma das duas tem autor estruturado: é histórico legado (o autor ainda está
+  // dentro do texto, visível em cada bolha) ou o chat interno, que compartilha esta
+  // lista. Nesses casos vale a regra de hoje — a correção age só onde há dado novo.
+  if (!groupSenderOf(current) && !groupSenderOf(next)) return false;
+
+  return !hasSameGroupAuthor(current, next);
+};
 
 const getSenderId = message => message.senderId ?? message.sender?.id;
 
@@ -167,6 +272,7 @@ const canGroupMedia = (current, next) => {
   if ((current.private ?? false) !== (next.private ?? false)) return false;
   if (current.messageType !== next.messageType) return false;
   if (getSenderId(current) !== getSenderId(next)) return false;
+  if (breaksGroupAuthorBlock(current, next)) return false;
 
   const currentDate = new Date(current.createdAt * 1000);
   const nextDate = new Date(next.createdAt * 1000);
@@ -180,6 +286,19 @@ const buildMessageItem = message => ({
   key: `message-${message.id}`,
   message,
   sourceMessages: [message],
+});
+
+/**
+ * Reação cujo alvo não está na página carregada (ou que veio sem `in_reply_to`). Some do
+ * fio como bolha, mas continua visível como chip solto — esconder seria apagar
+ * informação que o agente enxerga hoje.
+ */
+const buildStandaloneReactionItem = (message, chips) => ({
+  type: 'reaction',
+  key: `reaction-${message.id}`,
+  message,
+  sourceMessages: [message],
+  chips: decorateChips(chips),
 });
 
 const buildMediaGroupItem = groupMessages => {
@@ -217,11 +336,12 @@ const collectMediaGroup = (startIndex, messageList) => {
 
 const renderItems = computed(() => {
   if (props.isForwardMode) {
-    return allMessages.value.map(buildMessageItem);
+    return visibleMessages.value.map(buildMessageItem);
   }
 
   const items = [];
-  const messageList = allMessages.value;
+  const messageList = visibleMessages.value;
+  const { standaloneReactions } = reactionIndex.value;
 
   let index = 0;
   while (index < messageList.length) {
@@ -229,7 +349,11 @@ const renderItems = computed(() => {
     let item = buildMessageItem(message);
     let nextIndex = index + 1;
 
-    if (isMediaOnlyMessage(message)) {
+    const standaloneChips = standaloneReactions.get(message.id);
+
+    if (standaloneChips) {
+      item = buildStandaloneReactionItem(message, standaloneChips);
+    } else if (isMediaOnlyMessage(message)) {
       const { groupMessages, lastIndex } = collectMediaGroup(
         index,
         messageList
@@ -267,6 +391,10 @@ const shouldShowUnreadBadge = item => {
 const shouldGroupWithNext = (index, searchList) => {
   if (index === searchList.length - 1) return false;
 
+  // Chip solto de reação não faz parte de bloco de bolhas — nem abre nem fecha um.
+  if (searchList[index].type === 'reaction') return false;
+  if (searchList[index + 1].type === 'reaction') return false;
+
   const current = getItemMessage(searchList[index]);
   const next = getItemMessage(searchList[index + 1]);
 
@@ -287,8 +415,25 @@ const shouldGroupWithNext = (index, searchList) => {
 
   if (currentMessageType !== nextMessageType) return false;
 
+  // Em grupo o mesmo `senderId` não significa a mesma pessoa — ver `hasSameGroupAuthor`.
+  if (breaksGroupAuthorBlock(current, next)) return false;
+
   // Check if messages are in the same minute by rounding down to nearest minute
   return Math.floor(next.createdAt / 60) === Math.floor(current.createdAt / 60);
+};
+
+/**
+ * Espelho de `shouldGroupWithNext` olhando para trás. O WhatsApp mostra nome e avatar
+ * do autor na PRIMEIRA mensagem do bloco (o Chatwoot mostra o avatar na última), então
+ * a bolha precisa saber se ela abre ou continua um bloco.
+ * @param {Number} index - Index of the current message
+ * @param {Array} searchList - Array of messages to check
+ * @returns {Boolean} - Whether the message continues the previous message's block
+ */
+const shouldGroupWithPrevious = (index, searchList) => {
+  if (index === 0) return false;
+
+  return shouldGroupWithNext(index - 1, searchList);
 };
 
 /**
@@ -334,11 +479,28 @@ const shouldShowDateSeparator = (index, messageList) => {
         :date="new Date(getItemDate(item) * 1000)"
       />
       <slot v-if="shouldShowUnreadBadge(item)" name="unreadBadge" />
+      <!-- Reação sem bolha para ancorar: chip solto, discreto, alinhado com o lado de
+           quem reagiu. Nunca uma bolha de texto. -->
+      <div
+        v-if="item.type === 'reaction'"
+        class="flex w-full mb-2"
+        :class="
+          item.message.messageType === MESSAGE_TYPES.OUTGOING
+            ? 'justify-end'
+            : 'justify-start ltr:pl-9 rtl:pr-9'
+        "
+      >
+        <MessageReactions readonly mode="chips" :chips="item.chips" />
+      </div>
       <Message
+        v-else
         v-bind="item.message"
         :is-email-inbox="isAnEmailChannel"
         :in-reply-to="getInReplyToMessage(item.message)"
         :group-with-next="shouldGroupWithNext(index, renderItems)"
+        :group-with-previous="shouldGroupWithPrevious(index, renderItems)"
+        :is-group-conversation="isGroupConversation"
+        :whatsapp-reactions="reactionsFor(item.message)"
         :inbox-supports-reply-to="inboxSupportsReplyTo"
         :current-user-id="currentUserId"
         :is-waha-inbox="isWahaInbox"

@@ -9,6 +9,8 @@ import SocialIcons from './SocialIcons.vue';
 import EditContact from './EditContact.vue';
 import ExportConversationModal from 'dashboard/components-next/message/ExportConversationModal.vue';
 import VoiceCallButton from 'dashboard/components-next/Contacts/VoiceCallButton.vue';
+import { BUS_EVENTS } from 'shared/constants/busEvents';
+import { stripGroupSuffix } from 'dashboard/helper/whatsappGroupHelper';
 
 import {
   isAConversationRoute,
@@ -59,6 +61,19 @@ export default {
     },
     additionalAttributes() {
       return this.contact.additional_attributes || {};
+    },
+    // O contato de uma conversa de grupo é o próprio grupo. Ele carrega dois dados
+    // que não servem ao agente: o sufixo "(GROUP)"/"(Grupo)" que integrações grudam
+    // no nome, e o JID técnico no identificador. Ambos são tratados só na exibição.
+    isWhatsappGroup() {
+      return String(this.contact.identifier || '').endsWith('@g.us');
+    },
+    displayName() {
+      return stripGroupSuffix(this.contact.name || '');
+    },
+    // Identificador técnico não é informação de atendimento: em grupo, escondemos.
+    visibleIdentifier() {
+      return this.isWhatsappGroup ? '' : this.contact.identifier;
     },
     location() {
       const {
@@ -169,7 +184,7 @@ export default {
         v-if="showAvatar"
         :src="contact.thumbnail"
         size="120px"
-        :username="contact.name"
+        :username="displayName"
         :status="contact.availability_status"
         allow-preview
       />
@@ -179,7 +194,7 @@ export default {
         <h3
           class="my-0 text-[19px] font-semibold capitalize break-words text-n-slate-12 text-center"
         >
-          {{ contact.name }}
+          {{ displayName }}
         </h3>
         <span
           v-if="contact.created_at"
@@ -263,7 +278,7 @@ export default {
       <!-- Additional info rows -->
       <div
         v-if="
-          contact.identifier ||
+          visibleIdentifier ||
           additionalAttributes.company_name ||
           location ||
           additionalAttributes.location ||
@@ -278,8 +293,8 @@ export default {
           {{ additionalAttributes.description }}
         </p>
         <ContactInfoRow
-          v-if="contact.identifier"
-          :value="contact.identifier"
+          v-if="visibleIdentifier"
+          :value="visibleIdentifier"
           icon="contact-identify"
           emoji="🪪"
           :title="$t('CONTACT_PANEL.IDENTIFIER')"

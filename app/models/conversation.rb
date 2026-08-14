@@ -62,6 +62,9 @@ class Conversation < ApplicationRecord
   include PushDataHelper
   include ConversationMuteHelpers
 
+  # Sufixo de JID que o WhatsApp usa para grupos (ver #group?).
+  WHATSAPP_GROUP_JID_SUFFIX = '@g.us'.freeze
+
   attr_accessor :skip_team_required_for_resolution_validation
 
   # F1 (modo FILA): no handoff "pull" da IA, a conversa é SOLTA na fila do time (sem dono),
@@ -204,6 +207,26 @@ class Conversation < ApplicationRecord
 
   def language
     additional_attributes&.dig('conversation_language')
+  end
+
+  # Conversa de GRUPO de WhatsApp. Ponto único de verdade — qualquer guard novo
+  # (CSAT, NPS, IA, automação) deve perguntar aqui, nunca reimplementar a heurística.
+  #
+  # A WAHA não seta `additional_attributes['type'] = 'group'` (sinal padrão do Chatwoot);
+  # ela identifica o grupo pelo JID do contato terminando em `@g.us`. Cobrimos os dois
+  # caminhos e as variações de custom_attributes por integração.
+  # Este predicado passou a ser consultado em caminhos críticos (abertura de
+  # conversa, CSAT, NPS, IA). Registro jsonb torto — um `update_all` mal escrito
+  # grava String onde deveria haver Hash — não pode derrubar a tela inteira, por
+  # isso os acessos são tolerantes ao tipo em vez de assumir Hash.
+  def group?
+    return true if jsonb_hash(additional_attributes)['type'] == 'group'
+    return false if contact.blank?
+    return true if contact.identifier.to_s.end_with?(WHATSAPP_GROUP_JID_SUFFIX)
+
+    jsonb_hash(contact.custom_attributes)
+      .values_at('waha_whatsapp_chat_id', 'waha_whatsapp_jid')
+      .any? { |jid| jid.to_s.end_with?(WHATSAPP_GROUP_JID_SUFFIX) }
   end
 
   # Be aware: The precision of created_at and last_activity_at may differ from Ruby's Time precision.
@@ -471,6 +494,18 @@ class Conversation < ApplicationRecord
     }.each do |event, condition|
       condition.call && dispatcher_dispatch(event, status_change)
     end
+  end
+
+  # Coluna jsonb lida com tolerancia: devolve sempre Hash, mesmo quando o registro
+  # guarda uma String JSON (dado gravado torto) ou nil.
+  def jsonb_hash(value)
+    return value if value.is_a?(Hash)
+    return {} if value.blank?
+
+    parsed = JSON.parse(value.to_s)
+    parsed.is_a?(Hash) ? parsed : {}
+  rescue JSON::ParserError
+    {}
   end
 
   def dispatcher_dispatch(event_name, changed_attributes = nil, extra_data = {})

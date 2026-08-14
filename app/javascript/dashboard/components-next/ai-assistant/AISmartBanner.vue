@@ -5,24 +5,38 @@ import Icon from 'next/icon/Icon.vue';
 import { useReducedMotion } from 'dashboard/composables/useReducedMotion';
 
 /**
- * Contextual banner shown at the top of the AI Assistant panel.
+ * Aviso contextual no topo do painel do copiloto ("conversa longa, quer um
+ * resumo?", "o cliente está esperando há 6 min").
  *
- * Three variants (severity-driven) — all share the same structure but use
- * different colors, border accent and icon:
- *   - info     → long thread (purple)
- *   - warning  → negative sentiment (amber)
- *   - urgent   → customer waiting (red)
+ * Monocromático por decisão de produto (contrato C2: nenhuma cor de destaque
+ * no fio do chat). A severidade continua existindo na API — ela só deixou de
+ * ser hue e virou **peso**, no vocabulário do `.note` do mockup: uma régua à
+ * esquerda que escurece conforme a urgência.
  *
- * Renders only the suggestion passed via the `suggestion` prop. Emits
- * `action` when the CTA is clicked and `dismiss` when the X is clicked.
+ *   - info     → régua `--oa-line`     (fraca)
+ *   - warning  → régua `--oa-ink-2`    (média)
+ *   - urgent   → régua `--oa-ink`      (forte) + role="alert"/assertive
+ *
+ * A urgência que realmente importa para quem não enxerga cor continua no
+ * `role`/`aria-live` e no texto — nunca dependeu do vermelho.
+ *
+ * LAYOUT (revisto em 2026-07-29): o "X" que flutuava no canto superior
+ * direito saiu. Ele era um alvo de 24×24 solto sobre o texto e disputava a
+ * leitura com o corpo do aviso — o agente lia a frase, achava o X antes da
+ * ação e dispensava sem entender. Agora as duas ações moram na MESMA régua
+ * abaixo do texto, alinhadas à esquerda com ele, no vocabulário do `.errbar`
+ * do mockup: a ação principal em pílula escura, "Dispensar" como link
+ * sublinhado. Quem quiser dispensar continua a um clique — só que agora lê
+ * a frase primeiro.
  *
  * a11y:
- *   - role="status" + aria-live=polite for info/warning, assertive for urgent
- *   - dismiss button labeled via i18n; CTA label includes the body
- *     interpolation so screen readers announce context (e.g. "Summarize a
- *     thread of 23 messages with Copilot")
- *   - forced-colors fallback: visible 2px border on the root
- *   - reduced-motion: collapses transform animation to opacity-only
+ *   - role="status" + aria-live=polite para info/warning, alert/assertive
+ *     para urgent;
+ *   - a CTA inclui o corpo no aria-label para o leitor de tela anunciar o
+ *     contexto; "Dispensar" virou texto visível (era só title/aria-label);
+ *   - forced-colors: borda visível de 2px na raiz;
+ *   - reduced-motion: a entrada vira só opacidade;
+ *   - ambas as ações com área de toque de 44×44 via `oa-hit-44`.
  */
 
 const props = defineProps({
@@ -44,48 +58,16 @@ const { prefersReducedMotion } = useReducedMotion();
 
 const severity = computed(() => props.suggestion?.severity || 'info');
 
-// Tone-driven Tailwind classes. Stays inline (not interpolated) so
-// PurgeCSS keeps every variant.
+// Classes por severidade. Ficam literais (não interpoladas) para o PurgeCSS
+// manter as três variantes.
 const toneClasses = computed(() => {
   if (severity.value === 'urgent') {
-    return [
-      'bg-red-50 dark:bg-red-900/20',
-      'border-l-4 border-red-500',
-      'text-red-900 dark:text-red-100',
-    ].join(' ');
+    return 'border-l-2 border-l-[var(--oa-ink)]';
   }
   if (severity.value === 'warning') {
-    return [
-      'bg-amber-50 dark:bg-amber-900/20',
-      'border-l-4 border-amber-500',
-      'text-amber-900 dark:text-amber-100',
-    ].join(' ');
+    return 'border-l-2 border-l-[var(--oa-ink-2)]';
   }
-  return [
-    'bg-purple-50 dark:bg-purple-900/20',
-    'border-l-4 border-purple-500',
-    'text-purple-900 dark:text-purple-100',
-  ].join(' ');
-});
-
-const iconColorClass = computed(() => {
-  if (severity.value === 'urgent') {
-    return 'text-red-600 dark:text-red-300';
-  }
-  if (severity.value === 'warning') {
-    return 'text-amber-600 dark:text-amber-300';
-  }
-  return 'text-purple-600 dark:text-purple-300';
-});
-
-const ctaButtonClass = computed(() => {
-  if (severity.value === 'urgent') {
-    return 'bg-red-600 hover:bg-red-700 text-white focus-visible:ring-red-300';
-  }
-  if (severity.value === 'warning') {
-    return 'bg-amber-600 hover:bg-amber-700 text-white focus-visible:ring-amber-300';
-  }
-  return 'bg-purple-600 hover:bg-purple-700 text-white focus-visible:ring-purple-300';
+  return 'border-l-2 border-l-[var(--oa-line)]';
 });
 
 const ariaLive = computed(() =>
@@ -100,7 +82,9 @@ const ctaLabel = computed(() => t(props.suggestion.ctaKey));
 
 const ariaLabelCta = computed(() => `${ctaLabel.value} — ${bodyText.value}`);
 
-const dismissTooltip = computed(() =>
+// A chave nasceu como tooltip do X; virou o rótulo visível do link. O nome
+// dela fica como está para não mexer no arquivo de i18n (frente A2).
+const dismissLabel = computed(() =>
   t('CONVERSATION.AI_ASSISTANT_PANEL.SMART_BANNER.DISMISS_TOOLTIP')
 );
 
@@ -148,43 +132,44 @@ const variantTestId = computed(() => {
     <div
       :role="severity === 'urgent' ? 'alert' : 'status'"
       :aria-live="ariaLive"
-      class="relative flex items-start gap-3 rounded-lg border-2 border-transparent px-3 py-3 pr-9 forced-colors:border-current"
+      class="flex items-start gap-2.5 rounded-r-lg bg-[var(--oa-code)] px-3.5 py-3 text-[var(--oa-ink-2)] forced-colors:border-2 forced-colors:border-current"
       :class="toneClasses"
       :data-testid="variantTestId"
     >
       <Icon
         :icon="suggestion.icon"
-        class="mt-0.5 size-4 shrink-0"
-        :class="iconColorClass"
+        class="mt-0.5 size-4 shrink-0 text-[var(--oa-ink-2)]"
         aria-hidden="true"
       />
 
-      <div class="flex min-w-0 flex-1 flex-col gap-2">
-        <p class="text-xs leading-snug">{{ bodyText }}</p>
-        <div class="flex items-center justify-end">
+      <div class="flex min-w-0 flex-1 flex-col gap-2.5">
+        <p class="text-[13px] leading-snug">{{ bodyText }}</p>
+        <!--
+          Régua de ações: mesma margem esquerda do texto, ação principal
+          primeiro. `gap-y-3.5` (14px) é o que mantém 44px de passo entre
+          linhas quando as duas ações quebram — a pílula tem 30px.
+        -->
+        <div class="flex flex-wrap items-center gap-x-4 gap-y-3.5">
           <button
             type="button"
             :aria-label="ariaLabelCta"
-            class="inline-flex items-center gap-1 rounded-md px-2.5 py-1 text-[11px] font-semibold transition-colors focus:outline-none focus-visible:ring-2"
-            :class="ctaButtonClass"
+            class="oa-hit-44 inline-flex h-[30px] items-center rounded-[7px] bg-[var(--oa-send)] px-[11px] text-[12.5px] font-medium text-[var(--oa-send-ink)] transition-opacity hover:opacity-85 focus:outline-none focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-[var(--oa-focus)]"
             data-testid="ai-smart-banner-cta"
             @click="handleAction"
           >
             {{ ctaLabel }}
           </button>
+          <button
+            type="button"
+            :title="dismissLabel"
+            class="oa-hit-44 whitespace-nowrap border-0 bg-transparent p-0 text-[12.5px] font-medium text-[var(--oa-ink-2)] underline underline-offset-2 transition-colors hover:text-[var(--oa-ink)] focus:outline-none focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--oa-focus)]"
+            data-testid="ai-smart-banner-dismiss"
+            @click="handleDismiss"
+          >
+            {{ dismissLabel }}
+          </button>
         </div>
       </div>
-
-      <button
-        type="button"
-        :aria-label="dismissTooltip"
-        :title="dismissTooltip"
-        class="absolute right-1.5 top-1.5 inline-flex size-6 items-center justify-center rounded-md text-current/70 transition-colors hover:bg-black/5 hover:text-current focus:outline-none focus-visible:ring-2 focus-visible:ring-purple-400 dark:hover:bg-white/10"
-        data-testid="ai-smart-banner-dismiss"
-        @click="handleDismiss"
-      >
-        <Icon icon="i-lucide-x" class="size-3.5" aria-hidden="true" />
-      </button>
     </div>
   </Transition>
 </template>

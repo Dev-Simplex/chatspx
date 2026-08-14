@@ -30,7 +30,7 @@ RSpec.describe Captain::Behavior::RouterService do
     end
   end
 
-  describe 'skip_groups (config-gated, preservado)' do
+  describe 'skip_groups (config-gated, padrão SEGURO)' do
     before do
       assistant.update!(behavior: { 'router' => { 'skip_groups' => true } })
     end
@@ -59,11 +59,54 @@ RSpec.describe Captain::Behavior::RouterService do
       expect(should_respond?).to be false
     end
 
-    it 'responds to group conversations when skip_groups is not configured' do
+    it 'keeps responding on 1:1 conversations even with skip_groups on' do
+      expect(should_respond?).to be true
+    end
+
+    # Padrão SEGURO: sem configuração explícita a IA NÃO fala dentro do grupo. Antes desta
+    # mudança a chave ausente liberava a resposta — 2 dos 8 assistants desta base estavam
+    # exatamente nesse estado (Helena e Lia, sem `skip_groups` no behavior).
+    it 'skips group conversations by default when skip_groups is not configured' do
       assistant.update!(behavior: { 'router' => {} })
       conversation.update!(additional_attributes: { 'type' => 'group' })
 
+      expect(should_respond?).to be false
+    end
+
+    it 'skips group conversations by default when the router config is absent entirely' do
+      assistant.update!(behavior: {})
+      conversation.update!(additional_attributes: { 'type' => 'group' })
+
+      expect(should_respond?).to be false
+    end
+
+    it 'still responds on 1:1 conversations when skip_groups is not configured' do
+      assistant.update!(behavior: { 'router' => {} })
+
       expect(should_respond?).to be true
+    end
+
+    # Quem DESLIGOU o guard de propósito continua mandando: é o escape hatch da conta que quer
+    # a IA dentro do grupo. Só a ausência da chave cai no default seguro.
+    it 'responds inside a group when skip_groups is explicitly false' do
+      assistant.update!(behavior: { 'router' => { 'skip_groups' => false } })
+      conversation.update!(additional_attributes: { 'type' => 'group' })
+
+      expect(should_respond?).to be true
+    end
+
+    it 'responds inside a group when skip_groups is the string "false" (config vinda de JSON)' do
+      assistant.update!(behavior: { 'router' => { 'skip_groups' => 'false' } })
+      conversation.update!(additional_attributes: { 'type' => 'group' })
+
+      expect(should_respond?).to be true
+    end
+
+    it 'skips a group when skip_groups is the string "true" (config vinda de JSON)' do
+      assistant.update!(behavior: { 'router' => { 'skip_groups' => 'true' } })
+      conversation.update!(additional_attributes: { 'type' => 'group' })
+
+      expect(should_respond?).to be false
     end
   end
 

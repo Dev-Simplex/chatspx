@@ -61,6 +61,13 @@ Rails.application.routes.draw do
           resource :distribuicao_dashboard, only: [:show], controller: 'distribuicao_dashboard' do
             get :designacoes
           end
+
+          # Alias do contrato C1 do briefing (sem o prefixo /captain). A rota
+          # canonica e a de dentro do namespace :captain, onde o recurso vive;
+          # este alias existe para quem implementou o cliente pelo caminho
+          # literal do contrato.
+          post 'copilot_threads/:copilot_thread_id/stream', to: 'captain/copilot_streams#create'
+          delete 'copilot_threads/:copilot_thread_id/stream', to: 'captain/copilot_streams#destroy'
           namespace :captain do
             resource :preferences, only: [:show, :update]
             resource :eval_dashboard, only: [:show], controller: 'eval_dashboard' do
@@ -84,6 +91,10 @@ Rails.application.routes.draw do
             resources :bulk_actions, only: [:create]
             resources :copilot_threads, only: [:index, :create] do
               resources :copilot_messages, only: [:index, :create]
+              # Streaming SSE do copiloto (contrato C1).
+              # POST   .../captain/copilot_threads/:copilot_thread_id/stream  -> gera
+              # DELETE .../captain/copilot_threads/:copilot_thread_id/stream  -> "parar"
+              resource :stream, only: [:create, :destroy], controller: 'copilot_streams'
             end
             resources :custom_tools do
               member do
@@ -245,6 +256,9 @@ Rails.application.routes.draw do
               resources :funnel_items, only: [:index]
               resources :labels, only: [:create, :index]
               resource :participants, only: [:show, :create, :update, :destroy]
+              # I3 — integrantes do grupo de WhatsApp (WAHA). show le o snapshot
+              # gravado; create e o "Sincronizar agora" do painel.
+              resource :waha_group, only: [:show, :create], controller: 'waha_group'
               resource :direct_uploads, only: [:create]
               resource :draft_messages, only: [:show, :update, :destroy]
               resource :ghost_suggestion, only: [:create]

@@ -44,7 +44,7 @@ module Messages::WahaMessageResolvable # rubocop:disable Metrics/ModuleLength
 
   def find_waha_message_id_from_api # rubocop:disable Metrics/AbcSize
     Rails.logger.info("[#{self.class.name}] Looking up WAHA message for message_id=#{@message.id}, chat_id=#{chat_id}, " \
-                      "session=#{inbox.waha_session_name}, content=#{@message.content.truncate(100).inspect}")
+                      "session=#{inbox.waha_session_name}, content=#{@message.content.to_s.truncate(100).inspect}")
 
     messages = fetch_waha_messages
     return nil if messages.nil?
@@ -69,7 +69,8 @@ module Messages::WahaMessageResolvable # rubocop:disable Metrics/ModuleLength
   end
 
   def raise_no_match!(message_count)
-    Rails.logger.warn("[#{self.class.name}] No match found among #{message_count} messages for content=#{@message.content.truncate(100).inspect}")
+    Rails.logger.warn("[#{self.class.name}] No match found among #{message_count} messages " \
+                      "for content=#{@message.content.to_s.truncate(100).inspect}")
     raise ArgumentError, 'Message not found on WhatsApp. It may still be sending.'
   end
 
