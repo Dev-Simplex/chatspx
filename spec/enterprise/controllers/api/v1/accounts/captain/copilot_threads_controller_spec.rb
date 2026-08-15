@@ -89,6 +89,29 @@ RSpec.describe 'Api::V1::Accounts::Captain::CopilotThreads', type: :request do
       end
 
       context 'with valid params' do
+        # O painel V2 cria a thread e gera a resposta pelo endpoint de streaming.
+        # Sem skip_response o job legado geraria uma SEGUNDA resposta.
+        it 'does not enqueue the legacy response job when skip_response is set' do
+          expect do
+            post "/api/v1/accounts/#{account.id}/captain/copilot_threads",
+                 params: valid_params.merge(skip_response: true),
+                 headers: agent.create_new_auth_token,
+                 as: :json
+          end.not_to have_enqueued_job(Captain::Copilot::ResponseJob)
+
+          expect(response).to have_http_status(:success)
+          expect(CopilotThread.last.copilot_messages.pluck(:message_type)).to eq(['user'])
+        end
+
+        it 'enqueues the legacy response job by default' do
+          expect do
+            post "/api/v1/accounts/#{account.id}/captain/copilot_threads",
+                 params: valid_params,
+                 headers: agent.create_new_auth_token,
+                 as: :json
+          end.to have_enqueued_job(Captain::Copilot::ResponseJob)
+        end
+
         it 'returns error when usage limit is exceeded' do
           account.limits = { captain_responses: 2 }
           account.custom_attributes = { captain_responses_usage: 2 }

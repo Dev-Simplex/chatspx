@@ -141,8 +141,10 @@ describe Whatsapp::OneoffCampaignService do
       end
     end
 
-    context 'when template_params is missing' do
-      let(:template_params) { nil }
+    # campaigns.template_params é NOT NULL com default {} no banco: "sem template" é o hash vazio,
+    # que o service trata via #blank? exatamente como tratava o nil.
+    context 'when template_params is empty' do
+      let(:template_params) { {} }
 
       it 'skips contacts and logs error' do
         contact = create(:contact, :with_phone_number, account: account)

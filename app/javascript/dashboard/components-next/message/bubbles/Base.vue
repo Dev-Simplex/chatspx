@@ -3,6 +3,7 @@ import { computed } from 'vue';
 
 import MessageMeta from '../MessageMeta.vue';
 import ReplyPreview from './ReplyPreview.vue';
+import GroupAuthorName from './GroupAuthorName.vue';
 
 import { emitter } from 'shared/helpers/mitt';
 import { useMessageContext } from '../provider.js';
@@ -14,8 +15,20 @@ const props = defineProps({
   hideMeta: { type: Boolean, default: false },
 });
 
-const { variant, orientation, inReplyTo, shouldGroupWithNext } =
-  useMessageContext();
+const {
+  variant,
+  orientation,
+  inReplyTo,
+  shouldGroupWithNext,
+  groupAuthor,
+  groupWithPrevious,
+} = useMessageContext();
+
+// Grupo: o nome abre o bloco (padrão WhatsApp). `groupAuthor` só existe em conversa de
+// grupo com mensagem recebida — em 1:1 é sempre null e nada aqui muda.
+const shouldShowGroupAuthor = computed(
+  () => !!groupAuthor?.value && !groupWithPrevious?.value
+);
 
 const varaintBaseMap = {
   [MESSAGE_VARIANTS.AGENT]: 'bg-n-solid-blue text-n-slate-12',
@@ -87,6 +100,7 @@ const shouldShowMeta = computed(
       },
     ]"
   >
+    <GroupAuthorName v-if="shouldShowGroupAuthor" :author="groupAuthor" />
     <div
       v-if="inReplyTo"
       class="p-2 -mx-1 mb-2 rounded-lg cursor-pointer bg-n-alpha-black1"
