@@ -58,7 +58,13 @@
 - ⚠️ **Ainda no `/tmp` da box:** `pre-deploy-untracked/` (39 arquivos), `resgate232/` e as worktrees
   de CI `ci-fotos`/`ci-video`/`ci-conc`. Só apagar depois de alguém confirmar que não quer nada de lá.
 
-### [2026-08-15] 🟡 QUATRO SPECS PARADOS NO TEMPO deixam a `homologacao` vermelha — ~5 linhas resolvem
+### [2026-08-15] ✅ QUATRO SPECS PARADOS NO TEMPO — **PR #52 aberto**, homologação sai de 4 falhas para 0
+
+> Medido nos dois lados: `origin/homologacao` (`e14d711bc0`) = **38 exemplos, 4 falhas**; o ramo do
+> #52 = **40 exemplos, 0 falhas**. Rubocop 4 × 4. Nenhuma mudança de comportamento — a única linha
+> fora de spec extrai o rótulo do áudio para a constante `AUDIO_TRANSCRIPTION_LABEL`, que é o que
+> impede a divergência de voltar (era string literal solta, e por isso o spec pôde derivar em
+> silêncio). Conferido que nenhum outro ponto do código ou do front usa o literal.
 
 > Não é bug de código: em todos, o código mudou por decisão deliberada e o teste ficou afirmando o
 > contrário. Medido nos dois lados (o mesmo spec falha num ramo sem as mudanças).
