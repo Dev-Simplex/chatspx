@@ -17,10 +17,6 @@ class Captain::MediaDescriptionService
   MAX_BYTES = 10.megabytes
   MAX_TOKENS = 350
 
-  # Teto da API de transcricao da OpenAI. Acima disso o request volta 413 e o rescue engoliria.
-  MAX_TRANSCRIPTION_BYTES = 25.megabytes
-  WHISPER_MODEL = 'whisper-1'.freeze
-
   # Video se reconhece pelo content_type do blob, nao pelo file_type: o reply a story do
   # Instagram chega como :ig_story tanto em foto quanto em video, e e justamente o de video
   # que ficava invisivel pro agente.
@@ -147,37 +143,11 @@ class Captain::MediaDescriptionService
     nil
   end
 
-  # O Whisper aceita mp4 direto (provado com o story de 9,3 MB da conta 6), entao nao ha
-  # extracao de trilha aqui: so o teto de tamanho da propria API.
   def transcribe_video
-    blob = attachment.file.attached? ? attachment.file.blob : nil
-    return oversized_warning(blob.byte_size, 'transcricao') if blob && blob.byte_size > MAX_TRANSCRIPTION_BYTES
-
-    with_local_copy do |path|
-      File.open(path, 'rb') do |file|
-        OpenAI::Client.new(access_token: api_key)
-                      .audio.transcribe(parameters: { model: WHISPER_MODEL, file: file, temperature: 0.4 })['text']
-                      .to_s.strip.presence
-      end
-    end
+    Captain::MediaTranscriber.new(attachment: attachment, api_key: api_key).call
   rescue StandardError => e
     report_failure(e)
     nil
-  end
-
-  # O arquivo precisa estar em disco pro ffmpeg e pro upload da transcricao. Anexo so-externo
-  # (canal que nao baixou a midia) nao tem o que copiar — nesse caso nao ha video a ler.
-  def with_local_copy
-    return nil unless attachment.file.attached?
-
-    blob = attachment.file.blob
-    dir = Rails.root.join('tmp/uploads/media-description', "att-#{attachment.id}")
-    FileUtils.mkdir_p(dir)
-    path = File.join(dir, "source#{File.extname(blob.filename.to_s).presence || '.mp4'}")
-    File.open(path, 'wb') { |f| blob.open { |source| IO.copy_stream(source, f) } }
-    yield(path)
-  ensure
-    FileUtils.rm_rf(dir) if dir.present?
   end
 
   # Falha aqui NAO pode derrubar a resposta ao cliente — a imagem continua indo como visao
@@ -207,8 +177,8 @@ class Captain::MediaDescriptionService
     attachment.external_url.presence || attachment.download_url.presence
   end
 
-  def oversized_warning(byte_size, etapa = 'descricao')
-    Rails.logger.warn("[MediaDescription] midia acima do limite att=#{attachment.id} bytes=#{byte_size} — #{etapa} ignorada")
+  def oversized_warning(byte_size)
+    Rails.logger.warn("[MediaDescription] imagem acima do limite att=#{attachment.id} bytes=#{byte_size} — descricao ignorada")
     nil
   end
 
