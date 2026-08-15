@@ -32,7 +32,12 @@ class Api::V1::Accounts::Captain::CopilotThreadsController < Api::V1::Accounts::
 
   private
 
+  # `skip_response: true` = o cliente vai gerar a resposta pelo endpoint de
+  # streaming (`.../copilot_threads/:id/stream`). Sem isso, criar a thread
+  # dispara o job legado E o stream, e o agente recebe DUAS respostas.
   def build_copilot_response(copilot_message)
+    return if skip_response?
+
     if Current.account.usage_limits[:captain][:responses][:current_available].positive?
       copilot_message.enqueue_response_job(copilot_thread_params[:conversation_id], Current.user.id)
     else
@@ -51,8 +56,12 @@ class Api::V1::Accounts::Captain::CopilotThreadsController < Api::V1::Accounts::
     Current.account.captain_assistants.find(copilot_thread_params[:assistant_id])
   end
 
+  def skip_response?
+    ActiveModel::Type::Boolean.new.cast(copilot_thread_params[:skip_response]).present?
+  end
+
   def copilot_thread_params
-    params.permit(:message, :assistant_id, :conversation_id)
+    params.permit(:message, :assistant_id, :conversation_id, :skip_response)
   end
 
   def permitted_params

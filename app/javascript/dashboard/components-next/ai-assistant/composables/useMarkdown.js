@@ -75,6 +75,16 @@ const PURIFY_CONFIG = {
     'h5',
     'h6',
     'hr',
+    // Tabelas: o modelo gera comparativo o tempo todo ("opção A × opção B").
+    // Sem estas tags o DOMPurify descartava a linha de cabeçalho inteira e
+    // colava as células numa frase só — pior que perder a informação, porque
+    // vantagem de uma ação virava desvantagem da outra na tela de quem atende.
+    'table',
+    'thead',
+    'tbody',
+    'tr',
+    'th',
+    'td',
   ],
   ALLOWED_ATTR: ['href', 'target', 'rel', 'class'],
   FORBID_TAGS: [

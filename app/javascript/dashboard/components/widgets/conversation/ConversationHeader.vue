@@ -45,6 +45,16 @@ const store = useStore();
 const route = useRoute();
 const conversationHeader = ref(null);
 const { width } = useElementSize(conversationHeader);
+
+// Identidade antes de enfeite. O bloco de ações da direita ocupa 323px que não
+// encolhem; somando avatar (40+12), nome (até 172) e etiqueta "Grupo" (66+4), o
+// conjunto só cabe a partir de ~617px de largura ÚTIL de cabeçalho. Abaixo
+// disso o nome de quem está do outro lado era o único a ceder — chegava a 0px
+// em 1280. Acima do limite nada muda. Ver plano/captain-v2/relatos/C1.md.
+const HEADER_WIDTH_FOR_CHIPS = 620;
+const hasRoomForChips = computed(
+  () => width.value === 0 || width.value >= HEADER_WIDTH_FOR_CHIPS
+);
 const { isAWebWidgetInbox } = useInbox();
 const { uiSettings, updateUISettings } = useUISettings();
 const showMessageSearch = ref(false);
@@ -428,7 +438,7 @@ const setPriority = async value => {
             {{ displayName }}
           </span>
           <span
-            v-if="isGroup"
+            v-if="isGroup && hasRoomForChips"
             v-tooltip="$t('GROUP_INFO.BADGE_TOOLTIP')"
             class="wa-group-badge inline-flex items-center gap-1 flex-shrink-0 px-[7px] py-px rounded-full border border-n-weak text-[10.5px] font-semibold tracking-wide text-n-slate-11"
           >
@@ -514,7 +524,7 @@ const setPriority = async value => {
     </div>
     <div class="flex items-center gap-1 flex-shrink-0">
       <ConversationStatusActions
-        v-if="currentChat.id"
+        v-if="currentChat.id && hasRoomForChips"
         :chat="currentChat"
         class="hidden md:inline-flex"
       />

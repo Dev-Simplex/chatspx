@@ -58,6 +58,12 @@ Rails.application.routes.draw do
             post :bulk_create, on: :collection
           end
           resource :agent_stats, only: [:show]
+          # Alias do contrato C1 do briefing (sem o prefixo /captain). A rota
+          # canonica e a de dentro do namespace :captain, onde o recurso vive;
+          # este alias existe para quem implementou o cliente pelo caminho
+          # literal do contrato.
+          post 'copilot_threads/:copilot_thread_id/stream', to: 'captain/copilot_streams#create'
+          delete 'copilot_threads/:copilot_thread_id/stream', to: 'captain/copilot_streams#destroy'
           namespace :captain do
             resource :preferences, only: [:show, :update]
             resources :assistants do
@@ -76,6 +82,10 @@ Rails.application.routes.draw do
             resources :bulk_actions, only: [:create]
             resources :copilot_threads, only: [:index, :create] do
               resources :copilot_messages, only: [:index, :create]
+              # Streaming SSE do copiloto (contrato C1).
+              # POST   .../captain/copilot_threads/:copilot_thread_id/stream  -> gera
+              # DELETE .../captain/copilot_threads/:copilot_thread_id/stream  -> "parar"
+              resource :stream, only: [:create, :destroy], controller: 'copilot_streams'
             end
             resources :custom_tools do
               member do

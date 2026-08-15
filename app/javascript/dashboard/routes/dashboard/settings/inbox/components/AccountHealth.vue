@@ -152,11 +152,29 @@ const webhookUrl = computed(
 
 const webhookConfigured = computed(() => !!webhookUrl.value);
 
-const webhookUrlMismatch = computed(
-  () =>
-    webhookConfigured.value &&
-    webhookUrl.value !== props.healthData?.expected_webhook_url
-);
+// URLs de callback de todos os números que dividem o mesmo WABA. Vem vazia quando o backend
+// é antigo ou quando não foi possível montá-las (FRONTEND_URL ausente).
+const acceptableWebhookUrls = computed(() => {
+  const urls = props.healthData?.acceptable_webhook_urls;
+  return Array.isArray(urls) ? urls.filter(Boolean) : [];
+});
+
+const webhookUrlMismatch = computed(() => {
+  if (!webhookConfigured.value) return false;
+
+  // Fallback para backend sem acceptable_webhook_urls: comparação exata, como antes.
+  if (!acceptableWebhookUrls.value.length) {
+    return webhookUrl.value !== props.healthData?.expected_webhook_url;
+  }
+
+  // A Meta só aceita um override_callback_uri por WABA, então com dois números no mesmo WABA
+  // a URL registrada é necessariamente a de um deles. O roteamento de entrada resolve a inbox
+  // pelo payload, não pela URL, então a URL de qualquer irmão é igualmente válida.
+  // URLs de terceiros continuam acusando incompatibilidade por não estarem na lista — inclusive
+  // o override de nível `application` (webhookUrl cai nele quando não há override de WABA), que
+  // aponta para o host global do app e normalmente não corresponde a nenhum número desta conta.
+  return !acceptableWebhookUrls.value.includes(webhookUrl.value);
+});
 
 const handleRegisterWebhook = () => {
   emit('registerWebhook');
