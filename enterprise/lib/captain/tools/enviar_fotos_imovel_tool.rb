@@ -31,7 +31,7 @@ class Captain::Tools::EnviarFotosImovelTool < Captain::Tools::BasePublicTool
     # conversa (buscar_imovel registra em codigos_buscados). Bloqueia a IA de mandar
     # foto de um código que ela supôs/lembrou (ex.: mandar prédio comercial por casa).
     cod = codigo.to_s.gsub(/\D/, '')
-    vistos = Array(conversation.custom_attributes['codigos_buscados']).map(&:to_s)
+    vistos = codigos_conhecidos(conversation)
     if vistos.any? && !vistos.include?(cod)
       return "O código #{cod} não apareceu na busca desta conversa. Use buscar_imovel primeiro e envie fotos SÓ de um código que a busca retornou — nunca de um código que você supôs ou lembrou de outro imóvel."
     end
@@ -51,7 +51,7 @@ class Captain::Tools::EnviarFotosImovelTool < Captain::Tools::BasePublicTool
     # Opt-in por conta (assistant.config['fotos_carrossel']): manda as fotos numa ÚNICA
     # mensagem de carrossel interativo (1 foto por card + botões), em vez de N imagens.
     # Carrossel exige 2+ cards — com 1 foto restante cai no envio de imagem comum.
-    return send_fotos_carrossel(conversation, dados, fotos, codigo, key, sent, limite) if carrossel_ativo? && (limite - sent) >= 2
+    return send_fotos_carrossel(conversation, dados, fotos, codigo, key, sent, limite) if carrossel_ativo?(conversation) && (limite - sent) >= 2
 
     batch = fotos[sent, BATCH] || []
     return 'Não encontrei fotos desse imóvel.' if batch.empty?
@@ -82,6 +82,18 @@ class Captain::Tools::EnviarFotosImovelTool < Captain::Tools::BasePublicTool
   end
 
   private
+
+  # O que a busca DESTA conversa já devolveu, pelas duas chaves que a IA pode citar. Ler só
+  # `codigos_buscados` recusava imóvel legítimo: o track_codigos grava apenas o Codigo e corta
+  # em 40, enquanto o track_urls grava Codigo E ImoCodigo e corta em 60 — quando a IA cita o
+  # ImoCodigo, ou quando a conversa é longa, o código real fica de fora e o cliente leva um
+  # "não" que ele não vê. Somar os dois mapas não afrouxa a trava: código que busca nenhuma
+  # retornou continua ausente dos dois.
+  def codigos_conhecidos(conversation)
+    attrs = conversation.custom_attributes || {}
+    mapa = attrs['urls_imoveis']
+    Array(attrs['codigos_buscados']).map(&:to_s) + (mapa.is_a?(Hash) ? mapa.keys.map(&:to_s) : [])
+  end
 
   # Entrega a URL canônica que a busca já registrou (urls_imoveis, alimentado pelo
   # buscar_imovel) em vez de mandar a IA lembrar dela: link remontado errado é apagado
@@ -121,8 +133,17 @@ class Captain::Tools::EnviarFotosImovelTool < Captain::Tools::BasePublicTool
          .filter_map { |f| f['Foto'] }
   end
 
-  def carrossel_ativo?
-    @assistant&.config&.[]('fotos_carrossel') == true
+  # Duas condições, não uma: a conta opta pelo carrossel E o canal daquela conversa entrega
+  # payload interativo. O carrossel é passthrough do WhatsApp Cloud; num canal que não lê a
+  # chave (Instagram, WAHA, Messenger) a mensagem sai como o TEXTO do content — "📷 Carrossel:
+  # 9 fotos do imóvel X" — sem foto e sem falha registrada, e a tool ainda devolve "enviei",
+  # então a IA garante ao cliente que mandou. Medido na Tozi (conta 6, inbox 101 Instagram):
+  # 9 chamadas, 0 imagem entregue, clientes respondendo "não apareceu" e "fotos não carrega".
+  # Sem carrossel, o fluxo cai no envio foto a foto, que o Instagram entrega normalmente.
+  def carrossel_ativo?(conversation)
+    return false unless @assistant&.config&.[]('fotos_carrossel') == true
+
+    conversation.inbox.channel.supports_interactive_payload?
   end
 
   # Carrossel de mídia interativo (2-10 cards, 1 foto por card) numa única mensagem, via
