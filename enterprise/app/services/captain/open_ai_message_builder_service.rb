@@ -5,6 +5,12 @@ class Captain::OpenAiMessageBuilderService
   # roda em background (ver #extract_audio_transcriptions), nunca síncrona neste caminho.
   AUDIO_PLACEHOLDER = '[áudio]'.freeze
 
+  # Rótulo da transcrição. Vira constante porque a string literal estava só aqui e o spec
+  # carregava a expectativa antiga: quando o rótulo nasceu (25/07, fix do falso positivo
+  # anti-bot), três exemplos passaram a falhar e ninguém os atualizou. Com a constante, spec
+  # e código não podem mais divergir em silêncio.
+  AUDIO_TRANSCRIPTION_LABEL = '[áudio transcrito automaticamente — pode conter erros de transcrição]'.freeze
+
   # Placeholder de texto pra mensagem só-imagem (sem legenda) — ver #ensure_text_part.
   IMAGE_PLACEHOLDER = '[imagem]'.freeze
 
@@ -207,7 +213,7 @@ class Captain::OpenAiMessageBuilderService
     # Marca a origem: sem o rótulo, a transcrição é indistinguível de texto DIGITADO e
     # uma palavra transcrita errado vira "evidência" de robô/spam pro agente (caso real:
     # saudação por áudio transcrita com nome estranho foi silenciada como spam por 16h).
-    return "[áudio transcrito automaticamente — pode conter erros de transcrição]: #{cached}" if cached.present?
+    return "#{AUDIO_TRANSCRIPTION_LABEL}: #{cached}" if cached.present?
 
     Messages::AudioTranscriptionJob.perform_later(attachment.id)
     AUDIO_PLACEHOLDER

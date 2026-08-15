@@ -75,10 +75,15 @@ RSpec.describe Captain::OpenAiMessageBuilderService do
         attachment
       end
 
-      it 'includes the cached transcription text part' do
+      # A transcrição chega ROTULADA de propósito (25/07): sem o rótulo, texto produzido por
+      # máquina fica indistinguível do que o cliente digitou, e uma palavra transcrita errada
+      # virou "evidência" de robô — um cliente real ficou 16h silenciado por isso.
+      it 'includes the cached transcription text part, labelled' do
         audio_attachment # trigger creation
         result = service.send(:attachment_parts, attachments)
-        expect(result).to include({ type: 'text', text: 'Audio transcription text' })
+        expect(result).to include(
+          { type: 'text', text: "#{described_class::AUDIO_TRANSCRIPTION_LABEL}: Audio transcription text" }
+        )
       end
     end
 
@@ -149,7 +154,7 @@ RSpec.describe Captain::OpenAiMessageBuilderService do
 
         result = service.send(:attachment_parts, attachments)
         expect(result).to include({ type: 'image_url', image_url: { url: 'https://example.com/image.jpg' } })
-        expect(result).to include({ type: 'text', text: 'Audio text' })
+        expect(result).to include({ type: 'text', text: "#{described_class::AUDIO_TRANSCRIPTION_LABEL}: Audio text" })
         expect(result).to include({ type: 'text', text: 'User has shared an attachment' })
       end
     end
@@ -278,7 +283,10 @@ RSpec.describe Captain::OpenAiMessageBuilderService do
 
         attachments = message.attachments
         result = service.send(:extract_audio_transcriptions, attachments)
-        expect(result).to eq('First audio text. Second audio text.')
+        rotulo = described_class::AUDIO_TRANSCRIPTION_LABEL
+        # Cada áudio leva o SEU rótulo: dois áudios são duas falas, e um rótulo só no começo
+        # deixaria a segunda parecendo continuação digitada da primeira.
+        expect(result).to eq("#{rotulo}: First audio text. #{rotulo}: Second audio text.")
         expect(Messages::AudioTranscriptionService).not_to have_received(:new)
       end
     end
