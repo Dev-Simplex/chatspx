@@ -37,33 +37,26 @@ class Captain::MediaDescriptionService
   end
 
   def perform
-    return nil if attachment.blank?
-    return nil unless legivel?
-    return cached if cached.present?
+    return nil unless descrevivel?
 
-    herdado = herda_de_irmao(META_KEY)
-    return herdado if herdado.present?
+    ja_lido = cached || herda_de_irmao(META_KEY)
+    return ja_lido if ja_lido.present?
     return missing_key_warning if api_key.blank?
 
-    text = video? ? describe_video : describe
-    persist(META_KEY, text) if text.present?
-    text
+    grava(META_KEY, video? ? describe_video : describe)
   end
 
   # Metade independente da descricao: quem liga uma nao paga a outra. Vale so pra video —
   # audio de mensagem continua no Messages::AudioTranscriptionService, que tem quota e
   # gate proprios e ja roda em producao.
   def transcribe
-    return nil if attachment.blank? || !video?
-    return cached_transcription if cached_transcription.present?
+    return nil unless attachment.present? && video?
 
-    herdado = herda_de_irmao(TRANSCRIPTION_META_KEY)
-    return herdado if herdado.present?
+    ja_lido = cached_transcription || herda_de_irmao(TRANSCRIPTION_META_KEY)
+    return ja_lido if ja_lido.present?
     return missing_key_warning if api_key.blank?
 
-    text = transcribe_video
-    persist(TRANSCRIPTION_META_KEY, text) if text.present?
-    text
+    grava(TRANSCRIPTION_META_KEY, transcribe_video)
   end
 
   private
@@ -82,34 +75,31 @@ class Captain::MediaDescriptionService
     self.class.video?(attachment)
   end
 
-  # O MESMO story do Instagram vira um anexo NOVO a cada pessoa que responde: arquivo byte a
-  # byte identico (mesmo checksum), registro diferente. Medido na conta 7 em 30 dias: 865
-  # respostas para 479 stories, com um unico story baixado 20 vezes. Sem isto, o mesmo video
-  # e enviado a visao e ao Whisper uma vez por pessoa — 44% das leituras eram repeticao.
-  #
-  # A busca e pelo `meta` do PROPRIO anexo, que e jsonb simples. NAO pelo content_attributes
-  # da mensagem: aquele e `store coder: JSON` sobre jsonb (dupla serializacao), e um `->>`
-  # ingenuo casaria com zero linhas em silencio — armadilha que ja mordeu o NPS e o eval.
-  def herda_de_irmao(chave)
-    sid = story_id
-    return nil if sid.blank?
+  def descrevivel?
+    attachment.present? && legivel?
+  end
 
-    irmao = Attachment.where(account_id: attachment.account_id)
-                      .where.not(id: attachment.id)
-                      .where("meta ->> 'story_id' = :sid", sid: sid)
-                      .where('meta ->> :k IS NOT NULL', k: chave)
-                      .order(created_at: :desc).first
-    texto = irmao&.meta&.[](chave).to_s.strip.presence
-    return nil if texto.blank?
-
-    persist(chave, texto)
-    Rails.logger.info("[MediaDescription] #{chave} herdada do anexo #{irmao.id} (story #{sid}) att=#{attachment.id}")
+  def grava(chave, texto)
+    persist(chave, texto) if texto.present?
     texto
   end
 
-  # Só existe em resposta a story; video comum nao tem irmao e sempre e lido uma vez.
+  # Leitura que outro anexo do MESMO story já produziu (ver Captain::MediaStoryCache).
+  # Grava aqui porque quem manda no cache do anexo é este serviço; o colaborador só procura.
+  def herda_de_irmao(chave)
+    texto = story_cache.leitura_irma(chave)
+    return nil if texto.blank?
+
+    persist(chave, texto)
+    texto
+  end
+
+  def story_cache
+    @story_cache ||= Captain::MediaStoryCache.new(attachment: attachment)
+  end
+
   def story_id
-    @story_id ||= (attachment.message&.content_attributes || {})['story_id'].to_s.strip.presence
+    story_cache.story_id
   end
 
   def legivel?
