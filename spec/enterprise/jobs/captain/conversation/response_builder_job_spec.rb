@@ -436,7 +436,7 @@ RSpec.describe Captain::Conversation::ResponseBuilderJob, type: :job do
     before do
       create(:message, conversation: conversation, content: 'Hello with image', message_type: :incoming)
       allow(Captain::Llm::AssistantChatService).to receive(:new).and_return(mock_llm_chat_service)
-      allow(Captain::OpenAiMessageBuilderService).to receive(:new).with(message: anything).and_return(mock_message_builder)
+      allow(Captain::OpenAiMessageBuilderService).to receive(:new).with(hash_including(message: anything)).and_return(mock_message_builder)
       allow(mock_message_builder).to receive(:generate_content).and_return('Hello with image')
       allow(mock_llm_chat_service).to receive(:generate_response).and_return({ 'response' => 'Test response' })
     end
