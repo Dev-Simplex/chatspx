@@ -452,8 +452,28 @@ class Captain::Conversation::ResponseBuilderJob < ApplicationJob
   # Silêncio deliberado do agente ([IGNORAR]) deixa rastro auditável: sem isso, uma
   # conversa silenciada (ex.: falso positivo de spam) fica invisível no painel e no
   # diagnóstico — nenhuma mensagem, nenhum log (caso real: conv sem resposta por 16h).
+  #
+  # Resposta VAZIA, porém, não é silêncio: o agente pede silêncio com [IGNORAR], e o próprio
+  # `unwrapped_or_silence` converte campo vazio nesse marcador. String vazia aqui significa
+  # que o run não produziu saída — falha, não decisão. Registrar as duas como 'ignored'
+  # apagava a diferença justamente onde ela importa: no painel, uma IA impedida de falar
+  # ficava idêntica a uma IA que escolheu calar. Foi assim que uma chave de LLM sem saldo
+  # passou dias despercebida (conta 7, conv 2675, 15/08 — a única pista era `raw: ""`).
   def log_ignored(content)
+    return log_empty_response if content.blank?
+
     log_behavior_event('ignored', { raw: content.to_s[0, 120] })
+    nil
+  rescue StandardError
+    nil
+  end
+
+  # `error` já existia em EVENT_TYPES e nunca era emitido por ninguém — é o lugar certo.
+  # Leva junto o `reasoning` quando o runner o preencheu (ele carimba "Error occurred: …"
+  # ao capturar a exceção do run), que costuma ser a única descrição do que falhou.
+  def log_empty_response
+    motivo = @response.is_a?(Hash) ? @response['reasoning'].to_s.strip.presence : nil
+    log_behavior_event('error', { raw: '', motivo: motivo || 'run do agente terminou sem saída' })
     nil
   rescue StandardError
     nil
