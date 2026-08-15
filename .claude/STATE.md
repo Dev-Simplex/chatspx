@@ -58,7 +58,32 @@
 - ⚠️ **Ainda no `/tmp` da box:** `pre-deploy-untracked/` (39 arquivos), `resgate232/` e as worktrees
   de CI `ci-fotos`/`ci-video`/`ci-conc`. Só apagar depois de alguém confirmar que não quer nada de lá.
 
-### [2026-08-15] ✅ QUATRO SPECS PARADOS NO TEMPO — **PR #52 aberto**, homologação sai de 4 falhas para 0
+### [2026-08-15 05:40] ✅ SEGUNDO DEPLOY DA `.232` — vídeo virou contexto e a BigStore está LENDO os stories
+
+> Mergeados **#45, #50, #52, #49** e deployado: box em `59aba4a89f`. Sem migration nova, sem mudança
+> de dependência, e o vite pulou o build corretamente (**0 arquivo de front** nos 11 commits).
+> Receita já conhecida: ff-merge → migrate → precompile (heap **8192**) → restart. HTTP 200 nos dois.
+
+- **Eram QUATRO portas, não uma** — e é por isso que "está pronto" não significava "está vendo":
+  #45 não mergeado (`MediaDescriptionService` ausente) · #50 não mergeado (`VideoFrameExtractor`
+  ausente) · o deploy anterior parava antes dos dois · e a chave `media_pipeline` da conta.
+- **Ligado na BigStore** (conta 7, assistente 18): `media_pipeline = {video_description: true,
+  video_transcription: true}`. Antes era `nil`.
+- **🟢 PROVADO em vídeo real do story deles** (anexo 8322, 60s, 8,4 MB), e o caso resume tudo: o
+  cliente escreveu só **"Tem em Sorriso?"**. Os **quadros** trouxeram o produto (caixa térmica
+  vermelha de 5 litros, loja em Peixoto de Azevedo); a **transcrição** trouxe o que a imagem não
+  tinha: *"garrafa térmica, dois litros e meio… pelo valor de trinta reais essa semana"*. **O preço
+  só existe na fala** — é a justificativa medida para as duas chaves serem independentes.
+- **Volume que justifica:** inbox 57 em 30 dias = **2.010 entradas, 915 com anexo (45%), 751
+  `video/mp4`, 866 story replies**. Na Tozi vídeo era borda (9 chamadas em 60d); na BigStore é o
+  meio do fluxo. Custo estimado: poucos dólares/mês (visão no modelo pequeno, 3 quadros a 768px).
+- ✅ **Crédito da Anthropic da `.232` comprado pelo Paulo** — `claude-sonnet-4-5 → OK`. As chaves das
+  duas boxes são **diferentes** (digest `ab7b103c…` × `c5778e20…`) e não compartilham balanço; a da
+  OpenAI é a mesma. Isso destrava as contas **1, 3 e 7**.
+- 🔴 **A IA da `.232` esteve MUDA e ninguém viu**, porque falha e silêncio deliberado tinham o mesmo
+  rastro: `ignored {raw: ""}`. Foi o que motivou o segundo commit do #52.
+
+### [2026-08-15] ✅ QUATRO SPECS PARADOS NO TEMPO — **PR #52 mergeado**, homologação sai de 4 falhas para 0
 
 > Medido nos dois lados: `origin/homologacao` (`e14d711bc0`) = **38 exemplos, 4 falhas**; o ramo do
 > #52 = **40 exemplos, 0 falhas**. Rubocop 4 × 4. Nenhuma mudança de comportamento — a única linha
