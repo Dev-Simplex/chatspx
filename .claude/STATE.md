@@ -83,6 +83,34 @@
 - 🔴 **A IA da `.232` esteve MUDA e ninguém viu**, porque falha e silêncio deliberado tinham o mesmo
   rastro: `ignored {raw: ""}`. Foi o que motivou o segundo commit do #52.
 
+### [2026-08-15 02:50] 🟢 BIA LENDO VÍDEO DE STORY — provado ponta a ponta, e a conduta ajustada no banco
+
+> Conta 7 · inbox 57 · assistente 18 · VM `.232`. Nada enviado ao cliente: prova por
+> `generate_response`, que não cria mensagem.
+
+- **Funciona:** a camada leu o story do Paulo (fruteira com tampa, **R$ 20 à vista, R$ 22 em 3x**,
+  tirado dos quadros) e o contexto do agente passou a conter a leitura rotulada.
+- ⚠️ **Duas conclusões minhas que a medição derrubou** — as duas por sonda mal feita, não por
+  defeito do sistema:
+  1. *"A Bia ignora o contexto"* — falso. Minha sonda montava o histórico como **texto puro**,
+     enquanto o `ResponseBuilderJob` monta com `prepare_multimodal_message_content`. A leitura
+     nunca chegava ao modelo no teste. **Lição: replicar o caminho do job, não improvisar histórico.**
+  2. *"A conduta velha impedia o uso do vídeo"* — falso. Mesmo dizendo `você não enxerga nada`, o
+     modelo **seguiu a evidência do contexto** e usou a leitura. A instrução obsoleta não bloqueou.
+- **Conduta ajustada assim mesmo**, porque prompt que mente sobre a capacidade é frágil (hoje o
+  modelo ignora, amanhã obedece e alucina "não vi"). Backups em `/tmp/assistant_18_ins_video*.bak-*`
+  com linha de RESTORE.
+- **A/B com o texto real das três versões** (mesma mensagem, mesmo contexto):
+  - velha → dá o preço **como fato próprio** (`À vista R$20…`)
+  - minha 1ª versão → **empobreceu**: sumiu o preço e sumiu o município que ela puxara do histórico
+  - **final** → `O story mostrava R$20 à vista … Pra confirmar se ainda tem na unidade de Sinop,
+    uma pessoa do time vai responder` — dá o preço **atribuindo à origem** e deixa disponibilidade
+    com o humano. Story expira em 24h, então o preço lido é de no máximo ontem.
+- **Pronto para teste ao vivo:** fila `low` (a do job de mídia) está sendo consumida, hook devolve
+  `true` para a conta 7, e o espelho segue atribuído só na conversa do Paulo.
+- ⏭️ **PR #53 (cache por story) ainda não deployado:** enquanto não for, duas pessoas respondendo
+  ao mesmo story fazem o vídeo ser lido duas vezes.
+
 ### [2026-08-15] ✅ QUATRO SPECS PARADOS NO TEMPO — **PR #52 mergeado**, homologação sai de 4 falhas para 0
 
 > Medido nos dois lados: `origin/homologacao` (`e14d711bc0`) = **38 exemplos, 4 falhas**; o ramo do
