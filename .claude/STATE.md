@@ -10,6 +10,123 @@
 
 ## 🚧 Em andamento
 
+### [2026-08-15 04:20] ✅ DEPLOY DA `.232` EXECUTADO — e o off-git dela virou código de verdade (PR #51 mergeado)
+
+> O deploy estava **suspenso** desde 13/08 porque a box tinha trabalho vivo fora do git. Saiu hoje,
+> depois de o trabalho ser resgatado, conciliado e mergeado. Box em `e14d711bc0`, 10 migrations
+> aplicadas, assets recompilados, web+worker reiniciados, **zero erro no log**.
+
+- **O que a box escondia:** 328 commits atrás, 2 à frente, 70 entradas sujas — e não era resíduo:
+  **streaming SSE do Copilot**, painel de IA, **grupos de WhatsApp com autor por mensagem** e o
+  **gate de sessão + backoff do LID** (`Waha::SessionStatusCache`). Um deploy direto apagava os 27
+  arquivos rastreados em silêncio.
+- **Resgate sem tocar na box** (havia 3+ sessões de agente rodando nela): commit montado com
+  `GIT_INDEX_FILE` temporário, sem mexer em HEAD, working tree ou índice → branch
+  **`backup/232-offgit-20260814`** (`b55d1045ee`, 66 arquivos, 11.184 inserções). Conferido depois:
+  HEAD e as 70 entradas intactos.
+- **PR #51 (mergeado):** as **16 colisões** (não 7 — a contagem inicial ignorou que os 2 commits da
+  box também colidiam) resolvidas por um critério só: *isto já chegou à `homologacao` por outro
+  caminho?* Chegou em parte. Ficou a homologação onde houve implementação em paralelo
+  (`acceptable_webhook_urls`, `create_conversation_service`, `orphan_retriage`); ficou a box no que
+  não existia lá (participantes de grupo, `SessionStatusCache`, rescue por episódio); ficaram **os
+  dois** em `routes.rb`, no `router_service` (`skip_labeled?` **e** default tri-estado de grupo) e no
+  i18n (fusão **por chave**, porque a fronteira do conflito cortava o meio de um objeto e concatenar
+  gerava JSON inválido).
+- **🔴 O que a suíte pegou e o merge textual não pegaria:** ficar com a versão da homologação do
+  `orphan_retriage_job.rb` trazia de volta um bug que a box já tinha consertado — `notify_admins`
+  roda **antes** do `update!` do marcador; com conversa inválida o alerta sai, o update estoura, o
+  dedupe nunca existe e **todos os admins levam push/e-mail a cada tick do cron, para sempre**.
+  Corrigido em `c7fbfc8836`. Conflito **semântico**: só apareceu rodando os testes do lado perdedor.
+- **⚠️ O Almirante MENTE sobre esta VM.** `dry_run homologacao` disse *"ee87f5e799 → aaf5f8354
+  (1 commits atras)"* e *"🟢 migrations em dia, nada pendente"*. O real: **328 commits** e
+  **10 migrations**. Ele mede **antes** do checkout. Quem apertar o botão dele nessa VM acreditando
+  no verde leva 328 commits e 10 migrations sem saber. **Deploy dessa box: medir na box.**
+- **Receita que funcionou (sem `reset --hard`):** depois do #51 mergeado a box ficou *332 atrás e
+  **0 à frente*** → `git stash push` nos 27 modificados + mover para `/tmp/pre-deploy-untracked/` os
+  **39 não rastreados que passaram a existir na homologação** (senão o checkout recusa por colisão)
+  → `git merge --ff-only` → `db:migrate` → precompile → restart. Nada destrutivo.
+- **Gotcha do precompile:** `NODE_OPTIONS=--max-old-space-size=4096` **estoura o heap** nesta box
+  (`Build with Vite failed!`, rastro de node sem mensagem clara). Com **8192** passa. A box tem 31 GB
+  livres — o limite era o do Node, não o do SO.
+- **Provado no processo vivo, não só no disco:** `SessionStatusCache`, `CopilotStreamsController`,
+  `Conversation#group?` e `RouterService#skip_labeled?` todos carregados; **as 2 rotas de SSE
+  existem** (era o motivo de mergear o #51 *antes* de deployar); 5 contas de pé (BigStore com 865
+  conversas). `db:migrate:status` = 0 pendentes.
+- ⚠️ **Lacuna declarada:** `MessageList.spec.js` — a homologação tem 4 testes de isolamento por
+  agente e a box tinha 8 de agrupamento em grupo, com bancadas de store incompatíveis no mesmo
+  arquivo. **O código de grupo veio; os 8 testes dele não.** Estão em `backup/232-offgit-20260814`.
+- ⚠️ **Ainda no `/tmp` da box:** `pre-deploy-untracked/` (39 arquivos), `resgate232/` e as worktrees
+  de CI `ci-fotos`/`ci-video`/`ci-conc`. Só apagar depois de alguém confirmar que não quer nada de lá.
+
+### [2026-08-15] 🟡 QUATRO SPECS PARADOS NO TEMPO deixam a `homologacao` vermelha — ~5 linhas resolvem
+
+> Não é bug de código: em todos, o código mudou por decisão deliberada e o teste ficou afirmando o
+> contrário. Medido nos dois lados (o mesmo spec falha num ramo sem as mudanças).
+
+- `open_ai_message_builder_service_spec.rb:78`, `:145`, `:275` — esperam a transcrição de áudio
+  **crua**; o código a entrega **rotulada**, e o rótulo é de 25/07, do fix do falso positivo que
+  silenciou um cliente por 16h.
+- `router_service_spec.rb` (`:71` na homologação, `:114` depois do #51) — afirma que `skip_labels` é
+  *guard morto*; ele foi **ressuscitado em 23/07** para o interlocutor-robô (label `bot-externo`) e
+  está vivo no `should_respond?`.
+- ⚠️ O handoff de 14/08 atribuía a vermelhidão ao **PR #41**. Não é: o fix funcional e o spec do #41
+  já estavam na `homologacao` (`aaf5f8354b`). A confusão veio de comparar com `git diff A...B` (três
+  pontos), que mede contra a **base de merge**, não contra o topo. **#41 é refactor, não urgência.**
+
+### [2026-08-14] 🔴→✅ FOTOS DA IA NO INSTAGRAM: o carrossel saía como TEXTO (PR #49) · vídeo vira contexto (PR #50)
+
+- **A tool era chamada e não entregava imagem, sem registrar falha.** O carrossel monta
+  `content_attributes['interactive_payload']`, lido **só** pelo `WhatsappCloudService#send_message`;
+  em qualquer outro canal a mensagem sai como o `content` — o cliente recebia a frase
+  `📷 Carrossel: 9 fotos do imóvel X` e nada mais. Medido na Tozi (conta 6, inbox 101), 60 dias:
+  **9 chamadas, 2 conversas, 0 imagem, 0 falha**; no WhatsApp, 931 chamadas entregando. Os clientes
+  responderam *"Não apareceu"*, *"Só a mensagem"*, *"Fotos não carrega"* — e a IA insistiu que tinha
+  mandado, porque a tool devolve "enviei".
+- **PR #49:** `Channelable#supports_interactive_payload?` (false por padrão; true só em
+  `Channel::Whatsapp` com provider `whatsapp_cloud`) + a trava anti-alucinação passando a ler
+  **`urls_imoveis` além de `codigos_buscados`** — o primeiro guarda Codigo **e** ImoCodigo e corta em
+  60, o segundo só o Codigo e corta em 40, então a IA citando o ImoCodigo levava "não" silencioso
+  (aconteceu na conv 48182 com 3 códigos seguidos). ⚠️ Os **Flows** têm o mesmo buraco e não foram
+  tocados.
+- **PR #50 (empilhado no #45):** vídeo → contexto, **duas chaves independentes por conta**.
+  Medido no story real da conv 48193 antes de escrever código: 3 quadros a 768px com `gpt-4.1-mini`
+  leram **o código do imóvel (9718)**, preço, metragem e telefone — e o Whisper, no mesmo arquivo,
+  devolveu `🎵Music Plays🎵` e setenta emojis de fogo. Por isso `video_description` e
+  `video_transcription` são separadas: na Tozi o dado está **escrito**, na BigStore é **narrado**.
+  **`ffmpeg` 6.1.1 já estava na frota** (o ActiveStorage o usa) — a objeção de infra não existia.
+  Story de **foto** já funcionava; o buraco era só vídeo, que é **61 dos 83 anexos** daquela inbox.
+
+### [2026-08-14] 🟡 BIGSTORE: a Bia NÃO está desconectada — está elegível e muda
+
+> Corrige o handoff de 14/08, que a dava por desconectada. Muda o risco: ligar virou **uma automation
+> de distância**, não um trabalho.
+
+- `CaptainInbox #15` existe desde **12/08 16:42**, `active_bot? = true` na inbox 57 (conta 7).
+- Ela falou **4 vezes, todas em 12/08, numa conversa só** — a **2675, do contato #2206 "Paulo Seze"**.
+  Em 7 dias: **1.252 mensagens de clientes, 1.432 respostas do time pelo app do Instagram**
+  (`external_echo: true`) e **4 da IA**.
+- **O que segura é o gate por atribuição:** só a 2675 tem o espelho atribuído; as outras 844 estão
+  com `bot=nil` e **não há automation nenhuma na conta 7**. Ou seja, o "piloto restrito ao contato do
+  Paulo" que ele pediu **já é o estado de fato** — não há o que configurar.
+- ⚠️ **A whitelist antiga não existe mais:** o `RouterService` declara em comentário que
+  `only_contact_phones`, `skip_labels` e `skip_after_human_response` morreram com o gate por
+  atribuição. Pedido de "ligar só para o meu contato" hoje se resolve **atribuindo o espelho**.
+- Buraco real do canal, medido: conv 2676 — cliente pergunta **21h12**, resposta **08h21** do dia
+  seguinte.
+
+### [2026-08-14] 🟢 DISPARO URBAN DEVILLE (Tozi c6, inbox 99) concluído + regra #73 fecha o buraco de roteamento dos disparos
+
+> Campanha #7 pelo motor nativo (`Campaigns::Whatsapp`), não pelo `DisparoLeadJob`. Base
+> `LEADS_PRODUTO_VERTICAL2026_SEM_DUPLICADOS.xlsx`: 2.759 linhas → 2.756 aptas → **2.649 elegíveis**
+> após cortar 79 já-disparados, 15 recusas explícitas e 17 com conversa aberta. Enviados os 130 primeiros.
+
+- **Resultado: 128 enviadas / 2 falhas** (`131026` número sem WhatsApp — não é cobrado). Ritmo 3/min (`pacing_seconds: 20`), `target_team_id: 62`, `quiet_hours 18h–8h`, header de imagem em `public/urban-ago26.jpg`.
+- **Template `tozi_urban_lancamento`** (id `925689729922756`, APPROVED) — header IMAGE via resumable upload (`POST /{APP_ID}/uploads` → `POST /{upload_id}` com `Authorization: OAuth` + `file_offset: 0` → handle), 1 variável, 2 quick replies. Corpo começa com texto porque a Meta rejeita variável na abertura (`2388299`).
+- 🔴 **GOTCHA que custou 6 pessoas:** `CampaignRecipient#template_params` é **`{'1' => valor}`** (documentado em `send_template_service.rb:23`), não `{'body' => [valor]}`. Com o formato errado o HSM sai **sem erro e sem o nome** ("Oi , sou a Kettlen..."). Peguei no 6º **lendo o texto enviado**, não o status — status só diz que a Meta aceitou. Era o primeiro template com variável nesta conta, não havia precedente para copiar. Corrigidos os 124 pendentes antes de retomar.
+- **🟢 Buraco de roteamento fechado — regra #73** `Disparo inbox 99 — time Kettlen → Kettlen` (`conversation_opened` + `inbox_id=99` + `team_id=62` → `assign_agent=126`), criada por `dup` da #72 para não inventar formato. **O time 62 tem `allow_auto_assign=false`** e não tinha regra: o lead respondia, a conversa reabria no time e ficava **sem dono** até alguém abrir o painel. Medido: João e Cibele estavam atribuindo à Kettlen **na mão**, uma a uma, com até 13 min de espera. A regra automatiza o que já era a prática. As campanhas anteriores já tinham as #70/#71/#72 (Francielli 68→138, Henrique 69→140, Weigler 70→139).
+- ⚠️ **`conversation_opened` só dispara na transição resolvida→aberta.** Conversa que já está aberta e recebe nova mensagem **não** passa pela regra — por isso a #73 não age nas que reabriram antes dela existir (essas seguem na mão).
+- **A inbox 99 não tem IA nenhuma.** A regra que mandaria pra Clara (#63) está escopada na **inbox 91**. As 583 abertas da 99 são todas de humano (Francielli 310, Weigler 192, Henrique 81). ⚠️ Não confundir com a queixa da equipe sobre "a Clara pega tudo" — aquela é da **91**. São duas filas com desenhos opostos.
+
 ### [2026-08-12] 🔴→🟡 FÁBRICA: vazamento de marca contido no SPX (causa raiz segue no MTM) · Tozi: override do Pacaembu · BigStore: agente criado desconectado
 
 > Sessão orquestradora geral. Tudo medido na VM, não deduzido. Relatórios completos em `Temp/` das
