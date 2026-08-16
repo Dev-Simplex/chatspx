@@ -24,6 +24,21 @@ class Instagram::BaseSendService < Base::SendOnChannelService
 
   def handle_error(error)
     ChatwootExceptionTracker.new(error, account: message.account, user: message.sender).capture_exception
+    mark_as_failed(error)
+  end
+
+  # Sem isto a exceção some de onde importa: o tracker recebe, mas a MENSAGEM continua marcada
+  # como enviada, e nem o time nem o agente sabem que ela não chegou. O `process_response` já
+  # marca `failed` quando a Meta responde com erro — o caminho da EXCEÇÃO (timeout, conexão
+  # derrubada, anexo que não baixa) era o único mudo, e é justamente o que não deixa rastro
+  # nenhum na tela.
+  #
+  # A transição é guardada pelo próprio StatusUpdateService, que recusa rebaixar mensagem já
+  # entregue ou lida: uma falha tardia não apaga uma entrega que comprovadamente aconteceu.
+  def mark_as_failed(error)
+    Messages::StatusUpdateService.new(message, 'failed', "#{error.class}: #{error.message}"[0, 255]).perform
+  rescue StandardError => e
+    Rails.logger.error("[Instagram] não consegui marcar a mensagem #{message&.id} como falha: #{e.class}: #{e.message}")
   end
 
   def message_params
