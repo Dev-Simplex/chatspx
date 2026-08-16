@@ -12,6 +12,39 @@ RSpec.describe Captain::Behavior::RouterService do
     described_class.new(assistant: assistant, conversation: conversation, message: msg).should_respond?
   end
 
+  # Menção não é mensagem: é notificação que o Instagram entrega em forma de mensagem, e o
+  # texto é gerado por nós. Medido na Tozi (inbox 101), 60 dias: 53 dessas viraram 48 respostas
+  # da IA, várias perguntando a corretores da própria casa se queriam alugar ou comprar.
+  describe 'menção da marca no story de outra pessoa' do
+    def com_tipo(tipo)
+      build(:message, conversation: conversation, message_type: :incoming, account: account,
+                      content: 'fulano mencionou você na conversa:', content_attributes: { 'image_type' => tipo })
+    end
+
+    it 'does not respond to a story mention' do
+      expect(should_respond?(com_tipo('story_mention'))).to be false
+    end
+
+    # As três abaixo são conversa de verdade: em todas a pessoa mandou algo para nós de
+    # propósito. Se caírem no mesmo balde, a IA fica muda com quem respondeu ao story da marca
+    # — que é justamente o lead que este canal produz.
+    it 'still responds to a reply to our own story' do
+      expect(should_respond?(com_tipo('ig_story_reply'))).to be true
+    end
+
+    it 'still responds to a story shared into the direct' do
+      expect(should_respond?(com_tipo('ig_story'))).to be true
+    end
+
+    it 'still responds to a post shared into the direct' do
+      expect(should_respond?(com_tipo('ig_post'))).to be true
+    end
+
+    it 'is inert on channels that have no image_type at all' do
+      expect(should_respond?).to be true
+    end
+  end
+
   describe 'guards técnicos (sobrevivem ao D-6)' do
     it 'responds to a regular incoming message' do
       expect(should_respond?).to be true
