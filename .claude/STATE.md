@@ -83,6 +83,37 @@
 - 🔴 **A IA da `.232` esteve MUDA e ninguém viu**, porque falha e silêncio deliberado tinham o mesmo
   rastro: `ignored {raw: ""}`. Foi o que motivou o segundo commit do #52.
 
+### [2026-08-15 21:48] 🔴→🟢 INCIDENTE TOZI IG: a Clara respondia MENÇÃO de story — inclusive dos próprios corretores
+
+> Cliente ligou. Tozi PROD, conta 6, inbox 101. **Contido por conduta no banco** (sem deploy),
+> com prova na conversa real. Backup: `/tmp/assistant_7_ins_mencao.bak-20260815214805`.
+
+- **O que acontecia:** quem **recompartilha** um story da Tozi gera um `story_mention`, e quem
+  responde a story manda `ig_story_reply` — muitos sem texto. A regra **#68** (`conversation_created`
+  → `assign_ai_agent` Clara) atribui a Clara, que responde qualquer coisa.
+- **Escala medida (60 dias):** **53 mensagens de menção, 33 conversas, a IA falou em 31 — 48
+  mensagens**, todas da **Clara #7** (nenhum outro agente). Frases mais repetidas: *"Vi que você
+  enviou um arquivo. Como posso te ajudar?"* (12x) e variações.
+- 🔴 **Quem estava sendo abordado:** `viniciustiago.ocorretortozi`, `lucassouza.ocorretor`,
+  `adrianomachado01`, `rosivanecorretora_tozi` — **os próprios corretores da casa divulgando**. A IA
+  perguntava a eles se queriam alugar ou comprar.
+- **Caso que gerou a ligação (conv 49383 / display 28174, 13h26–13h30):** a pessoa respondeu a três
+  stories e recompartilhou um; levou **5 mensagens em 4 minutos**, uma delas em resposta a *"Eles
+  arrasam!!!"*.
+- **Causa de fundo:** o prompt da Clara tem **24 mil chars e ZERO menção** a Instagram, story,
+  menção, imagem ou vídeo. Ela foi escrita para WhatsApp e herdou a inbox do Instagram — é a
+  cegueira de canal já mapeada. Some-se a isso que a prod **não tem a camada de mídia** (#45/#50 só
+  na homologação), então ela é de fato cega a vídeo lá.
+- **Conduta aplicada** (+1.099 chars): menção não é atendimento → `[IGNORAR]`; resposta a story sem
+  pergunta nem pedido → `[IGNORAR]`; e **nunca dizer que não conseguiu ver** — se a mídia não chegou,
+  o problema é nosso, não da pessoa.
+- **Provado sem enviar:** o histórico real da 49383 → `[IGNORAR]` **3/3**; a mesma conversa com uma
+  pergunta de locação → atende e transfere para a Bruna **2/2**.
+- ⏭️ **Conserto durável é código, não conduta:** `story_mention` não deveria nem acordar a IA — o
+  router precisa ignorar por tipo, como o n8n da BigStore já faz num ramo dedicado. Conduta é
+  mitigação: ela ainda roda o modelo para depois calar.
+- ⏭️ As 31 conversas já poluídas seguem abertas com as mensagens da IA; ninguém as tocou.
+
 ### [2026-08-15 02:50] 🟢 BIA LENDO VÍDEO DE STORY — provado ponta a ponta, e a conduta ajustada no banco
 
 > Conta 7 · inbox 57 · assistente 18 · VM `.232`. Nada enviado ao cliente: prova por
