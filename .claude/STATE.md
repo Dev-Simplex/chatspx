@@ -83,6 +83,32 @@
 - 🔴 **A IA da `.232` esteve MUDA e ninguém viu**, porque falha e silêncio deliberado tinham o mesmo
   rastro: `ignored {raw: ""}`. Foi o que motivou o segundo commit do #52.
 
+### [2026-08-15 22:20] ✅ A TRAVA DA MENÇÃO ESTÁ NO AR NA PRODUÇÃO DA TOZI (PR #54 → #55), sem carregar mais nada
+
+> Pedido: subir só o #54, sem prejuízo à Tozi nem ao que aguarda o Walisson. Feito por
+> **cherry-pick cirúrgico**: a `producao` recebeu **1 commit, 2 arquivos, 53 inserções** — os 21
+> commits da promoção continuam parados, esperando ele.
+
+- **Caminho:** #54 mergeado na `homologacao` (para não se perder na promoção futura) → cherry-pick
+  numa branch a partir de `origin/producao` → **PR #55** → merge → VM.
+- ⚠️ **Armadilha que quase me pegou:** o Orca criou a worktree com `--base-branch producao` e pegou a
+  branch **LOCAL**, que está **297 commits atrás** de `origin/producao`. O cherry-pick foi parar em
+  cima de base velha. Refeito a partir de `origin/producao`. **A `producao` local deste notebook
+  está podre — e a worktree `chatspx-clientes/tozi-prod` está nela.**
+- **Transporte por `git bundle`**, porque a VM **não tem credencial git** (`could not read Username
+  for github.com` — dívida antiga confirmada de novo). O bundle mantém o git da VM consistente, ao
+  contrário do scp de arquivo solto que já criou o off-git de junho. A VM saiu de **detached HEAD**
+  e ficou na branch `producao`, em `142564790`.
+- **Sem migration (0 pendentes, conferido antes do restart), sem mudança de dependência e sem
+  arquivo de front** — mudança só de Ruby, então nada de precompile. Restart do **worker primeiro**
+  (não derruba requisição) e depois do web. HTTP 200 local e público, zero erro no log.
+- **Provado no processo vivo, com as mensagens REAIS do incidente:** constante e método presentes ·
+  a menção que gerou a ligação (msg **1652245**) → `should_respond? = false` · a resposta a story da
+  **mesma conversa** (msg **1652242**) → `true` · texto comum do WhatsApp (inbox 91) → `true`.
+- Medição antes de subir, contra o código da **produção** (que difere da homologação):
+  **17 exemplos / 1 falha no ramo × 12 / 1 na base** — a falha é o spec obsoleto de `skip_labels`,
+  pré-existente lá e já corrigido no #52, que está só na homologação.
+
 ### [2026-08-15 21:48] 🔴→🟢 INCIDENTE TOZI IG: a Clara respondia MENÇÃO de story — inclusive dos próprios corretores
 
 > Cliente ligou. Tozi PROD, conta 6, inbox 101. **Contido por conduta no banco** (sem deploy),
