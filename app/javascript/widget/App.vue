@@ -20,7 +20,7 @@ import {
 import { useDarkMode } from 'widget/composables/useDarkMode';
 import { useRouter } from 'vue-router';
 import { useAvailability } from 'widget/composables/useAvailability';
-import { SDK_SET_BUBBLE_VISIBILITY } from '../shared/constants/sharedFrameEvents';
+import { registerBridgeListeners } from './bridge';
 import { emitter } from 'shared/helpers/mitt';
 
 export default {
@@ -104,19 +104,11 @@ export default {
     this.registerCampaignEvents();
   },
   methods: {
-    ...mapActions('appConfig', [
-      'setAppConfig',
-      'setReferrerHost',
-      'setWidgetColor',
-      'setBubbleVisibility',
-      'setColorScheme',
-    ]),
+    // As ações que só o bridge usava saíram daqui: os handlers despacham direto
+    // na store (`appConfig/setAppConfig`, `campaign/initCampaigns`, …).
+    ...mapActions('appConfig', ['setWidgetColor']),
     ...mapActions('conversation', ['fetchOldConversations']),
-    ...mapActions('campaign', [
-      'initCampaigns',
-      'executeCampaign',
-      'resetCampaign',
-    ]),
+    ...mapActions('campaign', ['executeCampaign']),
     ...mapActions('agent', ['fetchAvailableAgents']),
     setWidgetColorVariable(widgetColor) {
       if (widgetColor) {
@@ -247,104 +239,8 @@ export default {
         });
       }
     },
-    createWidgetEvents(message) {
-      const { eventName } = message;
-      const isWidgetTriggerEvent = eventName === 'webwidget.triggered';
-      if (
-        isWidgetTriggerEvent &&
-        ['unread-messages', 'campaigns'].includes(this.$route.name)
-      ) {
-        return;
-      }
-      this.$store.dispatch('events/create', { name: eventName });
-    },
     registerListeners() {
-      const { websiteToken } = window.chatwootWebChannel;
-      window.addEventListener('message', e => {
-        if (!IFrameHelper.isAValidEvent(e)) {
-          return;
-        }
-        const message = IFrameHelper.getMessage(e);
-        if (message.event === 'config-set') {
-          this.setLocale(message.locale);
-          this.setBubbleLabel();
-          this.fetchOldConversations().then(() => this.setUnreadView());
-          this.fetchAvailableAgents(websiteToken);
-          this.setAppConfig(message);
-          this.$store.dispatch('contacts/get');
-          this.setCampaignReadData(message.campaignsSnoozedTill);
-        } else if (message.event === 'widget-visible') {
-          this.scrollConversationToBottom();
-        } else if (message.event === 'change-url') {
-          const { referrerURL, referrerHost } = message;
-          this.initCampaigns({
-            currentURL: referrerURL,
-            websiteToken,
-            isInBusinessHours: this.isInWorkingHours,
-          });
-          window.referrerURL = referrerURL;
-          this.setReferrerHost(referrerHost);
-        } else if (message.event === 'toggle-close-button') {
-          this.isMobile = message.isMobile;
-        } else if (message.event === 'push-event') {
-          this.createWidgetEvents(message);
-        } else if (message.event === 'set-label') {
-          this.$store.dispatch('conversationLabels/create', message.label);
-        } else if (message.event === 'remove-label') {
-          this.$store.dispatch('conversationLabels/destroy', message.label);
-        } else if (message.event === 'set-user') {
-          this.$store.dispatch('contacts/setUser', message);
-        } else if (message.event === 'set-custom-attributes') {
-          this.$store.dispatch(
-            'contacts/setCustomAttributes',
-            message.customAttributes
-          );
-        } else if (message.event === 'delete-custom-attribute') {
-          this.$store.dispatch(
-            'contacts/deleteCustomAttribute',
-            message.customAttribute
-          );
-        } else if (message.event === 'set-conversation-custom-attributes') {
-          this.$store.dispatch(
-            'conversation/setCustomAttributes',
-            message.customAttributes
-          );
-        } else if (message.event === 'delete-conversation-custom-attribute') {
-          this.$store.dispatch(
-            'conversation/deleteCustomAttribute',
-            message.customAttribute
-          );
-        } else if (message.event === 'set-locale') {
-          this.setLocale(message.locale);
-          this.setBubbleLabel();
-        } else if (message.event === 'set-color-scheme') {
-          this.setColorScheme(message.darkMode);
-        } else if (message.event === 'toggle-open') {
-          this.$store.dispatch('appConfig/toggleWidgetOpen', message.isOpen);
-
-          const shouldShowMessageView =
-            ['home'].includes(this.$route.name) &&
-            message.isOpen &&
-            this.messageCount;
-          const shouldShowHomeView =
-            !message.isOpen &&
-            ['unread-messages', 'campaigns'].includes(this.$route.name);
-
-          if (shouldShowMessageView) {
-            this.router.replace({ name: 'messages' });
-          }
-          if (shouldShowHomeView) {
-            this.$store.dispatch('conversation/setUserLastSeen');
-            this.unsetUnreadView();
-            this.router.replace({ name: 'home' });
-          }
-          if (!message.isOpen) {
-            this.resetCampaign();
-          }
-        } else if (message.event === SDK_SET_BUBBLE_VISIBILITY) {
-          this.setBubbleVisibility(message.hideMessageBubble);
-        }
-      });
+      registerBridgeListeners(this);
     },
     sendLoadedEvent() {
       IFrameHelper.sendMessage(loadedEventConfig());

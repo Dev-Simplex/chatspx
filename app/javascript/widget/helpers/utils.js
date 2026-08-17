@@ -1,4 +1,5 @@
 import { WOOT_PREFIX } from './constants';
+import { getParentTargetOrigin, isTrustedOrigin } from '../bridge/origin';
 
 export const isEmptyObject = obj => {
   if (!obj) return true;
@@ -8,7 +9,7 @@ export const isEmptyObject = obj => {
 export const sendMessage = msg => {
   window.parent.postMessage(
     `chatwoot-widget:${JSON.stringify({ ...msg })}`,
-    '*'
+    getParentTargetOrigin()
   );
 };
 
@@ -17,7 +18,8 @@ export const IFrameHelper = {
   sendMessage,
   isAValidEvent: e => {
     const isDataAString = typeof e.data === 'string';
-    return isDataAString && e.data.indexOf(WOOT_PREFIX) === 0;
+    if (!isDataAString || e.data.indexOf(WOOT_PREFIX) !== 0) return false;
+    return isTrustedOrigin(e.origin);
   },
   getMessage: e => JSON.parse(e.data.replace(WOOT_PREFIX, '')),
 };
