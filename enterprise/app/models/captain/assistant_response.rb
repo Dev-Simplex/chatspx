@@ -44,7 +44,13 @@ class Captain::AssistantResponse < ApplicationRecord
   scope :by_assistant, ->(assistant_id) { where(assistant_id: assistant_id) }
   scope :with_document, ->(document_id) { where(document_id: document_id) }
 
-  enum status: { approved: 1 }
+  # `pending` (0) é legado do fork: FAQ gerada de conversa que aguardava revisão humana, gravada
+  # pelo ConversationFaqService antes de o upstream trocar o fluxo por captain_faq_suggestions.
+  # No upstream status 0 nunca foi estado válido (é lixo); aqui é dado de cliente. Mantido para o
+  # legado da frota continuar legível — a migration 20260714123000 transfere essas linhas para
+  # Captain::FaqSuggestion antes de apagá-las. Ver onda-0-auditoria-enterprise.md §2.2 / C-1.
+  # O `status` não é permitido em `response_params`, então isto não reabre a criação de pendentes.
+  enum status: { pending: 0, approved: 1 }
 
   def self.search(query, account_id: nil)
     embedding = Captain::Llm::EmbeddingService.new(account_id: account_id).get_embedding(query)
