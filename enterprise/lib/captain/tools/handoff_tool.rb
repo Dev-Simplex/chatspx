@@ -31,11 +31,18 @@ class Captain::Tools::HandoffTool < Captain::Tools::BasePublicTool
   # RubyLLM::Tool delega description da instância para a classe — override de instância,
   # DINÂMICO por conta (tools são instanciadas a cada run: assistant.agent → agent_tools →
   # .new(self), então chega sempre fresco no LLM):
-  #  - modo "time fixo" (account.custom_attributes['handoff_team_id'] setado, ex.: Tozi →
-  #    recepção): a IA NÃO escolhe o time — todo handoff cai no time configurado. Não enumera
-  #    times (senão a IA tentaria escolher à toa).
+  #  - modo "a IA não escolhe" (account.custom_attributes['handoff_team_id'] setado): não enumera
+  #    times, então na prática o modelo quase nunca passa `team_id` e o destino vira o time padrão
+  #    do PRÓPRIO agente (HumanHandoffService#resolve_team).
   #  - modo "IA decide" (sem config, DEFAULT): enumera os times pra IA rotear pelo assunto
   #    (param team_id) — comportamento pra clientes que querem a IA definindo o setor.
+  #
+  # ⚠️ O VALOR da chave é IGNORADO — só a presença dela importa. Este comentário dizia que "todo
+  # handoff cai no time configurado", e isso NUNCA foi verdade: o `resolve_team` não lê
+  # `handoff_team_id` em lugar nenhum. Na Tozi a chave aponta para recepção (60) desde que foi
+  # posta como paliativo até o rodízio ficar pronto; medido em 60 dias, dos 641 handoffs apenas 81
+  # foram para a recepção — e os 81 eram da Clara, cujo time padrão já é o 60. Nenhum outro agente
+  # jamais mandou para lá. Quem quiser destino único de verdade tem que implementar, não configurar.
   #
   # A enumeração respeita a allowlist da conta (`Account#handoff_teams`): time fora dela nem
   # é oferecido ao modelo. Isso é ADVISORY — quem recusa de fato é o HumanHandoffService,
