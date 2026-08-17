@@ -79,6 +79,15 @@ const server = http.createServer((request, response) => {
 </html>`);
 });
 
-process.once('SIGINT', () => server.close());
-process.once('SIGTERM', () => server.close());
+// Mesmo motivo dos servidores Vite: o handler cancela o encerramento default e
+// `server.close()` não derruba as conexões keep-alive, deixando a porta 8899
+// presa para a execução seguinte da suíte.
+const close = () => {
+  server.closeAllConnections();
+  server.close();
+  process.exit(0);
+};
+
+process.once('SIGINT', close);
+process.once('SIGTERM', close);
 server.listen(8899, '127.0.0.1');

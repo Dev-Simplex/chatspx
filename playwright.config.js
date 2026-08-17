@@ -83,20 +83,26 @@ module.exports = defineConfig({
       },
     },
   ],
+  // Os dois servidores Vite só respondem 200 em `/__ready` depois de aquecer o
+  // grafo de módulos do respectivo entrypoint (ver harness/*.mjs). Em cache
+  // frio isso levou 24s (sdk) e 214s (widget) nesta máquina; o teto de 600s é
+  // folga sobre o medido, não custo fixo — o boot termina quando o warmup
+  // termina. Esse tempo é o que ANTES era pago dentro do primeiro teste, onde
+  // estourava os limites dele de forma intermitente.
   webServer: [
     {
       command: 'node spec/e2e/widget/harness/sdk-server.mjs',
       cwd: __dirname,
       url: 'http://127.0.0.1:3038/__ready',
       reuseExistingServer: false,
-      timeout: 120000,
+      timeout: 600000,
     },
     {
       command: 'node spec/e2e/widget/harness/widget-server.mjs',
       cwd: __dirname,
       url: 'http://127.0.0.1:3999/__ready',
       reuseExistingServer: false,
-      timeout: 120000,
+      timeout: 600000,
     },
     {
       command: 'node spec/e2e/widget/harness/host-server.mjs',
