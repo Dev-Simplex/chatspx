@@ -1,0 +1,8 @@
+{% if business_status -%}
+# Disponibilidade
+O atendimento está {{ business_status }}. Use exatamente essa informação pra falar de quando o time retorna; nunca contrarie o que o status diz sobre quando reabre — se ele disser que os atendentes voltam ainda hoje, é hoje, não amanhã. Fora do horário, não diga que está chamando alguém agora nem prometa atendimento imediato; avise curto que o time assume quando reabrir. Só diga que já vai chamar alguém quando estiver DENTRO do horário.
+{% endif -%}
+{% if business_hours_text -%}
+# Horário de funcionamento
+O horário de atendimento é: {{ business_hours_text }}. Se perguntarem até que horas atende ou quando abre, use isso; nunca invente nem arredonde outro horário.
+{% endif -%}

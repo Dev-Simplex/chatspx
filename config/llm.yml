@@ -108,7 +108,9 @@ features:
         gemini-3-flash,
         gemini-3-pro,
       ]
-    default: gpt-4.1
+    # ChatSPX: default nosso, deliberado (o merge da v4.16.2 o reverteu para gpt-4.1 do upstream).
+    # Ver plano/redesenho/execucao/onda-0-auditoria-enterprise.md §3.4 e C-13.
+    default: gpt-5-mini
   copilot:
     models:
       [
@@ -123,7 +125,8 @@ features:
         gemini-3-flash,
         gemini-3-pro,
       ]
-    default: gpt-4.1
+    # ChatSPX: idem assistant — default nosso, revertido pelo merge para gpt-4.1.
+    default: gpt-5-mini
   label_suggestion:
     models:
       [gpt-4.1-nano, gpt-4.1-mini, gpt-5-mini, gemini-3-flash, claude-haiku-4.5]
@@ -200,7 +203,9 @@ features:
     default: gpt-4.1-nano
   audio_transcription:
     models: [gpt-4o-mini-transcribe, whisper-1]
-    default: gpt-4o-mini-transcribe
+    # ChatSPX: whisper-1 continua o default da frota. O merge promoveu gpt-4o-mini-transcribe a
+    # default, trocando o modelo de transcrição de áudio de toda a frota sem decisão. C-13.
+    default: whisper-1
   help_center_search:
     models: [text-embedding-3-small]
     default: text-embedding-3-small

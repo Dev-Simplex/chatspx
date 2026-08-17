@@ -69,6 +69,10 @@ class Captain::Conversation::ResponseBuilderJob < ApplicationJob
     elsif v1_handoff_requested?
       process_v1_handoff
     else
+      # Sem transacao envolvendo a rajada: cada bolha precisa COMMITAR pra disparar o
+      # SendReplyJob (after_create_commit). Dentro de uma transacao os sends so disparariam
+      # no commit final, TODOS juntos -> corriam soltos e chegavam fora de ordem. Commitando
+      # uma a uma, o wait_for_dispatch (espera o source_id) serializa o envio.
       message = create_messages
       Rails.logger.info("[CAPTAIN][ResponseBuilderJob] Incrementing response usage for #{account.id}")
       account.increment_response_usage
@@ -164,10 +168,14 @@ class Captain::Conversation::ResponseBuilderJob < ApplicationJob
     message.message_type == 'incoming' ? 'user' : 'assistant'
   end
 
+  # Foto sai como outgoing de conteudo vazio; sem o codigo, todas viram o MESMO placeholder
+  # no historico e o modelo nao sabe qual imovel e qual ("esse e qual?"). Carimbado pela
+  # EnviarFotosImovelTool em additional_attributes['property_code'].
   def outgoing_attachment_placeholder(message)
     return '' unless message.attachments.any?
 
-    '[attachment sent]'
+    code = message.additional_attributes&.dig('property_code')
+    code.present? ? "[foto do imóvel #{code} enviada]" : '[attachment sent]'
   end
 
   # Forward do agent_name das additional_attributes para o histórico da gem.
@@ -214,7 +222,10 @@ class Captain::Conversation::ResponseBuilderJob < ApplicationJob
     text = quoted.content.to_s.gsub(/\s+/, ' ').strip
     return text[0, 180] if text.present?
 
-    quoted.attachments.any? ? 'a previously sent attachment' : ''
+    code = quoted.additional_attributes&.dig('property_code')
+    return "foto do imóvel #{code}" if code.present?
+
+    quoted.attachments.any? ? 'uma foto enviada anteriormente' : ''
   end
 
   def prepare_multimodal_message_content(message)
@@ -374,8 +385,10 @@ class Captain::Conversation::ResponseBuilderJob < ApplicationJob
   def sanitize_for_whatsapp(content)
     return content if content.blank?
 
+    content = fix_property_links(content)
     content.gsub(/\[\s*(ignorar|sem[\s_-]?resposta|no[\s_-]?reply)\s*\]/i, '') # sentinela de silêncio que o LLM às vezes anexa a uma resposta real -> nunca enviar literal
-           .gsub(/\[\s*attachments?\s+sent\s*\]/i, '')
+           .gsub(/\[\s*attachments?\s+sent\s*\]/i, '')       # placeholder novo (upstream)
+           .gsub(/\[\s*fotos?[^\]]*enviad[ao]s?\s*\]/i, '')  # placeholder pt-BR, já gravado no histórico da frota
            .gsub(/\*\*(.*?)\*\*/m, '\1')   # **negrito** -> negrito
            .gsub(/__(.*?)__/m, '\1')        # __negrito__ -> negrito
            .gsub(/^\s{0,3}#+\s+/, '')        # ## títulos -> texto
@@ -385,6 +398,22 @@ class Captain::Conversation::ResponseBuilderJob < ApplicationJob
            .gsub(/ +,/, ',')                 # " ," -> ","
            .gsub(/,\s*([.!?;:])/, '\1')      # ", ." -> "."
            .gsub(/,(\s*,)+/, ',')            # ",," -> ","
+  end
+
+  # A URL de um imóvel só vem da buscar_imovel (build_url). O LLM às vezes monta
+  # uma URL do site na mão, com formato e número inventados (ex: caminho
+  # /imovel/...-3338 em vez de ...,ImoCodigo). Aqui, toda URL da Tozi na resposta
+  # é trocada pela que a busca realmente retornou (casando o código no fim da
+  # URL); se nenhum código bater, é inventada -> remove. Sem busca na conversa,
+  # nenhuma URL da Tozi é legítima. Só toca a saída da IA (não a de humano).
+  def fix_property_links(content)
+    return content unless content.match?(/toziimoveis/i)
+
+    mapa = @conversation.reload.custom_attributes&.dig('urls_imoveis') || {}
+    content.gsub(%r{https?://[^\s)\]]*toziimoveis\.com\.br[^\s)\]]*}i) do |url|
+      match = url.scan(/\d+/).find { |n| mapa.key?(n) }
+      match ? mapa[match] : ''
+    end
   end
 
   def send_humanized_response(content)

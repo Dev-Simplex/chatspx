@@ -191,6 +191,26 @@ RSpec.describe Concerns::Agentable do
 
       expect(agent.send(:agent_model)).to eq(Llm::Models.default_model_for('assistant'))
     end
+
+    # ChatSPX (C-9): o llm.yml guarda o modelo Claude com PONTO (branding/UI) e o RubyLLM só conhece
+    # a forma com HÍFEN. `agent_model` alimenta Agents::Agent.new(model:), e a gem ai-agents passa o
+    # valor direto pra RubyLLM.chat com assume_model_exists: false — sem a tradução, toda conta cujo
+    # assistant seja um Claude do nosso llm.yml derruba o Captain com RubyLLM::ModelNotFoundError.
+    # A cobertura que o merge trouxe não exercita nenhum modelo Claude, então a suíte passava verde
+    # com o defeito dentro.
+    it 'translates dotted Claude aliases to the RubyLLM runtime id' do
+      account.update!(captain_models: { 'assistant' => 'claude-sonnet-4.5' })
+
+      expect(dummy_instance.send(:agent_model)).to eq('claude-sonnet-4-5')
+    end
+
+    # ChatSPX (C-9): mesmo guarda-chuva que Llm::BaseAiService#model_for_feature já usa — um default
+    # que o runtime não conhece cai para o default da feature em vez de derrubar o Captain.
+    it 'falls back to the assistant default when the preferred model is unknown to the runtime' do
+      create(:installation_config, name: 'CAPTAIN_OPEN_AI_MODEL', value: 'modelo-que-nao-existe')
+
+      expect(dummy_instance.send(:agent_model)).to eq(Llm::Models.default_model_for('assistant'))
+    end
   end
 
   describe '#agent_response_schema' do

@@ -125,8 +125,10 @@ RSpec.describe Messages::AudioTranscriptionService, type: :service do
     end
 
     it 'uses the audio transcription feature model' do
+      # ChatSPX (C-13): o default da frota é whisper-1. O merge promoveu gpt-4o-mini-transcribe a
+      # default de audio_transcription — trocaria o modelo de transcrição de toda a frota.
       expect(audio_api).to receive(:transcribe).with(
-        parameters: hash_including(model: 'gpt-4o-mini-transcribe', temperature: 0.0)
+        parameters: hash_including(model: 'whisper-1', temperature: 0.0)
       ).and_return({ 'text' => 'Audio transcript' })
 
       expect(service.send(:transcribe_audio)).to eq('Audio transcript')
