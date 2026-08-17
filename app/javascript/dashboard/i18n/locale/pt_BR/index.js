@@ -25,6 +25,7 @@ import takeoverRequests from './takeoverRequests.json';
 import helpCenter from './helpCenter.json';
 import inbox from './inbox.json';
 import inboxMgmt from './inboxMgmt.json';
+import inboxWidget from './inboxWidget.json';
 import integrationApps from './integrationApps.json';
 import integrations from './integrations.json';
 import interactiveMessage from './interactiveMessage.json';
@@ -78,6 +79,7 @@ export default {
   ...helpCenter,
   ...inbox,
   ...inboxMgmt,
+  ...inboxWidget,
   ...integrationApps,
   ...integrations,
   ...interactiveMessage,
