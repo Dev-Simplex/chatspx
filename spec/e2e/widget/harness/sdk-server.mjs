@@ -19,21 +19,58 @@ const vite = await createViteServer({
   },
 });
 
+// O Vite em middlewareMode transforma sob demanda e não persiste esse cache em
+// disco, então o PRIMEIRO teste pagaria sozinho a compilação do grafo inteiro
+// (~45s medidos) e estouraria os próprios limites (page.goto 15s, poll 30s).
+// Aquecemos o grafo antes de anunciar prontidão: esse custo pertence ao boot do
+// `webServer` (timeout no playwright.config.js), não ao primeiro teste.
+const warmModuleGraph = async entryUrl => {
+  const visited = new Set();
+  const visit = async url => {
+    if (!url || visited.has(url)) return;
+    visited.add(url);
+    try {
+      await vite.transformRequest(url);
+    } catch {
+      // Módulo não transformável (asset estático, dependência externa) não
+      // bloqueia o aquecimento — o browser também o buscaria sem transformar.
+      return;
+    }
+    const node = await vite.moduleGraph.getModuleByUrl(url);
+    if (!node) return;
+    await Promise.all([...node.importedModules].map(child => visit(child.url)));
+  };
+  await visit(entryUrl);
+};
+
+let warmed = false;
+
 const server = http.createServer((request, response) => {
   response.setHeader('Access-Control-Allow-Origin', '*');
   if (request.url === '/__ready') {
-    response.writeHead(200, { 'Content-Type': 'text/plain; charset=utf-8' });
-    response.end('sdk-ready');
+    const status = warmed ? 200 : 503;
+    response.writeHead(status, { 'Content-Type': 'text/plain; charset=utf-8' });
+    response.end(warmed ? 'sdk-ready' : 'sdk-warming');
     return;
   }
   vite.middlewares(request, response);
 });
 
+// Registrar um handler de SIGINT/SIGTERM cancela o encerramento default do
+// processo, e `server.close()` sozinho não derruba as conexões keep-alive que o
+// browser deixou abertas — o processo sobrevivia à suíte e a execução SEGUINTE
+// morria com "http://127.0.0.1:3038/__ready is already used".
 const close = async () => {
-  await vite.close();
+  server.closeAllConnections();
+  await vite.close().catch(() => {});
   server.close();
+  process.exit(0);
 };
 
 process.once('SIGINT', close);
 process.once('SIGTERM', close);
-server.listen(3038, '127.0.0.1');
+server.listen(3038, '127.0.0.1', () => {
+  warmModuleGraph('/app/javascript/entrypoints/sdk.js').then(() => {
+    warmed = true;
+  });
+});

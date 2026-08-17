@@ -207,11 +207,38 @@ const vite = await createViteServer({
   },
 });
 
+// O Vite em middlewareMode transforma sob demanda e não persiste esse cache em
+// disco, então o PRIMEIRO teste pagaria sozinho a compilação do grafo inteiro
+// (~45s medidos) e estouraria os próprios limites (page.goto 15s, poll 30s).
+// Aquecemos o grafo antes de anunciar prontidão: esse custo pertence ao boot do
+// `webServer` (timeout no playwright.config.js), não ao primeiro teste.
+const warmModuleGraph = async entryUrl => {
+  const visited = new Set();
+  const visit = async url => {
+    if (!url || visited.has(url)) return;
+    visited.add(url);
+    try {
+      await vite.transformRequest(url);
+    } catch {
+      // Módulo não transformável (asset estático, dependência externa) não
+      // bloqueia o aquecimento — o browser também o buscaria sem transformar.
+      return;
+    }
+    const node = await vite.moduleGraph.getModuleByUrl(url);
+    if (!node) return;
+    await Promise.all([...node.importedModules].map(child => visit(child.url)));
+  };
+  await visit(entryUrl);
+};
+
+let warmed = false;
+
 const server = http.createServer((request, response) => {
   const url = new URL(request.url, 'http://127.0.0.1:3999');
   if (url.pathname === '/__ready') {
-    response.writeHead(200, { 'Content-Type': 'text/plain; charset=utf-8' });
-    response.end('widget-ready');
+    const status = warmed ? 200 : 503;
+    response.writeHead(status, { 'Content-Type': 'text/plain; charset=utf-8' });
+    response.end(warmed ? 'widget-ready' : 'widget-warming');
     return;
   }
   if (url.pathname === '/widget') {
@@ -263,12 +290,22 @@ server.on('upgrade', (request, socket, head) => {
   });
 });
 
+// Registrar um handler de SIGINT/SIGTERM cancela o encerramento default do
+// processo, e `server.close()` sozinho não derruba as conexões keep-alive nem o
+// WebSocket do cable — o processo sobrevivia à suíte e a execução SEGUINTE
+// morria com "http://127.0.0.1:3999/__ready is already used".
 const close = async () => {
-  await vite.close();
+  server.closeAllConnections();
   webSocketServer.close();
+  await vite.close().catch(() => {});
   server.close();
+  process.exit(0);
 };
 
 process.once('SIGINT', close);
 process.once('SIGTERM', close);
-server.listen(3999, '127.0.0.1');
+server.listen(3999, '127.0.0.1', () => {
+  warmModuleGraph('/app/javascript/entrypoints/widget.js').then(() => {
+    warmed = true;
+  });
+});
