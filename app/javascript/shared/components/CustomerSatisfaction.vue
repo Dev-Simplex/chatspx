@@ -1,11 +1,9 @@
 <script>
-import { mapGetters } from 'vuex';
 import Spinner from 'shared/components/Spinner.vue';
 import { CSAT_RATINGS, CSAT_DISPLAY_TYPES } from 'shared/constants/messages';
 import FluentIcon from 'shared/components/FluentIcon/Index.vue';
 import StarRating from 'shared/components/StarRating.vue';
 import { useMessageFormatter } from 'shared/composables/useMessageFormatter';
-import { getContrastingTextColor } from '@chatwoot/utils';
 
 export default {
   components: {
@@ -45,7 +43,6 @@ export default {
     };
   },
   computed: {
-    ...mapGetters({ widgetColor: 'appConfig/getWidgetColor' }),
     isRatingSubmitted() {
       return this.messageContentAttributes?.csat_survey_response?.rating;
     },
@@ -57,9 +54,6 @@ export default {
       if (!(this.selectedRating && this.feedback)) return true;
       if (this.isUpdating) return true;
       return false;
-    },
-    textColor() {
-      return getContrastingTextColor(this.widgetColor);
     },
     title() {
       return this.isRatingSubmitted
@@ -133,8 +127,7 @@ export default {
 
 <template>
   <div
-    class="customer-satisfaction w-full bg-n-background dark:bg-n-solid-3 shadow-[0_0.25rem_6px_rgba(50,50,93,0.08),0_1px_3px_rgba(0,0,0,0.05)] ltr:rounded-bl-[0.25rem] rtl:rounded-br-[0.25rem] rounded-lg inline-block leading-[1.5] mt-1 border-t-2 border-t-n-brand border-solid"
-    :style="{ borderColor: widgetColor }"
+    class="customer-satisfaction w-full bg-n-background dark:bg-n-solid-3 shadow-[0_0.25rem_6px_rgba(50,50,93,0.08),0_1px_3px_rgba(0,0,0,0.05)] ltr:rounded-bl-[0.25rem] rtl:rounded-br-[0.25rem] rounded-lg inline-block leading-[1.5] mt-1 border-t-2 border-t-w-brand-readable border-solid"
   >
     <h6
       v-dompurify-html="formattedTitle"
@@ -166,15 +159,7 @@ export default {
         :placeholder="$t('CSAT.PLACEHOLDER')"
         @keydown.enter="onSubmit"
       />
-      <button
-        class="button small"
-        :disabled="isButtonDisabled"
-        :style="{
-          background: widgetColor,
-          borderColor: widgetColor,
-          color: textColor,
-        }"
-      >
+      <button class="button small" :disabled="isButtonDisabled">
         <Spinner v-if="isUpdating && feedback" />
         <FluentIcon v-else icon="chevron-right" />
       </button>
@@ -203,7 +188,7 @@ export default {
 
   .feedback-form {
     input {
-      @apply h-10 dark:bg-n-alpha-black1 rtl:rounded-tl-[0] rtl:rounded-tr-[0] ltr:rounded-tr-[0] ltr:rounded-tl-[0] rtl:rounded-bl-[0] ltr:rounded-br-[0] ltr:rounded-bl-[0.25rem] rtl:rounded-br-[0.25rem] rounded-lg p-2.5 w-full focus:ring-0 focus:outline-n-brand;
+      @apply h-10 dark:bg-n-alpha-black1 rtl:rounded-tl-[0] rtl:rounded-tr-[0] ltr:rounded-tr-[0] ltr:rounded-tl-[0] rtl:rounded-bl-[0] ltr:rounded-br-[0] ltr:rounded-bl-[0.25rem] rtl:rounded-br-[0.25rem] rounded-lg p-2.5 w-full focus:ring-0 focus:outline-w-focus;
 
       &::placeholder {
         @apply text-n-slate-10;

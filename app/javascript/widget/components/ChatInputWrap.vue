@@ -135,7 +135,7 @@ export default {
   <div
     class="items-center flex ltr:pl-3 rtl:pr-3 ltr:pr-2 rtl:pl-2 rounded-lg transition-all duration-200 bg-white dark:bg-n-solid-2 border"
     :class="{
-      'border-n-brand shadow-focus': isFocused,
+      'border-w-focus shadow-focus': isFocused,
       'border-n-weak': !isFocused,
     }"
     @keydown.esc="hideEmojiPicker"
@@ -170,7 +170,7 @@ export default {
           class="transition-all duration-150"
           :class="{
             'text-n-slate-12': !showEmojiPicker,
-            'text-n-brand': showEmojiPicker,
+            'text-w-brand-readable': showEmojiPicker,
           }"
         />
       </button>

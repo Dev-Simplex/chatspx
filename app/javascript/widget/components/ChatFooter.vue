@@ -1,6 +1,5 @@
 <script>
 import { mapActions, mapGetters } from 'vuex';
-import { getContrastingTextColor } from '@chatwoot/utils';
 import CustomButton from 'shared/components/Button.vue';
 import FooterReplyTo from 'widget/components/FooterReplyTo.vue';
 import ChatInputWrap from 'widget/components/ChatInputWrap.vue';
@@ -34,14 +33,10 @@ export default {
   computed: {
     ...mapGetters({
       conversationAttributes: 'conversationAttributes/getConversationParams',
-      widgetColor: 'appConfig/getWidgetColor',
       conversationSize: 'conversation/getConversationSize',
       currentUser: 'contacts/getCurrentUser',
       isWidgetStyleFlat: 'appConfig/isWidgetStyleFlat',
     }),
-    textColor() {
-      return getContrastingTextColor(this.widgetColor);
-    },
     hideReplyBox() {
       const { allowMessagesAfterResolved } = window.chatwootWebChannel;
       const { status } = this.conversationAttributes;
@@ -155,13 +150,7 @@ export default {
     />
   </footer>
   <div v-else>
-    <CustomButton
-      class="font-medium"
-      block
-      :bg-color="widgetColor"
-      :text-color="textColor"
-      @click="startNewConversation"
-    >
+    <CustomButton class="font-medium" block @click="startNewConversation">
       {{ $t('START_NEW_CONVERSATION') }}
     </CustomButton>
     <CustomButton

@@ -86,7 +86,7 @@ label {
 input:not(.reset-base),
 textarea:not(.reset-base) {
   font-family: inherit;
-  @apply rounded-lg box-border bg-n-background dark:bg-n-alpha-2 border-none outline outline-1 outline-offset-[-1px] outline-n-weak block text-base leading-[1.5] p-2.5 w-full text-n-slate-12 focus:outline-n-brand focus:ring-1 focus:ring-n-brand;
+  @apply rounded-lg box-border bg-n-background dark:bg-n-alpha-2 border-none outline outline-1 outline-offset-[-1px] outline-n-weak block text-base leading-[1.5] p-2.5 w-full text-n-slate-12 focus:outline-w-focus focus:ring-1 focus:ring-w-focus;
 
   &:disabled {
     @apply opacity-40 cursor-not-allowed;
@@ -102,7 +102,7 @@ textarea {
 }
 
 select:not(.reset-base) {
-  @apply bg-n-background dark:bg-n-alpha-2 w-full p-2.5 border-none outline outline-1 outline-offset-[-1px] outline-n-weak rounded-lg text-n-slate-12 text-base ltr:pr-10 rtl:pl-10 font-normal ltr:bg-[right_-1.6rem_center] rtl:bg-[left_-1.6rem_center] focus:outline-n-brand focus:ring-1 focus:ring-n-brand;
+  @apply bg-n-background dark:bg-n-alpha-2 w-full p-2.5 border-none outline outline-1 outline-offset-[-1px] outline-n-weak rounded-lg text-n-slate-12 text-base ltr:pr-10 rtl:pl-10 font-normal ltr:bg-[right_-1.6rem_center] rtl:bg-[left_-1.6rem_center] focus:outline-w-focus focus:ring-1 focus:ring-w-focus;
 
   -moz-appearance: none;
   -webkit-appearance: none;
@@ -140,16 +140,20 @@ blockquote {
 }
 
 .button {
-  @apply appearance-none bg-n-brand border border-solid border-n-brand text-white cursor-pointer inline-block text-sm h-10 leading-none outline-none outline-0 py-1 px-4 text-center no-underline select-none align-middle whitespace-nowrap;
+  @apply appearance-none bg-w-brand border border-solid border-w-brand text-w-on-brand cursor-pointer inline-block text-sm h-10 leading-none outline-none outline-0 py-1 px-4 text-center no-underline select-none align-middle whitespace-nowrap;
 
+  // `brightness-110`/`125` saíram de propósito (regra C10 do 16 §2.5.1): filtro
+  // clareia o fundo E o texto juntos, então o 6,83:1 que o servidor calculou
+  // deixa de valer no hover — exatamente o estado em que o botão é usado. Os
+  // tons de hover/active vêm calculados da mesma fonte.
   &:focus,
   &:hover {
-    @apply no-underline border-n-brand brightness-110;
+    @apply no-underline bg-w-brand-hover border-w-brand-hover;
   }
 
   &:active,
   &.active {
-    @apply no-underline border-n-brand brightness-125;
+    @apply no-underline bg-w-brand-active border-w-brand-active;
   }
 
   &[disabled],

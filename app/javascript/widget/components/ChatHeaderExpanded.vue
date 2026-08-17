@@ -31,7 +31,7 @@ const containerClasses = computed(() => [
 
 <template>
   <header
-    class="header-expanded pt-6 pb-4 px-5 relative box-border w-full bg-n-brand"
+    class="header-expanded pt-6 pb-4 px-5 relative box-border w-full bg-w-brand"
   >
     <div class="flex items-start" :class="containerClasses">
       <img
