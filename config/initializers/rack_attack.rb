@@ -192,8 +192,19 @@ class Rack::Attack
     end
 
     ## Prevent Contact update Bombing in Widget API ###
+    # A regra comparava com '/api/v1/widget/contacts' (plural). A rota e
+    # `resource :contact` (singular, config/routes.rb:643), entao o path real e
+    # '/api/v1/widget/contact' — a comparacao era sempre falsa e o limite de
+    # 60/hora nunca bloqueou ninguem. set_user escreve no mesmo contato pelo
+    # mesmo caminho de ContactIdentifyAction, entao conta no mesmo balde.
+    WIDGET_CONTACT_WRITE_PATHS = [
+      '/api/v1/widget/contact',
+      '/api/v1/widget/contact/set_user',
+      '/api/v1/widget/contact/destroy_custom_attributes'
+    ].freeze
+
     throttle('api/v1/widget/contacts', limit: 60, period: 1.hour) do |req|
-      req.ip if req.path_without_extensions == '/api/v1/widget/contacts' && (req.patch? || req.put?)
+      req.ip if WIDGET_CONTACT_WRITE_PATHS.include?(req.path_without_extensions) && (req.patch? || req.put? || req.post?)
     end
 
     ## Prevent Conversation Bombing through multiple sessions
