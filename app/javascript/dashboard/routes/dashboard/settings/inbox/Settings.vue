@@ -105,6 +105,7 @@ export default {
       selectedInboxName: '',
       channelWebsiteUrl: '',
       webhookUrl: '',
+      channelWidgetColor: '',
       channelWelcomeTitle: '',
       channelWelcomeTagline: '',
       selectedFeatureFlags: [],
@@ -522,6 +523,7 @@ export default {
         this.inbox.allow_messages_after_resolved;
       this.continuityViaEmail = this.inbox.continuity_via_email;
       this.channelWebsiteUrl = this.inbox.website_url;
+      this.channelWidgetColor = this.inbox.widget_color;
       this.channelWelcomeTitle = this.inbox.welcome_title;
       this.channelWelcomeTagline = this.inbox.welcome_tagline || '';
       this.selectedFeatureFlags = this.inbox.selected_feature_flags || [];
@@ -671,7 +673,7 @@ export default {
           sender_name_type: this.senderNameType,
           business_name: this.businessName || null,
           channel: {
-            widget_color: this.inbox.widget_color,
+            widget_color: this.channelWidgetColor,
             website_url: this.channelWebsiteUrl,
             webhook_url: this.webhookUrl,
             welcome_title: this.channelWelcomeTitle || '',
@@ -1103,7 +1105,7 @@ export default {
                 :label="$t('INBOX_MGMT.ADD.WEBSITE_CHANNEL.WIDGET_COLOR.LABEL')"
               >
                 <div class="justify-start">
-                  <ColorPicker v-model="inbox.widget_color" />
+                  <ColorPicker v-model="channelWidgetColor" />
                 </div>
               </SettingsFieldSection>
               <SettingsFieldSection
@@ -1380,7 +1382,7 @@ export default {
                 :logo="avatarUrl"
                 is-online
                 :reply-time="replyTime"
-                :color="inbox.widget_color"
+                :color="channelWidgetColor"
                 :widget-bubble-position="widgetBubblePosition"
                 :widget-bubble-launcher-title="widgetBubbleLauncherTitle"
                 :widget-bubble-type="widgetBubbleType"

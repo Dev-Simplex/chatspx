@@ -1,5 +1,7 @@
 class Onboarding::WebWidgetCreationService
-  DEFAULT_WIDGET_COLOR = '#1f93ff'.freeze
+  # D11 (bloco 0.8): terceiro caminho de criacao de inbox. Delega ao model em vez
+  # de cravar a cor — era o azul do upstream aqui contra o verde da marca na tela.
+  DEFAULT_WIDGET_COLOR = Channel::WebWidget::DEFAULT_WIDGET_COLOR
   # context.dev descriptions and LLM completions are unbounded; bound the
   # stored tagline so a long string doesn't render as a wall of text in the
   # widget UI (and so backends that enforce varchar limits don't raise).

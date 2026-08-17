@@ -31,6 +31,20 @@ class Channel::WebWidget < ApplicationRecord
   include FlagShihTzu
 
   self.table_name = 'channel_web_widgets'
+
+  # D11 (bloco 0.8): fonte UNICA do default de cor do widget. Antes divergia em
+  # tres lugares — a tela cravava o verde da marca (#2dc46f), a coluna e o
+  # onboarding cravavam o azul do upstream (#1f93ff) — e a inbox nascia de uma cor
+  # ou de outra conforme o caminho de criacao.
+  #
+  # Default no MODEL e nao na coluna de proposito: `db/schema.rb` conflita em todo
+  # merge do upstream, enquanto este arquivo teve 0 mudancas do upstream em quatro
+  # minors (v4.12.1 -> v4.16.2, medido na §A.11 do plano 23) — a superficie de
+  # merge menor fica aqui. So vale para registro NOVO; nenhuma inbox existente e
+  # repintada.
+  DEFAULT_WIDGET_COLOR = '#2dc46f'.freeze
+  attribute :widget_color, :string, default: DEFAULT_WIDGET_COLOR
+
   EDITABLE_ATTRS = [:website_url, :widget_color, :welcome_title, :welcome_tagline, :reply_time, :pre_chat_form_enabled,
                     :continuity_via_email, :hmac_mandatory, :allowed_domains,
                     { pre_chat_form_options: [:pre_chat_message, :require_email,

@@ -14,6 +14,7 @@ import { useVuelidate } from '@vuelidate/core';
 import { required } from '@vuelidate/validators';
 import NextButton from 'dashboard/components-next/button/Button.vue';
 import TextArea from 'next/textarea/TextArea.vue';
+import Banner from 'dashboard/components-next/banner/Banner.vue';
 import { sanitizeAllowedDomains } from 'dashboard/helper/URLHelper';
 
 export default {
@@ -25,6 +26,7 @@ export default {
     SmtpSettings,
     NextButton,
     TextArea,
+    Banner,
   },
   mixins: [inboxMixin],
   props: {
@@ -78,6 +80,16 @@ export default {
     },
     isForwardingEnabled() {
       return !!this.inbox.forwarding_enabled;
+    },
+    // D8 (bloco 0.8): le o valor PERSISTIDO, nao o rascunho do textarea. O aviso
+    // e uma afirmacao sobre o que o servidor faz agora — e `widgets_controller.rb`
+    // (`allow_iframe_requests`, :79-86) decide pelo valor gravado: com
+    // `allowed_domains` em branco ele APAGA o `X-Frame-Options` e nao envia
+    // `frame-ancestors`, entao qualquer site pode embutir o widget da conta.
+    // Digitar sem clicar em Atualizar nao protege nada, e o aviso continuar
+    // visivel nesse estado e a leitura correta.
+    hasNoAllowedDomains() {
+      return !this.inbox.allowed_domains?.trim();
     },
   },
   watch: {
@@ -330,6 +342,35 @@ export default {
         hide-toggle
       >
         <template #editor>
+          <Banner
+            v-if="hasNoAllowedDomains"
+            color="amber"
+            class="mb-3 !items-start"
+          >
+            <div class="flex flex-col gap-1">
+              <span class="font-medium">
+                {{
+                  $t(
+                    'INBOX_WIDGET.CONFIGURATION.ALLOWED_DOMAINS.EMPTY_WARNING.TITLE'
+                  )
+                }}
+              </span>
+              <span>
+                {{
+                  $t(
+                    'INBOX_WIDGET.CONFIGURATION.ALLOWED_DOMAINS.EMPTY_WARNING.BODY'
+                  )
+                }}
+              </span>
+              <span>
+                {{
+                  $t(
+                    'INBOX_WIDGET.CONFIGURATION.ALLOWED_DOMAINS.EMPTY_WARNING.ACTION_HINT'
+                  )
+                }}
+              </span>
+            </div>
+          </Banner>
           <TextArea
             v-model="allowedDomains"
             :placeholder="
