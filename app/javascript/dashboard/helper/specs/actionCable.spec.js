@@ -377,4 +377,27 @@ describe('ActionCableConnector - Copilot Tests', () => {
       expect(mockDispatch).toHaveBeenCalledTimes(2);
     });
   });
+  // ChatSPX (A4-2): `isImpersonating` é um computed ref, não uma função. Com `isImpersonating()`
+  // (como o merge deixou) este teste falha com TypeError — é o mecanismo que prova o defeito antes
+  // e a correção depois. O mock do topo do arquivo já devolve `{ value: false }`.
+  describe('presence event handlers', () => {
+    it('dispatches presence updates when not impersonating', () => {
+      const data = { contacts: { 1: 'online' }, users: { 7: 'busy' } };
+
+      actionCable.onPresenceUpdate(data);
+
+      expect(mockDispatch).toHaveBeenCalledWith(
+        'contacts/updatePresence',
+        data.contacts
+      );
+      expect(mockDispatch).toHaveBeenCalledWith(
+        'agents/updatePresence',
+        data.users
+      );
+      expect(mockDispatch).toHaveBeenCalledWith(
+        'setCurrentUserAvailability',
+        data.users
+      );
+    });
+  });
 });

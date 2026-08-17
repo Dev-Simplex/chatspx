@@ -19,9 +19,9 @@ import PageLayout from 'dashboard/components-next/captain/PageLayout.vue';
 import CaptainPaywall from 'dashboard/components-next/captain/pageComponents/Paywall.vue';
 import DocumentDetails from 'dashboard/components-next/captain/pageComponents/document/DocumentDetails.vue';
 import CreateDocumentDialog from 'dashboard/components-next/captain/pageComponents/document/CreateDocumentDialog.vue';
+import DocumentViewerModal from 'dashboard/components-next/captain/assistant/DocumentViewerModal.vue';
 import DocumentPageEmptyState from 'dashboard/components-next/captain/pageComponents/emptyStates/DocumentPageEmptyState.vue';
 import FeatureSpotlightPopover from 'dashboard/components-next/feature-spotlight/FeatureSpotlightPopover.vue';
-import LimitBanner from 'dashboard/components-next/captain/pageComponents/document/LimitBanner.vue';
 import CaptainDocumentAPI from 'dashboard/api/captain/document';
 import { useI18n } from 'vue-i18n';
 
@@ -67,6 +67,14 @@ const handleCreateDocument = () => {
 
 const handleDocumentDetailsClose = () => {
   showDocumentDetails.value = false;
+};
+
+// ChatSPX (A4-4): o visualizador do conteúdo do documento. Ele ficou no repo SEM consumidor quando
+// o merge trouxe o fluxo de "detalhes" do upstream — que é outra tela (metadados/sync), não o
+// conteúdo. Os dois convivem: VIEW_DETAILS abre o painel do upstream, VIEW_DOCUMENT abre este.
+const showDocumentViewer = ref(false);
+const handleViewDocument = () => {
+  showDocumentViewer.value = true;
 };
 
 const handleCreateDialogClose = () => {
@@ -239,6 +247,8 @@ const handleAction = ({ action, id }) => {
       handleShowDocumentDetails();
     } else if (action === 'sync') {
       handleSync(id);
+    } else if (action === 'view') {
+      handleViewDocument();
     }
   });
 };
@@ -387,8 +397,8 @@ onUnmounted(() => {
     </template>
 
     <template #body>
-      <LimitBanner class="mb-5" />
-
+      <!-- ChatSPX (A4-4): o LimitBanner (limite de plano do Chatwoot Cloud) foi removido de
+           propósito — não se aplica à frota self-hosted. O merge o trouxe de volta. -->
       <div
         v-if="!documents.length && hasActiveDocumentFilters"
         class="flex flex-col items-center justify-center min-h-80 gap-2 text-center"
@@ -434,6 +444,11 @@ onUnmounted(() => {
       ref="documentDetailsDialog"
       :captain-document="selectedDocument"
       @close="handleDocumentDetailsClose"
+    />
+    <DocumentViewerModal
+      v-if="selectedDocument"
+      v-model="showDocumentViewer"
+      :captain-document="selectedDocument"
     />
     <CreateDocumentDialog
       v-if="showCreateDialog"

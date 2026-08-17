@@ -163,7 +163,7 @@ onMounted(() => {
         >
           <p
             v-if="section.title"
-            class="px-2 py-2 text-xs mb-0 font-medium text-n-slate-11 uppercase tracking-wide sticky top-0 z-10 bg-n-alpha-3 backdrop-blur-sm truncate min-w-0"
+            class="px-2 py-2 text-xs mb-0 font-medium text-n-slate-11 uppercase tracking-wide sticky top-0 z-10 bg-n-solid-1 truncate min-w-0"
           >
             {{ section.title }}
           </p>
@@ -227,7 +227,7 @@ onMounted(() => {
           </button>
           <div
             v-if="sectionIndex < filteredMenuSections.length - 1"
-            class="h-px bg-n-alpha-2 mx-2 my-1"
+            class="border-t border-n-weak mx-2 my-1"
           />
         </div>
       </template>

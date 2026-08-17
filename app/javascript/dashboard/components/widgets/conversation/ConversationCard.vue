@@ -1,5 +1,6 @@
 <script setup>
 import { computed, ref, watch } from 'vue';
+import { useI18n } from 'vue-i18n';
 import { getLastMessage } from 'dashboard/helper/conversationHelper';
 import { useMapGetter } from 'dashboard/composables/store';
 import { useAgentIsolation } from 'dashboard/composables/useAgentIsolation';
@@ -39,6 +40,7 @@ const emit = defineEmits([
 
 const hovered = ref(false);
 const currentUser = useMapGetter('getCurrentUser');
+const { t } = useI18n();
 const { isMessageRestricted } = useAgentIsolation();
 
 const unreadCount = computed(() => props.chat.unread_count || 0);
@@ -70,9 +72,11 @@ const previewMessage = computed(() => {
   const message = lastMessageInChat.value;
   if (!message || !isMessageRestricted(message, props.inbox)) return message;
 
+  // ChatSPX (A4-5): o merge deixou só o cadeado. Sem o texto, o agente vê um 🔒 solto e não sabe
+  // se a conversa está vazia ou restrita a outro agente. A chave já existe e está traduzida.
   return {
     ...message,
-    content: '🔒',
+    content: `🔒 ${t('CONVERSATION.AGENT_ISOLATION.RESTRICTED_SUBTITLE')}`,
     attachments: [],
     content_attributes: {},
     content_type: 'text',

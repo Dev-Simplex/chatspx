@@ -16,6 +16,7 @@ import DropdownMenu from 'dashboard/components-next/dropdown-menu/DropdownMenu.v
 import Button from 'dashboard/components-next/button/Button.vue';
 import Checkbox from 'dashboard/components-next/checkbox/Checkbox.vue';
 import DocumentSyncStatus from 'dashboard/components-next/captain/assistant/DocumentSyncStatus.vue';
+import AiBadge from 'dashboard/components-next/agents-ui/AiBadge.vue';
 
 const props = defineProps({
   id: { type: Number, required: true },
@@ -61,6 +62,19 @@ const isRetryableSync = computed(
 );
 const showSyncStatus = computed(() => !isPdf.value);
 
+// ChatSPX (A4-4): chip de estado do treinamento no título do card. As chaves
+// CAPTAIN.DOCUMENTS.STATUS.* já existem e estão traduzidas nos locales; ficaram órfãs quando o
+// merge trouxe o card do upstream.
+const statusInfo = computed(() => {
+  if (props.status === 'available')
+    return { variant: 'on', label: t('CAPTAIN.DOCUMENTS.STATUS.TRAINED') };
+  if (props.status === 'in_progress')
+    return { variant: 'warn', label: t('CAPTAIN.DOCUMENTS.STATUS.PROCESSING') };
+  if (props.status === 'failed')
+    return { variant: 'err', label: t('CAPTAIN.DOCUMENTS.STATUS.FAILED') };
+  return null;
+});
+
 const menuItems = computed(() => {
   const allOptions = [
     {
@@ -68,6 +82,14 @@ const menuItems = computed(() => {
       value: 'viewDetails',
       action: 'viewDetails',
       icon: 'i-lucide-eye',
+    },
+    // ChatSPX (A4-4): reabre o visualizador do documento (DocumentViewerModal), que ficou sem
+    // consumidor no merge. VIEW_DETAILS é o painel do upstream; VIEW_DOCUMENT é o nosso conteúdo.
+    {
+      label: t('CAPTAIN.DOCUMENTS.OPTIONS.VIEW_DOCUMENT'),
+      value: 'view',
+      action: 'view',
+      icon: 'i-lucide-file-text',
     },
   ];
 
@@ -136,13 +158,20 @@ const handleRetry = () => {
       <Checkbox v-model="modelValue" />
     </div>
     <div class="flex gap-1 justify-between w-full">
-      <button
-        type="button"
-        class="p-0 text-base text-left bg-transparent border-0 outline-transparent text-n-slate-12 line-clamp-1 underline-offset-2 hover:underline focus-visible:underline"
-        @click="handleViewDetails"
-      >
-        {{ name }}
-      </button>
+      <span class="flex gap-2 items-center min-w-0">
+        <button
+          type="button"
+          class="p-0 text-base text-left bg-transparent border-0 outline-transparent text-n-slate-12 line-clamp-1 underline-offset-2 hover:underline focus-visible:underline"
+          @click="handleViewDetails"
+        >
+          {{ name }}
+        </button>
+        <AiBadge
+          v-if="statusInfo"
+          :variant="statusInfo.variant"
+          :label="statusInfo.label"
+        />
+      </span>
       <div v-if="showMenu" class="flex gap-2 items-center">
         <div
           v-on-clickaway="() => toggleDropdown(false)"
